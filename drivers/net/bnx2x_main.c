@@ -53,11 +53,18 @@
 
 #include "bnx2x.h"
 #include "bnx2x_init.h"
+#include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.48.105"
-#define DRV_MODULE_RELDATE	"2009/03/02"
+#define DRV_MODULE_VERSION	"1.48.105-1"
+#define DRV_MODULE_RELDATE	"2009/04/22"
 #define BNX2X_BC_VER		0x040200
+
+#include <linux/firmware.h>
+#include "bnx2x_fw_file_hdr.h"
+/* FW files */
+#define FW_FILE_PREFIX_E1		"bnx2x-e1-"
+#define FW_FILE_PREFIX_E1H		"bnx2x-e1h-"
 
 /* Time in jiffies before concluding the transmitter is hung */
 #define TX_TIMEOUT		(5*HZ)
@@ -1539,7 +1546,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 						    len, cqe, comp_ring_cons);
 #ifdef BNX2X_STOP_ON_ERROR
 					if (bp->panic)
-						return -EINVAL;
+						return 0;
 #endif
 
 					bnx2x_update_sge_prod(fp,
@@ -5232,13 +5239,15 @@ static void bnx2x_gunzip_end(struct bnx2x *bp)
 	}
 }
 
-static int bnx2x_gunzip(struct bnx2x *bp, u8 *zbuf, int len)
+static int bnx2x_gunzip(struct bnx2x *bp, const u8 *zbuf, int len)
 {
 	int n, rc;
 
 	/* check gzip header */
-	if ((zbuf[0] != 0x1f) || (zbuf[1] != 0x8b) || (zbuf[2] != Z_DEFLATED))
+	if ((zbuf[0] != 0x1f) || (zbuf[1] != 0x8b) || (zbuf[2] != Z_DEFLATED)) {
+		BNX2X_ERR("Bad gzip header\n");
 		return -EINVAL;
+	}
 
 	n = 10;
 
@@ -5247,7 +5256,7 @@ static int bnx2x_gunzip(struct bnx2x *bp, u8 *zbuf, int len)
 	if (zbuf[3] & FNAME)
 		while ((zbuf[n++] != 0) && (n < len));
 
-	bp->strm->next_in = zbuf + n;
+	bp->strm->next_in = (typeof(bp->strm->next_in))zbuf + n;
 	bp->strm->avail_in = len - n;
 	bp->strm->next_out = bp->gunzip_buf;
 	bp->strm->avail_out = FW_BUF_SIZE;
@@ -5369,8 +5378,8 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	msleep(50);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0x03);
 	msleep(50);
-	bnx2x_init_block(bp, BRB1_COMMON_START, BRB1_COMMON_END);
-	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
+	bnx2x_init_block(bp, BRB1_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, PRS_BLOCK, COMMON_STAGE);
 
 	DP(NETIF_MSG_HW, "part2\n");
 
@@ -5434,8 +5443,8 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	msleep(50);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0x03);
 	msleep(50);
-	bnx2x_init_block(bp, BRB1_COMMON_START, BRB1_COMMON_END);
-	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
+	bnx2x_init_block(bp, BRB1_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, PRS_BLOCK, COMMON_STAGE);
 #ifndef BCM_ISCSI
 	/* set NIC mode */
 	REG_WR(bp, PRS_REG_NIC_MODE, 1);
@@ -5510,7 +5519,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0xffffffff);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, 0xfffc);
 
-	bnx2x_init_block(bp, MISC_COMMON_START, MISC_COMMON_END);
+	bnx2x_init_block(bp, MISC_BLOCK, COMMON_STAGE);
 	if (CHIP_IS_E1H(bp))
 		REG_WR(bp, MISC_REG_E1HMF_MODE, IS_E1HMF(bp));
 
@@ -5518,14 +5527,14 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	msleep(30);
 	REG_WR(bp, MISC_REG_LCPLL_CTRL_REG_2, 0x0);
 
-	bnx2x_init_block(bp, PXP_COMMON_START, PXP_COMMON_END);
+	bnx2x_init_block(bp, PXP_BLOCK, COMMON_STAGE);
 	if (CHIP_IS_E1(bp)) {
 		/* enable HW interrupt from PXP on USDM overflow
 		   bit 16 on INT_MASK_0 */
 		REG_WR(bp, PXP_REG_PXP_INT_MASK_0, 0);
 	}
 
-	bnx2x_init_block(bp, PXP2_COMMON_START, PXP2_COMMON_END);
+	bnx2x_init_block(bp, PXP2_BLOCK, COMMON_STAGE);
 	bnx2x_init_pxp(bp);
 
 #ifdef __BIG_ENDIAN
@@ -5571,60 +5580,60 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_RQ_DISABLE_INPUTS, 0);
 	REG_WR(bp, PXP2_REG_RD_DISABLE_INPUTS, 0);
 
-	bnx2x_init_block(bp, DMAE_COMMON_START, DMAE_COMMON_END);
+	bnx2x_init_block(bp, DMAE_BLOCK, COMMON_STAGE);
 
 	/* clean the DMAE memory */
 	bp->dmae_ready = 1;
 	bnx2x_init_fill(bp, TSEM_REG_PRAM, 0, 8);
 
-	bnx2x_init_block(bp, TCM_COMMON_START, TCM_COMMON_END);
-	bnx2x_init_block(bp, UCM_COMMON_START, UCM_COMMON_END);
-	bnx2x_init_block(bp, CCM_COMMON_START, CCM_COMMON_END);
-	bnx2x_init_block(bp, XCM_COMMON_START, XCM_COMMON_END);
+	bnx2x_init_block(bp, TCM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, UCM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, CCM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, XCM_BLOCK, COMMON_STAGE);
 
 	bnx2x_read_dmae(bp, XSEM_REG_PASSIVE_BUFFER, 3);
 	bnx2x_read_dmae(bp, CSEM_REG_PASSIVE_BUFFER, 3);
 	bnx2x_read_dmae(bp, TSEM_REG_PASSIVE_BUFFER, 3);
 	bnx2x_read_dmae(bp, USEM_REG_PASSIVE_BUFFER, 3);
 
-	bnx2x_init_block(bp, QM_COMMON_START, QM_COMMON_END);
+	bnx2x_init_block(bp, QM_BLOCK, COMMON_STAGE);
 	/* soft reset pulse */
 	REG_WR(bp, QM_REG_SOFT_RESET, 1);
 	REG_WR(bp, QM_REG_SOFT_RESET, 0);
 
 #ifdef BCM_ISCSI
-	bnx2x_init_block(bp, TIMERS_COMMON_START, TIMERS_COMMON_END);
+	bnx2x_init_block(bp, TIMERS_BLOCK, COMMON_STAGE);
 #endif
 
-	bnx2x_init_block(bp, DQ_COMMON_START, DQ_COMMON_END);
+	bnx2x_init_block(bp, DQ_BLOCK, COMMON_STAGE);
 	REG_WR(bp, DORQ_REG_DPM_CID_OFST, BCM_PAGE_SHIFT);
 	if (!CHIP_REV_IS_SLOW(bp)) {
 		/* enable hw interrupt from doorbell Q */
 		REG_WR(bp, DORQ_REG_DORQ_INT_MASK, 0);
 	}
 
-	bnx2x_init_block(bp, BRB1_COMMON_START, BRB1_COMMON_END);
-	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
+	bnx2x_init_block(bp, BRB1_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, PRS_BLOCK, COMMON_STAGE);
 	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
 	/* set NIC mode */
 	REG_WR(bp, PRS_REG_NIC_MODE, 1);
 	if (CHIP_IS_E1H(bp))
 		REG_WR(bp, PRS_REG_E1HOV_MODE, IS_E1HMF(bp));
 
-	bnx2x_init_block(bp, TSDM_COMMON_START, TSDM_COMMON_END);
-	bnx2x_init_block(bp, CSDM_COMMON_START, CSDM_COMMON_END);
-	bnx2x_init_block(bp, USDM_COMMON_START, USDM_COMMON_END);
-	bnx2x_init_block(bp, XSDM_COMMON_START, XSDM_COMMON_END);
+	bnx2x_init_block(bp, TSDM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, CSDM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, USDM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, XSDM_BLOCK, COMMON_STAGE);
 
 	bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
 	bnx2x_init_fill(bp, USTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
 	bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
 	bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
 
-	bnx2x_init_block(bp, TSEM_COMMON_START, TSEM_COMMON_END);
-	bnx2x_init_block(bp, USEM_COMMON_START, USEM_COMMON_END);
-	bnx2x_init_block(bp, CSEM_COMMON_START, CSEM_COMMON_END);
-	bnx2x_init_block(bp, XSEM_COMMON_START, XSEM_COMMON_END);
+	bnx2x_init_block(bp, TSEM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, USEM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, CSEM_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, XSEM_BLOCK, COMMON_STAGE);
 
 	/* sync semi rtc */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_CLEAR,
@@ -5632,16 +5641,16 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET,
 	       0x80000000);
 
-	bnx2x_init_block(bp, UPB_COMMON_START, UPB_COMMON_END);
-	bnx2x_init_block(bp, XPB_COMMON_START, XPB_COMMON_END);
-	bnx2x_init_block(bp, PBF_COMMON_START, PBF_COMMON_END);
+	bnx2x_init_block(bp, UPB_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, XPB_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, PBF_BLOCK, COMMON_STAGE);
 
 	REG_WR(bp, SRC_REG_SOFT_RST, 1);
 	for (i = SRC_REG_KEYRSS0_0; i <= SRC_REG_KEYRSS1_9; i += 4) {
 		REG_WR(bp, i, 0xc0cac01a);
 		/* TODO: replace with something meaningful */
 	}
-	bnx2x_init_block(bp, SRCH_COMMON_START, SRCH_COMMON_END);
+	bnx2x_init_block(bp, SRCH_BLOCK, COMMON_STAGE);
 	REG_WR(bp, SRC_REG_SOFT_RST, 0);
 
 	if (sizeof(union cdu_context) != 1024)
@@ -5649,7 +5658,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		printk(KERN_ALERT PFX "please adjust the size of"
 		       " cdu_context(%ld)\n", (long)sizeof(union cdu_context));
 
-	bnx2x_init_block(bp, CDU_COMMON_START, CDU_COMMON_END);
+	bnx2x_init_block(bp, CDU_BLOCK, COMMON_STAGE);
 	val = (4 << 24) + (0 << 12) + 1024;
 	REG_WR(bp, CDU_REG_CDU_GLOBAL_PARAMS, val);
 	if (CHIP_IS_E1(bp)) {
@@ -5658,7 +5667,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		REG_WR(bp, CDU_REG_CDU_DEBUG, 0);
 	}
 
-	bnx2x_init_block(bp, CFC_COMMON_START, CFC_COMMON_END);
+	bnx2x_init_block(bp, CFC_BLOCK, COMMON_STAGE);
 	REG_WR(bp, CFC_REG_INIT_REG, 0x7FF);
 	/* enable context validation interrupt from CFC */
 	REG_WR(bp, CFC_REG_CFC_INT_MASK, 0);
@@ -5666,20 +5675,25 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	/* set the thresholds to prevent CFC/CDU race */
 	REG_WR(bp, CFC_REG_DEBUG0, 0x20020000);
 
-	bnx2x_init_block(bp, HC_COMMON_START, HC_COMMON_END);
-	bnx2x_init_block(bp, MISC_AEU_COMMON_START, MISC_AEU_COMMON_END);
+	bnx2x_init_block(bp, HC_BLOCK, COMMON_STAGE);
+	bnx2x_init_block(bp, MISC_AEU_BLOCK, COMMON_STAGE);
 
 	/* PXPCS COMMON comes here */
+	bnx2x_init_block(bp, PXPCS_BLOCK, COMMON_STAGE);
 	/* Reset PCIE errors for debug */
 	REG_WR(bp, 0x2814, 0xffffffff);
 	REG_WR(bp, 0x3820, 0xffffffff);
 
 	/* EMAC0 COMMON comes here */
+	bnx2x_init_block(bp, EMAC0_BLOCK, COMMON_STAGE);
 	/* EMAC1 COMMON comes here */
+	bnx2x_init_block(bp, EMAC1_BLOCK, COMMON_STAGE);
 	/* DBU COMMON comes here */
+	bnx2x_init_block(bp, DBU_BLOCK, COMMON_STAGE);
 	/* DBG COMMON comes here */
+	bnx2x_init_block(bp, DBG_BLOCK, COMMON_STAGE);
 
-	bnx2x_init_block(bp, NIG_COMMON_START, NIG_COMMON_END);
+	bnx2x_init_block(bp, NIG_BLOCK, COMMON_STAGE);
 	if (CHIP_IS_E1H(bp)) {
 		REG_WR(bp, NIG_REG_LLH_MF_MODE, IS_E1HMF(bp));
 		REG_WR(bp, NIG_REG_LLH_E1HOV_MODE, IS_E1HMF(bp));
@@ -5763,6 +5777,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 static int bnx2x_init_port(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
+	int init_stage = port ? PORT1_STAGE : PORT0_STAGE;
 	u32 low, high;
 	u32 val;
 
@@ -5771,7 +5786,9 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	REG_WR(bp, NIG_REG_MASK_INTERRUPT_PORT0 + port*4, 0);
 
 	/* Port PXP comes here */
+	bnx2x_init_block(bp, PXP_BLOCK, init_stage);
 	/* Port PXP2 comes here */
+	bnx2x_init_block(bp, PXP2_BLOCK, init_stage);
 #ifdef BCM_ISCSI
 	/* Port0  1
 	 * Port1  385 */
@@ -5798,21 +5815,19 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_PSWRQ_SRC0_L2P + func*4, PXP_ONE_ILT(i));
 #endif
 	/* Port CMs come here */
-	bnx2x_init_block(bp, (port ? XCM_PORT1_START : XCM_PORT0_START),
-			     (port ? XCM_PORT1_END : XCM_PORT0_END));
+	bnx2x_init_block(bp, XCM_BLOCK, init_stage);
 
 	/* Port QM comes here */
 #ifdef BCM_ISCSI
 	REG_WR(bp, TM_REG_LIN0_SCAN_TIME + func*4, 1024/64*20);
 	REG_WR(bp, TM_REG_LIN0_MAX_ACTIVE_CID + func*4, 31);
 
-	bnx2x_init_block(bp, func ? TIMERS_PORT1_START : TIMERS_PORT0_START,
-			     func ? TIMERS_PORT1_END : TIMERS_PORT0_END);
+	bnx2x_init_block(bp, TIMERS_BLOCK, init_stage);
 #endif
 	/* Port DQ comes here */
+	bnx2x_init_block(bp, DQ_BLOCK, init_stage);
 
-	bnx2x_init_block(bp, (port ? BRB1_PORT1_START : BRB1_PORT0_START),
-			     (port ? BRB1_PORT1_END : BRB1_PORT0_END));
+	bnx2x_init_block(bp, BRB1_BLOCK, init_stage);
 	if (CHIP_REV_IS_SLOW(bp) && !CHIP_IS_E1H(bp)) {
 		/* no pause for emulation and FPGA */
 		low = 0;
@@ -5837,25 +5852,27 @@ static int bnx2x_init_port(struct bnx2x *bp)
 
 
 	/* Port PRS comes here */
+	bnx2x_init_block(bp, PRS_BLOCK, init_stage);
 	/* Port TSDM comes here */
+	bnx2x_init_block(bp, TSDM_BLOCK, init_stage);
 	/* Port CSDM comes here */
+	bnx2x_init_block(bp, CSDM_BLOCK, init_stage);
 	/* Port USDM comes here */
+	bnx2x_init_block(bp, USDM_BLOCK, init_stage);
 	/* Port XSDM comes here */
+	bnx2x_init_block(bp, XSDM_BLOCK, init_stage);
 
-	bnx2x_init_block(bp, port ? TSEM_PORT1_START : TSEM_PORT0_START,
-			     port ? TSEM_PORT1_END : TSEM_PORT0_END);
-	bnx2x_init_block(bp, port ? USEM_PORT1_START : USEM_PORT0_START,
-			     port ? USEM_PORT1_END : USEM_PORT0_END);
-	bnx2x_init_block(bp, port ? CSEM_PORT1_START : CSEM_PORT0_START,
-			     port ? CSEM_PORT1_END : CSEM_PORT0_END);
-	bnx2x_init_block(bp, port ? XSEM_PORT1_START : XSEM_PORT0_START,
-			     port ? XSEM_PORT1_END : XSEM_PORT0_END);
+	bnx2x_init_block(bp, TSEM_BLOCK, init_stage);
+	bnx2x_init_block(bp, USEM_BLOCK, init_stage);
+	bnx2x_init_block(bp, CSEM_BLOCK, init_stage);
+	bnx2x_init_block(bp, XSEM_BLOCK, init_stage);
 
 	/* Port UPB comes here */
+	bnx2x_init_block(bp, UPB_BLOCK, init_stage);
 	/* Port XPB comes here */
+	bnx2x_init_block(bp, XPB_BLOCK, init_stage);
 
-	bnx2x_init_block(bp, port ? PBF_PORT1_START : PBF_PORT0_START,
-			     port ? PBF_PORT1_END : PBF_PORT0_END);
+	bnx2x_init_block(bp, PBF_BLOCK, init_stage);
 
 	/* configure PBF to work without PAUSE mtu 9000 */
 	REG_WR(bp, PBF_REG_P0_PAUSE_ENABLE + port*4, 0);
@@ -5885,18 +5902,17 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	/* Port SRCH comes here */
 #endif
 	/* Port CDU comes here */
+	bnx2x_init_block(bp, CDU_BLOCK, init_stage);
 	/* Port CFC comes here */
+	bnx2x_init_block(bp, CFC_BLOCK, init_stage);
 
 	if (CHIP_IS_E1(bp)) {
 		REG_WR(bp, HC_REG_LEADING_EDGE_0 + port*8, 0);
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, 0);
 	}
-	bnx2x_init_block(bp, port ? HC_PORT1_START : HC_PORT0_START,
-			     port ? HC_PORT1_END : HC_PORT0_END);
+	bnx2x_init_block(bp, HC_BLOCK, init_stage);
 
-	bnx2x_init_block(bp, port ? MISC_AEU_PORT1_START :
-				    MISC_AEU_PORT0_START,
-			     port ? MISC_AEU_PORT1_END : MISC_AEU_PORT0_END);
+	bnx2x_init_block(bp, MISC_AEU_BLOCK, init_stage);
 	/* init aeu_mask_attn_func_0/1:
 	 *  - SF mode: bits 3-7 are masked. only bits 0-2 are in use
 	 *  - MF mode: bit 3 is masked. bits 0-2 are in use as in SF
@@ -5905,13 +5921,17 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	       (IS_E1HMF(bp) ? 0xF7 : 0x7));
 
 	/* Port PXPCS comes here */
+	bnx2x_init_block(bp, PXPCS_BLOCK, init_stage);
 	/* Port EMAC0 comes here */
+	bnx2x_init_block(bp, EMAC0_BLOCK, init_stage);
 	/* Port EMAC1 comes here */
+	bnx2x_init_block(bp, EMAC1_BLOCK, init_stage);
 	/* Port DBU comes here */
+	bnx2x_init_block(bp, DBU_BLOCK, init_stage);
 	/* Port DBG comes here */
+	bnx2x_init_block(bp, DBG_BLOCK, init_stage);
 
-	bnx2x_init_block(bp, port ? NIG_PORT1_START : NIG_PORT0_START,
-			     port ? NIG_PORT1_END : NIG_PORT0_END);
+	bnx2x_init_block(bp, NIG_BLOCK, init_stage);
 
 	REG_WR(bp, NIG_REG_XGXS_SERDES0_MODE_SEL + port*4, 1);
 
@@ -5931,7 +5951,9 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	}
 
 	/* Port MCP comes here */
+	bnx2x_init_block(bp, MCP_BLOCK, init_stage);
 	/* Port DMAE comes here */
+	bnx2x_init_block(bp, DMAE_BLOCK, init_stage);
 
 	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
@@ -6036,7 +6058,7 @@ static int bnx2x_init_func(struct bnx2x *bp)
 	if (CHIP_IS_E1H(bp)) {
 		for (i = 0; i < 9; i++)
 			bnx2x_init_block(bp,
-					 cm_start[func][i], cm_end[func][i]);
+					 cm_blocks[i], FUNC0_STAGE + func);
 
 		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
 		REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + port*8, bp->e1hov);
@@ -6049,7 +6071,7 @@ static int bnx2x_init_func(struct bnx2x *bp)
 		REG_WR(bp, HC_REG_LEADING_EDGE_0 + port*8, 0);
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, 0);
 	}
-	bnx2x_init_block(bp, hc_limits[func][0], hc_limits[func][1]);
+	bnx2x_init_block(bp, HC_BLOCK, FUNC0_STAGE + func);
 
 	/* Reset PCIE errors for debug */
 	REG_WR(bp, 0x2114, 0xffffffff);
@@ -10595,7 +10617,6 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mmiowb();
 
 	fp->tx_bd_prod += nbd;
-	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2x_tx_avail(fp) < MAX_SKB_FRAGS + 3)) {
 		/* We want bnx2x_tx_int to "see" the updated tx_bd_prod
@@ -11082,6 +11103,190 @@ static int __devinit bnx2x_get_pcie_speed(struct bnx2x *bp)
 	val = (val & PCICFG_LINK_SPEED) >> PCICFG_LINK_SPEED_SHIFT;
 	return val;
 }
+static int __devinit bnx2x_check_firmware(struct bnx2x *bp)
+{
+	struct bnx2x_fw_file_hdr *fw_hdr;
+	struct bnx2x_fw_file_section *sections;
+	u16 *ops_offsets;
+	u32 offset, len, num_ops;
+	int i;
+	const struct firmware *firmware = bp->firmware;
+	const u8 * fw_ver;
+
+	if (firmware->size < sizeof(struct bnx2x_fw_file_hdr))
+		return -EINVAL;
+
+	fw_hdr = (struct bnx2x_fw_file_hdr *)firmware->data;
+	sections = (struct bnx2x_fw_file_section *)fw_hdr;
+
+	/* Make sure none of the offsets and sizes make us read beyond
+	 * the end of the firmware data */
+	for (i = 0; i < sizeof(*fw_hdr) / sizeof(*sections); i++) {
+		offset = be32_to_cpu(sections[i].offset);
+		len = be32_to_cpu(sections[i].len);
+		if (offset + len > firmware->size) {
+			printk(KERN_ERR PFX "Section %d length is out of bounds\n", i);
+			return -EINVAL;
+		}
+	}
+
+	/* Likewise for the init_ops offsets */
+	offset = be32_to_cpu(fw_hdr->init_ops_offsets.offset);
+	ops_offsets = (u16 *)(firmware->data + offset);
+	num_ops = be32_to_cpu(fw_hdr->init_ops.len) / sizeof(struct raw_op);
+
+	for (i = 0; i < be32_to_cpu(fw_hdr->init_ops_offsets.len) / 2; i++) {
+		if (be16_to_cpu(ops_offsets[i]) > num_ops) {
+			printk(KERN_ERR PFX "Section offset %d is out of bounds\n", i);
+			return -EINVAL;
+		}
+	}
+
+	/* Check FW version */
+	offset = be32_to_cpu(fw_hdr->fw_version.offset);
+	fw_ver = firmware->data + offset;
+	if ((fw_ver[0] != BCM_5710_FW_MAJOR_VERSION) ||
+	    (fw_ver[1] != BCM_5710_FW_MINOR_VERSION) ||
+	    (fw_ver[2] != BCM_5710_FW_REVISION_VERSION) ||
+	    (fw_ver[3] != BCM_5710_FW_ENGINEERING_VERSION)) {
+		printk(KERN_ERR PFX "Bad FW version:%d.%d.%d.%d."
+				    " Should be %d.%d.%d.%d\n",
+		       fw_ver[0], fw_ver[1], fw_ver[2],
+		       fw_ver[3], BCM_5710_FW_MAJOR_VERSION,
+		       BCM_5710_FW_MINOR_VERSION,
+		       BCM_5710_FW_REVISION_VERSION,
+		       BCM_5710_FW_ENGINEERING_VERSION);
+                return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void inline be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
+{
+	u32 i;
+	const __be32 *source = (const __be32*)_source;
+	u32 *target = (u32*)_target;
+
+	for (i = 0; i < n/4; i++)
+		target[i] = be32_to_cpu(source[i]);
+}
+
+/*
+   Ops array is stored in the following format:
+   {op(8bit), offset(24bit, big endian), data(32bit, big endian)}
+ */
+static void inline bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
+{
+	u32 i, j, tmp;
+	const __be32 *source = (const __be32*)_source;
+	struct raw_op *target = (struct raw_op*)_target;
+
+	for (i = 0, j = 0; i < n/8; i++, j+=2) {
+		tmp = be32_to_cpu(source[j]);
+		target[i].op = (tmp >> 24) & 0xff;
+		target[i].offset =  tmp & 0xffffff;
+		target[i].raw_data = be32_to_cpu(source[j+1]);
+	}
+}
+static void inline be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
+{
+	u32 i;
+	u16 *target = (u16*)_target;
+	const __be16 *source = (const __be16*)_source;
+
+	for (i = 0; i < n/2; i++)
+		target[i] = be16_to_cpu(source[i]);
+}
+
+#define BNX2X_ALLOC_AND_SET(arr, lbl, func) \
+	do {   \
+		u32 len = be32_to_cpu(fw_hdr->arr.len);   \
+		bp->arr = kmalloc(len, GFP_KERNEL);  \
+		if (!bp->arr) { \
+			printk(KERN_ERR PFX "Failed to allocate %d bytes for "#arr"\n", len); \
+			goto lbl; \
+		} \
+		func(bp->firmware->data + \
+			be32_to_cpu(fw_hdr->arr.offset), \
+			(u8*)bp->arr, len); \
+	} while (0)
+
+
+static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
+{
+	char fw_file_name[40] = {0};
+        int rc, offset;
+	struct bnx2x_fw_file_hdr *fw_hdr;
+
+	/* Create a FW file name */
+	if (CHIP_IS_E1(bp))
+                offset = sprintf(fw_file_name, FW_FILE_PREFIX_E1);
+	else
+		offset = sprintf(fw_file_name, FW_FILE_PREFIX_E1H);
+
+	sprintf(fw_file_name + offset, "%d.%d.%d.%d.fw",
+		BCM_5710_FW_MAJOR_VERSION,
+                BCM_5710_FW_MINOR_VERSION,
+                BCM_5710_FW_REVISION_VERSION,
+                BCM_5710_FW_ENGINEERING_VERSION);
+
+	printk(KERN_INFO PFX "Loading %s\n", fw_file_name);
+
+	rc = request_firmware(&bp->firmware, fw_file_name, dev);
+	if (rc) {
+		printk(KERN_ERR PFX "Can't load firmware file %s\n", fw_file_name);
+		goto request_firmware_exit;
+	}
+
+	rc = bnx2x_check_firmware(bp);
+	if (rc) {
+		printk(KERN_ERR PFX "Corrupt firmware file %s\n", fw_file_name);
+		goto request_firmware_exit;
+	}
+
+	fw_hdr = (struct bnx2x_fw_file_hdr *)bp->firmware->data;
+
+	/* Initialize the pointers to the init arrays */
+	/* Blob */
+	BNX2X_ALLOC_AND_SET(init_data, request_firmware_exit, be32_to_cpu_n);
+
+	/* Opcodes */
+	BNX2X_ALLOC_AND_SET(init_ops, init_ops_alloc_err, bnx2x_prep_ops);
+
+	/* Offsets */
+	BNX2X_ALLOC_AND_SET(init_ops_offsets, init_offsets_alloc_err, be16_to_cpu_n);
+
+	/* STORMs firmware */
+	bp->tsem_int_table_data = bp->firmware->data +
+		be32_to_cpu(fw_hdr->tsem_int_table_data.offset);
+	bp->tsem_pram_data      = bp->firmware->data +
+		be32_to_cpu(fw_hdr->tsem_pram_data.offset);
+	bp->usem_int_table_data = bp->firmware->data +
+		be32_to_cpu(fw_hdr->usem_int_table_data.offset);
+	bp->usem_pram_data      = bp->firmware->data +
+		be32_to_cpu(fw_hdr->usem_pram_data.offset);
+	bp->xsem_int_table_data = bp->firmware->data +
+		be32_to_cpu(fw_hdr->xsem_int_table_data.offset);
+	bp->xsem_pram_data      = bp->firmware->data +
+		be32_to_cpu(fw_hdr->xsem_pram_data.offset);
+	bp->csem_int_table_data = bp->firmware->data +
+		be32_to_cpu(fw_hdr->csem_int_table_data.offset);
+	bp->csem_pram_data      = bp->firmware->data +
+		be32_to_cpu(fw_hdr->csem_pram_data.offset);
+
+	return 0;
+init_offsets_alloc_err:
+	kfree(bp->init_ops);
+init_ops_alloc_err:
+	kfree(bp->init_data);
+request_firmware_exit:
+	release_firmware(bp->firmware);
+
+	return rc;
+}
+
+
 
 static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
@@ -11115,6 +11320,13 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	rc = bnx2x_init_bp(bp);
 	if (rc)
 		goto init_one_exit;
+
+	/* Set init arrays */
+	rc = bnx2x_init_firmware(bp, &pdev->dev);
+	if (rc) {
+		printk(KERN_ERR PFX "Error loading firmware\n");
+		goto init_one_exit;
+	}
 
 	rc = register_netdev(dev);
 	if (rc) {
@@ -11162,6 +11374,11 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 	bp = netdev_priv(dev);
 
 	unregister_netdev(dev);
+
+	kfree(bp->init_ops_offsets);
+	kfree(bp->init_ops);
+	kfree(bp->init_data);
+	release_firmware(bp->firmware);
 
 	if (bp->regview)
 		iounmap(bp->regview);
@@ -11412,13 +11629,20 @@ static struct pci_driver bnx2x_pci_driver = {
 
 static int __init bnx2x_init(void)
 {
+	int ret;
+
 	bnx2x_wq = create_singlethread_workqueue("bnx2x");
 	if (bnx2x_wq == NULL) {
 		printk(KERN_ERR PFX "Cannot create workqueue\n");
 		return -ENOMEM;
 	}
 
-	return pci_register_driver(&bnx2x_pci_driver);
+	ret = pci_register_driver(&bnx2x_pci_driver);
+	if (ret) {
+		printk(KERN_ERR PFX "Cannot register driver\n");
+		destroy_workqueue(bnx2x_wq);
+	}
+	return ret;
 }
 
 static void __exit bnx2x_cleanup(void)
@@ -11430,4 +11654,5 @@ static void __exit bnx2x_cleanup(void)
 
 module_init(bnx2x_init);
 module_exit(bnx2x_cleanup);
+
 

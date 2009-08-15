@@ -68,10 +68,10 @@ static int set_update_marker(struct ubi_device *ubi, struct ubi_volume *vol)
 	       sizeof(struct ubi_vtbl_record));
 	vtbl_rec.upd_marker = 1;
 
-	mutex_lock(&ubi->volumes_mutex);
+	mutex_lock(&ubi->device_mutex);
 	err = ubi_change_vtbl_record(ubi, vol->vol_id, &vtbl_rec);
-	mutex_unlock(&ubi->volumes_mutex);
 	vol->upd_marker = 1;
+	mutex_unlock(&ubi->device_mutex);
 	return err;
 }
 
@@ -109,10 +109,10 @@ static int clear_update_marker(struct ubi_device *ubi, struct ubi_volume *vol,
 			vol->last_eb_bytes = vol->usable_leb_size;
 	}
 
-	mutex_lock(&ubi->volumes_mutex);
+	mutex_lock(&ubi->device_mutex);
 	err = ubi_change_vtbl_record(ubi, vol->vol_id, &vtbl_rec);
-	mutex_unlock(&ubi->volumes_mutex);
 	vol->upd_marker = 0;
+	mutex_unlock(&ubi->device_mutex);
 	return err;
 }
 

@@ -378,6 +378,12 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 
 	mac->get_link_status = 0;
 
+	if (hw->phy.type == e1000_phy_82578) {
+		ret_val = e1000_link_stall_workaround_hv(hw);
+		if (ret_val)
+			return ret_val;
+	}
+
 	/*
 	 * Check if there was DownShift, must be checked
 	 * immediately after link-up
@@ -1400,6 +1406,38 @@ s32 e1000e_id_led_init(struct e1000_hw *hw)
 			/* Do nothing */
 			break;
 		}
+	}
+
+	return 0;
+}
+
+/**
+ *  e1000e_setup_led_generic - Configures SW controllable LED
+ *  @hw: pointer to the HW structure
+ *
+ *  This prepares the SW controllable LED for use and saves the current state
+ *  of the LED so it can be later restored.
+ **/
+s32 e1000e_setup_led_generic(struct e1000_hw *hw)
+{
+	u32 ledctl;
+
+	if (hw->mac.ops.setup_led != e1000e_setup_led_generic) {
+		return -E1000_ERR_CONFIG;
+	}
+
+	if (hw->phy.media_type == e1000_media_type_fiber) {
+		ledctl = er32(LEDCTL);
+		hw->mac.ledctl_default = ledctl;
+		/* Turn off LED0 */
+		ledctl &= ~(E1000_LEDCTL_LED0_IVRT |
+		            E1000_LEDCTL_LED0_BLINK |
+		            E1000_LEDCTL_LED0_MODE_MASK);
+		ledctl |= (E1000_LEDCTL_MODE_LED_OFF <<
+		           E1000_LEDCTL_LED0_MODE_SHIFT);
+		ew32(LEDCTL, ledctl);
+	} else if (hw->phy.media_type == e1000_media_type_copper) {
+		ew32(LEDCTL, hw->mac.ledctl_mode1);
 	}
 
 	return 0;

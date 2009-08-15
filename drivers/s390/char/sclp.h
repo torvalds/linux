@@ -1,10 +1,8 @@
 /*
- *  drivers/s390/char/sclp.h
+ * Copyright IBM Corp. 1999, 2009
  *
- *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
+ * Author(s): Martin Peschke <mpeschke@de.ibm.com>
+ *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #ifndef __SCLP_H__
@@ -17,7 +15,7 @@
 
 /* maximum number of pages concerning our own memory management */
 #define MAX_KMEM_PAGES (sizeof(unsigned long) << 3)
-#define MAX_CONSOLE_PAGES	4
+#define MAX_CONSOLE_PAGES	6
 
 #define EVTYP_OPCMD		0x01
 #define EVTYP_MSG		0x02
@@ -67,6 +65,15 @@ typedef unsigned int sclp_cmdw_t;
 #define GDS_ID_TEXTCMD		0x1320
 
 #define GDS_KEY_SELFDEFTEXTMSG	0x31
+
+enum sclp_pm_event {
+	SCLP_PM_EVENT_FREEZE,
+	SCLP_PM_EVENT_THAW,
+	SCLP_PM_EVENT_RESTORE,
+};
+
+#define SCLP_PANIC_PRIO		1
+#define SCLP_PANIC_PRIO_CLIENT	0
 
 typedef u32 sccb_mask_t;	/* ATTENTION: assumes 32bit mask !!! */
 
@@ -134,6 +141,10 @@ struct sclp_register {
 	void (*state_change_fn)(struct sclp_register *);
 	/* called for events in cp_receive_mask/sclp_receive_mask */
 	void (*receiver_fn)(struct evbuf_header *);
+	/* called for power management events */
+	void (*pm_event_fn)(struct sclp_register *, enum sclp_pm_event);
+	/* pm event posted flag */
+	int pm_event_posted;
 };
 
 /* externals from sclp.c */

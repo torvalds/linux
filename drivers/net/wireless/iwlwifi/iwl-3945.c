@@ -98,7 +98,6 @@ const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945] = {
  *   ... and set IWL_EVT_DISABLE to 1. */
 void iwl3945_disable_events(struct iwl_priv *priv)
 {
-	int ret;
 	int i;
 	u32 base;		/* SRAM address of event log header */
 	u32 disable_ptr;	/* SRAM address of event-disable bitmap array */
@@ -159,26 +158,17 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 		return;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		IWL_WARN(priv, "Can not read from adapter at this time.\n");
-		return;
-	}
-
 	disable_ptr = iwl_read_targ_mem(priv, base + (4 * sizeof(u32)));
 	array_size = iwl_read_targ_mem(priv, base + (5 * sizeof(u32)));
-	iwl_release_nic_access(priv);
 
 	if (IWL_EVT_DISABLE && (array_size == IWL_EVT_DISABLE_SIZE)) {
 		IWL_DEBUG_INFO(priv, "Disabling selected uCode log events at 0x%x\n",
 			       disable_ptr);
-		ret = iwl_grab_nic_access(priv);
 		for (i = 0; i < IWL_EVT_DISABLE_SIZE; i++)
 			iwl_write_targ_mem(priv,
 					   disable_ptr + (i * sizeof(u32)),
 					   evt_disable[i]);
 
-		iwl_release_nic_access(priv);
 	} else {
 		IWL_DEBUG_INFO(priv, "Selected uCode log events may be disabled\n");
 		IWL_DEBUG_INFO(priv, "  by writing \"1\"s into disable bitmap\n");
@@ -779,35 +769,6 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	return ;
 }
 
-u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *addr)
-{
-	int i, start = IWL_AP_ID;
-	int ret = IWL_INVALID_STATION;
-	unsigned long flags;
-
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) ||
-	    (priv->iw_mode == NL80211_IFTYPE_AP))
-		start = IWL_STA_ID;
-
-	if (is_broadcast_ether_addr(addr))
-		return priv->hw_params.bcast_sta_id;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = start; i < priv->hw_params.max_stations; i++)
-		if ((priv->stations_39[i].used) &&
-		    (!compare_ether_addr
-		     (priv->stations_39[i].sta.sta.addr, addr))) {
-			ret = i;
-			goto out;
-		}
-
-	IWL_DEBUG_INFO(priv, "can not find STA %pM (total %d)\n",
-		       addr, priv->num_stations);
- out:
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-	return ret;
-}
-
 /**
  * iwl3945_hw_build_tx_cmd_rate - Add rate portion to TX_CMD:
  *
@@ -885,13 +846,13 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,
 u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 {
 	unsigned long flags_spin;
-	struct iwl3945_station_entry *station;
+	struct iwl_station_entry *station;
 
 	if (sta_id == IWL_INVALID_STATION)
 		return IWL_INVALID_STATION;
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	station = &priv->stations_39[sta_id];
+	station = &priv->stations[sta_id];
 
 	station->sta.sta.modify_mask = STA_MODIFY_TX_RATE_MSK;
 	station->sta.rate_n_flags = cpu_to_le16(tx_rate);
@@ -899,8 +860,7 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
-	iwl_send_add_sta(priv,
-			 (struct iwl_addsta_cmd *)&station->sta, flags);
+	iwl_send_add_sta(priv, &station->sta, flags);
 	IWL_DEBUG_RATE(priv, "SCALE sync station %d to rate %d\n",
 			sta_id, tx_rate);
 	return sta_id;
@@ -908,55 +868,30 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 
 static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
-
 	if (src == IWL_PWR_SRC_VAUX) {
 		if (pci_pme_capable(priv->pci_dev, PCI_D3cold)) {
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 					APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
 					~APMG_PS_CTRL_MSK_PWR_SRC);
-			iwl_release_nic_access(priv);
 
 			iwl_poll_bit(priv, CSR_GPIO_IN,
 				     CSR_GPIO_IN_VAL_VAUX_PWR_SRC,
 				     CSR_GPIO_IN_BIT_AUX_POWER, 5000);
-		} else {
-			iwl_release_nic_access(priv);
 		}
 	} else {
 		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 				~APMG_PS_CTRL_MSK_PWR_SRC);
 
-		iwl_release_nic_access(priv);
 		iwl_poll_bit(priv, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
 			     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
-	int rc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
-
 	iwl_write_direct32(priv, FH39_RCSR_RBD_BASE(0), rxq->dma_addr);
 	iwl_write_direct32(priv, FH39_RCSR_RPTR_ADDR(0), rxq->rb_stts_dma);
 	iwl_write_direct32(priv, FH39_RCSR_WPTR(0), 0);
@@ -973,23 +908,11 @@ static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	/* fake read to flush all prev I/O */
 	iwl_read_direct32(priv, FH39_RSSR_CTRL);
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
 
 static int iwl3945_tx_reset(struct iwl_priv *priv)
 {
-	int rc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 
 	/* bypass mode */
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0x2);
@@ -1017,8 +940,6 @@ static int iwl3945_tx_reset(struct iwl_priv *priv)
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RSP_WAIT_TH |
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_RSP_WAIT_TH);
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -1061,7 +982,7 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 
 static int iwl3945_apm_init(struct iwl_priv *priv)
 {
-	int ret = 0;
+	int ret;
 
 	iwl_power_initialize(priv);
 
@@ -1083,10 +1004,6 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 		goto out;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
-
 	/* enable DMA */
 	iwl_write_prph(priv, APMG_CLK_CTRL_REG, APMG_CLK_VAL_DMA_CLK_RQT |
 						APMG_CLK_VAL_BSM_CLK_RQT);
@@ -1097,7 +1014,6 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_nic_access(priv);
 out:
 	return ret;
 }
@@ -1109,6 +1025,11 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 	u8 rev_id = 0;
 
 	spin_lock_irqsave(&priv->lock, flags);
+
+	/* Determine HW type */
+	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &rev_id);
+
+	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
 
 	if (rev_id & PCI_CFG_REV_ID_BIT_RTP)
 		IWL_DEBUG_INFO(priv, "RTP type \n");
@@ -1163,7 +1084,6 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 
 int iwl3945_hw_nic_init(struct iwl_priv *priv)
 {
-	u8 rev_id;
 	int rc;
 	unsigned long flags;
 	struct iwl_rx_queue *rxq = &priv->rxq;
@@ -1171,12 +1091,6 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->cfg->ops->lib->apm_ops.init(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Determine HW type */
-	rc = pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &rev_id);
-	if (rc)
-		return rc;
-	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
 
 	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
 	if (rc)
@@ -1198,22 +1112,13 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 
 	iwl3945_rx_init(priv, rxq);
 
-	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Look at using this instead:
 	rxq->need_update = 1;
 	iwl_rx_queue_update_write_ptr(priv, rxq);
 	*/
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 	iwl_write_direct32(priv, FH39_RCSR_WPTR(0), rxq->write & ~7);
-	iwl_release_nic_access(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rc = iwl3945_txq_ctx_reset(priv);
 	if (rc)
@@ -1245,14 +1150,6 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 {
 	int txq_id;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	if (iwl_grab_nic_access(priv)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		iwl3945_hw_txq_ctx_free(priv);
-		return;
-	}
 
 	/* stop SCD */
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0);
@@ -1264,9 +1161,6 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 				FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
 				1000);
 	}
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl3945_hw_txq_ctx_free(priv);
 }
@@ -1312,12 +1206,8 @@ static void iwl3945_apm_stop(struct iwl_priv *priv)
 
 static int iwl3945_apm_reset(struct iwl_priv *priv)
 {
-	int rc;
-	unsigned long flags;
-
 	iwl3945_apm_stop_master(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 	udelay(10);
@@ -1327,36 +1217,31 @@ static int iwl3945_apm_reset(struct iwl_priv *priv)
 	iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 
-	rc = iwl_grab_nic_access(priv);
-	if (!rc) {
-		iwl_write_prph(priv, APMG_CLK_CTRL_REG,
-					 APMG_CLK_VAL_BSM_CLK_RQT);
+	iwl_write_prph(priv, APMG_CLK_CTRL_REG,
+				APMG_CLK_VAL_BSM_CLK_RQT);
 
-		iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
-		iwl_write_prph(priv, APMG_RTC_INT_STT_REG,
+	iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
+	iwl_write_prph(priv, APMG_RTC_INT_STT_REG,
 					0xFFFFFFFF);
 
-		/* enable DMA */
-		iwl_write_prph(priv, APMG_CLK_EN_REG,
-					 APMG_CLK_VAL_DMA_CLK_RQT |
-					 APMG_CLK_VAL_BSM_CLK_RQT);
-		udelay(10);
+	/* enable DMA */
+	iwl_write_prph(priv, APMG_CLK_EN_REG,
+				APMG_CLK_VAL_DMA_CLK_RQT |
+				APMG_CLK_VAL_BSM_CLK_RQT);
+	udelay(10);
 
-		iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
+	iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_RESET_REQ);
-		udelay(5);
-		iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
+	udelay(5);
+	iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_RESET_REQ);
-		iwl_release_nic_access(priv);
-	}
 
 	/* Clear the 'host command active' bit... */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
 	wake_up_interruptible(&priv->wait_command_queue);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return rc;
+	return 0;
 }
 
 /**
@@ -1964,6 +1849,193 @@ int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
 	return 0;
 }
 
+static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
+{
+	int rc = 0;
+	struct iwl_rx_packet *res = NULL;
+	struct iwl3945_rxon_assoc_cmd rxon_assoc;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_RXON_ASSOC,
+		.len = sizeof(rxon_assoc),
+		.meta.flags = CMD_WANT_SKB,
+		.data = &rxon_assoc,
+	};
+	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
+	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
+
+	if ((rxon1->flags == rxon2->flags) &&
+	    (rxon1->filter_flags == rxon2->filter_flags) &&
+	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
+	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
+		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
+		return 0;
+	}
+
+	rxon_assoc.flags = priv->staging_rxon.flags;
+	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
+	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
+	rxon_assoc.reserved = 0;
+
+	rc = iwl_send_cmd_sync(priv, &cmd);
+	if (rc)
+		return rc;
+
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERR(priv, "Bad return from REPLY_RXON_ASSOC command\n");
+		rc = -EIO;
+	}
+
+	priv->alloc_rxb_skb--;
+	dev_kfree_skb_any(cmd.meta.u.skb);
+
+	return rc;
+}
+
+/**
+ * iwl3945_commit_rxon - commit staging_rxon to hardware
+ *
+ * The RXON command in staging_rxon is committed to the hardware and
+ * the active_rxon structure is updated with the new data.  This
+ * function correctly transitions out of the RXON_ASSOC_MSK state if
+ * a HW tune is required based on the RXON structure changes.
+ */
+static int iwl3945_commit_rxon(struct iwl_priv *priv)
+{
+	/* cast away the const for active_rxon in this function */
+	struct iwl3945_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
+	struct iwl3945_rxon_cmd *staging_rxon = (void *)&priv->staging_rxon;
+	int rc = 0;
+	bool new_assoc =
+		!!(priv->staging_rxon.filter_flags & RXON_FILTER_ASSOC_MSK);
+
+	if (!iwl_is_alive(priv))
+		return -1;
+
+	/* always get timestamp with Rx frame */
+	staging_rxon->flags |= RXON_FLG_TSF2HOST_MSK;
+
+	/* select antenna */
+	staging_rxon->flags &=
+	    ~(RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_SEL_MSK);
+	staging_rxon->flags |= iwl3945_get_antenna_flags(priv);
+
+	rc = iwl_check_rxon_cmd(priv);
+	if (rc) {
+		IWL_ERR(priv, "Invalid RXON configuration.  Not committing.\n");
+		return -EINVAL;
+	}
+
+	/* If we don't need to send a full RXON, we can use
+	 * iwl3945_rxon_assoc_cmd which is used to reconfigure filter
+	 * and other flags for the current radio configuration. */
+	if (!iwl_full_rxon_required(priv)) {
+		rc = iwl_send_rxon_assoc(priv);
+		if (rc) {
+			IWL_ERR(priv, "Error setting RXON_ASSOC "
+				  "configuration (%d).\n", rc);
+			return rc;
+		}
+
+		memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
+
+		return 0;
+	}
+
+	/* If we are currently associated and the new config requires
+	 * an RXON_ASSOC and the new config wants the associated mask enabled,
+	 * we must clear the associated from the active configuration
+	 * before we apply the new config */
+	if (iwl_is_associated(priv) && new_assoc) {
+		IWL_DEBUG_INFO(priv, "Toggling associated bit on current RXON\n");
+		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+
+		/*
+		 * reserved4 and 5 could have been filled by the iwlcore code.
+		 * Let's clear them before pushing to the 3945.
+		 */
+		active_rxon->reserved4 = 0;
+		active_rxon->reserved5 = 0;
+		rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
+				      sizeof(struct iwl3945_rxon_cmd),
+				      &priv->active_rxon);
+
+		/* If the mask clearing failed then we set
+		 * active_rxon back to what it was previously */
+		if (rc) {
+			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
+			IWL_ERR(priv, "Error clearing ASSOC_MSK on current "
+				  "configuration (%d).\n", rc);
+			return rc;
+		}
+	}
+
+	IWL_DEBUG_INFO(priv, "Sending RXON\n"
+		       "* with%s RXON_FILTER_ASSOC_MSK\n"
+		       "* channel = %d\n"
+		       "* bssid = %pM\n",
+		       (new_assoc ? "" : "out"),
+		       le16_to_cpu(staging_rxon->channel),
+		       staging_rxon->bssid_addr);
+
+	/*
+	 * reserved4 and 5 could have been filled by the iwlcore code.
+	 * Let's clear them before pushing to the 3945.
+	 */
+	staging_rxon->reserved4 = 0;
+	staging_rxon->reserved5 = 0;
+
+	iwl_set_rxon_hwcrypto(priv, !priv->hw_params.sw_crypto);
+
+	/* Apply the new configuration */
+	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
+			      sizeof(struct iwl3945_rxon_cmd),
+			      staging_rxon);
+	if (rc) {
+		IWL_ERR(priv, "Error setting new configuration (%d).\n", rc);
+		return rc;
+	}
+
+	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
+
+	iwl_clear_stations_table(priv);
+
+	/* If we issue a new RXON command which required a tune then we must
+	 * send a new TXPOWER command or we won't be able to Tx any frames */
+	rc = priv->cfg->ops->lib->send_tx_power(priv);
+	if (rc) {
+		IWL_ERR(priv, "Error setting Tx power (%d).\n", rc);
+		return rc;
+	}
+
+	/* Add the broadcast address so we can send broadcast frames */
+	if (iwl_add_station(priv, iwl_bcast_addr, false, CMD_SYNC, NULL) ==
+	    IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
+		return -EIO;
+	}
+
+	/* If we have set the ASSOC_MSK and we are in BSS mode then
+	 * add the IWL_AP_ID to the station rate table */
+	if (iwl_is_associated(priv) &&
+	    (priv->iw_mode == NL80211_IFTYPE_STATION))
+		if (iwl_add_station(priv, priv->active_rxon.bssid_addr,
+				true, CMD_SYNC, NULL) == IWL_INVALID_STATION) {
+			IWL_ERR(priv, "Error adding AP address for transmit\n");
+			return -EIO;
+		}
+
+	/* Init the hardware's rate fallback order based on the band */
+	rc = iwl3945_init_hw_rate_table(priv);
+	if (rc) {
+		IWL_ERR(priv, "Error setting HW rate table: %02X\n", rc);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /* will add 3945 channel switch cmd handling later */
 int iwl3945_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
@@ -2314,14 +2386,6 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 int iwl3945_hw_rxq_stop(struct iwl_priv *priv)
 {
 	int rc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 
 	iwl_write_direct32(priv, FH39_RCSR_CONFIG(0), 0);
 	rc = iwl_poll_direct_bit(priv, FH39_RSSR_STATUS,
@@ -2329,28 +2393,17 @@ int iwl3945_hw_rxq_stop(struct iwl_priv *priv)
 	if (rc < 0)
 		IWL_ERR(priv, "Can't stop Rx DMA.\n");
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
 
 int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
-	int rc;
-	unsigned long flags;
 	int txq_id = txq->q.id;
 
 	struct iwl3945_shared *shared_data = priv->shared_virt;
 
 	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32)txq->q.dma_addr);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 	iwl_write_direct32(priv, FH39_CBCC_CTRL(txq_id), 0);
 	iwl_write_direct32(priv, FH39_CBCC_BASE(txq_id), 0);
 
@@ -2360,11 +2413,9 @@ int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD |
 		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL |
 		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE);
-	iwl_release_nic_access(priv);
 
 	/* fake read to flush all prev. writes */
 	iwl_read32(priv, FH39_TSSR_CBB_BASE);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -2384,12 +2435,24 @@ static u16 iwl3945_get_hcmd_size(u8 cmd_id, u16 len)
 	}
 }
 
+
 static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
-	u16 size = (u16)sizeof(struct iwl3945_addsta_cmd);
-	memcpy(data, cmd, size);
-	return size;
+	struct iwl3945_addsta_cmd *addsta = (struct iwl3945_addsta_cmd *)data;
+	addsta->mode = cmd->mode;
+	memcpy(&addsta->sta, &cmd->sta, sizeof(struct sta_id_modify));
+	memcpy(&addsta->key, &cmd->key, sizeof(struct iwl4965_keyinfo));
+	addsta->station_flags = cmd->station_flags;
+	addsta->station_flags_msk = cmd->station_flags_msk;
+	addsta->tid_disable_tx = cpu_to_le16(0);
+	addsta->rate_n_flags = cmd->rate_n_flags;
+	addsta->add_immediate_ba_tid = cmd->add_immediate_ba_tid;
+	addsta->remove_immediate_ba_tid = cmd->remove_immediate_ba_tid;
+	addsta->add_immediate_ba_ssn = cmd->add_immediate_ba_ssn;
+
+	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
+
 
 /**
  * iwl3945_init_hw_rate_table - Initialize the hardware rate fallback table
@@ -2672,10 +2735,6 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	inst_len = priv->ucode_init.len;
 	data_len = priv->ucode_init_data.len;
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc)
-		return rc;
-
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
 	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
@@ -2689,10 +2748,8 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 					  le32_to_cpu(*image));
 
 	rc = iwl3945_verify_bsm(priv);
-	if (rc) {
-		iwl_release_nic_access(priv);
+	if (rc)
 		return rc;
-	}
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
@@ -2724,10 +2781,13 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START_EN);
 
-	iwl_release_nic_access(priv);
-
 	return 0;
 }
+
+static struct iwl_hcmd_ops iwl3945_hcmd = {
+	.rxon_assoc = iwl3945_send_rxon_assoc,
+	.commit_rxon = iwl3945_commit_rxon,
+};
 
 static struct iwl_lib_ops iwl3945_lib = {
 	.txq_attach_buf_to_tfd = iwl3945_hw_txq_attach_buf_to_tfd,
@@ -2758,6 +2818,9 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 	.send_tx_power	= iwl3945_send_tx_power,
 	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
+	.post_associate = iwl3945_post_associate,
+	.isr = iwl_isr_legacy,
+	.config_ap = iwl3945_config_ap,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
@@ -2767,6 +2830,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 
 static struct iwl_ops iwl3945_ops = {
 	.lib = &iwl3945_lib,
+	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
 };
 
@@ -2779,7 +2843,8 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
-	.mod_params = &iwl3945_mod_params
+	.mod_params = &iwl3945_mod_params,
+	.use_isr_legacy = true
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2791,7 +2856,8 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
-	.mod_params = &iwl3945_mod_params
+	.mod_params = &iwl3945_mod_params,
+	.use_isr_legacy = true
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {

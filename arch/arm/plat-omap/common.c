@@ -2,6 +2,10 @@
  * linux/arch/arm/plat-omap/common.c
  *
  * Code common to all OMAP machines.
+ * The file is created by Tony Lindgren <tony@atomide.com>
+ *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/pm.h>
 #include <linux/console.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -175,25 +178,70 @@ console_initcall(omap_add_serial_console);
  * but systems won't necessarily want to spend resources that way.
  */
 
-#if defined(CONFIG_ARCH_OMAP16XX)
-#define TIMER_32K_SYNCHRONIZED		0xfffbc410
-#elif defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-#define TIMER_32K_SYNCHRONIZED		(OMAP2_32KSYNCT_BASE + 0x10)
-#endif
+#define OMAP16XX_TIMER_32K_SYNCHRONIZED		0xfffbc410
 
-#ifdef	TIMER_32K_SYNCHRONIZED
+#if !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX))
 
 #include <linux/clocksource.h>
 
-static cycle_t omap_32k_read(struct clocksource *cs)
+#ifdef CONFIG_ARCH_OMAP16XX
+static cycle_t omap16xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(TIMER_32K_SYNCHRONIZED);
+	return omap_readl(OMAP16XX_TIMER_32K_SYNCHRONIZED);
+}
+#else
+#define omap16xx_32k_read	NULL
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2420
+static cycle_t omap2420_32k_read(struct clocksource *cs)
+{
+	return omap_readl(OMAP2420_32KSYNCT_BASE + 0x10);
+}
+#else
+#define omap2420_32k_read	NULL
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+static cycle_t omap2430_32k_read(struct clocksource *cs)
+{
+	return omap_readl(OMAP2430_32KSYNCT_BASE + 0x10);
+}
+#else
+#define omap2430_32k_read	NULL
+#endif
+
+#ifdef CONFIG_ARCH_OMAP34XX
+static cycle_t omap34xx_32k_read(struct clocksource *cs)
+{
+	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10);
+}
+#else
+#define omap34xx_32k_read	NULL
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+static cycle_t omap44xx_32k_read(struct clocksource *cs)
+{
+	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10);
+}
+#else
+#define omap44xx_32k_read	NULL
+#endif
+
+/*
+ * Kernel assumes that sched_clock can be called early but may not have
+ * things ready yet.
+ */
+static cycle_t omap_32k_read_dummy(struct clocksource *cs)
+{
+	return 0;
 }
 
 static struct clocksource clocksource_32k = {
 	.name		= "32k_counter",
 	.rating		= 250,
-	.read		= omap_32k_read,
+	.read		= omap_32k_read_dummy,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift		= 10,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
@@ -207,7 +255,7 @@ unsigned long long sched_clock(void)
 {
 	unsigned long long ret;
 
-	ret = (unsigned long long)omap_32k_read(&clocksource_32k);
+	ret = (unsigned long long)clocksource_32k.read(&clocksource_32k);
 	ret = (ret * clocksource_32k.mult_orig) >> clocksource_32k.shift;
 	return ret;
 }
@@ -219,6 +267,19 @@ static int __init omap_init_clocksource_32k(void)
 
 	if (cpu_is_omap16xx() || cpu_class_is_omap2()) {
 		struct clk *sync_32k_ick;
+
+		if (cpu_is_omap16xx())
+			clocksource_32k.read = omap16xx_32k_read;
+		else if (cpu_is_omap2420())
+			clocksource_32k.read = omap2420_32k_read;
+		else if (cpu_is_omap2430())
+			clocksource_32k.read = omap2430_32k_read;
+		else if (cpu_is_omap34xx())
+			clocksource_32k.read = omap34xx_32k_read;
+		else if (cpu_is_omap44xx())
+			clocksource_32k.read = omap44xx_32k_read;
+		else
+			return -ENODEV;
 
 		sync_32k_ick = clk_get(NULL, "omap_32ksync_ick");
 		if (sync_32k_ick)
@@ -234,15 +295,13 @@ static int __init omap_init_clocksource_32k(void)
 }
 arch_initcall(omap_init_clocksource_32k);
 
-#endif	/* TIMER_32K_SYNCHRONIZED */
+#endif	/* !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX)) */
 
 /* Global address base setup code */
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
-static struct omap_globals *omap2_globals;
-
-static void __init __omap2_set_globals(void)
+static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 {
 	omap2_set_globals_tap(omap2_globals);
 	omap2_set_globals_sdrc(omap2_globals);
@@ -266,8 +325,7 @@ static struct omap_globals omap242x_globals = {
 
 void __init omap2_set_globals_242x(void)
 {
-	omap2_globals = &omap242x_globals;
-	__omap2_set_globals();
+	__omap2_set_globals(&omap242x_globals);
 }
 #endif
 
@@ -285,8 +343,7 @@ static struct omap_globals omap243x_globals = {
 
 void __init omap2_set_globals_243x(void)
 {
-	omap2_globals = &omap243x_globals;
-	__omap2_set_globals();
+	__omap2_set_globals(&omap243x_globals);
 }
 #endif
 
@@ -304,8 +361,23 @@ static struct omap_globals omap343x_globals = {
 
 void __init omap2_set_globals_343x(void)
 {
-	omap2_globals = &omap343x_globals;
-	__omap2_set_globals();
+	__omap2_set_globals(&omap343x_globals);
+}
+#endif
+
+#if defined(CONFIG_ARCH_OMAP4)
+static struct omap_globals omap4_globals = {
+	.class	= OMAP443X_CLASS,
+	.tap	= OMAP2_IO_ADDRESS(0x4830a000),
+	.ctrl	= OMAP2_IO_ADDRESS(OMAP443X_CTRL_BASE),
+	.prm	= OMAP2_IO_ADDRESS(OMAP4430_PRM_BASE),
+	.cm	= OMAP2_IO_ADDRESS(OMAP4430_CM_BASE),
+};
+
+void __init omap2_set_globals_443x(void)
+{
+	omap2_set_globals_tap(&omap4_globals);
+	omap2_set_globals_control(&omap4_globals);
 }
 #endif
 

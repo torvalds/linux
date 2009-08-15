@@ -175,10 +175,4 @@ int exofs_async_op(struct osd_request *or,
 
 int extract_attr_from_req(struct osd_request *or, struct osd_attr *attr);
 
-int osd_req_read_kern(struct osd_request *or,
-	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
-
-int osd_req_write_kern(struct osd_request *or,
-	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
-
 #endif /*ifndef __EXOFS_COM_H__*/

@@ -686,7 +686,7 @@ static int pl010_probe(struct amba_device *dev, struct amba_id *id)
 		goto out;
 	}
 
-	base = ioremap(dev->res.start, PAGE_SIZE);
+	base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!base) {
 		ret = -ENOMEM;
 		goto free;

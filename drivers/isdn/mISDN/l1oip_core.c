@@ -279,7 +279,6 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	int multi = 0;
 	u8 frame[len+32];
 	struct socket *socket = NULL;
-	mm_segment_t oldfs;
 
 	if (debug & DEBUG_L1OIP_MSG)
 		printk(KERN_DEBUG "%s: sending data to socket (len = %d)\n",
@@ -308,8 +307,8 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 
 	/* assemble frame */
 	*p++ = (L1OIP_VERSION<<6) /* version and coding */
-	     | (hc->pri?0x20:0x00) /* type */
-	     | (hc->id?0x10:0x00) /* id */
+	     | (hc->pri ? 0x20 : 0x00) /* type */
+	     | (hc->id ? 0x10 : 0x00) /* id */
 	     | localcodec;
 	if (hc->id) {
 		*p++ = hc->id>>24; /* id */
@@ -317,7 +316,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 		*p++ = hc->id>>8;
 		*p++ = hc->id;
 	}
-	*p++ = (multi == 1)?0x80:0x00 + channel; /* m-flag, channel */
+	*p++ = (multi == 1) ? 0x80 : 0x00 + channel; /* m-flag, channel */
 	if (multi == 1)
 		*p++ = len; /* length */
 	*p++ = timebase>>8; /* time base */
@@ -352,10 +351,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 			"= %d)\n", __func__, len);
 	hc->sendiov.iov_base = frame;
 	hc->sendiov.iov_len  = len;
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	len = sock_sendmsg(socket, &hc->sendmsg, len);
-	set_fs(oldfs);
+	len = kernel_sendmsg(socket, &hc->sendmsg, &hc->sendiov, 1, len);
 	/* give socket back */
 	hc->socket = socket; /* no locking required */
 
@@ -401,12 +397,12 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 	}
 
 	/* prepare message */
-	nskb = mI_alloc_skb((remotecodec == 3)?(len<<1):len, GFP_ATOMIC);
+	nskb = mI_alloc_skb((remotecodec == 3) ? (len<<1) : len, GFP_ATOMIC);
 	if (!nskb) {
 		printk(KERN_ERR "%s: No mem for skb.\n", __func__);
 		return;
 	}
-	p = skb_put(nskb, (remotecodec == 3)?(len<<1):len);
+	p = skb_put(nskb, (remotecodec == 3) ? (len<<1) : len);
 
 	if (remotecodec == 1 && ulaw)
 		l1oip_alaw_to_ulaw(buf, len, p);
@@ -458,7 +454,7 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 		hc->chan[channel].disorder_flag ^= 1;
 		if (nskb)
 #endif
-		queue_ch_frame(&bch->ch, PH_DATA_IND, rx_counter, nskb);
+			queue_ch_frame(&bch->ch, PH_DATA_IND, rx_counter, nskb);
 	}
 }
 
@@ -660,13 +656,20 @@ l1oip_socket_thread(void *data)
 	struct l1oip *hc = (struct l1oip *)data;
 	int ret = 0;
 	struct msghdr msg;
-	struct iovec iov;
-	mm_segment_t oldfs;
 	struct sockaddr_in sin_rx;
-	unsigned char recvbuf[1500];
+	unsigned char *recvbuf;
+	size_t recvbuf_size = 1500;
 	int recvlen;
 	struct socket *socket = NULL;
 	DECLARE_COMPLETION(wait);
+
+	/* allocate buffer memory */
+	recvbuf = kmalloc(recvbuf_size, GFP_KERNEL);
+	if (!recvbuf) {
+		printk(KERN_ERR "%s: Failed to alloc recvbuf.\n", __func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	/* make daemon */
 	allow_signal(SIGTERM);
@@ -674,7 +677,8 @@ l1oip_socket_thread(void *data)
 	/* create socket */
 	if (sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &socket)) {
 		printk(KERN_ERR "%s: Failed to create socket.\n", __func__);
-		return -EIO;
+		ret = -EIO;
+		goto fail;
 	}
 
 	/* set incoming address */
@@ -708,16 +712,12 @@ l1oip_socket_thread(void *data)
 	msg.msg_namelen = sizeof(sin_rx);
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
 
 	/* build send message */
 	hc->sendmsg.msg_name = &hc->sin_remote;
 	hc->sendmsg.msg_namelen = sizeof(hc->sin_remote);
 	hc->sendmsg.msg_control = NULL;
 	hc->sendmsg.msg_controllen = 0;
-	hc->sendmsg.msg_iov    = &hc->sendiov;
-	hc->sendmsg.msg_iovlen = 1;
 
 	/* give away socket */
 	spin_lock(&hc->socket_lock);
@@ -729,18 +729,18 @@ l1oip_socket_thread(void *data)
 		printk(KERN_DEBUG "%s: socket created and open\n",
 			__func__);
 	while (!signal_pending(current)) {
-		iov.iov_base = recvbuf;
-		iov.iov_len = sizeof(recvbuf);
-		oldfs = get_fs();
-		set_fs(KERNEL_DS);
-		recvlen = sock_recvmsg(socket, &msg, sizeof(recvbuf), 0);
-		set_fs(oldfs);
+		struct kvec iov = {
+			.iov_base = recvbuf,
+			.iov_len = sizeof(recvbuf),
+		};
+		recvlen = kernel_recvmsg(socket, &msg, &iov, 1,
+					 sizeof(recvbuf), 0);
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
 		} else {
 			if (debug & DEBUG_L1OIP_SOCKET)
-			    printk(KERN_WARNING "%s: broken pipe on socket\n",
-				__func__);
+				printk(KERN_WARNING
+				    "%s: broken pipe on socket\n", __func__);
 		}
 	}
 
@@ -760,6 +760,9 @@ l1oip_socket_thread(void *data)
 			__func__);
 
 fail:
+	/* free recvbuf */
+	kfree(recvbuf);
+
 	/* close socket */
 	if (socket)
 		sock_release(socket);
@@ -912,7 +915,7 @@ handle_dmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		p = skb->data;
 		l = skb->len;
 		while (l) {
-			ll = (l < L1OIP_MAX_PERFRAME)?l:L1OIP_MAX_PERFRAME;
+			ll = (l < L1OIP_MAX_PERFRAME) ? l : L1OIP_MAX_PERFRAME;
 			l1oip_socket_send(hc, 0, dch->slot, 0,
 				hc->chan[dch->slot].tx_counter++, p, ll);
 			p += ll;
@@ -1160,7 +1163,7 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		p = skb->data;
 		l = skb->len;
 		while (l) {
-			ll = (l < L1OIP_MAX_PERFRAME)?l:L1OIP_MAX_PERFRAME;
+			ll = (l < L1OIP_MAX_PERFRAME) ? l : L1OIP_MAX_PERFRAME;
 			l1oip_socket_send(hc, hc->codec, bch->slot, 0,
 				hc->chan[bch->slot].tx_counter, p, ll);
 			hc->chan[bch->slot].tx_counter += ll;
@@ -1318,8 +1321,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	spin_lock_init(&hc->socket_lock);
 	hc->idx = l1oip_cnt;
 	hc->pri = pri;
-	hc->d_idx = pri?16:3;
-	hc->b_num = pri?30:2;
+	hc->d_idx = pri ? 16 : 3;
+	hc->b_num = pri ? 30 : 2;
 	hc->bundle = bundle;
 	if (hc->pri)
 		sprintf(hc->name, "l1oip-e1.%d", l1oip_cnt + 1);
@@ -1504,9 +1507,9 @@ l1oip_init(void)
 
 		if (debug & DEBUG_L1OIP_INIT)
 			printk(KERN_DEBUG "%s: interface %d is %s with %s.\n",
-				__func__, l1oip_cnt, pri?"PRI":"BRI",
-				bundle?"bundled IP packet for all B-channels"
-				 :"seperate IP packets for every B-channel");
+			    __func__, l1oip_cnt, pri ? "PRI" : "BRI",
+			    bundle ? "bundled IP packet for all B-channels" :
+			    "seperate IP packets for every B-channel");
 
 		hc = kzalloc(sizeof(struct l1oip), GFP_ATOMIC);
 		if (!hc) {

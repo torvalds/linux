@@ -89,7 +89,7 @@ added to this document when its support is enabled.
 Device drivers who provide their own built regulatory domain
 do not need a callback as the channels registered by them are
 the only ones that will be allowed and therefore *additional*
-cannels cannot be enabled.
+channels cannot be enabled.
 
 Example code - drivers hinting an alpha2:
 ------------------------------------------

@@ -27,6 +27,7 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/gpio.h>
 #include <linux/init.h>
 
 #include <asm/mach-au1x00/au1000.h>
@@ -94,12 +95,12 @@ void __init board_setup(void)
 #endif
 	bcsr->pcmcia = 0x0000; /* turn off PCMCIA power */
 
-#ifdef CONFIG_MIPS_MIRAGE
 	/* Enable GPIO[31:0] inputs */
-	au_writel(0, SYS_PININPUTEN);
+	alchemy_gpio1_input_enable();
 
-	/* GPIO[20] is output, tristate the other input primary GPIOs */
-	au_writel(~(1 << 20), SYS_TRIOUTCLR);
+#ifdef CONFIG_MIPS_MIRAGE
+	/* GPIO[20] is output */
+	alchemy_gpio_direction_output(20, 0);
 
 	/* Set GPIO[210:208] instead of SSI_0 */
 	pin_func = au_readl(SYS_PINFUNC) | SYS_PF_S0;
@@ -118,8 +119,7 @@ void __init board_setup(void)
 	 * Enable speaker amplifier.  This should
 	 * be part of the audio driver.
 	 */
-	au_writel(au_readl(GPIO2_DIR) | 0x200, GPIO2_DIR);
-	au_writel(0x02000200, GPIO2_OUTPUT);
+	alchemy_gpio_direction_output(209, 1);
 #endif
 
 	au_sync();

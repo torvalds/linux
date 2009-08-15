@@ -331,6 +331,10 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 		dprintk("buffer_next %p\n",NULL);
 		saa7134_set_dmabits(dev);
 		del_timer(&q->timeout);
+
+		if (card_has_mpeg(dev))
+			if (dev->ts_started)
+				saa7134_ts_stop(dev);
 	}
 }
 
@@ -416,6 +420,19 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		ctrl |= SAA7134_MAIN_CTRL_TE5;
 		irq  |= SAA7134_IRQ1_INTE_RA2_1 |
 			SAA7134_IRQ1_INTE_RA2_0;
+
+		/* dma: setup channel 5 (= TS) */
+
+		saa_writeb(SAA7134_TS_DMA0, (dev->ts.nr_packets - 1) & 0xff);
+		saa_writeb(SAA7134_TS_DMA1,
+			((dev->ts.nr_packets - 1) >> 8) & 0xff);
+		/* TSNOPIT=0, TSCOLAP=0 */
+		saa_writeb(SAA7134_TS_DMA2,
+			(((dev->ts.nr_packets - 1) >> 16) & 0x3f) | 0x00);
+		saa_writel(SAA7134_RS_PITCH(5), TS_PACKET_SIZE);
+		saa_writel(SAA7134_RS_CONTROL(5), SAA7134_RS_CONTROL_BURST_16 |
+						  SAA7134_RS_CONTROL_ME |
+						  (dev->ts.pt_ts.dma >> 12));
 	}
 
 	/* set task conditions + field handling */
@@ -775,7 +792,6 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor   = -1;
 	vfd->v4l2_dev  = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug   = video_debug;

@@ -130,7 +130,7 @@ unsigned int vectors_in_migration[NR_IRQS];
  */
 static void migrate_irqs(void)
 {
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	int 		irq, new_cpu;
 
 	for (irq=0; irq < NR_IRQS; irq++) {

@@ -68,14 +68,9 @@ MODULE_PARM_DESC(tmr_atboot,
 			__MODULE_STRING(CONFIG_S3C2410_WATCHDOG_ATBOOT));
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default depends on ONLY_TESTING)");
+MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, "
+			"0 to reboot (default depends on ONLY_TESTING)");
 MODULE_PARM_DESC(debug, "Watchdog debug, set to >1 for debug, (default 0)");
-
-
-typedef enum close_state {
-	CLOSE_STATE_NOT,
-	CLOSE_STATE_ALLOW = 0x4021
-} close_state_t;
 
 static unsigned long open_lock;
 static struct device    *wdt_dev;	/* platform device attached to */
@@ -84,7 +79,7 @@ static struct resource	*wdt_irq;
 static struct clk	*wdt_clock;
 static void __iomem	*wdt_base;
 static unsigned int	 wdt_count;
-static close_state_t	 allow_close;
+static char		 expect_close;
 static DEFINE_SPINLOCK(wdt_lock);
 
 /* watchdog control routines */
@@ -211,7 +206,7 @@ static int s3c2410wdt_open(struct inode *inode, struct file *file)
 	if (nowayout)
 		__module_get(THIS_MODULE);
 
-	allow_close = CLOSE_STATE_NOT;
+	expect_close = 0;
 
 	/* start the timer */
 	s3c2410wdt_start();
@@ -225,13 +220,13 @@ static int s3c2410wdt_release(struct inode *inode, struct file *file)
 	 * 	Lock it in if it's a module and we set nowayout
 	 */
 
-	if (allow_close == CLOSE_STATE_ALLOW)
+	if (expect_close == 42)
 		s3c2410wdt_stop();
 	else {
 		dev_err(wdt_dev, "Unexpected close, not stopping watchdog\n");
 		s3c2410wdt_keepalive();
 	}
-	allow_close = CLOSE_STATE_NOT;
+	expect_close = 0;
 	clear_bit(0, &open_lock);
 	return 0;
 }
@@ -247,7 +242,7 @@ static ssize_t s3c2410wdt_write(struct file *file, const char __user *data,
 			size_t i;
 
 			/* In case it was set long ago */
-			allow_close = CLOSE_STATE_NOT;
+			expect_close = 0;
 
 			for (i = 0; i != len; i++) {
 				char c;
@@ -255,7 +250,7 @@ static ssize_t s3c2410wdt_write(struct file *file, const char __user *data,
 				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
-					allow_close = CLOSE_STATE_ALLOW;
+					expect_close = 42;
 			}
 		}
 		s3c2410wdt_keepalive();
@@ -263,7 +258,7 @@ static ssize_t s3c2410wdt_write(struct file *file, const char __user *data,
 	return len;
 }
 
-#define OPTIONS WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE
+#define OPTIONS (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE)
 
 static const struct watchdog_info s3c2410_wdt_ident = {
 	.options          =     OPTIONS,
@@ -331,7 +326,7 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 }
 /* device interface */
 
-static int s3c2410wdt_probe(struct platform_device *pdev)
+static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct device *dev;
@@ -404,7 +399,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 			   "tmr_margin value out of range, default %d used\n",
 			       CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME);
 		else
-			dev_info(dev, "default timer value is out of range, cannot start\n");
+			dev_info(dev, "default timer value is out of range, "
+							"cannot start\n");
 	}
 
 	ret = misc_register(&s3c2410wdt_miscdev);
@@ -453,7 +449,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int s3c2410wdt_remove(struct platform_device *dev)
+static int __devexit s3c2410wdt_remove(struct platform_device *dev)
 {
 	release_resource(wdt_mem);
 	kfree(wdt_mem);
@@ -515,7 +511,7 @@ static int s3c2410wdt_resume(struct platform_device *dev)
 
 static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
-	.remove		= s3c2410wdt_remove,
+	.remove		= __devexit_p(s3c2410wdt_remove),
 	.shutdown	= s3c2410wdt_shutdown,
 	.suspend	= s3c2410wdt_suspend,
 	.resume		= s3c2410wdt_resume,

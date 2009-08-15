@@ -2573,7 +2573,6 @@ restart:
 			netif_wake_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 overflow:

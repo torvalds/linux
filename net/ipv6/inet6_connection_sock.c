@@ -228,7 +228,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 		__inet6_csk_dst_store(sk, dst, NULL, NULL);
 	}
 
-	skb->dst = dst_clone(dst);
+	skb_dst_set(skb, dst_clone(dst));
 
 	/* Restore final destination back after routing done */
 	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);

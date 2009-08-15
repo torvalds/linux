@@ -44,12 +44,15 @@
 
 
 /**
- * heci_set_csr_register - write H_CSR register to the heci device
+ * heci_set_csr_register - write H_CSR register to the heci device,
+ * and ignore the H_IS bit for it is write-one-to-zero.
  *
  * @dev: device object for our driver
  */
 void heci_set_csr_register(struct iamt_heci_device *dev)
 {
+	if ((dev->host_hw_state & H_IS) == H_IS)
+		dev->host_hw_state &= ~H_IS;
 	write_heci_register(dev, H_CSR, dev->host_hw_state);
 	dev->host_hw_state = read_heci_register(dev, H_CSR);
 }
@@ -76,6 +79,16 @@ void heci_csr_disable_interrupts(struct iamt_heci_device *dev)
 	heci_set_csr_register(dev);
 }
 
+/**
+ * heci_csr_clear_his - clear H_IS bit in H_CSR
+ *
+ * @dev: device object for our driver
+ */
+void heci_csr_clear_his(struct iamt_heci_device *dev)
+{
+	write_heci_register(dev, H_CSR, dev->host_hw_state);
+	dev->host_hw_state = read_heci_register(dev, H_CSR);
+}
 
 /**
  * _host_get_filled_slots - get number of device filled buffer slots
@@ -185,7 +198,7 @@ int heci_write_message(struct iamt_heci_device *dev,
 	}
 
 	dev->host_hw_state |= H_IG;
-	write_heci_register(dev, H_CSR, dev->host_hw_state);
+	heci_set_csr_register(dev);
 	dev->me_hw_state = read_heci_register(dev, ME_CSR_HA);
 	if ((dev->me_hw_state & ME_RDY_HRA) != ME_RDY_HRA)
 		return 0;

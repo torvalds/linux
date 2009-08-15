@@ -294,6 +294,16 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops lance_netdev_ops = {
+	.ndo_open		= lance_open,
+	.ndo_stop		= lance_close,
+	.ndo_start_xmit		= lance_start_xmit,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_set_mac_address	= NULL,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init lance_probe( struct net_device *dev)
 {
 	unsigned long ioaddr;
@@ -397,12 +407,7 @@ static int __init lance_probe( struct net_device *dev)
 	if (did_version++ == 0)
 		printk( version );
 
-	/* The LANCE-specific entries in the device structure. */
-	dev->open = &lance_open;
-	dev->hard_start_xmit = &lance_start_xmit;
-	dev->stop = &lance_close;
-	dev->set_multicast_list = &set_multicast_list;
-	dev->set_mac_address = NULL;
+	dev->netdev_ops = &lance_netdev_ops;
 //	KLUDGE -- REMOVE ME
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 
@@ -521,7 +526,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	if (netif_queue_stopped(dev)) {
 		int tickssofar = jiffies - dev->trans_start;
 		if (tickssofar < 20)
-			return( 1 );
+			return NETDEV_TX_BUSY;
 
 		DPRINTK( 1, ( "%s: transmit timed out, status %04x, resetting.\n",
 					  dev->name, DREG ));
@@ -572,7 +577,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	if (test_and_set_bit( 0, (void*)&lp->lock ) != 0) {
 		printk( "%s: tx queue lock!.\n", dev->name);
 		/* don't clear dev->tbusy flag. */
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	AREG = CSR0;

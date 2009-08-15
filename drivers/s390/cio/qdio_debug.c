@@ -70,9 +70,8 @@ static int qstat_show(struct seq_file *m, void *v)
 	seq_printf(m, "slsb buffer states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
 
-	qdio_siga_sync_q(q);
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
-		get_buf_state(q, i, &state, 0);
+		debug_get_buf_state(q, i, &state);
 		switch (state) {
 		case SLSB_P_INPUT_NOT_INIT:
 		case SLSB_P_OUTPUT_NOT_INIT:

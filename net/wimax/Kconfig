@@ -1,23 +1,10 @@
 #
 # WiMAX LAN device configuration
 #
-# Note the ugly 'depends on' on WIMAX: that disallows RFKILL to be a
-# module if WIMAX is to be linked in. The WiMAX code is done in such a
-# way that it doesn't require and explicit dependency on RFKILL in
-# case an embedded system wants to rip it out.
-#
-# As well, enablement of the RFKILL code means we need the INPUT layer
-# support to inject events coming from hw rfkill switches. That
-# dependency could be killed if input.h provided appropriate means to
-# work when input is disabled.
-
-comment "WiMAX Wireless Broadband support requires CONFIG_INPUT enabled"
-	depends on INPUT = n && RFKILL != n
 
 menuconfig WIMAX
 	tristate "WiMAX Wireless Broadband support"
-	depends on (y && RFKILL != m) || m
-	depends on (INPUT && RFKILL != n) || RFKILL = n
+	depends on RFKILL || !RFKILL
 	help
 
 	  Select to configure support for devices that provide

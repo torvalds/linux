@@ -913,9 +913,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	/* Clean up the original one to keep it in listen state */
 	irttp_listen(self->tsap);
 
-	/* Wow ! What is that ? Jean II */
-	skb->sk = NULL;
-	skb->destructor = NULL;
 	kfree_skb(skb);
 	sk->sk_ack_backlog--;
 
@@ -1762,7 +1759,8 @@ static int irda_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case TIOCOUTQ: {
 		long amount;
-		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
+
+		amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 		if (amount < 0)
 			amount = 0;
 		if (put_user(amount, (unsigned int __user *)arg))

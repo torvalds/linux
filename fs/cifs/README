@@ -262,7 +262,8 @@ A partial list of the supported mount options follows:
 		mount.	
   domain	Set the SMB/CIFS workgroup name prepended to the
 		username during CIFS session establishment
-  uid		Set the default uid for inodes. For mounts to servers
+  forceuid	Set the default uid for inodes based on the uid
+		passed in. For mounts to servers
 		which do support the CIFS Unix extensions, such as a
 		properly configured Samba server, the server provides
 		the uid, gid and mode so this parameter should  not be
@@ -292,6 +293,12 @@ A partial list of the supported mount options follows:
 		the client.  Note that the mount.cifs helper must be
 		at version 1.10 or higher to support specifying the uid
 		(or gid) in non-numeric form.
+  forcegid	(similar to above but for the groupid instead of uid)
+  uid		Set the default uid for inodes, and indicate to the
+		cifs kernel driver which local user mounted . If the server
+		supports the unix extensions the default uid is
+		not used to fill in the owner fields of inodes (files)
+		unless the "forceuid" parameter is specified.
   gid		Set the default gid for inodes (similar to above).
   file_mode     If CIFS Unix extensions are not supported by the server
 		this overrides the default mode for file inodes.
@@ -388,8 +395,13 @@ A partial list of the supported mount options follows:
 		or the CIFS Unix Extensions equivalent and for those
 		this mount option will have no effect.  Exporting cifs mounts
 		under nfsd requires this mount option on the cifs mount.
+		This is now the default if server supports the 
+		required network operation.
   noserverino   Client generates inode numbers (rather than using the actual one
-		from the server) by default.
+		from the server). These inode numbers will vary after
+		unmount or reboot which can confuse some applications,
+		but not all server filesystems support unique inode
+		numbers.
   setuids       If the CIFS Unix extensions are negotiated with the server
 		the client will attempt to set the effective uid and gid of
 		the local process on newly created files, directories, and

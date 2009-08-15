@@ -2,7 +2,6 @@ include include/asm-generic/Kbuild.asm
 
 header-y += break.h
 header-y += fpu.h
-header-y += fpswa.h
 header-y += ia64regs.h
 header-y += intel_intrin.h
 header-y += perfmon_default_smpl.h

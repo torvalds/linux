@@ -615,7 +615,7 @@ static int cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
 		case WAN_DISCONNECTED:
 			if (cycx_x25_chan_connect(dev)) {
 				netif_stop_queue(dev);
-				return -EBUSY;
+				return NETDEV_TX_BUSY;
 			}
 			/* fall thru */
 		case WAN_CONNECTED:
@@ -624,7 +624,7 @@ static int cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
 			netif_stop_queue(dev);
 
 			if (cycx_x25_chan_send(dev, skb))
-				return -EBUSY;
+				return NETDEV_TX_BUSY;
 
 			break;
 		default:
@@ -656,7 +656,7 @@ static int cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
 		if (cycx_x25_chan_send(dev, skb)) {
 			/* prepare for future retransmissions */
 			skb_push(skb, 1);
-			return -EBUSY;
+			return NETDEV_TX_BUSY;
 		}
 	}
 

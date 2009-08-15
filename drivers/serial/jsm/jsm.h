@@ -61,6 +61,7 @@ enum {
 	if ((DBG_##nlevel & jsm_debug))			\
 	dev_printk(KERN_##klevel, pdev->dev, fmt, ## args)
 
+#define	MAXLINES	256
 #define MAXPORTS	8
 #define MAX_STOPS_SENT	5
 

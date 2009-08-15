@@ -28,6 +28,7 @@
 
 #include "b43legacy.h"
 #include "leds.h"
+#include "rfkill.h"
 
 
 static void b43legacy_led_turn_on(struct b43legacy_wldev *dev, u8 led_index,
@@ -86,7 +87,8 @@ static void b43legacy_led_brightness_set(struct led_classdev *led_dev,
 
 static int b43legacy_register_led(struct b43legacy_wldev *dev,
 				  struct b43legacy_led *led,
-				  const char *name, char *default_trigger,
+				  const char *name,
+				  const char *default_trigger,
 				  u8 led_index, bool activelow)
 {
 	int err;
@@ -163,10 +165,10 @@ static void b43legacy_map_led(struct b43legacy_wldev *dev,
 		snprintf(name, sizeof(name),
 			 "b43legacy-%s::radio", wiphy_name(hw->wiphy));
 		b43legacy_register_led(dev, &dev->led_radio, name,
-				 b43legacy_rfkill_led_name(dev),
+				 ieee80211_get_radio_led_name(hw),
 				 led_index, activelow);
-		/* Sync the RF-kill LED state with the switch state. */
-		if (dev->radio_hw_enable)
+		/* Sync the RF-kill LED state with radio and switch states. */
+		if (dev->phy.radio_on && b43legacy_is_hw_radio_enabled(dev))
 			b43legacy_led_turn_on(dev, led_index, activelow);
 		break;
 	case B43legacy_LED_WEIRD:

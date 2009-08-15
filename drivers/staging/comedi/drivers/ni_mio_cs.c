@@ -66,103 +66,103 @@ See the notes in the ni_atmio.o driver.
 
 #define MAX_N_CALDACS 32
 
-static const ni_board ni_boards[] = {
-      {device_id:0x010d,
-	      name:	"DAQCard-ai-16xe-50",
-	      n_adchan:16,
-	      adbits:	16,
-	      ai_fifo_depth:1024,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_8,
-	      ai_speed:5000,
-	      n_aochan:0,
-	      aobits:	0,
-	      ao_fifo_depth:0,
-	      ao_unipolar:0,
-	      num_p0_dio_channels:8,
-	      has_8255:0,
-	      caldac:	{dac8800, dac8043},
-		},
-      {device_id:0x010c,
-	      name:	"DAQCard-ai-16e-4",
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:1024,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:4000,
-	      n_aochan:0,
-	      aobits:	0,
-	      ao_fifo_depth:0,
-	      ao_unipolar:0,
-	      num_p0_dio_channels:8,
-	      has_8255:0,
-	      caldac:	{mb88341},	/* verified */
-		},
-      {device_id:0x02c4,
-	      name:	"DAQCard-6062E",
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:8192,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:2000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:2048,
-	      ao_range_table:&range_bipolar10,
-	      ao_unipolar:0,
-	      ao_speed:1176,
-	      num_p0_dio_channels:8,
-	      has_8255:0,
-	      caldac:	{ad8804_debug},	/* verified */
-		},
-      {device_id:0x075e,
-	      name:	"DAQCard-6024E",	/* specs incorrect! */
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:1024,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:5000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:0,
-	      ao_range_table:&range_bipolar10,
-	      ao_unipolar:0,
-	      ao_speed:1000000,
-	      num_p0_dio_channels:8,
-	      has_8255:0,
-	      caldac:	{ad8804_debug},
-		},
-      {device_id:0x0245,
-	      name:	"DAQCard-6036E",	/* specs incorrect! */
-	      n_adchan:16,
-	      adbits:	16,
-	      ai_fifo_depth:1024,
-	      alwaysdither:1,
-	      gainlkup:ai_gain_4,
-	      ai_speed:5000,
-	      n_aochan:2,
-	      aobits:	16,
-	      ao_fifo_depth:0,
-	      ao_range_table:&range_bipolar10,
-	      ao_unipolar:0,
-	      ao_speed:1000000,
-	      num_p0_dio_channels:8,
-	      has_8255:0,
-	      caldac:	{ad8804_debug},
-		},
+static const struct ni_board_struct ni_boards[] = {
+	{.device_id = 0x010d,
+	 .name = "DAQCard-ai-16xe-50",
+	 .n_adchan = 16,
+	 .adbits = 16,
+	 .ai_fifo_depth = 1024,
+	 .alwaysdither = 0,
+	 .gainlkup = ai_gain_8,
+	 .ai_speed = 5000,
+	 .n_aochan = 0,
+	 .aobits = 0,
+	 .ao_fifo_depth = 0,
+	 .ao_unipolar = 0,
+	 .num_p0_dio_channels = 8,
+	 .has_8255 = 0,
+	 .caldac = {dac8800, dac8043},
+	},
+	{.device_id = 0x010c,
+	 .name = "DAQCard-ai-16e-4",
+	 .n_adchan = 16,
+	 .adbits = 12,
+	 .ai_fifo_depth = 1024,
+	 .alwaysdither = 0,
+	 .gainlkup = ai_gain_16,
+	 .ai_speed = 4000,
+	 .n_aochan = 0,
+	 .aobits = 0,
+	 .ao_fifo_depth = 0,
+	 .ao_unipolar = 0,
+	 .num_p0_dio_channels = 8,
+	 .has_8255 = 0,
+	 .caldac = {mb88341},	/* verified */
+	},
+	{.device_id = 0x02c4,
+	 .name = "DAQCard-6062E",
+	 .n_adchan = 16,
+	 .adbits = 12,
+	 .ai_fifo_depth = 8192,
+	 .alwaysdither = 0,
+	 .gainlkup = ai_gain_16,
+	 .ai_speed = 2000,
+	 .n_aochan = 2,
+	 .aobits = 12,
+	 .ao_fifo_depth = 2048,
+	 .ao_range_table = &range_bipolar10,
+	 .ao_unipolar = 0,
+	 .ao_speed = 1176,
+	 .num_p0_dio_channels = 8,
+	 .has_8255 = 0,
+	 .caldac = {ad8804_debug},	/* verified */
+	},
+	{.device_id = 0x075e,
+	 .name = "DAQCard-6024E",	/* specs incorrect! */
+	 .n_adchan = 16,
+	 .adbits = 12,
+	 .ai_fifo_depth = 1024,
+	 .alwaysdither = 0,
+	 .gainlkup = ai_gain_16,
+	 .ai_speed = 5000,
+	 .n_aochan = 2,
+	 .aobits = 12,
+	 .ao_fifo_depth = 0,
+	 .ao_range_table = &range_bipolar10,
+	 .ao_unipolar = 0,
+	 .ao_speed = 1000000,
+	 .num_p0_dio_channels = 8,
+	 .has_8255 = 0,
+	 .caldac = {ad8804_debug},
+	},
+	{.device_id = 0x0245,
+	 .name = "DAQCard-6036E",	/* specs incorrect! */
+	 .n_adchan = 16,
+	 .adbits = 16,
+	 .ai_fifo_depth = 1024,
+	 .alwaysdither = 1,
+	 .gainlkup = ai_gain_4,
+	 .ai_speed = 5000,
+	 .n_aochan = 2,
+	 .aobits = 16,
+	 .ao_fifo_depth = 0,
+	 .ao_range_table = &range_bipolar10,
+	 .ao_unipolar = 0,
+	 .ao_speed = 1000000,
+	 .num_p0_dio_channels = 8,
+	 .has_8255 = 0,
+	 .caldac = {ad8804_debug},
+	},
 #if 0
-      {device_id:0x0000,	/* unknown */
-	      name:	"DAQCard-6715",
-	      n_adchan:0,
-	      n_aochan:8,
-	      aobits:	12,
-	      ao_671x:	8192,
-	      num_p0_dio_channels:8,
-	      caldac:	{mb88341, mb88341},
-		},
+	{.device_id = 0x0000,	/* unknown */
+	 .name = "DAQCard-6715",
+	 .n_adchan = 0,
+	 .n_aochan = 8,
+	 .aobits = 12,
+	 .ao_671x = 8192,
+	 .num_p0_dio_channels = 8,
+	 .caldac = {mb88341, mb88341},
+	},
 #endif
 	/* N.B. Update ni_mio_cs_ids[] when entries added above. */
 };
@@ -183,11 +183,11 @@ struct ni_private {
 
 /* How we access registers */
 
-#define ni_writel(a,b)		(outl((a),(b)+dev->iobase))
+#define ni_writel(a, b)		(outl((a), (b)+dev->iobase))
 #define ni_readl(a)		(inl((a)+dev->iobase))
-#define ni_writew(a,b)		(outw((a),(b)+dev->iobase))
+#define ni_writew(a, b)		(outw((a), (b)+dev->iobase))
 #define ni_readw(a)		(inw((a)+dev->iobase))
-#define ni_writeb(a,b)		(outb((a),(b)+dev->iobase))
+#define ni_writeb(a, b)		(outb((a), (b)+dev->iobase))
 #define ni_readb(a)		(inb((a)+dev->iobase))
 
 /* How we access windowed registers */
@@ -196,60 +196,60 @@ struct ni_private {
  * read/written directly in the I/O space of the board.  The
  * DAQCard devices map the low 8 STC registers to iobase+addr*2. */
 
-static void mio_cs_win_out(struct comedi_device * dev, uint16_t data, int addr)
+static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
 		ni_writew(data, addr * 2);
 	} else {
 		ni_writew(addr, Window_Address);
 		ni_writew(data, Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static uint16_t mio_cs_win_in(struct comedi_device * dev, int addr)
+static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 {
 	unsigned long flags;
 	uint16_t ret;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
 		ret = ni_readw(addr * 2);
 	} else {
 		ni_writew(addr, Window_Address);
 		ret = ni_readw(Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
 }
 
-static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int mio_cs_detach(struct comedi_device * dev);
+static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int mio_cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_mio_cs = {
-      driver_name:"ni_mio_cs",
-      module:THIS_MODULE,
-      attach:mio_cs_attach,
-      detach:mio_cs_detach,
+	.driver_name = "ni_mio_cs",
+	.module = THIS_MODULE,
+	.attach = mio_cs_attach,
+	.detach = mio_cs_detach,
 };
 
 #include "ni_mio_common.c"
 
-static int ni_getboardtype(struct comedi_device * dev, struct pcmcia_device *link);
+static int ni_getboardtype(struct comedi_device *dev, struct pcmcia_device *link);
 
 /* clean up allocated resources */
 /* called when driver is removed */
-static int mio_cs_detach(struct comedi_device * dev)
+static int mio_cs_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 
 	/* PCMCIA layer frees the IO region */
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	return 0;
@@ -344,7 +344,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
-	//printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
+	/* printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid); */
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
@@ -381,7 +381,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 		for (base = 0x000; base < 0x400; base += 0x20) {
 			link->io.BasePort1 = base;
 			ret = pcmcia_request_io(link, &link->io);
-			//printk("RequestIO 0x%02x\n",ret);
+			/* printk("RequestIO 0x%02x\n",ret); */
 			if (!ret)
 				break;
 		}
@@ -393,17 +393,17 @@ static void mio_cs_config(struct pcmcia_device *link)
 	if (ret) {
 		printk("pcmcia_request_irq() returned error: %i\n", ret);
 	}
-	//printk("RequestIRQ 0x%02x\n",ret);
+	/* printk("RequestIRQ 0x%02x\n",ret); */
 
 	link->conf.ConfigIndex = 1;
 
 	ret = pcmcia_request_configuration(link, &link->conf);
-	//printk("RequestConfiguration %d\n",ret);
+	/* printk("RequestConfiguration %d\n",ret); */
 
 	link->dev_node = &dev_node;
 }
 
-static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pcmcia_device *link;
 	unsigned int irq;
@@ -446,29 +446,33 @@ static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	printk(" %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
-	if ((ret = comedi_request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-				"ni_mio_cs", dev)) < 0) {
+	ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				 "ni_mio_cs", dev);
+	if (ret < 0) {
 		printk(" irq not available\n");
 		return -EINVAL;
 	}
 	dev->irq = irq;
 
 	/* allocate private area */
-	if ((ret = ni_alloc_private(dev)) < 0)
+	ret = ni_alloc_private(dev);
+	if (ret < 0)
 		return ret;
+
 	devpriv->stc_writew = &mio_cs_win_out;
 	devpriv->stc_readw = &mio_cs_win_in;
 	devpriv->stc_writel = &win_out2;
 	devpriv->stc_readl = &win_in2;
 
-	if ((ret = ni_E_init(dev, it)) < 0) {
+	ret = ni_E_init(dev, it);
+
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }
 
-static int get_prodid(struct comedi_device * dev, struct pcmcia_device *link)
+static int get_prodid(struct comedi_device *dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	u_short buf[128];
@@ -487,7 +491,7 @@ static int get_prodid(struct comedi_device * dev, struct pcmcia_device *link)
 	return prodid;
 }
 
-static int ni_getboardtype(struct comedi_device * dev, struct pcmcia_device *link)
+static int ni_getboardtype(struct comedi_device *dev, struct pcmcia_device *link)
 {
 	int id;
 	int i;

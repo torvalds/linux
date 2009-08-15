@@ -609,3 +609,55 @@ void __init hpte_init_lpar(void)
 	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
 	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
 }
+
+#ifdef CONFIG_PPC_SMLPAR
+#define CMO_FREE_HINT_DEFAULT 1
+static int cmo_free_hint_flag = CMO_FREE_HINT_DEFAULT;
+
+static int __init cmo_free_hint(char *str)
+{
+	char *parm;
+	parm = strstrip(str);
+
+	if (strcasecmp(parm, "no") == 0 || strcasecmp(parm, "off") == 0) {
+		printk(KERN_INFO "cmo_free_hint: CMO free page hinting is not active.\n");
+		cmo_free_hint_flag = 0;
+		return 1;
+	}
+
+	cmo_free_hint_flag = 1;
+	printk(KERN_INFO "cmo_free_hint: CMO free page hinting is active.\n");
+
+	if (strcasecmp(parm, "yes") == 0 || strcasecmp(parm, "on") == 0)
+		return 1;
+
+	return 0;
+}
+
+__setup("cmo_free_hint=", cmo_free_hint);
+
+static void pSeries_set_page_state(struct page *page, int order,
+				   unsigned long state)
+{
+	int i, j;
+	unsigned long cmo_page_sz, addr;
+
+	cmo_page_sz = cmo_get_page_size();
+	addr = __pa((unsigned long)page_address(page));
+
+	for (i = 0; i < (1 << order); i++, addr += PAGE_SIZE) {
+		for (j = 0; j < PAGE_SIZE; j += cmo_page_sz)
+			plpar_hcall_norets(H_PAGE_INIT, state, addr + j, 0);
+	}
+}
+
+void arch_free_page(struct page *page, int order)
+{
+	if (!cmo_free_hint_flag || !firmware_has_feature(FW_FEATURE_CMO))
+		return;
+
+	pSeries_set_page_state(page, order, H_PAGE_SET_UNUSED);
+}
+EXPORT_SYMBOL(arch_free_page);
+
+#endif

@@ -100,7 +100,7 @@ Installation
     $ sudo cp utils/mount/mount.nfs /sbin/mount.nfs
 
     In this location, mount.nfs will be invoked automatically for NFS mounts
-    by the system mount commmand.
+    by the system mount command.
 
     NOTE: mount.nfs and therefore nfs-utils-1.1.2 or greater is only needed
     on the NFS client machine. You do not need this specific version of

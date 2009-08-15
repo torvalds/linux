@@ -97,7 +97,7 @@
 #define B44_DMARX_STAT	0x021CUL /* DMA RX Current Active Desc. + Status */
 #define  DMARX_STAT_CDMASK	0x00000fff /* Current Descriptor Mask */
 #define  DMARX_STAT_SMASK	0x0000f000 /* State Mask */
-#define  DMARX_STAT_SDISABLED	0x00000000 /* State Disbaled */
+#define  DMARX_STAT_SDISABLED	0x00000000 /* State Disabled */
 #define  DMARX_STAT_SACTIVE	0x00001000 /* State Active */
 #define  DMARX_STAT_SIDLE	0x00002000 /* State Idle Wait */
 #define  DMARX_STAT_SSTOPPED	0x00003000 /* State Stopped */
@@ -384,7 +384,6 @@ struct b44 {
 
 	struct timer_list	timer;
 
-	struct net_device_stats	stats;
 	struct b44_hw_stats	hw_stats;
 
 	struct ssb_device	*sdev;

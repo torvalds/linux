@@ -176,7 +176,7 @@ static bool gre_invert_tuple(struct nf_conntrack_tuple *tuple,
 static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	struct net *net = dev_net(skb->dev ? skb->dev : skb->dst->dev);
+	struct net *net = dev_net(skb->dev ? skb->dev : skb_dst(skb)->dev);
 	const struct gre_hdr_pptp *pgrehdr;
 	struct gre_hdr_pptp _pgrehdr;
 	__be16 srckey;
@@ -219,8 +219,7 @@ static int gre_print_tuple(struct seq_file *s,
 }
 
 /* print private data for conntrack */
-static int gre_print_conntrack(struct seq_file *s,
-			       const struct nf_conn *ct)
+static int gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	return seq_printf(s, "timeout=%u, stream_timeout=%u ",
 			  (ct->proto.gre.timeout / HZ),

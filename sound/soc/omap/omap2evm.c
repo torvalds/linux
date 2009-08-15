@@ -86,7 +86,7 @@ static struct snd_soc_dai_link omap2evm_dai = {
 	.name = "TWL4030",
 	.stream_name = "TWL4030",
 	.cpu_dai = &omap_mcbsp_dai[0],
-	.codec_dai = &twl4030_dai,
+	.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
 	.ops = &omap2evm_ops,
 };
 

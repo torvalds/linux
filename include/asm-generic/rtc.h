@@ -202,7 +202,7 @@ static inline unsigned int get_rtc_ss(void)
 {
 	struct rtc_time h;
 
-	__get_rtc_time(&h);
+	get_rtc_time(&h);
 	return h.tm_sec;
 }
 

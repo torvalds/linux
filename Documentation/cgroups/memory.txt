@@ -152,14 +152,19 @@ When swap is accounted, following files are added.
 
 usage of mem+swap is limited by memsw.limit_in_bytes.
 
-Note: why 'mem+swap' rather than swap.
+* why 'mem+swap' rather than swap.
 The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
 to move account from memory to swap...there is no change in usage of
-mem+swap.
+mem+swap. In other words, when we want to limit the usage of swap without
+affecting global LRU, mem+swap limit is better than just limiting swap from
+OS point of view.
 
-In other words, when we want to limit the usage of swap without affecting
-global LRU, mem+swap limit is better than just limiting swap from OS point
-of view.
+* What happens when a cgroup hits memory.memsw.limit_in_bytes
+When a cgroup his memory.memsw.limit_in_bytes, it's useless to do swap-out
+in this cgroup. Then, swap-out will not be done by cgroup routine and file
+caches are dropped. But as mentioned above, global LRU can do swapout memory
+from it for sanity of the system's memory management state. You can't forbid
+it by cgroup.
 
 2.5 Reclaim
 
@@ -204,6 +209,7 @@ We can alter the memory limit:
 
 NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
 mega or gigabytes.
+NOTE: We can write "-1" to reset the *.limit_in_bytes(unlimited).
 
 # cat /cgroups/0/memory.limit_in_bytes
 4194304

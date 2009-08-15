@@ -100,6 +100,7 @@ static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 				  const struct ubi_vid_hdr *vid_hdr);
 static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
 				 int len);
+static int paranoid_check_empty(struct ubi_device *ubi, int pnum);
 #else
 #define paranoid_check_not_bad(ubi, pnum) 0
 #define paranoid_check_peb_ec_hdr(ubi, pnum)  0
@@ -107,6 +108,7 @@ static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
 #define paranoid_check_peb_vid_hdr(ubi, pnum) 0
 #define paranoid_check_vid_hdr(ubi, pnum, vid_hdr) 0
 #define paranoid_check_all_ff(ubi, pnum, offset, len) 0
+#define paranoid_check_empty(ubi, pnum) 0
 #endif
 
 /**
@@ -670,11 +672,6 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		if (read_err != -EBADMSG &&
 		    check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
 			/* The physical eraseblock is supposedly empty */
-
-			/*
-			 * The below is just a paranoid check, it has to be
-			 * compiled out if paranoid checks are disabled.
-			 */
 			err = paranoid_check_all_ff(ubi, pnum, 0,
 						    ubi->peb_size);
 			if (err)
@@ -902,7 +899,7 @@ bad:
  * o %UBI_IO_BITFLIPS if the CRC is correct, but bit-flips were detected
  *   and corrected by the flash driver; this is harmless but may indicate that
  *   this eraseblock may become bad soon;
- * o %UBI_IO_BAD_VID_HRD if the volume identifier header is corrupted (a CRC
+ * o %UBI_IO_BAD_VID_HDR if the volume identifier header is corrupted (a CRC
  *   error detected);
  * o %UBI_IO_PEB_FREE if the physical eraseblock is free (i.e., there is no VID
  *   header there);
@@ -955,8 +952,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			 * The below is just a paranoid check, it has to be
 			 * compiled out if paranoid checks are disabled.
 			 */
-			err = paranoid_check_all_ff(ubi, pnum, ubi->leb_start,
-						    ubi->leb_size);
+			err = paranoid_check_empty(ubi, pnum);
 			if (err)
 				return err > 0 ? UBI_IO_BAD_VID_HDR : err;
 
@@ -1271,6 +1267,76 @@ static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
 fail:
 	ubi_err("paranoid check failed for PEB %d", pnum);
 	ubi_msg("hex dump of the %d-%d region", offset, offset + len);
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		       ubi->dbg_peb_buf, len, 1);
+	err = 1;
+error:
+	ubi_dbg_dump_stack();
+	mutex_unlock(&ubi->dbg_buf_mutex);
+	return err;
+}
+
+/**
+ * paranoid_check_empty - whether a PEB is empty.
+ * @ubi: UBI device description object
+ * @pnum: the physical eraseblock number to check
+ *
+ * This function makes sure PEB @pnum is empty, which means it contains only
+ * %0xFF data bytes. Returns zero if the PEB is empty, %1 if not, and a
+ * negative error code in case of failure.
+ *
+ * Empty PEBs have the EC header, and do not have the VID header. The caller of
+ * this function should have already made sure the PEB does not have the VID
+ * header. However, this function re-checks that, because it is possible that
+ * the header and data has already been written to the PEB.
+ *
+ * Let's consider a possible scenario. Suppose there are 2 tasks - A and B.
+ * Task A is in 'wear_leveling_worker()'. It is reading VID header of PEB X to
+ * find which LEB it corresponds to. PEB X is currently unmapped, and has no
+ * VID header. Task B is trying to write to PEB X.
+ *
+ * Task A: in 'ubi_io_read_vid_hdr()': reads the VID header from PEB X. The
+ *         read data contain all 0xFF bytes;
+ * Task B: writes VID header and some data to PEB X;
+ * Task A: assumes PEB X is empty, calls 'paranoid_check_empty()'. And if we
+ *         do not re-read the VID header, and do not cancel the checking if it
+ *         is there, we fail.
+ */
+static int paranoid_check_empty(struct ubi_device *ubi, int pnum)
+{
+	int err, offs = ubi->vid_hdr_aloffset, len = ubi->vid_hdr_alsize;
+	size_t read;
+	uint32_t magic;
+	const struct ubi_vid_hdr *vid_hdr;
+
+	mutex_lock(&ubi->dbg_buf_mutex);
+	err = ubi->mtd->read(ubi->mtd, offs, len, &read, ubi->dbg_peb_buf);
+	if (err && err != -EUCLEAN) {
+		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
+			"read %zd bytes", err, len, pnum, offs, read);
+		goto error;
+	}
+
+	vid_hdr = ubi->dbg_peb_buf;
+	magic = be32_to_cpu(vid_hdr->magic);
+	if (magic == UBI_VID_HDR_MAGIC)
+		/* The PEB contains VID header, so it is not empty */
+		goto out;
+
+	err = check_pattern(ubi->dbg_peb_buf, 0xFF, len);
+	if (err == 0) {
+		ubi_err("flash region at PEB %d:%d, length %d does not "
+			"contain all 0xFF bytes", pnum, offs, len);
+		goto fail;
+	}
+
+out:
+	mutex_unlock(&ubi->dbg_buf_mutex);
+	return 0;
+
+fail:
+	ubi_err("paranoid check failed for PEB %d", pnum);
+	ubi_msg("hex dump of the %d-%d region", offs, offs + len);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       ubi->dbg_peb_buf, len, 1);
 	err = 1;

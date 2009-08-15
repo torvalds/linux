@@ -173,6 +173,8 @@ struct hc_driver {
 #define	HCD_LOCAL_MEM	0x0002		/* HC needs local memory */
 #define	HCD_USB11	0x0010		/* USB 1.1 */
 #define	HCD_USB2	0x0020		/* USB 2.0 */
+#define	HCD_USB3	0x0040		/* USB 3.0 */
+#define	HCD_MASK	0x0070
 
 	/* called to init HCD and root hub */
 	int	(*reset) (struct usb_hcd *hcd);
@@ -182,10 +184,10 @@ struct hc_driver {
 	 * a whole, not just the root hub; they're for PCI bus glue.
 	 */
 	/* called after suspending the hub, before entering D3 etc */
-	int	(*pci_suspend) (struct usb_hcd *hcd, pm_message_t message);
+	int	(*pci_suspend)(struct usb_hcd *hcd);
 
 	/* called after entering D0 (etc), before resuming the hub */
-	int	(*pci_resume) (struct usb_hcd *hcd);
+	int	(*pci_resume)(struct usb_hcd *hcd, bool hibernated);
 
 	/* cleanly make HCD stop writing memory and doing I/O */
 	void	(*stop) (struct usb_hcd *hcd);
@@ -224,6 +226,43 @@ struct hc_driver {
 	void	(*relinquish_port)(struct usb_hcd *, int);
 		/* has a port been handed over to a companion? */
 	int	(*port_handed_over)(struct usb_hcd *, int);
+
+	/* xHCI specific functions */
+		/* Called by usb_alloc_dev to alloc HC device structures */
+	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
+		/* Called by usb_release_dev to free HC device structures */
+	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
+
+	/* Bandwidth computation functions */
+	/* Note that add_endpoint() can only be called once per endpoint before
+	 * check_bandwidth() or reset_bandwidth() must be called.
+	 * drop_endpoint() can only be called once per endpoint also.
+	 * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
+	 * add the endpoint to the schedule with possibly new parameters denoted by a
+	 * different endpoint descriptor in usb_host_endpoint.
+	 * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
+	 * not allowed.
+	 */
+		/* Allocate endpoint resources and add them to a new schedule */
+	int 	(*add_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+		/* Drop an endpoint from a new schedule */
+	int 	(*drop_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+		/* Check that a new hardware configuration, set using
+		 * endpoint_enable and endpoint_disable, does not exceed bus
+		 * bandwidth.  This must be called before any set configuration
+		 * or set interface requests are sent to the device.
+		 */
+	int	(*check_bandwidth)(struct usb_hcd *, struct usb_device *);
+		/* Reset the device schedule to the last known good schedule,
+		 * which was set from a previous successful call to
+		 * check_bandwidth().  This reverts any add_endpoint() and
+		 * drop_endpoint() calls since that last successful call.
+		 * Used for when a check_bandwidth() call fails due to resource
+		 * or bandwidth constraints.
+		 */
+	void	(*reset_bandwidth)(struct usb_hcd *, struct usb_device *);
+		/* Returns the hardware-chosen device address */
+	int	(*address_device)(struct usb_hcd *, struct usb_device *udev);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
@@ -242,6 +281,9 @@ extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 extern void usb_hcd_reset_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
+extern int usb_hcd_check_bandwidth(struct usb_device *udev,
+		struct usb_host_config *new_config,
+		struct usb_interface *new_intf);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
@@ -261,14 +303,11 @@ struct pci_device_id;
 extern int usb_hcd_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id);
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
-
-#ifdef CONFIG_PM
-extern int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t msg);
-extern int usb_hcd_pci_resume(struct pci_dev *dev);
-#endif /* CONFIG_PM */
-
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
 
+#ifdef CONFIG_PM_SLEEP
+extern struct dev_pm_ops	usb_hcd_pci_pm_ops;
+#endif
 #endif /* CONFIG_PCI */
 
 /* pci-ish (pdev null is ok) buffer alloc/mapping support */

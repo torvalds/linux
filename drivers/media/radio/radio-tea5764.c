@@ -322,7 +322,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->rangehigh  = FREQ_MAX * FREQ_MUL;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	if (r->tunchk & TEA5764_TUNCHK_STEREO)
-			v->rxsubchans = V4L2_TUNER_SUB_STEREO;
+		v->rxsubchans = V4L2_TUNER_SUB_STEREO;
+	else
+		v->rxsubchans = V4L2_TUNER_SUB_MONO;
 	v->audmode = tea5764_get_audout_mode(radio);
 	v->signal = TEA5764_TUNCHK_LEVEL(r->tunchk) * 0xffff / 0xf;
 	v->afc = TEA5764_TUNCHK_IFCNT(r->tunchk);

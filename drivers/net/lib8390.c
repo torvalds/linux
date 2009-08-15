@@ -370,7 +370,7 @@ static int __ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock(&ei_local->page_lock);
 		enable_irq_lockdep_irqrestore(dev->irq, &flags);
 		dev->stats.tx_errors++;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/*

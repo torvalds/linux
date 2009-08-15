@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -28,8 +28,10 @@
 
 #include <scsi/scsi.h>
 
+#include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
@@ -45,7 +47,7 @@
  * @phba: HBA to allocate pools for
  *
  * Description: Creates and allocates PCI pools lpfc_scsi_dma_buf_pool,
- * lpfc_mbuf_pool, lpfc_hbq_pool.  Creates and allocates kmalloc-backed mempools
+ * lpfc_mbuf_pool, lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
  * for LPFC_MBOXQ_t and lpfc_nodelist.  Also allocates the VPI bitmask.
  *
  * Notes: Not interrupt-safe.  Must be called with no locks held.  If any
@@ -56,19 +58,30 @@
  *   -ENOMEM on failure (if any memory allocations fail)
  **/
 int
-lpfc_mem_alloc(struct lpfc_hba * phba)
+lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 {
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 	int longs;
 	int i;
 
-	phba->lpfc_scsi_dma_buf_pool = pci_pool_create("lpfc_scsi_dma_buf_pool",
-				phba->pcidev, phba->cfg_sg_dma_buf_size, 8, 0);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		phba->lpfc_scsi_dma_buf_pool =
+			pci_pool_create("lpfc_scsi_dma_buf_pool",
+				phba->pcidev,
+				phba->cfg_sg_dma_buf_size,
+				phba->cfg_sg_dma_buf_size,
+				0);
+	else
+		phba->lpfc_scsi_dma_buf_pool =
+			pci_pool_create("lpfc_scsi_dma_buf_pool",
+				phba->pcidev, phba->cfg_sg_dma_buf_size,
+				align, 0);
 	if (!phba->lpfc_scsi_dma_buf_pool)
 		goto fail;
 
 	phba->lpfc_mbuf_pool = pci_pool_create("lpfc_mbuf_pool", phba->pcidev,
-							LPFC_BPL_SIZE, 8,0);
+							LPFC_BPL_SIZE,
+							align, 0);
 	if (!phba->lpfc_mbuf_pool)
 		goto fail_free_dma_buf_pool;
 
@@ -97,23 +110,31 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 						sizeof(struct lpfc_nodelist));
 	if (!phba->nlp_mem_pool)
 		goto fail_free_mbox_pool;
-
-	phba->lpfc_hbq_pool = pci_pool_create("lpfc_hbq_pool",phba->pcidev,
-					      LPFC_BPL_SIZE, 8, 0);
-	if (!phba->lpfc_hbq_pool)
+	phba->lpfc_hrb_pool = pci_pool_create("lpfc_hrb_pool",
+					      phba->pcidev,
+					      LPFC_HDR_BUF_SIZE, align, 0);
+	if (!phba->lpfc_hrb_pool)
 		goto fail_free_nlp_mem_pool;
+	phba->lpfc_drb_pool = pci_pool_create("lpfc_drb_pool",
+					      phba->pcidev,
+					      LPFC_DATA_BUF_SIZE, align, 0);
+	if (!phba->lpfc_drb_pool)
+		goto fail_free_hbq_pool;
 
 	/* vpi zero is reserved for the physical port so add 1 to max */
 	longs = ((phba->max_vpi + 1) + BITS_PER_LONG - 1) / BITS_PER_LONG;
 	phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long), GFP_KERNEL);
 	if (!phba->vpi_bmask)
-		goto fail_free_hbq_pool;
+		goto fail_free_dbq_pool;
 
 	return 0;
 
+ fail_free_dbq_pool:
+	pci_pool_destroy(phba->lpfc_drb_pool);
+	phba->lpfc_drb_pool = NULL;
  fail_free_hbq_pool:
-	lpfc_sli_hbqbuf_free_all(phba);
-	pci_pool_destroy(phba->lpfc_hbq_pool);
+	pci_pool_destroy(phba->lpfc_hrb_pool);
+	phba->lpfc_hrb_pool = NULL;
  fail_free_nlp_mem_pool:
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;
@@ -136,27 +157,73 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_mem_free - Frees all PCI and memory allocated by lpfc_mem_alloc
+ * lpfc_mem_free - Frees memory allocated by lpfc_mem_alloc
  * @phba: HBA to free memory for
  *
- * Description: Frees PCI pools lpfc_scsi_dma_buf_pool, lpfc_mbuf_pool,
- * lpfc_hbq_pool.  Frees kmalloc-backed mempools for LPFC_MBOXQ_t and
- * lpfc_nodelist.  Also frees the VPI bitmask
+ * Description: Free the memory allocated by lpfc_mem_alloc routine. This
+ * routine is a the counterpart of lpfc_mem_alloc.
  *
  * Returns: None
  **/
 void
-lpfc_mem_free(struct lpfc_hba * phba)
+lpfc_mem_free(struct lpfc_hba *phba)
+{
+	int i;
+	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
+
+	/* Free VPI bitmask memory */
+	kfree(phba->vpi_bmask);
+
+	/* Free HBQ pools */
+	lpfc_sli_hbqbuf_free_all(phba);
+	pci_pool_destroy(phba->lpfc_drb_pool);
+	phba->lpfc_drb_pool = NULL;
+	pci_pool_destroy(phba->lpfc_hrb_pool);
+	phba->lpfc_hrb_pool = NULL;
+
+	/* Free NLP memory pool */
+	mempool_destroy(phba->nlp_mem_pool);
+	phba->nlp_mem_pool = NULL;
+
+	/* Free mbox memory pool */
+	mempool_destroy(phba->mbox_mem_pool);
+	phba->mbox_mem_pool = NULL;
+
+	/* Free MBUF memory pool */
+	for (i = 0; i < pool->current_count; i++)
+		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
+			      pool->elements[i].phys);
+	kfree(pool->elements);
+
+	pci_pool_destroy(phba->lpfc_mbuf_pool);
+	phba->lpfc_mbuf_pool = NULL;
+
+	/* Free DMA buffer memory pool */
+	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
+	phba->lpfc_scsi_dma_buf_pool = NULL;
+
+	return;
+}
+
+/**
+ * lpfc_mem_free_all - Frees all PCI and driver memory
+ * @phba: HBA to free memory for
+ *
+ * Description: Free memory from PCI and driver memory pools and also those
+ * used : lpfc_scsi_dma_buf_pool, lpfc_mbuf_pool, lpfc_hrb_pool. Frees
+ * kmalloc-backed mempools for LPFC_MBOXQ_t and lpfc_nodelist. Also frees
+ * the VPI bitmask.
+ *
+ * Returns: None
+ **/
+void
+lpfc_mem_free_all(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 	LPFC_MBOXQ_t *mbox, *next_mbox;
 	struct lpfc_dmabuf   *mp;
-	int i;
 
-	kfree(phba->vpi_bmask);
-	lpfc_sli_hbqbuf_free_all(phba);
-
+	/* Free memory used in mailbox queue back to mailbox memory pool */
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq, list) {
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
 		if (mp) {
@@ -166,6 +233,7 @@ lpfc_mem_free(struct lpfc_hba * phba)
 		list_del(&mbox->list);
 		mempool_free(mbox, phba->mbox_mem_pool);
 	}
+	/* Free memory used in mailbox cmpl list back to mailbox memory pool */
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq_cmpl, list) {
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
 		if (mp) {
@@ -175,8 +243,10 @@ lpfc_mem_free(struct lpfc_hba * phba)
 		list_del(&mbox->list);
 		mempool_free(mbox, phba->mbox_mem_pool);
 	}
-
+	/* Free the active mailbox command back to the mailbox memory pool */
+	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 	if (psli->mbox_active) {
 		mbox = psli->mbox_active;
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
@@ -188,27 +258,14 @@ lpfc_mem_free(struct lpfc_hba * phba)
 		psli->mbox_active = NULL;
 	}
 
-	for (i = 0; i < pool->current_count; i++)
-		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
-						 pool->elements[i].phys);
-	kfree(pool->elements);
-
-	pci_pool_destroy(phba->lpfc_hbq_pool);
-	mempool_destroy(phba->nlp_mem_pool);
-	mempool_destroy(phba->mbox_mem_pool);
-
-	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
-	pci_pool_destroy(phba->lpfc_mbuf_pool);
-
-	phba->lpfc_hbq_pool = NULL;
-	phba->nlp_mem_pool = NULL;
-	phba->mbox_mem_pool = NULL;
-	phba->lpfc_scsi_dma_buf_pool = NULL;
-	phba->lpfc_mbuf_pool = NULL;
+	/* Free and destroy all the allocated memory pools */
+	lpfc_mem_free(phba);
 
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
 	psli->iocbq_lookup = NULL;
+
+	return;
 }
 
 /**
@@ -305,7 +362,7 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
  * lpfc_els_hbq_alloc - Allocate an HBQ buffer
  * @phba: HBA to allocate HBQ buffer for
  *
- * Description: Allocates a DMA-mapped HBQ buffer from the lpfc_hbq_pool PCI
+ * Description: Allocates a DMA-mapped HBQ buffer from the lpfc_hrb_pool PCI
  * pool along a non-DMA-mapped container for it.
  *
  * Notes: Not interrupt-safe.  Must be called with no locks held.
@@ -323,7 +380,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 	if (!hbqbp)
 		return NULL;
 
-	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
+	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
 					  &hbqbp->dbuf.phys);
 	if (!hbqbp->dbuf.virt) {
 		kfree(hbqbp);
@@ -334,7 +391,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_mem_hbq_free - Frees an HBQ buffer allocated with lpfc_els_hbq_alloc
+ * lpfc_els_hbq_free - Frees an HBQ buffer allocated with lpfc_els_hbq_alloc
  * @phba: HBA buffer was allocated for
  * @hbqbp: HBQ container returned by lpfc_els_hbq_alloc
  *
@@ -348,8 +405,69 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 void
 lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
 {
-	pci_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
+	pci_pool_free(phba->lpfc_hrb_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
 	kfree(hbqbp);
+	return;
+}
+
+/**
+ * lpfc_sli4_rb_alloc - Allocate an SLI4 Receive buffer
+ * @phba: HBA to allocate a receive buffer for
+ *
+ * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
+ * pool along a non-DMA-mapped container for it.
+ *
+ * Notes: Not interrupt-safe.  Must be called with no locks held.
+ *
+ * Returns:
+ *   pointer to HBQ on success
+ *   NULL on failure
+ **/
+struct hbq_dmabuf *
+lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
+{
+	struct hbq_dmabuf *dma_buf;
+
+	dma_buf = kmalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
+	if (!dma_buf)
+		return NULL;
+
+	dma_buf->hbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+					    &dma_buf->hbuf.phys);
+	if (!dma_buf->hbuf.virt) {
+		kfree(dma_buf);
+		return NULL;
+	}
+	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+					    &dma_buf->dbuf.phys);
+	if (!dma_buf->dbuf.virt) {
+		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+			      dma_buf->hbuf.phys);
+		kfree(dma_buf);
+		return NULL;
+	}
+	dma_buf->size = LPFC_BPL_SIZE;
+	return dma_buf;
+}
+
+/**
+ * lpfc_sli4_rb_free - Frees a receive buffer
+ * @phba: HBA buffer was allocated for
+ * @dmab: DMA Buffer container returned by lpfc_sli4_hbq_alloc
+ *
+ * Description: Frees both the container and the DMA-mapped buffers returned by
+ * lpfc_sli4_rb_alloc.
+ *
+ * Notes: Can be called with or without locks held.
+ *
+ * Returns: None
+ **/
+void
+lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
+{
+	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
+	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
+	kfree(dmab);
 	return;
 }
 

@@ -1,19 +1,12 @@
 /*
- *	Low-Level PCI Support for the SH7780
+ * Low-Level PCI Support for the SH7780
  *
- *  Dustin McIntire (dustin@sensoria.com)
- *	Derived from arch/i386/kernel/pci-*.c which bore the message:
- *	(c) 1999--2000 Martin Mares <mj@ucw.cz>
+ *  Copyright (C) 2005 - 2009  Paul Mundt
  *
- *  Ported to the new API by Paul Mundt <lethal@linux-sh.org>
- *  With cleanup by Paul van Gool <pvangool@mimotech.com>
- *
- *  May be copied or modified under the terms of the GNU General Public
- *  License.  See linux/COPYING for more information.
- *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-#undef DEBUG
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -22,135 +15,132 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
-#define INTC_BASE	0xffd00000
-#define INTC_ICR0	(INTC_BASE+0x0)
-#define INTC_ICR1	(INTC_BASE+0x1c)
-#define INTC_INTPRI	(INTC_BASE+0x10)
-#define INTC_INTREQ	(INTC_BASE+0x24)
-#define INTC_INTMSK0	(INTC_BASE+0x44)
-#define INTC_INTMSK1	(INTC_BASE+0x48)
-#define INTC_INTMSK2	(INTC_BASE+0x40080)
-#define INTC_INTMSKCLR0	(INTC_BASE+0x64)
-#define INTC_INTMSKCLR1	(INTC_BASE+0x68)
-#define INTC_INTMSKCLR2	(INTC_BASE+0x40084)
-#define INTC_INT2MSKR	(INTC_BASE+0x40038)
-#define INTC_INT2MSKCR	(INTC_BASE+0x4003c)
+static struct resource sh7785_io_resource = {
+	.name	= "SH7785_IO",
+	.start	= SH7780_PCI_IO_BASE,
+	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
+	.flags	= IORESOURCE_IO
+};
 
-/*
- * Initialization. Try all known PCI access methods. Note that we support
- * using both PCI BIOS and direct access: in such cases, we use I/O ports
- * to access config space.
- *
- * Note that the platform specific initialization (BSC registers, and memory
- * space mapping) will be called via the platform defined function
- * pcibios_init_platform().
- */
+static struct resource sh7785_mem_resource = {
+	.name	= "SH7785_mem",
+	.start	= SH7780_PCI_MEMORY_BASE,
+	.end	= SH7780_PCI_MEMORY_BASE + SH7780_PCI_MEM_SIZE - 1,
+	.flags	= IORESOURCE_MEM
+};
+
+static struct pci_channel sh7780_pci_controller = {
+	.pci_ops	= &sh4_pci_ops,
+	.mem_resource	= &sh7785_mem_resource,
+	.mem_offset	= 0x00000000,
+	.io_resource	= &sh7785_io_resource,
+	.io_offset	= 0x00000000,
+	.io_map_base	= SH7780_PCI_IO_BASE,
+};
+
+static struct sh4_pci_address_map sh7780_pci_map = {
+	.window0	= {
+#if defined(CONFIG_32BIT)
+		.base	= SH7780_32BIT_DDR_BASE_ADDR,
+		.size	= 0x40000000,
+#else
+		.base	= SH7780_CS0_BASE_ADDR,
+		.size	= 0x20000000,
+#endif
+	},
+};
+
 static int __init sh7780_pci_init(void)
 {
+	struct pci_channel *chan = &sh7780_pci_controller;
 	unsigned int id;
-	int ret, match = 0;
+	const char *type = NULL;
+	int ret;
+	u32 word;
 
-	pr_debug("PCI: Starting intialization.\n");
+	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
-	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
+	chan->reg_base = 0xfe040000;
 
-	/* check for SH7780/SH7780R hardware */
-	id = pci_read_reg(SH7780_PCIVID);
-	if ((id & 0xffff) == SH7780_VENDOR_ID) {
-		switch ((id >> 16) & 0xffff) {
-		case SH7763_DEVICE_ID:
-		case SH7780_DEVICE_ID:
-		case SH7781_DEVICE_ID:
-		case SH7785_DEVICE_ID:
-			match = 1;
-			break;
-		}
-	}
+	/* Enable CPU access to the PCIC registers. */
+	__raw_writel(PCIECR_ENBL, PCIECR);
 
-	if (unlikely(!match)) {
-		printk(KERN_ERR "PCI: This is not an SH7780 (%x)\n", id);
+	id = __raw_readw(chan->reg_base + SH7780_PCIVID);
+	if (id != SH7780_VENDOR_ID) {
+		printk(KERN_ERR "PCI: Unknown vendor ID 0x%04x.\n", id);
 		return -ENODEV;
 	}
 
-	/* Setup the INTC */
-	if (mach_is_7780se()) {
-		/* ICR0: IRL=use separately */
-		ctrl_outl(0x00C00020, INTC_ICR0);
-		/* ICR1: detect low level(for 2ndcut) */
-		ctrl_outl(0xAAAA0000, INTC_ICR1);
-		/* INTPRI: priority=3(all) */
-		ctrl_outl(0x33333333, INTC_INTPRI);
+	id = __raw_readw(chan->reg_base + SH7780_PCIDID);
+	type = (id == SH7763_DEVICE_ID)	? "SH7763" :
+	       (id == SH7780_DEVICE_ID) ? "SH7780" :
+	       (id == SH7781_DEVICE_ID) ? "SH7781" :
+	       (id == SH7785_DEVICE_ID) ? "SH7785" :
+					  NULL;
+	if (unlikely(!type)) {
+		printk(KERN_ERR "PCI: Found an unsupported Renesas host "
+		       "controller, device id 0x%04x.\n", id);
+		return -EINVAL;
 	}
 
-	if ((ret = sh4_pci_check_direct()) != 0)
+	printk(KERN_NOTICE "PCI: Found a Renesas %s host "
+	       "controller, revision %d.\n", type,
+	       __raw_readb(chan->reg_base + SH7780_PCIRID));
+
+	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
 
-	return pcibios_init_platform();
-}
-core_initcall(sh7780_pci_init);
-
-int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
-{
-	u32 word;
+	/*
+	 * Set the class and sub-class codes.
+	 */
+	__raw_writeb(PCI_CLASS_BRIDGE_HOST >> 8,
+		     chan->reg_base + SH7780_PCIBCC);
+	__raw_writeb(PCI_CLASS_BRIDGE_HOST & 0xff,
+		     chan->reg_base + SH7780_PCISUB);
 
 	/*
-	 * This code is unused for some boards as it is done in the
-	 * bootloader and doing it here means the MAC addresses loaded
-	 * by the bootloader get lost.
-	 */
-	if (!(map->flags & SH4_PCIC_NO_RESET)) {
-		/* toggle PCI reset pin */
-		word = SH4_PCICR_PREFIX | SH4_PCICR_PRST;
-		pci_write_reg(word, SH4_PCICR);
-		/* Wait for a long time... not 1 sec. but long enough */
-		mdelay(100);
-		word = SH4_PCICR_PREFIX;
-		pci_write_reg(word, SH4_PCICR);
-	}
-
-	/* set the command/status bits to:
-	 * Wait Cycle Control + Parity Enable + Bus Master +
-	 * Mem space enable
-	 */
-	pci_write_reg(0x00000046, SH7780_PCICMD);
-
-	/* define this host as the host bridge */
-	word = PCI_BASE_CLASS_BRIDGE << 24;
-	pci_write_reg(word, SH7780_PCIRID);
-
-	/* Set IO and Mem windows to local address
+	 * Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
 	 */
-	pci_write_reg(map->window0.size - 0xfffff, SH4_PCILSR0);
-	pci_write_reg(map->window1.size - 0xfffff, SH4_PCILSR1);
+	pci_write_reg(chan, sh7780_pci_map.window0.size - 0xfffff, SH4_PCILSR0);
 	/* Set the values on window 0 PCI config registers */
-	pci_write_reg(map->window0.base, SH4_PCILAR0);
-	pci_write_reg(map->window0.base, SH7780_PCIMBAR0);
-	/* Set the values on window 1 PCI config registers */
-	pci_write_reg(map->window1.base, SH4_PCILAR1);
-	pci_write_reg(map->window1.base, SH7780_PCIMBAR1);
+	pci_write_reg(chan, sh7780_pci_map.window0.base, SH4_PCILAR0);
+	pci_write_reg(chan, sh7780_pci_map.window0.base, SH7780_PCIMBAR0);
 
-	/* Map IO space into PCI IO window
-	 * The IO window is 64K-PCIBIOS_MIN_IO in size
-	 * IO addresses will be translated to the
-	 * PCI IO window base address
-	 */
-	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%x\n",
-		 PCIBIOS_MIN_IO, (64 << 10),
-		 SH7780_PCI_IO_BASE + PCIBIOS_MIN_IO);
+	pci_write_reg(chan, 0x0000380f, SH4_PCIAINTM);
 
-	/* NOTE: I'm ignoring the PCI error IRQs for now..
-	 * TODO: add support for the internal error interrupts and
-	 * DMA interrupts...
-	 */
+	/* Set up standard PCI config registers */
+	__raw_writew(0xFB00, chan->reg_base + SH7780_PCISTATUS);
+	__raw_writew(0x0047, chan->reg_base + SH7780_PCICMD);
+	__raw_writew(0x1912, chan->reg_base + SH7780_PCISVID);
+	__raw_writew(0x0001, chan->reg_base + SH7780_PCISID);
+
+	__raw_writeb(0x00, chan->reg_base + SH7780_PCIPIF);
 
 	/* Apply any last-minute PCIC fixups */
-	pci_fixup_pcic();
+	pci_fixup_pcic(chan);
+
+	pci_write_reg(chan, 0xfd000000, SH7780_PCIMBR0);
+	pci_write_reg(chan, 0x00fc0000, SH7780_PCIMBMR0);
+
+#ifdef CONFIG_32BIT
+	pci_write_reg(chan, 0xc0000000, SH7780_PCIMBR2);
+	pci_write_reg(chan, 0x20000000 - SH7780_PCI_IO_SIZE, SH7780_PCIMBMR2);
+#endif
+
+	/* Set IOBR for windows containing area specified in pci.h */
+	pci_write_reg(chan, chan->io_resource->start & ~(SH7780_PCI_IO_SIZE-1),
+		      SH7780_PCIIOBR);
+	pci_write_reg(chan, ((SH7780_PCI_IO_SIZE-1) & (7<<18)),
+		      SH7780_PCIIOBMR);
 
 	/* SH7780 init done, set central function init complete */
 	/* use round robin mode to stop a device starving/overruning */
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO;
-	pci_write_reg(word, SH4_PCICR);
+	pci_write_reg(chan, word, SH4_PCICR);
 
-	return 1;
+	register_pci_controller(chan);
+
+	return 0;
 }
+arch_initcall(sh7780_pci_init);

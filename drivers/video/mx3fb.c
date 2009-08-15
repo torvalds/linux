@@ -706,7 +706,7 @@ static void mx3fb_dma_done(void *arg)
 	dev_dbg(mx3fb->dev, "irq %d callback\n", ichannel->eof_irq);
 
 	/* We only need one interrupt, it will be re-enabled as needed */
-	disable_irq(ichannel->eof_irq);
+	disable_irq_nosync(ichannel->eof_irq);
 
 	complete(&mx3_fbi->flip_cmpl);
 }
@@ -1366,7 +1366,7 @@ static int init_fb_chan(struct mx3fb_data *mx3fb, struct idmac_channel *ichan)
 
 	mx3fb_blank(FB_BLANK_UNBLANK, fbi);
 
-	dev_info(dev, "mx3fb: fb registered, using mode %s\n", fb_mode);
+	dev_info(dev, "registered, using mode %s\n", fb_mode);
 
 	ret = register_framebuffer(fbi);
 	if (ret < 0)

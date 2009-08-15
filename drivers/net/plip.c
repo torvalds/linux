@@ -955,12 +955,12 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	struct plip_local *snd = &nl->snd_data;
 
 	if (netif_queue_stopped(dev))
-		return 1;
+		return NETDEV_TX_BUSY;
 
 	/* We may need to grab the bus */
 	if (!nl->port_owner) {
 		if (parport_claim(nl->pardev))
-			return 1;
+			return NETDEV_TX_BUSY;
 		nl->port_owner = 1;
 	}
 
@@ -969,7 +969,7 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len > dev->mtu + dev->hard_header_len) {
 		printk(KERN_WARNING "%s: packet too big, %d.\n", dev->name, (int)skb->len);
 		netif_start_queue (dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (net_debug > 2)

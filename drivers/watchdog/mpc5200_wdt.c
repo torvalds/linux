@@ -188,7 +188,7 @@ static int mpc5200_wdt_probe(struct of_device *op,
 	if (!wdt)
 		return -ENOMEM;
 
-	wdt->ipb_freq = mpc52xx_find_ipb_freq(op->node);
+	wdt->ipb_freq = mpc5xxx_get_bus_frequency(op->node);
 
 	err = of_address_to_resource(op->node, 0, &wdt->mem);
 	if (err)

@@ -28,7 +28,7 @@ comment "Miscellaneous USB options"
 	depends on USB
 
 config USB_DEVICEFS
-	bool "USB device filesystem"
+	bool "USB device filesystem (DEPRECATED)" if EMBEDDED
 	depends on USB
 	---help---
 	  If you say Y here (and to "/proc file system support" in the "File
@@ -46,11 +46,15 @@ config USB_DEVICEFS
 	  For the format of the various /proc/bus/usb/ files, please read
 	  <file:Documentation/usb/proc_usb_info.txt>.
 
-	  Usbfs files can't handle Access Control Lists (ACL), which are the
-	  default way to grant access to USB devices for untrusted users of a
-	  desktop system. The usbfs functionality is replaced by real
-	  device-nodes managed by udev. These nodes live in /dev/bus/usb and
-	  are used by libusb.
+	  Modern Linux systems do not use this.
+
+	  Usbfs entries are files and not character devices; usbfs can't
+	  handle Access Control Lists (ACL) which are the default way to
+	  grant access to USB devices for untrusted users of a desktop
+	  system.
+
+	  The usbfs functionality is replaced by real device-nodes managed by
+	  udev.  These nodes lived in /dev/bus/usb and are used by libusb.
 
 config USB_DEVICE_CLASS
 	bool "USB device class-devices (DEPRECATED)"

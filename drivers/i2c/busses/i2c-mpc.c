@@ -197,7 +197,7 @@ int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock, int prescaler)
 		return -EINVAL;
 
 	/* Determine divider value */
-	divider = mpc52xx_find_ipb_freq(node) / clock;
+	divider = mpc5xxx_get_bus_frequency(node) / clock;
 
 	/*
 	 * We want to choose an FDR/DFSR that generates an I2C bus speed that

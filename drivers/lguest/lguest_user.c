@@ -7,32 +7,83 @@
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/eventfd.h>
+#include <linux/file.h>
 #include "lg.h"
 
-/*L:055 When something happens, the Waker process needs a way to stop the
- * kernel running the Guest and return to the Launcher.  So the Waker writes
- * LHREQ_BREAK and the value "1" to /dev/lguest to do this.  Once the Launcher
- * has done whatever needs attention, it writes LHREQ_BREAK and "0" to release
- * the Waker. */
-static int break_guest_out(struct lg_cpu *cpu, const unsigned long __user*input)
+bool send_notify_to_eventfd(struct lg_cpu *cpu)
 {
-	unsigned long on;
+	unsigned int i;
+	struct lg_eventfd_map *map;
 
-	/* Fetch whether they're turning break on or off. */
-	if (get_user(on, input) != 0)
+	/* lg->eventfds is RCU-protected */
+	rcu_read_lock();
+	map = rcu_dereference(cpu->lg->eventfds);
+	for (i = 0; i < map->num; i++) {
+		if (map->map[i].addr == cpu->pending_notify) {
+			eventfd_signal(map->map[i].event, 1);
+			cpu->pending_notify = 0;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return cpu->pending_notify == 0;
+}
+
+static int add_eventfd(struct lguest *lg, unsigned long addr, int fd)
+{
+	struct lg_eventfd_map *new, *old = lg->eventfds;
+
+	if (!addr)
+		return -EINVAL;
+
+	/* Replace the old array with the new one, carefully: others can
+	 * be accessing it at the same time */
+	new = kmalloc(sizeof(*new) + sizeof(new->map[0]) * (old->num + 1),
+		      GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	/* First make identical copy. */
+	memcpy(new->map, old->map, sizeof(old->map[0]) * old->num);
+	new->num = old->num;
+
+	/* Now append new entry. */
+	new->map[new->num].addr = addr;
+	new->map[new->num].event = eventfd_fget(fd);
+	if (IS_ERR(new->map[new->num].event)) {
+		kfree(new);
+		return PTR_ERR(new->map[new->num].event);
+	}
+	new->num++;
+
+	/* Now put new one in place. */
+	rcu_assign_pointer(lg->eventfds, new);
+
+	/* We're not in a big hurry.  Wait until noone's looking at old
+	 * version, then delete it. */
+	synchronize_rcu();
+	kfree(old);
+
+	return 0;
+}
+
+static int attach_eventfd(struct lguest *lg, const unsigned long __user *input)
+{
+	unsigned long addr, fd;
+	int err;
+
+	if (get_user(addr, input) != 0)
+		return -EFAULT;
+	input++;
+	if (get_user(fd, input) != 0)
 		return -EFAULT;
 
-	if (on) {
-		cpu->break_out = 1;
-		/* Pop it out of the Guest (may be running on different CPU) */
-		wake_up_process(cpu->tsk);
-		/* Wait for them to reset it */
-		return wait_event_interruptible(cpu->break_wq, !cpu->break_out);
-	} else {
-		cpu->break_out = 0;
-		wake_up(&cpu->break_wq);
-		return 0;
-	}
+	mutex_lock(&lguest_lock);
+	err = add_eventfd(lg, addr, fd);
+	mutex_unlock(&lguest_lock);
+
+	return 0;
 }
 
 /*L:050 Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
@@ -45,9 +96,8 @@ static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 		return -EFAULT;
 	if (irq >= LGUEST_IRQS)
 		return -EINVAL;
-	/* Next time the Guest runs, the core code will see if it can deliver
-	 * this interrupt. */
-	set_bit(irq, cpu->irqs_pending);
+
+	set_interrupt(cpu, irq);
 	return 0;
 }
 
@@ -126,9 +176,6 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	 * address. */
 	lguest_arch_setup_regs(cpu, start_ip);
 
-	/* Initialize the queue for the Waker to wait on */
-	init_waitqueue_head(&cpu->break_wq);
-
 	/* We keep a pointer to the Launcher task (ie. current task) for when
 	 * other Guests want to wake this one (eg. console input). */
 	cpu->tsk = current;
@@ -185,6 +232,13 @@ static int initialize(struct file *file, const unsigned long __user *input)
 		goto unlock;
 	}
 
+	lg->eventfds = kmalloc(sizeof(*lg->eventfds), GFP_KERNEL);
+	if (!lg->eventfds) {
+		err = -ENOMEM;
+		goto free_lg;
+	}
+	lg->eventfds->num = 0;
+
 	/* Populate the easy fields of our "struct lguest" */
 	lg->mem_base = (void __user *)args[0];
 	lg->pfn_limit = args[1];
@@ -192,7 +246,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	/* This is the first cpu (cpu 0) and it will start booting at args[2] */
 	err = lg_cpu_start(&lg->cpus[0], 0, args[2]);
 	if (err)
-		goto release_guest;
+		goto free_eventfds;
 
 	/* Initialize the Guest's shadow page tables, using the toplevel
 	 * address the Launcher gave us.  This allocates memory, so can fail. */
@@ -211,7 +265,9 @@ static int initialize(struct file *file, const unsigned long __user *input)
 free_regs:
 	/* FIXME: This should be in free_vcpu */
 	free_page(lg->cpus[0].regs_page);
-release_guest:
+free_eventfds:
+	kfree(lg->eventfds);
+free_lg:
 	kfree(lg);
 unlock:
 	mutex_unlock(&lguest_lock);
@@ -252,11 +308,6 @@ static ssize_t write(struct file *file, const char __user *in,
 		/* Once the Guest is dead, you can only read() why it died. */
 		if (lg->dead)
 			return -ENOENT;
-
-		/* If you're not the task which owns the Guest, all you can do
-		 * is break the Launcher out of running the Guest. */
-		if (current != cpu->tsk && req != LHREQ_BREAK)
-			return -EPERM;
 	}
 
 	switch (req) {
@@ -264,8 +315,8 @@ static ssize_t write(struct file *file, const char __user *in,
 		return initialize(file, input);
 	case LHREQ_IRQ:
 		return user_send_irq(cpu, input);
-	case LHREQ_BREAK:
-		return break_guest_out(cpu, input);
+	case LHREQ_EVENTFD:
+		return attach_eventfd(lg, input);
 	default:
 		return -EINVAL;
 	}
@@ -303,6 +354,12 @@ static int close(struct inode *inode, struct file *file)
 		 * the Launcher's memory management structure. */
 		mmput(lg->cpus[i].mm);
 	}
+
+	/* Release any eventfds they registered. */
+	for (i = 0; i < lg->eventfds->num; i++)
+		fput(lg->eventfds->map[i].event);
+	kfree(lg->eventfds);
+
 	/* If lg->dead doesn't contain an error code it will be NULL or a
 	 * kmalloc()ed string, either of which is ok to hand to kfree(). */
 	if (!IS_ERR(lg->dead))

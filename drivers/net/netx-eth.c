@@ -301,6 +301,17 @@ netx_eth_phy_write(struct net_device *ndev, int phy_id, int reg, int value)
 	while (readl(NETX_MIIMU) & MIIMU_SNRDY);
 }
 
+static const struct net_device_ops netx_eth_netdev_ops = {
+	.ndo_open		= netx_eth_open,
+	.ndo_stop		= netx_eth_close,
+	.ndo_start_xmit		= netx_eth_hard_start_xmit,
+	.ndo_tx_timeout		= netx_eth_timeout,
+	.ndo_set_multicast_list	= netx_eth_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int netx_eth_enable(struct net_device *ndev)
 {
 	struct netx_eth_priv *priv = netdev_priv(ndev);
@@ -309,12 +320,8 @@ static int netx_eth_enable(struct net_device *ndev)
 
 	ether_setup(ndev);
 
-	ndev->open = netx_eth_open;
-	ndev->stop = netx_eth_close;
-	ndev->hard_start_xmit = netx_eth_hard_start_xmit;
-	ndev->tx_timeout = netx_eth_timeout;
+	ndev->netdev_ops = &netx_eth_netdev_ops;
 	ndev->watchdog_timeo = msecs_to_jiffies(5000);
-	ndev->set_multicast_list = netx_eth_set_multicast_list;
 
 	priv->msg_enable       = NETIF_MSG_LINK;
 	priv->mii.phy_id_mask  = 0x1f;

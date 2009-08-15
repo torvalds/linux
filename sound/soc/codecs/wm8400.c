@@ -954,7 +954,7 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 		factors->outdiv *= 2;
 		if (factors->outdiv > 32) {
 			dev_err(wm8400->wm8400->dev,
-				"Unsupported FLL output frequency %dHz\n",
+				"Unsupported FLL output frequency %uHz\n",
 				Fout);
 			return -EINVAL;
 		}
@@ -1003,7 +1003,7 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 	factors->k = K / 10;
 
 	dev_dbg(wm8400->wm8400->dev,
-		"FLL: Fref=%d Fout=%d N=%x K=%x, FRATIO=%x OUTDIV=%x\n",
+		"FLL: Fref=%u Fout=%u N=%x K=%x, FRATIO=%x OUTDIV=%x\n",
 		Fref, Fout,
 		factors->n, factors->k, factors->fratio, factors->outdiv);
 
@@ -1022,10 +1022,15 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	if (freq_in == wm8400->fll_in && freq_out == wm8400->fll_out)
 		return 0;
 
-	if (freq_out != 0) {
+	if (freq_out) {
 		ret = fll_factors(wm8400, &factors, freq_in, freq_out);
 		if (ret != 0)
 			return ret;
+	} else {
+		/* Bodge GCC 4.4.0 uninitialised variable warning - it
+		 * doesn't seem capable of working out that we exit if
+		 * freq_out is 0 before any of the uses. */
+		memset(&factors, 0, sizeof(factors));
 	}
 
 	wm8400->fll_out = freq_out;
@@ -1040,7 +1045,7 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	reg &= ~WM8400_FLL_OSC_ENA;
 	wm8400_write(codec, WM8400_FLL_CONTROL_1, reg);
 
-	if (freq_out == 0)
+	if (!freq_out)
 		return 0;
 
 	reg &= ~(WM8400_FLL_REF_FREQ | WM8400_FLL_FRATIO_MASK);
@@ -1473,8 +1478,8 @@ static int wm8400_codec_probe(struct platform_device *dev)
 
 	codec = &priv->codec;
 	codec->private_data = priv;
-	codec->control_data = dev->dev.driver_data;
-	priv->wm8400 = dev->dev.driver_data;
+	codec->control_data = dev_get_drvdata(&dev->dev);
+	priv->wm8400 = dev_get_drvdata(&dev->dev);
 
 	ret = regulator_bulk_get(priv->wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
@@ -1553,6 +1558,21 @@ static int __exit wm8400_codec_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8400_pdev_suspend(struct platform_device *pdev, pm_message_t msg)
+{
+	return snd_soc_suspend_device(&pdev->dev);
+}
+
+static int wm8400_pdev_resume(struct platform_device *pdev)
+{
+	return snd_soc_resume_device(&pdev->dev);
+}
+#else
+#define wm8400_pdev_suspend NULL
+#define wm8400_pdev_resume NULL
+#endif
+
 static struct platform_driver wm8400_codec_driver = {
 	.driver = {
 		.name = "wm8400-codec",
@@ -1560,6 +1580,8 @@ static struct platform_driver wm8400_codec_driver = {
 	},
 	.probe = wm8400_codec_probe,
 	.remove	= __exit_p(wm8400_codec_remove),
+	.suspend = wm8400_pdev_suspend,
+	.resume = wm8400_pdev_resume,
 };
 
 static int __init wm8400_codec_init(void)

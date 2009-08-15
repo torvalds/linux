@@ -73,7 +73,6 @@ static int get_max_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *val
 static int get_cur_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 
 static struct hotplug_slot_ops pciehp_hotplug_slot_ops = {
-	.owner =		THIS_MODULE,
 	.set_attention_status =	set_attention_status,
 	.enable_slot =		enable_slot,
 	.disable_slot =		disable_slot,
@@ -83,99 +82,6 @@ static struct hotplug_slot_ops pciehp_hotplug_slot_ops = {
 	.get_adapter_status =	get_adapter_status,
   	.get_max_bus_speed =	get_max_bus_speed,
   	.get_cur_bus_speed =	get_cur_bus_speed,
-};
-
-/*
- * Check the status of the Electro Mechanical Interlock (EMI)
- */
-static int get_lock_status(struct hotplug_slot *hotplug_slot, u8 *value)
-{
-	struct slot *slot = hotplug_slot->private;
-	return (slot->hpc_ops->get_emi_status(slot, value));
-}
-
-/*
- * sysfs interface for the Electro Mechanical Interlock (EMI)
- * 1 == locked, 0 == unlocked
- */
-static ssize_t lock_read_file(struct hotplug_slot *slot, char *buf)
-{
-	int retval;
-	u8 value;
-
-	retval = get_lock_status(slot, &value);
-	if (retval)
-		goto lock_read_exit;
-	retval = sprintf (buf, "%d\n", value);
-
-lock_read_exit:
-	return retval;
-}
-
-/*
- * Change the status of the Electro Mechanical Interlock (EMI)
- * This is a toggle - in addition there must be at least 1 second
- * in between toggles.
- */
-static int set_lock_status(struct hotplug_slot *hotplug_slot, u8 status)
-{
-	struct slot *slot = hotplug_slot->private;
-	int retval;
-	u8 value;
-
-	mutex_lock(&slot->ctrl->crit_sect);
-
-	/* has it been >1 sec since our last toggle? */
-	if ((get_seconds() - slot->last_emi_toggle) < 1) {
-		mutex_unlock(&slot->ctrl->crit_sect);
-		return -EINVAL;
-	}
-
-	/* see what our current state is */
-	retval = get_lock_status(hotplug_slot, &value);
-	if (retval || (value == status))
-		goto set_lock_exit;
-
-	slot->hpc_ops->toggle_emi(slot);
-set_lock_exit:
-	mutex_unlock(&slot->ctrl->crit_sect);
-	return 0;
-}
-
-/*
- * sysfs interface which allows the user to toggle the Electro Mechanical
- * Interlock.  Valid values are either 0 or 1.  0 == unlock, 1 == lock
- */
-static ssize_t lock_write_file(struct hotplug_slot *hotplug_slot,
-		const char *buf, size_t count)
-{
-	struct slot *slot = hotplug_slot->private;
-	unsigned long llock;
-	u8 lock;
-	int retval = 0;
-
-	llock = simple_strtoul(buf, NULL, 10);
-	lock = (u8)(llock & 0xff);
-
-	switch (lock) {
-		case 0:
-		case 1:
-			retval = set_lock_status(hotplug_slot, lock);
-			break;
-		default:
-			ctrl_err(slot->ctrl, "%d is an invalid lock value\n",
-				 lock);
-			retval = -EINVAL;
-	}
-	if (retval)
-		return retval;
-	return count;
-}
-
-static struct hotplug_slot_attribute hotplug_slot_attr_lock = {
-	.attr = {.name = "lock", .mode = S_IFREG | S_IRUGO | S_IWUSR},
-	.show = lock_read_file,
-	.store = lock_write_file
 };
 
 /**
@@ -236,17 +142,6 @@ static int init_slots(struct controller *ctrl)
 		get_attention_status(hotplug_slot, &info->attention_status);
 		get_latch_status(hotplug_slot, &info->latch_status);
 		get_adapter_status(hotplug_slot, &info->adapter_status);
-		/* create additional sysfs entries */
-		if (EMI(ctrl)) {
-			retval = sysfs_create_file(&hotplug_slot->pci_slot->kobj,
-				&hotplug_slot_attr_lock.attr);
-			if (retval) {
-				pci_hp_deregister(hotplug_slot);
-				ctrl_err(ctrl, "Cannot create additional sysfs "
-					 "entries\n");
-				goto error_info;
-			}
-		}
 	}
 
 	return 0;
@@ -261,13 +156,8 @@ error:
 static void cleanup_slots(struct controller *ctrl)
 {
 	struct slot *slot;
-
-	list_for_each_entry(slot, &ctrl->slot_list, slot_list) {
-		if (EMI(ctrl))
-			sysfs_remove_file(&slot->hotplug_slot->pci_slot->kobj,
-				&hotplug_slot_attr_lock.attr);
+	list_for_each_entry(slot, &ctrl->slot_list, slot_list)
 		pci_hp_deregister(slot->hotplug_slot);
-	}
 }
 
 /*

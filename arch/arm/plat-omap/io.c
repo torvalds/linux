@@ -1,3 +1,14 @@
+/*
+ * Common io.c file
+ * This file is created by Russell King <rmk+kernel@arm.linux.org.uk>
+ *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -7,6 +18,7 @@
 #include <mach/omap16xx.h>
 #include <mach/omap24xx.h>
 #include <mach/omap34xx.h>
+#include <mach/omap44xx.h>
 
 #define BETWEEN(p,st,sz)	((p) >= (st) && (p) < ((st) + (sz)))
 #define XLATE(p,pst,vst)	((void __iomem *)((p) - (pst) + (vst)))
@@ -92,7 +104,22 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 			return XLATE(p, L4_EMU_34XX_PHYS, L4_EMU_34XX_VIRT);
 	}
 #endif
-
+#ifdef CONFIG_ARCH_OMAP4
+	if (cpu_is_omap44xx()) {
+		if (BETWEEN(p, L3_44XX_PHYS, L3_44XX_SIZE))
+			return XLATE(p, L3_44XX_PHYS, L3_44XX_VIRT);
+		if (BETWEEN(p, L4_44XX_PHYS, L4_44XX_SIZE))
+			return XLATE(p, L4_44XX_PHYS, L4_44XX_VIRT);
+		if (BETWEEN(p, L4_WK_44XX_PHYS, L4_WK_44XX_SIZE))
+			return XLATE(p, L4_WK_44XX_PHYS, L4_WK_44XX_VIRT);
+		if (BETWEEN(p, OMAP44XX_GPMC_PHYS, OMAP44XX_GPMC_SIZE))
+			return XLATE(p, OMAP44XX_GPMC_PHYS, OMAP44XX_GPMC_VIRT);
+		if (BETWEEN(p, L4_PER_44XX_PHYS, L4_PER_44XX_SIZE))
+			return XLATE(p, L4_PER_44XX_PHYS, L4_PER_44XX_VIRT);
+		if (BETWEEN(p, L4_EMU_44XX_PHYS, L4_EMU_44XX_SIZE))
+			return XLATE(p, L4_EMU_44XX_PHYS, L4_EMU_44XX_VIRT);
+	}
+#endif
 	return __arm_ioremap(p, size, type);
 }
 EXPORT_SYMBOL(omap_ioremap);

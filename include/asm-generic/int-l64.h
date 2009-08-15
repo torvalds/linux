@@ -8,6 +8,8 @@
 #ifndef _ASM_GENERIC_INT_L64_H
 #define _ASM_GENERIC_INT_L64_H
 
+#include <asm/bitsperlong.h>
+
 #ifndef __ASSEMBLY__
 /*
  * __xx is ok: it doesn't pollute the POSIX namespace. Use these in the

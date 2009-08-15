@@ -275,7 +275,7 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 	memset(device, 0, sizeof(struct device));
 	device->bus = &pcie_port_bus_type;
 	device->driver = NULL;
-	device->driver_data = NULL;
+	dev_set_drvdata(device, NULL);
 	device->release = release_pcie_device;	/* callback to free pcie dev */
 	dev_set_name(device, "%s:pcie%02x",
 		 pci_name(parent), get_descriptor_id(port_type, service_type));

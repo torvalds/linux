@@ -29,7 +29,6 @@
 #include <linux/bitmap.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 
@@ -1053,22 +1052,13 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 /* Set resolution of the video */
 int cx231xx_resolution_set(struct cx231xx *dev)
 {
-	int width, height;
-	u32 hscale, vscale;
-	int status = 0;
-
-	width = dev->width;
-	height = dev->height;
-
-	get_scale(dev, width, height, &hscale, &vscale);
-
 	/* set horzontal scale */
-	status = vid_blk_write_word(dev, HSCALE_CTRL, hscale);
+	int status = vid_blk_write_word(dev, HSCALE_CTRL, dev->hscale);
+	if (status)
+		return status;
 
 	/* set vertical scale */
-	status = vid_blk_write_word(dev, VSCALE_CTRL, vscale);
-
-	return status;
+	return vid_blk_write_word(dev, VSCALE_CTRL, dev->vscale);
 }
 
 /******************************************************************************
@@ -2056,7 +2046,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 
 int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type)
 {
-	int rc;
+	int rc = -1;
 	u32 ep_mask = -1;
 	struct pcb_config *pcb_config;
 

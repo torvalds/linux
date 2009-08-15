@@ -8,6 +8,7 @@
 #include <asm/machvec.h>
 #include <linux/scatterlist.h>
 #include <asm/swiotlb.h>
+#include <linux/dma-debug.h>
 
 #define ARCH_HAS_DMA_GET_REQUIRED_MASK
 
@@ -24,125 +25,34 @@ static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *daddr, gfp_t gfp)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->alloc_coherent(dev, size, daddr, gfp);
+	void *caddr;
+
+	caddr = ops->alloc_coherent(dev, size, daddr, gfp);
+	debug_dma_alloc_coherent(dev, size, *daddr, caddr);
+	return caddr;
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,
 				     void *caddr, dma_addr_t daddr)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);
+	debug_dma_free_coherent(dev, size, caddr, daddr);
 	ops->free_coherent(dev, size, caddr, daddr);
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
-static inline dma_addr_t dma_map_single_attrs(struct device *dev,
-					      void *caddr, size_t size,
-					      enum dma_data_direction dir,
-					      struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->map_page(dev, virt_to_page(caddr),
-			     (unsigned long)caddr & ~PAGE_MASK, size,
-			     dir, attrs);
-}
+#define get_dma_ops(dev) platform_dma_get_ops(dev)
+#define flush_write_buffers()
 
-static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t daddr,
-					  size_t size,
-					  enum dma_data_direction dir,
-					  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	ops->unmap_page(dev, daddr, size, dir, attrs);
-}
-
-#define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, NULL)
-#define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, NULL)
-
-static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
-				   int nents, enum dma_data_direction dir,
-				   struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->map_sg(dev, sgl, nents, dir, attrs);
-}
-
-static inline void dma_unmap_sg_attrs(struct device *dev,
-				      struct scatterlist *sgl, int nents,
-				      enum dma_data_direction dir,
-				      struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	ops->unmap_sg(dev, sgl, nents, dir, attrs);
-}
-
-#define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
-#define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, NULL)
-
-static inline void dma_sync_single_for_cpu(struct device *dev, dma_addr_t daddr,
-					   size_t size,
-					   enum dma_data_direction dir)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	ops->sync_single_for_cpu(dev, daddr, size, dir);
-}
-
-static inline void dma_sync_sg_for_cpu(struct device *dev,
-				       struct scatterlist *sgl,
-				       int nents, enum dma_data_direction dir)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	ops->sync_sg_for_cpu(dev, sgl, nents, dir);
-}
-
-static inline void dma_sync_single_for_device(struct device *dev,
-					      dma_addr_t daddr,
-					      size_t size,
-					      enum dma_data_direction dir)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	ops->sync_single_for_device(dev, daddr, size, dir);
-}
-
-static inline void dma_sync_sg_for_device(struct device *dev,
-					  struct scatterlist *sgl,
-					  int nents,
-					  enum dma_data_direction dir)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	ops->sync_sg_for_device(dev, sgl, nents, dir);
-}
+#include <asm-generic/dma-mapping-common.h>
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t daddr)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);
 	return ops->mapping_error(dev, daddr);
 }
-
-static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
-				      size_t offset, size_t size,
-				      enum dma_data_direction dir)
-{
-	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->map_page(dev, page, offset, size, dir, NULL);
-}
-
-static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
-				  size_t size, enum dma_data_direction dir)
-{
-	dma_unmap_single(dev, addr, size, dir);
-}
-
-/*
- * Rest of this file is part of the "Advanced DMA API".  Use at your own risk.
- * See Documentation/DMA-API.txt for details.
- */
-
-#define dma_sync_single_range_for_cpu(dev, dma_handle, offset, size, dir)	\
-	dma_sync_single_for_cpu(dev, dma_handle, size, dir)
-#define dma_sync_single_range_for_device(dev, dma_handle, offset, size, dir)	\
-	dma_sync_single_for_device(dev, dma_handle, size, dir)
 
 static inline int dma_supported(struct device *dev, u64 mask)
 {

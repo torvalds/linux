@@ -178,25 +178,15 @@ int __init setup_early_printk(char *buf)
 
 asmlinkage void __init init_early_exception_vectors(void)
 {
+	u32 evt;
 	SSYNC();
 
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)
 	 * evt1 - reset
 	 */
-	bfin_write_EVT2(early_trap);
-	bfin_write_EVT3(early_trap);
-	bfin_write_EVT5(early_trap);
-	bfin_write_EVT6(early_trap);
-	bfin_write_EVT7(early_trap);
-	bfin_write_EVT8(early_trap);
-	bfin_write_EVT9(early_trap);
-	bfin_write_EVT10(early_trap);
-	bfin_write_EVT11(early_trap);
-	bfin_write_EVT12(early_trap);
-	bfin_write_EVT13(early_trap);
-	bfin_write_EVT14(early_trap);
-	bfin_write_EVT15(early_trap);
+	for (evt = EVT2; evt <= EVT15; evt += 4)
+		bfin_write32(evt, early_trap);
 	CSYNC();
 
 	/* Set all the return from interrupt, exception, NMI to a known place
@@ -212,11 +202,15 @@ asmlinkage void __init init_early_exception_vectors(void)
 asmlinkage void __init early_trap_c(struct pt_regs *fp, void *retaddr)
 {
 	/* This can happen before the uart is initialized, so initialize
-	 * the UART now
+	 * the UART now (but only if we are running on the processor we think
+	 * we are compiled for - otherwise we write to MMRs that don't exist,
+	 * and cause other problems. Nothing comes out the UART, but it does
+	 * end up in the __buf_log.
 	 */
-	if (likely(early_console == NULL))
+	if (likely(early_console == NULL) && CPUID == bfin_cpuid())
 		setup_early_printk(DEFAULT_EARLY_PORT);
 
+	printk(KERN_EMERG "Early panic\n");
 	dump_bfin_mem(fp);
 	show_regs(fp);
 	dump_bfin_trace_buffer();

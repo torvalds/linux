@@ -138,7 +138,7 @@ deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
 
 		__rq = elv_rb_find(&dd->sort_list[bio_data_dir(bio)], sector);
 		if (__rq) {
-			BUG_ON(sector != __rq->sector);
+			BUG_ON(sector != blk_rq_pos(__rq));
 
 			if (elv_rq_merge_ok(__rq, bio)) {
 				ret = ELEVATOR_FRONT_MERGE;

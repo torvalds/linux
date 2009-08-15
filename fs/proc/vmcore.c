@@ -166,12 +166,7 @@ static const struct file_operations proc_vmcore_operations = {
 
 static struct vmcore* __init get_new_element(void)
 {
-	struct vmcore *p;
-
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
-	if (p)
-		memset(p, 0, sizeof(*p));
-	return p;
+	return kzalloc(sizeof(struct vmcore), GFP_KERNEL);
 }
 
 static u64 __init get_vmcore_size_elf64(char *elfptr)

@@ -24,11 +24,7 @@
 #ifndef _8253_H
 #define _8253_H
 
-#ifndef CMDTEST
 #include "../comedi.h"
-#else
-#include "../comedi.h"
-#endif
 
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
@@ -205,7 +201,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	}
 
 	*nanosec = div1 * div2 * i8253_osc_base;
-	*d1 = div1 & 0xffff;	// masking is done since counter maps zero to 0x10000
+	*d1 = div1 & 0xffff;	/*  masking is done since counter maps zero to 0x10000 */
 	*d2 = div2 & 0xffff;
 	return;
 }
@@ -247,12 +243,12 @@ static inline int i8254_load(unsigned long base_address, unsigned int regshift,
 		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;		// load low then high byte
-	byte |= (mode << 1);	// set counter mode
+	byte |= 0x30;		/*  load low then high byte */
+	byte |= (mode << 1);	/*  set counter mode */
 	outb(byte, base_address + (i8254_control_reg << regshift));
-	byte = count & 0xff;	// lsb of counter value
+	byte = count & 0xff;	/*  lsb of counter value */
 	outb(byte, base_address + (counter_number << regshift));
-	byte = (count >> 8) & 0xff;	// msb of counter value
+	byte = (count >> 8) & 0xff;	/*  msb of counter value */
 	outb(byte, base_address + (counter_number << regshift));
 
 	return 0;
@@ -273,12 +269,12 @@ static inline int i8254_mm_load(void *base_address, unsigned int regshift,
 		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;		// load low then high byte
-	byte |= (mode << 1);	// set counter mode
+	byte |= 0x30;		/*  load low then high byte */
+	byte |= (mode << 1);	/*  set counter mode */
 	writeb(byte, base_address + (i8254_control_reg << regshift));
-	byte = count & 0xff;	// lsb of counter value
+	byte = count & 0xff;	/*  lsb of counter value */
 	writeb(byte, base_address + (counter_number << regshift));
-	byte = (count >> 8) & 0xff;	// msb of counter value
+	byte = (count >> 8) & 0xff;	/*  msb of counter value */
 	writeb(byte, base_address + (counter_number << regshift));
 
 	return 0;
@@ -294,13 +290,13 @@ static inline int i8254_read(unsigned long base_address, unsigned int regshift,
 	if (counter_number > 2)
 		return -1;
 
-	// latch counter
+	/*  latch counter */
 	byte = counter_number << 6;
 	outb(byte, base_address + (i8254_control_reg << regshift));
 
-	// read lsb
+	/*  read lsb */
 	ret = inb(base_address + (counter_number << regshift));
-	// read msb
+	/*  read msb */
 	ret += inb(base_address + (counter_number << regshift)) << 8;
 
 	return ret;
@@ -315,13 +311,13 @@ static inline int i8254_mm_read(void *base_address, unsigned int regshift,
 	if (counter_number > 2)
 		return -1;
 
-	// latch counter
+	/*  latch counter */
 	byte = counter_number << 6;
 	writeb(byte, base_address + (i8254_control_reg << regshift));
 
-	// read lsb
+	/*  read lsb */
 	ret = readb(base_address + (counter_number << regshift));
-	// read msb
+	/*  read msb */
 	ret += readb(base_address + (counter_number << regshift)) << 8;
 
 	return ret;
@@ -336,9 +332,9 @@ static inline void i8254_write(unsigned long base_address,
 	if (counter_number > 2)
 		return;
 
-	byte = count & 0xff;	// lsb of counter value
+	byte = count & 0xff;	/*  lsb of counter value */
 	outb(byte, base_address + (counter_number << regshift));
-	byte = (count >> 8) & 0xff;	// msb of counter value
+	byte = (count >> 8) & 0xff;	/*  msb of counter value */
 	outb(byte, base_address + (counter_number << regshift));
 }
 
@@ -350,9 +346,9 @@ static inline void i8254_mm_write(void *base_address,
 	if (counter_number > 2)
 		return;
 
-	byte = count & 0xff;	// lsb of counter value
+	byte = count & 0xff;	/*  lsb of counter value */
 	writeb(byte, base_address + (counter_number << regshift));
-	byte = (count >> 8) & 0xff;	// msb of counter value
+	byte = (count >> 8) & 0xff;	/*  msb of counter value */
 	writeb(byte, base_address + (counter_number << regshift));
 }
 
@@ -374,8 +370,8 @@ static inline int i8254_set_mode(unsigned long base_address,
 		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;		// load low then high byte
-	byte |= mode;		// set counter mode and BCD|binary
+	byte |= 0x30;		/*  load low then high byte */
+	byte |= mode;		/*  set counter mode and BCD|binary */
 	outb(byte, base_address + (i8254_control_reg << regshift));
 
 	return 0;
@@ -392,8 +388,8 @@ static inline int i8254_mm_set_mode(void *base_address,
 		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;		// load low then high byte
-	byte |= mode;		// set counter mode and BCD|binary
+	byte |= 0x30;		/*  load low then high byte */
+	byte |= mode;		/*  set counter mode and BCD|binary */
 	writeb(byte, base_address + (i8254_control_reg << regshift));
 
 	return 0;

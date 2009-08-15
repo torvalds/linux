@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/device.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
@@ -291,8 +292,8 @@ static int osiris_pm_suspend(struct sys_device *sd, pm_message_t state)
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA21, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_OUT);
+	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
 
 	return 0;
 }
@@ -304,7 +305,7 @@ static int osiris_pm_resume(struct sys_device *sd)
 
 	__raw_writeb(pm_osiris_ctrl0, OSIRIS_VA_CTRL0);
 
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_nRSTOUT);
+	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
 
 	return 0;
 }
@@ -384,7 +385,7 @@ static void __init osiris_map_io(void)
 		osiris_nand_sets[0].nr_partitions = ARRAY_SIZE(osiris_default_nand_part_large);
 	} else {
 		/* write-protect line to the NAND */
-		s3c2410_gpio_setpin(S3C2410_GPA0, 1);
+		s3c2410_gpio_setpin(S3C2410_GPA(0), 1);
 	}
 
 	/* fix bus configuration (nBE settings wrong on ABLE pre v2.20) */

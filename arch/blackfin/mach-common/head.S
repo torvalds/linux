@@ -30,8 +30,6 @@ ENTRY(__init_clear_bss)
 	rts;
 ENDPROC(__init_clear_bss)
 
-#define INITIAL_STACK	(L1_SCRATCH_START + L1_SCRATCH_LENGTH - 12)
-
 ENTRY(__start)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
@@ -126,30 +124,30 @@ ENTRY(__start)
 	 * below
 	 */
 	GET_PDA(p0, r0);
-	r7 = [p0 + PDA_RETX];
+	r6 = [p0 + PDA_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
-	[p1] = r7;
+	[p1] = r6;
 
-	r7 = [p0 + PDA_DCPLB];
+	r6 = [p0 + PDA_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
-	[p1] = r7;
+	[p1] = r6;
 
-	r7 = [p0 + PDA_ICPLB];
+	r6 = [p0 + PDA_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
-	[p1] = r7;
+	[p1] = r6;
 
-	r7 = [p0 + PDA_SEQSTAT];
+	r6 = [p0 + PDA_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
-	[p1] = r7;
+	[p1] = r6;
 #endif
 
 	/* Initialize stack pointer */
-	sp.l = lo(INITIAL_STACK);
-	sp.h = hi(INITIAL_STACK);
+	sp.l = _init_thread_union;
+	sp.h = _init_thread_union;
 	fp = sp;
 	usp = sp;
 
@@ -189,7 +187,15 @@ ENTRY(__start)
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bfin_relocate_l1_mem;
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
+	/* Only use on-chip scratch space for stack when absolutely required
+	 * to avoid Anomaly 05000227 ... we know the init_clocks() func only
+	 * uses L1 text and stack space and no other memory region.
+	 */
+# define KERNEL_CLOCK_STACK (L1_SCRATCH_START + L1_SCRATCH_LENGTH - 12)
+	sp.l = lo(KERNEL_CLOCK_STACK);
+	sp.h = hi(KERNEL_CLOCK_STACK);
 	call _init_clocks;
+	sp = usp;	/* usp hasnt been touched, so restore from there */
 #endif
 
 	/* This section keeps the processor in supervisor mode
@@ -243,9 +249,7 @@ ENTRY(_real_start)
 	call _cmdline_init;
 
 	/* Load the current thread pointer and stack */
-	sp.l = _init_thread_union;
-	sp.h = _init_thread_union;
-	p1 = THREAD_SIZE (z);
+	p1 = THREAD_SIZE + 4 (z);	/* +4 is for reti loading */
 	sp = sp + p1;
 	usp = sp;
 	fp = sp;

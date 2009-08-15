@@ -13,6 +13,7 @@
 
 #include <linux/bitops.h>
 #include <linux/linkage.h>
+#include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 
@@ -40,6 +41,7 @@ extern int __cpu_logical_map[NR_CPUS];
 /* Octeon - Tell another core to flush its icache */
 #define SMP_ICACHE_FLUSH	0x4
 
+extern volatile cpumask_t cpu_callin_map;
 
 extern void asmlinkage smp_bootstrap(void);
 
@@ -54,6 +56,24 @@ static inline void smp_send_reschedule(int cpu)
 
 	mp_ops->send_ipi_single(cpu, SMP_RESCHEDULE_YOURSELF);
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static inline int __cpu_disable(void)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	return mp_ops->cpu_disable();
+}
+
+static inline void __cpu_die(unsigned int cpu)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->cpu_die(cpu);
+}
+
+extern void play_dead(void);
+#endif
 
 extern asmlinkage void smp_call_function_interrupt(void);
 

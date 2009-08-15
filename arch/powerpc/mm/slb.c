@@ -2,7 +2,7 @@
  * PowerPC64 SLB support.
  *
  * Copyright (C) 2004 David Gibson <dwg@au.ibm.com>, IBM
- * Based on earlier code writteh by:
+ * Based on earlier code written by:
  * Dave Engebretsen and Mike Corrigan {engebret|mikejc}@us.ibm.com
  *    Copyright (c) 2001 Dave Engebretsen
  * Copyright (C) 2002 Anton Blanchard <anton@au.ibm.com>, IBM

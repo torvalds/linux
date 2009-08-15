@@ -127,7 +127,8 @@
  * 	the line discipline are close to full, and it should somehow
  * 	signal that no more characters should be sent to the tty.
  *
- *	Optional: Always invoke via tty_throttle();
+ *	Optional: Always invoke via tty_throttle(), called under the
+ *	termios lock.
  * 
  * void (*unthrottle)(struct tty_struct * tty);
  *
@@ -135,7 +136,8 @@
  * 	that characters can now be sent to the tty without fear of
  * 	overrunning the input buffers of the line disciplines.
  * 
- *	Optional: Always invoke via tty_unthrottle();
+ *	Optional: Always invoke via tty_unthrottle(), called under the
+ *	termios lock.
  *
  * void (*stop)(struct tty_struct *tty);
  *

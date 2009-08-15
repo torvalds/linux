@@ -2866,12 +2866,12 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data, struct drm_file 
 	 */
 	orig_bufsz = cmdbuf->bufsz;
 	if (orig_bufsz != 0) {
-		kbuf = drm_alloc(cmdbuf->bufsz, DRM_MEM_DRIVER);
+		kbuf = kmalloc(cmdbuf->bufsz, GFP_KERNEL);
 		if (kbuf == NULL)
 			return -ENOMEM;
 		if (DRM_COPY_FROM_USER(kbuf, (void __user *)cmdbuf->buf,
 				       cmdbuf->bufsz)) {
-			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+			kfree(kbuf);
 			return -EFAULT;
 		}
 		cmdbuf->buf = kbuf;
@@ -2884,7 +2884,7 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data, struct drm_file 
 		temp = r300_do_cp_cmdbuf(dev, file_priv, cmdbuf);
 
 		if (orig_bufsz != 0)
-			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+			kfree(kbuf);
 
 		return temp;
 	}
@@ -2991,7 +2991,7 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data, struct drm_file 
 	}
 
 	if (orig_bufsz != 0)
-		drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+		kfree(kbuf);
 
 	DRM_DEBUG("DONE\n");
 	COMMIT_RING();
@@ -2999,7 +2999,7 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data, struct drm_file 
 
       err:
 	if (orig_bufsz != 0)
-		drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+		kfree(kbuf);
 	return -EINVAL;
 }
 
@@ -3175,9 +3175,7 @@ int radeon_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
 	DRM_DEBUG("\n");
-	radeon_priv =
-	    (struct drm_radeon_driver_file_fields *)
-	    drm_alloc(sizeof(*radeon_priv), DRM_MEM_FILES);
+	radeon_priv = kmalloc(sizeof(*radeon_priv), GFP_KERNEL);
 
 	if (!radeon_priv)
 		return -ENOMEM;
@@ -3196,7 +3194,7 @@ void radeon_driver_postclose(struct drm_device *dev, struct drm_file *file_priv)
 	struct drm_radeon_driver_file_fields *radeon_priv =
 	    file_priv->driver_priv;
 
-	drm_free(radeon_priv, sizeof(*radeon_priv), DRM_MEM_FILES);
+	kfree(radeon_priv);
 }
 
 struct drm_ioctl_desc radeon_ioctls[] = {

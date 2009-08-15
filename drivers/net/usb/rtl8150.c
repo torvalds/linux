@@ -221,7 +221,8 @@ static void ctrl_callback(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:
-		dev_warn(&urb->dev->dev, "ctrl urb status %d\n", status);
+		if (printk_ratelimit())
+			dev_warn(&urb->dev->dev, "ctrl urb status %d\n", status);
 	}
 	dev = urb->context;
 	clear_bit(RX_REG_SET, &dev->flags);
@@ -442,10 +443,12 @@ static void read_bulk_callback(struct urb *urb)
 	case -ENOENT:
 		return;	/* the urb is in unlink state */
 	case -ETIME:
-		dev_warn(&urb->dev->dev, "may be reset is needed?..\n");
+		if (printk_ratelimit())
+			dev_warn(&urb->dev->dev, "may be reset is needed?..\n");
 		goto goon;
 	default:
-		dev_warn(&urb->dev->dev, "Rx status %d\n", status);
+		if (printk_ratelimit())
+			dev_warn(&urb->dev->dev, "Rx status %d\n", status);
 		goto goon;
 	}
 

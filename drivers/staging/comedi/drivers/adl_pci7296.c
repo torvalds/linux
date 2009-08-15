@@ -39,7 +39,7 @@ Configuration Options:
 
 #include "comedi_pci.h"
 #include "8255.h"
-// #include "8253.h"
+/* #include "8253.h" */
 
 #define PORT1A 0
 #define PORT2A 4
@@ -64,16 +64,16 @@ struct adl_pci7296_private {
 
 #define devpriv ((struct adl_pci7296_private *)dev->private)
 
-static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int adl_pci7296_detach(struct comedi_device * dev);
+static int adl_pci7296_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int adl_pci7296_detach(struct comedi_device *dev);
 static struct comedi_driver driver_adl_pci7296 = {
-      driver_name:"adl_pci7296",
-      module:THIS_MODULE,
-      attach:adl_pci7296_attach,
-      detach:adl_pci7296_detach,
+	.driver_name = "adl_pci7296",
+	.module = THIS_MODULE,
+	.attach = adl_pci7296_attach,
+	.detach = adl_pci7296_detach,
 };
 
-static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int adl_pci7296_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
@@ -115,7 +115,7 @@ static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfi
 			dev->iobase = pci_resource_start(pcidev, 2);
 			printk("comedi: base addr %4lx\n", dev->iobase);
 
-			// four 8255 digital io subdevices
+			/*  four 8255 digital io subdevices */
 			s = dev->subdevices + 0;
 			subdev_8255_init(dev, s, NULL,
 				(unsigned long)(dev->iobase));
@@ -149,7 +149,7 @@ static int adl_pci7296_attach(struct comedi_device * dev, struct comedi_devconfi
 	return -EIO;
 }
 
-static int adl_pci7296_detach(struct comedi_device * dev)
+static int adl_pci7296_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pci7432: remove\n", dev->minor);
 
@@ -159,7 +159,7 @@ static int adl_pci7296_detach(struct comedi_device * dev)
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}
-	// detach four 8255 digital io subdevices
+	/*  detach four 8255 digital io subdevices */
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
 		subdev_8255_cleanup(dev, dev->subdevices + 1);

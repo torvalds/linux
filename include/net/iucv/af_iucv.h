@@ -73,7 +73,16 @@ struct iucv_sock {
 	struct sk_buff_head	backlog_skb_q;
 	struct sock_msg_q	message_q;
 	unsigned int		send_tag;
+	u8			flags;
+	u16			msglimit;
 };
+
+/* iucv socket options (SOL_IUCV) */
+#define SO_IPRMDATA_MSG	0x0080		/* send/recv IPRM_DATA msgs */
+#define SO_MSGLIMIT	0x1000		/* get/set IUCV MSGLIMIT */
+
+/* iucv related control messages (scm) */
+#define SCM_IUCV_TRGCLS	0x0001		/* target class control message */
 
 struct iucv_sock_list {
 	struct hlist_head head;
@@ -85,8 +94,6 @@ unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 			    poll_table *wait);
 void iucv_sock_link(struct iucv_sock_list *l, struct sock *s);
 void iucv_sock_unlink(struct iucv_sock_list *l, struct sock *s);
-int  iucv_sock_wait_state(struct sock *sk, int state, int state2,
-			  unsigned long timeo);
 int  iucv_sock_wait_cnt(struct sock *sk, unsigned long timeo);
 void iucv_accept_enqueue(struct sock *parent, struct sock *sk);
 void iucv_accept_unlink(struct sock *sk);

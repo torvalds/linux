@@ -22,7 +22,6 @@ static inline int is_root_node(const struct device_node *dp)
 
 extern char *build_path_component(struct device_node *dp);
 extern void of_console_init(void);
-extern void of_fill_in_cpu_data(void);
 
 extern unsigned int prom_early_allocated;
 

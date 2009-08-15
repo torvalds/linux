@@ -1,7 +1,7 @@
 /*
  * drivers/s390/net/ctcm_main.c
  *
- * Copyright IBM Corp. 2001, 2007
+ * Copyright IBM Corp. 2001, 2009
  * Author(s):
  *	Original CTC driver(s):
  *		Fritz Elfert (felfert@millenux.com)
@@ -1677,10 +1677,8 @@ static void ctcm_remove_device(struct ccwgroup_device *cgdev)
 	BUG_ON(priv == NULL);
 
 	CTCM_DBF_TEXT_(SETUP, CTC_DBF_INFO,
-			"removing device %s, r/w = %s/%s, proto : %d",
-			priv->channel[READ]->netdev->name,
-			priv->channel[READ]->id, priv->channel[WRITE]->id,
-			priv->protocol);
+			"removing device %p, proto : %d",
+			cgdev, priv->protocol);
 
 	if (cgdev->state == CCWGROUP_ONLINE)
 		ctcm_shutdown_device(cgdev);
@@ -1688,6 +1686,38 @@ static void ctcm_remove_device(struct ccwgroup_device *cgdev)
 	dev_set_drvdata(&cgdev->dev, NULL);
 	kfree(priv);
 	put_device(&cgdev->dev);
+}
+
+static int ctcm_pm_suspend(struct ccwgroup_device *gdev)
+{
+	struct ctcm_priv *priv = dev_get_drvdata(&gdev->dev);
+
+	if (gdev->state == CCWGROUP_OFFLINE)
+		return 0;
+	netif_device_detach(priv->channel[READ]->netdev);
+	ctcm_close(priv->channel[READ]->netdev);
+	ccw_device_set_offline(gdev->cdev[1]);
+	ccw_device_set_offline(gdev->cdev[0]);
+	return 0;
+}
+
+static int ctcm_pm_resume(struct ccwgroup_device *gdev)
+{
+	struct ctcm_priv *priv = dev_get_drvdata(&gdev->dev);
+	int rc;
+
+	if (gdev->state == CCWGROUP_OFFLINE)
+		return 0;
+	rc = ccw_device_set_online(gdev->cdev[1]);
+	if (rc)
+		goto err_out;
+	rc = ccw_device_set_online(gdev->cdev[0]);
+	if (rc)
+		goto err_out;
+	ctcm_open(priv->channel[READ]->netdev);
+err_out:
+	netif_device_attach(priv->channel[READ]->netdev);
+	return rc;
 }
 
 static struct ccwgroup_driver ctcm_group_driver = {
@@ -1699,6 +1729,9 @@ static struct ccwgroup_driver ctcm_group_driver = {
 	.remove      = ctcm_remove_device,
 	.set_online  = ctcm_new_device,
 	.set_offline = ctcm_shutdown_device,
+	.freeze	     = ctcm_pm_suspend,
+	.thaw	     = ctcm_pm_resume,
+	.restore     = ctcm_pm_resume,
 };
 
 

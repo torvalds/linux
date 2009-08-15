@@ -36,6 +36,7 @@ enum d_module {
 	D_SUBMODULE_DECLARE(op_msg),
 	D_SUBMODULE_DECLARE(op_reset),
 	D_SUBMODULE_DECLARE(op_rfkill),
+	D_SUBMODULE_DECLARE(op_state_get),
 	D_SUBMODULE_DECLARE(stack),
 };
 

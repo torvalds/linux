@@ -1,0 +1,90 @@
+			     Event Tracing
+
+		Documentation written by Theodore Ts'o
+			Updated by Li Zefan
+
+1. Introduction
+===============
+
+Tracepoints (see Documentation/trace/tracepoints.txt) can be used
+without creating custom kernel modules to register probe functions
+using the event tracing infrastructure.
+
+Not all tracepoints can be traced using the event tracing system;
+the kernel developer must provide code snippets which define how the
+tracing information is saved into the tracing buffer, and how the
+tracing information should be printed.
+
+2. Using Event Tracing
+======================
+
+2.1 Via the 'set_event' interface
+---------------------------------
+
+The events which are available for tracing can be found in the file
+/debug/tracing/available_events.
+
+To enable a particular event, such as 'sched_wakeup', simply echo it
+to /debug/tracing/set_event. For example:
+
+	# echo sched_wakeup >> /debug/tracing/set_event
+
+[ Note: '>>' is necessary, otherwise it will firstly disable
+  all the events. ]
+
+To disable an event, echo the event name to the set_event file prefixed
+with an exclamation point:
+
+	# echo '!sched_wakeup' >> /debug/tracing/set_event
+
+To disable all events, echo an empty line to the set_event file:
+
+	# echo > /debug/tracing/set_event
+
+To enable all events, echo '*:*' or '*:' to the set_event file:
+
+	# echo *:* > /debug/tracing/set_event
+
+The events are organized into subsystems, such as ext4, irq, sched,
+etc., and a full event name looks like this: <subsystem>:<event>.  The
+subsystem name is optional, but it is displayed in the available_events
+file.  All of the events in a subsystem can be specified via the syntax
+"<subsystem>:*"; for example, to enable all irq events, you can use the
+command:
+
+	# echo 'irq:*' > /debug/tracing/set_event
+
+2.2 Via the 'enable' toggle
+---------------------------
+
+The events available are also listed in /debug/tracing/events/ hierarchy
+of directories.
+
+To enable event 'sched_wakeup':
+
+	# echo 1 > /debug/tracing/events/sched/sched_wakeup/enable
+
+To disable it:
+
+	# echo 0 > /debug/tracing/events/sched/sched_wakeup/enable
+
+To enable all events in sched subsystem:
+
+	# echo 1 > /debug/tracing/events/sched/enable
+
+To eanble all events:
+
+	# echo 1 > /debug/tracing/events/enable
+
+When reading one of these enable files, there are four results:
+
+ 0 - all events this file affects are disabled
+ 1 - all events this file affects are enabled
+ X - there is a mixture of events enabled and disabled
+ ? - this file does not affect any event
+
+3. Defining an event-enabled tracepoint
+=======================================
+
+See The example provided in samples/trace_events
+

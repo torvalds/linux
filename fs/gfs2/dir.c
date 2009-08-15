@@ -803,13 +803,20 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned int n = 1;
-	u64 bn = gfs2_alloc_block(ip, &n);
-	struct buffer_head *bh = gfs2_meta_new(ip->i_gl, bn);
+	u64 bn;
+	int error;
+	struct buffer_head *bh;
 	struct gfs2_leaf *leaf;
 	struct gfs2_dirent *dent;
 	struct qstr name = { .name = "", .len = 0, .hash = 0 };
+
+	error = gfs2_alloc_block(ip, &bn, &n);
+	if (error)
+		return NULL;
+	bh = gfs2_meta_new(ip->i_gl, bn);
 	if (!bh)
 		return NULL;
+
 	gfs2_trans_add_unrevoke(GFS2_SB(inode), bn, 1);
 	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	gfs2_metatype_set(bh, GFS2_METATYPE_LF, GFS2_FORMAT_LF);

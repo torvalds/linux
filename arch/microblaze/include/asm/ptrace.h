@@ -10,7 +10,6 @@
 #define _ASM_MICROBLAZE_PTRACE_H
 
 #ifndef __ASSEMBLY__
-#include <linux/types.h>
 
 typedef unsigned long microblaze_reg_t;
 

@@ -915,12 +915,9 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 		err = -EPERM;
 		goto free_out;
 	} else {
-		static int printed = 0;
-		if (!printed) {
-			printk(KERN_WARNING "2.6. kernels use pcmciamtd instead of memory_cs.c and do not require special\n");
-			printk(KERN_WARNING "MTD handling any more.\n");
-			printed++;
-		}
+			printk_once(KERN_WARNING
+				"2.6. kernels use pcmciamtd instead of memory_cs.c and do not require special\n");
+			printk_once(KERN_WARNING "MTD handling any more.\n");
 	}
 	err = -EINVAL;
 	goto free_out;

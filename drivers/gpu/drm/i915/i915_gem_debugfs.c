@@ -104,7 +104,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		if (obj->name)
 			seq_printf(m, " (name: %d)", obj->name);
 		if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-			seq_printf(m, " (fence: %d\n", obj_priv->fence_reg);
+			seq_printf(m, " (fence: %d)\n", obj_priv->fence_reg);
 		seq_printf(m, "\n");
 	}
 
@@ -318,7 +318,7 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	seq_printf(m, "RingTail :  %08x\n", tail);
 	seq_printf(m, "RingMask :  %08x\n", mask);
 	seq_printf(m, "RingSize :  %08lx\n", dev_priv->ring.Size);
-	seq_printf(m, "Acthd :  %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
+	seq_printf(m, "Acthd :     %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
 
 	return 0;
 }

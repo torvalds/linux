@@ -657,7 +657,10 @@ __SYSCALL(__NR_inotify_init1, sys_inotify_init1)
 __SYSCALL(__NR_preadv, sys_preadv)
 #define __NR_pwritev				296
 __SYSCALL(__NR_pwritev, sys_pwritev)
-
+#define __NR_rt_tgsigqueueinfo			297
+__SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
+#define __NR_perf_counter_open			298
+__SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR

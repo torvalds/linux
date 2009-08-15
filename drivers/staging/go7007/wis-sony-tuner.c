@@ -370,7 +370,7 @@ static int set_if(struct i2c_client *client)
 	i2c_transfer(client->adapter, &msg, 1);
 
 	/* Select MPX mode if not forced by the user */
-	if (force_mpx_mode >= 0 || force_mpx_mode < MPX_NUM_MODES)
+	if (force_mpx_mode >= 0 && force_mpx_mode < MPX_NUM_MODES)
 		t->mpxmode = force_mpx_mode;
 	else
 		t->mpxmode = default_mpx_mode;

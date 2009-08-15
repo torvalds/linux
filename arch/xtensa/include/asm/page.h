@@ -129,7 +129,7 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 #else
 
-# include <asm-generic/page.h>
+# include <asm-generic/getorder.h>
 
 #endif
 

@@ -29,6 +29,8 @@
 #ifndef _IXGB_HW_H_
 #define _IXGB_HW_H_
 
+#include <linux/mdio.h>
+
 #include "ixgb_osdep.h"
 
 /* Enums */
@@ -506,18 +508,6 @@ typedef enum {
 
 /* Definitions for the optics devices on the MDIO bus. */
 #define IXGB_PHY_ADDRESS             0x0	/* Single PHY, multiple "Devices" */
-
-/* Standard five-bit Device IDs.  See IEEE 802.3ae, clause 45 */
-#define MDIO_PMA_PMD_DID        0x01
-#define MDIO_WIS_DID            0x02
-#define MDIO_PCS_DID            0x03
-#define MDIO_XGXS_DID           0x04
-
-/* Standard PMA/PMD registers and bit definitions. */
-/* Note: This is a very limited set of definitions,      */
-/* only implemented features are defined.                */
-#define MDIO_PMA_PMD_CR1        0x0000
-#define MDIO_PMA_PMD_CR1_RESET  0x8000
 
 #define MDIO_PMA_PMD_XPAK_VENDOR_NAME       0x803A	/* XPAK/XENPAK devices only */
 

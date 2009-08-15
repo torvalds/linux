@@ -86,7 +86,8 @@
 
 	.text
 
-ENTRY(__copy_to_user)
+ENTRY(__copy_to_user_std)
+WEAK(__copy_to_user)
 
 #include "copy_template.S"
 

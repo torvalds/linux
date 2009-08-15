@@ -322,6 +322,21 @@
 			reg = <0x700 0x100>;
 			device_type = "ipic";
 		};
+
+		ipic-msi@7c0 {
+			compatible = "fsl,ipic-msi";
+			reg = <0x7c0 0x40>;
+			msi-available-ranges = <0 0x100>;
+			interrupts = <0x43 0x8
+				      0x4  0x8
+				      0x51 0x8
+				      0x52 0x8
+				      0x56 0x8
+				      0x57 0x8
+				      0x58 0x8
+				      0x59 0x8>;
+			interrupt-parent = < &ipic >;
+		};
 	};
 
 	pci0: pci@e0008500 {

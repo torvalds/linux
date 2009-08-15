@@ -266,12 +266,18 @@ static const struct file_operations tower_fops = {
 	.llseek =	tower_llseek,
 };
 
+static char *legousbtower_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
+}
+
 /*
  * usb class driver info in order to get a minor number from the usb core,
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver tower_class = {
 	.name =		"legousbtower%d",
+	.nodename = 	legousbtower_nodename,
 	.fops =		&tower_fops,
 	.minor_base =	LEGO_USB_TOWER_MINOR_BASE,
 };

@@ -36,6 +36,8 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/err.h>
+#include <linux/regulator/consumer.h>
 
 #include <mach/pxa2xx-regs.h>
 
@@ -46,6 +48,8 @@ MODULE_PARM_DESC(freq_debug, "Set the debug messages to on=1/off=0");
 #else
 #define freq_debug  0
 #endif
+
+static struct regulator *vcc_core;
 
 static unsigned int pxa27x_maxfreq;
 module_param(pxa27x_maxfreq, uint, 0);
@@ -58,6 +62,8 @@ typedef struct {
 	unsigned int cccr;
 	unsigned int div2;
 	unsigned int cclkcfg;
+	int vmin;
+	int vmax;
 } pxa_freqs_t;
 
 /* Define the refresh period in mSec for the SDRAM and the number of rows */
@@ -82,24 +88,24 @@ static unsigned int sdram_rows;
 
 static pxa_freqs_t pxa255_run_freqs[] =
 {
-	/* CPU   MEMBUS  CCCR  DIV2 CCLKCFG	   run  turbo PXbus SDRAM */
-	{ 99500,  99500, 0x121, 1,  CCLKCFG},	/*  99,   99,   50,   50  */
-	{132700, 132700, 0x123, 1,  CCLKCFG},	/* 133,  133,   66,   66  */
-	{199100,  99500, 0x141, 0,  CCLKCFG},	/* 199,  199,   99,   99  */
-	{265400, 132700, 0x143, 1,  CCLKCFG},	/* 265,  265,  133,   66  */
-	{331800, 165900, 0x145, 1,  CCLKCFG},	/* 331,  331,  166,   83  */
-	{398100,  99500, 0x161, 0,  CCLKCFG},	/* 398,  398,  196,   99  */
+	/* CPU   MEMBUS  CCCR  DIV2 CCLKCFG	           run  turbo PXbus SDRAM */
+	{ 99500,  99500, 0x121, 1,  CCLKCFG, -1, -1},	/*  99,   99,   50,   50  */
+	{132700, 132700, 0x123, 1,  CCLKCFG, -1, -1},	/* 133,  133,   66,   66  */
+	{199100,  99500, 0x141, 0,  CCLKCFG, -1, -1},	/* 199,  199,   99,   99  */
+	{265400, 132700, 0x143, 1,  CCLKCFG, -1, -1},	/* 265,  265,  133,   66  */
+	{331800, 165900, 0x145, 1,  CCLKCFG, -1, -1},	/* 331,  331,  166,   83  */
+	{398100,  99500, 0x161, 0,  CCLKCFG, -1, -1},	/* 398,  398,  196,   99  */
 };
 
 /* Use the turbo mode frequencies for the CPUFREQ_POLICY_POWERSAVE policy */
 static pxa_freqs_t pxa255_turbo_freqs[] =
 {
 	/* CPU   MEMBUS  CCCR  DIV2 CCLKCFG	   run  turbo PXbus SDRAM */
-	{ 99500, 99500,  0x121, 1,  CCLKCFG},	/*  99,   99,   50,   50  */
-	{199100, 99500,  0x221, 0,  CCLKCFG},	/*  99,  199,   50,   99  */
-	{298500, 99500,  0x321, 0,  CCLKCFG},	/*  99,  287,   50,   99  */
-	{298600, 99500,  0x1c1, 0,  CCLKCFG},	/* 199,  287,   99,   99  */
-	{398100, 99500,  0x241, 0,  CCLKCFG},	/* 199,  398,   99,   99  */
+	{ 99500, 99500,  0x121, 1,  CCLKCFG, -1, -1},	/*  99,   99,   50,   50  */
+	{199100, 99500,  0x221, 0,  CCLKCFG, -1, -1},	/*  99,  199,   50,   99  */
+	{298500, 99500,  0x321, 0,  CCLKCFG, -1, -1},	/*  99,  287,   50,   99  */
+	{298600, 99500,  0x1c1, 0,  CCLKCFG, -1, -1},	/* 199,  287,   99,   99  */
+	{398100, 99500,  0x241, 0,  CCLKCFG, -1, -1},	/* 199,  398,   99,   99  */
 };
 
 #define NUM_PXA25x_RUN_FREQS ARRAY_SIZE(pxa255_run_freqs)
@@ -148,13 +154,13 @@ MODULE_PARM_DESC(pxa255_turbo_table, "Selects the frequency table (0 = run table
    ((T)  ? CCLKCFG_TURBO : 0))
 
 static pxa_freqs_t pxa27x_freqs[] = {
-	{104000, 104000, PXA27x_CCCR(1,	 8, 2), 0, CCLKCFG2(1, 0, 1)},
-	{156000, 104000, PXA27x_CCCR(1,	 8, 6), 0, CCLKCFG2(1, 1, 1)},
-	{208000, 208000, PXA27x_CCCR(0, 16, 2), 1, CCLKCFG2(0, 0, 1)},
-	{312000, 208000, PXA27x_CCCR(1, 16, 3), 1, CCLKCFG2(1, 0, 1)},
-	{416000, 208000, PXA27x_CCCR(1, 16, 4), 1, CCLKCFG2(1, 0, 1)},
-	{520000, 208000, PXA27x_CCCR(1, 16, 5), 1, CCLKCFG2(1, 0, 1)},
-	{624000, 208000, PXA27x_CCCR(1, 16, 6), 1, CCLKCFG2(1, 0, 1)}
+	{104000, 104000, PXA27x_CCCR(1,	 8, 2), 0, CCLKCFG2(1, 0, 1),  900000, 1705000 },
+	{156000, 104000, PXA27x_CCCR(1,	 8, 6), 0, CCLKCFG2(1, 1, 1), 1000000, 1705000 },
+	{208000, 208000, PXA27x_CCCR(0, 16, 2), 1, CCLKCFG2(0, 0, 1), 1180000, 1705000 },
+	{312000, 208000, PXA27x_CCCR(1, 16, 3), 1, CCLKCFG2(1, 0, 1), 1250000, 1705000 },
+	{416000, 208000, PXA27x_CCCR(1, 16, 4), 1, CCLKCFG2(1, 0, 1), 1350000, 1705000 },
+	{520000, 208000, PXA27x_CCCR(1, 16, 5), 1, CCLKCFG2(1, 0, 1), 1450000, 1705000 },
+	{624000, 208000, PXA27x_CCCR(1, 16, 6), 1, CCLKCFG2(1, 0, 1), 1550000, 1705000 }
 };
 
 #define NUM_PXA27x_FREQS ARRAY_SIZE(pxa27x_freqs)
@@ -162,6 +168,47 @@ static struct cpufreq_frequency_table
 	pxa27x_freq_table[NUM_PXA27x_FREQS+1];
 
 extern unsigned get_clk_frequency_khz(int info);
+
+#ifdef CONFIG_REGULATOR
+
+static int pxa_cpufreq_change_voltage(pxa_freqs_t *pxa_freq)
+{
+	int ret = 0;
+	int vmin, vmax;
+
+	if (!cpu_is_pxa27x())
+		return 0;
+
+	vmin = pxa_freq->vmin;
+	vmax = pxa_freq->vmax;
+	if ((vmin == -1) || (vmax == -1))
+		return 0;
+
+	ret = regulator_set_voltage(vcc_core, vmin, vmax);
+	if (ret)
+		pr_err("cpufreq: Failed to set vcc_core in [%dmV..%dmV]\n",
+		       vmin, vmax);
+	return ret;
+}
+
+static __init void pxa_cpufreq_init_voltages(void)
+{
+	vcc_core = regulator_get(NULL, "vcc_core");
+	if (IS_ERR(vcc_core)) {
+		pr_info("cpufreq: Didn't find vcc_core regulator\n");
+		vcc_core = NULL;
+	} else {
+		pr_info("cpufreq: Found vcc_core regulator\n");
+	}
+}
+#else
+static int pxa_cpufreq_change_voltage(pxa_freqs_t *pxa_freq)
+{
+	return 0;
+}
+
+static __init void pxa_cpufreq_init_voltages(void) { }
+#endif
 
 static void find_freq_tables(struct cpufreq_frequency_table **freq_table,
 			     pxa_freqs_t **pxa_freqs)
@@ -251,6 +298,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	unsigned long flags;
 	unsigned int new_freq_cpu, new_freq_mem;
 	unsigned int unused, preset_mdrefr, postset_mdrefr, cclkcfg;
+	int ret = 0;
 
 	/* Get the current policy */
 	find_freq_tables(&pxa_freqs_table, &pxa_freq_settings);
@@ -273,6 +321,10 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 			 freqs.new / 1000, (pxa_freq_settings[idx].div2) ?
 			 (new_freq_mem / 2000) : (new_freq_mem / 1000));
 
+	if (vcc_core && freqs.new > freqs.old)
+		ret = pxa_cpufreq_change_voltage(&pxa_freq_settings[idx]);
+	if (ret)
+		return ret;
 	/*
 	 * Tell everyone what we're about to do...
 	 * you should add a notify client with any platform specific
@@ -335,6 +387,18 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	 */
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
+	/*
+	 * Even if voltage setting fails, we don't report it, as the frequency
+	 * change succeeded. The voltage reduction is not a critical failure,
+	 * only power savings will suffer from this.
+	 *
+	 * Note: if the voltage change fails, and a return value is returned, a
+	 * bug is triggered (seems a deadlock). Should anybody find out where,
+	 * the "return 0" should become a "return ret".
+	 */
+	if (vcc_core && freqs.new < freqs.old)
+		ret = pxa_cpufreq_change_voltage(&pxa_freq_settings[idx]);
+
 	return 0;
 }
 
@@ -348,6 +412,8 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	/* try to guess pxa27x cpu */
 	if (cpu_is_pxa27x())
 		pxa27x_guess_max_freq();
+
+	pxa_cpufreq_init_voltages();
 
 	init_sdram_rows();
 

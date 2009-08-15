@@ -49,7 +49,8 @@ static struct dlm_direntry *get_free_de(struct dlm_ls *ls, int len)
 	spin_unlock(&ls->ls_recover_list_lock);
 
 	if (!found)
-		de = kzalloc(sizeof(struct dlm_direntry) + len, GFP_KERNEL);
+		de = kzalloc(sizeof(struct dlm_direntry) + len,
+			     ls->ls_allocation);
 	return de;
 }
 
@@ -211,7 +212,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 
 	dlm_dir_clear(ls);
 
-	last_name = kmalloc(DLM_RESNAME_MAXLEN, GFP_KERNEL);
+	last_name = kmalloc(DLM_RESNAME_MAXLEN, ls->ls_allocation);
 	if (!last_name)
 		goto out;
 
@@ -322,7 +323,7 @@ static int get_entry(struct dlm_ls *ls, int nodeid, char *name,
 	if (namelen > DLM_RESNAME_MAXLEN)
 		return -EINVAL;
 
-	de = kzalloc(sizeof(struct dlm_direntry) + namelen, GFP_KERNEL);
+	de = kzalloc(sizeof(struct dlm_direntry) + namelen, ls->ls_allocation);
 	if (!de)
 		return -ENOMEM;
 

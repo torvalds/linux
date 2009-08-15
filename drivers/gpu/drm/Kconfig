@@ -18,6 +18,14 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support.
 
+config DRM_TTM
+	tristate
+	depends on DRM
+	help
+	  GPU memory management subsystem for devices with multiple
+	  GPU memory types. Will be enabled automatically if a device driver
+	  uses it.
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
@@ -36,6 +44,11 @@ config DRM_R128
 config DRM_RADEON
 	tristate "ATI Radeon"
 	depends on DRM && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB
+	select FRAMEBUFFER_CONSOLE if !EMBEDDED
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to

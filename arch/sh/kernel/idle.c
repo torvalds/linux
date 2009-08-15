@@ -1,7 +1,7 @@
 /*
  * The idle loop for all SuperH platforms.
  *
- *  Copyright (C) 2002 - 2008  Paul Mundt
+ *  Copyright (C) 2002 - 2009  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,6 +15,7 @@
 #include <linux/preempt.h>
 #include <linux/thread_info.h>
 #include <linux/irqflags.h>
+#include <linux/smp.h>
 #include <asm/pgalloc.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -79,3 +80,23 @@ void cpu_idle(void)
 		check_pgt_cache();
 	}
 }
+
+static void do_nothing(void *unused)
+{
+}
+
+/*
+ * cpu_idle_wait - Used to ensure that all the CPUs discard old value of
+ * pm_idle and update to new pm_idle value. Required while changing pm_idle
+ * handler on SMP systems.
+ *
+ * Caller must have changed pm_idle to the new value before the call. Old
+ * pm_idle value will not be used by any CPU after the return of this function.
+ */
+void cpu_idle_wait(void)
+{
+	smp_mb();
+	/* kick all the CPUs so that they exit out of pm_idle */
+	smp_call_function(do_nothing, NULL, 1);
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);

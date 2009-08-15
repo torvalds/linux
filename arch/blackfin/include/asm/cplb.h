@@ -37,8 +37,6 @@
 #define L1_IMEMORY        (               CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
 #define SDRAM_INON_CHBL   (               CPLB_USER_RD | CPLB_VALID)
 
-/*Use the menuconfig cache policy here - CONFIG_BFIN_WT/CONFIG_BFIN_WB*/
-
 #if ANOMALY_05000158
 #define ANOMALY_05000158_WORKAROUND             0x200
 #else
@@ -47,34 +45,41 @@
 
 #define CPLB_COMMON	(CPLB_DIRTY | CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
 
-#ifdef CONFIG_BFIN_WB         /*Write Back Policy */
+#ifdef CONFIG_BFIN_EXTMEM_WRITEBACK
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_COMMON)
-#else                           /*Write Through */
+#elif defined(CONFIG_BFIN_EXTMEM_WRITETHROUGH)
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW  | CPLB_COMMON)
+#else
+#define SDRAM_DGENERIC   (CPLB_COMMON)
 #endif
-
-#define L1_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
-
-#ifdef CONFIG_SMP
-#define L2_ATTR           (INITIAL_T | I_CPLB | D_CPLB)
-#define L2_IMEMORY         (CPLB_COMMON | CPLB_LOCK)
-#define L2_DMEMORY         (CPLB_COMMON | CPLB_LOCK)
-
-#else
-#ifdef CONFIG_BFIN_L2_CACHEABLE
-#define L2_IMEMORY        (SDRAM_IGENERIC)
-#define L2_DMEMORY        (SDRAM_DGENERIC)
-#else
-#define L2_IMEMORY        (CPLB_COMMON)
-#define L2_DMEMORY        (CPLB_COMMON)
-#endif /* CONFIG_BFIN_L2_CACHEABLE */
-
-#define L2_ATTR           (INITIAL_T | SWITCH_T | I_CPLB | D_CPLB)
-#endif /* CONFIG_SMP */
 
 #define SDRAM_DNON_CHBL  (CPLB_COMMON)
 #define SDRAM_EBIU       (CPLB_COMMON)
 #define SDRAM_OOPS       (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_DIRTY)
+
+#define L1_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
+
+#ifdef CONFIG_SMP
+#define L2_ATTR          (INITIAL_T | I_CPLB | D_CPLB)
+#define L2_IMEMORY       (CPLB_COMMON | PAGE_SIZE_1MB)
+#define L2_DMEMORY       (CPLB_LOCK | CPLB_COMMON | PAGE_SIZE_1MB)
+
+#else
+#define L2_ATTR          (INITIAL_T | SWITCH_T | I_CPLB | D_CPLB)
+# if defined(CONFIG_BFIN_L2_ICACHEABLE)
+# define L2_IMEMORY      (CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | PAGE_SIZE_1MB)
+# else
+# define L2_IMEMORY      (               CPLB_USER_RD | CPLB_VALID | PAGE_SIZE_1MB)
+# endif
+
+# if defined(CONFIG_BFIN_L2_WRITEBACK)
+# define L2_DMEMORY      (CPLB_L1_CHBL | CPLB_COMMON | PAGE_SIZE_1MB)
+# elif defined(CONFIG_BFIN_L2_WRITETHROUGH)
+# define L2_DMEMORY      (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW | CPLB_COMMON | PAGE_SIZE_1MB)
+# else
+# define L2_DMEMORY      (CPLB_COMMON | PAGE_SIZE_1MB)
+# endif
+#endif /* CONFIG_SMP */
 
 #define SIZE_1K 0x00000400      /* 1K */
 #define SIZE_4K 0x00001000      /* 4K */

@@ -1423,7 +1423,7 @@ static int prism2_hw_init2(struct net_device *dev, int initial)
 		prism2_check_sta_fw_version(local);
 
 		if (hfa384x_get_rid(dev, HFA384X_RID_CNFOWNMACADDR,
-				    &dev->dev_addr, 6, 1) < 0) {
+				    dev->dev_addr, 6, 1) < 0) {
 			printk("%s: could not get own MAC address\n",
 			       dev->name);
 		}

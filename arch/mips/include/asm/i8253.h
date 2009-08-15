@@ -12,8 +12,6 @@
 #define PIT_CH0			0x40
 #define PIT_CH2			0x42
 
-#define PIT_TICK_RATE		1193182UL
-
 extern spinlock_t i8253_lock;
 
 extern void setup_pit_timer(void);

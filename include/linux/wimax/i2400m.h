@@ -266,7 +266,7 @@ enum i2400m_ro_type {
 
 /* Misc constants */
 enum {
-	I2400M_PL_PAD = 16,	/* Payload data size alignment */
+	I2400M_PL_ALIGN = 16,	/* Payload data size alignment */
 	I2400M_PL_SIZE_MAX = 0x3EFF,
 	I2400M_MAX_PLS_IN_MSG = 60,
 	/* protocol barkers: sync sequences; for notifications they

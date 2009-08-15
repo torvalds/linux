@@ -182,13 +182,54 @@ static int mpol_new_bind(struct mempolicy *pol, const nodemask_t *nodes)
 	return 0;
 }
 
-/* Create a new policy */
+/*
+ * mpol_set_nodemask is called after mpol_new() to set up the nodemask, if
+ * any, for the new policy.  mpol_new() has already validated the nodes
+ * parameter with respect to the policy mode and flags.  But, we need to
+ * handle an empty nodemask with MPOL_PREFERRED here.
+ *
+ * Must be called holding task's alloc_lock to protect task's mems_allowed
+ * and mempolicy.  May also be called holding the mmap_semaphore for write.
+ */
+static int mpol_set_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+{
+	nodemask_t cpuset_context_nmask;
+	int ret;
+
+	/* if mode is MPOL_DEFAULT, pol is NULL. This is right. */
+	if (pol == NULL)
+		return 0;
+
+	VM_BUG_ON(!nodes);
+	if (pol->mode == MPOL_PREFERRED && nodes_empty(*nodes))
+		nodes = NULL;	/* explicit local allocation */
+	else {
+		if (pol->flags & MPOL_F_RELATIVE_NODES)
+			mpol_relative_nodemask(&cpuset_context_nmask, nodes,
+					       &cpuset_current_mems_allowed);
+		else
+			nodes_and(cpuset_context_nmask, *nodes,
+				  cpuset_current_mems_allowed);
+		if (mpol_store_user_nodemask(pol))
+			pol->w.user_nodemask = *nodes;
+		else
+			pol->w.cpuset_mems_allowed =
+						cpuset_current_mems_allowed;
+	}
+
+	ret = mpol_ops[pol->mode].create(pol,
+				nodes ? &cpuset_context_nmask : NULL);
+	return ret;
+}
+
+/*
+ * This function just creates a new policy, does some check and simple
+ * initialization. You must invoke mpol_set_nodemask() to set nodes.
+ */
 static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 				  nodemask_t *nodes)
 {
 	struct mempolicy *policy;
-	nodemask_t cpuset_context_nmask;
-	int ret;
 
 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
@@ -210,7 +251,6 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 			if (((flags & MPOL_F_STATIC_NODES) ||
 			     (flags & MPOL_F_RELATIVE_NODES)))
 				return ERR_PTR(-EINVAL);
-			nodes = NULL;	/* flag local alloc */
 		}
 	} else if (nodes_empty(*nodes))
 		return ERR_PTR(-EINVAL);
@@ -221,30 +261,6 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 	policy->mode = mode;
 	policy->flags = flags;
 
-	if (nodes) {
-		/*
-		 * cpuset related setup doesn't apply to local allocation
-		 */
-		cpuset_update_task_memory_state();
-		if (flags & MPOL_F_RELATIVE_NODES)
-			mpol_relative_nodemask(&cpuset_context_nmask, nodes,
-					       &cpuset_current_mems_allowed);
-		else
-			nodes_and(cpuset_context_nmask, *nodes,
-				  cpuset_current_mems_allowed);
-		if (mpol_store_user_nodemask(policy))
-			policy->w.user_nodemask = *nodes;
-		else
-			policy->w.cpuset_mems_allowed =
-						cpuset_mems_allowed(current);
-	}
-
-	ret = mpol_ops[mode].create(policy,
-				nodes ? &cpuset_context_nmask : NULL);
-	if (ret < 0) {
-		kmem_cache_free(policy_cache, policy);
-		return ERR_PTR(ret);
-	}
 	return policy;
 }
 
@@ -324,6 +340,8 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 /*
  * Wrapper for mpol_rebind_policy() that just requires task
  * pointer, and updates task mempolicy.
+ *
+ * Called with task's alloc_lock held.
  */
 
 void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
@@ -600,8 +618,9 @@ static void mpol_set_task_struct_flag(void)
 static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 			     nodemask_t *nodes)
 {
-	struct mempolicy *new;
+	struct mempolicy *new, *old;
 	struct mm_struct *mm = current->mm;
+	int ret;
 
 	new = mpol_new(mode, flags, nodes);
 	if (IS_ERR(new))
@@ -615,20 +634,33 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 	 */
 	if (mm)
 		down_write(&mm->mmap_sem);
-	mpol_put(current->mempolicy);
+	task_lock(current);
+	ret = mpol_set_nodemask(new, nodes);
+	if (ret) {
+		task_unlock(current);
+		if (mm)
+			up_write(&mm->mmap_sem);
+		mpol_put(new);
+		return ret;
+	}
+	old = current->mempolicy;
 	current->mempolicy = new;
 	mpol_set_task_struct_flag();
 	if (new && new->mode == MPOL_INTERLEAVE &&
 	    nodes_weight(new->v.nodes))
 		current->il_next = first_node(new->v.nodes);
+	task_unlock(current);
 	if (mm)
 		up_write(&mm->mmap_sem);
 
+	mpol_put(old);
 	return 0;
 }
 
 /*
  * Return nodemask for policy for get_mempolicy() query
+ *
+ * Called with task's alloc_lock held
  */
 static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
 {
@@ -674,7 +706,6 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	struct vm_area_struct *vma = NULL;
 	struct mempolicy *pol = current->mempolicy;
 
-	cpuset_update_task_memory_state();
 	if (flags &
 		~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR|MPOL_F_MEMS_ALLOWED))
 		return -EINVAL;
@@ -683,7 +714,9 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 		if (flags & (MPOL_F_NODE|MPOL_F_ADDR))
 			return -EINVAL;
 		*policy = 0;	/* just so it's initialized */
+		task_lock(current);
 		*nmask  = cpuset_current_mems_allowed;
+		task_unlock(current);
 		return 0;
 	}
 
@@ -738,8 +771,11 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	}
 
 	err = 0;
-	if (nmask)
+	if (nmask) {
+		task_lock(current);
 		get_policy_nodemask(pol, nmask);
+		task_unlock(current);
+	}
 
  out:
 	mpol_cond_put(pol);
@@ -767,7 +803,7 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 
 static struct page *new_node_page(struct page *page, unsigned long node, int **x)
 {
-	return alloc_pages_node(node, GFP_HIGHUSER_MOVABLE, 0);
+	return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
 }
 
 /*
@@ -979,6 +1015,14 @@ static long do_mbind(unsigned long start, unsigned long len,
 			return err;
 	}
 	down_write(&mm->mmap_sem);
+	task_lock(current);
+	err = mpol_set_nodemask(new, nmask);
+	task_unlock(current);
+	if (err) {
+		up_write(&mm->mmap_sem);
+		mpol_put(new);
+		return err;
+	}
 	vma = check_range(mm, start, end, nmask,
 			  flags | MPOL_MF_INVERT, &pagelist);
 
@@ -1545,8 +1589,6 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
 	struct zonelist *zl;
 
-	cpuset_update_task_memory_state();
-
 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
 		unsigned nid;
 
@@ -1593,8 +1635,6 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 {
 	struct mempolicy *pol = current->mempolicy;
 
-	if ((gfp & __GFP_WAIT) && !in_interrupt())
-		cpuset_update_task_memory_state();
 	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
 
@@ -1854,6 +1894,8 @@ restart:
  */
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 {
+	int ret;
+
 	sp->root = RB_ROOT;		/* empty tree == default mempolicy */
 	spin_lock_init(&sp->lock);
 
@@ -1863,9 +1905,19 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 
 		/* contextualize the tmpfs mount point mempolicy */
 		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
-		mpol_put(mpol);	/* drop our ref on sb mpol */
-		if (IS_ERR(new))
+		if (IS_ERR(new)) {
+			mpol_put(mpol);	/* drop our ref on sb mpol */
 			return;		/* no valid nodemask intersection */
+		}
+
+		task_lock(current);
+		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask);
+		task_unlock(current);
+		mpol_put(mpol);	/* drop our ref on sb mpol */
+		if (ret) {
+			mpol_put(new);
+			return;
+		}
 
 		/* Create pseudo-vma that contains just the policy */
 		memset(&pvma, 0, sizeof(struct vm_area_struct));
@@ -2086,8 +2138,19 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 	new = mpol_new(mode, mode_flags, &nodes);
 	if (IS_ERR(new))
 		err = 1;
-	else if (no_context)
-		new->w.user_nodemask = nodes;	/* save for contextualization */
+	else {
+		int ret;
+
+		task_lock(current);
+		ret = mpol_set_nodemask(new, &nodes);
+		task_unlock(current);
+		if (ret)
+			err = 1;
+		else if (no_context) {
+			/* save for contextualization */
+			new->w.user_nodemask = nodes;
+		}
+	}
 
 out:
 	/* Restore string for error message */

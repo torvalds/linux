@@ -15,10 +15,9 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 static DEFINE_SPINLOCK(gpio_lock);
-static const char *gpio_label[GPIO_MAX];  /* non null for allocated GPIOs */
 static unsigned long gpio_valid_input[BITS_TO_LONGS(GPIO_MAX)];
 static unsigned long gpio_valid_output[BITS_TO_LONGS(GPIO_MAX)];
 
@@ -46,82 +45,54 @@ static void __set_level(unsigned pin, int high)
 	writel(u, GPIO_OUT(pin));
 }
 
+static inline void __set_blinking(unsigned pin, int blink)
+{
+	u32 u;
+
+	u = readl(GPIO_BLINK_EN(pin));
+	if (blink)
+		u |= 1 << (pin & 31);
+	else
+		u &= ~(1 << (pin & 31));
+	writel(u, GPIO_BLINK_EN(pin));
+}
+
+static inline int orion_gpio_is_valid(unsigned pin, int mode)
+{
+	if (pin < GPIO_MAX) {
+		if ((mode & GPIO_INPUT_OK) && !test_bit(pin, gpio_valid_input))
+			goto err_out;
+		if ((mode & GPIO_OUTPUT_OK) && !test_bit(pin, gpio_valid_output))
+			goto err_out;
+		return true;
+	}
+
+err_out:
+	pr_debug("%s: invalid GPIO %d\n", __func__, pin);
+	return false;
+}
 
 /*
  * GENERIC_GPIO primitives.
  */
-int gpio_direction_input(unsigned pin)
+static int orion_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 {
 	unsigned long flags;
 
-	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid_input)) {
-		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
+	if (!orion_gpio_is_valid(pin, GPIO_INPUT_OK))
 		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	/*
-	 * Some callers might not have used gpio_request(),
-	 * so flag this pin as requested now.
-	 */
-	if (gpio_label[pin] == NULL)
-		gpio_label[pin] = "?";
-
-	/*
-	 * Configure GPIO direction.
-	 */
+	/* Configure GPIO direction. */
 	__set_direction(pin, 1);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_input);
 
-int gpio_direction_output(unsigned pin, int value)
-{
-	unsigned long flags;
-	u32 u;
-
-	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid_output)) {
-		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	/*
-	 * Some callers might not have used gpio_request(),
-	 * so flag this pin as requested now.
-	 */
-	if (gpio_label[pin] == NULL)
-		gpio_label[pin] = "?";
-
-	/*
-	 * Disable blinking.
-	 */
-	u = readl(GPIO_BLINK_EN(pin));
-	u &= ~(1 << (pin & 31));
-	writel(u, GPIO_BLINK_EN(pin));
-
-	/*
-	 * Configure GPIO output value.
-	 */
-	__set_level(pin, value);
-
-	/*
-	 * Configure GPIO direction.
-	 */
-	__set_direction(pin, 0);
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_direction_output);
-
-int gpio_get_value(unsigned pin)
+static int orion_gpio_get_value(struct gpio_chip *chip, unsigned pin)
 {
 	int val;
 
@@ -132,83 +103,75 @@ int gpio_get_value(unsigned pin)
 
 	return (val >> (pin & 31)) & 1;
 }
-EXPORT_SYMBOL(gpio_get_value);
 
-void gpio_set_value(unsigned pin, int value)
+static int orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin,
+	int value)
 {
 	unsigned long flags;
-	u32 u;
+
+	if (!orion_gpio_is_valid(pin, GPIO_OUTPUT_OK))
+		return -EINVAL;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	/*
-	 * Disable blinking.
-	 */
-	u = readl(GPIO_BLINK_EN(pin));
-	u &= ~(1 << (pin & 31));
-	writel(u, GPIO_BLINK_EN(pin));
+	/* Disable blinking. */
+	__set_blinking(pin, 0);
 
-	/*
-	 * Configure GPIO output value.
-	 */
+	/* Configure GPIO output value. */
+	__set_level(pin, value);
+
+	/* Configure GPIO direction. */
+	__set_direction(pin, 0);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return 0;
+}
+
+static void orion_gpio_set_value(struct gpio_chip *chip, unsigned pin,
+	int value)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	/* Configure GPIO output value. */
 	__set_level(pin, value);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
-EXPORT_SYMBOL(gpio_set_value);
 
-int gpio_request(unsigned pin, const char *label)
+static int orion_gpio_request(struct gpio_chip *chip, unsigned pin)
 {
-	unsigned long flags;
-	int ret;
-
-	if (pin >= GPIO_MAX ||
-	    !(test_bit(pin, gpio_valid_input) ||
-	      test_bit(pin, gpio_valid_output))) {
-		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&gpio_lock, flags);
-	if (gpio_label[pin] == NULL) {
-		gpio_label[pin] = label ? label : "?";
-		ret = 0;
-	} else {
-		pr_debug("%s: GPIO %d already used as %s\n",
-			 __func__, pin, gpio_label[pin]);
-		ret = -EBUSY;
-	}
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return ret;
+	if (orion_gpio_is_valid(pin, GPIO_INPUT_OK) ||
+	    orion_gpio_is_valid(pin, GPIO_OUTPUT_OK))
+		return 0;
+	return -EINVAL;
 }
-EXPORT_SYMBOL(gpio_request);
 
-void gpio_free(unsigned pin)
+static struct gpio_chip orion_gpiochip = {
+	.label			= "orion_gpio",
+	.direction_input	= orion_gpio_direction_input,
+	.get			= orion_gpio_get_value,
+	.direction_output	= orion_gpio_direction_output,
+	.set			= orion_gpio_set_value,
+	.request		= orion_gpio_request,
+	.base			= 0,
+	.ngpio			= GPIO_MAX,
+	.can_sleep		= 0,
+};
+
+void __init orion_gpio_init(void)
 {
-	if (pin >= GPIO_MAX ||
-	    !(test_bit(pin, gpio_valid_input) ||
-	      test_bit(pin, gpio_valid_output))) {
-		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
-		return;
-	}
-
-	if (gpio_label[pin] == NULL)
-		pr_warning("%s: GPIO %d already freed\n", __func__, pin);
-	else
-		gpio_label[pin] = NULL;
+	gpiochip_add(&orion_gpiochip);
 }
-EXPORT_SYMBOL(gpio_free);
-
 
 /*
  * Orion-specific GPIO API extensions.
  */
 void __init orion_gpio_set_unused(unsigned pin)
 {
-	/*
-	 * Configure as output, drive low.
-	 */
+	/* Configure as output, drive low. */
 	__set_level(pin, 0);
 	__set_direction(pin, 0);
 }
@@ -230,21 +193,14 @@ void __init orion_gpio_set_valid(unsigned pin, int mode)
 void orion_gpio_set_blink(unsigned pin, int blink)
 {
 	unsigned long flags;
-	u32 u;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	/*
-	 * Set output value to zero.
-	 */
+	/* Set output value to zero. */
 	__set_level(pin, 0);
 
-	u = readl(GPIO_BLINK_EN(pin));
-	if (blink)
-		u |= 1 << (pin & 31);
-	else
-		u &= ~(1 << (pin & 31));
-	writel(u, GPIO_BLINK_EN(pin));
+	/* Set blinking. */
+	__set_blinking(pin, blink);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
@@ -368,7 +324,7 @@ static int gpio_irq_set_type(u32 irq, u32 type)
 }
 
 struct irq_chip orion_gpio_irq_chip = {
-	.name		= "orion_gpio",
+	.name		= "orion_gpio_irq",
 	.ack		= gpio_irq_ack,
 	.mask		= gpio_irq_mask,
 	.unmask		= gpio_irq_unmask,

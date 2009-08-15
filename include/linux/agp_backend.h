@@ -70,7 +70,7 @@ struct agp_memory {
 	struct agp_memory *next;
 	struct agp_memory *prev;
 	struct agp_bridge_data *bridge;
-	unsigned long *memory;
+	struct page **pages;
 	size_t page_count;
 	int key;
 	int num_scratch_pages;

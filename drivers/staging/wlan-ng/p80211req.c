@@ -73,9 +73,9 @@
 #include "p80211metastruct.h"
 #include "p80211req.h"
 
-static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg);
-static int p80211req_mibset_mibget(wlandevice_t *wlandev,
-				   p80211msg_dot11req_mibget_t *mib_msg,
+static void p80211req_handlemsg(wlandevice_t * wlandev, p80211msg_t * msg);
+static int p80211req_mibset_mibget(wlandevice_t * wlandev,
+				   p80211msg_dot11req_mibget_t * mib_msg,
 				   int isget);
 
 /*----------------------------------------------------------------
@@ -94,7 +94,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 *	Potentially blocks the caller, so it's a good idea to
 *	not call this function from an interrupt context.
 ----------------------------------------------------------------*/
-int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
+int p80211req_dorequest(wlandevice_t * wlandev, u8 * msgbuf)
 {
 	int result = 0;
 	p80211msg_t *msg = (p80211msg_t *) msgbuf;
@@ -129,7 +129,7 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 		wlandev->mlmerequest(wlandev, msg);
 
 	clear_bit(1, &(wlandev->request_pending));
-	return result; /* if result==0, msg->status still may contain an err */
+	return result;		/* if result==0, msg->status still may contain an err */
 }
 
 /*----------------------------------------------------------------
@@ -150,7 +150,7 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 * Call context:
 *	Process thread
 ----------------------------------------------------------------*/
-static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg)
+static void p80211req_handlemsg(wlandevice_t * wlandev, p80211msg_t * msg)
 {
 	switch (msg->msgcode) {
 
@@ -180,8 +180,8 @@ static void p80211req_handlemsg(wlandevice_t *wlandev, p80211msg_t *msg)
 	return;
 }
 
-static int p80211req_mibset_mibget(wlandevice_t *wlandev,
-				   p80211msg_dot11req_mibget_t *mib_msg,
+static int p80211req_mibset_mibget(wlandevice_t * wlandev,
+				   p80211msg_dot11req_mibget_t * mib_msg,
 				   int isget)
 {
 	p80211itemd_t *mibitem = (p80211itemd_t *) mib_msg->mibattribute.data;
@@ -243,8 +243,8 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 			u32 *data = (u32 *) mibitem->data;
 
 			if (isget) {
-				if (wlandev->
-				    hostwep & HOSTWEP_EXCLUDEUNENCRYPTED)
+				if (wlandev->hostwep &
+				    HOSTWEP_EXCLUDEUNENCRYPTED)
 					*data = P80211ENUM_truth_true;
 				else
 					*data = P80211ENUM_truth_false;

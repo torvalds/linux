@@ -46,7 +46,7 @@ extern efi_status_t efi_call_phys (void *, ...);
 struct efi efi;
 EXPORT_SYMBOL(efi);
 static efi_runtime_services_t *runtime;
-static unsigned long mem_limit = ~0UL, max_addr = ~0UL, min_addr = 0UL;
+static u64 mem_limit = ~0UL, max_addr = ~0UL, min_addr = 0UL;
 
 #define efi_call_virt(f, args...)	(*(f))(args)
 
@@ -356,7 +356,7 @@ efi_get_pal_addr (void)
 
 		if (++pal_code_count > 1) {
 			printk(KERN_ERR "Too many EFI Pal Code memory ranges, "
-			       "dropped @ %lx\n", md->phys_addr);
+			       "dropped @ %llx\n", md->phys_addr);
 			continue;
 		}
 		/*
@@ -490,10 +490,10 @@ efi_init (void)
 		}
 	}
 	if (min_addr != 0UL)
-		printk(KERN_INFO "Ignoring memory below %luMB\n",
+		printk(KERN_INFO "Ignoring memory below %lluMB\n",
 		       min_addr >> 20);
 	if (max_addr != ~0UL)
-		printk(KERN_INFO "Ignoring memory above %luMB\n",
+		printk(KERN_INFO "Ignoring memory above %lluMB\n",
 		       max_addr >> 20);
 
 	efi.systab = __va(ia64_boot_param->efi_systab);
@@ -1066,7 +1066,7 @@ find_memmap_space (void)
  * parts exist, and are WB.
  */
 unsigned long
-efi_memmap_init(unsigned long *s, unsigned long *e)
+efi_memmap_init(u64 *s, u64 *e)
 {
 	struct kern_memdesc *k, *prev = NULL;
 	u64	contig_low=0, contig_high=0;

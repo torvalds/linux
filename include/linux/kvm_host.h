@@ -38,6 +38,7 @@
 #define KVM_REQ_UNHALT             6
 #define KVM_REQ_MMU_SYNC           7
 #define KVM_REQ_KVMCLOCK_UPDATE    8
+#define KVM_REQ_KICK               9
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
@@ -72,7 +73,6 @@ struct kvm_vcpu {
 	struct mutex mutex;
 	int   cpu;
 	struct kvm_run *run;
-	int guest_mode;
 	unsigned long requests;
 	unsigned long guest_debug;
 	int fpu_active;
@@ -298,6 +298,7 @@ int kvm_arch_hardware_setup(void);
 void kvm_arch_hardware_unsetup(void);
 void kvm_arch_check_processor_compat(void *rtn);
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
+int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
 
 void kvm_free_physmem(struct kvm *kvm);
 
@@ -319,6 +320,13 @@ struct kvm_irq_ack_notifier {
 	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
 };
 
+#define KVM_ASSIGNED_MSIX_PENDING		0x1
+struct kvm_guest_msix_entry {
+	u32 vector;
+	u16 entry;
+	u16 flags;
+};
+
 struct kvm_assigned_dev_kernel {
 	struct kvm_irq_ack_notifier ack_notifier;
 	struct work_struct interrupt_work;
@@ -326,18 +334,18 @@ struct kvm_assigned_dev_kernel {
 	int assigned_dev_id;
 	int host_busnr;
 	int host_devfn;
+	unsigned int entries_nr;
 	int host_irq;
 	bool host_irq_disabled;
+	struct msix_entry *host_msix_entries;
 	int guest_irq;
-#define KVM_ASSIGNED_DEV_GUEST_INTX	(1 << 0)
-#define KVM_ASSIGNED_DEV_GUEST_MSI	(1 << 1)
-#define KVM_ASSIGNED_DEV_HOST_INTX	(1 << 8)
-#define KVM_ASSIGNED_DEV_HOST_MSI	(1 << 9)
+	struct kvm_guest_msix_entry *guest_msix_entries;
 	unsigned long irq_requested_type;
 	int irq_source_id;
 	int flags;
 	struct pci_dev *dev;
 	struct kvm *kvm;
+	spinlock_t assigned_dev_lock;
 };
 
 struct kvm_irq_mask_notifier {
@@ -359,6 +367,9 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian);
 int kvm_request_irq_source_id(struct kvm *kvm);
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
+
+/* For vcpu->arch.iommu_flags */
+#define KVM_IOMMU_CACHE_COHERENCY	0x1
 
 #ifdef CONFIG_IOMMU_API
 int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,

@@ -132,6 +132,39 @@ struct ubi_device_info {
 	dev_t cdev;
 };
 
+/*
+ * enum - volume notification types.
+ * @UBI_VOLUME_ADDED: volume has been added
+ * @UBI_VOLUME_REMOVED: start volume volume
+ * @UBI_VOLUME_RESIZED: volume size has been re-sized
+ * @UBI_VOLUME_RENAMED: volume name has been re-named
+ * @UBI_VOLUME_UPDATED: volume name has been updated
+ *
+ * These constants define which type of event has happened when a volume
+ * notification function is invoked.
+ */
+enum {
+	UBI_VOLUME_ADDED,
+	UBI_VOLUME_REMOVED,
+	UBI_VOLUME_RESIZED,
+	UBI_VOLUME_RENAMED,
+	UBI_VOLUME_UPDATED,
+};
+
+/*
+ * struct ubi_notification - UBI notification description structure.
+ * @di: UBI device description object
+ * @vi: UBI volume description object
+ *
+ * UBI notifiers are called with a pointer to an object of this type. The
+ * object describes the notification. Namely, it provides a description of the
+ * UBI device and UBI volume the notification informs about.
+ */
+struct ubi_notification {
+	struct ubi_device_info di;
+	struct ubi_volume_info vi;
+};
+
 /* UBI descriptor given to users when they open UBI volumes */
 struct ubi_volume_desc;
 
@@ -141,6 +174,10 @@ void ubi_get_volume_info(struct ubi_volume_desc *desc,
 struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode);
 struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 					   int mode);
+int ubi_register_volume_notifier(struct notifier_block *nb,
+				 int ignore_existing);
+int ubi_unregister_volume_notifier(struct notifier_block *nb);
+
 void ubi_close_volume(struct ubi_volume_desc *desc);
 int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 		 int len, int check);

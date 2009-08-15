@@ -30,7 +30,7 @@ struct mnt_namespace;
 #define MNT_STRICTATIME 0x80
 
 #define MNT_SHRINKABLE	0x100
-#define MNT_IMBALANCED_WRITE_COUNT	0x200 /* just for debugging */
+#define MNT_WRITE_HOLD	0x200
 
 #define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
@@ -65,12 +65,21 @@ struct vfsmount {
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	int mnt_pinned;
 	int mnt_ghosts;
-	/*
-	 * This value is not stable unless all of the mnt_writers[] spinlocks
-	 * are held, and all mnt_writer[]s on this mount have 0 as their ->count
-	 */
-	atomic_t __mnt_writers;
+#ifdef CONFIG_SMP
+	int *mnt_writers;
+#else
+	int mnt_writers;
+#endif
 };
+
+static inline int *get_mnt_writers_ptr(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	return mnt->mnt_writers;
+#else
+	return &mnt->mnt_writers;
+#endif
+}
 
 static inline struct vfsmount *mntget(struct vfsmount *mnt)
 {
@@ -79,7 +88,11 @@ static inline struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 
+struct file; /* forward dec */
+
 extern int mnt_want_write(struct vfsmount *mnt);
+extern int mnt_want_write_file(struct file *file);
+extern int mnt_clone_write(struct vfsmount *mnt);
 extern void mnt_drop_write(struct vfsmount *mnt);
 extern void mntput_no_expire(struct vfsmount *mnt);
 extern void mnt_pin(struct vfsmount *mnt);

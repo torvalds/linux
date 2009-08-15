@@ -30,6 +30,7 @@ MODULE_LICENSE("GPL");
 #define dprintf(x...)
 #endif
 
+static void bfs_write_super(struct super_block *s);
 void dump_imap(const char *prefix, struct super_block *s);
 
 struct inode *bfs_iget(struct super_block *sb, unsigned long ino)
@@ -97,14 +98,15 @@ error:
 	return ERR_PTR(-EIO);
 }
 
-static int bfs_write_inode(struct inode *inode, int unused)
+static int bfs_write_inode(struct inode *inode, int wait)
 {
+	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 	unsigned int ino = (u16)inode->i_ino;
         unsigned long i_sblock;
 	struct bfs_inode *di;
 	struct buffer_head *bh;
 	int block, off;
-	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
+	int err = 0;
 
         dprintf("ino=%08x\n", ino);
 
@@ -145,9 +147,14 @@ static int bfs_write_inode(struct inode *inode, int unused)
 	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
 
 	mark_buffer_dirty(bh);
+	if (wait) {
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh))
+			err = -EIO;
+	}
 	brelse(bh);
 	mutex_unlock(&info->bfs_lock);
-	return 0;
+	return err;
 }
 
 static void bfs_delete_inode(struct inode *inode)
@@ -209,6 +216,26 @@ static void bfs_delete_inode(struct inode *inode)
 	clear_inode(inode);
 }
 
+static int bfs_sync_fs(struct super_block *sb, int wait)
+{
+	struct bfs_sb_info *info = BFS_SB(sb);
+
+	mutex_lock(&info->bfs_lock);
+	mark_buffer_dirty(info->si_sbh);
+	sb->s_dirt = 0;
+	mutex_unlock(&info->bfs_lock);
+
+	return 0;
+}
+
+static void bfs_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		bfs_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
+}
+
 static void bfs_put_super(struct super_block *s)
 {
 	struct bfs_sb_info *info = BFS_SB(s);
@@ -216,11 +243,18 @@ static void bfs_put_super(struct super_block *s)
 	if (!info)
 		return;
 
+	lock_kernel();
+
+	if (s->s_dirt)
+		bfs_write_super(s);
+
 	brelse(info->si_sbh);
 	mutex_destroy(&info->bfs_lock);
 	kfree(info->si_imap);
 	kfree(info);
 	s->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -238,17 +272,6 @@ static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[1] = (u32)(id >> 32);
 	buf->f_namelen = BFS_NAMELEN;
 	return 0;
-}
-
-static void bfs_write_super(struct super_block *s)
-{
-	struct bfs_sb_info *info = BFS_SB(s);
-
-	mutex_lock(&info->bfs_lock);
-	if (!(s->s_flags & MS_RDONLY))
-		mark_buffer_dirty(info->si_sbh);
-	s->s_dirt = 0;
-	mutex_unlock(&info->bfs_lock);
 }
 
 static struct kmem_cache *bfs_inode_cachep;
@@ -298,6 +321,7 @@ static const struct super_operations bfs_sops = {
 	.delete_inode	= bfs_delete_inode,
 	.put_super	= bfs_put_super,
 	.write_super	= bfs_write_super,
+	.sync_fs	= bfs_sync_fs,
 	.statfs		= bfs_statfs,
 };
 

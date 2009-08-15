@@ -53,9 +53,28 @@ static void jffs2_i_init_once(void *foo)
 	inode_init_once(&f->vfs_inode);
 }
 
+static void jffs2_write_super(struct super_block *sb)
+{
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+
+	lock_super(sb);
+	sb->s_dirt = 0;
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		D1(printk(KERN_DEBUG "jffs2_write_super()\n"));
+		jffs2_garbage_collect_trigger(c);
+		jffs2_erase_pending_blocks(c, 0);
+		jffs2_flush_wbuf_gc(c, 0);
+	}
+
+	unlock_super(sb);
+}
+
 static int jffs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+
+	jffs2_write_super(sb);
 
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
@@ -174,6 +193,11 @@ static void jffs2_put_super (struct super_block *sb)
 
 	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
 
+	lock_kernel();
+
+	if (sb->s_dirt)
+		jffs2_write_super(sb);
+
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
 	mutex_unlock(&c->alloc_sem);
@@ -191,6 +215,8 @@ static void jffs2_put_super (struct super_block *sb)
 	jffs2_clear_xattr_subsystem(c);
 	if (c->mtd->sync)
 		c->mtd->sync(c->mtd);
+
+	unlock_kernel();
 
 	D1(printk(KERN_DEBUG "jffs2_put_super returning\n"));
 }

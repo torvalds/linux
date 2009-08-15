@@ -22,6 +22,7 @@
 #include <mach/hardware.h>
 #include <mach/regs-ac97.h>
 #include <mach/dma.h>
+#include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
@@ -241,9 +242,18 @@ EXPORT_SYMBOL_GPL(soc_ac97_ops);
 static int __devinit pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 {
 	int i;
+	pxa2xx_audio_ops_t *pdata = pdev->dev.platform_data;
 
-	for (i = 0; i < ARRAY_SIZE(pxa_ac97_dai); i++)
+	if (pdev->id >= 0) {
+		dev_err(&pdev->dev, "PXA2xx has only one AC97 port.\n");
+		return -ENXIO;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pxa_ac97_dai); i++) {
 		pxa_ac97_dai[i].dev = &pdev->dev;
+		if (pdata && pdata->codec_pdata)
+			pxa_ac97_dai[i].ac97_pdata = pdata->codec_pdata;
+	}
 
 	/* Punt most of the init to the SoC probe; we may need the machine
 	 * driver to do interesting things with the clocking to get us up

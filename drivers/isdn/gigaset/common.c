@@ -565,8 +565,6 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	gig_dbg(DEBUG_INIT, "setting up bcs[%d]->at_state", channel);
 	gigaset_at_init(&bcs->at_state, bcs, cs, -1);
 
-	bcs->rcvbytes = 0;
-
 #ifdef CONFIG_GIGASET_DEBUG
 	bcs->emptycount = 0;
 #endif
@@ -672,14 +670,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->tty = NULL;
 	cs->tty_dev = NULL;
 	cs->cidmode = cidmode != 0;
-
-	//if(onechannel) { //FIXME
-		cs->tabnocid = gigaset_tab_nocid_m10x;
-		cs->tabcid = gigaset_tab_cid_m10x;
-	//} else {
-	//	cs->tabnocid = gigaset_tab_nocid;
-	//	cs->tabcid = gigaset_tab_cid;
-	//}
+	cs->tabnocid = gigaset_tab_nocid;
+	cs->tabcid = gigaset_tab_cid;
 
 	init_waitqueue_head(&cs->waitqueue);
 	cs->waiting = 0;

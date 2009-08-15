@@ -173,9 +173,6 @@ NDIS_STATUS	RTMPAllocTxRxRingMemory(
 				pTxD->SDPtr0 = BufBasePaLow;
 				// advance to next ring descriptor address
 				pTxD->DMADONE = 1;
-#ifdef RT_BIG_ENDIAN
-				RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#endif
 				RingBasePaLow += TXD_SIZE;
 				RingBaseVa = (PUCHAR) RingBaseVa + TXD_SIZE;
 
@@ -236,9 +233,6 @@ NDIS_STATUS	RTMPAllocTxRxRingMemory(
 			pTxD = (PTXD_STRUC) pAd->MgmtRing.Cell[index].AllocVa;
 			pTxD->DMADONE = 1;
 
-#ifdef RT_BIG_ENDIAN
-			RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#endif
 			// no pre-allocated buffer required in MgmtRing for scatter-gather case
 		}
 		DBGPRINT(RT_DEBUG_TRACE, ("MGMT Ring: total %d entry allocated\n", index));
@@ -318,10 +312,6 @@ NDIS_STATUS	RTMPAllocTxRxRingMemory(
 			pRxD = (PRXD_STRUC) pAd->RxRing.Cell[index].AllocVa;
 			pRxD->SDP0 = RTMP_GetPhysicalAddressLow(pDmaBuf->AllocPa);
 			pRxD->DDONE = 0;
-
-#ifdef RT_BIG_ENDIAN
-			RTMPDescriptorEndianChange((PUCHAR)pRxD, TYPE_RXD);
-#endif
 		}
 
 		DBGPRINT(RT_DEBUG_TRACE, ("Rx Ring: total %d entry allocated\n", index));
@@ -821,10 +811,6 @@ PNDIS_PACKET GetPacketFromRxRing(
 	IN OUT	UINT32			*pRxPending)
 {
 	PRXD_STRUC				pRxD;
-#ifdef RT_BIG_ENDIAN
-	PRXD_STRUC				pDestRxD;
-	RXD_STRUC				RxD;
-#endif
 	PNDIS_PACKET			pRxPacket = NULL;
 	PNDIS_PACKET			pNewPacket;
 	PVOID					AllocVa;
@@ -853,15 +839,8 @@ PNDIS_PACKET GetPacketFromRxRing(
 
 	}
 
-#ifdef RT_BIG_ENDIAN
-	pDestRxD = (PRXD_STRUC) pAd->RxRing.Cell[pAd->RxRing.RxSwReadIdx].AllocVa;
-	RxD = *pDestRxD;
-	pRxD = &RxD;
-	RTMPDescriptorEndianChange((PUCHAR)pRxD, TYPE_RXD);
-#else
 	// Point to Rx indexed rx ring descriptor
 	pRxD = (PRXD_STRUC) pAd->RxRing.Cell[pAd->RxRing.RxSwReadIdx].AllocVa;
-#endif
 
 	if (pRxD->DDONE == 0)
 	{
@@ -904,10 +883,6 @@ PNDIS_PACKET GetPacketFromRxRing(
 	*pRxPending = *pRxPending - 1;
 
 	// update rx descriptor and kick rx
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pRxD, TYPE_RXD);
-	WriteBackToDescriptor((PUCHAR)pDestRxD, (PUCHAR)pRxD, FALSE, TYPE_RXD);
-#endif
 	INC_RING_INDEX(pAd->RxRing.RxSwReadIdx, RX_RING_SIZE);
 
 	pAd->RxRing.RxCpuIdx = (pAd->RxRing.RxSwReadIdx == 0) ? (RX_RING_SIZE-1) : (pAd->RxRing.RxSwReadIdx-1);

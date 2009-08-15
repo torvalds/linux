@@ -17,6 +17,9 @@ Required properties:
 - model : precise model of the QE, Can be "QE", "CPM", or "CPM2"
 - reg : offset and length of the device registers.
 - bus-frequency : the clock frequency for QUICC Engine.
+- fsl,qe-num-riscs: define how many RISC engines the QE has.
+- fsl,qe-num-snums: define how many serial number(SNUM) the QE can use for the
+  threads.
 
 Recommended properties
 - brg-frequency : the internal clock source frequency for baud-rate

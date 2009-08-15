@@ -383,7 +383,7 @@ static void async_mode(MGSLPC_INFO *info);
 static void tx_timeout(unsigned long context);
 
 static int carrier_raised(struct tty_port *port);
-static void raise_dtr_rts(struct tty_port *port);
+static void dtr_rts(struct tty_port *port, int onoff);
 
 #if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
@@ -513,7 +513,7 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 
 static const struct tty_port_operations mgslpc_port_ops = {
 	.carrier_raised = carrier_raised,
-	.raise_dtr_rts = raise_dtr_rts
+	.dtr_rts = dtr_rts
 };
 
 static int mgslpc_probe(struct pcmcia_device *link)
@@ -2528,13 +2528,16 @@ static int carrier_raised(struct tty_port *port)
 	return 0;
 }
 
-static void raise_dtr_rts(struct tty_port *port)
+static void dtr_rts(struct tty_port *port, int onoff)
 {
 	MGSLPC_INFO *info = container_of(port, MGSLPC_INFO, port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock,flags);
-	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+	if (onoff)
+		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+	else
+		info->serial_signals &= ~SerialSignal_RTS + SerialSignal_DTR;
 	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }

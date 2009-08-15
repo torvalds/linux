@@ -191,6 +191,8 @@ struct usb_ctrlrequest {
 #define USB_DT_WIRE_ADAPTER		0x21
 #define USB_DT_RPIPE			0x22
 #define USB_DT_CS_RADIO_CONTROL		0x23
+/* From the USB 3.0 spec */
+#define	USB_DT_SS_ENDPOINT_COMP		0x30
 
 /* Conventional codes for class-specific descriptors.  The convention is
  * defined in the USB "Common Class" Spec (3.11).  Individual class specs
@@ -535,6 +537,20 @@ static inline int usb_endpoint_is_isoc_out(
 
 /*-------------------------------------------------------------------------*/
 
+/* USB_DT_SS_ENDPOINT_COMP: SuperSpeed Endpoint Companion descriptor */
+struct usb_ss_ep_comp_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__u8  bMaxBurst;
+	__u8  bmAttributes;
+	__u16 wBytesPerInterval;
+} __attribute__ ((packed));
+
+#define USB_DT_SS_EP_COMP_SIZE		6
+
+/*-------------------------------------------------------------------------*/
+
 /* USB_DT_DEVICE_QUALIFIER: Device Qualifier descriptor */
 struct usb_qualifier_descriptor {
 	__u8  bLength;
@@ -752,6 +768,7 @@ enum usb_device_speed {
 	USB_SPEED_LOW, USB_SPEED_FULL,		/* usb 1.1 */
 	USB_SPEED_HIGH,				/* usb 2.0 */
 	USB_SPEED_VARIABLE,			/* wireless (usb 2.5) */
+	USB_SPEED_SUPER,			/* usb 3.0 */
 };
 
 enum usb_device_state {

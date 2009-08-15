@@ -152,6 +152,32 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
+static int iwlcore_get_nvm_type(struct iwl_priv *priv)
+{
+	u32 otpgp;
+	int nvm_type;
+
+	/* OTP only valid for CP/PP and after */
+	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_3945:
+	case CSR_HW_REV_TYPE_4965:
+	case CSR_HW_REV_TYPE_5300:
+	case CSR_HW_REV_TYPE_5350:
+	case CSR_HW_REV_TYPE_5100:
+	case CSR_HW_REV_TYPE_5150:
+		nvm_type = NVM_DEVICE_TYPE_EEPROM;
+		break;
+	default:
+		otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
+		if (otpgp & CSR_OTP_GP_REG_DEVICE_SELECT)
+			nvm_type = NVM_DEVICE_TYPE_OTP;
+		else
+			nvm_type = NVM_DEVICE_TYPE_EEPROM;
+		break;
+	}
+	return  nvm_type;
+}
+
 /*
  * The device's EEPROM semaphore prevents conflicts between driver and uCode
  * when accessing the EEPROM; each access is a series of pulses to/from the
@@ -198,6 +224,31 @@ const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
 }
 EXPORT_SYMBOL(iwlcore_eeprom_query_addr);
 
+static int iwl_init_otp_access(struct iwl_priv *priv)
+{
+	int ret;
+
+	/* Enable 40MHz radio clock */
+	_iwl_write32(priv, CSR_GP_CNTRL,
+		     _iwl_read32(priv, CSR_GP_CNTRL) |
+		     CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
+	/* wait for clock to be ready */
+	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				  25000);
+	if (ret < 0)
+		IWL_ERR(priv, "Time out access OTP\n");
+	else {
+		iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
+				  APMG_PS_CTRL_VAL_RESET_REQ);
+		udelay(5);
+		iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
+				    APMG_PS_CTRL_VAL_RESET_REQ);
+	}
+	return ret;
+}
+
 /**
  * iwl_eeprom_init - read EEPROM contents
  *
@@ -209,11 +260,18 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 {
 	u16 *e;
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
-	int sz = priv->cfg->eeprom_size;
+	int sz;
 	int ret;
 	u16 addr;
+	u32 otpgp;
+
+	priv->nvm_device_type = iwlcore_get_nvm_type(priv);
 
 	/* allocate eeprom */
+	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+		priv->cfg->eeprom_size =
+			OTP_BLOCK_SIZE * OTP_LOWER_BLOCKS_TOTAL;
+	sz = priv->cfg->eeprom_size;
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
 		ret = -ENOMEM;
@@ -235,30 +293,77 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		ret = -ENOENT;
 		goto err;
 	}
-
-	/* eeprom is an array of 16bit values */
-	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		u32 r;
-
-		_iwl_write32(priv, CSR_EEPROM_REG,
-			     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-
-		ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
-					  CSR_EEPROM_REG_READ_VALID_MSK,
-					  IWL_EEPROM_ACCESS_TIMEOUT);
-		if (ret < 0) {
-			IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
-			goto done;
+	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
+		ret = iwl_init_otp_access(priv);
+		if (ret) {
+			IWL_ERR(priv, "Failed to initialize OTP access.\n");
+			ret = -ENOENT;
+			goto err;
 		}
-		r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
-		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
+		_iwl_write32(priv, CSR_EEPROM_GP,
+			     iwl_read32(priv, CSR_EEPROM_GP) &
+			     ~CSR_EEPROM_GP_IF_OWNER_MSK);
+		/* clear */
+		_iwl_write32(priv, CSR_OTP_GP_REG,
+			     iwl_read32(priv, CSR_OTP_GP_REG) |
+			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
+			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+
+		for (addr = 0; addr < sz; addr += sizeof(u16)) {
+			u32 r;
+
+			_iwl_write32(priv, CSR_EEPROM_REG,
+				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+
+			ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+						  CSR_EEPROM_REG_READ_VALID_MSK,
+						  IWL_EEPROM_ACCESS_TIMEOUT);
+			if (ret < 0) {
+				IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
+				goto done;
+			}
+			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+			/* check for ECC errors: */
+			otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
+			if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
+				/* stop in this case */
+				IWL_ERR(priv, "Uncorrectable OTP ECC error, Abort OTP read\n");
+				goto done;
+			}
+			if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
+				/* continue in this case */
+				_iwl_write32(priv, CSR_OTP_GP_REG,
+					     iwl_read32(priv, CSR_OTP_GP_REG) |
+					     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
+				IWL_ERR(priv, "Correctable OTP ECC error, continue read\n");
+			}
+			e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
+		}
+	} else {
+		/* eeprom is an array of 16bit values */
+		for (addr = 0; addr < sz; addr += sizeof(u16)) {
+			u32 r;
+
+			_iwl_write32(priv, CSR_EEPROM_REG,
+				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+
+			ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+						  CSR_EEPROM_REG_READ_VALID_MSK,
+						  IWL_EEPROM_ACCESS_TIMEOUT);
+			if (ret < 0) {
+				IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
+				goto done;
+			}
+			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+			e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
+		}
 	}
 	ret = 0;
 done:
 	priv->cfg->ops->lib->eeprom_ops.release_semaphore(priv);
 err:
 	if (ret)
-		kfree(priv->eeprom);
+		iwl_eeprom_free(priv);
 alloc_err:
 	return ret;
 }
@@ -285,7 +390,7 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 
 	return 0;
 err:
-	IWL_ERR(priv, "Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
 		  eeprom_ver, priv->cfg->eeprom_ver,
 		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;
@@ -301,6 +406,8 @@ EXPORT_SYMBOL(iwl_eeprom_query_addr);
 
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
 {
+	if (!priv->eeprom)
+		return 0;
 	return (u16)priv->eeprom[offset] | ((u16)priv->eeprom[offset + 1] << 8);
 }
 EXPORT_SYMBOL(iwl_eeprom_query16);
@@ -481,8 +588,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			/* First write that fat is not enabled, and then enable
 			 * one by one */
 			ch_info->fat_extension_channel =
-				(IEEE80211_CHAN_NO_FAT_ABOVE |
-				 IEEE80211_CHAN_NO_FAT_BELOW);
+				(IEEE80211_CHAN_NO_HT40PLUS |
+				 IEEE80211_CHAN_NO_HT40MINUS);
 
 			if (!(is_channel_valid(ch_info))) {
 				IWL_DEBUG_INFO(priv, "Ch. %d Flags %x [%sGHz] - "
@@ -561,7 +668,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 				fat_extension_chan = 0;
 			else
 				fat_extension_chan =
-					IEEE80211_CHAN_NO_FAT_BELOW;
+					IEEE80211_CHAN_NO_HT40MINUS;
 
 			/* Set up driver's info for lower half */
 			iwl_set_fat_chan_info(priv, ieeeband,
@@ -573,7 +680,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			iwl_set_fat_chan_info(priv, ieeeband,
 						(eeprom_ch_index[ch] + 4),
 						&(eeprom_ch_info[ch]),
-						IEEE80211_CHAN_NO_FAT_ABOVE);
+						IEEE80211_CHAN_NO_HT40PLUS);
 		}
 	}
 

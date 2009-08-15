@@ -23,6 +23,7 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -50,6 +51,9 @@ void __init board_setup(void)
 	}
 #endif
 
+	alchemy_gpio1_input_enable();
+	alchemy_gpio2_enable();
+
 	/* Set multiple use pins (UART3/GPIO) to UART (it's used as UART too) */
 	pin_func  = au_readl(SYS_PINFUNC) & ~SYS_PF_UR3;
 	pin_func |= SYS_PF_UR3;
@@ -65,20 +69,19 @@ void __init board_setup(void)
 	au_writel(0x01, UART3_ADDR + UART_MCR); /* UART_MCR_DTR is 0x01??? */
 
 #ifdef CONFIG_PCMCIA_XXS1500
-	/* Setup PCMCIA signals */
-	au_writel(0, SYS_PININPUTEN);
-
 	/* GPIO 0, 1, and 4 are inputs */
-	au_writel(1 | (1 << 1) | (1 << 4), SYS_TRIOUTCLR);
+	alchemy_gpio_direction_input(0);
+	alchemy_gpio_direction_input(1);
+	alchemy_gpio_direction_input(4);
 
-	/* Enable GPIO2 if not already enabled */
-	au_writel(1, GPIO2_ENABLE);
 	/* GPIO2 208/9/10/11 are inputs */
-	au_writel((1 << 8) | (1 << 9) | (1 << 10) | (1 << 11), GPIO2_DIR);
+	alchemy_gpio_direction_input(208);
+	alchemy_gpio_direction_input(209);
+	alchemy_gpio_direction_input(210);
+	alchemy_gpio_direction_input(211);
 
 	/* Turn off power */
-	au_writel((au_readl(GPIO2_PINSTATE) & ~(1 << 14)) | (1 << 30),
-		  GPIO2_OUTPUT);
+	alchemy_gpio_direction_output(214, 0);
 #endif
 
 #ifdef CONFIG_PCI

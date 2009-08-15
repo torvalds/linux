@@ -72,10 +72,10 @@ struct thread_struct {
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */
 };
 
-#define INIT_THREAD  { \
-	sizeof(init_stack) + (unsigned long) init_stack, 0, \
-	PS_S, __KERNEL_DS, \
-	{0, 0}, 0, {0,}, {0, 0, 0}, {0,}, \
+#define INIT_THREAD  {							\
+	.ksp	= sizeof(init_stack) + (unsigned long) init_stack,	\
+	.sr	= PS_S,							\
+	.fs	= __KERNEL_DS,						\
 }
 
 /*

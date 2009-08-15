@@ -151,7 +151,7 @@ static const struct nla_policy fib6_rule_policy[FRA_MAX+1] = {
 };
 
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
-			       struct nlmsghdr *nlh, struct fib_rule_hdr *frh,
+			       struct fib_rule_hdr *frh,
 			       struct nlattr **tb)
 {
 	int err = -EINVAL;
@@ -211,7 +211,7 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 }
 
 static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
-			  struct nlmsghdr *nlh, struct fib_rule_hdr *frh)
+			  struct fib_rule_hdr *frh)
 {
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 

@@ -584,8 +584,8 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 	list_for_each_safe(elem, next, &gdrom_deferred) {
 		req = list_entry(elem, struct request, queuelist);
 		spin_unlock(&gdrom_lock);
-		block = req->sector/GD_TO_BLK + GD_SESSION_OFFSET;
-		block_cnt = req->nr_sectors/GD_TO_BLK;
+		block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
+		block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
 		ctrl_outl(PHYSADDR(req->buffer), GDROM_DMA_STARTADDR_REG);
 		ctrl_outl(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 		ctrl_outl(1, GDROM_DMA_DIRECTION_REG);
@@ -632,39 +632,35 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		* before handling ending the request */
 		spin_lock(&gdrom_lock);
 		list_del_init(&req->queuelist);
-		__blk_end_request(req, err, blk_rq_bytes(req));
+		__blk_end_request_all(req, err);
 	}
 	spin_unlock(&gdrom_lock);
 	kfree(read_command);
-}
-
-static void gdrom_request_handler_dma(struct request *req)
-{
-	/* dequeue, add to list of deferred work
-	* and then schedule workqueue */
-	blkdev_dequeue_request(req);
-	list_add_tail(&req->queuelist, &gdrom_deferred);
-	schedule_work(&work);
 }
 
 static void gdrom_request(struct request_queue *rq)
 {
 	struct request *req;
 
-	while ((req = elv_next_request(rq)) != NULL) {
+	while ((req = blk_fetch_request(rq)) != NULL) {
 		if (!blk_fs_request(req)) {
 			printk(KERN_DEBUG "GDROM: Non-fs request ignored\n");
-			end_request(req, 0);
+			__blk_end_request_all(req, -EIO);
+			continue;
 		}
 		if (rq_data_dir(req) != READ) {
 			printk(KERN_NOTICE "GDROM: Read only device -");
 			printk(" write request ignored\n");
-			end_request(req, 0);
+			__blk_end_request_all(req, -EIO);
+			continue;
 		}
-		if (req->nr_sectors)
-			gdrom_request_handler_dma(req);
-		else
-			end_request(req, 0);
+
+		/*
+		 * Add to list of deferred work and then schedule
+		 * workqueue.
+		 */
+		list_add_tail(&req->queuelist, &gdrom_deferred);
+		schedule_work(&work);
 	}
 }
 
@@ -743,7 +739,7 @@ static void __devinit probe_gdrom_setupdisk(void)
 
 static int __devinit probe_gdrom_setupqueue(void)
 {
-	blk_queue_hardsect_size(gd.gdrom_rq, GDROM_HARD_SECTOR);
+	blk_queue_logical_block_size(gd.gdrom_rq, GDROM_HARD_SECTOR);
 	/* using DMA so memory will need to be contiguous */
 	blk_queue_max_hw_segments(gd.gdrom_rq, 1);
 	/* set a large max size to get most from DMA */

@@ -72,9 +72,21 @@ MODULE_LICENSE("GPL");
 static struct list_head inetsw6[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw6_lock);
 
-static int disable_ipv6 = 0;
-module_param_named(disable, disable_ipv6, int, 0);
-MODULE_PARM_DESC(disable, "Disable IPv6 such that it is non-functional");
+struct ipv6_params ipv6_defaults = {
+	.disable_ipv6 = 0,
+	.autoconf = 1,
+};
+
+static int disable_ipv6_mod = 0;
+
+module_param_named(disable, disable_ipv6_mod, int, 0444);
+MODULE_PARM_DESC(disable, "Disable IPv6 module such that it is non-functional");
+
+module_param_named(disable_ipv6, ipv6_defaults.disable_ipv6, int, 0444);
+MODULE_PARM_DESC(disable_ipv6, "Disable IPv6 on all interfaces");
+
+module_param_named(autoconf, ipv6_defaults.autoconf, int, 0444);
+MODULE_PARM_DESC(autoconf, "Enable IPv6 address autoconfiguration on all interfaces");
 
 static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
@@ -817,13 +829,20 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	struct sk_buff *p;
 	struct ipv6hdr *iph;
 	unsigned int nlen;
+	unsigned int hlen;
+	unsigned int off;
 	int flush = 1;
 	int proto;
 	__wsum csum;
 
-	iph = skb_gro_header(skb, sizeof(*iph));
-	if (unlikely(!iph))
-		goto out;
+	off = skb_gro_offset(skb);
+	hlen = off + sizeof(*iph);
+	iph = skb_gro_header_fast(skb, off);
+	if (skb_gro_header_hard(skb, hlen)) {
+		iph = skb_gro_header_slow(skb, hlen, off);
+		if (unlikely(!iph))
+			goto out;
+	}
 
 	skb_gro_pull(skb, sizeof(*iph));
 	skb_set_transport_header(skb, skb_gro_offset(skb));
@@ -1031,7 +1050,7 @@ static int __init inet6_init(void)
 	for(r = &inetsw6[0]; r < &inetsw6[SOCK_MAX]; ++r)
 		INIT_LIST_HEAD(r);
 
-	if (disable_ipv6) {
+	if (disable_ipv6_mod) {
 		printk(KERN_INFO
 		       "IPv6: Loaded, but administratively disabled, "
 		       "reboot required to enable\n");
@@ -1220,7 +1239,7 @@ module_init(inet6_init);
 
 static void __exit inet6_exit(void)
 {
-	if (disable_ipv6)
+	if (disable_ipv6_mod)
 		return;
 
 	/* First of all disallow new sockets creation. */

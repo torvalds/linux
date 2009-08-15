@@ -323,7 +323,6 @@ static int bfin_bf54x_fb_release(struct fb_info *info, int user)
 		bfin_write_EPPI0_CONTROL(0);
 		SSYNC();
 		disable_dma(CH_EPPI0);
-		memset(fbi->fb_buffer, 0, info->fix.smem_len);
 	}
 
 	spin_unlock(&fbi->lock);
@@ -530,7 +529,7 @@ static irqreturn_t bfin_bf54x_irq_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init bfin_bf54x_probe(struct platform_device *pdev)
+static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 {
 	struct bfin_bf54xfb_info *info;
 	struct fb_info *fbinfo;
@@ -626,14 +625,12 @@ static int __init bfin_bf54x_probe(struct platform_device *pdev)
 		goto out3;
 	}
 
-	memset(info->fb_buffer, 0, fbinfo->fix.smem_len);
-
 	fbinfo->screen_base = (void *)info->fb_buffer;
 	fbinfo->fix.smem_start = (int)info->fb_buffer;
 
 	fbinfo->fbops = &bfin_bf54x_fb_ops;
 
-	fbinfo->pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
+	fbinfo->pseudo_palette = kzalloc(sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbinfo->pseudo_palette) {
 		printk(KERN_ERR DRIVER_NAME
 		       "Fail to allocate pseudo_palette\n");
@@ -641,8 +638,6 @@ static int __init bfin_bf54x_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out4;
 	}
-
-	memset(fbinfo->pseudo_palette, 0, sizeof(u32) * 16);
 
 	if (fb_alloc_cmap(&fbinfo->cmap, BFIN_LCD_NBR_PALETTE_ENTRIES, 0)
 	    < 0) {
@@ -712,7 +707,7 @@ out1:
 	return ret;
 }
 
-static int bfin_bf54x_remove(struct platform_device *pdev)
+static int __devexit bfin_bf54x_remove(struct platform_device *pdev)
 {
 
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
@@ -781,7 +776,7 @@ static int bfin_bf54x_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_bf54x_driver = {
 	.probe = bfin_bf54x_probe,
-	.remove = bfin_bf54x_remove,
+	.remove = __devexit_p(bfin_bf54x_remove),
 	.suspend = bfin_bf54x_suspend,
 	.resume = bfin_bf54x_resume,
 	.driver = {
@@ -790,7 +785,7 @@ static struct platform_driver bfin_bf54x_driver = {
 		   },
 };
 
-static int __devinit bfin_bf54x_driver_init(void)
+static int __init bfin_bf54x_driver_init(void)
 {
 	return platform_driver_register(&bfin_bf54x_driver);
 }

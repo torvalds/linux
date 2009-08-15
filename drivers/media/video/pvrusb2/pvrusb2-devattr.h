@@ -69,6 +69,7 @@ struct pvr2_string_table {
 #define PVR2_ROUTING_SCHEME_HAUPPAUGE 0
 #define PVR2_ROUTING_SCHEME_GOTVIEW 1
 #define PVR2_ROUTING_SCHEME_ONAIR 2
+#define PVR2_ROUTING_SCHEME_AV400 3
 
 #define PVR2_DIGITAL_SCHEME_NONE 0
 #define PVR2_DIGITAL_SCHEME_HAUPPAUGE 1
@@ -78,8 +79,10 @@ struct pvr2_string_table {
 #define PVR2_LED_SCHEME_HAUPPAUGE 1
 
 #define PVR2_IR_SCHEME_NONE 0
-#define PVR2_IR_SCHEME_24XXX 1
-#define PVR2_IR_SCHEME_ZILOG 2
+#define PVR2_IR_SCHEME_24XXX 1 /* FX2-controlled IR */
+#define PVR2_IR_SCHEME_ZILOG 2 /* HVR-1950 style (must be taken out of reset) */
+#define PVR2_IR_SCHEME_24XXX_MCE 3 /* 24xxx MCE device */
+#define PVR2_IR_SCHEME_29XXX 4 /* Original 29xxx device */
 
 /* This describes a particular hardware type (except for the USB device ID
    which must live in a separate structure due to environmental
@@ -162,19 +165,9 @@ struct pvr2_device_desc {
 	   ensure that it is found. */
 	unsigned int flag_has_wm8775:1;
 
-	/* Indicate any specialized IR scheme that might need to be
-	   supported by this driver.  If not set, then it is assumed that
-	   IR can work without help from the driver (which is frequently
-	   the case).  This is otherwise set to one of
-	   PVR2_IR_SCHEME_xxxx.  For "xxxx", the value "24XXX" indicates a
-	   Hauppauge 24xxx class device which has an FPGA-hosted IR
-	   receiver that can only be reached via FX2 command codes.  In
-	   that case the pvrusb2 driver will emulate the behavior of the
-	   older 29xxx device's IR receiver (a "virtual" I2C chip) in terms
-	   of those command codes.  For the value "ZILOG", we're dealing
-	   with an IR chip that must be taken out of reset via another FX2
-	   command code (which is the case for HVR-1950 devices). */
-	unsigned int ir_scheme:2;
+	/* Indicate IR scheme of hardware.  If not set, then it is assumed
+	   that IR can work without any help from the driver. */
+	unsigned int ir_scheme:3;
 
 	/* These bits define which kinds of sources the device can handle.
 	   Note: Digital tuner presence is inferred by the

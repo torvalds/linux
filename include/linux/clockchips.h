@@ -143,3 +143,12 @@ extern void clockevents_notify(unsigned long reason, void *arg);
 #endif
 
 #endif
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
+extern ktime_t clockevents_get_next_event(int cpu);
+#else
+static inline ktime_t clockevents_get_next_event(int cpu)
+{
+	return (ktime_t) { .tv64 = KTIME_MAX };
+}
+#endif

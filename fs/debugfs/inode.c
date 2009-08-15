@@ -403,6 +403,7 @@ void debugfs_remove_recursive(struct dentry *dentry)
 		}
 		child = list_entry(parent->d_subdirs.next, struct dentry,
 				d_u.d_child);
+ next_sibling:
 
 		/*
 		 * If "child" isn't empty, walk down the tree and
@@ -416,6 +417,16 @@ void debugfs_remove_recursive(struct dentry *dentry)
 		}
 		__debugfs_remove(child, parent);
 		if (parent->d_subdirs.next == &child->d_u.d_child) {
+			/*
+			 * Try the next sibling.
+			 */
+			if (child->d_u.d_child.next != &parent->d_subdirs) {
+				child = list_entry(child->d_u.d_child.next,
+						   struct dentry,
+						   d_u.d_child);
+				goto next_sibling;
+			}
+
 			/*
 			 * Avoid infinite loop if we fail to remove
 			 * one dentry.

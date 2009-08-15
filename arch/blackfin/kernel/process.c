@@ -160,6 +160,29 @@ pid_t kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
 }
 EXPORT_SYMBOL(kernel_thread);
 
+/*
+ * Do necessary setup to start up a newly executed thread.
+ *
+ * pass the data segment into user programs if it exists,
+ * it can't hurt anything as far as I can tell
+ */
+void start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	set_fs(USER_DS);
+	regs->pc = new_ip;
+	if (current->mm)
+		regs->p5 = current->mm->start_data;
+#ifdef CONFIG_SMP
+	task_thread_info(current)->l1_task_info.stack_start =
+		(void *)current->mm->context.stack_start;
+	task_thread_info(current)->l1_task_info.lowest_sp = (void *)new_sp;
+	memcpy(L1_SCRATCH_TASK_INFO, &task_thread_info(current)->l1_task_info,
+	       sizeof(*L1_SCRATCH_TASK_INFO));
+#endif
+	wrusp(new_sp);
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 void flush_thread(void)
 {
 }
@@ -321,57 +344,151 @@ void finish_atomic_sections (struct pt_regs *regs)
 	}
 }
 
+static inline
+int in_mem(unsigned long addr, unsigned long size,
+           unsigned long start, unsigned long end)
+{
+	return addr >= start && addr + size <= end;
+}
+static inline
+int in_mem_const_off(unsigned long addr, unsigned long size, unsigned long off,
+                     unsigned long const_addr, unsigned long const_size)
+{
+	return const_size &&
+	       in_mem(addr, size, const_addr + off, const_addr + const_size);
+}
+static inline
+int in_mem_const(unsigned long addr, unsigned long size,
+                 unsigned long const_addr, unsigned long const_size)
+{
+	return in_mem_const_off(addr, 0, size, const_addr, const_size);
+}
+#define IN_ASYNC(bnum, bctlnum) \
+({ \
+	(bfin_read_EBIU_AMGCTL() & 0xe) < ((bnum + 1) << 1) ? -EFAULT : \
+	bfin_read_EBIU_AMBCTL##bctlnum() & B##bnum##RDYEN ? -EFAULT : \
+	BFIN_MEM_ACCESS_CORE; \
+})
+
+int bfin_mem_access_type(unsigned long addr, unsigned long size)
+{
+	int cpu = raw_smp_processor_id();
+
+	/* Check that things do not wrap around */
+	if (addr > ULONG_MAX - size)
+		return -EFAULT;
+
+	if (in_mem(addr, size, FIXED_CODE_START, physical_mem_end))
+		return BFIN_MEM_ACCESS_CORE;
+
+	if (in_mem_const(addr, size, L1_CODE_START, L1_CODE_LENGTH))
+		return cpu == 0 ? BFIN_MEM_ACCESS_ITEST : BFIN_MEM_ACCESS_IDMA;
+	if (in_mem_const(addr, size, L1_SCRATCH_START, L1_SCRATCH_LENGTH))
+		return cpu == 0 ? BFIN_MEM_ACCESS_CORE_ONLY : -EFAULT;
+	if (in_mem_const(addr, size, L1_DATA_A_START, L1_DATA_A_LENGTH))
+		return cpu == 0 ? BFIN_MEM_ACCESS_CORE : BFIN_MEM_ACCESS_IDMA;
+	if (in_mem_const(addr, size, L1_DATA_B_START, L1_DATA_B_LENGTH))
+		return cpu == 0 ? BFIN_MEM_ACCESS_CORE : BFIN_MEM_ACCESS_IDMA;
+#ifdef COREB_L1_CODE_START
+	if (in_mem_const(addr, size, COREB_L1_CODE_START, L1_CODE_LENGTH))
+		return cpu == 1 ? BFIN_MEM_ACCESS_ITEST : BFIN_MEM_ACCESS_IDMA;
+	if (in_mem_const(addr, size, COREB_L1_SCRATCH_START, L1_SCRATCH_LENGTH))
+		return cpu == 1 ? BFIN_MEM_ACCESS_CORE_ONLY : -EFAULT;
+	if (in_mem_const(addr, size, COREB_L1_DATA_A_START, L1_DATA_A_LENGTH))
+		return cpu == 1 ? BFIN_MEM_ACCESS_CORE : BFIN_MEM_ACCESS_IDMA;
+	if (in_mem_const(addr, size, COREB_L1_DATA_B_START, L1_DATA_B_LENGTH))
+		return cpu == 1 ? BFIN_MEM_ACCESS_CORE : BFIN_MEM_ACCESS_IDMA;
+#endif
+	if (in_mem_const(addr, size, L2_START, L2_LENGTH))
+		return BFIN_MEM_ACCESS_CORE;
+
+	if (addr >= SYSMMR_BASE)
+		return BFIN_MEM_ACCESS_CORE_ONLY;
+
+	/* We can't read EBIU banks that aren't enabled or we end up hanging
+	 * on the access to the async space.
+	 */
+	if (in_mem_const(addr, size, ASYNC_BANK0_BASE, ASYNC_BANK0_SIZE))
+		return IN_ASYNC(0, 0);
+	if (in_mem_const(addr, size, ASYNC_BANK1_BASE, ASYNC_BANK1_SIZE))
+		return IN_ASYNC(1, 0);
+	if (in_mem_const(addr, size, ASYNC_BANK2_BASE, ASYNC_BANK2_SIZE))
+		return IN_ASYNC(2, 1);
+	if (in_mem_const(addr, size, ASYNC_BANK3_BASE, ASYNC_BANK3_SIZE))
+		return IN_ASYNC(3, 1);
+
+	if (in_mem_const(addr, size, BOOT_ROM_START, BOOT_ROM_LENGTH))
+		return BFIN_MEM_ACCESS_CORE;
+	if (in_mem_const(addr, size, L1_ROM_START, L1_ROM_LENGTH))
+		return BFIN_MEM_ACCESS_DMA;
+
+	return -EFAULT;
+}
+
 #if defined(CONFIG_ACCESS_CHECK)
+#ifdef CONFIG_ACCESS_OK_L1
+__attribute__((l1_text))
+#endif
 /* Return 1 if access to memory range is OK, 0 otherwise */
 int _access_ok(unsigned long addr, unsigned long size)
 {
 	if (size == 0)
 		return 1;
-	if (addr > (addr + size))
+	/* Check that things do not wrap around */
+	if (addr > ULONG_MAX - size)
 		return 0;
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return 1;
 #ifdef CONFIG_MTD_UCLINUX
-	if (addr >= memory_start && (addr + size) <= memory_end)
-		return 1;
-	if (addr >= memory_mtd_end && (addr + size) <= physical_mem_end)
+	if (1)
+#else
+	if (0)
+#endif
+	{
+		if (in_mem(addr, size, memory_start, memory_end))
+			return 1;
+		if (in_mem(addr, size, memory_mtd_end, physical_mem_end))
+			return 1;
+# ifndef CONFIG_ROMFS_ON_MTD
+		if (0)
+# endif
+			/* For XIP, allow user space to use pointers within the ROMFS.  */
+			if (in_mem(addr, size, memory_mtd_start, memory_mtd_end))
+				return 1;
+	} else {
+		if (in_mem(addr, size, memory_start, physical_mem_end))
+			return 1;
+	}
+
+	if (in_mem(addr, size, (unsigned long)__init_begin, (unsigned long)__init_end))
 		return 1;
 
-#ifdef CONFIG_ROMFS_ON_MTD
-	/* For XIP, allow user space to use pointers within the ROMFS.  */
-	if (addr >= memory_mtd_start && (addr + size) <= memory_mtd_end)
+	if (in_mem_const(addr, size, L1_CODE_START, L1_CODE_LENGTH))
+		return 1;
+	if (in_mem_const_off(addr, size, _etext_l1 - _stext_l1, L1_CODE_START, L1_CODE_LENGTH))
+		return 1;
+	if (in_mem_const_off(addr, size, _ebss_l1 - _sdata_l1, L1_DATA_A_START, L1_DATA_A_LENGTH))
+		return 1;
+	if (in_mem_const_off(addr, size, _ebss_b_l1 - _sdata_b_l1, L1_DATA_B_START, L1_DATA_B_LENGTH))
+		return 1;
+#ifdef COREB_L1_CODE_START
+	if (in_mem_const(addr, size, COREB_L1_CODE_START, L1_CODE_LENGTH))
+		return 1;
+	if (in_mem_const(addr, size, COREB_L1_SCRATCH_START, L1_SCRATCH_LENGTH))
+		return 1;
+	if (in_mem_const(addr, size, COREB_L1_DATA_A_START, L1_DATA_A_LENGTH))
+		return 1;
+	if (in_mem_const(addr, size, COREB_L1_DATA_B_START, L1_DATA_B_LENGTH))
 		return 1;
 #endif
-#else
-	if (addr >= memory_start && (addr + size) <= physical_mem_end)
+	if (in_mem_const_off(addr, size, _ebss_l2 - _stext_l2, L2_START, L2_LENGTH))
 		return 1;
-#endif
-	if (addr >= (unsigned long)__init_begin &&
-	    addr + size <= (unsigned long)__init_end)
+
+	if (in_mem_const(addr, size, BOOT_ROM_START, BOOT_ROM_LENGTH))
 		return 1;
-	if (addr >= get_l1_scratch_start()
-	    && addr + size <= get_l1_scratch_start() + L1_SCRATCH_LENGTH)
+	if (in_mem_const(addr, size, L1_ROM_START, L1_ROM_LENGTH))
 		return 1;
-#if L1_CODE_LENGTH != 0
-	if (addr >= get_l1_code_start() + (_etext_l1 - _stext_l1)
-	    && addr + size <= get_l1_code_start() + L1_CODE_LENGTH)
-		return 1;
-#endif
-#if L1_DATA_A_LENGTH != 0
-	if (addr >= get_l1_data_a_start() + (_ebss_l1 - _sdata_l1)
-	    && addr + size <= get_l1_data_a_start() + L1_DATA_A_LENGTH)
-		return 1;
-#endif
-#if L1_DATA_B_LENGTH != 0
-	if (addr >= get_l1_data_b_start() + (_ebss_b_l1 - _sdata_b_l1)
-	    && addr + size <= get_l1_data_b_start() + L1_DATA_B_LENGTH)
-		return 1;
-#endif
-#if L2_LENGTH != 0
-	if (addr >= L2_START + (_ebss_l2 - _stext_l2)
-	    && addr + size <= L2_START + L2_LENGTH)
-		return 1;
-#endif
+
 	return 0;
 }
 EXPORT_SYMBOL(_access_ok);

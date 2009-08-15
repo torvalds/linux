@@ -376,6 +376,18 @@ static inline uint64_t cvmx_get_cycle(void)
 }
 
 /**
+ * Wait for the specified number of cycle
+ *
+ */
+static inline void cvmx_wait(uint64_t cycles)
+{
+	uint64_t done = cvmx_get_cycle() + cycles;
+
+	while (cvmx_get_cycle() < done)
+		; /* Spin */
+}
+
+/**
  * Reads a chip global cycle counter.  This counts CPU cycles since
  * chip reset.  The counter is 64 bit.
  * This register does not exist on CN38XX pass 1 silicion

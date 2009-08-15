@@ -25,6 +25,7 @@
 #include <linux/uio.h>
 #include <linux/namei.h>
 #include <linux/log2.h>
+#include <linux/kmemleak.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -76,7 +77,7 @@ int set_blocksize(struct block_device *bdev, int size)
 		return -EINVAL;
 
 	/* Size cannot be smaller than the size supported by the device */
-	if (size < bdev_hardsect_size(bdev))
+	if (size < bdev_logical_block_size(bdev))
 		return -EINVAL;
 
 	/* Don't change the size if it is same as current */
@@ -106,7 +107,7 @@ EXPORT_SYMBOL(sb_set_blocksize);
 
 int sb_min_blocksize(struct super_block *sb, int size)
 {
-	int minsize = bdev_hardsect_size(sb->s_bdev);
+	int minsize = bdev_logical_block_size(sb->s_bdev);
 	if (size < minsize)
 		size = minsize;
 	return sb_set_blocksize(sb, size);
@@ -175,17 +176,22 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 				iov, offset, nr_segs, blkdev_get_blocks, NULL);
 }
 
+int __sync_blockdev(struct block_device *bdev, int wait)
+{
+	if (!bdev)
+		return 0;
+	if (!wait)
+		return filemap_flush(bdev->bd_inode->i_mapping);
+	return filemap_write_and_wait(bdev->bd_inode->i_mapping);
+}
+
 /*
  * Write out and wait upon all the dirty data associated with a block
  * device via its mapping.  Does not take the superblock lock.
  */
 int sync_blockdev(struct block_device *bdev)
 {
-	int ret = 0;
-
-	if (bdev)
-		ret = filemap_write_and_wait(bdev->bd_inode->i_mapping);
-	return ret;
+	return __sync_blockdev(bdev, 1);
 }
 EXPORT_SYMBOL(sync_blockdev);
 
@@ -198,7 +204,7 @@ int fsync_bdev(struct block_device *bdev)
 {
 	struct super_block *sb = get_super(bdev);
 	if (sb) {
-		int res = fsync_super(sb);
+		int res = sync_filesystem(sb);
 		drop_super(sb);
 		return res;
 	}
@@ -240,7 +246,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 		sb->s_frozen = SB_FREEZE_WRITE;
 		smp_wmb();
 
-		__fsync_super(sb);
+		sync_filesystem(sb);
 
 		sb->s_frozen = SB_FREEZE_TRANS;
 		smp_wmb();
@@ -492,6 +498,11 @@ void __init bdev_cache_init(void)
 	bd_mnt = kern_mount(&bd_type);
 	if (IS_ERR(bd_mnt))
 		panic("Cannot create bdev pseudo-fs");
+	/*
+	 * This vfsmount structure is only used to obtain the
+	 * blockdev_superblock, so tell kmemleak not to report it.
+	 */
+	kmemleak_not_leak(bd_mnt);
 	blockdev_superblock = bd_mnt->mnt_sb;	/* For writeback */
 }
 
@@ -1111,7 +1122,7 @@ EXPORT_SYMBOL(check_disk_change);
 
 void bd_set_size(struct block_device *bdev, loff_t size)
 {
-	unsigned bsize = bdev_hardsect_size(bdev);
+	unsigned bsize = bdev_logical_block_size(bdev);
 
 	bdev->bd_inode->i_size = size;
 	while (bsize < PAGE_CACHE_SIZE) {

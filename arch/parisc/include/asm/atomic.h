@@ -338,6 +338,6 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 
 #endif /* CONFIG_64BIT */
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 
 #endif /* _ASM_PARISC_ATOMIC_H_ */

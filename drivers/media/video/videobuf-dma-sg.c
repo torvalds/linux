@@ -58,9 +58,10 @@ videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	struct page *pg;
 	int i;
 
-	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
+	sglist = vmalloc(nr_pages * sizeof(*sglist));
 	if (NULL == sglist)
 		return NULL;
+	memset(sglist, 0, nr_pages * sizeof(*sglist));
 	sg_init_table(sglist, nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
@@ -72,7 +73,7 @@ videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	return sglist;
 
  err:
-	kfree(sglist);
+	vfree(sglist);
 	return NULL;
 }
 
@@ -84,7 +85,7 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 
 	if (NULL == pages[0])
 		return NULL;
-	sglist = kmalloc(nr_pages * sizeof(*sglist), GFP_KERNEL);
+	sglist = vmalloc(nr_pages * sizeof(*sglist));
 	if (NULL == sglist)
 		return NULL;
 	sg_init_table(sglist, nr_pages);
@@ -104,12 +105,12 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 
  nopage:
 	dprintk(2,"sgl: oops - no page\n");
-	kfree(sglist);
+	vfree(sglist);
 	return NULL;
 
  highmem:
 	dprintk(2,"sgl: oops - highmem page\n");
-	kfree(sglist);
+	vfree(sglist);
 	return NULL;
 }
 
@@ -230,7 +231,7 @@ int videobuf_dma_map(struct videobuf_queue* q, struct videobuf_dmabuf *dma)
 						(dma->vmalloc,dma->nr_pages);
 	}
 	if (dma->bus_addr) {
-		dma->sglist = kmalloc(sizeof(struct scatterlist), GFP_KERNEL);
+		dma->sglist = vmalloc(sizeof(*dma->sglist));
 		if (NULL != dma->sglist) {
 			dma->sglen  = 1;
 			sg_dma_address(&dma->sglist[0]) = dma->bus_addr & PAGE_MASK;
@@ -248,10 +249,10 @@ int videobuf_dma_map(struct videobuf_queue* q, struct videobuf_dmabuf *dma)
 		if (0 == dma->sglen) {
 			printk(KERN_WARNING
 			       "%s: videobuf_map_sg failed\n",__func__);
-			kfree(dma->sglist);
+			vfree(dma->sglist);
 			dma->sglist = NULL;
 			dma->sglen = 0;
-			return -EIO;
+			return -ENOMEM;
 		}
 	}
 	return 0;
@@ -274,7 +275,7 @@ int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 
 	dma_unmap_sg(q->dev, dma->sglist, dma->nr_pages, dma->direction);
 
-	kfree(dma->sglist);
+	vfree(dma->sglist);
 	dma->sglist = NULL;
 	dma->sglen = 0;
 	return 0;

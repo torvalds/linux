@@ -78,11 +78,6 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	return do_mmap2(addr, len, prot, flags, fd, pgoff);
 }
 
-asmlinkage int sys_getpagesize(void)
-{
-	return PAGE_SIZE;
-}
-
 asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags)
 {
 	return sram_alloc_with_lsl(size, flags);

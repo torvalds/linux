@@ -7,6 +7,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * Superset of MCI IP registers integrated in Atmel AVR32 and AT91 Processors
+ * Registers and bitfields marked with [2] are only available in MCI2
+ */
+
 #ifndef __DRIVERS_MMC_ATMEL_MCI_H__
 #define __DRIVERS_MMC_ATMEL_MCI_H__
 
@@ -14,11 +20,17 @@
 #define MCI_CR			0x0000	/* Control */
 # define MCI_CR_MCIEN		(  1 <<  0)	/* MCI Enable */
 # define MCI_CR_MCIDIS		(  1 <<  1)	/* MCI Disable */
+# define MCI_CR_PWSEN		(  1 <<  2)	/* Power Save Enable */
+# define MCI_CR_PWSDIS		(  1 <<  3)	/* Power Save Disable */
 # define MCI_CR_SWRST		(  1 <<  7)	/* Software Reset */
 #define MCI_MR			0x0004	/* Mode */
 # define MCI_MR_CLKDIV(x)	((x) <<  0)	/* Clock Divider */
+# define MCI_MR_PWSDIV(x)	((x) <<  8)	/* Power Saving Divider */
 # define MCI_MR_RDPROOF		(  1 << 11)	/* Read Proof */
 # define MCI_MR_WRPROOF		(  1 << 12)	/* Write Proof */
+# define MCI_MR_PDCFBYTE	(  1 << 13)	/* Force Byte Transfer */
+# define MCI_MR_PDCPADV		(  1 << 14)	/* Padding Value */
+# define MCI_MR_PDCMODE		(  1 << 15)	/* PDC-oriented Mode */
 #define MCI_DTOR		0x0008	/* Data Timeout */
 # define MCI_DTOCYC(x)		((x) <<  0)	/* Data Timeout Cycles */
 # define MCI_DTOMUL(x)		((x) <<  4)	/* Data Timeout Multiplier */
@@ -28,6 +40,7 @@
 # define MCI_SDCSEL_MASK	(  3 <<  0)
 # define MCI_SDCBUS_1BIT	(  0 <<  6)	/* 1-bit data bus */
 # define MCI_SDCBUS_4BIT	(  2 <<  6)	/* 4-bit data bus */
+# define MCI_SDCBUS_8BIT	(  3 <<  6)	/* 8-bit data bus[2] */
 # define MCI_SDCBUS_MASK	(  3 <<  6)
 #define MCI_ARGR		0x0010	/* Command Argument */
 #define MCI_CMDR		0x0014	/* Command */
@@ -56,6 +69,9 @@
 #define MCI_BLKR		0x0018	/* Block */
 # define MCI_BCNT(x)		((x) <<  0)	/* Data Block Count */
 # define MCI_BLKLEN(x)		((x) << 16)	/* Data Block Length */
+#define MCI_CSTOR		0x001c	/* Completion Signal Timeout[2] */
+# define MCI_CSTOCYC(x)		((x) <<  0)	/* CST cycles */
+# define MCI_CSTOMUL(x)		((x) <<  4)	/* CST multiplier */
 #define MCI_RSPR		0x0020	/* Response 0 */
 #define MCI_RSPR1		0x0024	/* Response 1 */
 #define MCI_RSPR2		0x0028	/* Response 2 */
@@ -83,7 +99,24 @@
 # define MCI_DTOE		(  1 <<  22)	/* Data Time-Out Error */
 # define MCI_OVRE		(  1 <<  30)	/* RX Overrun Error */
 # define MCI_UNRE		(  1 <<  31)	/* TX Underrun Error */
+#define MCI_DMA			0x0050	/* DMA Configuration[2] */
+# define MCI_DMA_OFFSET(x)	((x) <<  0)	/* DMA Write Buffer Offset */
+# define MCI_DMA_CHKSIZE(x)	((x) <<  4)	/* DMA Channel Read and Write Chunk Size */
+# define MCI_DMAEN		(  1 <<  8)	/* DMA Hardware Handshaking Enable */
+#define MCI_CFG			0x0054	/* Configuration[2] */
+# define MCI_CFG_FIFOMODE_1DATA	(  1 <<  0)	/* MCI Internal FIFO control mode */
+# define MCI_CFG_FERRCTRL_COR	(  1 <<  4)	/* Flow Error flag reset control mode */
+# define MCI_CFG_HSMODE		(  1 <<  8)	/* High Speed Mode */
+# define MCI_CFG_LSYNC		(  1 << 12)	/* Synchronize on the last block */
+#define MCI_WPMR		0x00e4	/* Write Protection Mode[2] */
+# define MCI_WP_EN		(  1 <<  0)	/* WP Enable */
+# define MCI_WP_KEY		(0x4d4349 << 8)	/* WP Key */
+#define MCI_WPSR		0x00e8	/* Write Protection Status[2] */
+# define MCI_GET_WP_VS(x)	((x) & 0x0f)
+# define MCI_GET_WP_VSRC(x)	(((x) >> 8) & 0xffff)
+#define MCI_FIFO_APERTURE	0x0200	/* FIFO Aperture[2] */
 
+/* This is not including the FIFO Aperture on MCI2 */
 #define MCI_REGS_SIZE		0x100
 
 /* Register access macros */

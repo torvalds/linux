@@ -104,7 +104,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 	}
 
 	SET_NETDEV_DEV(dev, device);
-	device->driver_data = dev;
+	dev_set_drvdata(device, dev);
 	ioaddr = edev->base_addr;
 
 	if (!request_region(ioaddr, NE3210_IO_EXTENT, DRV_NAME)) {
@@ -225,7 +225,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 
 static int __devexit ne3210_eisa_remove (struct device *device)
 {
-	struct net_device  *dev    = device->driver_data;
+	struct net_device  *dev    = dev_get_drvdata(device);
 	unsigned long       ioaddr = to_eisa_device (device)->base_addr;
 
 	unregister_netdev (dev);

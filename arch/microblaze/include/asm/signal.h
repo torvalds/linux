@@ -90,7 +90,7 @@
 
 # ifndef __ASSEMBLY__
 # include <linux/types.h>
-# include <asm-generic/signal.h>
+# include <asm-generic/signal-defs.h>
 
 /* Avoid too many header ordering problems. */
 struct siginfo;

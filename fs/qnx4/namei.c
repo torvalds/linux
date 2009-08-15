@@ -12,16 +12,9 @@
  * 04-07-1998 by Frank Denis : first step for rmdir/unlink.
  */
 
-#include <linux/time.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-#include <linux/errno.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include "qnx4.h"
 
 
 /*
@@ -187,7 +180,7 @@ int qnx4_rmdir(struct inode *dir, struct dentry *dentry)
 	de->di_status = 0;
 	memset(de->di_fname, 0, sizeof de->di_fname);
 	de->di_mode = 0;
-	mark_buffer_dirty(bh);
+	mark_buffer_dirty_inode(bh, dir);
 	clear_nlink(inode);
 	mark_inode_dirty(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
@@ -232,7 +225,7 @@ int qnx4_unlink(struct inode *dir, struct dentry *dentry)
 	de->di_status = 0;
 	memset(de->di_fname, 0, sizeof de->di_fname);
 	de->di_mode = 0;
-	mark_buffer_dirty(bh);
+	mark_buffer_dirty_inode(bh, dir);
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
 	inode->i_ctime = dir->i_ctime;

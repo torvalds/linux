@@ -17,6 +17,7 @@
 #include <linux/m48t86.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/timeriomem-rng.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -270,12 +271,57 @@ static void ts78xx_ts_nand_unload(void)
 }
 
 /*****************************************************************************
+ * HW RNG
+ ****************************************************************************/
+#define TS_RNG_DATA	(TS78XX_FPGA_REGS_PHYS_BASE | 0x044)
+
+static struct resource ts78xx_ts_rng_resource = {
+	.flags		= IORESOURCE_MEM,
+	.start		= TS_RNG_DATA,
+	.end		= TS_RNG_DATA + 4 - 1,
+};
+
+static struct timeriomem_rng_data ts78xx_ts_rng_data = {
+	.period		= 1000000, /* one second */
+};
+
+static struct platform_device ts78xx_ts_rng_device = {
+	.name		= "timeriomem_rng",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ts78xx_ts_rng_data,
+	},
+	.resource	= &ts78xx_ts_rng_resource,
+	.num_resources	= 1,
+};
+
+static int ts78xx_ts_rng_load(void)
+{
+	int rc;
+
+	if (ts78xx_fpga.supports.ts_rng.init == 0) {
+		rc = platform_device_register(&ts78xx_ts_rng_device);
+		if (!rc)
+			ts78xx_fpga.supports.ts_rng.init = 1;
+	} else
+		rc = platform_device_add(&ts78xx_ts_rng_device);
+
+	return rc;
+};
+
+static void ts78xx_ts_rng_unload(void)
+{
+	platform_device_del(&ts78xx_ts_rng_device);
+}
+
+/*****************************************************************************
  * FPGA 'hotplug' support code
  ****************************************************************************/
 static void ts78xx_fpga_devices_zero_init(void)
 {
 	ts78xx_fpga.supports.ts_rtc.init = 0;
 	ts78xx_fpga.supports.ts_nand.init = 0;
+	ts78xx_fpga.supports.ts_rng.init = 0;
 }
 
 static void ts78xx_fpga_supports(void)
@@ -289,10 +335,12 @@ static void ts78xx_fpga_supports(void)
 	case TS7800_REV_5:
 		ts78xx_fpga.supports.ts_rtc.present = 1;
 		ts78xx_fpga.supports.ts_nand.present = 1;
+		ts78xx_fpga.supports.ts_rng.present = 1;
 		break;
 	default:
 		ts78xx_fpga.supports.ts_rtc.present = 0;
 		ts78xx_fpga.supports.ts_nand.present = 0;
+		ts78xx_fpga.supports.ts_rng.present = 0;
 	}
 }
 
@@ -316,6 +364,14 @@ static int ts78xx_fpga_load_devices(void)
 		}
 		ret |= tmp;
 	}
+	if (ts78xx_fpga.supports.ts_rng.present == 1) {
+		tmp = ts78xx_ts_rng_load();
+		if (tmp) {
+			printk(KERN_INFO "TS-78xx: RNG not registered\n");
+			ts78xx_fpga.supports.ts_rng.present = 0;
+		}
+		ret |= tmp;
+	}
 
 	return ret;
 }
@@ -328,6 +384,8 @@ static int ts78xx_fpga_unload_devices(void)
 		ts78xx_ts_rtc_unload();
 	if (ts78xx_fpga.supports.ts_nand.present == 1)
 		ts78xx_ts_nand_unload();
+	if (ts78xx_fpga.supports.ts_rng.present == 1)
+		ts78xx_ts_rng_unload();
 
 	return ret;
 }

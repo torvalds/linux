@@ -165,24 +165,6 @@ ENTRY(itlb_aerror)
 ENTRY(dtlb_aerror)
 	and	~EPSW_NMID,epsw
 	add	-4,sp
-	mov	d1,(sp)
-
-	movhu	(MMUFCR_DFC),d1			# is it the initial valid write
-						# to this page?
-	and	MMUFCR_xFC_INITWR,d1
- 	beq	dtlb_pagefault			# jump if not
-
-	mov	(DPTEL),d1			# set the dirty bit
-						# (don't replace with BSET!)
-	or	_PAGE_DIRTY,d1
-	mov	d1,(DPTEL)
-	mov	(sp),d1
-	add	4,sp
- 	rti
-
-	ALIGN
-dtlb_pagefault:
-	mov	(sp),d1
 	SAVE_ALL
 	add	-4,sp				# need to pass three params
 

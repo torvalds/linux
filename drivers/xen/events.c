@@ -151,6 +151,12 @@ static unsigned int evtchn_from_irq(unsigned irq)
 	return info_for_irq(irq)->evtchn;
 }
 
+unsigned irq_from_evtchn(unsigned int evtchn)
+{
+	return evtchn_to_irq[evtchn];
+}
+EXPORT_SYMBOL_GPL(irq_from_evtchn);
+
 static enum ipi_vector ipi_from_irq(unsigned irq)
 {
 	struct irq_info *info = info_for_irq(irq);
@@ -335,7 +341,7 @@ static int find_unbound_irq(void)
 	if (irq == nr_irqs)
 		panic("No available IRQ to bind to: increase nr_irqs!\n");
 
-	desc = irq_to_desc_alloc_cpu(irq, 0);
+	desc = irq_to_desc_alloc_node(irq, 0);
 	if (WARN_ON(desc == NULL))
 		return -1;
 
@@ -688,13 +694,13 @@ void rebind_evtchn_irq(int evtchn, int irq)
 }
 
 /* Rebind an evtchn so that it gets delivered to a specific cpu */
-static void rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
+static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 {
 	struct evtchn_bind_vcpu bind_vcpu;
 	int evtchn = evtchn_from_irq(irq);
 
 	if (!VALID_EVTCHN(evtchn))
-		return;
+		return -1;
 
 	/* Send future instances of this interrupt to other vcpu. */
 	bind_vcpu.port = evtchn;
@@ -707,13 +713,15 @@ static void rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	 */
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_vcpu, &bind_vcpu) >= 0)
 		bind_evtchn_to_cpu(evtchn, tcpu);
+
+	return 0;
 }
 
-
-static void set_affinity_irq(unsigned irq, const struct cpumask *dest)
+static int set_affinity_irq(unsigned irq, const struct cpumask *dest)
 {
 	unsigned tcpu = cpumask_first(dest);
-	rebind_irq_to_cpu(irq, tcpu);
+
+	return rebind_irq_to_cpu(irq, tcpu);
 }
 
 int resend_irq_on_evtchn(unsigned int irq)

@@ -236,19 +236,19 @@ MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);
 
 /* Address definitions for the TCO */
 /* TCO base address */
-#define TCOBASE		iTCO_wdt_private.ACPIBASE + 0x60
+#define TCOBASE		(iTCO_wdt_private.ACPIBASE + 0x60)
 /* SMI Control and Enable Register */
-#define SMI_EN		iTCO_wdt_private.ACPIBASE + 0x30
+#define SMI_EN		(iTCO_wdt_private.ACPIBASE + 0x30)
 
-#define TCO_RLD		TCOBASE + 0x00	/* TCO Timer Reload and Curr. Value */
-#define TCOv1_TMR	TCOBASE + 0x01	/* TCOv1 Timer Initial Value	*/
-#define TCO_DAT_IN	TCOBASE + 0x02	/* TCO Data In Register		*/
-#define TCO_DAT_OUT	TCOBASE + 0x03	/* TCO Data Out Register	*/
-#define TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register		*/
-#define TCO2_STS	TCOBASE + 0x06	/* TCO2 Status Register		*/
-#define TCO1_CNT	TCOBASE + 0x08	/* TCO1 Control Register	*/
-#define TCO2_CNT	TCOBASE + 0x0a	/* TCO2 Control Register	*/
-#define TCOv2_TMR	TCOBASE + 0x12	/* TCOv2 Timer Initial Value	*/
+#define TCO_RLD		(TCOBASE + 0x00) /* TCO Timer Reload and Curr. Value */
+#define TCOv1_TMR	(TCOBASE + 0x01) /* TCOv1 Timer Initial Value	*/
+#define TCO_DAT_IN	(TCOBASE + 0x02) /* TCO Data In Register	*/
+#define TCO_DAT_OUT	(TCOBASE + 0x03) /* TCO Data Out Register	*/
+#define TCO1_STS	(TCOBASE + 0x04) /* TCO1 Status Register	*/
+#define TCO2_STS	(TCOBASE + 0x06) /* TCO2 Status Register	*/
+#define TCO1_CNT	(TCOBASE + 0x08) /* TCO1 Control Register	*/
+#define TCO2_CNT	(TCOBASE + 0x0a) /* TCO2 Control Register	*/
+#define TCOv2_TMR	(TCOBASE + 0x12) /* TCOv2 Timer Initial Value	*/
 
 /* internal variables */
 static unsigned long is_active;
@@ -666,6 +666,11 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 	   GCS = RCBA + ICH6_GCS(0x3410). */
 	if (iTCO_wdt_private.iTCO_version == 2) {
 		pci_read_config_dword(pdev, 0xf0, &base_address);
+		if ((base_address & 1) == 0) {
+			printk(KERN_ERR PFX "RCBA is disabled by harddware\n");
+			ret = -ENODEV;
+			goto out;
+		}
 		RCBA = base_address & 0xffffc000;
 		iTCO_wdt_private.gcs = ioremap((RCBA + 0x3410), 4);
 	}
@@ -675,7 +680,7 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, "
 					"reboot disabled by hardware\n");
 		ret = -ENODEV;	/* Cannot reset NO_REBOOT bit */
-		goto out;
+		goto out_unmap;
 	}
 
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
@@ -686,7 +691,7 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 		printk(KERN_ERR PFX
 			"I/O address 0x%04lx already in use\n", SMI_EN);
 		ret = -EIO;
-		goto out;
+		goto out_unmap;
 	}
 	/* Bit 13: TCO_EN -> 0 = Disables TCO logic generating an SMI# */
 	val32 = inl(SMI_EN);
@@ -742,9 +747,10 @@ unreg_region:
 	release_region(TCOBASE, 0x20);
 unreg_smi_en:
 	release_region(SMI_EN, 4);
-out:
+out_unmap:
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
+out:
 	pci_dev_put(iTCO_wdt_private.pdev);
 	iTCO_wdt_private.ACPIBASE = 0;
 	return ret;

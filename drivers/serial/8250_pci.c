@@ -398,8 +398,7 @@ static int sbs_init(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
-	p = ioremap_nocache(pci_resource_start(dev, 0),
-						pci_resource_len(dev, 0));
+	p = pci_ioremap_bar(dev, 0);
 
 	if (p == NULL)
 		return -ENOMEM;
@@ -423,8 +422,7 @@ static void __devexit sbs_exit(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
-	p = ioremap_nocache(pci_resource_start(dev, 0),
-					pci_resource_len(dev, 0));
+	p = pci_ioremap_bar(dev, 0);
 	/* FIXME: What if resource_len < OCT_REG_CR_OFF */
 	if (p != NULL)
 		writeb(0, p + OCT_REG_CR_OFF);
@@ -2776,6 +2774,9 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_OXSEMI, 0x950a,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_2_1130000 },
+	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_C950,
+		PCI_VENDOR_ID_OXSEMI, PCI_SUBDEVICE_ID_OXSEMI_C950, 0, 0,
+		pbn_b0_1_921600 },
 	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_4_115200 },

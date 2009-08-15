@@ -78,6 +78,12 @@ config MACH_IXDP465
 	  IXDP465 Development Platform (Also known as BMP).
 	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
 
+config MACH_GORAMO_MLR
+	bool "GORAMO Multi Link Router"
+	help
+	  Say 'Y' here if you want your kernel to support GORAMO
+	  MultiLink router.
+
 config MACH_KIXRP435
 	bool "KIXRP435"
 	help

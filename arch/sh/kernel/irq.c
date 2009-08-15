@@ -31,39 +31,64 @@ void ack_bad_irq(unsigned int irq)
 }
 
 #if defined(CONFIG_PROC_FS)
+/*
+ * /proc/interrupts printing:
+ */
+static int show_other_interrupts(struct seq_file *p, int prec)
+{
+	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
+	return 0;
+}
+
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
+	unsigned long flags, any_count = 0;
+	int i = *(loff_t *)v, j, prec;
+	struct irqaction *action;
+	struct irq_desc *desc;
+
+	if (i > nr_irqs)
+		return 0;
+
+	for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
+		j *= 10;
+
+	if (i == nr_irqs)
+		return show_other_interrupts(p, prec);
 
 	if (i == 0) {
-		seq_puts(p, "           ");
+		seq_printf(p, "%*s", prec + 8, "");
 		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
+			seq_printf(p, "CPU%-8d", j);
 		seq_putc(p, '\n');
 	}
 
-	if (i < sh_mv.mv_nr_irqs) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto unlock;
-		seq_printf(p, "%3d: ",i);
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
-		seq_printf(p, "-%-8s", irq_desc[i].name);
+	desc = irq_to_desc(i);
+	if (!desc)
+		return 0;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	for_each_online_cpu(j)
+		any_count |= kstat_irqs_cpu(i, j);
+	action = desc->action;
+	if (!action && !any_count)
+		goto out;
+
+	seq_printf(p, "%*d: ", prec, i);
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
+	seq_printf(p, " %14s", desc->chip->name);
+	seq_printf(p, "-%-8s", desc->name);
+
+	if (action) {
 		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
+		while ((action = action->next) != NULL)
 			seq_printf(p, ", %s", action->name);
-		seq_putc(p, '\n');
-unlock:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == sh_mv.mv_nr_irqs)
-		seq_printf(p, "Err: %10u\n", atomic_read(&irq_err_count));
+	}
 
+	seq_putc(p, '\n');
+out:
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 #endif
@@ -254,3 +279,11 @@ void __init init_IRQ(void)
 
 	irq_ctx_init(smp_processor_id());
 }
+
+#ifdef CONFIG_SPARSE_IRQ
+int __init arch_probe_nr_irqs(void)
+{
+	nr_irqs = sh_mv.mv_nr_irqs;
+	return 0;
+}
+#endif

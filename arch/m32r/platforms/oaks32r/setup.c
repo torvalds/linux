@@ -61,7 +61,7 @@ static void shutdown_oaks32r_irq(unsigned int irq)
 	outl(M32R_ICUCR_ILEVEL7, port);
 }
 
-static struct hw_interrupt_type oaks32r_irq_type =
+static struct irq_chip oaks32r_irq_type =
 {
 	.typename = "OAKS32R-IRQ",
 	.startup = startup_oaks32r_irq,

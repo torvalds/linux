@@ -811,7 +811,7 @@ static int ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(skb->len > ETHOC_BUFSIZ)) {
 		priv->stats.tx_errors++;
-		return -EMSGSIZE;
+		goto out;
 	}
 
 	entry = priv->cur_tx % priv->num_tx;
@@ -840,9 +840,9 @@ static int ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dev->trans_start = jiffies;
-	dev_kfree_skb(skb);
-
 	spin_unlock_irq(&priv->lock);
+out:
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 

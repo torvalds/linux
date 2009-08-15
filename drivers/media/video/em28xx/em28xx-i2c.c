@@ -451,27 +451,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-/*
- * attach_inform()
- * gets called when a device attaches to the i2c bus
- * does some basic configuration
- */
-static int attach_inform(struct i2c_client *client)
-{
-	struct em28xx *dev = client->adapter->algo_data;
-	struct IR_i2c *ir = i2c_get_clientdata(client);
-
-	switch (client->addr << 1) {
-	case 0x60:
-	case 0x8e:
-		dprintk1(1, "attach_inform: IR detected (%s).\n", ir->phys);
-		em28xx_set_ir(dev, ir);
-		break;
-	}
-
-	return 0;
-}
-
 static struct i2c_algorithm em28xx_algo = {
 	.master_xfer   = em28xx_i2c_xfer,
 	.functionality = functionality,
@@ -482,7 +461,6 @@ static struct i2c_adapter em28xx_adap_template = {
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,
 	.algo = &em28xx_algo,
-	.client_register = attach_inform,
 };
 
 static struct i2c_client em28xx_client_template = {
@@ -574,6 +552,9 @@ int em28xx_i2c_register(struct em28xx *dev)
 
 	if (i2c_scan)
 		em28xx_do_i2c_scan(dev);
+
+	/* Instantiate the IR receiver device, if present */
+	em28xx_register_i2c_ir(dev);
 
 	return 0;
 }

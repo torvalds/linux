@@ -469,7 +469,7 @@ typedef struct {
 	u8	type;		/* Type of the device */
 	u8	cur_status;	/* current status of the device */
 	u8	tag_depth;	/* Level of tagging */
-	u8	sync_neg;	/* sync negotiation - ENABLE or DISBALE */
+	u8	sync_neg;	/* sync negotiation - ENABLE or DISABLE */
 	u32	size;		/* configurable size in terms of 512 byte
 				   blocks */
 }__attribute__ ((packed)) phys_drv;

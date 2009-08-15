@@ -1,8 +1,0 @@
-Things to do for this driver to get merged into the main portion of the
-kernel:
-	- checkpatch cleanups
-	- sparse clean
-	- port to the usb-serial layer instead of doing it all on its
-	  own.
-
-Send patches to Greg Kroah-Hartman <greg@kroah.com>

@@ -29,6 +29,7 @@
 #define VIRTIO_F_NOTIFY_ON_EMPTY	24
 
 #ifdef __KERNEL__
+#include <linux/err.h>
 #include <linux/virtio.h>
 
 /**
@@ -49,15 +50,26 @@
  * @set_status: write the status byte
  *	vdev: the virtio_device
  *	status: the new status byte
+ * @request_vqs: request the specified number of virtqueues
+ *	vdev: the virtio_device
+ *	max_vqs: the max number of virtqueues we want
+ *      If supplied, must call before any virtqueues are instantiated.
+ *      To modify the max number of virtqueues after request_vqs has been
+ *      called, call free_vqs and then request_vqs with a new value.
+ * @free_vqs: cleanup resources allocated by request_vqs
+ *	vdev: the virtio_device
+ *      If supplied, must call after all virtqueues have been deleted.
  * @reset: reset the device
  *	vdev: the virtio device
  *	After this, status and feature negotiation must be done again
- * @find_vq: find a virtqueue and instantiate it.
+ * @find_vqs: find virtqueues and instantiate them.
  *	vdev: the virtio_device
- *	index: the 0-based virtqueue number in case there's more than one.
- *	callback: the virqtueue callback
- *	Returns the new virtqueue or ERR_PTR() (eg. -ENOENT).
- * @del_vq: free a virtqueue found by find_vq().
+ *	nvqs: the number of virtqueues to find
+ *	vqs: on success, includes new virtqueues
+ *	callbacks: array of callbacks, for each virtqueue
+ *	names: array of virtqueue names (mainly for debugging)
+ *	Returns 0 on success or error status
+ * @del_vqs: free virtqueues found by find_vqs().
  * @get_features: get the array of feature bits for this device.
  *	vdev: the virtio_device
  *	Returns the first 32 feature bits (all we currently need).
@@ -66,6 +78,7 @@
  *	This gives the final feature bits for the device: it can change
  *	the dev->feature bits if it wants.
  */
+typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops
 {
 	void (*get)(struct virtio_device *vdev, unsigned offset,
@@ -75,10 +88,11 @@ struct virtio_config_ops
 	u8 (*get_status)(struct virtio_device *vdev);
 	void (*set_status)(struct virtio_device *vdev, u8 status);
 	void (*reset)(struct virtio_device *vdev);
-	struct virtqueue *(*find_vq)(struct virtio_device *vdev,
-				     unsigned index,
-				     void (*callback)(struct virtqueue *));
-	void (*del_vq)(struct virtqueue *vq);
+	int (*find_vqs)(struct virtio_device *, unsigned nvqs,
+			struct virtqueue *vqs[],
+			vq_callback_t *callbacks[],
+			const char *names[]);
+	void (*del_vqs)(struct virtio_device *);
 	u32 (*get_features)(struct virtio_device *vdev);
 	void (*finalize_features)(struct virtio_device *vdev);
 };
@@ -99,7 +113,9 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
 	if (__builtin_constant_p(fbit))
 		BUILD_BUG_ON(fbit >= 32);
 
-	virtio_check_driver_offered_feature(vdev, fbit);
+	if (fbit < VIRTIO_TRANSPORT_F_START)
+		virtio_check_driver_offered_feature(vdev, fbit);
+
 	return test_bit(fbit, vdev->features);
 }
 
@@ -125,6 +141,19 @@ static inline int virtio_config_buf(struct virtio_device *vdev,
 
 	vdev->config->get(vdev, offset, buf, len);
 	return 0;
+}
+
+static inline
+struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
+					vq_callback_t *c, const char *n)
+{
+	vq_callback_t *callbacks[] = { c };
+	const char *names[] = { n };
+	struct virtqueue *vq;
+	int err = vdev->config->find_vqs(vdev, 1, &vq, callbacks, names);
+	if (err < 0)
+		return ERR_PTR(err);
+	return vq;
 }
 #endif /* __KERNEL__ */
 #endif /* _LINUX_VIRTIO_CONFIG_H */

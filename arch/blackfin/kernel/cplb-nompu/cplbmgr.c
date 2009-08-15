@@ -28,6 +28,7 @@
 #include <asm/cplbinit.h>
 #include <asm/cplb.h>
 #include <asm/mmu_context.h>
+#include <asm/traps.h>
 
 /*
  * WARNING
@@ -98,28 +99,6 @@ static inline void write_icplb_data(int cpu, int idx, unsigned long data,
 	icplb_tbl[cpu][idx].addr = addr;
 	icplb_tbl[cpu][idx].data = data;
 #endif
-}
-
-/*
- * Given the contents of the status register, return the index of the
- * CPLB that caused the fault.
- */
-static inline int faulting_cplb_index(int status)
-{
-	int signbits = __builtin_bfin_norm_fr1x32(status & 0xFFFF);
-	return 30 - signbits;
-}
-
-/*
- * Given the contents of the status register and the DCPLB_DATA contents,
- * return true if a write access should be permitted.
- */
-static inline int write_permitted(int status, unsigned long data)
-{
-	if (status & FAULT_USERSUPV)
-		return !!(data & CPLB_SUPV_WR);
-	else
-		return !!(data & CPLB_USER_WR);
 }
 
 /* Counters to implement round-robin replacement.  */
@@ -245,43 +224,16 @@ MGR_ATTR static int dcplb_miss(int cpu)
 	return CPLB_RELOADED;
 }
 
-MGR_ATTR static noinline int dcplb_protection_fault(int cpu)
-{
-	int status = bfin_read_DCPLB_STATUS();
-
-	nr_dcplb_prot[cpu]++;
-
-	if (likely(status & FAULT_RW)) {
-		int idx = faulting_cplb_index(status);
-		unsigned long regaddr = DCPLB_DATA0 + idx * 4;
-		unsigned long data = bfin_read32(regaddr);
-
-		/* Check if fault is to dirty a clean page */
-		if (!(data & CPLB_WT) && !(data & CPLB_DIRTY) &&
-		    write_permitted(status, data)) {
-
-			dcplb_tbl[cpu][idx].data = data;
-			bfin_write32(regaddr, data);
-			return CPLB_RELOADED;
-		}
-	}
-
-	return CPLB_PROT_VIOL;
-}
-
 MGR_ATTR int cplb_hdr(int seqstat, struct pt_regs *regs)
 {
 	int cause = seqstat & 0x3f;
 	unsigned int cpu = smp_processor_id();
 	switch (cause) {
-	case 0x2C:
+	case VEC_CPLB_I_M:
 		return icplb_miss(cpu);
-	case 0x26:
+	case VEC_CPLB_M:
 		return dcplb_miss(cpu);
 	default:
-		if (unlikely(cause == 0x23))
-			return dcplb_protection_fault(cpu);
-
 		return CPLB_UNKNOWN_ERR;
 	}
 }

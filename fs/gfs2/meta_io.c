@@ -31,19 +31,66 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
-#include "ops_address.h"
 
-static int aspace_get_block(struct inode *inode, sector_t lblock,
-			    struct buffer_head *bh_result, int create)
+static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wbc)
 {
-	gfs2_assert_warn(inode->i_sb->s_fs_info, 0);
-	return -EOPNOTSUPP;
-}
+	int err;
+	struct buffer_head *bh, *head;
+	int nr_underway = 0;
+	int write_op = (1 << BIO_RW_META) | ((wbc->sync_mode == WB_SYNC_ALL ?
+			WRITE_SYNC_PLUG : WRITE));
 
-static int gfs2_aspace_writepage(struct page *page,
-				 struct writeback_control *wbc)
-{
-	return block_write_full_page(page, aspace_get_block, wbc);
+	BUG_ON(!PageLocked(page));
+	BUG_ON(!page_has_buffers(page));
+
+	head = page_buffers(page);
+	bh = head;
+
+	do {
+		if (!buffer_mapped(bh))
+			continue;
+		/*
+		 * If it's a fully non-blocking write attempt and we cannot
+		 * lock the buffer then redirty the page.  Note that this can
+		 * potentially cause a busy-wait loop from pdflush and kswapd
+		 * activity, but those code paths have their own higher-level
+		 * throttling.
+		 */
+		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
+			lock_buffer(bh);
+		} else if (!trylock_buffer(bh)) {
+			redirty_page_for_writepage(wbc, page);
+			continue;
+		}
+		if (test_clear_buffer_dirty(bh)) {
+			mark_buffer_async_write(bh);
+		} else {
+			unlock_buffer(bh);
+		}
+	} while ((bh = bh->b_this_page) != head);
+
+	/*
+	 * The page and its buffers are protected by PageWriteback(), so we can
+	 * drop the bh refcounts early.
+	 */
+	BUG_ON(PageWriteback(page));
+	set_page_writeback(page);
+
+	do {
+		struct buffer_head *next = bh->b_this_page;
+		if (buffer_async_write(bh)) {
+			submit_bh(write_op, bh);
+			nr_underway++;
+		}
+		bh = next;
+	} while (bh != head);
+	unlock_page(page);
+
+	err = 0;
+	if (nr_underway == 0)
+		end_page_writeback(page);
+
+	return err;
 }
 
 static const struct address_space_operations aspace_aops = {
@@ -201,16 +248,32 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		   struct buffer_head **bhp)
 {
-	*bhp = gfs2_getbuf(gl, blkno, CREATE);
-	if (!buffer_uptodate(*bhp)) {
-		ll_rw_block(READ_META, 1, bhp);
-		if (flags & DIO_WAIT) {
-			int error = gfs2_meta_wait(gl->gl_sbd, *bhp);
-			if (error) {
-				brelse(*bhp);
-				return error;
-			}
-		}
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct buffer_head *bh;
+
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return -EIO;
+
+	*bhp = bh = gfs2_getbuf(gl, blkno, CREATE);
+
+	lock_buffer(bh);
+	if (buffer_uptodate(bh)) {
+		unlock_buffer(bh);
+		return 0;
+	}
+	bh->b_end_io = end_buffer_read_sync;
+	get_bh(bh);
+	submit_bh(READ_SYNC | (1 << BIO_RW_META), bh);
+	if (!(flags & DIO_WAIT))
+		return 0;
+
+	wait_on_buffer(bh);
+	if (unlikely(!buffer_uptodate(bh))) {
+		struct gfs2_trans *tr = current->journal_info;
+		if (tr && tr->tr_touched)
+			gfs2_io_error_bh(sdp, bh);
+		brelse(bh);
+		return -EIO;
 	}
 
 	return 0;
@@ -404,7 +467,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	if (buffer_uptodate(first_bh))
 		goto out;
 	if (!buffer_locked(first_bh))
-		ll_rw_block(READ_META, 1, &first_bh);
+		ll_rw_block(READ_SYNC | (1 << BIO_RW_META), 1, &first_bh);
 
 	dblock++;
 	extlen--;

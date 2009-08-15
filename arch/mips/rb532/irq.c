@@ -151,7 +151,8 @@ static void rb532_disable_irq(unsigned int irq_nr)
 		mask |= intr_bit;
 		WRITE_MASK(addr, mask);
 
-		if (group == GPIO_MAPPED_IRQ_GROUP)
+		/* There is a maximum of 14 GPIO interrupts */
+		if (group == GPIO_MAPPED_IRQ_GROUP && irq_nr <= (GROUP4_IRQ_BASE + 13))
 			rb532_gpio_set_istat(0, irq_nr - GPIO_MAPPED_IRQ_BASE);
 
 		/*
@@ -174,7 +175,7 @@ static int rb532_set_type(unsigned int irq_nr, unsigned type)
 	int gpio = irq_nr - GPIO_MAPPED_IRQ_BASE;
 	int group = irq_to_group(irq_nr);
 
-	if (group != GPIO_MAPPED_IRQ_GROUP)
+	if (group != GPIO_MAPPED_IRQ_GROUP || irq_nr > (GROUP4_IRQ_BASE + 13))
 		return (type == IRQ_TYPE_LEVEL_HIGH) ? 0 : -EINVAL;
 
 	switch (type) {

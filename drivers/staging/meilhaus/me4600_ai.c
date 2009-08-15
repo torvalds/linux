@@ -299,11 +299,7 @@ me4600_ai_subdevice_t *me4600_ai_constructor(uint32_t reg_base,
 	// Register interrupt service routine.
 	subdevice->irq = irq;
 	if (request_irq(subdevice->irq, me4600_ai_isr,
-#ifdef IRQF_DISABLED
 			IRQF_DISABLED | IRQF_SHARED,
-#else
-			SA_INTERRUPT | SA_SHIRQ,
-#endif
 			ME4600_NAME, subdevice)) {
 		PERROR("Cannot register interrupt service routine.\n");
 		me_subdevice_deinit((me_subdevice_t *) subdevice);

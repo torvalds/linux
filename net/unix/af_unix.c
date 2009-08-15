@@ -1946,7 +1946,7 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case SIOCOUTQ:
-		amount = atomic_read(&sk->sk_wmem_alloc);
+		amount = sk_wmem_alloc_get(sk);
 		err = put_user(amount, (int __user *)arg);
 		break;
 	case SIOCINQ:

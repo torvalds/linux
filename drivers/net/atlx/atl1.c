@@ -2213,8 +2213,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	next_to_use = atomic_read(&tpd_ring->next_to_use);
 	buffer_info = &tpd_ring->buffer_info[next_to_use];
-	if (unlikely(buffer_info->skb))
-		BUG();
+	BUG_ON(buffer_info->skb);
 	/* put skb in last TPD */
 	buffer_info->skb = NULL;
 
@@ -2280,8 +2279,8 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 			ATL1_MAX_TX_BUF_LEN;
 		for (i = 0; i < nseg; i++) {
 			buffer_info = &tpd_ring->buffer_info[next_to_use];
-			if (unlikely(buffer_info->skb))
-				BUG();
+			BUG_ON(buffer_info->skb);
+
 			buffer_info->skb = NULL;
 			buffer_info->length = (buf_len > ATL1_MAX_TX_BUF_LEN) ?
 				ATL1_MAX_TX_BUF_LEN : buf_len;
@@ -2383,7 +2382,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			proto_hdr_len = (skb_transport_offset(skb) +
 					 tcp_hdrlen(skb));
 			if (unlikely(proto_hdr_len > len)) {
@@ -2438,7 +2437,6 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	atl1_tx_queue(adapter, count, ptpd);
 	atl1_update_mailbox(adapter);
 	mmiowb();
-	netdev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

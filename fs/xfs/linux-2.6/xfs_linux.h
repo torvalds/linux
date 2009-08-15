@@ -24,7 +24,7 @@
  * XFS_BIG_BLKNOS needs block layer disk addresses to be 64 bits.
  * XFS_BIG_INUMS requires XFS_BIG_BLKNOS to be set.
  */
-#if defined(CONFIG_LBD) || (BITS_PER_LONG == 64)
+#if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
 # define XFS_BIG_BLKNOS	1
 # define XFS_BIG_INUMS	1
 #else

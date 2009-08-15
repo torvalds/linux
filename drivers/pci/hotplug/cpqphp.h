@@ -150,25 +150,25 @@ struct ctrl_reg {			/* offset */
 
 /* offsets to the controller registers based on the above structure layout */
 enum ctrl_offsets {
-	SLOT_RST = 		offsetof(struct ctrl_reg, slot_RST),
+	SLOT_RST =		offsetof(struct ctrl_reg, slot_RST),
 	SLOT_ENABLE =		offsetof(struct ctrl_reg, slot_enable),
 	MISC =			offsetof(struct ctrl_reg, misc),
 	LED_CONTROL =		offsetof(struct ctrl_reg, led_control),
 	INT_INPUT_CLEAR =	offsetof(struct ctrl_reg, int_input_clear),
-	INT_MASK = 		offsetof(struct ctrl_reg, int_mask),
-	CTRL_RESERVED0 = 	offsetof(struct ctrl_reg, reserved0),
+	INT_MASK =		offsetof(struct ctrl_reg, int_mask),
+	CTRL_RESERVED0 =	offsetof(struct ctrl_reg, reserved0),
 	CTRL_RESERVED1 =	offsetof(struct ctrl_reg, reserved1),
 	CTRL_RESERVED2 =	offsetof(struct ctrl_reg, reserved1),
-	GEN_OUTPUT_AB = 	offsetof(struct ctrl_reg, gen_output_AB),
-	NON_INT_INPUT = 	offsetof(struct ctrl_reg, non_int_input),
+	GEN_OUTPUT_AB =		offsetof(struct ctrl_reg, gen_output_AB),
+	NON_INT_INPUT =		offsetof(struct ctrl_reg, non_int_input),
 	CTRL_RESERVED3 =	offsetof(struct ctrl_reg, reserved3),
 	CTRL_RESERVED4 =	offsetof(struct ctrl_reg, reserved4),
 	CTRL_RESERVED5 =	offsetof(struct ctrl_reg, reserved5),
 	CTRL_RESERVED6 =	offsetof(struct ctrl_reg, reserved6),
 	CTRL_RESERVED7 =	offsetof(struct ctrl_reg, reserved7),
 	CTRL_RESERVED8 =	offsetof(struct ctrl_reg, reserved8),
-	SLOT_MASK = 		offsetof(struct ctrl_reg, slot_mask),
-	CTRL_RESERVED9 = 	offsetof(struct ctrl_reg, reserved9),
+	SLOT_MASK =		offsetof(struct ctrl_reg, slot_mask),
+	CTRL_RESERVED9 =	offsetof(struct ctrl_reg, reserved9),
 	CTRL_RESERVED10 =	offsetof(struct ctrl_reg, reserved10),
 	CTRL_RESERVED11 =	offsetof(struct ctrl_reg, reserved11),
 	SLOT_SERR =		offsetof(struct ctrl_reg, slot_SERR),
@@ -190,7 +190,9 @@ struct hrt {
 	u32 reserved2;
 } __attribute__ ((packed));
 
-/* offsets to the hotplug resource table registers based on the above structure layout */
+/* offsets to the hotplug resource table registers based on the above
+ * structure layout
+ */
 enum hrt_offsets {
 	SIG0 =			offsetof(struct hrt, sig0),
 	SIG1 =			offsetof(struct hrt, sig1),
@@ -217,18 +219,20 @@ struct slot_rt {
 	u16 pre_mem_length;
 } __attribute__ ((packed));
 
-/* offsets to the hotplug slot resource table registers based on the above structure layout */
+/* offsets to the hotplug slot resource table registers based on the above
+ * structure layout
+ */
 enum slot_rt_offsets {
 	DEV_FUNC =		offsetof(struct slot_rt, dev_func),
-	PRIMARY_BUS = 		offsetof(struct slot_rt, primary_bus),
-	SECONDARY_BUS = 	offsetof(struct slot_rt, secondary_bus),
-	MAX_BUS = 		offsetof(struct slot_rt, max_bus),
-	IO_BASE = 		offsetof(struct slot_rt, io_base),
-	IO_LENGTH = 		offsetof(struct slot_rt, io_length),
-	MEM_BASE = 		offsetof(struct slot_rt, mem_base),
-	MEM_LENGTH = 		offsetof(struct slot_rt, mem_length),
-	PRE_MEM_BASE = 		offsetof(struct slot_rt, pre_mem_base),
-	PRE_MEM_LENGTH = 	offsetof(struct slot_rt, pre_mem_length),
+	PRIMARY_BUS =		offsetof(struct slot_rt, primary_bus),
+	SECONDARY_BUS =		offsetof(struct slot_rt, secondary_bus),
+	MAX_BUS =		offsetof(struct slot_rt, max_bus),
+	IO_BASE =		offsetof(struct slot_rt, io_base),
+	IO_LENGTH =		offsetof(struct slot_rt, io_length),
+	MEM_BASE =		offsetof(struct slot_rt, mem_base),
+	MEM_LENGTH =		offsetof(struct slot_rt, mem_length),
+	PRE_MEM_BASE =		offsetof(struct slot_rt, pre_mem_base),
+	PRE_MEM_LENGTH =	offsetof(struct slot_rt, pre_mem_length),
 };
 
 struct pci_func {
@@ -286,8 +290,8 @@ struct event_info {
 struct controller {
 	struct controller *next;
 	u32 ctrl_int_comp;
-	struct mutex crit_sect;		/* critical section mutex */
-	void __iomem *hpc_reg;		/* cookie for our pci controller location */
+	struct mutex crit_sect;	/* critical section mutex */
+	void __iomem *hpc_reg;	/* cookie for our pci controller location */
 	struct pci_resource *mem_head;
 	struct pci_resource *p_mem_head;
 	struct pci_resource *io_head;
@@ -299,7 +303,7 @@ struct controller {
 	u8 next_event;
 	u8 interrupt;
 	u8 cfgspc_irq;
-	u8 bus;				/* bus number for the pci hotplug controller */
+	u8 bus;			/* bus number for the pci hotplug controller */
 	u8 rev;
 	u8 slot_device_offset;
 	u8 first_slot;
@@ -401,46 +405,57 @@ struct resource_lists {
 
 
 /* debugfs functions for the hotplug controller info */
-extern void cpqhp_initialize_debugfs		(void);
-extern void cpqhp_shutdown_debugfs		(void);
-extern void cpqhp_create_debugfs_files		(struct controller *ctrl);
-extern void cpqhp_remove_debugfs_files		(struct controller *ctrl);
+extern void cpqhp_initialize_debugfs(void);
+extern void cpqhp_shutdown_debugfs(void);
+extern void cpqhp_create_debugfs_files(struct controller *ctrl);
+extern void cpqhp_remove_debugfs_files(struct controller *ctrl);
 
 /* controller functions */
-extern void	cpqhp_pushbutton_thread		(unsigned long event_pointer);
-extern irqreturn_t cpqhp_ctrl_intr		(int IRQ, void *data);
-extern int	cpqhp_find_available_resources	(struct controller *ctrl, void __iomem *rom_start);
-extern int	cpqhp_event_start_thread	(void);
-extern void	cpqhp_event_stop_thread		(void);
-extern struct pci_func *cpqhp_slot_create	(unsigned char busnumber);
-extern struct pci_func *cpqhp_slot_find		(unsigned char bus, unsigned char device, unsigned char index);
-extern int	cpqhp_process_SI		(struct controller *ctrl, struct pci_func *func);
-extern int	cpqhp_process_SS		(struct controller *ctrl, struct pci_func *func);
-extern int	cpqhp_hardware_test		(struct controller *ctrl, int test_num);
+extern void cpqhp_pushbutton_thread(unsigned long event_pointer);
+extern irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data);
+extern int cpqhp_find_available_resources(struct controller *ctrl,
+					  void __iomem *rom_start);
+extern int cpqhp_event_start_thread(void);
+extern void cpqhp_event_stop_thread(void);
+extern struct pci_func *cpqhp_slot_create(unsigned char busnumber);
+extern struct pci_func *cpqhp_slot_find(unsigned char bus, unsigned char device,
+					unsigned char index);
+extern int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func);
+extern int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func);
+extern int cpqhp_hardware_test(struct controller *ctrl, int test_num);
 
 /* resource functions */
 extern int	cpqhp_resource_sort_and_combine	(struct pci_resource **head);
 
 /* pci functions */
-extern int	cpqhp_set_irq			(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
-extern int	cpqhp_get_bus_dev		(struct controller *ctrl, u8 *bus_num, u8 *dev_num, u8 slot);
-extern int	cpqhp_save_config		(struct controller *ctrl, int busnumber, int is_hot_plug);
-extern int	cpqhp_save_base_addr_length	(struct controller *ctrl, struct pci_func * func);
-extern int	cpqhp_save_used_resources	(struct controller *ctrl, struct pci_func * func);
-extern int	cpqhp_configure_board		(struct controller *ctrl, struct pci_func * func);
-extern int	cpqhp_save_slot_config		(struct controller *ctrl, struct pci_func * new_slot);
-extern int	cpqhp_valid_replace		(struct controller *ctrl, struct pci_func * func);
-extern void	cpqhp_destroy_board_resources	(struct pci_func * func);
-extern int	cpqhp_return_board_resources	(struct pci_func * func, struct resource_lists * resources);
-extern void	cpqhp_destroy_resource_list	(struct resource_lists * resources);
-extern int	cpqhp_configure_device		(struct controller* ctrl, struct pci_func* func);
-extern int	cpqhp_unconfigure_device	(struct pci_func* func);
+extern int cpqhp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
+extern int cpqhp_get_bus_dev(struct controller *ctrl, u8 *bus_num, u8 *dev_num,
+			     u8 slot);
+extern int cpqhp_save_config(struct controller *ctrl, int busnumber,
+			     int is_hot_plug);
+extern int cpqhp_save_base_addr_length(struct controller *ctrl,
+				       struct pci_func *func);
+extern int cpqhp_save_used_resources(struct controller *ctrl,
+				     struct pci_func *func);
+extern int cpqhp_configure_board(struct controller *ctrl,
+				 struct pci_func *func);
+extern int cpqhp_save_slot_config(struct controller *ctrl,
+				  struct pci_func *new_slot);
+extern int cpqhp_valid_replace(struct controller *ctrl, struct pci_func *func);
+extern void cpqhp_destroy_board_resources(struct pci_func *func);
+extern int cpqhp_return_board_resources	(struct pci_func *func,
+					 struct resource_lists *resources);
+extern void cpqhp_destroy_resource_list(struct resource_lists *resources);
+extern int cpqhp_configure_device(struct controller *ctrl,
+				  struct pci_func *func);
+extern int cpqhp_unconfigure_device(struct pci_func *func);
 
 /* Global variables */
 extern int cpqhp_debug;
 extern int cpqhp_legacy_mode;
 extern struct controller *cpqhp_ctrl_list;
 extern struct pci_func *cpqhp_slot_list[256];
+extern struct irq_routing_table *cpqhp_routing_table;
 
 /* these can be gotten rid of, but for debugging they are purty */
 extern u8 cpqhp_nic_irq;
@@ -449,7 +464,7 @@ extern u8 cpqhp_disk_irq;
 
 /* inline functions */
 
-static inline char *slot_name(struct slot *slot)
+static inline const char *slot_name(struct slot *slot)
 {
 	return hotplug_slot_name(slot->hotplug_slot);
 }
@@ -458,9 +473,9 @@ static inline char *slot_name(struct slot *slot)
  * return_resource
  *
  * Puts node back in the resource list pointed to by head
- *
  */
-static inline void return_resource(struct pci_resource **head, struct pci_resource *node)
+static inline void return_resource(struct pci_resource **head,
+				   struct pci_resource *node)
 {
 	if (!node || !head)
 		return;
@@ -471,7 +486,7 @@ static inline void return_resource(struct pci_resource **head, struct pci_resour
 static inline void set_SOGO(struct controller *ctrl)
 {
 	u16 misc;
-	
+
 	misc = readw(ctrl->hpc_reg + MISC);
 	misc = (misc | 0x0001) & 0xFFFB;
 	writew(misc, ctrl->hpc_reg + MISC);
@@ -481,7 +496,7 @@ static inline void set_SOGO(struct controller *ctrl)
 static inline void amber_LED_on(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control |= (0x01010000L << slot);
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -491,7 +506,7 @@ static inline void amber_LED_on(struct controller *ctrl, u8 slot)
 static inline void amber_LED_off(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= ~(0x01010000L << slot);
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -504,7 +519,7 @@ static inline int read_amber_LED(struct controller *ctrl, u8 slot)
 
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= (0x01010000L << slot);
-	
+
 	return led_control ? 1 : 0;
 }
 
@@ -512,7 +527,7 @@ static inline int read_amber_LED(struct controller *ctrl, u8 slot)
 static inline void green_LED_on(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control |= 0x0101L << slot;
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -521,7 +536,7 @@ static inline void green_LED_on(struct controller *ctrl, u8 slot)
 static inline void green_LED_off(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= ~(0x0101L << slot);
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -531,7 +546,7 @@ static inline void green_LED_off(struct controller *ctrl, u8 slot)
 static inline void green_LED_blink(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= ~(0x0101L << slot);
 	led_control |= (0x0001L << slot);
@@ -575,22 +590,21 @@ static inline u8 read_slot_enable(struct controller *ctrl)
 }
 
 
-/*
+/**
  * get_controller_speed - find the current frequency/mode of controller.
  *
  * @ctrl: controller to get frequency/mode for.
  *
  * Returns controller speed.
- *
  */
 static inline u8 get_controller_speed(struct controller *ctrl)
 {
 	u8 curr_freq;
- 	u16 misc;
- 	
+	u16 misc;
+
 	if (ctrl->pcix_support) {
 		curr_freq = readb(ctrl->hpc_reg + NEXT_CURR_FREQ);
-		if ((curr_freq & 0xB0) == 0xB0) 
+		if ((curr_freq & 0xB0) == 0xB0)
 			return PCI_SPEED_133MHz_PCIX;
 		if ((curr_freq & 0xA0) == 0xA0)
 			return PCI_SPEED_100MHz_PCIX;
@@ -602,19 +616,18 @@ static inline u8 get_controller_speed(struct controller *ctrl)
 		return PCI_SPEED_33MHz;
 	}
 
- 	misc = readw(ctrl->hpc_reg + MISC);
- 	return (misc & 0x0800) ? PCI_SPEED_66MHz : PCI_SPEED_33MHz;
+	misc = readw(ctrl->hpc_reg + MISC);
+	return (misc & 0x0800) ? PCI_SPEED_66MHz : PCI_SPEED_33MHz;
 }
- 
 
-/*
+
+/**
  * get_adapter_speed - find the max supported frequency/mode of adapter.
  *
  * @ctrl: hotplug controller.
  * @hp_slot: hotplug slot where adapter is installed.
  *
  * Returns adapter speed.
- *
  */
 static inline u8 get_adapter_speed(struct controller *ctrl, u8 hp_slot)
 {
@@ -672,7 +685,8 @@ static inline int get_slot_enabled(struct controller *ctrl, struct slot *slot)
 }
 
 
-static inline int cpq_get_latch_status(struct controller *ctrl, struct slot *slot)
+static inline int cpq_get_latch_status(struct controller *ctrl,
+				       struct slot *slot)
 {
 	u32 status;
 	u8 hp_slot;
@@ -687,7 +701,8 @@ static inline int cpq_get_latch_status(struct controller *ctrl, struct slot *slo
 }
 
 
-static inline int get_presence_status(struct controller *ctrl, struct slot *slot)
+static inline int get_presence_status(struct controller *ctrl,
+				      struct slot *slot)
 {
 	int presence_save = 0;
 	u8 hp_slot;
@@ -696,7 +711,8 @@ static inline int get_presence_status(struct controller *ctrl, struct slot *slot
 	hp_slot = slot->device - ctrl->slot_device_offset;
 
 	tempdword = readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
-	presence_save = (int) ((((~tempdword) >> 23) | ((~tempdword) >> 15)) >> hp_slot) & 0x02;
+	presence_save = (int) ((((~tempdword) >> 23) | ((~tempdword) >> 15))
+				>> hp_slot) & 0x02;
 
 	return presence_save;
 }
@@ -718,5 +734,12 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 	return retval;
 }
 
-#endif
+#include <asm/pci_x86.h>
+static inline int cpqhp_routing_table_length(void)
+{
+	BUG_ON(cpqhp_routing_table == NULL);
+	return ((cpqhp_routing_table->size - sizeof(struct irq_routing_table)) /
+		sizeof(struct irq_info));
+}
 
+#endif

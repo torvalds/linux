@@ -132,15 +132,7 @@ static __always_inline void do_vgettimeofday(struct timeval * tv)
 			return;
 		}
 
-		/*
-		 * Surround the RDTSC by barriers, to make sure it's not
-		 * speculated to outside the seqlock critical section and
-		 * does not cause time warps:
-		 */
-		rdtsc_barrier();
 		now = vread();
-		rdtsc_barrier();
-
 		base = __vsyscall_gtod_data.clock.cycle_last;
 		mask = __vsyscall_gtod_data.clock.mask;
 		mult = __vsyscall_gtod_data.clock.mult;

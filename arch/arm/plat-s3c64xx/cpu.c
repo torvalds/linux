@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -101,8 +102,23 @@ static struct map_desc s3c_iodesc[] __initdata = {
 		.pfn		= __phys_to_pfn(S3C64XX_PA_MODEM),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_WATCHDOG,
+		.pfn		= __phys_to_pfn(S3C64XX_PA_WATCHDOG),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
 	},
 };
+
+
+struct sysdev_class s3c64xx_sysclass = {
+	.name	= "s3c64xx-core",
+};
+
+static struct sys_device s3c64xx_sysdev = {
+	.cls	= &s3c64xx_sysclass,
+};
+
 
 /* read cpu identification code */
 
@@ -115,5 +131,21 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	iotable_init(mach_desc, size);
 
 	idcode = __raw_readl(S3C_VA_SYS + 0x118);
+	if (!idcode) {
+		/* S3C6400 has the ID register in a different place,
+		 * and needs a write before it can be read. */
+
+		__raw_writel(0x0, S3C_VA_SYS + 0xA1C);
+		idcode = __raw_readl(S3C_VA_SYS + 0xA1C);
+	}
+
 	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
+
+static __init int s3c64xx_sysdev_init(void)
+{
+	sysdev_class_register(&s3c64xx_sysclass);
+	return sysdev_register(&s3c64xx_sysdev);
+}
+
+core_initcall(s3c64xx_sysdev_init);

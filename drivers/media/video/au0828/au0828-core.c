@@ -36,6 +36,11 @@ int au0828_debug;
 module_param_named(debug, au0828_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
+static unsigned int disable_usb_speed_check;
+module_param(disable_usb_speed_check, int, 0444);
+MODULE_PARM_DESC(disable_usb_speed_check,
+		 "override min bandwidth requirement of 480M bps");
+
 #define _AU0828_BULKPIPE 0x03
 #define _BULKPIPESIZE 0xffff
 
@@ -180,6 +185,18 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct),
 		ifnum);
+
+	/*
+	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
+	 * video stream wouldn't likely work, since 12 Mbps is generally
+	 * not enough even for most Digital TV streams.
+	 */
+	if (usbdev->speed != USB_SPEED_HIGH && disable_usb_speed_check == 0) {
+		printk(KERN_ERR "au0828: Device initialization failed.\n");
+		printk(KERN_ERR "au0828: Device must be connected to a "
+		       "high-speed USB 2.0 port.\n");
+		return -ENODEV;
+	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {

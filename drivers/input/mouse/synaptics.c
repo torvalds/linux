@@ -180,6 +180,29 @@ static int synaptics_identify(struct psmouse *psmouse)
 	return -1;
 }
 
+/*
+ * Read touchpad resolution
+ * Resolution is left zero if touchpad does not support the query
+ */
+static int synaptics_resolution(struct psmouse *psmouse)
+{
+	struct synaptics_data *priv = psmouse->private;
+	unsigned char res[3];
+
+	if (SYN_ID_MAJOR(priv->identity) < 4)
+		return 0;
+
+	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res))
+		return 0;
+
+	if ((res[0] != 0) && (res[1] & 0x80) && (res[2] != 0)) {
+		priv->x_res = res[0]; /* x resolution in units/mm */
+		priv->y_res = res[2]; /* y resolution in units/mm */
+	}
+
+	return 0;
+}
+
 static int synaptics_query_hardware(struct psmouse *psmouse)
 {
 	if (synaptics_identify(psmouse))
@@ -187,6 +210,8 @@ static int synaptics_query_hardware(struct psmouse *psmouse)
 	if (synaptics_model_id(psmouse))
 		return -1;
 	if (synaptics_capability(psmouse))
+		return -1;
+	if (synaptics_resolution(psmouse))
 		return -1;
 
 	return 0;
@@ -563,6 +588,9 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	clear_bit(EV_REL, dev->evbit);
 	clear_bit(REL_X, dev->relbit);
 	clear_bit(REL_Y, dev->relbit);
+
+	dev->absres[ABS_X] = priv->x_res;
+	dev->absres[ABS_Y] = priv->y_res;
 }
 
 static void synaptics_disconnect(struct psmouse *psmouse)

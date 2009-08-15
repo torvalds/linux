@@ -579,7 +579,7 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 }
 
 static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
-					enum rfkill_state state)
+					bool blocked)
 {//TODO
 }
 

@@ -426,15 +426,9 @@ static void i2o_block_end_request(struct request *req, int error,
 	struct request_queue *q = req->q;
 	unsigned long flags;
 
-	if (blk_end_request(req, error, nr_bytes)) {
-		int leftover = (req->hard_nr_sectors << KERNEL_SECTOR_SHIFT);
-
-		if (blk_pc_request(req))
-			leftover = req->data_len;
-
+	if (blk_end_request(req, error, nr_bytes))
 		if (error)
-			blk_end_request(req, -EIO, leftover);
-	}
+			blk_end_request_all(req, -EIO);
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
@@ -761,7 +755,7 @@ static int i2o_block_transfer(struct request *req)
 			break;
 
 		case CACHE_SMARTFETCH:
-			if (req->nr_sectors > 16)
+			if (blk_rq_sectors(req) > 16)
 				ctl_flags = 0x201F0008;
 			else
 				ctl_flags = 0x001F0000;
@@ -781,13 +775,13 @@ static int i2o_block_transfer(struct request *req)
 			ctl_flags = 0x001F0010;
 			break;
 		case CACHE_SMARTBACK:
-			if (req->nr_sectors > 16)
+			if (blk_rq_sectors(req) > 16)
 				ctl_flags = 0x001F0004;
 			else
 				ctl_flags = 0x001F0010;
 			break;
 		case CACHE_SMARTTHROUGH:
-			if (req->nr_sectors > 16)
+			if (blk_rq_sectors(req) > 16)
 				ctl_flags = 0x001F0004;
 			else
 				ctl_flags = 0x001F0010;
@@ -800,8 +794,9 @@ static int i2o_block_transfer(struct request *req)
 	if (c->adaptec) {
 		u8 cmd[10];
 		u32 scsi_flags;
-		u16 hwsec = queue_hardsect_size(req->q) >> KERNEL_SECTOR_SHIFT;
+		u16 hwsec;
 
+		hwsec = queue_logical_block_size(req->q) >> KERNEL_SECTOR_SHIFT;
 		memset(cmd, 0, 10);
 
 		sgl_offset = SGL_OFFSET_12;
@@ -827,22 +822,22 @@ static int i2o_block_transfer(struct request *req)
 
 		*mptr++ = cpu_to_le32(scsi_flags);
 
-		*((u32 *) & cmd[2]) = cpu_to_be32(req->sector * hwsec);
-		*((u16 *) & cmd[7]) = cpu_to_be16(req->nr_sectors * hwsec);
+		*((u32 *) & cmd[2]) = cpu_to_be32(blk_rq_pos(req) * hwsec);
+		*((u16 *) & cmd[7]) = cpu_to_be16(blk_rq_sectors(req) * hwsec);
 
 		memcpy(mptr, cmd, 10);
 		mptr += 4;
-		*mptr++ = cpu_to_le32(req->nr_sectors << KERNEL_SECTOR_SHIFT);
+		*mptr++ = cpu_to_le32(blk_rq_bytes(req));
 	} else
 #endif
 	{
 		msg->u.head[1] = cpu_to_le32(cmd | HOST_TID << 12 | tid);
 		*mptr++ = cpu_to_le32(ctl_flags);
-		*mptr++ = cpu_to_le32(req->nr_sectors << KERNEL_SECTOR_SHIFT);
+		*mptr++ = cpu_to_le32(blk_rq_bytes(req));
 		*mptr++ =
-		    cpu_to_le32((u32) (req->sector << KERNEL_SECTOR_SHIFT));
+		    cpu_to_le32((u32) (blk_rq_pos(req) << KERNEL_SECTOR_SHIFT));
 		*mptr++ =
-		    cpu_to_le32(req->sector >> (32 - KERNEL_SECTOR_SHIFT));
+		    cpu_to_le32(blk_rq_pos(req) >> (32 - KERNEL_SECTOR_SHIFT));
 	}
 
 	if (!i2o_block_sglist_alloc(c, ireq, &mptr)) {
@@ -883,7 +878,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 	struct request *req;
 
 	while (!blk_queue_plugged(q)) {
-		req = elv_next_request(q);
+		req = blk_peek_request(q);
 		if (!req)
 			break;
 
@@ -896,7 +891,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 
 			if (queue_depth < I2O_BLOCK_MAX_OPEN_REQUESTS) {
 				if (!i2o_block_transfer(req)) {
-					blkdev_dequeue_request(req);
+					blk_start_request(req);
 					continue;
 				} else
 					osm_info("transfer error\n");
@@ -922,8 +917,10 @@ static void i2o_block_request_fn(struct request_queue *q)
 				blk_stop_queue(q);
 				break;
 			}
-		} else
-			end_request(req, 0);
+		} else {
+			blk_start_request(req);
+			__blk_end_request_all(req, -EIO);
+		}
 	}
 };
 
@@ -1082,7 +1079,7 @@ static int i2o_block_probe(struct device *dev)
 	 */
 	if (!i2o_parm_field_get(i2o_dev, 0x0004, 1, &blocksize, 4) ||
 	    !i2o_parm_field_get(i2o_dev, 0x0000, 3, &blocksize, 4)) {
-		blk_queue_hardsect_size(queue, le32_to_cpu(blocksize));
+		blk_queue_logical_block_size(queue, le32_to_cpu(blocksize));
 	} else
 		osm_warn("unable to get blocksize of %s\n", gd->disk_name);
 

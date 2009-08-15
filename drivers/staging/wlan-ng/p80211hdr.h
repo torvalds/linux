@@ -68,8 +68,6 @@
 /*================================================================*/
 /* Project Includes */
 
-
-
 /*================================================================*/
 /* Constants */
 
@@ -187,7 +185,6 @@ typedef union p80211_hdr {
 	p80211_hdr_a3_t a3;
 	p80211_hdr_a4_t a4;
 } __attribute__ ((packed)) p80211_hdr_t;
-
 
 /* Frame and header length macros */
 

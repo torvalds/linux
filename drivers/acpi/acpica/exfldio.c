@@ -222,7 +222,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 {
 	acpi_status status;
 	union acpi_operand_object *rgn_desc;
-	acpi_physical_address address;
+	u32 region_offset;
 
 	ACPI_FUNCTION_TRACE(ex_access_region);
 
@@ -243,7 +243,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	 * 3) The current offset into the field
 	 */
 	rgn_desc = obj_desc->common_field.region_obj;
-	address = rgn_desc->region.address +
+	region_offset =
 	    obj_desc->common_field.base_byte_offset + field_datum_byte_offset;
 
 	if ((function & ACPI_IO_MASK) == ACPI_READ) {
@@ -260,16 +260,18 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 			      obj_desc->common_field.access_byte_width,
 			      obj_desc->common_field.base_byte_offset,
 			      field_datum_byte_offset, ACPI_CAST_PTR(void,
-								     address)));
+								     (rgn_desc->
+								      region.
+								      address +
+								      region_offset))));
 
 	/* Invoke the appropriate address_space/op_region handler */
 
-	status = acpi_ev_address_space_dispatch(rgn_desc, function,
-						address,
-						ACPI_MUL_8(obj_desc->
-							   common_field.
-							   access_byte_width),
-						value);
+	status =
+	    acpi_ev_address_space_dispatch(rgn_desc, function, region_offset,
+					   ACPI_MUL_8(obj_desc->common_field.
+						      access_byte_width),
+					   value);
 
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_IMPLEMENTED) {

@@ -503,7 +503,7 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 		return 0;
 
 	if (!rtnl_trylock())
-		return -ERESTARTSYS;
+		return restart_syscall();
 
 	if (p == &net->ipv6.devconf_all->forwarding) {
 		__s32 newf = net->ipv6.devconf_all->forwarding;
@@ -591,7 +591,6 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 {
 	struct inet6_ifaddr *ifa = NULL;
 	struct rt6_info *rt;
-	struct net *net = dev_net(idev->dev);
 	int hash;
 	int err = 0;
 	int addr_type = ipv6_addr_type(addr);
@@ -608,7 +607,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 		goto out2;
 	}
 
-	if (idev->cnf.disable_ipv6 || net->ipv6.devconf_all->disable_ipv6) {
+	if (idev->cnf.disable_ipv6) {
 		err = -EACCES;
 		goto out2;
 	}
@@ -1520,6 +1519,8 @@ static int addrconf_ifid_infiniband(u8 *eui, struct net_device *dev)
 
 int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
 {
+	if (addr == 0)
+		return -1;
 	eui[0] = (ipv4_is_zeronet(addr) || ipv4_is_private_10(addr) ||
 		  ipv4_is_loopback(addr) || ipv4_is_linklocal_169(addr) ||
 		  ipv4_is_private_172(addr) || ipv4_is_test_192(addr) ||
@@ -1750,6 +1751,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 	__u32 prefered_lft;
 	int addr_type;
 	struct inet6_dev *in6_dev;
+	struct net *net = dev_net(dev);
 
 	pinfo = (struct prefix_info *) opt;
 
@@ -1807,7 +1809,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		if (addrconf_finite_timeout(rt_expires))
 			rt_expires *= HZ;
 
-		rt = rt6_lookup(dev_net(dev), &pinfo->prefix, NULL,
+		rt = rt6_lookup(net, &pinfo->prefix, NULL,
 				dev->ifindex, 1);
 
 		if (rt && addrconf_is_prefix_route(rt)) {
@@ -1844,7 +1846,6 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		struct inet6_ifaddr * ifp;
 		struct in6_addr addr;
 		int create = 0, update_lft = 0;
-		struct net *net = dev_net(dev);
 
 		if (pinfo->prefix_len == 64) {
 			memcpy(&addr, &pinfo->prefix, 8);
@@ -2765,7 +2766,7 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		spin_unlock_bh(&ifp->lock);
 		read_unlock_bh(&idev->lock);
 		/*
-		 * If the defice is not ready:
+		 * If the device is not ready:
 		 * - keep it tentative if it is a permanent address.
 		 * - otherwise, kill it.
 		 */
@@ -3986,6 +3987,75 @@ static int addrconf_sysctl_forward_strategy(ctl_table *table,
 	return addrconf_fixup_forwarding(table, valp, val);
 }
 
+static void dev_disable_change(struct inet6_dev *idev)
+{
+	if (!idev || !idev->dev)
+		return;
+
+	if (idev->cnf.disable_ipv6)
+		addrconf_notify(NULL, NETDEV_DOWN, idev->dev);
+	else
+		addrconf_notify(NULL, NETDEV_UP, idev->dev);
+}
+
+static void addrconf_disable_change(struct net *net, __s32 newf)
+{
+	struct net_device *dev;
+	struct inet6_dev *idev;
+
+	read_lock(&dev_base_lock);
+	for_each_netdev(net, dev) {
+		rcu_read_lock();
+		idev = __in6_dev_get(dev);
+		if (idev) {
+			int changed = (!idev->cnf.disable_ipv6) ^ (!newf);
+			idev->cnf.disable_ipv6 = newf;
+			if (changed)
+				dev_disable_change(idev);
+		}
+		rcu_read_unlock();
+	}
+	read_unlock(&dev_base_lock);
+}
+
+static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int old)
+{
+	struct net *net;
+
+	net = (struct net *)table->extra2;
+
+	if (p == &net->ipv6.devconf_dflt->disable_ipv6)
+		return 0;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (p == &net->ipv6.devconf_all->disable_ipv6) {
+		__s32 newf = net->ipv6.devconf_all->disable_ipv6;
+		net->ipv6.devconf_dflt->disable_ipv6 = newf;
+		addrconf_disable_change(net, newf);
+	} else if ((!*p) ^ (!old))
+		dev_disable_change((struct inet6_dev *)table->extra1);
+
+	rtnl_unlock();
+	return 0;
+}
+
+static
+int addrconf_sysctl_disable(ctl_table *ctl, int write, struct file * filp,
+			    void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = ctl->data;
+	int val = *valp;
+	int ret;
+
+	ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+
+	if (write)
+		ret = addrconf_disable_ipv6(ctl, valp, val);
+	return ret;
+}
+
 static struct addrconf_sysctl_table
 {
 	struct ctl_table_header *sysctl_header;
@@ -4223,7 +4293,8 @@ static struct addrconf_sysctl_table
 			.data		=	&ipv6_devconf.disable_ipv6,
 			.maxlen		=	sizeof(int),
 			.mode		=	0644,
-			.proc_handler	=	proc_dointvec,
+			.proc_handler	=	addrconf_sysctl_disable,
+			.strategy	=	sysctl_intvec,
 		},
 		{
 			.ctl_name	=	CTL_UNNUMBERED,
@@ -4344,6 +4415,10 @@ static int addrconf_init_net(struct net *net)
 		dflt = kmemdup(dflt, sizeof(ipv6_devconf_dflt), GFP_KERNEL);
 		if (dflt == NULL)
 			goto err_alloc_dflt;
+	} else {
+		/* these will be inherited by all namespaces */
+		dflt->autoconf = ipv6_defaults.autoconf;
+		dflt->disable_ipv6 = ipv6_defaults.disable_ipv6;
 	}
 
 	net->ipv6.devconf_all = all;

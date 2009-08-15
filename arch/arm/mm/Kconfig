@@ -391,7 +391,7 @@ config CPU_FEROCEON_OLD_ID
 
 # ARMv6
 config CPU_V6
-	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_PABRT_NOIFAR
@@ -416,7 +416,7 @@ config CPU_32v6K
 
 # ARMv7
 config CPU_V7
-	bool "Support ARM V7 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	bool "Support ARM V7 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
@@ -639,10 +639,23 @@ config CPU_BIG_ENDIAN
 	  port must properly enable any big-endian related features
 	  of your chipset/board/processor.
 
+config CPU_ENDIAN_BE8
+	bool
+	depends on CPU_BIG_ENDIAN
+	default CPU_V6 || CPU_V7
+	help
+	  Support for the BE-8 (big-endian) mode on ARMv6 and ARMv7 processors.
+
+config CPU_ENDIAN_BE32
+	bool
+	depends on CPU_BIG_ENDIAN
+	default !CPU_ENDIAN_BE8
+	help
+	  Support for the BE-32 (big-endian) mode on pre-ARMv6 processors.
+
 config CPU_HIGH_VECTOR
 	depends on !MMU && CPU_CP15 && !CPU_ARM740T
 	bool "Select the High exception vector"
-	default n
 	help
 	  Say Y here to select high exception vector(0xFFFF0000~).
 	  The exception vector can be vary depending on the platform
@@ -726,7 +739,6 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 
 config OUTER_CACHE
 	bool
-	default n
 
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
@@ -739,7 +751,6 @@ config CACHE_FEROCEON_L2
 config CACHE_FEROCEON_L2_WRITETHROUGH
 	bool "Force Feroceon L2 cache write through"
 	depends on CACHE_FEROCEON_L2
-	default n
 	help
 	  Say Y here to use the Feroceon L2 cache in writethrough mode.
 	  Unless you specifically require this, say N for writeback mode.
@@ -747,7 +758,7 @@ config CACHE_FEROCEON_L2_WRITETHROUGH
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"
 	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176 || \
-		   REALVIEW_EB_A9MP || ARCH_MX35 || ARCH_MX31
+		   REALVIEW_EB_A9MP || ARCH_MX35 || ARCH_MX31 || MACH_REALVIEW_PBX
 	default y
 	select OUTER_CACHE
 	help

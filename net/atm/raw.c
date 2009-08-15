@@ -33,7 +33,7 @@ static void atm_pop_raw(struct atm_vcc *vcc,struct sk_buff *skb)
 	struct sock *sk = sk_atm(vcc);
 
 	pr_debug("APopR (%d) %d -= %d\n", vcc->vci,
-		atomic_read(&sk->sk_wmem_alloc), skb->truesize);
+		sk_wmem_alloc_get(sk), skb->truesize);
 	atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
 	dev_kfree_skb_any(skb);
 	sk->sk_write_space(sk);

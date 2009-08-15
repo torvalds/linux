@@ -24,6 +24,7 @@
 #include <linux/smp_lock.h>
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
+#include <linux/acpi.h>
 #include <linux/tty.h>
 #include <linux/gfp.h>
 #include <linux/percpu.h>
@@ -56,6 +57,7 @@
 #include <linux/debug_locks.h>
 #include <linux/debugobjects.h>
 #include <linux/lockdep.h>
+#include <linux/kmemleak.h>
 #include <linux/pid_namespace.h>
 #include <linux/device.h>
 #include <linux/kthread.h>
@@ -64,6 +66,8 @@
 #include <linux/idr.h>
 #include <linux/ftrace.h>
 #include <linux/async.h>
+#include <linux/kmemcheck.h>
+#include <linux/kmemtrace.h>
 #include <trace/boot.h>
 
 #include <asm/io.h>
@@ -71,7 +75,6 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
-#include <trace/kmemtrace.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
@@ -86,11 +89,6 @@ extern void sbus_init(void);
 extern void prio_tree_init(void);
 extern void radix_tree_init(void);
 extern void free_initmem(void);
-#ifdef	CONFIG_ACPI
-extern void acpi_early_init(void);
-#else
-static inline void acpi_early_init(void) { }
-#endif
 #ifndef CONFIG_DEBUG_RODATA
 static inline void mark_rodata_ro(void) { }
 #endif
@@ -533,6 +531,22 @@ void __init __weak thread_info_cache_init(void)
 {
 }
 
+/*
+ * Set up kernel memory allocators
+ */
+static void __init mm_init(void)
+{
+	/*
+	 * page_cgroup requires countinous pages as memmap
+	 * and it's bigger than MAX_ORDER unless SPARSEMEM.
+	 */
+	page_cgroup_init_flatmem();
+	mem_init();
+	kmem_cache_init();
+	pgtable_cache_init();
+	vmalloc_init();
+}
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
@@ -574,6 +588,23 @@ asmlinkage void __init start_kernel(void)
 	setup_nr_cpu_ids();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
+	build_all_zonelists();
+	page_alloc_init();
+
+	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
+	parse_early_param();
+	parse_args("Booting kernel", static_command_line, __start___param,
+		   __stop___param - __start___param,
+		   &unknown_bootoption);
+	/*
+	 * These use large bootmem allocations and must precede
+	 * kmem_cache_init()
+	 */
+	pidhash_init();
+	vfs_caches_init_early();
+	sort_main_extable();
+	trap_init();
+	mm_init();
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()
@@ -585,25 +616,16 @@ asmlinkage void __init start_kernel(void)
 	 * fragile until we cpu_idle() for the first time.
 	 */
 	preempt_disable();
-	build_all_zonelists();
-	page_alloc_init();
-	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
-	parse_early_param();
-	parse_args("Booting kernel", static_command_line, __start___param,
-		   __stop___param - __start___param,
-		   &unknown_bootoption);
 	if (!irqs_disabled()) {
 		printk(KERN_WARNING "start_kernel(): bug: interrupts were "
 				"enabled *very* early, fixing it\n");
 		local_irq_disable();
 	}
-	sort_main_extable();
-	trap_init();
 	rcu_init();
 	/* init some links before init_ISA_irqs() */
 	early_irq_init();
 	init_IRQ();
-	pidhash_init();
+	prio_tree_init();
 	init_timers();
 	hrtimers_init();
 	softirq_init();
@@ -616,6 +638,11 @@ asmlinkage void __init start_kernel(void)
 				 "enabled early\n");
 	early_boot_irqs_on();
 	local_irq_enable();
+
+	/* Interrupts are enabled now so all GFP allocations are safe. */
+	set_gfp_allowed_mask(__GFP_BITS_MASK);
+
+	kmem_cache_init_late();
 
 	/*
 	 * HACK ALERT! This is early. We're enabling the console before
@@ -645,15 +672,10 @@ asmlinkage void __init start_kernel(void)
 		initrd_start = 0;
 	}
 #endif
-	vmalloc_init();
-	vfs_caches_init_early();
-	cpuset_init_early();
 	page_cgroup_init();
-	mem_init();
 	enable_debug_pagealloc();
-	cpu_hotplug_init();
-	kmem_cache_init();
 	kmemtrace_init();
+	kmemleak_init();
 	debug_objects_mem_init();
 	idr_init_cache();
 	setup_per_cpu_pageset();
@@ -662,8 +684,6 @@ asmlinkage void __init start_kernel(void)
 		late_time_init();
 	calibrate_delay();
 	pidmap_init();
-	pgtable_cache_init();
-	prio_tree_init();
 	anon_vma_init();
 #ifdef CONFIG_X86
 	if (efi_enabled)
@@ -697,6 +717,17 @@ asmlinkage void __init start_kernel(void)
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
+}
+
+/* Call all constructor functions linked into the kernel. */
+static void __init do_ctors(void)
+{
+#ifdef CONFIG_CONSTRUCTORS
+	ctor_fn_t *call = (ctor_fn_t *) __ctors_start;
+
+	for (; call < (ctor_fn_t *) __ctors_end; call++)
+		(*call)();
+#endif
 }
 
 int initcall_debug;
@@ -779,6 +810,7 @@ static void __init do_basic_setup(void)
 	usermodehelper_init();
 	driver_init();
 	init_irq_proc();
+	do_ctors();
 	do_initcalls();
 }
 
@@ -846,6 +878,11 @@ static noinline int init_post(void)
 static int __init kernel_init(void * unused)
 {
 	lock_kernel();
+
+	/*
+	 * init can allocate pages on any node
+	 */
+	set_mems_allowed(node_possible_map);
 	/*
 	 * init can run on any cpu.
 	 */

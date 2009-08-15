@@ -24,5 +24,6 @@
 
 #include <asm-generic/gpio.h>
 #include <mach/gpio-nrs.h>
+#include <mach/gpio-fns.h>
 
 #define S3C_GPIO_END	(S3C2410_GPIO_BANKH + 32)

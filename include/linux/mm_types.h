@@ -98,6 +98,14 @@ struct page {
 #ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
 	unsigned long debug_flags;	/* Use atomic bitops on this */
 #endif
+
+#ifdef CONFIG_KMEMCHECK
+	/*
+	 * kmemcheck wants to track the status of each byte in a page; this
+	 * is a pointer to such a status block. NULL if not tracked.
+	 */
+	void *shadow;
+#endif
 };
 
 /*
@@ -231,6 +239,8 @@ struct mm_struct {
 	unsigned long arg_start, arg_end, env_start, env_end;
 
 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+
+	s8 oom_adj;	/* OOM kill score adjustment (bit shift) */
 
 	cpumask_t cpu_vm_mask;
 

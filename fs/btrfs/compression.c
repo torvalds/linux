@@ -123,7 +123,7 @@ static int check_compressed_csum(struct inode *inode,
 	u32 csum;
 	u32 *cb_sum = &cb->sums;
 
-	if (btrfs_test_flag(inode, NODATASUM))
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
 	for (i = 0; i < cb->nr_pages; i++) {
@@ -670,7 +670,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			 */
 			atomic_inc(&cb->pending_bios);
 
-			if (!btrfs_test_flag(inode, NODATASUM)) {
+			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 				btrfs_lookup_bio_sums(root, inode, comp_bio,
 						      sums);
 			}
@@ -697,7 +697,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
 	BUG_ON(ret);
 
-	if (!btrfs_test_flag(inode, NODATASUM))
+	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
 		btrfs_lookup_bio_sums(root, inode, comp_bio, sums);
 
 	ret = btrfs_map_bio(root, READ, comp_bio, mirror_num, 0);

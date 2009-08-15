@@ -179,8 +179,8 @@ static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 #define DAQP_AUX_FIFO_EMPTY		0x01
 
 /* These range structures tell COMEDI how the sample values map to
- * voltages.  The A/D converter has four ranges: +/- 10V through
- * +/- 1.25V, and the D/A converter has only one: +/- 5V.
+ * voltages.  The A/D converter has four	.ranges = +/- 10V through
+ * +/- 1.25V, and the D/A converter has only	.one = +/- 5V.
  */
 
 static const struct comedi_lrange range_daqp_ai = { 4, {
@@ -197,18 +197,18 @@ static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 /* comedi interface code */
 
-static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int daqp_detach(struct comedi_device * dev);
+static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int daqp_detach(struct comedi_device *dev);
 static struct comedi_driver driver_daqp = {
-      driver_name:"quatech_daqp_cs",
-      module:THIS_MODULE,
-      attach:daqp_attach,
-      detach:daqp_detach,
+	.driver_name = "quatech_daqp_cs",
+	.module = THIS_MODULE,
+	.attach = daqp_attach,
+	.detach = daqp_detach,
 };
 
 #ifdef DAQP_DEBUG
 
-static void daqp_dump(struct comedi_device * dev)
+static void daqp_dump(struct comedi_device *dev)
 {
 	printk("DAQP: status %02x; aux status %02x\n",
 		inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
@@ -234,7 +234,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 /* Cancel a running acquisition */
 
-static int daqp_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct local_info_t *local = (struct local_info_t *) s->private;
 
@@ -262,7 +262,7 @@ static int daqp_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * 
  * which run pretty quick.
  */
 
-static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
+static void daqp_interrupt(int irq, void *dev_id)
 {
 	struct local_info_t *local = (struct local_info_t *) dev_id;
 	struct comedi_device *dev;
@@ -361,8 +361,8 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 
 /* One-shot analog data acquisition routine */
 
-static int daqp_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqp_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct local_info_t *local = (struct local_info_t *) s->private;
 	int i;
@@ -467,8 +467,8 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
  * the command passes.
  */
 
-static int daqp_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -593,7 +593,7 @@ static int daqp_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
 	return 0;
 }
 
-static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct local_info_t *local = (struct local_info_t *) s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -793,8 +793,8 @@ static int daqp_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 
 /* Single-shot analog output routine */
 
-static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqp_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct local_info_t *local = (struct local_info_t *) s->private;
 	int d;
@@ -820,8 +820,8 @@ static int daqp_ao_insn_write(struct comedi_device * dev, struct comedi_subdevic
 
 /* Digital input routine */
 
-static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqp_di_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct local_info_t *local = (struct local_info_t *) s->private;
 
@@ -836,8 +836,8 @@ static int daqp_di_insn_read(struct comedi_device * dev, struct comedi_subdevice
 
 /* Digital output routine */
 
-static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqp_do_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct local_info_t *local = (struct local_info_t *) s->private;
 
@@ -856,7 +856,7 @@ static int daqp_do_insn_write(struct comedi_device * dev, struct comedi_subdevic
  * when it is inserted.
  */
 
-static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	struct local_info_t *local = dev_table[it->options[0]];
@@ -908,7 +908,8 @@ static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	dev->iobase = local->link->io.BasePort1;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	printk("comedi%d: attaching daqp%d (io 0x%04lx)\n",
@@ -962,7 +963,7 @@ static int daqp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
  * card is removed, daqp_cs_detach() is called by the pcmcia subsystem.
  */
 
-static int daqp_detach(struct comedi_device * dev)
+static int daqp_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: detaching daqp\n", dev->minor);
 
@@ -1149,15 +1150,21 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple))) {
+
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse))) {
+
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret) {
 		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
@@ -1177,10 +1184,12 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   will only use the CIS to fill in implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
+
 	while (1) {
 		cistpl_cftable_entry_t dflt = { 0 };
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
@@ -1226,7 +1235,8 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		break;
 
 	      next_entry:
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple))) {
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret) {
 			cs_error(link, GetNextTuple, last_ret);
 			goto cs_failed;
 		}
@@ -1237,18 +1247,21 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if ((last_ret = pcmcia_request_irq(link, &link->irq))) {
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret) {
 			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
+	}
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret) {
 		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}

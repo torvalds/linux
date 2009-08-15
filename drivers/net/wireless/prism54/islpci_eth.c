@@ -87,7 +87,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned long flags;
 	unsigned char wds_mac[6];
 	u32 curr_frag;
-	int err = 0;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_transmit \n");
@@ -107,8 +106,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 		isl38xx_w32_flush(priv->device_base, ISL38XX_DEV_INT_UPDATE,
 				  ISL38XX_DEV_INT_REG);
 		udelay(ISL38XX_WRITEIO_DELAY);
-
-		err = -EBUSY;
 		goto drop_free;
 	}
 	/* Check alignment and WDS frame formatting. The start of the packet should
@@ -152,7 +149,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			if (unlikely(newskb == NULL)) {
 				printk(KERN_ERR "%s: Cannot allocate skb\n",
 				       ndev->name);
-				err = -ENOMEM;
 				goto drop_free;
 			}
 			newskb_offset = (4 - (long) newskb->data) & 0x03;
@@ -197,8 +193,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	if (unlikely(pci_map_address == 0)) {
 		printk(KERN_WARNING "%s: cannot map buffer to PCI\n",
 		       ndev->name);
-
-		err = -EIO;
 		goto drop_free;
 	}
 	/* Place the fragment in the control block structure. */
@@ -246,7 +240,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	ndev->stats.tx_dropped++;
 	spin_unlock_irqrestore(&priv->slock, flags);
 	dev_kfree_skb(skb);
-	return err;
+	return NETDEV_TX_OK;
 }
 
 static inline int

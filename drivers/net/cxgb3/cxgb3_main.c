@@ -37,7 +37,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
-#include <linux/mii.h>
+#include <linux/mdio.h>
 #include <linux/sockios.h>
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
@@ -91,6 +91,8 @@ static const struct pci_device_id cxgb3_pci_tbl[] = {
 	CH_DEVICE(0x31, 3),	/* T3B20 */
 	CH_DEVICE(0x32, 1),	/* T3B02 */
 	CH_DEVICE(0x35, 6),	/* T3C20-derived T3C10 */
+	CH_DEVICE(0x36, 3),	/* S320E-CR */
+	CH_DEVICE(0x37, 7),	/* N320E-G2 */
 	{0,}
 };
 
@@ -431,40 +433,78 @@ static int init_tp_parity(struct adapter *adap)
 	for (i = 0; i < 16; i++) {
 		struct cpl_smt_write_req *req;
 
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+		if (!skb)
+			skb = adap->nofail_skb;
+		if (!skb)
+			goto alloc_skb_fail;
+
 		req = (struct cpl_smt_write_req *)__skb_put(skb, sizeof(*req));
 		memset(req, 0, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, i));
 		req->iff = i;
 		t3_mgmt_tx(adap, skb);
+		if (skb == adap->nofail_skb) {
+			await_mgmt_replies(adap, cnt, i + 1);
+			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->nofail_skb)
+				goto alloc_skb_fail;
+		}
 	}
 
 	for (i = 0; i < 2048; i++) {
 		struct cpl_l2t_write_req *req;
 
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+		if (!skb)
+			skb = adap->nofail_skb;
+		if (!skb)
+			goto alloc_skb_fail;
+
 		req = (struct cpl_l2t_write_req *)__skb_put(skb, sizeof(*req));
 		memset(req, 0, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, i));
 		req->params = htonl(V_L2T_W_IDX(i));
 		t3_mgmt_tx(adap, skb);
+		if (skb == adap->nofail_skb) {
+			await_mgmt_replies(adap, cnt, 16 + i + 1);
+			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->nofail_skb)
+				goto alloc_skb_fail;
+		}
 	}
 
 	for (i = 0; i < 2048; i++) {
 		struct cpl_rte_write_req *req;
 
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+		if (!skb)
+			skb = adap->nofail_skb;
+		if (!skb)
+			goto alloc_skb_fail;
+
 		req = (struct cpl_rte_write_req *)__skb_put(skb, sizeof(*req));
 		memset(req, 0, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RTE_WRITE_REQ, i));
 		req->l2t_idx = htonl(V_L2T_W_IDX(i));
 		t3_mgmt_tx(adap, skb);
+		if (skb == adap->nofail_skb) {
+			await_mgmt_replies(adap, cnt, 16 + 2048 + i + 1);
+			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->nofail_skb)
+				goto alloc_skb_fail;
+		}
 	}
 
-	skb = alloc_skb(sizeof(*greq), GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+	if (!skb)
+		skb = adap->nofail_skb;
+	if (!skb)
+		goto alloc_skb_fail;
+
 	greq = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*greq));
 	memset(greq, 0, sizeof(*greq));
 	greq->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
@@ -473,8 +513,17 @@ static int init_tp_parity(struct adapter *adap)
 	t3_mgmt_tx(adap, skb);
 
 	i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
+	if (skb == adap->nofail_skb) {
+		i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
+		adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+	}
+
 	t3_tp_set_offload_mode(adap, 0);
 	return i;
+
+alloc_skb_fail:
+	t3_tp_set_offload_mode(adap, 0);
+	return -ENOMEM;
 }
 
 /**
@@ -869,7 +918,12 @@ static int send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	struct mngt_pktsched_wr *req;
 	int ret;
 
-	skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+	if (!skb)
+		skb = adap->nofail_skb;
+	if (!skb)
+		return -ENOMEM;
+
 	req = (struct mngt_pktsched_wr *)skb_put(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
 	req->mngt_opcode = FW_MNGTOPCODE_PKTSCHED_SET;
@@ -879,6 +933,12 @@ static int send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	req->max = hi;
 	req->binding = port;
 	ret = t3_mgmt_tx(adap, skb);
+	if (skb == adap->nofail_skb) {
+		adap->nofail_skb = alloc_skb(sizeof(struct cpl_set_tcb_field),
+					     GFP_KERNEL);
+		if (!adap->nofail_skb)
+			ret = -ENOMEM;
+	}
 
 	return ret;
 }
@@ -1593,7 +1653,7 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
-	cmd->phy_address = p->phy.addr;
+	cmd->phy_address = p->phy.mdio.prtad;
 	cmd->transceiver = XCVR_EXTERNAL;
 	cmd->autoneg = p->link_config.autoneg;
 	cmd->maxtxpkt = 0;
@@ -2308,70 +2368,25 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	struct mii_ioctl_data *data = if_mii(req);
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	int ret, mmd;
 
 	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = pi->phy.addr;
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
+		/* Convert phy_id from older PRTAD/DEVAD format */
+		if (is_10G(adapter) &&
+		    !mdio_phy_id_is_c45(data->phy_id) &&
+		    (data->phy_id & 0x1f00) &&
+		    !(data->phy_id & 0xe0e0))
+			data->phy_id = mdio_phy_id_c45(data->phy_id >> 8,
+						       data->phy_id & 0x1f);
 		/* FALLTHRU */
-	case SIOCGMIIREG:{
-		u32 val;
-		struct cphy *phy = &pi->phy;
-
-		if (!phy->mdio_read)
-			return -EOPNOTSUPP;
-		if (is_10G(adapter)) {
-			mmd = data->phy_id >> 8;
-			if (!mmd)
-				mmd = MDIO_DEV_PCS;
-			else if (mmd > MDIO_DEV_VEND2)
-				return -EINVAL;
-
-			ret =
-				phy->mdio_read(adapter, data->phy_id & 0x1f,
-						mmd, data->reg_num, &val);
-		} else
-			ret =
-				phy->mdio_read(adapter, data->phy_id & 0x1f,
-						0, data->reg_num & 0x1f,
-						&val);
-		if (!ret)
-			data->val_out = val;
-		break;
-	}
-	case SIOCSMIIREG:{
-		struct cphy *phy = &pi->phy;
-
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-		if (!phy->mdio_write)
-			return -EOPNOTSUPP;
-		if (is_10G(adapter)) {
-			mmd = data->phy_id >> 8;
-			if (!mmd)
-				mmd = MDIO_DEV_PCS;
-			else if (mmd > MDIO_DEV_VEND2)
-				return -EINVAL;
-
-			ret =
-				phy->mdio_write(adapter,
-						data->phy_id & 0x1f, mmd,
-						data->reg_num,
-						data->val_in);
-		} else
-			ret =
-				phy->mdio_write(adapter,
-						data->phy_id & 0x1f, 0,
-						data->reg_num & 0x1f,
-						data->val_in);
-		break;
-	}
+	case SIOCGMIIPHY:
+		return mdio_mii_ioctl(&pi->phy.mdio, data, cmd);
 	case SIOCCHIOCTL:
 		return cxgb_extension_ioctl(dev, req->ifr_data);
 	default:
 		return -EOPNOTSUPP;
 	}
-	return ret;
 }
 
 static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
@@ -3063,6 +3078,14 @@ static int __devinit init_one(struct pci_dev *pdev,
 		goto out_disable_device;
 	}
 
+	adapter->nofail_skb =
+		alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_KERNEL);
+	if (!adapter->nofail_skb) {
+		dev_err(&pdev->dev, "cannot allocate nofail buffer\n");
+		err = -ENOMEM;
+		goto out_free_adapter;
+	}
+
 	adapter->regs = ioremap_nocache(mmio_start, mmio_len);
 	if (!adapter->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
@@ -3106,7 +3129,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-		netdev->features |= NETIF_F_LLTX;
 		netdev->features |= NETIF_F_GRO;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
@@ -3220,6 +3242,8 @@ static void __devexit remove_one(struct pci_dev *pdev)
 				free_netdev(adapter->port[i]);
 
 		iounmap(adapter->regs);
+		if (adapter->nofail_skb)
+			kfree_skb(adapter->nofail_skb);
 		kfree(adapter);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

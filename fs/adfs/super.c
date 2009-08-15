@@ -8,26 +8,12 @@
  * published by the Free Software Foundation.
  */
 #include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/adfs_fs.h>
-#include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/stat.h>
-#include <linux/string.h>
 #include <linux/init.h>
 #include <linux/buffer_head.h>
-#include <linux/vfs.h>
 #include <linux/parser.h>
-#include <linux/bitops.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
-
-#include <asm/uaccess.h>
-#include <asm/system.h>
-
-#include <stdarg.h>
-
+#include <linux/statfs.h>
 #include "adfs.h"
 #include "dir_f.h"
 #include "dir_fplus.h"
@@ -132,11 +118,15 @@ static void adfs_put_super(struct super_block *sb)
 	int i;
 	struct adfs_sb_info *asb = ADFS_SB(sb);
 
+	lock_kernel();
+
 	for (i = 0; i < asb->s_map_size; i++)
 		brelse(asb->s_map[i].dm_bh);
 	kfree(asb->s_map);
 	kfree(asb);
 	sb->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 static int adfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
@@ -530,3 +520,4 @@ static void __exit exit_adfs_fs(void)
 
 module_init(init_adfs_fs)
 module_exit(exit_adfs_fs)
+MODULE_LICENSE("GPL");

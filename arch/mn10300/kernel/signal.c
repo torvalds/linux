@@ -23,6 +23,7 @@
 #include <linux/tty.h>
 #include <linux/personality.h>
 #include <linux/suspend.h>
+#include <linux/tracehook.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
@@ -511,6 +512,9 @@ static void do_signal(struct pt_regs *regs)
 			 * clear the TIF_RESTORE_SIGMASK flag */
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+			tracehook_signal_handler(signr, &info, &ka, regs,
+						 test_thread_flag(TIF_SINGLESTEP));
 		}
 
 		return;
@@ -561,4 +565,9 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
 	/* deal with pending signal delivery */
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal(regs);
+
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(__frame);
+	}
 }

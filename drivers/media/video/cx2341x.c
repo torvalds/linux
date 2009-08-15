@@ -500,6 +500,8 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	int err;
 
 	switch (qctrl->id) {
+	case V4L2_CID_MPEG_CLASS:
+		return v4l2_ctrl_query_fill(qctrl, 0, 0, 0, 0);
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_STREAM_TYPE_MPEG2_PS,

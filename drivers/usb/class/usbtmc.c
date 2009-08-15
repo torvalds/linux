@@ -927,21 +927,27 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case USBTMC_IOCTL_CLEAR_OUT_HALT:
 		retval = usbtmc_ioctl_clear_out_halt(data);
+		break;
 
 	case USBTMC_IOCTL_CLEAR_IN_HALT:
 		retval = usbtmc_ioctl_clear_in_halt(data);
+		break;
 
 	case USBTMC_IOCTL_INDICATOR_PULSE:
 		retval = usbtmc_ioctl_indicator_pulse(data);
+		break;
 
 	case USBTMC_IOCTL_CLEAR:
 		retval = usbtmc_ioctl_clear(data);
+		break;
 
 	case USBTMC_IOCTL_ABORT_BULK_OUT:
 		retval = usbtmc_ioctl_abort_bulk_out(data);
+		break;
 
 	case USBTMC_IOCTL_ABORT_BULK_IN:
 		retval = usbtmc_ioctl_abort_bulk_in(data);
+		break;
 	}
 
 	mutex_unlock(&data->io_mutex);

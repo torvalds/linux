@@ -203,7 +203,7 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = drm_alloc(sizeof(*entry), DRM_MEM_AGPLISTS)))
+	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
 		return -ENOMEM;
 
 	memset(entry, 0, sizeof(*entry));
@@ -211,7 +211,7 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
 	if (!(memory = drm_alloc_agp(dev, pages, type))) {
-		drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
+		kfree(entry);
 		return -ENOMEM;
 	}
 
@@ -369,7 +369,7 @@ int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 	list_del(&entry->head);
 
 	drm_free_agp(entry->memory, entry->pages);
-	drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
+	kfree(entry);
 	return 0;
 }
 EXPORT_SYMBOL(drm_agp_free);
@@ -397,13 +397,13 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	struct drm_agp_head *head = NULL;
 
-	if (!(head = drm_alloc(sizeof(*head), DRM_MEM_AGPLISTS)))
+	if (!(head = kmalloc(sizeof(*head), GFP_KERNEL)))
 		return NULL;
 	memset((void *)head, 0, sizeof(*head));
 	head->bridge = agp_find_bridge(dev->pdev);
 	if (!head->bridge) {
 		if (!(head->bridge = agp_backend_acquire(dev->pdev))) {
-			drm_free(head, sizeof(*head), DRM_MEM_AGPLISTS);
+			kfree(head);
 			return NULL;
 		}
 		agp_copy_info(head->bridge, &head->agp_info);
@@ -412,7 +412,7 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 		agp_copy_info(head->bridge, &head->agp_info);
 	}
 	if (head->agp_info.chipset == NOT_SUPPORTED) {
-		drm_free(head, sizeof(*head), DRM_MEM_AGPLISTS);
+		kfree(head);
 		return NULL;
 	}
 	INIT_LIST_HEAD(&head->memory);
@@ -482,7 +482,7 @@ drm_agp_bind_pages(struct drm_device *dev,
 	}
 
 	for (i = 0; i < num_pages; i++)
-		mem->memory[i] = phys_to_gart(page_to_phys(pages[i]));
+		mem->pages[i] = pages[i];
 	mem->page_count = num_pages;
 
 	mem->is_flushed = true;

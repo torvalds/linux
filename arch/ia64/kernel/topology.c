@@ -306,10 +306,10 @@ static void __cpuinit cpu_cache_sysfs_exit(unsigned int cpu)
 
 static int __cpuinit cpu_cache_sysfs_init(unsigned int cpu)
 {
-	u64 i, levels, unique_caches;
+	unsigned long i, levels, unique_caches;
 	pal_cache_config_info_t cci;
 	int j;
-	s64 status;
+	long status;
 	struct cache_info *this_cache;
 	int num_cache_leaves = 0;
 

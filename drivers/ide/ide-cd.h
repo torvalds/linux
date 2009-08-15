@@ -87,10 +87,6 @@ struct cdrom_info {
 
 	struct atapi_toc *toc;
 
-	/* The result of the last successful request sense command
-	   on this device. */
-	struct request_sense sense_data;
-
 	u8 max_speed;		/* Max speed of the drive. */
 	u8 current_speed;	/* Current speed of the drive. */
 

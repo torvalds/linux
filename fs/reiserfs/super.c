@@ -28,6 +28,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/crc32.h>
+#include <linux/smp_lock.h>
 
 struct file_system_type reiserfs_fs_type;
 
@@ -64,18 +65,15 @@ static int reiserfs_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 static int reiserfs_sync_fs(struct super_block *s, int wait)
 {
-	if (!(s->s_flags & MS_RDONLY)) {
-		struct reiserfs_transaction_handle th;
-		reiserfs_write_lock(s);
-		if (!journal_begin(&th, s, 1))
-			if (!journal_end_sync(&th, s, 1))
-				reiserfs_flush_old_commits(s);
-		s->s_dirt = 0;	/* Even if it's not true.
-				 * We'll loop forever in sync_supers otherwise */
-		reiserfs_write_unlock(s);
-	} else {
-		s->s_dirt = 0;
-	}
+	struct reiserfs_transaction_handle th;
+
+	reiserfs_write_lock(s);
+	if (!journal_begin(&th, s, 1))
+		if (!journal_end_sync(&th, s, 1))
+			reiserfs_flush_old_commits(s);
+	s->s_dirt = 0;	/* Even if it's not true.
+			 * We'll loop forever in sync_supers otherwise */
+	reiserfs_write_unlock(s);
 	return 0;
 }
 
@@ -468,6 +466,11 @@ static void reiserfs_put_super(struct super_block *s)
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
 
+	lock_kernel();
+
+	if (s->s_dirt)
+		reiserfs_write_super(s);
+
 	/* change file system state to current state if it was mounted with read-write permissions */
 	if (!(s->s_flags & MS_RDONLY)) {
 		if (!journal_begin(&th, s, 10)) {
@@ -500,7 +503,7 @@ static void reiserfs_put_super(struct super_block *s)
 	kfree(s->s_fs_info);
 	s->s_fs_info = NULL;
 
-	return;
+	unlock_kernel();
 }
 
 static struct kmem_cache *reiserfs_inode_cachep;
@@ -526,10 +529,6 @@ static void init_once(void *foo)
 
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	inode_init_once(&ei->vfs_inode);
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	ei->i_acl_access = NULL;
-	ei->i_acl_default = NULL;
-#endif
 }
 
 static int init_inodecache(void)
@@ -577,25 +576,6 @@ static void reiserfs_dirty_inode(struct inode *inode)
 	reiserfs_write_unlock(inode->i_sb);
 }
 
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-static void reiserfs_clear_inode(struct inode *inode)
-{
-	struct posix_acl *acl;
-
-	acl = REISERFS_I(inode)->i_acl_access;
-	if (acl && !IS_ERR(acl))
-		posix_acl_release(acl);
-	REISERFS_I(inode)->i_acl_access = NULL;
-
-	acl = REISERFS_I(inode)->i_acl_default;
-	if (acl && !IS_ERR(acl))
-		posix_acl_release(acl);
-	REISERFS_I(inode)->i_acl_default = NULL;
-}
-#else
-#define reiserfs_clear_inode NULL
-#endif
-
 #ifdef CONFIG_QUOTA
 static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
 				    size_t, loff_t);
@@ -609,7 +589,6 @@ static const struct super_operations reiserfs_sops = {
 	.write_inode = reiserfs_write_inode,
 	.dirty_inode = reiserfs_dirty_inode,
 	.delete_inode = reiserfs_delete_inode,
-	.clear_inode = reiserfs_clear_inode,
 	.put_super = reiserfs_put_super,
 	.write_super = reiserfs_write_super,
 	.sync_fs = reiserfs_sync_fs,
@@ -898,6 +877,7 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 		{"conv",.setmask = 1 << REISERFS_CONVERT},
 		{"attrs",.setmask = 1 << REISERFS_ATTRS},
 		{"noattrs",.clrmask = 1 << REISERFS_ATTRS},
+		{"expose_privroot", .setmask = 1 << REISERFS_EXPOSE_PRIVROOT},
 #ifdef CONFIG_REISERFS_FS_XATTR
 		{"user_xattr",.setmask = 1 << REISERFS_XATTRS_USER},
 		{"nouser_xattr",.clrmask = 1 << REISERFS_XATTRS_USER},
@@ -1193,6 +1173,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	memcpy(qf_names, REISERFS_SB(s)->s_qf_names, sizeof(qf_names));
 #endif
 
+	lock_kernel();
 	rs = SB_DISK_SUPER_BLOCK(s);
 
 	if (!reiserfs_parse_options
@@ -1315,10 +1296,12 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 
 out_ok:
 	replace_mount_options(s, new_opts);
+	unlock_kernel();
 	return 0;
 
 out_err:
 	kfree(new_opts);
+	unlock_kernel();
 	return err;
 }
 

@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/perf_counter.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/key.h>
@@ -922,6 +923,7 @@ void set_task_comm(struct task_struct *tsk, char *buf)
 	task_lock(tsk);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
 	task_unlock(tsk);
+	perf_counter_comm(tsk);
 }
 
 int flush_old_exec(struct linux_binprm * bprm)
@@ -990,6 +992,13 @@ int flush_old_exec(struct linux_binprm * bprm)
 
 	current->personality &= ~bprm->per_clear;
 
+	/*
+	 * Flush performance counters when crossing a
+	 * security domain:
+	 */
+	if (!get_dumpable(current->mm))
+		perf_counter_exit_task(current);
+
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
 
@@ -1016,7 +1025,7 @@ void install_exec_creds(struct linux_binprm *bprm)
 	commit_creds(bprm->cred);
 	bprm->cred = NULL;
 
-	/* cred_exec_mutex must be held at least to this point to prevent
+	/* cred_guard_mutex must be held at least to this point to prevent
 	 * ptrace_attach() from altering our determination of the task's
 	 * credentials; any time after this it may be unlocked */
 
@@ -1026,7 +1035,7 @@ EXPORT_SYMBOL(install_exec_creds);
 
 /*
  * determine how safe it is to execute the proposed program
- * - the caller must hold current->cred_exec_mutex to protect against
+ * - the caller must hold current->cred_guard_mutex to protect against
  *   PTRACE_ATTACH
  */
 int check_unsafe_exec(struct linux_binprm *bprm)
@@ -1268,7 +1277,7 @@ int do_execve(char * filename,
 	if (!bprm)
 		goto out_files;
 
-	retval = mutex_lock_interruptible(&current->cred_exec_mutex);
+	retval = mutex_lock_interruptible(&current->cred_guard_mutex);
 	if (retval < 0)
 		goto out_free;
 	current->in_execve = 1;
@@ -1331,7 +1340,7 @@ int do_execve(char * filename,
 	/* execve succeeded */
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
-	mutex_unlock(&current->cred_exec_mutex);
+	mutex_unlock(&current->cred_guard_mutex);
 	acct_update_integrals(current);
 	free_bprm(bprm);
 	if (displaced)
@@ -1354,7 +1363,7 @@ out_unmark:
 
 out_unlock:
 	current->in_execve = 0;
-	mutex_unlock(&current->cred_exec_mutex);
+	mutex_unlock(&current->cred_guard_mutex);
 
 out_free:
 	free_bprm(bprm);

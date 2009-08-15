@@ -312,7 +312,7 @@ static void netup_read_ci_status(struct work_struct *work)
 		"TS config = %02x\n", __func__, state->ci_i2c_addr, 0, buf[0],
 		buf[32]);
 
-	if (buf[0] && 1)
+	if (buf[0] & 1)
 		state->status = DVB_CA_EN50221_POLL_CAM_PRESENT |
 			DVB_CA_EN50221_POLL_CAM_READY;
 	else

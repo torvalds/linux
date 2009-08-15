@@ -209,132 +209,132 @@ struct dt282x_board {
 };
 
 static const struct dt282x_board boardtypes[] = {
-      {name:"dt2821",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:20000,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt2821-f",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:6500,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt2821-g",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:4000,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt2823",
-	      adbits:	16,
-	      adchan_se:0,
-	      adchan_di:4,
-	      ai_speed:10000,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	16,
-		},
-      {name:"dt2824-pgh",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:20000,
-	      ispgl:	0,
-	      dachan:	0,
-	      dabits:	0,
-		},
-      {name:"dt2824-pgl",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:20000,
-	      ispgl:	1,
-	      dachan:	0,
-	      dabits:	0,
-		},
-      {name:"dt2825",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:20000,
-	      ispgl:	1,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt2827",
-	      adbits:	16,
-	      adchan_se:0,
-	      adchan_di:4,
-	      ai_speed:10000,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt2828",
-	      adbits:	12,
-	      adchan_se:4,
-	      adchan_di:0,
-	      ai_speed:10000,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt2829",
-	      adbits:	16,
-	      adchan_se:8,
-	      adchan_di:0,
-	      ai_speed:33250,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	16,
-		},
-      {name:"dt21-ez",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:10000,
-	      ispgl:	0,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt23-ez",
-	      adbits:	16,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:10000,
-	      ispgl:	0,
-	      dachan:	0,
-	      dabits:	0,
-		},
-      {name:"dt24-ez",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:10000,
-	      ispgl:	0,
-	      dachan:	0,
-	      dabits:	0,
-		},
-      {name:"dt24-ez-pgl",
-	      adbits:	12,
-	      adchan_se:16,
-	      adchan_di:8,
-	      ai_speed:10000,
-	      ispgl:	1,
-	      dachan:	0,
-	      dabits:	0,
-		},
+	{.name = "dt2821",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 20000,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt2821-f",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 6500,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt2821-g",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 4000,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt2823",
+	 .adbits = 16,
+	 .adchan_se = 0,
+	 .adchan_di = 4,
+	 .ai_speed = 10000,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 16,
+	},
+	{.name = "dt2824-pgh",
+	  .adbits = 12,
+	  .adchan_se = 16,
+	  .adchan_di = 8,
+	  .ai_speed = 20000,
+	  .ispgl = 0,
+	  .dachan = 0,
+	  .dabits = 0,
+	},
+	{.name = "dt2824-pgl",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 20000,
+	 .ispgl = 1,
+	 .dachan = 0,
+	 .dabits = 0,
+	},
+	{.name = "dt2825",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 20000,
+	 .ispgl = 1,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt2827",
+	 .adbits = 16,
+	 .adchan_se = 0,
+	 .adchan_di = 4,
+	 .ai_speed = 10000,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt2828",
+	 .adbits = 12,
+	 .adchan_se = 4,
+	 .adchan_di = 0,
+	 .ai_speed = 10000,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt2829",
+	 .adbits = 16,
+	 .adchan_se = 8,
+	 .adchan_di = 0,
+	 .ai_speed = 33250,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 16,
+	},
+	{.name = "dt21-ez",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 10000,
+	 .ispgl = 0,
+	 .dachan = 2,
+	 .dabits = 12,
+	},
+	{.name = "dt23-ez",
+	 .adbits = 16,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 10000,
+	 .ispgl = 0,
+	 .dachan = 0,
+	 .dabits = 0,
+	},
+	{.name = "dt24-ez",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 10000,
+	 .ispgl = 0,
+	 .dachan = 0,
+	 .dabits = 0,
+	},
+	{.name = "dt24-ez-pgl",
+	 .adbits = 12,
+	 .adchan_se = 16,
+	 .adchan_di = 8,
+	 .ai_speed = 10000,
+	 .ispgl = 1,
+	 .dachan = 0,
+	 .dabits = 0,
+	},
 };
 
 #define n_boardtypes sizeof(boardtypes)/sizeof(struct dt282x_board)
@@ -374,51 +374,51 @@ struct dt282x_private {
  *    Some useless abstractions
  */
 #define chan_to_DAC(a)	((a)&1)
-#define update_dacsr(a)	outw(devpriv->dacsr|(a),dev->iobase+DT2821_DACSR)
-#define update_adcsr(a)	outw(devpriv->adcsr|(a),dev->iobase+DT2821_ADCSR)
+#define update_dacsr(a)	outw(devpriv->dacsr|(a), dev->iobase+DT2821_DACSR)
+#define update_adcsr(a)	outw(devpriv->adcsr|(a), dev->iobase+DT2821_ADCSR)
 #define mux_busy() (inw(dev->iobase+DT2821_ADCSR)&DT2821_MUXBUSY)
 #define ad_done() (inw(dev->iobase+DT2821_ADCSR)&DT2821_ADDONE)
-#define update_supcsr(a)	outw(devpriv->supcsr|(a),dev->iobase+DT2821_SUPCSR)
+#define update_supcsr(a)	outw(devpriv->supcsr|(a), dev->iobase+DT2821_SUPCSR)
 
 /*
  *    danger! macro abuse... a is the expression to wait on, and b is
  *      the statement(s) to execute if it doesn't happen.
  */
-#define wait_for(a,b)	 				\
+#define wait_for(a, b)	 				\
 	do{						\
 		int _i;					\
-		for(_i=0;_i<DT2821_TIMEOUT;_i++){	\
-			if(a){_i=0;break;}		\
-			comedi_udelay(5);			\
+		for (_i=0;_i<DT2821_TIMEOUT;_i++){	\
+			if (a){_i=0;break;}		\
+			udelay(5);			\
 		}					\
-		if(_i){b}				\
-	}while(0)
+		if (_i){b}				\
+	}while (0)
 
-static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int dt282x_detach(struct comedi_device * dev);
+static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dt282x_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dt282x = {
-      driver_name:"dt282x",
-      module:THIS_MODULE,
-      attach:dt282x_attach,
-      detach:dt282x_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct dt282x_board),
+	.driver_name = "dt282x",
+	.module = THIS_MODULE,
+	.attach = dt282x_attach,
+	.detach = dt282x_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct dt282x_board),
 };
 
 COMEDI_INITCLEANUP(driver_dt282x);
 
-static void free_resources(struct comedi_device * dev);
-static int prep_ai_dma(struct comedi_device * dev, int chan, int size);
-static int prep_ao_dma(struct comedi_device * dev, int chan, int size);
-static int dt282x_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static int dt282x_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static void free_resources(struct comedi_device *dev);
+static int prep_ai_dma(struct comedi_device *dev, int chan, int size);
+static int prep_ao_dma(struct comedi_device *dev, int chan, int size);
+static int dt282x_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int dt282x_ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int dt282x_ns_to_timer(int *nanosec, int round_mode);
-static void dt282x_disable_dma(struct comedi_device * dev);
+static void dt282x_disable_dma(struct comedi_device *dev);
 
-static int dt282x_grab_dma(struct comedi_device * dev, int dma1, int dma2);
+static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2);
 
-static void dt282x_munge(struct comedi_device * dev, short * buf,
+static void dt282x_munge(struct comedi_device *dev, short *buf,
 	unsigned int nbytes)
 {
 	unsigned int i;
@@ -440,7 +440,7 @@ static void dt282x_munge(struct comedi_device * dev, short * buf,
 	}
 }
 
-static void dt282x_ao_dma_interrupt(struct comedi_device * dev)
+static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 {
 	void *ptr;
 	int size;
@@ -463,7 +463,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device * dev)
 
 	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
 	if (size == 0) {
-		rt_printk("dt282x: AO underrun\n");
+		printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev, s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return;
@@ -472,7 +472,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device * dev)
 	return;
 }
 
-static void dt282x_ai_dma_interrupt(struct comedi_device * dev)
+static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 {
 	void *ptr;
 	int size;
@@ -524,7 +524,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device * dev)
 	prep_ai_dma(dev, i, 0);
 }
 
-static int prep_ai_dma(struct comedi_device * dev, int dma_index, int n)
+static int prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	int dma_chan;
 	unsigned long dma_ptr;
@@ -555,7 +555,7 @@ static int prep_ai_dma(struct comedi_device * dev, int dma_index, int n)
 	return n;
 }
 
-static int prep_ao_dma(struct comedi_device * dev, int dma_index, int n)
+static int prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	int dma_chan;
 	unsigned long dma_ptr;
@@ -577,7 +577,7 @@ static int prep_ao_dma(struct comedi_device * dev, int dma_index, int n)
 	return n;
 }
 
-static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t dt282x_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s;
@@ -653,7 +653,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_RETVAL(handled);
 }
 
-static void dt282x_load_changain(struct comedi_device * dev, int n,
+static void dt282x_load_changain(struct comedi_device *dev, int n,
 	unsigned int *chanlist)
 {
 	unsigned int i;
@@ -674,8 +674,8 @@ static void dt282x_load_changain(struct comedi_device * dev, int n,
  *      - preload multiplexer
  *      - trigger conversion and wait for it to finish
  */
-static int dt282x_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt282x_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -706,8 +706,8 @@ static int dt282x_ai_insn_read(struct comedi_device * dev, struct comedi_subdevi
 	return i;
 }
 
-static int dt282x_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int dt282x_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -818,7 +818,7 @@ static int dt282x_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 	return 0;
 }
 
-static int dt282x_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
@@ -879,7 +879,7 @@ static int dt282x_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 	return 0;
 }
 
-static void dt282x_disable_dma(struct comedi_device * dev)
+static void dt282x_disable_dma(struct comedi_device *dev)
 {
 	if (devpriv->usedma) {
 		disable_dma(devpriv->dma[0].chan);
@@ -887,7 +887,7 @@ static void dt282x_disable_dma(struct comedi_device * dev)
 	}
 }
 
-static int dt282x_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dt282x_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	dt282x_disable_dma(dev);
 
@@ -937,16 +937,16 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
  *      offset binary if necessary, loads the data into the DAC
  *      data register, and performs the conversion.
  */
-static int dt282x_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt282x_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
 
 	return 1;
 }
 
-static int dt282x_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt282x_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	short d;
 	unsigned int chan;
@@ -978,8 +978,8 @@ static int dt282x_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 	return 1;
 }
 
-static int dt282x_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int dt282x_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1029,7 +1029,7 @@ static int dt282x_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 		cmd->start_arg = 0;
 		err++;
 	}
-	if (cmd->scan_begin_arg < 5000 /* XXX unknown */ ) {
+	if (cmd->scan_begin_arg < 5000 /* XXX unknown */) {
 		cmd->scan_begin_arg = 5000;
 		err++;
 	}
@@ -1069,7 +1069,7 @@ static int dt282x_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 
 }
 
-static int dt282x_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
+static int dt282x_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int x)
 {
 	int size;
@@ -1080,7 +1080,7 @@ static int dt282x_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice
 	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf,
 		devpriv->dma_maxsize);
 	if (size == 0) {
-		rt_printk("dt282x: AO underrun\n");
+		printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 0, size);
@@ -1088,7 +1088,7 @@ static int dt282x_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice
 	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf,
 		devpriv->dma_maxsize);
 	if (size == 0) {
-		rt_printk("dt282x: AO underrun\n");
+		printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 1, size);
@@ -1099,7 +1099,7 @@ static int dt282x_ao_inttrig(struct comedi_device * dev, struct comedi_subdevice
 	return 1;
 }
 
-static int dt282x_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int timer;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -1132,7 +1132,7 @@ static int dt282x_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 	return 0;
 }
 
-static int dt282x_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dt282x_ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	dt282x_disable_dma(dev);
 
@@ -1145,8 +1145,8 @@ static int dt282x_ao_cancel(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int dt282x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt282x_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -1159,8 +1159,8 @@ static int dt282x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int dt282x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt282x_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int mask;
 
@@ -1240,7 +1240,7 @@ enum { opt_iobase = 0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channe
    9	ao0 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
    10	ao1 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
  */
-static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i, irq;
 	int ret;
@@ -1298,19 +1298,18 @@ static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 		/* trigger interrupt */
 
-		comedi_udelay(100);
+		udelay(100);
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
-		if (0 /* error */ ) {
+		if (0 /* error */) {
 			printk(" error probing irq (bad)");
 		}
 	}
 #endif
 	if (irq > 0) {
 		printk(" ( irq = %d )", irq);
-		ret = comedi_request_irq(irq, dt282x_interrupt, 0, "dt282x",
-			dev);
+		ret = request_irq(irq, dt282x_interrupt, 0, "dt282x", dev);
 		if (ret < 0) {
 			printk(" failed to get irq\n");
 			return -EIO;
@@ -1326,7 +1325,8 @@ static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * i
 #endif
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct dt282x_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct dt282x_private));
+	if (ret < 0)
 		return ret;
 
 	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
@@ -1334,7 +1334,8 @@ static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	if (ret < 0)
 		return ret;
 
-	if ((ret = alloc_subdevices(dev, 3)) < 0)
+	ret = alloc_subdevices(dev, 3);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -1358,7 +1359,9 @@ static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	devpriv->ad_2scomp = it->options[opt_ai_twos];
 
 	s++;
-	if ((s->n_chan = boardtype.dachan)) {
+
+	s->n_chan = boardtype.dachan;
+	if (s->n_chan) {
 		/* ao subsystem */
 		s->type = COMEDI_SUBD_AO;
 		dev->write_subdev = s;
@@ -1396,10 +1399,10 @@ static int dt282x_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static void free_resources(struct comedi_device * dev)
+static void free_resources(struct comedi_device *dev)
 {
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->iobase)
 		release_region(dev->iobase, DT2821_SIZE);
@@ -1415,7 +1418,7 @@ static void free_resources(struct comedi_device * dev)
 	}
 }
 
-static int dt282x_detach(struct comedi_device * dev)
+static int dt282x_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: dt282x: remove\n", dev->minor);
 
@@ -1424,7 +1427,7 @@ static int dt282x_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int dt282x_grab_dma(struct comedi_device * dev, int dma1, int dma2)
+static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 {
 	int ret;
 

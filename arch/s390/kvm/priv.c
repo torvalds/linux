@@ -204,11 +204,11 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	int cpus = 0;
 	int n;
 
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	for (n = 0; n < KVM_MAX_VCPUS; n++)
 		if (fi->local_int[n])
 			cpus++;
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 
 	/* deal with other level 3 hypervisors */
 	if (stsi(mem, 3, 2, 2) == -ENOSYS)

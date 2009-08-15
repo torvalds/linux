@@ -157,13 +157,15 @@ titan_cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 
 }
 
-static void
+static int
 titan_set_irq_affinity(unsigned int irq, const struct cpumask *affinity)
 { 
 	spin_lock(&titan_irq_lock);
 	titan_cpu_set_irq_affinity(irq - 16, *affinity);
 	titan_update_irq_hw(titan_cached_irq_mask);
 	spin_unlock(&titan_irq_lock);
+
+	return 0;
 }
 
 static void
@@ -183,7 +185,7 @@ titan_srm_device_interrupt(unsigned long vector)
 
 
 static void __init
-init_titan_irqs(struct hw_interrupt_type * ops, int imin, int imax)
+init_titan_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
@@ -192,7 +194,7 @@ init_titan_irqs(struct hw_interrupt_type * ops, int imin, int imax)
 	}
 }
 
-static struct hw_interrupt_type titan_irq_type = {
+static struct irq_chip titan_irq_type = {
        .typename       = "TITAN",
        .startup        = titan_startup_irq,
        .shutdown       = titan_disable_irq,

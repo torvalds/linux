@@ -22,7 +22,7 @@ static int xfrm_output2(struct sk_buff *skb);
 
 static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	int nhead = dst->header_len + LL_RESERVED_SPACE(dst->dev)
 		- skb_headroom(skb);
 	int ntail = dst->dev->needed_tailroom - skb_tailroom(skb);
@@ -39,7 +39,7 @@ static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm_output_one(struct sk_buff *skb, int err)
 {
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct xfrm_state *x = dst->xfrm;
 	struct net *net = xs_net(x);
 
@@ -94,12 +94,13 @@ resume:
 			goto error_nolock;
 		}
 
-		if (!(skb->dst = dst_pop(dst))) {
+		dst = dst_pop(dst);
+		if (!dst) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
-		dst = skb->dst;
+		skb_dst_set(skb, dst);
 		x = dst->xfrm;
 	} while (x && !(x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL));
 
@@ -119,16 +120,16 @@ int xfrm_output_resume(struct sk_buff *skb, int err)
 	while (likely((err = xfrm_output_one(skb, err)) == 0)) {
 		nf_reset(skb);
 
-		err = skb->dst->ops->local_out(skb);
+		err = skb_dst(skb)->ops->local_out(skb);
 		if (unlikely(err != 1))
 			goto out;
 
-		if (!skb->dst->xfrm)
+		if (!skb_dst(skb)->xfrm)
 			return dst_output(skb);
 
-		err = nf_hook(skb->dst->ops->family,
+		err = nf_hook(skb_dst(skb)->ops->family,
 			      NF_INET_POST_ROUTING, skb,
-			      NULL, skb->dst->dev, xfrm_output2);
+			      NULL, skb_dst(skb)->dev, xfrm_output2);
 		if (unlikely(err != 1))
 			goto out;
 	}
@@ -179,7 +180,7 @@ static int xfrm_output_gso(struct sk_buff *skb)
 
 int xfrm_output(struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb->dst->dev);
+	struct net *net = dev_net(skb_dst(skb)->dev);
 	int err;
 
 	if (skb_is_gso(skb))
@@ -202,7 +203,7 @@ int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct xfrm_mode *inner_mode;
 	if (x->sel.family == AF_UNSPEC)
 		inner_mode = xfrm_ip2inner_mode(x,
-				xfrm_af2proto(skb->dst->ops->family));
+				xfrm_af2proto(skb_dst(skb)->ops->family));
 	else
 		inner_mode = x->inner_mode;
 

@@ -80,12 +80,16 @@ vxfs_put_super(struct super_block *sbp)
 {
 	struct vxfs_sb_info	*infp = VXFS_SBI(sbp);
 
+	lock_kernel();
+
 	vxfs_put_fake_inode(infp->vsi_fship);
 	vxfs_put_fake_inode(infp->vsi_ilist);
 	vxfs_put_fake_inode(infp->vsi_stilist);
 
 	brelse(infp->vsi_bp);
 	kfree(infp);
+
+	unlock_kernel();
 }
 
 /**

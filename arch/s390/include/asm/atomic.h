@@ -275,6 +275,6 @@ static __inline__ int atomic64_add_unless(atomic64_t *v,
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 #endif /* __KERNEL__ */
 #endif /* __ARCH_S390_ATOMIC__  */

@@ -135,7 +135,9 @@ do {									      \
  * These are defined as per linux/ptrace.h, which see.
  */
 #define arch_has_single_step()	(1)
+#define arch_has_block_step()	(!cpu_has_feature(CPU_FTR_601))
 extern void user_enable_single_step(struct task_struct *);
+extern void user_enable_block_step(struct task_struct *);
 extern void user_disable_single_step(struct task_struct *);
 
 #endif /* __ASSEMBLY__ */
@@ -287,5 +289,7 @@ extern void user_disable_single_step(struct task_struct *);
 #define PPC_PTRACE_POKEDATA_3264 0x92
 #define PPC_PTRACE_PEEKUSR_3264  0x91
 #define PPC_PTRACE_POKEUSR_3264  0x90
+
+#define PTRACE_SINGLEBLOCK	0x100	/* resume execution until next branch */
 
 #endif /* _ASM_POWERPC_PTRACE_H */

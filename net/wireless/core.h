@@ -1,7 +1,7 @@
 /*
  * Wireless configuration interface internals.
  *
- * Copyright 2006, 2007 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2009	Johannes Berg <johannes@sipsolutions.net>
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -10,20 +10,26 @@
 #include <linux/netdevice.h>
 #include <linux/kref.h>
 #include <linux/rbtree.h>
-#include <linux/mutex.h>
+#include <linux/debugfs.h>
+#include <linux/rfkill.h>
+#include <linux/workqueue.h>
 #include <net/genetlink.h>
-#include <net/wireless.h>
 #include <net/cfg80211.h>
 #include "reg.h"
 
 struct cfg80211_registered_device {
-	struct cfg80211_ops *ops;
+	const struct cfg80211_ops *ops;
 	struct list_head list;
 	/* we hold this mutex during any call so that
 	 * we cannot do multiple calls at once, and also
 	 * to avoid the deregister call to proceed while
 	 * any call is in progress */
 	struct mutex mtx;
+
+	/* rfkill support */
+	struct rfkill_ops rfkill_ops;
+	struct rfkill *rfkill;
+	struct work_struct rfkill_sync;
 
 	/* ISO / IEC 3166 alpha2 for which this device is receiving
 	 * country IEs on, this can help disregard country IEs from APs
@@ -52,6 +58,17 @@ struct cfg80211_registered_device {
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	unsigned long suspend_at;
 
+#ifdef CONFIG_CFG80211_DEBUGFS
+	/* Debugfs entries */
+	struct wiphy_debugfsdentries {
+		struct dentry *rts_threshold;
+		struct dentry *fragmentation_threshold;
+		struct dentry *short_retry_limit;
+		struct dentry *long_retry_limit;
+		struct dentry *ht40allow_map;
+	} debugfs;
+#endif
+
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __attribute__((__aligned__(NETDEV_ALIGN)));
@@ -74,10 +91,7 @@ bool wiphy_idx_valid(int wiphy_idx)
 extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_drv_list;
 
-static inline void assert_cfg80211_lock(void)
-{
-	WARN_ON(!mutex_is_locked(&cfg80211_mutex));
-}
+#define assert_cfg80211_lock() WARN_ON(!mutex_is_locked(&cfg80211_mutex))
 
 /*
  * You can use this to mark a wiphy_idx as not having an associated wiphy.
@@ -147,5 +161,17 @@ void wiphy_update_regulatory(struct wiphy *wiphy,
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev);
 void cfg80211_bss_age(struct cfg80211_registered_device *dev,
                       unsigned long age_secs);
+
+/* IBSS */
+int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev,
+		       struct cfg80211_ibss_params *params);
+void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
+int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
+			struct net_device *dev, bool nowext);
+
+/* internal helpers */
+int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
+				   const u8 *mac_addr);
 
 #endif /* __NET_WIRELESS_CORE_H */

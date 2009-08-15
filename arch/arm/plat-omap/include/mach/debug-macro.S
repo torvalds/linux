@@ -36,7 +36,7 @@
 		add	\rx, \rx, #0x00004000	@ UART 3
 #endif
 
-#elif	CONFIG_ARCH_OMAP3
+#elif defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 		moveq	\rx, #0x48000000	@ physical base address
 		movne	\rx, #0xd8000000	@ virtual base
 		orr	\rx, \rx, #0x0006a000

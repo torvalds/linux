@@ -14,14 +14,6 @@ typedef unsigned short umode_t;
  */
 #ifdef __KERNEL__
 
-#ifdef CONFIG_64BIT
-#define BITS_PER_LONG 64
-#define SHIFT_PER_LONG 6
-#else
-#define BITS_PER_LONG 32
-#define SHIFT_PER_LONG 5
-#endif
-
 #ifndef __ASSEMBLY__
 
 /* Dma addresses are 32-bits wide.  */

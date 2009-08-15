@@ -61,9 +61,9 @@ char * __init xen_memory_setup(void)
 	 *  - xen_start_info
 	 * See comment above "struct start_info" in <xen/interface/xen.h>
 	 */
-	e820_add_region(__pa(xen_start_info->mfn_list),
-			xen_start_info->pt_base - xen_start_info->mfn_list,
-			E820_RESERVED);
+	reserve_early(__pa(xen_start_info->mfn_list),
+		      __pa(xen_start_info->pt_base),
+			"XEN START INFO");
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 

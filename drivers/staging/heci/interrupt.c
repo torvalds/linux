@@ -92,6 +92,9 @@ irqreturn_t heci_isr_interrupt(int irq, void *dev_id)
 	/* disable interrupts */
 	heci_csr_disable_interrupts(dev);
 
+	/* clear H_IS bit in H_CSR */
+	heci_csr_clear_his(dev);
+
 	/*
 	 * Our device interrupted, schedule work the heci_bh_handler
 	 * to handle the interrupt processing. This needs to be a
@@ -100,10 +103,8 @@ irqreturn_t heci_isr_interrupt(int irq, void *dev_id)
 	PREPARE_WORK(&dev->work, heci_bh_handler);
 	DBG("schedule work the heci_bh_handler.\n");
 	err = schedule_work(&dev->work);
-	if (!err) {
-		printk(KERN_ERR "heci: schedule the heci_bh_handler"
-		       " failed error=%x\n", err);
-	}
+	if (!err)
+		DBG("heci_bh_handler was already on the workqueue.\n");
 	return IRQ_HANDLED;
 }
 
@@ -251,13 +252,14 @@ end:
 		/* acknowledge interrupt and disable interrupts */
 		heci_csr_disable_interrupts(dev);
 
+		/* clear H_IS bit in H_CSR */
+		heci_csr_clear_his(dev);
+
 		PREPARE_WORK(&dev->work, heci_bh_handler);
 		DBG("schedule work the heci_bh_handler.\n");
 		rets = schedule_work(&dev->work);
-		if (!rets) {
-			printk(KERN_ERR "heci: schedule the heci_bh_handler"
-			       " failed error=%x\n", rets);
-		}
+		if (!rets)
+			DBG("heci_bh_handler was already queued.\n");
 	} else {
 		heci_csr_enable_interrupts(dev);
 	}
@@ -622,7 +624,7 @@ static int heci_bh_read_client_message(struct io_heci_list *complete_list,
 				priv_cb_pos->file_private;
 		if ((file_ext != NULL) &&
 		    (_heci_bh_state_ok(file_ext, heci_hdr))) {
-			spin_lock(&file_ext->read_io_lock);
+			spin_lock_bh(&file_ext->read_io_lock);
 			file_ext->reading_state = HECI_READING;
 			buffer = (unsigned char *)
 				(priv_cb_pos->response_buffer.data +
@@ -636,7 +638,7 @@ static int heci_bh_read_client_message(struct io_heci_list *complete_list,
 					priv_cb_pos->information) {
 				DBG("message overflow.\n");
 				list_del(&priv_cb_pos->cb_list);
-				spin_unlock(&file_ext->read_io_lock);
+				spin_unlock_bh(&file_ext->read_io_lock);
 				return -ENOMEM;
 			}
 			if (buffer) {
@@ -647,7 +649,7 @@ static int heci_bh_read_client_message(struct io_heci_list *complete_list,
 			if (heci_hdr->msg_complete) {
 				file_ext->status = 0;
 				list_del(&priv_cb_pos->cb_list);
-				spin_unlock(&file_ext->read_io_lock);
+				spin_unlock_bh(&file_ext->read_io_lock);
 				DBG("completed read host client = %d,"
 					"ME client = %d, "
 					"data length = %lu\n",
@@ -662,7 +664,7 @@ static int heci_bh_read_client_message(struct io_heci_list *complete_list,
 				list_add_tail(&priv_cb_pos->cb_list,
 					&complete_list->heci_cb.cb_list);
 			} else {
-				spin_unlock(&file_ext->read_io_lock);
+				spin_unlock_bh(&file_ext->read_io_lock);
 			}
 
 			break;
@@ -1054,7 +1056,7 @@ static int heci_bh_write_handler(struct io_heci_list *cmpl_list,
 				list_del(&priv_cb_pos->cb_list);
 				if ((HECI_WRITING == file_ext->writing_state) &&
 					(priv_cb_pos->major_file_operations ==
-						HECI_WRITING) &&
+						HECI_WRITE) &&
 					(file_ext != &dev->iamthif_file_ext)) {
 					DBG("HECI WRITE COMPLETE\n");
 					file_ext->writing_state =
