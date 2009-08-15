@@ -120,6 +120,32 @@ void show_mem(void)
 	printk("%d pages swap cached\n", cached);
 }
 
+static void __init find_node_limits(int node, struct meminfo *mi,
+	unsigned long *min, unsigned long *max_low, unsigned long *max_high)
+{
+	int i;
+
+	*min = -1UL;
+	*max_low = *max_high = 0;
+
+	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
+		unsigned long start, end;
+
+		start = bank_pfn_start(bank);
+		end = bank_pfn_end(bank);
+
+		if (*min > start)
+			*min = start;
+		if (*max_high < end)
+			*max_high = end;
+		if (bank->highmem)
+			continue;
+		if (*max_low < end)
+			*max_low = end;
+	}
+}
+
 /*
  * FIXME: We really want to avoid allocating the bootmap bitmap
  * over the top of the initrd.  Hopefully, this is located towards
@@ -210,39 +236,23 @@ static inline void map_memory_bank(struct membank *bank)
 #endif
 }
 
-static unsigned long __init bootmem_init_node(int node, struct meminfo *mi)
+static void __init bootmem_init_node(int node, struct meminfo *mi,
+	unsigned long start_pfn, unsigned long end_pfn)
 {
-	unsigned long start_pfn, end_pfn, boot_pfn;
+	unsigned long boot_pfn;
 	unsigned int boot_pages;
 	pg_data_t *pgdat;
 	int i;
 
-	start_pfn = -1UL;
-	end_pfn = 0;
-
 	/*
-	 * Calculate the pfn range, and map the memory banks for this node.
+	 * Map the memory banks for this node.
 	 */
 	for_each_nodebank(i, mi, node) {
 		struct membank *bank = &mi->bank[i];
-		unsigned long start, end;
 
-		start = bank_pfn_start(bank);
-		end = bank_pfn_end(bank);
-
-		if (start_pfn > start)
-			start_pfn = start;
-		if (end_pfn < end)
-			end_pfn = end;
-
-		map_memory_bank(bank);
+		if (!bank->highmem)
+			map_memory_bank(bank);
 	}
-
-	/*
-	 * If there is no memory in this node, ignore it.
-	 */
-	if (end_pfn == 0)
-		return end_pfn;
 
 	/*
 	 * Allocate the bootmem bitmap page.
@@ -260,7 +270,8 @@ static unsigned long __init bootmem_init_node(int node, struct meminfo *mi)
 
 	for_each_nodebank(i, mi, node) {
 		struct membank *bank = &mi->bank[i];
-		free_bootmem_node(pgdat, bank_phys_start(bank), bank_phys_size(bank));
+		if (!bank->highmem)
+			free_bootmem_node(pgdat, bank_phys_start(bank), bank_phys_size(bank));
 		memory_present(node, bank_pfn_start(bank), bank_pfn_end(bank));
 	}
 
@@ -269,8 +280,6 @@ static unsigned long __init bootmem_init_node(int node, struct meminfo *mi)
 	 */
 	reserve_bootmem_node(pgdat, boot_pfn << PAGE_SHIFT,
 			     boot_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
-
-	return end_pfn;
 }
 
 static void __init bootmem_reserve_initrd(int node)
@@ -297,33 +306,39 @@ static void __init bootmem_reserve_initrd(int node)
 static void __init bootmem_free_node(int node, struct meminfo *mi)
 {
 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
-	unsigned long start_pfn, end_pfn;
-	pg_data_t *pgdat = NODE_DATA(node);
+	unsigned long min, max_low, max_high;
 	int i;
 
-	start_pfn = pgdat->bdata->node_min_pfn;
-	end_pfn = pgdat->bdata->node_low_pfn;
+	find_node_limits(node, mi, &min, &max_low, &max_high);
 
 	/*
 	 * initialise the zones within this node.
 	 */
 	memset(zone_size, 0, sizeof(zone_size));
-	memset(zhole_size, 0, sizeof(zhole_size));
 
 	/*
 	 * The size of this node has already been determined.  If we need
 	 * to do anything fancy with the allocation of this memory to the
 	 * zones, now is the time to do it.
 	 */
-	zone_size[0] = end_pfn - start_pfn;
+	zone_size[0] = max_low - min;
+#ifdef CONFIG_HIGHMEM
+	zone_size[ZONE_HIGHMEM] = max_high - max_low;
+#endif
 
 	/*
 	 * For each bank in this node, calculate the size of the holes.
 	 *  holes = node_size - sum(bank_sizes_in_node)
 	 */
-	zhole_size[0] = zone_size[0];
-	for_each_nodebank(i, mi, node)
-		zhole_size[0] -= bank_pfn_size(&mi->bank[i]);
+	memcpy(zhole_size, zone_size, sizeof(zhole_size));
+	for_each_nodebank(i, mi, node) {
+		int idx = 0;
+#ifdef CONFIG_HIGHMEM
+		if (mi->bank[i].highmem)
+			idx = ZONE_HIGHMEM;
+#endif
+		zhole_size[idx] -= bank_pfn_size(&mi->bank[i]);
+	}
 
 	/*
 	 * Adjust the sizes according to any special requirements for
@@ -331,13 +346,13 @@ static void __init bootmem_free_node(int node, struct meminfo *mi)
 	 */
 	arch_adjust_zones(node, zone_size, zhole_size);
 
-	free_area_init_node(node, zone_size, start_pfn, zhole_size);
+	free_area_init_node(node, zone_size, min, zhole_size);
 }
 
 void __init bootmem_init(void)
 {
 	struct meminfo *mi = &meminfo;
-	unsigned long memend_pfn = 0;
+	unsigned long min, max_low, max_high;
 	int node, initrd_node;
 
 	/*
@@ -345,11 +360,29 @@ void __init bootmem_init(void)
 	 */
 	initrd_node = check_initrd(mi);
 
+	max_low = max_high = 0;
+
 	/*
 	 * Run through each node initialising the bootmem allocator.
 	 */
 	for_each_node(node) {
-		unsigned long end_pfn = bootmem_init_node(node, mi);
+		unsigned long node_low, node_high;
+
+		find_node_limits(node, mi, &min, &node_low, &node_high);
+
+		if (node_low > max_low)
+			max_low = node_low;
+		if (node_high > max_high)
+			max_high = node_high;
+
+		/*
+		 * If there is no memory in this node, ignore it.
+		 * (We can't have nodes which have no lowmem)
+		 */
+		if (node_low == 0)
+			continue;
+
+		bootmem_init_node(node, mi, min, node_low);
 
 		/*
 		 * Reserve any special node zero regions.
@@ -362,12 +395,6 @@ void __init bootmem_init(void)
 		 */
 		if (node == initrd_node)
 			bootmem_reserve_initrd(node);
-
-		/*
-		 * Remember the highest memory PFN.
-		 */
-		if (end_pfn > memend_pfn)
-			memend_pfn = end_pfn;
 	}
 
 	/*
@@ -383,7 +410,7 @@ void __init bootmem_init(void)
 	for_each_node(node)
 		bootmem_free_node(node, mi);
 
-	high_memory = __va((memend_pfn << PAGE_SHIFT) - 1) + 1;
+	high_memory = __va((max_low << PAGE_SHIFT) - 1) + 1;
 
 	/*
 	 * This doesn't seem to be used by the Linux memory manager any
@@ -393,7 +420,8 @@ void __init bootmem_init(void)
 	 * Note: max_low_pfn and max_pfn reflect the number of _pages_ in
 	 * the system, not the maximum PFN.
 	 */
-	max_pfn = max_low_pfn = memend_pfn - PHYS_PFN_OFFSET;
+	max_low_pfn = max_low - PHYS_PFN_OFFSET;
+	max_pfn = max_high - PHYS_PFN_OFFSET;
 }
 
 static inline int free_area(unsigned long pfn, unsigned long end, char *s)
