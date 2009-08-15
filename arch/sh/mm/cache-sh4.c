@@ -182,7 +182,7 @@ static void __uses_jump_to_uncached flush_icache_all(void)
 	local_irq_restore(flags);
 }
 
-void flush_dcache_all(void)
+static inline void flush_dcache_all(void)
 {
 	(*__flush_dcache_segment_fn)(0UL, boot_cpu_data.dcache.way_size);
 	wmb();
