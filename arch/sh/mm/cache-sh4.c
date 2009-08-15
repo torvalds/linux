@@ -401,20 +401,6 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	}
 }
 
-/*
- * flush_icache_user_range
- * @vma: VMA of the process
- * @page: page
- * @addr: U0 address
- * @len: length of the range (< page size)
- */
-void flush_icache_user_range(struct vm_area_struct *vma,
-			     struct page *page, unsigned long addr, int len)
-{
-	flush_cache_page(vma, addr, page_to_pfn(page));
-	mb();
-}
-
 /**
  * __flush_cache_4096
  *

@@ -655,7 +655,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
  * range following a poke into the program text through the ptrace() call
  * from another process (e.g. for BRK instruction insertion).
  */
-void flush_icache_user_range(struct vm_area_struct *vma,
+static void flush_icache_user_range(struct vm_area_struct *vma,
 			struct page *page, unsigned long addr, int len)
 {
 

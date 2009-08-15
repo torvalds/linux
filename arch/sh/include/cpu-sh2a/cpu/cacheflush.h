@@ -25,7 +25,6 @@
 #define flush_dcache_page(page)			do { } while (0)
 void flush_icache_range(unsigned long start, unsigned long end);
 #define flush_icache_page(vma,pg)		do { } while (0)
-#define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
 
 #endif /* __ASM_CPU_SH2A_CACHEFLUSH_H */

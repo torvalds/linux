@@ -25,8 +25,6 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
 		      unsigned long pfn);
 void flush_dcache_page(struct page *pg);
 void flush_icache_range(unsigned long start, unsigned long end);
-void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
-			     unsigned long addr, int len);
 
 #define flush_icache_page(vma,pg)		do { } while (0)
 
