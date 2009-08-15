@@ -45,7 +45,6 @@ extern void __flush_purge_region(void *start, int size);
 extern void __flush_invalidate_region(void *start, int size);
 #endif
 
-#ifdef CONFIG_MMU
 #define ARCH_HAS_FLUSH_ANON_PAGE
 extern void __flush_anon_page(struct page *page, unsigned long);
 
@@ -55,7 +54,6 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 	if (boot_cpu_data.dcache.n_aliases && PageAnon(page))
 		__flush_anon_page(page, vmaddr);
 }
-#endif
 
 #define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
 static inline void flush_kernel_dcache_page(struct page *page)
