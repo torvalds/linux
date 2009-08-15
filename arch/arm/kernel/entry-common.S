@@ -373,16 +373,6 @@ sys_clone_wrapper:
 		b	sys_clone
 ENDPROC(sys_clone_wrapper)
 
-sys_sigsuspend_wrapper:
-		add	r3, sp, #S_OFF
-		b	sys_sigsuspend
-ENDPROC(sys_sigsuspend_wrapper)
-
-sys_rt_sigsuspend_wrapper:
-		add	r2, sp, #S_OFF
-		b	sys_rt_sigsuspend
-ENDPROC(sys_rt_sigsuspend_wrapper)
-
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_sigreturn
