@@ -44,6 +44,17 @@ enum cpu_type {
 	CPU_SH_NONE
 };
 
+enum cpu_family {
+	CPU_FAMILY_SH2,
+	CPU_FAMILY_SH2A,
+	CPU_FAMILY_SH3,
+	CPU_FAMILY_SH4,
+	CPU_FAMILY_SH4A,
+	CPU_FAMILY_SH4AL_DSP,
+	CPU_FAMILY_SH5,
+	CPU_FAMILY_UNKNOWN,
+};
+
 /*
  * TLB information structure
  *
@@ -61,7 +72,7 @@ struct tlb_info {
 };
 
 struct sh_cpuinfo {
-	unsigned int type;
+	unsigned int type, family;
 	int cut_major, cut_minor;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;

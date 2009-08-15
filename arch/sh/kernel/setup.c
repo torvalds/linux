@@ -49,6 +49,7 @@
 struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
 	[0] = {
 		.type			= CPU_SH_NONE,
+		.family			= CPU_FAMILY_UNKNOWN,
 		.loops_per_jiffy	= 10000000,
 	},
 };
