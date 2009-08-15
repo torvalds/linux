@@ -330,7 +330,6 @@ struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
  *	@fde: the FDE for this function
  *	@frame: the instructions calculate the CFA for this frame
  *	@pc: the program counter of the address we're interested in
- *	@define_ra: keep executing insns until the return addr reg is defined?
  *
  *	Execute the Call Frame instruction sequence starting at
  *	@insn_start and ending at @insn_end. The instructions describe
@@ -342,35 +341,16 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 				   struct dwarf_cie *cie,
 				   struct dwarf_fde *fde,
 				   struct dwarf_frame *frame,
-				   unsigned long pc,
-				   bool define_ra)
+				   unsigned long pc)
 {
 	unsigned char insn;
 	unsigned char *current_insn;
 	unsigned int count, delta, reg, expr_len, offset;
-	bool seen_ra_reg;
 
 	current_insn = insn_start;
 
-	/*
-	 * If we're executing instructions for the dwarf_unwind_stack()
-	 * FDE we need to keep executing instructions until the value of
-	 * DWARF_ARCH_RA_REG is defined. See the comment in
-	 * dwarf_unwind_stack() for more details.
-	 */
-	if (define_ra)
-		seen_ra_reg = false;
-	else
-		seen_ra_reg = true;
-
-	while (current_insn < insn_end && (frame->pc <= pc || !seen_ra_reg) ) {
+	while (current_insn < insn_end && frame->pc <= pc) {
 		insn = __raw_readb(current_insn++);
-
-		if (!seen_ra_reg) {
-			if (frame->num_regs >= DWARF_ARCH_RA_REG &&
-			    frame->regs[DWARF_ARCH_RA_REG].flags)
-				seen_ra_reg = true;
-		}
 
 		/*
 		 * Firstly, handle the opcodes that embed their operands
@@ -511,26 +491,17 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	struct dwarf_fde *fde;
 	unsigned long addr;
 	int i, offset;
-	bool define_ra = false;
 
 	/*
 	 * If this is the first invocation of this recursive function we
 	 * need get the contents of a physical register to get the CFA
 	 * in order to begin the virtual unwinding of the stack.
 	 *
-	 * Setting "define_ra" to true indictates that we want
-	 * dwarf_cfa_execute_insns() to continue executing instructions
-	 * until we know how to calculate the value of DWARF_ARCH_RA_REG
-	 * (which we need in order to kick off the whole unwinding
-	 * process).
-	 *
 	 * NOTE: the return address is guaranteed to be setup by the
 	 * time this function makes its first function call.
 	 */
-	if (!pc && !prev) {
-		pc = (unsigned long)&dwarf_unwind_stack;
-		define_ra = true;
-	}
+	if (!pc && !prev)
+		pc = (unsigned long)current_text_addr();
 
 	frame = kzalloc(sizeof(*frame), GFP_ATOMIC);
 	if (!frame)
@@ -566,11 +537,11 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	/* CIE initial instructions */
 	dwarf_cfa_execute_insns(cie->initial_instructions,
 				cie->instructions_end, cie, fde,
-				frame, pc, false);
+				frame, pc);
 
 	/* FDE instructions */
 	dwarf_cfa_execute_insns(fde->instructions, fde->end, cie,
-				fde, frame, pc, define_ra);
+				fde, frame, pc);
 
 	/* Calculate the CFA */
 	switch (frame->flags) {
