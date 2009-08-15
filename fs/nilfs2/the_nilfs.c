@@ -187,23 +187,19 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	inode_size = nilfs->ns_inode_size;
 
 	err = -ENOMEM;
-	nilfs->ns_dat = nilfs_mdt_new(
-		nilfs, NULL, NILFS_DAT_INO, NILFS_DAT_GFP);
+	nilfs->ns_dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO);
 	if (unlikely(!nilfs->ns_dat))
 		goto failed;
 
-	nilfs->ns_gc_dat = nilfs_mdt_new(
-		nilfs, NULL, NILFS_DAT_INO, NILFS_DAT_GFP);
+	nilfs->ns_gc_dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO);
 	if (unlikely(!nilfs->ns_gc_dat))
 		goto failed_dat;
 
-	nilfs->ns_cpfile = nilfs_mdt_new(
-		nilfs, NULL, NILFS_CPFILE_INO, NILFS_CPFILE_GFP);
+	nilfs->ns_cpfile = nilfs_mdt_new(nilfs, NULL, NILFS_CPFILE_INO);
 	if (unlikely(!nilfs->ns_cpfile))
 		goto failed_gc_dat;
 
-	nilfs->ns_sufile = nilfs_mdt_new(
-		nilfs, NULL, NILFS_SUFILE_INO, NILFS_SUFILE_GFP);
+	nilfs->ns_sufile = nilfs_mdt_new(nilfs, NULL, NILFS_SUFILE_INO);
 	if (unlikely(!nilfs->ns_sufile))
 		goto failed_cpfile;
 

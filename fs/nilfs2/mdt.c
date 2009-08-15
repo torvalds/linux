@@ -513,9 +513,10 @@ nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 }
 
 struct inode *nilfs_mdt_new(struct the_nilfs *nilfs, struct super_block *sb,
-			    ino_t ino, gfp_t gfp_mask)
+			    ino_t ino)
 {
-	struct inode *inode = nilfs_mdt_new_common(nilfs, sb, ino, gfp_mask);
+	struct inode *inode = nilfs_mdt_new_common(nilfs, sb, ino,
+						   NILFS_MDT_GFP);
 
 	if (!inode)
 		return NULL;

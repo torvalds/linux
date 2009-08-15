@@ -27,7 +27,6 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 
-#define NILFS_DAT_GFP	NILFS_MDT_GFP
 
 struct nilfs_palloc_req;
 

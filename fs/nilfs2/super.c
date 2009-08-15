@@ -363,8 +363,7 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	list_add(&sbi->s_list, &nilfs->ns_supers);
 	up_write(&nilfs->ns_super_sem);
 
-	sbi->s_ifile = nilfs_mdt_new(
-		nilfs, sbi->s_super, NILFS_IFILE_INO, NILFS_IFILE_GFP);
+	sbi->s_ifile = nilfs_mdt_new(nilfs, sbi->s_super, NILFS_IFILE_INO);
 	if (!sbi->s_ifile)
 		return -ENOMEM;
 
