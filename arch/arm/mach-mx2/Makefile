@@ -17,4 +17,7 @@ obj-$(CONFIG_MACH_PCM038) += pcm038.o
 obj-$(CONFIG_MACH_PCM970_BASEBOARD) += pcm970-baseboard.o
 obj-$(CONFIG_MACH_MX27_3DS) += mx27pdk.o
 obj-$(CONFIG_MACH_MX27LITE) += mx27lite.o
+obj-$(CONFIG_MACH_EUKREA_CPUIMX27) += eukrea_cpuimx27.o
+obj-$(CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD) += eukrea_mbimx27-baseboard.o
+obj-$(CONFIG_MACH_PCA100) += pca100.o
 

@@ -29,6 +29,7 @@
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
+#include <mach/mx31.h>
 #include <mach/common.h>
 
 #include "crm_regs.h"
@@ -402,6 +403,11 @@ static unsigned long clk_ckih_get_rate(struct clk *clk)
 	return ckih_rate;
 }
 
+static unsigned long clk_ckil_get_rate(struct clk *clk)
+{
+	return CKIL_CLK_FREQ;
+}
+
 static struct clk ckih_clk = {
 	.get_rate = clk_ckih_get_rate,
 };
@@ -508,6 +514,7 @@ DEFINE_CLOCK(usb_clk1,    0, NULL,          0, usb_get_rate, NULL, &usb_pll_clk)
 DEFINE_CLOCK(nfc_clk,     0, NULL,          0, nfc_get_rate, NULL, &ahb_clk);
 DEFINE_CLOCK(scc_clk,     0, NULL,          0, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
+DEFINE_CLOCK(ckil_clk,    0, NULL,          0, clk_ckil_get_rate, NULL, NULL);
 
 #define _REGISTER_CLOCK(d, n, c) \
 	{ \
@@ -518,9 +525,9 @@ DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
 
 static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
-	_REGISTER_CLOCK(NULL, "cspi", cspi1_clk)
-	_REGISTER_CLOCK(NULL, "cspi", cspi2_clk)
-	_REGISTER_CLOCK(NULL, "cspi", cspi3_clk)
+	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
+	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
+	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
 	_REGISTER_CLOCK(NULL, "wdog", wdog_clk)
@@ -531,6 +538,12 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("ipu-core", NULL, ipu_clk)
 	_REGISTER_CLOCK("mx3_sdc_fb", NULL, ipu_clk)
 	_REGISTER_CLOCK(NULL, "kpp", kpp_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb", usb_clk1)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb_ahb", usb_clk2)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb", usb_clk1)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", usb_clk2)
+	_REGISTER_CLOCK("mxc-ehci.2", "usb", usb_clk1)
+	_REGISTER_CLOCK("mxc-ehci.2", "usb_ahb", usb_clk2)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk1)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usb_clk2)
 	_REGISTER_CLOCK("mx3-camera.0", NULL, csi_clk)
@@ -559,6 +572,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "iim", iim_clk)
 	_REGISTER_CLOCK(NULL, "mpeg4", mpeg4_clk)
 	_REGISTER_CLOCK(NULL, "mbx", mbx_clk)
+	_REGISTER_CLOCK("mxc_rtc", NULL, ckil_clk)
 };
 
 int __init mx31_clocks_init(unsigned long fref)
@@ -609,7 +623,7 @@ int __init mx31_clocks_init(unsigned long fref)
 		__raw_writel(reg, MXC_CCM_PMCR1);
 	}
 
-	mxc_timer_init(&ipg_clk);
+	mxc_timer_init(&ipg_clk, IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT);
 
 	return 0;
 }
