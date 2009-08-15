@@ -178,9 +178,6 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.dcache.ways = 2;
 
 		break;
-	default:
-		boot_cpu_data.type = boot_cpu_data.family = CPU_SH_NONE;
-		break;
 	}
 
 	/*
