@@ -30,6 +30,8 @@
 #include "mpc5200_psc_ac97.h"
 #include "../codecs/stac9766.h"
 
+#define DRV_NAME "efika-audio-fabric"
+
 static struct snd_soc_device device;
 static struct snd_soc_card card;
 

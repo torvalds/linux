@@ -637,12 +637,20 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *	pc = preempt_count();
  *
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
- *	__entry_size = __data_size + sizeof(*entry);
+ *
+ *	// Below we want to get the aligned size by taking into account
+ *	// the u32 field that will later store the buffer size
+ *	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),
+ *			     sizeof(u64));
+ *	__entry_size -= sizeof(u32);
  *
  *	do {
  *		char raw_data[__entry_size]; <- allocate our sample in the stack
  *		struct trace_entry *ent;
  *
+ *		zero dead bytes from alignment to avoid stack leak to userspace:
+ *
+ *		*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
  *		entry = (struct ftrace_raw_<call> *)raw_data;
  *		ent = &entry->ent;
  *		tracing_generic_entry_update(ent, irq_flags, pc);
@@ -685,12 +693,15 @@ static void ftrace_profile_##call(proto)				\
 	pc = preempt_count();						\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
-	__entry_size = ALIGN(__data_size + sizeof(*entry), sizeof(u64));\
+	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),\
+			     sizeof(u64));				\
+	__entry_size -= sizeof(u32);					\
 									\
 	do {								\
 		char raw_data[__entry_size];				\
 		struct trace_entry *ent;				\
 									\
+		*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;	\
 		entry = (struct ftrace_raw_##call *)raw_data;		\
 		ent = &entry->ent;					\
 		tracing_generic_entry_update(ent, irq_flags, pc);	\
