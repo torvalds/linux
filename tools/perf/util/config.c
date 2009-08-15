@@ -160,17 +160,18 @@ static int get_extended_base_var(char *name, int baselen, int c)
 	name[baselen++] = '.';
 
 	for (;;) {
-		int c = get_next_char();
-		if (c == '\n')
+		int ch = get_next_char();
+
+		if (ch == '\n')
 			return -1;
-		if (c == '"')
+		if (ch == '"')
 			break;
-		if (c == '\\') {
-			c = get_next_char();
-			if (c == '\n')
+		if (ch == '\\') {
+			ch = get_next_char();
+			if (ch == '\n')
 				return -1;
 		}
-		name[baselen++] = c;
+		name[baselen++] = ch;
 		if (baselen > MAXNAME / 2)
 			return -1;
 	}
@@ -530,6 +531,8 @@ static int store_aux(const char* key, const char* value, void *cb __used)
 					store.offset[store.seen] = ftell(config_file);
 			}
 		}
+	default:
+		break;
 	}
 	return 0;
 }
@@ -619,6 +622,7 @@ contline:
 		switch (contents[offset]) {
 			case '=': equal_offset = offset; break;
 			case ']': bracket_offset = offset; break;
+			default: break;
 		}
 	if (offset > 0 && contents[offset-1] == '\\') {
 		offset_ = offset;
@@ -742,9 +746,9 @@ int perf_config_set_multivar(const char* key, const char* value,
 			goto write_err_out;
 	} else {
 		struct stat st;
-		char* contents;
+		char *contents;
 		ssize_t contents_sz, copy_begin, copy_end;
-		int i, new_line = 0;
+		int new_line = 0;
 
 		if (value_regex == NULL)
 			store.value_regex = NULL;

@@ -242,9 +242,9 @@ int color_fwrite_lines(FILE *fp, const char *color,
 	return 0;
 }
 
-char *get_percent_color(double percent)
+const char *get_percent_color(double percent)
 {
-	char *color = PERF_COLOR_NORMAL;
+	const char *color = PERF_COLOR_NORMAL;
 
 	/*
 	 * We color high-overhead entries in red, mid-overhead
@@ -263,7 +263,7 @@ char *get_percent_color(double percent)
 int percent_color_fprintf(FILE *fp, const char *fmt, double percent)
 {
 	int r;
-	char *color;
+	const char *color;
 
 	color = get_percent_color(percent);
 	r = color_fprintf(fp, color, fmt, percent);

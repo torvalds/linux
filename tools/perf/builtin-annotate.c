@@ -81,7 +81,7 @@ struct hist_entry {
 struct sort_entry {
 	struct list_head list;
 
-	char *header;
+	const char *header;
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
@@ -225,7 +225,7 @@ static struct sort_entry sort_sym = {
 static int sort__need_collapse = 0;
 
 struct sort_dimension {
-	char			*name;
+	const char		*name;
 	struct sort_entry	*entry;
 	int			taken;
 };
@@ -723,7 +723,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
-		char *color;
+		const char *color;
 		struct sym_ext *sym_ext = sym->priv;
 
 		offset = line_ip - start;
@@ -805,7 +805,7 @@ static void free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static void
-get_source_line(struct symbol *sym, u64 start, int len, char *filename)
+get_source_line(struct symbol *sym, u64 start, int len, const char *filename)
 {
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -851,7 +851,7 @@ get_source_line(struct symbol *sym, u64 start, int len, char *filename)
 	}
 }
 
-static void print_summary(char *filename)
+static void print_summary(const char *filename)
 {
 	struct sym_ext *sym_ext;
 	struct rb_node *node;
@@ -867,7 +867,7 @@ static void print_summary(char *filename)
 	node = rb_first(&root_sym_ext);
 	while (node) {
 		double percent;
-		char *color;
+		const char *color;
 		char *path;
 
 		sym_ext = rb_entry(node, struct sym_ext, node);
@@ -882,7 +882,7 @@ static void print_summary(char *filename)
 
 static void annotate_sym(struct dso *dso, struct symbol *sym)
 {
-	char *filename = dso->name, *d_filename;
+	const char *filename = dso->name, *d_filename;
 	u64 start, end, len;
 	char command[PATH_MAX*2];
 	FILE *file;
@@ -892,7 +892,7 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	if (sym->module)
 		filename = sym->module->path;
 	else if (dso == kernel_dso)
-		filename = vmlinux;
+		filename = vmlinux_name;
 
 	start = sym->obj_start;
 	if (!start)
@@ -964,7 +964,7 @@ static int __cmd_annotate(void)
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
 	unsigned long head = 0;
-	struct stat stat;
+	struct stat input_stat;
 	event_t *event;
 	uint32_t size;
 	char *buf;
@@ -977,13 +977,13 @@ static int __cmd_annotate(void)
 		exit(-1);
 	}
 
-	ret = fstat(input, &stat);
+	ret = fstat(input, &input_stat);
 	if (ret < 0) {
 		perror("failed to stat file");
 		exit(-1);
 	}
 
-	if (!stat.st_size) {
+	if (!input_stat.st_size) {
 		fprintf(stderr, "zero-sized file, nothing to do!\n");
 		exit(0);
 	}
@@ -1010,10 +1010,10 @@ more:
 
 	if (head + event->header.size >= page_size * mmap_window) {
 		unsigned long shift = page_size * (head / page_size);
-		int ret;
+		int munmap_ret;
 
-		ret = munmap(buf, page_size * mmap_window);
-		assert(ret == 0);
+		munmap_ret = munmap(buf, page_size * mmap_window);
+		assert(munmap_ret == 0);
 
 		offset += shift;
 		head -= shift;
@@ -1049,7 +1049,7 @@ more:
 
 	head += size;
 
-	if (offset + head < (unsigned long)stat.st_size)
+	if (offset + head < (unsigned long)input_stat.st_size)
 		goto more;
 
 	rc = EXIT_SUCCESS;
@@ -1092,7 +1092,7 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('l', "print-line", &print_line,

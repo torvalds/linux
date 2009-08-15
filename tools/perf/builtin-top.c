@@ -120,7 +120,8 @@ static void parse_source(struct sym_entry *syme)
 	struct module *module;
 	struct section *section = NULL;
 	FILE *file;
-	char command[PATH_MAX*2], *path = vmlinux;
+	char command[PATH_MAX*2];
+	const char *path = vmlinux_name;
 	u64 start, end, len;
 
 	if (!syme)
@@ -487,9 +488,11 @@ static void print_sym_table(void)
 	);
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
-		struct sym_entry *syme = rb_entry(nd, struct sym_entry, rb_node);
-		struct symbol *sym = (struct symbol *)(syme + 1);
+		struct symbol *sym;
 		double pcnt;
+
+		syme = rb_entry(nd, struct sym_entry, rb_node);
+		sym = (struct symbol *)(syme + 1);
 
 		if (++printed > print_entries || (int)syme->snap_count < count_filter)
 			continue;
@@ -609,7 +612,7 @@ static void print_mapped_keys(void)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
-	if (vmlinux) {
+	if (vmlinux_name) {
 		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
 		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 		fprintf(stdout, "\t[S]     stop annotation.\n");
@@ -638,7 +641,9 @@ static int key_mapped(int c)
 		case 'F':
 		case 's':
 		case 'S':
-			return vmlinux ? 1 : 0;
+			return vmlinux_name ? 1 : 0;
+		default:
+			break;
 	}
 
 	return 0;
@@ -723,6 +728,8 @@ static void handle_keypress(int c)
 			break;
 		case 'z':
 			zero = ~zero;
+			break;
+		default:
 			break;
 	}
 }
@@ -812,13 +819,13 @@ static int parse_symbols(void)
 {
 	struct rb_node *node;
 	struct symbol  *sym;
-	int modules = vmlinux ? 1 : 0;
+	int use_modules = vmlinux_name ? 1 : 0;
 
 	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
 	if (kernel_dso == NULL)
 		return -1;
 
-	if (dso__load_kernel(kernel_dso, vmlinux, symbol_filter, verbose, modules) <= 0)
+	if (dso__load_kernel(kernel_dso, vmlinux_name, symbol_filter, verbose, use_modules) <= 0)
 		goto out_delete_dso;
 
 	node = rb_first(&kernel_dso->syms);
@@ -1114,7 +1121,7 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
-	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,

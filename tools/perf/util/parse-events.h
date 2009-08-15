@@ -9,8 +9,8 @@ extern int			nr_counters;
 
 extern struct perf_counter_attr attrs[MAX_COUNTERS];
 
-extern char *event_name(int ctr);
-extern char *__event_name(int type, u64 config);
+extern const char *event_name(int ctr);
+extern const char *__event_name(int type, u64 config);
 
 extern int parse_events(const struct option *opt, const char *str, int unset);
 

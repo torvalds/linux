@@ -14,10 +14,10 @@ int					nr_counters;
 struct perf_counter_attr		attrs[MAX_COUNTERS];
 
 struct event_symbol {
-	u8	type;
-	u64	config;
-	char	*symbol;
-	char	*alias;
+	u8		type;
+	u64		config;
+	const char	*symbol;
+	const char	*alias;
 };
 
 char debugfs_path[MAXPATHLEN];
@@ -51,7 +51,7 @@ static struct event_symbol event_symbols[] = {
 #define PERF_COUNTER_TYPE(config)	__PERF_COUNTER_FIELD(config, TYPE)
 #define PERF_COUNTER_ID(config)		__PERF_COUNTER_FIELD(config, EVENT)
 
-static char *hw_event_names[] = {
+static const char *hw_event_names[] = {
 	"cycles",
 	"instructions",
 	"cache-references",
@@ -61,7 +61,7 @@ static char *hw_event_names[] = {
 	"bus-cycles",
 };
 
-static char *sw_event_names[] = {
+static const char *sw_event_names[] = {
 	"cpu-clock-msecs",
 	"task-clock-msecs",
 	"page-faults",
@@ -73,7 +73,7 @@ static char *sw_event_names[] = {
 
 #define MAX_ALIASES 8
 
-static char *hw_cache[][MAX_ALIASES] = {
+static const char *hw_cache[][MAX_ALIASES] = {
  { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
  { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
  { "LLC",	"L2"							},
@@ -82,13 +82,13 @@ static char *hw_cache[][MAX_ALIASES] = {
  { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
 };
 
-static char *hw_cache_op[][MAX_ALIASES] = {
+static const char *hw_cache_op[][MAX_ALIASES] = {
  { "load",	"loads",	"read",					},
  { "store",	"stores",	"write",				},
  { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
 };
 
-static char *hw_cache_result[][MAX_ALIASES] = {
+static const char *hw_cache_result[][MAX_ALIASES] = {
  { "refs",	"Reference",	"ops",		"access",		},
  { "misses",	"miss",							},
 };
@@ -158,7 +158,7 @@ int valid_debugfs_mount(const char *debugfs)
 	return 0;
 }
 
-static char *tracepoint_id_to_name(u64 config)
+static const char *tracepoint_id_to_name(u64 config)
 {
 	static char tracepoint_name[2 * MAX_EVENT_LENGTH];
 	DIR *sys_dir, *evt_dir;
@@ -235,7 +235,7 @@ static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
 	return name;
 }
 
-char *event_name(int counter)
+const char *event_name(int counter)
 {
 	u64 config = attrs[counter].config;
 	int type = attrs[counter].type;
@@ -243,7 +243,7 @@ char *event_name(int counter)
 	return __event_name(type, config);
 }
 
-char *__event_name(int type, u64 config)
+const char *__event_name(int type, u64 config)
 {
 	static char buf[32];
 
@@ -294,7 +294,7 @@ char *__event_name(int type, u64 config)
 	return "unknown";
 }
 
-static int parse_aliases(const char **str, char *names[][MAX_ALIASES], int size)
+static int parse_aliases(const char **str, const char *names[][MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;

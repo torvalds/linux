@@ -55,7 +55,7 @@ struct dso {
 	char		 name[0];
 };
 
-const char *sym_hist_filter;
+extern const char *sym_hist_filter;
 
 typedef int (*symbol_filter_t)(struct dso *self, struct symbol *sym);
 
@@ -87,6 +87,6 @@ extern struct list_head dsos;
 extern struct dso *kernel_dso;
 extern struct dso *vdso;
 extern struct dso *hypervisor_dso;
-extern char *vmlinux;
+extern const char *vmlinux_name;
 extern int   modules;
 #endif /* _PERF_SYMBOL_ */

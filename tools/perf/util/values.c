@@ -96,7 +96,7 @@ static void perf_read_values__enlarge_counters(struct perf_read_values *values)
 }
 
 static int perf_read_values__findnew_counter(struct perf_read_values *values,
-					     u64 rawid, char *name)
+					     u64 rawid, const char *name)
 {
 	int i;
 
@@ -116,7 +116,7 @@ static int perf_read_values__findnew_counter(struct perf_read_values *values,
 
 void perf_read_values_add_value(struct perf_read_values *values,
 				u32 pid, u32 tid,
-				u64 rawid, char *name, u64 value)
+				u64 rawid, const char *name, u64 value)
 {
 	int tindex, cindex;
 
@@ -221,8 +221,7 @@ static void perf_read_values__display_raw(FILE *fp,
 				countwidth, values->value[i][j]);
 }
 
-void perf_read_values_display(FILE *fp, struct perf_read_values *values,
-			      int raw)
+void perf_read_values_display(FILE *fp, struct perf_read_values *values, int raw)
 {
 	if (raw)
 		perf_read_values__display_raw(fp, values);

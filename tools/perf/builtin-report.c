@@ -97,6 +97,7 @@ static int repsep_fprintf(FILE *fp, const char *fmt, ...)
 		n = vasprintf(&bf, fmt, ap);
 		if (n > 0) {
 			char *sep = bf;
+
 			while (1) {
 				sep = strchr(sep, *field_sep);
 				if (sep == NULL)
@@ -144,7 +145,7 @@ struct hist_entry {
 struct sort_entry {
 	struct list_head list;
 
-	char *header;
+	const char *header;
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
@@ -328,7 +329,7 @@ static int sort__need_collapse = 0;
 static int sort__has_parent = 0;
 
 struct sort_dimension {
-	char			*name;
+	const char		*name;
 	struct sort_entry	*entry;
 	int			taken;
 };
@@ -343,7 +344,7 @@ static struct sort_dimension sort_dimensions[] = {
 
 static LIST_HEAD(hist_entry__sort_list);
 
-static int sort_dimension__add(char *tok)
+static int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
 
@@ -602,6 +603,7 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 		case CHAIN_GRAPH_REL:
 			ret += callchain__fprintf_graph(fp, chain,
 							total_samples, 1, 1);
+		case CHAIN_NONE:
 		default:
 			break;
 		}
@@ -1290,7 +1292,7 @@ process_lost_event(event_t *event, unsigned long offset, unsigned long head)
 static void trace_event(event_t *event)
 {
 	unsigned char *raw_event = (void *)event;
-	char *color = PERF_COLOR_BLUE;
+	const char *color = PERF_COLOR_BLUE;
 	int i, j;
 
 	if (!dump_trace)
@@ -1348,7 +1350,7 @@ process_read_event(event_t *event, unsigned long offset, unsigned long head)
 	struct perf_counter_attr *attr = perf_header__find_attr(event->read.id);
 
 	if (show_threads) {
-		char *name = attr ? __event_name(attr->type, attr->config)
+		const char *name = attr ? __event_name(attr->type, attr->config)
 				   : "unknown";
 		perf_read_values_add_value(&show_threads_values,
 					   event->read.pid, event->read.tid,
@@ -1411,19 +1413,19 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 static u64 perf_header__sample_type(void)
 {
-	u64 sample_type = 0;
+	u64 type = 0;
 	int i;
 
 	for (i = 0; i < header->attrs; i++) {
 		struct perf_header_attr *attr = header->attr[i];
 
-		if (!sample_type)
-			sample_type = attr->attr.sample_type;
-		else if (sample_type != attr->attr.sample_type)
+		if (!type)
+			type = attr->attr.sample_type;
+		else if (type != attr->attr.sample_type)
 			die("non matching sample_type");
 	}
 
-	return sample_type;
+	return type;
 }
 
 static int __cmd_report(void)
@@ -1431,7 +1433,7 @@ static int __cmd_report(void)
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
 	unsigned long head, shift;
-	struct stat stat;
+	struct stat input_stat;
 	event_t *event;
 	uint32_t size;
 	char *buf;
@@ -1450,13 +1452,13 @@ static int __cmd_report(void)
 		exit(-1);
 	}
 
-	ret = fstat(input, &stat);
+	ret = fstat(input, &input_stat);
 	if (ret < 0) {
 		perror("failed to stat file");
 		exit(-1);
 	}
 
-	if (!stat.st_size) {
+	if (!input_stat.st_size) {
 		fprintf(stderr, "zero-sized file, nothing to do!\n");
 		exit(0);
 	}
@@ -1524,12 +1526,12 @@ more:
 		size = 8;
 
 	if (head + event->header.size >= page_size * mmap_window) {
-		int ret;
+		int munmap_ret;
 
 		shift = page_size * (head / page_size);
 
-		ret = munmap(buf, page_size * mmap_window);
-		assert(ret == 0);
+		munmap_ret = munmap(buf, page_size * mmap_window);
+		assert(munmap_ret == 0);
 
 		offset += shift;
 		head -= shift;
@@ -1568,7 +1570,7 @@ more:
 	if (offset + head >= header->data_offset + header->data_size)
 		goto done;
 
-	if (offset + head < (unsigned long)stat.st_size)
+	if (offset + head < (unsigned long)input_stat.st_size)
 		goto more;
 
 done:
@@ -1666,7 +1668,7 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,

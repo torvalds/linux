@@ -36,6 +36,6 @@ int color_fprintf(FILE *fp, const char *color, const char *fmt, ...);
 int color_fprintf_ln(FILE *fp, const char *color, const char *fmt, ...);
 int color_fwrite_lines(FILE *fp, const char *color, size_t count, const char *buf);
 int percent_color_fprintf(FILE *fp, const char *fmt, double percent);
-char *get_percent_color(double percent);
+const char *get_percent_color(double percent);
 
 #endif /* COLOR_H */
