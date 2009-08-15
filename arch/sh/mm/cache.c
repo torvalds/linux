@@ -260,6 +260,13 @@ void __init cpu_cache_init(void)
 		extern void __weak sh3_cache_init(void);
 
 		sh3_cache_init();
+
+		if ((boot_cpu_data.type == CPU_SH7705) &&
+		    (boot_cpu_data.dcache.sets == 512)) {
+			extern void __weak sh7705_cache_init(void);
+
+			sh7705_cache_init();
+		}
 	}
 
 	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
