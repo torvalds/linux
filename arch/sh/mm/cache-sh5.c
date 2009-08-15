@@ -25,14 +25,6 @@ extern void __weak sh4__flush_region_init(void);
 /* Wired TLB entry for the D-cache */
 static unsigned long long dtlb_cache_slot;
 
-#ifdef CONFIG_DCACHE_DISABLED
-#define sh64_dcache_purge_all()					do { } while (0)
-#define sh64_dcache_purge_coloured_phy_page(paddr, eaddr)	do { } while (0)
-#define sh64_dcache_purge_user_range(mm, start, end)		do { } while (0)
-#define sh64_dcache_purge_phy_page(paddr)			do { } while (0)
-#define sh64_dcache_purge_virt_page(mm, eaddr)			do { } while (0)
-#endif
-
 /*
  * The following group of functions deal with mapping and unmapping a
  * temporary page into a DTLB slot that has been set aside for exclusive
@@ -52,7 +44,6 @@ static inline void sh64_teardown_dtlb_cache_slot(void)
 	local_irq_enable();
 }
 
-#ifndef CONFIG_ICACHE_DISABLED
 static inline void sh64_icache_inv_all(void)
 {
 	unsigned long long addr, flag, data;
@@ -237,9 +228,7 @@ static void sh64_icache_inv_current_user_range(unsigned long start, unsigned lon
 		addr += L1_CACHE_BYTES;
 	}
 }
-#endif /* !CONFIG_ICACHE_DISABLED */
 
-#ifndef CONFIG_DCACHE_DISABLED
 /* Buffer used as the target of alloco instructions to purge data from cache
    sets by natural eviction. -- RPC */
 #define DUMMY_ALLOCO_AREA_SIZE ((L1_CACHE_BYTES << 10) + (1024 * 4))
@@ -489,7 +478,6 @@ static void sh64_dcache_purge_user_range(struct mm_struct *mm,
 		sh64_dcache_purge_user_pages(mm, start, end);
 	}
 }
-#endif /* !CONFIG_DCACHE_DISABLED */
 
 /*
  * Invalidate the entire contents of both caches, after writing back to
