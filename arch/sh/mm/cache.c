@@ -277,5 +277,11 @@ void __init cpu_cache_init(void)
 		sh4_cache_init();
 	}
 
+	if (boot_cpu_data.family == CPU_FAMILY_SH5) {
+		extern void __weak sh5_cache_init(void);
+
+		sh5_cache_init();
+	}
+
 	emit_cache_params();
 }
