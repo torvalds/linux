@@ -5297,6 +5297,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->mux_nids = stac92hd83xxx_mux_nids;
 	spec->num_muxes = ARRAY_SIZE(stac92hd83xxx_mux_nids);
 	spec->adc_nids = stac92hd83xxx_adc_nids;
+	spec->num_adcs = ARRAY_SIZE(stac92hd83xxx_adc_nids);
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
 	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
