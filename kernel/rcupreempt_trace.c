@@ -236,12 +236,13 @@ static ssize_t rcuctrs_read(struct file *filp, char __user *buffer,
 
 	cnt += snprintf(&rcupreempt_trace_buf[cnt], RCUPREEMPT_TRACE_BUF_SIZE,
 				"CPU last cur F M\n");
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		long *flipctr = rcupreempt_flipctr(cpu);
 		cnt += snprintf(&rcupreempt_trace_buf[cnt],
 				RCUPREEMPT_TRACE_BUF_SIZE - cnt,
-					"%3d %4ld %3ld %d %d\n",
+					"%3d%c %4ld %3ld %d %d\n",
 			       cpu,
+			       cpu_is_offline(cpu) ? '!' : ' ',
 			       flipctr[!f],
 			       flipctr[f],
 			       rcupreempt_flip_flag(cpu),
