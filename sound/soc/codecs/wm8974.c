@@ -57,55 +57,7 @@ struct wm8974_priv {
 
 static struct snd_soc_codec *wm8974_codec;
 
-/*
- * read wm8974 register cache
- */
-static inline unsigned int wm8974_read_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg == WM8974_RESET)
-		return 0;
-	if (reg >= WM8974_CACHEREGNUM)
-		return -1;
-	return cache[reg];
-}
-
-/*
- * write wm8974 register cache
- */
-static inline void wm8974_write_reg_cache(struct snd_soc_codec *codec,
-	u16 reg, unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg >= WM8974_CACHEREGNUM)
-		return;
-	cache[reg] = value;
-}
-
-/*
- * write to the WM8974 register space
- */
-static int wm8974_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	u8 data[2];
-
-	/* data is
-	 *   D15..D9 WM8974 register offset
-	 *   D8...D0 register data
-	 */
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	wm8974_write_reg_cache(codec, reg, value);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
-#define wm8974_reset(c)	wm8974_write(c, WM8974_RESET, 0)
+#define wm8974_reset(c)	snd_soc_write(c, WM8974_RESET, 0)
 
 static const char *wm8974_companding[] = {"Off", "NC", "u-law", "A-law" };
 static const char *wm8974_deemp[] = {"None", "32kHz", "44.1kHz", "48kHz" };
@@ -385,27 +337,27 @@ static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai,
 
 	if (freq_in == 0 || freq_out == 0) {
 		/* Clock CODEC directly from MCLK */
-		reg = wm8974_read_reg_cache(codec, WM8974_CLOCK);
-		wm8974_write(codec, WM8974_CLOCK, reg & 0x0ff);
+		reg = snd_soc_read(codec, WM8974_CLOCK);
+		snd_soc_write(codec, WM8974_CLOCK, reg & 0x0ff);
 
 		/* Turn off PLL */
-		reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
-		wm8974_write(codec, WM8974_POWER1, reg & 0x1df);
+		reg = snd_soc_read(codec, WM8974_POWER1);
+		snd_soc_write(codec, WM8974_POWER1, reg & 0x1df);
 		return 0;
 	}
 
 	pll_factors(freq_out*4, freq_in);
 
-	wm8974_write(codec, WM8974_PLLN, (pll_div.pre_div << 4) | pll_div.n);
-	wm8974_write(codec, WM8974_PLLK1, pll_div.k >> 18);
-	wm8974_write(codec, WM8974_PLLK2, (pll_div.k >> 9) & 0x1ff);
-	wm8974_write(codec, WM8974_PLLK3, pll_div.k & 0x1ff);
-	reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
-	wm8974_write(codec, WM8974_POWER1, reg | 0x020);
+	snd_soc_write(codec, WM8974_PLLN, (pll_div.pre_div << 4) | pll_div.n);
+	snd_soc_write(codec, WM8974_PLLK1, pll_div.k >> 18);
+	snd_soc_write(codec, WM8974_PLLK2, (pll_div.k >> 9) & 0x1ff);
+	snd_soc_write(codec, WM8974_PLLK3, pll_div.k & 0x1ff);
+	reg = snd_soc_read(codec, WM8974_POWER1);
+	snd_soc_write(codec, WM8974_POWER1, reg | 0x020);
 
 	/* Run CODEC from PLL instead of MCLK */
-	reg = wm8974_read_reg_cache(codec, WM8974_CLOCK);
-	wm8974_write(codec, WM8974_CLOCK, reg | 0x100);
+	reg = snd_soc_read(codec, WM8974_CLOCK);
+	snd_soc_write(codec, WM8974_CLOCK, reg | 0x100);
 
 	return 0;
 }
@@ -421,24 +373,24 @@ static int wm8974_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8974_OPCLKDIV:
-		reg = wm8974_read_reg_cache(codec, WM8974_GPIO) & 0x1cf;
-		wm8974_write(codec, WM8974_GPIO, reg | div);
+		reg = snd_soc_read(codec, WM8974_GPIO) & 0x1cf;
+		snd_soc_write(codec, WM8974_GPIO, reg | div);
 		break;
 	case WM8974_MCLKDIV:
-		reg = wm8974_read_reg_cache(codec, WM8974_CLOCK) & 0x11f;
-		wm8974_write(codec, WM8974_CLOCK, reg | div);
+		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x11f;
+		snd_soc_write(codec, WM8974_CLOCK, reg | div);
 		break;
 	case WM8974_ADCCLK:
-		reg = wm8974_read_reg_cache(codec, WM8974_ADC) & 0x1f7;
-		wm8974_write(codec, WM8974_ADC, reg | div);
+		reg = snd_soc_read(codec, WM8974_ADC) & 0x1f7;
+		snd_soc_write(codec, WM8974_ADC, reg | div);
 		break;
 	case WM8974_DACCLK:
-		reg = wm8974_read_reg_cache(codec, WM8974_DAC) & 0x1f7;
-		wm8974_write(codec, WM8974_DAC, reg | div);
+		reg = snd_soc_read(codec, WM8974_DAC) & 0x1f7;
+		snd_soc_write(codec, WM8974_DAC, reg | div);
 		break;
 	case WM8974_BCLKDIV:
-		reg = wm8974_read_reg_cache(codec, WM8974_CLOCK) & 0x1e3;
-		wm8974_write(codec, WM8974_CLOCK, reg | div);
+		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x1e3;
+		snd_soc_write(codec, WM8974_CLOCK, reg | div);
 		break;
 	default:
 		return -EINVAL;
@@ -452,7 +404,7 @@ static int wm8974_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 iface = 0;
-	u16 clk = wm8974_read_reg_cache(codec, WM8974_CLOCK) & 0x1fe;
+	u16 clk = snd_soc_read(codec, WM8974_CLOCK) & 0x1fe;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -499,8 +451,8 @@ static int wm8974_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	wm8974_write(codec, WM8974_IFACE, iface);
-	wm8974_write(codec, WM8974_CLOCK, clk);
+	snd_soc_write(codec, WM8974_IFACE, iface);
+	snd_soc_write(codec, WM8974_CLOCK, clk);
 	return 0;
 }
 
@@ -509,8 +461,8 @@ static int wm8974_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 iface = wm8974_read_reg_cache(codec, WM8974_IFACE) & 0x19f;
-	u16 adn = wm8974_read_reg_cache(codec, WM8974_ADD) & 0x1f1;
+	u16 iface = snd_soc_read(codec, WM8974_IFACE) & 0x19f;
+	u16 adn = snd_soc_read(codec, WM8974_ADD) & 0x1f1;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -549,20 +501,20 @@ static int wm8974_pcm_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	wm8974_write(codec, WM8974_IFACE, iface);
-	wm8974_write(codec, WM8974_ADD, adn);
+	snd_soc_write(codec, WM8974_IFACE, iface);
+	snd_soc_write(codec, WM8974_ADD, adn);
 	return 0;
 }
 
 static int wm8974_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = wm8974_read_reg_cache(codec, WM8974_DAC) & 0xffbf;
+	u16 mute_reg = snd_soc_read(codec, WM8974_DAC) & 0xffbf;
 
 	if (mute)
-		wm8974_write(codec, WM8974_DAC, mute_reg | 0x40);
+		snd_soc_write(codec, WM8974_DAC, mute_reg | 0x40);
 	else
-		wm8974_write(codec, WM8974_DAC, mute_reg);
+		snd_soc_write(codec, WM8974_DAC, mute_reg);
 	return 0;
 }
 
@@ -570,13 +522,13 @@ static int wm8974_mute(struct snd_soc_dai *dai, int mute)
 static int wm8974_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
-	u16 power1 = wm8974_read_reg_cache(codec, WM8974_POWER1) & ~0x3;
+	u16 power1 = snd_soc_read(codec, WM8974_POWER1) & ~0x3;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		power1 |= 0x1;  /* VMID 50k */
-		wm8974_write(codec, WM8974_POWER1, power1);
+		snd_soc_write(codec, WM8974_POWER1, power1);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -584,18 +536,18 @@ static int wm8974_set_bias_level(struct snd_soc_codec *codec,
 
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* Initial cap charge at VMID 5k */
-			wm8974_write(codec, WM8974_POWER1, power1 | 0x3);
+			snd_soc_write(codec, WM8974_POWER1, power1 | 0x3);
 			mdelay(100);
 		}
 
 		power1 |= 0x2;  /* VMID 500k */
-		wm8974_write(codec, WM8974_POWER1, power1);
+		snd_soc_write(codec, WM8974_POWER1, power1);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		wm8974_write(codec, WM8974_POWER1, 0);
-		wm8974_write(codec, WM8974_POWER2, 0);
-		wm8974_write(codec, WM8974_POWER3, 0);
+		snd_soc_write(codec, WM8974_POWER1, 0);
+		snd_soc_write(codec, WM8974_POWER2, 0);
+		snd_soc_write(codec, WM8974_POWER3, 0);
 		break;
 	}
 
@@ -738,8 +690,6 @@ static __devinit int wm8974_register(struct wm8974_priv *wm8974)
 	codec->private_data = wm8974;
 	codec->name = "WM8974";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8974_read_reg_cache;
-	codec->write = wm8974_write;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8974_set_bias_level;
 	codec->dai = &wm8974_dai;
@@ -747,12 +697,18 @@ static __devinit int wm8974_register(struct wm8974_priv *wm8974)
 	codec->reg_cache_size = WM8974_CACHEREGNUM;
 	codec->reg_cache = &wm8974->reg_cache;
 
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_I2C);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
+
 	memcpy(codec->reg_cache, wm8974_reg, sizeof(wm8974_reg));
 
 	ret = wm8974_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
+		goto err;
 	}
 
 	wm8974_dai.dev = codec->dev;
@@ -764,17 +720,22 @@ static __devinit int wm8974_register(struct wm8974_priv *wm8974)
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	ret = snd_soc_register_dai(&wm8974_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		return ret;
+		goto err_codec;
 	}
 
 	return 0;
+
+err_codec:
+	snd_soc_unregister_codec(codec);
+err:
+	kfree(wm8974);
+	return ret;
 }
 
 static __devexit void wm8974_unregister(struct wm8974_priv *wm8974)
