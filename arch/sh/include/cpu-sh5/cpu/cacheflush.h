@@ -25,7 +25,6 @@ extern void flush_icache_user_range(struct vm_area_struct *vma,
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 #define flush_icache_page(vma, page)	do { } while (0)
-void p3_cache_init(void);
 
 #endif /* __ASSEMBLY__ */
 

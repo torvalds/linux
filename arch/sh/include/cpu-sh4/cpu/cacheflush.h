@@ -35,7 +35,4 @@ void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 
 #define flush_icache_page(vma,pg)		do { } while (0)
 
-/* Initialization of P3 area for copy_user_page */
-void p3_cache_init(void);
-
 #endif /* __ASM_CPU_SH4_CACHEFLUSH_H */

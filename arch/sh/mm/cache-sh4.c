@@ -94,7 +94,7 @@ static void __init emit_cache_params(void)
 /*
  * SH-4 has virtually indexed and physically tagged cache.
  */
-void __init p3_cache_init(void)
+void __init sh4_cache_init(void)
 {
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);

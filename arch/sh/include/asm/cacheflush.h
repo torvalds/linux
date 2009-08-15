@@ -12,7 +12,6 @@
  *
  * See arch/sh/kernel/cpu/init.c:cache_init().
  */
-#define p3_cache_init()				do { } while (0)
 #define flush_cache_all()			do { } while (0)
 #define flush_cache_mm(mm)			do { } while (0)
 #define flush_cache_dup_mm(mm)			do { } while (0)
@@ -77,6 +76,8 @@ void *kmap_coherent(struct page *page, unsigned long addr);
 void kunmap_coherent(void);
 
 #define PG_dcache_dirty	PG_arch_1
+
+void cpu_cache_init(void);
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */

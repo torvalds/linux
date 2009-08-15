@@ -23,7 +23,7 @@
 /* Wired TLB entry for the D-cache */
 static unsigned long long dtlb_cache_slot;
 
-void __init p3_cache_init(void)
+void __init cpu_cache_init(void)
 {
 	/* Reserve a slot for dcache colouring in the DTLB */
 	dtlb_cache_slot	= sh64_get_wired_dtlb_entry();

@@ -230,7 +230,7 @@ void __init mem_init(void)
 		datasize >> 10,
 		initsize >> 10);
 
-	p3_cache_init();
+	cpu_cache_init();
 
 	/* Initialize the vDSO */
 	vsyscall_init();

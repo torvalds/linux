@@ -127,3 +127,14 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 			__flush_wback_region((void *)addr, PAGE_SIZE);
 	}
 }
+
+void __init cpu_cache_init(void)
+{
+	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
+	    (boot_cpu_data.family == CPU_FAMILY_SH4A) ||
+	    (boot_cpu_data.family == CPU_FAMILY_SH4AL_DSP)) {
+		extern void __weak sh4_cache_init(void);
+
+		sh4_cache_init();
+	}
+}

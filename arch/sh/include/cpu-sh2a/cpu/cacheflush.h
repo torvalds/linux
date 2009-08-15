@@ -30,5 +30,4 @@ void flush_icache_range(unsigned long start, unsigned long end);
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
 
-#define p3_cache_init()				do { } while (0)
 #endif /* __ASM_CPU_SH2A_CACHEFLUSH_H */
