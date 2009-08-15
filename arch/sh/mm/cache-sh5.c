@@ -20,6 +20,8 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 
+extern void __weak sh4__flush_region_init(void);
+
 /* Wired TLB entry for the D-cache */
 static unsigned long long dtlb_cache_slot;
 
@@ -27,6 +29,8 @@ void __init cpu_cache_init(void)
 {
 	/* Reserve a slot for dcache colouring in the DTLB */
 	dtlb_cache_slot	= sh64_get_wired_dtlb_entry();
+
+	sh4__flush_region_init();
 }
 
 void __init kmap_coherent_init(void)

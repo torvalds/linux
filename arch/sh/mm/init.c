@@ -210,6 +210,9 @@ void __init mem_init(void)
 			high_memory = node_high_memory;
 	}
 
+	/* Set this up early, so we can take care of the zero page */
+	cpu_cache_init();
+
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
@@ -229,8 +232,6 @@ void __init mem_init(void)
 		codesize >> 10,
 		datasize >> 10,
 		initsize >> 10);
-
-	cpu_cache_init();
 
 	/* Initialize the vDSO */
 	vsyscall_init();

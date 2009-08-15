@@ -26,13 +26,6 @@
 #define MAX_DCACHE_PAGES	64	/* XXX: Tune for ways */
 #define MAX_ICACHE_PAGES	32
 
-static void __flush_dcache_segment_1way(unsigned long start,
-					unsigned long extent);
-static void __flush_dcache_segment_2way(unsigned long start,
-					unsigned long extent);
-static void __flush_dcache_segment_4way(unsigned long start,
-					unsigned long extent);
-
 static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset);
 
@@ -45,38 +38,12 @@ static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
 	(void (*)(unsigned long, unsigned long))0xdeadbeef;
 
 /*
- * SH-4 has virtually indexed and physically tagged cache.
- */
-void __init sh4_cache_init(void)
-{
-	printk("PVR=%08x CVR=%08x PRR=%08x\n",
-		ctrl_inl(CCN_PVR),
-		ctrl_inl(CCN_CVR),
-		ctrl_inl(CCN_PRR));
-
-	switch (boot_cpu_data.dcache.ways) {
-	case 1:
-		__flush_dcache_segment_fn = __flush_dcache_segment_1way;
-		break;
-	case 2:
-		__flush_dcache_segment_fn = __flush_dcache_segment_2way;
-		break;
-	case 4:
-		__flush_dcache_segment_fn = __flush_dcache_segment_4way;
-		break;
-	default:
-		panic("unknown number of cache ways\n");
-		break;
-	}
-}
-
-/*
  * Write back the range of D-cache, and purge the I-cache.
  *
  * Called from kernel/module.c:sys_init_module and routine for a.out format,
  * signal handler code and kprobes code
  */
-void flush_icache_range(unsigned long start, unsigned long end)
+static void sh4_flush_icache_range(unsigned long start, unsigned long end)
 {
 	int icacheaddr;
 	unsigned long flags, v;
@@ -137,7 +104,7 @@ static inline void flush_cache_4096(unsigned long start,
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-void flush_dcache_page(struct page *page)
+static void sh4_flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
@@ -188,7 +155,7 @@ static inline void flush_dcache_all(void)
 	wmb();
 }
 
-void flush_cache_all(void)
+static void sh4_flush_cache_all(void)
 {
 	flush_dcache_all();
 	flush_icache_all();
@@ -280,7 +247,7 @@ loop_exit:
  *
  * Caller takes mm->mmap_sem.
  */
-void flush_cache_mm(struct mm_struct *mm)
+static void sh4_flush_cache_mm(struct mm_struct *mm)
 {
 	if (cpu_context(smp_processor_id(), mm) == NO_CONTEXT)
 		return;
@@ -320,8 +287,8 @@ void flush_cache_mm(struct mm_struct *mm)
  * ADDR: Virtual Address (U0 address)
  * PFN: Physical page number
  */
-void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
-		      unsigned long pfn)
+static void sh4_flush_cache_page(struct vm_area_struct *vma,
+		unsigned long address, unsigned long pfn)
 {
 	unsigned long phys = pfn << PAGE_SHIFT;
 	unsigned int alias_mask;
@@ -368,8 +335,8 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
  * Flushing the cache lines for U0 only isn't enough.
  * We need to flush for P1 too, which may contain aliases.
  */
-void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-		       unsigned long end)
+static void sh4_flush_cache_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end)
 {
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
@@ -667,4 +634,42 @@ static void __flush_dcache_segment_4way(unsigned long start,
 		a2 += linesz;
 		a3 += linesz;
 	} while (a0 < a0e);
+}
+
+extern void __weak sh4__flush_region_init(void);
+
+/*
+ * SH-4 has virtually indexed and physically tagged cache.
+ */
+void __init sh4_cache_init(void)
+{
+	printk("PVR=%08x CVR=%08x PRR=%08x\n",
+		ctrl_inl(CCN_PVR),
+		ctrl_inl(CCN_CVR),
+		ctrl_inl(CCN_PRR));
+
+	switch (boot_cpu_data.dcache.ways) {
+	case 1:
+		__flush_dcache_segment_fn = __flush_dcache_segment_1way;
+		break;
+	case 2:
+		__flush_dcache_segment_fn = __flush_dcache_segment_2way;
+		break;
+	case 4:
+		__flush_dcache_segment_fn = __flush_dcache_segment_4way;
+		break;
+	default:
+		panic("unknown number of cache ways\n");
+		break;
+	}
+
+	flush_icache_range	= sh4_flush_icache_range;
+	flush_dcache_page	= sh4_flush_dcache_page;
+	flush_cache_all		= sh4_flush_cache_all;
+	flush_cache_mm		= sh4_flush_cache_mm;
+	flush_cache_dup_mm	= sh4_flush_cache_mm;
+	flush_cache_page	= sh4_flush_cache_page;
+	flush_cache_range	= sh4_flush_cache_range;
+
+	sh4__flush_region_init();
 }

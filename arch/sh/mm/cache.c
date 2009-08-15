@@ -15,6 +15,62 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
+void (*flush_cache_all)(void);
+void (*flush_cache_mm)(struct mm_struct *mm);
+void (*flush_cache_dup_mm)(struct mm_struct *mm);
+void (*flush_cache_page)(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long pfn);
+void (*flush_cache_range)(struct vm_area_struct *vma,
+				 unsigned long start, unsigned long end);
+void (*flush_dcache_page)(struct page *page);
+void (*flush_icache_range)(unsigned long start, unsigned long end);
+void (*flush_icache_page)(struct vm_area_struct *vma,
+				 struct page *page);
+void (*flush_cache_sigtramp)(unsigned long address);
+void (*__flush_wback_region)(void *start, int size);
+void (*__flush_purge_region)(void *start, int size);
+void (*__flush_invalidate_region)(void *start, int size);
+
+static inline void noop_flush_cache_all(void)
+{
+}
+
+static inline void noop_flush_cache_mm(struct mm_struct *mm)
+{
+}
+
+static inline void noop_flush_cache_page(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long pfn)
+{
+}
+
+static inline void noop_flush_cache_range(struct vm_area_struct *vma,
+				 unsigned long start, unsigned long end)
+{
+}
+
+static inline void noop_flush_dcache_page(struct page *page)
+{
+}
+
+static inline void noop_flush_icache_range(unsigned long start,
+					   unsigned long end)
+{
+}
+
+static inline void noop_flush_icache_page(struct vm_area_struct *vma,
+					  struct page *page)
+{
+}
+
+static inline void noop_flush_cache_sigtramp(unsigned long address)
+{
+}
+
+static inline void noop__flush_region(void *start, int size)
+{
+}
+
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long vaddr, void *dst, const void *src,
 		       unsigned long len)
@@ -173,6 +229,20 @@ void __init cpu_cache_init(void)
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);
 	compute_alias(&boot_cpu_data.scache);
+
+	flush_cache_all		= noop_flush_cache_all;
+	flush_cache_mm		= noop_flush_cache_mm;
+	flush_cache_dup_mm	= noop_flush_cache_mm;
+	flush_cache_page	= noop_flush_cache_page;
+	flush_cache_range	= noop_flush_cache_range;
+	flush_dcache_page	= noop_flush_dcache_page;
+	flush_icache_range	= noop_flush_icache_range;
+	flush_icache_page	= noop_flush_icache_page;
+	flush_cache_sigtramp	= noop_flush_cache_sigtramp;
+
+	__flush_wback_region		= noop__flush_region;
+	__flush_purge_region		= noop__flush_region;
+	__flush_invalidate_region	= noop__flush_region;
 
 	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4A) ||

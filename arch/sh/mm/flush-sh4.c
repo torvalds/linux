@@ -8,7 +8,7 @@
  * START: Virtual Address (U0, P1, or P3)
  * SIZE: Size of the region.
  */
-void __weak __flush_wback_region(void *start, int size)
+static void sh4__flush_wback_region(void *start, int size)
 {
 	reg_size_t aligned_start, v, cnt, end;
 
@@ -51,7 +51,7 @@ void __weak __flush_wback_region(void *start, int size)
  * START: Virtual Address (U0, P1, or P3)
  * SIZE: Size of the region.
  */
-void __weak __flush_purge_region(void *start, int size)
+static void sh4__flush_purge_region(void *start, int size)
 {
 	reg_size_t aligned_start, v, cnt, end;
 
@@ -90,7 +90,7 @@ void __weak __flush_purge_region(void *start, int size)
 /*
  * No write back please
  */
-void __weak __flush_invalidate_region(void *start, int size)
+static void sh4__flush_invalidate_region(void *start, int size)
 {
 	reg_size_t aligned_start, v, cnt, end;
 
@@ -125,4 +125,11 @@ void __weak __flush_invalidate_region(void *start, int size)
 		v += L1_CACHE_BYTES;
 		cnt--;
 	}
+}
+
+void __init sh4__flush_region_init(void)
+{
+	__flush_wback_region		= sh4__flush_wback_region;
+	__flush_invalidate_region	= sh4__flush_invalidate_region;
+	__flush_purge_region		= sh4__flush_purge_region;
 }
