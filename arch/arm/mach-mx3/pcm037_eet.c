@@ -24,15 +24,6 @@
 #include "devices.h"
 
 static unsigned int pcm037_eet_pins[] = {
-	/* SPI #1 */
-	MX31_PIN_CSPI1_MISO__MISO,
-	MX31_PIN_CSPI1_MOSI__MOSI,
-	MX31_PIN_CSPI1_SCLK__SCLK,
-	MX31_PIN_CSPI1_SPI_RDY__SPI_RDY,
-	MX31_PIN_CSPI1_SS0__SS0,
-	MX31_PIN_CSPI1_SS1__SS1,
-	MX31_PIN_CSPI1_SS2__SS2,
-
 	/* Reserve and hardwire GPIO 57 high - S6E63D6 chipselect */
 	IOMUX_MODE(MX31_PIN_KEY_COL7, IOMUX_CONFIG_GPIO),
 	/* GPIO keys */
