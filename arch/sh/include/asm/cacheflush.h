@@ -76,5 +76,7 @@ void kmap_coherent_init(void);
 void *kmap_coherent(struct page *page, unsigned long addr);
 void kunmap_coherent(void);
 
+#define PG_dcache_dirty	PG_arch_1
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */

@@ -15,8 +15,6 @@
  * SH4. Unlike the SH4 this is a unified cache so we need to do some work
  * in mmap when 'exec'ing a new binary
  */
-#define PG_dcache_dirty	PG_arch_1
-
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
 #define flush_cache_dup_mm(mm) flush_cache_mm(mm)

@@ -68,17 +68,12 @@ extern void clear_user_page(void *to, unsigned long address, struct page *page);
 extern void copy_user_page(void *to, void *from, unsigned long address,
 			   struct page *page);
 
-#elif defined(CONFIG_MMU)
+#else
 extern void copy_user_highpage(struct page *to, struct page *from,
 			       unsigned long vaddr, struct vm_area_struct *vma);
 #define __HAVE_ARCH_COPY_USER_HIGHPAGE
 extern void clear_user_highpage(struct page *page, unsigned long vaddr);
 #define clear_user_highpage	clear_user_highpage
-
-#else
-
-#define clear_user_page(page, vaddr, pg)	clear_page(page)
-#define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
 #endif
 
