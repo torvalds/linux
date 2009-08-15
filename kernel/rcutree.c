@@ -1325,22 +1325,40 @@ int rcu_needs_cpu(int cpu)
 }
 
 /*
- * Initialize a CPU's per-CPU RCU data.  We take this "scorched earth"
- * approach so that we don't have to worry about how long the CPU has
- * been gone, or whether it ever was online previously.  We do trust the
- * ->mynode field, as it is constant for a given struct rcu_data and
- * initialized during early boot.
- *
- * Note that only one online or offline event can be happening at a given
- * time.  Note also that we can accept some slop in the rsp->completed
- * access due to the fact that this CPU cannot possibly have any RCU
- * callbacks in flight yet.
+ * Do boot-time initialization of a CPU's per-CPU RCU data.
+ */
+static void __init
+rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
+{
+	unsigned long flags;
+	int i;
+	struct rcu_data *rdp = rsp->rda[cpu];
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	/* Set up local state, ensuring consistent view of global state. */
+	spin_lock_irqsave(&rnp->lock, flags);
+	rdp->grpmask = 1UL << (cpu - rdp->mynode->grplo);
+	rdp->nxtlist = NULL;
+	for (i = 0; i < RCU_NEXT_SIZE; i++)
+		rdp->nxttail[i] = &rdp->nxtlist;
+	rdp->qlen = 0;
+#ifdef CONFIG_NO_HZ
+	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
+#endif /* #ifdef CONFIG_NO_HZ */
+	rdp->cpu = cpu;
+	spin_unlock_irqrestore(&rnp->lock, flags);
+}
+
+/*
+ * Initialize a CPU's per-CPU RCU data.  Note that only one online or
+ * offline event can be happening at a given time.  Note also that we
+ * can accept some slop in the rsp->completed access due to the fact
+ * that this CPU cannot possibly have any RCU callbacks in flight yet.
  */
 static void __cpuinit
 rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
-	int i;
 	long lastcomp;
 	unsigned long mask;
 	struct rcu_data *rdp = rsp->rda[cpu];
@@ -1355,16 +1373,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->qs_pending = 1;	 /*  so set up to respond to current GP. */
 	rdp->beenonline = 1;	 /* We have now been online. */
 	rdp->passed_quiesc_completed = lastcomp - 1;
-	rdp->grpmask = 1UL << (cpu - rdp->mynode->grplo);
-	rdp->nxtlist = NULL;
-	for (i = 0; i < RCU_NEXT_SIZE; i++)
-		rdp->nxttail[i] = &rdp->nxtlist;
-	rdp->qlen = 0;
 	rdp->blimit = blimit;
-#ifdef CONFIG_NO_HZ
-	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
-#endif /* #ifdef CONFIG_NO_HZ */
-	rdp->cpu = cpu;
 	spin_unlock(&rnp->lock);		/* irqs remain disabled. */
 
 	/*
@@ -1539,8 +1548,12 @@ void __init __rcu_init(void)
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 	rcu_init_one(&rcu_state);
 	RCU_DATA_PTR_INIT(&rcu_state, rcu_data);
+	for_each_possible_cpu(i)
+		rcu_boot_init_percpu_data(i, &rcu_state);
 	rcu_init_one(&rcu_bh_state);
 	RCU_DATA_PTR_INIT(&rcu_bh_state, rcu_bh_data);
+	for_each_possible_cpu(i)
+		rcu_boot_init_percpu_data(i, &rcu_bh_state);
 
 	for_each_online_cpu(i)
 		rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE, (void *)(long)i);
