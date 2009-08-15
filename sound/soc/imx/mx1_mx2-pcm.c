@@ -376,7 +376,7 @@ static int mx1_mx2_pcm_mmap(struct snd_pcm_substream *substream,
 				     runtime->dma_bytes);
 }
 
-struct snd_pcm_ops mx1_mx2_pcm_ops = {
+static struct snd_pcm_ops mx1_mx2_pcm_ops = {
 	.open		= mx1_mx2_pcm_open,
 	.close		= mx1_mx2_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -434,7 +434,7 @@ static void mx1_mx2_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-int mx1_mx2_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
+static int mx1_mx2_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	struct snd_pcm *pcm)
 {
 	int ret = 0;
