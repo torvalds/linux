@@ -30,14 +30,6 @@ extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(kernel_thread);
 
-#if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU)
-EXPORT_SYMBOL(clear_user_page);
-#endif
-
-#ifndef CONFIG_CACHE_OFF
-EXPORT_SYMBOL(flush_dcache_page);
-#endif
-
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(screen_info);
 #endif

@@ -14,18 +14,6 @@
 
 #define AT_VECTOR_SIZE_ARCH 5 /* entries in ARCH_DLINFO */
 
-#if defined(CONFIG_CPU_SH4A) || defined(CONFIG_CPU_SH5)
-#define __icbi()			\
-{					\
-	unsigned long __addr;		\
-	__addr = 0xa8000000;		\
-	__asm__ __volatile__(		\
-		"icbi   %0\n\t"		\
-		: /* no output */	\
-		: "m" (__m(__addr)));	\
-}
-#endif
-
 /*
  * A brief note on ctrl_barrier(), the control register write barrier.
  *
@@ -44,7 +32,7 @@
 #define mb()		__asm__ __volatile__ ("synco": : :"memory")
 #define rmb()		mb()
 #define wmb()		__asm__ __volatile__ ("synco": : :"memory")
-#define ctrl_barrier()	__icbi()
+#define ctrl_barrier()	__icbi(0xa8000000)
 #define read_barrier_depends()	do { } while(0)
 #else
 #define mb()		__asm__ __volatile__ ("": : :"memory")
