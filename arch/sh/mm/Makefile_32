@@ -15,7 +15,7 @@ endif
 obj-y			+= $(cache-y)
 
 mmu-y			:= tlb-nommu.o pg-nommu.o
-mmu-$(CONFIG_MMU)	:= fault_32.o tlbflush_32.o ioremap_32.o pg-mmu.o
+mmu-$(CONFIG_MMU)	:= fault_32.o kmap.o tlbflush_32.o ioremap_32.o pg-mmu.o
 
 obj-y			+= $(mmu-y)
 obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o

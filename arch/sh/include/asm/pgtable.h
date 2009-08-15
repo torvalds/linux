@@ -158,12 +158,6 @@ extern void paging_init(void);
 extern void page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd);
 
-#if defined(CONFIG_MMU) && !defined(CONFIG_CPU_SH5)
-extern void kmap_coherent_init(void);
-#else
-#define kmap_coherent_init()	do { } while (0)
-#endif
-
 /* arch/sh/mm/mmap.c */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN

@@ -29,6 +29,21 @@ void __init p3_cache_init(void)
 	dtlb_cache_slot	= sh64_get_wired_dtlb_entry();
 }
 
+void __init kmap_coherent_init(void)
+{
+	/* XXX ... */
+}
+
+void *kmap_coherent(struct page *page, unsigned long addr)
+{
+	/* XXX ... */
+	return NULL;
+}
+
+void kunmap_coherent(void)
+{
+}
+
 #ifdef CONFIG_DCACHE_DISABLED
 #define sh64_dcache_purge_all()					do { } while (0)
 #define sh64_dcache_purge_coloured_phy_page(paddr, eaddr)	do { } while (0)

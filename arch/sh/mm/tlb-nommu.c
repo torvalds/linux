@@ -55,6 +55,21 @@ void __update_cache(struct vm_area_struct *vma,
 {
 }
 
+void __init kmap_coherent_init(void)
+{
+}
+
+void *kmap_coherent(struct page *page, unsigned long addr)
+{
+	BUG();
+	return NULL;
+}
+
+void kunmap_coherent(void)
+{
+	BUG();
+}
+
 void __init page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd_base)
 {

@@ -74,5 +74,9 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
+void kmap_coherent_init(void);
+void *kmap_coherent(struct page *page, unsigned long addr);
+void kunmap_coherent(void);
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */
