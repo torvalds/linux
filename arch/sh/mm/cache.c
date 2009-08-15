@@ -256,6 +256,12 @@ void __init cpu_cache_init(void)
 		sh2a_cache_init();
 	}
 
+	if (boot_cpu_data.family == CPU_FAMILY_SH3) {
+		extern void __weak sh3_cache_init(void);
+
+		sh3_cache_init();
+	}
+
 	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4A) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4AL_DSP)) {
