@@ -44,61 +44,15 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
 	(void (*)(unsigned long, unsigned long))0xdeadbeef;
 
-static void compute_alias(struct cache_info *c)
-{
-	c->alias_mask = ((c->sets - 1) << c->entry_shift) & ~(PAGE_SIZE - 1);
-	c->n_aliases = c->alias_mask ? (c->alias_mask >> PAGE_SHIFT) + 1 : 0;
-}
-
-static void __init emit_cache_params(void)
-{
-	printk("PVR=%08x CVR=%08x PRR=%08x\n",
-		ctrl_inl(CCN_PVR),
-		ctrl_inl(CCN_CVR),
-		ctrl_inl(CCN_PRR));
-	printk("I-cache : n_ways=%d n_sets=%d way_incr=%d\n",
-		boot_cpu_data.icache.ways,
-		boot_cpu_data.icache.sets,
-		boot_cpu_data.icache.way_incr);
-	printk("I-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
-		boot_cpu_data.icache.entry_mask,
-		boot_cpu_data.icache.alias_mask,
-		boot_cpu_data.icache.n_aliases);
-	printk("D-cache : n_ways=%d n_sets=%d way_incr=%d\n",
-		boot_cpu_data.dcache.ways,
-		boot_cpu_data.dcache.sets,
-		boot_cpu_data.dcache.way_incr);
-	printk("D-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
-		boot_cpu_data.dcache.entry_mask,
-		boot_cpu_data.dcache.alias_mask,
-		boot_cpu_data.dcache.n_aliases);
-
-	/*
-	 * Emit Secondary Cache parameters if the CPU has a probed L2.
-	 */
-	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
-		printk("S-cache : n_ways=%d n_sets=%d way_incr=%d\n",
-			boot_cpu_data.scache.ways,
-			boot_cpu_data.scache.sets,
-			boot_cpu_data.scache.way_incr);
-		printk("S-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
-			boot_cpu_data.scache.entry_mask,
-			boot_cpu_data.scache.alias_mask,
-			boot_cpu_data.scache.n_aliases);
-	}
-
-	if (!__flush_dcache_segment_fn)
-		panic("unknown number of cache ways\n");
-}
-
 /*
  * SH-4 has virtually indexed and physically tagged cache.
  */
 void __init sh4_cache_init(void)
 {
-	compute_alias(&boot_cpu_data.icache);
-	compute_alias(&boot_cpu_data.dcache);
-	compute_alias(&boot_cpu_data.scache);
+	printk("PVR=%08x CVR=%08x PRR=%08x\n",
+		ctrl_inl(CCN_PVR),
+		ctrl_inl(CCN_CVR),
+		ctrl_inl(CCN_PRR));
 
 	switch (boot_cpu_data.dcache.ways) {
 	case 1:
@@ -111,11 +65,9 @@ void __init sh4_cache_init(void)
 		__flush_dcache_segment_fn = __flush_dcache_segment_4way;
 		break;
 	default:
-		__flush_dcache_segment_fn = NULL;
+		panic("unknown number of cache ways\n");
 		break;
 	}
-
-	emit_cache_params();
 }
 
 /*

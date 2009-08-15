@@ -128,8 +128,52 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 	}
 }
 
+static void compute_alias(struct cache_info *c)
+{
+	c->alias_mask = ((c->sets - 1) << c->entry_shift) & ~(PAGE_SIZE - 1);
+	c->n_aliases = c->alias_mask ? (c->alias_mask >> PAGE_SHIFT) + 1 : 0;
+}
+
+static void __init emit_cache_params(void)
+{
+	printk(KERN_NOTICE "I-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+		boot_cpu_data.icache.ways,
+		boot_cpu_data.icache.sets,
+		boot_cpu_data.icache.way_incr);
+	printk(KERN_NOTICE "I-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+		boot_cpu_data.icache.entry_mask,
+		boot_cpu_data.icache.alias_mask,
+		boot_cpu_data.icache.n_aliases);
+	printk(KERN_NOTICE "D-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+		boot_cpu_data.dcache.ways,
+		boot_cpu_data.dcache.sets,
+		boot_cpu_data.dcache.way_incr);
+	printk(KERN_NOTICE "D-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+		boot_cpu_data.dcache.entry_mask,
+		boot_cpu_data.dcache.alias_mask,
+		boot_cpu_data.dcache.n_aliases);
+
+	/*
+	 * Emit Secondary Cache parameters if the CPU has a probed L2.
+	 */
+	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
+		printk(KERN_NOTICE "S-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+			boot_cpu_data.scache.ways,
+			boot_cpu_data.scache.sets,
+			boot_cpu_data.scache.way_incr);
+		printk(KERN_NOTICE "S-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+			boot_cpu_data.scache.entry_mask,
+			boot_cpu_data.scache.alias_mask,
+			boot_cpu_data.scache.n_aliases);
+	}
+}
+
 void __init cpu_cache_init(void)
 {
+	compute_alias(&boot_cpu_data.icache);
+	compute_alias(&boot_cpu_data.dcache);
+	compute_alias(&boot_cpu_data.scache);
+
 	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4A) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4AL_DSP)) {
@@ -137,4 +181,6 @@ void __init cpu_cache_init(void)
 
 		sh4_cache_init();
 	}
+
+	emit_cache_params();
 }
