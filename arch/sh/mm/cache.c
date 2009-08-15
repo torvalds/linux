@@ -244,6 +244,12 @@ void __init cpu_cache_init(void)
 	__flush_purge_region		= noop__flush_region;
 	__flush_invalidate_region	= noop__flush_region;
 
+	if (boot_cpu_data.family == CPU_FAMILY_SH2) {
+		extern void __weak sh2_cache_init(void);
+
+		sh2_cache_init();
+	}
+
 	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4A) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4AL_DSP)) {
