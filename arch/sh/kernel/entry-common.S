@@ -43,6 +43,7 @@
  *	syscall #
  *
  */
+#include <asm/dwarf.h>
 
 #if defined(CONFIG_PREEMPT)
 #  define preempt_stop()	cli ; TRACE_IRQS_OFF
@@ -66,6 +67,11 @@ ENTRY(exception_error)
 
 	.align	2
 ret_from_exception:
+	CFI_STARTPROC simple
+	CFI_DEF_CFA r14, 0
+	CFI_REL_OFFSET 17, 64
+	CFI_REL_OFFSET 15, 0
+	CFI_REL_OFFSET 14, 56
 	preempt_stop()
 ENTRY(ret_from_irq)
 	!
@@ -240,6 +246,7 @@ debug_trap:
 	 nop
 	bra	__restore_all
 	 nop
+	CFI_ENDPROC
 
 	.align	2
 1:	.long	debug_trap_table
@@ -285,6 +292,7 @@ ret_from_fork:
  * system calls and debug traps through their respective jump tables.
  */
 ENTRY(system_call)
+	setup_frame_reg
 #if !defined(CONFIG_CPU_SH2)
 	mov.l	1f, r9
 	mov.l	@r9, r8		! Read from TRA (Trap Address) Register

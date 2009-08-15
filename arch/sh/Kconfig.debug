@@ -110,6 +110,14 @@ config DUMP_CODE
 
 	  Those looking for more verbose debugging output should say Y.
 
+config DWARF_UNWINDER
+	bool "Enable the DWARF unwinder for stacktraces"
+	select FRAME_POINTER
+	default n
+	help
+	  Enabling this option will make stacktraces more accurate, at
+	  the cost of an increase in overall kernel size.
+
 config SH_NO_BSS_INIT
 	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
 	depends on DEBUG_KERNEL

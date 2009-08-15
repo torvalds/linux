@@ -208,7 +208,7 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 	*total_in = 0;
 
 	workspace = find_zlib_workspace();
-	if (!workspace)
+	if (IS_ERR(workspace))
 		return -1;
 
 	if (Z_OK != zlib_deflateInit(&workspace->def_strm, 3)) {
@@ -366,7 +366,7 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 	char *kaddr;
 
 	workspace = find_zlib_workspace();
-	if (!workspace)
+	if (IS_ERR(workspace))
 		return -ENOMEM;
 
 	data_in = kmap(pages_in[page_in_index]);
@@ -547,7 +547,7 @@ int btrfs_zlib_decompress(unsigned char *data_in,
 		return -ENOMEM;
 
 	workspace = find_zlib_workspace();
-	if (!workspace)
+	if (IS_ERR(workspace))
 		return -ENOMEM;
 
 	workspace->inf_strm.next_in = data_in;

@@ -36,6 +36,7 @@
 
 static DEFINE_PER_CPU(__u64, next_check) = INITIAL_JIFFIES;
 static DEFINE_PER_CPU(unsigned long, thermal_throttle_count);
+static DEFINE_PER_CPU(bool, thermal_throttle_active);
 
 static atomic_t therm_throt_en		= ATOMIC_INIT(0);
 
@@ -96,24 +97,27 @@ static int therm_throt_process(int curr)
 {
 	unsigned int cpu = smp_processor_id();
 	__u64 tmp_jiffs = get_jiffies_64();
+	bool was_throttled = __get_cpu_var(thermal_throttle_active);
+	bool is_throttled = __get_cpu_var(thermal_throttle_active) = curr;
 
-	if (curr)
+	if (is_throttled)
 		__get_cpu_var(thermal_throttle_count)++;
 
-	if (time_before64(tmp_jiffs, __get_cpu_var(next_check)))
+	if (!(was_throttled ^ is_throttled) &&
+	    time_before64(tmp_jiffs, __get_cpu_var(next_check)))
 		return 0;
 
 	__get_cpu_var(next_check) = tmp_jiffs + CHECK_INTERVAL;
 
 	/* if we just entered the thermal event */
-	if (curr) {
+	if (is_throttled) {
 		printk(KERN_CRIT "CPU%d: Temperature above threshold, "
-		       "cpu clock throttled (total events = %lu)\n", cpu,
-		       __get_cpu_var(thermal_throttle_count));
+		       "cpu clock throttled (total events = %lu)\n",
+		       cpu, __get_cpu_var(thermal_throttle_count));
 
 		add_taint(TAINT_MACHINE_CHECK);
-	} else {
-		printk(KERN_CRIT "CPU%d: Temperature/speed normal\n", cpu);
+	} else if (was_throttled) {
+		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", cpu);
 	}
 
 	return 1;

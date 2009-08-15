@@ -265,10 +265,6 @@ static int caching_kthread(void *data)
 
 	atomic_inc(&block_group->space_info->caching_threads);
 	last = max_t(u64, block_group->key.objectid, BTRFS_SUPER_INFO_OFFSET);
-again:
-	/* need to make sure the commit_root doesn't disappear */
-	down_read(&fs_info->extent_root->commit_root_sem);
-
 	/*
 	 * We don't want to deadlock with somebody trying to allocate a new
 	 * extent for the extent root while also trying to search the extent
@@ -282,6 +278,10 @@ again:
 	key.objectid = last;
 	key.offset = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
+again:
+	/* need to make sure the commit_root doesn't disappear */
+	down_read(&fs_info->extent_commit_sem);
+
 	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
@@ -302,10 +302,24 @@ again:
 			else if (ret)
 				break;
 
-			if (need_resched()) {
+			if (need_resched() ||
+			    btrfs_transaction_in_commit(fs_info)) {
+				leaf = path->nodes[0];
+
+				/* this shouldn't happen, but if the
+				 * leaf is empty just move on.
+				 */
+				if (btrfs_header_nritems(leaf) == 0)
+					break;
+				/*
+				 * we need to copy the key out so that
+				 * we are sure the next search advances
+				 * us forward in the btree.
+				 */
+				btrfs_item_key_to_cpu(leaf, &key, 0);
 				btrfs_release_path(fs_info->extent_root, path);
-				up_read(&fs_info->extent_root->commit_root_sem);
-				cond_resched();
+				up_read(&fs_info->extent_commit_sem);
+				schedule_timeout(1);
 				goto again;
 			}
 
@@ -345,7 +359,7 @@ next:
 
 err:
 	btrfs_free_path(path);
-	up_read(&fs_info->extent_root->commit_root_sem);
+	up_read(&fs_info->extent_commit_sem);
 	atomic_dec(&block_group->space_info->caching_threads);
 	wake_up(&block_group->caching_q);
 

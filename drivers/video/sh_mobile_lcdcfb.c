@@ -154,6 +154,7 @@ static void lcdc_sys_write_index(void *handle, unsigned long data)
 	lcdc_write(ch->lcdc, _LDDWD0R, data | 0x10000000);
 	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 	lcdc_write(ch->lcdc, _LDDWAR, 1 | (lcdc_chan_is_sublcd(ch) ? 2 : 0));
+	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 }
 
 static void lcdc_sys_write_data(void *handle, unsigned long data)
@@ -163,6 +164,7 @@ static void lcdc_sys_write_data(void *handle, unsigned long data)
 	lcdc_write(ch->lcdc, _LDDWD0R, data | 0x11000000);
 	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 	lcdc_write(ch->lcdc, _LDDWAR, 1 | (lcdc_chan_is_sublcd(ch) ? 2 : 0));
+	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 }
 
 static unsigned long lcdc_sys_read_data(void *handle)
@@ -173,8 +175,9 @@ static unsigned long lcdc_sys_read_data(void *handle)
 	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 	lcdc_write(ch->lcdc, _LDDRAR, 1 | (lcdc_chan_is_sublcd(ch) ? 2 : 0));
 	udelay(1);
+	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 
-	return lcdc_read(ch->lcdc, _LDDRDR) & 0xffff;
+	return lcdc_read(ch->lcdc, _LDDRDR) & 0x3ffff;
 }
 
 struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
@@ -474,6 +477,9 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	/* tell the board code to enable the panel */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
+		if (!ch->enabled)
+			continue;
+
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->display_on)
 			board_cfg->display_on(board_cfg->board_data);
@@ -491,6 +497,8 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 	/* clean up deferred io and ask board code to disable panel */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
+		if (!ch->enabled)
+			continue;
 
 		/* deferred io mode:
 		 * flush frame, and wait for frame end interrupt

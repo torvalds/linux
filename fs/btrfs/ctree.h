@@ -825,6 +825,7 @@ struct btrfs_fs_info {
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
 	struct mutex tree_reloc_mutex;
+	struct rw_semaphore extent_commit_sem;
 
 	/*
 	 * this protects the ordered operations list only while we are
@@ -958,9 +959,6 @@ struct btrfs_root {
 
 	/* the node lock is held while changing the node pointer */
 	spinlock_t node_lock;
-
-	/* taken when updating the commit root */
-	struct rw_semaphore commit_root_sem;
 
 	struct extent_buffer *commit_root;
 	struct btrfs_root *log_root;

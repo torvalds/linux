@@ -617,7 +617,7 @@ static int __init migor_devices_setup(void)
 
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }
-__initcall(migor_devices_setup);
+arch_initcall(migor_devices_setup);
 
 /* Return the board specific boot mode pin configuration */
 static int migor_mode_pins(void)

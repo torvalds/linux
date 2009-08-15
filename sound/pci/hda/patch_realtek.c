@@ -275,13 +275,13 @@ struct alc_spec {
 						 */
 	unsigned int num_init_verbs;
 
-	char stream_name_analog[16];	/* analog PCM stream */
+	char stream_name_analog[32];	/* analog PCM stream */
 	struct hda_pcm_stream *stream_analog_playback;
 	struct hda_pcm_stream *stream_analog_capture;
 	struct hda_pcm_stream *stream_analog_alt_playback;
 	struct hda_pcm_stream *stream_analog_alt_capture;
 
-	char stream_name_digital[16];	/* digital PCM stream */
+	char stream_name_digital[32];	/* digital PCM stream */
 	struct hda_pcm_stream *stream_digital_playback;
 	struct hda_pcm_stream *stream_digital_capture;
 
@@ -559,7 +559,7 @@ static int alc_pin_mode_get(struct snd_kcontrol *kcontrol,
 
 	/* Find enumerated value for current pinctl setting */
 	i = alc_pin_mode_min(dir);
-	while (alc_pin_mode_values[i] != pinctl && i <= alc_pin_mode_max(dir))
+	while (i <= alc_pin_mode_max(dir) && alc_pin_mode_values[i] != pinctl)
 		i++;
 	*valp = i <= alc_pin_mode_max(dir) ? i: alc_pin_mode_min(dir);
 	return 0;
@@ -13563,6 +13563,8 @@ static int patch_alc269(struct hda_codec *codec)
 		set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 
+	spec->vmaster_nid = 0x02;
+
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC269_AUTO)
 		spec->init_hook = alc269_auto_init;
@@ -15157,7 +15159,7 @@ static struct snd_pci_quirk alc861vd_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0x03f0, "Realtek ALC660 demo", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x1179, 0xff00, "Toshiba A135", ALC861VD_LENOVO),
 	/*SND_PCI_QUIRK(0x1179, 0xff00, "DALLAS", ALC861VD_DALLAS),*/ /*lenovo*/
-	SND_PCI_QUIRK(0x1179, 0xff01, "DALLAS", ALC861VD_DALLAS),
+	SND_PCI_QUIRK(0x1179, 0xff01, "Toshiba A135", ALC861VD_LENOVO),
 	SND_PCI_QUIRK(0x1179, 0xff03, "Toshiba P205", ALC861VD_LENOVO),
 	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba L30-149", ALC861VD_DALLAS),
 	SND_PCI_QUIRK(0x1565, 0x820d, "Biostar NF61S SE", ALC861VD_6ST_DIG),
@@ -15577,9 +15579,12 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc861vd_pcm_digital_playback;
 	spec->stream_digital_capture = &alc861vd_pcm_digital_capture;
 
-	spec->adc_nids = alc861vd_adc_nids;
-	spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
-	spec->capsrc_nids = alc861vd_capsrc_nids;
+	if (!spec->adc_nids) {
+		spec->adc_nids = alc861vd_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
+	}
+	if (!spec->capsrc_nids)
+		spec->capsrc_nids = alc861vd_capsrc_nids;
 
 	set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -17496,9 +17501,12 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc662_pcm_digital_playback;
 	spec->stream_digital_capture = &alc662_pcm_digital_capture;
 
-	spec->adc_nids = alc662_adc_nids;
-	spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
-	spec->capsrc_nids = alc662_capsrc_nids;
+	if (!spec->adc_nids) {
+		spec->adc_nids = alc662_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
+	}
+	if (!spec->capsrc_nids)
+		spec->capsrc_nids = alc662_capsrc_nids;
 
 	if (!spec->cap_mixer)
 		set_capture_mixer(spec);

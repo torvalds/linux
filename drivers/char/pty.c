@@ -144,6 +144,8 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf,
 
 static int pty_write_room(struct tty_struct *tty)
 {
+	if (tty->stopped)
+		return 0;
 	return pty_space(tty->link);
 }
 

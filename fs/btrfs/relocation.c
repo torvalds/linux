@@ -2553,8 +2553,13 @@ int relocate_inode_pages(struct inode *inode, u64 start, u64 len)
 	last_index = (start + len - 1) >> PAGE_CACHE_SHIFT;
 
 	/* make sure the dirty trick played by the caller work */
-	ret = invalidate_inode_pages2_range(inode->i_mapping,
-					    first_index, last_index);
+	while (1) {
+		ret = invalidate_inode_pages2_range(inode->i_mapping,
+						    first_index, last_index);
+		if (ret != -EBUSY)
+			break;
+		schedule_timeout(HZ/10);
+	}
 	if (ret)
 		goto out_unlock;
 

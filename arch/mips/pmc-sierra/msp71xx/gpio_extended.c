@@ -1,6 +1,4 @@
 /*
- * @file /arch/mips/pmc-sierra/msp71xx/gpio_extended.c
- *
  * Generic PMC MSP71xx EXTENDED (EXD) GPIO handling. The extended gpio is
  * a set of hardware registers that have no need for explicit locking as
  * it is handled by unique method of writing individual set/clr bits.

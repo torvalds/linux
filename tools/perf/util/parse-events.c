@@ -121,13 +121,29 @@ static unsigned long hw_cache_stat[C(MAX)] = {
 	   (strcmp(sys_dirent.d_name, ".")) &&				       \
 	   (strcmp(sys_dirent.d_name, "..")))
 
+static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
+{
+	char evt_path[MAXPATHLEN];
+	int fd;
+
+	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
+			sys_dir->d_name, evt_dir->d_name);
+	fd = open(evt_path, O_RDONLY);
+	if (fd < 0)
+		return -EINVAL;
+	close(fd);
+
+	return 0;
+}
+
 #define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next, file, st)    \
 	while (!readdir_r(evt_dir, &evt_dirent, &evt_next) && evt_next)        \
 	if (snprintf(file, MAXPATHLEN, "%s/%s/%s", debugfs_path,	       \
 		     sys_dirent.d_name, evt_dirent.d_name) &&		       \
 	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
 	   (strcmp(evt_dirent.d_name, ".")) &&				       \
-	   (strcmp(evt_dirent.d_name, "..")))
+	   (strcmp(evt_dirent.d_name, "..")) &&				       \
+	   (!tp_event_has_id(&sys_dirent, &evt_dirent)))
 
 #define MAX_EVENT_LENGTH 30
 
@@ -223,9 +239,15 @@ char *event_name(int counter)
 {
 	u64 config = attrs[counter].config;
 	int type = attrs[counter].type;
+
+	return __event_name(type, config);
+}
+
+char *__event_name(int type, u64 config)
+{
 	static char buf[32];
 
-	if (attrs[counter].type == PERF_TYPE_RAW) {
+	if (type == PERF_TYPE_RAW) {
 		sprintf(buf, "raw 0x%llx", config);
 		return buf;
 	}
@@ -357,6 +379,7 @@ static int parse_tracepoint_event(const char **strp,
 				    struct perf_counter_attr *attr)
 {
 	const char *evt_name;
+	char *flags;
 	char sys_name[MAX_EVENT_LENGTH];
 	char id_buf[4];
 	int fd;
@@ -378,6 +401,15 @@ static int parse_tracepoint_event(const char **strp,
 	strncpy(sys_name, *strp, sys_length);
 	sys_name[sys_length] = '\0';
 	evt_name = evt_name + 1;
+
+	flags = strchr(evt_name, ':');
+	if (flags) {
+		*flags = '\0';
+		flags++;
+		if (!strncmp(flags, "record", strlen(flags)))
+			attr->sample_type |= PERF_SAMPLE_RAW;
+	}
+
 	evt_length = strlen(evt_name);
 	if (evt_length >= MAX_EVENT_LENGTH)
 		return 0;

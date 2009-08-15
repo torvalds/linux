@@ -224,10 +224,12 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_GRPQUOTA = 1 << 10, /* We support group quotas */
 };
 
-#define OCFS2_OSB_SOFT_RO	0x0001
-#define OCFS2_OSB_HARD_RO	0x0002
-#define OCFS2_OSB_ERROR_FS	0x0004
-#define OCFS2_DEFAULT_ATIME_QUANTUM	60
+#define OCFS2_OSB_SOFT_RO			0x0001
+#define OCFS2_OSB_HARD_RO			0x0002
+#define OCFS2_OSB_ERROR_FS			0x0004
+#define OCFS2_OSB_DROP_DENTRY_LOCK_IMMED	0x0008
+
+#define OCFS2_DEFAULT_ATIME_QUANTUM		60
 
 struct ocfs2_journal;
 struct ocfs2_slot_info;
@@ -488,6 +490,18 @@ static inline void ocfs2_set_osb_flag(struct ocfs2_super *osb,
 	spin_lock(&osb->osb_lock);
 	osb->osb_flags |= flag;
 	spin_unlock(&osb->osb_lock);
+}
+
+
+static inline unsigned long  ocfs2_test_osb_flag(struct ocfs2_super *osb,
+						 unsigned long flag)
+{
+	unsigned long ret;
+
+	spin_lock(&osb->osb_lock);
+	ret = osb->osb_flags & flag;
+	spin_unlock(&osb->osb_lock);
+	return ret;
 }
 
 static inline void ocfs2_set_ro_flag(struct ocfs2_super *osb,

@@ -58,6 +58,8 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if (r) {
 		DRM_ERROR("Failed to initialize radeon, disabling IOCTL\n");
 		radeon_device_fini(rdev);
+		kfree(rdev);
+		dev->dev_private = NULL;
 		return r;
 	}
 	return 0;

@@ -465,11 +465,8 @@ void smtc_prepare_cpus(int cpus)
 	smtc_configure_tlb();
 
 	for (tc = 0, vpe = 0 ; (vpe < nvpe) && (tc < ntc) ; vpe++) {
-		/*
-		 * Set the MVP bits.
-		 */
-		settc(tc);
-		write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_MVP);
+		if (tcpervpe[vpe] == 0)
+			continue;
 		if (vpe != 0)
 			printk(", ");
 		printk("VPE %d: TC", vpe);
@@ -487,6 +484,12 @@ void smtc_prepare_cpus(int cpus)
 			tc++;
 		}
 		if (vpe != 0) {
+			/*
+			 * Allow this VPE to control others.
+			 */
+			write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() |
+					      VPECONF0_MVP);
+
 			/*
 			 * Clear any stale software interrupts from VPE's Cause
 			 */

@@ -223,6 +223,7 @@ static int __init setup_early_printk(char *buf)
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_CPU_SH3)
 		scif_sercon_init(buf + 6);
 #endif
+#endif
 	}
 #endif
 
