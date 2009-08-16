@@ -411,9 +411,6 @@ extern UCHAR EpToQueue[6];
 //#undef MlmeAllocateMemory
 //#undef MlmeFreeMemory
 
-#ifndef RT30xx
-typedef int				NTSTATUS;
-#endif
 typedef struct usb_device	* PUSB_DEV;
 
 /* MACRO for linux usb */

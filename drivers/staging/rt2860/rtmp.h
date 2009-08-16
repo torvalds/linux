@@ -6528,7 +6528,6 @@ VOID AsicTurnOnRFClk(
 	IN PRTMP_ADAPTER 	pAd,
 	IN	UCHAR			Channel);
 
-#ifdef RT30xx
 NTSTATUS RT30xxWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
@@ -6539,6 +6538,7 @@ NTSTATUS RT30xxReadRFRegister(
 	IN	UCHAR			RegID,
 	IN	PUCHAR			pValue);
 
+#ifdef RT30xx
 //2008/09/11:KH add to support efuse<--
 UCHAR eFuseReadRegisters(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6734,18 +6734,6 @@ NTSTATUS RTUSBWriteBBPRegister(
 NTSTATUS RTUSBWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UINT32			Value);
-
-#ifndef RT30xx
-NTSTATUS	RT30xxWriteRFRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			RegID,
-	IN	UCHAR			Value);
-
-NTSTATUS	RT30xxReadRFRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			RegID,
-	IN	PUCHAR			pValue);
-#endif
 
 NTSTATUS RTUSB_VendorRequest(
 	IN	PRTMP_ADAPTER	pAd,

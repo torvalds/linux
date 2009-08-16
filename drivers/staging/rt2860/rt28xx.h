@@ -47,10 +47,11 @@
 #define PCI_EECTRL			0x0004
 #define PCI_MCUCTRL			0x0008
 
+typedef int NTSTATUS;
+
 #ifdef RT30xx
 #define	OPT_14			0x114
 
-typedef int				NTSTATUS;
 #define	RETRY_LIMIT             10
 #define STATUS_SUCCESS				0x00
 #define STATUS_UNSUCCESSFUL 		0x01

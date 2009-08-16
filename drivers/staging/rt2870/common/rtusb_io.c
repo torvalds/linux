@@ -671,11 +671,10 @@ NTSTATUS	RTUSBWriteRFRegister(
 	return STATUS_SUCCESS;
 }
 
-#ifndef RT30xx
 /*
 	========================================================================
 
-	Routine Description: Write RT3070 RF register through MAC
+	Routine Description: Write RT30xx RF register through MAC
 
 	Arguments:
 
@@ -687,7 +686,7 @@ NTSTATUS	RTUSBWriteRFRegister(
 
 	========================================================================
 */
-NTSTATUS	RT30xxWriteRFRegister(
+NTSTATUS RT30xxWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
 	IN	UCHAR			Value)
@@ -697,7 +696,7 @@ NTSTATUS	RT30xxWriteRFRegister(
 
 	do
 	{
-		RTUSBReadMACRegister(pAd, RF_CSR_CFG, &rfcsr.word);
+		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
 
 		if (!rfcsr.field.RF_CSR_KICK)
 			break;
@@ -716,15 +715,16 @@ NTSTATUS	RT30xxWriteRFRegister(
 	rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
 	rfcsr.field.RF_CSR_DATA = Value;
 
-	RTUSBWriteMACRegister(pAd, RF_CSR_CFG, rfcsr.word);
+	RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
 
 	return STATUS_SUCCESS;
 }
 
+
 /*
 	========================================================================
 
-	Routine Description: Read RT3070 RF register through MAC
+	Routine Description: Read RT30xx RF register through MAC
 
 	Arguments:
 
@@ -736,17 +736,17 @@ NTSTATUS	RT30xxWriteRFRegister(
 
 	========================================================================
 */
-NTSTATUS	RT30xxReadRFRegister(
+NTSTATUS RT30xxReadRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
 	IN	PUCHAR			pValue)
 {
 	RF_CSR_CFG_STRUC	rfcsr;
-	UINT				i=0, k;
+	UINT				i=0, k=0;
 
 	for (i=0; i<MAX_BUSY_COUNT; i++)
 	{
-		RTUSBReadMACRegister(pAd, RF_CSR_CFG, &rfcsr.word);
+		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
 
 		if (rfcsr.field.RF_CSR_KICK == BUSY)
 		{
@@ -756,10 +756,10 @@ NTSTATUS	RT30xxReadRFRegister(
 		rfcsr.field.RF_CSR_WR = 0;
 		rfcsr.field.RF_CSR_KICK = 1;
 		rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
-		RTUSBWriteMACRegister(pAd, RF_CSR_CFG, rfcsr.word);
+		RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
 		for (k=0; k<MAX_BUSY_COUNT; k++)
 		{
-			RTUSBReadMACRegister(pAd, RF_CSR_CFG, &rfcsr.word);
+			RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
 
 			if (rfcsr.field.RF_CSR_KICK == IDLE)
 				break;
@@ -773,13 +773,12 @@ NTSTATUS	RT30xxReadRFRegister(
 	}
 	if (rfcsr.field.RF_CSR_KICK == BUSY)
 	{
-		DBGPRINT_ERR(("RF read R%d=0x%x fail\n", RegID, rfcsr.word));
+		DBGPRINT_ERR(("RF read R%d=0x%x fail, i[%d], k[%d]\n", RegID, rfcsr.word,i,k));
 		return STATUS_UNSUCCESSFUL;
 	}
 
 	return STATUS_SUCCESS;
 }
-#endif /* RT30xx */
 
 /*
 	========================================================================
