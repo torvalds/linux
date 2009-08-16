@@ -1950,7 +1950,7 @@ static int lpphy_b2062_tune(struct b43_wldev *dev,
 	b43_radio_write(dev, B2062_S_RFPLL_CTL29, tmp6 + ((2 * tmp7) / tmp4));
 	tmp8 = b43_phy_read(dev, B2062_S_RFPLL_CTL19);
 	tmp9 = ((2 * tmp3 * (tmp8 + 1)) + (3 * tmp1)) / (6 * tmp1);
-	b43_radio_write(dev, B2062_S_RFPLL_CTL23, tmp9 >> 8);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL23, (tmp9 >> 8) + 16);
 	b43_radio_write(dev, B2062_S_RFPLL_CTL24, tmp9 & 0xFF);
 
 	lpphy_b2062_vco_calib(dev);
