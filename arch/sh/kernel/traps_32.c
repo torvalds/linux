@@ -136,6 +136,7 @@ static void die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
 			regs->pc = fixup->fixup;
 			return;
 		}
+
 		die(str, regs, err);
 	}
 }

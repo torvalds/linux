@@ -69,7 +69,7 @@ static struct dwarf_reg *dwarf_frame_alloc_reg(struct dwarf_frame *frame,
 		 * Let's just bomb hard here, we have no way to
 		 * gracefully recover.
 		 */
-		BUG();
+		UNWINDER_BUG();
 	}
 
 	reg->number = reg_num;
@@ -232,7 +232,7 @@ static int dwarf_read_encoded_value(char *addr, unsigned long *val,
 		break;
 	default:
 		pr_debug("encoding=0x%x\n", (encoding & 0x70));
-		BUG();
+		UNWINDER_BUG();
 	}
 
 	if ((encoding & 0x07) == 0x00)
@@ -247,7 +247,7 @@ static int dwarf_read_encoded_value(char *addr, unsigned long *val,
 		break;
 	default:
 		pr_debug("encoding=0x%x\n", encoding);
-		BUG();
+		UNWINDER_BUG();
 	}
 
 	return count;
@@ -519,6 +519,7 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			break;
 		default:
 			pr_debug("unhandled DWARF instruction 0x%x\n", insn);
+			UNWINDER_BUG();
 			break;
 		}
 	}
@@ -535,8 +536,8 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
  *	on the callstack. Each of the lower (older) stack frames are
  *	linked via the "prev" member.
  */
-struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
-				       struct dwarf_frame *prev)
+struct dwarf_frame * dwarf_unwind_stack(unsigned long pc,
+					struct dwarf_frame *prev)
 {
 	struct dwarf_frame *frame;
 	struct dwarf_cie *cie;
@@ -558,7 +559,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	frame = mempool_alloc(dwarf_frame_pool, GFP_ATOMIC);
 	if (!frame) {
 		printk(KERN_ERR "Unable to allocate a dwarf frame\n");
-		BUG();
+		UNWINDER_BUG();
 	}
 
 	INIT_LIST_HEAD(&frame->reg_list);
@@ -605,7 +606,8 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	case DWARF_FRAME_CFA_REG_OFFSET:
 		if (prev) {
 			reg = dwarf_frame_reg(prev, frame->cfa_register);
-			BUG_ON(!reg);
+			UNWINDER_BUG_ON(!reg);
+			UNWINDER_BUG_ON(reg->flags != DWARF_REG_OFFSET);
 
 			addr = prev->cfa + reg->addr;
 			frame->cfa = __raw_readl(addr);
@@ -624,12 +626,13 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		frame->cfa += frame->cfa_offset;
 		break;
 	default:
-		BUG();
+		UNWINDER_BUG();
 	}
 
 	/* If we haven't seen the return address reg, we're screwed. */
 	reg = dwarf_frame_reg(frame, DWARF_ARCH_RA_REG);
-	BUG_ON(!reg);
+	UNWINDER_BUG_ON(!reg);
+	UNWINDER_BUG_ON(reg->flags != DWARF_REG_OFFSET);
 
 	addr = frame->cfa + reg->addr;
 	frame->return_addr = __raw_readl(addr);
@@ -664,7 +667,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	cie->cie_pointer = (unsigned long)entry;
 
 	cie->version = *(char *)p++;
-	BUG_ON(cie->version != 1);
+	UNWINDER_BUG_ON(cie->version != 1);
 
 	cie->augmentation = p;
 	p += strlen(cie->augmentation) + 1;
@@ -694,7 +697,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 		count = dwarf_read_uleb128(p, &length);
 		p += count;
 
-		BUG_ON((unsigned char *)p > end);
+		UNWINDER_BUG_ON((unsigned char *)p > end);
 
 		cie->initial_instructions = p + length;
 		cie->augmentation++;
@@ -722,16 +725,16 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 			 * routine in the CIE
 			 * augmentation.
 			 */
-			BUG();
+			UNWINDER_BUG();
 		} else if (*cie->augmentation == 'S') {
-			BUG();
+			UNWINDER_BUG();
 		} else {
 			/*
 			 * Unknown augmentation. Assume
 			 * 'z' augmentation.
 			 */
 			p = cie->initial_instructions;
-			BUG_ON(!p);
+			UNWINDER_BUG_ON(!p);
 			break;
 		}
 	}
@@ -805,9 +808,11 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 	return 0;
 }
 
-static void dwarf_unwinder_dump(struct task_struct *task, struct pt_regs *regs,
+static void dwarf_unwinder_dump(struct task_struct *task,
+				struct pt_regs *regs,
 				unsigned long *sp,
-				const struct stacktrace_ops *ops, void *data)
+				const struct stacktrace_ops *ops,
+				void *data)
 {
 	struct dwarf_frame *frame, *_frame;
 	unsigned long return_addr;
@@ -831,7 +836,6 @@ static void dwarf_unwinder_dump(struct task_struct *task, struct pt_regs *regs,
 		return_addr = frame->return_addr;
 		ops->address(data, return_addr, 1);
 	}
-
 }
 
 static struct unwinder dwarf_unwinder = {
