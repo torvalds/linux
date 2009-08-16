@@ -265,10 +265,7 @@ struct dwarf_frame {
 
 	unsigned long pc;
 
-	struct dwarf_reg *regs;
-	unsigned int num_regs;	/* how many regs are allocated? */
-
-	unsigned int depth;	/* what level are we in the callstack? */
+	struct list_head reg_list;
 
 	unsigned long cfa;
 
@@ -292,20 +289,13 @@ struct dwarf_frame {
  *	@flags: Describes how to calculate the value of this register
  */
 struct dwarf_reg {
+	struct list_head link;
+
+	unsigned int number;
+
 	unsigned long addr;
 	unsigned long flags;
 #define DWARF_REG_OFFSET	(1 << 0)
-};
-
-/**
- *	dwarf_stack - a DWARF stack contains a collection of DWARF frames
- *	@depth: the number of frames in the stack
- *	@level: an array of DWARF frames, indexed by stack level
- *
- */
-struct dwarf_stack {
-	unsigned int depth;
-	struct dwarf_frame **level;
 };
 
 /*
@@ -372,7 +362,7 @@ static inline unsigned int DW_CFA_operand(unsigned long insn)
 
 extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 					      struct dwarf_frame *);
-#endif /* __ASSEMBLY__ */
+#endif /* !__ASSEMBLY__ */
 
 #define CFI_STARTPROC	.cfi_startproc
 #define CFI_ENDPROC	.cfi_endproc

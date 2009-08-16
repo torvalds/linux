@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/list.h>
+#include <linux/mempool.h>
 #include <linux/mm.h>
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
@@ -24,6 +25,17 @@
 #include <asm/unaligned.h>
 #include <asm/dwarf.h>
 #include <asm/stacktrace.h>
+
+/* Reserve enough memory for two stack frames */
+#define DWARF_FRAME_MIN_REQ	2
+/* ... with 4 registers per frame. */
+#define DWARF_REG_MIN_REQ	(DWARF_FRAME_MIN_REQ * 4)
+
+static struct kmem_cache *dwarf_frame_cachep;
+static mempool_t *dwarf_frame_pool;
+
+static struct kmem_cache *dwarf_reg_cachep;
+static mempool_t *dwarf_reg_pool;
 
 static LIST_HEAD(dwarf_cie_list);
 static DEFINE_SPINLOCK(dwarf_cie_lock);
@@ -33,33 +45,25 @@ static DEFINE_SPINLOCK(dwarf_fde_lock);
 
 static struct dwarf_cie *cached_cie;
 
-/*
- * Figure out whether we need to allocate some dwarf registers. If dwarf
- * registers have already been allocated then we may need to realloc
- * them. "reg" is a register number that we need to be able to access
- * after this call.
+/**
+ *	dwarf_frame_alloc_reg - allocate memory for a DWARF register
+ *	@frame: the DWARF frame whose list of registers we insert on
+ *	@reg_num: the register number
  *
- * Register numbers start at zero, therefore we need to allocate space
- * for "reg" + 1 registers.
+ *	Allocate space for, and initialise, a dwarf reg from
+ *	dwarf_reg_pool and insert it onto the (unsorted) linked-list of
+ *	dwarf registers for @frame.
+ *
+ *	Return the initialised DWARF reg.
  */
-static void dwarf_frame_alloc_regs(struct dwarf_frame *frame,
-				   unsigned int reg)
+static struct dwarf_reg *dwarf_frame_alloc_reg(struct dwarf_frame *frame,
+					       unsigned int reg_num)
 {
-	struct dwarf_reg *regs;
-	unsigned int num_regs = reg + 1;
-	size_t new_size;
-	size_t old_size;
+	struct dwarf_reg *reg;
 
-	new_size = num_regs * sizeof(*regs);
-	old_size = frame->num_regs * sizeof(*regs);
-
-	/* Fast path: don't allocate any regs if we've already got enough. */
-	if (frame->num_regs >= num_regs)
-		return;
-
-	regs = kzalloc(new_size, GFP_ATOMIC);
-	if (!regs) {
-		printk(KERN_WARNING "Unable to allocate DWARF registers\n");
+	reg = mempool_alloc(dwarf_reg_pool, GFP_ATOMIC);
+	if (!reg) {
+		printk(KERN_WARNING "Unable to allocate a DWARF register\n");
 		/*
 		 * Let's just bomb hard here, we have no way to
 		 * gracefully recover.
@@ -67,13 +71,44 @@ static void dwarf_frame_alloc_regs(struct dwarf_frame *frame,
 		BUG();
 	}
 
-	if (frame->regs) {
-		memcpy(regs, frame->regs, old_size);
-		kfree(frame->regs);
+	reg->number = reg_num;
+	reg->addr = 0;
+	reg->flags = 0;
+
+	list_add(&reg->link, &frame->reg_list);
+
+	return reg;
+}
+
+static void dwarf_frame_free_regs(struct dwarf_frame *frame)
+{
+	struct dwarf_reg *reg, *n;
+
+	list_for_each_entry_safe(reg, n, &frame->reg_list, link) {
+		list_del(&reg->link);
+		mempool_free(reg, dwarf_reg_pool);
+	}
+}
+
+/**
+ *	dwarf_frame_reg - return a DWARF register
+ *	@frame: the DWARF frame to search in for @reg_num
+ *	@reg_num: the register number to search for
+ *
+ *	Lookup and return the dwarf reg @reg_num for this frame. Return
+ *	NULL if @reg_num is an register invalid number.
+ */
+static struct dwarf_reg *dwarf_frame_reg(struct dwarf_frame *frame,
+					 unsigned int reg_num)
+{
+	struct dwarf_reg *reg;
+
+	list_for_each_entry(reg, &frame->reg_list, link) {
+		if (reg->number == reg_num)
+			return reg;
 	}
 
-	frame->regs = regs;
-	frame->num_regs = num_regs;
+	return NULL;
 }
 
 /**
@@ -347,6 +382,7 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 	unsigned char insn;
 	unsigned char *current_insn;
 	unsigned int count, delta, reg, expr_len, offset;
+	struct dwarf_reg *regp;
 
 	current_insn = insn_start;
 
@@ -369,9 +405,9 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			count = dwarf_read_uleb128(current_insn, &offset);
 			current_insn += count;
 			offset *= cie->data_alignment_factor;
-			dwarf_frame_alloc_regs(frame, reg);
-			frame->regs[reg].addr = offset;
-			frame->regs[reg].flags |= DWARF_REG_OFFSET;
+			regp = dwarf_frame_alloc_reg(frame, reg);
+			regp->addr = offset;
+			regp->flags |= DWARF_REG_OFFSET;
 			continue;
 			/* NOTREACHED */
 		case DW_CFA_restore:
@@ -453,17 +489,18 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			count = dwarf_read_leb128(current_insn, &offset);
 			current_insn += count;
 			offset *= cie->data_alignment_factor;
-			dwarf_frame_alloc_regs(frame, reg);
-			frame->regs[reg].flags |= DWARF_REG_OFFSET;
-			frame->regs[reg].addr = offset;
+			regp = dwarf_frame_alloc_reg(frame, reg);
+			regp->flags |= DWARF_REG_OFFSET;
+			regp->addr = offset;
 			break;
 		case DW_CFA_val_offset:
 			count = dwarf_read_uleb128(current_insn, &reg);
 			current_insn += count;
 			count = dwarf_read_leb128(current_insn, &offset);
 			offset *= cie->data_alignment_factor;
-			frame->regs[reg].flags |= DWARF_REG_OFFSET;
-			frame->regs[reg].addr = offset;
+			regp = dwarf_frame_alloc_reg(frame, reg);
+			regp->flags |= DWARF_REG_OFFSET;
+			regp->addr = offset;
 			break;
 		case DW_CFA_GNU_args_size:
 			count = dwarf_read_uleb128(current_insn, &offset);
@@ -474,9 +511,10 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			current_insn += count;
 			count = dwarf_read_uleb128(current_insn, &offset);
 			offset *= cie->data_alignment_factor;
-			dwarf_frame_alloc_regs(frame, reg);
-			frame->regs[reg].flags |= DWARF_REG_OFFSET;
-			frame->regs[reg].addr = -offset;
+
+			regp = dwarf_frame_alloc_reg(frame, reg);
+			regp->flags |= DWARF_REG_OFFSET;
+			regp->addr = -offset;
 			break;
 		default:
 			pr_debug("unhandled DWARF instruction 0x%x\n", insn);
@@ -502,8 +540,8 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	struct dwarf_frame *frame;
 	struct dwarf_cie *cie;
 	struct dwarf_fde *fde;
+	struct dwarf_reg *reg;
 	unsigned long addr;
-	int i, offset;
 
 	/*
 	 * If this is the first invocation of this recursive function we
@@ -516,11 +554,16 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	if (!pc && !prev)
 		pc = (unsigned long)current_text_addr();
 
-	frame = kzalloc(sizeof(*frame), GFP_ATOMIC);
-	if (!frame)
-		return NULL;
+	frame = mempool_alloc(dwarf_frame_pool, GFP_ATOMIC);
+	if (!frame) {
+		printk(KERN_ERR "Unable to allocate a dwarf frame\n");
+		BUG();
+	}
 
+	INIT_LIST_HEAD(&frame->reg_list);
+	frame->flags = 0;
 	frame->prev = prev;
+	frame->return_addr = 0;
 
 	fde = dwarf_lookup_fde(pc);
 	if (!fde) {
@@ -540,7 +583,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		 *	case above, which sucks because we could print a
 		 *	warning here.
 		 */
-		return NULL;
+		goto bail;
 	}
 
 	cie = dwarf_lookup_cie(fde->cie_pointer);
@@ -560,10 +603,10 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	switch (frame->flags) {
 	case DWARF_FRAME_CFA_REG_OFFSET:
 		if (prev) {
-			BUG_ON(!prev->regs[frame->cfa_register].flags);
+			reg = dwarf_frame_reg(prev, frame->cfa_register);
+			BUG_ON(!reg);
 
-			addr = prev->cfa;
-			addr += prev->regs[frame->cfa_register].addr;
+			addr = prev->cfa + reg->addr;
 			frame->cfa = __raw_readl(addr);
 
 		} else {
@@ -584,23 +627,18 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	}
 
 	/* If we haven't seen the return address reg, we're screwed. */
-	BUG_ON(!frame->regs[DWARF_ARCH_RA_REG].flags);
+	reg = dwarf_frame_reg(frame, DWARF_ARCH_RA_REG);
+	BUG_ON(!reg);
 
-	for (i = 0; i <= frame->num_regs; i++) {
-		struct dwarf_reg *reg = &frame->regs[i];
-
-		if (!reg->flags)
-			continue;
-
-		offset = reg->addr;
-		offset += frame->cfa;
-	}
-
-	addr = frame->cfa + frame->regs[DWARF_ARCH_RA_REG].addr;
+	addr = frame->cfa + reg->addr;
 	frame->return_addr = __raw_readl(addr);
 
-	frame->next = dwarf_unwind_stack(frame->return_addr, frame);
 	return frame;
+
+bail:
+	dwarf_frame_free_regs(frame);
+	mempool_free(frame, dwarf_frame_pool);
+	return NULL;
 }
 
 static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
@@ -770,14 +808,29 @@ static void dwarf_unwinder_dump(struct task_struct *task, struct pt_regs *regs,
 				unsigned long *sp,
 				const struct stacktrace_ops *ops, void *data)
 {
-	struct dwarf_frame *frame;
+	struct dwarf_frame *frame, *_frame;
+	unsigned long return_addr;
 
-	frame = dwarf_unwind_stack(0, NULL);
+	_frame = NULL;
+	return_addr = 0;
 
-	while (frame && frame->return_addr) {
-		ops->address(data, frame->return_addr, 1);
-		frame = frame->next;
+	while (1) {
+		frame = dwarf_unwind_stack(return_addr, _frame);
+
+		if (_frame) {
+			dwarf_frame_free_regs(_frame);
+			mempool_free(_frame, dwarf_frame_pool);
+		}
+
+		_frame = frame;
+
+		if (!frame || !frame->return_addr)
+			break;
+
+		return_addr = frame->return_addr;
+		ops->address(data, return_addr, 1);
 	}
+
 }
 
 static struct unwinder dwarf_unwinder = {
@@ -801,6 +854,9 @@ static void dwarf_unwinder_cleanup(void)
 
 	list_for_each_entry(fde, &dwarf_fde_list, link)
 		kfree(fde);
+
+	kmem_cache_destroy(dwarf_reg_cachep);
+	kmem_cache_destroy(dwarf_frame_cachep);
 }
 
 /**
@@ -826,6 +882,21 @@ static int __init dwarf_unwinder_init(void)
 	c_entries = 0;
 	f_entries = 0;
 	entry = &__start_eh_frame;
+
+	dwarf_frame_cachep = kmem_cache_create("dwarf_frames",
+			sizeof(struct dwarf_frame), 0, SLAB_PANIC, NULL);
+	dwarf_reg_cachep = kmem_cache_create("dwarf_regs",
+			sizeof(struct dwarf_reg), 0, SLAB_PANIC, NULL);
+
+	dwarf_frame_pool = mempool_create(DWARF_FRAME_MIN_REQ,
+					  mempool_alloc_slab,
+					  mempool_free_slab,
+					  dwarf_frame_cachep);
+
+	dwarf_reg_pool = mempool_create(DWARF_REG_MIN_REQ,
+					 mempool_alloc_slab,
+					 mempool_free_slab,
+					 dwarf_reg_cachep);
 
 	while ((char *)entry < __stop_eh_frame) {
 		p = entry;
