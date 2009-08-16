@@ -20,6 +20,7 @@
 #include "util/values.h"
 
 #include "perf.h"
+#include "util/debug.h"
 #include "util/header.h"
 
 #include "util/parse-options.h"
@@ -38,8 +39,6 @@ static char		*field_sep;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
-
-#define cdprintf(x...)	do { if (dump_trace) color_fprintf(stdout, color, x); } while (0)
 
 static int		full_paths;
 static int		show_nr_samples;
@@ -1283,42 +1282,6 @@ process_lost_event(event_t *event, unsigned long offset, unsigned long head)
 	total_lost += event->lost.lost;
 
 	return 0;
-}
-
-static void trace_event(event_t *event)
-{
-	unsigned char *raw_event = (void *)event;
-	const char *color = PERF_COLOR_BLUE;
-	int i, j;
-
-	if (!dump_trace)
-		return;
-
-	dump_printf(".");
-	cdprintf("\n. ... raw event: size %d bytes\n", event->header.size);
-
-	for (i = 0; i < event->header.size; i++) {
-		if ((i & 15) == 0) {
-			dump_printf(".");
-			cdprintf("  %04x: ", i);
-		}
-
-		cdprintf(" %02x", raw_event[i]);
-
-		if (((i & 15) == 15) || i == event->header.size-1) {
-			cdprintf("  ");
-			for (j = 0; j < 15-(i & 15); j++)
-				cdprintf("   ");
-			for (j = 0; j < (i & 15); j++) {
-				if (isprint(raw_event[i-15+j]))
-					cdprintf("%c", raw_event[i-15+j]);
-				else
-					cdprintf(".");
-			}
-			cdprintf("\n");
-		}
-	}
-	dump_printf(".\n");
 }
 
 static int

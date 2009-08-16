@@ -3,6 +3,8 @@
 #include "string.h"
 #include "symbol.h"
 
+#include "debug.h"
+
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>

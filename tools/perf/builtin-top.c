@@ -27,6 +27,8 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 
+#include "util/debug.h"
+
 #include <assert.h>
 #include <fcntl.h>
 

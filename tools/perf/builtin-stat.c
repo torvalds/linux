@@ -42,6 +42,8 @@
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
+#include "util/event.h"
+#include "util/debug.h"
 
 #include <sys/prctl.h>
 #include <math.h>

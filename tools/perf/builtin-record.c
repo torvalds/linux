@@ -16,6 +16,7 @@
 
 #include "util/header.h"
 #include "util/event.h"
+#include "util/debug.h"
 
 #include <unistd.h>
 #include <sched.h>

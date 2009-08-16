@@ -17,6 +17,7 @@
 #include "util/string.h"
 
 #include "perf.h"
+#include "util/debug.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
