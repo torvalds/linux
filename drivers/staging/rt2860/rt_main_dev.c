@@ -670,7 +670,7 @@ err:
 static const struct net_device_ops rt2860_netdev_ops = {
 	.ndo_open		= MainVirtualIF_open,
 	.ndo_stop		= MainVirtualIF_close,
-	.ndo_do_ioctl		= rt28xx_ioctl,
+	.ndo_do_ioctl		= rt28xx_sta_ioctl,
 	.ndo_get_stats		= RT28xx_get_ether_stats,
 	.ndo_validate_addr	= NULL,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -968,37 +968,6 @@ void tbtt_tasklet(unsigned long data)
 {
 #define MAX_TX_IN_TBTT		(16)
 
-}
-
-INT rt28xx_ioctl(
-	IN	struct net_device	*net_dev,
-	IN	OUT	struct ifreq	*rq,
-	IN	INT					cmd)
-{
-	VIRTUAL_ADAPTER	*pVirtualAd = NULL;
-	RTMP_ADAPTER	*pAd = NULL;
-	INT				ret = 0;
-
-	if (net_dev->priv_flags == INT_MAIN)
-	{
-		pAd = net_dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = net_dev->ml_priv;
-		pAd = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAd == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-
-	ret = rt28xx_sta_ioctl(net_dev, rq, cmd);
-
-	return ret;
 }
 
 /*

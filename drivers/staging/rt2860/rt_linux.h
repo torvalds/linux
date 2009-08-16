@@ -200,12 +200,6 @@ struct os_cookie {
 	INT 					ioctl_if;
 };
 
-typedef struct _VIRTUAL_ADAPTER
-{
-	struct net_device		*RtmpDev;
-	struct net_device		*VirtualDev;
-} VIRTUAL_ADAPTER, PVIRTUAL_ADAPTER;
-
 #undef  ASSERT
 #define ASSERT(x)
 

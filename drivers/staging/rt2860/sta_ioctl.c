@@ -572,37 +572,9 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_freq *freq, char *extra)
 {
-    VIRTUAL_ADAPTER *pVirtualAd = NULL;
-#ifndef RT30xx
-	PRTMP_ADAPTER pAdapter = NULL;
-#endif
-#ifdef RT30xx
-	PRTMP_ADAPTER pAdapter;
-#endif
-	UCHAR ch;
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+	UCHAR ch = pAdapter->CommonCfg.Channel;
 	ULONG	m;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-#ifndef RT30xx
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-#endif
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-
-		ch = pAdapter->CommonCfg.Channel;
 
 	DBGPRINT(RT_DEBUG_TRACE,("==>rt_ioctl_giwfreq  %d\n", ch));
 
@@ -651,31 +623,7 @@ int rt_ioctl_giwmode(struct net_device *dev,
 		   struct iw_request_info *info,
 		   __u32 *mode, char *extra)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 
 	if (ADHOC_ON(pAdapter))
 		*mode = IW_MODE_ADHOC;
@@ -719,36 +667,10 @@ int rt_ioctl_giwrange(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *data, char *extra)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 	struct iw_range *range = (struct iw_range *) extra;
 	u16 val;
 	int i;
-
-#ifndef RT30xx
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
 
 	DBGPRINT(RT_DEBUG_TRACE ,("===>rt_ioctl_giwrange\n"));
 	data->length = sizeof(struct iw_range);
@@ -866,31 +788,7 @@ int rt_ioctl_giwap(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct sockaddr *ap_addr, char *extra)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 
 	if (INFRA_ON(pAdapter) || ADHOC_ON(pAdapter))
 	{
@@ -1389,31 +1287,7 @@ int rt_ioctl_giwessid(struct net_device *dev,
 			 struct iw_request_info *info,
 			 struct iw_point *data, char *essid)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 
 	data->flags = 1;
     if (MONITOR_ON(pAdapter))
@@ -1473,31 +1347,7 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 			 struct iw_request_info *info,
 			 struct iw_point *data, char *nickname)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 
 	if (data->length > strlen(pAdapter->nickname) + 1)
 		data->length = strlen(pAdapter->nickname) + 1;
@@ -1541,31 +1391,7 @@ int rt_ioctl_giwrts(struct net_device *dev,
 		       struct iw_request_info *info,
 		       struct iw_param *rts, char *extra)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 
 	//check if the interface is down
     	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1612,31 +1438,7 @@ int rt_ioctl_giwfrag(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_param *frag, char *extra)
 {
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 
 	//check if the interface is down
     	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1768,32 +1570,8 @@ rt_ioctl_giwencode(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_point *erq, char *key)
 {
-#ifdef RT30xx
 	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#endif
 	int kid;
-#ifndef RT30xx
-	PRTMP_ADAPTER 	pAdapter = NULL;
-	VIRTUAL_ADAPTER *pVirtualAd = NULL;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		if (pVirtualAd && pVirtualAd->RtmpDev)
-			pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
-#endif
 
 	//check if the interface is down
 	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1850,30 +1628,11 @@ static int
 rt_ioctl_setparam(struct net_device *dev, struct iw_request_info *info,
 			 void *w, char *extra)
 {
-    VIRTUAL_ADAPTER	*pVirtualAd = NULL;
-	PRTMP_ADAPTER pAdapter;
-	POS_COOKIE pObj;
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+	POS_COOKIE pObj = (POS_COOKIE)pAdapter->OS_Cookie;
 	char *this_char = extra;
 	char *value;
 	int  Status=0;
-
-	if (dev->priv_flags == INT_MAIN)
-	{
-		pAdapter = dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		pAdapter = pVirtualAd->RtmpDev->ml_priv;
-	}
-	pObj = (POS_COOKIE) pAdapter->OS_Cookie;
-
-	if (pAdapter == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
 
 	{
 		pObj->ioctl_if_type = INT_MAIN;
@@ -2018,26 +1777,9 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
 		struct iw_point *wrq, char *extra)
 {
     INT				Status = 0;
-    VIRTUAL_ADAPTER	*pVirtualAd = NULL;
-    PRTMP_ADAPTER   pAd;
-	POS_COOKIE		pObj;
+    PRTMP_ADAPTER pAd = dev->ml_priv;
+    POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
     u32             subcmd = wrq->flags;
-
-	if (dev->priv_flags == INT_MAIN)
-		pAd = dev->ml_priv;
-	else
-	{
-		pVirtualAd = dev->ml_priv;
-		pAd = pVirtualAd->RtmpDev->ml_priv;
-	}
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
-
-	if (pAd == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
 
     if (extra == NULL)
     {
@@ -4989,31 +4731,12 @@ INT rt28xx_sta_ioctl(
 	IN	OUT	struct ifreq	*rq,
 	IN	INT					cmd)
 {
-	POS_COOKIE			pObj;
-	VIRTUAL_ADAPTER		*pVirtualAd = NULL;
-	RTMP_ADAPTER        *pAd = NULL;
+	RTMP_ADAPTER *pAd = net_dev->ml_priv;
+	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
 	struct iwreq        *wrq = (struct iwreq *) rq;
 	BOOLEAN				StateMachineTouched = FALSE;
 	INT					Status = NDIS_STATUS_SUCCESS;
 	USHORT				subcmd;
-
-	if (net_dev->priv_flags == INT_MAIN)
-	{
-		pAd = net_dev->ml_priv;
-	}
-	else
-	{
-		pVirtualAd = net_dev->ml_priv;
-		pAd = pVirtualAd->RtmpDev->ml_priv;
-	}
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
-
-	if (pAd == NULL)
-	{
-		/* if 1st open fail, pAd will be free;
-		   So the net_dev->ml_priv will be NULL in 2rd open */
-		return -ENETDOWN;
-	}
 
     //check if the interface is down
     if(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE))

@@ -6337,11 +6337,6 @@ VOID RT28xx_UpdateBeaconToAsic(
 	IN ULONG BeaconLen,
 	IN ULONG UpdatePos);
 
-INT rt28xx_ioctl(
-	IN	struct net_device	*net_dev,
-	IN	OUT	struct ifreq	*rq,
-	IN	INT			cmd);
-
 INT rt28xx_sta_ioctl(
 	IN	struct net_device	*net_dev,
 	IN	OUT	struct ifreq	*rq,
