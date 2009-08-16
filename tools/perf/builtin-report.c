@@ -70,6 +70,8 @@ static int		cwdlen;
 static struct rb_root	threads;
 static struct thread	*last_match;
 
+static struct perf_header *header;
+
 static
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_REL,
@@ -1319,29 +1321,12 @@ static void trace_event(event_t *event)
 	dump_printf(".\n");
 }
 
-static struct perf_header	*header;
-
-static struct perf_counter_attr *perf_header__find_attr(u64 id)
-{
-	int i;
-
-	for (i = 0; i < header->attrs; i++) {
-		struct perf_header_attr *attr = header->attr[i];
-		int j;
-
-		for (j = 0; j < attr->ids; j++) {
-			if (attr->id[j] == id)
-				return &attr->attr;
-		}
-	}
-
-	return NULL;
-}
-
 static int
 process_read_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct perf_counter_attr *attr = perf_header__find_attr(event->read.id);
+	struct perf_counter_attr *attr;
+
+	attr = perf_header__find_attr(event->read.id, header);
 
 	if (show_threads) {
 		const char *name = attr ? __event_name(attr->type, attr->config)
@@ -1405,23 +1390,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static u64 perf_header__sample_type(void)
-{
-	u64 type = 0;
-	int i;
-
-	for (i = 0; i < header->attrs; i++) {
-		struct perf_header_attr *attr = header->attr[i];
-
-		if (!type)
-			type = attr->attr.sample_type;
-		else if (type != attr->attr.sample_type)
-			die("non matching sample_type");
-	}
-
-	return type;
-}
-
 static int __cmd_report(void)
 {
 	int ret, rc = EXIT_FAILURE;
@@ -1460,7 +1428,7 @@ static int __cmd_report(void)
 	header = perf_header__read(input);
 	head = header->data_offset;
 
-	sample_type = perf_header__sample_type();
+	sample_type = perf_header__sample_type(header);
 
 	if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
