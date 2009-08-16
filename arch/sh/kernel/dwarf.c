@@ -26,10 +26,10 @@
 #include <asm/stacktrace.h>
 
 static LIST_HEAD(dwarf_cie_list);
-DEFINE_SPINLOCK(dwarf_cie_lock);
+static DEFINE_SPINLOCK(dwarf_cie_lock);
 
 static LIST_HEAD(dwarf_fde_list);
-DEFINE_SPINLOCK(dwarf_fde_lock);
+static DEFINE_SPINLOCK(dwarf_fde_lock);
 
 static struct dwarf_cie *cached_cie;
 
@@ -264,7 +264,7 @@ static inline int dwarf_entry_len(char *addr, unsigned long *len)
  */
 static struct dwarf_cie *dwarf_lookup_cie(unsigned long cie_ptr)
 {
-	struct dwarf_cie *cie, *n;
+	struct dwarf_cie *cie;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dwarf_cie_lock, flags);
@@ -278,7 +278,7 @@ static struct dwarf_cie *dwarf_lookup_cie(unsigned long cie_ptr)
 		goto out;
 	}
 
-	list_for_each_entry_safe(cie, n, &dwarf_cie_list, link) {
+	list_for_each_entry(cie, &dwarf_cie_list, link) {
 		if (cie->cie_pointer == cie_ptr) {
 			cached_cie = cie;
 			break;
@@ -299,11 +299,12 @@ out:
  */
 struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
 {
+	struct dwarf_fde *fde;
 	unsigned long flags;
-	struct dwarf_fde *fde, *n;
 
 	spin_lock_irqsave(&dwarf_fde_lock, flags);
-	list_for_each_entry_safe(fde, n, &dwarf_fde_list, link) {
+
+	list_for_each_entry(fde, &dwarf_fde_list, link) {
 		unsigned long start, end;
 
 		start = fde->initial_location;
@@ -787,24 +788,19 @@ static struct unwinder dwarf_unwinder = {
 
 static void dwarf_unwinder_cleanup(void)
 {
-	struct dwarf_cie *cie, *m;
-	struct dwarf_fde *fde, *n;
-	unsigned long flags;
+	struct dwarf_cie *cie;
+	struct dwarf_fde *fde;
 
 	/*
 	 * Deallocate all the memory allocated for the DWARF unwinder.
 	 * Traverse all the FDE/CIE lists and remove and free all the
 	 * memory associated with those data structures.
 	 */
-	spin_lock_irqsave(&dwarf_cie_lock, flags);
-	list_for_each_entry_safe(cie, m, &dwarf_cie_list, link)
+	list_for_each_entry(cie, &dwarf_cie_list, link)
 		kfree(cie);
-	spin_unlock_irqrestore(&dwarf_cie_lock, flags);
 
-	spin_lock_irqsave(&dwarf_fde_lock, flags);
-	list_for_each_entry_safe(fde, n, &dwarf_fde_list, link)
+	list_for_each_entry(fde, &dwarf_fde_list, link)
 		kfree(fde);
-	spin_unlock_irqrestore(&dwarf_fde_lock, flags);
 }
 
 /**
@@ -816,7 +812,7 @@ static void dwarf_unwinder_cleanup(void)
  *	easy to lookup the FDE for a given PC, so we build a list of FDE
  *	and CIE entries that make it easier.
  */
-void dwarf_unwinder_init(void)
+static int __init dwarf_unwinder_init(void)
 {
 	u32 entry_type;
 	void *p, *entry;
@@ -877,9 +873,11 @@ void dwarf_unwinder_init(void)
 	if (err)
 		goto out;
 
-	return;
+	return 0;
 
 out:
 	printk(KERN_ERR "Failed to initialise DWARF unwinder: %d\n", err);
 	dwarf_unwinder_cleanup();
+	return -EINVAL;
 }
+early_initcall(dwarf_unwinder_init);

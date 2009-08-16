@@ -370,8 +370,6 @@ static inline unsigned int DW_CFA_operand(unsigned long insn)
 #define DW_EXT_HI	0xffffffff
 #define DW_EXT_DWARF64	DW_EXT_HI
 
-extern void dwarf_unwinder_init(void);
-
 extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 					      struct dwarf_frame *);
 #endif /* __ASSEMBLY__ */
