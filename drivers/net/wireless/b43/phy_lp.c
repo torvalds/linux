@@ -537,10 +537,15 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 	b43_radio_write(dev, B2062_N_TX_CTL3, 0);
 	b43_radio_write(dev, B2062_N_TX_CTL4, 0);
 	b43_radio_write(dev, B2062_N_TX_CTL5, 0);
+	b43_radio_write(dev, B2062_N_TX_CTL6, 0);
 	b43_radio_write(dev, B2062_N_PDN_CTL0, 0x40);
 	b43_radio_write(dev, B2062_N_PDN_CTL0, 0);
 	b43_radio_write(dev, B2062_N_CALIB_TS, 0x10);
 	b43_radio_write(dev, B2062_N_CALIB_TS, 0);
+	if (dev->phy.rev > 0) {
+		b43_radio_write(dev, B2062_S_BG_CTL1,
+			(b43_radio_read(dev, B2062_N_COMM2) >> 1) | 0x80);
+	}
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
 		b43_radio_set(dev, B2062_N_TSSI_CTL0, 0x1);
 	else
