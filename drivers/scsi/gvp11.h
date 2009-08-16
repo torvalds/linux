@@ -11,9 +11,6 @@
 
 #include <linux/types.h>
 
-int gvp11_detect(struct scsi_host_template *);
-int gvp11_release(struct Scsi_Host *);
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN		2
 #endif
@@ -21,8 +18,6 @@ int gvp11_release(struct Scsi_Host *);
 #ifndef CAN_QUEUE
 #define CAN_QUEUE		16
 #endif
-
-#ifndef HOSTS_C
 
 /*
  * if the transfer address ANDed with this results in a non-zero
@@ -53,7 +48,5 @@ struct gvp11_scsiregs {
 #define GVP11_DMAC_INT_PENDING	(1<<1)
 #define GVP11_DMAC_INT_ENABLE	(1<<3)
 #define GVP11_DMAC_DIR_WRITE	(1<<4)
-
-#endif /* else def HOSTS_C */
 
 #endif /* GVP11_H */
