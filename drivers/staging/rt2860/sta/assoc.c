@@ -455,9 +455,7 @@ VOID MlmeAssocReqAction(
 			}
 
 #ifdef RT30xx
-#ifdef SIOCSIWGENIE
 			if (pAd->StaCfg.WpaSupplicantUP != 1)
-#endif // SIOCSIWGENIE //
 #endif
             RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, BSS0);
 
@@ -486,7 +484,6 @@ VOID MlmeAssocReqAction(
 			}
 
 #ifdef RT30xx
-#ifdef SIOCSIWGENIE
 			if (pAd->StaCfg.WpaSupplicantUP == 1)
 			{
 				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
@@ -494,7 +491,6 @@ VOID MlmeAssocReqAction(
 		                        	END_OF_ARGS);
 			}
 			else
-#endif
 #endif
 			{
 				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
@@ -507,9 +503,7 @@ VOID MlmeAssocReqAction(
 			FrameLen += tmp;
 
 #ifdef RT30xx
-#ifdef SIOCSIWGENIE
 			if (pAd->StaCfg.WpaSupplicantUP != 1)
-#endif
 #endif
 			{
 	            // Append Variable IE

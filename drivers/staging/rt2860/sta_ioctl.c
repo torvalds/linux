@@ -987,7 +987,6 @@ int rt_ioctl_iwaplist(struct net_device *dev,
 	return 0;
 }
 
-#ifdef SIOCGIWSCAN
 int rt_ioctl_siwscan(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_point *data, char *extra)
@@ -1084,9 +1083,6 @@ int rt_ioctl_giwscan(struct net_device *dev,
 	char *current_ev = extra, *previous_ev = extra;
 	char *end_buf;
 	char *current_val, custom[MAX_CUSTOM_LEN] = {0};
-#ifndef IWEVGENIE
-	char idx;
-#endif // IWEVGENIE //
 	struct iw_event iwe;
 
 	if (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
@@ -1313,7 +1309,6 @@ int rt_ioctl_giwscan(struct net_device *dev,
 			return -E2BIG;
         }
 
-#ifdef IWEVGENIE
 		//WPA IE
 		if (pAdapter->ScanTab.BssEntry[i].WpaIE.IELen > 0)
 		{
@@ -1341,40 +1336,6 @@ int rt_ioctl_giwscan(struct net_device *dev,
 			if (current_ev == previous_ev)
 				return -E2BIG;
         }
-#else
-        //WPA IE
-		//================================
-        if (pAdapter->ScanTab.BssEntry[i].WpaIE.IELen > 0)
-        {
-    		NdisZeroMemory(&iwe, sizeof(iwe));
-			memset(&custom[0], 0, MAX_CUSTOM_LEN);
-    		iwe.cmd = IWEVCUSTOM;
-            iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].WpaIE.IELen * 2) + 7;
-            NdisMoveMemory(custom, "wpa_ie=", 7);
-            for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].WpaIE.IELen; idx++)
-                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
-            previous_ev = current_ev;
-    		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,  custom);
-            if (current_ev == previous_ev)
-		return -E2BIG;
-        }
-
-        //WPA2 IE
-        if (pAdapter->ScanTab.BssEntry[i].RsnIE.IELen > 0)
-        {
-    		NdisZeroMemory(&iwe, sizeof(iwe));
-			memset(&custom[0], 0, MAX_CUSTOM_LEN);
-    		iwe.cmd = IWEVCUSTOM;
-            iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].RsnIE.IELen * 2) + 7;
-            NdisMoveMemory(custom, "rsn_ie=", 7);
-			for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].RsnIE.IELen; idx++)
-                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
-            previous_ev = current_ev;
-    		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,  custom);
-            if (current_ev == previous_ev)
-		return -E2BIG;
-        }
-#endif // IWEVGENIE //
 	}
 
 	data->length = current_ev - extra;
@@ -1382,7 +1343,6 @@ int rt_ioctl_giwscan(struct net_device *dev,
 	DBGPRINT(RT_DEBUG_ERROR ,("===>rt_ioctl_giwscan. %d(%d) BSS returned, data->length = %d\n",i , pAdapter->ScanTab.BssNr, data->length));
 	return 0;
 }
-#endif
 
 int rt_ioctl_siwessid(struct net_device *dev,
 			 struct iw_request_info *info,
@@ -2214,7 +2174,6 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
     return Status;
 }
 
-#ifdef SIOCSIWMLME
 int rt_ioctl_siwmlme(struct net_device *dev,
 			   struct iw_request_info *info,
 			   union iwreq_data *wrqu,
@@ -2270,7 +2229,6 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 
 	return 0;
 }
-#endif // SIOCSIWMLME //
 
 int rt_ioctl_siwauth(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -2707,7 +2665,6 @@ rt_ioctl_giwencodeext(struct net_device *dev,
 	return 0;
 }
 
-#ifdef SIOCSIWGENIE
 int rt_ioctl_siwgenie(struct net_device *dev,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
@@ -2731,7 +2688,6 @@ int rt_ioctl_siwgenie(struct net_device *dev,
 
 	return 0;
 }
-#endif // SIOCSIWGENIE //
 
 int rt_ioctl_giwgenie(struct net_device *dev,
 			       struct iw_request_info *info,
@@ -2746,7 +2702,6 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 		return 0;
 	}
 
-#ifdef SIOCSIWGENIE
 	if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
 	if (wrqu->data.length < pAd->StaCfg.RSNIE_Len)
@@ -2756,7 +2711,6 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 	memcpy(extra, &pAd->StaCfg.RSN_IE[0], pAd->StaCfg.RSNIE_Len);
 	}
 	else
-#endif // SIOCSIWGENIE //
 	{
 		UCHAR RSNIe = IE_WPA;
 
@@ -3117,19 +3071,10 @@ static const iw_handler rt_handler[] =
 	(iw_handler) NULL,				        /* SIOCGIWTHRSPY */
 	(iw_handler) rt_ioctl_siwap,            /* SIOCSIWAP     */
 	(iw_handler) rt_ioctl_giwap,		    /* SIOCGIWAP     */
-#ifdef SIOCSIWMLME
 	(iw_handler) rt_ioctl_siwmlme,	        /* SIOCSIWMLME   */
-#else
-	(iw_handler) NULL,				        /* SIOCSIWMLME */
-#endif // SIOCSIWMLME //
 	(iw_handler) rt_ioctl_iwaplist,		    /* SIOCGIWAPLIST */
-#ifdef SIOCGIWSCAN
 	(iw_handler) rt_ioctl_siwscan,		    /* SIOCSIWSCAN   */
 	(iw_handler) rt_ioctl_giwscan,		    /* SIOCGIWSCAN   */
-#else
-	(iw_handler) NULL,				        /* SIOCSIWSCAN   */
-	(iw_handler) NULL,				        /* SIOCGIWSCAN   */
-#endif /* SIOCGIWSCAN */
 	(iw_handler) rt_ioctl_siwessid,		    /* SIOCSIWESSID  */
 	(iw_handler) rt_ioctl_giwessid,		    /* SIOCGIWESSID  */
 	(iw_handler) rt_ioctl_siwnickn,		    /* SIOCSIWNICKN  */
