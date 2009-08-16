@@ -1922,6 +1922,10 @@ static int lpphy_b2062_tune(struct b43_wldev *dev,
 	tmp5 = tmp7 * 0x100;
 	tmp6 = tmp5 / tmp4;
 	tmp7 = tmp5 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL27, tmp6);
+	tmp5 = tmp7 * 0x100;
+	tmp6 = tmp5 / tmp4;
+	tmp7 = tmp5 % tmp4;
 	b43_radio_write(dev, B2062_S_RFPLL_CTL28, tmp6);
 	tmp5 = tmp7 * 0x100;
 	tmp6 = tmp5 / tmp4;
