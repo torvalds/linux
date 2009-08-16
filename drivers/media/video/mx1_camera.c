@@ -234,6 +234,7 @@ static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 	return ret;
 }
 
+/* Called under spinlock_irqsave(&pcdev->lock, ...) */
 static void mx1_videobuf_queue(struct videobuf_queue *vq,
 						struct videobuf_buffer *vb)
 {
@@ -241,12 +242,9 @@ static void mx1_videobuf_queue(struct videobuf_queue *vq,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx1_camera_dev *pcdev = ici->priv;
 	struct mx1_buffer *buf = container_of(vb, struct mx1_buffer, vb);
-	unsigned long flags;
 
 	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
-
-	spin_lock_irqsave(&pcdev->lock, flags);
 
 	list_add_tail(&vb->queue, &pcdev->capture);
 
@@ -264,8 +262,6 @@ static void mx1_videobuf_queue(struct videobuf_queue *vq,
 			__raw_writel(temp, pcdev->base + CSICR1);
 		}
 	}
-
-	spin_unlock_irqrestore(&pcdev->lock, flags);
 }
 
 static void mx1_videobuf_release(struct videobuf_queue *vq,
