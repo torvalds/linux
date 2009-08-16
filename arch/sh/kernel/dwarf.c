@@ -429,7 +429,6 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			count = dwarf_read_uleb128(current_insn,
 						   &frame->cfa_register);
 			current_insn += count;
-			frame->cfa_offset = 0;
 			frame->flags |= DWARF_FRAME_CFA_REG_OFFSET;
 			break;
 		case DW_CFA_def_cfa_offset:
@@ -464,6 +463,19 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			offset *= cie->data_alignment_factor;
 			frame->regs[reg].flags |= DWARF_REG_OFFSET;
 			frame->regs[reg].addr = offset;
+			break;
+		case DW_CFA_GNU_args_size:
+			count = dwarf_read_uleb128(current_insn, &offset);
+			current_insn += count;
+			break;
+		case DW_CFA_GNU_negative_offset_extended:
+			count = dwarf_read_uleb128(current_insn, &reg);
+			current_insn += count;
+			count = dwarf_read_uleb128(current_insn, &offset);
+			offset *= cie->data_alignment_factor;
+			dwarf_frame_alloc_regs(frame, reg);
+			frame->regs[reg].flags |= DWARF_REG_OFFSET;
+			frame->regs[reg].addr = -offset;
 			break;
 		default:
 			pr_debug("unhandled DWARF instruction 0x%x\n", insn);

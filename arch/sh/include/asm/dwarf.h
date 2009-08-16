@@ -340,6 +340,10 @@ struct dwarf_stack {
 #define DW_CFA_lo_user		0x1c
 #define DW_CFA_hi_user		0x3f
 
+/* GNU extension opcodes  */
+#define DW_CFA_GNU_args_size	0x2e
+#define DW_CFA_GNU_negative_offset_extended 0x2f
+
 /*
  * Some call frame instructions encode their operands in the opcode. We
  * need some helper functions to extract both the opcode and operands
