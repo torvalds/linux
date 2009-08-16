@@ -2668,6 +2668,22 @@ static bool ahci_sb600_32bit_only(struct pci_dev *pdev)
 			},
 			.driver_data = "20071026",	/* yyyymmdd */
 		},
+		/*
+		 * It's yet unknown whether more recent BIOS fixes the
+		 * problem.  Blacklist the whole board for the time
+		 * being.  Please read the following thread for more
+		 * info.
+		 *
+		 * http://thread.gmane.org/gmane.linux.ide/42326
+		 */
+		{
+			.ident = "Gigabyte GA-MA69VM-S2",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR,
+					  "Gigabyte Technology Co., Ltd."),
+				DMI_MATCH(DMI_BOARD_NAME, "GA-MA69VM-S2"),
+			},
+		},
 		{ }
 	};
 	const struct dmi_system_id *match;
