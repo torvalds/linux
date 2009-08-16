@@ -242,6 +242,7 @@ int radeon_object_pin(struct radeon_object *robj, uint32_t domain,
 		      uint64_t *gpu_addr);
 void radeon_object_unpin(struct radeon_object *robj);
 int radeon_object_wait(struct radeon_object *robj);
+int radeon_object_busy_domain(struct radeon_object *robj, uint32_t *cur_placement);
 int radeon_object_evict_vram(struct radeon_device *rdev);
 int radeon_object_mmap(struct radeon_object *robj, uint64_t *offset);
 void radeon_object_force_delete(struct radeon_device *rdev);
