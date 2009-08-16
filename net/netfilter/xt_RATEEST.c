@@ -74,7 +74,7 @@ static unsigned int
 xt_rateest_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	const struct xt_rateest_target_info *info = par->targinfo;
-	struct gnet_stats_basic *stats = &info->est->bstats;
+	struct gnet_stats_basic_packed *stats = &info->est->bstats;
 
 	spin_lock_bh(&info->est->lock);
 	stats->bytes += skb->len;
