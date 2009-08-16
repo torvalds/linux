@@ -43,8 +43,6 @@ static char		*field_sep;
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
-static int		dump_trace = 0;
-#define dprintf(x...)	do { if (dump_trace) printf(x); } while (0)
 #define cdprintf(x...)	do { if (dump_trace) color_fprintf(stdout, color, x); } while (0)
 
 static int		full_paths;
@@ -713,8 +711,8 @@ got_map:
 		if ((long long)ip < 0)
 		dso = kernel_dso;
 	}
-	dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
-	dprintf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
+	dump_printf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
+	dump_printf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
 	*ipp  = ip;
 
 	if (dsop)
@@ -1108,7 +1106,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dprintf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
+	dump_printf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
@@ -1121,7 +1119,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		chain = (void *)more_data;
 
-		dprintf("... chain: nr:%Lu\n", chain->nr);
+		dump_printf("... chain: nr:%Lu\n", chain->nr);
 
 		if (validate_chain(chain, event) < 0) {
 			eprintf("call-chain problem with event, skipping it.\n");
@@ -1130,11 +1128,11 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		if (dump_trace) {
 			for (i = 0; i < chain->nr; i++)
-				dprintf("..... %2d: %016Lx\n", i, chain->ips[i]);
+				dump_printf("..... %2d: %016Lx\n", i, chain->ips[i]);
 		}
 	}
 
-	dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (thread == NULL) {
 		eprintf("problem processing %d event, skipping it.\n",
@@ -1153,7 +1151,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dso = kernel_dso;
 
-		dprintf(" ...... dso: %s\n", dso->name);
+		dump_printf(" ...... dso: %s\n", dso->name);
 
 	} else if (cpumode == PERF_EVENT_MISC_USER) {
 
@@ -1166,7 +1164,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dso = hypervisor_dso;
 
-		dprintf(" ...... dso: [hypervisor]\n");
+		dump_printf(" ...... dso: [hypervisor]\n");
 	}
 
 	if (show & show_mask) {
@@ -1197,7 +1195,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 
 	thread = threads__findnew(event->mmap.pid, &threads, &last_match);
 
-	dprintf("%p [%p]: PERF_EVENT_MMAP %d/%d: [%p(%p) @ %p]: %s\n",
+	dump_printf("%p [%p]: PERF_EVENT_MMAP %d/%d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->mmap.pid,
@@ -1208,7 +1206,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 		event->mmap.filename);
 
 	if (thread == NULL || map == NULL) {
-		dprintf("problem processing PERF_EVENT_MMAP, skipping event.\n");
+		dump_printf("problem processing PERF_EVENT_MMAP, skipping event.\n");
 		return 0;
 	}
 
@@ -1225,14 +1223,14 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 
 	thread = threads__findnew(event->comm.pid, &threads, &last_match);
 
-	dprintf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+	dump_printf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm(thread, event->comm.comm)) {
-		dprintf("problem processing PERF_EVENT_COMM, skipping event.\n");
+		dump_printf("problem processing PERF_EVENT_COMM, skipping event.\n");
 		return -1;
 	}
 	total_comm++;
@@ -1249,7 +1247,7 @@ process_task_event(event_t *event, unsigned long offset, unsigned long head)
 	thread = threads__findnew(event->fork.pid, &threads, &last_match);
 	parent = threads__findnew(event->fork.ppid, &threads, &last_match);
 
-	dprintf("%p [%p]: PERF_EVENT_%s: (%d:%d):(%d:%d)\n",
+	dump_printf("%p [%p]: PERF_EVENT_%s: (%d:%d):(%d:%d)\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.type == PERF_EVENT_FORK ? "FORK" : "EXIT",
@@ -1267,7 +1265,7 @@ process_task_event(event_t *event, unsigned long offset, unsigned long head)
 		return 0;
 
 	if (!thread || !parent || thread__fork(thread, parent)) {
-		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
+		dump_printf("problem processing PERF_EVENT_FORK, skipping event.\n");
 		return -1;
 	}
 	total_fork++;
@@ -1278,7 +1276,7 @@ process_task_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_lost_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	dprintf("%p [%p]: PERF_EVENT_LOST: id:%Ld: lost:%Ld\n",
+	dump_printf("%p [%p]: PERF_EVENT_LOST: id:%Ld: lost:%Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->lost.id,
@@ -1298,12 +1296,12 @@ static void trace_event(event_t *event)
 	if (!dump_trace)
 		return;
 
-	dprintf(".");
+	dump_printf(".");
 	cdprintf("\n. ... raw event: size %d bytes\n", event->header.size);
 
 	for (i = 0; i < event->header.size; i++) {
 		if ((i & 15) == 0) {
-			dprintf(".");
+			dump_printf(".");
 			cdprintf("  %04x: ", i);
 		}
 
@@ -1322,7 +1320,7 @@ static void trace_event(event_t *event)
 			cdprintf("\n");
 		}
 	}
-	dprintf(".\n");
+	dump_printf(".\n");
 }
 
 static struct perf_header	*header;
@@ -1359,7 +1357,7 @@ process_read_event(event_t *event, unsigned long offset, unsigned long head)
 					   event->read.value);
 	}
 
-	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %s %Lu\n",
+	dump_printf("%p [%p]: PERF_EVENT_READ: %d %d %s %Lu\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
 			event->read.pid,
@@ -1540,14 +1538,14 @@ more:
 
 	size = event->header.size;
 
-	dprintf("\n%p [%p]: event: %d\n",
+	dump_printf("\n%p [%p]: event: %d\n",
 			(void *)(offset + head),
 			(void *)(long)event->header.size,
 			event->header.type);
 
 	if (!size || process_event(event, offset, head) < 0) {
 
-		dprintf("%p [%p]: skipping unknown header type: %d\n",
+		dump_printf("%p [%p]: skipping unknown header type: %d\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
 			event->header.type);
@@ -1577,12 +1575,12 @@ done:
 	rc = EXIT_SUCCESS;
 	close(input);
 
-	dprintf("      IP events: %10ld\n", total);
-	dprintf("    mmap events: %10ld\n", total_mmap);
-	dprintf("    comm events: %10ld\n", total_comm);
-	dprintf("    fork events: %10ld\n", total_fork);
-	dprintf("    lost events: %10ld\n", total_lost);
-	dprintf(" unknown events: %10ld\n", total_unknown);
+	dump_printf("      IP events: %10ld\n", total);
+	dump_printf("    mmap events: %10ld\n", total_mmap);
+	dump_printf("    comm events: %10ld\n", total_comm);
+	dump_printf("    fork events: %10ld\n", total_fork);
+	dump_printf("    lost events: %10ld\n", total_lost);
+	dump_printf(" unknown events: %10ld\n", total_unknown);
 
 	if (dump_trace)
 		return 0;
