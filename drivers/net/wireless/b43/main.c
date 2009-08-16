@@ -4514,7 +4514,9 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 			have_5ghz_phy = 1;
 			break;
 		case B43_PHYTYPE_LP: //FIXME not always!
+#if 0 //FIXME enabling 5GHz causes a NULL pointer dereference
 			have_5ghz_phy = 1;
+#endif
 		case B43_PHYTYPE_G:
 		case B43_PHYTYPE_N:
 			have_2ghz_phy = 1;
