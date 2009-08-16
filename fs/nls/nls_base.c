@@ -270,7 +270,8 @@ struct nls_table *load_nls(char *charset)
 
 void unload_nls(struct nls_table *nls)
 {
-	module_put(nls->owner);
+	if (nls)
+		module_put(nls->owner);
 }
 
 static const wchar_t charset2uni[256] = {

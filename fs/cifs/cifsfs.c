@@ -185,8 +185,7 @@ out_mount_failed:
 			cifs_sb->mountdata = NULL;
 		}
 #endif
-		if (cifs_sb->local_nls)
-			unload_nls(cifs_sb->local_nls);
+		unload_nls(cifs_sb->local_nls);
 		kfree(cifs_sb);
 	}
 	return rc;
