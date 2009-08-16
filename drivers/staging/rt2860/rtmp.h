@@ -40,7 +40,6 @@
 #ifndef __RTMP_H__
 #define __RTMP_H__
 
-#include "link_list.h"
 #include "spectrum_def.h"
 
 #include "aironet.h"
