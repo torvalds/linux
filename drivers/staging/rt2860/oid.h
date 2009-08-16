@@ -670,32 +670,6 @@ enum {
 #define OID_802_11_GET_COUNTRY_CODE				0x0716
 #define OID_802_11_GET_CHANNEL_GEOGRAPHY		0x0717
 
-#ifdef RT30xx
-#define RT_OID_WSC_SET_PASSPHRASE                   0x0740 // passphrase for wpa(2)-psk
-#define RT_OID_WSC_DRIVER_AUTO_CONNECT              0x0741
-#define RT_OID_WSC_QUERY_DEFAULT_PROFILE            0x0742
-#define RT_OID_WSC_SET_CONN_BY_PROFILE_INDEX        0x0743
-#define RT_OID_WSC_SET_ACTION                       0x0744
-#define RT_OID_WSC_SET_SSID                         0x0745
-#define RT_OID_WSC_SET_PIN_CODE                     0x0746
-#define RT_OID_WSC_SET_MODE                         0x0747 // PIN or PBC
-#define RT_OID_WSC_SET_CONF_MODE                    0x0748 // Enrollee or Registrar
-#define RT_OID_WSC_SET_PROFILE                      0x0749
-
-#define RT_OID_802_11_WSC_QUERY_PROFILE				0x0750
-// for consistency with RT61
-#define RT_OID_WSC_QUERY_STATUS						0x0751
-#define RT_OID_WSC_PIN_CODE							0x0752
-#define RT_OID_WSC_UUID								0x0753
-#define RT_OID_WSC_SET_SELECTED_REGISTRAR			0x0754
-#define RT_OID_WSC_EAPMSG							0x0755
-#define RT_OID_WSC_MANUFACTURER						0x0756
-#define RT_OID_WSC_MODEL_NAME						0x0757
-#define RT_OID_WSC_MODEL_NO							0x0758
-#define RT_OID_WSC_SERIAL_NO						0x0759
-#define RT_OID_WSC_MAC_ADDRESS						0x0760
-#endif
-
 #ifdef LLTD_SUPPORT
 // for consistency with RT61
 #define RT_OID_GET_PHY_MODE                         0x761

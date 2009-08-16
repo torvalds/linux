@@ -407,8 +407,6 @@ typedef struct  _QUEUE_HEADER   {
 #define IS_RT3070(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30700000)
 #ifdef RT30xx
 #define IS_RT3071(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30710000)
-#define IS_RT2070(_pAd)				(((_pAd)->RfIcType == RFIC_2020) || ((_pAd)->EFuseTag == 0x27))
-
 #define IS_RT30xx(_pAd)				(((_pAd)->MACVersion & 0xfff00000) == 0x30700000)
 #endif
 
@@ -663,11 +661,6 @@ typedef struct  _QUEUE_HEADER   {
 #define BBP_IO_WRITE8_BY_REG_ID(_A, _I, _V)			RTUSBWriteBBPRegister(_A, _I, _V)
 #define BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)   		RTUSBReadBBPRegister(_A, _I, _pV)
 #endif // RT2870 //
-
-#ifdef RT30xx
-#define RTMP_RF_IO_READ8_BY_REG_ID(_A, _I, _pV)    RT30xxReadRFRegister(_A, _I, _pV)
-#define RTMP_RF_IO_WRITE8_BY_REG_ID(_A, _I, _V)    RT30xxWriteRFRegister(_A, _I, _V)
-#endif // RT30xx //
 
 #define     MAP_CHANNEL_ID_TO_KHZ(ch, khz)  {               \
                 switch (ch)                                 \

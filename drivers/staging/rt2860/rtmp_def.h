@@ -624,11 +624,6 @@
 #define AP_CNTL_STATE_MACHINE           15
 #define AP_WPA_STATE_MACHINE            16
 
-#ifdef RT30xx
-#define WSC_STATE_MACHINE            17
-#define WSC_UPNP_STATE_MACHINE		    18
-#endif
-
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
 //
