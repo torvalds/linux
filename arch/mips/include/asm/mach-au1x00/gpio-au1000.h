@@ -104,6 +104,8 @@ static inline int au1100_gpio2_to_irq(int gpio)
 
 	if ((gpio >= 8) && (gpio <= 15))
 		return MAKE_IRQ(0, 29);		/* shared GPIO208_215 */
+
+	return -ENXIO;
 }
 
 #ifdef CONFIG_SOC_AU1100
