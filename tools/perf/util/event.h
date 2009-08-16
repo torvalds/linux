@@ -4,6 +4,12 @@
 #include "util.h"
 #include <linux/list.h>
 
+enum {
+	SHOW_KERNEL	= 1,
+	SHOW_USER	= 2,
+	SHOW_HV		= 4,
+};
+
 /*
  * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
  */

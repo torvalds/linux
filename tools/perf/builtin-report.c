@@ -27,10 +27,6 @@
 
 #include "util/thread.h"
 
-#define SHOW_KERNEL	1
-#define SHOW_USER	2
-#define SHOW_HV		4
-
 static char		const *input_name = "perf.data";
 
 static char		default_sort_order[] = "comm,dso,symbol";
