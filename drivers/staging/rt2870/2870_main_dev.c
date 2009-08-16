@@ -1063,6 +1063,26 @@ VOID RT28xxThreadTerminate(
 	}
 #endif
 #ifdef RT30xx
+	if (pid_nr(pObj->TimerQThr_pid) > 0)
+	{
+		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));
+		mb();
+		pAd->TimerFunc_kill = 1;
+		mb();
+		ret = kill_pid(pObj->TimerQThr_pid, SIGTERM, 1);
+		if (ret)
+		{
+			printk(KERN_WARNING "%s: unable to stop TimerQThread, pid=%d, ret=%d!\n",
+					pAd->net_dev->name, pid_nr(pObj->TimerQThr_pid), ret);
+		}
+		else
+		{
+			wait_for_completion(&pAd->TimerQComplete);
+			pObj->TimerQThr_pid = NULL;
+		}
+	}
+
 	if (pid_nr(pObj->MLMEThr_pid) > 0)
 	{
 		printk("Terminate the MLMEThr_pid=%d!\n", pid_nr(pObj->MLMEThr_pid));
@@ -1104,26 +1124,6 @@ VOID RT28xxThreadTerminate(
 			//wait_for_completion (&pAd->notify);
 			wait_for_completion (&pAd->CmdQComplete);
 			pObj->RTUSBCmdThr_pid = NULL;
-		}
-	}
-	if (pid_nr(pObj->TimerQThr_pid) > 0)
-	{
-		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
-		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));
-		mb();
-		pAd->TimerFunc_kill = 1;
-		mb();
-		ret = kill_pid(pObj->TimerQThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk(KERN_WARNING "%s: unable to stop TimerQThread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, pid_nr(pObj->TimerQThr_pid), ret);
-		}
-		else
-		{
-			printk("wait_for_completion TimerQThr\n");
-			wait_for_completion(&pAd->TimerQComplete);
-			pObj->TimerQThr_pid = NULL;
 		}
 	}
 #endif
