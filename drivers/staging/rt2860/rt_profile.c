@@ -860,7 +860,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 {
 	PUCHAR					src = NULL;
 	struct file				*srcf;
-	INT 					retval, orgfsuid, orgfsgid;
+	INT 					retval;
    	mm_segment_t			orgfs;
 	CHAR					*buffer;
 	CHAR					*tmpbuf;
@@ -884,15 +884,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 	src = STA_PROFILE_PATH;
 
-	// Save uid and gid used for filesystem access.
-	// Set user and group to 0 (root)
-#ifndef RT30xx
-	orgfsuid = current_fsuid();
-	orgfsgid = current_fsgid();
-	/* Hm, can't really do this nicely anymore, so rely on these files
-	 * being set to the proper permission to read them... */
-	/* current->cred->fsuid = current->cred->fsgid = 0; */
-#endif
     orgfs = get_fs();
     set_fs(KERNEL_DS);
 

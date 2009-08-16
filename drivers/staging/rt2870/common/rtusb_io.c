@@ -1754,9 +1754,9 @@ VOID CMDHandler(
 				case RT_CMD_SET_RX_WCID_TABLE: //General call for RTMPAddWcidAttributeEntry()
 				{
 					PMAC_TABLE_ENTRY pEntry;
-					UCHAR KeyIdx;
-					UCHAR CipherAlg;
-					UCHAR ApIdx;
+					UCHAR KeyIdx = 0;
+					UCHAR CipherAlg = 0;
+					UCHAR ApIdx = 0;
 
 					pEntry = (PMAC_TABLE_ENTRY)(pData);
 

@@ -1038,7 +1038,7 @@ INT	set_eFuseLoadFromBin_Proc(
 {
 	CHAR					*src;
 	struct file				*srcf;
-	INT 					retval, orgfsuid, orgfsgid;
+	INT 					retval;
    	mm_segment_t			orgfs;
 	UCHAR					*buffer;
 	UCHAR					BinFileSize=0;
@@ -1078,12 +1078,7 @@ INT	set_eFuseLoadFromBin_Proc(
 		kfree(buffer);
 		return FALSE;
 	}
-	/* Don't change to uid 0, let the file be opened as the "normal" user */
-#if 0
-	orgfsuid = current->fsuid;
-	orgfsgid = current->fsgid;
-	current->fsuid=current->fsgid = 0;
-#endif
+
     	orgfs = get_fs();
    	 set_fs(KERNEL_DS);
 
@@ -1146,10 +1141,7 @@ INT	set_eFuseLoadFromBin_Proc(
 		DBGPRINT(RT_DEBUG_TRACE, ("--> Error %d closing %s\n", -retval, src));
 	}
 	set_fs(orgfs);
-#if 0
-	current->fsuid = orgfsuid;
-	current->fsgid = orgfsgid;
-#endif
+
 	for(j=0;j<i;j++)
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("%02X ",buffer[j]));

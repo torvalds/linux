@@ -1013,11 +1013,6 @@ BOOLEAN RTMP_FillTxBlkInfo(
 	}
 
 	return TRUE;
-
-#ifdef RT30xx
-FillTxBlkErr:
-	return FALSE;
-#endif
 }
 
 
