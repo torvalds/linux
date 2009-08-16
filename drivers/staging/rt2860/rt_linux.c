@@ -662,13 +662,9 @@ void announce_802_3_packet(
 	pRxPkt = RTPKT_TO_OSPKT(pPacket);
 
     /* Push up the protocol stack */
-#ifdef IKANOS_VX_1X0
-	IKANOS_DataFrameRx(pAd, pRxPkt->dev, pRxPkt, pRxPkt->len);
-#else
 	pRxPkt->protocol = eth_type_trans(pRxPkt, pRxPkt->dev);
 
 	netif_rx(pRxPkt);
-#endif // IKANOS_VX_1X0 //
 }
 
 

@@ -441,51 +441,6 @@ extern ULONG    RTDebugLevel;
 }
 
 #ifdef RT2860
-#if defined(INF_TWINPASS) || defined(INF_DANUBE) || defined(IKANOS_VX_1X0)
-//Patch for ASIC turst read/write bug, needs to remove after metel fix
-#define RTMP_IO_READ32(_A, _R, _pV)									\
-{																	\
-    if ((_A)->bPCIclkOff == FALSE)                                      \
-    {                                                                   \
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
-	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
-    }                                                                   \
-}
-#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
-{																	\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
-	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
-}
-#define RTMP_IO_READ8(_A, _R, _pV)									\
-{																	\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
-	(*_pV = readb((void *)((_A)->CSRBaseAddress + (_R))));			\
-}
-#define RTMP_IO_WRITE32(_A, _R, _V)									\
-{																	\
-    if ((_A)->bPCIclkOff == FALSE)                                      \
-    {                                                                   \
-	UINT32	_Val;													\
-	_Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));		\
-	_Val = SWAP32(_V);												\
-	writel(_Val, (void *)((_A)->CSRBaseAddress + (_R)));			\
-    }                                                                   \
-}
-#define RTMP_IO_WRITE8(_A, _R, _V)									\
-{																	\
-	UINT	Val;													\
-	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));		\
-	writeb((_V), (PUCHAR)((_A)->CSRBaseAddress + (_R)));			\
-}
-#define RTMP_IO_WRITE16(_A, _R, _V)									\
-{																	\
-	UINT	Val;													\
-	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));		\
-	writew(SWAP16((_V)), (PUSHORT)((_A)->CSRBaseAddress + (_R)));	\
-}
-#else
 //Patch for ASIC turst read/write bug, needs to remove after metel fix
 #define RTMP_IO_READ32(_A, _R, _pV)								\
 {																\
@@ -516,32 +471,18 @@ extern ULONG    RTDebugLevel;
 	writel(_V, (void *)((_A)->CSRBaseAddress + (_R)));								\
     }                                                               \
 }
-#if defined(BRCM_6358)
-#define RTMP_IO_WRITE8(_A, _R, _V)            \
-{                    \
-	ULONG Val;                \
-	UCHAR _i;                \
-	_i = (_R & 0x3);             \
-	Val = readl((void *)((_A)->CSRBaseAddress + (_R - _i)));   \
-	Val = Val & (~(0x000000ff << ((_i)*8)));         \
-	Val = Val | ((ULONG)_V << ((_i)*8));         \
-	writel((Val), (void *)((_A)->CSRBaseAddress + (_R - _i)));    \
-}
-#else
 #define RTMP_IO_WRITE8(_A, _R, _V)												\
 {																				\
 	UINT	Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
 	writeb((_V), (PUCHAR)((_A)->CSRBaseAddress + (_R)));		\
 }
-#endif
 #define RTMP_IO_WRITE16(_A, _R, _V)												\
 {																				\
 	UINT	Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
 	writew((_V), (PUSHORT)((_A)->CSRBaseAddress + (_R)));	\
 }
-#endif
 #endif /* RT2860 */
 #ifdef RT2870
 //Patch for ASIC turst read/write bug, needs to remove after metel fix

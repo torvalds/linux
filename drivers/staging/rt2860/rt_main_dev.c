@@ -515,9 +515,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	NICInitRT30xxRFRegisters(pAd);
 #endif // RT2870 //
 
-#ifdef IKANOS_VX_1X0
-	VR_IKANOS_FP_Init(pAd->ApCfg.BssidNum, pAd->PermanentAddress);
-#endif // IKANOS_VX_1X0 //
 
 		//
 	// Initialize RF register to default value
@@ -678,11 +675,7 @@ static const struct net_device_ops rt2860_netdev_ops = {
 	.ndo_validate_addr	= NULL,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_change_mtu		= eth_change_mtu,
-#ifdef IKANOS_VX_1X0
-	.ndo_start_xmit		= IKANOS_DataFramesTx,
-#else
 	.ndo_start_xmit		= rt28xx_send_packets,
-#endif
 };
 
 /* Must not be called for mdev and apdev */

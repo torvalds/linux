@@ -2532,16 +2532,6 @@ typedef struct _INF_USB_CONFIG
 
 }INF_USB_CONFIG;
 
-#ifdef IKANOS_VX_1X0
-	typedef void (*IkanosWlanTxCbFuncP)(void *, void *);
-
-	struct IKANOS_TX_INFO
-	{
-		struct net_device *netdev;
-		IkanosWlanTxCbFuncP *fp;
-	};
-#endif // IKANOS_VX_1X0 //
-
 #ifdef DBG_DIAGNOSE
 #define DIAGNOSE_TIME	10   // 10 sec
 typedef struct _RtmpDiagStrcut_
@@ -2988,12 +2978,6 @@ typedef struct _RTMP_ADAPTER
 #define TIME_ONE_SECOND		(1000000/TIME_BASE)
 	UCHAR					flg_be_adjust;
 	ULONG					be_adjust_last_time;
-
-#ifdef IKANOS_VX_1X0
-	struct IKANOS_TX_INFO	IkanosTxInfo;
-	struct IKANOS_TX_INFO	IkanosRxInfo[MAX_MBSSID_NUM + MAX_WDS_ENTRY + MAX_APCLI_NUM + MAX_MESH_NUM];
-#endif // IKANOS_VX_1X0 //
-
 
 #ifdef DBG_DIAGNOSE
 	RtmpDiagStruct	DiagStruct;
