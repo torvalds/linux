@@ -627,13 +627,6 @@ typedef struct _NDIS_802_11_CAPABILITY
 #define RT_PRIV_IOCTL_EXT							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
-#ifdef DBG
-#define RTPRIV_IOCTL_BBP                            (SIOCIWFIRSTPRIV + 0x03)
-#define RTPRIV_IOCTL_MAC                            (SIOCIWFIRSTPRIV + 0x05)
-#define RTPRIV_IOCTL_RF                             (SIOCIWFIRSTPRIV + 0x13)
-#define RTPRIV_IOCTL_E2P                            (SIOCIWFIRSTPRIV + 0x07)
-#endif
-
 #define RTPRIV_IOCTL_STATISTICS                     (SIOCIWFIRSTPRIV + 0x09)
 #define RTPRIV_IOCTL_ADD_PMKID_CACHE                (SIOCIWFIRSTPRIV + 0x0A)
 #define RTPRIV_IOCTL_RADIUS_DATA                    (SIOCIWFIRSTPRIV + 0x0C)
