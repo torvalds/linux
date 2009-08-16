@@ -1675,7 +1675,6 @@ VOID	NICReadEEPROMParameters(
 	Antenna.word = pAd->EEPROMDefaultValue[0];
 	if (Antenna.word == 0xFFFF)
 	{
-#ifdef RT30xx
 		if(IS_RT3090(pAd))
 		{
 			Antenna.word = 0;
@@ -1685,15 +1684,12 @@ VOID	NICReadEEPROMParameters(
 		}
 		else
 		{
-#endif // RT30xx //
 		Antenna.word = 0;
 		Antenna.field.RfIcType = RFIC_2820;
 		Antenna.field.TxPath = 1;
 		Antenna.field.RxPath = 2;
 		DBGPRINT(RT_DEBUG_WARN, ("E2PROM error, hard code as 0x%04x\n", Antenna.word));
-#ifdef RT30xx
 		}
-#endif // RT30xx //
 	}
 
 	// Choose the desired Tx&Rx stream.
@@ -2445,7 +2441,6 @@ NDIS_STATUS	NICInitializeAsic(
 		}
 	}
 
-#ifdef RT30xx
 	// Initialize RT3070 serial MAc registers which is different from RT2870 serial
 	if (IS_RT3090(pAd))
 	{
@@ -2468,6 +2463,7 @@ NDIS_STATUS	NICInitializeAsic(
 			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x0);
 		}
 	}
+#ifdef RT30xx
 	else if (IS_RT3070(pAd))
 	{
 		RTMP_IO_WRITE32(pAd, TX_SW_CFG1, 0);

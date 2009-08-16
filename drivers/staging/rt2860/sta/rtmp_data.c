@@ -575,14 +575,12 @@ VOID STAHandleRxMgmtFrame(
 	{
 
 		// We should collect RSSI not only U2M data but also my beacon
+		if (
 #ifdef RT30xx
-		if ((pHeader->FC.SubType == SUBTYPE_BEACON) && (MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2))
-			&& (pAd->RxAnt.EvaluatePeriod == 0))
+		    pAd->RxAnt.EvaluatePeriod == 0 &&
 #endif
-#ifndef RT30xx
-		if ((pHeader->FC.SubType == SUBTYPE_BEACON) && (MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2)))
-#endif
-		{
+		    pHeader->FC.SubType == SUBTYPE_BEACON &&
+		    MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2)) {
 			Update_Rssi_Sample(pAd, &pAd->StaCfg.RssiSample, pRxWI);
 
 			pAd->StaCfg.LastSNR0 = (UCHAR)(pRxWI->SNR0);

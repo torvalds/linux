@@ -449,13 +449,7 @@ FREQUENCY_ITEM FreqItems3020[] =
 	{13,   247,	 2,  2},
 	{14,   248,	 2,  4},
 };
-#ifndef RT30xx
-#define	NUM_OF_3020_CHNL	(sizeof(FreqItems3020) / sizeof(FREQUENCY_ITEM))
-#endif
-#ifdef RT30xx
-//2008/07/10:KH Modified to share this variable
 UCHAR	NUM_OF_3020_CHNL=(sizeof(FreqItems3020) / sizeof(FREQUENCY_ITEM));
-#endif
 
 /*
 	==========================================================================
@@ -3949,14 +3943,12 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
+					if (
 #ifndef RT30xx
-					if ((pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher) &&
-						(pInBss->WPA.GroupCipher != Ndis802_11GroupWEP40Enabled) &&
-						(pInBss->WPA.GroupCipher != Ndis802_11GroupWEP104Enabled))
+					    pInBss->WPA.GroupCipher != Ndis802_11GroupWEP40Enabled &&
+					    pInBss->WPA.GroupCipher != Ndis802_11GroupWEP104Enabled &&
 #endif
-#ifdef RT30xx
-					if (pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher)
-#endif
+					    pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher)
 						continue;
 
 					// check pairwise cipher, skip if none matched
@@ -3975,14 +3967,12 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
+					if (
 #ifndef RT30xx
-					if ((pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher) &&
-						(pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP40Enabled) &&
-						(pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP104Enabled))
+					    pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP40Enabled &&
+					    pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP104Enabled &&
 #endif
-#ifdef RT30xx
-					if (pAd->StaCfg.WepStatus < pInBss->WPA2.GroupCipher)
-#endif
+					    pAd->StaCfg.WepStatus < pInBss->WPA2.GroupCipher)
 						continue;
 
 					// check pairwise cipher, skip if none matched
@@ -8229,7 +8219,6 @@ VOID AsicSetRxAnt(
 	IN PRTMP_ADAPTER	pAd,
 	IN UCHAR			Ant)
 {
-#ifdef RT30xx
 	UINT32	Value;
 	UINT32	x;
 
@@ -8268,7 +8257,6 @@ VOID AsicSetRxAnt(
 		RTMP_IO_WRITE32(pAd, GPIO_CTRL_CFG, Value);
 		DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicSetRxAnt, switch to aux antenna\n"));
 	}
-#endif // RT30xx //
 }
 #endif /* RT30xx */
 
@@ -8330,9 +8318,7 @@ VOID AsicEvaluateRxAnt(
 							fRTMP_ADAPTER_NIC_NOT_EXIST		|
 							fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS) ||
 							OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
-#ifdef RT30xx
 							|| (pAd->EepromAccess)
-#endif // RT30xx //
 							)
 		return;
 
@@ -8822,27 +8808,13 @@ VOID AsicStaBbpTuning(
 				{
 					R66 = 0x1C + 2*GET_LNA_GAIN(pAd) + 0x20;
 					if (OrigR66Value != R66)
-					{
-#ifndef RT30xx
-						RTUSBWriteBBPRegister(pAd, BBP_R66, R66);
-#endif
-#ifdef RT30xx
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, R66);
-#endif
-					}
 				}
 				else
 				{
 					R66 = 0x1C + 2*GET_LNA_GAIN(pAd);
 					if (OrigR66Value != R66)
-					{
-#ifndef RT30xx
-						RTUSBWriteBBPRegister(pAd, BBP_R66, R66);
-#endif
-#ifdef RT30xx
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, R66);
-#endif
-					}
 				}
 			}
 			else
@@ -9051,15 +9023,13 @@ VOID AsicTurnOffRFClk(
 	UCHAR			index;
 	RTMP_RF_REGS	*RFRegTable;
 
-#ifdef RT30xx
 	// The RF programming sequence is difference between 3xxx and 2xxx
 	if (IS_RT3090(pAd))
 	{
 		RT30xxLoadRFSleepModeSetup(pAd);  // add by johnli,  RF power sequence setup, load RF sleep-mode setup
+		return;
 	}
-	else
-	{
-#endif // RT30xx //
+
 	RFRegTable = RF2850RegTable;
 
 	switch (pAd->RfIcType)
@@ -9101,10 +9071,6 @@ VOID AsicTurnOffRFClk(
 		default:
 			break;
 	}
-#ifdef RT30xx
-	}
-#endif // RT30xx //
-
 }
 
 
@@ -9118,14 +9084,10 @@ VOID AsicTurnOnRFClk(
 	UCHAR			index;
 	RTMP_RF_REGS	*RFRegTable;
 
-#ifdef RT30xx
 	// The RF programming sequence is difference between 3xxx and 2xxx
 	if (IS_RT3090(pAd))
-	{
-	}
-	else
-	{
-#endif // RT30xx //
+		return;
+
 	RFRegTable = RF2850RegTable;
 
 	switch (pAd->RfIcType)
@@ -9178,8 +9140,5 @@ VOID AsicTurnOnRFClk(
 		pAd->RfIcType,
 		R2));
 #endif
-#ifdef RT30xx
-	}
-#endif // RT30xx //
 }
 

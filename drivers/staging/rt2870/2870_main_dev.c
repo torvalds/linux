@@ -1101,12 +1101,7 @@ BOOLEAN RT28XXChipsetCheck(
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
 			dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct)
 		{
-#ifndef RT30xx
 			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
-#endif
-#ifdef RT30xx
-			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
-#endif
 					dev_p->descriptor.idVendor, dev_p->descriptor.idProduct);
 			break;
 		}

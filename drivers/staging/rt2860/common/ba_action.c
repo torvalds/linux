@@ -1391,10 +1391,8 @@ VOID SendPSMPAction(
 	//ULONG           Idx;
 	FRAME_PSMP_ACTION   Frame;
 	ULONG           FrameLen;
-#ifdef RT30xx
 	UCHAR			bbpdata=0;
 	UINT32			macdata;
-#endif // RT30xx //
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	 //Get an unused nonpaged memory
 	if (NStatus != NDIS_STATUS_SUCCESS)
@@ -1410,7 +1408,6 @@ VOID SendPSMPAction(
 	switch (Psmp)
 	{
 		case MMPS_ENABLE:
-#ifdef RT30xx
 			if (IS_RT3090(pAd))
 			{
 				// disable MMPS BBP control register
@@ -1423,11 +1420,9 @@ VOID SendPSMPAction(
 				macdata &= ~(0x09);	//bit 0, 3
 				RTMP_IO_WRITE32(pAd, 0x1210, macdata);
 			}
-#endif // RT30xx //
 			Frame.Psmp = 0;
 			break;
 		case MMPS_DYNAMIC:
-#ifdef RT30xx
 			if (IS_RT3090(pAd))
 			{
 				// enable MMPS BBP control register
@@ -1440,11 +1435,9 @@ VOID SendPSMPAction(
 				macdata |= 0x09;	//bit 0, 3
 				RTMP_IO_WRITE32(pAd, 0x1210, macdata);
 			}
-#endif // RT30xx //
 			Frame.Psmp = 3;
 			break;
 		case MMPS_STATIC:
-#ifdef RT30xx
 			if (IS_RT3090(pAd))
 			{
 				// enable MMPS BBP control register
@@ -1457,7 +1450,6 @@ VOID SendPSMPAction(
 				macdata |= 0x09;	//bit 0, 3
 				RTMP_IO_WRITE32(pAd, 0x1210, macdata);
 			}
-#endif // RT30xx //
 			Frame.Psmp = 1;
 			break;
 	}

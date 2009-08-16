@@ -535,10 +535,8 @@ typedef enum _NDIS_802_11_WEP_STATUS
     Ndis802_11Encryption3KeyAbsent,
     Ndis802_11Encryption4Enabled,	// TKIP or AES mix
     Ndis802_11Encryption4KeyAbsent,
-#ifndef RT30xx
     Ndis802_11GroupWEP40Enabled,
 	Ndis802_11GroupWEP104Enabled,
-#endif
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
   NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
@@ -626,17 +624,13 @@ typedef struct _NDIS_802_11_CAPABILITY
      NDIS_802_11_AUTHENTICATION_ENCRYPTION AuthenticationEncryptionSupported[1];
 } NDIS_802_11_CAPABILITY, *PNDIS_802_11_CAPABILITY;
 
-#ifdef RT30xx
 #define RT_PRIV_IOCTL_EXT							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
-#endif
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
 #ifdef DBG
 #define RTPRIV_IOCTL_BBP                            (SIOCIWFIRSTPRIV + 0x03)
 #define RTPRIV_IOCTL_MAC                            (SIOCIWFIRSTPRIV + 0x05)
-#ifdef RT30xx
 #define RTPRIV_IOCTL_RF                             (SIOCIWFIRSTPRIV + 0x13)
-#endif
 #define RTPRIV_IOCTL_E2P                            (SIOCIWFIRSTPRIV + 0x07)
 #endif
 
@@ -660,7 +654,7 @@ enum {
     RAIO_OFF = 10,
     RAIO_ON = 11,
 	SHOW_CFG_VALUE = 20,
-#if !defined(RT2860) && !defined(RT30xx)
+#if !defined(RT2860)
 	SHOW_ADHOC_ENTRY_INFO = 21,
 #endif
 };

@@ -73,16 +73,12 @@ USHORT ShiftInBits(
         RaiseClock(pAd, &x);
 
         RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
-#ifdef RT30xx
-		LowerClock(pAd, &x); //prevent read failed
-#endif
+
+	LowerClock(pAd, &x); /* prevent read failed */
+
         x &= ~(EEDI);
         if(x & EEDO)
             data |= 1;
-
-#ifndef RT30xx
-        LowerClock(pAd, &x);
-#endif
     }
 
     return data;
@@ -201,17 +197,13 @@ USHORT RTMP_EEPROM_READ16(
     x |= EECS;
     RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 
-#ifdef RT30xx
 	// patch can not access e-Fuse issue
     if (!IS_RT3090(pAd))
     {
-#endif
 	// kick a pulse
 	RaiseClock(pAd, &x);
 	LowerClock(pAd, &x);
-#ifdef RT30xx
     }
-#endif
 
     // output the read_opcode and register number in that order
     ShiftOutBits(pAd, EEPROM_READ_OPCODE, 3);
@@ -262,17 +254,13 @@ VOID RTMP_EEPROM_WRITE16(
     x |= EECS;
     RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 
-#ifdef RT30xx
 	// patch can not access e-Fuse issue
     if (!IS_RT3090(pAd))
     {
-#endif
 	// kick a pulse
 	RaiseClock(pAd, &x);
 	LowerClock(pAd, &x);
-#ifdef RT30xx
     }
-#endif
 
     // output the read_opcode ,register number and data in that order
     ShiftOutBits(pAd, EEPROM_WRITE_OPCODE, 3);

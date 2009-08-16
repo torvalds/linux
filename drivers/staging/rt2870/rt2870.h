@@ -46,9 +46,7 @@
 #define MAX_TXBULK_SIZE         (LOCAL_TXBUF_SIZE*BULKAGGRE_ZISE)
 #define MAX_RXBULK_SIZE         (LOCAL_TXBUF_SIZE*RXBULKAGGRE_ZISE)
 #define MAX_MLME_HANDLER_MEMORY 20
-#ifndef RT30xx
 #define	RETRY_LIMIT             10
-#endif
 #define BUFFER_SIZE				2400	//2048
 #define	TX_RING					0xa
 #define	PRIO_RING				0xc
@@ -64,9 +62,7 @@
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_2			0x00020000
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_3			0x00040000
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_4			0x00080000
-#ifdef RT30xx
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_5			0x00100000
-#endif
 
 #define	fRTUSB_BULK_OUT_PSPOLL					0x00000020
 #define	fRTUSB_BULK_OUT_DATA_FRAG				0x00000040
@@ -284,14 +280,6 @@ extern UCHAR EpToQueue[6];
 	RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_SET_CLIENT_MAC_ENTRY, 	\
 							pEntry, sizeof(MAC_TABLE_ENTRY));
 
-#ifdef RT30xx
-// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
-// Set MAC register value according operation mode
-#define RT28XX_UPDATE_PROTECT(pAd)	\
- 	RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_UPDATE_PROTECT, NULL, 0);
-// end johnli
-#endif
-
 // remove Pair-wise key material from ASIC
 // yet implement
 #define RT28XX_STA_ENTRY_KEY_DEL(pAd, BssIdx, Wcid)
@@ -383,10 +371,8 @@ extern UCHAR EpToQueue[6];
 #define RT28xx_CHIP_NAME            "RT2870"
 #endif
 #define USB_CYC_CFG                 0x02a4
-#ifndef RT30xx
 #define STATUS_SUCCESS				0x00
 #define STATUS_UNSUCCESSFUL 		0x01
-#endif
 #define NT_SUCCESS(status)			(((status) > 0) ? (1):(0))
 #define InterlockedIncrement 	 	atomic_inc
 #define NdisInterlockedIncrement 	atomic_inc
@@ -595,12 +581,7 @@ typedef	struct	_CMDHandler_TLV	{
 #define CMDTHREAD_802_11_SET_STA_CONFIG             0x0D790111	// cmd
 #define CMDTHREAD_802_11_SET_PREAMBLE               0x0D790101	// cmd
 #define CMDTHREAD_802_11_COUNTER_MEASURE			0x0D790102	// cmd
-
-#ifdef RT30xx
-// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
 #define CMDTHREAD_UPDATE_PROTECT					0x0D790103	// cmd
-// end johnli
-#endif
 
 #define WPA1AKMBIT	    0x01
 #define WPA2AKMBIT	    0x02

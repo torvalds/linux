@@ -1711,15 +1711,12 @@ VOID LinkUp(
 	// Txop can only be modified when RDG is off, WMM is disable and TxBurst is enable
 	//
 	// if 1. Legacy AP WMM on,  or 2. 11n AP, AMPDU disable.  Force turn off burst no matter what bEnableTxBurst is.
+	if (
 #ifdef RT30xx
-	if (!((pAd->CommonCfg.RxStream == 1)&&(pAd->CommonCfg.TxStream == 1)) &&
+		!(pAd->CommonCfg.RxStream == 1 && pAd->CommonCfg.TxStream == 1) &&
+#endif
 		(((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
 		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE))))
-#endif
-#ifndef RT30xx
-	if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
-		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE)))
-#endif
 	{
 		RTMP_IO_READ32(pAd, EDCA_AC0_CFG, &Data);
 		Data  &= 0xFFFFFF00;
@@ -2101,7 +2098,6 @@ VOID LinkDown(
 		wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
-#ifdef RT30xx
 	if (IS_RT3090(pAd))
 	{
 		UINT32				macdata;
@@ -2115,7 +2111,6 @@ VOID LinkDown(
 		macdata &= ~(0x09);	//bit 0, 3
 		RTMP_IO_WRITE32(pAd, 0x1210, macdata);
 	}
-#endif // RT30xx //
 }
 
 /*

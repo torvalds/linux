@@ -737,12 +737,7 @@ NDIS_STATUS	 CreateThreads(
 {
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
-#ifndef RT30xx
-	pid_t pid_number = -1;
-#endif
-#ifdef RT30xx
 	pid_t pid_number;
-#endif
 
 	//init_MUTEX(&(pAd->usbdev_semaphore));
 

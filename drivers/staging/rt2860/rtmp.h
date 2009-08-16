@@ -403,6 +403,8 @@ typedef struct  _QUEUE_HEADER   {
 #ifdef RT30xx
 // We will have a cost down version which mac version is 0x3090xxxx
 #define IS_RT3090(_pAd)				((((_pAd)->MACVersion & 0xffff0000) == 0x30710000) || (((_pAd)->MACVersion & 0xffff0000) == 0x30900000))
+#else
+#define IS_RT3090(_pAd)				0
 #endif
 #define IS_RT3070(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30700000)
 #ifdef RT30xx
@@ -928,7 +930,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 }
 #endif // RT2870 //
 
-#ifdef RT30xx
 //Need to collect each ant's rssi concurrently
 //rssi1 is report to pair2 Ant and rss2 is reprot to pair1 Ant when 4 Ant
 #define COLLECT_RX_ANTENNA_AVERAGE_RSSI(_pAd, _rssi1, _rssi2)					\
@@ -960,8 +961,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 		_pAd->RxAnt.RcvPktNumWhenEvaluate++;								\
 	}																		\
 }
-#endif // RT30xx //
-
 
 #define NDIS_QUERY_BUFFER(_NdisBuf, _ppVA, _pBufLen)                    \
     NdisQueryBuffer(_NdisBuf, _ppVA, _pBufLen)
@@ -4885,11 +4884,9 @@ CHAR RTMPMaxRssi(
 	IN CHAR				Rssi1,
 	IN CHAR				Rssi2);
 
-#ifdef RT30xx
 VOID AsicSetRxAnt(
 	IN PRTMP_ADAPTER	pAd,
 	IN UCHAR			Ant);
-#endif
 
 VOID AsicEvaluateRxAnt(
 	IN PRTMP_ADAPTER	pAd);
@@ -5563,11 +5560,6 @@ VOID	RTMPSendTriggerFrame(
 	IN	ULONG			Length,
 	IN  UCHAR           TxRate,
 	IN	BOOLEAN			bQosNull);
-
-#ifdef RT30xx
-VOID RTMPFilterCalibration(
-	IN PRTMP_ADAPTER pAd);
-#endif // RT30xx //
 
 /* timeout -- ms */
 VOID RTMP_SetPeriodicTimer(
@@ -6538,8 +6530,6 @@ NTSTATUS RT30xxReadRFRegister(
 	IN	UCHAR			RegID,
 	IN	PUCHAR			pValue);
 
-#ifdef RT30xx
-//2008/09/11:KH add to support efuse<--
 UCHAR eFuseReadRegisters(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	USHORT Offset,
@@ -6615,11 +6605,7 @@ NDIS_STATUS NICLoadEEPROM(
 
 BOOLEAN bNeedLoadEEPROM(
 	IN	PRTMP_ADAPTER	pAd);
-//2008/09/11:KH add to support efuse-->
-#endif // RT30xx //
 
-#ifdef RT30xx
-// add by johnli, RF power sequence setup
 VOID RT30xxLoadRFNormalModeSetup(
 	IN PRTMP_ADAPTER 	pAd);
 
@@ -6628,8 +6614,6 @@ VOID RT30xxLoadRFSleepModeSetup(
 
 VOID RT30xxReverseRFSleepModeSetup(
 	IN PRTMP_ADAPTER 	pAd);
-// end johnli
-#endif // RT30xx //
 
 #ifdef RT2870
 //

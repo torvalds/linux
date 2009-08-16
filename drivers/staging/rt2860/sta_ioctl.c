@@ -1676,15 +1676,11 @@ int rt_ioctl_siwencode(struct net_device *dev,
         pAdapter->StaCfg.OrigWepStatus = pAdapter->StaCfg.WepStatus;
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
         goto done;
-	}
+	} else if (
 #ifndef RT30xx
-	else if ((erq->length == 0) &&
-             (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN))
+		 erq->length == 0 &&
 #endif
-#ifdef RT30xx
-	else if (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN)
-#endif
-	{
+		 (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN)) {
 		STA_PORT_SECURED(pAdapter);
 		pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
 		pAdapter->StaCfg.GroupCipher = Ndis802_11WEPEnabled;
