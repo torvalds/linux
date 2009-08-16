@@ -11,6 +11,7 @@
  *
  * TODO:
  *	- DWARF64 doesn't work.
+ *	- Registers with DWARF_VAL_OFFSET rules aren't handled properly.
  */
 
 /* #define DEBUG */
@@ -499,7 +500,7 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			count = dwarf_read_leb128(current_insn, &offset);
 			offset *= cie->data_alignment_factor;
 			regp = dwarf_frame_alloc_reg(frame, reg);
-			regp->flags |= DWARF_REG_OFFSET;
+			regp->flags |= DWARF_VAL_OFFSET;
 			regp->addr = offset;
 			break;
 		case DW_CFA_GNU_args_size:

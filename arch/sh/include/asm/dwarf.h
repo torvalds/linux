@@ -296,6 +296,7 @@ struct dwarf_reg {
 	unsigned long addr;
 	unsigned long flags;
 #define DWARF_REG_OFFSET	(1 << 0)
+#define DWARF_VAL_OFFSET	(1 << 1)
 };
 
 /*
