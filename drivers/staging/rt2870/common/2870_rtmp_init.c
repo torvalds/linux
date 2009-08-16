@@ -1263,9 +1263,7 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 	UCHAR				BulkOutPipeId = 4;
 	purbb_t				pUrb;
 
-#ifndef RT30xx
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("--->hcca_dma_done_tasklet\n"));
-#endif
 
 	pUrb			= (purbb_t)data;
 	pHTTXContext	= (PHT_TX_CONTEXT)pUrb->context;
@@ -1305,10 +1303,7 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 		}
 	}
 
-#ifndef RT30xx
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("<---hcca_dma_done_tasklet\n"));
-#endif
-		return;
 }
 
 

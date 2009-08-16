@@ -2813,9 +2813,8 @@ VOID MlmeSetPsmBit(
 	RTMP_IO_READ32(pAd, AUTO_RSP_CFG, &csr4.word);
 	csr4.field.AckCtsPsmBit = (psm == PWR_SAVE)? 1:0;
 	RTMP_IO_WRITE32(pAd, AUTO_RSP_CFG, csr4.word);
-#ifndef RT30xx
+
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeSetPsmBit = %d\n", psm));
-#endif
 }
 
 // IRQL = DISPATCH_LEVEL
@@ -5806,14 +5805,7 @@ VOID AsicSwitchChannel(
 #endif
 
 	if (index == MAX_NUM_OF_CHANNELS)
-	{
-#ifndef RT30xx
-		DBGPRINT(RT_DEBUG_ERROR, ("AsicSwitchChannel: Cant find the Channel#%d \n", Channel));
-#endif
-#ifdef RT30xx
 		DBGPRINT(RT_DEBUG_ERROR, ("AsicSwitchChannel: Can't find the Channel#%d \n", Channel));
-#endif
-	}
 
 #ifdef RT2870
 	// The RF programming sequence is difference between 3xxx and 2xxx
@@ -5935,7 +5927,6 @@ VOID AsicSwitchChannel(
 			}
 		}
 
-#ifndef RT30xx
 		DBGPRINT(RT_DEBUG_TRACE, ("SwitchChannel#%d(RF=%d, Pwr0=%d, Pwr1=%d, %dT), N=0x%02X, K=0x%02X, R=0x%02X\n",
 			Channel,
 			pAd->RfIcType,
@@ -5945,7 +5936,6 @@ VOID AsicSwitchChannel(
 			FreqItems3020[index].N,
 			FreqItems3020[index].K,
 			FreqItems3020[index].R));
-#endif
 	}
 	else
 #endif // RT2870 //
@@ -9075,11 +9065,9 @@ VOID AsicTurnOnRFClk(
 			break;
 	}
 
-#ifndef RT30xx
 	DBGPRINT(RT_DEBUG_TRACE, ("AsicTurnOnRFClk#%d(RF=%d, ) , R2=0x%08x\n",
 		Channel,
 		pAd->RfIcType,
 		R2));
-#endif
 }
 
