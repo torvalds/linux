@@ -441,22 +441,6 @@ VOID RTUSBBulkOutRTSFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 VOID RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 
-#ifndef RT30xx
-#define RTUSBMlmeUp(pAd)	        \
-{								    \
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	CHECK_PID_LEGALITY(pObj->MLMEThr_pid)		    \
-        up(&(pAd->mlme_semaphore)); \
-}
-
-#define RTUSBCMDUp(pAd)	                \
-{									    \
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)	    \
-	    up(&(pAd->RTUSBCmd_semaphore)); \
-}
-#endif
-#ifdef RT30xx
 #define RTUSBMlmeUp(pAd)	        \
 {								    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
@@ -470,7 +454,6 @@ VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0) \
 	    up(&(pAd->RTUSBCmd_semaphore)); \
 }
-#endif
 
 static inline NDIS_STATUS RTMPAllocateMemory(
 	OUT PVOID *ptr,

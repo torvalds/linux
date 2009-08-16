@@ -348,12 +348,7 @@ INT MlmeThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
-#ifndef RT30xx
-	pObj->MLMEThr_pid = THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->MLMEThr_pid = NULL;
-#endif
 
 	complete_and_exit (&pAd->mlmeComplete, 0);
 	return 0;
@@ -461,12 +456,7 @@ INT RTUSBCmdThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---RTUSBCmdThread\n"));
 
-#ifndef RT30xx
-	pObj->RTUSBCmdThr_pid = THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->RTUSBCmdThr_pid = NULL;
-#endif
 
 	complete_and_exit (&pAd->CmdQComplete, 0);
 	return 0;
@@ -560,12 +550,8 @@ INT TimerQThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
-#ifndef RT30xx
-	pObj->TimerQThr_pid = THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->TimerQThr_pid = NULL;
-#endif
+
 	complete_and_exit(&pAd->TimerQComplete, 0);
 	return 0;
 
@@ -996,76 +982,11 @@ VOID RT28xxThreadTerminate(
 	RTUSBCancelPendingIRPs(pAd);
 
 	// Terminate Threads
-#ifndef RT30xx
-	CHECK_PID_LEGALITY(pObj->TimerQThr_pid)
-	{
-		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
 
-		printk("Terminate the TimerQThr_pid=%d!\n", GET_PID_NUMBER(pObj->TimerQThr_pid));
-		mb();
-		pAd->TimerFunc_kill = 1;
-		mb();
-		ret = KILL_THREAD_PID(pObj->TimerQThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk(KERN_WARNING "%s: unable to stop TimerQThread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, GET_PID_NUMBER(pObj->TimerQThr_pid), ret);
-		}
-		else
-		{
-			wait_for_completion(&pAd->TimerQComplete);
-			pObj->TimerQThr_pid = THREAD_PID_INIT_VALUE;
-		}
-	}
-
-	CHECK_PID_LEGALITY(pObj->MLMEThr_pid)
-	{
-		printk("Terminate the MLMEThr_pid=%d!\n", GET_PID_NUMBER(pObj->MLMEThr_pid));
-		mb();
-		pAd->mlme_kill = 1;
-		//RT28XX_MLME_HANDLER(pAd);
-		mb();
-		ret = KILL_THREAD_PID(pObj->MLMEThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk (KERN_WARNING "%s: unable to Mlme thread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, GET_PID_NUMBER(pObj->MLMEThr_pid), ret);
-		}
-		else
-		{
-			//wait_for_completion (&pAd->notify);
-			wait_for_completion (&pAd->mlmeComplete);
-			pObj->MLMEThr_pid = THREAD_PID_INIT_VALUE;
-		}
-	}
-
-	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)
-	{
-		printk("Terminate the RTUSBCmdThr_pid=%d!\n", GET_PID_NUMBER(pObj->RTUSBCmdThr_pid));
-		mb();
-		NdisAcquireSpinLock(&pAd->CmdQLock);
-		pAd->CmdQ.CmdQState = RT2870_THREAD_STOPED;
-		NdisReleaseSpinLock(&pAd->CmdQLock);
-		mb();
-		//RTUSBCMDUp(pAd);
-		ret = KILL_THREAD_PID(pObj->RTUSBCmdThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk(KERN_WARNING "%s: unable to RTUSBCmd thread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, GET_PID_NUMBER(pObj->RTUSBCmdThr_pid), ret);
-		}
-		else
-		{
-			//wait_for_completion (&pAd->notify);
-			wait_for_completion (&pAd->CmdQComplete);
-			pObj->RTUSBCmdThr_pid = THREAD_PID_INIT_VALUE;
-		}
-	}
-#endif
-#ifdef RT30xx
 	if (pid_nr(pObj->TimerQThr_pid) > 0)
 	{
 		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+
 		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));
 		mb();
 		pAd->TimerFunc_kill = 1;
@@ -1118,7 +1039,7 @@ VOID RT28xxThreadTerminate(
 		{
 			printk(KERN_WARNING "%s: unable to RTUSBCmd thread, pid=%d, ret=%d!\n",
 					pAd->net_dev->name, pid_nr(pObj->RTUSBCmdThr_pid), ret);
-	}
+		}
 		else
 		{
 			//wait_for_completion (&pAd->notify);
@@ -1126,7 +1047,6 @@ VOID RT28xxThreadTerminate(
 			pObj->RTUSBCmdThr_pid = NULL;
 		}
 	}
-#endif
 
 	// Kill tasklets
 	pAd->mlme_kill = 0;

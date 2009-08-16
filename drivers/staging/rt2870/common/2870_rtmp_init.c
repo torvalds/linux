@@ -699,14 +699,9 @@ NDIS_STATUS AdapterBlockAllocateMemory(
 
 	usb_dev = pObj->pUsb_Dev;
 
-#ifndef RT30xx
-	pObj->MLMEThr_pid		= THREAD_PID_INIT_VALUE;
-	pObj->RTUSBCmdThr_pid	= THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->MLMEThr_pid	= NULL;
 	pObj->RTUSBCmdThr_pid	= NULL;
-#endif
+
 	*ppAd = (PVOID)vmalloc(sizeof(RTMP_ADAPTER));
 
 	if (*ppAd)
@@ -761,75 +756,42 @@ NDIS_STATUS	 CreateThreads(
 	init_completion (&pAd->TimerQComplete);
 
 	// Creat MLME Thread
-#ifndef RT30xx
-	pObj->MLMEThr_pid= THREAD_PID_INIT_VALUE;
-	pid_number = kernel_thread(MlmeThread, pAd, CLONE_VM);
-	if (pid_number < 0)
-	{
-#endif
-#ifdef RT30xx
 	pObj->MLMEThr_pid = NULL;
 	pid_number = kernel_thread(MlmeThread, pAd, CLONE_VM);
 	if (pid_number < 0)
 	{
-#endif
 		printk (KERN_WARNING "%s: unable to start Mlme thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
 
-#ifndef RT30xx
-	pObj->MLMEThr_pid = GET_PID(pid_number);
-#endif
-#ifdef RT30xx
 	pObj->MLMEThr_pid = find_get_pid(pid_number);
-#endif
+
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->mlmeComplete));
 
 	// Creat Command Thread
-#ifndef RT30xx
-	pObj->RTUSBCmdThr_pid= THREAD_PID_INIT_VALUE;
-	pid_number = kernel_thread(RTUSBCmdThread, pAd, CLONE_VM);
-	if (pid_number < 0)
-#endif
-#ifdef RT30xx
 	pObj->RTUSBCmdThr_pid = NULL;
 	pid_number = kernel_thread(RTUSBCmdThread, pAd, CLONE_VM);
 	if (pid_number < 0)
-#endif
 	{
 		printk (KERN_WARNING "%s: unable to start RTUSBCmd thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
 
-#ifndef RT30xx
-	pObj->RTUSBCmdThr_pid = GET_PID(pid_number);
-#endif
-#ifdef RT30xx
 	pObj->RTUSBCmdThr_pid = find_get_pid(pid_number);
-#endif
+
 	wait_for_completion(&(pAd->CmdQComplete));
 
-#ifndef RT30xx
-	pObj->TimerQThr_pid= THREAD_PID_INIT_VALUE;
-	pid_number = kernel_thread(TimerQThread, pAd, CLONE_VM);
-	if (pid_number < 0)
-#endif
-#ifdef RT30xx
 	pObj->TimerQThr_pid = NULL;
 	pid_number = kernel_thread(TimerQThread, pAd, CLONE_VM);
 	if (pid_number < 0)
-#endif
 	{
 		printk (KERN_WARNING "%s: unable to start TimerQThread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
-#ifndef RT30xx
-	pObj->TimerQThr_pid = GET_PID(pid_number);
-#endif
-#ifdef RT30xx
+
 	pObj->TimerQThr_pid = find_get_pid(pid_number);
-#endif
+
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->TimerQComplete));
 

@@ -984,7 +984,7 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 #ifndef RT30xx
-	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)
+	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0)
 #endif
 #ifdef RT30xx
 	if (pObj->RTUSBCmdThr_pid < 0)

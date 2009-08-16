@@ -158,15 +158,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define NDIS_PACKET_TYPE_BROADCAST		2
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
 
-#ifndef RT30xx
-typedef	struct pid *	THREAD_PID;
-#define	THREAD_PID_INIT_VALUE	NULL
-#define	GET_PID(_v)	find_get_pid(_v)
-#define	GET_PID_NUMBER(_v)	pid_nr(_v)
-#define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) > 0)
-#define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
-#endif
-
 struct os_lock  {
 	spinlock_t		lock;
 	unsigned long  	flags;
@@ -182,16 +173,9 @@ struct os_cookie {
 #ifdef RT2870
 	struct usb_device		*pUsb_Dev;
 
-#ifndef RT30xx
-	THREAD_PID				MLMEThr_pid;
-	THREAD_PID				RTUSBCmdThr_pid;
-	THREAD_PID				TimerQThr_pid;
-#endif
-#ifdef RT30xx
 	struct pid	*MLMEThr_pid;
 	struct pid	*RTUSBCmdThr_pid;
 	struct pid	*TimerQThr_pid;
-#endif
 #endif // RT2870 //
 
 	struct tasklet_struct 	rx_done_task;
