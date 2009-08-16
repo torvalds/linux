@@ -8433,26 +8433,6 @@ VOID AsicEvaluateRxAnt(
 #ifdef RT2860
     	pAd->StaCfg.BBPR3 = BBPR3;
 #endif
-#ifdef RT2870
-	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
-		)
-	{
-		ULONG	TxTotalCnt = pAd->RalinkCounters.OneSecTxNoRetryOkCount +
-								pAd->RalinkCounters.OneSecTxRetryOkCount +
-								pAd->RalinkCounters.OneSecTxFailCount;
-
-		if (TxTotalCnt > 50)
-		{
-			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 20);
-			pAd->Mlme.bLowThroughput = FALSE;
-		}
-		else
-		{
-			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 300);
-			pAd->Mlme.bLowThroughput = TRUE;
-		}
-	}
-#endif
 #endif /* RT30xx */
 #ifdef RT30xx
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
