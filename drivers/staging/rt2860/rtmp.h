@@ -45,8 +45,6 @@
 
 #include "aironet.h"
 
-//#define DBG_DIAGNOSE		1
-
 #define VIRTUAL_IF_INC(__pAd) ((__pAd)->VirtualIfCnt++)
 #define VIRTUAL_IF_DEC(__pAd) ((__pAd)->VirtualIfCnt--)
 #define VIRTUAL_IF_NUM(__pAd) ((__pAd)->VirtualIfCnt)
@@ -2524,33 +2522,6 @@ typedef struct _INF_USB_CONFIG
 
 }INF_USB_CONFIG;
 
-#ifdef DBG_DIAGNOSE
-#define DIAGNOSE_TIME	10   // 10 sec
-typedef struct _RtmpDiagStrcut_
-{	// Diagnosis Related element
-	unsigned char		inited;
-	unsigned char 	qIdx;
-	unsigned char 	ArrayStartIdx;
-	unsigned char		ArrayCurIdx;
-	// Tx Related Count
-	USHORT			TxDataCnt[DIAGNOSE_TIME];
-	USHORT			TxFailCnt[DIAGNOSE_TIME];
-	USHORT			TxDescCnt[DIAGNOSE_TIME][24]; // 3*3	// TxDesc queue length in scale of 0~14, >=15
-	USHORT			TxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
-	USHORT			TxSWQueCnt[DIAGNOSE_TIME][9];		// TxSwQueue length in scale of 0, 1, 2, 3, 4, 5, 6, 7, >=8
-
-	USHORT			TxAggCnt[DIAGNOSE_TIME];
-	USHORT			TxNonAggCnt[DIAGNOSE_TIME];
-	USHORT			TxAMPDUCnt[DIAGNOSE_TIME][24]; // 3*3 // 10 sec, TxDMA APMDU Aggregation count in range from 0 to 15, in setp of 1.
-	USHORT			TxRalinkCnt[DIAGNOSE_TIME];			// TxRalink Aggregation Count in 1 sec scale.
-	USHORT			TxAMSDUCnt[DIAGNOSE_TIME];			// TxAMSUD Aggregation Count in 1 sec scale.
-
-	// Rx Related Count
-	USHORT			RxDataCnt[DIAGNOSE_TIME];			// Rx Total Data count.
-	USHORT			RxCrcErrCnt[DIAGNOSE_TIME];
-	USHORT			RxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
-}RtmpDiagStruct;
-#endif // DBG_DIAGNOSE //
 
 
 //
@@ -2971,9 +2942,6 @@ typedef struct _RTMP_ADAPTER
 	UCHAR					flg_be_adjust;
 	ULONG					be_adjust_last_time;
 
-#ifdef DBG_DIAGNOSE
-	RtmpDiagStruct	DiagStruct;
-#endif // DBG_DIAGNOSE //
 
 
 	UINT8					PM_FlgSuspend;

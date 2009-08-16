@@ -1091,10 +1091,6 @@ VOID RTMPDeQueuePacket(
 	TX_BLK			TxBlk;
 	TX_BLK			*pTxBlk;
 
-#ifdef DBG_DIAGNOSE
-	BOOLEAN			firstRound;
-	RtmpDiagStruct	*pDiagStruct = &pAd->DiagStruct;
-#endif
 
 
 	if (QIdx == NUM_OF_TX_RING)
@@ -1114,9 +1110,6 @@ VOID RTMPDeQueuePacket(
 
 		RT28XX_START_DEQUEUE(pAd, QueIdx, IrqFlags);
 
-#ifdef DBG_DIAGNOSE
-		firstRound = ((QueIdx == 0) ? TRUE : FALSE);
-#endif // DBG_DIAGNOSE //
 
 		while (1)
 		{
@@ -1136,31 +1129,12 @@ VOID RTMPDeQueuePacket(
 			DEQUEUE_LOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 			if (&pAd->TxSwQueue[QueIdx] == NULL)
 			{
-#ifdef DBG_DIAGNOSE
-				if (firstRound == TRUE)
-					pDiagStruct->TxSWQueCnt[pDiagStruct->ArrayCurIdx][0]++;
-#endif // DBG_DIAGNOSE //
 				DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 				break;
 			}
 #ifdef RT2860
 			FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 
-#ifdef DBG_DIAGNOSE
-			if (firstRound == TRUE)
-			{
-				UCHAR	txDescNumLevel, txSwQNumLevel;
-
-				txDescNumLevel = (TX_RING_SIZE - FreeNumber[QueIdx]); // Number of occupied hw desc.
-				txDescNumLevel = ((txDescNumLevel <=15) ? txDescNumLevel : 15);
-				pDiagStruct->TxDescCnt[pDiagStruct->ArrayCurIdx][txDescNumLevel]++;
-
-				txSwQNumLevel = ((pAd->TxSwQueue[QueIdx].Number <=7) ? pAd->TxSwQueue[QueIdx].Number : 8);
-				pDiagStruct->TxSWQueCnt[pDiagStruct->ArrayCurIdx][txSwQNumLevel]++;
-
-				firstRound = FALSE;
-			}
-#endif // DBG_DIAGNOSE //
 
 			if (FreeNumber[QueIdx] <= 5)
 			{
@@ -1528,13 +1502,6 @@ VOID RTMPWriteTxWI_Data(
 		}
 	}
 
-#ifdef DBG_DIAGNOSE
-		if (pTxBlk->QueIdx== 0)
-		{
-			pAd->DiagStruct.TxDataCnt[pAd->DiagStruct.ArrayCurIdx]++;
-			pAd->DiagStruct.TxMcsCnt[pAd->DiagStruct.ArrayCurIdx][pTxWI->MCS]++;
-		}
-#endif // DBG_DIAGNOSE //
 
 	// for rate adapation
 	pTxWI->PacketId = pTxWI->MCS;
@@ -1593,13 +1560,6 @@ VOID RTMPWriteTxWI_Cache(
 		}
 	}
 
-#ifdef DBG_DIAGNOSE
-	if (pTxBlk->QueIdx== 0)
-	{
-		pAd->DiagStruct.TxDataCnt[pAd->DiagStruct.ArrayCurIdx]++;
-		pAd->DiagStruct.TxMcsCnt[pAd->DiagStruct.ArrayCurIdx][pTxWI->MCS]++;
-	}
-#endif // DBG_DIAGNOSE //
 
 	pTxWI->MPDUtotalByteCount = pTxBlk->MpduHeaderLen + pTxBlk->SrcBufLen;
 
