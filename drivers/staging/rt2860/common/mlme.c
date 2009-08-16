@@ -2771,44 +2771,19 @@ VOID MlmeCheckPsmChange(
 		(pAd->StaCfg.Psm == PWR_ACTIVE) &&
 #ifdef RT2860
 		RTMP_TEST_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP))
-#endif
-#if !defined(RT2860) && !defined(RT30xx)
+#else
 		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE))
 #endif
-#ifndef RT30xx
 	{
-		NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
-		pAd->RalinkCounters.RxCountSinceLastNULL = 0;
-		MlmeSetPsmBit(pAd, PWR_SAVE);
-		if (!(pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable))
-		{
-			RTMPSendNullFrame(pAd, pAd->CommonCfg.TxRate, FALSE);
-		}
-		else
-		{
-			RTMPSendNullFrame(pAd, pAd->CommonCfg.TxRate, TRUE);
-		}
-	}
-#endif
 #ifdef RT30xx
-//		(! RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
-		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE) /*&&
-		(pAd->RalinkCounters.OneSecTxNoRetryOkCount == 0) &&
-		(pAd->RalinkCounters.OneSecTxRetryOkCount == 0)*/)
-	{
 		// add by johnli, use Rx OK data count per second to calculate throughput
 		// If Ttraffic is too high ( > 400 Rx per second), don't go to sleep mode. If tx rate is low, use low criteria
 		// Mode=CCK/MCS=3 => 11 Mbps, Mode=OFDM/MCS=3 => 18 Mbps
 		if (((pAd->StaCfg.HTPhyMode.field.MCS <= 3) &&
-/* Iverson mark
-				(pAd->StaCfg.HTPhyMode.field.MODE <= MODE_OFDM) &&
-*/
 				(pAd->RalinkCounters.OneSecRxOkDataCnt < (ULONG)100)) ||
 			((pAd->StaCfg.HTPhyMode.field.MCS > 3) &&
-/* Iverson mark
-			(pAd->StaCfg.HTPhyMode.field.MODE > MODE_OFDM) &&
-*/
 			(pAd->RalinkCounters.OneSecRxOkDataCnt < (ULONG)400)))
+#endif
 		{
 				// Get this time
 			NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
@@ -2824,7 +2799,6 @@ VOID MlmeCheckPsmChange(
 			}
 		}
 	}
-#endif
 }
 
 // IRQL = PASSIVE_LEVEL
