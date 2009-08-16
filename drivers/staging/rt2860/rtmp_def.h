@@ -569,9 +569,6 @@
 // For 802.11n D3.03
 //#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset elemet
 #define IE_SECONDARY_CH_OFFSET		62	// 802.11n D3.03	Secondary Channel Offset element
-#ifdef RT2870
-#define IE_WAPI							68		// WAPI information element
-#endif
 #define IE_2040_BSS_COEXIST               72    // 802.11n D3.0.3
 #define IE_2040_BSS_INTOLERANT_REPORT     73    // 802.11n D3.03
 #define IE_OVERLAPBSS_SCAN_PARM           74    // 802.11n D3.03

@@ -231,15 +231,9 @@ extern UCHAR  WpaIe;
 extern UCHAR  Wpa2Ie;
 extern UCHAR  IbssIe;
 extern UCHAR  Ccx2Ie;
-#ifdef RT30xx
-extern UCHAR  WapiIe;
-#endif
 
 extern UCHAR  WPA_OUI[];
 extern UCHAR  RSN_OUI[];
-#ifdef RT30xx
-extern UCHAR  WAPI_OUI[];
-#endif
 extern UCHAR  WME_INFO_ELEM[];
 extern UCHAR  WME_PARM_ELEM[];
 extern UCHAR  Ccx2QosInfo[];
@@ -4554,13 +4548,6 @@ BOOLEAN PeerDisassocSanity(
 	OUT PUCHAR pAddr2,
 	OUT USHORT *Reason);
 
-BOOLEAN PeerWpaMessageSanity(
-    IN 	PRTMP_ADAPTER 		pAd,
-    IN 	PEAPOL_PACKET 		pMsg,
-    IN 	ULONG 				MsgLen,
-    IN 	UCHAR				MsgType,
-    IN 	MAC_TABLE_ENTRY  	*pEntry);
-
 BOOLEAN PeerDeauthSanity(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  VOID *Msg,
@@ -5082,13 +5069,6 @@ VOID    AironetAddBeaconReport(
 VOID    AironetCreateBeaconReportFromBssTable(
 	IN  PRTMP_ADAPTER       pAd);
 
-VOID    DBGPRINT_TX_RING(
-	IN PRTMP_ADAPTER  pAd,
-	IN UCHAR          QueIdx);
-
-VOID DBGPRINT_RX_RING(
-	IN PRTMP_ADAPTER  pAd);
-
 CHAR    ConvertToRssi(
 	IN PRTMP_ADAPTER  pAd,
 	IN CHAR				Rssi,
@@ -5110,64 +5090,6 @@ VOID AES_GTK_KEY_UNWRAP(
 	IN	UCHAR	c_len,
 	IN  UCHAR   *ciphertext);
 
-BOOLEAN RTMPCheckRSNIE(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PUCHAR          pData,
-	IN  UCHAR           DataLen,
-	IN  MAC_TABLE_ENTRY *pEntry,
-	OUT	UCHAR			*Offset);
-
-BOOLEAN RTMPParseEapolKeyData(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PUCHAR          pKeyData,
-	IN  UCHAR           KeyDataLen,
-	IN	UCHAR			GroupKeyIndex,
-	IN	UCHAR			MsgType,
-	IN	BOOLEAN			bWPA2,
-	IN  MAC_TABLE_ENTRY *pEntry);
-
-VOID	ConstructEapolMsg(
-	IN 	PRTMP_ADAPTER    	pAd,
-    IN 	UCHAR				PeerAuthMode,
-    IN 	UCHAR				PeerWepStatus,
-    IN 	UCHAR				MyGroupKeyWepStatus,
-    IN 	UCHAR				MsgType,
-    IN	UCHAR				DefaultKeyIdx,
-    IN 	UCHAR				*ReplayCounter,
-	IN 	UCHAR				*KeyNonce,
-	IN	UCHAR				*TxRSC,
-	IN	UCHAR				*PTK,
-	IN	UCHAR				*GTK,
-	IN	UCHAR				*RSNIE,
-	IN	UCHAR				RSNIE_Len,
-    OUT PEAPOL_PACKET       pMsg);
-
-VOID	CalculateMIC(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			PeerWepStatus,
-	IN	UCHAR			*PTK,
-	OUT PEAPOL_PACKET   pMsg);
-
-NDIS_STATUS	RTMPSoftDecryptBroadCastData(
-	IN	PRTMP_ADAPTER					pAd,
-	IN	RX_BLK							*pRxBlk,
-	IN  NDIS_802_11_ENCRYPTION_STATUS 	GroupCipher,
-	IN  PCIPHER_KEY						pShard_key);
-
-VOID	ConstructEapolKeyData(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			PeerAuthMode,
-	IN	UCHAR			PeerWepStatus,
-	IN	UCHAR			GroupKeyWepStatus,
-	IN 	UCHAR			MsgType,
-	IN	UCHAR			DefaultKeyIdx,
-	IN	BOOLEAN			bWPA2Capable,
-	IN	UCHAR			*PTK,
-	IN	UCHAR			*GTK,
-	IN	UCHAR			*RSNIE,
-	IN	UCHAR			RSNIE_LEN,
-	OUT PEAPOL_PACKET   pMsg);
-
 VOID RTMPMakeRSNIE(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  UINT            AuthMode,
@@ -5181,12 +5103,6 @@ VOID RTMPMakeRSNIE(
 VOID HandleCounterMeasure(
 	IN PRTMP_ADAPTER pAd,
 	IN MAC_TABLE_ENTRY  *pEntry);
-
-VOID AES_GTK_KEY_WRAP(
-	IN UCHAR *key,
-	IN UCHAR *plaintext,
-	IN UCHAR p_len,
-	OUT UCHAR *ciphertext);
 
 /* timeout -- ms */
 VOID RTMP_SetPeriodicTimer(
