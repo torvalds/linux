@@ -2679,7 +2679,7 @@ static bool ahci_asus_m2a_vm_32bit_only(struct pci_dev *pdev)
 	 * different versions.
 	 */
 	date = dmi_get_system_info(DMI_BIOS_DATE);
-	year = dmi_get_year(DMI_BIOS_DATE);
+	dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL);
 	if (date && strlen(date) >= 10 && date[2] == '/' && date[5] == '/' &&
 	    (year > 2007 ||
 	     (year == 2007 && strncmp(date, cutoff_mmdd, 5) >= 0)))
