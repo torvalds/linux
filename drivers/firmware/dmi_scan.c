@@ -577,6 +577,7 @@ int dmi_get_year(int field)
 {
 	int year;
 	const char *s = dmi_get_system_info(field);
+	char *e;
 
 	if (!s)
 		return -1;
@@ -587,8 +588,8 @@ int dmi_get_year(int field)
 		return 0;
 
 	s += 1;
-	year = simple_strtoul(s, NULL, 0);
-	if (year && year < 100) {	/* 2-digit year */
+	year = simple_strtoul(s, &e, 10);
+	if (s != e && year < 100) {	/* 2-digit year */
 		year += 1900;
 		if (year < 1996)	/* no dates < spec 1.0 */
 			year += 100;
