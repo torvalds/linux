@@ -8252,56 +8252,19 @@ VOID AsicEvaluateRxAnt(
 {
 	UCHAR	BBPR3 = 0;
 
-#ifndef RT30xx
-	{
-		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
-								fRTMP_ADAPTER_HALT_IN_PROGRESS	|
-								fRTMP_ADAPTER_RADIO_OFF			|
-								fRTMP_ADAPTER_NIC_NOT_EXIST		|
-								fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
-			return;
-
-		if (pAd->StaCfg.Psm == PWR_SAVE)
-			return;
-	}
-
-	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);
-	BBPR3 &= (~0x18);
-	if(pAd->Antenna.field.RxPath == 3)
-	{
-		BBPR3 |= (0x10);
-	}
-	else if(pAd->Antenna.field.RxPath == 2)
-	{
-		BBPR3 |= (0x8);
-	}
-	else if(pAd->Antenna.field.RxPath == 1)
-	{
-		BBPR3 |= (0x0);
-	}
-	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
-
-#ifdef RT2860
-    	pAd->StaCfg.BBPR3 = BBPR3;
-#endif
-#endif /* RT30xx */
+	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS |
+				fRTMP_ADAPTER_HALT_IN_PROGRESS |
+				fRTMP_ADAPTER_RADIO_OFF |
+				fRTMP_ADAPTER_NIC_NOT_EXIST |
+				fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS)
 #ifdef RT30xx
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
-							fRTMP_ADAPTER_HALT_IN_PROGRESS	|
-							fRTMP_ADAPTER_RADIO_OFF			|
-							fRTMP_ADAPTER_NIC_NOT_EXIST		|
-							fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS) ||
-							OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
-							|| (pAd->EepromAccess)
-							)
-		return;
+				|| OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
+				|| (pAd->EepromAccess)
+#endif
+				)
+			return;
 
-
-	{
-		//if (pAd->StaCfg.Psm == PWR_SAVE)
-		//	return;
-	}
-
+#ifdef RT30xx
 	// two antenna selection mechanism- one is antenna diversity, the other is failed antenna remove
 	// one is antenna diversity:there is only one antenna can rx and tx
 	// the other is failed antenna remove:two physical antenna can rx and tx
@@ -8324,6 +8287,7 @@ VOID AsicEvaluateRxAnt(
 			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 300);
 	}
 	else
+#endif
 	{
 		if (pAd->StaCfg.Psm == PWR_SAVE)
 			return;
@@ -8343,8 +8307,11 @@ VOID AsicEvaluateRxAnt(
 			BBPR3 |= (0x0);
 		}
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
+
+#ifdef RT2860
+		pAd->StaCfg.BBPR3 = BBPR3;
+#endif
 	}
-#endif /* RT30xx */
 
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 		)
