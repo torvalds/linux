@@ -460,14 +460,14 @@ VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 #define RTUSBMlmeUp(pAd)	        \
 {								    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	if(pObj->MLMEThr_pid>0)		    \
+	if (pid_nr(pObj->MLMEThr_pid) > 0) \
         up(&(pAd->mlme_semaphore)); \
 }
 
 #define RTUSBCMDUp(pAd)	                \
 {									    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	if(pObj->RTUSBCmdThr_pid>0)		    \
+	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0) \
 	    up(&(pAd->RTUSBCmd_semaphore)); \
 }
 #endif

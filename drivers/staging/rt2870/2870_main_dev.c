@@ -1063,7 +1063,7 @@ VOID RT28xxThreadTerminate(
 	}
 #endif
 #ifdef RT30xx
-	if (pObj->MLMEThr_pid)
+	if (pid_nr(pObj->MLMEThr_pid) > 0)
 	{
 		printk("Terminate the MLMEThr_pid=%d!\n", pid_nr(pObj->MLMEThr_pid));
 		mb();
@@ -1084,7 +1084,7 @@ VOID RT28xxThreadTerminate(
 		}
 	}
 
-	if (pObj->RTUSBCmdThr_pid >= 0)
+	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0)
 	{
 		printk("Terminate the RTUSBCmdThr_pid=%d!\n", pid_nr(pObj->RTUSBCmdThr_pid));
 		mb();
@@ -1106,7 +1106,7 @@ VOID RT28xxThreadTerminate(
 			pObj->RTUSBCmdThr_pid = NULL;
 		}
 	}
-	if (pObj->TimerQThr_pid >= 0)
+	if (pid_nr(pObj->TimerQThr_pid) > 0)
 	{
 		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
 		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));

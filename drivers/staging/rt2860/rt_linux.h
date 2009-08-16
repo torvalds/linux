@@ -163,7 +163,7 @@ typedef	struct pid *	THREAD_PID;
 #define	THREAD_PID_INIT_VALUE	NULL
 #define	GET_PID(_v)	find_get_pid(_v)
 #define	GET_PID_NUMBER(_v)	pid_nr(_v)
-#define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
+#define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) > 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
 #endif
 
