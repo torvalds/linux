@@ -383,7 +383,6 @@ struct lock_stat_data {
 };
 
 struct lock_stat_seq {
-	struct lock_stat_data *iter;
 	struct lock_stat_data *iter_end;
 	struct lock_stat_data stats[MAX_LOCKDEP_KEYS];
 };
@@ -571,34 +570,22 @@ static void seq_header(struct seq_file *m)
 static void *ls_start(struct seq_file *m, loff_t *pos)
 {
 	struct lock_stat_seq *data = m->private;
+	struct lock_stat_data *iter;
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	data->iter = data->stats + (*pos - 1);
-	if (data->iter >= data->iter_end)
-		data->iter = NULL;
+	iter = data->stats + (*pos - 1);
+	if (iter >= data->iter_end)
+		iter = NULL;
 
-	return data->iter;
+	return iter;
 }
 
 static void *ls_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct lock_stat_seq *data = m->private;
-
 	(*pos)++;
-
-	if (v == SEQ_START_TOKEN)
-		data->iter = data->stats;
-	else {
-		data->iter = v;
-		data->iter++;
-	}
-
-	if (data->iter == data->iter_end)
-		data->iter = NULL;
-
-	return data->iter;
+	return ls_start(m, pos);
 }
 
 static void ls_stop(struct seq_file *m, void *v)
@@ -636,7 +623,6 @@ static int lock_stat_open(struct inode *inode, struct file *file)
 		struct lock_stat_data *iter = data->stats;
 		struct seq_file *m = file->private_data;
 
-		data->iter = iter;
 		list_for_each_entry(class, &all_lock_classes, lock_entry) {
 			iter->class = class;
 			iter->stats = lock_stats(class);
@@ -644,7 +630,7 @@ static int lock_stat_open(struct inode *inode, struct file *file)
 		}
 		data->iter_end = iter;
 
-		sort(data->stats, data->iter_end - data->iter,
+		sort(data->stats, data->iter_end - data->stats,
 				sizeof(struct lock_stat_data),
 				lock_stat_cmp, NULL);
 
@@ -679,7 +665,6 @@ static int lock_stat_release(struct inode *inode, struct file *file)
 	struct seq_file *seq = file->private_data;
 
 	vfree(seq->private);
-	seq->private = NULL;
 	return seq_release(inode, file);
 }
 
