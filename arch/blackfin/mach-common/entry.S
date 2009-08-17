@@ -1025,6 +1025,12 @@ ENTRY(_schedule_and_signal_from_int)
 #endif
 	sti r0;
 
+	/* finish the userspace "atomic" functions for it */
+	r1 = FIXED_CODE_END;
+	r2 = [sp + PT_PC];
+	cc = r1 <= r2;
+	if cc jump .Lresume_userspace (bp);
+
 	r0 = sp;
 	sp += -12;
 	call _finish_atomic_sections;
