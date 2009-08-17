@@ -437,6 +437,17 @@ config SERIAL_CONSOLE
 
 	  If unsure, say N.
 
+config SPARC_LEON
+	bool "Sparc Leon processor family"
+	depends on SPARC32
+	---help---
+	  If you say Y here if you are running on a SPARC-LEON processor.
+	  The LEON processor is a synthesizable VHDL model of the
+	  SPARC-v8 standard. LEON is  part of the GRLIB collection of
+	  IP cores that are distributed under GPL. GRLIB can be downloaded
+	  from www.gaisler.com. You can download a sparc-linux cross-compilation
+	  toolchain at www.gaisler.com.
+
 endmenu
 
 menu "Bus options (PCI etc.)"
