@@ -2163,8 +2163,10 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD))
+	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD)) {
 		rxdesc->dev_flags |= RXDONE_L2PAD;
+		skbdesc->flags |= SKBDESC_L2_PADDED;
+	}
 
 	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
 		rxdesc->flags |= RX_FLAG_SHORT_GI;
