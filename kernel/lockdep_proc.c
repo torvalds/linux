@@ -634,7 +634,7 @@ static void *ls_start(struct seq_file *m, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	data->iter = data->stats + *pos;
+	data->iter = data->stats + (*pos - 1);
 	if (data->iter >= data->iter_end)
 		data->iter = NULL;
 
