@@ -1054,6 +1054,11 @@ config HIGHMEM
 
 	  If unsure, say n.
 
+config HIGHPTE
+	bool "Allocate 2nd-level pagetables from highmem"
+	depends on HIGHMEM
+	depends on !OUTER_CACHE
+
 source "mm/Kconfig"
 
 config LEDS
