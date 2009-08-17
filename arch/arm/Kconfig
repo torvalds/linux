@@ -122,6 +122,13 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 
+config ARCH_HAS_CPUFREQ
+	bool
+	help
+	  Internal node to signify that the ARCH has CPUFREQ support
+	  and that the relevant menu configurations are displayed for
+	  it.
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -206,6 +213,7 @@ config ARCH_AAEC2000
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ICST525
@@ -512,6 +520,7 @@ config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select COMMON_CLKDEV
@@ -554,6 +563,7 @@ config ARCH_SA1100
 	select ISA
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -566,6 +576,7 @@ config ARCH_SA1100
 config ARCH_S3C2410
 	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
 	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
@@ -576,8 +587,17 @@ config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_HAS_CPUFREQ
 	help
 	  Samsung S3C64XX series based systems
+
+config ARCH_S5PC1XX
+	bool "Samsung S5PC1XX"
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CPU_V7
+	help
+	  Samsung S5PC1XX series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -635,6 +655,7 @@ config ARCH_OMAP
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
@@ -688,6 +709,7 @@ source "arch/arm/mach-kirkwood/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c64xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
+source "arch/arm/plat-s5pc1xx/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
@@ -704,6 +726,10 @@ source "arch/arm/mach-s3c6410/Kconfig"
 endif
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
+
+if ARCH_S5PC1XX
+source "arch/arm/mach-s5pc100/Kconfig"
+endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
@@ -1248,7 +1274,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA || ARCH_S3C64XX)
+if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1282,6 +1308,52 @@ config CPU_FREQ_PXA
 config CPU_FREQ_S3C64XX
 	bool "CPUfreq support for Samsung S3C64XX CPUs"
 	depends on CPU_FREQ && CPU_S3C6410
+
+config CPU_FREQ_S3C
+	bool
+	help
+	  Internal configuration node for common cpufreq on Samsung SoC
+
+config CPU_FREQ_S3C24XX
+	bool "CPUfreq driver for Samsung S3C24XX series CPUs"
+	depends on ARCH_S3C2410 && CPU_FREQ && EXPERIMENTAL
+	select CPU_FREQ_S3C
+	help
+	  This enables the CPUfreq driver for the Samsung S3C24XX family
+	  of CPUs.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_S3C24XX_PLL
+	bool "Support CPUfreq changing of PLL frequency"
+	depends on CPU_FREQ_S3C24XX && EXPERIMENTAL
+	help
+	  Compile in support for changing the PLL frequency from the
+	  S3C24XX series CPUfreq driver. The PLL takes time to settle
+	  after a frequency change, so by default it is not enabled.
+
+	  This also means that the PLL tables for the selected CPU(s) will
+	  be built which may increase the size of the kernel image.
+
+config CPU_FREQ_S3C24XX_DEBUG
+	bool "Debug CPUfreq Samsung driver core"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_IODEBUG
+	bool "Debug CPUfreq Samsung driver IO timing"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_DEBUGFS
+	bool "Export debugfs for CPUFreq"
+	depends on CPU_FREQ_S3C24XX && DEBUG_FS
+	help
+	  Export status information via debugfs.
 
 endif
 

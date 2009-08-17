@@ -328,13 +328,15 @@
 
 #define S3C2410_GPD8_VD16	(0x02 << 16)
 #define S3C2400_GPD8_TOUT3	(0x02 << 16)
+#define S3C2440_GPD8_SPIMISO1	(0x03 << 16)
 
 #define S3C2410_GPD9_VD17	(0x02 << 18)
 #define S3C2400_GPD9_TCLK0	(0x02 << 18)
-#define S3C2410_GPD9_MASK       (0x03 << 18)
+#define S3C2440_GPD9_SPIMOSI1	(0x03 << 18)
 
 #define S3C2410_GPD10_VD18	(0x02 << 20)
 #define S3C2400_GPD10_nWAIT	(0x02 << 20)
+#define S3C2440_GPD10_SPICLK1	(0x03 << 20)
 
 #define S3C2410_GPD11_VD19	(0x02 << 22)
 

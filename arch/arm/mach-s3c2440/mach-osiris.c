@@ -34,6 +34,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+#include <plat/cpu-freq.h>
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
@@ -351,6 +352,12 @@ static struct clk *osiris_clocks[] __initdata = {
 	&s3c24xx_uclk,
 };
 
+static struct s3c_cpufreq_board __initdata osiris_cpufreq = {
+	.refresh	= 7800, /* refresh period is 7.8usec */
+	.auto_io	= 1,
+	.need_io	= 1,
+};
+
 static void __init osiris_map_io(void)
 {
 	unsigned long flags;
@@ -401,6 +408,8 @@ static void __init osiris_init(void)
 	sysdev_register(&osiris_pm_sysdev);
 
 	s3c_i2c0_set_platdata(NULL);
+
+	s3c_cpufreq_setboard(&osiris_cpufreq);
 
 	i2c_register_board_info(0, osiris_i2c_devs,
 				ARRAY_SIZE(osiris_i2c_devs));

@@ -39,13 +39,16 @@
 struct s3c_adc_client {
 	struct platform_device	*pdev;
 	struct list_head	 pend;
+	wait_queue_head_t	*wait;
 
 	unsigned int		 nr_samples;
+	int			 result;
 	unsigned char		 is_ts;
 	unsigned char		 channel;
 
-	void	(*select_cb)(unsigned selected);
-	void	(*convert_cb)(unsigned val1, unsigned val2,
+	void	(*select_cb)(struct s3c_adc_client *c, unsigned selected);
+	void	(*convert_cb)(struct s3c_adc_client *c,
+			      unsigned val1, unsigned val2,
 			      unsigned *samples_left);
 };
 
@@ -81,7 +84,7 @@ static inline void s3c_adc_select(struct adc_device *adc,
 {
 	unsigned con = readl(adc->regs + S3C2410_ADCCON);
 
-	client->select_cb(1);
+	client->select_cb(client, 1);
 
 	con &= ~S3C2410_ADCCON_MUXMASK;
 	con &= ~S3C2410_ADCCON_STDBM;
@@ -153,25 +156,61 @@ int s3c_adc_start(struct s3c_adc_client *client,
 }
 EXPORT_SYMBOL_GPL(s3c_adc_start);
 
-static void s3c_adc_default_select(unsigned select)
+static void s3c_convert_done(struct s3c_adc_client *client,
+			     unsigned v, unsigned u, unsigned *left)
+{
+	client->result = v;
+	wake_up(client->wait);
+}
+
+int s3c_adc_read(struct s3c_adc_client *client, unsigned int ch)
+{
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
+	int ret;
+
+	client->convert_cb = s3c_convert_done;
+	client->wait = &wake;
+	client->result = -1;
+
+	ret = s3c_adc_start(client, ch, 1);
+	if (ret < 0)
+		goto err;
+
+	ret = wait_event_timeout(wake, client->result >= 0, HZ / 2);
+	if (client->result < 0) {
+		ret = -ETIMEDOUT;
+		goto err;
+	}
+
+	client->convert_cb = NULL;
+	return client->result;
+
+err:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(s3c_adc_convert);
+
+static void s3c_adc_default_select(struct s3c_adc_client *client,
+				   unsigned select)
 {
 }
 
 struct s3c_adc_client *s3c_adc_register(struct platform_device *pdev,
-					void (*select)(unsigned int selected),
-					void (*conv)(unsigned d0, unsigned d1,
+					void (*select)(struct s3c_adc_client *client,
+						       unsigned int selected),
+					void (*conv)(struct s3c_adc_client *client,
+						     unsigned d0, unsigned d1,
 						     unsigned *samples_left),
 					unsigned int is_ts)
 {
 	struct s3c_adc_client *client;
 
 	WARN_ON(!pdev);
-	WARN_ON(!conv);
 
 	if (!select)
 		select = s3c_adc_default_select;
 
-	if (!conv || !pdev)
+	if (!pdev)
 		return ERR_PTR(-EINVAL);
 
 	client = kzalloc(sizeof(struct s3c_adc_client), GFP_KERNEL);
@@ -230,16 +269,19 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 	adc_dbg(adc, "read %d: 0x%04x, 0x%04x\n", client->nr_samples, data0, data1);
 
 	client->nr_samples--;
-	(client->convert_cb)(data0 & 0x3ff, data1 & 0x3ff, &client->nr_samples);
+
+	if (client->convert_cb)
+		(client->convert_cb)(client, data0 & 0x3ff, data1 & 0x3ff,
+				     &client->nr_samples);
 
 	if (client->nr_samples > 0) {
 		/* fire another conversion for this */
 
-		client->select_cb(1);
+		client->select_cb(client, 1);
 		s3c_adc_convert(adc);
 	} else {
 		local_irq_save(flags);
-		(client->select_cb)(0);
+		(client->select_cb)(client, 0);
 		adc->cur = NULL;
 
 		s3c_adc_try(adc);
