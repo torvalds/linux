@@ -2,6 +2,7 @@
 #define _ASM_X86_PGTABLE_H
 
 #include <asm/page.h>
+#include <asm/e820.h>
 
 #include <asm/pgtable_types.h>
 
@@ -269,9 +270,16 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 #define canon_pgprot(p) __pgprot(massage_pgprot(p))
 
-static inline int is_new_memtype_allowed(unsigned long flags,
-						unsigned long new_flags)
+static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+					 unsigned long flags,
+					 unsigned long new_flags)
 {
+	/*
+	 * PAT type is always WB for ISA. So no need to check.
+	 */
+	if (is_ISA_range(paddr, paddr + size - 1))
+		return 1;
+
 	/*
 	 * Certain new memtypes are not allowed with certain
 	 * requested memtype:
