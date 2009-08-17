@@ -1303,6 +1303,12 @@ rx_eq_free:
 	return rc;
 }
 
+/* There are 8 evt ids per func. Retruns the evt id's bit number */
+static inline int be_evt_bit_get(struct be_adapter *adapter, u32 eq_id)
+{
+	return eq_id - 8 * be_pci_func(adapter);
+}
+
 static irqreturn_t be_intx(int irq, void *dev)
 {
 	struct be_adapter *adapter = dev;
@@ -1476,31 +1482,44 @@ static void be_msix_enable(struct be_adapter *adapter)
 
 static inline int be_msix_vec_get(struct be_adapter *adapter, u32 eq_id)
 {
-	return adapter->msix_entries[eq_id - 8 * be_pci_func(adapter)].vector;
+	return adapter->msix_entries[
+			be_evt_bit_get(adapter, eq_id)].vector;
+}
+
+static int be_request_irq(struct be_adapter *adapter,
+		struct be_eq_obj *eq_obj,
+		void *handler, char *desc)
+{
+	struct net_device *netdev = adapter->netdev;
+	int vec;
+
+	sprintf(eq_obj->desc, "%s-%s", netdev->name, desc);
+	vec = be_msix_vec_get(adapter, eq_obj->q.id);
+	return request_irq(vec, handler, 0, eq_obj->desc, adapter);
+}
+
+static void be_free_irq(struct be_adapter *adapter, struct be_eq_obj *eq_obj)
+{
+	int vec = be_msix_vec_get(adapter, eq_obj->q.id);
+	free_irq(vec, adapter);
 }
 
 static int be_msix_register(struct be_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	struct be_eq_obj *rx_eq = &adapter->rx_eq;
-	int status, vec;
+	int status;
 
-	sprintf(tx_eq->desc, "%s-tx", netdev->name);
-	vec = be_msix_vec_get(adapter, tx_eq->q.id);
-	status = request_irq(vec, be_msix_tx_mcc, 0, tx_eq->desc, adapter);
+	status = be_request_irq(adapter, &adapter->tx_eq, be_msix_tx_mcc, "tx");
 	if (status)
 		goto err;
 
-	sprintf(rx_eq->desc, "%s-rx", netdev->name);
-	vec = be_msix_vec_get(adapter, rx_eq->q.id);
-	status = request_irq(vec, be_msix_rx, 0, rx_eq->desc, adapter);
-	if (status) { /* Free TX IRQ */
-		vec = be_msix_vec_get(adapter, tx_eq->q.id);
-		free_irq(vec, adapter);
-		goto err;
-	}
+	status = be_request_irq(adapter, &adapter->rx_eq, be_msix_rx, "rx");
+	if (status)
+		goto free_tx_irq;
+
 	return 0;
+
+free_tx_irq:
+	be_free_irq(adapter, &adapter->tx_eq);
 err:
 	dev_warn(&adapter->pdev->dev,
 		"MSIX Request IRQ failed - err %d\n", status);
@@ -1537,7 +1556,6 @@ done:
 static void be_irq_unregister(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int vec;
 
 	if (!adapter->isr_registered)
 		return;
@@ -1549,10 +1567,8 @@ static void be_irq_unregister(struct be_adapter *adapter)
 	}
 
 	/* MSIx */
-	vec = be_msix_vec_get(adapter, adapter->tx_eq.q.id);
-	free_irq(vec, adapter);
-	vec = be_msix_vec_get(adapter, adapter->rx_eq.q.id);
-	free_irq(vec, adapter);
+	be_free_irq(adapter, &adapter->tx_eq);
+	be_free_irq(adapter, &adapter->rx_eq);
 done:
 	adapter->isr_registered = false;
 	return;
