@@ -1462,6 +1462,7 @@ process_paren(struct event *event, struct print_arg *arg, char **tok)
 {
 	struct print_arg *item_arg;
 	enum event_type type;
+	int ptr_cast = 0;
 	char *token;
 
 	type = process_arg(event, arg, &token);
@@ -1469,11 +1470,26 @@ process_paren(struct event *event, struct print_arg *arg, char **tok)
 	if (type == EVENT_ERROR)
 		return EVENT_ERROR;
 
-	if (type == EVENT_OP)
-		type = process_op(event, arg, &token);
+	if (type == EVENT_OP) {
+		/* handle the ptr casts */
+		if (!strcmp(token, "*")) {
+			/*
+			 * FIXME: should we zapp whitespaces before ')' ?
+			 * (may require a peek_token_item())
+			 */
+			if (__peek_char() == ')') {
+				ptr_cast = 1;
+				free_token(token);
+				type = read_token_item(&token);
+			}
+		}
+		if (!ptr_cast) {
+			type = process_op(event, arg, &token);
 
-	if (type == EVENT_ERROR)
-		return EVENT_ERROR;
+			if (type == EVENT_ERROR)
+				return EVENT_ERROR;
+		}
+	}
 
 	if (test_type_token(type, token, EVENT_DELIM, (char *)")")) {
 		free_token(token);
@@ -1499,6 +1515,13 @@ process_paren(struct event *event, struct print_arg *arg, char **tok)
 		item_arg = malloc_or_die(sizeof(*item_arg));
 
 		arg->type = PRINT_TYPE;
+		if (ptr_cast) {
+			char *old = arg->atom.atom;
+
+			arg->atom.atom = malloc_or_die(strlen(old + 3));
+			sprintf(arg->atom.atom, "%s *", old);
+			free(old);
+		}
 		arg->typecast.type = arg->atom.atom;
 		arg->typecast.item = item_arg;
 		type = process_arg_token(event, item_arg, &token, type);
