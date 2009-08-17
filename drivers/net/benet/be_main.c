@@ -117,23 +117,18 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 	iowrite32(val, adapter->db + DB_CQ_OFFSET);
 }
 
-
 static int be_mac_addr_set(struct net_device *netdev, void *p)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 	int status = 0;
 
-	if (netif_running(netdev)) {
-		status = be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id);
-		if (status)
-			return status;
+	status = be_cmd_pmac_del(adapter, adapter->if_handle, adapter->pmac_id);
+	if (status)
+		return status;
 
-		status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
-				adapter->if_handle, &adapter->pmac_id);
-	}
-
+	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
+			adapter->if_handle, &adapter->pmac_id);
 	if (!status)
 		memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
