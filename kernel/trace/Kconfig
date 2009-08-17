@@ -236,6 +236,7 @@ config BOOT_TRACER
 
 config SKB_SOURCES_TRACER
 	bool "Trace skb source information"
+	depends on NET
 	select GENERIC_TRACER
 	help
 	   This tracer helps developers/sysadmins correlate skb allocation and
