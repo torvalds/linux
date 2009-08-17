@@ -433,15 +433,16 @@ static int snd_ctl_remove_unlocked_id(struct snd_ctl_file * file,
 	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id(card, id);
 	if (kctl == NULL) {
-		up_write(&card->controls_rwsem);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto error;
 	}
 	for (idx = 0; idx < kctl->count; idx++)
 		if (kctl->vd[idx].owner != NULL && kctl->vd[idx].owner != file) {
-			up_write(&card->controls_rwsem);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto error;
 		}
 	ret = snd_ctl_remove(card, kctl);
+error:
 	up_write(&card->controls_rwsem);
 	return ret;
 }
