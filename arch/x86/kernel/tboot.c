@@ -189,8 +189,12 @@ static int tboot_setup_sleep(void)
 
 	/* S3 resume code */
 	add_mac_region(acpi_wakeup_address, WAKEUP_SIZE);
+
+#ifdef CONFIG_X86_TRAMPOLINE
 	/* AP trampoline code */
 	add_mac_region(virt_to_phys(trampoline_base), TRAMPOLINE_SIZE);
+#endif
+
 	/* kernel code + data + bss */
 	add_mac_region(virt_to_phys(_text), _end - _text);
 
