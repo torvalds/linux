@@ -619,7 +619,10 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return 0;
 }
 
-/* called when a port is closed by userspace */
+/* called when a port is closed by userspace. It won't be called, however,
+ * until calls to chars_in_buffer() reveal that the port has completed
+ * sending buffered data, and there is nothing else to do. Thus we don't have
+ * to rely on forcing data through in this function. */
 /* Setting close_pending should keep new data from being written out,
  * once all the data in the enpoint buffers is moved out we won't get
  * any more. */
@@ -644,26 +647,8 @@ static void qt2_close(struct usb_serial_port *port)
 	/* get the device private data */
 	port_extra = qt2_get_port_private(port); /* port private data */
 
-	/* to check we have successfully flushed the buffers on the hardware,
-	 * we set the flags indicating flushes have occured to false, then ask
-	 * for flushes to occur, then sit in a timed loop until either we
-	 * get notified back that the flushes have happened (good) or we get
-	 * tired of waiting for the flush to happen and give up (bad).
-	 */
-	port_extra->rcv_flush = false;
-	port_extra->xmit_flush = false;
-	qt2_box_flush(serial, port->number, QT2_FLUSH_TX); /* flush tx buffer */
-	qt2_box_flush(serial, port->number, QT2_FLUSH_RX); /* flush rx buffer */
-	/* now wait for the flags to magically go back to being true */
-	jift = jiffies + (10 * HZ);
-	do {
-		if ((port_extra->rcv_flush == true) &&
-			(port_extra->xmit_flush == true)) {
-			dbg("Flush completed");
-			break;
-		}
-		schedule();
-	} while (jiffies <= jift);
+	/* we don't need to force flush though the hardware, so we skip using
+	 * qt2_box_flush() here */
 
 	/* we can now (and only now) stop reading data */
 	port_extra->close_pending = true;
@@ -672,6 +657,9 @@ static void qt2_close(struct usb_serial_port *port)
 	 * still be pushing characters out over the line, so we have to
 	 * wait testing the actual line status until the lines change
 	 * indicating that the data is done transfering. */
+	/* FIXME: slow this polling down so it doesn't run the USB bus flat out
+	 * if it actually has to spend any time in this loop (which it normally
+	 * doesn't because the buffer is nearly empty) */
 	jift = jiffies + (10 * HZ);	/* 10 sec timeout */
 	do {
 		status = qt2_box_get_register(serial, port->number,
@@ -848,16 +836,12 @@ static int qt2_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	/* parent usb_serial_port pointer */
-	int chars = 0;
 	struct quatech2_port *port_extra;	/* extra data for this port */
 	port_extra = qt2_get_port_private(port);
 
-	dbg("%s(): port %d", __func__, port->number);
-	if ((port->write_urb->status == -EINPROGRESS) &&
-			(port_extra->tx_pending_bytes != 0))
-		chars = port->write_urb->transfer_buffer_length;
-	dbg("%s(): returns %d", __func__, chars);
-	return chars;
+	dbg("%s(): port %d: chars_in_buffer = %d", __func__,
+		port->number, port_extra->tx_pending_bytes);
+	return port_extra->tx_pending_bytes;
 }
 
 /* called when userspace does an ioctl() on the device. Note that
@@ -879,7 +863,6 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 	/* Declare a wait queue named "wait" */
 
 	unsigned int value;
-	int status;
 	unsigned int UartNumber;
 
 	if (serial == NULL)
