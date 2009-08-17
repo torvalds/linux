@@ -215,7 +215,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 	inode = new_inode(sb);
 	if (!inode) {
 		P9_EPRINTK(KERN_WARNING, "Problem allocating inode\n");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	inode->i_mode = mode;
