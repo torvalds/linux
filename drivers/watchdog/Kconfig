@@ -266,6 +266,15 @@ config STMP3XXX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_wdt.
 
+config NUC900_WATCHDOG
+	tristate "Nuvoton NUC900 watchdog"
+	depends on ARCH_W90X900
+	help
+	  Say Y here if to include support for the watchdog timer
+	  for the Nuvoton NUC900 series SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called nuc900_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
