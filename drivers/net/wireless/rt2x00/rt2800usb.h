@@ -1300,8 +1300,8 @@
  * PAIRWISE_KEY_TABLE_BASE: 32-byte * 256 entry
  * MAC_IVEIV_TABLE_BASE: 8-byte * 256-entry
  * MAC_WCID_ATTRIBUTE_BASE: 4-byte * 256-entry
- * SHARED_KEY_TABLE_BASE: 32-byte * 16-entry
- * SHARED_KEY_MODE_BASE: 4-byte * 16-entry
+ * SHARED_KEY_TABLE_BASE: 32 bytes * 32-entry
+ * SHARED_KEY_MODE_BASE: 4 bits * 32-entry
  */
 #define MAC_WCID_BASE			0x1800
 #define PAIRWISE_KEY_TABLE_BASE		0x4000
