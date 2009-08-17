@@ -70,7 +70,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	if (bo->destroy)
 		bo->destroy(bo);
 	else {
-		ttm_mem_global_free(bdev->mem_glob, bo->acc_size, false);
+		ttm_mem_global_free(bdev->mem_glob, bo->acc_size);
 		kfree(bo);
 	}
 }
@@ -1065,14 +1065,14 @@ int ttm_buffer_object_create(struct ttm_bo_device *bdev,
 
 	size_t acc_size =
 	    ttm_bo_size(bdev, (size + PAGE_SIZE - 1) >> PAGE_SHIFT);
-	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false, false);
+	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
 	if (unlikely(ret != 0))
 		return ret;
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 
 	if (unlikely(bo == NULL)) {
-		ttm_mem_global_free(mem_glob, acc_size, false);
+		ttm_mem_global_free(mem_glob, acc_size);
 		return -ENOMEM;
 	}
 
