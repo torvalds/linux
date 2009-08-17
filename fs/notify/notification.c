@@ -153,6 +153,10 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 				return true;
 			break;
 		case (FSNOTIFY_EVENT_NONE):
+			if (old->mask & FS_Q_OVERFLOW)
+				return true;
+			else if (old->mask & FS_IN_IGNORED)
+				return false;
 			return false;
 		};
 	}
