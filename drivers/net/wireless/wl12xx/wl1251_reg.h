@@ -245,8 +245,8 @@ enum wl12xx_acx_int_reg {
 	ACX_REG_TABLE_LEN
 };
 
-#define ACX_SLV_SOFT_RESET_BIT   BIT(1)
-#define ACX_REG_EEPROM_START_BIT BIT(1)
+#define ACX_SLV_SOFT_RESET_BIT   BIT(0)
+#define ACX_REG_EEPROM_START_BIT BIT(0)
 
 /* Command/Information Mailbox Pointers */
 
