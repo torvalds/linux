@@ -41,23 +41,11 @@ extern const unsigned int sh_mobile_standby_size;
 
 void sh_mobile_call_standby(unsigned long mode)
 {
-	extern void *vbr_base;
 	void *onchip_mem = (void *)ILRAM_BASE;
-	void (*standby_onchip_mem)(unsigned long) = onchip_mem;
-
-	/* Note: Wake up from sleep may generate exceptions!
-	 * Setup VBR to point to on-chip ram if self-refresh is
-	 * going to be used.
-	 */
-	if (mode & SUSP_SH_SF)
-		asm volatile("ldc %0, vbr" : : "r" (onchip_mem) : "memory");
+	void (*standby_onchip_mem)(unsigned long, unsigned long) = onchip_mem;
 
 	/* Let assembly snippet in on-chip memory handle the rest */
-	standby_onchip_mem(mode);
-
-	/* Put VBR back in System RAM again */
-	if (mode & SUSP_SH_SF)
-		asm volatile("ldc %0, vbr" : : "r" (&vbr_base) : "memory");
+	standby_onchip_mem(mode, ILRAM_BASE);
 }
 
 static int sh_pm_enter(suspend_state_t state)
