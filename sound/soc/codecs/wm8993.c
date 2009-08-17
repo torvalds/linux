@@ -519,7 +519,7 @@ static int configure_clock(struct snd_soc_codec *codec)
 		dev_dbg(codec->dev, "Using %dHz MCLK\n", wm8993->mclk_rate);
 
 		reg = wm8993_read(codec, WM8993_CLOCKING_2);
-		reg &= ~WM8993_SYSCLK_SRC;
+		reg &= ~(WM8993_MCLK_DIV | WM8993_SYSCLK_SRC);
 		if (wm8993->mclk_rate > 13500000) {
 			reg |= WM8993_MCLK_DIV;
 			wm8993->sysclk_rate = wm8993->mclk_rate / 2;
@@ -527,8 +527,6 @@ static int configure_clock(struct snd_soc_codec *codec)
 			reg &= ~WM8993_MCLK_DIV;
 			wm8993->sysclk_rate = wm8993->mclk_rate;
 		}
-		reg &= ~WM8993_MCLK_DIV;
-		reg &= ~(WM8993_MCLK_DIV | WM8993_SYSCLK_SRC);
 		wm8993_write(codec, WM8993_CLOCKING_2, reg);
 		break;
 
