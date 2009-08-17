@@ -160,8 +160,8 @@ static void *lc_next(struct seq_file *m, void *v, loff_t *pos)
 	else {
 		chain = v;
 
-		if (*pos < nr_lock_chains)
-			chain = lock_chains + *pos;
+		if (*pos - 1 < nr_lock_chains)
+			chain = lock_chains + (*pos - 1);
 		else
 			chain = NULL;
 	}
@@ -174,8 +174,8 @@ static void *lc_start(struct seq_file *m, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	if (*pos < nr_lock_chains)
-		return lock_chains + *pos;
+	if (*pos - 1 < nr_lock_chains)
+		return lock_chains + (*pos - 1);
 
 	return NULL;
 }
