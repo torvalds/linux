@@ -44,9 +44,9 @@
 #define OMAP2_SRAM_VA		0xe3000000
 #define OMAP2_SRAM_PUB_VA	(OMAP2_SRAM_VA + 0x800)
 #define OMAP3_SRAM_PA           0x40200000
-#define OMAP3_SRAM_VA           0xd7000000
+#define OMAP3_SRAM_VA           0xe3000000
 #define OMAP3_SRAM_PUB_PA       0x40208000
-#define OMAP3_SRAM_PUB_VA       0xd7008000
+#define OMAP3_SRAM_PUB_VA       (OMAP3_SRAM_VA + 0x8000)
 #define OMAP4_SRAM_PA		0x40200000		/*0x402f0000*/
 #define OMAP4_SRAM_VA		0xd7000000		/*0xd70f0000*/
 
@@ -373,20 +373,26 @@ static inline int omap243x_sram_init(void)
 
 #ifdef CONFIG_ARCH_OMAP3
 
-static u32 (*_omap3_sram_configure_core_dpll)(u32 sdrc_rfr_ctrl,
-					      u32 sdrc_actim_ctrla,
-					      u32 sdrc_actim_ctrlb,
-					      u32 m2, u32 unlock_dll,
-					      u32 f, u32 sdrc_mr, u32 inc);
-u32 omap3_configure_core_dpll(u32 sdrc_rfr_ctrl, u32 sdrc_actim_ctrla,
-			      u32 sdrc_actim_ctrlb, u32 m2, u32 unlock_dll,
-			      u32 f, u32 sdrc_mr, u32 inc)
+static u32 (*_omap3_sram_configure_core_dpll)(
+			u32 m2, u32 unlock_dll, u32 f, u32 inc,
+			u32 sdrc_rfr_ctrl_0, u32 sdrc_actim_ctrl_a_0,
+			u32 sdrc_actim_ctrl_b_0, u32 sdrc_mr_0,
+			u32 sdrc_rfr_ctrl_1, u32 sdrc_actim_ctrl_a_1,
+			u32 sdrc_actim_ctrl_b_1, u32 sdrc_mr_1);
+
+u32 omap3_configure_core_dpll(u32 m2, u32 unlock_dll, u32 f, u32 inc,
+			u32 sdrc_rfr_ctrl_0, u32 sdrc_actim_ctrl_a_0,
+			u32 sdrc_actim_ctrl_b_0, u32 sdrc_mr_0,
+			u32 sdrc_rfr_ctrl_1, u32 sdrc_actim_ctrl_a_1,
+			u32 sdrc_actim_ctrl_b_1, u32 sdrc_mr_1)
 {
 	BUG_ON(!_omap3_sram_configure_core_dpll);
-	return _omap3_sram_configure_core_dpll(sdrc_rfr_ctrl,
-					       sdrc_actim_ctrla,
-					       sdrc_actim_ctrlb, m2,
-					       unlock_dll, f, sdrc_mr, inc);
+	return _omap3_sram_configure_core_dpll(
+			m2, unlock_dll, f, inc,
+			sdrc_rfr_ctrl_0, sdrc_actim_ctrl_a_0,
+			sdrc_actim_ctrl_b_0, sdrc_mr_0,
+			sdrc_rfr_ctrl_1, sdrc_actim_ctrl_a_1,
+			sdrc_actim_ctrl_b_1, sdrc_mr_1);
 }
 
 /* REVISIT: Should this be same as omap34xx_sram_init() after off-idle? */
