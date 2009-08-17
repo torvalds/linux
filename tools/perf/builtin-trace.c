@@ -184,6 +184,10 @@ static int __cmd_trace(void)
 	header = perf_header__read(input);
 	sample_type = perf_header__sample_type(header);
 
+	if (!(sample_type & PERF_SAMPLE_RAW))
+		die("No trace sample to read. Did you call perf record "
+		    "without -R?");
+
 	if (load_kernel() < 0) {
 		perror("failed to load kernel symbols");
 		return EXIT_FAILURE;
