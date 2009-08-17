@@ -154,7 +154,7 @@ static inline int drm_i2c_encoder_register(struct module *owner,
  */
 static inline void drm_i2c_encoder_unregister(struct drm_i2c_encoder_driver *driver)
 {
-	return i2c_del_driver(&driver->i2c_driver);
+	i2c_del_driver(&driver->i2c_driver);
 }
 
 void drm_i2c_encoder_destroy(struct drm_encoder *encoder);
