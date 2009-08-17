@@ -113,26 +113,6 @@ static const struct file_operations proc_lockdep_operations = {
 };
 
 #ifdef CONFIG_PROVE_LOCKING
-static void *lc_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	struct lock_chain *chain;
-
-	(*pos)++;
-
-	if (v == SEQ_START_TOKEN)
-		chain = m->private;
-	else {
-		chain = v;
-
-		if (*pos - 1 < nr_lock_chains)
-			chain = lock_chains + (*pos - 1);
-		else
-			chain = NULL;
-	}
-
-	return chain;
-}
-
 static void *lc_start(struct seq_file *m, loff_t *pos)
 {
 	if (*pos == 0)
@@ -142,6 +122,12 @@ static void *lc_start(struct seq_file *m, loff_t *pos)
 		return lock_chains + (*pos - 1);
 
 	return NULL;
+}
+
+static void *lc_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return lc_start(m, pos);
 }
 
 static void lc_stop(struct seq_file *m, void *v)
@@ -184,16 +170,7 @@ static const struct seq_operations lockdep_chains_ops = {
 
 static int lockdep_chains_open(struct inode *inode, struct file *file)
 {
-	int res = seq_open(file, &lockdep_chains_ops);
-	if (!res) {
-		struct seq_file *m = file->private_data;
-
-		if (nr_lock_chains)
-			m->private = lock_chains;
-		else
-			m->private = NULL;
-	}
-	return res;
+	return seq_open(file, &lockdep_chains_ops);
 }
 
 static const struct file_operations proc_lockdep_chains_operations = {
