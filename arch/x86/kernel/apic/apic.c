@@ -1365,14 +1365,6 @@ void enable_x2apic(void)
 int __init enable_IR(void)
 {
 #ifdef CONFIG_INTR_REMAP
-	int ret;
-
-	ret = dmar_table_init();
-	if (ret) {
-		pr_debug("dmar_table_init() failed with %d:\n", ret);
-		return 0;
-	}
-
 	if (!intr_remapping_supported()) {
 		pr_debug("intr-remapping not supported\n");
 		return 0;
@@ -1400,6 +1392,14 @@ void __init enable_IR_x2apic(void)
 	unsigned long flags;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 	int ret, x2apic_enabled = 0;
+	int dmar_table_init_ret = 0;
+
+#ifdef CONFIG_INTR_REMAP
+	dmar_table_init_ret = dmar_table_init();
+	if (dmar_table_init_ret)
+		pr_debug("dmar_table_init() failed with %d:\n",
+				dmar_table_init_ret);
+#endif
 
 	ioapic_entries = alloc_ioapic_entries();
 	if (!ioapic_entries) {
@@ -1417,7 +1417,11 @@ void __init enable_IR_x2apic(void)
 	mask_8259A();
 	mask_IO_APIC_setup(ioapic_entries);
 
-	ret = enable_IR();
+	if (dmar_table_init_ret)
+		ret = 0;
+	else
+		ret = enable_IR();
+
 	if (!ret) {
 		/* IR is required if there is APIC ID > 255 even when running
 		 * under KVM
