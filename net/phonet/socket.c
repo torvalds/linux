@@ -413,6 +413,7 @@ found:
 }
 EXPORT_SYMBOL(pn_sock_get_port);
 
+#ifdef CONFIG_PROC_FS
 static struct sock *pn_sock_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct net *net = seq_file_net(seq);
@@ -509,3 +510,4 @@ const struct file_operations pn_sock_seq_fops = {
 	.llseek = seq_lseek,
 	.release = seq_release_net,
 };
+#endif
