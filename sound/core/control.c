@@ -414,7 +414,7 @@ int snd_ctl_remove_id(struct snd_card *card, struct snd_ctl_elem_id *id)
 EXPORT_SYMBOL(snd_ctl_remove_id);
 
 /**
- * snd_ctl_remove_unlocked_id - remove the unlocked control of the given id and release it
+ * snd_ctl_remove_user_ctl - remove and release the unlocked user control
  * @file: active control handle
  * @id: the control id to remove
  *
@@ -423,8 +423,8 @@ EXPORT_SYMBOL(snd_ctl_remove_id);
  * 
  * Returns 0 if successful, or a negative error code on failure.
  */
-static int snd_ctl_remove_unlocked_id(struct snd_ctl_file * file,
-				      struct snd_ctl_elem_id *id)
+static int snd_ctl_remove_user_ctl(struct snd_ctl_file * file,
+				   struct snd_ctl_elem_id *id)
 {
 	struct snd_card *card = file->card;
 	struct snd_kcontrol *kctl;
@@ -442,6 +442,9 @@ static int snd_ctl_remove_unlocked_id(struct snd_ctl_file * file,
 			goto error;
 		}
 	ret = snd_ctl_remove(card, kctl);
+	if (ret < 0)
+		goto error;
+	card->user_ctl_count--;
 error:
 	up_write(&card->controls_rwsem);
 	return ret;
@@ -1053,18 +1056,10 @@ static int snd_ctl_elem_remove(struct snd_ctl_file *file,
 			       struct snd_ctl_elem_id __user *_id)
 {
 	struct snd_ctl_elem_id id;
-	int err;
 
 	if (copy_from_user(&id, _id, sizeof(id)))
 		return -EFAULT;
-	err = snd_ctl_remove_unlocked_id(file, &id);
-	if (! err) {
-		struct snd_card *card = file->card;
-		down_write(&card->controls_rwsem);
-		card->user_ctl_count--;
-		up_write(&card->controls_rwsem);
-	}
-	return err;
+	return snd_ctl_remove_user_ctl(file, &id);
 }
 
 static int snd_ctl_subscribe_events(struct snd_ctl_file *file, int __user *ptr)
