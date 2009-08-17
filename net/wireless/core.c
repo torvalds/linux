@@ -586,9 +586,14 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * get to lock contention here if userspace issues a command
 	 * that identified the hardware by wiphy index.
 	 */
-	mutex_lock(&rdev->mtx);
-	/* unlock again before freeing */
-	mutex_unlock(&rdev->mtx);
+	cfg80211_lock_rdev(rdev);
+
+	if (WARN_ON(rdev->scan_req)) {
+		rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev);
+	}
+
+	cfg80211_unlock_rdev(rdev);
 
 	cfg80211_debugfs_rdev_del(rdev);
 
@@ -605,7 +610,6 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
-	kfree(rdev->scan_req);
 	flush_work(&rdev->event_work);
 }
 EXPORT_SYMBOL(wiphy_unregister);
@@ -653,6 +657,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	switch (state) {
 	case NETDEV_REGISTER:
+		/*
+		 * NB: cannot take rdev->mtx here because this may be
+		 * called within code protected by it when interfaces
+		 * are added with nl80211.
+		 */
 		mutex_init(&wdev->mtx);
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
@@ -730,13 +739,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 		break;
 	case NETDEV_UNREGISTER:
-		cfg80211_lock_rdev(rdev);
-
-		if (WARN_ON(rdev->scan_req && rdev->scan_req->dev == dev)) {
-			rdev->scan_req->aborted = true;
-			___cfg80211_scan_done(rdev);
-		}
-
+		/*
+		 * NB: cannot take rdev->mtx here because this may be
+		 * called within code protected by it when interfaces
+		 * are removed with nl80211.
+		 */
 		mutex_lock(&rdev->devlist_mtx);
 		/*
 		 * It is possible to get NETDEV_UNREGISTER
@@ -755,7 +762,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
-		cfg80211_unlock_rdev(rdev);
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
