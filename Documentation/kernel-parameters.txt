@@ -2484,12 +2484,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format:
 			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
 
-	tsc=		Disable clocksource-must-verify flag for TSC.
+	tsc=		Disable clocksource stability checks for TSC.
 			Format: <string>
 			[x86] reliable: mark tsc clocksource as reliable, this
-			disables clocksource verification at runtime.
-			Used to enable high-resolution timer mode on older
-			hardware, and in virtualized environment.
+			disables clocksource verification at runtime, as well
+			as the stability checks done at bootup.	Used to enable
+			high-resolution timer mode on older hardware, and in
+			virtualized environment.
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
