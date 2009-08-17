@@ -3031,13 +3031,6 @@ static int mwl8k_config_wt(struct work_struct *wt)
 	struct mwl8k_priv *priv = hw->priv;
 	int rc = 0;
 
-	if (!conf->radio_enabled) {
-		mwl8k_cmd_802_11_radio_control(hw, MWL8K_RADIO_DISABLE);
-		priv->current_channel = NULL;
-		rc = 0;
-		goto mwl8k_config_exit;
-	}
-
 	if (mwl8k_cmd_802_11_radio_control(hw, MWL8K_RADIO_ENABLE)) {
 		rc = -EINVAL;
 		goto mwl8k_config_exit;

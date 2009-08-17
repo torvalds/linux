@@ -583,7 +583,6 @@ enum ieee80211_conf_flags {
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
- * @_IEEE80211_CONF_CHANGE_RADIO_ENABLED: DEPRECATED
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
@@ -593,7 +592,6 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  */
 enum ieee80211_conf_changed {
-	_IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
@@ -603,23 +601,12 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
 };
 
-static inline __deprecated enum ieee80211_conf_changed
-__IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
-{
-	return _IEEE80211_CONF_CHANGE_RADIO_ENABLED;
-}
-#define IEEE80211_CONF_CHANGE_RADIO_ENABLED \
-	__IEEE80211_CONF_CHANGE_RADIO_ENABLED()
-
 /**
  * struct ieee80211_conf - configuration of the device
  *
  * This struct indicates how the driver shall configure the hardware.
  *
  * @flags: configuration flags defined above
- *
- * @radio_enabled: when zero, driver is required to switch off the radio.
- * @beacon_int: DEPRECATED, DO NOT USE
  *
  * @listen_interval: listen interval in units of beacon interval
  * @max_sleep_period: the maximum number of beacon intervals to sleep for
@@ -644,13 +631,11 @@ __IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
  *    number of transmissions not the number of retries
  */
 struct ieee80211_conf {
-	int __deprecated beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
 	int max_sleep_period;
 
 	u16 listen_interval;
-	bool __deprecated radio_enabled;
 
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 

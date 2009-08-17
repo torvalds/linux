@@ -1950,9 +1950,8 @@ static int at76_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct at76_priv *priv = hw->priv;
 
-	at76_dbg(DBG_MAC80211, "%s(): channel %d radio %d",
-		 __func__, hw->conf.channel->hw_value,
-		 hw->conf.radio_enabled);
+	at76_dbg(DBG_MAC80211, "%s(): channel %d",
+		 __func__, hw->conf.channel->hw_value);
 	at76_dbg_dump(DBG_MAC80211, priv->bssid, ETH_ALEN, "bssid:");
 
 	mutex_lock(&priv->mtx);
