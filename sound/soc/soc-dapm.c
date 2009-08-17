@@ -966,6 +966,22 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 		}
 	}
 
+	/* If there are no DAPM widgets then try to figure out power from the
+	 * event type.
+	 */
+	if (list_empty(&codec->dapm_widgets)) {
+		switch (event) {
+		case SND_SOC_DAPM_STREAM_START:
+		case SND_SOC_DAPM_STREAM_RESUME:
+			sys_power = 1;
+			break;
+		case SND_SOC_DAPM_STREAM_NOP:
+			sys_power = codec->bias_level != SND_SOC_BIAS_STANDBY;
+		default:
+			break;
+		}
+	}
+
 	/* If we're changing to all on or all off then prepare */
 	if ((sys_power && codec->bias_level == SND_SOC_BIAS_STANDBY) ||
 	    (!sys_power && codec->bias_level == SND_SOC_BIAS_ON)) {
