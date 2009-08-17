@@ -815,7 +815,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 		return;
 
 	if (sd->sensor_type) {
-		sensor_write1(gspca_dev, 3, sd->gain);
+		sensor_write1(gspca_dev, 0x0e, sd->gain);
 	} else {
 		sensor_write1(gspca_dev, 0x10, sd->gain);
 	}
