@@ -38,7 +38,7 @@ static int debug;
 #define QU2BOXPWRON 0x8000		/* magic number to turn FPGA power on */
 #define QU2BOX232 0x40			/* RS232 mode on MEI devices */
 #define QU2BOXSPD9600 0x60		/* set speed to 9600 baud */
-#define FIFO_DEPTH 1024			/* size of hardware fifos */
+#define QT2_FIFO_DEPTH 1024			/* size of hardware fifos */
 #define QT2_TX_HEADER_LENGTH	5
 /* length of the header sent to the box with each write URB */
 
@@ -146,18 +146,32 @@ static struct usb_driver quausb2_usb_driver = {
  * value of the line status flags from the port
  * @param shadowMSR Last received state of the modem status register, holds
  * the value of the modem status received from the port
- * @param xmit_pending_bytes Number of bytes waiting to be sent out of
- * the serial port
- * @param xmit_fifo_room_bytes free space available in the transmit fifo
- * for this port on the box
  * @param rcv_flush Flag indicating that a receive flush has occured on
  * the hardware.
  * @param xmit_flush Flag indicating that a transmit flush has been processed by
  * the hardware.
- * @param fifo_empty_flag Flag indicating that the (per-port) buffer on the
- * device is empty.
- * @param tx_fifo_room	Number of bytes room left in the buffer
- * @param tx_pending_bytes Number of bytes waiting to be sent
+ * @param fifo_empty_flag
+ * - Starts off true when port opened
+ * - set false when a write is submitted to the driver
+ * - as far as I can see not true again until device is re-opened.
+ * - read in a number of places.
+ * @param tx_fifo_room
+ * - set to FIFO_DEPTH when port opened
+ * - decremented by tc_pending_bytes when a new write is submitted.
+ * - set to FIFO_DEPTH when "xmit_empty" is received from the device,
+ * regardless of how many bytes were reported to have been sent (?)
+ *
+ * @param tx_pending_bytes Number of bytes waiting to be sent. This total
+ * includes the size (excluding header) of URBs that have been submitted but
+ * have not yet been sent to to the device, and bytes that have been sent out
+ * of the port but not yet reported sent by the "xmit_empty" messages (which
+ * indicate the number of bytes sent each time they are recieved, despite the
+ * misleading name).
+ * - Starts at zero when port is initialised.
+ * - is incremented by the size of the data to be written (no headers)
+ * each time a write urb is dispatched.
+ * - is decremented each time a "transmit empty" message is received
+ * by the driver in the data stream.
  */
 struct quatech2_port {
 	int	magic;
@@ -165,8 +179,7 @@ struct quatech2_port {
 	bool	close_pending;
 	__u8	shadowLSR;
 	__u8	shadowMSR;
-	int	xmit_pending_bytes;
-	int	xmit_fifo_room_bytes;
+	/*int	xmit_fifo_room_bytes;*/
 	bool	rcv_flush;
 	bool	xmit_flush;
 /*	bool	fifo_empty_flag;
@@ -723,11 +736,10 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 			"-EINPROGRESS", __func__);
 		/* schedule_work(&port->work); commented in vendor driver */
 		return 0;
-	} else if (port_extra->tx_pending_bytes >= FIFO_DEPTH) {
-		/* such a lot queued up that we will fill the buffer again as
-		 * soon as it does empty? Overflowed buffer? */
-		dbg("%s(): already writing, port_extra->tx_pending_bytes >="
-			" FIFO_DEPTH", __func__);
+	} else if (port_extra->tx_pending_bytes >= QT2_FIFO_DEPTH) {
+		/* buffer is full (==). > should not occur, but would indicate
+		 * that an overflow had occured */
+		dbg("%s(): port transmit buffer is full!", __func__);
 		/* schedule_work(&port->work); commented in vendor driver */
 		return 0;
 	}
@@ -745,8 +757,8 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* we must also ensure that the FIFO at the other end can cope with the
 	 * URB we send it, otherwise it will have problems. As above, we can
 	 * restrict the write size by just shrinking count.*/
-	if (count > (FIFO_DEPTH - port_extra->tx_pending_bytes))
-		count = FIFO_DEPTH - port_extra->tx_pending_bytes;
+	if (count > (QT2_FIFO_DEPTH - port_extra->tx_pending_bytes))
+		count = QT2_FIFO_DEPTH - port_extra->tx_pending_bytes;
 	/* now build the header for transmission */
 	header_array[0] = 0x1b;
 	header_array[1] = 0x1b;
@@ -780,12 +792,21 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 		port->xmit_fifo_room_bytes = FIFO_DEPTH -
 		port->xmit_pending_bytes;*/
 		result = count;
-		dbg("%s(): submitted write urb, returning %d", __func__,
-result);
+		dbg("%s(): submitted write urb, returning %d",
+			__func__, result);
 	}
 	return result;
 }
 
+/* This is used by the next layer up to know how much space is available
+ * in the buffer on the device. It is used on a device closure to avoid
+ * calling close() until the buffer is reported to be empty.
+ * The returned value must never go down by more than the number of bytes
+ * written for correct behaviour further up the driver stack, i.e. if I call
+ * it, then write 6 bytes, then call again I should get 6 less, or possibly
+ * only 5 less if one was written in the meantime, etc. I should never get 7
+ * less (or any bigger number) because I only wrote 6 bytes.
+ */
 static int qt2_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -798,11 +819,28 @@ static int qt2_write_room(struct tty_struct *tty)
 		dbg("%s(): port_extra->close_pending == true", __func__);
 		return -ENODEV;
 	}
+	/* Q: how many bytes would a write() call actually succeed in writing
+	 * if it happened now?
+	 * A: one QT2_FIFO_DEPTH, less the number of bytes waiting to be sent
+	 * out of the port, unless this is more than the size of the
+	 * write_urb output buffer less the header, which is the maximum
+	 * size write we can do.
 
-	dbg("%s(): port %d", __func__, port->number);
-	if ((port->write_urb->status != -EINPROGRESS) &&
-		(port_extra->tx_pending_bytes == 0))
+	 * Most of the implementation of this is done when writes to the device
+	 * are started or terminate. When we send a write to the device, we
+	 * reduce the free space count by the size of the dispatched write.
+	 * When a "transmit empty" message comes back up the USB read stream,
+	 * we decrement the count by the number of bytes reported sent, thus
+	 * keeping track of the difference between sent and recieved bytes.
+	 */
+
+	room = (QT2_FIFO_DEPTH - port_extra->tx_pending_bytes);
+	/* space in FIFO */
+	if (room > port->bulk_out_size - QT2_TX_HEADER_LENGTH)
 		room = port->bulk_out_size - QT2_TX_HEADER_LENGTH;
+	/* if more than the URB can hold, then cap to that limit */
+
+	dbg("%s(): port %d: write room is %d", __func__, port->number, room);
 	return room;
 }
 
@@ -1303,8 +1341,7 @@ __func__);
 						break;
 					}
 					qt2_process_xmit_empty(active,
-						FOURTHCHAR,
-							FIFTHCHAR);
+						FOURTHCHAR, FIFTHCHAR);
 					i += 4;
 					escapeflag = true;
 					break;
@@ -1473,8 +1510,16 @@ static void qt2_process_xmit_empty(struct usb_serial_port *port,
 
 	byte_count = (int)(fifth_char * 16);
 	byte_count +=  (int)fourth_char;
-	port_extra->xmit_pending_bytes -= (int)byte_count;
-	port_extra->xmit_fifo_room_bytes = FIFO_DEPTH;
+	/* byte_count indicates how many bytes the device has written out. This
+	 * message appears to occur regularly, and is used in the vendor driver
+	 * to keep track of the fill state of the port transmit buffer */
+	port_extra->tx_pending_bytes -= byte_count;
+	/* reduce the stored data queue length by the known number of bytes
+	 * sent */
+	dbg("port %d: %d bytes reported sent, %d still pending", port->number,
+			byte_count, port_extra->tx_pending_bytes);
+
+	/*port_extra->xmit_fifo_room_bytes = FIFO_DEPTH; ???*/
 }
 
 static void qt2_process_port_change(struct usb_serial_port *port,
