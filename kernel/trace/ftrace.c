@@ -1556,17 +1556,6 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-int ftrace_avail_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct ftrace_iterator *iter = m->private;
-
-	seq_release(inode, file);
-	kfree(iter);
-
-	return 0;
-}
-
 static int
 ftrace_failures_open(struct inode *inode, struct file *file)
 {
@@ -2427,14 +2416,14 @@ static const struct file_operations ftrace_avail_fops = {
 	.open = ftrace_avail_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = ftrace_avail_release,
+	.release = seq_release_private,
 };
 
 static const struct file_operations ftrace_failures_fops = {
 	.open = ftrace_failures_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = ftrace_avail_release,
+	.release = seq_release_private,
 };
 
 static const struct file_operations ftrace_filter_fops = {
