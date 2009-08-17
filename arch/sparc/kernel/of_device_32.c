@@ -9,6 +9,8 @@
 #include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <asm/leon.h>
+#include <asm/leon_amba.h>
 
 #include "of_device_common.h"
 
@@ -97,6 +99,35 @@ static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
 	return IORESOURCE_MEM;
 }
 
+ /*
+ * AMBAPP bus specific translator
+ */
+
+static int of_bus_ambapp_match(struct device_node *np)
+{
+	return !strcmp(np->name, "ambapp");
+}
+
+static void of_bus_ambapp_count_cells(struct device_node *child,
+				      int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = 1;
+	if (sizec)
+		*sizec = 1;
+}
+
+static int of_bus_ambapp_map(u32 *addr, const u32 *range,
+			     int na, int ns, int pna)
+{
+	return of_bus_default_map(addr, range, na, ns, pna);
+}
+
+static unsigned long of_bus_ambapp_get_flags(const u32 *addr,
+					     unsigned long flags)
+{
+	return IORESOURCE_MEM;
+}
 
 /*
  * Array of bus specific translators
@@ -120,6 +151,15 @@ static struct of_bus of_busses[] = {
 		.count_cells = of_bus_sbus_count_cells,
 		.map = of_bus_default_map,
 		.get_flags = of_bus_sbus_get_flags,
+	},
+	/* AMBA */
+	{
+		.name = "ambapp",
+		.addr_prop_name = "reg",
+		.match = of_bus_ambapp_match,
+		.count_cells = of_bus_ambapp_count_cells,
+		.map = of_bus_ambapp_map,
+		.get_flags = of_bus_ambapp_get_flags,
 	},
 	/* Default */
 	{
