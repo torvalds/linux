@@ -351,15 +351,13 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
 		return;
 
-	if (wdev->sme_state == CFG80211_SME_CONNECTED)
-		nl80211_send_roamed(wiphy_to_dev(wdev->wiphy), dev,
+	if (WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTING))
+		return;
+
+	nl80211_send_connect_result(wiphy_to_dev(wdev->wiphy), dev,
 				    bssid, req_ie, req_ie_len,
-				    resp_ie, resp_ie_len, GFP_KERNEL);
-	else
-		nl80211_send_connect_result(wiphy_to_dev(wdev->wiphy), dev,
-					    bssid, req_ie, req_ie_len,
-					    resp_ie, resp_ie_len,
-					    status, GFP_KERNEL);
+				    resp_ie, resp_ie_len,
+				    status, GFP_KERNEL);
 
 #ifdef CONFIG_WIRELESS_EXT
 	if (wextev) {
@@ -392,13 +390,6 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		wdev->current_bss = NULL;
 	}
 
-	if (status == WLAN_STATUS_SUCCESS &&
-	    wdev->sme_state == CFG80211_SME_IDLE)
-		goto success;
-
-	if (wdev->sme_state != CFG80211_SME_CONNECTING)
-		return;
-
 	if (wdev->conn)
 		wdev->conn->state = CFG80211_CONN_IDLE;
 
@@ -412,7 +403,6 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		return;
 	}
 
- success:
 	if (!bss)
 		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
 				       wdev->ssid, wdev->ssid_len,
