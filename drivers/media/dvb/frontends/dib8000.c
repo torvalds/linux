@@ -22,7 +22,7 @@
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
@@ -1671,10 +1671,6 @@ static int dib8000_autosearch_start(struct dvb_frontend *fe)
 
 	int slist = 0;
 
-	state->fe.dtv_property_cache.transmission_mode = TRANSMISSION_MODE_8K;
-	state->fe.dtv_property_cache.guard_interval = GUARD_INTERVAL_1_8;
-	//state->fe.dtv_property_cache.isdbt_sb_mode                = 0;
-	//state->fe.dtv_property_cache.isdbt_partial_reception      = 0;
 	state->fe.dtv_property_cache.inversion = 0;
 	if (!state->fe.dtv_property_cache.isdbt_sb_mode)
 		state->fe.dtv_property_cache.layer[0].segment_count = 13;
@@ -1684,6 +1680,8 @@ static int dib8000_autosearch_start(struct dvb_frontend *fe)
 
 	//choose the right list, in sb, always do everything
 	if (state->fe.dtv_property_cache.isdbt_sb_mode) {
+		state->fe.dtv_property_cache.transmission_mode = TRANSMISSION_MODE_8K;
+		state->fe.dtv_property_cache.guard_interval = GUARD_INTERVAL_1_8;
 		slist = 7;
 		dib8000_write_word(state, 0, (dib8000_read_word(state, 0) & 0x9fff) | (1 << 13));
 	} else {
@@ -1691,21 +1689,20 @@ static int dib8000_autosearch_start(struct dvb_frontend *fe)
 			if (state->fe.dtv_property_cache.transmission_mode == TRANSMISSION_MODE_AUTO) {
 				slist = 7;
 				dib8000_write_word(state, 0, (dib8000_read_word(state, 0) & 0x9fff) | (1 << 13));	// P_mode = 1 to have autosearch start ok with mode2
-			} else {
+			} else
 				slist = 3;
-				state->fe.dtv_property_cache.transmission_mode = state->fe.dtv_property_cache.transmission_mode;
-			}
 		} else {
 			if (state->fe.dtv_property_cache.transmission_mode == TRANSMISSION_MODE_AUTO) {
 				slist = 2;
-				state->fe.dtv_property_cache.guard_interval = state->fe.dtv_property_cache.guard_interval;
 				dib8000_write_word(state, 0, (dib8000_read_word(state, 0) & 0x9fff) | (1 << 13));	// P_mode = 1
-			} else {
+			} else
 				slist = 0;
-				state->fe.dtv_property_cache.transmission_mode = state->fe.dtv_property_cache.transmission_mode;
-				state->fe.dtv_property_cache.guard_interval = state->fe.dtv_property_cache.guard_interval;
-			}
 		}
+
+		if (state->fe.dtv_property_cache.transmission_mode == TRANSMISSION_MODE_AUTO)
+			state->fe.dtv_property_cache.transmission_mode = TRANSMISSION_MODE_8K;
+		if (state->fe.dtv_property_cache.guard_interval == GUARD_INTERVAL_AUTO)
+			state->fe.dtv_property_cache.guard_interval = GUARD_INTERVAL_1_8;
 
 		dprintk("using list for autosearch : %d", slist);
 		dib8000_set_channel(state, (unsigned char)slist, 1);
@@ -1733,6 +1730,7 @@ static int dib8000_autosearch_start(struct dvb_frontend *fe)
 		dib8000_write_word(state, 0, (u16) ((1 << 15) | value));
 		dib8000_read_word(state, 1284);	// reset the INT. n_irq_pending
 		dib8000_write_word(state, 0, (u16) value);
+
 	}
 
 	return 0;
