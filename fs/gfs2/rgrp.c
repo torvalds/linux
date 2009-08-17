@@ -1561,7 +1561,9 @@ int gfs2_alloc_di(struct gfs2_inode *dip, u64 *bn, u64 *generation)
 
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
-	gfs2_assert_withdraw(sdp, rgd->rd_free);
+	if (rgd->rd_free == 0)
+		goto rgrp_error;
+
 	rgd->rd_free--;
 	rgd->rd_dinodes++;
 	*generation = rgd->rd_igeneration++;
