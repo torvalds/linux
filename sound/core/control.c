@@ -436,6 +436,10 @@ static int snd_ctl_remove_user_ctl(struct snd_ctl_file * file,
 		ret = -ENOENT;
 		goto error;
 	}
+	if (!(kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_USER)) {
+		ret = -EINVAL;
+		goto error;
+	}
 	for (idx = 0; idx < kctl->count; idx++)
 		if (kctl->vd[idx].owner != NULL && kctl->vd[idx].owner != file) {
 			ret = -EBUSY;
