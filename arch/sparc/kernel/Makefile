@@ -41,6 +41,8 @@ obj-y                   += of_device_common.o
 obj-y                   += of_device_$(BITS).o
 obj-$(CONFIG_SPARC64)   += prom_irqtrans.o
 
+obj-$(CONFIG_SPARC_LEON)+= leon_kernel.o
+
 obj-$(CONFIG_SPARC64)   += reboot.o
 obj-$(CONFIG_SPARC64)   += sysfs.o
 obj-$(CONFIG_SPARC64)   += iommu.o
