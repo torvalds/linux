@@ -17,6 +17,7 @@
 #include "util/header.h"
 #include "util/event.h"
 #include "util/debug.h"
+#include "util/trace-event.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -518,6 +519,9 @@ static int __cmd_record(int argc, const char **argv)
 	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
+
+	if (raw_samples)
+		read_tracing_data();
 
 	if (!stat(output_name, &st) && st.st_size) {
 		if (!force && !append_file) {
