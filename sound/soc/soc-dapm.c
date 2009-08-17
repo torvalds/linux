@@ -55,17 +55,19 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_pre] = 0,
 	[snd_soc_dapm_supply] = 1,
 	[snd_soc_dapm_micbias] = 2,
-	[snd_soc_dapm_mic] = 3,
-	[snd_soc_dapm_mux] = 4,
-	[snd_soc_dapm_value_mux] = 4,
-	[snd_soc_dapm_dac] = 5,
-	[snd_soc_dapm_mixer] = 6,
-	[snd_soc_dapm_mixer_named_ctl] = 6,
-	[snd_soc_dapm_pga] = 7,
-	[snd_soc_dapm_adc] = 8,
-	[snd_soc_dapm_hp] = 9,
-	[snd_soc_dapm_spk] = 9,
-	[snd_soc_dapm_post] = 10,
+	[snd_soc_dapm_aif_in] = 3,
+	[snd_soc_dapm_aif_out] = 3,
+	[snd_soc_dapm_mic] = 4,
+	[snd_soc_dapm_mux] = 5,
+	[snd_soc_dapm_value_mux] = 5,
+	[snd_soc_dapm_dac] = 6,
+	[snd_soc_dapm_mixer] = 7,
+	[snd_soc_dapm_mixer_named_ctl] = 7,
+	[snd_soc_dapm_pga] = 8,
+	[snd_soc_dapm_adc] = 9,
+	[snd_soc_dapm_hp] = 10,
+	[snd_soc_dapm_spk] = 10,
+	[snd_soc_dapm_post] = 11,
 };
 
 static int dapm_down_seq[] = {
@@ -81,8 +83,10 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_micbias] = 8,
 	[snd_soc_dapm_mux] = 9,
 	[snd_soc_dapm_value_mux] = 9,
-	[snd_soc_dapm_supply] = 10,
-	[snd_soc_dapm_post] = 11,
+	[snd_soc_dapm_aif_in] = 10,
+	[snd_soc_dapm_aif_out] = 10,
+	[snd_soc_dapm_supply] = 11,
+	[snd_soc_dapm_post] = 12,
 };
 
 static void pop_wait(u32 pop_time)
@@ -224,6 +228,8 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_micbias:
 	case snd_soc_dapm_vmid:
 	case snd_soc_dapm_supply:
+	case snd_soc_dapm_aif_in:
+	case snd_soc_dapm_aif_out:
 		p->connect = 1;
 	break;
 	/* does effect routing - dynamically connected */
@@ -497,8 +503,14 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 	if (widget->id == snd_soc_dapm_supply)
 		return 0;
 
-	if (widget->id == snd_soc_dapm_adc && widget->active)
-		return 1;
+	switch (widget->id) {
+	case snd_soc_dapm_adc:
+	case snd_soc_dapm_aif_out:
+		if (widget->active)
+			return 1;
+	default:
+		break;
+	}
 
 	if (widget->connected) {
 		/* connected pin ? */
@@ -537,8 +549,14 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 		return 0;
 
 	/* active stream ? */
-	if (widget->id == snd_soc_dapm_dac && widget->active)
-		return 1;
+	switch (widget->id) {
+	case snd_soc_dapm_dac:
+	case snd_soc_dapm_aif_in:
+		if (widget->active)
+			return 1;
+	default:
+		break;
+	}
 
 	if (widget->connected) {
 		/* connected pin ? */
@@ -1052,6 +1070,8 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
 		case snd_soc_dapm_supply:
+		case snd_soc_dapm_aif_in:
+		case snd_soc_dapm_aif_out:
 			if (w->name) {
 				in = is_connected_input_ep(w);
 				dapm_clear_walk(w->codec);
@@ -1342,6 +1362,8 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 	case snd_soc_dapm_pre:
 	case snd_soc_dapm_post:
 	case snd_soc_dapm_supply:
+	case snd_soc_dapm_aif_in:
+	case snd_soc_dapm_aif_out:
 		list_add(&path->list, &codec->dapm_paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
@@ -1444,9 +1466,11 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 			dapm_new_mux(codec, w);
 			break;
 		case snd_soc_dapm_adc:
+		case snd_soc_dapm_aif_out:
 			w->power_check = dapm_adc_check_power;
 			break;
 		case snd_soc_dapm_dac:
+		case snd_soc_dapm_aif_in:
 			w->power_check = dapm_dac_check_power;
 			break;
 		case snd_soc_dapm_pga:
