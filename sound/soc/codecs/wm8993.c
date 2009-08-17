@@ -218,6 +218,8 @@ struct wm8993_priv {
 	struct snd_soc_codec codec;
 	int master;
 	int sysclk_source;
+	int tdm_slots;
+	int tdm_width;
 	unsigned int mclk_rate;
 	unsigned int sysclk_rate;
 	unsigned int fs;
@@ -1107,24 +1109,30 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 	/* What BCLK do we need? */
 	wm8993->fs = params_rate(params);
 	wm8993->bclk = 2 * wm8993->fs;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		wm8993->bclk *= 16;
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		wm8993->bclk *= 20;
-		aif1 |= 0x8;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		wm8993->bclk *= 24;
-		aif1 |= 0x10;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		wm8993->bclk *= 32;
-		aif1 |= 0x18;
-		break;
-	default:
-		return -EINVAL;
+	if (wm8993->tdm_slots) {
+		dev_dbg(codec->dev, "Configuring for %d %d bit TDM slots\n",
+			wm8993->tdm_slots, wm8993->tdm_width);
+		wm8993->bclk *= wm8993->tdm_width * wm8993->tdm_slots;
+	} else {
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			wm8993->bclk *= 16;
+			break;
+		case SNDRV_PCM_FORMAT_S20_3LE:
+			wm8993->bclk *= 20;
+			aif1 |= 0x8;
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			wm8993->bclk *= 24;
+			aif1 |= 0x10;
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			wm8993->bclk *= 32;
+			aif1 |= 0x18;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	dev_dbg(codec->dev, "Target BCLK is %dHz\n", wm8993->bclk);
@@ -1243,12 +1251,67 @@ static int wm8993_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
+static int wm8993_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			       unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8993_priv *wm8993 = codec->private_data;
+	int aif1 = 0;
+	int aif2 = 0;
+
+	/* Don't need to validate anything if we're turning off TDM */
+	if (slots == 0) {
+		wm8993->tdm_slots = 0;
+		goto out;
+	}
+
+	/* Note that we allow configurations we can't handle ourselves - 
+	 * for example, we can generate clocks for slots 2 and up even if
+	 * we can't use those slots ourselves.
+	 */
+	aif1 |= WM8993_AIFADC_TDM;
+	aif2 |= WM8993_AIFDAC_TDM;
+
+	switch (rx_mask) {
+	case 3:
+		break;
+	case 0xc:
+		aif1 |= WM8993_AIFADC_TDM_CHAN;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+
+	switch (tx_mask) {
+	case 3:
+		break;
+	case 0xc:
+		aif2 |= WM8993_AIFDAC_TDM_CHAN;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+out:
+	wm8993->tdm_width = slot_width;
+	wm8993->tdm_slots = slots / 2;
+
+	snd_soc_update_bits(codec, WM8993_AUDIO_INTERFACE_1,
+			    WM8993_AIFADC_TDM | WM8993_AIFADC_TDM_CHAN, aif1);
+	snd_soc_update_bits(codec, WM8993_AUDIO_INTERFACE_2,
+			    WM8993_AIFDAC_TDM | WM8993_AIFDAC_TDM_CHAN, aif2);
+
+	return 0;
+}
+
 static struct snd_soc_dai_ops wm8993_ops = {
 	.set_sysclk = wm8993_set_sysclk,
 	.set_fmt = wm8993_set_dai_fmt,
 	.hw_params = wm8993_hw_params,
 	.digital_mute = wm8993_digital_mute,
 	.set_pll = wm8993_set_fll,
+	.set_tdm_slot = wm8993_set_tdm_slot,
 };
 
 #define WM8993_RATES SNDRV_PCM_RATE_8000_48000
