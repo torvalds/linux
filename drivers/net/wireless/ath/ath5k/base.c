@@ -229,10 +229,12 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 static void ath5k_remove_interface(struct ieee80211_hw *hw,
 		struct ieee80211_if_init_conf *conf);
 static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
+static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
+				   int mc_count, struct dev_addr_list *mc_list);
 static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		unsigned int changed_flags,
 		unsigned int *new_flags,
-		int mc_count, struct dev_mc_list *mclist);
+		u64 multicast);
 static int ath5k_set_key(struct ieee80211_hw *hw,
 		enum set_key_cmd cmd,
 		struct ieee80211_vif *vif, struct ieee80211_sta *sta,
@@ -260,6 +262,7 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.add_interface 	= ath5k_add_interface,
 	.remove_interface = ath5k_remove_interface,
 	.config 	= ath5k_config,
+	.prepare_multicast = ath5k_prepare_multicast,
 	.configure_filter = ath5k_configure_filter,
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
@@ -2853,6 +2856,37 @@ unlock:
 	return ret;
 }
 
+static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
+				   int mc_count, struct dev_addr_list *mclist)
+{
+	u32 mfilt[2], val;
+	int i;
+	u8 pos;
+
+	mfilt[0] = 0;
+	mfilt[1] = 1;
+
+	for (i = 0; i < mc_count; i++) {
+		if (!mclist)
+			break;
+		/* calculate XOR of eight 6-bit values */
+		val = get_unaligned_le32(mclist->dmi_addr + 0);
+		pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
+		val = get_unaligned_le32(mclist->dmi_addr + 3);
+		pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
+		pos &= 0x3f;
+		mfilt[pos / 32] |= (1 << (pos % 32));
+		/* XXX: we might be able to just do this instead,
+		* but not sure, needs testing, if we do use this we'd
+		* neet to inform below to not reset the mcast */
+		/* ath5k_hw_set_mcast_filterindex(ah,
+		 *      mclist->dmi_addr[5]); */
+		mclist = mclist->next;
+	}
+
+	return ((u64)(mfilt[1]) << 32) | mfilt[0];
+}
+
 #define SUPPORTED_FIF_FLAGS \
 	FIF_PROMISC_IN_BSS |  FIF_ALLMULTI | FIF_FCSFAIL | \
 	FIF_PLCPFAIL | FIF_CONTROL | FIF_OTHER_BSS | \
@@ -2878,16 +2912,14 @@ unlock:
 static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		unsigned int changed_flags,
 		unsigned int *new_flags,
-		int mc_count, struct dev_mc_list *mclist)
+		u64 multicast)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
-	u32 mfilt[2], val, rfilt;
-	u8 pos;
-	int i;
+	u32 mfilt[2], rfilt;
 
-	mfilt[0] = 0;
-	mfilt[1] = 0;
+	mfilt[0] = multicast;
+	mfilt[1] = multicast >> 32;
 
 	/* Only deal with supported flags */
 	changed_flags &= SUPPORTED_FIF_FLAGS;
@@ -2913,24 +2945,6 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 	if (*new_flags & FIF_ALLMULTI) {
 		mfilt[0] =  ~0;
 		mfilt[1] =  ~0;
-	} else {
-		for (i = 0; i < mc_count; i++) {
-			if (!mclist)
-				break;
-			/* calculate XOR of eight 6-bit values */
-			val = get_unaligned_le32(mclist->dmi_addr + 0);
-			pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
-			val = get_unaligned_le32(mclist->dmi_addr + 3);
-			pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
-			pos &= 0x3f;
-			mfilt[pos / 32] |= (1 << (pos % 32));
-			/* XXX: we might be able to just do this instead,
-			* but not sure, needs testing, if we do use this we'd
-			* neet to inform below to not reset the mcast */
-			/* ath5k_hw_set_mcast_filterindex(ah,
-			 *      mclist->dmi_addr[5]); */
-			mclist = mclist->next;
-		}
 	}
 
 	/* This is the best we can do */

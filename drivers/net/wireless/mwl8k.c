@@ -3251,31 +3251,50 @@ mwl8k_configure_filter_exit:
 	return rc;
 }
 
+static u64 mwl8k_prepare_multicast(struct ieee80211_hw *hw,
+				   int mc_count, struct dev_addr_list *mclist)
+{
+	struct mwl8k_configure_filter_worker *worker;
+
+	worker = kzalloc(sizeof(*worker), GFP_ATOMIC);
+
+	if (!worker)
+		return 0;
+
+	/*
+	 * XXX: This is _HORRIBLY_ broken!!
+	 *
+	 *	No locking, the mclist pointer might be invalid as soon as this
+	 *	function returns, something in the list might be invalidated
+	 *	once we get to the worker, etc...
+	 */
+	worker->mc_count = mc_count;
+	worker->mclist = mclist;
+
+	return (u64)worker;
+}
+
 static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 				   unsigned int changed_flags,
 				   unsigned int *total_flags,
-				   int mc_count,
-				   struct dev_addr_list *mclist)
+				   u64 multicast)
 {
 
-	struct mwl8k_configure_filter_worker *worker;
+	struct mwl8k_configure_filter_worker *worker = (void *)multicast;
 	struct mwl8k_priv *priv = hw->priv;
 
 	/* Clear unsupported feature flags */
 	*total_flags &= MWL8K_SUPPORTED_IF_FLAGS;
 
-	if (!(changed_flags & MWL8K_SUPPORTED_IF_FLAGS) && !mc_count)
+	if (!(changed_flags & MWL8K_SUPPORTED_IF_FLAGS))
 		return;
 
-	worker = kzalloc(sizeof(*worker), GFP_ATOMIC);
 	if (worker == NULL)
 		return;
 
 	worker->header.options = MWL8K_WQ_QUEUE_ONLY | MWL8K_WQ_TX_WAIT_EMPTY;
 	worker->changed_flags = changed_flags;
 	worker->total_flags = total_flags;
-	worker->mc_count = mc_count;
-	worker->mclist = mclist;
 
 	mwl8k_queue_work(hw, &worker->header, priv->config_wq,
 			 mwl8k_configure_filter_wt);
@@ -3441,6 +3460,7 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.remove_interface	= mwl8k_remove_interface,
 	.config			= mwl8k_config,
 	.bss_info_changed	= mwl8k_bss_info_changed,
+	.prepare_multicast	= mwl8k_prepare_multicast,
 	.configure_filter	= mwl8k_configure_filter,
 	.set_rts_threshold	= mwl8k_set_rts_threshold,
 	.conf_tx		= mwl8k_conf_tx,

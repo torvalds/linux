@@ -978,7 +978,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
-				int mc_count, struct dev_addr_list *mc_list);
+				u64 multicast);
 int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		      bool set);
 #ifdef CONFIG_RT2X00_LIB_CRYPTO

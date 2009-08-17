@@ -2836,9 +2836,7 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 
 static void b43legacy_op_configure_filter(struct ieee80211_hw *hw,
 					  unsigned int changed,
-					  unsigned int *fflags,
-					  int mc_count,
-					  struct dev_addr_list *mc_list)
+					  unsigned int *fflags,u64 multicast)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;

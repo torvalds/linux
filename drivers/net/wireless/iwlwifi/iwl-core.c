@@ -1514,7 +1514,7 @@ EXPORT_SYMBOL(iwl_irq_handle_error);
 void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags,
-			  int mc_count, struct dev_addr_list *mc_list)
+			  u64 multicast)
 {
 	struct iwl_priv *priv = hw->priv;
 	__le32 *filter_flags = &priv->staging_rxon.filter_flags;

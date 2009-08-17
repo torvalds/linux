@@ -582,9 +582,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 					    unsigned int changed_flags,
-					    unsigned int *total_flags,
-					    int mc_count,
-					    struct dev_addr_list *mc_list)
+					    unsigned int *total_flags,u64 multicast)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 

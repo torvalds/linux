@@ -636,6 +636,9 @@ struct ieee80211_local {
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
 
+	/* used for uploading changed mc list */
+	struct work_struct reconfig_filter;
+
 	/* aggregated multicast list */
 	struct dev_addr_list *mc_list;
 	int mc_count;

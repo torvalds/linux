@@ -2100,10 +2100,29 @@ unlock:
 	mutex_unlock(&ar->mutex);
 }
 
+static u64 ar9170_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
+				       struct dev_addr_list *mclist)
+{
+	u64 mchash;
+	int i;
+
+	/* always get broadcast frames */
+	mchash = 1ULL << (0xff >> 2);
+
+	for (i = 0; i < mc_count; i++) {
+		if (WARN_ON(!mclist))
+			break;
+		mchash |= 1ULL << (mclist->dmi_addr[5] >> 2);
+		mclist = mclist->next;
+	}
+
+	return mchash;
+}
+
 static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed_flags,
 				       unsigned int *new_flags,
-				       int mc_count, struct dev_mc_list *mclist)
+				       u64 multicast)
 {
 	struct ar9170 *ar = hw->priv;
 
@@ -2116,24 +2135,11 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 	 * then checking the error flags, later.
 	 */
 
-	if (changed_flags & FIF_ALLMULTI) {
-		if (*new_flags & FIF_ALLMULTI) {
-			ar->want_mc_hash = ~0ULL;
-		} else {
-			u64 mchash;
-			int i;
+	if (changed_flags & FIF_ALLMULTI && *new_flags & FIF_ALLMULTI)
+			multicast = ~0ULL;
 
-			/* always get broadcast frames */
-			mchash = 1ULL << (0xff >> 2);
-
-			for (i = 0; i < mc_count; i++) {
-				if (WARN_ON(!mclist))
-					break;
-				mchash |= 1ULL << (mclist->dmi_addr[5] >> 2);
-				mclist = mclist->next;
-			}
-		ar->want_mc_hash = mchash;
-		}
+	if (multicast != ar->want_mc_hash) {
+		ar->want_mc_hash = multicast;
 		set_bit(AR9170_FILTER_CHANGED_MULTICAST, &ar->filter_changed);
 	}
 
@@ -2543,6 +2549,7 @@ static const struct ieee80211_ops ar9170_ops = {
 	.add_interface		= ar9170_op_add_interface,
 	.remove_interface	= ar9170_op_remove_interface,
 	.config			= ar9170_op_config,
+	.prepare_multicast	= ar9170_op_prepare_multicast,
 	.configure_filter	= ar9170_op_configure_filter,
 	.conf_tx		= ar9170_conf_tx,
 	.bss_info_changed	= ar9170_op_bss_info_changed,

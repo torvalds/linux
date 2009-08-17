@@ -379,7 +379,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_config);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
-				int mc_count, struct dev_addr_list *mc_list)
+				u64 multicast)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 

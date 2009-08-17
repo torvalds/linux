@@ -728,10 +728,16 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	        priv->rf->conf_erp(dev, info);
 }
 
+static u64 rtl8180_prepare_multicast(struct ieee80211_hw *dev, int mc_count,
+				     struct dev_addr_list *mc_list)
+{
+	return mc_count;
+}
+
 static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 				     unsigned int changed_flags,
 				     unsigned int *total_flags,
-				     int mc_count, struct dev_addr_list *mclist)
+				     u64 multicast)
 {
 	struct rtl8180_priv *priv = dev->priv;
 
@@ -741,7 +747,7 @@ static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 		priv->rx_conf ^= RTL818X_RX_CONF_CTRL;
 	if (changed_flags & FIF_OTHER_BSS)
 		priv->rx_conf ^= RTL818X_RX_CONF_MONITOR;
-	if (*total_flags & FIF_ALLMULTI || mc_count > 0)
+	if (*total_flags & FIF_ALLMULTI || multicast > 0)
 		priv->rx_conf |= RTL818X_RX_CONF_MULTICAST;
 	else
 		priv->rx_conf &= ~RTL818X_RX_CONF_MULTICAST;
@@ -768,6 +774,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.remove_interface	= rtl8180_remove_interface,
 	.config			= rtl8180_config,
 	.bss_info_changed	= rtl8180_bss_info_changed,
+	.prepare_multicast	= rtl8180_prepare_multicast,
 	.configure_filter	= rtl8180_configure_filter,
 };
 

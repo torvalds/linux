@@ -302,7 +302,7 @@ out:
 static void p54_configure_filter(struct ieee80211_hw *dev,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
-				 int mc_count, struct dev_mc_list *mclist)
+				 u64 multicast)
 {
 	struct p54_common *priv = dev->priv;
 

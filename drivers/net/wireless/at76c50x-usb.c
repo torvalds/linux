@@ -1997,15 +1997,14 @@ static void at76_bss_info_changed(struct ieee80211_hw *hw,
 /* must be atomic */
 static void at76_configure_filter(struct ieee80211_hw *hw,
 				  unsigned int changed_flags,
-				  unsigned int *total_flags, int mc_count,
-				  struct dev_addr_list *mc_list)
+				  unsigned int *total_flags, u64 multicast)
 {
 	struct at76_priv *priv = hw->priv;
 	int flags;
 
 	at76_dbg(DBG_MAC80211, "%s(): changed_flags=0x%08x "
-		 "total_flags=0x%08x mc_count=%d",
-		 __func__, changed_flags, *total_flags, mc_count);
+		 "total_flags=0x%08x",
+		 __func__, changed_flags, *total_flags);
 
 	flags = changed_flags & AT76_SUPPORTED_FILTERS;
 	*total_flags = AT76_SUPPORTED_FILTERS;
