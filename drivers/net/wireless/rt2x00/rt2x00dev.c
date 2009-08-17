@@ -220,7 +220,8 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	u8 rate_idx, rate_flags;
+	u8 rate_idx, rate_flags, retry_rates;
+	unsigned int i;
 
 	/*
 	 * Unmap the skb.
@@ -259,16 +260,27 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 
 	rate_idx = skbdesc->tx_rate_idx;
 	rate_flags = skbdesc->tx_rate_flags;
+	retry_rates = test_bit(TXDONE_FALLBACK, &txdesc->flags) ?
+	    (txdesc->retry + 1) : 1;
 
 	/*
 	 * Initialize TX status
 	 */
 	memset(&tx_info->status, 0, sizeof(tx_info->status));
 	tx_info->status.ack_signal = 0;
-	tx_info->status.rates[0].idx = rate_idx;
-	tx_info->status.rates[0].flags = rate_flags;
-	tx_info->status.rates[0].count = txdesc->retry + 1;
-	tx_info->status.rates[1].idx = -1; /* terminate */
+
+	/*
+	 * Frame was send with retries, hardware tried
+	 * different rates to send out the frame, at each
+	 * retry it lowered the rate 1 step.
+	 */
+	for (i = 0; i < retry_rates && i < IEEE80211_TX_MAX_RATES; i++) {
+		tx_info->status.rates[i].idx = rate_idx - i;
+		tx_info->status.rates[i].flags = rate_flags;
+		tx_info->status.rates[i].count = 1;
+	}
+	if (i < (IEEE80211_TX_MAX_RATES -1))
+		tx_info->status.rates[i].idx = -1; /* terminate */
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		if (test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
