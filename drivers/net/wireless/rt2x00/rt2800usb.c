@@ -1520,7 +1520,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00usb_register_read(rt2x00dev, LG_FBK_CFG0, &reg);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS0FBK, 8);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS1FBK, 8);
-	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS2FBK, 3);
+	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS2FBK, 9);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS3FBK, 10);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS4FBK, 11);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS5FBK, 12);
