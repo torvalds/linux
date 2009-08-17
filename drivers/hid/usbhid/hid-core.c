@@ -489,7 +489,8 @@ static void hid_ctrl(struct urb *urb)
 	wake_up(&usbhid->wait);
 }
 
-void __usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
+static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *report,
+				   unsigned char dir)
 {
 	int head;
 	struct usbhid_device *usbhid = hid->driver_data;
