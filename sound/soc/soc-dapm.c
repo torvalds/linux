@@ -64,15 +64,15 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_pga] = 7,
 	[snd_soc_dapm_adc] = 8,
 	[snd_soc_dapm_hp] = 9,
-	[snd_soc_dapm_spk] = 10,
-	[snd_soc_dapm_post] = 11,
+	[snd_soc_dapm_spk] = 9,
+	[snd_soc_dapm_post] = 10,
 };
 
 static int dapm_down_seq[] = {
 	[snd_soc_dapm_pre] = 0,
 	[snd_soc_dapm_adc] = 1,
 	[snd_soc_dapm_hp] = 2,
-	[snd_soc_dapm_spk] = 3,
+	[snd_soc_dapm_spk] = 2,
 	[snd_soc_dapm_pga] = 4,
 	[snd_soc_dapm_mixer_named_ctl] = 5,
 	[snd_soc_dapm_mixer] = 5,
