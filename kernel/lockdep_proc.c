@@ -25,38 +25,12 @@
 
 static void *l_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct lock_class *class;
-
-	(*pos)++;
-
-	if (v == SEQ_START_TOKEN)
-		class = m->private;
-	else {
-		class = v;
-
-		if (class->lock_entry.next != &all_lock_classes)
-			class = list_entry(class->lock_entry.next,
-					   struct lock_class, lock_entry);
-		else
-			class = NULL;
-	}
-
-	return class;
+	return seq_list_next(v, &all_lock_classes, pos);
 }
 
 static void *l_start(struct seq_file *m, loff_t *pos)
 {
-	struct lock_class *class;
-	loff_t i = 0;
-
-	if (*pos == 0)
-		return SEQ_START_TOKEN;
-
-	list_for_each_entry(class, &all_lock_classes, lock_entry) {
-		if (++i == *pos)
-		return class;
-	}
-	return NULL;
+	return seq_list_start_head(&all_lock_classes, *pos);
 }
 
 static void l_stop(struct seq_file *m, void *v)
@@ -82,11 +56,11 @@ static void print_name(struct seq_file *m, struct lock_class *class)
 
 static int l_show(struct seq_file *m, void *v)
 {
-	struct lock_class *class = v;
+	struct lock_class *class = list_entry(v, struct lock_class, lock_entry);
 	struct lock_list *entry;
 	char usage[LOCK_USAGE_CHARS];
 
-	if (v == SEQ_START_TOKEN) {
+	if (v == &all_lock_classes) {
 		seq_printf(m, "all lock classes:\n");
 		return 0;
 	}
@@ -128,17 +102,7 @@ static const struct seq_operations lockdep_ops = {
 
 static int lockdep_open(struct inode *inode, struct file *file)
 {
-	int res = seq_open(file, &lockdep_ops);
-	if (!res) {
-		struct seq_file *m = file->private_data;
-
-		if (!list_empty(&all_lock_classes))
-			m->private = list_entry(all_lock_classes.next,
-					struct lock_class, lock_entry);
-		else
-			m->private = NULL;
-	}
-	return res;
+	return seq_open(file, &lockdep_ops);
 }
 
 static const struct file_operations proc_lockdep_operations = {
