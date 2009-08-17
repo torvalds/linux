@@ -860,7 +860,10 @@ static int qt2_chars_in_buffer(struct tty_struct *tty)
 	return chars;
 }
 
-
+/* called when userspace does an ioctl() on the device. Note that
+ * TIOCMGET and TIOCMSET are filtered off to their own methods before they get
+ * here, so we don't have to handle them.
+ */
 static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -887,22 +890,12 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 	dbg("%s(): port %d, UartNumber %d, tty =0x%p", __func__,
 	    port->number, UartNumber, tty);
 
-	if (cmd == TIOCMGET) {
-		return qt2_tiocmget(tty, file);
-		/* same as tiocmget function */
-	} else if (cmd == TIOCMSET) {
-		if (copy_from_user(&value, (unsigned int *)arg,
-			sizeof(unsigned int)))
-			return -EFAULT;
-		return qt2_tiocmset(tty, file, value, 0);
-		/* same as tiocmset function */
-	} else if (cmd == TIOCMBIS || cmd == TIOCMBIC) {
-		status = qt2_box_get_register(port->serial, UartNumber,
-				QT2_MODEM_CONTROL_REGISTER, &mcr_value);
-		if (status < 0)
+	if (cmd == TIOCMBIS || cmd == TIOCMBIC) {
+		if (qt2_box_get_register(port->serial, UartNumber,
+			QT2_MODEM_CONTROL_REGISTER, &mcr_value) < 0)
 			return -ESPIPE;
 		if (copy_from_user(&value, (unsigned int *)arg,
-			sizeof(unsigned int)))
+			sizeof(value)))
 			return -EFAULT;
 
 		switch (cmd) {
@@ -925,9 +918,8 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 		default:
 		break;
 		}	/* end of local switch on cmd */
-		status = qt2_box_set_register(port->serial,  UartNumber,
-				QT2_MODEM_CONTROL_REGISTER, mcr_value);
-		if (status < 0) {
+		if (qt2_box_set_register(port->serial,  UartNumber,
+		    QT2_MODEM_CONTROL_REGISTER, mcr_value) < 0) {
 			return -ESPIPE;
 		} else {
 			port_extra->shadowMCR = mcr_value;
@@ -965,6 +957,10 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 				return 0;
 			}
 		} /* end inifinite while */
+		/* FIXME: This while loop needs a way to break out if the device
+		 * is disconnected while a process is waiting for the MSR to
+		 * change, because once it's disconnected, it isn't going to
+		 * change state ... */
 	} else {
 		/* any other ioctls we don't know about come here */
 		dbg("%s(): No ioctl for that one. port = %d", __func__,
