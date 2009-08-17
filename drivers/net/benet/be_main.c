@@ -1655,12 +1655,12 @@ do_none:
 
 static int be_clear(struct be_adapter *adapter)
 {
+	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle);
 
-	be_mcc_queues_destroy(adapter);
 	return 0;
 }
 
