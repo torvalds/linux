@@ -921,7 +921,7 @@ ssize_t pohmelfs_write(struct file *file, const char __user *buf,
 	if (ret)
 		goto err_out_unlock;
 
-	ret = generic_file_aio_write_nolock(&kiocb, &iov, 1, pos);
+	ret = __generic_file_aio_write(&kiocb, &iov, 1, &kiocb.ki_pos);
 	*ppos = kiocb.ki_pos;
 
 	mutex_unlock(&inode->i_mutex);
