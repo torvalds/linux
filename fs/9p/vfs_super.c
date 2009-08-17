@@ -81,7 +81,7 @@ static int v9fs_set_super(struct super_block *s, void *data)
 
 static void
 v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
-		int flags)
+		int flags, void *data)
 {
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize_bits = fls(v9ses->maxdata - 1);
@@ -91,6 +91,8 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 
 	sb->s_flags = flags | MS_ACTIVE | MS_SYNCHRONOUS | MS_DIRSYNC |
 	    MS_NOATIME;
+
+	save_mount_options(sb, data);
 }
 
 /**
@@ -139,7 +141,7 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		retval = PTR_ERR(sb);
 		goto free_stat;
 	}
-	v9fs_fill_super(sb, v9ses, flags);
+	v9fs_fill_super(sb, v9ses, flags, data);
 
 	inode = v9fs_get_inode(sb, S_IFDIR | mode);
 	if (IS_ERR(inode)) {
@@ -208,21 +210,6 @@ static void v9fs_kill_super(struct super_block *s)
 	P9_DPRINTK(P9_DEBUG_VFS, "exiting kill_super\n");
 }
 
-/**
- * v9fs_show_options - Show mount options in /proc/mounts
- * @m: seq_file to write to
- * @mnt: mount descriptor
- *
- */
-
-static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
-{
-	struct v9fs_session_info *v9ses = mnt->mnt_sb->s_fs_info;
-	if (v9ses->options != NULL)
-		seq_printf(m, ",%s", v9ses->options);
-	return 0;
-}
-
 static void
 v9fs_umount_begin(struct super_block *sb)
 {
@@ -235,7 +222,7 @@ v9fs_umount_begin(struct super_block *sb)
 static const struct super_operations v9fs_super_ops = {
 	.statfs = simple_statfs,
 	.clear_inode = v9fs_clear_inode,
-	.show_options = v9fs_show_options,
+	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
 };
 
