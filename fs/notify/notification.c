@@ -171,9 +171,7 @@ int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_even
 	struct list_head *list = &group->notification_list;
 	struct fsnotify_event_holder *last_holder;
 	struct fsnotify_event *last_event;
-
-	/* easy to tell if priv was attached to the event */
-	INIT_LIST_HEAD(&priv->event_list);
+	int ret = 0;
 
 	/*
 	 * There is one fsnotify_event_holder embedded inside each fsnotify_event.
@@ -194,6 +192,7 @@ alloc_holder:
 
 	if (group->q_len >= group->max_events) {
 		event = &q_overflow_event;
+		ret = -EOVERFLOW;
 		/* sorry, no private data on the overflow event */
 		priv = NULL;
 	}
@@ -235,7 +234,7 @@ alloc_holder:
 	mutex_unlock(&group->notification_mutex);
 
 	wake_up(&group->notification_waitq);
-	return 0;
+	return ret;
 }
 
 /*
