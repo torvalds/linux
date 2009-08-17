@@ -36,6 +36,9 @@
  * RF2750 2.4G/5G 1T2R
  * RF3020 2.4G 1T1R
  * RF2020 2.4G B/G
+ * RF3021 2.4G 1T2R
+ * RF3022 2.4G 2T2R
+ * RF3052 2.4G 2T2R
  */
 #define RF2820				0x0001
 #define RF2850				0x0002
@@ -43,6 +46,9 @@
 #define RF2750				0x0004
 #define RF3020				0x0005
 #define RF2020				0x0006
+#define RF3021				0x0007
+#define RF3022				0x0008
+#define RF3052				0x0009
 
 /*
  * RT2870 version
