@@ -520,9 +520,6 @@ static int __cmd_record(int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 
-	if (raw_samples)
-		read_tracing_data();
-
 	if (!stat(output_name, &st) && st.st_size) {
 		if (!force && !append_file) {
 			fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
@@ -550,6 +547,17 @@ static int __cmd_record(int argc, const char **argv)
 	else
 		header = perf_header__new();
 
+
+	if (raw_samples) {
+		read_tracing_data();
+	} else {
+		for (i = 0; i < nr_counters; i++) {
+			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
+				read_tracing_data();
+				break;
+			}
+		}
+	}
 	atexit(atexit_header);
 
 	if (!system_wide) {
