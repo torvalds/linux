@@ -3500,6 +3500,9 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 	if (!kvm_x86_ops->update_cr8_intercept)
 		return;
 
+	if (!vcpu->arch.apic)
+		return;
+
 	if (!vcpu->arch.apic->vapic_addr)
 		max_irr = kvm_lapic_find_highest_irr(vcpu);
 	else
