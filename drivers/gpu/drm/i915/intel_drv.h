@@ -119,6 +119,9 @@ struct intel_crtc {
 	struct intel_framebuffer *fbdev_fb;
 	/* a mode_set for fbdev users on this crtc */
 	struct drm_mode_set mode_set;
+	bool busy; /* is scanout buffer being updated frequently? */
+	struct timer_list idle_timer;
+	bool lowfreq_avail;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -137,6 +140,7 @@ extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
+extern void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj);
 extern void intel_lvds_init(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void

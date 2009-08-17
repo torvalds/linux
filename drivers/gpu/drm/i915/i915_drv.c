@@ -43,6 +43,9 @@ module_param_named(modeset, i915_modeset, int, 0400);
 unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
+unsigned int i915_powersave = 1;
+module_param_named(powersave, i915_powersave, int, 0400);
+
 static struct drm_driver driver;
 
 static struct pci_device_id pciidlist[] = {

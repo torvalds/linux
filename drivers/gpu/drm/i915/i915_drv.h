@@ -311,7 +311,7 @@ typedef struct drm_i915_private {
 	u32 saveIMR;
 	u32 saveCACHE_MODE_0;
 	u32 saveD_STATE;
-	u32 saveCG_2D_DIS;
+	u32 saveDSPCLK_GATE_D;
 	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
@@ -443,6 +443,14 @@ typedef struct drm_i915_private {
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
 	struct sdvo_device_mapping sdvo_mappings[2];
+
+	/* Reclocking support */
+	bool render_reclock_avail;
+	bool lvds_downclock_avail;
+	struct work_struct idle_work;
+	struct timer_list idle_timer;
+	bool busy;
+	u16 orig_clock;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
@@ -575,6 +583,7 @@ enum intel_chip_family {
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
+extern unsigned int i915_powersave;
 
 extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
 extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
@@ -902,6 +911,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IGDNG(dev))
+
+#define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IGDNG(dev))
+#define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IGDNG(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 
