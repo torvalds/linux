@@ -16,6 +16,7 @@
 #include <linux/kdev_t.h>
 #include <linux/err.h>
 
+#include "drm_sysfs.h"
 #include "drm_core.h"
 #include "drmP.h"
 
@@ -515,3 +516,27 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 {
 	device_unregister(&minor->kdev);
 }
+
+
+/**
+ * drm_class_device_register - Register a struct device in the drm class.
+ *
+ * @dev: pointer to struct device to register.
+ *
+ * @dev should have all relevant members pre-filled with the exception
+ * of the class member. In particular, the device_type member must
+ * be set.
+ */
+
+int drm_class_device_register(struct device *dev)
+{
+	dev->class = drm_class;
+	return device_register(dev);
+}
+EXPORT_SYMBOL_GPL(drm_class_device_register);
+
+void drm_class_device_unregister(struct device *dev)
+{
+	return device_unregister(dev);
+}
+EXPORT_SYMBOL_GPL(drm_class_device_unregister);
