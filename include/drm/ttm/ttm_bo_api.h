@@ -155,6 +155,7 @@ struct ttm_buffer_object {
 	 * Members constant at init.
 	 */
 
+	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
 	unsigned long buffer_start;
 	enum ttm_bo_type type;

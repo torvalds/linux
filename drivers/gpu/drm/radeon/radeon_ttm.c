@@ -77,9 +77,25 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 	global_ref->release = &radeon_ttm_mem_global_release;
 	r = ttm_global_item_ref(global_ref);
 	if (r != 0) {
-		DRM_ERROR("Failed referencing a global TTM memory object.\n");
+		DRM_ERROR("Failed setting up TTM memory accounting "
+			  "subsystem.\n");
 		return r;
 	}
+
+	rdev->mman.bo_global_ref.mem_glob =
+		rdev->mman.mem_global_ref.object;
+	global_ref = &rdev->mman.bo_global_ref.ref;
+	global_ref->global_type = TTM_GLOBAL_TTM_BO;
+	global_ref->size = sizeof(struct ttm_mem_global);
+	global_ref->init = &ttm_bo_global_init;
+	global_ref->release = &ttm_bo_global_release;
+	r = ttm_global_item_ref(global_ref);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
+		ttm_global_item_unref(&rdev->mman.mem_global_ref);
+		return r;
+	}
+
 	rdev->mman.mem_global_referenced = true;
 	return 0;
 }
@@ -87,6 +103,7 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 static void radeon_ttm_global_fini(struct radeon_device *rdev)
 {
 	if (rdev->mman.mem_global_referenced) {
+		ttm_global_item_unref(&rdev->mman.bo_global_ref.ref);
 		ttm_global_item_unref(&rdev->mman.mem_global_ref);
 		rdev->mman.mem_global_referenced = false;
 	}
@@ -286,9 +303,11 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	r = ttm_bo_move_ttm(bo, true, no_wait, new_mem);
 out_cleanup:
 	if (tmp_mem.mm_node) {
-		spin_lock(&rdev->mman.bdev.lru_lock);
+		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
+
+		spin_lock(&glob->lru_lock);
 		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&rdev->mman.bdev.lru_lock);
+		spin_unlock(&glob->lru_lock);
 		return r;
 	}
 	return r;
@@ -323,9 +342,11 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 	}
 out_cleanup:
 	if (tmp_mem.mm_node) {
-		spin_lock(&rdev->mman.bdev.lru_lock);
+		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
+
+		spin_lock(&glob->lru_lock);
 		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&rdev->mman.bdev.lru_lock);
+		spin_unlock(&glob->lru_lock);
 		return r;
 	}
 	return r;
@@ -441,7 +462,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	}
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&rdev->mman.bdev,
-			       rdev->mman.mem_global_ref.object,
+			       rdev->mman.bo_global_ref.ref.object,
 			       &radeon_bo_driver, DRM_FILE_PAGE_OFFSET);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
