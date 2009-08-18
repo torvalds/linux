@@ -7,6 +7,8 @@ industrialio-y := industrialio-core.o
 industrialio-$(CONFIG_IIO_RING_BUFFER) += industrialio-ring.o
 industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 
+obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
+
 obj-y += accel/
 obj-y += adc/
 obj-y += light/

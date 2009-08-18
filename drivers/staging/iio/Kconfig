@@ -17,6 +17,18 @@ config IIO_RING_BUFFER
 	  Provide core support for various ring buffer based data
 	  acquisition methods.
 
+if IIO_RING_BUFFER
+
+config IIO_SW_RING
+	tristate "Industrial I/O lock free software ring"
+	help
+	example software ring buffer implementation.  The design aim
+	of this particular realization was to minize write locking
+	with the intention that some devices would be able to write
+	in interrupt context.
+
+endif # IIO_RINGBUFFER
+
 config IIO_TRIGGER
 	boolean "Enable triggered sampling support"
 	help
