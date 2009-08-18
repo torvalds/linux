@@ -2550,12 +2550,19 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	if (ext4_blocks_count(es) >
-		    (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
+	/*
+	 * Test whether we have more sectors than will fit in sector_t,
+	 * and whether the max offset is addressable by the page cache.
+	 */
+	if ((ext4_blocks_count(es) >
+	     (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) ||
+	    (ext4_blocks_count(es) >
+	     (pgoff_t)(~0ULL) >> (PAGE_CACHE_SHIFT - sb->s_blocksize_bits))) {
 		ext4_msg(sb, KERN_ERR, "filesystem"
-			" too large to mount safely");
+			 " too large to mount safely on this system");
 		if (sizeof(sector_t) < 8)
 			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
+		ret = -EFBIG;
 		goto failed_mount;
 	}
 
