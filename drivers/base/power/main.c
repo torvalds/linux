@@ -21,6 +21,7 @@
 #include <linux/kallsyms.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/resume-trace.h>
 #include <linux/rwsem.h>
 #include <linux/interrupt.h>
@@ -47,6 +48,16 @@ static DEFINE_MUTEX(dpm_list_mtx);
  * before starting to resume devices.  Protected by dpm_list_mtx.
  */
 static bool transition_started;
+
+/**
+ * device_pm_init - Initialize the PM-related part of a device object
+ * @dev: Device object being initialized.
+ */
+void device_pm_init(struct device *dev)
+{
+	dev->power.status = DPM_ON;
+	pm_runtime_init(dev);
+}
 
 /**
  *	device_pm_lock - lock the list of active devices used by the PM core
@@ -105,6 +116,7 @@ void device_pm_remove(struct device *dev)
 	mutex_lock(&dpm_list_mtx);
 	list_del_init(&dev->power.entry);
 	mutex_unlock(&dpm_list_mtx);
+	pm_runtime_remove(dev);
 }
 
 /**
@@ -512,6 +524,7 @@ static void dpm_complete(pm_message_t state)
 			mutex_unlock(&dpm_list_mtx);
 
 			device_complete(dev, state);
+			pm_runtime_put_noidle(dev);
 
 			mutex_lock(&dpm_list_mtx);
 		}
@@ -757,7 +770,14 @@ static int dpm_prepare(pm_message_t state)
 		dev->power.status = DPM_PREPARING;
 		mutex_unlock(&dpm_list_mtx);
 
-		error = device_prepare(dev, state);
+		pm_runtime_get_noresume(dev);
+		if (pm_runtime_barrier(dev) && device_may_wakeup(dev)) {
+			/* Wake-up requested during system sleep transition. */
+			pm_runtime_put_noidle(dev);
+			error = -EBUSY;
+		} else {
+			error = device_prepare(dev, state);
+		}
 
 		mutex_lock(&dpm_list_mtx);
 		if (error) {
