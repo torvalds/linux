@@ -1,6 +1,6 @@
 config SND_S3C24XX_SOC
 	tristate "SoC Audio for the Samsung S3CXXXX chips"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C2410 || ARCH_S3C64XX
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the S3C24XX AC97 or I2S interfaces. You will also need to
