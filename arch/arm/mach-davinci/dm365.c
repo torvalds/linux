@@ -595,6 +595,14 @@ INT_CFG(DM365,  INT_EMAC_RXTHRESH,   14,    1,    1,     false)
 INT_CFG(DM365,  INT_EMAC_RXPULSE,    15,    1,    1,     false)
 INT_CFG(DM365,  INT_EMAC_TXPULSE,    16,    1,    1,     false)
 INT_CFG(DM365,  INT_EMAC_MISCPULSE,  17,    1,    1,     false)
+INT_CFG(DM365,  INT_IMX0_ENABLE,     0,     1,    0,     false)
+INT_CFG(DM365,  INT_IMX0_DISABLE,    0,     1,    1,     false)
+INT_CFG(DM365,  INT_HDVICP_ENABLE,   0,     1,    1,     false)
+INT_CFG(DM365,  INT_HDVICP_DISABLE,  0,     1,    0,     false)
+INT_CFG(DM365,  INT_IMX1_ENABLE,     24,    1,    1,     false)
+INT_CFG(DM365,  INT_IMX1_DISABLE,    24,    1,    0,     false)
+INT_CFG(DM365,  INT_NSF_ENABLE,      25,    1,    1,     false)
+INT_CFG(DM365,  INT_NSF_DISABLE,     25,    1,    0,     false)
 #endif
 };
 

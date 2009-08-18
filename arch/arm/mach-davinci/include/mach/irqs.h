@@ -205,6 +205,9 @@
 
 /* DaVinci DM365-specific Interrupts */
 #define IRQ_DM365_INSFINT	7
+#define IRQ_DM365_IMXINT1	8
+#define IRQ_DM365_IMXINT0	10
+#define IRQ_DM365_KLD_ARMINT	10
 #define IRQ_DM365_IMCOPINT	11
 #define IRQ_DM365_RTOINT	13
 #define IRQ_DM365_TINT5		14
