@@ -2198,6 +2198,7 @@ static void
 ath5k_get_max_ctl_power(struct ath5k_hw *ah,
 			struct ieee80211_channel *channel)
 {
+	struct ath_regulatory *regulatory = ath5k_hw_regulatory(ah);
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	struct ath5k_edge_power *rep = ee->ee_ctl_pwr;
 	u8 *ctl_val = ee->ee_ctl;
@@ -2208,7 +2209,7 @@ ath5k_get_max_ctl_power(struct ath5k_hw *ah,
 	u8 ctl_idx = 0xFF;
 	u32 target = channel->center_freq;
 
-	ctl_mode = ath_regd_get_band_ctl(&ah->ah_regulatory, channel->band);
+	ctl_mode = ath_regd_get_band_ctl(regulatory, channel->band);
 
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:

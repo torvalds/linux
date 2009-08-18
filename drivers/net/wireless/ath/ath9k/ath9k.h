@@ -631,6 +631,16 @@ int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
 
+static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
+{
+	return &ah->ah_sc->common;
+}
+
+static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
+{
+	return &(ath9k_hw_common(ah)->regulatory);
+}
+
 static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
 {
 	sc->bus_ops->read_cachesize(sc, csz);

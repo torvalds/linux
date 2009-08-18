@@ -396,7 +396,6 @@ struct ath_hw {
 	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config config;
 	struct ath9k_hw_capabilities caps;
-	struct ath_regulatory regulatory;
 	struct ath9k_channel channels[38];
 	struct ath9k_channel *curchan;
 

@@ -1293,7 +1293,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_regulatory *reg = &sc->sc_ah->regulatory;
+	struct ath_regulatory *reg = &sc->common.regulatory;
 
 	return ath_reg_notifier_apply(wiphy, request, reg);
 }
@@ -1586,12 +1586,12 @@ int ath_init_device(u16 devid, struct ath_softc *sc)
 
 	ath_set_hw_capab(sc, hw);
 
-	error = ath_regd_init(&sc->sc_ah->regulatory, sc->hw->wiphy,
+	error = ath_regd_init(&sc->common.regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
 		return error;
 
-	reg = &sc->sc_ah->regulatory;
+	reg = &sc->common.regulatory;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);

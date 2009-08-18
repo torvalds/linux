@@ -157,6 +157,7 @@ struct ar9170_sta_tid {
 
 struct ar9170 {
 	struct ieee80211_hw *hw;
+	struct ath_common common;
 	struct mutex mutex;
 	enum ar9170_device_state state;
 	unsigned long bad_hw_nagger;
@@ -222,7 +223,6 @@ struct ar9170 {
 
 	/* EEPROM */
 	struct ar9170_eeprom eeprom;
-	struct ath_regulatory regulatory;
 
 	/* tx queues - as seen by hw - */
 	struct sk_buff_head tx_pending[__AR9170_NUM_TXQ];

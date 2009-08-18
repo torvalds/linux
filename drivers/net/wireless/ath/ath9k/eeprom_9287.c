@@ -599,7 +599,7 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 {
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
 #define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
-
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	u16 twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
 	static const u16 tpScaleReductionTable[5] =
 		{ 0, 3, 6, 9, AR5416_MAX_RATE_POWER };
@@ -632,9 +632,9 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 					    twiceLargestAntenna, 0);
 
 	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
-	if (ah->regulatory.tp_scale != ATH9K_TP_SCALE_MAX)
+	if (regulatory->tp_scale != ATH9K_TP_SCALE_MAX)
 		maxRegAllowedPower -=
-			(tpScaleReductionTable[(ah->regulatory.tp_scale)] * 2);
+			(tpScaleReductionTable[(regulatory->tp_scale)] * 2);
 
 	scaledPower = min(powerLimit, maxRegAllowedPower);
 
@@ -831,7 +831,7 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 {
 #define INCREASE_MAXPOW_BY_TWO_CHAIN     6
 #define INCREASE_MAXPOW_BY_THREE_CHAIN   10
-
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &pEepData->modalHeader;
 	int16_t ratesArray[Ar5416RateSize];
@@ -949,20 +949,20 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 		i = rate6mb;
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
-		ah->regulatory.max_power_level =
+		regulatory->max_power_level =
 			ratesArray[i] + AR9287_PWR_TABLE_OFFSET_DB * 2;
 	else
-		ah->regulatory.max_power_level = ratesArray[i];
+		regulatory->max_power_level = ratesArray[i];
 
 	switch (ar5416_get_ntxchains(ah->txchainmask)) {
 	case 1:
 		break;
 	case 2:
-		ah->regulatory.max_power_level +=
+		regulatory->max_power_level +=
 			INCREASE_MAXPOW_BY_TWO_CHAIN;
 		break;
 	case 3:
-		ah->regulatory.max_power_level +=
+		regulatory->max_power_level +=
 			INCREASE_MAXPOW_BY_THREE_CHAIN;
 		break;
 	default:

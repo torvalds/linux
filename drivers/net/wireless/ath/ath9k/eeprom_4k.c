@@ -508,6 +508,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 	|| (((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == \
 	    ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))
 
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	int i;
 	int16_t twiceLargestAntenna;
 	u16 twiceMinEdgePower;
@@ -541,9 +542,9 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 					   twiceLargestAntenna, 0);
 
 	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
-	if (ah->regulatory.tp_scale != ATH9K_TP_SCALE_MAX) {
+	if (regulatory->tp_scale != ATH9K_TP_SCALE_MAX) {
 		maxRegAllowedPower -=
-			(tpScaleReductionTable[(ah->regulatory.tp_scale)] * 2);
+			(tpScaleReductionTable[(regulatory->tp_scale)] * 2);
 	}
 
 	scaledPower = min(powerLimit, maxRegAllowedPower);
@@ -707,6 +708,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 				    u8 twiceMaxRegulatoryPower,
 				    u8 powerLimit)
 {
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar5416_eeprom_4k *pEepData = &ah->eeprom.map4k;
 	struct modal_eep_4k_header *pModal = &pEepData->modalHeader;
 	int16_t ratesArray[Ar5416RateSize];
@@ -744,7 +746,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	else if (IS_CHAN_HT20(chan))
 		i = rateHt20_0;
 
-	ah->regulatory.max_power_level = ratesArray[i];
+	regulatory->max_power_level = ratesArray[i];
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
