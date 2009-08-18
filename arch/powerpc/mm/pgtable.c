@@ -254,7 +254,7 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	BUG_ON(pud_none(*pud));
 	pmd = pmd_offset(pud, addr);
 	BUG_ON(!pmd_present(*pmd));
-	BUG_ON(!spin_is_locked(pte_lockptr(mm, pmd)));
+	assert_spin_locked(pte_lockptr(mm, pmd));
 }
 #endif /* CONFIG_DEBUG_VM */
 
