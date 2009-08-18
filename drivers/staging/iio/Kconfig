@@ -17,6 +17,14 @@ config IIO_RING_BUFFER
 	  Provide core support for various ring buffer based data
 	  acquisition methods.
 
+config IIO_TRIGGER
+	boolean "Enable triggered sampling support"
+	help
+	  Provides IIO core support for triggers.  Currently these
+	  are used to initialize capture of samples to push into
+	  ring buffers.  The triggers are effectively a 'capture
+	  data now' interrupt.
+
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
