@@ -45,9 +45,12 @@ extern void zfcp_rec_dbf_event_trigger(char *, void *, u8, u8, void *,
 				       struct zfcp_adapter *,
 				       struct zfcp_port *, struct zfcp_unit *);
 extern void zfcp_rec_dbf_event_action(char *, struct zfcp_erp_action *);
-extern void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *);
-extern void zfcp_hba_dbf_event_fsf_unsol(const char *, struct zfcp_adapter *,
-					 struct fsf_status_read_buffer *);
+extern void _zfcp_hba_dbf_event_fsf_response(const char *, int level,
+					     struct zfcp_fsf_req *,
+					     struct zfcp_dbf *dbf);
+extern void _zfcp_hba_dbf_event_fsf_unsol(const char *, int level,
+					  struct zfcp_adapter *,
+					  struct fsf_status_read_buffer *);
 extern void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *, unsigned int, int,
 				    int);
 extern void zfcp_hba_dbf_event_berr(struct zfcp_adapter *,

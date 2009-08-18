@@ -240,6 +240,59 @@ struct zfcp_dbf {
 };
 
 static inline
+void zfcp_hba_dbf_event_fsf_resp(const char *tag2, int level,
+				 struct zfcp_fsf_req *req, struct zfcp_dbf *dbf)
+{
+	if (level <= dbf->hba_dbf->level)
+		_zfcp_hba_dbf_event_fsf_response(tag2, level, req, dbf);
+}
+
+/**
+ * zfcp_hba_dbf_event_fsf_response - trace event for request completion
+ * @fsf_req: request that has been completed
+ */
+static inline void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *req)
+{
+	struct zfcp_dbf *dbf = req->adapter->dbf;
+	struct fsf_qtcb *qtcb = req->qtcb;
+
+	if ((qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
+	    (qtcb->prefix.prot_status != FSF_PROT_FSF_STATUS_PRESENTED)) {
+		zfcp_hba_dbf_event_fsf_resp("perr", 1, req, dbf);
+
+	} else if (qtcb->header.fsf_status != FSF_GOOD) {
+		zfcp_hba_dbf_event_fsf_resp("ferr", 1, req, dbf);
+
+	} else if ((req->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
+		   (req->fsf_command == FSF_QTCB_OPEN_LUN)) {
+		zfcp_hba_dbf_event_fsf_resp("open", 4, req, dbf);
+
+	} else if (qtcb->header.log_length) {
+		zfcp_hba_dbf_event_fsf_resp("qtcb", 5, req, dbf);
+
+	} else {
+		zfcp_hba_dbf_event_fsf_resp("norm", 6, req, dbf);
+	}
+ }
+
+/**
+ * zfcp_hba_dbf_event_fsf_unsol - trace event for an unsolicited status buffer
+ * @tag: tag indicating which kind of unsolicited status has been received
+ * @adapter: adapter that has issued the unsolicited status buffer
+ * @status_buffer: buffer containing payload of unsolicited status
+ */
+static inline
+void zfcp_hba_dbf_event_fsf_unsol(const char *tag, struct zfcp_adapter *adapter,
+				  struct fsf_status_read_buffer *buf)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	int level = 2;
+
+	if (level <= dbf->hba_dbf->level)
+		_zfcp_hba_dbf_event_fsf_unsol(tag, level, adapter, buf);
+}
+
+static inline
 void zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
 			 struct zfcp_adapter *adapter, struct scsi_cmnd *scmd,
 			 struct zfcp_fsf_req *req, unsigned long old_id)

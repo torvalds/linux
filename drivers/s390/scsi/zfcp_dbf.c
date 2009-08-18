@@ -120,14 +120,10 @@ static int zfcp_dbf_view_header(debug_info_t *id, struct debug_view *view,
 	return p - out_buf;
 }
 
-/**
- * zfcp_hba_dbf_event_fsf_response - trace event for request completion
- * @fsf_req: request that has been completed
- */
-void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
+void _zfcp_hba_dbf_event_fsf_response(const char *tag2, int level,
+				      struct zfcp_fsf_req *fsf_req,
+				      struct zfcp_dbf *dbf)
 {
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	struct zfcp_dbf *dbf = adapter->dbf;
 	struct fsf_qtcb *qtcb = fsf_req->qtcb;
 	union fsf_prot_status_qual *prot_status_qual =
 					&qtcb->prefix.prot_status_qual;
@@ -138,31 +134,12 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_send_els *send_els;
 	struct zfcp_hba_dbf_record *rec = &dbf->hba_dbf_buf;
 	struct zfcp_hba_dbf_record_response *response = &rec->u.response;
-	int level;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dbf->hba_dbf_lock, flags);
 	memset(rec, 0, sizeof(*rec));
 	strncpy(rec->tag, "resp", ZFCP_DBF_TAG_SIZE);
-
-	if ((qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
-	    (qtcb->prefix.prot_status != FSF_PROT_FSF_STATUS_PRESENTED)) {
-		strncpy(rec->tag2, "perr", ZFCP_DBF_TAG_SIZE);
-		level = 1;
-	} else if (qtcb->header.fsf_status != FSF_GOOD) {
-		strncpy(rec->tag2, "ferr", ZFCP_DBF_TAG_SIZE);
-		level = 1;
-	} else if ((fsf_req->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
-		   (fsf_req->fsf_command == FSF_QTCB_OPEN_LUN)) {
-		strncpy(rec->tag2, "open", ZFCP_DBF_TAG_SIZE);
-		level = 4;
-	} else if (qtcb->header.log_length) {
-		strncpy(rec->tag2, "qtcb", ZFCP_DBF_TAG_SIZE);
-		level = 5;
-	} else {
-		strncpy(rec->tag2, "norm", ZFCP_DBF_TAG_SIZE);
-		level = 6;
-	}
+	strncpy(rec->tag2, tag2, ZFCP_DBF_TAG_SIZE);
 
 	response->fsf_command = fsf_req->fsf_command;
 	response->fsf_reqid = fsf_req->req_id;
@@ -241,14 +218,9 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 	spin_unlock_irqrestore(&dbf->hba_dbf_lock, flags);
 }
 
-/**
- * zfcp_hba_dbf_event_fsf_unsol - trace event for an unsolicited status buffer
- * @tag: tag indicating which kind of unsolicited status has been received
- * @adapter: adapter that has issued the unsolicited status buffer
- * @status_buffer: buffer containing payload of unsolicited status
- */
-void zfcp_hba_dbf_event_fsf_unsol(const char *tag, struct zfcp_adapter *adapter,
-				  struct fsf_status_read_buffer *status_buffer)
+void _zfcp_hba_dbf_event_fsf_unsol(const char *tag, int level,
+				   struct zfcp_adapter *adapter,
+				   struct fsf_status_read_buffer *status_buffer)
 {
 	struct zfcp_dbf *dbf = adapter->dbf;
 	struct zfcp_hba_dbf_record *rec = &dbf->hba_dbf_buf;
@@ -296,7 +268,7 @@ void zfcp_hba_dbf_event_fsf_unsol(const char *tag, struct zfcp_adapter *adapter,
 		       &status_buffer->payload, rec->u.status.payload_size);
 	}
 
-	debug_event(dbf->hba_dbf, 2, rec, sizeof(*rec));
+	debug_event(dbf->hba_dbf, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_dbf_lock, flags);
 }
 
