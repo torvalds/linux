@@ -12018,21 +12018,16 @@ static struct hda_verb alc268_volume_init_verbs[] = {
 	{ }
 };
 
+static struct snd_kcontrol_new alc268_capture_nosrc_mixer[] = {
+	HDA_CODEC_VOLUME("Capture Volume", 0x23, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x23, 0x0, HDA_OUTPUT),
+	{ } /* end */
+};
+
 static struct snd_kcontrol_new alc268_capture_alt_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x23, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x23, 0x0, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = alc_mux_enum_info,
-		.get = alc_mux_enum_get,
-		.put = alc_mux_enum_put,
-	},
+	_DEFINE_CAPSRC(1),
 	{ } /* end */
 };
 
@@ -12041,18 +12036,7 @@ static struct snd_kcontrol_new alc268_capture_mixer[] = {
 	HDA_CODEC_MUTE("Capture Switch", 0x23, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x24, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x24, 0x0, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 2,
-		.info = alc_mux_enum_info,
-		.get = alc_mux_enum_get,
-		.put = alc_mux_enum_put,
-	},
+	_DEFINE_CAPSRC(2),
 	{ } /* end */
 };
 
@@ -12434,7 +12418,8 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 
 static struct alc_config_preset alc268_presets[] = {
 	[ALC267_QUANTA_IL1] = {
-		.mixers = { alc267_quanta_il1_mixer, alc268_beep_mixer },
+		.mixers = { alc267_quanta_il1_mixer, alc268_beep_mixer,
+			    alc268_capture_nosrc_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc267_quanta_il1_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -12444,7 +12429,6 @@ static struct alc_config_preset alc268_presets[] = {
 		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
-		.input_mux = &alc268_capture_source,
 		.unsol_event = alc_sku_unsol_event,
 		.setup = alc267_quanta_il1_setup,
 		.init_hook = alc_inithook,
@@ -12483,7 +12467,7 @@ static struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc268_toshiba_automute,
 	},
 	[ALC268_ACER] = {
-		.mixers = { alc268_acer_mixer, alc268_capture_alt_mixer,
+		.mixers = { alc268_acer_mixer, alc268_capture_nosrc_mixer,
 			    alc268_beep_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_verbs },
@@ -12519,7 +12503,7 @@ static struct alc_config_preset alc268_presets[] = {
 	[ALC268_ACER_ASPIRE_ONE] = {
 		.mixers = { alc268_acer_aspire_one_mixer,
 			    alc268_beep_mixer,
-			    alc268_capture_alt_mixer },
+			    alc268_capture_nosrc_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_aspire_one_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -12535,11 +12519,15 @@ static struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc268_acer_lc_init_hook,
 	},
 	[ALC268_DELL] = {
-		.mixers = { alc268_dell_mixer, alc268_beep_mixer },
+		.mixers = { alc268_dell_mixer, alc268_beep_mixer,
+			    alc268_capture_nosrc_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_dell_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
 		.dac_nids = alc268_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
+		.adc_nids = alc268_adc_nids_alt,
+		.capsrc_nids = alc268_capsrc_nids,
 		.hp_nid = 0x02,
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
@@ -12659,10 +12647,14 @@ static int patch_alc268(struct hda_codec *codec)
 
 		/* get type */
 		wcap = get_wcaps_type(wcap);
-		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
+		if (spec->auto_mic ||
+		    wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 			spec->adc_nids = alc268_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
-			add_mixer(spec, alc268_capture_alt_mixer);
+			if (spec->auto_mic || spec->input_mux->num_items == 1)
+				add_mixer(spec, alc268_capture_nosrc_mixer);
+			else
+				add_mixer(spec, alc268_capture_alt_mixer);
 		} else {
 			spec->adc_nids = alc268_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids);
