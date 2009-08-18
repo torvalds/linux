@@ -631,24 +631,24 @@ ARM/INTEL IOP32X ARM ARCHITECTURE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Supported
+S:	Maintained
 
 ARM/INTEL IOP33X ARM ARCHITECTURE
 M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Supported
+S:	Maintained
 
 ARM/INTEL IOP13XX ARM ARCHITECTURE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Supported
+S:	Maintained
 
 ARM/INTEL IQ81342EX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Supported
+S:	Maintained
 
 ARM/INTEL IXP2000 ARM ARCHITECTURE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -669,7 +669,7 @@ ARM/INTEL XSC3 (MANZANO) ARM CORE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
-S:	Supported
+S:	Maintained
 
 ARM/IP FABRICS DOUBLE ESPRESSO MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -2619,7 +2619,7 @@ F:	include/linux/intel-iommu.h
 
 INTEL IOP-ADMA DMA DRIVER
 M:	Dan Williams <dan.j.williams@intel.com>
-S:	Supported
+S:	Maintained
 F:	drivers/dma/iop-adma.c
 
 INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
