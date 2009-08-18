@@ -4364,6 +4364,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		if (mode == 1)
 			set_disk_ro(disk, 1);
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+		err = 0;
 	}
 out:
 	mutex_unlock(&mddev->open_mutex);

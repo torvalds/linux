@@ -378,9 +378,6 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define cpu_class_is_omap2()	(cpu_is_omap24xx() || cpu_is_omap34xx() || \
 				cpu_is_omap44xx())
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-			defined(CONFIG_ARCH_OMAP4)
-
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
 #define OMAP2420_REV_ES1_0	0x24200024
@@ -436,5 +433,3 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 int omap_chip_is(struct omap_chip_id oci);
 void omap2_check_revision(void);
-
-#endif    /* defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) */

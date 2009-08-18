@@ -59,6 +59,7 @@ extern void omap_uart_check_wakeup(void);
 extern void omap_uart_prepare_suspend(void);
 extern void omap_uart_prepare_idle(int num);
 extern void omap_uart_resume_idle(int num);
+extern void omap_uart_enable_irqs(int enable);
 #endif
 
 #endif

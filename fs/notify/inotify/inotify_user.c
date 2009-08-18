@@ -386,6 +386,7 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
 	struct fsnotify_event *ignored_event;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
+	int ret;
 
 	ignored_event = fsnotify_create_event(NULL, FS_IN_IGNORED, NULL,
 					      FSNOTIFY_EVENT_NONE, NULL, 0,
@@ -404,10 +405,8 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
 	fsn_event_priv->group = group;
 	event_priv->wd = ientry->wd;
 
-	fsnotify_add_notify_event(group, ignored_event, fsn_event_priv);
-
-	/* did the private data get added? */
-	if (list_empty(&fsn_event_priv->event_list))
+	ret = fsnotify_add_notify_event(group, ignored_event, fsn_event_priv);
+	if (ret)
 		inotify_free_event_priv(fsn_event_priv);
 
 skip_send_ignore:
@@ -568,7 +567,7 @@ static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsign
 
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
-	group->inotify_data.last_wd = 0;
+	group->inotify_data.last_wd = 1;
 	group->inotify_data.user = user;
 	group->inotify_data.fa = NULL;
 

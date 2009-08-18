@@ -515,7 +515,7 @@ rx_status_loop:
 		dma_addr_t mapping;
 		struct sk_buff *skb, *new_skb;
 		struct cp_desc *desc;
-		unsigned buflen;
+		const unsigned buflen = cp->rx_buf_sz;
 
 		skb = cp->rx_skb[rx_tail];
 		BUG_ON(!skb);
@@ -549,8 +549,7 @@ rx_status_loop:
 			pr_debug("%s: rx slot %d status 0x%x len %d\n",
 			       dev->name, rx_tail, status, len);
 
-		buflen = cp->rx_buf_sz + NET_IP_ALIGN;
-		new_skb = netdev_alloc_skb(dev, buflen);
+		new_skb = netdev_alloc_skb(dev, buflen + NET_IP_ALIGN);
 		if (!new_skb) {
 			dev->stats.rx_dropped++;
 			goto rx_next;

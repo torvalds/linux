@@ -184,13 +184,6 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 	kfree(recv_ctx->rds_rings);
 
 skip_rds:
-	if (recv_ctx->sds_rings == NULL)
-		goto skip_sds;
-
-	for(ring = 0; ring < adapter->max_sds_rings; ring++)
-		recv_ctx->sds_rings[ring].consumer = 0;
-
-skip_sds:
 	if (adapter->tx_ring == NULL)
 		return;
 

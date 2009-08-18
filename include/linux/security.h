@@ -28,6 +28,7 @@
 #include <linux/resource.h>
 #include <linux/sem.h>
 #include <linux/shm.h>
+#include <linux/mm.h> /* PAGE_ALIGN */
 #include <linux/msg.h>
 #include <linux/sched.h>
 #include <linux/key.h>
@@ -66,6 +67,9 @@ extern int cap_inode_setxattr(struct dentry *dentry, const char *name,
 extern int cap_inode_removexattr(struct dentry *dentry, const char *name);
 extern int cap_inode_need_killpriv(struct dentry *dentry);
 extern int cap_inode_killpriv(struct dentry *dentry);
+extern int cap_file_mmap(struct file *file, unsigned long reqprot,
+			 unsigned long prot, unsigned long flags,
+			 unsigned long addr, unsigned long addr_only);
 extern int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags);
 extern int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			  unsigned long arg4, unsigned long arg5);
@@ -92,6 +96,7 @@ extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
 extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 
 extern unsigned long mmap_min_addr;
+extern unsigned long dac_mmap_min_addr;
 /*
  * Values used in the task_security_ops calls
  */
@@ -115,6 +120,21 @@ struct request_sock;
 #define LSM_UNSAFE_SHARE	1
 #define LSM_UNSAFE_PTRACE	2
 #define LSM_UNSAFE_PTRACE_CAP	4
+
+/*
+ * If a hint addr is less than mmap_min_addr change hint to be as
+ * low as possible but still greater than mmap_min_addr
+ */
+static inline unsigned long round_hint_to_min(unsigned long hint)
+{
+	hint &= PAGE_MASK;
+	if (((void *)hint != NULL) &&
+	    (hint < mmap_min_addr))
+		return PAGE_ALIGN(mmap_min_addr);
+	return hint;
+}
+extern int mmap_min_addr_handler(struct ctl_table *table, int write, struct file *filp,
+				 void __user *buffer, size_t *lenp, loff_t *ppos);
 
 #ifdef CONFIG_SECURITY
 
@@ -2197,9 +2217,7 @@ static inline int security_file_mmap(struct file *file, unsigned long reqprot,
 				     unsigned long addr,
 				     unsigned long addr_only)
 {
-	if ((addr < mmap_min_addr) && !capable(CAP_SYS_RAWIO))
-		return -EACCES;
-	return 0;
+	return cap_file_mmap(file, reqprot, prot, flags, addr, addr_only);
 }
 
 static inline int security_file_mprotect(struct vm_area_struct *vma,

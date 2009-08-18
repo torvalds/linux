@@ -377,6 +377,18 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	return ret;
 }
 
+static int dgram_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	return -EOPNOTSUPP;
+}
+
+static int dgram_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user optlen)
+{
+	return -EOPNOTSUPP;
+}
+
 struct proto ieee802154_dgram_prot = {
 	.name		= "IEEE-802.15.4-MAC",
 	.owner		= THIS_MODULE,
@@ -391,5 +403,7 @@ struct proto ieee802154_dgram_prot = {
 	.connect	= dgram_connect,
 	.disconnect	= dgram_disconnect,
 	.ioctl		= dgram_ioctl,
+	.getsockopt	= dgram_getsockopt,
+	.setsockopt	= dgram_setsockopt,
 };
 

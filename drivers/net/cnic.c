@@ -138,6 +138,16 @@ static struct cnic_dev *cnic_from_netdev(struct net_device *netdev)
 	return NULL;
 }
 
+static inline void ulp_get(struct cnic_ulp_ops *ulp_ops)
+{
+	atomic_inc(&ulp_ops->ref_count);
+}
+
+static inline void ulp_put(struct cnic_ulp_ops *ulp_ops)
+{
+	atomic_dec(&ulp_ops->ref_count);
+}
+
 static void cnic_ctx_wr(struct cnic_dev *dev, u32 cid_addr, u32 off, u32 val)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -358,6 +368,7 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 	}
 	read_unlock(&cnic_dev_lock);
 
+	atomic_set(&ulp_ops->ref_count, 0);
 	rcu_assign_pointer(cnic_ulp_tbl[ulp_type], ulp_ops);
 	mutex_unlock(&cnic_lock);
 
@@ -379,6 +390,8 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 int cnic_unregister_driver(int ulp_type)
 {
 	struct cnic_dev *dev;
+	struct cnic_ulp_ops *ulp_ops;
+	int i = 0;
 
 	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_unregister_driver: Bad type %d\n",
@@ -386,7 +399,8 @@ int cnic_unregister_driver(int ulp_type)
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
-	if (!cnic_ulp_tbl[ulp_type]) {
+	ulp_ops = cnic_ulp_tbl[ulp_type];
+	if (!ulp_ops) {
 		printk(KERN_ERR PFX "cnic_unregister_driver: Type %d has not "
 				    "been registered\n", ulp_type);
 		goto out_unlock;
@@ -411,6 +425,14 @@ int cnic_unregister_driver(int ulp_type)
 
 	mutex_unlock(&cnic_lock);
 	synchronize_rcu();
+	while ((atomic_read(&ulp_ops->ref_count) != 0) && (i < 20)) {
+		msleep(100);
+		i++;
+	}
+
+	if (atomic_read(&ulp_ops->ref_count) != 0)
+		printk(KERN_WARNING PFX "%s: Failed waiting for ref count to go"
+					" to zero.\n", dev->netdev->name);
 	return 0;
 
 out_unlock:
@@ -466,6 +488,7 @@ EXPORT_SYMBOL(cnic_register_driver);
 static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 {
 	struct cnic_local *cp = dev->cnic_priv;
+	int i = 0;
 
 	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_unregister_device: Bad type %d\n",
@@ -485,6 +508,15 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	mutex_unlock(&cnic_lock);
 
 	synchronize_rcu();
+
+	while (test_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[ulp_type]) &&
+	       i < 20) {
+		msleep(100);
+		i++;
+	}
+	if (test_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[ulp_type]))
+		printk(KERN_WARNING PFX "%s: Failed waiting for ULP up call"
+					" to complete.\n", dev->netdev->name);
 
 	return 0;
 }
@@ -1076,18 +1108,23 @@ static void cnic_ulp_stop(struct cnic_dev *dev)
 	if (cp->cnic_uinfo)
 		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
 
-	rcu_read_lock();
 	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {
 		struct cnic_ulp_ops *ulp_ops;
 
-		ulp_ops = rcu_dereference(cp->ulp_ops[if_type]);
-		if (!ulp_ops)
+		mutex_lock(&cnic_lock);
+		ulp_ops = cp->ulp_ops[if_type];
+		if (!ulp_ops) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
+		set_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
+		mutex_unlock(&cnic_lock);
 
 		if (test_and_clear_bit(ULP_F_START, &cp->ulp_flags[if_type]))
 			ulp_ops->cnic_stop(cp->ulp_handle[if_type]);
+
+		clear_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
 	}
-	rcu_read_unlock();
 }
 
 static void cnic_ulp_start(struct cnic_dev *dev)
@@ -1095,18 +1132,23 @@ static void cnic_ulp_start(struct cnic_dev *dev)
 	struct cnic_local *cp = dev->cnic_priv;
 	int if_type;
 
-	rcu_read_lock();
 	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {
 		struct cnic_ulp_ops *ulp_ops;
 
-		ulp_ops = rcu_dereference(cp->ulp_ops[if_type]);
-		if (!ulp_ops || !ulp_ops->cnic_start)
+		mutex_lock(&cnic_lock);
+		ulp_ops = cp->ulp_ops[if_type];
+		if (!ulp_ops || !ulp_ops->cnic_start) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
+		set_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
+		mutex_unlock(&cnic_lock);
 
 		if (!test_and_set_bit(ULP_F_START, &cp->ulp_flags[if_type]))
 			ulp_ops->cnic_start(cp->ulp_handle[if_type]);
+
+		clear_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
 	}
-	rcu_read_unlock();
 }
 
 static int cnic_ctl(void *data, struct cnic_ctl_info *info)
@@ -1116,22 +1158,18 @@ static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 	switch (info->cmd) {
 	case CNIC_CTL_STOP_CMD:
 		cnic_hold(dev);
-		mutex_lock(&cnic_lock);
 
 		cnic_ulp_stop(dev);
 		cnic_stop_hw(dev);
 
-		mutex_unlock(&cnic_lock);
 		cnic_put(dev);
 		break;
 	case CNIC_CTL_START_CMD:
 		cnic_hold(dev);
-		mutex_lock(&cnic_lock);
 
 		if (!cnic_start_hw(dev))
 			cnic_ulp_start(dev);
 
-		mutex_unlock(&cnic_lock);
 		cnic_put(dev);
 		break;
 	default:
@@ -1145,19 +1183,23 @@ static void cnic_ulp_init(struct cnic_dev *dev)
 	int i;
 	struct cnic_local *cp = dev->cnic_priv;
 
-	rcu_read_lock();
 	for (i = 0; i < MAX_CNIC_ULP_TYPE_EXT; i++) {
 		struct cnic_ulp_ops *ulp_ops;
 
-		ulp_ops = rcu_dereference(cnic_ulp_tbl[i]);
-		if (!ulp_ops || !ulp_ops->cnic_init)
+		mutex_lock(&cnic_lock);
+		ulp_ops = cnic_ulp_tbl[i];
+		if (!ulp_ops || !ulp_ops->cnic_init) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
+		ulp_get(ulp_ops);
+		mutex_unlock(&cnic_lock);
 
 		if (!test_and_set_bit(ULP_F_INIT, &cp->ulp_flags[i]))
 			ulp_ops->cnic_init(dev);
 
+		ulp_put(ulp_ops);
 	}
-	rcu_read_unlock();
 }
 
 static void cnic_ulp_exit(struct cnic_dev *dev)
@@ -1165,19 +1207,23 @@ static void cnic_ulp_exit(struct cnic_dev *dev)
 	int i;
 	struct cnic_local *cp = dev->cnic_priv;
 
-	rcu_read_lock();
 	for (i = 0; i < MAX_CNIC_ULP_TYPE_EXT; i++) {
 		struct cnic_ulp_ops *ulp_ops;
 
-		ulp_ops = rcu_dereference(cnic_ulp_tbl[i]);
-		if (!ulp_ops || !ulp_ops->cnic_exit)
+		mutex_lock(&cnic_lock);
+		ulp_ops = cnic_ulp_tbl[i];
+		if (!ulp_ops || !ulp_ops->cnic_exit) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
+		ulp_get(ulp_ops);
+		mutex_unlock(&cnic_lock);
 
 		if (test_and_clear_bit(ULP_F_INIT, &cp->ulp_flags[i]))
 			ulp_ops->cnic_exit(dev);
 
+		ulp_put(ulp_ops);
 	}
-	rcu_read_unlock();
 }
 
 static int cnic_cm_offload_pg(struct cnic_sock *csk)
@@ -2393,6 +2439,37 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 	return 0;
 }
 
+static int cnic_register_netdev(struct cnic_dev *dev)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_eth_dev *ethdev = cp->ethdev;
+	int err;
+
+	if (!ethdev)
+		return -ENODEV;
+
+	if (ethdev->drv_state & CNIC_DRV_STATE_REGD)
+		return 0;
+
+	err = ethdev->drv_register_cnic(dev->netdev, cp->cnic_ops, dev);
+	if (err)
+		printk(KERN_ERR PFX "%s: register_cnic failed\n",
+		       dev->netdev->name);
+
+	return err;
+}
+
+static void cnic_unregister_netdev(struct cnic_dev *dev)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_eth_dev *ethdev = cp->ethdev;
+
+	if (!ethdev)
+		return;
+
+	ethdev->drv_unregister_cnic(dev->netdev);
+}
+
 static int cnic_start_hw(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -2401,13 +2478,6 @@ static int cnic_start_hw(struct cnic_dev *dev)
 
 	if (test_bit(CNIC_F_CNIC_UP, &dev->flags))
 		return -EALREADY;
-
-	err = ethdev->drv_register_cnic(dev->netdev, cp->cnic_ops, dev);
-	if (err) {
-		printk(KERN_ERR PFX "%s: register_cnic failed\n",
-		       dev->netdev->name);
-		goto err2;
-	}
 
 	dev->regview = ethdev->io_base;
 	cp->chip_id = ethdev->chip_id;
@@ -2438,18 +2508,13 @@ static int cnic_start_hw(struct cnic_dev *dev)
 	return 0;
 
 err1:
-	ethdev->drv_unregister_cnic(dev->netdev);
 	cp->free_resc(dev);
 	pci_dev_put(dev->pcidev);
-err2:
 	return err;
 }
 
 static void cnic_stop_bnx2_hw(struct cnic_dev *dev)
 {
-	struct cnic_local *cp = dev->cnic_priv;
-	struct cnic_eth_dev *ethdev = cp->ethdev;
-
 	cnic_disable_bnx2_int_sync(dev);
 
 	cnic_reg_wr_ind(dev, BNX2_CP_SCRATCH + 0x20, 0);
@@ -2460,8 +2525,6 @@ static void cnic_stop_bnx2_hw(struct cnic_dev *dev)
 
 	cnic_setup_5709_context(dev, 0);
 	cnic_free_irq(dev);
-
-	ethdev->drv_unregister_cnic(dev->netdev);
 
 	cnic_free_resc(dev);
 }
@@ -2543,7 +2606,7 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	probe = symbol_get(bnx2_cnic_probe);
 	if (probe) {
 		ethdev = (*probe)(dev);
-		symbol_put_addr(probe);
+		symbol_put(bnx2_cnic_probe);
 	}
 	if (!ethdev)
 		return NULL;
@@ -2646,10 +2709,12 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 		else if (event == NETDEV_UNREGISTER)
 			cnic_ulp_exit(dev);
 		else if (event == NETDEV_UP) {
-			mutex_lock(&cnic_lock);
+			if (cnic_register_netdev(dev) != 0) {
+				cnic_put(dev);
+				goto done;
+			}
 			if (!cnic_start_hw(dev))
 				cnic_ulp_start(dev);
-			mutex_unlock(&cnic_lock);
 		}
 
 		rcu_read_lock();
@@ -2668,10 +2733,9 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 		rcu_read_unlock();
 
 		if (event == NETDEV_GOING_DOWN) {
-			mutex_lock(&cnic_lock);
 			cnic_ulp_stop(dev);
 			cnic_stop_hw(dev);
-			mutex_unlock(&cnic_lock);
+			cnic_unregister_netdev(dev);
 		} else if (event == NETDEV_UNREGISTER) {
 			write_lock(&cnic_dev_lock);
 			list_del_init(&dev->list);
@@ -2703,6 +2767,7 @@ static void cnic_release(void)
 		}
 
 		cnic_ulp_exit(dev);
+		cnic_unregister_netdev(dev);
 		list_del_init(&dev->list);
 		cnic_free_dev(dev);
 	}
