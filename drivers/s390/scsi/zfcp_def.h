@@ -438,7 +438,7 @@ struct zfcp_qdio {
 	struct zfcp_qdio_queue	req_q;
 	spinlock_t		stat_lock;
 	spinlock_t		req_q_lock;
-	ktime_t			req_q_time;
+	unsigned long long	req_q_time;
 	u64			req_q_util;
 	atomic_t		req_q_full;
 	wait_queue_head_t	req_q_wq;

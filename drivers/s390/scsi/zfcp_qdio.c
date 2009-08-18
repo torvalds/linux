@@ -56,16 +56,15 @@ static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
 }
 
 /* this needs to be called prior to updating the queue fill level */
-static void zfcp_qdio_account(struct zfcp_qdio *qdio)
+static inline void zfcp_qdio_account(struct zfcp_qdio *qdio)
 {
-	ktime_t now;
-	s64 span;
+	unsigned long long now, span;
 	int free, used;
 
 	spin_lock(&qdio->stat_lock);
-	now = ktime_get();
-	span = ktime_us_delta(now, qdio->req_q_time);
-	free = max(0, atomic_read(&qdio->req_q.count));
+	now = get_clock_monotonic();
+	span = (now - qdio->req_q_time) >> 12;
+	free = atomic_read(&qdio->req_q.count);
 	used = QDIO_MAX_BUFFERS_PER_Q - free;
 	qdio->req_q_util += used * span;
 	qdio->req_q_time = now;
