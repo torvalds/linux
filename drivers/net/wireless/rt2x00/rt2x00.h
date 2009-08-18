@@ -826,7 +826,6 @@ struct rt2x00_dev {
 	 * due to RTNL locking requirements.
 	 */
 	struct work_struct intf_work;
-	struct work_struct filter_work;
 
 	/*
 	 * Data queue arrays for RX, TX and Beacon.

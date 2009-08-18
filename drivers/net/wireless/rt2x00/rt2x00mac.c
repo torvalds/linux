@@ -430,10 +430,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 		return;
 	rt2x00dev->packet_filter = *total_flags;
 
-	if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
-		rt2x00dev->ops->lib->config_filter(rt2x00dev, *total_flags);
-	else
-		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->filter_work);
+	rt2x00dev->ops->lib->config_filter(rt2x00dev, *total_flags);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_configure_filter);
 
