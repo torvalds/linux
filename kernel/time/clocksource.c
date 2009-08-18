@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/sched.h> /* for spin_unlock_irq() using preempt_count() m68k */
 #include <linux/tick.h>
+#include <linux/kthread.h>
 
 void timecounter_init(struct timecounter *tc,
 		      const struct cyclecounter *cc,
@@ -130,7 +131,7 @@ static DEFINE_SPINLOCK(watchdog_lock);
 static cycle_t watchdog_last;
 static int watchdog_running;
 
-static void clocksource_watchdog_work(struct work_struct *work);
+static int clocksource_watchdog_kthread(void *data);
 static void __clocksource_change_rating(struct clocksource *cs, int rating);
 
 /*
@@ -138,6 +139,15 @@ static void __clocksource_change_rating(struct clocksource *cs, int rating);
  */
 #define WATCHDOG_INTERVAL (HZ >> 1)
 #define WATCHDOG_THRESHOLD (NSEC_PER_SEC >> 4)
+
+static void clocksource_watchdog_work(struct work_struct *work)
+{
+	/*
+	 * If kthread_run fails the next watchdog scan over the
+	 * watchdog_list will find the unstable clock again.
+	 */
+	kthread_run(clocksource_watchdog_kthread, NULL, "kwatchdog");
+}
 
 static void clocksource_unstable(struct clocksource *cs, int64_t delta)
 {
@@ -167,8 +177,10 @@ static void clocksource_watchdog(unsigned long data)
 	list_for_each_entry(cs, &watchdog_list, wd_list) {
 
 		/* Clocksource already marked unstable? */
-		if (cs->flags & CLOCK_SOURCE_UNSTABLE)
+		if (cs->flags & CLOCK_SOURCE_UNSTABLE) {
+			schedule_work(&watchdog_work);
 			continue;
+		}
 
 		csnow = cs->read(cs);
 
@@ -304,7 +316,7 @@ static void clocksource_dequeue_watchdog(struct clocksource *cs)
 	spin_unlock_irqrestore(&watchdog_lock, flags);
 }
 
-static void clocksource_watchdog_work(struct work_struct *work)
+static int clocksource_watchdog_kthread(void *data)
 {
 	struct clocksource *cs, *tmp;
 	unsigned long flags;
@@ -327,6 +339,7 @@ static void clocksource_watchdog_work(struct work_struct *work)
 		__clocksource_change_rating(cs, 0);
 	}
 	mutex_unlock(&clocksource_mutex);
+	return 0;
 }
 
 #else /* CONFIG_CLOCKSOURCE_WATCHDOG */
