@@ -251,8 +251,8 @@ out:
 	return ret;
 }
 
-static int __devinit platform_bus_notify(struct notifier_block *nb,
-					 unsigned long action, void *data)
+static int platform_bus_notify(struct notifier_block *nb,
+			       unsigned long action, void *data)
 {
 	struct device *dev = data;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -300,5 +300,4 @@ static int __init sh_pm_runtime_init(void)
 	bus_register_notifier(&platform_bus_type, &platform_bus_notifier);
 	return 0;
 }
-
 core_initcall(sh_pm_runtime_init);
