@@ -2661,19 +2661,15 @@ static void sky2_mac_intr(struct sky2_hw *hw, unsigned port)
 }
 
 /* This should never happen it is a bug. */
-static void sky2_le_error(struct sky2_hw *hw, unsigned port,
-			  u16 q, unsigned ring_size)
+static void sky2_le_error(struct sky2_hw *hw, unsigned port, u16 q)
 {
 	struct net_device *dev = hw->dev[port];
-	struct sky2_port *sky2 = netdev_priv(dev);
-	unsigned idx;
-	const u64 *le = (q == Q_R1 || q == Q_R2)
-		? (u64 *) sky2->rx_le : (u64 *) sky2->tx_le;
+	u16 idx = sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_GET_IDX));
 
-	idx = sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_GET_IDX));
-	printk(KERN_ERR PFX "%s: descriptor error q=%#x get=%u [%llx] put=%u\n",
-	       dev->name, (unsigned) q, idx, (unsigned long long) le[idx],
-	       (unsigned) sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX)));
+	dev_err(&hw->pdev->dev, PFX
+		"%s: descriptor error q=%#x get=%u put=%u\n",
+		dev->name, (unsigned) q, (unsigned) idx,
+		(unsigned) sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX)));
 
 	sky2_write32(hw, Q_ADDR(q, Q_CSR), BMU_CLR_IRQ_CHK);
 }
@@ -2759,16 +2755,16 @@ static void sky2_err_intr(struct sky2_hw *hw, u32 status)
 		sky2_mac_intr(hw, 1);
 
 	if (status & Y2_IS_CHK_RX1)
-		sky2_le_error(hw, 0, Q_R1, RX_LE_SIZE);
+		sky2_le_error(hw, 0, Q_R1);
 
 	if (status & Y2_IS_CHK_RX2)
-		sky2_le_error(hw, 1, Q_R2, RX_LE_SIZE);
+		sky2_le_error(hw, 1, Q_R2);
 
 	if (status & Y2_IS_CHK_TXA1)
-		sky2_le_error(hw, 0, Q_XA1, TX_RING_SIZE);
+		sky2_le_error(hw, 0, Q_XA1);
 
 	if (status & Y2_IS_CHK_TXA2)
-		sky2_le_error(hw, 1, Q_XA2, TX_RING_SIZE);
+		sky2_le_error(hw, 1, Q_XA2);
 }
 
 static int sky2_poll(struct napi_struct *napi, int work_limit)
