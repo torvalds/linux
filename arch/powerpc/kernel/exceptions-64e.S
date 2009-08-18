@@ -782,5 +782,24 @@ _STATIC(init_thread_book3e)
 
 	blr
 
+_GLOBAL(__setup_base_ivors)
+	SET_IVOR(0, 0x020) /* Critical Input */
+	SET_IVOR(1, 0x000) /* Machine Check */
+	SET_IVOR(2, 0x060) /* Data Storage */ 
+	SET_IVOR(3, 0x080) /* Instruction Storage */
+	SET_IVOR(4, 0x0a0) /* External Input */ 
+	SET_IVOR(5, 0x0c0) /* Alignment */ 
+	SET_IVOR(6, 0x0e0) /* Program */ 
+	SET_IVOR(7, 0x100) /* FP Unavailable */ 
+	SET_IVOR(8, 0x120) /* System Call */ 
+	SET_IVOR(9, 0x140) /* Auxiliary Processor Unavailable */ 
+	SET_IVOR(10, 0x160) /* Decrementer */ 
+	SET_IVOR(11, 0x180) /* Fixed Interval Timer */ 
+	SET_IVOR(12, 0x1a0) /* Watchdog Timer */ 
+	SET_IVOR(13, 0x1c0) /* Data TLB Error */ 
+	SET_IVOR(14, 0x1e0) /* Instruction TLB Error */
+	SET_IVOR(15, 0x040) /* Debug */
 
+	sync
 
+	blr
