@@ -40,7 +40,7 @@ static int debug;
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.10"
+#define DRIVER_VERSION "v0.11"
 #define DRIVER_DESC "Infinity USB Unlimited Phoenix driver"
 
 static struct usb_device_id id_table[] = {
