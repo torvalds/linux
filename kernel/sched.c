@@ -8513,6 +8513,22 @@ static struct sched_domain *__build_numa_sched_domains(struct s_data *d,
 	return sd;
 }
 
+static struct sched_domain *__build_cpu_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
+{
+	struct sched_domain *sd;
+	sd = &per_cpu(phys_domains, i).sd;
+	SD_INIT(sd, CPU);
+	set_domain_attribute(sd, attr);
+	cpumask_copy(sched_domain_span(sd), d->nodemask);
+	sd->parent = parent;
+	if (parent)
+		parent->child = sd;
+	cpu_to_phys_group(i, cpu_map, &sd->groups, d->tmpmask);
+	return sd;
+}
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
@@ -8542,15 +8558,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 			    cpu_map);
 
 		sd = __build_numa_sched_domains(&d, cpu_map, attr, i);
-		p = sd;
-		sd = &per_cpu(phys_domains, i).sd;
-		SD_INIT(sd, CPU);
-		set_domain_attribute(sd, attr);
-		cpumask_copy(sched_domain_span(sd), d.nodemask);
-		sd->parent = p;
-		if (p)
-			p->child = sd;
-		cpu_to_phys_group(i, cpu_map, &sd->groups, d.tmpmask);
+		sd = __build_cpu_sched_domain(&d, cpu_map, attr, sd, i);
 
 #ifdef CONFIG_SCHED_MC
 		p = sd;
