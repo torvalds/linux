@@ -93,4 +93,10 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 int ocfs2_remove_refcount_tree(struct inode *inode, struct buffer_head *di_bh);
 int ocfs2_try_remove_refcount_tree(struct inode *inode,
 				   struct buffer_head *di_bh);
+int ocfs2_increase_refcount(handle_t *handle,
+			    struct ocfs2_caching_info *ci,
+			    struct buffer_head *ref_root_bh,
+			    u64 cpos, u32 len,
+			    struct ocfs2_alloc_context *meta_ac,
+			    struct ocfs2_cached_dealloc_ctxt *dealloc);
 #endif /* OCFS2_REFCOUNTTREE_H */

@@ -1894,12 +1894,12 @@ out:
 	return ret;
 }
 
-static int __ocfs2_increase_refcount(handle_t *handle,
-				     struct ocfs2_caching_info *ci,
-				     struct buffer_head *ref_root_bh,
-				     u64 cpos, u32 len,
-				     struct ocfs2_alloc_context *meta_ac,
-				     struct ocfs2_cached_dealloc_ctxt *dealloc)
+int ocfs2_increase_refcount(handle_t *handle,
+			    struct ocfs2_caching_info *ci,
+			    struct buffer_head *ref_root_bh,
+			    u64 cpos, u32 len,
+			    struct ocfs2_alloc_context *meta_ac,
+			    struct ocfs2_cached_dealloc_ctxt *dealloc)
 {
 	int ret = 0, index;
 	struct buffer_head *ref_leaf_bh = NULL;
@@ -3631,9 +3631,9 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 		goto out_commit;
 	}
 
-	ret = __ocfs2_increase_refcount(handle, ref_ci, ref_root_bh,
-					p_cluster, num_clusters,
-					meta_ac, dealloc);
+	ret = ocfs2_increase_refcount(handle, ref_ci, ref_root_bh,
+				      p_cluster, num_clusters,
+				      meta_ac, dealloc);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -3822,9 +3822,9 @@ static int ocfs2_add_refcounted_extent(struct inode *inode,
 		goto out_commit;
 	}
 
-	ret = __ocfs2_increase_refcount(handle, ref_ci, ref_root_bh,
-					p_cluster, num_clusters,
-					meta_ac, dealloc);
+	ret = ocfs2_increase_refcount(handle, ref_ci, ref_root_bh,
+				      p_cluster, num_clusters,
+				      meta_ac, dealloc);
 	if (ret)
 		mlog_errno(ret);
 

@@ -90,4 +90,8 @@ int ocfs2_xattr_attach_refcount_tree(struct inode *inode,
 				     struct ocfs2_caching_info *ref_ci,
 				     struct buffer_head *ref_root_bh,
 				     struct ocfs2_cached_dealloc_ctxt *dealloc);
+int ocfs2_reflink_xattrs(struct inode *old_inode,
+			 struct buffer_head *old_bh,
+			 struct inode *new_inode,
+			 struct buffer_head *new_bh);
 #endif /* OCFS2_XATTR_H */
