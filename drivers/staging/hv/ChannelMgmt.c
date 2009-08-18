@@ -129,7 +129,7 @@ Description:
 	Allocate and initialize a vmbus channel object
 
 --*/
-static VMBUS_CHANNEL* AllocVmbusChannel(void)
+VMBUS_CHANNEL* AllocVmbusChannel(void)
 {
 	VMBUS_CHANNEL* channel;
 
@@ -189,7 +189,7 @@ Description:
 	Release the resources used by the vmbus channel object
 
 --*/
-static void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
+void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 {
 	del_timer(&Channel->poll_timer);
 
@@ -665,10 +665,7 @@ Description:
 	This is invoked in the vmbus worker thread context.
 
 --*/
-static void
-VmbusOnChannelMessage(
-	void *Context
-	)
+void VmbusOnChannelMessage(void *Context)
 {
 	HV_MESSAGE *msg=(HV_MESSAGE*)Context;
 	VMBUS_CHANNEL_MESSAGE_HEADER* hdr;
@@ -714,10 +711,7 @@ Description:
 	Send a request to get all our pending offers.
 
 --*/
-static int
-VmbusChannelRequestOffers(
-	void
-	)
+int VmbusChannelRequestOffers(void)
 {
 	int ret=0;
 	VMBUS_CHANNEL_MESSAGE_HEADER* msg;
@@ -776,10 +770,7 @@ Description:
 	Release channels that are unattached/unconnected ie (no drivers associated)
 
 --*/
-static void
-VmbusChannelReleaseUnattachedChannels(
-	void
-	)
+void VmbusChannelReleaseUnattachedChannels(void)
 {
 	LIST_ENTRY *entry;
 	VMBUS_CHANNEL *channel;

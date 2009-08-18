@@ -34,7 +34,7 @@
 
 
 
-typedef void (*PFN_CHANNEL_CALLBACK)(void * context);
+typedef void (*PFN_CHANNEL_CALLBACK)(void *context);
 
 typedef enum {
 	CHANNEL_OFFER_STATE,
@@ -43,62 +43,64 @@ typedef enum {
 } VMBUS_CHANNEL_STATE;
 
 typedef struct _VMBUS_CHANNEL {
-	LIST_ENTRY					ListEntry;
+	LIST_ENTRY ListEntry;
 
 	struct hv_device *DeviceObject;
 
 	struct timer_list poll_timer; /* SA-111 workaround */
 
-	VMBUS_CHANNEL_STATE			State;
+	VMBUS_CHANNEL_STATE State;
 
 	VMBUS_CHANNEL_OFFER_CHANNEL OfferMsg;
-	/* These are based on the OfferMsg.MonitorId. Save it here for easy access. */
-	u8						MonitorGroup;
-	u8						MonitorBit;
+	/*
+	 * These are based on the OfferMsg.MonitorId.
+	 * Save it here for easy access.
+	 */
+	u8 MonitorGroup;
+	u8 MonitorBit;
 
-	u32						RingBufferGpadlHandle;
+	u32 RingBufferGpadlHandle;
 
 	/* Allocated memory for ring buffer */
-	void *						RingBufferPages;
-	u32						RingBufferPageCount;
-	RING_BUFFER_INFO			Outbound;	/* send to parent */
-	RING_BUFFER_INFO			Inbound;	/* receive from parent */
+	void *RingBufferPages;
+	u32 RingBufferPageCount;
+	RING_BUFFER_INFO Outbound;	/* send to parent */
+	RING_BUFFER_INFO Inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
 	struct workqueue_struct *ControlWQ;
 
 	/* Channel callback are invoked in this workqueue context */
-	/* HANDLE						dataWorkQueue; */
+	/* HANDLE dataWorkQueue; */
 
-	PFN_CHANNEL_CALLBACK		OnChannelCallback;
-	void *						ChannelCallbackContext;
-
+	PFN_CHANNEL_CALLBACK OnChannelCallback;
+	void *ChannelCallbackContext;
 } VMBUS_CHANNEL;
 
 
 typedef struct _VMBUS_CHANNEL_DEBUG_INFO {
-	u32						RelId;
-	VMBUS_CHANNEL_STATE			State;
-	GUID						InterfaceType;
-    GUID						InterfaceInstance;
-	u32						MonitorId;
-	u32						ServerMonitorPending;
-	u32						ServerMonitorLatency;
-	u32						ServerMonitorConnectionId;
-	u32						ClientMonitorPending;
-	u32						ClientMonitorLatency;
-	u32						ClientMonitorConnectionId;
+	u32 RelId;
+	VMBUS_CHANNEL_STATE State;
+	GUID InterfaceType;
+	GUID InterfaceInstance;
+	u32 MonitorId;
+	u32 ServerMonitorPending;
+	u32 ServerMonitorLatency;
+	u32 ServerMonitorConnectionId;
+	u32 ClientMonitorPending;
+	u32 ClientMonitorLatency;
+	u32 ClientMonitorConnectionId;
 
-	RING_BUFFER_DEBUG_INFO		Inbound;
-	RING_BUFFER_DEBUG_INFO		Outbound;
+	RING_BUFFER_DEBUG_INFO Inbound;
+	RING_BUFFER_DEBUG_INFO Outbound;
 } VMBUS_CHANNEL_DEBUG_INFO;
 
 
 typedef union {
-	VMBUS_CHANNEL_VERSION_SUPPORTED		VersionSupported;
-	VMBUS_CHANNEL_OPEN_RESULT			OpenResult;
-	VMBUS_CHANNEL_GPADL_TORNDOWN		GpadlTorndown;
-	VMBUS_CHANNEL_GPADL_CREATED			GpadlCreated;
-	VMBUS_CHANNEL_VERSION_RESPONSE		VersionResponse;
+	VMBUS_CHANNEL_VERSION_SUPPORTED VersionSupported;
+	VMBUS_CHANNEL_OPEN_RESULT OpenResult;
+	VMBUS_CHANNEL_GPADL_TORNDOWN GpadlTorndown;
+	VMBUS_CHANNEL_GPADL_CREATED GpadlCreated;
+	VMBUS_CHANNEL_VERSION_RESPONSE VersionResponse;
 } VMBUS_CHANNEL_MESSAGE_RESPONSE;
 
 
@@ -106,51 +108,35 @@ typedef union {
  * Represents each channel msg on the vmbus connection This is a
  * variable-size data structure depending on the msg type itself
  */
-
 typedef struct _VMBUS_CHANNEL_MSGINFO {
 	/* Bookkeeping stuff */
-	LIST_ENTRY		MsgListEntry;
+	LIST_ENTRY MsgListEntry;
 
 	/* So far, this is only used to handle gpadl body message */
-	LIST_ENTRY		SubMsgList;
+	LIST_ENTRY SubMsgList;
 
 	/* Synchronize the request/response if needed */
 	struct osd_waitevent *WaitEvent;
 
 	VMBUS_CHANNEL_MESSAGE_RESPONSE Response;
 
-	u32			MessageSize;
-	/* The channel message that goes out on the "wire". */
-	/* It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header */
-	unsigned char	Msg[0];
+	u32 MessageSize;
+	/*
+	 * The channel message that goes out on the "wire".
+	 * It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header
+	 */
+	unsigned char Msg[0];
 } VMBUS_CHANNEL_MSGINFO;
 
 
-/* Routines */
+VMBUS_CHANNEL *AllocVmbusChannel(void);
 
-static VMBUS_CHANNEL*
-AllocVmbusChannel(
-	void
-	);
+void FreeVmbusChannel(VMBUS_CHANNEL *Channel);
 
-static void
-FreeVmbusChannel(
-	VMBUS_CHANNEL *Channel
-	);
+void VmbusOnChannelMessage(void *Context);
 
-static void
-VmbusOnChannelMessage(
-	void *Context
-	);
+int VmbusChannelRequestOffers(void);
 
-static int
-VmbusChannelRequestOffers(
-	void
-	);
-
-static void
-VmbusChannelReleaseUnattachedChannels(
-	void
-	);
+void VmbusChannelReleaseUnattachedChannels(void);
 
 #endif /* _CHANNEL_MGMT_H_ */
