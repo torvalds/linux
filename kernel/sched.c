@@ -8577,6 +8577,15 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 						d->send_covered, d->tmpmask);
 		break;
 #endif
+#ifdef CONFIG_SCHED_MC
+	case SD_LV_MC: /* set up multi-core groups */
+		cpumask_and(d->this_core_map, cpu_map, cpu_coregroup_mask(cpu));
+		if (cpu == cpumask_first(d->this_core_map))
+			init_sched_build_groups(d->this_core_map, cpu_map,
+						&cpu_to_core_group,
+						d->send_covered, d->tmpmask);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -8618,20 +8627,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 	for_each_cpu(i, cpu_map) {
 		build_sched_groups(&d, SD_LV_SIBLING, cpu_map, i);
+		build_sched_groups(&d, SD_LV_MC, cpu_map, i);
 	}
-
-#ifdef CONFIG_SCHED_MC
-	/* Set up multi-core groups */
-	for_each_cpu(i, cpu_map) {
-		cpumask_and(d.this_core_map, cpu_coregroup_mask(i), cpu_map);
-		if (i != cpumask_first(d.this_core_map))
-			continue;
-
-		init_sched_build_groups(d.this_core_map, cpu_map,
-					&cpu_to_core_group,
-					d.send_covered, d.tmpmask);
-	}
-#endif
 
 	/* Set up physical groups */
 	for (i = 0; i < nr_node_ids; i++) {
