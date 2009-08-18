@@ -497,6 +497,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				hopcount, ttl, cpu_to_le32(lifetime),
 				cpu_to_le32(metric), cpu_to_le32(preq_id),
 				sdata);
+		ifmsh->mshstats.fwded_mcast++;
 		ifmsh->mshstats.fwded_frames++;
 	}
 }
@@ -555,6 +556,8 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 		cpu_to_le32(lifetime), cpu_to_le32(metric),
 		0, sdata);
 	rcu_read_unlock();
+
+	sdata->u.mesh.mshstats.fwded_unicast++;
 	sdata->u.mesh.mshstats.fwded_frames++;
 	return;
 

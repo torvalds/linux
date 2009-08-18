@@ -212,7 +212,9 @@ struct ieee80211_if_vlan {
 };
 
 struct mesh_stats {
-	__u32 fwded_frames;		/* Mesh forwarded frames */
+	__u32 fwded_mcast;		/* Mesh forwarded multicast frames */
+	__u32 fwded_unicast;		/* Mesh forwarded unicast frames */
+	__u32 fwded_frames;		/* Mesh total forwarded frames */
 	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
 	__u32 dropped_frames_no_route;	/* Not transmitted, no route found */
 	atomic_t estab_plinks;
@@ -506,6 +508,8 @@ struct ieee80211_sub_if_data {
 #ifdef CONFIG_MAC80211_MESH
 	struct dentry *mesh_stats_dir;
 	struct {
+		struct dentry *fwded_mcast;
+		struct dentry *fwded_unicast;
 		struct dentry *fwded_frames;
 		struct dentry *dropped_frames_ttl;
 		struct dentry *dropped_frames_no_route;

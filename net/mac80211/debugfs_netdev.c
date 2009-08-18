@@ -116,6 +116,8 @@ IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
 #ifdef CONFIG_MAC80211_MESH
 /* Mesh stats attributes */
+IEEE80211_IF_FILE(fwded_mcast, u.mesh.mshstats.fwded_mcast, DEC);
+IEEE80211_IF_FILE(fwded_unicast, u.mesh.mshstats.fwded_unicast, DEC);
 IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
 IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
 IEEE80211_IF_FILE(dropped_frames_no_route,
@@ -205,6 +207,8 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 {
 	sdata->mesh_stats_dir = debugfs_create_dir("mesh_stats",
 				sdata->debugfsdir);
+	MESHSTATS_ADD(fwded_mcast);
+	MESHSTATS_ADD(fwded_unicast);
 	MESHSTATS_ADD(fwded_frames);
 	MESHSTATS_ADD(dropped_frames_ttl);
 	MESHSTATS_ADD(dropped_frames_no_route);
@@ -327,6 +331,8 @@ static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
 
 static void del_mesh_stats(struct ieee80211_sub_if_data *sdata)
 {
+	MESHSTATS_DEL(fwded_mcast);
+	MESHSTATS_DEL(fwded_unicast);
 	MESHSTATS_DEL(fwded_frames);
 	MESHSTATS_DEL(dropped_frames_ttl);
 	MESHSTATS_DEL(dropped_frames_no_route);

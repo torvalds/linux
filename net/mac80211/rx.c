@@ -1550,7 +1550,10 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			info->control.vif = &rx->sdata->vif;
 			ieee80211_select_queue(local, fwd_skb);
-			if (!is_multicast_ether_addr(fwd_hdr->addr1)) {
+			if (is_multicast_ether_addr(fwd_hdr->addr1))
+				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
+								fwded_mcast);
+			else {
 				int err;
 				/*
 				 * Save TA to addr1 to send TA a path error if a
@@ -1564,6 +1567,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 				 * later to the pending skb queue.  */
 				if (err)
 					return RX_DROP_MONITOR;
+
+				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
+								fwded_unicast);
 			}
 			IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
 						     fwded_frames);
