@@ -2105,6 +2105,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	mutex_lock(&sc->mutex);
+
 	aphy->state = ATH_WIPHY_INACTIVE;
 
 	cancel_delayed_work_sync(&sc->ath_led_blink_work);
@@ -2117,12 +2119,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
+		mutex_unlock(&sc->mutex);
 		return;
 	}
-
-	mutex_lock(&sc->mutex);
-
-	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (ath9k_wiphy_started(sc)) {
 		mutex_unlock(&sc->mutex);
