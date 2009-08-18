@@ -12,4 +12,10 @@ config IIO_PERIODIC_RTC_TRIGGER
 	    Provides support for using periodic capable real time
 	    clocks as IIO triggers.
 
+config IIO_GPIO_TRIGGER
+	tristate "GPIO trigger"
+	depends on GENERIC_GPIO
+	help
+	    Provides support for using GPIO pins as IIO triggers.
+
 endif # IIO_TRIGGER
