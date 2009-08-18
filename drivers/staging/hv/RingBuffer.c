@@ -203,8 +203,7 @@ Description:
 	Dump out to console the ring buffer info
 
 --*/
-static void
-DumpRingInfo(RING_BUFFER_INFO* RingInfo, char *Prefix)
+void DumpRingInfo(RING_BUFFER_INFO *RingInfo, char *Prefix)
 {
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
@@ -249,11 +248,8 @@ Description:
 	Get various debug metrics for the specified ring buffer
 
 --*/
-static void
-RingBufferGetDebugInfo(
-	RING_BUFFER_INFO		*RingInfo,
-	RING_BUFFER_DEBUG_INFO	*DebugInfo
-	)
+void RingBufferGetDebugInfo(RING_BUFFER_INFO *RingInfo,
+			    RING_BUFFER_DEBUG_INFO *DebugInfo)
 {
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
@@ -281,10 +277,7 @@ Description:
 	Get the interrupt mask for the specified ring buffer
 
 --*/
-static u32
-GetRingBufferInterruptMask(
-	RING_BUFFER_INFO *rbi
-	)
+u32 GetRingBufferInterruptMask(RING_BUFFER_INFO *rbi)
 {
 	return rbi->RingBuffer->InterruptMask;
 }
@@ -298,12 +291,7 @@ Description:
 	Initialize the ring buffer
 
 --*/
-static int
-RingBufferInit(
-	RING_BUFFER_INFO	*RingInfo,
-	void				*Buffer,
-	u32				BufferLen
-	)
+int RingBufferInit(RING_BUFFER_INFO *RingInfo, void *Buffer, u32 BufferLen)
 {
 	ASSERT(sizeof(RING_BUFFER) == PAGE_SIZE);
 
@@ -329,10 +317,7 @@ Description:
 	Cleanup the ring buffer
 
 --*/
-static void
-RingBufferCleanup(
-	RING_BUFFER_INFO* RingInfo
-	)
+void RingBufferCleanup(RING_BUFFER_INFO* RingInfo)
 {
 }
 
@@ -345,12 +330,8 @@ Description:
 	Write to the ring buffer
 
 --*/
-static int
-RingBufferWrite(
-	RING_BUFFER_INFO *OutRingInfo,
-	struct scatterlist *sglist,
-	u32 sgcount
-	)
+int RingBufferWrite(RING_BUFFER_INFO *OutRingInfo,
+		    struct scatterlist *sglist, u32 sgcount)
 {
 	int i=0;
 	u32 byteAvailToWrite;
@@ -436,12 +417,7 @@ Description:
 	Read without advancing the read index
 
 --*/
-static int
-RingBufferPeek(
-	RING_BUFFER_INFO*	InRingInfo,
-	void*				Buffer,
-	u32				BufferLen
-	)
+int RingBufferPeek(RING_BUFFER_INFO *InRingInfo, void *Buffer, u32 BufferLen)
 {
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
@@ -485,13 +461,8 @@ Description:
 	Read and advance the read index
 
 --*/
-static int
-RingBufferRead(
-	RING_BUFFER_INFO*	InRingInfo,
-	void *				Buffer,
-	u32				BufferLen,
-	u32				Offset
-	)
+int RingBufferRead(RING_BUFFER_INFO *InRingInfo, void *Buffer,
+		   u32 BufferLen, u32 Offset)
 {
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
