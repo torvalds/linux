@@ -276,6 +276,15 @@ config AB3100_CORE
 	  LEDs, vibrator, system power and temperature, power management
 	  and ALSA sound.
 
+config AB3100_OTP
+	tristate "ST-Ericsson AB3100 OTP functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	  Select this to enable the AB3100 Mixed Signal IC OTP (one-time
+	  programmable memory) support. This exposes a sysfs file to read
+	  out OTP values.
+
 config EZX_PCAP
 	bool "PCAP Support"
 	depends on GENERIC_HARDIRQS && SPI_MASTER
