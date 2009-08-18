@@ -77,15 +77,6 @@ ENTRY(ret_from_irq)
 	!
 	mov	#OFF_SR, r0
 	mov.l	@(r0,r15), r0	! get status register
-
-	shlr2	r0
-	and	#0x3c, r0
-	cmp/eq	#0x3c, r0
-	bt	9f
-	TRACE_IRQS_ON
-9:
-	mov	#OFF_SR, r0
-	mov.l	@(r0,r15), r0	! get status register
 	shll	r0
 	shll	r0		! kernel space?
 	get_current_thread_info r8, r0
@@ -96,6 +87,7 @@ ENTRY(ret_from_irq)
 	 nop
 ENTRY(resume_kernel)
 	cli
+	TRACE_IRQS_OFF
 	mov.l	@(TI_PRE_COUNT,r8), r0	! current_thread_info->preempt_count
 	tst	r0, r0
 	bf	noresched
@@ -213,12 +205,25 @@ syscall_trace_entry:
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
 
 __restore_all:
-	mov.l	1f, r0
+	mov	#OFF_SR, r0
+	mov.l	@(r0,r15), r0	! get status register
+
+	shlr2	r0
+	and	#0x3c, r0
+	cmp/eq	#0x3c, r0
+	bt	1f
+	TRACE_IRQS_ON
+	bra	2f
+	 nop
+1:
+	TRACE_IRQS_OFF
+2:
+	mov.l	3f, r0
 	jmp	@r0
 	 nop
 
 	.align	2
-1:	.long	restore_all
+3:	.long	restore_all
 
 	.align	2
 syscall_badsys:			! Bad syscall number
