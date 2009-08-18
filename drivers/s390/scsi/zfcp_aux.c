@@ -502,10 +502,6 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	spin_lock_init(&adapter->req_list_lock);
 
-	spin_lock_init(&adapter->hba_dbf_lock);
-	spin_lock_init(&adapter->san_dbf_lock);
-	spin_lock_init(&adapter->scsi_dbf_lock);
-	spin_lock_init(&adapter->rec_dbf_lock);
 	spin_lock_init(&adapter->req_q_lock);
 	spin_lock_init(&adapter->qdio_stat_lock);
 

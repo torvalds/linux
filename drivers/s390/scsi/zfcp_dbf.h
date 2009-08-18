@@ -2,7 +2,7 @@
  * This file is part of the zfcp device driver for
  * FCP adapters for IBM System z9 and zSeries.
  *
- * Copyright IBM Corp. 2008, 2008
+ * Copyright IBM Corp. 2008, 2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -221,5 +221,20 @@ struct zfcp_scsi_dbf_record {
 	u32 sns_info_len;
 	u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
 } __attribute__ ((packed));
+
+struct zfcp_dbf {
+	debug_info_t			*rec_dbf;
+	debug_info_t			*hba_dbf;
+	debug_info_t			*san_dbf;
+	debug_info_t			*scsi_dbf;
+	spinlock_t			rec_dbf_lock;
+	spinlock_t			hba_dbf_lock;
+	spinlock_t			san_dbf_lock;
+	spinlock_t			scsi_dbf_lock;
+	struct zfcp_rec_dbf_record	rec_dbf_buf;
+	struct zfcp_hba_dbf_record	hba_dbf_buf;
+	struct zfcp_san_dbf_record	san_dbf_buf;
+	struct zfcp_scsi_dbf_record	scsi_dbf_buf;
+};
 
 #endif /* ZFCP_DBF_H */

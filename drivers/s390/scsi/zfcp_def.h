@@ -37,9 +37,7 @@
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
-#include "zfcp_dbf.h"
 #include "zfcp_fsf.h"
-
 
 /********************* GENERAL DEFINES *********************************/
 
@@ -468,18 +466,7 @@ struct zfcp_adapter {
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
 	struct zfcp_wka_ports	*gs;		   /* generic services */
-	debug_info_t		*rec_dbf;
-	debug_info_t		*hba_dbf;
-	debug_info_t		*san_dbf;          /* debug feature areas */
-	debug_info_t		*scsi_dbf;
-	spinlock_t		rec_dbf_lock;
-	spinlock_t		hba_dbf_lock;
-	spinlock_t		san_dbf_lock;
-	spinlock_t		scsi_dbf_lock;
-	struct zfcp_rec_dbf_record	rec_dbf_buf;
-	struct zfcp_hba_dbf_record	hba_dbf_buf;
-	struct zfcp_san_dbf_record	san_dbf_buf;
-	struct zfcp_scsi_dbf_record	scsi_dbf_buf;
+	struct zfcp_dbf		*dbf;		   /* debug traces */
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
 	struct fc_host_statistics *fc_stats;
