@@ -151,6 +151,7 @@ extern u64 timecounter_cyc2time(struct timecounter *tc,
  *			subtraction of non 64 bit counters
  * @mult:		cycle to nanosecond multiplier
  * @shift:		cycle to nanosecond divisor (power of two)
+ * @max_idle_ns:	max idle time permitted by the clocksource (nsecs)
  * @flags:		flags describing special properties
  * @vread:		vsyscall based read
  * @resume:		resume function for the clocksource, if necessary
@@ -168,6 +169,7 @@ struct clocksource {
 	cycle_t mask;
 	u32 mult;
 	u32 shift;
+	u64 max_idle_ns;
 	unsigned long flags;
 	cycle_t (*vread)(void);
 	void (*resume)(void);
