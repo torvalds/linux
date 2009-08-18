@@ -93,7 +93,9 @@ static void ext4_idx_store_pblock(struct ext4_extent_idx *ix, ext4_fsblk_t pb)
 	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
 }
 
-static int ext4_ext_journal_restart(handle_t *handle, int needed)
+static int ext4_ext_truncate_extend_restart(handle_t *handle,
+					    struct inode *inode,
+					    int needed)
 {
 	int err;
 
@@ -104,7 +106,14 @@ static int ext4_ext_journal_restart(handle_t *handle, int needed)
 	err = ext4_journal_extend(handle, needed);
 	if (err <= 0)
 		return err;
-	return ext4_journal_restart(handle, needed);
+	err = ext4_truncate_restart_trans(handle, inode, needed);
+	/*
+	 * We have dropped i_data_sem so someone might have cached again
+	 * an extent we are going to truncate.
+	 */
+	ext4_ext_invalidate_cache(inode);
+
+	return err;
 }
 
 /*
@@ -2150,7 +2159,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		}
 		credits += 2 * EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb);
 
-		err = ext4_ext_journal_restart(handle, credits);
+		err = ext4_ext_truncate_extend_restart(handle, inode, credits);
 		if (err)
 			goto out;
 

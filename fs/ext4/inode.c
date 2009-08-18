@@ -192,11 +192,24 @@ static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
  * so before we call here everything must be consistently dirtied against
  * this transaction.
  */
-static int ext4_journal_test_restart(handle_t *handle, struct inode *inode)
+ int ext4_truncate_restart_trans(handle_t *handle, struct inode *inode,
+				 int nblocks)
 {
+	int ret;
+
+	/*
+	 * Drop i_data_sem to avoid deadlock with ext4_get_blocks At this
+	 * moment, get_block can be called only for blocks inside i_size since
+	 * page cache has been already dropped and writes are blocked by
+	 * i_mutex. So we can safely drop the i_data_sem here.
+	 */
 	BUG_ON(EXT4_JOURNAL(inode) == NULL);
 	jbd_debug(2, "restarting handle %p\n", handle);
-	return ext4_journal_restart(handle, blocks_for_truncate(inode));
+	up_write(&EXT4_I(inode)->i_data_sem);
+	ret = ext4_journal_restart(handle, blocks_for_truncate(inode));
+	down_write(&EXT4_I(inode)->i_data_sem);
+
+	return ret;
 }
 
 /*
@@ -3658,7 +3671,8 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 			ext4_handle_dirty_metadata(handle, inode, bh);
 		}
 		ext4_mark_inode_dirty(handle, inode);
-		ext4_journal_test_restart(handle, inode);
+		ext4_truncate_restart_trans(handle, inode,
+					    blocks_for_truncate(inode));
 		if (bh) {
 			BUFFER_TRACE(bh, "retaking write access");
 			ext4_journal_get_write_access(handle, bh);
@@ -3869,7 +3883,8 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 				return;
 			if (try_to_extend_transaction(handle, inode)) {
 				ext4_mark_inode_dirty(handle, inode);
-				ext4_journal_test_restart(handle, inode);
+				ext4_truncate_restart_trans(handle, inode,
+					    blocks_for_truncate(inode));
 			}
 
 			ext4_free_blocks(handle, inode, nr, 1, 1);
