@@ -451,6 +451,18 @@ int i2400ms_probe(struct sdio_func *func,
 		goto error_func_enable;
 	}
 
+	/*
+	 * Before we are enabling the device interrupt register, make
+	 * sure the buffer used during bootmode operation is setup so
+	 * when the first D2H data interrupt comes, the memory is
+	 * available for copying the D2H data.
+	 */
+	result = i2400m_bm_buf_alloc(i2400m);
+	if (result < 0) {
+		dev_err(dev, "cannot allocate SDIO bootmode buffer\n");
+		goto error_bootmode_buf_setup;
+	}
+
 	result = i2400ms_rx_setup(i2400ms);
 	if (result < 0)
 		goto error_rx_setup;
@@ -474,6 +486,8 @@ error_debugfs_add:
 error_setup:
 	i2400ms_rx_release(i2400ms);
 error_rx_setup:
+	i2400m_bm_buf_free(i2400m);
+error_bootmode_buf_setup:
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);

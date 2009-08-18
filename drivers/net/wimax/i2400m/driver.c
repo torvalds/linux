@@ -619,6 +619,46 @@ EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 
 
 /**
+ * i2400m_bm_buf_alloc - Alloc the command and ack buffers for boot mode
+ *
+ * Get the buffers needed to deal with boot mode messages.  These
+ * buffers need to be allocated before the sdio recieve irq is setup.
+ */
+int i2400m_bm_buf_alloc(struct i2400m *i2400m)
+{
+	int result;
+
+	result = -ENOMEM;
+	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
+	if (i2400m->bm_cmd_buf == NULL)
+		goto error_bm_cmd_kzalloc;
+	i2400m->bm_ack_buf = kzalloc(I2400M_BM_ACK_BUF_SIZE, GFP_KERNEL);
+	if (i2400m->bm_ack_buf == NULL)
+		goto error_bm_ack_buf_kzalloc;
+	return 0;
+
+error_bm_ack_buf_kzalloc:
+	kfree(i2400m->bm_cmd_buf);
+error_bm_cmd_kzalloc:
+	return result;
+}
+EXPORT_SYMBOL_GPL(i2400m_bm_buf_alloc);
+
+/**
+ * i2400m_bm_buf_free - Free boot mode command and ack buffers.
+ *
+ * Free the command and ack buffers
+ *
+ */
+void i2400m_bm_buf_free(struct i2400m *i2400m)
+{
+	kfree(i2400m->bm_ack_buf);
+	kfree(i2400m->bm_cmd_buf);
+	return;
+}
+EXPORT_SYMBOL_GPL(i2400m_bm_buf_free
+);
+/**
  * i2400m_setup - bus-generic setup function for the i2400m device
  *
  * @i2400m: device descriptor (bus-specific parts have been initialized)
@@ -645,16 +685,6 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	snprintf(wimax_dev->name, sizeof(wimax_dev->name),
 		 "i2400m-%s:%s", dev->bus->name, dev_name(dev));
 
-	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
-	if (i2400m->bm_cmd_buf == NULL) {
-		dev_err(dev, "cannot allocate USB command buffer\n");
-		goto error_bm_cmd_kzalloc;
-	}
-	i2400m->bm_ack_buf = kzalloc(I2400M_BM_ACK_BUF_SIZE, GFP_KERNEL);
-	if (i2400m->bm_ack_buf == NULL) {
-		dev_err(dev, "cannot allocate USB ack buffer\n");
-		goto error_bm_ack_buf_kzalloc;
-	}
 	result = i2400m_bootrom_init(i2400m, bm_flags);
 	if (result < 0) {
 		dev_err(dev, "read mac addr: bootrom init "
@@ -713,10 +743,6 @@ error_dev_start:
 error_register_netdev:
 error_read_mac_addr:
 error_bootrom_init:
-	kfree(i2400m->bm_ack_buf);
-error_bm_ack_buf_kzalloc:
-	kfree(i2400m->bm_cmd_buf);
-error_bm_cmd_kzalloc:
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 }

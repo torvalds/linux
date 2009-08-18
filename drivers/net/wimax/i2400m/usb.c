@@ -419,6 +419,12 @@ int i2400mu_probe(struct usb_interface *iface,
 	usb_dev->autosuspend_disabled = 0;
 #endif
 
+	result = i2400m_bm_buf_alloc(i2400m);
+	if (result < 0) {
+		dev_err(dev, "cannot allocate USB bootmode buffer\n");
+		goto error_bm_buf_alloc;
+	}
+
 	result = i2400m_setup(i2400m, I2400M_BRI_MAC_REINIT);
 	if (result < 0) {
 		dev_err(dev, "cannot setup device: %d\n", result);
@@ -434,6 +440,8 @@ int i2400mu_probe(struct usb_interface *iface,
 error_debugfs_add:
 	i2400m_release(i2400m);
 error_setup:
+	i2400m_bm_buf_free(i2400m);
+error_bm_buf_alloc:
 	usb_set_intfdata(iface, NULL);
 	usb_put_dev(i2400mu->usb_dev);
 	free_netdev(net_dev);
