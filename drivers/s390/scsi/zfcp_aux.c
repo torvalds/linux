@@ -541,6 +541,9 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	rwlock_init(&adapter->erp_lock);
 	rwlock_init(&adapter->abort_lock);
 
+	if (zfcp_erp_thread_setup(adapter))
+		goto erp_thread_failed;
+
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 	INIT_WORK(&adapter->scan_work, _zfcp_fc_scan_ports_later);
 
@@ -561,6 +564,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		return 0;
 
 sysfs_failed:
+	zfcp_erp_thread_kill(adapter);
+erp_thread_failed:
 	zfcp_fc_gs_destroy(adapter);
 generic_services_failed:
 	zfcp_destroy_adapter_work_queue(adapter);
@@ -602,6 +607,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 		return;
 
 	zfcp_fc_gs_destroy(adapter);
+	zfcp_erp_thread_kill(adapter);
 	zfcp_destroy_adapter_work_queue(adapter);
 	zfcp_dbf_adapter_unregister(adapter->dbf);
 	zfcp_free_low_mem_buffers(adapter);

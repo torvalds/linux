@@ -150,6 +150,9 @@ static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
 		a_status = atomic_read(&adapter->status);
 		if (a_status & ZFCP_STATUS_COMMON_ERP_INUSE)
 			return 0;
+		if (!(a_status & ZFCP_STATUS_COMMON_RUNNING) &&
+		    !(a_status & ZFCP_STATUS_COMMON_OPEN))
+			return 0; /* shutdown requested for closed adapter */
 	}
 
 	return need;
@@ -1349,6 +1352,8 @@ void zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
 {
 	kthread_stop(adapter->erp_thread);
 	adapter->erp_thread = NULL;
+	WARN_ON(!list_empty(&adapter->erp_ready_head));
+	WARN_ON(!list_empty(&adapter->erp_running_head));
 }
 
 /**
