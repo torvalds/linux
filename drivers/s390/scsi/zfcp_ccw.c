@@ -21,12 +21,12 @@ static int zfcp_ccw_suspend(struct ccw_device *cdev)
 	if (!adapter)
 		return 0;
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccsusp1", NULL);
 	zfcp_erp_wait(adapter);
 
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 
 	return 0;
 }
@@ -98,7 +98,7 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 
 	ccw_device_set_offline(ccw_device);
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&ccw_device->dev);
 	if (!adapter)
 		goto out;
@@ -128,7 +128,7 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	zfcp_adapter_dequeue(adapter);
 
 out:
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 }
 
 /**
@@ -149,7 +149,7 @@ static int zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	struct zfcp_adapter *adapter;
 	int ret = 0;
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&ccw_device->dev);
 
 	if (!adapter) {
@@ -173,7 +173,7 @@ static int zfcp_ccw_set_online(struct ccw_device *ccw_device)
 				"ccsonl2", NULL);
 	zfcp_erp_wait(adapter);
 out:
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 	if (!ret)
 		flush_work(&adapter->scan_work);
 	return ret;
@@ -190,14 +190,14 @@ static int zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 {
 	struct zfcp_adapter *adapter;
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&ccw_device->dev);
 	if (!adapter)
 		goto out;
 
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccsoff1", NULL);
 	zfcp_erp_wait(adapter);
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 out:
 	return 0;
 }
@@ -251,12 +251,12 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 {
 	struct zfcp_adapter *adapter;
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&cdev->dev);
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccshut1", NULL);
 	zfcp_erp_wait(adapter);
 	zfcp_erp_thread_kill(adapter);
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 }
 
 static struct ccw_driver zfcp_ccw_driver = {

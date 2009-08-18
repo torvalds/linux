@@ -604,8 +604,7 @@ struct zfcp_data {
 	rwlock_t                config_lock;        /* serialises changes
 						       to adapter/port/unit
 						       lists */
-	struct semaphore        config_sema;        /* serialises configuration
-						       changes */
+	struct mutex		config_mutex;
 	struct kmem_cache	*gpn_ft_cache;
 	struct kmem_cache	*qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;

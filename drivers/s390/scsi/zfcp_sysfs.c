@@ -88,7 +88,7 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 	unsigned long val;						       \
 	int retval = 0;							       \
 									       \
-	down(&zfcp_data.config_sema);					       \
+	mutex_lock(&zfcp_data.config_mutex);				       \
 	if (atomic_read(&_feat->status) & ZFCP_STATUS_COMMON_REMOVE) {	       \
 		retval = -EBUSY;					       \
 		goto out;						       \
@@ -105,7 +105,7 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 				  _reopen_id, NULL);			       \
 	zfcp_erp_wait(_adapter);					       \
 out:									       \
-	up(&zfcp_data.config_sema);					       \
+	mutex_unlock(&zfcp_data.config_mutex);				       \
 	return retval ? retval : (ssize_t) count;			       \
 }									       \
 static ZFCP_DEV_ATTR(_feat, failed, S_IWUSR | S_IRUGO,			       \
@@ -142,7 +142,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	int retval = 0;
 	LIST_HEAD(port_remove_lh);
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
 		retval = -EBUSY;
 		goto out;
@@ -173,7 +173,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	zfcp_port_put(port);
 	zfcp_port_dequeue(port);
  out:
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
 }
 static ZFCP_DEV_ATTR(adapter, port_remove, S_IWUSR, NULL,
@@ -207,7 +207,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	u64 fcp_lun;
 	int retval = -EINVAL;
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
 		retval = -EBUSY;
 		goto out;
@@ -226,7 +226,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	zfcp_erp_wait(unit->port->adapter);
 	zfcp_unit_put(unit);
 out:
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
@@ -241,7 +241,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	int retval = 0;
 	LIST_HEAD(unit_remove_lh);
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
 		retval = -EBUSY;
 		goto out;
@@ -282,7 +282,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	zfcp_unit_put(unit);
 	zfcp_unit_dequeue(unit);
 out:
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);

@@ -84,7 +84,7 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	read_lock_irq(&zfcp_data.config_lock);
 	adapter = zfcp_get_adapter_by_busid(busid);
 	if (adapter)
@@ -99,20 +99,20 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	unit = zfcp_unit_enqueue(port, lun);
 	if (IS_ERR(unit))
 		goto out_unit;
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 	ccw_device_set_online(adapter->ccw_device);
 
 	zfcp_erp_wait(adapter);
 	flush_work(&unit->scsi_work);
 
-	down(&zfcp_data.config_sema);
+	mutex_lock(&zfcp_data.config_mutex);
 	zfcp_unit_put(unit);
 out_unit:
 	zfcp_port_put(port);
 out_port:
 	zfcp_adapter_put(adapter);
 out_adapter:
-	up(&zfcp_data.config_sema);
+	mutex_unlock(&zfcp_data.config_mutex);
 	return;
 }
 
@@ -176,7 +176,7 @@ static int __init zfcp_module_init(void)
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
-	sema_init(&zfcp_data.config_sema, 1);
+	mutex_init(&zfcp_data.config_mutex);
 	rwlock_init(&zfcp_data.config_lock);
 
 	zfcp_data.scsi_transport_template =
@@ -266,7 +266,7 @@ static void zfcp_sysfs_unit_release(struct device *dev)
  * @port: pointer to port where unit is added
  * @fcp_lun: FCP LUN of unit to be enqueued
  * Returns: pointer to enqueued unit on success, ERR_PTR on error
- * Locks: config_sema must be held to serialize changes to the unit list
+ * Locks: config_mutex must be held to serialize changes to the unit list
  *
  * Sets up some unit internal structures and creates sysfs entry.
  */
@@ -356,7 +356,7 @@ void zfcp_unit_dequeue(struct zfcp_unit *unit)
 
 static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 {
-	/* must only be called with zfcp_data.config_sema taken */
+	/* must only be called with zfcp_data.config_mutex taken */
 	adapter->pool.erp_req =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.erp_req)
@@ -404,7 +404,7 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 
 static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 {
-	/* zfcp_data.config_sema must be held */
+	/* zfcp_data.config_mutex must be held */
 	if (adapter->pool.erp_req)
 		mempool_destroy(adapter->pool.erp_req);
 	if (adapter->pool.scsi_req)
@@ -491,7 +491,7 @@ static void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *adapter)
  * Enqueues an adapter at the end of the adapter list in the driver data.
  * All adapter internal structures are set up.
  * Proc-fs entries are also created.
- * locks:	config_sema must be held to serialise changes to the adapter list
+ * locks: config_mutex must be held to serialize changes to the adapter list
  */
 int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 {
@@ -499,7 +499,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/*
 	 * Note: It is safe to release the list_lock, as any list changes
-	 * are protected by the config_sema, which must be held to get here
+	 * are protected by the config_mutex, which must be held to get here
 	 */
 
 	adapter = kzalloc(sizeof(struct zfcp_adapter), GFP_KERNEL);
@@ -630,7 +630,7 @@ static void zfcp_sysfs_port_release(struct device *dev)
  * @status: initial status for the port
  * @d_id: destination id of the remote port to be enqueued
  * Returns: pointer to enqueued port on success, ERR_PTR on error
- * Locks: config_sema must be held to serialize changes to the port list
+ * Locks: config_mutex must be held to serialize changes to the port list
  *
  * All port internal structures are set up and the sysfs entry is generated.
  * d_id is used to enqueue ports with a well known address like the Directory
