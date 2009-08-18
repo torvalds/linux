@@ -9,8 +9,9 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include "zfcp_ext.h"
 #include <asm/atomic.h>
+#include "zfcp_ext.h"
+#include "zfcp_dbf.h"
 
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);

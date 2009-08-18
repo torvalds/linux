@@ -57,14 +57,9 @@ extern void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_els_request(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_els_response(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_incoming_els(struct zfcp_fsf_req *);
-extern void zfcp_scsi_dbf_event_result(const char *, int, struct zfcp_adapter *,
-				       struct scsi_cmnd *,
-				       struct zfcp_fsf_req *);
-extern void zfcp_scsi_dbf_event_abort(const char *, struct zfcp_adapter *,
-				      struct scsi_cmnd *, struct zfcp_fsf_req *,
-				      unsigned long);
-extern void zfcp_scsi_dbf_event_devreset(const char *, u8, struct zfcp_unit *,
-					 struct scsi_cmnd *);
+extern void _zfcp_scsi_dbf_event(const char *, const char *, int,
+				 struct zfcp_dbf *, struct scsi_cmnd *,
+				 struct zfcp_fsf_req *, unsigned long);
 
 /* zfcp_erp.c */
 extern void zfcp_erp_modify_adapter_status(struct zfcp_adapter *, char *,

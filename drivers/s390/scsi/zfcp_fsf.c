@@ -11,6 +11,7 @@
 
 #include <linux/blktrace_api.h>
 #include "zfcp_ext.h"
+#include "zfcp_dbf.h"
 
 #define ZFCP_REQ_AUTO_CLEANUP	0x00000002
 #define ZFCP_REQ_NO_QTCB	0x00000008

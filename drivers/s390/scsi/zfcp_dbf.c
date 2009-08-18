@@ -921,13 +921,11 @@ static struct debug_view zfcp_san_dbf_view = {
 	NULL
 };
 
-static void zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
-				struct zfcp_adapter *adapter,
-				struct scsi_cmnd *scsi_cmnd,
-				struct zfcp_fsf_req *fsf_req,
-				unsigned long old_req_id)
+void _zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
+			  struct zfcp_dbf *dbf, struct scsi_cmnd *scsi_cmnd,
+			  struct zfcp_fsf_req *fsf_req,
+			  unsigned long old_req_id)
 {
-	struct zfcp_dbf *dbf = adapter->dbf;
 	struct zfcp_scsi_dbf_record *rec = &dbf->scsi_dbf_buf;
 	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)rec;
 	unsigned long flags;
@@ -997,54 +995,6 @@ static void zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
 		debug_event(dbf->scsi_dbf, level, rec, sizeof(*rec));
 	} while (offset < buflen);
 	spin_unlock_irqrestore(&dbf->scsi_dbf_lock, flags);
-}
-
-/**
- * zfcp_scsi_dbf_event_result - trace event for SCSI command completion
- * @tag: tag indicating success or failure of SCSI command
- * @level: trace level applicable for this event
- * @adapter: adapter that has been used to issue the SCSI command
- * @scsi_cmnd: SCSI command pointer
- * @fsf_req: request used to issue SCSI command (might be NULL)
- */
-void zfcp_scsi_dbf_event_result(const char *tag, int level,
-				struct zfcp_adapter *adapter,
-				struct scsi_cmnd *scsi_cmnd,
-				struct zfcp_fsf_req *fsf_req)
-{
-	zfcp_scsi_dbf_event("rslt", tag, level, adapter, scsi_cmnd, fsf_req, 0);
-}
-
-/**
- * zfcp_scsi_dbf_event_abort - trace event for SCSI command abort
- * @tag: tag indicating success or failure of abort operation
- * @adapter: adapter thas has been used to issue SCSI command to be aborted
- * @scsi_cmnd: SCSI command to be aborted
- * @new_fsf_req: request containing abort (might be NULL)
- * @old_req_id: identifier of request containg SCSI command to be aborted
- */
-void zfcp_scsi_dbf_event_abort(const char *tag, struct zfcp_adapter *adapter,
-			       struct scsi_cmnd *scsi_cmnd,
-			       struct zfcp_fsf_req *new_fsf_req,
-			       unsigned long old_req_id)
-{
-	zfcp_scsi_dbf_event("abrt", tag, 1, adapter, scsi_cmnd, new_fsf_req,
-			    old_req_id);
-}
-
-/**
- * zfcp_scsi_dbf_event_devreset - trace event for Logical Unit or Target Reset
- * @tag: tag indicating success or failure of reset operation
- * @flag: indicates type of reset (Target Reset, Logical Unit Reset)
- * @unit: unit that needs reset
- * @scsi_cmnd: SCSI command which caused this error recovery
- */
-void zfcp_scsi_dbf_event_devreset(const char *tag, u8 flag,
-				  struct zfcp_unit *unit,
-				  struct scsi_cmnd *scsi_cmnd)
-{
-	zfcp_scsi_dbf_event(flag == FCP_TARGET_RESET ? "trst" : "lrst", tag, 1,
-			    unit->port->adapter, scsi_cmnd, NULL, 0);
 }
 
 static int zfcp_scsi_dbf_view_format(debug_info_t *id, struct debug_view *view,
