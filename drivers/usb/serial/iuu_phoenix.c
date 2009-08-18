@@ -79,6 +79,7 @@ struct iuu_private {
 	u8 *buf;		/* used for initialize speed */
 	u8 *dbgbuf;		/* debug buffer */
 	u8 len;
+	int vcc;		/* vcc (either 3 or 5 V) */
 };
 
 
@@ -114,6 +115,7 @@ static int iuu_startup(struct usb_serial *serial)
 		kfree(priv);
 		return -ENOMEM;
 	}
+	priv->vcc = 5;  /* 5 V for vcc by default */
 	spin_lock_init(&priv->lock);
 	init_waitqueue_head(&priv->delta_msr_wait);
 	usb_set_serial_port_data(serial->port[0], priv);
@@ -1178,6 +1180,95 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return result;
 }
 
+/* how to change VCC */
+static int iuu_vcc_set(struct usb_serial_port *port, unsigned int vcc)
+{
+	int status;
+	u8 *buf;
+
+	buf = kmalloc(5, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	dbg("%s - enter", __func__);
+
+	buf[0] = IUU_SET_VCC;
+	buf[1] = vcc & 0xFF;
+	buf[2] = (vcc >> 8) & 0xFF;
+	buf[3] = (vcc >> 16) & 0xFF;
+	buf[4] = (vcc >> 24) & 0xFF;
+
+	status = bulk_immediate(port, buf, 5);
+	kfree(buf);
+
+	if (status != IUU_OPERATION_OK)
+		dbg("%s - vcc error status = %2x", __func__, status);
+	else
+		dbg("%s - vcc OK !", __func__);
+
+	return status;
+}
+
+/*
+ * Sysfs Attributes
+ */
+
+static ssize_t show_vcc_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb_serial_port *port = to_usb_serial_port(dev);
+	struct iuu_private *priv = usb_get_serial_port_data(port);
+
+	return sprintf(buf, "%d\n", priv->vcc);
+}
+
+static ssize_t store_vcc_mode(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_serial_port *port = to_usb_serial_port(dev);
+	struct iuu_private *priv = usb_get_serial_port_data(port);
+	unsigned long v;
+
+	if (strict_strtoul(buf, 10, &v)) {
+		dev_err(dev, "%s - vcc_mode: %s is not a unsigned long\n",
+				__func__, buf);
+		goto fail_store_vcc_mode;
+	}
+
+	dbg("%s: setting vcc_mode = %ld", __func__, v);
+
+	if ((v != 3) && (v != 5)) {
+		dev_err(dev, "%s - vcc_mode %ld is invalid\n", __func__, v);
+	} else {
+		iuu_vcc_set(port, v);
+		priv->vcc = v;
+	}
+fail_store_vcc_mode:
+	return count;
+}
+
+static DEVICE_ATTR(vcc_mode, S_IRUSR | S_IWUSR, show_vcc_mode,
+	store_vcc_mode);
+
+static int iuu_create_sysfs_attrs(struct usb_serial_port *port)
+{
+	dbg("%s", __func__);
+
+	return device_create_file(&port->dev, &dev_attr_vcc_mode);
+}
+
+static int iuu_remove_sysfs_attrs(struct usb_serial_port *port)
+{
+	dbg("%s", __func__);
+
+	device_remove_file(&port->dev, &dev_attr_vcc_mode);
+	return 0;
+}
+
+/*
+ * End Sysfs Attributes
+ */
+
 static struct usb_serial_driver iuu_device = {
 	.driver = {
 		   .owner = THIS_MODULE,
@@ -1185,6 +1276,8 @@ static struct usb_serial_driver iuu_device = {
 		   },
 	.id_table = id_table,
 	.num_ports = 1,
+	.port_probe = iuu_create_sysfs_attrs,
+	.port_remove = iuu_remove_sysfs_attrs,
 	.open = iuu_open,
 	.close = iuu_close,
 	.write = iuu_uart_write,
