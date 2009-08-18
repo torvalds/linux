@@ -132,12 +132,21 @@ static void zfcp_fc_wka_port_init(struct zfcp_wka_port *wka_port, u32 d_id,
 	INIT_DELAYED_WORK(&wka_port->work, zfcp_wka_port_offline);
 }
 
-void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *wka)
+static void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *wka)
 {
 	cancel_delayed_work_sync(&wka->work);
 	mutex_lock(&wka->mutex);
 	wka->status = ZFCP_WKA_PORT_OFFLINE;
 	mutex_unlock(&wka->mutex);
+}
+
+void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *gs)
+{
+	zfcp_fc_wka_port_force_offline(&gs->ms);
+	zfcp_fc_wka_port_force_offline(&gs->ts);
+	zfcp_fc_wka_port_force_offline(&gs->ds);
+	zfcp_fc_wka_port_force_offline(&gs->as);
+	zfcp_fc_wka_port_force_offline(&gs->ks);
 }
 
 void zfcp_fc_wka_ports_init(struct zfcp_adapter *adapter)
