@@ -37,8 +37,11 @@ config IIO_TRIGGER
 	  ring buffers.  The triggers are effectively a 'capture
 	  data now' interrupt.
 
+
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
+
+source "drivers/staging/iio/trigger/Kconfig"
 
 endif # IIO
