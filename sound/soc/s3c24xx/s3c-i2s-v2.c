@@ -357,19 +357,19 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 #endif
 
 #ifdef CONFIG_PLAT_S3C64XX
-	iismod &= ~0x606;
+	iismod &= ~(S3C64XX_IISMOD_BLC_MASK | S3C2412_IISMOD_BCLK_MASK);
 	/* Sample size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
 		/* 8 bit sample, 16fs BCLK */
-		iismod |= 0x2004;
+		iismod |= (S3C64XX_IISMOD_BLC_8BIT | S3C2412_IISMOD_BCLK_16FS);
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		/* 16 bit sample, 32fs BCLK */
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		/* 24 bit sample, 48fs BCLK */
-		iismod |= 0x4002;
+		iismod |= (S3C64XX_IISMOD_BLC_24BIT | S3C2412_IISMOD_BCLK_48FS);
 		break;
 	}
 #endif
