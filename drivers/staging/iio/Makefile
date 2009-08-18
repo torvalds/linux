@@ -6,3 +6,4 @@ obj-$(CONFIG_IIO) += industrialio.o
 industrialio-y := industrialio-core.o
 
 obj-y += adc/
+obj-y += light/

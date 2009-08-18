@@ -12,5 +12,6 @@ menuconfig IIO
 if IIO
 
 source "drivers/staging/iio/adc/Kconfig"
+source "drivers/staging/iio/light/Kconfig"
 
 endif # IIO
