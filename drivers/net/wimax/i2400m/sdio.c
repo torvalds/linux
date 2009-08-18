@@ -115,6 +115,14 @@ int i2400ms_enable_function(struct sdio_func *func)
 	err = -ENODEV;
 	while (err != 0 && time_before64(get_jiffies_64(), timeout)) {
 		sdio_claim_host(func);
+		/*
+		 * There is a sillicon bug on the IWMC3200, where the
+		 * IOE timeout will cause problems on Moorestown
+		 * platforms (system hang). We explicitly overwrite
+		 * func->enable_timeout here to work around the issue.
+		 */
+		if (func->device == SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX)
+			func->enable_timeout = IWMC3200_IOR_TIMEOUT;
 		err = sdio_enable_func(func);
 		if (0 == err) {
 			sdio_release_host(func);

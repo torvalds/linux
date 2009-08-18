@@ -81,6 +81,8 @@ enum {
 	I2400MS_INIT_SLEEP_INTERVAL = 10,
 	/* How long to wait for the device to settle after reset */
 	I2400MS_SETTLE_TIME = 40,
+	/* The number of msec to wait for IOR after sending IOE */
+	IWMC3200_IOR_TIMEOUT = 10,
 };
 
 
