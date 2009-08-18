@@ -1016,6 +1016,7 @@ static void tx_init(struct sky2_port *sky2)
 	le = get_tx_le(sky2, &sky2->tx_prod);
 	le->addr = 0;
 	le->opcode = OP_ADDR64 | HW_OWNER;
+	sky2->tx_last_upper = 0;
 }
 
 static inline struct tx_ring_info *tx_le_re(struct sky2_port *sky2,
@@ -1573,8 +1574,9 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
 	unsigned i, len;
-	u16 slot;
 	dma_addr_t mapping;
+	u32 upper;
+	u16 slot;
 	u16 mss;
 	u8 ctrl;
 
@@ -1593,9 +1595,11 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		       dev->name, slot, skb->len);
 
 	/* Send high bits if needed */
-	if (sizeof(dma_addr_t) > sizeof(u32)) {
+	upper = upper_32_bits(mapping);
+	if (upper != sky2->tx_last_upper) {
 		le = get_tx_le(sky2, &slot);
-		le->addr = cpu_to_le32(upper_32_bits(mapping));
+		le->addr = cpu_to_le32(upper);
+		sky2->tx_last_upper = upper;
 		le->opcode = OP_ADDR64 | HW_OWNER;
 	}
 
@@ -1681,10 +1685,11 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		if (pci_dma_mapping_error(hw->pdev, mapping))
 			goto mapping_unwind;
 
-		if (sizeof(dma_addr_t) > sizeof(u32)) {
+		upper = upper_32_bits(mapping);
+		if (upper != sky2->tx_last_upper) {
 			le = get_tx_le(sky2, &slot);
-			le->addr = cpu_to_le32(upper_32_bits(mapping));
-			le->ctrl = 0;
+			le->addr = cpu_to_le32(upper);
+			sky2->tx_last_upper = upper;
 			le->opcode = OP_ADDR64 | HW_OWNER;
 		}
 
