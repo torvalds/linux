@@ -112,31 +112,6 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 	wake_up(&adapter->request_wq);
 }
 
-static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
-				  unsigned long req_id, int sbal_idx)
-{
-	struct zfcp_fsf_req *fsf_req;
-	unsigned long flags;
-
-	spin_lock_irqsave(&adapter->req_list_lock, flags);
-	fsf_req = zfcp_reqlist_find(adapter, req_id);
-
-	if (!fsf_req)
-		/*
-		 * Unknown request means that we have potentially memory
-		 * corruption and must stop the machine immediatly.
-		 */
-		panic("error: unknown request id (%lx) on adapter %s.\n",
-		      req_id, dev_name(&adapter->ccw_device->dev));
-
-	zfcp_reqlist_remove(adapter, fsf_req);
-	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
-
-	fsf_req->sbal_response = sbal_idx;
-	fsf_req->qdio_inb_usage = atomic_read(&adapter->resp_q.count);
-	zfcp_fsf_req_complete(fsf_req);
-}
-
 static void zfcp_qdio_resp_put_back(struct zfcp_adapter *adapter, int processed)
 {
 	struct zfcp_qdio_queue *queue = &adapter->resp_q;
@@ -163,9 +138,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 			       unsigned long parm)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) parm;
-	struct zfcp_qdio_queue *queue = &adapter->resp_q;
-	struct qdio_buffer_element *sbale;
-	int sbal_idx, sbale_idx, sbal_no;
+	int sbal_idx, sbal_no;
 
 	if (unlikely(qdio_err)) {
 		zfcp_hba_dbf_event_qdio(adapter, qdio_err, first, count);
@@ -179,22 +152,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	 */
 	for (sbal_no = 0; sbal_no < count; sbal_no++) {
 		sbal_idx = (first + sbal_no) % QDIO_MAX_BUFFERS_PER_Q;
-
 		/* go through all SBALEs of SBAL */
-		for (sbale_idx = 0; sbale_idx < QDIO_MAX_ELEMENTS_PER_BUFFER;
-		     sbale_idx++) {
-			sbale = zfcp_qdio_sbale(queue, sbal_idx, sbale_idx);
-			zfcp_qdio_reqid_check(adapter,
-					      (unsigned long) sbale->addr,
-					      sbal_idx);
-			if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
-				break;
-		};
-
-		if (unlikely(!(sbale->flags & SBAL_FLAGS_LAST_ENTRY)))
-			dev_warn(&adapter->ccw_device->dev,
-				 "A QDIO protocol error occurred, "
-				 "operations continue\n");
+		zfcp_fsf_reqid_check(adapter, sbal_idx);
 	}
 
 	/*

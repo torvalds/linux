@@ -122,35 +122,6 @@ void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 	}
 }
 
-/**
- * zfcp_fsf_req_dismiss_all - dismiss all fsf requests
- * @adapter: pointer to struct zfcp_adapter
- *
- * Never ever call this without shutting down the adapter first.
- * Otherwise the adapter would continue using and corrupting s390 storage.
- * Included BUG_ON() call to ensure this is done.
- * ERP is supposed to be the only user of this function.
- */
-void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
-{
-	struct zfcp_fsf_req *req, *tmp;
-	unsigned long flags;
-	LIST_HEAD(remove_queue);
-	unsigned int i;
-
-	BUG_ON(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP);
-	spin_lock_irqsave(&adapter->req_list_lock, flags);
-	for (i = 0; i < REQUEST_LIST_SIZE; i++)
-		list_splice_init(&adapter->req_list[i], &remove_queue);
-	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
-
-	list_for_each_entry_safe(req, tmp, &remove_queue, list) {
-		list_del(&req->list);
-		req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
-		zfcp_fsf_req_complete(req);
-	}
-}
-
 static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 {
 	struct fsf_status_read_buffer *sr_buf = req->data;
@@ -459,7 +430,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
  * is called to process the completion status and trigger further
  * events related to the FSF request.
  */
-void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
+static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 {
 	if (unlikely(req->fsf_command == FSF_QTCB_UNSOLICITED_STATUS)) {
 		zfcp_fsf_status_read_handler(req);
@@ -490,6 +461,35 @@ void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 	 *  part of the to be released structure)
 	 */
 		wake_up(&req->completion_wq);
+}
+
+/**
+ * zfcp_fsf_req_dismiss_all - dismiss all fsf requests
+ * @adapter: pointer to struct zfcp_adapter
+ *
+ * Never ever call this without shutting down the adapter first.
+ * Otherwise the adapter would continue using and corrupting s390 storage.
+ * Included BUG_ON() call to ensure this is done.
+ * ERP is supposed to be the only user of this function.
+ */
+void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
+{
+	struct zfcp_fsf_req *req, *tmp;
+	unsigned long flags;
+	LIST_HEAD(remove_queue);
+	unsigned int i;
+
+	BUG_ON(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP);
+	spin_lock_irqsave(&adapter->req_list_lock, flags);
+	for (i = 0; i < REQUEST_LIST_SIZE; i++)
+		list_splice_init(&adapter->req_list[i], &remove_queue);
+	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+
+	list_for_each_entry_safe(req, tmp, &remove_queue, list) {
+		list_del(&req->list);
+		req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
+		zfcp_fsf_req_complete(req);
+	}
 }
 
 static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
@@ -2577,4 +2577,44 @@ out:
 		return req;
 	}
 	return ERR_PTR(retval);
+}
+
+/**
+ * zfcp_fsf_reqid_check - validate req_id contained in SBAL returned by QDIO
+ * @adapter: pointer to struct zfcp_adapter
+ * @sbal_idx: response queue index of SBAL to be processed
+ */
+void zfcp_fsf_reqid_check(struct zfcp_adapter *adapter, int sbal_idx)
+{
+	struct qdio_buffer *sbal = adapter->resp_q.sbal[sbal_idx];
+	struct qdio_buffer_element *sbale;
+	struct zfcp_fsf_req *fsf_req;
+	unsigned long flags, req_id;
+	int idx;
+
+	for (idx = 0; idx < QDIO_MAX_ELEMENTS_PER_BUFFER; idx++) {
+
+		sbale = &sbal->element[idx];
+		req_id = (unsigned long) sbale->addr;
+		spin_lock_irqsave(&adapter->req_list_lock, flags);
+		fsf_req = zfcp_reqlist_find(adapter, req_id);
+
+		if (!fsf_req)
+			/*
+			 * Unknown request means that we have potentially memory
+			 * corruption and must stop the machine immediately.
+			 */
+			panic("error: unknown req_id (%lx) on adapter %s.\n",
+			      req_id, dev_name(&adapter->ccw_device->dev));
+
+		list_del(&fsf_req->list);
+		spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+
+		fsf_req->sbal_response = sbal_idx;
+		fsf_req->qdio_inb_usage = atomic_read(&adapter->resp_q.count);
+		zfcp_fsf_req_complete(fsf_req);
+
+		if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
+			break;
+	}
 }
