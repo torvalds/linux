@@ -100,7 +100,8 @@ extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_test_link(struct zfcp_port *);
 extern void zfcp_fc_link_test_work(struct work_struct *);
 extern void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *);
-extern void zfcp_fc_wka_ports_init(struct zfcp_adapter *);
+extern int zfcp_fc_gs_setup(struct zfcp_adapter *);
+extern void zfcp_fc_gs_destroy(struct zfcp_adapter *);
 extern int zfcp_fc_execute_els_fc_job(struct fc_bsg_job *);
 extern int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *);
 
@@ -134,8 +135,8 @@ extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long,
 extern void zfcp_fsf_reqid_check(struct zfcp_qdio *, int);
 
 /* zfcp_qdio.c */
-extern int zfcp_qdio_allocate(struct zfcp_qdio *, struct ccw_device *);
-extern void zfcp_qdio_free(struct zfcp_qdio *);
+extern int zfcp_qdio_setup(struct zfcp_adapter *);
+extern void zfcp_qdio_destroy(struct zfcp_qdio *);
 extern int zfcp_qdio_send(struct zfcp_qdio *, struct zfcp_queue_req *);
 extern struct qdio_buffer_element
 	*zfcp_qdio_sbale_req(struct zfcp_qdio *, struct zfcp_queue_req *);

@@ -506,36 +506,27 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (!adapter)
 		return -ENOMEM;
 
-	adapter->gs = kzalloc(sizeof(struct zfcp_wka_ports), GFP_KERNEL);
-	if (!adapter->gs) {
-		kfree(adapter);
-		return -ENOMEM;
-	}
-
-	adapter->qdio = kzalloc(sizeof(struct zfcp_qdio), GFP_KERNEL);
-	if (!adapter->qdio)
-		goto qdio_mem_failed;
-
-	adapter->qdio->adapter = adapter;
-
 	ccw_device->handler = NULL;
 	adapter->ccw_device = ccw_device;
 	atomic_set(&adapter->refcount, 0);
 
-	if (zfcp_qdio_allocate(adapter->qdio, ccw_device))
-		goto qdio_allocate_failed;
+	if (zfcp_qdio_setup(adapter))
+		goto qdio_failed;
 
 	if (zfcp_allocate_low_mem_buffers(adapter))
-		goto failed_low_mem_buffers;
+		goto low_mem_buffers_failed;
 
 	if (zfcp_reqlist_alloc(adapter))
-		goto failed_low_mem_buffers;
+		goto low_mem_buffers_failed;
 
 	if (zfcp_dbf_adapter_register(adapter))
 		goto debug_register_failed;
 
 	if (zfcp_setup_adapter_work_queue(adapter))
 		goto work_queue_failed;
+
+	if (zfcp_fc_gs_setup(adapter))
+		goto generic_services_failed;
 
 	init_waitqueue_head(&adapter->remove_wq);
 	init_waitqueue_head(&adapter->erp_thread_wqh);
@@ -546,9 +537,6 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	INIT_LIST_HEAD(&adapter->erp_running_head);
 
 	spin_lock_init(&adapter->req_list_lock);
-
-	spin_lock_init(&adapter->qdio->req_q_lock);
-	spin_lock_init(&adapter->qdio->stat_lock);
 
 	rwlock_init(&adapter->erp_lock);
 	rwlock_init(&adapter->abort_lock);
@@ -570,24 +558,23 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto sysfs_failed;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-	zfcp_fc_wka_ports_init(adapter);
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return 0;
 
 sysfs_failed:
+	zfcp_fc_gs_destroy(adapter);
+generic_services_failed:
 	zfcp_destroy_adapter_work_queue(adapter);
 work_queue_failed:
 	zfcp_dbf_adapter_unregister(adapter->dbf);
 debug_register_failed:
 	dev_set_drvdata(&ccw_device->dev, NULL);
 	kfree(adapter->req_list);
-failed_low_mem_buffers:
+low_mem_buffers_failed:
 	zfcp_free_low_mem_buffers(adapter);
-qdio_allocate_failed:
-	zfcp_qdio_free(adapter->qdio);
-	kfree(adapter->qdio);
-qdio_mem_failed:
+qdio_failed:
+	zfcp_qdio_destroy(adapter->qdio);
 	kfree(adapter);
 	return -ENOMEM;
 }
@@ -616,15 +603,14 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	if (!retval)
 		return;
 
+	zfcp_fc_gs_destroy(adapter);
 	zfcp_destroy_adapter_work_queue(adapter);
 	zfcp_dbf_adapter_unregister(adapter->dbf);
-	zfcp_qdio_free(adapter->qdio);
 	zfcp_free_low_mem_buffers(adapter);
+	zfcp_qdio_destroy(adapter->qdio);
 	kfree(adapter->req_list);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);
-	kfree(adapter->gs);
-	kfree(adapter->qdio);
 	kfree(adapter);
 }
 

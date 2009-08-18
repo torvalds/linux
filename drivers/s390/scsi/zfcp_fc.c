@@ -141,17 +141,6 @@ void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *gs)
 	zfcp_fc_wka_port_force_offline(&gs->ks);
 }
 
-void zfcp_fc_wka_ports_init(struct zfcp_adapter *adapter)
-{
-	struct zfcp_wka_ports *gs = adapter->gs;
-
-	zfcp_fc_wka_port_init(&gs->ms, FC_FID_MGMT_SERV, adapter);
-	zfcp_fc_wka_port_init(&gs->ts, FC_FID_TIME_SERV, adapter);
-	zfcp_fc_wka_port_init(&gs->ds, FC_FID_DIR_SERV, adapter);
-	zfcp_fc_wka_port_init(&gs->as, FC_FID_ALIASES, adapter);
-	zfcp_fc_wka_port_init(&gs->ks, FC_FID_SEC_KEY, adapter);
-}
-
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 				   struct fcp_rscn_element *elem)
 {
@@ -870,3 +859,28 @@ int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *job)
 	}
 	return ret;
 }
+
+int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)
+{
+	struct zfcp_wka_ports *wka_ports;
+
+	wka_ports = kzalloc(sizeof(struct zfcp_wka_ports), GFP_KERNEL);
+	if (!wka_ports)
+		return -ENOMEM;
+
+	adapter->gs = wka_ports;
+	zfcp_fc_wka_port_init(&wka_ports->ms, FC_FID_MGMT_SERV, adapter);
+	zfcp_fc_wka_port_init(&wka_ports->ts, FC_FID_TIME_SERV, adapter);
+	zfcp_fc_wka_port_init(&wka_ports->ds, FC_FID_DIR_SERV, adapter);
+	zfcp_fc_wka_port_init(&wka_ports->as, FC_FID_ALIASES, adapter);
+	zfcp_fc_wka_port_init(&wka_ports->ks, FC_FID_SEC_KEY, adapter);
+
+	return 0;
+}
+
+void zfcp_fc_gs_destroy(struct zfcp_adapter *adapter)
+{
+	kfree(adapter->gs);
+	adapter->gs = NULL;
+}
+

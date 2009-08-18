@@ -34,27 +34,6 @@ zfcp_qdio_sbale(struct zfcp_qdio_queue *q, int sbal_idx, int sbale_idx)
 	return &q->sbal[sbal_idx]->element[sbale_idx];
 }
 
-/**
- * zfcp_qdio_free - free memory used by request- and resposne queue
- * @qdio: pointer to the zfcp_qdio structure
- */
-void zfcp_qdio_free(struct zfcp_qdio *qdio)
-{
-	struct qdio_buffer **sbal_req, **sbal_resp;
-	int p;
-
-	if (qdio->adapter->ccw_device)
-		qdio_free(qdio->adapter->ccw_device);
-
-	sbal_req = qdio->req_q.sbal;
-	sbal_resp = qdio->resp_q.sbal;
-
-	for (p = 0; p < QDIO_MAX_BUFFERS_PER_Q; p += QBUFF_PER_PAGE) {
-		free_page((unsigned long) sbal_req[p]);
-		free_page((unsigned long) sbal_resp[p]);
-	}
-}
-
 static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
@@ -383,7 +362,7 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
  * Returns: -ENOMEM on memory allocation error or return value from
  *          qdio_allocate
  */
-int zfcp_qdio_allocate(struct zfcp_qdio *qdio, struct ccw_device *ccw_dev)
+static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 {
 	struct qdio_initialize init_data;
 
@@ -477,3 +456,48 @@ failed_establish:
 		"Setting up the QDIO connection to the FCP adapter failed\n");
 	return -EIO;
 }
+
+void zfcp_qdio_destroy(struct zfcp_qdio *qdio)
+{
+	struct qdio_buffer **sbal_req, **sbal_resp;
+	int p;
+
+	if (!qdio)
+		return;
+
+	if (qdio->adapter->ccw_device)
+		qdio_free(qdio->adapter->ccw_device);
+
+	sbal_req = qdio->req_q.sbal;
+	sbal_resp = qdio->resp_q.sbal;
+
+	for (p = 0; p < QDIO_MAX_BUFFERS_PER_Q; p += QBUFF_PER_PAGE) {
+		free_page((unsigned long) sbal_req[p]);
+		free_page((unsigned long) sbal_resp[p]);
+	}
+
+	kfree(qdio);
+}
+
+int zfcp_qdio_setup(struct zfcp_adapter *adapter)
+{
+	struct zfcp_qdio *qdio;
+
+	qdio = kzalloc(sizeof(struct zfcp_qdio), GFP_KERNEL);
+	if (!qdio)
+		return -ENOMEM;
+
+	qdio->adapter = adapter;
+
+	if (zfcp_qdio_allocate(qdio)) {
+		zfcp_qdio_destroy(qdio);
+		return -ENOMEM;
+	}
+
+	spin_lock_init(&qdio->req_q_lock);
+	spin_lock_init(&qdio->stat_lock);
+
+	adapter->qdio = qdio;
+	return 0;
+}
+
