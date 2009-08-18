@@ -823,6 +823,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		if (new_encoder != connector->encoder) {
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
 			mode_changed = true;
+			/* If the encoder is reused for another connector, then
+			 * the appropriate crtc will be set later.
+			 */
+			connector->encoder->crtc = NULL;
 			connector->encoder = new_encoder;
 		}
 	}
