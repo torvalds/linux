@@ -53,6 +53,7 @@
 #include "sysfile.h"
 #include "uptodate.h"
 #include "xattr.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -777,6 +778,12 @@ static int ocfs2_wipe_inode(struct inode *inode,
 
 	/*Free extended attribute resources associated with this inode.*/
 	status = ocfs2_xattr_remove(inode, di_bh);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail_unlock_dir;
+	}
+
+	status = ocfs2_remove_refcount_tree(inode, di_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail_unlock_dir;

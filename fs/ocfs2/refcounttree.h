@@ -90,4 +90,7 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 			    u32 cpos, u32 p_cluster, u32 num_clusters,
 			    struct ocfs2_cached_dealloc_ctxt *dealloc,
 			    struct ocfs2_post_refcount *post);
+int ocfs2_remove_refcount_tree(struct inode *inode, struct buffer_head *di_bh);
+int ocfs2_try_remove_refcount_tree(struct inode *inode,
+				   struct buffer_head *di_bh);
 #endif /* OCFS2_REFCOUNTTREE_H */

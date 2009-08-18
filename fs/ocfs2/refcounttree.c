@@ -927,6 +927,42 @@ out:
 }
 
 /*
+ * Try to remove refcount tree. The mechanism is:
+ * 1) Check whether i_clusters == 0, if no, exit.
+ * 2) check whether we have i_xattr_loc in dinode. if yes, exit.
+ * 3) Check whether we have inline xattr stored outside, if yes, exit.
+ * 4) Remove the tree.
+ */
+int ocfs2_try_remove_refcount_tree(struct inode *inode,
+				   struct buffer_head *di_bh)
+{
+	int ret;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+
+	down_write(&oi->ip_xattr_sem);
+	down_write(&oi->ip_alloc_sem);
+
+	if (oi->ip_clusters)
+		goto out;
+
+	if ((oi->ip_dyn_features & OCFS2_HAS_XATTR_FL) && di->i_xattr_loc)
+		goto out;
+
+	if (oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL &&
+	    ocfs2_has_inline_xattr_value_outside(inode, di))
+		goto out;
+
+	ret = ocfs2_remove_refcount_tree(inode, di_bh);
+	if (ret)
+		mlog_errno(ret);
+out:
+	up_write(&oi->ip_alloc_sem);
+	up_write(&oi->ip_xattr_sem);
+	return 0;
+}
+
+/*
  * Given a cpos and len, try to find the refcount record which contains cpos.
  * 1. If cpos can be found in one refcount record, return the record.
  * 2. If cpos can't be found, return a fake record which start from cpos

@@ -840,6 +840,23 @@ static int ocfs2_xattr_list_entries(struct inode *inode,
 	return result;
 }
 
+int ocfs2_has_inline_xattr_value_outside(struct inode *inode,
+					 struct ocfs2_dinode *di)
+{
+	struct ocfs2_xattr_header *xh;
+	int i;
+
+	xh = (struct ocfs2_xattr_header *)
+		 ((void *)di + inode->i_sb->s_blocksize -
+		 le16_to_cpu(di->i_xattr_inline_size));
+
+	for (i = 0; i < le16_to_cpu(xh->xh_count); i++)
+		if (!ocfs2_xattr_is_local(&xh->xh_entries[i]))
+			return 1;
+
+	return 0;
+}
+
 static int ocfs2_xattr_ibody_list(struct inode *inode,
 				  struct ocfs2_dinode *di,
 				  char *buffer,
@@ -2898,10 +2915,16 @@ int ocfs2_xattr_set(struct inode *inode,
 	if (ocfs2_dealloc_has_cluster(&ctxt.dealloc))
 		ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &ctxt.dealloc);
+
 cleanup:
 	if (ref_tree)
 		ocfs2_unlock_refcount_tree(osb, ref_tree, 1);
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
+	if (!value && !ret) {
+		ret = ocfs2_try_remove_refcount_tree(inode, di_bh);
+		if (ret)
+			mlog_errno(ret);
+	}
 	ocfs2_inode_unlock(inode, 1);
 cleanup_nolock:
 	brelse(di_bh);
