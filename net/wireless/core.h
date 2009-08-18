@@ -50,6 +50,8 @@ struct cfg80211_registered_device {
 	struct mutex devlist_mtx;
 	struct list_head netdev_list;
 	int devlist_generation;
+	int opencount; /* also protected by devlist_mtx */
+	wait_queue_head_t dev_wait;
 
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
