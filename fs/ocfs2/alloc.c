@@ -6522,9 +6522,9 @@ ocfs2_find_per_slot_free_list(int type,
 	return fl;
 }
 
-static int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
-				     int type, int slot, u64 blkno,
-				     unsigned int bit)
+int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
+			      int type, int slot, u64 blkno,
+			      unsigned int bit)
 {
 	int ret;
 	struct ocfs2_per_slot_free_list *fl;
