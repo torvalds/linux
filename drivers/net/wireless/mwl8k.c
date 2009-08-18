@@ -2768,9 +2768,7 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 		printk(KERN_ERR "%s() timed out\n", __func__);
 
 	/* Disable interrupts */
-	spin_lock_irq(&priv->tx_lock);
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	spin_unlock_irq(&priv->tx_lock);
 	free_irq(priv->pdev->irq, hw);
 
 	/* Stop finalize join worker */
@@ -3457,9 +3455,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	}
 
 	/* Disable interrupts */
-	spin_lock_irq(&priv->tx_lock);
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	spin_unlock_irq(&priv->tx_lock);
 	free_irq(priv->pdev->irq, hw);
 
 	rc = ieee80211_register_hw(hw);
@@ -3483,9 +3479,7 @@ err_stop_firmware:
 	mwl8k_release_firmware(priv);
 
 err_free_irq:
-	spin_lock_irq(&priv->tx_lock);
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	spin_unlock_irq(&priv->tx_lock);
 	free_irq(priv->pdev->irq, hw);
 
 err_free_queues:
