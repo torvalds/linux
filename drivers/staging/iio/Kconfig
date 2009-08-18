@@ -9,3 +9,8 @@ menuconfig IIO
 	  drivers for many different types of embedded sensors using a
 	  number of different physical interfaces (i2c, spi etc). See
 	  Documentation/industrialio for more information.
+if IIO
+
+source "drivers/staging/iio/adc/Kconfig"
+
+endif # IIO
