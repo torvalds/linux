@@ -11,6 +11,7 @@ menuconfig IIO
 	  Documentation/industrialio for more information.
 if IIO
 
+source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
 

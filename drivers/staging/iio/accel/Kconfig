@@ -1,0 +1,12 @@
+#
+# Accelerometer drivers
+#
+comment "Accelerometers"
+
+config LIS3L02DQ
+	tristate "ST Microelectronics LIS3L02DQ Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build SPI support for the ST microelectronics
+	  accelerometer. The driver supplies direct access via sysfs files
+	  and an event interface via a character device.
