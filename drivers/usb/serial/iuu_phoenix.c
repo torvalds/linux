@@ -1009,11 +1009,7 @@ static void iuu_close(struct usb_serial_port *port)
 		usb_kill_urb(port->write_urb);
 		usb_kill_urb(port->read_urb);
 		usb_kill_urb(port->interrupt_in_urb);
-		msleep(1000);
-		/* wait one second to free all buffers */
 		iuu_led(port, 0, 0, 0xF000, 0xFF);
-		msleep(1000);
-		usb_reset_device(port->serial->dev);
 	}
 }
 
