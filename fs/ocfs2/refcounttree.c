@@ -32,6 +32,7 @@
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "aops.h"
+#include "xattr.h"
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
@@ -51,6 +52,9 @@ struct ocfs2_cow_context {
 	struct ocfs2_alloc_context *meta_ac;
 	struct ocfs2_alloc_context *data_ac;
 	struct ocfs2_cached_dealloc_ctxt dealloc;
+	void *cow_object;
+	struct ocfs2_post_refcount *post_refcount;
+	int extra_credits;
 	int (*get_clusters)(struct ocfs2_cow_context *context,
 			    u32 v_cluster, u32 *p_cluster,
 			    u32 *num_clusters,
@@ -2848,6 +2852,65 @@ unlock:
 	return ret;
 }
 
+static int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
+					   struct ocfs2_cow_context *context,
+					   u32 cpos, u32 old_cluster,
+					   u32 new_cluster, u32 new_len)
+{
+	int ret = 0;
+	struct super_block *sb = context->inode->i_sb;
+	struct ocfs2_caching_info *ci = context->data_et.et_ci;
+	int i, blocks = ocfs2_clusters_to_blocks(sb, new_len);
+	u64 old_block = ocfs2_clusters_to_blocks(sb, old_cluster);
+	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
+	struct ocfs2_super *osb = OCFS2_SB(sb);
+	struct buffer_head *old_bh = NULL;
+	struct buffer_head *new_bh = NULL;
+
+	mlog(0, "old_cluster %u, new %u, len %u\n", old_cluster,
+	     new_cluster, new_len);
+
+	for (i = 0; i < blocks; i++, old_block++, new_block++) {
+		new_bh = sb_getblk(osb->sb, new_block);
+		if (new_bh == NULL) {
+			ret = -EIO;
+			mlog_errno(ret);
+			break;
+		}
+
+		ocfs2_set_new_buffer_uptodate(ci, new_bh);
+
+		ret = ocfs2_read_block(ci, old_block, &old_bh, NULL);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		ret = ocfs2_journal_access(handle, ci, new_bh,
+					   OCFS2_JOURNAL_ACCESS_CREATE);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		memcpy(new_bh->b_data, old_bh->b_data, sb->s_blocksize);
+		ret = ocfs2_journal_dirty(handle, new_bh);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		brelse(new_bh);
+		brelse(old_bh);
+		new_bh = NULL;
+		old_bh = NULL;
+	}
+
+	brelse(new_bh);
+	brelse(old_bh);
+	return ret;
+}
+
 static int ocfs2_clear_ext_refcount(handle_t *handle,
 				    struct ocfs2_extent_tree *et,
 				    u32 cpos, u32 p_cluster, u32 len,
@@ -3026,6 +3089,10 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 		return ret;
 	}
 
+	if (context->post_refcount)
+		credits += context->post_refcount->credits;
+
+	credits += context->extra_credits;
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
@@ -3105,13 +3172,25 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 		ref_leaf_bh = NULL;
 	}
 
+	/* handle any post_cow action. */
+	if (context->post_refcount && context->post_refcount->func) {
+		ret = context->post_refcount->func(context->inode, handle,
+						context->post_refcount->para);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+	}
+
 	/*
 	 * Here we should write the new page out first if we are
 	 * in write-back mode.
 	 */
-	ret = ocfs2_cow_sync_writeback(sb, context, cpos, num_clusters);
-	if (ret)
-		mlog_errno(ret);
+	if (context->get_clusters == ocfs2_di_get_clusters) {
+		ret = ocfs2_cow_sync_writeback(sb, context, cpos, num_clusters);
+		if (ret)
+			mlog_errno(ret);
+	}
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
@@ -3295,6 +3374,167 @@ int ocfs2_refcount_cow(struct inode *inode,
 		cpos += num_clusters;
 	}
 
+	return ret;
+}
+
+static int ocfs2_xattr_value_get_clusters(struct ocfs2_cow_context *context,
+					  u32 v_cluster, u32 *p_cluster,
+					  u32 *num_clusters,
+					  unsigned int *extent_flags)
+{
+	struct inode *inode = context->inode;
+	struct ocfs2_xattr_value_root *xv = context->cow_object;
+
+	return ocfs2_xattr_get_clusters(inode, v_cluster, p_cluster,
+					num_clusters, &xv->xr_list,
+					extent_flags);
+}
+
+/*
+ * Given a xattr value root, calculate the most meta/credits we need for
+ * refcount tree change if we truncate it to 0.
+ */
+int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
+				       struct ocfs2_caching_info *ref_ci,
+				       struct buffer_head *ref_root_bh,
+				       struct ocfs2_xattr_value_root *xv,
+				       int *meta_add, int *credits)
+{
+	int ret = 0, index, ref_blocks = 0;
+	u32 p_cluster, num_clusters;
+	u32 cpos = 0, clusters = le32_to_cpu(xv->xr_clusters);
+	struct ocfs2_refcount_block *rb;
+	struct ocfs2_refcount_rec rec;
+	struct buffer_head *ref_leaf_bh = NULL;
+
+	while (cpos < clusters) {
+		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
+					       &num_clusters, &xv->xr_list,
+					       NULL);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		cpos += num_clusters;
+
+		while (num_clusters) {
+			ret = ocfs2_get_refcount_rec(ref_ci, ref_root_bh,
+						     p_cluster, num_clusters,
+						     &rec, &index,
+						     &ref_leaf_bh);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+
+			BUG_ON(!rec.r_refcount);
+
+			rb = (struct ocfs2_refcount_block *)ref_leaf_bh->b_data;
+
+			/*
+			 * We really don't know whether the other clusters is in
+			 * this refcount block or not, so just take the worst
+			 * case that all the clusters are in this block and each
+			 * one will split a refcount rec, so totally we need
+			 * clusters * 2 new refcount rec.
+			 */
+			if (le64_to_cpu(rb->rf_records.rl_used) + clusters * 2 >
+			    le16_to_cpu(rb->rf_records.rl_count))
+				ref_blocks++;
+
+			*credits += 1;
+			brelse(ref_leaf_bh);
+			ref_leaf_bh = NULL;
+
+			if (num_clusters <= le32_to_cpu(rec.r_clusters))
+				break;
+			else
+				num_clusters -= le32_to_cpu(rec.r_clusters);
+			p_cluster += num_clusters;
+		}
+	}
+
+	*meta_add += ref_blocks;
+	if (!ref_blocks)
+		goto out;
+
+	rb = (struct ocfs2_refcount_block *)ref_root_bh->b_data;
+	if (le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL)
+		*credits += OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
+	else {
+		struct ocfs2_extent_tree et;
+
+		ocfs2_init_refcount_extent_tree(&et, ref_ci, ref_root_bh);
+		*credits += ocfs2_calc_extend_credits(inode->i_sb,
+						      et.et_root_el,
+						      ref_blocks);
+	}
+
+out:
+	brelse(ref_leaf_bh);
+	return ret;
+}
+
+/*
+ * Do CoW for xattr.
+ */
+int ocfs2_refcount_cow_xattr(struct inode *inode,
+			     struct ocfs2_dinode *di,
+			     struct ocfs2_xattr_value_buf *vb,
+			     struct ocfs2_refcount_tree *ref_tree,
+			     struct buffer_head *ref_root_bh,
+			     u32 cpos, u32 write_len,
+			     struct ocfs2_post_refcount *post)
+{
+	int ret;
+	struct ocfs2_xattr_value_root *xv = vb->vb_xv;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_cow_context *context = NULL;
+	u32 cow_start, cow_len;
+
+	BUG_ON(!(oi->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL));
+
+	ret = ocfs2_refcount_cal_cow_clusters(inode, &xv->xr_list,
+					      cpos, write_len, UINT_MAX,
+					      &cow_start, &cow_len);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	BUG_ON(cow_len == 0);
+
+	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
+	if (!context) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	context->inode = inode;
+	context->cow_start = cow_start;
+	context->cow_len = cow_len;
+	context->ref_tree = ref_tree;
+	context->ref_root_bh = ref_root_bh;;
+	context->cow_object = xv;
+
+	context->cow_duplicate_clusters = ocfs2_duplicate_clusters_by_jbd;
+	/* We need the extra credits for duplicate_clusters by jbd. */
+	context->extra_credits =
+		ocfs2_clusters_to_blocks(inode->i_sb, 1) * cow_len;
+	context->get_clusters = ocfs2_xattr_value_get_clusters;
+	context->post_refcount = post;
+
+	ocfs2_init_xattr_value_extent_tree(&context->data_et,
+					   INODE_CACHE(inode), vb);
+
+	ret = ocfs2_replace_cow(context);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	kfree(context);
 	return ret;
 }
 

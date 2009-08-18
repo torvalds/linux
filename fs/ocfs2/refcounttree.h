@@ -54,4 +54,33 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 					  struct ocfs2_alloc_context **meta_ac);
 int ocfs2_refcount_cow(struct inode *inode, struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos);
+
+typedef int (ocfs2_post_refcount_func)(struct inode *inode,
+				       handle_t *handle,
+				       void *para);
+/*
+ * Some refcount caller need to do more work after we modify the data b-tree
+ * during refcount operation(including CoW and add refcount flag), and make the
+ * transaction complete. So it must give us this structure so that we can do it
+ * within our transaction.
+ *
+ */
+struct ocfs2_post_refcount {
+	int credits;			/* credits it need for journal. */
+	ocfs2_post_refcount_func *func;	/* real function. */
+	void *para;
+};
+
+int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
+				       struct ocfs2_caching_info *ref_ci,
+				       struct buffer_head *ref_root_bh,
+				       struct ocfs2_xattr_value_root *xv,
+				       int *meta_add, int *credits);
+int ocfs2_refcount_cow_xattr(struct inode *inode,
+			     struct ocfs2_dinode *di,
+			     struct ocfs2_xattr_value_buf *vb,
+			     struct ocfs2_refcount_tree *ref_tree,
+			     struct buffer_head *ref_root_bh,
+			     u32 cpos, u32 write_len,
+			     struct ocfs2_post_refcount *post);
 #endif /* OCFS2_REFCOUNTTREE_H */
