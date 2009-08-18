@@ -8678,6 +8678,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 {
 	enum s_alloc alloc_state = sa_none;
 	struct s_data d;
+	struct sched_domain *sd;
 	int i;
 #ifdef CONFIG_NUMA
 	d.sd_allnodes = 0;
@@ -8692,8 +8693,6 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	 * Set up domains for cpus specified by the cpu_map.
 	 */
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd;
-
 		cpumask_and(d.nodemask, cpumask_of_node(cpu_to_node(i)),
 			    cpu_map);
 
@@ -8725,22 +8724,19 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	/* Calculate CPU power for physical packages and nodes */
 #ifdef CONFIG_SCHED_SMT
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = &per_cpu(cpu_domains, i).sd;
-
+		sd = &per_cpu(cpu_domains, i).sd;
 		init_sched_groups_power(i, sd);
 	}
 #endif
 #ifdef CONFIG_SCHED_MC
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = &per_cpu(core_domains, i).sd;
-
+		sd = &per_cpu(core_domains, i).sd;
 		init_sched_groups_power(i, sd);
 	}
 #endif
 
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = &per_cpu(phys_domains, i).sd;
-
+		sd = &per_cpu(phys_domains, i).sd;
 		init_sched_groups_power(i, sd);
 	}
 
@@ -8759,7 +8755,6 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 	/* Attach the domains */
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd;
 #ifdef CONFIG_SCHED_SMT
 		sd = &per_cpu(cpu_domains, i).sd;
 #elif defined(CONFIG_SCHED_MC)
