@@ -59,22 +59,6 @@ SOC_DOUBLE_R("Master Playback ZC Switch", WM8711_LOUT1V, WM8711_ROUT1V,
 
 };
 
-/* add non dapm controls */
-static int wm8711_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8711_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8711_snd_controls[i], codec,
-					NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Output Mixer */
 static const struct snd_kcontrol_new wm8711_output_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8711_APANA, 3, 1, 0),
@@ -336,11 +320,7 @@ static int wm8711_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define WM8711_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
-		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
-		SNDRV_PCM_RATE_96000)
+#define WM8711_RATES SNDRV_PCM_RATE_8000_96000
 
 #define WM8711_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
@@ -361,7 +341,8 @@ struct snd_soc_dai wm8711_dai = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM8711_RATES,
-		.formats = WM8711_FORMATS,},
+		.formats = WM8711_FORMATS,
+	},
 	.ops = &wm8711_ops,
 };
 EXPORT_SYMBOL_GPL(wm8711_dai);
