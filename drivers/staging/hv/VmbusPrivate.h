@@ -115,7 +115,7 @@ void VmbusChildDeviceRemove(struct hv_device *Device);
 /* VmbusChildDeviceDestroy( */
 /* struct hv_device *); */
 
-VMBUS_CHANNEL *GetChannelFromRelId(u32 relId);
+struct vmbus_channel *GetChannelFromRelId(u32 relId);
 
 
 /* Connection interface */

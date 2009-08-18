@@ -29,24 +29,14 @@
 #include "VmbusPrivate.h"
 
 /* Internal routines */
-static int
-VmbusChannelCreateGpadlHeader(
+static int VmbusChannelCreateGpadlHeader(
 	void *					Kbuffer,	/* must be phys and virt contiguous */
 	u32					Size,		/* page-size multiple */
-	VMBUS_CHANNEL_MSGINFO	**msgInfo,
+	struct vmbus_channel_msginfo **msgInfo,
 	u32					*MessageCount
 	);
-
-static void
-DumpVmbusChannel(
-	VMBUS_CHANNEL			*Channel
-	);
-
-
-static void
-VmbusChannelSetEvent(
-	VMBUS_CHANNEL			*Channel
-	);
+static void DumpVmbusChannel(struct vmbus_channel *channel);
+static void VmbusChannelSetEvent(struct vmbus_channel *channel);
 
 
 #if 0
@@ -93,10 +83,7 @@ Description:
 	Trigger an event notification on the specified channel.
 
 --*/
-static void
-VmbusChannelSetEvent(
-	VMBUS_CHANNEL			*Channel
-	)
+static void VmbusChannelSetEvent(struct vmbus_channel *Channel)
 {
 	HV_MONITOR_PAGE *monitorPage;
 
@@ -125,10 +112,7 @@ VmbusChannelSetEvent(
 }
 
 #if 0
-static void
-VmbusChannelClearEvent(
-	VMBUS_CHANNEL			*Channel
-	)
+static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 {
 	HV_MONITOR_PAGE *monitorPage;
 
@@ -160,11 +144,8 @@ Description:
 	Retrieve various channel debug info
 
 --*/
-void
-VmbusChannelGetDebugInfo(
-	VMBUS_CHANNEL				*Channel,
-	VMBUS_CHANNEL_DEBUG_INFO	*DebugInfo
-	)
+void VmbusChannelGetDebugInfo(struct vmbus_channel *Channel,
+			      struct vmbus_channel_debug_info *DebugInfo)
 {
 	HV_MONITOR_PAGE *monitorPage;
     u8 monitorGroup    = (u8)Channel->OfferMsg.MonitorId / 32;
@@ -204,9 +185,7 @@ Description:
 	Open the specified channel.
 
 --*/
-int
-VmbusChannelOpen(
-	VMBUS_CHANNEL			*NewChannel,
+int VmbusChannelOpen(struct vmbus_channel *NewChannel,
 	u32					SendRingBufferSize,
 	u32					RecvRingBufferSize,
 	void *					UserData,
@@ -217,7 +196,7 @@ VmbusChannelOpen(
 {
 	int ret=0;
 	VMBUS_CHANNEL_OPEN_CHANNEL* openMsg;
-	VMBUS_CHANNEL_MSGINFO* openInfo;
+	struct vmbus_channel_msginfo *openInfo;
 	void *in, *out;
 	unsigned long flags;
 
@@ -266,7 +245,7 @@ VmbusChannelOpen(
 		SendRingBufferSize);
 
 	/* Create and init the channel open message */
-	openInfo = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_OPEN_CHANNEL), GFP_KERNEL);
+	openInfo = kmalloc(sizeof(*openInfo) + sizeof(VMBUS_CHANNEL_OPEN_CHANNEL), GFP_KERNEL);
 	ASSERT(openInfo != NULL);
 
 	openInfo->WaitEvent = osd_WaitEventCreate();
@@ -399,7 +378,7 @@ static int
 VmbusChannelCreateGpadlHeader(
 	void *					Kbuffer,	/* from kmalloc() */
 	u32					Size,		/* page-size multiple */
-	VMBUS_CHANNEL_MSGINFO	**MsgInfo,
+	struct vmbus_channel_msginfo **MsgInfo,
 	u32					*MessageCount)
 {
 	int i;
@@ -407,8 +386,8 @@ VmbusChannelCreateGpadlHeader(
     unsigned long long pfn;
 	VMBUS_CHANNEL_GPADL_HEADER* gpaHeader;
 	VMBUS_CHANNEL_GPADL_BODY* gpadlBody;
-	VMBUS_CHANNEL_MSGINFO* msgHeader;
-	VMBUS_CHANNEL_MSGINFO* msgBody;
+	struct vmbus_channel_msginfo *msgHeader;
+	struct vmbus_channel_msginfo *msgBody;
 	u32				msgSize;
 
 	int pfnSum, pfnCount, pfnLeft, pfnCurr, pfnSize;
@@ -426,7 +405,7 @@ VmbusChannelCreateGpadlHeader(
 	if (pageCount > pfnCount) /* we need a gpadl body */
 	{
 		/* fill in the header */
-		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
+		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
 		msgHeader =  kzalloc(msgSize, GFP_KERNEL);
 
 		INITIALIZE_LIST_HEAD(&msgHeader->SubMsgList);
@@ -463,7 +442,7 @@ VmbusChannelCreateGpadlHeader(
 				pfnCurr = pfnLeft;
 			}
 
-			msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_BODY) + pfnCurr*sizeof(u64);
+			msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(VMBUS_CHANNEL_GPADL_BODY) + pfnCurr*sizeof(u64);
 			msgBody = kzalloc(msgSize, GFP_KERNEL);
 			ASSERT(msgBody);
 			msgBody->MessageSize = msgSize;
@@ -486,7 +465,7 @@ VmbusChannelCreateGpadlHeader(
 	else
 	{
 		/* everything fits in a header */
-		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
+		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		msgHeader = kzalloc(msgSize, GFP_KERNEL);
 		msgHeader->MessageSize=msgSize;
 
@@ -517,9 +496,7 @@ Description:
 	Estabish a GPADL for the specified buffer
 
 --*/
-int
-VmbusChannelEstablishGpadl(
-	VMBUS_CHANNEL	*Channel,
+int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel,
 	void *			Kbuffer,	/* from kmalloc() */
 	u32			Size,		/* page-size multiple */
 	u32			*GpadlHandle
@@ -530,8 +507,8 @@ VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL_GPADL_BODY* gpadlBody;
 	/* VMBUS_CHANNEL_GPADL_CREATED* gpadlCreated; */
 
-	VMBUS_CHANNEL_MSGINFO *msgInfo;
-	VMBUS_CHANNEL_MSGINFO *subMsgInfo;
+	struct vmbus_channel_msginfo *msgInfo;
+	struct vmbus_channel_msginfo *subMsgInfo;
 
 	u32 msgCount;
 	LIST_ENTRY* anchor;
@@ -562,9 +539,9 @@ VmbusChannelEstablishGpadl(
 
 	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d", Kbuffer, Size, msgCount);
 
-	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %zd", msgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
+	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %zd", msgInfo->MessageSize - sizeof(*msgInfo));
 
-	ret = VmbusPostMessage(gpadlMsg, msgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
+	ret = VmbusPostMessage(gpadlMsg, msgInfo->MessageSize - sizeof(*msgInfo));
 	if (ret != 0)
 	{
 		DPRINT_ERR(VMBUS, "Unable to open channel - %d", ret);
@@ -575,16 +552,16 @@ VmbusChannelEstablishGpadl(
 	{
 		ITERATE_LIST_ENTRIES(anchor, curr, &msgInfo->SubMsgList)
 		{
-			subMsgInfo = (VMBUS_CHANNEL_MSGINFO*) curr;
+			subMsgInfo = (struct vmbus_channel_msginfo*)curr;
 			gpadlBody = (VMBUS_CHANNEL_GPADL_BODY*)subMsgInfo->Msg;
 
 			gpadlBody->Header.MessageType = ChannelMessageGpadlBody;
 			gpadlBody->Gpadl = nextGpadlHandle;
 
-			DPRINT_DBG(VMBUS, "Sending GPADL Body - len %zd", subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
+			DPRINT_DBG(VMBUS, "Sending GPADL Body - len %zd", subMsgInfo->MessageSize - sizeof(*subMsgInfo));
 
-			DumpGpadlBody(gpadlBody, subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
-			ret = VmbusPostMessage(gpadlBody, subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
+			DumpGpadlBody(gpadlBody, subMsgInfo->MessageSize - sizeof(*subMsgInfo));
+			ret = VmbusPostMessage(gpadlBody, subMsgInfo->MessageSize - sizeof(*subMsgInfo));
 			ASSERT(ret == 0);
 		}
 	}
@@ -622,22 +599,18 @@ Description:
 	Teardown the specified GPADL handle
 
 --*/
-int
-VmbusChannelTeardownGpadl(
-	VMBUS_CHANNEL	*Channel,
-	u32			GpadlHandle
-	)
+int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 {
 	int ret=0;
 	VMBUS_CHANNEL_GPADL_TEARDOWN *msg;
-	VMBUS_CHANNEL_MSGINFO* info;
+	struct vmbus_channel_msginfo *info;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	ASSERT(GpadlHandle != 0);
 
-	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN), GFP_KERNEL);
+	info = kmalloc(sizeof(*info) + sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN), GFP_KERNEL);
 	ASSERT(info != NULL);
 
 	info->WaitEvent = osd_WaitEventCreate();
@@ -683,14 +656,11 @@ Description:
 	Close the specified channel
 
 --*/
-void
-VmbusChannelClose(
-	VMBUS_CHANNEL	*Channel
-	)
+void VmbusChannelClose(struct vmbus_channel *Channel)
 {
 	int ret=0;
 	VMBUS_CHANNEL_CLOSE_CHANNEL* msg;
-	VMBUS_CHANNEL_MSGINFO* info;
+	struct vmbus_channel_msginfo *info;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -700,7 +670,7 @@ VmbusChannelClose(
 	del_timer(&Channel->poll_timer);
 
 	/* Send a closing message */
-	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL), GFP_KERNEL);
+	info = kmalloc(sizeof(*info) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL), GFP_KERNEL);
 	ASSERT(info != NULL);
 
 	/* info->waitEvent = osd_WaitEventCreate(); */
@@ -760,9 +730,7 @@ Description:
 	Send the specified buffer on the given channel
 
 --*/
-int
-VmbusChannelSendPacket(
-	VMBUS_CHANNEL		*Channel,
+int VmbusChannelSendPacket(struct vmbus_channel *Channel,
 	const void *			Buffer,
 	u32				BufferLen,
 	u64				RequestId,
@@ -822,9 +790,7 @@ Description:
 	Send a range of single-page buffer packets using a GPADL Direct packet type.
 
 --*/
-int
-VmbusChannelSendPacketPageBuffer(
-	VMBUS_CHANNEL		*Channel,
+int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 	PAGE_BUFFER			PageBuffers[],
 	u32				PageCount,
 	void *				Buffer,
@@ -901,9 +867,7 @@ Description:
 	Send a multi-page buffer packet using a GPADL Direct packet type.
 
 --*/
-int
-VmbusChannelSendPacketMultiPageBuffer(
-	VMBUS_CHANNEL		*Channel,
+int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
@@ -980,7 +944,7 @@ Description:
 
 --*/
 /* TODO: Do we ever receive a gpa direct packet other than the ones we send ? */
-int VmbusChannelRecvPacket(VMBUS_CHANNEL *Channel,
+int VmbusChannelRecvPacket(struct vmbus_channel *Channel,
 			   void *Buffer,
 			   u32 BufferLen,
 			   u32 *BufferActualLen,
@@ -1055,9 +1019,7 @@ Description:
 	Retrieve the raw packet on the specified channel
 
 --*/
-int
-VmbusChannelRecvPacketRaw(
-	VMBUS_CHANNEL		*Channel,
+int VmbusChannelRecvPacketRaw(struct vmbus_channel *Channel,
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
@@ -1132,7 +1094,7 @@ Description:
 	Channel event callback
 
 --*/
-void VmbusChannelOnChannelEvent(VMBUS_CHANNEL *Channel)
+void VmbusChannelOnChannelEvent(struct vmbus_channel *Channel)
 {
 	DumpVmbusChannel(Channel);
 	ASSERT(Channel->OnChannelCallback);
@@ -1157,7 +1119,7 @@ Description:
 --*/
 void VmbusChannelOnTimer(unsigned long data)
 {
-	VMBUS_CHANNEL *channel = (VMBUS_CHANNEL*)data;
+	struct vmbus_channel *channel = (struct vmbus_channel *)data;
 
 	if (channel->OnChannelCallback)
 	{
@@ -1179,10 +1141,7 @@ Description:
 	Dump vmbus channel info to the console
 
 --*/
-static void
-DumpVmbusChannel(
-	VMBUS_CHANNEL		*Channel
-	)
+static void DumpVmbusChannel(struct vmbus_channel *Channel)
 {
 	DPRINT_DBG(VMBUS, "Channel (%d)", Channel->OfferMsg.ChildRelId);
 	DumpRingInfo(&Channel->Outbound, "Outbound ");

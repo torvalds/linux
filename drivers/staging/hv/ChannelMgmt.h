@@ -36,20 +36,20 @@
 
 typedef void (*PFN_CHANNEL_CALLBACK)(void *context);
 
-typedef enum {
+enum vmbus_channel_state {
 	CHANNEL_OFFER_STATE,
 	CHANNEL_OPENING_STATE,
 	CHANNEL_OPEN_STATE,
-} VMBUS_CHANNEL_STATE;
+};
 
-typedef struct _VMBUS_CHANNEL {
+struct vmbus_channel {
 	LIST_ENTRY ListEntry;
 
 	struct hv_device *DeviceObject;
 
 	struct timer_list poll_timer; /* SA-111 workaround */
 
-	VMBUS_CHANNEL_STATE State;
+	enum vmbus_channel_state State;
 
 	VMBUS_CHANNEL_OFFER_CHANNEL OfferMsg;
 	/*
@@ -74,12 +74,11 @@ typedef struct _VMBUS_CHANNEL {
 
 	PFN_CHANNEL_CALLBACK OnChannelCallback;
 	void *ChannelCallbackContext;
-} VMBUS_CHANNEL;
+};
 
-
-typedef struct _VMBUS_CHANNEL_DEBUG_INFO {
+struct vmbus_channel_debug_info {
 	u32 RelId;
-	VMBUS_CHANNEL_STATE State;
+	enum vmbus_channel_state State;
 	GUID InterfaceType;
 	GUID InterfaceInstance;
 	u32 MonitorId;
@@ -92,23 +91,13 @@ typedef struct _VMBUS_CHANNEL_DEBUG_INFO {
 
 	RING_BUFFER_DEBUG_INFO Inbound;
 	RING_BUFFER_DEBUG_INFO Outbound;
-} VMBUS_CHANNEL_DEBUG_INFO;
-
-
-typedef union {
-	VMBUS_CHANNEL_VERSION_SUPPORTED VersionSupported;
-	VMBUS_CHANNEL_OPEN_RESULT OpenResult;
-	VMBUS_CHANNEL_GPADL_TORNDOWN GpadlTorndown;
-	VMBUS_CHANNEL_GPADL_CREATED GpadlCreated;
-	VMBUS_CHANNEL_VERSION_RESPONSE VersionResponse;
-} VMBUS_CHANNEL_MESSAGE_RESPONSE;
-
+};
 
 /*
  * Represents each channel msg on the vmbus connection This is a
  * variable-size data structure depending on the msg type itself
  */
-typedef struct _VMBUS_CHANNEL_MSGINFO {
+struct vmbus_channel_msginfo {
 	/* Bookkeeping stuff */
 	LIST_ENTRY MsgListEntry;
 
@@ -118,7 +107,13 @@ typedef struct _VMBUS_CHANNEL_MSGINFO {
 	/* Synchronize the request/response if needed */
 	struct osd_waitevent *WaitEvent;
 
-	VMBUS_CHANNEL_MESSAGE_RESPONSE Response;
+	union {
+		VMBUS_CHANNEL_VERSION_SUPPORTED VersionSupported;
+		VMBUS_CHANNEL_OPEN_RESULT OpenResult;
+		VMBUS_CHANNEL_GPADL_TORNDOWN GpadlTorndown;
+		VMBUS_CHANNEL_GPADL_CREATED GpadlCreated;
+		VMBUS_CHANNEL_VERSION_RESPONSE VersionResponse;
+	} Response;
 
 	u32 MessageSize;
 	/*
@@ -126,12 +121,12 @@ typedef struct _VMBUS_CHANNEL_MSGINFO {
 	 * It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header
 	 */
 	unsigned char Msg[0];
-} VMBUS_CHANNEL_MSGINFO;
+};
 
 
-VMBUS_CHANNEL *AllocVmbusChannel(void);
+struct vmbus_channel *AllocVmbusChannel(void);
 
-void FreeVmbusChannel(VMBUS_CHANNEL *Channel);
+void FreeVmbusChannel(struct vmbus_channel *Channel);
 
 void VmbusOnChannelMessage(void *Context);
 

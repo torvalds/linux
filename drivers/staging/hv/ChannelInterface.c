@@ -38,7 +38,7 @@ IVmbusChannelOpen(
 	void *				Context
 	)
 {
-	return VmbusChannelOpen( (VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelOpen((struct vmbus_channel *)Device->context,
 								SendBufferSize,
 								RecvRingBufferSize,
 								UserData,
@@ -53,7 +53,7 @@ IVmbusChannelClose(
 	struct hv_device *Device
 	)
 {
-	VmbusChannelClose((VMBUS_CHANNEL*)Device->context);
+	VmbusChannelClose((struct vmbus_channel *)Device->context);
 }
 
 
@@ -67,7 +67,7 @@ IVmbusChannelSendPacket(
 	u32				Flags
 	)
 {
-	return VmbusChannelSendPacket((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelSendPacket((struct vmbus_channel *)Device->context,
 									Buffer,
 									BufferLen,
 									RequestId,
@@ -85,7 +85,7 @@ IVmbusChannelSendPacketPageBuffer(
 	u64				RequestId
 	)
 {
-	return VmbusChannelSendPacketPageBuffer((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelSendPacketPageBuffer((struct vmbus_channel *)Device->context,
 												PageBuffers,
 												PageCount,
 												Buffer,
@@ -102,7 +102,7 @@ IVmbusChannelSendPacketMultiPageBuffer(
 	u64				RequestId
 	)
 {
-	return VmbusChannelSendPacketMultiPageBuffer((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelSendPacketMultiPageBuffer((struct vmbus_channel *)Device->context,
 													MultiPageBuffer,
 													Buffer,
 													BufferLen,
@@ -118,7 +118,7 @@ IVmbusChannelRecvPacket (
 	u64*				RequestId
 	)
 {
-	return VmbusChannelRecvPacket((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelRecvPacket((struct vmbus_channel *)Device->context,
 									Buffer,
 									BufferLen,
 									BufferActualLen,
@@ -134,7 +134,7 @@ IVmbusChannelRecvPacketRaw(
 	u64*				RequestId
 	)
 {
-	return VmbusChannelRecvPacketRaw((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelRecvPacketRaw((struct vmbus_channel *)Device->context,
 										Buffer,
 										BufferLen,
 										BufferActualLen,
@@ -149,7 +149,7 @@ IVmbusChannelEstablishGpadl(
 	u32*				GpadlHandle
 	)
 {
-	return VmbusChannelEstablishGpadl((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelEstablishGpadl((struct vmbus_channel *)Device->context,
 										Buffer,
 										BufferLen,
 										GpadlHandle);
@@ -161,7 +161,7 @@ IVmbusChannelTeardownGpadl(
    u32				GpadlHandle
 	)
 {
-	return VmbusChannelTeardownGpadl((VMBUS_CHANNEL*)Device->context,
+	return VmbusChannelTeardownGpadl((struct vmbus_channel *)Device->context,
 										GpadlHandle);
 
 }
@@ -183,11 +183,11 @@ void GetChannelInterface(VMBUS_CHANNEL_INTERFACE *ChannelInterface)
 
 void GetChannelInfo(struct hv_device *Device, DEVICE_INFO *DeviceInfo)
 {
-	VMBUS_CHANNEL_DEBUG_INFO debugInfo;
+	struct vmbus_channel_debug_info debugInfo;
 
 	if (Device->context)
 	{
-		VmbusChannelGetDebugInfo((VMBUS_CHANNEL*)Device->context, &debugInfo);
+		VmbusChannelGetDebugInfo((struct vmbus_channel *)Device->context, &debugInfo);
 
 		DeviceInfo->ChannelId = debugInfo.RelId;
 		DeviceInfo->ChannelState = debugInfo.State;

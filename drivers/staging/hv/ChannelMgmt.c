@@ -131,11 +131,11 @@ Description:
 	Allocate and initialize a vmbus channel object
 
 --*/
-VMBUS_CHANNEL* AllocVmbusChannel(void)
+struct vmbus_channel *AllocVmbusChannel(void)
 {
-	VMBUS_CHANNEL* channel;
+	struct vmbus_channel *channel;
 
-	channel = kzalloc(sizeof(VMBUS_CHANNEL), GFP_ATOMIC);
+	channel = kzalloc(sizeof(*channel), GFP_ATOMIC);
 	if (!channel)
 	{
 		return NULL;
@@ -169,7 +169,7 @@ Description:
 --*/
 static inline void ReleaseVmbusChannel(void* Context)
 {
-	VMBUS_CHANNEL* channel = (VMBUS_CHANNEL*)Context;
+	struct vmbus_channel *channel = Context;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -191,7 +191,7 @@ Description:
 	Release the resources used by the vmbus channel object
 
 --*/
-void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
+void FreeVmbusChannel(struct vmbus_channel *Channel)
 {
 	del_timer(&Channel->poll_timer);
 
@@ -217,11 +217,11 @@ VmbusChannelProcessOffer(
 	)
 {
 	int ret=0;
-	VMBUS_CHANNEL* newChannel=(VMBUS_CHANNEL*)context;
+	struct vmbus_channel *newChannel = context;
+	struct vmbus_channel *channel;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
 	bool fNew = true;
-	VMBUS_CHANNEL* channel;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -231,7 +231,7 @@ VmbusChannelProcessOffer(
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList)
 	{
-		channel = CONTAINING_RECORD(curr, VMBUS_CHANNEL, ListEntry);
+		channel = CONTAINING_RECORD(curr, struct vmbus_channel, ListEntry);
 
 		if (!memcmp(&channel->OfferMsg.Offer.InterfaceType, &newChannel->OfferMsg.Offer.InterfaceType,sizeof(GUID)) &&
 			!memcmp(&channel->OfferMsg.Offer.InterfaceInstance, &newChannel->OfferMsg.Offer.InterfaceInstance, sizeof(GUID)))
@@ -308,7 +308,7 @@ VmbusChannelProcessRescindOffer(
 	void * context
 	)
 {
-	VMBUS_CHANNEL* channel=(VMBUS_CHANNEL*)context;
+	struct vmbus_channel *channel = context;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -335,7 +335,7 @@ VmbusChannelOnOffer(
 	)
 {
 	VMBUS_CHANNEL_OFFER_CHANNEL* offer = (VMBUS_CHANNEL_OFFER_CHANNEL*)hdr;
-	VMBUS_CHANNEL* newChannel;
+	struct vmbus_channel *newChannel;
 
 	GUID *guidType;
 	GUID *guidInstance;
@@ -411,7 +411,7 @@ VmbusChannelOnOfferRescind(
 	)
 {
 	VMBUS_CHANNEL_RESCIND_OFFER* rescind = (VMBUS_CHANNEL_RESCIND_OFFER*)hdr;
-	VMBUS_CHANNEL* channel;
+	struct vmbus_channel *channel;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -469,7 +469,7 @@ VmbusChannelOnOpenResult(
 	VMBUS_CHANNEL_OPEN_RESULT* result = (VMBUS_CHANNEL_OPEN_RESULT*)hdr;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
-	VMBUS_CHANNEL_MSGINFO* msgInfo;
+	struct vmbus_channel_msginfo *msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER* requestHeader;
 	VMBUS_CHANNEL_OPEN_CHANNEL* openMsg;
 	unsigned long flags;
@@ -483,7 +483,7 @@ VmbusChannelOnOpenResult(
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
-		msgInfo = (VMBUS_CHANNEL_MSGINFO*) curr;
+		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageOpenChannel)
@@ -523,7 +523,7 @@ VmbusChannelOnGpadlCreated(
 	VMBUS_CHANNEL_GPADL_CREATED *gpadlCreated = (VMBUS_CHANNEL_GPADL_CREATED*)hdr;
 	LIST_ENTRY *anchor;
 	LIST_ENTRY *curr;
-	VMBUS_CHANNEL_MSGINFO *msgInfo;
+	struct vmbus_channel_msginfo *msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
 	VMBUS_CHANNEL_GPADL_HEADER *gpadlHeader;
 	unsigned long flags;
@@ -537,7 +537,7 @@ VmbusChannelOnGpadlCreated(
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
-		msgInfo = (VMBUS_CHANNEL_MSGINFO*) curr;
+		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageGpadlHeader)
@@ -578,7 +578,7 @@ VmbusChannelOnGpadlTorndown(
 	VMBUS_CHANNEL_GPADL_TORNDOWN* gpadlTorndown  = (VMBUS_CHANNEL_GPADL_TORNDOWN*)hdr;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
-	VMBUS_CHANNEL_MSGINFO* msgInfo;
+	struct vmbus_channel_msginfo *msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
 	VMBUS_CHANNEL_GPADL_TEARDOWN *gpadlTeardown;
 	unsigned long flags;
@@ -590,7 +590,7 @@ VmbusChannelOnGpadlTorndown(
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
-		msgInfo = (VMBUS_CHANNEL_MSGINFO*) curr;
+		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageGpadlTeardown)
@@ -629,7 +629,7 @@ VmbusChannelOnVersionResponse(
 {
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
-	VMBUS_CHANNEL_MSGINFO *msgInfo;
+	struct vmbus_channel_msginfo *msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
 	VMBUS_CHANNEL_INITIATE_CONTACT *initiate;
 	VMBUS_CHANNEL_VERSION_RESPONSE *versionResponse  = (VMBUS_CHANNEL_VERSION_RESPONSE*)hdr;
@@ -641,7 +641,7 @@ VmbusChannelOnVersionResponse(
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
-		msgInfo = (VMBUS_CHANNEL_MSGINFO*) curr;
+		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageInitiateContact)
@@ -717,11 +717,11 @@ int VmbusChannelRequestOffers(void)
 {
 	int ret=0;
 	VMBUS_CHANNEL_MESSAGE_HEADER* msg;
-	VMBUS_CHANNEL_MSGINFO* msgInfo;
+	struct vmbus_channel_msginfo *msgInfo;
 
 	DPRINT_ENTER(VMBUS);
 
-	msgInfo = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_MESSAGE_HEADER), GFP_KERNEL);
+	msgInfo = kmalloc(sizeof(*msgInfo) + sizeof(VMBUS_CHANNEL_MESSAGE_HEADER), GFP_KERNEL);
 	ASSERT(msgInfo != NULL);
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
@@ -775,8 +775,8 @@ Description:
 void VmbusChannelReleaseUnattachedChannels(void)
 {
 	LIST_ENTRY *entry;
-	VMBUS_CHANNEL *channel;
-	VMBUS_CHANNEL *start=NULL;
+	struct vmbus_channel *channel;
+	struct vmbus_channel *start = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
@@ -784,7 +784,7 @@ void VmbusChannelReleaseUnattachedChannels(void)
 	while (!IsListEmpty(&gVmbusConnection.ChannelList))
 	{
 		entry = TOP_LIST_ENTRY(&gVmbusConnection.ChannelList);
-		channel = CONTAINING_RECORD(entry, VMBUS_CHANNEL, ListEntry);
+		channel = CONTAINING_RECORD(entry, struct vmbus_channel, ListEntry);
 
 		if (channel == start)
 			break;

@@ -53,7 +53,7 @@ struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
 } __attribute__((packed));
 
 
-extern int VmbusChannelOpen(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelOpen(struct vmbus_channel *channel,
 			    u32 SendRingBufferSize,
 			    u32 RecvRingBufferSize,
 			    void *UserData,
@@ -61,52 +61,52 @@ extern int VmbusChannelOpen(VMBUS_CHANNEL *Channel,
 			    PFN_CHANNEL_CALLBACK pfnOnChannelCallback,
 			    void *Context);
 
-extern void VmbusChannelClose(VMBUS_CHANNEL *Channel);
+extern void VmbusChannelClose(struct vmbus_channel *channel);
 
-extern int VmbusChannelSendPacket(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelSendPacket(struct vmbus_channel *channel,
 				  const void *Buffer,
 				  u32 BufferLen,
 				  u64 RequestId,
 				  VMBUS_PACKET_TYPE Type,
 				  u32 Flags);
 
-extern int VmbusChannelSendPacketPageBuffer(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *channel,
 					    PAGE_BUFFER PageBuffers[],
 					    u32 PageCount,
 					    void *Buffer,
 					    u32 BufferLen,
 					    u64 RequestId);
 
-extern int VmbusChannelSendPacketMultiPageBuffer(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *channel,
 					MULTIPAGE_BUFFER *MultiPageBuffer,
 					void *Buffer,
 					u32 BufferLen,
 					u64 RequestId);
 
-extern int VmbusChannelEstablishGpadl(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelEstablishGpadl(struct vmbus_channel *channel,
 				      void *Kbuffer,
 				      u32 Size,
 				      u32 *GpadlHandle);
 
-extern int VmbusChannelTeardownGpadl(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelTeardownGpadl(struct vmbus_channel *channel,
 				     u32 GpadlHandle);
 
-extern int VmbusChannelRecvPacket(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelRecvPacket(struct vmbus_channel *channel,
 				  void *Buffer,
 				  u32 BufferLen,
 				  u32 *BufferActualLen,
 				  u64 *RequestId);
 
-extern int VmbusChannelRecvPacketRaw(VMBUS_CHANNEL *Channel,
+extern int VmbusChannelRecvPacketRaw(struct vmbus_channel *channel,
 				     void *Buffer,
 				     u32 BufferLen,
 				     u32 *BufferActualLen,
 				     u64 *RequestId);
 
-extern void VmbusChannelOnChannelEvent(VMBUS_CHANNEL *Channel);
+extern void VmbusChannelOnChannelEvent(struct vmbus_channel *channel);
 
-extern void VmbusChannelGetDebugInfo(VMBUS_CHANNEL *Channel,
-				     VMBUS_CHANNEL_DEBUG_INFO *DebugInfo);
+extern void VmbusChannelGetDebugInfo(struct vmbus_channel *channel,
+				     struct vmbus_channel_debug_info *debug);
 
 extern void VmbusChannelOnTimer(unsigned long data);
 

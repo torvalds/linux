@@ -49,7 +49,7 @@ Description:
 int VmbusConnect(void)
 {
 	int ret=0;
-	VMBUS_CHANNEL_MSGINFO *msgInfo=NULL;
+	struct vmbus_channel_msginfo *msgInfo = NULL;
 	VMBUS_CHANNEL_INITIATE_CONTACT *msg;
 	unsigned long flags;
 
@@ -99,7 +99,7 @@ int VmbusConnect(void)
 		goto Cleanup;
 	}
 
-	msgInfo = kzalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_INITIATE_CONTACT), GFP_KERNEL);
+	msgInfo = kzalloc(sizeof(*msgInfo) + sizeof(VMBUS_CHANNEL_INITIATE_CONTACT), GFP_KERNEL);
 	if (msgInfo == NULL)
 	{
 		ret = -1;
@@ -257,10 +257,10 @@ Description:
 	Get the channel object given its child relative id (ie channel id)
 
 --*/
-VMBUS_CHANNEL *GetChannelFromRelId(u32 relId)
+struct vmbus_channel *GetChannelFromRelId(u32 relId)
 {
-	VMBUS_CHANNEL* channel;
-	VMBUS_CHANNEL* foundChannel=NULL;
+	struct vmbus_channel *channel;
+	struct vmbus_channel *foundChannel  = NULL;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
 	unsigned long flags;
@@ -268,7 +268,7 @@ VMBUS_CHANNEL *GetChannelFromRelId(u32 relId)
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList)
 	{
-		channel = CONTAINING_RECORD(curr, VMBUS_CHANNEL, ListEntry);
+		channel = CONTAINING_RECORD(curr, struct vmbus_channel, ListEntry);
 
 		if (channel->OfferMsg.ChildRelId == relId)
 		{
@@ -297,7 +297,7 @@ VmbusProcessChannelEvent(
 	void * context
 	)
 {
-	VMBUS_CHANNEL* channel;
+	struct vmbus_channel *channel;
 	u32 relId = (u32)(unsigned long)context;
 
 	ASSERT(relId > 0);
