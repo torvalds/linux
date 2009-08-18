@@ -2326,10 +2326,18 @@ static int ocfs2_extend_rotate_transaction(handle_t *handle, int subtree_depth,
 					   int op_credits,
 					   struct ocfs2_path *path)
 {
+	int ret;
 	int credits = (path->p_tree_depth - subtree_depth) * 2 + 1 + op_credits;
 
-	if (handle->h_buffer_credits < credits)
-		return ocfs2_extend_trans(handle, credits);
+	if (handle->h_buffer_credits < credits) {
+		ret = ocfs2_extend_trans(handle,
+					 credits - handle->h_buffer_credits);
+		if (ret)
+			return ret;
+
+		if (unlikely(handle->h_buffer_credits < credits))
+			return ocfs2_extend_trans(handle, credits);
+	}
 
 	return 0;
 }
