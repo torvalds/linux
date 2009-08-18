@@ -31,26 +31,21 @@
 
 #include "include/NetVscApi.h"
 
-/* #defines */
+/* #define NVSC_MIN_PROTOCOL_VERSION		1 */
+/* #define NVSC_MAX_PROTOCOL_VERSION		1 */
 
-/* #define NVSC_MIN_PROTOCOL_VERSION                       1 */
-/* #define NVSC_MAX_PROTOCOL_VERSION                       1 */
-
-#define NETVSC_SEND_BUFFER_SIZE				64*1024 /* 64K */
-#define NETVSC_SEND_BUFFER_ID				0xface
+#define NETVSC_SEND_BUFFER_SIZE			(64*1024)	/* 64K */
+#define NETVSC_SEND_BUFFER_ID			0xface
 
 
-#define NETVSC_RECEIVE_BUFFER_SIZE			1024*1024 /* 1MB */
+#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024)	/* 1MB */
 
-#define NETVSC_RECEIVE_BUFFER_ID			0xcafe
+#define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 
-#define NETVSC_RECEIVE_SG_COUNT				1
+#define NETVSC_RECEIVE_SG_COUNT			1
 
 /* Preallocated receive packets */
 #define NETVSC_RECEIVE_PACKETLIST_COUNT		256
-
-
-/* Data types */
 
 
 /* Per netvsc channel-specific */
@@ -59,32 +54,35 @@ struct NETVSC_DEVICE {
 
 	atomic_t RefCount;
 	atomic_t NumOutstandingSends;
-	/* List of free preallocated hv_netvsc_packet to represent receive packet */
-	LIST_ENTRY						ReceivePacketList;
+	/*
+	 * List of free preallocated hv_netvsc_packet to represent receive
+	 * packet
+	 */
+	LIST_ENTRY ReceivePacketList;
 	spinlock_t receive_packet_list_lock;
 
 	/* Send buffer allocated by us but manages by NetVSP */
-	void *							SendBuffer;
-	u32							SendBufferSize;
-	u32							SendBufferGpadlHandle;
-	u32							SendSectionSize;
+	void *SendBuffer;
+	u32 SendBufferSize;
+	u32 SendBufferGpadlHandle;
+	u32 SendSectionSize;
 
 	/* Receive buffer allocated by us but manages by NetVSP */
-	void *							ReceiveBuffer;
-	u32							ReceiveBufferSize;
-	u32							ReceiveBufferGpadlHandle;
-	u32							ReceiveSectionCount;
-	PNVSP_1_RECEIVE_BUFFER_SECTION	ReceiveSections;
+	void *ReceiveBuffer;
+	u32 ReceiveBufferSize;
+	u32 ReceiveBufferGpadlHandle;
+	u32 ReceiveSectionCount;
+	PNVSP_1_RECEIVE_BUFFER_SECTION ReceiveSections;
 
 	/* Used for NetVSP initialization protocol */
 	struct osd_waitevent *ChannelInitEvent;
-	NVSP_MESSAGE					ChannelInitPacket;
+	NVSP_MESSAGE ChannelInitPacket;
 
-	NVSP_MESSAGE					RevokePacket;
-	/* unsigned char							HwMacAddr[HW_MACADDR_LEN]; */
+	NVSP_MESSAGE RevokePacket;
+	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
 
 	/* Holds rndis device info */
-	void							*Extension;
+	void *Extension;
 };
 
 #endif /* _NETVSC_H_ */
