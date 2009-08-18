@@ -3184,23 +3184,18 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 		BUG_ON(!(ac->ac_o_ex.fe_logical >= pa_end ||
 			ac->ac_o_ex.fe_logical < pa->pa_lstart));
 
-		/* skip PA normalized request doesn't overlap with */
-		if (pa->pa_lstart >= end) {
-			spin_unlock(&pa->pa_lock);
-			continue;
-		}
-		if (pa_end <= start) {
+		/* skip PAs this normalized request doesn't overlap with */
+		if (pa->pa_lstart >= end || pa_end <= start) {
 			spin_unlock(&pa->pa_lock);
 			continue;
 		}
 		BUG_ON(pa->pa_lstart <= start && pa_end >= end);
 
+		/* adjust start or end to be adjacent to this pa */
 		if (pa_end <= ac->ac_o_ex.fe_logical) {
 			BUG_ON(pa_end < start);
 			start = pa_end;
-		}
-
-		if (pa->pa_lstart > ac->ac_o_ex.fe_logical) {
+		} else if (pa->pa_lstart > ac->ac_o_ex.fe_logical) {
 			BUG_ON(pa->pa_lstart > end);
 			end = pa->pa_lstart;
 		}
