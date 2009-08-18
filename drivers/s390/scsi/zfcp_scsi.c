@@ -491,21 +491,6 @@ static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
 }
 
 /**
- * zfcp_scsi_dev_loss_tmo_callbk - Free any reference to rport
- * @rport: The rport that is about to be deleted.
- */
-static void zfcp_scsi_dev_loss_tmo_callbk(struct fc_rport *rport)
-{
-	struct zfcp_port *port;
-
-	write_lock_irq(&zfcp_data.config_lock);
-	port = rport->dd_data;
-	if (port)
-		port->rport = NULL;
-	write_unlock_irq(&zfcp_data.config_lock);
-}
-
-/**
  * zfcp_scsi_terminate_rport_io - Terminate all I/O on a rport
  * @rport: The FC rport where to teminate I/O
  *
@@ -516,9 +501,12 @@ static void zfcp_scsi_dev_loss_tmo_callbk(struct fc_rport *rport)
 static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 {
 	struct zfcp_port *port;
+	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct zfcp_adapter *adapter =
+		(struct zfcp_adapter *)shost->hostdata[0];
 
 	write_lock_irq(&zfcp_data.config_lock);
-	port = rport->dd_data;
+	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 	if (port)
 		zfcp_port_get(port);
 	write_unlock_irq(&zfcp_data.config_lock);
@@ -550,7 +538,6 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 		return;
 	}
 
-	rport->dd_data = port;
 	rport->maxframe_size = port->maxframe_size;
 	rport->supported_classes = port->supported_classes;
 	port->rport = rport;
@@ -663,7 +650,6 @@ struct fc_function_template zfcp_transport_functions = {
 	.reset_fc_host_stats = zfcp_reset_fc_host_stats,
 	.set_rport_dev_loss_tmo = zfcp_set_rport_dev_loss_tmo,
 	.get_host_port_state = zfcp_get_host_port_state,
-	.dev_loss_tmo_callbk = zfcp_scsi_dev_loss_tmo_callbk,
 	.terminate_rport_io = zfcp_scsi_terminate_rport_io,
 	.show_host_port_state = 1,
 	.bsg_request = zfcp_execute_fc_job,

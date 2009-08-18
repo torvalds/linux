@@ -709,10 +709,6 @@ void zfcp_port_dequeue(struct zfcp_port *port)
 	write_lock_irq(&zfcp_data.config_lock);
 	list_del(&port->list);
 	write_unlock_irq(&zfcp_data.config_lock);
-	if (port->rport) {
-		port->rport->dd_data = NULL;
-		port->rport = NULL;
-	}
 	wait_event(port->remove_wq, atomic_read(&port->refcount) == 0);
 	cancel_work_sync(&port->rport_work); /* usually not necessary */
 	zfcp_adapter_put(port->adapter);

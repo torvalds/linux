@@ -752,7 +752,7 @@ int zfcp_fc_execute_els_fc_job(struct fc_bsg_job *job)
 	els_fc_job->els.adapter = adapter;
 	if (rport) {
 		read_lock_irq(&zfcp_data.config_lock);
-		port = rport->dd_data;
+		port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 		if (port)
 			els_fc_job->els.d_id = port->d_id;
 		read_unlock_irq(&zfcp_data.config_lock);
