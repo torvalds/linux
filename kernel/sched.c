@@ -8593,6 +8593,12 @@ static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
 						&cpu_to_phys_group,
 						d->send_covered, d->tmpmask);
 		break;
+#ifdef CONFIG_NUMA
+	case SD_LV_ALLNODES:
+		init_sched_build_groups(cpu_map, cpu_map, &cpu_to_allnodes_group,
+					d->send_covered, d->tmpmask);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -8643,11 +8649,8 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 
 #ifdef CONFIG_NUMA
 	/* Set up node groups */
-	if (d.sd_allnodes) {
-		init_sched_build_groups(cpu_map, cpu_map,
-					&cpu_to_allnodes_group,
-					d.send_covered, d.tmpmask);
-	}
+	if (d.sd_allnodes)
+		build_sched_groups(&d, SD_LV_ALLNODES, cpu_map, 0);
 
 	for (i = 0; i < nr_node_ids; i++) {
 		/* Set up node groups */
