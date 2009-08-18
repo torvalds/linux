@@ -309,8 +309,10 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	}
 	read_unlock_irq(&zfcp_data.config_lock);
 
-	if (device_register(&unit->sysfs_device))
-		goto err_out_free;
+	if (device_register(&unit->sysfs_device)) {
+		put_device(&unit->sysfs_device);
+		return ERR_PTR(-EINVAL);
+	}
 
 	if (sysfs_create_group(&unit->sysfs_device.kobj,
 			       &zfcp_sysfs_unit_attrs)) {
@@ -675,8 +677,10 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	}
 	read_unlock_irq(&zfcp_data.config_lock);
 
-	if (device_register(&port->sysfs_device))
-		goto err_out_free;
+	if (device_register(&port->sysfs_device)) {
+		put_device(&port->sysfs_device);
+		goto err_out;
+	}
 
 	retval = sysfs_create_group(&port->sysfs_device.kobj,
 				    &zfcp_sysfs_port_attrs);
