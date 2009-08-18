@@ -89,8 +89,12 @@ extern void __restore_cpu_power7(void);
 #define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_HAS_ALTIVEC_COMP)
+#ifdef CONFIG_PPC_BOOK3E_64
+#define COMMON_USER_BOOKE	(COMMON_USER_PPC64 | PPC_FEATURE_BOOKE)
+#else
 #define COMMON_USER_BOOKE	(PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU | \
 				 PPC_FEATURE_BOOKE)
+#endif
 
 static struct cpu_spec __initdata cpu_specs[] = {
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -509,28 +513,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "power4",
 	}
 #endif	/* CONFIG_PPC_BOOK3S_64 */
-#ifdef CONFIG_PPC_BOOK3E_64
-	{	/* This is a default entry to get going, to be replaced by
-		 * a real one at some stage
-		 */
-#define CPU_FTRS_BASE_BOOK3E	(CPU_FTR_USE_TB | \
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_SMT | \
-	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-		.pvr_mask		= 0x00000000,
-		.pvr_value		= 0x00000000,
-		.cpu_name		= "Book3E",
-		.cpu_features		= CPU_FTRS_BASE_BOOK3E,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
-					  MMU_FTR_USE_TLBIVAX_BCAST |
-					  MMU_FTR_LOCK_BCAST_INVAL,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.machine_check		= machine_check_generic,
-		.platform		= "power6",
-	},
-#endif
 
 #ifdef CONFIG_PPC32
 #if CLASSIC_PPC
@@ -1846,6 +1828,29 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	}
 #endif /* CONFIG_E500 */
 #endif /* CONFIG_PPC32 */
+
+#ifdef CONFIG_PPC_BOOK3E_64
+	{	/* This is a default entry to get going, to be replaced by
+		 * a real one at some stage
+		 */
+#define CPU_FTRS_BASE_BOOK3E	(CPU_FTR_USE_TB | \
+	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_SMT | \
+	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
+		.pvr_mask		= 0x00000000,
+		.pvr_value		= 0x00000000,
+		.cpu_name		= "Book3E",
+		.cpu_features		= CPU_FTRS_BASE_BOOK3E,
+		.cpu_user_features	= COMMON_USER_PPC64,
+		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
+					  MMU_FTR_USE_TLBIVAX_BCAST |
+					  MMU_FTR_LOCK_BCAST_INVAL,
+		.icache_bsize		= 64,
+		.dcache_bsize		= 64,
+		.num_pmcs		= 0,
+		.machine_check		= machine_check_generic,
+		.platform		= "power6",
+	},
+#endif
 };
 
 static struct cpu_spec the_cpu_spec;
