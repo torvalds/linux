@@ -404,6 +404,7 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 	/* port is good, unblock rport without going through erp */
 	zfcp_scsi_schedule_rport_register(port);
  out:
+	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	zfcp_port_put(port);
 	kfree(adisc);
 }
@@ -450,13 +451,21 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	port->rport_task = RPORT_DEL;
 	zfcp_scsi_rport_work(&port->rport_work);
 
+	/* only issue one test command at one time per port */
+	if (atomic_read(&port->status) & ZFCP_STATUS_PORT_LINK_TEST)
+		goto out;
+
+	atomic_set_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+
 	retval = zfcp_fc_adisc(port);
 	if (retval == 0)
 		return;
 
 	/* send of ADISC was not possible */
+	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
 
+out:
 	zfcp_port_put(port);
 }
 
