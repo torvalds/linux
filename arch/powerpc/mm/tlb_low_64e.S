@@ -133,7 +133,7 @@
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	li	r11,_PAGE_PRESENT|_PAGE_HWEXEC	/* Base perm */
+	li	r11,_PAGE_PRESENT|_PAGE_EXEC	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
 
 	cmpldi	cr0,r15,0			/* Check for user region */
@@ -256,7 +256,7 @@ normal_tlb_miss_done:
 
 normal_tlb_miss_access_fault:
 	/* We need to check if it was an instruction miss */
-	andi.	r10,r11,_PAGE_HWEXEC
+	andi.	r10,r11,_PAGE_EXEC
 	bne	1f
 	ld	r14,EX_TLB_DEAR(r12)
 	ld	r15,EX_TLB_ESR(r12)

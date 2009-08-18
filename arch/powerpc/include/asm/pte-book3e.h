@@ -37,12 +37,13 @@
 #define _PAGE_WRITETHRU	0x800000 /* W: cache write-through */
 
 /* "Higher level" linux bit combinations */
-#define _PAGE_EXEC	_PAGE_BAP_SX /* Can be executed from potentially */
-#define _PAGE_HWEXEC	_PAGE_BAP_UX /* .. and was cache cleaned */
-#define _PAGE_RW	(_PAGE_BAP_SW | _PAGE_BAP_UW) /* User write permission */
-#define _PAGE_KERNEL_RW	(_PAGE_BAP_SW | _PAGE_BAP_SR | _PAGE_DIRTY)
-#define _PAGE_KERNEL_RO	(_PAGE_BAP_SR)
-#define _PAGE_USER	(_PAGE_BAP_UR | _PAGE_BAP_SR) /* Can be read */
+#define _PAGE_EXEC		_PAGE_BAP_UX /* .. and was cache cleaned */
+#define _PAGE_RW		(_PAGE_BAP_SW | _PAGE_BAP_UW) /* User write permission */
+#define _PAGE_KERNEL_RW		(_PAGE_BAP_SW | _PAGE_BAP_SR | _PAGE_DIRTY)
+#define _PAGE_KERNEL_RO		(_PAGE_BAP_SR)
+#define _PAGE_KERNEL_RWX	(_PAGE_BAP_SW | _PAGE_BAP_SR | _PAGE_DIRTY | _PAGE_BAP_SX)
+#define _PAGE_KERNEL_ROX	(_PAGE_BAP_SR | _PAGE_BAP_SX)
+#define _PAGE_USER		(_PAGE_BAP_UR | _PAGE_BAP_SR) /* Can be read */
 
 #define _PAGE_HASHPTE	0
 #define _PAGE_BUSY	0

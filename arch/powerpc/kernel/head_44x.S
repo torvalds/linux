@@ -497,7 +497,7 @@ tlb_44x_patch_hwater_D:
 	mtspr	SPRN_MMUCR,r12
 
 	/* Make up the required permissions */
-	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_HWEXEC
+	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
 
 	/* Compute pgdir/pmd offset */
 	rlwinm 	r12, r10, PPC44x_PGD_OFF_SHIFT, PPC44x_PGD_OFF_MASK_BIT, 29

@@ -23,7 +23,7 @@
 #define _PAGE_FILE	0x00002	/* S: when !present: nonlinear file mapping */
 #define _PAGE_RW	0x00004	/* S: Write permission (SW) */
 #define _PAGE_DIRTY	0x00008	/* S: Page dirty */
-#define _PAGE_HWEXEC	0x00010	/* H: SX permission */
+#define _PAGE_EXEC	0x00010	/* H: SX permission */
 #define _PAGE_ACCESSED	0x00020	/* S: Page referenced */
 
 #define _PAGE_ENDIAN	0x00040	/* H: E bit */

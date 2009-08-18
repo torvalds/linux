@@ -13,9 +13,6 @@
 #ifndef _PAGE_HWWRITE
 #define _PAGE_HWWRITE	0
 #endif
-#ifndef _PAGE_HWEXEC
-#define _PAGE_HWEXEC	0
-#endif
 #ifndef _PAGE_EXEC
 #define _PAGE_EXEC	0
 #endif
@@ -48,10 +45,16 @@
 #define PMD_PAGE_SIZE(pmd)	bad_call_to_PMD_PAGE_SIZE()
 #endif
 #ifndef _PAGE_KERNEL_RO
-#define _PAGE_KERNEL_RO	0
+#define _PAGE_KERNEL_RO		0
+#endif
+#ifndef _PAGE_KERNEL_ROX
+#define _PAGE_KERNEL_ROX	(_PAGE_EXEC)
 #endif
 #ifndef _PAGE_KERNEL_RW
-#define _PAGE_KERNEL_RW	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
+#define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
+#endif
+#ifndef _PAGE_KERNEL_RWX
+#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE | _PAGE_EXEC)
 #endif
 #ifndef _PAGE_HPTEFLAGS
 #define _PAGE_HPTEFLAGS _PAGE_HASHPTE
@@ -96,8 +99,7 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 #define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
 			 _PAGE_WRITETHRU | _PAGE_ENDIAN | _PAGE_4K_PFN | \
 			 _PAGE_USER | _PAGE_ACCESSED | \
-			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | \
-			 _PAGE_EXEC | _PAGE_HWEXEC)
+			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | _PAGE_EXEC)
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
@@ -154,11 +156,9 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 				 _PAGE_NO_CACHE)
 #define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | \
 				 _PAGE_NO_CACHE | _PAGE_GUARDED)
-#define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW | _PAGE_EXEC | \
-				 _PAGE_HWEXEC)
+#define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
-#define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO | _PAGE_EXEC | \
-				 _PAGE_HWEXEC)
+#define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
 
 /* Protection used for kernel text. We want the debuggers to be able to
  * set breakpoints anywhere, so don't write protect the kernel text

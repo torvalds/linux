@@ -643,7 +643,7 @@ interrupt_base:
 
 4:
 	/* Make up the required permissions */
-	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_HWEXEC
+	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
@@ -742,7 +742,7 @@ finish_tlb_load:
 #endif
 	mtspr	SPRN_MAS2, r12
 
-	li	r10, (_PAGE_HWEXEC | _PAGE_PRESENT)
+	li	r10, (_PAGE_EXEC | _PAGE_PRESENT)
 	rlwimi	r10, r11, 31, 29, 29	/* extract _PAGE_DIRTY into SW */
 	and	r12, r11, r10
 	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
