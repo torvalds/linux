@@ -665,6 +665,27 @@ static void dso__calc_col_width(struct dso *self)
 	self->slen_calculated = 1;
 }
 
+static int thread__set_comm_adjust(struct thread *self, const char *comm)
+{
+	int ret = thread__set_comm(self, comm);
+
+	if (ret)
+		return ret;
+
+	if (!col_width_list_str && !field_sep &&
+	    (!comm_list || strlist__has_entry(comm_list, comm))) {
+		unsigned int slen = strlen(comm);
+
+		if (slen > comms__col_width) {
+			comms__col_width = slen;
+			threads__col_width = slen + 6;
+		}
+	}
+
+	return 0;
+}
+
+
 static struct symbol *
 resolve_symbol(struct thread *thread, struct map **mapp,
 	       struct dso **dsop, u64 *ipp)
@@ -1056,7 +1077,7 @@ static void register_idle_thread(void)
 	struct thread *thread = threads__findnew(0, &threads, &last_match);
 
 	if (thread == NULL ||
-			thread__set_comm(thread, "[idle]")) {
+			thread__set_comm_adjust(thread, "[idle]")) {
 		fprintf(stderr, "problem inserting idle task.\n");
 		exit(-1);
 	}
@@ -1226,7 +1247,7 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 		event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
-	    thread__set_comm(thread, event->comm.comm)) {
+	    thread__set_comm_adjust(thread, event->comm.comm)) {
 		dump_printf("problem processing PERF_EVENT_COMM, skipping event.\n");
 		return -1;
 	}
