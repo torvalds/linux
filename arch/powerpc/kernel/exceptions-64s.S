@@ -729,6 +729,11 @@ BEGIN_FTR_SECTION
 	bne-	do_ste_alloc		/* If so handle it */
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 
+	clrrdi	r11,r1,THREAD_SHIFT
+	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
+	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
+	bne	77f			/* then don't call hash_page now */
+
 	/*
 	 * On iSeries, we soft-disable interrupts here, then
 	 * hard-enable interrupts so that the hash_page code can spin on
@@ -831,6 +836,20 @@ handle_page_fault:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)
 	bl	.low_hash_fault
+	b	.ret_from_except
+
+/*
+ * We come here as a result of a DSI at a point where we don't want
+ * to call hash_page, such as when we are accessing memory (possibly
+ * user memory) inside a PMU interrupt that occurred while interrupts
+ * were soft-disabled.  We want to invoke the exception handler for
+ * the access, or panic if there isn't a handler.
+ */
+77:	bl	.save_nvgprs
+	mr	r4,r3
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	li	r5,SIGSEGV
+	bl	.bad_page_fault
 	b	.ret_from_except
 
 	/* here we have a segment miss */
