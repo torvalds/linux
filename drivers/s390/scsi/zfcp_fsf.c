@@ -832,7 +832,6 @@ int zfcp_fsf_status_read(struct zfcp_adapter *adapter)
 	}
 
 	sbale = zfcp_qdio_sbale_req(req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_STATUS;
 	sbale[2].flags |= SBAL_FLAGS_LAST_ENTRY;
 	req->sbale_curr = 2;
 
