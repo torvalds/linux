@@ -2367,7 +2367,17 @@ static void lpphy_rev2plus_write_gain_table(struct b43_wldev *dev, int offset,
 	tmp  = data.pad << 16;
 	tmp |= data.pga << 8;
 	tmp |= data.gm;
-	tmp |= 0x7f000000;
+	if (dev->phy.rev >= 3) {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+			tmp |= 0x10 << 24;
+		else
+			tmp |= 0x70 << 24;
+	} else {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+			tmp |= 0x14 << 24;
+		else
+			tmp |= 0x7F << 24;
+	}
 	b43_lptab_write(dev, B43_LPTAB32(7, 0xC0 + offset), tmp);
 	tmp  = data.bb_mult << 20;
 	tmp |= data.dac << 28;
