@@ -892,7 +892,7 @@ static void zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (fsq->word[0]) {
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			zfcp_test_link(unit->port);
+			zfcp_fc_test_link(unit->port);
 			/* fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -1139,7 +1139,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 		switch (header->fsf_status_qual.word[0]){
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
 			if (port && (send_els->ls_code != ZFCP_LS_ADISC))
-				zfcp_test_link(port);
+				zfcp_fc_test_link(port);
 			/*fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 		case FSF_SQ_RETRY_IF_POSSIBLE:
@@ -1889,7 +1889,7 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]) {
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			zfcp_test_link(unit->port);
+			zfcp_fc_test_link(unit->port);
 			/* fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -2024,7 +2024,7 @@ static void zfcp_fsf_close_unit_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (req->qtcb->header.fsf_status_qual.word[0]) {
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			zfcp_test_link(unit->port);
+			zfcp_fc_test_link(unit->port);
 			/* fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -2307,7 +2307,7 @@ static void zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		if (header->fsf_status_qual.word[0] ==
 		    FSF_SQ_INVOKE_LINK_TEST_PROCEDURE)
-			zfcp_test_link(unit->port);
+			zfcp_fc_test_link(unit->port);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	}

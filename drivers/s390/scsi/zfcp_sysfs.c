@@ -126,7 +126,7 @@ static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE)
 		return -EBUSY;
 
-	ret = zfcp_scan_ports(adapter);
+	ret = zfcp_fc_scan_ports(adapter);
 	return ret ? ret : (ssize_t) count;
 }
 static ZFCP_DEV_ATTR(adapter, port_rescan, S_IWUSR, NULL,
