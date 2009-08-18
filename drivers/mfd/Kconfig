@@ -238,6 +238,16 @@ config MFD_PCF50633
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
 
+config MFD_MC13783
+	tristate "Support Freescale MC13783"
+	depends on SPI_MASTER
+	select MFD_CORE
+	help
+	  Support for the Freescale (Atlas) MC13783 PMIC and audio CODEC.
+	  This driver provides common support for accessing  the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config PCF50633_ADC
 	tristate "Support for NXP PCF50633 ADC"
 	depends on MFD_PCF50633
