@@ -774,9 +774,11 @@ _STATIC(init_thread_book3e)
 	/* Make sure interrupts are off */
 	wrteei	0
 
-	/* disable watchdog and FIT and enable DEC interrupts */
-	lis	r3,TCR_DIE@h
+	/* disable all timers and clear out status */
+	li	r3,0
 	mtspr	SPRN_TCR,r3
+	mfspr	r3,SPRN_TSR
+	mtspr	SPRN_TSR,r3
 
 	blr
 
