@@ -636,11 +636,21 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		/* For reference buf[5]=3 is mark parity */
 		/* For reference buf[5]=4 is space parity */
 		if (cflag & PARODD) {
-			buf[5] = 1;
-			dbg("%s - parity = odd", __func__);
+			if (cflag & CMSPAR) {
+				buf[5] = 3;
+				dbg("%s - parity = mark", __func__);
+			} else {
+				buf[5] = 1;
+				dbg("%s - parity = odd", __func__);
+			}
 		} else {
-			buf[5] = 2;
-			dbg("%s - parity = even", __func__);
+			if (cflag & CMSPAR) {
+				buf[5] = 4;
+				dbg("%s - parity = space", __func__);
+			} else {
+				buf[5] = 2;
+				dbg("%s - parity = even", __func__);
+			}
 		}
 	} else {
 		buf[5] = 0;
