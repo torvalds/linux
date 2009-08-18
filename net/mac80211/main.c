@@ -482,6 +482,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 
 		rate_control_tx_status(local, sband, sta, skb);
+		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
+			ieee80211s_update_metric(local, sta, skb);
 	}
 
 	rcu_read_unlock();

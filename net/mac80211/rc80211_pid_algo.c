@@ -169,18 +169,8 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	 * still a good measurement and copy it. */
 	if (unlikely(spinfo->tx_num_xmit == 0))
 		pf = spinfo->last_pf;
-	else {
-		/* XXX: BAD HACK!!! */
-		struct sta_info *si = container_of(sta, struct sta_info, sta);
-
+	else
 		pf = spinfo->tx_num_failed * 100 / spinfo->tx_num_xmit;
-
-		if (ieee80211_vif_is_mesh(&si->sdata->vif) && pf == 100)
-			mesh_plink_broken(si);
-		pf <<= RC_PID_ARITH_SHIFT;
-		si->fail_avg = ((pf + (spinfo->last_pf << 3)) / 9)
-					>> RC_PID_ARITH_SHIFT;
-	}
 
 	spinfo->tx_num_xmit = 0;
 	spinfo->tx_num_failed = 0;
@@ -348,9 +338,6 @@ rate_control_pid_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	}
 
 	spinfo->txrate_idx = rate_lowest_index(sband, sta);
-	/* HACK */
-	si = container_of(sta, struct sta_info, sta);
-	si->fail_avg = 0;
 }
 
 static void *rate_control_pid_alloc(struct ieee80211_hw *hw,
