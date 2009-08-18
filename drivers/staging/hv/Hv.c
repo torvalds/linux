@@ -30,11 +30,11 @@
 /* Globals */
 
 /* The one and only */
-HV_CONTEXT gHvContext={
-	.SynICInitialized = false,
-	.HypercallPage = NULL,
-	.SignalEventParam = NULL,
-	.SignalEventBuffer = NULL,
+struct hv_context gHvContext = {
+	.SynICInitialized	= false,
+	.HypercallPage		= NULL,
+	.SignalEventParam	= NULL,
+	.SignalEventBuffer	= NULL,
 };
 
 
@@ -299,7 +299,7 @@ int HvInit (void)
 		    (u64)hypercallMsr.GuestPhysicalAddress << PAGE_SHIFT);
 
 	/* Setup the global signal event param for the signal event hypercall */
-	gHvContext.SignalEventBuffer = kmalloc(sizeof(HV_INPUT_SIGNAL_EVENT_BUFFER), GFP_KERNEL);
+	gHvContext.SignalEventBuffer = kmalloc(sizeof(struct hv_input_signal_event_buffer), GFP_KERNEL);
 	if (!gHvContext.SignalEventBuffer)
 	{
 		goto Cleanup;

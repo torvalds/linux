@@ -104,12 +104,12 @@ static const GUID VMBUS_SERVICE_ID = {
 #define MAX_NUM_CPUS	1
 
 
-typedef struct {
+struct hv_input_signal_event_buffer {
 	u64 Align8;
 	HV_INPUT_SIGNAL_EVENT Event;
-} HV_INPUT_SIGNAL_EVENT_BUFFER;
+};
 
-typedef struct {
+struct hv_context {
 	/* XenLinux or native Linux. If XenLinux, the hypercall and synic pages
 	 * has already been initialized */
 	u64 GuestId;
@@ -122,15 +122,15 @@ typedef struct {
 	 * This is used as an input param to HvCallSignalEvent hypercall. The
 	 * input param is immutable in our usage and must be dynamic mem (vs
 	 * stack or global). */
-	HV_INPUT_SIGNAL_EVENT_BUFFER *SignalEventBuffer;
+	struct hv_input_signal_event_buffer *SignalEventBuffer;
 	/* 8-bytes aligned of the buffer above */
 	HV_INPUT_SIGNAL_EVENT *SignalEventParam;
 
 	void *synICMessagePage[MAX_NUM_CPUS];
 	void *synICEventPage[MAX_NUM_CPUS];
-} HV_CONTEXT;
+};
 
-extern HV_CONTEXT gHvContext;
+extern struct hv_context gHvContext;
 
 
 /* Hv Interface */
