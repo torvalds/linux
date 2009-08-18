@@ -11,6 +11,12 @@ menuconfig IIO
 	  Documentation/industrialio for more information.
 if IIO
 
+config IIO_RING_BUFFER
+	bool "Enable ring buffer support within IIO"
+	help
+	  Provide core support for various ring buffer based data
+	  acquisition methods.
+
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/light/Kconfig"

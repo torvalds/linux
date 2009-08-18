@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_IIO) += industrialio.o
 industrialio-y := industrialio-core.o
+industrialio-$(CONFIG_IIO_RING_BUFFER) += industrialio-ring.o
 
 obj-y += accel/
 obj-y += adc/
