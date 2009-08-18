@@ -1080,17 +1080,17 @@ struct mwl8k_txq_info {
 };
 
 static int mwl8k_scan_tx_ring(struct mwl8k_priv *priv,
-				struct mwl8k_txq_info txinfo[],
-				u32 num_queues)
+				struct mwl8k_txq_info *txinfo)
 {
 	int count, desc, status;
 	struct mwl8k_tx_queue *txq;
 	struct mwl8k_tx_desc *tx_desc;
 	int ndescs = 0;
 
-	memset(txinfo, 0, num_queues * sizeof(struct mwl8k_txq_info));
+	memset(txinfo, 0, MWL8K_TX_QUEUES * sizeof(struct mwl8k_txq_info));
+
 	spin_lock_bh(&priv->tx_lock);
-	for (count = 0; count < num_queues; count++) {
+	for (count = 0; count < MWL8K_TX_QUEUES; count++) {
 		txq = priv->txq + count;
 		txinfo[count].len = txq->tx_stats.len;
 		txinfo[count].head = txq->tx_head;
@@ -1135,7 +1135,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw, u32 delay_ms)
 	spin_unlock_bh(&priv->tx_lock);
 
 	if (count) {
-		struct mwl8k_txq_info txinfo[4];
+		struct mwl8k_txq_info txinfo[MWL8K_TX_QUEUES];
 		int index;
 		int newcount;
 
@@ -1152,8 +1152,8 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw, u32 delay_ms)
 		printk(KERN_ERR "%s(%u) TIMEDOUT:%ums Pend:%u-->%u\n",
 		       __func__, __LINE__, delay_ms, count, newcount);
 
-		mwl8k_scan_tx_ring(priv, txinfo, 4);
-		for (index = 0; index < 4; index++)
+		mwl8k_scan_tx_ring(priv, txinfo);
+		for (index = 0; index < MWL8K_TX_QUEUES; index++)
 			printk(KERN_ERR
 				"TXQ:%u L:%u H:%u T:%u FW:%u DRV:%u U:%u\n",
 					index,
