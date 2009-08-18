@@ -130,7 +130,6 @@ int i2400ms_enable_function(struct sdio_func *func)
 			goto function_enabled;
 		}
 		d_printf(2, dev, "SDIO function failed to enable: %d\n", err);
-		sdio_disable_func(func);
 		sdio_release_host(func);
 		msleep(I2400MS_INIT_SLEEP_INTERVAL);
 	}
