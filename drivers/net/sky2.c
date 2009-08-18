@@ -1177,7 +1177,6 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 			re->skb = NULL;
 		}
 	}
-	skb_queue_purge(&sky2->rx_recycle);
 }
 
 /* Basic MII support */
@@ -1269,10 +1268,8 @@ static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2)
 	struct sk_buff *skb;
 	int i;
 
-	skb = __skb_dequeue(&sky2->rx_recycle);
-	if (!skb)
-		skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size
-				       + sky2_rx_pad(sky2->hw));
+	skb = netdev_alloc_skb(sky2->netdev,
+			       sky2->rx_data_size + sky2_rx_pad(sky2->hw));
 	if (!skb)
 		goto nomem;
 
@@ -1363,8 +1360,6 @@ static int sky2_rx_start(struct sky2_port *sky2)
 		size = ETH_HLEN;
 
 	sky2->rx_data_size = size;
-
-	skb_queue_head_init(&sky2->rx_recycle);
 
 	/* Fill Rx ring */
 	for (i = 0; i < sky2->rx_pending; i++) {
@@ -1776,12 +1771,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
 
-			if (skb_queue_len(&sky2->rx_recycle) < sky2->rx_pending
-			    && skb_recycle_check(skb, sky2->rx_data_size
-						 + sky2_rx_pad(sky2->hw)))
-				__skb_queue_head(&sky2->rx_recycle, skb);
-			else
-				dev_kfree_skb_any(skb);
+			dev_kfree_skb_any(skb);
 
 			sky2->tx_next = RING_NEXT(idx, sky2->tx_ring_size);
 		}

@@ -2032,7 +2032,6 @@ struct sky2_port {
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
-	struct sk_buff_head  rx_recycle;
 
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
