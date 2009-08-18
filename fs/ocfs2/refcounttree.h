@@ -44,7 +44,8 @@ void ocfs2_unlock_refcount_tree(struct ocfs2_super *osb,
 int ocfs2_decrease_refcount(struct inode *inode,
 			    handle_t *handle, u32 cpos, u32 len,
 			    struct ocfs2_alloc_context *meta_ac,
-			    struct ocfs2_cached_dealloc_ctxt *dealloc);
+			    struct ocfs2_cached_dealloc_ctxt *dealloc,
+			    int delete);
 int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 					  struct buffer_head *di_bh,
 					  u64 phys_blkno,

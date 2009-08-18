@@ -6974,7 +6974,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 					ocfs2_blocks_to_clusters(osb->sb,
 								 delete_blk),
 					clusters_to_del, meta_ac,
-					&tc->tc_dealloc);
+					&tc->tc_dealloc, 1);
 		else
 			status = ocfs2_truncate_log_append(osb, handle,
 							   delete_blk,
