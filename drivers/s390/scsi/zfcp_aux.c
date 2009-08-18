@@ -529,7 +529,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto generic_services_failed;
 
 	init_waitqueue_head(&adapter->remove_wq);
-	init_waitqueue_head(&adapter->erp_thread_wqh);
+	init_waitqueue_head(&adapter->erp_ready_wq);
 	init_waitqueue_head(&adapter->erp_done_wqh);
 
 	INIT_LIST_HEAD(&adapter->port_list_head);
@@ -540,8 +540,6 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	rwlock_init(&adapter->erp_lock);
 	rwlock_init(&adapter->abort_lock);
-
-	sema_init(&adapter->erp_ready_sem, 0);
 
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 	INIT_WORK(&adapter->scan_work, _zfcp_fc_scan_ports_later);

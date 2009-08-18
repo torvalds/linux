@@ -9,6 +9,7 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kthread.h>
 #include "zfcp_ext.h"
 
 #define ZFCP_MAX_ERPS                   3
@@ -75,7 +76,7 @@ static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
 
 	list_move(&act->list, &act->adapter->erp_ready_head);
 	zfcp_dbf_rec_action("erardy1", act);
-	up(&adapter->erp_ready_sem);
+	wake_up(&adapter->erp_ready_wq);
 	zfcp_dbf_rec_thread("erardy2", adapter->dbf);
 }
 
@@ -212,8 +213,7 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 	int retval = 1, need;
 	struct zfcp_erp_action *act = NULL;
 
-	if (!(atomic_read(&adapter->status) &
-	      ZFCP_STATUS_ADAPTER_ERP_THREAD_UP))
+	if (!adapter->erp_thread)
 		return -EIO;
 
 	need = zfcp_erp_required_act(want, adapter, port, unit);
@@ -226,7 +226,7 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 		goto out;
 	++adapter->erp_total_count;
 	list_add_tail(&act->list, &adapter->erp_ready_head);
-	up(&adapter->erp_ready_sem);
+	wake_up(&adapter->erp_ready_wq);
 	zfcp_dbf_rec_thread("eracte1", adapter->dbf);
 	retval = 0;
  out:
@@ -641,7 +641,8 @@ static int zfcp_erp_adapter_strat_fsf_xconf(struct zfcp_erp_action *erp_action)
 		}
 
 		zfcp_dbf_rec_thread_lock("erasfx1", adapter->dbf);
-		down(&adapter->erp_ready_sem);
+		wait_event(adapter->erp_ready_wq,
+			   !list_empty(&adapter->erp_ready_head));
 		zfcp_dbf_rec_thread_lock("erasfx2", adapter->dbf);
 		if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			break;
@@ -682,7 +683,8 @@ static int zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *act)
 		return ZFCP_ERP_FAILED;
 
 	zfcp_dbf_rec_thread_lock("erasox1", adapter->dbf);
-	down(&adapter->erp_ready_sem);
+	wait_event(adapter->erp_ready_wq,
+		   !list_empty(&adapter->erp_ready_head));
 	zfcp_dbf_rec_thread_lock("erasox2", adapter->dbf);
 	if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 		return ZFCP_ERP_FAILED;
@@ -1285,20 +1287,16 @@ static int zfcp_erp_thread(void *data)
 	struct list_head *next;
 	struct zfcp_erp_action *act;
 	unsigned long flags;
-	int ignore;
 
-	daemonize("zfcperp%s", dev_name(&adapter->ccw_device->dev));
-	/* Block all signals */
-	siginitsetinv(&current->blocked, 0);
-	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
-	wake_up(&adapter->erp_thread_wqh);
-
-	while (!(atomic_read(&adapter->status) &
-		 ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL)) {
-
+	for (;;) {
 		zfcp_dbf_rec_thread_lock("erthrd1", adapter->dbf);
-		ignore = down_interruptible(&adapter->erp_ready_sem);
+		wait_event_interruptible(adapter->erp_ready_wq,
+			   !list_empty(&adapter->erp_ready_head) ||
+			   kthread_should_stop());
 		zfcp_dbf_rec_thread_lock("erthrd2", adapter->dbf);
+
+		if (kthread_should_stop())
+			break;
 
 		write_lock_irqsave(&adapter->erp_lock, flags);
 		next = adapter->erp_ready_head.next;
@@ -1313,9 +1311,6 @@ static int zfcp_erp_thread(void *data)
 		}
 	}
 
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
-	wake_up(&adapter->erp_thread_wqh);
-
 	return 0;
 }
 
@@ -1327,18 +1322,17 @@ static int zfcp_erp_thread(void *data)
  */
 int zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 {
-	int retval;
+	struct task_struct *thread;
 
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
-	retval = kernel_thread(zfcp_erp_thread, adapter, SIGCHLD);
-	if (retval < 0) {
+	thread = kthread_run(zfcp_erp_thread, adapter, "zfcperp%s",
+			     dev_name(&adapter->ccw_device->dev));
+	if (IS_ERR(thread)) {
 		dev_err(&adapter->ccw_device->dev,
 			"Creating an ERP thread for the FCP device failed.\n");
-		return retval;
+		return PTR_ERR(thread);
 	}
-	wait_event(adapter->erp_thread_wqh,
-		   atomic_read(&adapter->status) &
-			ZFCP_STATUS_ADAPTER_ERP_THREAD_UP);
+
+	adapter->erp_thread = thread;
 	return 0;
 }
 
@@ -1353,16 +1347,8 @@ int zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
  */
 void zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
 {
-	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL, &adapter->status);
-	up(&adapter->erp_ready_sem);
-	zfcp_dbf_rec_thread_lock("erthrk1", adapter->dbf);
-
-	wait_event(adapter->erp_thread_wqh,
-		   !(atomic_read(&adapter->status) &
-				ZFCP_STATUS_ADAPTER_ERP_THREAD_UP));
-
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL,
-			  &adapter->status);
+	kthread_stop(adapter->erp_thread);
+	adapter->erp_thread = NULL;
 }
 
 /**

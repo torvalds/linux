@@ -222,8 +222,6 @@ struct zfcp_ls_adisc {
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
-#define ZFCP_STATUS_ADAPTER_ERP_THREAD_UP	0x00000020
-#define ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL	0x00000080
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
 
@@ -481,10 +479,9 @@ struct zfcp_adapter {
 	atomic_t		status;	           /* status of this adapter */
 	struct list_head	erp_ready_head;	   /* error recovery for this
 						      adapter/devices */
+	wait_queue_head_t	erp_ready_wq;
 	struct list_head	erp_running_head;
 	rwlock_t		erp_lock;
-	struct semaphore	erp_ready_sem;
-	wait_queue_head_t	erp_thread_wqh;
 	wait_queue_head_t	erp_done_wqh;
 	struct zfcp_erp_action	erp_action;	   /* pending error recovery */
         atomic_t                erp_counter;
@@ -492,6 +489,7 @@ struct zfcp_adapter {
 						      actions */
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
+	struct task_struct	*erp_thread;
 	struct zfcp_wka_ports	*gs;		   /* generic services */
 	struct zfcp_dbf		*dbf;		   /* debug traces */
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
