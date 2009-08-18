@@ -8563,6 +8563,25 @@ static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
 	return sd;
 }
 
+static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
+			       const struct cpumask *cpu_map, int cpu)
+{
+	switch (l) {
+#ifdef CONFIG_SCHED_SMT
+	case SD_LV_SIBLING: /* set up CPU (sibling) groups */
+		cpumask_and(d->this_sibling_map, cpu_map,
+			    topology_thread_cpumask(cpu));
+		if (cpu == cpumask_first(d->this_sibling_map))
+			init_sched_build_groups(d->this_sibling_map, cpu_map,
+						&cpu_to_cpu_group,
+						d->send_covered, d->tmpmask);
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
@@ -8597,19 +8616,9 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		sd = __build_smt_sched_domain(&d, cpu_map, attr, sd, i);
 	}
 
-#ifdef CONFIG_SCHED_SMT
-	/* Set up CPU (sibling) groups */
 	for_each_cpu(i, cpu_map) {
-		cpumask_and(d.this_sibling_map,
-			    topology_thread_cpumask(i), cpu_map);
-		if (i != cpumask_first(d.this_sibling_map))
-			continue;
-
-		init_sched_build_groups(d.this_sibling_map, cpu_map,
-					&cpu_to_cpu_group,
-					d.send_covered, d.tmpmask);
+		build_sched_groups(&d, SD_LV_SIBLING, cpu_map, i);
 	}
-#endif
 
 #ifdef CONFIG_SCHED_MC
 	/* Set up multi-core groups */
