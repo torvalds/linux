@@ -1069,10 +1069,8 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
  * zfcp_fsf_send_ct - initiate a Generic Service request (FC-GS)
  * @ct: pointer to struct zfcp_send_ct with data for request
  * @pool: if non-null this mempool is used to allocate struct zfcp_fsf_req
- * @erp_action: if non-null the Generic Service request sent within ERP
  */
-int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
-		     struct zfcp_erp_action *erp_action)
+int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
 {
 	struct zfcp_wka_port *wka_port = ct->wka_port;
 	struct zfcp_qdio *qdio = wka_port->adapter->qdio;
@@ -1103,13 +1101,7 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 	req->data = ct;
 
 	zfcp_san_dbf_event_ct_request(req);
-
-	if (erp_action) {
-		erp_action->fsf_req = req;
-		req->erp_action = erp_action;
-		zfcp_fsf_start_erp_timer(req);
-	} else
-		zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
+	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 
 	ret = zfcp_fsf_req_send(req);
 	if (ret)
@@ -1119,8 +1111,6 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 
 failed_send:
 	zfcp_fsf_req_free(req);
-	if (erp_action)
-		erp_action->fsf_req = NULL;
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
 	return ret;

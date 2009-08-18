@@ -26,7 +26,6 @@ enum zfcp_erp_steps {
 	ZFCP_ERP_STEP_FSF_XCONFIG	= 0x0001,
 	ZFCP_ERP_STEP_PHYS_PORT_CLOSING	= 0x0010,
 	ZFCP_ERP_STEP_PORT_CLOSING	= 0x0100,
-	ZFCP_ERP_STEP_NAMESERVER_LOOKUP	= 0x0400,
 	ZFCP_ERP_STEP_PORT_OPENING	= 0x0800,
 	ZFCP_ERP_STEP_UNIT_CLOSING	= 0x1000,
 	ZFCP_ERP_STEP_UNIT_OPENING	= 0x2000,
@@ -842,27 +841,6 @@ static int zfcp_erp_open_ptp_port(struct zfcp_erp_action *act)
 	return zfcp_erp_port_strategy_open_port(act);
 }
 
-void zfcp_erp_port_strategy_open_lookup(struct work_struct *work)
-{
-	int retval;
-	struct zfcp_port *port = container_of(work, struct zfcp_port,
-					      gid_pn_work);
-
-	retval = zfcp_fc_ns_gid_pn(&port->erp_action);
-	if (!retval) {
-		port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
-		goto out;
-	}
-	if (retval == -ENOMEM) {
-		zfcp_erp_notify(&port->erp_action, ZFCP_STATUS_ERP_LOWMEM);
-		goto out;
-	}
-	/* all other error condtions */
-	zfcp_erp_notify(&port->erp_action, 0);
-out:
-	zfcp_port_put(port);
-}
-
 static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
@@ -880,12 +858,8 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 			if (!queue_work(adapter->work_queue,
 					&port->gid_pn_work))
 				zfcp_port_put(port);
-			return ZFCP_ERP_CONTINUES;
+			return ZFCP_ERP_EXIT;
 		}
-		/* fall through */
-	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
-		if (!port->d_id)
-			return ZFCP_ERP_FAILED;
 		return zfcp_erp_port_strategy_open_port(act);
 
 	case ZFCP_ERP_STEP_PORT_OPENING:

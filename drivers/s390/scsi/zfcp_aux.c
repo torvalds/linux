@@ -362,6 +362,11 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 	if (!adapter->pool.erp_req)
 		return -ENOMEM;
 
+	adapter->pool.gid_pn_req =
+		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
+	if (!adapter->pool.gid_pn_req)
+		return -ENOMEM;
+
 	adapter->pool.scsi_req =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.scsi_req)
@@ -379,7 +384,7 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 		return -ENOMEM;
 
 	adapter->pool.qtcb_pool =
-		mempool_create_slab_pool(3, zfcp_data.qtcb_cache);
+		mempool_create_slab_pool(4, zfcp_data.qtcb_cache);
 	if (!adapter->pool.qtcb_pool)
 		return -ENOMEM;
 
@@ -652,7 +657,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 
 	init_waitqueue_head(&port->remove_wq);
 	INIT_LIST_HEAD(&port->unit_list_head);
-	INIT_WORK(&port->gid_pn_work, zfcp_erp_port_strategy_open_lookup);
+	INIT_WORK(&port->gid_pn_work, zfcp_fc_port_did_lookup);
 	INIT_WORK(&port->test_link_work, zfcp_fc_link_test_work);
 	INIT_WORK(&port->rport_work, zfcp_scsi_rport_work);
 

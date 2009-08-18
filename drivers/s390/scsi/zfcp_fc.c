@@ -282,15 +282,15 @@ static void zfcp_fc_ns_gid_pn_eval(unsigned long data)
 	port->d_id = ct_iu_resp->d_id & ZFCP_DID_MASK;
 }
 
-int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
+static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 				     struct zfcp_gid_pn_data *gid_pn)
 {
-	struct zfcp_adapter *adapter = erp_action->adapter;
+	struct zfcp_adapter *adapter = port->adapter;
 	struct zfcp_fc_ns_handler_data compl_rec;
 	int ret;
 
 	/* setup parameters for send generic command */
-	gid_pn->port = erp_action->port;
+	gid_pn->port = port;
 	gid_pn->ct.wka_port = &adapter->gs->ds;
 	gid_pn->ct.handler = zfcp_fc_ns_handler;
 	gid_pn->ct.handler_data = (unsigned long) &compl_rec;
@@ -309,12 +309,12 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 	gid_pn->ct_iu_req.header.options = ZFCP_CT_SYNCHRONOUS;
 	gid_pn->ct_iu_req.header.cmd_rsp_code = ZFCP_CT_GID_PN;
 	gid_pn->ct_iu_req.header.max_res_size = ZFCP_CT_SIZE_ONE_PAGE / 4;
-	gid_pn->ct_iu_req.wwpn = erp_action->port->wwpn;
+	gid_pn->ct_iu_req.wwpn = port->wwpn;
 
 	init_completion(&compl_rec.done);
 	compl_rec.handler = zfcp_fc_ns_gid_pn_eval;
 	compl_rec.handler_data = (unsigned long) gid_pn;
-	ret = zfcp_fsf_send_ct(&gid_pn->ct, adapter->pool.erp_req, erp_action);
+	ret = zfcp_fsf_send_ct(&gid_pn->ct, adapter->pool.gid_pn_req);
 	if (!ret)
 		wait_for_completion(&compl_rec.done);
 	return ret;
@@ -322,14 +322,14 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 
 /**
  * zfcp_fc_ns_gid_pn_request - initiate GID_PN nameserver request
- * @erp_action: pointer to zfcp_erp_action where GID_PN request is needed
+ * @port: port where GID_PN request is needed
  * return: -ENOMEM on error, 0 otherwise
  */
-int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *erp_action)
+static int zfcp_fc_ns_gid_pn(struct zfcp_port *port)
 {
 	int ret;
 	struct zfcp_gid_pn_data *gid_pn;
-	struct zfcp_adapter *adapter = erp_action->adapter;
+	struct zfcp_adapter *adapter = port->adapter;
 
 	gid_pn = mempool_alloc(adapter->pool.gid_pn_data, GFP_ATOMIC);
 	if (!gid_pn)
@@ -341,12 +341,35 @@ int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *erp_action)
 	if (ret)
 		goto out;
 
-	ret = zfcp_fc_ns_gid_pn_request(erp_action, gid_pn);
+	ret = zfcp_fc_ns_gid_pn_request(port, gid_pn);
 
 	zfcp_wka_port_put(&adapter->gs->ds);
 out:
 	mempool_free(gid_pn, adapter->pool.gid_pn_data);
 	return ret;
+}
+
+void zfcp_fc_port_did_lookup(struct work_struct *work)
+{
+	int ret;
+	struct zfcp_port *port = container_of(work, struct zfcp_port,
+					      gid_pn_work);
+
+	ret = zfcp_fc_ns_gid_pn(port);
+	if (ret) {
+		/* could not issue gid_pn for some reason */
+		zfcp_erp_adapter_reopen(port->adapter, 0, "fcgpn_1", NULL);
+		goto out;
+	}
+
+	if (!port->d_id) {
+		zfcp_erp_port_failed(port, "fcgpn_2", NULL);
+		goto out;
+	}
+
+	zfcp_erp_port_reopen(port, 0, "fcgpn_3", NULL);
+out:
+	zfcp_port_put(port);
 }
 
 /**
@@ -551,7 +574,7 @@ static int zfcp_scan_issue_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 
 	init_completion(&compl_rec.done);
 	compl_rec.handler = NULL;
-	ret = zfcp_fsf_send_ct(ct, NULL, NULL);
+	ret = zfcp_fsf_send_ct(ct, NULL);
 	if (!ret)
 		wait_for_completion(&compl_rec.done);
 	return ret;
@@ -840,7 +863,7 @@ int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *job)
 	ct_fc_job->ct.completion = NULL;
 	ct_fc_job->job = job;
 
-	ret = zfcp_fsf_send_ct(&ct_fc_job->ct, NULL, NULL);
+	ret = zfcp_fsf_send_ct(&ct_fc_job->ct, NULL);
 	if (ret) {
 		kfree(ct_fc_job);
 		zfcp_wka_port_put(ct_fc_job->ct.wka_port);

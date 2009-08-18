@@ -94,13 +94,12 @@ extern void zfcp_erp_unit_access_denied(struct zfcp_unit *, char *, void *);
 extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, char *,
 					    void *);
 extern void zfcp_erp_timeout_handler(unsigned long);
-extern void zfcp_erp_port_strategy_open_lookup(struct work_struct *);
 
 /* zfcp_fc.c */
 extern int zfcp_scan_ports(struct zfcp_adapter *);
 extern void _zfcp_scan_ports_later(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
-extern int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *);
+extern void zfcp_fc_port_did_lookup(struct work_struct *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_test_link(struct zfcp_port *);
 extern void zfcp_fc_link_test_work(struct work_struct *);
@@ -128,8 +127,7 @@ extern struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *,
 extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int zfcp_fsf_status_read(struct zfcp_qdio *);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
-extern int zfcp_fsf_send_ct(struct zfcp_send_ct *, mempool_t *,
-			    struct zfcp_erp_action *);
+extern int zfcp_fsf_send_ct(struct zfcp_send_ct *, mempool_t *);
 extern int zfcp_fsf_send_els(struct zfcp_send_els *);
 extern int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *,
 					  struct scsi_cmnd *);

@@ -265,6 +265,7 @@ struct zfcp_fsf_req;
 /* holds various memory pools of an adapter */
 struct zfcp_adapter_mempool {
 	mempool_t *erp_req;
+	mempool_t *gid_pn_req;
 	mempool_t *scsi_req;
 	mempool_t *scsi_abort;
 	mempool_t *status_read_req;
