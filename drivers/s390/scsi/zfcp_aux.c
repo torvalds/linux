@@ -42,6 +42,12 @@ static char *init_device;
 module_param_named(device, init_device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
 
+static struct kmem_cache *zfcp_cache_hw_align(const char *name,
+					      unsigned long size)
+{
+	return kmem_cache_create(name, size, roundup_pow_of_two(size), 0, NULL);
+}
+
 static int zfcp_reqlist_alloc(struct zfcp_adapter *adapter)
 {
 	int idx;
@@ -110,14 +116,6 @@ out_adapter:
 	return;
 }
 
-static struct kmem_cache *zfcp_cache_create(int size, char *name)
-{
-	int align = 1;
-	while ((size - align) > 0)
-		align <<= 1;
-	return kmem_cache_create(name , size, align, 0, NULL);
-}
-
 static void __init zfcp_init_device_setup(char *devstr)
 {
 	char *token;
@@ -158,18 +156,23 @@ static int __init zfcp_module_init(void)
 {
 	int retval = -ENOMEM;
 
-	zfcp_data.fsf_req_qtcb_cache = zfcp_cache_create(
-			sizeof(struct zfcp_fsf_req_qtcb), "zfcp_fsf");
-	if (!zfcp_data.fsf_req_qtcb_cache)
+	zfcp_data.gpn_ft_cache = zfcp_cache_hw_align("zfcp_gpn",
+					sizeof(struct ct_iu_gpn_ft_req));
+	if (!zfcp_data.gpn_ft_cache)
 		goto out;
 
-	zfcp_data.sr_buffer_cache = zfcp_cache_create(
-			sizeof(struct fsf_status_read_buffer), "zfcp_sr");
+	zfcp_data.qtcb_cache = zfcp_cache_hw_align("zfcp_qtcb",
+					sizeof(struct fsf_qtcb));
+	if (!zfcp_data.qtcb_cache)
+		goto out_qtcb_cache;
+
+	zfcp_data.sr_buffer_cache = zfcp_cache_hw_align("zfcp_sr",
+					sizeof(struct fsf_status_read_buffer));
 	if (!zfcp_data.sr_buffer_cache)
 		goto out_sr_cache;
 
-	zfcp_data.gid_pn_cache = zfcp_cache_create(
-			sizeof(struct zfcp_gid_pn_data), "zfcp_gid");
+	zfcp_data.gid_pn_cache = zfcp_cache_hw_align("zfcp_gid",
+					sizeof(struct zfcp_gid_pn_data));
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
@@ -209,7 +212,9 @@ out_transport:
 out_gid_cache:
 	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
 out_sr_cache:
-	kmem_cache_destroy(zfcp_data.fsf_req_qtcb_cache);
+	kmem_cache_destroy(zfcp_data.qtcb_cache);
+out_qtcb_cache:
+	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
 out:
 	return retval;
 }
@@ -354,36 +359,41 @@ void zfcp_unit_dequeue(struct zfcp_unit *unit)
 static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 {
 	/* must only be called with zfcp_data.config_sema taken */
-	adapter->pool.fsf_req_erp =
-		mempool_create_slab_pool(1, zfcp_data.fsf_req_qtcb_cache);
-	if (!adapter->pool.fsf_req_erp)
+	adapter->pool.erp_req =
+		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
+	if (!adapter->pool.erp_req)
 		return -ENOMEM;
 
-	adapter->pool.fsf_req_scsi =
-		mempool_create_slab_pool(1, zfcp_data.fsf_req_qtcb_cache);
-	if (!adapter->pool.fsf_req_scsi)
+	adapter->pool.scsi_req =
+		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
+	if (!adapter->pool.scsi_req)
 		return -ENOMEM;
 
-	adapter->pool.fsf_req_abort =
-		mempool_create_slab_pool(1, zfcp_data.fsf_req_qtcb_cache);
-	if (!adapter->pool.fsf_req_abort)
+	adapter->pool.scsi_abort =
+		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
+	if (!adapter->pool.scsi_abort)
 		return -ENOMEM;
 
-	adapter->pool.fsf_req_status_read =
+	adapter->pool.status_read_req =
 		mempool_create_kmalloc_pool(FSF_STATUS_READS_RECOM,
 					    sizeof(struct zfcp_fsf_req));
-	if (!adapter->pool.fsf_req_status_read)
+	if (!adapter->pool.status_read_req)
 		return -ENOMEM;
 
-	adapter->pool.data_status_read =
+	adapter->pool.qtcb_pool =
+		mempool_create_slab_pool(3, zfcp_data.qtcb_cache);
+	if (!adapter->pool.qtcb_pool)
+		return -ENOMEM;
+
+	adapter->pool.status_read_data =
 		mempool_create_slab_pool(FSF_STATUS_READS_RECOM,
 					 zfcp_data.sr_buffer_cache);
-	if (!adapter->pool.data_status_read)
+	if (!adapter->pool.status_read_data)
 		return -ENOMEM;
 
-	adapter->pool.data_gid_pn =
+	adapter->pool.gid_pn_data =
 		mempool_create_slab_pool(1, zfcp_data.gid_pn_cache);
-	if (!adapter->pool.data_gid_pn)
+	if (!adapter->pool.gid_pn_data)
 		return -ENOMEM;
 
 	return 0;
@@ -392,18 +402,20 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 {
 	/* zfcp_data.config_sema must be held */
-	if (adapter->pool.fsf_req_erp)
-		mempool_destroy(adapter->pool.fsf_req_erp);
-	if (adapter->pool.fsf_req_scsi)
-		mempool_destroy(adapter->pool.fsf_req_scsi);
-	if (adapter->pool.fsf_req_abort)
-		mempool_destroy(adapter->pool.fsf_req_abort);
-	if (adapter->pool.fsf_req_status_read)
-		mempool_destroy(adapter->pool.fsf_req_status_read);
-	if (adapter->pool.data_status_read)
-		mempool_destroy(adapter->pool.data_status_read);
-	if (adapter->pool.data_gid_pn)
-		mempool_destroy(adapter->pool.data_gid_pn);
+	if (adapter->pool.erp_req)
+		mempool_destroy(adapter->pool.erp_req);
+	if (adapter->pool.scsi_req)
+		mempool_destroy(adapter->pool.scsi_req);
+	if (adapter->pool.scsi_abort)
+		mempool_destroy(adapter->pool.scsi_abort);
+	if (adapter->pool.qtcb_pool)
+		mempool_destroy(adapter->pool.qtcb_pool);
+	if (adapter->pool.status_read_req)
+		mempool_destroy(adapter->pool.status_read_req);
+	if (adapter->pool.status_read_data)
+		mempool_destroy(adapter->pool.status_read_data);
+	if (adapter->pool.gid_pn_data)
+		mempool_destroy(adapter->pool.gid_pn_data);
 }
 
 /**

@@ -25,14 +25,6 @@ static u32 rscn_range_mask[] = {
 	[RSCN_FABRIC_ADDRESS]		= 0x000000,
 };
 
-struct ct_iu_gpn_ft_req {
-	struct ct_hdr header;
-	u8 flags;
-	u8 domain_id_scope;
-	u8 area_id_scope;
-	u8 fc4_type;
-} __attribute__ ((packed));
-
 struct gpn_ft_resp_acc {
 	u8 control;
 	u8 port_id[3];
@@ -322,8 +314,7 @@ int static zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *erp_action,
 	init_completion(&compl_rec.done);
 	compl_rec.handler = zfcp_fc_ns_gid_pn_eval;
 	compl_rec.handler_data = (unsigned long) gid_pn;
-	ret = zfcp_fsf_send_ct(&gid_pn->ct, adapter->pool.fsf_req_erp,
-			       erp_action);
+	ret = zfcp_fsf_send_ct(&gid_pn->ct, adapter->pool.erp_req, erp_action);
 	if (!ret)
 		wait_for_completion(&compl_rec.done);
 	return ret;
@@ -340,7 +331,7 @@ int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *erp_action)
 	struct zfcp_gid_pn_data *gid_pn;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
-	gid_pn = mempool_alloc(adapter->pool.data_gid_pn, GFP_ATOMIC);
+	gid_pn = mempool_alloc(adapter->pool.gid_pn_data, GFP_ATOMIC);
 	if (!gid_pn)
 		return -ENOMEM;
 
@@ -354,7 +345,7 @@ int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *erp_action)
 
 	zfcp_wka_port_put(&adapter->gs->ds);
 out:
-	mempool_free(gid_pn, adapter->pool.data_gid_pn);
+	mempool_free(gid_pn, adapter->pool.gid_pn_data);
 	return ret;
 }
 
@@ -497,7 +488,7 @@ static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft, int buf_num)
 {
 	struct scatterlist *sg = &gpn_ft->sg_req;
 
-	kfree(sg_virt(sg)); /* free request buffer */
+	kmem_cache_free(zfcp_data.gpn_ft_cache, sg_virt(sg));
 	zfcp_sg_free_table(gpn_ft->sg_resp, buf_num);
 
 	kfree(gpn_ft);
@@ -512,7 +503,7 @@ static struct zfcp_gpn_ft *zfcp_alloc_sg_env(int buf_num)
 	if (!gpn_ft)
 		return NULL;
 
-	req = kzalloc(sizeof(struct ct_iu_gpn_ft_req), GFP_KERNEL);
+	req = kmem_cache_alloc(zfcp_data.gpn_ft_cache, GFP_KERNEL);
 	if (!req) {
 		kfree(gpn_ft);
 		gpn_ft = NULL;

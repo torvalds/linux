@@ -264,12 +264,13 @@ struct zfcp_fsf_req;
 
 /* holds various memory pools of an adapter */
 struct zfcp_adapter_mempool {
-	mempool_t *fsf_req_erp;
-	mempool_t *fsf_req_scsi;
-	mempool_t *fsf_req_abort;
-	mempool_t *fsf_req_status_read;
-	mempool_t *data_status_read;
-	mempool_t *data_gid_pn;
+	mempool_t *erp_req;
+	mempool_t *scsi_req;
+	mempool_t *scsi_abort;
+	mempool_t *status_read_req;
+	mempool_t *status_read_data;
+	mempool_t *gid_pn_data;
+	mempool_t *qtcb_pool;
 };
 
 /*
@@ -302,6 +303,15 @@ struct ct_iu_gid_pn_resp {
 	struct ct_hdr header;
 	u32 d_id;
 } __attribute__ ((packed));
+
+struct ct_iu_gpn_ft_req {
+	struct ct_hdr header;
+	u8 flags;
+	u8 domain_id_scope;
+	u8 area_id_scope;
+	u8 fc4_type;
+} __attribute__ ((packed));
+
 
 /**
  * struct zfcp_send_ct - used to pass parameters to function zfcp_fsf_send_ct
@@ -559,16 +569,11 @@ struct zfcp_data {
 						       lists */
 	struct semaphore        config_sema;        /* serialises configuration
 						       changes */
-	struct kmem_cache	*fsf_req_qtcb_cache;
+	struct kmem_cache	*gpn_ft_cache;
+	struct kmem_cache	*qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
 	struct workqueue_struct	*work_queue;
-};
-
-/* struct used by memory pools for fsf_requests */
-struct zfcp_fsf_req_qtcb {
-	struct zfcp_fsf_req fsf_req;
-	struct fsf_qtcb qtcb;
 };
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/
