@@ -44,8 +44,7 @@ Description:
 	Sends a connect request on the partition service connection
 
 --*/
-static int
-VmbusConnect(void)
+int VmbusConnect(void)
 {
 	int ret=0;
 	VMBUS_CHANNEL_MSGINFO *msgInfo=NULL;
@@ -203,10 +202,7 @@ Description:
 	Sends a disconnect request on the partition service connection
 
 --*/
-static int
-VmbusDisconnect(
-	void
-	)
+int VmbusDisconnect(void)
 {
 	int ret=0;
 	VMBUS_CHANNEL_UNLOAD *msg;
@@ -259,10 +255,7 @@ Description:
 	Get the channel object given its child relative id (ie channel id)
 
 --*/
-static VMBUS_CHANNEL*
-GetChannelFromRelId(
-	u32 relId
-	)
+VMBUS_CHANNEL *GetChannelFromRelId(u32 relId)
 {
 	VMBUS_CHANNEL* channel;
 	VMBUS_CHANNEL* foundChannel=NULL;
@@ -334,10 +327,7 @@ Description:
 	Handler for events
 
 --*/
-static void
-VmbusOnEvents(
-  void
-	)
+void VmbusOnEvents(void)
 {
 	int dword;
 	/* int maxdword = PAGE_SIZE >> 3; // receive size is 1/2 page and divide that by 4 bytes */
@@ -394,11 +384,7 @@ Description:
 	Send a msg on the vmbus's message connection
 
 --*/
-static int
-VmbusPostMessage(
-	void *			buffer,
-	size_t			bufferLen
-	)
+int VmbusPostMessage(void *buffer, size_t bufferLen)
 {
 	int ret=0;
 	HV_CONNECTION_ID connId;
@@ -424,8 +410,7 @@ Description:
 	Send an event notification to the parent
 
 --*/
-static int
-VmbusSetEvent(u32 childRelId)
+int VmbusSetEvent(u32 childRelId)
 {
 	int ret=0;
 

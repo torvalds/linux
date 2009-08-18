@@ -224,11 +224,9 @@ Description:
 
 --*/
 
-static struct hv_device*
-VmbusChildDeviceCreate(
-	GUID DeviceType,
-	GUID DeviceInstance,
-	void *Context)
+struct hv_device *VmbusChildDeviceCreate(GUID DeviceType,
+					 GUID DeviceInstance,
+					 void *Context)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
 
@@ -248,9 +246,7 @@ Description:
 	Registers the child device with the vmbus
 
 --*/
-static int
-VmbusChildDeviceAdd(
-   struct hv_device *ChildDevice)
+int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
 
@@ -267,9 +263,7 @@ Description:
 	Unregisters the child device from the vmbus
 
 --*/
-static void
-VmbusChildDeviceRemove(
-   struct hv_device *ChildDevice)
+void VmbusChildDeviceRemove(struct hv_device *ChildDevice)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
 
