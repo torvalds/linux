@@ -56,6 +56,7 @@
 #include "super.h"
 #include "xattr.h"
 #include "refcounttree.h"
+#include "acl.h"
 
 struct ocfs2_xattr_def_value_root {
 	struct ocfs2_xattr_value_root	xv;
@@ -204,6 +205,8 @@ static int ocfs2_get_xattr_tree_value_root(struct super_block *sb,
 					   int offset,
 					   struct ocfs2_xattr_value_root **xv,
 					   struct buffer_head **bh);
+static int ocfs2_xattr_security_set(struct inode *inode, const char *name,
+				    const void *value, size_t size, int flags);
 
 static inline u16 ocfs2_xattr_buckets_per_cluster(struct ocfs2_super *osb)
 {
@@ -5994,6 +5997,7 @@ out:
 	return ret;
 }
 
+typedef int (should_xattr_reflinked)(struct ocfs2_xattr_entry *xe);
 /*
  * Store the information we need in xattr reflink.
  * old_bh and new_bh are inode bh for the old and new inode.
@@ -6006,6 +6010,7 @@ struct ocfs2_xattr_reflink {
 	struct ocfs2_caching_info *ref_ci;
 	struct buffer_head *ref_root_bh;
 	struct ocfs2_cached_dealloc_ctxt *dealloc;
+	should_xattr_reflinked *xattr_reflinked;
 };
 
 /*
@@ -6147,6 +6152,9 @@ out:
  * NOTE:
  * Before we call this function, the caller has memcpy the xattr in
  * old_xh to the new_xh.
+ *
+ * If args.xattr_reflinked is set, call it to decide whether the xe should
+ * be reflinked or not. If not, remove it from the new xattr header.
  */
 static int ocfs2_reflink_xattr_header(handle_t *handle,
 				      struct ocfs2_xattr_reflink *args,
@@ -6159,10 +6167,10 @@ static int ocfs2_reflink_xattr_header(handle_t *handle,
 				      get_xattr_value_root *func,
 				      void *para)
 {
-	int ret = 0, i;
+	int ret = 0, i, j;
 	struct super_block *sb = args->old_inode->i_sb;
 	struct buffer_head *value_bh;
-	struct ocfs2_xattr_entry *xe;
+	struct ocfs2_xattr_entry *xe, *last;
 	struct ocfs2_xattr_value_root *xv, *new_xv;
 	struct ocfs2_extent_tree data_et;
 	u32 clusters, cpos, p_cluster, num_clusters;
@@ -6170,8 +6178,29 @@ static int ocfs2_reflink_xattr_header(handle_t *handle,
 
 	mlog(0, "reflink xattr in container %llu, count = %u\n",
 	     (unsigned long long)old_bh->b_blocknr, le16_to_cpu(xh->xh_count));
-	for (i = 0; i < le16_to_cpu(xh->xh_count); i++) {
+
+	last = &new_xh->xh_entries[le16_to_cpu(new_xh->xh_count)];
+	for (i = 0, j = 0; i < le16_to_cpu(xh->xh_count); i++, j++) {
 		xe = &xh->xh_entries[i];
+
+		if (args->xattr_reflinked && !args->xattr_reflinked(xe)) {
+			xe = &new_xh->xh_entries[j];
+
+			le16_add_cpu(&new_xh->xh_count, -1);
+			if (new_xh->xh_count) {
+				memmove(xe, xe + 1,
+					(void *)last - (void *)xe);
+				memset(last, 0,
+				       sizeof(struct ocfs2_xattr_entry));
+			}
+
+			/*
+			 * We don't want j to increase in the next round since
+			 * it is already moved ahead.
+			 */
+			j--;
+			continue;
+		}
 
 		if (ocfs2_xattr_is_local(xe))
 			continue;
@@ -6182,7 +6211,7 @@ static int ocfs2_reflink_xattr_header(handle_t *handle,
 			break;
 		}
 
-		ret = func(sb, new_bh, new_xh, i, &new_xv, &value_bh, para);
+		ret = func(sb, new_bh, new_xh, j, &new_xv, &value_bh, para);
 		if (ret) {
 			mlog_errno(ret);
 			break;
@@ -6847,10 +6876,20 @@ out:
 	return ret;
 }
 
+static int ocfs2_reflink_xattr_no_security(struct ocfs2_xattr_entry *xe)
+{
+	int type = ocfs2_xattr_get_type(xe);
+
+	return type != OCFS2_XATTR_INDEX_SECURITY &&
+	       type != OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS &&
+	       type != OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT;
+}
+
 int ocfs2_reflink_xattrs(struct inode *old_inode,
 			 struct buffer_head *old_bh,
 			 struct inode *new_inode,
-			 struct buffer_head *new_bh)
+			 struct buffer_head *new_bh,
+			 bool preserve_security)
 {
 	int ret;
 	struct ocfs2_xattr_reflink args;
@@ -6878,6 +6917,10 @@ int ocfs2_reflink_xattrs(struct inode *old_inode,
 	args.ref_ci = &ref_tree->rf_ci;
 	args.ref_root_bh = ref_root_bh;
 	args.dealloc = &dealloc;
+	if (preserve_security)
+		args.xattr_reflinked = NULL;
+	else
+		args.xattr_reflinked = ocfs2_reflink_xattr_no_security;
 
 	if (oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL) {
 		ret = ocfs2_reflink_xattr_inline(&args);
@@ -6917,6 +6960,51 @@ out:
 	return ret;
 }
 
+/*
+ * Initialize security and acl for a already created inode.
+ * Used for reflink a non-preserve-security file.
+ *
+ * It uses common api like ocfs2_xattr_set, so the caller
+ * must not hold any lock expect i_mutex.
+ */
+int ocfs2_init_security_and_acl(struct inode *dir,
+				struct inode *inode)
+{
+	int ret = 0;
+	struct buffer_head *dir_bh = NULL;
+	struct ocfs2_security_xattr_info si = {
+		.enable = 1,
+	};
+
+	ret = ocfs2_init_security_get(inode, dir, &si);
+	if (!ret) {
+		ret = ocfs2_xattr_security_set(inode, si.name,
+					       si.value, si.value_len,
+					       XATTR_CREATE);
+		if (ret) {
+			mlog_errno(ret);
+			goto leave;
+		}
+	} else if (ret != -EOPNOTSUPP) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = ocfs2_inode_lock(dir, &dir_bh, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = ocfs2_init_acl(NULL, inode, dir, NULL, dir_bh, NULL, NULL);
+	if (ret)
+		mlog_errno(ret);
+
+	ocfs2_inode_unlock(dir, 0);
+	brelse(dir_bh);
+leave:
+	return ret;
+}
 /*
  * 'security' attributes support
  */

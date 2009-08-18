@@ -93,5 +93,8 @@ int ocfs2_xattr_attach_refcount_tree(struct inode *inode,
 int ocfs2_reflink_xattrs(struct inode *old_inode,
 			 struct buffer_head *old_bh,
 			 struct inode *new_inode,
-			 struct buffer_head *new_bh);
+			 struct buffer_head *new_bh,
+			 bool preserve_security);
+int ocfs2_init_security_and_acl(struct inode *dir,
+				struct inode *inode);
 #endif /* OCFS2_XATTR_H */

@@ -3904,7 +3904,8 @@ out:
 static int ocfs2_complete_reflink(struct inode *s_inode,
 				  struct buffer_head *s_bh,
 				  struct inode *t_inode,
-				  struct buffer_head *t_bh)
+				  struct buffer_head *t_bh,
+				  bool preserve)
 {
 	int ret;
 	handle_t *handle;
@@ -3939,22 +3940,26 @@ static int ocfs2_complete_reflink(struct inode *s_inode,
 	di->i_size = s_di->i_size;
 	di->i_dyn_features = s_di->i_dyn_features;
 	di->i_attr = s_di->i_attr;
-	di->i_uid = s_di->i_uid;
-	di->i_gid = s_di->i_gid;
-	di->i_mode = s_di->i_mode;
 
-	/*
-	 * update time.
-	 * we want mtime to appear identical to the source and update ctime.
-	 */
-	t_inode->i_ctime = CURRENT_TIME;
+	if (preserve) {
+		di->i_uid = s_di->i_uid;
+		di->i_gid = s_di->i_gid;
+		di->i_mode = s_di->i_mode;
 
-	di->i_ctime = cpu_to_le64(t_inode->i_ctime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(t_inode->i_ctime.tv_nsec);
+		/*
+		 * update time.
+		 * we want mtime to appear identical to the source and
+		 * update ctime.
+		 */
+		t_inode->i_ctime = CURRENT_TIME;
 
-	t_inode->i_mtime = s_inode->i_mtime;
-	di->i_mtime = s_di->i_mtime;
-	di->i_mtime_nsec = s_di->i_mtime_nsec;
+		di->i_ctime = cpu_to_le64(t_inode->i_ctime.tv_sec);
+		di->i_ctime_nsec = cpu_to_le32(t_inode->i_ctime.tv_nsec);
+
+		t_inode->i_mtime = s_inode->i_mtime;
+		di->i_mtime = s_di->i_mtime;
+		di->i_mtime_nsec = s_di->i_mtime_nsec;
+	}
 
 	ocfs2_journal_dirty(handle, t_bh);
 
@@ -3966,7 +3971,8 @@ out_commit:
 static int ocfs2_create_reflink_node(struct inode *s_inode,
 				     struct buffer_head *s_bh,
 				     struct inode *t_inode,
-				     struct buffer_head *t_bh)
+				     struct buffer_head *t_bh,
+				     bool preserve)
 {
 	int ret;
 	struct buffer_head *ref_root_bh = NULL;
@@ -4001,7 +4007,7 @@ static int ocfs2_create_reflink_node(struct inode *s_inode,
 		goto out_unlock_refcount;
 	}
 
-	ret = ocfs2_complete_reflink(s_inode, s_bh, t_inode, t_bh);
+	ret = ocfs2_complete_reflink(s_inode, s_bh, t_inode, t_bh, preserve);
 	if (ret)
 		mlog_errno(ret);
 
