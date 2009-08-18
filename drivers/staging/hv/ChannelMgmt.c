@@ -22,6 +22,8 @@
  */
 
 
+#include <linux/kernel.h>
+#include <linux/mm.h>
 #include "include/osd.h"
 #include "include/logging.h"
 
