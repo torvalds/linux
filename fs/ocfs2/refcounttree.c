@@ -26,6 +26,13 @@
 #include "super.h"
 #include "buffer_head_io.h"
 #include "blockcheck.h"
+#include "refcounttree.h"
+
+static inline struct ocfs2_refcount_tree *
+cache_info_to_refcount(struct ocfs2_caching_info *ci)
+{
+	return container_of(ci, struct ocfs2_refcount_tree, rf_ci);
+}
 
 static int ocfs2_validate_refcount_block(struct super_block *sb,
 					 struct buffer_head *bh)
@@ -97,3 +104,55 @@ static int ocfs2_read_refcount_block(struct ocfs2_caching_info *ci,
 
 	return rc;
 }
+
+static u64 ocfs2_refcount_cache_owner(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
+
+	return rf->rf_blkno;
+}
+
+static struct super_block *
+ocfs2_refcount_cache_get_super(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
+
+	return rf->rf_sb;
+}
+
+static void ocfs2_refcount_cache_lock(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
+
+	spin_lock(&rf->rf_lock);
+}
+
+static void ocfs2_refcount_cache_unlock(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
+
+	spin_unlock(&rf->rf_lock);
+}
+
+static void ocfs2_refcount_cache_io_lock(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
+
+	mutex_lock(&rf->rf_io_mutex);
+}
+
+static void ocfs2_refcount_cache_io_unlock(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
+
+	mutex_unlock(&rf->rf_io_mutex);
+}
+
+static const struct ocfs2_caching_operations ocfs2_refcount_caching_ops = {
+	.co_owner		= ocfs2_refcount_cache_owner,
+	.co_get_super		= ocfs2_refcount_cache_get_super,
+	.co_cache_lock		= ocfs2_refcount_cache_lock,
+	.co_cache_unlock	= ocfs2_refcount_cache_unlock,
+	.co_io_lock		= ocfs2_refcount_cache_io_lock,
+	.co_io_unlock		= ocfs2_refcount_cache_io_unlock,
+};
