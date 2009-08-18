@@ -80,6 +80,9 @@ void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
 void ocfs2_init_dx_root_extent_tree(struct ocfs2_extent_tree *et,
 				    struct ocfs2_caching_info *ci,
 				    struct buffer_head *bh);
+void ocfs2_init_refcount_extent_tree(struct ocfs2_extent_tree *et,
+				     struct ocfs2_caching_info *ci,
+				     struct buffer_head *bh);
 
 /*
  * Read an extent block into *bh.  If *bh is NULL, a bh will be
