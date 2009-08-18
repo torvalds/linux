@@ -3495,11 +3495,11 @@ out:
 	return UNBLOCK_CONTINUE;
 }
 
-static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
-					int new_level)
+static int ocfs2_ci_checkpointed(struct ocfs2_caching_info *ci,
+				 struct ocfs2_lock_res *lockres,
+				 int new_level)
 {
-	struct inode *inode = ocfs2_lock_res_inode(lockres);
-	int checkpointed = ocfs2_ci_fully_checkpointed(INODE_CACHE(inode));
+	int checkpointed = ocfs2_ci_fully_checkpointed(ci);
 
 	BUG_ON(new_level != DLM_LOCK_NL && new_level != DLM_LOCK_PR);
 	BUG_ON(lockres->l_level != DLM_LOCK_EX && !checkpointed);
@@ -3507,8 +3507,16 @@ static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 	if (checkpointed)
 		return 1;
 
-	ocfs2_start_checkpoint(OCFS2_SB(inode->i_sb));
+	ocfs2_start_checkpoint(OCFS2_SB(ocfs2_metadata_cache_get_super(ci)));
 	return 0;
+}
+
+static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
+					int new_level)
+{
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+
+	return ocfs2_ci_checkpointed(INODE_CACHE(inode), lockres, new_level);
 }
 
 static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres)
