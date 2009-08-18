@@ -555,6 +555,14 @@ static struct ocfs2_triggers eb_triggers = {
 	.ot_offset	= offsetof(struct ocfs2_extent_block, h_check),
 };
 
+static struct ocfs2_triggers rb_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_refcount_block, rf_check),
+};
+
 static struct ocfs2_triggers gd_triggers = {
 	.ot_triggers = {
 		.t_commit = ocfs2_commit_trigger,
@@ -675,6 +683,13 @@ int ocfs2_journal_access_eb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
 	return __ocfs2_journal_access(handle, ci, bh, &eb_triggers, type);
+}
+
+int ocfs2_journal_access_rb(handle_t *handle, struct ocfs2_caching_info *ci,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, ci, bh, &rb_triggers,
+				      type);
 }
 
 int ocfs2_journal_access_gd(handle_t *handle, struct ocfs2_caching_info *ci,

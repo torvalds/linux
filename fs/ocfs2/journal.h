@@ -281,6 +281,9 @@ int ocfs2_journal_access_di(handle_t *handle, struct ocfs2_caching_info *ci,
 /* ocfs2_extent_block */
 int ocfs2_journal_access_eb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
+/* ocfs2_refcount_block */
+int ocfs2_journal_access_rb(handle_t *handle, struct ocfs2_caching_info *ci,
+			    struct buffer_head *bh, int type);
 /* ocfs2_group_desc */
 int ocfs2_journal_access_gd(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
