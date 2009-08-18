@@ -1234,14 +1234,15 @@ module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 module_param(xmas, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(xmas, "xmas color enabled or not");
+MODULE_PARM_DESC(xmas, "Xmas colors enabled or not");
 
 module_param(boost, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(boost, "overclock boost percent 100 to 500");
+MODULE_PARM_DESC(boost, "Card overclock boost (in percent 100-500)");
 
 module_param(clockmode, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(clockmode, "1=3Mhz579,2=3Mhz680,3=6Mhz");
+MODULE_PARM_DESC(clockmode, "Card clock mode (1=3.579 MHz, 2=3.680 MHz, "
+		"3=6 Mhz)");
 
 module_param(cdmode, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(cdmode, "Card detect mode 0=none, 1=CD, 2=!CD, 3=DSR, "
-		 "4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING");
+MODULE_PARM_DESC(cdmode, "Card detect mode (0=none, 1=CD, 2=!CD, 3=DSR, "
+		 "4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING)");
