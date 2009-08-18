@@ -435,6 +435,16 @@ snd_card_saa7134_capture_pointer(struct snd_pcm_substream * substream)
 
 /*
  * ALSA hardware capabilities definition
+ *
+ *  Report only 32kHz for ALSA:
+ *
+ *  - SAA7133/35 uses DDEP (DemDec Easy Programming mode), which works in 32kHz
+ *    only
+ *  - SAA7134 for TV mode uses DemDec mode (32kHz)
+ *  - Radio works in 32kHz only
+ *  - When recording 48kHz from Line1/Line2, switching of capture source to TV
+ *    means
+ *    switching to 32kHz without any frequency translation
  */
 
 static struct snd_pcm_hardware snd_card_saa7134_capture =
@@ -448,9 +458,9 @@ static struct snd_pcm_hardware snd_card_saa7134_capture =
 				SNDRV_PCM_FMTBIT_U8 | \
 				SNDRV_PCM_FMTBIT_U16_LE | \
 				SNDRV_PCM_FMTBIT_U16_BE,
-	.rates =		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000,
+	.rates =		SNDRV_PCM_RATE_32000,
 	.rate_min =		32000,
-	.rate_max =		48000,
+	.rate_max =		32000,
 	.channels_min =		1,
 	.channels_max =		2,
 	.buffer_bytes_max =	(256*1024),
