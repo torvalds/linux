@@ -172,6 +172,13 @@ struct ocfs2_xa_loc_operations {
 
 	/* Add name+value storage to an entry */
 	void (*xlo_add_namevalue)(struct ocfs2_xa_loc *loc, int size);
+
+	/*
+	 * Initialize the value buf's access and bh fields for this entry.
+	 * ocfs2_xa_fill_value_buf() will handle the xv pointer.
+	 */
+	void (*xlo_fill_value_buf)(struct ocfs2_xa_loc *loc,
+				   struct ocfs2_xattr_value_buf *vb);
 };
 
 /*
@@ -1605,6 +1612,23 @@ static void ocfs2_xa_add_namevalue(struct ocfs2_xa_loc *loc,
 	memcpy(nameval_buf, xi->xi_name, xi->xi_name_len);
 }
 
+static void ocfs2_xa_fill_value_buf(struct ocfs2_xa_loc *loc,
+				    struct ocfs2_xattr_value_buf *vb)
+{
+	int nameval_offset = le16_to_cpu(loc->xl_entry->xe_name_offset);
+	int name_size = OCFS2_XATTR_SIZE(loc->xl_entry->xe_name_len);
+
+	/* Value bufs are for value trees */
+	BUG_ON(namevalue_size_xe(loc->xl_entry) !=
+	       (name_size + OCFS2_XATTR_ROOT_SIZE));
+
+	loc->xl_ops->xlo_fill_value_buf(loc, vb);
+	vb->vb_xv =
+		(struct ocfs2_xattr_value_root *)ocfs2_xa_offset_pointer(loc,
+							nameval_offset +
+							name_size);
+}
+
 static void *ocfs2_xa_block_offset_pointer(struct ocfs2_xa_loc *loc,
 					   int offset)
 {
@@ -1712,6 +1736,20 @@ static void ocfs2_xa_block_add_namevalue(struct ocfs2_xa_loc *loc, int size)
 	loc->xl_entry->xe_name_offset = cpu_to_le16(free_start - size);
 }
 
+static void ocfs2_xa_block_fill_value_buf(struct ocfs2_xa_loc *loc,
+					  struct ocfs2_xattr_value_buf *vb)
+{
+	struct buffer_head *bh = loc->xl_storage;
+
+	if (loc->xl_size == (bh->b_size -
+			     offsetof(struct ocfs2_xattr_block,
+				      xb_attrs.xb_header)))
+		vb->vb_access = ocfs2_journal_access_xb;
+	else
+		vb->vb_access = ocfs2_journal_access_di;
+	vb->vb_bh = bh;
+}
+
 /*
  * Operations for xattrs stored in blocks.  This includes inline inode
  * storage and unindexed ocfs2_xattr_blocks.
@@ -1724,6 +1762,7 @@ static const struct ocfs2_xa_loc_operations ocfs2_xa_block_loc_ops = {
 	.xlo_wipe_namevalue	= ocfs2_xa_block_wipe_namevalue,
 	.xlo_add_entry		= ocfs2_xa_block_add_entry,
 	.xlo_add_namevalue	= ocfs2_xa_block_add_namevalue,
+	.xlo_fill_value_buf	= ocfs2_xa_block_fill_value_buf,
 };
 
 static void *ocfs2_xa_bucket_offset_pointer(struct ocfs2_xa_loc *loc,
@@ -1869,6 +1908,25 @@ static void ocfs2_xa_bucket_add_namevalue(struct ocfs2_xa_loc *loc, int size)
 
 }
 
+static void ocfs2_xa_bucket_fill_value_buf(struct ocfs2_xa_loc *loc,
+					   struct ocfs2_xattr_value_buf *vb)
+{
+	struct ocfs2_xattr_bucket *bucket = loc->xl_storage;
+	struct super_block *sb = bucket->bu_inode->i_sb;
+	int nameval_offset = le16_to_cpu(loc->xl_entry->xe_name_offset);
+	int size = namevalue_size_xe(loc->xl_entry);
+	int block_offset = nameval_offset >> sb->s_blocksize_bits;
+
+	/* Values are not allowed to straddle block boundaries */
+	BUG_ON(block_offset !=
+	       ((nameval_offset + size - 1) >> sb->s_blocksize_bits));
+	/* We expect the bucket to be filled in */
+	BUG_ON(!bucket->bu_bhs[block_offset]);
+
+	vb->vb_access = ocfs2_journal_access;
+	vb->vb_bh = bucket->bu_bhs[block_offset];
+}
+
 /* Operations for xattrs stored in buckets. */
 static const struct ocfs2_xa_loc_operations ocfs2_xa_bucket_loc_ops = {
 	.xlo_offset_pointer	= ocfs2_xa_bucket_offset_pointer,
@@ -1878,6 +1936,7 @@ static const struct ocfs2_xa_loc_operations ocfs2_xa_bucket_loc_ops = {
 	.xlo_wipe_namevalue	= ocfs2_xa_bucket_wipe_namevalue,
 	.xlo_add_entry		= ocfs2_xa_bucket_add_entry,
 	.xlo_add_namevalue	= ocfs2_xa_bucket_add_namevalue,
+	.xlo_fill_value_buf	= ocfs2_xa_bucket_fill_value_buf,
 };
 
 static void ocfs2_xa_remove_entry(struct ocfs2_xa_loc *loc)
