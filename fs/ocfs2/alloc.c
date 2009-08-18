@@ -5169,12 +5169,12 @@ out:
  *
  * The caller is responsible for passing down meta_ac if we'll need it.
  */
-static int ocfs2_change_extent_flag(handle_t *handle,
-				    struct ocfs2_extent_tree *et,
-				    u32 cpos, u32 len, u32 phys,
-				    struct ocfs2_alloc_context *meta_ac,
-				    struct ocfs2_cached_dealloc_ctxt *dealloc,
-				    int new_flags, int clear_flags)
+int ocfs2_change_extent_flag(handle_t *handle,
+			     struct ocfs2_extent_tree *et,
+			     u32 cpos, u32 len, u32 phys,
+			     struct ocfs2_alloc_context *meta_ac,
+			     struct ocfs2_cached_dealloc_ctxt *dealloc,
+			     int new_flags, int clear_flags)
 {
 	int ret, index;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(et->et_ci);

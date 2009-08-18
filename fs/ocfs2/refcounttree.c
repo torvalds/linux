@@ -2153,3 +2153,42 @@ out:
 	brelse(ref_root_bh);
 	return ret;
 }
+
+/*
+ * Mark the already-existing extent at cpos as refcounted for len clusters.
+ * This adds the refcount extent flag.
+ *
+ * If the existing extent is larger than the request, initiate a
+ * split. An attempt will be made at merging with adjacent extents.
+ *
+ * The caller is responsible for passing down meta_ac if we'll need it.
+ */
+static int ocfs2_mark_extent_refcounted(struct inode *inode,
+				struct ocfs2_extent_tree *et,
+				handle_t *handle, u32 cpos,
+				u32 len, u32 phys,
+				struct ocfs2_alloc_context *meta_ac,
+				struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	int ret;
+
+	mlog(0, "Inode %lu refcount tree cpos %u, len %u, phys cluster %u\n",
+	     inode->i_ino, cpos, len, phys);
+
+	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
+		ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
+			    "tree, but the feature bit is not set in the "
+			    "super block.", inode->i_ino);
+		ret = -EROFS;
+		goto out;
+	}
+
+	ret = ocfs2_change_extent_flag(handle, et, cpos,
+				       len, phys, meta_ac, dealloc,
+				       OCFS2_EXT_REFCOUNTED, 0);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	return ret;
+}

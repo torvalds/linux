@@ -516,6 +516,13 @@ static inline void ocfs2_add_links_count(struct ocfs2_dinode *di, int n)
 	ocfs2_set_links_count(di, links);
 }
 
+static inline int ocfs2_refcount_tree(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_REFCOUNT_TREE)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock
