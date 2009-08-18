@@ -528,6 +528,12 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	int baud;
 	int i;
 	u8 control;
+	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
+	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
+	                         57600, 115200, 230400, 460800, 614400,
+	                         921600, 1228800, 2457600, 3000000, 6000000 };
+	int baud_floor, baud_ceil;
+	int k;
 
 	dbg("%s -  port %d", __func__, port->number);
 
@@ -573,9 +579,39 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		dbg("%s - data bits = %d", __func__, buf[6]);
 	}
 
+	/* For reference buf[0]:buf[3] baud rate value */
+	/* NOTE: Only the values defined in baud_sup are supported !
+	 *       => if unsupported values are set, the PL2303 seems to use
+	 *          9600 baud (at least my PL2303X always does)
+	 */
 	baud = tty_get_baud_rate(tty);
-	dbg("%s - baud = %d", __func__, baud);
+	dbg("%s - baud requested = %d", __func__, baud);
 	if (baud) {
+		/* Set baudrate to nearest supported value */
+		for (k=0; k<ARRAY_SIZE(baud_sup); k++) {
+			if (baud_sup[k] / baud) {
+				baud_ceil = baud_sup[k];
+				if (k==0) {
+					baud = baud_ceil;
+				} else {
+					baud_floor = baud_sup[k-1];
+					if ((baud_ceil % baud)
+					    > (baud % baud_floor))
+						baud = baud_floor;
+					else
+						baud = baud_ceil;
+				}
+				break;
+			}
+		}
+		if (baud > 1228800) {
+			/* type_0, type_1 only support up to 1228800 baud */
+			if (priv->type != HX)
+				baud = 1228800;
+			else if (baud > 6000000)
+				baud = 6000000;
+		}
+		dbg("%s - baud set = %d", __func__, baud);
 		buf[0] = baud & 0xff;
 		buf[1] = (baud >> 8) & 0xff;
 		buf[2] = (baud >> 16) & 0xff;
@@ -648,7 +684,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		pl2303_vendor_write(0x0, 0x0, serial);
 	}
 
-	/* FIXME: Need to read back resulting baud rate */
+	/* Save resulting baud rate */
 	if (baud)
 		tty_encode_baud_rate(tty, baud, baud);
 
