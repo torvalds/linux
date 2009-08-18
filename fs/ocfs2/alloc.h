@@ -115,6 +115,14 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 				struct ocfs2_alloc_context *meta_ac,
 				enum ocfs2_alloc_restarted *reason_ret);
 struct ocfs2_cached_dealloc_ctxt;
+struct ocfs2_path;
+int ocfs2_split_extent(handle_t *handle,
+		       struct ocfs2_extent_tree *et,
+		       struct ocfs2_path *path,
+		       int split_index,
+		       struct ocfs2_extent_rec *split_rec,
+		       struct ocfs2_alloc_context *meta_ac,
+		       struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_mark_extent_written(struct inode *inode,
 			      struct ocfs2_extent_tree *et,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
@@ -254,4 +262,45 @@ static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
 	return !rec->e_leaf_clusters;
 }
 
+/*
+ * Structures which describe a path through a btree, and functions to
+ * manipulate them.
+ *
+ * The idea here is to be as generic as possible with the tree
+ * manipulation code.
+ */
+struct ocfs2_path_item {
+	struct buffer_head		*bh;
+	struct ocfs2_extent_list	*el;
+};
+
+#define OCFS2_MAX_PATH_DEPTH	5
+
+struct ocfs2_path {
+	int				p_tree_depth;
+	ocfs2_journal_access_func	p_root_access;
+	struct ocfs2_path_item		p_node[OCFS2_MAX_PATH_DEPTH];
+};
+
+#define path_root_bh(_path) ((_path)->p_node[0].bh)
+#define path_root_el(_path) ((_path)->p_node[0].el)
+#define path_root_access(_path)((_path)->p_root_access)
+#define path_leaf_bh(_path) ((_path)->p_node[(_path)->p_tree_depth].bh)
+#define path_leaf_el(_path) ((_path)->p_node[(_path)->p_tree_depth].el)
+#define path_num_items(_path) ((_path)->p_tree_depth + 1)
+
+void ocfs2_reinit_path(struct ocfs2_path *path, int keep_root);
+void ocfs2_free_path(struct ocfs2_path *path);
+int ocfs2_find_path(struct ocfs2_caching_info *ci,
+		    struct ocfs2_path *path,
+		    u32 cpos);
+struct ocfs2_path *ocfs2_new_path_from_path(struct ocfs2_path *path);
+struct ocfs2_path *ocfs2_new_path_from_et(struct ocfs2_extent_tree *et);
+int ocfs2_path_bh_journal_access(handle_t *handle,
+				 struct ocfs2_caching_info *ci,
+				 struct ocfs2_path *path,
+				 int idx);
+int ocfs2_journal_access_path(struct ocfs2_caching_info *ci,
+			      handle_t *handle,
+			      struct ocfs2_path *path);
 #endif /* OCFS2_ALLOC_H */
