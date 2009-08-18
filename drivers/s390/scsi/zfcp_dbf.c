@@ -274,16 +274,16 @@ void _zfcp_hba_dbf_event_fsf_unsol(const char *tag, int level,
 
 /**
  * zfcp_hba_dbf_event_qdio - trace event for QDIO related failure
- * @adapter: adapter affected by this QDIO related event
+ * @qdio: qdio structure affected by this QDIO related event
  * @qdio_error: as passed by qdio module
  * @sbal_index: first buffer with error condition, as passed by qdio module
  * @sbal_count: number of buffers affected, as passed by qdio module
  */
-void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *adapter,
+void zfcp_hba_dbf_event_qdio(struct zfcp_qdio *qdio,
 			     unsigned int qdio_error, int sbal_index,
 			     int sbal_count)
 {
-	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf *dbf = qdio->adapter->dbf;
 	struct zfcp_hba_dbf_record *r = &dbf->hba_dbf_buf;
 	unsigned long flags;
 

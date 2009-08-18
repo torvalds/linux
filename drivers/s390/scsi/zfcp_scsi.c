@@ -225,7 +225,7 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 {
 	struct zfcp_unit *unit = scpnt->device->hostdata;
 	struct zfcp_adapter *adapter = unit->port->adapter;
-	struct zfcp_fsf_req *fsf_req;
+	struct zfcp_fsf_req *fsf_req = NULL;
 	int retval = SUCCESS;
 	int retry = 3;
 
@@ -429,7 +429,7 @@ static struct fc_host_statistics *zfcp_get_fc_host_stats(struct Scsi_Host *host)
 	if (!data)
 		return NULL;
 
-	ret = zfcp_fsf_exchange_port_data_sync(adapter, data);
+	ret = zfcp_fsf_exchange_port_data_sync(adapter->qdio, data);
 	if (ret) {
 		kfree(data);
 		return NULL;
@@ -458,7 +458,7 @@ static void zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 	if (!data)
 		return;
 
-	ret = zfcp_fsf_exchange_port_data_sync(adapter, data);
+	ret = zfcp_fsf_exchange_port_data_sync(adapter->qdio, data);
 	if (ret)
 		kfree(data);
 	else {

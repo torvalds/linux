@@ -428,6 +428,29 @@ struct zfcp_latencies {
 	spinlock_t lock;
 };
 
+/** struct zfcp_qdio - basic QDIO data structure
+ * @resp_q: response queue
+ * @req_q: request queue
+ * @stat_lock: lock to protect req_q_util and req_q_time
+ * @req_q_lock; lock to serialize access to request queue
+ * @req_q_time: time of last fill level change
+ * @req_q_util: used for accounting
+ * @req_q_full: queue full incidents
+ * @req_q_wq: used to wait for SBAL availability
+ * @adapter: adapter used in conjunction with this QDIO structure
+ */
+struct zfcp_qdio {
+	struct zfcp_qdio_queue	resp_q;
+	struct zfcp_qdio_queue	req_q;
+	spinlock_t		stat_lock;
+	spinlock_t		req_q_lock;
+	ktime_t			req_q_time;
+	u64			req_q_util;
+	atomic_t		req_q_full;
+	wait_queue_head_t	req_q_wq;
+	struct zfcp_adapter	*adapter;
+};
+
 struct zfcp_adapter {
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
@@ -436,6 +459,7 @@ struct zfcp_adapter {
 	u64			peer_wwpn;	   /* P2P peer WWPN */
 	u32			peer_d_id;	   /* P2P peer D_ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
+	struct zfcp_qdio	*qdio;
 	u32			hydra_version;	   /* Hydra version */
 	u32			fsf_lic_version;
 	u32			adapter_features;  /* FCP channel features */
@@ -447,15 +471,7 @@ struct zfcp_adapter {
 	unsigned long		req_no;		   /* unique FSF req number */
 	struct list_head	*req_list;	   /* list of pending reqs */
 	spinlock_t		req_list_lock;	   /* request list lock */
-	struct zfcp_qdio_queue	req_q;		   /* request queue */
-	spinlock_t		req_q_lock;	   /* for operations on queue */
-	ktime_t			req_q_time; /* time of last fill level change */
-	u64			req_q_util; /* for accounting */
-	spinlock_t		qdio_stat_lock;
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
-	wait_queue_head_t	request_wq;	   /* can be used to wait for
-						      more avaliable SBALs */
-	struct zfcp_qdio_queue	resp_q;	   /* response queue */
 	rwlock_t		abort_lock;        /* Protects against SCSI
 						      stack abort/command
 						      completion races */
@@ -478,13 +494,11 @@ struct zfcp_adapter {
 	struct zfcp_wka_ports	*gs;		   /* generic services */
 	struct zfcp_dbf		*dbf;		   /* debug traces */
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
-	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
 	struct fc_host_statistics *fc_stats;
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
 	struct work_struct	scan_work;
 	struct service_level	service_level;
-	atomic_t		qdio_outb_full;	   /* queue full incidents */
 	struct workqueue_struct	*work_queue;
 };
 

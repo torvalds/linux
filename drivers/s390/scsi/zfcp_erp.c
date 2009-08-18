@@ -603,9 +603,11 @@ static void zfcp_erp_wakeup(struct zfcp_adapter *adapter)
 
 static int zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *act)
 {
-	if (zfcp_qdio_open(act->adapter))
+	struct zfcp_qdio *qdio = act->adapter->qdio;
+
+	if (zfcp_qdio_open(qdio))
 		return ZFCP_ERP_FAILED;
-	init_waitqueue_head(&act->adapter->request_wq);
+	init_waitqueue_head(&qdio->req_q_wq);
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &act->adapter->status);
 	return ZFCP_ERP_SUCCEEDED;
 }
@@ -710,7 +712,7 @@ static void zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *act)
 	struct zfcp_adapter *adapter = act->adapter;
 
 	/* close queues to ensure that buffers are not accessed by adapter */
-	zfcp_qdio_close(adapter);
+	zfcp_qdio_close(adapter->qdio);
 	zfcp_fsf_req_dismiss_all(adapter);
 	adapter->fsf_req_seq_no = 0;
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
