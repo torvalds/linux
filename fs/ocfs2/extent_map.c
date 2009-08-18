@@ -541,7 +541,8 @@ static void ocfs2_relative_extent_offsets(struct super_block *sb,
 
 int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 			     u32 *p_cluster, u32 *num_clusters,
-			     struct ocfs2_extent_list *el)
+			     struct ocfs2_extent_list *el,
+			     unsigned int *extent_flags)
 {
 	int ret = 0, i;
 	struct buffer_head *eb_bh = NULL;
@@ -593,6 +594,9 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 		*p_cluster = *p_cluster + coff;
 		if (num_clusters)
 			*num_clusters = ocfs2_rec_clusters(el, rec) - coff;
+
+		if (extent_flags)
+			*extent_flags = rec->e_flags;
 	}
 out:
 	if (eb_bh)

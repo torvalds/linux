@@ -704,7 +704,7 @@ static int ocfs2_xattr_shrink_size(struct inode *inode,
 	while (trunc_len) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &phys_cpos,
 					       &alloc_size,
-					       &vb->vb_xv->xr_list);
+					       &vb->vb_xv->xr_list, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -959,7 +959,7 @@ static int ocfs2_xattr_get_value_outside(struct inode *inode,
 	cpos = 0;
 	while (cpos < clusters) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
-					       &num_clusters, el);
+					       &num_clusters, el, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -1198,7 +1198,8 @@ static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 
 	while (cpos < clusters) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
-					       &num_clusters, &xv->xr_list);
+					       &num_clusters, &xv->xr_list,
+					       NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
