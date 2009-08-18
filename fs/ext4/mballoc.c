@@ -2554,15 +2554,6 @@ exit_meta_group_info:
 	return -ENOMEM;
 } /* ext4_mb_add_groupinfo */
 
-/*
- * Update an existing group.
- * This function is used for online resize
- */
-void ext4_mb_update_group_info(struct ext4_group_info *grp, ext4_grpblk_t add)
-{
-	grp->bb_free += add;
-}
-
 static int ext4_mb_init_backend(struct super_block *sb)
 {
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
