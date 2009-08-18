@@ -2142,7 +2142,8 @@ static int ocfs2_create_xattr_block(handle_t *handle,
 				    struct inode *inode,
 				    struct buffer_head *inode_bh,
 				    struct ocfs2_alloc_context *meta_ac,
-				    struct buffer_head **ret_bh)
+				    struct buffer_head **ret_bh,
+				    int indexed)
 {
 	int ret;
 	u16 suballoc_bit_start;
@@ -2188,6 +2189,17 @@ static int ocfs2_create_xattr_block(handle_t *handle,
 	xblk->xb_fs_generation = cpu_to_le32(osb->fs_generation);
 	xblk->xb_blkno = cpu_to_le64(first_blkno);
 
+	if (indexed) {
+		struct ocfs2_xattr_tree_root *xr = &xblk->xb_attrs.xb_root;
+		xr->xt_clusters = cpu_to_le32(1);
+		xr->xt_last_eb_blk = 0;
+		xr->xt_list.l_tree_depth = 0;
+		xr->xt_list.l_count = cpu_to_le16(
+					ocfs2_xattr_recs_per_xb(inode->i_sb));
+		xr->xt_list.l_next_free_rec = cpu_to_le16(1);
+		xblk->xb_flags = cpu_to_le16(OCFS2_XATTR_INDEXED);
+	}
+
 	ret = ocfs2_journal_dirty(handle, new_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -2222,7 +2234,7 @@ static int ocfs2_xattr_block_set(struct inode *inode,
 
 	if (!xs->xattr_bh) {
 		ret = ocfs2_create_xattr_block(handle, inode, xs->inode_bh,
-					       ctxt->meta_ac, &new_bh);
+					       ctxt->meta_ac, &new_bh, 0);
 		if (ret) {
 			mlog_errno(ret);
 			goto end;
