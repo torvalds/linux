@@ -529,36 +529,64 @@ struct zfcp_unit {
 	struct work_struct	scsi_work;
 };
 
-/* FSF request */
+/**
+ * struct zfcp_queue_req - queue related values for a request
+ * @sbal_number: number of free SBALs
+ * @sbal_first: first SBAL for this request
+ * @sbal_last: last SBAL for this request
+ * @sbal_limit: last possible SBAL for this request
+ * @sbale_curr: current SBALE at creation of this request
+ * @sbal_response: SBAL used in interrupt
+ * @qdio_outb_usage: usage of outbound queue
+ * @qdio_inb_usage: usage of inbound queue
+ */
+struct zfcp_queue_req {
+	u8		       sbal_number;
+	u8		       sbal_first;
+	u8		       sbal_last;
+	u8		       sbal_limit;
+	u8		       sbale_curr;
+	u8		       sbal_response;
+	u16		       qdio_outb_usage;
+	u16		       qdio_inb_usage;
+};
+
+/**
+ * struct zfcp_fsf_req - basic FSF request structure
+ * @list: list of FSF requests
+ * @req_id: unique request ID
+ * @adapter: adapter this request belongs to
+ * @queue_req: queue related values
+ * @completion: used to signal the completion of the request
+ * @status: status of the request
+ * @fsf_command: FSF command issued
+ * @qtcb: associated QTCB
+ * @seq_no: sequence number of this request
+ * @data: private data
+ * @timer: timer data of this request
+ * @erp_action: reference to erp action if request issued on behalf of ERP
+ * @pool: reference to memory pool if used for this request
+ * @issued: time when request was send (STCK)
+ * @unit: reference to unit if this request is a SCSI request
+ * @handler: handler which should be called to process response
+ */
 struct zfcp_fsf_req {
-	struct list_head       list;	       /* list of FSF requests */
-	unsigned long	       req_id;	       /* unique request ID */
-	struct zfcp_adapter    *adapter;       /* adapter request belongs to */
-	u8		       sbal_number;    /* nr of SBALs free for use */
-	u8		       sbal_first;     /* first SBAL for this request */
-	u8		       sbal_last;      /* last SBAL for this request */
-	u8		       sbal_limit;      /* last possible SBAL for
-						  this reuest */
-	u8		       sbale_curr;     /* current SBALE during creation
-						  of request */
-	u8			sbal_response;	/* SBAL used in interrupt */
-	struct completion	completion;	/* can be used by a routine
-						  to wait for completion */
-	u32			status;	       /* status of this request */
-	u32		       fsf_command;    /* FSF Command copy */
-	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
-	u32		       seq_no;         /* Sequence number of request */
-	void			*data;           /* private data of request */
-	struct timer_list     timer;	       /* used for erp or scsi er */
-	struct zfcp_erp_action *erp_action;    /* used if this request is
-						  issued on behalf of erp */
-	mempool_t	       *pool;	       /* used if request was alloacted
-						  from emergency pool */
-	unsigned long long     issued;         /* request sent time (STCK) */
-	struct zfcp_unit       *unit;
+	struct list_head	list;
+	unsigned long		req_id;
+	struct zfcp_adapter	*adapter;
+	struct zfcp_queue_req	queue_req;
+	struct completion	completion;
+	u32			status;
+	u32			fsf_command;
+	struct fsf_qtcb		*qtcb;
+	u32			seq_no;
+	void			*data;
+	struct timer_list	timer;
+	struct zfcp_erp_action	*erp_action;
+	mempool_t		*pool;
+	unsigned long long	issued;
+	struct zfcp_unit	*unit;
 	void			(*handler)(struct zfcp_fsf_req *);
-	u16			qdio_outb_usage;/* usage of outbound queue */
-	u16			qdio_inb_usage;	/* usage of inbound queue */
 };
 
 /* driver data */

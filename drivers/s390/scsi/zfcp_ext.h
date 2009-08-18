@@ -142,10 +142,13 @@ extern void zfcp_fsf_reqid_check(struct zfcp_adapter *, int);
 /* zfcp_qdio.c */
 extern int zfcp_qdio_allocate(struct zfcp_adapter *);
 extern void zfcp_qdio_free(struct zfcp_adapter *);
-extern int zfcp_qdio_send(struct zfcp_fsf_req *);
-extern struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_fsf_req *);
-extern struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_fsf_req *);
-extern int zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *, unsigned long,
+extern int zfcp_qdio_send(struct zfcp_adapter *, struct zfcp_queue_req *);
+extern struct qdio_buffer_element
+	*zfcp_qdio_sbale_req(struct zfcp_adapter *, struct zfcp_queue_req *);
+extern struct qdio_buffer_element
+	*zfcp_qdio_sbale_curr(struct zfcp_adapter *, struct zfcp_queue_req *);
+extern int zfcp_qdio_sbals_from_sg(struct zfcp_adapter *,
+				   struct zfcp_queue_req *, unsigned long,
 				   struct scatterlist *, int);
 extern int zfcp_qdio_open(struct zfcp_adapter *);
 extern void zfcp_qdio_close(struct zfcp_adapter *);

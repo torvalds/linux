@@ -3,7 +3,7 @@
  *
  * Setup and helper functions to access QDIO.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -165,12 +165,14 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 
 /**
  * zfcp_qdio_sbale_req - return ptr to SBALE of req_q for a struct zfcp_fsf_req
- * @fsf_req: pointer to struct fsf_req
+ * @adapter: pointer to struct zfcp_adapter
+ * @q_rec: pointer to struct zfcp_queue_rec
  * Returns: pointer to qdio_buffer_element (SBALE) structure
  */
-struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
+struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_adapter *adapter,
+						struct zfcp_queue_req *q_req)
 {
-	return zfcp_qdio_sbale(&req->adapter->req_q, req->sbal_last, 0);
+	return zfcp_qdio_sbale(&adapter->req_q, q_req->sbal_last, 0);
 }
 
 /**
@@ -178,74 +180,80 @@ struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
  * @fsf_req: pointer to struct fsf_req
  * Returns: pointer to qdio_buffer_element (SBALE) structure
  */
-struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_fsf_req *req)
+struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_adapter *adapter,
+						 struct zfcp_queue_req *q_req)
 {
-	return zfcp_qdio_sbale(&req->adapter->req_q, req->sbal_last,
-			       req->sbale_curr);
+	return zfcp_qdio_sbale(&adapter->req_q, q_req->sbal_last,
+			       q_req->sbale_curr);
 }
 
-static void zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
+static void zfcp_qdio_sbal_limit(struct zfcp_adapter *adapter,
+				 struct zfcp_queue_req *q_req, int max_sbals)
 {
-	int count = atomic_read(&fsf_req->adapter->req_q.count);
+	int count = atomic_read(&adapter->req_q.count);
 	count = min(count, max_sbals);
-	fsf_req->sbal_limit = (fsf_req->sbal_first + count - 1)
+	q_req->sbal_limit = (q_req->sbal_first + count - 1)
 					% QDIO_MAX_BUFFERS_PER_Q;
 }
 
 static struct qdio_buffer_element *
-zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
+zfcp_qdio_sbal_chain(struct zfcp_adapter *adapter, struct zfcp_queue_req *q_req,
+		     unsigned long sbtype)
 {
 	struct qdio_buffer_element *sbale;
 
 	/* set last entry flag in current SBALE of current SBAL */
-	sbale = zfcp_qdio_sbale_curr(fsf_req);
+	sbale = zfcp_qdio_sbale_curr(adapter, q_req);
 	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	/* don't exceed last allowed SBAL */
-	if (fsf_req->sbal_last == fsf_req->sbal_limit)
+	if (q_req->sbal_last == q_req->sbal_limit)
 		return NULL;
 
 	/* set chaining flag in first SBALE of current SBAL */
-	sbale = zfcp_qdio_sbale_req(fsf_req);
+	sbale = zfcp_qdio_sbale_req(adapter, q_req);
 	sbale->flags |= SBAL_FLAGS0_MORE_SBALS;
 
 	/* calculate index of next SBAL */
-	fsf_req->sbal_last++;
-	fsf_req->sbal_last %= QDIO_MAX_BUFFERS_PER_Q;
+	q_req->sbal_last++;
+	q_req->sbal_last %= QDIO_MAX_BUFFERS_PER_Q;
 
 	/* keep this requests number of SBALs up-to-date */
-	fsf_req->sbal_number++;
+	q_req->sbal_number++;
 
 	/* start at first SBALE of new SBAL */
-	fsf_req->sbale_curr = 0;
+	q_req->sbale_curr = 0;
 
 	/* set storage-block type for new SBAL */
-	sbale = zfcp_qdio_sbale_curr(fsf_req);
+	sbale = zfcp_qdio_sbale_curr(adapter, q_req);
 	sbale->flags |= sbtype;
 
 	return sbale;
 }
 
 static struct qdio_buffer_element *
-zfcp_qdio_sbale_next(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
+zfcp_qdio_sbale_next(struct zfcp_adapter *adapter, struct zfcp_queue_req *q_req,
+		     unsigned int sbtype)
 {
-	if (fsf_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
-		return zfcp_qdio_sbal_chain(fsf_req, sbtype);
-	fsf_req->sbale_curr++;
-	return zfcp_qdio_sbale_curr(fsf_req);
+	if (q_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
+		return zfcp_qdio_sbal_chain(adapter, q_req, sbtype);
+	q_req->sbale_curr++;
+	return zfcp_qdio_sbale_curr(adapter, q_req);
 }
 
-static void zfcp_qdio_undo_sbals(struct zfcp_fsf_req *fsf_req)
+static void zfcp_qdio_undo_sbals(struct zfcp_adapter *adapter,
+				 struct zfcp_queue_req *q_req)
 {
-	struct qdio_buffer **sbal = fsf_req->adapter->req_q.sbal;
-	int first = fsf_req->sbal_first;
-	int last = fsf_req->sbal_last;
+	struct qdio_buffer **sbal = adapter->req_q.sbal;
+	int first = q_req->sbal_first;
+	int last = q_req->sbal_last;
 	int count = (last - first + QDIO_MAX_BUFFERS_PER_Q) %
 		QDIO_MAX_BUFFERS_PER_Q + 1;
 	zfcp_qdio_zero_sbals(sbal, first, count);
 }
 
-static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
+static int zfcp_qdio_fill_sbals(struct zfcp_adapter *adapter,
+				struct zfcp_queue_req *q_req,
 				unsigned int sbtype, void *start_addr,
 				unsigned int total_length)
 {
@@ -256,10 +264,10 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 	/* split segment up */
 	for (addr = start_addr, remaining = total_length; remaining > 0;
 	     addr += length, remaining -= length) {
-		sbale = zfcp_qdio_sbale_next(fsf_req, sbtype);
+		sbale = zfcp_qdio_sbale_next(adapter, q_req, sbtype);
 		if (!sbale) {
-			atomic_inc(&fsf_req->adapter->qdio_outb_full);
-			zfcp_qdio_undo_sbals(fsf_req);
+			atomic_inc(&adapter->qdio_outb_full);
+			zfcp_qdio_undo_sbals(adapter, q_req);
 			return -EINVAL;
 		}
 
@@ -281,29 +289,31 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
  * @max_sbals: upper bound for number of SBALs to be used
  * Returns: number of bytes, or error (negativ)
  */
-int zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
-			    struct scatterlist *sg, int max_sbals)
+int zfcp_qdio_sbals_from_sg(struct zfcp_adapter *adapter,
+			    struct zfcp_queue_req *q_req,
+			    unsigned long sbtype, struct scatterlist *sg,
+			    int max_sbals)
 {
 	struct qdio_buffer_element *sbale;
 	int retval, bytes = 0;
 
 	/* figure out last allowed SBAL */
-	zfcp_qdio_sbal_limit(fsf_req, max_sbals);
+	zfcp_qdio_sbal_limit(adapter, q_req, max_sbals);
 
 	/* set storage-block type for this request */
-	sbale = zfcp_qdio_sbale_req(fsf_req);
+	sbale = zfcp_qdio_sbale_req(adapter, q_req);
 	sbale->flags |= sbtype;
 
 	for (; sg; sg = sg_next(sg)) {
-		retval = zfcp_qdio_fill_sbals(fsf_req, sbtype, sg_virt(sg),
-					      sg->length);
+		retval = zfcp_qdio_fill_sbals(adapter, q_req, sbtype,
+					      sg_virt(sg), sg->length);
 		if (retval < 0)
 			return retval;
 		bytes += sg->length;
 	}
 
 	/* assume that no other SBALEs are to follow in the same SBAL */
-	sbale = zfcp_qdio_sbale_curr(fsf_req);
+	sbale = zfcp_qdio_sbale_curr(adapter, q_req);
 	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	return bytes;
@@ -314,12 +324,11 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
  * @fsf_req: pointer to struct zfcp_fsf_req
  * Returns: 0 on success, error otherwise
  */
-int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
+int zfcp_qdio_send(struct zfcp_adapter *adapter, struct zfcp_queue_req *q_req)
 {
-	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct zfcp_qdio_queue *req_q = &adapter->req_q;
-	int first = fsf_req->sbal_first;
-	int count = fsf_req->sbal_number;
+	int first = q_req->sbal_first;
+	int count = q_req->sbal_number;
 	int retval;
 	unsigned int qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 
