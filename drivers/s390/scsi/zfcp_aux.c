@@ -176,8 +176,6 @@ static int __init zfcp_module_init(void)
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
-	zfcp_data.work_queue = create_singlethread_workqueue("zfcp_wq");
-
 	sema_init(&zfcp_data.config_sema, 1);
 	rwlock_init(&zfcp_data.config_lock);
 
@@ -458,6 +456,27 @@ static void zfcp_print_sl(struct seq_file *m, struct service_level *sl)
 		   adapter->fsf_lic_version);
 }
 
+static int zfcp_setup_adapter_work_queue(struct zfcp_adapter *adapter)
+{
+	char name[TASK_COMM_LEN];
+
+	snprintf(name, sizeof(name), "zfcp_q_%s",
+		 dev_name(&adapter->ccw_device->dev));
+	adapter->work_queue = create_singlethread_workqueue(name);
+
+	if (adapter->work_queue)
+		return 0;
+	return -ENOMEM;
+}
+
+static void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *adapter)
+{
+	if (adapter->work_queue)
+		destroy_workqueue(adapter->work_queue);
+	adapter->work_queue = NULL;
+
+}
+
 /**
  * zfcp_adapter_enqueue - enqueue a new adapter to the list
  * @ccw_device: pointer to the struct cc_device
@@ -504,6 +523,9 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (zfcp_adapter_debug_register(adapter))
 		goto debug_register_failed;
 
+	if (zfcp_setup_adapter_work_queue(adapter))
+		goto work_queue_failed;
+
 	init_waitqueue_head(&adapter->remove_wq);
 	init_waitqueue_head(&adapter->erp_thread_wqh);
 	init_waitqueue_head(&adapter->erp_done_wqh);
@@ -543,6 +565,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		return 0;
 
 sysfs_failed:
+	zfcp_destroy_adapter_work_queue(adapter);
+work_queue_failed:
 	zfcp_adapter_debug_unregister(adapter);
 debug_register_failed:
 	dev_set_drvdata(&ccw_device->dev, NULL);
@@ -579,6 +603,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	if (!retval)
 		return;
 
+	zfcp_destroy_adapter_work_queue(adapter);
 	zfcp_adapter_debug_unregister(adapter);
 	zfcp_qdio_free(adapter);
 	zfcp_free_low_mem_buffers(adapter);

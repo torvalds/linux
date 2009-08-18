@@ -480,7 +480,7 @@ out:
 void zfcp_test_link(struct zfcp_port *port)
 {
 	zfcp_port_get(port);
-	if (!queue_work(zfcp_data.work_queue, &port->test_link_work))
+	if (!queue_work(port->adapter->work_queue, &port->test_link_work))
 		zfcp_port_put(port);
 }
 

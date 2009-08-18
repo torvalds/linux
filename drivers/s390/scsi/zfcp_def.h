@@ -485,6 +485,7 @@ struct zfcp_adapter {
 	struct work_struct	scan_work;
 	struct service_level	service_level;
 	atomic_t		qdio_outb_full;	   /* queue full incidents */
+	struct workqueue_struct	*work_queue;
 };
 
 struct zfcp_port {
@@ -573,7 +574,6 @@ struct zfcp_data {
 	struct kmem_cache	*qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
-	struct workqueue_struct	*work_queue;
 };
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/

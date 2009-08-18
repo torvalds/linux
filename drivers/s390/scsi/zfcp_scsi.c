@@ -572,7 +572,7 @@ void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
 	zfcp_port_get(port);
 	port->rport_task = RPORT_ADD;
 
-	if (!queue_work(zfcp_data.work_queue, &port->rport_work))
+	if (!queue_work(port->adapter->work_queue, &port->rport_work))
 		zfcp_port_put(port);
 }
 
@@ -581,7 +581,8 @@ void zfcp_scsi_schedule_rport_block(struct zfcp_port *port)
 	zfcp_port_get(port);
 	port->rport_task = RPORT_DEL;
 
-	if (port->rport && queue_work(zfcp_data.work_queue, &port->rport_work))
+	if (port->rport && queue_work(port->adapter->work_queue,
+				      &port->rport_work))
 		return;
 
 	zfcp_port_put(port);

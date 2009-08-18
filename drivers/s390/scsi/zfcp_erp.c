@@ -875,7 +875,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 			return zfcp_erp_open_ptp_port(act);
 		if (!port->d_id) {
 			zfcp_port_get(port);
-			if (!queue_work(zfcp_data.work_queue,
+			if (!queue_work(adapter->work_queue,
 					&port->gid_pn_work))
 				zfcp_port_put(port);
 			return ZFCP_ERP_CONTINUES;
