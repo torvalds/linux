@@ -116,9 +116,7 @@ ssize_t psmouse_attr_show_helper(struct device *dev, struct device_attribute *at
 ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count);
 
-#define __PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set, _protect)	\
-static ssize_t _show(struct psmouse *, void *data, char *);			\
-static ssize_t _set(struct psmouse *, void *data, const char *, size_t);	\
+#define __PSMOUSE_DEFINE_ATTR_VAR(_name, _mode, _data, _show, _set, _protect)	\
 static struct psmouse_attribute psmouse_attr_##_name = {			\
 	.dattr	= {								\
 		.attr	= {							\
@@ -134,7 +132,20 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 	.protect = _protect,							\
 }
 
-#define PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set)	\
-		__PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set, 1)
+#define __PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set, _protect)	\
+	static ssize_t _show(struct psmouse *, void *, char *);			\
+	static ssize_t _set(struct psmouse *, void *, const char *, size_t);	\
+	__PSMOUSE_DEFINE_ATTR_VAR(_name, _mode, _data, _show, _set, _protect)
+
+#define PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set)			\
+	__PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set, 1)
+
+#define PSMOUSE_DEFINE_RO_ATTR(_name, _mode, _data, _show)			\
+	static ssize_t _show(struct psmouse *, void *, char *);			\
+	__PSMOUSE_DEFINE_ATTR_VAR(_name, _mode, _data, _show, NULL, 1)
+
+#define PSMOUSE_DEFINE_WO_ATTR(_name, _mode, _data, _set)			\
+	static ssize_t _set(struct psmouse *, void *, const char *, size_t);	\
+	__PSMOUSE_DEFINE_ATTR_VAR(_name, _mode, _data, NULL, _set, 1)
 
 #endif /* _PSMOUSE_H */
