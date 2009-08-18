@@ -301,7 +301,6 @@ rate_control_pid_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	struct rc_pid_sta_info *spinfo = priv_sta;
 	struct rc_pid_info *pinfo = priv;
 	struct rc_pid_rateinfo *rinfo = pinfo->rinfo;
-	struct sta_info *si;
 	int i, j, tmp;
 	bool s;
 
