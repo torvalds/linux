@@ -4758,7 +4758,7 @@ static const struct file_operations proc_slabinfo_operations = {
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+	proc_create("slabinfo", S_IRUGO, NULL, &proc_slabinfo_operations);
 	return 0;
 }
 module_init(slab_proc_init);
