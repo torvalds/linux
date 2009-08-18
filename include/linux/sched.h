@@ -1237,8 +1237,10 @@ struct task_struct {
 	pid_t pid;
 	pid_t tgid;
 
+#ifdef CONFIG_CC_STACKPROTECTOR
 	/* Canary value for the -fstack-protector gcc feature */
 	unsigned long stack_canary;
+#endif
 
 	/* 
 	 * pointers to (original) parent process, youngest child, younger sibling,
