@@ -27,15 +27,8 @@
 
 #include "include/VmbusApi.h"
 
-static void
-GetChannelInterface(
-	VMBUS_CHANNEL_INTERFACE *ChannelInterface
-	);
+void GetChannelInterface(VMBUS_CHANNEL_INTERFACE *ChannelInterface);
 
-static void
-GetChannelInfo(
-	struct hv_device *Device,
-	DEVICE_INFO			*DeviceInfo
-	);
+void GetChannelInfo(struct hv_device *Device, DEVICE_INFO *DeviceInfo);
 
 #endif /* _CHANNEL_INTERFACE_H_ */

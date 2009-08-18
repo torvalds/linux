@@ -162,10 +162,7 @@ IVmbusChannelTeardownGpadl(
 
 }
 
-static void
-GetChannelInterface(
-	VMBUS_CHANNEL_INTERFACE *ChannelInterface
-	)
+void GetChannelInterface(VMBUS_CHANNEL_INTERFACE *ChannelInterface)
 {
 	ChannelInterface->Open						= IVmbusChannelOpen;
 	ChannelInterface->Close						= IVmbusChannelClose;
@@ -180,11 +177,7 @@ GetChannelInterface(
 }
 
 
-static void
-GetChannelInfo(
-	struct hv_device *Device,
-	DEVICE_INFO			*DeviceInfo
-			   )
+void GetChannelInfo(struct hv_device *Device, DEVICE_INFO *DeviceInfo)
 {
 	VMBUS_CHANNEL_DEBUG_INFO debugInfo;
 
