@@ -126,26 +126,6 @@ typedef struct {
 extern HV_CONTEXT gHvContext;
 
 
-
-/* Inline routines */
-
-static inline unsigned long long ReadMsr(int msr)
-{
-	unsigned long long val;
-
-	rdmsrl(msr, val);
-
-	return val;
-}
-
-static inline void WriteMsr(int msr, u64 val)
-{
-	wrmsrl(msr, val);
-
-	return;
-}
-
-
 /* Hv Interface */
 
 static int

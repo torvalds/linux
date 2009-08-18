@@ -446,7 +446,7 @@ VmbusOnMsgDPC(
 			 * possibly deliver another msg from the
 			 * hypervisor
 			 */
-			WriteMsr(HV_X64_MSR_EOM, 0);
+			wrmsrl(HV_X64_MSR_EOM, 0);
 		}
 	}
 }
