@@ -622,8 +622,16 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	/* For reference buf[4]=1 is 1.5 stop bits */
 	/* For reference buf[4]=2 is 2 stop bits */
 	if (cflag & CSTOPB) {
-		buf[4] = 2;
-		dbg("%s - stop bits = 2", __func__);
+		/* NOTE: Comply with "real" UARTs / RS232:
+		 *       use 1.5 instead of 2 stop bits with 5 data bits
+		 */
+		if ((cflag & CSIZE) == CS5) {
+			buf[4] = 1;
+			dbg("%s - stop bits = 1.5", __func__);
+		} else {
+			buf[4] = 2;
+			dbg("%s - stop bits = 2", __func__);
+		}
 	} else {
 		buf[4] = 0;
 		dbg("%s - stop bits = 1", __func__);
