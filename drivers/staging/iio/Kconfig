@@ -1,0 +1,11 @@
+#
+# Industrial I/O subsytem configuration
+#
+
+menuconfig IIO
+	tristate "Industrial I/O support"
+	---help---
+	  The industrial I/O subsystem provides a unified framework for
+	  drivers for many different types of embedded sensors using a
+	  number of different physical interfaces (i2c, spi etc). See
+	  Documentation/industrialio for more information.

@@ -137,5 +137,7 @@ source "drivers/staging/rar/Kconfig"
 
 source "drivers/staging/sep/Kconfig"
 
+source "drivers/staging/iio/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
