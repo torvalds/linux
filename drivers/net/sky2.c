@@ -984,12 +984,12 @@ static void sky2_qset(struct sky2_hw *hw, u16 q)
  * hardware and driver list elements
  */
 static void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
-				      u64 addr, u32 last)
+			       dma_addr_t addr, u32 last)
 {
 	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
 	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_CTRL), PREF_UNIT_RST_CLR);
-	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_ADDR_HI), addr >> 32);
-	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_ADDR_LO), (u32) addr);
+	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_ADDR_HI), upper_32_bits(addr));
+	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_ADDR_LO), lower_32_bits(addr));
 	sky2_write16(hw, Y2_QADDR(qaddr, PREF_UNIT_LAST_IDX), last);
 	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_CTRL), PREF_UNIT_OP_ON);
 
@@ -1057,7 +1057,7 @@ static void sky2_rx_add(struct sky2_port *sky2,  u8 op,
 	}
 
 	le = sky2_next_rx(sky2);
-	le->addr = cpu_to_le32((u32) map);
+	le->addr = cpu_to_le32(lower_32_bits(map));
 	le->length = cpu_to_le16(len);
 	le->opcode = op | HW_OWNER;
 }
@@ -1662,7 +1662,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	le = get_tx_le(sky2, &slot);
-	le->addr = cpu_to_le32((u32) mapping);
+	le->addr = cpu_to_le32(lower_32_bits(mapping));
 	le->length = cpu_to_le16(len);
 	le->ctrl = ctrl;
 	le->opcode = mss ? (OP_LARGESEND | HW_OWNER) : (OP_PACKET | HW_OWNER);
@@ -1689,7 +1689,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		le = get_tx_le(sky2, &slot);
-		le->addr = cpu_to_le32((u32) mapping);
+		le->addr = cpu_to_le32(lower_32_bits(mapping));
 		le->length = cpu_to_le16(frag->size);
 		le->ctrl = ctrl;
 		le->opcode = OP_BUFFER | HW_OWNER;
