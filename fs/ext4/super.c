@@ -2254,6 +2254,49 @@ static struct kobj_type ext4_ktype = {
 	.release	= ext4_sb_release,
 };
 
+/*
+ * Check whether this filesystem can be mounted based on
+ * the features present and the RDONLY/RDWR mount requested.
+ * Returns 1 if this filesystem can be mounted as requested,
+ * 0 if it cannot be.
+ */
+static int ext4_feature_set_ok(struct super_block *sb, int readonly)
+{
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, ~EXT4_FEATURE_INCOMPAT_SUPP)) {
+		ext4_msg(sb, KERN_ERR,
+			"Couldn't mount because of "
+			"unsupported optional features (%x)",
+			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_incompat) &
+			~EXT4_FEATURE_INCOMPAT_SUPP));
+		return 0;
+	}
+
+	if (readonly)
+		return 1;
+
+	/* Check that feature set is OK for a read-write mount */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, ~EXT4_FEATURE_RO_COMPAT_SUPP)) {
+		ext4_msg(sb, KERN_ERR, "couldn't mount RDWR because of "
+			 "unsupported optional features (%x)",
+			 (le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_ro_compat) &
+				~EXT4_FEATURE_RO_COMPAT_SUPP));
+		return 0;
+	}
+	/*
+	 * Large file size enabled file system can only be mounted
+	 * read-write on 32-bit systems if kernel is built with CONFIG_LBDAF
+	 */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+		if (sizeof(blkcnt_t) < sizeof(u64)) {
+			ext4_msg(sb, KERN_ERR, "Filesystem with huge files "
+				 "cannot be mounted RDWR without "
+				 "CONFIG_LBDAF");
+			return 0;
+		}
+	}
+	return 1;
+}
+
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				__releases(kernel_lock)
 				__acquires(kernel_lock)
@@ -2275,7 +2318,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned int db_count;
 	unsigned int i;
 	int needs_recovery, has_huge_files;
-	int features;
 	__u64 blocks_count;
 	int err;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
@@ -2402,39 +2444,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * previously didn't change the revision level when setting the flags,
 	 * so there is a chance incompat flags are set on a rev 0 filesystem.
 	 */
-	features = EXT4_HAS_INCOMPAT_FEATURE(sb, ~EXT4_FEATURE_INCOMPAT_SUPP);
-	if (features) {
-		ext4_msg(sb, KERN_ERR,
-			"Couldn't mount because of "
-			"unsupported optional features (%x)",
-			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_incompat) &
-			~EXT4_FEATURE_INCOMPAT_SUPP));
+	if (!ext4_feature_set_ok(sb, (sb->s_flags & MS_RDONLY)))
 		goto failed_mount;
-	}
-	features = EXT4_HAS_RO_COMPAT_FEATURE(sb, ~EXT4_FEATURE_RO_COMPAT_SUPP);
-	if (!(sb->s_flags & MS_RDONLY) && features) {
-		ext4_msg(sb, KERN_ERR,
-			"Couldn't mount RDWR because of "
-			"unsupported optional features (%x)",
-			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_ro_compat) &
-			~EXT4_FEATURE_RO_COMPAT_SUPP));
-		goto failed_mount;
-	}
-	has_huge_files = EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
-	if (has_huge_files) {
-		/*
-		 * Large file size enabled file system can only be
-		 * mount if kernel is build with CONFIG_LBDAF
-		 */
-		if (sizeof(root->i_blocks) < sizeof(u64) &&
-				!(sb->s_flags & MS_RDONLY)) {
-			ext4_msg(sb, KERN_ERR, "Filesystem with huge "
-					"files cannot be mounted read-write "
-					"without CONFIG_LBDAF");
-			goto failed_mount;
-		}
-	}
+
 	blocksize = BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
 
 	if (blocksize < EXT4_MIN_BLOCK_SIZE ||
@@ -2470,6 +2482,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 
+	has_huge_files = EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
 	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits,
 						      has_huge_files);
 	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits, has_huge_files);
@@ -3485,18 +3499,11 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			if (sbi->s_journal)
 				ext4_mark_recovery_complete(sb, es);
 		} else {
-			int ret;
-			if ((ret = EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					~EXT4_FEATURE_RO_COMPAT_SUPP))) {
-				ext4_msg(sb, KERN_WARNING, "couldn't "
-				       "remount RDWR because of unsupported "
-				       "optional features (%x)",
-				(le32_to_cpu(sbi->s_es->s_feature_ro_compat) &
-					~EXT4_FEATURE_RO_COMPAT_SUPP));
+			/* Make sure we can mount this feature set readwrite */
+			if (!ext4_feature_set_ok(sb, 0)) {
 				err = -EROFS;
 				goto restore_opts;
 			}
-
 			/*
 			 * Make sure the group descriptor checksums
 			 * are sane.  If they aren't, refuse to remount r/w.
