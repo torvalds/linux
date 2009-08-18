@@ -64,6 +64,7 @@ static int cdmode = 1;
 static int iuu_cardin;
 static int iuu_cardout;
 static int xmas;
+static int vcc_default = 5;
 
 static void read_rxcmd_callback(struct urb *urb);
 
@@ -115,7 +116,7 @@ static int iuu_startup(struct usb_serial *serial)
 		kfree(priv);
 		return -ENOMEM;
 	}
-	priv->vcc = 5;  /* 5 V for vcc by default */
+	priv->vcc = vcc_default;
 	spin_lock_init(&priv->lock);
 	init_waitqueue_head(&priv->delta_msr_wait);
 	usb_set_serial_port_data(serial->port[0], priv);
@@ -1339,3 +1340,7 @@ MODULE_PARM_DESC(clockmode, "Card clock mode (1=3.579 MHz, 2=3.680 MHz, "
 module_param(cdmode, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(cdmode, "Card detect mode (0=none, 1=CD, 2=!CD, 3=DSR, "
 		 "4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING)");
+
+module_param(vcc_default, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(vcc_default, "Set default VCC (either 3 for 3.3V or 5 "
+		"for 5V). Default to 5.");
