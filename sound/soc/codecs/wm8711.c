@@ -24,6 +24,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <sound/tlv.h>
 #include <sound/initval.h>
 
 #include "wm8711.h"
@@ -50,10 +51,12 @@ static const u16 wm8711_reg[WM8711_CACHEREGNUM] = {
 
 #define wm8711_reset(c)	snd_soc_write(c, WM8711_RESET, 0)
 
+static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
+
 static const struct snd_kcontrol_new wm8711_snd_controls[] = {
 
-SOC_DOUBLE_R("Master Playback Volume", WM8711_LOUT1V, WM8711_ROUT1V,
-	0, 127, 0),
+SOC_DOUBLE_R_TLV("Master Playback Volume", WM8711_LOUT1V, WM8711_ROUT1V,
+		 0, 127, 0, out_tlv),
 SOC_DOUBLE_R("Master Playback ZC Switch", WM8711_LOUT1V, WM8711_ROUT1V,
 	7, 1, 0),
 
