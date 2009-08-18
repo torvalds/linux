@@ -395,6 +395,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	if (status != WLAN_STATUS_SUCCESS) {
 		wdev->sme_state = CFG80211_SME_IDLE;
+		if (wdev->conn)
+			kfree(wdev->conn->ie);
 		kfree(wdev->conn);
 		wdev->conn = NULL;
 		kfree(wdev->connect_keys);
@@ -779,6 +781,7 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 			}
 		}
 		if (err) {
+			kfree(wdev->conn->ie);
 			kfree(wdev->conn);
 			wdev->conn = NULL;
 			wdev->sme_state = CFG80211_SME_IDLE;
@@ -848,6 +851,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		    (wdev->conn->state == CFG80211_CONN_SCANNING ||
 		     wdev->conn->state == CFG80211_CONN_SCAN_AGAIN)) {
 			wdev->sme_state = CFG80211_SME_IDLE;
+			kfree(wdev->conn->ie);
 			kfree(wdev->conn);
 			wdev->conn = NULL;
 			wdev->ssid_len = 0;
