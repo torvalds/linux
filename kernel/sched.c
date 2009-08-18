@@ -8546,6 +8546,23 @@ static struct sched_domain *__build_mc_sched_domain(struct s_data *d,
 	return sd;
 }
 
+static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
+{
+	struct sched_domain *sd = parent;
+#ifdef CONFIG_SCHED_SMT
+	sd = &per_cpu(cpu_domains, i).sd;
+	SD_INIT(sd, SIBLING);
+	set_domain_attribute(sd, attr);
+	cpumask_and(sched_domain_span(sd), cpu_map, topology_thread_cpumask(i));
+	sd->parent = parent;
+	parent->child = sd;
+	cpu_to_cpu_group(i, cpu_map, &sd->groups, d->tmpmask);
+#endif
+	return sd;
+}
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
@@ -8569,7 +8586,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	 * Set up domains for cpus specified by the cpu_map.
 	 */
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = NULL, *p;
+		struct sched_domain *sd;
 
 		cpumask_and(d.nodemask, cpumask_of_node(cpu_to_node(i)),
 			    cpu_map);
@@ -8577,18 +8594,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		sd = __build_numa_sched_domains(&d, cpu_map, attr, i);
 		sd = __build_cpu_sched_domain(&d, cpu_map, attr, sd, i);
 		sd = __build_mc_sched_domain(&d, cpu_map, attr, sd, i);
-
-#ifdef CONFIG_SCHED_SMT
-		p = sd;
-		sd = &per_cpu(cpu_domains, i).sd;
-		SD_INIT(sd, SIBLING);
-		set_domain_attribute(sd, attr);
-		cpumask_and(sched_domain_span(sd),
-			    topology_thread_cpumask(i), cpu_map);
-		sd->parent = p;
-		p->child = sd;
-		cpu_to_cpu_group(i, cpu_map, &sd->groups, d.tmpmask);
-#endif
+		sd = __build_smt_sched_domain(&d, cpu_map, attr, sd, i);
 	}
 
 #ifdef CONFIG_SCHED_SMT
