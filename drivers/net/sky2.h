@@ -1984,6 +1984,9 @@ struct sky2_status_le {
 
 struct tx_ring_info {
 	struct sk_buff	*skb;
+	unsigned long flags;
+#define TX_MAP_SINGLE   0x0001
+#define TX_MAP_PAGE     000002
 	DECLARE_PCI_UNMAP_ADDR(mapaddr);
 	DECLARE_PCI_UNMAP_LEN(maplen);
 };

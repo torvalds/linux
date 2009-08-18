@@ -1001,8 +1001,11 @@ static void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
 static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2, u16 *slot)
 {
 	struct sky2_tx_le *le = sky2->tx_le + *slot;
+	struct tx_ring_info *re = sky2->tx_ring + *slot;
 
 	*slot = RING_NEXT(*slot, sky2->tx_ring_size);
+	re->flags = 0;
+	re->skb = NULL;
 	le->ctrl = 0;
 	return le;
 }
@@ -1019,12 +1022,6 @@ static void tx_init(struct sky2_port *sky2)
 	le->addr = 0;
 	le->opcode = OP_ADDR64 | HW_OWNER;
 	sky2->tx_last_upper = 0;
-}
-
-static inline struct tx_ring_info *tx_le_re(struct sky2_port *sky2,
-					    struct sky2_tx_le *le)
-{
-	return sky2->tx_ring + (le - sky2->tx_le);
 }
 
 /* Update chip's next pointer */
@@ -1563,6 +1560,19 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 	return count;
 }
 
+static void sky2_tx_unmap(struct pci_dev *pdev,
+			  const struct tx_ring_info *re)
+{
+	if (re->flags & TX_MAP_SINGLE)
+		pci_unmap_single(pdev, pci_unmap_addr(re, mapaddr),
+				 pci_unmap_len(re, maplen),
+				 PCI_DMA_TODEVICE);
+	else if (re->flags & TX_MAP_PAGE)
+		pci_unmap_page(pdev, pci_unmap_addr(re, mapaddr),
+			       pci_unmap_len(re, maplen),
+			       PCI_DMA_TODEVICE);
+}
+
 /*
  * Put one packet in ring for transmit.
  * A single packet can generate multiple list elements, and
@@ -1667,16 +1677,17 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	re = sky2->tx_ring + slot;
+	re->flags = TX_MAP_SINGLE;
+	pci_unmap_addr_set(re, mapaddr, mapping);
+	pci_unmap_len_set(re, maplen, len);
+
 	le = get_tx_le(sky2, &slot);
 	le->addr = cpu_to_le32(lower_32_bits(mapping));
 	le->length = cpu_to_le16(len);
 	le->ctrl = ctrl;
 	le->opcode = mss ? (OP_LARGESEND | HW_OWNER) : (OP_PACKET | HW_OWNER);
 
-	re = tx_le_re(sky2, le);
-	re->skb = skb;
-	pci_unmap_addr_set(re, mapaddr, mapping);
-	pci_unmap_len_set(re, maplen, len);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -1695,18 +1706,19 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			le->opcode = OP_ADDR64 | HW_OWNER;
 		}
 
+		re = sky2->tx_ring + slot;
+		re->flags = TX_MAP_PAGE;
+		pci_unmap_addr_set(re, mapaddr, mapping);
+		pci_unmap_len_set(re, maplen, frag->size);
+
 		le = get_tx_le(sky2, &slot);
 		le->addr = cpu_to_le32(lower_32_bits(mapping));
 		le->length = cpu_to_le16(frag->size);
 		le->ctrl = ctrl;
 		le->opcode = OP_BUFFER | HW_OWNER;
-
-		re = tx_le_re(sky2, le);
-		re->skb = skb;
-		pci_unmap_addr_set(re, mapaddr, mapping);
-		pci_unmap_len_set(re, maplen, frag->size);
 	}
 
+	re->skb = skb;
 	le->ctrl |= EOP;
 
 	sky2->tx_prod = slot;
@@ -1720,23 +1732,9 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 mapping_unwind:
 	for (i = sky2->tx_prod; i != slot; i = RING_NEXT(i, sky2->tx_ring_size)) {
-		le = sky2->tx_le + i;
 		re = sky2->tx_ring + i;
 
-		switch(le->opcode & ~HW_OWNER) {
-		case OP_LARGESEND:
-		case OP_PACKET:
-			pci_unmap_single(hw->pdev,
-					 pci_unmap_addr(re, mapaddr),
-					 pci_unmap_len(re, maplen),
-					 PCI_DMA_TODEVICE);
-			break;
-		case OP_BUFFER:
-			pci_unmap_page(hw->pdev, pci_unmap_addr(re, mapaddr),
-				       pci_unmap_len(re, maplen),
-				       PCI_DMA_TODEVICE);
-			break;
-		}
+		sky2_tx_unmap(hw->pdev, re);
 	}
 
 mapping_error:
@@ -1759,34 +1757,18 @@ mapping_error:
 static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 {
 	struct net_device *dev = sky2->netdev;
-	struct pci_dev *pdev = sky2->hw->pdev;
 	unsigned idx;
 
 	BUG_ON(done >= sky2->tx_ring_size);
 
 	for (idx = sky2->tx_cons; idx != done;
 	     idx = RING_NEXT(idx, sky2->tx_ring_size)) {
-		struct sky2_tx_le *le = sky2->tx_le + idx;
 		struct tx_ring_info *re = sky2->tx_ring + idx;
+		struct sk_buff *skb = re->skb;
 
-		switch(le->opcode & ~HW_OWNER) {
-		case OP_LARGESEND:
-		case OP_PACKET:
-			pci_unmap_single(pdev,
-					 pci_unmap_addr(re, mapaddr),
-					 pci_unmap_len(re, maplen),
-					 PCI_DMA_TODEVICE);
-			break;
-		case OP_BUFFER:
-			pci_unmap_page(pdev, pci_unmap_addr(re, mapaddr),
-				       pci_unmap_len(re, maplen),
-				       PCI_DMA_TODEVICE);
-			break;
-		}
+		sky2_tx_unmap(sky2->hw->pdev, re);
 
-		if (le->ctrl & EOP) {
-			struct sk_buff *skb = re->skb;
-
+		if (skb) {
 			if (unlikely(netif_msg_tx_done(sky2)))
 				printk(KERN_DEBUG "%s: tx done %u\n",
 				       dev->name, idx);
