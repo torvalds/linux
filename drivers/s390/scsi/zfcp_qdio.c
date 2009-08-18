@@ -101,7 +101,8 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 	struct zfcp_qdio_queue *queue = &qdio->req_q;
 
 	if (unlikely(qdio_err)) {
-		zfcp_hba_dbf_event_qdio(qdio, qdio_err, first, count);
+		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, first,
+					count);
 		zfcp_qdio_handler_error(qdio, "qdireq1");
 		return;
 	}
@@ -143,7 +144,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	int sbal_idx, sbal_no;
 
 	if (unlikely(qdio_err)) {
-		zfcp_hba_dbf_event_qdio(qdio, qdio_err, first, count);
+		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, first,
+					count);
 		zfcp_qdio_handler_error(qdio, "qdires1");
 		return;
 	}

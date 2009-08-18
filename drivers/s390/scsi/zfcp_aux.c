@@ -517,6 +517,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto qdio_mem_failed;
 
 	adapter->qdio->adapter = adapter;
+
 	ccw_device->handler = NULL;
 	adapter->ccw_device = ccw_device;
 	atomic_set(&adapter->refcount, 0);
@@ -530,7 +531,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (zfcp_reqlist_alloc(adapter))
 		goto failed_low_mem_buffers;
 
-	if (zfcp_adapter_debug_register(adapter))
+	if (zfcp_dbf_adapter_register(adapter))
 		goto debug_register_failed;
 
 	if (zfcp_setup_adapter_work_queue(adapter))
@@ -577,7 +578,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 sysfs_failed:
 	zfcp_destroy_adapter_work_queue(adapter);
 work_queue_failed:
-	zfcp_adapter_debug_unregister(adapter);
+	zfcp_dbf_adapter_unregister(adapter->dbf);
 debug_register_failed:
 	dev_set_drvdata(&ccw_device->dev, NULL);
 	kfree(adapter->req_list);
@@ -616,7 +617,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 		return;
 
 	zfcp_destroy_adapter_work_queue(adapter);
-	zfcp_adapter_debug_unregister(adapter);
+	zfcp_dbf_adapter_unregister(adapter->dbf);
 	zfcp_qdio_free(adapter->qdio);
 	zfcp_free_low_mem_buffers(adapter);
 	kfree(adapter->req_list);

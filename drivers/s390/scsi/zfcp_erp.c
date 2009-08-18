@@ -74,9 +74,9 @@ static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
 	struct zfcp_adapter *adapter = act->adapter;
 
 	list_move(&act->list, &act->adapter->erp_ready_head);
-	zfcp_rec_dbf_event_action("erardy1", act);
+	zfcp_dbf_rec_action("erardy1", act);
 	up(&adapter->erp_ready_sem);
-	zfcp_rec_dbf_event_thread("erardy2", adapter);
+	zfcp_dbf_rec_thread("erardy2", adapter->dbf);
 }
 
 static void zfcp_erp_action_dismiss(struct zfcp_erp_action *act)
@@ -227,11 +227,10 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 	++adapter->erp_total_count;
 	list_add_tail(&act->list, &adapter->erp_ready_head);
 	up(&adapter->erp_ready_sem);
-	zfcp_rec_dbf_event_thread("eracte1", adapter);
+	zfcp_dbf_rec_thread("eracte1", adapter->dbf);
 	retval = 0;
  out:
-	zfcp_rec_dbf_event_trigger(id, ref, want, need, act,
-				   adapter, port, unit);
+	zfcp_dbf_rec_trigger(id, ref, want, need, act, adapter, port, unit);
 	return retval;
 }
 
@@ -442,28 +441,28 @@ static int status_change_clear(unsigned long mask, atomic_t *status)
 static void zfcp_erp_adapter_unblock(struct zfcp_adapter *adapter)
 {
 	if (status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED, &adapter->status))
-		zfcp_rec_dbf_event_adapter("eraubl1", NULL, adapter);
+		zfcp_dbf_rec_adapter("eraubl1", NULL, adapter->dbf);
 	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &adapter->status);
 }
 
 static void zfcp_erp_port_unblock(struct zfcp_port *port)
 {
 	if (status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED, &port->status))
-		zfcp_rec_dbf_event_port("erpubl1", NULL, port);
+		zfcp_dbf_rec_port("erpubl1", NULL, port);
 	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &port->status);
 }
 
 static void zfcp_erp_unit_unblock(struct zfcp_unit *unit)
 {
 	if (status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED, &unit->status))
-		zfcp_rec_dbf_event_unit("eruubl1", NULL, unit);
+		zfcp_dbf_rec_unit("eruubl1", NULL, unit);
 	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &unit->status);
 }
 
 static void zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 {
 	list_move(&erp_action->list, &erp_action->adapter->erp_running_head);
-	zfcp_rec_dbf_event_action("erator1", erp_action);
+	zfcp_dbf_rec_action("erator1", erp_action);
 }
 
 static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
@@ -479,11 +478,11 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 		if (act->status & (ZFCP_STATUS_ERP_DISMISSED |
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
 			act->fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
-			zfcp_rec_dbf_event_action("erscf_1", act);
+			zfcp_dbf_rec_action("erscf_1", act);
 			act->fsf_req->erp_action = NULL;
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
-			zfcp_rec_dbf_event_action("erscf_2", act);
+			zfcp_dbf_rec_action("erscf_2", act);
 		if (act->fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
 			act->fsf_req = NULL;
 	} else
@@ -641,9 +640,9 @@ static int zfcp_erp_adapter_strat_fsf_xconf(struct zfcp_erp_action *erp_action)
 			return ZFCP_ERP_FAILED;
 		}
 
-		zfcp_rec_dbf_event_thread_lock("erasfx1", adapter);
+		zfcp_dbf_rec_thread_lock("erasfx1", adapter->dbf);
 		down(&adapter->erp_ready_sem);
-		zfcp_rec_dbf_event_thread_lock("erasfx2", adapter);
+		zfcp_dbf_rec_thread_lock("erasfx2", adapter->dbf);
 		if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			break;
 
@@ -682,9 +681,9 @@ static int zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *act)
 	if (ret)
 		return ZFCP_ERP_FAILED;
 
-	zfcp_rec_dbf_event_thread_lock("erasox1", adapter);
+	zfcp_dbf_rec_thread_lock("erasox1", adapter->dbf);
 	down(&adapter->erp_ready_sem);
-	zfcp_rec_dbf_event_thread_lock("erasox2", adapter);
+	zfcp_dbf_rec_thread_lock("erasox2", adapter->dbf);
 	if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 		return ZFCP_ERP_FAILED;
 
@@ -1138,7 +1137,7 @@ static void zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 	}
 
 	list_del(&erp_action->list);
-	zfcp_rec_dbf_event_action("eractd1", erp_action);
+	zfcp_dbf_rec_action("eractd1", erp_action);
 
 	switch (erp_action->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
@@ -1297,9 +1296,9 @@ static int zfcp_erp_thread(void *data)
 	while (!(atomic_read(&adapter->status) &
 		 ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL)) {
 
-		zfcp_rec_dbf_event_thread_lock("erthrd1", adapter);
+		zfcp_dbf_rec_thread_lock("erthrd1", adapter->dbf);
 		ignore = down_interruptible(&adapter->erp_ready_sem);
-		zfcp_rec_dbf_event_thread_lock("erthrd2", adapter);
+		zfcp_dbf_rec_thread_lock("erthrd2", adapter->dbf);
 
 		write_lock_irqsave(&adapter->erp_lock, flags);
 		next = adapter->erp_ready_head.next;
@@ -1356,7 +1355,7 @@ void zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
 {
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL, &adapter->status);
 	up(&adapter->erp_ready_sem);
-	zfcp_rec_dbf_event_thread_lock("erthrk1", adapter);
+	zfcp_dbf_rec_thread_lock("erthrk1", adapter->dbf);
 
 	wait_event(adapter->erp_thread_wqh,
 		   !(atomic_read(&adapter->status) &
@@ -1431,11 +1430,11 @@ void zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter, char *id,
 
 	if (set_or_clear == ZFCP_SET) {
 		if (status_change_set(mask, &adapter->status))
-			zfcp_rec_dbf_event_adapter(id, ref, adapter);
+			zfcp_dbf_rec_adapter(id, ref, adapter->dbf);
 		atomic_set_mask(mask, &adapter->status);
 	} else {
 		if (status_change_clear(mask, &adapter->status))
-			zfcp_rec_dbf_event_adapter(id, ref, adapter);
+			zfcp_dbf_rec_adapter(id, ref, adapter->dbf);
 		atomic_clear_mask(mask, &adapter->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 			atomic_set(&adapter->erp_counter, 0);
@@ -1465,11 +1464,11 @@ void zfcp_erp_modify_port_status(struct zfcp_port *port, char *id, void *ref,
 
 	if (set_or_clear == ZFCP_SET) {
 		if (status_change_set(mask, &port->status))
-			zfcp_rec_dbf_event_port(id, ref, port);
+			zfcp_dbf_rec_port(id, ref, port);
 		atomic_set_mask(mask, &port->status);
 	} else {
 		if (status_change_clear(mask, &port->status))
-			zfcp_rec_dbf_event_port(id, ref, port);
+			zfcp_dbf_rec_port(id, ref, port);
 		atomic_clear_mask(mask, &port->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 			atomic_set(&port->erp_counter, 0);
@@ -1494,11 +1493,11 @@ void zfcp_erp_modify_unit_status(struct zfcp_unit *unit, char *id, void *ref,
 {
 	if (set_or_clear == ZFCP_SET) {
 		if (status_change_set(mask, &unit->status))
-			zfcp_rec_dbf_event_unit(id, ref, unit);
+			zfcp_dbf_rec_unit(id, ref, unit);
 		atomic_set_mask(mask, &unit->status);
 	} else {
 		if (status_change_clear(mask, &unit->status))
-			zfcp_rec_dbf_event_unit(id, ref, unit);
+			zfcp_dbf_rec_unit(id, ref, unit);
 		atomic_clear_mask(mask, &unit->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED) {
 			atomic_set(&unit->erp_counter, 0);

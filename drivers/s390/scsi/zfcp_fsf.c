@@ -248,13 +248,13 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 	struct fsf_status_read_buffer *sr_buf = req->data;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
-		zfcp_hba_dbf_event_fsf_unsol("dism", adapter, sr_buf);
+		zfcp_dbf_hba_fsf_unsol("dism", adapter->dbf, sr_buf);
 		mempool_free(sr_buf, adapter->pool.status_read_data);
 		zfcp_fsf_req_free(req);
 		return;
 	}
 
-	zfcp_hba_dbf_event_fsf_unsol("read", adapter, sr_buf);
+	zfcp_dbf_hba_fsf_unsol("read", adapter->dbf, sr_buf);
 
 	switch (sr_buf->status_type) {
 	case FSF_STATUS_READ_PORT_CLOSED:
@@ -269,7 +269,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		dev_warn(&adapter->ccw_device->dev,
 			 "The error threshold for checksum statistics "
 			 "has been exceeded\n");
-		zfcp_hba_dbf_event_berr(adapter, req);
+		zfcp_dbf_hba_berr(adapter->dbf, req);
 		break;
 	case FSF_STATUS_READ_LINK_DOWN:
 		zfcp_fsf_status_read_link_down(req);
@@ -355,7 +355,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 	struct fsf_qtcb *qtcb = req->qtcb;
 	union fsf_prot_status_qual *psq = &qtcb->prefix.prot_status_qual;
 
-	zfcp_hba_dbf_event_fsf_response(req);
+	zfcp_dbf_hba_fsf_response(req);
 
 	if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
@@ -848,7 +848,7 @@ failed_req_send:
 	mempool_free(sr_buf, adapter->pool.status_read_data);
 failed_buf:
 	zfcp_fsf_req_free(req);
-	zfcp_hba_dbf_event_fsf_unsol("fail", adapter, NULL);
+	zfcp_dbf_hba_fsf_unsol("fail", adapter->dbf, NULL);
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
 	return retval;
@@ -968,7 +968,7 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
         case FSF_GOOD:
-		zfcp_san_dbf_event_ct_response(req);
+		zfcp_dbf_san_ct_response(req);
 		send_ct->status = 0;
 		break;
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
@@ -1100,7 +1100,7 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
 	req->qtcb->bottom.support.timeout = ct->timeout;
 	req->data = ct;
 
-	zfcp_san_dbf_event_ct_request(req);
+	zfcp_dbf_san_ct_request(req);
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 
 	ret = zfcp_fsf_req_send(req);
@@ -1129,7 +1129,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
 	case FSF_GOOD:
-		zfcp_san_dbf_event_els_response(req);
+		zfcp_dbf_san_els_response(req);
 		send_els->status = 0;
 		break;
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
@@ -1203,7 +1203,7 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 	bottom->timeout = 2 * R_A_TOV;
 	req->data = els;
 
-	zfcp_san_dbf_event_els_request(req);
+	zfcp_dbf_san_els_request(req);
 
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	ret = zfcp_fsf_req_send(req);
@@ -2213,11 +2213,11 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 	}
 skip_fsfstatus:
 	if (scpnt->result != 0)
-		zfcp_scsi_dbf_event_result("erro", 3, req->adapter, scpnt, req);
+		zfcp_dbf_scsi_result("erro", 3, req->adapter->dbf, scpnt, req);
 	else if (scpnt->retries > 0)
-		zfcp_scsi_dbf_event_result("retr", 4, req->adapter, scpnt, req);
+		zfcp_dbf_scsi_result("retr", 4, req->adapter->dbf, scpnt, req);
 	else
-		zfcp_scsi_dbf_event_result("norm", 6, req->adapter, scpnt, req);
+		zfcp_dbf_scsi_result("norm", 6, req->adapter->dbf, scpnt, req);
 
 	scpnt->host_scribble = NULL;
 	(scpnt->scsi_done) (scpnt);

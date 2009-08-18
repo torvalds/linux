@@ -34,35 +34,31 @@ extern struct zfcp_adapter *zfcp_get_adapter_by_busid(char *);
 extern struct miscdevice zfcp_cfdc_misc;
 
 /* zfcp_dbf.c */
-extern int zfcp_adapter_debug_register(struct zfcp_adapter *);
-extern void zfcp_adapter_debug_unregister(struct zfcp_adapter *);
-extern void zfcp_rec_dbf_event_thread(char *, struct zfcp_adapter *);
-extern void zfcp_rec_dbf_event_thread_lock(char *, struct zfcp_adapter *);
-extern void zfcp_rec_dbf_event_adapter(char *, void *, struct zfcp_adapter *);
-extern void zfcp_rec_dbf_event_port(char *, void *, struct zfcp_port *);
-extern void zfcp_rec_dbf_event_unit(char *, void *, struct zfcp_unit *);
-extern void zfcp_rec_dbf_event_trigger(char *, void *, u8, u8, void *,
-				       struct zfcp_adapter *,
-				       struct zfcp_port *, struct zfcp_unit *);
-extern void zfcp_rec_dbf_event_action(char *, struct zfcp_erp_action *);
-extern void _zfcp_hba_dbf_event_fsf_response(const char *, int level,
-					     struct zfcp_fsf_req *,
-					     struct zfcp_dbf *dbf);
-extern void _zfcp_hba_dbf_event_fsf_unsol(const char *, int level,
-					  struct zfcp_adapter *,
+extern int zfcp_dbf_adapter_register(struct zfcp_adapter *);
+extern void zfcp_dbf_adapter_unregister(struct zfcp_dbf *);
+extern void zfcp_dbf_rec_thread(char *, struct zfcp_dbf *);
+extern void zfcp_dbf_rec_thread_lock(char *, struct zfcp_dbf *);
+extern void zfcp_dbf_rec_adapter(char *, void *, struct zfcp_dbf *);
+extern void zfcp_dbf_rec_port(char *, void *, struct zfcp_port *);
+extern void zfcp_dbf_rec_unit(char *, void *, struct zfcp_unit *);
+extern void zfcp_dbf_rec_trigger(char *, void *, u8, u8, void *,
+				 struct zfcp_adapter *, struct zfcp_port *,
+				 struct zfcp_unit *);
+extern void zfcp_dbf_rec_action(char *, struct zfcp_erp_action *);
+extern void _zfcp_dbf_hba_fsf_response(const char *, int, struct zfcp_fsf_req *,
+				       struct zfcp_dbf *);
+extern void _zfcp_dbf_hba_fsf_unsol(const char *, int level, struct zfcp_dbf *,
 					  struct fsf_status_read_buffer *);
-extern void zfcp_hba_dbf_event_qdio(struct zfcp_qdio *, unsigned int, int,
-				    int);
-extern void zfcp_hba_dbf_event_berr(struct zfcp_adapter *,
-				    struct zfcp_fsf_req *);
-extern void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *);
-extern void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *);
-extern void zfcp_san_dbf_event_els_request(struct zfcp_fsf_req *);
-extern void zfcp_san_dbf_event_els_response(struct zfcp_fsf_req *);
-extern void zfcp_san_dbf_event_incoming_els(struct zfcp_fsf_req *);
-extern void _zfcp_scsi_dbf_event(const char *, const char *, int,
-				 struct zfcp_dbf *, struct scsi_cmnd *,
-				 struct zfcp_fsf_req *, unsigned long);
+extern void zfcp_dbf_hba_qdio(struct zfcp_dbf *, unsigned int, int, int);
+extern void zfcp_dbf_hba_berr(struct zfcp_dbf *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *);
+extern void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *);
+extern void zfcp_dbf_san_els_request(struct zfcp_fsf_req *);
+extern void zfcp_dbf_san_els_response(struct zfcp_fsf_req *);
+extern void zfcp_dbf_san_incoming_els(struct zfcp_fsf_req *);
+extern void _zfcp_dbf_scsi(const char *, const char *, int, struct zfcp_dbf *,
+			   struct scsi_cmnd *, struct zfcp_fsf_req *,
+			   unsigned long);
 
 /* zfcp_erp.c */
 extern void zfcp_erp_modify_adapter_status(struct zfcp_adapter *, char *,
