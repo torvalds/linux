@@ -127,7 +127,7 @@ struct clk *main_clks[] = {
 	&div3_clk,
 };
 
-static int divisors[] = { 2, 0, 4, 6, 8, 12, 16, 0, 24, 32, 36, 48, 0, 72 };
+static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 0, 24, 32, 36, 48, 0, 72 };
 
 static struct clk_div_mult_table div4_table = {
 	.divisors = divisors,
