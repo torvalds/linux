@@ -159,7 +159,7 @@ Description:
 	Retrieve various channel debug info
 
 --*/
-static void
+void
 VmbusChannelGetDebugInfo(
 	VMBUS_CHANNEL				*Channel,
 	VMBUS_CHANNEL_DEBUG_INFO	*DebugInfo
@@ -203,7 +203,7 @@ Description:
 	Open the specified channel.
 
 --*/
-static int
+int
 VmbusChannelOpen(
 	VMBUS_CHANNEL			*NewChannel,
 	u32					SendRingBufferSize,
@@ -516,7 +516,7 @@ Description:
 	Estabish a GPADL for the specified buffer
 
 --*/
-static int
+int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL	*Channel,
 	void *			Kbuffer,	/* from kmalloc() */
@@ -621,7 +621,7 @@ Description:
 	Teardown the specified GPADL handle
 
 --*/
-static int
+int
 VmbusChannelTeardownGpadl(
 	VMBUS_CHANNEL	*Channel,
 	u32			GpadlHandle
@@ -682,7 +682,7 @@ Description:
 	Close the specified channel
 
 --*/
-static void
+void
 VmbusChannelClose(
 	VMBUS_CHANNEL	*Channel
 	)
@@ -759,7 +759,7 @@ Description:
 	Send the specified buffer on the given channel
 
 --*/
-static int
+int
 VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
 	const void *			Buffer,
@@ -821,7 +821,7 @@ Description:
 	Send a range of single-page buffer packets using a GPADL Direct packet type.
 
 --*/
-static int
+int
 VmbusChannelSendPacketPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	PAGE_BUFFER			PageBuffers[],
@@ -900,7 +900,7 @@ Description:
 	Send a multi-page buffer packet using a GPADL Direct packet type.
 
 --*/
-static int
+int
 VmbusChannelSendPacketMultiPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
@@ -979,14 +979,11 @@ Description:
 
 --*/
 /* TODO: Do we ever receive a gpa direct packet other than the ones we send ? */
-static int
-VmbusChannelRecvPacket(
-	VMBUS_CHANNEL		*Channel,
-	void *				Buffer,
-	u32				BufferLen,
-	u32*				BufferActualLen,
-	u64*				RequestId
-	)
+int VmbusChannelRecvPacket(VMBUS_CHANNEL *Channel,
+			   void *Buffer,
+			   u32 BufferLen,
+			   u32 *BufferActualLen,
+			   u64 *RequestId)
 {
 	VMPACKET_DESCRIPTOR desc;
 	u32 packetLen;
@@ -1057,7 +1054,7 @@ Description:
 	Retrieve the raw packet on the specified channel
 
 --*/
-static int
+int
 VmbusChannelRecvPacketRaw(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
@@ -1134,10 +1131,7 @@ Description:
 	Channel event callback
 
 --*/
-static void
-VmbusChannelOnChannelEvent(
-	VMBUS_CHANNEL		*Channel
-	)
+void VmbusChannelOnChannelEvent(VMBUS_CHANNEL *Channel)
 {
 	DumpVmbusChannel(Channel);
 	ASSERT(Channel->OnChannelCallback);
@@ -1160,7 +1154,7 @@ Description:
 	Timer event callback
 
 --*/
-static void VmbusChannelOnTimer(unsigned long data)
+void VmbusChannelOnTimer(unsigned long data)
 {
 	VMBUS_CHANNEL *channel = (VMBUS_CHANNEL*)data;
 
