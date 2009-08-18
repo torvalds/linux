@@ -73,9 +73,6 @@
 
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
-/* timeout for name-server lookup (in seconds) */
-#define ZFCP_NS_GID_PN_TIMEOUT		10
-
 /* task attribute values in FCP-2 FCP_CMND IU */
 #define SIMPLE_Q	0
 #define HEAD_OF_Q	1
@@ -319,7 +316,6 @@ struct ct_iu_gpn_ft_req {
  * @resp: scatter-gather list for response
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
- * @timeout: FSF timeout for this request
  * @completion: completion for synchronization purposes
  * @status: used to pass error status to calling function
  */
@@ -329,7 +325,6 @@ struct zfcp_send_ct {
 	struct scatterlist *resp;
 	void (*handler)(unsigned long);
 	unsigned long handler_data;
-	int timeout;
 	struct completion *completion;
 	int status;
 };

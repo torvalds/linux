@@ -1060,7 +1060,12 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 					sg_resp, max_sbals);
 	if (bytes <= 0)
 		return -EIO;
+
+	/* common settings for ct/gs and els requests */
 	req->qtcb->bottom.support.resp_buf_length = bytes;
+	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
+	req->qtcb->bottom.support.timeout = 2 * R_A_TOV;
+	zfcp_fsf_start_timer(req, 2 * R_A_TOV + 10);
 
 	return 0;
 }
@@ -1096,12 +1101,9 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
 
 	req->handler = zfcp_fsf_send_ct_handler;
 	req->qtcb->header.port_handle = wka_port->handle;
-	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
-	req->qtcb->bottom.support.timeout = ct->timeout;
 	req->data = ct;
 
 	zfcp_dbf_san_ct_request(req);
-	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 
 	ret = zfcp_fsf_req_send(req);
 	if (ret)
@@ -1176,7 +1178,6 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 {
 	struct zfcp_fsf_req *req;
 	struct zfcp_qdio *qdio = els->adapter->qdio;
-	struct fsf_qtcb_bottom_support *bottom;
 	int ret = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
@@ -1196,16 +1197,12 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 	if (ret)
 		goto failed_send;
 
-	bottom = &req->qtcb->bottom.support;
+	req->qtcb->bottom.support.d_id = els->d_id;
 	req->handler = zfcp_fsf_send_els_handler;
-	bottom->d_id = els->d_id;
-	bottom->service_class = FSF_CLASS_3;
-	bottom->timeout = 2 * R_A_TOV;
 	req->data = els;
 
 	zfcp_dbf_san_els_request(req);
 
-	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	ret = zfcp_fsf_req_send(req);
 	if (ret)
 		goto failed_send;

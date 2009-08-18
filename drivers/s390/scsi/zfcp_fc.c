@@ -283,7 +283,6 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 	gid_pn->ct.wka_port = &adapter->gs->ds;
 	gid_pn->ct.handler = zfcp_fc_ns_handler;
 	gid_pn->ct.handler_data = (unsigned long) &compl_rec;
-	gid_pn->ct.timeout = ZFCP_NS_GID_PN_TIMEOUT;
 	gid_pn->ct.req = &gid_pn->req;
 	gid_pn->ct.resp = &gid_pn->resp;
 	sg_init_one(&gid_pn->req, &gid_pn->ct_iu_req,
@@ -556,7 +555,6 @@ static int zfcp_fc_send_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 	ct->wka_port = &adapter->gs->ds;
 	ct->handler = zfcp_fc_ns_handler;
 	ct->handler_data = (unsigned long)&compl_rec;
-	ct->timeout = 10;
 	ct->req = &gpn_ft->sg_req;
 	ct->resp = gpn_ft->sg_resp;
 
@@ -845,7 +843,6 @@ int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *job)
 
 	ct_fc_job->ct.req = job->request_payload.sg_list;
 	ct_fc_job->ct.resp = job->reply_payload.sg_list;
-	ct_fc_job->ct.timeout = ZFCP_FSF_REQUEST_TIMEOUT;
 	ct_fc_job->ct.handler = zfcp_fc_generic_ct_handler;
 	ct_fc_job->ct.handler_data = (unsigned long) ct_fc_job;
 	ct_fc_job->ct.completion = NULL;
