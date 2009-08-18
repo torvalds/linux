@@ -2019,6 +2019,10 @@ int perf_counter_task_disable(void)
 	return 0;
 }
 
+#ifndef PERF_COUNTER_INDEX_OFFSET
+# define PERF_COUNTER_INDEX_OFFSET 0
+#endif
+
 static int perf_counter_index(struct perf_counter *counter)
 {
 	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
