@@ -2011,6 +2011,7 @@ struct sky2_port {
 
 	struct tx_ring_info  *tx_ring;
 	struct sky2_tx_le    *tx_le;
+	u16		     tx_ring_size;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
 	u16		     tx_next;		/* debug only */
