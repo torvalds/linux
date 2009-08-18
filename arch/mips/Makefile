@@ -565,6 +565,13 @@ cflags-$(CONFIG_BCM47XX)	+= -I$(srctree)/arch/mips/include/asm/mach-bcm47xx
 load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
 
 #
+# Broadcom BCM63XX boards
+#
+core-$(CONFIG_BCM63XX)		+= arch/mips/bcm63xx/
+cflags-$(CONFIG_BCM63XX)	+= -I$(srctree)/arch/mips/include/asm/mach-bcm63xx/
+load-$(CONFIG_BCM63XX)		:= 0xffffffff80010000
+
+#
 # SNI RM
 #
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
