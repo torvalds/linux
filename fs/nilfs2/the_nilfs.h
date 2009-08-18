@@ -253,7 +253,7 @@ nilfs_detach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 
 static inline void nilfs_put_sbinfo(struct nilfs_sb_info *sbi)
 {
-	if (!atomic_dec_and_test(&sbi->s_count))
+	if (atomic_dec_and_test(&sbi->s_count))
 		kfree(sbi);
 }
 
