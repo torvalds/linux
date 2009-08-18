@@ -535,6 +535,62 @@ static void wm8711_unregister(struct wm8711_priv *wm8711)
 	wm8711_codec = NULL;
 }
 
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8711_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_codec *codec;
+	struct wm8711_priv *wm8711;
+
+	wm8711 = kzalloc(sizeof(struct wm8711_priv), GFP_KERNEL);
+	if (wm8711 == NULL)
+		return -ENOMEM;
+
+	codec = &wm8711->codec;
+	codec->control_data = spi;
+	codec->dev = &spi->dev;
+
+	dev_set_drvdata(&spi->dev, wm8711);
+
+	return wm8711_register(wm8711, SND_SOC_SPI);
+}
+
+static int __devexit wm8711_spi_remove(struct spi_device *spi)
+{
+	struct wm8711_priv *wm8711 = dev_get_drvdata(&spi->dev);
+
+	wm8711_unregister(wm8711);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int wm8711_spi_suspend(struct spi_device *spi, pm_message_t msg)
+{
+	return snd_soc_suspend_device(&spi->dev);
+}
+
+static int wm8711_spi_resume(struct spi_device *spi)
+{
+	return snd_soc_resume_device(&spi->dev);
+}
+#else
+#define wm8711_spi_suspend NULL
+#define wm8711_spi_resume NULL
+#endif
+
+static struct spi_driver wm8711_spi_driver = {
+	.driver = {
+		.name	= "wm8711",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8711_spi_probe,
+	.suspend	= wm8711_spi_suspend,
+	.resume		= wm8711_spi_resume,
+	.remove		= __devexit_p(wm8711_spi_remove),
+};
+#endif /* CONFIG_SPI_MASTER */
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8711_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
@@ -591,6 +647,13 @@ static int __init wm8711_modinit(void)
 		       ret);
 	}
 #endif
+#if defined(CONFIG_SPI_MASTER)
+	ret = spi_register_driver(&wm8731_spi_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register WM8731 SPI driver: %d\n",
+		       ret);
+	}
+#endif
 	return 0;
 }
 module_init(wm8711_modinit);
@@ -599,6 +662,9 @@ static void __exit wm8711_exit(void)
 {
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8711_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8731_spi_driver);
 #endif
 }
 module_exit(wm8711_exit);
