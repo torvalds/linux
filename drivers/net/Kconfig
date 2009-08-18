@@ -1934,6 +1934,15 @@ config XILINX_EMACLITE
 	help
 	  This driver supports the 10/100 Ethernet Lite from Xilinx.
 
+config BCM63XX_ENET
+	tristate "Broadcom 63xx internal mac support"
+	depends on BCM63XX
+	select MII
+	select PHYLIB
+	help
+	  This driver supports the ethernet MACs in the Broadcom 63xx
+	  MIPS chipset family (BCM63XX).
+
 source "drivers/net/fs_enet/Kconfig"
 
 endif # NET_ETHERNET
