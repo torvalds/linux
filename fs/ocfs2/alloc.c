@@ -49,6 +49,7 @@
 #include "super.h"
 #include "uptodate.h"
 #include "xattr.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -6673,7 +6674,7 @@ out:
  */
 static int ocfs2_trim_tree(struct inode *inode, struct ocfs2_path *path,
 			   handle_t *handle, struct ocfs2_truncate_context *tc,
-			   u32 clusters_to_del, u64 *delete_start)
+			   u32 clusters_to_del, u64 *delete_start, u8 *flags)
 {
 	int ret, i, index = path->p_tree_depth;
 	u32 new_edge = 0;
@@ -6683,6 +6684,7 @@ static int ocfs2_trim_tree(struct inode *inode, struct ocfs2_path *path,
 	struct ocfs2_extent_rec *rec;
 
 	*delete_start = 0;
+	*flags = 0;
 
 	while (index >= 0) {
 		bh = path->p_node[index].bh;
@@ -6770,6 +6772,7 @@ find_tail_record:
 			*delete_start = le64_to_cpu(rec->e_blkno)
 				+ ocfs2_clusters_to_blocks(inode->i_sb,
 					le16_to_cpu(rec->e_leaf_clusters));
+			*flags = rec->e_flags;
 
 			/*
 			 * If it's now empty, remove this record.
@@ -6869,7 +6872,8 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 			     struct buffer_head *fe_bh,
 			     handle_t *handle,
 			     struct ocfs2_truncate_context *tc,
-			     struct ocfs2_path *path)
+			     struct ocfs2_path *path,
+			     struct ocfs2_alloc_context *meta_ac)
 {
 	int status;
 	struct ocfs2_dinode *fe;
@@ -6877,6 +6881,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	struct ocfs2_extent_list *el;
 	struct buffer_head *last_eb_bh = NULL;
 	u64 delete_blk = 0;
+	u8 rec_flags;
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
@@ -6932,7 +6937,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	inode->i_blocks = ocfs2_inode_sector_count(inode);
 
 	status = ocfs2_trim_tree(inode, path, handle, tc,
-				 clusters_to_del, &delete_blk);
+				 clusters_to_del, &delete_blk, &rec_flags);
 	if (status) {
 		mlog_errno(status);
 		goto bail;
@@ -6964,8 +6969,16 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	}
 
 	if (delete_blk) {
-		status = ocfs2_truncate_log_append(osb, handle, delete_blk,
-						   clusters_to_del);
+		if (rec_flags & OCFS2_EXT_REFCOUNTED)
+			status = ocfs2_decrease_refcount(inode, handle,
+					ocfs2_blocks_to_clusters(osb->sb,
+								 delete_blk),
+					clusters_to_del, meta_ac,
+					&tc->tc_dealloc);
+		else
+			status = ocfs2_truncate_log_append(osb, handle,
+							   delete_blk,
+							   clusters_to_del);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -7383,11 +7396,14 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 {
 	int status, i, credits, tl_sem = 0;
 	u32 clusters_to_del, new_highest_cpos, range;
+	u64 blkno = 0;
 	struct ocfs2_extent_list *el;
 	handle_t *handle = NULL;
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct ocfs2_path *path = NULL;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)fe_bh->b_data;
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	struct ocfs2_refcount_tree *ref_tree = NULL;
 
 	mlog_entry_void();
 
@@ -7412,6 +7428,8 @@ start:
 		status = 0;
 		goto bail;
 	}
+
+	credits = 0;
 
 	/*
 	 * Truncate always works against the rightmost tree branch.
@@ -7453,10 +7471,15 @@ start:
 		clusters_to_del = 0;
 	} else if (le32_to_cpu(el->l_recs[i].e_cpos) >= new_highest_cpos) {
 		clusters_to_del = ocfs2_rec_clusters(el, &el->l_recs[i]);
+		blkno = le64_to_cpu(el->l_recs[i].e_blkno);
 	} else if (range > new_highest_cpos) {
 		clusters_to_del = (ocfs2_rec_clusters(el, &el->l_recs[i]) +
 				   le32_to_cpu(el->l_recs[i].e_cpos)) -
 				  new_highest_cpos;
+		blkno = le64_to_cpu(el->l_recs[i].e_blkno) +
+			ocfs2_clusters_to_blocks(inode->i_sb,
+				ocfs2_rec_clusters(el, &el->l_recs[i]) -
+				clusters_to_del);
 	} else {
 		status = 0;
 		goto bail;
@@ -7464,6 +7487,29 @@ start:
 
 	mlog(0, "clusters_to_del = %u in this pass, tail blk=%llu\n",
 	     clusters_to_del, (unsigned long long)path_leaf_bh(path)->b_blocknr);
+
+	if (el->l_recs[i].e_flags & OCFS2_EXT_REFCOUNTED && clusters_to_del) {
+		BUG_ON(!(OCFS2_I(inode)->ip_dyn_features &
+			 OCFS2_HAS_REFCOUNT_FL));
+
+		status = ocfs2_lock_refcount_tree(osb,
+						le64_to_cpu(di->i_refcount_loc),
+						1, &ref_tree, NULL);
+		if (status) {
+			mlog_errno(status);
+			goto bail;
+		}
+
+		status = ocfs2_prepare_refcount_change_for_del(inode, fe_bh,
+							       blkno,
+							       clusters_to_del,
+							       &credits,
+							       &meta_ac);
+		if (status < 0) {
+			mlog_errno(status);
+			goto bail;
+		}
+	}
 
 	mutex_lock(&tl_inode->i_mutex);
 	tl_sem = 1;
@@ -7478,7 +7524,7 @@ start:
 		}
 	}
 
-	credits = ocfs2_calc_tree_trunc_credits(osb->sb, clusters_to_del,
+	credits += ocfs2_calc_tree_trunc_credits(osb->sb, clusters_to_del,
 						(struct ocfs2_dinode *)fe_bh->b_data,
 						el);
 	handle = ocfs2_start_trans(osb, credits);
@@ -7490,7 +7536,7 @@ start:
 	}
 
 	status = ocfs2_do_truncate(osb, clusters_to_del, inode, fe_bh, handle,
-				   tc, path);
+				   tc, path, meta_ac);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -7503,6 +7549,16 @@ start:
 	handle = NULL;
 
 	ocfs2_reinit_path(path, 1);
+
+	if (meta_ac) {
+		ocfs2_free_alloc_context(meta_ac);
+		meta_ac = NULL;
+	}
+
+	if (ref_tree) {
+		ocfs2_unlock_refcount_tree(osb, ref_tree, 1);
+		ref_tree = NULL;
+	}
 
 	/*
 	 * The check above will catch the case where we've truncated
@@ -7519,6 +7575,12 @@ bail:
 
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
+
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+
+	if (ref_tree)
+		ocfs2_unlock_refcount_tree(osb, ref_tree, 1);
 
 	ocfs2_run_deallocs(osb, &tc->tc_dealloc);
 

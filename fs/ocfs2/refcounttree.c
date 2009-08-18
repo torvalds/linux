@@ -2192,3 +2192,215 @@ static int ocfs2_mark_extent_refcounted(struct inode *inode,
 out:
 	return ret;
 }
+
+/*
+ * Given some contiguous physical clusters, calculate what we need
+ * for modifying their refcount.
+ */
+static int ocfs2_calc_refcount_meta_credits(struct super_block *sb,
+					    struct ocfs2_caching_info *ci,
+					    struct buffer_head *ref_root_bh,
+					    u64 start_cpos,
+					    u32 clusters,
+					    int *meta_add,
+					    int *credits)
+{
+	int ret = 0, index, ref_blocks = 0, recs_add = 0;
+	u64 cpos = start_cpos;
+	struct ocfs2_refcount_block *rb;
+	struct ocfs2_refcount_rec rec;
+	struct buffer_head *ref_leaf_bh = NULL, *prev_bh = NULL;
+	u32 len;
+
+	mlog(0, "start_cpos %llu, clusters %u\n",
+	     (unsigned long long)start_cpos, clusters);
+	while (clusters) {
+		ret = ocfs2_get_refcount_rec(ci, ref_root_bh,
+					     cpos, clusters, &rec,
+					     &index, &ref_leaf_bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		if (ref_leaf_bh != prev_bh) {
+			/*
+			 * Now we encounter a new leaf block, so calculate
+			 * whether we need to extend the old leaf.
+			 */
+			if (prev_bh) {
+				rb = (struct ocfs2_refcount_block *)
+							prev_bh->b_data;
+
+				if (le64_to_cpu(rb->rf_records.rl_used) +
+				    recs_add >
+				    le16_to_cpu(rb->rf_records.rl_count))
+					ref_blocks++;
+			}
+
+			recs_add = 0;
+			*credits += 1;
+			brelse(prev_bh);
+			prev_bh = ref_leaf_bh;
+			get_bh(prev_bh);
+		}
+
+		rb = (struct ocfs2_refcount_block *)ref_leaf_bh->b_data;
+
+		mlog(0, "recs_add %d,cpos %llu, clusters %u, rec->r_cpos %llu,"
+		     "rec->r_clusters %u, rec->r_refcount %u, index %d\n",
+		     recs_add, (unsigned long long)cpos, clusters,
+		     (unsigned long long)le64_to_cpu(rec.r_cpos),
+		     le32_to_cpu(rec.r_clusters),
+		     le32_to_cpu(rec.r_refcount), index);
+
+		len = min((u64)cpos + clusters, le64_to_cpu(rec.r_cpos) +
+			  le32_to_cpu(rec.r_clusters)) - cpos;
+		/*
+		 * If the refcount rec already exist, cool. We just need
+		 * to check whether there is a split. Otherwise we just need
+		 * to increase the refcount.
+		 * If we will insert one, increases recs_add.
+		 *
+		 * We record all the records which will be inserted to the
+		 * same refcount block, so that we can tell exactly whether
+		 * we need a new refcount block or not.
+		 */
+		if (rec.r_refcount) {
+			/* Check whether we need a split at the beginning. */
+			if (cpos == start_cpos &&
+			    cpos != le64_to_cpu(rec.r_cpos))
+				recs_add++;
+
+			/* Check whether we need a split in the end. */
+			if (cpos + clusters < le64_to_cpu(rec.r_cpos) +
+			    le32_to_cpu(rec.r_clusters))
+				recs_add++;
+		} else
+			recs_add++;
+
+		brelse(ref_leaf_bh);
+		ref_leaf_bh = NULL;
+		clusters -= len;
+		cpos += len;
+	}
+
+	if (prev_bh) {
+		rb = (struct ocfs2_refcount_block *)prev_bh->b_data;
+
+		if (le64_to_cpu(rb->rf_records.rl_used) + recs_add >
+		    le16_to_cpu(rb->rf_records.rl_count))
+			ref_blocks++;
+
+		*credits += 1;
+	}
+
+	if (!ref_blocks)
+		goto out;
+
+	mlog(0, "we need ref_blocks %d\n", ref_blocks);
+	*meta_add += ref_blocks;
+	*credits += ref_blocks;
+
+	/*
+	 * So we may need ref_blocks to insert into the tree.
+	 * That also means we need to change the b-tree and add that number
+	 * of records since we never merge them.
+	 * We need one more block for expansion since the new created leaf
+	 * block is also full and needs split.
+	 */
+	rb = (struct ocfs2_refcount_block *)ref_root_bh->b_data;
+	if (le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL) {
+		struct ocfs2_extent_tree et;
+
+		ocfs2_init_refcount_extent_tree(&et, ci, ref_root_bh);
+		*meta_add += ocfs2_extend_meta_needed(et.et_root_el);
+		*credits += ocfs2_calc_extend_credits(sb,
+						      et.et_root_el,
+						      ref_blocks);
+	} else {
+		*credits += OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
+		*meta_add += 1;
+	}
+
+out:
+	brelse(ref_leaf_bh);
+	brelse(prev_bh);
+	return ret;
+}
+
+/*
+ * For refcount tree, we will decrease some contiguous clusters
+ * refcount count, so just go through it to see how many blocks
+ * we gonna touch and whether we need to create new blocks.
+ *
+ * Normally the refcount blocks store these refcount should be
+ * continguous also, so that we can get the number easily.
+ * As for meta_ac, we will at most add split 2 refcount record and
+ * 2 more refcount block, so just check it in a rough way.
+ *
+ * Caller must hold refcount tree lock.
+ */
+int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
+					  struct buffer_head *di_bh,
+					  u64 phys_blkno,
+					  u32 clusters,
+					  int *credits,
+					  struct ocfs2_alloc_context **meta_ac)
+{
+	int ret, ref_blocks = 0;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct buffer_head *ref_root_bh = NULL;
+	struct ocfs2_refcount_tree *tree;
+	u64 start_cpos = ocfs2_blocks_to_clusters(inode->i_sb, phys_blkno);
+
+	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
+		ocfs2_error(inode->i_sb, "Inode %lu want to use refcount "
+			    "tree, but the feature bit is not set in the "
+			    "super block.", inode->i_ino);
+		ret = -EROFS;
+		goto out;
+	}
+
+	BUG_ON(!(oi->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL));
+
+	ret = ocfs2_get_refcount_tree(OCFS2_SB(inode->i_sb),
+				      le64_to_cpu(di->i_refcount_loc), &tree);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_read_refcount_block(&tree->rf_ci,
+					le64_to_cpu(di->i_refcount_loc),
+					&ref_root_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_calc_refcount_meta_credits(inode->i_sb,
+					       &tree->rf_ci,
+					       ref_root_bh,
+					       start_cpos, clusters,
+					       &ref_blocks, credits);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	mlog(0, "reserve new metadata %d, credits = %d\n",
+	     ref_blocks, *credits);
+
+	if (ref_blocks) {
+		ret = ocfs2_reserve_new_metadata_blocks(OCFS2_SB(inode->i_sb),
+							ref_blocks, meta_ac);
+		if (ret)
+			mlog_errno(ret);
+	}
+
+out:
+	brelse(ref_root_bh);
+	return ret;
+}

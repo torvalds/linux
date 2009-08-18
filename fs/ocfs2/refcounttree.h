@@ -45,4 +45,10 @@ int ocfs2_decrease_refcount(struct inode *inode,
 			    handle_t *handle, u32 cpos, u32 len,
 			    struct ocfs2_alloc_context *meta_ac,
 			    struct ocfs2_cached_dealloc_ctxt *dealloc);
+int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
+					  struct buffer_head *di_bh,
+					  u64 phys_blkno,
+					  u32 clusters,
+					  int *credits,
+					  struct ocfs2_alloc_context **meta_ac);
 #endif /* OCFS2_REFCOUNTTREE_H */

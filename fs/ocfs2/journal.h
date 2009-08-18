@@ -504,6 +504,9 @@ static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
  */
 #define OCFS2_REFCOUNT_TREE_REMOVE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
 
+/* 2 metadata alloc, 2 new blocks and root refcount block */
+#define OCFS2_EXPAND_REFCOUNT_TREE_CREDITS (OCFS2_SUBALLOC_ALLOC * 2 + 3)
+
 /*
  * Please note that the caller must make sure that root_el is the root
  * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
