@@ -49,7 +49,6 @@
 #include <linux/acpi.h>
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
-#include <linux/security.h>
 #include <linux/slow-work.h>
 #include <linux/perf_counter.h>
 
