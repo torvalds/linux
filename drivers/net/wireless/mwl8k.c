@@ -2747,26 +2747,23 @@ static u64 mwl8k_prepare_multicast(struct ieee80211_hw *hw,
 	return (unsigned long)cmd;
 }
 
-struct mwl8k_configure_filter_worker {
-	struct mwl8k_work_struct header;
-	unsigned int changed_flags;
-	unsigned int total_flags;
-	struct mwl8k_cmd_pkt *multicast_adr_cmd;
-};
-
-#define MWL8K_SUPPORTED_IF_FLAGS	FIF_BCN_PRBRESP_PROMISC
-
-static int mwl8k_configure_filter_wt(struct work_struct *wt)
+static void mwl8k_configure_filter(struct ieee80211_hw *hw,
+				   unsigned int changed_flags,
+				   unsigned int *total_flags,
+				   u64 multicast)
 {
-	struct mwl8k_configure_filter_worker *worker =
-		(struct mwl8k_configure_filter_worker *)wt;
-	struct ieee80211_hw *hw = worker->header.hw;
 	struct mwl8k_priv *priv = hw->priv;
-	int rc = 0;
+	struct mwl8k_cmd_pkt *multicast_adr_cmd;
 
-	if (worker->changed_flags & FIF_BCN_PRBRESP_PROMISC) {
-		if (worker->total_flags & FIF_BCN_PRBRESP_PROMISC)
-			rc = mwl8k_cmd_set_pre_scan(hw);
+	/* Clear unsupported feature flags */
+	*total_flags &= FIF_BCN_PRBRESP_PROMISC;
+
+	if (mwl8k_fw_lock(hw))
+		return;
+
+	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
+		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
+			mwl8k_cmd_set_pre_scan(hw);
 		else {
 			u8 *bssid;
 
@@ -2774,39 +2771,17 @@ static int mwl8k_configure_filter_wt(struct work_struct *wt)
 			if (priv->vif != NULL)
 				bssid = MWL8K_VIF(priv->vif)->bssid;
 
-			rc = mwl8k_cmd_set_post_scan(hw, bssid);
+			mwl8k_cmd_set_post_scan(hw, bssid);
 		}
 	}
 
-	if (!rc && worker->multicast_adr_cmd != NULL)
-		rc = mwl8k_post_cmd(hw, worker->multicast_adr_cmd);
-	kfree(worker->multicast_adr_cmd);
+	multicast_adr_cmd = (void *)(unsigned long)multicast;
+	if (multicast_adr_cmd != NULL) {
+		mwl8k_post_cmd(hw, multicast_adr_cmd);
+		kfree(multicast_adr_cmd);
+	}
 
-	return rc;
-}
-
-static void mwl8k_configure_filter(struct ieee80211_hw *hw,
-				   unsigned int changed_flags,
-				   unsigned int *total_flags,
-				   u64 multicast)
-{
-	struct mwl8k_configure_filter_worker *worker;
-
-	/* Clear unsupported feature flags */
-	*total_flags &= MWL8K_SUPPORTED_IF_FLAGS;
-
-	if (!(changed_flags & MWL8K_SUPPORTED_IF_FLAGS))
-		return;
-
-	worker = kzalloc(sizeof(*worker), GFP_ATOMIC);
-	if (worker == NULL)
-		return;
-
-	worker->changed_flags = changed_flags;
-	worker->total_flags = *total_flags;
-	worker->multicast_adr_cmd = (void *)(unsigned long)multicast;
-
-	mwl8k_queue_work(hw, &worker->header, mwl8k_configure_filter_wt);
+	mwl8k_fw_unlock(hw);
 }
 
 static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
