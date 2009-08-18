@@ -38,19 +38,6 @@ static void zfcp_dbf_hexdump(debug_info_t *dbf, void *to, int to_len,
 	}
 }
 
-/* FIXME: this duplicate this code in s390 debug feature */
-static void zfcp_dbf_timestamp(unsigned long long stck, struct timespec *time)
-{
-	unsigned long long sec;
-
-	stck -= 0x8126d60e46000000LL - (0x3c26700LL * 1000000 * 4096);
-	sec = stck >> 12;
-	do_div(sec, 1000000);
-	time->tv_sec = sec;
-	stck -= (sec * 1000000) << 12;
-	time->tv_nsec = ((stck * 1000) >> 12);
-}
-
 static void zfcp_dbf_tag(char **p, const char *label, const char *tag)
 {
 	int i;
@@ -107,7 +94,7 @@ static int zfcp_dbf_view_header(debug_info_t *id, struct debug_view *view,
 	char *p = out_buf;
 
 	if (strncmp(dump->tag, "dump", ZFCP_DBF_TAG_SIZE) != 0) {
-		zfcp_dbf_timestamp(entry->id.stck, &t);
+		stck_to_timespec(entry->id.stck, &t);
 		zfcp_dbf_out(&p, "timestamp", "%011lu:%06lu",
 			     t.tv_sec, t.tv_nsec);
 		zfcp_dbf_out(&p, "cpu", "%02i", entry->id.fields.cpuid);
@@ -320,7 +307,7 @@ static void zfcp_dbf_hba_view_response(char **p,
 	zfcp_dbf_out(p, "fsf_command", "0x%08x", r->fsf_command);
 	zfcp_dbf_out(p, "fsf_reqid", "0x%0Lx", r->fsf_reqid);
 	zfcp_dbf_out(p, "fsf_seqno", "0x%08x", r->fsf_seqno);
-	zfcp_dbf_timestamp(r->fsf_issued, &t);
+	stck_to_timespec(r->fsf_issued, &t);
 	zfcp_dbf_out(p, "fsf_issued", "%011lu:%06lu", t.tv_sec, t.tv_nsec);
 	zfcp_dbf_out(p, "fsf_prot_status", "0x%08x", r->fsf_prot_status);
 	zfcp_dbf_out(p, "fsf_status", "0x%08x", r->fsf_status);
@@ -976,7 +963,7 @@ static int zfcp_dbf_scsi_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_dbf_out(&p, "old_fsf_reqid", "0x%0Lx", r->old_fsf_reqid);
 	zfcp_dbf_out(&p, "fsf_reqid", "0x%0Lx", r->fsf_reqid);
 	zfcp_dbf_out(&p, "fsf_seqno", "0x%08x", r->fsf_seqno);
-	zfcp_dbf_timestamp(r->fsf_issued, &t);
+	stck_to_timespec(r->fsf_issued, &t);
 	zfcp_dbf_out(&p, "fsf_issued", "%011lu:%06lu", t.tv_sec, t.tv_nsec);
 
 	if (strncmp(r->tag, "rslt", ZFCP_DBF_TAG_SIZE) == 0) {
