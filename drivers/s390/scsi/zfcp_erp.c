@@ -485,8 +485,7 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			zfcp_rec_dbf_event_action("erscf_2", act);
-		if (act->fsf_req->status & (ZFCP_STATUS_FSFREQ_COMPLETED |
-					    ZFCP_STATUS_FSFREQ_DISMISSED))
+		if (act->fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
 			act->fsf_req = NULL;
 	} else
 		act->fsf_req = NULL;

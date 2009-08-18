@@ -248,7 +248,6 @@ enum zfcp_wka_status {
 
 /* FSF request status (this does not have a common part) */
 #define ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT	0x00000002
-#define ZFCP_STATUS_FSFREQ_COMPLETED		0x00000004
 #define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
 #define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
 #define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED	0x00000040
@@ -532,7 +531,7 @@ struct zfcp_fsf_req {
 	u8		       sbale_curr;     /* current SBALE during creation
 						  of request */
 	u8			sbal_response;	/* SBAL used in interrupt */
-	wait_queue_head_t      completion_wq;  /* can be used by a routine
+	struct completion	completion;	/* can be used by a routine
 						  to wait for completion */
 	u32			status;	       /* status of this request */
 	u32		       fsf_command;    /* FSF Command copy */

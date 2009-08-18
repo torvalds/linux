@@ -206,8 +206,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	if (!abrt_req)
 		return FAILED;
 
-	wait_event(abrt_req->completion_wq,
-		   abrt_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+	wait_for_completion(&abrt_req->completion);
 
 	if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED)
 		dbf_tag = "okay";
@@ -246,8 +245,7 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 	if (!fsf_req)
 		return FAILED;
 
-	wait_event(fsf_req->completion_wq,
-		   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+	wait_for_completion(&fsf_req->completion);
 
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED) {
 		zfcp_scsi_dbf_event_devreset("fail", tm_flags, unit, scpnt);

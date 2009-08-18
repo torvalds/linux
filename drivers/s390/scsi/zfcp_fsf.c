@@ -444,23 +444,11 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 
 	if (req->erp_action)
 		zfcp_erp_notify(req->erp_action, 0);
-	req->status |= ZFCP_STATUS_FSFREQ_COMPLETED;
 
 	if (likely(req->status & ZFCP_STATUS_FSFREQ_CLEANUP))
 		zfcp_fsf_req_free(req);
 	else
-	/* notify initiator waiting for the requests completion */
-	/*
-	 * FIXME: Race! We must not access fsf_req here as it might have been
-	 * cleaned up already due to the set ZFCP_STATUS_FSFREQ_COMPLETED
-	 * flag. It's an improbable case. But, we have the same paranoia for
-	 * the cleanup flag already.
-	 * Might better be handled using complete()?
-	 * (setting the flag and doing wakeup ought to be atomic
-	 *  with regard to checking the flag as long as waitqueue is
-	 *  part of the to be released structure)
-	 */
-		wake_up(&req->completion_wq);
+		complete(&req->completion);
 }
 
 /**
@@ -733,7 +721,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_adapter *adapter,
 
 	INIT_LIST_HEAD(&req->list);
 	init_timer(&req->timer);
-	init_waitqueue_head(&req->completion_wq);
+	init_completion(&req->completion);
 
 	req->adapter = adapter;
 	req->fsf_command = fsf_cmd;
@@ -1309,8 +1297,7 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
 	retval = zfcp_fsf_req_send(req);
 	spin_unlock_bh(&adapter->req_q_lock);
 	if (!retval)
-		wait_event(req->completion_wq,
-			   req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+		wait_for_completion(&req->completion);
 
 	zfcp_fsf_req_free(req);
 	return retval;
@@ -1405,8 +1392,8 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 	spin_unlock_bh(&adapter->req_q_lock);
 
 	if (!retval)
-		wait_event(req->completion_wq,
-			   req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+		wait_for_completion(&req->completion);
+
 	zfcp_fsf_req_free(req);
 
 	return retval;
@@ -2572,8 +2559,7 @@ out:
 	spin_unlock_bh(&adapter->req_q_lock);
 
 	if (!retval) {
-		wait_event(req->completion_wq,
-			   req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+		wait_for_completion(&req->completion);
 		return req;
 	}
 	return ERR_PTR(retval);
