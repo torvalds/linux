@@ -610,6 +610,9 @@ static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
 #define OCFS2_IS_VALID_DX_LEAF(ptr)					\
 	(!strcmp((ptr)->dl_signature, OCFS2_DX_LEAF_SIGNATURE))
 
+#define OCFS2_IS_VALID_REFCOUNT_BLOCK(ptr)				\
+	(!strcmp((ptr)->rf_signature, OCFS2_REFCOUNT_BLOCK_SIGNATURE))
+
 static inline unsigned long ino_from_blkno(struct super_block *sb,
 					   u64 blkno)
 {
