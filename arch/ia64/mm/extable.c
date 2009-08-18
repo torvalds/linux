@@ -8,7 +8,7 @@
 #include <linux/sort.h>
 
 #include <asm/uaccess.h>
-#include <asm/module.h>
+#include <linux/module.h>
 
 static int cmp_ex(const void *a, const void *b)
 {
@@ -52,6 +52,32 @@ void sort_extable (struct exception_table_entry *start,
 	sort(start, finish - start, sizeof(struct exception_table_entry),
 	     cmp_ex, swap_ex);
 }
+
+static inline unsigned long ex_to_addr(const struct exception_table_entry *x)
+{
+	return (unsigned long)&x->addr + x->addr;
+}
+
+#ifdef CONFIG_MODULES
+/*
+ * Any entry referring to the module init will be at the beginning or
+ * the end.
+ */
+void trim_init_extable(struct module *m)
+{
+	/*trim the beginning*/
+	while (m->num_exentries &&
+	       within_module_init(ex_to_addr(&m->extable[0]), m)) {
+		m->extable++;
+		m->num_exentries--;
+	}
+	/*trim the end*/
+	while (m->num_exentries &&
+	       within_module_init(ex_to_addr(&m->extable[m->num_exentries-1]),
+				  m))
+		m->num_exentries--;
+}
+#endif /* CONFIG_MODULES */
 
 const struct exception_table_entry *
 search_extable (const struct exception_table_entry *first,

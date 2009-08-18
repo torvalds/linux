@@ -1392,6 +1392,9 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 		tv_ctl &= ~TV_TEST_MODE_MASK;
 		tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
 		tv_dac &= ~TVDAC_SENSE_MASK;
+		tv_dac &= ~DAC_A_MASK;
+		tv_dac &= ~DAC_B_MASK;
+		tv_dac &= ~DAC_C_MASK;
 		tv_dac |= (TVDAC_STATE_CHG_EN |
 			   TVDAC_A_SENSE_CTL |
 			   TVDAC_B_SENSE_CTL |
@@ -1558,8 +1561,7 @@ intel_tv_destroy (struct drm_connector *connector)
 
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	drm_free(intel_output, sizeof(struct intel_output) + sizeof(struct intel_tv_priv),
-		 DRM_MEM_DRIVER);
+	kfree(intel_output);
 }
 
 
@@ -1692,8 +1694,8 @@ intel_tv_init(struct drm_device *dev)
 	    (tv_dac_off & TVDAC_STATE_CHG_EN) != 0)
 		return;
 
-	intel_output = drm_calloc(1, sizeof(struct intel_output) +
-				  sizeof(struct intel_tv_priv), DRM_MEM_DRIVER);
+	intel_output = kzalloc(sizeof(struct intel_output) +
+			       sizeof(struct intel_tv_priv), GFP_KERNEL);
 	if (!intel_output) {
 		return;
 	}
@@ -1727,8 +1729,8 @@ intel_tv_init(struct drm_device *dev)
 	connector->doublescan_allowed = false;
 
 	/* Create TV properties then attach current values */
-	tv_format_names = drm_alloc(sizeof(char *) * NUM_TV_MODES,
-				    DRM_MEM_DRIVER);
+	tv_format_names = kmalloc(sizeof(char *) * NUM_TV_MODES,
+				  GFP_KERNEL);
 	if (!tv_format_names)
 		goto out;
 	for (i = 0; i < NUM_TV_MODES; i++)

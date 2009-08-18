@@ -18,7 +18,7 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
-#include <asm/intel_arch_perfmon.h>
+#include <asm/perf_counter.h>
 
 #include "op_x86_model.h"
 #include "op_counter.h"
@@ -136,6 +136,13 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 	u64 val;
 	int i;
 
+	/*
+	 * This can happen if perf counters are in use when
+	 * we steal the die notifier NMI.
+	 */
+	if (unlikely(!reset_value))
+		goto out;
+
 	for (i = 0 ; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
@@ -146,6 +153,7 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 		}
 	}
 
+out:
 	/* Only P6 based Pentium M need to re-unmask the apic vector but it
 	 * doesn't hurt other P6 variant */
 	apic_write(APIC_LVTPC, apic_read(APIC_LVTPC) & ~APIC_LVT_MASKED);

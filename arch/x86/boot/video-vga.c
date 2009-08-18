@@ -2,6 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -39,30 +40,30 @@ static __videocard video_vga;
 /* Set basic 80x25 mode */
 static u8 vga_set_basic_mode(void)
 {
+	struct biosregs ireg, oreg;
 	u16 ax;
 	u8 rows;
 	u8 mode;
 
+	initregs(&ireg);
+
 #ifdef CONFIG_VIDEO_400_HACK
 	if (adapter >= ADAPTER_VGA) {
-		asm volatile(INT10
-			     : : "a" (0x1202), "b" (0x0030)
-			     : "ecx", "edx", "esi", "edi");
+		ireg.ax = 0x1202;
+		ireg.bx = 0x0030;
+		intcall(0x10, &ireg, NULL);
 	}
 #endif
 
 	ax = 0x0f00;
-	asm volatile(INT10
-		     : "+a" (ax)
-		     : : "ebx", "ecx", "edx", "esi", "edi");
-
-	mode = (u8)ax;
+	intcall(0x10, &ireg, &oreg);
+	mode = oreg.al;
 
 	set_fs(0);
 	rows = rdfs8(0x484);	/* rows minus one */
 
 #ifndef CONFIG_VIDEO_400_HACK
-	if ((ax == 0x5003 || ax == 0x5007) &&
+	if ((oreg.ax == 0x5003 || oreg.ax == 0x5007) &&
 	    (rows == 0 || rows == 24))
 		return mode;
 #endif
@@ -71,10 +72,8 @@ static u8 vga_set_basic_mode(void)
 		mode = 3;
 
 	/* Set the mode */
-	ax = mode;
-	asm volatile(INT10
-		     : "+a" (ax)
-		     : : "ebx", "ecx", "edx", "esi", "edi");
+	ireg.ax = mode;		/* AH=0: set mode */
+	intcall(0x10, &ireg, NULL);
 	do_restore = 1;
 	return mode;
 }
@@ -82,43 +81,69 @@ static u8 vga_set_basic_mode(void)
 static void vga_set_8font(void)
 {
 	/* Set 8x8 font - 80x43 on EGA, 80x50 on VGA */
+	struct biosregs ireg;
+
+	initregs(&ireg);
 
 	/* Set 8x8 font */
-	asm volatile(INT10 : : "a" (0x1112), "b" (0));
+	ireg.ax = 0x1112;
+	/* ireg.bl = 0; */
+	intcall(0x10, &ireg, NULL);
 
 	/* Use alternate print screen */
-	asm volatile(INT10 : : "a" (0x1200), "b" (0x20));
+	ireg.ax = 0x1200;
+	ireg.bl = 0x20;
+	intcall(0x10, &ireg, NULL);
 
 	/* Turn off cursor emulation */
-	asm volatile(INT10 : : "a" (0x1201), "b" (0x34));
+	ireg.ax = 0x1201;
+	ireg.bl = 0x34;
+	intcall(0x10, &ireg, NULL);
 
 	/* Cursor is scan lines 6-7 */
-	asm volatile(INT10 : : "a" (0x0100), "c" (0x0607));
+	ireg.ax = 0x0100;
+	ireg.cx = 0x0607;
+	intcall(0x10, &ireg, NULL);
 }
 
 static void vga_set_14font(void)
 {
 	/* Set 9x14 font - 80x28 on VGA */
+	struct biosregs ireg;
+
+	initregs(&ireg);
 
 	/* Set 9x14 font */
-	asm volatile(INT10 : : "a" (0x1111), "b" (0));
+	ireg.ax = 0x1111;
+	/* ireg.bl = 0; */
+	intcall(0x10, &ireg, NULL);
 
 	/* Turn off cursor emulation */
-	asm volatile(INT10 : : "a" (0x1201), "b" (0x34));
+	ireg.ax = 0x1201;
+	ireg.bl = 0x34;
+	intcall(0x10, &ireg, NULL);
 
 	/* Cursor is scan lines 11-12 */
-	asm volatile(INT10 : : "a" (0x0100), "c" (0x0b0c));
+	ireg.ax = 0x0100;
+	ireg.cx = 0x0b0c;
+	intcall(0x10, &ireg, NULL);
 }
 
 static void vga_set_80x43(void)
 {
 	/* Set 80x43 mode on VGA (not EGA) */
+	struct biosregs ireg;
+
+	initregs(&ireg);
 
 	/* Set 350 scans */
-	asm volatile(INT10 : : "a" (0x1201), "b" (0x30));
+	ireg.ax = 0x1201;
+	ireg.bl = 0x30;
+	intcall(0x10, &ireg, NULL);
 
 	/* Reset video mode */
-	asm volatile(INT10 : : "a" (0x0003));
+	ireg.ax = 0x0003;
+	intcall(0x10, &ireg, NULL);
 
 	vga_set_8font();
 }
@@ -225,8 +250,6 @@ static int vga_set_mode(struct mode_info *mode)
  */
 static int vga_probe(void)
 {
-	u16 ega_bx;
-
 	static const char *card_name[] = {
 		"CGA/MDA/HGC", "EGA", "VGA"
 	};
@@ -240,26 +263,26 @@ static int vga_probe(void)
 		sizeof(ega_modes)/sizeof(struct mode_info),
 		sizeof(vga_modes)/sizeof(struct mode_info),
 	};
-	u8 vga_flag;
 
-	asm(INT10
-	    : "=b" (ega_bx)
-	    : "a" (0x1200), "b" (0x10) /* Check EGA/VGA */
-	    : "ecx", "edx", "esi", "edi");
+	struct biosregs ireg, oreg;
+
+	initregs(&ireg);
+
+	ireg.ax = 0x1200;
+	ireg.bl = 0x10;		/* Check EGA/VGA */
+	intcall(0x10, &ireg, &oreg);
 
 #ifndef _WAKEUP
-	boot_params.screen_info.orig_video_ega_bx = ega_bx;
+	boot_params.screen_info.orig_video_ega_bx = oreg.bx;
 #endif
 
 	/* If we have MDA/CGA/HGC then BL will be unchanged at 0x10 */
-	if ((u8)ega_bx != 0x10) {
+	if (oreg.bl != 0x10) {
 		/* EGA/VGA */
-		asm(INT10
-		    : "=a" (vga_flag)
-		    : "a" (0x1a00)
-		    : "ebx", "ecx", "edx", "esi", "edi");
+		ireg.ax = 0x1a00;
+		intcall(0x10, &ireg, &oreg);
 
-		if (vga_flag == 0x1a) {
+		if (oreg.al == 0x1a) {
 			adapter = ADAPTER_VGA;
 #ifndef _WAKEUP
 			boot_params.screen_info.orig_video_isVGA = 1;

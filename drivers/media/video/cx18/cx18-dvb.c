@@ -23,14 +23,20 @@
 #include "cx18-version.h"
 #include "cx18-dvb.h"
 #include "cx18-io.h"
+#include "cx18-queue.h"
 #include "cx18-streams.h"
 #include "cx18-cards.h"
+#include "cx18-gpio.h"
 #include "s5h1409.h"
 #include "mxl5005s.h"
+#include "zl10353.h"
+#include "tuner-xc2028.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define CX18_REG_DMUX_NUM_PORT_0_CONTROL 0xd5a000
+#define CX18_CLOCK_ENABLE2		 0xc71024
+#define CX18_DMUX_CLK_MASK		 0x0080
 
 static struct mxl5005s_config hauppauge_hvr1600_tuner = {
 	.i2c_address     = 0xC6 >> 1,
@@ -57,7 +63,15 @@ static struct s5h1409_config hauppauge_hvr1600_config = {
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
+};
 
+/* Information/confirmation of proper config values provided by Terry Wu */
+static struct zl10353_config leadtek_dvr3100h_demod = {
+	.demod_address         = 0x1e >> 1, /* Datasheet suggested straps */
+	.if2                   = 45600,     /* 4.560 MHz IF from the XC3028 */
+	.parallel_ts           = 1,         /* Not a serial TS */
+	.no_tuner              = 1,         /* XC3028 is not behind the gate */
+	.disable_i2c_gate_ctrl = 1,         /* Disable the I2C gate */
 };
 
 static int dvb_register(struct cx18_stream *stream);
@@ -98,6 +112,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 		cx18_write_reg(cx, v, CX18_REG_DMUX_NUM_PORT_0_CONTROL);
 		break;
 
+	case CX18_CARD_LEADTEK_DVR3100H:
 	default:
 		/* Assumption - Parallel transport - Signalling
 		 * undefined or default.
@@ -267,8 +282,7 @@ void cx18_dvb_unregister(struct cx18_stream *stream)
 }
 
 /* All the DVB attach calls go here, this function get's modified
- * for each new card. No other function in this file needs
- * to change.
+ * for each new card. cx18_dvb_start_feed() will also need changes.
  */
 static int dvb_register(struct cx18_stream *stream)
 {
@@ -289,6 +303,29 @@ static int dvb_register(struct cx18_stream *stream)
 			ret = 0;
 		}
 		break;
+	case CX18_CARD_LEADTEK_DVR3100H:
+		dvb->fe = dvb_attach(zl10353_attach,
+				     &leadtek_dvr3100h_demod,
+				     &cx->i2c_adap[1]);
+		if (dvb->fe != NULL) {
+			struct dvb_frontend *fe;
+			struct xc2028_config cfg = {
+				.i2c_adap = &cx->i2c_adap[1],
+				.i2c_addr = 0xc2 >> 1,
+				.ctrl = NULL,
+			};
+			static struct xc2028_ctrl ctrl = {
+				.fname   = XC2028_DEFAULT_FIRMWARE,
+				.max_len = 64,
+				.demod   = XC3028_FE_ZARLINK456,
+				.type    = XC2028_AUTO,
+			};
+
+			fe = dvb_attach(xc2028_attach, dvb->fe, &cfg);
+			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+				fe->ops.tuner_ops.set_config(fe, &ctrl);
+		}
+		break;
 	default:
 		/* No Digital Tv Support */
 		break;
@@ -299,12 +336,25 @@ static int dvb_register(struct cx18_stream *stream)
 		return -1;
 	}
 
+	dvb->fe->callback = cx18_reset_tuner_gpio;
+
 	ret = dvb_register_frontend(&dvb->dvb_adapter, dvb->fe);
 	if (ret < 0) {
 		if (dvb->fe->ops.release)
 			dvb->fe->ops.release(dvb->fe);
 		return ret;
 	}
+
+	/*
+	 * The firmware seems to enable the TS DMUX clock
+	 * under various circumstances.  However, since we know we
+	 * might use it, let's just turn it on ourselves here.
+	 */
+	cx18_write_reg_expect(cx,
+			      (CX18_DMUX_CLK_MASK << 16) | CX18_DMUX_CLK_MASK,
+			      CX18_CLOCK_ENABLE2,
+			      CX18_DMUX_CLK_MASK,
+			      (CX18_DMUX_CLK_MASK << 16) | CX18_DMUX_CLK_MASK);
 
 	return ret;
 }

@@ -41,6 +41,12 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 	return !!(v->arch.pending_exceptions);
 }
 
+int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	/* do real check here */
+	return 1;
+}
+
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
 	return !(v->arch.msr & MSR_WE);

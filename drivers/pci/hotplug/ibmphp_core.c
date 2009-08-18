@@ -153,45 +153,47 @@ int ibmphp_init_devno(struct slot **cur_slot)
 		return -1;
 	}
 	for (loop = 0; loop < len; loop++) {
-		if ((*cur_slot)->number == rtable->slots[loop].slot) {
-		if ((*cur_slot)->bus == rtable->slots[loop].bus) {
+		if ((*cur_slot)->number == rtable->slots[loop].slot &&
+		    (*cur_slot)->bus == rtable->slots[loop].bus) {
+			struct io_apic_irq_attr irq_attr;
+
 			(*cur_slot)->device = PCI_SLOT(rtable->slots[loop].devfn);
 			for (i = 0; i < 4; i++)
 				(*cur_slot)->irq[i] = IO_APIC_get_PCI_irq_vector((int) (*cur_slot)->bus,
-						(int) (*cur_slot)->device, i);
+						(int) (*cur_slot)->device, i,
+						&irq_attr);
 
-				debug("(*cur_slot)->irq[0] = %x\n",
-						(*cur_slot)->irq[0]);
-				debug("(*cur_slot)->irq[1] = %x\n",
-						(*cur_slot)->irq[1]);
-				debug("(*cur_slot)->irq[2] = %x\n",
-						(*cur_slot)->irq[2]);
-				debug("(*cur_slot)->irq[3] = %x\n",
-						(*cur_slot)->irq[3]);
+			debug("(*cur_slot)->irq[0] = %x\n",
+					(*cur_slot)->irq[0]);
+			debug("(*cur_slot)->irq[1] = %x\n",
+					(*cur_slot)->irq[1]);
+			debug("(*cur_slot)->irq[2] = %x\n",
+					(*cur_slot)->irq[2]);
+			debug("(*cur_slot)->irq[3] = %x\n",
+					(*cur_slot)->irq[3]);
 
-				debug("rtable->exlusive_irqs = %x\n",
+			debug("rtable->exlusive_irqs = %x\n",
 					rtable->exclusive_irqs);
-				debug("rtable->slots[loop].irq[0].bitmap = %x\n",
+			debug("rtable->slots[loop].irq[0].bitmap = %x\n",
 					rtable->slots[loop].irq[0].bitmap);
-				debug("rtable->slots[loop].irq[1].bitmap = %x\n",
+			debug("rtable->slots[loop].irq[1].bitmap = %x\n",
 					rtable->slots[loop].irq[1].bitmap);
-				debug("rtable->slots[loop].irq[2].bitmap = %x\n",
+			debug("rtable->slots[loop].irq[2].bitmap = %x\n",
 					rtable->slots[loop].irq[2].bitmap);
-				debug("rtable->slots[loop].irq[3].bitmap = %x\n",
+			debug("rtable->slots[loop].irq[3].bitmap = %x\n",
 					rtable->slots[loop].irq[3].bitmap);
 
-				debug("rtable->slots[loop].irq[0].link = %x\n",
+			debug("rtable->slots[loop].irq[0].link = %x\n",
 					rtable->slots[loop].irq[0].link);
-				debug("rtable->slots[loop].irq[1].link = %x\n",
+			debug("rtable->slots[loop].irq[1].link = %x\n",
 					rtable->slots[loop].irq[1].link);
-				debug("rtable->slots[loop].irq[2].link = %x\n",
+			debug("rtable->slots[loop].irq[2].link = %x\n",
 					rtable->slots[loop].irq[2].link);
-				debug("rtable->slots[loop].irq[3].link = %x\n",
+			debug("rtable->slots[loop].irq[3].link = %x\n",
 					rtable->slots[loop].irq[3].link);
-				debug("end of init_devno\n");
-				kfree(rtable);
-				return 0;
-			}
+			debug("end of init_devno\n");
+			kfree(rtable);
+			return 0;
 		}
 	}
 
@@ -1316,7 +1318,6 @@ error:
 }
 
 struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
-	.owner =			THIS_MODULE,
 	.set_attention_status =		set_attention_status,
 	.enable_slot =			enable_slot,
 	.disable_slot =			ibmphp_disable_slot,
@@ -1419,3 +1420,4 @@ static void __exit ibmphp_exit(void)
 }
 
 module_init(ibmphp_init);
+module_exit(ibmphp_exit);

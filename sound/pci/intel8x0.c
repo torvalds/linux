@@ -356,8 +356,6 @@ struct ichdev {
         unsigned int position;
 	unsigned int pos_shift;
 	unsigned int last_pos;
-	unsigned long last_pos_jiffies;
-	unsigned int jiffy_to_bytes;
         int frags;
         int lvi;
         int lvi_frag;
@@ -844,7 +842,6 @@ static int snd_intel8x0_pcm_trigger(struct snd_pcm_substream *substream, int cmd
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		val = ICH_IOCE | ICH_STARTBM;
 		ichdev->last_pos = ichdev->position;
-		ichdev->last_pos_jiffies = jiffies;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ichdev->suspended = 1;
@@ -1048,7 +1045,6 @@ static int snd_intel8x0_pcm_prepare(struct snd_pcm_substream *substream)
 			ichdev->pos_shift = (runtime->sample_bits > 16) ? 2 : 1;
 	}
 	snd_intel8x0_setup_periods(chip, ichdev);
-	ichdev->jiffy_to_bytes = (runtime->rate * 4 * ichdev->pos_shift) / HZ;
 	return 0;
 }
 
@@ -1073,19 +1069,23 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 		    ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
 			break;
 	} while (timeout--);
+	ptr = ichdev->last_pos;
 	if (ptr1 != 0) {
 		ptr1 <<= ichdev->pos_shift;
 		ptr = ichdev->fragsize1 - ptr1;
 		ptr += position;
-		ichdev->last_pos = ptr;
-		ichdev->last_pos_jiffies = jiffies;
-	} else {
-		ptr1 = jiffies - ichdev->last_pos_jiffies;
-		if (ptr1)
-			ptr1 -= 1;
-		ptr = ichdev->last_pos + ptr1 * ichdev->jiffy_to_bytes;
-		ptr %= ichdev->size;
+		if (ptr < ichdev->last_pos) {
+			unsigned int pos_base, last_base;
+			pos_base = position / ichdev->fragsize1;
+			last_base = ichdev->last_pos / ichdev->fragsize1;
+			/* another sanity check; ptr1 can go back to full
+			 * before the base position is updated
+			 */
+			if (pos_base == last_base)
+				ptr = ichdev->last_pos;
+		}
 	}
+	ichdev->last_pos = ptr;
 	spin_unlock(&chip->reg_lock);
 	if (ptr >= ichdev->size)
 		return 0;

@@ -994,11 +994,11 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
 
   /* change speed pending, wait for its execution */
   if (self->new_speed)
-      return -EBUSY;
+      return NETDEV_TX_BUSY;
 
   /* device stopped (apm) wait for restart */
   if (self->stopped)
-      return -EBUSY;
+      return NETDEV_TX_BUSY;
 
   toshoboe_checkstuck (self);
 
@@ -1049,7 +1049,7 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
       if (self->txpending)
         {
 	  spin_unlock_irqrestore(&self->spinlock, flags);
-          return -EBUSY;
+          return NETDEV_TX_BUSY;
         }
 
       /* If in SIR mode we need to generate a string of XBOFs */
@@ -1105,7 +1105,7 @@ dumpbufs(skb->data,skb->len,'>');
           ,skb->len, self->ring->tx[self->txs].control, self->txpending);
       toshoboe_start_DMA(self, OBOE_CONFIG0H_ENTX);
       spin_unlock_irqrestore(&self->spinlock, flags);
-      return -EBUSY;
+      return NETDEV_TX_BUSY;
     }
 
   if (INB (OBOE_ENABLEH) & OBOE_ENABLEH_SIRON)

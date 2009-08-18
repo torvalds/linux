@@ -76,7 +76,7 @@ ENTRY(system_call)
 	cmp	nr_syscalls,d0
 	bcc	syscall_badsys
 	btst	_TIF_SYSCALL_TRACE,(TI_flags,a2)
-	bne	syscall_trace_entry
+	bne	syscall_entry_trace
 syscall_call:
 	add	d0,d0,a1
 	add	a1,a1
@@ -104,11 +104,10 @@ restore_all:
 syscall_exit_work:
 	btst	_TIF_SYSCALL_TRACE,d2
 	beq	work_pending
-	__sti				# could let do_syscall_trace() call
+	__sti				# could let syscall_trace_exit() call
 					# schedule() instead
 	mov	fp,d0
-	mov	1,d1
-	call	do_syscall_trace[],0	# do_syscall_trace(regs,entryexit)
+	call	syscall_trace_exit[],0	# do_syscall_trace(regs)
 	jmp	resume_userspace
 
 	ALIGN
@@ -138,13 +137,11 @@ work_notifysig:
 	jmp	resume_userspace
 
 	# perform syscall entry tracing
-syscall_trace_entry:
+syscall_entry_trace:
 	mov	-ENOSYS,d0
 	mov	d0,(REG_D0,fp)
 	mov	fp,d0
-	clr	d1
-	call	do_syscall_trace[],0
-	mov	(REG_ORIG_D0,fp),d0
+	call	syscall_trace_entry[],0	# returns the syscall number to actually use
 	mov	(REG_D1,fp),d1
 	cmp	nr_syscalls,d0
 	bcs	syscall_call

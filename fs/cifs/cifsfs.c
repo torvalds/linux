@@ -146,7 +146,7 @@ cifs_read_super(struct super_block *sb, void *data,
 #endif
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
-	inode = cifs_iget(sb, ROOT_I);
+	inode = cifs_root_iget(sb, ROOT_I);
 
 	if (IS_ERR(inode)) {
 		rc = PTR_ERR(inode);
@@ -204,6 +204,9 @@ cifs_put_super(struct super_block *sb)
 		cFYI(1, ("Empty cifs superblock info passed to unmount"));
 		return;
 	}
+
+	lock_kernel();
+
 	rc = cifs_umount(sb, cifs_sb);
 	if (rc)
 		cERROR(1, ("cifs_umount failed with return code %d", rc));
@@ -216,7 +219,8 @@ cifs_put_super(struct super_block *sb)
 
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
-	return;
+
+	unlock_kernel();
 }
 
 static int

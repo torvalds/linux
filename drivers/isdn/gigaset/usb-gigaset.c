@@ -153,8 +153,6 @@ static inline unsigned tiocm_to_gigaset(unsigned state)
 	return ((state & TIOCM_DTR) ? 1 : 0) | ((state & TIOCM_RTS) ? 2 : 0);
 }
 
-#ifdef CONFIG_GIGASET_UNDOCREQ
-/* WARNING: EXPERIMENTAL! */
 static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 				  unsigned new_state)
 {
@@ -176,6 +174,11 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 	return 0;
 }
 
+/*
+ * Set M105 configuration value
+ * using undocumented device commands reverse engineered from USB traces
+ * of the Siemens Windows driver
+ */
 static int set_value(struct cardstate *cs, u8 req, u16 val)
 {
 	struct usb_device *udev = cs->hw.usb->udev;
@@ -205,8 +208,10 @@ static int set_value(struct cardstate *cs, u8 req, u16 val)
 	return r < 0 ? r : (r2 < 0 ? r2 : 0);
 }
 
-/* WARNING: HIGHLY EXPERIMENTAL! */
-// don't use this in an interrupt/BH
+/*
+ * set the baud rate on the internal serial adapter
+ * using the undocumented parameter setting command
+ */
 static int gigaset_baud_rate(struct cardstate *cs, unsigned cflag)
 {
 	u16 val;
@@ -237,8 +242,10 @@ static int gigaset_baud_rate(struct cardstate *cs, unsigned cflag)
 	return set_value(cs, 1, val);
 }
 
-/* WARNING: HIGHLY EXPERIMENTAL! */
-// don't use this in an interrupt/BH
+/*
+ * set the line format on the internal serial adapter
+ * using the undocumented parameter setting command
+ */
 static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
 {
 	u16 val = 0;
@@ -273,24 +280,6 @@ static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
 
 	return set_value(cs, 3, val);
 }
-
-#else
-static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
-				  unsigned new_state)
-{
-	return -ENOTTY;
-}
-
-static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
-{
-	return -ENOTTY;
-}
-
-static int gigaset_baud_rate(struct cardstate *cs, unsigned cflag)
-{
-	return -ENOTTY;
-}
-#endif
 
 
  /*================================================================================================================*/
@@ -362,10 +351,8 @@ static void gigaset_modem_fill(unsigned long data)
 	} while (again);
 }
 
-/**
- *	gigaset_read_int_callback
- *
- *	It is called if the data was received from the device.
+/*
+ * Interrupt Input URB completion routine
  */
 static void gigaset_read_int_callback(struct urb *urb)
 {
@@ -567,18 +554,19 @@ static int gigaset_chars_in_buffer(struct cardstate *cs)
 	return cs->cmdbytes;
 }
 
+/*
+ * set the break characters on the internal serial adapter
+ * using undocumented device commands reverse engineered from USB traces
+ * of the Siemens Windows driver
+ */
 static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 {
-#ifdef CONFIG_GIGASET_UNDOCREQ
 	struct usb_device *udev = cs->hw.usb->udev;
 
 	gigaset_dbg_buffer(DEBUG_USBREQ, "brkchars", 6, buf);
 	memcpy(cs->hw.usb->bchars, buf, 6);
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x19, 0x41,
 			       0, 0, &buf, 6, 2000);
-#else
-	return -ENOTTY;
-#endif
 }
 
 static int gigaset_freebcshw(struct bc_state *bcs)
@@ -625,7 +613,6 @@ static int gigaset_initcshw(struct cardstate *cs)
 	ucs->bchars[5] = 0x13;
 	ucs->bulk_out_buffer = NULL;
 	ucs->bulk_out_urb = NULL;
-	//ucs->urb_cmd_out = NULL;
 	ucs->read_urb = NULL;
 	tasklet_init(&cs->write_tasklet,
 		     &gigaset_modem_fill, (unsigned long) cs);
@@ -742,7 +729,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	cs->dev = &interface->dev;
 
 	/* save address of controller structure */
-	usb_set_intfdata(interface, cs); // dev_set_drvdata(&interface->dev, cs);
+	usb_set_intfdata(interface, cs);
 
 	endpoint = &hostif->endpoint[0].desc;
 
@@ -921,8 +908,7 @@ static const struct gigaset_ops ops = {
 	gigaset_m10x_input,
 };
 
-/**
- *	usb_gigaset_init
+/*
  * This function is called while kernel-module is loaded
  */
 static int __init usb_gigaset_init(void)
@@ -952,9 +938,7 @@ error:
 	return -1;
 }
 
-
-/**
- *	usb_gigaset_exit
+/*
  * This function is called while unloading the kernel-module
  */
 static void __exit usb_gigaset_exit(void)

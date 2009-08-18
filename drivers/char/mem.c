@@ -694,9 +694,8 @@ static ssize_t read_zero(struct file * file, char __user * buf,
 		written += chunk - unwritten;
 		if (unwritten)
 			break;
-		/* Consider changing this to just 'signal_pending()' with lots of testing */
-		if (fatal_signal_pending(current))
-			return written ? written : -EINTR;
+		if (signal_pending(current))
+			return written ? written : -ERESTARTSYS;
 		buf += chunk;
 		count -= chunk;
 		cond_resched();
@@ -864,89 +863,64 @@ static const struct file_operations kmsg_fops = {
 	.write =	kmsg_write,
 };
 
-static int memory_open(struct inode * inode, struct file * filp)
+static const struct {
+	unsigned int		minor;
+	char			*name;
+	umode_t			mode;
+	const struct file_operations	*fops;
+	struct backing_dev_info	*dev_info;
+} devlist[] = { /* list of minor devices */
+	{1, "mem",     S_IRUSR | S_IWUSR | S_IRGRP, &mem_fops,
+		&directly_mappable_cdev_bdi},
+#ifdef CONFIG_DEVKMEM
+	{2, "kmem",    S_IRUSR | S_IWUSR | S_IRGRP, &kmem_fops,
+		&directly_mappable_cdev_bdi},
+#endif
+	{3, "null",    S_IRUGO | S_IWUGO,           &null_fops, NULL},
+#ifdef CONFIG_DEVPORT
+	{4, "port",    S_IRUSR | S_IWUSR | S_IRGRP, &port_fops, NULL},
+#endif
+	{5, "zero",    S_IRUGO | S_IWUGO,           &zero_fops, &zero_bdi},
+	{7, "full",    S_IRUGO | S_IWUGO,           &full_fops, NULL},
+	{8, "random",  S_IRUGO | S_IWUSR,           &random_fops, NULL},
+	{9, "urandom", S_IRUGO | S_IWUSR,           &urandom_fops, NULL},
+	{11,"kmsg",    S_IRUGO | S_IWUSR,           &kmsg_fops, NULL},
+#ifdef CONFIG_CRASH_DUMP
+	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops, NULL},
+#endif
+};
+
+static int memory_open(struct inode *inode, struct file *filp)
 {
 	int ret = 0;
+	int i;
 
 	lock_kernel();
-	switch (iminor(inode)) {
-		case 1:
-			filp->f_op = &mem_fops;
-			filp->f_mapping->backing_dev_info =
-				&directly_mappable_cdev_bdi;
+
+	for (i = 0; i < ARRAY_SIZE(devlist); i++) {
+		if (devlist[i].minor == iminor(inode)) {
+			filp->f_op = devlist[i].fops;
+			if (devlist[i].dev_info) {
+				filp->f_mapping->backing_dev_info =
+					devlist[i].dev_info;
+			}
+
 			break;
-#ifdef CONFIG_DEVKMEM
-		case 2:
-			filp->f_op = &kmem_fops;
-			filp->f_mapping->backing_dev_info =
-				&directly_mappable_cdev_bdi;
-			break;
-#endif
-		case 3:
-			filp->f_op = &null_fops;
-			break;
-#ifdef CONFIG_DEVPORT
-		case 4:
-			filp->f_op = &port_fops;
-			break;
-#endif
-		case 5:
-			filp->f_mapping->backing_dev_info = &zero_bdi;
-			filp->f_op = &zero_fops;
-			break;
-		case 7:
-			filp->f_op = &full_fops;
-			break;
-		case 8:
-			filp->f_op = &random_fops;
-			break;
-		case 9:
-			filp->f_op = &urandom_fops;
-			break;
-		case 11:
-			filp->f_op = &kmsg_fops;
-			break;
-#ifdef CONFIG_CRASH_DUMP
-		case 12:
-			filp->f_op = &oldmem_fops;
-			break;
-#endif
-		default:
-			unlock_kernel();
-			return -ENXIO;
+		}
 	}
-	if (filp->f_op && filp->f_op->open)
-		ret = filp->f_op->open(inode,filp);
+
+	if (i == ARRAY_SIZE(devlist))
+		ret = -ENXIO;
+	else
+		if (filp->f_op && filp->f_op->open)
+			ret = filp->f_op->open(inode, filp);
+
 	unlock_kernel();
 	return ret;
 }
 
 static const struct file_operations memory_fops = {
 	.open		= memory_open,	/* just a selector for the real open */
-};
-
-static const struct {
-	unsigned int		minor;
-	char			*name;
-	umode_t			mode;
-	const struct file_operations	*fops;
-} devlist[] = { /* list of minor devices */
-	{1, "mem",     S_IRUSR | S_IWUSR | S_IRGRP, &mem_fops},
-#ifdef CONFIG_DEVKMEM
-	{2, "kmem",    S_IRUSR | S_IWUSR | S_IRGRP, &kmem_fops},
-#endif
-	{3, "null",    S_IRUGO | S_IWUGO,           &null_fops},
-#ifdef CONFIG_DEVPORT
-	{4, "port",    S_IRUSR | S_IWUSR | S_IRGRP, &port_fops},
-#endif
-	{5, "zero",    S_IRUGO | S_IWUGO,           &zero_fops},
-	{7, "full",    S_IRUGO | S_IWUGO,           &full_fops},
-	{8, "random",  S_IRUGO | S_IWUSR,           &random_fops},
-	{9, "urandom", S_IRUGO | S_IWUSR,           &urandom_fops},
-	{11,"kmsg",    S_IRUGO | S_IWUSR,           &kmsg_fops},
-#ifdef CONFIG_CRASH_DUMP
-	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
-#endif
 };
 
 static struct class *mem_class;

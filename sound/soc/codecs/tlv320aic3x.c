@@ -145,8 +145,8 @@ static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
 		      u8 *value)
 {
 	*value = reg & 0xff;
-	if (codec->hw_read(codec->control_data, value, 1) != 1)
-		return -EIO;
+
+	value[0] = i2c_smbus_read_byte_data(codec->control_data, value[0]);
 
 	aic3x_write_reg_cache(codec, reg, *value);
 	return 0;
@@ -767,6 +767,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
 	u16 pll_d = 1;
+	u8 reg;
 
 	/* select data word length */
 	data =
@@ -801,8 +802,16 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 		pll_q &= 0xf;
 		aic3x_write(codec, AIC3X_PLL_PROGA_REG, pll_q << PLLQ_SHIFT);
 		aic3x_write(codec, AIC3X_GPIOB_REG, CODEC_CLKIN_CLKDIV);
-	} else
+		/* disable PLL if it is bypassed */
+		reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
+		aic3x_write(codec, AIC3X_PLL_PROGA_REG, reg & ~PLL_ENABLE);
+
+	} else {
 		aic3x_write(codec, AIC3X_GPIOB_REG, CODEC_CLKIN_PLLDIV);
+		/* enable PLL when it is used */
+		reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
+		aic3x_write(codec, AIC3X_PLL_PROGA_REG, reg | PLL_ENABLE);
+	}
 
 	/* Route Left DAC to left channel input and
 	 * right DAC to right channel input */
@@ -1316,12 +1325,6 @@ static struct i2c_driver aic3x_i2c_driver = {
 	.id_table = aic3x_i2c_id,
 };
 
-static int aic3x_i2c_read(struct i2c_client *client, u8 *value, int len)
-{
-	value[0] = i2c_smbus_read_byte_data(client, value[0]);
-	return (len == 1);
-}
-
 static int aic3x_add_i2c_device(struct platform_device *pdev,
 				 const struct aic3x_setup_data *setup)
 {
@@ -1394,7 +1397,6 @@ static int aic3x_probe(struct platform_device *pdev)
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t) i2c_master_send;
-		codec->hw_read = (hw_read_t) aic3x_i2c_read;
 		ret = aic3x_add_i2c_device(pdev, setup);
 	}
 #else

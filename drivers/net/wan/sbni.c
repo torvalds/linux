@@ -469,7 +469,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 		}
 	}
 
-	return  1;
+	return NETDEV_TX_BUSY;
 }
 
 #else	/* CONFIG_SBNI_MULTILINE */

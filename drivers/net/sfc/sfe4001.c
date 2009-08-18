@@ -296,7 +296,6 @@ static int sfe4001_check_hw(struct efx_nic *efx)
 
 static struct i2c_board_info sfe4001_hwmon_info = {
 	I2C_BOARD_INFO("max6647", 0x4e),
-	.irq		= -1,
 };
 
 /* This board uses an I2C expander to provider power to the PHY, which needs to
@@ -389,12 +388,10 @@ static void sfn4111t_fini(struct efx_nic *efx)
 
 static struct i2c_board_info sfn4111t_a0_hwmon_info = {
 	I2C_BOARD_INFO("max6647", 0x4e),
-	.irq		= -1,
 };
 
 static struct i2c_board_info sfn4111t_r5_hwmon_info = {
 	I2C_BOARD_INFO("max6646", 0x4d),
-	.irq		= -1,
 };
 
 int sfn4111t_init(struct efx_nic *efx)

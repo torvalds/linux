@@ -175,7 +175,7 @@ void MTO_Init(struct wbsoft_priv *adapter)
 	}
 	else	//follow the setting from EEPROM
 		MTOPARA_TXPOWER_INDEX() = MTO_TXPOWER_FROM_EEPROM;
-	hal_set_rf_power(MTO_HAL(), (u8)MTOPARA_TXPOWER_INDEX());
+	RFSynthesizer_SetPowerIndex(MTO_HAL(), (u8)MTOPARA_TXPOWER_INDEX());
 	//------------------------------------------------
 
 	// For RSSI turning 20060808.4 Cancel load from EEPROM

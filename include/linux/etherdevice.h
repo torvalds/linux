@@ -182,6 +182,33 @@ static inline unsigned compare_ether_addr_64bits(const u8 addr1[6+2],
 	return compare_ether_addr(addr1, addr2);
 #endif
 }
+
+/**
+ * is_etherdev_addr - Tell if given Ethernet address belongs to the device.
+ * @dev: Pointer to a device structure
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Compare passed address with all addresses of the device. Return true if the
+ * address if one of the device addresses.
+ *
+ * Note that this function calls compare_ether_addr_64bits() so take care of
+ * the right padding.
+ */
+static inline bool is_etherdev_addr(const struct net_device *dev,
+				    const u8 addr[6 + 2])
+{
+	struct netdev_hw_addr *ha;
+	int res = 1;
+
+	rcu_read_lock();
+	for_each_dev_addr(dev, ha) {
+		res = compare_ether_addr_64bits(addr, ha->addr);
+		if (!res)
+			break;
+	}
+	rcu_read_unlock();
+	return !res;
+}
 #endif	/* __KERNEL__ */
 
 /**

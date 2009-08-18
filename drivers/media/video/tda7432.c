@@ -20,20 +20,6 @@
  * loudness - set between 0 and 15 for varying degrees of loudness effect
  *
  * maxvol   - set maximium volume to +20db (1), default is 0db(0)
- *
- *
- *  Revision: 0.7 - maxvol module parm to set maximium volume 0db or +20db
- *  				store if muted so we can return it
- *  				change balance only if flaged to
- *  Revision: 0.6 - added tone controls
- *  Revision: 0.5 - Fixed odd balance problem
- *  Revision: 0.4 - added muting
- *  Revision: 0.3 - Fixed silly reversed volume controls.  :)
- *  Revision: 0.2 - Cleaned up #defines
- *			fixed volume control
- *          Added I2C_DRIVERID_TDA7432
- *			added loudness insmod control
- *  Revision: 0.1 - initial version
  */
 
 #include <linux/module.h>

@@ -355,6 +355,10 @@ static void __init rbtx4938_device_init(void)
 	/* TC58DVM82A1FT: tDH=10ns, tWP=tRP=tREADID=35ns */
 	tx4938_ndfmc_init(10, 35);
 	tx4938_ata_init(RBTX4938_IRQ_IOC_ATA, 0, 1);
+	tx4938_dmac_init(0, 2);
+	tx4938_aclc_init();
+	platform_device_register_simple("txx9aclc-generic", -1, NULL, 0);
+	tx4938_sramc_init();
 	txx9_iocled_init(RBTX4938_LED_ADDR - IO_BASE, -1, 8, 1, "green", NULL);
 }
 

@@ -2,6 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -26,6 +27,7 @@
 #include <asm/setup.h>
 #include "bitops.h"
 #include <asm/cpufeature.h>
+#include <asm/processor-flags.h>
 
 /* Useful macros */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -241,6 +243,49 @@ int enable_a20(void);
 /* apm.c */
 int query_apm_bios(void);
 
+/* bioscall.c */
+struct biosregs {
+	union {
+		struct {
+			u32 edi;
+			u32 esi;
+			u32 ebp;
+			u32 _esp;
+			u32 ebx;
+			u32 edx;
+			u32 ecx;
+			u32 eax;
+			u32 _fsgs;
+			u32 _dses;
+			u32 eflags;
+		};
+		struct {
+			u16 di, hdi;
+			u16 si, hsi;
+			u16 bp, hbp;
+			u16 _sp, _hsp;
+			u16 bx, hbx;
+			u16 dx, hdx;
+			u16 cx, hcx;
+			u16 ax, hax;
+			u16 gs, fs;
+			u16 es, ds;
+			u16 flags, hflags;
+		};
+		struct {
+			u8 dil, dih, edi2, edi3;
+			u8 sil, sih, esi2, esi3;
+			u8 bpl, bph, ebp2, ebp3;
+			u8 _spl, _sph, _esp2, _esp3;
+			u8 bl, bh, ebx2, ebx3;
+			u8 dl, dh, edx2, edx3;
+			u8 cl, ch, ecx2, ecx3;
+			u8 al, ah, eax2, eax3;
+		};
+	};
+};
+void intcall(u8 int_no, const struct biosregs *ireg, struct biosregs *oreg);
+
 /* cmdline.c */
 int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
@@ -278,6 +323,9 @@ void __attribute__((noreturn))
 int sprintf(char *buf, const char *fmt, ...);
 int vsprintf(char *buf, const char *fmt, va_list args);
 int printf(const char *fmt, ...);
+
+/* regs.c */
+void initregs(struct biosregs *regs);
 
 /* string.c */
 int strcmp(const char *str1, const char *str2);

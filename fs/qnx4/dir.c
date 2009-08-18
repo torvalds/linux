@@ -11,14 +11,9 @@
  * 20-06-1998 by Frank Denis : Linux 2.1.99+ & dcache support.
  */
 
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
-#include <linux/stat.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
-
+#include "qnx4.h"
 
 static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
@@ -84,7 +79,7 @@ const struct file_operations qnx4_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= qnx4_readdir,
-	.fsync		= file_fsync,
+	.fsync		= simple_fsync,
 };
 
 const struct inode_operations qnx4_dir_inode_operations =

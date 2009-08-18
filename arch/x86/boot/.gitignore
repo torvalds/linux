@@ -3,6 +3,8 @@ bzImage
 cpustr.h
 mkcpustr
 offsets.h
+voffset.h
+zoffset.h
 setup
 setup.bin
 setup.elf

@@ -10,7 +10,7 @@
  * The device is based on the FTDI FT8U100AX chip. It has a DB25 on one side,
  * USB on the other.
  *
- * Thanx to FTDI (http://www.ftdi.co.uk) for so kindly providing details
+ * Thanx to FTDI (http://www.ftdichip.com) for so kindly providing details
  * of the protocol required to talk to the device and ongoing assistence
  * during development.
  *
@@ -28,11 +28,15 @@
 #define FTDI_8U232AM_ALT_PID 0x6006 /* FTDI's alternate PID for above */
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
 #define FTDI_232RL_PID  0xFBFA  /* Product ID for FT232RL */
+#define FTDI_4232H_PID 0x6011 /* Quad channel hi-speed device */
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 #define FTDI_USBX_707_PID 0xF857	/* ADSTech IR Blaster USBX-707 */
 
+/* Larsen and Brusgaard AltiTrack/USBtrack  */
+#define LARSENBRUSGAARD_VID		0x0FD8
+#define LB_ALTITRACK_PID		0x0001
 
 /* www.canusb.com Lawicel CANUSB device */
 #define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
@@ -873,6 +877,11 @@
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
 #define FTDI_SIO_GET_LATENCY_TIMER	10 /* Get the latency timer */
 
+/* Interface indicies for FT2232, FT2232H and FT4232H devices*/
+#define INTERFACE_A		1
+#define INTERFACE_B		2
+#define INTERFACE_C		3
+#define INTERFACE_D		4
 
 /*
  * FIC / OpenMoko, Inc. http://wiki.openmoko.org/wiki/Neo1973_Debug_Board_v3
@@ -1036,6 +1045,8 @@ typedef enum {
 	FT232BM = 3,
 	FT2232C = 4,
 	FT232RL = 5,
+	FT2232H = 6,
+	FT4232H = 7
 } ftdi_chip_type_t;
 
 typedef enum {

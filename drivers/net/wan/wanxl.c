@@ -283,7 +283,7 @@ static int wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 		netif_stop_queue(dev);
 		spin_unlock_irq(&port->lock);
-		return 1;       /* request packet to be queued */
+		return NETDEV_TX_BUSY;       /* request packet to be queued */
 	}
 
 #ifdef DEBUG_PKT

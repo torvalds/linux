@@ -201,7 +201,7 @@ struct agnx_beacon_hdr {
 	/* 802.11(abg) beacon */
 } __attribute__((__packed__));
 
-void hash_write(struct agnx_priv *priv, u8 *mac_addr, u8 sta_id);
+void hash_write(struct agnx_priv *priv, const u8 *mac_addr, u8 sta_id);
 void hash_dump(struct agnx_priv *priv, u8 sta_id);
 void hash_read(struct agnx_priv *priv, u32 reghi, u32 reglo, u8 sta_id);
 void hash_delete(struct agnx_priv *priv, u32 reghi, u32 reglo, u8 sta_id);

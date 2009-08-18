@@ -342,7 +342,7 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 	return __va(ptr);
 }
 
-#define pmd_page(pmd) virt_to_page(__va(pmd_val(pmd)))
+#define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd)))
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

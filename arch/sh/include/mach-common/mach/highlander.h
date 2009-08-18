@@ -2,6 +2,9 @@
 #define __ASM_SH_RENESAS_R7780RP_H
 
 /* Box specific addresses.  */
+#define PA_NORFLASH_ADDR	0x00000000
+#define PA_NORFLASH_SIZE	0x04000000
+
 #if defined(CONFIG_SH_R7780MP)
 #define PA_BCR          0xa4000000      /* FPGA */
 #define PA_SDPOW	(-1)

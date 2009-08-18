@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/mtd/sharpsl.h>
@@ -39,7 +40,7 @@
 #include <mach/pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
@@ -214,13 +215,8 @@ static struct ads7846_platform_data poodle_ads7846_info = {
 	.gpio_pendown		= POODLE_GPIO_TP_INT,
 };
 
-static void ads7846_cs(u32 command)
-{
-	gpio_set_value(POODLE_GPIO_TP_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip poodle_ads7846_chip = {
-	.cs_control		= ads7846_cs,
+	.gpio_cs		= POODLE_GPIO_TP_CS,
 };
 
 static struct spi_board_info poodle_spi_devices[] = {
@@ -236,14 +232,6 @@ static struct spi_board_info poodle_spi_devices[] = {
 
 static void __init poodle_init_spi(void)
 {
-	int err;
-
-	err = gpio_request(POODLE_GPIO_TP_CS, "ADS7846_CS");
-	if (err)
-		return;
-
-	gpio_direction_output(POODLE_GPIO_TP_CS, 1);
-
 	pxa2xx_set_spi_info(1, &poodle_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(poodle_spi_devices));
 }
@@ -499,6 +487,10 @@ static struct platform_device *devices[] __initdata = {
 	&sharpsl_rom_device,
 };
 
+static struct i2c_board_info __initdata poodle_i2c_devices[] = {
+	{ I2C_BOARD_INFO("wm8731", 0x1b) },
+};
+
 static void poodle_poweroff(void)
 {
 	arm_machine_restart('h', NULL);
@@ -532,6 +524,7 @@ static void __init poodle_init(void)
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(poodle_i2c_devices));
 	poodle_init_spi();
 }
 

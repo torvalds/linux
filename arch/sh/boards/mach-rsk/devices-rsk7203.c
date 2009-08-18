@@ -26,13 +26,13 @@ static struct smsc911x_platform_config smsc911x_config = {
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_16BIT,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SWAP_FIFO,
 };
 
 static struct resource smsc911x_resources[] = {
 	[0] = {
 		.start		= 0x24000000,
-		.end		= 0x24000000 + 0x100,
+		.end		= 0x240000ff,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -98,6 +98,10 @@ static int __init rsk7203_devices_setup(void)
 	/* Select pins for SCIF0 */
 	gpio_request(GPIO_FN_TXD0, NULL);
 	gpio_request(GPIO_FN_RXD0, NULL);
+
+	/* Setup LAN9118: CS1 in 16-bit Big Endian Mode, IRQ0 at Port B */
+	ctrl_outl(0x36db0400, 0xfffc0008); /* CS1BCR */
+	gpio_request(GPIO_FN_IRQ0_PB, NULL);
 
 	return platform_add_devices(rsk7203_devices,
 				    ARRAY_SIZE(rsk7203_devices));

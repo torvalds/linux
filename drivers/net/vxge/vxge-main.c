@@ -677,7 +677,7 @@ vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 	return VXGE_HW_OK;
 }
 
-/* select a vpath to trasmit the packet */
+/* select a vpath to transmit the packet */
 static u32 vxge_get_vpath_no(struct vxgedev *vdev, struct sk_buff *skb,
 	int *do_lock)
 {
@@ -992,7 +992,9 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 					VXGE_HW_FIFO_TXD_TX_CKO_UDP_EN);
 
 	vxge_hw_fifo_txdl_post(fifo_hw, dtr);
-	dev->trans_start = jiffies;
+#ifdef NETIF_F_LLTX
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+#endif
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 
 	VXGE_COMPLETE_VPATH_TX(fifo);
@@ -4201,6 +4203,16 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		max_vpath_supported++;
 	}
 
+	/* Enable SRIOV mode, if firmware has SRIOV support and if it is a PF */
+	if ((VXGE_HW_FUNCTION_MODE_SRIOV ==
+		ll_config.device_hw_info.function_mode) &&
+		(max_config_dev > 1) && (pdev->is_physfn)) {
+			ret = pci_enable_sriov(pdev, max_config_dev - 1);
+			if (ret)
+				vxge_debug_ll_config(VXGE_ERR,
+					"Failed to enable SRIOV: %d \n", ret);
+	}
+
 	/*
 	 * Configure vpaths and get driver configured number of vpaths
 	 * which is less than or equal to the maximum vpaths per function.
@@ -4364,6 +4376,7 @@ _exit6:
 
 	vxge_device_unregister(hldev);
 _exit5:
+	pci_disable_sriov(pdev);
 	vxge_hw_device_terminate(hldev);
 _exit4:
 	iounmap(attr.bar1);
@@ -4426,6 +4439,8 @@ vxge_remove(struct pci_dev *pdev)
 
 	iounmap(vdev->bar0);
 	iounmap(vdev->bar1);
+
+	pci_disable_sriov(pdev);
 
 	/* we are safe to free it now */
 	free_netdev(dev);

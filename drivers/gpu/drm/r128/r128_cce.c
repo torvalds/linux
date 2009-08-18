@@ -353,11 +353,9 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 
 	DRM_DEBUG("\n");
 
-	dev_priv = drm_alloc(sizeof(drm_r128_private_t), DRM_MEM_DRIVER);
+	dev_priv = kzalloc(sizeof(drm_r128_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
-
-	memset(dev_priv, 0, sizeof(drm_r128_private_t));
 
 	dev_priv->is_pci = init->is_pci;
 
@@ -619,8 +617,7 @@ int r128_do_cleanup_cce(struct drm_device * dev)
 					    ("failed to cleanup PCI GART!\n");
 		}
 
-		drm_free(dev->dev_private, sizeof(drm_r128_private_t),
-			 DRM_MEM_DRIVER);
+		kfree(dev->dev_private);
 		dev->dev_private = NULL;
 	}
 
@@ -768,18 +765,17 @@ static int r128_freelist_init(struct drm_device * dev)
 	drm_r128_freelist_t *entry;
 	int i;
 
-	dev_priv->head = drm_alloc(sizeof(drm_r128_freelist_t), DRM_MEM_DRIVER);
+	dev_priv->head = kzalloc(sizeof(drm_r128_freelist_t), GFP_KERNEL);
 	if (dev_priv->head == NULL)
 		return -ENOMEM;
 
-	memset(dev_priv->head, 0, sizeof(drm_r128_freelist_t));
 	dev_priv->head->age = R128_BUFFER_USED;
 
 	for (i = 0; i < dma->buf_count; i++) {
 		buf = dma->buflist[i];
 		buf_priv = buf->dev_private;
 
-		entry = drm_alloc(sizeof(drm_r128_freelist_t), DRM_MEM_DRIVER);
+		entry = kmalloc(sizeof(drm_r128_freelist_t), GFP_KERNEL);
 		if (!entry)
 			return -ENOMEM;
 

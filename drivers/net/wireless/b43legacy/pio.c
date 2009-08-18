@@ -443,7 +443,7 @@ int b43legacy_pio_init(struct b43legacy_wldev *dev)
 	pio->queue3 = queue;
 
 	if (dev->dev->id.revision < 3)
-		dev->irq_savedstate |= B43legacy_IRQ_PIO_WORKAROUND;
+		dev->irq_mask |= B43legacy_IRQ_PIO_WORKAROUND;
 
 	b43legacydbg(dev->wl, "PIO initialized\n");
 	err = 0;

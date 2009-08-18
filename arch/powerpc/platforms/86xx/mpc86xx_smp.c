@@ -20,7 +20,6 @@
 #include <asm/pgtable.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>
-#include <asm/mpc86xx.h>
 #include <asm/cacheflush.h>
 
 #include <sysdev/fsl_soc.h>
@@ -30,6 +29,11 @@
 extern void __secondary_start_mpc86xx(void);
 extern unsigned long __secondary_hold_acknowledge;
 
+#define MCM_PORT_CONFIG_OFFSET	0x10
+
+/* Offset from CCSRBAR */
+#define MPC86xx_MCM_OFFSET      (0x1000)
+#define MPC86xx_MCM_SIZE        (0x1000)
 
 static void __init
 smp_86xx_release_core(int nr)
@@ -48,6 +52,8 @@ smp_86xx_release_core(int nr)
 	pcr = in_be32(mcm_vaddr + (MCM_PORT_CONFIG_OFFSET >> 2));
 	pcr |= 1 << (nr + 24);
 	out_be32(mcm_vaddr + (MCM_PORT_CONFIG_OFFSET >> 2), pcr);
+
+	iounmap(mcm_vaddr);
 }
 
 

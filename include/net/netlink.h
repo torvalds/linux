@@ -940,6 +940,15 @@ static inline u64 nla_get_u64(const struct nlattr *nla)
 }
 
 /**
+ * nla_get_be64 - return payload of __be64 attribute
+ * @nla: __be64 netlink attribute
+ */
+static inline __be64 nla_get_be64(const struct nlattr *nla)
+{
+	return *(__be64 *) nla_data(nla);
+}
+
+/**
  * nla_get_flag - return payload of flag attribute
  * @nla: flag netlink attribute
  */

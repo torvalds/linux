@@ -188,21 +188,12 @@ int spi_bitbang_setup(struct spi_device *spi)
 
 	bitbang = spi_master_get_devdata(spi->master);
 
-	/* Bitbangers can support SPI_CS_HIGH, SPI_3WIRE, and so on;
-	 * add those to master->flags, and provide the other support.
-	 */
-	if ((spi->mode & ~(SPI_CPOL|SPI_CPHA|bitbang->flags)) != 0)
-		return -EINVAL;
-
 	if (!cs) {
 		cs = kzalloc(sizeof *cs, GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;
 	}
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
 
 	/* per-word shift register access, in hardware or bitbanging */
 	cs->txrx_word = bitbang->txrx_word[spi->mode & (SPI_CPOL|SPI_CPHA)];
@@ -213,9 +204,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (retval < 0)
 		return retval;
 
-	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
-			__func__, spi->mode & (SPI_CPOL | SPI_CPHA),
-			spi->bits_per_word, 2 * cs->nsecs);
+	dev_dbg(&spi->dev, "%s, %u nsec/bit\n", __func__, 2 * cs->nsecs);
 
 	/* NOTE we _need_ to call chipselect() early, ideally with adapter
 	 * setup, unless the hardware defaults cooperate to avoid confusion
@@ -456,6 +445,9 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	INIT_WORK(&bitbang->work, bitbang_work);
 	spin_lock_init(&bitbang->lock);
 	INIT_LIST_HEAD(&bitbang->queue);
+
+	if (!bitbang->master->mode_bits)
+		bitbang->master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
 
 	if (!bitbang->master->transfer)
 		bitbang->master->transfer = spi_bitbang_transfer;

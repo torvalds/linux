@@ -59,7 +59,8 @@
 #define B43legacy_MMIO_XMITSTAT_1		0x174
 #define B43legacy_MMIO_REV3PLUS_TSF_LOW	0x180 /* core rev >= 3 only */
 #define B43legacy_MMIO_REV3PLUS_TSF_HIGH	0x184 /* core rev >= 3 only */
-
+#define B43legacy_MMIO_TSF_CFP_REP	0x188
+#define B43legacy_MMIO_TSF_CFP_START	0x18C
 /* 32-bit DMA */
 #define B43legacy_MMIO_DMA32_BASE0	0x200
 #define B43legacy_MMIO_DMA32_BASE1	0x220
@@ -258,7 +259,6 @@
 
 #define B43legacy_IRQ_ALL		0xFFFFFFFF
 #define B43legacy_IRQ_MASKTEMPLATE	(B43legacy_IRQ_MAC_SUSPENDED |	\
-					 B43legacy_IRQ_BEACON |		\
 					 B43legacy_IRQ_TBTT_INDI |	\
 					 B43legacy_IRQ_ATIM_END |	\
 					 B43legacy_IRQ_PMQ |		\
@@ -596,12 +596,11 @@ struct b43legacy_wl {
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
+#ifdef CONFIG_B43LEGACY_HWRNG
 	struct hwrng rng;
 	u8 rng_initialized;
 	char rng_name[30 + 1];
-
-	/* The RF-kill button */
-	struct b43legacy_rfkill rfkill;
+#endif
 
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
@@ -614,6 +613,8 @@ struct b43legacy_wl {
 	struct sk_buff *current_beacon;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
+	bool beacon_templates_virgin; /* Never wrote the templates? */
+	struct work_struct beacon_update_trigger;
 };
 
 /* Pointers to the firmware data and meta information about it. */
@@ -690,8 +691,8 @@ struct b43legacy_wldev {
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
 	u32 dma_reason[6];
-	/* saved irq enable/disable state bitfield. */
-	u32 irq_savedstate;
+	/* The currently active generic-interrupt mask. */
+	u32 irq_mask;
 	/* Link Quality calculation context. */
 	struct b43legacy_noise_calculation noisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */

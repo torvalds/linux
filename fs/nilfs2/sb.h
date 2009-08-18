@@ -60,6 +60,7 @@ struct nilfs_sb_info {
 	struct super_block *s_super;	/* reverse pointer to super_block */
 	struct the_nilfs *s_nilfs;
 	struct list_head s_list;	/* list head for nilfs->ns_supers */
+	atomic_t s_count;		/* reference count */
 
 	/* Segment constructor */
 	struct list_head s_dirty_files;	/* dirty files list */

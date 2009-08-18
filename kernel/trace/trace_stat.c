@@ -1,7 +1,7 @@
 /*
  * Infrastructure for statistic tracing (histogram output).
  *
- * Copyright (C) 2008 Frederic Weisbecker <fweisbec@gmail.com>
+ * Copyright (C) 2008-2009 Frederic Weisbecker <fweisbec@gmail.com>
  *
  * Based on the code from trace_branch.c which is
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
@@ -10,22 +10,27 @@
 
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 #include <linux/debugfs.h>
 #include "trace_stat.h"
 #include "trace.h"
 
 
-/* List of stat entries from a tracer */
-struct trace_stat_list {
-	struct list_head	list;
+/*
+ * List of stat red-black nodes from a tracer
+ * We use a such tree to sort quickly the stat
+ * entries from the tracer.
+ */
+struct stat_node {
+	struct rb_node		node;
 	void			*stat;
 };
 
 /* A stat session is the stats output in one file */
-struct tracer_stat_session {
+struct stat_session {
 	struct list_head	session_list;
 	struct tracer_stat	*ts;
-	struct list_head	stat_list;
+	struct rb_root		stat_root;
 	struct mutex		stat_mutex;
 	struct dentry		*file;
 };
@@ -37,18 +42,48 @@ static DEFINE_MUTEX(all_stat_sessions_mutex);
 /* The root directory for all stat files */
 static struct dentry		*stat_dir;
 
-
-static void reset_stat_session(struct tracer_stat_session *session)
+/*
+ * Iterate through the rbtree using a post order traversal path
+ * to release the next node.
+ * It won't necessary release one at each iteration
+ * but it will at least advance closer to the next one
+ * to be released.
+ */
+static struct rb_node *release_next(struct rb_node *node)
 {
-	struct trace_stat_list *node, *next;
+	struct stat_node *snode;
+	struct rb_node *parent = rb_parent(node);
 
-	list_for_each_entry_safe(node, next, &session->stat_list, list)
-		kfree(node);
+	if (node->rb_left)
+		return node->rb_left;
+	else if (node->rb_right)
+		return node->rb_right;
+	else {
+		if (!parent)
+			;
+		else if (parent->rb_left == node)
+			parent->rb_left = NULL;
+		else
+			parent->rb_right = NULL;
 
-	INIT_LIST_HEAD(&session->stat_list);
+		snode = container_of(node, struct stat_node, node);
+		kfree(snode);
+
+		return parent;
+	}
 }
 
-static void destroy_session(struct tracer_stat_session *session)
+static void reset_stat_session(struct stat_session *session)
+{
+	struct rb_node *node = session->stat_root.rb_node;
+
+	while (node)
+		node = release_next(node);
+
+	session->stat_root = RB_ROOT;
+}
+
+static void destroy_session(struct stat_session *session)
 {
 	debugfs_remove(session->file);
 	reset_stat_session(session);
@@ -56,25 +91,60 @@ static void destroy_session(struct tracer_stat_session *session)
 	kfree(session);
 }
 
-/*
- * For tracers that don't provide a stat_cmp callback.
- * This one will force an immediate insertion on tail of
- * the list.
- */
-static int dummy_cmp(void *p1, void *p2)
+typedef int (*cmp_stat_t)(void *, void *);
+
+static int insert_stat(struct rb_root *root, void *stat, cmp_stat_t cmp)
 {
-	return 1;
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct stat_node *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	data->stat = stat;
+
+	/*
+	 * Figure out where to put new node
+	 * This is a descendent sorting
+	 */
+	while (*new) {
+		struct stat_node *this;
+		int result;
+
+		this = container_of(*new, struct stat_node, node);
+		result = cmp(data->stat, this->stat);
+
+		parent = *new;
+		if (result >= 0)
+			new = &((*new)->rb_left);
+		else
+			new = &((*new)->rb_right);
+	}
+
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, root);
+	return 0;
 }
 
 /*
- * Initialize the stat list at each trace_stat file opening.
+ * For tracers that don't provide a stat_cmp callback.
+ * This one will force an insertion as right-most node
+ * in the rbtree.
+ */
+static int dummy_cmp(void *p1, void *p2)
+{
+	return -1;
+}
+
+/*
+ * Initialize the stat rbtree at each trace_stat file opening.
  * All of these copies and sorting are required on all opening
  * since the stats could have changed between two file sessions.
  */
-static int stat_seq_init(struct tracer_stat_session *session)
+static int stat_seq_init(struct stat_session *session)
 {
-	struct trace_stat_list *iter_entry, *new_entry;
 	struct tracer_stat *ts = session->ts;
+	struct rb_root *root = &session->stat_root;
 	void *stat;
 	int ret = 0;
 	int i;
@@ -85,29 +155,16 @@ static int stat_seq_init(struct tracer_stat_session *session)
 	if (!ts->stat_cmp)
 		ts->stat_cmp = dummy_cmp;
 
-	stat = ts->stat_start();
+	stat = ts->stat_start(ts);
 	if (!stat)
 		goto exit;
 
-	/*
-	 * The first entry. Actually this is the second, but the first
-	 * one (the stat_list head) is pointless.
-	 */
-	new_entry = kmalloc(sizeof(struct trace_stat_list), GFP_KERNEL);
-	if (!new_entry) {
-		ret = -ENOMEM;
+	ret = insert_stat(root, stat, ts->stat_cmp);
+	if (ret)
 		goto exit;
-	}
-
-	INIT_LIST_HEAD(&new_entry->list);
-
-	list_add(&new_entry->list, &session->stat_list);
-
-	new_entry->stat = stat;
 
 	/*
-	 * Iterate over the tracer stat entries and store them in a sorted
-	 * list.
+	 * Iterate over the tracer stat entries and store them in an rbtree.
 	 */
 	for (i = 1; ; i++) {
 		stat = ts->stat_next(stat, i);
@@ -116,36 +173,16 @@ static int stat_seq_init(struct tracer_stat_session *session)
 		if (!stat)
 			break;
 
-		new_entry = kmalloc(sizeof(struct trace_stat_list), GFP_KERNEL);
-		if (!new_entry) {
-			ret = -ENOMEM;
-			goto exit_free_list;
-		}
-
-		INIT_LIST_HEAD(&new_entry->list);
-		new_entry->stat = stat;
-
-		list_for_each_entry_reverse(iter_entry, &session->stat_list,
-				list) {
-
-			/* Insertion with a descendent sorting */
-			if (ts->stat_cmp(iter_entry->stat,
-					new_entry->stat) >= 0) {
-
-				list_add(&new_entry->list, &iter_entry->list);
-				break;
-			}
-		}
-
-		/* The current larger value */
-		if (list_empty(&new_entry->list))
-			list_add(&new_entry->list, &session->stat_list);
+		ret = insert_stat(root, stat, ts->stat_cmp);
+		if (ret)
+			goto exit_free_rbtree;
 	}
+
 exit:
 	mutex_unlock(&session->stat_mutex);
 	return ret;
 
-exit_free_list:
+exit_free_rbtree:
 	reset_stat_session(session);
 	mutex_unlock(&session->stat_mutex);
 	return ret;
@@ -154,38 +191,51 @@ exit_free_list:
 
 static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
+	struct rb_node *node;
+	int i;
 
-	/* Prevent from tracer switch or stat_list modification */
+	/* Prevent from tracer switch or rbtree modification */
 	mutex_lock(&session->stat_mutex);
 
 	/* If we are in the beginning of the file, print the headers */
-	if (!*pos && session->ts->stat_headers)
+	if (!*pos && session->ts->stat_headers) {
+		(*pos)++;
 		return SEQ_START_TOKEN;
+	}
 
-	return seq_list_start(&session->stat_list, *pos);
+	node = rb_first(&session->stat_root);
+	for (i = 0; node && i < *pos; i++)
+		node = rb_next(node);
+
+	(*pos)++;
+
+	return node;
 }
 
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
+	struct rb_node *node = p;
+
+	(*pos)++;
 
 	if (p == SEQ_START_TOKEN)
-		return seq_list_start(&session->stat_list, *pos);
+		return rb_first(&session->stat_root);
 
-	return seq_list_next(p, &session->stat_list, pos);
+	return rb_next(node);
 }
 
 static void stat_seq_stop(struct seq_file *s, void *p)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
 	mutex_unlock(&session->stat_mutex);
 }
 
 static int stat_seq_show(struct seq_file *s, void *v)
 {
-	struct tracer_stat_session *session = s->private;
-	struct trace_stat_list *l = list_entry(v, struct trace_stat_list, list);
+	struct stat_session *session = s->private;
+	struct stat_node *l = container_of(v, struct stat_node, node);
 
 	if (v == SEQ_START_TOKEN)
 		return session->ts->stat_headers(s);
@@ -205,7 +255,7 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
-	struct tracer_stat_session *session = inode->i_private;
+	struct stat_session *session = inode->i_private;
 
 	ret = seq_open(file, &trace_stat_seq_ops);
 	if (!ret) {
@@ -218,11 +268,11 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
 }
 
 /*
- * Avoid consuming memory with our now useless list.
+ * Avoid consuming memory with our now useless rbtree.
  */
 static int tracing_stat_release(struct inode *i, struct file *f)
 {
-	struct tracer_stat_session *session = i->i_private;
+	struct stat_session *session = i->i_private;
 
 	mutex_lock(&session->stat_mutex);
 	reset_stat_session(session);
@@ -251,7 +301,7 @@ static int tracing_stat_init(void)
 	return 0;
 }
 
-static int init_stat_file(struct tracer_stat_session *session)
+static int init_stat_file(struct stat_session *session)
 {
 	if (!stat_dir && tracing_stat_init())
 		return -ENODEV;
@@ -266,7 +316,7 @@ static int init_stat_file(struct tracer_stat_session *session)
 
 int register_stat_tracer(struct tracer_stat *trace)
 {
-	struct tracer_stat_session *session, *node, *tmp;
+	struct stat_session *session, *node;
 	int ret;
 
 	if (!trace)
@@ -277,7 +327,7 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 	/* Already registered? */
 	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
+	list_for_each_entry(node, &all_stat_sessions, session_list) {
 		if (node->ts == trace) {
 			mutex_unlock(&all_stat_sessions_mutex);
 			return -EINVAL;
@@ -286,15 +336,13 @@ int register_stat_tracer(struct tracer_stat *trace)
 	mutex_unlock(&all_stat_sessions_mutex);
 
 	/* Init the session */
-	session = kmalloc(sizeof(struct tracer_stat_session), GFP_KERNEL);
+	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;
 
 	session->ts = trace;
 	INIT_LIST_HEAD(&session->session_list);
-	INIT_LIST_HEAD(&session->stat_list);
 	mutex_init(&session->stat_mutex);
-	session->file = NULL;
 
 	ret = init_stat_file(session);
 	if (ret) {
@@ -312,7 +360,7 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 void unregister_stat_tracer(struct tracer_stat *trace)
 {
-	struct tracer_stat_session *node, *tmp;
+	struct stat_session *node, *tmp;
 
 	mutex_lock(&all_stat_sessions_mutex);
 	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {

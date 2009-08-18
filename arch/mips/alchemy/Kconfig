@@ -1,3 +1,14 @@
+# au1000-style gpio
+config ALCHEMY_GPIO_AU1000
+	bool
+
+# select this in your board config if you don't want to use the gpio
+# namespace as documented in the manuals.  In this case however you need
+# to create the necessary gpio_* functions in your board code/headers!
+# see arch/mips/include/asm/mach-au1x00/gpio.h   for more information.
+config ALCHEMY_GPIO_INDIRECT
+	def_bool n
+
 choice
 	prompt "Machine type"
 	depends on MACH_ALCHEMY
@@ -108,22 +119,27 @@ endchoice
 config SOC_AU1000
 	bool
 	select SOC_AU1X00
+	select ALCHEMY_GPIO_AU1000
 
 config SOC_AU1100
 	bool
 	select SOC_AU1X00
+	select ALCHEMY_GPIO_AU1000
 
 config SOC_AU1500
 	bool
 	select SOC_AU1X00
+	select ALCHEMY_GPIO_AU1000
 
 config SOC_AU1550
 	bool
 	select SOC_AU1X00
+	select ALCHEMY_GPIO_AU1000
 
 config SOC_AU1200
 	bool
 	select SOC_AU1X00
+	select ALCHEMY_GPIO_AU1000
 
 config SOC_AU1X00
 	bool
@@ -134,4 +150,5 @@ config SOC_AU1X00
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_APM_EMULATION
-	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
+	select ARCH_WANT_OPTIONAL_GPIOLIB

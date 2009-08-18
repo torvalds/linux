@@ -50,6 +50,7 @@ struct bf5xx_i2s_port {
 	u16 tcr2;
 	u16 rcr2;
 	int counter;
+	int configured;
 };
 
 static struct bf5xx_i2s_port bf5xx_i2s;
@@ -168,7 +169,7 @@ static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	if (bf5xx_i2s.counter == 1) {
+	if (!bf5xx_i2s.configured) {
 		/*
 		 * TX and RX are not independent,they are enabled at the
 		 * same time, even if only one side is running. So, we
@@ -177,6 +178,7 @@ static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
 		 *
 		 * CPU DAI:slave mode.
 		 */
+		bf5xx_i2s.configured = 1;
 		ret = sport_config_rx(sport_handle, bf5xx_i2s.rcr1,
 				      bf5xx_i2s.rcr2, 0, 0);
 		if (ret) {
@@ -200,6 +202,9 @@ static void bf5xx_i2s_shutdown(struct snd_pcm_substream *substream,
 {
 	pr_debug("%s enter\n", __func__);
 	bf5xx_i2s.counter--;
+	/* No active stream, SPORT is allowed to be configured again. */
+	if (!bf5xx_i2s.counter)
+		bf5xx_i2s.configured = 0;
 }
 
 static int bf5xx_i2s_probe(struct platform_device *pdev,
@@ -244,8 +249,7 @@ static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int bf5xx_i2s_resume(struct platform_device *pdev,
-			    struct snd_soc_dai *dai)
+static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 {
 	int ret;
 	struct sport_device *sport =
@@ -255,22 +259,18 @@ static int bf5xx_i2s_resume(struct platform_device *pdev,
 	if (!dai->active)
 		return 0;
 
-	ret = sport_config_rx(sport_handle, RFSR | RCKFE, RSFSE|0x1f, 0, 0);
+	ret = sport_config_rx(sport, RFSR | RCKFE, RSFSE|0x1f, 0, 0);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_tx(sport_handle, TFSR | TCKFE, TSFSE|0x1f, 0, 0);
+	ret = sport_config_tx(sport, TFSR | TCKFE, TSFSE|0x1f, 0, 0);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	if (dai->capture.active)
-		sport_rx_start(sport);
-	if (dai->playback.active)
-		sport_tx_start(sport);
 	return 0;
 }
 

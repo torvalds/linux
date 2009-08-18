@@ -38,8 +38,7 @@
 /* function prototypes for a handspring visor */
 static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port,
 					struct file *filp);
-static void visor_close(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp);
+static void visor_close(struct usb_serial_port *port);
 static int  visor_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count);
 static int  visor_write_room(struct tty_struct *tty);
@@ -48,7 +47,7 @@ static void visor_unthrottle(struct tty_struct *tty);
 static int  visor_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 static int  visor_calc_num_ports(struct usb_serial *serial);
-static void visor_shutdown(struct usb_serial *serial);
+static void visor_release(struct usb_serial *serial);
 static void visor_write_bulk_callback(struct urb *urb);
 static void visor_read_bulk_callback(struct urb *urb);
 static void visor_read_int_callback(struct urb *urb);
@@ -203,7 +202,7 @@ static struct usb_serial_driver handspring_device = {
 	.attach =		treo_attach,
 	.probe =		visor_probe,
 	.calc_num_ports =	visor_calc_num_ports,
-	.shutdown =		visor_shutdown,
+	.release =		visor_release,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
 	.write_bulk_callback =	visor_write_bulk_callback,
@@ -228,7 +227,7 @@ static struct usb_serial_driver clie_5_device = {
 	.attach =		clie_5_attach,
 	.probe =		visor_probe,
 	.calc_num_ports =	visor_calc_num_ports,
-	.shutdown =		visor_shutdown,
+	.release =		visor_release,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
 	.write_bulk_callback =	visor_write_bulk_callback,
@@ -324,8 +323,7 @@ exit:
 }
 
 
-static void visor_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void visor_close(struct usb_serial_port *port)
 {
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *transfer_buffer;
@@ -920,7 +918,7 @@ static int clie_5_attach(struct usb_serial *serial)
 	return generic_startup(serial);
 }
 
-static void visor_shutdown(struct usb_serial *serial)
+static void visor_release(struct usb_serial *serial)
 {
 	struct visor_private *priv;
 	int i;
@@ -929,10 +927,7 @@ static void visor_shutdown(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; i++) {
 		priv = usb_get_serial_port_data(serial->port[i]);
-		if (priv) {
-			usb_set_serial_port_data(serial->port[i], NULL);
-			kfree(priv);
-		}
+		kfree(priv);
 	}
 }
 

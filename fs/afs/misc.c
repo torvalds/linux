@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <rxrpc/packet.h>
 #include "internal.h"
 #include "afs_fs.h"
 
@@ -54,6 +55,21 @@ int afs_abort_to_error(u32 abort_code)
 	case 0x2f6df24:		return -ENOLCK;
 	case 0x2f6df26:		return -ENOTEMPTY;
 	case 0x2f6df78:		return -EDQUOT;
+
+	case RXKADINCONSISTENCY: return -EPROTO;
+	case RXKADPACKETSHORT:	return -EPROTO;
+	case RXKADLEVELFAIL:	return -EKEYREJECTED;
+	case RXKADTICKETLEN:	return -EKEYREJECTED;
+	case RXKADOUTOFSEQUENCE: return -EPROTO;
+	case RXKADNOAUTH:	return -EKEYREJECTED;
+	case RXKADBADKEY:	return -EKEYREJECTED;
+	case RXKADBADTICKET:	return -EKEYREJECTED;
+	case RXKADUNKNOWNKEY:	return -EKEYREJECTED;
+	case RXKADEXPIRED:	return -EKEYEXPIRED;
+	case RXKADSEALEDINCON:	return -EKEYREJECTED;
+	case RXKADDATALEN:	return -EKEYREJECTED;
+	case RXKADILLEGALLEVEL:	return -EKEYREJECTED;
+
 	default:		return -EREMOTEIO;
 	}
 }

@@ -163,6 +163,7 @@ enum {
 #define B43_SHM_SH_WLCOREREV		0x0016	/* 802.11 core revision */
 #define B43_SHM_SH_PCTLWDPOS		0x0008
 #define B43_SHM_SH_RXPADOFF		0x0034	/* RX Padding data offset (PIO only) */
+#define B43_SHM_SH_FWCAPA		0x0042	/* Firmware capabilities (Opensource firmware only) */
 #define B43_SHM_SH_PHYVER		0x0050	/* PHY version */
 #define B43_SHM_SH_PHYTYPE		0x0052	/* PHY type */
 #define B43_SHM_SH_ANTSWAP		0x005C	/* Antenna swap threshold */
@@ -296,6 +297,10 @@ enum {
 #define B43_HF_ANTSELMODE	0x000200000000ULL /* Antenna selection mode (rev >= 13 only) */
 #define B43_HF_MLADVW		0x001000000000ULL /* N PHY ML ADV workaround (rev >= 13 only) */
 #define B43_HF_PR45960W		0x080000000000ULL /* PR 45960 workaround (rev >= 13 only) */
+
+/* Firmware capabilities field in SHM (Opensource firmware only) */
+#define B43_FWCAPA_HWCRYPTO	0x0001
+#define B43_FWCAPA_QOS		0x0002
 
 /* MacFilter offsets. */
 #define B43_MACFILTER_SELF		0x0000
@@ -596,6 +601,13 @@ struct b43_wl {
 	/* Pointer to the ieee80211 hardware data structure */
 	struct ieee80211_hw *hw;
 
+	/* The number of queues that were registered with the mac80211 subsystem
+	 * initially. This is a backup copy of hw->queues in case hw->queues has
+	 * to be dynamically lowered at runtime (Firmware does not support QoS).
+	 * hw->queues has to be restored to the original value before unregistering
+	 * from the mac80211 subsystem. */
+	u16 mac80211_initially_registered_queues;
+
 	struct mutex mutex;
 	spinlock_t irq_lock;
 	/* R/W lock for data transmission.
@@ -625,12 +637,11 @@ struct b43_wl {
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
+#ifdef CONFIG_B43_HWRNG
 	struct hwrng rng;
-	u8 rng_initialized;
+	bool rng_initialized;
 	char rng_name[30 + 1];
-
-	/* The RF-kill button */
-	struct b43_rfkill rfkill;
+#endif /* CONFIG_B43_HWRNG */
 
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
@@ -750,6 +761,8 @@ struct b43_wldev {
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
 	bool suspend_in_progress;	/* TRUE, if we are in a suspend/resume cycle */
+	bool qos_enabled;		/* TRUE, if QoS is used. */
+	bool hwcrypto_enabled;		/* TRUE, if HW crypto acceleration is enabled. */
 
 	/* PHY/Radio device. */
 	struct b43_phy phy;
@@ -776,8 +789,8 @@ struct b43_wldev {
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
 	u32 dma_reason[6];
-	/* saved irq enable/disable state bitfield. */
-	u32 irq_savedstate;
+	/* The currently active generic-interrupt mask. */
+	u32 irq_mask;
 	/* Link Quality calculation context. */
 	struct b43_noise_calculation noisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */

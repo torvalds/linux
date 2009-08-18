@@ -34,6 +34,9 @@ asmlinkage int sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
 asmlinkage int sys_sigaction(int sig, const struct old_sigaction *act,
 		struct old_sigaction *oact);
 
+asmlinkage long sys_rt_sigaction(int sig, const struct sigaction __user *act,
+		struct sigaction __user *oact, size_t sigsetsize);
+
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs);
 

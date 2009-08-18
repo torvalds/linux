@@ -69,6 +69,7 @@ config SOC_TX4927
 	select IRQ_TXX9
 	select PCI_TX4927
 	select GPIO_TXX9
+	select HAS_TXX9_ACLC
 
 config SOC_TX4938
 	bool
@@ -78,6 +79,7 @@ config SOC_TX4938
 	select IRQ_TXX9
 	select PCI_TX4927
 	select GPIO_TXX9
+	select HAS_TXX9_ACLC
 
 config SOC_TX4939
 	bool
@@ -85,6 +87,7 @@ config SOC_TX4939
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
 	select PCI_TX4927
+	select HAS_TXX9_ACLC
 
 config TXX9_7SEGLED
 	bool

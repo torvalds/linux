@@ -1592,7 +1592,7 @@ isdn_tty_open(struct tty_struct *tty, struct file *filp)
 	int retval, line;
 
 	line = tty->index;
-	if (line < 0 || line > ISDN_MAX_CHANNELS)
+	if (line < 0 || line >= ISDN_MAX_CHANNELS)
 		return -ENODEV;
 	info = &dev->mdm.info[line];
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_open"))

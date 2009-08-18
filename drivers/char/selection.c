@@ -327,7 +327,7 @@ int paste_selection(struct tty_struct *tty)
 		}
 		count = sel_buffer_lth - pasted;
 		count = min(count, tty->receive_room);
-		tty->ldisc.ops->receive_buf(tty, sel_buffer + pasted,
+		tty->ldisc->ops->receive_buf(tty, sel_buffer + pasted,
 								NULL, count);
 		pasted += count;
 	}

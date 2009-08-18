@@ -124,11 +124,11 @@ omap242x_sdi_cm_clksel2_pll:
 omap242x_sdi_sdrc_dlla_ctrl:
 	.word OMAP242X_SDRC_REGADDR(SDRC_DLLA_CTRL)
 omap242x_sdi_prcm_voltctrl:
-	.word OMAP242X_PRCM_VOLTCTRL
+	.word OMAP2420_PRCM_VOLTCTRL
 prcm_mask_val:
 	.word 0xFFFF3FFC
 omap242x_sdi_timer_32ksynct_cr:
-	.word IO_ADDRESS(OMAP2_32KSYNCT_BASE + 0x010)
+	.word IO_ADDRESS(OMAP2420_32KSYNCT_BASE + 0x010)
 ENTRY(omap242x_sram_ddr_init_sz)
 	.word	. - omap242x_sram_ddr_init
 
@@ -220,11 +220,11 @@ omap242x_srs_sdrc_dlla_ctrl:
 omap242x_srs_sdrc_rfr_ctrl:
 	.word OMAP242X_SDRC_REGADDR(SDRC_RFR_CTRL_0)
 omap242x_srs_prcm_voltctrl:
-	.word OMAP242X_PRCM_VOLTCTRL
+	.word OMAP2420_PRCM_VOLTCTRL
 ddr_prcm_mask_val:
 	.word 0xFFFF3FFC
 omap242x_srs_timer_32ksynct:
-	.word IO_ADDRESS(OMAP2_32KSYNCT_BASE + 0x010)
+	.word IO_ADDRESS(OMAP2420_32KSYNCT_BASE + 0x010)
 
 ENTRY(omap242x_sram_reprogram_sdrc_sz)
 	.word	. - omap242x_sram_reprogram_sdrc
@@ -305,7 +305,7 @@ wait_dll_lock:
 	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
 
 omap242x_ssp_set_config:
-	.word OMAP242X_PRCM_CLKCFG_CTRL
+	.word OMAP2420_PRCM_CLKCFG_CTRL
 omap242x_ssp_pll_ctl:
 	.word OMAP2420_CM_REGADDR(PLL_MOD, CM_CLKEN)
 omap242x_ssp_pll_stat:

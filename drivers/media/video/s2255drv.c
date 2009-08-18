@@ -77,6 +77,8 @@
 #define MAX_CHANNELS		4
 #define S2255_MARKER_FRAME	0x2255DA4AL
 #define S2255_MARKER_RESPONSE	0x2255ACACL
+#define S2255_RESPONSE_SETMODE  0x01
+#define S2255_RESPONSE_FW       0x10
 #define S2255_USB_XFER_SIZE	(16 * 1024)
 #define MAX_CHANNELS		4
 #define MAX_PIPE_BUFFERS	1
@@ -107,6 +109,8 @@
 #define SCALE_4CIFS	1	/* 640x480(NTSC) or 704x576(PAL) */
 #define SCALE_2CIFS	2	/* 640x240(NTSC) or 704x288(PAL) */
 #define SCALE_1CIFS	3	/* 320x240(NTSC) or 352x288(PAL) */
+/* SCALE_4CIFSI is the 2 fields interpolated into one */
+#define SCALE_4CIFSI	4	/* 640x480(NTSC) or 704x576(PAL) high quality */
 
 #define COLOR_YUVPL	1	/* YUV planar */
 #define COLOR_YUVPK	2	/* YUV packed */
@@ -178,9 +182,6 @@ struct s2255_bufferi {
 
 struct s2255_dmaqueue {
 	struct list_head	active;
-	/* thread for acquisition */
-	struct task_struct	*kthread;
-	int			frame;
 	struct s2255_dev	*dev;
 	int			channel;
 };
@@ -210,16 +211,11 @@ struct s2255_pipeinfo {
 	u32 max_transfer_size;
 	u32 cur_transfer_size;
 	u8 *transfer_buffer;
-	u32 transfer_flags;;
 	u32 state;
-	u32 prev_state;
-	u32 urb_size;
 	void *stream_urb;
 	void *dev;	/* back pointer to s2255_dev struct*/
 	u32 err_count;
-	u32 buf_index;
 	u32 idx;
-	u32 priority_set;
 };
 
 struct s2255_fmt; /*forward declaration */
@@ -239,13 +235,13 @@ struct s2255_dev {
 	struct list_head	s2255_devlist;
 	struct timer_list	timer;
 	struct s2255_fw	*fw_data;
-	int			board_num;
-	int			is_open;
 	struct s2255_pipeinfo	pipes[MAX_PIPE_BUFFERS];
 	struct s2255_bufferi		buffer[MAX_CHANNELS];
 	struct s2255_mode	mode[MAX_CHANNELS];
 	/* jpeg compression */
 	struct v4l2_jpegcompression jc[MAX_CHANNELS];
+	/* capture parameters (for high quality mode full size) */
+	struct v4l2_captureparm cap_parm[MAX_CHANNELS];
 	const struct s2255_fmt	*cur_fmt[MAX_CHANNELS];
 	int			cur_frame[MAX_CHANNELS];
 	int			last_frame[MAX_CHANNELS];
@@ -297,9 +293,10 @@ struct s2255_fh {
 	int			resources[MAX_CHANNELS];
 };
 
-#define CUR_USB_FWVER	774	/* current cypress EEPROM firmware version */
+/* current cypress EEPROM firmware version */
+#define S2255_CUR_USB_FWVER	((3 << 8) | 6)
 #define S2255_MAJOR_VERSION	1
-#define S2255_MINOR_VERSION	13
+#define S2255_MINOR_VERSION	14
 #define S2255_RELEASE		0
 #define S2255_VERSION		KERNEL_VERSION(S2255_MAJOR_VERSION, \
 					       S2255_MINOR_VERSION, \
@@ -1027,9 +1024,16 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->type = f->type;
 	norm = norm_minw(fh->dev->vdev[fh->channel]);
 	if (fh->width > norm_minw(fh->dev->vdev[fh->channel])) {
-		if (fh->height > norm_minh(fh->dev->vdev[fh->channel]))
-			fh->mode.scale = SCALE_4CIFS;
-		else
+		if (fh->height > norm_minh(fh->dev->vdev[fh->channel])) {
+			if (fh->dev->cap_parm[fh->channel].capturemode &
+			    V4L2_MODE_HIGHQUALITY) {
+				fh->mode.scale = SCALE_4CIFSI;
+				dprintk(2, "scale 4CIFSI\n");
+			} else {
+				fh->mode.scale = SCALE_4CIFS;
+				dprintk(2, "scale 4CIFS\n");
+			}
+		} else
 			fh->mode.scale = SCALE_2CIFS;
 
 	} else {
@@ -1130,6 +1134,7 @@ static u32 get_transfer_size(struct s2255_mode *mode)
 	if (mode->format == FORMAT_NTSC) {
 		switch (mode->scale) {
 		case SCALE_4CIFS:
+		case SCALE_4CIFSI:
 			linesPerFrame = NUM_LINES_4CIFS_NTSC * 2;
 			pixelsPerLine = LINE_SZ_4CIFS_NTSC;
 			break;
@@ -1147,6 +1152,7 @@ static u32 get_transfer_size(struct s2255_mode *mode)
 	} else if (mode->format == FORMAT_PAL) {
 		switch (mode->scale) {
 		case SCALE_4CIFS:
+		case SCALE_4CIFSI:
 			linesPerFrame = NUM_LINES_4CIFS_PAL * 2;
 			pixelsPerLine = LINE_SZ_4CIFS_PAL;
 			break;
@@ -1502,6 +1508,33 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 	dprintk(2, "setting jpeg quality %d\n", jc->quality);
 	return 0;
 }
+
+static int vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	sp->parm.capture.capturemode = dev->cap_parm[fh->channel].capturemode;
+	dprintk(2, "getting parm %d\n", sp->parm.capture.capturemode);
+	return 0;
+}
+
+static int vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+
+	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	dev->cap_parm[fh->channel].capturemode = sp->parm.capture.capturemode;
+	dprintk(2, "setting param capture mode %d\n",
+		sp->parm.capture.capturemode);
+	return 0;
+}
 static int s2255_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
@@ -1793,6 +1826,8 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 #endif
 	.vidioc_s_jpegcomp = vidioc_s_jpegcomp,
 	.vidioc_g_jpegcomp = vidioc_g_jpegcomp,
+	.vidioc_s_parm = vidioc_s_parm,
+	.vidioc_g_parm = vidioc_g_parm,
 };
 
 static struct video_device template = {
@@ -1818,7 +1853,6 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		INIT_LIST_HEAD(&dev->vidq[i].active);
 		dev->vidq[i].dev = dev;
 		dev->vidq[i].channel = i;
-		dev->vidq[i].kthread = NULL;
 		/* register 4 video devices */
 		dev->vdev[i] = video_device_alloc();
 		memcpy(dev->vdev[i], &template, sizeof(struct video_device));
@@ -1839,7 +1873,9 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 			return ret;
 		}
 	}
-	printk(KERN_INFO "Sensoray 2255 V4L driver\n");
+	printk(KERN_INFO "Sensoray 2255 V4L driver Revision: %d.%d\n",
+	       S2255_MAJOR_VERSION,
+	       S2255_MINOR_VERSION);
 	return ret;
 }
 
@@ -1929,14 +1965,14 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 				if (!(cc >= 0 && cc < MAX_CHANNELS))
 					break;
 				switch (pdword[2]) {
-				case 0x01:
+				case S2255_RESPONSE_SETMODE:
 					/* check if channel valid */
 					/* set mode ready */
 					dev->setmode_ready[cc] = 1;
 					wake_up(&dev->wait_setmode[cc]);
 					dprintk(5, "setmode ready %d\n", cc);
 					break;
-				case 0x10:
+				case S2255_RESPONSE_FW:
 
 					dev->chn_ready |= (1 << cc);
 					if ((dev->chn_ready & 0x0f) != 0x0f)
@@ -2172,10 +2208,15 @@ static int s2255_board_init(struct s2255_dev *dev)
 	/* query the firmware */
 	fw_ver = s2255_get_fx2fw(dev);
 
-	printk(KERN_INFO "2255 usb firmware version %d \n", fw_ver);
-	if (fw_ver < CUR_USB_FWVER)
+	printk(KERN_INFO "2255 usb firmware version %d.%d\n",
+	       (fw_ver >> 8) & 0xff,
+	       fw_ver & 0xff);
+
+	if (fw_ver < S2255_CUR_USB_FWVER)
 		dev_err(&dev->udev->dev,
-			"usb firmware not up to date %d\n", fw_ver);
+			"usb firmware not up to date %d.%d\n",
+			(fw_ver >> 8) & 0xff,
+			fw_ver & 0xff);
 
 	for (j = 0; j < MAX_CHANNELS; j++) {
 		dev->b_acquire[j] = 0;
@@ -2240,8 +2281,10 @@ static void read_pipe_completion(struct urb *purb)
 		return;
 	}
 	status = purb->status;
-	if (status != 0) {
-		dprintk(2, "read_pipe_completion: err\n");
+	/* if shutting down, do not resubmit, exit immediately */
+	if (status == -ESHUTDOWN) {
+		dprintk(2, "read_pipe_completion: err shutdown\n");
+		pipe_info->err_count++;
 		return;
 	}
 
@@ -2250,9 +2293,13 @@ static void read_pipe_completion(struct urb *purb)
 		return;
 	}
 
-	s2255_read_video_callback(dev, pipe_info);
+	if (status == 0)
+		s2255_read_video_callback(dev, pipe_info);
+	else {
+		pipe_info->err_count++;
+		dprintk(1, "s2255drv: failed URB %d\n", status);
+	}
 
-	pipe_info->err_count = 0;
 	pipe = usb_rcvbulkpipe(dev->udev, dev->read_endpoint);
 	/* reuse urb */
 	usb_fill_bulk_urb(pipe_info->stream_urb, dev->udev,
@@ -2264,7 +2311,6 @@ static void read_pipe_completion(struct urb *purb)
 	if (pipe_info->state != 0) {
 		if (usb_submit_urb(pipe_info->stream_urb, GFP_KERNEL)) {
 			dev_err(&dev->udev->dev, "error submitting urb\n");
-			usb_free_urb(pipe_info->stream_urb);
 		}
 	} else {
 		dprintk(2, "read pipe complete state 0\n");
@@ -2283,8 +2329,7 @@ static int s2255_start_readpipe(struct s2255_dev *dev)
 
 	for (i = 0; i < MAX_PIPE_BUFFERS; i++) {
 		pipe_info->state = 1;
-		pipe_info->buf_index = (u32) i;
-		pipe_info->priority_set = 0;
+		pipe_info->err_count = 0;
 		pipe_info->stream_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!pipe_info->stream_urb) {
 			dev_err(&dev->udev->dev,
@@ -2298,7 +2343,6 @@ static int s2255_start_readpipe(struct s2255_dev *dev)
 				  pipe_info->cur_transfer_size,
 				  read_pipe_completion, pipe_info);
 
-		pipe_info->urb_size = sizeof(pipe_info->stream_urb);
 		dprintk(4, "submitting URB %p\n", pipe_info->stream_urb);
 		retval = usb_submit_urb(pipe_info->stream_urb, GFP_KERNEL);
 		if (retval) {
@@ -2403,8 +2447,6 @@ static void s2255_stop_readpipe(struct s2255_dev *dev)
 			if (pipe_info->state == 0)
 				continue;
 			pipe_info->state = 0;
-			pipe_info->prev_state = 1;
-
 		}
 	}
 
@@ -2542,7 +2584,9 @@ static int s2255_probe(struct usb_interface *interface,
 	s2255_probe_v4l(dev);
 	usb_reset_device(dev->udev);
 	/* load 2255 board specific */
-	s2255_board_init(dev);
+	retval = s2255_board_init(dev);
+	if (retval)
+		goto error;
 
 	dprintk(4, "before probe done %p\n", dev);
 	spin_lock_init(&dev->slock);

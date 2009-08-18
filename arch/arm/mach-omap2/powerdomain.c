@@ -1099,7 +1099,7 @@ int pwrdm_wait_transition(struct powerdomain *pwrdm)
 	       (c++ < PWRDM_TRANSITION_BAILOUT))
 		udelay(1);
 
-	if (c >= PWRDM_TRANSITION_BAILOUT) {
+	if (c > PWRDM_TRANSITION_BAILOUT) {
 		printk(KERN_ERR "powerdomain: waited too long for "
 		       "powerdomain %s to complete transition\n", pwrdm->name);
 		return -EAGAIN;

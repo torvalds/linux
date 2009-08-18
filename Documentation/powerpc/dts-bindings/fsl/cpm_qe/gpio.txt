@@ -11,7 +11,7 @@ Required properties:
   "fsl,cpm1-pario-bank-c", "fsl,cpm1-pario-bank-d",
   "fsl,cpm1-pario-bank-e", "fsl,cpm2-pario-bank"
 - #gpio-cells : Should be two. The first cell is the pin number and the
-  second cell is used to specify optional paramters (currently unused).
+  second cell is used to specify optional parameters (currently unused).
 - gpio-controller : Marks the port as GPIO controller.
 
 Example of three SOC GPIO banks defined as gpio-controller nodes:

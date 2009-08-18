@@ -415,6 +415,8 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 		hdev->stat.sco_tx++;
 		nsh.type = 0x83;
 		break;
+	default:
+		return -EILSEQ;
 	};
 
 	nsh.zero = 0;

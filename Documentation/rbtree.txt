@@ -131,8 +131,8 @@ Example:
   	}
 
   	/* Add new node and rebalance tree. */
-  	rb_link_node(data->node, parent, new);
-  	rb_insert_color(data->node, root);
+  	rb_link_node(&data->node, parent, new);
+  	rb_insert_color(&data->node, root);
 
 	return TRUE;
   }
@@ -146,10 +146,10 @@ To remove an existing node from a tree, call:
 
 Example:
 
-  struct mytype *data = mysearch(mytree, "walrus");
+  struct mytype *data = mysearch(&mytree, "walrus");
 
   if (data) {
-  	rb_erase(data->node, mytree);
+  	rb_erase(&data->node, &mytree);
   	myfree(data);
   }
 
@@ -188,5 +188,5 @@ Example:
 
   struct rb_node *node;
   for (node = rb_first(&mytree); node; node = rb_next(node))
-  	printk("key=%s\n", rb_entry(node, int, keystring));
+	printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);
 

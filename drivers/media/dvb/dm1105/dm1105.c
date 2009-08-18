@@ -51,6 +51,9 @@
 #ifndef PCI_VENDOR_ID_TRIGEM
 #define PCI_VENDOR_ID_TRIGEM	0x109f
 #endif
+#ifndef PCI_VENDOR_ID_AXESS
+#define PCI_VENDOR_ID_AXESS	0x195d
+#endif
 #ifndef PCI_DEVICE_ID_DM1105
 #define PCI_DEVICE_ID_DM1105	0x036f
 #endif
@@ -59,6 +62,9 @@
 #endif
 #ifndef PCI_DEVICE_ID_DW2004
 #define PCI_DEVICE_ID_DW2004	0x2004
+#endif
+#ifndef PCI_DEVICE_ID_DM05
+#define PCI_DEVICE_ID_DM05	0x1105
 #endif
 /* ----------------------------------------------- */
 /* sdmc dm1105 registers */
@@ -150,6 +156,11 @@
 #define DM1105_LNB_13V				0x00010100
 #define DM1105_LNB_18V				0x00000100
 
+/* GPIO's for LNB power control for Axess DM05 */
+#define DM05_LNB_MASK				0x00000000
+#define DM05_LNB_13V				0x00020000
+#define DM05_LNB_18V				0x00030000
+
 static int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
@@ -188,6 +199,8 @@ struct dm1105dvb {
 
 	/* irq */
 	struct work_struct work;
+	struct workqueue_struct *wq;
+	char wqn[16];
 
 	/* dma */
 	dma_addr_t dma_addr;
@@ -313,15 +326,25 @@ static inline struct dm1105dvb *frontend_to_dm1105dvb(struct dvb_frontend *fe)
 static int dm1105dvb_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct dm1105dvb *dm1105dvb = frontend_to_dm1105dvb(fe);
+	u32 lnb_mask, lnb_13v, lnb_18v;
 
-		if (voltage == SEC_VOLTAGE_18) {
-			outl(DM1105_LNB_MASK, dm_io_mem(DM1105_GPIOCTR));
-			outl(DM1105_LNB_18V, dm_io_mem(DM1105_GPIOVAL));
-		} else	{
-		/*LNB ON-13V by default!*/
-			outl(DM1105_LNB_MASK, dm_io_mem(DM1105_GPIOCTR));
-			outl(DM1105_LNB_13V, dm_io_mem(DM1105_GPIOVAL));
-		}
+	switch (dm1105dvb->pdev->subsystem_device) {
+	case PCI_DEVICE_ID_DM05:
+		lnb_mask = DM05_LNB_MASK;
+		lnb_13v = DM05_LNB_13V;
+		lnb_18v = DM05_LNB_18V;
+		break;
+	default:
+		lnb_mask = DM1105_LNB_MASK;
+		lnb_13v = DM1105_LNB_13V;
+		lnb_18v = DM1105_LNB_18V;
+	}
+
+	outl(lnb_mask, dm_io_mem(DM1105_GPIOCTR));
+	if (voltage == SEC_VOLTAGE_18)
+		outl(lnb_18v , dm_io_mem(DM1105_GPIOVAL));
+	else
+		outl(lnb_13v, dm_io_mem(DM1105_GPIOVAL));
 
 	return 0;
 }
@@ -440,7 +463,7 @@ static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 	case (INTSTS_TSIRQ | INTSTS_IR):
 		dm1105dvb->nextwrp = inl(dm_io_mem(DM1105_WRP)) -
 					inl(dm_io_mem(DM1105_STADR));
-		schedule_work(&dm1105dvb->work);
+		queue_work(dm1105dvb->wq, &dm1105dvb->work);
 		break;
 	case INTSTS_IR:
 		dm1105dvb->ir.ir_command = inl(dm_io_mem(DM1105_IRCODE));
@@ -567,46 +590,44 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 	int ret;
 
 	switch (dm1105dvb->pdev->subsystem_device) {
-	case PCI_DEVICE_ID_DW2002:
-		dm1105dvb->fe = dvb_attach(
-			stv0299_attach, &sharp_z0194a_config,
-			&dm1105dvb->i2c_adap);
-
-		if (dm1105dvb->fe) {
-			dm1105dvb->fe->ops.set_voltage =
-							dm1105dvb_set_voltage;
-			dvb_attach(dvb_pll_attach, dm1105dvb->fe, 0x60,
-					&dm1105dvb->i2c_adap, DVB_PLL_OPERA1);
-		}
-
-		if (!dm1105dvb->fe) {
-			dm1105dvb->fe = dvb_attach(
-				stv0288_attach, &earda_config,
-				&dm1105dvb->i2c_adap);
-			if (dm1105dvb->fe) {
-				dm1105dvb->fe->ops.set_voltage =
-							dm1105dvb_set_voltage;
-				dvb_attach(stb6000_attach, dm1105dvb->fe, 0x61,
-						&dm1105dvb->i2c_adap);
-			}
-		}
-
-		if (!dm1105dvb->fe) {
-			dm1105dvb->fe = dvb_attach(
-				si21xx_attach, &serit_config,
-				&dm1105dvb->i2c_adap);
-			if (dm1105dvb->fe)
-				dm1105dvb->fe->ops.set_voltage =
-							dm1105dvb_set_voltage;
-		}
-		break;
 	case PCI_DEVICE_ID_DW2004:
 		dm1105dvb->fe = dvb_attach(
 			cx24116_attach, &serit_sp2633_config,
 			&dm1105dvb->i2c_adap);
 		if (dm1105dvb->fe)
 			dm1105dvb->fe->ops.set_voltage = dm1105dvb_set_voltage;
+
 		break;
+	default:
+		dm1105dvb->fe = dvb_attach(
+			stv0299_attach, &sharp_z0194a_config,
+			&dm1105dvb->i2c_adap);
+		if (dm1105dvb->fe) {
+			dm1105dvb->fe->ops.set_voltage =
+							dm1105dvb_set_voltage;
+			dvb_attach(dvb_pll_attach, dm1105dvb->fe, 0x60,
+					&dm1105dvb->i2c_adap, DVB_PLL_OPERA1);
+			break;
+		}
+
+		dm1105dvb->fe = dvb_attach(
+			stv0288_attach, &earda_config,
+			&dm1105dvb->i2c_adap);
+		if (dm1105dvb->fe) {
+			dm1105dvb->fe->ops.set_voltage =
+						dm1105dvb_set_voltage;
+			dvb_attach(stb6000_attach, dm1105dvb->fe, 0x61,
+					&dm1105dvb->i2c_adap);
+			break;
+		}
+
+		dm1105dvb->fe = dvb_attach(
+			si21xx_attach, &serit_config,
+			&dm1105dvb->i2c_adap);
+		if (dm1105dvb->fe)
+			dm1105dvb->fe->ops.set_voltage =
+						dm1105dvb_set_voltage;
+
 	}
 
 	if (!dm1105dvb->fe) {
@@ -630,10 +651,17 @@ static void __devinit dm1105dvb_read_mac(struct dm1105dvb *dm1105dvb, u8 *mac)
 	static u8 command[1] = { 0x28 };
 
 	struct i2c_msg msg[] = {
-		{ .addr = IIC_24C01_addr >> 1, .flags = 0,
-				.buf = command, .len = 1 },
-		{ .addr = IIC_24C01_addr >> 1, .flags = I2C_M_RD,
-				.buf = mac, .len = 6 },
+		{
+			.addr = IIC_24C01_addr >> 1,
+			.flags = 0,
+			.buf = command,
+			.len = 1
+		}, {
+			.addr = IIC_24C01_addr >> 1,
+			.flags = I2C_M_RD,
+			.buf = mac,
+			.len = 6
+		},
 	};
 
 	dm1105_i2c_xfer(&dm1105dvb->i2c_adap, msg , 2);
@@ -752,14 +780,22 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	dm1105_ir_init(dm1105dvb);
 
 	INIT_WORK(&dm1105dvb->work, dm1105_dmx_buffer);
+	sprintf(dm1105dvb->wqn, "%s/%d", dvb_adapter->name, dvb_adapter->num);
+	dm1105dvb->wq = create_singlethread_workqueue(dm1105dvb->wqn);
+	if (!dm1105dvb->wq)
+		goto err_dvb_net;
 
 	ret = request_irq(pdev->irq, dm1105dvb_irq, IRQF_SHARED,
 						DRIVER_NAME, dm1105dvb);
 	if (ret < 0)
-		goto err_free_irq;
+		goto err_workqueue;
 
 	return 0;
 
+err_workqueue:
+	destroy_workqueue(dm1105dvb->wq);
+err_dvb_net:
+	dvb_net_release(&dm1105dvb->dvbnet);
 err_disconnect_frontend:
 	dmx->disconnect_frontend(dmx);
 err_remove_mem_frontend:
@@ -776,8 +812,6 @@ err_i2c_del_adapter:
 	i2c_del_adapter(&dm1105dvb->i2c_adap);
 err_dm1105dvb_hw_exit:
 	dm1105dvb_hw_exit(dm1105dvb);
-err_free_irq:
-	free_irq(pdev->irq, dm1105dvb);
 err_pci_iounmap:
 	pci_iounmap(pdev, dm1105dvb->io_mem);
 err_pci_release_regions:
@@ -833,6 +867,11 @@ static struct pci_device_id dm1105_id_table[] __devinitdata = {
 		.device = PCI_DEVICE_ID_DM1105,
 		.subvendor = PCI_ANY_ID,
 		.subdevice = PCI_DEVICE_ID_DW2004,
+	}, {
+		.vendor = PCI_VENDOR_ID_AXESS,
+		.device = PCI_DEVICE_ID_DM05,
+		.subvendor = PCI_VENDOR_ID_AXESS,
+		.subdevice = PCI_DEVICE_ID_DM05,
 	}, {
 		/* empty */
 	},

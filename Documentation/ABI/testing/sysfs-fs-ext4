@@ -79,3 +79,13 @@ Description:
 		This file is read-only and shows the number of
 		kilobytes of data that have been written to this
 		filesystem since it was mounted.
+
+What:		/sys/fs/ext4/<disk>/inode_goal
+Date:		June 2008
+Contact:	"Theodore Ts'o" <tytso@mit.edu>
+Description:
+		Tuning parameter which (if non-zero) controls the goal
+		inode used by the inode allocator in p0reference to
+		all other allocation hueristics.  This is intended for
+		debugging use only, and should be 0 on production
+		systems.

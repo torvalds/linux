@@ -146,6 +146,7 @@ enum radeon_family {
 	CHIP_RV770,
 	CHIP_RV730,
 	CHIP_RV710,
+	CHIP_RV740,
 	CHIP_LAST,
 };
 

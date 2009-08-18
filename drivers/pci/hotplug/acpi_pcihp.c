@@ -354,7 +354,7 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 		status = acpi_run_hpp(handle, hpp);
 		if (ACPI_SUCCESS(status))
 			break;
-		if (acpi_root_bridge(handle))
+		if (acpi_is_root_bridge(handle))
 			break;
 		status = acpi_get_parent(handle, &phandle);
 		if (ACPI_FAILURE(status))
@@ -428,7 +428,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 		status = acpi_run_oshp(handle);
 		if (ACPI_SUCCESS(status))
 			goto got_one;
-		if (acpi_root_bridge(handle))
+		if (acpi_is_root_bridge(handle))
 			break;
 		chandle = handle;
 		status = acpi_get_parent(chandle, &handle);
@@ -448,42 +448,6 @@ got_one:
 	return 0;
 }
 EXPORT_SYMBOL(acpi_get_hp_hw_control_from_firmware);
-
-/* acpi_root_bridge - check to see if this acpi object is a root bridge
- *
- * @handle - the acpi object in question.
- */
-int acpi_root_bridge(acpi_handle handle)
-{
-	acpi_status status;
-	struct acpi_device_info *info;
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	int i;
-
-	status = acpi_get_object_info(handle, &buffer);
-	if (ACPI_SUCCESS(status)) {
-		info = buffer.pointer;
-		if ((info->valid & ACPI_VALID_HID) &&
-			!strcmp(PCI_ROOT_HID_STRING,
-					info->hardware_id.value)) {
-			kfree(buffer.pointer);
-			return 1;
-		}
-		if (info->valid & ACPI_VALID_CID) {
-			for (i=0; i < info->compatibility_id.count; i++) {
-				if (!strcmp(PCI_ROOT_HID_STRING,
-					info->compatibility_id.id[i].value)) {
-					kfree(buffer.pointer);
-					return 1;
-				}
-			}
-		}
-		kfree(buffer.pointer);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(acpi_root_bridge);
-
 
 static int is_ejectable(acpi_handle handle)
 {

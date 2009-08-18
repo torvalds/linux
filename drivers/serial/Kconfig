@@ -833,6 +833,7 @@ config SERIAL_IMX
 	bool "IMX serial port support"
 	depends on ARM && (ARCH_IMX || ARCH_MXC)
 	select SERIAL_CORE
+	select RATIONAL
 	help
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
@@ -860,7 +861,7 @@ config SERIAL_UARTLITE
 	  Say Y here if you want to use the Xilinx uartlite serial controller.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called uartlite.ko.
+	  module will be called uartlite.
 
 config SERIAL_UARTLITE_CONSOLE
 	bool "Support for console on Xilinx uartlite serial port"
@@ -1319,6 +1320,16 @@ config SERIAL_SGI_IOC3
 	  If you have an SGI Altix with an IOC3 serial card,
 	  say Y or M.  Otherwise, say N.
 
+config SERIAL_MSM
+	bool "MSM on-chip serial port support"
+	depends on ARM && ARCH_MSM
+	select SERIAL_CORE
+
+config SERIAL_MSM_CONSOLE
+	bool "MSM serial console support"
+	depends on SERIAL_MSM=y
+	select SERIAL_CORE_CONSOLE
+
 config SERIAL_NETX
 	tristate "NetX serial port support"
 	depends on ARM && ARCH_NETX
@@ -1432,5 +1443,12 @@ config SPORT_BAUD_RATE
 	default 38400 if (SERIAL_SPORT_BAUD_RATE_38400)
 	default 19200 if (SERIAL_SPORT_BAUD_RATE_19200)
 	default 9600 if (SERIAL_SPORT_BAUD_RATE_9600)
+
+config SERIAL_TIMBERDALE
+	tristate "Support for timberdale UART"
+	depends on MFD_TIMBERDALE
+	select SERIAL_CORE
+	---help---
+	Add support for UART controller on timberdale.
 
 endmenu

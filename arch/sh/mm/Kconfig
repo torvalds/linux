@@ -21,6 +21,29 @@ config PAGE_OFFSET
 	default "0x20000000" if MMU && SUPERH64
 	default "0x00000000"
 
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	range 9 64 if PAGE_SIZE_16KB
+	default "9" if PAGE_SIZE_16KB
+	range 7 64 if PAGE_SIZE_64KB
+	default "7" if PAGE_SIZE_64KB
+	range 11 64
+	default "14" if !MMU
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB. Keep this in mind when
+	  choosing a value for this option.
+
 config MEMORY_START
 	hex "Physical memory start address"
 	default "0x08000000"
@@ -200,14 +223,6 @@ config PAGE_SIZE_64KB
 	  CPUs and later.
 
 endchoice
-
-config ENTRY_OFFSET
-	hex
-	default "0x00001000" if PAGE_SIZE_4KB
-	default "0x00002000" if PAGE_SIZE_8KB
-	default "0x00004000" if PAGE_SIZE_16KB
-	default "0x00010000" if PAGE_SIZE_64KB
-	default "0x00000000"
 
 choice
 	prompt "HugeTLB page size"

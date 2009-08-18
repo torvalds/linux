@@ -542,10 +542,8 @@ xfs_filestream_associate(
 	 * waiting for the lock because someone else is waiting on the lock we
 	 * hold and we cannot drop that as we are in a transaction here.
 	 *
-	 * Lucky for us, this inversion is rarely a problem because it's a
-	 * directory inode that we are trying to lock here and that means the
-	 * only place that matters is xfs_sync_inodes() and SYNC_DELWRI is
-	 * used. i.e. freeze, remount-ro, quotasync or unmount.
+	 * Lucky for us, this inversion is not a problem because it's a
+	 * directory inode that we are trying to lock here.
 	 *
 	 * So, if we can't get the iolock without sleeping then just give up
 	 */

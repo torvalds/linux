@@ -86,8 +86,7 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
-	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE) &&
-	    !(priv->stations_39[sta_id].used & IWL_STA_DRIVER_ACTIVE))
+	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE))
 		IWL_ERR(priv, "ACTIVATE a non DRIVER active station %d\n",
 			sta_id);
 
@@ -228,15 +227,16 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 }
 
 /**
- * iwl_add_station_flags - Add station to tables in driver and device
+ * iwl_add_station - Add station to tables in driver and device
  */
-u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
-			 u8 flags, struct ieee80211_sta_ht_cap *ht_info)
+u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap, u8 flags,
+		struct ieee80211_sta_ht_cap *ht_info)
 {
-	int i;
-	int sta_id = IWL_INVALID_STATION;
 	struct iwl_station_entry *station;
 	unsigned long flags_spin;
+	int i;
+	int sta_id = IWL_INVALID_STATION;
+	u16 rate;
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
 	if (is_ap)
@@ -288,6 +288,12 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 	    priv->iw_mode != NL80211_IFTYPE_ADHOC)
 		iwl_set_ht_add_station(priv, sta_id, ht_info);
 
+	/* 3945 only */
+	rate = (priv->band == IEEE80211_BAND_5GHZ) ?
+		IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP;
+	/* Turn on both antennas for the station... */
+	station->sta.rate_n_flags = cpu_to_le16(rate | RATE_MCS_ANT_AB_MSK);
+
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
 	/* Add station to device's station table */
@@ -295,7 +301,7 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 	return sta_id;
 
 }
-EXPORT_SYMBOL(iwl_add_station_flags);
+EXPORT_SYMBOL(iwl_add_station);
 
 static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
 {
@@ -408,7 +414,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 /**
  * iwl_remove_station - Remove driver's knowledge of station.
  */
-int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
+int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 {
 	int sta_id = IWL_INVALID_STATION;
 	int i, ret = -EINVAL;
@@ -490,7 +496,7 @@ void iwl_clear_stations_table(struct iwl_priv *priv)
 	/* keep track of static keys */
 	for (i = 0; i < WEP_KEYS_MAX ; i++) {
 		if (priv->wep_keys[i].key_size)
-			test_and_set_bit(i, &priv->ucode_key_table);
+			set_bit(i, &priv->ucode_key_table);
 	}
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
@@ -946,7 +952,7 @@ EXPORT_SYMBOL(iwl_send_lq_cmd);
  *       calling this function (which runs REPLY_TX_LINK_QUALITY_CMD,
  *       which requires station table entry to exist).
  */
-static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
+static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 {
 	int i, r;
 	struct iwl_link_quality_cmd link_cmd = {
@@ -979,8 +985,9 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	link_cmd.general_params.single_stream_ant_msk =
 				first_antenna(priv->hw_params.valid_tx_ant);
 	link_cmd.general_params.dual_stream_ant_msk = 3;
-	link_cmd.agg_params.agg_dis_start_th = 3;
-	link_cmd.agg_params.agg_time_limit = cpu_to_le16(4000);
+	link_cmd.agg_params.agg_dis_start_th = LINK_QUAL_AGG_DISABLE_START_DEF;
+	link_cmd.agg_params.agg_time_limit =
+		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
 
 	/* Update the rate scaling for control frame Tx to AP */
 	link_cmd.sta_id = is_ap ? IWL_AP_ID : priv->hw_params.bcast_sta_id;
@@ -995,7 +1002,7 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
  * there is only one AP station with id= IWL_AP_ID
  * NOTE: mutex must be held before calling this function
  */
-int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
+int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 {
 	struct ieee80211_sta *sta;
 	struct ieee80211_sta_ht_cap ht_config;
@@ -1020,8 +1027,7 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 		rcu_read_unlock();
 	}
 
-	sta_id = iwl_add_station_flags(priv, addr, is_ap,
-				       0, cur_ht_config);
+	sta_id = iwl_add_station(priv, addr, is_ap, CMD_SYNC, cur_ht_config);
 
 	/* Set up default rate scaling table in device's station table */
 	iwl_sta_init_lq(priv, addr, is_ap);
@@ -1067,8 +1073,8 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 			return sta_id;
 
 		/* Create new station table entry */
-		sta_id = iwl_add_station_flags(priv, hdr->addr1,
-						   0, CMD_ASYNC, NULL);
+		sta_id = iwl_add_station(priv, hdr->addr1, false,
+					CMD_ASYNC, NULL);
 
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
@@ -1077,11 +1083,6 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 			       "Defaulting to broadcast...\n",
 			       hdr->addr1);
 		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
-		return priv->hw_params.bcast_sta_id;
-
-	/* If we are in monitor mode, use BCAST. This is required for
-	 * packet injection. */
-	case NL80211_IFTYPE_MONITOR:
 		return priv->hw_params.bcast_sta_id;
 
 	default:

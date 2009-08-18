@@ -34,7 +34,6 @@
 
 /* Proxy LEC knows about bridging */
 #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
-#include <linux/if_bridge.h>
 #include "../bridge/br_private.h"
 
 static unsigned char bridge_ula_lec[] = { 0x01, 0x80, 0xc2, 0x00, 0x00 };
@@ -271,7 +270,8 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk("%s:No lecd attached\n", dev->name);
 		dev->stats.tx_errors++;
 		netif_stop_queue(dev);
-		return -EUNATCH;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	pr_debug("skbuff head:%lx data:%lx tail:%lx end:%lx\n",
@@ -518,18 +518,14 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	case l_should_bridge:
 #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
 		{
-			struct net_bridge_fdb_entry *f;
-
 			pr_debug("%s: bridge zeppelin asks about %pM\n",
 				 dev->name, mesg->content.proxy.mac_addr);
 
-			if (br_fdb_get_hook == NULL || dev->br_port == NULL)
+			if (br_fdb_test_addr_hook == NULL)
 				break;
 
-			f = br_fdb_get_hook(dev->br_port->br,
-					    mesg->content.proxy.mac_addr);
-			if (f != NULL && f->dst->dev != dev
-			    && f->dst->state == BR_STATE_FORWARDING) {
+			if (br_fdb_test_addr_hook(dev,
+					mesg->content.proxy.mac_addr)) {
 				/* hit from bridge table, send LE_ARP_RESPONSE */
 				struct sk_buff *skb2;
 				struct sock *sk;
@@ -540,10 +536,8 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 				skb2 =
 				    alloc_skb(sizeof(struct atmlec_msg),
 					      GFP_ATOMIC);
-				if (skb2 == NULL) {
-					br_fdb_put_hook(f);
+				if (skb2 == NULL)
 					break;
-				}
 				skb2->len = sizeof(struct atmlec_msg);
 				skb_copy_to_linear_data(skb2, mesg,
 							sizeof(*mesg));
@@ -552,8 +546,6 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 				skb_queue_tail(&sk->sk_receive_queue, skb2);
 				sk->sk_data_ready(sk, skb2->len);
 			}
-			if (f != NULL)
-				br_fdb_put_hook(f);
 		}
 #endif /* defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE) */
 		break;

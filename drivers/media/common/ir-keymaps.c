@@ -2750,3 +2750,26 @@ IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE] = {
 	[0x1b] = KEY_B,		/*recall*/
 };
 EXPORT_SYMBOL_GPL(ir_codes_dm1105_nec);
+
+/* EVGA inDtube
+   Devin Heitmueller <devin.heitmueller@gmail.com>
+ */
+IR_KEYTAB_TYPE ir_codes_evga_indtube[IR_KEYTAB_SIZE] = {
+	[0x12] = KEY_POWER,
+	[0x02] = KEY_MODE,	/* TV */
+	[0x14] = KEY_MUTE,
+	[0x1a] = KEY_CHANNELUP,
+	[0x16] = KEY_TV2,	/* PIP */
+	[0x1d] = KEY_VOLUMEUP,
+	[0x05] = KEY_CHANNELDOWN,
+	[0x0f] = KEY_PLAYPAUSE,
+	[0x19] = KEY_VOLUMEDOWN,
+	[0x1c] = KEY_REWIND,
+	[0x0d] = KEY_RECORD,
+	[0x18] = KEY_FORWARD,
+	[0x1e] = KEY_PREVIOUS,
+	[0x1b] = KEY_STOP,
+	[0x1f] = KEY_NEXT,
+	[0x13] = KEY_CAMERA,
+};
+EXPORT_SYMBOL_GPL(ir_codes_evga_indtube);

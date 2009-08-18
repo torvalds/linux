@@ -12,8 +12,7 @@
  * 27-06-1998 by Frank Denis : file overwriting.
  */
 
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
+#include "qnx4.h"
 
 /*
  * We have mostly NULL's here: the current defaults are ok for
@@ -29,7 +28,7 @@ const struct file_operations qnx4_file_operations =
 #ifdef CONFIG_QNX4FS_RW
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
-	.fsync		= qnx4_sync_file,
+	.fsync		= simple_fsync,
 #endif
 };
 

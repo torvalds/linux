@@ -49,11 +49,23 @@ MODULE_LICENSE("GPL");
  */
 static void hfs_write_super(struct super_block *sb)
 {
+	lock_super(sb);
 	sb->s_dirt = 0;
-	if (sb->s_flags & MS_RDONLY)
-		return;
+
 	/* sync everything to the buffers */
+	if (!(sb->s_flags & MS_RDONLY))
+		hfs_mdb_commit(sb);
+	unlock_super(sb);
+}
+
+static int hfs_sync_fs(struct super_block *sb, int wait)
+{
+	lock_super(sb);
 	hfs_mdb_commit(sb);
+	sb->s_dirt = 0;
+	unlock_super(sb);
+
+	return 0;
 }
 
 /*
@@ -65,9 +77,15 @@ static void hfs_write_super(struct super_block *sb)
  */
 static void hfs_put_super(struct super_block *sb)
 {
+	lock_kernel();
+
+	if (sb->s_dirt)
+		hfs_write_super(sb);
 	hfs_mdb_close(sb);
 	/* release the MDB's resources */
 	hfs_mdb_put(sb);
+
+	unlock_kernel();
 }
 
 /*
@@ -164,6 +182,7 @@ static const struct super_operations hfs_super_operations = {
 	.clear_inode	= hfs_clear_inode,
 	.put_super	= hfs_put_super,
 	.write_super	= hfs_write_super,
+	.sync_fs	= hfs_sync_fs,
 	.statfs		= hfs_statfs,
 	.remount_fs     = hfs_remount,
 	.show_options	= hfs_show_options,

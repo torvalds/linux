@@ -66,7 +66,7 @@ static void it8172_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	if (drive->media == ide_disk)
 		/* enable prefetch */
 		drive_enables |= 0x0004 << (drive->dn * 4);
-	if (ata_id_has_iordy(drive->id))
+	if (ide_pio_need_iordy(drive, pio))
 		/* enable IORDY sample-point */
 		drive_enables |= 0x0002 << (drive->dn * 4);
 

@@ -75,9 +75,6 @@ may need to apply in domain-specific ways to their devices:
 struct bus_type {
 	...
 	int  (*suspend)(struct device *dev, pm_message_t state);
-	int  (*suspend_late)(struct device *dev, pm_message_t state);
-
-	int  (*resume_early)(struct device *dev);
 	int  (*resume)(struct device *dev);
 };
 
@@ -226,20 +223,7 @@ The phases are seen by driver notifications issued in this order:
 
 	This call should handle parts of device suspend logic that require
 	sleeping.  It probably does work to quiesce the device which hasn't
-	been abstracted into class.suspend() or bus.suspend_late().
-
-   3	bus.suspend_late(dev, message) is called with IRQs disabled, and
-	with only one CPU active.  Until the bus.resume_early() phase
-	completes (see later), IRQs are not enabled again.  This method
-	won't be exposed by all busses; for message based busses like USB,
-	I2C, or SPI, device interactions normally require IRQs.  This bus
-	call may be morphed into a driver call with bus-specific parameters.
-
-	This call might save low level hardware state that might otherwise
-	be lost in the upcoming low power state, and actually put the
-	device into a low power state ... so that in some cases the device
-	may stay partly usable until this late.  This "late" call may also
-	help when coping with hardware that behaves badly.
+	been abstracted into class.suspend().
 
 The pm_message_t parameter is currently used to refine those semantics
 (described later).
@@ -351,19 +335,11 @@ devices processing each phase's calls before the next phase begins.
 
 The phases are seen by driver notifications issued in this order:
 
-   1	bus.resume_early(dev) is called with IRQs disabled, and with
-   	only one CPU active.  As with bus.suspend_late(), this method
-	won't be supported on busses that require IRQs in order to
-	interact with devices.
+   1	bus.resume(dev) reverses the effects of bus.suspend().  This may
+	be morphed into a device driver call with bus-specific parameters;
+	implementations may sleep.
 
-	This reverses the effects of bus.suspend_late().
-
-   2	bus.resume(dev) is called next.  This may be morphed into a device
-   	driver call with bus-specific parameters; implementations may sleep.
-
-	This reverses the effects of bus.suspend().
-
-   3	class.resume(dev) is called for devices associated with a class
+   2	class.resume(dev) is called for devices associated with a class
 	that has such a method.  Implementations may sleep.
 
 	This reverses the effects of class.suspend(), and would usually

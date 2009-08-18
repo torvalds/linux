@@ -2336,7 +2336,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static void ATEN2011_shutdown(struct usb_serial *serial)
+static void ATEN2011_release(struct usb_serial *serial)
 {
 	int i;
 	struct ATENINTL_port *ATEN2011_port;
@@ -2382,7 +2382,7 @@ static struct usb_serial_driver aten_serial_driver = {
 	.tiocmget =		ATEN2011_tiocmget,
 	.tiocmset =		ATEN2011_tiocmset,
 	.attach =		ATEN2011_startup,
-	.shutdown =		ATEN2011_shutdown,
+	.release =		ATEN2011_release,
 	.read_bulk_callback =	ATEN2011_bulk_in_callback,
 	.read_int_callback =	ATEN2011_interrupt_callback,
 };

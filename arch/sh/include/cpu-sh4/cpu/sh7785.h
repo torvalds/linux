@@ -1,6 +1,31 @@
 #ifndef __ASM_SH7785_H__
 #define __ASM_SH7785_H__
 
+/* Boot Mode Pins:
+ *
+ * MODE0: CPG - Initial Pck/Bck Frequency [FRQMR1]
+ * MODE1: CPG - Initial Uck/SHck/DDRck Frequency [FRQMR1]
+ * MODE2: CPG - Reserved (L: Normal operation)
+ * MODE3: CPG - Reserved (L: Normal operation)
+ * MODE4: CPG - Initial PLL setting (72x/36x)
+ * MODE5: LBSC - Area0 Memory Type / Bus Width [CS0BCR.8]
+ * MODE6: LBSC - Area0 Memory Type / Bus Width [CS0BCR.9]
+ * MODE7: LBSC - Area0 Memory Type / Bus Width [CS0BCR.3]
+ * MODE8: LBSC - Endian Mode (L: Big, H: Little) [BCR.31]
+ * MODE9: LBSC - Master/Slave Mode (L: Slave) [BCR.30]
+ * MODE10: CPG - Clock Input (L: Ext Clk, H: Crystal)
+ * MODE11: PCI - Pin Mode (LL: PCI host, LH: PCI slave)
+ * MODE12: PCI - Pin Mode (HL: Local bus, HH: DU)
+ * MODE13: Boot Address Mode (L: 29-bit, H: 32-bit)
+ * MODE14: Reserved (H: Normal operation)
+ *
+ * More information in sh7785 manual Rev.1.00, page 1628.
+ */
+
+/* Pin Function Controller:
+ * GPIO_FN_xx - GPIO used to select pin function
+ * GPIO_Pxx - GPIO mapped to real I/O pin on CPU
+ */
 enum {
 	/* PA */
 	GPIO_PA7, GPIO_PA6, GPIO_PA5, GPIO_PA4,

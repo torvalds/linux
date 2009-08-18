@@ -15,7 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #include "trace.h"
 
@@ -138,9 +138,6 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 
 	pc = preempt_count();
 
-	/* The task we are waiting for is waking up */
-	data = wakeup_trace->data[wakeup_cpu];
-
 	/* disable local data, not wakeup_cpu data */
 	cpu = raw_smp_processor_id();
 	disabled = atomic_inc_return(&wakeup_trace->data[cpu]->disabled);
@@ -153,6 +150,9 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	/* We could race with grabbing wakeup_lock */
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
+
+	/* The task we are waiting for is waking up */
+	data = wakeup_trace->data[wakeup_cpu];
 
 	trace_function(wakeup_trace, CALLER_ADDR0, CALLER_ADDR1, flags, pc);
 	tracing_sched_switch_trace(wakeup_trace, prev, next, flags, pc);

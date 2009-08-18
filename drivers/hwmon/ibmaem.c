@@ -1127,3 +1127,4 @@ MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3650-*");
 MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3655-*");
 MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3755-*");
 MODULE_ALIAS("dmi:bvnIBM:*:pnIBM3850M2/x3950M2-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMBladeHC10-*");

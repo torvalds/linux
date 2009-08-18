@@ -33,10 +33,6 @@
 static struct pmac_keywest *keywest_ctx;
 
 
-#ifndef i2c_device_name
-#define i2c_device_name(x)	((x)->name)
-#endif
-
 static int keywest_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -56,7 +52,7 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 	if (! keywest_ctx)
 		return -EINVAL;
 
-	if (strncmp(i2c_device_name(adapter), "mac-io", 6))
+	if (strncmp(adapter->name, "mac-io", 6))
 		return 0; /* ignored */
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
@@ -109,7 +105,7 @@ void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c)
 	}
 }
 
-int __init snd_pmac_tumbler_post_init(void)
+int __devinit snd_pmac_tumbler_post_init(void)
 {
 	int err;
 	
@@ -124,7 +120,7 @@ int __init snd_pmac_tumbler_post_init(void)
 }
 
 /* exported */
-int __init snd_pmac_keywest_init(struct pmac_keywest *i2c)
+int __devinit snd_pmac_keywest_init(struct pmac_keywest *i2c)
 {
 	int err;
 

@@ -132,6 +132,19 @@ static int via_rng_init(struct hwrng *rng)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 lo, hi, old_lo;
 
+	/* VIA Nano CPUs don't have the MSR_VIA_RNG anymore.  The RNG
+	 * is always enabled if CPUID rng_en is set.  There is no
+	 * RNG configuration like it used to be the case in this
+	 * register */
+	if ((c->x86 == 6) && (c->x86_model >= 0x0f)) {
+		if (!cpu_has_xstore_enabled) {
+			printk(KERN_ERR PFX "can't enable hardware RNG "
+				"if XSTORE is not enabled\n");
+			return -ENODEV;
+		}
+		return 0;
+	}
+
 	/* Control the RNG via MSR.  Tread lightly and pay very close
 	 * close attention to values written, as the reserved fields
 	 * are documented to be "undefined and unpredictable"; but it
@@ -205,5 +218,5 @@ static void __exit mod_exit(void)
 module_init(mod_init);
 module_exit(mod_exit);
 
-MODULE_DESCRIPTION("H/W RNG driver for VIA chipsets");
+MODULE_DESCRIPTION("H/W RNG driver for VIA CPU with PadLock");
 MODULE_LICENSE("GPL");

@@ -42,11 +42,13 @@
 #include <linux/hash.h>
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
-#include <trace/lockdep.h>
 
 #include <asm/sections.h>
 
 #include "lockdep_internals.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/lockdep.h>
 
 #ifdef CONFIG_PROVE_LOCKING
 int prove_locking = 1;
@@ -2935,8 +2937,6 @@ void lock_set_class(struct lockdep_map *lock, const char *name,
 }
 EXPORT_SYMBOL_GPL(lock_set_class);
 
-DEFINE_TRACE(lock_acquire);
-
 /*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
@@ -2962,8 +2962,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	raw_local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(lock_acquire);
-
-DEFINE_TRACE(lock_release);
 
 void lock_release(struct lockdep_map *lock, int nested,
 			  unsigned long ip)
@@ -3105,6 +3103,8 @@ found_it:
 		hlock->holdtime_stamp = now;
 	}
 
+	trace_lock_acquired(lock, ip, waittime);
+
 	stats = get_lock_stats(hlock_class(hlock));
 	if (waittime) {
 		if (hlock->read)
@@ -3119,8 +3119,6 @@ found_it:
 	lock->cpu = cpu;
 	lock->ip = ip;
 }
-
-DEFINE_TRACE(lock_contended);
 
 void lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
@@ -3143,13 +3141,9 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_contended);
 
-DEFINE_TRACE(lock_acquired);
-
 void lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
-
-	trace_lock_acquired(lock, ip);
 
 	if (unlikely(!lock_stat))
 		return;

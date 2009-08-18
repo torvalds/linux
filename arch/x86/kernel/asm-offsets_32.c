@@ -126,6 +126,7 @@ void foo(void)
 #if defined(CONFIG_LGUEST) || defined(CONFIG_LGUEST_GUEST) || defined(CONFIG_LGUEST_MODULE)
 	BLANK();
 	OFFSET(LGUEST_DATA_irq_enabled, lguest_data, irq_enabled);
+	OFFSET(LGUEST_DATA_irq_pending, lguest_data, irq_pending);
 	OFFSET(LGUEST_DATA_pgdir, lguest_data, pgdir);
 
 	BLANK();
@@ -146,4 +147,5 @@ void foo(void)
 	OFFSET(BP_loadflags, boot_params, hdr.loadflags);
 	OFFSET(BP_hardware_subarch, boot_params, hdr.hardware_subarch);
 	OFFSET(BP_version, boot_params, hdr.version);
+	OFFSET(BP_kernel_alignment, boot_params, hdr.kernel_alignment);
 }

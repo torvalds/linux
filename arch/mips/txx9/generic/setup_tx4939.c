@@ -28,6 +28,7 @@
 #include <asm/txx9tmr.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/ndfmc.h>
+#include <asm/txx9/dmac.h>
 #include <asm/txx9/tx4939.h>
 
 static void __init tx4939_wdr_init(void)
@@ -259,11 +260,6 @@ void __init tx4939_setup(void)
 	for (i = 0; i < TX4939_NR_TMR; i++)
 		txx9_tmr_init(TX4939_TMR_REG(i) & 0xfffffffffULL);
 
-	/* DMA */
-	for (i = 0; i < 2; i++)
-		____raw_writeq(TX4938_DMA_MCR_MSTEN,
-			       (void __iomem *)(TX4939_DMA_REG(i) + 0x50));
-
 	/* set PCIC1 reset (required to prevent hangup on BIST) */
 	txx9_set64(&tx4939_ccfgptr->clkctr, TX4939_CLKCTR_PCI1RST);
 	pcfg = ____raw_readq(&tx4939_ccfgptr->pcfg);
@@ -472,6 +468,53 @@ void __init tx4939_ndfmc_init(unsigned int hold, unsigned int spw,
 		.wide_mask = wide_mask,
 	};
 	txx9_ndfmc_init(TX4939_NDFMC_REG & 0xfffffffffULL, &plat_data);
+}
+
+void __init tx4939_dmac_init(int memcpy_chan0, int memcpy_chan1)
+{
+	struct txx9dmac_platform_data plat_data = {
+		.have_64bit_regs = true,
+	};
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		plat_data.memcpy_chan = i ? memcpy_chan1 : memcpy_chan0;
+		txx9_dmac_init(i, TX4939_DMA_REG(i) & 0xfffffffffULL,
+			       TXX9_IRQ_BASE + TX4939_IR_DMA(i, 0),
+			       &plat_data);
+	}
+}
+
+void __init tx4939_aclc_init(void)
+{
+	u64 pcfg = __raw_readq(&tx4939_ccfgptr->pcfg);
+
+	if ((pcfg & TX4939_PCFG_I2SMODE_MASK) == TX4939_PCFG_I2SMODE_ACLC)
+		txx9_aclc_init(TX4939_ACLC_REG & 0xfffffffffULL,
+			       TXX9_IRQ_BASE + TX4939_IR_ACLC, 1, 0, 1);
+}
+
+void __init tx4939_sramc_init(void)
+{
+	if (tx4939_sram_resource.start)
+		txx9_sramc_init(&tx4939_sram_resource);
+}
+
+void __init tx4939_rng_init(void)
+{
+	static struct resource res = {
+		.start = TX4939_RNG_REG & 0xfffffffffULL,
+		.end = (TX4939_RNG_REG & 0xfffffffffULL) + 0x30 - 1,
+		.flags = IORESOURCE_MEM,
+	};
+	static struct platform_device pdev = {
+		.name = "tx4939-rng",
+		.id = -1,
+		.num_resources = 1,
+		.resource = &res,
+	};
+
+	platform_device_register(&pdev);
 }
 
 static void __init tx4939_stop_unused_modules(void)

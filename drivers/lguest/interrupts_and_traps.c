@@ -128,30 +128,39 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi,
 /*H:205
  * Virtual Interrupts.
  *
- * maybe_do_interrupt() gets called before every entry to the Guest, to see if
- * we should divert the Guest to running an interrupt handler. */
-void maybe_do_interrupt(struct lg_cpu *cpu)
+ * interrupt_pending() returns the first pending interrupt which isn't blocked
+ * by the Guest.  It is called before every entry to the Guest, and just before
+ * we go to sleep when the Guest has halted itself. */
+unsigned int interrupt_pending(struct lg_cpu *cpu, bool *more)
 {
 	unsigned int irq;
 	DECLARE_BITMAP(blk, LGUEST_IRQS);
-	struct desc_struct *idt;
 
 	/* If the Guest hasn't even initialized yet, we can do nothing. */
 	if (!cpu->lg->lguest_data)
-		return;
+		return LGUEST_IRQS;
 
 	/* Take our "irqs_pending" array and remove any interrupts the Guest
 	 * wants blocked: the result ends up in "blk". */
 	if (copy_from_user(&blk, cpu->lg->lguest_data->blocked_interrupts,
 			   sizeof(blk)))
-		return;
+		return LGUEST_IRQS;
 	bitmap_andnot(blk, cpu->irqs_pending, blk, LGUEST_IRQS);
 
 	/* Find the first interrupt. */
 	irq = find_first_bit(blk, LGUEST_IRQS);
-	/* None?  Nothing to do */
-	if (irq >= LGUEST_IRQS)
-		return;
+	*more = find_next_bit(blk, LGUEST_IRQS, irq+1);
+
+	return irq;
+}
+
+/* This actually diverts the Guest to running an interrupt handler, once an
+ * interrupt has been identified by interrupt_pending(). */
+void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq, bool more)
+{
+	struct desc_struct *idt;
+
+	BUG_ON(irq >= LGUEST_IRQS);
 
 	/* They may be in the middle of an iret, where they asked us never to
 	 * deliver interrupts. */
@@ -170,8 +179,12 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 		u32 irq_enabled;
 		if (get_user(irq_enabled, &cpu->lg->lguest_data->irq_enabled))
 			irq_enabled = 0;
-		if (!irq_enabled)
+		if (!irq_enabled) {
+			/* Make sure they know an IRQ is pending. */
+			put_user(X86_EFLAGS_IF,
+				 &cpu->lg->lguest_data->irq_pending);
 			return;
+		}
 	}
 
 	/* Look at the IDT entry the Guest gave us for this interrupt.  The
@@ -194,6 +207,25 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 	 * here is a compromise which means at least it gets updated every
 	 * timer interrupt. */
 	write_timestamp(cpu);
+
+	/* If there are no other interrupts we want to deliver, clear
+	 * the pending flag. */
+	if (!more)
+		put_user(0, &cpu->lg->lguest_data->irq_pending);
+}
+
+/* And this is the routine when we want to set an interrupt for the Guest. */
+void set_interrupt(struct lg_cpu *cpu, unsigned int irq)
+{
+	/* Next time the Guest runs, the core code will see if it can deliver
+	 * this interrupt. */
+	set_bit(irq, cpu->irqs_pending);
+
+	/* Make sure it sees it; it might be asleep (eg. halted), or
+	 * running the Guest right now, in which case kick_process()
+	 * will knock it out. */
+	if (!wake_up_process(cpu->tsk))
+		kick_process(cpu->tsk);
 }
 /*:*/
 
@@ -510,10 +542,7 @@ static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 	struct lg_cpu *cpu = container_of(timer, struct lg_cpu, hrt);
 
 	/* Remember the first interrupt is the timer interrupt. */
-	set_bit(0, cpu->irqs_pending);
-	/* If the Guest is actually stopped, we need to wake it up. */
-	if (cpu->halted)
-		wake_up_process(cpu->tsk);
+	set_interrupt(cpu, 0);
 	return HRTIMER_NORESTART;
 }
 

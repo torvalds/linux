@@ -218,6 +218,13 @@ static struct gpio_led ek_leds[] = {
 	}
 };
 
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("24c512", 0x50),
+	},
+};
+
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -235,7 +242,7 @@ static void __init ek_board_init(void)
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* I2C */
-	at91_add_device_i2c(NULL, 0);
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	/* PCK0 provides MCLK to the WM8731 */

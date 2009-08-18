@@ -35,14 +35,13 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
-#include <linux/version.h>
 #include <linux/uaccess.h>
 
 static unsigned int b3dfg_nbuf = 2;
 
 module_param_named(buffer_count, b3dfg_nbuf, uint, 0444);
 
-MODULE_PARM_DESC(buffer_count, "Number of buffers (min 2, default 2)\n");
+MODULE_PARM_DESC(buffer_count, "Number of buffers (min 2, default 2)");
 
 MODULE_AUTHOR("Daniel Drake <ddrake@brontes3d.com>");
 MODULE_DESCRIPTION("Brontes frame grabber driver");

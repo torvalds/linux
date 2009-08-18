@@ -46,13 +46,6 @@ EXPORT_SYMBOL(range_bipolar2_5);
 EXPORT_SYMBOL(range_unipolar10);
 EXPORT_SYMBOL(range_unipolar5);
 EXPORT_SYMBOL(range_unknown);
-#ifdef CONFIG_COMEDI_RT
-EXPORT_SYMBOL(comedi_free_irq);
-EXPORT_SYMBOL(comedi_request_irq);
-EXPORT_SYMBOL(comedi_switch_to_rt);
-EXPORT_SYMBOL(comedi_switch_to_non_rt);
-EXPORT_SYMBOL(rt_pend_call);
-#endif
 #ifdef CONFIG_COMEDI_DEBUG
 EXPORT_SYMBOL(comedi_debug);
 #endif

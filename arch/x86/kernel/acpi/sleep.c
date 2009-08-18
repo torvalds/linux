@@ -104,7 +104,7 @@ int acpi_save_state_mem(void)
 	initial_gs = per_cpu_offset(smp_processor_id());
 #endif
 	initial_code = (unsigned long)wakeup_long64;
-	saved_magic = 0x123456789abcdef0;
+       saved_magic = 0x123456789abcdef0L;
 #endif /* CONFIG_64BIT */
 
 	return 0;

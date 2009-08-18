@@ -26,34 +26,22 @@
 #define MAX6690_EXTERNAL_TEMP	1
 
 struct wf_6690_sensor {
-	struct i2c_client	i2c;
+	struct i2c_client	*i2c;
 	struct wf_sensor	sens;
 };
 
 #define wf_to_6690(x)	container_of((x), struct wf_6690_sensor, sens)
-#define i2c_to_6690(x)	container_of((x), struct wf_6690_sensor, i2c)
-
-static int wf_max6690_attach(struct i2c_adapter *adapter);
-static int wf_max6690_detach(struct i2c_client *client);
-
-static struct i2c_driver wf_max6690_driver = {
-	.driver = {
-		.name		= "wf_max6690",
-	},
-	.attach_adapter	= wf_max6690_attach,
-	.detach_client	= wf_max6690_detach,
-};
 
 static int wf_max6690_get(struct wf_sensor *sr, s32 *value)
 {
 	struct wf_6690_sensor *max = wf_to_6690(sr);
 	s32 data;
 
-	if (max->i2c.adapter == NULL)
+	if (max->i2c == NULL)
 		return -ENODEV;
 
 	/* chip gets initialized by firmware */
-	data = i2c_smbus_read_byte_data(&max->i2c, MAX6690_EXTERNAL_TEMP);
+	data = i2c_smbus_read_byte_data(max->i2c, MAX6690_EXTERNAL_TEMP);
 	if (data < 0)
 		return data;
 	*value = data << 16;
@@ -64,10 +52,6 @@ static void wf_max6690_release(struct wf_sensor *sr)
 {
 	struct wf_6690_sensor *max = wf_to_6690(sr);
 
-	if (max->i2c.adapter) {
-		i2c_detach_client(&max->i2c);
-		max->i2c.adapter = NULL;
-	}
 	kfree(max);
 }
 
@@ -77,18 +61,39 @@ static struct wf_sensor_ops wf_max6690_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static void wf_max6690_create(struct i2c_adapter *adapter, u8 addr,
-			      const char *loc)
+static int wf_max6690_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
 	struct wf_6690_sensor *max;
-	char *name;
+	int rc;
 
 	max = kzalloc(sizeof(struct wf_6690_sensor), GFP_KERNEL);
 	if (max == NULL) {
-		printk(KERN_ERR "windfarm: Couldn't create MAX6690 sensor %s: "
-		       "no memory\n", loc);
-		return;
+		printk(KERN_ERR "windfarm: Couldn't create MAX6690 sensor: "
+		       "no memory\n");
+		return -ENOMEM;
 	}
+
+	max->i2c = client;
+	max->sens.name = client->dev.platform_data;
+	max->sens.ops = &wf_max6690_ops;
+	i2c_set_clientdata(client, max);
+
+	rc = wf_register_sensor(&max->sens);
+	if (rc) {
+		i2c_set_clientdata(client, NULL);
+		kfree(max);
+	}
+
+	return rc;
+}
+
+static struct i2c_client *wf_max6690_create(struct i2c_adapter *adapter,
+					    u8 addr, const char *loc)
+{
+	struct i2c_board_info info;
+	struct i2c_client *client;
+	char *name;
 
 	if (!strcmp(loc, "BACKSIDE"))
 		name = "backside-temp";
@@ -99,27 +104,26 @@ static void wf_max6690_create(struct i2c_adapter *adapter, u8 addr,
 	else
 		goto fail;
 
-	max->sens.ops = &wf_max6690_ops;
-	max->sens.name = name;
-	max->i2c.addr = addr >> 1;
-	max->i2c.adapter = adapter;
-	max->i2c.driver = &wf_max6690_driver;
-	strncpy(max->i2c.name, name, I2C_NAME_SIZE-1);
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = addr >> 1;
+	info.platform_data = name;
+	strlcpy(info.type, "wf_max6690", I2C_NAME_SIZE);
 
-	if (i2c_attach_client(&max->i2c)) {
+	client = i2c_new_device(adapter, &info);
+	if (client == NULL) {
 		printk(KERN_ERR "windfarm: failed to attach MAX6690 sensor\n");
 		goto fail;
 	}
 
-	if (wf_register_sensor(&max->sens)) {
-		i2c_detach_client(&max->i2c);
-		goto fail;
-	}
-
-	return;
+	/*
+	 * Let i2c-core delete that device on driver removal.
+	 * This is safe because i2c-core holds the core_lock mutex for us.
+	 */
+	list_add_tail(&client->detected, &client->driver->clients);
+	return client;
 
  fail:
-	kfree(max);
+	return NULL;
 }
 
 static int wf_max6690_attach(struct i2c_adapter *adapter)
@@ -154,15 +158,30 @@ static int wf_max6690_attach(struct i2c_adapter *adapter)
 	return 0;
 }
 
-static int wf_max6690_detach(struct i2c_client *client)
+static int wf_max6690_remove(struct i2c_client *client)
 {
-	struct wf_6690_sensor *max = i2c_to_6690(client);
+	struct wf_6690_sensor *max = i2c_get_clientdata(client);
 
-	max->i2c.adapter = NULL;
+	max->i2c = NULL;
 	wf_unregister_sensor(&max->sens);
 
 	return 0;
 }
+
+static const struct i2c_device_id wf_max6690_id[] = {
+	{ "wf_max6690", 0 },
+	{ }
+};
+
+static struct i2c_driver wf_max6690_driver = {
+	.driver = {
+		.name		= "wf_max6690",
+	},
+	.attach_adapter	= wf_max6690_attach,
+	.probe		= wf_max6690_probe,
+	.remove		= wf_max6690_remove,
+	.id_table	= wf_max6690_id,
+};
 
 static int __init wf_max6690_sensor_init(void)
 {

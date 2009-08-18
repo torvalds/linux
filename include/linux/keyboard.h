@@ -56,6 +56,7 @@ extern int unregister_keyboard_notifier(struct notifier_block *nb);
 #define KT_ASCII	9
 #define KT_LOCK		10
 #define KT_SLOCK	12
+#define KT_DEAD2	13
 #define KT_BRL		14
 
 #define K(t,v)		(((t)<<8)|(v))

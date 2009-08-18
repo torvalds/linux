@@ -2,22 +2,22 @@
  * is 16 bits, but aligned on a 32 bit PCI boundary
  */
 
-static inline u16 get_u16(volatile const u32 * p)
+static inline u16 get_u16(volatile const u32 *p)
 {
 	return (u16) readl(p);
 }
 
-static inline void set_u16(volatile u32 * p, u16 val)
+static inline void set_u16(volatile u32 *p, u16 val)
 {
 	writel(val, p);
 }
 
-static inline s16 get_s16(volatile const s32 * p)
+static inline s16 get_s16(volatile const s32 *p)
 {
 	return (s16) readl(p);
 }
 
-static inline void set_s16(volatile s32 * p, s16 val)
+static inline void set_s16(volatile s32 *p, s16 val)
 {
 	writel(val, p);
 }

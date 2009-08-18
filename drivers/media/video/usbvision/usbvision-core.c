@@ -390,10 +390,9 @@ int usbvision_scratch_alloc(struct usb_usbvision *usbvision)
 
 void usbvision_scratch_free(struct usb_usbvision *usbvision)
 {
-	if (usbvision->scratch != NULL) {
-		vfree(usbvision->scratch);
-		usbvision->scratch = NULL;
-	}
+	vfree(usbvision->scratch);
+	usbvision->scratch = NULL;
+
 }
 
 /*
@@ -506,10 +505,9 @@ int usbvision_decompress_alloc(struct usb_usbvision *usbvision)
  */
 void usbvision_decompress_free(struct usb_usbvision *usbvision)
 {
-	if (usbvision->IntraFrameBuffer != NULL) {
-		vfree(usbvision->IntraFrameBuffer);
-		usbvision->IntraFrameBuffer = NULL;
-	}
+	vfree(usbvision->IntraFrameBuffer);
+	usbvision->IntraFrameBuffer = NULL;
+
 }
 
 /************************************************************

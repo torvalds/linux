@@ -79,7 +79,7 @@ static const u16 wm8753_reg[] = {
 	0x0097, 0x0097, 0x0000, 0x0004,
 	0x0000, 0x0083, 0x0024, 0x01ba,
 	0x0000, 0x0083, 0x0024, 0x01ba,
-	0x0000, 0x0000
+	0x0000, 0x0000, 0x0000
 };
 
 /* codec private data */
@@ -703,7 +703,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
-			"wm8753: unsupported N = %d\n", Ndiv);
+			"wm8753: unsupported N = %u\n", Ndiv);
 
 	pll_div->n = Ndiv;
 	Nmod = target % source;
@@ -1660,11 +1660,11 @@ static int wm8753_register(struct wm8753_priv *wm8753)
 	codec->set_bias_level = wm8753_set_bias_level;
 	codec->dai = wm8753_dai;
 	codec->num_dai = 2;
-	codec->reg_cache_size = ARRAY_SIZE(wm8753->reg_cache);
+	codec->reg_cache_size = ARRAY_SIZE(wm8753->reg_cache) + 1;
 	codec->reg_cache = &wm8753->reg_cache;
 	codec->private_data = wm8753;
 
-	memcpy(codec->reg_cache, wm8753_reg, sizeof(codec->reg_cache));
+	memcpy(codec->reg_cache, wm8753_reg, sizeof(wm8753->reg_cache));
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
 
 	ret = wm8753_reset(codec);
@@ -1766,6 +1766,21 @@ static int wm8753_i2c_remove(struct i2c_client *client)
         return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8753_i2c_suspend(struct i2c_client *client, pm_message_t msg)
+{
+	return snd_soc_suspend_device(&client->dev);
+}
+
+static int wm8753_i2c_resume(struct i2c_client *client)
+{
+	return snd_soc_resume_device(&client->dev);
+}
+#else
+#define wm8753_i2c_suspend NULL
+#define wm8753_i2c_resume NULL
+#endif
+
 static const struct i2c_device_id wm8753_i2c_id[] = {
 	{ "wm8753", 0 },
 	{ }
@@ -1779,6 +1794,8 @@ static struct i2c_driver wm8753_i2c_driver = {
 	},
 	.probe =    wm8753_i2c_probe,
 	.remove =   wm8753_i2c_remove,
+	.suspend =  wm8753_i2c_suspend,
+	.resume =   wm8753_i2c_resume,
 	.id_table = wm8753_i2c_id,
 };
 #endif
@@ -1822,17 +1839,33 @@ static int __devinit wm8753_spi_probe(struct spi_device *spi)
 	codec->hw_write = (hw_write_t)wm8753_spi_write;
 	codec->dev = &spi->dev;
 
-	spi->dev.driver_data = wm8753;
+	dev_set_drvdata(&spi->dev, wm8753);
 
 	return wm8753_register(wm8753);
 }
 
 static int __devexit wm8753_spi_remove(struct spi_device *spi)
 {
-	struct wm8753_priv *wm8753 = spi->dev.driver_data;
+	struct wm8753_priv *wm8753 = dev_get_drvdata(&spi->dev);
 	wm8753_unregister(wm8753);
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int wm8753_spi_suspend(struct spi_device *spi, pm_message_t msg)
+{
+	return snd_soc_suspend_device(&spi->dev);
+}
+
+static int wm8753_spi_resume(struct spi_device *spi)
+{
+	return snd_soc_resume_device(&spi->dev);
+}
+
+#else
+#define wm8753_spi_suspend NULL
+#define wm8753_spi_resume NULL
+#endif
 
 static struct spi_driver wm8753_spi_driver = {
 	.driver = {
@@ -1842,6 +1875,8 @@ static struct spi_driver wm8753_spi_driver = {
 	},
 	.probe		= wm8753_spi_probe,
 	.remove		= __devexit_p(wm8753_spi_remove),
+	.suspend	= wm8753_spi_suspend,
+	.resume		= wm8753_spi_resume,
 };
 #endif
 

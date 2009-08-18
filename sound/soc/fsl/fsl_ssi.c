@@ -375,17 +375,13 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		struct snd_pcm_runtime *first_runtime =
 			ssi_private->first_stream->runtime;
 
-		if (!first_runtime->rate || !first_runtime->sample_bits) {
+		if (!first_runtime->sample_bits) {
 			dev_err(substream->pcm->card->dev,
-				"set sample rate and size in %s stream first\n",
+				"set sample size in %s stream first\n",
 				substream->stream == SNDRV_PCM_STREAM_PLAYBACK
 				? "capture" : "playback");
 			return -EAGAIN;
 		}
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-			SNDRV_PCM_HW_PARAM_RATE,
-			first_runtime->rate, first_runtime->rate);
 
 		/* If we're in synchronous mode, then we need to constrain
 		 * the sample size as well.  We don't support independent sample
@@ -674,7 +670,7 @@ struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 	ssi_private->dev = ssi_info->dev;
 	ssi_private->asynchronous = ssi_info->asynchronous;
 
-	ssi_private->dev->driver_data = fsl_ssi_dai;
+	dev_set_drvdata(ssi_private->dev, fsl_ssi_dai);
 
 	/* Initialize the the device_attribute structure */
 	dev_attr->attr.name = "ssi-stats";
@@ -693,6 +689,7 @@ struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 	fsl_ssi_dai->name = ssi_private->name;
 	fsl_ssi_dai->id = ssi_info->id;
 	fsl_ssi_dai->dev = ssi_info->dev;
+	fsl_ssi_dai->symmetric_rates = 1;
 
 	ret = snd_soc_register_dai(fsl_ssi_dai);
 	if (ret != 0) {

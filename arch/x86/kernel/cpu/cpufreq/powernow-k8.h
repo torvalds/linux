@@ -223,14 +223,3 @@ static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned 
 
 static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
 static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
-
-#ifdef CONFIG_SMP
-static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
-{
-}
-#else
-static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
-{
-	cpu_set(0, cpu_sharedcore_mask[0]);
-}
-#endif

@@ -79,7 +79,7 @@ static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= bfs_readdir,
-	.fsync		= file_fsync,
+	.fsync		= simple_fsync,
 	.llseek		= generic_file_llseek,
 };
 
@@ -205,7 +205,7 @@ static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 		inode->i_nlink = 1;
 	}
 	de->ino = 0;
-	mark_buffer_dirty(bh);
+	mark_buffer_dirty_inode(bh, dir);
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
 	inode->i_ctime = dir->i_ctime;
@@ -267,7 +267,7 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_inode->i_ctime = CURRENT_TIME_SEC;
 		inode_dec_link_count(new_inode);
 	}
-	mark_buffer_dirty(old_bh);
+	mark_buffer_dirty_inode(old_bh, old_dir);
 	error = 0;
 
 end_rename:
@@ -320,7 +320,7 @@ static int bfs_add_entry(struct inode *dir, const unsigned char *name,
 				for (i = 0; i < BFS_NAMELEN; i++)
 					de->name[i] =
 						(i < namelen) ? name[i] : 0;
-				mark_buffer_dirty(bh);
+				mark_buffer_dirty_inode(bh, dir);
 				brelse(bh);
 				return 0;
 			}

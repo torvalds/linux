@@ -23,10 +23,10 @@
  * clause 22 extension MMD, but since it doesn't have all the generic
  * MMD registers it is pointless to include it here.
  */
-#define TENXPRESS_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PMAPMD	| \
-				 MDIO_MMDREG_DEVS_PCS		| \
-				 MDIO_MMDREG_DEVS_PHYXS		| \
-				 MDIO_MMDREG_DEVS_AN)
+#define TENXPRESS_REQUIRED_DEVS (MDIO_DEVS_PMAPMD	| \
+				 MDIO_DEVS_PCS		| \
+				 MDIO_DEVS_PHYXS	| \
+				 MDIO_DEVS_AN)
 
 #define SFX7101_LOOPBACKS ((1 << LOOPBACK_PHYXS) |	\
 			   (1 << LOOPBACK_PCS) |	\
@@ -43,18 +43,6 @@
  * times in a row (must be > 1 as sampling the autoneg. registers is racy)
  */
 #define MAX_BAD_LP_TRIES	(5)
-
-/* LASI Control */
-#define PMA_PMD_LASI_CTRL	36866
-#define PMA_PMD_LASI_STATUS	36869
-#define PMA_PMD_LS_ALARM_LBN	0
-#define PMA_PMD_LS_ALARM_WIDTH	1
-#define PMA_PMD_TX_ALARM_LBN	1
-#define PMA_PMD_TX_ALARM_WIDTH	1
-#define PMA_PMD_RX_ALARM_LBN	2
-#define PMA_PMD_RX_ALARM_WIDTH	1
-#define PMA_PMD_AN_ALARM_LBN	3
-#define PMA_PMD_AN_ALARM_WIDTH	1
 
 /* Extended control register */
 #define PMA_PMD_XCONTROL_REG	49152
@@ -75,6 +63,7 @@
 
 /* extended status register */
 #define PMA_PMD_XSTATUS_REG	49153
+#define PMA_PMD_XSTAT_MDIX_LBN	14
 #define PMA_PMD_XSTAT_FLP_LBN   (12)
 
 /* LED control register */
@@ -153,10 +142,6 @@
 #define LOOPBACK_NEAR_LBN   (8)
 #define LOOPBACK_NEAR_WIDTH (1)
 
-#define PCS_10GBASET_STAT1       32
-#define PCS_10GBASET_BLKLK_LBN   0
-#define PCS_10GBASET_BLKLK_WIDTH 1
-
 /* Boot status register */
 #define PCS_BOOT_STATUS_REG		53248
 #define PCS_BOOT_FATAL_ERROR_LBN	0
@@ -206,10 +191,8 @@ static ssize_t show_phy_short_reach(struct device *dev,
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 	int reg;
 
-	reg = mdio_clause45_read(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-				 MDIO_PMAPMD_10GBT_TXPWR);
-	return sprintf(buf, "%d\n",
-		       !!(reg & (1 << MDIO_PMAPMD_10GBT_TXPWR_SHORT_LBN)));
+	reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD, MDIO_PMA_10GBT_TXPWR);
+	return sprintf(buf, "%d\n", !!(reg & MDIO_PMA_10GBT_TXPWR_SHORT));
 }
 
 static ssize_t set_phy_short_reach(struct device *dev,
@@ -219,10 +202,9 @@ static ssize_t set_phy_short_reach(struct device *dev,
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 
 	rtnl_lock();
-	mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-			       MDIO_PMAPMD_10GBT_TXPWR,
-			       MDIO_PMAPMD_10GBT_TXPWR_SHORT_LBN,
-			       count != 0 && *buf != '0');
+	efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_PMA_10GBT_TXPWR,
+			  MDIO_PMA_10GBT_TXPWR_SHORT,
+			  count != 0 && *buf != '0');
 	efx_reconfigure_port(efx);
 	rtnl_unlock();
 
@@ -238,9 +220,8 @@ int sft9001_wait_boot(struct efx_nic *efx)
 	int boot_stat;
 
 	for (;;) {
-		boot_stat = mdio_clause45_read(efx, efx->mii.phy_id,
-					       MDIO_MMD_PCS,
-					       PCS_BOOT_STATUS_REG);
+		boot_stat = efx_mdio_read(efx, MDIO_MMD_PCS,
+					  PCS_BOOT_STATUS_REG);
 		if (boot_stat >= 0) {
 			EFX_LOG(efx, "PHY boot status = %#x\n", boot_stat);
 			switch (boot_stat &
@@ -286,38 +267,32 @@ int sft9001_wait_boot(struct efx_nic *efx)
 
 static int tenxpress_init(struct efx_nic *efx)
 {
-	int phy_id = efx->mii.phy_id;
 	int reg;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
 		/* Enable 312.5 MHz clock */
-		mdio_clause45_write(efx, phy_id,
-				    MDIO_MMD_PCS, PCS_TEST_SELECT_REG,
-				    1 << CLK312_EN_LBN);
+		efx_mdio_write(efx, MDIO_MMD_PCS, PCS_TEST_SELECT_REG,
+			       1 << CLK312_EN_LBN);
 	} else {
 		/* Enable 312.5 MHz clock and GMII */
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-					 PMA_PMD_XCONTROL_REG);
+		reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG);
 		reg |= ((1 << PMA_PMD_EXT_GMII_EN_LBN) |
 			(1 << PMA_PMD_EXT_CLK_OUT_LBN) |
 			(1 << PMA_PMD_EXT_CLK312_LBN) |
 			(1 << PMA_PMD_EXT_ROBUST_LBN));
 
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-				    PMA_PMD_XCONTROL_REG, reg);
-		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
-				       GPHY_XCONTROL_REG, GPHY_ISOLATE_LBN,
-				       false);
+		efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
+		efx_mdio_set_flag(efx, MDIO_MMD_C22EXT,
+			      GPHY_XCONTROL_REG, 1 << GPHY_ISOLATE_LBN,
+			      false);
 	}
 
 	/* Set the LEDs up as: Green = Link, Amber = Link/Act, Red = Off */
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_PMAPMD,
-				       PMA_PMD_LED_CTRL_REG,
-				       PMA_PMA_LED_ACTIVITY_LBN,
-				       true);
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-				    PMA_PMD_LED_OVERR_REG, PMA_PMD_LED_DEFAULT);
+		efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_CTRL_REG,
+				  1 << PMA_PMA_LED_ACTIVITY_LBN, true);
+		efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG,
+			       PMA_PMD_LED_DEFAULT);
 	}
 
 	return 0;
@@ -337,22 +312,19 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	if (!(efx->phy_mode & PHY_MODE_SPECIAL)) {
 		if (efx->phy_type == PHY_TYPE_SFT9001A) {
 			int reg;
-			reg = mdio_clause45_read(efx, efx->mii.phy_id,
-						 MDIO_MMD_PMAPMD,
-						 PMA_PMD_XCONTROL_REG);
+			reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+					    PMA_PMD_XCONTROL_REG);
 			reg |= (1 << PMA_PMD_EXT_SSR_LBN);
-			mdio_clause45_write(efx, efx->mii.phy_id,
-					    MDIO_MMD_PMAPMD,
-					    PMA_PMD_XCONTROL_REG, reg);
+			efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+				       PMA_PMD_XCONTROL_REG, reg);
 			mdelay(200);
 		}
 
-		rc = mdio_clause45_wait_reset_mmds(efx,
-						   TENXPRESS_REQUIRED_DEVS);
+		rc = efx_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 		if (rc < 0)
 			goto fail;
 
-		rc = mdio_clause45_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
+		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
 		if (rc < 0)
 			goto fail;
 	}
@@ -360,7 +332,6 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	rc = tenxpress_init(efx);
 	if (rc < 0)
 		goto fail;
-	mdio_clause45_set_pause(efx);
 
 	if (efx->phy_type == PHY_TYPE_SFT9001B) {
 		rc = device_create_file(&efx->pci_dev->dev,
@@ -395,17 +366,14 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 	efx_stats_disable(efx);
 
 	/* Initiate reset */
-	reg = mdio_clause45_read(efx, efx->mii.phy_id,
-				 MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG);
+	reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG);
 	reg |= (1 << PMA_PMD_EXT_SSR_LBN);
-	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-			    PMA_PMD_XCONTROL_REG, reg);
+	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
 
 	mdelay(200);
 
 	/* Wait for the blocks to come out of reset */
-	rc = mdio_clause45_wait_reset_mmds(efx,
-					   TENXPRESS_REQUIRED_DEVS);
+	rc = efx_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 	if (rc < 0)
 		goto out;
 
@@ -424,7 +392,6 @@ out:
 static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 {
 	struct tenxpress_phy_data *pd = efx->phy_data;
-	int phy_id = efx->mii.phy_id;
 	bool bad_lp;
 	int reg;
 
@@ -432,11 +399,10 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 		bad_lp = false;
 	} else {
 		/* Check that AN has started but not completed. */
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
-					 MDIO_AN_STATUS);
-		if (!(reg & (1 << MDIO_AN_STATUS_LP_AN_CAP_LBN)))
+		reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_STAT1);
+		if (!(reg & MDIO_AN_STAT1_LPABLE))
 			return; /* LP status is unknown */
-		bad_lp = !(reg & (1 << MDIO_AN_STATUS_AN_DONE_LBN));
+		bad_lp = !(reg & MDIO_AN_STAT1_COMPLETE);
 		if (bad_lp)
 			pd->bad_lp_tries++;
 	}
@@ -448,8 +414,8 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 	/* Use the RX (red) LED as an error indicator once we've seen AN
 	 * failure several times in a row, and also log a message. */
 	if (!bad_lp || pd->bad_lp_tries == MAX_BAD_LP_TRIES) {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-					 PMA_PMD_LED_OVERR_REG);
+		reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+				    PMA_PMD_LED_OVERR_REG);
 		reg &= ~(PMA_PMD_LED_MASK << PMA_PMD_LED_RX_LBN);
 		if (!bad_lp) {
 			reg |= PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN;
@@ -460,23 +426,22 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 				" supports 10GBASE-T ONLY, so no link can"
 				" be established\n");
 		}
-		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-				    PMA_PMD_LED_OVERR_REG, reg);
+		efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+			       PMA_PMD_LED_OVERR_REG, reg);
 		pd->bad_lp_tries = bad_lp;
 	}
 }
 
 static bool sfx7101_link_ok(struct efx_nic *efx)
 {
-	return mdio_clause45_links_ok(efx,
-				      MDIO_MMDREG_DEVS_PMAPMD |
-				      MDIO_MMDREG_DEVS_PCS |
-				      MDIO_MMDREG_DEVS_PHYXS);
+	return efx_mdio_links_ok(efx,
+				 MDIO_DEVS_PMAPMD |
+				 MDIO_DEVS_PCS |
+				 MDIO_DEVS_PHYXS);
 }
 
 static bool sft9001_link_ok(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	int phy_id = efx->mii.phy_id;
 	u32 reg;
 
 	if (efx_phy_mode_disabled(efx->phy_mode))
@@ -484,50 +449,43 @@ static bool sft9001_link_ok(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	else if (efx->loopback_mode == LOOPBACK_GPHY)
 		return true;
 	else if (efx->loopback_mode)
-		return mdio_clause45_links_ok(efx,
-					      MDIO_MMDREG_DEVS_PMAPMD |
-					      MDIO_MMDREG_DEVS_PHYXS);
+		return efx_mdio_links_ok(efx,
+					 MDIO_DEVS_PMAPMD |
+					 MDIO_DEVS_PHYXS);
 
 	/* We must use the same definition of link state as LASI,
 	 * otherwise we can miss a link state transition
 	 */
 	if (ecmd->speed == 10000) {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PCS,
-					 PCS_10GBASET_STAT1);
-		return reg & (1 << PCS_10GBASET_BLKLK_LBN);
+		reg = efx_mdio_read(efx, MDIO_MMD_PCS, MDIO_PCS_10GBRT_STAT1);
+		return reg & MDIO_PCS_10GBRT_STAT1_BLKLK;
 	} else {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
-					 C22EXT_STATUS_REG);
+		reg = efx_mdio_read(efx, MDIO_MMD_C22EXT, C22EXT_STATUS_REG);
 		return reg & (1 << C22EXT_STATUS_LINK_LBN);
 	}
 }
 
 static void tenxpress_ext_loopback(struct efx_nic *efx)
 {
-	int phy_id = efx->mii.phy_id;
-
-	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_PHYXS,
-			       PHYXS_TEST1, LOOPBACK_NEAR_LBN,
-			       efx->loopback_mode == LOOPBACK_PHYXS);
+	efx_mdio_set_flag(efx, MDIO_MMD_PHYXS, PHYXS_TEST1,
+			  1 << LOOPBACK_NEAR_LBN,
+			  efx->loopback_mode == LOOPBACK_PHYXS);
 	if (efx->phy_type != PHY_TYPE_SFX7101)
-		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
-				       GPHY_XCONTROL_REG,
-				       GPHY_LOOPBACK_NEAR_LBN,
-				       efx->loopback_mode == LOOPBACK_GPHY);
+		efx_mdio_set_flag(efx, MDIO_MMD_C22EXT, GPHY_XCONTROL_REG,
+				  1 << GPHY_LOOPBACK_NEAR_LBN,
+				  efx->loopback_mode == LOOPBACK_GPHY);
 }
 
 static void tenxpress_low_power(struct efx_nic *efx)
 {
-	int phy_id = efx->mii.phy_id;
-
 	if (efx->phy_type == PHY_TYPE_SFX7101)
-		mdio_clause45_set_mmds_lpower(
+		efx_mdio_set_mmds_lpower(
 			efx, !!(efx->phy_mode & PHY_MODE_LOW_POWER),
 			TENXPRESS_REQUIRED_DEVS);
 	else
-		mdio_clause45_set_flag(
-			efx, phy_id, MDIO_MMD_PMAPMD,
-			PMA_PMD_XCONTROL_REG, PMA_PMD_EXT_LPOWER_LBN,
+		efx_mdio_set_flag(
+			efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG,
+			1 << PMA_PMD_EXT_LPOWER_LBN,
 			!!(efx->phy_mode & PHY_MODE_LOW_POWER));
 }
 
@@ -568,8 +526,8 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 		WARN_ON(rc);
 	}
 
-	mdio_clause45_transmit_disable(efx);
-	mdio_clause45_phy_reconfigure(efx);
+	efx_mdio_transmit_disable(efx);
+	efx_mdio_phy_reconfigure(efx);
 	tenxpress_ext_loopback(efx);
 
 	phy_data->loopback_mode = efx->loopback_mode;
@@ -585,7 +543,7 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 		efx->link_fd = ecmd.duplex == DUPLEX_FULL;
 		efx->link_up = sft9001_link_ok(efx, &ecmd);
 	}
-	efx->link_fc = mdio_clause45_get_pause(efx);
+	efx->link_fc = efx_mdio_get_pause(efx);
 }
 
 /* Poll PHY for interrupt */
@@ -599,7 +557,7 @@ static void tenxpress_phy_poll(struct efx_nic *efx)
 		if (link_ok != efx->link_up) {
 			change = true;
 		} else {
-			unsigned int link_fc = mdio_clause45_get_pause(efx);
+			unsigned int link_fc = efx_mdio_get_pause(efx);
 			if (link_fc != efx->link_fc)
 				change = true;
 		}
@@ -609,10 +567,9 @@ static void tenxpress_phy_poll(struct efx_nic *efx)
 		if (link_ok != efx->link_up)
 			change = true;
 	} else {
-		u32 status = mdio_clause45_read(efx, efx->mii.phy_id,
-						MDIO_MMD_PMAPMD,
-						PMA_PMD_LASI_STATUS);
-		if (status & (1 << PMA_PMD_LS_ALARM_LBN))
+		int status = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+					   MDIO_PMA_LASI_STAT);
+		if (status & MDIO_PMA_LASI_LSALARM)
 			change = true;
 	}
 
@@ -634,8 +591,7 @@ static void tenxpress_phy_fini(struct efx_nic *efx)
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
 		/* Power down the LNPGA */
 		reg = (1 << PMA_PMD_LNPGA_POWERDOWN_LBN);
-		mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-				    PMA_PMD_XCONTROL_REG, reg);
+		efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
 
 		/* Waiting here ensures that the board fini, which can turn
 		 * off the power to the PHY, won't get run until the LNPGA
@@ -661,8 +617,7 @@ void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
 	else
 		reg = PMA_PMD_LED_DEFAULT;
 
-	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-			    PMA_PMD_LED_OVERR_REG, reg);
+	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG, reg);
 }
 
 static const char *const sfx7101_test_names[] = {
@@ -698,7 +653,6 @@ static const char *const sft9001_test_names[] = {
 static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 {
 	struct ethtool_cmd ecmd;
-	int phy_id = efx->mii.phy_id;
 	int rc = 0, rc2, i, ctrl_reg, res_reg;
 
 	if (flags & ETH_TEST_FL_OFFLINE)
@@ -717,11 +671,10 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 		 * must reset the PHY to resume normal service. */
 		ctrl_reg |= (1 << CDIAG_CTRL_BRK_LINK_LBN);
 	}
-	mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-			    PMA_PMD_CDIAG_CTRL_REG, ctrl_reg);
+	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_CDIAG_CTRL_REG,
+		       ctrl_reg);
 	i = 0;
-	while (mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-				  PMA_PMD_CDIAG_CTRL_REG) &
+	while (efx_mdio_read(efx, MDIO_MMD_PMAPMD, PMA_PMD_CDIAG_CTRL_REG) &
 	       (1 << CDIAG_CTRL_IN_PROG_LBN)) {
 		if (++i == 50) {
 			rc = -ETIMEDOUT;
@@ -729,15 +682,13 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 		}
 		msleep(100);
 	}
-	res_reg = mdio_clause45_read(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-				     PMA_PMD_CDIAG_RES_REG);
+	res_reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD, PMA_PMD_CDIAG_RES_REG);
 	for (i = 0; i < 4; i++) {
 		int pair_res =
 			(res_reg >> (CDIAG_RES_A_LBN - i * CDIAG_RES_WIDTH))
 			& ((1 << CDIAG_RES_WIDTH) - 1);
-		int len_reg = mdio_clause45_read(efx, efx->mii.phy_id,
-						 MDIO_MMD_PMAPMD,
-						 PMA_PMD_CDIAG_LEN_REG + i);
+		int len_reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+					    PMA_PMD_CDIAG_LEN_REG + i);
 		if (pair_res == CDIAG_RES_OK)
 			results[1 + i] = 1;
 		else if (pair_res == CDIAG_RES_INVALID)
@@ -769,36 +720,39 @@ out:
 static void
 tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	int phy_id = efx->mii.phy_id;
 	u32 adv = 0, lpa = 0;
 	int reg;
 
 	if (efx->phy_type != PHY_TYPE_SFX7101) {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
-					 C22EXT_MSTSLV_CTRL);
+		reg = efx_mdio_read(efx, MDIO_MMD_C22EXT, C22EXT_MSTSLV_CTRL);
 		if (reg & (1 << C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN))
 			adv |= ADVERTISED_1000baseT_Full;
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
-					 C22EXT_MSTSLV_STATUS);
+		reg = efx_mdio_read(efx, MDIO_MMD_C22EXT, C22EXT_MSTSLV_STATUS);
 		if (reg & (1 << C22EXT_MSTSLV_STATUS_LP_1000_HD_LBN))
 			lpa |= ADVERTISED_1000baseT_Half;
 		if (reg & (1 << C22EXT_MSTSLV_STATUS_LP_1000_FD_LBN))
 			lpa |= ADVERTISED_1000baseT_Full;
 	}
-	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
-				 MDIO_AN_10GBT_CTRL);
-	if (reg & (1 << MDIO_AN_10GBT_CTRL_ADV_10G_LBN))
+	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL);
+	if (reg & MDIO_AN_10GBT_CTRL_ADV10G)
 		adv |= ADVERTISED_10000baseT_Full;
-	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
-				 MDIO_AN_10GBT_STATUS);
-	if (reg & (1 << MDIO_AN_10GBT_STATUS_LP_10G_LBN))
+	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
+	if (reg & MDIO_AN_10GBT_STAT_LP10G)
 		lpa |= ADVERTISED_10000baseT_Full;
 
-	mdio_clause45_get_settings_ext(efx, ecmd, adv, lpa);
+	mdio45_ethtool_gset_npage(&efx->mdio, ecmd, adv, lpa);
 
-	if (efx->phy_type != PHY_TYPE_SFX7101)
+	if (efx->phy_type != PHY_TYPE_SFX7101) {
 		ecmd->supported |= (SUPPORTED_100baseT_Full |
 				    SUPPORTED_1000baseT_Full);
+		if (ecmd->speed != SPEED_10000) {
+			ecmd->eth_tp_mdix =
+				(efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+					       PMA_PMD_XSTATUS_REG) &
+				 (1 << PMA_PMD_XSTAT_MDIX_LBN))
+				? ETH_TP_MDI_X : ETH_TP_MDI;
+		}
+	}
 
 	/* In loopback, the PHY automatically brings up the correct interface,
 	 * but doesn't advertise the correct speed. So override it */
@@ -813,29 +767,24 @@ static int tenxpress_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	if (!ecmd->autoneg)
 		return -EINVAL;
 
-	return mdio_clause45_set_settings(efx, ecmd);
+	return efx_mdio_set_settings(efx, ecmd);
 }
 
 static void sfx7101_set_npage_adv(struct efx_nic *efx, u32 advertising)
 {
-	mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_AN,
-			       MDIO_AN_10GBT_CTRL,
-			       MDIO_AN_10GBT_CTRL_ADV_10G_LBN,
-			       advertising & ADVERTISED_10000baseT_Full);
+	efx_mdio_set_flag(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+			  MDIO_AN_10GBT_CTRL_ADV10G,
+			  advertising & ADVERTISED_10000baseT_Full);
 }
 
 static void sft9001_set_npage_adv(struct efx_nic *efx, u32 advertising)
 {
-	int phy_id = efx->mii.phy_id;
-
-	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
-			       C22EXT_MSTSLV_CTRL,
-			       C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN,
-			       advertising & ADVERTISED_1000baseT_Full);
-	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_AN,
-			       MDIO_AN_10GBT_CTRL,
-			       MDIO_AN_10GBT_CTRL_ADV_10G_LBN,
-			       advertising & ADVERTISED_10000baseT_Full);
+	efx_mdio_set_flag(efx, MDIO_MMD_C22EXT, C22EXT_MSTSLV_CTRL,
+			  1 << C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN,
+			  advertising & ADVERTISED_1000baseT_Full);
+	efx_mdio_set_flag(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+			  MDIO_AN_10GBT_CTRL_ADV10G,
+			  advertising & ADVERTISED_10000baseT_Full);
 }
 
 struct efx_phy_operations falcon_sfx7101_phy_ops = {

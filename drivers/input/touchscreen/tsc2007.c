@@ -257,7 +257,7 @@ static int tsc2007_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int err;
 
-	if (!pdata) {
+	if (!pdata || !pdata->get_pendown_state) {
 		dev_err(&client->dev, "platform data is required!\n");
 		return -EINVAL;
 	}

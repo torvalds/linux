@@ -27,9 +27,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/input.h>
-#include <linux/kthread.h>
-#include <linux/semaphore.h>
+#include <linux/input-polldev.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
@@ -105,56 +103,39 @@ static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 {
 	int position[3];
 
-	position[0] = lis3_dev.read_data(lis3, OUTX);
-	position[1] = lis3_dev.read_data(lis3, OUTY);
-	position[2] = lis3_dev.read_data(lis3, OUTZ);
+	position[0] = lis3->read_data(lis3, OUTX);
+	position[1] = lis3->read_data(lis3, OUTY);
+	position[2] = lis3->read_data(lis3, OUTZ);
 
-	*x = lis3lv02d_get_axis(lis3_dev.ac.x, position);
-	*y = lis3lv02d_get_axis(lis3_dev.ac.y, position);
-	*z = lis3lv02d_get_axis(lis3_dev.ac.z, position);
+	*x = lis3lv02d_get_axis(lis3->ac.x, position);
+	*y = lis3lv02d_get_axis(lis3->ac.y, position);
+	*z = lis3lv02d_get_axis(lis3->ac.z, position);
 }
 
 void lis3lv02d_poweroff(struct lis3lv02d *lis3)
 {
-	lis3_dev.is_on = 0;
+	/* disable X,Y,Z axis and power down */
+	lis3->write(lis3, CTRL_REG1, 0x00);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweroff);
 
 void lis3lv02d_poweron(struct lis3lv02d *lis3)
 {
-	lis3_dev.is_on = 1;
-	lis3_dev.init(lis3);
+	u8 reg;
+
+	lis3->init(lis3);
+
+	/*
+	 * Common configuration
+	 * BDU: LSB and MSB values are not updated until both have been read.
+	 *      So the value read will always be correct.
+	 */
+	lis3->read(lis3, CTRL_REG2, &reg);
+	reg |= CTRL2_BDU;
+	lis3->write(lis3, CTRL_REG2, reg);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
-/*
- * To be called before starting to use the device. It makes sure that the
- * device will always be on until a call to lis3lv02d_decrease_use(). Not to be
- * used from interrupt context.
- */
-static void lis3lv02d_increase_use(struct lis3lv02d *dev)
-{
-	mutex_lock(&dev->lock);
-	dev->usage++;
-	if (dev->usage == 1) {
-		if (!dev->is_on)
-			lis3lv02d_poweron(dev);
-	}
-	mutex_unlock(&dev->lock);
-}
-
-/*
- * To be called whenever a usage of the device is stopped.
- * It will make sure to turn off the device when there is not usage.
- */
-static void lis3lv02d_decrease_use(struct lis3lv02d *dev)
-{
-	mutex_lock(&dev->lock);
-	dev->usage--;
-	if (dev->usage == 0)
-		lis3lv02d_poweroff(dev);
-	mutex_unlock(&dev->lock);
-}
 
 static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
 {
@@ -198,15 +179,12 @@ static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
 		printk(KERN_ERR DRIVER_NAME ": IRQ%d allocation failed\n", lis3_dev.irq);
 		return -EBUSY;
 	}
-	lis3lv02d_increase_use(&lis3_dev);
-	printk("lis3: registered interrupt %d\n", lis3_dev.irq);
 	return 0;
 }
 
 static int lis3lv02d_misc_release(struct inode *inode, struct file *file)
 {
 	fasync_helper(-1, file, 0, &lis3_dev.async_queue);
-	lis3lv02d_decrease_use(&lis3_dev);
 	free_irq(lis3_dev.irq, &lis3_dev);
 	clear_bit(0, &lis3_dev.misc_opened); /* release the device */
 	return 0;
@@ -290,46 +268,16 @@ static struct miscdevice lis3lv02d_misc_device = {
 	.fops    = &lis3lv02d_misc_fops,
 };
 
-/**
- * lis3lv02d_joystick_kthread - Kthread polling function
- * @data: unused - here to conform to threadfn prototype
- */
-static int lis3lv02d_joystick_kthread(void *data)
+static void lis3lv02d_joystick_poll(struct input_polled_dev *pidev)
 {
 	int x, y, z;
 
-	while (!kthread_should_stop()) {
-		lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
-		input_report_abs(lis3_dev.idev, ABS_X, x - lis3_dev.xcalib);
-		input_report_abs(lis3_dev.idev, ABS_Y, y - lis3_dev.ycalib);
-		input_report_abs(lis3_dev.idev, ABS_Z, z - lis3_dev.zcalib);
-
-		input_sync(lis3_dev.idev);
-
-		try_to_freeze();
-		msleep_interruptible(MDPS_POLL_INTERVAL);
-	}
-
-	return 0;
+	lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
+	input_report_abs(pidev->input, ABS_X, x - lis3_dev.xcalib);
+	input_report_abs(pidev->input, ABS_Y, y - lis3_dev.ycalib);
+	input_report_abs(pidev->input, ABS_Z, z - lis3_dev.zcalib);
 }
 
-static int lis3lv02d_joystick_open(struct input_dev *input)
-{
-	lis3lv02d_increase_use(&lis3_dev);
-	lis3_dev.kthread = kthread_run(lis3lv02d_joystick_kthread, NULL, "klis3lv02d");
-	if (IS_ERR(lis3_dev.kthread)) {
-		lis3lv02d_decrease_use(&lis3_dev);
-		return PTR_ERR(lis3_dev.kthread);
-	}
-
-	return 0;
-}
-
-static void lis3lv02d_joystick_close(struct input_dev *input)
-{
-	kthread_stop(lis3_dev.kthread);
-	lis3lv02d_decrease_use(&lis3_dev);
-}
 
 static inline void lis3lv02d_calibrate_joystick(void)
 {
@@ -339,33 +287,36 @@ static inline void lis3lv02d_calibrate_joystick(void)
 
 int lis3lv02d_joystick_enable(void)
 {
+	struct input_dev *input_dev;
 	int err;
 
 	if (lis3_dev.idev)
 		return -EINVAL;
 
-	lis3_dev.idev = input_allocate_device();
+	lis3_dev.idev = input_allocate_polled_device();
 	if (!lis3_dev.idev)
 		return -ENOMEM;
 
+	lis3_dev.idev->poll = lis3lv02d_joystick_poll;
+	lis3_dev.idev->poll_interval = MDPS_POLL_INTERVAL;
+	input_dev = lis3_dev.idev->input;
+
 	lis3lv02d_calibrate_joystick();
 
-	lis3_dev.idev->name       = "ST LIS3LV02DL Accelerometer";
-	lis3_dev.idev->phys       = DRIVER_NAME "/input0";
-	lis3_dev.idev->id.bustype = BUS_HOST;
-	lis3_dev.idev->id.vendor  = 0;
-	lis3_dev.idev->dev.parent = &lis3_dev.pdev->dev;
-	lis3_dev.idev->open       = lis3lv02d_joystick_open;
-	lis3_dev.idev->close      = lis3lv02d_joystick_close;
+	input_dev->name       = "ST LIS3LV02DL Accelerometer";
+	input_dev->phys       = DRIVER_NAME "/input0";
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->id.vendor  = 0;
+	input_dev->dev.parent = &lis3_dev.pdev->dev;
 
-	set_bit(EV_ABS, lis3_dev.idev->evbit);
-	input_set_abs_params(lis3_dev.idev, ABS_X, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(lis3_dev.idev, ABS_Y, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(lis3_dev.idev, ABS_Z, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	set_bit(EV_ABS, input_dev->evbit);
+	input_set_abs_params(input_dev, ABS_X, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	input_set_abs_params(input_dev, ABS_Y, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	input_set_abs_params(input_dev, ABS_Z, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
 
-	err = input_register_device(lis3_dev.idev);
+	err = input_register_polled_device(lis3_dev.idev);
 	if (err) {
-		input_free_device(lis3_dev.idev);
+		input_free_polled_device(lis3_dev.idev);
 		lis3_dev.idev = NULL;
 	}
 
@@ -378,8 +329,9 @@ void lis3lv02d_joystick_disable(void)
 	if (!lis3_dev.idev)
 		return;
 
-	misc_deregister(&lis3lv02d_misc_device);
-	input_unregister_device(lis3_dev.idev);
+	if (lis3_dev.irq)
+		misc_deregister(&lis3lv02d_misc_device);
+	input_unregister_polled_device(lis3_dev.idev);
 	lis3_dev.idev = NULL;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_joystick_disable);
@@ -390,9 +342,7 @@ static ssize_t lis3lv02d_position_show(struct device *dev,
 {
 	int x, y, z;
 
-	lis3lv02d_increase_use(&lis3_dev);
 	lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
-	lis3lv02d_decrease_use(&lis3_dev);
 	return sprintf(buf, "(%d,%d,%d)\n", x, y, z);
 }
 
@@ -406,9 +356,7 @@ static ssize_t lis3lv02d_calibrate_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	lis3lv02d_increase_use(&lis3_dev);
 	lis3lv02d_calibrate_joystick();
-	lis3lv02d_decrease_use(&lis3_dev);
 	return count;
 }
 
@@ -420,9 +368,7 @@ static ssize_t lis3lv02d_rate_show(struct device *dev,
 	u8 ctrl;
 	int val;
 
-	lis3lv02d_increase_use(&lis3_dev);
 	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
-	lis3lv02d_decrease_use(&lis3_dev);
 	val = (ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4;
 	return sprintf(buf, "%d\n", lis3lv02dl_df_val[val]);
 }
@@ -446,17 +392,17 @@ static struct attribute_group lis3lv02d_attribute_group = {
 
 static int lis3lv02d_add_fs(struct lis3lv02d *lis3)
 {
-	lis3_dev.pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
-	if (IS_ERR(lis3_dev.pdev))
-		return PTR_ERR(lis3_dev.pdev);
+	lis3->pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
+	if (IS_ERR(lis3->pdev))
+		return PTR_ERR(lis3->pdev);
 
-	return sysfs_create_group(&lis3_dev.pdev->dev.kobj, &lis3lv02d_attribute_group);
+	return sysfs_create_group(&lis3->pdev->dev.kobj, &lis3lv02d_attribute_group);
 }
 
-int lis3lv02d_remove_fs(void)
+int lis3lv02d_remove_fs(struct lis3lv02d *lis3)
 {
-	sysfs_remove_group(&lis3_dev.pdev->dev.kobj, &lis3lv02d_attribute_group);
-	platform_device_unregister(lis3_dev.pdev);
+	sysfs_remove_group(&lis3->pdev->dev.kobj, &lis3lv02d_attribute_group);
+	platform_device_unregister(lis3->pdev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
@@ -482,18 +428,35 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		break;
 	default:
 		printk(KERN_ERR DRIVER_NAME
-			": unknown sensor type 0x%X\n", lis3_dev.whoami);
+			": unknown sensor type 0x%X\n", dev->whoami);
 		return -EINVAL;
 	}
 
-	mutex_init(&dev->lock);
 	lis3lv02d_add_fs(dev);
-	lis3lv02d_increase_use(dev);
+	lis3lv02d_poweron(dev);
 
 	if (lis3lv02d_joystick_enable())
 		printk(KERN_ERR DRIVER_NAME ": joystick initialization failed\n");
 
-	printk("lis3_init_device: irq %d\n", dev->irq);
+	/* passing in platform specific data is purely optional and only
+	 * used by the SPI transport layer at the moment */
+	if (dev->pdata) {
+		struct lis3lv02d_platform_data *p = dev->pdata;
+
+		if (p->click_flags && (dev->whoami == LIS_SINGLE_ID)) {
+			dev->write(dev, CLICK_CFG, p->click_flags);
+			dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
+			dev->write(dev, CLICK_LATENCY, p->click_latency);
+			dev->write(dev, CLICK_WINDOW, p->click_window);
+			dev->write(dev, CLICK_THSZ, p->click_thresh_z & 0xf);
+			dev->write(dev, CLICK_THSY_X,
+					(p->click_thresh_x & 0xf) |
+					(p->click_thresh_y << 4));
+		}
+
+		if (p->irq_cfg)
+			dev->write(dev, CTRL_REG3, p->irq_cfg);
+	}
 
 	/* bail if we did not get an IRQ from the bus layer */
 	if (!dev->irq) {
@@ -502,11 +465,9 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		goto out;
 	}
 
-	printk("lis3: registering device\n");
 	if (misc_register(&lis3lv02d_misc_device))
 		printk(KERN_ERR DRIVER_NAME ": misc_register failed\n");
 out:
-	lis3lv02d_decrease_use(dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_init_device);

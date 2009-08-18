@@ -168,6 +168,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam->cam_mode = fpix_mode;
 	cam->nmodes = 1;
+	cam->bulk = 1;
 	cam->bulk_size = FPIX_MAX_TRANSFER;
 
 	INIT_WORK(&dev->work_struct, dostream);

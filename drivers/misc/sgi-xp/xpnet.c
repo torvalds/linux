@@ -450,7 +450,8 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			 "packet\n", sizeof(struct xpnet_pending_msg));
 
 		dev->stats.tx_errors++;
-		return -ENOMEM;
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	/* get the beginning of the first cacheline and end of last */

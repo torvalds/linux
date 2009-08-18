@@ -36,6 +36,7 @@ static void probe_power_start(struct power_trace *it, unsigned int type,
 
 static void probe_power_end(struct power_trace *it)
 {
+	struct ftrace_event_call *call = &event_power;
 	struct ring_buffer_event *event;
 	struct trace_power *entry;
 	struct trace_array_cpu *data;
@@ -54,7 +55,8 @@ static void probe_power_end(struct power_trace *it)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->state_data = *it;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
+	if (!filter_check_discard(call, entry, tr->buffer, event))
+		trace_buffer_unlock_commit(tr, event, 0, 0);
  out:
 	preempt_enable();
 }
@@ -62,6 +64,7 @@ static void probe_power_end(struct power_trace *it)
 static void probe_power_mark(struct power_trace *it, unsigned int type,
 				unsigned int level)
 {
+	struct ftrace_event_call *call = &event_power;
 	struct ring_buffer_event *event;
 	struct trace_power *entry;
 	struct trace_array_cpu *data;
@@ -84,7 +87,8 @@ static void probe_power_mark(struct power_trace *it, unsigned int type,
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->state_data = *it;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
+	if (!filter_check_discard(call, entry, tr->buffer, event))
+		trace_buffer_unlock_commit(tr, event, 0, 0);
  out:
 	preempt_enable();
 }

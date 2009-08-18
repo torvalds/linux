@@ -16,7 +16,6 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/marker.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -26,6 +25,7 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/bio.h>
+#include <trace/events/jbd2.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.
@@ -253,6 +253,7 @@ static int journal_submit_data_buffers(journal_t *journal,
 		 * block allocation  with delalloc. We need to write
 		 * only allocated blocks here.
 		 */
+		trace_jbd2_submit_inode_data(jinode->i_vfs_inode);
 		err = journal_submit_inode_data_buffers(mapping);
 		if (!ret)
 			ret = err;
@@ -394,8 +395,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	commit_transaction = journal->j_running_transaction;
 	J_ASSERT(commit_transaction->t_state == T_RUNNING);
 
-	trace_mark(jbd2_start_commit, "dev %s transaction %d",
-		   journal->j_devname, commit_transaction->t_tid);
+	trace_jbd2_start_commit(journal, commit_transaction);
 	jbd_debug(1, "JBD: starting commit of transaction %d\n",
 			commit_transaction->t_tid);
 
@@ -409,6 +409,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 */
 	if (commit_transaction->t_synchronous_commit)
 		write_op = WRITE_SYNC_PLUG;
+	trace_jbd2_commit_locking(journal, commit_transaction);
 	stats.u.run.rs_wait = commit_transaction->t_max_wait;
 	stats.u.run.rs_locked = jiffies;
 	stats.u.run.rs_running = jbd2_time_diff(commit_transaction->t_start,
@@ -484,6 +485,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 */
 	jbd2_journal_switch_revoke_table(journal);
 
+	trace_jbd2_commit_flushing(journal, commit_transaction);
 	stats.u.run.rs_flushing = jiffies;
 	stats.u.run.rs_locked = jbd2_time_diff(stats.u.run.rs_locked,
 					       stats.u.run.rs_flushing);
@@ -520,6 +522,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	commit_transaction->t_state = T_COMMIT;
 	spin_unlock(&journal->j_state_lock);
 
+	trace_jbd2_commit_logging(journal, commit_transaction);
 	stats.u.run.rs_logging = jiffies;
 	stats.u.run.rs_flushing = jbd2_time_diff(stats.u.run.rs_flushing,
 						 stats.u.run.rs_logging);
@@ -1054,9 +1057,7 @@ restart_loop:
 	if (journal->j_commit_callback)
 		journal->j_commit_callback(journal, commit_transaction);
 
-	trace_mark(jbd2_end_commit, "dev %s transaction %d head %d",
-		   journal->j_devname, commit_transaction->t_tid,
-		   journal->j_tail_sequence);
+	trace_jbd2_end_commit(journal, commit_transaction);
 	jbd_debug(1, "JBD: commit %d complete, head %d\n",
 		  journal->j_commit_sequence, journal->j_tail_sequence);
 	if (to_free)

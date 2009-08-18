@@ -14,6 +14,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <mach/bridge-regs.h>
 #include "common.h"
 
 
@@ -95,6 +96,7 @@ static struct pci_ops pcie_ops = {
 static int kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct resource *res;
+	extern unsigned int kirkwood_clk_ctrl;
 
 	/*
 	 * Generic PCIe unit setup.
@@ -132,6 +134,8 @@ static int kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	sys->resource[2] = NULL;
 	sys->io_offset = 0;
+
+	kirkwood_clk_ctrl |= CGC_PEX0;
 
 	return 1;
 }

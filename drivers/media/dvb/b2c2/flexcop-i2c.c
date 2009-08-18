@@ -200,7 +200,7 @@ static int flexcop_master_xfer(struct i2c_adapter *i2c_adap,
 					msgs[i].buf[0], &msgs[i].buf[1],
 					msgs[i].len - 1);
 		if (ret < 0) {
-			err("i2c master_xfer failed");
+			deb_i2c("i2c master_xfer failed");
 			break;
 		}
 	}

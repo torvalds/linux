@@ -483,7 +483,7 @@ typedef enum {
 
 #define AML_METHOD_ARG_COUNT        0x07
 #define AML_METHOD_SERIALIZED       0x08
-#define AML_METHOD_SYNCH_LEVEL      0xF0
+#define AML_METHOD_SYNC_LEVEL       0xF0
 
 /* METHOD_FLAGS_ARG_COUNT is not used internally, define additional flags */
 

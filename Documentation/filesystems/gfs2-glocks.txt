@@ -60,7 +60,7 @@ go_lock          | Called for the first local holder of a lock
 go_unlock        | Called on the final local unlock of a lock
 go_dump          | Called to print content of object for debugfs file, or on
                  | error to dump glock to the log.
-go_type;         | The type of the glock, LM_TYPE_.....
+go_type          | The type of the glock, LM_TYPE_.....
 go_min_hold_time | The minimum hold time
 
 The minimum hold time for each lock is the time after a remote lock

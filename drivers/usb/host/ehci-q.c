@@ -93,22 +93,6 @@ qh_update (struct ehci_hcd *ehci, struct ehci_qh *qh, struct ehci_qtd *qtd)
 	qh->hw_qtd_next = QTD_NEXT(ehci, qtd->qtd_dma);
 	qh->hw_alt_next = EHCI_LIST_END(ehci);
 
-	/* Except for control endpoints, we make hardware maintain data
-	 * toggle (like OHCI) ... here (re)initialize the toggle in the QH,
-	 * and set the pseudo-toggle in udev. Only usb_clear_halt() will
-	 * ever clear it.
-	 */
-	if (!(qh->hw_info1 & cpu_to_hc32(ehci, 1 << 14))) {
-		unsigned	is_out, epnum;
-
-		is_out = !(qtd->hw_token & cpu_to_hc32(ehci, 1 << 8));
-		epnum = (hc32_to_cpup(ehci, &qh->hw_info1) >> 8) & 0x0f;
-		if (unlikely (!usb_gettoggle (qh->dev, epnum, is_out))) {
-			qh->hw_token &= ~cpu_to_hc32(ehci, QTD_TOGGLE);
-			usb_settoggle (qh->dev, epnum, is_out, 1);
-		}
-	}
-
 	/* HC must see latest qtd and qh data before we clear ACTIVE+HALT */
 	wmb ();
 	qh->hw_token &= cpu_to_hc32(ehci, QTD_TOGGLE | QTD_STS_PING);
@@ -850,7 +834,6 @@ done:
 	qh->qh_state = QH_STATE_IDLE;
 	qh->hw_info1 = cpu_to_hc32(ehci, info1);
 	qh->hw_info2 = cpu_to_hc32(ehci, info2);
-	usb_settoggle (urb->dev, usb_pipeendpoint (urb->pipe), !is_input, 1);
 	qh_refresh (ehci, qh);
 	return qh;
 }
@@ -881,7 +864,7 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		}
 	}
 
-	/* clear halt and/or toggle; and maybe recover from silicon quirk */
+	/* clear halt and maybe recover from silicon quirk */
 	if (qh->qh_state == QH_STATE_IDLE)
 		qh_refresh (ehci, qh);
 

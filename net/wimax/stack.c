@@ -402,13 +402,15 @@ EXPORT_SYMBOL_GPL(wimax_dev_init);
 extern struct genl_ops
 	wimax_gnl_msg_from_user,
 	wimax_gnl_reset,
-	wimax_gnl_rfkill;
+	wimax_gnl_rfkill,
+	wimax_gnl_state_get;
 
 static
 struct genl_ops *wimax_gnl_ops[] = {
 	&wimax_gnl_msg_from_user,
 	&wimax_gnl_reset,
 	&wimax_gnl_rfkill,
+	&wimax_gnl_state_get,
 };
 
 
@@ -533,6 +535,7 @@ struct d_level D_LEVEL[] = {
 	D_SUBMODULE_DEFINE(op_msg),
 	D_SUBMODULE_DEFINE(op_reset),
 	D_SUBMODULE_DEFINE(op_rfkill),
+	D_SUBMODULE_DEFINE(op_state_get),
 	D_SUBMODULE_DEFINE(stack),
 };
 size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);

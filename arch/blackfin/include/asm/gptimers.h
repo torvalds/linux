@@ -30,6 +30,7 @@
 # else
 #  define MAX_BLACKFIN_GPTIMERS 11
 #  define TIMER8_GROUP_REG      TIMER_ENABLE1
+#  define TIMER_GROUP2          1
 # endif
 # define TIMER0_GROUP_REG       TIMER_ENABLE0
 #endif
@@ -40,10 +41,12 @@
 # define MAX_BLACKFIN_GPTIMERS 12
 # define TIMER0_GROUP_REG      TMRS8_ENABLE
 # define TIMER8_GROUP_REG      TMRS4_ENABLE
+# define TIMER_GROUP2          1
 #endif
 /*
  * All others: 3 timers:
  */
+#define TIMER_GROUP1           0
 #if !defined(MAX_BLACKFIN_GPTIMERS)
 # define MAX_BLACKFIN_GPTIMERS 3
 # define TIMER0_GROUP_REG      TIMER_ENABLE
@@ -109,8 +112,8 @@
 #define TIMER_ERR_PROG_PER  0x8000
 #define TIMER_ERR_PROG_PW   0xC000
 #define TIMER_EMU_RUN       0x0200
-#define	TIMER_TOGGLE_HI     0x0100
-#define	TIMER_CLK_SEL       0x0080
+#define TIMER_TOGGLE_HI     0x0100
+#define TIMER_CLK_SEL       0x0080
 #define TIMER_OUT_DIS       0x0040
 #define TIMER_TIN_SEL       0x0020
 #define TIMER_IRQ_ENA       0x0010
@@ -169,23 +172,25 @@
 
 /* The actual gptimer API */
 
-void     set_gptimer_pwidth    (int timer_id, uint32_t width);
-uint32_t get_gptimer_pwidth    (int timer_id);
-void     set_gptimer_period    (int timer_id, uint32_t period);
-uint32_t get_gptimer_period    (int timer_id);
-uint32_t get_gptimer_count     (int timer_id);
-uint16_t get_gptimer_intr      (int timer_id);
-void     clear_gptimer_intr    (int timer_id);
-uint16_t get_gptimer_over      (int timer_id);
-void     clear_gptimer_over    (int timer_id);
-void     set_gptimer_config    (int timer_id, uint16_t config);
-uint16_t get_gptimer_config    (int timer_id);
-void     set_gptimer_pulse_hi  (int timer_id);
+void     set_gptimer_pwidth(int timer_id, uint32_t width);
+uint32_t get_gptimer_pwidth(int timer_id);
+void     set_gptimer_period(int timer_id, uint32_t period);
+uint32_t get_gptimer_period(int timer_id);
+uint32_t get_gptimer_count(int timer_id);
+int      get_gptimer_intr(int timer_id);
+void     clear_gptimer_intr(int timer_id);
+int      get_gptimer_over(int timer_id);
+void     clear_gptimer_over(int timer_id);
+void     set_gptimer_config(int timer_id, uint16_t config);
+uint16_t get_gptimer_config(int timer_id);
+int      get_gptimer_run(int timer_id);
+void     set_gptimer_pulse_hi(int timer_id);
 void     clear_gptimer_pulse_hi(int timer_id);
-void     enable_gptimers       (uint16_t mask);
-void     disable_gptimers      (uint16_t mask);
-uint16_t get_enabled_gptimers  (void);
-uint32_t get_gptimer_status    (int group);
-void     set_gptimer_status    (int group, uint32_t value);
+void     enable_gptimers(uint16_t mask);
+void     disable_gptimers(uint16_t mask);
+void     disable_gptimers_sync(uint16_t mask);
+uint16_t get_enabled_gptimers(void);
+uint32_t get_gptimer_status(int group);
+void     set_gptimer_status(int group, uint32_t value);
 
 #endif

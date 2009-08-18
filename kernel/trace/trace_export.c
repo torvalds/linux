@@ -19,8 +19,12 @@
 #undef TRACE_STRUCT
 #define TRACE_STRUCT(args...) args
 
+extern void __bad_type_size(void);
+
 #undef TRACE_FIELD
 #define TRACE_FIELD(type, item, assign)					\
+	if (sizeof(type) != sizeof(field.item))				\
+		__bad_type_size();					\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
 			       "offset:%u;\tsize:%u;\n",		\
 			       (unsigned int)offsetof(typeof(field), item), \
@@ -30,7 +34,7 @@
 
 
 #undef TRACE_FIELD_SPECIAL
-#define TRACE_FIELD_SPECIAL(type_item, item, cmd)			\
+#define TRACE_FIELD_SPECIAL(type_item, item, len, cmd)			\
 	ret = trace_seq_printf(s, "\tfield special:" #type_item ";\t"	\
 			       "offset:%u;\tsize:%u;\n",		\
 			       (unsigned int)offsetof(typeof(field), item), \
@@ -46,12 +50,31 @@
 	if (!ret)							\
 		return 0;
 
+#undef TRACE_FIELD_SIGN
+#define TRACE_FIELD_SIGN(type, item, assign, is_signed)	\
+	TRACE_FIELD(type, item, assign)
 
 #undef TP_RAW_FMT
 #define TP_RAW_FMT(args...) args
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+static int								\
+ftrace_format_##call(struct trace_seq *s)				\
+{									\
+	struct args field;						\
+	int ret;							\
+									\
+	tstruct;							\
+									\
+	trace_seq_printf(s, "\nprint fmt: \"%s\"\n", tpfmt);		\
+									\
+	return ret;							\
+}
+
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
+				    tpfmt)				\
 static int								\
 ftrace_format_##call(struct trace_seq *s)				\
 {									\
@@ -78,6 +101,10 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
 
+#undef TRACE_FIELD_SIGN
+#define TRACE_FIELD_SIGN(type, item, assign, is_signed)	\
+	TRACE_FIELD(type, item, assign)
+
 #undef TP_CMD
 #define TP_CMD(cmd...)	cmd
 
@@ -85,18 +112,95 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define TRACE_ENTRY	entry
 
 #undef TRACE_FIELD_SPECIAL
-#define TRACE_FIELD_SPECIAL(type_item, item, cmd) \
+#define TRACE_FIELD_SPECIAL(type_item, item, len, cmd)	\
 	cmd;
 
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+int ftrace_define_fields_##call(void);					\
+static int ftrace_raw_init_event_##call(void);				\
 									\
-static struct ftrace_event_call __used					\
+struct ftrace_event_call __used						\
+__attribute__((__aligned__(4)))						\
+__attribute__((section("_ftrace_events"))) event_##call = {		\
+	.name			= #call,				\
+	.id			= proto,				\
+	.system			= __stringify(TRACE_SYSTEM),		\
+	.raw_init		= ftrace_raw_init_event_##call,		\
+	.show_format		= ftrace_format_##call,			\
+	.define_fields		= ftrace_define_fields_##call,		\
+};									\
+static int ftrace_raw_init_event_##call(void)				\
+{									\
+	INIT_LIST_HEAD(&event_##call.fields);				\
+	init_preds(&event_##call);					\
+	return 0;							\
+}									\
+
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
+				    tpfmt)				\
+									\
+struct ftrace_event_call __used						\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.id			= proto,				\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.show_format		= ftrace_format_##call,			\
+};
+
+#include "trace_event_types.h"
+
+#undef TRACE_FIELD
+#define TRACE_FIELD(type, item, assign)					\
+	ret = trace_define_field(event_call, #type, #item,		\
+				 offsetof(typeof(field), item),		\
+				 sizeof(field.item), is_signed_type(type));	\
+	if (ret)							\
+		return ret;
+
+#undef TRACE_FIELD_SPECIAL
+#define TRACE_FIELD_SPECIAL(type, item, len, cmd)			\
+	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
+				 offsetof(typeof(field), item),		\
+				 sizeof(field.item), 0);		\
+	if (ret)							\
+		return ret;
+
+#undef TRACE_FIELD_SIGN
+#define TRACE_FIELD_SIGN(type, item, assign, is_signed)			\
+	ret = trace_define_field(event_call, #type, #item,		\
+				 offsetof(typeof(field), item),		\
+				 sizeof(field.item), is_signed);	\
+	if (ret)							\
+		return ret;
+
+#undef TRACE_FIELD_ZERO_CHAR
+#define TRACE_FIELD_ZERO_CHAR(item)
+
+#undef TRACE_EVENT_FORMAT
+#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+int									\
+ftrace_define_fields_##call(void)					\
+{									\
+	struct ftrace_event_call *event_call = &event_##call;		\
+	struct args field;						\
+	int ret;							\
+									\
+	__common_field(unsigned char, type, 0);				\
+	__common_field(unsigned char, flags, 0);			\
+	__common_field(unsigned char, preempt_count, 0);		\
+	__common_field(int, pid, 1);					\
+	__common_field(int, tgid, 1);					\
+									\
+	tstruct;							\
+									\
+	return ret;							\
 }
+
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
+				    tpfmt)
+
 #include "trace_event_types.h"

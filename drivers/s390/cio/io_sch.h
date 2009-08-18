@@ -107,6 +107,7 @@ struct ccw_device_private {
 		unsigned int recog_done:1;  /* dev. recog. complete */
 		unsigned int fake_irb:1;    /* deliver faked irb */
 		unsigned int intretry:1;    /* retry internal operation */
+		unsigned int resuming:1;    /* recognition while resume */
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;

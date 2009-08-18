@@ -28,12 +28,6 @@ typedef __signed__ long saddr_t;
  */
 #ifdef __KERNEL__
 
-#ifndef __s390x__
-#define BITS_PER_LONG 32
-#else
-#define BITS_PER_LONG 64
-#endif
-
 #ifndef __ASSEMBLY__
 
 typedef u64 dma64_addr_t;

@@ -3,7 +3,6 @@ config B43LEGACY
 	depends on SSB_POSSIBLE && MAC80211 && WLAN_80211 && HAS_DMA
 	select SSB
 	select FW_LOADER
-	select HW_RANDOM
 	---help---
 	  b43legacy is a driver for 802.11b devices from Broadcom (BCM4301 and
 	  BCM4303) and early model 802.11g chips (BCM4306 Ver. 2) used in the
@@ -43,12 +42,11 @@ config B43LEGACY_LEDS
 	depends on B43LEGACY && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43LEGACY)
 	default y
 
-# RFKILL support
-# This config option automatically enables b43legacy RFKILL support,
-# if it's possible.
-config B43LEGACY_RFKILL
+# This config option automatically enables b43 HW-RNG support,
+# if the HW-RNG core is enabled.
+config B43LEGACY_HWRNG
 	bool
-	depends on B43LEGACY && (RFKILL = y || RFKILL = B43LEGACY) && RFKILL_INPUT && (INPUT_POLLDEV = y || INPUT_POLLDEV = B43LEGACY)
+	depends on B43LEGACY && (HW_RANDOM = y || HW_RANDOM = B43LEGACY)
 	default y
 
 config B43LEGACY_DEBUG

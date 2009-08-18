@@ -1050,4 +1050,5 @@ static void __exit gtco_exit(void)
 module_init(gtco_init);
 module_exit(gtco_exit);
 
+MODULE_DESCRIPTION("GTCO digitizer USB driver");
 MODULE_LICENSE("GPL");

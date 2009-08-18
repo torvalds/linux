@@ -18,6 +18,7 @@
 #include "osd_types.h"
 
 #include <linux/blkdev.h>
+#include <scsi/scsi_device.h>
 
 /* Note: "NI" in comments below means "Not Implemented yet" */
 
@@ -47,6 +48,7 @@ enum osd_std_version {
  */
 struct osd_dev {
 	struct scsi_device *scsi_device;
+	struct file *file;
 	unsigned def_timeout;
 
 #ifdef OSD_VER1_SUPPORT
@@ -69,6 +71,10 @@ void osd_dev_fini(struct osd_dev *od);
 
 /* some hi level device operations */
 int osd_auto_detect_ver(struct osd_dev *od, void *caps);    /* GFP_KERNEL */
+static inline struct request_queue *osd_request_queue(struct osd_dev *od)
+{
+	return od->scsi_device->request_queue;
+}
 
 /* we might want to use function vector in the future */
 static inline void osd_dev_set_ver(struct osd_dev *od, enum osd_std_version v)
@@ -363,7 +369,9 @@ void osd_req_create_object(struct osd_request *or, struct osd_obj_id *);
 void osd_req_remove_object(struct osd_request *or, struct osd_obj_id *);
 
 void osd_req_write(struct osd_request *or,
-	const struct osd_obj_id *, struct bio *data_out, u64 offset);
+	const struct osd_obj_id *obj, u64 offset, struct bio *bio, u64 len);
+int osd_req_write_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
 void osd_req_append(struct osd_request *or,
 	const struct osd_obj_id *, struct bio *data_out);/* NI */
 void osd_req_create_write(struct osd_request *or,
@@ -378,7 +386,9 @@ void osd_req_flush_object(struct osd_request *or,
 	/*V2*/ u64 offset, /*V2*/ u64 len);
 
 void osd_req_read(struct osd_request *or,
-	const struct osd_obj_id *, struct bio *data_in, u64 offset);
+	const struct osd_obj_id *obj, u64 offset, struct bio *bio, u64 len);
+int osd_req_read_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
 
 /*
  * Root/Partition/Collection/Object Attributes commands

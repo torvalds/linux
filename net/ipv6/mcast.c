@@ -1448,8 +1448,10 @@ static void mld_sendpack(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int err;
 	struct flowi fl;
+	struct dst_entry *dst;
 
-	IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTREQUESTS);
+	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
+
 	payload_len = (skb->tail - skb->network_header) - sizeof(*pip6);
 	mldlen = skb->tail - skb->transport_header;
 	pip6->payload_len = htons(payload_len);
@@ -1458,9 +1460,9 @@ static void mld_sendpack(struct sk_buff *skb)
 		IPPROTO_ICMPV6, csum_partial(skb_transport_header(skb),
 					     mldlen, 0));
 
-	skb->dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
+	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
 
-	if (!skb->dst) {
+	if (!dst) {
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1469,9 +1471,12 @@ static void mld_sendpack(struct sk_buff *skb)
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(net, &skb->dst, &fl, NULL, 0);
+	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
+	skb_dst_set(skb, dst);
 	if (err)
 		goto err_out;
+
+	payload_len = skb->len;
 
 	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, skb->dev,
 		      dst_output);
@@ -1479,7 +1484,7 @@ out:
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS_BH(net, idev, ICMPV6_MLD2_REPORT);
 		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
+		IP6_UPD_PO_STATS_BH(net, idev, IPSTATS_MIB_OUTMCAST, payload_len);
 	} else
 		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_OUTDISCARDS);
 
@@ -1772,11 +1777,8 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
 		     IPV6_TLV_PADN, 0 };
 	struct flowi fl;
+	struct dst_entry *dst;
 
-	rcu_read_lock();
-	IP6_INC_STATS(net, __in6_dev_get(dev),
-		      IPSTATS_MIB_OUTREQUESTS);
-	rcu_read_unlock();
 	if (type == ICMPV6_MGM_REDUCTION)
 		snd_addr = &in6addr_linklocal_allrouters;
 	else
@@ -1785,6 +1787,11 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
 	payload_len = len + sizeof(ra);
 	full_len = sizeof(struct ipv6hdr) + payload_len;
+
+	rcu_read_lock();
+	IP6_UPD_PO_STATS(net, __in6_dev_get(dev),
+		      IPSTATS_MIB_OUT, full_len);
+	rcu_read_unlock();
 
 	skb = sock_alloc_send_skb(sk, LL_ALLOCATED_SPACE(dev) + full_len, 1, &err);
 
@@ -1824,8 +1831,8 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	idev = in6_dev_get(skb->dev);
 
-	skb->dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
-	if (!skb->dst) {
+	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
+	if (!dst) {
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1834,17 +1841,18 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(net, &skb->dst, &fl, NULL, 0);
+	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
 	if (err)
 		goto err_out;
 
+	skb_dst_set(skb, dst);
 	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, skb->dev,
 		      dst_output);
 out:
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);
 		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
+		IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUTMCAST, full_len);
 	} else
 		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
 

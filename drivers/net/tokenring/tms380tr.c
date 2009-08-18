@@ -633,7 +633,7 @@ static int tms380tr_hardware_send_packet(struct sk_buff *skb, struct net_device 
 		if (tms380tr_debug > 0)
 			printk(KERN_DEBUG "%s: No free TPL\n", dev->name);
 		spin_unlock_irqrestore(&tp->lock, flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	dmabuf = 0;

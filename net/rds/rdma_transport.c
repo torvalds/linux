@@ -34,7 +34,7 @@
 
 #include "rdma_transport.h"
 
-static struct rdma_cm_id *rds_iw_listen_id;
+static struct rdma_cm_id *rds_rdma_listen_id;
 
 int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 			      struct rdma_cm_event *event)
@@ -161,7 +161,7 @@ static int __init rds_rdma_listen_init(void)
 
 	rdsdebug("cm %p listening on port %u\n", cm_id, RDS_PORT);
 
-	rds_iw_listen_id = cm_id;
+	rds_rdma_listen_id = cm_id;
 	cm_id = NULL;
 out:
 	if (cm_id)
@@ -171,10 +171,10 @@ out:
 
 static void rds_rdma_listen_stop(void)
 {
-	if (rds_iw_listen_id) {
-		rdsdebug("cm %p\n", rds_iw_listen_id);
-		rdma_destroy_id(rds_iw_listen_id);
-		rds_iw_listen_id = NULL;
+	if (rds_rdma_listen_id) {
+		rdsdebug("cm %p\n", rds_rdma_listen_id);
+		rdma_destroy_id(rds_rdma_listen_id);
+		rds_rdma_listen_id = NULL;
 	}
 }
 

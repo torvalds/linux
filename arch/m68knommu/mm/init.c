@@ -126,9 +126,7 @@ void __init mem_init(void)
 	unsigned long start_mem = memory_start; /* DAVIDM - these must start at end of kernel */
 	unsigned long end_mem   = memory_end; /* DAVIDM - this must not include kernel stack at top */
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "Mem_init: start=%lx, end=%lx\n", start_mem, end_mem);
-#endif
+	pr_debug("Mem_init: start=%lx, end=%lx\n", start_mem, end_mem);
 
 	end_mem &= PAGE_MASK;
 	high_memory = (void *) end_mem;

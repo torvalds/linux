@@ -1184,6 +1184,11 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 	}
 
+	if (port % MAX_PORTS_PER_BOARD >= brd->numPorts) {
+		mutex_unlock(&moxa_openlock);
+		return -ENODEV;
+	}
+
 	ch = &brd->ports[port % MAX_PORTS_PER_BOARD];
 	ch->port.count++;
 	tty->driver_data = ch;

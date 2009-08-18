@@ -1259,31 +1259,44 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 	check_cpu_stall(rsp, rdp);
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
-	if (rdp->qs_pending)
+	if (rdp->qs_pending) {
+		rdp->n_rp_qs_pending++;
 		return 1;
+	}
 
 	/* Does this CPU have callbacks ready to invoke? */
-	if (cpu_has_callbacks_ready_to_invoke(rdp))
+	if (cpu_has_callbacks_ready_to_invoke(rdp)) {
+		rdp->n_rp_cb_ready++;
 		return 1;
+	}
 
 	/* Has RCU gone idle with this CPU needing another grace period? */
-	if (cpu_needs_another_gp(rsp, rdp))
+	if (cpu_needs_another_gp(rsp, rdp)) {
+		rdp->n_rp_cpu_needs_gp++;
 		return 1;
+	}
 
 	/* Has another RCU grace period completed?  */
-	if (ACCESS_ONCE(rsp->completed) != rdp->completed) /* outside of lock */
+	if (ACCESS_ONCE(rsp->completed) != rdp->completed) { /* outside lock */
+		rdp->n_rp_gp_completed++;
 		return 1;
+	}
 
 	/* Has a new RCU grace period started? */
-	if (ACCESS_ONCE(rsp->gpnum) != rdp->gpnum) /* outside of lock */
+	if (ACCESS_ONCE(rsp->gpnum) != rdp->gpnum) { /* outside lock */
+		rdp->n_rp_gp_started++;
 		return 1;
+	}
 
 	/* Has an RCU GP gone long enough to send resched IPIs &c? */
 	if (ACCESS_ONCE(rsp->completed) != ACCESS_ONCE(rsp->gpnum) &&
-	    ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0))
+	    ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)) {
+		rdp->n_rp_need_fqs++;
 		return 1;
+	}
 
 	/* nothing to do */
+	rdp->n_rp_need_nothing++;
 	return 0;
 }
 

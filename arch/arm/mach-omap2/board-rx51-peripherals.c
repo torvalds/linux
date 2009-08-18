@@ -27,30 +27,13 @@
 #include <mach/dma.h>
 #include <mach/gpmc.h>
 #include <mach/keypad.h>
+#include <mach/onenand.h>
+#include <mach/gpmc-smc91x.h>
 
 #include "mmc-twl4030.h"
 
-
-#define SMC91X_CS			1
-#define SMC91X_GPIO_IRQ			54
-#define SMC91X_GPIO_RESET		164
-#define SMC91X_GPIO_PWRDWN		86
-
-static struct resource rx51_smc91x_resources[] = {
-	[0] = {
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-};
-
-static struct platform_device rx51_smc91x_device = {
-	.name		= "smc91x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(rx51_smc91x_resources),
-	.resource	= rx51_smc91x_resources,
-};
+#define SYSTEM_REV_B_USES_VAUX3	0x1699
+#define SYSTEM_REV_S_USES_VAUX3 0x8
 
 static int rx51_keymap[] = {
 	KEY(0, 0, KEY_Q),
@@ -106,98 +89,6 @@ static struct twl4030_keypad_data rx51_kp_data = {
 	.keymapsize	= ARRAY_SIZE(rx51_keymap),
 	.rep		= 1,
 };
-
-static struct platform_device *rx51_peripherals_devices[] = {
-	&rx51_smc91x_device,
-};
-
-/*
- * Timings are taken from smsc-lan91c96-ms.pdf
- */
-static int smc91x_init_gpmc(int cs)
-{
-	struct gpmc_timings t;
-	const int t2_r = 45;		/* t2 in Figure 12.10 */
-	const int t2_w = 30;		/* t2 in Figure 12.11 */
-	const int t3 = 15;		/* t3 in Figure 12.10 */
-	const int t5_r = 0;		/* t5 in Figure 12.10 */
-	const int t6_r = 45;		/* t6 in Figure 12.10 */
-	const int t6_w = 0;		/* t6 in Figure 12.11 */
-	const int t7_w = 15;		/* t7 in Figure 12.11 */
-	const int t15 = 12;		/* t15 in Figure 12.2 */
-	const int t20 = 185;		/* t20 in Figure 12.2 */
-
-	memset(&t, 0, sizeof(t));
-
-	t.cs_on = t15;
-	t.cs_rd_off = t3 + t2_r + t5_r;	/* Figure 12.10 */
-	t.cs_wr_off = t3 + t2_w + t6_w;	/* Figure 12.11 */
-	t.adv_on = t3;			/* Figure 12.10 */
-	t.adv_rd_off = t3 + t2_r;	/* Figure 12.10 */
-	t.adv_wr_off = t3 + t2_w;	/* Figure 12.11 */
-	t.oe_off = t3 + t2_r + t5_r;	/* Figure 12.10 */
-	t.oe_on = t.oe_off - t6_r;	/* Figure 12.10 */
-	t.we_off = t3 + t2_w + t6_w;	/* Figure 12.11 */
-	t.we_on = t.we_off - t7_w;	/* Figure 12.11 */
-	t.rd_cycle = t20;		/* Figure 12.2 */
-	t.wr_cycle = t20;		/* Figure 12.4 */
-	t.access = t3 + t2_r + t5_r;	/* Figure 12.10 */
-	t.wr_access = t3 + t2_w + t6_w;	/* Figure 12.11 */
-
-	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, GPMC_CONFIG1_DEVICESIZE_16);
-
-	return gpmc_cs_set_timings(cs, &t);
-}
-
-static void __init rx51_init_smc91x(void)
-{
-	unsigned long cs_mem_base;
-	int ret;
-
-	omap_cfg_reg(U8_34XX_GPIO54_DOWN);
-	omap_cfg_reg(G25_34XX_GPIO86_OUT);
-	omap_cfg_reg(H19_34XX_GPIO164_OUT);
-
-	if (gpmc_cs_request(SMC91X_CS, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed to request GPMC mem for smc91x\n");
-		return;
-	}
-
-	rx51_smc91x_resources[0].start = cs_mem_base + 0x300;
-	rx51_smc91x_resources[0].end = cs_mem_base + 0x30f;
-
-	smc91x_init_gpmc(SMC91X_CS);
-
-	if (gpio_request(SMC91X_GPIO_IRQ, "SMC91X irq") < 0)
-		goto free1;
-
-	gpio_direction_input(SMC91X_GPIO_IRQ);
-	rx51_smc91x_resources[1].start = gpio_to_irq(SMC91X_GPIO_IRQ);
-
-	ret = gpio_request(SMC91X_GPIO_PWRDWN, "SMC91X powerdown");
-	if (ret)
-		goto free2;
-	gpio_direction_output(SMC91X_GPIO_PWRDWN, 0);
-
-	ret = gpio_request(SMC91X_GPIO_RESET, "SMC91X reset");
-	if (ret)
-		goto free3;
-	gpio_direction_output(SMC91X_GPIO_RESET, 0);
-	gpio_set_value(SMC91X_GPIO_RESET, 1);
-	msleep(100);
-	gpio_set_value(SMC91X_GPIO_RESET, 0);
-
-	return;
-
-free3:
-	gpio_free(SMC91X_GPIO_PWRDWN);
-free2:
-	gpio_free(SMC91X_GPIO_IRQ);
-free1:
-	gpmc_cs_free(SMC91X_CS);
-
-	printk(KERN_ERR "Could not initialize smc91x\n");
-}
 
 static struct twl4030_madc_platform_data rx51_madc_data = {
 	.irq_line		= 1,
@@ -259,7 +150,7 @@ static struct regulator_init_data rx51_vaux2 = {
 };
 
 /* VAUX3 - adds more power to VIO_18 rail */
-static struct regulator_init_data rx51_vaux3 = {
+static struct regulator_init_data rx51_vaux3_cam = {
 	.constraints = {
 		.name			= "VCAM_DIG_18",
 		.min_uV			= 1800000,
@@ -270,6 +161,22 @@ static struct regulator_init_data rx51_vaux3 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+};
+
+static struct regulator_init_data rx51_vaux3_mmc = {
+	.constraints = {
+		.name			= "VMMC2_30",
+		.min_uV			= 2800000,
+		.max_uV			= 3000000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &rx51_vmmc2_supply,
 };
 
 static struct regulator_init_data rx51_vaux4 = {
@@ -382,10 +289,8 @@ static struct twl4030_platform_data rx51_twldata = {
 
 	.vaux1			= &rx51_vaux1,
 	.vaux2			= &rx51_vaux2,
-	.vaux3			= &rx51_vaux3,
 	.vaux4			= &rx51_vaux4,
 	.vmmc1			= &rx51_vmmc1,
-	.vmmc2			= &rx51_vmmc2,
 	.vsim			= &rx51_vsim,
 	.vdac			= &rx51_vdac,
 };
@@ -401,6 +306,13 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 
 static int __init rx51_i2c_init(void)
 {
+	if ((system_rev >= SYSTEM_REV_S_USES_VAUX3 && system_rev < 0x100) ||
+	    system_rev >= SYSTEM_REV_B_USES_VAUX3)
+		rx51_twldata.vaux3 = &rx51_vaux3_mmc;
+	else {
+		rx51_twldata.vaux3 = &rx51_vaux3_cam;
+		rx51_twldata.vmmc2 = &rx51_vmmc2;
+	}
 	omap_register_i2c_bus(1, 2600, rx51_peripherals_i2c_board_info_1,
 			ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
 	omap_register_i2c_bus(2, 100, NULL, 0);
@@ -408,12 +320,94 @@ static int __init rx51_i2c_init(void)
 	return 0;
 }
 
+#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
+	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
+
+static struct mtd_partition onenand_partitions[] = {
+	{
+		.name           = "bootloader",
+		.offset         = 0,
+		.size           = 0x20000,
+		.mask_flags     = MTD_WRITEABLE,	/* Force read-only */
+	},
+	{
+		.name           = "config",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x60000,
+	},
+	{
+		.name           = "log",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x40000,
+	},
+	{
+		.name           = "kernel",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x200000,
+	},
+	{
+		.name           = "initfs",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x200000,
+	},
+	{
+		.name           = "rootfs",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = MTDPART_SIZ_FULL,
+	},
+};
+
+static struct omap_onenand_platform_data board_onenand_data = {
+	.cs		= 0,
+	.gpio_irq	= 65,
+	.parts		= onenand_partitions,
+	.nr_parts	= ARRAY_SIZE(onenand_partitions),
+};
+
+static void __init board_onenand_init(void)
+{
+	gpmc_onenand_init(&board_onenand_data);
+}
+
+#else
+
+static inline void board_onenand_init(void)
+{
+}
+
+#endif
+
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+
+static struct omap_smc91x_platform_data board_smc91x_data = {
+	.cs		= 1,
+	.gpio_irq	= 54,
+	.gpio_pwrdwn	= 86,
+	.gpio_reset	= 164,
+	.flags		= GPMC_TIMINGS_SMC91C96 | IORESOURCE_IRQ_HIGHLEVEL,
+};
+
+static void __init board_smc91x_init(void)
+{
+	omap_cfg_reg(U8_34XX_GPIO54_DOWN);
+	omap_cfg_reg(G25_34XX_GPIO86_OUT);
+	omap_cfg_reg(H19_34XX_GPIO164_OUT);
+
+	gpmc_smc91x_init(&board_smc91x_data);
+}
+
+#else
+
+static inline void board_smc91x_init(void)
+{
+}
+
+#endif
 
 void __init rx51_peripherals_init(void)
 {
-	platform_add_devices(rx51_peripherals_devices,
-				ARRAY_SIZE(rx51_peripherals_devices));
 	rx51_i2c_init();
-	rx51_init_smc91x();
+	board_onenand_init();
+	board_smc91x_init();
 }
 

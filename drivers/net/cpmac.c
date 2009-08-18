@@ -202,7 +202,7 @@ struct cpmac_priv {
 	void __iomem *regs;
 	struct mii_bus *mii_bus;
 	struct phy_device *phy;
-	char phy_name[BUS_ID_SIZE];
+	char phy_name[MII_BUS_ID_SIZE + 3];
 	int oldlink, oldspeed, oldduplex;
 	u32 msg_enable;
 	struct net_device *dev;
@@ -615,13 +615,13 @@ static void cpmac_end_xmit(struct net_device *dev, int queue)
 
 		dev_kfree_skb_irq(desc->skb);
 		desc->skb = NULL;
-		if (netif_subqueue_stopped(dev, queue))
+		if (__netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
 	} else {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			printk(KERN_WARNING
 			       "%s: end_xmit: spurious interrupt\n", dev->name);
-		if (netif_subqueue_stopped(dev, queue))
+		if (__netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
 	}
 }
@@ -731,7 +731,6 @@ static void cpmac_clear_tx(struct net_device *dev)
 
 static void cpmac_hw_error(struct work_struct *work)
 {
-	int i;
 	struct cpmac_priv *priv =
 		container_of(work, struct cpmac_priv, reset_work);
 
@@ -818,7 +817,6 @@ static irqreturn_t cpmac_irq(int irq, void *dev_id)
 
 static void cpmac_tx_timeout(struct net_device *dev)
 {
-	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
 
 	spin_lock(&priv->lock);
@@ -1093,11 +1091,24 @@ static int cpmac_stop(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops cpmac_netdev_ops = {
+	.ndo_open		= cpmac_open,
+	.ndo_stop		= cpmac_stop,
+	.ndo_start_xmit		= cpmac_start_xmit,
+	.ndo_tx_timeout		= cpmac_tx_timeout,
+	.ndo_set_multicast_list	= cpmac_set_multicast_list,
+	.ndo_so_ioctl		= cpmac_ioctl,
+	.ndo_set_config		= cpmac_config,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int external_switch;
 
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
-	int rc, phy_id, i;
+	int rc, phy_id;
 	char *mdio_bus_id = "0";
 	struct resource *mem;
 	struct cpmac_priv *priv;
@@ -1143,14 +1154,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 
 	dev->irq = platform_get_irq_byname(pdev, "irq");
 
-	dev->open               = cpmac_open;
-	dev->stop               = cpmac_stop;
-	dev->set_config         = cpmac_config;
-	dev->hard_start_xmit    = cpmac_start_xmit;
-	dev->do_ioctl           = cpmac_ioctl;
-	dev->set_multicast_list = cpmac_set_multicast_list;
-	dev->tx_timeout         = cpmac_tx_timeout;
-	dev->ethtool_ops        = &cpmac_ethtool_ops;
+	dev->netdev_ops = &cpmac_netdev_ops;
+	dev->ethtool_ops = &cpmac_ethtool_ops;
 
 	netif_napi_add(dev, &priv->napi, cpmac_poll, 64);
 

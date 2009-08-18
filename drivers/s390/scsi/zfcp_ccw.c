@@ -11,6 +11,54 @@
 
 #include "zfcp_ext.h"
 
+#define ZFCP_MODEL_PRIV 0x4
+
+static int zfcp_ccw_suspend(struct ccw_device *cdev)
+
+{
+	struct zfcp_adapter *adapter = dev_get_drvdata(&cdev->dev);
+
+	down(&zfcp_data.config_sema);
+
+	zfcp_erp_adapter_shutdown(adapter, 0, "ccsusp1", NULL);
+	zfcp_erp_wait(adapter);
+
+	up(&zfcp_data.config_sema);
+
+	return 0;
+}
+
+static int zfcp_ccw_activate(struct ccw_device *cdev)
+
+{
+	struct zfcp_adapter *adapter = dev_get_drvdata(&cdev->dev);
+
+	zfcp_erp_modify_adapter_status(adapter, "ccresu1", NULL,
+				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
+				"ccresu2", NULL);
+	zfcp_erp_wait(adapter);
+	flush_work(&adapter->scan_work);
+
+	return 0;
+}
+
+static struct ccw_device_id zfcp_ccw_device_id[] = {
+	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x3) },
+	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, ZFCP_MODEL_PRIV) },
+	{},
+};
+MODULE_DEVICE_TABLE(ccw, zfcp_ccw_device_id);
+
+/**
+ * zfcp_ccw_priv_sch - check if subchannel is privileged
+ * @adapter: Adapter/Subchannel to check
+ */
+int zfcp_ccw_priv_sch(struct zfcp_adapter *adapter)
+{
+	return adapter->ccw_device->id.dev_model == ZFCP_MODEL_PRIV;
+}
+
 /**
  * zfcp_ccw_probe - probe function of zfcp driver
  * @ccw_device: pointer to belonging ccw device
@@ -176,8 +224,8 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 					"ccnoti4", NULL);
 		break;
 	case CIO_BOXED:
-		dev_warn(&adapter->ccw_device->dev,
-			 "The ccw device did not respond in time.\n");
+		dev_warn(&adapter->ccw_device->dev, "The FCP device "
+			 "did not respond within the specified time\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5", NULL);
 		break;
 	}
@@ -199,14 +247,6 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 	up(&zfcp_data.config_sema);
 }
 
-static struct ccw_device_id zfcp_ccw_device_id[] = {
-	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x3) },
-	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x4) }, /* priv. */
-	{},
-};
-
-MODULE_DEVICE_TABLE(ccw, zfcp_ccw_device_id);
-
 static struct ccw_driver zfcp_ccw_driver = {
 	.owner       = THIS_MODULE,
 	.name        = "zfcp",
@@ -217,6 +257,9 @@ static struct ccw_driver zfcp_ccw_driver = {
 	.set_offline = zfcp_ccw_set_offline,
 	.notify      = zfcp_ccw_notify,
 	.shutdown    = zfcp_ccw_shutdown,
+	.freeze      = zfcp_ccw_suspend,
+	.thaw	     = zfcp_ccw_activate,
+	.restore     = zfcp_ccw_activate,
 };
 
 /**

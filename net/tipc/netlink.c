@@ -68,7 +68,7 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static struct genl_family family = {
+static struct genl_family tipc_genl_family = {
 	.id		= GENL_ID_GENERATE,
 	.name		= TIPC_GENL_NAME,
 	.version	= TIPC_GENL_VERSION,
@@ -76,39 +76,33 @@ static struct genl_family family = {
 	.maxattr	= 0,
 };
 
-static struct genl_ops ops = {
+static struct genl_ops tipc_genl_ops = {
 	.cmd		= TIPC_GENL_CMD,
 	.doit		= handle_cmd,
 };
 
-static int family_registered = 0;
+static int tipc_genl_family_registered;
 
 int tipc_netlink_start(void)
 {
+	int res;
 
+	res = genl_register_family_with_ops(&tipc_genl_family,
+		&tipc_genl_ops, 1);
+	if (res) {
+		err("Failed to register netlink interface\n");
+		return res;
+	}
 
-	if (genl_register_family(&family))
-		goto err;
-
-	family_registered = 1;
-
-	if (genl_register_ops(&family, &ops))
-		goto err_unregister;
-
+	tipc_genl_family_registered = 1;
 	return 0;
-
- err_unregister:
-	genl_unregister_family(&family);
-	family_registered = 0;
- err:
-	err("Failed to register netlink interface\n");
-	return -EFAULT;
 }
 
 void tipc_netlink_stop(void)
 {
-	if (family_registered) {
-		genl_unregister_family(&family);
-		family_registered = 0;
-	}
+	if (!tipc_genl_family_registered)
+		return;
+
+	genl_unregister_family(&tipc_genl_family);
+	tipc_genl_family_registered = 0;
 }

@@ -237,22 +237,22 @@ static void write_header(void)
     fprintf(out, " *  Linux logo %s\n", logoname);
     fputs(" */\n\n", out);
     fputs("#include <linux/linux_logo.h>\n\n", out);
-    fprintf(out, "static unsigned char %s_data[] __initdata = {\n",
+    fprintf(out, "static const unsigned char %s_data[] __initconst = {\n",
 	    logoname);
 }
 
 static void write_footer(void)
 {
     fputs("\n};\n\n", out);
-    fprintf(out, "struct linux_logo %s __initdata = {\n", logoname);
-    fprintf(out, "    .type\t= %s,\n", logo_types[logo_type]);
-    fprintf(out, "    .width\t= %d,\n", logo_width);
-    fprintf(out, "    .height\t= %d,\n", logo_height);
+    fprintf(out, "const struct linux_logo %s __initconst = {\n", logoname);
+    fprintf(out, "\t.type\t\t= %s,\n", logo_types[logo_type]);
+    fprintf(out, "\t.width\t\t= %d,\n", logo_width);
+    fprintf(out, "\t.height\t\t= %d,\n", logo_height);
     if (logo_type == LINUX_LOGO_CLUT224) {
-	fprintf(out, "    .clutsize\t= %d,\n", logo_clutsize);
-	fprintf(out, "    .clut\t= %s_clut,\n", logoname);
+	fprintf(out, "\t.clutsize\t= %d,\n", logo_clutsize);
+	fprintf(out, "\t.clut\t\t= %s_clut,\n", logoname);
     }
-    fprintf(out, "    .data\t= %s_data\n", logoname);
+    fprintf(out, "\t.data\t\t= %s_data\n", logoname);
     fputs("};\n\n", out);
 
     /* close logo file */
@@ -374,7 +374,7 @@ static void write_logo_clut224(void)
     fputs("\n};\n\n", out);
 
     /* write logo clut */
-    fprintf(out, "static unsigned char %s_clut[] __initdata = {\n",
+    fprintf(out, "static const unsigned char %s_clut[] __initconst = {\n",
 	    logoname);
     write_hex_cnt = 0;
     for (i = 0; i < logo_clutsize; i++) {

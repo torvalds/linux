@@ -1823,3 +1823,20 @@ compat_sys_pwritev_wrapper:
 	llgfr	%r5,%r5			# u32
 	llgfr	%r6,%r6			# u32
 	jg	compat_sys_pwritev	# branch to system call
+
+	.globl	compat_sys_rt_tgsigqueueinfo_wrapper
+compat_sys_rt_tgsigqueueinfo_wrapper:
+	lgfr	%r2,%r2			# compat_pid_t
+	lgfr	%r3,%r3			# compat_pid_t
+	lgfr	%r4,%r4			# int
+	llgtr	%r5,%r5			# struct compat_siginfo *
+	jg	compat_sys_rt_tgsigqueueinfo_wrapper # branch to system call
+
+	.globl	sys_perf_counter_open_wrapper
+sys_perf_counter_open_wrapper:
+	llgtr	%r2,%r2			# const struct perf_counter_attr *
+	lgfr	%r3,%r3			# pid_t
+	lgfr	%r4,%r4			# int
+	lgfr	%r5,%r5			# int
+	llgfr	%r6,%r6			# unsigned long
+	jg	sys_perf_counter_open	# branch to system call

@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2008 Michal Simek
- * Copyright (C) 2008 PetaLogix
+ * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2008-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -11,7 +11,7 @@
 #ifndef _ASM_MICROBLAZE_SEGMENT_H
 #define _ASM_MICROBLAZE_SEGMENT_H
 
-#ifndef __ASSEMBLY__
+# ifndef __ASSEMBLY__
 
 typedef struct {
 	unsigned long seg;
@@ -29,15 +29,21 @@ typedef struct {
  *
  * For non-MMU arch like Microblaze, KERNEL_DS and USER_DS is equal.
  */
-#  define KERNEL_DS	((mm_segment_t){0})
+# define MAKE_MM_SEG(s)       ((mm_segment_t) { (s) })
+
+#  ifndef CONFIG_MMU
+#  define KERNEL_DS	MAKE_MM_SEG(0)
 #  define USER_DS	KERNEL_DS
+#  else
+#  define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFF)
+#  define USER_DS	MAKE_MM_SEG(TASK_SIZE - 1)
+#  endif
 
 # define get_ds()	(KERNEL_DS)
 # define get_fs()	(current_thread_info()->addr_limit)
-# define set_fs(x) \
-		do { current_thread_info()->addr_limit = (x); } while (0)
+# define set_fs(val)	(current_thread_info()->addr_limit = (val))
 
-# define segment_eq(a, b)		((a).seg == (b).seg)
+# define segment_eq(a, b)	((a).seg == (b).seg)
 
 # endif /* __ASSEMBLY__ */
 #endif /* _ASM_MICROBLAZE_SEGMENT_H */

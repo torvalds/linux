@@ -34,13 +34,6 @@ new_skb(ulong len)
 		skb_reset_mac_header(skb);
 		skb_reset_network_header(skb);
 		skb->protocol = __constant_htons(ETH_P_AOE);
-		skb->priority = 0;
-		skb->next = skb->prev = NULL;
-
-		/* tell the network layer not to perform IP checksums
-		 * or to get the NIC to do it
-		 */
-		skb->ip_summed = CHECKSUM_NONE;
 	}
 	return skb;
 }

@@ -133,7 +133,7 @@ static struct dvb_frontend *lnbx2x_attach(struct dvb_frontend *fe,
 	/* override frontend ops */
 	fe->ops.set_voltage = lnbp21_set_voltage;
 	fe->ops.enable_high_lnb_voltage = lnbp21_enable_high_lnb_voltage;
-	printk(KERN_INFO "LNBx2x attached on addr=%x", lnbp21->i2c_addr);
+	printk(KERN_INFO "LNBx2x attached on addr=%x\n", lnbp21->i2c_addr);
 
 	return fe;
 }

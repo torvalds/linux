@@ -294,10 +294,10 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 		INIT_LIST_HEAD(&worker->worker_list);
 		spin_lock_init(&worker->lock);
 		atomic_set(&worker->num_pending, 0);
+		worker->workers = workers;
 		worker->task = kthread_run(worker_loop, worker,
 					   "btrfs-%s-%d", workers->name,
 					   workers->num_workers + i);
-		worker->workers = workers;
 		if (IS_ERR(worker->task)) {
 			kfree(worker);
 			ret = PTR_ERR(worker->task);

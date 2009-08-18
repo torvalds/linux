@@ -1214,7 +1214,6 @@ static int si470x_fops_release(struct file *file)
 		usb_autopm_put_interface(radio->intf);
 	}
 
-unlock:
 	mutex_unlock(&radio->disconnect_lock);
 
 done:

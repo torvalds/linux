@@ -13,38 +13,123 @@
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
+#include "internal.h"
 
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
 			SYNC_FILE_RANGE_WAIT_AFTER)
 
 /*
- * sync everything.  Start out by waking pdflush, because that writes back
- * all queues in parallel.
+ * Do the filesystem syncing work. For simple filesystems sync_inodes_sb(sb, 0)
+ * just dirties buffers with inodes so we have to submit IO for these buffers
+ * via __sync_blockdev(). This also speeds up the wait == 1 case since in that
+ * case write_inode() functions do sync_dirty_buffer() and thus effectively
+ * write one block at a time.
  */
-static void do_sync(unsigned long wait)
+static int __sync_filesystem(struct super_block *sb, int wait)
 {
-	wakeup_pdflush(0);
-	sync_inodes(0);		/* All mappings, inodes and their blockdevs */
-	vfs_dq_sync(NULL);
-	sync_supers();		/* Write the superblocks */
-	sync_filesystems(0);	/* Start syncing the filesystems */
-	sync_filesystems(wait);	/* Waitingly sync the filesystems */
-	sync_inodes(wait);	/* Mappings, inodes and blockdevs, again. */
+	/* Avoid doing twice syncing and cache pruning for quota sync */
 	if (!wait)
-		printk("Emergency Sync complete\n");
-	if (unlikely(laptop_mode))
-		laptop_sync_completion();
+		writeout_quota_sb(sb, -1);
+	else
+		sync_quota_sb(sb, -1);
+	sync_inodes_sb(sb, wait);
+	if (sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, wait);
+	return __sync_blockdev(sb->s_bdev, wait);
+}
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.
+ */
+int sync_filesystem(struct super_block *sb)
+{
+	int ret;
+
+	/*
+	 * We need to be protected against the filesystem going from
+	 * r/o to r/w or vice versa.
+	 */
+	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+
+	/*
+	 * No point in syncing out anything if the filesystem is read-only.
+	 */
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	ret = __sync_filesystem(sb, 0);
+	if (ret < 0)
+		return ret;
+	return __sync_filesystem(sb, 1);
+}
+EXPORT_SYMBOL_GPL(sync_filesystem);
+
+/*
+ * Sync all the data for all the filesystems (called by sys_sync() and
+ * emergency sync)
+ *
+ * This operation is careful to avoid the livelock which could easily happen
+ * if two or more filesystems are being continuously dirtied.  s_need_sync
+ * is used only here.  We set it against all filesystems and then clear it as
+ * we sync them.  So redirtied filesystems are skipped.
+ *
+ * But if process A is currently running sync_filesystems and then process B
+ * calls sync_filesystems as well, process B will set all the s_need_sync
+ * flags again, which will cause process A to resync everything.  Fix that with
+ * a local mutex.
+ */
+static void sync_filesystems(int wait)
+{
+	struct super_block *sb;
+	static DEFINE_MUTEX(mutex);
+
+	mutex_lock(&mutex);		/* Could be down_interruptible */
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list)
+		sb->s_need_sync = 1;
+
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (!sb->s_need_sync)
+			continue;
+		sb->s_need_sync = 0;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+
+		down_read(&sb->s_umount);
+		if (!(sb->s_flags & MS_RDONLY) && sb->s_root)
+			__sync_filesystem(sb, wait);
+		up_read(&sb->s_umount);
+
+		/* restart only when sb is no longer on the list */
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
+	}
+	spin_unlock(&sb_lock);
+	mutex_unlock(&mutex);
 }
 
 SYSCALL_DEFINE0(sync)
 {
-	do_sync(1);
+	sync_filesystems(0);
+	sync_filesystems(1);
+	if (unlikely(laptop_mode))
+		laptop_sync_completion();
 	return 0;
 }
 
 static void do_sync_work(struct work_struct *work)
 {
-	do_sync(0);
+	/*
+	 * Sync twice to reduce the possibility we skipped some inodes / pages
+	 * because they were temporarily locked
+	 */
+	sync_filesystems(0);
+	sync_filesystems(0);
+	printk("Emergency Sync complete\n");
 	kfree(work);
 }
 
@@ -75,10 +160,8 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 
 	/* sync the superblock to buffers */
 	sb = inode->i_sb;
-	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
-	unlock_super(sb);
 
 	/* .. finally sync the buffers to disk */
 	err = sync_blockdev(sb->s_bdev);

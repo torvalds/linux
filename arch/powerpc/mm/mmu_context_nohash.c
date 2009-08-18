@@ -46,7 +46,7 @@ static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
-static spinlock_t context_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(context_lock);
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -73,7 +73,6 @@ static unsigned int steal_context_smp(unsigned int id)
 	struct mm_struct *mm;
 	unsigned int cpu, max;
 
- again:
 	max = last_context - first_context;
 
 	/* Attempt to free next_context first and then loop until we manage */
@@ -108,7 +107,9 @@ static unsigned int steal_context_smp(unsigned int id)
 	spin_unlock(&context_lock);
 	cpu_relax();
 	spin_lock(&context_lock);
-	goto again;
+
+	/* This will cause the caller to try again */
+	return MMU_NO_CONTEXT;
 }
 #endif  /* CONFIG_SMP */
 
@@ -194,6 +195,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 		WARN_ON(prev->context.active < 1);
 		prev->context.active--;
 	}
+
+ again:
 #endif /* CONFIG_SMP */
 
 	/* If we already have a valid assigned context, skip all that */
@@ -212,7 +215,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 #ifdef CONFIG_SMP
 		if (num_online_cpus() > 1) {
 			id = steal_context_smp(id);
-			goto stolen;
+			if (id == MMU_NO_CONTEXT)
+				goto again;
 		}
 #endif /* CONFIG_SMP */
 		id = steal_context_up(id);
@@ -272,6 +276,7 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
  */
 void destroy_context(struct mm_struct *mm)
 {
+	unsigned long flags;
 	unsigned int id;
 
 	if (mm->context.id == MMU_NO_CONTEXT)
@@ -279,18 +284,18 @@ void destroy_context(struct mm_struct *mm)
 
 	WARN_ON(mm->context.active != 0);
 
-	spin_lock(&context_lock);
+	spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
 		mm->context.id = MMU_NO_CONTEXT;
 #ifdef DEBUG_MAP_CONSISTENCY
 		mm->context.active = 0;
-		context_mm[id] = NULL;
 #endif
+		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
-	spin_unlock(&context_lock);
+	spin_unlock_irqrestore(&context_lock, flags);
 }
 
 #ifdef CONFIG_SMP

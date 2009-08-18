@@ -66,14 +66,14 @@ static int debug;
 /* function prototypes */
 static int  omninet_open(struct tty_struct *tty, struct usb_serial_port *port,
 							struct file *filp);
-static void omninet_close(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp);
+static void omninet_close(struct usb_serial_port *port);
 static void omninet_read_bulk_callback(struct urb *urb);
 static void omninet_write_bulk_callback(struct urb *urb);
 static int  omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 				const unsigned char *buf, int count);
 static int  omninet_write_room(struct tty_struct *tty);
-static void omninet_shutdown(struct usb_serial *serial);
+static void omninet_disconnect(struct usb_serial *serial);
+static void omninet_release(struct usb_serial *serial);
 static int omninet_attach(struct usb_serial *serial);
 
 static struct usb_device_id id_table[] = {
@@ -109,7 +109,8 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.write_room =		omninet_write_room,
 	.read_bulk_callback =	omninet_read_bulk_callback,
 	.write_bulk_callback =	omninet_write_bulk_callback,
-	.shutdown =		omninet_shutdown,
+	.disconnect =		omninet_disconnect,
+	.release =		omninet_release,
 };
 
 
@@ -189,8 +190,7 @@ static int omninet_open(struct tty_struct *tty,
 	return result;
 }
 
-static void omninet_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void omninet_close(struct usb_serial_port *port)
 {
 	dbg("%s - port %d", __func__, port->number);
 	usb_kill_urb(port->read_urb);
@@ -347,13 +347,22 @@ static void omninet_write_bulk_callback(struct urb *urb)
 }
 
 
-static void omninet_shutdown(struct usb_serial *serial)
+static void omninet_disconnect(struct usb_serial *serial)
 {
 	struct usb_serial_port *wport = serial->port[1];
-	struct usb_serial_port *port = serial->port[0];
+
 	dbg("%s", __func__);
 
 	usb_kill_urb(wport->write_urb);
+}
+
+
+static void omninet_release(struct usb_serial *serial)
+{
+	struct usb_serial_port *port = serial->port[0];
+
+	dbg("%s", __func__);
+
 	kfree(usb_get_serial_port_data(port));
 }
 

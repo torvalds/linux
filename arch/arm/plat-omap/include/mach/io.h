@@ -6,6 +6,9 @@
  * Copied from arch/arm/mach-sa1100/include/mach/io.h
  * Copyright (C) 1997-1999 Russell King
  *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -156,6 +159,40 @@
 #define DSP_MMU_34XX_PHYS	OMAP34XX_DSP_MMU_BASE	/* 0x5a000000 */
 #define DSP_MMU_34XX_VIRT	0xe2000000
 #define DSP_MMU_34XX_SIZE	SZ_4K
+
+
+#elif defined(CONFIG_ARCH_OMAP4)
+/* We map both L3 and L4 on OMAP4 */
+#define L3_44XX_PHYS		L3_44XX_BASE
+#define L3_44XX_VIRT		0xd4000000
+#define L3_44XX_SIZE		SZ_1M
+
+#define L4_44XX_PHYS		L4_44XX_BASE
+#define L4_44XX_VIRT		0xda000000
+#define L4_44XX_SIZE		SZ_4M
+
+
+#define L4_WK_44XX_PHYS		L4_WK_44XX_BASE
+#define L4_WK_44XX_VIRT		0xda300000
+#define L4_WK_44XX_SIZE		SZ_1M
+
+#define L4_PER_44XX_PHYS	L4_PER_44XX_BASE
+#define L4_PER_44XX_VIRT	0xd8000000
+#define L4_PER_44XX_SIZE	SZ_4M
+
+#define L4_EMU_44XX_PHYS	L4_EMU_44XX_BASE
+#define L4_EMU_44XX_VIRT	0xe4000000
+#define L4_EMU_44XX_SIZE	SZ_64M
+
+#define OMAP44XX_GPMC_PHYS	OMAP44XX_GPMC_BASE
+#define OMAP44XX_GPMC_VIRT	0xe0000000
+#define OMAP44XX_GPMC_SIZE	SZ_1M
+
+
+#define IO_OFFSET		0x90000000
+#define __IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
+#define __OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
+#define io_v2p(va)		((va) - IO_OFFSET)/* Works for L3 and L4 */
 
 #endif
 

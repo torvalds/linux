@@ -329,4 +329,8 @@ config MCU_MPC8349EMITX
 	  also register MCU GPIOs with the generic GPIO API, so you'll able
 	  to use MCU pins as GPIOs.
 
+config XILINX_PCI
+	bool "Xilinx PCI host bridge support"
+	depends on PCI && XILINX_VIRTEX
+
 endmenu

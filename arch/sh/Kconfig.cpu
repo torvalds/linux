@@ -76,11 +76,6 @@ config SPECULATIVE_EXECUTION
 
 	  If unsure, say N.
 
-config SH64_USER_MISALIGNED_FIXUP
-	def_bool y
-	prompt "Fixup misaligned loads/stores occurring in user mode"
-	depends on SUPERH64
-
 config SH64_ID2815_WORKAROUND
 	bool "Include workaround for SH5-101 cut2 silicon defect ID2815"
 	depends on CPU_SUBTYPE_SH5_101
@@ -100,9 +95,6 @@ config CPU_HAS_SR_RB
 
 	  See <file:Documentation/sh/register-banks.txt> for further
 	  information on SR.RB and register banking in the kernel in general.
-
-config CPU_HAS_PTEA
-	bool
 
 config CPU_HAS_PTEAEX
 	bool

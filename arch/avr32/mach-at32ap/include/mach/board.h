@@ -29,7 +29,7 @@ extern struct platform_device *atmel_default_console_device;
 /* Flags for selecting USART extra pins */
 #define	ATMEL_USART_RTS		0x01
 #define	ATMEL_USART_CTS		0x02
-#define	ATMEL_USART_CLK		0x03
+#define	ATMEL_USART_CLK		0x04
 
 struct atmel_uart_data {
 	short		use_dma_tx;	/* use transmit DMA? */

@@ -194,7 +194,7 @@ The following information is available in this file:
           - Packetized SCSI Protocol at 160MB/s and 320MB/s
           - Quick Arbitration Selection (QAS)
           - Retained Training Information (Rev B. ASIC only)
-        - Interrupt Coalessing
+        - Interrupt Coalescing
         - Initiator Mode (target mode not currently 
           supported)
         - Support for the PCI-X standard up to 133MHz

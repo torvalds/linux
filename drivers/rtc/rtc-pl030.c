@@ -117,7 +117,7 @@ static int pl030_probe(struct amba_device *dev, struct amba_id *id)
 		goto err_rtc;
 	}
 
-	rtc->base = ioremap(dev->res.start, SZ_4K);
+	rtc->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!rtc->base) {
 		ret = -ENOMEM;
 		goto err_map;

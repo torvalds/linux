@@ -62,7 +62,10 @@ enum {
 	DISABLE_ASL_GPS = 0x0020,
 	DISABLE_ASL_DISPLAYSWITCH = 0x0040,
 	DISABLE_ASL_MODEM = 0x0080,
-	DISABLE_ASL_CARDREADER = 0x0100
+	DISABLE_ASL_CARDREADER = 0x0100,
+	DISABLE_ASL_3G = 0x0200,
+	DISABLE_ASL_WIMAX = 0x0400,
+	DISABLE_ASL_HWCF = 0x0800
 };
 
 enum {
@@ -87,7 +90,13 @@ enum {
 	CM_ASL_USBPORT3,
 	CM_ASL_MODEM,
 	CM_ASL_CARDREADER,
-	CM_ASL_LID
+	CM_ASL_3G,
+	CM_ASL_WIMAX,
+	CM_ASL_HWCF,
+	CM_ASL_LID,
+	CM_ASL_TYPE,
+	CM_ASL_PANELPOWER,	/*P901*/
+	CM_ASL_TPD
 };
 
 static const char *cm_getv[] = {
@@ -96,7 +105,8 @@ static const char *cm_getv[] = {
 	NULL, "PBLG", NULL, NULL,
 	"CFVG", NULL, NULL, NULL,
 	"USBG", NULL, NULL, "MODG",
-	"CRDG", "LIDG"
+	"CRDG", "M3GG", "WIMG", "HWCF",
+	"LIDG",	"TYPE", "PBPG",	"TPDG"
 };
 
 static const char *cm_setv[] = {
@@ -105,7 +115,8 @@ static const char *cm_setv[] = {
 	"SDSP", "PBLS", "HDPS", NULL,
 	"CFVS", NULL, NULL, NULL,
 	"USBG", NULL, NULL, "MODS",
-	"CRDS", NULL
+	"CRDS", "M3GS", "WIMS", NULL,
+	NULL, NULL, "PBPS", "TPDS"
 };
 
 #define EEEPC_EC	"\\_SB.PCI0.SBRG.EC0."
@@ -180,6 +191,8 @@ static struct key_entry eeepc_keymap[] = {
  */
 static int eeepc_hotk_add(struct acpi_device *device);
 static int eeepc_hotk_remove(struct acpi_device *device, int type);
+static int eeepc_hotk_resume(struct acpi_device *device);
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id eeepc_device_ids[] = {
 	{EEEPC_HOTK_HID, 0},
@@ -191,9 +204,12 @@ static struct acpi_driver eeepc_hotk_driver = {
 	.name = EEEPC_HOTK_NAME,
 	.class = EEEPC_HOTK_CLASS,
 	.ids = eeepc_device_ids,
+	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = eeepc_hotk_add,
 		.remove = eeepc_hotk_remove,
+		.resume = eeepc_hotk_resume,
+		.notify = eeepc_hotk_notify,
 	},
 };
 
@@ -299,38 +315,30 @@ static int update_bl_status(struct backlight_device *bd)
  * Rfkill helpers
  */
 
-static int eeepc_wlan_rfkill_set(void *data, enum rfkill_state state)
-{
-	if (state == RFKILL_STATE_SOFT_BLOCKED)
-		return set_acpi(CM_ASL_WLAN, 0);
-	else
-		return set_acpi(CM_ASL_WLAN, 1);
-}
-
-static int eeepc_wlan_rfkill_state(void *data, enum rfkill_state *state)
+static bool eeepc_wlan_rfkill_blocked(void)
 {
 	if (get_acpi(CM_ASL_WLAN) == 1)
-		*state = RFKILL_STATE_UNBLOCKED;
-	else
-		*state = RFKILL_STATE_SOFT_BLOCKED;
-	return 0;
+		return false;
+	return true;
 }
 
-static int eeepc_bluetooth_rfkill_set(void *data, enum rfkill_state state)
+static int eeepc_rfkill_set(void *data, bool blocked)
 {
-	if (state == RFKILL_STATE_SOFT_BLOCKED)
-		return set_acpi(CM_ASL_BLUETOOTH, 0);
-	else
-		return set_acpi(CM_ASL_BLUETOOTH, 1);
+	unsigned long asl = (unsigned long)data;
+	return set_acpi(asl, !blocked);
 }
 
-static int eeepc_bluetooth_rfkill_state(void *data, enum rfkill_state *state)
+static const struct rfkill_ops eeepc_rfkill_ops = {
+	.set_block = eeepc_rfkill_set,
+};
+
+static void __init eeepc_enable_camera(void)
 {
-	if (get_acpi(CM_ASL_BLUETOOTH) == 1)
-		*state = RFKILL_STATE_UNBLOCKED;
-	else
-		*state = RFKILL_STATE_SOFT_BLOCKED;
-	return 0;
+	/*
+	 * If the following call to set_acpi() fails, it's because there's no
+	 * camera so we can ignore the error.
+	 */
+	set_acpi(CM_ASL_CAMERA, 1);
 }
 
 /*
@@ -384,13 +392,88 @@ static ssize_t show_sys_acpi(int cm, char *buf)
 EEEPC_CREATE_DEVICE_ATTR(camera, CM_ASL_CAMERA);
 EEEPC_CREATE_DEVICE_ATTR(cardr, CM_ASL_CARDREADER);
 EEEPC_CREATE_DEVICE_ATTR(disp, CM_ASL_DISPLAYSWITCH);
-EEEPC_CREATE_DEVICE_ATTR(cpufv, CM_ASL_CPUFV);
+
+struct eeepc_cpufv {
+	int num;
+	int cur;
+};
+
+static int get_cpufv(struct eeepc_cpufv *c)
+{
+	c->cur = get_acpi(CM_ASL_CPUFV);
+	c->num = (c->cur >> 8) & 0xff;
+	c->cur &= 0xff;
+	if (c->cur < 0 || c->num <= 0 || c->num > 12)
+		return -ENODEV;
+	return 0;
+}
+
+static ssize_t show_available_cpufv(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct eeepc_cpufv c;
+	int i;
+	ssize_t len = 0;
+
+	if (get_cpufv(&c))
+		return -ENODEV;
+	for (i = 0; i < c.num; i++)
+		len += sprintf(buf + len, "%d ", i);
+	len += sprintf(buf + len, "\n");
+	return len;
+}
+
+static ssize_t show_cpufv(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct eeepc_cpufv c;
+
+	if (get_cpufv(&c))
+		return -ENODEV;
+	return sprintf(buf, "%#x\n", (c.num << 8) | c.cur);
+}
+
+static ssize_t store_cpufv(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct eeepc_cpufv c;
+	int rv, value;
+
+	if (get_cpufv(&c))
+		return -ENODEV;
+	rv = parse_arg(buf, count, &value);
+	if (rv < 0)
+		return rv;
+	if (!rv || value < 0 || value >= c.num)
+		return -EINVAL;
+	set_acpi(CM_ASL_CPUFV, value);
+	return rv;
+}
+
+static struct device_attribute dev_attr_cpufv = {
+	.attr = {
+		.name = "cpufv",
+		.mode = 0644 },
+	.show   = show_cpufv,
+	.store  = store_cpufv
+};
+
+static struct device_attribute dev_attr_available_cpufv = {
+	.attr = {
+		.name = "available_cpufv",
+		.mode = 0444 },
+	.show   = show_available_cpufv
+};
 
 static struct attribute *platform_attributes[] = {
 	&dev_attr_camera.attr,
 	&dev_attr_cardr.attr,
 	&dev_attr_disp.attr,
 	&dev_attr_cpufv.attr,
+	&dev_attr_available_cpufv.attr,
 	NULL
 };
 
@@ -529,23 +612,19 @@ static int notify_brn(void)
 	return -1;
 }
 
-static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
+static void eeepc_rfkill_hotplug(void)
 {
-	enum rfkill_state state;
 	struct pci_dev *dev;
 	struct pci_bus *bus = pci_find_bus(0, 1);
-
-	if (event != ACPI_NOTIFY_BUS_CHECK)
-		return;
+	bool blocked;
 
 	if (!bus) {
 		printk(EEEPC_WARNING "Unable to find PCI bus 1?\n");
 		return;
 	}
 
-	eeepc_wlan_rfkill_state(ehotk->eeepc_wlan_rfkill, &state);
-
-	if (state == RFKILL_STATE_UNBLOCKED) {
+	blocked = eeepc_wlan_rfkill_blocked();
+	if (!blocked) {
 		dev = pci_get_slot(bus, 0);
 		if (dev) {
 			/* Device already present */
@@ -566,16 +645,26 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 		}
 	}
 
-	rfkill_force_state(ehotk->eeepc_wlan_rfkill, state);
+	rfkill_set_sw_state(ehotk->eeepc_wlan_rfkill, blocked);
 }
 
-static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
+static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
+{
+	if (event != ACPI_NOTIFY_BUS_CHECK)
+		return;
+
+	eeepc_rfkill_hotplug();
+}
+
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
 {
 	static struct key_entry *key;
 	u16 count;
 	int brn = -ENODEV;
 
 	if (!ehotk)
+		return;
+	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
 		brn = notify_brn();
@@ -657,7 +746,6 @@ static void eeepc_unregister_rfkill_notifier(char *node)
 
 static int eeepc_hotk_add(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
 	int result;
 
 	if (!device)
@@ -675,35 +763,22 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	result = eeepc_hotk_check();
 	if (result)
 		goto ehotk_fail;
-	status = acpi_install_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
-					     eeepc_hotk_notify, ehotk);
-	if (ACPI_FAILURE(status))
-		printk(EEEPC_ERR "Error installing notify handler\n");
 
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");
 
 	if (get_acpi(CM_ASL_WLAN) != -1) {
-		ehotk->eeepc_wlan_rfkill = rfkill_allocate(&device->dev,
-							   RFKILL_TYPE_WLAN);
+		ehotk->eeepc_wlan_rfkill = rfkill_alloc("eeepc-wlan",
+							&device->dev,
+							RFKILL_TYPE_WLAN,
+							&eeepc_rfkill_ops,
+							(void *)CM_ASL_WLAN);
 
 		if (!ehotk->eeepc_wlan_rfkill)
 			goto wlan_fail;
 
-		ehotk->eeepc_wlan_rfkill->name = "eeepc-wlan";
-		ehotk->eeepc_wlan_rfkill->toggle_radio = eeepc_wlan_rfkill_set;
-		ehotk->eeepc_wlan_rfkill->get_state = eeepc_wlan_rfkill_state;
-		if (get_acpi(CM_ASL_WLAN) == 1) {
-			ehotk->eeepc_wlan_rfkill->state =
-				RFKILL_STATE_UNBLOCKED;
-			rfkill_set_default(RFKILL_TYPE_WLAN,
-					   RFKILL_STATE_UNBLOCKED);
-		} else {
-			ehotk->eeepc_wlan_rfkill->state =
-				RFKILL_STATE_SOFT_BLOCKED;
-			rfkill_set_default(RFKILL_TYPE_WLAN,
-					   RFKILL_STATE_SOFT_BLOCKED);
-		}
+		rfkill_init_sw_state(ehotk->eeepc_wlan_rfkill,
+				     get_acpi(CM_ASL_WLAN) != 1);
 		result = rfkill_register(ehotk->eeepc_wlan_rfkill);
 		if (result)
 			goto wlan_fail;
@@ -711,28 +786,17 @@ static int eeepc_hotk_add(struct acpi_device *device)
 
 	if (get_acpi(CM_ASL_BLUETOOTH) != -1) {
 		ehotk->eeepc_bluetooth_rfkill =
-			rfkill_allocate(&device->dev, RFKILL_TYPE_BLUETOOTH);
+			rfkill_alloc("eeepc-bluetooth",
+				     &device->dev,
+				     RFKILL_TYPE_BLUETOOTH,
+				     &eeepc_rfkill_ops,
+				     (void *)CM_ASL_BLUETOOTH);
 
 		if (!ehotk->eeepc_bluetooth_rfkill)
 			goto bluetooth_fail;
 
-		ehotk->eeepc_bluetooth_rfkill->name = "eeepc-bluetooth";
-		ehotk->eeepc_bluetooth_rfkill->toggle_radio =
-			eeepc_bluetooth_rfkill_set;
-		ehotk->eeepc_bluetooth_rfkill->get_state =
-			eeepc_bluetooth_rfkill_state;
-		if (get_acpi(CM_ASL_BLUETOOTH) == 1) {
-			ehotk->eeepc_bluetooth_rfkill->state =
-				RFKILL_STATE_UNBLOCKED;
-			rfkill_set_default(RFKILL_TYPE_BLUETOOTH,
-					   RFKILL_STATE_UNBLOCKED);
-		} else {
-			ehotk->eeepc_bluetooth_rfkill->state =
-				RFKILL_STATE_SOFT_BLOCKED;
-			rfkill_set_default(RFKILL_TYPE_BLUETOOTH,
-					   RFKILL_STATE_SOFT_BLOCKED);
-		}
-
+		rfkill_init_sw_state(ehotk->eeepc_bluetooth_rfkill,
+				     get_acpi(CM_ASL_BLUETOOTH) != 1);
 		result = rfkill_register(ehotk->eeepc_bluetooth_rfkill);
 		if (result)
 			goto bluetooth_fail;
@@ -741,13 +805,10 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	return 0;
 
  bluetooth_fail:
-	if (ehotk->eeepc_bluetooth_rfkill)
-		rfkill_free(ehotk->eeepc_bluetooth_rfkill);
+	rfkill_destroy(ehotk->eeepc_bluetooth_rfkill);
 	rfkill_unregister(ehotk->eeepc_wlan_rfkill);
-	ehotk->eeepc_wlan_rfkill = NULL;
  wlan_fail:
-	if (ehotk->eeepc_wlan_rfkill)
-		rfkill_free(ehotk->eeepc_wlan_rfkill);
+	rfkill_destroy(ehotk->eeepc_wlan_rfkill);
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
  ehotk_fail:
@@ -759,19 +820,40 @@ static int eeepc_hotk_add(struct acpi_device *device)
 
 static int eeepc_hotk_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
-
 	if (!device || !acpi_driver_data(device))
 		 return -EINVAL;
-	status = acpi_remove_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
-					    eeepc_hotk_notify);
-	if (ACPI_FAILURE(status))
-		printk(EEEPC_ERR "Error removing notify handler\n");
 
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
 
 	kfree(ehotk);
+	return 0;
+}
+
+static int eeepc_hotk_resume(struct acpi_device *device)
+{
+	if (ehotk->eeepc_wlan_rfkill) {
+		bool wlan;
+
+		/* Workaround - it seems that _PTS disables the wireless
+		   without notification or changing the value read by WLAN.
+		   Normally this is fine because the correct value is restored
+		   from the non-volatile storage on resume, but we need to do
+		   it ourself if case suspend is aborted, or we lose wireless.
+		 */
+		wlan = get_acpi(CM_ASL_WLAN);
+		set_acpi(CM_ASL_WLAN, wlan);
+
+		rfkill_set_sw_state(ehotk->eeepc_wlan_rfkill,
+				    wlan != 1);
+
+		eeepc_rfkill_hotplug();
+	}
+
+	if (ehotk->eeepc_bluetooth_rfkill)
+		rfkill_set_sw_state(ehotk->eeepc_bluetooth_rfkill,
+				    get_acpi(CM_ASL_BLUETOOTH) != 1);
+
 	return 0;
 }
 
@@ -996,6 +1078,9 @@ static int __init eeepc_laptop_init(void)
 	result = eeepc_hwmon_init(dev);
 	if (result)
 		goto fail_hwmon;
+
+	eeepc_enable_camera();
+
 	/* Register platform stuff */
 	result = platform_driver_register(&platform_driver);
 	if (result)

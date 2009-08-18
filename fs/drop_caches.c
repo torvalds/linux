@@ -24,7 +24,7 @@ static void drop_pagecache_sb(struct super_block *sb)
 			continue;
 		__iget(inode);
 		spin_unlock(&inode_lock);
-		__invalidate_mapping_pages(inode->i_mapping, 0, -1, true);
+		invalidate_mapping_pages(inode->i_mapping, 0, -1);
 		iput(toput_inode);
 		toput_inode = inode;
 		spin_lock(&inode_lock);

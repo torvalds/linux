@@ -193,7 +193,7 @@ static int __devexit snd_es1688_remove(struct device *dev, unsigned int n)
 static struct isa_driver snd_es1688_driver = {
 	.match		= snd_es1688_match,
 	.probe		= snd_es1688_probe,
-	.remove		= snd_es1688_remove,
+	.remove		= __devexit_p(snd_es1688_remove),
 #if 0	/* FIXME */
 	.suspend	= snd_es1688_suspend,
 	.resume		= snd_es1688_resume,

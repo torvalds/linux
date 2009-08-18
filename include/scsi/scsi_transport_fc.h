@@ -33,7 +33,6 @@
 
 struct scsi_transport_template;
 
-
 /*
  * FC Port definitions - Following FC HBAAPI guidelines
  *
@@ -352,6 +351,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
  	struct delayed_work fail_io_work;
  	struct work_struct stgt_delete_work;
 	struct work_struct rport_delete_work;
+	struct request_queue *rqst_q;	/* bsg support */
 } __attribute__((aligned(sizeof(unsigned long))));
 
 /* bit field values for struct fc_rport "flags" field: */
@@ -514,6 +514,9 @@ struct fc_host_attrs {
 	struct workqueue_struct *work_q;
 	char devloss_work_q_name[20];
 	struct workqueue_struct *devloss_work_q;
+
+	/* bsg support */
+	struct request_queue *rqst_q;
 };
 
 #define shost_to_fc_host(x) \
@@ -579,6 +582,47 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->devloss_work_q)
 
 
+struct fc_bsg_buffer {
+	unsigned int payload_len;
+	int sg_cnt;
+	struct scatterlist *sg_list;
+};
+
+/* Values for fc_bsg_job->state_flags (bitflags) */
+#define FC_RQST_STATE_INPROGRESS	0
+#define FC_RQST_STATE_DONE		1
+
+struct fc_bsg_job {
+	struct Scsi_Host *shost;
+	struct fc_rport *rport;
+	struct device *dev;
+	struct request *req;
+	spinlock_t job_lock;
+	unsigned int state_flags;
+	unsigned int ref_cnt;
+	void (*job_done)(struct fc_bsg_job *);
+
+	struct fc_bsg_request *request;
+	struct fc_bsg_reply *reply;
+	unsigned int request_len;
+	unsigned int reply_len;
+	/*
+	 * On entry : reply_len indicates the buffer size allocated for
+	 * the reply.
+	 *
+	 * Upon completion : the message handler must set reply_len
+	 *  to indicates the size of the reply to be returned to the
+	 *  caller.
+	 */
+
+	/* DMA payloads for the request/response */
+	struct fc_bsg_buffer request_payload;
+	struct fc_bsg_buffer reply_payload;
+
+	void *dd_data;			/* Used for driver-specific storage */
+};
+
+
 /* The functions by which the transport class and the driver communicate */
 struct fc_function_template {
 	void    (*get_rport_dev_loss_tmo)(struct fc_rport *);
@@ -614,9 +658,14 @@ struct fc_function_template {
 	int     (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
 	int     (* it_nexus_response)(struct Scsi_Host *, u64, int);
 
+	/* bsg support */
+	int	(*bsg_request)(struct fc_bsg_job *);
+	int	(*bsg_timeout)(struct fc_bsg_job *);
+
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
 	u32	 			dd_fcvport_size;
+	u32				dd_bsg_size;
 
 	/*
 	 * The driver sets these to tell the transport class it
@@ -736,7 +785,6 @@ fc_vport_set_state(struct fc_vport *vport, enum fc_vport_state new_state)
 		vport->vport_last_state = vport->vport_state;
 	vport->vport_state = new_state;
 }
-
 
 struct scsi_transport_template *fc_attach_transport(
 			struct fc_function_template *);

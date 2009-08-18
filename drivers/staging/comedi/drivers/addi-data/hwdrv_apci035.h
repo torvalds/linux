@@ -19,18 +19,18 @@
 #define APCI035_BOARD_VENDOR_ID		0x15B8
 #define APCI035_ADDRESS_RANGE		255
 
-INT i_TW_Number;
+int i_TW_Number;
 struct {
-	INT i_Gain;
-	INT i_Polarity;
-	INT i_OffsetRange;
-	INT i_Coupling;
-	INT i_SingleDiff;
-	INT i_AutoCalibration;
-	UINT ui_ReloadValue;
-	UINT ui_TimeUnitReloadVal;
-	INT i_Interrupt;
-	INT i_ModuleSelection;
+	int i_Gain;
+	int i_Polarity;
+	int i_OffsetRange;
+	int i_Coupling;
+	int i_SingleDiff;
+	int i_AutoCalibration;
+	unsigned int ui_ReloadValue;
+	unsigned int ui_TimeUnitReloadVal;
+	int i_Interrupt;
+	int i_ModuleSelection;
 } Config_Parameters_Main;
 
 /* ANALOG INPUT RANGE */
@@ -101,23 +101,23 @@ struct comedi_lrange range_apci035_ai = { 8, {
 
 /* TIMER */
 /* timer value is passed as u seconds */
-INT i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data);
-INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
+int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn, unsigned int *data);
-INT i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data);
 
 /* Temperature Related Defines (Analog Input Subdevice) */
 
-INT i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data);
-INT i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data);
 
 /* Interrupt */
 static void v_APCI035_Interrupt(int irq, void *d);
 
 /* Reset functions */
-INT i_APCI035_Reset(struct comedi_device *dev);
+int i_APCI035_Reset(struct comedi_device *dev);

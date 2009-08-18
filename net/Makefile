@@ -60,6 +60,7 @@ obj-$(CONFIG_NET_9P)		+= 9p/
 ifneq ($(CONFIG_DCB),)
 obj-y				+= dcb/
 endif
+obj-y				+= ieee802154/
 
 ifeq ($(CONFIG_NET),y)
 obj-$(CONFIG_SYSCTL)		+= sysctl_net.o

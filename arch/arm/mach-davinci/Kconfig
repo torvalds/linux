@@ -1,11 +1,26 @@
 if ARCH_DAVINCI
 
+config AINTC
+	bool
+
+config CP_INTC
+	bool
+
 menu "TI DaVinci Implementations"
 
 comment "DaVinci Core Type"
 
 config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
+	select AINTC
+
+config ARCH_DAVINCI_DM355
+        bool "DaVinci 355 based system"
+	select AINTC
+
+config ARCH_DAVINCI_DM646x
+        bool "DaVinci 646x based system"
+	select AINTC
 
 comment "DaVinci Board Type"
 
@@ -16,6 +31,34 @@ config MACH_DAVINCI_EVM
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM644x EVM
+
+config MACH_SFFSDR
+	bool "Lyrtech SFFSDR"
+	depends on ARCH_DAVINCI_DM644x
+	help
+	  Say Y here to select the Lyrtech Small Form Factor
+	  Software Defined Radio (SFFSDR) board.
+
+config MACH_DAVINCI_DM355_EVM
+	bool "TI DM355 EVM"
+	depends on ARCH_DAVINCI_DM355
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a DM355 EVM
+
+config MACH_DM355_LEOPARD
+	bool "DM355 Leopard board"
+	depends on ARCH_DAVINCI_DM355
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a DM355 Leopard board.
+
+config MACH_DAVINCI_DM6467_EVM
+	bool "TI DM6467 EVM"
+	depends on ARCH_DAVINCI_DM646x
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a DM6467 EVM
 
 
 config DAVINCI_MUX

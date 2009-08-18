@@ -39,7 +39,6 @@
 #define PAD_BYTES(nr_bytes)		P4D_BYTES( __LINE__ , (nr_bytes))
 
 
-extern int b43_modparam_qos;
 extern int b43_modparam_verbose;
 
 /* Logmessage verbosity levels. Update the b43_modparam_verbose helptext, if

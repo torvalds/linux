@@ -122,30 +122,30 @@ static inline void switch_mm(struct mm_struct *prev,
 	unsigned int cpu = smp_processor_id();
 
 	if (likely(prev != next)) {
-		cpu_set(cpu, next->cpu_vm_mask);
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 		set_TTB(next->pgd);
 		activate_context(next, cpu);
 	} else
-		if (!cpu_test_and_set(cpu, next->cpu_vm_mask))
+		if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)))
 			activate_context(next, cpu);
 }
+
+#define activate_mm(prev, next)		switch_mm((prev),(next),NULL)
+#define deactivate_mm(tsk,mm)		do { } while (0)
+#define enter_lazy_tlb(mm,tsk)		do { } while (0)
+
 #else
-#define get_mmu_context(mm)		do { } while (0)
-#define init_new_context(tsk,mm)	(0)
-#define destroy_context(mm)		do { } while (0)
+
 #define set_asid(asid)			do { } while (0)
 #define get_asid()			(0)
 #define cpu_asid(cpu, mm)		({ (void)cpu; NO_CONTEXT; })
 #define switch_and_save_asid(asid)	(0)
 #define set_TTB(pgd)			do { } while (0)
 #define get_TTB()			(0)
-#define activate_context(mm,cpu)	do { } while (0)
-#define switch_mm(prev,next,tsk)	do { } while (0)
-#endif /* CONFIG_MMU */
 
-#define activate_mm(prev, next)		switch_mm((prev),(next),NULL)
-#define deactivate_mm(tsk,mm)		do { } while (0)
-#define enter_lazy_tlb(mm,tsk)		do { } while (0)
+#include <asm-generic/mmu_context.h>
+
+#endif /* CONFIG_MMU */
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4)
 /*

@@ -114,7 +114,7 @@ struct plat_smp_ops msmtc_smp_ops = {
  */
 
 
-void plat_set_irq_affinity(unsigned int irq, const struct cpumask *affinity)
+int plat_set_irq_affinity(unsigned int irq, const struct cpumask *affinity)
 {
 	cpumask_t tmask;
 	int cpu = 0;
@@ -156,5 +156,7 @@ void plat_set_irq_affinity(unsigned int irq, const struct cpumask *affinity)
 
 	/* Do any generic SMTC IRQ affinity setup */
 	smtc_set_irq_affinity(irq, tmask);
+
+	return 0;
 }
 #endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */

@@ -54,8 +54,12 @@ quiet_cmd_remove = REMOVE  $(unwanted)
       cmd_remove = rm -f $(unwanted-file)
 
 quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
-      cmd_check = $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH) \
-                  $(addprefix $(install)/, $(all-files));           \
+# Headers list can be pretty long, xargs helps to avoid
+# the "Argument list too long" error.
+      cmd_check = for f in $(all-files); do                          \
+                  echo "$(install)/$${f}"; done                      \
+                  | xargs                                            \
+                  $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH); \
 	          touch $@
 
 PHONY += __headersinst __headerscheck

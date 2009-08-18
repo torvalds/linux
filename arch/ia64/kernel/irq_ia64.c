@@ -610,6 +610,9 @@ static struct irqaction ipi_irqaction = {
 	.name =		"IPI"
 };
 
+/*
+ * KVM uses this interrupt to force a cpu out of guest mode
+ */
 static struct irqaction resched_irqaction = {
 	.handler =	dummy_handler,
 	.flags =	IRQF_DISABLED,
@@ -627,7 +630,7 @@ static struct irqaction tlb_irqaction = {
 void
 ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action)
 {
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	unsigned int irq;
 
 	irq = vec;

@@ -137,7 +137,7 @@ static int route4_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	u32 id, h;
 	int iif, dont_cache = 0;
 
-	if ((dst = skb->dst) == NULL)
+	if ((dst = skb_dst(skb)) == NULL)
 		goto failure;
 
 	id = dst->tclassid;

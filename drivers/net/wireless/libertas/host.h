@@ -83,8 +83,11 @@
 #define CMD_FWT_ACCESS				0x0095
 #define CMD_802_11_MONITOR_MODE			0x0098
 #define CMD_MESH_ACCESS				0x009b
-#define CMD_MESH_CONFIG				0x00a3
+#define CMD_MESH_CONFIG_OLD			0x00a3
+#define CMD_MESH_CONFIG				0x00ac
 #define	CMD_SET_BOOT2_VER			0x00a5
+#define	CMD_FUNC_INIT				0x00a9
+#define	CMD_FUNC_SHUTDOWN			0x00aa
 #define CMD_802_11_BEACON_CTRL			0x00b0
 
 /* For the IEEE Power Save */

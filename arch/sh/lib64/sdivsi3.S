@@ -1,4 +1,6 @@
 	.global	__sdivsi3
+	.global	__sdivsi3_1
+	.global	__sdivsi3_2
 	.section	.text..SHmedia32,"ax"
 	.align	2
 
@@ -6,13 +8,15 @@
 	/* clobbered: r1,r18,r19,r20,r21,r25,tr0 */
 	/* result in r0 */
 __sdivsi3:
+__sdivsi3_1:
 	ptb __div_table,tr0
+	gettr tr0,r20
 
+__sdivsi3_2:
 	nsb r5, r1
 	shlld r5, r1, r25    /* normalize; [-2 ..1, 1..2) in s2.62 */
 	shari r25, 58, r21   /* extract 5(6) bit index (s2.4 with hole -1..1) */
 	/* bubble */
-	gettr tr0,r20
 	ldx.ub r20, r21, r19 /* u0.8 */
 	shari r25, 32, r25   /* normalize to s2.30 */
 	shlli r21, 1, r21

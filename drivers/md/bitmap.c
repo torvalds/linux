@@ -232,7 +232,7 @@ static struct page *read_sb_page(mddev_t *mddev, long offset,
 		target = rdev->sb_start + offset + index * (PAGE_SIZE/512);
 
 		if (sync_page_io(rdev->bdev, target,
-				 roundup(size, bdev_hardsect_size(rdev->bdev)),
+				 roundup(size, bdev_logical_block_size(rdev->bdev)),
 				 page, READ)) {
 			page->index = index;
 			attach_page_buffers(page, NULL); /* so that free_buffer will
@@ -287,7 +287,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 			int size = PAGE_SIZE;
 			if (page->index == bitmap->file_pages-1)
 				size = roundup(bitmap->last_page_size,
-					       bdev_hardsect_size(rdev->bdev));
+					       bdev_logical_block_size(rdev->bdev));
 			/* Just make sure we aren't corrupting data or
 			 * metadata
 			 */

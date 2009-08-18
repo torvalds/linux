@@ -154,6 +154,10 @@ extern void kmap_coherent_init(void);
 #define kmap_coherent_init()	do { } while (0)
 #endif
 
+/* arch/sh/mm/mmap.c */
+#define HAVE_ARCH_UNMAPPED_AREA
+#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
+
 #include <asm-generic/pgtable.h>
 
 #endif /* __ASM_SH_PGTABLE_H */

@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
-#include <linux/blktrace_api.h>
 #include <asm/tlbflush.h>
 
 /*

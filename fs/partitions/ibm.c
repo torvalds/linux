@@ -76,7 +76,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	Sector sect;
 
 	res = 0;
-	blocksize = bdev_hardsect_size(bdev);
+	blocksize = bdev_logical_block_size(bdev);
 	if (blocksize <= 0)
 		goto out_exit;
 	i_size = i_size_read(bdev->bd_inode);

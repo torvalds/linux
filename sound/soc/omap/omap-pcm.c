@@ -59,16 +59,31 @@ static void omap_pcm_dma_irq(int ch, u16 stat, void *data)
 	struct omap_runtime_data *prtd = runtime->private_data;
 	unsigned long flags;
 
-	if (cpu_is_omap1510()) {
+	if ((cpu_is_omap1510()) &&
+			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
 		/*
-		 * OMAP1510 doesn't support DMA chaining so have to restart
-		 * the transfer after all periods are transferred
+		 * OMAP1510 doesn't fully support DMA progress counter
+		 * and there is no software emulation implemented yet,
+		 * so have to maintain our own playback progress counter
+		 * that can be used by omap_pcm_pointer() instead.
 		 */
 		spin_lock_irqsave(&prtd->lock, flags);
+		if ((stat == OMAP_DMA_LAST_IRQ) &&
+				(prtd->period_index == runtime->periods - 1)) {
+			/* we are in sync, do nothing */
+			spin_unlock_irqrestore(&prtd->lock, flags);
+			return;
+		}
 		if (prtd->period_index >= 0) {
-			if (++prtd->period_index == runtime->periods) {
+			if (stat & OMAP_DMA_BLOCK_IRQ) {
+				/* end of buffer reached, loop back */
 				prtd->period_index = 0;
-				omap_start_dma(prtd->dma_ch);
+			} else if (stat & OMAP_DMA_LAST_IRQ) {
+				/* update the counter for the last period */
+				prtd->period_index = runtime->periods - 1;
+			} else if (++prtd->period_index >= runtime->periods) {
+				/* end of buffer missed? loop back */
+				prtd->period_index = 0;
 			}
 		}
 		spin_unlock_irqrestore(&prtd->lock, flags);
@@ -87,8 +102,10 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct omap_pcm_dma_data *dma_data = rtd->dai->cpu_dai->dma_data;
 	int err = 0;
 
+	/* return if this is a bufferless transfer e.g.
+	 * codec <--> BT codec or GSM modem -- lg FIXME */
 	if (!dma_data)
-		return -ENODEV;
+		return 0;
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	runtime->dma_bytes = params_buffer_bytes(params);
@@ -98,7 +115,7 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	prtd->dma_data = dma_data;
 	err = omap_request_dma(dma_data->dma_req, dma_data->name,
 			       omap_pcm_dma_irq, substream, &prtd->dma_ch);
-	if (!err && !cpu_is_omap1510()) {
+	if (!err) {
 		/*
 		 * Link channel with itself so DMA doesn't need any
 		 * reprogramming while looping the buffer
@@ -117,8 +134,7 @@ static int omap_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (prtd->dma_data == NULL)
 		return 0;
 
-	if (!cpu_is_omap1510())
-		omap_dma_unlink_lch(prtd->dma_ch, prtd->dma_ch);
+	omap_dma_unlink_lch(prtd->dma_ch, prtd->dma_ch);
 	omap_free_dma(prtd->dma_ch);
 	prtd->dma_data = NULL;
 
@@ -133,6 +149,11 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	struct omap_runtime_data *prtd = runtime->private_data;
 	struct omap_pcm_dma_data *dma_data = prtd->dma_data;
 	struct omap_dma_channel_params dma_params;
+
+	/* return if this is a bufferless transfer e.g.
+	 * codec <--> BT codec or GSM modem -- lg FIXME */
+	if (!prtd->dma_data)
+		return 0;
 
 	memset(&dma_params, 0, sizeof(dma_params));
 	/*
@@ -167,7 +188,12 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	dma_params.frame_count	= runtime->periods;
 	omap_set_dma_params(prtd->dma_ch, &dma_params);
 
-	omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
+	if ((cpu_is_omap1510()) &&
+			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
+		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ |
+			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
+	else
+		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
 
 	return 0;
 }
@@ -209,12 +235,15 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 	dma_addr_t ptr;
 	snd_pcm_uframes_t offset;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ptr = omap_get_dma_src_pos(prtd->dma_ch);
-	else
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		ptr = omap_get_dma_dst_pos(prtd->dma_ch);
+		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
+	} else if (!(cpu_is_omap1510())) {
+		ptr = omap_get_dma_src_pos(prtd->dma_ch);
+		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
+	} else
+		offset = prtd->period_index * runtime->period_size;
 
-	offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
 	if (offset >= runtime->buffer_size)
 		offset = 0;
 
@@ -320,7 +349,7 @@ static void omap_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-int omap_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
+static int omap_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 		 struct snd_pcm *pcm)
 {
 	int ret = 0;

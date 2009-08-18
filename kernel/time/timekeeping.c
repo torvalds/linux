@@ -22,7 +22,7 @@
 
 /*
  * This read-write spinlock protects us from races in SMP while
- * playing with xtime and avenrun.
+ * playing with xtime.
  */
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
 
@@ -77,6 +77,10 @@ static void clocksource_forward_now(void)
 	clock->cycle_last = cycle_now;
 
 	nsec = cyc2ns(clock, cycle_delta);
+
+	/* If arch requires, add in gettimeoffset() */
+	nsec += arch_gettimeoffset();
+
 	timespec_add_ns(&xtime, nsec);
 
 	nsec = ((s64)cycle_delta * clock->mult_orig) >> clock->shift;
@@ -110,6 +114,9 @@ void getnstimeofday(struct timespec *ts)
 
 		/* convert to nanoseconds: */
 		nsecs = cyc2ns(clock, cycle_delta);
+
+		/* If arch requires, add in gettimeoffset() */
+		nsecs += arch_gettimeoffset();
 
 	} while (read_seqretry(&xtime_lock, seq));
 

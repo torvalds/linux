@@ -291,16 +291,12 @@ noinline int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 {
 	u64 extent_end = 0;
 	u64 search_start = start;
-	u64 leaf_start;
 	u64 ram_bytes = 0;
-	u64 orig_parent = 0;
 	u64 disk_bytenr = 0;
 	u64 orig_locked_end = locked_end;
 	u8 compression;
 	u8 encryption;
 	u16 other_encoding = 0;
-	u64 root_gen;
-	u64 root_owner;
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *extent;
 	struct btrfs_path *path;
@@ -340,9 +336,6 @@ next_slot:
 		bookend = 0;
 		found_extent = 0;
 		found_inline = 0;
-		leaf_start = 0;
-		root_gen = 0;
-		root_owner = 0;
 		compression = 0;
 		encryption = 0;
 		extent = NULL;
@@ -417,9 +410,6 @@ next_slot:
 		if (found_extent) {
 			read_extent_buffer(leaf, &old, (unsigned long)extent,
 					   sizeof(old));
-			root_gen = btrfs_header_generation(leaf);
-			root_owner = btrfs_header_owner(leaf);
-			leaf_start = leaf->start;
 		}
 
 		if (end < extent_end && end >= key.offset) {
@@ -443,14 +433,14 @@ next_slot:
 				}
 				locked_end = extent_end;
 			}
-			orig_parent = path->nodes[0]->start;
 			disk_bytenr = le64_to_cpu(old.disk_bytenr);
 			if (disk_bytenr != 0) {
 				ret = btrfs_inc_extent_ref(trans, root,
 					   disk_bytenr,
-					   le64_to_cpu(old.disk_num_bytes),
-					   orig_parent, root->root_key.objectid,
-					   trans->transid, inode->i_ino);
+					   le64_to_cpu(old.disk_num_bytes), 0,
+					   root->root_key.objectid,
+					   key.objectid, key.offset -
+					   le64_to_cpu(old.offset));
 				BUG_ON(ret);
 			}
 		}
@@ -568,17 +558,6 @@ next_slot:
 			btrfs_mark_buffer_dirty(path->nodes[0]);
 			btrfs_set_lock_blocking(path->nodes[0]);
 
-			if (disk_bytenr != 0) {
-				ret = btrfs_update_extent_ref(trans, root,
-						disk_bytenr,
-						le64_to_cpu(old.disk_num_bytes),
-						orig_parent,
-						leaf->start,
-						root->root_key.objectid,
-						trans->transid, ins.objectid);
-
-				BUG_ON(ret);
-			}
 			path->leave_spinning = 0;
 			btrfs_release_path(root, path);
 			if (disk_bytenr != 0)
@@ -594,8 +573,9 @@ next_slot:
 				ret = btrfs_free_extent(trans, root,
 						old_disk_bytenr,
 						le64_to_cpu(old.disk_num_bytes),
-						leaf_start, root_owner,
-						root_gen, key.objectid, 0);
+						0, root->root_key.objectid,
+						key.objectid, key.offset -
+						le64_to_cpu(old.offset));
 				BUG_ON(ret);
 				*hint_byte = old_disk_bytenr;
 			}
@@ -664,12 +644,11 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 num_bytes;
 	u64 extent_end;
-	u64 extent_offset;
+	u64 orig_offset;
 	u64 other_start;
 	u64 other_end;
 	u64 split = start;
 	u64 locked_end = end;
-	u64 orig_parent;
 	int extent_type;
 	int split_end = 1;
 	int ret;
@@ -703,7 +682,7 @@ again:
 
 	bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 	num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
-	extent_offset = btrfs_file_extent_offset(leaf, fi);
+	orig_offset = key.offset - btrfs_file_extent_offset(leaf, fi);
 
 	if (key.offset == start)
 		split = end;
@@ -711,8 +690,6 @@ again:
 	if (key.offset == start && extent_end == end) {
 		int del_nr = 0;
 		int del_slot = 0;
-		u64 leaf_owner = btrfs_header_owner(leaf);
-		u64 leaf_gen = btrfs_header_generation(leaf);
 		other_start = end;
 		other_end = 0;
 		if (extent_mergeable(leaf, path->slots[0] + 1, inode->i_ino,
@@ -721,8 +698,8 @@ again:
 			del_slot = path->slots[0] + 1;
 			del_nr++;
 			ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
-						leaf->start, leaf_owner,
-						leaf_gen, inode->i_ino, 0);
+						0, root->root_key.objectid,
+						inode->i_ino, orig_offset);
 			BUG_ON(ret);
 		}
 		other_start = 0;
@@ -733,8 +710,8 @@ again:
 			del_slot = path->slots[0];
 			del_nr++;
 			ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
-						leaf->start, leaf_owner,
-						leaf_gen, inode->i_ino, 0);
+						0, root->root_key.objectid,
+						inode->i_ino, orig_offset);
 			BUG_ON(ret);
 		}
 		split_end = 0;
@@ -768,13 +745,12 @@ again:
 			locked_end = extent_end;
 		}
 		btrfs_set_file_extent_num_bytes(leaf, fi, split - key.offset);
-		extent_offset += split - key.offset;
 	} else  {
 		BUG_ON(key.offset != start);
-		btrfs_set_file_extent_offset(leaf, fi, extent_offset +
-					     split - key.offset);
-		btrfs_set_file_extent_num_bytes(leaf, fi, extent_end - split);
 		key.offset = split;
+		btrfs_set_file_extent_offset(leaf, fi, key.offset -
+					     orig_offset);
+		btrfs_set_file_extent_num_bytes(leaf, fi, extent_end - split);
 		btrfs_set_item_key_safe(trans, root, path, &key);
 		extent_end = split;
 	}
@@ -793,7 +769,8 @@ again:
 					    struct btrfs_file_extent_item);
 			key.offset = split;
 			btrfs_set_item_key_safe(trans, root, path, &key);
-			btrfs_set_file_extent_offset(leaf, fi, extent_offset);
+			btrfs_set_file_extent_offset(leaf, fi, key.offset -
+						     orig_offset);
 			btrfs_set_file_extent_num_bytes(leaf, fi,
 							other_end - split);
 			goto done;
@@ -815,10 +792,9 @@ again:
 
 	btrfs_mark_buffer_dirty(leaf);
 
-	orig_parent = leaf->start;
-	ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes,
-				   orig_parent, root->root_key.objectid,
-				   trans->transid, inode->i_ino);
+	ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes, 0,
+				   root->root_key.objectid,
+				   inode->i_ino, orig_offset);
 	BUG_ON(ret);
 	btrfs_release_path(root, path);
 
@@ -833,20 +809,12 @@ again:
 	btrfs_set_file_extent_type(leaf, fi, extent_type);
 	btrfs_set_file_extent_disk_bytenr(leaf, fi, bytenr);
 	btrfs_set_file_extent_disk_num_bytes(leaf, fi, num_bytes);
-	btrfs_set_file_extent_offset(leaf, fi, extent_offset);
+	btrfs_set_file_extent_offset(leaf, fi, key.offset - orig_offset);
 	btrfs_set_file_extent_num_bytes(leaf, fi, extent_end - key.offset);
 	btrfs_set_file_extent_ram_bytes(leaf, fi, num_bytes);
 	btrfs_set_file_extent_compression(leaf, fi, 0);
 	btrfs_set_file_extent_encryption(leaf, fi, 0);
 	btrfs_set_file_extent_other_encoding(leaf, fi, 0);
-
-	if (orig_parent != leaf->start) {
-		ret = btrfs_update_extent_ref(trans, root, bytenr, num_bytes,
-					      orig_parent, leaf->start,
-					      root->root_key.objectid,
-					      trans->transid, inode->i_ino);
-		BUG_ON(ret);
-	}
 done:
 	btrfs_mark_buffer_dirty(leaf);
 
@@ -1189,6 +1157,8 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	root->log_batch++;
 
+	if (datasync && !(inode->i_state & I_DIRTY_PAGES))
+		goto out;
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */

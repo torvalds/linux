@@ -2571,6 +2571,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 
 			txAbort(tid, 0);
 			txEnd(tid);
+			mutex_unlock(&JFS_IP(ipimap)->commit_mutex);
 
 			/* release the inode map lock */
 			IWRITE_UNLOCK(ipimap);

@@ -1413,7 +1413,7 @@ static struct v4l2_input knc1_inputs[KNC1_INPUTS] = {
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
 	dprintk(1, "VIDIOC_ENUMINPUT %d.\n", i->index);
-	if (i->index < 0 || i->index >= KNC1_INPUTS)
+	if (i->index >= KNC1_INPUTS)
 		return -EINVAL;
 	memcpy(i, &knc1_inputs[i->index], sizeof(struct v4l2_input));
 	return 0;

@@ -90,7 +90,7 @@ static struct v4l2_capability pvr_capability ={
 	.driver         = "pvrusb2",
 	.card           = "Hauppauge WinTV pvr-usb2",
 	.bus_info       = "usb",
-	.version        = KERNEL_VERSION(0,8,0),
+	.version        = KERNEL_VERSION(0, 9, 0),
 	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			   V4L2_CAP_READWRITE),
@@ -267,7 +267,7 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(&tmp,0,sizeof(tmp));
 		tmp.index = vi->index;
 		ret = 0;
-		if ((vi->index < 0) || (vi->index >= fh->input_cnt)) {
+		if (vi->index >= fh->input_cnt) {
 			ret = -EINVAL;
 			break;
 		}
@@ -331,7 +331,7 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_S_INPUT:
 	{
 		struct v4l2_input *vi = (struct v4l2_input *)arg;
-		if ((vi->index < 0) || (vi->index >= fh->input_cnt)) {
+		if (vi->index >= fh->input_cnt) {
 			ret = -ERANGE;
 			break;
 		}

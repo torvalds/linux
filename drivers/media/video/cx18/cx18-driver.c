@@ -30,6 +30,7 @@
 #include "cx18-irq.h"
 #include "cx18-gpio.h"
 #include "cx18-firmware.h"
+#include "cx18-queue.h"
 #include "cx18-streams.h"
 #include "cx18-av-core.h"
 #include "cx18-scb.h"
@@ -151,7 +152,8 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 4 = Yuan MPC718\n"
 		 "\t\t\t 5 = Conexant Raptor PAL/SECAM\n"
 		 "\t\t\t 6 = Toshiba Qosmio DVB-T/Analog\n"
-		 "\t\t\t 7 = Leadtek WinFast PVR2100/DVR3100 H\n"
+		 "\t\t\t 7 = Leadtek WinFast PVR2100\n"
+		 "\t\t\t 8 = Leadtek WinFast DVR3100 H\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -312,7 +314,7 @@ static void cx18_process_eeprom(struct cx18 *cx)
 	CX18_INFO("Autodetected %s\n", cx->card_name);
 
 	if (tv.tuner_type == TUNER_ABSENT)
-		CX18_ERR("tveeprom cannot autodetect tuner!");
+		CX18_ERR("tveeprom cannot autodetect tuner!\n");
 
 	if (cx->options.tuner == -1)
 		cx->options.tuner = tv.tuner_type;
@@ -546,6 +548,40 @@ done:
 	cx->card_i2c = cx->card->i2c;
 }
 
+static int __devinit cx18_create_in_workq(struct cx18 *cx)
+{
+	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
+		 cx->v4l2_dev.name);
+	cx->in_work_queue = create_singlethread_workqueue(cx->in_workq_name);
+	if (cx->in_work_queue == NULL) {
+		CX18_ERR("Unable to create incoming mailbox handler thread\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int __devinit cx18_create_out_workq(struct cx18 *cx)
+{
+	snprintf(cx->out_workq_name, sizeof(cx->out_workq_name), "%s-out",
+		 cx->v4l2_dev.name);
+	cx->out_work_queue = create_workqueue(cx->out_workq_name);
+	if (cx->out_work_queue == NULL) {
+		CX18_ERR("Unable to create outgoing mailbox handler threads\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
+		cx->in_work_order[i].cx = cx;
+		cx->in_work_order[i].str = cx->epu_debug_str;
+		INIT_WORK(&cx->in_work_order[i].work, cx18_in_work_handler);
+	}
+}
+
 /* Precondition: the cx18 structure has been memset to 0. Only
    the dev and instance fields have been filled in.
    No assumptions on the card type may be made here (see cx18_init_struct2
@@ -553,7 +589,7 @@ done:
  */
 static int __devinit cx18_init_struct1(struct cx18 *cx)
 {
-	int i;
+	int ret;
 
 	cx->base_addr = pci_resource_start(cx->pci_dev, 0);
 
@@ -562,17 +598,17 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->epu2apu_mb_lock);
 	mutex_init(&cx->epu2cpu_mb_lock);
 
-	cx->work_queue = create_singlethread_workqueue(cx->v4l2_dev.name);
-	if (cx->work_queue == NULL) {
-		CX18_ERR("Unable to create work hander thread\n");
-		return -ENOMEM;
+	ret = cx18_create_out_workq(cx);
+	if (ret)
+		return ret;
+
+	ret = cx18_create_in_workq(cx);
+	if (ret) {
+		destroy_workqueue(cx->out_work_queue);
+		return ret;
 	}
 
-	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++) {
-		cx->epu_work_order[i].cx = cx;
-		cx->epu_work_order[i].str = cx->epu_debug_str;
-		INIT_WORK(&cx->epu_work_order[i].work, cx18_epu_work_handler);
-	}
+	cx18_init_in_work_orders(cx);
 
 	/* start counting open_id at 1 */
 	cx->open_id = 1;
@@ -759,17 +795,17 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		retval = -ENODEV;
 		goto err;
 	}
-	if (cx18_init_struct1(cx)) {
-		retval = -ENOMEM;
+
+	retval = cx18_init_struct1(cx);
+	if (retval)
 		goto err;
-	}
 
 	CX18_DEBUG_INFO("base addr: 0x%08x\n", cx->base_addr);
 
 	/* PCI Device Setup */
 	retval = cx18_setup_pci(cx, pci_dev, pci_id);
 	if (retval != 0)
-		goto free_workqueue;
+		goto free_workqueues;
 
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
@@ -943,8 +979,9 @@ free_map:
 	cx18_iounmap(cx);
 free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
-free_workqueue:
-	destroy_workqueue(cx->work_queue);
+free_workqueues:
+	destroy_workqueue(cx->in_work_queue);
+	destroy_workqueue(cx->out_work_queue);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1053,11 +1090,19 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	return 0;
 }
 
-static void cx18_cancel_epu_work_orders(struct cx18 *cx)
+static void cx18_cancel_in_work_orders(struct cx18 *cx)
 {
 	int i;
-	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++)
-		cancel_work_sync(&cx->epu_work_order[i].work);
+	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++)
+		cancel_work_sync(&cx->in_work_order[i].work);
+}
+
+static void cx18_cancel_out_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_STREAMS; i++)
+		if (&cx->streams[i].video_dev != NULL)
+			cancel_work_sync(&cx->streams[i].out_work_order);
 }
 
 static void cx18_remove(struct pci_dev *pci_dev)
@@ -1073,15 +1118,20 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	if (atomic_read(&cx->tot_capturing) > 0)
 		cx18_stop_all_captures(cx);
 
-	/* Interrupts */
+	/* Stop interrupts that cause incoming work to be queued */
 	cx18_sw1_irq_disable(cx, IRQ_CPU_TO_EPU | IRQ_APU_TO_EPU);
+
+	/* Incoming work can cause outgoing work, so clean up incoming first */
+	cx18_cancel_in_work_orders(cx);
+	cx18_cancel_out_work_orders(cx);
+
+	/* Stop ack interrupts that may have been needed for work to finish */
 	cx18_sw2_irq_disable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
 	cx18_halt_firmware(cx);
 
-	cx18_cancel_epu_work_orders(cx);
-
-	destroy_workqueue(cx->work_queue);
+	destroy_workqueue(cx->in_work_queue);
+	destroy_workqueue(cx->out_work_queue);
 
 	cx18_streams_cleanup(cx, 1);
 
