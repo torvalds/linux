@@ -1052,18 +1052,26 @@ int __init init_arch_irq(void)
 			set_irq_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
+
 #ifdef CONFIG_SMP
+#ifdef CONFIG_TICKSOURCE_GPTMR0
+		case IRQ_TIMER0:
+#endif
+#ifdef CONFIG_TICKSOURCE_CORETMR
+		case IRQ_CORETMR:
+#endif
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
 			set_irq_handler(irq, handle_percpu_irq);
 			break;
 #endif
+
 #ifdef CONFIG_IPIPE
 #ifndef CONFIG_TICKSOURCE_CORETMR
 		case IRQ_TIMER0:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
-#endif /* !CONFIG_TICKSOURCE_CORETMR */
+#endif
 		case IRQ_CORETMR:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
@@ -1071,15 +1079,10 @@ int __init init_arch_irq(void)
 			set_irq_handler(irq, handle_level_irq);
 			break;
 #else /* !CONFIG_IPIPE */
-#ifdef CONFIG_TICKSOURCE_GPTMR0
-		case IRQ_TIMER0:
-			set_irq_handler(irq, handle_percpu_irq);
-			break;
-#endif /* CONFIG_TICKSOURCE_GPTMR0 */
 		default:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
-#endif	/* !CONFIG_IPIPE */
+#endif /* !CONFIG_IPIPE */
 		}
 	}
 
