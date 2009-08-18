@@ -350,8 +350,6 @@ struct rt2x00_intf {
 	 */
 	unsigned int delayed_flags;
 #define DELAYED_UPDATE_BEACON		0x00000001
-#define DELAYED_CONFIG_ERP		0x00000002
-#define DELAYED_LED_ASSOC		0x00000004
 
 	/*
 	 * Software sequence counter, this is only required
@@ -614,7 +612,6 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_FIRMWARE,
 	DRIVER_REQUIRE_BEACON_GUARD,
 	DRIVER_REQUIRE_ATIM_QUEUE,
-	DRIVER_REQUIRE_SCHEDULED,
 	DRIVER_REQUIRE_DMA,
 	DRIVER_REQUIRE_COPY_IV,
 	DRIVER_REQUIRE_L2PAD,

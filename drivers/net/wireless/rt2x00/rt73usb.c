@@ -2151,7 +2151,6 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device requires firmware.
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 

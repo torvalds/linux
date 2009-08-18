@@ -636,23 +636,15 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			rt2x00dev->intf_associated--;
 
-		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
-			rt2x00leds_led_assoc(rt2x00dev,
-					     !!rt2x00dev->intf_associated);
-		else
-			delayed |= DELAYED_LED_ASSOC;
+		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
 	}
 
 	/*
 	 * When the erp information has changed, we should perform
 	 * additional configuration steps. For all other changes we are done.
 	 */
-	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT)) {
-		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
-			rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
-		else
-			delayed |= DELAYED_CONFIG_ERP;
-	}
+	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT))
+		rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
 
 	spin_lock(&intf->lock);
 	if (delayed) {
