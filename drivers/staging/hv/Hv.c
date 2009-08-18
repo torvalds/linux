@@ -224,10 +224,7 @@ Description:
 	before any other routines in here are called
 
 --*/
-static int
-HvInit (
-    void
-    )
+int HvInit (void)
 {
 	int ret=0;
     int maxLeaf;
@@ -346,10 +343,7 @@ Description:
 	Cleanup routine. This routine is called normally during driver unloading or exiting.
 
 --*/
-static void
-HvCleanup (
-    void
-    )
+void HvCleanup (void)
 {
 	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
 
@@ -388,8 +382,7 @@ Description:
 	involves a hypercall.
 
 --*/
-static HV_STATUS
-HvPostMessage(
+HV_STATUS HvPostMessage(
 	HV_CONNECTION_ID connectionId,
 	HV_MESSAGE_TYPE  messageType,
 	void *            payload,
@@ -442,8 +435,7 @@ Description:
 	involves a hypercall.
 
 --*/
-static HV_STATUS
-HvSignalEvent(void)
+HV_STATUS HvSignalEvent(void)
 {
 	HV_STATUS status;
 
@@ -464,10 +456,7 @@ Description:
 	Otherwise, we create and initialize the message and event pages.
 
 --*/
-static int
-HvSynicInit (
-	u32 irqVector
-	)
+int HvSynicInit (u32 irqVector)
 {
 	u64			version;
 	HV_SYNIC_SIMP	simp;
@@ -607,10 +596,7 @@ Description:
 	Cleanup routine for HvSynicInit().
 
 --*/
-static void
-HvSynicCleanup(
-	void
-	)
+void HvSynicCleanup(void)
 {
     HV_SYNIC_SINT	sharedSint;
 	HV_SYNIC_SIMP	simp;
