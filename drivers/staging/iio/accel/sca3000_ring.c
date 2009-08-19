@@ -210,7 +210,7 @@ static struct attribute_group sca3000_ring_attr = {
 	.attrs = iio_ring_attributes,
 };
 
-static struct attribute_group *sca3000_ring_attr_groups[] = {
+static const struct attribute_group *sca3000_ring_attr_groups[] = {
 	&sca3000_ring_attr,
 	NULL
 };

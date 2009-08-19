@@ -392,7 +392,7 @@ static struct attribute_group iio_ring_attribute_group = {
 	.attrs = iio_ring_attributes,
 };
 
-static struct attribute_group *iio_ring_attribute_groups[] = {
+static const struct attribute_group *iio_ring_attribute_groups[] = {
 	&iio_ring_attribute_group,
 	NULL
 };
