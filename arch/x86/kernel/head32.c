@@ -11,7 +11,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/e820.h>
-#include <asm/bios_ebda.h>
+#include <asm/page.h>
 #include <asm/trampoline.h>
 
 void __init i386_start_kernel(void)
@@ -33,7 +33,7 @@ void __init i386_start_kernel(void)
 	x86_init.resources.probe_roms = probe_roms;
 	x86_init.resources.reserve_resources = i386_reserve_resources;
 
-	reserve_ebda_region();
+	x86_init.resources.reserve_ebda_region();
 
 	/*
 	 * At this point everything still needed from the boot loader

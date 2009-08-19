@@ -23,7 +23,6 @@
 #include <asm/sections.h>
 #include <asm/kdebug.h>
 #include <asm/e820.h>
-#include <asm/bios_ebda.h>
 #include <asm/trampoline.h>
 
 static void __init zap_identity_mappings(void)
@@ -112,7 +111,7 @@ void __init x86_64_start_reservations(char *real_mode_data)
 	}
 #endif
 
-	reserve_ebda_region();
+	x86_init.resources.reserve_ebda_region();
 
 	/*
 	 * At this point everything still needed from the boot loader
