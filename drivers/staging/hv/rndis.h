@@ -400,10 +400,10 @@ struct rndis_indicate_status {
 
 /* Diagnostic information passed as the status buffer in */
 /* struct rndis_indicate_status messages signifying error conditions. */
-typedef struct _RNDIS_DIAGNOSTIC_INFO {
+struct rndis_diagnostic_info {
 	u32 DiagStatus;
 	u32 ErrorOffset;
-} RNDIS_DIAGNOSTIC_INFO, *PRNDIS_DIAGNOSTIC_INFO;
+};
 
 /* NdisKeepAlive message */
 struct rndis_keepalive_request {
@@ -465,73 +465,73 @@ struct rndis_config_parameter_info {
 /* that do not implement a call manager. */
 
 /* CoNdisMiniportCreateVc message */
-typedef struct _RCONDIS_MP_CREATE_VC {
+struct rcondis_mp_create_vc {
 	u32 RequestId;
 	u32 NdisVcHandle;
-} RCONDIS_MP_CREATE_VC, *PRCONDIS_MP_CREATE_VC;
+};
 
 /* Response to CoNdisMiniportCreateVc */
-typedef struct _RCONDIS_MP_CREATE_VC_COMPLETE {
+struct rcondis_mp_create_vc_complete {
 	u32 RequestId;
 	u32 DeviceVcHandle;
 	u32 Status;
-} RCONDIS_MP_CREATE_VC_COMPLETE, *PRCONDIS_MP_CREATE_VC_COMPLETE;
+};
 
 /* CoNdisMiniportDeleteVc message */
-typedef struct _RCONDIS_MP_DELETE_VC {
+struct rcondis_mp_delete_vc {
 	u32 RequestId;
 	u32 DeviceVcHandle;
-} RCONDIS_MP_DELETE_VC, *PRCONDIS_MP_DELETE_VC;
+};
 
 /* Response to CoNdisMiniportDeleteVc */
-typedef struct _RCONDIS_MP_DELETE_VC_COMPLETE {
+struct rcondis_mp_delete_vc_complete {
 	u32 RequestId;
 	u32 Status;
-} RCONDIS_MP_DELETE_VC_COMPLETE, *PRCONDIS_MP_DELETE_VC_COMPLETE;
+};
 
 /* CoNdisMiniportQueryRequest message */
-typedef struct _RCONDIS_MP_QUERY_REQUEST {
+struct rcondis_mp_query_request {
 	u32 RequestId;
 	u32 RequestType;
 	u32 Oid;
 	u32 DeviceVcHandle;
 	u32 InformationBufferLength;
 	u32 InformationBufferOffset;
-} RCONDIS_MP_QUERY_REQUEST, *PRCONDIS_MP_QUERY_REQUEST;
+};
 
 /* CoNdisMiniportSetRequest message */
-typedef struct _RCONDIS_MP_SET_REQUEST {
+struct rcondis_mp_set_request {
 	u32 RequestId;
 	u32 RequestType;
 	u32 Oid;
 	u32 DeviceVcHandle;
 	u32 InformationBufferLength;
 	u32 InformationBufferOffset;
-} RCONDIS_MP_SET_REQUEST, *PRCONDIS_MP_SET_REQUEST;
+};
 
 /* CoNdisIndicateStatus message */
-typedef struct _RCONDIS_INDICATE_STATUS {
+struct rcondis_indicate_status {
 	u32 NdisVcHandle;
 	u32 Status;
 	u32 StatusBufferLength;
 	u32 StatusBufferOffset;
-} RCONDIS_INDICATE_STATUS, *PRCONDIS_INDICATE_STATUS;
+};
 
 /* CONDIS Call/VC parameters */
-typedef struct _RCONDIS_SPECIFIC_PARAMETERS {
+struct rcondis_specific_parameters {
 	u32 ParameterType;
 	u32 ParameterLength;
 	u32 ParameterOffset;
-} RCONDIS_SPECIFIC_PARAMETERS, *PRCONDIS_SPECIFIC_PARAMETERS;
+};
 
-typedef struct _RCONDIS_MEDIA_PARAMETERS {
+struct rcondis_media_parameters {
 	u32 Flags;
 	u32 Reserved1;
 	u32 Reserved2;
-	RCONDIS_SPECIFIC_PARAMETERS MediaSpecific;
-} RCONDIS_MEDIA_PARAMETERS, *PRCONDIS_MEDIA_PARAMETERS;
+	struct rcondis_specific_parameters MediaSpecific;
+};
 
-typedef struct _RNDIS_FLOWSPEC {
+struct rndis_flowspec {
 	u32 TokenRate;
 	u32 TokenBucketSize;
 	u32 PeakBandwidth;
@@ -540,16 +540,16 @@ typedef struct _RNDIS_FLOWSPEC {
 	u32 ServiceType;
 	u32 MaxSduSize;
 	u32 MinimumPolicedSize;
-} RNDIS_FLOWSPEC, *PRNDIS_FLOWSPEC;
+};
 
-typedef struct _RCONDIS_CALL_MANAGER_PARAMETERS {
-	RNDIS_FLOWSPEC Transmit;
-	RNDIS_FLOWSPEC Receive;
-	RCONDIS_SPECIFIC_PARAMETERS CallMgrSpecific;
-} RCONDIS_CALL_MANAGER_PARAMETERS, *PRCONDIS_CALL_MANAGER_PARAMETERS;
+struct rcondis_call_manager_parameters {
+	struct rndis_flowspec Transmit;
+	struct rndis_flowspec Receive;
+	struct rcondis_specific_parameters CallMgrSpecific;
+};
 
 /* CoNdisMiniportActivateVc message */
-typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST {
+struct rcondis_mp_activate_vc_request {
 	u32 RequestId;
 	u32 Flags;
 	u32 DeviceVcHandle;
@@ -557,26 +557,26 @@ typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST {
 	u32 MediaParamsLength;
 	u32 CallMgrParamsOffset;
 	u32 CallMgrParamsLength;
-} RCONDIS_MP_ACTIVATE_VC_REQUEST, *PRCONDIS_MP_ACTIVATE_VC_REQUEST;
+};
 
 /* Response to CoNdisMiniportActivateVc */
-typedef struct _RCONDIS_MP_ACTIVATE_VC_COMPLETE {
+struct rcondis_mp_activate_vc_complete {
 	u32 RequestId;
 	u32 Status;
-} RCONDIS_MP_ACTIVATE_VC_COMPLETE, *PRCONDIS_MP_ACTIVATE_VC_COMPLETE;
+};
 
 /* CoNdisMiniportDeactivateVc message */
-typedef struct _RCONDIS_MP_DEACTIVATE_VC_REQUEST {
+struct rcondis_mp_deactivate_vc_request {
 	u32 RequestId;
 	u32 Flags;
 	u32 DeviceVcHandle;
-} RCONDIS_MP_DEACTIVATE_VC_REQUEST, *PRCONDIS_MP_DEACTIVATE_VC_REQUEST;
+};
 
 /* Response to CoNdisMiniportDeactivateVc */
-typedef struct _RCONDIS_MP_DEACTIVATE_VC_COMPLETE {
+struct rcondis_mp_deactivate_vc_complete {
 	u32 RequestId;
 	u32 Status;
-} RCONDIS_MP_DEACTIVATE_VC_COMPLETE, *PRCONDIS_MP_DEACTIVATE_VC_COMPLETE;
+};
 
 
 /* union with all of the RNDIS messages */
@@ -594,15 +594,15 @@ union rndis_message_container {
 	struct rndis_set_complete SetComplete;
 	struct rndis_reset_complete ResetComplete;
 	struct rndis_keepalive_complete KeepaliveComplete;
-	RCONDIS_MP_CREATE_VC              CoMiniportCreateVc;
-	RCONDIS_MP_DELETE_VC              CoMiniportDeleteVc;
-	RCONDIS_INDICATE_STATUS           CoIndicateStatus;
-	RCONDIS_MP_ACTIVATE_VC_REQUEST    CoMiniportActivateVc;
-	RCONDIS_MP_DEACTIVATE_VC_REQUEST  CoMiniportDeactivateVc;
-	RCONDIS_MP_CREATE_VC_COMPLETE     CoMiniportCreateVcComplete;
-	RCONDIS_MP_DELETE_VC_COMPLETE     CoMiniportDeleteVcComplete;
-	RCONDIS_MP_ACTIVATE_VC_COMPLETE   CoMiniportActivateVcComplete;
-	RCONDIS_MP_DEACTIVATE_VC_COMPLETE CoMiniportDeactivateVcComplete;
+	struct rcondis_mp_create_vc CoMiniportCreateVc;
+	struct rcondis_mp_delete_vc CoMiniportDeleteVc;
+	struct rcondis_indicate_status CoIndicateStatus;
+	struct rcondis_mp_activate_vc_request CoMiniportActivateVc;
+	struct rcondis_mp_deactivate_vc_request CoMiniportDeactivateVc;
+	struct rcondis_mp_create_vc_complete CoMiniportCreateVcComplete;
+	struct rcondis_mp_delete_vc_complete CoMiniportDeleteVcComplete;
+	struct rcondis_mp_activate_vc_complete CoMiniportActivateVcComplete;
+	struct rcondis_mp_deactivate_vc_complete CoMiniportDeactivateVcComplete;
 };
 
 /* Remote NDIS message format */
