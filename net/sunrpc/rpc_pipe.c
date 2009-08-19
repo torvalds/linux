@@ -416,11 +416,13 @@ struct vfsmount *rpc_get_mount(void)
 		return ERR_PTR(err);
 	return rpc_mount;
 }
+EXPORT_SYMBOL_GPL(rpc_get_mount);
 
 void rpc_put_mount(void)
 {
 	simple_release_fs(&rpc_mount, &rpc_mount_count);
 }
+EXPORT_SYMBOL_GPL(rpc_put_mount);
 
 static int rpc_delete_dentry(struct dentry *dentry)
 {
@@ -946,6 +948,7 @@ enum {
 	RPCAUTH_portmap,
 	RPCAUTH_statd,
 	RPCAUTH_nfsd4_cb,
+	RPCAUTH_cache,
 	RPCAUTH_RootEOF
 };
 
@@ -972,6 +975,10 @@ static const struct rpc_filelist files[] = {
 	},
 	[RPCAUTH_nfsd4_cb] = {
 		.name = "nfsd4_cb",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_cache] = {
+		.name = "cache",
 		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
 	},
 };

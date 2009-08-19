@@ -46,6 +46,7 @@
 #include "iostat.h"
 #include "internal.h"
 #include "fscache.h"
+#include "dns_resolve.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -1506,6 +1507,10 @@ static int __init init_nfs_fs(void)
 {
 	int err;
 
+	err = nfs_dns_resolver_init();
+	if (err < 0)
+		goto out8;
+
 	err = nfs_fscache_register();
 	if (err < 0)
 		goto out7;
@@ -1564,6 +1569,8 @@ out5:
 out6:
 	nfs_fscache_unregister();
 out7:
+	nfs_dns_resolver_destroy();
+out8:
 	return err;
 }
 
@@ -1575,6 +1582,7 @@ static void __exit exit_nfs_fs(void)
 	nfs_destroy_inodecache();
 	nfs_destroy_nfspagecache();
 	nfs_fscache_unregister();
+	nfs_dns_resolver_destroy();
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister("nfs");
 #endif

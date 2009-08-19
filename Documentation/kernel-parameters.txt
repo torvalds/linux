@@ -1503,6 +1503,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
 
+	nfs.cache_getent=
+			[NFS] sets the pathname to the program which is used
+			to update the NFS client cache entries.
+
+	nfs.cache_getent_timeout=
+			[NFS] sets the timeout after which an attempt to
+			update a cache entry is deemed to have failed.
+
 	nfs.idmap_cache_timeout=
 			[NFS] set the maximum lifetime for idmapper cache
 			entries.
