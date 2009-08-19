@@ -3574,4 +3574,6 @@
 #define RADEON_SCRATCH_REG4		0x15f0
 #define RADEON_SCRATCH_REG5		0x15f4
 
+#define RV530_GB_PIPE_SELECT2           0x4124
+
 #endif

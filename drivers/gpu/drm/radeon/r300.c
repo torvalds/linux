@@ -448,6 +448,7 @@ void r300_gpu_init(struct radeon_device *rdev)
 		/* rv350,rv370,rv380 */
 		rdev->num_gb_pipes = 1;
 	}
+	rdev->num_z_pipes = 1;
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
 	switch (rdev->num_gb_pipes) {
 	case 2:
@@ -486,7 +487,8 @@ void r300_gpu_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait MC idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-	DRM_INFO("radeon: %d pipes initialized.\n", rdev->num_gb_pipes);
+	DRM_INFO("radeon: %d quad pipes, %d Z pipes initialized.\n",
+		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
 int r300_ga_reset(struct radeon_device *rdev)

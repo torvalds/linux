@@ -655,6 +655,7 @@ struct radeon_device {
 	int				usec_timeout;
 	enum radeon_pll_errata		pll_errata;
 	int				num_gb_pipes;
+	int				num_z_pipes;
 	int				disp_priority;
 	/* BIOS */
 	uint8_t				*bios;

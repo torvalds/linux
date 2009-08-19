@@ -177,7 +177,6 @@ void r520_gpu_init(struct radeon_device *rdev)
 	 */
 	/* workaround for RV530 */
 	if (rdev->family == CHIP_RV530) {
-		WREG32(0x4124, 1);
 		WREG32(0x4128, 0xFF);
 	}
 	r420_pipes_init(rdev);

@@ -3081,6 +3081,9 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 	case RADEON_PARAM_NUM_GB_PIPES:
 		value = dev_priv->num_gb_pipes;
 		break;
+	case RADEON_PARAM_NUM_Z_PIPES:
+		value = dev_priv->num_z_pipes;
+		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", param->param);
 		return -EINVAL;
