@@ -446,9 +446,8 @@ out_unlock:
 	return err;
 }
 
-static void pohmelfs_cn_callback(void *data)
+static void pohmelfs_cn_callback(struct cn_msg *msg)
 {
-	struct cn_msg *msg = data;
 	int err;
 
 	switch (msg->flags) {

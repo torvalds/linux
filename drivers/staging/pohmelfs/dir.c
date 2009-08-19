@@ -412,7 +412,7 @@ static int pohmelfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 				__func__, file->f_pos, pi->ino, n->data, n->len,
 				n->ino, n->mode, mode, file->f_pos, n->hash);
 
-		file->private_data = (void *)n->hash;
+		file->private_data = (void *)(unsigned long)n->hash;
 
 		len = n->len;
 		err = filldir(dirent, n->data, n->len, file->f_pos, n->ino, mode);
