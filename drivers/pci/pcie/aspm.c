@@ -43,6 +43,7 @@ struct pcie_link_state {
 	u32 aspm_support:2;		/* Supported ASPM state */
 	u32 aspm_enabled:2;		/* Enabled ASPM state */
 	u32 aspm_default:2;		/* Default ASPM state by BIOS */
+	u32 aspm_disable:2;		/* Disabled ASPM state */
 
 	/* Clock PM state */
 	u32 clkpm_capable:1;		/* Clock PM capable? */
@@ -322,10 +323,9 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 	struct pci_bus *linkbus = parent->subordinate;
 
 	if (blacklist) {
-		/* Set support state to 0, so we will disable ASPM later */
-		link->aspm_support = 0;
-		link->aspm_default = 0;
+		/* Set enabled/disable so that we will disable ASPM later */
 		link->aspm_enabled = PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1;
+		link->aspm_disable = PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1;
 		return;
 	}
 
@@ -348,6 +348,17 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 	/* Save default state */
 	link->aspm_default = link->aspm_enabled;
+	/*
+	 * If the downstream component has pci bridge function, don't
+	 * do ASPM for now.
+	 */
+	list_for_each_entry(child, &linkbus->devices, bus_list) {
+		if (child->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE) {
+			link->aspm_disable =
+				PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1;
+			break;
+		}
+	}
 
 	if (!link->aspm_support)
 		return;
@@ -458,14 +469,10 @@ static void __pcie_aspm_config_link(struct pcie_link_state *link, u32 state)
 	struct pci_dev *child, *parent = link->pdev;
 	struct pci_bus *linkbus = parent->subordinate;
 
-	/*
-	 * If the downstream component has pci bridge function, don't
-	 * do ASPM now.
-	 */
-	list_for_each_entry(child, &linkbus->devices, bus_list) {
-		if (child->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
-			return;
-	}
+	state &= ~link->aspm_disable;
+	/* Nothing to do if the link is already in the requested state */
+	if (link->aspm_enabled == state)
+		return;
 	/*
 	 * Spec 2.0 suggests all functions should be configured the
 	 * same setting for ASPM. Enabling ASPM L1 should be done in
@@ -719,7 +726,7 @@ void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 void pci_disable_link_state(struct pci_dev *pdev, int state)
 {
 	struct pci_dev *parent = pdev->bus->self;
-	struct pcie_link_state *link_state;
+	struct pcie_link_state *link;
 
 	if (aspm_disabled || !pdev->is_pcie)
 		return;
@@ -731,12 +738,12 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-	link_state = parent->link_state;
-	link_state->aspm_support &= ~state;
-	__pcie_aspm_configure_link_state(link_state, link_state->aspm_enabled);
+	link = parent->link_state;
+	link->aspm_disable |= state;
+	__pcie_aspm_configure_link_state(link, link->aspm_enabled);
 	if (state & PCIE_LINK_STATE_CLKPM) {
-		link_state->clkpm_capable = 0;
-		pcie_set_clkpm(link_state, 0);
+		link->clkpm_capable = 0;
+		pcie_set_clkpm(link, 0);
 	}
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
