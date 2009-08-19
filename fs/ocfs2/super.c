@@ -2494,7 +2494,8 @@ void __ocfs2_abort(struct super_block* sb,
 	/* Force a panic(). This stinks, but it's better than letting
 	 * things continue without having a proper hard readonly
 	 * here. */
-	OCFS2_SB(sb)->s_mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
+	if (!ocfs2_mount_local(OCFS2_SB(sb)))
+		OCFS2_SB(sb)->s_mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
 	ocfs2_handle_error(sb);
 }
 
