@@ -95,7 +95,7 @@ int ieee802154_nl_disassoc_confirm(struct net_device *dev,
  * Note: This API does not permit the return of an active scan result.
  */
 int ieee802154_nl_scan_confirm(struct net_device *dev,
-		u8 status, u8 scan_type, u32 unscanned,
+		u8 status, u8 scan_type, u32 unscanned, u8 page,
 		u8 *edl/*, struct list_head *pan_desc_list */);
 
 /**

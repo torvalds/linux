@@ -119,12 +119,13 @@ static u8 fake_get_bsn(struct net_device *dev)
  *       802.15.4-2006 document.
  */
 static int fake_assoc_req(struct net_device *dev,
-		struct ieee802154_addr *addr, u8 channel, u8 cap)
+		struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
 	struct wpan_phy *phy = net_to_phy(dev);
 
 	mutex_lock(&phy->pib_lock);
 	phy->current_channel = channel;
+	phy->current_page = page;
 	mutex_unlock(&phy->pib_lock);
 
 	/* We simply emulate it here */
@@ -191,7 +192,7 @@ static int fake_disassoc_req(struct net_device *dev,
  * document, with 7.3.8 describing coordinator realignment.
  */
 static int fake_start_req(struct net_device *dev, struct ieee802154_addr *addr,
-				u8 channel,
+				u8 channel, u8 page,
 				u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx,
 				u8 coord_realign)
 {
@@ -199,6 +200,7 @@ static int fake_start_req(struct net_device *dev, struct ieee802154_addr *addr,
 
 	mutex_lock(&phy->pib_lock);
 	phy->current_channel = channel;
+	phy->current_page = page;
 	mutex_unlock(&phy->pib_lock);
 
 	/* We don't emulate beacons here at all, so START should fail */
@@ -222,11 +224,11 @@ static int fake_start_req(struct net_device *dev, struct ieee802154_addr *addr,
  * Note: This is in section 7.5.2.1 of the IEEE 802.15.4-2006 document.
  */
 static int fake_scan_req(struct net_device *dev, u8 type, u32 channels,
-		u8 duration)
+		u8 page, u8 duration)
 {
 	u8 edl[27] = {};
 	return ieee802154_nl_scan_confirm(dev, IEEE802154_SUCCESS, type,
-			channels,
+			channels, page,
 			type == IEEE802154_MAC_SCAN_ED ? edl : NULL);
 }
 

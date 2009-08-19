@@ -80,7 +80,7 @@ static inline int mac_cb_type(struct sk_buff *skb)
 struct ieee802154_mlme_ops {
 	int (*assoc_req)(struct net_device *dev,
 			struct ieee802154_addr *addr,
-			u8 channel, u8 cap);
+			u8 channel, u8 page, u8 cap);
 	int (*assoc_resp)(struct net_device *dev,
 			struct ieee802154_addr *addr,
 			u16 short_addr, u8 status);
@@ -89,10 +89,10 @@ struct ieee802154_mlme_ops {
 			u8 reason);
 	int (*start_req)(struct net_device *dev,
 			struct ieee802154_addr *addr,
-			u8 channel, u8 bcn_ord, u8 sf_ord,
+			u8 channel, u8 page, u8 bcn_ord, u8 sf_ord,
 			u8 pan_coord, u8 blx, u8 coord_realign);
 	int (*scan_req)(struct net_device *dev,
-			u8 type, u32 channels, u8 duration);
+			u8 type, u32 channels, u8 page, u8 duration);
 
 	/*
 	 * FIXME: these should become the part of PIB/MIB interface.
