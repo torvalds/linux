@@ -450,7 +450,8 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		return;
 
 	ev->type = EVENT_CONNECT_RESULT;
-	memcpy(ev->cr.bssid, bssid, ETH_ALEN);
+	if (bssid)
+		memcpy(ev->cr.bssid, bssid, ETH_ALEN);
 	ev->cr.req_ie = ((u8 *)ev) + sizeof(*ev);
 	ev->cr.req_ie_len = req_ie_len;
 	memcpy((void *)ev->cr.req_ie, req_ie, req_ie_len);

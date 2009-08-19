@@ -12,6 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
@@ -309,7 +310,8 @@ static void cfg80211_process_events(struct wireless_dev *wdev)
 		switch (ev->type) {
 		case EVENT_CONNECT_RESULT:
 			__cfg80211_connect_result(
-				wdev->netdev, ev->cr.bssid,
+				wdev->netdev, is_zero_ether_addr(ev->cr.bssid) ?
+				NULL : ev->cr.bssid,
 				ev->cr.req_ie, ev->cr.req_ie_len,
 				ev->cr.resp_ie, ev->cr.resp_ie_len,
 				ev->cr.status,
