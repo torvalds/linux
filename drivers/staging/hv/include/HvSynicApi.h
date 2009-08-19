@@ -209,14 +209,14 @@ typedef struct _HV_PORT_INFO
 	struct
 	{
 	    HV_SYNIC_SINT_INDEX TargetSint;
-	    HV_VP_INDEX TargetVp;
+	    u32 TargetVp;
 	    u64 RsvdZ;
 	} MessagePortInfo;
 
 	struct
 	{
 	    HV_SYNIC_SINT_INDEX TargetSint;
-	    HV_VP_INDEX TargetVp;
+	    u32 TargetVp;
 	    u16 BaseFlagNumber;
 	    u16 FlagCount;
 	    u32 RsvdZ;

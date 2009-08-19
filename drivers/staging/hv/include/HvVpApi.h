@@ -20,32 +20,26 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *
  */
+#ifndef __HVVPAPI_H
+#define __HVVPAPI_H
 
+/*
+ * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
+ * is set by CPUID(HvCpuIdFunctionVersionAndFeatures).
+ */
+enum hv_cpuid_function {
+	HvCpuIdFunctionVersionAndFeatures		= 0x00000001,
+	HvCpuIdFunctionHvVendorAndMaxFunction		= 0x40000000,
+	HvCpuIdFunctionHvInterface			= 0x40000001,
 
-#pragma once
+	/*
+	 * The remaining functions depend on the value of
+	 * HvCpuIdFunctionInterface
+	 */
+	HvCpuIdFunctionMsHvVersion			= 0x40000002,
+	HvCpuIdFunctionMsHvFeatures			= 0x40000003,
+	HvCpuIdFunctionMsHvEnlightenmentInformation	= 0x40000004,
+	HvCpuIdFunctionMsHvImplementationLimits		= 0x40000005,
+};
 
-/* Virtual Processor Indices */
-
-typedef u32 HV_VP_INDEX, *PHV_VP_INDEX;
-
-
-/* The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent */
-/* is set by CPUID(HvCpuIdFunctionVersionAndFeatures). */
-/* ========================================================================== */
-
-
-typedef enum _HV_CPUID_FUNCTION
-{
-    HvCpuIdFunctionVersionAndFeatures           = 0x00000001,
-    HvCpuIdFunctionHvVendorAndMaxFunction       = 0x40000000,
-    HvCpuIdFunctionHvInterface                  = 0x40000001,
-
-
-    /* The remaining functions depend on the value of HvCpuIdFunctionInterface */
-
-    HvCpuIdFunctionMsHvVersion                  = 0x40000002,
-    HvCpuIdFunctionMsHvFeatures                 = 0x40000003,
-    HvCpuIdFunctionMsHvEnlightenmentInformation = 0x40000004,
-    HvCpuIdFunctionMsHvImplementationLimits     = 0x40000005
-
-} HV_CPUID_FUNCTION, *PHV_CPUID_FUNCTION;
+#endif
