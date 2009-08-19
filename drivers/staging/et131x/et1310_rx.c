@@ -1235,13 +1235,11 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 			break;
 
 		/* Do not receive any packets until a filter has been set.
-		 * Do not receive any packets until we are at D0.
 		 * Do not receive any packets until we have link.
 		 * If length is zero, return the RFD in order to advance the
 		 * Free buffer ring.
 		 */
 		if ((!etdev->PacketFilter) ||
-		    (etdev->PoMgmt.PowerState != NdisDeviceStateD0) ||
 		    (!MP_LINK_DETECTED(etdev)) ||
 		    (pMpRfd->PacketSize == 0)) {
 			continue;

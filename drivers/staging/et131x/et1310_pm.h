@@ -66,15 +66,6 @@
 #define NUM_WOL_PATTERNS       0x5
 #define CRC16_POLY             0x1021
 
-/* Definition of NDIS_DEVICE_POWER_STATE */
-typedef enum {
-	NdisDeviceStateUnspecified = 0,
-	NdisDeviceStateD0,
-	NdisDeviceStateD1,
-	NdisDeviceStateD2,
-	NdisDeviceStateD3
-} NDIS_DEVICE_POWER_STATE;
-
 typedef struct _MP_POWER_MGMT {
 	/* variable putting the phy into coma mode when boot up with no cable
 	 * plugged in after 5 seconds
@@ -97,7 +88,6 @@ typedef struct _MP_POWER_MGMT {
 	} IPAddress;
 
 	/* Current Power state of the adapter. */
-	NDIS_DEVICE_POWER_STATE PowerState;
 	bool WOLState;
 	bool WOLEnabled;
 	bool Failed10Half;

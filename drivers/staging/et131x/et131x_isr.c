@@ -479,6 +479,5 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 	}
 
-	if (etdev->PoMgmt.PowerState == NdisDeviceStateD0)
-		et131x_enable_interrupts(etdev);
+	et131x_enable_interrupts(etdev);
 }

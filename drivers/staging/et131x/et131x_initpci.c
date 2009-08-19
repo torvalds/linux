@@ -967,8 +967,6 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	DBG_TRACE(et131x_dbginfo, "Init send data structures...\n");
 	et131x_init_send(adapter);
 
-	adapter->PoMgmt.PowerState = NdisDeviceStateD0;
-
 	/* Register the interrupt
 	 *
 	 * NOTE - This is being done in the open routine, where most other
