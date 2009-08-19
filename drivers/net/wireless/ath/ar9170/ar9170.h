@@ -185,10 +185,8 @@ struct ar9170 {
 	bool disable_offload;
 
 	/* filter settings */
-	struct work_struct filter_config_work;
-	u64 cur_mc_hash, want_mc_hash;
-	u32 cur_filter, want_filter;
-	unsigned long filter_changed;
+	u64 cur_mc_hash;
+	u32 cur_filter;
 	unsigned int filter_state;
 	bool sniffer_enabled;
 
@@ -261,10 +259,6 @@ struct ar9170_tx_info {
 #define IS_STARTED(a)		(((struct ar9170 *)a)->state >= AR9170_STARTED)
 #define IS_ACCEPTING_CMD(a)	(((struct ar9170 *)a)->state >= AR9170_IDLE)
 
-#define AR9170_FILTER_CHANGED_MODE		BIT(0)
-#define AR9170_FILTER_CHANGED_MULTICAST		BIT(1)
-#define AR9170_FILTER_CHANGED_FRAMEFILTER	BIT(2)
-
 /* exported interface */
 void *ar9170_alloc(size_t priv_size);
 int ar9170_register(struct ar9170 *ar, struct device *pdev);
@@ -278,8 +272,8 @@ int ar9170_nag_limiter(struct ar9170 *ar);
 int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int ar9170_init_mac(struct ar9170 *ar);
 int ar9170_set_qos(struct ar9170 *ar);
-int ar9170_update_multicast(struct ar9170 *ar);
-int ar9170_update_frame_filter(struct ar9170 *ar);
+int ar9170_update_multicast(struct ar9170 *ar, const u64 mc_hast);
+int ar9170_update_frame_filter(struct ar9170 *ar, const u32 filter);
 int ar9170_set_operating_mode(struct ar9170 *ar);
 int ar9170_set_beacon_timers(struct ar9170 *ar);
 int ar9170_set_dyn_sifs_ack(struct ar9170 *ar);
