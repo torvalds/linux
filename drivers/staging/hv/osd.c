@@ -37,17 +37,9 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-
-#include <asm/io.h>
-#include <asm/bitops.h>
-#include <asm/kmap_types.h>
-#include <asm/atomic.h>
-
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include "osd.h"
-
-
-/* Data types */
-
 
 struct osd_callback_struct {
 	struct work_struct work;
@@ -60,15 +52,18 @@ void *osd_VirtualAllocExec(unsigned int size)
 #ifdef __x86_64__
 	return __vmalloc(size, GFP_KERNEL, PAGE_KERNEL_EXEC);
 #else
-	return __vmalloc(size, GFP_KERNEL, __pgprot(__PAGE_KERNEL & (~_PAGE_NX)));
+	return __vmalloc(size, GFP_KERNEL,
+			 __pgprot(__PAGE_KERNEL & (~_PAGE_NX)));
 #endif
 }
 
 void *osd_PageAlloc(unsigned int count)
 {
 	void *p;
+
 	p = (void *)__get_free_pages(GFP_KERNEL, get_order(count * PAGE_SIZE));
-	if (p) memset(p, 0, count * PAGE_SIZE);
+	if (p)
+		memset(p, 0, count * PAGE_SIZE);
 	return p;
 
 	/* struct page* page = alloc_page(GFP_KERNEL|__GFP_ZERO); */
@@ -81,7 +76,7 @@ void *osd_PageAlloc(unsigned int count)
 }
 EXPORT_SYMBOL_GPL(osd_PageAlloc);
 
-void osd_PageFree(void* page, unsigned int count)
+void osd_PageFree(void *page, unsigned int count)
 {
 	free_pages((unsigned long)page, get_order(count * PAGE_SIZE));
 	/*struct page* p = virt_to_page(page);
@@ -91,11 +86,10 @@ EXPORT_SYMBOL_GPL(osd_PageFree);
 
 struct osd_waitevent *osd_WaitEventCreate(void)
 {
-	struct osd_waitevent *wait = kmalloc(sizeof(struct osd_waitevent), GFP_KERNEL);
+	struct osd_waitevent *wait = kmalloc(sizeof(struct osd_waitevent),
+					     GFP_KERNEL);
 	if (!wait)
-	{
 		return NULL;
-	}
 
 	wait->condition = 0;
 	init_waitqueue_head(&wait->event);
@@ -112,7 +106,7 @@ EXPORT_SYMBOL_GPL(osd_WaitEventSet);
 
 int osd_WaitEventWait(struct osd_waitevent *waitEvent)
 {
-	int ret=0;
+	int ret = 0;
 
 	ret = wait_event_interruptible(waitEvent->event,
 				       waitEvent->condition);
@@ -123,7 +117,7 @@ EXPORT_SYMBOL_GPL(osd_WaitEventWait);
 
 int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 {
-	int ret=0;
+	int ret = 0;
 
 	ret = wait_event_interruptible_timeout(waitEvent->event,
 					       waitEvent->condition,
@@ -136,10 +130,9 @@ EXPORT_SYMBOL_GPL(osd_WaitEventWaitEx);
 static void osd_callback_work(struct work_struct *work)
 {
 	struct osd_callback_struct *cb = container_of(work,
-						      struct osd_callback_struct,
-						      work);
+						struct osd_callback_struct,
+						work);
 	(cb->callback)(cb->data);
-
 	kfree(cb);
 }
 
@@ -150,9 +143,8 @@ int osd_schedule_callback(struct workqueue_struct *wq,
 	struct osd_callback_struct *cb;
 
 	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
-	if (!cb)
-	{
-		printk(KERN_ERR "unable to allocate memory in osd_schedule_callback");
+	if (!cb) {
+		printk(KERN_ERR "unable to allocate memory in osd_schedule_callback\n");
 		return -1;
 	}
 
