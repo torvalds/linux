@@ -119,9 +119,5 @@ void __init time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 				-xtime.tv_sec, -xtime.tv_nsec);
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	local_timer_setup(smp_processor_id());
-#endif
-
 	late_time_init = sh_late_time_init;
 }
