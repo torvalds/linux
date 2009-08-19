@@ -200,6 +200,13 @@ config SH_KFR2R09
 	help
 	  "Kit For R2R for 2009" support.
 
+config SH_ECOVEC
+	bool "EcoVec"
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Renesas "R0P7724LC0011/21RL (EcoVec)" support.
+
 config SH_SH7763RDP
 	bool "SH7763RDP"
 	depends on CPU_SUBTYPE_SH7763
