@@ -68,13 +68,13 @@ typedef struct _RNDIS_REQUEST {
 
 	/* FIXME: We assumed a fixed size response here. If we do ever need to handle a bigger response, */
 	/* we can either define a max response message or add a response buffer variable above this field */
-	RNDIS_MESSAGE				ResponseMessage;
+	struct rndis_message ResponseMessage;
 
 	/* Simplify allocation by having a netvsc packet inline */
 	struct hv_netvsc_packet	Packet;
 	PAGE_BUFFER					Buffer;
 	/* FIXME: We assumed a fixed size request here. */
-	RNDIS_MESSAGE				RequestMessage;
+	struct rndis_message RequestMessage;
 } RNDIS_REQUEST;
 
 
@@ -82,7 +82,7 @@ typedef struct _RNDIS_FILTER_PACKET {
 	void						*CompletionContext;
 	PFN_ON_SENDRECVCOMPLETION	OnCompletion;
 
-	RNDIS_MESSAGE				Message;
+	struct rndis_message Message;
 } RNDIS_FILTER_PACKET;
 
 
@@ -94,27 +94,17 @@ RndisFilterSendRequest(
 	RNDIS_REQUEST	*Request
 	);
 
-static void
-RndisFilterReceiveResponse(
-	RNDIS_DEVICE	*Device,
-	RNDIS_MESSAGE	*Response
-	);
+static void RndisFilterReceiveResponse(RNDIS_DEVICE *Device,
+				       struct rndis_message *Response);
 
-static void
-RndisFilterReceiveIndicateStatus(
-	RNDIS_DEVICE	*Device,
-	RNDIS_MESSAGE	*Response
-	);
+static void RndisFilterReceiveIndicateStatus(RNDIS_DEVICE *Device,
+					     struct rndis_message *Response);
 
-static void
-RndisFilterReceiveData(
-	RNDIS_DEVICE	*Device,
-	RNDIS_MESSAGE	*Message,
-	struct hv_netvsc_packet	*Packet
-	);
+static void RndisFilterReceiveData(RNDIS_DEVICE *Device,
+				   struct rndis_message *Message,
+				   struct hv_netvsc_packet *Packet);
 
-static int
-RndisFilterOnReceive(
+static int RndisFilterOnReceive(
 	struct hv_device *Device,
 	struct hv_netvsc_packet	*Packet
 	);
@@ -234,8 +224,8 @@ static inline void PutRndisDevice(RNDIS_DEVICE *Device)
 static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageType, u32 MessageLength)
 {
 	RNDIS_REQUEST *request;
-	RNDIS_MESSAGE *rndisMessage;
-	RNDIS_SET_REQUEST *set;
+	struct rndis_message *rndisMessage;
+	struct rndis_set_request *set;
 	unsigned long flags;
 
 	request = kzalloc(sizeof(RNDIS_REQUEST), GFP_KERNEL);
@@ -280,7 +270,7 @@ static inline void PutRndisRequest(RNDIS_DEVICE *Device, RNDIS_REQUEST *Request)
 	kfree(Request);
 }
 
-static inline void DumpRndisMessage(RNDIS_MESSAGE *RndisMessage)
+static inline void DumpRndisMessage(struct rndis_message *RndisMessage)
 {
 	switch (RndisMessage->NdisMessageType)
 	{
@@ -373,11 +363,8 @@ RndisFilterSendRequest(
 }
 
 
-static void
-RndisFilterReceiveResponse(
-	RNDIS_DEVICE	*Device,
-	RNDIS_MESSAGE	*Response
-	)
+static void RndisFilterReceiveResponse(RNDIS_DEVICE *Device,
+				       struct rndis_message *Response)
 {
 	LIST_ENTRY *anchor;
 	LIST_ENTRY *curr;
@@ -406,7 +393,7 @@ RndisFilterReceiveResponse(
 
 	if (found)
 	{
-		if (Response->MessageLength <= sizeof(RNDIS_MESSAGE))
+		if (Response->MessageLength <= sizeof(struct rndis_message))
 		{
 			memcpy(&request->ResponseMessage, Response, Response->MessageLength);
 		}
@@ -435,13 +422,10 @@ RndisFilterReceiveResponse(
 	DPRINT_EXIT(NETVSC);
 }
 
-static void
-RndisFilterReceiveIndicateStatus(
-	RNDIS_DEVICE	*Device,
-	RNDIS_MESSAGE	*Response
-	)
+static void RndisFilterReceiveIndicateStatus(RNDIS_DEVICE *Device,
+					     struct rndis_message *Response)
 {
-	RNDIS_INDICATE_STATUS *indicate = &Response->Message.IndicateStatus;
+	struct rndis_indicate_status *indicate = &Response->Message.IndicateStatus;
 
 	if (indicate->Status == RNDIS_STATUS_MEDIA_CONNECT)
 	{
@@ -457,20 +441,17 @@ RndisFilterReceiveIndicateStatus(
 	}
 }
 
-static void
-RndisFilterReceiveData(
-	RNDIS_DEVICE	*Device,
-	RNDIS_MESSAGE	*Message,
-	struct hv_netvsc_packet	*Packet
-	)
+static void RndisFilterReceiveData(RNDIS_DEVICE *Device,
+				   struct rndis_message *Message,
+				   struct hv_netvsc_packet *Packet)
 {
-	RNDIS_PACKET *rndisPacket;
+	struct rndis_packet *rndisPacket;
 	u32 dataOffset;
 
 	DPRINT_ENTER(NETVSC);
 
 	/* empty ethernet frame ?? */
-	ASSERT(Packet->PageBuffers[0].Length > RNDIS_MESSAGE_SIZE(RNDIS_PACKET));
+	ASSERT(Packet->PageBuffers[0].Length > RNDIS_MESSAGE_SIZE(struct rndis_packet));
 
 	rndisPacket = &Message->Message.Packet;
 
@@ -499,8 +480,8 @@ RndisFilterOnReceive(
 {
 	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 	RNDIS_DEVICE *rndisDevice;
-	RNDIS_MESSAGE rndisMessage;
-	RNDIS_MESSAGE *rndisHeader;
+	struct rndis_message rndisMessage;
+	struct rndis_message *rndisHeader;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -521,7 +502,7 @@ RndisFilterOnReceive(
 		return -1;
 	}
 
-	rndisHeader = (RNDIS_MESSAGE *)kmap_atomic(pfn_to_page(Packet->PageBuffers[0].Pfn), KM_IRQ0);
+	rndisHeader = (struct rndis_message *)kmap_atomic(pfn_to_page(Packet->PageBuffers[0].Pfn), KM_IRQ0);
 
 	rndisHeader = (void*)((unsigned long)rndisHeader + Packet->PageBuffers[0].Offset);
 
@@ -540,13 +521,13 @@ RndisFilterOnReceive(
 	}
 #endif
 
-	if ((rndisHeader->NdisMessageType != REMOTE_NDIS_PACKET_MSG) && (rndisHeader->MessageLength > sizeof(RNDIS_MESSAGE)))
+	if ((rndisHeader->NdisMessageType != REMOTE_NDIS_PACKET_MSG) && (rndisHeader->MessageLength > sizeof(struct rndis_message)))
 	{
 		DPRINT_ERR(NETVSC, "incoming rndis message buffer overflow detected (got %u, max %zu)...marking it an error!",
-			rndisHeader->MessageLength, sizeof(RNDIS_MESSAGE));
+			rndisHeader->MessageLength, sizeof(struct rndis_message));
 	}
 
-	memcpy(&rndisMessage, rndisHeader, (rndisHeader->MessageLength > sizeof(RNDIS_MESSAGE))?sizeof(RNDIS_MESSAGE):rndisHeader->MessageLength);
+	memcpy(&rndisMessage, rndisHeader, (rndisHeader->MessageLength > sizeof(struct rndis_message))?sizeof(struct rndis_message):rndisHeader->MessageLength);
 
 	kunmap_atomic(rndisHeader - Packet->PageBuffers[0].Offset, KM_IRQ0);
 
@@ -592,8 +573,8 @@ RndisFilterQueryDevice(
 {
 	RNDIS_REQUEST *request;
 	u32 inresultSize = *ResultSize;
-	RNDIS_QUERY_REQUEST *query;
-	RNDIS_QUERY_COMPLETE *queryComplete;
+	struct rndis_query_request *query;
+	struct rndis_query_complete *queryComplete;
 	int ret=0;
 
 	DPRINT_ENTER(NETVSC);
@@ -601,7 +582,7 @@ RndisFilterQueryDevice(
 	ASSERT(Result);
 
 	*ResultSize = 0;
-	request = GetRndisRequest(Device, REMOTE_NDIS_QUERY_MSG, RNDIS_MESSAGE_SIZE(RNDIS_QUERY_REQUEST));
+	request = GetRndisRequest(Device, REMOTE_NDIS_QUERY_MSG, RNDIS_MESSAGE_SIZE(struct rndis_query_request));
 	if (!request)
 	{
 		ret = -1;
@@ -611,7 +592,7 @@ RndisFilterQueryDevice(
 	/* Setup the rndis query */
 	query = &request->RequestMessage.Message.QueryRequest;
 	query->Oid = Oid;
-	query->InformationBufferOffset = sizeof(RNDIS_QUERY_REQUEST);
+	query->InformationBufferOffset = sizeof(struct rndis_query_request);
 	query->InformationBufferLength = 0;
 	query->DeviceVcHandle = 0;
 
@@ -681,16 +662,16 @@ RndisFilterSetPacketFilter(
 	)
 {
 	RNDIS_REQUEST *request;
-	RNDIS_SET_REQUEST *set;
-	RNDIS_SET_COMPLETE *setComplete;
+	struct rndis_set_request *set;
+	struct rndis_set_complete *setComplete;
 	u32 status;
 	int ret;
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(RNDIS_MESSAGE_SIZE(RNDIS_SET_REQUEST) + sizeof(u32) <= sizeof(RNDIS_MESSAGE));
+	ASSERT(RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(u32) <= sizeof(struct rndis_message));
 
-	request = GetRndisRequest(Device, REMOTE_NDIS_SET_MSG, RNDIS_MESSAGE_SIZE(RNDIS_SET_REQUEST) + sizeof(u32));
+	request = GetRndisRequest(Device, REMOTE_NDIS_SET_MSG, RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(u32));
 	if (!request)
 	{
 		ret = -1;
@@ -701,9 +682,9 @@ RndisFilterSetPacketFilter(
 	set = &request->RequestMessage.Message.SetRequest;
 	set->Oid = RNDIS_OID_GEN_CURRENT_PACKET_FILTER;
 	set->InformationBufferLength = sizeof(u32);
-	set->InformationBufferOffset = sizeof(RNDIS_SET_REQUEST);
+	set->InformationBufferOffset = sizeof(struct rndis_set_request);
 
-	memcpy((void*)(unsigned long)set + sizeof(RNDIS_SET_REQUEST), &NewFilter, sizeof(u32));
+	memcpy((void*)(unsigned long)set + sizeof(struct rndis_set_request), &NewFilter, sizeof(u32));
 
 	ret = RndisFilterSendRequest(Device, request);
 	if (ret != 0)
@@ -793,14 +774,14 @@ RndisFilterInitDevice(
 	)
 {
 	RNDIS_REQUEST *request;
-	RNDIS_INITIALIZE_REQUEST *init;
-	RNDIS_INITIALIZE_COMPLETE *initComplete;
+	struct rndis_initialize_request *init;
+	struct rndis_initialize_complete *initComplete;
 	u32 status;
 	int ret;
 
 	DPRINT_ENTER(NETVSC);
 
-	request = GetRndisRequest(Device, REMOTE_NDIS_INITIALIZE_MSG, RNDIS_MESSAGE_SIZE(RNDIS_INITIALIZE_REQUEST));
+	request = GetRndisRequest(Device, REMOTE_NDIS_INITIALIZE_MSG, RNDIS_MESSAGE_SIZE(struct rndis_initialize_request));
 	if (!request)
 	{
 		ret = -1;
@@ -853,12 +834,12 @@ RndisFilterHaltDevice(
 	)
 {
 	RNDIS_REQUEST *request;
-	RNDIS_HALT_REQUEST *halt;
+	struct rndis_halt_request *halt;
 
 	DPRINT_ENTER(NETVSC);
 
 	/* Attempt to do a rndis device halt */
-	request = GetRndisRequest(Device, REMOTE_NDIS_HALT_MSG, RNDIS_MESSAGE_SIZE(RNDIS_HALT_REQUEST));
+	request = GetRndisRequest(Device, REMOTE_NDIS_HALT_MSG, RNDIS_MESSAGE_SIZE(struct rndis_halt_request));
 	if (!request)
 	{
 		goto Cleanup;
@@ -1088,8 +1069,8 @@ RndisFilterOnSend(
 {
 	int ret=0;
 	RNDIS_FILTER_PACKET *filterPacket;
-	RNDIS_MESSAGE *rndisMessage;
-	RNDIS_PACKET *rndisPacket;
+	struct rndis_message *rndisMessage;
+	struct rndis_packet *rndisPacket;
 	u32 rndisMessageSize;
 
 	DPRINT_ENTER(NETVSC);
@@ -1101,13 +1082,13 @@ RndisFilterOnSend(
 	memset(filterPacket, 0, sizeof(RNDIS_FILTER_PACKET));
 
 	rndisMessage = &filterPacket->Message;
-	rndisMessageSize = RNDIS_MESSAGE_SIZE(RNDIS_PACKET);
+	rndisMessageSize = RNDIS_MESSAGE_SIZE(struct rndis_packet);
 
 	rndisMessage->NdisMessageType = REMOTE_NDIS_PACKET_MSG;
 	rndisMessage->MessageLength = Packet->TotalDataBufferLength + rndisMessageSize;
 
 	rndisPacket = &rndisMessage->Message.Packet;
-	rndisPacket->DataOffset = sizeof(RNDIS_PACKET);
+	rndisPacket->DataOffset = sizeof(struct rndis_packet);
 	rndisPacket->DataLength = Packet->TotalDataBufferLength;
 
 	Packet->IsDataPacket = true;

@@ -31,8 +31,8 @@
 
 #include "rndis.h"
 
-#define RNDIS_HEADER_SIZE	(sizeof(RNDIS_MESSAGE) - \
-				 sizeof(RNDIS_MESSAGE_CONTAINER))
+#define RNDIS_HEADER_SIZE	(sizeof(struct rndis_message) - \
+				 sizeof(union rndis_message_container))
 
 #define NDIS_PACKET_TYPE_DIRECTED	0x00000001
 #define NDIS_PACKET_TYPE_MULTICAST	0x00000002

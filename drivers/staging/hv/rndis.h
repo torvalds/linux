@@ -282,7 +282,7 @@
  */
 #define REMOTE_NDIS_BUS_MSG			0xff000001
 
-/*  Defines for DeviceFlags in RNDIS_INITIALIZE_COMPLETE */
+/*  Defines for DeviceFlags in struct rndis_initialize_complete */
 #define RNDIS_DF_CONNECTIONLESS			0x00000001
 #define RNDIS_DF_CONNECTION_ORIENTED		0x00000002
 #define RNDIS_DF_RAW_DATA			0x00000004
@@ -313,15 +313,15 @@
 
 
 /* NdisInitialize message */
-typedef struct _RNDIS_INITIALIZE_REQUEST {
+struct rndis_initialize_request {
 	u32 RequestId;
 	u32 MajorVersion;
 	u32 MinorVersion;
 	u32 MaxTransferSize;
-} RNDIS_INITIALIZE_REQUEST, *PRNDIS_INITIALIZE_REQUEST;
+};
 
 /* Response to NdisInitialize */
-typedef struct _RNDIS_INITIALIZE_COMPLETE {
+struct rndis_initialize_complete {
 	u32 RequestId;
 	u32 Status;
 	u32 MajorVersion;
@@ -333,95 +333,95 @@ typedef struct _RNDIS_INITIALIZE_COMPLETE {
 	u32 PacketAlignmentFactor;
 	u32 AFListOffset;
 	u32 AFListSize;
-} RNDIS_INITIALIZE_COMPLETE, *PRNDIS_INITIALIZE_COMPLETE;
+};
 
 /* Call manager devices only: Information about an address family */
 /* supported by the device is appended to the response to NdisInitialize. */
-typedef struct _RNDIS_CO_ADDRESS_FAMILY {
+struct rndis_co_address_family {
 	u32 AddressFamily;
 	u32 MajorVersion;
 	u32 MinorVersion;
-} RNDIS_CO_ADDRESS_FAMILY, *PRNDIS_CO_ADDRESS_FAMILY;
+};
 
 /* NdisHalt message */
-typedef struct _RNDIS_HALT_REQUEST {
+struct rndis_halt_request {
 	u32 RequestId;
-} RNDIS_HALT_REQUEST, *PRNDIS_HALT_REQUEST;
+};
 
 /* NdisQueryRequest message */
-typedef struct _RNDIS_QUERY_REQUEST {
+struct rndis_query_request {
 	u32 RequestId;
 	u32 Oid;
 	u32 InformationBufferLength;
 	u32 InformationBufferOffset;
 	u32 DeviceVcHandle;
-} RNDIS_QUERY_REQUEST, *PRNDIS_QUERY_REQUEST;
+};
 
 /* Response to NdisQueryRequest */
-typedef struct _RNDIS_QUERY_COMPLETE {
+struct rndis_query_complete {
 	u32 RequestId;
 	u32 Status;
 	u32 InformationBufferLength;
 	u32 InformationBufferOffset;
-} RNDIS_QUERY_COMPLETE, *PRNDIS_QUERY_COMPLETE;
+};
 
 /* NdisSetRequest message */
-typedef struct _RNDIS_SET_REQUEST {
+struct rndis_set_request {
 	u32 RequestId;
 	u32 Oid;
 	u32 InformationBufferLength;
 	u32 InformationBufferOffset;
 	u32 DeviceVcHandle;
-} RNDIS_SET_REQUEST, *PRNDIS_SET_REQUEST;
+};
 
 /* Response to NdisSetRequest */
-typedef struct _RNDIS_SET_COMPLETE {
+struct rndis_set_complete {
 	u32 RequestId;
 	u32 Status;
-} RNDIS_SET_COMPLETE, *PRNDIS_SET_COMPLETE;
+};
 
 /* NdisReset message */
-typedef struct _RNDIS_RESET_REQUEST {
+struct rndis_reset_request {
 	u32 Reserved;
-} RNDIS_RESET_REQUEST, *PRNDIS_RESET_REQUEST;
+};
 
 /* Response to NdisReset */
-typedef struct _RNDIS_RESET_COMPLETE {
+struct rndis_reset_complete {
 	u32 Status;
 	u32 AddressingReset;
-} RNDIS_RESET_COMPLETE, *PRNDIS_RESET_COMPLETE;
+};
 
 /* NdisMIndicateStatus message */
-typedef struct _RNDIS_INDICATE_STATUS {
+struct rndis_indicate_status {
 	u32 Status;
 	u32 StatusBufferLength;
 	u32 StatusBufferOffset;
-} RNDIS_INDICATE_STATUS, *PRNDIS_INDICATE_STATUS;
+};
 
 /* Diagnostic information passed as the status buffer in */
-/* RNDIS_INDICATE_STATUS messages signifying error conditions. */
+/* struct rndis_indicate_status messages signifying error conditions. */
 typedef struct _RNDIS_DIAGNOSTIC_INFO {
 	u32 DiagStatus;
 	u32 ErrorOffset;
 } RNDIS_DIAGNOSTIC_INFO, *PRNDIS_DIAGNOSTIC_INFO;
 
 /* NdisKeepAlive message */
-typedef struct _RNDIS_KEEPALIVE_REQUEST {
+struct rndis_keepalive_request {
 	u32 RequestId;
-} RNDIS_KEEPALIVE_REQUEST, *PRNDIS_KEEPALIVE_REQUEST;
+};
 
 /* Response to NdisKeepAlive */
-typedef struct _RNDIS_KEEPALIVE_COMPLETE {
+struct rndis_keepalive_complete {
 	u32 RequestId;
 	u32 Status;
-} RNDIS_KEEPALIVE_COMPLETE, *PRNDIS_KEEPALIVE_COMPLETE;
+};
 
 /*
  * Data message. All Offset fields contain byte offsets from the beginning of
- * the RNDIS_PACKET structure. All Length fields are in bytes.  VcHandle is set
+ * struct rndis_packet. All Length fields are in bytes.  VcHandle is set
  * to 0 for connectionless data, otherwise it contains the VC handle.
  */
-typedef struct _RNDIS_PACKET {
+struct rndis_packet {
 	u32 DataOffset;
 	u32 DataLength;
 	u32 OOBDataOffset;
@@ -431,33 +431,33 @@ typedef struct _RNDIS_PACKET {
 	u32 PerPacketInfoLength;
 	u32 VcHandle;
 	u32 Reserved;
-} RNDIS_PACKET, *PRNDIS_PACKET;
+};
 
 /* Optional Out of Band data associated with a Data message. */
-typedef struct _RNDIS_OOBD {
+struct rndis_oobd {
 	u32 Size;
 	u32 Type;
 	u32 ClassInformationOffset;
-} RNDIS_OOBD, *PRNDIS_OOBD;
+};
 
 /* Packet extension field contents associated with a Data message. */
-typedef struct _RNDIS_PER_PACKET_INFO {
+struct rndis_per_packet_info {
 	u32 Size;
 	u32 Type;
 	u32 PerPacketInformationOffset;
-} RNDIS_PER_PACKET_INFO, *PRNDIS_PER_PACKET_INFO;
+};
 
 /* Format of Information buffer passed in a SetRequest for the OID */
 /* OID_GEN_RNDIS_CONFIG_PARAMETER. */
-typedef struct _RNDIS_CONFIG_PARAMETER_INFO {
+struct rndis_config_parameter_info {
 	u32 ParameterNameOffset;
 	u32 ParameterNameLength;
 	u32 ParameterType;
 	u32 ParameterValueOffset;
 	u32 ParameterValueLength;
-} RNDIS_CONFIG_PARAMETER_INFO, *PRNDIS_CONFIG_PARAMETER_INFO;
+};
 
-/* Values for ParameterType in RNDIS_CONFIG_PARAMETER_INFO */
+/* Values for ParameterType in struct rndis_config_parameter_info */
 #define RNDIS_CONFIG_PARAM_TYPE_INTEGER     0
 #define RNDIS_CONFIG_PARAM_TYPE_STRING      2
 
@@ -580,20 +580,20 @@ typedef struct _RCONDIS_MP_DEACTIVATE_VC_COMPLETE {
 
 
 /* union with all of the RNDIS messages */
-typedef union _RNDIS_MESSAGE_CONTAINER {
-	RNDIS_PACKET                      Packet;
-	RNDIS_INITIALIZE_REQUEST          InitializeRequest;
-	RNDIS_HALT_REQUEST                HaltRequest;
-	RNDIS_QUERY_REQUEST               QueryRequest;
-	RNDIS_SET_REQUEST                 SetRequest;
-	RNDIS_RESET_REQUEST               ResetRequest;
-	RNDIS_KEEPALIVE_REQUEST           KeepaliveRequest;
-	RNDIS_INDICATE_STATUS             IndicateStatus;
-	RNDIS_INITIALIZE_COMPLETE         InitializeComplete;
-	RNDIS_QUERY_COMPLETE              QueryComplete;
-	RNDIS_SET_COMPLETE                SetComplete;
-	RNDIS_RESET_COMPLETE              ResetComplete;
-	RNDIS_KEEPALIVE_COMPLETE          KeepaliveComplete;
+union rndis_message_container {
+	struct rndis_packet Packet;
+	struct rndis_initialize_request InitializeRequest;
+	struct rndis_halt_request HaltRequest;
+	struct rndis_query_request QueryRequest;
+	struct rndis_set_request SetRequest;
+	struct rndis_reset_request ResetRequest;
+	struct rndis_keepalive_request KeepaliveRequest;
+	struct rndis_indicate_status IndicateStatus;
+	struct rndis_initialize_complete InitializeComplete;
+	struct rndis_query_complete QueryComplete;
+	struct rndis_set_complete SetComplete;
+	struct rndis_reset_complete ResetComplete;
+	struct rndis_keepalive_complete KeepaliveComplete;
 	RCONDIS_MP_CREATE_VC              CoMiniportCreateVc;
 	RCONDIS_MP_DELETE_VC              CoMiniportDeleteVc;
 	RCONDIS_INDICATE_STATUS           CoIndicateStatus;
@@ -603,27 +603,27 @@ typedef union _RNDIS_MESSAGE_CONTAINER {
 	RCONDIS_MP_DELETE_VC_COMPLETE     CoMiniportDeleteVcComplete;
 	RCONDIS_MP_ACTIVATE_VC_COMPLETE   CoMiniportActivateVcComplete;
 	RCONDIS_MP_DEACTIVATE_VC_COMPLETE CoMiniportDeactivateVcComplete;
-} RNDIS_MESSAGE_CONTAINER, *PRNDIS_MESSAGE_CONTAINER;
+};
 
 /* Remote NDIS message format */
-typedef __struct_bcount(MessageLength) struct _RNDIS_MESSAGE {
+struct rndis_message {
 	u32 NdisMessageType;
 
 	/* Total length of this message, from the beginning */
-	/* of the RNDIS_MESSAGE struct, in bytes. */
+	/* of the sruct rndis_message, in bytes. */
 	u32 MessageLength;
 
 	/* Actual message */
-	RNDIS_MESSAGE_CONTAINER Message;
-} RNDIS_MESSAGE, *PRNDIS_MESSAGE;
+	union rndis_message_container Message;
+};
 
 /* Handy macros */
 
 /* get the size of an RNDIS message. Pass in the message type, */
-/* RNDIS_SET_REQUEST, RNDIS_PACKET for example */
+/* struct rndis_set_request, struct rndis_packet for example */
 #define RNDIS_MESSAGE_SIZE(Message)				\
-	(sizeof(Message) + (sizeof(RNDIS_MESSAGE) - 		\
-	 sizeof(RNDIS_MESSAGE_CONTAINER)))
+	(sizeof(Message) + (sizeof(struct rndis_message) - 	\
+	 sizeof(union rndis_message_container)))
 
 /* get pointer to info buffer with message pointer */
 #define MESSAGE_TO_INFO_BUFFER(Message)				\
