@@ -21,29 +21,8 @@
  *
  */
 
-
 #ifndef _RNDIS_H_
 #define _RNDIS_H_
-
-
-/*  Basic types */
-
-typedef u32                                  RNDIS_REQUEST_ID;
-typedef u32                                  RNDIS_HANDLE;
-typedef u32                                  RNDIS_STATUS;
-typedef u32                                  RNDIS_REQUEST_TYPE;
-typedef u32                                  RNDIS_OID;
-typedef u32                                  RNDIS_CLASS_ID;
-typedef u32                                  RNDIS_MEDIUM;
-typedef u32                                  *PRNDIS_REQUEST_ID;
-typedef u32                                  *PRNDIS_HANDLE;
-typedef u32                                  *PRNDIS_STATUS;
-typedef u32                                  *PRNDIS_REQUEST_TYPE;
-typedef u32                                  *PRNDIS_OID;
-typedef u32                                  *PRNDIS_CLASS_ID;
-typedef u32                                  *PRNDIS_MEDIUM;
-typedef u32                                  RNDIS_AF;
-
 
 /*  Status codes */
 
@@ -72,82 +51,82 @@ typedef u32                                  RNDIS_AF;
 #define STATUS_NOT_SUPPORTED                    (0xC00000BBL)
 #endif
 
-#define RNDIS_STATUS_SUCCESS                    ((RNDIS_STATUS)STATUS_SUCCESS)
-#define RNDIS_STATUS_PENDING                    ((RNDIS_STATUS)STATUS_PENDING)
-#define RNDIS_STATUS_NOT_RECOGNIZED             ((RNDIS_STATUS)0x00010001L)
-#define RNDIS_STATUS_NOT_COPIED                 ((RNDIS_STATUS)0x00010002L)
-#define RNDIS_STATUS_NOT_ACCEPTED               ((RNDIS_STATUS)0x00010003L)
-#define RNDIS_STATUS_CALL_ACTIVE                ((RNDIS_STATUS)0x00010007L)
+#define RNDIS_STATUS_SUCCESS                    (STATUS_SUCCESS)
+#define RNDIS_STATUS_PENDING                    (STATUS_PENDING)
+#define RNDIS_STATUS_NOT_RECOGNIZED             (0x00010001L)
+#define RNDIS_STATUS_NOT_COPIED                 (0x00010002L)
+#define RNDIS_STATUS_NOT_ACCEPTED               (0x00010003L)
+#define RNDIS_STATUS_CALL_ACTIVE                (0x00010007L)
 
-#define RNDIS_STATUS_ONLINE                     ((RNDIS_STATUS)0x40010003L)
-#define RNDIS_STATUS_RESET_START                ((RNDIS_STATUS)0x40010004L)
-#define RNDIS_STATUS_RESET_END                  ((RNDIS_STATUS)0x40010005L)
-#define RNDIS_STATUS_RING_STATUS                ((RNDIS_STATUS)0x40010006L)
-#define RNDIS_STATUS_CLOSED                     ((RNDIS_STATUS)0x40010007L)
-#define RNDIS_STATUS_WAN_LINE_UP                ((RNDIS_STATUS)0x40010008L)
-#define RNDIS_STATUS_WAN_LINE_DOWN              ((RNDIS_STATUS)0x40010009L)
-#define RNDIS_STATUS_WAN_FRAGMENT               ((RNDIS_STATUS)0x4001000AL)
-#define RNDIS_STATUS_MEDIA_CONNECT              ((RNDIS_STATUS)0x4001000BL)
-#define RNDIS_STATUS_MEDIA_DISCONNECT           ((RNDIS_STATUS)0x4001000CL)
-#define RNDIS_STATUS_HARDWARE_LINE_UP           ((RNDIS_STATUS)0x4001000DL)
-#define RNDIS_STATUS_HARDWARE_LINE_DOWN         ((RNDIS_STATUS)0x4001000EL)
-#define RNDIS_STATUS_INTERFACE_UP               ((RNDIS_STATUS)0x4001000FL)
-#define RNDIS_STATUS_INTERFACE_DOWN             ((RNDIS_STATUS)0x40010010L)
-#define RNDIS_STATUS_MEDIA_BUSY                 ((RNDIS_STATUS)0x40010011L)
-#define RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION  ((RNDIS_STATUS)0x40010012L)
-#define RNDIS_STATUS_WW_INDICATION              RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION
-#define RNDIS_STATUS_LINK_SPEED_CHANGE          ((RNDIS_STATUS)0x40010013L)
+#define RNDIS_STATUS_ONLINE                     (0x40010003L)
+#define RNDIS_STATUS_RESET_START                (0x40010004L)
+#define RNDIS_STATUS_RESET_END                  (0x40010005L)
+#define RNDIS_STATUS_RING_STATUS                (0x40010006L)
+#define RNDIS_STATUS_CLOSED                     (0x40010007L)
+#define RNDIS_STATUS_WAN_LINE_UP                (0x40010008L)
+#define RNDIS_STATUS_WAN_LINE_DOWN              (0x40010009L)
+#define RNDIS_STATUS_WAN_FRAGMENT               (0x4001000AL)
+#define RNDIS_STATUS_MEDIA_CONNECT              (0x4001000BL)
+#define RNDIS_STATUS_MEDIA_DISCONNECT           (0x4001000CL)
+#define RNDIS_STATUS_HARDWARE_LINE_UP           (0x4001000DL)
+#define RNDIS_STATUS_HARDWARE_LINE_DOWN         (0x4001000EL)
+#define RNDIS_STATUS_INTERFACE_UP               (0x4001000FL)
+#define RNDIS_STATUS_INTERFACE_DOWN             (0x40010010L)
+#define RNDIS_STATUS_MEDIA_BUSY                 (0x40010011L)
+#define RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION  (0x40010012L)
+#define RNDIS_STATUS_WW_INDICATION              RDIA_SPECIFIC_INDICATION
+#define RNDIS_STATUS_LINK_SPEED_CHANGE          (0x40010013L)
 
-#define RNDIS_STATUS_NOT_RESETTABLE             ((RNDIS_STATUS)0x80010001L)
-#define RNDIS_STATUS_SOFT_ERRORS                ((RNDIS_STATUS)0x80010003L)
-#define RNDIS_STATUS_HARD_ERRORS                ((RNDIS_STATUS)0x80010004L)
-#define RNDIS_STATUS_BUFFER_OVERFLOW            ((RNDIS_STATUS)STATUS_BUFFER_OVERFLOW)
+#define RNDIS_STATUS_NOT_RESETTABLE             (0x80010001L)
+#define RNDIS_STATUS_SOFT_ERRORS                (0x80010003L)
+#define RNDIS_STATUS_HARD_ERRORS                (0x80010004L)
+#define RNDIS_STATUS_BUFFER_OVERFLOW            (STATUS_BUFFER_OVERFLOW)
 
-#define RNDIS_STATUS_FAILURE                    ((RNDIS_STATUS)STATUS_UNSUCCESSFUL)
-#define RNDIS_STATUS_RESOURCES                  ((RNDIS_STATUS)STATUS_INSUFFICIENT_RESOURCES)
-#define RNDIS_STATUS_CLOSING                    ((RNDIS_STATUS)0xC0010002L)
-#define RNDIS_STATUS_BAD_VERSION                ((RNDIS_STATUS)0xC0010004L)
-#define RNDIS_STATUS_BAD_CHARACTERISTICS        ((RNDIS_STATUS)0xC0010005L)
-#define RNDIS_STATUS_ADAPTER_NOT_FOUND          ((RNDIS_STATUS)0xC0010006L)
-#define RNDIS_STATUS_OPEN_FAILED                ((RNDIS_STATUS)0xC0010007L)
-#define RNDIS_STATUS_DEVICE_FAILED              ((RNDIS_STATUS)0xC0010008L)
-#define RNDIS_STATUS_MULTICAST_FULL             ((RNDIS_STATUS)0xC0010009L)
-#define RNDIS_STATUS_MULTICAST_EXISTS           ((RNDIS_STATUS)0xC001000AL)
-#define RNDIS_STATUS_MULTICAST_NOT_FOUND        ((RNDIS_STATUS)0xC001000BL)
-#define RNDIS_STATUS_REQUEST_ABORTED            ((RNDIS_STATUS)0xC001000CL)
-#define RNDIS_STATUS_RESET_IN_PROGRESS          ((RNDIS_STATUS)0xC001000DL)
-#define RNDIS_STATUS_CLOSING_INDICATING         ((RNDIS_STATUS)0xC001000EL)
-#define RNDIS_STATUS_NOT_SUPPORTED              ((RNDIS_STATUS)STATUS_NOT_SUPPORTED)
-#define RNDIS_STATUS_INVALID_PACKET             ((RNDIS_STATUS)0xC001000FL)
-#define RNDIS_STATUS_OPEN_LIST_FULL             ((RNDIS_STATUS)0xC0010010L)
-#define RNDIS_STATUS_ADAPTER_NOT_READY          ((RNDIS_STATUS)0xC0010011L)
-#define RNDIS_STATUS_ADAPTER_NOT_OPEN           ((RNDIS_STATUS)0xC0010012L)
-#define RNDIS_STATUS_NOT_INDICATING             ((RNDIS_STATUS)0xC0010013L)
-#define RNDIS_STATUS_INVALID_LENGTH             ((RNDIS_STATUS)0xC0010014L)
-#define RNDIS_STATUS_INVALID_DATA               ((RNDIS_STATUS)0xC0010015L)
-#define RNDIS_STATUS_BUFFER_TOO_SHORT           ((RNDIS_STATUS)0xC0010016L)
-#define RNDIS_STATUS_INVALID_OID                ((RNDIS_STATUS)0xC0010017L)
-#define RNDIS_STATUS_ADAPTER_REMOVED            ((RNDIS_STATUS)0xC0010018L)
-#define RNDIS_STATUS_UNSUPPORTED_MEDIA          ((RNDIS_STATUS)0xC0010019L)
-#define RNDIS_STATUS_GROUP_ADDRESS_IN_USE       ((RNDIS_STATUS)0xC001001AL)
-#define RNDIS_STATUS_FILE_NOT_FOUND             ((RNDIS_STATUS)0xC001001BL)
-#define RNDIS_STATUS_ERROR_READING_FILE         ((RNDIS_STATUS)0xC001001CL)
-#define RNDIS_STATUS_ALREADY_MAPPED             ((RNDIS_STATUS)0xC001001DL)
-#define RNDIS_STATUS_RESOURCE_CONFLICT          ((RNDIS_STATUS)0xC001001EL)
-#define RNDIS_STATUS_NO_CABLE                   ((RNDIS_STATUS)0xC001001FL)
+#define RNDIS_STATUS_FAILURE                    (STATUS_UNSUCCESSFUL)
+#define RNDIS_STATUS_RESOURCES                  (STATUS_INSUFFICIENT_RESOURCES)
+#define RNDIS_STATUS_CLOSING                    (0xC0010002L)
+#define RNDIS_STATUS_BAD_VERSION                (0xC0010004L)
+#define RNDIS_STATUS_BAD_CHARACTERISTICS        (0xC0010005L)
+#define RNDIS_STATUS_ADAPTER_NOT_FOUND          (0xC0010006L)
+#define RNDIS_STATUS_OPEN_FAILED                (0xC0010007L)
+#define RNDIS_STATUS_DEVICE_FAILED              (0xC0010008L)
+#define RNDIS_STATUS_MULTICAST_FULL             (0xC0010009L)
+#define RNDIS_STATUS_MULTICAST_EXISTS           (0xC001000AL)
+#define RNDIS_STATUS_MULTICAST_NOT_FOUND        (0xC001000BL)
+#define RNDIS_STATUS_REQUEST_ABORTED            (0xC001000CL)
+#define RNDIS_STATUS_RESET_IN_PROGRESS          (0xC001000DL)
+#define RNDIS_STATUS_CLOSING_INDICATING         (0xC001000EL)
+#define RNDIS_STATUS_NOT_SUPPORTED              (STATUS_NOT_SUPPORTED)
+#define RNDIS_STATUS_INVALID_PACKET             (0xC001000FL)
+#define RNDIS_STATUS_OPEN_LIST_FULL             (0xC0010010L)
+#define RNDIS_STATUS_ADAPTER_NOT_READY          (0xC0010011L)
+#define RNDIS_STATUS_ADAPTER_NOT_OPEN           (0xC0010012L)
+#define RNDIS_STATUS_NOT_INDICATING             (0xC0010013L)
+#define RNDIS_STATUS_INVALID_LENGTH             (0xC0010014L)
+#define RNDIS_STATUS_INVALID_DATA               (0xC0010015L)
+#define RNDIS_STATUS_BUFFER_TOO_SHORT           (0xC0010016L)
+#define RNDIS_STATUS_INVALID_OID                (0xC0010017L)
+#define RNDIS_STATUS_ADAPTER_REMOVED            (0xC0010018L)
+#define RNDIS_STATUS_UNSUPPORTED_MEDIA          (0xC0010019L)
+#define RNDIS_STATUS_GROUP_ADDRESS_IN_USE       (0xC001001AL)
+#define RNDIS_STATUS_FILE_NOT_FOUND             (0xC001001BL)
+#define RNDIS_STATUS_ERROR_READING_FILE         (0xC001001CL)
+#define RNDIS_STATUS_ALREADY_MAPPED             (0xC001001DL)
+#define RNDIS_STATUS_RESOURCE_CONFLICT          (0xC001001EL)
+#define RNDIS_STATUS_NO_CABLE                   (0xC001001FL)
 
-#define RNDIS_STATUS_INVALID_SAP                ((RNDIS_STATUS)0xC0010020L)
-#define RNDIS_STATUS_SAP_IN_USE                 ((RNDIS_STATUS)0xC0010021L)
-#define RNDIS_STATUS_INVALID_ADDRESS            ((RNDIS_STATUS)0xC0010022L)
-#define RNDIS_STATUS_VC_NOT_ACTIVATED           ((RNDIS_STATUS)0xC0010023L)
-#define RNDIS_STATUS_DEST_OUT_OF_ORDER          ((RNDIS_STATUS)0xC0010024L)
-#define RNDIS_STATUS_VC_NOT_AVAILABLE           ((RNDIS_STATUS)0xC0010025L)
-#define RNDIS_STATUS_CELLRATE_NOT_AVAILABLE     ((RNDIS_STATUS)0xC0010026L)
-#define RNDIS_STATUS_INCOMPATABLE_QOS           ((RNDIS_STATUS)0xC0010027L)
-#define RNDIS_STATUS_AAL_PARAMS_UNSUPPORTED     ((RNDIS_STATUS)0xC0010028L)
-#define RNDIS_STATUS_NO_ROUTE_TO_DESTINATION    ((RNDIS_STATUS)0xC0010029L)
+#define RNDIS_STATUS_INVALID_SAP                (0xC0010020L)
+#define RNDIS_STATUS_SAP_IN_USE                 (0xC0010021L)
+#define RNDIS_STATUS_INVALID_ADDRESS            (0xC0010022L)
+#define RNDIS_STATUS_VC_NOT_ACTIVATED           (0xC0010023L)
+#define RNDIS_STATUS_DEST_OUT_OF_ORDER          (0xC0010024L)
+#define RNDIS_STATUS_VC_NOT_AVAILABLE           (0xC0010025L)
+#define RNDIS_STATUS_CELLRATE_NOT_AVAILABLE     (0xC0010026L)
+#define RNDIS_STATUS_INCOMPATABLE_QOS           (0xC0010027L)
+#define RNDIS_STATUS_AAL_PARAMS_UNSUPPORTED     (0xC0010028L)
+#define RNDIS_STATUS_NO_ROUTE_TO_DESTINATION    (0xC0010029L)
 
-#define RNDIS_STATUS_TOKEN_RING_OPEN_ERROR      ((RNDIS_STATUS)0xC0011000L)
+#define RNDIS_STATUS_TOKEN_RING_OPEN_ERROR      (0xC0011000L)
 
 
 
@@ -368,7 +347,7 @@ typedef u32                                  RNDIS_AF;
 
 typedef struct _RNDIS_INITIALIZE_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
+    u32 RequestId;
     u32                                  MajorVersion;
     u32                                  MinorVersion;
     u32                                  MaxTransferSize;
@@ -380,12 +359,12 @@ typedef struct _RNDIS_INITIALIZE_REQUEST
 
 typedef struct _RNDIS_INITIALIZE_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
     u32                                  MajorVersion;
     u32                                  MinorVersion;
     u32                                  DeviceFlags;
-    RNDIS_MEDIUM                            Medium;
+    u32 Medium;
     u32                                  MaxPacketsPerMessage;
     u32                                  MaxTransferSize;
     u32                                  PacketAlignmentFactor;
@@ -400,7 +379,7 @@ typedef struct _RNDIS_INITIALIZE_COMPLETE
 
 typedef struct _RNDIS_CO_ADDRESS_FAMILY
 {
-    RNDIS_AF                                AddressFamily;
+    u32 AddressFamily;
     u32                                  MajorVersion;
     u32                                  MinorVersion;
 } RNDIS_CO_ADDRESS_FAMILY, *PRNDIS_CO_ADDRESS_FAMILY;
@@ -411,7 +390,7 @@ typedef struct _RNDIS_CO_ADDRESS_FAMILY
 
 typedef struct _RNDIS_HALT_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
+    u32 RequestId;
 } RNDIS_HALT_REQUEST, *PRNDIS_HALT_REQUEST;
 
 
@@ -420,11 +399,11 @@ typedef struct _RNDIS_HALT_REQUEST
 
 typedef struct _RNDIS_QUERY_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_OID                               Oid;
+    u32 RequestId;
+    u32 Oid;
     u32                                  InformationBufferLength;
     u32                                  InformationBufferOffset;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 DeviceVcHandle;
 } RNDIS_QUERY_REQUEST, *PRNDIS_QUERY_REQUEST;
 
 
@@ -433,8 +412,8 @@ typedef struct _RNDIS_QUERY_REQUEST
 
 typedef struct _RNDIS_QUERY_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
     u32                                  InformationBufferLength;
     u32                                  InformationBufferOffset;
 } RNDIS_QUERY_COMPLETE, *PRNDIS_QUERY_COMPLETE;
@@ -445,11 +424,11 @@ typedef struct _RNDIS_QUERY_COMPLETE
 
 typedef struct _RNDIS_SET_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_OID                               Oid;
+    u32 RequestId;
+    u32 Oid;
     u32                                  InformationBufferLength;
     u32                                  InformationBufferOffset;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 DeviceVcHandle;
 } RNDIS_SET_REQUEST, *PRNDIS_SET_REQUEST;
 
 
@@ -458,8 +437,8 @@ typedef struct _RNDIS_SET_REQUEST
 
 typedef struct _RNDIS_SET_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
 } RNDIS_SET_COMPLETE, *PRNDIS_SET_COMPLETE;
 
 
@@ -476,7 +455,7 @@ typedef struct _RNDIS_RESET_REQUEST
 
 typedef struct _RNDIS_RESET_COMPLETE
 {
-    RNDIS_STATUS                            Status;
+    u32 Status;
     u32                                  AddressingReset;
 } RNDIS_RESET_COMPLETE, *PRNDIS_RESET_COMPLETE;
 
@@ -486,7 +465,7 @@ typedef struct _RNDIS_RESET_COMPLETE
 
 typedef struct _RNDIS_INDICATE_STATUS
 {
-    RNDIS_STATUS                            Status;
+    u32 Status;
     u32                                  StatusBufferLength;
     u32                                  StatusBufferOffset;
 } RNDIS_INDICATE_STATUS, *PRNDIS_INDICATE_STATUS;
@@ -498,7 +477,7 @@ typedef struct _RNDIS_INDICATE_STATUS
 
 typedef struct _RNDIS_DIAGNOSTIC_INFO
 {
-    RNDIS_STATUS                            DiagStatus;
+    u32 DiagStatus;
     u32                                  ErrorOffset;
 } RNDIS_DIAGNOSTIC_INFO, *PRNDIS_DIAGNOSTIC_INFO;
 
@@ -509,7 +488,7 @@ typedef struct _RNDIS_DIAGNOSTIC_INFO
 
 typedef struct _RNDIS_KEEPALIVE_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
+    u32 RequestId;
 } RNDIS_KEEPALIVE_REQUEST, *PRNDIS_KEEPALIVE_REQUEST;
 
 
@@ -518,8 +497,8 @@ typedef struct _RNDIS_KEEPALIVE_REQUEST
 
 typedef struct _RNDIS_KEEPALIVE_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
 } RNDIS_KEEPALIVE_COMPLETE, *PRNDIS_KEEPALIVE_COMPLETE;
 
 
@@ -538,7 +517,7 @@ typedef struct _RNDIS_PACKET
     u32                                  NumOOBDataElements;
     u32                                  PerPacketInfoOffset;
     u32                                  PerPacketInfoLength;
-    RNDIS_HANDLE                            VcHandle;
+    u32 VcHandle;
     u32                                  Reserved;
 } RNDIS_PACKET, *PRNDIS_PACKET;
 
@@ -548,7 +527,7 @@ typedef struct _RNDIS_PACKET
 typedef struct _RNDIS_OOBD
 {
     u32                                  Size;
-    RNDIS_CLASS_ID                          Type;
+    u32 Type;
     u32                                  ClassInformationOffset;
 } RNDIS_OOBD, *PRNDIS_OOBD;
 
@@ -593,8 +572,8 @@ typedef struct _RNDIS_CONFIG_PARAMETER_INFO
 
 typedef struct _RCONDIS_MP_CREATE_VC
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_HANDLE                            NdisVcHandle;
+    u32 RequestId;
+    u32 NdisVcHandle;
 } RCONDIS_MP_CREATE_VC, *PRCONDIS_MP_CREATE_VC;
 
 
@@ -602,9 +581,9 @@ typedef struct _RCONDIS_MP_CREATE_VC
 
 typedef struct _RCONDIS_MP_CREATE_VC_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_HANDLE                            DeviceVcHandle;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 DeviceVcHandle;
+    u32 Status;
 } RCONDIS_MP_CREATE_VC_COMPLETE, *PRCONDIS_MP_CREATE_VC_COMPLETE;
 
 
@@ -613,8 +592,8 @@ typedef struct _RCONDIS_MP_CREATE_VC_COMPLETE
 
 typedef struct _RCONDIS_MP_DELETE_VC
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 RequestId;
+    u32 DeviceVcHandle;
 } RCONDIS_MP_DELETE_VC, *PRCONDIS_MP_DELETE_VC;
 
 
@@ -622,8 +601,8 @@ typedef struct _RCONDIS_MP_DELETE_VC
 
 typedef struct _RCONDIS_MP_DELETE_VC_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
 } RCONDIS_MP_DELETE_VC_COMPLETE, *PRCONDIS_MP_DELETE_VC_COMPLETE;
 
 
@@ -632,10 +611,10 @@ typedef struct _RCONDIS_MP_DELETE_VC_COMPLETE
 
 typedef struct _RCONDIS_MP_QUERY_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_REQUEST_TYPE                      RequestType;
-    RNDIS_OID                               Oid;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 RequestId;
+    u32 RequestType;
+    u32 Oid;
+    u32 DeviceVcHandle;
     u32                                  InformationBufferLength;
     u32                                  InformationBufferOffset;
 } RCONDIS_MP_QUERY_REQUEST, *PRCONDIS_MP_QUERY_REQUEST;
@@ -646,10 +625,10 @@ typedef struct _RCONDIS_MP_QUERY_REQUEST
 
 typedef struct _RCONDIS_MP_SET_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_REQUEST_TYPE                      RequestType;
-    RNDIS_OID                               Oid;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 RequestId;
+    u32 RequestType;
+    u32 Oid;
+    u32 DeviceVcHandle;
     u32                                  InformationBufferLength;
     u32                                  InformationBufferOffset;
 } RCONDIS_MP_SET_REQUEST, *PRCONDIS_MP_SET_REQUEST;
@@ -660,8 +639,8 @@ typedef struct _RCONDIS_MP_SET_REQUEST
 
 typedef struct _RCONDIS_INDICATE_STATUS
 {
-    RNDIS_HANDLE                            NdisVcHandle;
-    RNDIS_STATUS                            Status;
+    u32 NdisVcHandle;
+    u32 Status;
     u32                                  StatusBufferLength;
     u32                                  StatusBufferOffset;
 } RCONDIS_INDICATE_STATUS, *PRCONDIS_INDICATE_STATUS;
@@ -711,9 +690,9 @@ typedef struct _RCONDIS_CALL_MANAGER_PARAMETERS
 
 typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
+    u32 RequestId;
     u32                                  Flags;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 DeviceVcHandle;
     u32                                  MediaParamsOffset;
     u32                                  MediaParamsLength;
     u32                                  CallMgrParamsOffset;
@@ -725,8 +704,8 @@ typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST
 
 typedef struct _RCONDIS_MP_ACTIVATE_VC_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
 } RCONDIS_MP_ACTIVATE_VC_COMPLETE, *PRCONDIS_MP_ACTIVATE_VC_COMPLETE;
 
 
@@ -735,9 +714,9 @@ typedef struct _RCONDIS_MP_ACTIVATE_VC_COMPLETE
 
 typedef struct _RCONDIS_MP_DEACTIVATE_VC_REQUEST
 {
-    RNDIS_REQUEST_ID                        RequestId;
+    u32 RequestId;
     u32                                  Flags;
-    RNDIS_HANDLE                            DeviceVcHandle;
+    u32 DeviceVcHandle;
 } RCONDIS_MP_DEACTIVATE_VC_REQUEST, *PRCONDIS_MP_DEACTIVATE_VC_REQUEST;
 
 
@@ -745,8 +724,8 @@ typedef struct _RCONDIS_MP_DEACTIVATE_VC_REQUEST
 
 typedef struct _RCONDIS_MP_DEACTIVATE_VC_COMPLETE
 {
-    RNDIS_REQUEST_ID                        RequestId;
-    RNDIS_STATUS                            Status;
+    u32 RequestId;
+    u32 Status;
 } RCONDIS_MP_DEACTIVATE_VC_COMPLETE, *PRCONDIS_MP_DEACTIVATE_VC_COMPLETE;
 
 
