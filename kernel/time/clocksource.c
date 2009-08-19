@@ -131,6 +131,7 @@ static cycle_t watchdog_last;
 static int watchdog_running;
 
 static void clocksource_watchdog_work(struct work_struct *work);
+static void __clocksource_change_rating(struct clocksource *cs, int rating);
 
 /*
  * Interval: 0.5sec Threshold: 0.0625s
@@ -309,6 +310,7 @@ static void clocksource_watchdog_work(struct work_struct *work)
 	unsigned long flags;
 	LIST_HEAD(unstable);
 
+	mutex_lock(&clocksource_mutex);
 	spin_lock_irqsave(&watchdog_lock, flags);
 	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list)
 		if (cs->flags & CLOCK_SOURCE_UNSTABLE) {
@@ -322,8 +324,9 @@ static void clocksource_watchdog_work(struct work_struct *work)
 	/* Needs to be done outside of watchdog lock */
 	list_for_each_entry_safe(cs, tmp, &unstable, wd_list) {
 		list_del_init(&cs->wd_list);
-		clocksource_change_rating(cs, 0);
+		__clocksource_change_rating(cs, 0);
 	}
+	mutex_unlock(&clocksource_mutex);
 }
 
 #else /* CONFIG_CLOCKSOURCE_WATCHDOG */
@@ -470,16 +473,21 @@ int clocksource_register(struct clocksource *cs)
 }
 EXPORT_SYMBOL(clocksource_register);
 
+static void __clocksource_change_rating(struct clocksource *cs, int rating)
+{
+	list_del(&cs->list);
+	cs->rating = rating;
+	clocksource_enqueue(cs);
+	clocksource_select();
+}
+
 /**
  * clocksource_change_rating - Change the rating of a registered clocksource
  */
 void clocksource_change_rating(struct clocksource *cs, int rating)
 {
 	mutex_lock(&clocksource_mutex);
-	list_del(&cs->list);
-	cs->rating = rating;
-	clocksource_enqueue(cs);
-	clocksource_select();
+	__clocksource_change_rating(cs, rating);
 	mutex_unlock(&clocksource_mutex);
 }
 EXPORT_SYMBOL(clocksource_change_rating);
