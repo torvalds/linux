@@ -89,16 +89,42 @@ VmbusChannelProcessRescindOffer(
 
 #define MAX_NUM_DEVICE_CLASSES_SUPPORTED 4
 
-static const GUID gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED]= {
+static const struct hv_guid gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
 	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-	{.Data  = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}},/* Storage - SCSI */
-	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
-	{.Data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46, 0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}},	/* Network */
-	/* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
-	{.Data = {0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c, 0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A}}, /* Input */
-	/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
-	{.Data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44, 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}}, /* IDE */
+	/* Storage - SCSI */
+	{
+		.data  = {
+			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
+			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
+		}
+	},
 
+	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
+	/* Network */
+	{
+		.data = {
+			0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
+			0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E
+		}
+	},
+
+	/* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
+	/* Input */
+	{
+		.data = {
+			0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c,
+			0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A
+		}
+	},
+
+	/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
+	/* IDE */
+	{
+		.data = {
+			0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
+			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
+		}
+	},
 };
 
 /* Channel message dispatch table */
@@ -233,8 +259,8 @@ VmbusChannelProcessOffer(
 	{
 		channel = CONTAINING_RECORD(curr, struct vmbus_channel, ListEntry);
 
-		if (!memcmp(&channel->OfferMsg.Offer.InterfaceType, &newChannel->OfferMsg.Offer.InterfaceType,sizeof(GUID)) &&
-			!memcmp(&channel->OfferMsg.Offer.InterfaceInstance, &newChannel->OfferMsg.Offer.InterfaceInstance, sizeof(GUID)))
+		if (!memcmp(&channel->OfferMsg.Offer.InterfaceType, &newChannel->OfferMsg.Offer.InterfaceType,sizeof(struct hv_guid)) &&
+			!memcmp(&channel->OfferMsg.Offer.InterfaceInstance, &newChannel->OfferMsg.Offer.InterfaceInstance, sizeof(struct hv_guid)))
 		{
 			fNew = false;
 			break;
@@ -337,8 +363,8 @@ VmbusChannelOnOffer(
 	VMBUS_CHANNEL_OFFER_CHANNEL* offer = (VMBUS_CHANNEL_OFFER_CHANNEL*)hdr;
 	struct vmbus_channel *newChannel;
 
-	GUID *guidType;
-	GUID *guidInstance;
+	struct hv_guid *guidType;
+	struct hv_guid *guidInstance;
 	int i;
 	int fSupported=0;
 
@@ -346,7 +372,7 @@ VmbusChannelOnOffer(
 
 	for (i=0; i<MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++)
 	{
-		if (memcmp(&offer->Offer.InterfaceType, &gSupportedDeviceClasses[i], sizeof(GUID)) == 0)
+		if (memcmp(&offer->Offer.InterfaceType, &gSupportedDeviceClasses[i], sizeof(struct hv_guid)) == 0)
 		{
 			fSupported = 1;
 			break;
@@ -370,8 +396,14 @@ VmbusChannelOnOffer(
 		offer->ChildRelId,
 		offer->MonitorId,
 		offer->MonitorAllocated,
-		guidType->Data[3], guidType->Data[2], guidType->Data[1], guidType->Data[0], guidType->Data[5], guidType->Data[4], guidType->Data[7], guidType->Data[6], guidType->Data[8], guidType->Data[9], guidType->Data[10], guidType->Data[11], guidType->Data[12], guidType->Data[13], guidType->Data[14], guidType->Data[15],
-		guidInstance->Data[3], guidInstance->Data[2], guidInstance->Data[1], guidInstance->Data[0], guidInstance->Data[5], guidInstance->Data[4], guidInstance->Data[7], guidInstance->Data[6], guidInstance->Data[8], guidInstance->Data[9], guidInstance->Data[10], guidInstance->Data[11], guidInstance->Data[12], guidInstance->Data[13], guidInstance->Data[14], guidInstance->Data[15]);
+		guidType->data[3], guidType->data[2], guidType->data[1], guidType->data[0],
+		guidType->data[5], guidType->data[4], guidType->data[7], guidType->data[6],
+		guidType->data[8], guidType->data[9], guidType->data[10], guidType->data[11],
+		guidType->data[12], guidType->data[13], guidType->data[14], guidType->data[15],
+		guidInstance->data[3], guidInstance->data[2], guidInstance->data[1], guidInstance->data[0],
+		guidInstance->data[5], guidInstance->data[4], guidInstance->data[7], guidInstance->data[6],
+		guidInstance->data[8], guidInstance->data[9], guidInstance->data[10], guidInstance->data[11],
+		guidInstance->data[12], guidInstance->data[13], guidInstance->data[14], guidInstance->data[15]);
 
 	/* Allocate the channel object and save this offer. */
 	newChannel = AllocVmbusChannel();

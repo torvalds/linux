@@ -38,14 +38,9 @@
 #define LOWORD(dw)	((unsigned short)(dw))
 #define HIWORD(dw)	((unsigned short)(((unsigned int) (dw) >> 16) & 0xFFFF))
 
-typedef struct _DLIST_ENTRY {
-	struct _DLIST_ENTRY *Flink;
-	struct _DLIST_ENTRY *Blink;
-} DLIST_ENTRY;
-
-typedef struct {
-	unsigned char Data[16];
-} GUID;
+struct hv_guid {
+	unsigned char data[16];
+};
 
 struct osd_waitevent {
 	int condition;

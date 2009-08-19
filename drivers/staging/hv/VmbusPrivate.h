@@ -103,8 +103,8 @@ extern struct VMBUS_CONNECTION gVmbusConnection;
 
 /* General vmbus interface */
 
-struct hv_device *VmbusChildDeviceCreate(GUID deviceType,
-					 GUID deviceInstance,
+struct hv_device *VmbusChildDeviceCreate(struct hv_guid deviceType,
+					 struct hv_guid deviceInstance,
 					 void *context);
 
 int VmbusChildDeviceAdd(struct hv_device *Device);

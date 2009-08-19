@@ -76,7 +76,7 @@ typedef int	(*PFN_ON_ISR)(struct hv_driver *drv);
 typedef void (*PFN_ON_DPC)(struct hv_driver *drv);
 typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
 
-typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)(GUID DeviceType, GUID DeviceInstance, void *Context);
+typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)(struct hv_guid DeviceType, struct hv_guid DeviceInstance, void *Context);
 typedef void (*PFN_ON_CHILDDEVICE_DESTROY)(struct hv_device *Device);
 typedef int (*PFN_ON_CHILDDEVICE_ADD)(struct hv_device *RootDevice, struct hv_device *ChildDevice);
 typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(struct hv_device *Device);
@@ -165,8 +165,8 @@ typedef struct _PORT_INFO {
 typedef struct _DEVICE_INFO {
 	u32		ChannelId;
 	u32		ChannelState;
-	GUID		ChannelType;
-	GUID		ChannelInstance;
+	struct hv_guid ChannelType;
+	struct hv_guid ChannelInstance;
 
 	u32						MonitorId;
 	u32						ServerMonitorPending;
@@ -200,7 +200,7 @@ typedef void (*VMBUS_GET_CHANNEL_INTERFACE)(VMBUS_CHANNEL_INTERFACE *Interface);
 /* Base driver object */
 struct hv_driver {
 	const char*				name;
-	GUID					deviceType; /* the device type supported by this driver */
+	struct hv_guid deviceType; /* the device type supported by this driver */
 
 	PFN_ON_DEVICEADD		OnDeviceAdd;
 	PFN_ON_DEVICEREMOVE		OnDeviceRemove;
@@ -215,8 +215,8 @@ struct hv_driver {
 struct hv_device {
 	struct hv_driver *Driver;		/* the driver for this device */
 	char				name[64];
-	GUID				deviceType; /* the device type id of this device */
-	GUID				deviceInstance; /* the device instance id of this device */
+	struct hv_guid deviceType; /* the device type id of this device */
+	struct hv_guid deviceInstance; /* the device instance id of this device */
 	void*				context;
 	void*				Extension;		/* Device extension; */
 };

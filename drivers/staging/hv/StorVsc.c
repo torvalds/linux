@@ -87,8 +87,11 @@ typedef struct _STORVSC_DEVICE{
 static const char* gDriverName="storvsc";
 
 /* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const GUID gStorVscDeviceType={
-	.Data = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}
+static const struct hv_guid gStorVscDeviceType = {
+	.data = {
+		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
+		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
+	}
 };
 
 
@@ -270,7 +273,7 @@ StorVscInitialize(
 	ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1));
 
 	Driver->name = gDriverName;
-	memcpy(&Driver->deviceType, &gStorVscDeviceType, sizeof(GUID));
+	memcpy(&Driver->deviceType, &gStorVscDeviceType, sizeof(struct hv_guid));
 
 	storDriver->RequestExtSize			= sizeof(STORVSC_REQUEST_EXTENSION);
 

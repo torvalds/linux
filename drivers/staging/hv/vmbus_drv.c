@@ -75,7 +75,7 @@ static irqreturn_t vmbus_isr(int irq, void* dev_id);
 static void vmbus_device_release(struct device *device);
 static void vmbus_bus_release(struct device *device);
 
-static struct hv_device *vmbus_child_device_create(GUID type, GUID instance, void* context);
+static struct hv_device *vmbus_child_device_create(struct hv_guid type, struct hv_guid instance, void* context);
 static void vmbus_child_device_destroy(struct hv_device *device_obj);
 static int vmbus_child_device_register(struct hv_device *root_device_obj, struct hv_device *child_device_obj);
 static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
@@ -168,19 +168,27 @@ static ssize_t vmbus_show_device_attr(struct device *dev, struct device_attribut
 	if (!strcmp(dev_attr->attr.name, "class_id"))
 	{
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			device_info.ChannelType.Data[3], device_info.ChannelType.Data[2], device_info.ChannelType.Data[1], device_info.ChannelType.Data[0],
-			device_info.ChannelType.Data[5], device_info.ChannelType.Data[4],
-			device_info.ChannelType.Data[7], device_info.ChannelType.Data[6],
-			device_info.ChannelType.Data[8], device_info.ChannelType.Data[9], device_info.ChannelType.Data[10], device_info.ChannelType.Data[11], device_info.ChannelType.Data[12], device_info.ChannelType.Data[13], device_info.ChannelType.Data[14], device_info.ChannelType.Data[15]);
+			device_info.ChannelType.data[3], device_info.ChannelType.data[2],
+			device_info.ChannelType.data[1], device_info.ChannelType.data[0],
+			device_info.ChannelType.data[5], device_info.ChannelType.data[4],
+			device_info.ChannelType.data[7], device_info.ChannelType.data[6],
+			device_info.ChannelType.data[8], device_info.ChannelType.data[9],
+			device_info.ChannelType.data[10], device_info.ChannelType.data[11],
+			device_info.ChannelType.data[12], device_info.ChannelType.data[13],
+			device_info.ChannelType.data[14], device_info.ChannelType.data[15]);
 
 	}
 	else if (!strcmp(dev_attr->attr.name, "device_id"))
 	{
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			device_info.ChannelInstance.Data[3], device_info.ChannelInstance.Data[2], device_info.ChannelInstance.Data[1], device_info.ChannelInstance.Data[0],
-			device_info.ChannelInstance.Data[5], device_info.ChannelInstance.Data[4],
-			device_info.ChannelInstance.Data[7], device_info.ChannelInstance.Data[6],
-			device_info.ChannelInstance.Data[8], device_info.ChannelInstance.Data[9], device_info.ChannelInstance.Data[10], device_info.ChannelInstance.Data[11], device_info.ChannelInstance.Data[12], device_info.ChannelInstance.Data[13], device_info.ChannelInstance.Data[14], device_info.ChannelInstance.Data[15]);
+			device_info.ChannelInstance.data[3], device_info.ChannelInstance.data[2],
+			device_info.ChannelInstance.data[1], device_info.ChannelInstance.data[0],
+			device_info.ChannelInstance.data[5], device_info.ChannelInstance.data[4],
+			device_info.ChannelInstance.data[7], device_info.ChannelInstance.data[6],
+			device_info.ChannelInstance.data[8], device_info.ChannelInstance.data[9],
+			device_info.ChannelInstance.data[10], device_info.ChannelInstance.data[11],
+			device_info.ChannelInstance.data[12], device_info.ChannelInstance.data[13],
+			device_info.ChannelInstance.data[14], device_info.ChannelInstance.data[15]);
 	}
 	else if (!strcmp(dev_attr->attr.name, "state"))
 	{
@@ -396,8 +404,8 @@ static int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	}
 	/* strcpy(dev_ctx->device.bus_id, dev_ctx->device_obj.name); */
 	dev_set_name(&dev_ctx->device, "vmbus_0_0");
-	memcpy(&dev_ctx->class_id, &dev_ctx->device_obj.deviceType, sizeof(GUID));
-	memcpy(&dev_ctx->device_id, &dev_ctx->device_obj.deviceInstance, sizeof(GUID));
+	memcpy(&dev_ctx->class_id, &dev_ctx->device_obj.deviceType, sizeof(struct hv_guid));
+	memcpy(&dev_ctx->device_id, &dev_ctx->device_obj.deviceInstance, sizeof(struct hv_guid));
 
 	/* No need to bind a driver to the root device. */
 	dev_ctx->device.parent = NULL;
@@ -557,7 +565,7 @@ Name:	vmbus_child_device_create()
 Desc:	Creates and registers a new child device on the vmbus.
 
 --*/
-static struct hv_device *vmbus_child_device_create(GUID type, GUID instance, void* context)
+static struct hv_device *vmbus_child_device_create(struct hv_guid type, struct hv_guid instance, void* context)
 {
 	struct device_context *child_device_ctx;
 	struct hv_device *child_device_obj;
@@ -578,16 +586,22 @@ static struct hv_device *vmbus_child_device_create(GUID type, GUID instance, voi
 		"type {%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x},"
 		"id {%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
 		&child_device_ctx->device,
-		type.Data[3], type.Data[2], type.Data[1], type.Data[0], type.Data[5], type.Data[4], type.Data[7], type.Data[6], type.Data[8], type.Data[9], type.Data[10], type.Data[11], type.Data[12], type.Data[13], type.Data[14], type.Data[15],
-		instance.Data[3], instance.Data[2], instance.Data[1], instance.Data[0], instance.Data[5], instance.Data[4], instance.Data[7], instance.Data[6], instance.Data[8], instance.Data[9], instance.Data[10], instance.Data[11], instance.Data[12], instance.Data[13], instance.Data[14], instance.Data[15]);
+		type.data[3], type.data[2], type.data[1], type.data[0],
+		type.data[5], type.data[4], type.data[7], type.data[6],
+		type.data[8], type.data[9], type.data[10], type.data[11],
+		type.data[12], type.data[13], type.data[14], type.data[15],
+		instance.data[3], instance.data[2], instance.data[1], instance.data[0],
+		instance.data[5], instance.data[4], instance.data[7], instance.data[6],
+		instance.data[8], instance.data[9], instance.data[10], instance.data[11],
+		instance.data[12], instance.data[13], instance.data[14], instance.data[15]);
 
 	child_device_obj = &child_device_ctx->device_obj;
 	child_device_obj->context = context;
-	memcpy(&child_device_obj->deviceType, &type, sizeof(GUID));
-	memcpy(&child_device_obj->deviceInstance, &instance, sizeof(GUID));
+	memcpy(&child_device_obj->deviceType, &type, sizeof(struct hv_guid));
+	memcpy(&child_device_obj->deviceInstance, &instance, sizeof(struct hv_guid));
 
-	memcpy(&child_device_ctx->class_id, &type, sizeof(GUID));
-	memcpy(&child_device_ctx->device_id, &instance, sizeof(GUID));
+	memcpy(&child_device_ctx->class_id, &type, sizeof(struct hv_guid));
+	memcpy(&child_device_ctx->device_id, &instance, sizeof(struct hv_guid));
 
 	DPRINT_EXIT(VMBUS_DRV);
 
@@ -705,21 +719,27 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	DPRINT_ENTER(VMBUS_DRV);
 
 	DPRINT_INFO(VMBUS_DRV, "generating uevent - VMBUS_DEVICE_CLASS_GUID={%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-		device_ctx->class_id.Data[3], device_ctx->class_id.Data[2], device_ctx->class_id.Data[1], device_ctx->class_id.Data[0],
-		device_ctx->class_id.Data[5], device_ctx->class_id.Data[4],
-		device_ctx->class_id.Data[7], device_ctx->class_id.Data[6],
-		device_ctx->class_id.Data[8], device_ctx->class_id.Data[9], device_ctx->class_id.Data[10], device_ctx->class_id.Data[11],
-		device_ctx->class_id.Data[12], device_ctx->class_id.Data[13], device_ctx->class_id.Data[14], device_ctx->class_id.Data[15]);
+		device_ctx->class_id.data[3], device_ctx->class_id.data[2],
+		device_ctx->class_id.data[1], device_ctx->class_id.data[0],
+		device_ctx->class_id.data[5], device_ctx->class_id.data[4],
+		device_ctx->class_id.data[7], device_ctx->class_id.data[6],
+		device_ctx->class_id.data[8], device_ctx->class_id.data[9],
+		device_ctx->class_id.data[10], device_ctx->class_id.data[11],
+		device_ctx->class_id.data[12], device_ctx->class_id.data[13],
+		device_ctx->class_id.data[14], device_ctx->class_id.data[15]);
 
 	env->envp_idx = i;
 	env->buflen = len;
 	ret = add_uevent_var(env,
 		"VMBUS_DEVICE_CLASS_GUID={%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-		device_ctx->class_id.Data[3], device_ctx->class_id.Data[2], device_ctx->class_id.Data[1], device_ctx->class_id.Data[0],
-		device_ctx->class_id.Data[5], device_ctx->class_id.Data[4],
-		device_ctx->class_id.Data[7], device_ctx->class_id.Data[6],
-		device_ctx->class_id.Data[8], device_ctx->class_id.Data[9], device_ctx->class_id.Data[10], device_ctx->class_id.Data[11],
-		device_ctx->class_id.Data[12], device_ctx->class_id.Data[13], device_ctx->class_id.Data[14], device_ctx->class_id.Data[15]);
+		device_ctx->class_id.data[3], device_ctx->class_id.data[2],
+		device_ctx->class_id.data[1], device_ctx->class_id.data[0],
+		device_ctx->class_id.data[5], device_ctx->class_id.data[4],
+		device_ctx->class_id.data[7], device_ctx->class_id.data[6],
+		device_ctx->class_id.data[8], device_ctx->class_id.data[9],
+		device_ctx->class_id.data[10], device_ctx->class_id.data[11],
+		device_ctx->class_id.data[12], device_ctx->class_id.data[13],
+		device_ctx->class_id.data[14], device_ctx->class_id.data[15]);
 
 	if (ret)
 	{
@@ -728,11 +748,14 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 
 	ret = add_uevent_var(env,
 		"VMBUS_DEVICE_DEVICE_GUID={%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-		device_ctx->device_id.Data[3], device_ctx->device_id.Data[2], device_ctx->device_id.Data[1], device_ctx->device_id.Data[0],
-		device_ctx->device_id.Data[5], device_ctx->device_id.Data[4],
-		device_ctx->device_id.Data[7], device_ctx->device_id.Data[6],
-		device_ctx->device_id.Data[8], device_ctx->device_id.Data[9], device_ctx->device_id.Data[10], device_ctx->device_id.Data[11],
-		device_ctx->device_id.Data[12], device_ctx->device_id.Data[13], device_ctx->device_id.Data[14], device_ctx->device_id.Data[15]);
+		device_ctx->device_id.data[3], device_ctx->device_id.data[2],
+		device_ctx->device_id.data[1], device_ctx->device_id.data[0],
+		device_ctx->device_id.data[5], device_ctx->device_id.data[4],
+		device_ctx->device_id.data[7], device_ctx->device_id.data[6],
+		device_ctx->device_id.data[8], device_ctx->device_id.data[9],
+		device_ctx->device_id.data[10], device_ctx->device_id.data[11],
+		device_ctx->device_id.data[12], device_ctx->device_id.data[13],
+		device_ctx->device_id.data[14], device_ctx->device_id.data[15]);
 
 	if (ret)
 	{
@@ -762,7 +785,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	DPRINT_ENTER(VMBUS_DRV);
 
 	/* We found our driver ? */
-	if (memcmp(&device_ctx->class_id, &driver_ctx->class_id, sizeof(GUID)) == 0)
+	if (memcmp(&device_ctx->class_id, &driver_ctx->class_id, sizeof(struct hv_guid)) == 0)
 	{
 		/* !! NOTE: The driver_ctx is not a vmbus_drv_ctx. We typecast it here to access the */
 		/* struct hv_driver field */

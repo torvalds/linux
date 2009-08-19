@@ -64,8 +64,8 @@
 typedef struct
 {
 
-    GUID    InterfaceType;
-    GUID    InterfaceInstance;
+    struct hv_guid InterfaceType;
+    struct hv_guid InterfaceInstance;
     u64  InterruptLatencyIn100nsUnits;
     u32  InterfaceRevision;
     u32  ServerContextAreaSize;  /* in bytes */

@@ -186,7 +186,7 @@ static int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	pfn_drv_init(&storvsc_drv_obj->Base);
 
 	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType, sizeof(GUID));
+	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType, sizeof(struct hv_guid));
 
 	drv_ctx->probe = blkvsc_probe;
 	drv_ctx->remove = blkvsc_remove;

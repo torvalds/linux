@@ -28,8 +28,11 @@
 static const char* gBlkDriverName="blkvsc";
 
 /* {32412632-86cb-44a2-9b5c-50d1417354f5} */
-static const GUID gBlkVscDeviceType={
-	.Data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44, 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}
+static const struct hv_guid gBlkVscDeviceType={
+	.data = {
+		0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
+		0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
+	}
 };
 
 /* Static routines */
@@ -54,7 +57,7 @@ BlkVscInitialize(
 	ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1));
 
 	Driver->name = gBlkDriverName;
-	memcpy(&Driver->deviceType, &gBlkVscDeviceType, sizeof(GUID));
+	memcpy(&Driver->deviceType, &gBlkVscDeviceType, sizeof(struct hv_guid));
 
 	storDriver->RequestExtSize			= sizeof(STORVSC_REQUEST_EXTENSION);
 	/* Divide the ring buffer data size (which is 1 page less than the ring buffer size since that page is reserved for the ring buffer indices) */
@@ -98,10 +101,13 @@ BlkVscOnDeviceAdd(
 
 	/* We need to use the device instance guid to set the path and target id. For IDE devices, the */
 	/* device instance id is formatted as <bus id> - <device id> - 8899 - 000000000000. */
-	deviceInfo->PathId = Device->deviceInstance.Data[3] << 24 | Device->deviceInstance.Data[2] << 16 |
-		Device->deviceInstance.Data[1] << 8 |Device->deviceInstance.Data[0];
+	deviceInfo->PathId = Device->deviceInstance.data[3] << 24 |
+			     Device->deviceInstance.data[2] << 16 |
+			     Device->deviceInstance.data[1] << 8  |
+			     Device->deviceInstance.data[0];
 
-	deviceInfo->TargetId = Device->deviceInstance.Data[5] << 8 | Device->deviceInstance.Data[4];
+	deviceInfo->TargetId = Device->deviceInstance.data[5] << 8 |
+			       Device->deviceInstance.data[4];
 
 	DPRINT_EXIT(BLKVSC);
 

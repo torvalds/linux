@@ -34,8 +34,11 @@
 static const char* gDriverName="netvsc";
 
 /* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
-static const GUID gNetVscDeviceType={
-	.Data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46, 0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}
+static const struct hv_guid gNetVscDeviceType = {
+	.data = {
+		0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
+		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E
+	}
 };
 
 
@@ -240,7 +243,7 @@ NetVscInitialize(
 	ASSERT(driver->RingBufferSize >= (PAGE_SIZE << 1));
 
 	drv->name = gDriverName;
-	memcpy(&drv->deviceType, &gNetVscDeviceType, sizeof(GUID));
+	memcpy(&drv->deviceType, &gNetVscDeviceType, sizeof(struct hv_guid));
 
 	/* Make sure it is set by the caller */
 	ASSERT(driver->OnReceiveCallback);

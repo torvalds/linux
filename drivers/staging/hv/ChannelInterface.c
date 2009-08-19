@@ -190,8 +190,8 @@ void GetChannelInfo(struct hv_device *Device, DEVICE_INFO *DeviceInfo)
 
 		DeviceInfo->ChannelId = debugInfo.RelId;
 		DeviceInfo->ChannelState = debugInfo.State;
-		memcpy(&DeviceInfo->ChannelType, &debugInfo.InterfaceType, sizeof(GUID));
-		memcpy(&DeviceInfo->ChannelInstance, &debugInfo.InterfaceInstance, sizeof(GUID));
+		memcpy(&DeviceInfo->ChannelType, &debugInfo.InterfaceType, sizeof(struct hv_guid));
+		memcpy(&DeviceInfo->ChannelInstance, &debugInfo.InterfaceInstance, sizeof(struct hv_guid));
 
 		DeviceInfo->MonitorId = debugInfo.MonitorId;
 

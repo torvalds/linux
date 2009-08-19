@@ -154,8 +154,8 @@ void VmbusChannelGetDebugInfo(struct vmbus_channel *Channel,
 
 	DebugInfo->RelId = Channel->OfferMsg.ChildRelId;
 	DebugInfo->State = Channel->State;
-	memcpy(&DebugInfo->InterfaceType, &Channel->OfferMsg.Offer.InterfaceType, sizeof(GUID));
-	memcpy(&DebugInfo->InterfaceInstance, &Channel->OfferMsg.Offer.InterfaceInstance, sizeof(GUID));
+	memcpy(&DebugInfo->InterfaceType, &Channel->OfferMsg.Offer.InterfaceType, sizeof(struct hv_guid));
+	memcpy(&DebugInfo->InterfaceInstance, &Channel->OfferMsg.Offer.InterfaceInstance, sizeof(struct hv_guid));
 
 	monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
 

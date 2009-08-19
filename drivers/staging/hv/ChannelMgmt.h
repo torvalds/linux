@@ -78,8 +78,8 @@ struct vmbus_channel {
 struct vmbus_channel_debug_info {
 	u32 RelId;
 	enum vmbus_channel_state State;
-	GUID InterfaceType;
-	GUID InterfaceInstance;
+	struct hv_guid InterfaceType;
+	struct hv_guid InterfaceInstance;
 	u32 MonitorId;
 	u32 ServerMonitorPending;
 	u32 ServerMonitorLatency;

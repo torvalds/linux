@@ -37,13 +37,19 @@ static const char* gDriverName="vmbus";
  * We defined this to be consistent with other devices
  */
 /* {c5295816-f63a-4d5f-8d1a-4daf999ca185} */
-static const GUID gVmbusDeviceType={
-	.Data = {0x16, 0x58, 0x29, 0xc5, 0x3a, 0xf6, 0x5f, 0x4d, 0x8d, 0x1a, 0x4d, 0xaf, 0x99, 0x9c, 0xa1, 0x85}
+static const struct hv_guid gVmbusDeviceType = {
+	.data = {
+		0x16, 0x58, 0x29, 0xc5, 0x3a, 0xf6, 0x5f, 0x4d,
+		0x8d, 0x1a, 0x4d, 0xaf, 0x99, 0x9c, 0xa1, 0x85
+	}
 };
 
 /* {ac3760fc-9adf-40aa-9427-a70ed6de95c5} */
-static const GUID gVmbusDeviceId={
-	.Data = {0xfc, 0x60, 0x37, 0xac, 0xdf, 0x9a, 0xaa, 0x40, 0x94, 0x27, 0xa7, 0x0e, 0xd6, 0xde, 0x95, 0xc5}
+static const struct hv_guid gVmbusDeviceId = {
+	.data = {
+		0xfc, 0x60, 0x37, 0xac, 0xdf, 0x9a, 0xaa, 0x40,
+		0x94, 0x27, 0xa7, 0x0e, 0xd6, 0xde, 0x95, 0xc5
+	}
 };
 
 static struct hv_driver *gDriver; /* vmbus driver object */
@@ -130,7 +136,7 @@ VmbusInitialize(
 		sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER), sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
 
 	drv->name = gDriverName;
-	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(GUID));
+	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
 
 	/* Setup dispatch table */
 	driver->Base.OnDeviceAdd		= VmbusOnDeviceAdd;
@@ -225,8 +231,8 @@ Description:
 
 --*/
 
-struct hv_device *VmbusChildDeviceCreate(GUID DeviceType,
-					 GUID DeviceInstance,
+struct hv_device *VmbusChildDeviceCreate(struct hv_guid DeviceType,
+					 struct hv_guid DeviceInstance,
 					 void *Context)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
@@ -315,8 +321,8 @@ VmbusOnDeviceAdd(
 
 	gDevice = dev;
 
-	memcpy(&gDevice->deviceType, &gVmbusDeviceType, sizeof(GUID));
-	memcpy(&gDevice->deviceInstance, &gVmbusDeviceId, sizeof(GUID));
+	memcpy(&gDevice->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
+	memcpy(&gDevice->deviceInstance, &gVmbusDeviceId, sizeof(struct hv_guid));
 
 	/* strcpy(dev->name, "vmbus"); */
 	/* SynIC setup... */

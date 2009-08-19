@@ -37,7 +37,7 @@ typedef int (*PFN_DRIVERINITIALIZE)(struct hv_driver *drv);
 typedef int (*PFN_DRIVEREXIT)(struct hv_driver *drv);
 
 struct driver_context {
-	GUID					class_id;
+	struct hv_guid class_id;
 
 	struct device_driver	driver;
 
@@ -49,8 +49,8 @@ struct driver_context {
 
 struct device_context {
 	struct work_struct              probe_failed_work_item;
-	GUID					class_id;
-	GUID					device_id;
+	struct hv_guid class_id;
+	struct hv_guid device_id;
 	int						probe_error;
 	struct device			device;
 	struct hv_device device_obj;

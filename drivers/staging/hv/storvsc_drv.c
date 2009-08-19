@@ -156,7 +156,7 @@ static int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	}
 
 	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType, sizeof(GUID));
+	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType, sizeof(struct hv_guid));
 
 	drv_ctx->probe = storvsc_probe;
 	drv_ctx->remove = storvsc_remove;

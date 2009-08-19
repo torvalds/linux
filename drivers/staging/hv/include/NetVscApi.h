@@ -26,7 +26,7 @@
 #define _NETVSC_API_H_
 
 #include "VmbusApi.h"
-
+#include "List.h"
 
 /* Defines */
 
@@ -56,7 +56,7 @@ typedef void (*PFN_ON_LINKSTATUS_CHANGED)(struct hv_device *dev, u32 Status);
 
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
 typedef struct _XFERPAGE_PACKET {
-	DLIST_ENTRY			ListEntry;
+	LIST_ENTRY ListEntry;
 
 	/* # of netvsc packets this xfer packet contains */
 	u32				Count;
@@ -72,7 +72,7 @@ typedef struct _XFERPAGE_PACKET {
  */
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
-	DLIST_ENTRY				ListEntry;
+	LIST_ENTRY ListEntry;
 
 	struct hv_device *Device;
 	bool					IsDataPacket;
