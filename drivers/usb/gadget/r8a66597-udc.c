@@ -252,24 +252,27 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 		buf_bsize = 0;
 		break;
 	case R8A66597_BULK:
-		bufnum = r8a66597->bi_bufnum +
-			 (info->pipe - R8A66597_BASE_PIPENUM_BULK) * 16;
-		r8a66597->bi_bufnum += 16;
+		/* isochronous pipes may be used as bulk pipes */
+		if (info->pipe > R8A66597_BASE_PIPENUM_BULK)
+			bufnum = info->pipe - R8A66597_BASE_PIPENUM_BULK;
+		else
+			bufnum = info->pipe - R8A66597_BASE_PIPENUM_ISOC;
+
+		bufnum = R8A66597_BASE_BUFNUM + (bufnum * 16);
 		buf_bsize = 7;
 		pipecfg |= R8A66597_DBLB;
 		if (!info->dir_in)
 			pipecfg |= R8A66597_SHTNAK;
 		break;
 	case R8A66597_ISO:
-		bufnum = r8a66597->bi_bufnum +
+		bufnum = R8A66597_BASE_BUFNUM +
 			 (info->pipe - R8A66597_BASE_PIPENUM_ISOC) * 16;
-		r8a66597->bi_bufnum += 16;
 		buf_bsize = 7;
 		break;
 	}
-	if (r8a66597->bi_bufnum > R8A66597_MAX_BUFNUM) {
-		printk(KERN_ERR "r8a66597 pipe memory is insufficient(%d)\n",
-				r8a66597->bi_bufnum);
+
+	if (buf_bsize && ((bufnum + 16) >= R8A66597_MAX_BUFNUM)) {
+		pr_err(KERN_ERR "r8a66597 pipe memory is insufficient\n");
 		return -ENOMEM;
 	}
 
@@ -288,17 +291,6 @@ static void pipe_buffer_release(struct r8a66597 *r8a66597,
 {
 	if (info->pipe == 0)
 		return;
-
-	switch (info->type) {
-	case R8A66597_BULK:
-		if (is_bulk_pipe(info->pipe))
-			r8a66597->bi_bufnum -= 16;
-		break;
-	case R8A66597_ISO:
-		if (is_isoc_pipe(info->pipe))
-			r8a66597->bi_bufnum -= 16;
-		break;
-	}
 
 	if (is_bulk_pipe(info->pipe))
 		r8a66597->bulk--;
@@ -1552,8 +1544,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->timer.function = r8a66597_timer;
 	r8a66597->timer.data = (unsigned long)r8a66597;
 	r8a66597->reg = (unsigned long)reg;
-
-	r8a66597->bi_bufnum = R8A66597_BASE_BUFNUM;
 
 #ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {

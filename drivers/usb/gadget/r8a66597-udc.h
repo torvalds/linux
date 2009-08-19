@@ -112,7 +112,6 @@ struct r8a66597 {
 	u16			old_dvsq;
 
 	/* pipe config */
-	unsigned short bi_bufnum;	/* bulk and isochronous's bufnum */
 	unsigned char bulk;
 	unsigned char interrupt;
 	unsigned char isochronous;
