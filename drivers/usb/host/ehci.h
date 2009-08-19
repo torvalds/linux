@@ -341,6 +341,7 @@ struct ehci_qh {
 	u32			refcount;
 	unsigned		stamp;
 
+	u8			needs_rescan;	/* Dequeue during giveback */
 	u8			qh_state;
 #define	QH_STATE_LINKED		1		/* HC sees this */
 #define	QH_STATE_UNLINK		2		/* HC may still see this */

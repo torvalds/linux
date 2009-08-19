@@ -310,13 +310,13 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 static unsigned
 qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	struct ehci_qtd		*last = NULL, *end = qh->dummy;
+	struct ehci_qtd		*last, *end = qh->dummy;
 	struct list_head	*entry, *tmp;
-	int			last_status = -EINPROGRESS;
+	int			last_status;
 	int			stopped;
 	unsigned		count = 0;
 	u8			state;
-	__le32			halt = HALT_BIT(ehci);
+	const __le32		halt = HALT_BIT(ehci);
 	struct ehci_qh_hw	*hw = qh->hw;
 
 	if (unlikely (list_empty (&qh->qtd_list)))
@@ -327,10 +327,19 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * they add urbs to this qh's queue or mark them for unlinking.
 	 *
 	 * NOTE:  unlinking expects to be done in queue order.
+	 *
+	 * It's a bug for qh->qh_state to be anything other than
+	 * QH_STATE_IDLE, unless our caller is scan_async() or
+	 * scan_periodic().
 	 */
 	state = qh->qh_state;
 	qh->qh_state = QH_STATE_COMPLETING;
 	stopped = (state == QH_STATE_IDLE);
+
+ rescan:
+	last = NULL;
+	last_status = -EINPROGRESS;
+	qh->needs_rescan = 0;
 
 	/* remove de-activated QTDs from front of queue.
 	 * after faults (including short reads), cleanup this urb
@@ -507,6 +516,21 @@ halt:
 		ehci_qtd_free (ehci, last);
 	}
 
+	/* Do we need to rescan for URBs dequeued during a giveback? */
+	if (unlikely(qh->needs_rescan)) {
+		/* If the QH is already unlinked, do the rescan now. */
+		if (state == QH_STATE_IDLE)
+			goto rescan;
+
+		/* Otherwise we have to wait until the QH is fully unlinked.
+		 * Our caller will start an unlink if qh->needs_rescan is
+		 * set.  But if an unlink has already started, nothing needs
+		 * to be done.
+		 */
+		if (state != QH_STATE_LINKED)
+			qh->needs_rescan = 0;
+	}
+
 	/* restore original state; caller must unlink or relink */
 	qh->qh_state = state;
 
@@ -535,8 +559,10 @@ halt:
 					& hw->hw_info2) != 0) {
 				intr_deschedule (ehci, qh);
 				(void) qh_schedule (ehci, qh);
-			} else
-				unlink_async (ehci, qh);
+			} else {
+				/* Tell the caller to start an unlink */
+				qh->needs_rescan = 1;
+			}
 			break;
 		/* otherwise, unlink already started */
 		}
@@ -916,6 +942,8 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	if (unlikely(qh->clearing_tt))
 		return;
 
+	WARN_ON(qh->qh_state != QH_STATE_IDLE);
+
 	/* (re)start the async schedule? */
 	head = ehci->async;
 	timer_action_done (ehci, TIMER_ASYNC_OFF);
@@ -934,8 +962,7 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	}
 
 	/* clear halt and/or toggle; and maybe recover from silicon quirk */
-	if (qh->qh_state == QH_STATE_IDLE)
-		qh_refresh (ehci, qh);
+	qh_refresh(ehci, qh);
 
 	/* splice right after start */
 	qh->qh_next = head->qh_next;
@@ -1220,6 +1247,8 @@ rescan:
 				qh = qh_get (qh);
 				qh->stamp = ehci->stamp;
 				temp = qh_completions (ehci, qh);
+				if (qh->needs_rescan)
+					unlink_async(ehci, qh);
 				qh_put (qh);
 				if (temp != 0) {
 					goto rescan;
