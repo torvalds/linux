@@ -82,7 +82,7 @@ static const struct dmi_system_id __initdata dell_device_table[] = {
 	{ }
 };
 
-static void parse_da_table(const struct dmi_header *dm)
+static void __init parse_da_table(const struct dmi_header *dm)
 {
 	/* Final token is a terminator, so we don't want to copy it */
 	int tokens = (dm->length-11)/sizeof(struct calling_interface_token)-1;
@@ -111,7 +111,7 @@ static void parse_da_table(const struct dmi_header *dm)
 	da_num_tokens += tokens;
 }
 
-static void find_tokens(const struct dmi_header *dm, void *dummy)
+static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xd4: /* Indexed IO */
@@ -214,7 +214,7 @@ static const struct rfkill_ops dell_rfkill_ops = {
 	.query = dell_rfkill_query,
 };
 
-static int dell_setup_rfkill(void)
+static int __init dell_setup_rfkill(void)
 {
 	struct calling_interface_buffer buffer;
 	int status;
