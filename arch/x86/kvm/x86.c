@@ -4021,7 +4021,6 @@ static void get_segment_descriptor_dtable(struct kvm_vcpu *vcpu,
 static int load_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 					 struct desc_struct *seg_desc)
 {
-	gpa_t gpa;
 	struct descriptor_table dtable;
 	u16 index = selector >> 3;
 
@@ -4031,16 +4030,13 @@ static int load_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 		kvm_queue_exception_e(vcpu, GP_VECTOR, selector & 0xfffc);
 		return 1;
 	}
-	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, dtable.base);
-	gpa += index * 8;
-	return kvm_read_guest(vcpu->kvm, gpa, seg_desc, 8);
+	return kvm_read_guest_virt(dtable.base + index*8, seg_desc, sizeof(*seg_desc), vcpu);
 }
 
 /* allowed just for 8 bytes segments */
 static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 					 struct desc_struct *seg_desc)
 {
-	gpa_t gpa;
 	struct descriptor_table dtable;
 	u16 index = selector >> 3;
 
@@ -4048,9 +4044,7 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 
 	if (dtable.limit < index * 8 + 7)
 		return 1;
-	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, dtable.base);
-	gpa += index * 8;
-	return kvm_write_guest(vcpu->kvm, gpa, seg_desc, 8);
+	return kvm_write_guest_virt(dtable.base + index*8, seg_desc, sizeof(*seg_desc), vcpu);
 }
 
 static u32 get_tss_base_addr(struct kvm_vcpu *vcpu,
