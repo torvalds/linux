@@ -9,6 +9,7 @@
 #include <asm/paravirt.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
+#include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/irq.h>
 
@@ -54,4 +55,12 @@ struct __initdata x86_init_ops x86_init = {
 		.pagetable_setup_start	= native_pagetable_setup_start,
 		.pagetable_setup_done	= native_pagetable_setup_done,
 	},
+
+	.timers = {
+		.setup_percpu_clockev	= setup_boot_APIC_clock,
+	},
+};
+
+__cpuinitdata struct x86_cpuinit_ops x86_cpuinit = {
+	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 };

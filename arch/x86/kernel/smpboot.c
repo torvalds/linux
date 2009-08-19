@@ -323,7 +323,7 @@ notrace static void __cpuinit start_secondary(void *unused)
 	/* enable local interrupts */
 	local_irq_enable();
 
-	setup_secondary_clock();
+	x86_cpuinit.setup_percpu_clockev();
 
 	wmb();
 	cpu_idle();
@@ -1112,7 +1112,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	printk(KERN_INFO "CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
-	setup_boot_clock();
+	x86_init.timers.setup_percpu_clockev();
 
 	if (is_uv_system())
 		uv_system_init();

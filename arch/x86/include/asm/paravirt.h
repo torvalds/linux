@@ -333,18 +333,6 @@ static inline void slow_down_io(void)
 #endif
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC
-static inline void setup_boot_clock(void)
-{
-	PVOP_VCALL0(pv_apic_ops.setup_boot_clock);
-}
-
-static inline void setup_secondary_clock(void)
-{
-	PVOP_VCALL0(pv_apic_ops.setup_secondary_clock);
-}
-#endif
-
 #ifdef CONFIG_SMP
 static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 				    unsigned long start_esp)

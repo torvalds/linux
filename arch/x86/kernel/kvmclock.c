@@ -22,6 +22,8 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <linux/percpu.h>
+
+#include <asm/x86_init.h>
 #include <asm/reboot.h>
 
 #define KVM_SCALE 22
@@ -187,7 +189,8 @@ void __init kvmclock_init(void)
 		pv_time_ops.sched_clock = kvm_clock_read;
 		pv_time_ops.get_tsc_khz = kvm_get_tsc_khz;
 #ifdef CONFIG_X86_LOCAL_APIC
-		pv_apic_ops.setup_secondary_clock = kvm_setup_secondary_clock;
+		x86_cpuinit.setup_percpu_clockev =
+			kvm_setup_secondary_clock;
 #endif
 #ifdef CONFIG_SMP
 		smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;

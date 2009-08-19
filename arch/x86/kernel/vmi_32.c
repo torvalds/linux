@@ -821,8 +821,8 @@ static inline int __init activate_vmi(void)
 		pv_time_ops.get_wallclock = vmi_get_wallclock;
 		pv_time_ops.set_wallclock = vmi_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC
-		pv_apic_ops.setup_boot_clock = vmi_time_bsp_init;
-		pv_apic_ops.setup_secondary_clock = vmi_time_ap_init;
+		x86_init.timers.setup_percpu_clockev = vmi_time_bsp_init;
+		x86_cpuinit.setup_percpu_clockev = vmi_time_ap_init;
 #endif
 		pv_time_ops.sched_clock = vmi_sched_clock;
 		pv_time_ops.get_tsc_khz = vmi_tsc_khz;

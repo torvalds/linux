@@ -218,9 +218,6 @@ struct pv_irq_ops {
 
 struct pv_apic_ops {
 #ifdef CONFIG_X86_LOCAL_APIC
-	void (*setup_boot_clock)(void);
-	void (*setup_secondary_clock)(void);
-
 	void (*startup_ipi_hook)(int phys_apicid,
 				 unsigned long start_eip,
 				 unsigned long start_esp);

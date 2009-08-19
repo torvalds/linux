@@ -79,6 +79,15 @@ struct x86_init_paging {
 };
 
 /**
+ * struct x86_init_timers - platform specific timer setup
+ * @setup_perpcu_clockev:	set up the per cpu clock event device for the
+ *				boot cpu
+ */
+struct x86_init_timers {
+	void (*setup_percpu_clockev)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -88,9 +97,19 @@ struct x86_init_ops {
 	struct x86_init_irqs		irqs;
 	struct x86_init_oem		oem;
 	struct x86_init_paging		paging;
+	struct x86_init_timers		timers;
+};
+
+/**
+ * struct x86_cpuinit_ops - platform specific cpu hotplug setups
+ * @setup_percpu_clockev:	set up the per cpu clock event device
+ */
+struct x86_cpuinit_ops {
+	void (*setup_percpu_clockev)(void);
 };
 
 extern struct x86_init_ops x86_init;
+extern struct x86_cpuinit_ops x86_cpuinit;
 
 extern void x86_init_noop(void);
 extern void x86_init_uint_noop(unsigned int unused);
