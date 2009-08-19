@@ -330,7 +330,7 @@ static int __init dell_init(void)
 
 	if (ret) {
 		printk(KERN_WARNING "dell-laptop: Unable to setup rfkill\n");
-		goto out;
+		goto fail_rfkill;
 	}
 
 #ifdef CONFIG_ACPI
@@ -358,7 +358,7 @@ static int __init dell_init(void)
 		if (IS_ERR(dell_backlight_device)) {
 			ret = PTR_ERR(dell_backlight_device);
 			dell_backlight_device = NULL;
-			goto out;
+			goto fail_backlight;
 		}
 
 		dell_backlight_device->props.max_brightness = max_intensity;
@@ -368,13 +368,15 @@ static int __init dell_init(void)
 	}
 
 	return 0;
-out:
+
+fail_backlight:
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
 	if (bluetooth_rfkill)
 		rfkill_unregister(bluetooth_rfkill);
 	if (wwan_rfkill)
 		rfkill_unregister(wwan_rfkill);
+fail_rfkill:
 	kfree(da_tokens);
 	return ret;
 }
