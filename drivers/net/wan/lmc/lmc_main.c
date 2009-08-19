@@ -1657,7 +1657,7 @@ static int lmc_rx(struct net_device *dev)
             }
             skb_copy_from_linear_data(skb, skb_put(nsb, len), len);
             
-            nsb->protocol = lmc_proto_type(sc, skb);
+            nsb->protocol = lmc_proto_type(sc, nsb);
             skb_reset_mac_header(nsb);
             /* skb_reset_network_header(nsb); */
             nsb->dev = dev;
