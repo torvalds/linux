@@ -467,12 +467,12 @@ void et131x_multicast(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	uint32_t PacketFilter = 0;
 	uint32_t count;
-	unsigned long lockflags;
+	unsigned long flags;
 	struct dev_mc_list *mclist = netdev->mc_list;
 
 	DBG_ENTER(et131x_dbginfo);
 
-	spin_lock_irqsave(&adapter->Lock, lockflags);
+	spin_lock_irqsave(&adapter->Lock, flags);
 
 	/* Before we modify the platform-independent filter flags, store them
 	 * locally. This allows us to determine if anything's changed and if
@@ -552,7 +552,7 @@ void et131x_multicast(struct net_device *netdev)
 			    "NO UPDATE REQUIRED, FLAGS didn't change\n");
 	}
 
-	spin_unlock_irqrestore(&adapter->Lock, lockflags);
+	spin_unlock_irqrestore(&adapter->Lock, flags);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -610,7 +610,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 {
 	struct et131x_adapter *etdev = netdev_priv(netdev);
 	PMP_TCB pMpTcb;
-	unsigned long lockflags;
+	unsigned long flags;
 
 	DBG_WARNING(et131x_dbginfo, "TX TIMEOUT\n");
 
@@ -635,7 +635,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 	}
 
 	/* Is send stuck? */
-	spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
+	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 	pMpTcb = etdev->TxRing.CurrSendHead;
 
@@ -660,7 +660,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 			}
 
 			spin_unlock_irqrestore(&etdev->TCBSendQLock,
-					       lockflags);
+					       flags);
 
 			DBG_WARNING(et131x_dbginfo,
 				"Send stuck - reset.  pMpTcb->WrIndex %x, Flags 0x%08x\n",
@@ -689,7 +689,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 		}
 	}
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
+	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 }
 
 /**

@@ -492,18 +492,18 @@ void et131x_error_timer_handler(unsigned long data)
 void et131x_link_detection_handler(unsigned long data)
 {
 	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
-	unsigned long lockflags;
+	unsigned long flags;
 
 	/* Let everyone know that we have run */
 	etdev->bLinkTimerActive = false;
 
 	if (etdev->MediaState == 0) {
-		spin_lock_irqsave(&etdev->Lock, lockflags);
+		spin_lock_irqsave(&etdev->Lock, flags);
 
 		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
 		MP_CLEAR_FLAG(etdev, fMP_ADAPTER_LINK_DETECTION);
 
-		spin_unlock_irqrestore(&etdev->Lock, lockflags);
+		spin_unlock_irqrestore(&etdev->Lock, flags);
 
 		netif_carrier_off(etdev->netdev);
 

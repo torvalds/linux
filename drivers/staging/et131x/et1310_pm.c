@@ -119,7 +119,7 @@ extern dbg_info_t *et131x_dbginfo;
  */
 void EnablePhyComa(struct et131x_adapter *etdev)
 {
-	unsigned long lockflags;
+	unsigned long flags;
 	PM_CSR_t GlobalPmCSR;
 	int32_t LoopCounter = 10;
 
@@ -134,9 +134,9 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	etdev->PoMgmt.PowerDownDuplex = etdev->AiForceDpx;
 
 	/* Stop sending packets. */
-	spin_lock_irqsave(&etdev->SendHWLock, lockflags);
+	spin_lock_irqsave(&etdev->SendHWLock, flags);
 	MP_SET_FLAG(etdev, fMP_ADAPTER_LOWER_POWER);
-	spin_unlock_irqrestore(&etdev->SendHWLock, lockflags);
+	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
 
 	/* Wait for outstanding Receive packets */
 	while ((MP_GET_RCV_REF(etdev) != 0) && (LoopCounter-- > 0))

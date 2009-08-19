@@ -461,7 +461,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 	int status = 0;
 	PMP_TCB pMpTcb = NULL;
 	uint16_t *pShBufVa;
-	unsigned long lockflags;
+	unsigned long flags;
 
 	DBG_TX_ENTER(et131x_dbginfo);
 
@@ -482,12 +482,12 @@ static int et131x_send_packet(struct sk_buff *skb,
 	}
 
 	/* Get a TCB for this packet */
-	spin_lock_irqsave(&etdev->TCBReadyQLock, lockflags);
+	spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
 
 	pMpTcb = etdev->TxRing.TCBReadyQueueHead;
 
 	if (pMpTcb == NULL) {
-		spin_unlock_irqrestore(&etdev->TCBReadyQLock, lockflags);
+		spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
 
 		DBG_WARNING(et131x_dbginfo, "Can't obtain a TCB\n");
 		DBG_TX_LEAVE(et131x_dbginfo);
@@ -499,7 +499,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 	if (etdev->TxRing.TCBReadyQueueHead == NULL)
 		etdev->TxRing.TCBReadyQueueTail = NULL;
 
-	spin_unlock_irqrestore(&etdev->TCBReadyQLock, lockflags);
+	spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
 
 	pMpTcb->PacketLength = skb->len;
 	pMpTcb->Packet = skb;
@@ -522,7 +522,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 		status = nic_send_packet(etdev, pMpTcb);
 
 	if (status != 0) {
-		spin_lock_irqsave(&etdev->TCBReadyQLock, lockflags);
+		spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
 
 		if (etdev->TxRing.TCBReadyQueueTail) {
 			etdev->TxRing.TCBReadyQueueTail->Next = pMpTcb;
@@ -533,7 +533,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 
 		etdev->TxRing.TCBReadyQueueTail = pMpTcb;
 
-		spin_unlock_irqrestore(&etdev->TCBReadyQLock, lockflags);
+		spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
 
 		DBG_TX_LEAVE(et131x_dbginfo);
 		return status;
@@ -561,7 +561,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	struct sk_buff *pPacket = pMpTcb->Packet;
 	uint32_t FragListCount = skb_shinfo(pPacket)->nr_frags + 1;
 	struct skb_frag_struct *pFragList = &skb_shinfo(pPacket)->frags[0];
-	unsigned long lockflags1, lockflags2;
+	unsigned long flags;
 
 	DBG_TX_ENTER(et131x_dbginfo);
 
@@ -726,7 +726,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	pMpTcb->WrIndexStart = etdev->TxRing.txDmaReadyToSend;
 	pMpTcb->PacketStaleCount = 0;
 
-	spin_lock_irqsave(&etdev->SendHWLock, lockflags1);
+	spin_lock_irqsave(&etdev->SendHWLock, flags);
 
 	iThisCopy =
 	    NUM_DESC_PER_RING_TX - etdev->TxRing.txDmaReadyToSend.bits.val;
@@ -771,7 +771,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		pMpTcb->WrIndex.value =
 		    etdev->TxRing.txDmaReadyToSend.value - 1;
 
-	spin_lock_irqsave(&etdev->TCBSendQLock, lockflags2);
+	spin_lock(&etdev->TCBSendQLock);
 
 	if (etdev->TxRing.CurrSendTail)
 		etdev->TxRing.CurrSendTail->Next = pMpTcb;
@@ -784,7 +784,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	etdev->TxRing.nBusySend++;
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags2);
+	spin_unlock(&etdev->TCBSendQLock);
 
 	/* Write the new write pointer back to the device. */
 	writel(etdev->TxRing.txDmaReadyToSend.value,
@@ -798,7 +798,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		       &etdev->CSRAddress->global.watchdog_timer);
 	}
 
-	spin_unlock_irqrestore(&etdev->SendHWLock, lockflags1);
+	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
 
 	DBG_TX_LEAVE(et131x_dbginfo);
 	return 0;
@@ -829,7 +829,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	TX_DESC_ENTRY_t *CurDescPostCopy = NULL;
 	uint32_t SlotsAvailable;
 	DMA10W_t ServiceComplete;
-	unsigned int lockflags1, lockflags2;
+	unsigned int flags;
 	struct sk_buff *pPacket = pMpTcb->Packet;
 	uint32_t FragListCount = skb_shinfo(pPacket)->nr_frags + 1;
 	struct skb_frag_struct *pFragList = &skb_shinfo(pPacket)->frags[0];
@@ -875,7 +875,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		SegmentSize = (pPacket->len - pPacket->data_len) / 2;
 	}
 
-	spin_lock_irqsave(&etdev->SendHWLock, lockflags1);
+	spin_lock_irqsave(&etdev->SendHWLock, flags);
 
 	if (etdev->TxRing.txDmaReadyToSend.bits.serv_req_wrap ==
 	    ServiceComplete.bits.serv_cpl_wrap) {
@@ -896,7 +896,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	if ((FragListCount + iSplitFirstElement) > SlotsAvailable) {
 		DBG_WARNING(et131x_dbginfo,
 			    "Not Enough Space in Tx Desc Ring\n");
-		spin_unlock_irqrestore(&etdev->SendHWLock, lockflags1);
+		spin_unlock_irqrestore(&etdev->SendHWLock, flags);
 		return -ENOMEM;
 	}
 
@@ -1185,7 +1185,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		       NIC_MIN_PACKET_SIZE - pMpTcb->PacketLength);
 	}
 
-	spin_lock_irqsave(&etdev->TCBSendQLock, lockflags2);
+	spin_lock(&etdev->TCBSendQLock);
 
 	if (etdev->TxRing.CurrSendTail)
 		etdev->TxRing.CurrSendTail->Next = pMpTcb;
@@ -1198,7 +1198,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	etdev->TxRing.nBusySend++;
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags2);
+	spin_unlock(&etdev->TCBSendQLock);
 
 	/* Write the new write pointer back to the device. */
 	writel(etdev->TxRing.txDmaReadyToSend.value,
@@ -1216,7 +1216,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		       &etdev->CSRAddress->global.watchdog_timer);
 	}
 
-	spin_unlock_irqrestore(&etdev->SendHWLock, lockflags1);
+	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
 
 	DBG_TX_LEAVE(et131x_dbginfo);
 	return 0;
@@ -1234,7 +1234,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 							PMP_TCB pMpTcb)
 {
-	unsigned long lockflags;
+	unsigned long flags;
 	TX_DESC_ENTRY_t *desc = NULL;
 	struct net_device_stats *stats = &etdev->net_stats;
 
@@ -1311,7 +1311,7 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 	memset(pMpTcb, 0, sizeof(MP_TCB));
 
 	/* Add the TCB to the Ready Q */
-	spin_lock_irqsave(&etdev->TCBReadyQLock, lockflags);
+	spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
 
 	etdev->Stats.opackets++;
 
@@ -1324,7 +1324,7 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 
 	etdev->TxRing.TCBReadyQueueTail = pMpTcb;
 
-	spin_unlock_irqrestore(&etdev->TCBReadyQLock, lockflags);
+	spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
 
 	DBG_ASSERT(etdev->TxRing.nBusySend >= 0);
 }
@@ -1339,16 +1339,16 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 {
 	PMP_TCB pMpTcb;
 	struct list_head *pEntry;
-	unsigned long lockflags;
+	unsigned long flags;
 	uint32_t FreeCounter = 0;
 
 	DBG_ENTER(et131x_dbginfo);
 
 	while (!list_empty(&etdev->TxRing.SendWaitQueue)) {
-		spin_lock_irqsave(&etdev->SendWaitLock, lockflags);
+		spin_lock_irqsave(&etdev->SendWaitLock, flags);
 
 		etdev->TxRing.nWaitSend--;
-		spin_unlock_irqrestore(&etdev->SendWaitLock, lockflags);
+		spin_unlock_irqrestore(&etdev->SendWaitLock, flags);
 
 		pEntry = etdev->TxRing.SendWaitQueue.next;
 	}
@@ -1356,7 +1356,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 	etdev->TxRing.nWaitSend = 0;
 
 	/* Any packets being sent? Check the first TCB on the send list */
-	spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
+	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 	pMpTcb = etdev->TxRing.CurrSendHead;
 
@@ -1370,14 +1370,14 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 
 		etdev->TxRing.nBusySend--;
 
-		spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
+		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 
 		DBG_VERBOSE(et131x_dbginfo, "pMpTcb = 0x%p\n", pMpTcb);
 
 		FreeCounter++;
 		MP_FREE_SEND_PACKET_FUN(etdev, pMpTcb);
 
-		spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
+		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 		pMpTcb = etdev->TxRing.CurrSendHead;
 	}
@@ -1388,7 +1388,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 		BUG();
 	}
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
+	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 
 	etdev->TxRing.nBusySend = 0;
 
@@ -1429,7 +1429,7 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
  */
 static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 {
-	unsigned long lockflags;
+	unsigned long flags;
 	DMA10W_t ServiceComplete;
 	PMP_TCB pMpTcb;
 
@@ -1439,7 +1439,7 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 	/* Has the ring wrapped?  Process any descriptors that do not have
 	 * the same "wrap" indicator as the current completion indicator
 	 */
-	spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
+	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 	pMpTcb = etdev->TxRing.CurrSendHead;
 	while (pMpTcb &&
@@ -1450,9 +1450,9 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 		if (pMpTcb->Next == NULL)
 			etdev->TxRing.CurrSendTail = NULL;
 
-		spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
+		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 		MP_FREE_SEND_PACKET_FUN(etdev, pMpTcb);
-		spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
+		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 		/* Goto the next packet */
 		pMpTcb = etdev->TxRing.CurrSendHead;
@@ -1465,9 +1465,9 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 		if (pMpTcb->Next == NULL)
 			etdev->TxRing.CurrSendTail = NULL;
 
-		spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
+		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 		MP_FREE_SEND_PACKET_FUN(etdev, pMpTcb);
-		spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
+		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 		/* Goto the next packet */
 		pMpTcb = etdev->TxRing.CurrSendHead;
@@ -1477,7 +1477,7 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 	if (etdev->TxRing.nBusySend <= (NUM_TCB / 3))
 		netif_wake_queue(etdev->netdev);
 
-	spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
+	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 }
 
 /**
@@ -1489,9 +1489,9 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
  */
 static void et131x_check_send_wait_list(struct et131x_adapter *etdev)
 {
-	unsigned long lockflags;
+	unsigned long flags;
 
-	spin_lock_irqsave(&etdev->SendWaitLock, lockflags);
+	spin_lock_irqsave(&etdev->SendWaitLock, flags);
 
 	while (!list_empty(&etdev->TxRing.SendWaitQueue) &&
 				MP_TCB_RESOURCES_AVAILABLE(etdev)) {
@@ -1508,5 +1508,5 @@ static void et131x_check_send_wait_list(struct et131x_adapter *etdev)
 				etdev->TxRing.nWaitSend);
 	}
 
-	spin_unlock_irqrestore(&etdev->SendWaitLock, lockflags);
+	spin_unlock_irqrestore(&etdev->SendWaitLock, flags);
 }

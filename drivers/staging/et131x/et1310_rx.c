@@ -685,7 +685,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	PFBR_DESC_t pFbrEntry;
 	uint32_t iEntry;
 	RXDMA_PSR_NUM_DES_t psr_num_des;
-	unsigned long lockflags;
+	unsigned long flags;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -718,7 +718,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	writel((psr_num_des.bits.psr_ndes * LO_MARK_PERCENT_FOR_PSR) / 100,
 	       &pRxDma->psr_min_des.value);
 
-	spin_lock_irqsave(&etdev->RcvLock, lockflags);
+	spin_lock_irqsave(&etdev->RcvLock, flags);
 
 	/* These local variables track the PSR in the adapter structure */
 	pRxLocal->local_psr_full.bits.psr_full = 0;
@@ -801,7 +801,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 */
 	writel(etdev->RegistryRxTimeInterval, &pRxDma->max_pkt_time.value);
 
-	spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
+	spin_unlock_irqrestore(&etdev->RcvLock, flags);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -914,7 +914,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	PMP_RFD pMpRfd;
 	uint32_t nIndex;
 	uint8_t *pBufVa;
-	unsigned long lockflags;
+	unsigned long flags;
 	struct list_head *element;
 	uint8_t ringIndex;
 	uint16_t bufferIndex;
@@ -1013,7 +1013,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	}
 
 	/* Get and fill the RFD. */
-	spin_lock_irqsave(&etdev->RcvLock, lockflags);
+	spin_lock_irqsave(&etdev->RcvLock, flags);
 
 	pMpRfd = NULL;
 	element = pRxLocal->RecvList.next;
@@ -1023,14 +1023,14 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		DBG_RX(et131x_dbginfo,
 		       "NULL RFD returned from RecvList via list_entry()\n");
 		DBG_RX_LEAVE(et131x_dbginfo);
-		spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
+		spin_unlock_irqrestore(&etdev->RcvLock, flags);
 		return NULL;
 	}
 
 	list_del(&pMpRfd->list_node);
 	pRxLocal->nReadyRecv--;
 
-	spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
+	spin_unlock_irqrestore(&etdev->RcvLock, flags);
 
 	pMpRfd->iBufferIndex = bufferIndex;
 	pMpRfd->iRingIndex = ringIndex;
@@ -1260,9 +1260,9 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 			 * Besides, we don't really need (at this point) the
 			 * pending list anyway.
 			 */
-			/* spin_lock_irqsave( &etdev->RcvPendLock, lockflags );
+			/* spin_lock_irqsave( &etdev->RcvPendLock, flags );
 			 * list_add_tail( &pMpRfd->list_node, &etdev->RxRing.RecvPendingList );
-			 * spin_unlock_irqrestore( &etdev->RcvPendLock, lockflags );
+			 * spin_unlock_irqrestore( &etdev->RcvPendLock, flags );
 			 */
 
 			/* Update the number of outstanding Recvs */
@@ -1302,7 +1302,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 	struct _RXDMA_t __iomem *pRxDma = &etdev->CSRAddress->rxdma;
 	uint16_t bi = pMpRfd->iBufferIndex;
 	uint8_t ri = pMpRfd->iRingIndex;
-	unsigned long lockflags;
+	unsigned long flags;
 
 	DBG_RX_ENTER(et131x_dbginfo);
 
@@ -1314,7 +1314,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 	    (ri == 0 && bi < pRxLocal->Fbr0NumEntries) ||
 #endif
 	    (ri == 1 && bi < pRxLocal->Fbr1NumEntries)) {
-		spin_lock_irqsave(&etdev->FbrLock, lockflags);
+		spin_lock_irqsave(&etdev->FbrLock, flags);
 
 		if (ri == 1) {
 			PFBR_DESC_t pNextDesc =
@@ -1362,7 +1362,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 			       &pRxDma->fbr0_full_offset.value);
 		}
 #endif
-		spin_unlock_irqrestore(&etdev->FbrLock, lockflags);
+		spin_unlock_irqrestore(&etdev->FbrLock, flags);
 	} else {
 		DBG_ERROR(et131x_dbginfo,
 			  "NICReturnRFD illegal Buffer Index returned\n");
@@ -1371,10 +1371,10 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 	/* The processing on this RFD is done, so put it back on the tail of
 	 * our list
 	 */
-	spin_lock_irqsave(&etdev->RcvLock, lockflags);
+	spin_lock_irqsave(&etdev->RcvLock, flags);
 	list_add_tail(&pMpRfd->list_node, &pRxLocal->RecvList);
 	pRxLocal->nReadyRecv++;
-	spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
+	spin_unlock_irqrestore(&etdev->RcvLock, flags);
 
 	DBG_ASSERT(pRxLocal->nReadyRecv <= pRxLocal->NumRfd);
 	DBG_RX_LEAVE(et131x_dbginfo);

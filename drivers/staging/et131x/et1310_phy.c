@@ -484,7 +484,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 	uint32_t uiMdiMdix;
 	uint32_t uiMasterSlave;
 	uint32_t uiPolarity;
-	unsigned long lockflags;
+	unsigned long flags;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -495,12 +495,12 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			/* Update our state variables and indicate the
 			 * connected state
 			 */
-			spin_lock_irqsave(&etdev->Lock, lockflags);
+			spin_lock_irqsave(&etdev->Lock, flags);
 
 			etdev->MediaState = NETIF_STATUS_MEDIA_CONNECT;
 			MP_CLEAR_FLAG(etdev, fMP_ADAPTER_LINK_DETECTION);
 
-			spin_unlock_irqrestore(&etdev->Lock, lockflags);
+			spin_unlock_irqrestore(&etdev->Lock, flags);
 
 			/* Don't indicate state if we're in loopback mode */
 			if (etdev->RegistryPhyLoopbk == false)
@@ -533,11 +533,11 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			     (etdev, fMP_ADAPTER_LINK_DETECTION))
 			    || (etdev->MediaState ==
 				NETIF_STATUS_MEDIA_DISCONNECT)) {
-				spin_lock_irqsave(&etdev->Lock, lockflags);
+				spin_lock_irqsave(&etdev->Lock, flags);
 				etdev->MediaState =
 				    NETIF_STATUS_MEDIA_DISCONNECT;
 				spin_unlock_irqrestore(&etdev->Lock,
-						       lockflags);
+						       flags);
 
 				/* Only indicate state if we're in loopback
 				 * mode
