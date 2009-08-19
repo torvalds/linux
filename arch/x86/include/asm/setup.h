@@ -7,6 +7,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/x86_init.h>
+
 /*
  * Any setup quirks to be performed?
  */
