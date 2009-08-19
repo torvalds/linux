@@ -665,16 +665,16 @@ out:
 void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 {
 	struct pci_dev *parent = pdev->bus->self;
-	struct pcie_link_state *link_state = parent->link_state;
+	struct pcie_link_state *link;
 
-	if (aspm_disabled || !pdev->is_pcie || !parent || !link_state)
+	if (aspm_disabled || !pdev->is_pcie || !parent || !parent->link_state)
 		return;
 	if (parent->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
-		parent->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
+	    parent->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
 		return;
+
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-
 	/*
 	 * All PCIe functions are in one slot, remove one function will remove
 	 * the whole slot, so just wait until we are the last function left.
@@ -682,13 +682,14 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 	if (!list_is_last(&pdev->bus_list, &parent->subordinate->devices))
 		goto out;
 
+	link = parent->link_state;
+
 	/* All functions are removed, so just disable ASPM for the link */
 	__pcie_aspm_config_one_dev(parent, 0);
-	list_del(&link_state->sibling);
-	list_del(&link_state->link);
+	list_del(&link->sibling);
+	list_del(&link->link);
 	/* Clock PM is for endpoint device */
-
-	free_link_state(link_state);
+	free_link_state(link);
 out:
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
