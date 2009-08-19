@@ -836,6 +836,8 @@ static int cache_open(struct inode *inode, struct file *filp,
 {
 	struct cache_reader *rp = NULL;
 
+	if (!cd || !try_module_get(cd->owner))
+		return -EACCES;
 	nonseekable_open(inode, filp);
 	if (filp->f_mode & FMODE_READ) {
 		rp = kmalloc(sizeof(*rp), GFP_KERNEL);
@@ -879,6 +881,7 @@ static int cache_release(struct inode *inode, struct file *filp,
 		cd->last_close = get_seconds();
 		atomic_dec(&cd->readers);
 	}
+	module_put(cd->owner);
 	return 0;
 }
 
@@ -1215,11 +1218,36 @@ static int content_open(struct inode *inode, struct file *file,
 {
 	struct handle *han;
 
+	if (!cd || !try_module_get(cd->owner))
+		return -EACCES;
 	han = __seq_open_private(file, &cache_content_op, sizeof(*han));
 	if (han == NULL)
 		return -ENOMEM;
 
 	han->cd = cd;
+	return 0;
+}
+
+static int content_release(struct inode *inode, struct file *file,
+		struct cache_detail *cd)
+{
+	int ret = seq_release_private(inode, file);
+	module_put(cd->owner);
+	return ret;
+}
+
+static int open_flush(struct inode *inode, struct file *file,
+			struct cache_detail *cd)
+{
+	if (!cd || !try_module_get(cd->owner))
+		return -EACCES;
+	return nonseekable_open(inode, file);
+}
+
+static int release_flush(struct inode *inode, struct file *file,
+			struct cache_detail *cd)
+{
+	module_put(cd->owner);
 	return 0;
 }
 
@@ -1331,12 +1359,33 @@ static int content_open_procfs(struct inode *inode, struct file *filp)
 	return content_open(inode, filp, cd);
 }
 
+static int content_release_procfs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = PDE(inode)->data;
+
+	return content_release(inode, filp, cd);
+}
+
 static const struct file_operations content_file_operations_procfs = {
 	.open		= content_open_procfs,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= content_release_procfs,
 };
+
+static int open_flush_procfs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = PDE(inode)->data;
+
+	return open_flush(inode, filp, cd);
+}
+
+static int release_flush_procfs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = PDE(inode)->data;
+
+	return release_flush(inode, filp, cd);
+}
 
 static ssize_t read_flush_procfs(struct file *filp, char __user *buf,
 			    size_t count, loff_t *ppos)
@@ -1356,9 +1405,10 @@ static ssize_t write_flush_procfs(struct file *filp,
 }
 
 static const struct file_operations cache_flush_operations_procfs = {
-	.open		= nonseekable_open,
+	.open		= open_flush_procfs,
 	.read		= read_flush_procfs,
 	.write		= write_flush_procfs,
+	.release	= release_flush_procfs,
 };
 
 static void remove_cache_proc_entries(struct cache_detail *cd)
@@ -1503,12 +1553,33 @@ static int content_open_pipefs(struct inode *inode, struct file *filp)
 	return content_open(inode, filp, cd);
 }
 
+static int content_release_pipefs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return content_release(inode, filp, cd);
+}
+
 const struct file_operations content_file_operations_pipefs = {
 	.open		= content_open_pipefs,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= content_release_pipefs,
 };
+
+static int open_flush_pipefs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return open_flush(inode, filp, cd);
+}
+
+static int release_flush_pipefs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return release_flush(inode, filp, cd);
+}
 
 static ssize_t read_flush_pipefs(struct file *filp, char __user *buf,
 			    size_t count, loff_t *ppos)
@@ -1528,9 +1599,10 @@ static ssize_t write_flush_pipefs(struct file *filp,
 }
 
 const struct file_operations cache_flush_operations_pipefs = {
-	.open		= nonseekable_open,
+	.open		= open_flush_pipefs,
 	.read		= read_flush_pipefs,
 	.write		= write_flush_pipefs,
+	.release	= release_flush_pipefs,
 };
 
 int sunrpc_cache_register_pipefs(struct dentry *parent,
