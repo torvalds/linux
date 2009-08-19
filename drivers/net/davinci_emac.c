@@ -2817,7 +2817,7 @@ static int __init davinci_emac_init(void)
 {
 	return platform_driver_register(&davinci_emac_driver);
 }
-module_init(davinci_emac_init);
+late_initcall(davinci_emac_init);
 
 /**
  * davinci_emac_exit: EMAC driver module exit
