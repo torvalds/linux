@@ -21,40 +21,29 @@
  *
  */
 
-
-#pragma once
-
+#ifndef __HVHCAPI_H
+#define __HVHCAPI_H
 
 /* Declare the various hypercall operations. */
-
-typedef enum _HV_CALL_CODE
-{
-
-    HvCallPostMessage                   = 0x005c,
-    HvCallSignalEvent                   = 0x005d,
-
-} HV_CALL_CODE, *PHV_CALL_CODE;
+enum hv_call_code {
+	HvCallPostMessage	= 0x005c,
+	HvCallSignalEvent	= 0x005d,
+};
 
 /* Definition of the HvPostMessage hypercall input structure. */
-
-
-typedef struct _HV_INPUT_POST_MESSAGE
-{
-    HV_CONNECTION_ID    ConnectionId;
-    u32              Reserved;
-    HV_MESSAGE_TYPE     MessageType;
-    u32              PayloadSize;
-    u64              Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
-} HV_INPUT_POST_MESSAGE, *PHV_INPUT_POST_MESSAGE;
-
-
+struct hv_input_post_message {
+	HV_CONNECTION_ID ConnectionId;
+	u32 Reserved;
+	HV_MESSAGE_TYPE MessageType;
+	u32 PayloadSize;
+	u64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
+};
 
 /* Definition of the HvSignalEvent hypercall input structure. */
+struct hv_input_signal_event {
+	HV_CONNECTION_ID ConnectionId;
+	u16 FlagNumber;
+	u16 RsvdZ;
+};
 
-
-typedef struct _HV_INPUT_SIGNAL_EVENT
-{
-    HV_CONNECTION_ID ConnectionId;
-    u16           FlagNumber;
-    u16           RsvdZ;
-} HV_INPUT_SIGNAL_EVENT, *PHV_INPUT_SIGNAL_EVENT;
+#endif

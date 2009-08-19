@@ -102,7 +102,7 @@ static const struct hv_guid VMBUS_SERVICE_ID = {
 
 struct hv_input_signal_event_buffer {
 	u64 Align8;
-	HV_INPUT_SIGNAL_EVENT Event;
+	struct hv_input_signal_event Event;
 };
 
 struct hv_context {
@@ -120,7 +120,7 @@ struct hv_context {
 	 * stack or global). */
 	struct hv_input_signal_event_buffer *SignalEventBuffer;
 	/* 8-bytes aligned of the buffer above */
-	HV_INPUT_SIGNAL_EVENT *SignalEventParam;
+	struct hv_input_signal_event *SignalEventParam;
 
 	void *synICMessagePage[MAX_NUM_CPUS];
 	void *synICEventPage[MAX_NUM_CPUS];

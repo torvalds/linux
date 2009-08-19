@@ -306,7 +306,7 @@ int HvInit (void)
 		goto Cleanup;
 	}
 
-	gHvContext.SignalEventParam = (PHV_INPUT_SIGNAL_EVENT)(ALIGN_UP((unsigned long)gHvContext.SignalEventBuffer, HV_HYPERCALL_PARAM_ALIGN));
+	gHvContext.SignalEventParam = (struct hv_input_signal_event *)(ALIGN_UP((unsigned long)gHvContext.SignalEventBuffer, HV_HYPERCALL_PARAM_ALIGN));
 	gHvContext.SignalEventParam->ConnectionId.Asu32 = 0;
 	gHvContext.SignalEventParam->ConnectionId.u.Id = VMBUS_EVENT_CONNECTION_ID;
 	gHvContext.SignalEventParam->FlagNumber = 0;
@@ -393,10 +393,10 @@ HV_STATUS HvPostMessage(
 {
 	struct alignedInput {
 		u64					alignment8;
-		HV_INPUT_POST_MESSAGE	msg;
+		struct hv_input_post_message msg;
 	};
 
-	PHV_INPUT_POST_MESSAGE alignedMsg;
+	struct hv_input_post_message *alignedMsg;
 	HV_STATUS status;
 	unsigned long addr;
 
@@ -412,7 +412,7 @@ HV_STATUS HvPostMessage(
 		return -1;
 	}
 
-	alignedMsg = (PHV_INPUT_POST_MESSAGE)(ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
+	alignedMsg = (struct hv_input_post_message *)(ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
 
 	alignedMsg->ConnectionId = connectionId;
 	alignedMsg->MessageType = messageType;
