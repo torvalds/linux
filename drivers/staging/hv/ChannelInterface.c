@@ -23,8 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include "include/osd.h"
-
+#include "osd.h"
 #include "VmbusPrivate.h"
 
 static int

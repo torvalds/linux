@@ -25,7 +25,6 @@
 #ifndef _CHANNEL_H_
 #define _CHANNEL_H_
 
-#include "include/osd.h"
 #include "ChannelMgmt.h"
 
 /* The format must be the same as VMDATA_GPA_DIRECT */

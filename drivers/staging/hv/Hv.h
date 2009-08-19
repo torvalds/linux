@@ -25,8 +25,6 @@
 #ifndef __HV_H__
 #define __HV_H__
 
-#include "include/osd.h"
-
 #include "include/HvTypes.h"
 #include "include/HvStatus.h"
 #include "include/HvHalApi.h"

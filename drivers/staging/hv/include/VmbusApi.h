@@ -25,7 +25,6 @@
 #ifndef _VMBUS_API_H_
 #define _VMBUS_API_H_
 
-#include "osd.h"
 
 
 /* Defines */

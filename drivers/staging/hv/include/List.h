@@ -25,7 +25,6 @@
 #ifndef _LIST_H_
 #define _LIST_H_
 
-#include "osd.h"
 /*
  *
  *  Doubly-linked list manipulation routines.  Implemented as macros

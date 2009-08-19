@@ -36,6 +36,7 @@
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 
+#include "osd.h"
 #include "include/logging.h"
 #include "include/vmbus.h"
 

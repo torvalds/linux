@@ -27,8 +27,6 @@
 
 #include <linux/scatterlist.h>
 
-#include "include/osd.h"
-
 typedef struct _RING_BUFFER {
 	/* Offset in bytes from the start of ring data below */
 	volatile u32 WriteIndex;

@@ -25,7 +25,6 @@
 #ifndef _CHANNEL_MGMT_H_
 #define _CHANNEL_MGMT_H_
 
-#include "include/osd.h"
 #include "include/List.h"
 #include "RingBuffer.h"
 

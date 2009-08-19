@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
-
+#include "osd.h"
 #include "include/logging.h"
 #include "include/vmbus.h"
 

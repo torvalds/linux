@@ -43,7 +43,7 @@
 #include <asm/kmap_types.h>
 #include <asm/atomic.h>
 
-#include "include/osd.h"
+#include "osd.h"
 
 
 /* Data types */

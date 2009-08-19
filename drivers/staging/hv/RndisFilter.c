@@ -26,8 +26,8 @@
 #include <asm/kmap_types.h>
 #include <asm/io.h>
 
+#include "osd.h"
 #include "include/logging.h"
-
 #include "include/NetVscApi.h"
 #include "RndisFilter.h"
 

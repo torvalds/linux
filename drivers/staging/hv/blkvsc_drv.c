@@ -33,6 +33,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 
+#include "osd.h"
 #include "include/logging.h"
 #include "include/vmbus.h"
 
