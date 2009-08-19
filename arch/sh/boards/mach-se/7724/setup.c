@@ -319,7 +319,7 @@ static struct r8a66597_platdata sh7724_usb0_host_data = {
 static struct resource sh7724_usb0_host_resources[] = {
 	[0] = {
 		.start	= 0xa4d80000,
-		.end	= 0xa4d800ff,
+		.end	= 0xa4d80124 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
