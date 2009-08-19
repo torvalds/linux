@@ -941,7 +941,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 					  id);
 
 	if (call->define_fields) {
-		ret = call->define_fields();
+		ret = call->define_fields(call);
 		if (ret < 0) {
 			pr_warning("Could not initialize trace point"
 				   " events/%s\n", call->name);

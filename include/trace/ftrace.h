@@ -294,10 +294,9 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 int									\
-ftrace_define_fields_##call(void)					\
+ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 {									\
 	struct ftrace_raw_##call field;					\
-	struct ftrace_event_call *event_call = &event_##call;		\
 	int ret;							\
 									\
 	__common_field(int, type, 1);					\

@@ -118,7 +118,7 @@ struct ftrace_event_call {
 	int			(*raw_init)(void);
 	int			(*show_format)(struct ftrace_event_call *call,
 					       struct trace_seq *s);
-	int			(*define_fields)(void);
+	int			(*define_fields)(struct ftrace_event_call *);
 	struct list_head	fields;
 	int			filter_active;
 	struct event_filter	*filter;
