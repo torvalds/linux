@@ -603,7 +603,6 @@ struct ath_softc {
 	int beacon_interval;
 
 	struct ath_ani ani;
-	struct ath9k_node_stats nodestats;
 #ifdef CONFIG_ATH9K_DEBUG
 	struct ath9k_debug debug;
 #endif

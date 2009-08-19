@@ -538,7 +538,6 @@ void ath9k_ani_reset(struct ath_hw *ah)
 }
 
 void ath9k_hw_ani_monitor(struct ath_hw *ah,
-			  const struct ath9k_node_stats *stats,
 			  struct ath9k_channel *chan)
 {
 	struct ar5416AniState *aniState;
@@ -550,7 +549,6 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah,
 		return;
 
 	aniState = ah->curani;
-	ah->stats.ast_nodestats = *stats;
 
 	listenTime = ath9k_hw_ani_get_listen_time(ah);
 	if (listenTime < 0) {
@@ -693,8 +691,7 @@ u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah,
  * any of the MIB counters overflow/trigger so don't assume we're
  * here because a PHY error counter triggered.
  */
-void ath9k_hw_procmibevent(struct ath_hw *ah,
-			   const struct ath9k_node_stats *stats)
+void ath9k_hw_procmibevent(struct ath_hw *ah)
 {
 	u32 phyCnt1, phyCnt2;
 
@@ -706,7 +703,6 @@ void ath9k_hw_procmibevent(struct ath_hw *ah,
 
 	/* Clear the mib counters and save them in the stats */
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
-	ah->stats.ast_nodestats = *stats;
 
 	if (!DO_ANI(ah))
 		return;

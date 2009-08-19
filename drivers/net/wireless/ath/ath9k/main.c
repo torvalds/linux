@@ -384,7 +384,7 @@ static void ath_ani_calibrate(unsigned long data)
 	if (longcal || shortcal || aniflag) {
 		/* Call ANI routine if necessary */
 		if (aniflag)
-			ath9k_hw_ani_monitor(ah, &sc->nodestats, ah->curchan);
+			ath9k_hw_ani_monitor(ah, ah->curchan);
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
@@ -589,7 +589,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		 * it will clear whatever condition caused
 		 * the interrupt.
 		 */
-		ath9k_hw_procmibevent(ah, &sc->nodestats);
+		ath9k_hw_procmibevent(ah);
 		ath9k_hw_set_interrupts(ah, sc->imask);
 	}
 
@@ -940,10 +940,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_beacon_config(sc, vif);
 
 		/* Reset rssi stats */
-		sc->nodestats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->nodestats.ns_avgrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->nodestats.ns_avgtxrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->nodestats.ns_avgtxrate = ATH_RATE_DUMMY_MARKER;
+		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 		ath_start_ani(sc);
 	} else {
