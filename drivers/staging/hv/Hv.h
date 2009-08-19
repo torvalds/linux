@@ -26,7 +26,6 @@
 #define __HV_H__
 
 #include "include/HvStatus.h"
-#include "include/HvHalApi.h"
 #include "include/HvVpApi.h"
 #include "include/HvSynicApi.h"
 #include "include/HvHcApi.h"

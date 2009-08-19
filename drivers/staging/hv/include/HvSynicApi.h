@@ -298,8 +298,8 @@ typedef struct _HV_TIMER_MESSAGE_PAYLOAD
 {
     u32          TimerIndex;
     u32          Reserved;
-    HV_NANO100_TIME ExpirationTime;     /* When the timer expired */
-    HV_NANO100_TIME DeliveryTime;       /* When the message was delivered */
+    u64 ExpirationTime;     /* When the timer expired */
+    u64 DeliveryTime;       /* When the message was delivered */
 } HV_TIMER_MESSAGE_PAYLOAD, *PHV_TIMER_MESSAGE_PAYLOAD;
 
 
