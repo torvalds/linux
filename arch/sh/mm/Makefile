@@ -4,14 +4,12 @@
 
 obj-y			:= cache.o init.o consistent.o mmap.o
 
-ifndef CONFIG_CACHE_OFF
 cacheops-$(CONFIG_CPU_SH2)		:= cache-sh2.o
 cacheops-$(CONFIG_CPU_SH2A)		:= cache-sh2a.o
 cacheops-$(CONFIG_CPU_SH3)		:= cache-sh3.o
 cacheops-$(CONFIG_CPU_SH4)		:= cache-sh4.o flush-sh4.o
 cacheops-$(CONFIG_CPU_SH5)		:= cache-sh5.o flush-sh4.o
 cacheops-$(CONFIG_SH7705_CACHE_32KB)	+= cache-sh7705.o
-endif
 
 obj-y			+= $(cacheops-y)
 
