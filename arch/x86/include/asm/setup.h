@@ -5,24 +5,6 @@
 
 #define COMMAND_LINE_SIZE 2048
 
-#ifndef __ASSEMBLY__
-
-#include <asm/x86_init.h>
-
-/*
- * Any setup quirks to be performed?
- */
-
-struct x86_quirks {
-	int (*arch_pre_time_init)(void);
-	int (*arch_time_init)(void);
-};
-
-extern void x86_quirk_pre_time_init(void);
-extern void x86_quirk_time_init(void);
-
-#endif /* __ASSEMBLY__ */
-
 #ifdef __i386__
 
 #include <linux/pfn.h>
@@ -42,6 +24,7 @@ extern void x86_quirk_time_init(void);
 
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
+#include <asm/x86_init.h>
 
 /* Interrupt control for vSMPowered x86_64 systems */
 #ifdef CONFIG_X86_64
@@ -60,11 +43,11 @@ static inline void visws_early_detect(void) { }
 static inline int is_visws_box(void) { return 0; }
 #endif
 
-extern struct x86_quirks *x86_quirks;
 extern unsigned long saved_video_mode;
 
 extern void reserve_standard_io_resources(void);
 extern void i386_reserve_resources(void);
+extern void setup_default_timer_irq(void);
 
 #ifndef _SETUP
 

@@ -626,10 +626,6 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static struct x86_quirks default_x86_quirks __initdata;
-
-struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
-
 #ifdef CONFIG_X86_RESERVE_LOW_64K
 static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 {
@@ -1015,45 +1011,6 @@ void __init setup_arch(char **cmdline_p)
 }
 
 #ifdef CONFIG_X86_32
-
-static struct irqaction irq0  = {
-	.handler = timer_interrupt,
-	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
-	.name = "timer"
-};
-
-/**
- * x86_quirk_pre_time_init - do any specific initialisations before.
- *
- **/
-void __init x86_quirk_pre_time_init(void)
-{
-	if (x86_quirks->arch_pre_time_init)
-		x86_quirks->arch_pre_time_init();
-}
-
-/**
- * x86_quirk_time_init - do any specific initialisations for the system timer.
- *
- * Description:
- *	Must plug the system timer interrupt source at HZ into the IRQ listed
- *	in irq_vectors.h:TIMER_IRQ
- **/
-void __init x86_quirk_time_init(void)
-{
-	if (x86_quirks->arch_time_init) {
-		/*
-		 * A nonzero return code does not mean failure, it means
-		 * that the architecture quirk does not want any
-		 * generic (timer) setup to be performed after this:
-		 */
-		if (x86_quirks->arch_time_init())
-			return;
-	}
-
-	irq0.mask = cpumask_of_cpu(0);
-	setup_irq(0, &irq0);
-}
 
 static struct resource video_ram_resource = {
 	.name	= "Video RAM area",

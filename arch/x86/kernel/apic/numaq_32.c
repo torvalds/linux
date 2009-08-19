@@ -129,10 +129,9 @@ void __cpuinit numaq_tsc_disable(void)
 	}
 }
 
-static int __init numaq_pre_time_init(void)
+static void __init numaq_tsc_init(void)
 {
 	numaq_tsc_disable();
-	return 0;
 }
 
 static inline int generate_logical_apicid(int quad, int phys_apicid)
@@ -262,11 +261,6 @@ static void __init smp_read_mpc_oem(struct mpc_table *mpc)
 	}
 }
 
-static struct x86_quirks numaq_x86_quirks __initdata = {
-	.arch_pre_time_init		= numaq_pre_time_init,
-	.arch_time_init			= NULL,
-};
-
 static __init void early_check_numaq(void)
 {
 	/*
@@ -281,13 +275,13 @@ static __init void early_check_numaq(void)
 		early_get_smp_config();
 
 	if (found_numaq) {
-		x86_quirks = &numaq_x86_quirks;
 		x86_init.mpparse.mpc_record = numaq_mpc_record;
 		x86_init.mpparse.setup_ioapic_ids = x86_init_noop;
 		x86_init.mpparse.mpc_apic_id = mpc_apic_id;
 		x86_init.mpparse.smp_read_mpc_oem = smp_read_mpc_oem;
 		x86_init.mpparse.mpc_oem_pci_bus = mpc_oem_pci_bus;
 		x86_init.mpparse.mpc_oem_bus_info = mpc_oem_bus_info;
+		x86_init.timers.tsc_pre_init = numaq_tsc_init;
 	}
 }
 

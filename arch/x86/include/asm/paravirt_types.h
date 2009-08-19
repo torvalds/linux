@@ -88,8 +88,6 @@ struct pv_lazy_ops {
 };
 
 struct pv_time_ops {
-	void (*time_init)(void);
-
 	/* Set and set time of day */
 	unsigned long (*get_wallclock)(void);
 	int (*set_wallclock)(unsigned long);

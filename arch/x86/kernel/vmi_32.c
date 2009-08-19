@@ -817,7 +817,7 @@ static inline int __init activate_vmi(void)
 		vmi_timer_ops.set_alarm = vmi_get_function(VMI_CALL_SetAlarm);
 		vmi_timer_ops.cancel_alarm =
 			 vmi_get_function(VMI_CALL_CancelAlarm);
-		pv_time_ops.time_init = vmi_time_init;
+		x86_init.timers.timer_init = vmi_time_init;
 		pv_time_ops.get_wallclock = vmi_get_wallclock;
 		pv_time_ops.set_wallclock = vmi_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC

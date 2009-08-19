@@ -19,6 +19,7 @@
 #include <linux/mca.h>
 #include <linux/nmi.h>
 
+#include <asm/x86_init.h>
 #include <asm/i8253.h>
 #include <asm/hpet.h>
 #include <asm/vgtod.h>
@@ -127,9 +128,13 @@ void __init hpet_time_init(void)
 	setup_irq(0, &irq0);
 }
 
+static void x86_late_time_init(void)
+{
+	x86_init.timers.timer_init();
+}
+
 void __init time_init(void)
 {
 	tsc_init();
-
-	late_time_init = choose_time_init();
+	late_time_init = x86_late_time_init;
 }

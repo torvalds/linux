@@ -72,7 +72,7 @@ EXPORT_SYMBOL(profile_pc);
  * Time Stamp Counter value at the time of the timer interrupt, so that
  * we later on can estimate the time of day more exactly.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	/* Keep nmi watchdog up to date */
 	inc_irq_stat(irq0_irqs);
@@ -113,25 +113,37 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* Duplicate of time_init() below, with hpet_enable part added */
+static struct irqaction irq0  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
+	.name = "timer"
+};
+
+void __init setup_default_timer_irq(void)
+{
+	irq0.mask = cpumask_of_cpu(0);
+	setup_irq(0, &irq0);
+}
+
+/* Default timer init function */
 void __init hpet_time_init(void)
 {
 	if (!hpet_enable())
 		setup_pit_timer();
-	x86_quirk_time_init();
+	setup_default_timer_irq();
+}
+
+static void x86_late_time_init(void)
+{
+	x86_init.timers.timer_init();
 }
 
 /*
- * This is called directly from init code; we must delay timer setup in the
- * HPET case as we can't make the decision to turn on HPET this early in the
- * boot process.
- *
- * The chosen time_init function will usually be hpet_time_init, above, but
- * in the case of virtual hardware, an alternative function may be substituted.
+ * Initialize TSC and delay the periodic timer init to
+ * late x86_late_time_init() so ioremap works.
  */
 void __init time_init(void)
 {
-	x86_quirk_pre_time_init();
 	tsc_init();
-	late_time_init = choose_time_init();
+	late_time_init = x86_late_time_init;
 }

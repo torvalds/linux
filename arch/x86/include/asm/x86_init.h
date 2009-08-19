@@ -82,9 +82,13 @@ struct x86_init_paging {
  * struct x86_init_timers - platform specific timer setup
  * @setup_perpcu_clockev:	set up the per cpu clock event device for the
  *				boot cpu
+ * @tsc_pre_init:		platform function called before TSC init
+ * @timer_init:			initialize the platform timer (default PIT/HPET)
  */
 struct x86_init_timers {
 	void (*setup_percpu_clockev)(void);
+	void (*tsc_pre_init)(void);
+	void (*timer_init)(void);
 };
 
 /**

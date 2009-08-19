@@ -306,7 +306,6 @@ struct pv_init_ops pv_init_ops = {
 };
 
 struct pv_time_ops pv_time_ops = {
-	.time_init = hpet_time_init,
 	.get_wallclock = native_get_wallclock,
 	.set_wallclock = native_set_wallclock,
 	.sched_clock = native_sched_clock,

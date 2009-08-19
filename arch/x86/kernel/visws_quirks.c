@@ -30,6 +30,7 @@
 #include <asm/setup.h>
 #include <asm/apic.h>
 #include <asm/e820.h>
+#include <asm/time.h>
 #include <asm/io.h>
 
 #include <linux/kernel_stat.h>
@@ -53,7 +54,7 @@ int is_visws_box(void)
 	return visws_board_type >= 0;
 }
 
-static int __init visws_time_init(void)
+static void __init visws_time_init(void)
 {
 	printk(KERN_INFO "Starting Cobalt Timer system clock\n");
 
@@ -66,11 +67,7 @@ static int __init visws_time_init(void)
 	/* Enable (unmask) the timer interrupt */
 	co_cpu_write(CO_CPU_CTRL, co_cpu_read(CO_CPU_CTRL) & ~CO_CTRL_TIMEMASK);
 
-	/*
-	 * Zero return means the generic timer setup code will set up
-	 * the standard vector:
-	 */
-	return 0;
+	setup_default_timer_irq();
 }
 
 /* Replaces the default init_ISA_irqs in the generic setup */
@@ -226,10 +223,6 @@ static void __init visws_find_smp_config(unsigned int reserve)
 
 static void visws_trap_init(void);
 
-static struct x86_quirks visws_x86_quirks __initdata = {
-	.arch_time_init		= visws_time_init,
-};
-
 void __init visws_early_detect(void)
 {
 	int raw;
@@ -241,17 +234,14 @@ void __init visws_early_detect(void)
 		return;
 
 	/*
-	 * Install special quirks for timer, interrupt and memory setup:
-	 * Fall back to generic behavior for traps:
-	 * Override generic MP-table parsing:
+	 * Override the default platform setup functions
 	 */
-	x86_quirks = &visws_x86_quirks;
-
 	x86_init.resources.memory_setup = visws_memory_setup;
 	x86_init.mpparse.get_smp_config = visws_get_smp_config;
 	x86_init.mpparse.find_smp_config = visws_find_smp_config;
 	x86_init.irqs.pre_vector_init = visws_pre_intr_init;
 	x86_init.irqs.trap_init = visws_trap_init;
+	x86_init.timers.timer_init = visws_time_init;
 
 	/*
 	 * Install reboot quirks:

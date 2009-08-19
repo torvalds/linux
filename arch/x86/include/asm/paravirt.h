@@ -34,11 +34,6 @@ static inline int set_wallclock(unsigned long nowtime)
 	return PVOP_CALL1(int, pv_time_ops.set_wallclock, nowtime);
 }
 
-static inline void (*choose_time_init(void))(void)
-{
-	return pv_time_ops.time_init;
-}
-
 /* The paravirtualized CPUID instruction. */
 static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
 			   unsigned int *ecx, unsigned int *edx)

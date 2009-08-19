@@ -11,6 +11,7 @@
 #include <asm/setup.h>
 #include <asm/apic.h>
 #include <asm/e820.h>
+#include <asm/time.h>
 #include <asm/irq.h>
 
 void __cpuinit x86_init_noop(void) { }
@@ -58,6 +59,8 @@ struct __initdata x86_init_ops x86_init = {
 
 	.timers = {
 		.setup_percpu_clockev	= setup_boot_APIC_clock,
+		.tsc_pre_init		= x86_init_noop,
+		.timer_init		= hpet_time_init,
 	},
 };
 

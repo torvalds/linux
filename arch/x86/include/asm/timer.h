@@ -12,8 +12,7 @@ unsigned long native_calibrate_tsc(void);
 
 #ifdef CONFIG_X86_32
 extern int timer_ack;
-extern irqreturn_t timer_interrupt(int irq, void *dev_id);
-#endif /* CONFIG_X86_32 */
+#endif
 extern int recalibrate_cpu_khz(void);
 
 extern int no_timer_check;
