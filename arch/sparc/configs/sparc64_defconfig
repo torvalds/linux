@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.30
-# Tue Jun 16 04:59:36 2009
+# Linux kernel version: 2.6.31-rc1
+# Tue Aug 18 23:56:02 2009
 #
 CONFIG_64BIT=y
 CONFIG_SPARC=y
@@ -26,6 +26,7 @@ CONFIG_ARCH_NO_VIRT_TO_BUS=y
 CONFIG_OF=y
 CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC=y
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
+CONFIG_CONSTRUCTORS=y
 
 #
 # General setup
@@ -119,6 +120,11 @@ CONFIG_HAVE_KPROBES=y
 CONFIG_HAVE_KRETPROBES=y
 CONFIG_HAVE_ARCH_TRACEHOOK=y
 CONFIG_USE_GENERIC_SMP_HELPERS=y
+
+#
+# GCOV-based kernel profiling
+#
+# CONFIG_GCOV_KERNEL is not set
 # CONFIG_SLOW_WORK is not set
 # CONFIG_HAVE_GENERIC_DMA_COHERENT is not set
 CONFIG_SLABINFO=y
@@ -204,7 +210,6 @@ CONFIG_MIGRATION=y
 CONFIG_PHYS_ADDR_T_64BIT=y
 CONFIG_ZONE_DMA_FLAG=0
 CONFIG_NR_QUICK=1
-CONFIG_UNEVICTABLE_LRU=y
 CONFIG_HAVE_MLOCK=y
 CONFIG_HAVE_MLOCKED_PAGE_BIT=y
 CONFIG_DEFAULT_MMAP_MIN_ADDR=8192
@@ -410,6 +415,7 @@ CONFIG_MISC_DEVICES=y
 #
 # CONFIG_EEPROM_AT24 is not set
 # CONFIG_EEPROM_LEGACY is not set
+# CONFIG_EEPROM_MAX6875 is not set
 # CONFIG_EEPROM_93CX6 is not set
 # CONFIG_CB710_CORE is not set
 CONFIG_HAVE_IDE=y
@@ -562,6 +568,7 @@ CONFIG_BLK_DEV_DM=m
 CONFIG_DM_CRYPT=m
 CONFIG_DM_SNAPSHOT=m
 CONFIG_DM_MIRROR=m
+# CONFIG_DM_LOG_USERSPACE is not set
 CONFIG_DM_ZERO=m
 # CONFIG_DM_MULTIPATH is not set
 # CONFIG_DM_DELAY is not set
@@ -573,7 +580,11 @@ CONFIG_DM_ZERO=m
 #
 
 #
-# Enable only one of the two stacks, unless you know what you are doing
+# You can enable one or both FireWire driver stacks.
+#
+
+#
+# See the help texts for more information.
 #
 # CONFIG_FIREWIRE is not set
 # CONFIG_IEEE1394 is not set
@@ -667,6 +678,7 @@ CONFIG_E1000E=m
 # CONFIG_VIA_VELOCITY is not set
 CONFIG_TIGON3=m
 CONFIG_BNX2=m
+# CONFIG_CNIC is not set
 # CONFIG_QLA3XXX is not set
 # CONFIG_ATL1 is not set
 # CONFIG_ATL1E is not set
@@ -773,6 +785,7 @@ CONFIG_MOUSE_SERIAL=y
 # CONFIG_MOUSE_APPLETOUCH is not set
 # CONFIG_MOUSE_BCM5974 is not set
 # CONFIG_MOUSE_VSXXXAA is not set
+# CONFIG_MOUSE_SYNAPTICS_I2C is not set
 # CONFIG_INPUT_JOYSTICK is not set
 # CONFIG_INPUT_TABLET is not set
 # CONFIG_INPUT_TOUCHSCREEN is not set
@@ -870,6 +883,7 @@ CONFIG_I2C_ALGOBIT=y
 #
 # I2C system bus drivers (mostly embedded / system-on-chip)
 #
+# CONFIG_I2C_DESIGNWARE is not set
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_SIMTEC is not set
 
@@ -898,13 +912,17 @@ CONFIG_I2C_ALGOBIT=y
 # CONFIG_SENSORS_PCF8574 is not set
 # CONFIG_PCF8575 is not set
 # CONFIG_SENSORS_PCA9539 is not set
-# CONFIG_SENSORS_MAX6875 is not set
 # CONFIG_SENSORS_TSL2550 is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set
 # CONFIG_I2C_DEBUG_CHIP is not set
 # CONFIG_SPI is not set
+
+#
+# PPS support
+#
+# CONFIG_PPS is not set
 CONFIG_ARCH_WANT_OPTIONAL_GPIOLIB=y
 # CONFIG_GPIOLIB is not set
 # CONFIG_W1 is not set
@@ -959,6 +977,7 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_SMSC47B397 is not set
 # CONFIG_SENSORS_ADS7828 is not set
 # CONFIG_SENSORS_THMC50 is not set
+# CONFIG_SENSORS_TMP401 is not set
 # CONFIG_SENSORS_VIA686A is not set
 # CONFIG_SENSORS_VT1211 is not set
 # CONFIG_SENSORS_VT8231 is not set
@@ -994,23 +1013,9 @@ CONFIG_SSB_POSSIBLE=y
 # CONFIG_MFD_WM8400 is not set
 # CONFIG_MFD_WM8350_I2C is not set
 # CONFIG_MFD_PCF50633 is not set
+# CONFIG_AB3100_CORE is not set
 # CONFIG_REGULATOR is not set
-
-#
-# Multimedia devices
-#
-
-#
-# Multimedia core support
-#
-# CONFIG_VIDEO_DEV is not set
-# CONFIG_DVB_CORE is not set
-# CONFIG_VIDEO_MEDIA is not set
-
-#
-# Multimedia drivers
-#
-# CONFIG_DAB is not set
+# CONFIG_MEDIA_SUPPORT is not set
 
 #
 # Graphics support
@@ -1284,7 +1289,6 @@ CONFIG_USB=y
 #
 # Miscellaneous USB options
 #
-CONFIG_USB_DEVICEFS=y
 # CONFIG_USB_DEVICE_CLASS is not set
 # CONFIG_USB_DYNAMIC_MINORS is not set
 # CONFIG_USB_OTG is not set
@@ -1296,6 +1300,7 @@ CONFIG_USB_DEVICEFS=y
 # USB Host Controller Drivers
 #
 # CONFIG_USB_C67X00_HCD is not set
+# CONFIG_USB_XHCI_HCD is not set
 CONFIG_USB_EHCI_HCD=m
 # CONFIG_USB_EHCI_ROOT_HUB_TT is not set
 # CONFIG_USB_EHCI_TT_NEWSCHED is not set
@@ -1374,7 +1379,6 @@ CONFIG_USB_STORAGE=m
 # CONFIG_USB_LD is not set
 # CONFIG_USB_TRANCEVIBRATOR is not set
 # CONFIG_USB_IOWARRIOR is not set
-# CONFIG_USB_TEST is not set
 # CONFIG_USB_ISIGHTFW is not set
 # CONFIG_USB_VST is not set
 # CONFIG_USB_GADGET is not set
@@ -1420,6 +1424,7 @@ CONFIG_RTC_INTF_DEV=y
 # CONFIG_RTC_DRV_S35390A is not set
 # CONFIG_RTC_DRV_FM3130 is not set
 # CONFIG_RTC_DRV_RX8581 is not set
+# CONFIG_RTC_DRV_RX8025 is not set
 
 #
 # SPI RTC drivers
@@ -1448,6 +1453,10 @@ CONFIG_RTC_DRV_STARFIRE=y
 # CONFIG_DMADEVICES is not set
 # CONFIG_AUXDISPLAY is not set
 # CONFIG_UIO is not set
+
+#
+# TI VLYNQ
+#
 # CONFIG_STAGING is not set
 
 #
@@ -1480,11 +1489,11 @@ CONFIG_FS_MBCACHE=y
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
 CONFIG_FS_POSIX_ACL=y
-CONFIG_FILE_LOCKING=y
 # CONFIG_XFS_FS is not set
 # CONFIG_GFS2_FS is not set
 # CONFIG_OCFS2_FS is not set
 # CONFIG_BTRFS_FS is not set
+CONFIG_FILE_LOCKING=y
 CONFIG_FSNOTIFY=y
 CONFIG_DNOTIFY=y
 CONFIG_INOTIFY=y
@@ -1560,7 +1569,7 @@ CONFIG_NETWORK_FILESYSTEMS=y
 # CONFIG_PARTITION_ADVANCED is not set
 CONFIG_MSDOS_PARTITION=y
 CONFIG_SUN_PARTITION=y
-CONFIG_NLS=m
+CONFIG_NLS=y
 CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_NLS_CODEPAGE_437 is not set
 # CONFIG_NLS_CODEPAGE_737 is not set
