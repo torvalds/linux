@@ -1431,6 +1431,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		*otherwise divide it according to the speed
 		*of the channel we are going to transmit on
 		*/
+		flen = len;
 		if (nfree > 0) {
 			if (pch->speed == 0) {
 				flen = totlen/nfree	;
