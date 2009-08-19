@@ -69,7 +69,7 @@ extern int hpet_force_user;
 extern int is_hpet_enabled(void);
 extern int hpet_enable(void);
 extern void hpet_disable(void);
-extern unsigned long hpet_readl(unsigned long a);
+extern unsigned int hpet_readl(unsigned int a);
 extern void force_hpet_resume(void);
 
 extern void hpet_msi_unmask(unsigned int irq);
