@@ -29,6 +29,9 @@ void __init i386_start_kernel(void)
 		reserve_early(ramdisk_image, ramdisk_end, "RAMDISK");
 	}
 #endif
+	/* Initilize 32bit specific setup functions */
+	x86_init.resources.probe_roms = probe_roms;
+
 	reserve_ebda_region();
 
 	/*

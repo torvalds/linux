@@ -14,4 +14,8 @@ void __cpuinit x86_init_noop(void) { }
  * for standard PC hardware.
  */
 struct __initdata x86_init_ops x86_init = {
+
+	.resources = {
+		.probe_roms		= x86_init_noop,
+	},
 };

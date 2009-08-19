@@ -835,9 +835,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	init_hypervisor(&boot_cpu_data);
 
-#ifdef CONFIG_X86_32
-	probe_roms();
-#endif
+	x86_init.resources.probe_roms();
 
 	/* after parse_early_param, so could debug it */
 	insert_resource(&iomem_resource, &code_resource);
