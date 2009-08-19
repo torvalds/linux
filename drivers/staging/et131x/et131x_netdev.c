@@ -308,7 +308,7 @@ int et131x_close(struct net_device *netdev)
 int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 {
 	int status = 0;
-	struct et131x_adapter *pAdapter = netdev_priv(netdev);
+	struct et131x_adapter *etdev = netdev_priv(netdev);
 	struct mii_ioctl_data *data = if_mii(reqbuf);
 
 	DBG_ENTER(et131x_dbginfo);
@@ -316,7 +316,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		DBG_VERBOSE(et131x_dbginfo, "SIOCGMIIPHY\n");
-		data->phy_id = pAdapter->Stats.xcvr_addr;
+		data->phy_id = etdev->Stats.xcvr_addr;
 		break;
 
 	case SIOCGMIIREG:
@@ -324,7 +324,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 		if (!capable(CAP_NET_ADMIN)) {
 			status = -EPERM;
 		} else {
-			status = MiRead(pAdapter,
+			status = MiRead(etdev,
 					data->reg_num, &data->val_out);
 		}
 		break;
@@ -334,7 +334,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 		if (!capable(CAP_NET_ADMIN)) {
 			status = -EPERM;
 		} else {
-			status = MiWrite(pAdapter, data->reg_num,
+			status = MiWrite(etdev, data->reg_num,
 					 data->val_in);
 		}
 		break;
@@ -608,14 +608,14 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
  */
 void et131x_tx_timeout(struct net_device *netdev)
 {
-	struct et131x_adapter *pAdapter = netdev_priv(netdev);
+	struct et131x_adapter *etdev = netdev_priv(netdev);
 	PMP_TCB pMpTcb;
 	unsigned long lockflags;
 
 	DBG_WARNING(et131x_dbginfo, "TX TIMEOUT\n");
 
 	/* Just skip this part if the adapter is doing link detection */
-	if (MP_TEST_FLAG(pAdapter, fMP_ADAPTER_LINK_DETECTION)) {
+	if (MP_TEST_FLAG(etdev, fMP_ADAPTER_LINK_DETECTION)) {
 		DBG_ERROR(et131x_dbginfo, "Still doing link detection\n");
 		return;
 	}
@@ -623,21 +623,21 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
-	if (MP_TEST_FLAG(pAdapter, fMP_ADAPTER_NON_RECOVER_ERROR)) {
+	if (MP_TEST_FLAG(etdev, fMP_ADAPTER_NON_RECOVER_ERROR)) {
 		DBG_WARNING(et131x_dbginfo, "Non recoverable error - remove\n");
 		return;
 	}
 
 	/* Hardware failure? */
-	if (MP_TEST_FLAG(pAdapter, fMP_ADAPTER_HARDWARE_ERROR)) {
+	if (MP_TEST_FLAG(etdev, fMP_ADAPTER_HARDWARE_ERROR)) {
 		DBG_WARNING(et131x_dbginfo, "hardware error - reset\n");
 		return;
 	}
 
 	/* Is send stuck? */
-	spin_lock_irqsave(&pAdapter->TCBSendQLock, lockflags);
+	spin_lock_irqsave(&etdev->TCBSendQLock, lockflags);
 
-	pMpTcb = pAdapter->TxRing.CurrSendHead;
+	pMpTcb = etdev->TxRing.CurrSendHead;
 
 	if (pMpTcb != NULL) {
 		pMpTcb->Count++;
@@ -645,21 +645,21 @@ void et131x_tx_timeout(struct net_device *netdev)
 		if (pMpTcb->Count > NIC_SEND_HANG_THRESHOLD) {
 #ifdef CONFIG_ET131X_DEBUG
 			TX_STATUS_BLOCK_t txDmaComplete =
-			    *(pAdapter->TxRing.pTxStatusVa);
+			    *(etdev->TxRing.pTxStatusVa);
 			PTX_DESC_ENTRY_t pDesc =
-			    pAdapter->TxRing.pTxDescRingVa +
+			    etdev->TxRing.pTxDescRingVa +
 			    pMpTcb->WrIndex.bits.val;
 #endif
 			TX_DESC_ENTRY_t StuckDescriptors[10];
 
 			if (pMpTcb->WrIndex.bits.val > 7) {
 				memcpy(StuckDescriptors,
-				       pAdapter->TxRing.pTxDescRingVa +
+				       etdev->TxRing.pTxDescRingVa +
 				       pMpTcb->WrIndex.bits.val - 6,
 				       sizeof(TX_DESC_ENTRY_t) * 10);
 			}
 
-			spin_unlock_irqrestore(&pAdapter->TCBSendQLock,
+			spin_unlock_irqrestore(&etdev->TCBSendQLock,
 					       lockflags);
 
 			DBG_WARNING(et131x_dbginfo,
@@ -677,10 +677,10 @@ void et131x_tx_timeout(struct net_device *netdev)
 				    "WbStatus 0x%08x\n", txDmaComplete.value);
 
 #ifdef CONFIG_ET131X_DEBUG
-			DumpDeviceBlock(DBG_WARNING_ON, pAdapter, 0);
-			DumpDeviceBlock(DBG_WARNING_ON, pAdapter, 1);
-			DumpDeviceBlock(DBG_WARNING_ON, pAdapter, 3);
-			DumpDeviceBlock(DBG_WARNING_ON, pAdapter, 5);
+			DumpDeviceBlock(DBG_WARNING_ON, etdev, 0);
+			DumpDeviceBlock(DBG_WARNING_ON, etdev, 1);
+			DumpDeviceBlock(DBG_WARNING_ON, etdev, 3);
+			DumpDeviceBlock(DBG_WARNING_ON, etdev, 5);
 #endif
 			et131x_close(netdev);
 			et131x_open(netdev);
@@ -689,7 +689,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 		}
 	}
 
-	spin_unlock_irqrestore(&pAdapter->TCBSendQLock, lockflags);
+	spin_unlock_irqrestore(&etdev->TCBSendQLock, lockflags);
 }
 
 /**

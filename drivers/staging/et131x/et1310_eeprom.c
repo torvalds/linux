@@ -143,7 +143,7 @@
 
 /**
  * EepromWriteByte - Write a byte to the ET1310's EEPROM
- * @pAdapter: pointer to our private adapter structure
+ * @etdev: pointer to our private adapter structure
  * @unAddress: the address to write
  * @bData: the value to write
  * @unEepronId: the ID of the EEPROM
@@ -151,11 +151,11 @@
  *
  * Returns SUCCESS or FAILURE
  */
-int32_t EepromWriteByte(struct et131x_adapter *pAdapter, uint32_t unAddress,
+int32_t EepromWriteByte(struct et131x_adapter *etdev, uint32_t unAddress,
 			uint8_t bData, uint32_t unEepromId,
 			uint32_t unAddressingMode)
 {
-	struct pci_dev *pdev = pAdapter->pdev;
+	struct pci_dev *pdev = etdev->pdev;
 	int32_t nIndex;
 	int32_t nRetries;
 	int32_t nError = false;
@@ -292,7 +292,7 @@ int32_t EepromWriteByte(struct et131x_adapter *pAdapter, uint32_t unAddress,
 		 *	   so we do a blind write for load bug.
 		 */
 		if (bStatus & LBCIF_STATUS_GENERAL_ERROR
-		    && pAdapter->RevisionID == 0) {
+		    && etdev->RevisionID == 0) {
 			break;
 		}
 
@@ -349,7 +349,7 @@ int32_t EepromWriteByte(struct et131x_adapter *pAdapter, uint32_t unAddress,
 
 /**
  * EepromReadByte - Read a byte from the ET1310's EEPROM
- * @pAdapter: pointer to our private adapter structure
+ * @etdev: pointer to our private adapter structure
  * @unAddress: the address from which to read
  * @pbData: a pointer to a byte in which to store the value of the read
  * @unEepronId: the ID of the EEPROM
@@ -357,11 +357,11 @@ int32_t EepromWriteByte(struct et131x_adapter *pAdapter, uint32_t unAddress,
  *
  * Returns SUCCESS or FAILURE
  */
-int32_t EepromReadByte(struct et131x_adapter *pAdapter, uint32_t unAddress,
+int32_t EepromReadByte(struct et131x_adapter *etdev, uint32_t unAddress,
 		       uint8_t *pbData, uint32_t unEepromId,
 		       uint32_t unAddressingMode)
 {
-	struct pci_dev *pdev = pAdapter->pdev;
+	struct pci_dev *pdev = etdev->pdev;
 	int32_t nIndex;
 	int32_t nError = 0;
 	uint8_t bControl;

@@ -202,12 +202,12 @@ MODULE_PARM_DESC(et131x_speed_set,
 
 /**
  * et131x_config_parse
- * @pAdapter: pointer to the private adapter struct
+ * @etdev: pointer to the private adapter struct
  *
  * Parses a configuration from some location (module parameters, for example)
  * into the private adapter struct
  */
-void et131x_config_parse(struct et131x_adapter *pAdapter)
+void et131x_config_parse(struct et131x_adapter *etdev)
 {
 	uint8_t macAddrDef[] = PARM_MAC_ADDRESS_DEF;
 
@@ -237,85 +237,85 @@ void et131x_config_parse(struct et131x_adapter *pAdapter)
 	if (et131x_speed_set != PARM_SPEED_DUPLEX_DEF) {
 		DBG_VERBOSE(et131x_dbginfo, "Speed set manually to : %d \n",
 			    et131x_speed_set);
-		pAdapter->SpeedDuplex = et131x_speed_set;
+		etdev->SpeedDuplex = et131x_speed_set;
 	} else {
-		pAdapter->SpeedDuplex = PARM_SPEED_DUPLEX_DEF;
+		etdev->SpeedDuplex = PARM_SPEED_DUPLEX_DEF;
 	}
 
-	/*  pAdapter->SpeedDuplex            = PARM_SPEED_DUPLEX_DEF; */
+	/*  etdev->SpeedDuplex            = PARM_SPEED_DUPLEX_DEF; */
 
-	pAdapter->RegistryVlanTag = PARM_VLAN_TAG_DEF;
-	pAdapter->RegistryFlowControl = PARM_FLOW_CTL_DEF;
-	pAdapter->RegistryWOLLink = PARM_WOL_LINK_DEF;
-	pAdapter->RegistryWOLMatch = PARM_WOL_MATCH_DEF;
-	pAdapter->RegistryJumboPacket = PARM_JUMBO_PKT_DEF;
-	pAdapter->RegistryPhyComa = PARM_PHY_COMA_DEF;
-	pAdapter->RegistryRxNumBuffers = PARM_RX_NUM_BUFS_DEF;
-	pAdapter->RegistryRxTimeInterval = PARM_RX_TIME_INT_DEF;
-	pAdapter->RegistryTxNumBuffers = PARM_TX_NUM_BUFS_DEF;
-	pAdapter->RegistryTxTimeInterval = PARM_TX_TIME_INT_DEF;
-	pAdapter->RegistryRxMemEnd = PARM_RX_MEM_END_DEF;
-	pAdapter->RegistryMACStat = PARM_MAC_STAT_DEF;
-	pAdapter->RegistrySCGain = PARM_SC_GAIN_DEF;
-	pAdapter->RegistryPMWOL = PARM_PM_WOL_DEF;
+	etdev->RegistryVlanTag = PARM_VLAN_TAG_DEF;
+	etdev->RegistryFlowControl = PARM_FLOW_CTL_DEF;
+	etdev->RegistryWOLLink = PARM_WOL_LINK_DEF;
+	etdev->RegistryWOLMatch = PARM_WOL_MATCH_DEF;
+	etdev->RegistryJumboPacket = PARM_JUMBO_PKT_DEF;
+	etdev->RegistryPhyComa = PARM_PHY_COMA_DEF;
+	etdev->RegistryRxNumBuffers = PARM_RX_NUM_BUFS_DEF;
+	etdev->RegistryRxTimeInterval = PARM_RX_TIME_INT_DEF;
+	etdev->RegistryTxNumBuffers = PARM_TX_NUM_BUFS_DEF;
+	etdev->RegistryTxTimeInterval = PARM_TX_TIME_INT_DEF;
+	etdev->RegistryRxMemEnd = PARM_RX_MEM_END_DEF;
+	etdev->RegistryMACStat = PARM_MAC_STAT_DEF;
+	etdev->RegistrySCGain = PARM_SC_GAIN_DEF;
+	etdev->RegistryPMWOL = PARM_PM_WOL_DEF;
 
 	if (et131x_nmi_disable != PARM_NMI_DISABLE_DEF)
-		pAdapter->RegistryNMIDisable = et131x_nmi_disable;
+		etdev->RegistryNMIDisable = et131x_nmi_disable;
 	else
-		pAdapter->RegistryNMIDisable = PARM_NMI_DISABLE_DEF;
+		etdev->RegistryNMIDisable = PARM_NMI_DISABLE_DEF;
 
-	pAdapter->RegistryDMACache = PARM_DMA_CACHE_DEF;
-	pAdapter->RegistryPhyLoopbk = PARM_PHY_LOOPBK_DEF;
+	etdev->RegistryDMACache = PARM_DMA_CACHE_DEF;
+	etdev->RegistryPhyLoopbk = PARM_PHY_LOOPBK_DEF;
 
 	/* Set the MAC address to a default */
-	memcpy(pAdapter->CurrentAddress, macAddrDef, ETH_ALEN);
-	pAdapter->bOverrideAddress = false;
+	memcpy(etdev->CurrentAddress, macAddrDef, ETH_ALEN);
+	etdev->bOverrideAddress = false;
 
 	DBG_TRACE(et131x_dbginfo,
 		  "Default MAC Address  : %02x:%02x:%02x:%02x:%02x:%02x\n",
-		  pAdapter->CurrentAddress[0], pAdapter->CurrentAddress[1],
-		  pAdapter->CurrentAddress[2], pAdapter->CurrentAddress[3],
-		  pAdapter->CurrentAddress[4], pAdapter->CurrentAddress[5]);
+		  etdev->CurrentAddress[0], etdev->CurrentAddress[1],
+		  etdev->CurrentAddress[2], etdev->CurrentAddress[3],
+		  etdev->CurrentAddress[4], etdev->CurrentAddress[5]);
 
 	/* Decode SpeedDuplex
 	 *
 	 * Set up as if we are auto negotiating always and then change if we
 	 * go into force mode
 	 */
-	pAdapter->AiForceSpeed = 0;	/* Auto speed */
-	pAdapter->AiForceDpx = 0;	/* Auto FDX */
+	etdev->AiForceSpeed = 0;	/* Auto speed */
+	etdev->AiForceDpx = 0;	/* Auto FDX */
 
 	/* If we are the 10/100 device, and gigabit is somehow requested then
 	 * knock it down to 100 full.
 	 */
-	if (pAdapter->DeviceID == ET131X_PCI_DEVICE_ID_FAST &&
-	    pAdapter->SpeedDuplex == 5)
-		pAdapter->SpeedDuplex = 4;
+	if (etdev->DeviceID == ET131X_PCI_DEVICE_ID_FAST &&
+	    etdev->SpeedDuplex == 5)
+		etdev->SpeedDuplex = 4;
 
-	switch (pAdapter->SpeedDuplex) {
+	switch (etdev->SpeedDuplex) {
 	case 1:		/* 10Mb   Half-Duplex */
-		pAdapter->AiForceSpeed = 10;
-		pAdapter->AiForceDpx = 1;
+		etdev->AiForceSpeed = 10;
+		etdev->AiForceDpx = 1;
 		break;
 
 	case 2:		/* 10Mb   Full-Duplex */
-		pAdapter->AiForceSpeed = 10;
-		pAdapter->AiForceDpx = 2;
+		etdev->AiForceSpeed = 10;
+		etdev->AiForceDpx = 2;
 		break;
 
 	case 3:		/* 100Mb  Half-Duplex */
-		pAdapter->AiForceSpeed = 100;
-		pAdapter->AiForceDpx = 1;
+		etdev->AiForceSpeed = 100;
+		etdev->AiForceDpx = 1;
 		break;
 
 	case 4:		/* 100Mb  Full-Duplex */
-		pAdapter->AiForceSpeed = 100;
-		pAdapter->AiForceDpx = 2;
+		etdev->AiForceSpeed = 100;
+		etdev->AiForceDpx = 2;
 		break;
 
 	case 5:		/* 1000Mb Full-Duplex */
-		pAdapter->AiForceSpeed = 1000;
-		pAdapter->AiForceDpx = 2;
+		etdev->AiForceSpeed = 1000;
+		etdev->AiForceDpx = 2;
 		break;
 	}
 

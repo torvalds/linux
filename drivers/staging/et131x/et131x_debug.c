@@ -106,11 +106,11 @@ extern dbg_info_t *et131x_dbginfo;
 
 /**
  * DumpTxQueueContents - Dump out the tx queue and the shadow pointers
- * @pAdapter: pointer to our adapter structure
+ * @etdev: pointer to our adapter structure
  */
-void DumpTxQueueContents(int dbgLvl, struct et131x_adapter *pAdapter)
+void DumpTxQueueContents(int dbgLvl, struct et131x_adapter *etdev)
 {
-	MMC_t __iomem *mmc = &pAdapter->CSRAddress->mmc;
+	MMC_t __iomem *mmc = &etdev->CSRAddress->mmc;
 	uint32_t TxQueueAddr;
 
 	if (DBG_FLAGS(et131x_dbginfo) & dbgLvl) {
@@ -134,24 +134,24 @@ void DumpTxQueueContents(int dbgLvl, struct et131x_adapter *pAdapter)
 		}
 
 		DBG_PRINT("Shadow Pointers 0x%08x\n",
-			  readl(&pAdapter->CSRAddress->txmac.shadow_ptr.value));
+			  readl(&etdev->CSRAddress->txmac.shadow_ptr.value));
 	}
 }
 
 /**
  * DumpDeviceBlock
- * @pAdapter: pointer to our adapter
+ * @etdev: pointer to our adapter
  *
  * Dumps the first 64 regs of each block of the et-1310 (each block is
  * mapped to a new page, each page is 4096 bytes).
  */
 #define NUM_BLOCKS 8
-void DumpDeviceBlock(int dbgLvl, struct et131x_adapter *pAdapter,
+void DumpDeviceBlock(int dbgLvl, struct et131x_adapter *etdev,
 		     uint32_t Block)
 {
 	uint32_t Address1, Address2;
 	uint32_t __iomem *BigDevicePointer =
-		(uint32_t __iomem *) pAdapter->CSRAddress;
+		(uint32_t __iomem *) etdev->CSRAddress;
 	const char *BlockNames[NUM_BLOCKS] = {
 		"Global", "Tx DMA", "Rx DMA", "Tx MAC",
 		"Rx MAC", "MAC", "MAC Stat", "MMC"
@@ -179,17 +179,17 @@ void DumpDeviceBlock(int dbgLvl, struct et131x_adapter *pAdapter,
 
 /**
  * DumpDeviceReg
- * @pAdapter: pointer to our adapter
+ * @etdev: pointer to our adapter
  *
  * Dumps the first 64 regs of each block of the et-1310 (each block is
  * mapped to a new page, each page is 4096 bytes).
  */
-void DumpDeviceReg(int dbgLvl, struct et131x_adapter *pAdapter)
+void DumpDeviceReg(int dbgLvl, struct et131x_adapter *etdev)
 {
 	uint32_t Address1, Address2;
 	uint32_t Block;
 	uint32_t __iomem *BigDevicePointer =
-		(uint32_t __iomem *) pAdapter->CSRAddress;
+		(uint32_t __iomem *) etdev->CSRAddress;
 	uint32_t __iomem *Pointer;
 	const char *BlockNames[NUM_BLOCKS] = {
 		"Global", "Tx DMA", "Rx DMA", "Tx MAC",

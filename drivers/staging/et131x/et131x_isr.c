@@ -211,10 +211,10 @@ out:
  */
 void et131x_isr_handler(struct work_struct *work)
 {
-	struct et131x_adapter *pAdapter =
+	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
-	INTERRUPT_t GlobStatus = pAdapter->Stats.InterruptStatus;
-	ADDRESS_MAP_t __iomem *iomem = pAdapter->CSRAddress;
+	INTERRUPT_t GlobStatus = etdev->Stats.InterruptStatus;
+	ADDRESS_MAP_t __iomem *iomem = etdev->CSRAddress;
 
 	/*
 	 * These first two are by far the most common.  Once handled, we clear
@@ -224,13 +224,13 @@ void et131x_isr_handler(struct work_struct *work)
 	/* Handle all the completed Transmit interrupts */
 	if (GlobStatus.bits.txdma_isr) {
 		DBG_TX(et131x_dbginfo, "TXDMA_ISR interrupt\n");
-		et131x_handle_send_interrupt(pAdapter);
+		et131x_handle_send_interrupt(etdev);
 	}
 
 	/* Handle all the completed Receives interrupts */
 	if (GlobStatus.bits.rxdma_xfr_done) {
 		DBG_RX(et131x_dbginfo, "RXDMA_XFR_DONE interrupt\n");
-		et131x_handle_recv_interrupt(pAdapter);
+		et131x_handle_recv_interrupt(etdev);
 	}
 
 	GlobStatus.value &= 0xffffffd7;
@@ -272,8 +272,8 @@ void et131x_isr_handler(struct work_struct *work)
 			/* If the user has flow control on, then we will
 			 * send a pause packet, otherwise just exit
 			 */
-			if (pAdapter->FlowControl == TxOnly ||
-			    pAdapter->FlowControl == Both) {
+			if (etdev->FlowControl == TxOnly ||
+			    etdev->FlowControl == Both) {
 				PM_CSR_t pm_csr;
 
 				/* Tell the device to send a pause packet via
@@ -330,11 +330,11 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			/* TRAP();*/
 
-			pAdapter->TxMacTest.value =
+			etdev->TxMacTest.value =
 				readl(&iomem->txmac.tx_test.value);
 			DBG_WARNING(et131x_dbginfo,
 				    "RxDMA_ERR interrupt, error %x\n",
-				    pAdapter->TxMacTest.value);
+				    etdev->TxMacTest.value);
 		}
 
 		/* Handle the Wake on LAN Event */
@@ -370,23 +370,23 @@ void et131x_isr_handler(struct work_struct *work)
 				DBG_VERBOSE(et131x_dbginfo,
 					    "Device is in COMA mode, "
 					    "need to wake up\n");
-				DisablePhyComa(pAdapter);
+				DisablePhyComa(etdev);
 			}
 
 			/* Read the PHY ISR to clear the reason for the
 			 * interrupt.
 			 */
-			MiRead(pAdapter, (uint8_t) offsetof(MI_REGS_t, isr),
+			MiRead(etdev, (uint8_t) offsetof(MI_REGS_t, isr),
 			       &myIsr.value);
 
-			if (!pAdapter->ReplicaPhyLoopbk) {
-				MiRead(pAdapter,
+			if (!etdev->ReplicaPhyLoopbk) {
+				MiRead(etdev,
 				       (uint8_t) offsetof(MI_REGS_t, bmsr),
 				       &BmsrData.value);
 
 				BmsrInts.value =
-				    pAdapter->Bmsr.value ^ BmsrData.value;
-				pAdapter->Bmsr.value = BmsrData.value;
+				    etdev->Bmsr.value ^ BmsrData.value;
+				etdev->Bmsr.value = BmsrData.value;
 
 				DBG_VERBOSE(et131x_dbginfo,
 					    "Bmsr.value = 0x%04x,"
@@ -394,13 +394,13 @@ void et131x_isr_handler(struct work_struct *work)
 					    BmsrData.value, BmsrInts.value);
 
 				/* Do all the cable in / cable out stuff */
-				et131x_Mii_check(pAdapter, BmsrData, BmsrInts);
+				et131x_Mii_check(etdev, BmsrData, BmsrInts);
 			}
 		}
 
 		/* Let's move on to the TxMac */
 		if (GlobStatus.bits.txmac_interrupt) {
-			pAdapter->TxRing.TxMacErr.value =
+			etdev->TxRing.TxMacErr.value =
 				readl(&iomem->txmac.err.value);
 
 			/*
@@ -415,7 +415,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			DBG_WARNING(et131x_dbginfo,
 				    "TXMAC interrupt, error 0x%08x\n",
-				    pAdapter->TxRing.TxMacErr.value);
+				    etdev->TxRing.TxMacErr.value);
 
 			/* If we are debugging, we want to see this error,
 			 * otherwise we just want the device to be reset and
@@ -432,7 +432,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * set the flag to cause us to reset so we can solve
 			 * this issue.
 			 */
-			/* MP_SET_FLAG( pAdapter,
+			/* MP_SET_FLAG( etdev,
 						fMP_ADAPTER_HARDWARE_ERROR); */
 
 			DBG_WARNING(et131x_dbginfo,
@@ -461,7 +461,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * counter(s).
 			 */
 			DBG_VERBOSE(et131x_dbginfo, "MAC_STAT interrupt\n");
-			HandleMacStatInterrupt(pAdapter);
+			HandleMacStatInterrupt(etdev);
 		}
 
 		/* Handle SLV Timeout Interrupt */
@@ -479,6 +479,6 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 	}
 
-	if (pAdapter->PoMgmt.PowerState == NdisDeviceStateD0)
-		et131x_enable_interrupts(pAdapter);
+	if (etdev->PoMgmt.PowerState == NdisDeviceStateD0)
+		et131x_enable_interrupts(etdev);
 }

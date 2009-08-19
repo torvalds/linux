@@ -447,40 +447,40 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
  */
 void et131x_error_timer_handler(unsigned long data)
 {
-	struct et131x_adapter *pAdapter = (struct et131x_adapter *) data;
+	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
 	PM_CSR_t pm_csr;
 
-	pm_csr.value = readl(&pAdapter->CSRAddress->global.pm_csr.value);
+	pm_csr.value = readl(&etdev->CSRAddress->global.pm_csr.value);
 
 	if (pm_csr.bits.pm_phy_sw_coma == 0) {
-		if (pAdapter->RegistryMACStat)
-			UpdateMacStatHostCounters(pAdapter);
+		if (etdev->RegistryMACStat)
+			UpdateMacStatHostCounters(etdev);
 	} else
 		DBG_VERBOSE(et131x_dbginfo,
 			    "No interrupts, in PHY coma, pm_csr = 0x%x\n",
 			    pm_csr.value);
 
-	if (!pAdapter->Bmsr.bits.link_status &&
-	    pAdapter->RegistryPhyComa &&
-	    pAdapter->PoMgmt.TransPhyComaModeOnBoot < 11) {
-		pAdapter->PoMgmt.TransPhyComaModeOnBoot++;
+	if (!etdev->Bmsr.bits.link_status &&
+	    etdev->RegistryPhyComa &&
+	    etdev->PoMgmt.TransPhyComaModeOnBoot < 11) {
+		etdev->PoMgmt.TransPhyComaModeOnBoot++;
 	}
 
-	if (pAdapter->PoMgmt.TransPhyComaModeOnBoot == 10) {
-		if (!pAdapter->Bmsr.bits.link_status
-		    && pAdapter->RegistryPhyComa) {
+	if (etdev->PoMgmt.TransPhyComaModeOnBoot == 10) {
+		if (!etdev->Bmsr.bits.link_status
+		    && etdev->RegistryPhyComa) {
 			if (pm_csr.bits.pm_phy_sw_coma == 0) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?
 				 */
-				et131x_enable_interrupts(pAdapter);
-				EnablePhyComa(pAdapter);
+				et131x_enable_interrupts(etdev);
+				EnablePhyComa(etdev);
 			}
 		}
 	}
 
 	/* This is a periodic timer, so reschedule */
-	mod_timer(&pAdapter->ErrorTimer, jiffies +
+	mod_timer(&etdev->ErrorTimer, jiffies +
 					  TX_ERROR_PERIOD * HZ / 1000);
 }
 
@@ -491,23 +491,23 @@ void et131x_error_timer_handler(unsigned long data)
  */
 void et131x_link_detection_handler(unsigned long data)
 {
-	struct et131x_adapter *pAdapter = (struct et131x_adapter *) data;
+	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
 	unsigned long lockflags;
 
 	/* Let everyone know that we have run */
-	pAdapter->bLinkTimerActive = false;
+	etdev->bLinkTimerActive = false;
 
-	if (pAdapter->MediaState == 0) {
-		spin_lock_irqsave(&pAdapter->Lock, lockflags);
+	if (etdev->MediaState == 0) {
+		spin_lock_irqsave(&etdev->Lock, lockflags);
 
-		pAdapter->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
-		MP_CLEAR_FLAG(pAdapter, fMP_ADAPTER_LINK_DETECTION);
+		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
+		MP_CLEAR_FLAG(etdev, fMP_ADAPTER_LINK_DETECTION);
 
-		spin_unlock_irqrestore(&pAdapter->Lock, lockflags);
+		spin_unlock_irqrestore(&etdev->Lock, lockflags);
 
-		netif_carrier_off(pAdapter->netdev);
+		netif_carrier_off(etdev->netdev);
 
-		pAdapter->bSetPending = false;
+		etdev->bSetPending = false;
 	}
 }
 
@@ -517,54 +517,54 @@ void et131x_link_detection_handler(unsigned long data)
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_adapter_setup(struct et131x_adapter *pAdapter)
+int et131x_adapter_setup(struct et131x_adapter *etdev)
 {
 	int status = 0;
 
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Configure the JAGCore */
-	ConfigGlobalRegs(pAdapter);
+	ConfigGlobalRegs(etdev);
 
-	ConfigMACRegs1(pAdapter);
-	ConfigMMCRegs(pAdapter);
+	ConfigMACRegs1(etdev);
+	ConfigMMCRegs(etdev);
 
-	ConfigRxMacRegs(pAdapter);
-	ConfigTxMacRegs(pAdapter);
+	ConfigRxMacRegs(etdev);
+	ConfigTxMacRegs(etdev);
 
-	ConfigRxDmaRegs(pAdapter);
-	ConfigTxDmaRegs(pAdapter);
+	ConfigRxDmaRegs(etdev);
+	ConfigTxDmaRegs(etdev);
 
-	ConfigMacStatRegs(pAdapter);
+	ConfigMacStatRegs(etdev);
 
 	/* Move the following code to Timer function?? */
-	status = et131x_xcvr_find(pAdapter);
+	status = et131x_xcvr_find(etdev);
 
 	if (status != 0)
 		DBG_WARNING(et131x_dbginfo, "Could not find the xcvr\n");
 
 	/* Prepare the TRUEPHY library. */
-	ET1310_PhyInit(pAdapter);
+	ET1310_PhyInit(etdev);
 
 	/* Reset the phy now so changes take place */
-	ET1310_PhyReset(pAdapter);
+	ET1310_PhyReset(etdev);
 
 	/* Power down PHY */
-	ET1310_PhyPowerDown(pAdapter, 1);
+	ET1310_PhyPowerDown(etdev, 1);
 
 	/*
 	 * We need to turn off 1000 base half dulplex, the mac does not
 	 * support it. For the 10/100 part, turn off all gig advertisement
 	 */
-	if (pAdapter->DeviceID != ET131X_PCI_DEVICE_ID_FAST)
-		ET1310_PhyAdvertise1000BaseT(pAdapter, TRUEPHY_ADV_DUPLEX_FULL);
+	if (etdev->DeviceID != ET131X_PCI_DEVICE_ID_FAST)
+		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_FULL);
 	else
-		ET1310_PhyAdvertise1000BaseT(pAdapter, TRUEPHY_ADV_DUPLEX_NONE);
+		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
 
 	/* Power up PHY */
-	ET1310_PhyPowerDown(pAdapter, 0);
+	ET1310_PhyPowerDown(etdev, 0);
 
-	et131x_setphy_normal(pAdapter);
+	et131x_setphy_normal(etdev);
 
 	DBG_LEAVE(et131x_dbginfo);
 	return status;

@@ -99,7 +99,7 @@ extern dbg_info_t *et131x_dbginfo;
 #endif /* CONFIG_ET131X_DEBUG */
 
 
-void nic_return_rfd(struct et131x_adapter *pAdapter, PMP_RFD pMpRfd);
+void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd);
 
 /**
  * et131x_rx_dma_memory_alloc
@@ -676,12 +676,12 @@ void et131x_rfd_resources_free(struct et131x_adapter *adapter, MP_RFD *pMpRfd)
 
 /**
  * ConfigRxDmaRegs - Start of Rx_DMA init sequence
- * @pAdapter: pointer to our adapter structure
+ * @etdev: pointer to our adapter structure
  */
-void ConfigRxDmaRegs(struct et131x_adapter *pAdapter)
+void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _RXDMA_t __iomem *pRxDma = &pAdapter->CSRAddress->rxdma;
-	struct _rx_ring_t *pRxLocal = &pAdapter->RxRing;
+	struct _RXDMA_t __iomem *pRxDma = &etdev->CSRAddress->rxdma;
+	struct _rx_ring_t *pRxLocal = &etdev->RxRing;
 	PFBR_DESC_t pFbrEntry;
 	uint32_t iEntry;
 	RXDMA_PSR_NUM_DES_t psr_num_des;
@@ -690,7 +690,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *pAdapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Halt RXDMA to perform the reconfigure.  */
-	et131x_rx_dma_disable(pAdapter);
+	et131x_rx_dma_disable(etdev);
 
 	/* Load the completion writeback physical address
 	 *
@@ -718,7 +718,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *pAdapter)
 	writel((psr_num_des.bits.psr_ndes * LO_MARK_PERCENT_FOR_PSR) / 100,
 	       &pRxDma->psr_min_des.value);
 
-	spin_lock_irqsave(&pAdapter->RcvLock, lockflags);
+	spin_lock_irqsave(&etdev->RcvLock, lockflags);
 
 	/* These local variables track the PSR in the adapter structure */
 	pRxLocal->local_psr_full.bits.psr_full = 0;
@@ -792,52 +792,52 @@ void ConfigRxDmaRegs(struct et131x_adapter *pAdapter)
 	 * For version B silicon, this value gets updated once autoneg is
 	 *complete.
 	 */
-	writel(pAdapter->RegistryRxNumBuffers, &pRxDma->num_pkt_done.value);
+	writel(etdev->RegistryRxNumBuffers, &pRxDma->num_pkt_done.value);
 
 	/* The "time_done" is not working correctly to coalesce interrupts
 	 * after a given time period, but rather is giving us an interrupt
 	 * regardless of whether we have received packets.
 	 * This value gets updated once autoneg is complete.
 	 */
-	writel(pAdapter->RegistryRxTimeInterval, &pRxDma->max_pkt_time.value);
+	writel(etdev->RegistryRxTimeInterval, &pRxDma->max_pkt_time.value);
 
-	spin_unlock_irqrestore(&pAdapter->RcvLock, lockflags);
+	spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
  * SetRxDmaTimer - Set the heartbeat timer according to line rate.
- * @pAdapter: pointer to our adapter structure
+ * @etdev: pointer to our adapter structure
  */
-void SetRxDmaTimer(struct et131x_adapter *pAdapter)
+void SetRxDmaTimer(struct et131x_adapter *etdev)
 {
 	/* For version B silicon, we do not use the RxDMA timer for 10 and 100
 	 * Mbits/s line rates. We do not enable and RxDMA interrupt coalescing.
 	 */
-	if ((pAdapter->uiLinkSpeed == TRUEPHY_SPEED_100MBPS) ||
-	    (pAdapter->uiLinkSpeed == TRUEPHY_SPEED_10MBPS)) {
-		writel(0, &pAdapter->CSRAddress->rxdma.max_pkt_time.value);
-		writel(1, &pAdapter->CSRAddress->rxdma.num_pkt_done.value);
+	if ((etdev->uiLinkSpeed == TRUEPHY_SPEED_100MBPS) ||
+	    (etdev->uiLinkSpeed == TRUEPHY_SPEED_10MBPS)) {
+		writel(0, &etdev->CSRAddress->rxdma.max_pkt_time.value);
+		writel(1, &etdev->CSRAddress->rxdma.num_pkt_done.value);
 	}
 }
 
 /**
  * et131x_rx_dma_disable - Stop of Rx_DMA on the ET1310
- * @pAdapter: pointer to our adapter structure
+ * @etdev: pointer to our adapter structure
  */
-void et131x_rx_dma_disable(struct et131x_adapter *pAdapter)
+void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 {
 	RXDMA_CSR_t csr;
 
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup the receive dma configuration register */
-	writel(0x00002001, &pAdapter->CSRAddress->rxdma.csr.value);
-	csr.value = readl(&pAdapter->CSRAddress->rxdma.csr.value);
+	writel(0x00002001, &etdev->CSRAddress->rxdma.csr.value);
+	csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
 	if (csr.bits.halt_status != 1) {
 		udelay(5);
-		csr.value = readl(&pAdapter->CSRAddress->rxdma.csr.value);
+		csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
 		if (csr.bits.halt_status != 1)
 			DBG_ERROR(et131x_dbginfo,
 				"RX Dma failed to enter halt state. CSR 0x%08x\n",
@@ -849,41 +849,41 @@ void et131x_rx_dma_disable(struct et131x_adapter *pAdapter)
 
 /**
  * et131x_rx_dma_enable - re-start of Rx_DMA on the ET1310.
- * @pAdapter: pointer to our adapter structure
+ * @etdev: pointer to our adapter structure
  */
-void et131x_rx_dma_enable(struct et131x_adapter *pAdapter)
+void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 {
 	DBG_RX_ENTER(et131x_dbginfo);
 
-	if (pAdapter->RegistryPhyLoopbk)
+	if (etdev->RegistryPhyLoopbk)
 		/* RxDMA is disabled for loopback operation. */
-		writel(0x1, &pAdapter->CSRAddress->rxdma.csr.value);
+		writel(0x1, &etdev->CSRAddress->rxdma.csr.value);
 	else {
 	/* Setup the receive dma configuration register for normal operation */
 		RXDMA_CSR_t csr = { 0 };
 
 		csr.bits.fbr1_enable = 1;
-		if (pAdapter->RxRing.Fbr1BufferSize == 4096)
+		if (etdev->RxRing.Fbr1BufferSize == 4096)
 			csr.bits.fbr1_size = 1;
-		else if (pAdapter->RxRing.Fbr1BufferSize == 8192)
+		else if (etdev->RxRing.Fbr1BufferSize == 8192)
 			csr.bits.fbr1_size = 2;
-		else if (pAdapter->RxRing.Fbr1BufferSize == 16384)
+		else if (etdev->RxRing.Fbr1BufferSize == 16384)
 			csr.bits.fbr1_size = 3;
 #ifdef USE_FBR0
 		csr.bits.fbr0_enable = 1;
-		if (pAdapter->RxRing.Fbr0BufferSize == 256)
+		if (etdev->RxRing.Fbr0BufferSize == 256)
 			csr.bits.fbr0_size = 1;
-		else if (pAdapter->RxRing.Fbr0BufferSize == 512)
+		else if (etdev->RxRing.Fbr0BufferSize == 512)
 			csr.bits.fbr0_size = 2;
-		else if (pAdapter->RxRing.Fbr0BufferSize == 1024)
+		else if (etdev->RxRing.Fbr0BufferSize == 1024)
 			csr.bits.fbr0_size = 3;
 #endif
-		writel(csr.value, &pAdapter->CSRAddress->rxdma.csr.value);
+		writel(csr.value, &etdev->CSRAddress->rxdma.csr.value);
 
-		csr.value = readl(&pAdapter->CSRAddress->rxdma.csr.value);
+		csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
 		if (csr.bits.halt_status != 0) {
 			udelay(5);
-			csr.value = readl(&pAdapter->CSRAddress->rxdma.csr.value);
+			csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
 			if (csr.bits.halt_status != 0) {
 				DBG_ERROR(et131x_dbginfo,
 					"RX Dma failed to exit halt state.  CSR 0x%08x\n",
@@ -897,7 +897,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *pAdapter)
 
 /**
  * nic_rx_pkts - Checks the hardware for available packets
- * @pAdapter: pointer to our adapter
+ * @etdev: pointer to our adapter
  *
  * Returns pMpRfd, a pointer to our MPRFD.
  *
@@ -906,9 +906,9 @@ void et131x_rx_dma_enable(struct et131x_adapter *pAdapter)
  * the packet to it, puts the RFD in the RecvPendList, and also returns
  * the pointer to the RFD.
  */
-PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
+PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 {
-	struct _rx_ring_t *pRxLocal = &pAdapter->RxRing;
+	struct _rx_ring_t *pRxLocal = &etdev->RxRing;
 	PRX_STATUS_BLOCK_t pRxStatusBlock;
 	PPKT_STAT_DESC_t pPSREntry;
 	PMP_RFD pMpRfd;
@@ -978,7 +978,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 	}
 
 	writel(pRxLocal->local_psr_full.value,
-	       &pAdapter->CSRAddress->rxdma.psr_full_offset.value);
+	       &etdev->CSRAddress->rxdma.psr_full_offset.value);
 
 #ifndef USE_FBR0
 	if (ringIndex != 1) {
@@ -1013,7 +1013,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 	}
 
 	/* Get and fill the RFD. */
-	spin_lock_irqsave(&pAdapter->RcvLock, lockflags);
+	spin_lock_irqsave(&etdev->RcvLock, lockflags);
 
 	pMpRfd = NULL;
 	element = pRxLocal->RecvList.next;
@@ -1023,14 +1023,14 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 		DBG_RX(et131x_dbginfo,
 		       "NULL RFD returned from RecvList via list_entry()\n");
 		DBG_RX_LEAVE(et131x_dbginfo);
-		spin_unlock_irqrestore(&pAdapter->RcvLock, lockflags);
+		spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
 		return NULL;
 	}
 
 	list_del(&pMpRfd->list_node);
 	pRxLocal->nReadyRecv--;
 
-	spin_unlock_irqrestore(&pAdapter->RcvLock, lockflags);
+	spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
 
 	pMpRfd->iBufferIndex = bufferIndex;
 	pMpRfd->iRingIndex = ringIndex;
@@ -1041,19 +1041,19 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 	 * also counted here.
 	 */
 	if (localLen < (NIC_MIN_PACKET_SIZE + 4)) {
-		pAdapter->Stats.other_errors++;
+		etdev->Stats.other_errors++;
 		localLen = 0;
 	}
 
 	if (localLen) {
-		if (pAdapter->ReplicaPhyLoopbk == 1) {
+		if (etdev->ReplicaPhyLoopbk == 1) {
 			pBufVa = pRxLocal->Fbr[ringIndex]->Va[bufferIndex];
 
-			if (memcmp(&pBufVa[6], &pAdapter->CurrentAddress[0],
+			if (memcmp(&pBufVa[6], &etdev->CurrentAddress[0],
 				   ETH_ALEN) == 0) {
 				if (memcmp(&pBufVa[42], "Replica packet",
 					   ETH_HLEN)) {
-					pAdapter->ReplicaPhyLoopbkPF = 1;
+					etdev->ReplicaPhyLoopbkPF = 1;
 				}
 			}
 			DBG_WARNING(et131x_dbginfo,
@@ -1063,12 +1063,12 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 
 			DBG_WARNING(et131x_dbginfo,
 				    "CurrentAddr:\t%02x:%02x:%02x:%02x:%02x:%02x\n",
-				    pAdapter->CurrentAddress[0],
-				    pAdapter->CurrentAddress[1],
-				    pAdapter->CurrentAddress[2],
-				    pAdapter->CurrentAddress[3],
-				    pAdapter->CurrentAddress[4],
-				    pAdapter->CurrentAddress[5]);
+				    etdev->CurrentAddress[0],
+				    etdev->CurrentAddress[1],
+				    etdev->CurrentAddress[2],
+				    etdev->CurrentAddress[3],
+				    etdev->CurrentAddress[4],
+				    etdev->CurrentAddress[5]);
 		}
 
 		/* Determine if this is a multicast packet coming in */
@@ -1081,9 +1081,9 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 			 * filters. Generally filter is 0x2b when in
 			 * promiscuous mode.
 			 */
-			if ((pAdapter->PacketFilter & ET131X_PACKET_TYPE_MULTICAST)
-			    && !(pAdapter->PacketFilter & ET131X_PACKET_TYPE_PROMISCUOUS)
-			    && !(pAdapter->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
+			if ((etdev->PacketFilter & ET131X_PACKET_TYPE_MULTICAST)
+			    && !(etdev->PacketFilter & ET131X_PACKET_TYPE_PROMISCUOUS)
+			    && !(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
 				pBufVa = pRxLocal->Fbr[ringIndex]->
 						Va[bufferIndex];
 
@@ -1092,20 +1092,20 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 				 * matches one in our list.
 				 */
 				for (nIndex = 0;
-				     nIndex < pAdapter->MCAddressCount;
+				     nIndex < etdev->MCAddressCount;
 				     nIndex++) {
 					if (pBufVa[0] ==
-					    pAdapter->MCList[nIndex][0]
+					    etdev->MCList[nIndex][0]
 					    && pBufVa[1] ==
-					    pAdapter->MCList[nIndex][1]
+					    etdev->MCList[nIndex][1]
 					    && pBufVa[2] ==
-					    pAdapter->MCList[nIndex][2]
+					    etdev->MCList[nIndex][2]
 					    && pBufVa[3] ==
-					    pAdapter->MCList[nIndex][3]
+					    etdev->MCList[nIndex][3]
 					    && pBufVa[4] ==
-					    pAdapter->MCList[nIndex][4]
+					    etdev->MCList[nIndex][4]
 					    && pBufVa[5] ==
-					    pAdapter->MCList[nIndex][5]) {
+					    etdev->MCList[nIndex][5]) {
 						break;
 					}
 				}
@@ -1118,21 +1118,21 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 				 * so we free our RFD when we return
 				 * from this function.
 				 */
-				if (nIndex == pAdapter->MCAddressCount)
+				if (nIndex == etdev->MCAddressCount)
 					localLen = 0;
 			}
 
 			if (localLen > 0)
-				pAdapter->Stats.multircv++;
+				etdev->Stats.multircv++;
 		} else if (Word0.value & ALCATEL_BROADCAST_PKT)
-			pAdapter->Stats.brdcstrcv++;
+			etdev->Stats.brdcstrcv++;
 		else
 			/* Not sure what this counter measures in
 			 * promiscuous mode. Perhaps we should check
 			 * the MAC address to see if it is directed
 			 * to us in promiscuous mode.
 			 */
-			pAdapter->Stats.unircv++;
+			etdev->Stats.unircv++;
 	}
 
 	if (localLen > 0) {
@@ -1149,14 +1149,14 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 			return NULL;
 		}
 
-		pAdapter->net_stats.rx_bytes += pMpRfd->PacketSize;
+		etdev->net_stats.rx_bytes += pMpRfd->PacketSize;
 
 		memcpy(skb_put(skb, pMpRfd->PacketSize),
 		       pRxLocal->Fbr[ringIndex]->Va[bufferIndex],
 		       pMpRfd->PacketSize);
 
-		skb->dev = pAdapter->netdev;
-		skb->protocol = eth_type_trans(skb, pAdapter->netdev);
+		skb->dev = etdev->netdev;
+		skb->protocol = eth_type_trans(skb, etdev->netdev);
 		skb->ip_summed = CHECKSUM_NONE;
 
 		netif_rx(skb);
@@ -1164,7 +1164,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 		pMpRfd->PacketSize = 0;
 	}
 
-	nic_return_rfd(pAdapter, pMpRfd);
+	nic_return_rfd(etdev, pMpRfd);
 
 	DBG_RX(et131x_dbginfo, "(1)\n");
 	DBG_RX_LEAVE(et131x_dbginfo);
@@ -1173,28 +1173,28 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 
 /**
  * et131x_reset_recv - Reset the receive list
- * @pAdapter: pointer to our adapter
+ * @etdev: pointer to our adapter
  *
  * Assumption, Rcv spinlock has been acquired.
  */
-void et131x_reset_recv(struct et131x_adapter *pAdapter)
+void et131x_reset_recv(struct et131x_adapter *etdev)
 {
 	PMP_RFD pMpRfd;
 	struct list_head *element;
 
 	DBG_ENTER(et131x_dbginfo);
 
-	DBG_ASSERT(!list_empty(&pAdapter->RxRing.RecvList));
+	DBG_ASSERT(!list_empty(&etdev->RxRing.RecvList));
 
 	/* Take all the RFD's from the pending list, and stick them on the
 	 * RecvList.
 	 */
-	while (!list_empty(&pAdapter->RxRing.RecvPendingList)) {
-		element = pAdapter->RxRing.RecvPendingList.next;
+	while (!list_empty(&etdev->RxRing.RecvPendingList)) {
+		element = etdev->RxRing.RecvPendingList.next;
 
 		pMpRfd = (PMP_RFD) list_entry(element, MP_RFD, list_node);
 
-		list_move_tail(&pMpRfd->list_node, &pAdapter->RxRing.RecvList);
+		list_move_tail(&pMpRfd->list_node, &etdev->RxRing.RecvList);
 	}
 
 	DBG_LEAVE(et131x_dbginfo);
@@ -1202,11 +1202,11 @@ void et131x_reset_recv(struct et131x_adapter *pAdapter)
 
 /**
  * et131x_handle_recv_interrupt - Interrupt handler for receive processing
- * @pAdapter: pointer to our adapter
+ * @etdev: pointer to our adapter
  *
  * Assumption, Rcv spinlock has been acquired.
  */
-void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
+void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 {
 	PMP_RFD pMpRfd = NULL;
 	struct sk_buff *PacketArray[NUM_PACKETS_HANDLED];
@@ -1222,14 +1222,14 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 
 	/* Process up to available RFD's */
 	while (PacketArrayCount < PacketsToHandle) {
-		if (list_empty(&pAdapter->RxRing.RecvList)) {
-			DBG_ASSERT(pAdapter->RxRing.nReadyRecv == 0);
+		if (list_empty(&etdev->RxRing.RecvList)) {
+			DBG_ASSERT(etdev->RxRing.nReadyRecv == 0);
 			DBG_ERROR(et131x_dbginfo, "NO RFD's !!!!!!!!!!!!!\n");
 			TempUnfinishedRec = true;
 			break;
 		}
 
-		pMpRfd = nic_rx_pkts(pAdapter);
+		pMpRfd = nic_rx_pkts(etdev);
 
 		if (pMpRfd == NULL)
 			break;
@@ -1240,18 +1240,18 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 		 * If length is zero, return the RFD in order to advance the
 		 * Free buffer ring.
 		 */
-		if ((!pAdapter->PacketFilter) ||
-		    (pAdapter->PoMgmt.PowerState != NdisDeviceStateD0) ||
-		    (!MP_LINK_DETECTED(pAdapter)) ||
+		if ((!etdev->PacketFilter) ||
+		    (etdev->PoMgmt.PowerState != NdisDeviceStateD0) ||
+		    (!MP_LINK_DETECTED(etdev)) ||
 		    (pMpRfd->PacketSize == 0)) {
 			continue;
 		}
 
 		/* Increment the number of packets we received */
-		pAdapter->Stats.ipackets++;
+		etdev->Stats.ipackets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (pAdapter->RxRing.nReadyRecv >= RFD_LOW_WATER_MARK) {
+		if (etdev->RxRing.nReadyRecv >= RFD_LOW_WATER_MARK) {
 			/* Put this RFD on the pending list
 			 *
 			 * NOTE: nic_rx_pkts() above is already returning the
@@ -1260,13 +1260,13 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 			 * Besides, we don't really need (at this point) the
 			 * pending list anyway.
 			 */
-			/* spin_lock_irqsave( &pAdapter->RcvPendLock, lockflags );
-			 * list_add_tail( &pMpRfd->list_node, &pAdapter->RxRing.RecvPendingList );
-			 * spin_unlock_irqrestore( &pAdapter->RcvPendLock, lockflags );
+			/* spin_lock_irqsave( &etdev->RcvPendLock, lockflags );
+			 * list_add_tail( &pMpRfd->list_node, &etdev->RxRing.RecvPendingList );
+			 * spin_unlock_irqrestore( &etdev->RcvPendLock, lockflags );
 			 */
 
 			/* Update the number of outstanding Recvs */
-			/* MP_INC_RCV_REF( pAdapter ); */
+			/* MP_INC_RCV_REF( etdev ); */
 		} else {
 			RFDFreeArray[PacketFreeCount] = pMpRfd;
 			PacketFreeCount++;
@@ -1280,12 +1280,12 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 	}
 
 	if ((PacketArrayCount == NUM_PACKETS_HANDLED) || TempUnfinishedRec) {
-		pAdapter->RxRing.UnfinishedReceives = true;
-		writel(pAdapter->RegistryTxTimeInterval * NANO_IN_A_MICRO,
-		       &pAdapter->CSRAddress->global.watchdog_timer);
+		etdev->RxRing.UnfinishedReceives = true;
+		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
+		       &etdev->CSRAddress->global.watchdog_timer);
 	} else {
 		/* Watchdog timer will disable itself if appropriate. */
-		pAdapter->RxRing.UnfinishedReceives = false;
+		etdev->RxRing.UnfinishedReceives = false;
 	}
 
 	DBG_RX_LEAVE(et131x_dbginfo);
@@ -1293,13 +1293,13 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 
 /**
  * NICReturnRFD - Recycle a RFD and put it back onto the receive list
- * @pAdapter: pointer to our adapter
+ * @etdev: pointer to our adapter
  * @pMpRfd: pointer to the RFD
  */
-void nic_return_rfd(struct et131x_adapter *pAdapter, PMP_RFD pMpRfd)
+void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 {
-	struct _rx_ring_t *pRxLocal = &pAdapter->RxRing;
-	struct _RXDMA_t __iomem *pRxDma = &pAdapter->CSRAddress->rxdma;
+	struct _rx_ring_t *pRxLocal = &etdev->RxRing;
+	struct _RXDMA_t __iomem *pRxDma = &etdev->CSRAddress->rxdma;
 	uint16_t bi = pMpRfd->iBufferIndex;
 	uint8_t ri = pMpRfd->iRingIndex;
 	unsigned long lockflags;
@@ -1314,7 +1314,7 @@ void nic_return_rfd(struct et131x_adapter *pAdapter, PMP_RFD pMpRfd)
 	    (ri == 0 && bi < pRxLocal->Fbr0NumEntries) ||
 #endif
 	    (ri == 1 && bi < pRxLocal->Fbr1NumEntries)) {
-		spin_lock_irqsave(&pAdapter->FbrLock, lockflags);
+		spin_lock_irqsave(&etdev->FbrLock, lockflags);
 
 		if (ri == 1) {
 			PFBR_DESC_t pNextDesc =
@@ -1362,7 +1362,7 @@ void nic_return_rfd(struct et131x_adapter *pAdapter, PMP_RFD pMpRfd)
 			       &pRxDma->fbr0_full_offset.value);
 		}
 #endif
-		spin_unlock_irqrestore(&pAdapter->FbrLock, lockflags);
+		spin_unlock_irqrestore(&etdev->FbrLock, lockflags);
 	} else {
 		DBG_ERROR(et131x_dbginfo,
 			  "NICReturnRFD illegal Buffer Index returned\n");
@@ -1371,10 +1371,10 @@ void nic_return_rfd(struct et131x_adapter *pAdapter, PMP_RFD pMpRfd)
 	/* The processing on this RFD is done, so put it back on the tail of
 	 * our list
 	 */
-	spin_lock_irqsave(&pAdapter->RcvLock, lockflags);
+	spin_lock_irqsave(&etdev->RcvLock, lockflags);
 	list_add_tail(&pMpRfd->list_node, &pRxLocal->RecvList);
 	pRxLocal->nReadyRecv++;
-	spin_unlock_irqrestore(&pAdapter->RcvLock, lockflags);
+	spin_unlock_irqrestore(&etdev->RcvLock, lockflags);
 
 	DBG_ASSERT(pRxLocal->nReadyRecv <= pRxLocal->NumRfd);
 	DBG_RX_LEAVE(et131x_dbginfo);
