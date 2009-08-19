@@ -27,8 +27,8 @@
 #ifndef __DRM_ENCODER_SLAVE_H__
 #define __DRM_ENCODER_SLAVE_H__
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
+#include "drmP.h"
+#include "drm_crtc.h"
 
 /**
  * struct drm_encoder_slave_funcs - Entry points exposed by a slave encoder driver
