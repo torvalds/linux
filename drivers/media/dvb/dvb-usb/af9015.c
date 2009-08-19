@@ -81,7 +81,6 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 
 	switch (req->cmd) {
 	case GET_CONFIG:
-	case BOOT:
 	case READ_MEMORY:
 	case RECONNECT_USB:
 	case GET_IR_CODE:
@@ -100,6 +99,7 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 	case WRITE_VIRTUAL_MEMORY:
 	case COPY_FIRMWARE:
 	case DOWNLOAD_FIRMWARE:
+	case BOOT:
 		break;
 	default:
 		err("unknown command:%d", req->cmd);

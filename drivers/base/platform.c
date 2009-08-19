@@ -483,9 +483,6 @@ int platform_driver_register(struct platform_driver *drv)
 		drv->driver.remove = platform_drv_remove;
 	if (drv->shutdown)
 		drv->driver.shutdown = platform_drv_shutdown;
-	if (drv->suspend || drv->resume)
-		pr_warning("Platform driver '%s' needs updating - please use "
-			"dev_pm_ops\n", drv->driver.name);
 
 	return driver_register(&drv->driver);
 }

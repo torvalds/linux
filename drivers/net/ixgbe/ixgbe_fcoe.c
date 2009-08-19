@@ -336,7 +336,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		/* return 0 to bypass going to ULD for DDPed data */
 		if (fcstat == IXGBE_RXDADV_STAT_FCSTAT_DDP)
 			rc = 0;
-		else
+		else if (ddp->len)
 			rc = ddp->len;
 	}
 

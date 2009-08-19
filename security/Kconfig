@@ -114,9 +114,9 @@ config SECURITY_ROOTPLUG
 	  If you are unsure how to answer this question, answer N.
 
 config LSM_MMAP_MIN_ADDR
-	int "Low address space for LSM to from user allocation"
+	int "Low address space for LSM to protect from user allocation"
 	depends on SECURITY && SECURITY_SELINUX
-	default 65535
+	default 65536
 	help
 	  This is the portion of low virtual memory which should be protected
 	  from userspace allocation.  Keeping a user from writing to low pages

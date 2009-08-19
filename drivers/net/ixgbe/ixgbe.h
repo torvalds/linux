@@ -136,6 +136,8 @@ struct ixgbe_ring {
 
 	u8 queue_index; /* needed for multiqueue queue management */
 
+#define IXGBE_RING_RX_PS_ENABLED                (u8)(1)
+	u8 flags;			/* per ring feature flags */
 	u16 head;
 	u16 tail;
 

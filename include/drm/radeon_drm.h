@@ -838,7 +838,7 @@ struct drm_radeon_gem_wait_idle {
 
 struct drm_radeon_gem_busy {
 	uint32_t	handle;
-	uint32_t	busy;
+	uint32_t        domain;
 };
 
 struct drm_radeon_gem_pread {
