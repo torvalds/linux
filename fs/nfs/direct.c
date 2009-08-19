@@ -934,9 +934,6 @@ out:
  * back into its cache.  We let the server do generic write
  * parameter checking and report problems.
  *
- * We also avoid an unnecessary invocation of generic_osync_inode(),
- * as it is fairly meaningless to sync the metadata of an NFS file.
- *
  * We eliminate local atime updates, see direct read above.
  *
  * We avoid unnecessary page cache invalidations for normal cached
