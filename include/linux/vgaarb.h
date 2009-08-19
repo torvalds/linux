@@ -46,9 +46,9 @@ extern void vga_set_legacy_decoding(struct pci_dev *pdev,
 /**
  *     vga_get         - acquire & locks VGA resources
  *
- *     pdev: pci device of the VGA card or NULL for the system default
- *     rsrc: bit mask of resources to acquire and lock
- *     interruptible: blocking should be interruptible by signals ?
+ *     @pdev: pci device of the VGA card or NULL for the system default
+ *     @rsrc: bit mask of resources to acquire and lock
+ *     @interruptible: blocking should be interruptible by signals ?
  *
  *     This function acquires VGA resources for the given
  *     card and mark those resources locked. If the resource requested
@@ -81,19 +81,19 @@ extern int vga_get(struct pci_dev *pdev, unsigned int rsrc,
  */
 
 static inline int vga_get_interruptible(struct pci_dev *pdev,
-										unsigned int rsrc)
+					unsigned int rsrc)
 {
        return vga_get(pdev, rsrc, 1);
 }
 
 /**
- *     vga_get_interruptible
+ *     vga_get_uninterruptible
  *
  *     Shortcut to vga_get
  */
 
 static inline int vga_get_uninterruptible(struct pci_dev *pdev,
-											unsigned int rsrc)
+					  unsigned int rsrc)
 {
        return vga_get(pdev, rsrc, 0);
 }
@@ -165,28 +165,33 @@ static inline int vga_conflicts(struct pci_dev *p1, struct pci_dev *p2)
 }
 #endif
 
-/*
- * Register a client with the VGA arbitration logic
- * return value: number of VGA devices in system.
+/**
+ *	vga_client_register
  *
- * Clients have two callback mechanisms they can use.
- * irq enable/disable callback -
- *    If a client can't disable its GPUs VGA resources, then we
- *    need to be able to ask it to turn off its irqs when we
- *    turn off its mem and io decoding.
- * set_vga_decode
- *    If a client can disable its GPU VGA resource, it will
- *    get a callback from this to set the encode/decode state
+ *	@pdev: pci device of the VGA client
+ *	@cookie: client cookie to be used in callbacks
+ *	@irq_set_state: irq state change callback
+ *	@set_vga_decode: vga decode change callback
  *
- * Clients with disable abilities should check the return value
- * of this function and if the VGA device count is > 1, should
- * disable VGA decoding resources.
+ * 	return value: 0 on success, -1 on failure
+ * 	Register a client with the VGA arbitration logic
+ *
+ *	Clients have two callback mechanisms they can use.
+ *	irq enable/disable callback -
+ *		If a client can't disable its GPUs VGA resources, then we
+ *		need to be able to ask it to turn off its irqs when we
+ *		turn off its mem and io decoding.
+ *	set_vga_decode
+ *		If a client can disable its GPU VGA resource, it will
+ *		get a callback from this to set the encode/decode state
  *
  * Rationale: we cannot disable VGA decode resources unconditionally
  * some single GPU laptops seem to require ACPI or BIOS access to the
  * VGA registers to control things like backlights etc.
  * Hopefully newer multi-GPU laptops do something saner, and desktops
  * won't have any special ACPI for this.
+ * They driver will get a callback when VGA arbitration is first used
+ * by userspace since we some older X servers have issues.
  */
 int vga_client_register(struct pci_dev *pdev, void *cookie,
 			void (*irq_set_state)(void *cookie, bool state),
