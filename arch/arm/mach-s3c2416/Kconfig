@@ -21,5 +21,11 @@ config S3C2416_DMA
 
 menu "S3C2416 Machines"
 
+config MACH_SMDK2416
+	bool "SMDK2416"
+	select CPU_S3C2416
+	select S3C_DEV_HSMMC
+	help
+	  Say Y here if you are using an SMDK2416
 
 endmenu

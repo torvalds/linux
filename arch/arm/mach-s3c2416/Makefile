@@ -16,3 +16,4 @@ obj-$(CONFIG_CPU_S3C2416)	+= irq.o
 
 # Machine support
 
+obj-$(CONFIG_MACH_SMDK2416)	+= mach-smdk2416.o
