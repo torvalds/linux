@@ -680,7 +680,7 @@ static int pohmelfs_root_cap_response(struct netfs_state *st)
 		printk(KERN_INFO "Mounting POHMELFS (%d) "
 			"with extended attributes support.\n", psb->idx);
 
-	if (atomic_read(&psb->total_inodes) <= 1)
+	if (atomic_long_read(&psb->total_inodes) <= 1)
 		atomic_long_set(&psb->total_inodes, cap->nr_files);
 
 	dprintk("%s: total: %llu, avail: %llu, flags: %llx, inodes: %llu.\n",
