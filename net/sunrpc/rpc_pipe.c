@@ -887,7 +887,7 @@ static const struct rpc_filelist cache_pipefs_files[3] = {
 	[0] = {
 		.name = "channel",
 		.i_fop = &cache_file_operations_pipefs,
-		.mode = S_IFIFO|S_IRUSR|S_IWUSR,
+		.mode = S_IFREG|S_IRUSR|S_IWUSR,
 	},
 	[1] = {
 		.name = "content",
