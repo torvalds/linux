@@ -76,7 +76,7 @@ typedef int	(*PFN_ON_ISR)(struct hv_driver *drv);
 typedef void (*PFN_ON_DPC)(struct hv_driver *drv);
 typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
 
-typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)(struct hv_guid DeviceType, struct hv_guid DeviceInstance, void *Context);
+typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)(struct hv_guid *DeviceType, struct hv_guid *DeviceInstance, void *Context);
 typedef void (*PFN_ON_CHILDDEVICE_DESTROY)(struct hv_device *Device);
 typedef int (*PFN_ON_CHILDDEVICE_ADD)(struct hv_device *RootDevice, struct hv_device *ChildDevice);
 typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(struct hv_device *Device);

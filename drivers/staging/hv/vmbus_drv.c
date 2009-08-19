@@ -75,7 +75,7 @@ static irqreturn_t vmbus_isr(int irq, void* dev_id);
 static void vmbus_device_release(struct device *device);
 static void vmbus_bus_release(struct device *device);
 
-static struct hv_device *vmbus_child_device_create(struct hv_guid type, struct hv_guid instance, void* context);
+static struct hv_device *vmbus_child_device_create(struct hv_guid *type, struct hv_guid *instance, void *context);
 static void vmbus_child_device_destroy(struct hv_device *device_obj);
 static int vmbus_child_device_register(struct hv_device *root_device_obj, struct hv_device *child_device_obj);
 static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
@@ -565,7 +565,9 @@ Name:	vmbus_child_device_create()
 Desc:	Creates and registers a new child device on the vmbus.
 
 --*/
-static struct hv_device *vmbus_child_device_create(struct hv_guid type, struct hv_guid instance, void* context)
+static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
+						   struct hv_guid *instance,
+						   void *context)
 {
 	struct device_context *child_device_ctx;
 	struct hv_device *child_device_obj;
@@ -586,14 +588,14 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid type, struct h
 		"type {%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x},"
 		"id {%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
 		&child_device_ctx->device,
-		type.data[3], type.data[2], type.data[1], type.data[0],
-		type.data[5], type.data[4], type.data[7], type.data[6],
-		type.data[8], type.data[9], type.data[10], type.data[11],
-		type.data[12], type.data[13], type.data[14], type.data[15],
-		instance.data[3], instance.data[2], instance.data[1], instance.data[0],
-		instance.data[5], instance.data[4], instance.data[7], instance.data[6],
-		instance.data[8], instance.data[9], instance.data[10], instance.data[11],
-		instance.data[12], instance.data[13], instance.data[14], instance.data[15]);
+		type->data[3], type->data[2], type->data[1], type->data[0],
+		type->data[5], type->data[4], type->data[7], type->data[6],
+		type->data[8], type->data[9], type->data[10], type->data[11],
+		type->data[12], type->data[13], type->data[14], type->data[15],
+		instance->data[3], instance->data[2], instance->data[1], instance->data[0],
+		instance->data[5], instance->data[4], instance->data[7], instance->data[6],
+		instance->data[8], instance->data[9], instance->data[10], instance->data[11],
+		instance->data[12], instance->data[13], instance->data[14], instance->data[15]);
 
 	child_device_obj = &child_device_ctx->device_obj;
 	child_device_obj->context = context;

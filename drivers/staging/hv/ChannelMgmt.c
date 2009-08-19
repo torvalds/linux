@@ -284,8 +284,8 @@ VmbusChannelProcessOffer(
 	/* Start the process of binding this offer to the driver */
 	/* We need to set the DeviceObject field before calling VmbusChildDeviceAdd() */
 	newChannel->DeviceObject = VmbusChildDeviceCreate(
-		newChannel->OfferMsg.Offer.InterfaceType,
-		newChannel->OfferMsg.Offer.InterfaceInstance,
+		&newChannel->OfferMsg.Offer.InterfaceType,
+		&newChannel->OfferMsg.Offer.InterfaceInstance,
 		newChannel);
 
 	DPRINT_DBG(VMBUS, "child device object allocated - %p", newChannel->DeviceObject);

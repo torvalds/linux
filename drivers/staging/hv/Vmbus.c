@@ -231,8 +231,8 @@ Description:
 
 --*/
 
-struct hv_device *VmbusChildDeviceCreate(struct hv_guid DeviceType,
-					 struct hv_guid DeviceInstance,
+struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
+					 struct hv_guid *DeviceInstance,
 					 void *Context)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
