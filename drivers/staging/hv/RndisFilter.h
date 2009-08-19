@@ -29,7 +29,7 @@
 
 #include "NetVsc.h"
 
-#include "include/rndis.h"
+#include "rndis.h"
 
 #define RNDIS_HEADER_SIZE	(sizeof(RNDIS_MESSAGE) - \
 				 sizeof(RNDIS_MESSAGE_CONTAINER))
