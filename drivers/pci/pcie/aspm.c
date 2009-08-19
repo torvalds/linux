@@ -346,11 +346,11 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 	link->latency.l0s = max_t(u32, link->latency.l0s, l0s);
 	link->latency.l1 = max_t(u32, link->latency.l1, l1);
 
+	/* Save default state */
+	link->aspm_default = link->aspm_enabled;
+
 	if (!link->aspm_support)
 		return;
-
-	link->aspm_enabled &= link->aspm_support;
-	link->aspm_default = link->aspm_enabled;
 
 	/* ENDPOINT states*/
 	list_for_each_entry(child, &linkbus->devices, bus_list) {
