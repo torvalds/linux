@@ -34,6 +34,8 @@ DECLARE_TRACE_WITH_CALLBACK(syscall_exit,
  * @args: list of args as strings (args[i] matches types[i])
  * @enter_id: associated ftrace enter event id
  * @exit_id: associated ftrace exit event id
+ * @enter_event: associated syscall_enter trace event
+ * @exit_event: associated syscall_exit trace event
  */
 struct syscall_metadata {
 	const char	*name;
@@ -42,6 +44,9 @@ struct syscall_metadata {
 	const char	**args;
 	int		enter_id;
 	int		exit_id;
+
+	struct ftrace_event_call *enter_event;
+	struct ftrace_event_call *exit_event;
 };
 
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -59,6 +64,8 @@ extern int syscall_enter_format(struct ftrace_event_call *call,
 				struct trace_seq *s);
 extern int syscall_exit_format(struct ftrace_event_call *call,
 				struct trace_seq *s);
+extern int syscall_enter_define_fields(struct ftrace_event_call *call);
+extern int syscall_exit_define_fields(struct ftrace_event_call *call);
 enum print_line_t print_syscall_enter(struct trace_iterator *iter, int flags);
 enum print_line_t print_syscall_exit(struct trace_iterator *iter, int flags);
 #endif

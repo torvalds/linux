@@ -27,8 +27,8 @@ DEFINE_MUTEX(event_mutex);
 
 LIST_HEAD(ftrace_events);
 
-int trace_define_field(struct ftrace_event_call *call, char *type,
-		       char *name, int offset, int size, int is_signed)
+int trace_define_field(struct ftrace_event_call *call, const char *type,
+		       const char *name, int offset, int size, int is_signed)
 {
 	struct ftrace_event_field *field;
 
@@ -83,6 +83,7 @@ int trace_define_common_fields(struct ftrace_event_call *call)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(trace_define_common_fields);
 
 #ifdef CONFIG_MODULES
 

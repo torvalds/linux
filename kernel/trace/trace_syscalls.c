@@ -165,6 +165,49 @@ int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
 	return trace_seq_printf(s, "\nprint fmt: \"0x%%lx\", REC->ret\n");
 }
 
+int syscall_enter_define_fields(struct ftrace_event_call *call)
+{
+	struct syscall_trace_enter trace;
+	struct syscall_metadata *meta;
+	int ret;
+	int nr;
+	int i;
+	int offset = offsetof(typeof(trace), args);
+
+	nr = syscall_name_to_nr(call->data);
+	meta = syscall_nr_to_meta(nr);
+
+	if (!meta)
+		return 0;
+
+	ret = trace_define_common_fields(call);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < meta->nb_args; i++) {
+		ret = trace_define_field(call, meta->types[i],
+					 meta->args[i], offset,
+					 sizeof(unsigned long), 0);
+		offset += sizeof(unsigned long);
+	}
+
+	return ret;
+}
+
+int syscall_exit_define_fields(struct ftrace_event_call *call)
+{
+	struct syscall_trace_exit trace;
+	int ret;
+
+	ret = trace_define_common_fields(call);
+	if (ret)
+		return ret;
+
+	ret = trace_define_field(call, SYSCALL_FIELD(unsigned long, ret), 0);
+
+	return ret;
+}
+
 void ftrace_syscall_enter(struct pt_regs *regs, long id)
 {
 	struct syscall_trace_enter *entry;
@@ -192,8 +235,8 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 	entry->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args, entry->args);
 
-	trace_current_buffer_unlock_commit(event, 0, 0);
-	trace_wake_up();
+	if (!filter_current_check_discard(sys_data->enter_event, entry, event))
+		trace_current_buffer_unlock_commit(event, 0, 0);
 }
 
 void ftrace_syscall_exit(struct pt_regs *regs, long ret)
@@ -220,8 +263,8 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	entry->nr = syscall_nr;
 	entry->ret = syscall_get_return_value(current, regs);
 
-	trace_current_buffer_unlock_commit(event, 0, 0);
-	trace_wake_up();
+	if (!filter_current_check_discard(sys_data->exit_event, entry, event))
+		trace_current_buffer_unlock_commit(event, 0, 0);
 }
 
 int reg_event_syscall_enter(void *ptr)

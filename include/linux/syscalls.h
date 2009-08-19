@@ -190,6 +190,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		.event                  = &event_syscall_enter,		\
 		.raw_init		= init_enter_##sname,		\
 		.show_format		= syscall_enter_format,		\
+		.define_fields		= syscall_enter_define_fields,	\
 		.regfunc		= reg_event_syscall_enter,	\
 		.unregfunc		= unreg_event_syscall_enter,	\
 		.data			= "sys"#sname,			\
@@ -226,6 +227,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		.event                  = &event_syscall_exit,		\
 		.raw_init		= init_exit_##sname,		\
 		.show_format		= syscall_exit_format,		\
+		.define_fields		= syscall_exit_define_fields,	\
 		.regfunc		= reg_event_syscall_exit,	\
 		.unregfunc		= unreg_event_syscall_exit,	\
 		.data			= "sys"#sname,			\
@@ -233,6 +235,8 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 	}
 
 #define SYSCALL_METADATA(sname, nb)				\
+	SYSCALL_TRACE_ENTER_EVENT(sname);			\
+	SYSCALL_TRACE_EXIT_EVENT(sname);			\
 	static const struct syscall_metadata __used		\
 	  __attribute__((__aligned__(4)))			\
 	  __attribute__((section("__syscalls_metadata")))	\
@@ -241,20 +245,22 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		.nb_args 	= nb,				\
 		.types		= types_##sname,		\
 		.args		= args_##sname,			\
-	};							\
-	SYSCALL_TRACE_ENTER_EVENT(sname);			\
-	SYSCALL_TRACE_EXIT_EVENT(sname);
+		.enter_event	= &event_enter_##sname,		\
+		.exit_event	= &event_exit_##sname,		\
+	};
 
 #define SYSCALL_DEFINE0(sname)					\
+	SYSCALL_TRACE_ENTER_EVENT(_##sname);			\
+	SYSCALL_TRACE_EXIT_EVENT(_##sname);			\
 	static const struct syscall_metadata __used		\
 	  __attribute__((__aligned__(4)))			\
 	  __attribute__((section("__syscalls_metadata")))	\
 	  __syscall_meta_##sname = {				\
 		.name 		= "sys_"#sname,			\
 		.nb_args 	= 0,				\
+		.enter_event	= &event_enter__##sname,	\
+		.exit_event	= &event_exit__##sname,		\
 	};							\
-	SYSCALL_TRACE_ENTER_EVENT(_##sname);			\
-	SYSCALL_TRACE_EXIT_EVENT(_##sname);			\
 	asmlinkage long sys_##sname(void)
 #else
 #define SYSCALL_DEFINE0(name)	   asmlinkage long sys_##name(void)
