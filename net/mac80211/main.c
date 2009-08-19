@@ -930,7 +930,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
  fail_wiphy_register:
-	kfree(local->int_scan_req->channels);
+	kfree(local->int_scan_req);
 	return result;
 }
 EXPORT_SYMBOL(ieee80211_register_hw);
