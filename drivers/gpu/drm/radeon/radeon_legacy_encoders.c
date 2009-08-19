@@ -1066,6 +1066,7 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+		encoder->possible_crtcs = 0x1;
 		drm_encoder_init(dev, encoder, &radeon_legacy_lvds_enc_funcs, DRM_MODE_ENCODER_LVDS);
 		drm_encoder_helper_add(encoder, &radeon_legacy_lvds_helper_funcs);
 		if (rdev->is_atom_bios)

@@ -574,6 +574,8 @@ int radeonfb_create(struct radeon_device *rdev,
 		goto out_unref;
 	}
 
+	memset_io(fbptr, 0, aligned_size);
+
 	strcpy(info->fix.id, "radeondrmfb");
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_TRUECOLOR;

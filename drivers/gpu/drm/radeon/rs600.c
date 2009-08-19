@@ -240,6 +240,88 @@ void rs600_mc_fini(struct radeon_device *rdev)
 
 
 /*
+ * Interrupts
+ */
+int rs600_irq_set(struct radeon_device *rdev)
+{
+	uint32_t tmp = 0;
+	uint32_t mode_int = 0;
+
+	if (rdev->irq.sw_int) {
+		tmp |= RADEON_SW_INT_ENABLE;
+	}
+	if (rdev->irq.crtc_vblank_int[0]) {
+		tmp |= AVIVO_DISPLAY_INT_STATUS;
+		mode_int |= AVIVO_D1MODE_INT_MASK;
+	}
+	if (rdev->irq.crtc_vblank_int[1]) {
+		tmp |= AVIVO_DISPLAY_INT_STATUS;
+		mode_int |= AVIVO_D2MODE_INT_MASK;
+	}
+	WREG32(RADEON_GEN_INT_CNTL, tmp);
+	WREG32(AVIVO_DxMODE_INT_MASK, mode_int);
+	return 0;
+}
+
+static inline uint32_t rs600_irq_ack(struct radeon_device *rdev, u32 *r500_disp_int)
+{
+	uint32_t irqs = RREG32(RADEON_GEN_INT_STATUS);
+	uint32_t irq_mask = RADEON_SW_INT_TEST;
+
+	if (irqs & AVIVO_DISPLAY_INT_STATUS) {
+		*r500_disp_int = RREG32(AVIVO_DISP_INTERRUPT_STATUS);
+		if (*r500_disp_int & AVIVO_D1_VBLANK_INTERRUPT) {
+			WREG32(AVIVO_D1MODE_VBLANK_STATUS, AVIVO_VBLANK_ACK);
+		}
+		if (*r500_disp_int & AVIVO_D2_VBLANK_INTERRUPT) {
+			WREG32(AVIVO_D2MODE_VBLANK_STATUS, AVIVO_VBLANK_ACK);
+		}
+	} else {
+		*r500_disp_int = 0;
+	}
+
+	if (irqs) {
+		WREG32(RADEON_GEN_INT_STATUS, irqs);
+	}
+	return irqs & irq_mask;
+}
+
+int rs600_irq_process(struct radeon_device *rdev)
+{
+	uint32_t status;
+	uint32_t r500_disp_int;
+
+	status = rs600_irq_ack(rdev, &r500_disp_int);
+	if (!status && !r500_disp_int) {
+		return IRQ_NONE;
+	}
+	while (status || r500_disp_int) {
+		/* SW interrupt */
+		if (status & RADEON_SW_INT_TEST) {
+			radeon_fence_process(rdev);
+		}
+		/* Vertical blank interrupts */
+		if (r500_disp_int & AVIVO_D1_VBLANK_INTERRUPT) {
+			drm_handle_vblank(rdev->ddev, 0);
+		}
+		if (r500_disp_int & AVIVO_D2_VBLANK_INTERRUPT) {
+			drm_handle_vblank(rdev->ddev, 1);
+		}
+		status = rs600_irq_ack(rdev, &r500_disp_int);
+	}
+	return IRQ_HANDLED;
+}
+
+u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc)
+{
+	if (crtc == 0)
+		return RREG32(AVIVO_D1CRTC_FRAME_COUNT);
+	else
+		return RREG32(AVIVO_D2CRTC_FRAME_COUNT);
+}
+
+
+/*
  * Global GPU functions
  */
 void rs600_disable_vga(struct radeon_device *rdev)

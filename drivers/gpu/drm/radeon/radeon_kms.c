@@ -141,19 +141,42 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
  */
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
-	return 0;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	return radeon_get_vblank_counter(rdev, crtc);
 }
 
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
-	return 0;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	rdev->irq.crtc_vblank_int[crtc] = true;
+
+	return radeon_irq_set(rdev);
 }
 
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return;
+	}
+
+	rdev->irq.crtc_vblank_int[crtc] = false;
+
+	radeon_irq_set(rdev);
 }
 
 
