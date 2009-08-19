@@ -171,13 +171,6 @@ static struct resource bss_resource = {
 
 
 #ifdef CONFIG_X86_32
-static struct resource video_ram_resource = {
-	.name	= "Video RAM area",
-	.start	= 0xa0000,
-	.end	= 0xbffff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __cpuinitdata = {0, 0, 0, 0, -1, 1, 0, 0, -1};
 /* common cpu data for all cpus */
@@ -605,7 +598,7 @@ static struct resource standard_io_resources[] = {
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO }
 };
 
-static void __init reserve_standard_io_resources(void)
+void __init reserve_standard_io_resources(void)
 {
 	int i;
 
@@ -1013,10 +1006,7 @@ void __init setup_arch(char **cmdline_p)
 	e820_reserve_resources();
 	e820_mark_nosave_regions(max_low_pfn);
 
-#ifdef CONFIG_X86_32
-	request_resource(&iomem_resource, &video_ram_resource);
-#endif
-	reserve_standard_io_resources();
+	x86_init.resources.reserve_resources();
 
 	e820_setup_gap();
 
@@ -1102,4 +1092,18 @@ void __init x86_quirk_time_init(void)
 	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
+
+static struct resource video_ram_resource = {
+	.name	= "Video RAM area",
+	.start	= 0xa0000,
+	.end	= 0xbffff,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+void __init i386_reserve_resources(void)
+{
+	request_resource(&iomem_resource, &video_ram_resource);
+	reserve_standard_io_resources();
+}
+
 #endif /* CONFIG_X86_32 */

@@ -5,7 +5,7 @@
  */
 #include <linux/init.h>
 
-#include <asm/x86_init.h>
+#include <asm/setup.h>
 
 void __cpuinit x86_init_noop(void) { }
 
@@ -17,5 +17,6 @@ struct __initdata x86_init_ops x86_init = {
 
 	.resources = {
 		.probe_roms		= x86_init_noop,
+		.reserve_resources	= reserve_standard_io_resources,
 	},
 };

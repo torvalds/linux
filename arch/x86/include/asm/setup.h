@@ -88,6 +88,9 @@ extern unsigned long saved_video_mode;
 #define paravirt_post_allocator_init()	do {} while (0)
 #endif
 
+extern void reserve_standard_io_resources(void);
+extern void i386_reserve_resources(void);
+
 #ifndef _SETUP
 
 /*

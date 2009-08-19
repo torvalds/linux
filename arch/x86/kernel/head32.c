@@ -31,6 +31,7 @@ void __init i386_start_kernel(void)
 #endif
 	/* Initilize 32bit specific setup functions */
 	x86_init.resources.probe_roms = probe_roms;
+	x86_init.resources.reserve_resources = i386_reserve_resources;
 
 	reserve_ebda_region();
 
