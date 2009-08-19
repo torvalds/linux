@@ -21,6 +21,7 @@
 static unsigned long cpuidle_mode[] = {
 	SUSP_SH_SLEEP, /* regular sleep mode */
 	SUSP_SH_SLEEP | SUSP_SH_SF, /* sleep mode + self refresh */
+	SUSP_SH_STANDBY | SUSP_SH_SF, /* software standby mode + self refresh */
 };
 
 static int cpuidle_sleep_enter(struct cpuidle_device *dev,
@@ -90,6 +91,16 @@ void sh_mobile_setup_cpuidle(void)
 	snprintf(state->name, CPUIDLE_NAME_LEN, "C1");
 	strncpy(state->desc, "SuperH Sleep Mode [SF]", CPUIDLE_DESC_LEN);
 	state->exit_latency = 100;
+	state->target_residency = 1 * 2;
+	state->power_usage = 1;
+	state->flags = 0;
+	state->flags |= CPUIDLE_FLAG_TIME_VALID;
+	state->enter = cpuidle_sleep_enter;
+
+	state = &dev->states[i++];
+	snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
+	strncpy(state->desc, "SuperH Mobile Standby Mode [SF]", CPUIDLE_DESC_LEN);
+	state->exit_latency = 2300;
 	state->target_residency = 1 * 2;
 	state->power_usage = 1;
 	state->flags = 0;

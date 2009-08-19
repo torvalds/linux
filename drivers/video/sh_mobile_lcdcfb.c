@@ -477,6 +477,9 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	/* tell the board code to enable the panel */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
+		if (!ch->enabled)
+			continue;
+
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->display_on)
 			board_cfg->display_on(board_cfg->board_data);
@@ -494,6 +497,8 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 	/* clean up deferred io and ask board code to disable panel */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
+		if (!ch->enabled)
+			continue;
 
 		/* deferred io mode:
 		 * flush frame, and wait for frame end interrupt
