@@ -224,7 +224,7 @@ typedef struct _HV_PORT_INFO
 
 	struct
 	{
-	    HV_GPA MonitorAddress;
+	    u64 MonitorAddress;
 	    u64 RsvdZ;
 	} MonitorPortInfo;
     };
@@ -251,7 +251,7 @@ typedef struct _HV_CONNECTION_INFO
 
 	struct
 	{
-	    HV_GPA MonitorAddress;
+	    u64 MonitorAddress;
 	} MonitorConnectionInfo;
     };
 } HV_CONNECTION_INFO, *PHV_CONNECTION_INFO;
