@@ -268,6 +268,22 @@ err_wifi:
 	return ret;
 }
 
+static void dell_cleanup_rfkill(void)
+{
+	if (wifi_rfkill) {
+		rfkill_unregister(wifi_rfkill);
+		rfkill_destroy(wifi_rfkill);
+	}
+	if (bluetooth_rfkill) {
+		rfkill_unregister(bluetooth_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
+	}
+	if (wwan_rfkill) {
+		rfkill_unregister(wwan_rfkill);
+		rfkill_destroy(wwan_rfkill);
+	}
+}
+
 static int dell_send_intensity(struct backlight_device *bd)
 {
 	struct calling_interface_buffer buffer;
@@ -370,12 +386,7 @@ static int __init dell_init(void)
 	return 0;
 
 fail_backlight:
-	if (wifi_rfkill)
-		rfkill_unregister(wifi_rfkill);
-	if (bluetooth_rfkill)
-		rfkill_unregister(bluetooth_rfkill);
-	if (wwan_rfkill)
-		rfkill_unregister(wwan_rfkill);
+	dell_cleanup_rfkill();
 fail_rfkill:
 	kfree(da_tokens);
 	return ret;
@@ -384,12 +395,7 @@ fail_rfkill:
 static void __exit dell_exit(void)
 {
 	backlight_device_unregister(dell_backlight_device);
-	if (wifi_rfkill)
-		rfkill_unregister(wifi_rfkill);
-	if (bluetooth_rfkill)
-		rfkill_unregister(bluetooth_rfkill);
-	if (wwan_rfkill)
-		rfkill_unregister(wwan_rfkill);
+	dell_cleanup_rfkill();
 }
 
 module_init(dell_init);
