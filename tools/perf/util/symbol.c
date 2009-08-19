@@ -7,22 +7,17 @@
 #include <gelf.h>
 #include <elf.h>
 
-#ifndef NO_DEMANGLE
-#include <bfd.h>
-#else
-static inline
-char *bfd_demangle(void __used *v, const char __used *c, int __used i)
-{
-	return NULL;
-}
-#endif
-
 const char *sym_hist_filter;
 
-#ifndef DMGL_PARAMS
-#define DMGL_PARAMS      (1 << 0)       /* Include function args */
-#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
-#endif
+enum dso_origin {
+	DSO__ORIG_KERNEL = 0,
+	DSO__ORIG_JAVA_JIT,
+	DSO__ORIG_FEDORA,
+	DSO__ORIG_UBUNTU,
+	DSO__ORIG_BUILDID,
+	DSO__ORIG_DSO,
+	DSO__ORIG_NOT_FOUND,
+};
 
 static struct symbol *symbol__new(u64 start, u64 len,
 				  const char *name, unsigned int priv_size,
@@ -81,6 +76,7 @@ struct dso *dso__new(const char *name, unsigned int sym_priv_size)
 		self->sym_priv_size = sym_priv_size;
 		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
+		self->origin = DSO__ORIG_NOT_FOUND;
 	}
 
 	return self;
@@ -710,7 +706,7 @@ static char *dso__read_build_id(struct dso *self, int verbose)
 		++raw;
 		bid += 2;
 	}
-	if (verbose)
+	if (verbose >= 2)
 		printf("%s(%s): %s\n", __func__, self->name, build_id);
 out_elf_end:
 	elf_end(elf);
@@ -720,11 +716,26 @@ out:
 	return build_id;
 }
 
+char dso__symtab_origin(const struct dso *self)
+{
+	static const char origin[] = {
+		[DSO__ORIG_KERNEL] =   'k',
+		[DSO__ORIG_JAVA_JIT] = 'j',
+		[DSO__ORIG_FEDORA] =   'f',
+		[DSO__ORIG_UBUNTU] =   'u',
+		[DSO__ORIG_BUILDID] =  'b',
+		[DSO__ORIG_DSO] =      'd',
+	};
+
+	if (self == NULL || self->origin == DSO__ORIG_NOT_FOUND)
+		return '!';
+	return origin[self->origin];
+}
+
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 {
 	int size = PATH_MAX;
 	char *name = malloc(size), *build_id = NULL;
-	int variant = 0;
 	int ret = -1;
 	int fd;
 
@@ -733,19 +744,26 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 
 	self->adjust_symbols = 0;
 
-	if (strncmp(self->name, "/tmp/perf-", 10) == 0)
-		return dso__load_perf_map(self, filter, verbose);
+	if (strncmp(self->name, "/tmp/perf-", 10) == 0) {
+		ret = dso__load_perf_map(self, filter, verbose);
+		self->origin = ret > 0 ? DSO__ORIG_JAVA_JIT :
+					 DSO__ORIG_NOT_FOUND;
+		return ret;
+	}
+
+	self->origin = DSO__ORIG_FEDORA - 1;
 
 more:
 	do {
-		switch (variant) {
-		case 0: /* Fedora */
+		self->origin++;
+		switch (self->origin) {
+		case DSO__ORIG_FEDORA:
 			snprintf(name, size, "/usr/lib/debug%s.debug", self->name);
 			break;
-		case 1: /* Ubuntu */
+		case DSO__ORIG_UBUNTU:
 			snprintf(name, size, "/usr/lib/debug%s", self->name);
 			break;
-		case 2:
+		case DSO__ORIG_BUILDID:
 			build_id = dso__read_build_id(self, verbose);
 			if (build_id != NULL) {
 				snprintf(name, size,
@@ -754,16 +772,15 @@ more:
 				free(build_id);
 				break;
 			}
-			variant++;
+			self->origin++;
 			/* Fall thru */
-		case 3: /* Sane people */
+		case DSO__ORIG_DSO:
 			snprintf(name, size, "%s", self->name);
 			break;
 
 		default:
 			goto out;
 		}
-		variant++;
 
 		fd = open(name, O_RDONLY);
 	} while (fd < 0);
@@ -784,6 +801,8 @@ more:
 	}
 out:
 	free(name);
+	if (ret < 0 && strstr(self->name, " (deleted)") != NULL)
+		return 0;
 	return ret;
 }
 
@@ -898,6 +917,9 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 
 	if (err <= 0)
 		err = dso__load_kallsyms(self, filter, verbose);
+
+	if (err > 0)
+		self->origin = DSO__ORIG_KERNEL;
 
 	return err;
 }

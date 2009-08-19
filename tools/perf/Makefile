@@ -382,18 +382,29 @@ endif
 ifdef NO_DEMANGLE
 	BASIC_CFLAGS += -DNO_DEMANGLE
 else
-
 	has_bfd := $(shell sh -c "(echo '\#include <bfd.h>'; echo 'int main(void) { bfd_demangle(0, 0, 0); return 0; }') | $(CC) -x c - $(ALL_CFLAGS) -o /dev/null $(ALL_LDFLAGS) -lbfd > /dev/null 2>&1 && echo y")
-
-	has_bfd_iberty := $(shell sh -c "(echo '\#include <bfd.h>'; echo 'int main(void) { bfd_demangle(0, 0, 0); return 0; }') | $(CC) -x c - $(ALL_CFLAGS) -o /dev/null $(ALL_LDFLAGS) -lbfd -liberty > /dev/null 2>&1 && echo y")
 
 	ifeq ($(has_bfd),y)
 		EXTLIBS += -lbfd
-	else ifeq ($(has_bfd_iberty),y)
-		EXTLIBS += -lbfd -liberty
 	else
-		msg := $(warning No bfd.h/libbfd found, install binutils-dev[el] to gain symbol demangling)
-		BASIC_CFLAGS += -DNO_DEMANGLE
+		has_bfd_iberty := $(shell sh -c "(echo '\#include <bfd.h>'; echo 'int main(void) { bfd_demangle(0, 0, 0); return 0; }') | $(CC) -x c - $(ALL_CFLAGS) -o /dev/null $(ALL_LDFLAGS) -lbfd -liberty > /dev/null 2>&1 && echo y")
+		ifeq ($(has_bfd_iberty),y)
+			EXTLIBS += -lbfd -liberty
+		else
+			has_bfd_iberty_z := $(shell sh -c "(echo '\#include <bfd.h>'; echo 'int main(void) { bfd_demangle(0, 0, 0); return 0; }') | $(CC) -x c - $(ALL_CFLAGS) -o /dev/null $(ALL_LDFLAGS) -lbfd -liberty -lz > /dev/null 2>&1 && echo y")
+			ifeq ($(has_bfd_iberty_z),y)
+				EXTLIBS += -lbfd -liberty -lz
+			else
+				has_cplus_demangle := $(shell sh -c "(echo 'extern char *cplus_demangle(const char *, int);'; echo 'int main(void) { cplus_demangle(0, 0); return 0; }') | $(CC) -x c - $(ALL_CFLAGS) -o /dev/null $(ALL_LDFLAGS) -liberty > /dev/null 2>&1 && echo y")
+				ifeq ($(has_cplus_demangle),y)
+					EXTLIBS += -liberty
+					BASIC_CFLAGS += -DHAVE_CPLUS_DEMANGLE
+				else
+					msg := $(warning No bfd.h/libbfd found, install binutils-dev[el] to gain symbol demangling)
+					BASIC_CFLAGS += -DNO_DEMANGLE
+				endif
+			endif
+		endif
 	endif
 endif
 

@@ -1115,6 +1115,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			libata.dma=4	  Compact Flash DMA only 
 			Combinations also work, so libata.dma=3 enables DMA
 			for disks and CDROMs, but not CFs.
+	
+	libata.ignore_hpa=	[LIBATA] Ignore HPA limit
+			libata.ignore_hpa=0	  keep BIOS limits (default)
+			libata.ignore_hpa=1	  ignore limits, using full disk
 
 	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
 			when set.
