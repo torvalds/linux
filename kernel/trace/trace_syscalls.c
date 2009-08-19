@@ -97,7 +97,7 @@ extern char *__bad_type_size(void);
 		__bad_type_size() :					\
 		#type, #name, offsetof(typeof(trace), name), sizeof(trace.name)
 
-int ftrace_format_syscall(struct ftrace_event_call *call, struct trace_seq *s)
+int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
 {
 	int i;
 	int nr;
@@ -147,6 +147,22 @@ int ftrace_format_syscall(struct ftrace_event_call *call, struct trace_seq *s)
 	}
 
 	return ret;
+}
+
+int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
+{
+	int ret;
+	struct syscall_trace_exit trace;
+
+	ret = trace_seq_printf(s,
+			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
+			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n",
+			       SYSCALL_FIELD(int, nr),
+			       SYSCALL_FIELD(unsigned long, ret));
+	if (!ret)
+		return 0;
+
+	return trace_seq_printf(s, "\nprint fmt: \"0x%%lx\", REC->ret\n");
 }
 
 void ftrace_syscall_enter(struct pt_regs *regs, long id)

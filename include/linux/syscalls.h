@@ -189,7 +189,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		.system                 = "syscalls",			\
 		.event                  = &event_syscall_enter,		\
 		.raw_init		= init_enter_##sname,		\
-		.show_format		= ftrace_format_syscall,	\
+		.show_format		= syscall_enter_format,		\
 		.regfunc		= reg_event_syscall_enter,	\
 		.unregfunc		= unreg_event_syscall_enter,	\
 		.data			= "sys"#sname,			\
@@ -225,6 +225,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		.system                 = "syscalls",			\
 		.event                  = &event_syscall_exit,		\
 		.raw_init		= init_exit_##sname,		\
+		.show_format		= syscall_exit_format,		\
 		.regfunc		= reg_event_syscall_exit,	\
 		.unregfunc		= unreg_event_syscall_exit,	\
 		.data			= "sys"#sname,			\
