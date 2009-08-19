@@ -657,29 +657,6 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
 	if (child == NULL)
 		goto listen_overflow;
-#ifdef CONFIG_TCP_MD5SIG
-	else {
-		/* Copy over the MD5 key from the original socket */
-		struct tcp_md5sig_key *key;
-		struct tcp_sock *tp = tcp_sk(sk);
-		key = tp->af_specific->md5_lookup(sk, child);
-		if (key != NULL) {
-			/*
-			 * We're using one, so create a matching key on the
-			 * newsk structure. If we fail to get memory then we
-			 * end up not copying the key across. Shucks.
-			 */
-			char *newkey = kmemdup(key->key, key->keylen,
-					       GFP_ATOMIC);
-			if (newkey) {
-				if (!tcp_alloc_md5sig_pool())
-					BUG();
-				tp->af_specific->md5_add(child, child, newkey,
-							 key->keylen);
-			}
-		}
-	}
-#endif
 
 	inet_csk_reqsk_queue_unlink(sk, req, prev);
 	inet_csk_reqsk_queue_removed(sk, req);
