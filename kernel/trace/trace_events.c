@@ -62,6 +62,28 @@ err:
 }
 EXPORT_SYMBOL_GPL(trace_define_field);
 
+#define __common_field(type, item)					\
+	ret = trace_define_field(call, #type, "common_" #item,		\
+				 offsetof(typeof(ent), item),		\
+				 sizeof(ent.item),			\
+				 is_signed_type(type));			\
+	if (ret)							\
+		return ret;
+
+int trace_define_common_fields(struct ftrace_event_call *call)
+{
+	int ret;
+	struct trace_entry ent;
+
+	__common_field(unsigned short, type);
+	__common_field(unsigned char, flags);
+	__common_field(unsigned char, preempt_count);
+	__common_field(int, pid);
+	__common_field(int, tgid);
+
+	return ret;
+}
+
 #ifdef CONFIG_MODULES
 
 static void trace_destroy_fields(struct ftrace_event_call *call)
