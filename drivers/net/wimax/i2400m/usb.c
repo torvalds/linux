@@ -415,7 +415,6 @@ int i2400mu_probe(struct usb_interface *iface,
 #ifdef CONFIG_PM
 	iface->needs_remote_wakeup = 1;		/* autosuspend (15s delay) */
 	device_init_wakeup(dev, 1);
-	usb_autopm_enable(i2400mu->usb_iface);
 	usb_dev->autosuspend_delay = 15 * HZ;
 	usb_dev->autosuspend_disabled = 0;
 #endif
