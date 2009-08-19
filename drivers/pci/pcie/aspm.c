@@ -458,9 +458,6 @@ static void __pcie_aspm_config_link(struct pcie_link_state *link, u32 state)
 	struct pci_dev *child, *parent = link->pdev;
 	struct pci_bus *linkbus = parent->subordinate;
 
-	/* If no child, disable the link */
-	if (list_empty(&linkbus->devices))
-		state = 0;
 	/*
 	 * If the downstream component has pci bridge function, don't
 	 * do ASPM now.
