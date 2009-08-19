@@ -120,13 +120,19 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 
 void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 {
-	int irq;
+	int irq, i;
 
 	pxa_internal_irq_nr = irq_nr;
 
 	for (irq = PXA_IRQ(0); irq < PXA_IRQ(irq_nr); irq += 32) {
 		_ICMR(irq) = 0;	/* disable all IRQs */
 		_ICLR(irq) = 0;	/* all IRQs are IRQ, not FIQ */
+	}
+
+	/* initialize interrupt priority */
+	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+		for (i = 0; i < irq_nr; i++)
+			IPR(i) = i | (1 << 31);
 	}
 
 	/* only unmasked interrupts kick us out of idle */
