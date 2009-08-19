@@ -934,8 +934,9 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			break;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
+		case QH_STATE_COMPLETING:
 			intr_deschedule (ehci, qh);
-			/* FALL THROUGH */
+			break;
 		case QH_STATE_IDLE:
 			qh_completions (ehci, qh);
 			break;
@@ -943,23 +944,6 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			ehci_dbg (ehci, "bogus qh %p state %d\n",
 					qh, qh->qh_state);
 			goto done;
-		}
-
-		/* reschedule QH iff another request is queued */
-		if (!list_empty (&qh->qtd_list)
-				&& HC_IS_RUNNING (hcd->state)) {
-			rc = qh_schedule(ehci, qh);
-
-			/* An error here likely indicates handshake failure
-			 * or no space left in the schedule.  Neither fault
-			 * should happen often ...
-			 *
-			 * FIXME kill the now-dysfunctional queued urbs
-			 */
-			if (rc != 0)
-				ehci_err(ehci,
-					"can't reschedule qh %p, err %d",
-					qh, rc);
 		}
 		break;
 
@@ -1079,12 +1063,10 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			 * while the QH is active.  Unlink it now;
 			 * re-linking will call qh_refresh().
 			 */
-			if (eptype == USB_ENDPOINT_XFER_BULK) {
+			if (eptype == USB_ENDPOINT_XFER_BULK)
 				unlink_async(ehci, qh);
-			} else {
+			else
 				intr_deschedule(ehci, qh);
-				(void) qh_schedule(ehci, qh);
-			}
 		}
 	}
 	spin_unlock_irqrestore(&ehci->lock, flags);

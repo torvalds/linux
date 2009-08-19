@@ -615,8 +615,19 @@ static int qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	unsigned	wait;
-	struct ehci_qh_hw *hw = qh->hw;
+	unsigned		wait;
+	struct ehci_qh_hw	*hw = qh->hw;
+	int			rc;
+
+	/* If the QH isn't linked then there's nothing we can do
+	 * unless we were called during a giveback, in which case
+	 * qh_completions() has to deal with it.
+	 */
+	if (qh->qh_state != QH_STATE_LINKED) {
+		if (qh->qh_state == QH_STATE_COMPLETING)
+			qh->needs_rescan = 1;
+		return;
+	}
 
 	qh_unlink_periodic (ehci, qh);
 
@@ -636,6 +647,24 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->qh_state = QH_STATE_IDLE;
 	hw->hw_next = EHCI_LIST_END(ehci);
 	wmb ();
+
+	qh_completions(ehci, qh);
+
+	/* reschedule QH iff another request is queued */
+	if (!list_empty(&qh->qtd_list) &&
+			HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+		rc = qh_schedule(ehci, qh);
+
+		/* An error here likely indicates handshake failure
+		 * or no space left in the schedule.  Neither fault
+		 * should happen often ...
+		 *
+		 * FIXME kill the now-dysfunctional queued urbs
+		 */
+		if (rc != 0)
+			ehci_err(ehci, "can't reschedule qh %p, err %d\n",
+					qh, rc);
+	}
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2213,7 +2242,8 @@ restart:
 				type = Q_NEXT_TYPE(ehci, q.qh->hw->hw_next);
 				q = q.qh->qh_next;
 				modified = qh_completions (ehci, temp.qh);
-				if (unlikely (list_empty (&temp.qh->qtd_list)))
+				if (unlikely(list_empty(&temp.qh->qtd_list) ||
+						temp.qh->needs_rescan))
 					intr_deschedule (ehci, temp.qh);
 				qh_put (temp.qh);
 				break;

@@ -299,7 +299,6 @@ __acquires(ehci->lock)
 static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh);
 static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh);
 
-static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*
@@ -555,14 +554,9 @@ halt:
 			 * That should be rare for interrupt transfers,
 			 * except maybe high bandwidth ...
 			 */
-			if ((cpu_to_hc32(ehci, QH_SMASK)
-					& hw->hw_info2) != 0) {
-				intr_deschedule (ehci, qh);
-				(void) qh_schedule (ehci, qh);
-			} else {
-				/* Tell the caller to start an unlink */
-				qh->needs_rescan = 1;
-			}
+
+			/* Tell the caller to start an unlink */
+			qh->needs_rescan = 1;
 			break;
 		/* otherwise, unlink already started */
 		}
