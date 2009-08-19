@@ -533,6 +533,10 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
 		struct i2400m_bootrom_header jump_ack;
 		d_printf(1, dev, "unsecure boot, jumping to 0x%08x\n",
 			le32_to_cpu(cmd->target_addr));
+		cmd_buf = i2400m->bm_cmd_buf;
+		memcpy(&cmd_buf->cmd, cmd, sizeof(*cmd));
+		cmd = &cmd_buf->cmd;
+		/* now cmd points to the actual bootrom_header in cmd_buf */
 		i2400m_brh_set_opcode(cmd, I2400M_BRH_JUMP);
 		cmd->data_size = 0;
 		ret = i2400m_bm_cmd(i2400m, cmd, sizeof(*cmd),
