@@ -27,7 +27,7 @@
 
 #include <linux/device.h>
 
-#include "VmbusApi.h"
+#include "include/VmbusApi.h"
 
 
 /* Data types */

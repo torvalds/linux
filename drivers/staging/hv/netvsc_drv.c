@@ -38,7 +38,7 @@
 
 #include "osd.h"
 #include "include/logging.h"
-#include "include/vmbus.h"
+#include "vmbus.h"
 
 #include "include/NetVscApi.h"
 

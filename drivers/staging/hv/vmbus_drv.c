@@ -30,7 +30,7 @@
 #include <linux/sysctl.h>
 #include "osd.h"
 #include "include/logging.h"
-#include "include/vmbus.h"
+#include "vmbus.h"
 
 
 /* Defines */
