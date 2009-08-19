@@ -1692,6 +1692,11 @@ static void free_counter(struct perf_counter *counter)
 			atomic_dec(&nr_task_counters);
 	}
 
+	if (counter->output) {
+		fput(counter->output->filp);
+		counter->output = NULL;
+	}
+
 	if (counter->destroy)
 		counter->destroy(counter);
 
@@ -1977,6 +1982,8 @@ unlock:
 	return ret;
 }
 
+int perf_counter_set_output(struct perf_counter *counter, int output_fd);
+
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct perf_counter *counter = file->private_data;
@@ -1999,6 +2006,9 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case PERF_COUNTER_IOC_PERIOD:
 		return perf_counter_period(counter, (u64 __user *)arg);
+
+	case PERF_COUNTER_IOC_SET_OUTPUT:
+		return perf_counter_set_output(counter, arg);
 
 	default:
 		return -ENOTTY;
@@ -2270,6 +2280,11 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 	WARN_ON_ONCE(counter->ctx->parent_ctx);
 	mutex_lock(&counter->mmap_mutex);
+	if (counter->output) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	if (atomic_inc_not_zero(&counter->mmap_count)) {
 		if (nr_pages != counter->data->nr_pages)
 			ret = -EINVAL;
@@ -2655,6 +2670,7 @@ static int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_counter *counter, unsigned int size,
 			     int nmi, int sample)
 {
+	struct perf_counter *output_counter;
 	struct perf_mmap_data *data;
 	unsigned int offset, head;
 	int have_lost;
@@ -2664,13 +2680,17 @@ static int perf_output_begin(struct perf_output_handle *handle,
 		u64			 lost;
 	} lost_event;
 
+	rcu_read_lock();
 	/*
 	 * For inherited counters we send all the output towards the parent.
 	 */
 	if (counter->parent)
 		counter = counter->parent;
 
-	rcu_read_lock();
+	output_counter = rcu_dereference(counter->output);
+	if (output_counter)
+		counter = output_counter;
+
 	data = rcu_dereference(counter->data);
 	if (!data)
 		goto out;
@@ -4218,6 +4238,57 @@ err_size:
 	goto out;
 }
 
+int perf_counter_set_output(struct perf_counter *counter, int output_fd)
+{
+	struct perf_counter *output_counter = NULL;
+	struct file *output_file = NULL;
+	struct perf_counter *old_output;
+	int fput_needed = 0;
+	int ret = -EINVAL;
+
+	if (!output_fd)
+		goto set;
+
+	output_file = fget_light(output_fd, &fput_needed);
+	if (!output_file)
+		return -EBADF;
+
+	if (output_file->f_op != &perf_fops)
+		goto out;
+
+	output_counter = output_file->private_data;
+
+	/* Don't chain output fds */
+	if (output_counter->output)
+		goto out;
+
+	/* Don't set an output fd when we already have an output channel */
+	if (counter->data)
+		goto out;
+
+	atomic_long_inc(&output_file->f_count);
+
+set:
+	mutex_lock(&counter->mmap_mutex);
+	old_output = counter->output;
+	rcu_assign_pointer(counter->output, output_counter);
+	mutex_unlock(&counter->mmap_mutex);
+
+	if (old_output) {
+		/*
+		 * we need to make sure no existing perf_output_*()
+		 * is still referencing this counter.
+		 */
+		synchronize_rcu();
+		fput(old_output->filp);
+	}
+
+	ret = 0;
+out:
+	fput_light(output_file, fput_needed);
+	return ret;
+}
+
 /**
  * sys_perf_counter_open - open a performance counter, associate it to a task/cpu
  *
@@ -4240,7 +4311,7 @@ SYSCALL_DEFINE5(perf_counter_open,
 	int ret;
 
 	/* for future expandability... */
-	if (flags)
+	if (flags & ~(PERF_FLAG_FD_NO_GROUP | PERF_FLAG_FD_OUTPUT))
 		return -EINVAL;
 
 	ret = perf_copy_attr(attr_uptr, &attr);
@@ -4268,7 +4339,7 @@ SYSCALL_DEFINE5(perf_counter_open,
 	 * Look up the group leader (we will attach this counter to it):
 	 */
 	group_leader = NULL;
-	if (group_fd != -1) {
+	if (group_fd != -1 && !(flags & PERF_FLAG_FD_NO_GROUP)) {
 		ret = -EINVAL;
 		group_file = fget_light(group_fd, &fput_needed);
 		if (!group_file)
@@ -4309,6 +4380,12 @@ SYSCALL_DEFINE5(perf_counter_open,
 	counter_file = fget_light(ret, &fput_needed2);
 	if (!counter_file)
 		goto err_free_put_context;
+
+	if (flags & PERF_FLAG_FD_OUTPUT) {
+		ret = perf_counter_set_output(counter, group_fd);
+		if (ret)
+			goto err_free_put_context;
+	}
 
 	counter->filp = counter_file;
 	WARN_ON_ONCE(ctx->parent_ctx);

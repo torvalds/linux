@@ -216,6 +216,7 @@ struct perf_counter_attr {
 #define PERF_COUNTER_IOC_REFRESH	_IO ('$', 2)
 #define PERF_COUNTER_IOC_RESET		_IO ('$', 3)
 #define PERF_COUNTER_IOC_PERIOD		_IOW('$', 4, u64)
+#define PERF_COUNTER_IOC_SET_OUTPUT	_IO ('$', 5)
 
 enum perf_counter_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,
@@ -415,6 +416,9 @@ enum perf_callchain_context {
 	PERF_CONTEXT_MAX		= (__u64)-4095,
 };
 
+#define PERF_FLAG_FD_NO_GROUP	(1U << 0)
+#define PERF_FLAG_FD_OUTPUT	(1U << 1)
+
 #ifdef __KERNEL__
 /*
  * Kernel-internal data types and definitions:
@@ -536,6 +540,7 @@ struct perf_counter {
 	struct list_head		sibling_list;
 	int				nr_siblings;
 	struct perf_counter		*group_leader;
+	struct perf_counter		*output;
 	const struct pmu		*pmu;
 
 	enum perf_counter_active_state	state;
