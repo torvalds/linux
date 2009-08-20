@@ -219,6 +219,7 @@ static struct platform_device *kfr2r09_devices[] __initdata = {
 #define BSC_CS4WCR 0xfec10030
 #define PORT_MSELCRB 0xa4050182
 
+#ifdef CONFIG_I2C
 static int kfr2r09_usb0_gadget_i2c_setup(void)
 {
 	struct i2c_adapter *a;
@@ -261,6 +262,12 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 
 	return 0;
 }
+#else
+static int kfr2r09_usb0_gadget_i2c_setup(void)
+{
+	return -ENODEV;
+}
+#endif
 
 static int kfr2r09_usb0_gadget_setup(void)
 {
