@@ -847,6 +847,10 @@ unsigned long get_seconds(void)
 }
 EXPORT_SYMBOL(get_seconds);
 
+struct timespec __current_kernel_time(void)
+{
+	return xtime_cache;
+}
 
 struct timespec current_kernel_time(void)
 {
@@ -862,3 +866,20 @@ struct timespec current_kernel_time(void)
 	return now;
 }
 EXPORT_SYMBOL(current_kernel_time);
+
+struct timespec get_monotonic_coarse(void)
+{
+	struct timespec now, mono;
+	unsigned long seq;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+
+		now = xtime_cache;
+		mono = wall_to_monotonic;
+	} while (read_seqretry(&xtime_lock, seq));
+
+	set_normalized_timespec(&now, now.tv_sec + mono.tv_sec,
+				now.tv_nsec + mono.tv_nsec);
+	return now;
+}
