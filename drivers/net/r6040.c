@@ -1091,7 +1091,6 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	int err, io_size = R6040_IO_SIZE;
 	static int card_idx = -1;
 	int bar = 0;
-	long pioaddr;
 	u16 *adrp;
 
 	printk(KERN_INFO "%s\n", version);
@@ -1121,7 +1120,6 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	pioaddr = pci_resource_start(pdev, bar);	/* IO map base address */
 	pci_set_master(pdev);
 
 	dev = alloc_etherdev(sizeof(struct r6040_private));
