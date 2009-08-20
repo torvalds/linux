@@ -16,11 +16,8 @@
 struct x86_quirks {
 	int (*arch_pre_time_init)(void);
 	int (*arch_time_init)(void);
-	int (*arch_intr_init)(void);
 	int (*arch_trap_init)(void);
 };
-
-extern void x86_quirk_intr_init(void);
 
 extern void x86_quirk_trap_init(void);
 

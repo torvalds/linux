@@ -228,7 +228,6 @@ static int visws_trap_init(void);
 
 static struct x86_quirks visws_x86_quirks __initdata = {
 	.arch_time_init		= visws_time_init,
-	.arch_intr_init		= NULL,
 	.arch_trap_init		= visws_trap_init,
 };
 

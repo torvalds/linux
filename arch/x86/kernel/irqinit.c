@@ -140,8 +140,10 @@ void __init init_ISA_irqs(void)
 	}
 }
 
-/* Overridden in paravirt.c */
-void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
+void init_IRQ(void)
+{
+	x86_init.irqs.intr_init();
+}
 
 static void __init smp_intr_init(void)
 {
@@ -237,12 +239,6 @@ void __init native_init_IRQ(void)
 		setup_irq(2, &irq2);
 
 #ifdef CONFIG_X86_32
-	/*
-	 * Call quirks after call gates are initialised (usually add in
-	 * the architecture specific gates):
-	 */
-	x86_quirk_intr_init();
-
 	/*
 	 * External FPU? Set up irq13 if so, for
 	 * original braindamaged IBM FERR coupling.

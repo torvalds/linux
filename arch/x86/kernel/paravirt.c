@@ -183,11 +183,6 @@ unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
 	return insn_len;
 }
 
-void init_IRQ(void)
-{
-	pv_irq_ops.init_IRQ();
-}
-
 static void native_flush_tlb(void)
 {
 	__native_flush_tlb();
@@ -328,7 +323,6 @@ struct pv_time_ops pv_time_ops = {
 };
 
 struct pv_irq_ops pv_irq_ops = {
-	.init_IRQ = native_init_IRQ,
 	.save_fl = __PV_IS_CALLEE_SAVE(native_save_fl),
 	.restore_fl = __PV_IS_CALLEE_SAVE(native_restore_fl),
 	.irq_disable = __PV_IS_CALLEE_SAVE(native_irq_disable),

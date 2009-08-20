@@ -47,9 +47,11 @@ struct x86_init_resources {
  * struct x86_init_irqs - platform specific interrupt setup
  * @pre_vector_init:		init code to run before interrupt vectors
  *				are set up.
+ * @intr_init:			interrupt init code
  */
 struct x86_init_irqs {
 	void (*pre_vector_init)(void);
+	void (*intr_init)(void);
 };
 
 /**

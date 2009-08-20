@@ -39,5 +39,6 @@ struct __initdata x86_init_ops x86_init = {
 
 	.irqs = {
 		.pre_vector_init	= init_ISA_irqs,
+		.intr_init		= native_init_IRQ,
 	},
 };

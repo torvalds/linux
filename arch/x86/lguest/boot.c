@@ -1262,7 +1262,6 @@ __init void lguest_init(void)
 	 */
 
 	/* Interrupt-related operations */
-	pv_irq_ops.init_IRQ = lguest_init_IRQ;
 	pv_irq_ops.save_fl = PV_CALLEE_SAVE(save_fl);
 	pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(lg_restore_fl);
 	pv_irq_ops.irq_disable = PV_CALLEE_SAVE(irq_disable);
@@ -1325,6 +1324,7 @@ __init void lguest_init(void)
 	pv_time_ops.get_tsc_khz = lguest_tsc_khz;
 
 	x86_init.resources.memory_setup = lguest_memory_setup;
+	x86_init.irqs.intr_init = lguest_init_IRQ;
 
 	/*
 	 * Now is a good time to look at the implementations of these functions

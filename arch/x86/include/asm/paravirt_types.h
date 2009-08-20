@@ -201,8 +201,6 @@ struct pv_cpu_ops {
 };
 
 struct pv_irq_ops {
-	void (*init_IRQ)(void);
-
 	/*
 	 * Get/set interrupt state.  save_fl and restore_fl are only
 	 * expected to use X86_EFLAGS_IF; all other bits
