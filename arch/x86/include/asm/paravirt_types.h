@@ -78,9 +78,6 @@ struct pv_init_ops {
 	 */
 	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
 			  unsigned long addr, unsigned len);
-
-	/* Basic arch-specific setup */
-	void (*post_allocator_init)(void);
 };
 
 

@@ -63,10 +63,6 @@ static inline int is_visws_box(void) { return 0; }
 extern struct x86_quirks *x86_quirks;
 extern unsigned long saved_video_mode;
 
-#ifndef CONFIG_PARAVIRT
-#define paravirt_post_allocator_init()	do {} while (0)
-#endif
-
 extern void reserve_standard_io_resources(void);
 extern void i386_reserve_resources(void);
 

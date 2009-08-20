@@ -1229,9 +1229,12 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 {
 }
 
+static void xen_post_allocator_init(void);
+
 static __init void xen_pagetable_setup_done(pgd_t *base)
 {
 	xen_setup_shared_info();
+	xen_post_allocator_init();
 }
 
 static void xen_write_cr2(unsigned long cr2)
@@ -1841,7 +1844,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 }
 
-__init void xen_post_allocator_init(void)
+static __init void xen_post_allocator_init(void)
 {
 	pv_mmu_ops.set_pte = xen_set_pte;
 	pv_mmu_ops.set_pmd = xen_set_pmd;

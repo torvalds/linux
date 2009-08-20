@@ -345,12 +345,6 @@ static inline void setup_secondary_clock(void)
 }
 #endif
 
-static inline void paravirt_post_allocator_init(void)
-{
-	if (pv_init_ops.post_allocator_init)
-		(*pv_init_ops.post_allocator_init)();
-}
-
 #ifdef CONFIG_SMP
 static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 				    unsigned long start_esp)
