@@ -199,6 +199,7 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct shash_instance *inst;
 	struct crypto_alg *alg;
+	unsigned long alignmask;
 	int err;
 
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SHASH);
@@ -228,19 +229,20 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto out_free_inst;
 
+	alignmask = alg->cra_alignmask | 3;
+	inst->alg.base.cra_alignmask = alignmask;
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
-	inst->alg.base.cra_alignmask = alg->cra_alignmask | 3;
 
 	inst->alg.digestsize = alg->cra_blocksize;
 	inst->alg.descsize = ALIGN(sizeof(struct xcbc_desc_ctx),
 				   crypto_tfm_ctx_alignment()) +
-			     (alg->cra_alignmask &
+			     (alignmask &
 			      ~(crypto_tfm_ctx_alignment() - 1)) +
 			     alg->cra_blocksize * 2;
 
 	inst->alg.base.cra_ctxsize = ALIGN(sizeof(struct xcbc_tfm_ctx),
-					   alg->cra_alignmask) +
+					   alignmask + 1) +
 				     alg->cra_blocksize * 2;
 	inst->alg.base.cra_init = xcbc_init_tfm;
 	inst->alg.base.cra_exit = xcbc_exit_tfm;
