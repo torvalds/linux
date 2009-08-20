@@ -3663,8 +3663,8 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = TV,
 			.gpio = 0x0200000,
 		},
-       },
-       [SAA7134_BOARD_ASUSTeK_P7131_ANALOG] = {
+	},
+	[SAA7134_BOARD_ASUSTeK_P7131_ANALOG] = {
 	       .name           = "ASUSTeK P7131 Analog",
 	       .audio_clock    = 0x00187de7,
 	       .tuner_type     = TUNER_PHILIPS_TDA8290,
@@ -6524,7 +6524,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
-       case SAA7134_BOARD_ASUSTeK_P7131_ANALOG:
+	case SAA7134_BOARD_ASUSTeK_P7131_ANALOG:
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_PROTEUS_2309:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
