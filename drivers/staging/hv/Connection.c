@@ -390,7 +390,7 @@ Description:
 int VmbusPostMessage(void *buffer, size_t bufferLen)
 {
 	int ret=0;
-	HV_CONNECTION_ID connId;
+	union hv_connection_id connId;
 
 
 	connId.Asu32 =0;

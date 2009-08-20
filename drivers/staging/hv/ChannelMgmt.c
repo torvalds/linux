@@ -701,7 +701,7 @@ Description:
 --*/
 void VmbusOnChannelMessage(void *Context)
 {
-	HV_MESSAGE *msg=(HV_MESSAGE*)Context;
+	struct hv_message *msg = Context;
 	VMBUS_CHANNEL_MESSAGE_HEADER* hdr;
 	int size;
 

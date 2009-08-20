@@ -135,8 +135,8 @@ extern int HvInit(void);
 
 extern void HvCleanup(void);
 
-extern HV_STATUS HvPostMessage(HV_CONNECTION_ID connectionId,
-			       HV_MESSAGE_TYPE messageType,
+extern HV_STATUS HvPostMessage(union hv_connection_id connectionId,
+			       enum hv_message_type messageType,
 			       void *payload,
 			       size_t payloadSize);
 

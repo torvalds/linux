@@ -407,8 +407,8 @@ VmbusOnMsgDPC(
 {
 	void *page_addr = gHvContext.synICMessagePage[0];
 
-	HV_MESSAGE* msg = (HV_MESSAGE*)page_addr + VMBUS_MESSAGE_SINT;
-	HV_MESSAGE *copied;
+	struct hv_message *msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
+	struct hv_message *copied;
 	while (1)
 	{
 		if (msg->Header.MessageType == HvMessageTypeNone) /* no msg */
@@ -417,13 +417,13 @@ VmbusOnMsgDPC(
 		}
 		else
 		{
-			copied = kmalloc(sizeof(HV_MESSAGE), GFP_ATOMIC);
+			copied = kmalloc(sizeof(*copied), GFP_ATOMIC);
 			if (copied == NULL)
 			{
 				continue;
 			}
 
-			memcpy(copied, msg, sizeof(HV_MESSAGE));
+			memcpy(copied, msg, sizeof(*copied));
 			osd_schedule_callback(gVmbusConnection.WorkQueue,
 					      VmbusOnChannelMessage,
 					      (void *)copied);
@@ -490,13 +490,13 @@ VmbusOnISR(
 	int ret=0;
 	/* struct page* page; */
 	void *page_addr;
-	HV_MESSAGE* msg;
-	HV_SYNIC_EVENT_FLAGS* event;
+	struct hv_message *msg;
+	union hv_synic_event_flags *event;
 
 	/* page = SynICMessagePage[0]; */
 	/* page_addr = page_address(page); */
 	page_addr = gHvContext.synICMessagePage[0];
-	msg = (HV_MESSAGE*)page_addr + VMBUS_MESSAGE_SINT;
+	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -509,7 +509,7 @@ VmbusOnISR(
 
 	/* TODO: Check if there are events to be process */
 	page_addr = gHvContext.synICEventPage[0];
-	event = (HV_SYNIC_EVENT_FLAGS*)page_addr + VMBUS_MESSAGE_SINT;
+	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
 	if (test_and_clear_bit(0, (unsigned long *) &event->Flags32[0]))

@@ -385,8 +385,8 @@ Description:
 
 --*/
 HV_STATUS HvPostMessage(
-	HV_CONNECTION_ID connectionId,
-	HV_MESSAGE_TYPE  messageType,
+	union hv_connection_id connectionId,
+	enum hv_message_type messageType,
 	void *            payload,
 	size_t           payloadSize
 	)
@@ -461,10 +461,10 @@ Description:
 int HvSynicInit (u32 irqVector)
 {
 	u64			version;
-	HV_SYNIC_SIMP	simp;
-	HV_SYNIC_SIEFP	siefp;
-    HV_SYNIC_SINT	sharedSint;
-	HV_SYNIC_SCONTROL sctrl;
+	union hv_synic_simp simp;
+	union hv_synic_siefp siefp;
+	union hv_synic_sint sharedSint;
+	union hv_synic_scontrol sctrl;
 	u64			guestID;
 	int ret=0;
 
@@ -600,9 +600,9 @@ Description:
 --*/
 void HvSynicCleanup(void)
 {
-    HV_SYNIC_SINT	sharedSint;
-	HV_SYNIC_SIMP	simp;
-	HV_SYNIC_SIEFP	siefp;
+	union hv_synic_sint sharedSint;
+	union hv_synic_simp simp;
+	union hv_synic_siefp siefp;
 
 	DPRINT_ENTER(VMBUS);
 

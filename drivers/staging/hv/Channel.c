@@ -42,7 +42,7 @@ static void VmbusChannelSetEvent(struct vmbus_channel *channel);
 #if 0
 static void
 DumpMonitorPage(
-	HV_MONITOR_PAGE *MonitorPage
+	struct hv_monitor_page *MonitorPage
 	)
 {
 	int i=0;
@@ -85,7 +85,7 @@ Description:
 --*/
 static void VmbusChannelSetEvent(struct vmbus_channel *Channel)
 {
-	HV_MONITOR_PAGE *monitorPage;
+	struct hv_monitor_page *monitorPage;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -96,7 +96,7 @@ static void VmbusChannelSetEvent(struct vmbus_channel *Channel)
 			(unsigned long *) gVmbusConnection.SendInterruptPage +
 			(Channel->OfferMsg.ChildRelId >> 5) );
 
-		monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
+		monitorPage = (struct hv_monitor_page *)gVmbusConnection.MonitorPages;
 		monitorPage++; /* Get the child to parent monitor page */
 
 		set_bit(Channel->MonitorBit,
@@ -114,7 +114,7 @@ static void VmbusChannelSetEvent(struct vmbus_channel *Channel)
 #if 0
 static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 {
-	HV_MONITOR_PAGE *monitorPage;
+	struct hv_monitor_page *monitorPage;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -124,7 +124,7 @@ static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 		clear_bit(Channel->OfferMsg.ChildRelId & 31,
 			  (unsigned long *) gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5));
 
-		monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
+		monitorPage = (struct hv_monitor_page *)gVmbusConnection.MonitorPages;
 		monitorPage++; /* Get the child to parent monitor page */
 
 		clear_bit(Channel->MonitorBit,
@@ -147,7 +147,7 @@ Description:
 void VmbusChannelGetDebugInfo(struct vmbus_channel *Channel,
 			      struct vmbus_channel_debug_info *DebugInfo)
 {
-	HV_MONITOR_PAGE *monitorPage;
+	struct hv_monitor_page *monitorPage;
     u8 monitorGroup    = (u8)Channel->OfferMsg.MonitorId / 32;
     u8 monitorOffset   = (u8)Channel->OfferMsg.MonitorId % 32;
 	/* u32 monitorBit	= 1 << monitorOffset; */
@@ -157,7 +157,7 @@ void VmbusChannelGetDebugInfo(struct vmbus_channel *Channel,
 	memcpy(&DebugInfo->InterfaceType, &Channel->OfferMsg.Offer.InterfaceType, sizeof(struct hv_guid));
 	memcpy(&DebugInfo->InterfaceInstance, &Channel->OfferMsg.Offer.InterfaceInstance, sizeof(struct hv_guid));
 
-	monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
+	monitorPage = (struct hv_monitor_page *)gVmbusConnection.MonitorPages;
 
 	DebugInfo->MonitorId = Channel->OfferMsg.MonitorId;
 

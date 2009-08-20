@@ -32,16 +32,16 @@ enum hv_call_code {
 
 /* Definition of the HvPostMessage hypercall input structure. */
 struct hv_input_post_message {
-	HV_CONNECTION_ID ConnectionId;
+	union hv_connection_id ConnectionId;
 	u32 Reserved;
-	HV_MESSAGE_TYPE MessageType;
+	enum hv_message_type MessageType;
 	u32 PayloadSize;
 	u64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
 };
 
 /* Definition of the HvSignalEvent hypercall input structure. */
 struct hv_input_signal_event {
-	HV_CONNECTION_ID ConnectionId;
+	union hv_connection_id ConnectionId;
 	u16 FlagNumber;
 	u16 RsvdZ;
 };
