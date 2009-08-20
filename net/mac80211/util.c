@@ -1007,6 +1007,16 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 	return supp_rates;
 }
 
+void ieee80211_stop_device(struct ieee80211_local *local)
+{
+	ieee80211_led_radio(local, false);
+
+	cancel_work_sync(&local->reconfig_filter);
+	drv_stop(local);
+
+	flush_workqueue(local->workqueue);
+}
+
 int ieee80211_reconfig(struct ieee80211_local *local)
 {
 	struct ieee80211_hw *hw = &local->hw;

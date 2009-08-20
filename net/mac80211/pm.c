@@ -107,17 +107,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	}
 
 	/* stop hardware - this must stop RX */
-	if (local->open_count) {
-		ieee80211_led_radio(local, false);
-		drv_stop(local);
-	}
-
-	/*
-	 * flush again, in case driver queued work -- it
-	 * shouldn't be doing (or cancel everything in the
-	 * stop callback) that but better safe than sorry.
-	 */
-	flush_workqueue(local->workqueue);
+	if (local->open_count)
+		ieee80211_stop_device(local);
 
 	local->suspended = true;
 	/* need suspended to be visible before quiescing is false */
