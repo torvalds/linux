@@ -34,7 +34,9 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		goto out_pci_suspend;
 
-	dev->stop(dev);
+	if (dev->netdev_ops->ndo_stop)
+		dev->netdev_ops->ndo_stop(dev);
+//	dev->stop(dev);
 #if 0
 
 	netif_carrier_off(dev);
@@ -150,7 +152,10 @@ int rtl8192E_resume (struct pci_dev *pdev)
 
 	netif_device_attach(dev);
 
-	dev->open(dev);
+	if (dev->netdev_ops->ndo_open)
+		dev->netdev_ops->ndo_open(dev);
+
+//	dev->open(dev);
 out:
         RT_TRACE(COMP_POWER, "<================r8192E resume call.\n");
 	return 0;

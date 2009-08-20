@@ -530,22 +530,12 @@ int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	strcpy(wrqu->name, "802.11");
-	if(ieee->modulation & IEEE80211_CCK_MODULATION){
+	if(ieee->modulation & IEEE80211_CCK_MODULATION)
 		strcat(wrqu->name, "b");
-		if(ieee->modulation & IEEE80211_OFDM_MODULATION)
-			strcat(wrqu->name, "/g");
-	}else if(ieee->modulation & IEEE80211_OFDM_MODULATION)
+	if(ieee->modulation & IEEE80211_OFDM_MODULATION)
 		strcat(wrqu->name, "g");
 	if (ieee->mode & (IEEE_N_24G | IEEE_N_5G))
-		strcat(wrqu->name, "/n");
-
-	if((ieee->state == IEEE80211_LINKED) ||
-		(ieee->state == IEEE80211_LINKED_SCANNING))
-		strcat(wrqu->name," linked");
-	else if(ieee->state != IEEE80211_NOLINK)
-		strcat(wrqu->name," link..");
-
-
+		strcat(wrqu->name, "n");
 	return 0;
 }
 
