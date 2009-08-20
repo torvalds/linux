@@ -235,6 +235,13 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 		return -ESHUTDOWN;
 	}
 
+	if (unlikely(ehci->debug)) {
+		if (ehci->debug && !dbgp_reset_prep())
+			ehci->debug = NULL;
+		else
+			dbgp_external_startup();
+	}
+
 	/* Ideally and we've got a real resume here, and no port's power
 	 * was lost.  (For PCI, that means Vaux was maintained.)  But we
 	 * could instead be restoring a swsusp snapshot -- so that BIOS was
