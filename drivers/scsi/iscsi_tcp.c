@@ -109,11 +109,14 @@ static int iscsi_sw_tcp_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
  */
 static inline int iscsi_sw_sk_state_check(struct sock *sk)
 {
-	if ((sk->sk_state == TCP_CLOSE_WAIT ||
-	     sk->sk_state == TCP_CLOSE) &&
-	    !atomic_read(&sk->sk_rmem_alloc))
-		return -ECONNRESET;
+	struct iscsi_conn *conn = (struct iscsi_conn*)sk->sk_user_data;
 
+	if ((sk->sk_state == TCP_CLOSE_WAIT || sk->sk_state == TCP_CLOSE) &&
+	    !atomic_read(&sk->sk_rmem_alloc)) {
+		ISCSI_SW_TCP_DBG(conn, "TCP_CLOSE|TCP_CLOSE_WAIT\n");
+		iscsi_conn_failure(conn, ISCSI_ERR_TCP_CONN_CLOSE);
+		return -ECONNRESET;
+	}
 	return 0;
 }
 
@@ -135,11 +138,7 @@ static void iscsi_sw_tcp_data_ready(struct sock *sk, int flag)
 	rd_desc.count = 1;
 	tcp_read_sock(sk, &rd_desc, iscsi_sw_tcp_recv);
 
-	if (iscsi_sw_sk_state_check(sk) < 0) {
-		ISCSI_SW_TCP_DBG(conn, "iscsi_tcp_data_ready: "
-				 "TCP_CLOSE|TCP_CLOSE_WAIT\n");
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-	}
+	iscsi_sw_sk_state_check(sk);
 
 	read_unlock(&sk->sk_callback_lock);
 
@@ -161,11 +160,7 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 	conn = (struct iscsi_conn*)sk->sk_user_data;
 	session = conn->session;
 
-	if (iscsi_sw_sk_state_check(sk) < 0) {
-		ISCSI_SW_TCP_DBG(conn, "iscsi_tcp_state_change: "
-				 "TCP_CLOSE|TCP_CLOSE_WAIT\n");
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-	}
+	iscsi_sw_sk_state_check(sk);
 
 	tcp_conn = conn->dd_data;
 	tcp_sw_conn = tcp_conn->dd_data;
