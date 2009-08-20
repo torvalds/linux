@@ -23,7 +23,9 @@
 #include <asm/time.h>
 #include <asm/nmi.h>
 
+#if defined(CONFIG_X86_32) && defined(CONFIG_X86_IO_APIC)
 int timer_ack;
+#endif
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -60,7 +62,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	/* Keep nmi watchdog up to date */
 	inc_irq_stat(irq0_irqs);
 
-#ifdef CONFIG_X86_IO_APIC
+	/* Optimized out for !IO_APIC and x86_64 */
 	if (timer_ack) {
 		/*
 		 * Subtle, when I/O APICs are used we have to ack timer IRQ
@@ -73,7 +75,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 		inb(PIC_MASTER_POLL);
 		spin_unlock(&i8259A_lock);
 	}
-#endif
 
 	global_clock_event->event_handler(global_clock_event);
 
