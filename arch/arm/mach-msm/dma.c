@@ -59,6 +59,7 @@ void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 	spin_lock_irqsave(&msm_dmov_lock, irq_flags);
 	if (!channel_active)
 		clk_enable(msm_dmov_clk);
+	dsb();
 	status = readl(DMOV_STATUS(id));
 	if (list_empty(&ready_commands[id]) &&
 		(status & DMOV_STATUS_CMD_PTR_RDY)) {
@@ -172,6 +173,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 					"for %p, result %x\n", id, cmd, ch_result);
 				if (cmd) {
 					list_del(&cmd->list);
+					dsb();
 					cmd->complete_func(cmd, ch_result, NULL);
 				}
 			}
@@ -188,6 +190,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 				PRINT_FLOW("msm_datamover_irq_handler id %d, flush, result %x, flush0 %x\n", id, ch_result, errdata.flush[0]);
 				if (cmd) {
 					list_del(&cmd->list);
+					dsb();
 					cmd->complete_func(cmd, ch_result, &errdata);
 				}
 			}
@@ -205,6 +208,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 				PRINT_ERROR("msm_datamover_irq_handler id %d, error, result %x, flush0 %x\n", id, ch_result, errdata.flush[0]);
 				if (cmd) {
 					list_del(&cmd->list);
+					dsb();
 					cmd->complete_func(cmd, ch_result, &errdata);
 				}
 				/* this does not seem to work, once we get an error */
