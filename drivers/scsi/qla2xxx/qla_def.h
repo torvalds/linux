@@ -189,6 +189,7 @@ struct req_que;
  */
 typedef struct srb {
 	struct fc_port *fcport;
+	uint32_t handle;
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
 
@@ -196,6 +197,8 @@ typedef struct srb {
 
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
+
+	void *ctx;
 } srb_t;
 
 /*

@@ -473,6 +473,7 @@ qla2x00_get_new_sp(scsi_qla_host_t *vha, fc_port_t *fcport,
 	sp->flags = 0;
 	CMD_SP(cmd) = (void *)sp;
 	cmd->scsi_done = done;
+	sp->ctx = NULL;
 
 	return sp;
 }
@@ -709,6 +710,8 @@ qla2x00_abort_fcport_cmds(fc_port_t *fcport)
 			continue;
 		if (sp->fcport != fcport)
 			continue;
+		if (sp->ctx)
+			continue;
 
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		if (ha->isp_ops->abort_command(sp)) {
@@ -794,7 +797,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 		if (sp == NULL)
 			continue;
-
+		if (sp->ctx)
+			continue;
 		if (sp->cmd != cmd)
 			continue;
 
@@ -859,7 +863,8 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 		sp = req->outstanding_cmds[cnt];
 		if (!sp)
 			continue;
-
+		if (sp->ctx)
+			continue;
 		if (vha->vp_idx != sp->fcport->vha->vp_idx)
 			continue;
 		match = 0;
@@ -2985,6 +2990,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 					sp = req->outstanding_cmds[index];
 					if (!sp)
+						continue;
+					if (sp->ctx)
 						continue;
 					sfcp = sp->fcport;
 					if (!(sfcp->flags & FCF_TAPE_PRESENT))

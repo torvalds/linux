@@ -350,6 +350,7 @@ qla2x00_start_scsi(srb_t *sp)
 	/* Build command packet */
 	req->current_outstanding_cmd = handle;
 	req->outstanding_cmds[handle] = sp;
+	sp->handle = handle;
 	sp->cmd->host_scribble = (unsigned char *)(unsigned long)handle;
 	req->cnt -= req_cnt;
 
@@ -778,6 +779,7 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Build command packet. */
 	req->current_outstanding_cmd = handle;
 	req->outstanding_cmds[handle] = sp;
+	sp->handle = handle;
 	sp->cmd->host_scribble = (unsigned char *)(unsigned long)handle;
 	req->cnt -= req_cnt;
 
