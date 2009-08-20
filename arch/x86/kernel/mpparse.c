@@ -320,8 +320,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	/*
 	 *      Now process the configuration blocks.
 	 */
-	if (x86_quirks->mpc_record)
-		*x86_quirks->mpc_record = 0;
+	x86_init.mpparse.mpc_record(0);
 
 	while (count < mpc->length) {
 		switch (*mpt) {
@@ -353,8 +352,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			count = mpc->length;
 			break;
 		}
-		if (x86_quirks->mpc_record)
-			(*x86_quirks->mpc_record)++;
+		x86_init.mpparse.mpc_record(1);
 	}
 
 #ifdef CONFIG_X86_BIGSMP

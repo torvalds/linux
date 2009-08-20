@@ -10,6 +10,7 @@
 #include <asm/e820.h>
 
 void __cpuinit x86_init_noop(void) { }
+void __init x86_init_uint_noop(unsigned int unused) { }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -22,5 +23,9 @@ struct __initdata x86_init_ops x86_init = {
 		.reserve_resources	= reserve_standard_io_resources,
 		.reserve_ebda_region	= reserve_ebda_region,
 		.memory_setup		= default_machine_specific_memory_setup,
+	},
+
+	.mpparse = {
+		.mpc_record		= x86_init_uint_noop,
 	},
 };

@@ -25,7 +25,6 @@ struct x86_quirks {
 	int (*mach_get_smp_config)(unsigned int early);
 	int (*mach_find_smp_config)(unsigned int reserve);
 
-	int *mpc_record;
 	int (*mpc_apic_id)(struct mpc_cpu *m);
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);

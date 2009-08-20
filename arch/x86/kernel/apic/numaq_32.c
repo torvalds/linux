@@ -66,7 +66,6 @@ struct mpc_trans {
 	unsigned short			trans_reserved;
 };
 
-/* x86_quirks member */
 static int				mpc_record;
 
 static struct mpc_trans			*translation_table[MAX_MPC_ENTRY];
@@ -177,6 +176,19 @@ static void mpc_oem_pci_bus(struct mpc_bus *m)
 	quad_local_to_mp_bus_id[quad][local] = m->busid;
 }
 
+/*
+ * Called from mpparse code.
+ * mode = 0: prescan
+ * mode = 1: one mpc entry scanned
+ */
+static void numaq_mpc_record(unsigned int mode)
+{
+	if (!mode)
+		mpc_record = 0;
+	else
+		mpc_record++;
+}
+
 static void __init MP_translation_info(struct mpc_trans *m)
 {
 	printk(KERN_INFO
@@ -264,7 +276,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_trap_init			= NULL,
 	.mach_get_smp_config		= NULL,
 	.mach_find_smp_config		= NULL,
-	.mpc_record			= &mpc_record,
 	.mpc_apic_id			= mpc_apic_id,
 	.mpc_oem_bus_info		= mpc_oem_bus_info,
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
@@ -285,8 +296,10 @@ static __init void early_check_numaq(void)
 	if (smp_found_config)
 		early_get_smp_config();
 
-	if (found_numaq)
+	if (found_numaq) {
 		x86_quirks = &numaq_x86_quirks;
+		x86_init.mpparse.mpc_record = numaq_mpc_record;
+	}
 }
 
 int __init get_memcfg_numaq(void)
