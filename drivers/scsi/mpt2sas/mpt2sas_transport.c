@@ -140,11 +140,18 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
 	u32 device_info;
 	u32 ioc_status;
 
+	if (ioc->shost_recovery) {
+		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
+		    __func__, ioc->name);
+		return -EFAULT;
+	}
+
 	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
 	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+
 		    ioc->name, __FILE__, __LINE__, __func__);
-		return -1;
+		return -ENXIO;
 	}
 
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
@@ -153,7 +160,7 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
 		printk(MPT2SAS_ERR_FMT "handle(0x%04x), ioc_status(0x%04x)"
 		    "\nfailure at %s:%d/%s()!\n", ioc->name, handle, ioc_status,
 		     __FILE__, __LINE__, __func__);
-		return -1;
+		return -EIO;
 	}
 
 	memset(identify, 0, sizeof(identify));
@@ -288,21 +295,17 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	void *psge;
 	u32 sgl_flags;
 	u8 issue_reset = 0;
-	unsigned long flags;
 	void *data_out = NULL;
 	dma_addr_t data_out_dma;
 	u32 sz;
 	u64 *sas_address_le;
 	u16 wait_state_count;
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->ioc_reset_in_progress) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	if (ioc->shost_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return -EFAULT;
 	}
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	mutex_lock(&ioc->transport_cmds.mutex);
 
@@ -806,6 +809,12 @@ mpt2sas_transport_update_phy_link_change(struct MPT2SAS_ADAPTER *ioc,
 	struct _sas_node *sas_node;
 	struct _sas_phy *mpt2sas_phy;
 
+	if (ioc->shost_recovery) {
+		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
+			__func__, ioc->name);
+		return;
+	}
+
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	sas_node = _transport_sas_node_find_by_handle(ioc, handle);
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
@@ -1025,7 +1034,6 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	void *psge;
 	u32 sgl_flags;
 	u8 issue_reset = 0;
-	unsigned long flags;
 	dma_addr_t dma_addr_in = 0;
 	dma_addr_t dma_addr_out = 0;
 	u16 wait_state_count;
@@ -1045,14 +1053,11 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->ioc_reset_in_progress) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	if (ioc->shost_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return -EFAULT;
 	}
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	rc = mutex_lock_interruptible(&ioc->transport_cmds.mutex);
 	if (rc)

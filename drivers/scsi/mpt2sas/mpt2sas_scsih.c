@@ -1785,17 +1785,18 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	u32 ioc_state;
 	unsigned long timeleft;
 	u8 VF_ID = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->tm_cmds.status != MPT2_CMD_NOT_USED ||
-	    ioc->shost_recovery) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	if (ioc->tm_cmds.status != MPT2_CMD_NOT_USED) {
+		printk(MPT2SAS_INFO_FMT "%s: tm_cmd busy!!!\n",
+		    __func__, ioc->name);
+		return;
+	}
+
+	if (ioc->shost_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return;
 	}
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	ioc_state = mpt2sas_base_get_iocstate(ioc, 0);
 	if (ioc_state & MPI2_DOORBELL_USED) {
@@ -2553,7 +2554,6 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	Mpi2SCSIIORequest_t *mpi_request;
 	u32 mpi_control;
 	u16 smid;
-	unsigned long flags;
 
 	scmd->scsi_done = done;
 	sas_device_priv_data = scmd->device->hostdata;
@@ -2572,13 +2572,10 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	/* see if we are busy with task managment stuff */
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (sas_target_priv_data->tm_busy ||
-	    ioc->shost_recovery || ioc->ioc_link_reset_in_progress) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	if (sas_target_priv_data->tm_busy)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+	else if (ioc->shost_recovery || ioc->ioc_link_reset_in_progress)
 		return SCSI_MLQUEUE_HOST_BUSY;
-	}
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	if (scmd->sc_data_direction == DMA_FROM_DEVICE)
 		mpi_control = MPI2_SCSIIO_CONTROL_READ;
@@ -3374,6 +3371,9 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	if (!handle)
 		return -1;
 
+	if (ioc->shost_recovery)
+		return -1;
+
 	if ((mpt2sas_config_get_expander_pg0(ioc, &mpi_reply, &expander_pg0,
 	    MPI2_SAS_EXPAND_PGAD_FORM_HNDL, handle))) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
@@ -3509,6 +3509,9 @@ _scsih_expander_remove(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
 	struct _sas_node *sas_expander;
 	unsigned long flags;
+
+	if (ioc->shost_recovery)
+		return;
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	sas_expander = mpt2sas_scsih_expander_find_by_handle(ioc, handle);
@@ -3681,6 +3684,8 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		mutex_unlock(&ioc->tm_cmds.mutex);
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset "
 		    "done: handle(0x%04x)\n", ioc->name, device_handle));
+		if (ioc->shost_recovery)
+			goto out;
 	}
 
 	/* SAS_IO_UNIT_CNTR - send REMOVE_DEVICE */
@@ -3846,6 +3851,8 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 			    "expander event\n", ioc->name));
 			return;
 		}
+		if (ioc->shost_recovery)
+			return;
 		if (event_data->PHY[i].PhyStatus &
 		    MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT)
 			continue;
@@ -5217,13 +5224,10 @@ _firmware_event_work(struct work_struct *work)
 	}
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	if (ioc->shost_recovery) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 		_scsih_fw_event_requeue(ioc, fw_event, 1000);
 		return;
 	}
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	switch (fw_event->event) {
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
@@ -5425,6 +5429,8 @@ _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 			if (!sas_device)
 				continue;
 			_scsih_remove_device(ioc, sas_device->handle);
+			if (ioc->shost_recovery)
+				return;
 			goto retry_device_search;
 		}
 	}
@@ -5446,6 +5452,8 @@ _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 			if (!expander_sibling)
 				continue;
 			_scsih_expander_remove(ioc, expander_sibling->handle);
+			if (ioc->shost_recovery)
+				return;
 			goto retry_expander_search;
 		}
 	}

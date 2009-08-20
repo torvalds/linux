@@ -432,7 +432,7 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @fw_event_list: list of fw events
  * @aen_event_read_flag: event log was read
  * @broadcast_aen_busy: broadcast aen waiting to be serviced
- * @ioc_reset_in_progress: host reset in progress
+ * @shost_recovery: host reset in progress
  * @ioc_reset_in_progress_lock:
  * @ioc_link_reset_in_progress: phy/hard reset in progress
  * @ignore_loginfos: ignore loginfos during task managment
@@ -545,7 +545,6 @@ struct MPT2SAS_ADAPTER {
 	 /* misc flags */
 	int		aen_event_read_flag;
 	u8		broadcast_aen_busy;
-	u8		ioc_reset_in_progress;
 	u8		shost_recovery;
 	spinlock_t 	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
