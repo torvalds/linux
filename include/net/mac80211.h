@@ -1657,12 +1657,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw);
  */
 void ieee80211_restart_hw(struct ieee80211_hw *hw);
 
-/*
- * trick to avoid symbol clashes with the ieee80211 subsystem,
- * use the inline below instead
- */
-void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
-
 /**
  * ieee80211_rx - receive frame
  *
@@ -1678,10 +1672,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
  */
-static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	__ieee80211_rx(hw, skb);
-}
+void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 /**
  * ieee80211_rx_irqsafe - receive frame
