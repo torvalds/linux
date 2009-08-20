@@ -2462,45 +2462,6 @@ out:
 }
 EXPORT_SYMBOL(__generic_file_aio_write);
 
-
-/**
- * generic_file_aio_write_nolock - write data, usually to a device
- * @iocb:	IO state structure
- * @iov:	vector with data to write
- * @nr_segs:	number of segments in the vector
- * @pos:	position in file where to write
- *
- * This is a wrapper around __generic_file_aio_write() which takes care of
- * syncing the file in case of O_SYNC file. It does not take i_mutex for the
- * write itself but may do so during syncing. It is meant for users like block
- * devices which do not need i_mutex during write. If your filesystem needs to
- * do a write but already holds i_mutex, use __generic_file_aio_write()
- * directly and then sync the file like generic_file_aio_write().
- */
-ssize_t generic_file_aio_write_nolock(struct kiocb *iocb,
-		const struct iovec *iov, unsigned long nr_segs, loff_t pos)
-{
-	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	ssize_t ret;
-
-	BUG_ON(iocb->ki_pos != pos);
-
-	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
-
-	if ((ret > 0 || ret == -EIOCBQUEUED) &&
-	    ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-		ssize_t err;
-
-		err = sync_page_range_nolock(inode, mapping, pos, ret);
-		if (err < 0 && ret > 0)
-			ret = err;
-	}
-	return ret;
-}
-EXPORT_SYMBOL(generic_file_aio_write_nolock);
-
 /**
  * generic_file_aio_write - write data to a file
  * @iocb:	IO state structure
