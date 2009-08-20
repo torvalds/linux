@@ -721,9 +721,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		if (pinnacle_remote == 0) {
 			init_data.get_key = get_key_pinnacle_color;
 			init_data.ir_codes = ir_codes_pinnacle_color;
+			info.addr = 0x47;
 		} else {
 			init_data.get_key = get_key_pinnacle_grey;
 			init_data.ir_codes = ir_codes_pinnacle_grey;
+			info.addr = 0x47;
 		}
 		break;
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
