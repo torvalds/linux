@@ -22,6 +22,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -335,6 +336,13 @@ static struct snd_soc_device n810_snd_devdata = {
 
 static struct platform_device *n810_snd_device;
 
+/* temporary i2c device creation until this can be moved into the machine
+ * support file.
+*/
+static struct i2c_board_info i2c_device[] = {
+	{ I2C_BOARD_INFO("tlv320aic3x", 0x1b), }
+};
+
 static int __init n810_soc_init(void)
 {
 	int err;
@@ -342,6 +350,8 @@ static int __init n810_soc_init(void)
 
 	if (!(machine_is_nokia_n810() || machine_is_nokia_n810_wimax()))
 		return -ENODEV;
+
+	i2c_register_board_info(1, i2c_device, ARRAY_SIZE(i2c_device));
 
 	n810_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!n810_snd_device)

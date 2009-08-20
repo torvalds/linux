@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -209,9 +210,18 @@ static struct s6000_snd_platform_data __initdata s6105_snd_data = {
 
 static struct platform_device *s6105_snd_device;
 
+/* temporary i2c device creation until this can be moved into the machine
+ * support file.
+*/
+static struct i2c_board_info i2c_device[] = {
+	{ I2C_BOARD_INFO("tlv320aic33", 0x18), }
+};
+
 static int __init s6105_init(void)
 {
 	int ret;
+
+	i2c_register_board_info(0, i2c_device, ARRAY_SIZE(i2c_device));
 
 	s6105_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!s6105_snd_device)

@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -249,6 +250,13 @@ static struct snd_soc_device da850_evm_snd_devdata = {
 
 static struct platform_device *evm_snd_device;
 
+/* temporary i2c device creation until this can be moved into the machine
+ * support file.
+*/
+static struct i2c_board_info i2c_device[] = {
+	{ I2C_BOARD_INFO("tlv320aic33", 0x1b), }
+};
+
 static int __init evm_init(void)
 {
 	struct snd_soc_device *evm_snd_dev_data;
@@ -272,6 +280,8 @@ static int __init evm_init(void)
 		index = 0;
 	} else
 		return -EINVAL;
+
+	i2c_register_board_info(1, i2c_device, ARRAY_SIZE(i2c_device));
 
 	evm_snd_device = platform_device_alloc("soc-audio", index);
 	if (!evm_snd_device)
