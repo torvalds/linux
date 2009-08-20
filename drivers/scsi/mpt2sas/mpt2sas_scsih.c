@@ -1501,7 +1501,13 @@ _scsih_slave_configure(struct scsi_device *sdev)
 			break;
 		case MPI2_RAID_VOL_TYPE_RAID1E:
 			qdepth = MPT2SAS_RAID_QUEUE_DEPTH;
-			r_level = "RAID1E";
+			if (ioc->manu_pg10.OEMIdentifier &&
+			    (ioc->manu_pg10.GenericFlags0 &
+			    MFG10_GF0_R10_DISPLAY) &&
+			    !(raid_device->num_pds % 2))
+				r_level = "RAID10";
+			else
+				r_level = "RAID1E";
 			break;
 		case MPI2_RAID_VOL_TYPE_RAID1:
 			qdepth = MPT2SAS_RAID_QUEUE_DEPTH;

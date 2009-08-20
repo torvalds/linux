@@ -426,6 +426,67 @@ mpt2sas_config_get_manufacturing_pg0(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
+ * mpt2sas_config_get_manufacturing_pg10 - obtain manufacturing page 10
+ * @ioc: per adapter object
+ * @mpi_reply: reply mf payload returned from firmware
+ * @config_page: contents of the config page
+ * Context: sleep.
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+int
+mpt2sas_config_get_manufacturing_pg10(struct MPT2SAS_ADAPTER *ioc,
+    Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage10_t *config_page)
+{
+	Mpi2ConfigRequest_t mpi_request;
+	int r;
+	struct config_request mem;
+
+	memset(config_page, 0, sizeof(Mpi2ManufacturingPage10_t));
+	memset(&mpi_request, 0, sizeof(Mpi2ConfigRequest_t));
+	mpi_request.Function = MPI2_FUNCTION_CONFIG;
+	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_HEADER;
+	mpi_request.Header.PageType = MPI2_CONFIG_PAGETYPE_MANUFACTURING;
+	mpi_request.Header.PageNumber = 10;
+	mpi_request.Header.PageVersion = MPI2_MANUFACTURING0_PAGEVERSION;
+	mpt2sas_base_build_zero_len_sge(ioc, &mpi_request.PageBufferSGE);
+	r = _config_request(ioc, &mpi_request, mpi_reply,
+	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT);
+	if (r)
+		goto out;
+
+	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_READ_CURRENT;
+	mpi_request.Header.PageVersion = mpi_reply->Header.PageVersion;
+	mpi_request.Header.PageNumber = mpi_reply->Header.PageNumber;
+	mpi_request.Header.PageType = mpi_reply->Header.PageType;
+	mpi_request.Header.PageLength = mpi_reply->Header.PageLength;
+	mem.config_page_sz = le16_to_cpu(mpi_reply->Header.PageLength) * 4;
+	if (mem.config_page_sz > ioc->config_page_sz) {
+		r = _config_alloc_config_dma_memory(ioc, &mem);
+		if (r)
+			goto out;
+	} else {
+		mem.config_page_dma = ioc->config_page_dma;
+		mem.config_page = ioc->config_page;
+	}
+	ioc->base_add_sg_single(&mpi_request.PageBufferSGE,
+	    MPT2_CONFIG_COMMON_SGLFLAGS | mem.config_page_sz,
+	    mem.config_page_dma);
+	r = _config_request(ioc, &mpi_request, mpi_reply,
+	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT);
+	if (!r)
+		memcpy(config_page, mem.config_page,
+		    min_t(u16, mem.config_page_sz,
+		    sizeof(Mpi2ManufacturingPage10_t)));
+
+	if (mem.config_page_sz > ioc->config_page_sz)
+		_config_free_config_dma_memory(ioc, &mem);
+
+ out:
+	return r;
+}
+
+/**
  * mpt2sas_config_get_bios_pg2 - obtain bios page 2
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
