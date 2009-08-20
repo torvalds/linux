@@ -132,12 +132,11 @@ extern int HvInit(void);
 
 extern void HvCleanup(void);
 
-extern HV_STATUS HvPostMessage(union hv_connection_id connectionId,
-			       enum hv_message_type messageType,
-			       void *payload,
-			       size_t payloadSize);
+extern u16 HvPostMessage(union hv_connection_id connectionId,
+			 enum hv_message_type messageType,
+			 void *payload, size_t payloadSize);
 
-extern HV_STATUS HvSignalEvent(void);
+extern u16 HvSignalEvent(void);
 
 extern int HvSynicInit(u32 irqVector);
 

@@ -384,12 +384,9 @@ Description:
 	involves a hypercall.
 
 --*/
-HV_STATUS HvPostMessage(
-	union hv_connection_id connectionId,
-	enum hv_message_type messageType,
-	void *            payload,
-	size_t           payloadSize
-	)
+u16 HvPostMessage(union hv_connection_id connectionId,
+		  enum hv_message_type messageType,
+		  void *payload, size_t payloadSize)
 {
 	struct alignedInput {
 		u64					alignment8;
@@ -397,7 +394,7 @@ HV_STATUS HvPostMessage(
 	};
 
 	struct hv_input_post_message *alignedMsg;
-	HV_STATUS status;
+	u16 status;
 	unsigned long addr;
 
 	if (payloadSize > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
@@ -437,9 +434,9 @@ Description:
 	involves a hypercall.
 
 --*/
-HV_STATUS HvSignalEvent(void)
+u16 HvSignalEvent(void)
 {
-	HV_STATUS status;
+	u16 status;
 
 	status = HvDoHypercall(HvCallSignalEvent, gHvContext.SignalEventParam, NULL) & 0xFFFF;
 
