@@ -351,16 +351,6 @@ static inline void paravirt_post_allocator_init(void)
 		(*pv_init_ops.post_allocator_init)();
 }
 
-static inline void paravirt_pagetable_setup_start(pgd_t *base)
-{
-	(*pv_mmu_ops.pagetable_setup_start)(base);
-}
-
-static inline void paravirt_pagetable_setup_done(pgd_t *base)
-{
-	(*pv_mmu_ops.pagetable_setup_done)(base);
-}
-
 #ifdef CONFIG_SMP
 static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 				    unsigned long start_esp)

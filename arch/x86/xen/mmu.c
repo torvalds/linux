@@ -1875,10 +1875,7 @@ static void xen_leave_lazy_mmu(void)
 	preempt_enable();
 }
 
-const struct pv_mmu_ops xen_mmu_ops __initdata = {
-	.pagetable_setup_start = xen_pagetable_setup_start,
-	.pagetable_setup_done = xen_pagetable_setup_done,
-
+static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.read_cr2 = xen_read_cr2,
 	.write_cr2 = xen_write_cr2,
 
@@ -1954,6 +1951,12 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.set_fixmap = xen_set_fixmap,
 };
 
+void __init xen_init_mmu_ops(void)
+{
+	x86_init.paging.pagetable_setup_start = xen_pagetable_setup_start;
+	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
+	pv_mmu_ops = xen_mmu_ops;
+}
 
 #ifdef CONFIG_XEN_DEBUG_FS
 

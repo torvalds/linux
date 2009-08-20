@@ -14,6 +14,7 @@
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
+void __init x86_init_pgd_noop(pgd_t *unused) { }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -47,5 +48,10 @@ struct __initdata x86_init_ops x86_init = {
 	.oem = {
 		.arch_setup		= x86_init_noop,
 		.banner			= default_banner,
+	},
+
+	.paging = {
+		.pagetable_setup_start	= native_pagetable_setup_start,
+		.pagetable_setup_done	= native_pagetable_setup_done,
 	},
 };

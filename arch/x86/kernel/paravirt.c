@@ -402,13 +402,6 @@ struct pv_apic_ops pv_apic_ops = {
 #endif
 
 struct pv_mmu_ops pv_mmu_ops = {
-#ifndef CONFIG_X86_64
-	.pagetable_setup_start = native_pagetable_setup_start,
-	.pagetable_setup_done = native_pagetable_setup_done,
-#else
-	.pagetable_setup_start = paravirt_nop,
-	.pagetable_setup_done = paravirt_nop,
-#endif
 
 	.read_cr2 = native_read_cr2,
 	.write_cr2 = native_write_cr2,

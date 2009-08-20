@@ -59,5 +59,5 @@ void  xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 
 unsigned long xen_read_cr2_direct(void);
 
-extern const struct pv_mmu_ops xen_mmu_ops;
+extern void xen_init_mmu_ops(void);
 #endif	/* _XEN_MMU_H */

@@ -231,15 +231,6 @@ struct pv_apic_ops {
 };
 
 struct pv_mmu_ops {
-	/*
-	 * Called before/after init_mm pagetable setup. setup_start
-	 * may reset %cr3, and may pre-install parts of the pagetable;
-	 * pagetable setup is expected to preserve any existing
-	 * mapping.
-	 */
-	void (*pagetable_setup_start)(pgd_t *pgd_base);
-	void (*pagetable_setup_done)(pgd_t *pgd_base);
-
 	unsigned long (*read_cr2)(void);
 	void (*write_cr2)(unsigned long);
 

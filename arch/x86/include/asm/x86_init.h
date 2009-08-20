@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_PLATFORM_H
 #define _ASM_X86_PLATFORM_H
 
+#include <asm/pgtable_types.h>
+
 struct mpc_bus;
 struct mpc_cpu;
 struct mpc_table;
@@ -67,6 +69,16 @@ struct x86_init_oem {
 };
 
 /**
+ * struct x86_init_paging - platform specific paging functions
+ * @pagetable_setup_start:	platform specific pre paging_init() call
+ * @pagetable_setup_done:	platform specific post paging_init() call
+ */
+struct x86_init_paging {
+	void (*pagetable_setup_start)(pgd_t *base);
+	void (*pagetable_setup_done)(pgd_t *base);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -75,6 +87,7 @@ struct x86_init_ops {
 	struct x86_init_mpparse		mpparse;
 	struct x86_init_irqs		irqs;
 	struct x86_init_oem		oem;
+	struct x86_init_paging		paging;
 };
 
 extern struct x86_init_ops x86_init;

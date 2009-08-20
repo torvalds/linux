@@ -977,7 +977,6 @@ asmlinkage void __init xen_start_kernel(void)
 	pv_time_ops = xen_time_ops;
 	pv_cpu_ops = xen_cpu_ops;
 	pv_apic_ops = xen_apic_ops;
-	pv_mmu_ops = xen_mmu_ops;
 
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
@@ -991,6 +990,7 @@ asmlinkage void __init xen_start_kernel(void)
 	load_percpu_segment(0);
 #endif
 
+	xen_init_mmu_ops();
 	xen_init_irq_ops();
 	xen_init_cpuid_mask();
 
