@@ -1333,7 +1333,6 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj)
 	struct ttm_bo_global *glob =
 		container_of(kobj, struct ttm_bo_global, kobj);
 
-	printk(KERN_INFO TTM_PFX "Freeing bo global.\n");
 	ttm_mem_unregister_shrink(glob->mem_glob, &glob->shrink);
 	__free_page(glob->dummy_read_page);
 	kfree(glob);
@@ -1456,8 +1455,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	int ret = -EINVAL;
 
 	rwlock_init(&bdev->vm_lock);
-	spin_lock_init(&glob->lru_lock);
-
 	bdev->driver = driver;
 
 	memset(bdev->man, 0, sizeof(bdev->man));

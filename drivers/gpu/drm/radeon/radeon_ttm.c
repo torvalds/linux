@@ -86,7 +86,7 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 		rdev->mman.mem_global_ref.object;
 	global_ref = &rdev->mman.bo_global_ref.ref;
 	global_ref->global_type = TTM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_mem_global);
+	global_ref->size = sizeof(struct ttm_bo_global);
 	global_ref->init = &ttm_bo_global_init;
 	global_ref->release = &ttm_bo_global_release;
 	r = ttm_global_item_ref(global_ref);
