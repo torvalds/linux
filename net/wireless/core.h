@@ -370,7 +370,7 @@ void cfg80211_sme_scan_done(struct net_device *dev);
 void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
 void cfg80211_sme_disassoc(struct net_device *dev, int idx);
 void __cfg80211_scan_done(struct work_struct *wk);
-void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev);
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak);
 void cfg80211_upload_connect_keys(struct wireless_dev *wdev);
 
 struct ieee80211_channel *
