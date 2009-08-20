@@ -53,6 +53,7 @@
 
 /* codec private data */
 struct aic3x_priv {
+	struct snd_soc_codec codec;
 	unsigned int sysclk;
 	int master;
 };
@@ -1156,11 +1157,13 @@ static int aic3x_resume(struct platform_device *pdev)
  * initialise the AIC3X driver
  * register the mixer and dsp interfaces with the kernel
  */
-static int aic3x_init(struct snd_soc_device *socdev)
+static int aic3x_init(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct aic3x_setup_data *setup = socdev->codec_data;
-	int reg, ret = 0;
+	int reg;
+
+	mutex_init(&codec->mutex);
+	INIT_LIST_HEAD(&codec->dapm_widgets);
+	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	codec->name = "tlv320aic3x";
 	codec->owner = THIS_MODULE;
@@ -1176,13 +1179,6 @@ static int aic3x_init(struct snd_soc_device *socdev)
 
 	aic3x_write(codec, AIC3X_PAGE_SELECT, PAGE0_SELECT);
 	aic3x_write(codec, AIC3X_RESET, SOFT_RESET);
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "aic3x: failed to create pcms\n");
-		goto pcm_err;
-	}
 
 	/* DAC default volume and mute */
 	aic3x_write(codec, LDAC_VOL, DEFAULT_VOL | MUTE_ON);
@@ -1250,30 +1246,51 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	/* off, with power on */
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	/* setup GPIO functions */
-	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
-	aic3x_write(codec, AIC3X_GPIO2_REG, (setup->gpio_func[1] & 0xf) << 4);
-
-	snd_soc_add_controls(codec, aic3x_snd_controls,
-				ARRAY_SIZE(aic3x_snd_controls));
-	aic3x_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "aic3x: failed to register card\n");
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-pcm_err:
-	kfree(codec->reg_cache);
-	return ret;
+	return 0;
 }
 
-static struct snd_soc_device *aic3x_socdev;
+static struct snd_soc_codec *aic3x_codec;
+
+static int aic3x_register(struct snd_soc_codec *codec)
+{
+	int ret;
+
+	ret = aic3x_init(codec);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to initialise device\n");
+		return ret;
+	}
+
+	aic3x_codec = codec;
+
+	ret = snd_soc_register_codec(codec);
+	if (ret) {
+		dev_err(codec->dev, "Failed to register codec\n");
+		return ret;
+	}
+
+	ret = snd_soc_register_dai(&aic3x_dai);
+	if (ret) {
+		dev_err(codec->dev, "Failed to register dai\n");
+		snd_soc_unregister_codec(codec);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int aic3x_unregister(struct aic3x_priv *aic3x)
+{
+	aic3x_set_bias_level(&aic3x->codec, SND_SOC_BIAS_OFF);
+
+	snd_soc_unregister_dai(&aic3x_dai);
+	snd_soc_unregister_codec(&aic3x->codec);
+
+	kfree(aic3x);
+	aic3x_codec = NULL;
+
+	return 0;
+}
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
@@ -1288,28 +1305,36 @@ static struct snd_soc_device *aic3x_socdev;
 static int aic3x_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
-	struct snd_soc_device *socdev = aic3x_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
+	struct snd_soc_codec *codec;
+	struct aic3x_priv *aic3x;
 
-	i2c_set_clientdata(i2c, codec);
+	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
+	if (aic3x == NULL) {
+		dev_err(&i2c->dev, "failed to create private data\n");
+		return -ENOMEM;
+	}
+
+	codec = &aic3x->codec;
+	codec->dev = &i2c->dev;
+	codec->private_data = aic3x;
 	codec->control_data = i2c;
+	codec->hw_write = (hw_write_t) i2c_master_send;
 
-	ret = aic3x_init(socdev);
-	if (ret < 0)
-		printk(KERN_ERR "aic3x: failed to initialise AIC3X\n");
-	return ret;
+	i2c_set_clientdata(i2c, aic3x);
+
+	return aic3x_register(codec);
 }
 
 static int aic3x_i2c_remove(struct i2c_client *client)
 {
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	kfree(codec->reg_cache);
-	return 0;
+	struct aic3x_priv *aic3x = i2c_get_clientdata(client);
+
+	return aic3x_unregister(aic3x);
 }
 
 static const struct i2c_device_id aic3x_i2c_id[] = {
 	{ "tlv320aic3x", 0 },
+	{ "tlv320aic33", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aic3x_i2c_id);
@@ -1320,50 +1345,28 @@ static struct i2c_driver aic3x_i2c_driver = {
 		.name = "aic3x I2C Codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = aic3x_i2c_probe,
+	.probe	= aic3x_i2c_probe,
 	.remove = aic3x_i2c_remove,
 	.id_table = aic3x_i2c_id,
 };
 
-static int aic3x_add_i2c_device(struct platform_device *pdev,
-				 const struct aic3x_setup_data *setup)
+static inline void aic3x_i2c_init(void)
 {
-	struct i2c_board_info info;
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
 	int ret;
 
 	ret = i2c_add_driver(&aic3x_i2c_driver);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "can't add i2c driver\n");
-		return ret;
-	}
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = setup->i2c_address;
-	strlcpy(info.type, "tlv320aic3x", I2C_NAME_SIZE);
-
-	adapter = i2c_get_adapter(setup->i2c_bus);
-	if (!adapter) {
-		dev_err(&pdev->dev, "can't get i2c adapter %d\n",
-			setup->i2c_bus);
-		goto err_driver;
-	}
-
-	client = i2c_new_device(adapter, &info);
-	i2c_put_adapter(adapter);
-	if (!client) {
-		dev_err(&pdev->dev, "can't add i2c device at 0x%x\n",
-			(unsigned int)info.addr);
-		goto err_driver;
-	}
-
-	return 0;
-
-err_driver:
-	i2c_del_driver(&aic3x_i2c_driver);
-	return -ENODEV;
+	if (ret)
+		printk(KERN_ERR "%s: error regsitering i2c driver, %d\n",
+		       __func__, ret);
 }
+
+static inline void aic3x_i2c_exit(void)
+{
+	i2c_del_driver(&aic3x_i2c_driver);
+}
+#else
+static inline void aic3x_i2c_init(void) { }
+static inline void aic3x_i2c_exit(void) { }
 #endif
 
 static int aic3x_probe(struct platform_device *pdev)
@@ -1371,42 +1374,52 @@ static int aic3x_probe(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct aic3x_setup_data *setup;
 	struct snd_soc_codec *codec;
-	struct aic3x_priv *aic3x;
 	int ret = 0;
 
-	printk(KERN_INFO "AIC3X Audio Codec %s\n", AIC3X_VERSION);
-
-	setup = socdev->codec_data;
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
-	if (aic3x == NULL) {
-		kfree(codec);
-		return -ENOMEM;
+	codec = aic3x_codec;
+	if (!codec) {
+		dev_err(&pdev->dev, "Codec not registered\n");
+		return -ENODEV;
 	}
 
-	codec->private_data = aic3x;
 	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
+	setup = socdev->codec_data;
 
-	aic3x_socdev = socdev;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	if (setup->i2c_address) {
-		codec->hw_write = (hw_write_t) i2c_master_send;
-		ret = aic3x_add_i2c_device(pdev, setup);
+	if (!setup) {
+		dev_err(&pdev->dev, "No setup data supplied\n");
+		return -EINVAL;
 	}
-#else
-	/* Add other interfaces here */
-#endif
 
-	if (ret != 0) {
-		kfree(codec->private_data);
-		kfree(codec);
+	/* setup GPIO functions */
+	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
+	aic3x_write(codec, AIC3X_GPIO2_REG, (setup->gpio_func[1] & 0xf) << 4);
+
+	/* register pcms */
+	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
+	if (ret < 0) {
+		printk(KERN_ERR "aic3x: failed to create pcms\n");
+		goto pcm_err;
 	}
+
+	snd_soc_add_controls(codec, aic3x_snd_controls,
+			     ARRAY_SIZE(aic3x_snd_controls));
+
+	aic3x_add_widgets(codec);
+
+	ret = snd_soc_init_card(socdev);
+	if (ret < 0) {
+		printk(KERN_ERR "aic3x: failed to register card\n");
+		goto card_err;
+	}
+
+	return ret;
+
+card_err:
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
+
+pcm_err:
+	kfree(codec->reg_cache);
 	return ret;
 }
 
@@ -1421,12 +1434,8 @@ static int aic3x_remove(struct platform_device *pdev)
 
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_unregister_device(codec->control_data);
-	i2c_del_driver(&aic3x_i2c_driver);
-#endif
-	kfree(codec->private_data);
-	kfree(codec);
+
+	kfree(codec->reg_cache);
 
 	return 0;
 }
@@ -1441,13 +1450,15 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_aic3x);
 
 static int __init aic3x_modinit(void)
 {
-	return snd_soc_register_dai(&aic3x_dai);
+	aic3x_i2c_init();
+
+	return 0;
 }
 module_init(aic3x_modinit);
 
 static void __exit aic3x_exit(void)
 {
-	snd_soc_unregister_dai(&aic3x_dai);
+	aic3x_i2c_exit();
 }
 module_exit(aic3x_exit);
 

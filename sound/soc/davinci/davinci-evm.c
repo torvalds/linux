@@ -207,8 +207,6 @@ static struct snd_soc_card da850_snd_soc_card = {
 
 /* evm audio private data */
 static struct aic3x_setup_data evm_aic3x_setup = {
-	.i2c_bus = 1,
-	.i2c_address = 0x1b,
 };
 
 /* dm6467 evm audio private data */

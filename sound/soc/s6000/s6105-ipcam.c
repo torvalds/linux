@@ -189,8 +189,6 @@ static struct snd_soc_card snd_soc_card_s6105 = {
 
 /* s6105 audio private data */
 static struct aic3x_setup_data s6105_aic3x_setup = {
-	.i2c_bus = 0,
-	.i2c_address = 0x18,
 };
 
 /* s6105 audio subsystem */
