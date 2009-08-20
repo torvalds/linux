@@ -412,6 +412,58 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 }
 EXPORT_SYMBOL(omap_mcbsp_stop);
 
+void omap_mcbsp_xmit_enable(unsigned int id, u8 enable)
+{
+	struct omap_mcbsp *mcbsp;
+	void __iomem *io_base;
+	u16 w;
+
+	if (!(cpu_is_omap2430() || cpu_is_omap34xx()))
+		return;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return;
+	}
+
+	mcbsp = id_to_mcbsp_ptr(id);
+	io_base = mcbsp->io_base;
+
+	w = OMAP_MCBSP_READ(io_base, XCCR);
+
+	if (enable)
+		OMAP_MCBSP_WRITE(io_base, XCCR, w & ~(XDISABLE));
+	else
+		OMAP_MCBSP_WRITE(io_base, XCCR, w | XDISABLE);
+}
+EXPORT_SYMBOL(omap_mcbsp_xmit_enable);
+
+void omap_mcbsp_recv_enable(unsigned int id, u8 enable)
+{
+	struct omap_mcbsp *mcbsp;
+	void __iomem *io_base;
+	u16 w;
+
+	if (!(cpu_is_omap2430() || cpu_is_omap34xx()))
+		return;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return;
+	}
+
+	mcbsp = id_to_mcbsp_ptr(id);
+	io_base = mcbsp->io_base;
+
+	w = OMAP_MCBSP_READ(io_base, RCCR);
+
+	if (enable)
+		OMAP_MCBSP_WRITE(io_base, RCCR, w & ~(RDISABLE));
+	else
+		OMAP_MCBSP_WRITE(io_base, RCCR, w | RDISABLE);
+}
+EXPORT_SYMBOL(omap_mcbsp_recv_enable);
+
 /* polled mcbsp i/o operations */
 int omap_mcbsp_pollwrite(unsigned int id, u16 buf)
 {
