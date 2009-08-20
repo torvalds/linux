@@ -301,8 +301,6 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	hdr->flags = ISCSI_ATTR_SIMPLE;
 	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
 	memcpy(task->lun, hdr->lun, sizeof(task->lun));
-	hdr->cmdsn = task->cmdsn = cpu_to_be32(session->cmdsn);
-	session->cmdsn++;
 	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
 	cmd_len = sc->cmd_len;
 	if (cmd_len < ISCSI_CDB_SIZE)
@@ -388,6 +386,8 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 		return -EIO;
 
 	task->state = ISCSI_TASK_RUNNING;
+	hdr->cmdsn = task->cmdsn = cpu_to_be32(session->cmdsn);
+	session->cmdsn++;
 
 	conn->scsicmd_pdus_cnt++;
 	ISCSI_DBG_SESSION(session, "iscsi prep [%s cid %d sc %p cdb 0x%x "
@@ -1497,6 +1497,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			}
 		}
 		if (session->tt->xmit_task(task)) {
+			session->cmdsn--;
 			reason = FAILURE_SESSION_NOT_READY;
 			goto prepd_reject;
 		}
