@@ -282,6 +282,29 @@ u16 omap_mcbsp_get_max_rx_threshold(unsigned int id)
 	return mcbsp->max_rx_thres;
 }
 EXPORT_SYMBOL(omap_mcbsp_get_max_rx_threshold);
+
+/*
+ * omap_mcbsp_get_dma_op_mode just return the current configured
+ * operating mode for the mcbsp channel
+ */
+int omap_mcbsp_get_dma_op_mode(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+	int dma_op_mode;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%u)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	spin_lock_irq(&mcbsp->lock);
+	dma_op_mode = mcbsp->dma_op_mode;
+	spin_unlock_irq(&mcbsp->lock);
+
+	return dma_op_mode;
+}
+EXPORT_SYMBOL(omap_mcbsp_get_dma_op_mode);
 #endif
 
 /*
@@ -1077,9 +1100,65 @@ static DEVICE_ATTR(prop, 0644, prop##_show, prop##_store);
 THRESHOLD_PROP_BUILDER(max_tx_thres);
 THRESHOLD_PROP_BUILDER(max_rx_thres);
 
+static ssize_t dma_op_mode_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
+	int dma_op_mode;
+
+	spin_lock_irq(&mcbsp->lock);
+	dma_op_mode = mcbsp->dma_op_mode;
+	spin_unlock_irq(&mcbsp->lock);
+
+	return sprintf(buf, "current mode: %d\n"
+			"possible mode values are:\n"
+			"%d - %s\n"
+			"%d - %s\n"
+			"%d - %s\n",
+			dma_op_mode,
+			MCBSP_DMA_MODE_ELEMENT, "element mode",
+			MCBSP_DMA_MODE_THRESHOLD, "threshold mode",
+			MCBSP_DMA_MODE_FRAME, "frame mode");
+}
+
+static ssize_t dma_op_mode_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
+	unsigned long val;
+	int status;
+
+	status = strict_strtoul(buf, 0, &val);
+	if (status)
+		return status;
+
+	spin_lock_irq(&mcbsp->lock);
+
+	if (!mcbsp->free) {
+		size = -EBUSY;
+		goto unlock;
+	}
+
+	if (val > MCBSP_DMA_MODE_FRAME || val < MCBSP_DMA_MODE_ELEMENT) {
+		size = -EINVAL;
+		goto unlock;
+	}
+
+	mcbsp->dma_op_mode = val;
+
+unlock:
+	spin_unlock_irq(&mcbsp->lock);
+
+	return size;
+}
+
+static DEVICE_ATTR(dma_op_mode, 0644, dma_op_mode_show, dma_op_mode_store);
+
 static const struct attribute *additional_attrs[] = {
 	&dev_attr_max_tx_thres.attr,
 	&dev_attr_max_rx_thres.attr,
+	&dev_attr_dma_op_mode.attr,
 	NULL,
 };
 
@@ -1099,9 +1178,14 @@ static inline void __devexit omap_additional_remove(struct device *dev)
 
 static inline void __devinit omap34xx_device_init(struct omap_mcbsp *mcbsp)
 {
+	mcbsp->dma_op_mode = MCBSP_DMA_MODE_ELEMENT;
 	if (cpu_is_omap34xx()) {
 		mcbsp->max_tx_thres = max_thres(mcbsp);
 		mcbsp->max_rx_thres = max_thres(mcbsp);
+		/*
+		 * REVISIT: Set dmap_op_mode to THRESHOLD as default
+		 * for mcbsp2 instances.
+		 */
 		if (omap_additional_add(mcbsp->dev))
 			dev_warn(mcbsp->dev,
 				"Unable to create additional controls\n");

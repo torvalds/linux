@@ -255,6 +255,11 @@
 /********************** McBSP SYSCONFIG bit definitions ********************/
 #define SOFTRST			0x0002
 
+/********************** McBSP DMA operating modes **************************/
+#define MCBSP_DMA_MODE_ELEMENT		0
+#define MCBSP_DMA_MODE_THRESHOLD	1
+#define MCBSP_DMA_MODE_FRAME		2
+
 /* we don't do multichannel for now */
 struct omap_mcbsp_reg_cfg {
 	u16 spcr2;
@@ -385,6 +390,7 @@ struct omap_mcbsp {
 	struct clk *iclk;
 	struct clk *fclk;
 #ifdef CONFIG_ARCH_OMAP34XX
+	int dma_op_mode;
 	u16 max_tx_thres;
 	u16 max_rx_thres;
 #endif
@@ -401,6 +407,7 @@ void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
 void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold);
 u16 omap_mcbsp_get_max_tx_threshold(unsigned int id);
 u16 omap_mcbsp_get_max_rx_threshold(unsigned int id);
+int omap_mcbsp_get_dma_op_mode(unsigned int id);
 #else
 static inline void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold)
 { }
@@ -408,6 +415,7 @@ static inline void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold)
 { }
 static inline u16 omap_mcbsp_get_max_tx_threshold(unsigned int id) { return 0; }
 static inline u16 omap_mcbsp_get_max_rx_threshold(unsigned int id) { return 0; }
+static inline int omap_mcbsp_get_dma_op_mode(unsigned int id) { return 0; }
 #endif
 int omap_mcbsp_request(unsigned int id);
 void omap_mcbsp_free(unsigned int id);
