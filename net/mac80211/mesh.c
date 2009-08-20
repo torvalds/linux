@@ -18,8 +18,11 @@
 #define PP_OFFSET 	1		/* Path Selection Protocol */
 #define PM_OFFSET	5		/* Path Selection Metric   */
 #define CC_OFFSET	9		/* Congestion Control Mode */
-#define CAPAB_OFFSET 17
-#define ACCEPT_PLINKS 0x80
+#define SP_OFFSET	13		/* Synchronization Protocol */
+#define AUTH_OFFSET	17		/* Authentication Protocol */
+#define CAPAB_OFFSET 	22
+#define CAPAB_ACCEPT_PLINKS 0x80
+#define CAPAB_FORWARDING    0x10
 
 #define TMR_RUNNING_HK	0
 #define TMR_RUNNING_MP	1
@@ -84,7 +87,9 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 		memcmp(ifmsh->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
 		memcmp(ifmsh->mesh_pp_id, ie->mesh_config + PP_OFFSET, 4) == 0 &&
 		memcmp(ifmsh->mesh_pm_id, ie->mesh_config + PM_OFFSET, 4) == 0 &&
-		memcmp(ifmsh->mesh_cc_id, ie->mesh_config + CC_OFFSET, 4) == 0)
+		memcmp(ifmsh->mesh_cc_id, ie->mesh_config + CC_OFFSET, 4) == 0 &&
+		memcmp(ifmsh->mesh_sp_id, ie->mesh_config + SP_OFFSET, 4) == 0 &&
+		memcmp(ifmsh->mesh_auth_id, ie->mesh_config + AUTH_OFFSET, 4) == 0)
 		return true;
 
 	return false;
@@ -97,7 +102,7 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
  */
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
-	return (*(ie->mesh_config + CAPAB_OFFSET) & ACCEPT_PLINKS) != 0;
+	return (*(ie->mesh_config + CAPAB_OFFSET) & CAPAB_ACCEPT_PLINKS) != 0;
 }
 
 /**
@@ -123,11 +128,18 @@ void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
 
 void mesh_ids_set_default(struct ieee80211_if_mesh *sta)
 {
-	u8 def_id[4] = {0x00, 0x0F, 0xAC, 0xff};
+	u8 oui[3] = {0x00, 0x0F, 0xAC};
 
-	memcpy(sta->mesh_pp_id, def_id, 4);
-	memcpy(sta->mesh_pm_id, def_id, 4);
-	memcpy(sta->mesh_cc_id, def_id, 4);
+	memcpy(sta->mesh_pp_id, oui, sizeof(oui));
+	memcpy(sta->mesh_pm_id, oui, sizeof(oui));
+	memcpy(sta->mesh_cc_id, oui, sizeof(oui));
+	memcpy(sta->mesh_sp_id, oui, sizeof(oui));
+	memcpy(sta->mesh_auth_id, oui, sizeof(oui));
+	sta->mesh_pp_id[sizeof(oui)] = 0;
+	sta->mesh_pm_id[sizeof(oui)] = 0;
+	sta->mesh_cc_id[sizeof(oui)] = 0xff;
+	sta->mesh_sp_id[sizeof(oui)] = 0xff;
+	sta->mesh_auth_id[sizeof(oui)] = 0x0;
 }
 
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
@@ -245,7 +257,7 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	if (sdata->u.mesh.mesh_id_len)
 		memcpy(pos, sdata->u.mesh.mesh_id, sdata->u.mesh.mesh_id_len);
 
-	pos = skb_put(skb, 21);
+	pos = skb_put(skb, 2 + IEEE80211_MESH_CONFIG_LEN);
 	*pos++ = WLAN_EID_MESH_CONFIG;
 	*pos++ = IEEE80211_MESH_CONFIG_LEN;
 	/* Version */
@@ -263,15 +275,22 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	memcpy(pos, sdata->u.mesh.mesh_cc_id, 4);
 	pos += 4;
 
-	/* Channel precedence:
-	 * Not running simple channel unification protocol
-	 */
-	memset(pos, 0x00, 4);
+	/* Synchronization protocol identifier */
+	memcpy(pos, sdata->u.mesh.mesh_sp_id, 4);
 	pos += 4;
+
+	/* Authentication Protocol identifier */
+	memcpy(pos, sdata->u.mesh.mesh_auth_id, 4);
+	pos += 4;
+
+	/* Mesh Formation Info */
+	memset(pos, 0x00, 1);
+	pos += 1;
 
 	/* Mesh capability */
 	sdata->u.mesh.accepting_plinks = mesh_plink_availables(sdata);
-	*pos++ = sdata->u.mesh.accepting_plinks ? ACCEPT_PLINKS : 0x00;
+	*pos = CAPAB_FORWARDING;
+	*pos++ |= sdata->u.mesh.accepting_plinks ? CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ = 0x00;
 
 	return;

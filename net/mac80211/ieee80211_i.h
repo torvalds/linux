@@ -367,6 +367,10 @@ struct ieee80211_if_mesh {
 	u8 mesh_pm_id[4];
 	/* Congestion Control Mode Identifier */
 	u8 mesh_cc_id[4];
+	/* Synchronization Protocol Identifier */
+	u8 mesh_sp_id[4];
+	/* Authentication Protocol Identifier */
+	u8 mesh_auth_id[4];
 	/* Local mesh Destination Sequence Number */
 	u32 dsn;
 	/* Last used PREQ ID */
