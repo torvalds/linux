@@ -56,11 +56,11 @@ static int debug;
 #define QT2_GET_SET_UART			0xc1
 #define QT2_HW_FLOW_CONTROL_MASK		0xc5
 #define QT2_SW_FLOW_CONTROL_MASK		0xc6
-#define QT2_SW_FLOW_CONTROL_DISABLE	0xc7
-/*#define QT_BREAK_CONTROL 		0xc8
-#define QT_STOP_RECEIVE			0xe0*/
-#define QT2_FLUSH_DEVICE		0xc4
-#define QT_GET_SET_QMCR			0xe1
+#define QT2_SW_FLOW_CONTROL_DISABLE		0xc7
+#define QT2_BREAK_CONTROL 			0xc8
+#define QT2_STOP_RECEIVE			0xe0
+#define QT2_FLUSH_DEVICE			0xc4
+#define QT2_GET_SET_QMCR			0xe1
 
 /* sorts of flush we can do on */
 #define QT2_FLUSH_RX			0x00
@@ -138,31 +138,21 @@ static struct usb_driver quausb2_usb_driver = {
 	.no_dynamic_id = 1,
 };
 
-/** structure in which to keep all the messy stuff that this driver needs
- * alongside the usb_serial_port structure
- * @param read_urb_busy Flag indicating that port->read_urb is in use
- * @param close_pending flag indicating that this port is in the process of
+/**
+ * quatech2_port: Structure in which to keep all the messy stuff that this
+ * driver needs alongside the usb_serial_port structure
+ * @read_urb_busy: Flag indicating that port->read_urb is in use
+ * @close_pending: flag indicating that this port is in the process of
  * being closed (and so no new reads / writes should be started).
- * @param shadowLSR Last received state of the line status register, holds the
+ * @shadowLSR: Last received state of the line status register, holds the
  * value of the line status flags from the port
- * @param shadowMSR Last received state of the modem status register, holds
+ * @shadowMSR: Last received state of the modem status register, holds
  * the value of the modem status received from the port
- * @param rcv_flush Flag indicating that a receive flush has occured on
+ * @rcv_flush: Flag indicating that a receive flush has occured on
  * the hardware.
- * @param xmit_flush Flag indicating that a transmit flush has been processed by
+ * @xmit_flush: Flag indicating that a transmit flush has been processed by
  * the hardware.
- * @param fifo_empty_flag
- * - Starts off true when port opened
- * - set false when a write is submitted to the driver
- * - as far as I can see not true again until device is re-opened.
- * - read in a number of places.
- * @param tx_fifo_room
- * - set to FIFO_DEPTH when port opened
- * - decremented by tc_pending_bytes when a new write is submitted.
- * - set to FIFO_DEPTH when "xmit_empty" is received from the device,
- * regardless of how many bytes were reported to have been sent (?)
- *
- * @param tx_pending_bytes Number of bytes waiting to be sent. This total
+ * @tx_pending_bytes: Number of bytes waiting to be sent. This total
  * includes the size (excluding header) of URBs that have been submitted but
  * have not yet been sent to to the device, and bytes that have been sent out
  * of the port but not yet reported sent by the "xmit_empty" messages (which
@@ -173,6 +163,10 @@ static struct usb_driver quausb2_usb_driver = {
  * each time a write urb is dispatched.
  * - is decremented each time a "transmit empty" message is received
  * by the driver in the data stream.
+ * @sem: Semaphore to lock access to this structure when we need to ensure that
+ * races don't occur to access bits of it.
+ * @open_count: The number of uses of the port currently having
+ * it open, i.e. the reference count.
  */
 struct quatech2_port {
 	int	magic;
@@ -180,18 +174,16 @@ struct quatech2_port {
 	bool	close_pending;
 	__u8	shadowLSR;
 	__u8	shadowMSR;
-	/*int	xmit_fifo_room_bytes;*/
 	bool	rcv_flush;
 	bool	xmit_flush;
-/*	bool	fifo_empty_flag;
-	int	tx_fifo_room;*/
 	int	tx_pending_bytes;
+	struct semaphore	sem;
+	int	open_count;
 
 	char	active;		/* someone has this device open */
 	unsigned char		*xfer_to_tty_buffer;
 	wait_queue_head_t	wait;
-	int	open_count;	/* number of times this	port has been opened */
-	struct semaphore	sem;	/* locks this structure */
+
 	__u8	shadowLCR;	/* last LCR value received */
 	__u8	shadowMCR;	/* last MCR value received */
 	char	RxHolding;
@@ -281,6 +273,8 @@ static int qt2_boxsethw_flowctl(struct usb_serial *serial,
 static int qt2_boxsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber,
 		unsigned char stop_char,  unsigned char start_char);
 static int qt2_boxunsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber);
+static int qt2_boxstoprx(struct usb_serial *serial, unsigned short uart_number,
+			 unsigned short stop);
 
 /* implementation functions, roughly in order of use, are here */
 static int qt2_calc_num_ports(struct usb_serial *serial)
@@ -359,6 +353,8 @@ static int qt2_attach(struct usb_serial *serial)
 			    __func__, i);
 			return -ENOMEM;
 		}
+		/* initialise stuff in the structure */
+		qt2_port->open_count = 0;	/* port is not open */
 		spin_lock_init(&qt2_port->lock);
 		qt2_set_port_private(port, qt2_port);
 	}
@@ -577,8 +573,6 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 			port->bulk_out_size,
 			qt2_write_bulk_callback,
 			port);
-	/*port_extra->fifo_empty_flag = true;
-	port_extra->tx_fifo_room = FIFO_DEPTH;*/
 	port_extra->tx_pending_bytes = 0;
 
 	if (dev_extra->open_ports == 0) {
@@ -615,6 +609,8 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* initialize our wait queues */
 	init_waitqueue_head(&port_extra->wait);
+	/* increment the count of openings of this port by one */
+	port_extra->open_count++;
 
 	/* remember to store dev_extra, port_extra and port0_extra back again at
 	 * end !*/
@@ -696,6 +692,9 @@ static void qt2_close(struct usb_serial_port *port)
 	port->bulk_out_buffer = NULL;
 	port->bulk_out_size = 0;
 
+	/* decrement the count of openings of this port by one */
+	port_extra->open_count--;
+	/* one less overall open as well */
 	dev_extra->open_ports--;
 	dbg("%s(): Exit, dev_extra->open_ports  = %d", __func__,
 		dev_extra->open_ports);
@@ -1027,7 +1026,7 @@ static void qt2_set_termios(struct tty_struct *tty,
 	/* Round to nearest divisor */
 	if (((remainder * 2) >= baud) && (baud != 110))
 		divisor++;
-	dbg("%s(): setting divisor = %d, QT2_MAX_BAUD_RATE = %d , LCR = 0x%x",
+	dbg("%s(): setting divisor = %d, QT2_MAX_BAUD_RATE = %d , LCR = %#.2x",
 	      __func__, divisor, QT2_MAX_BAUD_RATE, LCR_change_to);
 
 	status = qt2_boxsetuart(serial, UartNumber, (unsigned short) divisor,
@@ -1156,6 +1155,131 @@ static int qt2_tiocmset(struct tty_struct *tty, struct file *file,
 		return 0;
 }
 
+/** qt2_break - Turn BREAK on and off on the UARTs
+ */
+static void qt2_break(struct tty_struct *tty, int break_state)
+{
+	struct usb_serial_port *port = tty->driver_data; /* parent port */
+	struct usb_serial *serial = port->serial;	/* parent device */
+	struct quatech2_port *port_extra;	/* extra data for this port */
+	__u16 break_value;
+	unsigned int result;
+
+	port_extra = qt2_get_port_private(port);
+	if (!serial) {
+		dbg("%s(): port %d: no serial object", __func__, port->number);
+		return;
+	}
+
+	if (break_state == -1)
+		break_value = 1;
+	else
+		break_value = 0;
+	dbg("%s(): port %d, break_value %d", __func__, port->number,
+		break_value);
+
+	down(&port_extra->sem);
+	if (!port_extra->open_count) {
+		dbg("%s(): port not open", __func__);
+		goto exit;
+	}
+
+	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+				QT2_BREAK_CONTROL, 0x40, break_value,
+				port->number, NULL, 0, 300);
+exit:
+	up(&port_extra->sem);
+	dbg("%s(): exit port %d", __func__, port->number);
+
+}
+/**
+ * qt2_throttle: - stop reading new data from the port
+ */
+static void qt2_throttle(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial *serial = port->serial;
+	struct quatech2_port *port_extra;	/* extra data for this port */
+	dbg("%s(): port %d", __func__, port->number);
+
+	port_extra = qt2_get_port_private(port);
+	if (!serial) {
+		dbg("%s(): enter port %d no serial object", __func__,
+		      port->number);
+		return;
+	}
+
+	down(&port_extra->sem);	/* lock structure */
+	if (!port_extra->open_count) {
+		dbg("%s(): port not open", __func__);
+		goto exit;
+	}
+	/* Send command to box to stop receiving stuff. This will stop this
+	 * particular UART from filling the endpoint - in the multiport case the
+	 * FPGA UART will handle any flow control implmented, but for the single
+	 * port it's handed differently and we just quit submitting urbs
+	 */
+	if (serial->dev->descriptor.idProduct != QUATECH_SSU2_100)
+		qt2_boxstoprx(serial, port->number, 1);
+
+	port->throttled = 1;
+exit:
+	up(&port_extra->sem);
+	dbg("%s(): port %d: setting port->throttled", __func__, port->number);
+	return;
+}
+
+/**
+ * qt2_unthrottle: - start receiving data through the port again after being
+ * throttled
+ */
+static void qt2_unthrottle(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial *serial = port->serial;
+	struct quatech2_port *port_extra;	/* extra data for this port */
+	struct usb_serial_port *port0;	/* first port structure on device */
+	struct quatech2_dev *dev_extra;		/* extra data for the device */
+
+	if (!serial) {
+		dbg("%s() enter port %d no serial object!", __func__,
+			port->number);
+		return;
+	}
+	dbg("%s(): enter port %d", __func__, port->number);
+	dev_extra = qt2_get_dev_private(serial);
+	port_extra = qt2_get_port_private(port);
+	port0 = serial->port[0]; /* get the first port's device structure */
+
+	down(&port_extra->sem);
+	if (!port_extra->open_count) {
+		dbg("%s(): port %d not open", __func__, port->number);
+		goto exit;
+	}
+
+	if (port->throttled != 0) {
+		dbg("%s(): port %d: unsetting port->throttled", __func__,
+		    port->number);
+		port->throttled = 0;
+		/* Send command to box to start receiving stuff */
+		if (serial->dev->descriptor.idProduct != QUATECH_SSU2_100) {
+			qt2_boxstoprx(serial,  port->number, 0);
+		} else if (dev_extra->ReadBulkStopped == true) {
+			usb_fill_bulk_urb(port0->read_urb, serial->dev,
+				usb_rcvbulkpipe(serial->dev,
+				port0->bulk_in_endpointAddress),
+				port0->bulk_in_buffer,
+				port0->bulk_in_size,
+				qt2_read_bulk_callback,
+				serial);
+		}
+	}
+exit:
+	up(&port_extra->sem);
+	dbg("%s(): exit port %d", __func__, port->number);
+	return;
+}
+
 /* internal, private helper functions for the driver */
 
 /* Power up the FPGA in the box to get it working */
@@ -1173,7 +1297,7 @@ static int qt2_boxpoweron(struct usb_serial *serial)
 }
 
 /*
- * qt2_boxsetQMCR Issue a QT_GET_SET_QMCR vendor-spcific request on the
+ * qt2_boxsetQMCR Issue a QT2_GET_SET_QMCR vendor-spcific request on the
  * default control pipe. If successful return the number of bytes written,
  * otherwise return a negative error number of the problem.
  */
@@ -1189,7 +1313,7 @@ static int qt2_boxsetQMCR(struct usb_serial *serial, __u16 Uart_Number,
 			Uart_Number, PortSettings);
 
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				QT_GET_SET_QMCR, 0x40, PortSettings,
+				QT2_GET_SET_QMCR, 0x40, PortSettings,
 				(__u16)Uart_Number, NULL, 0, 5000);
 	return result;
 }
@@ -1388,7 +1512,7 @@ __func__);
 
 	/* active is a usb_serial_port. It has a member port which is a
 	 * tty_port. From this we get a tty_struct pointer which is what we
-	 * actually wanted, and keep it on tty_st */
+	* actually wanted, and keep it on         tty_st */
 	tty_st = tty_port_tty_get(&active->port);
 	if (!tty_st) {
 		dbg("%s - bad tty pointer - exiting", __func__);
@@ -1457,7 +1581,7 @@ __func__);
 					}
 					/* Port change. If port open push
 					 * current data up to tty layer */
-					if (dev_extra->open_ports > 0)
+					if (active_extra->open_count > 0)
 						tty_flip_buffer_push(tty_st);
 
 					dbg("Port Change: new port = %d",
@@ -1798,6 +1922,22 @@ static int qt2_boxunsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber)
 			0, 300);
 }
 
+/**
+ * qt2_boxstoprx - Start and stop reception of data by the FPGA UART in
+ * response to requests from the tty layer
+ * @serial: pointer to the usb_serial structure for the parent device
+ * @uart_number: which UART on the device we are addressing
+ * @stop: Whether to start or stop data reception. Set to 1 to stop data being
+ * received, and to 0 to start it being received.
+ */
+static int qt2_boxstoprx(struct usb_serial *serial, unsigned short uart_number,
+		unsigned short stop)
+{
+	return usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+		QT2_STOP_RECEIVE, 0x40, stop, uart_number, NULL, 0, 300);
+}
+
+
 /*
  * last things in file: stuff to register this driver into the generic
  * USB serial framework.
@@ -1817,12 +1957,12 @@ static struct usb_serial_driver quatech2_device = {
 	.write = qt2_write,
 	.write_room = qt2_write_room,
 	.chars_in_buffer = qt2_chars_in_buffer,
-	/*.throttle = qt_throttle,
-	.unthrottle = qt_unthrottle,*/
+	.throttle = qt2_throttle,
+	.unthrottle = qt2_unthrottle,
 	.calc_num_ports = qt2_calc_num_ports,
 	.ioctl = qt2_ioctl,
 	.set_termios = qt2_set_termios,
-	/*.break_ctl = qt_break,*/
+	.break_ctl = qt2_break,
 	.tiocmget = qt2_tiocmget,
 	.tiocmset = qt2_tiocmset,
 	.attach = qt2_attach,
