@@ -119,6 +119,7 @@
 #define MPT2_IOC_PRE_RESET		1 /* prior to host reset */
 #define MPT2_IOC_AFTER_RESET		2 /* just after host reset */
 #define MPT2_IOC_DONE_RESET		3 /* links re-initialized */
+#define MPT2_IOC_RUNNING		4 /* shost running */
 
 /*
  * logging format
