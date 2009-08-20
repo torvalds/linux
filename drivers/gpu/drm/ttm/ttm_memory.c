@@ -244,6 +244,7 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	uint64_t mem;
+	int ret;
 
 	if (unlikely(!zone))
 		return -ENOMEM;
@@ -259,9 +260,14 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_kernel = zone;
-	glob->zones[glob->num_zones++] = zone;
 	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	return kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	if (unlikely(ret != 0)) {
+		kobject_put(&zone->kobj);
+		return ret;
+	}
+	glob->zones[glob->num_zones++] = zone;
+	return 0;
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -270,6 +276,7 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	uint64_t mem;
+	int ret;
 
 	if (unlikely(!zone))
 		return -ENOMEM;
@@ -288,9 +295,14 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_highmem = zone;
-	glob->zones[glob->num_zones++] = zone;
 	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	return kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	if (unlikely(ret != 0)) {
+		kobject_put(&zone->kobj);
+		return ret;
+	}
+	glob->zones[glob->num_zones++] = zone;
+	return 0;
 }
 #else
 static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
@@ -298,6 +310,7 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	uint64_t mem;
+	int ret;
 
 	if (unlikely(!zone))
 		return -ENOMEM;
@@ -327,9 +340,14 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_dma32 = zone;
-	glob->zones[glob->num_zones++] = zone;
 	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	return kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	if (unlikely(ret != 0)) {
+		kobject_put(&zone->kobj);
+		return ret;
+	}
+	glob->zones[glob->num_zones++] = zone;
+	return 0;
 }
 #endif
 
@@ -348,8 +366,10 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	ret = kobject_add(&glob->kobj,
 			  ttm_get_kobj(),
 			  "memory_accounting");
-	if (unlikely(ret != 0))
-		goto out_no_zone;
+	if (unlikely(ret != 0)) {
+		kobject_put(&glob->kobj);
+		return ret;
+	}
 
 	si_meminfo(&si);
 
