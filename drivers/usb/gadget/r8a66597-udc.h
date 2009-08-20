@@ -73,6 +73,7 @@ struct r8a66597_ep {
 
 	struct list_head	queue;
 	unsigned		busy:1;
+	unsigned		wedge:1;
 	unsigned		internal_ccpl:1;	/* use only control */
 
 	/* this member can able to after r8a66597_enable */

@@ -966,8 +966,13 @@ static void clear_feature(struct r8a66597 *r8a66597,
 		u16 w_index = le16_to_cpu(ctrl->wIndex);
 
 		ep = r8a66597->epaddr2ep[w_index & USB_ENDPOINT_NUMBER_MASK];
-		pipe_stop(r8a66597, ep->pipenum);
-		control_reg_sqclr(r8a66597, ep->pipenum);
+		if (!ep->wedge) {
+			pipe_stop(r8a66597, ep->pipenum);
+			control_reg_sqclr(r8a66597, ep->pipenum);
+			spin_unlock(&r8a66597->lock);
+			usb_ep_clear_halt(&ep->ep);
+			spin_lock(&r8a66597->lock);
+		}
 
 		control_end(r8a66597, 1);
 
@@ -1340,12 +1345,30 @@ static int r8a66597_set_halt(struct usb_ep *_ep, int value)
 		pipe_stall(ep->r8a66597, ep->pipenum);
 	} else {
 		ep->busy = 0;
+		ep->wedge = 0;
 		pipe_stop(ep->r8a66597, ep->pipenum);
 	}
 
 out:
 	spin_unlock_irqrestore(&ep->r8a66597->lock, flags);
 	return ret;
+}
+
+static int r8a66597_set_wedge(struct usb_ep *_ep)
+{
+	struct r8a66597_ep *ep;
+	unsigned long flags;
+
+	ep = container_of(_ep, struct r8a66597_ep, ep);
+
+	if (!ep || !ep->desc)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ep->r8a66597->lock, flags);
+	ep->wedge = 1;
+	spin_unlock_irqrestore(&ep->r8a66597->lock, flags);
+
+	return usb_ep_set_halt(_ep);
 }
 
 static void r8a66597_fifo_flush(struct usb_ep *_ep)
@@ -1373,6 +1396,7 @@ static struct usb_ep_ops r8a66597_ep_ops = {
 	.dequeue	= r8a66597_dequeue,
 
 	.set_halt	= r8a66597_set_halt,
+	.set_wedge	= r8a66597_set_wedge,
 	.fifo_flush	= r8a66597_fifo_flush,
 };
 
