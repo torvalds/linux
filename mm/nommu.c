@@ -69,9 +69,6 @@ int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
 int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
 int heap_stack_gap = 0;
 
-/* amount of vm to protect from userspace access */
-unsigned long mmap_min_addr = CONFIG_DEFAULT_MMAP_MIN_ADDR;
-
 atomic_long_t mmap_pages_allocated;
 
 EXPORT_SYMBOL(mem_map);
@@ -921,6 +918,10 @@ static int validate_mmap_request(struct file *file,
 			capabilities &= ~BDI_CAP_MAP_DIRECT;
 		if (!file->f_op->read)
 			capabilities &= ~BDI_CAP_MAP_COPY;
+
+		/* The file shall have been opened with read permission. */
+		if (!(file->f_mode & FMODE_READ))
+			return -EACCES;
 
 		if (flags & MAP_SHARED) {
 			/* do checks for writing, appending and locking */

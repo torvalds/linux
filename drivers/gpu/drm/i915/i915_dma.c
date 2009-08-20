@@ -1181,6 +1181,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_iomapfree;
 
+	dev_priv->wq = create_workqueue("i915");
+	if (dev_priv->wq == NULL) {
+		DRM_ERROR("Failed to create our workqueue.\n");
+		ret = -ENOMEM;
+		goto out_iomapfree;
+	}
+
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
 
@@ -1206,7 +1213,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ret = i915_init_phys_hws(dev);
 		if (ret != 0)
-			goto out_iomapfree;
+			goto out_workqueue_free;
 	}
 
 	i915_get_mem_freq(dev);
@@ -1240,7 +1247,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = i915_load_modeset_init(dev, prealloc_size, agp_size);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
-			goto out_rmmap;
+			goto out_workqueue_free;
 		}
 	}
 
@@ -1251,6 +1258,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
+out_workqueue_free:
+	destroy_workqueue(dev_priv->wq);
 out_iomapfree:
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
@@ -1263,6 +1272,8 @@ free_priv:
 int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	destroy_workqueue(dev_priv->wq);
 
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {

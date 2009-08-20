@@ -238,7 +238,7 @@ static int __init mxg_devices_setup(void)
 	return platform_add_devices(mxg_devices,
 				    ARRAY_SIZE(mxg_devices));
 }
-__initcall(mxg_devices_setup);
+arch_initcall(mxg_devices_setup);
 
 void __init plat_irq_setup(void)
 {

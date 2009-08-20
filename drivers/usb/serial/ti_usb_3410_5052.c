@@ -727,7 +727,7 @@ static int ti_write_room(struct tty_struct *tty)
 	dbg("%s - port %d", __func__, port->number);
 
 	if (tport == NULL)
-		return -ENODEV;
+		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
 	room = ti_buf_space_avail(tport->tp_write_buf);
@@ -748,7 +748,7 @@ static int ti_chars_in_buffer(struct tty_struct *tty)
 	dbg("%s - port %d", __func__, port->number);
 
 	if (tport == NULL)
-		return -ENODEV;
+		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
 	chars = ti_buf_data_avail(tport->tp_write_buf);

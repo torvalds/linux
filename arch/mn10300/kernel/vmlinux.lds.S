@@ -107,7 +107,7 @@ SECTIONS
   __init_end = .;
   /* freed after init ends here */
 
-  BSS(4)
+  BSS_SECTION(0, PAGE_SIZE, 4)
 
   _end = . ;
 

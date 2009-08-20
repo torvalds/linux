@@ -8,7 +8,7 @@ struct xt_rateest {
 	spinlock_t			lock;
 	struct gnet_estimator		params;
 	struct gnet_stats_rate_est	rstats;
-	struct gnet_stats_basic		bstats;
+	struct gnet_stats_basic_packed	bstats;
 };
 
 extern struct xt_rateest *xt_rateest_lookup(const char *name);

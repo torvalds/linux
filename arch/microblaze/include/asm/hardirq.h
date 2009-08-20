@@ -12,8 +12,6 @@
 /* should be defined in each interrupt controller driver */
 extern unsigned int get_irq(struct pt_regs *regs);
 
-#define ack_bad_irq ack_bad_irq
-void ack_bad_irq(unsigned int irq);
 #include <asm-generic/hardirq.h>
 
 #endif /* _ASM_MICROBLAZE_HARDIRQ_H */

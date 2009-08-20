@@ -3793,6 +3793,9 @@ int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 	mmr_pnode = uv_blade_to_pnode(mmr_blade);
 	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
 
+	if (cfg->move_in_progress)
+		send_cleanup_vector(cfg);
+
 	return irq;
 }
 
@@ -4181,28 +4184,20 @@ fake_ioapic_page:
 	}
 }
 
-static int __init ioapic_insert_resources(void)
+void __init ioapic_insert_resources(void)
 {
 	int i;
 	struct resource *r = ioapic_resources;
 
 	if (!r) {
-		if (nr_ioapics > 0) {
+		if (nr_ioapics > 0)
 			printk(KERN_ERR
 				"IO APIC resources couldn't be allocated.\n");
-			return -1;
-		}
-		return 0;
+		return;
 	}
 
 	for (i = 0; i < nr_ioapics; i++) {
 		insert_resource(&iomem_resource, r);
 		r++;
 	}
-
-	return 0;
 }
-
-/* Insert the IO APIC resources after PCI initialization has occured to handle
- * IO APICS that are mapped in on a BAR in PCI space. */
-late_initcall(ioapic_insert_resources);

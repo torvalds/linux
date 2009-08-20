@@ -225,9 +225,9 @@ config DEFAULT_MMAP_MIN_ADDR
 	  For most ia64, ppc64 and x86 users with lots of address space
 	  a value of 65536 is reasonable and should cause no problems.
 	  On arm and other archs it should not be higher than 32768.
-	  Programs which use vm86 functionality would either need additional
-	  permissions from either the LSM or the capabilities module or have
-	  this protection disabled.
+	  Programs which use vm86 functionality or have some need to map
+	  this low address space will need CAP_SYS_RAWIO or disable this
+	  protection by setting the value to 0.
 
 	  This value can be changed after boot using the
 	  /proc/sys/vm/mmap_min_addr tunable.

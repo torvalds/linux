@@ -121,7 +121,7 @@ ENTRY(sys_call_table)
 	.long sys_wait4
 	.long sys_swapoff		/* 115 */
 	.long sys_sysinfo
-	.long sys_ipc
+	.long sys_ni_syscall		/* old sys_ipc */
 	.long sys_fsync
 	.long sys_ni_syscall		/* sys_sigreturn_wrapper */
 	.long sys_clone		/* 120 */
@@ -313,7 +313,7 @@ ENTRY(sys_call_table)
 	.long sys_fchmodat
 	.long sys_faccessat
 	.long sys_ni_syscall /* pselect6 */
-	.long sys_ni_syscall /* sys_ppoll */
+	.long sys_ppoll
 	.long sys_unshare		/* 310 */
 	.long sys_set_robust_list
 	.long sys_get_robust_list

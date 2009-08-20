@@ -1269,7 +1269,7 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	int id;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
 	if (!state) {
 		printk(KERN_ERR "Can't alocate memory for tda10045 state\n");
 		return NULL;
@@ -1339,7 +1339,7 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	int id;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
 	if (!state) {
 		printk(KERN_ERR "Can't alocate memory for tda10046 state\n");
 		return NULL;

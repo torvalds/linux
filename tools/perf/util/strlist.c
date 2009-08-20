@@ -64,6 +64,7 @@ int strlist__add(struct strlist *self, const char *new_entry)
 
 	rb_link_node(&sn->rb_node, parent, p);
 	rb_insert_color(&sn->rb_node, &self->entries);
+	++self->nr_entries;
 
 	return 0;
 }
@@ -155,8 +156,9 @@ struct strlist *strlist__new(bool dupstr, const char *slist)
 	struct strlist *self = malloc(sizeof(*self));
 
 	if (self != NULL) {
-		self->entries = RB_ROOT;
-		self->dupstr = dupstr;
+		self->entries	 = RB_ROOT;
+		self->dupstr	 = dupstr;
+		self->nr_entries = 0;
 		if (slist && strlist__parse_list(self, slist) != 0)
 			goto out_error;
 	}
@@ -181,4 +183,18 @@ void strlist__delete(struct strlist *self)
 		self->entries = RB_ROOT;
 		free(self);
 	}
+}
+
+struct str_node *strlist__entry(const struct strlist *self, unsigned int idx)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
+		struct str_node *pos = rb_entry(nd, struct str_node, rb_node);
+
+		if (!idx--)
+			return pos;
+	}
+
+	return NULL;
 }

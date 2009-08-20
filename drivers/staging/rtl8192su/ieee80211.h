@@ -2645,7 +2645,7 @@ extern int ieee80211_encrypt_fragment(
 	struct sk_buff *frag,
 	int hdr_len);
 
-extern int ieee80211_xmit(struct sk_buff *skb,
+extern int rtl8192_ieee80211_xmit(struct sk_buff *skb,
 			  struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
 

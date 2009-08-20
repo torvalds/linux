@@ -98,7 +98,6 @@ static int zl10353_read_register(struct zl10353_state *state, u8 reg)
 static void zl10353_dump_regs(struct dvb_frontend *fe)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
-	char buf[52], buf2[4];
 	int ret;
 	u8 reg;
 
@@ -106,19 +105,18 @@ static void zl10353_dump_regs(struct dvb_frontend *fe)
 	for (reg = 0; ; reg++) {
 		if (reg % 16 == 0) {
 			if (reg)
-				printk(KERN_DEBUG "%s\n", buf);
-			sprintf(buf, "%02x: ", reg);
+				printk(KERN_CONT "\n");
+			printk(KERN_DEBUG "%02x:", reg);
 		}
 		ret = zl10353_read_register(state, reg);
 		if (ret >= 0)
-			sprintf(buf2, "%02x ", (u8)ret);
+			printk(KERN_CONT " %02x", (u8)ret);
 		else
-			strcpy(buf2, "-- ");
-		strcat(buf, buf2);
+			printk(KERN_CONT " --");
 		if (reg == 0xff)
 			break;
 	}
-	printk(KERN_DEBUG "%s\n", buf);
+	printk(KERN_CONT "\n");
 }
 
 static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,

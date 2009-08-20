@@ -31,10 +31,12 @@
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
 
-static char		default_sort_order[] = "comm,dso";
+static char		default_sort_order[] = "comm,dso,symbol";
 static char		*sort_order = default_sort_order;
-static char		*dso_list_str, *comm_list_str, *sym_list_str;
+static char		*dso_list_str, *comm_list_str, *sym_list_str,
+			*col_width_list_str;
 static struct strlist	*dso_list, *comm_list, *sym_list;
+static char		*field_sep;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
@@ -49,6 +51,7 @@ static int		verbose;
 static int		modules;
 
 static int		full_paths;
+static int		show_nr_samples;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -65,7 +68,7 @@ static int		callchain;
 
 static
 struct callchain_param	callchain_param = {
-	.mode	= CHAIN_GRAPH_ABS,
+	.mode	= CHAIN_GRAPH_REL,
 	.min_percent = 0.5
 };
 
@@ -96,13 +99,7 @@ struct comm_event {
 struct fork_event {
 	struct perf_event_header header;
 	u32 pid, ppid;
-};
-
-struct period_event {
-	struct perf_event_header header;
-	u64 time;
-	u64 id;
-	u64 sample_period;
+	u32 tid, ptid;
 };
 
 struct lost_event {
@@ -115,7 +112,9 @@ struct read_event {
 	struct perf_event_header header;
 	u32 pid,tid;
 	u64 value;
-	u64 format[3];
+	u64 time_enabled;
+	u64 time_running;
+	u64 id;
 };
 
 typedef union event_union {
@@ -124,10 +123,36 @@ typedef union event_union {
 	struct mmap_event		mmap;
 	struct comm_event		comm;
 	struct fork_event		fork;
-	struct period_event		period;
 	struct lost_event		lost;
 	struct read_event		read;
 } event_t;
+
+static int repsep_fprintf(FILE *fp, const char *fmt, ...)
+{
+	int n;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (!field_sep)
+		n = vfprintf(fp, fmt, ap);
+	else {
+		char *bf = NULL;
+		n = vasprintf(&bf, fmt, ap);
+		if (n > 0) {
+			char *sep = bf;
+			while (1) {
+				sep = strchr(sep, *field_sep);
+				if (sep == NULL)
+					break;
+				*sep = '.';
+			}
+		}
+		fputs(bf, fp);
+		free(bf);
+	}
+	va_end(ap);
+	return n;
+}
 
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
@@ -230,7 +255,7 @@ static int strcommon(const char *pathname)
 {
 	int n = 0;
 
-	while (pathname[n] == cwd[n] && n < cwdlen)
+	while (n < cwdlen && pathname[n] == cwd[n])
 		++n;
 
 	return n;
@@ -360,12 +385,28 @@ static struct thread *thread__new(pid_t pid)
 	return self;
 }
 
+static unsigned int dsos__col_width,
+		    comms__col_width,
+		    threads__col_width;
+
 static int thread__set_comm(struct thread *self, const char *comm)
 {
 	if (self->comm)
 		free(self->comm);
 	self->comm = strdup(comm);
-	return self->comm ? 0 : -ENOMEM;
+	if (!self->comm)
+		return -ENOMEM;
+
+	if (!col_width_list_str && !field_sep &&
+	    (!comm_list || strlist__has_entry(comm_list, comm))) {
+		unsigned int slen = strlen(comm);
+		if (slen > comms__col_width) {
+			comms__col_width = slen;
+			threads__col_width = slen + 6;
+		}
+	}
+
+	return 0;
 }
 
 static size_t thread__fprintf(struct thread *self, FILE *fp)
@@ -536,7 +577,9 @@ struct sort_entry {
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *);
+	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
+	unsigned int *width;
+	bool	elide;
 };
 
 static int64_t cmp_null(void *l, void *r)
@@ -558,15 +601,17 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__thread_print(FILE *fp, struct hist_entry *self)
+sort__thread_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	return fprintf(fp, "%16s:%5d", self->thread->comm ?: "", self->thread->pid);
+	return repsep_fprintf(fp, "%*s:%5d", width - 6,
+			      self->thread->comm ?: "", self->thread->pid);
 }
 
 static struct sort_entry sort_thread = {
-	.header = "         Command:  Pid",
+	.header = "Command:  Pid",
 	.cmp	= sort__thread_cmp,
 	.print	= sort__thread_print,
+	.width	= &threads__col_width,
 };
 
 /* --sort comm */
@@ -590,16 +635,17 @@ sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__comm_print(FILE *fp, struct hist_entry *self)
+sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	return fprintf(fp, "%16s", self->thread->comm);
+	return repsep_fprintf(fp, "%*s", width, self->thread->comm);
 }
 
 static struct sort_entry sort_comm = {
-	.header		= "         Command",
+	.header		= "Command",
 	.cmp		= sort__comm_cmp,
 	.collapse	= sort__comm_collapse,
 	.print		= sort__comm_print,
+	.width		= &comms__col_width,
 };
 
 /* --sort dso */
@@ -617,18 +663,19 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__dso_print(FILE *fp, struct hist_entry *self)
+sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
 	if (self->dso)
-		return fprintf(fp, "%-25s", self->dso->name);
+		return repsep_fprintf(fp, "%-*s", width, self->dso->name);
 
-	return fprintf(fp, "%016llx         ", (u64)self->ip);
+	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
-	.header = "Shared Object            ",
+	.header = "Shared Object",
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
+	.width	= &dsos__col_width,
 };
 
 /* --sort symbol */
@@ -648,22 +695,23 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__sym_print(FILE *fp, struct hist_entry *self)
+sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 {
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip,
+				      dso__symtab_origin(self->dso));
 
+	ret += repsep_fprintf(fp, "[%c] ", self->level);
 	if (self->sym) {
-		ret += fprintf(fp, "[%c] %s",
-			self->dso == kernel_dso ? 'k' :
-			self->dso == hypervisor_dso ? 'h' : '.', self->sym->name);
+		ret += repsep_fprintf(fp, "%s", self->sym->name);
 
 		if (self->sym->module)
-			ret += fprintf(fp, "\t[%s]", self->sym->module->name);
+			ret += repsep_fprintf(fp, "\t[%s]",
+					     self->sym->module->name);
 	} else {
-		ret += fprintf(fp, "%#016llx", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
 	}
 
 	return ret;
@@ -690,19 +738,19 @@ sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__parent_print(FILE *fp, struct hist_entry *self)
+sort__parent_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	size_t ret = 0;
-
-	ret += fprintf(fp, "%-20s", self->parent ? self->parent->name : "[other]");
-
-	return ret;
+	return repsep_fprintf(fp, "%-*s", width,
+			      self->parent ? self->parent->name : "[other]");
 }
 
+static unsigned int parent_symbol__col_width;
+
 static struct sort_entry sort_parent = {
-	.header = "Parent symbol       ",
+	.header = "Parent symbol",
 	.cmp	= sort__parent_cmp,
 	.print	= sort__parent_print,
+	.width	= &parent_symbol__col_width,
 };
 
 static int sort__need_collapse = 0;
@@ -843,6 +891,21 @@ ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
 	return ret;
 }
 
+static struct symbol *rem_sq_bracket;
+static struct callchain_list rem_hits;
+
+static void init_rem_hits(void)
+{
+	rem_sq_bracket = malloc(sizeof(*rem_sq_bracket) + 6);
+	if (!rem_sq_bracket) {
+		fprintf(stderr, "Not enough memory to display remaining hits\n");
+		return;
+	}
+
+	strcpy(rem_sq_bracket->name, "[...]");
+	rem_hits.sym = rem_sq_bracket;
+}
+
 static size_t
 callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			u64 total_samples, int depth, int depth_mask)
@@ -852,25 +915,34 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	struct callchain_list *chain;
 	int new_depth_mask = depth_mask;
 	u64 new_total;
+	u64 remaining;
 	size_t ret = 0;
 	int i;
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
-		new_total = self->cumul_hit;
+		new_total = self->children_hit;
 	else
 		new_total = total_samples;
 
+	remaining = new_total;
+
 	node = rb_first(&self->rb_root);
 	while (node) {
+		u64 cumul;
+
 		child = rb_entry(node, struct callchain_node, rb_node);
+		cumul = cumul_hits(child);
+		remaining -= cumul;
 
 		/*
 		 * The depth mask manages the output of pipes that show
 		 * the depth. We don't want to keep the pipes of the current
-		 * level for the last child of this depth
+		 * level for the last child of this depth.
+		 * Except if we have remaining filtered hits. They will
+		 * supersede the last child
 		 */
 		next = rb_next(node);
-		if (!next)
+		if (!next && (callchain_param.mode != CHAIN_GRAPH_REL || !remaining))
 			new_depth_mask &= ~(1 << (depth - 1));
 
 		/*
@@ -885,12 +957,25 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			ret += ipchain__fprintf_graph(fp, chain, depth,
 						      new_depth_mask, i++,
 						      new_total,
-						      child->cumul_hit);
+						      cumul);
 		}
 		ret += callchain__fprintf_graph(fp, child, new_total,
 						depth + 1,
 						new_depth_mask | (1 << depth));
 		node = next;
+	}
+
+	if (callchain_param.mode == CHAIN_GRAPH_REL &&
+		remaining && remaining != new_total) {
+
+		if (!rem_sq_bracket)
+			return ret;
+
+		new_depth_mask &= ~(1 << (depth - 1));
+
+		ret += ipchain__fprintf_graph(fp, &rem_hits, depth,
+					      new_depth_mask, 0, new_total,
+					      remaining);
 	}
 
 	return ret;
@@ -967,17 +1052,25 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 		return 0;
 
 	if (total_samples)
-		ret = percent_color_fprintf(fp, "   %6.2f%%",
-				(self->count * 100.0) / total_samples);
+		ret = percent_color_fprintf(fp,
+					    field_sep ? "%.2f" : "   %6.2f%%",
+					(self->count * 100.0) / total_samples);
 	else
-		ret = fprintf(fp, "%12Ld ", self->count);
+		ret = fprintf(fp, field_sep ? "%lld" : "%12lld ", self->count);
+
+	if (show_nr_samples) {
+		if (field_sep)
+			fprintf(fp, "%c%lld", *field_sep, self->count);
+		else
+			fprintf(fp, "%11lld", self->count);
+	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
 
-		fprintf(fp, "  ");
-		ret += se->print(fp, self);
+		fprintf(fp, "%s", field_sep ?: "  ");
+		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
 	ret += fprintf(fp, "\n");
@@ -991,6 +1084,18 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 /*
  *
  */
+
+static void dso__calc_col_width(struct dso *self)
+{
+	if (!col_width_list_str && !field_sep &&
+	    (!dso_list || strlist__has_entry(dso_list, self->name))) {
+		unsigned int slen = strlen(self->name);
+		if (slen > dsos__col_width)
+			dsos__col_width = slen;
+	}
+
+	self->slen_calculated = 1;
+}
 
 static struct symbol *
 resolve_symbol(struct thread *thread, struct map **mapp,
@@ -1011,6 +1116,14 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 
 	map = thread__find_map(thread, ip);
 	if (map != NULL) {
+		/*
+		 * We have to do this here as we may have a dso
+		 * with no symbol hit that has a name longer than
+		 * the ones with symbols sampled.
+		 */
+		if (!sort_dso.elide && !map->dso->slen_calculated)
+			dso__calc_col_width(map->dso);
+
 		if (mapp)
 			*mapp = map;
 got_map:
@@ -1282,35 +1395,69 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
+	unsigned int width;
+	char *col_width = col_width_list_str;
 
-	fprintf(fp, "\n");
-	fprintf(fp, "#\n");
-	fprintf(fp, "# (%Ld samples)\n", (u64)total_samples);
+	init_rem_hits();
+
+	fprintf(fp, "# Samples: %Ld\n", (u64)total_samples);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
+	if (show_nr_samples) {
+		if (field_sep)
+			fprintf(fp, "%cSamples", *field_sep);
+		else
+			fputs("  Samples  ", fp);
+	}
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
-		fprintf(fp, "  %s", se->header);
+		if (field_sep) {
+			fprintf(fp, "%c%s", *field_sep, se->header);
+			continue;
+		}
+		width = strlen(se->header);
+		if (se->width) {
+			if (col_width_list_str) {
+				if (col_width) {
+					*se->width = atoi(col_width);
+					col_width = strchr(col_width, ',');
+					if (col_width)
+						++col_width;
+				}
+			}
+			width = *se->width = max(*se->width, width);
+		}
+		fprintf(fp, "  %*s", width, se->header);
 	}
 	fprintf(fp, "\n");
 
+	if (field_sep)
+		goto print_entries;
+
 	fprintf(fp, "# ........");
+	if (show_nr_samples)
+		fprintf(fp, " ..........");
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		unsigned int i;
 
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
 
 		fprintf(fp, "  ");
-		for (i = 0; i < strlen(se->header); i++)
+		if (se->width)
+			width = *se->width;
+		else
+			width = strlen(se->header);
+		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
 	fprintf(fp, "\n");
 
 	fprintf(fp, "#\n");
 
+print_entries:
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
 		ret += hist_entry__fprintf(fp, pos, total_samples);
@@ -1319,10 +1466,12 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	if (sort_order == default_sort_order &&
 			parent_pattern == default_parent_pattern) {
 		fprintf(fp, "#\n");
-		fprintf(fp, "# (For more details, try: perf report --sort comm,dso,symbol)\n");
+		fprintf(fp, "# (For a higher level overview, try: perf report --sort comm,dso)\n");
 		fprintf(fp, "#\n");
 	}
 	fprintf(fp, "\n");
+
+	free(rem_sq_bracket);
 
 	return ret;
 }
@@ -1377,11 +1526,11 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dprintf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d: %p period: %Ld\n",
+	dprintf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
-		event->ip.pid,
+		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
 		(long long)period);
 
@@ -1441,10 +1590,11 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	if (show & show_mask) {
 		struct symbol *sym = resolve_symbol(thread, &map, &dso, &ip);
 
-		if (dso_list && dso && dso->name && !strlist__has_entry(dso_list, dso->name))
+		if (dso_list && (!dso || !dso->name ||
+				 !strlist__has_entry(dso_list, dso->name)))
 			return 0;
 
-		if (sym_list && sym && !strlist__has_entry(sym_list, sym->name))
+		if (sym_list && (!sym || !strlist__has_entry(sym_list, sym->name)))
 			return 0;
 
 		if (hist_entry__add(thread, map, dso, sym, ip, chain, level, period)) {
@@ -1463,10 +1613,11 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 	struct thread *thread = threads__findnew(event->mmap.pid);
 	struct map *map = map__new(&event->mmap);
 
-	dprintf("%p [%p]: PERF_EVENT_MMAP %d: [%p(%p) @ %p]: %s\n",
+	dprintf("%p [%p]: PERF_EVENT_MMAP %d/%d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->mmap.pid,
+		event->mmap.tid,
 		(void *)(long)event->mmap.start,
 		(void *)(long)event->mmap.len,
 		(void *)(long)event->mmap.pgoff,
@@ -1504,34 +1655,33 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_fork_event(event_t *event, unsigned long offset, unsigned long head)
+process_task_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct thread *thread = threads__findnew(event->fork.pid);
 	struct thread *parent = threads__findnew(event->fork.ppid);
 
-	dprintf("%p [%p]: PERF_EVENT_FORK: %d:%d\n",
+	dprintf("%p [%p]: PERF_EVENT_%s: (%d:%d):(%d:%d)\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
-		event->fork.pid, event->fork.ppid);
+		event->header.type == PERF_EVENT_FORK ? "FORK" : "EXIT",
+		event->fork.pid, event->fork.tid,
+		event->fork.ppid, event->fork.ptid);
+
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
+	if (event->header.type == PERF_EVENT_EXIT)
+		return 0;
 
 	if (!thread || !parent || thread__fork(thread, parent)) {
 		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
 		return -1;
 	}
 	total_fork++;
-
-	return 0;
-}
-
-static int
-process_period_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->period.time,
-		event->period.id,
-		event->period.sample_period);
 
 	return 0;
 }
@@ -1586,14 +1736,37 @@ static void trace_event(event_t *event)
 	dprintf(".\n");
 }
 
+static struct perf_header	*header;
+
+static struct perf_counter_attr *perf_header__find_attr(u64 id)
+{
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+		int j;
+
+		for (j = 0; j < attr->ids; j++) {
+			if (attr->id[j] == id)
+				return &attr->attr;
+		}
+	}
+
+	return NULL;
+}
+
 static int
 process_read_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %Lu\n",
+	struct perf_counter_attr *attr = perf_header__find_attr(event->read.id);
+
+	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %s %Lu\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
 			event->read.pid,
 			event->read.tid,
+			attr ? __event_name(attr->type, attr->config)
+			     : "FAIL",
 			event->read.value);
 
 	return 0;
@@ -1615,10 +1788,8 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 		return process_comm_event(event, offset, head);
 
 	case PERF_EVENT_FORK:
-		return process_fork_event(event, offset, head);
-
-	case PERF_EVENT_PERIOD:
-		return process_period_event(event, offset, head);
+	case PERF_EVENT_EXIT:
+		return process_task_event(event, offset, head);
 
 	case PERF_EVENT_LOST:
 		return process_lost_event(event, offset, head);
@@ -1640,8 +1811,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	return 0;
 }
-
-static struct perf_header	*header;
 
 static u64 perf_header__sample_type(void)
 {
@@ -1710,6 +1879,13 @@ static int __cmd_report(void)
 					" -g?\n");
 			exit(-1);
 		}
+	} else if (callchain_param.mode != CHAIN_NONE && !callchain) {
+			callchain = 1;
+			if (register_callchain_param(&callchain_param) < 0) {
+				fprintf(stderr, "Can't register callchain"
+						" params\n");
+				exit(-1);
+			}
 	}
 
 	if (load_kernel() < 0) {
@@ -1848,6 +2024,13 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	else if (!strncmp(tok, "fractal", strlen(arg)))
 		callchain_param.mode = CHAIN_GRAPH_REL;
 
+	else if (!strncmp(tok, "none", strlen(arg))) {
+		callchain_param.mode = CHAIN_NONE;
+		callchain = 0;
+
+		return 0;
+	}
+
 	else
 		return -1;
 
@@ -1883,6 +2066,8 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
+	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
+		    "Show a column with the number of samples"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,
@@ -1891,15 +2076,21 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('c', "callchain", NULL, "output_type,min_percent",
+	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent",
 		     "Display callchains using output_type and min percent threshold. "
-		     "Default: flat,0", &parse_callchain_opt, callchain_default_opt),
+		     "Default: fractal,0.5", &parse_callchain_opt, callchain_default_opt),
 	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",
 		   "only consider symbols in these comms"),
 	OPT_STRING('S', "symbols", &sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_STRING('w', "column-widths", &col_width_list_str,
+		   "width[,width...]",
+		   "don't try to adjust column width, use these fixed values"),
+	OPT_STRING('t', "field-separator", &field_sep, "separator",
+		   "separator for columns, no spaces will be added between "
+		   "columns '.' is reserved."),
 	OPT_END()
 };
 
@@ -1919,7 +2110,8 @@ static void setup_sorting(void)
 }
 
 static void setup_list(struct strlist **list, const char *list_str,
-		       const char *list_name)
+		       struct sort_entry *se, const char *list_name,
+		       FILE *fp)
 {
 	if (list_str) {
 		*list = strlist__new(true, list_str);
@@ -1927,6 +2119,11 @@ static void setup_list(struct strlist **list, const char *list_str,
 			fprintf(stderr, "problems parsing %s list\n",
 				list_name);
 			exit(129);
+		}
+		if (strlist__nr_entries(*list) == 1) {
+			fprintf(fp, "# %s: %s\n", list_name,
+				strlist__entry(*list, 0)->s);
+			se->elide = true;
 		}
 	}
 }
@@ -1941,9 +2138,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	setup_sorting();
 
-	if (parent_pattern != default_parent_pattern)
+	if (parent_pattern != default_parent_pattern) {
 		sort_dimension__add("parent");
-	else
+		sort_parent.elide = 1;
+	} else
 		exclude_other = 0;
 
 	/*
@@ -1952,11 +2150,17 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(report_usage, options);
 
-	setup_list(&dso_list, dso_list_str, "dso");
-	setup_list(&comm_list, comm_list_str, "comm");
-	setup_list(&sym_list, sym_list_str, "symbol");
-
 	setup_pager();
+
+	setup_list(&dso_list, dso_list_str, &sort_dso, "dso", stdout);
+	setup_list(&comm_list, comm_list_str, &sort_comm, "comm", stdout);
+	setup_list(&sym_list, sym_list_str, &sort_sym, "symbol", stdout);
+
+	if (field_sep && *field_sep == '.') {
+		fputs("'.' is the only non valid --field-separator argument\n",
+		      stderr);
+		exit(129);
+	}
 
 	return __cmd_report();
 }

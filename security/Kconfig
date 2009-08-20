@@ -113,6 +113,22 @@ config SECURITY_ROOTPLUG
 
 	  If you are unsure how to answer this question, answer N.
 
+config LSM_MMAP_MIN_ADDR
+	int "Low address space for LSM to protect from user allocation"
+	depends on SECURITY && SECURITY_SELINUX
+	default 65536
+	help
+	  This is the portion of low virtual memory which should be protected
+	  from userspace allocation.  Keeping a user from writing to low pages
+	  can help reduce the impact of kernel NULL pointer bugs.
+
+	  For most ia64, ppc64 and x86 users with lots of address space
+	  a value of 65536 is reasonable and should cause no problems.
+	  On arm and other archs it should not be higher than 32768.
+	  Programs which use vm86 functionality or have some need to map
+	  this low address space will need the permission specific to the
+	  systems running LSM.
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig

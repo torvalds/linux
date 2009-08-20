@@ -58,7 +58,8 @@ MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 
 #define dprintk(level, fmt, arg...)\
 	do { if (v4l_debug >= level) \
-		printk(KERN_DEBUG "%s: " fmt, dev->name , ## arg);\
+		printk(KERN_DEBUG "%s: " fmt, \
+		(dev) ? dev->name : "cx23885[?]", ## arg); \
 	} while (0)
 
 static struct cx23885_tvnorm cx23885_tvnorms[] = {
@@ -1677,6 +1678,7 @@ static struct v4l2_file_operations mpeg_fops = {
 	.read	       = mpeg_read,
 	.poll          = mpeg_poll,
 	.mmap	       = mpeg_mmap,
+	.ioctl	       = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
@@ -1713,6 +1715,8 @@ static struct video_device cx23885_mpeg_template = {
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
 	.minor         = -1,
+	.tvnorms       = CX23885_NORMS,
+	.current_norm  = V4L2_STD_NTSC_M,
 };
 
 void cx23885_417_unregister(struct cx23885_dev *dev)

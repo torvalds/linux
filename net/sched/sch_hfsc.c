@@ -116,7 +116,7 @@ struct hfsc_class
 	struct Qdisc_class_common cl_common;
 	unsigned int	refcnt;		/* usage count */
 
-	struct gnet_stats_basic bstats;
+	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
 	struct gnet_stats_rate_est rate_est;
 	unsigned int	level;		/* class level in hierarchy */

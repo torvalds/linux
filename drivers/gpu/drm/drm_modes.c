@@ -980,6 +980,8 @@ void drm_mode_connector_list_update(struct drm_connector *connector)
 				found_it = 1;
 				/* if equal delete the probed mode */
 				mode->status = pmode->status;
+				/* Merge type bits together */
+				mode->type |= pmode->type;
 				list_del(&pmode->head);
 				drm_mode_destroy(connector->dev, pmode);
 				break;

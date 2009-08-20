@@ -261,31 +261,6 @@ void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type)
 EXPORT_SYMBOL(drm_mode_object_find);
 
 /**
- * drm_crtc_from_fb - find the CRTC structure associated with an fb
- * @dev: DRM device
- * @fb: framebuffer in question
- *
- * LOCKING:
- * Caller must hold mode_config lock.
- *
- * Find CRTC in the mode_config structure that matches @fb.
- *
- * RETURNS:
- * Pointer to the CRTC or NULL if it wasn't found.
- */
-struct drm_crtc *drm_crtc_from_fb(struct drm_device *dev,
-				  struct drm_framebuffer *fb)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->fb == fb)
-			return crtc;
-	}
-	return NULL;
-}
-
-/**
  * drm_framebuffer_init - initialize a framebuffer
  * @dev: DRM device
  *
@@ -331,11 +306,20 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_crtc *crtc;
+	struct drm_mode_set set;
+	int ret;
 
 	/* remove from any CRTC */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->fb == fb)
-			crtc->fb = NULL;
+		if (crtc->fb == fb) {
+			/* should turn off the crtc */
+			memset(&set, 0, sizeof(struct drm_mode_set));
+			set.crtc = crtc;
+			set.fb = NULL;
+			ret = crtc->funcs->set_config(&set);
+			if (ret)
+				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
+		}
 	}
 
 	drm_mode_object_put(dev, &fb->base);
@@ -1502,7 +1486,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (crtc_req->count_connectors > 0 && !mode && !fb) {
+	if (crtc_req->count_connectors > 0 && (!mode || !fb)) {
 		DRM_DEBUG_KMS("Count connectors is %d but no mode or fb set\n",
 			  crtc_req->count_connectors);
 		ret = -EINVAL;
@@ -1553,7 +1537,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	set.mode = mode;
 	set.connectors = connector_set;
 	set.num_connectors = crtc_req->count_connectors;
-	set.fb =fb;
+	set.fb = fb;
 	ret = crtc->funcs->set_config(&set);
 
 out:

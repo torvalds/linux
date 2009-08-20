@@ -30,15 +30,6 @@ unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
 }
 EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-	printk(KERN_WARNING "unexpected IRQ trap at vector %02x\n", irq);
-}
-
 static u32 concurrent_irq;
 
 void do_IRQ(struct pt_regs *regs)

@@ -210,6 +210,7 @@
 #define NETXEN_CTX_SIGNATURE	0xdee0
 #define NETXEN_CTX_SIGNATURE_V2	0x0002dee0
 #define NETXEN_CTX_RESET	0xbad0
+#define NETXEN_CTX_D3_RESET	0xacc0
 #define NETXEN_RCV_PRODUCER(ringid)	(ringid)
 
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
@@ -773,6 +774,8 @@ struct nx_host_tx_ring {
 	u32 crb_cmd_consumer;
 	u32 num_desc;
 
+	struct netdev_queue *txq;
+
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct cmd_desc_type0 *desc_head;
 	dma_addr_t phys_addr;
@@ -1251,7 +1254,7 @@ struct netxen_adapter {
 	u8 mc_enabled;
 	u8 max_mc_count;
 	u8 rss_supported;
-	u8 resv2;
+	u8 link_changed;
 	u32 resv3;
 
 	u8 has_link_events;

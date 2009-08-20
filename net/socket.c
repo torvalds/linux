@@ -736,7 +736,7 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
 	if (more)
 		flags |= MSG_MORE;
 
-	return sock->ops->sendpage(sock, page, offset, size, flags);
+	return kernel_sendpage(sock, page, offset, size, flags);
 }
 
 static ssize_t sock_splice_read(struct file *file, loff_t *ppos,

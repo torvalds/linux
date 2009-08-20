@@ -96,7 +96,7 @@ struct net_device *phonet_device_get(struct net *net)
 {
 	struct phonet_device_list *pndevs = phonet_device_list(net);
 	struct phonet_device *pnd;
-	struct net_device *dev;
+	struct net_device *dev = NULL;
 
 	spin_lock_bh(&pndevs->lock);
 	list_for_each_entry(pnd, &pndevs->list, list) {

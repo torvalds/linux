@@ -43,7 +43,6 @@
 #define TTM_BO_HASH_ORDER 13
 
 static int ttm_bo_setup_vm(struct ttm_buffer_object *bo);
-static void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
 static int ttm_bo_swapout(struct ttm_mem_shrink *shrink);
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
@@ -259,6 +258,9 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 	TTM_ASSERT_LOCKED(&bo->mutex);
 	bo->ttm = NULL;
 
+	if (bdev->need_dma32)
+		page_flags |= TTM_PAGE_FLAG_DMA32;
+
 	switch (bo->type) {
 	case ttm_bo_type_device:
 		if (zero_alloc)
@@ -338,6 +340,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		}
 
 	}
+
+	if (bdev->driver->move_notify)
+		bdev->driver->move_notify(bo, mem);
 
 	if (!(old_man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 	    !(new_man->flags & TTM_MEMTYPE_FLAG_FIXED))
@@ -694,31 +699,52 @@ retry_pre_get:
 	return 0;
 }
 
+static uint32_t ttm_bo_select_caching(struct ttm_mem_type_manager *man,
+				      uint32_t cur_placement,
+				      uint32_t proposed_placement)
+{
+	uint32_t caching = proposed_placement & TTM_PL_MASK_CACHING;
+	uint32_t result = proposed_placement & ~TTM_PL_MASK_CACHING;
+
+	/**
+	 * Keep current caching if possible.
+	 */
+
+	if ((cur_placement & caching) != 0)
+		result |= (cur_placement & caching);
+	else if ((man->default_caching & caching) != 0)
+		result |= man->default_caching;
+	else if ((TTM_PL_FLAG_CACHED & caching) != 0)
+		result |= TTM_PL_FLAG_CACHED;
+	else if ((TTM_PL_FLAG_WC & caching) != 0)
+		result |= TTM_PL_FLAG_WC;
+	else if ((TTM_PL_FLAG_UNCACHED & caching) != 0)
+		result |= TTM_PL_FLAG_UNCACHED;
+
+	return result;
+}
+
+
 static bool ttm_bo_mt_compatible(struct ttm_mem_type_manager *man,
 				 bool disallow_fixed,
 				 uint32_t mem_type,
-				 uint32_t mask, uint32_t *res_mask)
+				 uint32_t proposed_placement,
+				 uint32_t *masked_placement)
 {
 	uint32_t cur_flags = ttm_bo_type_flags(mem_type);
 
 	if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) && disallow_fixed)
 		return false;
 
-	if ((cur_flags & mask & TTM_PL_MASK_MEM) == 0)
+	if ((cur_flags & proposed_placement & TTM_PL_MASK_MEM) == 0)
 		return false;
 
-	if ((mask & man->available_caching) == 0)
+	if ((proposed_placement & man->available_caching) == 0)
 		return false;
-	if (mask & man->default_caching)
-		cur_flags |= man->default_caching;
-	else if (mask & TTM_PL_FLAG_CACHED)
-		cur_flags |= TTM_PL_FLAG_CACHED;
-	else if (mask & TTM_PL_FLAG_WC)
-		cur_flags |= TTM_PL_FLAG_WC;
-	else
-		cur_flags |= TTM_PL_FLAG_UNCACHED;
 
-	*res_mask = cur_flags;
+	cur_flags |= (proposed_placement & man->available_caching);
+
+	*masked_placement = cur_flags;
 	return true;
 }
 
@@ -762,6 +788,9 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 		if (!type_ok)
 			continue;
+
+		cur_flags = ttm_bo_select_caching(man, bo->mem.placement,
+						  cur_flags);
 
 		if (mem_type == TTM_PL_SYSTEM)
 			break;
@@ -818,6 +847,9 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 					  mem_type,
 					  proposed_placement, &cur_flags))
 			continue;
+
+		cur_flags = ttm_bo_select_caching(man, bo->mem.placement,
+						  cur_flags);
 
 		ret = ttm_bo_mem_force_space(bdev, mem, mem_type,
 					     interruptible, no_wait);
@@ -1194,13 +1226,14 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 {
 	struct ttm_bo_global *glob = bdev->glob;
-	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
+	struct ttm_mem_type_manager *man;
 	int ret = -EINVAL;
 
 	if (mem_type >= TTM_NUM_MEM_TYPES) {
 		printk(KERN_ERR TTM_PFX "Illegal memory type %d\n", mem_type);
 		return ret;
 	}
+	man = &bdev->man[mem_type];
 
 	if (!man->has_type) {
 		printk(KERN_ERR TTM_PFX "Trying to take down uninitialized "
@@ -1417,7 +1450,8 @@ EXPORT_SYMBOL(ttm_bo_device_release);
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_global *glob,
 		       struct ttm_bo_driver *driver,
-		       uint64_t file_page_offset)
+		       uint64_t file_page_offset,
+		       bool need_dma32)
 {
 	int ret = -EINVAL;
 
@@ -1446,6 +1480,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = NULL;
 	bdev->glob = glob;
+	bdev->need_dma32 = need_dma32;
 
 	mutex_lock(&glob->device_list_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
@@ -1511,6 +1546,7 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 
 	unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
 }
+EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 static void ttm_bo_vm_insert_rb(struct ttm_buffer_object *bo)
 {
@@ -1631,6 +1667,10 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			spin_unlock(&bo->lock);
 			driver->sync_obj_unref(&sync_obj);
 			driver->sync_obj_unref(&tmp_obj);
+			spin_lock(&bo->lock);
+		} else {
+			spin_unlock(&bo->lock);
+			driver->sync_obj_unref(&sync_obj);
 			spin_lock(&bo->lock);
 		}
 	}

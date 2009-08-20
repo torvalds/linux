@@ -992,7 +992,7 @@ static int accept_bwqcam(struct parport *port)
 
 	if (parport[0] && strncmp(parport[0], "auto", 4) != 0) {
 		/* user gave parport parameters */
-		for(n=0; parport[n] && n<MAX_CAMS; n++){
+		for (n = 0; n < MAX_CAMS && parport[n]; n++) {
 			char *ep;
 			unsigned long r;
 			r = simple_strtoul(parport[n], &ep, 0);
