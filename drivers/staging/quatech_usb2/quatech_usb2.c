@@ -52,12 +52,12 @@ static int debug;
 #define QT_OPEN_CLOSE_CHANNEL		0xca
 /*#define QT_GET_SET_PREBUF_TRIG_LVL	0xcc
 #define QT_SET_ATF			0xcd*/
-#define QT2_GET_SET_REGISTER		0xc0
-#define QT_GET_SET_UART			0xc1
-/*#define QT_HW_FLOW_CONTROL_MASK		0xc5
-#define QT_SW_FLOW_CONTROL_MASK		0xc6
-#define QT_SW_FLOW_CONTROL_DISABLE	0xc7
-#define QT_BREAK_CONTROL 		0xc8
+#define QT2_GET_SET_REGISTER			0xc0
+#define QT2_GET_SET_UART			0xc1
+#define QT2_HW_FLOW_CONTROL_MASK		0xc5
+#define QT2_SW_FLOW_CONTROL_MASK		0xc6
+#define QT2_SW_FLOW_CONTROL_DISABLE	0xc7
+/*#define QT_BREAK_CONTROL 		0xc8
 #define QT_STOP_RECEIVE			0xe0*/
 #define QT2_FLUSH_DEVICE		0xc4
 #define QT_GET_SET_QMCR			0xe1
@@ -66,34 +66,35 @@ static int debug;
 #define QT2_FLUSH_RX			0x00
 #define QT2_FLUSH_TX			0x01
 
-/* port setting constants */
-#define  SERIAL_MCR_DTR             0x01
-#define  SERIAL_MCR_RTS             0x02
-#define  SERIAL_MCR_LOOP            0x10
+/* port setting constants, used to set up serial port speeds, flow
+ * control and so on */
+#define QT2_SERIAL_MCR_DTR	0x01
+#define QT2_SERIAL_MCR_RTS	0x02
+#define QT2_SERIAL_MCR_LOOP	0x10
 
-#define  SERIAL_MSR_CTS             0x10
-#define  SERIAL_MSR_CD              0x80
-#define  SERIAL_MSR_RI              0x40
-#define  SERIAL_MSR_DSR             0x20
-#define  SERIAL_MSR_MASK            0xf0
+#define QT2_SERIAL_MSR_CTS	0x10
+#define QT2_SERIAL_MSR_CD	0x80
+#define QT2_SERIAL_MSR_RI	0x40
+#define QT2_SERIAL_MSR_DSR	0x20
+#define QT2_SERIAL_MSR_MASK	0xf0
 
-#define  SERIAL_8_DATA              0x03
-#define  SERIAL_7_DATA              0x02
-#define  SERIAL_6_DATA              0x01
-#define  SERIAL_5_DATA              0x00
+#define QT2_SERIAL_8_DATA	0x03
+#define QT2_SERIAL_7_DATA	0x02
+#define QT2_SERIAL_6_DATA	0x01
+#define QT2_SERIAL_5_DATA	0x00
 
-#define  SERIAL_ODD_PARITY          0X08
-#define  SERIAL_EVEN_PARITY         0X18
-#define  SERIAL_TWO_STOPB           0x04
-#define  SERIAL_ONE_STOPB           0x00
+#define QT2_SERIAL_ODD_PARITY	0X08
+#define QT2_SERIAL_EVEN_PARITY	0X18
+#define QT2_SERIAL_TWO_STOPB	0x04
+#define QT2_SERIAL_ONE_STOPB	0x00
 
-#define  MAX_BAUD_RATE              921600
-#define  MAX_BAUD_REMAINDER         4608
+#define QT2_MAX_BAUD_RATE	921600
+#define QT2_MAX_BAUD_REMAINDER	4608
 
-#define SERIAL_LSR_OE       0x02
-#define SERIAL_LSR_PE       0x04
-#define SERIAL_LSR_FE       0x08
-#define SERIAL_LSR_BI       0x10
+#define QT2_SERIAL_LSR_OE	0x02
+#define QT2_SERIAL_LSR_PE	0x04
+#define QT2_SERIAL_LSR_FE	0x08
+#define QT2_SERIAL_LSR_BI	0x10
 
 /* value of Line Status Register when UART has completed
  * emptying data out on the line */
@@ -268,11 +269,18 @@ static int qt2_box_set_register(struct usb_serial *serial,
 		unsigned short Value);
 static int qt2_box_flush(struct usb_serial *serial,  unsigned char uart_number,
 		unsigned short rcv_or_xmit);
-static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
+static int qt2_boxsetuart(struct usb_serial *serial, unsigned short Uart_Number,
+		unsigned short default_divisor, unsigned char default_LCR);
+/*static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 		      const unsigned char *buf, int count);
 static int qt2_tiocmget(struct tty_struct *tty, struct file *file);
 static int qt2_tiocmset(struct tty_struct *tty, struct file *file,
-			unsigned int set, unsigned int clear);
+			unsigned int set, unsigned int clear);*/
+static int qt2_boxsethw_flowctl(struct usb_serial *serial,
+		unsigned int UartNumber, bool bSet);
+static int qt2_boxsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber,
+		unsigned char stop_char,  unsigned char start_char);
+static int qt2_boxunsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber);
 
 /* implementation functions, roughly in order of use, are here */
 static int qt2_calc_num_ports(struct usb_serial *serial)
@@ -452,7 +460,7 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct quatech2_dev *dev_extra;		/* extra data for the device */
 	struct qt2_status_data ChannelData;
 	unsigned short default_divisor = QU2BOXSPD9600;
-	unsigned char  default_LCR = SERIAL_8_DATA;
+	unsigned char  default_LCR = QT2_SERIAL_8_DATA;
 	int status;
 	int result;
 
@@ -495,11 +503,11 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return status;
 	}
 	port_extra->shadowLSR = ChannelData.line_status &
-			(SERIAL_LSR_OE | SERIAL_LSR_PE | SERIAL_LSR_FE |
-			SERIAL_LSR_BI);
+			(QT2_SERIAL_LSR_OE | QT2_SERIAL_LSR_PE |
+			QT2_SERIAL_LSR_FE | QT2_SERIAL_LSR_BI);
 	port_extra->shadowMSR = ChannelData.modem_status &
-			(SERIAL_MSR_CTS | SERIAL_MSR_DSR | SERIAL_MSR_RI |
-			SERIAL_MSR_CD);
+			(QT2_SERIAL_MSR_CTS | QT2_SERIAL_MSR_DSR |
+			QT2_SERIAL_MSR_RI | QT2_SERIAL_MSR_CD);
 
 /*	port_extra->fifo_empty_flag = true;*/
 	dbg("qt2_openboxchannel on channel %d completed.",
@@ -884,19 +892,19 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 		switch (cmd) {
 		case TIOCMBIS:
 			if (value & TIOCM_RTS)
-				mcr_value |= SERIAL_MCR_RTS;
+				mcr_value |= QT2_SERIAL_MCR_RTS;
 			if (value & TIOCM_DTR)
-				mcr_value |= SERIAL_MCR_DTR;
+				mcr_value |= QT2_SERIAL_MCR_DTR;
 			if (value & TIOCM_LOOP)
-				mcr_value |= SERIAL_MCR_LOOP;
+				mcr_value |= QT2_SERIAL_MCR_LOOP;
 		break;
 		case TIOCMBIC:
 			if (value & TIOCM_RTS)
-				mcr_value &= ~SERIAL_MCR_RTS;
+				mcr_value &= ~QT2_SERIAL_MCR_RTS;
 			if (value & TIOCM_DTR)
-				mcr_value &= ~SERIAL_MCR_DTR;
+				mcr_value &= ~QT2_SERIAL_MCR_DTR;
 			if (value & TIOCM_LOOP)
-				mcr_value &= ~SERIAL_MCR_LOOP;
+				mcr_value &= ~QT2_SERIAL_MCR_LOOP;
 		break;
 		default:
 		break;
@@ -911,7 +919,7 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 	} else if (cmd == TIOCMIWAIT) {
 		dbg("%s() port %d, cmd == TIOCMIWAIT enter",
 			__func__, port->number);
-		prev_msr_value = port_extra->shadowMSR  & SERIAL_MSR_MASK;
+		prev_msr_value = port_extra->shadowMSR  & QT2_SERIAL_MSR_MASK;
 		while (1) {
 			add_wait_queue(&port_extra->wait, &wait);
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -922,21 +930,21 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 			/* see if a signal woke us up */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
-			msr_value = port_extra->shadowMSR & SERIAL_MSR_MASK;
+			msr_value = port_extra->shadowMSR & QT2_SERIAL_MSR_MASK;
 			if (msr_value == prev_msr_value)
 				return -EIO;  /* no change - error */
 			if ((arg & TIOCM_RNG &&
-				((prev_msr_value & SERIAL_MSR_RI) ==
-					(msr_value & SERIAL_MSR_RI))) ||
+				((prev_msr_value & QT2_SERIAL_MSR_RI) ==
+					(msr_value & QT2_SERIAL_MSR_RI))) ||
 				(arg & TIOCM_DSR &&
-				((prev_msr_value & SERIAL_MSR_DSR) ==
-					(msr_value & SERIAL_MSR_DSR))) ||
+				((prev_msr_value & QT2_SERIAL_MSR_DSR) ==
+					(msr_value & QT2_SERIAL_MSR_DSR))) ||
 				(arg & TIOCM_CD &&
-				((prev_msr_value & SERIAL_MSR_CD) ==
-					(msr_value & SERIAL_MSR_CD))) ||
+				((prev_msr_value & QT2_SERIAL_MSR_CD) ==
+					(msr_value & QT2_SERIAL_MSR_CD))) ||
 				(arg & TIOCM_CTS &&
-				((prev_msr_value & SERIAL_MSR_CTS) ==
-					(msr_value & SERIAL_MSR_CTS)))) {
+				((prev_msr_value & QT2_SERIAL_MSR_CTS) ==
+					(msr_value & QT2_SERIAL_MSR_CTS)))) {
 				return 0;
 			}
 		} /* end inifinite while */
@@ -949,6 +957,120 @@ static int qt2_ioctl(struct tty_struct *tty, struct file *file,
 		dbg("%s(): No ioctl for that one. port = %d", __func__,
 			port->number);
 		return -ENOIOCTLCMD;
+	}
+}
+
+/* Called when the user wishes to change the port settings using the termios
+ * userspace interface */
+static void qt2_set_termios(struct tty_struct *tty,
+	struct usb_serial_port *port, struct ktermios *old_termios)
+{
+	struct usb_serial *serial; /* parent serial device */
+	int baud, divisor, remainder;
+	unsigned char LCR_change_to = 0;
+	int status;
+	__u16 UartNumber;
+
+	dbg("%s(): port %d", __func__, port->number);
+
+	serial = port->serial;
+
+	UartNumber = port->number;
+
+	if (old_termios) {
+		if ((tty->termios->c_cflag == old_termios->c_cflag) &&
+			(RELEVANT_IFLAG(tty->termios->c_iflag) ==
+			RELEVANT_IFLAG(old_termios->c_iflag))) {
+			dbg("%s(): Nothing to change", __func__);
+			return;
+		}
+	}
+
+	switch (tty->termios->c_cflag) {
+	case CS5:
+		LCR_change_to |= QT2_SERIAL_5_DATA;
+		break;
+	case CS6:
+		LCR_change_to |= QT2_SERIAL_6_DATA;
+		break;
+	case CS7:
+		LCR_change_to |= QT2_SERIAL_7_DATA;
+		break;
+	default:
+	case CS8:
+		LCR_change_to |= QT2_SERIAL_8_DATA;
+		break;
+	}
+
+	/* Parity stuff */
+	if (tty->termios->c_cflag & PARENB) {
+		if (tty->termios->c_cflag & PARODD)
+			LCR_change_to |= QT2_SERIAL_ODD_PARITY;
+		else
+			LCR_change_to |= QT2_SERIAL_EVEN_PARITY;
+	}
+	if (tty->termios->c_cflag & CSTOPB)
+		LCR_change_to |= QT2_SERIAL_TWO_STOPB;
+	else
+		LCR_change_to |= QT2_SERIAL_ONE_STOPB;
+
+	/* Thats the LCR stuff, go ahead and set it */
+	baud = tty_get_baud_rate(tty);
+	if (!baud) {
+		/* pick a default, any default... */
+		baud = 9600;
+	}
+	dbg("%s(): got baud = %d", __func__, baud);
+
+	divisor = QT2_MAX_BAUD_RATE / baud;
+	remainder = QT2_MAX_BAUD_RATE % baud;
+	/* Round to nearest divisor */
+	if (((remainder * 2) >= baud) && (baud != 110))
+		divisor++;
+	dbg("%s(): setting divisor = %d, QT2_MAX_BAUD_RATE = %d , LCR = 0x%x",
+	      __func__, divisor, QT2_MAX_BAUD_RATE, LCR_change_to);
+
+	status = qt2_boxsetuart(serial, UartNumber, (unsigned short) divisor,
+			    LCR_change_to);
+	if (status < 0)	{
+		dbg("qt2_boxsetuart() failed");
+		return;
+	}
+
+	/* Now determine flow control */
+	if (tty->termios->c_cflag & CRTSCTS) {
+		dbg("%s(): Enabling HW flow control port %d", __func__,
+		      port->number);
+		/* Enable  RTS/CTS flow control */
+		status = qt2_boxsethw_flowctl(serial, UartNumber, true);
+		if (status < 0) {
+			dbg("qt2_boxsethw_flowctl() failed");
+			return;
+		}
+	} else {
+		/* Disable RTS/CTS flow control */
+		dbg("%s(): disabling HW flow control port %d", __func__,
+			port->number);
+		status = qt2_boxsethw_flowctl(serial, UartNumber, false);
+		if (status < 0)	{
+			dbg("qt2_boxsethw_flowctl failed");
+			return;
+		}
+	}
+	/* if we are implementing XON/XOFF, set the start and stop character
+	 * in the device */
+	if (I_IXOFF(tty) || I_IXON(tty)) {
+		unsigned char stop_char  = STOP_CHAR(tty);
+		unsigned char start_char = START_CHAR(tty);
+		status = qt2_boxsetsw_flowctl(serial, UartNumber, stop_char,
+				start_char);
+		if (status < 0)
+			dbg("qt2_boxsetsw_flowctl (enabled) failed");
+	} else {
+		/* disable SW flow control */
+		status = qt2_boxunsetsw_flowctl(serial, UartNumber);
+		if (status < 0)
+			dbg("qt2_boxunsetsw_flowctl (disabling) failed");
 	}
 }
 
@@ -977,17 +1099,17 @@ static int qt2_tiocmget(struct tty_struct *tty, struct file *file)
 				QT2_MODEM_STATUS_REGISTER, &msr_value);
 	}
 	if (status >= 0) {
-		result = ((mcr_value & SERIAL_MCR_DTR) ? TIOCM_DTR : 0)
+		result = ((mcr_value & QT2_SERIAL_MCR_DTR) ? TIOCM_DTR : 0)
 				/*DTR set */
-			| ((mcr_value & SERIAL_MCR_RTS)  ? TIOCM_RTS : 0)
+			| ((mcr_value & QT2_SERIAL_MCR_RTS)  ? TIOCM_RTS : 0)
 				/*RTS set */
-			| ((msr_value & SERIAL_MSR_CTS)  ? TIOCM_CTS : 0)
+			| ((msr_value & QT2_SERIAL_MSR_CTS)  ? TIOCM_CTS : 0)
 				/* CTS set */
-			| ((msr_value & SERIAL_MSR_CD)  ? TIOCM_CAR : 0)
+			| ((msr_value & QT2_SERIAL_MSR_CD)  ? TIOCM_CAR : 0)
 				/*Carrier detect set */
-			| ((msr_value & SERIAL_MSR_RI)  ? TIOCM_RI : 0)
+			| ((msr_value & QT2_SERIAL_MSR_RI)  ? TIOCM_RI : 0)
 				/* Ring indicator set */
-			| ((msr_value & SERIAL_MSR_DSR)  ? TIOCM_DSR : 0);
+			| ((msr_value & QT2_SERIAL_MSR_DSR)  ? TIOCM_DSR : 0);
 				/* DSR set */
 		return result;
 	} else {
@@ -1017,13 +1139,14 @@ static int qt2_tiocmset(struct tty_struct *tty, struct file *file,
 
 	/* Turn off RTS, DTR and loopback, then only turn on what was asked
 	 * for */
-	mcr_value &= ~(SERIAL_MCR_RTS | SERIAL_MCR_DTR | SERIAL_MCR_LOOP);
+	mcr_value &= ~(QT2_SERIAL_MCR_RTS | QT2_SERIAL_MCR_DTR |
+			QT2_SERIAL_MCR_LOOP);
 	if (set & TIOCM_RTS)
-		mcr_value |= SERIAL_MCR_RTS;
+		mcr_value |= QT2_SERIAL_MCR_RTS;
 	if (set & TIOCM_DTR)
-		mcr_value |= SERIAL_MCR_DTR;
+		mcr_value |= QT2_SERIAL_MCR_DTR;
 	if (set & TIOCM_LOOP)
-		mcr_value |= SERIAL_MCR_LOOP;
+		mcr_value |= QT2_SERIAL_MCR_LOOP;
 
 	status = qt2_box_set_register(port->serial, UartNumber,
 			QT2_MODEM_CONTROL_REGISTER, mcr_value);
@@ -1162,7 +1285,7 @@ static int qt2_conf_uart(struct usb_serial *serial,  unsigned short Uart_Number,
 	UartNumandLCR = (LCR << 8) + Uart_Number;
 
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				QT_GET_SET_UART, 0x40, divisor, UartNumandLCR,
+				QT2_GET_SET_UART, 0x40, divisor, UartNumandLCR,
 				NULL, 0, 300);
 	return result;
 }
@@ -1464,8 +1587,8 @@ static void qt2_process_line_status(struct usb_serial_port *port,
 {
 	/* obtain the private structure for the port */
 	struct quatech2_port *port_extra = qt2_get_port_private(port);
-	port_extra->shadowLSR = LineStatus & (SERIAL_LSR_OE | SERIAL_LSR_PE |
-		SERIAL_LSR_FE | SERIAL_LSR_BI);
+	port_extra->shadowLSR = LineStatus & (QT2_SERIAL_LSR_OE |
+		QT2_SERIAL_LSR_PE | QT2_SERIAL_LSR_FE | QT2_SERIAL_LSR_BI);
 }
 static void qt2_process_modem_status(struct usb_serial_port *port,
 	unsigned char ModemStatus)
@@ -1602,6 +1725,79 @@ static int qt2_box_flush(struct usb_serial *serial,  unsigned char uart_number,
 	return result;
 }
 
+/** qt2_boxsetuart - Issue a SET_UART vendor-spcific request on the default
+ * control pipe. If successful sets baud rate divisor and LCR value.
+ */
+static int qt2_boxsetuart(struct usb_serial *serial, unsigned short Uart_Number,
+		unsigned short default_divisor, unsigned char default_LCR)
+{
+	unsigned short UartNumandLCR;
+
+	UartNumandLCR = (default_LCR << 8) + Uart_Number;
+
+	return usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+			QT2_GET_SET_UART, 0x40, default_divisor, UartNumandLCR,
+			NULL, 0, 300);
+}
+/** qt2_boxsethw_flowctl - Turn hardware (RTS/CTS) flow control on and off for
+ * a hardware UART.
+ */
+static int qt2_boxsethw_flowctl(struct usb_serial *serial,
+		unsigned int UartNumber, bool bSet)
+{
+	__u8 MCR_Value = 0;
+	__u8 MSR_Value = 0;
+	__u16 MOUT_Value = 0;
+
+	if (bSet == true) {
+		MCR_Value =  QT2_SERIAL_MCR_RTS;
+		/* flow control, box will clear RTS line to prevent remote
+		 * device from transmitting more chars */
+	} else {
+		/* no flow control to remote device */
+		MCR_Value =  0;
+	}
+	MOUT_Value = MCR_Value << 8;
+
+	if (bSet == true) {
+		MSR_Value = QT2_SERIAL_MSR_CTS;
+		/* flow control on, box will inhibit tx data if CTS line is
+		 * asserted */
+	} else {
+		/* Box will not inhibit tx data due to CTS line */
+		MSR_Value = 0;
+	}
+	MOUT_Value |= MSR_Value;
+	return usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+			QT2_HW_FLOW_CONTROL_MASK, 0x40, MOUT_Value, UartNumber,
+			NULL, 0, 300);
+}
+
+/** qt2_boxsetsw_flowctl - Turn software (XON/XOFF) flow control on for
+ * a hardware UART, and set the XON and XOFF characters.
+ */
+static int qt2_boxsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber,
+			unsigned char stop_char,  unsigned char start_char)
+{
+	__u16 nSWflowout;
+
+	nSWflowout = start_char << 8;
+	nSWflowout = (unsigned short)stop_char;
+	return usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+			QT2_SW_FLOW_CONTROL_MASK, 0x40, nSWflowout, UartNumber,
+			NULL, 0, 300);
+}
+
+/** qt2_boxunsetsw_flowctl - Turn software (XON/XOFF) flow control off for
+ * a hardware UART.
+ */
+static int qt2_boxunsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber)
+{
+	return usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+			QT2_SW_FLOW_CONTROL_DISABLE, 0x40, 0, UartNumber, NULL,
+			0, 300);
+}
+
 /*
  * last things in file: stuff to register this driver into the generic
  * USB serial framework.
@@ -1625,8 +1821,8 @@ static struct usb_serial_driver quatech2_device = {
 	.unthrottle = qt_unthrottle,*/
 	.calc_num_ports = qt2_calc_num_ports,
 	.ioctl = qt2_ioctl,
-	/*.set_termios = qt_set_termios,
-	.break_ctl = qt_break,*/
+	.set_termios = qt2_set_termios,
+	/*.break_ctl = qt_break,*/
 	.tiocmget = qt2_tiocmget,
 	.tiocmset = qt2_tiocmset,
 	.attach = qt2_attach,
