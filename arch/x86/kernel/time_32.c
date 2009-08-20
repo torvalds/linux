@@ -1,45 +1,27 @@
 /*
- *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
+ *  Copyright (c) 1991,1992,1995  Linus Torvalds
+ *  Copyright (c) 1994  Alan Modra
+ *  Copyright (c) 1995  Markus Kuhn
+ *  Copyright (c) 1996  Ingo Molnar
+ *  Copyright (c) 1998  Andrea Arcangeli
+ *  Copyright (c) 2002,2006  Vojtech Pavlik
+ *  Copyright (c) 2003  Andi Kleen
  *
- * This file contains the PC-specific time handling details:
- * reading the RTC at bootup, etc..
- * 1994-07-02    Alan Modra
- *	fixed set_rtc_mmss, fixed time.year for >= 2000, new mktime
- * 1995-03-26    Markus Kuhn
- *      fixed 500 ms bug at call to set_rtc_mmss, fixed DS12887
- *      precision CMOS clock update
- * 1996-05-03    Ingo Molnar
- *      fixed time warps in do_[slow|fast]_gettimeoffset()
- * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
- *		"A Kernel Model for Precision Timekeeping" by Dave Mills
- * 1998-09-05    (Various)
- *	More robust do_fast_gettimeoffset() algorithm implemented
- *	(works with APM, Cyrix 6x86MX and Centaur C6),
- *	monotonic gettimeofday() with fast_get_timeoffset(),
- *	drift-proof precision TSC calibration on boot
- *	(C. Scott Ananian <cananian@alumni.princeton.edu>, Andrew D.
- *	Balsa <andrebalsa@altern.org>, Philip Gladstone <philip@raptor.com>;
- *	ported from 2.0.35 Jumbo-9 by Michael Krause <m.krause@tu-harburg.de>).
- * 1998-12-16    Andrea Arcangeli
- *	Fixed Jumbo-9 code in 2.1.131: do_gettimeofday was missing 1 jiffy
- *	because was not accounting lost_ticks.
- * 1998-12-24 Copyright (C) 1998  Andrea Arcangeli
- *	Fixed a xtime SMP race (we need the xtime_lock rw spinlock to
- *	serialize accesses to xtime/lost_ticks).
  */
 
 #include <linux/clockchips.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/mca.h>
 
-#include <asm/setup.h>
-#include <asm/hpet.h>
-#include <asm/time.h>
-#include <asm/timer.h>
+#include <asm/vsyscall.h>
+#include <asm/x86_init.h>
 #include <asm/i8259.h>
 #include <asm/i8253.h>
+#include <asm/timer.h>
+#include <asm/hpet.h>
+#include <asm/time.h>
+#include <asm/nmi.h>
 
 int timer_ack;
 

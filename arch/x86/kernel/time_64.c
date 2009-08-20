@@ -1,6 +1,4 @@
 /*
- *  "High Precision Event Timer" based timekeeping.
- *
  *  Copyright (c) 1991,1992,1995  Linus Torvalds
  *  Copyright (c) 1994  Alan Modra
  *  Copyright (c) 1995  Markus Kuhn
@@ -8,23 +6,22 @@
  *  Copyright (c) 1998  Andrea Arcangeli
  *  Copyright (c) 2002,2006  Vojtech Pavlik
  *  Copyright (c) 2003  Andi Kleen
- *  RTC support code taken from arch/i386/kernel/timers/time_hpet.c
+ *
  */
 
 #include <linux/clockchips.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/time.h>
 #include <linux/mca.h>
-#include <linux/nmi.h>
 
+#include <asm/vsyscall.h>
 #include <asm/x86_init.h>
+#include <asm/i8259.h>
 #include <asm/i8253.h>
-#include <asm/hpet.h>
-#include <asm/vgtod.h>
-#include <asm/time.h>
 #include <asm/timer.h>
+#include <asm/hpet.h>
+#include <asm/time.h>
+#include <asm/nmi.h>
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 
