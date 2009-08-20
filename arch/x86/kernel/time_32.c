@@ -21,7 +21,6 @@
 #include <asm/timer.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
-#include <asm/nmi.h>
 
 #if defined(CONFIG_X86_32) && defined(CONFIG_X86_IO_APIC)
 int timer_ack;

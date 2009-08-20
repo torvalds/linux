@@ -57,6 +57,4 @@ extern void time_init(void);
 
 #endif /* CONFIG_PARAVIRT */
 
-extern unsigned long __init calibrate_cpu(void);
-
 #endif /* _ASM_X86_TIME_H */
