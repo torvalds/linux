@@ -784,7 +784,7 @@ complete:
 				 * memory to the I2C interface.
 				 */
 
-				if (cpu_is_omap34xx()) {
+				if (dev->rev <= OMAP_I2C_REV_ON_3430) {
 						while (!(stat & OMAP_I2C_STAT_XUDF)) {
 							if (stat & (OMAP_I2C_STAT_NACK | OMAP_I2C_STAT_AL)) {
 								omap_i2c_ack_stat(dev, stat & (OMAP_I2C_STAT_XRDY | OMAP_I2C_STAT_XDR));
