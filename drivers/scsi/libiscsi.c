@@ -857,27 +857,102 @@ static void iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 	}
 }
 
+static int iscsi_nop_out_rsp(struct iscsi_task *task,
+			     struct iscsi_nopin *nop, char *data, int datalen)
+{
+	struct iscsi_conn *conn = task->conn;
+	int rc = 0;
+
+	if (conn->ping_task != task) {
+		/*
+		 * If this is not in response to one of our
+		 * nops then it must be from userspace.
+		 */
+		if (iscsi_recv_pdu(conn->cls_conn, (struct iscsi_hdr *)nop,
+				   data, datalen))
+			rc = ISCSI_ERR_CONN_FAILED;
+	} else
+		mod_timer(&conn->transport_timer, jiffies + conn->recv_timeout);
+	iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
+	return rc;
+}
+
 static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			       char *data, int datalen)
 {
 	struct iscsi_reject *reject = (struct iscsi_reject *)hdr;
 	struct iscsi_hdr rejected_pdu;
+	int opcode, rc = 0;
 
 	conn->exp_statsn = be32_to_cpu(reject->statsn) + 1;
 
-	if (reject->reason == ISCSI_REASON_DATA_DIGEST_ERROR) {
-		if (ntoh24(reject->dlength) > datalen)
-			return ISCSI_ERR_PROTO;
-
-		if (ntoh24(reject->dlength) >= sizeof(struct iscsi_hdr)) {
-			memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
-			iscsi_conn_printk(KERN_ERR, conn,
-					  "pdu (op 0x%x) rejected "
-					  "due to DataDigest error.\n",
-					  rejected_pdu.opcode);
-		}
+	if (ntoh24(reject->dlength) > datalen ||
+	    ntoh24(reject->dlength) < sizeof(struct iscsi_hdr)) {
+		iscsi_conn_printk(KERN_ERR, conn, "Cannot handle rejected "
+				  "pdu. Invalid data length (pdu dlength "
+				  "%u, datalen %d\n", ntoh24(reject->dlength),
+				  datalen);
+		return ISCSI_ERR_PROTO;
 	}
-	return 0;
+	memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
+	opcode = rejected_pdu.opcode & ISCSI_OPCODE_MASK;
+
+	switch (reject->reason) {
+	case ISCSI_REASON_DATA_DIGEST_ERROR:
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "pdu (op 0x%x itt 0x%x) rejected "
+				  "due to DataDigest error.\n",
+				  rejected_pdu.itt, opcode);
+		break;
+	case ISCSI_REASON_IMM_CMD_REJECT:
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "pdu (op 0x%x itt 0x%x) rejected. Too many "
+				  "immediate commands.\n",
+				  rejected_pdu.itt, opcode);
+		/*
+		 * We only send one TMF at a time so if the target could not
+		 * handle it, then it should get fixed (RFC mandates that
+		 * a target can handle one immediate TMF per conn).
+		 *
+		 * For nops-outs, we could have sent more than one if
+		 * the target is sending us lots of nop-ins
+		 */
+		if (opcode != ISCSI_OP_NOOP_OUT)
+			return 0;
+
+		 if (rejected_pdu.itt == cpu_to_be32(ISCSI_RESERVED_TAG))
+			/*
+			 * nop-out in response to target's nop-out rejected.
+			 * Just resend.
+			 */
+			iscsi_send_nopout(conn,
+					  (struct iscsi_nopin*)&rejected_pdu);
+		else {
+			struct iscsi_task *task;
+			/*
+			 * Our nop as ping got dropped. We know the target
+			 * and transport are ok so just clean up
+			 */
+			task = iscsi_itt_to_task(conn, rejected_pdu.itt);
+			if (!task) {
+				iscsi_conn_printk(KERN_ERR, conn,
+						 "Invalid pdu reject. Could "
+						 "not lookup rejected task.\n");
+				rc = ISCSI_ERR_BAD_ITT;
+			} else
+				rc = iscsi_nop_out_rsp(task,
+					(struct iscsi_nopin*)&rejected_pdu,
+					NULL, 0);
+		}
+		break;
+	default:
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "pdu (op 0x%x itt 0x%x) rejected. Reason "
+				  "code 0x%x\n", rejected_pdu.itt,
+				  rejected_pdu.opcode, reject->reason);
+		break;
+	}
+	return rc;
 }
 
 /**
@@ -1038,15 +1113,8 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		}
 		conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 
-		if (conn->ping_task != task)
-			/*
-			 * If this is not in response to one of our
-			 * nops then it must be from userspace.
-			 */
-			goto recv_pdu;
-
-		mod_timer(&conn->transport_timer, jiffies + conn->recv_timeout);
-		iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
+		rc = iscsi_nop_out_rsp(task, (struct iscsi_nopin*)hdr,
+				       data, datalen);
 		break;
 	default:
 		rc = ISCSI_ERR_BAD_OPCODE;
