@@ -341,6 +341,35 @@ static struct platform_device sh7724_usb0_host_device = {
 	.resource	= sh7724_usb0_host_resources,
 };
 
+static struct r8a66597_platdata sh7724_usb1_gadget_data = {
+	.on_chip = 1,
+};
+
+static struct resource sh7724_usb1_gadget_resources[] = {
+	[0] = {
+		.start	= 0xa4d90000,
+		.end	= 0xa4d90123,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 66,
+		.end	= 66,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
+	},
+};
+
+static struct platform_device sh7724_usb1_gadget_device = {
+	.name		= "r8a66597_udc",
+	.id		= 1, /* USB1 */
+	.dev = {
+		.dma_mask		= NULL,         /*  not use dma */
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &sh7724_usb1_gadget_data,
+	},
+	.num_resources	= ARRAY_SIZE(sh7724_usb1_gadget_resources),
+	.resource	= sh7724_usb1_gadget_resources,
+};
+
 static struct platform_device *ms7724se_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_eth_device,
@@ -351,6 +380,7 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&keysc_device,
 	&sh_eth_device,
 	&sh7724_usb0_host_device,
+	&sh7724_usb1_gadget_device,
 };
 
 #define EEPROM_OP   0xBA206000
@@ -458,6 +488,9 @@ static int __init devices_setup(void)
 
 	/* enable USB0 port */
 	ctrl_outw(0x0600, 0xa40501d4);
+
+	/* enable USB1 port */
+	ctrl_outw(0x0600, 0xa4050192);
 
 	/* enable IRQ 0,1,2 */
 	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
