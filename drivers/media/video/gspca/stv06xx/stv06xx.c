@@ -130,8 +130,8 @@ int stv06xx_write_sensor_bytes(struct sd *sd, const u8 *data, u8 len)
 				      STV06XX_URB_MSG_TIMEOUT);
 				      if (err < 0)
 					return err;
-       }
-       return stv06xx_write_sensor_finish(sd);
+	}
+	return stv06xx_write_sensor_finish(sd);
 }
 
 int stv06xx_write_sensor_words(struct sd *sd, const u16 *data, u8 len)
