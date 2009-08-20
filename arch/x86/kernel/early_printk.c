@@ -176,10 +176,19 @@ asmlinkage void early_printk(const char *fmt, ...)
 	va_end(ap);
 }
 
+static inline void early_console_register(struct console *con, int keep_early)
+{
+	early_console = con;
+	if (keep_early)
+		early_console->flags &= ~CON_BOOT;
+	else
+		early_console->flags |= CON_BOOT;
+	register_console(early_console);
+}
 
 static int __init setup_early_printk(char *buf)
 {
-	int keep_early;
+	int keep;
 
 	if (!buf)
 		return 0;
@@ -188,42 +197,34 @@ static int __init setup_early_printk(char *buf)
 		return 0;
 	early_console_initialized = 1;
 
-	keep_early = (strstr(buf, "keep") != NULL);
+	keep = (strstr(buf, "keep") != NULL);
 
-	if (!strncmp(buf, "serial", 6)) {
-		early_serial_init(buf + 6);
-		early_console = &early_serial_console;
-	} else if (!strncmp(buf, "ttyS", 4)) {
-		early_serial_init(buf);
-		early_console = &early_serial_console;
-	} else if (!strncmp(buf, "vga", 3)
-		&& boot_params.screen_info.orig_video_isVGA == 1) {
-		max_xpos = boot_params.screen_info.orig_video_cols;
-		max_ypos = boot_params.screen_info.orig_video_lines;
-		current_ypos = boot_params.screen_info.orig_y;
-		early_console = &early_vga_console;
+	while (*buf != '\0') {
+		if (!strncmp(buf, "serial", 6)) {
+			early_serial_init(buf + 6);
+			early_console_register(&early_serial_console, keep);
+		}
+		if (!strncmp(buf, "ttyS", 4)) {
+			early_serial_init(buf + 4);
+			early_console_register(&early_serial_console, keep);
+		}
+		if (!strncmp(buf, "vga", 3) &&
+		    boot_params.screen_info.orig_video_isVGA == 1) {
+			max_xpos = boot_params.screen_info.orig_video_cols;
+			max_ypos = boot_params.screen_info.orig_video_lines;
+			current_ypos = boot_params.screen_info.orig_y;
+			early_console_register(&early_vga_console, keep);
+		}
 #ifdef CONFIG_EARLY_PRINTK_DBGP
-	} else if (!strncmp(buf, "dbgp", 4)) {
-		if (early_dbgp_init(buf+4) < 0)
-			return 0;
-		early_console = &early_dbgp_console;
-		/*
-		 * usb subsys will reset ehci controller, so don't keep
-		 * that early console
-		 */
-		keep_early = 0;
+		if (!strncmp(buf, "dbgp", 4) && !early_dbgp_init(buf + 4))
+			early_console_register(&early_dbgp_console, keep);
 #endif
 #ifdef CONFIG_HVC_XEN
-	} else if (!strncmp(buf, "xen", 3)) {
-		early_console = &xenboot_console;
+		if (!strncmp(buf, "xen", 3))
+			early_console_register(&xenboot_console, keep);
 #endif
+		buf++;
 	}
-
-	if (keep_early)
-		early_console->flags &= ~CON_BOOT;
-	else
-		early_console->flags |= CON_BOOT;
-	register_console(early_console);
 	return 0;
 }
 
