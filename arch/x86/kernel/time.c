@@ -108,6 +108,7 @@ void __init hpet_time_init(void)
 static void x86_late_time_init(void)
 {
 	x86_init.timers.timer_init();
+	tsc_init();
 }
 
 /*
@@ -116,6 +117,5 @@ static void x86_late_time_init(void)
  */
 void __init time_init(void)
 {
-	tsc_init();
 	late_time_init = x86_late_time_init;
 }
