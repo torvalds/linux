@@ -67,12 +67,9 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	global_clock_event->event_handler(global_clock_event);
 
-#ifdef CONFIG_MCA
-	if (MCA_bus) {
-		u8 irq_v = inb_p(0x61);       /* read the current state */
-		outb_p(irq_v|0x80, 0x61);     /* reset the IRQ */
-	}
-#endif
+	/* MCA bus quirk: Acknowledge irq0 by setting bit 7 in port 0x61 */
+	if (MCA_bus)
+		outb_p(inb_p(0x61)| 0x80, 0x61);
 
 	return IRQ_HANDLED;
 }

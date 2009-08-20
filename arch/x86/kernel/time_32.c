@@ -78,21 +78,9 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	global_clock_event->event_handler(global_clock_event);
 
-#ifdef CONFIG_MCA
-	if (MCA_bus) {
-		/* The PS/2 uses level-triggered interrupts.  You can't
-		turn them off, nor would you want to (any attempt to
-		enable edge-triggered interrupts usually gets intercepted by a
-		special hardware circuit).  Hence we have to acknowledge
-		the timer interrupt.  Through some incredibly stupid
-		design idea, the reset for IRQ 0 is done by setting the
-		high bit of the PPI port B (0x61).  Note that some PS/2s,
-		notably the 55SX, work fine if this is removed.  */
-
-		u8 irq_v = inb_p(0x61);		/* read the current state */
-		outb_p(irq_v | 0x80, 0x61);	/* reset the IRQ */
-	}
-#endif
+	/* MCA bus quirk: Acknowledge irq0 by setting bit 7 in port 0x61 */
+	if (MCA_bus)
+		outb_p(inb_p(0x61)| 0x80, 0x61);
 
 	return IRQ_HANDLED;
 }
