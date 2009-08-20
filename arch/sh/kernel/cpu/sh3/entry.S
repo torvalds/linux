@@ -508,6 +508,8 @@ ENTRY(handle_interrupt)
 	bsr	save_regs	! needs original pr value in k3
 	 mov	#-1, k2		! default vector kept in k2
 
+	setup_frame_reg
+
 	! Setup return address and jump to do_IRQ
 	mov.l	4f, r9		! fetch return address
 	lds	r9, pr		! put return address in pr
