@@ -508,6 +508,7 @@ typedef struct {
 #define DRM_RADEON_INFO			0x27
 #define DRM_RADEON_GEM_SET_TILING	0x28
 #define DRM_RADEON_GEM_GET_TILING	0x29
+#define DRM_RADEON_GEM_BUSY		0x2a
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -548,6 +549,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_INFO		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_INFO, struct drm_radeon_info)
 #define DRM_IOCTL_RADEON_SET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_SET_TILING, struct drm_radeon_gem_set_tiling)
 #define DRM_IOCTL_RADEON_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
+#define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 
 typedef struct drm_radeon_init {
 	enum {
