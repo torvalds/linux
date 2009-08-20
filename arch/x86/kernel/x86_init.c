@@ -9,6 +9,7 @@
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
+#include <asm/irq.h>
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
@@ -34,5 +35,9 @@ struct __initdata x86_init_ops x86_init = {
 		.mpc_oem_bus_info	= default_mpc_oem_bus_info,
 		.find_smp_config	= default_find_smp_config,
 		.get_smp_config		= default_get_smp_config,
+	},
+
+	.irqs = {
+		.pre_vector_init	= init_ISA_irqs,
 	},
 };

@@ -44,12 +44,22 @@ struct x86_init_resources {
 };
 
 /**
+ * struct x86_init_irqs - platform specific interrupt setup
+ * @pre_vector_init:		init code to run before interrupt vectors
+ *				are set up.
+ */
+struct x86_init_irqs {
+	void (*pre_vector_init)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
 struct x86_init_ops {
 	struct x86_init_resources	resources;
 	struct x86_init_mpparse		mpparse;
+	struct x86_init_irqs		irqs;
 };
 
 extern struct x86_init_ops x86_init;

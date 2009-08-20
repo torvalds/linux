@@ -116,7 +116,7 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	return 0;
 }
 
-static void __init init_ISA_irqs(void)
+void __init init_ISA_irqs(void)
 {
 	int i;
 
@@ -213,32 +213,12 @@ static void __init apic_intr_init(void)
 #endif
 }
 
-/**
- * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
- *
- * Description:
- *	Perform any necessary interrupt initialisation prior to setting up
- *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
- *	interrupts should be initialised here if the machine emulates a PC
- *	in any way.
- **/
-static void __init x86_quirk_pre_intr_init(void)
-{
-#ifdef CONFIG_X86_32
-	if (x86_quirks->arch_pre_intr_init) {
-		if (x86_quirks->arch_pre_intr_init())
-			return;
-	}
-#endif
-	init_ISA_irqs();
-}
-
 void __init native_init_IRQ(void)
 {
 	int i;
 
 	/* Execute any quirks before the call gates are initialised: */
-	x86_quirk_pre_intr_init();
+	x86_init.irqs.pre_vector_init();
 
 	apic_intr_init();
 

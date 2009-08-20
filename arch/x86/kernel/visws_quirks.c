@@ -73,14 +73,10 @@ static int __init visws_time_init(void)
 	return 0;
 }
 
-static int __init visws_pre_intr_init(void)
+/* Replaces the default init_ISA_irqs in the generic setup */
+static void __init visws_pre_intr_init(void)
 {
 	init_VISWS_APIC_irqs();
-
-	/*
-	 * We dont want ISA irqs to be set up by the generic code:
-	 */
-	return 1;
 }
 
 /* Quirk for machine specific memory setup. */
@@ -232,7 +228,6 @@ static int visws_trap_init(void);
 
 static struct x86_quirks visws_x86_quirks __initdata = {
 	.arch_time_init		= visws_time_init,
-	.arch_pre_intr_init	= visws_pre_intr_init,
 	.arch_intr_init		= NULL,
 	.arch_trap_init		= visws_trap_init,
 };
@@ -257,6 +252,7 @@ void __init visws_early_detect(void)
 	x86_init.resources.memory_setup = visws_memory_setup;
 	x86_init.mpparse.get_smp_config = visws_get_smp_config;
 	x86_init.mpparse.find_smp_config = visws_find_smp_config;
+	x86_init.irqs.pre_vector_init = visws_pre_intr_init;
 
 	/*
 	 * Install reboot quirks:
