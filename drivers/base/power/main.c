@@ -365,6 +365,7 @@ void dpm_resume_noirq(pm_message_t state)
 	struct device *dev;
 
 	mutex_lock(&dpm_list_mtx);
+	transition_started = false;
 	list_for_each_entry(dev, &dpm_list, power.entry)
 		if (dev->power.status > DPM_OFF) {
 			int error;
@@ -443,7 +444,6 @@ static void dpm_resume(pm_message_t state)
 
 	INIT_LIST_HEAD(&list);
 	mutex_lock(&dpm_list_mtx);
-	transition_started = false;
 	while (!list_empty(&dpm_list)) {
 		struct device *dev = to_device(dpm_list.next);
 
