@@ -24,7 +24,6 @@ static inline void load_sp0(struct tss_struct *tss,
 	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
 }
 
-#define ARCH_SETUP			pv_init_ops.arch_setup();
 static inline unsigned long get_wallclock(void)
 {
 	return PVOP_CALL0(unsigned long, pv_time_ops.get_wallclock);

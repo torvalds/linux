@@ -42,4 +42,8 @@ struct __initdata x86_init_ops x86_init = {
 		.intr_init		= native_init_IRQ,
 		.trap_init		= x86_init_noop,
 	},
+
+	.oem = {
+		.arch_setup		= x86_init_noop,
+	},
 };

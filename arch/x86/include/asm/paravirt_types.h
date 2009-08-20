@@ -80,7 +80,6 @@ struct pv_init_ops {
 			  unsigned long addr, unsigned len);
 
 	/* Basic arch-specific setup */
-	void (*arch_setup)(void);
 	void (*post_allocator_init)(void);
 
 	/* Print a banner to identify the environment */

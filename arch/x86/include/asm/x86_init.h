@@ -57,6 +57,14 @@ struct x86_init_irqs {
 };
 
 /**
+ * struct x86_init_oem - oem platform specific customizing functions
+ * @arch_setup:			platform specific architecure setup
+ */
+struct x86_init_oem {
+	void (*arch_setup)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -64,6 +72,7 @@ struct x86_init_ops {
 	struct x86_init_resources	resources;
 	struct x86_init_mpparse		mpparse;
 	struct x86_init_irqs		irqs;
+	struct x86_init_oem		oem;
 };
 
 extern struct x86_init_ops x86_init;

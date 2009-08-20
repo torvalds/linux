@@ -108,10 +108,6 @@
 #include <asm/numa_64.h>
 #endif
 
-#ifndef ARCH_SETUP
-#define ARCH_SETUP
-#endif
-
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
  * The direct mapping extends to max_pfn_mapped, so that we can directly access
@@ -750,7 +746,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 
-	ARCH_SETUP
+	x86_init.oem.arch_setup();
 
 	setup_memory_map();
 	parse_setup_data();
