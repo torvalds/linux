@@ -72,16 +72,18 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 }
 
 #ifdef CONFIG_X86_IO_APIC
+void __init default_mpc_oem_bus_info(struct mpc_bus *m, char *str)
+{
+	memcpy(str, m->bustype, 6);
+	str[6] = 0;
+	apic_printk(APIC_VERBOSE, "Bus #%d is %s\n", m->busid, str);
+}
+
 static void __init MP_bus_info(struct mpc_bus *m)
 {
 	char str[7];
-	memcpy(str, m->bustype, 6);
-	str[6] = 0;
 
-	if (x86_quirks->mpc_oem_bus_info)
-		x86_quirks->mpc_oem_bus_info(m, str);
-	else
-		apic_printk(APIC_VERBOSE, "Bus #%d is %s\n", m->busid, str);
+	x86_init.mpparse.mpc_oem_bus_info(m, str);
 
 #if MAX_MP_BUSSES < 256
 	if (m->busid >= MAX_MP_BUSSES) {

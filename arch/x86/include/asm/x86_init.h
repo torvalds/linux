@@ -12,6 +12,7 @@ struct mpc_table;
  * @mpc_apic_id:		platform specific mpc apic id assignment
  * @smp_read_mpc_oem:		platform specific oem mpc table setup
  * @mpc_oem_pci_bus:		platform specific pci bus setup (default NULL)
+ * @mpc_oem_bus_info:		platform specific mpc bus info
  */
 struct x86_init_mpparse {
 	void (*mpc_record)(unsigned int mode);
@@ -19,6 +20,7 @@ struct x86_init_mpparse {
 	int (*mpc_apic_id)(struct mpc_cpu *m);
 	void (*smp_read_mpc_oem)(struct mpc_table *mpc);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
+	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 };
 
 /**

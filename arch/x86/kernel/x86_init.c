@@ -31,5 +31,6 @@ struct __initdata x86_init_ops x86_init = {
 		.setup_ioapic_ids	= x86_init_noop,
 		.mpc_apic_id		= default_mpc_apic_id,
 		.smp_read_mpc_oem	= default_smp_read_mpc_oem,
+		.mpc_oem_bus_info	= default_mpc_oem_bus_info,
 	},
 };

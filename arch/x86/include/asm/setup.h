@@ -12,7 +12,6 @@
 /*
  * Any setup quirks to be performed?
  */
-struct mpc_bus;
 
 struct x86_quirks {
 	int (*arch_pre_time_init)(void);
@@ -22,8 +21,6 @@ struct x86_quirks {
 	int (*arch_trap_init)(void);
 	int (*mach_get_smp_config)(unsigned int early);
 	int (*mach_find_smp_config)(unsigned int reserve);
-
-	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 };
 
 extern void x86_quirk_intr_init(void);
