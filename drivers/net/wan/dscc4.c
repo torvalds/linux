@@ -663,12 +663,12 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 	} else {
 		if (skb->data[pkt_len] & FrameRdo)
 			dev->stats.rx_fifo_errors++;
-		else if (!(skb->data[pkt_len] | ~FrameCrc))
+		else if (!(skb->data[pkt_len] & FrameCrc))
 			dev->stats.rx_crc_errors++;
-		else if (!(skb->data[pkt_len] | ~(FrameVfr | FrameRab)))
+		else if ((skb->data[pkt_len] & (FrameVfr | FrameRab)) !=
+				FrameVfr | FrameRab)
 			dev->stats.rx_length_errors++;
-		else
-			dev->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		dev_kfree_skb_irq(skb);
 	}
 refill:
