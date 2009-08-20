@@ -97,8 +97,6 @@ static void ds1302_writebyte(unsigned int addr, unsigned int val)
 
 static int ds1302_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct ds1302_rtc *rtc = dev_get_drvdata(dev);
-
 	tm->tm_sec	= bcd2bin(ds1302_readbyte(RTC_ADDR_SEC));
 	tm->tm_min	= bcd2bin(ds1302_readbyte(RTC_ADDR_MIN));
 	tm->tm_hour	= bcd2bin(ds1302_readbyte(RTC_ADDR_HOUR));
@@ -169,7 +167,6 @@ static struct rtc_class_ops ds1302_rtc_ops = {
 static int __init ds1302_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
-	int ret;
 
 	/* Reset */
 	set_dp(get_dp() & ~(RTC_RESET | RTC_IODATA | RTC_SCLK));
