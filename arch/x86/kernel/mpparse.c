@@ -98,8 +98,8 @@ static void __init MP_bus_info(struct mpc_bus *m)
 		mp_bus_id_to_type[m->busid] = MP_BUS_ISA;
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
-		if (x86_quirks->mpc_oem_pci_bus)
-			x86_quirks->mpc_oem_pci_bus(m);
+		if (x86_init.mpparse.mpc_oem_pci_bus)
+			x86_init.mpparse.mpc_oem_pci_bus(m);
 
 		clear_bit(m->busid, mp_bus_not_pci);
 #if defined(CONFIG_EISA) || defined(CONFIG_MCA)
