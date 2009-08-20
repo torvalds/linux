@@ -7,6 +7,10 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_common.o = -pg
 endif
 
+# Make sure load_percpu_segment has no stackprotector
+nostackp := $(call cc-option, -fno-stack-protector)
+CFLAGS_common.o		:= $(nostackp)
+
 obj-y			:= intel_cacheinfo.o addon_cpuid_features.o
 obj-y			+= proc.o capflags.o powerflags.o common.o
 obj-y			+= vmware.o hypervisor.o
