@@ -1926,6 +1926,12 @@ config ATL2
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl2.
 
+config XILINX_EMACLITE
+	tristate "Xilinx 10/100 Ethernet Lite support"
+	depends on PPC32 || MICROBLAZE
+	help
+	  This driver supports the 10/100 Ethernet Lite from Xilinx.
+
 source "drivers/net/fs_enet/Kconfig"
 
 endif # NET_ETHERNET
