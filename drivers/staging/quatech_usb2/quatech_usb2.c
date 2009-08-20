@@ -83,8 +83,8 @@ static int debug;
 #define QT2_SERIAL_6_DATA	0x01
 #define QT2_SERIAL_5_DATA	0x00
 
-#define QT2_SERIAL_ODD_PARITY	0X08
-#define QT2_SERIAL_EVEN_PARITY	0X18
+#define QT2_SERIAL_ODD_PARITY	0x08
+#define QT2_SERIAL_EVEN_PARITY	0x18
 #define QT2_SERIAL_TWO_STOPB	0x04
 #define QT2_SERIAL_ONE_STOPB	0x00
 
@@ -978,14 +978,8 @@ static void qt2_set_termios(struct tty_struct *tty,
 
 	UartNumber = port->number;
 
-	if (old_termios) {
-		if ((tty->termios->c_cflag == old_termios->c_cflag) &&
-			(RELEVANT_IFLAG(tty->termios->c_iflag) ==
-			RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s(): Nothing to change", __func__);
-			return;
-		}
-	}
+	if (old_termios && !tty_termios_hw_change(old_termios, tty->termios))
+		return;
 
 	switch (tty->termios->c_cflag) {
 	case CS5:
@@ -1010,12 +1004,21 @@ static void qt2_set_termios(struct tty_struct *tty,
 		else
 			LCR_change_to |= QT2_SERIAL_EVEN_PARITY;
 	}
+	/* Because LCR_change_to is initialised to zero, we don't have to worry
+	 * about the case where PARENB is not set or clearing bits, because by
+	 * default all of them are cleared, turning parity off.
+	 * as we don't support mark/space parity, we should clear the
+	 * mark/space parity bit in c_cflag, so the caller can tell we have
+	 * ignored the request */
+	tty->termios->c_cflag &= ~CMSPAR;
+
 	if (tty->termios->c_cflag & CSTOPB)
 		LCR_change_to |= QT2_SERIAL_TWO_STOPB;
 	else
 		LCR_change_to |= QT2_SERIAL_ONE_STOPB;
 
-	/* Thats the LCR stuff, go ahead and set it */
+	/* Thats the LCR stuff, next we need to work out the divisor as the
+	 * LCR and the divisor are set together */
 	baud = tty_get_baud_rate(tty);
 	if (!baud) {
 		/* pick a default, any default... */
@@ -1036,6 +1039,11 @@ static void qt2_set_termios(struct tty_struct *tty,
 	if (status < 0)	{
 		dbg("qt2_boxsetuart() failed");
 		return;
+	} else {
+		/* now encode the baud rate we actually set, which may be
+		 * different to the request */
+		baud = QT2_MAX_BAUD_RATE / divisor;
+		tty_encode_baud_rate(tty, baud, baud);
 	}
 
 	/* Now determine flow control */
