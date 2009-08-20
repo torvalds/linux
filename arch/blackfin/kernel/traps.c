@@ -227,7 +227,7 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 	printk(KERN_EMERG "Double Fault\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) == VEC_UNCOV) {
-		unsigned int cpu = smp_processor_id();
+		unsigned int cpu = raw_smp_processor_id();
 		char buf[150];
 		decode_address(buf, cpu_pda[cpu].retx_doublefault);
 		printk(KERN_EMERG "While handling exception (EXCAUSE = 0x%x) at %s:\n",
@@ -263,7 +263,7 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 	int j;
 #endif
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = raw_smp_processor_id();
 #endif
 	const char *strerror = NULL;
 	int sig = 0;
@@ -1098,7 +1098,7 @@ void show_regs(struct pt_regs *fp)
 	struct irqaction *action;
 	unsigned int i;
 	unsigned long flags = 0;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = raw_smp_processor_id();
 	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
 	verbose_printk(KERN_NOTICE "\n");
@@ -1126,13 +1126,13 @@ void show_regs(struct pt_regs *fp)
 
 	verbose_printk(KERN_NOTICE "\nSEQUENCER STATUS:\t\t%s\n", print_tainted());
 	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  IMASK: %04lx  SYSCFG: %04lx\n",
-		(long)fp->seqstat, fp->ipend, cpu_pda[smp_processor_id()].ex_imask, fp->syscfg);
+		(long)fp->seqstat, fp->ipend, cpu_pda[raw_smp_processor_id()].ex_imask, fp->syscfg);
 	if (fp->ipend & EVT_IRPTEN)
 		verbose_printk(KERN_NOTICE "  Global Interrupts Disabled (IPEND[4])\n");
-	if (!(cpu_pda[smp_processor_id()].ex_imask & (EVT_IVG13 | EVT_IVG12 | EVT_IVG11 |
+	if (!(cpu_pda[raw_smp_processor_id()].ex_imask & (EVT_IVG13 | EVT_IVG12 | EVT_IVG11 |
 			EVT_IVG10 | EVT_IVG9 | EVT_IVG8 | EVT_IVG7 | EVT_IVTMR)))
 		verbose_printk(KERN_NOTICE "  Peripheral interrupts masked off\n");
-	if (!(cpu_pda[smp_processor_id()].ex_imask & (EVT_IVG15 | EVT_IVG14)))
+	if (!(cpu_pda[raw_smp_processor_id()].ex_imask & (EVT_IVG15 | EVT_IVG14)))
 		verbose_printk(KERN_NOTICE "  Kernel interrupts masked off\n");
 	if ((fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR) {
 		verbose_printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",

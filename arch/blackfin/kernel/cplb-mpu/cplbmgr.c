@@ -280,7 +280,7 @@ static noinline int dcplb_protection_fault(unsigned int cpu)
 int cplb_hdr(int seqstat, struct pt_regs *regs)
 {
 	int cause = seqstat & 0x3f;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = raw_smp_processor_id();
 	switch (cause) {
 	case 0x23:
 		return dcplb_protection_fault(cpu);
