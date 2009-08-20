@@ -9,6 +9,12 @@
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
 
+#ifdef DBGP_DEBUG
+# define dbgp_printk printk
+#else
+static inline void dbgp_printk(const char *fmt, ...) { }
+#endif
+
 static struct ehci_caps __iomem *ehci_caps;
 static struct ehci_regs __iomem *ehci_regs;
 static struct ehci_dbg_port __iomem *ehci_debug;
@@ -342,6 +348,7 @@ static int __init ehci_reset_port(int port)
 	u32 delay_time, delay;
 	int loop;
 
+	dbgp_printk("ehci_reset_port %i\n", port);
 	/* Reset the usb debug port */
 	portsc = readl(&ehci_regs->port_status[port - 1]);
 	portsc &= ~PORT_PE;
@@ -352,14 +359,17 @@ static int __init ehci_reset_port(int port)
 	for (delay_time = 0; delay_time < HUB_RESET_TIMEOUT;
 	     delay_time += delay) {
 		dbgp_mdelay(delay);
-
 		portsc = readl(&ehci_regs->port_status[port - 1]);
+		if (!(portsc & PORT_RESET))
+			break;
+	}
 		if (portsc & PORT_RESET) {
 			/* force reset to complete */
-			loop = 2;
+			loop = 100 * 1000;
 			writel(portsc & ~(PORT_RWC_BITS | PORT_RESET),
 				&ehci_regs->port_status[port - 1]);
 			do {
+				udelay(1);
 				portsc = readl(&ehci_regs->port_status[port-1]);
 			} while ((portsc & PORT_RESET) && (--loop > 0));
 		}
@@ -375,7 +385,6 @@ static int __init ehci_reset_port(int port)
 		/* If we've finished resetting, then break out of the loop */
 		if (!(portsc & PORT_RESET) && (portsc & PORT_PE))
 			return 0;
-	}
 	return -EBUSY;
 }
 
@@ -384,23 +393,17 @@ static int __init ehci_wait_for_port(int port)
 	u32 status;
 	int ret, reps;
 
-	for (reps = 0; reps < 3; reps++) {
-		dbgp_mdelay(100);
+	for (reps = 0; reps < 300; reps++) {
 		status = readl(&ehci_regs->status);
-		if (status & STS_PCD) {
-			ret = ehci_reset_port(port);
-			if (ret == 0)
-				return 0;
-		}
+		if (status & STS_PCD)
+			break;
+		dbgp_mdelay(1);
 	}
+	ret = ehci_reset_port(port);
+	if (ret == 0)
+		return 0;
 	return -ENOTCONN;
 }
-
-#ifdef DBGP_DEBUG
-# define dbgp_printk early_printk
-#else
-static inline void dbgp_printk(const char *fmt, ...) { }
-#endif
 
 typedef void (*set_debug_port_t)(int port);
 
@@ -520,7 +523,7 @@ try_next_port:
 		return -1;
 	}
 
-	loop = 100000;
+	loop = 250 * 1000;
 	/* Reset the EHCI controller */
 	cmd = readl(&ehci_regs->command);
 	cmd |= CMD_RESET;
@@ -540,6 +543,7 @@ try_next_port:
 	ctrl |= DBGP_OWNER;
 	ctrl &= ~(DBGP_ENABLED | DBGP_INUSE);
 	writel(ctrl, &ehci_debug->control);
+	udelay(1);
 
 	/* Start the ehci running */
 	cmd = readl(&ehci_regs->command);
@@ -554,10 +558,13 @@ try_next_port:
 	loop = 10;
 	do {
 		status = readl(&ehci_regs->status);
-	} while ((status & STS_HALT) && (--loop > 0));
+		if (!(status & STS_HALT))
+			break;
+		udelay(1);
+	} while (--loop > 0);
 
 	if (!loop) {
-		dbgp_printk("ehci can be started\n");
+		dbgp_printk("ehci can not be started\n");
 		return -1;
 	}
 	dbgp_printk("ehci started\n");
