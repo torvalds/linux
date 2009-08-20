@@ -270,7 +270,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_trap_init			= NULL,
 	.mach_get_smp_config		= NULL,
 	.mach_find_smp_config		= NULL,
-	.mpc_apic_id			= mpc_apic_id,
 	.mpc_oem_bus_info		= mpc_oem_bus_info,
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
 	.smp_read_mpc_oem		= smp_read_mpc_oem,
@@ -293,6 +292,7 @@ static __init void early_check_numaq(void)
 		x86_quirks = &numaq_x86_quirks;
 		x86_init.mpparse.mpc_record = numaq_mpc_record;
 		x86_init.mpparse.setup_ioapic_ids = x86_init_noop;
+		x86_init.mpparse.mpc_apic_id = mpc_apic_id;
 	}
 }
 

@@ -45,6 +45,11 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
+int __init default_mpc_apic_id(struct mpc_cpu *m)
+{
+	return m->apicid;
+}
+
 static void __init MP_processor_info(struct mpc_cpu *m)
 {
 	int apicid;
@@ -55,10 +60,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 		return;
 	}
 
-	if (x86_quirks->mpc_apic_id)
-		apicid = x86_quirks->mpc_apic_id(m);
-	else
-		apicid = m->apicid;
+	apicid = x86_init.mpparse.mpc_apic_id(m);
 
 	if (m->cpuflag & CPU_BOOTPROCESSOR) {
 		bootup_cpu = " (Bootup-CPU)";

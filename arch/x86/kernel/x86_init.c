@@ -6,6 +6,7 @@
 #include <linux/init.h>
 
 #include <asm/bios_ebda.h>
+#include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
 
@@ -28,5 +29,6 @@ struct __initdata x86_init_ops x86_init = {
 	.mpparse = {
 		.mpc_record		= x86_init_uint_noop,
 		.setup_ioapic_ids	= x86_init_noop,
+		.mpc_apic_id		= default_mpc_apic_id,
 	},
 };
