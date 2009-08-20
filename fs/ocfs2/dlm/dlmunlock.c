@@ -122,7 +122,7 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 	 * that still has AST's pending... */
 	in_use = !list_empty(&lock->ast_list);
 	spin_unlock(&dlm->ast_lock);
-	if (in_use) {
+	if (in_use && !(flags & LKM_CANCEL)) {
 	       mlog(ML_ERROR, "lockres %.*s: Someone is calling dlmunlock "
 		    "while waiting for an ast!", res->lockname.len,
 		    res->lockname.name);
@@ -131,7 +131,7 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 
 	spin_lock(&res->spinlock);
 	if (res->state & DLM_LOCK_RES_IN_PROGRESS) {
-		if (master_node) {
+		if (master_node && !(flags & LKM_CANCEL)) {
 			mlog(ML_ERROR, "lockres in progress!\n");
 			spin_unlock(&res->spinlock);
 			return DLM_FORWARD;
