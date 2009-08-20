@@ -452,6 +452,8 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 		case DW_CFA_undefined:
 			count = dwarf_read_uleb128(current_insn, &reg);
 			current_insn += count;
+			regp = dwarf_frame_alloc_reg(frame, reg);
+			regp->flags |= DWARF_UNDEFINED;
 			break;
 		case DW_CFA_def_cfa:
 			count = dwarf_read_uleb128(current_insn,
@@ -629,9 +631,16 @@ struct dwarf_frame * dwarf_unwind_stack(unsigned long pc,
 		UNWINDER_BUG();
 	}
 
-	/* If we haven't seen the return address reg, we're screwed. */
 	reg = dwarf_frame_reg(frame, DWARF_ARCH_RA_REG);
-	UNWINDER_BUG_ON(!reg);
+
+	/*
+	 * If we haven't seen the return address register or the return
+	 * address column is undefined then we must assume that this is
+	 * the end of the callstack.
+	 */
+	if (!reg || reg->flags == DWARF_UNDEFINED)
+		goto bail;
+
 	UNWINDER_BUG_ON(reg->flags != DWARF_REG_OFFSET);
 
 	addr = frame->cfa + reg->addr;

@@ -297,6 +297,7 @@ struct dwarf_reg {
 	unsigned long flags;
 #define DWARF_REG_OFFSET	(1 << 0)
 #define DWARF_VAL_OFFSET	(1 << 1)
+#define DWARF_UNDEFINED		(1 << 2)
 };
 
 /*
@@ -370,6 +371,7 @@ extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 #define CFI_DEF_CFA	.cfi_def_cfa
 #define CFI_REGISTER	.cfi_register
 #define CFI_REL_OFFSET	.cfi_rel_offset
+#define CFI_UNDEFINED	.cfi_undefined
 
 #else
 
@@ -383,6 +385,7 @@ extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 #define CFI_DEF_CFA	CFI_IGNORE
 #define CFI_REGISTER	CFI_IGNORE
 #define CFI_REL_OFFSET	CFI_IGNORE
+#define CFI_UNDEFINED	CFI_IGNORE
 
 #ifndef __ASSEMBLY__
 static inline void dwarf_unwinder_init(void)
