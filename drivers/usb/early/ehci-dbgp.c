@@ -700,17 +700,27 @@ int __init early_dbgp_init(char *s)
 static void early_dbgp_write(struct console *con, const char *str, u32 n)
 {
 	int chunk, ret;
+	char buf[DBGP_MAX_PACKET];
+	int use_cr = 0;
 
 	if (!ehci_debug)
 		return;
 	while (n > 0) {
-		chunk = n;
-		if (chunk > DBGP_MAX_PACKET)
-			chunk = DBGP_MAX_PACKET;
+		for (chunk = 0; chunk < DBGP_MAX_PACKET && n > 0;
+		     str++, chunk++, n--) {
+			if (!use_cr && *str == '\n') {
+				use_cr = 1;
+				buf[chunk] = '\r';
+				str--;
+				n++;
+				continue;
+			}
+			if (use_cr)
+				use_cr = 0;
+			buf[chunk] = *str;
+		}
 		ret = dbgp_bulk_write(USB_DEBUG_DEVNUM,
-			dbgp_endpoint_out, str, chunk);
-		str += chunk;
-		n -= chunk;
+			dbgp_endpoint_out, buf, chunk);
 	}
 }
 
