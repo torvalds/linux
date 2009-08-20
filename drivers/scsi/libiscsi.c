@@ -1280,6 +1280,9 @@ static int iscsi_xmit_task(struct iscsi_conn *conn)
 	struct iscsi_task *task = conn->task;
 	int rc;
 
+	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx))
+		return -ENODATA;
+
 	__iscsi_get_task(task);
 	spin_unlock_bh(&conn->session->lock);
 	rc = conn->session->tt->xmit_task(task);
@@ -1329,7 +1332,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	int rc = 0;
 
 	spin_lock_bh(&conn->session->lock);
-	if (unlikely(conn->suspend_tx)) {
+	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx)) {
 		ISCSI_DBG_SESSION(conn->session, "Tx suspended!\n");
 		spin_unlock_bh(&conn->session->lock);
 		return -ENODATA;
@@ -1338,7 +1341,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	if (conn->task) {
 		rc = iscsi_xmit_task(conn);
 	        if (rc)
-		        goto again;
+		        goto done;
 	}
 
 	/*
@@ -1358,7 +1361,7 @@ check_mgmt:
 		}
 		rc = iscsi_xmit_task(conn);
 		if (rc)
-			goto again;
+			goto done;
 	}
 
 	/* process pending command queue */
@@ -1379,14 +1382,14 @@ check_mgmt:
 				list_add_tail(&conn->task->running,
 					      &conn->cmdqueue);
 				conn->task = NULL;
-				goto again;
+				goto done;
 			} else
 				fail_scsi_task(conn->task, DID_ABORT);
 			continue;
 		}
 		rc = iscsi_xmit_task(conn);
 		if (rc)
-			goto again;
+			goto done;
 		/*
 		 * we could continuously get new task requests so
 		 * we need to check the mgmt queue for nops that need to
@@ -1412,16 +1415,14 @@ check_mgmt:
 		conn->task->state = ISCSI_TASK_RUNNING;
 		rc = iscsi_xmit_task(conn);
 		if (rc)
-			goto again;
+			goto done;
 		if (!list_empty(&conn->mgmtqueue))
 			goto check_mgmt;
 	}
 	spin_unlock_bh(&conn->session->lock);
 	return -ENODATA;
 
-again:
-	if (unlikely(conn->suspend_tx))
-		rc = -ENODATA;
+done:
 	spin_unlock_bh(&conn->session->lock);
 	return rc;
 }
