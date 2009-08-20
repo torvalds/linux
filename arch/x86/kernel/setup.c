@@ -1020,21 +1020,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_X86_32
 
-/**
- * x86_quirk_trap_init - initialise system specific traps
- *
- * Description:
- *	Called as the final act of trap_init().  Used in VISWS to initialise
- *	the various board specific APIC traps.
- **/
-void __init x86_quirk_trap_init(void)
-{
-	if (x86_quirks->arch_trap_init) {
-		if (x86_quirks->arch_trap_init())
-			return;
-	}
-}
-
 static struct irqaction irq0  = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,

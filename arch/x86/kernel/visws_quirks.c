@@ -224,11 +224,10 @@ static void __init visws_find_smp_config(unsigned int reserve)
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
 }
 
-static int visws_trap_init(void);
+static void visws_trap_init(void);
 
 static struct x86_quirks visws_x86_quirks __initdata = {
 	.arch_time_init		= visws_time_init,
-	.arch_trap_init		= visws_trap_init,
 };
 
 void __init visws_early_detect(void)
@@ -252,6 +251,7 @@ void __init visws_early_detect(void)
 	x86_init.mpparse.get_smp_config = visws_get_smp_config;
 	x86_init.mpparse.find_smp_config = visws_find_smp_config;
 	x86_init.irqs.pre_vector_init = visws_pre_intr_init;
+	x86_init.irqs.trap_init = visws_trap_init;
 
 	/*
 	 * Install reboot quirks:
@@ -390,12 +390,10 @@ static __init void cobalt_init(void)
 		co_apic_read(CO_APIC_ID));
 }
 
-static int __init visws_trap_init(void)
+static void __init visws_trap_init(void)
 {
 	lithium_init();
 	cobalt_init();
-
-	return 1;
 }
 
 /*

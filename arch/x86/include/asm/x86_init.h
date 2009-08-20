@@ -48,10 +48,12 @@ struct x86_init_resources {
  * @pre_vector_init:		init code to run before interrupt vectors
  *				are set up.
  * @intr_init:			interrupt init code
+ * @trap_init:			platform specific trap setup
  */
 struct x86_init_irqs {
 	void (*pre_vector_init)(void);
 	void (*intr_init)(void);
+	void (*trap_init)(void);
 };
 
 /**
