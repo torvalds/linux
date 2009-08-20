@@ -750,14 +750,6 @@ static int r6040_up(struct net_device *dev)
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	int ret;
-	u16 val;
-
-	/* Check presence of a second PHY */
-	val = r6040_phy_read(ioaddr, lp->phy_addr, 2);
-	if (val == 0xFFFF) {
-		printk(KERN_ERR DRV_NAME " no second PHY attached\n");
-		return -EIO;
-	}
 
 	/* Initialise and alloc RX/TX buffers */
 	r6040_init_txbufs(dev);
@@ -1193,6 +1185,13 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_if.phy_id = lp->phy_addr;
 	lp->mii_if.phy_id_mask = 0x1f;
 	lp->mii_if.reg_num_mask = 0x1f;
+
+	/* Check the vendor ID on the PHY, if 0xffff assume none attached */
+	if (r6040_phy_read(ioaddr, lp->phy_addr, 2) == 0xffff) {
+		printk(KERN_ERR DRV_NAME ": Failed to detect an attached PHY\n");
+		err = -ENODEV;
+		goto err_out_unmap;
+	}
 
 	/* Register net device. After this dev->name assign */
 	err = register_netdev(dev);
