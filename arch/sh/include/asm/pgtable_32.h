@@ -87,6 +87,14 @@
 #define _PAGE_PCC_ATR8	0x60000000	/* Attribute Memory space, 8 bit bus */
 #define _PAGE_PCC_ATR16	0x60000001	/* Attribute Memory space, 6 bit bus */
 
+#ifndef CONFIG_X2TLB
+/* copy the ptea attributes */
+static inline unsigned long copy_ptea_attributes(unsigned long x)
+{
+	return	((x >> 28) & 0xe) | (x & 0x1);
+}
+#endif
+
 /* Mask which drops unused bits from the PTEL value */
 #if defined(CONFIG_CPU_SH3)
 #define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED| \
