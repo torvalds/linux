@@ -25,7 +25,6 @@
 #ifndef __HV_H__
 #define __HV_H__
 
-#include "include/HvStatus.h"
 #include "hv_api.h"
 
 enum {
