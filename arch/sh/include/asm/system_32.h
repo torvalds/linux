@@ -14,12 +14,12 @@ do {									\
 			(u32 *)&tsk->thread.dsp_status;			\
 	__asm__ __volatile__ (						\
 		".balign 4\n\t"						\
+		"movs.l	@r2+, a0\n\t"					\
 		"movs.l	@r2+, a1\n\t"					\
 		"movs.l	@r2+, a0g\n\t"					\
 		"movs.l	@r2+, a1g\n\t"					\
 		"movs.l	@r2+, m0\n\t"					\
 		"movs.l	@r2+, m1\n\t"					\
-		"movs.l	@r2+, a0\n\t"					\
 		"movs.l	@r2+, x0\n\t"					\
 		"movs.l	@r2+, x1\n\t"					\
 		"movs.l	@r2+, y0\n\t"					\
@@ -39,20 +39,20 @@ do {									\
 									\
 	__asm__ __volatile__ (						\
 		".balign 4\n\t"						\
-		"stc.l	mod, @-r2\n\t"				\
+		"stc.l	mod, @-r2\n\t"					\
 		"stc.l	re, @-r2\n\t"					\
 		"stc.l	rs, @-r2\n\t"					\
-		"sts.l	dsr, @-r2\n\t"				\
-		"sts.l	y1, @-r2\n\t"					\
-		"sts.l	y0, @-r2\n\t"					\
-		"sts.l	x1, @-r2\n\t"					\
-		"sts.l	x0, @-r2\n\t"					\
-		"sts.l	a0, @-r2\n\t"					\
-		".word	0xf653		! movs.l	a1, @-r2\n\t"	\
-		".word	0xf6f3		! movs.l	a0g, @-r2\n\t"	\
-		".word	0xf6d3		! movs.l	a1g, @-r2\n\t"	\
-		".word	0xf6c3		! movs.l        m0, @-r2\n\t"	\
-		".word	0xf6e3		! movs.l        m1, @-r2\n\t"	\
+		"sts.l	dsr, @-r2\n\t"					\
+		"movs.l	y1, @-r2\n\t"					\
+		"movs.l	y0, @-r2\n\t"					\
+		"movs.l	x1, @-r2\n\t"					\
+		"movs.l	x0, @-r2\n\t"					\
+		"movs.l	m1, @-r2\n\t"					\
+		"movs.l	m0, @-r2\n\t"					\
+		"movs.l	a1g, @-r2\n\t"					\
+		"movs.l	a0g, @-r2\n\t"					\
+		"movs.l	a1, @-r2\n\t"					\
+		"movs.l	a0, @-r2\n\t"					\
 		: : "r" (__ts2));					\
 } while (0)
 
