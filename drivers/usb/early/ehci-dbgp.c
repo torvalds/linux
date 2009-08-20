@@ -245,16 +245,9 @@ static inline void dbgp_get_data(void *buf, int size)
 		bytes[i] = (hi >> (8*(i - 4))) & 0xff;
 }
 
-static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
-			 const char *bytes, int size)
+static int dbgp_out(u32 addr, const char *bytes, int size)
 {
-	u32 pids, addr, ctrl;
-	int ret;
-
-	if (size > DBGP_MAX_PACKET)
-		return -1;
-
-	addr = DBGP_EPADDR(devnum, endpoint);
+	u32 pids, ctrl;
 
 	pids = readl(&ehci_debug->pids);
 	pids = dbgp_pid_update(pids, USB_PID_OUT);
@@ -267,10 +260,34 @@ static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
 	dbgp_set_data(bytes, size);
 	writel(addr, &ehci_debug->address);
 	writel(pids, &ehci_debug->pids);
+	return dbgp_wait_until_done(ctrl);
+}
 
-	ret = dbgp_wait_until_done(ctrl);
-	if (ret < 0)
-		return ret;
+static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
+			 const char *bytes, int size)
+{
+	int ret;
+	int loops = 5;
+	u32 addr;
+	if (size > DBGP_MAX_PACKET)
+		return -1;
+
+	addr = DBGP_EPADDR(devnum, endpoint);
+try_again:
+	if (loops--) {
+		ret = dbgp_out(addr, bytes, size);
+		if (ret == -DBGP_ERR_BAD) {
+			int try_loops = 3;
+			do {
+				/* Emit a dummy packet to re-sync communication
+				 * with the debug device */
+				if (dbgp_out(addr, "12345678", 8) >= 0) {
+					udelay(2);
+					goto try_again;
+				}
+			} while (try_loops--);
+		}
+	}
 
 	return ret;
 }
