@@ -28,6 +28,7 @@
  *	serialize accesses to xtime/lost_ticks).
  */
 
+#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
@@ -37,8 +38,8 @@
 #include <asm/hpet.h>
 #include <asm/time.h>
 #include <asm/timer.h>
-
-#include <asm/do_timer.h>
+#include <asm/i8259.h>
+#include <asm/i8253.h>
 
 int timer_ack;
 
@@ -92,7 +93,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	}
 #endif
 
-	do_timer_interrupt_hook();
+	global_clock_event->event_handler(global_clock_event);
 
 #ifdef CONFIG_MCA
 	if (MCA_bus) {
