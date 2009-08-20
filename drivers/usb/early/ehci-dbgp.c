@@ -1,5 +1,19 @@
+/*
+ * Standalone EHCI usb debug driver
+ *
+ * Originally written by:
+ *  Eric W. Biederman" <ebiederm@xmission.com> and
+ *  Yinghai Lu <yhlu.kernel@gmail.com>
+ *
+ * Changes for early/late printk and HW errata:
+ *  Jason Wessel <jason.wessel@windriver.com>
+ *  Copyright (C) 2009 Wind River Systems, Inc.
+ *
+ */
+
 #include <linux/console.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 #include <linux/usb/ch9.h>
@@ -9,15 +23,37 @@
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
 
-#ifdef DBGP_DEBUG
-# define dbgp_printk printk
-#else
-static inline void dbgp_printk(const char *fmt, ...) { }
-#endif
+/* The code here is intended to talk directly to the EHCI debug port
+ * and does not require that you have any kind of USB host controller
+ * drivers or USB device drivers compiled into the kernel.
+ *
+ * If you make a change to anything in here, the following test cases
+ * need to pass where a USB debug device works in the following
+ * configurations.
+ *
+ * 1. boot args:  earlyprintk=dbgp
+ *     o kernel compiled with # CONFIG_USB_EHCI_HCD is not set
+ *     o kernel compiled with CONFIG_USB_EHCI_HCD=y
+ * 2. boot args: earlyprintk=dbgp,keep
+ *     o kernel compiled with # CONFIG_USB_EHCI_HCD is not set
+ *     o kernel compiled with CONFIG_USB_EHCI_HCD=y
+ * 3. boot args: earlyprintk=dbgp console=ttyUSB0
+ *     o kernel has CONFIG_USB_EHCI_HCD=y and
+ *       CONFIG_USB_SERIAL_DEBUG=y
+ * 4. boot args: earlyprintk=vga,dbgp
+ *     o kernel compiled with # CONFIG_USB_EHCI_HCD is not set
+ *     o kernel compiled with CONFIG_USB_EHCI_HCD=y
+ *
+ * For the 4th configuration you can turn on or off the DBGP_DEBUG
+ * such that you can debug the dbgp device's driver code.
+ */
+
+static int dbgp_phys_port = 1;
 
 static struct ehci_caps __iomem *ehci_caps;
 static struct ehci_regs __iomem *ehci_regs;
 static struct ehci_dbg_port __iomem *ehci_debug;
+static int dbgp_not_safe; /* Cannot use debug device during ehci reset */
 static unsigned int dbgp_endpoint_out;
 
 struct ehci_dev {
@@ -31,6 +67,26 @@ static struct ehci_dev ehci_dev;
 #define USB_DEBUG_DEVNUM 127
 
 #define DBGP_DATA_TOGGLE	0x8800
+
+#ifdef DBGP_DEBUG
+#define dbgp_printk printk
+static void dbgp_ehci_status(char *str)
+{
+	if (!ehci_debug)
+		return;
+	dbgp_printk("dbgp: %s\n", str);
+	dbgp_printk("  Debug control: %08x", readl(&ehci_debug->control));
+	dbgp_printk("  ehci cmd     : %08x", readl(&ehci_regs->command));
+	dbgp_printk("  ehci conf flg: %08x\n",
+		    readl(&ehci_regs->configured_flag));
+	dbgp_printk("  ehci status  : %08x", readl(&ehci_regs->status));
+	dbgp_printk("  ehci portsc  : %08x\n",
+		    readl(&ehci_regs->port_status[dbgp_phys_port - 1]));
+}
+#else
+static inline void dbgp_ehci_status(char *str) { }
+static inline void dbgp_printk(const char *fmt, ...) { }
+#endif
 
 static inline u32 dbgp_pid_update(u32 x, u32 tok)
 {
@@ -79,21 +135,23 @@ static inline u32 dbgp_len_update(u32 x, u32 len)
 #define HUB_RESET_TIMEOUT	500
 
 #define DBGP_MAX_PACKET		8
+#define DBGP_TIMEOUT		(250 * 1000)
 
 static int dbgp_wait_until_complete(void)
 {
 	u32 ctrl;
-	int loop = 0x100000;
+	int loop = DBGP_TIMEOUT;
 
 	do {
 		ctrl = readl(&ehci_debug->control);
 		/* Stop when the transaction is finished */
 		if (ctrl & DBGP_DONE)
 			break;
+		udelay(1);
 	} while (--loop > 0);
 
 	if (!loop)
-		return -1;
+		return -DBGP_TIMEOUT;
 
 	/*
 	 * Now that we have observed the completed transaction,
@@ -103,7 +161,7 @@ static int dbgp_wait_until_complete(void)
 	return (ctrl & DBGP_ERROR) ? -DBGP_ERRCODE(ctrl) : DBGP_LEN(ctrl);
 }
 
-static void __init dbgp_mdelay(int ms)
+static inline void dbgp_mdelay(int ms)
 {
 	int i;
 
@@ -130,8 +188,17 @@ retry:
 	pids = readl(&ehci_debug->pids);
 	lpid = DBGP_PID_GET(pids);
 
-	if (ret < 0)
+	if (ret < 0) {
+		/* A -DBGP_TIMEOUT failure here means the device has
+		 * failed, perhaps because it was unplugged, in which
+		 * case we do not want to hang the system so the dbgp
+		 * will be marked as unsafe to use.  EHCI reset is the
+		 * only way to recover if you unplug the dbgp device.
+		 */
+		if (ret == -DBGP_TIMEOUT && !dbgp_not_safe)
+			dbgp_not_safe = 1;
 		return ret;
+	}
 
 	/*
 	 * If the port is getting full or it has dropped data
@@ -149,7 +216,7 @@ retry:
 	return ret;
 }
 
-static void dbgp_set_data(const void *buf, int size)
+static inline void dbgp_set_data(const void *buf, int size)
 {
 	const unsigned char *bytes = buf;
 	u32 lo, hi;
@@ -164,7 +231,7 @@ static void dbgp_set_data(const void *buf, int size)
 	writel(hi, &ehci_debug->data47);
 }
 
-static void __init dbgp_get_data(void *buf, int size)
+static inline void dbgp_get_data(void *buf, int size)
 {
 	unsigned char *bytes = buf;
 	u32 lo, hi;
@@ -208,7 +275,7 @@ static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
 	return ret;
 }
 
-static int __init dbgp_bulk_read(unsigned devnum, unsigned endpoint, void *data,
+static int dbgp_bulk_read(unsigned devnum, unsigned endpoint, void *data,
 				 int size)
 {
 	u32 pids, addr, ctrl;
@@ -239,7 +306,7 @@ static int __init dbgp_bulk_read(unsigned devnum, unsigned endpoint, void *data,
 	return ret;
 }
 
-static int __init dbgp_control_msg(unsigned devnum, int requesttype,
+static int dbgp_control_msg(unsigned devnum, int requesttype,
 	int request, int value, int index, void *data, int size)
 {
 	u32 pids, addr, ctrl;
@@ -342,13 +409,179 @@ static u32 __init find_dbgp(int ehci_num, u32 *rbus, u32 *rslot, u32 *rfunc)
 	return 0;
 }
 
+static int dbgp_ehci_startup(void)
+{
+	u32 ctrl, cmd, status;
+	int loop;
+
+	/* Claim ownership, but do not enable yet */
+	ctrl = readl(&ehci_debug->control);
+	ctrl |= DBGP_OWNER;
+	ctrl &= ~(DBGP_ENABLED | DBGP_INUSE);
+	writel(ctrl, &ehci_debug->control);
+	udelay(1);
+
+	dbgp_ehci_status("EHCI startup");
+	/* Start the ehci running */
+	cmd = readl(&ehci_regs->command);
+	cmd &= ~(CMD_LRESET | CMD_IAAD | CMD_PSE | CMD_ASE | CMD_RESET);
+	cmd |= CMD_RUN;
+	writel(cmd, &ehci_regs->command);
+
+	/* Ensure everything is routed to the EHCI */
+	writel(FLAG_CF, &ehci_regs->configured_flag);
+
+	/* Wait until the controller is no longer halted */
+	loop = 10;
+	do {
+		status = readl(&ehci_regs->status);
+		if (!(status & STS_HALT))
+			break;
+		udelay(1);
+	} while (--loop > 0);
+
+	if (!loop) {
+		dbgp_printk("ehci can not be started\n");
+		return -ENODEV;
+	}
+	dbgp_printk("ehci started\n");
+	return 0;
+}
+
+static int dbgp_ehci_controller_reset(void)
+{
+	int loop = 250 * 1000;
+	u32 cmd;
+
+	/* Reset the EHCI controller */
+	cmd = readl(&ehci_regs->command);
+	cmd |= CMD_RESET;
+	writel(cmd, &ehci_regs->command);
+	do {
+		cmd = readl(&ehci_regs->command);
+	} while ((cmd & CMD_RESET) && (--loop > 0));
+
+	if (!loop) {
+		dbgp_printk("can not reset ehci\n");
+		return -1;
+	}
+	dbgp_ehci_status("ehci reset done");
+	return 0;
+}
+static int ehci_wait_for_port(int port);
+/* Return 0 on success
+ * Return -ENODEV for any general failure
+ * Return -EIO if wait for port fails
+ */
+int dbgp_external_startup(void)
+{
+	int devnum;
+	struct usb_debug_descriptor dbgp_desc;
+	int ret;
+	u32 ctrl, portsc;
+	int dbg_port = dbgp_phys_port;
+	int tries = 3;
+
+	ret = dbgp_ehci_startup();
+	if (ret)
+		return ret;
+
+	/* Wait for a device to show up in the debug port */
+	ret = ehci_wait_for_port(dbg_port);
+	if (ret < 0) {
+		portsc = readl(&ehci_regs->port_status[dbg_port - 1]);
+		dbgp_printk("No device found in debug port\n");
+		return -EIO;
+	}
+	dbgp_ehci_status("wait for port done");
+
+	/* Enable the debug port */
+	ctrl = readl(&ehci_debug->control);
+	ctrl |= DBGP_CLAIM;
+	writel(ctrl, &ehci_debug->control);
+	ctrl = readl(&ehci_debug->control);
+	if ((ctrl & DBGP_CLAIM) != DBGP_CLAIM) {
+		dbgp_printk("No device in debug port\n");
+		writel(ctrl & ~DBGP_CLAIM, &ehci_debug->control);
+		return -ENODEV;
+	}
+	dbgp_ehci_status("debug ported enabled");
+
+	/* Completely transfer the debug device to the debug controller */
+	portsc = readl(&ehci_regs->port_status[dbg_port - 1]);
+	portsc &= ~PORT_PE;
+	writel(portsc, &ehci_regs->port_status[dbg_port - 1]);
+
+	dbgp_mdelay(100);
+
+try_again:
+	/* Find the debug device and make it device number 127 */
+	for (devnum = 0; devnum <= 127; devnum++) {
+		ret = dbgp_control_msg(devnum,
+			USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
+			USB_REQ_GET_DESCRIPTOR, (USB_DT_DEBUG << 8), 0,
+			&dbgp_desc, sizeof(dbgp_desc));
+		if (ret > 0)
+			break;
+	}
+	if (devnum > 127) {
+		dbgp_printk("Could not find attached debug device\n");
+		goto err;
+	}
+	if (ret < 0) {
+		dbgp_printk("Attached device is not a debug device\n");
+		goto err;
+	}
+	dbgp_endpoint_out = dbgp_desc.bDebugOutEndpoint;
+
+	/* Move the device to 127 if it isn't already there */
+	if (devnum != USB_DEBUG_DEVNUM) {
+		ret = dbgp_control_msg(devnum,
+			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
+			USB_REQ_SET_ADDRESS, USB_DEBUG_DEVNUM, 0, NULL, 0);
+		if (ret < 0) {
+			dbgp_printk("Could not move attached device to %d\n",
+				USB_DEBUG_DEVNUM);
+			goto err;
+		}
+		devnum = USB_DEBUG_DEVNUM;
+		dbgp_printk("debug device renamed to 127\n");
+	}
+
+	/* Enable the debug interface */
+	ret = dbgp_control_msg(USB_DEBUG_DEVNUM,
+		USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
+		USB_REQ_SET_FEATURE, USB_DEVICE_DEBUG_MODE, 0, NULL, 0);
+	if (ret < 0) {
+		dbgp_printk(" Could not enable the debug device\n");
+		goto err;
+	}
+	dbgp_printk("debug interface enabled\n");
+	/* Perform a small write to get the even/odd data state in sync
+	 */
+	ret = dbgp_bulk_write(USB_DEBUG_DEVNUM, dbgp_endpoint_out, " ", 1);
+	if (ret < 0) {
+		dbgp_printk("dbgp_bulk_write failed: %d\n", ret);
+		goto err;
+	}
+	dbgp_printk("small write doned\n");
+	dbgp_not_safe = 0;
+
+	return 0;
+err:
+	if (tries--)
+		goto try_again;
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(dbgp_external_startup);
+
 static int __init ehci_reset_port(int port)
 {
 	u32 portsc;
 	u32 delay_time, delay;
 	int loop;
 
-	dbgp_printk("ehci_reset_port %i\n", port);
+	dbgp_ehci_status("reset port");
 	/* Reset the usb debug port */
 	portsc = readl(&ehci_regs->port_status[port - 1]);
 	portsc &= ~PORT_PE;
@@ -388,7 +621,7 @@ static int __init ehci_reset_port(int port)
 	return -EBUSY;
 }
 
-static int __init ehci_wait_for_port(int port)
+static int ehci_wait_for_port(int port)
 {
 	u32 status;
 	int ret, reps;
@@ -487,12 +720,9 @@ static void __init early_ehci_bios_handoff(void)
 
 static int __init ehci_setup(void)
 {
-	struct usb_debug_descriptor dbgp_desc;
-	u32 cmd, ctrl, status, portsc, hcs_params;
+	u32 ctrl, portsc, hcs_params;
 	u32 debug_port, new_debug_port = 0, n_ports;
-	u32  devnum;
 	int ret, i;
-	int loop;
 	int port_map_tried;
 	int playtimes = 3;
 
@@ -505,10 +735,12 @@ try_next_port:
 
 	hcs_params = readl(&ehci_caps->hcs_params);
 	debug_port = HCS_DEBUG_PORT(hcs_params);
+	dbgp_phys_port = debug_port;
 	n_ports    = HCS_N_PORTS(hcs_params);
 
 	dbgp_printk("debug_port: %d\n", debug_port);
 	dbgp_printk("n_ports:    %d\n", n_ports);
+	dbgp_ehci_status("");
 
 	for (i = 1; i <= n_ports; i++) {
 		portsc = readl(&ehci_regs->port_status[i-1]);
@@ -523,138 +755,27 @@ try_next_port:
 		return -1;
 	}
 
-	loop = 250 * 1000;
-	/* Reset the EHCI controller */
-	cmd = readl(&ehci_regs->command);
-	cmd |= CMD_RESET;
-	writel(cmd, &ehci_regs->command);
-	do {
-		cmd = readl(&ehci_regs->command);
-	} while ((cmd & CMD_RESET) && (--loop > 0));
-
-	if (!loop) {
-		dbgp_printk("can not reset ehci\n");
-		return -1;
+	/* Only reset the controller if it is not already in the
+	 * configured state */
+	if (!(readl(&ehci_regs->configured_flag) & FLAG_CF)) {
+		if (dbgp_ehci_controller_reset() != 0)
+			return -1;
+	} else {
+		dbgp_ehci_status("ehci skip - already configured");
 	}
-	dbgp_printk("ehci reset done\n");
 
-	/* Claim ownership, but do not enable yet */
-	ctrl = readl(&ehci_debug->control);
-	ctrl |= DBGP_OWNER;
-	ctrl &= ~(DBGP_ENABLED | DBGP_INUSE);
-	writel(ctrl, &ehci_debug->control);
-	udelay(1);
-
-	/* Start the ehci running */
-	cmd = readl(&ehci_regs->command);
-	cmd &= ~(CMD_LRESET | CMD_IAAD | CMD_PSE | CMD_ASE | CMD_RESET);
-	cmd |= CMD_RUN;
-	writel(cmd, &ehci_regs->command);
-
-	/* Ensure everything is routed to the EHCI */
-	writel(FLAG_CF, &ehci_regs->configured_flag);
-
-	/* Wait until the controller is no longer halted */
-	loop = 10;
-	do {
-		status = readl(&ehci_regs->status);
-		if (!(status & STS_HALT))
-			break;
-		udelay(1);
-	} while (--loop > 0);
-
-	if (!loop) {
-		dbgp_printk("ehci can not be started\n");
-		return -1;
-	}
-	dbgp_printk("ehci started\n");
-
-	/* Wait for a device to show up in the debug port */
-	ret = ehci_wait_for_port(debug_port);
-	if (ret < 0) {
-		dbgp_printk("No device found in debug port\n");
+	ret = dbgp_external_startup();
+	if (ret == -EIO)
 		goto next_debug_port;
-	}
-	dbgp_printk("ehci wait for port done\n");
 
-	/* Enable the debug port */
-	ctrl = readl(&ehci_debug->control);
-	ctrl |= DBGP_CLAIM;
-	writel(ctrl, &ehci_debug->control);
-	ctrl = readl(&ehci_debug->control);
-	if ((ctrl & DBGP_CLAIM) != DBGP_CLAIM) {
-		dbgp_printk("No device in debug port\n");
-		writel(ctrl & ~DBGP_CLAIM, &ehci_debug->control);
-		goto err;
-	}
-	dbgp_printk("debug ported enabled\n");
-
-	/* Completely transfer the debug device to the debug controller */
-	portsc = readl(&ehci_regs->port_status[debug_port - 1]);
-	portsc &= ~PORT_PE;
-	writel(portsc, &ehci_regs->port_status[debug_port - 1]);
-
-	dbgp_mdelay(100);
-
-	/* Find the debug device and make it device number 127 */
-	for (devnum = 0; devnum <= 127; devnum++) {
-		ret = dbgp_control_msg(devnum,
-			USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-			USB_REQ_GET_DESCRIPTOR, (USB_DT_DEBUG << 8), 0,
-			&dbgp_desc, sizeof(dbgp_desc));
-		if (ret > 0)
-			break;
-	}
-	if (devnum > 127) {
-		dbgp_printk("Could not find attached debug device\n");
-		goto err;
-	}
 	if (ret < 0) {
-		dbgp_printk("Attached device is not a debug device\n");
-		goto err;
+		/* Things didn't work so remove my claim */
+		ctrl = readl(&ehci_debug->control);
+		ctrl &= ~(DBGP_CLAIM | DBGP_OUT);
+		writel(ctrl, &ehci_debug->control);
+		return -1;
 	}
-	dbgp_endpoint_out = dbgp_desc.bDebugOutEndpoint;
-
-	/* Move the device to 127 if it isn't already there */
-	if (devnum != USB_DEBUG_DEVNUM) {
-		ret = dbgp_control_msg(devnum,
-			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-			USB_REQ_SET_ADDRESS, USB_DEBUG_DEVNUM, 0, NULL, 0);
-		if (ret < 0) {
-			dbgp_printk("Could not move attached device to %d\n",
-				USB_DEBUG_DEVNUM);
-			goto err;
-		}
-		devnum = USB_DEBUG_DEVNUM;
-		dbgp_printk("debug device renamed to 127\n");
-	}
-
-	/* Enable the debug interface */
-	ret = dbgp_control_msg(USB_DEBUG_DEVNUM,
-		USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-		USB_REQ_SET_FEATURE, USB_DEVICE_DEBUG_MODE, 0, NULL, 0);
-	if (ret < 0) {
-		dbgp_printk(" Could not enable the debug device\n");
-		goto err;
-	}
-	dbgp_printk("debug interface enabled\n");
-
-	/* Perform a small write to get the even/odd data state in sync
-	 */
-	ret = dbgp_bulk_write(USB_DEBUG_DEVNUM, dbgp_endpoint_out, " ", 1);
-	if (ret < 0) {
-		dbgp_printk("dbgp_bulk_write failed: %d\n", ret);
-		goto err;
-	}
-	dbgp_printk("small write doned\n");
-
 	return 0;
-err:
-	/* Things didn't work so remove my claim */
-	ctrl = readl(&ehci_debug->control);
-	ctrl &= ~(DBGP_CLAIM | DBGP_OUT);
-	writel(ctrl, &ehci_debug->control);
-	return -1;
 
 next_debug_port:
 	port_map_tried |= (1<<(debug_port - 1));
@@ -749,6 +870,7 @@ int __init early_dbgp_init(char *s)
 
 		return -1;
 	}
+	dbgp_ehci_status("early_init_complete");
 
 	return 0;
 }
@@ -758,9 +880,27 @@ static void early_dbgp_write(struct console *con, const char *str, u32 n)
 	int chunk, ret;
 	char buf[DBGP_MAX_PACKET];
 	int use_cr = 0;
+	u32 cmd, ctrl;
+	int reset_run = 0;
 
-	if (!ehci_debug)
+	if (!ehci_debug || dbgp_not_safe)
 		return;
+
+	cmd = readl(&ehci_regs->command);
+	if (unlikely(!(cmd & CMD_RUN))) {
+		/* If the ehci controller is not in the run state do extended
+		 * checks to see if the acpi or some other initialization also
+		 * reset the ehci debug port */
+		ctrl = readl(&ehci_debug->control);
+		if (!(ctrl & DBGP_ENABLED)) {
+			dbgp_not_safe = 1;
+			dbgp_external_startup();
+		} else {
+			cmd |= CMD_RUN;
+			writel(cmd, &ehci_regs->command);
+			reset_run = 1;
+		}
+	}
 	while (n > 0) {
 		for (chunk = 0; chunk < DBGP_MAX_PACKET && n > 0;
 		     str++, chunk++, n--) {
@@ -775,8 +915,15 @@ static void early_dbgp_write(struct console *con, const char *str, u32 n)
 				use_cr = 0;
 			buf[chunk] = *str;
 		}
-		ret = dbgp_bulk_write(USB_DEBUG_DEVNUM,
-			dbgp_endpoint_out, buf, chunk);
+		if (chunk > 0) {
+			ret = dbgp_bulk_write(USB_DEBUG_DEVNUM,
+				      dbgp_endpoint_out, buf, chunk);
+		}
+	}
+	if (unlikely(reset_run)) {
+		cmd = readl(&ehci_regs->command);
+		cmd &= ~CMD_RUN;
+		writel(cmd, &ehci_regs->command);
 	}
 }
 
@@ -786,4 +933,3 @@ struct console early_dbgp_console = {
 	.flags =	CON_PRINTBUFFER,
 	.index =	-1,
 };
-
