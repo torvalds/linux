@@ -156,12 +156,8 @@ static void visws_machine_power_off(void)
 	outl(PIIX_SPECIAL_STOP, 0xCFC);
 }
 
-static int __init visws_get_smp_config(unsigned int early)
+static void __init visws_get_smp_config(unsigned int early)
 {
-	/*
-	 * Prevent MP-table parsing by the generic code:
-	 */
-	return 1;
 }
 
 /*
@@ -208,7 +204,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 	apic_version[m->apicid] = ver;
 }
 
-static int __init visws_find_smp_config(unsigned int reserve)
+static void __init visws_find_smp_config(unsigned int reserve)
 {
 	struct mpc_cpu *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));
@@ -230,8 +226,6 @@ static int __init visws_find_smp_config(unsigned int reserve)
 		MP_processor_info(mp++);
 
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
-
-	return 1;
 }
 
 static int visws_trap_init(void);
@@ -241,8 +235,6 @@ static struct x86_quirks visws_x86_quirks __initdata = {
 	.arch_pre_intr_init	= visws_pre_intr_init,
 	.arch_intr_init		= NULL,
 	.arch_trap_init		= visws_trap_init,
-	.mach_get_smp_config	= visws_get_smp_config,
-	.mach_find_smp_config	= visws_find_smp_config,
 };
 
 void __init visws_early_detect(void)
@@ -263,6 +255,8 @@ void __init visws_early_detect(void)
 	x86_quirks = &visws_x86_quirks;
 
 	x86_init.resources.memory_setup = visws_memory_setup;
+	x86_init.mpparse.get_smp_config = visws_get_smp_config;
+	x86_init.mpparse.find_smp_config = visws_find_smp_config;
 
 	/*
 	 * Install reboot quirks:

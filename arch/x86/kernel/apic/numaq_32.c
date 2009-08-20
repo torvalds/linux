@@ -268,8 +268,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_intr_init		= NULL,
 	.arch_intr_init			= NULL,
 	.arch_trap_init			= NULL,
-	.mach_get_smp_config		= NULL,
-	.mach_find_smp_config		= NULL,
 };
 
 static __init void early_check_numaq(void)

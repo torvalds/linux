@@ -610,7 +610,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
-static void __init __get_smp_config(unsigned int early)
+void __init default_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf = mpf_found;
 
@@ -626,11 +626,6 @@ static void __init __get_smp_config(unsigned int early)
 	 */
 	if (acpi_lapic && acpi_ioapic)
 		return;
-
-	if (x86_quirks->mach_get_smp_config) {
-		if (x86_quirks->mach_get_smp_config(early))
-			return;
-	}
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
 	       mpf->specification);
@@ -670,16 +665,6 @@ static void __init __get_smp_config(unsigned int early)
 	/*
 	 * Only use the first configuration found.
 	 */
-}
-
-void __init early_get_smp_config(void)
-{
-	__get_smp_config(1);
-}
-
-void __init get_smp_config(void)
-{
-	__get_smp_config(0);
 }
 
 static void __init smp_reserve_bootmem(struct mpf_intel *mpf)
@@ -747,14 +732,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	return 0;
 }
 
-static void __init __find_smp_config(unsigned int reserve)
+void __init default_find_smp_config(unsigned int reserve)
 {
 	unsigned int address;
 
-	if (x86_quirks->mach_find_smp_config) {
-		if (x86_quirks->mach_find_smp_config(reserve))
-			return;
-	}
 	/*
 	 * FIXME: Linux assumes you have 640K of base ram..
 	 * this continues the error...
@@ -787,16 +768,6 @@ static void __init __find_smp_config(unsigned int reserve)
 	address = get_bios_ebda();
 	if (address)
 		smp_scan_config(address, 0x400, reserve);
-}
-
-void __init early_find_smp_config(void)
-{
-	__find_smp_config(0);
-}
-
-void __init find_smp_config(void)
-{
-	__find_smp_config(1);
 }
 
 #ifdef CONFIG_X86_IO_APIC
