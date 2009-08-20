@@ -170,4 +170,10 @@ struct ehci_dbg_port {
 #define DBGP_EPADDR(dev, ep)	(((dev)<<8)|(ep))
 } __attribute__ ((packed));
 
+#ifdef CONFIG_EARLY_PRINTK_DBGP
+#include <linux/init.h>
+extern int __init early_dbgp_init(char *s);
+extern struct console early_dbgp_console;
+#endif /* CONFIG_EARLY_PRINTK_DBGP */
+
 #endif /* __LINUX_USB_EHCI_DEF_H */
