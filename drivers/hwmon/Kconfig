@@ -1157,6 +1157,16 @@ config SENSORS_AMC6821
 	  This driver can also be build as a module.  If so, the module
 	  will be called amc6821.
 
+config SENSORS_INA209
+	tristate "TI / Burr Brown INA209"
+	depends on I2C
+	help
+	  If you say yes here you get support for the TI / Burr Brown INA209
+	  voltage / current / power monitor I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ina209.
+
 config SENSORS_INA2XX
 	tristate "Texas Instruments INA219 and compatibles"
 	depends on I2C

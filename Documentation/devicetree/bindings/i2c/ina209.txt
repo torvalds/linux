@@ -1,0 +1,18 @@
+ina209 properties
+
+Required properties:
+- compatible: Must be "ti,ina209"
+- reg: I2C address
+
+Optional properties:
+
+- shunt-resistor
+	Shunt resistor value in micro-Ohm
+
+Example:
+
+temp-sensor@4c {
+	compatible = "ti,ina209";
+	reg = <0x4c>;
+	shunt-resistor = <5000>;
+};
