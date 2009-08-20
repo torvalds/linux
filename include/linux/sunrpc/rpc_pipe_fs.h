@@ -3,6 +3,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/workqueue.h>
+
 struct rpc_pipe_msg {
 	struct list_head list;
 	void *data;
