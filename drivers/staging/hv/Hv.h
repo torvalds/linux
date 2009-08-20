@@ -26,10 +26,7 @@
 #define __HV_H__
 
 #include "include/HvStatus.h"
-#include "include/HvVpApi.h"
-#include "include/HvSynicApi.h"
-#include "include/HvHcApi.h"
-#include "include/HvPtApi.h"
+#include "hv_api.h"
 
 enum {
 	VMBUS_MESSAGE_CONNECTION_ID	= 1,

@@ -20,9 +20,27 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *
  */
+#ifndef __HV_API_H
+#define __HV_API_H
 
-#ifndef __HVSYNICAPI_H
-#define __HVSYNICAPI_H
+/*
+ * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
+ * is set by CPUID(HvCpuIdFunctionVersionAndFeatures).
+ */
+enum hv_cpuid_function {
+	HvCpuIdFunctionVersionAndFeatures		= 0x00000001,
+	HvCpuIdFunctionHvVendorAndMaxFunction		= 0x40000000,
+	HvCpuIdFunctionHvInterface			= 0x40000001,
+
+	/*
+	 * The remaining functions depend on the value of
+	 * HvCpuIdFunctionInterface
+	 */
+	HvCpuIdFunctionMsHvVersion			= 0x40000002,
+	HvCpuIdFunctionMsHvFeatures			= 0x40000003,
+	HvCpuIdFunctionMsHvEnlightenmentInformation	= 0x40000004,
+	HvCpuIdFunctionMsHvImplementationLimits		= 0x40000005,
+};
 
 /* Define the virtual APIC registers */
 #define HV_X64_MSR_EOI			(0x40000070)
@@ -325,6 +343,78 @@ struct hv_monitor_page {
 	struct hv_monitor_parameter Parameter[4][32];
 
 	u8 RsvdZ4[1984];
+};
+
+/* Declare the various hypercall operations. */
+enum hv_call_code {
+	HvCallPostMessage	= 0x005c,
+	HvCallSignalEvent	= 0x005d,
+};
+
+/* Definition of the HvPostMessage hypercall input structure. */
+struct hv_input_post_message {
+	union hv_connection_id ConnectionId;
+	u32 Reserved;
+	enum hv_message_type MessageType;
+	u32 PayloadSize;
+	u64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
+};
+
+/* Definition of the HvSignalEvent hypercall input structure. */
+struct hv_input_signal_event {
+	union hv_connection_id ConnectionId;
+	u16 FlagNumber;
+	u16 RsvdZ;
+};
+
+/*
+ * Versioning definitions used for guests reporting themselves to the
+ * hypervisor, and visa versa.
+ */
+
+/* Version info reported by guest OS's */
+enum hv_guest_os_vendor {
+	HvGuestOsVendorMicrosoft	= 0x0001
+};
+
+enum hv_guest_os_microsoft_ids {
+	HvGuestOsMicrosoftUndefined	= 0x00,
+	HvGuestOsMicrosoftMSDOS		= 0x01,
+	HvGuestOsMicrosoftWindows3x	= 0x02,
+	HvGuestOsMicrosoftWindows9x	= 0x03,
+	HvGuestOsMicrosoftWindowsNT	= 0x04,
+	HvGuestOsMicrosoftWindowsCE	= 0x05
+};
+
+/*
+ * Declare the MSR used to identify the guest OS.
+ */
+#define HV_X64_MSR_GUEST_OS_ID	0x40000000
+
+union hv_x64_msr_guest_os_id_contents {
+	u64 AsUINT64;
+	struct {
+		u64 BuildNumber:16;
+		u64 ServiceVersion:8; /* Service Pack, etc. */
+		u64 MinorVersion:8;
+		u64 MajorVersion:8;
+		u64 OsId:8; /* enum hv_guest_os_microsoft_ids (if Vendor=MS) */
+		u64 VendorId:16; /* enum hv_guest_os_vendor */
+	};
+};
+
+/*
+ * Declare the MSR used to setup pages used to communicate with the hypervisor.
+ */
+#define HV_X64_MSR_HYPERCALL	0x40000001
+
+union hv_x64_msr_hypercall_contents {
+	u64 AsUINT64;
+	struct {
+		u64 Enable:1;
+		u64 Reserved:11;
+		u64 GuestPhysicalAddress:52;
+	};
 };
 
 #endif
