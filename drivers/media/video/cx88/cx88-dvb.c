@@ -498,9 +498,9 @@ static struct zl10353_config cx88_pinnacle_hybrid_pctv = {
 };
 
 static struct zl10353_config cx88_geniatech_x8000_mt = {
-       .demod_address = (0x1e >> 1),
-       .no_tuner = 1,
-       .disable_i2c_gate_ctrl = 1,
+	.demod_address = (0x1e >> 1),
+	.no_tuner = 1,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 static struct s5h1411_config dvico_fusionhdtv7_config = {
