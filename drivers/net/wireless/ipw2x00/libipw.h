@@ -20,11 +20,11 @@
  *
  * API Version History
  * 1.0.x -- Initial version
- * 1.1.x -- Added radiotap, QoS, TIM, ieee80211_geo APIs,
+ * 1.1.x -- Added radiotap, QoS, TIM, libipw_geo APIs,
  *          various structure changes, and crypto API init method
  */
-#ifndef IEEE80211_H
-#define IEEE80211_H
+#ifndef LIBIPW_H
+#define LIBIPW_H
 #include <linux/if_ether.h>	/* ETH_ALEN */
 #include <linux/kernel.h>	/* ARRAY_SIZE */
 #include <linux/wireless.h>
@@ -32,9 +32,9 @@
 
 #include <net/lib80211.h>
 
-#define IEEE80211_VERSION "git-1.1.13"
+#define LIBIPW_VERSION "git-1.1.13"
 
-#define IEEE80211_DATA_LEN		2304
+#define LIBIPW_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
 
@@ -43,35 +43,35 @@
    represents the 2304 bytes of real data, plus a possible 8 bytes of
    WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
 
-#define IEEE80211_1ADDR_LEN 10
-#define IEEE80211_2ADDR_LEN 16
-#define IEEE80211_3ADDR_LEN 24
-#define IEEE80211_4ADDR_LEN 30
-#define IEEE80211_FCS_LEN    4
-#define IEEE80211_HLEN			(IEEE80211_4ADDR_LEN)
-#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
+#define LIBIPW_1ADDR_LEN 10
+#define LIBIPW_2ADDR_LEN 16
+#define LIBIPW_3ADDR_LEN 24
+#define LIBIPW_4ADDR_LEN 30
+#define LIBIPW_FCS_LEN    4
+#define LIBIPW_HLEN			(LIBIPW_4ADDR_LEN)
+#define LIBIPW_FRAME_LEN		(LIBIPW_DATA_LEN + LIBIPW_HLEN)
 
 #define MIN_FRAG_THRESHOLD     256U
 #define	MAX_FRAG_THRESHOLD     2346U
 
 /* QOS control */
-#define IEEE80211_QCTL_TID		0x000F
+#define LIBIPW_QCTL_TID		0x000F
 
 /* debug macros */
 
 #ifdef CONFIG_LIBIPW_DEBUG
-extern u32 ieee80211_debug_level;
-#define IEEE80211_DEBUG(level, fmt, args...) \
-do { if (ieee80211_debug_level & (level)) \
+extern u32 libipw_debug_level;
+#define LIBIPW_DEBUG(level, fmt, args...) \
+do { if (libipw_debug_level & (level)) \
   printk(KERN_DEBUG "ieee80211: %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
-static inline bool ieee80211_ratelimit_debug(u32 level)
+static inline bool libipw_ratelimit_debug(u32 level)
 {
-	return (ieee80211_debug_level & level) && net_ratelimit();
+	return (libipw_debug_level & level) && net_ratelimit();
 }
 #else
-#define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
-static inline bool ieee80211_ratelimit_debug(u32 level)
+#define LIBIPW_DEBUG(level, fmt, args...) do {} while (0)
+static inline bool libipw_ratelimit_debug(u32 level)
 {
 	return false;
 }
@@ -83,51 +83,51 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
  * If you are defining a new debug classification, simply add it to the #define
  * list here in the form of:
  *
- * #define IEEE80211_DL_xxxx VALUE
+ * #define LIBIPW_DL_xxxx VALUE
  *
  * shifting value to the left one bit from the previous entry.  xxxx should be
  * the name of the classification (for example, WEP)
  *
- * You then need to either add a IEEE80211_xxxx_DEBUG() macro definition for your
- * classification, or use IEEE80211_DEBUG(IEEE80211_DL_xxxx, ...) whenever you want
+ * You then need to either add a LIBIPW_xxxx_DEBUG() macro definition for your
+ * classification, or use LIBIPW_DEBUG(LIBIPW_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
  * To add your debug level to the list of levels seen when you perform
  *
  * % cat /proc/net/ieee80211/debug_level
  *
- * you simply need to add your entry to the ieee80211_debug_level array.
+ * you simply need to add your entry to the libipw_debug_level array.
  *
  * If you do not see debug_level in /proc/net/ieee80211 then you do not have
  * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
  *
  */
 
-#define IEEE80211_DL_INFO          (1<<0)
-#define IEEE80211_DL_WX            (1<<1)
-#define IEEE80211_DL_SCAN          (1<<2)
-#define IEEE80211_DL_STATE         (1<<3)
-#define IEEE80211_DL_MGMT          (1<<4)
-#define IEEE80211_DL_FRAG          (1<<5)
-#define IEEE80211_DL_DROP          (1<<7)
+#define LIBIPW_DL_INFO          (1<<0)
+#define LIBIPW_DL_WX            (1<<1)
+#define LIBIPW_DL_SCAN          (1<<2)
+#define LIBIPW_DL_STATE         (1<<3)
+#define LIBIPW_DL_MGMT          (1<<4)
+#define LIBIPW_DL_FRAG          (1<<5)
+#define LIBIPW_DL_DROP          (1<<7)
 
-#define IEEE80211_DL_TX            (1<<8)
-#define IEEE80211_DL_RX            (1<<9)
-#define IEEE80211_DL_QOS           (1<<31)
+#define LIBIPW_DL_TX            (1<<8)
+#define LIBIPW_DL_RX            (1<<9)
+#define LIBIPW_DL_QOS           (1<<31)
 
-#define IEEE80211_ERROR(f, a...) printk(KERN_ERR "ieee80211: " f, ## a)
-#define IEEE80211_WARNING(f, a...) printk(KERN_WARNING "ieee80211: " f, ## a)
-#define IEEE80211_DEBUG_INFO(f, a...)   IEEE80211_DEBUG(IEEE80211_DL_INFO, f, ## a)
+#define LIBIPW_ERROR(f, a...) printk(KERN_ERR "ieee80211: " f, ## a)
+#define LIBIPW_WARNING(f, a...) printk(KERN_WARNING "ieee80211: " f, ## a)
+#define LIBIPW_DEBUG_INFO(f, a...)   LIBIPW_DEBUG(LIBIPW_DL_INFO, f, ## a)
 
-#define IEEE80211_DEBUG_WX(f, a...)     IEEE80211_DEBUG(IEEE80211_DL_WX, f, ## a)
-#define IEEE80211_DEBUG_SCAN(f, a...)   IEEE80211_DEBUG(IEEE80211_DL_SCAN, f, ## a)
-#define IEEE80211_DEBUG_STATE(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_STATE, f, ## a)
-#define IEEE80211_DEBUG_MGMT(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_MGMT, f, ## a)
-#define IEEE80211_DEBUG_FRAG(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_FRAG, f, ## a)
-#define IEEE80211_DEBUG_DROP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_DROP, f, ## a)
-#define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
-#define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
-#define IEEE80211_DEBUG_QOS(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_QOS, f, ## a)
+#define LIBIPW_DEBUG_WX(f, a...)     LIBIPW_DEBUG(LIBIPW_DL_WX, f, ## a)
+#define LIBIPW_DEBUG_SCAN(f, a...)   LIBIPW_DEBUG(LIBIPW_DL_SCAN, f, ## a)
+#define LIBIPW_DEBUG_STATE(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_STATE, f, ## a)
+#define LIBIPW_DEBUG_MGMT(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_MGMT, f, ## a)
+#define LIBIPW_DEBUG_FRAG(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_FRAG, f, ## a)
+#define LIBIPW_DEBUG_DROP(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_DROP, f, ## a)
+#define LIBIPW_DEBUG_TX(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_TX, f, ## a)
+#define LIBIPW_DEBUG_RX(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_RX, f, ## a)
+#define LIBIPW_DEBUG_QOS(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_QOS, f, ## a)
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>	/* ARPHRD_ETHER */
 
@@ -146,7 +146,7 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
 
 #define P80211_OUI_LEN 3
 
-struct ieee80211_snap_hdr {
+struct libipw_snap_hdr {
 
 	u8 dsap;		/* always 0xAA */
 	u8 ssap;		/* always 0xAA */
@@ -155,7 +155,7 @@ struct ieee80211_snap_hdr {
 
 } __attribute__ ((packed));
 
-#define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
+#define SNAP_SIZE sizeof(struct libipw_snap_hdr)
 
 #define WLAN_FC_GET_VERS(fc) ((fc) & IEEE80211_FCTL_VERS)
 #define WLAN_FC_GET_TYPE(fc) ((fc) & IEEE80211_FCTL_FTYPE)
@@ -164,74 +164,74 @@ struct ieee80211_snap_hdr {
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & IEEE80211_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 
-#define IEEE80211_STATMASK_SIGNAL (1<<0)
-#define IEEE80211_STATMASK_RSSI (1<<1)
-#define IEEE80211_STATMASK_NOISE (1<<2)
-#define IEEE80211_STATMASK_RATE (1<<3)
-#define IEEE80211_STATMASK_WEMASK 0x7
+#define LIBIPW_STATMASK_SIGNAL (1<<0)
+#define LIBIPW_STATMASK_RSSI (1<<1)
+#define LIBIPW_STATMASK_NOISE (1<<2)
+#define LIBIPW_STATMASK_RATE (1<<3)
+#define LIBIPW_STATMASK_WEMASK 0x7
 
-#define IEEE80211_CCK_MODULATION    (1<<0)
-#define IEEE80211_OFDM_MODULATION   (1<<1)
+#define LIBIPW_CCK_MODULATION    (1<<0)
+#define LIBIPW_OFDM_MODULATION   (1<<1)
 
-#define IEEE80211_24GHZ_BAND     (1<<0)
-#define IEEE80211_52GHZ_BAND     (1<<1)
+#define LIBIPW_24GHZ_BAND     (1<<0)
+#define LIBIPW_52GHZ_BAND     (1<<1)
 
-#define IEEE80211_CCK_RATE_1MB		        0x02
-#define IEEE80211_CCK_RATE_2MB		        0x04
-#define IEEE80211_CCK_RATE_5MB		        0x0B
-#define IEEE80211_CCK_RATE_11MB		        0x16
-#define IEEE80211_OFDM_RATE_6MB		        0x0C
-#define IEEE80211_OFDM_RATE_9MB		        0x12
-#define IEEE80211_OFDM_RATE_12MB		0x18
-#define IEEE80211_OFDM_RATE_18MB		0x24
-#define IEEE80211_OFDM_RATE_24MB		0x30
-#define IEEE80211_OFDM_RATE_36MB		0x48
-#define IEEE80211_OFDM_RATE_48MB		0x60
-#define IEEE80211_OFDM_RATE_54MB		0x6C
-#define IEEE80211_BASIC_RATE_MASK		0x80
+#define LIBIPW_CCK_RATE_1MB		        0x02
+#define LIBIPW_CCK_RATE_2MB		        0x04
+#define LIBIPW_CCK_RATE_5MB		        0x0B
+#define LIBIPW_CCK_RATE_11MB		        0x16
+#define LIBIPW_OFDM_RATE_6MB		        0x0C
+#define LIBIPW_OFDM_RATE_9MB		        0x12
+#define LIBIPW_OFDM_RATE_12MB		0x18
+#define LIBIPW_OFDM_RATE_18MB		0x24
+#define LIBIPW_OFDM_RATE_24MB		0x30
+#define LIBIPW_OFDM_RATE_36MB		0x48
+#define LIBIPW_OFDM_RATE_48MB		0x60
+#define LIBIPW_OFDM_RATE_54MB		0x6C
+#define LIBIPW_BASIC_RATE_MASK		0x80
 
-#define IEEE80211_CCK_RATE_1MB_MASK		(1<<0)
-#define IEEE80211_CCK_RATE_2MB_MASK		(1<<1)
-#define IEEE80211_CCK_RATE_5MB_MASK		(1<<2)
-#define IEEE80211_CCK_RATE_11MB_MASK		(1<<3)
-#define IEEE80211_OFDM_RATE_6MB_MASK		(1<<4)
-#define IEEE80211_OFDM_RATE_9MB_MASK		(1<<5)
-#define IEEE80211_OFDM_RATE_12MB_MASK		(1<<6)
-#define IEEE80211_OFDM_RATE_18MB_MASK		(1<<7)
-#define IEEE80211_OFDM_RATE_24MB_MASK		(1<<8)
-#define IEEE80211_OFDM_RATE_36MB_MASK		(1<<9)
-#define IEEE80211_OFDM_RATE_48MB_MASK		(1<<10)
-#define IEEE80211_OFDM_RATE_54MB_MASK		(1<<11)
+#define LIBIPW_CCK_RATE_1MB_MASK		(1<<0)
+#define LIBIPW_CCK_RATE_2MB_MASK		(1<<1)
+#define LIBIPW_CCK_RATE_5MB_MASK		(1<<2)
+#define LIBIPW_CCK_RATE_11MB_MASK		(1<<3)
+#define LIBIPW_OFDM_RATE_6MB_MASK		(1<<4)
+#define LIBIPW_OFDM_RATE_9MB_MASK		(1<<5)
+#define LIBIPW_OFDM_RATE_12MB_MASK		(1<<6)
+#define LIBIPW_OFDM_RATE_18MB_MASK		(1<<7)
+#define LIBIPW_OFDM_RATE_24MB_MASK		(1<<8)
+#define LIBIPW_OFDM_RATE_36MB_MASK		(1<<9)
+#define LIBIPW_OFDM_RATE_48MB_MASK		(1<<10)
+#define LIBIPW_OFDM_RATE_54MB_MASK		(1<<11)
 
-#define IEEE80211_CCK_RATES_MASK	        0x0000000F
-#define IEEE80211_CCK_BASIC_RATES_MASK	(IEEE80211_CCK_RATE_1MB_MASK | \
-	IEEE80211_CCK_RATE_2MB_MASK)
-#define IEEE80211_CCK_DEFAULT_RATES_MASK	(IEEE80211_CCK_BASIC_RATES_MASK | \
-        IEEE80211_CCK_RATE_5MB_MASK | \
-        IEEE80211_CCK_RATE_11MB_MASK)
+#define LIBIPW_CCK_RATES_MASK	        0x0000000F
+#define LIBIPW_CCK_BASIC_RATES_MASK	(LIBIPW_CCK_RATE_1MB_MASK | \
+	LIBIPW_CCK_RATE_2MB_MASK)
+#define LIBIPW_CCK_DEFAULT_RATES_MASK	(LIBIPW_CCK_BASIC_RATES_MASK | \
+        LIBIPW_CCK_RATE_5MB_MASK | \
+        LIBIPW_CCK_RATE_11MB_MASK)
 
-#define IEEE80211_OFDM_RATES_MASK		0x00000FF0
-#define IEEE80211_OFDM_BASIC_RATES_MASK	(IEEE80211_OFDM_RATE_6MB_MASK | \
-	IEEE80211_OFDM_RATE_12MB_MASK | \
-	IEEE80211_OFDM_RATE_24MB_MASK)
-#define IEEE80211_OFDM_DEFAULT_RATES_MASK	(IEEE80211_OFDM_BASIC_RATES_MASK | \
-	IEEE80211_OFDM_RATE_9MB_MASK  | \
-	IEEE80211_OFDM_RATE_18MB_MASK | \
-	IEEE80211_OFDM_RATE_36MB_MASK | \
-	IEEE80211_OFDM_RATE_48MB_MASK | \
-	IEEE80211_OFDM_RATE_54MB_MASK)
-#define IEEE80211_DEFAULT_RATES_MASK (IEEE80211_OFDM_DEFAULT_RATES_MASK | \
-                                IEEE80211_CCK_DEFAULT_RATES_MASK)
+#define LIBIPW_OFDM_RATES_MASK		0x00000FF0
+#define LIBIPW_OFDM_BASIC_RATES_MASK	(LIBIPW_OFDM_RATE_6MB_MASK | \
+	LIBIPW_OFDM_RATE_12MB_MASK | \
+	LIBIPW_OFDM_RATE_24MB_MASK)
+#define LIBIPW_OFDM_DEFAULT_RATES_MASK	(LIBIPW_OFDM_BASIC_RATES_MASK | \
+	LIBIPW_OFDM_RATE_9MB_MASK  | \
+	LIBIPW_OFDM_RATE_18MB_MASK | \
+	LIBIPW_OFDM_RATE_36MB_MASK | \
+	LIBIPW_OFDM_RATE_48MB_MASK | \
+	LIBIPW_OFDM_RATE_54MB_MASK)
+#define LIBIPW_DEFAULT_RATES_MASK (LIBIPW_OFDM_DEFAULT_RATES_MASK | \
+                                LIBIPW_CCK_DEFAULT_RATES_MASK)
 
-#define IEEE80211_NUM_OFDM_RATES	    8
-#define IEEE80211_NUM_CCK_RATES	            4
-#define IEEE80211_OFDM_SHIFT_MASK_A         4
+#define LIBIPW_NUM_OFDM_RATES	    8
+#define LIBIPW_NUM_CCK_RATES	            4
+#define LIBIPW_OFDM_SHIFT_MASK_A         4
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.
- *       For ieee80211_rx_mgt, you need to set at least the 'len' parameter.
+ *       For libipw_rx_mgt, you need to set at least the 'len' parameter.
  */
-struct ieee80211_rx_stats {
+struct libipw_rx_stats {
 	u32 mac_time;
 	s8 rssi;
 	u8 signal;
@@ -250,9 +250,9 @@ struct ieee80211_rx_stats {
  * three fragmented frames. This define can be increased to support more
  * concurrent frames, but it should be noted that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
-#define IEEE80211_FRAG_CACHE_LEN 4
+#define LIBIPW_FRAG_CACHE_LEN 4
 
-struct ieee80211_frag_entry {
+struct libipw_frag_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;
 	unsigned int last_frag;
@@ -261,7 +261,7 @@ struct ieee80211_frag_entry {
 	u8 dst_addr[ETH_ALEN];
 };
 
-struct ieee80211_stats {
+struct libipw_stats {
 	unsigned int tx_unicast_frames;
 	unsigned int tx_multicast_frames;
 	unsigned int tx_fragments;
@@ -285,7 +285,7 @@ struct ieee80211_stats {
 	unsigned int rx_message_in_bad_msg_fragments;
 };
 
-struct ieee80211_device;
+struct libipw_device;
 
 #define SEC_KEY_1		(1<<0)
 #define SEC_KEY_2		(1<<1)
@@ -314,7 +314,7 @@ struct ieee80211_device;
 #define SCM_KEY_LEN		32
 #define SCM_TEMPORAL_KEY_LENGTH	16
 
-struct ieee80211_security {
+struct libipw_security {
 	u16 active_key:2, enabled:1, unicast_uses_group:1, encrypt:1;
 	u8 auth_mode;
 	u8 encode_alg[WEP_KEYS];
@@ -341,14 +341,14 @@ Total: 28-2340 bytes
 
 #define BEACON_PROBE_SSID_ID_POSITION 12
 
-struct ieee80211_hdr_1addr {
+struct libipw_hdr_1addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 payload[0];
 } __attribute__ ((packed));
 
-struct ieee80211_hdr_2addr {
+struct libipw_hdr_2addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -356,7 +356,7 @@ struct ieee80211_hdr_2addr {
 	u8 payload[0];
 } __attribute__ ((packed));
 
-struct ieee80211_hdr_3addr {
+struct libipw_hdr_3addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -366,7 +366,7 @@ struct ieee80211_hdr_3addr {
 	u8 payload[0];
 } __attribute__ ((packed));
 
-struct ieee80211_hdr_4addr {
+struct libipw_hdr_4addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -377,7 +377,7 @@ struct ieee80211_hdr_4addr {
 	u8 payload[0];
 } __attribute__ ((packed));
 
-struct ieee80211_hdr_3addrqos {
+struct libipw_hdr_3addrqos {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -388,7 +388,7 @@ struct ieee80211_hdr_3addrqos {
 	__le16 qos_ctl;
 } __attribute__ ((packed));
 
-struct ieee80211_info_element {
+struct libipw_info_element {
 	u8 id;
 	u8 len;
 	u8 data[0];
@@ -411,16 +411,16 @@ struct ieee80211_info_element {
 	u16 status;
 */
 
-struct ieee80211_auth {
-	struct ieee80211_hdr_3addr header;
+struct libipw_auth {
+	struct libipw_hdr_3addr header;
 	__le16 algorithm;
 	__le16 transaction;
 	__le16 status;
 	/* challenge */
-	struct ieee80211_info_element info_element[0];
+	struct libipw_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_channel_switch {
+struct libipw_channel_switch {
 	u8 id;
 	u8 len;
 	u8 mode;
@@ -428,73 +428,73 @@ struct ieee80211_channel_switch {
 	u8 count;
 } __attribute__ ((packed));
 
-struct ieee80211_action {
-	struct ieee80211_hdr_3addr header;
+struct libipw_action {
+	struct libipw_hdr_3addr header;
 	u8 category;
 	u8 action;
 	union {
-		struct ieee80211_action_exchange {
+		struct libipw_action_exchange {
 			u8 token;
-			struct ieee80211_info_element info_element[0];
+			struct libipw_info_element info_element[0];
 		} exchange;
-		struct ieee80211_channel_switch channel_switch;
+		struct libipw_channel_switch channel_switch;
 
 	} format;
 } __attribute__ ((packed));
 
-struct ieee80211_disassoc {
-	struct ieee80211_hdr_3addr header;
+struct libipw_disassoc {
+	struct libipw_hdr_3addr header;
 	__le16 reason;
 } __attribute__ ((packed));
 
 /* Alias deauth for disassoc */
-#define ieee80211_deauth ieee80211_disassoc
+#define libipw_deauth libipw_disassoc
 
-struct ieee80211_probe_request {
-	struct ieee80211_hdr_3addr header;
+struct libipw_probe_request {
+	struct libipw_hdr_3addr header;
 	/* SSID, supported rates */
-	struct ieee80211_info_element info_element[0];
+	struct libipw_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_probe_response {
-	struct ieee80211_hdr_3addr header;
+struct libipw_probe_response {
+	struct libipw_hdr_3addr header;
 	__le32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
 	/* SSID, supported rates, FH params, DS params,
 	 * CF params, IBSS params, TIM (if beacon), RSN */
-	struct ieee80211_info_element info_element[0];
+	struct libipw_info_element info_element[0];
 } __attribute__ ((packed));
 
 /* Alias beacon for probe_response */
-#define ieee80211_beacon ieee80211_probe_response
+#define libipw_beacon libipw_probe_response
 
-struct ieee80211_assoc_request {
-	struct ieee80211_hdr_3addr header;
+struct libipw_assoc_request {
+	struct libipw_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
 	/* SSID, supported rates, RSN */
-	struct ieee80211_info_element info_element[0];
+	struct libipw_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_reassoc_request {
-	struct ieee80211_hdr_3addr header;
+struct libipw_reassoc_request {
+	struct libipw_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
 	u8 current_ap[ETH_ALEN];
-	struct ieee80211_info_element info_element[0];
+	struct libipw_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_assoc_response {
-	struct ieee80211_hdr_3addr header;
+struct libipw_assoc_response {
+	struct libipw_hdr_3addr header;
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
 	/* supported rates */
-	struct ieee80211_info_element info_element[0];
+	struct libipw_info_element info_element[0];
 } __attribute__ ((packed));
 
-struct ieee80211_txb {
+struct libipw_txb {
 	u8 nr_frags;
 	u8 encrypted;
 	u8 rts_included;
@@ -546,7 +546,7 @@ struct ieee80211_txb {
 #define QOS_VERSION_1                   1
 #define QOS_AIFSN_MIN_VALUE             2
 
-struct ieee80211_qos_information_element {
+struct libipw_qos_information_element {
 	u8 elementID;
 	u8 length;
 	u8 qui[QOS_OUI_LEN];
@@ -556,19 +556,19 @@ struct ieee80211_qos_information_element {
 	u8 ac_info;
 } __attribute__ ((packed));
 
-struct ieee80211_qos_ac_parameter {
+struct libipw_qos_ac_parameter {
 	u8 aci_aifsn;
 	u8 ecw_min_max;
 	__le16 tx_op_limit;
 } __attribute__ ((packed));
 
-struct ieee80211_qos_parameter_info {
-	struct ieee80211_qos_information_element info_element;
+struct libipw_qos_parameter_info {
+	struct libipw_qos_information_element info_element;
 	u8 reserved;
-	struct ieee80211_qos_ac_parameter ac_params_record[QOS_QUEUE_NUM];
+	struct libipw_qos_ac_parameter ac_params_record[QOS_QUEUE_NUM];
 } __attribute__ ((packed));
 
-struct ieee80211_qos_parameters {
+struct libipw_qos_parameters {
 	__le16 cw_min[QOS_QUEUE_NUM];
 	__le16 cw_max[QOS_QUEUE_NUM];
 	u8 aifs[QOS_QUEUE_NUM];
@@ -576,107 +576,107 @@ struct ieee80211_qos_parameters {
 	__le16 tx_op_limit[QOS_QUEUE_NUM];
 } __attribute__ ((packed));
 
-struct ieee80211_qos_data {
-	struct ieee80211_qos_parameters parameters;
+struct libipw_qos_data {
+	struct libipw_qos_parameters parameters;
 	int active;
 	int supported;
 	u8 param_count;
 	u8 old_param_count;
 };
 
-struct ieee80211_tim_parameters {
+struct libipw_tim_parameters {
 	u8 tim_count;
 	u8 tim_period;
 } __attribute__ ((packed));
 
 /*******************************************************/
 
-enum {				/* ieee80211_basic_report.map */
-	IEEE80211_BASIC_MAP_BSS = (1 << 0),
-	IEEE80211_BASIC_MAP_OFDM = (1 << 1),
-	IEEE80211_BASIC_MAP_UNIDENTIFIED = (1 << 2),
-	IEEE80211_BASIC_MAP_RADAR = (1 << 3),
-	IEEE80211_BASIC_MAP_UNMEASURED = (1 << 4),
+enum {				/* libipw_basic_report.map */
+	LIBIPW_BASIC_MAP_BSS = (1 << 0),
+	LIBIPW_BASIC_MAP_OFDM = (1 << 1),
+	LIBIPW_BASIC_MAP_UNIDENTIFIED = (1 << 2),
+	LIBIPW_BASIC_MAP_RADAR = (1 << 3),
+	LIBIPW_BASIC_MAP_UNMEASURED = (1 << 4),
 	/* Bits 5-7 are reserved */
 
 };
-struct ieee80211_basic_report {
+struct libipw_basic_report {
 	u8 channel;
 	__le64 start_time;
 	__le16 duration;
 	u8 map;
 } __attribute__ ((packed));
 
-enum {				/* ieee80211_measurement_request.mode */
+enum {				/* libipw_measurement_request.mode */
 	/* Bit 0 is reserved */
-	IEEE80211_MEASUREMENT_ENABLE = (1 << 1),
-	IEEE80211_MEASUREMENT_REQUEST = (1 << 2),
-	IEEE80211_MEASUREMENT_REPORT = (1 << 3),
+	LIBIPW_MEASUREMENT_ENABLE = (1 << 1),
+	LIBIPW_MEASUREMENT_REQUEST = (1 << 2),
+	LIBIPW_MEASUREMENT_REPORT = (1 << 3),
 	/* Bits 4-7 are reserved */
 };
 
 enum {
-	IEEE80211_REPORT_BASIC = 0,	/* required */
-	IEEE80211_REPORT_CCA = 1,	/* optional */
-	IEEE80211_REPORT_RPI = 2,	/* optional */
+	LIBIPW_REPORT_BASIC = 0,	/* required */
+	LIBIPW_REPORT_CCA = 1,	/* optional */
+	LIBIPW_REPORT_RPI = 2,	/* optional */
 	/* 3-255 reserved */
 };
 
-struct ieee80211_measurement_params {
+struct libipw_measurement_params {
 	u8 channel;
 	__le64 start_time;
 	__le16 duration;
 } __attribute__ ((packed));
 
-struct ieee80211_measurement_request {
-	struct ieee80211_info_element ie;
+struct libipw_measurement_request {
+	struct libipw_info_element ie;
 	u8 token;
 	u8 mode;
 	u8 type;
-	struct ieee80211_measurement_params params[0];
+	struct libipw_measurement_params params[0];
 } __attribute__ ((packed));
 
-struct ieee80211_measurement_report {
-	struct ieee80211_info_element ie;
+struct libipw_measurement_report {
+	struct libipw_info_element ie;
 	u8 token;
 	u8 mode;
 	u8 type;
 	union {
-		struct ieee80211_basic_report basic[0];
+		struct libipw_basic_report basic[0];
 	} u;
 } __attribute__ ((packed));
 
-struct ieee80211_tpc_report {
+struct libipw_tpc_report {
 	u8 transmit_power;
 	u8 link_margin;
 } __attribute__ ((packed));
 
-struct ieee80211_channel_map {
+struct libipw_channel_map {
 	u8 channel;
 	u8 map;
 } __attribute__ ((packed));
 
-struct ieee80211_ibss_dfs {
-	struct ieee80211_info_element ie;
+struct libipw_ibss_dfs {
+	struct libipw_info_element ie;
 	u8 owner[ETH_ALEN];
 	u8 recovery_interval;
-	struct ieee80211_channel_map channel_map[0];
+	struct libipw_channel_map channel_map[0];
 };
 
-struct ieee80211_csa {
+struct libipw_csa {
 	u8 mode;
 	u8 channel;
 	u8 count;
 } __attribute__ ((packed));
 
-struct ieee80211_quiet {
+struct libipw_quiet {
 	u8 count;
 	u8 period;
 	u8 duration;
 	u8 offset;
 } __attribute__ ((packed));
 
-struct ieee80211_network {
+struct libipw_network {
 	/* These entries are used to identify a unique network */
 	u8 bssid[ETH_ALEN];
 	u8 channel;
@@ -684,10 +684,10 @@ struct ieee80211_network {
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 
-	struct ieee80211_qos_data qos_data;
+	struct libipw_qos_data qos_data;
 
 	/* These are network statistics */
-	struct ieee80211_rx_stats stats;
+	struct libipw_rx_stats stats;
 	u16 capability;
 	u8 rates[MAX_RATES_LENGTH];
 	u8 rates_len;
@@ -706,7 +706,7 @@ struct ieee80211_network {
 	size_t wpa_ie_len;
 	u8 rsn_ie[MAX_WPA_IE_LEN];
 	size_t rsn_ie_len;
-	struct ieee80211_tim_parameters tim;
+	struct libipw_tim_parameters tim;
 
 	/* 802.11h info */
 
@@ -714,86 +714,86 @@ struct ieee80211_network {
 	u8 power_constraint;
 
 	/* TPC Report - mandatory if spctrm mgmt required */
-	struct ieee80211_tpc_report tpc_report;
+	struct libipw_tpc_report tpc_report;
 
 	/* IBSS DFS - mandatory if spctrm mgmt required and IBSS
 	 * NOTE: This is variable length and so must be allocated dynamically */
-	struct ieee80211_ibss_dfs *ibss_dfs;
+	struct libipw_ibss_dfs *ibss_dfs;
 
 	/* Channel Switch Announcement - optional if spctrm mgmt required */
-	struct ieee80211_csa csa;
+	struct libipw_csa csa;
 
 	/* Quiet - optional if spctrm mgmt required */
-	struct ieee80211_quiet quiet;
+	struct libipw_quiet quiet;
 
 	struct list_head list;
 };
 
-enum ieee80211_state {
-	IEEE80211_UNINITIALIZED = 0,
-	IEEE80211_INITIALIZED,
-	IEEE80211_ASSOCIATING,
-	IEEE80211_ASSOCIATED,
-	IEEE80211_AUTHENTICATING,
-	IEEE80211_AUTHENTICATED,
-	IEEE80211_SHUTDOWN
+enum libipw_state {
+	LIBIPW_UNINITIALIZED = 0,
+	LIBIPW_INITIALIZED,
+	LIBIPW_ASSOCIATING,
+	LIBIPW_ASSOCIATED,
+	LIBIPW_AUTHENTICATING,
+	LIBIPW_AUTHENTICATED,
+	LIBIPW_SHUTDOWN
 };
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
 
-#define CFG_IEEE80211_RESERVE_FCS (1<<0)
-#define CFG_IEEE80211_COMPUTE_FCS (1<<1)
-#define CFG_IEEE80211_RTS (1<<2)
+#define CFG_LIBIPW_RESERVE_FCS (1<<0)
+#define CFG_LIBIPW_COMPUTE_FCS (1<<1)
+#define CFG_LIBIPW_RTS (1<<2)
 
-#define IEEE80211_24GHZ_MIN_CHANNEL 1
-#define IEEE80211_24GHZ_MAX_CHANNEL 14
-#define IEEE80211_24GHZ_CHANNELS (IEEE80211_24GHZ_MAX_CHANNEL - \
-				  IEEE80211_24GHZ_MIN_CHANNEL + 1)
+#define LIBIPW_24GHZ_MIN_CHANNEL 1
+#define LIBIPW_24GHZ_MAX_CHANNEL 14
+#define LIBIPW_24GHZ_CHANNELS (LIBIPW_24GHZ_MAX_CHANNEL - \
+				  LIBIPW_24GHZ_MIN_CHANNEL + 1)
 
-#define IEEE80211_52GHZ_MIN_CHANNEL 34
-#define IEEE80211_52GHZ_MAX_CHANNEL 165
-#define IEEE80211_52GHZ_CHANNELS (IEEE80211_52GHZ_MAX_CHANNEL - \
-				  IEEE80211_52GHZ_MIN_CHANNEL + 1)
+#define LIBIPW_52GHZ_MIN_CHANNEL 34
+#define LIBIPW_52GHZ_MAX_CHANNEL 165
+#define LIBIPW_52GHZ_CHANNELS (LIBIPW_52GHZ_MAX_CHANNEL - \
+				  LIBIPW_52GHZ_MIN_CHANNEL + 1)
 
 enum {
-	IEEE80211_CH_PASSIVE_ONLY = (1 << 0),
-	IEEE80211_CH_80211H_RULES = (1 << 1),
-	IEEE80211_CH_B_ONLY = (1 << 2),
-	IEEE80211_CH_NO_IBSS = (1 << 3),
-	IEEE80211_CH_UNIFORM_SPREADING = (1 << 4),
-	IEEE80211_CH_RADAR_DETECT = (1 << 5),
-	IEEE80211_CH_INVALID = (1 << 6),
+	LIBIPW_CH_PASSIVE_ONLY = (1 << 0),
+	LIBIPW_CH_80211H_RULES = (1 << 1),
+	LIBIPW_CH_B_ONLY = (1 << 2),
+	LIBIPW_CH_NO_IBSS = (1 << 3),
+	LIBIPW_CH_UNIFORM_SPREADING = (1 << 4),
+	LIBIPW_CH_RADAR_DETECT = (1 << 5),
+	LIBIPW_CH_INVALID = (1 << 6),
 };
 
-struct ieee80211_channel {
+struct libipw_channel {
 	u32 freq;	/* in MHz */
 	u8 channel;
 	u8 flags;
 	u8 max_power;	/* in dBm */
 };
 
-struct ieee80211_geo {
+struct libipw_geo {
 	u8 name[4];
 	u8 bg_channels;
 	u8 a_channels;
-	struct ieee80211_channel bg[IEEE80211_24GHZ_CHANNELS];
-	struct ieee80211_channel a[IEEE80211_52GHZ_CHANNELS];
+	struct libipw_channel bg[LIBIPW_24GHZ_CHANNELS];
+	struct libipw_channel a[LIBIPW_52GHZ_CHANNELS];
 };
 
-struct ieee80211_device {
+struct libipw_device {
 	struct net_device *dev;
-	struct ieee80211_security sec;
+	struct libipw_security sec;
 
 	/* Bookkeeping structures */
-	struct ieee80211_stats ieee_stats;
+	struct libipw_stats ieee_stats;
 
-	struct ieee80211_geo geo;
+	struct libipw_geo geo;
 
 	/* Probe / Beacon management */
 	struct list_head network_free_list;
 	struct list_head network_list;
-	struct ieee80211_network *networks;
+	struct libipw_network *networks;
 	int scans;
 	int scan_age;
 
@@ -840,7 +840,7 @@ struct ieee80211_device {
 				 * with RX of broad/multicast frames */
 
 	/* Fragmentation structures */
-	struct ieee80211_frag_entry frag_cache[IEEE80211_FRAG_CACHE_LEN];
+	struct libipw_frag_entry frag_cache[LIBIPW_FRAG_CACHE_LEN];
 	unsigned int frag_next_idx;
 	u16 fts;		/* Fragmentation Threshold */
 	u16 rts;		/* RTS threshold */
@@ -848,7 +848,7 @@ struct ieee80211_device {
 	/* Association info */
 	u8 bssid[ETH_ALEN];
 
-	enum ieee80211_state state;
+	enum libipw_state state;
 
 	int mode;		/* A, B, G */
 	int modulation;		/* CCK, OFDM */
@@ -862,43 +862,43 @@ struct ieee80211_device {
 
 	/* Callback functions */
 	void (*set_security) (struct net_device * dev,
-			      struct ieee80211_security * sec);
-	int (*hard_start_xmit) (struct ieee80211_txb * txb,
+			      struct libipw_security * sec);
+	int (*hard_start_xmit) (struct libipw_txb * txb,
 				struct net_device * dev, int pri);
 	int (*reset_port) (struct net_device * dev);
 	int (*is_queue_full) (struct net_device * dev, int pri);
 
 	int (*handle_management) (struct net_device * dev,
-				  struct ieee80211_network * network, u16 type);
+				  struct libipw_network * network, u16 type);
 	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
 	/* Typical STA methods */
 	int (*handle_auth) (struct net_device * dev,
-			    struct ieee80211_auth * auth);
+			    struct libipw_auth * auth);
 	int (*handle_deauth) (struct net_device * dev,
-			      struct ieee80211_deauth * auth);
+			      struct libipw_deauth * auth);
 	int (*handle_action) (struct net_device * dev,
-			      struct ieee80211_action * action,
-			      struct ieee80211_rx_stats * stats);
+			      struct libipw_action * action,
+			      struct libipw_rx_stats * stats);
 	int (*handle_disassoc) (struct net_device * dev,
-				struct ieee80211_disassoc * assoc);
+				struct libipw_disassoc * assoc);
 	int (*handle_beacon) (struct net_device * dev,
-			      struct ieee80211_beacon * beacon,
-			      struct ieee80211_network * network);
+			      struct libipw_beacon * beacon,
+			      struct libipw_network * network);
 	int (*handle_probe_response) (struct net_device * dev,
-				      struct ieee80211_probe_response * resp,
-				      struct ieee80211_network * network);
+				      struct libipw_probe_response * resp,
+				      struct libipw_network * network);
 	int (*handle_probe_request) (struct net_device * dev,
-				     struct ieee80211_probe_request * req,
-				     struct ieee80211_rx_stats * stats);
+				     struct libipw_probe_request * req,
+				     struct libipw_rx_stats * stats);
 	int (*handle_assoc_response) (struct net_device * dev,
-				      struct ieee80211_assoc_response * resp,
-				      struct ieee80211_network * network);
+				      struct libipw_assoc_response * resp,
+				      struct libipw_network * network);
 
 	/* Typical AP methods */
 	int (*handle_assoc_request) (struct net_device * dev);
 	int (*handle_reassoc_request) (struct net_device * dev,
-				       struct ieee80211_reassoc_request * req);
+				       struct libipw_reassoc_request * req);
 
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_ieee80211 */
@@ -910,12 +910,12 @@ struct ieee80211_device {
 #define IEEE_G            (1<<2)
 #define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 
-static inline void *ieee80211_priv(struct net_device *dev)
+static inline void *libipw_priv(struct net_device *dev)
 {
-	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
+	return ((struct libipw_device *)netdev_priv(dev))->priv;
 }
 
-static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
+static inline int libipw_is_valid_mode(struct libipw_device *ieee,
 					  int mode)
 {
 	/*
@@ -925,32 +925,32 @@ static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,
 	 *
 	 */
 	if ((mode & IEEE_A) &&
-	    (ieee->modulation & IEEE80211_OFDM_MODULATION) &&
-	    (ieee->freq_band & IEEE80211_52GHZ_BAND))
+	    (ieee->modulation & LIBIPW_OFDM_MODULATION) &&
+	    (ieee->freq_band & LIBIPW_52GHZ_BAND))
 		return 1;
 
 	if ((mode & IEEE_G) &&
-	    (ieee->modulation & IEEE80211_OFDM_MODULATION) &&
-	    (ieee->freq_band & IEEE80211_24GHZ_BAND))
+	    (ieee->modulation & LIBIPW_OFDM_MODULATION) &&
+	    (ieee->freq_band & LIBIPW_24GHZ_BAND))
 		return 1;
 
 	if ((mode & IEEE_B) &&
-	    (ieee->modulation & IEEE80211_CCK_MODULATION) &&
-	    (ieee->freq_band & IEEE80211_24GHZ_BAND))
+	    (ieee->modulation & LIBIPW_CCK_MODULATION) &&
+	    (ieee->freq_band & LIBIPW_24GHZ_BAND))
 		return 1;
 
 	return 0;
 }
 
-static inline int ieee80211_get_hdrlen(u16 fc)
+static inline int libipw_get_hdrlen(u16 fc)
 {
-	int hdrlen = IEEE80211_3ADDR_LEN;
+	int hdrlen = LIBIPW_3ADDR_LEN;
 	u16 stype = WLAN_FC_GET_STYPE(fc);
 
 	switch (WLAN_FC_GET_TYPE(fc)) {
 	case IEEE80211_FTYPE_DATA:
 		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
-			hdrlen = IEEE80211_4ADDR_LEN;
+			hdrlen = LIBIPW_4ADDR_LEN;
 		if (stype & IEEE80211_STYPE_QOS_DATA)
 			hdrlen += 2;
 		break;
@@ -958,10 +958,10 @@ static inline int ieee80211_get_hdrlen(u16 fc)
 		switch (WLAN_FC_GET_STYPE(fc)) {
 		case IEEE80211_STYPE_CTS:
 		case IEEE80211_STYPE_ACK:
-			hdrlen = IEEE80211_1ADDR_LEN;
+			hdrlen = LIBIPW_1ADDR_LEN;
 			break;
 		default:
-			hdrlen = IEEE80211_2ADDR_LEN;
+			hdrlen = LIBIPW_2ADDR_LEN;
 			break;
 		}
 		break;
@@ -970,44 +970,44 @@ static inline int ieee80211_get_hdrlen(u16 fc)
 	return hdrlen;
 }
 
-static inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
+static inline u8 *libipw_get_payload(struct ieee80211_hdr *hdr)
 {
-	switch (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control))) {
-	case IEEE80211_1ADDR_LEN:
-		return ((struct ieee80211_hdr_1addr *)hdr)->payload;
-	case IEEE80211_2ADDR_LEN:
-		return ((struct ieee80211_hdr_2addr *)hdr)->payload;
-	case IEEE80211_3ADDR_LEN:
-		return ((struct ieee80211_hdr_3addr *)hdr)->payload;
-	case IEEE80211_4ADDR_LEN:
-		return ((struct ieee80211_hdr_4addr *)hdr)->payload;
+	switch (libipw_get_hdrlen(le16_to_cpu(hdr->frame_control))) {
+	case LIBIPW_1ADDR_LEN:
+		return ((struct libipw_hdr_1addr *)hdr)->payload;
+	case LIBIPW_2ADDR_LEN:
+		return ((struct libipw_hdr_2addr *)hdr)->payload;
+	case LIBIPW_3ADDR_LEN:
+		return ((struct libipw_hdr_3addr *)hdr)->payload;
+	case LIBIPW_4ADDR_LEN:
+		return ((struct libipw_hdr_4addr *)hdr)->payload;
 	}
 	return NULL;
 }
 
-static inline int ieee80211_is_ofdm_rate(u8 rate)
+static inline int libipw_is_ofdm_rate(u8 rate)
 {
-	switch (rate & ~IEEE80211_BASIC_RATE_MASK) {
-	case IEEE80211_OFDM_RATE_6MB:
-	case IEEE80211_OFDM_RATE_9MB:
-	case IEEE80211_OFDM_RATE_12MB:
-	case IEEE80211_OFDM_RATE_18MB:
-	case IEEE80211_OFDM_RATE_24MB:
-	case IEEE80211_OFDM_RATE_36MB:
-	case IEEE80211_OFDM_RATE_48MB:
-	case IEEE80211_OFDM_RATE_54MB:
+	switch (rate & ~LIBIPW_BASIC_RATE_MASK) {
+	case LIBIPW_OFDM_RATE_6MB:
+	case LIBIPW_OFDM_RATE_9MB:
+	case LIBIPW_OFDM_RATE_12MB:
+	case LIBIPW_OFDM_RATE_18MB:
+	case LIBIPW_OFDM_RATE_24MB:
+	case LIBIPW_OFDM_RATE_36MB:
+	case LIBIPW_OFDM_RATE_48MB:
+	case LIBIPW_OFDM_RATE_54MB:
 		return 1;
 	}
 	return 0;
 }
 
-static inline int ieee80211_is_cck_rate(u8 rate)
+static inline int libipw_is_cck_rate(u8 rate)
 {
-	switch (rate & ~IEEE80211_BASIC_RATE_MASK) {
-	case IEEE80211_CCK_RATE_1MB:
-	case IEEE80211_CCK_RATE_2MB:
-	case IEEE80211_CCK_RATE_5MB:
-	case IEEE80211_CCK_RATE_11MB:
+	switch (rate & ~LIBIPW_BASIC_RATE_MASK) {
+	case LIBIPW_CCK_RATE_1MB:
+	case LIBIPW_CCK_RATE_2MB:
+	case LIBIPW_CCK_RATE_5MB:
+	case LIBIPW_CCK_RATE_11MB:
 		return 1;
 	}
 	return 0;
@@ -1016,72 +1016,72 @@ static inline int ieee80211_is_cck_rate(u8 rate)
 /* ieee80211.c */
 extern void free_ieee80211(struct net_device *dev);
 extern struct net_device *alloc_ieee80211(int sizeof_priv);
-extern int ieee80211_change_mtu(struct net_device *dev, int new_mtu);
+extern int libipw_change_mtu(struct net_device *dev, int new_mtu);
 
-extern void ieee80211_networks_age(struct ieee80211_device *ieee,
+extern void libipw_networks_age(struct libipw_device *ieee,
 				   unsigned long age_secs);
 
-extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
+extern int libipw_set_encryption(struct libipw_device *ieee);
 
-/* ieee80211_tx.c */
-extern int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev);
-extern void ieee80211_txb_free(struct ieee80211_txb *);
+/* libipw_tx.c */
+extern int libipw_xmit(struct sk_buff *skb, struct net_device *dev);
+extern void libipw_txb_free(struct libipw_txb *);
 
-/* ieee80211_rx.c */
-extern void ieee80211_rx_any(struct ieee80211_device *ieee,
-		     struct sk_buff *skb, struct ieee80211_rx_stats *stats);
-extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
-			struct ieee80211_rx_stats *rx_stats);
+/* libipw_rx.c */
+extern void libipw_rx_any(struct libipw_device *ieee,
+		     struct sk_buff *skb, struct libipw_rx_stats *stats);
+extern int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
+			struct libipw_rx_stats *rx_stats);
 /* make sure to set stats->len */
-extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
-			     struct ieee80211_hdr_4addr *header,
-			     struct ieee80211_rx_stats *stats);
-extern void ieee80211_network_reset(struct ieee80211_network *network);
+extern void libipw_rx_mgt(struct libipw_device *ieee,
+			     struct libipw_hdr_4addr *header,
+			     struct libipw_rx_stats *stats);
+extern void libipw_network_reset(struct libipw_network *network);
 
-/* ieee80211_geo.c */
-extern const struct ieee80211_geo *ieee80211_get_geo(struct ieee80211_device
+/* libipw_geo.c */
+extern const struct libipw_geo *libipw_get_geo(struct libipw_device
 						     *ieee);
-extern int ieee80211_set_geo(struct ieee80211_device *ieee,
-			     const struct ieee80211_geo *geo);
+extern int libipw_set_geo(struct libipw_device *ieee,
+			     const struct libipw_geo *geo);
 
-extern int ieee80211_is_valid_channel(struct ieee80211_device *ieee,
+extern int libipw_is_valid_channel(struct libipw_device *ieee,
 				      u8 channel);
-extern int ieee80211_channel_to_index(struct ieee80211_device *ieee,
+extern int libipw_channel_to_index(struct libipw_device *ieee,
 				      u8 channel);
-extern u8 ieee80211_freq_to_channel(struct ieee80211_device *ieee, u32 freq);
-extern u8 ieee80211_get_channel_flags(struct ieee80211_device *ieee,
+extern u8 libipw_freq_to_channel(struct libipw_device *ieee, u32 freq);
+extern u8 libipw_get_channel_flags(struct libipw_device *ieee,
 				      u8 channel);
-extern const struct ieee80211_channel *ieee80211_get_channel(struct
-							     ieee80211_device
+extern const struct libipw_channel *libipw_get_channel(struct
+							     libipw_device
 							     *ieee, u8 channel);
-extern u32 ieee80211_channel_to_freq(struct ieee80211_device * ieee,
+extern u32 libipw_channel_to_freq(struct libipw_device * ieee,
 				      u8 channel);
 
-/* ieee80211_wx.c */
-extern int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
+/* libipw_wx.c */
+extern int libipw_wx_get_scan(struct libipw_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *key);
-extern int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
+extern int libipw_wx_set_encode(struct libipw_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
+extern int libipw_wx_get_encode(struct libipw_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-extern int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
+extern int libipw_wx_set_encodeext(struct libipw_device *ieee,
 				      struct iw_request_info *info,
 				      union iwreq_data *wrqu, char *extra);
-extern int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
+extern int libipw_wx_get_encodeext(struct libipw_device *ieee,
 				      struct iw_request_info *info,
 				      union iwreq_data *wrqu, char *extra);
 
-static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
+static inline void libipw_increment_scans(struct libipw_device *ieee)
 {
 	ieee->scans++;
 }
 
-static inline int ieee80211_get_scans(struct ieee80211_device *ieee)
+static inline int libipw_get_scans(struct libipw_device *ieee)
 {
 	return ieee->scans;
 }
 
-#endif				/* IEEE80211_H */
+#endif				/* LIBIPW_H */

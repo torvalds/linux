@@ -50,11 +50,11 @@
 #include <net/net_namespace.h>
 #include <net/arp.h>
 
-#include "ieee80211.h"
+#include "libipw.h"
 
 #define DRV_DESCRIPTION "802.11 data/management/control stack"
 #define DRV_NAME        "ieee80211"
-#define DRV_VERSION	IEEE80211_VERSION
+#define DRV_VERSION	LIBIPW_VERSION
 #define DRV_COPYRIGHT   "Copyright (C) 2004-2005 Intel Corporation <jketreno@linux.intel.com>"
 
 MODULE_VERSION(DRV_VERSION);
@@ -62,13 +62,13 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-static int ieee80211_networks_allocate(struct ieee80211_device *ieee)
+static int libipw_networks_allocate(struct libipw_device *ieee)
 {
 	if (ieee->networks)
 		return 0;
 
 	ieee->networks =
-	    kzalloc(MAX_NETWORK_COUNT * sizeof(struct ieee80211_network),
+	    kzalloc(MAX_NETWORK_COUNT * sizeof(struct libipw_network),
 		    GFP_KERNEL);
 	if (!ieee->networks) {
 		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
@@ -79,7 +79,7 @@ static int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 	return 0;
 }
 
-void ieee80211_network_reset(struct ieee80211_network *network)
+void libipw_network_reset(struct libipw_network *network)
 {
 	if (!network)
 		return;
@@ -90,7 +90,7 @@ void ieee80211_network_reset(struct ieee80211_network *network)
 	}
 }
 
-static inline void ieee80211_networks_free(struct ieee80211_device *ieee)
+static inline void libipw_networks_free(struct libipw_device *ieee)
 {
 	int i;
 
@@ -105,10 +105,10 @@ static inline void ieee80211_networks_free(struct ieee80211_device *ieee)
 	ieee->networks = NULL;
 }
 
-void ieee80211_networks_age(struct ieee80211_device *ieee,
+void libipw_networks_age(struct libipw_device *ieee,
                             unsigned long age_secs)
 {
-	struct ieee80211_network *network = NULL;
+	struct libipw_network *network = NULL;
 	unsigned long flags;
 	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
 
@@ -118,9 +118,9 @@ void ieee80211_networks_age(struct ieee80211_device *ieee,
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
-EXPORT_SYMBOL(ieee80211_networks_age);
+EXPORT_SYMBOL(libipw_networks_age);
 
-static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
+static void libipw_networks_initialize(struct libipw_device *ieee)
 {
 	int i;
 
@@ -131,38 +131,38 @@ static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 			      &ieee->network_free_list);
 }
 
-int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
+int libipw_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || (new_mtu > IEEE80211_DATA_LEN))
+	if ((new_mtu < 68) || (new_mtu > LIBIPW_DATA_LEN))
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
 }
-EXPORT_SYMBOL(ieee80211_change_mtu);
+EXPORT_SYMBOL(libipw_change_mtu);
 
 struct net_device *alloc_ieee80211(int sizeof_priv)
 {
-	struct ieee80211_device *ieee;
+	struct libipw_device *ieee;
 	struct net_device *dev;
 	int err;
 
-	IEEE80211_DEBUG_INFO("Initializing...\n");
+	LIBIPW_DEBUG_INFO("Initializing...\n");
 
-	dev = alloc_etherdev(sizeof(struct ieee80211_device) + sizeof_priv);
+	dev = alloc_etherdev(sizeof(struct libipw_device) + sizeof_priv);
 	if (!dev) {
-		IEEE80211_ERROR("Unable to allocate network device.\n");
+		LIBIPW_ERROR("Unable to allocate network device.\n");
 		goto failed;
 	}
 	ieee = netdev_priv(dev);
 
 	ieee->dev = dev;
 
-	err = ieee80211_networks_allocate(ieee);
+	err = libipw_networks_allocate(ieee);
 	if (err) {
-		IEEE80211_ERROR("Unable to allocate beacon storage: %d\n", err);
+		LIBIPW_ERROR("Unable to allocate beacon storage: %d\n", err);
 		goto failed_free_netdev;
 	}
-	ieee80211_networks_initialize(ieee);
+	libipw_networks_initialize(ieee);
 
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;
@@ -201,25 +201,25 @@ failed:
 
 void free_ieee80211(struct net_device *dev)
 {
-	struct ieee80211_device *ieee = netdev_priv(dev);
+	struct libipw_device *ieee = netdev_priv(dev);
 
 	lib80211_crypt_info_free(&ieee->crypt_info);
 
-	ieee80211_networks_free(ieee);
+	libipw_networks_free(ieee);
 	free_netdev(dev);
 }
 
 #ifdef CONFIG_LIBIPW_DEBUG
 
 static int debug = 0;
-u32 ieee80211_debug_level = 0;
-EXPORT_SYMBOL_GPL(ieee80211_debug_level);
-static struct proc_dir_entry *ieee80211_proc = NULL;
+u32 libipw_debug_level = 0;
+EXPORT_SYMBOL_GPL(libipw_debug_level);
+static struct proc_dir_entry *libipw_proc = NULL;
 
 static int show_debug_level(char *page, char **start, off_t offset,
 			    int count, int *eof, void *data)
 {
-	return snprintf(page, count, "0x%08X\n", ieee80211_debug_level);
+	return snprintf(page, count, "0x%08X\n", libipw_debug_level);
 }
 
 static int store_debug_level(struct file *file, const char __user * buffer,
@@ -236,29 +236,29 @@ static int store_debug_level(struct file *file, const char __user * buffer,
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
-		ieee80211_debug_level = val;
+		libipw_debug_level = val;
 
 	return strnlen(buf, len);
 }
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
-static int __init ieee80211_init(void)
+static int __init libipw_init(void)
 {
 #ifdef CONFIG_LIBIPW_DEBUG
 	struct proc_dir_entry *e;
 
-	ieee80211_debug_level = debug;
-	ieee80211_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
-	if (ieee80211_proc == NULL) {
-		IEEE80211_ERROR("Unable to create " DRV_NAME
+	libipw_debug_level = debug;
+	libipw_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
+	if (libipw_proc == NULL) {
+		LIBIPW_ERROR("Unable to create " DRV_NAME
 				" proc directory\n");
 		return -EIO;
 	}
 	e = create_proc_entry("debug_level", S_IFREG | S_IRUGO | S_IWUSR,
-			      ieee80211_proc);
+			      libipw_proc);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
-		ieee80211_proc = NULL;
+		libipw_proc = NULL;
 		return -EIO;
 	}
 	e->read_proc = show_debug_level;
@@ -272,13 +272,13 @@ static int __init ieee80211_init(void)
 	return 0;
 }
 
-static void __exit ieee80211_exit(void)
+static void __exit libipw_exit(void)
 {
 #ifdef CONFIG_LIBIPW_DEBUG
-	if (ieee80211_proc) {
-		remove_proc_entry("debug_level", ieee80211_proc);
+	if (libipw_proc) {
+		remove_proc_entry("debug_level", libipw_proc);
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
-		ieee80211_proc = NULL;
+		libipw_proc = NULL;
 	}
 #endif				/* CONFIG_LIBIPW_DEBUG */
 }
@@ -289,8 +289,8 @@ module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
-module_exit(ieee80211_exit);
-module_init(ieee80211_init);
+module_exit(libipw_exit);
+module_init(libipw_init);
 
 EXPORT_SYMBOL(alloc_ieee80211);
 EXPORT_SYMBOL(free_ieee80211);

@@ -41,7 +41,7 @@
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
 
-#include "ieee80211.h"
+#include "libipw.h"
 
 /*
 
@@ -126,12 +126,12 @@ payload of each frame is reduced to 492 bytes.
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-static int ieee80211_copy_snap(u8 * data, __be16 h_proto)
+static int libipw_copy_snap(u8 * data, __be16 h_proto)
 {
-	struct ieee80211_snap_hdr *snap;
+	struct libipw_snap_hdr *snap;
 	u8 *oui;
 
-	snap = (struct ieee80211_snap_hdr *)data;
+	snap = (struct libipw_snap_hdr *)data;
 	snap->dsap = 0xaa;
 	snap->ssap = 0xaa;
 	snap->ctrl = 0x03;
@@ -149,7 +149,7 @@ static int ieee80211_copy_snap(u8 * data, __be16 h_proto)
 	return SNAP_SIZE + sizeof(u16);
 }
 
-static int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
+static int libipw_encrypt_fragment(struct libipw_device *ieee,
 					     struct sk_buff *frag, int hdr_len)
 {
 	struct lib80211_crypt_data *crypt =
@@ -177,7 +177,7 @@ static int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 	return 0;
 }
 
-void ieee80211_txb_free(struct ieee80211_txb *txb)
+void libipw_txb_free(struct libipw_txb *txb)
 {
 	int i;
 	if (unlikely(!txb))
@@ -188,17 +188,17 @@ void ieee80211_txb_free(struct ieee80211_txb *txb)
 	kfree(txb);
 }
 
-static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
+static struct libipw_txb *libipw_alloc_txb(int nr_frags, int txb_size,
 						 int headroom, gfp_t gfp_mask)
 {
-	struct ieee80211_txb *txb;
+	struct libipw_txb *txb;
 	int i;
-	txb = kmalloc(sizeof(struct ieee80211_txb) + (sizeof(u8 *) * nr_frags),
+	txb = kmalloc(sizeof(struct libipw_txb) + (sizeof(u8 *) * nr_frags),
 		      gfp_mask);
 	if (!txb)
 		return NULL;
 
-	memset(txb, 0, sizeof(struct ieee80211_txb));
+	memset(txb, 0, sizeof(struct libipw_txb));
 	txb->nr_frags = nr_frags;
 	txb->frag_size = txb_size;
 
@@ -220,7 +220,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	return txb;
 }
 
-static int ieee80211_classify(struct sk_buff *skb)
+static int libipw_classify(struct sk_buff *skb)
 {
 	struct ethhdr *eth;
 	struct iphdr *ip;
@@ -252,11 +252,11 @@ static int ieee80211_classify(struct sk_buff *skb)
 
 /* Incoming skb is converted to a txb which consists of
  * a block of 802.11 fragment packets (stored as skbs) */
-int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
+int libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ieee80211_device *ieee = netdev_priv(dev);
-	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addrqos *frag_hdr;
+	struct libipw_device *ieee = netdev_priv(dev);
+	struct libipw_txb *txb = NULL;
+	struct libipw_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size,
 	    rts_required;
 	unsigned long flags;
@@ -264,7 +264,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	__be16 ether_type;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
-	struct ieee80211_hdr_3addrqos header = {/* Ensure zero initialized */
+	struct libipw_hdr_3addrqos header = {/* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0,
 		.qos_ctl = 0
@@ -331,14 +331,14 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(header.addr2, src, ETH_ALEN);
 		memcpy(header.addr3, ieee->bssid, ETH_ALEN);
 	}
-	hdr_len = IEEE80211_3ADDR_LEN;
+	hdr_len = LIBIPW_3ADDR_LEN;
 
 	if (ieee->is_qos_active && ieee->is_qos_active(dev, skb)) {
 		fc |= IEEE80211_STYPE_QOS_DATA;
 		hdr_len += 2;
 
-		skb->priority = ieee80211_classify(skb);
-		header.qos_ctl |= cpu_to_le16(skb->priority & IEEE80211_QCTL_TID);
+		skb->priority = libipw_classify(skb);
+		header.qos_ctl |= cpu_to_le16(skb->priority & LIBIPW_QCTL_TID);
 	}
 	header.frame_ctl = cpu_to_le16(fc);
 
@@ -362,12 +362,12 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_reserve(skb_new, crypt->ops->extra_msdu_prefix_len);
 		memcpy(skb_put(skb_new, hdr_len), &header, hdr_len);
 		snapped = 1;
-		ieee80211_copy_snap(skb_put(skb_new, SNAP_SIZE + sizeof(u16)),
+		libipw_copy_snap(skb_put(skb_new, SNAP_SIZE + sizeof(u16)),
 				    ether_type);
 		skb_copy_from_linear_data(skb, skb_put(skb_new, skb->len), skb->len);
 		res = crypt->ops->encrypt_msdu(skb_new, hdr_len, crypt->priv);
 		if (res < 0) {
-			IEEE80211_ERROR("msdu encryption failed\n");
+			LIBIPW_ERROR("msdu encryption failed\n");
 			dev_kfree_skb_any(skb_new);
 			goto failed;
 		}
@@ -393,8 +393,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * for it when determining the amount of payload space. */
 		bytes_per_frag = frag_size - hdr_len;
 		if (ieee->config &
-		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
-			bytes_per_frag -= IEEE80211_FCS_LEN;
+		    (CFG_LIBIPW_COMPUTE_FCS | CFG_LIBIPW_RESERVE_FCS))
+			bytes_per_frag -= LIBIPW_FCS_LEN;
 
 		/* Each fragment may need to have room for encryptiong
 		 * pre/postfix */
@@ -417,14 +417,14 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	rts_required = (frag_size > ieee->rts
-			&& ieee->config & CFG_IEEE80211_RTS);
+			&& ieee->config & CFG_LIBIPW_RTS);
 	if (rts_required)
 		nr_frags++;
 
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(nr_frags, frag_size,
+	txb = libipw_alloc_txb(nr_frags, frag_size,
 				  ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
@@ -441,7 +441,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (rts_required) {
 		skb_frag = txb->fragments[0];
 		frag_hdr =
-		    (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+		    (struct libipw_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 
 		/*
 		 * Set header frame_ctl to the RTS.
@@ -456,7 +456,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		header.frame_ctl = cpu_to_le16(fc);
 
 		if (ieee->config &
-		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
+		    (CFG_LIBIPW_COMPUTE_FCS | CFG_LIBIPW_RESERVE_FCS))
 			skb_put(skb_frag, 4);
 
 		txb->rts_included = 1;
@@ -472,7 +472,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				    crypt->ops->extra_mpdu_prefix_len);
 
 		frag_hdr =
-		    (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+		    (struct libipw_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 		memcpy(frag_hdr, &header, hdr_len);
 
 		/* If this is not the last fragment, then add the MOREFRAGS
@@ -487,7 +487,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (i == 0 && !snapped) {
-			ieee80211_copy_snap(skb_put
+			libipw_copy_snap(skb_put
 					    (skb_frag, SNAP_SIZE + sizeof(u16)),
 					    ether_type);
 			bytes -= SNAP_SIZE + sizeof(u16);
@@ -501,7 +501,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Encryption routine will move the header forward in order
 		 * to insert the IV between the header and the payload */
 		if (host_encrypt)
-			ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
+			libipw_encrypt_fragment(ieee, skb_frag, hdr_len);
 		else if (host_build_iv) {
 			atomic_inc(&crypt->refcnt);
 			if (crypt->ops->build_iv)
@@ -513,7 +513,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (ieee->config &
-		    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
+		    (CFG_LIBIPW_COMPUTE_FCS | CFG_LIBIPW_RESERVE_FCS))
 			skb_put(skb_frag, 4);
 	}
 
@@ -530,7 +530,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		ieee80211_txb_free(txb);
+		libipw_txb_free(txb);
 	}
 
 	return NETDEV_TX_OK;
@@ -541,6 +541,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_errors++;
 	return NETDEV_TX_BUSY;
 }
-EXPORT_SYMBOL(ieee80211_xmit);
+EXPORT_SYMBOL(libipw_xmit);
 
-EXPORT_SYMBOL(ieee80211_txb_free);
+EXPORT_SYMBOL(libipw_txb_free);
