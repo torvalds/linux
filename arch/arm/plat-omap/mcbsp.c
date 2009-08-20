@@ -305,6 +305,46 @@ int omap_mcbsp_get_dma_op_mode(unsigned int id)
 	return dma_op_mode;
 }
 EXPORT_SYMBOL(omap_mcbsp_get_dma_op_mode);
+
+static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
+{
+	/*
+	 * Enable wakup behavior, smart idle and all wakeups
+	 * REVISIT: some wakeups may be unnecessary
+	 */
+	if (cpu_is_omap34xx()) {
+		u16 syscon;
+
+		syscon = OMAP_MCBSP_READ(mcbsp->io_base, SYSCON);
+		syscon &= ~(ENAWAKEUP | SIDLEMODE(0x03));
+		syscon |= (ENAWAKEUP | SIDLEMODE(0x02));
+		OMAP_MCBSP_WRITE(mcbsp->io_base, SYSCON, syscon);
+
+		OMAP_MCBSP_WRITE(mcbsp->io_base, WAKEUPEN, WAKEUPEN_ALL);
+	}
+}
+
+static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp)
+{
+	/*
+	 * Disable wakup behavior, smart idle and all wakeups
+	 */
+	if (cpu_is_omap34xx()) {
+		u16 syscon;
+		u16 wakeupen;
+
+		syscon = OMAP_MCBSP_READ(mcbsp->io_base, SYSCON);
+		syscon &= ~(ENAWAKEUP | SIDLEMODE(0x03));
+		OMAP_MCBSP_WRITE(mcbsp->io_base, SYSCON, syscon);
+
+		wakeupen = OMAP_MCBSP_READ(mcbsp->io_base, WAKEUPEN);
+		wakeupen &= ~WAKEUPEN_ALL;
+		OMAP_MCBSP_WRITE(mcbsp->io_base, WAKEUPEN, wakeupen);
+	}
+}
+#else
+static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp) {}
+static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp) {}
 #endif
 
 /*
@@ -366,6 +406,9 @@ int omap_mcbsp_request(unsigned int id)
 	clk_enable(mcbsp->iclk);
 	clk_enable(mcbsp->fclk);
 
+	/* Do procedure specific to omap34xx arch, if applicable */
+	omap34xx_mcbsp_request(mcbsp);
+
 	/*
 	 * Make sure that transmitter, receiver and sample-rate generator are
 	 * not running before activating IRQs.
@@ -413,6 +456,9 @@ void omap_mcbsp_free(unsigned int id)
 
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(id);
+
+	/* Do procedure specific to omap34xx arch, if applicable */
+	omap34xx_mcbsp_free(mcbsp);
 
 	clk_disable(mcbsp->fclk);
 	clk_disable(mcbsp->iclk);
