@@ -933,3 +933,26 @@ struct console early_dbgp_console = {
 	.flags =	CON_PRINTBUFFER,
 	.index =	-1,
 };
+
+int dbgp_reset_prep(void)
+{
+	u32 ctrl;
+
+	dbgp_not_safe = 1;
+	if (!ehci_debug)
+		return 0;
+
+	if (early_dbgp_console.index != -1 &&
+		!(early_dbgp_console.flags & CON_BOOT))
+		return 1;
+	/* This means the console is not initialized, or should get
+	 * shutdown so as to allow for reuse of the usb device, which
+	 * means it is time to shutdown the usb debug port. */
+	ctrl = readl(&ehci_debug->control);
+	if (ctrl & DBGP_ENABLED) {
+		ctrl &= ~(DBGP_CLAIM);
+		writel(ctrl, &ehci_debug->control);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dbgp_reset_prep);

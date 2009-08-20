@@ -240,6 +240,11 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	int	retval;
 	u32	command = ehci_readl(ehci, &ehci->regs->command);
 
+	/* If the EHCI debug controller is active, special care must be
+	 * taken before and after a host controller reset */
+	if (ehci->debug && !dbgp_reset_prep())
+		ehci->debug = NULL;
+
 	command |= CMD_RESET;
 	dbg_cmd (ehci, "reset", command);
 	ehci_writel(ehci, command, &ehci->regs->command);
@@ -259,6 +264,9 @@ static int ehci_reset (struct ehci_hcd *ehci)
 
 	if (ehci_is_TDI(ehci))
 		tdi_reset (ehci);
+
+	if (ehci->debug)
+		dbgp_external_startup();
 
 	return retval;
 }

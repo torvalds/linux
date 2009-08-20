@@ -855,6 +855,15 @@ static int ehci_hub_control (
 	case SetPortFeature:
 		selector = wIndex >> 8;
 		wIndex &= 0xff;
+		if (unlikely(ehci->debug)) {
+			/* If the debug port is active any port
+			 * feature requests should get denied */
+			if (wIndex == HCS_DEBUG_PORT(ehci->hcs_params) &&
+			    (readl(&ehci->debug->control) & DBGP_ENABLED)) {
+				retval = -ENODEV;
+				goto error_exit;
+			}
+		}
 		if (!wIndex || wIndex > ports)
 			goto error;
 		wIndex--;
@@ -951,6 +960,7 @@ error:
 		/* "stall" on error */
 		retval = -EPIPE;
 	}
+error_exit:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return retval;
 }

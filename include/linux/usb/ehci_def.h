@@ -179,6 +179,16 @@ extern struct console early_dbgp_console;
 #ifdef CONFIG_EARLY_PRINTK_DBGP
 /* Call backs from ehci host driver to ehci debug driver */
 extern int dbgp_external_startup(void);
+extern int dbgp_reset_prep(void);
+#else
+static inline int dbgp_reset_prep(void)
+{
+	return 1;
+}
+static inline int dbgp_external_startup(void)
+{
+	return -1;
+}
 #endif
 
 #endif /* __LINUX_USB_EHCI_DEF_H */
