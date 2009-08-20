@@ -59,9 +59,11 @@ struct x86_init_irqs {
 /**
  * struct x86_init_oem - oem platform specific customizing functions
  * @arch_setup:			platform specific architecure setup
+ * @banner:			print a platform specific banner
  */
 struct x86_init_oem {
 	void (*arch_setup)(void);
+	void (*banner)(void);
 };
 
 /**

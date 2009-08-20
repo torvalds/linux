@@ -840,7 +840,6 @@ static const struct pv_info xen_info __initdata = {
 static const struct pv_init_ops xen_init_ops __initdata = {
 	.patch = xen_patch,
 
-	.banner = xen_banner,
 	.post_allocator_init = xen_post_allocator_init,
 };
 
@@ -982,6 +981,7 @@ asmlinkage void __init xen_start_kernel(void)
 
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
+	x86_init.oem.banner = xen_banner;
 
 #ifdef CONFIG_X86_64
 	/*

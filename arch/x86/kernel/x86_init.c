@@ -6,6 +6,7 @@
 #include <linux/init.h>
 
 #include <asm/bios_ebda.h>
+#include <asm/paravirt.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
@@ -45,5 +46,6 @@ struct __initdata x86_init_ops x86_init = {
 
 	.oem = {
 		.arch_setup		= x86_init_noop,
+		.banner			= default_banner,
 	},
 };

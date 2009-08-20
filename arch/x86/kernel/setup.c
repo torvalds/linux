@@ -1012,6 +1012,7 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+	x86_init.oem.banner();
 }
 
 #ifdef CONFIG_X86_32

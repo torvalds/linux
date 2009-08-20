@@ -918,6 +918,8 @@ static inline unsigned long __raw_local_irq_save(void)
 #undef PVOP_VCALL4
 #undef PVOP_CALL4
 
+extern void default_banner(void);
+
 #else  /* __ASSEMBLY__ */
 
 #define _PVSITE(ptype, clobbers, ops, word, algn)	\
@@ -1058,5 +1060,7 @@ static inline unsigned long __raw_local_irq_save(void)
 #endif	/* CONFIG_X86_32 */
 
 #endif /* __ASSEMBLY__ */
-#endif /* CONFIG_PARAVIRT */
+#else  /* CONFIG_PARAVIRT */
+# define default_banner x86_init_noop
+#endif /* !CONFIG_PARAVIRT */
 #endif /* _ASM_X86_PARAVIRT_H */

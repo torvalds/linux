@@ -54,7 +54,7 @@ u64 _paravirt_ident_64(u64 x)
 	return x;
 }
 
-static void __init default_banner(void)
+void __init default_banner(void)
 {
 	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
 	       pv_info.name);
@@ -208,13 +208,6 @@ extern void native_irq_enable_sysexit(void);
 extern void native_usergs_sysret32(void);
 extern void native_usergs_sysret64(void);
 
-static int __init print_banner(void)
-{
-	pv_init_ops.banner();
-	return 0;
-}
-core_initcall(print_banner);
-
 static struct resource reserve_ioports = {
 	.start = 0,
 	.end = IO_SPACE_LIMIT,
@@ -310,7 +303,6 @@ struct pv_info pv_info = {
 
 struct pv_init_ops pv_init_ops = {
 	.patch = native_patch,
-	.banner = default_banner,
 };
 
 struct pv_time_ops pv_time_ops = {
