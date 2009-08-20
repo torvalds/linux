@@ -102,7 +102,7 @@ struct hv_netvsc_packet {
 	u32					TotalDataBufferLength;
 	/* Points to the send/receive buffer where the ethernet frame is */
 	u32					PageBufferCount;
-	PAGE_BUFFER				PageBuffers[NETVSC_PACKET_MAXPAGE];
+	struct hv_page_buffer PageBuffers[NETVSC_PACKET_MAXPAGE];
 
 };
 

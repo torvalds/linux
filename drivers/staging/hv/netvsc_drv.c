@@ -429,14 +429,14 @@ static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net)
 	num_frags = skb_shinfo(skb)->nr_frags + 1 + net_drv_obj->AdditionalRequestPageBufferCount;
 
 	/* Allocate a netvsc packet based on # of frags. */
-	packet = kzalloc(sizeof(struct hv_netvsc_packet) + (num_frags * sizeof(PAGE_BUFFER)) + net_drv_obj->RequestExtSize, GFP_ATOMIC);
+	packet = kzalloc(sizeof(struct hv_netvsc_packet) + (num_frags * sizeof(struct hv_page_buffer)) + net_drv_obj->RequestExtSize, GFP_ATOMIC);
 	if (!packet)
 	{
 		DPRINT_ERR(NETVSC_DRV, "unable to allocate hv_netvsc_packet");
 		return -1;
 	}
 
-	packet->Extension = (void*)(unsigned long)packet + sizeof(struct hv_netvsc_packet) + (num_frags * sizeof(PAGE_BUFFER)) ;
+	packet->Extension = (void*)(unsigned long)packet + sizeof(struct hv_netvsc_packet) + (num_frags * sizeof(struct hv_page_buffer)) ;
 
 	/* Setup the rndis header */
 	packet->PageBufferCount = num_frags;

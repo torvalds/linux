@@ -791,7 +791,7 @@ Description:
 
 --*/
 int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
-	PAGE_BUFFER			PageBuffers[],
+	struct hv_page_buffer PageBuffers[],
 	u32				PageCount,
 	void *				Buffer,
 	u32				BufferLen,
@@ -814,7 +814,7 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 	DumpVmbusChannel(Channel);
 
 	/* Adjust the size down since VMBUS_CHANNEL_PACKET_PAGE_BUFFER is the largest size we support */
-	descSize = sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER) - ((MAX_PAGE_BUFFER_COUNT - PageCount)*sizeof(PAGE_BUFFER));
+	descSize = sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER) - ((MAX_PAGE_BUFFER_COUNT - PageCount)*sizeof(struct hv_page_buffer));
 	packetLen = descSize + BufferLen;
 	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 
@@ -868,7 +868,7 @@ Description:
 
 --*/
 int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
-	MULTIPAGE_BUFFER	*MultiPageBuffer,
+	struct hv_multipage_buffer *MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
 	u64				RequestId

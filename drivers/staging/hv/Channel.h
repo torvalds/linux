@@ -36,7 +36,7 @@ struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 	u64 TransactionId;
 	u32 Reserved;
 	u32 RangeCount;
-	PAGE_BUFFER Range[MAX_PAGE_BUFFER_COUNT];
+	struct hv_page_buffer Range[MAX_PAGE_BUFFER_COUNT];
 } __attribute__((packed));
 
 /* The format must be the same as VMDATA_GPA_DIRECT */
@@ -48,7 +48,7 @@ struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
 	u64 TransactionId;
 	u32 Reserved;
 	u32 RangeCount;		/* Always 1 in this case */
-	MULTIPAGE_BUFFER Range;
+	struct hv_multipage_buffer Range;
 } __attribute__((packed));
 
 
@@ -70,14 +70,14 @@ extern int VmbusChannelSendPacket(struct vmbus_channel *channel,
 				  u32 Flags);
 
 extern int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *channel,
-					    PAGE_BUFFER PageBuffers[],
+					    struct hv_page_buffer PageBuffers[],
 					    u32 PageCount,
 					    void *Buffer,
 					    u32 BufferLen,
 					    u64 RequestId);
 
 extern int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *channel,
-					MULTIPAGE_BUFFER *MultiPageBuffer,
+					struct hv_multipage_buffer *mpb,
 					void *Buffer,
 					u32 BufferLen,
 					u64 RequestId);

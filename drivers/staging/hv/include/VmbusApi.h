@@ -31,25 +31,26 @@
 #pragma pack(push, 1)
 
 /* Single-page buffer */
-typedef struct _PAGE_BUFFER {
+struct hv_page_buffer {
 	u32 Length;
 	u32 Offset;
 	u64 Pfn;
-} PAGE_BUFFER;
+};
 
 /* Multiple-page buffer */
-typedef struct _MULTIPAGE_BUFFER {
+struct hv_multipage_buffer {
 	/* Length and Offset determines the # of pfns in the array */
 	u32 Length;
 	u32 Offset;
 	u64 PfnArray[MAX_MULTIPAGE_BUFFER_COUNT];
-} MULTIPAGE_BUFFER;
+};
 
 /* 0x18 includes the proprietary packet header */
 #define MAX_PAGE_BUFFER_PACKET		(0x18 +			\
-					(sizeof(PAGE_BUFFER) * 	\
+					(sizeof(struct hv_page_buffer) * \
 					 MAX_PAGE_BUFFER_COUNT))
-#define MAX_MULTIPAGE_BUFFER_PACKET	(0x18 + sizeof(MULTIPAGE_BUFFER))
+#define MAX_MULTIPAGE_BUFFER_PACKET	(0x18 +			\
+					 sizeof(struct hv_multipage_buffer))
 
 
 #pragma pack(pop)
@@ -69,7 +70,7 @@ typedef int (*PFN_ON_ISR)(struct hv_driver *drv);
 typedef void (*PFN_ON_DPC)(struct hv_driver *drv);
 typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
 
-typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)
+typedef struct hv_device * (*PFN_ON_CHILDDEVICE_CREATE)
 				(struct hv_guid *DeviceType,
 				 struct hv_guid *DeviceInstance,
 				 void *Context);
@@ -94,14 +95,14 @@ typedef int (*VMBUS_CHANNEL_SEND_PACKET)(struct hv_device *Device,
 					 u32 Type,
 					 u32 Flags);
 typedef int (*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(struct hv_device *Device,
-						    PAGE_BUFFER PageBuffers[],
-						    u32 PageCount,
-						    void *Buffer,
-						    u32 BufferLen,
-						    u64 RequestId);
-typedef int(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)
+					struct hv_page_buffer PageBuffers[],
+					u32 PageCount,
+					void *Buffer,
+					u32 BufferLen,
+					u64 RequestId);
+typedef int (*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)
 					(struct hv_device *Device,
-					 MULTIPAGE_BUFFER *MultiPageBuffer,
+					 struct hv_multipage_buffer *mpb,
 					 void *Buffer,
 					 u32 BufferLen,
 					 u64 RequestId);
@@ -123,15 +124,15 @@ typedef int (*VMBUS_CHANNEL_TEARDOWN_GPADL)(struct hv_device *Device,
 					    u32 GpadlHandle);
 
 
-typedef struct _PORT_INFO {
+struct hv_dev_port_info {
 	u32 InterruptMask;
 	u32 ReadIndex;
 	u32 WriteIndex;
 	u32 BytesAvailToRead;
 	u32 BytesAvailToWrite;
-} PORT_INFO;
+};
 
-typedef struct _DEVICE_INFO {
+struct hv_device_info {
 	u32 ChannelId;
 	u32 ChannelState;
 	struct hv_guid ChannelType;
@@ -145,14 +146,14 @@ typedef struct _DEVICE_INFO {
 	u32 ClientMonitorLatency;
 	u32 ClientMonitorConnectionId;
 
-	PORT_INFO Inbound;
-	PORT_INFO Outbound;
-} DEVICE_INFO;
+	struct hv_dev_port_info Inbound;
+	struct hv_dev_port_info Outbound;
+};
 
 typedef void (*VMBUS_GET_CHANNEL_INFO)(struct hv_device *Device,
-				       DEVICE_INFO *DeviceInfo);
+				       struct hv_device_info *DeviceInfo);
 
-typedef struct _VMBUS_CHANNEL_INTERFACE {
+struct vmbus_channel_interface {
 	VMBUS_CHANNEL_OPEN Open;
 	VMBUS_CHANNEL_CLOSE Close;
 	VMBUS_CHANNEL_SEND_PACKET SendPacket;
@@ -163,9 +164,9 @@ typedef struct _VMBUS_CHANNEL_INTERFACE {
 	VMBUS_CHANNEL_ESTABLISH_GPADL EstablishGpadl;
 	VMBUS_CHANNEL_TEARDOWN_GPADL TeardownGpadl;
 	VMBUS_GET_CHANNEL_INFO GetInfo;
-} VMBUS_CHANNEL_INTERFACE;
+};
 
-typedef void (*VMBUS_GET_CHANNEL_INTERFACE)(VMBUS_CHANNEL_INTERFACE *Interface);
+typedef void (*VMBUS_GET_CHANNEL_INTERFACE)(struct vmbus_channel_interface *i);
 
 /* Base driver object */
 struct hv_driver {
@@ -181,7 +182,7 @@ struct hv_driver {
 	PFN_ON_GETDEVICEIDS OnGetDeviceIds;
 	PFN_ON_CLEANUP OnCleanup;
 
-	VMBUS_CHANNEL_INTERFACE VmbusChannelInterface;
+	struct vmbus_channel_interface VmbusChannelInterface;
 };
 
 /* Base device object */
@@ -204,7 +205,7 @@ struct hv_device {
 };
 
 /* Vmbus driver object */
-typedef struct _VMBUS_DRIVER_OBJECT {
+struct vmbus_driver {
 	/* !! Must be the 1st field !! */
 	/* FIXME if ^, then someone is doing somthing stupid */
 	struct hv_driver Base;
@@ -223,7 +224,7 @@ typedef struct _VMBUS_DRIVER_OBJECT {
 
 	VMBUS_GET_CHANNEL_INTERFACE GetChannelInterface;
 	VMBUS_GET_CHANNEL_INFO GetChannelInfo;
-} VMBUS_DRIVER_OBJECT;
+};
 
 int VmbusInitialize(struct hv_driver *drv);
 

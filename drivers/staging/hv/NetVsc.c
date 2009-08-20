@@ -825,7 +825,7 @@ NetVscOnDeviceAdd(
 
 	for (i=0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++)
 	{
-		packet = kzalloc(sizeof(struct hv_netvsc_packet) + (NETVSC_RECEIVE_SG_COUNT* sizeof(PAGE_BUFFER)), GFP_KERNEL);
+		packet = kzalloc(sizeof(struct hv_netvsc_packet) + (NETVSC_RECEIVE_SG_COUNT* sizeof(struct hv_page_buffer)), GFP_KERNEL);
 		if (!packet)
 		{
 			DPRINT_DBG(NETVSC, "unable to allocate netvsc pkts for receive pool (wanted %d got %d)", NETVSC_RECEIVE_PACKETLIST_COUNT, i);

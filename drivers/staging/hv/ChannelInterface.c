@@ -77,7 +77,7 @@ IVmbusChannelSendPacket(
 static int
 IVmbusChannelSendPacketPageBuffer(
 	struct hv_device *Device,
-	PAGE_BUFFER			PageBuffers[],
+	struct hv_page_buffer PageBuffers[],
 	u32				PageCount,
 	void *				Buffer,
 	u32				BufferLen,
@@ -95,7 +95,7 @@ IVmbusChannelSendPacketPageBuffer(
 static int
 IVmbusChannelSendPacketMultiPageBuffer(
 	struct hv_device *Device,
-	MULTIPAGE_BUFFER	*MultiPageBuffer,
+	struct hv_multipage_buffer *MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
 	u64				RequestId
@@ -165,7 +165,7 @@ IVmbusChannelTeardownGpadl(
 
 }
 
-void GetChannelInterface(VMBUS_CHANNEL_INTERFACE *ChannelInterface)
+void GetChannelInterface(struct vmbus_channel_interface *ChannelInterface)
 {
 	ChannelInterface->Open						= IVmbusChannelOpen;
 	ChannelInterface->Close						= IVmbusChannelClose;
@@ -180,7 +180,7 @@ void GetChannelInterface(VMBUS_CHANNEL_INTERFACE *ChannelInterface)
 }
 
 
-void GetChannelInfo(struct hv_device *Device, DEVICE_INFO *DeviceInfo)
+void GetChannelInfo(struct hv_device *Device, struct hv_device_info *DeviceInfo)
 {
 	struct vmbus_channel_debug_info debugInfo;
 

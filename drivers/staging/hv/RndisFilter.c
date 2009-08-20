@@ -72,7 +72,7 @@ typedef struct _RNDIS_REQUEST {
 
 	/* Simplify allocation by having a netvsc packet inline */
 	struct hv_netvsc_packet	Packet;
-	PAGE_BUFFER					Buffer;
+	struct hv_page_buffer Buffer;
 	/* FIXME: We assumed a fixed size request here. */
 	struct rndis_message RequestMessage;
 } RNDIS_REQUEST;

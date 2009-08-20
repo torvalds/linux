@@ -49,7 +49,7 @@ struct vmbus_driver_context {
 	/* The driver field is not used in here. Instead, the bus field is */
 	/* used to represent the driver */
 	struct driver_context	drv_ctx;
-	VMBUS_DRIVER_OBJECT		drv_obj;
+	struct vmbus_driver drv_obj;
 
 	struct bus_type			bus;
 	struct tasklet_struct	msg_dpc;
@@ -79,7 +79,7 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type, struct 
 static void vmbus_child_device_destroy(struct hv_device *device_obj);
 static int vmbus_child_device_register(struct hv_device *root_device_obj, struct hv_device *child_device_obj);
 static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
-static void vmbus_child_device_get_info(struct hv_device *device_obj, DEVICE_INFO *device_info);
+static void vmbus_child_device_get_info(struct hv_device *device_obj, struct hv_device_info *device_info);
 
 /* static ssize_t vmbus_show_class_id(struct device *dev, struct device_attribute *attr, char *buf); */
 /* static ssize_t vmbus_show_device_id(struct device *dev, struct device_attribute *attr, char *buf); */
@@ -159,9 +159,9 @@ Desc:	Show the device attribute in sysfs. This is invoked when user does a "cat 
 static ssize_t vmbus_show_device_attr(struct device *dev, struct device_attribute *dev_attr, char *buf)
 {
 	struct device_context *device_ctx = device_to_device_context(dev);
-	DEVICE_INFO device_info;
+	struct hv_device_info device_info;
 
-	memset(&device_info, 0, sizeof(DEVICE_INFO));
+	memset(&device_info, 0, sizeof(struct hv_device_info));
 
 	vmbus_child_device_get_info(&device_ctx->device_obj, &device_info);
 
@@ -325,7 +325,7 @@ static int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	unsigned int vector=0;
 
 	struct vmbus_driver_context *vmbus_drv_ctx=&g_vmbus_drv;
-	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
+	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 
 	struct device_context *dev_ctx=&g_vmbus_drv.device_ctx;
 
@@ -446,7 +446,7 @@ Desc:	Terminate the vmbus driver. This routine is opposite of vmbus_bus_init()
 --*/
 static void vmbus_bus_exit(void)
 {
-	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
+	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 	struct vmbus_driver_context *vmbus_drv_ctx=&g_vmbus_drv;
 
 	struct device_context *dev_ctx=&g_vmbus_drv.device_ctx;
@@ -484,7 +484,7 @@ Desc:	Register a vmbus's child driver
 --*/
 int vmbus_child_driver_register(struct driver_context* driver_ctx)
 {
-	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
+	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 	int ret;
 
 	DPRINT_ENTER(VMBUS_DRV);
@@ -534,9 +534,9 @@ Name:	vmbus_get_interface()
 Desc:	Get the vmbus channel interface. This is invoked by child/client driver that sits
 		above vmbus
 --*/
-void vmbus_get_interface(VMBUS_CHANNEL_INTERFACE *interface)
+void vmbus_get_interface(struct vmbus_channel_interface *interface)
 {
-	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
+	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 
 	vmbus_drv_obj->GetChannelInterface(interface);
 }
@@ -550,9 +550,9 @@ Name:	vmbus_child_device_get_info()
 
 Desc:	Get the vmbus child device info. This is invoked to display various device attributes in sysfs.
 --*/
-static void vmbus_child_device_get_info(struct hv_device *device_obj, DEVICE_INFO *device_info)
+static void vmbus_child_device_get_info(struct hv_device *device_obj, struct hv_device_info *device_info)
 {
-	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
+	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 
 	vmbus_drv_obj->GetChannelInfo(device_obj, device_info);
 }
@@ -1000,7 +1000,7 @@ Desc:	Tasklet routine to handle hypervisor messages
 --*/
 static void vmbus_msg_dpc(unsigned long data)
 {
-	VMBUS_DRIVER_OBJECT* vmbus_drv_obj = (VMBUS_DRIVER_OBJECT*)data;
+	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
 
 	DPRINT_ENTER(VMBUS_DRV);
 
@@ -1021,7 +1021,7 @@ Desc:	Tasklet routine to handle hypervisor events
 --*/
 static void vmbus_event_dpc(unsigned long data)
 {
-	VMBUS_DRIVER_OBJECT* vmbus_drv_obj = (VMBUS_DRIVER_OBJECT*)data;
+	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
 
 	DPRINT_ENTER(VMBUS_DRV);
 
@@ -1043,7 +1043,7 @@ Desc:	ISR routine
 static irqreturn_t vmbus_isr(int irq, void* dev_id)
 {
 	int ret=0;
-	VMBUS_DRIVER_OBJECT* vmbus_driver_obj = &g_vmbus_drv.drv_obj;
+	struct vmbus_driver *vmbus_driver_obj = &g_vmbus_drv.drv_obj;
 
 	DPRINT_ENTER(VMBUS_DRV);
 

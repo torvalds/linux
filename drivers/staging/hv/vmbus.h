@@ -76,6 +76,6 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 
 int vmbus_child_driver_register(struct driver_context *driver_ctx);
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx);
-void vmbus_get_interface(VMBUS_CHANNEL_INTERFACE *interface);
+void vmbus_get_interface(struct vmbus_channel_interface *interface);
 
 #endif /* _VMBUS_H_ */

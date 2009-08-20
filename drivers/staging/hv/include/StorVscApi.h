@@ -92,7 +92,7 @@ struct hv_storvsc_request {
 	/* This points to the memory after DataBuffer */
 	void *					Extension;
 
-	MULTIPAGE_BUFFER		DataBuffer;
+	struct hv_multipage_buffer DataBuffer;
 };
 
 
