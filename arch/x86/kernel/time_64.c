@@ -23,7 +23,13 @@
 #include <asm/time.h>
 #include <asm/nmi.h>
 
+#if defined(CONFIG_X86_32) && defined(CONFIG_X86_IO_APIC)
+int timer_ack;
+#endif
+
+#ifdef CONFIG_X86_64
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
+#endif
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -47,8 +53,12 @@ unsigned long profile_pc(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(profile_pc);
 
+/*
+ * Default timer interrupt handler for PIT/HPET
+ */
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
+	/* Keep nmi watchdog up to date */
 	inc_irq_stat(irq0_irqs);
 
 	/* Optimized out for !IO_APIC and x86_64 */
@@ -74,8 +84,10 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* calibrate_cpu is used on systems with fixed rate TSCs to determine
- * processor frequency */
+/*
+ * calibrate_cpu is used on systems with fixed rate TSCs to determine
+ * processor frequency
+ */
 #define TICK_COUNT 100000000
 unsigned long __init calibrate_cpu(void)
 {
@@ -122,18 +134,24 @@ unsigned long __init calibrate_cpu(void)
 	return pmc_now * tsc_khz / (tsc_now - tsc_start);
 }
 
-static struct irqaction irq0 = {
-	.handler	= timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_IRQPOLL | IRQF_NOBALANCING | IRQF_TIMER,
-	.name		= "timer"
+static struct irqaction irq0  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
+	.name = "timer"
 };
 
+void __init setup_default_timer_irq(void)
+{
+	irq0.mask = cpumask_of_cpu(0);
+	setup_irq(0, &irq0);
+}
+
+/* Default timer init function */
 void __init hpet_time_init(void)
 {
 	if (!hpet_enable())
 		setup_pit_timer();
-
-	setup_irq(0, &irq0);
+	setup_default_timer_irq();
 }
 
 static void x86_late_time_init(void)
@@ -141,6 +159,10 @@ static void x86_late_time_init(void)
 	x86_init.timers.timer_init();
 }
 
+/*
+ * Initialize TSC and delay the periodic timer init to
+ * late x86_late_time_init() so ioremap works.
+ */
 void __init time_init(void)
 {
 	tsc_init();

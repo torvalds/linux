@@ -27,6 +27,10 @@
 int timer_ack;
 #endif
 
+#ifdef CONFIG_X86_64
+volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
+#endif
+
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
@@ -53,9 +57,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 
 /*
- * This is the same as the above, except we _also_ save the current
- * Time Stamp Counter value at the time of the timer interrupt, so that
- * we later on can estimate the time of day more exactly.
+ * Default timer interrupt handler for PIT/HPET
  */
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
