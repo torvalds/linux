@@ -230,7 +230,7 @@ int HvInit (void)
 {
 	int ret=0;
     int maxLeaf;
-	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
+	union hv_x64_msr_hypercall_contents hypercallMsr;
 	void *virtAddr = NULL;
 
 	DPRINT_ENTER(VMBUS);
@@ -347,7 +347,7 @@ Description:
 --*/
 void HvCleanup (void)
 {
-	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
+	union hv_x64_msr_hypercall_contents hypercallMsr;
 
 	DPRINT_ENTER(VMBUS);
 
