@@ -79,3 +79,15 @@ config SND_S3C24XX_SOC_S3C24XX_UDA134X
        	select SND_S3C24XX_SOC_I2S
 	select SND_SOC_L3
        	select SND_SOC_UDA134X
+
+config SND_S3C24XX_SOC_SIMTEC
+	tristate
+	help
+	  Internal node for common S3C24XX/Simtec suppor
+
+config SND_S3C24XX_SOC_SIMTEC_TLV320AIC23
+	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
+	depends on SND_S3C24XX_SOC
+	select SND_S3C24XX_SOC_I2S
+	select SND_SOC_TLV320AIC23
+	select SND_S3C24XX_SOC_SIMTEC
