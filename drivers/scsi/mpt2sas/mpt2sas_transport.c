@@ -792,7 +792,7 @@ mpt2sas_transport_add_expander_phy(struct MPT2SAS_ADAPTER *ioc, struct _sas_phy
 }
 
 /**
- * mpt2sas_transport_update_phy_link_change - refreshing phy link changes and attached devices
+ * mpt2sas_transport_update_links - refreshing phy link changes
  * @ioc: per adapter object
  * @handle: handle to sas_host or expander
  * @attached_handle: attached device handle
@@ -802,7 +802,7 @@ mpt2sas_transport_add_expander_phy(struct MPT2SAS_ADAPTER *ioc, struct _sas_phy
  * Returns nothing.
  */
 void
-mpt2sas_transport_update_phy_link_change(struct MPT2SAS_ADAPTER *ioc,
+mpt2sas_transport_update_links(struct MPT2SAS_ADAPTER *ioc,
     u16 handle, u16 attached_handle, u8 phy_number, u8 link_rate)
 {
 	unsigned long flags;
