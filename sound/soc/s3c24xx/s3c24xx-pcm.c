@@ -318,6 +318,7 @@ static int s3c24xx_pcm_open(struct snd_pcm_substream *substream)
 
 	pr_debug("Entered %s\n", __func__);
 
+	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	snd_soc_set_runtime_hwparams(substream, &s3c24xx_pcm_hardware);
 
 	prtd = kzalloc(sizeof(struct s3c24xx_runtime_data), GFP_KERNEL);
