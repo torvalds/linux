@@ -478,10 +478,13 @@ int dbgp_external_startup(void)
 	int devnum;
 	struct usb_debug_descriptor dbgp_desc;
 	int ret;
-	u32 ctrl, portsc;
+	u32 ctrl, portsc, cmd;
 	int dbg_port = dbgp_phys_port;
 	int tries = 3;
+	int reset_port_tries = 1;
+	int try_hard_once = 1;
 
+try_port_reset_again:
 	ret = dbgp_ehci_startup();
 	if (ret)
 		return ret;
@@ -490,6 +493,24 @@ int dbgp_external_startup(void)
 	ret = ehci_wait_for_port(dbg_port);
 	if (ret < 0) {
 		portsc = readl(&ehci_regs->port_status[dbg_port - 1]);
+		if (!(portsc & PORT_CONNECT) && try_hard_once) {
+			/* Last ditch effort to try to force enable
+			 * the debug device by using the packet test
+			 * ehci command to try and wake it up. */
+			try_hard_once = 0;
+			cmd = readl(&ehci_regs->command);
+			cmd &= ~CMD_RUN;
+			writel(cmd, &ehci_regs->command);
+			portsc = readl(&ehci_regs->port_status[dbg_port - 1]);
+			portsc |= PORT_TEST_PKT;
+			writel(portsc, &ehci_regs->port_status[dbg_port - 1]);
+			dbgp_ehci_status("Trying to force debug port online");
+			mdelay(50);
+			dbgp_ehci_controller_reset();
+			goto try_port_reset_again;
+		} else if (reset_port_tries--) {
+			goto try_port_reset_again;
+		}
 		dbgp_printk("No device found in debug port\n");
 		return -EIO;
 	}

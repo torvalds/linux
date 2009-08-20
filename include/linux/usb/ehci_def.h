@@ -105,6 +105,7 @@ struct ehci_regs {
 #define PORT_WKDISC_E	(1<<21)		/* wake on disconnect (enable) */
 #define PORT_WKCONN_E	(1<<20)		/* wake on connect (enable) */
 /* 19:16 for port testing */
+#define PORT_TEST_PKT	(0x4<<16)	/* Port Test Control - packet test */
 #define PORT_LED_OFF	(0<<14)
 #define PORT_LED_AMBER	(1<<14)
 #define PORT_LED_GREEN	(2<<14)
