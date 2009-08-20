@@ -162,7 +162,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	 */
 	dma_params.data_type			= OMAP_DMA_DATA_TYPE_S16;
 	dma_params.trigger			= dma_data->dma_req;
-	dma_params.sync_mode			= OMAP_DMA_SYNC_ELEMENT;
+	dma_params.sync_mode			= dma_data->sync_mode;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		dma_params.src_amode		= OMAP_DMA_AMODE_POST_INC;
 		dma_params.dst_amode		= OMAP_DMA_AMODE_CONSTANT;
@@ -205,6 +205,7 @@ static int omap_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct omap_runtime_data *prtd = runtime->private_data;
+	struct omap_pcm_dma_data *dma_data = prtd->dma_data;
 	unsigned long flags;
 	int ret = 0;
 
@@ -214,6 +215,10 @@ static int omap_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		prtd->period_index = 0;
+		/* Configure McBSP internal buffer usage */
+		if (dma_data->set_threshold)
+			dma_data->set_threshold(substream);
+
 		omap_start_dma(prtd->dma_ch);
 		break;
 
