@@ -16,6 +16,12 @@ LIST "--------------------------------"
 LIST "disable watchdog"
 EW 0xa4520004, 0xa507
 
+LIST "invalidate instruction cache"
+ED 0xff00001c, 0x00000800
+
+LIST "invalidate TLBs"
+ED 0xff000010, 0x00000004
+
 LIST "select mode for cs5 + cs6"
 ED 0xff800020, 0xa5a50001
 ED 0xfec10000, 0x0000001b
