@@ -1214,7 +1214,7 @@ static int add_wep_key(struct usbnet *usbdev, char *key, int key_len, int index)
 	struct ndis_80211_wep_key ndis_key;
 	int cipher, ret;
 
-	if ((key_len != 5 || key_len != 13) || index < 0 || index > 3)
+	if ((key_len != 5 && key_len != 13) || index < 0 || index > 3)
 		return -EINVAL;
 
 	if (key_len == 5)
