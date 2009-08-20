@@ -242,6 +242,7 @@ int radeon_object_pin(struct radeon_object *robj, uint32_t domain,
 		      uint64_t *gpu_addr);
 void radeon_object_unpin(struct radeon_object *robj);
 int radeon_object_wait(struct radeon_object *robj);
+int radeon_object_busy_domain(struct radeon_object *robj, uint32_t *cur_placement);
 int radeon_object_evict_vram(struct radeon_device *rdev);
 int radeon_object_mmap(struct radeon_object *robj, uint64_t *offset);
 void radeon_object_force_delete(struct radeon_device *rdev);
@@ -574,6 +575,7 @@ struct radeon_asic {
 	void (*ring_start)(struct radeon_device *rdev);
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
+	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
 	void (*fence_ring_emit)(struct radeon_device *rdev, struct radeon_fence *fence);
 	int (*cs_parse)(struct radeon_cs_parser *p);
 	int (*copy_blit)(struct radeon_device *rdev,
@@ -666,14 +668,11 @@ struct radeon_device {
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;
 	void				*rmmio;
-	radeon_rreg_t			mm_rreg;
-	radeon_wreg_t			mm_wreg;
 	radeon_rreg_t			mc_rreg;
 	radeon_wreg_t			mc_wreg;
 	radeon_rreg_t			pll_rreg;
 	radeon_wreg_t			pll_wreg;
-	radeon_rreg_t			pcie_rreg;
-	radeon_wreg_t			pcie_wreg;
+	uint32_t                        pcie_reg_mask;
 	radeon_rreg_t			pciep_rreg;
 	radeon_wreg_t			pciep_wreg;
 	struct radeon_clock             clock;
@@ -705,22 +704,42 @@ int radeon_device_init(struct radeon_device *rdev,
 void radeon_device_fini(struct radeon_device *rdev);
 int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
 
+static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
+{
+	if (reg < 0x10000)
+		return readl(((void __iomem *)rdev->rmmio) + reg);
+	else {
+		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
+		return readl(((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
+	}
+}
+
+static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
+{
+	if (reg < 0x10000)
+		writel(v, ((void __iomem *)rdev->rmmio) + reg);
+	else {
+		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
+		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
+	}
+}
+
 
 /*
  * Registers read & write functions.
  */
 #define RREG8(reg) readb(((void __iomem *)rdev->rmmio) + (reg))
 #define WREG8(reg, v) writeb(v, ((void __iomem *)rdev->rmmio) + (reg))
-#define RREG32(reg) rdev->mm_rreg(rdev, (reg))
-#define WREG32(reg, v) rdev->mm_wreg(rdev, (reg), (v))
+#define RREG32(reg) r100_mm_rreg(rdev, (reg))
+#define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v))
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define RREG32_PLL(reg) rdev->pll_rreg(rdev, (reg))
 #define WREG32_PLL(reg, v) rdev->pll_wreg(rdev, (reg), (v))
 #define RREG32_MC(reg) rdev->mc_rreg(rdev, (reg))
 #define WREG32_MC(reg, v) rdev->mc_wreg(rdev, (reg), (v))
-#define RREG32_PCIE(reg) rdev->pcie_rreg(rdev, (reg))
-#define WREG32_PCIE(reg, v) rdev->pcie_wreg(rdev, (reg), (v))
+#define RREG32_PCIE(reg) rv370_pcie_rreg(rdev, (reg))
+#define WREG32_PCIE(reg, v) rv370_pcie_wreg(rdev, (reg), (v))
 #define WREG32_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32(reg);			\
@@ -735,6 +754,24 @@ int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
 		tmp_ |= ((val) & ~(mask));			\
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
+
+/*
+ * Indirect registers accessor
+ */
+static inline uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
+{
+	uint32_t r;
+
+	WREG32(RADEON_PCIE_INDEX, ((reg) & rdev->pcie_reg_mask));
+	r = RREG32(RADEON_PCIE_DATA);
+	return r;
+}
+
+static inline void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
+{
+	WREG32(RADEON_PCIE_INDEX, ((reg) & rdev->pcie_reg_mask));
+	WREG32(RADEON_PCIE_DATA, (v));
+}
 
 void r100_pll_errata_after_index(struct radeon_device *rdev);
 
@@ -862,6 +899,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
 #define radeon_irq_set(rdev) (rdev)->asic->irq_set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq_process((rdev))
+#define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))
 #define radeon_fence_ring_emit(rdev, fence) (rdev)->asic->fence_ring_emit((rdev), (fence))
 #define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy_blit((rdev), (s), (d), (np), (f))
 #define radeon_copy_dma(rdev, s, d, np, f) (rdev)->asic->copy_dma((rdev), (s), (d), (np), (f))

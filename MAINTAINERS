@@ -3429,6 +3429,7 @@ F:	drivers/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 S:	Orphan
+L:	linux-mmc@vger.kernel.org
 F:	drivers/mmc/
 F:	include/linux/mmc/
 
@@ -3809,7 +3810,7 @@ W:	http://open-osd.org
 T:	git git://git.open-osd.org/open-osd.git
 S:	Maintained
 F:	drivers/scsi/osd/
-F:	drivers/include/scsi/osd_*
+F:	include/scsi/osd_*
 F:	fs/exofs/
 
 P54 WIRELESS DRIVER
