@@ -46,15 +46,22 @@ print_syscall_enter(struct trace_iterator *iter, int flags)
 				return TRACE_TYPE_PARTIAL_LINE;
 		}
 		/* parameter values */
-		ret = trace_seq_printf(s, "%s: %lx%s ", entry->args[i],
+		ret = trace_seq_printf(s, "%s: %lx%s", entry->args[i],
 				       trace->args[i],
-				       i == entry->nb_args - 1 ? ")" : ",");
+				       i == entry->nb_args - 1 ? "" : ", ");
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
 
+	ret = trace_seq_putc(s, ')');
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
 end:
-	trace_seq_printf(s, "\n");
+	ret =  trace_seq_putc(s, '\n');
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
 	return TRACE_TYPE_HANDLED;
 }
 
@@ -129,24 +136,24 @@ int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
 		offset += sizeof(unsigned long);
 	}
 
-	trace_seq_printf(s, "\nprint fmt: \"");
+	trace_seq_puts(s, "\nprint fmt: \"");
 	for (i = 0; i < entry->nb_args; i++) {
 		ret = trace_seq_printf(s, "%s: 0x%%0%zulx%s", entry->args[i],
 				        sizeof(unsigned long),
-					i == entry->nb_args - 1 ? "\", " : ", ");
+					i == entry->nb_args - 1 ? "" : ", ");
 		if (!ret)
 			return 0;
 	}
+	trace_seq_putc(s, '"');
 
 	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, "((unsigned long)(REC->%s))%s",
-				        entry->args[i],
-					i == entry->nb_args - 1 ? "\n" : ", ");
+		ret = trace_seq_printf(s, ", ((unsigned long)(REC->%s))",
+				       entry->args[i]);
 		if (!ret)
 			return 0;
 	}
 
-	return ret;
+	return trace_seq_putc(s, '\n');
 }
 
 int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
