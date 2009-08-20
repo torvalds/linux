@@ -177,6 +177,11 @@ void generic_smp_call_function_interrupt(void)
 	int cpu = get_cpu();
 
 	/*
+	 * Shouldn't receive this interrupt on a cpu that is not yet online.
+	 */
+	WARN_ON_ONCE(!cpu_online(cpu));
+
+	/*
 	 * Ensure entry is visible on call_function_queue after we have
 	 * entered the IPI. See comment in smp_call_function_many.
 	 * If we don't have this, then we may miss an entry on the list
@@ -229,6 +234,11 @@ void generic_smp_call_function_single_interrupt(void)
 	struct call_single_queue *q = &__get_cpu_var(call_single_queue);
 	unsigned int data_flags;
 	LIST_HEAD(list);
+
+	/*
+	 * Shouldn't receive this interrupt on a cpu that is not yet online.
+	 */
+	WARN_ON_ONCE(!cpu_online(smp_processor_id()));
 
 	spin_lock(&q->lock);
 	list_replace_init(&q->list, &list);
@@ -285,8 +295,14 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 	 */
 	this_cpu = get_cpu();
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON_ONCE(irqs_disabled() && !oops_in_progress);
+	/*
+	 * Can deadlock when called with interrupts disabled.
+	 * We allow cpu's that are not yet online though, as no one else can
+	 * send smp call function interrupt to this cpu and as such deadlocks
+	 * can't happen.
+	 */
+	WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled()
+		     && !oops_in_progress);
 
 	if (cpu == this_cpu) {
 		local_irq_save(flags);
@@ -329,8 +345,14 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
 {
 	csd_lock(data);
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON_ONCE(wait && irqs_disabled() && !oops_in_progress);
+	/*
+	 * Can deadlock when called with interrupts disabled.
+	 * We allow cpu's that are not yet online though, as no one else can
+	 * send smp call function interrupt to this cpu and as such deadlocks
+	 * can't happen.
+	 */
+	WARN_ON_ONCE(cpu_online(smp_processor_id()) && wait && irqs_disabled()
+		     && !oops_in_progress);
 
 	generic_exec_single(cpu, data, wait);
 }
@@ -365,8 +387,14 @@ void smp_call_function_many(const struct cpumask *mask,
 	unsigned long flags;
 	int cpu, next_cpu, this_cpu = smp_processor_id();
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON_ONCE(irqs_disabled() && !oops_in_progress);
+	/*
+	 * Can deadlock when called with interrupts disabled.
+	 * We allow cpu's that are not yet online though, as no one else can
+	 * send smp call function interrupt to this cpu and as such deadlocks
+	 * can't happen.
+	 */
+	WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled()
+		     && !oops_in_progress);
 
 	/* So, what's a CPU they want? Ignoring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
