@@ -435,6 +435,53 @@ static void __init detect_set_debug_port(void)
 	}
 }
 
+/* The code in early_ehci_bios_handoff() is derived from the usb pci
+ * quirk initialization, but altered so as to use the early PCI
+ * routines. */
+#define EHCI_USBLEGSUP_BIOS	(1 << 16)	/* BIOS semaphore */
+#define EHCI_USBLEGCTLSTS	4		/* legacy control/status */
+static void __init early_ehci_bios_handoff(void)
+{
+	u32 hcc_params = readl(&ehci_caps->hcc_params);
+	int offset = (hcc_params >> 8) & 0xff;
+	u32 cap;
+	int msec;
+
+	if (!offset)
+		return;
+
+	cap = read_pci_config(ehci_dev.bus, ehci_dev.slot,
+			      ehci_dev.func, offset);
+	dbgp_printk("dbgp: ehci BIOS state %08x\n", cap);
+
+	if ((cap & 0xff) == 1 && (cap & EHCI_USBLEGSUP_BIOS)) {
+		dbgp_printk("dbgp: BIOS handoff\n");
+		write_pci_config_byte(ehci_dev.bus, ehci_dev.slot,
+				      ehci_dev.func, offset + 3, 1);
+	}
+
+	/* if boot firmware now owns EHCI, spin till it hands it over. */
+	msec = 1000;
+	while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
+		mdelay(10);
+		msec -= 10;
+		cap = read_pci_config(ehci_dev.bus, ehci_dev.slot,
+				      ehci_dev.func, offset);
+	}
+
+	if (cap & EHCI_USBLEGSUP_BIOS) {
+		/* well, possibly buggy BIOS... try to shut it down,
+		 * and hope nothing goes too wrong */
+		dbgp_printk("dbgp: BIOS handoff failed: %08x\n", cap);
+		write_pci_config_byte(ehci_dev.bus, ehci_dev.slot,
+				      ehci_dev.func, offset + 2, 0);
+	}
+
+	/* just in case, always disable EHCI SMIs */
+	write_pci_config_byte(ehci_dev.bus, ehci_dev.slot, ehci_dev.func,
+			      offset + EHCI_USBLEGCTLSTS, 0);
+}
+
 static int __init ehci_setup(void)
 {
 	struct usb_debug_descriptor dbgp_desc;
@@ -445,6 +492,8 @@ static int __init ehci_setup(void)
 	int loop;
 	int port_map_tried;
 	int playtimes = 3;
+
+	early_ehci_bios_handoff();
 
 try_next_time:
 	port_map_tried = 0;
