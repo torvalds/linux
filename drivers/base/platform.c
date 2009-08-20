@@ -17,6 +17,7 @@
 #include <linux/bootmem.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include "base.h"
 
@@ -656,6 +657,13 @@ static void platform_pm_complete(struct device *dev)
 		drv->pm->complete(dev);
 }
 
+#else /* !CONFIG_PM_SLEEP */
+
+#define platform_pm_prepare		NULL
+#define platform_pm_complete		NULL
+
+#endif /* !CONFIG_PM_SLEEP */
+
 #ifdef CONFIG_SUSPEND
 
 static int platform_pm_suspend(struct device *dev)
@@ -886,6 +894,31 @@ static int platform_pm_restore_noirq(struct device *dev)
 
 #endif /* !CONFIG_HIBERNATION */
 
+#ifdef CONFIG_PM_RUNTIME
+
+int __weak platform_pm_runtime_suspend(struct device *dev)
+{
+	return -ENOSYS;
+};
+
+int __weak platform_pm_runtime_resume(struct device *dev)
+{
+	return -ENOSYS;
+};
+
+int __weak platform_pm_runtime_idle(struct device *dev)
+{
+	return -ENOSYS;
+};
+
+#else /* !CONFIG_PM_RUNTIME */
+
+#define platform_pm_runtime_suspend NULL
+#define platform_pm_runtime_resume NULL
+#define platform_pm_runtime_idle NULL
+
+#endif /* !CONFIG_PM_RUNTIME */
+
 static const struct dev_pm_ops platform_dev_pm_ops = {
 	.prepare = platform_pm_prepare,
 	.complete = platform_pm_complete,
@@ -901,22 +934,17 @@ static const struct dev_pm_ops platform_dev_pm_ops = {
 	.thaw_noirq = platform_pm_thaw_noirq,
 	.poweroff_noirq = platform_pm_poweroff_noirq,
 	.restore_noirq = platform_pm_restore_noirq,
+	.runtime_suspend = platform_pm_runtime_suspend,
+	.runtime_resume = platform_pm_runtime_resume,
+	.runtime_idle = platform_pm_runtime_idle,
 };
-
-#define PLATFORM_PM_OPS_PTR	(&platform_dev_pm_ops)
-
-#else /* !CONFIG_PM_SLEEP */
-
-#define PLATFORM_PM_OPS_PTR	NULL
-
-#endif /* !CONFIG_PM_SLEEP */
 
 struct bus_type platform_bus_type = {
 	.name		= "platform",
 	.dev_attrs	= platform_dev_attrs,
 	.match		= platform_match,
 	.uevent		= platform_uevent,
-	.pm		= PLATFORM_PM_OPS_PTR,
+	.pm		= &platform_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
 
