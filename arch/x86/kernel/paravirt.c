@@ -60,11 +60,6 @@ static void __init default_banner(void)
 	       pv_info.name);
 }
 
-char *memory_setup(void)
-{
-	return pv_init_ops.memory_setup();
-}
-
 /* Simple instruction patching code. */
 #define DEF_NATIVE(ops, name, code)					\
 	extern const char start_##ops##_##name[], end_##ops##_##name[];	\
@@ -322,7 +317,6 @@ struct pv_init_ops pv_init_ops = {
 	.patch = native_patch,
 	.banner = default_banner,
 	.arch_setup = paravirt_nop,
-	.memory_setup = machine_specific_memory_setup,
 };
 
 struct pv_time_ops pv_time_ops = {

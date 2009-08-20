@@ -239,7 +239,6 @@ static int visws_trap_init(void);
 static struct x86_quirks visws_x86_quirks __initdata = {
 	.arch_time_init		= visws_time_init,
 	.arch_pre_intr_init	= visws_pre_intr_init,
-	.arch_memory_setup	= visws_memory_setup,
 	.arch_intr_init		= NULL,
 	.arch_trap_init		= visws_trap_init,
 	.mach_get_smp_config	= visws_get_smp_config,
@@ -262,6 +261,8 @@ void __init visws_early_detect(void)
 	 * Override generic MP-table parsing:
 	 */
 	x86_quirks = &visws_x86_quirks;
+
+	x86_init.resources.memory_setup = visws_memory_setup;
 
 	/*
 	 * Install reboot quirks:

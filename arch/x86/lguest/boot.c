@@ -1270,7 +1270,6 @@ __init void lguest_init(void)
 	pv_irq_ops.safe_halt = lguest_safe_halt;
 
 	/* Setup operations */
-	pv_init_ops.memory_setup = lguest_memory_setup;
 	pv_init_ops.patch = lguest_patch;
 
 	/* Intercepts of various CPU instructions */
@@ -1324,6 +1323,8 @@ __init void lguest_init(void)
 	pv_time_ops.get_wallclock = lguest_get_wallclock;
 	pv_time_ops.time_init = lguest_time_init;
 	pv_time_ops.get_tsc_khz = lguest_tsc_khz;
+
+	x86_init.resources.memory_setup = lguest_memory_setup;
 
 	/*
 	 * Now is a good time to look at the implementations of these functions

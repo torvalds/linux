@@ -7,6 +7,7 @@
 
 #include <asm/bios_ebda.h>
 #include <asm/setup.h>
+#include <asm/e820.h>
 
 void __cpuinit x86_init_noop(void) { }
 
@@ -20,5 +21,6 @@ struct __initdata x86_init_ops x86_init = {
 		.probe_roms		= x86_init_noop,
 		.reserve_resources	= reserve_standard_io_resources,
 		.reserve_ebda_region	= reserve_ebda_region,
+		.memory_setup		= default_machine_specific_memory_setup,
 	},
 };

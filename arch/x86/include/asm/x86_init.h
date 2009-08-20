@@ -7,12 +7,14 @@
  * @reserve_resources:		reserve the standard resources for the
  *				platform
  * @reserve_ebda_region:	reserve the extended bios data area
+ * @memory_setup:		platform specific memory setup
  *
  */
 struct x86_init_resources {
 	void (*probe_roms)(void);
 	void (*reserve_resources)(void);
 	void (*reserve_ebda_region)(void);
+	char *(*memory_setup)(void);
 };
 
 /**

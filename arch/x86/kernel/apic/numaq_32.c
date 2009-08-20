@@ -260,7 +260,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_time_init		= numaq_pre_time_init,
 	.arch_time_init			= NULL,
 	.arch_pre_intr_init		= NULL,
-	.arch_memory_setup		= NULL,
 	.arch_intr_init			= NULL,
 	.arch_trap_init			= NULL,
 	.mach_get_smp_config		= NULL,

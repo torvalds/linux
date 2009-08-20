@@ -1455,28 +1455,11 @@ char *__init default_machine_specific_memory_setup(void)
 	return who;
 }
 
-char *__init __attribute__((weak)) machine_specific_memory_setup(void)
-{
-	if (x86_quirks->arch_memory_setup) {
-		char *who = x86_quirks->arch_memory_setup();
-
-		if (who)
-			return who;
-	}
-	return default_machine_specific_memory_setup();
-}
-
-/* Overridden in paravirt.c if CONFIG_PARAVIRT */
-char * __init __attribute__((weak)) memory_setup(void)
-{
-	return machine_specific_memory_setup();
-}
-
 void __init setup_memory_map(void)
 {
 	char *who;
 
-	who = memory_setup();
+	who = x86_init.resources.memory_setup();
 	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
 	e820_print_map(who);
