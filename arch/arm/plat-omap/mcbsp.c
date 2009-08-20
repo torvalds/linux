@@ -343,6 +343,15 @@ static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp)
 
 		syscon = OMAP_MCBSP_READ(mcbsp->io_base, SYSCON);
 		syscon &= ~(ENAWAKEUP | SIDLEMODE(0x03) | CLOCKACTIVITY(0x03));
+		/*
+		 * HW bug workaround - If no_idle mode is taken, we need to
+		 * go to smart_idle before going to always_idle, or the
+		 * device will not hit retention anymore.
+		 */
+		syscon |= SIDLEMODE(0x02);
+		OMAP_MCBSP_WRITE(mcbsp->io_base, SYSCON, syscon);
+
+		syscon &= ~(SIDLEMODE(0x03));
 		OMAP_MCBSP_WRITE(mcbsp->io_base, SYSCON, syscon);
 
 		OMAP_MCBSP_WRITE(mcbsp->io_base, WAKEUPEN, 0);
