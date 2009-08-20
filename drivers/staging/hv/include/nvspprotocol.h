@@ -143,7 +143,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_NDIS_VERSION
 
 typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER
 {
-    GPADL_HANDLE                            GpadlHandle;
+    u32 GpadlHandle;
     u16                                  Id;
 } NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER, *PNVSP_1_MESSAGE_SEND_RECEIVE_BUFFER;
 
@@ -202,7 +202,7 @@ typedef struct _NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER
 
 typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER
 {
-    GPADL_HANDLE                            GpadlHandle;
+    u32 GpadlHandle;
     u16                                  Id;
 } NVSP_1_MESSAGE_SEND_SEND_BUFFER, *PNVSP_1_MESSAGE_SEND_SEND_BUFFER;
 

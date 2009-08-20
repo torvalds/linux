@@ -47,7 +47,7 @@
  * At the center of the Channel Management library is the Channel Offer. This
  * struct contains the fundamental information about an offer.
  */
-typedef struct {
+struct vmbus_channel_offer {
 	struct hv_guid InterfaceType;
 	struct hv_guid InterfaceInstance;
 	u64 InterruptLatencyIn100nsUnits;
@@ -75,9 +75,7 @@ typedef struct {
 		} Pipe;
 	} u;
 	u32 Padding;
-} __attribute__((packed)) VMBUS_CHANNEL_OFFER, *PVMBUS_CHANNEL_OFFER;
-
-typedef u32 GPADL_HANDLE;
+} __attribute__((packed));
 
 /* Server Flags */
 #define VMBUS_CHANNEL_ENUMERATE_DEVICE_INTERFACE	1

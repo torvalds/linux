@@ -89,7 +89,7 @@ typedef struct _VMBUS_CHANNEL_VERSION_SUPPORTED
 typedef struct _VMBUS_CHANNEL_OFFER_CHANNEL
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    VMBUS_CHANNEL_OFFER Offer;
+    struct vmbus_channel_offer Offer;
     u32  ChildRelId;
     u8   MonitorId;
     bool MonitorAllocated;
@@ -131,12 +131,12 @@ typedef struct _VMBUS_CHANNEL_OPEN_CHANNEL
 
     /* GPADL for the channel's ring buffer. */
 
-    GPADL_HANDLE    RingBufferGpadlHandle;
+    u32 RingBufferGpadlHandle;
 
 
     /* GPADL for the channel's server context save area. */
 
-    GPADL_HANDLE    ServerContextAreaGpadlHandle;
+    u32 ServerContextAreaGpadlHandle;
 
 
     /*
