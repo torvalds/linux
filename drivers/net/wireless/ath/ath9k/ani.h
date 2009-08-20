@@ -18,15 +18,10 @@
 #define ANI_H
 
 #define HAL_PROCESS_ANI           0x00000001
-#define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
 
 #define DO_ANI(ah) (((ah)->proc_phyerr & HAL_PROCESS_ANI))
 
-#define HAL_EP_RND(x, mul)						\
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-#define BEACON_RSSI(ahp)					\
-	HAL_EP_RND(ahp->stats.ast_nodestats.ns_avgbrssi,	\
-		   ATH9K_RSSI_EP_MULTIPLIER)
+#define BEACON_RSSI(ahp) (ahp->stats.ast_nodestats.ns_avgbrssi)
 
 #define ATH9K_ANI_OFDM_TRIG_HIGH          500
 #define ATH9K_ANI_OFDM_TRIG_LOW           200
