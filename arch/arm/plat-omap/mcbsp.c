@@ -246,6 +246,42 @@ void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold)
 	OMAP_MCBSP_WRITE(io_base, THRSH1, threshold);
 }
 EXPORT_SYMBOL(omap_mcbsp_set_rx_threshold);
+
+/*
+ * omap_mcbsp_get_max_tx_thres just return the current configured
+ * maximum threshold for transmission
+ */
+u16 omap_mcbsp_get_max_tx_threshold(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	return mcbsp->max_tx_thres;
+}
+EXPORT_SYMBOL(omap_mcbsp_get_max_tx_threshold);
+
+/*
+ * omap_mcbsp_get_max_rx_thres just return the current configured
+ * maximum threshold for reception
+ */
+u16 omap_mcbsp_get_max_rx_threshold(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	return mcbsp->max_rx_thres;
+}
+EXPORT_SYMBOL(omap_mcbsp_get_max_rx_threshold);
 #endif
 
 /*
@@ -1005,6 +1041,86 @@ void omap_mcbsp_set_spi_mode(unsigned int id,
 }
 EXPORT_SYMBOL(omap_mcbsp_set_spi_mode);
 
+#ifdef CONFIG_ARCH_OMAP34XX
+#define max_thres(m)			(mcbsp->pdata->buffer_size)
+#define valid_threshold(m, val)		((val) <= max_thres(m))
+#define THRESHOLD_PROP_BUILDER(prop)					\
+static ssize_t prop##_show(struct device *dev,				\
+			struct device_attribute *attr, char *buf)	\
+{									\
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);		\
+									\
+	return sprintf(buf, "%u\n", mcbsp->prop);			\
+}									\
+									\
+static ssize_t prop##_store(struct device *dev,				\
+				struct device_attribute *attr,		\
+				const char *buf, size_t size)		\
+{									\
+	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);		\
+	unsigned long val;						\
+	int status;							\
+									\
+	status = strict_strtoul(buf, 0, &val);				\
+	if (status)							\
+		return status;						\
+									\
+	if (!valid_threshold(mcbsp, val))				\
+		return -EDOM;						\
+									\
+	mcbsp->prop = val;						\
+	return size;							\
+}									\
+									\
+static DEVICE_ATTR(prop, 0644, prop##_show, prop##_store);
+
+THRESHOLD_PROP_BUILDER(max_tx_thres);
+THRESHOLD_PROP_BUILDER(max_rx_thres);
+
+static const struct attribute *threshold_attrs[] = {
+	&dev_attr_max_tx_thres.attr,
+	&dev_attr_max_rx_thres.attr,
+	NULL,
+};
+
+static const struct attribute_group threshold_attr_group = {
+	.attrs = (struct attribute **)threshold_attrs,
+};
+
+static inline int __devinit omap_thres_add(struct device *dev)
+{
+	return sysfs_create_group(&dev->kobj, &threshold_attr_group);
+}
+
+static inline void __devexit omap_thres_remove(struct device *dev)
+{
+	sysfs_remove_group(&dev->kobj, &threshold_attr_group);
+}
+
+static inline void __devinit omap34xx_device_init(struct omap_mcbsp *mcbsp)
+{
+	if (cpu_is_omap34xx()) {
+		mcbsp->max_tx_thres = max_thres(mcbsp);
+		mcbsp->max_rx_thres = max_thres(mcbsp);
+		if (omap_thres_add(mcbsp->dev))
+			dev_warn(mcbsp->dev,
+				"Unable to create threshold controls\n");
+	} else {
+		mcbsp->max_tx_thres = -EINVAL;
+		mcbsp->max_rx_thres = -EINVAL;
+	}
+}
+
+static inline void __devexit omap34xx_device_exit(struct omap_mcbsp *mcbsp)
+{
+	if (cpu_is_omap34xx())
+		omap_thres_remove(mcbsp->dev);
+}
+#else
+static inline void __devinit omap34xx_device_init(struct omap_mcbsp *mcbsp) {}
+static inline void __devexit omap34xx_device_exit(struct omap_mcbsp *mcbsp) {}
+#endif /* CONFIG_ARCH_OMAP34XX */
+
 /*
  * McBSP1 and McBSP3 are directly mapped on 1610 and 1510.
  * 730 has only 2 McBSP, and both of them are MPU peripherals.
@@ -1075,6 +1191,10 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->dev = &pdev->dev;
 	mcbsp_ptr[id] = mcbsp;
 	platform_set_drvdata(pdev, mcbsp);
+
+	/* Initialize mcbsp properties for OMAP34XX if needed / applicable */
+	omap34xx_device_init(mcbsp);
+
 	return 0;
 
 err_fclk:
@@ -1097,6 +1217,8 @@ static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 		if (mcbsp->pdata && mcbsp->pdata->ops &&
 				mcbsp->pdata->ops->free)
 			mcbsp->pdata->ops->free(mcbsp->id);
+
+		omap34xx_device_exit(mcbsp);
 
 		clk_disable(mcbsp->fclk);
 		clk_disable(mcbsp->iclk);
