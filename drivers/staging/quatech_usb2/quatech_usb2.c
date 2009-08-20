@@ -163,7 +163,7 @@ static struct usb_driver quausb2_usb_driver = {
  * each time a write urb is dispatched.
  * - is decremented each time a "transmit empty" message is received
  * by the driver in the data stream.
- * @sem: Semaphore to lock access to this structure when we need to ensure that
+ * @lock: Mutex to lock access to this structure when we need to ensure that
  * races don't occur to access bits of it.
  * @open_count: The number of uses of the port currently having
  * it open, i.e. the reference count.
@@ -177,13 +177,12 @@ struct quatech2_port {
 	bool	rcv_flush;
 	bool	xmit_flush;
 	int	tx_pending_bytes;
-	struct semaphore	sem;
+	struct mutex modelock;
 	int	open_count;
 
 	char	active;		/* someone has this device open */
 	unsigned char		*xfer_to_tty_buffer;
 	wait_queue_head_t	wait;
-
 	__u8	shadowLCR;	/* last LCR value received */
 	__u8	shadowMCR;	/* last MCR value received */
 	char	RxHolding;
@@ -263,11 +262,6 @@ static int qt2_box_flush(struct usb_serial *serial,  unsigned char uart_number,
 		unsigned short rcv_or_xmit);
 static int qt2_boxsetuart(struct usb_serial *serial, unsigned short Uart_Number,
 		unsigned short default_divisor, unsigned char default_LCR);
-/*static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
-		      const unsigned char *buf, int count);
-static int qt2_tiocmget(struct tty_struct *tty, struct file *file);
-static int qt2_tiocmset(struct tty_struct *tty, struct file *file,
-			unsigned int set, unsigned int clear);*/
 static int qt2_boxsethw_flowctl(struct usb_serial *serial,
 		unsigned int UartNumber, bool bSet);
 static int qt2_boxsetsw_flowctl(struct usb_serial *serial, __u16 UartNumber,
@@ -356,6 +350,7 @@ static int qt2_attach(struct usb_serial *serial)
 		/* initialise stuff in the structure */
 		qt2_port->open_count = 0;	/* port is not open */
 		spin_lock_init(&qt2_port->lock);
+		mutex_init(&qt2_port->modelock);
 		qt2_set_port_private(port, qt2_port);
 	}
 
@@ -535,7 +530,6 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * Finally we need a bulk in URB to use for background reads from the
 	 * device, which will deal with uplink data from the box to host.
 	 */
-	dbg("serial number is %d", port->serial->minor);
 	dbg("port0 bulk in endpoint is %#.2x", port0->bulk_in_endpointAddress);
 	dbg("port0 bulk out endpoint is %#.2x",
 		port0->bulk_out_endpointAddress);
@@ -700,7 +694,12 @@ static void qt2_close(struct usb_serial_port *port)
 		dev_extra->open_ports);
 }
 
-/* called to deliver writes from the next layer up to the device */
+/**
+ * qt2_write - write bytes from the tty layer out to the USB device.
+ * @buf: The data to be written, size at least count.
+ * @count: The number of bytes requested for transmission.
+ * @return The number of bytes actually accepted for transmission to the device.
+ */
 static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 		const unsigned char *buf, int count)
 {
@@ -708,20 +707,19 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 	__u8 header_array[5];	/* header used to direct writes to the correct
 	port on the device */
 	struct quatech2_port *port_extra;	/* extra data for this port */
-
 	int result;
 
-	/* get the parent device of the port */
-	serial = port->serial;
+	serial = port->serial; /* get the parent device of the port */
+	port_extra = qt2_get_port_private(port); /* port extra info */
 	if (serial == NULL)
 		return -ENODEV;
-	dbg("%s(): port %d", __func__, port->number);
+	dbg("%s(): port %d, requested to write %d bytes, %d already pending",
+		__func__, port->number, count, port_extra->tx_pending_bytes);
 
 	if (count <= 0)	{
 		dbg("%s(): write request of <= 0 bytes", __func__);
 		return 0;	/* no bytes written */
 	}
-	port_extra = qt2_get_port_private(port);
 
 	/* check if the write urb is already in use, i.e. data already being
 	 * sent to this port */
@@ -747,13 +745,19 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 	 * the maximum we will ever write to the device as 5 bytes less than
 	 * one URB's worth, by reducing the value of the count argument
 	 * appropriately*/
-	if (count > port->bulk_out_size - QT2_TX_HEADER_LENGTH)
+	if (count > port->bulk_out_size - QT2_TX_HEADER_LENGTH) {
 		count = port->bulk_out_size - QT2_TX_HEADER_LENGTH;
+		dbg("%s(): write request bigger than urb, only accepting "
+			"%d bytes", __func__, count);
+	}
 	/* we must also ensure that the FIFO at the other end can cope with the
 	 * URB we send it, otherwise it will have problems. As above, we can
 	 * restrict the write size by just shrinking count.*/
-	if (count > (QT2_FIFO_DEPTH - port_extra->tx_pending_bytes))
+	if (count > (QT2_FIFO_DEPTH - port_extra->tx_pending_bytes)) {
 		count = QT2_FIFO_DEPTH - port_extra->tx_pending_bytes;
+		dbg("%s(): not enough room in buffer, only accepting %d bytes",
+			__func__, count);
+	}
 	/* now build the header for transmission */
 	header_array[0] = 0x1b;
 	header_array[1] = 0x1b;
@@ -778,17 +782,15 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
 		/* error couldn't submit urb */
-		result = 0;
+		result = 0;	/* return 0 as nothing got written */
 		dbg("%s(): failed submitting write urb, error %d",
 			__func__, result);
 	} else {
-		port_extra->tx_pending_bytes += (count - QT2_TX_HEADER_LENGTH);
-		/*port->fifo_empty_flag = false;
-		port->xmit_fifo_room_bytes = FIFO_DEPTH -
-		port->xmit_pending_bytes;*/
-		result = count;
-		dbg("%s(): submitted write urb, returning %d",
-			__func__, result);
+		port_extra->tx_pending_bytes += count;
+		result = count;	/* return number of bytes written, i.e. count */
+		dbg("%s(): submitted write urb, wrote %d bytes, "
+			"total pending bytes %d",
+			__func__, result, port_extra->tx_pending_bytes);
 	}
 	return result;
 }
@@ -1178,7 +1180,7 @@ static void qt2_break(struct tty_struct *tty, int break_state)
 	dbg("%s(): port %d, break_value %d", __func__, port->number,
 		break_value);
 
-	down(&port_extra->sem);
+	mutex_lock(&port_extra->modelock);
 	if (!port_extra->open_count) {
 		dbg("%s(): port not open", __func__);
 		goto exit;
@@ -1188,7 +1190,7 @@ static void qt2_break(struct tty_struct *tty, int break_state)
 				QT2_BREAK_CONTROL, 0x40, break_value,
 				port->number, NULL, 0, 300);
 exit:
-	up(&port_extra->sem);
+	mutex_unlock(&port_extra->modelock);
 	dbg("%s(): exit port %d", __func__, port->number);
 
 }
@@ -1209,7 +1211,7 @@ static void qt2_throttle(struct tty_struct *tty)
 		return;
 	}
 
-	down(&port_extra->sem);	/* lock structure */
+	mutex_lock(&port_extra->modelock);	/* lock structure */
 	if (!port_extra->open_count) {
 		dbg("%s(): port not open", __func__);
 		goto exit;
@@ -1224,7 +1226,7 @@ static void qt2_throttle(struct tty_struct *tty)
 
 	port->throttled = 1;
 exit:
-	up(&port_extra->sem);
+	mutex_unlock(&port_extra->modelock);
 	dbg("%s(): port %d: setting port->throttled", __func__, port->number);
 	return;
 }
@@ -1251,7 +1253,7 @@ static void qt2_unthrottle(struct tty_struct *tty)
 	port_extra = qt2_get_port_private(port);
 	port0 = serial->port[0]; /* get the first port's device structure */
 
-	down(&port_extra->sem);
+	mutex_lock(&port_extra->modelock);
 	if (!port_extra->open_count) {
 		dbg("%s(): port %d not open", __func__, port->number);
 		goto exit;
@@ -1275,7 +1277,7 @@ static void qt2_unthrottle(struct tty_struct *tty)
 		}
 	}
 exit:
-	up(&port_extra->sem);
+	mutex_unlock(&port_extra->modelock);
 	dbg("%s(): exit port %d", __func__, port->number);
 	return;
 }
@@ -1442,9 +1444,8 @@ static void qt2_read_bulk_callback(struct urb *urb)
 	bool escapeflag;	/* flag set to true if this loop iteration is
 				 * parsing an escape sequence, rather than
 				 * ordinary data */
-
-
-	dbg("%s(): callback running", __func__);
+	dbg("%s(): callback running, active port is %d", __func__,
+		active->number);
 
 	if (urb->status) {
 		/* read didn't go well */
@@ -1502,7 +1503,7 @@ __func__);
 		/* single port device, input is already stopped, so we don't
 		 * need any more input data */
 		dev_extra->ReadBulkStopped = true;
-			return;
+		return;
 	}
 	/* finally, we are in a situation where we might consider the data
 	 * that is contained within the URB, and what to do about it.
@@ -1512,14 +1513,12 @@ __func__);
 
 	/* active is a usb_serial_port. It has a member port which is a
 	 * tty_port. From this we get a tty_struct pointer which is what we
-	* actually wanted, and keep it on         tty_st */
+	 * actually wanted, and keep it on tty_st */
 	tty_st = tty_port_tty_get(&active->port);
 	if (!tty_st) {
 		dbg("%s - bad tty pointer - exiting", __func__);
 		return;
 	}
-	dbg("%s(): active port %d, tty_st =0x%p\n", __func__, active->number,
-		tty_st);
 	RxCount = urb->actual_length;	/* grab length of data handy */
 
 	if (RxCount) {
@@ -1663,6 +1662,7 @@ __func__);
 		dbg("%s(): failed resubmitting read urb, error %d",
 			__func__, result);
 	} else {
+		dbg("%s() sucessfully resumitted read urb", __func__);
 		if (tty_st && RxCount) {
 			/* if some inbound data was processed, then
 			 * we need to push that through the tty layer
@@ -1675,7 +1675,7 @@ __func__);
 	/* cribbed from serqt_usb2 driver, but not sure which work needs
 	 * scheduling - port0 or currently active port? */
 	/* schedule_work(&port->work); */
-
+	dbg("%s() completed", __func__);
 	return;
 }
 
@@ -1699,7 +1699,9 @@ static void qt2_write_bulk_callback(struct urb *urb)
 			__func__, urb->status);
 		return;
 	}
-
+	/* FIXME What is supposed to be going on here?
+	 * does this actually do anything useful, and should it?
+	 */
 	/*port_softint((void *) serial); commented in vendor driver */
 	schedule_work(&port->work);
 	dbg("%s(): port %d exit", __func__, port->number);
