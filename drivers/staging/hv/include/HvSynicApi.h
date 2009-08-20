@@ -212,7 +212,7 @@ struct hv_message {
 
 /* Define the synthetic interrupt message page layout. */
 struct hv_message_page {
-	volatile struct hv_message SintMessage[HV_SYNIC_SINT_COUNT];
+	struct hv_message SintMessage[HV_SYNIC_SINT_COUNT];
 };
 
 /* Define the synthetic interrupt controller event flags format. */
@@ -223,7 +223,7 @@ union hv_synic_event_flags {
 
 /* Define the synthetic interrupt flags page layout. */
 struct hv_synic_event_flags_page {
-	volatile union hv_synic_event_flags SintEventFlags[HV_SYNIC_SINT_COUNT];
+	union hv_synic_event_flags SintEventFlags[HV_SYNIC_SINT_COUNT];
 };
 
 /* Define SynIC control register. */
