@@ -1158,6 +1158,8 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	pr_debug("Number of Domains supportd <%ld>\n", ndomains);
 	nlongs = BITS_TO_LONGS(ndomains);
 
+	spin_lock_init(&iommu->lock);
+
 	/* TBD: there might be 64K domains,
 	 * consider other allocation for future chip
 	 */
@@ -1170,11 +1172,8 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 			GFP_KERNEL);
 	if (!iommu->domains) {
 		printk(KERN_ERR "Allocating domain array failed\n");
-		kfree(iommu->domain_ids);
 		return -ENOMEM;
 	}
-
-	spin_lock_init(&iommu->lock);
 
 	/*
 	 * if Caching mode is set, then invalid translations are tagged
@@ -1195,22 +1194,24 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 	int i;
 	unsigned long flags;
 
-	i = find_first_bit(iommu->domain_ids, cap_ndoms(iommu->cap));
-	for (; i < cap_ndoms(iommu->cap); ) {
-		domain = iommu->domains[i];
-		clear_bit(i, iommu->domain_ids);
+	if ((iommu->domains) && (iommu->domain_ids)) {
+		i = find_first_bit(iommu->domain_ids, cap_ndoms(iommu->cap));
+		for (; i < cap_ndoms(iommu->cap); ) {
+			domain = iommu->domains[i];
+			clear_bit(i, iommu->domain_ids);
 
-		spin_lock_irqsave(&domain->iommu_lock, flags);
-		if (--domain->iommu_count == 0) {
-			if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
-				vm_domain_exit(domain);
-			else
-				domain_exit(domain);
+			spin_lock_irqsave(&domain->iommu_lock, flags);
+			if (--domain->iommu_count == 0) {
+				if (domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
+					vm_domain_exit(domain);
+				else
+					domain_exit(domain);
+			}
+			spin_unlock_irqrestore(&domain->iommu_lock, flags);
+
+			i = find_next_bit(iommu->domain_ids,
+				cap_ndoms(iommu->cap), i+1);
 		}
-		spin_unlock_irqrestore(&domain->iommu_lock, flags);
-
-		i = find_next_bit(iommu->domain_ids,
-			cap_ndoms(iommu->cap), i+1);
 	}
 
 	if (iommu->gcmd & DMA_GCMD_TE)
