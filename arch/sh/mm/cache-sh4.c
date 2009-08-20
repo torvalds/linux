@@ -106,9 +106,9 @@ static inline void flush_cache_4096(unsigned long start,
  */
 static void sh4_flush_dcache_page(struct page *page)
 {
+#ifndef CONFIG_SMP
 	struct address_space *mapping = page_mapping(page);
 
-#ifndef CONFIG_SMP
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
 	else
