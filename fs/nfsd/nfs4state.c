@@ -1481,7 +1481,7 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 		 * for nfsd4_svc_encode_compoundres processing */
 		status = nfsd4_replay_cache_entry(resp, seq);
 		cstate->status = nfserr_replay_cache;
-		goto replay_cache;
+		goto out;
 	}
 	if (status)
 		goto out;
@@ -1497,15 +1497,18 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	cstate->slot = slot;
 	cstate->session = session;
 
-replay_cache:
-	/* Renew the clientid on success and on replay.
-	 * Hold a session reference until done processing the compound:
+	/* Hold a session reference until done processing the compound:
 	 * nfsd4_put_session called only if the cstate slot is set.
 	 */
-	renew_client(session->se_client);
 	nfsd4_get_session(session);
 out:
 	spin_unlock(&sessionid_lock);
+	/* Renew the clientid on success and on replay */
+	if (cstate->session) {
+		nfs4_lock_state();
+		renew_client(session->se_client);
+		nfs4_unlock_state();
+	}
 	dprintk("%s: return %d\n", __func__, ntohl(status));
 	return status;
 }
