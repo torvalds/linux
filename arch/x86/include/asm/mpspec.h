@@ -63,11 +63,13 @@ extern void find_smp_config(void);
 extern void early_reserve_e820_mpc_new(void);
 extern int enable_update_mptable;
 extern int default_mpc_apic_id(struct mpc_cpu *m);
+extern void default_smp_read_mpc_oem(struct mpc_table *mpc);
 #else
 static inline void find_smp_config(void) { }
 static inline void early_reserve_e820_mpc_new(void) { }
 #define enable_update_mptable 0
 #define default_mpc_apic_id NULL
+#define default_smp_read_mpc_oem NULL
 #endif
 
 void __cpuinit generic_processor_info(int apicid, int version);

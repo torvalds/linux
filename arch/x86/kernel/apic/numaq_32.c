@@ -218,9 +218,9 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 /*
  * Read/parse the MPC oem tables
  */
-static void __init
- smp_read_mpc_oem(struct mpc_oemtable *oemtable, unsigned short oemsize)
+static void __init smp_read_mpc_oem(struct mpc_table *mpc)
 {
+	struct mpc_oemtable *oemtable = (void *)(long)mpc->oemptr;
 	int count = sizeof(*oemtable);	/* the header size */
 	unsigned char *oemptr = ((unsigned char *)oemtable) + count;
 
@@ -272,7 +272,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mach_find_smp_config		= NULL,
 	.mpc_oem_bus_info		= mpc_oem_bus_info,
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
-	.smp_read_mpc_oem		= smp_read_mpc_oem,
 };
 
 static __init void early_check_numaq(void)
@@ -293,6 +292,7 @@ static __init void early_check_numaq(void)
 		x86_init.mpparse.mpc_record = numaq_mpc_record;
 		x86_init.mpparse.setup_ioapic_ids = x86_init_noop;
 		x86_init.mpparse.mpc_apic_id = mpc_apic_id;
+		x86_init.mpparse.smp_read_mpc_oem = smp_read_mpc_oem;
 	}
 }
 

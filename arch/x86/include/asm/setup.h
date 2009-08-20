@@ -13,7 +13,6 @@
  * Any setup quirks to be performed?
  */
 struct mpc_bus;
-struct mpc_oemtable;
 
 struct x86_quirks {
 	int (*arch_pre_time_init)(void);
@@ -26,8 +25,6 @@ struct x86_quirks {
 
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
-	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
-				unsigned short oemsize);
 };
 
 extern void x86_quirk_intr_init(void);

@@ -293,6 +293,8 @@ static void __init smp_dump_mptable(struct mpc_table *mpc, unsigned char *mpt)
 			1, mpc, mpc->length, 1);
 }
 
+void __init default_smp_read_mpc_oem(struct mpc_table *mpc) { }
+
 static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 {
 	char str[16];
@@ -314,10 +316,8 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	if (early)
 		return 1;
 
-	if (mpc->oemptr && x86_quirks->smp_read_mpc_oem) {
-		struct mpc_oemtable *oem_table = (void *)(long)mpc->oemptr;
-		x86_quirks->smp_read_mpc_oem(oem_table, mpc->oemsize);
-	}
+	if (mpc->oemptr)
+		x86_init.mpparse.smp_read_mpc_oem(mpc);
 
 	/*
 	 *      Now process the configuration blocks.
