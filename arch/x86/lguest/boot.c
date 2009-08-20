@@ -1320,11 +1320,11 @@ __init void lguest_init(void)
 
 	/* Time operations */
 	pv_time_ops.get_wallclock = lguest_get_wallclock;
-	pv_time_ops.get_tsc_khz = lguest_tsc_khz;
 
 	x86_init.resources.memory_setup = lguest_memory_setup;
 	x86_init.irqs.intr_init = lguest_init_IRQ;
 	x86_init.timers.timer_init = lguest_time_init;
+	x86_platform.calibrate_tsc = lguest_tsc_khz;
 
 	/*
 	 * Now is a good time to look at the implementations of these functions

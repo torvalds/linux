@@ -112,8 +112,17 @@ struct x86_cpuinit_ops {
 	void (*setup_percpu_clockev)(void);
 };
 
+/**
+ * struct x86_platform_ops - platform specific runtime functions
+ * @calibrate_tsc:		calibrate TSC
+ */
+struct x86_platform_ops {
+	unsigned long (*calibrate_tsc)(void);
+};
+
 extern struct x86_init_ops x86_init;
 extern struct x86_cpuinit_ops x86_cpuinit;
+extern struct x86_platform_ops x86_platform;
 
 extern void x86_init_noop(void);
 extern void x86_init_uint_noop(unsigned int unused);

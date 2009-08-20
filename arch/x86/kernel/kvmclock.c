@@ -187,7 +187,7 @@ void __init kvmclock_init(void)
 		pv_time_ops.get_wallclock = kvm_get_wallclock;
 		pv_time_ops.set_wallclock = kvm_set_wallclock;
 		pv_time_ops.sched_clock = kvm_clock_read;
-		pv_time_ops.get_tsc_khz = kvm_get_tsc_khz;
+		x86_platform.calibrate_tsc = kvm_get_tsc_khz;
 #ifdef CONFIG_X86_LOCAL_APIC
 		x86_cpuinit.setup_percpu_clockev =
 			kvm_setup_secondary_clock;

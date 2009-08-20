@@ -18,6 +18,7 @@
 #include <asm/delay.h>
 #include <asm/hypervisor.h>
 #include <asm/nmi.h>
+#include <asm/x86_init.h>
 
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -401,14 +402,8 @@ unsigned long native_calibrate_tsc(void)
 {
 	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
-	unsigned long flags, latch, ms, fast_calibrate, hv_tsc_khz;
+	unsigned long flags, latch, ms, fast_calibrate;
 	int hpet = is_hpet_enabled(), i, loopmin;
-
-	hv_tsc_khz = get_hypervisor_tsc_freq();
-	if (hv_tsc_khz) {
-		printk(KERN_INFO "TSC: Frequency read from the hypervisor\n");
-		return hv_tsc_khz;
-	}
 
 	local_irq_save(flags);
 	fast_calibrate = quick_pit_calibrate();
@@ -567,7 +562,7 @@ int recalibrate_cpu_khz(void)
 	unsigned long cpu_khz_old = cpu_khz;
 
 	if (cpu_has_tsc) {
-		tsc_khz = calibrate_tsc();
+		tsc_khz = x86_platform.calibrate_tsc();
 		cpu_khz = tsc_khz;
 		cpu_data(0).loops_per_jiffy =
 			cpufreq_scale(cpu_data(0).loops_per_jiffy,
@@ -917,7 +912,7 @@ void __init tsc_init(void)
 	if (!cpu_has_tsc)
 		return;
 
-	tsc_khz = calibrate_tsc();
+	tsc_khz = x86_platform.calibrate_tsc();
 	cpu_khz = tsc_khz;
 
 	if (!tsc_khz) {

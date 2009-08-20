@@ -13,6 +13,7 @@
 #include <asm/e820.h>
 #include <asm/time.h>
 #include <asm/irq.h>
+#include <asm/tsc.h>
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
@@ -66,4 +67,8 @@ struct __initdata x86_init_ops x86_init = {
 
 __cpuinitdata struct x86_cpuinit_ops x86_cpuinit = {
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
+};
+
+struct x86_platform_ops x86_platform = {
+	.calibrate_tsc			= native_calibrate_tsc,
 };

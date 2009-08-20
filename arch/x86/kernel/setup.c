@@ -818,7 +818,7 @@ void __init setup_arch(char **cmdline_p)
 	 * VMware detection requires dmi to be available, so this
 	 * needs to be done after dmi_scan_machine, for the BP.
 	 */
-	init_hypervisor(&boot_cpu_data);
+	init_hypervisor_platform();
 
 	x86_init.resources.probe_roms();
 

@@ -8,7 +8,6 @@
 #define TICK_SIZE (tick_nsec / 1000)
 
 unsigned long long native_sched_clock(void);
-unsigned long native_calibrate_tsc(void);
 extern int recalibrate_cpu_khz(void);
 
 #if defined(CONFIG_X86_32) && defined(CONFIG_X86_IO_APIC)
@@ -18,10 +17,6 @@ extern int timer_ack;
 #endif
 
 extern int no_timer_check;
-
-#ifndef CONFIG_PARAVIRT
-#define calibrate_tsc() native_calibrate_tsc()
-#endif
 
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
