@@ -751,7 +751,8 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 }
 
 static int dwarf_parse_fde(void *entry, u32 entry_type,
-			   void *start, unsigned long len)
+			   void *start, unsigned long len,
+			   unsigned char *end)
 {
 	struct dwarf_fde *fde;
 	struct dwarf_cie *cie;
@@ -798,7 +799,7 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 
 	/* Call frame instructions. */
 	fde->instructions = p;
-	fde->end = start + len;
+	fde->end = end;
 
 	/* Add to list. */
 	spin_lock_irqsave(&dwarf_fde_lock, flags);
@@ -932,7 +933,7 @@ static int __init dwarf_unwinder_init(void)
 			else
 				c_entries++;
 		} else {
-			err = dwarf_parse_fde(entry, entry_type, p, len);
+			err = dwarf_parse_fde(entry, entry_type, p, len, end);
 			if (err < 0)
 				goto out;
 			else
