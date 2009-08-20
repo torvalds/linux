@@ -100,7 +100,7 @@ EXPORT_SYMBOL(tty_port_tty_set);
 static void tty_port_shutdown(struct tty_port *port)
 {
 	if (port->ops->shutdown &&
-		test_and_clear_bit(ASYNC_INITIALIZED, &port->flags))
+		test_and_clear_bit(ASYNCB_INITIALIZED, &port->flags))
 			port->ops->shutdown(port);
 
 }
@@ -311,7 +311,7 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 			port->ops->drop(port);
 		return 0;
 	}
-	set_bit(ASYNC_CLOSING, &port->flags);
+	set_bit(ASYNCB_CLOSING, &port->flags);
 	tty->closing = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 	/* Don't block on a stalled port, just pull the chain */
