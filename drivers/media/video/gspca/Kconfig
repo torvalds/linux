@@ -112,9 +112,9 @@ config USB_GSPCA_PAC7311
 	  module will be called gspca_pac7311.
 
 config USB_GSPCA_SN9C20X
-       tristate "SN9C20X USB Camera Driver"
-       depends on VIDEO_V4L2 && USB_GSPCA
-       help
+	tristate "SN9C20X USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
 	 Say Y here if you want support for cameras based on the
 	 sn9c20x chips (SN9C201 and SN9C202).
 
