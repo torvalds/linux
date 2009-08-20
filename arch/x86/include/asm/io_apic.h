@@ -177,12 +177,13 @@ extern int setup_ioapic_entry(int apic, int irq,
 			      int polarity, int vector, int pin);
 extern void ioapic_write_entry(int apic, int pin,
 			       struct IO_APIC_route_entry e);
+extern void setup_ioapic_ids_from_mpc(void);
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
+#define setup_ioapic_ids_from_mpc x86_init_noop
 static const int timer_through_8259 = 0;
 static inline void ioapic_init_mappings(void)	{ }
 static inline void ioapic_insert_resources(void) { }
-
 static inline void probe_nr_irqs_gsi(void)	{ }
 #endif
 

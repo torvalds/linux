@@ -30,7 +30,6 @@ struct x86_quirks {
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
 	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
 				unsigned short oemsize);
-	int (*setup_ioapic_ids)(void);
 };
 
 extern void x86_quirk_intr_init(void);

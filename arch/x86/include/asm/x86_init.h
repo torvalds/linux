@@ -4,9 +4,11 @@
 /**
  * struct x86_init_mpparse - platform specific mpparse ops
  * @mpc_record:			platform specific mpc record accounting
+ * @setup_ioapic_ids:		platform specific ioapic id override
  */
 struct x86_init_mpparse {
 	void (*mpc_record)(unsigned int mode);
+	void (*setup_ioapic_ids)(void);
 };
 
 /**

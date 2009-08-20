@@ -2014,7 +2014,7 @@ void disable_IO_APIC(void)
  * by Matt Domsch <Matt_Domsch@dell.com>  Tue Dec 21 12:25:05 CST 1999
  */
 
-static void __init setup_ioapic_ids_from_mpc(void)
+void __init setup_ioapic_ids_from_mpc(void)
 {
 	union IO_APIC_reg_00 reg_00;
 	physid_mask_t phys_id_present_map;
@@ -2023,9 +2023,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	unsigned char old_id;
 	unsigned long flags;
 
-	if (x86_quirks->setup_ioapic_ids && x86_quirks->setup_ioapic_ids())
+	if (acpi_ioapic)
 		return;
-
 	/*
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have
 	 * no meaning without the serial APIC bus.
@@ -3061,10 +3060,8 @@ void __init setup_IO_APIC(void)
 	/*
          * Set up IO-APIC IRQ routing.
          */
-#ifdef CONFIG_X86_32
-	if (!acpi_ioapic)
-		setup_ioapic_ids_from_mpc();
-#endif
+	x86_init.mpparse.setup_ioapic_ids();
+
 	sync_Arb_IDs();
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();

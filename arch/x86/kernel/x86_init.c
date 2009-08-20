@@ -27,5 +27,6 @@ struct __initdata x86_init_ops x86_init = {
 
 	.mpparse = {
 		.mpc_record		= x86_init_uint_noop,
+		.setup_ioapic_ids	= x86_init_noop,
 	},
 };

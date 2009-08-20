@@ -262,12 +262,6 @@ static void __init
 	}
 }
 
-static int __init numaq_setup_ioapic_ids(void)
-{
-	/* so can skip it */
-	return 1;
-}
-
 static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_time_init		= numaq_pre_time_init,
 	.arch_time_init			= NULL,
@@ -280,7 +274,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mpc_oem_bus_info		= mpc_oem_bus_info,
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
 	.smp_read_mpc_oem		= smp_read_mpc_oem,
-	.setup_ioapic_ids		= numaq_setup_ioapic_ids,
 };
 
 static __init void early_check_numaq(void)
@@ -299,6 +292,7 @@ static __init void early_check_numaq(void)
 	if (found_numaq) {
 		x86_quirks = &numaq_x86_quirks;
 		x86_init.mpparse.mpc_record = numaq_mpc_record;
+		x86_init.mpparse.setup_ioapic_ids = x86_init_noop;
 	}
 }
 
