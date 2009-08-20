@@ -919,6 +919,249 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 	}
 }
 
+static srb_t *
+qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
+    struct req_que *req, void *iocb)
+{
+	struct qla_hw_data *ha = vha->hw;
+	sts_entry_t *pkt = iocb;
+	srb_t *sp = NULL;
+	uint16_t index;
+
+	index = LSW(pkt->handle);
+	if (index >= MAX_OUTSTANDING_COMMANDS) {
+		qla_printk(KERN_WARNING, ha,
+		    "%s: Invalid completion handle (%x).\n", func, index);
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		goto done;
+	}
+	sp = req->outstanding_cmds[index];
+	if (!sp) {
+		qla_printk(KERN_WARNING, ha,
+		    "%s: Invalid completion handle (%x) -- timed-out.\n", func,
+		    index);
+		return sp;
+	}
+	if (sp->handle != index) {
+		qla_printk(KERN_WARNING, ha,
+		    "%s: SRB handle (%x) mismatch %x.\n", func, sp->handle,
+		    index);
+		return NULL;
+	}
+	req->outstanding_cmds[index] = NULL;
+done:
+	return sp;
+}
+
+static void
+qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+    struct mbx_entry *mbx)
+{
+	const char func[] = "MBX-IOCB";
+	const char *type;
+	struct qla_hw_data *ha = vha->hw;
+	fc_port_t *fcport;
+	srb_t *sp;
+	struct srb_logio *lio;
+	uint16_t data[2];
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, mbx);
+	if (!sp)
+		return;
+
+	type = NULL;
+	lio = sp->ctx;
+	switch (lio->ctx.type) {
+	case SRB_LOGIN_CMD:
+		type = "login";
+		break;
+	case SRB_LOGOUT_CMD:
+		type = "logout";
+		break;
+	default:
+		qla_printk(KERN_WARNING, ha,
+		    "%s: Unrecognized SRB: (%p) type=%d.\n", func, sp,
+		    lio->ctx.type);
+		return;
+	}
+
+	del_timer(&lio->ctx.timer);
+	fcport = sp->fcport;
+
+	data[0] = data[1] = 0;
+	if (mbx->entry_status) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x "
+		    "status=%x state-flag=%x status-flags=%x.\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    mbx->entry_status, le16_to_cpu(mbx->status),
+		    le16_to_cpu(mbx->state_flags),
+		    le16_to_cpu(mbx->status_flags)));
+		DEBUG2(qla2x00_dump_buffer((uint8_t *)mbx, sizeof(*mbx)));
+
+		data[0] = MBS_COMMAND_ERROR;
+		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+		    QLA_LOGIO_LOGIN_RETRIED: 0;
+		goto done_post_logio_done_work;
+	}
+
+	if (!mbx->status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
+		DEBUG2(printk(KERN_DEBUG
+		    "scsi(%ld:%x): Async-%s complete - mbx1=%x.\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    le16_to_cpu(mbx->mb1)));
+
+		data[0] = MBS_COMMAND_COMPLETE;
+		if (lio->ctx.type == SRB_LOGIN_CMD && le16_to_cpu(mbx->mb1) & BIT_1)
+			fcport->flags |= FCF_TAPE_PRESENT;
+
+		goto done_post_logio_done_work;
+	}
+
+	data[0] = le16_to_cpu(mbx->mb0);
+	switch (data[0]) {
+	case MBS_PORT_ID_USED:
+		data[1] = le16_to_cpu(mbx->mb1);
+		break;
+	case MBS_LOOP_ID_USED:
+		break;
+	default:
+		data[0] = MBS_COMMAND_ERROR;
+		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+		    QLA_LOGIO_LOGIN_RETRIED: 0;
+		break;
+	}
+
+	DEBUG2(printk(KERN_WARNING
+	    "scsi(%ld:%x): Async-%s failed - status=%x mb0=%x mb1=%x mb2=%x "
+	    "mb6=%x mb7=%x.\n",
+	    fcport->vha->host_no, sp->handle, type, le16_to_cpu(mbx->status),
+	    le16_to_cpu(mbx->mb0), le16_to_cpu(mbx->mb1),
+	    le16_to_cpu(mbx->mb2), le16_to_cpu(mbx->mb6),
+	    le16_to_cpu(mbx->mb7)));
+
+done_post_logio_done_work:
+	lio->ctx.type == SRB_LOGIN_CMD ?
+	    qla2x00_post_async_login_done_work(fcport->vha, fcport, data):
+	    qla2x00_post_async_logout_done_work(fcport->vha, fcport, data);
+
+	lio->ctx.free(sp);
+}
+
+static void
+qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
+    struct logio_entry_24xx *logio)
+{
+	const char func[] = "LOGIO-IOCB";
+	const char *type;
+	struct qla_hw_data *ha = vha->hw;
+	fc_port_t *fcport;
+	srb_t *sp;
+	struct srb_logio *lio;
+	uint16_t data[2];
+	uint32_t iop[2];
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, logio);
+	if (!sp)
+		return;
+
+	type = NULL;
+	lio = sp->ctx;
+	switch (lio->ctx.type) {
+	case SRB_LOGIN_CMD:
+		type = "login";
+		break;
+	case SRB_LOGOUT_CMD:
+		type = "logout";
+		break;
+	default:
+		qla_printk(KERN_WARNING, ha,
+		    "%s: Unrecognized SRB: (%p) type=%d.\n", func, sp,
+		    lio->ctx.type);
+		return;
+	}
+
+	del_timer(&lio->ctx.timer);
+	fcport = sp->fcport;
+
+	data[0] = data[1] = 0;
+	if (logio->entry_status) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x.\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    logio->entry_status));
+		DEBUG2(qla2x00_dump_buffer((uint8_t *)logio, sizeof(*logio)));
+
+		data[0] = MBS_COMMAND_ERROR;
+		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+		    QLA_LOGIO_LOGIN_RETRIED: 0;
+		goto done_post_logio_done_work;
+	}
+
+	if (le16_to_cpu(logio->comp_status) == CS_COMPLETE) {
+		DEBUG2(printk(KERN_DEBUG
+		    "scsi(%ld:%x): Async-%s complete - iop0=%x.\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    le32_to_cpu(logio->io_parameter[0])));
+
+		data[0] = MBS_COMMAND_COMPLETE;
+		if (lio->ctx.type == SRB_LOGOUT_CMD)
+			goto done_post_logio_done_work;
+
+		iop[0] = le32_to_cpu(logio->io_parameter[0]);
+		if (iop[0] & BIT_4) {
+			fcport->port_type = FCT_TARGET;
+			if (iop[0] & BIT_8)
+				fcport->flags |= FCF_TAPE_PRESENT;
+		}
+		if (iop[0] & BIT_5)
+			fcport->port_type = FCT_INITIATOR;
+		if (logio->io_parameter[7] || logio->io_parameter[8])
+			fcport->supported_classes |= FC_COS_CLASS2;
+		if (logio->io_parameter[9] || logio->io_parameter[10])
+			fcport->supported_classes |= FC_COS_CLASS3;
+
+		goto done_post_logio_done_work;
+	}
+
+	iop[0] = le32_to_cpu(logio->io_parameter[0]);
+	iop[1] = le32_to_cpu(logio->io_parameter[1]);
+	switch (iop[0]) {
+	case LSC_SCODE_PORTID_USED:
+		data[0] = MBS_PORT_ID_USED;
+		data[1] = LSW(iop[1]);
+		break;
+	case LSC_SCODE_NPORT_USED:
+		data[0] = MBS_LOOP_ID_USED;
+		break;
+	case LSC_SCODE_CMD_FAILED:
+		if ((iop[1] & 0xff) == 0x05) {
+			data[0] = MBS_NOT_LOGGED_IN;
+			break;
+		}
+		/* Fall through. */
+	default:
+		data[0] = MBS_COMMAND_ERROR;
+		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+		    QLA_LOGIO_LOGIN_RETRIED: 0;
+		break;
+	}
+
+	DEBUG2(printk(KERN_WARNING
+	    "scsi(%ld:%x): Async-%s failed - comp=%x iop0=%x iop1=%x.\n",
+	    fcport->vha->host_no, sp->handle, type,
+	    le16_to_cpu(logio->comp_status),
+	    le32_to_cpu(logio->io_parameter[0]),
+	    le32_to_cpu(logio->io_parameter[1])));
+
+done_post_logio_done_work:
+	lio->ctx.type == SRB_LOGIN_CMD ?
+	    qla2x00_post_async_login_done_work(fcport->vha, fcport, data):
+	    qla2x00_post_async_logout_done_work(fcport->vha, fcport, data);
+
+	lio->ctx.free(sp);
+}
+
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -980,6 +1223,9 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 		case STATUS_CONT_TYPE:
 			qla2x00_status_cont_entry(rsp, (sts_cont_entry_t *)pkt);
 			break;
+		case MBX_IOCB_TYPE:
+			qla2x00_mbx_iocb_entry(vha, rsp->req,
+			    (struct mbx_entry *)pkt);
 		default:
 			/* Type Not Supported. */
 			DEBUG4(printk(KERN_WARNING
@@ -1589,6 +1835,10 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		case VP_RPT_ID_IOCB_TYPE:
 			qla24xx_report_id_acquisition(vha,
 			    (struct vp_rpt_id_entry_24xx *)pkt);
+			break;
+		case LOGINOUT_PORT_IOCB_TYPE:
+			qla24xx_logio_entry(vha, rsp->req,
+			    (struct logio_entry_24xx *)pkt);
 			break;
 		default:
 			/* Type Not Supported. */

@@ -207,6 +207,28 @@ typedef struct srb {
 #define SRB_DMA_VALID		BIT_0	/* Command sent to ISP */
 
 /*
+ * SRB extensions.
+ */
+struct srb_ctx {
+#define SRB_LOGIN_CMD	1
+#define SRB_LOGOUT_CMD	2
+	uint16_t type;
+	struct timer_list timer;
+
+	void (*free)(srb_t *sp);
+	void (*timeout)(srb_t *sp);
+};
+
+struct srb_logio {
+	struct srb_ctx ctx;
+
+#define SRB_LOGIN_RETRIED	BIT_0
+#define SRB_LOGIN_COND_PLOGI	BIT_1
+#define SRB_LOGIN_SKIP_PRLI	BIT_2
+	uint16_t flags;
+};
+
+/*
  * ISP I/O Register Set structure definitions.
  */
 struct device_reg_2xxx {
@@ -2096,6 +2118,10 @@ struct qla_msix_entry {
 enum qla_work_type {
 	QLA_EVT_AEN,
 	QLA_EVT_IDC_ACK,
+	QLA_EVT_ASYNC_LOGIN,
+	QLA_EVT_ASYNC_LOGIN_DONE,
+	QLA_EVT_ASYNC_LOGOUT,
+	QLA_EVT_ASYNC_LOGOUT_DONE,
 };
 
 
@@ -2114,6 +2140,11 @@ struct qla_work_evt {
 #define QLA_IDC_ACK_REGS	7
 			uint16_t mb[QLA_IDC_ACK_REGS];
 		} idc_ack;
+		struct {
+			struct fc_port *fcport;
+#define QLA_LOGIO_LOGIN_RETRIED	BIT_0
+			u16 data[2];
+		} logio;
 	} u;
 };
 
@@ -2354,6 +2385,7 @@ struct qla_hw_data {
 				(ha)->flags.msix_enabled)
 #define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha))
 #define IS_NOCACHE_VPD_TYPE(ha)	(IS_QLA81XX(ha))
+#define IS_ALOGIO_CAPABLE(ha)	(IS_QLA23XX(ha) || IS_FWI2_CAPABLE(ha))
 
 #define IS_IIDMA_CAPABLE(ha)    ((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)     ((ha)->device_type & DT_FWI2)

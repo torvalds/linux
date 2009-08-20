@@ -253,6 +253,8 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 	if (!(ha->current_topology & ISP_CFG_F))
 		return 0;
 
+	qla2x00_do_work(vha);
+
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
 		/* VP acquired. complete port configuration */
 		if (atomic_read(&base_vha->loop_state) == LOOP_READY) {

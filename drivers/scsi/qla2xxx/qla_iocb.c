@@ -860,3 +860,205 @@ static void qla25xx_set_que(srb_t *sp, struct rsp_que **rsp)
 	 else
 		*rsp = ha->rsp_q_map[0];
 }
+
+/* Generic Control-SRB manipulation functions. */
+
+static void *
+qla2x00_alloc_iocbs(srb_t *sp)
+{
+	scsi_qla_host_t	*vha = sp->fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = ha->req_q_map[0];
+	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
+	uint32_t index, handle;
+	request_t *pkt;
+	uint16_t cnt, req_cnt;
+
+	pkt = NULL;
+	req_cnt = 1;
+
+	/* Check for room in outstanding command list. */
+	handle = req->current_outstanding_cmd;
+	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+		handle++;
+		if (handle == MAX_OUTSTANDING_COMMANDS)
+			handle = 1;
+		if (!req->outstanding_cmds[handle])
+			break;
+	}
+	if (index == MAX_OUTSTANDING_COMMANDS)
+		goto queuing_error;
+
+	/* Check for room on request queue. */
+	if (req->cnt < req_cnt) {
+		if (ha->mqenable)
+			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
+		else if (IS_FWI2_CAPABLE(ha))
+			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
+		else
+			cnt = qla2x00_debounce_register(
+			    ISP_REQ_Q_OUT(ha, &reg->isp));
+
+		if  (req->ring_index < cnt)
+			req->cnt = cnt - req->ring_index;
+		else
+			req->cnt = req->length -
+			    (req->ring_index - cnt);
+	}
+	if (req->cnt < req_cnt)
+		goto queuing_error;
+
+	/* Prep packet */
+	req->current_outstanding_cmd = handle;
+	req->outstanding_cmds[handle] = sp;
+	req->cnt -= req_cnt;
+
+	pkt = req->ring_ptr;
+	memset(pkt, 0, REQUEST_ENTRY_SIZE);
+	pkt->entry_count = req_cnt;
+	pkt->handle = handle;
+	sp->handle = handle;
+
+queuing_error:
+	return pkt;
+}
+
+static void
+qla2x00_start_iocbs(srb_t *sp)
+{
+	struct qla_hw_data *ha = sp->fcport->vha->hw;
+	struct req_que *req = ha->req_q_map[0];
+	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
+	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
+
+	/* Adjust ring index. */
+	req->ring_index++;
+	if (req->ring_index == req->length) {
+		req->ring_index = 0;
+		req->ring_ptr = req->ring;
+	} else
+		req->ring_ptr++;
+
+	/* Set chip new ring index. */
+	if (ha->mqenable) {
+		WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
+		RD_REG_DWORD(&ioreg->hccr);
+	} else if (IS_FWI2_CAPABLE(ha)) {
+		WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
+		RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+	} else {
+		WRT_REG_WORD(ISP_REQ_Q_IN(ha, &reg->isp), req->ring_index);
+		RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, &reg->isp));
+	}
+}
+
+static void
+qla24xx_login_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+{
+	struct srb_logio *lio = sp->ctx;
+
+	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
+	if (lio->flags & SRB_LOGIN_COND_PLOGI)
+		logio->control_flags |= cpu_to_le16(LCF_COND_PLOGI);
+	if (lio->flags & SRB_LOGIN_SKIP_PRLI)
+		logio->control_flags |= cpu_to_le16(LCF_SKIP_PRLI);
+	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
+	logio->port_id[1] = sp->fcport->d_id.b.area;
+	logio->port_id[2] = sp->fcport->d_id.b.domain;
+	logio->vp_index = sp->fcport->vp_idx;
+}
+
+static void
+qla2x00_login_iocb(srb_t *sp, struct mbx_entry *mbx)
+{
+	struct qla_hw_data *ha = sp->fcport->vha->hw;
+	struct srb_logio *lio = sp->ctx;
+	uint16_t opts;
+
+	mbx->entry_type = MBX_IOCB_TYPE;;
+	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
+	mbx->mb0 = cpu_to_le16(MBC_LOGIN_FABRIC_PORT);
+	opts = lio->flags & SRB_LOGIN_COND_PLOGI ? BIT_0: 0;
+	opts |= lio->flags & SRB_LOGIN_SKIP_PRLI ? BIT_1: 0;
+	if (HAS_EXTENDED_IDS(ha)) {
+		mbx->mb1 = cpu_to_le16(sp->fcport->loop_id);
+		mbx->mb10 = cpu_to_le16(opts);
+	} else {
+		mbx->mb1 = cpu_to_le16((sp->fcport->loop_id << 8) | opts);
+	}
+	mbx->mb2 = cpu_to_le16(sp->fcport->d_id.b.domain);
+	mbx->mb3 = cpu_to_le16(sp->fcport->d_id.b.area << 8 |
+	    sp->fcport->d_id.b.al_pa);
+	mbx->mb9 = cpu_to_le16(sp->fcport->vp_idx);
+}
+
+static void
+qla24xx_logout_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+{
+	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags =
+	    cpu_to_le16(LCF_COMMAND_LOGO|LCF_IMPL_LOGO);
+	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
+	logio->port_id[1] = sp->fcport->d_id.b.area;
+	logio->port_id[2] = sp->fcport->d_id.b.domain;
+	logio->vp_index = sp->fcport->vp_idx;
+}
+
+static void
+qla2x00_logout_iocb(srb_t *sp, struct mbx_entry *mbx)
+{
+	struct qla_hw_data *ha = sp->fcport->vha->hw;
+
+	mbx->entry_type = MBX_IOCB_TYPE;;
+	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
+	mbx->mb0 = cpu_to_le16(MBC_LOGOUT_FABRIC_PORT);
+	mbx->mb1 = HAS_EXTENDED_IDS(ha) ?
+	    cpu_to_le16(sp->fcport->loop_id):
+	    cpu_to_le16(sp->fcport->loop_id << 8);
+	mbx->mb2 = cpu_to_le16(sp->fcport->d_id.b.domain);
+	mbx->mb3 = cpu_to_le16(sp->fcport->d_id.b.area << 8 |
+	    sp->fcport->d_id.b.al_pa);
+	mbx->mb9 = cpu_to_le16(sp->fcport->vp_idx);
+	/* Implicit: mbx->mbx10 = 0. */
+}
+
+int
+qla2x00_start_sp(srb_t *sp)
+{
+	int rval;
+	struct qla_hw_data *ha = sp->fcport->vha->hw;
+	void *pkt;
+	struct srb_ctx *ctx = sp->ctx;
+	unsigned long flags;
+
+	rval = QLA_FUNCTION_FAILED;
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	pkt = qla2x00_alloc_iocbs(sp);
+	if (!pkt)
+		goto done;
+
+	rval = QLA_SUCCESS;
+	switch (ctx->type) {
+	case SRB_LOGIN_CMD:
+		IS_FWI2_CAPABLE(ha) ?
+		    qla24xx_login_iocb(sp, pkt):
+		    qla2x00_login_iocb(sp, pkt);
+		break;
+	case SRB_LOGOUT_CMD:
+		IS_FWI2_CAPABLE(ha) ?
+		    qla24xx_logout_iocb(sp, pkt):
+		    qla2x00_logout_iocb(sp, pkt);
+		break;
+	default:
+		break;
+	}
+
+	wmb();
+	qla2x00_start_iocbs(sp);
+done:
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	return rval;
+}

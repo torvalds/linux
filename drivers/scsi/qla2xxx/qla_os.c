@@ -1170,6 +1170,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 	int que, cnt;
 	unsigned long flags;
 	srb_t *sp;
+	struct srb_ctx *ctx;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
 
@@ -1182,8 +1183,14 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
 				req->outstanding_cmds[cnt] = NULL;
-				sp->cmd->result = res;
-				qla2x00_sp_compl(ha, sp);
+				if (!sp->ctx) {
+					sp->cmd->result = res;
+					qla2x00_sp_compl(ha, sp);
+				} else {
+					ctx = sp->ctx;
+					del_timer_sync(&ctx->timer);
+					ctx->free(sp);
+				}
 			}
 		}
 	}
@@ -2618,7 +2625,31 @@ qla2x00_post_idc_ack_work(struct scsi_qla_host *vha, uint16_t *mb)
 	return qla2x00_post_work(vha, e);
 }
 
-static void
+#define qla2x00_post_async_work(name, type)	\
+int qla2x00_post_async_##name##_work(		\
+    struct scsi_qla_host *vha,			\
+    fc_port_t *fcport, uint16_t *data)		\
+{						\
+	struct qla_work_evt *e;			\
+						\
+	e = qla2x00_alloc_work(vha, type);	\
+	if (!e)					\
+		return QLA_FUNCTION_FAILED;	\
+						\
+	e->u.logio.fcport = fcport;		\
+	if (data) {				\
+		e->u.logio.data[0] = data[0];	\
+		e->u.logio.data[1] = data[1];	\
+	}					\
+	return qla2x00_post_work(vha, e);	\
+}
+
+qla2x00_post_async_work(login, QLA_EVT_ASYNC_LOGIN);
+qla2x00_post_async_work(login_done, QLA_EVT_ASYNC_LOGIN_DONE);
+qla2x00_post_async_work(logout, QLA_EVT_ASYNC_LOGOUT);
+qla2x00_post_async_work(logout_done, QLA_EVT_ASYNC_LOGOUT_DONE);
+
+void
 qla2x00_do_work(struct scsi_qla_host *vha)
 {
 	struct qla_work_evt *e, *tmp;
@@ -2640,6 +2671,21 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_IDC_ACK:
 			qla81xx_idc_ack(vha, e->u.idc_ack.mb);
 			break;
+		case QLA_EVT_ASYNC_LOGIN:
+			qla2x00_async_login(vha, e->u.logio.fcport,
+			    e->u.logio.data);
+			break;
+		case QLA_EVT_ASYNC_LOGIN_DONE:
+			qla2x00_async_login_done(vha, e->u.logio.fcport,
+			    e->u.logio.data);
+			break;
+		case QLA_EVT_ASYNC_LOGOUT:
+			qla2x00_async_logout(vha, e->u.logio.fcport);
+			break;
+		case QLA_EVT_ASYNC_LOGOUT_DONE:
+			qla2x00_async_logout_done(vha, e->u.logio.fcport,
+			    e->u.logio.data);
+			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);
@@ -2655,6 +2701,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 	int status;
 	uint16_t        next_loopid = 0;
 	struct qla_hw_data *ha = vha->hw;
+	uint16_t data[2];
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 	/*
@@ -2664,6 +2711,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 		if (atomic_read(&fcport->state) !=
 			FCS_ONLINE && fcport->login_retry) {
 
+			fcport->login_retry--;
 			if (fcport->flags & FCF_FABRIC_DEVICE) {
 				if (fcport->flags & FCF_TAPE_PRESENT)
 					ha->isp_ops->fabric_logout(vha,
@@ -2672,13 +2720,22 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 							fcport->d_id.b.area,
 							fcport->d_id.b.al_pa);
 
-				status = qla2x00_fabric_login(vha, fcport,
-							&next_loopid);
+				if (IS_ALOGIO_CAPABLE(ha)) {
+					data[0] = 0;
+					data[1] = QLA_LOGIO_LOGIN_RETRIED;
+					status = qla2x00_post_async_login_work(
+					    vha, fcport, data);
+					if (status == QLA_SUCCESS)
+						continue;
+					/* Attempt a retry. */
+					status = 1;
+				} else
+					status = qla2x00_fabric_login(vha,
+					    fcport, &next_loopid);
 			} else
 				status = qla2x00_local_device_login(vha,
 								fcport);
 
-			fcport->login_retry--;
 			if (status == QLA_SUCCESS) {
 				fcport->old_loop_id = fcport->loop_id;
 
@@ -2850,6 +2907,9 @@ qla2x00_do_dpc(void *data)
 	 * Make sure that nobody tries to wake us up again.
 	 */
 	ha->dpc_active = 0;
+
+	/* Cleanup any residual CTX SRBs. */
+	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
 
 	return 0;
 }
