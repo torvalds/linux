@@ -1334,7 +1334,7 @@ static struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *ms
 	return skb;
 }
 
-static struct sk_buff *l2cap_create_ertm_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control)
+static struct sk_buff *l2cap_create_ertm_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control, u16 sdulen)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 	struct sk_buff *skb;
@@ -1342,6 +1342,9 @@ static struct sk_buff *l2cap_create_ertm_pdu(struct sock *sk, struct msghdr *msg
 	struct l2cap_hdr *lh;
 
 	BT_DBG("sk %p len %d", sk, (int)len);
+
+	if (sdulen)
+		hlen += 2;
 
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 	skb = bt_skb_send_alloc(sk, count + hlen,
@@ -1354,6 +1357,8 @@ static struct sk_buff *l2cap_create_ertm_pdu(struct sock *sk, struct msghdr *msg
 	lh->cid = cpu_to_le16(l2cap_pi(sk)->dcid);
 	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
 	put_unaligned_le16(control, skb_put(skb, 2));
+	if (sdulen)
+		put_unaligned_le16(sdulen, skb_put(skb, 2));
 
 	err = l2cap_skbuff_fromiovec(sk, msg, len, count, skb);
 	if (unlikely(err < 0)) {
@@ -1361,6 +1366,54 @@ static struct sk_buff *l2cap_create_ertm_pdu(struct sock *sk, struct msghdr *msg
 		return ERR_PTR(err);
 	}
 	return skb;
+}
+
+static inline int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct sk_buff *skb;
+	struct sk_buff_head sar_queue;
+	u16 control;
+	size_t size = 0;
+
+	__skb_queue_head_init(&sar_queue);
+	control = L2CAP_SDU_START;
+	skb = l2cap_create_ertm_pdu(sk, msg, pi->max_pdu_size, control, len);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	__skb_queue_tail(&sar_queue, skb);
+	len -= pi->max_pdu_size;
+	size +=pi->max_pdu_size;
+	control = 0;
+
+	while (len > 0) {
+		size_t buflen;
+
+		if (len > pi->max_pdu_size) {
+			control |= L2CAP_SDU_CONTINUE;
+			buflen = pi->max_pdu_size;
+		} else {
+			control |= L2CAP_SDU_END;
+			buflen = len;
+		}
+
+		skb = l2cap_create_ertm_pdu(sk, msg, buflen, control, 0);
+		if (IS_ERR(skb)) {
+			skb_queue_purge(&sar_queue);
+			return PTR_ERR(skb);
+		}
+
+		__skb_queue_tail(&sar_queue, skb);
+		len -= buflen;
+		size += buflen;
+		control = 0;
+	}
+	skb_queue_splice_tail(&sar_queue, TX_QUEUE(sk));
+	if (sk->sk_send_head == NULL)
+		sk->sk_send_head = sar_queue.next;
+
+	return size;
 }
 
 static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len)
@@ -1415,21 +1468,22 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	case L2CAP_MODE_ERTM:
 		/* Entire SDU fits into one PDU */
-		if (len <= pi->omtu) {
+		if (len <= pi->max_pdu_size) {
 			control = L2CAP_SDU_UNSEGMENTED;
-			skb = l2cap_create_ertm_pdu(sk, msg, len, control);
+			skb = l2cap_create_ertm_pdu(sk, msg, len, control, 0);
 			if (IS_ERR(skb)) {
 				err = PTR_ERR(skb);
 				goto done;
 			}
+			__skb_queue_tail(TX_QUEUE(sk), skb);
+			if (sk->sk_send_head == NULL)
+				sk->sk_send_head = skb;
 		} else {
-			/* FIXME: Segmentation will be added later */
-			err = -EINVAL;
-			goto done;
+		/* Segment SDU into multiples PDUs */
+			err = l2cap_sar_segment_sdu(sk, msg, len);
+			if (err < 0)
+				goto done;
 		}
-		__skb_queue_tail(TX_QUEUE(sk), skb);
-		if (sk->sk_send_head == NULL)
-			sk->sk_send_head = skb;
 
 		err = l2cap_ertm_send(sk);
 		if (!err)
@@ -2007,7 +2061,7 @@ done:
 		rfc.max_transmit    = L2CAP_DEFAULT_MAX_RECEIVE;
 		rfc.retrans_timeout = 0;
 		rfc.monitor_timeout = 0;
-		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_RX_APDU);
+		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_PDU_SIZE);
 
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
@@ -2019,7 +2073,7 @@ done:
 		rfc.max_transmit    = 0;
 		rfc.retrans_timeout = 0;
 		rfc.monitor_timeout = 0;
-		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_RX_APDU);
+		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_PDU_SIZE);
 
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
@@ -2808,6 +2862,86 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn, struct sk_buff *sk
 	kfree_skb(skb);
 }
 
+static int l2cap_sar_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 control)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct sk_buff *_skb;
+	int err = -EINVAL;
+
+	switch (control & L2CAP_CTRL_SAR) {
+	case L2CAP_SDU_UNSEGMENTED:
+		if (pi->conn_state & L2CAP_CONN_SAR_SDU) {
+			kfree_skb(pi->sdu);
+			break;
+		}
+
+		err = sock_queue_rcv_skb(sk, skb);
+		if (!err)
+			return 0;
+
+		break;
+
+	case L2CAP_SDU_START:
+		if (pi->conn_state & L2CAP_CONN_SAR_SDU) {
+			kfree_skb(pi->sdu);
+			break;
+		}
+
+		pi->sdu_len = get_unaligned_le16(skb->data);
+		skb_pull(skb, 2);
+
+		pi->sdu = bt_skb_alloc(pi->sdu_len, GFP_ATOMIC);
+		if (!pi->sdu) {
+			err = -ENOMEM;
+			break;
+		}
+
+		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+
+		pi->conn_state |= L2CAP_CONN_SAR_SDU;
+		pi->partial_sdu_len = skb->len;
+		err = 0;
+		break;
+
+	case L2CAP_SDU_CONTINUE:
+		if (!(pi->conn_state & L2CAP_CONN_SAR_SDU))
+			break;
+
+		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+
+		pi->partial_sdu_len += skb->len;
+		if (pi->partial_sdu_len > pi->sdu_len)
+			kfree_skb(pi->sdu);
+		else
+			err = 0;
+
+		break;
+
+	case L2CAP_SDU_END:
+		if (!(pi->conn_state & L2CAP_CONN_SAR_SDU))
+			break;
+
+		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+
+		pi->conn_state &= ~L2CAP_CONN_SAR_SDU;
+		pi->partial_sdu_len += skb->len;
+
+		if (pi->partial_sdu_len == pi->sdu_len) {
+			_skb = skb_clone(pi->sdu, GFP_ATOMIC);
+			err = sock_queue_rcv_skb(sk, _skb);
+			if (err < 0)
+				kfree_skb(_skb);
+		}
+		kfree_skb(pi->sdu);
+		err = 0;
+
+		break;
+	}
+
+	kfree_skb(skb);
+	return err;
+}
+
 static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, struct sk_buff *skb)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
@@ -2820,11 +2954,11 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 	if (tx_seq != pi->expected_tx_seq)
 		return -EINVAL;
 
-	pi->expected_tx_seq = (pi->expected_tx_seq + 1) % 64;
-	err = sock_queue_rcv_skb(sk, skb);
-	if (err)
+	err = l2cap_sar_reassembly_sdu(sk, skb, rx_control);
+	if (err < 0)
 		return err;
 
+	pi->expected_tx_seq = (pi->expected_tx_seq + 1) % 64;
 	pi->num_to_ack = (pi->num_to_ack + 1) % L2CAP_DEFAULT_NUM_TO_ACK;
 	if (pi->num_to_ack == L2CAP_DEFAULT_NUM_TO_ACK - 1) {
 		tx_control |= L2CAP_CTRL_FRAME_TYPE;
@@ -2860,7 +2994,7 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk_buff *skb)
 {
 	struct sock *sk;
-	u16 control;
+	u16 control, len;
 	int err;
 
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
@@ -2891,8 +3025,12 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	case L2CAP_MODE_ERTM:
 		control = get_unaligned_le16(skb->data);
 		skb_pull(skb, 2);
+		len = skb->len;
 
-		if (l2cap_pi(sk)->imtu < skb->len)
+		if (__is_sar_start(control))
+			len -= 2;
+
+		if (len > L2CAP_DEFAULT_MAX_PDU_SIZE)
 			goto drop;
 
 		if (__is_iframe(control))

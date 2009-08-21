@@ -34,7 +34,7 @@
 #define L2CAP_DEFAULT_MAX_RECEIVE	1
 #define L2CAP_DEFAULT_RETRANS_TO	300    /* 300 milliseconds */
 #define L2CAP_DEFAULT_MONITOR_TO	1000   /* 1 second */
-#define L2CAP_DEFAULT_MAX_RX_APDU	0xfff7
+#define L2CAP_DEFAULT_MAX_PDU_SIZE	672
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -311,6 +311,7 @@ struct l2cap_pinfo {
 	__u8		conf_req[64];
 	__u8		conf_len;
 	__u8		conf_state;
+	__u8		conn_state;
 
 	__u8		next_tx_seq;
 	__u8		expected_ack_seq;
@@ -318,6 +319,9 @@ struct l2cap_pinfo {
 	__u8		expected_tx_seq;
 	__u8		unacked_frames;
 	__u8		num_to_ack;
+	__u16		sdu_len;
+	__u16		partial_sdu_len;
+	struct sk_buff	*sdu;
 
 	__u8		ident;
 
@@ -346,6 +350,8 @@ struct l2cap_pinfo {
 #define L2CAP_CONF_MAX_CONF_REQ 2
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
+#define L2CAP_CONN_SAR_SDU         0x01
+
 static inline int l2cap_tx_window_full(struct sock *sk)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
@@ -363,6 +369,7 @@ static inline int l2cap_tx_window_full(struct sock *sk)
 #define __get_reqseq(ctrl) ((ctrl) & L2CAP_CTRL_REQSEQ) >> 8
 #define __is_iframe(ctrl) !((ctrl) & L2CAP_CTRL_FRAME_TYPE)
 #define __is_sframe(ctrl) (ctrl) & L2CAP_CTRL_FRAME_TYPE
+#define __is_sar_start(ctrl) ((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START
 
 void l2cap_load(void);
 
