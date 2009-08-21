@@ -4900,7 +4900,7 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_HC_CMD_TICKS,
 	       (bp->cmd_ticks_int << 16) | bp->cmd_ticks);
 
-	if (CHIP_NUM(bp) == CHIP_NUM_5708)
+	if (bp->flags & BNX2_FLAG_BROKEN_STATS)
 		REG_WR(bp, BNX2_HC_STATS_TICKS, 0);
 	else
 		REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks);
@@ -6025,7 +6025,7 @@ bnx2_timer(unsigned long data)
 		bnx2_reg_rd_ind(bp, BNX2_FW_RX_DROP_COUNT);
 
 	/* workaround occasional corrupted counters */
-	if (CHIP_NUM(bp) == CHIP_NUM_5708 && bp->stats_ticks)
+	if ((bp->flags & BNX2_FLAG_BROKEN_STATS) && bp->stats_ticks)
 		REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd |
 					    BNX2_HC_COMMAND_STATS_NOW);
 
@@ -6941,7 +6941,7 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 		0xff;
 
 	bp->stats_ticks = coal->stats_block_coalesce_usecs;
-	if (CHIP_NUM(bp) == CHIP_NUM_5708) {
+	if (bp->flags & BNX2_FLAG_BROKEN_STATS) {
 		if (bp->stats_ticks != 0 && bp->stats_ticks != USEC_PER_SEC)
 			bp->stats_ticks = USEC_PER_SEC;
 	}
@@ -7722,6 +7722,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			rc = -EIO;
 			goto err_out_unmap;
 		}
+		bp->flags |= BNX2_FLAG_BROKEN_STATS;
 	}
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709 && CHIP_REV(bp) != CHIP_REV_Ax) {
