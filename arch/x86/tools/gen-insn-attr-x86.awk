@@ -4,7 +4,25 @@
 #
 # Usage: awk -f gen-insn-attr-x86.awk x86-opcode-map.txt > inat-tables.c
 
+# Awk implementation sanity check
+function check_awk_implement() {
+	if (!match("abc", "[[:lower:]]+"))
+		return "Your awk doesn't support charactor-class."
+	if (sprintf("%x", 0) != "0")
+		return "Your awk has a printf-format problem."
+	return ""
+}
+
 BEGIN {
+	# Implementation error checking
+	awkchecked = check_awk_implement()
+	if (awkchecked != "") {
+		print "Error: " awkchecked > "/dev/stderr"
+		print "Please try to use gawk." > "/dev/stderr"
+		exit 1
+	}
+
+	# Setup generating tables
 	print "/* x86 opcode map generated from x86-opcode-map.txt */"
 	print "/* Do not change this code. */"
 	ggid = 1
@@ -293,6 +311,8 @@ function convert_operands(opnd,       i,imm,mod)
 }
 
 END {
+	if (awkchecked != "")
+		exit 1
 	# print escape opcode map's array
 	print "/* Escape opcode map array */"
 	print "const insn_attr_t const *inat_escape_tables[INAT_ESC_MAX + 1]" \
