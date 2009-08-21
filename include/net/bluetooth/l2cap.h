@@ -108,6 +108,7 @@ struct l2cap_conninfo {
 
 #define L2CAP_CTRL_TXSEQ_SHIFT      1
 #define L2CAP_CTRL_REQSEQ_SHIFT     8
+#define L2CAP_CTRL_SAR_SHIFT       14
 
 /* L2CAP Supervisory Function */
 #define L2CAP_SUPER_RCV_READY           0x0000
@@ -290,6 +291,13 @@ struct l2cap_conn {
 /* ----- L2CAP channel and socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 #define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
+#define SREJ_QUEUE(sk) (&l2cap_pi(sk)->srej_queue)
+#define SREJ_LIST(sk) (&l2cap_pi(sk)->srej_l.list)
+
+struct srej_list {
+	__u8	tx_seq;
+	struct list_head list;
+};
 
 struct l2cap_pinfo {
 	struct bt_sock	bt;
@@ -318,6 +326,8 @@ struct l2cap_pinfo {
 	__u8		expected_ack_seq;
 	__u8		req_seq;
 	__u8		expected_tx_seq;
+	__u8		buffer_seq;
+	__u8		buffer_seq_srej;
 	__u8		unacked_frames;
 	__u8		retry_count;
 	__u8		num_to_ack;
@@ -338,6 +348,8 @@ struct l2cap_pinfo {
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
 	struct sk_buff_head	tx_queue;
+	struct sk_buff_head	srej_queue;
+	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
 	struct sock		*next_c;
 	struct sock		*prev_c;
@@ -356,7 +368,7 @@ struct l2cap_pinfo {
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
 #define L2CAP_CONN_SAR_SDU         0x01
-#define L2CAP_CONN_UNDER_REJ       0x02
+#define L2CAP_CONN_SREJ_SENT       0x02
 #define L2CAP_CONN_WAIT_F          0x04
 
 #define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
