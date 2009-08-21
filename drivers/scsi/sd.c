@@ -2021,6 +2021,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
+	put_device(&sdkp->dev);
 }
 
 /**
@@ -2106,6 +2107,7 @@ static int sd_probe(struct device *dev)
 
 	get_device(&sdp->sdev_gendev);
 
+	get_device(&sdkp->dev);	/* prevent release before async_schedule */
 	async_schedule(sd_probe_async, sdkp);
 
 	return 0;
