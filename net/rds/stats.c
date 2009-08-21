@@ -37,6 +37,7 @@
 #include "rds.h"
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_statistics, rds_stats);
+EXPORT_PER_CPU_SYMBOL_GPL(rds_stats);
 
 /* :.,$s/unsigned long\>.*\<s_\(.*\);/"\1",/g */
 
@@ -90,6 +91,7 @@ void rds_stats_info_copy(struct rds_info_iterator *iter,
 		rds_info_copy(iter, &ctr, sizeof(ctr));
 	}
 }
+EXPORT_SYMBOL_GPL(rds_stats_info_copy);
 
 /*
  * This gives global counters across all the transports.  The strings

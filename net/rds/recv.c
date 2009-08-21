@@ -46,12 +46,14 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 	inc->i_saddr = saddr;
 	inc->i_rdma_cookie = 0;
 }
+EXPORT_SYMBOL_GPL(rds_inc_init);
 
 void rds_inc_addref(struct rds_incoming *inc)
 {
 	rdsdebug("addref inc %p ref %d\n", inc, atomic_read(&inc->i_refcount));
 	atomic_inc(&inc->i_refcount);
 }
+EXPORT_SYMBOL_GPL(rds_inc_addref);
 
 void rds_inc_put(struct rds_incoming *inc)
 {
@@ -62,6 +64,7 @@ void rds_inc_put(struct rds_incoming *inc)
 		inc->i_conn->c_trans->inc_free(inc);
 	}
 }
+EXPORT_SYMBOL_GPL(rds_inc_put);
 
 static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 				  struct rds_cong_map *map,
@@ -237,6 +240,7 @@ out:
 	if (rs)
 		rds_sock_put(rs);
 }
+EXPORT_SYMBOL_GPL(rds_recv_incoming);
 
 /*
  * be very careful here.  This is being called as the condition in
