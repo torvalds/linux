@@ -1070,7 +1070,7 @@ static int __probe_event_show_format(struct trace_seq *s,
 #define SHOW_FIELD(type, item, name)					\
 	do {								\
 		ret = trace_seq_printf(s, "\tfield: " #type " %s;\t"	\
-				"offset:%u;tsize:%u;\n", name,		\
+				"offset:%u;\tsize:%u;\n", name,		\
 				(unsigned int)offsetof(typeof(field), item),\
 				(unsigned int)sizeof(type));		\
 		if (!ret)						\
