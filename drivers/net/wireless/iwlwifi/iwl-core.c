@@ -1708,10 +1708,10 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (tx_power > IWL_TX_POWER_TARGET_POWER_MAX) {
-		IWL_WARN(priv, "Requested user TXPOWER %d above upper limit %d.\n",
-			 tx_power,
-			 IWL_TX_POWER_TARGET_POWER_MAX);
+	if (tx_power > priv->tx_power_channel_lmt) {
+		IWL_WARN(priv,
+			"Requested user TXPOWER %d above upper limit %d.\n",
+			 tx_power, priv->tx_power_channel_lmt);
 		return -EINVAL;
 	}
 
