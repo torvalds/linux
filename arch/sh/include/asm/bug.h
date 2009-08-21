@@ -98,6 +98,11 @@ do {							\
 	unlikely(__ret_unwinder_on);				\
 })
 
+#else
+
+#define UNWINDER_BUG	BUG
+#define UNWINDER_BUG_ON	BUG_ON
+
 #endif /* CONFIG_GENERIC_BUG */
 
 #include <asm-generic/bug.h>
