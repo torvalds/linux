@@ -145,20 +145,22 @@ static irqreturn_t wm97xx_chrg_irq(int irq, void *data)
 }
 
 #ifdef CONFIG_PM
-static int wm97xx_bat_suspend(struct platform_device *dev, pm_message_t state)
+static int wm97xx_bat_suspend(struct device *dev)
 {
 	flush_scheduled_work();
 	return 0;
 }
 
-static int wm97xx_bat_resume(struct platform_device *dev)
+static int wm97xx_bat_resume(struct device *dev)
 {
 	schedule_work(&bat_work);
 	return 0;
 }
-#else
-#define wm97xx_bat_suspend NULL
-#define wm97xx_bat_resume NULL
+
+static struct dev_pm_ops wm97xx_bat_pm_ops = {
+	.suspend	= wm97xx_bat_suspend,
+	.resume		= wm97xx_bat_resume,
+};
 #endif
 
 static int __devinit wm97xx_bat_probe(struct platform_device *dev)
@@ -281,11 +283,12 @@ static struct platform_driver wm97xx_bat_driver = {
 	.driver	= {
 		.name	= "wm97xx-battery",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &wm97xx_bat_pm_ops,
+#endif
 	},
 	.probe		= wm97xx_bat_probe,
 	.remove		= __devexit_p(wm97xx_bat_remove),
-	.suspend	= wm97xx_bat_suspend,
-	.resume		= wm97xx_bat_resume,
 };
 
 static int __init wm97xx_bat_init(void)
