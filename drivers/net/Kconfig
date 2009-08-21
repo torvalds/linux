@@ -1727,7 +1727,8 @@ config KS8842
 	tristate "Micrel KSZ8842"
 	depends on HAS_IOMEM
 	help
-	  This platform driver is for Micrel KSZ8842 chip.
+	  This platform driver is for Micrel KSZ8842 / KS8842
+	  2-port ethernet switch chip (managed, VLAN, QoS).
 
 config KS8851
        tristate "Micrel KS8851 SPI"
