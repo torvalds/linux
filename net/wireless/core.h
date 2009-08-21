@@ -372,6 +372,10 @@ void cfg80211_sme_disassoc(struct net_device *dev, int idx);
 void __cfg80211_scan_done(struct work_struct *wk);
 void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak);
 void cfg80211_upload_connect_keys(struct wireless_dev *wdev);
+int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, enum nl80211_iftype ntype,
+			  u32 *flags, struct vif_params *params);
+void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev);
 
 struct ieee80211_channel *
 rdev_fixed_channel(struct cfg80211_registered_device *rdev,

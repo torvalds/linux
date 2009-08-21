@@ -70,17 +70,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 	enum nl80211_iftype type;
 	int ret;
 
-	if (!wdev)
-		return -EOPNOTSUPP;
-
 	rdev = wiphy_to_dev(wdev->wiphy);
-
-	if (!rdev->ops->change_virtual_intf)
-		return -EOPNOTSUPP;
-
-	/* don't support changing VLANs, you just re-create them */
-	if (wdev->iftype == NL80211_IFTYPE_AP_VLAN)
-		return -EOPNOTSUPP;
 
 	switch (*mode) {
 	case IW_MODE_INFRA:
@@ -104,9 +94,9 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	memset(&vifparams, 0, sizeof(vifparams));
 
-	ret = rdev->ops->change_virtual_intf(wdev->wiphy, dev, type,
-					     NULL, &vifparams);
-	WARN_ON(!ret && wdev->iftype != type);
+	cfg80211_lock_rdev(rdev);
+	ret = cfg80211_change_iface(rdev, dev, type, NULL, &vifparams);
+	cfg80211_unlock_rdev(rdev);
 
 	return ret;
 }

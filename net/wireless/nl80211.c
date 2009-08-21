@@ -977,12 +977,6 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	if (!rdev->ops->change_virtual_intf ||
-	    !(rdev->wiphy.interface_modes & (1 << ntype))) {
-		err = -EOPNOTSUPP;
-		goto unlock;
-	}
-
 	if (info->attrs[NL80211_ATTR_MESH_ID]) {
 		if (ntype != NL80211_IFTYPE_MESH_POINT) {
 			err = -EINVAL;
@@ -1008,17 +1002,9 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (change)
-		err = rdev->ops->change_virtual_intf(&rdev->wiphy, dev,
-						    ntype, flags, &params);
+		err = cfg80211_change_iface(rdev, dev, ntype, flags, &params);
 	else
 		err = 0;
-
-	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
-
-	if (!err && (ntype != otype)) {
-		if (otype == NL80211_IFTYPE_ADHOC)
-			cfg80211_clear_ibss(dev, false);
-	}
 
  unlock:
 	dev_put(dev);

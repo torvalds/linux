@@ -294,69 +294,17 @@ static void cfg80211_rfkill_sync_work(struct work_struct *work)
 	cfg80211_rfkill_set_block(rdev, rfkill_blocked(rdev->rfkill));
 }
 
-static void cfg80211_process_events(struct wireless_dev *wdev)
-{
-	struct cfg80211_event *ev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&wdev->event_lock, flags);
-	while (!list_empty(&wdev->event_list)) {
-		ev = list_first_entry(&wdev->event_list,
-				      struct cfg80211_event, list);
-		list_del(&ev->list);
-		spin_unlock_irqrestore(&wdev->event_lock, flags);
-
-		wdev_lock(wdev);
-		switch (ev->type) {
-		case EVENT_CONNECT_RESULT:
-			__cfg80211_connect_result(
-				wdev->netdev, is_zero_ether_addr(ev->cr.bssid) ?
-				NULL : ev->cr.bssid,
-				ev->cr.req_ie, ev->cr.req_ie_len,
-				ev->cr.resp_ie, ev->cr.resp_ie_len,
-				ev->cr.status,
-				ev->cr.status == WLAN_STATUS_SUCCESS,
-				NULL);
-			break;
-		case EVENT_ROAMED:
-			__cfg80211_roamed(wdev, ev->rm.bssid,
-					  ev->rm.req_ie, ev->rm.req_ie_len,
-					  ev->rm.resp_ie, ev->rm.resp_ie_len);
-			break;
-		case EVENT_DISCONNECTED:
-			__cfg80211_disconnected(wdev->netdev,
-						ev->dc.ie, ev->dc.ie_len,
-						ev->dc.reason, true);
-			break;
-		case EVENT_IBSS_JOINED:
-			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid);
-			break;
-		}
-		wdev_unlock(wdev);
-
-		kfree(ev);
-
-		spin_lock_irqsave(&wdev->event_lock, flags);
-	}
-	spin_unlock_irqrestore(&wdev->event_lock, flags);
-}
-
 static void cfg80211_event_work(struct work_struct *work)
 {
 	struct cfg80211_registered_device *rdev;
-	struct wireless_dev *wdev;
 
 	rdev = container_of(work, struct cfg80211_registered_device,
 			    event_work);
 
 	rtnl_lock();
 	cfg80211_lock_rdev(rdev);
-	mutex_lock(&rdev->devlist_mtx);
 
-	list_for_each_entry(wdev, &rdev->netdev_list, list)
-		cfg80211_process_events(wdev);
-
-	mutex_unlock(&rdev->devlist_mtx);
+	cfg80211_process_rdev_events(rdev);
 	cfg80211_unlock_rdev(rdev);
 	rtnl_unlock();
 }
