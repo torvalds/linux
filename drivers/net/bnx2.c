@@ -59,8 +59,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"2.0.1"
-#define DRV_MODULE_RELDATE	"May 6, 2009"
+#define DRV_MODULE_VERSION	"2.0.2"
+#define DRV_MODULE_RELDATE	"Aug 21, 2009"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-4.6.16.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-4.6.16.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-4.6.17.fw"
