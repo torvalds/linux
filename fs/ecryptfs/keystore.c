@@ -612,7 +612,12 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	}
 	/* TODO: Support other key modules than passphrase for
 	 * filename encryption */
-	BUG_ON(s->auth_tok->token_type != ECRYPTFS_PASSWORD);
+	if (s->auth_tok->token_type != ECRYPTFS_PASSWORD) {
+		rc = -EOPNOTSUPP;
+		printk(KERN_INFO "%s: Filename encryption only supports "
+		       "password tokens\n", __func__);
+		goto out_free_unlock;
+	}
 	sg_init_one(
 		&s->hash_sg,
 		(u8 *)s->auth_tok->token.password.session_key_encryption_key,
@@ -910,7 +915,12 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	}
 	/* TODO: Support other key modules than passphrase for
 	 * filename encryption */
-	BUG_ON(s->auth_tok->token_type != ECRYPTFS_PASSWORD);
+	if (s->auth_tok->token_type != ECRYPTFS_PASSWORD) {
+		rc = -EOPNOTSUPP;
+		printk(KERN_INFO "%s: Filename encryption only supports "
+		       "password tokens\n", __func__);
+		goto out_free_unlock;
+	}
 	rc = crypto_blkcipher_setkey(
 		s->desc.tfm,
 		s->auth_tok->token.password.session_key_encryption_key,
