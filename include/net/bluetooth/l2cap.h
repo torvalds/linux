@@ -351,6 +351,7 @@ struct l2cap_pinfo {
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
 #define L2CAP_CONN_SAR_SDU         0x01
+#define L2CAP_CONN_UNDER_REJ       0x02
 
 static inline int l2cap_tx_window_full(struct sock *sk)
 {
