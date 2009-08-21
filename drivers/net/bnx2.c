@@ -4858,6 +4858,7 @@ bnx2_init_chip(struct bnx2 *bp)
 	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG2, BNX2_RBUF_CONFIG2_VAL(mtu));
 	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG3, BNX2_RBUF_CONFIG3_VAL(mtu));
 
+	memset(bp->bnx2_napi[0].status_blk.msi, 0, bp->status_stats_size);
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++)
 		bp->bnx2_napi[i].last_status_idx = 0;
 
