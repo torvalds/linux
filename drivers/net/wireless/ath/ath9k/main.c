@@ -439,7 +439,7 @@ static void ath_start_ani(struct ath_softc *sc)
  */
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
-	if (is_ht ||
+	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
 	    (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)) {
 		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
 		sc->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
@@ -2713,6 +2713,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	mutex_lock(&sc->mutex);
 	if (ath9k_wiphy_scanning(sc)) {
 		printk(KERN_DEBUG "ath9k: Two wiphys trying to scan at the "
 		       "same time\n");
@@ -2720,6 +2721,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 		 * Do not allow the concurrent scanning state for now. This
 		 * could be improved with scanning control moved into ath9k.
 		 */
+		mutex_unlock(&sc->mutex);
 		return;
 	}
 
@@ -2729,6 +2731,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	spin_lock_bh(&sc->ani_lock);
 	sc->sc_flags |= SC_OP_SCANNING;
 	spin_unlock_bh(&sc->ani_lock);
+	mutex_unlock(&sc->mutex);
 }
 
 static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
@@ -2736,11 +2739,13 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	mutex_lock(&sc->mutex);
 	spin_lock_bh(&sc->ani_lock);
 	aphy->state = ATH_WIPHY_ACTIVE;
 	sc->sc_flags &= ~SC_OP_SCANNING;
 	sc->sc_flags |= SC_OP_FULL_RESET;
 	spin_unlock_bh(&sc->ani_lock);
+	mutex_unlock(&sc->mutex);
 }
 
 struct ieee80211_ops ath9k_ops = {
