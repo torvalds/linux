@@ -388,6 +388,32 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 	return result;
 }
 
+static int wacom_query_tablet_data(struct usb_interface *intf)
+{
+	unsigned char *rep_data;
+	int limit = 0;
+	int error;
+
+	rep_data = kmalloc(2, GFP_KERNEL);
+	if (!rep_data)
+		return -ENOMEM;
+
+	do {
+		rep_data[0] = 2;
+		rep_data[1] = 2;
+		error = usb_set_report(intf, WAC_HID_FEATURE_REPORT,
+					2, rep_data, 2);
+		if (error >= 0)
+			error = usb_get_report(intf,
+						WAC_HID_FEATURE_REPORT, 2,
+						rep_data, 2);
+	} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
+
+	kfree(rep_data);
+
+	return error < 0 ? error : 0;
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -398,7 +424,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct wacom_features *features;
 	struct input_dev *input_dev;
 	int error = -ENOMEM;
-	char rep_data[2], limit = 0;
 	struct hid_descriptor *hid_desc;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
@@ -489,20 +514,10 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	/*
 	 * Ask the tablet to report tablet data if it is not a Tablet PC.
-	 * Repeat until it succeeds
+	 * Note that if query fails it is not a hard failure.
 	 */
-	if (wacom_wac->features->type != TABLETPC) {
-		do {
-			rep_data[0] = 2;
-			rep_data[1] = 2;
-			error = usb_set_report(intf, WAC_HID_FEATURE_REPORT,
-						2, rep_data, 2);
-			if (error >= 0)
-				error = usb_get_report(intf,
-						WAC_HID_FEATURE_REPORT, 2,
-						rep_data, 2);
-		} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
-	}
+	if (wacom_wac->features->type != TABLETPC)
+		wacom_query_tablet_data(intf);
 
 	usb_set_intfdata(intf, wacom);
 	return 0;
