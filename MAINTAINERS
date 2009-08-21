@@ -709,16 +709,19 @@ S:	Maintained
 ARM/PALMTX,PALMT5,PALMLD,PALMTE2,PALMTC SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
+L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
 
 ARM/PALM TREO 680 SUPPORT
 M:	Tomas Cech <sleep_walker@suse.cz>
+L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
 
 ARM/PALMZ72 SUPPORT
 M:	Sergey Lapin <slapin@ossfans.org>
+L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
 
