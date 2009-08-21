@@ -328,6 +328,7 @@ struct l2cap_pinfo {
 	__u8		expected_tx_seq;
 	__u8		buffer_seq;
 	__u8		buffer_seq_srej;
+	__u8		srej_save_reqseq;
 	__u8		unacked_frames;
 	__u8		retry_count;
 	__u8		num_to_ack;
@@ -370,6 +371,8 @@ struct l2cap_pinfo {
 #define L2CAP_CONN_SAR_SDU         0x01
 #define L2CAP_CONN_SREJ_SENT       0x02
 #define L2CAP_CONN_WAIT_F          0x04
+#define L2CAP_CONN_SREJ_ACT        0x08
+#define L2CAP_CONN_SEND_PBIT       0x10
 
 #define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));

@@ -3241,6 +3241,10 @@ static void l2cap_send_srejframe(struct sock *sk, u8 tx_seq)
 	while (tx_seq != pi->expected_tx_seq) {
 		control = L2CAP_SUPER_SELECT_REJECT;
 		control |= pi->expected_tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
+		if (pi->conn_state & L2CAP_CONN_SEND_PBIT) {
+			control |= L2CAP_CTRL_POLL;
+			pi->conn_state &= ~L2CAP_CONN_SEND_PBIT;
+		}
 		l2cap_send_sframe(pi, control);
 
 		new = kzalloc(sizeof(struct srej_list), GFP_ATOMIC);
@@ -3299,6 +3303,8 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 
 		__skb_queue_head_init(SREJ_QUEUE(sk));
 		l2cap_add_to_srej_queue(sk, skb, tx_seq, sar);
+
+		pi->conn_state |= L2CAP_CONN_SEND_PBIT;
 
 		l2cap_send_srejframe(sk, tx_seq);
 	}
@@ -3370,7 +3376,29 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 		break;
 
 	case L2CAP_SUPER_SELECT_REJECT:
-		l2cap_retransmit_frame(sk, tx_seq);
+		if (rx_control & L2CAP_CTRL_POLL) {
+			l2cap_retransmit_frame(sk, tx_seq);
+			pi->expected_ack_seq = tx_seq;
+			l2cap_drop_acked_frames(sk);
+			l2cap_ertm_send(sk);
+			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
+				pi->srej_save_reqseq = tx_seq;
+				pi->conn_state |= L2CAP_CONN_SREJ_ACT;
+			}
+		} else if (rx_control & L2CAP_CTRL_FINAL) {
+			if ((pi->conn_state & L2CAP_CONN_SREJ_ACT) &&
+					pi->srej_save_reqseq == tx_seq)
+				pi->srej_save_reqseq &= ~L2CAP_CONN_SREJ_ACT;
+			else
+				l2cap_retransmit_frame(sk, tx_seq);
+		}
+		else {
+			l2cap_retransmit_frame(sk, tx_seq);
+			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
+				pi->srej_save_reqseq = tx_seq;
+				pi->conn_state |= L2CAP_CONN_SREJ_ACT;
+			}
+		}
 		break;
 
 	case L2CAP_SUPER_RCV_NOT_READY:
