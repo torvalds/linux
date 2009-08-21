@@ -1215,7 +1215,7 @@ struct iwl_priv {
 
 	/* TX Power */
 	s8 tx_power_user_lmt;
-	s8 tx_power_channel_lmt;
+	s8 tx_power_device_lmt;
 
 
 #ifdef CONFIG_IWLWIFI_DEBUG
