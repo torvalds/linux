@@ -139,6 +139,7 @@ struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
 	__u8 tx_seq;
+	__u8 retries;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 

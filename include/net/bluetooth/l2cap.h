@@ -31,9 +31,9 @@
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
 #define L2CAP_DEFAULT_TX_WINDOW		63
 #define L2CAP_DEFAULT_NUM_TO_ACK        (L2CAP_DEFAULT_TX_WINDOW/5)
-#define L2CAP_DEFAULT_MAX_RECEIVE	1
-#define L2CAP_DEFAULT_RETRANS_TO	300    /* 300 milliseconds */
-#define L2CAP_DEFAULT_MONITOR_TO	1000   /* 1 second */
+#define L2CAP_DEFAULT_MAX_TX		3
+#define L2CAP_DEFAULT_RETRANS_TO	1000    /* 1 second */
+#define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
 #define L2CAP_DEFAULT_MAX_PDU_SIZE	672
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
@@ -318,6 +318,7 @@ struct l2cap_pinfo {
 	__u8		req_seq;
 	__u8		expected_tx_seq;
 	__u8		unacked_frames;
+	__u8		retry_count;
 	__u8		num_to_ack;
 	__u16		sdu_len;
 	__u16		partial_sdu_len;
@@ -333,6 +334,8 @@ struct l2cap_pinfo {
 
 	__le16		sport;
 
+	struct timer_list	retrans_timer;
+	struct timer_list	monitor_timer;
 	struct sk_buff_head	tx_queue;
 	struct l2cap_conn	*conn;
 	struct sock		*next_c;
@@ -352,6 +355,12 @@ struct l2cap_pinfo {
 
 #define L2CAP_CONN_SAR_SDU         0x01
 #define L2CAP_CONN_UNDER_REJ       0x02
+#define L2CAP_CONN_WAIT_F          0x04
+
+#define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
+		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
+#define __mod_monitor_timer() mod_timer(&l2cap_pi(sk)->monitor_timer, \
+		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
 
 static inline int l2cap_tx_window_full(struct sock *sk)
 {
