@@ -423,11 +423,12 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->rx.rxfilter & FIF_PSPOLL)
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
-	if (sc->sec_wiphy) {
+	if (sc->sec_wiphy || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
 		/* TODO: only needed if more than one BSSID is in use in
 		 * station/adhoc mode */
-		/* TODO: for older chips, may need to add ATH9K_RX_FILTER_PROM
-		 */
+		/* The following may also be needed for other older chips */
+		if (sc->sc_ah->hw_version.macVersion == AR_SREV_VERSION_9160)
+			rfilt |= ATH9K_RX_FILTER_PROM;
 		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 	}
 
