@@ -667,6 +667,9 @@ struct ieee80211_local {
 	 */
 	bool quiescing;
 
+	/* device is started */
+	bool started;
+
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
 	/* Tasklet and skb queue to process calls from IRQ mode. All frames

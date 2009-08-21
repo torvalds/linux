@@ -12,7 +12,11 @@ static inline int drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 
 static inline int drv_start(struct ieee80211_local *local)
 {
-	int ret = local->ops->start(&local->hw);
+	int ret;
+
+	local->started = true;
+	smp_mb();
+	ret = local->ops->start(&local->hw);
 	trace_drv_start(local, ret);
 	return ret;
 }
@@ -21,6 +25,14 @@ static inline void drv_stop(struct ieee80211_local *local)
 {
 	local->ops->stop(&local->hw);
 	trace_drv_stop(local);
+
+	/* sync away all work on the tasklet before clearing started */
+	tasklet_disable(&local->tasklet);
+	tasklet_enable(&local->tasklet);
+
+	barrier();
+
+	local->started = false;
 }
 
 static inline int drv_add_interface(struct ieee80211_local *local,
