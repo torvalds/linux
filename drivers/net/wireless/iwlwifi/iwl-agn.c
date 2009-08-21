@@ -2477,10 +2477,15 @@ static ssize_t store_tx_power(struct device *d,
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
 		IWL_INFO(priv, "%s is not in decimal form.\n", buf);
-	else
-		iwl_set_tx_power(priv, val, false);
-
-	return count;
+	else {
+		ret = iwl_set_tx_power(priv, val, false);
+		if (ret)
+			IWL_ERR(priv, "failed setting tx power (0x%d).\n",
+				ret);
+		else
+			ret = count;
+	}
+	return ret;
 }
 
 static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
