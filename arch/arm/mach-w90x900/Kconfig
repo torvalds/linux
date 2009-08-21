@@ -5,6 +5,11 @@ config CPU_W90P910
 	help
 	  Support for W90P910 of Nuvoton W90X900 CPUs.
 
+config CPU_NUC950
+	bool
+	help
+	  Support for NUCP950 of Nuvoton NUC900 CPUs.
+
 menu "W90P910 Machines"
 
 config MACH_W90P910EVB
@@ -13,6 +18,16 @@ config MACH_W90P910EVB
 	select CPU_W90P910
 	help
 	   Say Y here if you are using the Nuvoton W90P910EVB
+
+endmenu
+
+menu "NUC950 Machines"
+
+config MACH_W90P950EVB
+	bool "Nuvoton NUC950 Evaluation Board"
+	select CPU_NUC950
+	help
+	   Say Y here if you are using the Nuvoton NUC950EVB
 
 endmenu
 

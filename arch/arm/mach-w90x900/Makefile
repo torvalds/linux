@@ -9,7 +9,9 @@ obj-y				+= clksel.o dev.o cpu.o
 # W90X900 CPU support files
 
 obj-$(CONFIG_CPU_W90P910)	+= nuc910.o
+obj-$(CONFIG_CPU_NUC950)	+= nuc950.o
 
 # machine support
 
 obj-$(CONFIG_MACH_W90P910EVB)	+= mach-nuc910evb.o
+obj-$(CONFIG_MACH_W90P950EVB)	+= mach-nuc950evb.o
