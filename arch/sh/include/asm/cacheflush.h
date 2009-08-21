@@ -19,22 +19,39 @@
  *  - flush_icache_page(vma, pg) flushes(invalidates) a page for icache
  *  - flush_cache_sigtramp(vaddr) flushes the signal trampoline
  */
-extern void (*flush_cache_all)(void);
-extern void (*flush_cache_mm)(struct mm_struct *mm);
-extern void (*flush_cache_dup_mm)(struct mm_struct *mm);
-extern void (*flush_cache_page)(struct vm_area_struct *vma,
-				unsigned long addr, unsigned long pfn);
-extern void (*flush_cache_range)(struct vm_area_struct *vma,
-				 unsigned long start, unsigned long end);
-extern void (*flush_dcache_page)(struct page *page);
-extern void (*flush_icache_range)(unsigned long start, unsigned long end);
-extern void (*flush_icache_page)(struct vm_area_struct *vma,
-				 struct page *page);
-extern void (*flush_cache_sigtramp)(unsigned long address);
+extern void (*local_flush_cache_all)(void *args);
+extern void (*local_flush_cache_mm)(void *args);
+extern void (*local_flush_cache_dup_mm)(void *args);
+extern void (*local_flush_cache_page)(void *args);
+extern void (*local_flush_cache_range)(void *args);
+extern void (*local_flush_dcache_page)(void *args);
+extern void (*local_flush_icache_range)(void *args);
+extern void (*local_flush_icache_page)(void *args);
+extern void (*local_flush_cache_sigtramp)(void *args);
+
+static inline void cache_noop(void *args) { }
 
 extern void (*__flush_wback_region)(void *start, int size);
 extern void (*__flush_purge_region)(void *start, int size);
 extern void (*__flush_invalidate_region)(void *start, int size);
+
+extern void flush_cache_all(void);
+extern void flush_cache_mm(struct mm_struct *mm);
+extern void flush_cache_dup_mm(struct mm_struct *mm);
+extern void flush_cache_page(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long pfn);
+extern void flush_cache_range(struct vm_area_struct *vma,
+				 unsigned long start, unsigned long end);
+extern void flush_dcache_page(struct page *page);
+extern void flush_icache_range(unsigned long start, unsigned long end);
+extern void flush_icache_page(struct vm_area_struct *vma,
+				 struct page *page);
+extern void flush_cache_sigtramp(unsigned long address);
+
+struct flusher_data {
+	struct vm_area_struct *vma;
+	unsigned long addr1, addr2;
+};
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
 extern void __flush_anon_page(struct page *page, unsigned long);

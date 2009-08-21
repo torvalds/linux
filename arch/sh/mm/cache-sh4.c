@@ -43,15 +43,20 @@ static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
  * Called from kernel/module.c:sys_init_module and routine for a.out format,
  * signal handler code and kprobes code
  */
-static void sh4_flush_icache_range(unsigned long start, unsigned long end)
+static void sh4_flush_icache_range(void *args)
 {
+	struct flusher_data *data = args;
 	int icacheaddr;
+	unsigned long start, end;
 	unsigned long flags, v;
 	int i;
 
+	start = data->addr1;
+	end = data->addr2;
+
        /* If there are too many pages then just blow the caches */
         if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
-                flush_cache_all();
+                local_flush_cache_all(args);
        } else {
                /* selectively flush d-cache then invalidate the i-cache */
                /* this is inefficient, so only use for small ranges */
@@ -104,7 +109,7 @@ static inline void flush_cache_4096(unsigned long start,
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-static void sh4_flush_dcache_page(struct page *page)
+static void sh4_flush_dcache_page(void *page)
 {
 #ifndef CONFIG_SMP
 	struct address_space *mapping = page_mapping(page);
@@ -155,7 +160,7 @@ static inline void flush_dcache_all(void)
 	wmb();
 }
 
-static void sh4_flush_cache_all(void)
+static void sh4_flush_cache_all(void *unused)
 {
 	flush_dcache_all();
 	flush_icache_all();
@@ -247,8 +252,10 @@ loop_exit:
  *
  * Caller takes mm->mmap_sem.
  */
-static void sh4_flush_cache_mm(struct mm_struct *mm)
+static void sh4_flush_cache_mm(void *arg)
 {
+	struct mm_struct *mm = arg;
+
 	if (cpu_context(smp_processor_id(), mm) == NO_CONTEXT)
 		return;
 
@@ -287,11 +294,17 @@ static void sh4_flush_cache_mm(struct mm_struct *mm)
  * ADDR: Virtual Address (U0 address)
  * PFN: Physical page number
  */
-static void sh4_flush_cache_page(struct vm_area_struct *vma,
-		unsigned long address, unsigned long pfn)
+static void sh4_flush_cache_page(void *args)
 {
-	unsigned long phys = pfn << PAGE_SHIFT;
+	struct flusher_data *data = args;
+	struct vm_area_struct *vma;
+	unsigned long address, pfn, phys;
 	unsigned int alias_mask;
+
+	vma = data->vma;
+	address = data->addr1;
+	pfn = data->addr2;
+	phys = pfn << PAGE_SHIFT;
 
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
@@ -335,9 +348,16 @@ static void sh4_flush_cache_page(struct vm_area_struct *vma,
  * Flushing the cache lines for U0 only isn't enough.
  * We need to flush for P1 too, which may contain aliases.
  */
-static void sh4_flush_cache_range(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end)
+static void sh4_flush_cache_range(void *args)
 {
+	struct flusher_data *data = args;
+	struct vm_area_struct *vma;
+	unsigned long start, end;
+
+	vma = data->vma;
+	start = data->addr1;
+	end = data->addr2;
+
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
 
@@ -663,13 +683,13 @@ void __init sh4_cache_init(void)
 		break;
 	}
 
-	flush_icache_range	= sh4_flush_icache_range;
-	flush_dcache_page	= sh4_flush_dcache_page;
-	flush_cache_all		= sh4_flush_cache_all;
-	flush_cache_mm		= sh4_flush_cache_mm;
-	flush_cache_dup_mm	= sh4_flush_cache_mm;
-	flush_cache_page	= sh4_flush_cache_page;
-	flush_cache_range	= sh4_flush_cache_range;
+	local_flush_icache_range	= sh4_flush_icache_range;
+	local_flush_dcache_page		= sh4_flush_dcache_page;
+	local_flush_cache_all		= sh4_flush_cache_all;
+	local_flush_cache_mm		= sh4_flush_cache_mm;
+	local_flush_cache_dup_mm	= sh4_flush_cache_mm;
+	local_flush_cache_page		= sh4_flush_cache_page;
+	local_flush_cache_range		= sh4_flush_cache_range;
 
 	sh4__flush_region_init();
 }

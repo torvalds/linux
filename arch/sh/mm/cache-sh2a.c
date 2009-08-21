@@ -97,13 +97,15 @@ static void sh2a__flush_invalidate_region(void *start, int size)
 }
 
 /* WBack O-Cache and flush I-Cache */
-static void sh2a_flush_icache_range(unsigned long start, unsigned long end)
+static void sh2a_flush_icache_range(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long start, end;
 	unsigned long v;
 	unsigned long flags;
 
-	start = start & ~(L1_CACHE_BYTES-1);
-	end = (end + L1_CACHE_BYTES-1) & ~(L1_CACHE_BYTES-1);
+	start = data->addr1 & ~(L1_CACHE_BYTES-1);
+	end = (data->addr2 + L1_CACHE_BYTES-1) & ~(L1_CACHE_BYTES-1);
 
 	local_irq_save(flags);
 	jump_to_uncached();
@@ -130,7 +132,7 @@ static void sh2a_flush_icache_range(unsigned long start, unsigned long end)
 
 void __init sh2a_cache_init(void)
 {
-	flush_icache_range		= sh2a_flush_icache_range;
+	local_flush_icache_range	= sh2a_flush_icache_range;
 
 	__flush_wback_region		= sh2a__flush_wback_region;
 	__flush_purge_region		= sh2a__flush_purge_region;

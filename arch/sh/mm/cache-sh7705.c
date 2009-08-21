@@ -64,8 +64,14 @@ static inline void cache_wback_all(void)
  *
  * Called from kernel/module.c:sys_init_module and routine for a.out format.
  */
-static void sh7705_flush_icache_range(unsigned long start, unsigned long end)
+static void sh7705_flush_icache_range(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long start, end;
+
+	start = data->addr1;
+	end = data->addr2;
+
 	__flush_wback_region((void *)start, end - start);
 }
 
@@ -127,7 +133,7 @@ static void __flush_dcache_page(unsigned long phys)
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-static void sh7705_flush_dcache_page(struct page *page)
+static void sh7705_flush_dcache_page(void *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
@@ -137,7 +143,7 @@ static void sh7705_flush_dcache_page(struct page *page)
 		__flush_dcache_page(PHYSADDR(page_address(page)));
 }
 
-static void sh7705_flush_cache_all(void)
+static void sh7705_flush_cache_all(void *args)
 {
 	unsigned long flags;
 
@@ -149,44 +155,16 @@ static void sh7705_flush_cache_all(void)
 	local_irq_restore(flags);
 }
 
-static void sh7705_flush_cache_mm(struct mm_struct *mm)
-{
-	/* Is there any good way? */
-	/* XXX: possibly call flush_cache_range for each vm area */
-	flush_cache_all();
-}
-
-/*
- * Write back and invalidate D-caches.
- *
- * START, END: Virtual Address (U0 address)
- *
- * NOTE: We need to flush the _physical_ page entry.
- * Flushing the cache lines for U0 only isn't enough.
- * We need to flush for P1 too, which may contain aliases.
- */
-static void sh7705_flush_cache_range(struct vm_area_struct *vma,
-			unsigned long start, unsigned long end)
-{
-
-	/*
-	 * We could call flush_cache_page for the pages of these range,
-	 * but it's not efficient (scan the caches all the time...).
-	 *
-	 * We can't use A-bit magic, as there's the case we don't have
-	 * valid entry on TLB.
-	 */
-	flush_cache_all();
-}
-
 /*
  * Write back and invalidate I/D-caches for the page.
  *
  * ADDRESS: Virtual Address (U0 address)
  */
-static void sh7705_flush_cache_page(struct vm_area_struct *vma,
-		unsigned long address, unsigned long pfn)
+static void sh7705_flush_cache_page(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long pfn = data->addr2;
+
 	__flush_dcache_page(pfn << PAGE_SHIFT);
 }
 
@@ -198,20 +176,19 @@ static void sh7705_flush_cache_page(struct vm_area_struct *vma,
  * Not entirely sure why this is necessary on SH3 with 32K cache but
  * without it we get occasional "Memory fault" when loading a program.
  */
-static void sh7705_flush_icache_page(struct vm_area_struct *vma,
-				     struct page *page)
+static void sh7705_flush_icache_page(void *page)
 {
 	__flush_purge_region(page_address(page), PAGE_SIZE);
 }
 
 void __init sh7705_cache_init(void)
 {
-	flush_icache_range	= sh7705_flush_icache_range;
-	flush_dcache_page	= sh7705_flush_dcache_page;
-	flush_cache_all		= sh7705_flush_cache_all;
-	flush_cache_mm		= sh7705_flush_cache_mm;
-	flush_cache_dup_mm	= sh7705_flush_cache_mm;
-	flush_cache_range	= sh7705_flush_cache_range;
-	flush_cache_page	= sh7705_flush_cache_page;
-	flush_icache_page	= sh7705_flush_icache_page;
+	local_flush_icache_range	= sh7705_flush_icache_range;
+	local_flush_dcache_page		= sh7705_flush_dcache_page;
+	local_flush_cache_all		= sh7705_flush_cache_all;
+	local_flush_cache_mm		= sh7705_flush_cache_all;
+	local_flush_cache_dup_mm	= sh7705_flush_cache_all;
+	local_flush_cache_range		= sh7705_flush_cache_all;
+	local_flush_cache_page		= sh7705_flush_cache_page;
+	local_flush_icache_page		= sh7705_flush_icache_page;
 }

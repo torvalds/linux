@@ -483,7 +483,7 @@ static void sh64_dcache_purge_user_range(struct mm_struct *mm,
  * Invalidate the entire contents of both caches, after writing back to
  * memory any dirty data from the D-cache.
  */
-static void sh5_flush_cache_all(void)
+static void sh5_flush_cache_all(void *unused)
 {
 	sh64_dcache_purge_all();
 	sh64_icache_inv_all();
@@ -510,7 +510,7 @@ static void sh5_flush_cache_all(void)
  * I-cache.  This is similar to the lack of action needed in
  * flush_tlb_mm - see fault.c.
  */
-static void sh5_flush_cache_mm(struct mm_struct *mm)
+static void sh5_flush_cache_mm(void *unused)
 {
 	sh64_dcache_purge_all();
 }
@@ -522,13 +522,18 @@ static void sh5_flush_cache_mm(struct mm_struct *mm)
  *
  * Note, 'end' is 1 byte beyond the end of the range to flush.
  */
-static void sh5_flush_cache_range(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end)
+static void sh5_flush_cache_range(void *args)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct flusher_data *data = args;
+	struct vm_area_struct *vma;
+	unsigned long start, end;
 
-	sh64_dcache_purge_user_range(mm, start, end);
-	sh64_icache_inv_user_page_range(mm, start, end);
+	vma = data->vma;
+	start = data->addr1;
+	end = data->addr2;
+
+	sh64_dcache_purge_user_range(vma->vm_mm, start, end);
+	sh64_icache_inv_user_page_range(vma->vm_mm, start, end);
 }
 
 /*
@@ -540,16 +545,23 @@ static void sh5_flush_cache_range(struct vm_area_struct *vma,
  *
  * Note, this is called with pte lock held.
  */
-static void sh5_flush_cache_page(struct vm_area_struct *vma,
-		unsigned long eaddr, unsigned long pfn)
+static void sh5_flush_cache_page(void *args)
 {
+	struct flusher_data *data = args;
+	struct vm_area_struct *vma;
+	unsigned long eaddr, pfn;
+
+	vma = data->vma;
+	eaddr = data->addr1;
+	pfn = data->addr2;
+
 	sh64_dcache_purge_phy_page(pfn << PAGE_SHIFT);
 
 	if (vma->vm_flags & VM_EXEC)
 		sh64_icache_inv_user_page(vma, eaddr);
 }
 
-static void sh5_flush_dcache_page(struct page *page)
+static void sh5_flush_dcache_page(void *page)
 {
 	sh64_dcache_purge_phy_page(page_to_phys(page));
 	wmb();
@@ -563,8 +575,14 @@ static void sh5_flush_dcache_page(struct page *page)
  * mapping, therefore it's guaranteed that there no cache entries for
  * the range in cache sets of the wrong colour.
  */
-static void sh5_flush_icache_range(unsigned long start, unsigned long end)
+static void sh5_flush_icache_range(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long start, end;
+
+	start = data->addr1;
+	end = data->addr2;
+
 	__flush_purge_region((void *)start, end);
 	wmb();
 	sh64_icache_inv_kernel_range(start, end);
@@ -576,25 +594,25 @@ static void sh5_flush_icache_range(unsigned long start, unsigned long end)
  * current process.  Used to flush signal trampolines on the stack to
  * make them executable.
  */
-static void sh5_flush_cache_sigtramp(unsigned long vaddr)
+static void sh5_flush_cache_sigtramp(void *vaddr)
 {
-	unsigned long end = vaddr + L1_CACHE_BYTES;
+	unsigned long end = (unsigned long)vaddr + L1_CACHE_BYTES;
 
-	__flush_wback_region((void *)vaddr, L1_CACHE_BYTES);
+	__flush_wback_region(vaddr, L1_CACHE_BYTES);
 	wmb();
-	sh64_icache_inv_current_user_range(vaddr, end);
+	sh64_icache_inv_current_user_range((unsigned long)vaddr, end);
 }
 
 void __init sh5_cache_init(void)
 {
-	flush_cache_all		= sh5_flush_cache_all;
-	flush_cache_mm		= sh5_flush_cache_mm;
-	flush_cache_dup_mm	= sh5_flush_cache_mm;
-	flush_cache_page	= sh5_flush_cache_page;
-	flush_cache_range	= sh5_flush_cache_range;
-	flush_dcache_page	= sh5_flush_dcache_page;
-	flush_icache_range	= sh5_flush_icache_range;
-	flush_cache_sigtramp	= sh5_flush_cache_sigtramp;
+	local_flush_cache_all		= sh5_flush_cache_all;
+	local_flush_cache_mm		= sh5_flush_cache_mm;
+	local_flush_cache_dup_mm	= sh5_flush_cache_mm;
+	local_flush_cache_page		= sh5_flush_cache_page;
+	local_flush_cache_range		= sh5_flush_cache_range;
+	local_flush_dcache_page		= sh5_flush_dcache_page;
+	local_flush_icache_range	= sh5_flush_icache_range;
+	local_flush_cache_sigtramp	= sh5_flush_cache_sigtramp;
 
 	/* Reserve a slot for dcache colouring in the DTLB */
 	dtlb_cache_slot	= sh64_get_wired_dtlb_entry();
