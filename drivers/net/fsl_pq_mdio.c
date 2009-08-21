@@ -188,7 +188,7 @@ static int fsl_pq_mdio_find_free(struct mii_bus *new_bus)
 }
 
 
-#ifdef CONFIG_GIANFAR
+#if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
 static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs)
 {
 	struct gfar __iomem *enet_regs;
@@ -206,7 +206,7 @@ static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs)
 #endif
 
 
-#ifdef CONFIG_UCC_GETH
+#if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
 static int get_ucc_id_for_range(u64 start, u64 end, u32 *ucc_id)
 {
 	struct device_node *np = NULL;
@@ -291,7 +291,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	if (of_device_is_compatible(np, "fsl,gianfar-mdio") ||
 			of_device_is_compatible(np, "fsl,gianfar-tbi") ||
 			of_device_is_compatible(np, "gianfar")) {
-#ifdef CONFIG_GIANFAR
+#if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
 		tbipa = get_gfar_tbipa(regs);
 #else
 		err = -ENODEV;
@@ -299,7 +299,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 #endif
 	} else if (of_device_is_compatible(np, "fsl,ucc-mdio") ||
 			of_device_is_compatible(np, "ucc_geth_phy")) {
-#ifdef CONFIG_UCC_GETH
+#if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
 		u32 id;
 		static u32 mii_mng_master;
 

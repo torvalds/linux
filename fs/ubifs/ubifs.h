@@ -95,8 +95,9 @@
  */
 #define BGT_NAME_PATTERN "ubifs_bgt%d_%d"
 
-/* Default write-buffer synchronization timeout in seconds */
-#define DEFAULT_WBUF_TIMEOUT_SECS 5
+/* Write-buffer synchronization timeout interval in seconds */
+#define WBUF_TIMEOUT_SOFTLIMIT 3
+#define WBUF_TIMEOUT_HARDLIMIT 5
 
 /* Maximum possible inode number (only 32-bit inodes are supported now) */
 #define MAX_INUM 0xFFFFFFFF
@@ -654,7 +655,8 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @delta: hard and soft timeouts delta (the timer expire inteval is @softlimit
  *         and @softlimit + @delta)
  * @timer: write-buffer timer
- * @need_sync: it is set if its timer expired and needs sync
+ * @no_timer: non-zero if this write-buffer does not have a timer
+ * @need_sync: non-zero if the timer expired and the wbuf needs sync'ing
  * @next_ino: points to the next position of the following inode number
  * @inodes: stores the inode numbers of the nodes which are in wbuf
  *
@@ -683,7 +685,8 @@ struct ubifs_wbuf {
 	ktime_t softlimit;
 	unsigned long long delta;
 	struct hrtimer timer;
-	int need_sync;
+	unsigned int no_timer:1;
+	unsigned int need_sync:1;
 	int next_ino;
 	ino_t *inodes;
 };

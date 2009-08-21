@@ -208,10 +208,13 @@ rx_drop:
 
 static struct net_device_stats *veth_get_stats(struct net_device *dev)
 {
-	struct veth_priv *priv = netdev_priv(dev);
-	struct net_device_stats *dev_stats = &dev->stats;
-	unsigned int cpu;
+	struct veth_priv *priv;
+	struct net_device_stats *dev_stats;
+	int cpu;
 	struct veth_net_stats *stats;
+
+	priv = netdev_priv(dev);
+	dev_stats = &dev->stats;
 
 	dev_stats->rx_packets = 0;
 	dev_stats->tx_packets = 0;
@@ -220,17 +223,16 @@ static struct net_device_stats *veth_get_stats(struct net_device *dev)
 	dev_stats->tx_dropped = 0;
 	dev_stats->rx_dropped = 0;
 
-	if (priv->stats)
-		for_each_online_cpu(cpu) {
-			stats = per_cpu_ptr(priv->stats, cpu);
+	for_each_online_cpu(cpu) {
+		stats = per_cpu_ptr(priv->stats, cpu);
 
-			dev_stats->rx_packets += stats->rx_packets;
-			dev_stats->tx_packets += stats->tx_packets;
-			dev_stats->rx_bytes += stats->rx_bytes;
-			dev_stats->tx_bytes += stats->tx_bytes;
-			dev_stats->tx_dropped += stats->tx_dropped;
-			dev_stats->rx_dropped += stats->rx_dropped;
-		}
+		dev_stats->rx_packets += stats->rx_packets;
+		dev_stats->tx_packets += stats->tx_packets;
+		dev_stats->rx_bytes += stats->rx_bytes;
+		dev_stats->tx_bytes += stats->tx_bytes;
+		dev_stats->tx_dropped += stats->tx_dropped;
+		dev_stats->rx_dropped += stats->rx_dropped;
+	}
 
 	return dev_stats;
 }
@@ -257,8 +259,6 @@ static int veth_close(struct net_device *dev)
 	netif_carrier_off(dev);
 	netif_carrier_off(priv->peer);
 
-	free_percpu(priv->stats);
-	priv->stats = NULL;
 	return 0;
 }
 
@@ -289,6 +289,15 @@ static int veth_dev_init(struct net_device *dev)
 	return 0;
 }
 
+static void veth_dev_free(struct net_device *dev)
+{
+	struct veth_priv *priv;
+
+	priv = netdev_priv(dev);
+	free_percpu(priv->stats);
+	free_netdev(dev);
+}
+
 static const struct net_device_ops veth_netdev_ops = {
 	.ndo_init            = veth_dev_init,
 	.ndo_open            = veth_open,
@@ -306,7 +315,7 @@ static void veth_setup(struct net_device *dev)
 	dev->netdev_ops = &veth_netdev_ops;
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
-	dev->destructor = free_netdev;
+	dev->destructor = veth_dev_free;
 }
 
 /*

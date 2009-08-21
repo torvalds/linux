@@ -435,7 +435,8 @@ void sn_generate_path(struct pci_bus *pci_bus, char *address)
 	bricktype = MODULE_GET_BTYPE(moduleid);
 	if ((bricktype == L1_BRICKTYPE_191010) ||
 	    (bricktype == L1_BRICKTYPE_1932))
-			sprintf(address, "%s^%d", address, geo_slot(geoid));
+			sprintf(address + strlen(address), "^%d",
+						geo_slot(geoid));
 }
 
 void __devinit

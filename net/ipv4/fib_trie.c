@@ -316,8 +316,8 @@ static inline void check_tnode(const struct tnode *tn)
 
 static const int halve_threshold = 25;
 static const int inflate_threshold = 50;
-static const int halve_threshold_root = 8;
-static const int inflate_threshold_root = 15;
+static const int halve_threshold_root = 15;
+static const int inflate_threshold_root = 25;
 
 
 static void __alias_free_mem(struct rcu_head *head)
@@ -1021,6 +1021,9 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 				      (struct node *)tn, wasfull);
 
 		tp = node_parent((struct node *) tn);
+		if (!tp)
+			rcu_assign_pointer(t->trie, (struct node *)tn);
+
 		tnode_free_flush();
 		if (!tp)
 			break;

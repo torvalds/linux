@@ -5603,7 +5603,7 @@ pfm_interrupt_handler(int irq, void *arg)
  * /proc/perfmon interface, for debug only
  */
 
-#define PFM_PROC_SHOW_HEADER	((void *)nr_cpu_ids+1)
+#define PFM_PROC_SHOW_HEADER	((void *)(long)nr_cpu_ids+1)
 
 static void *
 pfm_proc_start(struct seq_file *m, loff_t *pos)

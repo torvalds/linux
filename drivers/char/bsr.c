@@ -27,6 +27,7 @@
 #include <linux/cdev.h>
 #include <linux/list.h>
 #include <linux/mm.h>
+#include <asm/pgtable.h>
 #include <asm/io.h>
 
 /*
@@ -75,12 +76,13 @@ static struct class *bsr_class;
 static int bsr_major;
 
 enum {
-	BSR_8   = 0,
-	BSR_16  = 1,
-	BSR_64  = 2,
-	BSR_128 = 3,
-	BSR_UNKNOWN = 4,
-	BSR_MAX = 5,
+	BSR_8    = 0,
+	BSR_16   = 1,
+	BSR_64   = 2,
+	BSR_128  = 3,
+	BSR_4096 = 4,
+	BSR_UNKNOWN = 5,
+	BSR_MAX  = 6,
 };
 
 static unsigned bsr_types[BSR_MAX];
@@ -117,15 +119,22 @@ static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long size   = vma->vm_end - vma->vm_start;
 	struct bsr_dev *dev = filp->private_data;
+	int ret;
 
-	if (size > dev->bsr_len || (size & (PAGE_SIZE-1)))
-		return -EINVAL;
-
-	vma->vm_flags |= (VM_IO | VM_DONTEXPAND);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (io_remap_pfn_range(vma, vma->vm_start, dev->bsr_addr >> PAGE_SHIFT,
-			       size, vma->vm_page_prot))
+	/* check for the case of a small BSR device and map one 4k page for it*/
+	if (dev->bsr_len < PAGE_SIZE && size == PAGE_SIZE)
+		ret = remap_4k_pfn(vma, vma->vm_start, dev->bsr_addr >> 12,
+				   vma->vm_page_prot);
+	else if (size <= dev->bsr_len)
+		ret = io_remap_pfn_range(vma, vma->vm_start,
+					 dev->bsr_addr >> PAGE_SHIFT,
+					 size, vma->vm_page_prot);
+	else
+		return -EINVAL;
+
+	if (ret)
 		return -EAGAIN;
 
 	return 0;
@@ -205,6 +214,11 @@ static int bsr_add_node(struct device_node *bn)
 		cur->bsr_stride = bsr_stride[i];
 		cur->bsr_dev    = MKDEV(bsr_major, i + total_bsr_devs);
 
+		/* if we have a bsr_len of > 4k and less then PAGE_SIZE (64k pages) */
+		/* we can only map 4k of it, so only advertise the 4k in sysfs */
+		if (cur->bsr_len > 4096 && cur->bsr_len < PAGE_SIZE)
+			cur->bsr_len = 4096;
+
 		switch(cur->bsr_bytes) {
 		case 8:
 			cur->bsr_type = BSR_8;
@@ -218,9 +232,11 @@ static int bsr_add_node(struct device_node *bn)
 		case 128:
 			cur->bsr_type = BSR_128;
 			break;
+		case 4096:
+			cur->bsr_type = BSR_4096;
+			break;
 		default:
 			cur->bsr_type = BSR_UNKNOWN;
-			printk(KERN_INFO "unknown BSR size %d\n",cur->bsr_bytes);
 		}
 
 		cur->bsr_num = bsr_types[cur->bsr_type];

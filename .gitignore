@@ -27,6 +27,7 @@
 *.gz
 *.lzma
 *.patch
+*.gcno
 
 #
 # Top-level generic files

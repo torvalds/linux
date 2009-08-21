@@ -121,7 +121,7 @@ static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
 	table_attr->attr.size = 0;
 	table_attr->attr.read = acpi_table_show;
 	table_attr->attr.attr.name = table_attr->name;
-	table_attr->attr.attr.mode = 0444;
+	table_attr->attr.attr.mode = 0400;
 
 	return;
 }

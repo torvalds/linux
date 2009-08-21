@@ -48,8 +48,6 @@
 #include <plat/mci.h>
 #include <plat/udc.h>
 
-#include <plat/regs-serial.h>
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
@@ -275,6 +273,7 @@ static struct s3c2410_nand_set mini2440_nand_sets[] __initdata = {
 		.nr_chips	= 1,
 		.nr_partitions	= ARRAY_SIZE(mini2440_default_nand_part),
 		.partitions	= mini2440_default_nand_part,
+		.flash_bbt 	= 1, /* we use u-boot to create a BBT */
 	},
 };
 

@@ -1087,11 +1087,23 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	struct udf_inode_info *vati;
 	uint32_t pos;
 	struct virtualAllocationTable20 *vat20;
+	sector_t blocks = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
 
 	/* VAT file entry is in the last recorded block */
 	ino.partitionReferenceNum = type1_index;
 	ino.logicalBlockNum = sbi->s_last_block - map->s_partition_root;
 	sbi->s_vat_inode = udf_iget(sb, &ino);
+	if (!sbi->s_vat_inode &&
+	    sbi->s_last_block != blocks - 1) {
+		printk(KERN_NOTICE "UDF-fs: Failed to read VAT inode from the"
+		       " last recorded block (%lu), retrying with the last "
+		       "block of the device (%lu).\n",
+		       (unsigned long)sbi->s_last_block,
+		       (unsigned long)blocks - 1);
+		ino.partitionReferenceNum = type1_index;
+		ino.logicalBlockNum = blocks - 1 - map->s_partition_root;
+		sbi->s_vat_inode = udf_iget(sb, &ino);
+	}
 	if (!sbi->s_vat_inode)
 		return 1;
 

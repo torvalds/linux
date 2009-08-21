@@ -30,6 +30,8 @@
 #include "drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_drm.h"
+#include "radeon_share.h"
 
 /* r300,r350,rv350,rv370,rv380 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
@@ -44,6 +46,7 @@ int r100_gui_wait_for_idle(struct radeon_device *rdev);
 int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt,
 			 unsigned idx);
+int r100_cs_packet_parse_vline(struct radeon_cs_parser *p);
 int r100_cs_packet_next_reloc(struct radeon_cs_parser *p,
 			      struct radeon_cs_reloc **cs_reloc);
 int r100_cs_parse_packet0(struct radeon_cs_parser *p,
@@ -150,8 +153,13 @@ int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	addr = (((u32)addr) >> 8) | ((upper_32_bits(addr) & 0xff) << 4) | 0xC;
-	writel(cpu_to_le32(addr), ((void __iomem *)ptr) + (i * 4));
+	addr = (lower_32_bits(addr) >> 8) |
+	       ((upper_32_bits(addr) & 0xff) << 24) |
+	       0xc;
+	/* on x86 we want this to be CPU endian, on powerpc
+	 * on powerpc without HW swappers, it'll get swapped on way
+	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
+	writel(addr, ((void __iomem *)ptr) + (i * 4));
 	return 0;
 }
 
@@ -579,10 +587,8 @@ void r300_vram_info(struct radeon_device *rdev)
 	} else {
 		rdev->mc.vram_width = 64;
 	}
-	rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r100_vram_init_sizes(rdev);
 }
 
 
@@ -970,7 +976,7 @@ static inline void r300_cs_track_clear(struct r300_cs_track *track)
 
 static const unsigned r300_reg_safe_bm[159] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-	0xFFFFFFBF, 0xFFFFFFFF, 0xFFFFFFBF, 0xFFFFFFFF,
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
@@ -1019,7 +1025,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	struct radeon_cs_reloc *reloc;
 	struct r300_cs_track *track;
 	volatile uint32_t *ib;
-	uint32_t tmp;
+	uint32_t tmp, tile_flags = 0;
 	unsigned i;
 	int r;
 
@@ -1027,6 +1033,16 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	track = (struct r300_cs_track*)p->track;
 	switch(reg) {
+	case AVIVO_D1MODE_VLINE_START_END:
+	case RADEON_CRTC_GUI_TRIG_VLINE:
+		r = r100_cs_packet_parse_vline(p);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		break;
 	case RADEON_DST_PITCH_OFFSET:
 	case RADEON_SRC_PITCH_OFFSET:
 		r = r100_cs_packet_next_reloc(p, &reloc);
@@ -1038,7 +1054,19 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		tmp = ib_chunk->kdata[idx] & 0x003fffff;
 		tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
-		ib[idx] = (ib_chunk->kdata[idx] & 0xffc00000) | tmp;
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= RADEON_DST_TILE_MACRO;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+			if (reg == RADEON_SRC_PITCH_OFFSET) {
+				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				r100_cs_dump_packet(p, pkt);
+				return -EINVAL;
+			}
+			tile_flags |= RADEON_DST_TILE_MICRO;
+		}
+		tmp |= tile_flags;
+		ib[idx] = (ib_chunk->kdata[idx] & 0x3fc00000) | tmp;
 		break;
 	case R300_RB3D_COLOROFFSET0:
 	case R300_RB3D_COLOROFFSET1:
@@ -1127,6 +1155,23 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLORPITCH1 */
 		/* RB3D_COLORPITCH2 */
 		/* RB3D_COLORPITCH3 */
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_COLOR_TILE_ENABLE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_COLOR_MICROTILE_ENABLE;
+
+		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
+
 		i = (reg - 0x4E38) >> 2;
 		track->cb[i].pitch = ib_chunk->kdata[idx] & 0x3FFE;
 		switch (((ib_chunk->kdata[idx] >> 21) & 0xF)) {
@@ -1182,6 +1227,23 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_DEPTHMACROTILE_ENABLE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_DEPTHMICROTILE_TILED;;
+
+		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
+
 		track->zb.pitch = ib_chunk->kdata[idx] & 0x3FFC;
 		break;
 	case 0x4104:

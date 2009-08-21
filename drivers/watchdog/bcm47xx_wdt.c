@@ -161,7 +161,7 @@ static long bcm47xx_wdt_ioctl(struct file *file,
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	int new_value, retval = -EINVAL;;
+	int new_value, retval = -EINVAL;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:

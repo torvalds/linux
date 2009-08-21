@@ -551,29 +551,21 @@ no_work_pending:
 	rtid	r14, 0
 	nop
 
-sys_vfork_wrapper:
-	brid	sys_vfork
+sys_vfork:
+	brid	microblaze_vfork
 	addk	r5, r1, r0
 
-sys_clone_wrapper:
-	brid	sys_clone
+sys_clone:
+	brid	microblaze_clone
 	addk	r7, r1, r0
 
-sys_execve_wrapper:
-	brid	sys_execve
+sys_execve:
+	brid	microblaze_execve
 	addk	r8, r1, r0
-
-sys_sigreturn_wrapper:
-	brid	sys_sigreturn
-	addk	r5, r1, r0
 
 sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
-
-sys_sigsuspend_wrapper:
-	brid	sys_rt_sigsuspend
-	addk	r6, r1, r0
 
 sys_rt_sigsuspend_wrapper:
 	brid	sys_rt_sigsuspend

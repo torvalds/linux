@@ -195,7 +195,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 			      struct dm_exception_store **store)
 {
 	int r = 0;
-	struct dm_exception_store_type *type;
+	struct dm_exception_store_type *type = NULL;
 	struct dm_exception_store *tmp_store;
 	char persistent;
 
@@ -211,12 +211,15 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 	}
 
 	persistent = toupper(*argv[1]);
-	if (persistent != 'P' && persistent != 'N') {
+	if (persistent == 'P')
+		type = get_type("P");
+	else if (persistent == 'N')
+		type = get_type("N");
+	else {
 		ti->error = "Persistent flag is not P or N";
 		return -EINVAL;
 	}
 
-	type = get_type(&persistent);
 	if (!type) {
 		ti->error = "Exception store type not recognised";
 		r = -EINVAL;

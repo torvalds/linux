@@ -32,6 +32,7 @@
  *   Wu Fengguang <fengguang.wu@intel.com>
  *   Mike Galbraith <efault@gmx.de>
  *   Paul Mackerras <paulus@samba.org>
+ *   Jaswinder Singh Rajput <jaswinder@kernel.org>
  *
  * Released under the GPL v2. (and only v2, not any later version)
  */
@@ -45,7 +46,7 @@
 #include <sys/prctl.h>
 #include <math.h>
 
-static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
+static struct perf_counter_attr default_attrs[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK	},
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES},
@@ -59,41 +60,27 @@ static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
 
 };
 
+#define MAX_RUN			100
+
 static int			system_wide			=  0;
-static int			inherit				=  1;
 static int			verbose				=  0;
+static unsigned int		nr_cpus				=  0;
+static int			run_idx				=  0;
+
+static int			run_count			=  1;
+static int			inherit				=  1;
+static int			scale				=  1;
+static int			target_pid			= -1;
+static int			null_run			=  0;
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
-
-static int			target_pid			= -1;
-static int			nr_cpus				=  0;
-static unsigned int		page_size;
-
-static int			scale				=  1;
-
-static const unsigned int default_count[] = {
-	1000000,
-	1000000,
-	  10000,
-	  10000,
-	1000000,
-	  10000,
-};
-
-#define MAX_RUN 100
-
-static int			run_count		=  1;
-static int			run_idx			=  0;
-
-static u64			event_res[MAX_RUN][MAX_COUNTERS][3];
-static u64			event_scaled[MAX_RUN][MAX_COUNTERS];
-
-//static u64			event_hist[MAX_RUN][MAX_COUNTERS][3];
-
 
 static u64			runtime_nsecs[MAX_RUN];
 static u64			walltime_nsecs[MAX_RUN];
 static u64			runtime_cycles[MAX_RUN];
+
+static u64			event_res[MAX_RUN][MAX_COUNTERS][3];
+static u64			event_scaled[MAX_RUN][MAX_COUNTERS];
 
 static u64			event_res_avg[MAX_COUNTERS][3];
 static u64			event_res_noise[MAX_COUNTERS][3];
@@ -109,7 +96,14 @@ static u64			walltime_nsecs_noise;
 static u64			runtime_cycles_avg;
 static u64			runtime_cycles_noise;
 
-static void create_perf_stat_counter(int counter)
+#define MATCH_EVENT(t, c, counter)			\
+	(attrs[counter].type == PERF_TYPE_##t &&	\
+	 attrs[counter].config == PERF_COUNT_##c)
+
+#define ERR_PERF_OPEN \
+"Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n"
+
+static void create_perf_stat_counter(int counter, int pid)
 {
 	struct perf_counter_attr *attr = attrs + counter;
 
@@ -118,21 +112,23 @@ static void create_perf_stat_counter(int counter)
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide) {
-		int cpu;
-		for (cpu = 0; cpu < nr_cpus; cpu ++) {
+		unsigned int cpu;
+
+		for (cpu = 0; cpu < nr_cpus; cpu++) {
 			fd[cpu][counter] = sys_perf_counter_open(attr, -1, cpu, -1, 0);
-			if (fd[cpu][counter] < 0 && verbose) {
-				printf("Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n", counter, fd[cpu][counter], strerror(errno));
-			}
+			if (fd[cpu][counter] < 0 && verbose)
+				fprintf(stderr, ERR_PERF_OPEN, counter,
+					fd[cpu][counter], strerror(errno));
 		}
 	} else {
-		attr->inherit	= inherit;
-		attr->disabled	= 1;
+		attr->inherit	     = inherit;
+		attr->disabled	     = 1;
+		attr->enable_on_exec = 1;
 
-		fd[0][counter] = sys_perf_counter_open(attr, 0, -1, -1, 0);
-		if (fd[0][counter] < 0 && verbose) {
-			printf("Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n", counter, fd[0][counter], strerror(errno));
-		}
+		fd[0][counter] = sys_perf_counter_open(attr, pid, -1, -1, 0);
+		if (fd[0][counter] < 0 && verbose)
+			fprintf(stderr, ERR_PERF_OPEN, counter,
+				fd[0][counter], strerror(errno));
 	}
 }
 
@@ -141,13 +137,8 @@ static void create_perf_stat_counter(int counter)
  */
 static inline int nsec_counter(int counter)
 {
-	if (attrs[counter].type != PERF_TYPE_SOFTWARE)
-		return 0;
-
-	if (attrs[counter].config == PERF_COUNT_SW_CPU_CLOCK)
-		return 1;
-
-	if (attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK)
+	if (MATCH_EVENT(SOFTWARE, SW_CPU_CLOCK, counter) ||
+	    MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
 		return 1;
 
 	return 0;
@@ -159,8 +150,8 @@ static inline int nsec_counter(int counter)
 static void read_counter(int counter)
 {
 	u64 *count, single_count[3];
-	ssize_t res;
-	int cpu, nv;
+	unsigned int cpu;
+	size_t res, nv;
 	int scaled;
 
 	count = event_res[run_idx][counter];
@@ -168,12 +159,13 @@ static void read_counter(int counter)
 	count[0] = count[1] = count[2] = 0;
 
 	nv = scale ? 3 : 1;
-	for (cpu = 0; cpu < nr_cpus; cpu ++) {
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		if (fd[cpu][counter] < 0)
 			continue;
 
 		res = read(fd[cpu][counter], single_count, nv * sizeof(u64));
 		assert(res == nv * sizeof(u64));
+
 		close(fd[cpu][counter]);
 		fd[cpu][counter] = -1;
 
@@ -201,46 +193,81 @@ static void read_counter(int counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
-		attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK)
+	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
 		runtime_nsecs[run_idx] = count[0];
-	if (attrs[counter].type == PERF_TYPE_HARDWARE &&
-		attrs[counter].config == PERF_COUNT_HW_CPU_CYCLES)
+	if (MATCH_EVENT(HARDWARE, HW_CPU_CYCLES, counter))
 		runtime_cycles[run_idx] = count[0];
 }
 
-static int run_perf_stat(int argc, const char **argv)
+static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
 	int status = 0;
 	int counter;
 	int pid;
+	int child_ready_pipe[2], go_pipe[2];
+	char buf;
 
 	if (!system_wide)
 		nr_cpus = 1;
 
-	for (counter = 0; counter < nr_counters; counter++)
-		create_perf_stat_counter(counter);
-
-	/*
-	 * Enable counters and exec the command:
-	 */
-	t0 = rdclock();
-	prctl(PR_TASK_PERF_COUNTERS_ENABLE);
+	if (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0) {
+		perror("failed to create pipes");
+		exit(1);
+	}
 
 	if ((pid = fork()) < 0)
 		perror("failed to fork");
 
 	if (!pid) {
-		if (execvp(argv[0], (char **)argv)) {
-			perror(argv[0]);
-			exit(-1);
-		}
+		close(child_ready_pipe[0]);
+		close(go_pipe[1]);
+		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+		/*
+		 * Do a dummy execvp to get the PLT entry resolved,
+		 * so we avoid the resolver overhead on the real
+		 * execvp call.
+		 */
+		execvp("", (char **)argv);
+
+		/*
+		 * Tell the parent we're ready to go
+		 */
+		close(child_ready_pipe[1]);
+
+		/*
+		 * Wait until the parent tells us to go.
+		 */
+		if (read(go_pipe[0], &buf, 1) == -1)
+			perror("unable to read pipe");
+
+		execvp(argv[0], (char **)argv);
+
+		perror(argv[0]);
+		exit(-1);
 	}
 
+	/*
+	 * Wait for the child to be ready to exec.
+	 */
+	close(child_ready_pipe[1]);
+	close(go_pipe[0]);
+	if (read(child_ready_pipe[0], &buf, 1) == -1)
+		perror("unable to read pipe");
+	close(child_ready_pipe[0]);
+
+	for (counter = 0; counter < nr_counters; counter++)
+		create_perf_stat_counter(counter, pid);
+
+	/*
+	 * Enable counters and exec the command:
+	 */
+	t0 = rdclock();
+
+	close(go_pipe[1]);
 	wait(&status);
 
-	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
 	t1 = rdclock();
 
 	walltime_nsecs[run_idx] = t1 - t0;
@@ -262,11 +289,9 @@ static void nsec_printout(int counter, u64 *count, u64 *noise)
 {
 	double msecs = (double)count[0] / 1000000;
 
-	fprintf(stderr, " %14.6f  %-20s", msecs, event_name(counter));
+	fprintf(stderr, " %14.6f  %-24s", msecs, event_name(counter));
 
-	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
-		attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK) {
-
+	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter)) {
 		if (walltime_nsecs_avg)
 			fprintf(stderr, " # %10.3f CPUs ",
 				(double)count[0] / (double)walltime_nsecs_avg);
@@ -276,12 +301,10 @@ static void nsec_printout(int counter, u64 *count, u64 *noise)
 
 static void abs_printout(int counter, u64 *count, u64 *noise)
 {
-	fprintf(stderr, " %14Ld  %-20s", count[0], event_name(counter));
+	fprintf(stderr, " %14Ld  %-24s", count[0], event_name(counter));
 
 	if (runtime_cycles_avg &&
-		attrs[counter].type == PERF_TYPE_HARDWARE &&
-			attrs[counter].config == PERF_COUNT_HW_INSTRUCTIONS) {
-
+	    MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
 		fprintf(stderr, " # %10.3f IPC  ",
 			(double)count[0] / (double)runtime_cycles_avg);
 	} else {
@@ -306,7 +329,7 @@ static void print_counter(int counter)
 	scaled = event_scaled_avg[counter];
 
 	if (scaled == -1) {
-		fprintf(stderr, " %14s  %-20s\n",
+		fprintf(stderr, " %14s  %-24s\n",
 			"<not counted>", event_name(counter));
 		return;
 	}
@@ -364,8 +387,11 @@ static void calc_avg(void)
 				event_res_avg[j]+1, event_res[i][j]+1);
 			update_avg("counter/2", j,
 				event_res_avg[j]+2, event_res[i][j]+2);
-			update_avg("scaled", j,
-				event_scaled_avg + j, event_scaled[i]+j);
+			if (event_scaled[i][j] != (u64)-1)
+				update_avg("scaled", j,
+					event_scaled_avg + j, event_scaled[i]+j);
+			else
+				event_scaled_avg[j] = -1;
 		}
 	}
 	runtime_nsecs_avg /= run_count;
@@ -429,11 +455,14 @@ static void print_stat(int argc, const char **argv)
 	for (counter = 0; counter < nr_counters; counter++)
 		print_counter(counter);
 
-
 	fprintf(stderr, "\n");
-	fprintf(stderr, " %14.9f  seconds time elapsed.\n",
+	fprintf(stderr, " %14.9f  seconds time elapsed",
 			(double)walltime_nsecs_avg/1e9);
-	fprintf(stderr, "\n");
+	if (run_count > 1) {
+		fprintf(stderr, "   ( +- %7.3f%% )",
+			100.0*(double)walltime_nsecs_noise/(double)walltime_nsecs_avg);
+	}
+	fprintf(stderr, "\n\n");
 }
 
 static volatile int signr = -1;
@@ -466,36 +495,38 @@ static const struct option options[] = {
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "stat events on existing pid"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
-			    "system-wide collection from all CPUs"),
-	OPT_BOOLEAN('S', "scale", &scale,
-			    "scale/normalize counters"),
+		    "system-wide collection from all CPUs"),
+	OPT_BOOLEAN('c', "scale", &scale,
+		    "scale/normalize counters"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
 		    "repeat command and print average + stddev (max: 100)"),
+	OPT_BOOLEAN('n', "null", &null_run,
+		    "null run - dont start any counters"),
 	OPT_END()
 };
 
-int cmd_stat(int argc, const char **argv, const char *prefix)
+int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
 	int status;
 
-	page_size = sysconf(_SC_PAGE_SIZE);
-
-	memcpy(attrs, default_attrs, sizeof(attrs));
-
-	argc = parse_options(argc, argv, options, stat_usage, 0);
+	argc = parse_options(argc, argv, options, stat_usage,
+		PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0 || run_count > MAX_RUN)
 		usage_with_options(stat_usage, options);
 
-	if (!nr_counters)
-		nr_counters = 8;
+	/* Set attrs and nr_counters if no event is selected and !null_run */
+	if (!null_run && !nr_counters) {
+		memcpy(attrs, default_attrs, sizeof(default_attrs));
+		nr_counters = ARRAY_SIZE(default_attrs);
+	}
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
-	assert(nr_cpus >= 0);
+	assert((int)nr_cpus >= 0);
 
 	/*
 	 * We dont want to block the signals - that would cause
@@ -511,7 +542,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 	status = 0;
 	for (run_idx = 0; run_idx < run_count; run_idx++) {
 		if (run_count != 1 && verbose)
-			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx+1);
+			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx + 1);
 		status = run_perf_stat(argc, argv);
 	}
 

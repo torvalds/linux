@@ -169,9 +169,11 @@ static int usb_console_setup(struct console *co, char *options)
 			kfree(tty);
 		}
 	}
-	/* So we know not to kill the hardware on a hangup on this
-	   port. We have also bumped the use count by one so it won't go
-	   idle */
+	/* Now that any required fake tty operations are completed restore
+	 * the tty port count */
+	--port->port.count;
+	/* The console is special in terms of closing the device so
+	 * indicate this port is now acting as a system console. */
 	port->console = 1;
 	retval = 0;
 
@@ -204,7 +206,7 @@ static void usb_console_write(struct console *co,
 
 	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
 
-	if (!port->port.count) {
+	if (!port->console) {
 		dbg("%s - port not opened", __func__);
 		return;
 	}
@@ -300,8 +302,7 @@ void usb_serial_console_exit(void)
 {
 	if (usbcons_info.port) {
 		unregister_console(&usbcons);
-		if (usbcons_info.port->port.count)
-			usbcons_info.port->port.count--;
+		usbcons_info.port->console = 0;
 		usbcons_info.port = NULL;
 	}
 }

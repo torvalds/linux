@@ -37,7 +37,6 @@
 
 /* Memory Map for ADSP-BF561 processors */
 
-#ifdef CONFIG_BF561
 #define COREA_L1_CODE_START       0xFFA00000
 #define COREA_L1_DATA_A_START     0xFF800000
 #define COREA_L1_DATA_B_START     0xFF900000
@@ -74,6 +73,28 @@
 #define BFIN_DCACHESIZE	(0*1024)
 #define BFIN_DSUPBANKS	0
 #endif /*CONFIG_BFIN_DCACHE*/
+
+/*
+ * If we are in SMP mode, then the cache settings of Core B will match
+ * the settings of Core A.  If we aren't, then we assume Core B is not
+ * using any cache.  This allows the rest of the kernel to work with
+ * the core in either mode as we are only loading user code into it and
+ * it is the user's problem to make sure they aren't doing something
+ * stupid there.
+ *
+ * Note that we treat the L1 code region as a contiguous blob to make
+ * the rest of the kernel simpler.  Easier to check one region than a
+ * bunch of small ones.  Again, possible misbehavior here is the fault
+ * of the user -- don't try to use memory that doesn't exist.
+ */
+#ifdef CONFIG_SMP
+# define COREB_L1_CODE_LENGTH     L1_CODE_LENGTH
+# define COREB_L1_DATA_A_LENGTH   L1_DATA_A_LENGTH
+# define COREB_L1_DATA_B_LENGTH   L1_DATA_B_LENGTH
+#else
+# define COREB_L1_CODE_LENGTH     0x14000
+# define COREB_L1_DATA_A_LENGTH   0x8000
+# define COREB_L1_DATA_B_LENGTH   0x8000
 #endif
 
 /* Level 2 Memory */

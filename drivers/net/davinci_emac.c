@@ -1820,11 +1820,19 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	struct device *emac_dev = &priv->ndev->dev;
 	struct sockaddr *sa = addr;
 
+	if (!is_valid_ether_addr(sa->sa_data))
+		return -EINVAL;
+
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
-	memcpy(rxch->mac_addr, sa->sa_data, ndev->addr_len);
 	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
-	emac_setmac(priv, EMAC_DEF_RX_CH, rxch->mac_addr);
+
+	/* If the interface is down - rxch is NULL. */
+	/* MAC address is configured only after the interface is enabled. */
+	if (netif_running(ndev)) {
+		memcpy(rxch->mac_addr, sa->sa_data, ndev->addr_len);
+		emac_setmac(priv, EMAC_DEF_RX_CH, rxch->mac_addr);
+	}
 
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: emac_dev_setmac_addr %pM\n",

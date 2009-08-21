@@ -36,3 +36,13 @@ zImage.pseries
 zconf.h
 zlib.h
 zutil.h
+fdt.c
+fdt.h
+fdt_ro.c
+fdt_rw.c
+fdt_strerror.c
+fdt_sw.c
+fdt_wip.c
+libfdt.h
+libfdt_internal.h
+

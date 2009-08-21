@@ -110,6 +110,7 @@ struct kvm_memory_slot {
 
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
+	u32 type;
 	int (*set)(struct kvm_kernel_irq_routing_entry *e,
 		    struct kvm *kvm, int level);
 	union {
@@ -125,6 +126,7 @@ struct kvm_kernel_irq_routing_entry {
 struct kvm {
 	struct mutex lock; /* protects the vcpus array and APIC accesses */
 	spinlock_t mmu_lock;
+	spinlock_t requests_lock;
 	struct rw_semaphore slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
 	int nmemslots;

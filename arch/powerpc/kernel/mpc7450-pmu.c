@@ -10,7 +10,6 @@
  */
 #include <linux/string.h>
 #include <linux/perf_counter.h>
-#include <linux/string.h>
 #include <asm/reg.h>
 #include <asm/cputable.h>
 
@@ -408,7 +407,8 @@ struct power_pmu mpc7450_pmu = {
 
 static int init_mpc7450_pmu(void)
 {
-	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc/7450"))
+	if (!cur_cpu_spec->oprofile_cpu_type ||
+	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc/7450"))
 		return -ENODEV;
 
 	return register_power_pmu(&mpc7450_pmu);

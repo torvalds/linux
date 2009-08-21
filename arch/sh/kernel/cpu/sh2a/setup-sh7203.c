@@ -367,7 +367,7 @@ static int __init sh7203_devices_setup(void)
 	return platform_add_devices(sh7203_devices,
 				    ARRAY_SIZE(sh7203_devices));
 }
-__initcall(sh7203_devices_setup);
+arch_initcall(sh7203_devices_setup);
 
 void __init plat_irq_setup(void)
 {

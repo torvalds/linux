@@ -700,8 +700,8 @@ NDIS_STATUS AdapterBlockAllocateMemory(
 	usb_dev = pObj->pUsb_Dev;
 
 #ifndef RT30xx
-	pObj->MLMEThr_task		= NULL;
-	pObj->RTUSBCmdThr_task	= NULL;
+	pObj->MLMEThr_pid		= THREAD_PID_INIT_VALUE;
+	pObj->RTUSBCmdThr_pid	= THREAD_PID_INIT_VALUE;
 #endif
 #ifdef RT30xx
 	pObj->MLMEThr_pid	= NULL;
@@ -743,7 +743,7 @@ NDIS_STATUS	 CreateThreads(
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 #ifndef RT30xx
-	struct task_struct *tsk;
+	pid_t pid_number = -1;
 #endif
 #ifdef RT30xx
 	pid_t pid_number;
@@ -762,10 +762,10 @@ NDIS_STATUS	 CreateThreads(
 
 	// Creat MLME Thread
 #ifndef RT30xx
-	pObj->MLMEThr_task = NULL;
-	tsk = kthread_run(MlmeThread, pAd, "%s", pAd->net_dev->name);
-
-	if (IS_ERR(tsk)) {
+	pObj->MLMEThr_pid= THREAD_PID_INIT_VALUE;
+	pid_number = kernel_thread(MlmeThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+	{
 #endif
 #ifdef RT30xx
 	pObj->MLMEThr_pid = NULL;
@@ -778,7 +778,7 @@ NDIS_STATUS	 CreateThreads(
 	}
 
 #ifndef RT30xx
-	pObj->MLMEThr_task = tsk;
+	pObj->MLMEThr_pid = GET_PID(pid_number);
 #endif
 #ifdef RT30xx
 	pObj->MLMEThr_pid = find_get_pid(pid_number);
@@ -788,10 +788,9 @@ NDIS_STATUS	 CreateThreads(
 
 	// Creat Command Thread
 #ifndef RT30xx
-	pObj->RTUSBCmdThr_task = NULL;
-	tsk = kthread_run(RTUSBCmdThread, pAd, "%s", pAd->net_dev->name);
-
-	if (IS_ERR(tsk) < 0)
+	pObj->RTUSBCmdThr_pid= THREAD_PID_INIT_VALUE;
+	pid_number = kernel_thread(RTUSBCmdThread, pAd, CLONE_VM);
+	if (pid_number < 0)
 #endif
 #ifdef RT30xx
 	pObj->RTUSBCmdThr_pid = NULL;
@@ -804,7 +803,7 @@ NDIS_STATUS	 CreateThreads(
 	}
 
 #ifndef RT30xx
-	pObj->RTUSBCmdThr_task = tsk;
+	pObj->RTUSBCmdThr_pid = GET_PID(pid_number);
 #endif
 #ifdef RT30xx
 	pObj->RTUSBCmdThr_pid = find_get_pid(pid_number);
@@ -812,9 +811,9 @@ NDIS_STATUS	 CreateThreads(
 	wait_for_completion(&(pAd->CmdQComplete));
 
 #ifndef RT30xx
-	pObj->TimerQThr_task = NULL;
-	tsk = kthread_run(TimerQThread, pAd, "%s", pAd->net_dev->name);
-	if (IS_ERR(tsk) < 0)
+	pObj->TimerQThr_pid= THREAD_PID_INIT_VALUE;
+	pid_number = kernel_thread(TimerQThread, pAd, CLONE_VM);
+	if (pid_number < 0)
 #endif
 #ifdef RT30xx
 	pObj->TimerQThr_pid = NULL;
@@ -826,7 +825,7 @@ NDIS_STATUS	 CreateThreads(
 		return NDIS_STATUS_FAILURE;
 	}
 #ifndef RT30xx
-	pObj->TimerQThr_task = tsk;
+	pObj->TimerQThr_pid = GET_PID(pid_number);
 #endif
 #ifdef RT30xx
 	pObj->TimerQThr_pid = find_get_pid(pid_number);

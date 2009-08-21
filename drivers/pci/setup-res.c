@@ -100,16 +100,16 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 {
 	struct resource *res = &dev->resource[resource];
 	struct resource *root;
-	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 	int err;
 
 	root = pci_find_parent_resource(dev, res);
 
 	err = -EINVAL;
 	if (root != NULL)
-		err = insert_resource(root, res);
+		err = request_resource(root, res);
 
 	if (err) {
+		const char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 		dev_err(&dev->dev, "BAR %d: %s of %s %pR\n",
 			resource,
 			root ? "address space collision on" :

@@ -3,6 +3,8 @@
 
 extern int kstack_depth_to_print;
 
+int x86_is_stack_id(int id, char *name);
+
 /* Generic stack tracer with callbacks */
 
 struct stacktrace_ops {

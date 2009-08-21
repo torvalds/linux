@@ -42,7 +42,6 @@ struct usbnet {
 
 	/* protocol/interface state */
 	struct net_device	*net;
-	struct net_device_stats	stats;
 	int			msg_enable;
 	unsigned long		data [5];
 	u32			xid;

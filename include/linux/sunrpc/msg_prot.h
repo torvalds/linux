@@ -189,7 +189,22 @@ typedef __be32	rpc_fraghdr;
  * Additionally, the two alternative forms specified in Section 2.2 of
  * [RFC2373] are also acceptable.
  */
-#define RPCBIND_MAXUADDRLEN	(56u)
+
+#include <linux/inet.h>
+
+/* Maximum size of the port number part of a universal address */
+#define RPCBIND_MAXUADDRPLEN	sizeof(".255.255")
+
+/* Maximum size of an IPv4 universal address */
+#define RPCBIND_MAXUADDR4LEN	\
+		(INET_ADDRSTRLEN + RPCBIND_MAXUADDRPLEN)
+
+/* Maximum size of an IPv6 universal address */
+#define RPCBIND_MAXUADDR6LEN	\
+		(INET6_ADDRSTRLEN + RPCBIND_MAXUADDRPLEN)
+
+/* Assume INET6_ADDRSTRLEN will always be larger than INET_ADDRSTRLEN... */
+#define RPCBIND_MAXUADDRLEN	RPCBIND_MAXUADDR6LEN
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_MSGPROT_H_ */

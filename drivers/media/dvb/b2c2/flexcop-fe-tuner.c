@@ -20,8 +20,14 @@
 #include "tuner-simple.h"
 #include "stv0297.h"
 
+
+/* Can we use the specified front-end?  Remember that if we are compiled
+ * into the kernel we can't call code that's in modules.  */
+#define FE_SUPPORTED(fe) (defined(CONFIG_DVB_##fe) || \
+	(defined(CONFIG_DVB_##fe##_MODULE) && defined(MODULE)))
+
 /* lnb control */
-#if defined(CONFIG_DVB_MT312_MODULE) || defined(CONFIG_DVB_STV0299_MODULE)
+#if FE_SUPPORTED(MT312) || FE_SUPPORTED(STV0299)
 static int flexcop_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
@@ -49,8 +55,7 @@ static int flexcop_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 }
 #endif
 
-#if defined(CONFIG_DVB_S5H1420_MODULE) || defined(CONFIG_DVB_STV0299_MODULE) \
-	|| defined(CONFIG_DVB_MT312_MODULE)
+#if FE_SUPPORTED(S5H1420) || FE_SUPPORTED(STV0299) || FE_SUPPORTED(MT312)
 static int flexcop_sleep(struct dvb_frontend* fe)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
@@ -61,7 +66,7 @@ static int flexcop_sleep(struct dvb_frontend* fe)
 #endif
 
 /* SkyStar2 DVB-S rev 2.3 */
-#if defined(CONFIG_DVB_MT312_MODULE)
+#if FE_SUPPORTED(MT312)
 static int flexcop_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 {
 /* u16 wz_half_period_for_45_mhz[] = { 0x01ff, 0x0154, 0x00ff, 0x00cc }; */
@@ -193,10 +198,12 @@ static int skystar2_rev23_attach(struct flexcop_device *fc,
 	}
 	return 0;
 }
+#else
+#define skystar2_rev23_attach NULL
 #endif
 
 /* SkyStar2 DVB-S rev 2.6 */
-#if defined(CONFIG_DVB_STV0299_MODULE)
+#if FE_SUPPORTED(STV0299)
 static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend *fe,
 	u32 srate, u32 ratio)
 {
@@ -321,10 +328,12 @@ static int skystar2_rev26_attach(struct flexcop_device *fc,
 	}
 	return 0;
 }
+#else
+#define skystar2_rev26_attach NULL
 #endif
 
 /* SkyStar2 DVB-S rev 2.7 */
-#if defined(CONFIG_DVB_S5H1420_MODULE)
+#if FE_SUPPORTED(S5H1420) && FE_SUPPORTED(ISL6421) && FE_SUPPORTED(TUNER_ITD1000)
 static struct s5h1420_config skystar2_rev2_7_s5h1420_config = {
 	.demod_address = 0x53,
 	.invert = 1,
@@ -385,10 +394,12 @@ fail:
 	fc->fc_i2c_adap[0].no_base_addr = 0;
 	return 0;
 }
+#else
+#define skystar2_rev27_attach NULL
 #endif
 
 /* SkyStar2 rev 2.8 */
-#if defined(CONFIG_DVB_CX24123_MODULE)
+#if FE_SUPPORTED(CX24123) && FE_SUPPORTED(ISL6421) && FE_SUPPORTED(TUNER_CX24113)
 static struct cx24123_config skystar2_rev2_8_cx24123_config = {
 	.demod_address = 0x55,
 	.dont_use_pll = 1,
@@ -433,10 +444,12 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 	 * IR-receiver (PIC16F818) - but the card has no input for that ??? */
 	return 1;
 }
+#else
+#define skystar2_rev28_attach NULL
 #endif
 
 /* AirStar DVB-T */
-#if defined(CONFIG_DVB_MT352_MODULE)
+#if FE_SUPPORTED(MT352)
 static int samsung_tdtc9251dh0_demod_init(struct dvb_frontend *fe)
 {
 	static u8 mt352_clock_config[] = { 0x89, 0x18, 0x2d };
@@ -495,10 +508,12 @@ static int airstar_dvbt_attach(struct flexcop_device *fc,
 	}
 	return 0;
 }
+#else
+#define airstar_dvbt_attach NULL
 #endif
 
 /* AirStar ATSC 1st generation */
-#if defined(CONFIG_DVB_BCM3510_MODULE)
+#if FE_SUPPORTED(BCM3510)
 static int flexcop_fe_request_firmware(struct dvb_frontend *fe,
 	const struct firmware **fw, char* name)
 {
@@ -517,10 +532,12 @@ static int airstar_atsc1_attach(struct flexcop_device *fc,
 	fc->fe = dvb_attach(bcm3510_attach, &air2pc_atsc_first_gen_config, i2c);
 	return fc->fe != NULL;
 }
+#else
+#define airstar_atsc1_attach NULL
 #endif
 
 /* AirStar ATSC 2nd generation */
-#if defined(CONFIG_DVB_NXT200X_MODULE)
+#if FE_SUPPORTED(NXT200X) && FE_SUPPORTED(PLL)
 static struct nxt200x_config samsung_tbmv_config = {
 	.demod_address = 0x0a,
 };
@@ -535,10 +552,12 @@ static int airstar_atsc2_attach(struct flexcop_device *fc,
 	return !!dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL,
 			    DVB_PLL_SAMSUNG_TBMV);
 }
+#else
+#define airstar_atsc2_attach NULL
 #endif
 
 /* AirStar ATSC 3rd generation */
-#if defined(CONFIG_DVB_LGDT330X_MODULE)
+#if FE_SUPPORTED(LGDT330X)
 static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 	.demod_address       = 0x59,
 	.demod_chip          = LGDT3303,
@@ -556,10 +575,12 @@ static int airstar_atsc3_attach(struct flexcop_device *fc,
 	return !!dvb_attach(simple_tuner_attach, fc->fe, i2c, 0x61,
 			    TUNER_LG_TDVS_H06XF);
 }
+#else
+#define airstar_atsc3_attach NULL
 #endif
 
 /* CableStar2 DVB-C */
-#if defined(CONFIG_DVB_STV0297_MODULE)
+#if FE_SUPPORTED(STV0297)
 static int alps_tdee4_stv0297_tuner_set_params(struct dvb_frontend* fe,
 		struct dvb_frontend_parameters *fep)
 {
@@ -698,39 +719,23 @@ static int cablestar2_attach(struct flexcop_device *fc,
 	fc->fe->ops.tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
 	return 1;
 }
+#else
+#define cablestar2_attach NULL
 #endif
 
 static struct {
 	flexcop_device_type_t type;
 	int (*attach)(struct flexcop_device *, struct i2c_adapter *);
 } flexcop_frontends[] = {
-#if defined(CONFIG_DVB_S5H1420_MODULE)
 	{ FC_SKY_REV27, skystar2_rev27_attach },
-#endif
-#if defined(CONFIG_DVB_CX24123_MODULE)
 	{ FC_SKY_REV28, skystar2_rev28_attach },
-#endif
-#if defined(CONFIG_DVB_STV0299_MODULE)
 	{ FC_SKY_REV26, skystar2_rev26_attach },
-#endif
-#if defined(CONFIG_DVB_MT352_MODULE)
 	{ FC_AIR_DVBT, airstar_dvbt_attach },
-#endif
-#if defined(CONFIG_DVB_NXT200X_MODULE)
 	{ FC_AIR_ATSC2, airstar_atsc2_attach },
-#endif
-#if defined(CONFIG_DVB_LGDT330X_MODULE)
 	{ FC_AIR_ATSC3, airstar_atsc3_attach },
-#endif
-#if defined(CONFIG_DVB_BCM3510_MODULE)
 	{ FC_AIR_ATSC1, airstar_atsc1_attach },
-#endif
-#if defined(CONFIG_DVB_STV0297_MODULE)
 	{ FC_CABLE, cablestar2_attach },
-#endif
-#if defined(CONFIG_DVB_MT312_MODULE)
 	{ FC_SKY_REV23, skystar2_rev23_attach },
-#endif
 };
 
 /* try to figure out the frontend */
@@ -738,6 +743,8 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(flexcop_frontends); i++) {
+		if (!flexcop_frontends[i].attach)
+			continue;
 		/* type needs to be set before, because of some workarounds
 		 * done based on the probed card type */
 		fc->dev_type = flexcop_frontends[i].type;

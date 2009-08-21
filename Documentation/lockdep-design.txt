@@ -30,9 +30,9 @@ State
 The validator tracks lock-class usage history into 4n + 1 separate state bits:
 
 - 'ever held in STATE context'
-- 'ever head as readlock in STATE context'
-- 'ever head with STATE enabled'
-- 'ever head as readlock with STATE enabled'
+- 'ever held as readlock in STATE context'
+- 'ever held with STATE enabled'
+- 'ever held as readlock with STATE enabled'
 
 Where STATE can be either one of (kernel/lockdep_states.h)
  - hardirq
