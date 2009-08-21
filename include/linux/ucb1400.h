@@ -73,6 +73,10 @@
 
 #define UCB_ADC_DATA		0x68
 #define UCB_ADC_DAT_VALID	(1 << 15)
+
+#define UCB_FCSR		0x6c
+#define UCB_FCSR_AVE		(1 << 12)
+
 #define UCB_ADC_DAT_MASK	0x3ff
 
 #define UCB_ID			0x7e
