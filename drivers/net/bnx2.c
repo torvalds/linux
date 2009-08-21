@@ -619,6 +619,9 @@ bnx2_disable_int_sync(struct bnx2 *bp)
 	int i;
 
 	atomic_inc(&bp->intr_sem);
+	if (!netif_running(bp->dev))
+		return;
+
 	bnx2_disable_int(bp);
 	for (i = 0; i < bp->irq_nvecs; i++)
 		synchronize_irq(bp->irq_tbl[i].vector);
@@ -6254,9 +6257,14 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	bnx2_netif_stop(bp);
+	if (netif_running(dev))
+		bnx2_netif_stop(bp);
 
 	bp->vlgrp = vlgrp;
+
+	if (!netif_running(dev))
+		return;
+
 	bnx2_set_rx_mode(dev);
 	if (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN)
 		bnx2_fw_sync(bp, BNX2_DRV_MSG_CODE_KEEP_VLAN_UPDATE, 0, 1);
