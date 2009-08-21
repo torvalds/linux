@@ -178,6 +178,7 @@ struct ar9170 {
 	/* beaconing */
 	struct sk_buff *beacon;
 	struct work_struct beacon_work;
+	bool enable_beacon;
 
 	/* cryptographic engine */
 	u64 usedkeys;
