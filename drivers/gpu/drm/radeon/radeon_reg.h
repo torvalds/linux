@@ -2337,6 +2337,9 @@
 #       define RADEON_RE_WIDTH_SHIFT        0
 #       define RADEON_RE_HEIGHT_SHIFT       16
 
+#define RADEON_RB3D_ZPASS_DATA 0x3290
+#define RADEON_RB3D_ZPASS_ADDR 0x3294
+
 #define RADEON_SE_CNTL                      0x1c4c
 #       define RADEON_FFACE_CULL_CW          (0 <<  0)
 #       define RADEON_FFACE_CULL_CCW         (1 <<  0)
