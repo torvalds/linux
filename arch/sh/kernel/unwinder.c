@@ -161,25 +161,4 @@ void unwind_stack(struct task_struct *task, struct pt_regs *regs,
 
 	curr_unwinder->dump(task, regs, sp, ops, data);
 }
-
-/*
- * Trap handler for UWINDER_BUG() statements. We must switch to the
- * unwinder with the next highest rating.
- */
-BUILD_TRAP_HANDLER(unwinder)
-{
-	insn_size_t insn;
-	TRAP_HANDLER_DECL;
-
-	/* Rewind */
-	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
-	insn = *(insn_size_t *)instruction_pointer(regs);
-
-	/* Switch unwinders when unwind_stack() is called */
-	unwinder_faulted = 1;
-
-#ifdef CONFIG_BUG
-	handle_BUG(regs);
-#endif
-}
 EXPORT_SYMBOL_GPL(unwind_stack);

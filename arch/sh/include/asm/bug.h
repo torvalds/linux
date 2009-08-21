@@ -1,8 +1,8 @@
 #ifndef __ASM_SH_BUG_H
 #define __ASM_SH_BUG_H
 
-#define TRAPA_UNWINDER_BUG_OPCODE 0xc33b /* trapa #0x3b */
 #define TRAPA_BUG_OPCODE	0xc33e	/* trapa #0x3e */
+#define BUGFLAG_UNWINDER	(1 << 1)
 
 #ifdef CONFIG_GENERIC_BUG
 #define HAVE_ARCH_BUG
@@ -73,15 +73,16 @@ do {							\
 	unlikely(__ret_warn_on);				\
 })
 
-#define UNWINDER_BUG()						\
+#define UNWINDER_BUG()					\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\
-		_EMIT_BUG_ENTRY		\
+		_EMIT_BUG_ENTRY				\
 		 :					\
-		 : "n" (TRAPA_UNWINDER_BUG_OPCODE),	\
+		 : "n" (TRAPA_BUG_OPCODE),		\
 		   "i" (__FILE__),			\
-		   "i" (__LINE__), "i" (0),		\
+		   "i" (__LINE__),			\
+		   "i" (BUGFLAG_UNWINDER),		\
 		   "i" (sizeof(struct bug_entry)));	\
 } while (0)
 
