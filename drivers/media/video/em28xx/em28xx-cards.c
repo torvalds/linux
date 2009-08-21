@@ -2382,7 +2382,9 @@ void em28xx_card_setup(struct em28xx *dev)
 	}
 
 	em28xx_tuner_setup(dev);
-	em28xx_ir_init(dev);
+
+	if(!disable_ir)
+		em28xx_ir_init(dev);
 }
 
 
