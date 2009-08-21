@@ -145,7 +145,7 @@ static DEFINE_PCI_DEVICE_TABLE(bnx2_pci_tbl) = {
 	{ 0, }
 };
 
-static struct flash_spec flash_table[] =
+static const struct flash_spec flash_table[] =
 {
 #define BUFFERED_FLAGS		(BNX2_NV_BUFFERED | BNX2_NV_TRANSLATE)
 #define NONBUFFERED_FLAGS	(BNX2_NV_WREN)
@@ -234,7 +234,7 @@ static struct flash_spec flash_table[] =
 	 "Buffered flash (256kB)"},
 };
 
-static struct flash_spec flash_5709 = {
+static const struct flash_spec flash_5709 = {
 	.flags		= BNX2_NV_BUFFERED,
 	.page_bits	= BCM5709_FLASH_PAGE_BITS,
 	.page_size	= BCM5709_FLASH_PAGE_SIZE,
@@ -4227,7 +4227,7 @@ bnx2_init_nvram(struct bnx2 *bp)
 {
 	u32 val;
 	int j, entry_count, rc = 0;
-	struct flash_spec *flash;
+	const struct flash_spec *flash;
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		bp->flash_info = &flash_5709;

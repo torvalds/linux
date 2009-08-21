@@ -6889,7 +6889,7 @@ struct bnx2 {
 	int			pm_cap;
 	int			pcix_cap;
 
-	struct flash_spec	*flash_info;
+	const struct flash_spec	*flash_info;
 	u32			flash_size;
 
 	int			status_stats_size;
