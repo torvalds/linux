@@ -333,6 +333,30 @@ static inline int l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16
 	return hci_send_acl(conn->hcon, skb, 0);
 }
 
+static inline int l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
+{
+	struct sk_buff *skb;
+	struct l2cap_hdr *lh;
+	struct l2cap_conn *conn = pi->conn;
+	int count;
+
+	BT_DBG("pi %p, control 0x%2.2x", pi, control);
+
+	count = min_t(unsigned int, conn->mtu, L2CAP_HDR_SIZE + 2);
+	control |= L2CAP_CTRL_FRAME_TYPE;
+
+	skb = bt_skb_alloc(count, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
+	lh->len = cpu_to_le16(2);
+	lh->cid = cpu_to_le16(pi->dcid);
+	put_unaligned_le16(control, skb_put(skb, 2));
+
+	return hci_send_acl(pi->conn->hcon, skb, 0);
+}
+
 static void l2cap_do_start(struct sock *sk)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
@@ -1154,39 +1178,80 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 	return 0;
 }
 
-static inline int l2cap_do_send(struct sock *sk, struct msghdr *msg, int len)
+static void l2cap_drop_acked_frames(struct sock *sk)
+{
+	struct sk_buff *skb;
+
+	while ((skb = skb_peek(TX_QUEUE(sk)))) {
+		if (bt_cb(skb)->tx_seq == l2cap_pi(sk)->expected_ack_seq)
+			break;
+
+		skb = skb_dequeue(TX_QUEUE(sk));
+		kfree_skb(skb);
+
+		l2cap_pi(sk)->unacked_frames--;
+	}
+
+	return;
+}
+
+static inline int l2cap_do_send(struct sock *sk, struct sk_buff *skb)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	int err;
+
+	BT_DBG("sk %p, skb %p len %d", sk, skb, skb->len);
+
+	err = hci_send_acl(pi->conn->hcon, skb, 0);
+	if (err < 0)
+		kfree_skb(skb);
+
+	return err;
+}
+
+static int l2cap_ertm_send(struct sock *sk)
+{
+	struct sk_buff *skb, *tx_skb;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	u16 control;
+	int err;
+
+	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(sk))) {
+		tx_skb = skb_clone(skb, GFP_ATOMIC);
+
+		control = get_unaligned_le16(tx_skb->data + L2CAP_HDR_SIZE);
+		control |= (pi->req_seq << L2CAP_CTRL_REQSEQ_SHIFT)
+				| (pi->next_tx_seq << L2CAP_CTRL_TXSEQ_SHIFT);
+		put_unaligned_le16(control, tx_skb->data + L2CAP_HDR_SIZE);
+
+		err = l2cap_do_send(sk, tx_skb);
+		if (err < 0) {
+			l2cap_send_disconn_req(pi->conn, sk);
+			return err;
+		}
+
+		bt_cb(skb)->tx_seq = pi->next_tx_seq;
+		pi->next_tx_seq = (pi->next_tx_seq + 1) % 64;
+
+		pi->unacked_frames++;
+
+		if (skb_queue_is_last(TX_QUEUE(sk), skb))
+			sk->sk_send_head = NULL;
+		else
+			sk->sk_send_head = skb_queue_next(TX_QUEUE(sk), skb);
+	}
+
+	return 0;
+}
+
+static inline int l2cap_skbuff_fromiovec(struct sock *sk, struct msghdr *msg, int len, int count, struct sk_buff *skb)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
-	struct sk_buff *skb, **frag;
-	int err, hlen, count, sent = 0;
-	struct l2cap_hdr *lh;
-
-	BT_DBG("sk %p len %d", sk, len);
-
-	/* First fragment (with L2CAP header) */
-	if (sk->sk_type == SOCK_DGRAM)
-		hlen = L2CAP_HDR_SIZE + 2;
-	else
-		hlen = L2CAP_HDR_SIZE;
-
-	count = min_t(unsigned int, (conn->mtu - hlen), len);
-
-	skb = bt_skb_send_alloc(sk, hlen + count,
-			msg->msg_flags & MSG_DONTWAIT, &err);
-	if (!skb)
-		return err;
-
-	/* Create L2CAP header */
-	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
-	lh->cid = cpu_to_le16(l2cap_pi(sk)->dcid);
-	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
-
-	if (sk->sk_type == SOCK_DGRAM)
-		put_unaligned(l2cap_pi(sk)->psm, (__le16 *) skb_put(skb, 2));
+	struct sk_buff **frag;
+	int err, sent = 0;
 
 	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count)) {
-		err = -EFAULT;
-		goto fail;
+		return -EFAULT;
 	}
 
 	sent += count;
@@ -1199,33 +1264,112 @@ static inline int l2cap_do_send(struct sock *sk, struct msghdr *msg, int len)
 
 		*frag = bt_skb_send_alloc(sk, count, msg->msg_flags & MSG_DONTWAIT, &err);
 		if (!*frag)
-			goto fail;
-
-		if (memcpy_fromiovec(skb_put(*frag, count), msg->msg_iov, count)) {
-			err = -EFAULT;
-			goto fail;
-		}
+			return -EFAULT;
+		if (memcpy_fromiovec(skb_put(*frag, count), msg->msg_iov, count))
+			return -EFAULT;
 
 		sent += count;
 		len  -= count;
 
 		frag = &(*frag)->next;
 	}
-	err = hci_send_acl(conn->hcon, skb, 0);
-	if (err < 0)
-		goto fail;
 
 	return sent;
+}
 
-fail:
-	kfree_skb(skb);
-	return err;
+static struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len)
+{
+	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	struct sk_buff *skb;
+	int err, count, hlen = L2CAP_HDR_SIZE + 2;
+	struct l2cap_hdr *lh;
+
+	BT_DBG("sk %p len %d", sk, (int)len);
+
+	count = min_t(unsigned int, (conn->mtu - hlen), len);
+	skb = bt_skb_send_alloc(sk, count + hlen,
+			msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	/* Create L2CAP header */
+	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
+	lh->cid = cpu_to_le16(l2cap_pi(sk)->dcid);
+	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
+	put_unaligned_le16(l2cap_pi(sk)->psm, skb_put(skb, 2));
+
+	err = l2cap_skbuff_fromiovec(sk, msg, len, count, skb);
+	if (unlikely(err < 0)) {
+		kfree_skb(skb);
+		return ERR_PTR(err);
+	}
+	return skb;
+}
+
+static struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size_t len)
+{
+	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	struct sk_buff *skb;
+	int err, count, hlen = L2CAP_HDR_SIZE;
+	struct l2cap_hdr *lh;
+
+	BT_DBG("sk %p len %d", sk, (int)len);
+
+	count = min_t(unsigned int, (conn->mtu - hlen), len);
+	skb = bt_skb_send_alloc(sk, count + hlen,
+			msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	/* Create L2CAP header */
+	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
+	lh->cid = cpu_to_le16(l2cap_pi(sk)->dcid);
+	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
+
+	err = l2cap_skbuff_fromiovec(sk, msg, len, count, skb);
+	if (unlikely(err < 0)) {
+		kfree_skb(skb);
+		return ERR_PTR(err);
+	}
+	return skb;
+}
+
+static struct sk_buff *l2cap_create_ertm_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control)
+{
+	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	struct sk_buff *skb;
+	int err, count, hlen = L2CAP_HDR_SIZE + 2;
+	struct l2cap_hdr *lh;
+
+	BT_DBG("sk %p len %d", sk, (int)len);
+
+	count = min_t(unsigned int, (conn->mtu - hlen), len);
+	skb = bt_skb_send_alloc(sk, count + hlen,
+			msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	/* Create L2CAP header */
+	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
+	lh->cid = cpu_to_le16(l2cap_pi(sk)->dcid);
+	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
+	put_unaligned_le16(control, skb_put(skb, 2));
+
+	err = l2cap_skbuff_fromiovec(sk, msg, len, count, skb);
+	if (unlikely(err < 0)) {
+		kfree_skb(skb);
+		return ERR_PTR(err);
+	}
+	return skb;
 }
 
 static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
-	int err = 0;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct sk_buff *skb;
+	u16 control;
+	int err;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -1237,16 +1381,67 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		return -EOPNOTSUPP;
 
 	/* Check outgoing MTU */
-	if (sk->sk_type != SOCK_RAW && len > l2cap_pi(sk)->omtu)
+	if (sk->sk_type == SOCK_SEQPACKET && pi->mode == L2CAP_MODE_BASIC
+			&& len > pi->omtu)
 		return -EINVAL;
 
 	lock_sock(sk);
 
-	if (sk->sk_state == BT_CONNECTED)
-		err = l2cap_do_send(sk, msg, len);
-	else
+	if (sk->sk_state != BT_CONNECTED) {
 		err = -ENOTCONN;
+		goto done;
+	}
 
+	/* Connectionless channel */
+	if (sk->sk_type == SOCK_DGRAM) {
+		skb = l2cap_create_connless_pdu(sk, msg, len);
+		err = l2cap_do_send(sk, skb);
+		goto done;
+	}
+
+	switch (pi->mode) {
+	case L2CAP_MODE_BASIC:
+		/* Create a basic PDU */
+		skb = l2cap_create_basic_pdu(sk, msg, len);
+		if (IS_ERR(skb)) {
+			err = PTR_ERR(skb);
+			goto done;
+		}
+
+		err = l2cap_do_send(sk, skb);
+		if (!err)
+			err = len;
+		break;
+
+	case L2CAP_MODE_ERTM:
+		/* Entire SDU fits into one PDU */
+		if (len <= pi->omtu) {
+			control = L2CAP_SDU_UNSEGMENTED;
+			skb = l2cap_create_ertm_pdu(sk, msg, len, control);
+			if (IS_ERR(skb)) {
+				err = PTR_ERR(skb);
+				goto done;
+			}
+		} else {
+			/* FIXME: Segmentation will be added later */
+			err = -EINVAL;
+			goto done;
+		}
+		__skb_queue_tail(TX_QUEUE(sk), skb);
+		if (sk->sk_send_head == NULL)
+			sk->sk_send_head = skb;
+
+		err = l2cap_ertm_send(sk);
+		if (!err)
+			err = len;
+		break;
+
+	default:
+		BT_DBG("bad state %1.1x", pi->mode);
+		err = -EINVAL;
+	}
+
+done:
 	release_sock(sk);
 	return err;
 }
@@ -2301,6 +2496,10 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	if (l2cap_pi(sk)->conf_state & L2CAP_CONF_INPUT_DONE) {
 		sk->sk_state = BT_CONNECTED;
+		l2cap_pi(sk)->next_tx_seq = 0;
+		l2cap_pi(sk)->expected_ack_seq = 0;
+		l2cap_pi(sk)->unacked_frames = 0;
+		__skb_queue_head_init(TX_QUEUE(sk));
 		l2cap_chan_ready(sk);
 		goto unlock;
 	}
@@ -2375,6 +2574,9 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	if (l2cap_pi(sk)->conf_state & L2CAP_CONF_OUTPUT_DONE) {
 		sk->sk_state = BT_CONNECTED;
+		l2cap_pi(sk)->expected_tx_seq = 0;
+		l2cap_pi(sk)->num_to_ack = 0;
+		__skb_queue_head_init(TX_QUEUE(sk));
 		l2cap_chan_ready(sk);
 	}
 
@@ -2405,6 +2607,8 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn, struct l2cap_cmd
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 
+	skb_queue_purge(TX_QUEUE(sk));
+
 	l2cap_chan_del(sk, ECONNRESET);
 	bh_unlock_sock(sk);
 
@@ -2426,6 +2630,8 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn, struct l2cap_cmd
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, scid);
 	if (!sk)
 		return 0;
+
+	skb_queue_purge(TX_QUEUE(sk));
 
 	l2cap_chan_del(sk, 0);
 	bh_unlock_sock(sk);
@@ -2602,9 +2808,60 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn, struct sk_buff *sk
 	kfree_skb(skb);
 }
 
+static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, struct sk_buff *skb)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	u8 tx_seq = __get_txseq(rx_control);
+	u16 tx_control = 0;
+	int err = 0;
+
+	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
+
+	if (tx_seq != pi->expected_tx_seq)
+		return -EINVAL;
+
+	pi->expected_tx_seq = (pi->expected_tx_seq + 1) % 64;
+	err = sock_queue_rcv_skb(sk, skb);
+	if (err)
+		return err;
+
+	pi->num_to_ack = (pi->num_to_ack + 1) % L2CAP_DEFAULT_NUM_TO_ACK;
+	if (pi->num_to_ack == L2CAP_DEFAULT_NUM_TO_ACK - 1) {
+		tx_control |= L2CAP_CTRL_FRAME_TYPE;
+		tx_control |= L2CAP_SUPER_RCV_READY;
+		tx_control |= pi->expected_tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
+		err = l2cap_send_sframe(pi, tx_control);
+	}
+	return err;
+}
+
+static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, struct sk_buff *skb)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+
+	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
+
+	switch (rx_control & L2CAP_CTRL_SUPERVISE) {
+	case L2CAP_SUPER_RCV_READY:
+		pi->expected_ack_seq = __get_reqseq(rx_control);
+		l2cap_drop_acked_frames(sk);
+		l2cap_ertm_send(sk);
+		break;
+
+	case L2CAP_SUPER_RCV_NOT_READY:
+	case L2CAP_SUPER_REJECT:
+	case L2CAP_SUPER_SELECT_REJECT:
+		break;
+	}
+
+	return 0;
+}
+
 static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk_buff *skb)
 {
 	struct sock *sk;
+	u16 control;
+	int err;
 
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
 	if (!sk) {
@@ -2617,16 +2874,40 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	if (sk->sk_state != BT_CONNECTED)
 		goto drop;
 
-	if (l2cap_pi(sk)->imtu < skb->len)
-		goto drop;
+	switch (l2cap_pi(sk)->mode) {
+	case L2CAP_MODE_BASIC:
+		/* If socket recv buffers overflows we drop data here
+		 * which is *bad* because L2CAP has to be reliable.
+		 * But we don't have any other choice. L2CAP doesn't
+		 * provide flow control mechanism. */
 
-	/* If socket recv buffers overflows we drop data here
-	 * which is *bad* because L2CAP has to be reliable.
-	 * But we don't have any other choice. L2CAP doesn't
-	 * provide flow control mechanism. */
+		if (l2cap_pi(sk)->imtu < skb->len)
+			goto drop;
 
-	if (!sock_queue_rcv_skb(sk, skb))
-		goto done;
+		if (!sock_queue_rcv_skb(sk, skb))
+			goto done;
+		break;
+
+	case L2CAP_MODE_ERTM:
+		control = get_unaligned_le16(skb->data);
+		skb_pull(skb, 2);
+
+		if (l2cap_pi(sk)->imtu < skb->len)
+			goto drop;
+
+		if (__is_iframe(control))
+			err = l2cap_data_channel_iframe(sk, control, skb);
+		else
+			err = l2cap_data_channel_sframe(sk, control, skb);
+
+		if (!err)
+			goto done;
+		break;
+
+	default:
+		BT_DBG("sk %p: bad mode 0x%2.2x", sk, l2cap_pi(sk)->mode);
+		break;
+	}
 
 drop:
 	kfree_skb(skb);
@@ -2675,6 +2956,11 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 	skb_pull(skb, L2CAP_HDR_SIZE);
 	cid = __le16_to_cpu(lh->cid);
 	len = __le16_to_cpu(lh->len);
+
+	if (len != skb->len) {
+		kfree_skb(skb);
+		return;
+	}
 
 	BT_DBG("len %d, cid 0x%4.4x", len, cid);
 

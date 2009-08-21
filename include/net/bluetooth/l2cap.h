@@ -29,7 +29,8 @@
 #define L2CAP_DEFAULT_MTU		672
 #define L2CAP_DEFAULT_MIN_MTU		48
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
-#define L2CAP_DEFAULT_TX_WINDOW		1
+#define L2CAP_DEFAULT_TX_WINDOW		63
+#define L2CAP_DEFAULT_NUM_TO_ACK        (L2CAP_DEFAULT_TX_WINDOW/5)
 #define L2CAP_DEFAULT_MAX_RECEIVE	1
 #define L2CAP_DEFAULT_RETRANS_TO	300    /* 300 milliseconds */
 #define L2CAP_DEFAULT_MONITOR_TO	1000   /* 1 second */
@@ -93,6 +94,31 @@ struct l2cap_conninfo {
 /* L2CAP checksum option */
 #define L2CAP_FCS_NONE		0x00
 #define L2CAP_FCS_CRC16		0x01
+
+/* L2CAP Control Field bit masks */
+#define L2CAP_CTRL_SAR               0xC000
+#define L2CAP_CTRL_REQSEQ            0x3F00
+#define L2CAP_CTRL_TXSEQ             0x007E
+#define L2CAP_CTRL_RETRANS           0x0080
+#define L2CAP_CTRL_FINAL             0x0080
+#define L2CAP_CTRL_POLL              0x0010
+#define L2CAP_CTRL_SUPERVISE         0x000C
+#define L2CAP_CTRL_FRAME_TYPE        0x0001 /* I- or S-Frame */
+
+#define L2CAP_CTRL_TXSEQ_SHIFT      1
+#define L2CAP_CTRL_REQSEQ_SHIFT     8
+
+/* L2CAP Supervisory Function */
+#define L2CAP_SUPER_RCV_READY           0x0000
+#define L2CAP_SUPER_REJECT              0x0004
+#define L2CAP_SUPER_RCV_NOT_READY       0x0008
+#define L2CAP_SUPER_SELECT_REJECT       0x000C
+
+/* L2CAP Segmentation and Reassembly */
+#define L2CAP_SDU_UNSEGMENTED       0x0000
+#define L2CAP_SDU_START             0x4000
+#define L2CAP_SDU_END               0x8000
+#define L2CAP_SDU_CONTINUE          0xC000
 
 /* L2CAP structures */
 struct l2cap_hdr {
@@ -262,6 +288,7 @@ struct l2cap_conn {
 
 /* ----- L2CAP channel and socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
+#define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
 
 struct l2cap_pinfo {
 	struct bt_sock	bt;
@@ -285,6 +312,13 @@ struct l2cap_pinfo {
 	__u8		conf_len;
 	__u8		conf_state;
 
+	__u8		next_tx_seq;
+	__u8		expected_ack_seq;
+	__u8		req_seq;
+	__u8		expected_tx_seq;
+	__u8		unacked_frames;
+	__u8		num_to_ack;
+
 	__u8		ident;
 
 	__u8		remote_tx_win;
@@ -295,6 +329,7 @@ struct l2cap_pinfo {
 
 	__le16		sport;
 
+	struct sk_buff_head	tx_queue;
 	struct l2cap_conn	*conn;
 	struct sock		*next_c;
 	struct sock		*prev_c;
@@ -311,6 +346,23 @@ struct l2cap_pinfo {
 #define L2CAP_CONF_MAX_CONF_REQ 2
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
+static inline int l2cap_tx_window_full(struct sock *sk)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	int sub;
+
+	sub = (pi->next_tx_seq - pi->expected_ack_seq) % 64;
+
+	if (sub < 0)
+		sub += 64;
+
+	return (sub == pi->remote_tx_win);
+}
+
+#define __get_txseq(ctrl) ((ctrl) & L2CAP_CTRL_TXSEQ) >> 1
+#define __get_reqseq(ctrl) ((ctrl) & L2CAP_CTRL_REQSEQ) >> 8
+#define __is_iframe(ctrl) !((ctrl) & L2CAP_CTRL_FRAME_TYPE)
+#define __is_sframe(ctrl) (ctrl) & L2CAP_CTRL_FRAME_TYPE
 
 void l2cap_load(void);
 
