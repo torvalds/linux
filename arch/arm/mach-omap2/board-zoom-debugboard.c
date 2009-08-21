@@ -96,7 +96,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device zoom2_debugboard_serial_device = {
 	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
+	.id			= 3,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
