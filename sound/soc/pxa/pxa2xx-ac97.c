@@ -251,8 +251,8 @@ static int __devinit pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(pxa_ac97_dai); i++) {
 		pxa_ac97_dai[i].dev = &pdev->dev;
-		if (pdata && pdata->codec_pdata)
-			pxa_ac97_dai[i].ac97_pdata = pdata->codec_pdata;
+		if (pdata && pdata->codec_pdata[0])
+			pxa_ac97_dai[i].ac97_pdata = pdata->codec_pdata[0];
 	}
 
 	/* Punt most of the init to the SoC probe; we may need the machine
