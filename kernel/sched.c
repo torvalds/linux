@@ -1522,7 +1522,8 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares);
  */
 static void
 update_group_shares_cpu(struct task_group *tg, int cpu,
-			unsigned long sd_shares, unsigned long sd_rq_weight)
+			unsigned long sd_shares, unsigned long sd_rq_weight,
+			unsigned long sd_eff_weight)
 {
 	unsigned long rq_weight;
 	unsigned long shares;
@@ -1535,13 +1536,15 @@ update_group_shares_cpu(struct task_group *tg, int cpu,
 	if (!rq_weight) {
 		boost = 1;
 		rq_weight = NICE_0_LOAD;
+		if (sd_rq_weight == sd_eff_weight)
+			sd_eff_weight += NICE_0_LOAD;
+		sd_rq_weight = sd_eff_weight;
 	}
 
 	/*
-	 *           \Sum shares * rq_weight
-	 * shares =  -----------------------
-	 *               \Sum rq_weight
-	 *
+	 *             \Sum_j shares_j * rq_weight_i
+	 * shares_i =  -----------------------------
+	 *                  \Sum_j rq_weight_j
 	 */
 	shares = (sd_shares * rq_weight) / sd_rq_weight;
 	shares = clamp_t(unsigned long, shares, MIN_SHARES, MAX_SHARES);
@@ -1593,14 +1596,8 @@ static int tg_shares_up(struct task_group *tg, void *data)
 	if (!sd->parent || !(sd->parent->flags & SD_LOAD_BALANCE))
 		shares = tg->shares;
 
-	for_each_cpu(i, sched_domain_span(sd)) {
-		unsigned long sd_rq_weight = rq_weight;
-
-		if (!tg->cfs_rq[i]->rq_weight)
-			sd_rq_weight = eff_weight;
-
-		update_group_shares_cpu(tg, i, shares, sd_rq_weight);
-	}
+	for_each_cpu(i, sched_domain_span(sd))
+		update_group_shares_cpu(tg, i, shares, rq_weight, eff_weight);
 
 	return 0;
 }
