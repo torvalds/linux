@@ -55,16 +55,32 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 	trace_drv_bss_info_changed(local, vif, info, changed);
 }
 
-static inline void drv_configure_filter(struct ieee80211_local *local,
-					unsigned int changed_flags,
-					unsigned int *total_flags,
+static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 					int mc_count,
 					struct dev_addr_list *mc_list)
 {
+	u64 ret = 0;
+
+	if (local->ops->prepare_multicast)
+		ret = local->ops->prepare_multicast(&local->hw, mc_count,
+						    mc_list);
+
+	trace_drv_prepare_multicast(local, mc_count, ret);
+
+	return ret;
+}
+
+static inline void drv_configure_filter(struct ieee80211_local *local,
+					unsigned int changed_flags,
+					unsigned int *total_flags,
+					u64 multicast)
+{
+	might_sleep();
+
 	local->ops->configure_filter(&local->hw, changed_flags, total_flags,
-				     mc_count, mc_list);
+				     multicast);
 	trace_drv_configure_filter(local, changed_flags, total_flags,
-					    mc_count);
+				   multicast);
 }
 
 static inline int drv_set_tim(struct ieee80211_local *local,

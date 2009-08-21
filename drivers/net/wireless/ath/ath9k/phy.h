@@ -490,10 +490,17 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_TX_PWRCTRL9       0xa27C
 #define AR_PHY_TX_DESIRED_SCALE_CCK        0x00007C00
 #define AR_PHY_TX_DESIRED_SCALE_CCK_S      10
+#define AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL  0x80000000
+#define AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL_S 31
 
 #define AR_PHY_TX_GAIN_TBL1      0xa300
 #define AR_PHY_TX_GAIN                     0x0007F000
 #define AR_PHY_TX_GAIN_S                   12
+
+#define AR_PHY_CH0_TX_PWRCTRL11  0xa398
+#define AR_PHY_CH1_TX_PWRCTRL11  0xb398
+#define AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP   0x0000FC00
+#define AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP_S 10
 
 #define AR_PHY_VIT_MASK2_M_46_61 0xa3a0
 #define AR_PHY_MASK2_M_31_45     0xa3a4

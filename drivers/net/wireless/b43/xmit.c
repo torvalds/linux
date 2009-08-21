@@ -180,11 +180,12 @@ static u8 b43_calc_fallback_rate(u8 bitrate)
 /* Generate a TX data header. */
 int b43_generate_txhdr(struct b43_wldev *dev,
 		       u8 *_txhdr,
-		       const unsigned char *fragment_data,
-		       unsigned int fragment_len,
+		       struct sk_buff *skb_frag,
 		       struct ieee80211_tx_info *info,
 		       u16 cookie)
 {
+	const unsigned char *fragment_data = skb_frag->data;
+	unsigned int fragment_len = skb_frag->len;
 	struct b43_txhdr *txhdr = (struct b43_txhdr *)_txhdr;
 	const struct b43_phy *phy = &dev->phy;
 	const struct ieee80211_hdr *wlhdr =
@@ -258,9 +259,26 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		mac_ctl |= (key->algorithm << B43_TXH_MAC_KEYALG_SHIFT) &
 			   B43_TXH_MAC_KEYALG;
 		wlhdr_len = ieee80211_hdrlen(fctl);
-		iv_len = min((size_t) info->control.hw_key->iv_len,
-			     ARRAY_SIZE(txhdr->iv));
-		memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
+		if (key->algorithm == B43_SEC_ALGO_TKIP) {
+			u16 phase1key[5];
+			int i;
+			/* we give the phase1key and iv16 here, the key is stored in
+			 * shm. With that the hardware can do phase 2 and encryption.
+			 */
+			ieee80211_get_tkip_key(info->control.hw_key, skb_frag,
+					IEEE80211_TKIP_P1_KEY, (u8*)phase1key);
+			/* phase1key is in host endian */
+			for (i = 0; i < 5; i++)
+				phase1key[i] = cpu_to_le16(phase1key[i]);
+
+			memcpy(txhdr->iv, phase1key, 10);
+			/* iv16 */
+			memcpy(txhdr->iv + 10, ((u8 *) wlhdr) + wlhdr_len, 3);
+		} else {
+			iv_len = min((size_t) info->control.hw_key->iv_len,
+				     ARRAY_SIZE(txhdr->iv));
+			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
+		}
 	}
 	if (b43_is_old_txhdr_format(dev)) {
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->old_format.plcp),
@@ -655,6 +673,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		status.freq = chanid + 2400;
 		break;
 	case B43_PHYTYPE_N:
+	case B43_PHYTYPE_LP:
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
 		if (chanstat & B43_RX_CHAN_5GHZ) {

@@ -1463,6 +1463,10 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * ASIC will keep garbage value after boot, clear encryption keys.
 	 */
+	for (i = 0; i < 4; i++)
+		rt2x00usb_register_write(rt2x00dev,
+					 SHARED_KEY_MODE_ENTRY(i), 0);
+
 	for (i = 0; i < 256; i++) {
 		u32 wcid[2] = { 0xffffffff, 0x00ffffff };
 		rt2x00usb_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
@@ -1471,10 +1475,6 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2x00usb_register_write(rt2x00dev, MAC_WCID_ATTR_ENTRY(i), 1);
 		rt2x00usb_register_write(rt2x00dev, MAC_IVEIV_ENTRY(i), 0);
 	}
-
-	for (i = 0; i < 16; i++)
-		rt2x00usb_register_write(rt2x00dev,
-					 SHARED_KEY_MODE_ENTRY(i), 0);
 
 	/*
 	 * Clear all beacons
@@ -1520,7 +1520,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00usb_register_read(rt2x00dev, LG_FBK_CFG0, &reg);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS0FBK, 8);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS1FBK, 8);
-	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS2FBK, 3);
+	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS2FBK, 9);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS3FBK, 10);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS4FBK, 11);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS5FBK, 12);
@@ -1995,11 +1995,11 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->ba_size);
 	rt2x00_set_field32(&word, TXWI_W1_WIRELESS_CLI_ID,
 			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
-			       txdesc->key_idx : 0xff);
+			       (skbdesc->entry->entry_idx + 1) : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
 			   skb->len - txdesc->l2pad);
 	rt2x00_set_field32(&word, TXWI_W1_PACKETID,
-			   skbdesc->entry->entry_idx);
+			   skbdesc->entry->queue->qid + 1);
 	rt2x00_desc_write(txwi, 1, word);
 
 	/*
@@ -2163,8 +2163,10 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD))
+	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD)) {
 		rxdesc->dev_flags |= RXDONE_L2PAD;
+		skbdesc->flags |= SKBDESC_L2_PADDED;
+	}
 
 	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
 		rxdesc->flags |= RX_FLAG_SHORT_GI;
@@ -2632,7 +2634,6 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device requires firmware.
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);

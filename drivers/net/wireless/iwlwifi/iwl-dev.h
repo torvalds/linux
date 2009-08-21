@@ -507,15 +507,9 @@ struct iwl_ht_info {
 	u8 is_ht;
 	u8 supported_chan_width;
 	u8 sm_ps;
-	u8 is_green_field;
-	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
-	u8 max_amsdu_size;
-	u8 ampdu_factor;
-	u8 mpdu_density;
 	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
 	u8 extension_chan_offset;
-	u8 tx_chan_width;
 	u8 ht_protection;
 	u8 non_GF_STA_present;
 };
@@ -732,9 +726,6 @@ struct iwl_dma_ptr {
 	size_t size;
 };
 
-#define HT_SHORT_GI_20MHZ	(1 << 0)
-#define HT_SHORT_GI_40MHZ	(1 << 1)
-
 #define IWL_CHANNEL_WIDTH_20MHZ   0
 #define IWL_CHANNEL_WIDTH_40MHZ   1
 
@@ -888,6 +879,17 @@ enum iwl_nvm_type {
 	NVM_DEVICE_TYPE_OTP,
 };
 
+/*
+ * Two types of OTP memory access modes
+ *   IWL_OTP_ACCESS_ABSOLUTE - absolute address mode,
+ * 			        based on physical memory addressing
+ *   IWL_OTP_ACCESS_RELATIVE - relative address mode,
+ * 			       based on logical memory addressing
+ */
+enum iwl_access_mode {
+	IWL_OTP_ACCESS_ABSOLUTE,
+	IWL_OTP_ACCESS_RELATIVE,
+};
 
 /**
  * enum iwl_pa_type - Power Amplifier type

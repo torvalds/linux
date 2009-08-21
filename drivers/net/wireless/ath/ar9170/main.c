@@ -1232,8 +1232,6 @@ static int ar9170_op_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->mutex);
 
-	ar->filter_changed = 0;
-
 	/* reinitialize queues statistics */
 	memset(&ar->tx_stats, 0, sizeof(ar->tx_stats));
 	for (i = 0; i < __AR9170_NUM_TXQ; i++)
@@ -1296,7 +1294,6 @@ static void ar9170_op_stop(struct ieee80211_hw *hw)
 #ifdef CONFIG_AR9170_LEDS
 	cancel_delayed_work_sync(&ar->led_work);
 #endif
-	cancel_work_sync(&ar->filter_config_work);
 	cancel_work_sync(&ar->beacon_work);
 
 	mutex_lock(&ar->mutex);
@@ -1973,8 +1970,7 @@ static int ar9170_op_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ar->cur_filter = 0;
-	ar->want_filter = AR9170_MAC_REG_FTF_DEFAULTS;
-	err = ar9170_update_frame_filter(ar);
+	err = ar9170_update_frame_filter(ar, AR9170_MAC_REG_FTF_DEFAULTS);
 	if (err)
 		goto unlock;
 
@@ -1992,8 +1988,7 @@ static void ar9170_op_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->mutex);
 	ar->vif = NULL;
-	ar->want_filter = 0;
-	ar9170_update_frame_filter(ar);
+	ar9170_update_frame_filter(ar, 0);
 	ar9170_set_beacon_timers(ar);
 	dev_kfree_skb(ar->beacon);
 	ar->beacon = NULL;
@@ -2065,47 +2060,36 @@ out:
 	return err;
 }
 
-static void ar9170_set_filters(struct work_struct *work)
+static u64 ar9170_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
+				       struct dev_addr_list *mclist)
 {
-	struct ar9170 *ar = container_of(work, struct ar9170,
-					 filter_config_work);
-	int err;
+	u64 mchash;
+	int i;
 
-	if (unlikely(!IS_STARTED(ar)))
-		return ;
+	/* always get broadcast frames */
+	mchash = 1ULL << (0xff >> 2);
 
-	mutex_lock(&ar->mutex);
-	if (test_and_clear_bit(AR9170_FILTER_CHANGED_MODE,
-			       &ar->filter_changed)) {
-		err = ar9170_set_operating_mode(ar);
-		if (err)
-			goto unlock;
+	for (i = 0; i < mc_count; i++) {
+		if (WARN_ON(!mclist))
+			break;
+		mchash |= 1ULL << (mclist->dmi_addr[5] >> 2);
+		mclist = mclist->next;
 	}
 
-	if (test_and_clear_bit(AR9170_FILTER_CHANGED_MULTICAST,
-			       &ar->filter_changed)) {
-		err = ar9170_update_multicast(ar);
-		if (err)
-			goto unlock;
-	}
-
-	if (test_and_clear_bit(AR9170_FILTER_CHANGED_FRAMEFILTER,
-			       &ar->filter_changed)) {
-		err = ar9170_update_frame_filter(ar);
-		if (err)
-			goto unlock;
-	}
-
-unlock:
-	mutex_unlock(&ar->mutex);
+	return mchash;
 }
 
 static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed_flags,
 				       unsigned int *new_flags,
-				       int mc_count, struct dev_mc_list *mclist)
+				       u64 multicast)
 {
 	struct ar9170 *ar = hw->priv;
+
+	if (unlikely(!IS_ACCEPTING_CMD(ar)))
+		return ;
+
+	mutex_lock(&ar->mutex);
 
 	/* mask supported flags */
 	*new_flags &= FIF_ALLMULTI | FIF_CONTROL | FIF_BCN_PRBRESP_PROMISC |
@@ -2116,26 +2100,11 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 	 * then checking the error flags, later.
 	 */
 
-	if (changed_flags & FIF_ALLMULTI) {
-		if (*new_flags & FIF_ALLMULTI) {
-			ar->want_mc_hash = ~0ULL;
-		} else {
-			u64 mchash;
-			int i;
+	if (changed_flags & FIF_ALLMULTI && *new_flags & FIF_ALLMULTI)
+		multicast = ~0ULL;
 
-			/* always get broadcast frames */
-			mchash = 1ULL << (0xff >> 2);
-
-			for (i = 0; i < mc_count; i++) {
-				if (WARN_ON(!mclist))
-					break;
-				mchash |= 1ULL << (mclist->dmi_addr[5] >> 2);
-				mclist = mclist->next;
-			}
-		ar->want_mc_hash = mchash;
-		}
-		set_bit(AR9170_FILTER_CHANGED_MULTICAST, &ar->filter_changed);
-	}
+	if (multicast != ar->cur_mc_hash)
+		ar9170_update_multicast(ar, multicast);
 
 	if (changed_flags & FIF_CONTROL) {
 		u32 filter = AR9170_MAC_REG_FTF_PSPOLL |
@@ -2146,23 +2115,21 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 			     AR9170_MAC_REG_FTF_CFE_ACK;
 
 		if (*new_flags & FIF_CONTROL)
-			ar->want_filter = ar->cur_filter | filter;
+			filter |= ar->cur_filter;
 		else
-			ar->want_filter = ar->cur_filter & ~filter;
+			filter &= (~ar->cur_filter);
 
-		set_bit(AR9170_FILTER_CHANGED_FRAMEFILTER,
-			&ar->filter_changed);
+		ar9170_update_frame_filter(ar, filter);
 	}
 
 	if (changed_flags & FIF_PROMISC_IN_BSS) {
 		ar->sniffer_enabled = ((*new_flags) & FIF_PROMISC_IN_BSS) != 0;
-		set_bit(AR9170_FILTER_CHANGED_MODE,
-			&ar->filter_changed);
+		ar9170_set_operating_mode(ar);
 	}
 
-	if (likely(IS_STARTED(ar)))
-		ieee80211_queue_work(ar->hw, &ar->filter_config_work);
+	mutex_unlock(&ar->mutex);
 }
+
 
 static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
@@ -2417,9 +2384,6 @@ static void ar9170_sta_notify(struct ieee80211_hw *hw,
 	default:
 		break;
 	}
-
-	if (IS_STARTED(ar) && ar->filter_changed)
-		ieee80211_queue_work(ar->hw, &ar->filter_config_work);
 }
 
 static int ar9170_get_stats(struct ieee80211_hw *hw,
@@ -2543,6 +2507,7 @@ static const struct ieee80211_ops ar9170_ops = {
 	.add_interface		= ar9170_op_add_interface,
 	.remove_interface	= ar9170_op_remove_interface,
 	.config			= ar9170_op_config,
+	.prepare_multicast	= ar9170_op_prepare_multicast,
 	.configure_filter	= ar9170_op_configure_filter,
 	.conf_tx		= ar9170_conf_tx,
 	.bss_info_changed	= ar9170_op_bss_info_changed,
@@ -2589,7 +2554,6 @@ void *ar9170_alloc(size_t priv_size)
 		skb_queue_head_init(&ar->tx_pending[i]);
 	}
 	ar9170_rx_reset_rx_mpdu(ar);
-	INIT_WORK(&ar->filter_config_work, ar9170_set_filters);
 	INIT_WORK(&ar->beacon_work, ar9170_new_beacon);
 	INIT_DELAYED_WORK(&ar->tx_janitor, ar9170_tx_janitor);
 	INIT_LIST_HEAD(&ar->tx_ampdu_list);
@@ -2634,6 +2598,7 @@ static int ar9170_read_eeprom(struct ar9170 *ar)
 {
 #define RW	8	/* number of words to read at once */
 #define RB	(sizeof(u32) * RW)
+	struct ath_regulatory *regulatory = &ar->common.regulatory;
 	u8 *eeprom = (void *)&ar->eeprom;
 	u8 *addr = ar->eeprom.mac_address;
 	__le32 offsets[RW];
@@ -2700,8 +2665,8 @@ static int ar9170_read_eeprom(struct ar9170 *ar)
 	else
 		ar->hw->channel_change_time = 80 * 1000;
 
-	ar->regulatory.current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
-	ar->regulatory.current_rd_ext = le16_to_cpu(ar->eeprom.reg_domain[1]);
+	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
+	regulatory->current_rd_ext = le16_to_cpu(ar->eeprom.reg_domain[1]);
 
 	/* second part of wiphy init */
 	SET_IEEE80211_PERM_ADDR(ar->hw, addr);
@@ -2715,11 +2680,12 @@ static int ar9170_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ar9170 *ar = hw->priv;
 
-	return ath_reg_notifier_apply(wiphy, request, &ar->regulatory);
+	return ath_reg_notifier_apply(wiphy, request, &ar->common.regulatory);
 }
 
 int ar9170_register(struct ar9170 *ar, struct device *pdev)
 {
+	struct ath_regulatory *regulatory = &ar->common.regulatory;
 	int err;
 
 	/* try to read EEPROM, init MAC addr */
@@ -2727,7 +2693,7 @@ int ar9170_register(struct ar9170 *ar, struct device *pdev)
 	if (err)
 		goto err_out;
 
-	err = ath_regd_init(&ar->regulatory, ar->hw->wiphy,
+	err = ath_regd_init(regulatory, ar->hw->wiphy,
 			    ar9170_reg_notifier);
 	if (err)
 		goto err_out;
@@ -2736,8 +2702,8 @@ int ar9170_register(struct ar9170 *ar, struct device *pdev)
 	if (err)
 		goto err_out;
 
-	if (!ath_is_world_regd(&ar->regulatory))
-		regulatory_hint(ar->hw->wiphy, ar->regulatory.alpha2);
+	if (!ath_is_world_regd(regulatory))
+		regulatory_hint(ar->hw->wiphy, regulatory->alpha2);
 
 	err = ar9170_init_leds(ar);
 	if (err)

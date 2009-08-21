@@ -12,6 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
@@ -309,7 +310,8 @@ static void cfg80211_process_events(struct wireless_dev *wdev)
 		switch (ev->type) {
 		case EVENT_CONNECT_RESULT:
 			__cfg80211_connect_result(
-				wdev->netdev, ev->cr.bssid,
+				wdev->netdev, is_zero_ether_addr(ev->cr.bssid) ?
+				NULL : ev->cr.bssid,
 				ev->cr.req_ie, ev->cr.req_ie_len,
 				ev->cr.resp_ie, ev->cr.resp_ie_len,
 				ev->cr.status,
@@ -429,6 +431,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_WORK(&rdev->rfkill_sync, cfg80211_rfkill_sync_work);
 	INIT_WORK(&rdev->conn_work, cfg80211_conn_work);
 	INIT_WORK(&rdev->event_work, cfg80211_event_work);
+
+	init_waitqueue_head(&rdev->dev_wait);
 
 	/*
 	 * Initialize wiphy parameters to IEEE 802.11 MIB default values.
@@ -574,7 +578,23 @@ void wiphy_unregister(struct wiphy *wiphy)
 	/* protect the device list */
 	mutex_lock(&cfg80211_mutex);
 
+	wait_event(rdev->dev_wait, ({
+		int __count;
+		mutex_lock(&rdev->devlist_mtx);
+		__count = rdev->opencount;
+		mutex_unlock(&rdev->devlist_mtx);
+		__count == 0;}));
+
+	mutex_lock(&rdev->devlist_mtx);
 	BUG_ON(!list_empty(&rdev->netdev_list));
+	mutex_unlock(&rdev->devlist_mtx);
+
+	/*
+	 * First remove the hardware from everywhere, this makes
+	 * it impossible to find from userspace.
+	 */
+	cfg80211_debugfs_rdev_del(rdev);
+	list_del(&rdev->list);
 
 	/*
 	 * Try to grab rdev->mtx. If a command is still in progress,
@@ -582,21 +602,18 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * down the device already. We wait for this command to complete
 	 * before unlinking the item from the list.
 	 * Note: as codified by the BUG_ON above we cannot get here if
-	 * a virtual interface is still associated. Hence, we can only
-	 * get to lock contention here if userspace issues a command
-	 * that identified the hardware by wiphy index.
+	 * a virtual interface is still present. Hence, we can only get
+	 * to lock contention here if userspace issues a command that
+	 * identified the hardware by wiphy index.
 	 */
-	mutex_lock(&rdev->mtx);
-	/* unlock again before freeing */
-	mutex_unlock(&rdev->mtx);
-
-	cfg80211_debugfs_rdev_del(rdev);
+	cfg80211_lock_rdev(rdev);
+	/* nothing */
+	cfg80211_unlock_rdev(rdev);
 
 	/* If this device got a regulatory hint tell core its
 	 * free to listen now to a new shiny device regulatory hint */
 	reg_device_remove(wiphy);
 
-	list_del(&rdev->list);
 	cfg80211_rdev_list_generation++;
 	device_del(&rdev->wiphy.dev);
 	debugfs_remove(rdev->wiphy.debugfsdir);
@@ -605,7 +622,6 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
-	kfree(rdev->scan_req);
 	flush_work(&rdev->event_work);
 }
 EXPORT_SYMBOL(wiphy_unregister);
@@ -636,6 +652,31 @@ void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
 }
 EXPORT_SYMBOL(wiphy_rfkill_set_hw_state);
 
+static void wdev_cleanup_work(struct work_struct *work)
+{
+	struct wireless_dev *wdev;
+	struct cfg80211_registered_device *rdev;
+
+	wdev = container_of(work, struct wireless_dev, cleanup_work);
+	rdev = wiphy_to_dev(wdev->wiphy);
+
+	cfg80211_lock_rdev(rdev);
+
+	if (WARN_ON(rdev->scan_req && rdev->scan_req->dev == wdev->netdev)) {
+		rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev);
+	}
+
+	cfg80211_unlock_rdev(rdev);
+
+	mutex_lock(&rdev->devlist_mtx);
+	rdev->opencount--;
+	mutex_unlock(&rdev->devlist_mtx);
+	wake_up(&rdev->dev_wait);
+
+	dev_put(wdev->netdev);
+}
+
 static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 					 unsigned long state,
 					 void *ndev)
@@ -653,7 +694,13 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	switch (state) {
 	case NETDEV_REGISTER:
+		/*
+		 * NB: cannot take rdev->mtx here because this may be
+		 * called within code protected by it when interfaces
+		 * are added with nl80211.
+		 */
 		mutex_init(&wdev->mtx);
+		INIT_WORK(&wdev->cleanup_work, wdev_cleanup_work);
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
 		mutex_lock(&rdev->devlist_mtx);
@@ -708,8 +755,22 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		default:
 			break;
 		}
+		dev_hold(dev);
+		schedule_work(&wdev->cleanup_work);
 		break;
 	case NETDEV_UP:
+		/*
+		 * If we have a really quick DOWN/UP succession we may
+		 * have this work still pending ... cancel it and see
+		 * if it was pending, in which case we need to account
+		 * for some of the work it would have done.
+		 */
+		if (cancel_work_sync(&wdev->cleanup_work)) {
+			mutex_lock(&rdev->devlist_mtx);
+			rdev->opencount--;
+			mutex_unlock(&rdev->devlist_mtx);
+			dev_put(dev);
+		}
 #ifdef CONFIG_WIRELESS_EXT
 		cfg80211_lock_rdev(rdev);
 		mutex_lock(&rdev->devlist_mtx);
@@ -725,18 +786,17 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		}
 		wdev_unlock(wdev);
+		rdev->opencount++;
 		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);
 #endif
 		break;
 	case NETDEV_UNREGISTER:
-		cfg80211_lock_rdev(rdev);
-
-		if (WARN_ON(rdev->scan_req && rdev->scan_req->dev == dev)) {
-			rdev->scan_req->aborted = true;
-			___cfg80211_scan_done(rdev);
-		}
-
+		/*
+		 * NB: cannot take rdev->mtx here because this may be
+		 * called within code protected by it when interfaces
+		 * are removed with nl80211.
+		 */
 		mutex_lock(&rdev->devlist_mtx);
 		/*
 		 * It is possible to get NETDEV_UNREGISTER
@@ -749,13 +809,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_init(&wdev->list);
 			rdev->devlist_generation++;
-			mutex_destroy(&wdev->mtx);
 #ifdef CONFIG_WIRELESS_EXT
 			kfree(wdev->wext.keys);
 #endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
-		cfg80211_unlock_rdev(rdev);
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))

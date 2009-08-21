@@ -771,6 +771,7 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		return err;
 	}
 }
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwfreq);
 
 int cfg80211_wext_giwfreq(struct net_device *dev,
 			  struct iw_request_info *info,

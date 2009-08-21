@@ -461,8 +461,8 @@ static int pio_tx_frame(struct b43_pio_txqueue *q,
 
 	cookie = generate_cookie(q, pack);
 	hdrlen = b43_txhdr_size(q->dev);
-	err = b43_generate_txhdr(q->dev, (u8 *)&txhdr, skb->data,
-				 skb->len, info, cookie);
+	err = b43_generate_txhdr(q->dev, (u8 *)&txhdr, skb,
+				 info, cookie);
 	if (err)
 		return err;
 

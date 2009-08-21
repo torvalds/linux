@@ -50,9 +50,9 @@ struct ieee80211_tx_status_rtap_hdr {
 } __attribute__ ((packed));
 
 
-/* must be called under mdev tx lock */
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
+	u64 mc;
 	unsigned int changed_flags;
 	unsigned int new_flags = 0;
 
@@ -62,7 +62,7 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	if (atomic_read(&local->iff_allmultis))
 		new_flags |= FIF_ALLMULTI;
 
-	if (local->monitors)
+	if (local->monitors || local->scanning)
 		new_flags |= FIF_BCN_PRBRESP_PROMISC;
 
 	if (local->fif_fcsfail)
@@ -80,18 +80,28 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	if (local->fif_pspoll)
 		new_flags |= FIF_PSPOLL;
 
+	spin_lock_bh(&local->filter_lock);
 	changed_flags = local->filter_flags ^ new_flags;
+
+	mc = drv_prepare_multicast(local, local->mc_count, local->mc_list);
+	spin_unlock_bh(&local->filter_lock);
 
 	/* be a bit nasty */
 	new_flags |= (1<<31);
 
-	drv_configure_filter(local, changed_flags, &new_flags,
-			     local->mc_count,
-			     local->mc_list);
+	drv_configure_filter(local, changed_flags, &new_flags, mc);
 
 	WARN_ON(new_flags & (1<<31));
 
 	local->filter_flags = new_flags & ~(1<<31);
+}
+
+static void ieee80211_reconfig_filter(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, reconfig_filter);
+
+	ieee80211_configure_filter(local);
 }
 
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
@@ -231,9 +241,6 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 
 	drv_bss_info_changed(local, &sdata->vif,
 			     &sdata->vif.bss_conf, changed);
-
-	/* DEPRECATED */
-	local->hw.conf.beacon_int = sdata->vif.bss_conf.beacon_int;
 }
 
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
@@ -475,6 +482,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 
 		rate_control_tx_status(local, sband, sta, skb);
+		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
+			ieee80211s_update_metric(local, sta, skb);
 	}
 
 	rcu_read_unlock();
@@ -677,7 +686,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.max_rates = 1;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
-	local->hw.conf.radio_enabled = true;
 	local->user_power_level = -1;
 
 	INIT_LIST_HEAD(&local->interfaces);
@@ -691,6 +699,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
+
+	INIT_WORK(&local->reconfig_filter, ieee80211_reconfig_filter);
 
 	INIT_WORK(&local->dynamic_ps_enable_work,
 		  ieee80211_dynamic_ps_enable_work);
@@ -920,7 +930,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
  fail_wiphy_register:
-	kfree(local->int_scan_req->channels);
+	kfree(local->int_scan_req);
 	return result;
 }
 EXPORT_SYMBOL(ieee80211_register_hw);
@@ -945,6 +955,8 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	ieee80211_remove_interfaces(local);
 
 	rtnl_unlock();
+
+	cancel_work_sync(&local->reconfig_filter);
 
 	ieee80211_clear_tx_pending(local);
 	sta_info_stop(local);

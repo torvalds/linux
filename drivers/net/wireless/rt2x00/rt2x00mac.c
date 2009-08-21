@@ -379,7 +379,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_config);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
-				int mc_count, struct dev_addr_list *mc_list)
+				u64 multicast)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
@@ -430,10 +430,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 		return;
 	rt2x00dev->packet_filter = *total_flags;
 
-	if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
-		rt2x00dev->ops->lib->config_filter(rt2x00dev, *total_flags);
-	else
-		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->filter_work);
+	rt2x00dev->ops->lib->config_filter(rt2x00dev, *total_flags);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_configure_filter);
 
@@ -639,23 +636,15 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			rt2x00dev->intf_associated--;
 
-		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
-			rt2x00leds_led_assoc(rt2x00dev,
-					     !!rt2x00dev->intf_associated);
-		else
-			delayed |= DELAYED_LED_ASSOC;
+		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
 	}
 
 	/*
 	 * When the erp information has changed, we should perform
 	 * additional configuration steps. For all other changes we are done.
 	 */
-	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT)) {
-		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
-			rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
-		else
-			delayed |= DELAYED_CONFIG_ERP;
-	}
+	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT))
+		rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
 
 	spin_lock(&intf->lock);
 	if (delayed) {
@@ -704,8 +693,8 @@ EXPORT_SYMBOL_GPL(rt2x00mac_conf_tx);
 void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	bool blocked = !!rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
+	bool active = !!rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
 
-	wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
+	wiphy_rfkill_set_hw_state(hw->wiphy, !active);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_rfkill_poll);

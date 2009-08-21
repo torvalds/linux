@@ -1291,7 +1291,7 @@ static int orinoco_ioctl_setibssport(struct net_device *dev,
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	priv->ibss_port = val ;
+	priv->ibss_port = val;
 
 	/* Actually update the mode we are using */
 	set_port_type(priv);

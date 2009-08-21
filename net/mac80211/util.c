@@ -1076,9 +1076,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);
 
-	spin_lock_bh(&local->filter_lock);
 	ieee80211_configure_filter(local);
-	spin_unlock_bh(&local->filter_lock);
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {

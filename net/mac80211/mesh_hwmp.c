@@ -201,6 +201,24 @@ int mesh_path_error_tx(u8 *dst, __le32 dst_dsn, u8 *ra,
 	return 0;
 }
 
+void ieee80211s_update_metric(struct ieee80211_local *local,
+		struct sta_info *stainfo, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	int failed;
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		return;
+
+	failed = !(txinfo->flags & IEEE80211_TX_STAT_ACK);
+
+	/* moving average, scaled to 100 */
+	stainfo->fail_avg = ((80 * stainfo->fail_avg + 5) / 100 + 20 * failed);
+	if (stainfo->fail_avg > 95)
+		mesh_plink_broken(stainfo);
+}
+
 static u32 airtime_link_metric_get(struct ieee80211_local *local,
 				   struct sta_info *sta)
 {
@@ -479,6 +497,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				hopcount, ttl, cpu_to_le32(lifetime),
 				cpu_to_le32(metric), cpu_to_le32(preq_id),
 				sdata);
+		ifmsh->mshstats.fwded_mcast++;
 		ifmsh->mshstats.fwded_frames++;
 	}
 }
@@ -537,6 +556,8 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 		cpu_to_le32(lifetime), cpu_to_le32(metric),
 		0, sdata);
 	rcu_read_unlock();
+
+	sdata->u.mesh.mshstats.fwded_unicast++;
 	sdata->u.mesh.mshstats.fwded_frames++;
 	return;
 

@@ -351,15 +351,13 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
 		return;
 
-	if (wdev->sme_state == CFG80211_SME_CONNECTED)
-		nl80211_send_roamed(wiphy_to_dev(wdev->wiphy), dev,
+	if (WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTING))
+		return;
+
+	nl80211_send_connect_result(wiphy_to_dev(wdev->wiphy), dev,
 				    bssid, req_ie, req_ie_len,
-				    resp_ie, resp_ie_len, GFP_KERNEL);
-	else
-		nl80211_send_connect_result(wiphy_to_dev(wdev->wiphy), dev,
-					    bssid, req_ie, req_ie_len,
-					    resp_ie, resp_ie_len,
-					    status, GFP_KERNEL);
+				    resp_ie, resp_ie_len,
+				    status, GFP_KERNEL);
 
 #ifdef CONFIG_WIRELESS_EXT
 	if (wextev) {
@@ -392,18 +390,13 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		wdev->current_bss = NULL;
 	}
 
-	if (status == WLAN_STATUS_SUCCESS &&
-	    wdev->sme_state == CFG80211_SME_IDLE)
-		goto success;
-
-	if (wdev->sme_state != CFG80211_SME_CONNECTING)
-		return;
-
 	if (wdev->conn)
 		wdev->conn->state = CFG80211_CONN_IDLE;
 
 	if (status != WLAN_STATUS_SUCCESS) {
 		wdev->sme_state = CFG80211_SME_IDLE;
+		if (wdev->conn)
+			kfree(wdev->conn->ie);
 		kfree(wdev->conn);
 		wdev->conn = NULL;
 		kfree(wdev->connect_keys);
@@ -412,7 +405,6 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		return;
 	}
 
- success:
 	if (!bss)
 		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
 				       wdev->ssid, wdev->ssid_len,
@@ -458,7 +450,8 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		return;
 
 	ev->type = EVENT_CONNECT_RESULT;
-	memcpy(ev->cr.bssid, bssid, ETH_ALEN);
+	if (bssid)
+		memcpy(ev->cr.bssid, bssid, ETH_ALEN);
 	ev->cr.req_ie = ((u8 *)ev) + sizeof(*ev);
 	ev->cr.req_ie_len = req_ie_len;
 	memcpy((void *)ev->cr.req_ie, req_ie, req_ie_len);
@@ -789,6 +782,7 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 			}
 		}
 		if (err) {
+			kfree(wdev->conn->ie);
 			kfree(wdev->conn);
 			wdev->conn = NULL;
 			wdev->sme_state = CFG80211_SME_IDLE;
@@ -858,6 +852,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		    (wdev->conn->state == CFG80211_CONN_SCANNING ||
 		     wdev->conn->state == CFG80211_CONN_SCAN_AGAIN)) {
 			wdev->sme_state = CFG80211_SME_IDLE;
+			kfree(wdev->conn->ie);
 			kfree(wdev->conn);
 			wdev->conn = NULL;
 			wdev->ssid_len = 0;

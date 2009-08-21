@@ -238,39 +238,31 @@ static int ar9170_set_mac_reg(struct ar9170 *ar, const u32 reg, const u8 *mac)
 	return ar9170_regwrite_result();
 }
 
-int ar9170_update_multicast(struct ar9170 *ar)
+int ar9170_update_multicast(struct ar9170 *ar, const u64 mc_hash)
 {
 	int err;
 
 	ar9170_regwrite_begin(ar);
-	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_H,
-		ar->want_mc_hash >> 32);
-	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_L,
-		ar->want_mc_hash);
-
+	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_H, mc_hash >> 32);
+	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_L, mc_hash);
 	ar9170_regwrite_finish();
 	err = ar9170_regwrite_result();
-
 	if (err)
 		return err;
 
-	ar->cur_mc_hash = ar->want_mc_hash;
-
+	ar->cur_mc_hash = mc_hash;
 	return 0;
 }
 
-int ar9170_update_frame_filter(struct ar9170 *ar)
+int ar9170_update_frame_filter(struct ar9170 *ar, const u32 filter)
 {
 	int err;
 
-	err = ar9170_write_reg(ar, AR9170_MAC_REG_FRAMETYPE_FILTER,
-			       ar->want_filter);
-
+	err = ar9170_write_reg(ar, AR9170_MAC_REG_FRAMETYPE_FILTER, filter);
 	if (err)
 		return err;
 
-	ar->cur_filter = ar->want_filter;
-
+	ar->cur_filter = filter;
 	return 0;
 }
 

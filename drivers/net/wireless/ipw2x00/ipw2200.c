@@ -83,13 +83,13 @@ MODULE_LICENSE("GPL");
 
 static int cmdlog = 0;
 static int debug = 0;
-static int channel = 0;
-static int mode = 0;
+static int default_channel = 0;
+static int network_mode = 0;
 
 static u32 ipw_debug_level;
 static int associate;
 static int auto_create = 1;
-static int led = 0;
+static int led_support = 0;
 static int disable = 0;
 static int bt_coexist = 0;
 static int hwcrypto = 0;
@@ -4265,9 +4265,10 @@ static void ipw_gather_stats(struct ipw_priv *priv)
 	IPW_DEBUG_STATS("Signal level : %3d%% (%d dBm)\n",
 			signal_quality, rssi);
 
-	quality = min(beacon_quality,
-		      min(rate_quality,
-			  min(tx_quality, min(rx_quality, signal_quality))));
+	quality = min(rx_quality, signal_quality);
+	quality = min(tx_quality, quality);
+	quality = min(rate_quality, quality);
+	quality = min(beacon_quality, quality);
 	if (quality == beacon_quality)
 		IPW_DEBUG_STATS("Quality (%d%%): Clamped to missed beacons.\n",
 				quality);
@@ -4411,7 +4412,6 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 {
 	DECLARE_SSID_BUF(ssid);
 	u16 size = le16_to_cpu(notif->size);
-	notif->size = le16_to_cpu(notif->size);
 
 	IPW_DEBUG_NOTIF("type = %i (%d bytes)\n", notif->subtype, size);
 
@@ -6101,11 +6101,10 @@ static void ipw_debug_config(struct ipw_priv *priv)
 static void ipw_set_fixed_rate(struct ipw_priv *priv, int mode)
 {
 	/* TODO: Verify that this works... */
-	struct ipw_fixed_rate fr = {
-		.tx_rates = priv->rates_mask
-	};
+	struct ipw_fixed_rate fr;
 	u32 reg;
 	u16 mask = 0;
+	u16 new_tx_rates = priv->rates_mask;
 
 	/* Identify 'current FW band' and match it with the fixed
 	 * Tx rates */
@@ -6117,53 +6116,55 @@ static void ipw_set_fixed_rate(struct ipw_priv *priv, int mode)
 			/* Invalid fixed rate mask */
 			IPW_DEBUG_WX
 			    ("invalid fixed rate mask in ipw_set_fixed_rate\n");
-			fr.tx_rates = 0;
+			new_tx_rates = 0;
 			break;
 		}
 
-		fr.tx_rates >>= IEEE80211_OFDM_SHIFT_MASK_A;
+		new_tx_rates >>= IEEE80211_OFDM_SHIFT_MASK_A;
 		break;
 
 	default:		/* 2.4Ghz or Mixed */
 		/* IEEE_B */
 		if (mode == IEEE_B) {
-			if (fr.tx_rates & ~IEEE80211_CCK_RATES_MASK) {
+			if (new_tx_rates & ~IEEE80211_CCK_RATES_MASK) {
 				/* Invalid fixed rate mask */
 				IPW_DEBUG_WX
 				    ("invalid fixed rate mask in ipw_set_fixed_rate\n");
-				fr.tx_rates = 0;
+				new_tx_rates = 0;
 			}
 			break;
 		}
 
 		/* IEEE_G */
-		if (fr.tx_rates & ~(IEEE80211_CCK_RATES_MASK |
+		if (new_tx_rates & ~(IEEE80211_CCK_RATES_MASK |
 				    IEEE80211_OFDM_RATES_MASK)) {
 			/* Invalid fixed rate mask */
 			IPW_DEBUG_WX
 			    ("invalid fixed rate mask in ipw_set_fixed_rate\n");
-			fr.tx_rates = 0;
+			new_tx_rates = 0;
 			break;
 		}
 
-		if (IEEE80211_OFDM_RATE_6MB_MASK & fr.tx_rates) {
+		if (IEEE80211_OFDM_RATE_6MB_MASK & new_tx_rates) {
 			mask |= (IEEE80211_OFDM_RATE_6MB_MASK >> 1);
-			fr.tx_rates &= ~IEEE80211_OFDM_RATE_6MB_MASK;
+			new_tx_rates &= ~IEEE80211_OFDM_RATE_6MB_MASK;
 		}
 
-		if (IEEE80211_OFDM_RATE_9MB_MASK & fr.tx_rates) {
+		if (IEEE80211_OFDM_RATE_9MB_MASK & new_tx_rates) {
 			mask |= (IEEE80211_OFDM_RATE_9MB_MASK >> 1);
-			fr.tx_rates &= ~IEEE80211_OFDM_RATE_9MB_MASK;
+			new_tx_rates &= ~IEEE80211_OFDM_RATE_9MB_MASK;
 		}
 
-		if (IEEE80211_OFDM_RATE_12MB_MASK & fr.tx_rates) {
+		if (IEEE80211_OFDM_RATE_12MB_MASK & new_tx_rates) {
 			mask |= (IEEE80211_OFDM_RATE_12MB_MASK >> 1);
-			fr.tx_rates &= ~IEEE80211_OFDM_RATE_12MB_MASK;
+			new_tx_rates &= ~IEEE80211_OFDM_RATE_12MB_MASK;
 		}
 
-		fr.tx_rates |= mask;
+		new_tx_rates |= mask;
 		break;
 	}
+
+	fr.tx_rates = cpu_to_le16(new_tx_rates);
 
 	reg = ipw_read32(priv, IPW_MEM_FIXED_OVERRIDE);
 	ipw_write_reg32(priv, reg, *(u32 *) & fr);
@@ -7850,7 +7851,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 
 	/* Convert signal to DBM */
 	ipw_rt->rt_dbmsignal = antsignal;
-	ipw_rt->rt_dbmnoise = frame->noise;
+	ipw_rt->rt_dbmnoise = (s8) le16_to_cpu(frame->noise);
 
 	/* Convert the channel data and set the flags */
 	ipw_rt->rt_channel = cpu_to_le16(ieee80211chan2mhz(received_channel));
@@ -7964,7 +7965,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	u16 channel = frame->received_channel;
 	u8 phy_flags = frame->antennaAndPhy;
 	s8 signal = frame->rssi_dbm - IPW_RSSI_TO_DBM;
-	s8 noise = frame->noise;
+	s8 noise = (s8) le16_to_cpu(frame->noise);
 	u8 rate = frame->rate;
 	short len = le16_to_cpu(pkt->u.frame.length);
 	struct sk_buff *skb;
@@ -8335,7 +8336,7 @@ static void ipw_rx(struct ipw_priv *priv)
 					.rssi = pkt->u.frame.rssi_dbm -
 					    IPW_RSSI_TO_DBM,
 					.signal =
-					    le16_to_cpu(pkt->u.frame.rssi_dbm) -
+					    pkt->u.frame.rssi_dbm -
 					    IPW_RSSI_TO_DBM + 0x100,
 					.noise =
 					    le16_to_cpu(pkt->u.frame.noise),
@@ -8517,7 +8518,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 
 	/* We default to disabling the LED code as right now it causes
 	 * too many systems to lock up... */
-	if (!led)
+	if (!led_support)
 		priv->config |= CFG_NO_LED;
 
 	if (associate)
@@ -8539,10 +8540,10 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 		IPW_DEBUG_INFO("Radio disabled.\n");
 	}
 
-	if (channel != 0) {
+	if (default_channel != 0) {
 		priv->config |= CFG_STATIC_CHANNEL;
-		priv->channel = channel;
-		IPW_DEBUG_INFO("Bind to static channel %d\n", channel);
+		priv->channel = default_channel;
+		IPW_DEBUG_INFO("Bind to static channel %d\n", default_channel);
 		/* TODO: Validate that provided channel is in range */
 	}
 #ifdef CONFIG_IPW2200_QOS
@@ -8550,7 +8551,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 		     burst_duration_CCK, burst_duration_OFDM);
 #endif				/* CONFIG_IPW2200_QOS */
 
-	switch (mode) {
+	switch (network_mode) {
 	case 1:
 		priv->ieee->iw_mode = IW_MODE_ADHOC;
 		priv->net_dev->type = ARPHRD_ETHER;
@@ -10181,7 +10182,6 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 #endif
 	struct clx2_queue *q = &txq->q;
 	u8 id, hdr_len, unicast;
-	u16 remaining_bytes;
 	int fc;
 
 	if (!(priv->status & STATUS_ASSOCIATED))
@@ -10220,7 +10220,6 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 
 	tfd->u.data.cmd_id = DINO_CMD_TX;
 	tfd->u.data.len = cpu_to_le16(txb->payload_size);
-	remaining_bytes = txb->payload_size;
 
 	if (priv->assoc_request.ieee_mode == IPW_B_MODE)
 		tfd->u.data.tx_flags_ext |= DCT_FLAG_EXT_MODE_CCK;
@@ -11946,13 +11945,13 @@ MODULE_PARM_DESC(associate, "auto associate when scanning (default off)");
 module_param(auto_create, int, 0444);
 MODULE_PARM_DESC(auto_create, "auto create adhoc network (default on)");
 
-module_param(led, int, 0444);
+module_param_named(led, led_support, int, 0444);
 MODULE_PARM_DESC(led, "enable led control on some systems (default 0 off)");
 
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 
-module_param(channel, int, 0444);
+module_param_named(channel, default_channel, int, 0444);
 MODULE_PARM_DESC(channel, "channel to limit associate to (default 0 [ANY])");
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
@@ -11978,10 +11977,10 @@ MODULE_PARM_DESC(burst_duration_OFDM, "set OFDM burst value");
 #endif				/* CONFIG_IPW2200_QOS */
 
 #ifdef CONFIG_IPW2200_MONITOR
-module_param(mode, int, 0444);
+module_param_named(mode, network_mode, int, 0444);
 MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS,2=Monitor)");
 #else
-module_param(mode, int, 0444);
+module_param_named(mode, network_mode, int, 0444);
 MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS)");
 #endif
 

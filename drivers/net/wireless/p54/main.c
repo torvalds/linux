@@ -302,7 +302,7 @@ out:
 static void p54_configure_filter(struct ieee80211_hw *dev,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
-				 int mc_count, struct dev_mc_list *mclist)
+				 u64 multicast)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -574,6 +574,12 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	dev->max_rate_tries = 7;
 	dev->extra_tx_headroom = sizeof(struct p54_hdr) + 4 +
 				 sizeof(struct p54_tx_data);
+
+	/*
+	 * For now, disable PS by default because it affects
+	 * link stability significantly.
+	 */
+	dev->wiphy->ps_default = false;
 
 	mutex_init(&priv->conf_mutex);
 	mutex_init(&priv->eeprom_mutex);

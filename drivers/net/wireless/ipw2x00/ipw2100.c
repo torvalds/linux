@@ -185,7 +185,7 @@ MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
 static int debug = 0;
-static int mode = 0;
+static int network_mode = 0;
 static int channel = 0;
 static int associate = 0;
 static int disable = 0;
@@ -195,7 +195,7 @@ static struct ipw2100_fw ipw2100_firmware;
 
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
-module_param(mode, int, 0444);
+module_param_named(mode, network_mode, int, 0444);
 module_param(channel, int, 0444);
 module_param(associate, int, 0444);
 module_param(disable, int, 0444);
@@ -2844,7 +2844,7 @@ static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 
 #ifdef CONFIG_IPW2100_DEBUG
 	{
-		int i = txq->oldest;
+		i = txq->oldest;
 		IPW_DEBUG_TX("TX%d V=%p P=%04X T=%04X L=%d\n", i,
 			     &txq->drv[i],
 			     (u32) (txq->nic + i * sizeof(struct ipw2100_bd)),
@@ -6076,7 +6076,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	priv->ieee->ieee802_1x = 1;
 
 	/* Set module parameters */
-	switch (mode) {
+	switch (network_mode) {
 	case 1:
 		priv->ieee->iw_mode = IW_MODE_ADHOC;
 		break;
@@ -8179,10 +8179,11 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 	int rssi_qual;
 	int tx_qual;
 	int beacon_qual;
+	int quality;
 
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct iw_statistics *wstats;
-	u32 rssi, quality, tx_retries, missed_beacons, tx_failures;
+	u32 rssi, tx_retries, missed_beacons, tx_failures;
 	u32 ord_len = sizeof(u32);
 
 	if (!priv)
@@ -8265,7 +8266,8 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 			beacon_qual = (20 - missed_beacons) *
 			    (PERFECT - VERY_GOOD) / 20 + VERY_GOOD;
 
-		quality = min(beacon_qual, min(tx_qual, rssi_qual));
+		quality = min(tx_qual, rssi_qual);
+		quality = min(beacon_qual, quality);
 
 #ifdef CONFIG_IPW2100_DEBUG
 		if (beacon_qual == quality)

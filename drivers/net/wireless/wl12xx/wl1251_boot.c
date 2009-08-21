@@ -465,6 +465,9 @@ int wl1251_boot(struct wl1251 *wl)
 	int ret = 0, minor_minor_e2_ver;
 	u32 tmp, boot_data;
 
+	/* halt embedded ARM CPU while loading firmware */
+	wl1251_reg_write32(wl, ACX_REG_ECPU_CONTROL, ECPU_CONTROL_HALT);
+
 	ret = wl1251_boot_soft_reset(wl);
 	if (ret < 0)
 		goto out;

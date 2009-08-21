@@ -2344,7 +2344,8 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
-	.use_isr_legacy = true
+	.use_isr_legacy = true,
+	.ht_greenfield_support = false,
 };
 
 /* Module firmware */

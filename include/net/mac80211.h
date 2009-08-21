@@ -583,7 +583,6 @@ enum ieee80211_conf_flags {
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
- * @_IEEE80211_CONF_CHANGE_RADIO_ENABLED: DEPRECATED
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
@@ -593,7 +592,6 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  */
 enum ieee80211_conf_changed {
-	_IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
@@ -603,23 +601,12 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
 };
 
-static inline __deprecated enum ieee80211_conf_changed
-__IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
-{
-	return _IEEE80211_CONF_CHANGE_RADIO_ENABLED;
-}
-#define IEEE80211_CONF_CHANGE_RADIO_ENABLED \
-	__IEEE80211_CONF_CHANGE_RADIO_ENABLED()
-
 /**
  * struct ieee80211_conf - configuration of the device
  *
  * This struct indicates how the driver shall configure the hardware.
  *
  * @flags: configuration flags defined above
- *
- * @radio_enabled: when zero, driver is required to switch off the radio.
- * @beacon_int: DEPRECATED, DO NOT USE
  *
  * @listen_interval: listen interval in units of beacon interval
  * @max_sleep_period: the maximum number of beacon intervals to sleep for
@@ -644,13 +631,11 @@ __IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
  *    number of transmissions not the number of retries
  */
 struct ieee80211_conf {
-	int __deprecated beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
 	int max_sleep_period;
 
 	u16 listen_interval;
-	bool __deprecated radio_enabled;
 
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
@@ -1219,10 +1204,13 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * the driver's configure_filter() function which frames should be
  * passed to mac80211 and which should be filtered out.
  *
- * The configure_filter() callback is invoked with the parameters
- * @mc_count and @mc_list for the combined multicast address list
- * of all virtual interfaces, @changed_flags telling which flags
- * were changed and @total_flags with the new flag states.
+ * Before configure_filter() is invoked, the prepare_multicast()
+ * callback is invoked with the parameters @mc_count and @mc_list
+ * for the combined multicast address list of all virtual interfaces.
+ * It's use is optional, and it returns a u64 that is passed to
+ * configure_filter(). Additionally, configure_filter() has the
+ * arguments @changed_flags telling which flags were changed and
+ * @total_flags with the new flag states.
  *
  * If your device has no multicast address filters your driver will
  * need to check both the %FIF_ALLMULTI flag and the @mc_count
@@ -1375,9 +1363,13 @@ enum ieee80211_ampdu_mlme_action {
  *	for association indication. The @changed parameter indicates which
  *	of the bss parameters has changed when a call is made.
  *
+ * @prepare_multicast: Prepare for multicast filter configuration.
+ *	This callback is optional, and its return value is passed
+ *	to configure_filter(). This callback must be atomic.
+ *
  * @configure_filter: Configure the device's RX filter.
  *	See the section "Frame filtering" for more information.
- *	This callback must be implemented and atomic.
+ *	This callback must be implemented.
  *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
@@ -1479,10 +1471,12 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
+				 int mc_count, struct dev_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
-				 int mc_count, struct dev_addr_list *mc_list);
+				 u64 multicast);
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,

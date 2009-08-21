@@ -226,6 +226,8 @@ void mesh_mgmt_ies_add(struct sk_buff *skb,
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
+void ieee80211s_update_metric(struct ieee80211_local *local,
+		struct sta_info *stainfo, struct sk_buff *skb);
 void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result

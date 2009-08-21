@@ -214,6 +214,7 @@ struct rxdone_entry_desc {
  *
  * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
  * @TXDONE_SUCCESS: Frame was successfully send
+ * @TXDONE_FALLBACK: Frame was successfully send using a fallback rate.
  * @TXDONE_FAILURE: Frame was not successfully send
  * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
  *	frame transmission failed due to excessive retries.
@@ -221,6 +222,7 @@ struct rxdone_entry_desc {
 enum txdone_entry_desc_flags {
 	TXDONE_UNKNOWN,
 	TXDONE_SUCCESS,
+	TXDONE_FALLBACK,
 	TXDONE_FAILURE,
 	TXDONE_EXCESSIVE_RETRY,
 };

@@ -384,7 +384,7 @@ static void ath_ani_calibrate(unsigned long data)
 	if (longcal || shortcal || aniflag) {
 		/* Call ANI routine if necessary */
 		if (aniflag)
-			ath9k_hw_ani_monitor(ah, &sc->nodestats, ah->curchan);
+			ath9k_hw_ani_monitor(ah, ah->curchan);
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
@@ -589,7 +589,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		 * it will clear whatever condition caused
 		 * the interrupt.
 		 */
-		ath9k_hw_procmibevent(ah, &sc->nodestats);
+		ath9k_hw_procmibevent(ah);
 		ath9k_hw_set_interrupts(ah, sc->imask);
 	}
 
@@ -940,10 +940,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_beacon_config(sc, vif);
 
 		/* Reset rssi stats */
-		sc->nodestats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->nodestats.ns_avgrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->nodestats.ns_avgtxrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->nodestats.ns_avgtxrate = ATH_RATE_DUMMY_MARKER;
+		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 		ath_start_ani(sc);
 	} else {
@@ -968,9 +965,9 @@ static void ath_led_blink_work(struct work_struct *work)
 
 	if ((sc->led_on_duration == ATH_LED_ON_DURATION_IDLE) ||
 	    (sc->led_off_duration == ATH_LED_OFF_DURATION_IDLE))
-		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+		ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 0);
 	else
-		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+		ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin,
 				  (sc->sc_flags & SC_OP_LED_ON) ? 1 : 0);
 
 	ieee80211_queue_delayed_work(sc->hw,
@@ -1002,7 +999,7 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	case LED_OFF:
 		if (led->led_type == ATH_LED_ASSOC ||
 		    led->led_type == ATH_LED_RADIO) {
-			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+			ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin,
 				(led->led_type == ATH_LED_RADIO));
 			sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
 			if (led->led_type == ATH_LED_RADIO)
@@ -1017,7 +1014,7 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 			ieee80211_queue_delayed_work(sc->hw,
 						     &sc->ath_led_blink_work, 0);
 		} else if (led->led_type == ATH_LED_RADIO) {
-			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+			ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 0);
 			sc->sc_flags |= SC_OP_LED_ON;
 		} else {
 			sc->led_on_cnt++;
@@ -1062,7 +1059,7 @@ static void ath_deinit_leds(struct ath_softc *sc)
 	ath_unregister_led(&sc->tx_led);
 	ath_unregister_led(&sc->rx_led);
 	ath_unregister_led(&sc->radio_led);
-	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 }
 
 static void ath_init_leds(struct ath_softc *sc)
@@ -1070,11 +1067,16 @@ static void ath_init_leds(struct ath_softc *sc)
 	char *trigger;
 	int ret;
 
+	if (AR_SREV_9287(sc->sc_ah))
+		sc->sc_ah->led_pin = ATH_LED_PIN_9287;
+	else
+		sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
+
 	/* Configure gpio 1 for output */
-	ath9k_hw_cfg_output(sc->sc_ah, ATH_LED_PIN,
+	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	/* LED off, active low */
-	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
 	INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
 
@@ -1153,9 +1155,9 @@ void ath_radio_enable(struct ath_softc *sc)
 	ath9k_hw_set_interrupts(ah, sc->imask);
 
 	/* Enable LED */
-	ath9k_hw_cfg_output(ah, ATH_LED_PIN,
+	ath9k_hw_cfg_output(ah, ah->led_pin,
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	ath9k_hw_set_gpio(ah, ATH_LED_PIN, 0);
+	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
 
 	ieee80211_wake_queues(sc->hw);
 	ath9k_ps_restore(sc);
@@ -1171,8 +1173,8 @@ void ath_radio_disable(struct ath_softc *sc)
 	ieee80211_stop_queues(sc->hw);
 
 	/* Disable LED */
-	ath9k_hw_set_gpio(ah, ATH_LED_PIN, 1);
-	ath9k_hw_cfg_gpio_input(ah, ATH_LED_PIN);
+	ath9k_hw_set_gpio(ah, ah->led_pin, 1);
+	ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
 
 	/* Disable interrupts */
 	ath9k_hw_set_interrupts(ah, 0);
@@ -1288,7 +1290,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_regulatory *reg = &sc->sc_ah->regulatory;
+	struct ath_regulatory *reg = &sc->common.regulatory;
 
 	return ath_reg_notifier_apply(wiphy, request, reg);
 }
@@ -1581,12 +1583,12 @@ int ath_init_device(u16 devid, struct ath_softc *sc)
 
 	ath_set_hw_capab(sc, hw);
 
-	error = ath_regd_init(&sc->sc_ah->regulatory, sc->hw->wiphy,
+	error = ath_regd_init(&sc->common.regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
 		return error;
 
-	reg = &sc->sc_ah->regulatory;
+	reg = &sc->common.regulatory;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
@@ -2100,6 +2102,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	mutex_lock(&sc->mutex);
+
 	aphy->state = ATH_WIPHY_INACTIVE;
 
 	cancel_delayed_work_sync(&sc->ath_led_blink_work);
@@ -2112,12 +2116,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
+		mutex_unlock(&sc->mutex);
 		return;
 	}
-
-	mutex_lock(&sc->mutex);
-
-	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (ath9k_wiphy_started(sc)) {
 		mutex_unlock(&sc->mutex);
@@ -2389,8 +2390,7 @@ skip_chan_change:
 static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   unsigned int changed_flags,
 				   unsigned int *total_flags,
-				   int mc_count,
-				   struct dev_mc_list *mclist)
+				   u64 multicast)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;

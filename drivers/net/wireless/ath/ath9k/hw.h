@@ -396,7 +396,6 @@ struct ath_hw {
 	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config config;
 	struct ath9k_hw_capabilities caps;
-	struct ath_regulatory regulatory;
 	struct ath9k_channel channels[38];
 	struct ath9k_channel *curchan;
 
@@ -522,6 +521,7 @@ struct ath_hw {
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
+	u8 led_pin;
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;

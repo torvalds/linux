@@ -227,9 +227,7 @@ static int ieee80211_open(struct net_device *dev)
 		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
 			local->fif_other_bss++;
 
-		spin_lock_bh(&local->filter_lock);
 		ieee80211_configure_filter(local);
-		spin_unlock_bh(&local->filter_lock);
 		break;
 	default:
 		conf.vif = &sdata->vif;
@@ -241,17 +239,13 @@ static int ieee80211_open(struct net_device *dev)
 
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
 			local->fif_other_bss++;
-			spin_lock_bh(&local->filter_lock);
 			ieee80211_configure_filter(local);
-			spin_unlock_bh(&local->filter_lock);
 
 			ieee80211_start_mesh(sdata);
 		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
 
-			spin_lock_bh(&local->filter_lock);
 			ieee80211_configure_filter(local);
-			spin_unlock_bh(&local->filter_lock);
 		}
 
 		changed |= ieee80211_reset_erp_info(sdata);
@@ -404,9 +398,10 @@ static int ieee80211_stop(struct net_device *dev)
 	spin_lock_bh(&local->filter_lock);
 	__dev_addr_unsync(&local->mc_list, &local->mc_count,
 			  &dev->mc_list, &dev->mc_count);
-	ieee80211_configure_filter(local);
 	spin_unlock_bh(&local->filter_lock);
 	netif_addr_unlock_bh(dev);
+
+	ieee80211_configure_filter(local);
 
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
@@ -458,9 +453,7 @@ static int ieee80211_stop(struct net_device *dev)
 		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
 			local->fif_other_bss--;
 
-		spin_lock_bh(&local->filter_lock);
 		ieee80211_configure_filter(local);
-		spin_unlock_bh(&local->filter_lock);
 		break;
 	case NL80211_IFTYPE_STATION:
 		del_timer_sync(&sdata->u.mgd.chswitch_timer);
@@ -503,9 +496,7 @@ static int ieee80211_stop(struct net_device *dev)
 			local->fif_other_bss--;
 			atomic_dec(&local->iff_allmultis);
 
-			spin_lock_bh(&local->filter_lock);
 			ieee80211_configure_filter(local);
-			spin_unlock_bh(&local->filter_lock);
 
 			ieee80211_stop_mesh(sdata);
 		}
@@ -622,8 +613,8 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 	spin_lock_bh(&local->filter_lock);
 	__dev_addr_sync(&local->mc_list, &local->mc_count,
 			&dev->mc_list, &dev->mc_count);
-	ieee80211_configure_filter(local);
 	spin_unlock_bh(&local->filter_lock);
+	ieee80211_queue_work(&local->hw, &local->reconfig_filter);
 }
 
 /*

@@ -222,7 +222,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 
 	/* Update Beacon RSSI, this is used by ANI. */
 	if (ieee80211_is_beacon(fc))
-		sc->nodestats.ns_avgbrssi = ds->ds_rxstat.rs_rssi;
+		sc->sc_ah->stats.avgbrssi = ds->ds_rxstat.rs_rssi;
 
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;

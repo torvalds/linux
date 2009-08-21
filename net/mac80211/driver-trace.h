@@ -191,31 +191,55 @@ TRACE_EVENT(drv_bss_info_changed,
 	)
 );
 
+TRACE_EVENT(drv_prepare_multicast,
+	TP_PROTO(struct ieee80211_local *local, int mc_count, u64 ret),
+
+	TP_ARGS(local, mc_count, ret),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(int, mc_count)
+		__field(u64, ret)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->mc_count = mc_count;
+		__entry->ret = ret;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " prepare mc (%d): %llx",
+		LOCAL_PR_ARG, __entry->mc_count,
+		(unsigned long long) __entry->ret
+	)
+);
+
 TRACE_EVENT(drv_configure_filter,
 	TP_PROTO(struct ieee80211_local *local,
 		 unsigned int changed_flags,
 		 unsigned int *total_flags,
-		 int mc_count),
+		 u64 multicast),
 
-	TP_ARGS(local, changed_flags, total_flags, mc_count),
+	TP_ARGS(local, changed_flags, total_flags, multicast),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		__field(unsigned int, changed)
 		__field(unsigned int, total)
-		__field(int, mc)
+		__field(u64, multicast)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		__entry->changed = changed_flags;
 		__entry->total = *total_flags;
-		__entry->mc = mc_count;
+		__entry->multicast = multicast;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " changed:%#x total:%#x mc:%d",
-		LOCAL_PR_ARG, __entry->changed, __entry->total, __entry->mc
+		LOCAL_PR_FMT " changed:%#x total:%#x",
+		LOCAL_PR_ARG, __entry->changed, __entry->total
 	)
 );
 

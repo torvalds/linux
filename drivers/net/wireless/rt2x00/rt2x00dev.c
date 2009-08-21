@@ -118,20 +118,11 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 		rt2x00link_start_tuner(rt2x00dev);
 }
 
-static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
-{
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, filter_work);
-
-	rt2x00dev->ops->lib->config_filter(rt2x00dev, rt2x00dev->packet_filter);
-}
-
 static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 					  struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct ieee80211_bss_conf conf;
 	int delayed_flags;
 
 	/*
@@ -141,7 +132,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	 */
 	spin_lock(&intf->lock);
 
-	memcpy(&conf, &vif->bss_conf, sizeof(conf));
 	delayed_flags = intf->delayed_flags;
 	intf->delayed_flags = 0;
 
@@ -158,12 +148,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 
 	if (delayed_flags & DELAYED_UPDATE_BEACON)
 		rt2x00queue_update_beacon(rt2x00dev, vif, true);
-
-	if (delayed_flags & DELAYED_CONFIG_ERP)
-		rt2x00lib_config_erp(rt2x00dev, intf, &conf);
-
-	if (delayed_flags & DELAYED_LED_ASSOC)
-		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)
@@ -220,7 +204,8 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	u8 rate_idx, rate_flags;
+	u8 rate_idx, rate_flags, retry_rates;
+	unsigned int i;
 
 	/*
 	 * Unmap the skb.
@@ -259,16 +244,27 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 
 	rate_idx = skbdesc->tx_rate_idx;
 	rate_flags = skbdesc->tx_rate_flags;
+	retry_rates = test_bit(TXDONE_FALLBACK, &txdesc->flags) ?
+	    (txdesc->retry + 1) : 1;
 
 	/*
 	 * Initialize TX status
 	 */
 	memset(&tx_info->status, 0, sizeof(tx_info->status));
 	tx_info->status.ack_signal = 0;
-	tx_info->status.rates[0].idx = rate_idx;
-	tx_info->status.rates[0].flags = rate_flags;
-	tx_info->status.rates[0].count = txdesc->retry + 1;
-	tx_info->status.rates[1].idx = -1; /* terminate */
+
+	/*
+	 * Frame was send with retries, hardware tried
+	 * different rates to send out the frame, at each
+	 * retry it lowered the rate 1 step.
+	 */
+	for (i = 0; i < retry_rates && i < IEEE80211_TX_MAX_RATES; i++) {
+		tx_info->status.rates[i].idx = rate_idx - i;
+		tx_info->status.rates[i].flags = rate_flags;
+		tx_info->status.rates[i].count = 1;
+	}
+	if (i < (IEEE80211_TX_MAX_RATES -1))
+		tx_info->status.rates[i].idx = -1; /* terminate */
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		if (test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
@@ -847,7 +843,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 * Initialize configuration work.
 	 */
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
-	INIT_WORK(&rt2x00dev->filter_work, rt2x00lib_packetfilter_scheduled);
 
 	/*
 	 * Allocate queue array.
@@ -895,7 +890,6 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop all work.
 	 */
-	cancel_work_sync(&rt2x00dev->filter_work);
 	cancel_work_sync(&rt2x00dev->intf_work);
 
 	/*

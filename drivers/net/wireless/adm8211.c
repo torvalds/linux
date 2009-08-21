@@ -1328,16 +1328,39 @@ static void adm8211_bss_info_changed(struct ieee80211_hw *dev,
 	}
 }
 
+static u64 adm8211_prepare_multicast(struct ieee80211_hw *hw,
+				     int mc_count, struct dev_addr_list *mclist)
+{
+	unsigned int bit_nr, i;
+	u32 mc_filter[2];
+
+	mc_filter[1] = mc_filter[0] = 0;
+
+	for (i = 0; i < mc_count; i++) {
+		if (!mclist)
+			break;
+		bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
+
+		bit_nr &= 0x3F;
+		mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
+		mclist = mclist->next;
+	}
+
+	return mc_filter[0] | ((u64)(mc_filter[1]) << 32);
+}
+
 static void adm8211_configure_filter(struct ieee80211_hw *dev,
 				     unsigned int changed_flags,
 				     unsigned int *total_flags,
-				     int mc_count, struct dev_mc_list *mclist)
+				     u64 multicast)
 {
 	static const u8 bcast[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 	struct adm8211_priv *priv = dev->priv;
-	unsigned int bit_nr, new_flags;
+	unsigned int new_flags;
 	u32 mc_filter[2];
-	int i;
+
+	mc_filter[0] = multicast;
+	mc_filter[1] = multicast >> 32;
 
 	new_flags = 0;
 
@@ -1346,23 +1369,13 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 		priv->nar |= ADM8211_NAR_PR;
 		priv->nar &= ~ADM8211_NAR_MM;
 		mc_filter[1] = mc_filter[0] = ~0;
-	} else if ((*total_flags & FIF_ALLMULTI) || (mc_count > 32)) {
+	} else if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
 		new_flags |= FIF_ALLMULTI;
 		priv->nar &= ~ADM8211_NAR_PR;
 		priv->nar |= ADM8211_NAR_MM;
 		mc_filter[1] = mc_filter[0] = ~0;
 	} else {
 		priv->nar &= ~(ADM8211_NAR_MM | ADM8211_NAR_PR);
-		mc_filter[1] = mc_filter[0] = 0;
-		for (i = 0; i < mc_count; i++) {
-			if (!mclist)
-				break;
-			bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
-
-			bit_nr &= 0x3F;
-			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-			mclist = mclist->next;
-		}
 	}
 
 	ADM8211_IDLE_RX();
@@ -1757,6 +1770,7 @@ static const struct ieee80211_ops adm8211_ops = {
 	.remove_interface	= adm8211_remove_interface,
 	.config			= adm8211_config,
 	.bss_info_changed	= adm8211_bss_info_changed,
+	.prepare_multicast	= adm8211_prepare_multicast,
 	.configure_filter	= adm8211_configure_filter,
 	.get_stats		= adm8211_get_stats,
 	.get_tx_stats		= adm8211_get_tx_stats,

@@ -1325,6 +1325,8 @@ struct wireless_dev {
 
 	struct mutex mtx;
 
+	struct work_struct cleanup_work;
+
 	/* currently used for IBSS and SME - might be rearranged later */
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;

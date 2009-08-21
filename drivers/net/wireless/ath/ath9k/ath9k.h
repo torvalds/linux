@@ -454,7 +454,8 @@ struct ath_ani {
 /*   LED Control    */
 /********************/
 
-#define ATH_LED_PIN	1
+#define ATH_LED_PIN_DEF 		1
+#define ATH_LED_PIN_9287		8
 #define ATH_LED_ON_DURATION_IDLE	350	/* in msecs */
 #define ATH_LED_OFF_DURATION_IDLE	250	/* in msecs */
 
@@ -602,7 +603,6 @@ struct ath_softc {
 	int beacon_interval;
 
 	struct ath_ani ani;
-	struct ath9k_node_stats nodestats;
 #ifdef CONFIG_ATH9K_DEBUG
 	struct ath9k_debug debug;
 #endif
@@ -629,6 +629,16 @@ int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
+
+static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
+{
+	return &ah->ah_sc->common;
+}
+
+static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
+{
+	return &(ath9k_hw_common(ah)->regulatory);
+}
 
 static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
 {

@@ -332,6 +332,9 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 	} else
 		return MAX_TID_COUNT;
 
+	if (unlikely(tid >= TID_MAX_LOAD_COUNT))
+		return MAX_TID_COUNT;
+
 	tl = &lq_data->load[tid];
 
 	curr_time -= curr_time % TID_ROUND_VALUE;
@@ -654,19 +657,15 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/* in 4965 we don't use greenfield at all */
-static inline u8 rs_use_green(struct iwl_priv *priv,
-			      struct ieee80211_conf *conf)
+/**
+ * Green-field mode is valid if the station supports it and
+ * there are no non-GF stations present in the BSS.
+ */
+static inline u8 rs_use_green(struct ieee80211_sta *sta,
+			      struct iwl_ht_info *ht_conf)
 {
-	u8 is_green;
-
-	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
-		is_green = 0;
-	else
-		is_green = (conf_is_ht(conf) &&
-			   priv->current_ht_config.is_green_field &&
-			   !priv->current_ht_config.non_GF_STA_present);
-	return is_green;
+	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
+		!(ht_conf->non_GF_STA_present);
 }
 
 /**
@@ -1222,18 +1221,6 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	else
 		tbl->is_ht40 = 0;
 
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_ht40) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
-
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
 	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
@@ -1288,18 +1275,6 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	else
 		tbl->is_ht40 = 0;
 
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_ht40) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
-
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
 	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
@@ -1346,18 +1321,6 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
-
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_ht40) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
 
 	if (is_green)
 		tbl->is_SGI = 0; /*11n spec: no SGI in SISO+Greenfield*/
@@ -1527,6 +1490,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1586,13 +1550,11 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				goto out;
 			break;
 		case IWL_SISO_SWITCH_GI:
-			if (!tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: SISO toggle SGI/NGI\n");
@@ -1666,6 +1628,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1726,13 +1689,11 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO2_SWITCH_GI:
-			if (!tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: MIMO2 toggle SGI/NGI\n");
@@ -1808,6 +1769,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1890,13 +1852,11 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO3_SWITCH_GI:
-			if (!tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: MIMO3 toggle SGI/NGI\n");
@@ -2108,7 +2068,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (is_legacy(tbl->lq_type))
 		lq_sta->is_green = 0;
 	else
-		lq_sta->is_green = rs_use_green(priv, conf);
+		lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
@@ -2466,7 +2426,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = rs_use_green(priv, conf);
+	u8 use_green = rs_use_green(sta, &priv->current_ht_config);
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 
@@ -2519,6 +2479,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_supported_band *sband = txrc->sband;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = priv_sta;
@@ -2551,7 +2512,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
 				       hdr->addr1);
 			sta_id = iwl_add_station(priv, hdr->addr1,
-						false, CMD_ASYNC, NULL);
+						false, CMD_ASYNC, ht_cap);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2620,6 +2581,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	int i, j;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	u16 mask_bit = 0;
 	int count;
@@ -2648,7 +2610,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
 			sta_id = iwl_add_station(priv, sta->addr, false,
-						CMD_ASYNC, NULL);
+						CMD_ASYNC, ht_cap);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2661,7 +2623,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->is_dup = 0;
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
-	lq_sta->is_green = rs_use_green(priv, conf);
+	lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
 	lq_sta->active_rate_basic = priv->active_rate_basic;
 	lq_sta->band = priv->band;
@@ -2669,19 +2631,19 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
 	 */
-	lq_sta->active_siso_rate = sta->ht_cap.mcs.rx_mask[0] << 1;
-	lq_sta->active_siso_rate |= sta->ht_cap.mcs.rx_mask[0] & 0x1;
+	lq_sta->active_siso_rate = ht_cap->mcs.rx_mask[0] << 1;
+	lq_sta->active_siso_rate |= ht_cap->mcs.rx_mask[0] & 0x1;
 	lq_sta->active_siso_rate &= ~((u16)0x2);
 	lq_sta->active_siso_rate <<= IWL_FIRST_OFDM_RATE;
 
 	/* Same here */
-	lq_sta->active_mimo2_rate = sta->ht_cap.mcs.rx_mask[1] << 1;
-	lq_sta->active_mimo2_rate |= sta->ht_cap.mcs.rx_mask[1] & 0x1;
+	lq_sta->active_mimo2_rate = ht_cap->mcs.rx_mask[1] << 1;
+	lq_sta->active_mimo2_rate |= ht_cap->mcs.rx_mask[1] & 0x1;
 	lq_sta->active_mimo2_rate &= ~((u16)0x2);
 	lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
 
-	lq_sta->active_mimo3_rate = sta->ht_cap.mcs.rx_mask[2] << 1;
-	lq_sta->active_mimo3_rate |= sta->ht_cap.mcs.rx_mask[2] & 0x1;
+	lq_sta->active_mimo3_rate = ht_cap->mcs.rx_mask[2] << 1;
+	lq_sta->active_mimo3_rate |= ht_cap->mcs.rx_mask[2] & 0x1;
 	lq_sta->active_mimo3_rate &= ~((u16)0x2);
 	lq_sta->active_mimo3_rate <<= IWL_FIRST_OFDM_RATE;
 

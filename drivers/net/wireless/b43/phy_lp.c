@@ -29,6 +29,25 @@
 #include "tables_lpphy.h"
 
 
+static inline u16 channel2freq_lp(u8 channel)
+{
+	if (channel < 14)
+		return (2407 + 5 * channel);
+	else if (channel == 14)
+		return 2484;
+	else if (channel < 184)
+		return (5000 + 5 * channel);
+	else
+		return (4000 + 5 * channel);
+}
+
+static unsigned int b43_lpphy_op_get_default_chan(struct b43_wldev *dev)
+{
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		return 1;
+	return 36;
+}
+
 static int b43_lpphy_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy;
@@ -142,10 +161,9 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 	}
 }
 
-static void lpphy_adjust_gain_table(struct b43_wldev *dev)
+static void lpphy_adjust_gain_table(struct b43_wldev *dev, u32 freq)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	u32 freq = dev->wl->hw->conf.channel->center_freq;
 	u16 temp[3];
 	u16 isolation;
 
@@ -170,6 +188,8 @@ static void lpphy_adjust_gain_table(struct b43_wldev *dev)
 
 static void lpphy_table_init(struct b43_wldev *dev)
 {
+	u32 freq = channel2freq_lp(b43_lpphy_op_get_default_chan(dev));
+
 	if (dev->phy.rev < 2)
 		lpphy_rev0_1_table_init(dev);
 	else
@@ -178,14 +198,68 @@ static void lpphy_table_init(struct b43_wldev *dev)
 	lpphy_init_tx_gain_table(dev);
 
 	if (dev->phy.rev < 2)
-		lpphy_adjust_gain_table(dev);
+		lpphy_adjust_gain_table(dev, freq);
 }
 
 static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->dev->bus;
+	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 tmp, tmp2;
 
+	b43_phy_mask(dev, B43_LPPHY_AFE_DAC_CTL, 0xF7FF);
+	b43_phy_write(dev, B43_LPPHY_AFE_CTL, 0);
+	b43_phy_write(dev, B43_LPPHY_AFE_CTL_OVR, 0);
+	b43_phy_write(dev, B43_LPPHY_RF_OVERRIDE_0, 0);
+	b43_phy_write(dev, B43_LPPHY_RF_OVERRIDE_2, 0);
+	b43_phy_set(dev, B43_LPPHY_AFE_DAC_CTL, 0x0004);
+	b43_phy_maskset(dev, B43_LPPHY_OFDMSYNCTHRESH0, 0xFF00, 0x0078);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0x83FF, 0x5800);
+	b43_phy_write(dev, B43_LPPHY_ADC_COMPENSATION_CTL, 0x0016);
+	b43_phy_maskset(dev, B43_LPPHY_AFE_ADC_CTL_0, 0xFFF8, 0x0004);
+	b43_phy_maskset(dev, B43_LPPHY_VERYLOWGAINDB, 0x00FF, 0x5400);
+	b43_phy_maskset(dev, B43_LPPHY_HIGAINDB, 0x00FF, 0x2400);
+	b43_phy_maskset(dev, B43_LPPHY_LOWGAINDB, 0x00FF, 0x2100);
+	b43_phy_maskset(dev, B43_LPPHY_VERYLOWGAINDB, 0xFF00, 0x0006);
+	b43_phy_mask(dev, B43_LPPHY_RX_RADIO_CTL, 0xFFFE);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFFE0, 0x0005);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFC10, 0x0180);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0x83FF, 0x3800);
+	b43_phy_maskset(dev, B43_LPPHY_GAINDIRECTMISMATCH, 0xFFF0, 0x0005);
+	b43_phy_maskset(dev, B43_LPPHY_GAIN_MISMATCH_LIMIT, 0xFFC0, 0x001A);
+	b43_phy_maskset(dev, B43_LPPHY_CRS_ED_THRESH, 0xFF00, 0x00B3);
+	b43_phy_maskset(dev, B43_LPPHY_CRS_ED_THRESH, 0x00FF, 0xAD00);
+	b43_phy_maskset(dev, B43_LPPHY_INPUT_PWRDB,
+			0xFF00, lpphy->rx_pwr_offset);
+	if ((bus->sprom.boardflags_lo & B43_BFL_FEM) &&
+	   ((b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
+	   (bus->sprom.boardflags_hi & B43_BFH_PAREF))) {
+		/* TODO:
+		 * Set the LDO voltage to 0x0028 - FIXME: What is this?
+		 * Call sb_pmu_set_ldo_voltage with 4 and the LDO voltage
+		 * 	as arguments
+		 * Call sb_pmu_paref_ldo_enable with argument TRUE
+		 */
+		if (dev->phy.rev == 0) {
+			b43_phy_maskset(dev, B43_LPPHY_LP_RF_SIGNAL_LUT,
+					0xFFCF, 0x0010);
+		}
+		b43_lptab_write(dev, B43_LPTAB16(11, 7), 60);
+	} else {
+		//TODO: Call ssb_pmu_paref_ldo_enable with argument FALSE
+		b43_phy_maskset(dev, B43_LPPHY_LP_RF_SIGNAL_LUT,
+				0xFFCF, 0x0020);
+		b43_lptab_write(dev, B43_LPTAB16(11, 7), 100);
+	}
+	tmp = lpphy->rssi_vf | lpphy->rssi_vc << 4 | 0xA000;
+	b43_phy_write(dev, B43_LPPHY_AFE_RSSI_CTL_0, tmp);
+	if (bus->sprom.boardflags_hi & B43_BFH_RSSIINV)
+		b43_phy_maskset(dev, B43_LPPHY_AFE_RSSI_CTL_1, 0xF000, 0x0AAA);
+	else
+		b43_phy_maskset(dev, B43_LPPHY_AFE_RSSI_CTL_1, 0xF000, 0x02AA);
+	b43_lptab_write(dev, B43_LPTAB16(11, 1), 24);
+	b43_phy_maskset(dev, B43_LPPHY_RX_RADIO_CTL,
+			0xFFF9, (lpphy->bx_arch << 1));
 	if (dev->phy.rev == 1 &&
 	   (bus->sprom.boardflags_hi & B43_BFH_FEM_BT)) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x000A);
@@ -235,7 +309,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0006);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0700);
 	}
-	if (dev->phy.rev == 1) {
+	if (dev->phy.rev == 1 && (bus->sprom.boardflags_hi & B43_BFH_PAREF)) {
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_5, B43_LPPHY_TR_LOOKUP_1);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_6, B43_LPPHY_TR_LOOKUP_2);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_7, B43_LPPHY_TR_LOOKUP_3);
@@ -247,6 +321,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0006);
 		b43_phy_write(dev, B43_LPPHY_GPIO_SELECT, 0x0005);
 		b43_phy_write(dev, B43_LPPHY_GPIO_OUTEN, 0xFFFF);
+		//FIXME the Broadcom driver caches & delays this HF write!
 		b43_hf_write(dev, b43_hf_read(dev) | B43_HF_PR45960W);
 	}
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
@@ -364,7 +439,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_PWR_THRESH1, 0xFFF0, 0x9);
 	b43_phy_mask(dev, B43_LPPHY_GAINDIRECTMISMATCH, ~0xF);
 	b43_phy_maskset(dev, B43_LPPHY_VERYLOWGAINDB, 0x00FF, 0x5500);
-	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xF81F, 0xA0);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFC1F, 0xA0);
 	b43_phy_maskset(dev, B43_LPPHY_GAINDIRECTMISMATCH, 0xE0FF, 0x300);
 	b43_phy_maskset(dev, B43_LPPHY_HIGAINDB, 0x00FF, 0x2A00);
 	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
@@ -385,7 +460,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFFE0, 0x12);
 	b43_phy_maskset(dev, B43_LPPHY_GAINMISMATCH, 0x0FFF, 0x9000);
 
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 1)) {
+	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x14), 0);
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x12), 0x40);
 	}
@@ -396,6 +471,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_SYNCPEAKCNT, 0xFFF8, 0x6);
 		b43_phy_maskset(dev, B43_LPPHY_MINPWR_LEVEL, 0x00FF, 0x9D00);
 		b43_phy_maskset(dev, B43_LPPHY_MINPWR_LEVEL, 0xFF00, 0xA1);
+		b43_phy_mask(dev, B43_LPPHY_IDLEAFTERPKTRXTO, 0x00FF);
 	} else /* 5GHz */
 		b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x40);
 
@@ -435,8 +511,9 @@ struct b2062_freqdata {
 /* Initialize the 2062 radio. */
 static void lpphy_2062_init(struct b43_wldev *dev)
 {
+	struct b43_phy_lp *lpphy = dev->phy.lp;
 	struct ssb_bus *bus = dev->dev->bus;
-	u32 crystalfreq, pdiv, tmp, ref;
+	u32 crystalfreq, tmp, ref;
 	unsigned int i;
 	const struct b2062_freqdata *fd = NULL;
 
@@ -460,10 +537,15 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 	b43_radio_write(dev, B2062_N_TX_CTL3, 0);
 	b43_radio_write(dev, B2062_N_TX_CTL4, 0);
 	b43_radio_write(dev, B2062_N_TX_CTL5, 0);
+	b43_radio_write(dev, B2062_N_TX_CTL6, 0);
 	b43_radio_write(dev, B2062_N_PDN_CTL0, 0x40);
 	b43_radio_write(dev, B2062_N_PDN_CTL0, 0);
 	b43_radio_write(dev, B2062_N_CALIB_TS, 0x10);
 	b43_radio_write(dev, B2062_N_CALIB_TS, 0);
+	if (dev->phy.rev > 0) {
+		b43_radio_write(dev, B2062_S_BG_CTL1,
+			(b43_radio_read(dev, B2062_N_COMM2) >> 1) | 0x80);
+	}
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
 		b43_radio_set(dev, B2062_N_TSSI_CTL0, 0x1);
 	else
@@ -475,23 +557,27 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 	B43_WARN_ON(!(bus->chipco.capabilities & SSB_CHIPCO_CAP_PMU));
 	B43_WARN_ON(crystalfreq == 0);
 
-	if (crystalfreq >= 30000000) {
-		pdiv = 1;
+	if (crystalfreq <= 30000000) {
+		lpphy->pdiv = 1;
 		b43_radio_mask(dev, B2062_S_RFPLL_CTL1, 0xFFFB);
 	} else {
-		pdiv = 2;
+		lpphy->pdiv = 2;
 		b43_radio_set(dev, B2062_S_RFPLL_CTL1, 0x4);
 	}
 
-	tmp = (800000000 * pdiv + crystalfreq) / (32000000 * pdiv);
-	tmp = (tmp - 1) & 0xFF;
+	tmp = (((800000000 * lpphy->pdiv + crystalfreq) /
+	      (2 * crystalfreq)) - 8) & 0xFF;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL7, tmp);
+
+	tmp = (((100 * crystalfreq + 16000000 * lpphy->pdiv) /
+	      (32000000 * lpphy->pdiv)) - 1) & 0xFF;
 	b43_radio_write(dev, B2062_S_RFPLL_CTL18, tmp);
 
-	tmp = (2 * crystalfreq + 1000000 * pdiv) / (2000000 * pdiv);
-	tmp = ((tmp & 0xFF) - 1) & 0xFFFF;
+	tmp = (((2 * crystalfreq + 1000000 * lpphy->pdiv) /
+	      (2000000 * lpphy->pdiv)) - 1) & 0xFF;
 	b43_radio_write(dev, B2062_S_RFPLL_CTL19, tmp);
 
-	ref = (1000 * pdiv + 2 * crystalfreq) / (2000 * pdiv);
+	ref = (1000 * lpphy->pdiv + 2 * crystalfreq) / (2000 * lpphy->pdiv);
 	ref &= 0xFFFF;
 	for (i = 0; i < ARRAY_SIZE(freqdata_tab); i++) {
 		if (ref < freqdata_tab[i].freq) {
@@ -523,9 +609,14 @@ static void lpphy_2063_init(struct b43_wldev *dev)
 	b43_radio_write(dev, B2063_PA_SP7, 0);
 	b43_radio_write(dev, B2063_TX_RF_SP6, 0x20);
 	b43_radio_write(dev, B2063_TX_RF_SP9, 0x40);
-	b43_radio_write(dev, B2063_PA_SP3, 0xa0);
-	b43_radio_write(dev, B2063_PA_SP4, 0xa0);
-	b43_radio_write(dev, B2063_PA_SP2, 0x18);
+	if (dev->phy.rev == 2) {
+		b43_radio_write(dev, B2063_PA_SP3, 0xa0);
+		b43_radio_write(dev, B2063_PA_SP4, 0xa0);
+		b43_radio_write(dev, B2063_PA_SP2, 0x18);
+	} else {
+		b43_radio_write(dev, B2063_PA_SP3, 0x20);
+		b43_radio_write(dev, B2063_PA_SP2, 0x20);
+	}
 }
 
 struct lpphy_stx_table_entry {
@@ -592,7 +683,7 @@ static void lpphy_radio_init(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_LPPHY_FOURWIRE_CTL, 0xFFFD);
 	udelay(1);
 
-	if (dev->phy.rev < 2) {
+	if (dev->phy.radio_ver == 0x2062) {
 		lpphy_2062_init(dev);
 	} else {
 		lpphy_2063_init(dev);
@@ -609,11 +700,18 @@ struct lpphy_iq_est { u32 iq_prod, i_pwr, q_pwr; };
 
 static void lpphy_set_rc_cap(struct b43_wldev *dev)
 {
-	u8 rc_cap = dev->phy.lp->rc_cap;
+	struct b43_phy_lp *lpphy = dev->phy.lp;
 
-	b43_radio_write(dev, B2062_N_RXBB_CALIB2, max_t(u8, rc_cap-4, 0x80));
-	b43_radio_write(dev, B2062_N_TX_CTL_A, ((rc_cap & 0x1F) >> 1) | 0x80);
-	b43_radio_write(dev, B2062_S_RXG_CNT16, ((rc_cap & 0x1F) >> 2) | 0x80);
+	u8 rc_cap = (lpphy->rc_cap & 0x1F) >> 1;
+
+	if (dev->phy.rev == 1) //FIXME check channel 14!
+		rc_cap = max_t(u8, rc_cap + 5, 15);
+
+	b43_radio_write(dev, B2062_N_RXBB_CALIB2,
+			max_t(u8, lpphy->rc_cap - 4, 0x80));
+	b43_radio_write(dev, B2062_N_TX_CTL_A, rc_cap | 0x80);
+	b43_radio_write(dev, B2062_S_RXG_CNT16,
+			((lpphy->rc_cap & 0x1F) >> 2) | 0x80);
 }
 
 static u8 lpphy_get_bb_mult(struct b43_wldev *dev)
@@ -626,9 +724,39 @@ static void lpphy_set_bb_mult(struct b43_wldev *dev, u8 bb_mult)
 	b43_lptab_write(dev, B43_LPTAB16(0, 87), (u16)bb_mult << 8);
 }
 
-static void lpphy_disable_crs(struct b43_wldev *dev)
+static void lpphy_set_deaf(struct b43_wldev *dev, bool user)
 {
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+
+	if (user)
+		lpphy->crs_usr_disable = 1;
+	else
+		lpphy->crs_sys_disable = 1;
 	b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFF1F, 0x80);
+}
+
+static void lpphy_clear_deaf(struct b43_wldev *dev, bool user)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+
+	if (user)
+		lpphy->crs_usr_disable = 0;
+	else
+		lpphy->crs_sys_disable = 0;
+
+	if (!lpphy->crs_usr_disable && !lpphy->crs_sys_disable) {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+			b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL,
+					0xFF1F, 0x60);
+		else
+			b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL,
+					0xFF1F, 0x20);
+	}
+}
+
+static void lpphy_disable_crs(struct b43_wldev *dev, bool user)
+{
+	lpphy_set_deaf(dev, user);
 	b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xFFFC, 0x1);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x3);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xFFFB);
@@ -656,12 +784,9 @@ static void lpphy_disable_crs(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_LPPHY_RF_OVERRIDE_2, 0x3FF);
 }
 
-static void lpphy_restore_crs(struct b43_wldev *dev)
+static void lpphy_restore_crs(struct b43_wldev *dev, bool user)
 {
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-		b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFF1F, 0x60);
-	else
-		b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFF1F, 0x20);
+	lpphy_clear_deaf(dev, user);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFF80);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFC00);
 }
@@ -707,10 +832,11 @@ static void lpphy_set_tx_gains(struct b43_wldev *dev,
 		b43_phy_maskset(dev, B43_LPPHY_TX_GAIN_CTL_OVERRIDE_VAL,
 				0xF800, rf_gain);
 	} else {
-		pa_gain = b43_phy_read(dev, B43_PHY_OFDM(0xFB)) & 0x7F00;
+		pa_gain = b43_phy_read(dev, B43_PHY_OFDM(0xFB)) & 0x1FC0;
+		pa_gain <<= 2;
 		b43_phy_write(dev, B43_LPPHY_TX_GAIN_CTL_OVERRIDE_VAL,
 			      (gains.pga << 8) | gains.gm);
-		b43_phy_maskset(dev, B43_LPPHY_TX_GAIN_CTL_OVERRIDE_VAL,
+		b43_phy_maskset(dev, B43_PHY_OFDM(0xFB),
 				0x8000, gains.pad | pa_gain);
 		b43_phy_write(dev, B43_PHY_OFDM(0xFC),
 			      (gains.pga << 8) | gains.gm);
@@ -724,7 +850,7 @@ static void lpphy_set_tx_gains(struct b43_wldev *dev,
 		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFF7F, 1 << 7);
 		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xBFFF, 1 << 14);
 	}
-	b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFFBF, 1 << 4);
+	b43_phy_maskset(dev, B43_LPPHY_AFE_CTL_OVR, 0xFFBF, 1 << 6);
 }
 
 static void lpphy_rev0_1_set_rx_gain(struct b43_wldev *dev, u32 gain)
@@ -764,33 +890,33 @@ static void lpphy_rev2plus_set_rx_gain(struct b43_wldev *dev, u32 gain)
 	}
 }
 
-static void lpphy_enable_rx_gain_override(struct b43_wldev *dev)
+static void lpphy_disable_rx_gain_override(struct b43_wldev *dev)
 {
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFFE);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFEF);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFBF);
 	if (dev->phy.rev >= 2) {
 		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFEFF);
-		if (b43_current_band(dev->wl) != IEEE80211_BAND_2GHZ)
-			return;
-		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFBFF);
-		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFFF7);
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+			b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFBFF);
+			b43_phy_mask(dev, B43_PHY_OFDM(0xE5), 0xFFF7);
+		}
 	} else {
 		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFDFF);
 	}
 }
 
-static void lpphy_disable_rx_gain_override(struct b43_wldev *dev)
+static void lpphy_enable_rx_gain_override(struct b43_wldev *dev)
 {
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x1);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x10);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x40);
 	if (dev->phy.rev >= 2) {
 		b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x100);
-		if (b43_current_band(dev->wl) != IEEE80211_BAND_2GHZ)
-			return;
-		b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x400);
-		b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x8);
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+			b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x400);
+			b43_phy_set(dev, B43_PHY_OFDM(0xE5), 0x8);
+		}
 	} else {
 		b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x200);
 	}
@@ -909,26 +1035,22 @@ static u32 lpphy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
 {
 	u32 quotient, remainder, rbit, roundup, tmp;
 
-	if (divisor == 0) {
-		quotient = 0;
-		remainder = 0;
-	} else {
-		quotient = dividend / divisor;
-		remainder = dividend % divisor;
-	}
+	if (divisor == 0)
+		return 0;
+
+	quotient = dividend / divisor;
+	remainder = dividend % divisor;
 
 	rbit = divisor & 0x1;
 	roundup = (divisor >> 1) + rbit;
-	precision--;
 
-	while (precision != 0xFF) {
+	while (precision != 0) {
 		tmp = remainder - roundup;
 		quotient <<= 1;
-		remainder <<= 1;
-		if (remainder >= roundup) {
+		if (remainder >= roundup)
 			remainder = (tmp << 1) + rbit;
-			quotient--;
-		}
+		else
+			remainder <<= 1;
 		precision--;
 	}
 
@@ -992,9 +1114,9 @@ static void lpphy_set_tx_power_control(struct b43_wldev *dev,
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	enum b43_lpphy_txpctl_mode oldmode;
 
-	oldmode = lpphy->txpctl_mode;
 	lpphy_read_tx_pctl_mode_from_hardware(dev);
-	if (lpphy->txpctl_mode == mode)
+	oldmode = lpphy->txpctl_mode;
+	if (oldmode == mode)
 		return;
 	lpphy->txpctl_mode = mode;
 
@@ -1022,28 +1144,37 @@ static void lpphy_set_tx_power_control(struct b43_wldev *dev,
 	lpphy_write_tx_pctl_mode_to_hardware(dev);
 }
 
+static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
+				       unsigned int new_channel);
+
 static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	struct lpphy_iq_est iq_est;
 	struct lpphy_tx_gains tx_gains;
-	static const u32 ideal_pwr_table[22] = {
+	static const u32 ideal_pwr_table[21] = {
 		0x10000, 0x10557, 0x10e2d, 0x113e0, 0x10f22, 0x0ff64,
 		0x0eda2, 0x0e5d4, 0x0efd1, 0x0fbe8, 0x0b7b8, 0x04b35,
 		0x01a5e, 0x00a0b, 0x00444, 0x001fd, 0x000ff, 0x00088,
-		0x0004c, 0x0002c, 0x0001a, 0xc0006,
+		0x0004c, 0x0002c, 0x0001a,
 	};
 	bool old_txg_ovr;
 	u8 old_bbmult;
 	u16 old_rf_ovr, old_rf_ovrval, old_afe_ovr, old_afe_ovrval,
-	    old_rf2_ovr, old_rf2_ovrval, old_phy_ctl, old_txpctl;
+	    old_rf2_ovr, old_rf2_ovrval, old_phy_ctl;
+	enum b43_lpphy_txpctl_mode old_txpctl;
 	u32 normal_pwr, ideal_pwr, mean_sq_pwr, tmp = 0, mean_sq_pwr_min = 0;
-	int loopback, i, j, inner_sum;
+	int loopback, i, j, inner_sum, err;
 
 	memset(&iq_est, 0, sizeof(iq_est));
 
-	b43_switch_channel(dev, 7);
-	old_txg_ovr = (b43_phy_read(dev, B43_LPPHY_AFE_CTL_OVR) >> 6) & 1;
+	err = b43_lpphy_op_switch_channel(dev, 7);
+	if (err) {
+		b43dbg(dev->wl,
+		       "RC calib: Failed to switch to channel 7, error = %d",
+		       err);
+	}
+	old_txg_ovr = !!(b43_phy_read(dev, B43_LPPHY_AFE_CTL_OVR) & 0x40);
 	old_bbmult = lpphy_get_bb_mult(dev);
 	if (old_txg_ovr)
 		tx_gains = lpphy_get_tx_gains(dev);
@@ -1054,11 +1185,11 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	old_rf2_ovr = b43_phy_read(dev, B43_LPPHY_RF_OVERRIDE_2);
 	old_rf2_ovrval = b43_phy_read(dev, B43_LPPHY_RF_OVERRIDE_2_VAL);
 	old_phy_ctl = b43_phy_read(dev, B43_LPPHY_LP_PHY_CTL);
-	old_txpctl = b43_phy_read(dev, B43_LPPHY_TX_PWR_CTL_CMD) &
-					B43_LPPHY_TX_PWR_CTL_CMD_MODE;
+	lpphy_read_tx_pctl_mode_from_hardware(dev);
+	old_txpctl = lpphy->txpctl_mode;
 
-	lpphy_set_tx_power_control(dev, B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF);
-	lpphy_disable_crs(dev);
+	lpphy_set_tx_power_control(dev, B43_LPPHY_TXPCTL_OFF);
+	lpphy_disable_crs(dev, true);
 	loopback = lpphy_loopback(dev);
 	if (loopback == -1)
 		goto finish;
@@ -1091,7 +1222,7 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	lpphy_stop_ddfs(dev);
 
 finish:
-	lpphy_restore_crs(dev);
+	lpphy_restore_crs(dev, true);
 	b43_phy_write(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, old_rf_ovrval);
 	b43_phy_write(dev, B43_LPPHY_RF_OVERRIDE_0, old_rf_ovr);
 	b43_phy_write(dev, B43_LPPHY_AFE_CTL_OVRVAL, old_afe_ovrval);
@@ -1257,33 +1388,110 @@ static void lpphy_calibration(struct b43_wldev *dev)
 	b43_mac_enable(dev);
 }
 
+static void lpphy_set_tssi_mux(struct b43_wldev *dev, enum tssi_mux_mode mode)
+{
+	if (mode != TSSI_MUX_EXT) {
+		b43_radio_set(dev, B2063_PA_SP1, 0x2);
+		b43_phy_set(dev, B43_PHY_OFDM(0xF3), 0x1000);
+		b43_radio_write(dev, B2063_PA_CTL10, 0x51);
+		if (mode == TSSI_MUX_POSTPA) {
+			b43_radio_mask(dev, B2063_PA_SP1, 0xFFFE);
+			b43_phy_mask(dev, B43_LPPHY_AFE_CTL_OVRVAL, 0xFFC7);
+		} else {
+			b43_radio_maskset(dev, B2063_PA_SP1, 0xFFFE, 0x1);
+			b43_phy_maskset(dev, B43_LPPHY_AFE_CTL_OVRVAL,
+					0xFFC7, 0x20);
+		}
+	} else {
+		B43_WARN_ON(1);
+	}
+}
+
+static void lpphy_tx_pctl_init_hw(struct b43_wldev *dev)
+{
+	u16 tmp;
+	int i;
+
+	//SPEC TODO Call LP PHY Clear TX Power offsets
+	for (i = 0; i < 64; i++) {
+		if (dev->phy.rev >= 2)
+			b43_lptab_write(dev, B43_LPTAB32(7, i + 1), i);
+		else
+			b43_lptab_write(dev, B43_LPTAB32(10, i + 1), i);
+	}
+
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0xFF00, 0xFF);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0x8FFF, 0x5000);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_IDLETSSI, 0xFFC0, 0x1F);
+	if (dev->phy.rev < 2) {
+		b43_phy_mask(dev, B43_LPPHY_LP_PHY_CTL, 0xEFFF);
+		b43_phy_maskset(dev, B43_LPPHY_LP_PHY_CTL, 0xDFFF, 0x2000);
+	} else {
+		b43_phy_mask(dev, B43_PHY_OFDM(0x103), 0xFFFE);
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x103), 0xFFFB, 0x4);
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x103), 0xFFEF, 0x10);
+		b43_radio_maskset(dev, B2063_IQ_CALIB_CTL2, 0xF3, 0x1);
+		lpphy_set_tssi_mux(dev, TSSI_MUX_POSTPA);
+	}
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_IDLETSSI, 0x7FFF, 0x8000);
+	b43_phy_mask(dev, B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT, 0xFF);
+	b43_phy_write(dev, B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT, 0xA);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
+			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE,
+			B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF);
+	b43_phy_mask(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0xF8FF);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
+			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE,
+			B43_LPPHY_TX_PWR_CTL_CMD_MODE_SW);
+
+	if (dev->phy.rev < 2) {
+		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_0, 0xEFFF, 0x1000);
+		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xEFFF);
+	} else {
+		lpphy_set_tx_power_by_index(dev, 0x7F);
+	}
+
+	b43_dummy_transmission(dev, true, true);
+
+	tmp = b43_phy_read(dev, B43_LPPHY_TX_PWR_CTL_STAT);
+	if (tmp & 0x8000) {
+		b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_IDLETSSI,
+				0xFFC0, (tmp & 0xFF) - 32);
+	}
+
+	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xEFFF);
+
+	// (SPEC?) TODO Set "Target TX frequency" variable to 0
+	// SPEC FIXME "Set BB Multiplier to 0xE000" impossible - bb_mult is u8!
+}
+
+static void lpphy_tx_pctl_init_sw(struct b43_wldev *dev)
+{
+	struct lpphy_tx_gains gains;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		gains.gm = 4;
+		gains.pad = 12;
+		gains.pga = 12;
+		gains.dac = 0;
+	} else {
+		gains.gm = 7;
+		gains.pad = 14;
+		gains.pga = 15;
+		gains.dac = 0;
+	}
+	lpphy_set_tx_gains(dev, gains);
+	lpphy_set_bb_mult(dev, 150);
+}
+
 /* Initialize TX power control */
 static void lpphy_tx_pctl_init(struct b43_wldev *dev)
 {
 	if (0/*FIXME HWPCTL capable */) {
-		//TODO
+		lpphy_tx_pctl_init_hw(dev);
 	} else { /* This device is only software TX power control capable. */
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-			//TODO
-		} else {
-			//TODO
-		}
-		//TODO set BB multiplier to 0x0096
+		lpphy_tx_pctl_init_sw(dev);
 	}
-}
-
-static int b43_lpphy_op_init(struct b43_wldev *dev)
-{
-	lpphy_read_band_sprom(dev); //FIXME should this be in prepare_structs?
-	lpphy_baseband_init(dev);
-	lpphy_radio_init(dev);
-	lpphy_calibrate_rc(dev);
-	//TODO set channel
-	lpphy_tx_pctl_init(dev);
-	lpphy_calibration(dev);
-	//TODO ACI init
-
-	return 0;
 }
 
 static u16 b43_lpphy_op_read(struct b43_wldev *dev, u16 reg)
@@ -1328,18 +1536,668 @@ static void b43_lpphy_op_software_rfkill(struct b43_wldev *dev,
 	//TODO
 }
 
-static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
-				       unsigned int new_channel)
+struct b206x_channel {
+	u8 channel;
+	u16 freq;
+	u8 data[12];
+};
+
+static const struct b206x_channel b2062_chantbl[] = {
+	{ .channel = 1, .freq = 2412, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 2, .freq = 2417, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 3, .freq = 2422, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 4, .freq = 2427, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 5, .freq = 2432, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 6, .freq = 2437, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 7, .freq = 2442, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 8, .freq = 2447, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 9, .freq = 2452, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 10, .freq = 2457, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 11, .freq = 2462, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 12, .freq = 2467, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 13, .freq = 2472, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 14, .freq = 2484, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 34, .freq = 5170, .data[0] = 0x00, .data[1] = 0x22,
+	  .data[2] = 0x20, .data[3] = 0x84, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 38, .freq = 5190, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x10, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 42, .freq = 5210, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x10, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 46, .freq = 5230, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 36, .freq = 5180, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x20, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 40, .freq = 5200, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x10, .data[3] = 0x84, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 44, .freq = 5220, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 48, .freq = 5240, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 52, .freq = 5260, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 56, .freq = 5280, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 60, .freq = 5300, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x63, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 64, .freq = 5320, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x62, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 100, .freq = 5500, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x30, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 104, .freq = 5520, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x20, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 108, .freq = 5540, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x20, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 112, .freq = 5560, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x20, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 116, .freq = 5580, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x10, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 120, .freq = 5600, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 124, .freq = 5620, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 128, .freq = 5640, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 132, .freq = 5660, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 136, .freq = 5680, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 140, .freq = 5700, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 149, .freq = 5745, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 153, .freq = 5765, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 157, .freq = 5785, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 161, .freq = 5805, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 165, .freq = 5825, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 184, .freq = 4920, .data[0] = 0x55, .data[1] = 0x77,
+	  .data[2] = 0x90, .data[3] = 0xF7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 188, .freq = 4940, .data[0] = 0x44, .data[1] = 0x77,
+	  .data[2] = 0x80, .data[3] = 0xE7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 192, .freq = 4960, .data[0] = 0x44, .data[1] = 0x66,
+	  .data[2] = 0x80, .data[3] = 0xE7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 196, .freq = 4980, .data[0] = 0x33, .data[1] = 0x66,
+	  .data[2] = 0x70, .data[3] = 0xC7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 200, .freq = 5000, .data[0] = 0x22, .data[1] = 0x55,
+	  .data[2] = 0x60, .data[3] = 0xD7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 204, .freq = 5020, .data[0] = 0x22, .data[1] = 0x55,
+	  .data[2] = 0x60, .data[3] = 0xC7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 208, .freq = 5040, .data[0] = 0x22, .data[1] = 0x44,
+	  .data[2] = 0x50, .data[3] = 0xC7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 212, .freq = 5060, .data[0] = 0x11, .data[1] = 0x44,
+	  .data[2] = 0x50, .data[3] = 0xA5, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 216, .freq = 5080, .data[0] = 0x00, .data[1] = 0x44,
+	  .data[2] = 0x40, .data[3] = 0xB6, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+};
+
+static const struct b206x_channel b2063_chantbl[] = {
+	{ .channel = 1, .freq = 2412, .data[0] = 0x6F, .data[1] = 0x3C,
+	  .data[2] = 0x3C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 2, .freq = 2417, .data[0] = 0x6F, .data[1] = 0x3C,
+	  .data[2] = 0x3C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 3, .freq = 2422, .data[0] = 0x6F, .data[1] = 0x3C,
+	  .data[2] = 0x3C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 4, .freq = 2427, .data[0] = 0x6F, .data[1] = 0x2C,
+	  .data[2] = 0x2C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 5, .freq = 2432, .data[0] = 0x6F, .data[1] = 0x2C,
+	  .data[2] = 0x2C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 6, .freq = 2437, .data[0] = 0x6F, .data[1] = 0x2C,
+	  .data[2] = 0x2C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 7, .freq = 2442, .data[0] = 0x6F, .data[1] = 0x2C,
+	  .data[2] = 0x2C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 8, .freq = 2447, .data[0] = 0x6F, .data[1] = 0x2C,
+	  .data[2] = 0x2C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 9, .freq = 2452, .data[0] = 0x6F, .data[1] = 0x1C,
+	  .data[2] = 0x1C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 10, .freq = 2457, .data[0] = 0x6F, .data[1] = 0x1C,
+	  .data[2] = 0x1C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 11, .freq = 2462, .data[0] = 0x6E, .data[1] = 0x1C,
+	  .data[2] = 0x1C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 12, .freq = 2467, .data[0] = 0x6E, .data[1] = 0x1C,
+	  .data[2] = 0x1C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 13, .freq = 2472, .data[0] = 0x6E, .data[1] = 0x1C,
+	  .data[2] = 0x1C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 14, .freq = 2484, .data[0] = 0x6E, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
+	  .data[6] = 0x05, .data[7] = 0x05, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x80, .data[11] = 0x70, },
+	{ .channel = 34, .freq = 5170, .data[0] = 0x6A, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x02, .data[5] = 0x05,
+	  .data[6] = 0x0D, .data[7] = 0x0D, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 36, .freq = 5180, .data[0] = 0x6A, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x01, .data[5] = 0x05,
+	  .data[6] = 0x0D, .data[7] = 0x0C, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 38, .freq = 5190, .data[0] = 0x6A, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x01, .data[5] = 0x04,
+	  .data[6] = 0x0C, .data[7] = 0x0C, .data[8] = 0x77, .data[9] = 0x80,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 40, .freq = 5200, .data[0] = 0x69, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x01, .data[5] = 0x04,
+	  .data[6] = 0x0C, .data[7] = 0x0C, .data[8] = 0x77, .data[9] = 0x70,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 42, .freq = 5210, .data[0] = 0x69, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x01, .data[5] = 0x04,
+	  .data[6] = 0x0B, .data[7] = 0x0C, .data[8] = 0x77, .data[9] = 0x70,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 44, .freq = 5220, .data[0] = 0x69, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x04,
+	  .data[6] = 0x0B, .data[7] = 0x0B, .data[8] = 0x77, .data[9] = 0x60,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 46, .freq = 5230, .data[0] = 0x69, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x03,
+	  .data[6] = 0x0A, .data[7] = 0x0B, .data[8] = 0x77, .data[9] = 0x60,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 48, .freq = 5240, .data[0] = 0x69, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x03,
+	  .data[6] = 0x0A, .data[7] = 0x0A, .data[8] = 0x77, .data[9] = 0x60,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 52, .freq = 5260, .data[0] = 0x68, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x02,
+	  .data[6] = 0x09, .data[7] = 0x09, .data[8] = 0x77, .data[9] = 0x60,
+	  .data[10] = 0x20, .data[11] = 0x00, },
+	{ .channel = 56, .freq = 5280, .data[0] = 0x68, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x01,
+	  .data[6] = 0x08, .data[7] = 0x08, .data[8] = 0x77, .data[9] = 0x50,
+	  .data[10] = 0x10, .data[11] = 0x00, },
+	{ .channel = 60, .freq = 5300, .data[0] = 0x68, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x01,
+	  .data[6] = 0x08, .data[7] = 0x08, .data[8] = 0x77, .data[9] = 0x50,
+	  .data[10] = 0x10, .data[11] = 0x00, },
+	{ .channel = 64, .freq = 5320, .data[0] = 0x67, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x08, .data[7] = 0x08, .data[8] = 0x77, .data[9] = 0x50,
+	  .data[10] = 0x10, .data[11] = 0x00, },
+	{ .channel = 100, .freq = 5500, .data[0] = 0x64, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x02, .data[7] = 0x01, .data[8] = 0x77, .data[9] = 0x20,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 104, .freq = 5520, .data[0] = 0x64, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x01, .data[7] = 0x01, .data[8] = 0x77, .data[9] = 0x20,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 108, .freq = 5540, .data[0] = 0x63, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x01, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x10,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 112, .freq = 5560, .data[0] = 0x63, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x10,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 116, .freq = 5580, .data[0] = 0x62, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x10,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 120, .freq = 5600, .data[0] = 0x62, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 124, .freq = 5620, .data[0] = 0x62, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 128, .freq = 5640, .data[0] = 0x61, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 132, .freq = 5660, .data[0] = 0x61, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 136, .freq = 5680, .data[0] = 0x61, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 140, .freq = 5700, .data[0] = 0x60, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 149, .freq = 5745, .data[0] = 0x60, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 153, .freq = 5765, .data[0] = 0x60, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 157, .freq = 5785, .data[0] = 0x60, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 161, .freq = 5805, .data[0] = 0x60, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 165, .freq = 5825, .data[0] = 0x60, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x00, .data[5] = 0x00,
+	  .data[6] = 0x00, .data[7] = 0x00, .data[8] = 0x77, .data[9] = 0x00,
+	  .data[10] = 0x00, .data[11] = 0x00, },
+	{ .channel = 184, .freq = 4920, .data[0] = 0x6E, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x09, .data[5] = 0x0E,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0xC0,
+	  .data[10] = 0x50, .data[11] = 0x00, },
+	{ .channel = 188, .freq = 4940, .data[0] = 0x6E, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x09, .data[5] = 0x0D,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0xB0,
+	  .data[10] = 0x50, .data[11] = 0x00, },
+	{ .channel = 192, .freq = 4960, .data[0] = 0x6E, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x08, .data[5] = 0x0C,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0xB0,
+	  .data[10] = 0x50, .data[11] = 0x00, },
+	{ .channel = 196, .freq = 4980, .data[0] = 0x6D, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x08, .data[5] = 0x0C,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0xA0,
+	  .data[10] = 0x40, .data[11] = 0x00, },
+	{ .channel = 200, .freq = 5000, .data[0] = 0x6D, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x08, .data[5] = 0x0B,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0xA0,
+	  .data[10] = 0x40, .data[11] = 0x00, },
+	{ .channel = 204, .freq = 5020, .data[0] = 0x6D, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x08, .data[5] = 0x0A,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0xA0,
+	  .data[10] = 0x40, .data[11] = 0x00, },
+	{ .channel = 208, .freq = 5040, .data[0] = 0x6C, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x07, .data[5] = 0x09,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0x90,
+	  .data[10] = 0x40, .data[11] = 0x00, },
+	{ .channel = 212, .freq = 5060, .data[0] = 0x6C, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x06, .data[5] = 0x08,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0x90,
+	  .data[10] = 0x40, .data[11] = 0x00, },
+	{ .channel = 216, .freq = 5080, .data[0] = 0x6C, .data[1] = 0x0C,
+	  .data[2] = 0x0C, .data[3] = 0x00, .data[4] = 0x05, .data[5] = 0x08,
+	  .data[6] = 0x0F, .data[7] = 0x0F, .data[8] = 0x77, .data[9] = 0x90,
+	  .data[10] = 0x40, .data[11] = 0x00, },
+};
+
+static void lpphy_b2062_reset_pll_bias(struct b43_wldev *dev)
 {
-	//TODO
+	struct ssb_bus *bus = dev->dev->bus;
+
+	b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0xFF);
+	udelay(20);
+	if (bus->chip_id == 0x5354) {
+		b43_radio_write(dev, B2062_N_COMM1, 4);
+		b43_radio_write(dev, B2062_S_RFPLL_CTL2, 4);
+	} else {
+		b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0);
+	}
+	udelay(5);
+}
+
+static void lpphy_b2062_vco_calib(struct b43_wldev *dev)
+{
+	b43_phy_write(dev, B2062_S_RFPLL_CTL21, 0x42);
+	b43_phy_write(dev, B2062_S_RFPLL_CTL21, 0x62);
+	udelay(200);
+}
+
+static int lpphy_b2062_tune(struct b43_wldev *dev,
+			    unsigned int channel)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	struct ssb_bus *bus = dev->dev->bus;
+	const struct b206x_channel *chandata = NULL;
+	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
+	u32 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9;
+	int i, err = 0;
+
+	for (i = 0; i < ARRAY_SIZE(b2062_chantbl); i++) {
+		if (b2062_chantbl[i].channel == channel) {
+			chandata = &b2062_chantbl[i];
+			break;
+		}
+	}
+
+	if (B43_WARN_ON(!chandata))
+		return -EINVAL;
+
+	b43_radio_set(dev, B2062_S_RFPLL_CTL14, 0x04);
+	b43_radio_write(dev, B2062_N_LGENA_TUNE0, chandata->data[0]);
+	b43_radio_write(dev, B2062_N_LGENA_TUNE2, chandata->data[1]);
+	b43_radio_write(dev, B2062_N_LGENA_TUNE3, chandata->data[2]);
+	b43_radio_write(dev, B2062_N_TX_TUNE, chandata->data[3]);
+	b43_radio_write(dev, B2062_S_LGENG_CTL1, chandata->data[4]);
+	b43_radio_write(dev, B2062_N_LGENA_CTL5, chandata->data[5]);
+	b43_radio_write(dev, B2062_N_LGENA_CTL6, chandata->data[6]);
+	b43_radio_write(dev, B2062_N_TX_PGA, chandata->data[7]);
+	b43_radio_write(dev, B2062_N_TX_PAD, chandata->data[8]);
+
+	tmp1 = crystal_freq / 1000;
+	tmp2 = lpphy->pdiv * 1000;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL33, 0xCC);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL34, 0x07);
+	lpphy_b2062_reset_pll_bias(dev);
+	tmp3 = tmp2 * channel2freq_lp(channel);
+	if (channel2freq_lp(channel) < 4000)
+		tmp3 *= 2;
+	tmp4 = 48 * tmp1;
+	tmp6 = tmp3 / tmp4;
+	tmp7 = tmp3 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL26, tmp6);
+	tmp5 = tmp7 * 0x100;
+	tmp6 = tmp5 / tmp4;
+	tmp7 = tmp5 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL27, tmp6);
+	tmp5 = tmp7 * 0x100;
+	tmp6 = tmp5 / tmp4;
+	tmp7 = tmp5 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL28, tmp6);
+	tmp5 = tmp7 * 0x100;
+	tmp6 = tmp5 / tmp4;
+	tmp7 = tmp5 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL29, tmp6 + ((2 * tmp7) / tmp4));
+	tmp8 = b43_phy_read(dev, B2062_S_RFPLL_CTL19);
+	tmp9 = ((2 * tmp3 * (tmp8 + 1)) + (3 * tmp1)) / (6 * tmp1);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL23, (tmp9 >> 8) + 16);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL24, tmp9 & 0xFF);
+
+	lpphy_b2062_vco_calib(dev);
+	if (b43_radio_read(dev, B2062_S_RFPLL_CTL3) & 0x10) {
+		b43_radio_write(dev, B2062_S_RFPLL_CTL33, 0xFC);
+		b43_radio_write(dev, B2062_S_RFPLL_CTL34, 0);
+		lpphy_b2062_reset_pll_bias(dev);
+		lpphy_b2062_vco_calib(dev);
+		if (b43_radio_read(dev, B2062_S_RFPLL_CTL3) & 0x10)
+			err = -EIO;
+	}
+
+	b43_radio_mask(dev, B2062_S_RFPLL_CTL14, ~0x04);
+	return err;
+}
+
+
+/* This was previously called lpphy_japan_filter */
+static void lpphy_set_analog_filter(struct b43_wldev *dev, int channel)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	u16 tmp = (channel == 14); //SPEC FIXME check japanwidefilter!
+
+	if (dev->phy.rev < 2) { //SPEC FIXME Isn't this rev0/1-specific?
+		b43_phy_maskset(dev, B43_LPPHY_LP_PHY_CTL, 0xFCFF, tmp << 9);
+		if ((dev->phy.rev == 1) && (lpphy->rc_cap))
+			lpphy_set_rc_cap(dev);
+	} else {
+		b43_radio_write(dev, B2063_TX_BB_SP3, 0x3F);
+	}
+}
+
+static void lpphy_b2063_vco_calib(struct b43_wldev *dev)
+{
+	u16 tmp;
+
+	b43_phy_mask(dev, B2063_PLL_SP1, ~0x40);
+	tmp = b43_phy_read(dev, B2063_PLL_JTAG_CALNRST) & 0xF8;
+	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp);
+	udelay(1);
+	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x4);
+	udelay(1);
+	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x6);
+	udelay(1);
+	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x7);
+	udelay(300);
+	b43_phy_set(dev, B2063_PLL_SP1, 0x40);
+}
+
+static int lpphy_b2063_tune(struct b43_wldev *dev,
+			    unsigned int channel)
+{
+	struct ssb_bus *bus = dev->dev->bus;
+
+	static const struct b206x_channel *chandata = NULL;
+	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
+	u32 freqref, vco_freq, val1, val2, val3, timeout, timeoutref, count;
+	u16 old_comm15, scale;
+	u32 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6;
+	int i, div = (crystal_freq <= 26000000 ? 1 : 2);
+
+	for (i = 0; i < ARRAY_SIZE(b2063_chantbl); i++) {
+		if (b2063_chantbl[i].channel == channel) {
+			chandata = &b2063_chantbl[i];
+			break;
+		}
+	}
+
+	if (B43_WARN_ON(!chandata))
+		return -EINVAL;
+
+	b43_radio_write(dev, B2063_LOGEN_VCOBUF1, chandata->data[0]);
+	b43_radio_write(dev, B2063_LOGEN_MIXER2, chandata->data[1]);
+	b43_radio_write(dev, B2063_LOGEN_BUF2, chandata->data[2]);
+	b43_radio_write(dev, B2063_LOGEN_RCCR1, chandata->data[3]);
+	b43_radio_write(dev, B2063_A_RX_1ST3, chandata->data[4]);
+	b43_radio_write(dev, B2063_A_RX_2ND1, chandata->data[5]);
+	b43_radio_write(dev, B2063_A_RX_2ND4, chandata->data[6]);
+	b43_radio_write(dev, B2063_A_RX_2ND7, chandata->data[7]);
+	b43_radio_write(dev, B2063_A_RX_PS6, chandata->data[8]);
+	b43_radio_write(dev, B2063_TX_RF_CTL2, chandata->data[9]);
+	b43_radio_write(dev, B2063_TX_RF_CTL5, chandata->data[10]);
+	b43_radio_write(dev, B2063_PA_CTL11, chandata->data[11]);
+
+	old_comm15 = b43_radio_read(dev, B2063_COMM15);
+	b43_radio_set(dev, B2063_COMM15, 0x1E);
+
+	if (chandata->freq > 4000) /* spec says 2484, but 4000 is safer */
+		vco_freq = chandata->freq << 1;
+	else
+		vco_freq = chandata->freq << 2;
+
+	freqref = crystal_freq * 3;
+	val1 = lpphy_qdiv_roundup(crystal_freq, 1000000, 16);
+	val2 = lpphy_qdiv_roundup(crystal_freq, 1000000 * div, 16);
+	val3 = lpphy_qdiv_roundup(vco_freq, 3, 16);
+	timeout = ((((8 * crystal_freq) / (div * 5000000)) + 1) >> 1) - 1;
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_VCO_CALIB3, 0x2);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_VCO_CALIB6,
+			  0xFFF8, timeout >> 2);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_VCO_CALIB7,
+			  0xFF9F,timeout << 5);
+
+	timeoutref = ((((8 * crystal_freq) / (div * (timeout + 1))) +
+						999999) / 1000000) + 1;
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_VCO_CALIB5, timeoutref);
+
+	count = lpphy_qdiv_roundup(val3, val2 + 16, 16);
+	count *= (timeout + 1) * (timeoutref + 1);
+	count--;
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_VCO_CALIB7,
+						0xF0, count >> 8);
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_VCO_CALIB8, count & 0xFF);
+
+	tmp1 = ((val3 * 62500) / freqref) << 4;
+	tmp2 = ((val3 * 62500) % freqref) << 4;
+	while (tmp2 >= freqref) {
+		tmp1++;
+		tmp2 -= freqref;
+	}
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_SG1, 0xFFE0, tmp1 >> 4);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_SG2, 0xFE0F, tmp1 << 4);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_SG2, 0xFFF0, tmp1 >> 16);
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_SG3, (tmp2 >> 8) & 0xFF);
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_SG4, tmp2 & 0xFF);
+
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_LF1, 0xB9);
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_LF2, 0x88);
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_LF3, 0x28);
+	b43_radio_write(dev, B2063_PLL_JTAG_PLL_LF4, 0x63);
+
+	tmp3 = ((41 * (val3 - 3000)) /1200) + 27;
+	tmp4 = lpphy_qdiv_roundup(132000 * tmp1, 8451, 16);
+
+	if ((tmp4 + tmp3 - 1) / tmp3 > 60) {
+		scale = 1;
+		tmp5 = ((tmp4 + tmp3) / (tmp3 << 1)) - 8;
+	} else {
+		scale = 0;
+		tmp5 = ((tmp4 + (tmp3 >> 1)) / tmp3) - 8;
+	}
+	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP2, 0xFFC0, tmp5);
+	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP2, 0xFFBF, scale << 6);
+
+	tmp6 = lpphy_qdiv_roundup(100 * val1, val3, 16);
+	tmp6 *= (tmp5 * 8) * (scale + 1);
+	if (tmp6 > 150)
+		tmp6 = 0;
+
+	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP3, 0xFFE0, tmp6);
+	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP3, 0xFFDF, scale << 5);
+
+	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0xFFFB, 0x4);
+	if (crystal_freq > 26000000)
+		b43_phy_set(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0x2);
+	else
+		b43_phy_mask(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0xFD);
+
+	if (val1 == 45)
+		b43_phy_set(dev, B2063_PLL_JTAG_PLL_VCO1, 0x2);
+	else
+		b43_phy_mask(dev, B2063_PLL_JTAG_PLL_VCO1, 0xFD);
+
+	b43_phy_set(dev, B2063_PLL_SP2, 0x3);
+	udelay(1);
+	b43_phy_mask(dev, B2063_PLL_SP2, 0xFFFC);
+	lpphy_b2063_vco_calib(dev);
+	b43_radio_write(dev, B2063_COMM15, old_comm15);
+
 	return 0;
 }
 
-static unsigned int b43_lpphy_op_get_default_chan(struct b43_wldev *dev)
+static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
+				       unsigned int new_channel)
 {
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-		return 1;
-	return 36;
+	int err;
+
+	b43_write16(dev, B43_MMIO_CHANNEL, new_channel);
+
+	if (dev->phy.radio_ver == 0x2063) {
+		err = lpphy_b2063_tune(dev, new_channel);
+		if (err)
+			return err;
+	} else {
+		err = lpphy_b2062_tune(dev, new_channel);
+		if (err)
+			return err;
+		lpphy_set_analog_filter(dev, new_channel);
+		lpphy_adjust_gain_table(dev, channel2freq_lp(new_channel));
+	}
+
+	return 0;
+}
+
+static int b43_lpphy_op_init(struct b43_wldev *dev)
+{
+	int err;
+
+	lpphy_read_band_sprom(dev); //FIXME should this be in prepare_structs?
+	lpphy_baseband_init(dev);
+	lpphy_radio_init(dev);
+	lpphy_calibrate_rc(dev);
+	err = b43_lpphy_op_switch_channel(dev,
+				b43_lpphy_op_get_default_chan(dev));
+	if (err) {
+		b43dbg(dev->wl, "Switch to init channel failed, error = %d.\n",
+		       err);
+	}
+	lpphy_tx_pctl_init(dev);
+	lpphy_calibration(dev);
+	//TODO ACI init
+
+	return 0;
 }
 
 static void b43_lpphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)

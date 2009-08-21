@@ -494,7 +494,7 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
-	int len = le32_to_cpu(pkt->len) & FH_RSCSR_FRAME_SIZE_MSK;
+	int len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	int index;
 
 	/* reduce the size of the length field itself */
@@ -1411,6 +1411,7 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
 	/* now vt hold the temperature in Kelvin */
 	priv->temperature = KELVIN_TO_CELSIUS(vt);
+	iwl_tt_handler(priv);
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
@@ -1652,6 +1653,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.need_pll_cfg = true,
+	.ht_greenfield_support = true,
 };
 
 struct iwl_cfg iwl5100_bg_cfg = {
@@ -1668,6 +1670,7 @@ struct iwl_cfg iwl5100_bg_cfg = {
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
+	.ht_greenfield_support = true,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -1684,6 +1687,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
+	.ht_greenfield_support = true,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -1700,6 +1704,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
+	.ht_greenfield_support = true,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1716,6 +1721,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.need_pll_cfg = true,
+	.ht_greenfield_support = true,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1732,6 +1738,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
+	.ht_greenfield_support = true,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

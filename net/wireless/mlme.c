@@ -96,6 +96,15 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 		WARN_ON(!bss);
 	}
 
+	if (!wdev->conn && wdev->sme_state == CFG80211_SME_IDLE) {
+		/*
+		 * This is for the userspace SME, the CONNECTING
+		 * state will be changed to CONNECTED by
+		 * __cfg80211_connect_result() below.
+		 */
+		wdev->sme_state = CFG80211_SME_CONNECTING;
+	}
+
 	/* this consumes one bss reference (unless bss is NULL) */
 	__cfg80211_connect_result(dev, mgmt->bssid, NULL, 0, ie, len - ieoffs,
 				  status_code,

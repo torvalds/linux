@@ -123,7 +123,7 @@ void __b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value
 u64 b43_hf_read(struct b43_wldev *dev);
 void b43_hf_write(struct b43_wldev *dev, u64 value);
 
-void b43_dummy_transmission(struct b43_wldev *dev);
+void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on);
 
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags);
 
