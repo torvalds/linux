@@ -112,7 +112,7 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 	/*
 	 * In cache coherence emulation mode, we need to have the
 	 * D-cache enabled before running any atomic operation which
-	 * might invove cache invalidation (i.e. spinlock, rwlock).
+	 * might involve cache invalidation (i.e. spinlock, rwlock).
 	 * So printk's are deferred until then.
 	 */
 #ifdef CONFIG_BFIN_ICACHE
@@ -699,7 +699,7 @@ static __init void setup_bootmem_allocator(void)
 	sanitize_memmap(bfin_memmap.map, &bfin_memmap.nr_map);
 	print_memory_map("boot memmap");
 
-	/* intialize globals in linux/bootmem.h */
+	/* initialize globals in linux/bootmem.h */
 	find_min_max_pfn();
 	/* pfn of the last usable page frame */
 	if (max_pfn > memory_end >> PAGE_SHIFT)
