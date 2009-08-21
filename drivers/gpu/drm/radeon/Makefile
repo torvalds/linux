@@ -6,6 +6,21 @@ ccflags-y := -Iinclude/drm
 radeon-y := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o \
 	radeon_irq.o r300_cmdbuf.o r600_cp.o
 
+hostprogs-y := mkregtable
+
+quiet_cmd_mkregtable = MKREGTABLE $@
+      cmd_mkregtable = $(obj)/mkregtable $< > $@
+
+$(obj)/rv515_reg_safe.h: $(src)/reg_srcs/rv515 $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
+$(obj)/r300_reg_safe.h: $(src)/reg_srcs/r300 $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
+$(obj)/rv515.o: $(obj)/rv515_reg_safe.h
+
+$(obj)/r300.o: $(obj)/r300_reg_safe.h
+
 radeon-$(CONFIG_DRM_RADEON_KMS) += radeon_device.o radeon_kms.o \
 	radeon_atombios.o radeon_agp.o atombios_crtc.o radeon_combios.o \
 	atom.o radeon_fence.o radeon_ttm.o radeon_object.o radeon_gart.o \
