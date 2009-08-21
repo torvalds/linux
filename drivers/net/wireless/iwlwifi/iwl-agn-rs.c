@@ -2546,6 +2546,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			rate_idx = rate_lowest_index(sband, sta);
 		else if (sband->band == IEEE80211_BAND_5GHZ)
 			rate_idx -= IWL_FIRST_OFDM_RATE;
+		info->control.rates[0].flags = 0;
 	}
 	info->control.rates[0].idx = rate_idx;
 
