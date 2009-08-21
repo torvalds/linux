@@ -1267,10 +1267,18 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 	if (!codec->debugfs_pop_time)
 		printk(KERN_WARNING
 		       "Failed to create pop time debugfs file\n");
+
+	codec->debugfs_dapm = debugfs_create_dir("dapm", debugfs_root);
+	if (!codec->debugfs_dapm)
+		printk(KERN_WARNING
+		       "Failed to create DAPM debugfs directory\n");
+
+	snd_soc_dapm_debugfs_init(codec);
 }
 
 static void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
 {
+	debugfs_remove_recursive(codec->debugfs_dapm);
 	debugfs_remove(codec->debugfs_pop_time);
 	debugfs_remove(codec->debugfs_reg);
 }

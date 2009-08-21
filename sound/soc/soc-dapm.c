@@ -1081,6 +1081,92 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 }
 #endif
 
+#ifdef CONFIG_DEBUG_FS
+static int dapm_widget_power_open_file(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t dapm_widget_power_read_file(struct file *file,
+					   char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct snd_soc_dapm_widget *w = file->private_data;
+	char *buf;
+	int in, out;
+	ssize_t ret;
+	struct snd_soc_dapm_path *p = NULL;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	in = is_connected_input_ep(w);
+	dapm_clear_walk(w->codec);
+	out = is_connected_output_ep(w);
+	dapm_clear_walk(w->codec);
+
+	ret = snprintf(buf, PAGE_SIZE, "%s: %s  in %d out %d\n",
+		       w->name, w->power ? "On" : "Off", in, out);
+
+	if (w->active && w->sname)
+		ret += snprintf(buf, PAGE_SIZE - ret, " stream %s active\n",
+				w->sname);
+
+	list_for_each_entry(p, &w->sources, list_sink) {
+		if (p->connect)
+			ret += snprintf(buf + ret, PAGE_SIZE - ret,
+					" in  %s %s\n",
+					p->name ? p->name : "static",
+					p->source->name);
+	}
+	list_for_each_entry(p, &w->sinks, list_source) {
+		if (p->connect)
+			ret += snprintf(buf + ret, PAGE_SIZE - ret,
+					" out %s %s\n",
+					p->name ? p->name : "static",
+					p->sink->name);
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations dapm_widget_power_fops = {
+	.open = dapm_widget_power_open_file,
+	.read = dapm_widget_power_read_file,
+};
+
+void snd_soc_dapm_debugfs_init(struct snd_soc_codec *codec)
+{
+	struct snd_soc_dapm_widget *w;
+	struct dentry *d;
+
+	if (!codec->debugfs_dapm)
+		return;
+
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		if (!w->name)
+			continue;
+
+		d = debugfs_create_file(w->name, 0444,
+					codec->debugfs_dapm, w,
+					&dapm_widget_power_fops);
+		if (!d)
+			printk(KERN_WARNING
+			       "ASoC: Failed to create %s debugfs file\n",
+			       w->name);
+	}
+}
+#else
+void snd_soc_dapm_debugfs_init(struct snd_soc_codec *codec)
+{
+}
+#endif
+
 /* test and update the power status of a mux widget */
 static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 				 struct snd_kcontrol *kcontrol, int mask,

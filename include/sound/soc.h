@@ -416,6 +416,7 @@ struct snd_soc_codec {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_reg;
 	struct dentry *debugfs_pop_time;
+	struct dentry *debugfs_dapm;
 #endif
 };
 
