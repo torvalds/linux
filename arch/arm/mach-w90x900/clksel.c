@@ -42,13 +42,13 @@ static void clock_source_select(const char *dev_id, unsigned int clkval)
 
 	clksel = __raw_readl(REG_CLKSEL);
 
-	if (strcmp(dev_id, "w90p910-ms") == 0)
+	if (strcmp(dev_id, "nuc900-ms") == 0)
 		offset = MSOFFSET;
-	else if (strcmp(dev_id, "w90p910-atapi") == 0)
+	else if (strcmp(dev_id, "nuc900-atapi") == 0)
 		offset = ATAOFFSET;
-	else if (strcmp(dev_id, "w90p910-lcd") == 0)
+	else if (strcmp(dev_id, "nuc900-lcd") == 0)
 		offset = LCDOFFSET;
-	else if (strcmp(dev_id, "w90p910-audio") == 0)
+	else if (strcmp(dev_id, "nuc900-audio") == 0)
 		offset = AUDOFFSET;
 	else
 		offset = CPUOFFSET;
@@ -59,7 +59,7 @@ static void clock_source_select(const char *dev_id, unsigned int clkval)
 	__raw_writel(clksel, REG_CLKSEL);
 }
 
-void w90p910_clock_source(struct device *dev, unsigned char *src)
+void nuc900_clock_source(struct device *dev, unsigned char *src)
 {
 	unsigned int clkval;
 	const char *dev_id;
@@ -87,5 +87,5 @@ void w90p910_clock_source(struct device *dev, unsigned char *src)
 
 	mutex_unlock(&clksel_sem);
 }
-EXPORT_SYMBOL(w90p910_clock_source);
+EXPORT_SYMBOL(nuc900_clock_source);
 

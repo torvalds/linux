@@ -36,13 +36,13 @@ struct group_irq {
 
 static DEFINE_SPINLOCK(groupirq_lock);
 
-#define DEFINE_GROUP(_name, _ctrlbit, _num)			\
-struct group_irq group_##_name = {				\
-		.enable		= w90x900_group_enable,		\
-		.gpen		= ((2 ^ _num) - 1) << _ctrlbit,	\
+#define DEFINE_GROUP(_name, _ctrlbit, _num)				\
+struct group_irq group_##_name = {					\
+		.enable		= nuc900_group_enable,			\
+		.gpen		= ((1 << _num) - 1) << _ctrlbit,	\
 	}
 
-static void w90x900_group_enable(struct group_irq *gpirq, int enable);
+static void nuc900_group_enable(struct group_irq *gpirq, int enable);
 
 static DEFINE_GROUP(nirq0, 0, 4);
 static DEFINE_GROUP(nirq1, 4, 4);
@@ -77,7 +77,7 @@ static void group_irq_disable(struct group_irq *group_irq)
 	spin_unlock_irqrestore(&groupirq_lock, flags);
 }
 
-static void w90x900_group_enable(struct group_irq *gpirq, int enable)
+static void nuc900_group_enable(struct group_irq *gpirq, int enable)
 {
 	unsigned int groupen = gpirq->gpen;
 	unsigned long regval;
@@ -92,7 +92,7 @@ static void w90x900_group_enable(struct group_irq *gpirq, int enable)
 	__raw_writel(regval, REG_AIC_GEN);
 }
 
-static void w90x900_irq_mask(unsigned int irq)
+static void nuc900_irq_mask(unsigned int irq)
 {
 	struct group_irq *group_irq;
 
@@ -143,12 +143,12 @@ static void w90x900_irq_mask(unsigned int irq)
  * to REG_AIC_EOSCR for ACK
  */
 
-static void w90x900_irq_ack(unsigned int irq)
+static void nuc900_irq_ack(unsigned int irq)
 {
 	__raw_writel(0x01, REG_AIC_EOSCR);
 }
 
-static void w90x900_irq_unmask(unsigned int irq)
+static void nuc900_irq_unmask(unsigned int irq)
 {
 	struct group_irq *group_irq;
 
@@ -194,20 +194,20 @@ static void w90x900_irq_unmask(unsigned int irq)
 		group_irq_enable(group_irq);
 }
 
-static struct irq_chip w90x900_irq_chip = {
-	.ack	   = w90x900_irq_ack,
-	.mask	   = w90x900_irq_mask,
-	.unmask	   = w90x900_irq_unmask,
+static struct irq_chip nuc900_irq_chip = {
+	.ack	   = nuc900_irq_ack,
+	.mask	   = nuc900_irq_mask,
+	.unmask	   = nuc900_irq_unmask,
 };
 
-void __init w90x900_init_irq(void)
+void __init nuc900_init_irq(void)
 {
 	int irqno;
 
 	__raw_writel(0xFFFFFFFE, REG_AIC_MDCR);
 
 	for (irqno = IRQ_WDT; irqno <= IRQ_ADC; irqno++) {
-		set_irq_chip(irqno, &w90x900_irq_chip);
+		set_irq_chip(irqno, &nuc900_irq_chip);
 		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}

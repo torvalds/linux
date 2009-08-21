@@ -44,7 +44,7 @@
 
 unsigned int timer0_load;
 
-static void w90p910_clockevent_setmode(enum clock_event_mode mode,
+static void nuc900_clockevent_setmode(enum clock_event_mode mode,
 		struct clock_event_device *clk)
 {
 	unsigned int val;
@@ -71,7 +71,7 @@ static void w90p910_clockevent_setmode(enum clock_event_mode mode,
 	__raw_writel(val, REG_TCSR0);
 }
 
-static int w90p910_clockevent_setnextevent(unsigned long evt,
+static int nuc900_clockevent_setnextevent(unsigned long evt,
 		struct clock_event_device *clk)
 {
 	unsigned int val;
@@ -85,20 +85,20 @@ static int w90p910_clockevent_setnextevent(unsigned long evt,
 	return 0;
 }
 
-static struct clock_event_device w90p910_clockevent_device = {
-	.name		= "w90p910-timer0",
+static struct clock_event_device nuc900_clockevent_device = {
+	.name		= "nuc900-timer0",
 	.shift		= 32,
 	.features	= CLOCK_EVT_MODE_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= w90p910_clockevent_setmode,
-	.set_next_event	= w90p910_clockevent_setnextevent,
+	.set_mode	= nuc900_clockevent_setmode,
+	.set_next_event	= nuc900_clockevent_setnextevent,
 	.rating		= 300,
 };
 
 /*IRQ handler for the timer*/
 
-static irqreturn_t w90p910_timer0_interrupt(int irq, void *dev_id)
+static irqreturn_t nuc900_timer0_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &w90p910_clockevent_device;
+	struct clock_event_device *evt = &nuc900_clockevent_device;
 
 	__raw_writel(0x01, REG_TISR); /* clear TIF0 */
 
@@ -106,40 +106,40 @@ static irqreturn_t w90p910_timer0_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction w90p910_timer0_irq = {
-	.name		= "w90p910-timer0",
+static struct irqaction nuc900_timer0_irq = {
+	.name		= "nuc900-timer0",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= w90p910_timer0_interrupt,
+	.handler	= nuc900_timer0_interrupt,
 };
 
-static void __init w90p910_clockevents_init(unsigned int rate)
+static void __init nuc900_clockevents_init(unsigned int rate)
 {
-	w90p910_clockevent_device.mult = div_sc(rate, NSEC_PER_SEC,
-					w90p910_clockevent_device.shift);
-	w90p910_clockevent_device.max_delta_ns = clockevent_delta2ns(0xffffffff,
-					&w90p910_clockevent_device);
-	w90p910_clockevent_device.min_delta_ns = clockevent_delta2ns(0xf,
-					&w90p910_clockevent_device);
-	w90p910_clockevent_device.cpumask = cpumask_of(0);
+	nuc900_clockevent_device.mult = div_sc(rate, NSEC_PER_SEC,
+					nuc900_clockevent_device.shift);
+	nuc900_clockevent_device.max_delta_ns = clockevent_delta2ns(0xffffffff,
+					&nuc900_clockevent_device);
+	nuc900_clockevent_device.min_delta_ns = clockevent_delta2ns(0xf,
+					&nuc900_clockevent_device);
+	nuc900_clockevent_device.cpumask = cpumask_of(0);
 
-	clockevents_register_device(&w90p910_clockevent_device);
+	clockevents_register_device(&nuc900_clockevent_device);
 }
 
-static cycle_t w90p910_get_cycles(struct clocksource *cs)
+static cycle_t nuc900_get_cycles(struct clocksource *cs)
 {
 	return ~__raw_readl(REG_TDR1);
 }
 
-static struct clocksource clocksource_w90p910 = {
-	.name	= "w90p910-timer1",
+static struct clocksource clocksource_nuc900 = {
+	.name	= "nuc900-timer1",
 	.rating	= 200,
-	.read	= w90p910_get_cycles,
+	.read	= nuc900_get_cycles,
 	.mask	= CLOCKSOURCE_MASK(32),
 	.shift	= 20,
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init w90p910_clocksource_init(unsigned int rate)
+static void __init nuc900_clocksource_init(unsigned int rate)
 {
 	unsigned int val;
 
@@ -149,12 +149,12 @@ static void __init w90p910_clocksource_init(unsigned int rate)
 	val |= (COUNTEN | PERIOD);
 	__raw_writel(val, REG_TCSR1);
 
-	clocksource_w90p910.mult =
-		clocksource_khz2mult((rate / 1000), clocksource_w90p910.shift);
-	clocksource_register(&clocksource_w90p910);
+	clocksource_nuc900.mult =
+		clocksource_khz2mult((rate / 1000), clocksource_nuc900.shift);
+	clocksource_register(&clocksource_nuc900);
 }
 
-static void __init w90p910_timer_init(void)
+static void __init nuc900_timer_init(void)
 {
 	struct clk *ck_ext = clk_get(NULL, "ext");
 	unsigned int	rate;
@@ -171,12 +171,12 @@ static void __init w90p910_timer_init(void)
 	__raw_writel(RESETINT, REG_TISR);
 	timer0_load = (rate / TICKS_PER_SEC);
 
-	setup_irq(IRQ_TIMER0, &w90p910_timer0_irq);
+	setup_irq(IRQ_TIMER0, &nuc900_timer0_irq);
 
-	w90p910_clocksource_init(rate);
-	w90p910_clockevents_init(rate);
+	nuc900_clocksource_init(rate);
+	nuc900_clockevents_init(rate);
 }
 
-struct sys_timer w90x900_timer = {
-	.init		= w90p910_timer_init,
+struct sys_timer nuc900_timer = {
+	.init		= nuc900_timer_init,
 };

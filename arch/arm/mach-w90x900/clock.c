@@ -61,7 +61,7 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-void w90x900_clk_enable(struct clk *clk, int enable)
+void nuc900_clk_enable(struct clk *clk, int enable)
 {
 	unsigned int clocks = clk->cken;
 	unsigned long clken;
@@ -76,7 +76,7 @@ void w90x900_clk_enable(struct clk *clk, int enable)
 	__raw_writel(clken, W90X900_VA_CLKPWR);
 }
 
-void w90x900_subclk_enable(struct clk *clk, int enable)
+void nuc900_subclk_enable(struct clk *clk, int enable)
 {
 	unsigned int clocks = clk->cken;
 	unsigned long clken;

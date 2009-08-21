@@ -4,12 +4,12 @@
 
 # Object file lists.
 
-obj-y				:= irq.o time.o mfp-w90p910.o gpio.o clock.o
-obj-y				+= clksel.o
+obj-y				:= irq.o time.o mfp.o gpio.o clock.o
+obj-y				+= clksel.o dev.o cpu.o
 # W90X900 CPU support files
 
-obj-$(CONFIG_CPU_W90P910)	+= w90p910.o
+obj-$(CONFIG_CPU_W90P910)	+= nuc910.o
 
 # machine support
 
-obj-$(CONFIG_MACH_W90P910EVB)	+= mach-w90p910evb.o
+obj-$(CONFIG_MACH_W90P910EVB)	+= mach-nuc910evb.o

@@ -1,13 +1,11 @@
 /*
- * linux/arch/arm/mach-w90x900/w90p910.c
+ * linux/arch/arm/mach-w90x900/cpu.c
  *
- * Based on linux/arch/arm/plat-s3c24xx/s3c244x.c by Ben Dooks
- *
- * Copyright (c) 2008 Nuvoton technology corporation.
+ * Copyright (c) 2009 Nuvoton corporation.
  *
  * Wan ZongShun <mcuos.com@gmail.com>
  *
- * W90P910 cpu support
+ * NUC900 series cpu common support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,19 +39,12 @@
 
 /* Initial IO mappings */
 
-static struct map_desc w90p910_iodesc[] __initdata = {
+static struct map_desc nuc900_iodesc[] __initdata = {
 	IODESC_ENT(IRQ),
 	IODESC_ENT(GCR),
 	IODESC_ENT(UART),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(EBI),
-	IODESC_ENT(USBEHCIHOST),
-	IODESC_ENT(USBOHCIHOST),
-	IODESC_ENT(ADC),
-	IODESC_ENT(RTC),
-	IODESC_ENT(KPI),
-	IODESC_ENT(USBDEV),
-	/*IODESC_ENT(LCD),*/
 };
 
 /* Initial clock declarations. */
@@ -78,58 +69,45 @@ static DEFINE_CLK(adc, 28);
 static DEFINE_CLK(usi, 29);
 static DEFINE_CLK(ext, 0);
 
-static struct clk_lookup w90p910_clkregs[] = {
-	DEF_CLKLOOK(&clk_lcd, "w90p910-lcd", NULL),
-	DEF_CLKLOOK(&clk_audio, "w90p910-audio", NULL),
-	DEF_CLKLOOK(&clk_fmi, "w90p910-fmi", NULL),
-	DEF_CLKLOOK(&clk_ms, "w90p910-fmi", "MS"),
-	DEF_CLKLOOK(&clk_sd, "w90p910-fmi", "SD"),
-	DEF_CLKLOOK(&clk_dmac, "w90p910-dmac", NULL),
-	DEF_CLKLOOK(&clk_atapi, "w90p910-atapi", NULL),
-	DEF_CLKLOOK(&clk_emc, "w90p910-emc", NULL),
-	DEF_CLKLOOK(&clk_rmii, "w90p910-emc", "RMII"),
-	DEF_CLKLOOK(&clk_usbd, "w90p910-usbd", NULL),
-	DEF_CLKLOOK(&clk_usbh, "w90p910-usbh", NULL),
-	DEF_CLKLOOK(&clk_g2d, "w90p910-g2d", NULL),
-	DEF_CLKLOOK(&clk_pwm, "w90p910-pwm", NULL),
-	DEF_CLKLOOK(&clk_ps2, "w90p910-ps2", NULL),
-	DEF_CLKLOOK(&clk_kpi, "w90p910-kpi", NULL),
-	DEF_CLKLOOK(&clk_wdt, "w90p910-wdt", NULL),
-	DEF_CLKLOOK(&clk_gdma, "w90p910-gdma", NULL),
-	DEF_CLKLOOK(&clk_adc, "w90p910-adc", NULL),
-	DEF_CLKLOOK(&clk_usi, "w90p910-spi", NULL),
+static struct clk_lookup nuc900_clkregs[] = {
+	DEF_CLKLOOK(&clk_lcd, "nuc900-lcd", NULL),
+	DEF_CLKLOOK(&clk_audio, "nuc900-audio", NULL),
+	DEF_CLKLOOK(&clk_fmi, "nuc900-fmi", NULL),
+	DEF_CLKLOOK(&clk_ms, "nuc900-fmi", "MS"),
+	DEF_CLKLOOK(&clk_sd, "nuc900-fmi", "SD"),
+	DEF_CLKLOOK(&clk_dmac, "nuc900-dmac", NULL),
+	DEF_CLKLOOK(&clk_atapi, "nuc900-atapi", NULL),
+	DEF_CLKLOOK(&clk_emc, "nuc900-emc", NULL),
+	DEF_CLKLOOK(&clk_rmii, "nuc900-emc", "RMII"),
+	DEF_CLKLOOK(&clk_usbd, "nuc900-usbd", NULL),
+	DEF_CLKLOOK(&clk_usbh, "nuc900-usbh", NULL),
+	DEF_CLKLOOK(&clk_g2d, "nuc900-g2d", NULL),
+	DEF_CLKLOOK(&clk_pwm, "nuc900-pwm", NULL),
+	DEF_CLKLOOK(&clk_ps2, "nuc900-ps2", NULL),
+	DEF_CLKLOOK(&clk_kpi, "nuc900-kpi", NULL),
+	DEF_CLKLOOK(&clk_wdt, "nuc900-wdt", NULL),
+	DEF_CLKLOOK(&clk_gdma, "nuc900-gdma", NULL),
+	DEF_CLKLOOK(&clk_adc, "nuc900-adc", NULL),
+	DEF_CLKLOOK(&clk_usi, "nuc900-spi", NULL),
 	DEF_CLKLOOK(&clk_ext, NULL, "ext"),
 };
 
 /* Initial serial platform data */
 
-struct plat_serial8250_port w90p910_uart_data[] = {
-	W90X900_8250PORT(UART0),
+struct plat_serial8250_port nuc900_uart_data[] = {
+	NUC900_8250PORT(UART0),
 };
 
-struct platform_device w90p910_serial_device = {
+struct platform_device nuc900_serial_device = {
 	.name			= "serial8250",
 	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
-		.platform_data	= w90p910_uart_data,
+		.platform_data	= nuc900_uart_data,
 	},
 };
 
-/*Init W90P910 evb io*/
-
-void __init w90p910_map_io(struct map_desc *mach_desc, int mach_size)
-{
-	unsigned long idcode = 0x0;
-
-	iotable_init(w90p910_iodesc, ARRAY_SIZE(w90p910_iodesc));
-
-	idcode = __raw_readl(W90X900PDID);
-	if (idcode != W90P910_CPUID)
-		printk(KERN_ERR "CPU type 0x%08lx is not W90P910\n", idcode);
-}
-
-/*Set W90P910 cpu frequence*/
-static int __init w90p910_set_clkval(unsigned int cpufreq)
+/*Set NUC900 series cpu frequence*/
+static int __init nuc900_set_clkval(unsigned int cpufreq)
 {
 	unsigned int pllclk, ahbclk, apbclk, val;
 
@@ -178,7 +156,7 @@ static int __init w90p910_set_clkval(unsigned int cpufreq)
 
 	return 	0;
 }
-static int __init w90p910_set_cpufreq(char *str)
+static int __init nuc900_set_cpufreq(char *str)
 {
 	unsigned long cpufreq, val;
 
@@ -187,9 +165,9 @@ static int __init w90p910_set_cpufreq(char *str)
 
 	strict_strtoul(str, 0, &cpufreq);
 
-	w90p910_clock_source(NULL, "ext");
+	nuc900_clock_source(NULL, "ext");
 
-	w90p910_set_clkval(cpufreq);
+	nuc900_set_clkval(cpufreq);
 
 	mdelay(1);
 
@@ -198,27 +176,37 @@ static int __init w90p910_set_cpufreq(char *str)
 	val |= DEFAULTSKEW;
 	__raw_writel(val, REG_CKSKEW);
 
-	w90p910_clock_source(NULL, "pll0");
+	nuc900_clock_source(NULL, "pll0");
 
 	return 1;
 }
 
-__setup("cpufreq=", w90p910_set_cpufreq);
+__setup("cpufreq=", nuc900_set_cpufreq);
 
-/*Init W90P910 clock*/
+/*Init NUC900 evb io*/
 
-void __init w90p910_init_clocks(void)
+void __init nuc900_map_io(struct map_desc *mach_desc, int mach_size)
 {
-	clks_register(w90p910_clkregs, ARRAY_SIZE(w90p910_clkregs));
+	unsigned long idcode = 0x0;
+
+	iotable_init(mach_desc, mach_size);
+	iotable_init(nuc900_iodesc, ARRAY_SIZE(nuc900_iodesc));
+
+	idcode = __raw_readl(NUC900PDID);
+	if (idcode == NUC910_CPUID)
+		printk(KERN_INFO "CPU type 0x%08lx is NUC910\n", idcode);
+	else if (idcode == NUC920_CPUID)
+		printk(KERN_INFO "CPU type 0x%08lx is NUC920\n", idcode);
+	else if (idcode == NUC950_CPUID)
+		printk(KERN_INFO "CPU type 0x%08lx is NUC950\n", idcode);
+	else if (idcode == NUC960_CPUID)
+		printk(KERN_INFO "CPU type 0x%08lx is NUC960\n", idcode);
 }
 
-static int __init w90p910_init_cpu(void)
+/*Init NUC900 clock*/
+
+void __init nuc900_init_clocks(void)
 {
-	return 0;
+	clks_register(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
 }
 
-static int __init w90x900_arch_init(void)
-{
-	return w90p910_init_cpu();
-}
-arch_initcall(w90x900_arch_init);
