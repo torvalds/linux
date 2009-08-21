@@ -82,7 +82,7 @@ config 32BIT
 
 config PMB_ENABLE
 	bool "Support 32-bit physical addressing through PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
+	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
 	select 32BIT
 	default y
 	help
@@ -97,7 +97,7 @@ choice
 
 config PMB
 	bool "PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
+	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
 	select 32BIT
 	help
 	  If you say Y here, physical addressing will be extended to
@@ -106,7 +106,8 @@ config PMB
 
 config PMB_FIXED
 	bool "fixed PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || \
+	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || \
+					   CPU_SUBTYPE_SH7780 || \
 					   CPU_SUBTYPE_SH7785)
 	select 32BIT
 	help

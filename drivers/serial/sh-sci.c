@@ -272,7 +272,8 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		__raw_writew(data, PSCR);
 	}
 }
-#elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780) || \
       defined(CONFIG_CPU_SUBTYPE_SH7785) || \
       defined(CONFIG_CPU_SUBTYPE_SH7786) || \

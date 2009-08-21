@@ -396,6 +396,13 @@ config CPU_SUBTYPE_SH7724
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
 
+config CPU_SUBTYPE_SH7757
+	bool "Support SH7757 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	help
+	  Select SH7757 if you have a SH4A SH7757 CPU.
+
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
