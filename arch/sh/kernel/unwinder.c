@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 #include <asm/unwinder.h>
 #include <asm/atomic.h>
 
@@ -160,3 +161,4 @@ void unwind_stack(struct task_struct *task, struct pt_regs *regs,
 
 	atomic_dec(&unwinder_running);
 }
+EXPORT_SYMBOL_GPL(unwind_stack);
