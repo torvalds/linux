@@ -508,6 +508,8 @@ ENTRY(handle_interrupt)
 	bsr	save_regs	! needs original pr value in k3
 	 mov	#-1, k2		! default vector kept in k2
 
+	setup_frame_reg
+
 	stc	sr, r0	! get status register
 	shlr2	r0
 	and	#0x3c, r0
