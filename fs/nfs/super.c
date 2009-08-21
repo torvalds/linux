@@ -1338,6 +1338,16 @@ static int nfs_walk_authlist(struct nfs_parsed_mount_data *args,
 	unsigned int i, j, server_authlist_len = *(request->auth_flav_len);
 
 	/*
+	 * Certain releases of Linux's mountd return an empty
+	 * flavor list.  To prevent behavioral regression with
+	 * these servers (ie. rejecting mounts that used to
+	 * succeed), revert to pre-2.6.32 behavior (no checking)
+	 * if the returned flavor list is empty.
+	 */
+	if (server_authlist_len == 0)
+		return 0;
+
+	/*
 	 * We avoid sophisticated negotiating here, as there are
 	 * plenty of cases where we can get it wrong, providing
 	 * either too little or too much security.
