@@ -2031,12 +2031,6 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 	}
 
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		err = ar9170_set_beacon_timers(ar);
-		if (err)
-			goto out;
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 
 		/* adjust slot time for 5 GHz */
