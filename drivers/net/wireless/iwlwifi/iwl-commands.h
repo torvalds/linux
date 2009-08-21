@@ -2930,6 +2930,20 @@ struct statistics_rx {
 	struct statistics_rx_ht_phy ofdm_ht;
 } __attribute__ ((packed));
 
+/**
+ * struct statistics_tx_power - current tx power
+ *
+ * @ant_a: current tx power on chain a in 1/2 dB step
+ * @ant_b: current tx power on chain b in 1/2 dB step
+ * @ant_c: current tx power on chain c in 1/2 dB step
+ */
+struct statistics_tx_power {
+	u8 ant_a;
+	u8 ant_b;
+	u8 ant_c;
+	u8 reserved;
+} __attribute__ ((packed));
+
 struct statistics_tx_non_phy_agg {
 	__le32 ba_timeout;
 	__le32 ba_reschedule_frames;
@@ -2941,8 +2955,6 @@ struct statistics_tx_non_phy_agg {
 	__le32 underrun;
 	__le32 bt_prio_kill;
 	__le32 rx_ba_rsp_cnt;
-	__le32 reserved2;
-	__le32 reserved3;
 } __attribute__ ((packed));
 
 struct statistics_tx {
@@ -2961,6 +2973,8 @@ struct statistics_tx {
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
 	struct statistics_tx_non_phy_agg agg;
+	struct statistics_tx_power tx_power;
+	__le32 reserved1;
 } __attribute__ ((packed));
 
 

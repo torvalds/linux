@@ -46,8 +46,8 @@
 #include "iwl-5000-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL6000_UCODE_API_MAX 3
-#define IWL6050_UCODE_API_MAX 3
+#define IWL6000_UCODE_API_MAX 4
+#define IWL6050_UCODE_API_MAX 4
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 1
