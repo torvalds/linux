@@ -311,11 +311,17 @@ struct rds_notifier {
  * 		   flag and header.
  */
 
+#define RDS_TRANS_IB	0
+#define RDS_TRANS_IWARP	1
+#define RDS_TRANS_TCP	2
+#define RDS_TRANS_COUNT	3
+
 struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
 	struct list_head	t_item;
 	struct module		*t_owner;
 	unsigned int		t_prefer_loopback:1;
+	unsigned int		t_type;
 
 	int (*laddr_check)(__be32 addr);
 	int (*conn_alloc)(struct rds_connection *conn, gfp_t gfp);

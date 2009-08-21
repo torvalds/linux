@@ -282,6 +282,7 @@ struct rds_transport rds_ib_transport = {
 	.flush_mrs		= rds_ib_flush_mrs,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
+	.t_type			= RDS_TRANS_IB
 };
 
 int __init rds_ib_init(void)

@@ -284,6 +284,7 @@ struct rds_transport rds_iw_transport = {
 	.flush_mrs		= rds_iw_flush_mrs,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "iwarp",
+	.t_type			= RDS_TRANS_IWARP,
 	.t_prefer_loopback	= 1,
 };
 

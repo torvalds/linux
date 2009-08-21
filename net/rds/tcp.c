@@ -271,6 +271,7 @@ struct rds_transport rds_tcp_transport = {
 	.exit			= rds_tcp_exit,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "tcp",
+	.t_type			= RDS_TRANS_TCP,
 	.t_prefer_loopback	= 1,
 };
 
