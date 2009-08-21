@@ -6485,7 +6485,8 @@ bnx2_get_stats(struct net_device *dev)
 		stats_blk->stat_EtherStatsOverrsizePkts);
 
 	net_stats->rx_over_errors =
-		(unsigned long) stats_blk->stat_IfInMBUFDiscards;
+		(unsigned long) (stats_blk->stat_IfInFTQDiscards +
+		stats_blk->stat_IfInMBUFDiscards);
 
 	net_stats->rx_frame_errors =
 		(unsigned long) stats_blk->stat_Dot3StatsAlignmentErrors;
@@ -6518,8 +6519,8 @@ bnx2_get_stats(struct net_device *dev)
 		net_stats->tx_carrier_errors;
 
 	net_stats->rx_missed_errors =
-		(unsigned long) (stats_blk->stat_IfInMBUFDiscards +
-		stats_blk->stat_FwRxDrop);
+		(unsigned long) (stats_blk->stat_IfInFTQDiscards +
+		stats_blk->stat_IfInMBUFDiscards + stats_blk->stat_FwRxDrop);
 
 	return net_stats;
 }
@@ -7090,11 +7091,9 @@ bnx2_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-#define BNX2_NUM_STATS 46
-
 static struct {
 	char string[ETH_GSTRING_LEN];
-} bnx2_stats_str_arr[BNX2_NUM_STATS] = {
+} bnx2_stats_str_arr[] = {
 	{ "rx_bytes" },
 	{ "rx_error_bytes" },
 	{ "tx_bytes" },
@@ -7139,9 +7138,13 @@ static struct {
 	{ "tx_xoff_frames" },
 	{ "rx_mac_ctrl_frames" },
 	{ "rx_filtered_packets" },
+	{ "rx_ftq_discards" },
 	{ "rx_discards" },
 	{ "rx_fw_discards" },
 };
+
+#define BNX2_NUM_STATS (sizeof(bnx2_stats_str_arr)/\
+			sizeof(bnx2_stats_str_arr[0]))
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
 
@@ -7190,6 +7193,7 @@ static const unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_OutXoffSent),
     STATS_OFFSET32(stat_MacControlFramesReceived),
     STATS_OFFSET32(stat_IfInFramesL2FilterDiscards),
+    STATS_OFFSET32(stat_IfInFTQDiscards),
     STATS_OFFSET32(stat_IfInMBUFDiscards),
     STATS_OFFSET32(stat_FwRxDrop),
 };
@@ -7202,7 +7206,7 @@ static u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 	4,0,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
-	4,4,4,4,4,4,
+	4,4,4,4,4,4,4,
 };
 
 static u8 bnx2_5708_stats_len_arr[BNX2_NUM_STATS] = {
@@ -7210,7 +7214,7 @@ static u8 bnx2_5708_stats_len_arr[BNX2_NUM_STATS] = {
 	4,4,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
-	4,4,4,4,4,4,
+	4,4,4,4,4,4,4,
 };
 
 #define BNX2_NUM_TESTS 6
