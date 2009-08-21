@@ -34,14 +34,16 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	/* Assume the lock function has either no stack frame or a copy
-	   of flags from PUSHF
-	   Eflags always has bits 22 and up cleared unlike kernel addresses. */
 	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
 #ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->bp + sizeof(long));
 #else
 		unsigned long *sp = (unsigned long *)regs->sp;
+		/*
+		 * Return address is either directly at stack pointer
+		 * or above a saved flags. Eflags has bits 22-31 zero,
+		 * kernel addresses don't.
+		 */
 		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)

@@ -34,23 +34,22 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-#ifdef CONFIG_SMP
 	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
 #ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->bp + sizeof(long));
 #else
-		unsigned long *sp = (unsigned long *)&regs->sp;
-
-		/* Return address is either directly at stack pointer
-		   or above a saved flags. Eflags has bits 22-31 zero,
-		   kernel addresses don't. */
+		unsigned long *sp = (unsigned long *)regs->sp;
+		/*
+		 * Return address is either directly at stack pointer
+		 * or above a saved flags. Eflags has bits 22-31 zero,
+		 * kernel addresses don't.
+		 */
 		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)
 			return sp[1];
 #endif
 	}
-#endif
 	return pc;
 }
 EXPORT_SYMBOL(profile_pc);
