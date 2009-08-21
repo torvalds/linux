@@ -267,7 +267,7 @@ static struct platform_driver w90p910_keypad_driver = {
 	.probe		= w90p910_keypad_probe,
 	.remove		= __devexit_p(w90p910_keypad_remove),
 	.driver		= {
-		.name	= "w90p910-keypad",
+		.name	= "nuc900-keypad",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -286,6 +286,6 @@ module_init(w90p910_keypad_init);
 module_exit(w90p910_keypad_exit);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
-MODULE_DESCRIPTION("w90p910 keypad driver!");
+MODULE_DESCRIPTION("w90p910 keypad driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:w90p910-keypad");
+MODULE_ALIAS("platform:nuc900-keypad");
