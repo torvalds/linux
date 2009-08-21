@@ -6992,9 +6992,14 @@ bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx)
 		int rc;
 
 		rc = bnx2_alloc_mem(bp);
-		if (rc)
+		if (!rc)
+			rc = bnx2_init_nic(bp, 0);
+
+		if (rc) {
+			bnx2_napi_enable(bp);
+			dev_close(bp->dev);
 			return rc;
-		bnx2_init_nic(bp, 0);
+		}
 		bnx2_netif_start(bp);
 	}
 	return 0;
