@@ -257,6 +257,7 @@ static const struct option options[] = {
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_END()
 };
 
 int cmd_trace(int argc, const char **argv, const char *prefix __used)
