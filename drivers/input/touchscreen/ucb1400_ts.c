@@ -170,11 +170,11 @@ static void ucb1400_handle_pending_irq(struct ucb1400_ts *ucb)
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, isr);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0);
 
-	if (isr & UCB_IE_TSPX) {
+	if (isr & UCB_IE_TSPX)
 		ucb1400_ts_irq_disable(ucb->ac97);
-		enable_irq(ucb->irq);
-	} else
-		printk(KERN_ERR "ucb1400: unexpected IE_STATUS = %#x\n", isr);
+	else
+		dev_dbg(&ucb->ts_idev->dev, "ucb1400: unexpected IE_STATUS = %#x\n", isr);
+	enable_irq(ucb->irq);
 }
 
 static int ucb1400_ts_thread(void *_ucb)
