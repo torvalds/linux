@@ -8,7 +8,7 @@
 #include <asm/system.h>
 
 #ifdef CONFIG_BUG
-static void handle_BUG(struct pt_regs *regs)
+void handle_BUG(struct pt_regs *regs)
 {
 	enum bug_trap_type tt;
 	tt = report_bug(regs->pc, regs);
@@ -29,7 +29,10 @@ int is_valid_bugaddr(unsigned long addr)
 	if (probe_kernel_address((insn_size_t *)addr, opcode))
 		return 0;
 
-	return opcode == TRAPA_BUG_OPCODE;
+	if (opcode == TRAPA_BUG_OPCODE || opcode == TRAPA_UNWINDER_BUG_OPCODE)
+		return 1;
+
+	return 0;
 }
 #endif
 

@@ -21,6 +21,10 @@
 #define sh_bios_handler			debug_trap_handler
 #endif
 
+#if !defined(CONFIG_DWARF_UNWINDER)
+#define unwinder_trap_handler		debug_trap_handler
+#endif
+
 	.data
 
 ENTRY(debug_trap_table)
@@ -35,7 +39,7 @@ ENTRY(debug_trap_table)
 	.long debug_trap_handler	/* 0x38 */
 	.long debug_trap_handler	/* 0x39 */
 	.long debug_trap_handler	/* 0x3a */
-	.long debug_trap_handler	/* 0x3b */
+	.long unwinder_trap_handler	/* 0x3b */
 	.long breakpoint_trap_handler	/* 0x3c */
 	.long singlestep_trap_handler	/* 0x3d */
 	.long bug_trap_handler		/* 0x3e */

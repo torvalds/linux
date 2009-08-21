@@ -54,8 +54,6 @@ static struct list_head unwinder_list = {
 
 static DEFINE_SPINLOCK(unwinder_lock);
 
-static atomic_t unwinder_running = ATOMIC_INIT(0);
-
 /**
  * select_unwinder - Select the best registered stack unwinder.
  *
@@ -123,6 +121,8 @@ int unwinder_register(struct unwinder *u)
 	return ret;
 }
 
+int unwinder_faulted = 0;
+
 /*
  * Unwind the call stack and pass information to the stacktrace_ops
  * functions. Also handle the case where we need to switch to a new
@@ -145,20 +145,41 @@ void unwind_stack(struct task_struct *task, struct pt_regs *regs,
 	 * Hopefully this will give us a semi-reliable stacktrace so we
 	 * can diagnose why curr_unwinder->dump() faulted.
 	 */
-	if (atomic_inc_return(&unwinder_running) != 1) {
+	if (unwinder_faulted) {
 		spin_lock_irqsave(&unwinder_lock, flags);
 
-		if (!list_is_singular(&unwinder_list)) {
+		/* Make sure no one beat us to changing the unwinder */
+		if (unwinder_faulted && !list_is_singular(&unwinder_list)) {
 			list_del(&curr_unwinder->list);
 			curr_unwinder = select_unwinder();
+
+			unwinder_faulted = 0;
 		}
 
 		spin_unlock_irqrestore(&unwinder_lock, flags);
-		atomic_dec(&unwinder_running);
 	}
 
 	curr_unwinder->dump(task, regs, sp, ops, data);
+}
 
-	atomic_dec(&unwinder_running);
+/*
+ * Trap handler for UWINDER_BUG() statements. We must switch to the
+ * unwinder with the next highest rating.
+ */
+BUILD_TRAP_HANDLER(unwinder)
+{
+	insn_size_t insn;
+	TRAP_HANDLER_DECL;
+
+	/* Rewind */
+	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+	insn = *(insn_size_t *)instruction_pointer(regs);
+
+	/* Switch unwinders when unwind_stack() is called */
+	unwinder_faulted = 1;
+
+#ifdef CONFIG_BUG
+	handle_BUG(regs);
+#endif
 }
 EXPORT_SYMBOL_GPL(unwind_stack);
