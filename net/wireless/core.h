@@ -380,4 +380,15 @@ int rdev_set_freq(struct cfg80211_registered_device *rdev,
 		  struct wireless_dev *for_wdev,
 		  int freq, enum nl80211_channel_type channel_type);
 
+#ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
+#define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)
+#else
+/*
+ * Trick to enable using it as a condition,
+ * and also not give a warning when it's
+ * not used that way.
+ */
+#define CFG80211_DEV_WARN_ON(cond)	({bool __r = (cond); __r; })
+#endif
+
 #endif /* __NET_WIRELESS_CORE_H */
