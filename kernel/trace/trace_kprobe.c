@@ -220,7 +220,7 @@ static __kprobes void *probe_address(struct trace_probe *tp)
 	return (probe_is_return(tp)) ? tp->rp.kp.addr : tp->kp.addr;
 }
 
-static int trace_arg_string(char *buf, size_t n, struct fetch_func *ff)
+static int probe_arg_string(char *buf, size_t n, struct fetch_func *ff)
 {
 	int ret = -EINVAL;
 
@@ -250,7 +250,7 @@ static int trace_arg_string(char *buf, size_t n, struct fetch_func *ff)
 		if (ret >= n)
 			goto end;
 		l += ret;
-		ret = trace_arg_string(buf + l, n - l, &id->orig);
+		ret = probe_arg_string(buf + l, n - l, &id->orig);
 		if (ret < 0)
 			goto end;
 		l += ret;
@@ -408,7 +408,7 @@ static int split_symbol_offset(char *symbol, long *offset)
 #define PARAM_MAX_ARGS 16
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
-static int parse_trace_arg(char *arg, struct fetch_func *ff, int is_return)
+static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 {
 	int ret = 0;
 	unsigned long param;
@@ -499,7 +499,7 @@ static int parse_trace_arg(char *arg, struct fetch_func *ff, int is_return)
 			if (!id)
 				return -ENOMEM;
 			id->offset = offset;
-			ret = parse_trace_arg(arg, &id->orig, is_return);
+			ret = parse_probe_arg(arg, &id->orig, is_return);
 			if (ret)
 				kfree(id);
 			else {
@@ -617,7 +617,7 @@ static int create_trace_probe(int argc, char **argv)
 			ret = -ENOSPC;
 			goto error;
 		}
-		ret = parse_trace_arg(argv[i], &tp->args[i], is_return);
+		ret = parse_probe_arg(argv[i], &tp->args[i], is_return);
 		if (ret)
 			goto error;
 	}
@@ -680,7 +680,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 		seq_printf(m, " 0x%p", probe_address(tp));
 
 	for (i = 0; i < tp->nr_args; i++) {
-		ret = trace_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
+		ret = probe_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
 		if (ret < 0) {
 			pr_warning("Argument%d decoding error(%d).\n", i, ret);
 			return ret;
@@ -997,7 +997,7 @@ static int kprobe_event_define_fields(struct ftrace_event_call *event_call)
 		sprintf(buf, "arg%d", i);
 		DEFINE_FIELD(unsigned long, args[i], buf, 0);
 		/* Set argument string as an alias field */
-		ret = trace_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
+		ret = probe_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
 		if (ret < 0)
 			return ret;
 		DEFINE_FIELD(unsigned long, args[i], buf, 0);
@@ -1024,7 +1024,7 @@ static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
 		sprintf(buf, "arg%d", i);
 		DEFINE_FIELD(unsigned long, args[i], buf, 0);
 		/* Set argument string as an alias field */
-		ret = trace_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
+		ret = probe_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
 		if (ret < 0)
 			return ret;
 		DEFINE_FIELD(unsigned long, args[i], buf, 0);
@@ -1041,7 +1041,7 @@ static int __probe_event_show_format(struct trace_seq *s,
 
 	/* Show aliases */
 	for (i = 0; i < tp->nr_args; i++) {
-		ret = trace_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
+		ret = probe_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
 		if (ret < 0)
 			return ret;
 		if (!trace_seq_printf(s, "\talias: %s;\toriginal: arg%d;\n",
