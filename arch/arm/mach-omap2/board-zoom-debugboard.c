@@ -129,6 +129,7 @@ static inline void __init zoom2_init_quaduart(void)
 static inline int omap_zoom2_debugboard_detect(void)
 {
 	int debug_board_detect = 0;
+	int ret = 1;
 
 	debug_board_detect = ZOOM2_SMSC911X_GPIO;
 
@@ -140,10 +141,10 @@ static inline int omap_zoom2_debugboard_detect(void)
 	gpio_direction_input(debug_board_detect);
 
 	if (!gpio_get_value(debug_board_detect)) {
-		gpio_free(debug_board_detect);
-		return 0;
+		ret = 0;
 	}
-	return 1;
+	gpio_free(debug_board_detect);
+	return ret;
 }
 
 static struct platform_device *zoom2_devices[] __initdata = {
