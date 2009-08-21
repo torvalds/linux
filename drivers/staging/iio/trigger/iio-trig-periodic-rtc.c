@@ -81,10 +81,10 @@ static ssize_t iio_trig_periodic_read_name(struct device *dev,
 	return sprintf(buf, "%s\n", trig_info->name);
 }
 
-DEVICE_ATTR(name, S_IRUGO,
+static DEVICE_ATTR(name, S_IRUGO,
 	    iio_trig_periodic_read_name,
 	    NULL);
-DEVICE_ATTR(frequency, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(frequency, S_IRUGO | S_IWUSR,
 	    iio_trig_periodic_read_freq,
 	    iio_trig_periodic_write_freq);
 

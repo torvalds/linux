@@ -441,7 +441,7 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 				 &t);
 	return ret;
 }
-DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
+static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
 
 static struct attribute *lis3l02dq_trigger_attrs[] = {
 	&dev_attr_name.attr,
