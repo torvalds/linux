@@ -54,6 +54,7 @@ struct l2cap_options {
 	__u16 imtu;
 	__u16 flush_to;
 	__u8  mode;
+	__u8  fcs;
 };
 
 #define L2CAP_CONNINFO	0x02
@@ -348,6 +349,7 @@ struct l2cap_pinfo {
 #define L2CAP_CONF_MTU_DONE       0x08
 #define L2CAP_CONF_MODE_DONE      0x10
 #define L2CAP_CONF_CONNECT_PEND   0x20
+#define L2CAP_CONF_NO_FCS_RECV    0x40
 #define L2CAP_CONF_STATE2_DEVICE  0x80
 
 #define L2CAP_CONF_MAX_CONF_REQ 2
