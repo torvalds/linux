@@ -265,62 +265,47 @@ static struct file_operations rcu_pending_fops = {
 };
 
 static struct dentry *rcudir;
-static struct dentry *datadir;
-static struct dentry *datadir_csv;
-static struct dentry *gpdir;
-static struct dentry *hierdir;
-static struct dentry *rcu_pendingdir;
 
 static int __init rcuclassic_trace_init(void)
 {
+	struct dentry *retval;
+
 	rcudir = debugfs_create_dir("rcu", NULL);
 	if (!rcudir)
-		goto out;
+		goto free_out;
 
-	datadir = debugfs_create_file("rcudata", 0444, rcudir,
+	retval = debugfs_create_file("rcudata", 0444, rcudir,
 						NULL, &rcudata_fops);
-	if (!datadir)
+	if (!retval)
 		goto free_out;
 
-	datadir_csv = debugfs_create_file("rcudata.csv", 0444, rcudir,
+	retval = debugfs_create_file("rcudata.csv", 0444, rcudir,
 						NULL, &rcudata_csv_fops);
-	if (!datadir_csv)
+	if (!retval)
 		goto free_out;
 
-	gpdir = debugfs_create_file("rcugp", 0444, rcudir, NULL, &rcugp_fops);
-	if (!gpdir)
+	retval = debugfs_create_file("rcugp", 0444, rcudir, NULL, &rcugp_fops);
+	if (!retval)
 		goto free_out;
 
-	hierdir = debugfs_create_file("rcuhier", 0444, rcudir,
+	retval = debugfs_create_file("rcuhier", 0444, rcudir,
 						NULL, &rcuhier_fops);
-	if (!hierdir)
+	if (!retval)
 		goto free_out;
 
-	rcu_pendingdir = debugfs_create_file("rcu_pending", 0444, rcudir,
+	retval = debugfs_create_file("rcu_pending", 0444, rcudir,
 						NULL, &rcu_pending_fops);
-	if (!rcu_pendingdir)
+	if (!retval)
 		goto free_out;
 	return 0;
 free_out:
-	if (datadir)
-		debugfs_remove(datadir);
-	if (datadir_csv)
-		debugfs_remove(datadir_csv);
-	if (gpdir)
-		debugfs_remove(gpdir);
-	debugfs_remove(rcudir);
-out:
+	debugfs_remove_recursive(rcudir);
 	return 1;
 }
 
 static void __exit rcuclassic_trace_cleanup(void)
 {
-	debugfs_remove(datadir);
-	debugfs_remove(datadir_csv);
-	debugfs_remove(gpdir);
-	debugfs_remove(hierdir);
-	debugfs_remove(rcu_pendingdir);
-	debugfs_remove(rcudir);
+	debugfs_remove_recursive(rcudir);
 }
 
 
