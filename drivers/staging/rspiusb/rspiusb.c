@@ -611,6 +611,7 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 	int i = 0;
 	int k = 0;
 	int err = 0;
+	int ret;
 	struct page **maplist_p;
 	int numPagesRequired;
 
@@ -687,9 +688,16 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 	} else {
 		pdx->sgl[frameInfo][0].length = count;
 	}
-	pdx->sgEntries[frameInfo] =
-	    usb_buffer_map_sg(pdx->udev, epAddr, pdx->sgl[frameInfo],
-			      pdx->maplist_numPagesMapped[frameInfo]);
+	ret = usb_buffer_map_sg(pdx->udev, epAddr, pdx->sgl[frameInfo],
+			pdx->maplist_numPagesMapped[frameInfo]);
+	if (ret < 0) {
+		vfree(maplist_p);
+		dbg("usb_buffer_map_sg() failed");
+		return -EINVAL;
+	}
+
+	pdx->sgEntries[frameInfo] = ret;
+
 	dbg("number of sgEntries = %d", pdx->sgEntries[frameInfo]);
 	pdx->userBufMapped = 1;
 	vfree(maplist_p);
@@ -716,8 +724,6 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 		pdx->PixelUrb[frameInfo][i]->transfer_flags =
 		    URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT;
 	}
-	if (i == 0)
-		return -EINVAL;
 	/* only interrupt when last URB completes */
 	pdx->PixelUrb[frameInfo][--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 	pdx->pendedPixelUrbs[frameInfo] =
