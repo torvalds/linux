@@ -609,8 +609,11 @@ void __init omap_serial_init(void)
 			uart->fck = NULL;
 		}
 
-		if (!uart->ick || !uart->fck)
-			continue;
+		/* FIXME: Remove this once the clkdev is ready */
+		if (!cpu_is_omap44xx()) {
+			if (!uart->ick || !uart->fck)
+				continue;
+		}
 
 		uart->num = i;
 		p->private_data = uart;
