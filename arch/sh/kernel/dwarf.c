@@ -899,9 +899,12 @@ static int __init dwarf_unwinder_init(void)
 	entry = &__start_eh_frame;
 
 	dwarf_frame_cachep = kmem_cache_create("dwarf_frames",
-			sizeof(struct dwarf_frame), 0, SLAB_PANIC, NULL);
+			sizeof(struct dwarf_frame), 0,
+			SLAB_PANIC | SLAB_HWCACHE_ALIGN | SLAB_NOTRACK, NULL);
+
 	dwarf_reg_cachep = kmem_cache_create("dwarf_regs",
-			sizeof(struct dwarf_reg), 0, SLAB_PANIC, NULL);
+			sizeof(struct dwarf_reg), 0,
+			SLAB_PANIC | SLAB_HWCACHE_ALIGN | SLAB_NOTRACK, NULL);
 
 	dwarf_frame_pool = mempool_create(DWARF_FRAME_MIN_REQ,
 					  mempool_alloc_slab,
