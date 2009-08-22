@@ -159,7 +159,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_dyntick_sched, rcu_dyntick_sched
 	.dynticks = 1,
 };
 
-void rcu_qsctr_inc(int cpu)
+void rcu_sched_qs(int cpu)
 {
 	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
 
@@ -967,12 +967,12 @@ void rcu_check_callbacks(int cpu, int user)
 	 * If this CPU took its interrupt from user mode or from the
 	 * idle loop, and this is not a nested interrupt, then
 	 * this CPU has to have exited all prior preept-disable
-	 * sections of code.  So increment the counter to note this.
+	 * sections of code.  So invoke rcu_sched_qs() to note this.
 	 *
 	 * The memory barrier is needed to handle the case where
 	 * writes from a preempt-disable section of code get reordered
 	 * into schedule() by this CPU's write buffer.  So the memory
-	 * barrier makes sure that the rcu_qsctr_inc() is seen by other
+	 * barrier makes sure that the rcu_sched_qs() is seen by other
 	 * CPUs to happen after any such write.
 	 */
 
@@ -980,7 +980,7 @@ void rcu_check_callbacks(int cpu, int user)
 	    (idle_cpu(cpu) && !in_softirq() &&
 	     hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
 		smp_mb();	/* Guard against aggressive schedule(). */
-	     	rcu_qsctr_inc(cpu);
+		rcu_sched_qs(cpu);
 	}
 
 	rcu_check_mb(cpu);

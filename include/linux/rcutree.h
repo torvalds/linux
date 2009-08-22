@@ -30,8 +30,8 @@
 #ifndef __LINUX_RCUTREE_H
 #define __LINUX_RCUTREE_H
 
-extern void rcu_qsctr_inc(int cpu);
-extern void rcu_bh_qsctr_inc(int cpu);
+extern void rcu_sched_qs(int cpu);
+extern void rcu_bh_qs(int cpu);
 
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
@@ -73,7 +73,8 @@ static inline void __rcu_read_unlock_bh(void)
 
 #define __synchronize_sched() synchronize_rcu()
 
-#define call_rcu_sched(head, func) call_rcu(head, func)
+extern void call_rcu_sched(struct rcu_head *head,
+			   void (*func)(struct rcu_head *rcu));
 
 static inline void synchronize_rcu_expedited(void)
 {
@@ -91,6 +92,7 @@ extern void rcu_restart_cpu(int cpu);
 
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
+extern long rcu_batches_completed_sched(void);
 
 static inline void rcu_init_sched(void)
 {

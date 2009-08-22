@@ -40,8 +40,8 @@
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 
-extern void rcu_qsctr_inc(int cpu);
-static inline void rcu_bh_qsctr_inc(int cpu) { }
+extern void rcu_sched_qs(int cpu);
+static inline void rcu_bh_qs(int cpu) { }
 
 /*
  * Someone might want to pass call_rcu_bh as a function pointer.

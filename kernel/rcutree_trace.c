@@ -77,8 +77,8 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 
 static int show_rcudata(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "rcu:\n");
-	PRINT_RCU_DATA(rcu_data, print_one_rcu_data, m);
+	seq_puts(m, "rcu_sched:\n");
+	PRINT_RCU_DATA(rcu_sched_data, print_one_rcu_data, m);
 	seq_puts(m, "rcu_bh:\n");
 	PRINT_RCU_DATA(rcu_bh_data, print_one_rcu_data, m);
 	return 0;
@@ -125,8 +125,8 @@ static int show_rcudata_csv(struct seq_file *m, void *unused)
 	seq_puts(m, "\"dt\",\"dt nesting\",\"dn\",\"df\",");
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_puts(m, "\"of\",\"ri\",\"ql\",\"b\"\n");
-	seq_puts(m, "\"rcu:\"\n");
-	PRINT_RCU_DATA(rcu_data, print_one_rcu_data_csv, m);
+	seq_puts(m, "\"rcu_sched:\"\n");
+	PRINT_RCU_DATA(rcu_sched_data, print_one_rcu_data_csv, m);
 	seq_puts(m, "\"rcu_bh:\"\n");
 	PRINT_RCU_DATA(rcu_bh_data, print_one_rcu_data_csv, m);
 	return 0;
@@ -172,8 +172,8 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 
 static int show_rcuhier(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "rcu:\n");
-	print_one_rcu_state(m, &rcu_state);
+	seq_puts(m, "rcu_sched:\n");
+	print_one_rcu_state(m, &rcu_sched_state);
 	seq_puts(m, "rcu_bh:\n");
 	print_one_rcu_state(m, &rcu_bh_state);
 	return 0;
@@ -194,8 +194,8 @@ static struct file_operations rcuhier_fops = {
 
 static int show_rcugp(struct seq_file *m, void *unused)
 {
-	seq_printf(m, "rcu: completed=%ld  gpnum=%ld\n",
-		   rcu_state.completed, rcu_state.gpnum);
+	seq_printf(m, "rcu_sched: completed=%ld  gpnum=%ld\n",
+		   rcu_sched_state.completed, rcu_sched_state.gpnum);
 	seq_printf(m, "rcu_bh: completed=%ld  gpnum=%ld\n",
 		   rcu_bh_state.completed, rcu_bh_state.gpnum);
 	return 0;
@@ -244,8 +244,8 @@ static void print_rcu_pendings(struct seq_file *m, struct rcu_state *rsp)
 
 static int show_rcu_pending(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "rcu:\n");
-	print_rcu_pendings(m, &rcu_state);
+	seq_puts(m, "rcu_sched:\n");
+	print_rcu_pendings(m, &rcu_sched_state);
 	seq_puts(m, "rcu_bh:\n");
 	print_rcu_pendings(m, &rcu_bh_state);
 	return 0;

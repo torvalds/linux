@@ -74,26 +74,25 @@ EXPORT_SYMBOL_GPL(rcu_lock_map);
 	.n_force_qs_ngp = 0, \
 }
 
-struct rcu_state rcu_state = RCU_STATE_INITIALIZER(rcu_state);
-DEFINE_PER_CPU(struct rcu_data, rcu_data);
+struct rcu_state rcu_sched_state = RCU_STATE_INITIALIZER(rcu_sched_state);
+DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 
 struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 /*
- * Increment the quiescent state counter.
- * The counter is a bit degenerated: We do not need to know
+ * Note a quiescent state.  Because we do not need to know
  * how many quiescent states passed, just if there was at least
- * one since the start of the grace period. Thus just a flag.
+ * one since the start of the grace period, this just sets a flag.
  */
-void rcu_qsctr_inc(int cpu)
+void rcu_sched_qs(int cpu)
 {
-	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
+	struct rcu_data *rdp = &per_cpu(rcu_sched_data, cpu);
 	rdp->passed_quiesc = 1;
 	rdp->passed_quiesc_completed = rdp->completed;
 }
 
-void rcu_bh_qsctr_inc(int cpu)
+void rcu_bh_qs(int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_bh_data, cpu);
 	rdp->passed_quiesc = 1;
@@ -114,11 +113,21 @@ static int qlowmark = 100;	/* Once only this many pending, use blimit. */
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed);
 
 /*
+ * Return the number of RCU-sched batches processed thus far for debug & stats.
+ */
+long rcu_batches_completed_sched(void)
+{
+	return rcu_sched_state.completed;
+}
+EXPORT_SYMBOL_GPL(rcu_batches_completed_sched);
+
+/*
  * Return the number of RCU batches processed thus far for debug & stats.
+ * @@@ placeholder, maps to rcu_batches_completed_sched().
  */
 long rcu_batches_completed(void)
 {
-	return rcu_state.completed;
+	return rcu_batches_completed_sched();
 }
 EXPORT_SYMBOL_GPL(rcu_batches_completed);
 
@@ -310,7 +319,7 @@ void rcu_irq_exit(void)
 	WARN_ON_RATELIMIT(rdtp->dynticks & 0x1, &rcu_rs);
 
 	/* If the interrupt queued a callback, get out of dyntick mode. */
-	if (__get_cpu_var(rcu_data).nxtlist ||
+	if (__get_cpu_var(rcu_sched_data).nxtlist ||
 	    __get_cpu_var(rcu_bh_data).nxtlist)
 		set_need_resched();
 }
@@ -847,7 +856,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	/*
 	 * Move callbacks from the outgoing CPU to the running CPU.
 	 * Note that the outgoing CPU is now quiscent, so it is now
-	 * (uncharacteristically) safe to access it rcu_data structure.
+	 * (uncharacteristically) safe to access its rcu_data structure.
 	 * Note also that we must carefully retain the order of the
 	 * outgoing CPU's callbacks in order for rcu_barrier() to work
 	 * correctly.  Finally, note that we start all the callbacks
@@ -878,7 +887,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
  */
 static void rcu_offline_cpu(int cpu)
 {
-	__rcu_offline_cpu(cpu, &rcu_state);
+	__rcu_offline_cpu(cpu, &rcu_sched_state);
 	__rcu_offline_cpu(cpu, &rcu_bh_state);
 }
 
@@ -973,17 +982,16 @@ void rcu_check_callbacks(int cpu, int user)
 		 * Get here if this CPU took its interrupt from user
 		 * mode or from the idle loop, and if this is not a
 		 * nested interrupt.  In this case, the CPU is in
-		 * a quiescent state, so count it.
+		 * a quiescent state, so note it.
 		 *
 		 * No memory barrier is required here because both
-		 * rcu_qsctr_inc() and rcu_bh_qsctr_inc() reference
-		 * only CPU-local variables that other CPUs neither
-		 * access nor modify, at least not while the corresponding
-		 * CPU is online.
+		 * rcu_sched_qs() and rcu_bh_qs() reference only CPU-local
+		 * variables that other CPUs neither access nor modify,
+		 * at least not while the corresponding CPU is online.
 		 */
 
-		rcu_qsctr_inc(cpu);
-		rcu_bh_qsctr_inc(cpu);
+		rcu_sched_qs(cpu);
+		rcu_bh_qs(cpu);
 
 	} else if (!in_softirq()) {
 
@@ -991,10 +999,10 @@ void rcu_check_callbacks(int cpu, int user)
 		 * Get here if this CPU did not take its interrupt from
 		 * softirq, in other words, if it is not interrupting
 		 * a rcu_bh read-side critical section.  This is an _bh
-		 * critical section, so count it.
+		 * critical section, so note it.
 		 */
 
-		rcu_bh_qsctr_inc(cpu);
+		rcu_bh_qs(cpu);
 	}
 	raise_softirq(RCU_SOFTIRQ);
 }
@@ -1174,7 +1182,8 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 	 */
 	smp_mb(); /* See above block comment. */
 
-	__rcu_process_callbacks(&rcu_state, &__get_cpu_var(rcu_data));
+	__rcu_process_callbacks(&rcu_sched_state,
+				&__get_cpu_var(rcu_sched_data));
 	__rcu_process_callbacks(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
 
 	/*
@@ -1231,13 +1240,24 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 }
 
 /*
- * Queue an RCU callback for invocation after a grace period.
+ * Queue an RCU-sched callback for invocation after a grace period.
+ */
+void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+{
+	__call_rcu(head, func, &rcu_sched_state);
+}
+EXPORT_SYMBOL_GPL(call_rcu_sched);
+
+/*
+ * @@@ Queue an RCU callback for invocation after a grace period.
+ * @@@ Placeholder pending rcutree_plugin.h.
  */
 void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_state);
+	call_rcu_sched(head, func);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
+
 
 /*
  * Queue an RCU for invocation after a quicker grace period.
@@ -1311,7 +1331,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
  */
 int rcu_pending(int cpu)
 {
-	return __rcu_pending(&rcu_state, &per_cpu(rcu_data, cpu)) ||
+	return __rcu_pending(&rcu_sched_state, &per_cpu(rcu_sched_data, cpu)) ||
 	       __rcu_pending(&rcu_bh_state, &per_cpu(rcu_bh_data, cpu));
 }
 
@@ -1324,7 +1344,7 @@ int rcu_pending(int cpu)
 int rcu_needs_cpu(int cpu)
 {
 	/* RCU callbacks either ready or pending? */
-	return per_cpu(rcu_data, cpu).nxtlist ||
+	return per_cpu(rcu_sched_data, cpu).nxtlist ||
 	       per_cpu(rcu_bh_data, cpu).nxtlist;
 }
 
@@ -1418,7 +1438,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 
 static void __cpuinit rcu_online_cpu(int cpu)
 {
-	rcu_init_percpu_data(cpu, &rcu_state);
+	rcu_init_percpu_data(cpu, &rcu_sched_state);
 	rcu_init_percpu_data(cpu, &rcu_bh_state);
 }
 
@@ -1545,10 +1565,10 @@ void __init __rcu_init(void)
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
-	rcu_init_one(&rcu_state);
-	RCU_DATA_PTR_INIT(&rcu_state, rcu_data);
+	rcu_init_one(&rcu_sched_state);
+	RCU_DATA_PTR_INIT(&rcu_sched_state, rcu_sched_data);
 	for_each_possible_cpu(i)
-		rcu_boot_init_percpu_data(i, &rcu_state);
+		rcu_boot_init_percpu_data(i, &rcu_sched_state);
 	rcu_init_one(&rcu_bh_state);
 	RCU_DATA_PTR_INIT(&rcu_bh_state, rcu_bh_data);
 	for_each_possible_cpu(i)

@@ -157,17 +157,28 @@ extern int rcu_scheduler_active;
  * - call_rcu_sched() and rcu_barrier_sched()
  * on the write-side to insure proper synchronization.
  */
-#define rcu_read_lock_sched() preempt_disable()
-#define rcu_read_lock_sched_notrace() preempt_disable_notrace()
+static inline void rcu_read_lock_sched(void)
+{
+	preempt_disable();
+}
+static inline void rcu_read_lock_sched_notrace(void)
+{
+	preempt_disable_notrace();
+}
 
 /*
  * rcu_read_unlock_sched - marks the end of a RCU-classic critical section
  *
  * See rcu_read_lock_sched for more information.
  */
-#define rcu_read_unlock_sched() preempt_enable()
-#define rcu_read_unlock_sched_notrace() preempt_enable_notrace()
-
+static inline void rcu_read_unlock_sched(void)
+{
+	preempt_enable();
+}
+static inline void rcu_read_unlock_sched_notrace(void)
+{
+	preempt_enable_notrace();
+}
 
 
 /**
