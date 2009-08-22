@@ -33,7 +33,6 @@
 extern void rcu_sched_qs(int cpu);
 extern void rcu_bh_qs(int cpu);
 
-extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
 
 static inline void __rcu_read_lock(void)

@@ -159,6 +159,8 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_dyntick_sched, rcu_dyntick_sched
 	.dynticks = 1,
 };
 
+static int rcu_pending(int cpu);
+
 void rcu_sched_qs(int cpu)
 {
 	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
@@ -961,7 +963,10 @@ static void rcu_check_mb(int cpu)
 void rcu_check_callbacks(int cpu, int user)
 {
 	unsigned long flags;
-	struct rcu_data *rdp = RCU_DATA_CPU(cpu);
+	struct rcu_data *rdp;
+
+	if (!rcu_pending(cpu))
+		return; /* if nothing for RCU to do. */
 
 	/*
 	 * If this CPU took its interrupt from user mode or from the
@@ -976,6 +981,7 @@ void rcu_check_callbacks(int cpu, int user)
 	 * CPUs to happen after any such write.
 	 */
 
+	rdp = RCU_DATA_CPU(cpu);
 	if (user ||
 	    (idle_cpu(cpu) && !in_softirq() &&
 	     hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
@@ -1382,7 +1388,7 @@ int rcu_needs_cpu(int cpu)
 		rdp->waitschedlist != NULL);
 }
 
-int rcu_pending(int cpu)
+static int rcu_pending(int cpu)
 {
 	struct rcu_data *rdp = RCU_DATA_CPU(cpu);
 

@@ -66,7 +66,6 @@ extern void call_rcu_sched(struct rcu_head *head,
 
 extern void __rcu_read_lock(void);
 extern void __rcu_read_unlock(void);
-extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
 
 #define __rcu_read_lock_bh()	{ rcu_read_lock(); local_bh_disable(); }
