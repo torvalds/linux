@@ -934,7 +934,7 @@ static void rc_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-static void rc_close_port(struct tty_port *port, struct tty_struct *tty)
+static void rc_close_port(struct tty_port *port)
 {
 	unsigned long flags;
 	struct riscom_port *rp = container_of(port, struct riscom_port, port);
@@ -969,7 +969,7 @@ static void rc_close_port(struct tty_port *port, struct tty_struct *tty)
 				break;
 		}
 	}
-	rc_shutdown_port(tty, bp, rp);
+	rc_shutdown_port(port->tty, bp, rp);
 	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
