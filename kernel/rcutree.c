@@ -1543,8 +1543,9 @@ static void __init rcu_init_one(struct rcu_state *rsp)
  * Helper macro for __rcu_init().  To be used nowhere else!
  * Assigns leaf node pointers into each CPU's rcu_data structure.
  */
-#define RCU_DATA_PTR_INIT(rsp, rcu_data) \
+#define RCU_INIT_FLAVOR(rsp, rcu_data) \
 do { \
+	rcu_init_one(rsp); \
 	rnp = (rsp)->level[NUM_RCU_LVLS - 1]; \
 	j = 0; \
 	for_each_possible_cpu(i) { \
@@ -1552,6 +1553,7 @@ do { \
 			j++; \
 		per_cpu(rcu_data, i).mynode = &rnp[j]; \
 		(rsp)->rda[i] = &per_cpu(rcu_data, i); \
+		rcu_boot_init_percpu_data(i, rsp); \
 	} \
 } while (0)
 
@@ -1565,14 +1567,8 @@ void __init __rcu_init(void)
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
-	rcu_init_one(&rcu_sched_state);
-	RCU_DATA_PTR_INIT(&rcu_sched_state, rcu_sched_data);
-	for_each_possible_cpu(i)
-		rcu_boot_init_percpu_data(i, &rcu_sched_state);
-	rcu_init_one(&rcu_bh_state);
-	RCU_DATA_PTR_INIT(&rcu_bh_state, rcu_bh_data);
-	for_each_possible_cpu(i)
-		rcu_boot_init_percpu_data(i, &rcu_bh_state);
+	RCU_INIT_FLAVOR(&rcu_sched_state, rcu_sched_data);
+	RCU_INIT_FLAVOR(&rcu_bh_state, rcu_bh_data);
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
