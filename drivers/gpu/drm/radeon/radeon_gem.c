@@ -283,7 +283,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);
-	return 0;
+	return r;
 }
 
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,

@@ -508,6 +508,7 @@ typedef struct {
 #define DRM_RADEON_INFO			0x27
 #define DRM_RADEON_GEM_SET_TILING	0x28
 #define DRM_RADEON_GEM_GET_TILING	0x29
+#define DRM_RADEON_GEM_BUSY		0x2a
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -548,6 +549,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_INFO		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_INFO, struct drm_radeon_info)
 #define DRM_IOCTL_RADEON_SET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_SET_TILING, struct drm_radeon_gem_set_tiling)
 #define DRM_IOCTL_RADEON_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
+#define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -707,6 +709,7 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_FB_LOCATION           14   /* FB location */
 #define RADEON_PARAM_NUM_GB_PIPES          15   /* num GB pipes */
 #define RADEON_PARAM_DEVICE_ID             16
+#define RADEON_PARAM_NUM_Z_PIPES           17   /* num Z pipes */
 
 typedef struct drm_radeon_getparam {
 	int param;
@@ -895,6 +898,7 @@ struct drm_radeon_cs {
 
 #define RADEON_INFO_DEVICE_ID		0x00
 #define RADEON_INFO_NUM_GB_PIPES	0x01
+#define RADEON_INFO_NUM_Z_PIPES 	0x02
 
 struct drm_radeon_info {
 	uint32_t		request;

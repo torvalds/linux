@@ -165,7 +165,18 @@ void r420_pipes_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-	DRM_INFO("radeon: %d pipes initialized.\n", rdev->num_gb_pipes);
+
+	if (rdev->family == CHIP_RV530) {
+		tmp = RREG32(RV530_GB_PIPE_SELECT2);
+		if ((tmp & 3) == 3)
+			rdev->num_z_pipes = 2;
+		else
+			rdev->num_z_pipes = 1;
+	} else
+		rdev->num_z_pipes = 1;
+
+	DRM_INFO("radeon: %d quad pipes, %d z pipes initialized.\n",
+		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
 void r420_gpu_init(struct radeon_device *rdev)
