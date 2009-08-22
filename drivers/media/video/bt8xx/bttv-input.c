@@ -308,6 +308,7 @@ int bttv_input_init(struct bttv *btv)
 		ir->mask_keyup   = 0x008000;
 		ir->polling      = 50; // ms
 		break;
+	case BTTV_BOARD_ASKEY_CPH03X:
 	case BTTV_BOARD_CONCEPTRONIC_CTVFMI2:
 	case BTTV_BOARD_CONTVFMI:
 		ir_codes         = ir_codes_pixelview;
