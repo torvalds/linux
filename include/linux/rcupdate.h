@@ -80,6 +80,16 @@ extern int rcu_scheduler_active;
        (ptr)->next = NULL; (ptr)->func = NULL; \
 } while (0)
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+extern struct lockdep_map rcu_lock_map;
+# define rcu_read_acquire()	\
+			lock_acquire(&rcu_lock_map, 0, 0, 2, 1, NULL, _THIS_IP_)
+# define rcu_read_release()	lock_release(&rcu_lock_map, 1, _THIS_IP_)
+#else
+# define rcu_read_acquire()	do { } while (0)
+# define rcu_read_release()	do { } while (0)
+#endif
+
 /**
  * rcu_read_lock - mark the beginning of an RCU read-side critical section.
  *
@@ -109,7 +119,12 @@ extern int rcu_scheduler_active;
  *
  * It is illegal to block while in an RCU read-side critical section.
  */
-#define rcu_read_lock() __rcu_read_lock()
+static inline void rcu_read_lock(void)
+{
+	__rcu_read_lock();
+	__acquire(RCU);
+	rcu_read_acquire();
+}
 
 /**
  * rcu_read_unlock - marks the end of an RCU read-side critical section.
@@ -126,7 +141,12 @@ extern int rcu_scheduler_active;
  * used as well.  RCU does not care how the writers keep out of each
  * others' way, as long as they do so.
  */
-#define rcu_read_unlock() __rcu_read_unlock()
+static inline void rcu_read_unlock(void)
+{
+	rcu_read_release();
+	__release(RCU);
+	__rcu_read_unlock();
+}
 
 /**
  * rcu_read_lock_bh - mark the beginning of a softirq-only RCU critical section
@@ -139,14 +159,24 @@ extern int rcu_scheduler_active;
  * can use just rcu_read_lock().
  *
  */
-#define rcu_read_lock_bh() __rcu_read_lock_bh()
+static inline void rcu_read_lock_bh(void)
+{
+	__rcu_read_lock_bh();
+	__acquire(RCU_BH);
+	rcu_read_acquire();
+}
 
 /*
  * rcu_read_unlock_bh - marks the end of a softirq-only RCU critical section
  *
  * See rcu_read_lock_bh() for more information.
  */
-#define rcu_read_unlock_bh() __rcu_read_unlock_bh()
+static inline void rcu_read_unlock_bh(void)
+{
+	rcu_read_release();
+	__release(RCU_BH);
+	__rcu_read_unlock_bh();
+}
 
 /**
  * rcu_read_lock_sched - mark the beginning of a RCU-classic critical section
@@ -160,10 +190,14 @@ extern int rcu_scheduler_active;
 static inline void rcu_read_lock_sched(void)
 {
 	preempt_disable();
+	__acquire(RCU_SCHED);
+	rcu_read_acquire();
 }
 static inline void rcu_read_lock_sched_notrace(void)
 {
 	preempt_disable_notrace();
+	__acquire(RCU_SCHED);
+	rcu_read_acquire();
 }
 
 /*
@@ -173,10 +207,14 @@ static inline void rcu_read_lock_sched_notrace(void)
  */
 static inline void rcu_read_unlock_sched(void)
 {
+	rcu_read_release();
+	__release(RCU_SCHED);
 	preempt_enable();
 }
 static inline void rcu_read_unlock_sched_notrace(void)
 {
+	rcu_read_release();
+	__release(RCU_SCHED);
 	preempt_enable_notrace();
 }
 

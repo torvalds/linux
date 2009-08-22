@@ -64,8 +64,8 @@ static inline void rcu_bh_qs(int cpu) { }
 extern void call_rcu_sched(struct rcu_head *head,
 			   void (*func)(struct rcu_head *head));
 
-extern void __rcu_read_lock(void)	__acquires(RCU);
-extern void __rcu_read_unlock(void)	__releases(RCU);
+extern void __rcu_read_lock(void);
+extern void __rcu_read_unlock(void);
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
 

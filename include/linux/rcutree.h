@@ -36,38 +36,20 @@ extern void rcu_bh_qs(int cpu);
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-extern struct lockdep_map rcu_lock_map;
-# define rcu_read_acquire()	\
-			lock_acquire(&rcu_lock_map, 0, 0, 2, 1, NULL, _THIS_IP_)
-# define rcu_read_release()	lock_release(&rcu_lock_map, 1, _THIS_IP_)
-#else
-# define rcu_read_acquire()	do { } while (0)
-# define rcu_read_release()	do { } while (0)
-#endif
-
 static inline void __rcu_read_lock(void)
 {
 	preempt_disable();
-	__acquire(RCU);
-	rcu_read_acquire();
 }
 static inline void __rcu_read_unlock(void)
 {
-	rcu_read_release();
-	__release(RCU);
 	preempt_enable();
 }
 static inline void __rcu_read_lock_bh(void)
 {
 	local_bh_disable();
-	__acquire(RCU_BH);
-	rcu_read_acquire();
 }
 static inline void __rcu_read_unlock_bh(void)
 {
-	rcu_read_release();
-	__release(RCU_BH);
 	local_bh_enable();
 }
 
