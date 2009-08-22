@@ -126,7 +126,6 @@ extern void mtrr_aps_init(void);
 extern void mtrr_bp_restore(void);
 extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
 extern int amd_special_default_mtrr(void);
-extern u32 mtrr_aps_delayed_init;
 #  else
 static inline u8 mtrr_type_lookup(u64 addr, u64 end)
 {

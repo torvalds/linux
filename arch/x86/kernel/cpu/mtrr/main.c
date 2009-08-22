@@ -58,7 +58,7 @@ unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
 
 u64 size_or_mask, size_and_mask;
-u32 mtrr_aps_delayed_init;
+static bool mtrr_aps_delayed_init;
 
 static struct mtrr_ops *mtrr_ops[X86_VENDOR_NUM];
 
@@ -758,7 +758,7 @@ void set_mtrr_aps_delayed_init(void)
 	if (!use_intel())
 		return;
 
-	mtrr_aps_delayed_init = 1;
+	mtrr_aps_delayed_init = true;
 }
 
 /*
@@ -770,7 +770,7 @@ void mtrr_aps_init(void)
 		return;
 
 	set_mtrr(~0U, 0, 0, 0);
-	mtrr_aps_delayed_init = 0;
+	mtrr_aps_delayed_init = false;
 }
 
 void mtrr_bp_restore(void)
