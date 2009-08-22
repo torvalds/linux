@@ -40,6 +40,7 @@
 
 #include <linux/input.h>
 #include <linux/hid.h>
+#include <linux/hidraw.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -574,6 +575,8 @@ static int hidp_session(void *arg)
 	if (session->hid) {
 		if (session->hid->claimed & HID_CLAIMED_INPUT)
 			hidinput_disconnect(session->hid);
+		if (session->hid->claimed & HID_CLAIMED_HIDRAW)
+			hidraw_disconnect(session->hid);
 		hid_destroy_device(session->hid);
 	}
 
