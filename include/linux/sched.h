@@ -1205,11 +1205,6 @@ struct task_struct {
 	unsigned int policy;
 	cpumask_t cpus_allowed;
 
-#ifdef CONFIG_PREEMPT_RCU
-	int rcu_read_lock_nesting;
-	int rcu_flipctr_idx;
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
-
 #ifdef CONFIG_TREE_PREEMPT_RCU
 	int rcu_read_lock_nesting;
 	char rcu_read_unlock_special;
@@ -1742,14 +1737,6 @@ static inline void rcu_copy_process(struct task_struct *p)
 	p->rcu_read_unlock_special = 0;
 	p->rcu_blocked_cpu = -1;
 	INIT_LIST_HEAD(&p->rcu_node_entry);
-}
-
-#elif defined(CONFIG_PREEMPT_RCU)
-
-static inline void rcu_copy_process(struct task_struct *p)
-{
-	p->rcu_read_lock_nesting = 0;
-	p->rcu_flipctr_idx = 0;
 }
 
 #else
