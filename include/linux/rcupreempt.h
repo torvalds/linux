@@ -98,6 +98,10 @@ static inline long rcu_batches_completed_bh(void)
 	return rcu_batches_completed();
 }
 
+static inline void exit_rcu(void)
+{
+}
+
 #ifdef CONFIG_RCU_TRACE
 struct rcupreempt_trace;
 extern long *rcupreempt_flipctr(int cpu);

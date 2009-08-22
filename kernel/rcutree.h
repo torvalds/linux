@@ -80,6 +80,7 @@ struct rcu_dynticks {
  */
 struct rcu_node {
 	spinlock_t lock;
+	long	gpnum;		/* Current grace period for this node. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
 	unsigned long qsmaskinit;
@@ -90,6 +91,8 @@ struct rcu_node {
 	u8	grpnum;		/* CPU/group number for next level up. */
 	u8	level;		/* root is at level 0. */
 	struct rcu_node *parent;
+	struct list_head blocked_tasks[2];
+				/* Tasks blocked in RCU read-side critsect. */
 } ____cacheline_internodealigned_in_smp;
 
 /* Index values for nxttail array in struct rcu_data. */
@@ -111,6 +114,7 @@ struct rcu_data {
 	bool		passed_quiesc;	/* User-mode/idle loop etc. */
 	bool		qs_pending;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
+	bool		preemptable;	/* Preemptable RCU? */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 
@@ -243,6 +247,11 @@ DECLARE_PER_CPU(struct rcu_data, rcu_sched_data);
 
 extern struct rcu_state rcu_bh_state;
 DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
+
+#ifdef CONFIG_TREE_PREEMPT_RCU
+extern struct rcu_state rcu_preempt_state;
+DECLARE_PER_CPU(struct rcu_data, rcu_preempt_data);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 
 #endif /* #ifdef RCU_TREE_NONCORE */
 

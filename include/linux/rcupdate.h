@@ -66,7 +66,7 @@ extern void rcu_scheduler_starting(void);
 extern int rcu_needs_cpu(int cpu);
 extern int rcu_scheduler_active;
 
-#if defined(CONFIG_TREE_RCU)
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 #include <linux/rcutree.h>
 #elif defined(CONFIG_PREEMPT_RCU)
 #include <linux/rcupreempt.h>

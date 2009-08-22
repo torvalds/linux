@@ -35,14 +35,30 @@ extern void rcu_bh_qs(int cpu);
 
 extern int rcu_needs_cpu(int cpu);
 
+#ifdef CONFIG_TREE_PREEMPT_RCU
+
+extern void __rcu_read_lock(void);
+extern void __rcu_read_unlock(void);
+extern void exit_rcu(void);
+
+#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+
 static inline void __rcu_read_lock(void)
 {
 	preempt_disable();
 }
+
 static inline void __rcu_read_unlock(void)
 {
 	preempt_enable();
 }
+
+static inline void exit_rcu(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
+
 static inline void __rcu_read_lock_bh(void)
 {
 	local_bh_disable();
