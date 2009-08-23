@@ -1384,12 +1384,10 @@ VOID	WpaGroupMsg1Action(
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_TKIP;
 		else if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption3Enabled)
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_AES;
-#ifndef RT30xx
 		else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled)
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP64;
 		else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP128;
-#endif
 
     	//hex_dump("Group Key :", pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].Key, LEN_TKIP_EK);
 	}
@@ -1797,12 +1795,10 @@ BOOLEAN ParseKeyData(
 		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_TKIP;
 	else if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption3Enabled)
 		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_AES;
-#ifndef RT30xx
 	else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled)
 		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP64;
 	else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
 		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP128;
-#endif
 
 	return TRUE;
 

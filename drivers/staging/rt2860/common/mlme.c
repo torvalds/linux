@@ -3912,11 +3912,8 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
-					if (
-#ifndef RT30xx
-					    pInBss->WPA.GroupCipher != Ndis802_11GroupWEP40Enabled &&
+					if (pInBss->WPA.GroupCipher != Ndis802_11GroupWEP40Enabled &&
 					    pInBss->WPA.GroupCipher != Ndis802_11GroupWEP104Enabled &&
-#endif
 					    pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher)
 						continue;
 
@@ -3936,11 +3933,8 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
-					if (
-#ifndef RT30xx
-					    pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP40Enabled &&
+					if (pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP40Enabled &&
 					    pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP104Enabled &&
-#endif
 					    pAd->StaCfg.WepStatus < pInBss->WPA2.GroupCipher)
 						continue;
 
@@ -4219,16 +4213,10 @@ VOID BssCipherParse(
 				switch (*pTmp)
 				{
 					case 1:
-#ifndef RT30xx
 						pBss->WPA.GroupCipher = Ndis802_11GroupWEP40Enabled;
 						break;
 					case 5:
 						pBss->WPA.GroupCipher = Ndis802_11GroupWEP104Enabled;
-#endif
-#ifdef RT30xx
-					case 5:	// Although WEP is not allowed in WPA related auth mode, we parse it anyway
-						pBss->WPA.GroupCipher = Ndis802_11Encryption1Enabled;
-#endif
 						break;
 					case 2:
 						pBss->WPA.GroupCipher = Ndis802_11Encryption2Enabled;
@@ -4344,16 +4332,10 @@ VOID BssCipherParse(
 				switch (pCipher->Type)
 				{
 					case 1:
-#ifndef RT30xx
 						pBss->WPA2.GroupCipher = Ndis802_11GroupWEP40Enabled;
 						break;
 					case 5:
 						pBss->WPA2.GroupCipher = Ndis802_11GroupWEP104Enabled;
-#endif
-#ifdef RT30xx
-					case 5:	// Although WEP is not allowed in WPA related auth mode, we parse it anyway
-						pBss->WPA2.GroupCipher = Ndis802_11Encryption1Enabled;
-#endif
 						break;
 					case 2:
 						pBss->WPA2.GroupCipher = Ndis802_11Encryption2Enabled;

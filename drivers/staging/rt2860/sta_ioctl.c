@@ -2216,7 +2216,6 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 
                 NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 			    NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key, ext->key_len);
-#ifndef RT30xx
 				if (pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled ||
 					pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
 				{
@@ -2231,7 +2230,6 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
     				// Indicate Connected for GUI
     				pAdapter->IndicateMediaState = NdisMediaStateConnected;
 				}
-#endif
     			break;
             case IW_ENCODE_ALG_TKIP:
                 DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_TKIP - keyIdx = %d, ext->key_len = %d\n", __func__, keyIdx, ext->key_len));
