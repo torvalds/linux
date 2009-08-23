@@ -2669,7 +2669,6 @@ typedef struct _RTMP_ADAPTER
 	USHORT                  EEPROMDefaultValue[NUM_EEPROM_BBP_PARMS];
 #ifdef RT30xx
 	BOOLEAN                 EepromAccess;
-	UCHAR                   EFuseTag;
 #endif
 	ULONG                   FirmwareVersion;        // byte 0: Minor version, byte 1: Major version, otherwise unused.
 

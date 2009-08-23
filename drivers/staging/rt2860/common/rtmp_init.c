@@ -1762,14 +1762,6 @@ VOID	NICReadEEPROMParameters(
 
 	RTMPReadTxPwrPerRate(pAd);
 
-#ifdef RT30xx
-	if (IS_RT30xx(pAd))
-	{
-		eFusePhysicalReadRegisters(pAd, EFUSE_TAG, 2, &value);
-		pAd->EFuseTag = (value & 0xff);
-	}
-#endif // RT30xx //
-
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICReadEEPROMParameters\n"));
 }
 
