@@ -2459,10 +2459,9 @@ BOOLEAN MacTableDeleteEntry(
 	if (pAd->MacTab.Size == 0)
 	{
 		pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode = 0;
-#ifndef RT30xx
+#ifdef RT2860
 		AsicUpdateProtect(pAd, 0 /*pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode*/, (ALLN_SETPROTECT), TRUE, 0 /*pAd->MacTab.fAnyStationNonGF*/);
-#endif
-#ifdef RT30xx
+#else
 		// edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
 		// Set MAC register value according operation mode
 		RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_UPDATE_PROTECT, NULL, 0);

@@ -1810,17 +1810,11 @@ VOID CMDHandler(
 								pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2], pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5]);
 					}
 					break;
-
-#ifdef RT30xx
-// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
 				case CMDTHREAD_UPDATE_PROTECT:
 					{
 						AsicUpdateProtect(pAd, 0, (ALLN_SETPROTECT), TRUE, 0);
 					}
 					break;
-// end johnli
-#endif
-
 				case OID_802_11_ADD_WEP:
 					{
 						UINT	i;
