@@ -922,6 +922,8 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_p3_free_mac_list(adapter);
 
+	adapter->set_promisc(adapter, NETXEN_NIU_NON_PROMISC_MODE);
+
 	netxen_napi_disable(adapter);
 
 	netxen_release_tx_buffers(adapter);
@@ -1288,14 +1290,11 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	free_netdev(netdev);
 }
-
-#ifdef CONFIG_PM
-static int
-netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __netxen_nic_shutdown(struct pci_dev *pdev)
 {
-
 	struct netxen_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
+	int retval;
 
 	netif_device_detach(netdev);
 
@@ -1307,7 +1306,12 @@ netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	netxen_nic_detach(adapter);
 
-	pci_save_state(pdev);
+	if (adapter->portnum == 0)
+		netxen_free_dummy_dma(adapter);
+
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
 
 	if (netxen_nic_wol_supported(adapter)) {
 		pci_enable_wake(pdev, PCI_D3cold, 1);
@@ -1315,8 +1319,25 @@ netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
+	return 0;
+}
+static void netxen_nic_shutdown(struct pci_dev *pdev)
+{
+	if (__netxen_nic_shutdown(pdev))
+		return;
+}
+#ifdef CONFIG_PM
+static int
+netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	int retval;
+
+	retval = __netxen_nic_shutdown(pdev);
+	if (retval)
+		return retval;
+
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	return 0;
 }
 
@@ -2068,8 +2089,9 @@ static struct pci_driver netxen_driver = {
 	.remove = __devexit_p(netxen_nic_remove),
 #ifdef CONFIG_PM
 	.suspend = netxen_nic_suspend,
-	.resume = netxen_nic_resume
+	.resume = netxen_nic_resume,
 #endif
+	.shutdown = netxen_nic_shutdown
 };
 
 static int __init netxen_init_module(void)
