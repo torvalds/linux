@@ -111,7 +111,8 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_create *args = data;
 	struct drm_gem_object *obj;
-	int handle, ret;
+	int ret;
+	u32 handle;
 
 	args->size = roundup(args->size, PAGE_SIZE);
 

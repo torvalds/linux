@@ -1441,7 +1441,7 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
-			  int *handlep);
+			  u32 *handlep);
 
 static inline void
 drm_gem_object_handle_reference(struct drm_gem_object *obj)
@@ -1467,7 +1467,7 @@ drm_gem_object_handle_unreference(struct drm_gem_object *obj)
 
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
 					     struct drm_file *filp,
-					     int handle);
+					     u32 handle);
 int drm_gem_close_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int drm_gem_flink_ioctl(struct drm_device *dev, void *data,
