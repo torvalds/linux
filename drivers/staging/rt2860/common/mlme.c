@@ -1566,12 +1566,7 @@ VOID MlmeSelectTxRateTable(
 		}
 
 		//else if ((pAd->StaActive.SupRateLen == 4) && (pAd->StaActive.ExtRateLen == 0) && (pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0) && (pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0))
-		if ((pEntry->RateLen == 4)
-#ifndef RT30xx
-//Iverson mark for Adhoc b mode,sta will use rate 54  Mbps when connect with sta b/g/n mode
-			&& (pEntry->HTCapability.MCSSet[0] == 0) && (pEntry->HTCapability.MCSSet[1] == 0)
-#endif
-			)
+		if (pEntry->RateLen == 4)
 		{// B only AP
 			*ppTable = RateSwitchTable11B;
 			*pTableSize = RateSwitchTable11B[0];
