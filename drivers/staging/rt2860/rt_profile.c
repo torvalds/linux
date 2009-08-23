@@ -1558,21 +1558,15 @@ static void	HTParametersHook(
         if (Value == 0)
         {
             pAd->CommonCfg.BACapability.field.AutoBA = FALSE;
-#ifdef RT30xx
 	    pAd->CommonCfg.BACapability.field.Policy = BA_NOTUSE;
-#endif
         }
         else
         {
             pAd->CommonCfg.BACapability.field.AutoBA = TRUE;
-#ifdef RT30xx
 	    pAd->CommonCfg.BACapability.field.Policy = IMMED_BA;
-#endif
         }
         pAd->CommonCfg.REGBACapability.field.AutoBA = pAd->CommonCfg.BACapability.field.AutoBA;
-#ifdef RT30xx
 	pAd->CommonCfg.REGBACapability.field.Policy = pAd->CommonCfg.BACapability.field.Policy;
-#endif
         DBGPRINT(RT_DEBUG_TRACE, ("HT: Auto BA  = %s\n", (Value==0) ? "Disable" : "Enable"));
     }
 

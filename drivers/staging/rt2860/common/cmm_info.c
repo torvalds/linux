@@ -2491,24 +2491,19 @@ INT	Set_HtAutoBa_Proc(
 	if (Value == 0)
 	{
 		pAd->CommonCfg.BACapability.field.AutoBA = FALSE;
-#ifdef RT30xx
 		pAd->CommonCfg.BACapability.field.Policy = BA_NOTUSE;
-#endif
 	}
     else if (Value == 1)
 	{
 		pAd->CommonCfg.BACapability.field.AutoBA = TRUE;
-#ifdef RT30xx
 		pAd->CommonCfg.BACapability.field.Policy = IMMED_BA;
-#endif
 	}
 	else
 		return FALSE; //Invalid argument
 
     pAd->CommonCfg.REGBACapability.field.AutoBA = pAd->CommonCfg.BACapability.field.AutoBA;
-#ifdef RT30xx
     pAd->CommonCfg.REGBACapability.field.Policy = pAd->CommonCfg.BACapability.field.Policy;
-#endif
+
 	SetCommonHT(pAd);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("Set_HtAutoBa_Proc::(HtAutoBa=%d)\n",pAd->CommonCfg.BACapability.field.AutoBA));
