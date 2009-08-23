@@ -1915,10 +1915,8 @@ VOID	NICInitAsicFromEEPROM(
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = TRUE;
 	else
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = FALSE;
-	//
-	// Since BBP has been progamed, to make sure BBP setting will be
-	// upate inside of AsicAntennaSelect, so reset to UNKNOWN_BAND!!
-	//
+
+	/* BBP has been programmed so reset to UNKNOWN_BAND */
 	pAd->CommonCfg.BandState = UNKNOWN_BAND;
 
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);

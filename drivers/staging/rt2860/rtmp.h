@@ -3713,14 +3713,6 @@ VOID AsicLockChannel(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR Channel) ;
 
-VOID AsicAntennaSelect(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  UCHAR           Channel);
-
-VOID AsicAntennaSetting(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	ABGBAND_STATE	BandState);
-
 VOID AsicRfTuningExec(
 	IN PVOID SystemSpecific1,
 	IN PVOID FunctionContext,
