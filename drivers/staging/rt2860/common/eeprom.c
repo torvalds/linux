@@ -291,8 +291,7 @@ VOID RTMP_EEPROM_WRITE16(
 #endif
 }
 
-//2008/09/11:KH add to support efuse<--
-#ifdef RT30xx
+#ifdef RT2870
 /*
 	========================================================================
 
@@ -1485,6 +1484,4 @@ NTSTATUS eFuseWriteRegistersFromBin(
 
 	return TRUE;
 }
-
-#endif // RT30xx //
-//2008/09/11:KH add to support efuse-->
+#endif

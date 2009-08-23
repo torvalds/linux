@@ -2186,10 +2186,8 @@ NDIS_STATUS	NICInitializeAsic(
 	UINT32			MacCsr0 = 0;
 	NTSTATUS		Status;
 	UCHAR			Value = 0xff;
-#endif // RT2870 //
-#ifdef RT30xx
 	UINT32			eFuseCtrl;
-#endif // RT30xx //
+#endif
 	USHORT			KeyIdx;
 	INT				i,apidx;
 
@@ -2501,8 +2499,7 @@ NDIS_STATUS	NICInitializeAsic(
 	Counter&=0xffffff00;
 	Counter|=0x000001e;
 	RTMP_IO_WRITE32(pAd, USB_CYC_CFG, Counter);
-#endif // RT2870 //
-#ifdef RT30xx
+
 	pAd->bUseEfuse=FALSE;
 	RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrl);
 	pAd->bUseEfuse = ( (eFuseCtrl & 0x80000000) == 0x80000000) ? 1 : 0;
@@ -2513,9 +2510,8 @@ NDIS_STATUS	NICInitializeAsic(
 	else
 	{
 			DBGPRINT(RT_DEBUG_TRACE, ("NVM is EEPROM\n"));
-
 	}
-#endif // RT30xx //
+#endif
 
 	{
 		// for rt2860E and after, init TXOP_CTRL_CFG with 0x583f. This is for extension channel overlapping IOT.

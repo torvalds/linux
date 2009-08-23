@@ -803,13 +803,9 @@ NTSTATUS	RTUSBReadEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
-#ifdef RT30xx
 	if(pAd->bUseEfuse)
-	{
 		Status =eFuseRead(pAd, Offset, pData, length);
-	}
 	else
-#endif // RT30xx //
 	{
 	Status = RTUSB_VendorRequest(
 		pAd,
@@ -848,13 +844,9 @@ NTSTATUS	RTUSBWriteEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
-#ifdef RT30xx
 	if(pAd->bUseEfuse)
-	{
 		Status = eFuseWrite(pAd, Offset, pData, length);
-	}
 	else
-#endif // RT30xx //
 	{
 	Status = RTUSB_VendorRequest(
 		pAd,

@@ -2938,12 +2938,9 @@ typedef struct _RTMP_ADAPTER
 
 	UINT8					PM_FlgSuspend;
 
-#ifdef RT30xx
-//======efuse
+#ifdef RT2870
 	BOOLEAN		bUseEfuse;
-	BOOLEAN		bEEPROMFile;
-#endif // RT30xx //
-
+#endif
 } RTMP_ADAPTER, *PRTMP_ADAPTER;
 
 //

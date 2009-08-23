@@ -229,13 +229,11 @@ static struct {
     {"ForceGF",		        		Set_ForceGF_Proc},
 	{"LongRetry",	        		Set_LongRetryLimit_Proc},
 	{"ShortRetry",	        		Set_ShortRetryLimit_Proc},
-//2008/09/11:KH add to support efuse<--
-#ifdef RT30xx
+#ifdef RT2870
 	{"efuseFreeNumber",				set_eFuseGetFreeBlockCount_Proc},
 	{"efuseDump",					set_eFusedump_Proc},
 	{"efuseLoadFromBin",				set_eFuseLoadFromBin_Proc},
-#endif // RT30xx //
-//2008/09/11:KH add to support efuse-->
+#endif
 	{NULL,}
 };
 

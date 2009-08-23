@@ -135,7 +135,6 @@ typedef	struct	_MGMT_STRUC	{
 
 
 /* ----------------- EEPROM Related MACRO ----------------- */
-#ifdef RT30xx
 #define RT28xx_EEPROM_READ16(pAd, offset, var)					\
 	do {														\
 		RTUSBReadEEPROM(pAd, offset, (PUCHAR)&(var), 2);		\
@@ -150,21 +149,6 @@ typedef	struct	_MGMT_STRUC	{
 		_tmpVar = cpu2le16(var);								\
 		RTUSBWriteEEPROM(pAd, offset, (PUCHAR)&(_tmpVar), 2);	\
 	}while(0)
-#endif // RT30xx //
-#ifndef RT30xx
-#define RT28xx_EEPROM_READ16(pAd, offset, var)					\
-	do {														\
-		RTUSBReadEEPROM(pAd, offset, (PUCHAR)&(var), 2);		\
-		var = le2cpu16(var);									\
-	}while(0)
-
-#define RT28xx_EEPROM_WRITE16(pAd, offset, var)					\
-	do{															\
-		USHORT _tmpVar;											\
-		_tmpVar = cpu2le16(var);								\
-		RTUSBWriteEEPROM(pAd, offset, (PUCHAR)&(_tmpVar), 2);	\
-	}while(0)
-#endif // RT30xx //
 
 /* ----------------- TASK/THREAD Related MACRO ----------------- */
 #define RT28XX_TASK_THREAD_INIT(pAd, Status)		\
