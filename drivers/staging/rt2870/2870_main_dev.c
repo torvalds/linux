@@ -61,10 +61,8 @@ extern INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 
 struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x148F, 0x2770) }, /* Ralink */
-#ifndef RT30xx
 	{ USB_DEVICE(0x1737, 0x0071) }, /* Linksys WUSB600N */
 	{ USB_DEVICE(0x1737, 0x0070) }, /* Linksys */
-#endif
 	{ USB_DEVICE(0x148F, 0x2870) }, /* Ralink */
 	{ USB_DEVICE(0x148F, 0x3070) }, /* Ralink 3070 */
 #ifdef RT30xx
@@ -82,15 +80,11 @@ struct usb_device_id rtusb_usb_id[] = {
 #endif
 	{ USB_DEVICE(0x0DF6, 0x002D) }, /* Sitecom */
 	{ USB_DEVICE(0x0DF6, 0x0039) }, /* Sitecom 2770 */
-#ifndef RT30xx
 	{ USB_DEVICE(0x0DF6, 0x003F) }, /* Sitecom WL-608 */
-#endif
 	{ USB_DEVICE(0x14B2, 0x3C06) }, /* Conceptronic */
 	{ USB_DEVICE(0x14B2, 0x3C28) }, /* Conceptronic */
 	{ USB_DEVICE(0x2019, 0xED06) }, /* Planex Communications, Inc. */
-#ifndef RT30xx
 	{ USB_DEVICE(0x2019, 0xED14) }, /* Planex Communications, Inc. */
-#endif
 	{ USB_DEVICE(0x2019, 0xAB25) }, /* Planex Communications, Inc. RT3070 */
 	{ USB_DEVICE(0x07D1, 0x3C09) }, /* D-Link */
 	{ USB_DEVICE(0x07D1, 0x3C11) }, /* D-Link */
@@ -101,10 +95,8 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x14B2, 0x3C07) }, /* AL */
 	{ USB_DEVICE(0x14B2, 0x3C12) }, /* AL 3070 */
 	{ USB_DEVICE(0x050D, 0x8053) }, /* Belkin */
-#ifndef RT30xx
 	{ USB_DEVICE(0x050D, 0x815C) }, /* Belkin */
 	{ USB_DEVICE(0x050D, 0x825a) }, /* Belkin */
-#endif
 	{ USB_DEVICE(0x14B2, 0x3C23) }, /* Airlink */
 	{ USB_DEVICE(0x14B2, 0x3C27) }, /* Airlink */
 	{ USB_DEVICE(0x07AA, 0x002F) }, /* Corega */
@@ -152,10 +144,9 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x04E8, 0x2018) }, /* samsung */
 	{ USB_DEVICE(0x07B8, 0x3070) }, /* AboCom 3070 */
 	{ USB_DEVICE(0x07B8, 0x3071) }, /* AboCom 3071 */
-#ifndef RT30xx
 	{ USB_DEVICE(0x07B8, 0x2870) }, /* AboCom */
 	{ USB_DEVICE(0x07B8, 0x2770) }, /* AboCom */
-#else
+#ifdef RT30xx
 	{ USB_DEVICE(0x07B8, 0x3072) }, /* Abocom 3072 */
 #endif
 	{ USB_DEVICE(0x7392, 0x7711) }, /* Edimax 3070 */
@@ -167,9 +158,8 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x0789, 0x0162) }, /* Logitec 2870 */
 	{ USB_DEVICE(0x0789, 0x0163) }, /* Logitec 2870 */
 	{ USB_DEVICE(0x0789, 0x0164) }, /* Logitec 2870 */
-#ifndef RT30xx
 	{ USB_DEVICE(0x7392, 0x7717) }, /* Edimax */
-#else
+#ifdef RT30xx
 	{ USB_DEVICE(0x1EDA, 0x2310) }, /* AirTies 3070 */
 	{ USB_DEVICE(0x1737, 0x0077) }, /* Linksys WUSB54GC-EU v3 */
 #endif
