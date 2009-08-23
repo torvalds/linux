@@ -1263,37 +1263,20 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 	INT i;
 	// Driver must read EEPROM to get RfIcType before initial RF registers
 	// Initialize RF register to default value
-#ifndef RT30xx
-        if (IS_RT3070(pAd) && ((pAd->RfIcType == RFIC_3020) ||(pAd->RfIcType == RFIC_2020)))
-        {
-                // Init RF calibration
-                // Driver should toggle RF R30 bit7 before init RF registers
-                ULONG RfReg = 0;
-                RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR)&RfReg);
-                RfReg |= 0x80;
-                RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
-                RTMPusecDelay(1000);
-                RfReg &= 0x7F;
-                RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
-
-                // Initialize RF register to default value
-                for (i = 0; i < NUM_RF_REG_PARMS; i++)
-                {
-                        RT30xxWriteRFRegister(pAd, RT30xx_RFRegTable[i].Register, RT30xx_RFRegTable[i].Value);
-                }
-
-                //For RF filter Calibration
-		RTMPFilterCalibration(pAd);
-        }
-#endif
+	if (IS_RT3070(pAd)
 #ifdef RT30xx
-	if (IS_RT3070(pAd) || IS_RT3071(pAd))
+	    || IS_RT3071(pAd)
+#else
+	    && (pAd->RfIcType == RFIC_3020 || pAd->RfIcType == RFIC_2020)
+#endif
+	   )
 	{
 		// Init RF calibration
 		// Driver should toggle RF R30 bit7 before init RF registers
 		UINT32 RfReg = 0;
+#ifdef RT30xx
 		UINT32 data;
-
+#endif
 		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR)&RfReg);
 		RfReg |= 0x80;
 		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
@@ -1307,7 +1290,7 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			RT30xxWriteRFRegister(pAd, RT30xx_RFRegTable[i].Register, RT30xx_RFRegTable[i].Value);
 		}
 
-		// add by johnli
+#ifdef RT30xx
 		if (IS_RT3070(pAd))
 		{
 			//  Update MAC 0x05D4 from 01xxxxxx to 0Dxxxxxx (voltage 1.2V to 1.35V) for RT3070 to improve yield rate
@@ -1345,10 +1328,10 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			data &= ~(0x20);
 			RTUSBWriteMACRegister(pAd, GPIO_SWITCH, data);
 		}
-
+#endif
 		//For RF filter Calibration
 		RTMPFilterCalibration(pAd);
-
+#ifdef RT30xx
 		// Initialize RF R27 register, set RF R27 must be behind RTMPFilterCalibration()
 		if ((pAd->MACVersion & 0xffff) < 0x0211)
 			RT30xxWriteRFRegister(pAd, RF_R27, 0x3);
@@ -1363,8 +1346,8 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			// add by johnli, RF power sequence setup, load RF normal operation-mode setup
 			RT30xxLoadRFNormalModeSetup(pAd);
 		}
-	}
 #endif
+	}
 }
 #endif // RT2870 //
 
