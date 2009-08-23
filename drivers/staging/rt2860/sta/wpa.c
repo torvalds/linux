@@ -1764,12 +1764,7 @@ BOOLEAN ParseKeyData(
 	// Get GTK length - refer to IEEE 802.11i-2004 p.82
 	GTKLEN = pKDE->Len -6;
 
-#ifdef RT30xx
 	if (GTKLEN < LEN_AES_KEY)
-#endif
-#ifndef RT30xx
-	if (GTKLEN < MIN_LEN_OF_GTK)
-#endif
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("ERROR: GTK Key length is too short (%d) \n", GTKLEN));
         return FALSE;
