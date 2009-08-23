@@ -8192,8 +8192,8 @@ VOID AsicEvaluateRxAnt(
 				fRTMP_ADAPTER_RADIO_OFF |
 				fRTMP_ADAPTER_NIC_NOT_EXIST |
 				fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS)
-#ifdef RT30xx
 				|| OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
+#ifdef RT30xx
 				|| (pAd->EepromAccess)
 #endif
 				)
@@ -8296,8 +8296,8 @@ VOID AsicRxAntEvalTimeout(
 							fRTMP_ADAPTER_HALT_IN_PROGRESS	|
 							fRTMP_ADAPTER_RADIO_OFF			|
 							fRTMP_ADAPTER_NIC_NOT_EXIST)
-#ifdef RT30xx
 							|| OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
+#ifdef RT30xx
 							|| (pAd->EepromAccess)
 #endif // RT30xx //
 							)
