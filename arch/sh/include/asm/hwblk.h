@@ -5,7 +5,9 @@
 #include <asm/io.h>
 
 #define HWBLK_CNT_USAGE 0
-#define HWBLK_CNT_NR 1
+#define HWBLK_CNT_IDLE 1
+#define HWBLK_CNT_DEVICES 2
+#define HWBLK_CNT_NR 3
 
 #define HWBLK_AREA_FLAG_PARENT (1 << 0) /* valid parent */
 

@@ -115,6 +115,9 @@ static struct platform_device kfr2r09_sh_keysc_device = {
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_keysc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
+	},
 };
 
 static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
@@ -174,6 +177,9 @@ static struct platform_device kfr2r09_sh_lcdc_device = {
 	.resource	= kfr2r09_sh_lcdc_resources,
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_lcdc_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
