@@ -5787,8 +5787,7 @@ VOID AsicSwitchChannel(
 			break;
 		}
 	}
-#endif
-#ifndef RT30xx
+#else
 	for (index = 0; index < pAd->ChannelListNum; index++)
 	{
 		if (Channel == pAd->ChannelList[index].Channel)
@@ -5805,13 +5804,11 @@ VOID AsicSwitchChannel(
 
 #ifdef RT2870
 	// The RF programming sequence is difference between 3xxx and 2xxx
+	if ((IS_RT3070(pAd) || IS_RT3090(pAd)) && (
 #ifdef RT30xx
-	if ((IS_RT3070(pAd) || IS_RT3090(pAd)) && ((pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020) ||
-		(pAd->RfIcType == RFIC_3021) || (pAd->RfIcType == RFIC_3022)))
+	     (pAd->RfIcType == RFIC_3022) || (pAd->RfIcType == RFIC_3021) ||
 #endif
-#ifndef RT30xx
-	if (IS_RT3070(pAd) && ((pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020)))
-#endif
+	     (pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020)))
 	{
 		/* modify by WY for Read RF Reg. error */
 		UCHAR RFValue;
@@ -5824,22 +5821,6 @@ VOID AsicSwitchChannel(
 				RT30xxWriteRFRegister(pAd, RF_R02, FreqItems3020[index].N);
 				RT30xxWriteRFRegister(pAd, RF_R03, FreqItems3020[index].K);
 
-#ifndef RT30xx
-				RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR)&RFValue);
-				RFValue = (RFValue & 0xFC) | FreqItems3020[index].R;
-				RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR)RFValue);
-
-				// Set Tx Power
-				RT30xxReadRFRegister(pAd, RF_R12, (PUCHAR)&RFValue);
-				RFValue = (RFValue & 0xE0) | TxPwer;
-				RT30xxWriteRFRegister(pAd, RF_R12, (UCHAR)RFValue);
-
-				// Set RF offset
-				RT30xxReadRFRegister(pAd, RF_R23, (PUCHAR)&RFValue);
-				RFValue = (RFValue & 0x80) | pAd->RfFreqOffset;
-				RT30xxWriteRFRegister(pAd, RF_R23, (UCHAR)RFValue);
-#endif
-#ifdef RT30xx
 				RT30xxReadRFRegister(pAd, RF_R06, &RFValue);
 				RFValue = (RFValue & 0xFC) | FreqItems3020[index].R;
 				RT30xxWriteRFRegister(pAd, RF_R06, RFValue);
@@ -5849,6 +5830,7 @@ VOID AsicSwitchChannel(
 				RFValue = (RFValue & 0xE0) | TxPwer;
 				RT30xxWriteRFRegister(pAd, RF_R12, RFValue);
 
+#ifdef RT30xx
 				// Set Tx1 Power
 				RT30xxReadRFRegister(pAd, RF_R13, &RFValue);
 				RFValue = (RFValue & 0xE0) | TxPwer2;
@@ -5868,12 +5850,12 @@ VOID AsicSwitchChannel(
 				else if (pAd->Antenna.field.RxPath == 2)
 					RFValue |= 0x40;
 				RT30xxWriteRFRegister(pAd, RF_R01, RFValue);
+#endif
 
 				// Set RF offset
 				RT30xxReadRFRegister(pAd, RF_R23, &RFValue);
 				RFValue = (RFValue & 0x80) | pAd->RfFreqOffset;
 				RT30xxWriteRFRegister(pAd, RF_R23, RFValue);
-#endif
 
 				// Set BW
 				if (!bScan && (pAd->CommonCfg.BBPCurrentBW == BW_40))
@@ -5885,21 +5867,10 @@ VOID AsicSwitchChannel(
 				{
 					RFValue = pAd->Mlme.CaliBW20RfR24;
 				}
-#ifndef RT30xx
-				RT30xxWriteRFRegister(pAd, RF_R24, (UCHAR)RFValue);
-
-				// Enable RF tuning
-				RT30xxReadRFRegister(pAd, RF_R07, (PUCHAR)&RFValue);
-				RFValue = RFValue | 0x1;
-				RT30xxWriteRFRegister(pAd, RF_R07, (UCHAR)RFValue);
-
-				// latch channel for future usage.
-				pAd->LatchRfRegs.Channel = Channel;
-#endif
-#ifdef RT30xx
 				RT30xxWriteRFRegister(pAd, RF_R24, RFValue);
+#ifdef RT30xx
 				RT30xxWriteRFRegister(pAd, RF_R31, RFValue);
-
+#endif
 				// Enable RF tuning
 				RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
 				RFValue = RFValue | 0x1;
@@ -5908,6 +5879,7 @@ VOID AsicSwitchChannel(
 				// latch channel for future usage.
 				pAd->LatchRfRegs.Channel = Channel;
 
+#ifdef RT30xx
 				DBGPRINT(RT_DEBUG_TRACE, ("SwitchChannel#%d(RF=%d, Pwr0=%d, Pwr1=%d, %dT), N=0x%02X, K=0x%02X, R=0x%02X\n",
 					Channel,
 					pAd->RfIcType,
