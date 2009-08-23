@@ -2766,7 +2766,6 @@ VOID MlmeCheckPsmChange(
 		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE))
 #endif
 	{
-#ifdef RT30xx
 		// add by johnli, use Rx OK data count per second to calculate throughput
 		// If Ttraffic is too high ( > 400 Rx per second), don't go to sleep mode. If tx rate is low, use low criteria
 		// Mode=CCK/MCS=3 => 11 Mbps, Mode=OFDM/MCS=3 => 18 Mbps
@@ -2774,7 +2773,6 @@ VOID MlmeCheckPsmChange(
 				(pAd->RalinkCounters.OneSecRxOkDataCnt < (ULONG)100)) ||
 			((pAd->StaCfg.HTPhyMode.field.MCS > 3) &&
 			(pAd->RalinkCounters.OneSecRxOkDataCnt < (ULONG)400)))
-#endif
 		{
 				// Get this time
 			NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
