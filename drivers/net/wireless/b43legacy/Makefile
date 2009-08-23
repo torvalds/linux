@@ -6,7 +6,7 @@ b43legacy-y				+= radio.o
 b43legacy-y				+= sysfs.o
 b43legacy-y				+= xmit.o
 # b43 RFKILL button support
-b43legacy-$(CONFIG_B43LEGACY_RFKILL)	+= rfkill.o
+b43legacy-y				+= rfkill.o
 # b43legacy LED support
 b43legacy-$(CONFIG_B43LEGACY_LEDS)	+= leds.o
 # b43legacy debugging

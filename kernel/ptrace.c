@@ -167,65 +167,80 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
-	unsigned long flags;
 
 	audit_ptrace(task);
 
 	retval = -EPERM;
+	if (unlikely(task->flags & PF_KTHREAD))
+		goto out;
 	if (same_thread_group(task, current))
 		goto out;
 
-	/* Protect the target's credential calculations against our
+	/*
+	 * Protect exec's credential calculations against our interference;
 	 * interference; SUID, SGID and LSM creds get determined differently
 	 * under ptrace.
 	 */
-	retval = mutex_lock_interruptible(&task->cred_guard_mutex);
-	if (retval  < 0)
+	retval = -ERESTARTNOINTR;
+	if (mutex_lock_interruptible(&task->cred_guard_mutex))
 		goto out;
 
-	retval = -EPERM;
-repeat:
-	/*
-	 * Nasty, nasty.
-	 *
-	 * We want to hold both the task-lock and the
-	 * tasklist_lock for writing at the same time.
-	 * But that's against the rules (tasklist_lock
-	 * is taken for reading by interrupts on other
-	 * cpu's that may have task_lock).
-	 */
 	task_lock(task);
-	if (!write_trylock_irqsave(&tasklist_lock, flags)) {
-		task_unlock(task);
-		do {
-			cpu_relax();
-		} while (!write_can_lock(&tasklist_lock));
-		goto repeat;
-	}
-
-	if (!task->mm)
-		goto bad;
-	/* the same process cannot be attached many times */
-	if (task->ptrace & PT_PTRACED)
-		goto bad;
 	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
+	task_unlock(task);
 	if (retval)
-		goto bad;
+		goto unlock_creds;
 
-	/* Go */
-	task->ptrace |= PT_PTRACED;
+	write_lock_irq(&tasklist_lock);
+	retval = -EPERM;
+	if (unlikely(task->exit_state))
+		goto unlock_tasklist;
+	if (task->ptrace)
+		goto unlock_tasklist;
+
+	task->ptrace = PT_PTRACED;
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 
 	__ptrace_link(task, current);
-
 	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
-bad:
-	write_unlock_irqrestore(&tasklist_lock, flags);
-	task_unlock(task);
+
+	retval = 0;
+unlock_tasklist:
+	write_unlock_irq(&tasklist_lock);
+unlock_creds:
 	mutex_unlock(&task->cred_guard_mutex);
 out:
 	return retval;
+}
+
+/**
+ * ptrace_traceme  --  helper for PTRACE_TRACEME
+ *
+ * Performs checks and sets PT_PTRACED.
+ * Should be used by all ptrace implementations for PTRACE_TRACEME.
+ */
+int ptrace_traceme(void)
+{
+	int ret = -EPERM;
+
+	write_lock_irq(&tasklist_lock);
+	/* Are we already being traced? */
+	if (!current->ptrace) {
+		ret = security_ptrace_traceme(current->parent);
+		/*
+		 * Check PF_EXITING to ensure ->real_parent has not passed
+		 * exit_ptrace(). Otherwise we don't report the error but
+		 * pretend ->real_parent untraces us right after return.
+		 */
+		if (!ret && !(current->real_parent->flags & PF_EXITING)) {
+			current->ptrace = PT_PTRACED;
+			__ptrace_link(current, current->real_parent);
+		}
+	}
+	write_unlock_irq(&tasklist_lock);
+
+	return ret;
 }
 
 /*
@@ -409,37 +424,33 @@ static int ptrace_setoptions(struct task_struct *child, long data)
 
 static int ptrace_getsiginfo(struct task_struct *child, siginfo_t *info)
 {
+	unsigned long flags;
 	int error = -ESRCH;
 
-	read_lock(&tasklist_lock);
-	if (likely(child->sighand != NULL)) {
+	if (lock_task_sighand(child, &flags)) {
 		error = -EINVAL;
-		spin_lock_irq(&child->sighand->siglock);
 		if (likely(child->last_siginfo != NULL)) {
 			*info = *child->last_siginfo;
 			error = 0;
 		}
-		spin_unlock_irq(&child->sighand->siglock);
+		unlock_task_sighand(child, &flags);
 	}
-	read_unlock(&tasklist_lock);
 	return error;
 }
 
 static int ptrace_setsiginfo(struct task_struct *child, const siginfo_t *info)
 {
+	unsigned long flags;
 	int error = -ESRCH;
 
-	read_lock(&tasklist_lock);
-	if (likely(child->sighand != NULL)) {
+	if (lock_task_sighand(child, &flags)) {
 		error = -EINVAL;
-		spin_lock_irq(&child->sighand->siglock);
 		if (likely(child->last_siginfo != NULL)) {
 			*child->last_siginfo = *info;
 			error = 0;
 		}
-		spin_unlock_irq(&child->sighand->siglock);
+		unlock_task_sighand(child, &flags);
 	}
-	read_unlock(&tasklist_lock);
 	return error;
 }
 
@@ -566,72 +577,16 @@ int ptrace_request(struct task_struct *child, long request,
 	return ret;
 }
 
-/**
- * ptrace_traceme  --  helper for PTRACE_TRACEME
- *
- * Performs checks and sets PT_PTRACED.
- * Should be used by all ptrace implementations for PTRACE_TRACEME.
- */
-int ptrace_traceme(void)
-{
-	int ret = -EPERM;
-
-	/*
-	 * Are we already being traced?
-	 */
-repeat:
-	task_lock(current);
-	if (!(current->ptrace & PT_PTRACED)) {
-		/*
-		 * See ptrace_attach() comments about the locking here.
-		 */
-		unsigned long flags;
-		if (!write_trylock_irqsave(&tasklist_lock, flags)) {
-			task_unlock(current);
-			do {
-				cpu_relax();
-			} while (!write_can_lock(&tasklist_lock));
-			goto repeat;
-		}
-
-		ret = security_ptrace_traceme(current->parent);
-
-		/*
-		 * Check PF_EXITING to ensure ->real_parent has not passed
-		 * exit_ptrace(). Otherwise we don't report the error but
-		 * pretend ->real_parent untraces us right after return.
-		 */
-		if (!ret && !(current->real_parent->flags & PF_EXITING)) {
-			current->ptrace |= PT_PTRACED;
-			__ptrace_link(current, current->real_parent);
-		}
-
-		write_unlock_irqrestore(&tasklist_lock, flags);
-	}
-	task_unlock(current);
-	return ret;
-}
-
-/**
- * ptrace_get_task_struct  --  grab a task struct reference for ptrace
- * @pid:       process id to grab a task_struct reference of
- *
- * This function is a helper for ptrace implementations.  It checks
- * permissions and then grabs a task struct for use of the actual
- * ptrace implementation.
- *
- * Returns the task_struct for @pid or an ERR_PTR() on failure.
- */
-struct task_struct *ptrace_get_task_struct(pid_t pid)
+static struct task_struct *ptrace_get_task_struct(pid_t pid)
 {
 	struct task_struct *child;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	child = find_task_by_vpid(pid);
 	if (child)
 		get_task_struct(child);
+	rcu_read_unlock();
 
-	read_unlock(&tasklist_lock);
 	if (!child)
 		return ERR_PTR(-ESRCH);
 	return child;

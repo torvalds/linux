@@ -319,6 +319,15 @@ cant_get_ref:
 EXPORT_SYMBOL(slow_work_enqueue);
 
 /*
+ * Schedule a cull of the thread pool at some time in the near future
+ */
+static void slow_work_schedule_cull(void)
+{
+	mod_timer(&slow_work_cull_timer,
+		  round_jiffies(jiffies + SLOW_WORK_CULL_TIMEOUT));
+}
+
+/*
  * Worker thread culling algorithm
  */
 static bool slow_work_cull_thread(void)
@@ -335,8 +344,7 @@ static bool slow_work_cull_thread(void)
 		    list_empty(&vslow_work_queue) &&
 		    atomic_read(&slow_work_thread_count) >
 		    slow_work_min_threads) {
-			mod_timer(&slow_work_cull_timer,
-				  jiffies + SLOW_WORK_CULL_TIMEOUT);
+			slow_work_schedule_cull();
 			do_cull = true;
 		}
 	}
@@ -393,8 +401,7 @@ static int slow_work_thread(void *_data)
 			    list_empty(&vslow_work_queue) &&
 			    atomic_read(&slow_work_thread_count) >
 			    slow_work_min_threads)
-				mod_timer(&slow_work_cull_timer,
-					  jiffies + SLOW_WORK_CULL_TIMEOUT);
+				slow_work_schedule_cull();
 			continue;
 		}
 
@@ -458,7 +465,7 @@ static void slow_work_new_thread_execute(struct slow_work *work)
 		if (atomic_dec_and_test(&slow_work_thread_count))
 			BUG(); /* we're running on a slow work thread... */
 		mod_timer(&slow_work_oom_timer,
-			  jiffies + SLOW_WORK_OOM_TIMEOUT);
+			  round_jiffies(jiffies + SLOW_WORK_OOM_TIMEOUT));
 	} else {
 		/* ratelimit the starting of new threads */
 		mod_timer(&slow_work_oom_timer, jiffies + 1);
@@ -502,8 +509,7 @@ static int slow_work_min_threads_sysctl(struct ctl_table *table, int write,
 			if (n < 0 && !slow_work_may_not_start_new_thread)
 				slow_work_enqueue(&slow_work_new_thread);
 			else if (n > 0)
-				mod_timer(&slow_work_cull_timer,
-					  jiffies + SLOW_WORK_CULL_TIMEOUT);
+				slow_work_schedule_cull();
 		}
 		mutex_unlock(&slow_work_user_lock);
 	}
@@ -529,8 +535,7 @@ static int slow_work_max_threads_sysctl(struct ctl_table *table, int write,
 				atomic_read(&slow_work_thread_count);
 
 			if (n < 0)
-				mod_timer(&slow_work_cull_timer,
-					  jiffies + SLOW_WORK_CULL_TIMEOUT);
+				slow_work_schedule_cull();
 		}
 		mutex_unlock(&slow_work_user_lock);
 	}

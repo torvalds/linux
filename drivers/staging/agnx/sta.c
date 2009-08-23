@@ -22,7 +22,7 @@ void hash_read(struct agnx_priv *priv, u32 reghi, u32 reglo, u8 sta_id)
 	printk(PFX "RX hash cmd are : %.8x%.8x\n", reghi, reglo);
 }
 
-void hash_write(struct agnx_priv *priv, u8 *mac_addr, u8 sta_id)
+void hash_write(struct agnx_priv *priv, const u8 *mac_addr, u8 sta_id)
 {
 	void __iomem *ctl = priv->ctl;
 	u32 reghi, reglo;

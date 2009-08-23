@@ -42,6 +42,8 @@
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 
+static atomic_t btrfs_bdi_num = ATOMIC_INIT(0);
+
 /*
  * end_io_wq structs are used to do processing in task context when an IO is
  * complete.  This is used during reads to verify checksums, and it is used
@@ -1342,12 +1344,25 @@ static void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	free_extent_map(em);
 }
 
+/*
+ * If this fails, caller must call bdi_destroy() to get rid of the
+ * bdi again.
+ */
 static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
-	bdi_init(bdi);
+	int err;
+
+	bdi->capabilities = BDI_CAP_MAP_COPY;
+	err = bdi_init(bdi);
+	if (err)
+		return err;
+
+	err = bdi_register(bdi, NULL, "btrfs-%d",
+				atomic_inc_return(&btrfs_bdi_num));
+	if (err)
+		return err;
+
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
-	bdi->state		= 0;
-	bdi->capabilities	= default_backing_dev_info.capabilities;
 	bdi->unplug_io_fn	= btrfs_unplug_io_fn;
 	bdi->unplug_io_data	= info;
 	bdi->congested_fn	= btrfs_congested_fn;
@@ -1569,7 +1584,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->sb = sb;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
-	setup_bdi(fs_info, &fs_info->bdi);
+	if (setup_bdi(fs_info, &fs_info->bdi))
+		goto fail_bdi;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
@@ -1623,6 +1639,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
 	mutex_init(&fs_info->tree_reloc_mutex);
+	init_rwsem(&fs_info->extent_commit_sem);
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
 	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
@@ -1783,6 +1800,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					   btrfs_super_chunk_root(disk_super),
 					   blocksize, generation);
 	BUG_ON(!chunk_root->node);
+	if (!test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
+		printk(KERN_WARNING "btrfs: failed to read chunk root on %s\n",
+		       sb->s_id);
+		goto fail_chunk_root;
+	}
 	btrfs_set_root_node(&chunk_root->root_item, chunk_root->node);
 	chunk_root->commit_root = btrfs_root_node(chunk_root);
 
@@ -1810,6 +1832,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					  blocksize, generation);
 	if (!tree_root->node)
 		goto fail_chunk_root;
+	if (!test_bit(EXTENT_BUFFER_UPTODATE, &tree_root->node->bflags)) {
+		printk(KERN_WARNING "btrfs: failed to read tree root on %s\n",
+		       sb->s_id);
+		goto fail_tree_root;
+	}
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
@@ -1946,8 +1973,8 @@ fail_iput:
 
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+fail_bdi:
 	bdi_destroy(&fs_info->bdi);
-
 fail:
 	kfree(extent_root);
 	kfree(tree_root);
@@ -2306,6 +2333,9 @@ int close_ctree(struct btrfs_root *root)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
 
+	fs_info->closing = 2;
+	smp_mb();
+
 	if (fs_info->delalloc_bytes) {
 		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
 		       (unsigned long long)fs_info->delalloc_bytes);
@@ -2327,6 +2357,7 @@ int close_ctree(struct btrfs_root *root)
 	free_extent_buffer(root->fs_info->csum_root->commit_root);
 
 	btrfs_free_block_groups(root->fs_info);
+	btrfs_free_pinned_extents(root->fs_info);
 
 	del_fs_roots(fs_info);
 

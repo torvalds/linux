@@ -98,17 +98,6 @@ unlock:
 	return 0;
 }
 
-/* Handle bad interrupts */
-static struct irq_desc bad_irq_desc = {
-	.handle_irq = handle_bad_irq,
-	.lock = __SPIN_LOCK_UNLOCKED(bad_irq_desc.lock),
-};
-
-#ifdef CONFIG_CPUMASK_OFFSTACK
-/* We are not allocating bad_irq_desc.affinity or .pending_mask */
-#error "ARM architecture does not support CONFIG_CPUMASK_OFFSTACK."
-#endif
-
 /*
  * do_IRQ handles all hardware IRQ's.  Decoded IRQs should not
  * come via this function.  Instead, they should provide their
@@ -124,10 +113,13 @@ asmlinkage void __exception asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	 * Some hardware gives randomly wrong interrupts.  Rather
 	 * than crashing, do something sensible.
 	 */
-	if (irq >= NR_IRQS)
-		handle_bad_irq(irq, &bad_irq_desc);
-	else
+	if (unlikely(irq >= NR_IRQS)) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "Bad IRQ%u\n", irq);
+		ack_bad_irq(irq);
+	} else {
 		generic_handle_irq(irq);
+	}
 
 	/* AT91 specific workaround */
 	irq_finish(irq);
@@ -165,10 +157,6 @@ void __init init_IRQ(void)
 	for (irq = 0; irq < NR_IRQS; irq++)
 		irq_desc[irq].status |= IRQ_NOREQUEST | IRQ_NOPROBE;
 
-#ifdef CONFIG_SMP
-	cpumask_setall(bad_irq_desc.affinity);
-	bad_irq_desc.cpu = smp_processor_id();
-#endif
 	init_arch_irq();
 }
 
@@ -176,7 +164,7 @@ void __init init_IRQ(void)
 
 static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
 {
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->cpu, cpu);
+	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->node, cpu);
 
 	spin_lock_irq(&desc->lock);
 	desc->chip->set_affinity(irq, cpumask_of(cpu));
@@ -195,7 +183,7 @@ void migrate_irqs(void)
 	for (i = 0; i < NR_IRQS; i++) {
 		struct irq_desc *desc = irq_desc + i;
 
-		if (desc->cpu == cpu) {
+		if (desc->node == cpu) {
 			unsigned int newcpu = cpumask_any_and(desc->affinity,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {

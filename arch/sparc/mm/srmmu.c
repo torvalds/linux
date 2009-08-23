@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/kdebug.h>
+#include <linux/log2.h>
 
 #include <asm/bitext.h>
 #include <asm/page.h>
@@ -349,7 +350,7 @@ static void srmmu_free_nocache(unsigned long vaddr, int size)
 		    vaddr, srmmu_nocache_end);
 		BUG();
 	}
-	if (size & (size-1)) {
+	if (!is_power_of_2(size)) {
 		printk("Size 0x%x is not a power of 2\n", size);
 		BUG();
 	}

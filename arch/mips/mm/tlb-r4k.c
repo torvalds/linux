@@ -10,7 +10,9 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/hugetlb.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -295,21 +297,41 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	pudp = pud_offset(pgdp, address);
 	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
-	ptep = pte_offset_map(pmdp, address);
+#ifdef CONFIG_HUGETLB_PAGE
+	/* this could be a huge page  */
+	if (pmd_huge(*pmdp)) {
+		unsigned long lo;
+		write_c0_pagemask(PM_HUGE_MASK);
+		ptep = (pte_t *)pmdp;
+		lo = pte_val(*ptep) >> 6;
+		write_c0_entrylo0(lo);
+		write_c0_entrylo1(lo + (HPAGE_SIZE >> 7));
+
+		mtc0_tlbw_hazard();
+		if (idx < 0)
+			tlb_write_random();
+		else
+			tlb_write_indexed();
+		write_c0_pagemask(PM_DEFAULT_MASK);
+	} else
+#endif
+	{
+		ptep = pte_offset_map(pmdp, address);
 
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
-	write_c0_entrylo0(ptep->pte_high);
-	ptep++;
-	write_c0_entrylo1(ptep->pte_high);
+		write_c0_entrylo0(ptep->pte_high);
+		ptep++;
+		write_c0_entrylo1(ptep->pte_high);
 #else
-	write_c0_entrylo0(pte_val(*ptep++) >> 6);
-	write_c0_entrylo1(pte_val(*ptep) >> 6);
+		write_c0_entrylo0(pte_val(*ptep++) >> 6);
+		write_c0_entrylo1(pte_val(*ptep) >> 6);
 #endif
-	mtc0_tlbw_hazard();
-	if (idx < 0)
-		tlb_write_random();
-	else
-		tlb_write_indexed();
+		mtc0_tlbw_hazard();
+		if (idx < 0)
+			tlb_write_random();
+		else
+			tlb_write_indexed();
+	}
 	tlbw_use_hazard();
 	FLUSH_ITLB_VM(vma);
 	EXIT_CRITICAL(flags);

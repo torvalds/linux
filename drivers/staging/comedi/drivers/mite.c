@@ -258,7 +258,7 @@ struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 	struct mite_channel *channel = NULL;
 
 	/*  spin lock so mite_release_channel can be called safely from interrupts */
-	comedi_spin_lock_irqsave(&mite->lock, flags);
+	spin_lock_irqsave(&mite->lock, flags);
 	for (i = min_channel; i <= max_channel; ++i) {
 		if (mite->channel_allocated[i] == 0) {
 			mite->channel_allocated[i] = 1;
@@ -267,7 +267,7 @@ struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 			break;
 		}
 	}
-	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	spin_unlock_irqrestore(&mite->lock, flags);
 	return channel;
 }
 
@@ -277,7 +277,7 @@ void mite_release_channel(struct mite_channel *mite_chan)
 	unsigned long flags;
 
 	/*  spin lock to prevent races with mite_request_channel */
-	comedi_spin_lock_irqsave(&mite->lock, flags);
+	spin_lock_irqsave(&mite->lock, flags);
 	if (mite->channel_allocated[mite_chan->channel]) {
 		mite_dma_disarm(mite_chan);
 		mite_dma_reset(mite_chan);
@@ -292,7 +292,7 @@ MITE_CHCR reg isn't changed while dma is still active!) */
 		mite_chan->ring = NULL;
 		mmiowb();
 	}
-	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	spin_unlock_irqrestore(&mite->lock, flags);
 }
 
 void mite_dma_arm(struct mite_channel *mite_chan)
@@ -307,11 +307,11 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	smp_mb();
 	/* arm */
 	chor = CHOR_START;
-	comedi_spin_lock_irqsave(&mite->lock, flags);
+	spin_lock_irqsave(&mite->lock, flags);
 	mite_chan->done = 0;
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	spin_unlock_irqrestore(&mite->lock, flags);
 /*       mite_dma_tcr(mite, channel); */
 }
 
@@ -413,7 +413,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		mcr |= CR_PSIZE32;
 		break;
 	default:
-		rt_printk
+		printk
 			("mite: bug! invalid mem bit width for dma transfer\n");
 		break;
 	}
@@ -433,7 +433,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		dcr |= CR_PSIZE32;
 		break;
 	default:
-		rt_printk
+		printk
 			("mite: bug! invalid dev bit width for dma transfer\n");
 		break;
 	}
@@ -539,7 +539,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, struct comedi_async * as
 	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
 	if ((int)(mite_bytes_written_to_memory_ub(mite_chan) -
 			old_alloc_count) > 0) {
-		rt_printk("mite: DMA overwrite of free area\n");
+		printk("mite: DMA overwrite of free area\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
 	}
@@ -581,7 +581,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, struct comedi_async * a
 		(int)(nbytes_ub - stop_count) > 0)
 		nbytes_ub = stop_count;
 	if ((int)(nbytes_ub - old_alloc_count) > 0) {
-		rt_printk("mite: DMA underrun\n");
+		printk("mite: DMA underrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
 	}
@@ -602,7 +602,7 @@ unsigned mite_get_status(struct mite_channel *mite_chan)
 	unsigned status;
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&mite->lock, flags);
+	spin_lock_irqsave(&mite->lock, flags);
 	status = readl(mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
 	if (status & CHSR_DONE) {
 		mite_chan->done = 1;
@@ -610,7 +610,7 @@ unsigned mite_get_status(struct mite_channel *mite_chan)
 			mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 	}
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	spin_unlock_irqrestore(&mite->lock, flags);
 	return status;
 }
 
@@ -621,9 +621,9 @@ int mite_done(struct mite_channel *mite_chan)
 	int done;
 
 	mite_get_status(mite_chan);
-	comedi_spin_lock_irqsave(&mite->lock, flags);
+	spin_lock_irqsave(&mite->lock, flags);
 	done = mite_chan->done;
-	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	spin_unlock_irqrestore(&mite->lock, flags);
 	return done;
 }
 

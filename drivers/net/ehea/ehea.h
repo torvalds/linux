@@ -40,7 +40,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0101"
+#define DRV_VERSION	"EHEA_0102"
 
 /* eHEA capability flags */
 #define DLPAR_PORT_ADD_REM 1
@@ -268,7 +268,7 @@ struct ehea_qp_init_attr {
 };
 
 /*
- * Event Queue attributes, passed as paramter
+ * Event Queue attributes, passed as parameter
  */
 struct ehea_eq_attr {
 	u32 type;

@@ -98,13 +98,14 @@ config SND_PXA2XX_SOC_EM_X270
 	  CompuLab EM-x270, eXeda and CM-X300 machines.
 
 config SND_PXA2XX_SOC_PALM27X
-	bool "SoC Audio support for Palm T|X, T5 and LifeDrive"
-	depends on SND_PXA2XX_SOC && (MACH_PALMLD || MACH_PALMTX || MACH_PALMT5)
+	bool "SoC Audio support for Palm T|X, T5, E2 and LifeDrive"
+	depends on SND_PXA2XX_SOC && (MACH_PALMLD || MACH_PALMTX || \
+			MACH_PALMT5 || MACH_PALMTE2)
 	select SND_PXA2XX_SOC_AC97
 	select SND_SOC_WM9712
 	help
 	  Say Y if you want to add support for SoC audio on
-	  Palm T|X, T5 or LifeDrive handheld computer.
+	  Palm T|X, T5, E2 or LifeDrive handheld computer.
 
 config SND_SOC_ZYLONITE
 	tristate "SoC Audio support for Marvell Zylonite"

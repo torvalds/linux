@@ -1663,7 +1663,7 @@ skip_pio:
 		/* queue 0 uses two msix vectors */
 		if (ql2xmultique_tag) {
 			cpus = num_online_cpus();
-			ha->max_rsp_queues = (ha->msix_count - 1 - cpus) ?
+			ha->max_rsp_queues = (ha->msix_count - 1 > cpus) ?
 				(cpus + 1) : (ha->msix_count - 1);
 			ha->max_req_queues = 2;
 		} else if (ql2xmaxqueues > 1) {

@@ -86,7 +86,7 @@ match_policy_out(const struct sk_buff *skb, const struct xt_policy_info *info,
 		 unsigned short family)
 {
 	const struct xt_policy_elem *e;
-	const struct dst_entry *dst = skb->dst;
+	const struct dst_entry *dst = skb_dst(skb);
 	int strict = info->flags & XT_POLICY_MATCH_STRICT;
 	int i, pos;
 

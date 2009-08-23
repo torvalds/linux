@@ -34,17 +34,72 @@
 
 #include <scsi/fc_frame.h>
 
-#define LIBFC_DEBUG
+#define FC_LIBFC_LOGGING 0x01 /* General logging, not categorized */
+#define FC_LPORT_LOGGING 0x02 /* lport layer logging */
+#define FC_DISC_LOGGING  0x04 /* discovery layer logging */
+#define FC_RPORT_LOGGING 0x08 /* rport layer logging */
+#define FC_FCP_LOGGING   0x10 /* I/O path logging */
+#define FC_EM_LOGGING    0x20 /* Exchange Manager logging */
+#define FC_EXCH_LOGGING  0x40 /* Exchange/Sequence logging */
+#define FC_SCSI_LOGGING  0x80 /* SCSI logging (mostly error handling) */
 
-#ifdef LIBFC_DEBUG
-/* Log messages */
-#define FC_DBG(fmt, args...)						\
-	do {								\
-		printk(KERN_INFO "%s " fmt, __func__, ##args);		\
-	} while (0)
-#else
-#define FC_DBG(fmt, args...)
-#endif
+extern unsigned int fc_debug_logging;
+
+#define FC_CHECK_LOGGING(LEVEL, CMD)				\
+do {								\
+	if (unlikely(fc_debug_logging & LEVEL))			\
+		do {						\
+			CMD;					\
+		} while (0);					\
+} while (0);
+
+#define FC_LIBFC_DBG(fmt, args...)					\
+	FC_CHECK_LOGGING(FC_LIBFC_LOGGING,				\
+			 printk(KERN_INFO "libfc: " fmt, ##args);)
+
+#define FC_LPORT_DBG(lport, fmt, args...)				\
+	FC_CHECK_LOGGING(FC_LPORT_LOGGING,				\
+			 printk(KERN_INFO "lport: %6x: " fmt,		\
+				fc_host_port_id(lport->host), ##args);)
+
+#define FC_DISC_DBG(disc, fmt, args...)					\
+	FC_CHECK_LOGGING(FC_DISC_LOGGING,				\
+			 printk(KERN_INFO "disc: %6x: " fmt,		\
+				fc_host_port_id(disc->lport->host),	\
+				##args);)
+
+#define FC_RPORT_DBG(rport, fmt, args...)				\
+do {									\
+	struct fc_rport_libfc_priv *rdata = rport->dd_data;		\
+	struct fc_lport *lport = rdata->local_port;			\
+	FC_CHECK_LOGGING(FC_RPORT_LOGGING,				\
+			 printk(KERN_INFO "rport: %6x: %6x: " fmt,	\
+				fc_host_port_id(lport->host),		\
+				rport->port_id, ##args);)		\
+} while (0);
+
+#define FC_FCP_DBG(pkt, fmt, args...)					\
+	FC_CHECK_LOGGING(FC_FCP_LOGGING,				\
+			 printk(KERN_INFO "fcp: %6x: %6x: " fmt,	\
+				fc_host_port_id(pkt->lp->host),		\
+				pkt->rport->port_id, ##args);)
+
+#define FC_EM_DBG(em, fmt, args...)					\
+	FC_CHECK_LOGGING(FC_EM_LOGGING,					\
+			 printk(KERN_INFO "em: %6x: " fmt,		\
+				fc_host_port_id(em->lp->host),		\
+				##args);)
+
+#define FC_EXCH_DBG(exch, fmt, args...)					\
+	FC_CHECK_LOGGING(FC_EXCH_LOGGING,				\
+			 printk(KERN_INFO "exch: %6x: %4x: " fmt,	\
+				fc_host_port_id(exch->lp->host),	\
+				exch->xid, ##args);)
+
+#define FC_SCSI_DBG(lport, fmt, args...)				\
+	FC_CHECK_LOGGING(FC_SCSI_LOGGING,                               \
+			 printk(KERN_INFO "scsi: %6x: " fmt,		\
+				fc_host_port_id(lport->host), ##args);)
 
 /*
  * libfc error codes

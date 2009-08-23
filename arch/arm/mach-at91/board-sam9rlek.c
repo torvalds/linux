@@ -186,19 +186,21 @@ static struct fb_monspecs at91fb_default_monspecs = {
 static void at91_lcdc_power_control(int on)
 {
 	if (on)
-		at91_set_gpio_value(AT91_PIN_PA30, 0);	/* power up */
+		at91_set_gpio_value(AT91_PIN_PC1, 0);	/* power up */
 	else
-		at91_set_gpio_value(AT91_PIN_PA30, 1);	/* power down */
+		at91_set_gpio_value(AT91_PIN_PC1, 1);	/* power down */
 }
 
 /* Driver datas */
 static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+	.lcdcon_is_backlight            = true,
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
 	.default_lcdcon2		= AT91SAM9RL_DEFAULT_LCDCON2,
 	.default_monspecs		= &at91fb_default_monspecs,
 	.atmel_lcdfb_power_control	= at91_lcdc_power_control,
 	.guard_time			= 1,
+	.lcd_wiring_mode		= ATMEL_LCDC_WIRING_RGB,
 };
 
 #else

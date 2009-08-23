@@ -996,10 +996,20 @@ struct class block_class = {
 	.name		= "block",
 };
 
+static char *block_nodename(struct device *dev)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (disk->nodename)
+		return disk->nodename(disk);
+	return NULL;
+}
+
 static struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
+	.nodename	= block_nodename,
 };
 
 #ifdef CONFIG_PROC_FS

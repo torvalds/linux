@@ -1,0 +1,9 @@
+config ATH_COMMON
+	tristate "Atheros Wireless Cards"
+	depends on WLAN_80211
+	depends on ATH5K || ATH9K || AR9170_USB
+
+source "drivers/net/wireless/ath/ath5k/Kconfig"
+source "drivers/net/wireless/ath/ath9k/Kconfig"
+source "drivers/net/wireless/ath/ar9170/Kconfig"
+

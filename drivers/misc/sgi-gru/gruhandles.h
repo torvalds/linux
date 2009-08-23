@@ -39,7 +39,6 @@
 #define GRU_NUM_CBE		128
 #define GRU_NUM_TFH		128
 #define GRU_NUM_CCH		16
-#define GRU_NUM_GSH		1
 
 /* Maximum resource counts that can be reserved by user programs */
 #define GRU_NUM_USER_CBR	GRU_NUM_CBE
@@ -56,7 +55,6 @@
 #define GRU_CBE_BASE		(GRU_MCS_BASE + 0x10000)
 #define GRU_TFH_BASE		(GRU_MCS_BASE + 0x18000)
 #define GRU_CCH_BASE		(GRU_MCS_BASE + 0x20000)
-#define GRU_GSH_BASE		(GRU_MCS_BASE + 0x30000)
 
 /* User gseg constants */
 #define GRU_GSEG_STRIDE		(4 * 1024 * 1024)
@@ -251,15 +249,15 @@ struct gru_tlb_fault_handle {
 	unsigned int fill1:9;
 
 	unsigned int status:2;
-	unsigned int fill2:1;
-	unsigned int color:1;
+	unsigned int fill2:2;
 	unsigned int state:3;
 	unsigned int fill3:1;
 
-	unsigned int cause:7;		/* DW 0 - high 32 */
+	unsigned int cause:6;
+	unsigned int cb_int:1;
 	unsigned int fill4:1;
 
-	unsigned int indexway:12;
+	unsigned int indexway:12;	/* DW 0 - high 32 */
 	unsigned int fill5:4;
 
 	unsigned int ctxnum:4;
@@ -457,21 +455,7 @@ enum gru_cbr_state {
 	CBRSTATE_BUSY_INTERRUPT,
 };
 
-/* CBE cbrexecstatus bits */
-#define CBR_EXS_ABORT_OCC_BIT			0
-#define CBR_EXS_INT_OCC_BIT			1
-#define CBR_EXS_PENDING_BIT			2
-#define CBR_EXS_QUEUED_BIT			3
-#define CBR_EXS_TLBHW_BIT			4
-#define CBR_EXS_EXCEPTION_BIT			5
-
-#define CBR_EXS_ABORT_OCC			(1 << CBR_EXS_ABORT_OCC_BIT)
-#define CBR_EXS_INT_OCC				(1 << CBR_EXS_INT_OCC_BIT)
-#define CBR_EXS_PENDING				(1 << CBR_EXS_PENDING_BIT)
-#define CBR_EXS_QUEUED				(1 << CBR_EXS_QUEUED_BIT)
-#define CBR_EXS_TLBHW				(1 << CBR_EXS_TLBHW_BIT)
-#define CBR_EXS_EXCEPTION			(1 << CBR_EXS_EXCEPTION_BIT)
-
+/* CBE cbrexecstatus bits  - defined in gru_instructions.h*/
 /* CBE ecause bits  - defined in gru_instructions.h */
 
 /*
@@ -495,9 +479,7 @@ enum gru_cbr_state {
 /* minimum TLB purge count to ensure a full purge */
 #define GRUMAXINVAL		1024UL
 
-int cch_allocate(struct gru_context_configuration_handle *cch,
-       int asidval, int sizeavail, unsigned long cbrmap, unsigned long dsrmap);
-
+int cch_allocate(struct gru_context_configuration_handle *cch);
 int cch_start(struct gru_context_configuration_handle *cch);
 int cch_interrupt(struct gru_context_configuration_handle *cch);
 int cch_deallocate(struct gru_context_configuration_handle *cch);

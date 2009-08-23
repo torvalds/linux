@@ -194,4 +194,10 @@ config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 config NLATTR
 	bool
 
+#
+# Generic 64-bit atomic support is selected if needed
+#
+config GENERIC_ATOMIC64
+       bool
+
 endmenu

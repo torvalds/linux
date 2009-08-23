@@ -88,12 +88,7 @@ struct nfs3_fh {
 #define NFS3PROC_PATHCONF	20
 #define NFS3PROC_COMMIT		21
 
-#define NFS_MNT3_PROGRAM	100005
 #define NFS_MNT3_VERSION	3
-#define MOUNTPROC3_NULL		0
-#define MOUNTPROC3_MNT		1
-#define MOUNTPROC3_UMNT		3
-#define MOUNTPROC3_UMNTALL	4
  
 
 #if defined(__KERNEL__)

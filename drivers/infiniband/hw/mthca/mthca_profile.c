@@ -94,7 +94,7 @@ s64 mthca_make_profile(struct mthca_dev *dev,
 	profile[MTHCA_RES_RDB].size  = MTHCA_RDB_ENTRY_SIZE;
 	profile[MTHCA_RES_MCG].size  = MTHCA_MGM_ENTRY_SIZE;
 	profile[MTHCA_RES_MPT].size  = dev_lim->mpt_entry_sz;
-	profile[MTHCA_RES_MTT].size  = MTHCA_MTT_SEG_SIZE;
+	profile[MTHCA_RES_MTT].size  = dev->limits.mtt_seg_size;
 	profile[MTHCA_RES_UAR].size  = dev_lim->uar_scratch_entry_sz;
 	profile[MTHCA_RES_UDAV].size = MTHCA_AV_SIZE;
 	profile[MTHCA_RES_UARC].size = request->uarc_size;
@@ -232,7 +232,7 @@ s64 mthca_make_profile(struct mthca_dev *dev,
 			dev->limits.num_mtt_segs = profile[i].num;
 			dev->mr_table.mtt_base   = profile[i].start;
 			init_hca->mtt_base       = profile[i].start;
-			init_hca->mtt_seg_sz     = ffs(MTHCA_MTT_SEG_SIZE) - 7;
+			init_hca->mtt_seg_sz     = ffs(dev->limits.mtt_seg_size) - 7;
 			break;
 		case MTHCA_RES_UAR:
 			dev->limits.num_uars       = profile[i].num;

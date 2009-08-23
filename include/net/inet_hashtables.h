@@ -385,7 +385,7 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 	if (unlikely(sk = skb_steal_sock(skb)))
 		return sk;
 	else
-		return __inet_lookup(dev_net(skb->dst->dev), hashinfo,
+		return __inet_lookup(dev_net(skb_dst(skb)->dev), hashinfo,
 				     iph->saddr, sport,
 				     iph->daddr, dport, inet_iif(skb));
 }

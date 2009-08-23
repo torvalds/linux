@@ -34,8 +34,8 @@ struct sd {
 
 	__u16 exposure;			/* rev12a only */
 #define EXPOSURE_MIN 1
-#define EXPOSURE_DEF 200
-#define EXPOSURE_MAX (4095 - 900) /* see set_exposure */
+#define EXPOSURE_DEF 700		/* == 10 fps */
+#define EXPOSURE_MAX (2047 + 325)	/* see setexposure */
 
 	__u8 contrast;			/* rev72a only */
 #define CONTRAST_MIN 0x00
@@ -48,9 +48,9 @@ struct sd {
 #define BRIGHTNESS_MAX 0x3f
 
 	__u8 white;
-#define WHITE_MIN 1
-#define WHITE_DEF 0x40
-#define WHITE_MAX 0x7f
+#define HUE_MIN 1
+#define HUE_DEF 0x40
+#define HUE_MAX 0x7f
 
 	__u8 autogain;
 #define AUTOGAIN_MIN 0
@@ -58,9 +58,9 @@ struct sd {
 #define AUTOGAIN_MAX 1
 
 	__u8 gain;			/* rev12a only */
-#define GAIN_MIN 0x0
-#define GAIN_DEF 0x24
-#define GAIN_MAX 0x24
+#define GAIN_MIN 0
+#define GAIN_DEF 63
+#define GAIN_MAX 255
 
 #define EXPO12A_DEF 3
 	__u8 expo12a;		/* expo/gain? for rev 12a */
@@ -461,7 +461,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
-	sd->white = WHITE_DEF;
+	sd->white = HUE_DEF;
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->gain = GAIN_DEF;
@@ -549,8 +549,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int expo;
-	int clock_divider;
+	int i, expo = 0;
 
 	/* Register 0x8309 controls exposure for the spca561,
 	   the basic exposure setting goes from 1-2047, where 1 is completely
@@ -564,16 +563,22 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	   configure a divider for the base framerate which us used at the
 	   exposure setting of 1-300. These bits configure the base framerate
 	   according to the following formula: fps = 60 / (value + 2) */
-	if (sd->exposure < 2048) {
-		expo = sd->exposure;
-		clock_divider = 0;
-	} else {
-		/* Add 900 to make the 0 setting of the second part of the
-		   exposure equal to the 2047 setting of the first part. */
-		expo = (sd->exposure - 2048) + 900;
-		clock_divider = 3;
+
+	/* We choose to use the high bits setting the fixed framerate divisor
+	   asap, as setting high basic exposure setting without the fixed
+	   divider in combination with high gains makes the cam stop */
+	int table[] =  { 0, 450, 550, 625, EXPOSURE_MAX };
+
+	for (i = 0; i < ARRAY_SIZE(table) - 1; i++) {
+		if (sd->exposure <= table[i + 1]) {
+			expo  = sd->exposure - table[i];
+			if (i)
+				expo += 300;
+			expo |= i << 11;
+			break;
+		}
 	}
-	expo |= clock_divider << 11;
+
 	gspca_dev->usb_buf[0] = expo;
 	gspca_dev->usb_buf[1] = expo >> 8;
 	reg_w_buf(gspca_dev, 0x8309, 2);
@@ -584,7 +589,16 @@ static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	gspca_dev->usb_buf[0] = sd->gain;
+	/* gain reg low 6 bits  0-63 gain, bit 6 and 7, both double the
+	   sensitivity when set, so 31 + one of them set == 63, and 15
+	   with both of them set == 63 */
+	if (sd->gain < 64)
+		gspca_dev->usb_buf[0] = sd->gain;
+	else if (sd->gain < 128)
+		gspca_dev->usb_buf[0] = (sd->gain / 2) | 0x40;
+	else
+		gspca_dev->usb_buf[0] = (sd->gain / 4) | 0xC0;
+
 	gspca_dev->usb_buf[1] = 0;
 	reg_w_buf(gspca_dev, 0x8335, 2);
 }
@@ -629,8 +643,7 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, 0x8391, 8);
 	reg_w_buf(gspca_dev, 0x8390, 8);
 	setwhite(gspca_dev);
-	setautogain(gspca_dev);
-/*	setgain(gspca_dev);		*/
+	setgain(gspca_dev);
 	setexposure(gspca_dev);
 	return 0;
 }
@@ -760,18 +773,6 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 			else if (expotimes < 3)
 				expotimes = 3;
 			i2c_write(gspca_dev, expotimes | pixelclk, 0x09);
-		}
-		break;
-	case Rev012A:
-		reg_r(gspca_dev, 0x8330, 2);
-		if (gspca_dev->usb_buf[1] > 0x08) {
-			gspca_dev->usb_buf[0] = ++sd->expo12a;
-			gspca_dev->usb_buf[1] = 0;
-			reg_w_buf(gspca_dev, 0x8339, 2);
-		} else if (gspca_dev->usb_buf[1] < 0x02) {
-			gspca_dev->usb_buf[0] = --sd->expo12a;
-			gspca_dev->usb_buf[1] = 0;
-			reg_w_buf(gspca_dev, 0x8339, 2);
 		}
 		break;
 	}
@@ -928,13 +929,13 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 static struct ctrl sd_ctrls_12a[] = {
 	{
 	    {
-		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.id = V4L2_CID_HUE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "White Balance",
-		.minimum = WHITE_MIN,
-		.maximum = WHITE_MAX,
+		.name = "Hue",
+		.minimum = HUE_MIN,
+		.maximum = HUE_MAX,
 		.step = 1,
-		.default_value = WHITE_DEF,
+		.default_value = HUE_DEF,
 	    },
 	    .set = sd_setwhite,
 	    .get = sd_getwhite,
@@ -954,19 +955,6 @@ static struct ctrl sd_ctrls_12a[] = {
 	},
 	{
 	    {
-		.id = V4L2_CID_AUTOGAIN,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Auto Gain",
-		.minimum = AUTOGAIN_MIN,
-		.maximum = AUTOGAIN_MAX,
-		.step = 1,
-		.default_value = AUTOGAIN_DEF,
-	    },
-	    .set = sd_setautogain,
-	    .get = sd_getautogain,
-	},
-	{
-	    {
 		.id = V4L2_CID_GAIN,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Gain",
@@ -983,13 +971,13 @@ static struct ctrl sd_ctrls_12a[] = {
 static struct ctrl sd_ctrls_72a[] = {
 	{
 	    {
-		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.id = V4L2_CID_HUE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "White Balance",
-		.minimum = WHITE_MIN,
-		.maximum = WHITE_MAX,
+		.name = "Hue",
+		.minimum = HUE_MIN,
+		.maximum = HUE_MAX,
 		.step = 1,
-		.default_value = WHITE_DEF,
+		.default_value = HUE_DEF,
 	    },
 	    .set = sd_setwhite,
 	    .get = sd_getwhite,
@@ -1046,7 +1034,6 @@ static const struct sd_desc sd_desc_12a = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
-/*	.dq_callback = do_autogain,	 * fixme */
 };
 static const struct sd_desc sd_desc_72a = {
 	.name = MODULE_NAME,

@@ -501,6 +501,7 @@ static struct zl10353_config cx88_pinnacle_hybrid_pctv = {
 static struct zl10353_config cx88_geniatech_x8000_mt = {
        .demod_address = (0x1e >> 1),
        .no_tuner = 1,
+       .disable_i2c_gate_ctrl = 1,
 };
 
 static struct s5h1411_config dvico_fusionhdtv7_config = {
@@ -1014,6 +1015,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	 case CX88_BOARD_PINNACLE_HYBRID_PCTV:
+	case CX88_BOARD_WINFAST_DTV1800H:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 					       &cx88_pinnacle_hybrid_pctv,
 					       &core->i2c_adap);

@@ -479,13 +479,13 @@ void ehca_tasklet_neq(unsigned long data)
 	struct ehca_eqe *eqe;
 	u64 ret;
 
-	eqe = (struct ehca_eqe *)ehca_poll_eq(shca, &shca->neq);
+	eqe = ehca_poll_eq(shca, &shca->neq);
 
 	while (eqe) {
 		if (!EHCA_BMASK_GET(NEQE_COMPLETION_EVENT, eqe->entry))
 			parse_ec(shca, eqe->entry);
 
-		eqe = (struct ehca_eqe *)ehca_poll_eq(shca, &shca->neq);
+		eqe = ehca_poll_eq(shca, &shca->neq);
 	}
 
 	ret = hipz_h_reset_event(shca->ipz_hca_handle,
@@ -572,8 +572,7 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 	eqe_cnt = 0;
 	do {
 		u32 token;
-		eqe_cache[eqe_cnt].eqe =
-			(struct ehca_eqe *)ehca_poll_eq(shca, eq);
+		eqe_cache[eqe_cnt].eqe = ehca_poll_eq(shca, eq);
 		if (!eqe_cache[eqe_cnt].eqe)
 			break;
 		eqe_value = eqe_cache[eqe_cnt].eqe->entry;
@@ -637,7 +636,7 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 		goto unlock_irq_spinlock;
 	do {
 		struct ehca_eqe *eqe;
-		eqe = (struct ehca_eqe *)ehca_poll_eq(shca, &shca->eq);
+		eqe = ehca_poll_eq(shca, &shca->eq);
 		if (!eqe)
 			break;
 		process_eqe(shca, eqe);

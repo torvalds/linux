@@ -77,8 +77,6 @@ struct pt_regs {
 };
 #endif
 
-extern struct pt_regs *__frame; /* current frame pointer */
-
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
@@ -89,6 +87,8 @@ extern struct pt_regs *__frame; /* current frame pointer */
 #define PTRACE_O_TRACESYSGOOD     0x00000001
 
 #if defined(__KERNEL__)
+
+extern struct pt_regs *__frame;		/* current frame pointer */
 
 #if !defined(__ASSEMBLY__)
 struct task_struct;
@@ -107,5 +107,4 @@ extern void user_disable_single_step(struct task_struct *);
 #define profile_pc(regs) ((regs)->pc)
 
 #endif  /*  __KERNEL__  */
-
 #endif /* _ASM_PTRACE_H */

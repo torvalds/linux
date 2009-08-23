@@ -8,7 +8,7 @@
 #include <linux/sort.h>
 
 #include <asm/uaccess.h>
-#include <asm/module.h>
+#include <linux/module.h>
 
 static int cmp_ex(const void *a, const void *b)
 {
@@ -55,7 +55,7 @@ void sort_extable (struct exception_table_entry *start,
 
 static inline unsigned long ex_to_addr(const struct exception_table_entry *x)
 {
-	return (unsigned long)&x->insn + x->insn;
+	return (unsigned long)&x->addr + x->addr;
 }
 
 #ifdef CONFIG_MODULES

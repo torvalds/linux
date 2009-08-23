@@ -154,39 +154,35 @@ void __kprobes get_instruction_type(struct arch_specific_insn *ainsn)
 
 static int __kprobes swap_instruction(void *aref)
 {
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	unsigned long status = kcb->kprobe_status;
 	struct ins_replace_args *args = aref;
+	int rc;
 
-	return probe_kernel_write(args->ptr, &args->new, sizeof(args->new));
+	kcb->kprobe_status = KPROBE_SWAP_INST;
+	rc = probe_kernel_write(args->ptr, &args->new, sizeof(args->new));
+	kcb->kprobe_status = status;
+	return rc;
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long status = kcb->kprobe_status;
 	struct ins_replace_args args;
 
 	args.ptr = p->addr;
 	args.old = p->opcode;
 	args.new = BREAKPOINT_INSTRUCTION;
-
-	kcb->kprobe_status = KPROBE_SWAP_INST;
 	stop_machine(swap_instruction, &args, NULL);
-	kcb->kprobe_status = status;
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long status = kcb->kprobe_status;
 	struct ins_replace_args args;
 
 	args.ptr = p->addr;
 	args.old = BREAKPOINT_INSTRUCTION;
 	args.new = p->opcode;
-
-	kcb->kprobe_status = KPROBE_SWAP_INST;
 	stop_machine(swap_instruction, &args, NULL);
-	kcb->kprobe_status = status;
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)

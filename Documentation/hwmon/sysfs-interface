@@ -70,6 +70,7 @@ are interpreted as 0! For more on how written strings are interpreted see the
 [0-*]	denotes any positive number starting from 0
 [1-*]	denotes any positive number starting from 1
 RO	read only value
+WO	write only value
 RW	read/write value
 
 Read/write values may be read-only for some chips, depending on the
@@ -294,6 +295,24 @@ temp[1-*]_label	Suggested temperature channel label.
 		doesn't. In all other cases, the label is provided by
 		user-space.
 		RO
+
+temp[1-*]_lowest
+		Historical minimum temperature
+		Unit: millidegree Celsius
+		RO
+
+temp[1-*]_highest
+		Historical maximum temperature
+		Unit: millidegree Celsius
+		RO
+
+temp[1-*]_reset_history
+		Reset temp_lowest and temp_highest
+		WO
+
+temp_reset_history
+		Reset temp_lowest and temp_highest for all sensors
+		WO
 
 Some chips measure temperature using external thermistors and an ADC, and
 report the temperature measurement as a voltage. Converting this voltage

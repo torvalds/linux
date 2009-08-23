@@ -7,17 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/adfs_fs.h>
-#include <linux/time.h>
-#include <linux/stat.h>
-#include <linux/string.h>
-#include <linux/mm.h>
 #include <linux/smp_lock.h>
-#include <linux/module.h>
 #include <linux/buffer_head.h>
-
 #include "adfs.h"
 
 /*
@@ -395,4 +386,3 @@ int adfs_write_inode(struct inode *inode, int wait)
 	unlock_kernel();
 	return ret;
 }
-MODULE_LICENSE("GPL");

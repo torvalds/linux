@@ -174,8 +174,17 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return err;
 }
 
+static void vesafb_destroy(struct fb_info *info)
+{
+	if (info->screen_base)
+		iounmap(info->screen_base);
+	release_mem_region(info->aperture_base, info->aperture_size);
+	framebuffer_release(info);
+}
+
 static struct fb_ops vesafb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_destroy     = vesafb_destroy,
 	.fb_setcolreg	= vesafb_setcolreg,
 	.fb_pan_display	= vesafb_pan_display,
 	.fb_fillrect	= cfb_fillrect,
@@ -285,6 +294,10 @@ static int __init vesafb_probe(struct platform_device *dev)
 	}
 	info->pseudo_palette = info->par;
 	info->par = NULL;
+
+	/* set vesafb aperture size for generic probing */
+	info->aperture_base = screen_info.lfb_base;
+	info->aperture_size = size_total;
 
 	info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
 	if (!info->screen_base) {
@@ -437,7 +450,7 @@ static int __init vesafb_probe(struct platform_device *dev)
 	info->fbops = &vesafb_ops;
 	info->var = vesafb_defined;
 	info->fix = vesafb_fix;
-	info->flags = FBINFO_FLAG_DEFAULT |
+	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE |
 		(ypan ? FBINFO_HWACCEL_YPAN : 0);
 
 	if (!ypan)

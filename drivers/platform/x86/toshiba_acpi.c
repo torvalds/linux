@@ -45,7 +45,6 @@
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
-#include <linux/input-polldev.h>
 
 #include <asm/uaccess.h>
 
@@ -250,21 +249,15 @@ static acpi_status hci_read2(u32 reg, u32 *out1, u32 *out2, u32 *result)
 
 struct toshiba_acpi_dev {
 	struct platform_device *p_dev;
-	struct rfkill *rfk_dev;
-	struct input_polled_dev *poll_dev;
+	struct rfkill *bt_rfk;
 
 	const char *bt_name;
-	const char *rfk_name;
-
-	bool last_rfk_state;
 
 	struct mutex mutex;
 };
 
 static struct toshiba_acpi_dev toshiba_acpi = {
 	.bt_name = "Toshiba Bluetooth",
-	.rfk_name = "Toshiba RFKill Switch",
-	.last_rfk_state = false,
 };
 
 /* Bluetooth rfkill handlers */
@@ -283,21 +276,6 @@ static u32 hci_get_bt_present(bool *present)
 	return hci_result;
 }
 
-static u32 hci_get_bt_on(bool *on)
-{
-	u32 hci_result;
-	u32 value, value2;
-
-	value = 0;
-	value2 = 0x0001;
-	hci_read2(HCI_WIRELESS, &value, &value2, &hci_result);
-	if (hci_result == HCI_SUCCESS)
-		*on = (value & HCI_WIRELESS_BT_POWER) &&
-		      (value & HCI_WIRELESS_BT_ATTACH);
-
-	return hci_result;
-}
-
 static u32 hci_get_radio_state(bool *radio_state)
 {
 	u32 hci_result;
@@ -311,69 +289,66 @@ static u32 hci_get_radio_state(bool *radio_state)
 	return hci_result;
 }
 
-static int bt_rfkill_toggle_radio(void *data, enum rfkill_state state)
+static int bt_rfkill_set_block(void *data, bool blocked)
 {
+	struct toshiba_acpi_dev *dev = data;
 	u32 result1, result2;
 	u32 value;
+	int err;
 	bool radio_state;
-	struct toshiba_acpi_dev *dev = data;
 
-	value = (state == RFKILL_STATE_UNBLOCKED);
-
-	if (hci_get_radio_state(&radio_state) != HCI_SUCCESS)
-		return -EFAULT;
-
-	switch (state) {
-	case RFKILL_STATE_UNBLOCKED:
-		if (!radio_state)
-			return -EPERM;
-		break;
-	case RFKILL_STATE_SOFT_BLOCKED:
-		break;
-	default:
-		return -EINVAL;
-	}
+	value = (blocked == false);
 
 	mutex_lock(&dev->mutex);
+	if (hci_get_radio_state(&radio_state) != HCI_SUCCESS) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (!radio_state) {
+		err = 0;
+		goto out;
+	}
+
 	hci_write2(HCI_WIRELESS, value, HCI_WIRELESS_BT_POWER, &result1);
 	hci_write2(HCI_WIRELESS, value, HCI_WIRELESS_BT_ATTACH, &result2);
-	mutex_unlock(&dev->mutex);
 
 	if (result1 != HCI_SUCCESS || result2 != HCI_SUCCESS)
-		return -EFAULT;
-
-	return 0;
+		err = -EBUSY;
+	else
+		err = 0;
+ out:
+	mutex_unlock(&dev->mutex);
+	return err;
 }
 
-static void bt_poll_rfkill(struct input_polled_dev *poll_dev)
+static void bt_rfkill_poll(struct rfkill *rfkill, void *data)
 {
-	bool state_changed;
 	bool new_rfk_state;
 	bool value;
 	u32 hci_result;
-	struct toshiba_acpi_dev *dev = poll_dev->private;
+	struct toshiba_acpi_dev *dev = data;
+
+	mutex_lock(&dev->mutex);
 
 	hci_result = hci_get_radio_state(&value);
-	if (hci_result != HCI_SUCCESS)
-		return; /* Can't do anything useful */
+	if (hci_result != HCI_SUCCESS) {
+		/* Can't do anything useful */
+		mutex_unlock(&dev->mutex);
+	}
 
 	new_rfk_state = value;
 
-	mutex_lock(&dev->mutex);
-	state_changed = new_rfk_state != dev->last_rfk_state;
-	dev->last_rfk_state = new_rfk_state;
 	mutex_unlock(&dev->mutex);
 
-	if (unlikely(state_changed)) {
-		rfkill_force_state(dev->rfk_dev,
-				   new_rfk_state ?
-				   RFKILL_STATE_SOFT_BLOCKED :
-				   RFKILL_STATE_HARD_BLOCKED);
-		input_report_switch(poll_dev->input, SW_RFKILL_ALL,
-				    new_rfk_state);
-		input_sync(poll_dev->input);
-	}
+	if (rfkill_set_hw_state(rfkill, !new_rfk_state))
+		bt_rfkill_set_block(data, true);
 }
+
+static const struct rfkill_ops toshiba_rfk_ops = {
+	.set_block = bt_rfkill_set_block,
+	.poll = bt_rfkill_poll,
+};
 
 static struct proc_dir_entry *toshiba_proc_dir /*= 0*/ ;
 static struct backlight_device *toshiba_backlight_device;
@@ -702,13 +677,10 @@ static struct backlight_ops toshiba_backlight_data = {
 
 static void toshiba_acpi_exit(void)
 {
-	if (toshiba_acpi.poll_dev) {
-		input_unregister_polled_device(toshiba_acpi.poll_dev);
-		input_free_polled_device(toshiba_acpi.poll_dev);
+	if (toshiba_acpi.bt_rfk) {
+		rfkill_unregister(toshiba_acpi.bt_rfk);
+		rfkill_destroy(toshiba_acpi.bt_rfk);
 	}
-
-	if (toshiba_acpi.rfk_dev)
-		rfkill_unregister(toshiba_acpi.rfk_dev);
 
 	if (toshiba_backlight_device)
 		backlight_device_unregister(toshiba_backlight_device);
@@ -728,8 +700,6 @@ static int __init toshiba_acpi_init(void)
 	acpi_status status = AE_OK;
 	u32 hci_result;
 	bool bt_present;
-	bool bt_on;
-	bool radio_on;
 	int ret = 0;
 
 	if (acpi_disabled)
@@ -793,61 +763,21 @@ static int __init toshiba_acpi_init(void)
 
 	/* Register rfkill switch for Bluetooth */
 	if (hci_get_bt_present(&bt_present) == HCI_SUCCESS && bt_present) {
-		toshiba_acpi.rfk_dev = rfkill_allocate(&toshiba_acpi.p_dev->dev,
-							RFKILL_TYPE_BLUETOOTH);
-		if (!toshiba_acpi.rfk_dev) {
+		toshiba_acpi.bt_rfk = rfkill_alloc(toshiba_acpi.bt_name,
+						   &toshiba_acpi.p_dev->dev,
+						   RFKILL_TYPE_BLUETOOTH,
+						   &toshiba_rfk_ops,
+						   &toshiba_acpi);
+		if (!toshiba_acpi.bt_rfk) {
 			printk(MY_ERR "unable to allocate rfkill device\n");
 			toshiba_acpi_exit();
 			return -ENOMEM;
 		}
 
-		toshiba_acpi.rfk_dev->name = toshiba_acpi.bt_name;
-		toshiba_acpi.rfk_dev->toggle_radio = bt_rfkill_toggle_radio;
-		toshiba_acpi.rfk_dev->user_claim_unsupported = 1;
-		toshiba_acpi.rfk_dev->data = &toshiba_acpi;
-
-		if (hci_get_bt_on(&bt_on) == HCI_SUCCESS && bt_on) {
-			toshiba_acpi.rfk_dev->state = RFKILL_STATE_UNBLOCKED;
-		} else if (hci_get_radio_state(&radio_on) == HCI_SUCCESS &&
-			   radio_on) {
-			toshiba_acpi.rfk_dev->state = RFKILL_STATE_SOFT_BLOCKED;
-		} else {
-			toshiba_acpi.rfk_dev->state = RFKILL_STATE_HARD_BLOCKED;
-		}
-
-		ret = rfkill_register(toshiba_acpi.rfk_dev);
+		ret = rfkill_register(toshiba_acpi.bt_rfk);
 		if (ret) {
 			printk(MY_ERR "unable to register rfkill device\n");
-			toshiba_acpi_exit();
-			return -ENOMEM;
-		}
-
-		/* Register input device for kill switch */
-		toshiba_acpi.poll_dev = input_allocate_polled_device();
-		if (!toshiba_acpi.poll_dev) {
-			printk(MY_ERR
-			       "unable to allocate kill-switch input device\n");
-			toshiba_acpi_exit();
-			return -ENOMEM;
-		}
-		toshiba_acpi.poll_dev->private = &toshiba_acpi;
-		toshiba_acpi.poll_dev->poll = bt_poll_rfkill;
-		toshiba_acpi.poll_dev->poll_interval = 1000; /* msecs */
-
-		toshiba_acpi.poll_dev->input->name = toshiba_acpi.rfk_name;
-		toshiba_acpi.poll_dev->input->id.bustype = BUS_HOST;
-		/* Toshiba USB ID */
-		toshiba_acpi.poll_dev->input->id.vendor = 0x0930;
-		set_bit(EV_SW, toshiba_acpi.poll_dev->input->evbit);
-		set_bit(SW_RFKILL_ALL, toshiba_acpi.poll_dev->input->swbit);
-		input_report_switch(toshiba_acpi.poll_dev->input,
-				    SW_RFKILL_ALL, TRUE);
-		input_sync(toshiba_acpi.poll_dev->input);
-
-		ret = input_register_polled_device(toshiba_acpi.poll_dev);
-		if (ret) {
-			printk(MY_ERR
-			       "unable to register kill-switch input device\n");
+			rfkill_destroy(toshiba_acpi.bt_rfk);
 			toshiba_acpi_exit();
 			return ret;
 		}

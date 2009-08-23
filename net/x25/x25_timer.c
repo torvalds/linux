@@ -113,7 +113,7 @@ static void x25_heartbeat_expiry(unsigned long param)
 			    (sk->sk_state == TCP_LISTEN &&
 			     sock_flag(sk, SOCK_DEAD))) {
 				bh_unlock_sock(sk);
-				x25_destroy_socket(sk);
+				x25_destroy_socket_from_timer(sk);
 				return;
 			}
 			break;

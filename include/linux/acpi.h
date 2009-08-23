@@ -113,9 +113,6 @@ void acpi_irq_stats_init(void);
 extern u32 acpi_irq_handled;
 extern u32 acpi_irq_not_handled;
 
-extern struct acpi_mcfg_allocation *pci_mmcfg_config;
-extern int pci_mmcfg_config_num;
-
 extern int sbf_port;
 extern unsigned long acpi_realmode_flags;
 
@@ -293,7 +290,10 @@ void __init acpi_s4_no_nvs(void);
 				OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL)
 
 extern acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags);
+extern void acpi_early_init(void);
+
 #else	/* CONFIG_ACPI */
+static inline void acpi_early_init(void) { }
 
 static inline int early_acpi_boot_init(void)
 {

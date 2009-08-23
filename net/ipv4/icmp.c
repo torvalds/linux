@@ -356,7 +356,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 {
 	struct ipcm_cookie ipc;
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(rt->u.dst.dev);
 	struct sock *sk;
 	struct inet_sock *inet;
@@ -416,7 +416,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	struct iphdr *iph;
 	int room;
 	struct icmp_bxm icmp_param;
-	struct rtable *rt = skb_in->rtable;
+	struct rtable *rt = skb_rtable(skb_in);
 	struct ipcm_cookie ipc;
 	__be32 saddr;
 	u8  tos;
@@ -591,13 +591,13 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 				goto relookup_failed;
 
 			/* Ugh! */
-			odst = skb_in->dst;
+			odst = skb_dst(skb_in);
 			err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,
 					     RT_TOS(tos), rt2->u.dst.dev);
 
 			dst_release(&rt2->u.dst);
-			rt2 = skb_in->rtable;
-			skb_in->dst = odst;
+			rt2 = skb_rtable(skb_in);
+			skb_dst_set(skb_in, odst);
 		}
 
 		if (err)
@@ -659,7 +659,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	u32 info = 0;
 	struct net *net;
 
-	net = dev_net(skb->dst->dev);
+	net = dev_net(skb_dst(skb)->dev);
 
 	/*
 	 *	Incomplete header ?
@@ -822,7 +822,7 @@ static void icmp_echo(struct sk_buff *skb)
 {
 	struct net *net;
 
-	net = dev_net(skb->dst->dev);
+	net = dev_net(skb_dst(skb)->dev);
 	if (!net->ipv4.sysctl_icmp_echo_ignore_all) {
 		struct icmp_bxm icmp_param;
 
@@ -873,7 +873,7 @@ static void icmp_timestamp(struct sk_buff *skb)
 out:
 	return;
 out_err:
-	ICMP_INC_STATS_BH(dev_net(skb->dst->dev), ICMP_MIB_INERRORS);
+	ICMP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), ICMP_MIB_INERRORS);
 	goto out;
 }
 
@@ -926,7 +926,7 @@ static void icmp_address(struct sk_buff *skb)
 
 static void icmp_address_reply(struct sk_buff *skb)
 {
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct net_device *dev = skb->dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
@@ -970,7 +970,7 @@ static void icmp_discard(struct sk_buff *skb)
 int icmp_rcv(struct sk_buff *skb)
 {
 	struct icmphdr *icmph;
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(rt->u.dst.dev);
 
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {

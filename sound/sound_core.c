@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/kdev_t.h>
+#include <linux/major.h>
 #include <sound/core.h>
 
 #ifdef CONFIG_SOUND_OSS_CORE
@@ -27,6 +29,13 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
+static char *sound_nodename(struct device *dev)
+{
+	if (MAJOR(dev->devt) == SOUND_MAJOR)
+		return NULL;
+	return kasprintf(GFP_KERNEL, "snd/%s", dev_name(dev));
+}
+
 static int __init init_soundcore(void)
 {
 	int rc;
@@ -40,6 +49,8 @@ static int __init init_soundcore(void)
 		cleanup_oss_soundcore();
 		return PTR_ERR(sound_class);
 	}
+
+	sound_class->nodename = sound_nodename;
 
 	return 0;
 }
@@ -97,7 +108,6 @@ module_exit(cleanup_soundcore);
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sound.h>
-#include <linux/major.h>
 #include <linux/kmod.h>
 
 #define SOUND_STEP 16

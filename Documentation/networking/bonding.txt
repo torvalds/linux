@@ -221,7 +221,7 @@ ad_select
 
 		- Any slave's 802.3ad association state changes
 
-		- The bond's adminstrative state changes to up
+		- The bond's administrative state changes to up
 
 	count or 2
 
@@ -369,7 +369,7 @@ fail_over_mac
 		When this policy is used in conjuction with the mii
 		monitor, devices which assert link up prior to being
 		able to actually transmit and receive are particularly
-		susecptible to loss of the gratuitous ARP, and an
+		susceptible to loss of the gratuitous ARP, and an
 		appropriate updelay setting may be required.
 
 	follow or 2
@@ -1794,7 +1794,7 @@ target to query.
 generally referred to as "trunk failover."  This is a feature of the
 switch that causes the link state of a particular switch port to be set
 down (or up) when the state of another switch port goes down (or up).
-It's purpose is to propogate link failures from logically "exterior" ports
+Its purpose is to propagate link failures from logically "exterior" ports
 to the logically "interior" ports that bonding is able to monitor via
 miimon.  Availability and configuration for trunk failover varies by
 switch, but this can be a viable alternative to the ARP monitor when using

@@ -12,6 +12,10 @@
 #ifndef _LBS_IF_SDIO_H
 #define _LBS_IF_SDIO_H
 
+#define IF_SDIO_MODEL_8385	0x04
+#define IF_SDIO_MODEL_8686	0x0b
+#define IF_SDIO_MODEL_8688	0x10
+
 #define IF_SDIO_IOPORT		0x00
 
 #define IF_SDIO_H_INT_MASK	0x04
@@ -38,8 +42,14 @@
 
 #define IF_SDIO_SCRATCH		0x34
 #define IF_SDIO_SCRATCH_OLD	0x80fe
+#define IF_SDIO_FW_STATUS	0x40
 #define   IF_SDIO_FIRMWARE_OK	0xfedc
 
+#define IF_SDIO_RX_LEN		0x42
+#define IF_SDIO_RX_UNIT		0x43
+
 #define IF_SDIO_EVENT           0x80fc
+
+#define IF_SDIO_BLOCK_SIZE	256
 
 #endif

@@ -678,7 +678,7 @@ extern void fixup_irqs(void);
 int migrate_platform_irqs(unsigned int cpu)
 {
 	int new_cpei_cpu;
-	irq_desc_t *desc = NULL;
+	struct irq_desc *desc = NULL;
 	const struct cpumask *mask;
 	int 		retval = 0;
 
@@ -865,7 +865,7 @@ init_smp_config(void)
 void __devinit
 identify_siblings(struct cpuinfo_ia64 *c)
 {
-	s64 status;
+	long status;
 	u16 pltid;
 	pal_logical_to_physical_t info;
 

@@ -430,7 +430,8 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	 * hardware interrupt handler.  Queue flow control is
 	 * thus managed under this lock as well.
 	 */
-	spin_lock_irq(&np->lock);
+	unsigned long flags;
+	spin_lock_irqsave(&np->lock, flags);
 
 	add_to_tx_ring(np, skb, length);
 	dev->trans_start = jiffies;
@@ -446,7 +447,7 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	 * is when the transmit statistics are updated.
 	 */
 
-	spin_unlock_irq(&np->lock);
+	spin_unlock_irqrestore(&np->lock, flags);
 #else
 	/* This is the case for older hardware which takes
 	 * a single transmit buffer at a time, and it is

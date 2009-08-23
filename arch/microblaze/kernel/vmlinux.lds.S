@@ -62,7 +62,8 @@ SECTIONS {
 
 	_sdata = . ;
 	.data ALIGN (4096) : { /* page aligned when MMU used - origin 0x4 */
-		*(.data)
+		DATA_DATA
+		CONSTRUCTORS
 	}
 	. = ALIGN(32);
 	.data.cacheline_aligned : { *(.data.cacheline_aligned) }
@@ -98,13 +99,13 @@ SECTIONS {
 	. = ALIGN(4096);
 	.init.text : {
 		_sinittext = . ;
-		*(.init.text)
-		*(.exit.text)
-		*(.exit.data)
+		INIT_TEXT
 		_einittext = .;
 	}
 
-	.init.data : { *(.init.data) }
+	.init.data : {
+		INIT_DATA
+	}
 
 	. = ALIGN(4);
 	.init.ivt : {

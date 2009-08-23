@@ -472,7 +472,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
-		if (__test_bit(gpionr, gpio_enabled))
+		if (test_bit(gpionr, gpio_enabled))
 			return 0;
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
@@ -782,7 +782,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
-		if (__test_bit(gpionr, gpio_enabled))
+		if (test_bit(gpionr, gpio_enabled))
 			return 0;
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
@@ -1052,35 +1052,34 @@ int __init init_arch_irq(void)
 			set_irq_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
-#if defined(CONFIG_TICKSOURCE_GPTMR0)
-		case IRQ_TIMER0:
-			set_irq_handler(irq, handle_percpu_irq);
-			break;
-#endif
 #ifdef CONFIG_SMP
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
 			set_irq_handler(irq, handle_percpu_irq);
 			break;
 #endif
-		default:
 #ifdef CONFIG_IPIPE
-			/*
-			 * We want internal interrupt sources to be
-			 * masked, because ISRs may trigger interrupts
-			 * recursively (e.g. DMA), but interrupts are
-			 * _not_ masked at CPU level. So let's handle
-			 * most of them as level interrupts, except
-			 * the timer interrupt which is special.
-			 */
-			if (irq == IRQ_SYSTMR || irq == IRQ_CORETMR)
-				set_irq_handler(irq, handle_simple_irq);
-			else
-				set_irq_handler(irq, handle_level_irq);
-#else /* !CONFIG_IPIPE */
+#ifndef CONFIG_TICKSOURCE_CORETMR
+		case IRQ_TIMER0:
 			set_irq_handler(irq, handle_simple_irq);
-#endif /* !CONFIG_IPIPE */
 			break;
+#endif /* !CONFIG_TICKSOURCE_CORETMR */
+		case IRQ_CORETMR:
+			set_irq_handler(irq, handle_simple_irq);
+			break;
+		default:
+			set_irq_handler(irq, handle_level_irq);
+			break;
+#else /* !CONFIG_IPIPE */
+#ifdef CONFIG_TICKSOURCE_GPTMR0
+		case IRQ_TIMER0:
+			set_irq_handler(irq, handle_percpu_irq);
+			break;
+#endif /* CONFIG_TICKSOURCE_GPTMR0 */
+		default:
+			set_irq_handler(irq, handle_simple_irq);
+			break;
+#endif	/* !CONFIG_IPIPE */
 		}
 	}
 
@@ -1224,15 +1223,14 @@ __attribute__((l1_text))
 asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 {
 	struct ipipe_percpu_domain_data *p = ipipe_root_cpudom_ptr();
-	struct ipipe_domain *this_domain = ipipe_current_domain;
+	struct ipipe_domain *this_domain = __ipipe_current_domain;
 	struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
 	int irq, s;
 
-	if (likely(vec == EVT_IVTMR_P)) {
+	if (likely(vec == EVT_IVTMR_P))
 		irq = IRQ_CORETMR;
-
-	} else {
+	else {
 #if defined(SIC_ISR0) || defined(SICA_ISR0)
 		unsigned long sic_status[3];
 
@@ -1262,12 +1260,11 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 				break;
 		}
 #endif
-
 		irq = ivg->irqno;
 	}
 
 	if (irq == IRQ_SYSTMR) {
-#ifndef CONFIG_GENERIC_CLOCKEVENTS
+#if !defined(CONFIG_GENERIC_CLOCKEVENTS) || defined(CONFIG_TICKSOURCE_GPTMR0)
 		bfin_write_TIMER_STATUS(1); /* Latch TIMIL0 */
 #endif
 		/* This is basically what we need from the register frame. */

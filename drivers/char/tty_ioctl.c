@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -947,7 +946,6 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 	void __user *p = (void __user *)arg;
 	int ret = 0;
 	struct ktermios kterm;
-	struct termiox ktermx;
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)
@@ -1049,7 +1047,8 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		return ret;
 #endif
 #ifdef TCGETX
-	case TCGETX:
+	case TCGETX: {
+		struct termiox ktermx;
 		if (real_tty->termiox == NULL)
 			return -EINVAL;
 		mutex_lock(&real_tty->termios_mutex);
@@ -1058,6 +1057,7 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		if (copy_to_user(p, &ktermx, sizeof(struct termiox)))
 			ret = -EFAULT;
 		return ret;
+	}
 	case TCSETX:
 		return set_termiox(real_tty, p, 0);
 	case TCSETXW:

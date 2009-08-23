@@ -95,8 +95,8 @@ struct fsl_lbc_bank {
 };
 
 struct fsl_lbc_regs {
-	struct fsl_lbc_bank bank[8];
-	u8 res0[0x28];
+	struct fsl_lbc_bank bank[12];
+	u8 res0[0x8];
 	__be32 mar;             /**< UPM Address Register */
 	u8 res1[0x4];
 	__be32 mamr;            /**< UPMA Mode Register */

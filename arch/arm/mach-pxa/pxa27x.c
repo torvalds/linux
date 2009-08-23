@@ -27,7 +27,7 @@
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -204,6 +204,23 @@ static struct clk_lookup pxa27x_clkregs[] = {
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
 /*
+ * allow platforms to override default PWRMODE setting used for PM_SUSPEND_MEM
+ */
+static unsigned int pwrmode = PWRMODE_SLEEP;
+
+int __init pxa27x_set_pwrmode(unsigned int mode)
+{
+	switch (mode) {
+	case PWRMODE_SLEEP:
+	case PWRMODE_DEEPSLEEP:
+		pwrmode = mode;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/*
  * List of global PXA peripheral registers to preserve.
  * More ones like CP and general purpose register values are preserved
  * with the stack pointer in sleep.S.
@@ -254,7 +271,7 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 		pxa_cpu_standby();
 		break;
 	case PM_SUSPEND_MEM:
-		pxa27x_cpu_suspend(PWRMODE_SLEEP);
+		pxa27x_cpu_suspend(pwrmode);
 		break;
 	}
 }

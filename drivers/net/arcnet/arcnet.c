@@ -158,15 +158,12 @@ module_exit(arcnet_exit);
 void arcnet_dump_skb(struct net_device *dev,
 		     struct sk_buff *skb, char *desc)
 {
-	int i;
+	char hdr[32];
 
-	printk(KERN_DEBUG "%6s: skb dump (%s) follows:", dev->name, desc);
-	for (i = 0; i < skb->len; i++) {
-		if (i % 16 == 0)
-			printk("\n" KERN_DEBUG "[%04X] ", i);
-		printk("%02X ", ((u_char *) skb->data)[i]);
-	}
-	printk("\n");
+	/* dump the packet */
+	snprintf(hdr, sizeof(hdr), "%6s:%s skb->data:", dev->name, desc);
+	print_hex_dump(KERN_DEBUG, hdr, DUMP_PREFIX_OFFSET,
+		       16, 1, skb->data, skb->len, true);
 }
 
 EXPORT_SYMBOL(arcnet_dump_skb);
@@ -184,6 +181,7 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	int i, length;
 	unsigned long flags = 0;
 	static uint8_t buf[512];
+	char hdr[32];
 
 	/* hw.copy_from_card expects IRQ context so take the IRQ lock
 	   to keep it single threaded */
@@ -197,14 +195,10 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	/* if the offset[0] byte is nonzero, this is a 256-byte packet */
 	length = (buf[2] ? 256 : 512);
 
-	printk(KERN_DEBUG "%6s: packet dump (%s) follows:", dev->name, desc);
-	for (i = 0; i < length; i++) {
-		if (i % 16 == 0)
-			printk("\n" KERN_DEBUG "[%04X] ", i);
-		printk("%02X ", buf[i]);
-	}
-	printk("\n");
-
+	/* dump the packet */
+	snprintf(hdr, sizeof(hdr), "%6s:%s packet dump:", dev->name, desc);
+	print_hex_dump(KERN_DEBUG, hdr, DUMP_PREFIX_OFFSET,
+		       16, 1, buf, length, true);
 }
 
 #else

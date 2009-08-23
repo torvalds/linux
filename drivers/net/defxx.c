@@ -3318,7 +3318,7 @@ static int dfx_xmt_queue_pkt(
 	{
 		skb_pull(skb,3);
 		spin_unlock_irqrestore(&bp->lock, flags);
-		return(1);			/* requeue packet for later */
+		return NETDEV_TX_BUSY;	/* requeue packet for later */
 	}
 
 	/*

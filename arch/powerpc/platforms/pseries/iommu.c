@@ -388,7 +388,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 		while (pci->phb->dma_window_size * children > 0x80000000ul)
 			pci->phb->dma_window_size >>= 1;
-		pr_debug("No ISA/IDE, window size is 0x%lx\n",
+		pr_debug("No ISA/IDE, window size is 0x%llx\n",
 			 pci->phb->dma_window_size);
 		pci->phb->dma_window_base_cur = 0;
 
@@ -414,7 +414,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 	while (pci->phb->dma_window_size * children > 0x70000000ul)
 		pci->phb->dma_window_size >>= 1;
 
-	pr_debug("ISA/IDE, window size is 0x%lx\n", pci->phb->dma_window_size);
+	pr_debug("ISA/IDE, window size is 0x%llx\n", pci->phb->dma_window_size);
 }
 
 

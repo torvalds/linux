@@ -10,6 +10,7 @@
 #define _ASM_IRQ_H
 
 #include <linux/linkage.h>
+#include <linux/smp.h>
 
 #include <asm/mipsmtregs.h>
 

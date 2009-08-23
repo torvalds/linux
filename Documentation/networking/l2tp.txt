@@ -158,7 +158,7 @@ Sample Userspace Code
         }
         return 0;
 
-Miscellanous
+Miscellaneous
 ============
 
 The PPPoL2TP driver was developed as part of the OpenL2TP project by

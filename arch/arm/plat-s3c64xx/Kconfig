@@ -19,6 +19,7 @@ config PLAT_S3C64XX
 	select S3C_GPIO_PULL_UPDOWN
 	select S3C_GPIO_CFG_S3C24XX
 	select S3C_GPIO_CFG_S3C64XX
+	select USB_ARCH_HAS_OHCI
 	help
 	  Base platform code for any Samsung S3C64XX device
 
@@ -37,6 +38,10 @@ config CPU_S3C6400_CLOCK
 	help
 	  Common clock support code for the S3C6400 that is shared
 	  by other CPUs in the series, such as the S3C6410.
+
+config S3C64XX_DMA
+	bool "S3C64XX DMA"
+	select S3C_DMA
 
 # platform specific device setup
 
@@ -58,5 +63,10 @@ config S3C64XX_SETUP_FB_24BPP
 	bool
 	help
 	  Common setup code for S3C64XX with an 24bpp RGB display helper.
+
+config S3C64XX_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for S3C64XX SDHCI GPIO configurations
 
 endif

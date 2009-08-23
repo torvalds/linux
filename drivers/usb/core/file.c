@@ -67,6 +67,16 @@ static struct usb_class {
 	struct class *class;
 } *usb_class;
 
+static char *usb_nodename(struct device *dev)
+{
+	struct usb_class_driver *drv;
+
+	drv = dev_get_drvdata(dev);
+	if (!drv || !drv->nodename)
+		return NULL;
+	return drv->nodename(dev);
+}
+
 static int init_usb_class(void)
 {
 	int result = 0;
@@ -90,6 +100,7 @@ static int init_usb_class(void)
 		kfree(usb_class);
 		usb_class = NULL;
 	}
+	usb_class->class->nodename = usb_nodename;
 
 exit:
 	return result;
@@ -198,7 +209,7 @@ int usb_register_dev(struct usb_interface *intf,
 	else
 		temp = name;
 	intf->usb_dev = device_create(usb_class->class, &intf->dev,
-				      MKDEV(USB_MAJOR, minor), NULL,
+				      MKDEV(USB_MAJOR, minor), class_driver,
 				      "%s", temp);
 	if (IS_ERR(intf->usb_dev)) {
 		down_write(&minor_rwsem);

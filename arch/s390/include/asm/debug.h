@@ -248,14 +248,5 @@ int debug_unregister_view(debug_info_t* id, struct debug_view* view);
 #define PRINT_FATAL(x...) printk ( KERN_DEBUG PRINTK_HEADER x )
 #endif				/* DASD_DEBUG */
 
-#undef DEBUG_MALLOC
-#ifdef DEBUG_MALLOC
-void *b;
-#define kmalloc(x...) (PRINT_INFO(" kmalloc %p\n",b=kmalloc(x)),b)
-#define kfree(x) PRINT_INFO(" kfree %p\n",x);kfree(x)
-#define get_zeroed_page(x...) (PRINT_INFO(" gfp %p\n",b=get_zeroed_page(x)),b)
-#define __get_free_pages(x...) (PRINT_INFO(" gfps %p\n",b=__get_free_pages(x)),b)
-#endif				/* DEBUG_MALLOC */
-
 #endif				/* __KERNEL__ */
 #endif				/* DEBUG_H */

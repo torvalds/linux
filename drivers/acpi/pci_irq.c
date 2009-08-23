@@ -182,7 +182,7 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 	}
 }
 
-static int acpi_pci_irq_add_entry(acpi_handle handle, int segment, int bus,
+static int acpi_pci_irq_add_entry(acpi_handle handle, struct pci_bus *bus,
 				  struct acpi_pci_routing_table *prt)
 {
 	struct acpi_prt_entry *entry;
@@ -196,8 +196,8 @@ static int acpi_pci_irq_add_entry(acpi_handle handle, int segment, int bus,
 	 * 1=INTA, 2=INTB.  We use the PCI encoding throughout, so convert
 	 * it here.
 	 */
-	entry->id.segment = segment;
-	entry->id.bus = bus;
+	entry->id.segment = pci_domain_nr(bus);
+	entry->id.bus = bus->number;
 	entry->id.device = (prt->address >> 16) & 0xFFFF;
 	entry->pin = prt->pin + 1;
 
@@ -242,7 +242,7 @@ static int acpi_pci_irq_add_entry(acpi_handle handle, int segment, int bus,
 	return 0;
 }
 
-int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
+int acpi_pci_irq_add_prt(acpi_handle handle, struct pci_bus *bus)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -271,7 +271,7 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 
 	entry = buffer.pointer;
 	while (entry && (entry->length > 0)) {
-		acpi_pci_irq_add_entry(handle, segment, bus, entry);
+		acpi_pci_irq_add_entry(handle, bus, entry);
 		entry = (struct acpi_pci_routing_table *)
 		    ((unsigned long)entry + entry->length);
 	}
@@ -280,16 +280,17 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 	return 0;
 }
 
-void acpi_pci_irq_del_prt(int segment, int bus)
+void acpi_pci_irq_del_prt(struct pci_bus *bus)
 {
 	struct acpi_prt_entry *entry, *tmp;
 
 	printk(KERN_DEBUG
 	       "ACPI: Delete PCI Interrupt Routing Table for %04x:%02x\n",
-	       segment, bus);
+	       pci_domain_nr(bus), bus->number);
 	spin_lock(&acpi_prt_lock);
 	list_for_each_entry_safe(entry, tmp, &acpi_prt_list, list) {
-		if (segment == entry->id.segment && bus == entry->id.bus) {
+		if (pci_domain_nr(bus) == entry->id.segment
+			&& bus->number == entry->id.bus) {
 			list_del(&entry->list);
 			kfree(entry);
 		}

@@ -386,7 +386,7 @@ static int pohmelfs_write_inode_create_children(struct inode *inode)
 		if (inode && (inode->i_state & I_DIRTY)) {
 			struct pohmelfs_inode *pi = POHMELFS_I(inode);
 			pohmelfs_write_create_inode(pi);
-			//pohmelfs_meta_command(pi, NETFS_INODE_INFO, 0, NULL, NULL, 0);
+			/* pohmelfs_meta_command(pi, NETFS_INODE_INFO, 0, NULL, NULL, 0); */
 			iput(inode);
 		}
 	}
@@ -845,7 +845,7 @@ static void pohmelfs_destroy_inode(struct inode *inode)
 	struct pohmelfs_sb *psb = POHMELFS_SB(sb);
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
 
-	//pohmelfs_data_unlock(pi, 0, inode->i_size, POHMELFS_READ_LOCK);
+	/* pohmelfs_data_unlock(pi, 0, inode->i_size, POHMELFS_READ_LOCK); */
 
 	pohmelfs_inode_del_inode(psb, pi);
 
@@ -943,7 +943,7 @@ err_out_unlock:
 	return ret;
 }
 
-const static struct file_operations pohmelfs_file_ops = {
+static const struct file_operations pohmelfs_file_ops = {
 	.open		= generic_file_open,
 	.fsync		= pohmelfs_fsync,
 
@@ -1529,9 +1529,9 @@ static void pohmelfs_drop_scan(struct work_struct *work)
 	struct pohmelfs_inode *pi;
 	unsigned int count = 0;
 
-	while ((pi = pohmelfs_get_inode_from_list(psb, &psb->drop_list, &count))) {
+	while ((pi = pohmelfs_get_inode_from_list(psb, &psb->drop_list, &count)))
 		pohmelfs_put_inode_count(pi, count);
-	}
+
 	pohmelfs_check_states(psb);
 
 	if (psb->drop_scan_timeout)
@@ -1568,9 +1568,8 @@ static void pohmelfs_trans_scan_state(struct netfs_state *st)
 		rb_node = rb_next(rb_node);
 
 		err = -ETIMEDOUT;
-		if (timeout && (++dst->retries < psb->trans_retries)) {
+		if (timeout && (++dst->retries < psb->trans_retries))
 			err = netfs_trans_resend(t, psb);
-		}
 
 		if (err || (t->flags & NETFS_TRANS_SINGLE_DST)) {
 			if (netfs_trans_remove_nolock(dst, st))
@@ -1777,7 +1776,7 @@ static int pohmelfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, "%u ", ctl->idx);
 		if (ctl->addr.sa_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)&st->ctl.addr;
-			//seq_printf(m, "%pi4:%u", &sin->sin_addr.s_addr, ntohs(sin->sin_port));
+			/* seq_printf(m, "%pi4:%u", &sin->sin_addr.s_addr, ntohs(sin->sin_port)); */
 			seq_printf(m, "%u.%u.%u.%u:%u", NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
 		} else if (ctl->addr.sa_family == AF_INET6) {
 			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&st->ctl.addr;

@@ -2,7 +2,7 @@
  *  drivers/s390/char/tape_34xx.c
  *    tape device discipline for 3480/3490 tapes.
  *
- *    Copyright (C) IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001, 2009
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -1289,7 +1289,7 @@ static int
 tape_34xx_online(struct ccw_device *cdev)
 {
 	return tape_generic_online(
-		cdev->dev.driver_data,
+		dev_get_drvdata(&cdev->dev),
 		&tape_discipline_34xx
 	);
 }
@@ -1302,6 +1302,7 @@ static struct ccw_driver tape_34xx_driver = {
 	.remove = tape_generic_remove,
 	.set_online = tape_34xx_online,
 	.set_offline = tape_generic_offline,
+	.freeze = tape_generic_pm_suspend,
 };
 
 static int

@@ -267,7 +267,7 @@ error:
 	return retval;
 }
 
-static void symbol_shutdown(struct usb_serial *serial)
+static void symbol_disconnect(struct usb_serial *serial)
 {
 	struct symbol_private *priv = usb_get_serial_data(serial);
 
@@ -275,9 +275,16 @@ static void symbol_shutdown(struct usb_serial *serial)
 
 	usb_kill_urb(priv->int_urb);
 	usb_free_urb(priv->int_urb);
+}
+
+static void symbol_release(struct usb_serial *serial)
+{
+	struct symbol_private *priv = usb_get_serial_data(serial);
+
+	dbg("%s", __func__);
+
 	kfree(priv->int_buffer);
 	kfree(priv);
-	usb_set_serial_data(serial, NULL);
 }
 
 static struct usb_driver symbol_driver = {
@@ -299,7 +306,8 @@ static struct usb_serial_driver symbol_device = {
 	.attach =		symbol_startup,
 	.open =			symbol_open,
 	.close =		symbol_close,
-	.shutdown =		symbol_shutdown,
+	.disconnect =		symbol_disconnect,
+	.release =		symbol_release,
 	.throttle = 		symbol_throttle,
 	.unthrottle =		symbol_unthrottle,
 };

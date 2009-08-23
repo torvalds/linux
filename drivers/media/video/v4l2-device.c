@@ -49,6 +49,22 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register);
 
+int v4l2_device_set_name(struct v4l2_device *v4l2_dev, const char *basename,
+						atomic_t *instance)
+{
+	int num = atomic_inc_return(instance) - 1;
+	int len = strlen(basename);
+
+	if (basename[len - 1] >= '0' && basename[len - 1] <= '9')
+		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
+				"%s-%d", basename, num);
+	else
+		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
+				"%s%d", basename, num);
+	return num;
+}
+EXPORT_SYMBOL_GPL(v4l2_device_set_name);
+
 void v4l2_device_disconnect(struct v4l2_device *v4l2_dev)
 {
 	if (v4l2_dev->dev) {
@@ -67,8 +83,21 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 	v4l2_device_disconnect(v4l2_dev);
 
 	/* Unregister subdevs */
-	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list)
+	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list) {
 		v4l2_device_unregister_subdev(sd);
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
+		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
+			struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+			/* We need to unregister the i2c client explicitly.
+			   We cannot rely on i2c_del_adapter to always
+			   unregister clients for us, since if the i2c bus
+			   is a platform bus, then it is never deleted. */
+			if (client)
+				i2c_unregister_device(client);
+		}
+#endif
+	}
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 

@@ -1471,10 +1471,12 @@ static void __devinit decode_smsc(int efer, int key, int devid, int devrev)
 
 static void __devinit winbond_check(int io, int key)
 {
-	int devid, devrev, oldid, x_devid, x_devrev, x_oldid;
+	int origval, devid, devrev, oldid, x_devid, x_devrev, x_oldid;
 
 	if (!request_region(io, 3, __func__))
 		return;
+
+	origval = inb(io); /* Save original value */
 
 	/* First probe without key */
 	outb(0x20, io);
@@ -1495,6 +1497,8 @@ static void __devinit winbond_check(int io, int key)
 	oldid = inb(io + 1);
 	outb(0xaa, io);    /* Magic Seal */
 
+	outb(origval, io); /* in case we poked some entirely different hardware */
+
 	if ((x_devid == devid) && (x_devrev == devrev) && (x_oldid == oldid))
 		goto out; /* protection against false positives */
 
@@ -1505,10 +1509,14 @@ out:
 
 static void __devinit winbond_check2(int io, int key)
 {
-	int devid, devrev, oldid, x_devid, x_devrev, x_oldid;
+	int origval[3], devid, devrev, oldid, x_devid, x_devrev, x_oldid;
 
 	if (!request_region(io, 3, __func__))
 		return;
+
+	origval[0] = inb(io); /* Save original values */
+	origval[1] = inb(io + 1);
+	origval[2] = inb(io + 2);
 
 	/* First probe without the key */
 	outb(0x20, io + 2);
@@ -1528,6 +1536,10 @@ static void __devinit winbond_check2(int io, int key)
 	oldid = inb(io + 2);
 	outb(0xaa, io);    /* Magic Seal */
 
+	outb(origval[0], io); /* in case we poked some entirely different hardware */
+	outb(origval[1], io + 1);
+	outb(origval[2], io + 2);
+
 	if (x_devid == devid && x_devrev == devrev && x_oldid == oldid)
 		goto out; /* protection against false positives */
 
@@ -1538,10 +1550,12 @@ out:
 
 static void __devinit smsc_check(int io, int key)
 {
-	int id, rev, oldid, oldrev, x_id, x_rev, x_oldid, x_oldrev;
+	int origval, id, rev, oldid, oldrev, x_id, x_rev, x_oldid, x_oldrev;
 
 	if (!request_region(io, 3, __func__))
 		return;
+
+	origval = inb(io); /* Save original value */
 
 	/* First probe without the key */
 	outb(0x0d, io);
@@ -1565,6 +1579,8 @@ static void __devinit smsc_check(int io, int key)
 	outb(0x21, io);
 	rev = inb(io + 1);
 	outb(0xaa, io);    /* Magic Seal */
+
+	outb(origval, io); /* in case we poked some entirely different hardware */
 
 	if (x_id == id && x_oldrev == oldrev &&
 	    x_oldid == oldid && x_rev == rev)
@@ -1602,11 +1618,12 @@ static void __devinit detect_and_report_smsc(void)
 static void __devinit detect_and_report_it87(void)
 {
 	u16 dev;
-	u8 r;
+	u8 origval, r;
 	if (verbose_probing)
 		printk(KERN_DEBUG "IT8705 Super-IO detection, now testing port 2E ...\n");
-	if (!request_region(0x2e, 1, __func__))
+	if (!request_region(0x2e, 2, __func__))
 		return;
+	origval = inb(0x2e);		/* Save original value */
 	outb(0x87, 0x2e);
 	outb(0x01, 0x2e);
 	outb(0x55, 0x2e);
@@ -1626,8 +1643,10 @@ static void __devinit detect_and_report_it87(void)
 		outb(r | 8, 0x2F);
 		outb(0x02, 0x2E);	/* Lock */
 		outb(0x02, 0x2F);
+	} else {
+		outb(origval, 0x2e);	/* Oops, sorry to disturb */
 	}
-	release_region(0x2e, 1);
+	release_region(0x2e, 2);
 }
 #endif /* CONFIG_PARPORT_PC_SUPERIO */
 
@@ -2271,6 +2290,9 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 		if (IS_ERR(pdev))
 			return NULL;
 		dev = &pdev->dev;
+
+		dev->coherent_dma_mask = DMA_BIT_MASK(24);
+		dev->dma_mask = &dev->coherent_dma_mask;
 	}
 
 	ops = kmalloc(sizeof(struct parport_operations), GFP_KERNEL);
@@ -2885,6 +2907,7 @@ enum parport_pc_pci_cards {
 	netmos_9755,
 	netmos_9805,
 	netmos_9815,
+	netmos_9901,
 	quatech_sppxp100,
 };
 
@@ -2965,7 +2988,7 @@ static struct parport_pc_pci {
 	/* netmos_9755 */               { 2, { { 0, 1 }, { 2, 3 },} },
 	/* netmos_9805 */               { 1, { { 0, -1 }, } },
 	/* netmos_9815 */               { 2, { { 0, -1 }, { 2, -1 }, } },
-
+	/* netmos_9901 */               { 1, { { 0, -1 }, } },
 	/* quatech_sppxp100 */		{ 1, { { 0, 1 }, } },
 };
 
@@ -3067,6 +3090,8 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9805 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9815,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9815 },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9901,
+	  0xA000, 0x2000, 0, 0, netmos_9901 },
 	/* Quatech SPPXP-100 Parallel port PCI ExpressCard */
 	{ PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_SPPXP_100,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, quatech_sppxp100 },

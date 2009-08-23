@@ -746,6 +746,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
 {
 	v4l2_subdev_init(sd, ops);
+	sd->flags |= V4L2_SUBDEV_FL_IS_I2C;
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = client->driver->driver.owner;
 	/* i2c_client and v4l2_subdev point to one another */
@@ -801,6 +802,17 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
 
+	if (sd) {
+		/* We return errors from v4l2_subdev_call only if we have the
+		   callback as the .s_config is not mandatory */
+		int err = v4l2_subdev_call(sd, core, s_config, 0, NULL);
+
+		if (err && err != -ENOIOCTLCMD) {
+			v4l2_device_unregister_subdev(sd);
+			sd = NULL;
+		}
+	}
+
 error:
 	/* If we have a client but no subdev, then something went wrong and
 	   we must unregister the client. */
@@ -851,6 +863,17 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct v4l2_device *v4l2_dev,
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
 
+	if (sd) {
+		/* We return errors from v4l2_subdev_call only if we have the
+		   callback as the .s_config is not mandatory */
+		int err = v4l2_subdev_call(sd, core, s_config, 0, NULL);
+
+		if (err && err != -ENOIOCTLCMD) {
+			v4l2_device_unregister_subdev(sd);
+			sd = NULL;
+		}
+	}
+
 error:
 	/* If we have a client but no subdev, then something went wrong and
 	   we must unregister the client. */
@@ -870,6 +893,89 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev_addr(struct v4l2_device *v4l2_dev
 			module_name, client_type, addrs);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev_addr);
+
+/* Load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter, const char *module_name,
+		struct i2c_board_info *info, const unsigned short *probe_addrs)
+{
+	struct v4l2_subdev *sd = NULL;
+	struct i2c_client *client;
+
+	BUG_ON(!v4l2_dev);
+
+	if (module_name)
+		request_module(module_name);
+
+	/* Create the i2c client */
+	if (info->addr == 0 && probe_addrs)
+		client = i2c_new_probed_device(adapter, info, probe_addrs);
+	else
+		client = i2c_new_device(adapter, info);
+
+	/* Note: by loading the module first we are certain that c->driver
+	   will be set if the driver was found. If the module was not loaded
+	   first, then the i2c core tries to delay-load the module for us,
+	   and then c->driver is still NULL until the module is finally
+	   loaded. This delay-load mechanism doesn't work if other drivers
+	   want to use the i2c device, so explicitly loading the module
+	   is the best alternative. */
+	if (client == NULL || client->driver == NULL)
+		goto error;
+
+	/* Lock the module so we can safely get the v4l2_subdev pointer */
+	if (!try_module_get(client->driver->driver.owner))
+		goto error;
+	sd = i2c_get_clientdata(client);
+
+	/* Register with the v4l2_device which increases the module's
+	   use count as well. */
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
+		sd = NULL;
+	/* Decrease the module use count to match the first try_module_get. */
+	module_put(client->driver->driver.owner);
+
+	if (sd) {
+		/* We return errors from v4l2_subdev_call only if we have the
+		   callback as the .s_config is not mandatory */
+		int err = v4l2_subdev_call(sd, core, s_config,
+				info->irq, info->platform_data);
+
+		if (err && err != -ENOIOCTLCMD) {
+			v4l2_device_unregister_subdev(sd);
+			sd = NULL;
+		}
+	}
+
+error:
+	/* If we have a client but no subdev, then something went wrong and
+	   we must unregister the client. */
+	if (client && sd == NULL)
+		i2c_unregister_device(client);
+	return sd;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_board);
+
+struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type,
+		int irq, void *platform_data,
+		u8 addr, const unsigned short *probe_addrs)
+{
+	struct i2c_board_info info;
+
+	/* Setup the i2c board info with the device type and
+	   the device address. */
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, client_type, sizeof(info.type));
+	info.addr = addr;
+	info.irq = irq;
+	info.platform_data = platform_data;
+
+	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, module_name,
+			&info, probe_addrs);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_cfg);
 
 /* Return i2c client address of v4l2_subdev. */
 unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)
@@ -897,8 +1003,7 @@ const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 	};
 	static const unsigned short tv_addrs[] = {
 		0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
-		0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-		0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+		0x60, 0x61, 0x62, 0x63, 0x64,
 		I2C_CLIENT_END
 	};
 
@@ -916,4 +1021,78 @@ const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_tuner_addrs);
 
-#endif
+#endif /* defined(CONFIG_I2C) */
+
+/* Clamp x to be between min and max, aligned to a multiple of 2^align.  min
+ * and max don't have to be aligned, but there must be at least one valid
+ * value.  E.g., min=17,max=31,align=4 is not allowed as there are no multiples
+ * of 16 between 17 and 31.  */
+static unsigned int clamp_align(unsigned int x, unsigned int min,
+				unsigned int max, unsigned int align)
+{
+	/* Bits that must be zero to be aligned */
+	unsigned int mask = ~((1 << align) - 1);
+
+	/* Round to nearest aligned value */
+	if (align)
+		x = (x + (1 << (align - 1))) & mask;
+
+	/* Clamp to aligned value of min and max */
+	if (x < min)
+		x = (min + ~mask) & mask;
+	else if (x > max)
+		x = max & mask;
+
+	return x;
+}
+
+/* Bound an image to have a width between wmin and wmax, and height between
+ * hmin and hmax, inclusive.  Additionally, the width will be a multiple of
+ * 2^walign, the height will be a multiple of 2^halign, and the overall size
+ * (width*height) will be a multiple of 2^salign.  The image may be shrunk
+ * or enlarged to fit the alignment constraints.
+ *
+ * The width or height maximum must not be smaller than the corresponding
+ * minimum.  The alignments must not be so high there are no possible image
+ * sizes within the allowed bounds.  wmin and hmin must be at least 1
+ * (don't use 0).  If you don't care about a certain alignment, specify 0,
+ * as 2^0 is 1 and one byte alignment is equivalent to no alignment.  If
+ * you only want to adjust downward, specify a maximum that's the same as
+ * the initial value.
+ */
+void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
+			   unsigned int walign,
+			   u32 *h, unsigned int hmin, unsigned int hmax,
+			   unsigned int halign, unsigned int salign)
+{
+	*w = clamp_align(*w, wmin, wmax, walign);
+	*h = clamp_align(*h, hmin, hmax, halign);
+
+	/* Usually we don't need to align the size and are done now. */
+	if (!salign)
+		return;
+
+	/* How much alignment do we have? */
+	walign = __ffs(*w);
+	halign = __ffs(*h);
+	/* Enough to satisfy the image alignment? */
+	if (walign + halign < salign) {
+		/* Max walign where there is still a valid width */
+		unsigned int wmaxa = __fls(wmax ^ (wmin - 1));
+		/* Max halign where there is still a valid height */
+		unsigned int hmaxa = __fls(hmax ^ (hmin - 1));
+
+		/* up the smaller alignment until we have enough */
+		do {
+			if (halign >= hmaxa ||
+			    (walign <= halign && walign < wmaxa)) {
+				*w = clamp_align(*w, wmin, wmax, walign + 1);
+				walign = __ffs(*w);
+			} else {
+				*h = clamp_align(*h, hmin, hmax, halign + 1);
+				halign = __ffs(*h);
+			}
+		} while (halign + walign < salign);
+	}
+}
+EXPORT_SYMBOL_GPL(v4l_bound_align_image);

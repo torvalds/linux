@@ -111,7 +111,7 @@ struct dm_exception_store {
 /*
  * Funtions to manipulate consecutive chunks
  */
-#  if defined(CONFIG_LBD) || (BITS_PER_LONG == 64)
+#  if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
 #    define DM_CHUNK_CONSECUTIVE_BITS 8
 #    define DM_CHUNK_NUMBER_BITS 56
 
@@ -156,7 +156,7 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
  */
 static inline sector_t get_dev_size(struct block_device *bdev)
 {
-	return bdev->bd_inode->i_size >> SECTOR_SHIFT;
+	return i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
 }
 
 static inline chunk_t sector_to_chunk(struct dm_exception_store *store,

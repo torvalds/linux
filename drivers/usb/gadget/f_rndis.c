@@ -475,7 +475,9 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (rndis->port.in_ep->driver_data) {
 			DBG(cdev, "reset rndis\n");
 			gether_disconnect(&rndis->port);
-		} else {
+		}
+
+		if (!rndis->port.in) {
 			DBG(cdev, "init rndis\n");
 			rndis->port.in = ep_choose(cdev->gadget,
 					rndis->hs.in, rndis->fs.in);

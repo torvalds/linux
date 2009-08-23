@@ -20,6 +20,7 @@
 #include <linux/clockchips.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
@@ -464,11 +465,8 @@ void smtc_prepare_cpus(int cpus)
 	smtc_configure_tlb();
 
 	for (tc = 0, vpe = 0 ; (vpe < nvpe) && (tc < ntc) ; vpe++) {
-		/*
-		 * Set the MVP bits.
-		 */
-		settc(tc);
-		write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_MVP);
+		if (tcpervpe[vpe] == 0)
+			continue;
 		if (vpe != 0)
 			printk(", ");
 		printk("VPE %d: TC", vpe);
@@ -486,6 +484,12 @@ void smtc_prepare_cpus(int cpus)
 			tc++;
 		}
 		if (vpe != 0) {
+			/*
+			 * Allow this VPE to control others.
+			 */
+			write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() |
+					      VPECONF0_MVP);
+
 			/*
 			 * Clear any stale software interrupts from VPE's Cause
 			 */
@@ -924,6 +928,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 	int irq = MIPS_CPU_IRQ_BASE + 1;
 
 	smtc_ipi_nq(&freeIPIq, pipi);
+
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();

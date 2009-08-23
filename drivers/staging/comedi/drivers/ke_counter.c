@@ -48,8 +48,8 @@ Kolter Electronic PCI Counter Card.
 
 /*-- function prototypes ----------------------------------------------------*/
 
-static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int cnt_detach(struct comedi_device * dev);
+static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int cnt_detach(struct comedi_device *dev);
 
 static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
 	{PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
@@ -72,10 +72,10 @@ struct cnt_board_struct {
 
 static const struct cnt_board_struct cnt_boards[] = {
 	{
-	      name:	CNT_DRIVER_NAME,
-	      device_id:CNT_CARD_DEVICE_ID,
-	      cnt_channel_nbr:3,
-      cnt_bits:24}
+	.name = CNT_DRIVER_NAME,
+	.device_id = CNT_CARD_DEVICE_ID,
+	.cnt_channel_nbr = 3,
+	.cnt_bits = 24}
 };
 
 #define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
@@ -91,10 +91,10 @@ struct cnt_device_private {
 #define devpriv ((struct cnt_device_private *)dev->private)
 
 static struct comedi_driver cnt_driver = {
-      driver_name:CNT_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:cnt_attach,
-      detach:cnt_detach,
+	.driver_name = CNT_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = cnt_attach,
+	.detach = cnt_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);
@@ -103,8 +103,8 @@ COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);
 
 /* This should be used only for resetting the counters; maybe it is better
    to make a special command 'reset'. */
-static int cnt_winsn(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int cnt_winsn(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -123,8 +123,8 @@ static int cnt_winsn(struct comedi_device * dev,
 
 /*-- counter read -----------------------------------------------------------*/
 
-static int cnt_rinsn(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int cnt_rinsn(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char a0, a1, a2, a3, a4;
 	int chan = CR_CHAN(insn->chanspec);
@@ -148,7 +148,7 @@ static int cnt_rinsn(struct comedi_device * dev,
 
 /*-- attach -----------------------------------------------------------------*/
 
-static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *subdevice;
 	struct pci_dev *pci_device;
@@ -157,9 +157,9 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	int error, i;
 
 	/* allocate device private structure */
-	if ((error = alloc_private(dev, sizeof(struct cnt_device_private))) < 0) {
+	error = alloc_private(dev, sizeof(struct cnt_device_private));
+	if (error < 0)
 		return error;
-	}
 
 	/* Probe the device to determine what device in the series it is. */
 	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -203,7 +203,8 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	dev->board_name = board->name;
 
 	/* enable PCI device and request regions */
-	if ((error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME)) < 0) {
+	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
+	if (error < 0) {
 		printk("comedi%d: failed to enable PCI device and request regions!\n", dev->minor);
 		return error;
 	}
@@ -213,9 +214,9 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	dev->iobase = io_base;
 
 	/* allocate the subdevice structures */
-	if ((error = alloc_subdevices(dev, 1)) < 0) {
+	error = alloc_subdevices(dev, 1);
+	if (error < 0)
 		return error;
-	}
 
 	subdevice = dev->subdevices + 0;
 	dev->read_subdev = subdevice;
@@ -227,10 +228,10 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	subdevice->insn_read = cnt_rinsn;
 	subdevice->insn_write = cnt_winsn;
 
-	// select 20MHz clock
+	/*  select 20MHz clock */
 	outb(3, dev->iobase + 248);
 
-	// reset all counters
+	/*  reset all counters */
 	outb(0, dev->iobase);
 	outb(0, dev->iobase + 0x20);
 	outb(0, dev->iobase + 0x40);
@@ -241,7 +242,7 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 /*-- detach -----------------------------------------------------------------*/
 
-static int cnt_detach(struct comedi_device * dev)
+static int cnt_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->pcidev) {
 		if (dev->iobase) {

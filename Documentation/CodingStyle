@@ -698,8 +698,8 @@ very often is not. Abundant use of the inline keyword leads to a much bigger
 kernel, which in turn slows the system as a whole down, due to a bigger
 icache footprint for the CPU and simply because there is less memory
 available for the pagecache. Just think about it; a pagecache miss causes a
-disk seek, which easily takes 5 miliseconds. There are a LOT of cpu cycles
-that can go into these 5 miliseconds.
+disk seek, which easily takes 5 milliseconds. There are a LOT of cpu cycles
+that can go into these 5 milliseconds.
 
 A reasonable rule of thumb is to not put inline at functions that have more
 than 3 lines of code in them. An exception to this rule are the cases where

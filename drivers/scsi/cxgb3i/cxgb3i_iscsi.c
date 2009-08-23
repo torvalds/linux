@@ -13,6 +13,7 @@
 
 #include <linux/inet.h>
 #include <linux/crypto.h>
+#include <linux/if_vlan.h>
 #include <net/dst.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
@@ -183,6 +184,9 @@ static struct cxgb3i_hba *cxgb3i_hba_find_by_netdev(struct net_device *ndev)
 {
 	struct cxgb3i_adapter *snic;
 	int i;
+
+	if (ndev->priv_flags & IFF_802_1Q_VLAN)
+		ndev = vlan_dev_real_dev(ndev);
 
 	read_lock(&cxgb3i_snic_rwlock);
 	list_for_each_entry(snic, &cxgb3i_snic_list, list_head) {

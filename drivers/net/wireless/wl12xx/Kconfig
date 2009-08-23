@@ -1,0 +1,11 @@
+config WL12XX
+	tristate "TI wl1251/wl1271 support"
+	depends on MAC80211 && WLAN_80211 && SPI_MASTER && GENERIC_HARDIRQS && EXPERIMENTAL
+	select FW_LOADER
+	select CRC7
+	---help---
+	  This module adds support for wireless adapters based on
+	  TI wl1251/wl1271 chipsets.
+
+	  If you choose to build a module, it'll be called wl12xx. Say N if
+	  unsure.

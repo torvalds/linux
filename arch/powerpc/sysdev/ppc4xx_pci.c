@@ -1295,7 +1295,7 @@ static void __iomem *ppc4xx_pciex_get_config_base(struct ppc4xx_pciex_port *port
 static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 				    int offset, int len, u32 *val)
 {
-	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct ppc4xx_pciex_port *port =
 		&ppc4xx_pciex_ports[hose->indirect_type];
 	void __iomem *addr;
@@ -1352,7 +1352,7 @@ static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 static int ppc4xx_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int offset, int len, u32 val)
 {
-	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct ppc4xx_pciex_port *port =
 		&ppc4xx_pciex_ports[hose->indirect_type];
 	void __iomem *addr;
@@ -1531,7 +1531,7 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		 */
 
 		/* Calculate window size */
-		sa = (0xffffffffffffffffull << ilog2(ep_size));;
+		sa = (0xffffffffffffffffull << ilog2(ep_size));
 
 		/* Setup BAR0 */
 		out_le32(mbase + PECFG_BAR0HMPA, RES_TO_U32_HIGH(sa));
@@ -1550,7 +1550,7 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		out_le32(mbase + PCI_BASE_ADDRESS_1, RES_TO_U32_HIGH(ep_addr));
 	} else {
 		/* Calculate window size */
-		sa = (0xffffffffffffffffull << ilog2(size));;
+		sa = (0xffffffffffffffffull << ilog2(size));
 		if (res->flags & IORESOURCE_PREFETCH)
 			sa |= 0x8;
 

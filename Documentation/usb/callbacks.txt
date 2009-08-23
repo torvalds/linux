@@ -65,7 +65,7 @@ Accept or decline an interface. If you accept the device return 0,
 otherwise -ENODEV or -ENXIO. Other error codes should be used only if a
 genuine error occurred during initialisation which prevented a driver
 from accepting a device that would else have been accepted.
-You are strongly encouraged to use usbcore'sfacility,
+You are strongly encouraged to use usbcore's facility,
 usb_set_intfdata(), to associate a data structure with an interface, so
 that you know which internal state and identity you associate with a
 particular interface. The device will not be suspended and you may do IO

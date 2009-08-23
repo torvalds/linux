@@ -28,8 +28,6 @@
 #include <mach/psc.h>
 #include <mach/mux.h>
 
-#define DAVINCI_PWR_SLEEP_CNTRL_BASE 0x01C41000
-
 /* PSC register offsets */
 #define EPCPR		0x070
 #define PTCMD		0x120
@@ -42,21 +40,41 @@
 #define MDSTAT_STATE_MASK 0x1f
 
 /* Return nonzero iff the domain's clock is active */
-int __init davinci_psc_is_clk_active(unsigned int id)
+int __init davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id)
 {
-	void __iomem *psc_base = IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE);
-	u32 mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);
+	void __iomem *psc_base;
+	u32 mdstat;
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	if (!soc_info->psc_bases || (ctlr >= soc_info->psc_bases_num)) {
+		pr_warning("PSC: Bad psc data: 0x%x[%d]\n",
+				(int)soc_info->psc_bases, ctlr);
+		return 0;
+	}
+
+	psc_base = soc_info->psc_bases[ctlr];
+	mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);
 
 	/* if clocked, state can be "Enable" or "SyncReset" */
 	return mdstat & BIT(12);
 }
 
 /* Enable or disable a PSC domain */
-void davinci_psc_config(unsigned int domain, unsigned int id, char enable)
+void davinci_psc_config(unsigned int domain, unsigned int ctlr,
+		unsigned int id, char enable)
 {
 	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl;
-	void __iomem *psc_base = IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE);
+	void __iomem *psc_base;
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	u32 next_state = enable ? 0x3 : 0x2; /* 0x3 enables, 0x2 disables */
+
+	if (!soc_info->psc_bases || (ctlr >= soc_info->psc_bases_num)) {
+		pr_warning("PSC: Bad psc data: 0x%x[%d]\n",
+				(int)soc_info->psc_bases, ctlr);
+		return;
+	}
+
+	psc_base = soc_info->psc_bases[ctlr];
 
 	mdctl = __raw_readl(psc_base + MDCTL + 4 * id);
 	mdctl &= ~MDSTAT_STATE_MASK;

@@ -670,8 +670,11 @@ static int zfcp_fsf_req_sbal_get(struct zfcp_adapter *adapter)
 			       zfcp_fsf_sbal_check(adapter), 5 * HZ);
 	if (ret > 0)
 		return 0;
-	if (!ret)
+	if (!ret) {
 		atomic_inc(&adapter->qdio_outb_full);
+		/* assume hanging outbound queue, try queue recovery */
+		zfcp_erp_adapter_reopen(adapter, 0, "fsrsg_1", NULL);
+	}
 
 	spin_lock_bh(&adapter->req_q_lock);
 	return -EIO;
@@ -722,7 +725,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_adapter *adapter,
 		req = zfcp_fsf_alloc_qtcb(pool);
 
 	if (unlikely(!req))
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-ENOMEM);
 
 	if (adapter->req_no == 0)
 		adapter->req_no++;
@@ -1010,6 +1013,23 @@ skip_fsfstatus:
 		send_ct->handler(send_ct->handler_data);
 }
 
+static void zfcp_fsf_setup_ct_els_unchained(struct qdio_buffer_element *sbale,
+					    struct scatterlist *sg_req,
+					    struct scatterlist *sg_resp)
+{
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE_READ;
+	sbale[2].addr   = sg_virt(sg_req);
+	sbale[2].length = sg_req->length;
+	sbale[3].addr   = sg_virt(sg_resp);
+	sbale[3].length = sg_resp->length;
+	sbale[3].flags |= SBAL_FLAGS_LAST_ENTRY;
+}
+
+static int zfcp_fsf_one_sbal(struct scatterlist *sg)
+{
+	return sg_is_last(sg) && sg->length <= PAGE_SIZE;
+}
+
 static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 				       struct scatterlist *sg_req,
 				       struct scatterlist *sg_resp,
@@ -1020,30 +1040,30 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	int bytes;
 
 	if (!(feat & FSF_FEATURE_ELS_CT_CHAINED_SBALS)) {
-		if (sg_req->length > PAGE_SIZE || sg_resp->length > PAGE_SIZE ||
-		    !sg_is_last(sg_req) || !sg_is_last(sg_resp))
+		if (!zfcp_fsf_one_sbal(sg_req) || !zfcp_fsf_one_sbal(sg_resp))
 			return -EOPNOTSUPP;
 
-		sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE_READ;
-		sbale[2].addr   = sg_virt(sg_req);
-		sbale[2].length = sg_req->length;
-		sbale[3].addr   = sg_virt(sg_resp);
-		sbale[3].length = sg_resp->length;
-		sbale[3].flags |= SBAL_FLAGS_LAST_ENTRY;
+		zfcp_fsf_setup_ct_els_unchained(sbale, sg_req, sg_resp);
+		return 0;
+	}
+
+	/* use single, unchained SBAL if it can hold the request */
+	if (zfcp_fsf_one_sbal(sg_req) && zfcp_fsf_one_sbal(sg_resp)) {
+		zfcp_fsf_setup_ct_els_unchained(sbale, sg_req, sg_resp);
 		return 0;
 	}
 
 	bytes = zfcp_qdio_sbals_from_sg(req, SBAL_FLAGS0_TYPE_WRITE_READ,
 					sg_req, max_sbals);
 	if (bytes <= 0)
-		return -ENOMEM;
+		return -EIO;
 	req->qtcb->bottom.support.req_buf_length = bytes;
 	req->sbale_curr = ZFCP_LAST_SBALE_PER_SBAL;
 
 	bytes = zfcp_qdio_sbals_from_sg(req, SBAL_FLAGS0_TYPE_WRITE_READ,
 					sg_resp, max_sbals);
 	if (bytes <= 0)
-		return -ENOMEM;
+		return -EIO;
 	req->qtcb->bottom.support.resp_buf_length = bytes;
 
 	return 0;
@@ -1146,7 +1166,8 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 	case FSF_RESPONSE_SIZE_TOO_LARGE:
 		break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_port(req, port);
+		if (port)
+			zfcp_fsf_access_denied_port(req, port);
 		break;
 	case FSF_SBAL_MISMATCH:
 		/* should never occure, avoided in zfcp_fsf_send_els */
@@ -1606,10 +1627,10 @@ static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
 	case FSF_ACCESS_DENIED:
 		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
 		break;
-	case FSF_PORT_ALREADY_OPEN:
-		break;
 	case FSF_GOOD:
 		wka_port->handle = header->port_handle;
+		/* fall through */
+	case FSF_PORT_ALREADY_OPEN:
 		wka_port->status = ZFCP_WKA_PORT_ONLINE;
 	}
 out:
@@ -1730,15 +1751,16 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		zfcp_fsf_access_denied_port(req, port);
 		break;
 	case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(port, "fscpph2", req);
-		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
-			       ZFCP_STATUS_FSFREQ_RETRY;
 		/* can't use generic zfcp_erp_modify_port_status because
 		 * ZFCP_STATUS_COMMON_OPEN must not be reset for the port */
 		atomic_clear_mask(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		list_for_each_entry(unit, &port->unit_list_head, list)
 			atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN,
 					  &unit->status);
+		zfcp_erp_port_boxed(port, "fscpph2", req);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
+			       ZFCP_STATUS_FSFREQ_RETRY;
+
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]) {
@@ -2540,7 +2562,6 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	bytes = zfcp_qdio_sbals_from_sg(req, direction, fsf_cfdc->sg,
 					FSF_MAX_SBALS_PER_REQ);
 	if (bytes != ZFCP_CFDC_MAX_SIZE) {
-		retval = -ENOMEM;
 		zfcp_fsf_req_free(req);
 		goto out;
 	}

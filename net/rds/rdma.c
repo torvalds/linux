@@ -150,12 +150,9 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 {
 	int ret;
 
-	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages(current, current->mm, user_addr,
-			     nr_pages, write, 0, pages, NULL);
-	up_read(&current->mm->mmap_sem);
+	ret = get_user_pages_fast(user_addr, nr_pages, write, pages);
 
-	if (0 <= ret && (unsigned) ret < nr_pages) {
+	if (ret >= 0 && ret < nr_pages) {
 		while (ret--)
 			put_page(pages[ret]);
 		ret = -EFAULT;

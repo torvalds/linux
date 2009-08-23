@@ -224,7 +224,8 @@ static int  edge_tiocmget(struct tty_struct *tty, struct file *file);
 static int  edge_tiocmset(struct tty_struct *tty, struct file *file,
 					unsigned int set, unsigned int clear);
 static int  edge_startup(struct usb_serial *serial);
-static void edge_shutdown(struct usb_serial *serial);
+static void edge_disconnect(struct usb_serial *serial);
+static void edge_release(struct usb_serial *serial);
 
 #include "io_tables.h"	/* all of the devices that this driver supports */
 
@@ -3193,21 +3194,16 @@ static int edge_startup(struct usb_serial *serial)
 
 
 /****************************************************************************
- * edge_shutdown
+ * edge_disconnect
  *	This function is called whenever the device is removed from the usb bus.
  ****************************************************************************/
-static void edge_shutdown(struct usb_serial *serial)
+static void edge_disconnect(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
-	int i;
 
 	dbg("%s", __func__);
 
 	/* stop reads and writes on all ports */
-	for (i = 0; i < serial->num_ports; ++i) {
-		kfree(usb_get_serial_port_data(serial->port[i]));
-		usb_set_serial_port_data(serial->port[i],  NULL);
-	}
 	/* free up our endpoint stuff */
 	if (edge_serial->is_epic) {
 		usb_kill_urb(edge_serial->interrupt_read_urb);
@@ -3218,9 +3214,24 @@ static void edge_shutdown(struct usb_serial *serial)
 		usb_free_urb(edge_serial->read_urb);
 		kfree(edge_serial->bulk_in_buffer);
 	}
+}
+
+
+/****************************************************************************
+ * edge_release
+ *	This function is called when the device structure is deallocated.
+ ****************************************************************************/
+static void edge_release(struct usb_serial *serial)
+{
+	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
+	int i;
+
+	dbg("%s", __func__);
+
+	for (i = 0; i < serial->num_ports; ++i)
+		kfree(usb_get_serial_port_data(serial->port[i]));
 
 	kfree(edge_serial);
-	usb_set_serial_data(serial, NULL);
 }
 
 

@@ -902,7 +902,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_lock_interruptible);
  * Returns:
  *  0 		on success
  * -EINTR 	when interrupted by a signal
- * -ETIMEOUT	when the timeout expired
+ * -ETIMEDOUT	when the timeout expired
  * -EDEADLK	when the lock would deadlock (when deadlock detection is on)
  */
 int
@@ -1039,15 +1039,13 @@ int rt_mutex_start_proxy_lock(struct rt_mutex *lock,
 	if (!rt_mutex_owner(lock) || try_to_steal_lock(lock, task)) {
 		/* We got the lock for task. */
 		debug_rt_mutex_lock(lock);
-
 		rt_mutex_set_owner(lock, task, 0);
-
+		spin_unlock(&lock->wait_lock);
 		rt_mutex_deadlock_account_lock(lock, task);
 		return 1;
 	}
 
 	ret = task_blocks_on_rt_mutex(lock, waiter, task, detect_deadlock);
-
 
 	if (ret && !waiter->task) {
 		/*

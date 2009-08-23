@@ -86,20 +86,3 @@ void clks_register(struct clk_lookup *clks, size_t num)
 	for (i = 0; i < num; i++)
 		clkdev_add(&clks[i]);
 }
-
-int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
-	struct device *dev)
-{
-	struct clk *r = clk_get(dev, id);
-	struct clk_lookup *l;
-
-	if (!r)
-		return -ENODEV;
-
-	l = clkdev_alloc(r, alias, alias_dev_name);
-	clk_put(r);
-	if (!l)
-		return -ENODEV;
-	clkdev_add(l);
-	return 0;
-}

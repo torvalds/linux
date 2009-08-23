@@ -86,17 +86,12 @@ struct pci_controller {
 	void *io_base_alloc;
 #endif
 	resource_size_t io_base_phys;
-#ifndef CONFIG_PPC64
 	resource_size_t pci_io_size;
-#endif
 
 	/* Some machines (PReP) have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
 	resource_size_t pci_mem_offset;
-#ifdef CONFIG_PPC64
-	unsigned long pci_io_size;
-#endif
 
 	/* Some machines have a special region to forward the ISA
 	 * "memory" cycles such as VGA memory regions. Left to 0
@@ -140,10 +135,12 @@ struct pci_controller {
 	struct resource	io_resource;
 	struct resource mem_resources[3];
 	int global_number;		/* PCI domain number */
+
+	resource_size_t dma_window_base_cur;
+	resource_size_t dma_window_size;
+
 #ifdef CONFIG_PPC64
 	unsigned long buid;
-	unsigned long dma_window_base_cur;
-	unsigned long dma_window_size;
 
 	void *private_data;
 #endif	/* CONFIG_PPC64 */
@@ -185,7 +182,6 @@ extern int early_find_capability(struct pci_controller *hose, int bus,
 extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
-extern void setup_grackle(struct pci_controller *hose);
 #else	/* CONFIG_PPC64 */
 
 /*
@@ -221,6 +217,7 @@ struct pci_dn {
 #define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
 
 extern struct device_node *fetch_dev_dn(struct pci_dev *dev);
+extern void * update_dn_pci_info(struct device_node *dn, void *data);
 
 /* Get a device_node from a pci_dev.  This code must be fast except
  * in the case where the sysdata is incorrect and needs to be fixed

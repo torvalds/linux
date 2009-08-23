@@ -29,7 +29,12 @@ struct s3c2410fb_info {
 	enum s3c_drv_type	drv_type;
 	struct s3c2410fb_hw	regs;
 
+	unsigned long		clk_rate;
 	unsigned int		palette_ready;
+
+#ifdef CONFIG_CPU_FREQ
+	struct notifier_block	freq_transition;
+#endif
 
 	/* keep these registers in case we need to re-write palette */
 	u32			palette_buffer[256];

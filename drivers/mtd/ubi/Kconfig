@@ -49,15 +49,16 @@ config MTD_UBI_BEB_RESERVE
 	  reserved. Leave the default value if unsure.
 
 config MTD_UBI_GLUEBI
-	bool "Emulate MTD devices"
+	tristate "MTD devices emulation driver (gluebi)"
 	default n
 	depends on MTD_UBI
 	help
-	   This option enables MTD devices emulation on top of UBI volumes: for
-	   each UBI volumes an MTD device is created, and all I/O to this MTD
-	   device is redirected to the UBI volume. This is handy to make
-	   MTD-oriented software (like JFFS2) work on top of UBI. Do not enable
-	   this if no legacy software will be used.
+	   This option enables gluebi - an additional driver which emulates MTD
+	   devices on top of UBI volumes: for each UBI volumes an MTD device is
+	   created, and all I/O to this MTD device is redirected to the UBI
+	   volume. This is handy to make MTD-oriented software (like JFFS2)
+	   work on top of UBI. Do not enable this unless you use legacy
+	   software.
 
 source "drivers/mtd/ubi/Kconfig.debug"
 endmenu

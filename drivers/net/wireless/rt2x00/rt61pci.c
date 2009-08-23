@@ -603,14 +603,21 @@ static void rt61pci_config_erp(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR0, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, erp->ack_timeout);
+	rt2x00_set_field32(&reg, TXRX_CSR0_TSF_OFFSET, IEEE80211_HEADER);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR4, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_ENABLE, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
 			   !!erp->short_preamble);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR5, erp->basic_rates);
+
+	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL,
+			   erp->beacon_int * 16);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR9, &reg);
 	rt2x00_set_field32(&reg, MAC_CSR9_SLOT_TIME, erp->slot_time);
@@ -938,25 +945,6 @@ static void rt61pci_config_retry_limit(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 }
 
-static void rt61pci_config_duration(struct rt2x00_dev *rt2x00dev,
-				    struct rt2x00lib_conf *libconf)
-{
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, TXRX_CSR0, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR0_TSF_OFFSET, IEEE80211_HEADER);
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
-
-	rt2x00pci_register_read(rt2x00dev, TXRX_CSR4, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_ENABLE, 1);
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
-
-	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL,
-			   libconf->conf->beacon_int * 16);
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
-}
-
 static void rt61pci_config_ps(struct rt2x00_dev *rt2x00dev,
 				struct rt2x00lib_conf *libconf)
 {
@@ -968,7 +956,7 @@ static void rt61pci_config_ps(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_SLEEP) {
 		rt2x00pci_register_read(rt2x00dev, MAC_CSR11, &reg);
 		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN,
-				   libconf->conf->beacon_int - 10);
+				   rt2x00dev->beacon_int - 10);
 		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP,
 				   libconf->conf->listen_interval - 1);
 		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 5);
@@ -1016,8 +1004,6 @@ static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 		rt61pci_config_txpower(rt2x00dev, libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt61pci_config_retry_limit(rt2x00dev, libconf);
-	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
-		rt61pci_config_duration(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_PS)
 		rt61pci_config_ps(rt2x00dev, libconf);
 }
@@ -2308,7 +2294,6 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	u16 value;
 	u16 eeprom;
-	u16 device;
 
 	/*
 	 * Read EEPROM word for configuration.
@@ -2317,14 +2302,10 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Identify RF chipset.
-	 * To determine the RT chip we have to read the
-	 * PCI header of the device.
 	 */
-	pci_read_config_word(to_pci_dev(rt2x00dev->dev),
-			     PCI_CONFIG_HEADER_DEVICE, &device);
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR0, &reg);
-	rt2x00_set_chip(rt2x00dev, device, value, reg);
+	rt2x00_set_chip_rf(rt2x00dev, value, reg);
 
 	if (!rt2x00_rf(&rt2x00dev->chip, RF5225) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF5325) &&
@@ -2740,7 +2721,6 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 	.add_interface		= rt2x00mac_add_interface,
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
-	.config_interface	= rt2x00mac_config_interface,
 	.configure_filter	= rt2x00mac_configure_filter,
 	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,

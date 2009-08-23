@@ -184,7 +184,7 @@ This has the following fields:
      have index children.
 
      If this function is not supplied or if it returns NULL then the first
-     cache in the parent's list will be chosed, or failing that, the first
+     cache in the parent's list will be chosen, or failing that, the first
      cache in the master list.
 
  (4) A function to retrieve an object's key from the netfs [mandatory].

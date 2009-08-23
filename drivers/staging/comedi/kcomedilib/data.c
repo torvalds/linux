@@ -23,9 +23,10 @@
 
 #include "../comedi.h"
 #include "../comedilib.h"
-#include "../comedidev.h"	/* for comedi_udelay() */
+#include "../comedidev.h"
 
 #include <linux/string.h>
+#include <linux/delay.h>
 
 int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int range, unsigned int aref, unsigned int data)
@@ -83,7 +84,7 @@ int comedi_data_read_delayed(void *dev, unsigned int subdev,
 	if (retval < 0)
 		return retval;
 
-	comedi_udelay((nano_sec + 999) / 1000);
+	udelay((nano_sec + 999) / 1000);
 
 	return comedi_data_read(dev, subdev, chan, range, aref, data);
 }

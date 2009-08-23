@@ -721,7 +721,8 @@ error:
  */
 static noinline int find_free_dev_extent(struct btrfs_trans_handle *trans,
 					 struct btrfs_device *device,
-					 u64 num_bytes, u64 *start)
+					 u64 num_bytes, u64 *start,
+					 u64 *max_avail)
 {
 	struct btrfs_key key;
 	struct btrfs_root *root = device->dev_root;
@@ -758,9 +759,13 @@ static noinline int find_free_dev_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto error;
-	ret = btrfs_previous_item(root, path, 0, key.type);
-	if (ret < 0)
-		goto error;
+	if (ret > 0) {
+		ret = btrfs_previous_item(root, path, key.objectid, key.type);
+		if (ret < 0)
+			goto error;
+		if (ret > 0)
+			start_found = 1;
+	}
 	l = path->nodes[0];
 	btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 	while (1) {
@@ -803,6 +808,10 @@ no_more_items:
 			if (last_byte < search_start)
 				last_byte = search_start;
 			hole_size = key.offset - last_byte;
+
+			if (hole_size > *max_avail)
+				*max_avail = hole_size;
+
 			if (key.offset > last_byte &&
 			    hole_size >= num_bytes) {
 				*start = last_byte;
@@ -1621,6 +1630,7 @@ static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 	device->fs_devices->total_rw_bytes += diff;
 
 	device->total_bytes = new_size;
+	device->disk_total_bytes = new_size;
 	btrfs_clear_space_info_full(device->dev_root->fs_info);
 
 	return btrfs_update_device(trans, device);
@@ -2007,7 +2017,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 			goto done;
 		if (ret) {
 			ret = 0;
-			goto done;
+			break;
 		}
 
 		l = path->nodes[0];
@@ -2015,7 +2025,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 		btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 
 		if (key.objectid != device->devid)
-			goto done;
+			break;
 
 		dev_extent = btrfs_item_ptr(l, slot, struct btrfs_dev_extent);
 		length = btrfs_dev_extent_length(l, dev_extent);
@@ -2171,6 +2181,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			     max_chunk_size);
 
 again:
+	max_avail = 0;
 	if (!map || map->num_stripes != num_stripes) {
 		kfree(map);
 		map = kmalloc(map_lookup_size(num_stripes), GFP_NOFS);
@@ -2219,7 +2230,8 @@ again:
 
 		if (device->in_fs_metadata && avail >= min_free) {
 			ret = find_free_dev_extent(trans, device,
-						   min_free, &dev_offset);
+						   min_free, &dev_offset,
+						   &max_avail);
 			if (ret == 0) {
 				list_move_tail(&device->dev_alloc_list,
 					       &private_devs);
@@ -2793,26 +2805,6 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 			WARN_ON(nr >= map->num_stripes);
 			buf[nr++] = bytenr;
 		}
-	}
-
-	for (i = 0; i > nr; i++) {
-		struct btrfs_multi_bio *multi;
-		struct btrfs_bio_stripe *stripe;
-		int ret;
-
-		length = 1;
-		ret = btrfs_map_block(map_tree, WRITE, buf[i],
-				      &length, &multi, 0);
-		BUG_ON(ret);
-
-		stripe = multi->stripes;
-		for (j = 0; j < multi->num_stripes; j++) {
-			if (stripe->physical >= physical &&
-			    physical < stripe->physical + length)
-				break;
-		}
-		BUG_ON(j >= multi->num_stripes);
-		kfree(multi);
 	}
 
 	*logical = buf;

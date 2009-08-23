@@ -469,7 +469,7 @@ mv64xxx_i2c_map_regs(struct platform_device *pd,
 	if (!r)
 		return -ENODEV;
 
-	size = r->end - r->start + 1;
+	size = resource_size(r);
 
 	if (!request_mem_region(r->start, size, drv_data->adapter.name))
 		return -EBUSY;

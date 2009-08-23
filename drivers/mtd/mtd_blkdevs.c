@@ -144,7 +144,7 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	struct mtd_blktrans_ops *tr = dev->tr;
 	int ret = -ENODEV;
 
-	if (!try_module_get(dev->mtd->owner))
+	if (!get_mtd_device(NULL, dev->mtd->index))
 		goto out;
 
 	if (!try_module_get(tr->owner))
@@ -158,7 +158,7 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	ret = 0;
 	if (tr->open && (ret = tr->open(dev))) {
 		dev->mtd->usecount--;
-		module_put(dev->mtd->owner);
+		put_mtd_device(dev->mtd);
 	out_tr:
 		module_put(tr->owner);
 	}
@@ -177,7 +177,7 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 
 	if (!ret) {
 		dev->mtd->usecount--;
-		module_put(dev->mtd->owner);
+		put_mtd_device(dev->mtd);
 		module_put(tr->owner);
 	}
 
@@ -291,7 +291,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	gd->private_data = new;
 	new->blkcore_priv = gd;
 	gd->queue = tr->blkcore_priv->rq;
-	gd->driverfs_dev = new->mtd->dev.parent;
+	gd->driverfs_dev = &new->mtd->dev;
 
 	if (new->readonly)
 		set_disk_ro(gd, 1);

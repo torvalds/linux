@@ -1052,7 +1052,8 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 	struct ocfs2_xattr_block *xb;
 	struct ocfs2_xattr_value_root *xv;
 	size_t size;
-	int ret = -ENODATA, name_offset, name_len, block_off, i;
+	int ret = -ENODATA, name_offset, name_len, i;
+	int uninitialized_var(block_off);
 
 	xs->bucket = ocfs2_xattr_bucket_new(inode);
 	if (!xs->bucket) {
@@ -3154,7 +3155,7 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 		     le32_to_cpu(bucket_xh(bucket)->xh_entries[0].xe_name_hash));
 		if (func) {
 			ret = func(inode, bucket, para);
-			if (ret)
+			if (ret && ret != -ERANGE)
 				mlog_errno(ret);
 			/* Fall through to bucket_relse() */
 		}
@@ -3261,7 +3262,8 @@ static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
 						  ocfs2_list_xattr_bucket,
 						  &xl);
 		if (ret) {
-			mlog_errno(ret);
+			if (ret != -ERANGE)
+				mlog_errno(ret);
 			goto out;
 		}
 

@@ -698,7 +698,7 @@ chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_FUNC(sctp_sf_do_prm_asconf), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_error_shutdown), \
-} /* TYPE_SCTP_PRIMITIVE_REQUESTHEARTBEAT */
+} /* TYPE_SCTP_PRIMITIVE_ASCONF */
 
 /* The primary index for this table is the primitive type.
  * The secondary index for this table is the state.

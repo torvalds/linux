@@ -46,16 +46,16 @@ static const char *flexcop_revision_names[] = {
 };
 
 static const char *flexcop_device_names[] = {
-	"Unknown device",
-	"Air2PC/AirStar 2 DVB-T",
-	"Air2PC/AirStar 2 ATSC 1st generation",
-	"Air2PC/AirStar 2 ATSC 2nd generation",
-	"Sky2PC/SkyStar 2 DVB-S",
-	"Sky2PC/SkyStar 2 DVB-S (old version)",
-	"Cable2PC/CableStar 2 DVB-C",
-	"Air2PC/AirStar 2 ATSC 3rd generation (HD5000)",
-	"Sky2PC/SkyStar 2 DVB-S rev 2.7a/u",
-	"Sky2PC/SkyStar 2 DVB-S rev 2.8",
+	[FC_UNK]	= "Unknown device",
+	[FC_CABLE]	= "Cable2PC/CableStar 2 DVB-C",
+	[FC_AIR_DVBT]	= "Air2PC/AirStar 2 DVB-T",
+	[FC_AIR_ATSC1]	= "Air2PC/AirStar 2 ATSC 1st generation",
+	[FC_AIR_ATSC2]	= "Air2PC/AirStar 2 ATSC 2nd generation",
+	[FC_AIR_ATSC3]	= "Air2PC/AirStar 2 ATSC 3rd generation (HD5000)",
+	[FC_SKY_REV23]	= "Sky2PC/SkyStar 2 DVB-S rev 2.3 (old version)",
+	[FC_SKY_REV26]	= "Sky2PC/SkyStar 2 DVB-S rev 2.6",
+	[FC_SKY_REV27]	= "Sky2PC/SkyStar 2 DVB-S rev 2.7a/u",
+	[FC_SKY_REV28]	= "Sky2PC/SkyStar 2 DVB-S rev 2.8",
 };
 
 static const char *flexcop_bus_names[] = {

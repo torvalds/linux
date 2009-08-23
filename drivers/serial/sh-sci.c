@@ -707,24 +707,25 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-	unsigned short ssr_status, scr_status;
+	unsigned short ssr_status, scr_status, err_enabled;
 	struct uart_port *port = ptr;
 	irqreturn_t ret = IRQ_NONE;
 
 	ssr_status = sci_in(port, SCxSR);
 	scr_status = sci_in(port, SCSCR);
+	err_enabled = scr_status & (SCI_CTRL_FLAGS_REIE | SCI_CTRL_FLAGS_RIE);
 
 	/* Tx Interrupt */
-	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
+	if ((ssr_status & SCxSR_TDxE(port)) && (scr_status & SCI_CTRL_FLAGS_TIE))
 		ret = sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
-	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
+	if ((ssr_status & SCxSR_RDxF(port)) && (scr_status & SCI_CTRL_FLAGS_RIE))
 		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-	if ((ssr_status & 0x0080) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & SCxSR_ERRORS(port)) && err_enabled)
 		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-	if ((ssr_status & 0x0010) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & SCxSR_BRK(port)) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
 
 	return ret;
@@ -1332,44 +1333,46 @@ err_unreg:
 	return ret;
 }
 
-static int sci_suspend(struct platform_device *dev, pm_message_t state)
+static int sci_suspend(struct device *dev)
 {
-	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sh_sci_priv *priv = dev_get_drvdata(dev);
 	struct sci_port *p;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	list_for_each_entry(p, &priv->ports, node)
 		uart_suspend_port(&sci_uart_driver, &p->port);
-
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
-static int sci_resume(struct platform_device *dev)
+static int sci_resume(struct device *dev)
 {
-	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sh_sci_priv *priv = dev_get_drvdata(dev);
 	struct sci_port *p;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	list_for_each_entry(p, &priv->ports, node)
 		uart_resume_port(&sci_uart_driver, &p->port);
-
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
+static struct dev_pm_ops sci_dev_pm_ops = {
+	.suspend	= sci_suspend,
+	.resume		= sci_resume,
+};
+
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
 	.remove		= __devexit_p(sci_remove),
-	.suspend	= sci_suspend,
-	.resume		= sci_resume,
 	.driver		= {
 		.name	= "sh-sci",
 		.owner	= THIS_MODULE,
+		.pm	= &sci_dev_pm_ops,
 	},
 };
 

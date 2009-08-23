@@ -6556,6 +6556,8 @@ struct sw_pg {
 
 struct sw_tx_bd {
 	struct sk_buff		*skb;
+	unsigned short		is_gso;
+	unsigned short		nr_frags;
 };
 
 #define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)
@@ -6900,6 +6902,7 @@ struct bnx2 {
 	u32			idle_chk_status_idx;
 
 #ifdef BCM_CNIC
+	struct mutex		cnic_lock;
 	struct cnic_eth_dev	cnic_eth_dev;
 #endif
 

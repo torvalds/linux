@@ -569,7 +569,7 @@ static int wm97xx_probe(struct device *dev)
 	mutex_init(&wm->codec_mutex);
 
 	wm->dev = dev;
-	dev->driver_data = wm;
+	dev_set_drvdata(dev, wm);
 	wm->ac97 = to_ac97_t(dev);
 
 	/* check that we have a supported codec */

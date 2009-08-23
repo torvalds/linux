@@ -193,7 +193,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
 		if (type == pci_bar_io) {
 			l &= PCI_BASE_ADDRESS_IO_MASK;
-			mask = PCI_BASE_ADDRESS_IO_MASK & 0xffff;
+			mask = PCI_BASE_ADDRESS_IO_MASK & IO_SPACE_LIMIT;
 		} else {
 			l &= PCI_BASE_ADDRESS_MEM_MASK;
 			mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
@@ -237,6 +237,8 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			dev_printk(KERN_DEBUG, &dev->dev,
 				"reg %x 64bit mmio: %pR\n", pos, res);
 		}
+
+		res->flags |= IORESOURCE_MEM_64;
 	} else {
 		sz = pci_size(l, sz, mask);
 
@@ -287,7 +289,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 	struct resource *res;
 	int i;
 
-	if (!child->parent)	/* It's a host bus, nothing to read */
+	if (pci_is_root_bus(child))	/* It's a host bus, nothing to read */
 		return;
 
 	if (dev->transparent) {
@@ -362,7 +364,10 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		}
 	}
 	if (base <= limit) {
-		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM | IORESOURCE_PREFETCH;
+		res->flags = (mem_base_lo & PCI_PREF_RANGE_TYPE_MASK) |
+					 IORESOURCE_MEM | IORESOURCE_PREFETCH;
+		if (res->flags & PCI_PREF_RANGE_TYPE_64)
+			res->flags |= IORESOURCE_MEM_64;
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "bridge %sbit mmio pref: %pR\n",

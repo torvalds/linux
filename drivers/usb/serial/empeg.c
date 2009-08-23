@@ -90,7 +90,6 @@ static int  empeg_chars_in_buffer(struct tty_struct *tty);
 static void empeg_throttle(struct tty_struct *tty);
 static void empeg_unthrottle(struct tty_struct *tty);
 static int  empeg_startup(struct usb_serial *serial);
-static void empeg_shutdown(struct usb_serial *serial);
 static void empeg_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 static void empeg_write_bulk_callback(struct urb *urb);
@@ -124,7 +123,6 @@ static struct usb_serial_driver empeg_device = {
 	.throttle =		empeg_throttle,
 	.unthrottle =		empeg_unthrottle,
 	.attach =		empeg_startup,
-	.shutdown =		empeg_shutdown,
 	.set_termios =		empeg_set_termios,
 	.write =		empeg_write,
 	.write_room =		empeg_write_room,
@@ -424,12 +422,6 @@ static int  empeg_startup(struct usb_serial *serial)
 	/* continue on with initialization */
 	return r;
 
-}
-
-
-static void empeg_shutdown(struct usb_serial *serial)
-{
-	dbg("%s", __func__);
 }
 
 

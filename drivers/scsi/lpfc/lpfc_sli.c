@@ -4139,8 +4139,11 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 		return -EIO;
 	}
 	data_length = mqe->un.mb_words[5];
-	if (data_length > DMP_FCOEPARAM_RGN_SIZE)
+	if (data_length > DMP_FCOEPARAM_RGN_SIZE) {
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
 		return -EIO;
+	}
 
 	lpfc_parse_fcoe_conf(phba, mp->virt, data_length);
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -4210,27 +4213,6 @@ lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 				  dmabuf->virt, dmabuf->phys);
 		return -EIO;
 	}
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
-			"(%d):0380 Mailbox cmd x%x Status x%x "
-			"Data: x%x x%x x%x x%x x%x x%x x%x x%x x%x "
-			"x%x x%x x%x x%x x%x x%x x%x x%x x%x "
-			"CQ: x%x x%x x%x x%x\n",
-			mboxq->vport ? mboxq->vport->vpi : 0,
-			bf_get(lpfc_mqe_command, mqe),
-			bf_get(lpfc_mqe_status, mqe),
-			mqe->un.mb_words[0], mqe->un.mb_words[1],
-			mqe->un.mb_words[2], mqe->un.mb_words[3],
-			mqe->un.mb_words[4], mqe->un.mb_words[5],
-			mqe->un.mb_words[6], mqe->un.mb_words[7],
-			mqe->un.mb_words[8], mqe->un.mb_words[9],
-			mqe->un.mb_words[10], mqe->un.mb_words[11],
-			mqe->un.mb_words[12], mqe->un.mb_words[13],
-			mqe->un.mb_words[14], mqe->un.mb_words[15],
-			mqe->un.mb_words[16], mqe->un.mb_words[50],
-			mboxq->mcqe.word0,
-			mboxq->mcqe.mcqe_tag0, 	mboxq->mcqe.mcqe_tag1,
-			mboxq->mcqe.trailer);
 
 	/*
 	 * The available vpd length cannot be bigger than the
@@ -4337,21 +4319,18 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		goto out_free_vpd;
 
 	mqe = &mboxq->u.mqe;
-	if ((bf_get(lpfc_mbx_rd_rev_sli_lvl,
-		    &mqe->un.read_rev) != LPFC_SLI_REV4) ||
-	    (bf_get(lpfc_mbx_rd_rev_fcoe, &mqe->un.read_rev) == 0)) {
+	phba->sli_rev = bf_get(lpfc_mbx_rd_rev_sli_lvl, &mqe->un.read_rev);
+	if (bf_get(lpfc_mbx_rd_rev_fcoe, &mqe->un.read_rev))
+		phba->hba_flag |= HBA_FCOE_SUPPORT;
+	if (phba->sli_rev != LPFC_SLI_REV4 ||
+	    !(phba->hba_flag & HBA_FCOE_SUPPORT)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 			"0376 READ_REV Error. SLI Level %d "
 			"FCoE enabled %d\n",
-			bf_get(lpfc_mbx_rd_rev_sli_lvl, &mqe->un.read_rev),
-			bf_get(lpfc_mbx_rd_rev_fcoe, &mqe->un.read_rev));
+			phba->sli_rev, phba->hba_flag & HBA_FCOE_SUPPORT);
 		rc = -EIO;
 		goto out_free_vpd;
 	}
-	/* Single threaded at this point, no need for lock */
-	spin_lock_irq(&phba->hbalock);
-	phba->hba_flag |= HBA_FCOE_SUPPORT;
-	spin_unlock_irq(&phba->hbalock);
 	/*
 	 * Evaluate the read rev and vpd data. Populate the driver
 	 * state with the results. If this routine fails, the failure
@@ -4365,8 +4344,32 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		rc = 0;
 	}
 
-	/* By now, we should determine the SLI revision, hard code for now */
-	phba->sli_rev = LPFC_SLI_REV4;
+	/* Save information as VPD data */
+	phba->vpd.rev.biuRev = mqe->un.read_rev.first_hw_rev;
+	phba->vpd.rev.smRev = mqe->un.read_rev.second_hw_rev;
+	phba->vpd.rev.endecRev = mqe->un.read_rev.third_hw_rev;
+	phba->vpd.rev.fcphHigh = bf_get(lpfc_mbx_rd_rev_fcph_high,
+					 &mqe->un.read_rev);
+	phba->vpd.rev.fcphLow = bf_get(lpfc_mbx_rd_rev_fcph_low,
+				       &mqe->un.read_rev);
+	phba->vpd.rev.feaLevelHigh = bf_get(lpfc_mbx_rd_rev_ftr_lvl_high,
+					    &mqe->un.read_rev);
+	phba->vpd.rev.feaLevelLow = bf_get(lpfc_mbx_rd_rev_ftr_lvl_low,
+					   &mqe->un.read_rev);
+	phba->vpd.rev.sli1FwRev = mqe->un.read_rev.fw_id_rev;
+	memcpy(phba->vpd.rev.sli1FwName, mqe->un.read_rev.fw_name, 16);
+	phba->vpd.rev.sli2FwRev = mqe->un.read_rev.ulp_fw_id_rev;
+	memcpy(phba->vpd.rev.sli2FwName, mqe->un.read_rev.ulp_fw_name, 16);
+	phba->vpd.rev.opFwRev = mqe->un.read_rev.fw_id_rev;
+	memcpy(phba->vpd.rev.opFwName, mqe->un.read_rev.fw_name, 16);
+	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+			"(%d):0380 READ_REV Status x%x "
+			"fw_rev:%s fcphHi:%x fcphLo:%x flHi:%x flLo:%x\n",
+			mboxq->vport ? mboxq->vport->vpi : 0,
+			bf_get(lpfc_mqe_status, mqe),
+			phba->vpd.rev.opFwName,
+			phba->vpd.rev.fcphHigh, phba->vpd.rev.fcphLow,
+			phba->vpd.rev.feaLevelHigh, phba->vpd.rev.feaLevelLow);
 
 	/*
 	 * Discover the port's supported feature set and match it against the
@@ -4491,8 +4494,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		rc = -ENODEV;
 		goto out_free_vpd;
 	}
-	/* Temporary initialization of lpfc_fip_flag to non-fip */
-	bf_set(lpfc_fip_flag, &phba->sli4_hba.sli4_flags, 0);
+	if (phba->cfg_enable_fip)
+		bf_set(lpfc_fip_flag, &phba->sli4_hba.sli4_flags, 1);
+	else
+		bf_set(lpfc_fip_flag, &phba->sli4_hba.sli4_flags, 0);
 
 	/* Set up all the queues to the device */
 	rc = lpfc_sli4_queue_setup(phba);
@@ -5030,6 +5035,92 @@ out_not_finished:
 }
 
 /**
+ * lpfc_sli4_async_mbox_block - Block posting SLI4 asynchronous mailbox command
+ * @phba: Pointer to HBA context object.
+ *
+ * The function blocks the posting of SLI4 asynchronous mailbox commands from
+ * the driver internal pending mailbox queue. It will then try to wait out the
+ * possible outstanding mailbox command before return.
+ *
+ * Returns:
+ * 	0 - the outstanding mailbox command completed; otherwise, the wait for
+ * 	the outstanding mailbox command timed out.
+ **/
+static int
+lpfc_sli4_async_mbox_block(struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+	uint8_t actcmd = MBX_HEARTBEAT;
+	int rc = 0;
+	unsigned long timeout;
+
+	/* Mark the asynchronous mailbox command posting as blocked */
+	spin_lock_irq(&phba->hbalock);
+	psli->sli_flag |= LPFC_SLI_ASYNC_MBX_BLK;
+	if (phba->sli.mbox_active)
+		actcmd = phba->sli.mbox_active->u.mb.mbxCommand;
+	spin_unlock_irq(&phba->hbalock);
+	/* Determine how long we might wait for the active mailbox
+	 * command to be gracefully completed by firmware.
+	 */
+	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, actcmd) * 1000) +
+				   jiffies;
+	/* Wait for the outstnading mailbox command to complete */
+	while (phba->sli.mbox_active) {
+		/* Check active mailbox complete status every 2ms */
+		msleep(2);
+		if (time_after(jiffies, timeout)) {
+			/* Timeout, marked the outstanding cmd not complete */
+			rc = 1;
+			break;
+		}
+	}
+
+	/* Can not cleanly block async mailbox command, fails it */
+	if (rc) {
+		spin_lock_irq(&phba->hbalock);
+		psli->sli_flag &= ~LPFC_SLI_ASYNC_MBX_BLK;
+		spin_unlock_irq(&phba->hbalock);
+	}
+	return rc;
+}
+
+/**
+ * lpfc_sli4_async_mbox_unblock - Block posting SLI4 async mailbox command
+ * @phba: Pointer to HBA context object.
+ *
+ * The function unblocks and resume posting of SLI4 asynchronous mailbox
+ * commands from the driver internal pending mailbox queue. It makes sure
+ * that there is no outstanding mailbox command before resuming posting
+ * asynchronous mailbox commands. If, for any reason, there is outstanding
+ * mailbox command, it will try to wait it out before resuming asynchronous
+ * mailbox command posting.
+ **/
+static void
+lpfc_sli4_async_mbox_unblock(struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+
+	spin_lock_irq(&phba->hbalock);
+	if (!(psli->sli_flag & LPFC_SLI_ASYNC_MBX_BLK)) {
+		/* Asynchronous mailbox posting is not blocked, do nothing */
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+
+	/* Outstanding synchronous mailbox command is guaranteed to be done,
+	 * successful or timeout, after timing-out the outstanding mailbox
+	 * command shall always be removed, so just unblock posting async
+	 * mailbox command and resume
+	 */
+	psli->sli_flag &= ~LPFC_SLI_ASYNC_MBX_BLK;
+	spin_unlock_irq(&phba->hbalock);
+
+	/* wake up worker thread to post asynchronlous mailbox command */
+	lpfc_worker_wake_up(phba);
+}
+
+/**
  * lpfc_sli4_post_sync_mbox - Post an SLI4 mailbox to the bootstrap mailbox
  * @phba: Pointer to HBA context object.
  * @mboxq: Pointer to mailbox object.
@@ -5204,14 +5295,35 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 					psli->sli_flag, flag);
 		return rc;
 	} else if (flag == MBX_POLL) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-				"(%d):2542 Mailbox command x%x (x%x) "
-				"cannot issue Data: x%x x%x\n",
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
+				"(%d):2542 Try to issue mailbox command "
+				"x%x (x%x) synchronously ahead of async"
+				"mailbox command queue: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
 				mboxq->u.mb.mbxCommand,
 				lpfc_sli4_mbox_opcode_get(phba, mboxq),
 				psli->sli_flag, flag);
-		return -EIO;
+		/* Try to block the asynchronous mailbox posting */
+		rc = lpfc_sli4_async_mbox_block(phba);
+		if (!rc) {
+			/* Successfully blocked, now issue sync mbox cmd */
+			rc = lpfc_sli4_post_sync_mbox(phba, mboxq);
+			if (rc != MBX_SUCCESS)
+				lpfc_printf_log(phba, KERN_ERR,
+						LOG_MBOX | LOG_SLI,
+						"(%d):2597 Mailbox command "
+						"x%x (x%x) cannot issue "
+						"Data: x%x x%x\n",
+						mboxq->vport ?
+						mboxq->vport->vpi : 0,
+						mboxq->u.mb.mbxCommand,
+						lpfc_sli4_mbox_opcode_get(phba,
+								mboxq),
+						psli->sli_flag, flag);
+			/* Unblock the async mailbox posting afterward */
+			lpfc_sli4_async_mbox_unblock(phba);
+		}
+		return rc;
 	}
 
 	/* Now, interrupt mode asynchrous mailbox command */
@@ -5749,18 +5861,13 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 
 	fip = bf_get(lpfc_fip_flag, &phba->sli4_hba.sli4_flags);
 	/* The fcp commands will set command type */
-	if ((!(iocbq->iocb_flag &  LPFC_IO_FCP)) && (!fip))
-		command_type = ELS_COMMAND_NON_FIP;
-	else if (!(iocbq->iocb_flag &  LPFC_IO_FCP))
-		command_type = ELS_COMMAND_FIP;
-	else if (iocbq->iocb_flag &  LPFC_IO_FCP)
+	if (iocbq->iocb_flag &  LPFC_IO_FCP)
 		command_type = FCP_COMMAND;
-	else {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2019 Invalid cmd 0x%x\n",
-			iocbq->iocb.ulpCommand);
-		return IOCB_ERROR;
-	}
+	else if (fip && (iocbq->iocb_flag & LPFC_FIP_ELS))
+		command_type = ELS_COMMAND_FIP;
+	else
+		command_type = ELS_COMMAND_NON_FIP;
+
 	/* Some of the fields are in the right position already */
 	memcpy(wqe, &iocbq->iocb, sizeof(union lpfc_wqe));
 	abort_tag = (uint32_t) iocbq->iotag;
@@ -5814,11 +5921,6 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(lpfc_wqe_gen_context, &wqe->generic,
 				iocbq->iocb.ulpContext);
 
-		if (iocbq->vport->fc_myDID != 0) {
-			bf_set(els_req64_sid, &wqe->els_req,
-				 iocbq->vport->fc_myDID);
-			bf_set(els_req64_sp, &wqe->els_req, 1);
-		}
 		bf_set(lpfc_wqe_gen_ct, &wqe->generic, ct);
 		bf_set(lpfc_wqe_gen_pu, &wqe->generic, 0);
 		/* CCP CCPE PV PRI in word10 were set in the memcpy */
@@ -5877,14 +5979,19 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		 * is set and we are sending our 2nd or greater command on
 		 * this exchange.
 		 */
-
-	/* ALLOW read & write to fall through to ICMD64 */
-	case CMD_FCP_ICMND64_CR:
 		/* Always open the exchange */
 		bf_set(wqe_xc, &wqe->fcp_iread.wqe_com, 0);
 
 		wqe->words[10] &= 0xffff0000; /* zero out ebde count */
 		bf_set(lpfc_wqe_gen_pu, &wqe->generic, iocbq->iocb.ulpPU);
+		break;
+	case CMD_FCP_ICMND64_CR:
+		/* Always open the exchange */
+		bf_set(wqe_xc, &wqe->fcp_iread.wqe_com, 0);
+
+		wqe->words[4] = 0;
+		wqe->words[10] &= 0xffff0000; /* zero out ebde count */
+		bf_set(lpfc_wqe_gen_pu, &wqe->generic, 0);
 	break;
 	case CMD_GEN_REQUEST64_CR:
 		/* word3 command length is described as byte offset to the
@@ -7247,6 +7354,32 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_chk_iocb_flg - Test IOCB flag with lock held.
+ * @phba: Pointer to HBA context object..
+ * @piocbq: Pointer to command iocb.
+ * @flag: Flag to test.
+ *
+ * This routine grabs the hbalock and then test the iocb_flag to
+ * see if the passed in flag is set.
+ * Returns:
+ * 1 if flag is set.
+ * 0 if flag is not set.
+ **/
+static int
+lpfc_chk_iocb_flg(struct lpfc_hba *phba,
+		 struct lpfc_iocbq *piocbq, uint32_t flag)
+{
+	unsigned long iflags;
+	int ret;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	ret = piocbq->iocb_flag & flag;
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	return ret;
+
+}
+
+/**
  * lpfc_sli_issue_iocb_wait - Synchronous function to issue iocb commands
  * @phba: Pointer to HBA context object..
  * @pring: Pointer to sli ring.
@@ -7313,7 +7446,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	if (retval == IOCB_SUCCESS) {
 		timeout_req = timeout * HZ;
 		timeleft = wait_event_timeout(done_q,
-				piocb->iocb_flag & LPFC_IO_WAKE,
+				lpfc_chk_iocb_flg(phba, piocb, LPFC_IO_WAKE),
 				timeout_req);
 
 		if (piocb->iocb_flag & LPFC_IO_WAKE) {
@@ -7498,20 +7631,16 @@ lpfc_sli_eratt_read(struct lpfc_hba *phba)
 		if ((HS_FFER1 & phba->work_hs) &&
 		    ((HS_FFER2 | HS_FFER3 | HS_FFER4 | HS_FFER5 |
 		     HS_FFER6 | HS_FFER7) & phba->work_hs)) {
-			spin_lock_irq(&phba->hbalock);
 			phba->hba_flag |= DEFER_ERATT;
-			spin_unlock_irq(&phba->hbalock);
 			/* Clear all interrupt enable conditions */
 			writel(0, phba->HCregaddr);
 			readl(phba->HCregaddr);
 		}
 
 		/* Set the driver HA work bitmap */
-		spin_lock_irq(&phba->hbalock);
 		phba->work_ha |= HA_ERATT;
 		/* Indicate polling handles this ERATT */
 		phba->hba_flag |= HBA_ERATT_HANDLED;
-		spin_unlock_irq(&phba->hbalock);
 		return 1;
 	}
 	return 0;
@@ -7557,12 +7686,10 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 			return 0;
 			phba->work_status[0] = uerr_sta_lo;
 			phba->work_status[1] = uerr_sta_hi;
-			spin_lock_irq(&phba->hbalock);
 			/* Set the driver HA work bitmap */
 			phba->work_ha |= HA_ERATT;
 			/* Indicate polling handles this ERATT */
 			phba->hba_flag |= HBA_ERATT_HANDLED;
-			spin_unlock_irq(&phba->hbalock);
 			return 1;
 		}
 	}
@@ -9245,6 +9372,7 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 			kfree(dmabuf);
 			goto out_fail;
 		}
+		memset(dmabuf->virt, 0, PAGE_SIZE);
 		dmabuf->buffer_tag = x;
 		list_add_tail(&dmabuf->list, &queue->page_list);
 		/* initialize queue's entry array */
@@ -9667,7 +9795,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	/* link the wq onto the parent cq child list */
 	list_add_tail(&wq->list, &cq->child_list);
 out:
-	if (rc == MBX_TIMEOUT)
+	if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }
@@ -11020,10 +11148,7 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	       rpi_page->start_rpi);
 	hdr_tmpl->rpi_paddr_lo = putPaddrLow(rpi_page->dmabuf->phys);
 	hdr_tmpl->rpi_paddr_hi = putPaddrHigh(rpi_page->dmabuf->phys);
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	else
-		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	shdr = (union lpfc_sli4_cfg_shdr *) &hdr_tmpl->header.cfg_shdr;
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
@@ -11363,6 +11488,7 @@ lpfc_sli4_build_dflt_fcf_record(struct lpfc_hba *phba,
 	bf_set(lpfc_fcf_record_fc_map_1, fcf_record, phba->fc_map[1]);
 	bf_set(lpfc_fcf_record_fc_map_2, fcf_record, phba->fc_map[2]);
 	bf_set(lpfc_fcf_record_fcf_valid, fcf_record, 1);
+	bf_set(lpfc_fcf_record_fcf_avail, fcf_record, 1);
 	bf_set(lpfc_fcf_record_fcf_index, fcf_record, fcf_index);
 	bf_set(lpfc_fcf_record_mac_addr_prov, fcf_record,
 		LPFC_FCF_FPMA | LPFC_FCF_SPMA);

@@ -41,7 +41,6 @@ static void corgi_charger_init(void)
 	pxa_gpio_mode(CORGI_GPIO_CHRG_ON | GPIO_OUT);
 	pxa_gpio_mode(CORGI_GPIO_CHRG_UKN | GPIO_OUT);
 	pxa_gpio_mode(CORGI_GPIO_KEY_INT | GPIO_IN);
-	sharpsl_pm_pxa_init();
 }
 
 static void corgi_measure_temp(int on)
@@ -191,7 +190,7 @@ unsigned long corgipm_read_devdata(int type)
 
 static struct sharpsl_charger_machinfo corgi_pm_machinfo = {
 	.init            = corgi_charger_init,
-	.exit            = sharpsl_pm_pxa_remove,
+	.exit            = NULL,
 	.gpio_batlock    = CORGI_GPIO_BAT_COVER,
 	.gpio_acin       = CORGI_GPIO_AC_IN,
 	.gpio_batfull    = CORGI_GPIO_CHRG_FULL,

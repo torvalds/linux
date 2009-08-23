@@ -124,6 +124,14 @@ typedef int __bitwise pci_power_t;
 #define PCI_UNKNOWN	((pci_power_t __force) 5)
 #define PCI_POWER_ERROR	((pci_power_t __force) -1)
 
+/* Remember to update this when the list above changes! */
+extern const char *pci_power_names[];
+
+static inline const char *pci_power_name(pci_power_t state)
+{
+	return pci_power_names[1 + (int) state];
+}
+
 #define PCI_PM_D2_DELAY	200
 #define PCI_PM_D3_WAIT	10
 #define PCI_PM_BUS_WAIT	50
@@ -188,6 +196,7 @@ struct pci_cap_saved_state {
 struct pcie_link_state;
 struct pci_vpd;
 struct pci_sriov;
+struct pci_ats;
 
 /*
  * The pci_dev structure is used to describe PCI devices.
@@ -285,6 +294,7 @@ struct pci_dev {
 		struct pci_sriov *sriov;	/* SR-IOV capability related */
 		struct pci_dev *physfn;	/* the PF this VF is associated with */
 	};
+	struct pci_ats	*ats;	/* Address Translation Service */
 #endif
 };
 
@@ -599,8 +609,6 @@ extern void pci_sort_breadthfirst(void);
 struct pci_dev __deprecated *pci_find_device(unsigned int vendor,
 					     unsigned int device,
 					     struct pci_dev *from);
-struct pci_dev __deprecated *pci_find_slot(unsigned int bus,
-					   unsigned int devfn);
 #endif /* CONFIG_PCI_LEGACY */
 
 enum pci_lost_interrupt_reason {
@@ -639,6 +647,7 @@ int pci_bus_write_config_word(struct pci_bus *bus, unsigned int devfn,
 			      int where, u16 val);
 int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
+struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops);
 
 static inline int pci_read_config_byte(struct pci_dev *dev, int where, u8 *val)
 {
@@ -703,8 +712,8 @@ int pcix_get_mmrbc(struct pci_dev *dev);
 int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc);
 int pcie_get_readrq(struct pci_dev *dev);
 int pcie_set_readrq(struct pci_dev *dev, int rq);
+int __pci_reset_function(struct pci_dev *dev);
 int pci_reset_function(struct pci_dev *dev);
-int pci_execute_reset_function(struct pci_dev *dev);
 void pci_update_resource(struct pci_dev *dev, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
 int pci_select_bars(struct pci_dev *dev, unsigned long flags);
@@ -724,7 +733,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
 bool pci_pme_capable(struct pci_dev *dev, pci_power_t state);
 void pci_pme_active(struct pci_dev *dev, bool enable);
-int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
+int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable);
 int pci_wake_from_d3(struct pci_dev *dev, bool enable);
 pci_power_t pci_target_state(struct pci_dev *dev);
 int pci_prepare_to_sleep(struct pci_dev *dev);
@@ -790,7 +799,7 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		    int pass);
 
-void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
+void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 		  void *userdata);
 int pci_cfg_space_size_ext(struct pci_dev *dev);
 int pci_cfg_space_size(struct pci_dev *dev);
@@ -880,6 +889,17 @@ static inline int pcie_aspm_enabled(void)
 extern int pcie_aspm_enabled(void);
 #endif
 
+#ifndef CONFIG_PCIE_ECRC
+static inline void pcie_set_ecrc_checking(struct pci_dev *dev)
+{
+	return;
+}
+static inline void pcie_ecrc_get_policy(char *str) {};
+#else
+extern void pcie_set_ecrc_checking(struct pci_dev *dev);
+extern void pcie_ecrc_get_policy(char *str);
+#endif
+
 #define pci_enable_msi(pdev)	pci_enable_msi_block(pdev, 1)
 
 #ifdef CONFIG_HT_IRQ
@@ -932,12 +952,6 @@ _PCI_NOP_ALL(write,)
 static inline struct pci_dev *pci_find_device(unsigned int vendor,
 					      unsigned int device,
 					      struct pci_dev *from)
-{
-	return NULL;
-}
-
-static inline struct pci_dev *pci_find_slot(unsigned int bus,
-					    unsigned int devfn)
 {
 	return NULL;
 }
@@ -1097,6 +1111,10 @@ static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus,
 
 #include <asm/pci.h>
 
+#ifndef PCIBIOS_MAX_MEM_32
+#define PCIBIOS_MAX_MEM_32 (-1)
+#endif
+
 /* these helpers provide future and backwards compatibility
  * for accessing popular PCI BAR info */
 #define pci_resource_start(dev, bar)	((dev)->resource[(bar)].start)
@@ -1127,7 +1145,7 @@ static inline void pci_set_drvdata(struct pci_dev *pdev, void *data)
 /* If you want to know what to call your pci_dev, ask this function.
  * Again, it's a wrapper around the generic device.
  */
-static inline const char *pci_name(struct pci_dev *pdev)
+static inline const char *pci_name(const struct pci_dev *pdev)
 {
 	return dev_name(&pdev->dev);
 }
@@ -1251,6 +1269,11 @@ static inline irqreturn_t pci_sriov_migration(struct pci_dev *dev)
 {
 	return IRQ_NONE;
 }
+#endif
+
+#if defined(CONFIG_HOTPLUG_PCI) || defined(CONFIG_HOTPLUG_PCI_MODULE)
+extern void pci_hp_create_module_link(struct pci_slot *pci_slot);
+extern void pci_hp_remove_module_link(struct pci_slot *pci_slot);
 #endif
 
 #endif /* __KERNEL__ */

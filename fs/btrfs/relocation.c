@@ -670,6 +670,8 @@ again:
 			err = ret;
 			goto out;
 		}
+		if (ret > 0 && path2->slots[level] > 0)
+			path2->slots[level]--;
 
 		eb = path2->nodes[level];
 		WARN_ON(btrfs_node_blockptr(eb, path2->slots[level]) !=
@@ -1609,6 +1611,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		BUG_ON(level == 0);
 		path->lowest_level = level;
 		ret = btrfs_search_slot(NULL, reloc_root, &key, path, 0, 0);
+		path->lowest_level = 0;
 		if (ret < 0) {
 			btrfs_free_path(path);
 			return ret;
@@ -1788,7 +1791,7 @@ static void merge_func(struct btrfs_work *work)
 		btrfs_end_transaction(trans, root);
 	}
 
-	btrfs_drop_dead_root(reloc_root);
+	btrfs_drop_snapshot(reloc_root, 0);
 
 	if (atomic_dec_and_test(async->num_pending))
 		complete(async->done);
@@ -2075,9 +2078,6 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 			ret = btrfs_drop_subtree(trans, root, eb, upper->eb);
 			BUG_ON(ret);
-
-			btrfs_tree_unlock(eb);
-			free_extent_buffer(eb);
 		}
 		if (!lowest) {
 			btrfs_tree_unlock(upper->eb);
@@ -2553,8 +2553,13 @@ int relocate_inode_pages(struct inode *inode, u64 start, u64 len)
 	last_index = (start + len - 1) >> PAGE_CACHE_SHIFT;
 
 	/* make sure the dirty trick played by the caller work */
-	ret = invalidate_inode_pages2_range(inode->i_mapping,
-					    first_index, last_index);
+	while (1) {
+		ret = invalidate_inode_pages2_range(inode->i_mapping,
+						    first_index, last_index);
+		if (ret != -EBUSY)
+			break;
+		schedule_timeout(HZ/10);
+	}
 	if (ret)
 		goto out_unlock;
 

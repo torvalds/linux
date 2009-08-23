@@ -1,23 +1,23 @@
-/*
- *  Driver for the Siano SMS1xxx USB dongle
- *
- *  author: Anatoly Greenblat
- *
- *  Copyright (c), 2005-2008 Siano Mobile Silicon, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation;
- *
- *  Software distributed under the License is distributed on an "AS IS"
- *  basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.
- *
- *  See the GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+/****************************************************************
+
+Siano Mobile Silicon, Inc.
+MDTV receiver kernel modules.
+Copyright (C) 2005-2009, Uri Shkolnik, Anatoly Greenblat
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+****************************************************************/
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -26,6 +26,7 @@
 
 #include "smscoreapi.h"
 #include "sms-cards.h"
+#include "smsendian.h"
 
 static int sms_dbg;
 module_param_named(debug, sms_dbg, int, 0644);
@@ -64,15 +65,16 @@ static void smsusb_onresponse(struct urb *urb)
 	struct smsusb_urb_t *surb = (struct smsusb_urb_t *) urb->context;
 	struct smsusb_device_t *dev = surb->dev;
 
-	if (urb->status < 0) {
-		sms_err("error, urb status %d, %d bytes",
+	if (urb->status == -ESHUTDOWN) {
+		sms_err("error, urb status %d (-ESHUTDOWN), %d bytes",
 			urb->status, urb->actual_length);
 		return;
 	}
 
-	if (urb->actual_length > 0) {
-		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) surb->cb->p;
+	if ((urb->actual_length > 0) && (urb->status == 0)) {
+		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *)surb->cb->p;
 
+		smsendian_handle_message_header(phdr);
 		if (urb->actual_length >= phdr->msgLength) {
 			surb->cb->size = phdr->msgLength;
 
@@ -109,7 +111,10 @@ static void smsusb_onresponse(struct urb *urb)
 				"msglen %d actual %d",
 				phdr->msgLength, urb->actual_length);
 		}
-	}
+	} else
+		sms_err("error, urb status %d, %d bytes",
+			urb->status, urb->actual_length);
+
 
 exit_and_resubmit:
 	smsusb_submit_urb(dev, surb);
@@ -176,6 +181,7 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	struct smsusb_device_t *dev = (struct smsusb_device_t *) context;
 	int dummy;
 
+	smsendian_handle_message_header((struct SmsMsgHdr_ST *)buffer);
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2),
 			    buffer, size, &dummy, 1000);
 }
@@ -333,8 +339,8 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	case SMS_VEGA:
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment =
-			dev->udev->ep_in[1]->desc.wMaxPacketSize -
-			sizeof(struct SmsMsgHdr_ST);
+		    le16_to_cpu(dev->udev->ep_in[1]->desc.wMaxPacketSize) -
+		    sizeof(struct SmsMsgHdr_ST);
 
 		params.flags |= SMS_DEVICE_FAMILY2;
 		break;
@@ -479,7 +485,6 @@ static int smsusb_resume(struct usb_interface *intf)
 }
 
 struct usb_device_id smsusb_id_table[] = {
-#ifdef CONFIG_DVB_SIANO_SMS1XXX_SMS_IDS
 	{ USB_DEVICE(0x187f, 0x0010),
 		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
 	{ USB_DEVICE(0x187f, 0x0100),
@@ -490,7 +495,6 @@ struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_B },
 	{ USB_DEVICE(0x187f, 0x0300),
 		.driver_info = SMS1XXX_BOARD_SIANO_VEGA },
-#endif
 	{ USB_DEVICE(0x2040, 0x1700),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT },
 	{ USB_DEVICE(0x2040, 0x1800),
@@ -521,8 +525,13 @@ struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ USB_DEVICE(0x2040, 0x5590),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ }		/* Terminating entry */
-};
+	{ USB_DEVICE(0x187f, 0x0202),
+		.driver_info = SMS1XXX_BOARD_SIANO_NICE },
+	{ USB_DEVICE(0x187f, 0x0301),
+		.driver_info = SMS1XXX_BOARD_SIANO_VENICE },
+	{ } /* Terminating entry */
+	};
+
 MODULE_DEVICE_TABLE(usb, smsusb_id_table);
 
 static struct usb_driver smsusb_driver = {
@@ -548,14 +557,14 @@ int smsusb_module_init(void)
 
 void smsusb_module_exit(void)
 {
-	sms_debug("");
 	/* Regular USB Cleanup */
 	usb_deregister(&smsusb_driver);
+	sms_info("end");
 }
 
 module_init(smsusb_module_init);
 module_exit(smsusb_module_exit);
 
-MODULE_DESCRIPTION("Driver for the Siano SMS1XXX USB dongle");
+MODULE_DESCRIPTION("Driver for the Siano SMS1xxx USB dongle");
 MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");
 MODULE_LICENSE("GPL");

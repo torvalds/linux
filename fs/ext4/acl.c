@@ -126,30 +126,6 @@ fail:
 	return ERR_PTR(-EINVAL);
 }
 
-static inline struct posix_acl *
-ext4_iget_acl(struct inode *inode, struct posix_acl **i_acl)
-{
-	struct posix_acl *acl = EXT4_ACL_NOT_CACHED;
-
-	spin_lock(&inode->i_lock);
-	if (*i_acl != EXT4_ACL_NOT_CACHED)
-		acl = posix_acl_dup(*i_acl);
-	spin_unlock(&inode->i_lock);
-
-	return acl;
-}
-
-static inline void
-ext4_iset_acl(struct inode *inode, struct posix_acl **i_acl,
-		struct posix_acl *acl)
-{
-	spin_lock(&inode->i_lock);
-	if (*i_acl != EXT4_ACL_NOT_CACHED)
-		posix_acl_release(*i_acl);
-	*i_acl = posix_acl_dup(acl);
-	spin_unlock(&inode->i_lock);
-}
-
 /*
  * Inode operation get_posix_acl().
  *
@@ -158,7 +134,6 @@ ext4_iset_acl(struct inode *inode, struct posix_acl **i_acl,
 static struct posix_acl *
 ext4_get_acl(struct inode *inode, int type)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
 	int name_index;
 	char *value = NULL;
 	struct posix_acl *acl;
@@ -167,23 +142,19 @@ ext4_get_acl(struct inode *inode, int type)
 	if (!test_opt(inode->i_sb, POSIX_ACL))
 		return NULL;
 
+	acl = get_cached_acl(inode, type);
+	if (acl != ACL_NOT_CACHED)
+		return acl;
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		acl = ext4_iget_acl(inode, &ei->i_acl);
-		if (acl != EXT4_ACL_NOT_CACHED)
-			return acl;
 		name_index = EXT4_XATTR_INDEX_POSIX_ACL_ACCESS;
 		break;
-
 	case ACL_TYPE_DEFAULT:
-		acl = ext4_iget_acl(inode, &ei->i_default_acl);
-		if (acl != EXT4_ACL_NOT_CACHED)
-			return acl;
 		name_index = EXT4_XATTR_INDEX_POSIX_ACL_DEFAULT;
 		break;
-
 	default:
-		return ERR_PTR(-EINVAL);
+		BUG();
 	}
 	retval = ext4_xattr_get(inode, name_index, "", NULL, 0);
 	if (retval > 0) {
@@ -200,17 +171,9 @@ ext4_get_acl(struct inode *inode, int type)
 		acl = ERR_PTR(retval);
 	kfree(value);
 
-	if (!IS_ERR(acl)) {
-		switch (type) {
-		case ACL_TYPE_ACCESS:
-			ext4_iset_acl(inode, &ei->i_acl, acl);
-			break;
+	if (!IS_ERR(acl))
+		set_cached_acl(inode, type, acl);
 
-		case ACL_TYPE_DEFAULT:
-			ext4_iset_acl(inode, &ei->i_default_acl, acl);
-			break;
-		}
-	}
 	return acl;
 }
 
@@ -223,7 +186,6 @@ static int
 ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	     struct posix_acl *acl)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
 	int name_index;
 	void *value = NULL;
 	size_t size = 0;
@@ -268,17 +230,9 @@ ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 				      value, size, 0);
 
 	kfree(value);
-	if (!error) {
-		switch (type) {
-		case ACL_TYPE_ACCESS:
-			ext4_iset_acl(inode, &ei->i_acl, acl);
-			break;
+	if (!error)
+		set_cached_acl(inode, type, acl);
 
-		case ACL_TYPE_DEFAULT:
-			ext4_iset_acl(inode, &ei->i_default_acl, acl);
-			break;
-		}
-	}
 	return error;
 }
 

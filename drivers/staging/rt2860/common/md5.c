@@ -131,19 +131,7 @@ void hmac_md5(u8 *key, size_t key_len, u8 *data, size_t data_len, u8 *mac)
 	MD5Final(mac, &context);			 /*	finish up 2nd pass */
 }
 
-#ifndef RT_BIG_ENDIAN
 #define byteReverse(buf, len)   /* Nothing */
-#else
-void byteReverse(unsigned char *buf, unsigned longs);
-void byteReverse(unsigned char *buf, unsigned longs)
-{
-    do {
-        *(UINT32 *)buf = SWAP32(*(UINT32 *)buf);
-        buf += 4;
-    } while (--longs);
-}
-#endif
-
 
 /* ==========================  MD5 implementation =========================== */
 // four base functions for MD5

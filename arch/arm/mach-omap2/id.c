@@ -6,6 +6,9 @@
  * Copyright (C) 2005 Nokia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -44,6 +47,28 @@ int omap_chip_is(struct omap_chip_id oci)
 	return (oci.oc & omap_chip.oc) ? 1 : 0;
 }
 EXPORT_SYMBOL(omap_chip_is);
+
+int omap_type(void)
+{
+	u32 val = 0;
+
+	if (cpu_is_omap24xx())
+		val = omap_ctrl_readl(OMAP24XX_CONTROL_STATUS);
+	else if (cpu_is_omap34xx())
+		val = omap_ctrl_readl(OMAP343X_CONTROL_STATUS);
+	else {
+		pr_err("Cannot detect omap type!\n");
+		goto out;
+	}
+
+	val &= OMAP2_DEVICETYPE_MASK;
+	val >>= 8;
+
+out:
+	return val;
+}
+EXPORT_SYMBOL(omap_type);
+
 
 /*----------------------------------------------------------------------------*/
 
@@ -200,7 +225,10 @@ void __init omap2_check_revision(void)
 		omap24xx_check_revision();
 	else if (cpu_is_omap34xx())
 		omap34xx_check_revision();
-	else
+	else if (cpu_is_omap44xx()) {
+		printk(KERN_INFO "FIXME: CPU revision = OMAP4430\n");
+		return;
+	} else
 		pr_err("OMAP revision unknown, please fix!\n");
 
 	/*

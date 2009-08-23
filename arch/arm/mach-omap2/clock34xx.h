@@ -27,6 +27,8 @@
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 
+#define OMAP_CM_REGADDR		OMAP34XX_CM_REGADDR
+
 static unsigned long omap3_dpll_recalc(struct clk *clk);
 static unsigned long omap3_clkoutx2_recalc(struct clk *clk);
 static void omap3_dpll_allow_idle(struct clk *clk);
@@ -1228,6 +1230,37 @@ static struct clk d2d_26m_fck = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk modem_fck = {
+	.name		= "modem_fck",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &sys_ck,
+	.init		= &omap2_init_clk_clkdm,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
+	.enable_bit	= OMAP3430_EN_MODEM_SHIFT,
+	.clkdm_name	= "d2d_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk sad2d_ick = {
+	.name		= "sad2d_ick",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &l3_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
+	.enable_bit	= OMAP3430_EN_SAD2D_SHIFT,
+	.clkdm_name	= "d2d_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk mad2d_ick = {
+	.name		= "mad2d_ick",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &l3_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN3),
+	.enable_bit	= OMAP3430_EN_MAD2D_SHIFT,
+	.clkdm_name	= "d2d_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static const struct clksel omap343x_gpt_clksel[] = {
 	{ .parent = &omap_32k_fck, .rates = gpt_32k_rates },
 	{ .parent = &sys_ck,	   .rates = gpt_sys_rates },
@@ -1535,7 +1568,7 @@ static const struct clksel ssi_ssr_clksel[] = {
 	{ .parent = NULL }
 };
 
-static struct clk ssi_ssr_fck = {
+static struct clk ssi_ssr_fck_3430es1 = {
 	.name		= "ssi_ssr_fck",
 	.ops		= &clkops_omap2_dflt,
 	.init		= &omap2_init_clksel_parent,
@@ -1548,10 +1581,31 @@ static struct clk ssi_ssr_fck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
-static struct clk ssi_sst_fck = {
+static struct clk ssi_ssr_fck_3430es2 = {
+	.name		= "ssi_ssr_fck",
+	.ops		= &clkops_omap3430es2_ssi_wait,
+	.init		= &omap2_init_clksel_parent,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
+	.enable_bit	= OMAP3430_EN_SSI_SHIFT,
+	.clksel_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_CLKSEL),
+	.clksel_mask	= OMAP3430_CLKSEL_SSI_MASK,
+	.clksel		= ssi_ssr_clksel,
+	.clkdm_name	= "core_l4_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+};
+
+static struct clk ssi_sst_fck_3430es1 = {
 	.name		= "ssi_sst_fck",
 	.ops		= &clkops_null,
-	.parent		= &ssi_ssr_fck,
+	.parent		= &ssi_ssr_fck_3430es1,
+	.fixed_div	= 2,
+	.recalc		= &omap2_fixed_divisor_recalc,
+};
+
+static struct clk ssi_sst_fck_3430es2 = {
+	.name		= "ssi_sst_fck",
+	.ops		= &clkops_null,
+	.parent		= &ssi_ssr_fck_3430es2,
 	.fixed_div	= 2,
 	.recalc		= &omap2_fixed_divisor_recalc,
 };
@@ -1573,9 +1627,19 @@ static struct clk core_l3_ick = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk hsotgusb_ick = {
+static struct clk hsotgusb_ick_3430es1 = {
 	.name		= "hsotgusb_ick",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
+	.parent		= &core_l3_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
+	.enable_bit	= OMAP3430_EN_HSOTGUSB_SHIFT,
+	.clkdm_name	= "core_l3_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk hsotgusb_ick_3430es2 = {
+	.name		= "hsotgusb_ick",
+	.ops		= &clkops_omap3430es2_hsotgusb_wait,
 	.parent		= &core_l3_ick,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430_EN_HSOTGUSB_SHIFT,
@@ -1914,9 +1978,19 @@ static struct clk ssi_l4_ick = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk ssi_ick = {
+static struct clk ssi_ick_3430es1 = {
 	.name		= "ssi_ick",
 	.ops		= &clkops_omap2_dflt,
+	.parent		= &ssi_l4_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
+	.enable_bit	= OMAP3430_EN_SSI_SHIFT,
+	.clkdm_name	= "core_l4_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk ssi_ick_3430es2 = {
+	.name		= "ssi_ick",
+	.ops		= &clkops_omap3430es2_ssi_wait,
 	.parent		= &ssi_l4_ick,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430_EN_SSI_SHIFT,
@@ -1944,8 +2018,6 @@ static struct clk usb_l4_ick = {
 	.clksel		= usb_l4_clksel,
 	.recalc		= &omap2_clksel_recalc,
 };
-
-/* XXX MDM_INTC_ICK, SAD2D_ICK ?? */
 
 /* SECURITY_L4_ICK2 based clocks */
 
@@ -1993,9 +2065,19 @@ static struct clk des1_ick = {
 };
 
 /* DSS */
-static struct clk dss1_alwon_fck = {
+static struct clk dss1_alwon_fck_3430es1 = {
 	.name		= "dss1_alwon_fck",
 	.ops		= &clkops_omap2_dflt,
+	.parent		= &dpll4_m4x2_ck,
+	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_FCLKEN),
+	.enable_bit	= OMAP3430_EN_DSS1_SHIFT,
+	.clkdm_name	= "dss_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk dss1_alwon_fck_3430es2 = {
+	.name		= "dss1_alwon_fck",
+	.ops		= &clkops_omap3430es2_dss_usbhost_wait,
 	.parent		= &dpll4_m4x2_ck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_DSS1_SHIFT,
@@ -2036,10 +2118,22 @@ static struct clk dss2_alwon_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk dss_ick = {
+static struct clk dss_ick_3430es1 = {
 	/* Handles both L3 and L4 clocks */
 	.name		= "dss_ick",
 	.ops		= &clkops_omap2_dflt,
+	.parent		= &l4_ick,
+	.init		= &omap2_init_clk_clkdm,
+	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_ICLKEN),
+	.enable_bit	= OMAP3430_CM_ICLKEN_DSS_EN_DSS_SHIFT,
+	.clkdm_name	= "dss_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk dss_ick_3430es2 = {
+	/* Handles both L3 and L4 clocks */
+	.name		= "dss_ick",
+	.ops		= &clkops_omap3430es2_dss_usbhost_wait,
 	.parent		= &l4_ick,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_ICLKEN),
@@ -2087,7 +2181,7 @@ static struct clk csi2_96m_fck = {
 
 static struct clk usbhost_120m_fck = {
 	.name		= "usbhost_120m_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &dpll5_m2_ck,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_USBHOST_MOD, CM_FCLKEN),
@@ -2098,7 +2192,7 @@ static struct clk usbhost_120m_fck = {
 
 static struct clk usbhost_48m_fck = {
 	.name		= "usbhost_48m_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap3430es2_dss_usbhost_wait,
 	.parent		= &omap_48m_fck,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_USBHOST_MOD, CM_FCLKEN),
@@ -2110,7 +2204,7 @@ static struct clk usbhost_48m_fck = {
 static struct clk usbhost_ick = {
 	/* Handles both L3 and L4 clocks */
 	.name		= "usbhost_ick",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap3430es2_dss_usbhost_wait,
 	.parent		= &l4_ick,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_USBHOST_MOD, CM_ICLKEN),

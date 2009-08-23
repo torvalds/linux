@@ -28,6 +28,9 @@ void __init mv78xx0_init_irq(void)
 {
 	int i;
 
+	/* Initialize gpiolib. */
+	orion_gpio_init();
+
 	orion_irq_init(0, (void __iomem *)(IRQ_VIRT_BASE + IRQ_MASK_LOW_OFF));
 	orion_irq_init(32, (void __iomem *)(IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF));
 	orion_irq_init(64, (void __iomem *)(IRQ_VIRT_BASE + IRQ_MASK_ERR_OFF));

@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
@@ -198,6 +199,17 @@ static int au1k_irda_init_iobuf(iobuff_t *io, int size)
 	return io->head ? 0 : -ENOMEM;
 }
 
+static const struct net_device_ops au1k_irda_netdev_ops = {
+	.ndo_open		= au1k_irda_start,
+	.ndo_stop		= au1k_irda_stop,
+	.ndo_start_xmit		= au1k_irda_hard_xmit,
+	.ndo_tx_timeout		= au1k_tx_timeout,
+	.ndo_do_ioctl		= au1k_irda_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int au1k_irda_net_init(struct net_device *dev)
 {
 	struct au1k_private *aup = netdev_priv(dev);
@@ -209,11 +221,7 @@ static int au1k_irda_net_init(struct net_device *dev)
 	if (err)
 		goto out1;
 
-	dev->open = au1k_irda_start;
-	dev->hard_start_xmit = au1k_irda_hard_xmit;
-	dev->stop = au1k_irda_stop;
-	dev->do_ioctl = au1k_irda_ioctl;
-	dev->tx_timeout = au1k_tx_timeout;
+	dev->netdev_ops = &au1k_irda_netdev_ops;
 
 	irda_init_max_qos_capabilies(&aup->qos);
 
@@ -504,13 +512,13 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: tx_full\n", dev->name);
 		netif_stop_queue(dev);
 		aup->tx_full = 1;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	else if (((aup->tx_head + 1) & (NUM_IR_DESC - 1)) == aup->tx_tail) {
 		printk(KERN_DEBUG "%s: tx_full\n", dev->name);
 		netif_stop_queue(dev);
 		aup->tx_full = 1;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	pDB = aup->tx_db_inuse[aup->tx_head];

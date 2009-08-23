@@ -281,7 +281,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 {
 	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *shadow_page;
-	u64 spte, *sptep;
+	u64 spte, *sptep = NULL;
 	int direct;
 	gfn_t table_gfn;
 	int r;

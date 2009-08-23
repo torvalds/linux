@@ -733,9 +733,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 AltiVecUnavailable:
 	EXCEPTION_PROLOG
 #ifdef CONFIG_ALTIVEC
-	bne	load_up_altivec		/* if from user, just load it up */
+	beq	1f
+	bl	load_up_altivec		/* if from user, just load it up */
+	b	fast_exception_return
 #endif /* CONFIG_ALTIVEC */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0xf20, altivec_unavailable_exception)
 
 PerformanceMonitor:
@@ -743,101 +745,6 @@ PerformanceMonitor:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0xf00, performance_monitor_exception)
 
-#ifdef CONFIG_ALTIVEC
-/* Note that the AltiVec support is closely modeled after the FP
- * support.  Changes to one are likely to be applicable to the
- * other!  */
-load_up_altivec:
-/*
- * Disable AltiVec for the task which had AltiVec previously,
- * and save its AltiVec registers in its thread_struct.
- * Enables AltiVec for use in the kernel on return.
- * On SMP we know the AltiVec units are free, since we give it up every
- * switch.  -- Kumar
- */
-	mfmsr	r5
-	oris	r5,r5,MSR_VEC@h
-	MTMSRD(r5)			/* enable use of AltiVec now */
-	isync
-/*
- * For SMP, we don't do lazy AltiVec switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_altivec in switch_to.
- */
-#ifndef CONFIG_SMP
-	tophys(r6,0)
-	addis	r3,r6,last_task_used_altivec@ha
-	lwz	r4,last_task_used_altivec@l(r3)
-	cmpwi	0,r4,0
-	beq	1f
-	add	r4,r4,r6
-	addi	r4,r4,THREAD	/* want THREAD of last_task_used_altivec */
-	SAVE_32VRS(0,r10,r4)
-	mfvscr	vr0
-	li	r10,THREAD_VSCR
-	stvx	vr0,r10,r4
-	lwz	r5,PT_REGS(r4)
-	add	r5,r5,r6
-	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r10,MSR_VEC@h
-	andc	r4,r4,r10	/* disable altivec for previous task */
-	stw	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
-	/* enable use of AltiVec after return */
-	oris	r9,r9,MSR_VEC@h
-	mfspr	r5,SPRN_SPRG3		/* current task's THREAD (phys) */
-	li	r4,1
-	li	r10,THREAD_VSCR
-	stw	r4,THREAD_USED_VR(r5)
-	lvx	vr0,r10,r5
-	mtvscr	vr0
-	REST_32VRS(0,r10,r5)
-#ifndef CONFIG_SMP
-	subi	r4,r5,THREAD
-	sub	r4,r4,r6
-	stw	r4,last_task_used_altivec@l(r3)
-#endif /* CONFIG_SMP */
-	/* restore registers and return */
-	/* we haven't used ctr or xer or lr */
-	b	fast_exception_return
-
-/*
- * giveup_altivec(tsk)
- * Disable AltiVec for the task given as the argument,
- * and save the AltiVec registers in its thread_struct.
- * Enables AltiVec for use in the kernel on return.
- */
-
-	.globl	giveup_altivec
-giveup_altivec:
-	mfmsr	r5
-	oris	r5,r5,MSR_VEC@h
-	SYNC
-	MTMSRD(r5)			/* enable use of AltiVec now */
-	isync
-	cmpwi	0,r3,0
-	beqlr-				/* if no previous owner, done */
-	addi	r3,r3,THREAD		/* want THREAD of task */
-	lwz	r5,PT_REGS(r3)
-	cmpwi	0,r5,0
-	SAVE_32VRS(0, r4, r3)
-	mfvscr	vr0
-	li	r4,THREAD_VSCR
-	stvx	vr0,r4,r3
-	beq	1f
-	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r3,MSR_VEC@h
-	andc	r4,r4,r3		/* disable AltiVec for previous task */
-	stw	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	lis	r4,last_task_used_altivec@ha
-	stw	r5,last_task_used_altivec@l(r4)
-#endif /* CONFIG_SMP */
-	blr
-#endif /* CONFIG_ALTIVEC */
 
 /*
  * This code is jumped to from the startup code to copy
@@ -1217,9 +1124,8 @@ mmu_off:
 	RFI
 
 /*
- * Use the first pair of BAT registers to map the 1st 16MB
- * of RAM to PAGE_OFFSET.  From this point on we can't safely
- * call OF any more.
+ * On 601, we use 3 BATs to map up to 24M of RAM at _PAGE_OFFSET
+ * (we keep one for debugging) and on others, we use one 256M BAT.
  */
 initial_bats:
 	lis	r11,PAGE_OFFSET@h
@@ -1229,12 +1135,16 @@ initial_bats:
 	bne	4f
 	ori	r11,r11,4		/* set up BAT registers for 601 */
 	li	r8,0x7f			/* valid, block length = 8MB */
-	oris	r9,r11,0x800000@h	/* set up BAT reg for 2nd 8M */
-	oris	r10,r8,0x800000@h	/* set up BAT reg for 2nd 8M */
 	mtspr	SPRN_IBAT0U,r11		/* N.B. 601 has valid bit in */
 	mtspr	SPRN_IBAT0L,r8		/* lower BAT register */
-	mtspr	SPRN_IBAT1U,r9
-	mtspr	SPRN_IBAT1L,r10
+	addis	r11,r11,0x800000@h
+	addis	r8,r8,0x800000@h
+	mtspr	SPRN_IBAT1U,r11
+	mtspr	SPRN_IBAT1L,r8
+	addis	r11,r11,0x800000@h
+	addis	r8,r8,0x800000@h
+	mtspr	SPRN_IBAT2U,r11
+	mtspr	SPRN_IBAT2L,r8
 	isync
 	blr
 

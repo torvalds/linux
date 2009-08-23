@@ -38,15 +38,30 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/libiscsi.h>
 
-static int iscsi_dbg_lib;
-module_param_named(debug_libiscsi, iscsi_dbg_lib, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_libiscsi, "Turn on debugging for libiscsi module. "
-		 "Set to 1 to turn on, and zero to turn off. Default "
-		 "is off.");
+static int iscsi_dbg_lib_conn;
+module_param_named(debug_libiscsi_conn, iscsi_dbg_lib_conn, int,
+		   S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug_libiscsi_conn,
+		 "Turn on debugging for connections in libiscsi module. "
+		 "Set to 1 to turn on, and zero to turn off. Default is off.");
+
+static int iscsi_dbg_lib_session;
+module_param_named(debug_libiscsi_session, iscsi_dbg_lib_session, int,
+		   S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug_libiscsi_session,
+		 "Turn on debugging for sessions in libiscsi module. "
+		 "Set to 1 to turn on, and zero to turn off. Default is off.");
+
+static int iscsi_dbg_lib_eh;
+module_param_named(debug_libiscsi_eh, iscsi_dbg_lib_eh, int,
+		   S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug_libiscsi_eh,
+		 "Turn on debugging for error handling in libiscsi module. "
+		 "Set to 1 to turn on, and zero to turn off. Default is off.");
 
 #define ISCSI_DBG_CONN(_conn, dbg_fmt, arg...)			\
 	do {							\
-		if (iscsi_dbg_lib)				\
+		if (iscsi_dbg_lib_conn)				\
 			iscsi_conn_printk(KERN_INFO, _conn,	\
 					     "%s " dbg_fmt,	\
 					     __func__, ##arg);	\
@@ -54,7 +69,15 @@ MODULE_PARM_DESC(debug_libiscsi, "Turn on debugging for libiscsi module. "
 
 #define ISCSI_DBG_SESSION(_session, dbg_fmt, arg...)			\
 	do {								\
-		if (iscsi_dbg_lib)					\
+		if (iscsi_dbg_lib_session)				\
+			iscsi_session_printk(KERN_INFO, _session,	\
+					     "%s " dbg_fmt,		\
+					     __func__, ##arg);		\
+	} while (0);
+
+#define ISCSI_DBG_EH(_session, dbg_fmt, arg...)				\
+	do {								\
+		if (iscsi_dbg_lib_eh)					\
 			iscsi_session_printk(KERN_INFO, _session,	\
 					     "%s " dbg_fmt,		\
 					     __func__, ##arg);		\
@@ -954,6 +977,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		task = iscsi_itt_to_ctask(conn, hdr->itt);
 		if (!task)
 			return ISCSI_ERR_BAD_ITT;
+		task->last_xfer = jiffies;
 		break;
 	case ISCSI_OP_R2T:
 		/*
@@ -1192,10 +1216,12 @@ static int iscsi_xmit_task(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->session->lock);
 	rc = conn->session->tt->xmit_task(task);
 	spin_lock_bh(&conn->session->lock);
-	__iscsi_put_task(task);
-	if (!rc)
+	if (!rc) {
 		/* done with this task */
+		task->last_xfer = jiffies;
 		conn->task = NULL;
+	}
+	__iscsi_put_task(task);
 	return rc;
 }
 
@@ -1361,6 +1387,9 @@ static inline struct iscsi_task *iscsi_alloc_task(struct iscsi_conn *conn,
 	task->state = ISCSI_TASK_PENDING;
 	task->conn = conn;
 	task->sc = sc;
+	task->have_checked_conn = false;
+	task->last_timeout = jiffies;
+	task->last_xfer = jiffies;
 	INIT_LIST_HEAD(&task->running);
 	return task;
 }
@@ -1555,10 +1584,10 @@ int iscsi_eh_target_reset(struct scsi_cmnd *sc)
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_TERMINATE) {
 failed:
-		iscsi_session_printk(KERN_INFO, session,
-				     "failing target reset: Could not log "
-				     "back into target [age %d]\n",
-				     session->age);
+		ISCSI_DBG_EH(session,
+			     "failing target reset: Could not log back into "
+			     "target [age %d]\n",
+			     session->age);
 		spin_unlock_bh(&session->lock);
 		mutex_unlock(&session->eh_mutex);
 		return FAILED;
@@ -1572,7 +1601,7 @@ failed:
 	 */
 	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 
-	ISCSI_DBG_SESSION(session, "wait for relogin\n");
+	ISCSI_DBG_EH(session, "wait for relogin\n");
 	wait_event_interruptible(conn->ehwait,
 				 session->state == ISCSI_STATE_TERMINATE ||
 				 session->state == ISCSI_STATE_LOGGED_IN ||
@@ -1582,10 +1611,10 @@ failed:
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
-	if (session->state == ISCSI_STATE_LOGGED_IN)
-		iscsi_session_printk(KERN_INFO, session,
-				     "target reset succeeded\n");
-	else
+	if (session->state == ISCSI_STATE_LOGGED_IN) {
+		ISCSI_DBG_EH(session,
+			     "target reset succeeded\n");
+	} else
 		goto failed;
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);
@@ -1601,7 +1630,7 @@ static void iscsi_tmf_timedout(unsigned long data)
 	spin_lock(&session->lock);
 	if (conn->tmf_state == TMF_QUEUED) {
 		conn->tmf_state = TMF_TIMEDOUT;
-		ISCSI_DBG_SESSION(session, "tmf timedout\n");
+		ISCSI_DBG_EH(session, "tmf timedout\n");
 		/* unblock eh_abort() */
 		wake_up(&conn->ehwait);
 	}
@@ -1621,7 +1650,7 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 		spin_unlock_bh(&session->lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 		spin_lock_bh(&session->lock);
-		ISCSI_DBG_SESSION(session, "tmf exec failure\n");
+		ISCSI_DBG_EH(session, "tmf exec failure\n");
 		return -EPERM;
 	}
 	conn->tmfcmd_pdus_cnt++;
@@ -1629,7 +1658,7 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 	conn->tmf_timer.function = iscsi_tmf_timedout;
 	conn->tmf_timer.data = (unsigned long)conn;
 	add_timer(&conn->tmf_timer);
-	ISCSI_DBG_SESSION(session, "tmf set timeout\n");
+	ISCSI_DBG_EH(session, "tmf set timeout\n");
 
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);
@@ -1716,17 +1745,18 @@ static int iscsi_has_ping_timed_out(struct iscsi_conn *conn)
 		return 0;
 }
 
-static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
+static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 {
+	enum blk_eh_timer_return rc = BLK_EH_NOT_HANDLED;
+	struct iscsi_task *task = NULL;
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	struct iscsi_conn *conn;
-	enum blk_eh_timer_return rc = BLK_EH_NOT_HANDLED;
 
-	cls_session = starget_to_session(scsi_target(scmd->device));
+	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
 
-	ISCSI_DBG_SESSION(session, "scsi cmd %p timedout\n", scmd);
+	ISCSI_DBG_EH(session, "scsi cmd %p timedout\n", sc);
 
 	spin_lock(&session->lock);
 	if (session->state != ISCSI_STATE_LOGGED_IN) {
@@ -1745,6 +1775,26 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 		goto done;
 	}
 
+	task = (struct iscsi_task *)sc->SCp.ptr;
+	if (!task)
+		goto done;
+	/*
+	 * If we have sent (at least queued to the network layer) a pdu or
+	 * recvd one for the task since the last timeout ask for
+	 * more time. If on the next timeout we have not made progress
+	 * we can check if it is the task or connection when we send the
+	 * nop as a ping.
+	 */
+	if (time_after_eq(task->last_xfer, task->last_timeout)) {
+		ISCSI_DBG_EH(session, "Command making progress. Asking "
+			     "scsi-ml for more time to complete. "
+			     "Last data recv at %lu. Last timeout was at "
+			     "%lu\n.", task->last_xfer, task->last_timeout);
+		task->have_checked_conn = false;
+		rc = BLK_EH_RESET_TIMER;
+		goto done;
+	}
+
 	if (!conn->recv_timeout && !conn->ping_timeout)
 		goto done;
 	/*
@@ -1755,23 +1805,32 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 		rc = BLK_EH_RESET_TIMER;
 		goto done;
 	}
+
+	/* Assumes nop timeout is shorter than scsi cmd timeout */
+	if (task->have_checked_conn)
+		goto done;
+
 	/*
-	 * if we are about to check the transport then give the command
-	 * more time
+	 * Checking the transport already or nop from a cmd timeout still
+	 * running
 	 */
-	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ),
-			   jiffies)) {
+	if (conn->ping_task) {
+		task->have_checked_conn = true;
 		rc = BLK_EH_RESET_TIMER;
 		goto done;
 	}
 
-	/* if in the middle of checking the transport then give us more time */
-	if (conn->ping_task)
-		rc = BLK_EH_RESET_TIMER;
+	/* Make sure there is a transport check done */
+	iscsi_send_nopout(conn, NULL);
+	task->have_checked_conn = true;
+	rc = BLK_EH_RESET_TIMER;
+
 done:
+	if (task)
+		task->last_timeout = jiffies;
 	spin_unlock(&session->lock);
-	ISCSI_DBG_SESSION(session, "return %s\n", rc == BLK_EH_RESET_TIMER ?
-			  "timer reset" : "nh");
+	ISCSI_DBG_EH(session, "return %s\n", rc == BLK_EH_RESET_TIMER ?
+		     "timer reset" : "nh");
 	return rc;
 }
 
@@ -1841,7 +1900,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
 
-	ISCSI_DBG_SESSION(session, "aborting sc %p\n", sc);
+	ISCSI_DBG_EH(session, "aborting sc %p\n", sc);
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
@@ -1850,8 +1909,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	 * got the command.
 	 */
 	if (!sc->SCp.ptr) {
-		ISCSI_DBG_SESSION(session, "sc never reached iscsi layer or "
-				  "it completed.\n");
+		ISCSI_DBG_EH(session, "sc never reached iscsi layer or "
+				      "it completed.\n");
 		spin_unlock_bh(&session->lock);
 		mutex_unlock(&session->eh_mutex);
 		return SUCCESS;
@@ -1865,7 +1924,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	    sc->SCp.phase != session->age) {
 		spin_unlock_bh(&session->lock);
 		mutex_unlock(&session->eh_mutex);
-		ISCSI_DBG_SESSION(session, "failing abort due to dropped "
+		ISCSI_DBG_EH(session, "failing abort due to dropped "
 				  "session.\n");
 		return FAILED;
 	}
@@ -1875,13 +1934,12 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	age = session->age;
 
 	task = (struct iscsi_task *)sc->SCp.ptr;
-	ISCSI_DBG_SESSION(session, "aborting [sc %p itt 0x%x]\n",
-			  sc, task->itt);
+	ISCSI_DBG_EH(session, "aborting [sc %p itt 0x%x]\n",
+		     sc, task->itt);
 
 	/* task completed before time out */
 	if (!task->sc) {
-		ISCSI_DBG_SESSION(session, "sc completed while abort in "
-				  "progress\n");
+		ISCSI_DBG_EH(session, "sc completed while abort in progress\n");
 		goto success;
 	}
 
@@ -1916,10 +1974,10 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		 * good and have never sent us a successful tmf response
 		 * then sent more data for the cmd.
 		 */
-		spin_lock(&session->lock);
+		spin_lock_bh(&session->lock);
 		fail_scsi_task(task, DID_ABORT);
 		conn->tmf_state = TMF_INITIAL;
-		spin_unlock(&session->lock);
+		spin_unlock_bh(&session->lock);
 		iscsi_start_tx(conn);
 		goto success_unlocked;
 	case TMF_TIMEDOUT:
@@ -1930,8 +1988,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		if (!sc->SCp.ptr) {
 			conn->tmf_state = TMF_INITIAL;
 			/* task completed before tmf abort response */
-			ISCSI_DBG_SESSION(session, "sc completed while abort "
-					  "in progress\n");
+			ISCSI_DBG_EH(session, "sc completed while abort	in "
+					      "progress\n");
 			goto success;
 		}
 		/* fall through */
@@ -1943,16 +2001,16 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 success:
 	spin_unlock_bh(&session->lock);
 success_unlocked:
-	ISCSI_DBG_SESSION(session, "abort success [sc %p itt 0x%x]\n",
-			  sc, task->itt);
+	ISCSI_DBG_EH(session, "abort success [sc %p itt 0x%x]\n",
+		     sc, task->itt);
 	mutex_unlock(&session->eh_mutex);
 	return SUCCESS;
 
 failed:
 	spin_unlock_bh(&session->lock);
 failed_unlocked:
-	ISCSI_DBG_SESSION(session, "abort failed [sc %p itt 0x%x]\n", sc,
-			  task ? task->itt : 0);
+	ISCSI_DBG_EH(session, "abort failed [sc %p itt 0x%x]\n", sc,
+		     task ? task->itt : 0);
 	mutex_unlock(&session->eh_mutex);
 	return FAILED;
 }
@@ -1979,8 +2037,7 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
 
-	ISCSI_DBG_SESSION(session, "LU Reset [sc %p lun %u]\n",
-			  sc, sc->device->lun);
+	ISCSI_DBG_EH(session, "LU Reset [sc %p lun %u]\n", sc, sc->device->lun);
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
@@ -2034,8 +2091,8 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 unlock:
 	spin_unlock_bh(&session->lock);
 done:
-	ISCSI_DBG_SESSION(session, "dev reset result = %s\n",
-			 rc == SUCCESS ? "SUCCESS" : "FAILED");
+	ISCSI_DBG_EH(session, "dev reset result = %s\n",
+		     rc == SUCCESS ? "SUCCESS" : "FAILED");
 	mutex_unlock(&session->eh_mutex);
 	return rc;
 }

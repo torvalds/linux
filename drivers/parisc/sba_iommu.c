@@ -2010,7 +2010,7 @@ void __init sba_init(void)
 void * sba_get_iommu(struct parisc_device *pci_hba)
 {
 	struct parisc_device *sba_dev = parisc_parent(pci_hba);
-	struct sba_device *sba = sba_dev->dev.driver_data;
+	struct sba_device *sba = dev_get_drvdata(&sba_dev->dev);
 	char t = sba_dev->id.hw_type;
 	int iocnum = (pci_hba->hw_path >> 3);	/* rope # */
 
@@ -2031,7 +2031,7 @@ void * sba_get_iommu(struct parisc_device *pci_hba)
 void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 {
 	struct parisc_device *sba_dev = parisc_parent(pci_hba);
-	struct sba_device *sba = sba_dev->dev.driver_data;
+	struct sba_device *sba = dev_get_drvdata(&sba_dev->dev);
 	char t = sba_dev->id.hw_type;
 	int i;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
@@ -2057,6 +2057,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 		r->start = (base & ~1UL) | PCI_F_EXTEND;
 		size = ~ READ_REG32(reg + LMMIO_DIRECT0_MASK);
 		r->end = r->start + size;
+		r->flags = IORESOURCE_MEM;
 	}
 }
 
@@ -2073,7 +2074,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 void sba_distributed_lmmio(struct parisc_device *pci_hba, struct resource *r )
 {
 	struct parisc_device *sba_dev = parisc_parent(pci_hba);
-	struct sba_device *sba = sba_dev->dev.driver_data;
+	struct sba_device *sba = dev_get_drvdata(&sba_dev->dev);
 	char t = sba_dev->id.hw_type;
 	int base, size;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
@@ -2093,4 +2094,5 @@ void sba_distributed_lmmio(struct parisc_device *pci_hba, struct resource *r )
 	size = (~READ_REG32(sba->sba_hpa + LMMIO_DIST_MASK)) / ROPES_PER_IOC;
 	r->start += rope * (size + 1);	/* adjust base for this rope */
 	r->end = r->start + size;
+	r->flags = IORESOURCE_MEM;
 }

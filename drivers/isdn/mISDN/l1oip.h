@@ -76,7 +76,7 @@ struct l1oip {
 	struct sockaddr_in	sin_local;	/* local socket name */
 	struct sockaddr_in	sin_remote;	/* remote socket name */
 	struct msghdr		sendmsg;	/* ip message to send */
-	struct iovec		sendiov;	/* iov for message */
+	struct kvec		sendiov;	/* iov for message */
 
 	/* frame */
 	struct l1oip_chan	chan[128];	/* channel instances */

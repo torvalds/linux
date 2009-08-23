@@ -120,6 +120,10 @@
 #define OV9650_SOFT_SLEEP		(1 << 4)
 #define OV9650_OUTPUT_DRIVE_2X		(1 << 0)
 
+#define OV9650_DENOISE_ENABLE		(1 << 5)
+#define OV9650_WHITE_PIXEL_ENABLE	(1 << 1)
+#define OV9650_WHITE_PIXEL_OPTION	(1 << 0)
+
 #define OV9650_LEFT_OFFSET		0x62
 
 #define GAIN_DEFAULT			0x14
@@ -137,29 +141,9 @@ int ov9650_probe(struct sd *sd);
 int ov9650_init(struct sd *sd);
 int ov9650_start(struct sd *sd);
 int ov9650_stop(struct sd *sd);
-int ov9650_power_down(struct sd *sd);
 void ov9650_disconnect(struct sd *sd);
 
-int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
-
-const static struct m5602_sensor ov9650 = {
+static const struct m5602_sensor ov9650 = {
 	.name = "OV9650",
 	.i2c_slave_id = 0x60,
 	.i2c_regW = 1,
@@ -167,7 +151,6 @@ const static struct m5602_sensor ov9650 = {
 	.init = ov9650_init,
 	.start = ov9650_start,
 	.stop = ov9650_stop,
-	.power_down = ov9650_power_down,
 	.disconnect = ov9650_disconnect,
 };
 
@@ -219,7 +202,7 @@ static const unsigned char init_ov9650[][3] =
 	/* Reset chip */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
 	/* One extra reset is needed in order to make the sensor behave
-	   properly when resuming from ram */
+	   properly when resuming from ram, could be a timing issue */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
 
 	/* Enable double clock */
@@ -229,8 +212,7 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Set fast AGC/AEC algorithm with unlimited step size */
 	{SENSOR, OV9650_COM8, OV9650_FAST_AGC_AEC |
-			      OV9650_AEC_UNLIM_STEP_SIZE |
-			      OV9650_AWB_EN | OV9650_AGC_EN},
+			      OV9650_AEC_UNLIM_STEP_SIZE},
 
 	{SENSOR, OV9650_CHLF, 0x10},
 	{SENSOR, OV9650_ARBLM, 0xbf},
@@ -301,8 +283,11 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_VREF, 0x10},
 	{SENSOR, OV9650_ADC, 0x04},
 	{SENSOR, OV9650_HV, 0x40},
+
 	/* Enable denoise, and white-pixel erase */
-	{SENSOR, OV9650_COM22, 0x23},
+	{SENSOR, OV9650_COM22, OV9650_DENOISE_ENABLE |
+		 OV9650_WHITE_PIXEL_ENABLE |
+		 OV9650_WHITE_PIXEL_OPTION},
 
 	/* Enable VARIOPIXEL */
 	{SENSOR, OV9650_COM3, OV9650_VARIOPIXEL},
@@ -310,26 +295,6 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Put the sensor in soft sleep mode */
 	{SENSOR, OV9650_COM2, OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X},
-};
-
-static const unsigned char power_down_ov9650[][3] =
-{
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
-	{SENSOR, OV9650_COM7, 0x80},
-	{SENSOR, OV9650_OFON, 0xf4},
-	{SENSOR, OV9650_MVFP, 0x80},
-	{SENSOR, OV9650_DBLV, 0x3f},
-	{SENSOR, OV9650_RSVD36, 0x49},
-	{SENSOR, OV9650_COM7, 0x05},
-
-	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
-	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
-	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
-	{BRIDGE, M5602_XB_GPIO_EN_L, 0x06},
-	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x02},
-	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x04},
-	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 };
 
 static const unsigned char res_init_ov9650[][3] =

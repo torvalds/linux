@@ -68,7 +68,8 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
 
-static volatile unsigned int cpu_callin_map[NR_CPUS];
+/* Can't be static due to PowerMac hackery */
+volatile unsigned int cpu_callin_map[NR_CPUS];
 
 int smt_enabled_at_boot = 1;
 

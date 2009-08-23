@@ -763,11 +763,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 	dev_info(i2c->dev, "bus frequency set to %d KHz\n", freq);
 	dev_dbg(i2c->dev, "S3C2410_IICCON=0x%02lx\n", iicon);
 
-	/* check for s3c2440 i2c controller  */
-
-	if (s3c24xx_i2c_is2440(i2c))
-		writel(0x0, i2c->regs + S3C2440_IICLC);
-
 	return 0;
 }
 
@@ -828,7 +823,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->ioarea = request_mem_region(res->start, (res->end-res->start)+1,
+	i2c->ioarea = request_mem_region(res->start, resource_size(res),
 					 pdev->name);
 
 	if (i2c->ioarea == NULL) {
@@ -837,7 +832,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->regs = ioremap(res->start, (res->end-res->start)+1);
+	i2c->regs = ioremap(res->start, resource_size(res));
 
 	if (i2c->regs == NULL) {
 		dev_err(&pdev->dev, "cannot map IO\n");

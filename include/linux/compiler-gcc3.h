@@ -16,6 +16,12 @@
 #define __must_check		__attribute__((warn_unused_result))
 #endif
 
+#ifdef CONFIG_GCOV_KERNEL
+# if __GNUC_MINOR__ < 4
+#   error "GCOV profiling support for gcc versions below 3.4 not included"
+# endif /* __GNUC_MINOR__ */
+#endif /* CONFIG_GCOV_KERNEL */
+
 /*
  * A trick to suppress uninitialized variable warning without generating any
  * code

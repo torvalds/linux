@@ -34,15 +34,6 @@ int gdb_bfin_vector = -1;
 #error change the definition of slavecpulocks
 #endif
 
-#define IN_MEM(addr, size, l1_addr, l1_size) \
-({ \
-	unsigned long __addr = (unsigned long)(addr); \
-	(l1_size && __addr >= l1_addr && __addr + (size) <= l1_addr + l1_size); \
-})
-#define ASYNC_BANK_SIZE \
-	(ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
-	 ASYNC_BANK2_SIZE + ASYNC_BANK3_SIZE)
-
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
 	gdb_regs[BFIN_R0] = regs->r0;
@@ -463,40 +454,87 @@ static int hex(char ch)
 
 static int validate_memory_access_address(unsigned long addr, int size)
 {
-	int cpu = raw_smp_processor_id();
-
-	if (size < 0)
+	if (size < 0 || addr == 0)
 		return -EFAULT;
-	if (addr >= 0x1000 && (addr + size) <= physical_mem_end)
-		return 0;
-	if (addr >= SYSMMR_BASE)
-		return 0;
-	if (IN_MEM(addr, size, ASYNC_BANK0_BASE, ASYNC_BANK_SIZE))
-		return 0;
-	if (cpu == 0) {
-		if (IN_MEM(addr, size, L1_SCRATCH_START, L1_SCRATCH_LENGTH))
+	return bfin_mem_access_type(addr, size);
+}
+
+static int bfin_probe_kernel_read(char *dst, char *src, int size)
+{
+	unsigned long lsrc = (unsigned long)src;
+	int mem_type;
+
+	mem_type = validate_memory_access_address(lsrc, size);
+	if (mem_type < 0)
+		return mem_type;
+
+	if (lsrc >= SYSMMR_BASE) {
+		if (size == 2 && lsrc % 2 == 0) {
+			u16 mmr = bfin_read16(src);
+			memcpy(dst, &mmr, sizeof(mmr));
 			return 0;
-		if (IN_MEM(addr, size, L1_CODE_START, L1_CODE_LENGTH))
+		} else if (size == 4 && lsrc % 4 == 0) {
+			u32 mmr = bfin_read32(src);
+			memcpy(dst, &mmr, sizeof(mmr));
 			return 0;
-		if (IN_MEM(addr, size, L1_DATA_A_START, L1_DATA_A_LENGTH))
-			return 0;
-		if (IN_MEM(addr, size, L1_DATA_B_START, L1_DATA_B_LENGTH))
-			return 0;
-#ifdef CONFIG_SMP
-	} else if (cpu == 1) {
-		if (IN_MEM(addr, size, COREB_L1_SCRATCH_START, L1_SCRATCH_LENGTH))
-			return 0;
-		if (IN_MEM(addr, size, COREB_L1_CODE_START, L1_CODE_LENGTH))
-			return 0;
-		if (IN_MEM(addr, size, COREB_L1_DATA_A_START, L1_DATA_A_LENGTH))
-			return 0;
-		if (IN_MEM(addr, size, COREB_L1_DATA_B_START, L1_DATA_B_LENGTH))
-			return 0;
-#endif
+		}
+	} else {
+		switch (mem_type) {
+			case BFIN_MEM_ACCESS_CORE:
+			case BFIN_MEM_ACCESS_CORE_ONLY:
+				return probe_kernel_read(dst, src, size);
+			/* XXX: should support IDMA here with SMP */
+			case BFIN_MEM_ACCESS_DMA:
+				if (dma_memcpy(dst, src, size))
+					return 0;
+				break;
+			case BFIN_MEM_ACCESS_ITEST:
+				if (isram_memcpy(dst, src, size))
+					return 0;
+				break;
+		}
 	}
 
-	if (IN_MEM(addr, size, L2_START, L2_LENGTH))
-		return 0;
+	return -EFAULT;
+}
+
+static int bfin_probe_kernel_write(char *dst, char *src, int size)
+{
+	unsigned long ldst = (unsigned long)dst;
+	int mem_type;
+
+	mem_type = validate_memory_access_address(ldst, size);
+	if (mem_type < 0)
+		return mem_type;
+
+	if (ldst >= SYSMMR_BASE) {
+		if (size == 2 && ldst % 2 == 0) {
+			u16 mmr;
+			memcpy(&mmr, src, sizeof(mmr));
+			bfin_write16(dst, mmr);
+			return 0;
+		} else if (size == 4 && ldst % 4 == 0) {
+			u32 mmr;
+			memcpy(&mmr, src, sizeof(mmr));
+			bfin_write32(dst, mmr);
+			return 0;
+		}
+	} else {
+		switch (mem_type) {
+			case BFIN_MEM_ACCESS_CORE:
+			case BFIN_MEM_ACCESS_CORE_ONLY:
+				return probe_kernel_write(dst, src, size);
+			/* XXX: should support IDMA here with SMP */
+			case BFIN_MEM_ACCESS_DMA:
+				if (dma_memcpy(dst, src, size))
+					return 0;
+				break;
+			case BFIN_MEM_ACCESS_ITEST:
+				if (isram_memcpy(dst, src, size))
+					return 0;
+				break;
+		}
+	}
 
 	return -EFAULT;
 }
@@ -509,14 +547,6 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 {
 	char *tmp;
 	int err;
-	unsigned char *pch;
-	unsigned short mmr16;
-	unsigned long mmr32;
-	int cpu = raw_smp_processor_id();
-
-	err = validate_memory_access_address((unsigned long)mem, count);
-	if (err)
-		return err;
 
 	/*
 	 * We use the upper half of buf as an intermediate buffer for the
@@ -524,44 +554,7 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 	 */
 	tmp = buf + count;
 
-	if ((unsigned int)mem >= SYSMMR_BASE) { /*access MMR registers*/
-		switch (count) {
-		case 2:
-			if ((unsigned int)mem % 2 == 0) {
-				mmr16 = *(unsigned short *)mem;
-				pch = (unsigned char *)&mmr16;
-				*tmp++ = *pch++;
-				*tmp++ = *pch++;
-				tmp -= 2;
-			} else
-				err = -EFAULT;
-			break;
-		case 4:
-			if ((unsigned int)mem % 4 == 0) {
-				mmr32 = *(unsigned long *)mem;
-				pch = (unsigned char *)&mmr32;
-				*tmp++ = *pch++;
-				*tmp++ = *pch++;
-				*tmp++ = *pch++;
-				*tmp++ = *pch++;
-				tmp -= 4;
-			} else
-				err = -EFAULT;
-			break;
-		default:
-			err = -EFAULT;
-		}
-	} else if ((cpu == 0 && IN_MEM(mem, count, L1_CODE_START, L1_CODE_LENGTH))
-#ifdef CONFIG_SMP
-		|| (cpu == 1 && IN_MEM(mem, count, COREB_L1_CODE_START, L1_CODE_LENGTH))
-#endif
-		) {
-		/* access L1 instruction SRAM*/
-		if (dma_memcpy(tmp, mem, count) == NULL)
-			err = -EFAULT;
-	} else
-		err = probe_kernel_read(tmp, mem, count);
-
+	err = bfin_probe_kernel_read(tmp, mem, count);
 	if (!err) {
 		while (count > 0) {
 			buf = pack_hex_byte(buf, *tmp);
@@ -582,13 +575,8 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
  */
 int kgdb_ebin2mem(char *buf, char *mem, int count)
 {
-	char *tmp_old;
-	char *tmp_new;
-	unsigned short *mmr16;
-	unsigned long *mmr32;
-	int err;
+	char *tmp_old, *tmp_new;
 	int size;
-	int cpu = raw_smp_processor_id();
 
 	tmp_old = tmp_new = buf;
 
@@ -601,41 +589,7 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
 		tmp_old++;
 	}
 
-	err = validate_memory_access_address((unsigned long)mem, size);
-	if (err)
-		return err;
-
-	if ((unsigned int)mem >= SYSMMR_BASE) { /*access MMR registers*/
-		switch (size) {
-		case 2:
-			if ((unsigned int)mem % 2 == 0) {
-				mmr16 = (unsigned short *)buf;
-				*(unsigned short *)mem = *mmr16;
-			} else
-				err = -EFAULT;
-			break;
-		case 4:
-			if ((unsigned int)mem % 4 == 0) {
-				mmr32 = (unsigned long *)buf;
-				*(unsigned long *)mem = *mmr32;
-			} else
-				err = -EFAULT;
-			break;
-		default:
-			err = -EFAULT;
-		}
-	} else if ((cpu == 0 && IN_MEM(mem, count, L1_CODE_START, L1_CODE_LENGTH))
-#ifdef CONFIG_SMP
-		|| (cpu == 1 && IN_MEM(mem, count, COREB_L1_CODE_START, L1_CODE_LENGTH))
-#endif
-		) {
-		/* access L1 instruction SRAM */
-		if (dma_memcpy(mem, buf, size) == NULL)
-			err = -EFAULT;
-	} else
-		err = probe_kernel_write(mem, buf, size);
-
-	return err;
+	return bfin_probe_kernel_write(mem, buf, count);
 }
 
 /*
@@ -645,16 +599,7 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
  */
 int kgdb_hex2mem(char *buf, char *mem, int count)
 {
-	char *tmp_raw;
-	char *tmp_hex;
-	unsigned short *mmr16;
-	unsigned long *mmr32;
-	int err;
-	int cpu = raw_smp_processor_id();
-
-	err = validate_memory_access_address((unsigned long)mem, count);
-	if (err)
-		return err;
+	char *tmp_raw, *tmp_hex;
 
 	/*
 	 * We use the upper half of buf as an intermediate buffer for the
@@ -669,38 +614,17 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 		*tmp_raw |= hex(*tmp_hex--) << 4;
 	}
 
-	if ((unsigned int)mem >= SYSMMR_BASE) { /*access MMR registers*/
-		switch (count) {
-		case 2:
-			if ((unsigned int)mem % 2 == 0) {
-				mmr16 = (unsigned short *)tmp_raw;
-				*(unsigned short *)mem = *mmr16;
-			} else
-				err = -EFAULT;
-			break;
-		case 4:
-			if ((unsigned int)mem % 4 == 0) {
-				mmr32 = (unsigned long *)tmp_raw;
-				*(unsigned long *)mem = *mmr32;
-			} else
-				err = -EFAULT;
-			break;
-		default:
-			err = -EFAULT;
-		}
-	} else if ((cpu == 0 && IN_MEM(mem, count, L1_CODE_START, L1_CODE_LENGTH))
-#ifdef CONFIG_SMP
-		|| (cpu == 1 && IN_MEM(mem, count, COREB_L1_CODE_START, L1_CODE_LENGTH))
-#endif
-		) {
-		/* access L1 instruction SRAM */
-		if (dma_memcpy(mem, tmp_raw, count) == NULL)
-			err = -EFAULT;
-	} else
-		err = probe_kernel_write(mem, tmp_raw, count);
-
-	return err;
+	return bfin_probe_kernel_write(mem, tmp_raw, count);
 }
+
+#define IN_MEM(addr, size, l1_addr, l1_size) \
+({ \
+	unsigned long __addr = (unsigned long)(addr); \
+	(l1_size && __addr >= l1_addr && __addr + (size) <= l1_addr + l1_size); \
+})
+#define ASYNC_BANK_SIZE \
+	(ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
+	 ASYNC_BANK2_SIZE + ASYNC_BANK3_SIZE)
 
 int kgdb_validate_break_address(unsigned long addr)
 {
@@ -724,46 +648,17 @@ int kgdb_validate_break_address(unsigned long addr)
 
 int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr)
 {
-	int err;
-	int cpu = raw_smp_processor_id();
-
-	if ((cpu == 0 && IN_MEM(addr, BREAK_INSTR_SIZE, L1_CODE_START, L1_CODE_LENGTH))
-#ifdef CONFIG_SMP
-		|| (cpu == 1 && IN_MEM(addr, BREAK_INSTR_SIZE, COREB_L1_CODE_START, L1_CODE_LENGTH))
-#endif
-		) {
-		/* access L1 instruction SRAM */
-		if (dma_memcpy(saved_instr, (void *)addr, BREAK_INSTR_SIZE)
-			== NULL)
-			return -EFAULT;
-
-		if (dma_memcpy((void *)addr, arch_kgdb_ops.gdb_bpt_instr,
-			BREAK_INSTR_SIZE) == NULL)
-			return -EFAULT;
-
-		return 0;
-	} else {
-		err = probe_kernel_read(saved_instr, (char *)addr,
-			BREAK_INSTR_SIZE);
-		if (err)
-			return err;
-
-		return probe_kernel_write((char *)addr,
-			arch_kgdb_ops.gdb_bpt_instr, BREAK_INSTR_SIZE);
-	}
+	int err = bfin_probe_kernel_read(saved_instr, (char *)addr,
+	                                 BREAK_INSTR_SIZE);
+	if (err)
+		return err;
+	return bfin_probe_kernel_write((char *)addr, arch_kgdb_ops.gdb_bpt_instr,
+	                               BREAK_INSTR_SIZE);
 }
 
 int kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle)
 {
-	if (IN_MEM(addr, BREAK_INSTR_SIZE, L1_CODE_START, L1_CODE_LENGTH)) {
-		/* access L1 instruction SRAM */
-		if (dma_memcpy((void *)addr, bundle, BREAK_INSTR_SIZE) == NULL)
-			return -EFAULT;
-
-		return 0;
-	} else
-		return probe_kernel_write((char *)addr,
-				(char *)bundle, BREAK_INSTR_SIZE);
+	return bfin_probe_kernel_write((char *)addr, bundle, BREAK_INSTR_SIZE);
 }
 
 int kgdb_arch_init(void)

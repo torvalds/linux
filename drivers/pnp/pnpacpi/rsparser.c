@@ -287,6 +287,25 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 				ACPI_DECODE_16);
 }
 
+static void pnpacpi_parse_allocated_ext_address_space(struct pnp_dev *dev,
+						      struct acpi_resource *res)
+{
+	struct acpi_resource_extended_address64 *p = &res->data.ext_address64;
+
+	if (p->producer_consumer == ACPI_PRODUCER)
+		return;
+
+	if (p->resource_type == ACPI_MEMORY_RANGE)
+		pnpacpi_parse_allocated_memresource(dev,
+			p->minimum, p->address_length,
+			p->info.mem.write_protect);
+	else if (p->resource_type == ACPI_IO_RANGE)
+		pnpacpi_parse_allocated_ioresource(dev,
+			p->minimum, p->address_length,
+			p->granularity == 0xfff ? ACPI_DECODE_10 :
+				ACPI_DECODE_16);
+}
+
 static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 					      void *data)
 {
@@ -400,8 +419,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
-		if (res->data.ext_address64.producer_consumer == ACPI_PRODUCER)
-			return AE_OK;
+		pnpacpi_parse_allocated_ext_address_space(dev, res);
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
@@ -630,6 +648,28 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 					   IORESOURCE_IO_FIXED);
 }
 
+static __init void pnpacpi_parse_ext_address_option(struct pnp_dev *dev,
+						    unsigned int option_flags,
+						    struct acpi_resource *r)
+{
+	struct acpi_resource_extended_address64 *p = &r->data.ext_address64;
+	unsigned char flags = 0;
+
+	if (p->address_length == 0)
+		return;
+
+	if (p->resource_type == ACPI_MEMORY_RANGE) {
+		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
+			flags = IORESOURCE_MEM_WRITEABLE;
+		pnp_register_mem_resource(dev, option_flags, p->minimum,
+					  p->minimum, 0, p->address_length,
+					  flags);
+	} else if (p->resource_type == ACPI_IO_RANGE)
+		pnp_register_port_resource(dev, option_flags, p->minimum,
+					   p->minimum, 0, p->address_length,
+					   IORESOURCE_IO_FIXED);
+}
+
 struct acpipnp_parse_option_s {
 	struct pnp_dev *dev;
 	unsigned int option_flags;
@@ -711,6 +751,7 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+		pnpacpi_parse_ext_address_option(dev, option_flags, res);
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
@@ -765,6 +806,7 @@ static int pnpacpi_supported_resource(struct acpi_resource *res)
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
+	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		return 1;
 	}

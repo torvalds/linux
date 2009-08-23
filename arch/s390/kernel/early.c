@@ -1,7 +1,7 @@
 /*
  *  arch/s390/kernel/early.c
  *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Hongjie Yang <hongjie@us.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
@@ -208,6 +208,9 @@ static noinline __init void detect_machine_type(void)
 		machine_flags |= MACHINE_FLAG_KVM;
 	else
 		machine_flags |= MACHINE_FLAG_VM;
+
+	/* Store machine flags for setting up lowcore early */
+	S390_lowcore.machine_flags = machine_flags;
 }
 
 static __init void early_pgm_check_handler(void)

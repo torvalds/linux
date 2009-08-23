@@ -1095,9 +1095,14 @@ static void adapter_info_rsp(struct srp_event_struct *evt_struct)
 				MAX_INDIRECT_BUFS);
 			hostdata->host->sg_tablesize = MAX_INDIRECT_BUFS;
 		}
+
+		if (hostdata->madapter_info.os_type == 3) {
+			enable_fast_fail(hostdata);
+			return;
+		}
 	}
 
-	enable_fast_fail(hostdata);
+	send_srp_login(hostdata);
 }
 
 /**
@@ -1877,7 +1882,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	unsigned long wait_switch = 0;
 	int rc;
 
-	vdev->dev.driver_data = NULL;
+	dev_set_drvdata(&vdev->dev, NULL);
 
 	host = scsi_host_alloc(&driver_template, sizeof(*hostdata));
 	if (!host) {
@@ -1949,7 +1954,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 			scsi_scan_host(host);
 	}
 
-	vdev->dev.driver_data = hostdata;
+	dev_set_drvdata(&vdev->dev, hostdata);
 	return 0;
 
       add_srp_port_failed:
@@ -1968,7 +1973,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 static int ibmvscsi_remove(struct vio_dev *vdev)
 {
-	struct ibmvscsi_host_data *hostdata = vdev->dev.driver_data;
+	struct ibmvscsi_host_data *hostdata = dev_get_drvdata(&vdev->dev);
 	unmap_persist_bufs(hostdata);
 	release_event_pool(&hostdata->pool, hostdata);
 	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata,

@@ -261,7 +261,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 
 		skb->dev = dev;
 
-		if (!skb->dst || !skb->dst->neighbour) {
+		if (!skb_dst(skb) || !skb_dst(skb)->neighbour) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof (struct ipoib_pseudoheader));
 		}
@@ -707,10 +707,10 @@ void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 
 out:
 	if (mcast && mcast->ah) {
-		if (skb->dst		&&
-		    skb->dst->neighbour &&
-		    !*to_ipoib_neigh(skb->dst->neighbour)) {
-			struct ipoib_neigh *neigh = ipoib_neigh_alloc(skb->dst->neighbour,
+		if (skb_dst(skb)		&&
+		    skb_dst(skb)->neighbour &&
+		    !*to_ipoib_neigh(skb_dst(skb)->neighbour)) {
+			struct ipoib_neigh *neigh = ipoib_neigh_alloc(skb_dst(skb)->neighbour,
 									skb->dev);
 
 			if (neigh) {

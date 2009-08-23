@@ -2,8 +2,8 @@
 #define HELP_H
 
 struct cmdnames {
-	int alloc;
-	int cnt;
+	size_t alloc;
+	size_t cnt;
 	struct cmdname {
 		size_t len; /* also used for similarity index in help.c */
 		char name[FLEX_ARRAY];
@@ -19,7 +19,7 @@ static inline void mput_char(char c, unsigned int num)
 void load_command_list(const char *prefix,
 		struct cmdnames *main_cmds,
 		struct cmdnames *other_cmds);
-void add_cmdname(struct cmdnames *cmds, const char *name, int len);
+void add_cmdname(struct cmdnames *cmds, const char *name, size_t len);
 /* Here we require that excludes is a sorted list. */
 void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes);
 int is_in_cmdlist(struct cmdnames *c, const char *s);

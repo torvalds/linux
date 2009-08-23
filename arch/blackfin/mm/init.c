@@ -160,7 +160,7 @@ void __init mem_init(void)
 
 	/* do not count in kernel image between _rambase and _ramstart */
 	reservedpages -= (_ramstart - _rambase) >> PAGE_SHIFT;
-#if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
+#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
 	reservedpages += (_ramend - memory_end - DMA_UNCACHED_REGION) >> PAGE_SHIFT;
 #endif
 

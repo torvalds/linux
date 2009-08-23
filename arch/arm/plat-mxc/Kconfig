@@ -48,7 +48,14 @@ config MXC_IRQ_PRIOR
 config MXC_PWM
 	tristate "Enable PWM driver"
 	depends on ARCH_MXC
+	select HAVE_PWM
 	help
 	  Enable support for the i.MX PWM controller(s).
 
+config ARCH_HAS_RNGA
+	bool
+	depends on ARCH_MXC
+
+config ARCH_MXC_IOMUX_V3
+	bool
 endif

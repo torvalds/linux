@@ -34,7 +34,7 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
 /* We don't currently support large pages. */
-#define KVM_PAGES_PER_HPAGE (1<<31)
+#define KVM_PAGES_PER_HPAGE (1UL << 31)
 
 struct kvm;
 struct kvm_run;

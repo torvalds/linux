@@ -79,7 +79,6 @@ static struct resource bfin_isp1760_resources[] = {
 
 static struct isp1760_platform_data isp1760_priv = {
 	.is_isp1761 = 0,
-	.port1_disable = 0,
 	.bus_width_16 = 1,
 	.port1_otg = 0,
 	.analog_oc = 0,
@@ -1314,10 +1313,10 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_JOYSTICK_AD7142) || defined(CONFIG_JOYSTICK_AD7142_MODULE)
 	{
 		I2C_BOARD_INFO("ad7142_joystick", 0x2C),
-		.irq = IRQ_PF5,
+		.irq = IRQ_PG5,
 	},
 #endif
-#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
 	},
@@ -1345,7 +1344,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_PMIC_ADP5520) || defined(CONFIG_PMIC_ADP5520_MODULE)
 	{
 		I2C_BOARD_INFO("pmic-adp5520", 0x32),
-		.irq = IRQ_PF7,
+		.irq = IRQ_PG0,
 		.platform_data = (void *)&adp5520_pdev_data,
 	},
 #endif

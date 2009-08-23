@@ -589,7 +589,7 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
-	cmd->phy_address = p->phy->addr;
+	cmd->phy_address = p->phy->mdio.prtad;
 	cmd->transceiver = XCVR_EXTERNAL;
 	cmd->autoneg = p->link_config.autoneg;
 	cmd->maxtxpkt = 0;
@@ -849,39 +849,9 @@ static const struct ethtool_ops t1_ethtool_ops = {
 static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	struct adapter *adapter = dev->ml_priv;
-	struct mii_ioctl_data *data = if_mii(req);
+	struct mdio_if_info *mdio = &adapter->port[dev->if_port].phy->mdio;
 
-	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = adapter->port[dev->if_port].phy->addr;
-		/* FALLTHRU */
-	case SIOCGMIIREG: {
-		struct cphy *phy = adapter->port[dev->if_port].phy;
-		u32 val;
-
-		if (!phy->mdio_read)
-			return -EOPNOTSUPP;
-		phy->mdio_read(adapter, data->phy_id, 0, data->reg_num & 0x1f,
-			       &val);
-		data->val_out = val;
-		break;
-	}
-	case SIOCSMIIREG: {
-		struct cphy *phy = adapter->port[dev->if_port].phy;
-
-		if (!capable(CAP_NET_ADMIN))
-		    return -EPERM;
-		if (!phy->mdio_write)
-			return -EOPNOTSUPP;
-		phy->mdio_write(adapter, data->phy_id, 0, data->reg_num & 0x1f,
-			        data->val_in);
-		break;
-	}
-
-	default:
-		return -EOPNOTSUPP;
-	}
-	return 0;
+	return mdio_mii_ioctl(mdio, if_mii(req), cmd);
 }
 
 static int t1_change_mtu(struct net_device *dev, int new_mtu)

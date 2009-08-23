@@ -303,7 +303,7 @@ static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
 				struct device_node *dp)
 {
 	DATA *data = file->private_data;
-	struct openpromio *opp;
+	struct openpromio *opp = NULL;
 	int bufsize, error = 0;
 	static int cnt;
 	void __user *argp = (void __user *)arg;

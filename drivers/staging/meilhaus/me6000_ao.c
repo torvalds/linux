@@ -2627,11 +2627,7 @@ me6000_ao_subdevice_t *me6000_ao_constructor(uint32_t reg_base,
 	if (subdevice->fifo & ME6000_AO_HAS_FIFO) {
 		subdevice->irq = irq;
 		if (request_irq(subdevice->irq, me6000_ao_isr,
-#ifdef IRQF_DISABLED
 				IRQF_DISABLED | IRQF_SHARED,
-#else
-				SA_INTERRUPT | SA_SHIRQ,
-#endif
 				ME6000_NAME, subdevice)) {
 			PERROR("Cannot get interrupt line.\n");
 			PDEBUG("free circ_buf = %p size=%d",

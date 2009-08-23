@@ -29,6 +29,9 @@
 
 #include "rtl8187.h"
 #include "rtl8187_rtl8225.h"
+#ifdef CONFIG_RTL8187_LEDS
+#include "rtl8187_leds.h"
+#endif
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
@@ -320,12 +323,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	unsigned long f;
 
 	spin_lock_irqsave(&priv->rx_queue.lock, f);
-	if (skb->next)
-		__skb_unlink(skb, &priv->rx_queue);
-	else {
-		spin_unlock_irqrestore(&priv->rx_queue.lock, f);
-		return;
-	}
+	__skb_unlink(skb, &priv->rx_queue);
 	spin_unlock_irqrestore(&priv->rx_queue.lock, f);
 	skb_put(skb, urb->actual_length);
 
@@ -736,10 +734,10 @@ static const u8 rtl8187b_reg_table[][3] = {
 	{0x85, 0x24, 0}, {0x88, 0x54, 0}, {0x8B, 0xB8, 0}, {0x8C, 0x07, 0},
 	{0x8D, 0x00, 0}, {0x94, 0x1B, 0}, {0x95, 0x12, 0}, {0x96, 0x00, 0},
 	{0x97, 0x06, 0}, {0x9D, 0x1A, 0}, {0x9F, 0x10, 0}, {0xB4, 0x22, 0},
-	{0xBE, 0x80, 0}, {0xDB, 0x00, 0}, {0xEE, 0x00, 0}, {0x91, 0x03, 0},
+	{0xBE, 0x80, 0}, {0xDB, 0x00, 0}, {0xEE, 0x00, 0}, {0x4C, 0x00, 2},
 
-	{0x4C, 0x00, 2}, {0x9F, 0x00, 3}, {0x8C, 0x01, 0}, {0x8D, 0x10, 0},
-	{0x8E, 0x08, 0}, {0x8F, 0x00, 0}
+	{0x9F, 0x00, 3}, {0x8C, 0x01, 0}, {0x8D, 0x10, 0}, {0x8E, 0x08, 0},
+	{0x8F, 0x00, 0}
 };
 
 static int rtl8187b_init_hw(struct ieee80211_hw *dev)
@@ -1089,32 +1087,6 @@ static int rtl8187_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static int rtl8187_config_interface(struct ieee80211_hw *dev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_if_conf *conf)
-{
-	struct rtl8187_priv *priv = dev->priv;
-	int i;
-	u8 reg;
-
-	mutex_lock(&priv->conf_mutex);
-	for (i = 0; i < ETH_ALEN; i++)
-		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);
-
-	if (is_valid_ether_addr(conf->bssid)) {
-		reg = RTL818X_MSR_INFRA;
-		if (priv->is_rtl8187b)
-			reg |= RTL818X_MSR_ENEDCA;
-		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
-	} else {
-		reg = RTL818X_MSR_NO_LINK;
-		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
-	}
-
-	mutex_unlock(&priv->conf_mutex);
-	return 0;
-}
-
 /*
  * With 8187B, AC_*_PARAM clashes with FEMR definition in struct rtl818x_csr for
  * example. Thus we have to use raw values for AC_*_PARAM register addresses.
@@ -1192,6 +1164,27 @@ static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
 				     u32 changed)
 {
 	struct rtl8187_priv *priv = dev->priv;
+	int i;
+	u8 reg;
+
+	if (changed & BSS_CHANGED_BSSID) {
+		mutex_lock(&priv->conf_mutex);
+		for (i = 0; i < ETH_ALEN; i++)
+			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
+					 info->bssid[i]);
+
+		if (is_valid_ether_addr(info->bssid)) {
+			reg = RTL818X_MSR_INFRA;
+			if (priv->is_rtl8187b)
+				reg |= RTL818X_MSR_ENEDCA;
+			rtl818x_iowrite8(priv, &priv->map->MSR, reg);
+		} else {
+			reg = RTL818X_MSR_NO_LINK;
+			rtl818x_iowrite8(priv, &priv->map->MSR, reg);
+		}
+
+		mutex_unlock(&priv->conf_mutex);
+	}
 
 	if (changed & (BSS_CHANGED_ERP_SLOT | BSS_CHANGED_ERP_PREAMBLE))
 		rtl8187_conf_erp(priv, info->use_short_slot,
@@ -1273,7 +1266,6 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.add_interface		= rtl8187_add_interface,
 	.remove_interface	= rtl8187_remove_interface,
 	.config			= rtl8187_config,
-	.config_interface	= rtl8187_config_interface,
 	.bss_info_changed	= rtl8187_bss_info_changed,
 	.configure_filter	= rtl8187_configure_filter,
 	.conf_tx		= rtl8187_conf_tx
@@ -1480,9 +1472,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr >> 8;
 	}
 
-	if (priv->is_rtl8187b)
-		printk(KERN_WARNING "rtl8187: 8187B chip detected.\n");
-
 	/*
 	 * XXX: Once this driver supports anything that requires
 	 *	beacons it must implement IEEE80211_TX_CTL_ASSIGN_SEQ.
@@ -1514,6 +1503,12 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
 	       chip_name, priv->asic_rev, priv->rf->name);
 
+#ifdef CONFIG_RTL8187_LEDS
+	eeprom_93cx6_read(&eeprom, 0x3F, &reg);
+	reg &= 0xFF;
+	rtl8187_leds_init(dev, reg);
+#endif
+
 	return 0;
 
  err_free_dmabuf:
@@ -1533,6 +1528,9 @@ static void __devexit rtl8187_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
+#ifdef CONFIG_RTL8187_LEDS
+	rtl8187_leds_exit(dev);
+#endif
 	ieee80211_unregister_hw(dev);
 
 	priv = dev->priv;

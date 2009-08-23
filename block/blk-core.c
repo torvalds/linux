@@ -26,7 +26,6 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
 
 #define CREATE_TRACE_POINTS
@@ -498,6 +497,11 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
 	q->backing_dev_info.unplug_io_data = q;
+	q->backing_dev_info.ra_pages =
+			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	q->backing_dev_info.state = 0;
+	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+
 	err = bdi_init(&q->backing_dev_info);
 	if (err) {
 		kmem_cache_free(blk_requestq_cachep, q);
@@ -571,13 +575,6 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 		return NULL;
 	}
 
-	/*
-	 * if caller didn't supply a lock, they get per-queue locking with
-	 * our embedded lock
-	 */
-	if (!lock)
-		lock = &q->__queue_lock;
-
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
@@ -590,8 +587,6 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	blk_queue_make_request(q, __make_request);
 
 	q->sg_reserved_size = INT_MAX;
-
-	blk_set_cmd_filter_defaults(&q->cmd_filter);
 
 	/*
 	 * all done
@@ -1168,6 +1163,11 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	const int unplug = bio_unplug(bio);
 	int rw_flags;
 
+	if (bio_barrier(bio) && bio_has_data(bio) &&
+	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
+		bio_endio(bio, -EOPNOTSUPP);
+		return 0;
+	}
 	/*
 	 * low level driver can indicate that it wants pages above a
 	 * certain limit bounced to low memory (ie for highmem, or even
@@ -1465,11 +1465,6 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 
 		if (bio_discard(bio) && !q->prepare_discard_fn) {
-			err = -EOPNOTSUPP;
-			goto end_io;
-		}
-		if (bio_barrier(bio) && bio_has_data(bio) &&
-		    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
@@ -2141,7 +2136,7 @@ bool blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	return blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
-EXPORT_SYMBOL_GPL(blk_end_request);
+EXPORT_SYMBOL(blk_end_request);
 
 /**
  * blk_end_request_all - Helper function for drives to finish the request.
@@ -2162,7 +2157,7 @@ void blk_end_request_all(struct request *rq, int error)
 	pending = blk_end_bidi_request(rq, error, blk_rq_bytes(rq), bidi_bytes);
 	BUG_ON(pending);
 }
-EXPORT_SYMBOL_GPL(blk_end_request_all);
+EXPORT_SYMBOL(blk_end_request_all);
 
 /**
  * blk_end_request_cur - Helper function to finish the current request chunk.
@@ -2180,7 +2175,7 @@ bool blk_end_request_cur(struct request *rq, int error)
 {
 	return blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
-EXPORT_SYMBOL_GPL(blk_end_request_cur);
+EXPORT_SYMBOL(blk_end_request_cur);
 
 /**
  * __blk_end_request - Helper function for drivers to complete the request.
@@ -2199,7 +2194,7 @@ bool __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
-EXPORT_SYMBOL_GPL(__blk_end_request);
+EXPORT_SYMBOL(__blk_end_request);
 
 /**
  * __blk_end_request_all - Helper function for drives to finish the request.
@@ -2220,7 +2215,7 @@ void __blk_end_request_all(struct request *rq, int error)
 	pending = __blk_end_bidi_request(rq, error, blk_rq_bytes(rq), bidi_bytes);
 	BUG_ON(pending);
 }
-EXPORT_SYMBOL_GPL(__blk_end_request_all);
+EXPORT_SYMBOL(__blk_end_request_all);
 
 /**
  * __blk_end_request_cur - Helper function to finish the current request chunk.
@@ -2239,7 +2234,7 @@ bool __blk_end_request_cur(struct request *rq, int error)
 {
 	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
-EXPORT_SYMBOL_GPL(__blk_end_request_cur);
+EXPORT_SYMBOL(__blk_end_request_cur);
 
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
@@ -2361,7 +2356,7 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 		__bio_clone(bio, bio_src);
 
 		if (bio_integrity(bio_src) &&
-		    bio_integrity_clone(bio, bio_src, gfp_mask))
+		    bio_integrity_clone(bio, bio_src, gfp_mask, bs))
 			goto free_and_out;
 
 		if (bio_ctr && bio_ctr(bio, bio_src, data))

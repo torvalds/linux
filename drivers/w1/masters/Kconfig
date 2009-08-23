@@ -12,7 +12,7 @@ config W1_MASTER_MATROX
 	  using Matrox's G400 GPIO pins.
 
 	  This support is also available as a module.  If so, the module
-	  will be called matrox_w1.ko.
+	  will be called matrox_w1.
 
 config W1_MASTER_DS2490
 	tristate "DS2490 USB <-> W1 transport layer for 1-wire"
@@ -22,7 +22,7 @@ config W1_MASTER_DS2490
 	  for example DS9490*.
 
   	  This support is also available as a module.  If so, the module
-	  will be called ds2490.ko.
+	  will be called ds2490.
 
 config W1_MASTER_DS2482
 	tristate "Maxim DS2482 I2C to 1-Wire bridge"
@@ -56,7 +56,7 @@ config W1_MASTER_GPIO
 	  GPIO pins. This driver uses the GPIO API to control the wire.
 
 	  This support is also available as a module.  If so, the module
-	  will be called w1-gpio.ko.
+	  will be called w1-gpio.
 
 config HDQ_MASTER_OMAP
 	tristate "OMAP HDQ driver"

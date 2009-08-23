@@ -255,6 +255,7 @@ const struct mem_type *get_mem_type(unsigned int type)
 {
 	return type < ARRAY_SIZE(mem_types) ? &mem_types[type] : NULL;
 }
+EXPORT_SYMBOL(get_mem_type);
 
 /*
  * Adjust the PMD section entries according to the CPU in use.
@@ -686,13 +687,19 @@ __early_param("vmalloc=", early_vmalloc);
 
 static void __init sanity_check_meminfo(void)
 {
-	int i, j;
+	int i, j, highmem = 0;
 
 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
 		struct membank *bank = &meminfo.bank[j];
 		*bank = meminfo.bank[i];
 
 #ifdef CONFIG_HIGHMEM
+		if (__va(bank->start) > VMALLOC_MIN ||
+		    __va(bank->start) < (void *)PAGE_OFFSET)
+			highmem = 1;
+
+		bank->highmem = highmem;
+
 		/*
 		 * Split those memory banks which are partially overlapping
 		 * the vmalloc area greatly simplifying things later.
@@ -713,6 +720,7 @@ static void __init sanity_check_meminfo(void)
 				i++;
 				bank[1].size -= VMALLOC_MIN - __va(bank->start);
 				bank[1].start = __pa(VMALLOC_MIN - 1) + 1;
+				bank[1].highmem = highmem = 1;
 				j++;
 			}
 			bank->size = VMALLOC_MIN - __va(bank->start);
@@ -835,9 +843,30 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 				BOOTMEM_EXCLUSIVE);
 	}
 
+	if (machine_is_treo680()) {
+		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+		reserve_bootmem_node(pgdat, 0xa2000000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+	}
+
 	if (machine_is_palmt5())
 		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
 				BOOTMEM_EXCLUSIVE);
+
+	/*
+	 * U300 - This platform family can share physical memory
+	 * between two ARM cpus, one running Linux and the other
+	 * running another OS.
+	 */
+	if (machine_is_u300()) {
+#ifdef CONFIG_MACH_U300_SINGLE_RAM
+#if ((CONFIG_MACH_U300_ACCESS_MEM_SIZE & 1) == 1) &&	\
+	CONFIG_MACH_U300_2MB_ALIGNMENT_FIX
+		res_size = 0x00100000;
+#endif
+#endif
+	}
 
 #ifdef CONFIG_SA1111
 	/*

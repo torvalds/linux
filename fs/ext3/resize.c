@@ -990,7 +990,7 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 			sb->s_id, n_blocks_count);
 		if (sizeof(sector_t) < 8)
 			ext3_warning(sb, __func__,
-			"CONFIG_LBD not enabled\n");
+			"CONFIG_LBDAF not enabled\n");
 		return -EINVAL;
 	}
 

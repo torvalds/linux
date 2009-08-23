@@ -135,7 +135,7 @@ static int amba_kmi_probe(struct amba_device *dev, struct amba_id *id)
 	io->dev.parent	= &dev->dev;
 
 	kmi->io 	= io;
-	kmi->base	= ioremap(dev->res.start, KMI_SIZE);
+	kmi->base	= ioremap(dev->res.start, resource_size(&dev->res));
 	if (!kmi->base) {
 		ret = -ENOMEM;
 		goto out;

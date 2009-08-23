@@ -2689,7 +2689,7 @@ static int keyspan_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static void keyspan_shutdown(struct usb_serial *serial)
+static void keyspan_disconnect(struct usb_serial *serial)
 {
 	int				i, j;
 	struct usb_serial_port		*port;
@@ -2729,6 +2729,17 @@ static void keyspan_shutdown(struct usb_serial *serial)
 			usb_free_urb(p_priv->out_urbs[j]);
 		}
 	}
+}
+
+static void keyspan_release(struct usb_serial *serial)
+{
+	int				i;
+	struct usb_serial_port		*port;
+	struct keyspan_serial_private 	*s_priv;
+
+	dbg("%s", __func__);
+
+	s_priv = usb_get_serial_data(serial);
 
 	/*  dbg("Freeing serial->private."); */
 	kfree(s_priv);

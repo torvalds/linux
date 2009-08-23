@@ -385,7 +385,7 @@ ia64_init_itm (void)
 
 static cycle_t itc_get_cycles(struct clocksource *cs)
 {
-	u64 lcycle, now, ret;
+	unsigned long lcycle, now, ret;
 
 	if (!itc_jitter_data.itc_jitter)
 		return get_cycles();

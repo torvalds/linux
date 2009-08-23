@@ -74,7 +74,7 @@ dev->hard_start_xmit:
 	for this and return NETDEV_TX_LOCKED when the spin lock fails.
 	The locking there should also properly protect against 
 	set_multicast_list. Note that the use of NETIF_F_LLTX is deprecated.
-	Dont use it for new drivers.
+	Don't use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),
 	         will be called with interrupts disabled by netconsole.

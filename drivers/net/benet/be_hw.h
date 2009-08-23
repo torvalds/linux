@@ -55,13 +55,17 @@
 #define MEMBAR_CTRL_INT_CTRL_PFUNC_MASK  	0x7 	/* bits 26 - 28 */
 #define MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT	26
 
+/********* ISR0 Register offset **********/
+#define CEV_ISR0_OFFSET 			0xC18
+#define CEV_ISR_SIZE				4
+
 /********* Event Q door bell *************/
 #define DB_EQ_OFFSET			DB_CQ_OFFSET
 #define DB_EQ_RING_ID_MASK		0x1FF	/* bits 0 - 8 */
 /* Clear the interrupt for this eq */
 #define DB_EQ_CLR_SHIFT			(9)	/* bit 9 */
 /* Must be 1 */
-#define DB_EQ_EVNT_SHIFT			(10)	/* bit 10 */
+#define DB_EQ_EVNT_SHIFT		(10)	/* bit 10 */
 /* Number of event entries processed */
 #define DB_EQ_NUM_POPPED_SHIFT		(16)	/* bits 16 - 28 */
 /* Rearm bit */
@@ -87,6 +91,12 @@
 #define DB_RQ_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
 /* Number of rx frags posted */
 #define DB_RQ_NUM_POSTED_SHIFT		(24)	/* bits 24 - 31 */
+
+/********** MCC door bell ************/
+#define DB_MCCQ_OFFSET 			0x140
+#define DB_MCCQ_RING_ID_MASK		0x7FF	/* bits 0 - 10 */
+/* Number of entries posted */
+#define DB_MCCQ_NUM_POSTED_SHIFT	(16)	/* bits 16 - 29 */
 
 /*
  * BE descriptors: host memory data structures whose formats

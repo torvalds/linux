@@ -1199,7 +1199,7 @@ bad_end:
 	arlan_process_interrupt(dev);
 	netif_stop_queue (dev);
 	ARLAN_DEBUG_EXIT("arlan_tx");
-	return 1;
+	return NETDEV_TX_BUSY;
 }
 
 

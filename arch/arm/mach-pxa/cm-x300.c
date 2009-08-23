@@ -21,18 +21,20 @@
 #include <linux/gpio.h>
 #include <linux/dm9000.h>
 #include <linux/leds.h>
+#include <linux/rtc-v3020.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/setup.h>
 
 #include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/pxa3xx_nand.h>
 
 #include <asm/mach/map.h>
@@ -45,6 +47,11 @@
 #define GPIO85_MMC2_WP		(85)
 
 #define	CM_X300_MMC2_IRQ	IRQ_GPIO(GPIO82_MMC2_IRQ)
+
+#define GPIO95_RTC_CS		(95)
+#define GPIO96_RTC_WR		(96)
+#define GPIO97_RTC_RD		(97)
+#define GPIO98_RTC_IO		(98)
 
 static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	/* LCD */
@@ -134,6 +141,12 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	GPIO82_GPIO | MFP_PULL_HIGH,	/* MMC CD */
 	GPIO85_GPIO,			/* MMC WP */
 	GPIO99_GPIO,			/* Ethernet IRQ */
+
+	/* RTC GPIOs */
+	GPIO95_GPIO,			/* RTC CS */
+	GPIO96_GPIO,			/* RTC WR */
+	GPIO97_GPIO,			/* RTC RD */
+	GPIO98_GPIO,			/* RTC IO */
 
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
@@ -265,6 +278,7 @@ static struct mtd_partition cm_x300_nand_partitions[] = {
 
 static struct pxa3xx_nand_platform_data cm_x300_nand_info = {
 	.enable_arbiter	= 1,
+	.keep_config	= 1,
 	.parts		= cm_x300_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(cm_x300_nand_partitions),
 };
@@ -441,6 +455,31 @@ static void __init cm_x300_init_i2c(void)
 static inline void cm_x300_init_i2c(void) {}
 #endif
 
+#if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
+struct v3020_platform_data cm_x300_v3020_pdata = {
+	.use_gpio	= 1,
+	.gpio_cs	= GPIO95_RTC_CS,
+	.gpio_wr	= GPIO96_RTC_WR,
+	.gpio_rd	= GPIO97_RTC_RD,
+	.gpio_io	= GPIO98_RTC_IO,
+};
+
+static struct platform_device cm_x300_rtc_device = {
+	.name		= "v3020",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &cm_x300_v3020_pdata,
+	}
+};
+
+static void __init cm_x300_init_rtc(void)
+{
+	platform_device_register(&cm_x300_rtc_device);
+}
+#else
+static inline void cm_x300_init_rtc(void) {}
+#endif
+
 static void __init cm_x300_init(void)
 {
 	/* board-processor specific GPIO initialization */
@@ -453,6 +492,19 @@ static void __init cm_x300_init(void)
 	cm_x300_init_nand();
 	cm_x300_init_leds();
 	cm_x300_init_i2c();
+	cm_x300_init_rtc();
+}
+
+static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
+				 char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks = 2;
+	mi->bank[0].start = 0xa0000000;
+	mi->bank[0].node = 0;
+	mi->bank[0].size = (64*1024*1024);
+	mi->bank[1].start = 0xc0000000;
+	mi->bank[1].node = 0;
+	mi->bank[1].size = (64*1024*1024);
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")
@@ -463,4 +515,5 @@ MACHINE_START(CM_X300, "CM-X300 module")
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cm_x300_init,
+	.fixup		= cm_x300_fixup,
 MACHINE_END

@@ -779,7 +779,8 @@ struct gfar_private {
 	spinlock_t bflock;
 
 	phy_interface_t interface;
-	char	phy_bus_id[BUS_ID_SIZE];
+	struct device_node *phy_node;
+	struct device_node *tbi_node;
 	u32 device_flags;
 	unsigned char rx_csum_enable:1,
 		extended_hash:1,
@@ -793,7 +794,6 @@ struct gfar_private {
 
 	/* PHY stuff */
 	struct phy_device *phydev;
-	struct phy_device *tbiphy;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

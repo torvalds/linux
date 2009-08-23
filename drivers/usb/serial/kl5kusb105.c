@@ -73,7 +73,8 @@ static int debug;
  * Function prototypes
  */
 static int  klsi_105_startup(struct usb_serial *serial);
-static void klsi_105_shutdown(struct usb_serial *serial);
+static void klsi_105_disconnect(struct usb_serial *serial);
+static void klsi_105_release(struct usb_serial *serial);
 static int  klsi_105_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
 static void klsi_105_close(struct usb_serial_port *port);
@@ -131,7 +132,8 @@ static struct usb_serial_driver kl5kusb105d_device = {
 	.tiocmget =          klsi_105_tiocmget,
 	.tiocmset =          klsi_105_tiocmset,
 	.attach =	     klsi_105_startup,
-	.shutdown =	     klsi_105_shutdown,
+	.disconnect =	     klsi_105_disconnect,
+	.release =	     klsi_105_release,
 	.throttle =	     klsi_105_throttle,
 	.unthrottle =	     klsi_105_unthrottle,
 };
@@ -315,7 +317,7 @@ err_cleanup:
 } /* klsi_105_startup */
 
 
-static void klsi_105_shutdown(struct usb_serial *serial)
+static void klsi_105_disconnect(struct usb_serial *serial)
 {
 	int i;
 
@@ -325,33 +327,36 @@ static void klsi_105_shutdown(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		struct klsi_105_private *priv =
 				usb_get_serial_port_data(serial->port[i]);
-		unsigned long flags;
 
 		if (priv) {
 			/* kill our write urb pool */
 			int j;
 			struct urb **write_urbs = priv->write_urb_pool;
-			spin_lock_irqsave(&priv->lock, flags);
 
 			for (j = 0; j < NUM_URBS; j++) {
 				if (write_urbs[j]) {
-					/* FIXME - uncomment the following
-					 * usb_kill_urb call when the host
-					 * controllers get fixed to set
-					 * urb->dev = NULL after the urb is
-					 * finished.  Otherwise this call
-					 * oopses. */
-					/* usb_kill_urb(write_urbs[j]); */
-					kfree(write_urbs[j]->transfer_buffer);
+					usb_kill_urb(write_urbs[j]);
 					usb_free_urb(write_urbs[j]);
 				}
 			}
-			spin_unlock_irqrestore(&priv->lock, flags);
-			kfree(priv);
-			usb_set_serial_port_data(serial->port[i], NULL);
 		}
 	}
-} /* klsi_105_shutdown */
+} /* klsi_105_disconnect */
+
+
+static void klsi_105_release(struct usb_serial *serial)
+{
+	int i;
+
+	dbg("%s", __func__);
+
+	for (i = 0; i < serial->num_ports; ++i) {
+		struct klsi_105_private *priv =
+				usb_get_serial_port_data(serial->port[i]);
+
+		kfree(priv);
+	}
+} /* klsi_105_release */
 
 static int  klsi_105_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)

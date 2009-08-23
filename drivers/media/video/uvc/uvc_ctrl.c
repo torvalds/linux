@@ -1372,21 +1372,19 @@ end:
 }
 
 /*
- * Prune an entity of its bogus controls. This currently includes processing
- * unit auto controls for which no corresponding manual control is available.
- * Such auto controls make little sense if any, and are known to crash at
- * least the SiGma Micro webcam.
+ * Prune an entity of its bogus controls using a blacklist. Bogus controls
+ * are currently the ones that crash the camera or unconditionally return an
+ * error when queried.
  */
 static void
-uvc_ctrl_prune_entity(struct uvc_entity *entity)
+uvc_ctrl_prune_entity(struct uvc_device *dev, struct uvc_entity *entity)
 {
 	static const struct {
-		u8 idx_manual;
-		u8 idx_auto;
+		struct usb_device_id id;
+		u8 index;
 	} blacklist[] = {
-		{ 2, 11 }, /* Hue */
-		{ 6, 12 }, /* White Balance Temperature */
-		{ 7, 13 }, /* White Balance Component */
+		{ { USB_DEVICE(0x1c4f, 0x3000) }, 6 }, /* WB Temperature */
+		{ { USB_DEVICE(0x5986, 0x0241) }, 2 }, /* Hue */
 	};
 
 	u8 *controls;
@@ -1400,19 +1398,17 @@ uvc_ctrl_prune_entity(struct uvc_entity *entity)
 	size = entity->processing.bControlSize;
 
 	for (i = 0; i < ARRAY_SIZE(blacklist); ++i) {
-		if (blacklist[i].idx_auto >= 8 * size ||
-		    blacklist[i].idx_manual >= 8 * size)
+		if (!usb_match_id(dev->intf, &blacklist[i].id))
 			continue;
 
-		if (!uvc_test_bit(controls, blacklist[i].idx_auto) ||
-		     uvc_test_bit(controls, blacklist[i].idx_manual))
+		if (blacklist[i].index >= 8 * size ||
+		    !uvc_test_bit(controls, blacklist[i].index))
 			continue;
 
-		uvc_trace(UVC_TRACE_CONTROL, "Auto control %u/%u has no "
-			"matching manual control, removing it.\n", entity->id,
-			blacklist[i].idx_auto);
+		uvc_trace(UVC_TRACE_CONTROL, "%u/%u control is black listed, "
+			"removing it.\n", entity->id, blacklist[i].index);
 
-		uvc_clear_bit(controls, blacklist[i].idx_auto);
+		uvc_clear_bit(controls, blacklist[i].index);
 	}
 }
 
@@ -1442,8 +1438,7 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 			bControlSize = entity->camera.bControlSize;
 		}
 
-		if (dev->quirks & UVC_QUIRK_PRUNE_CONTROLS)
-			uvc_ctrl_prune_entity(entity);
+		uvc_ctrl_prune_entity(dev, entity);
 
 		for (i = 0; i < bControlSize; ++i)
 			ncontrols += hweight8(bmControls[i]);

@@ -135,24 +135,11 @@ BOOLEAN	RTUSBNeedQueueBackForAgg(
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 	if ((pHTTXContext->IRPPending == TRUE)  /*&& (pAd->TxSwQueue[BulkOutPipeId].Number == 0) */)
 	{
-#if 0
-		if ((pHTTXContext->CurWritePosition <= 8) &&
-			(pHTTXContext->NextBulkOutPosition > 8 && (pHTTXContext->NextBulkOutPosition+MAX_AGGREGATION_SIZE) < MAX_TXBULK_LIMIT))
-		{
-			needQueBack = TRUE;
-		}
-		else if ((pHTTXContext->CurWritePosition < pHTTXContext->NextBulkOutPosition) &&
-				 ((pHTTXContext->NextBulkOutPosition + MAX_AGGREGATION_SIZE) < MAX_TXBULK_LIMIT))
-		{
-			needQueBack = TRUE;
-		}
-#else
 		if ((pHTTXContext->CurWritePosition < pHTTXContext->ENextBulkOutPosition) &&
 			(((pHTTXContext->ENextBulkOutPosition+MAX_AGGREGATION_SIZE) < MAX_TXBULK_LIMIT) || (pHTTXContext->CurWritePosition > MAX_AGGREGATION_SIZE)))
 		{
 			needQueBack = TRUE;
 		}
-#endif
 		else if ((pHTTXContext->CurWritePosition > pHTTXContext->ENextBulkOutPosition) &&
 				 ((pHTTXContext->ENextBulkOutPosition + MAX_AGGREGATION_SIZE) < pHTTXContext->CurWritePosition))
 		{

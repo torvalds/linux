@@ -2301,7 +2301,7 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	static char *link_speeds[] = { "1", "2", "?", "4", "8", "10" };
 	char *link_speed;
 	int rval;
-	uint16_t mb[6];
+	uint16_t mb[4];
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!IS_IIDMA_CAPABLE(ha))

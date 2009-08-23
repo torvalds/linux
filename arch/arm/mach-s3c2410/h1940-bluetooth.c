@@ -16,6 +16,8 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/leds.h>
+#include <linux/gpio.h>
+
 #include <mach/regs-gpio.h>
 #include <mach/hardware.h>
 #include <mach/h1940-latch.h>
@@ -41,9 +43,9 @@ static void h1940bt_enable(int on)
 		h1940_latch_control(0, H1940_LATCH_BLUETOOTH_POWER);
 		/* Reset the chip */
 		mdelay(10);
-		s3c2410_gpio_setpin(S3C2410_GPH1, 1);
+		s3c2410_gpio_setpin(S3C2410_GPH(1), 1);
 		mdelay(10);
-		s3c2410_gpio_setpin(S3C2410_GPH1, 0);
+		s3c2410_gpio_setpin(S3C2410_GPH(1), 0);
 
 		state = 1;
 	}
@@ -52,9 +54,9 @@ static void h1940bt_enable(int on)
 		led_trigger_event(bt_led_trigger, 0);
 #endif
 
-		s3c2410_gpio_setpin(S3C2410_GPH1, 1);
+		s3c2410_gpio_setpin(S3C2410_GPH(1), 1);
 		mdelay(10);
-		s3c2410_gpio_setpin(S3C2410_GPH1, 0);
+		s3c2410_gpio_setpin(S3C2410_GPH(1), 0);
 		mdelay(10);
 		h1940_latch_control(H1940_LATCH_BLUETOOTH_POWER, 0);
 
@@ -87,14 +89,14 @@ static DEVICE_ATTR(enable, 0644,
 static int __init h1940bt_probe(struct platform_device *pdev)
 {
 	/* Configures BT serial port GPIOs */
-	s3c2410_gpio_cfgpin(S3C2410_GPH0, S3C2410_GPH0_nCTS0);
-	s3c2410_gpio_pullup(S3C2410_GPH0, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH1, S3C2410_GPH1_OUTP);
-	s3c2410_gpio_pullup(S3C2410_GPH1, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH2, S3C2410_GPH2_TXD0);
-	s3c2410_gpio_pullup(S3C2410_GPH2, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH3, S3C2410_GPH3_RXD0);
-	s3c2410_gpio_pullup(S3C2410_GPH3, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPH(0), S3C2410_GPH0_nCTS0);
+	s3c2410_gpio_pullup(S3C2410_GPH(0), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPH(1), S3C2410_GPIO_OUTPUT);
+	s3c2410_gpio_pullup(S3C2410_GPH(1), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPH(2), S3C2410_GPH2_TXD0);
+	s3c2410_gpio_pullup(S3C2410_GPH(2), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPH(3), S3C2410_GPH3_RXD0);
+	s3c2410_gpio_pullup(S3C2410_GPH(3), 1);
 
 #ifdef CONFIG_LEDS_H1940
 	led_trigger_register_simple("h1940-bluetooth", &bt_led_trigger);

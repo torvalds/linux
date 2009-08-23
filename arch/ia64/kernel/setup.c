@@ -151,9 +151,9 @@ int num_rsvd_regions __initdata;
  * This routine does not assume the incoming segments are sorted.
  */
 int __init
-filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
+filter_rsvd_memory (u64 start, u64 end, void *arg)
 {
-	unsigned long range_start, range_end, prev_start;
+	u64 range_start, range_end, prev_start;
 	void (*func)(unsigned long, unsigned long, int);
 	int i;
 
@@ -191,7 +191,7 @@ filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
  * are not filtered out.
  */
 int __init
-filter_memory(unsigned long start, unsigned long end, void *arg)
+filter_memory(u64 start, u64 end, void *arg)
 {
 	void (*func)(unsigned long, unsigned long, int);
 
@@ -397,7 +397,7 @@ find_initrd (void)
 		initrd_start = (unsigned long)__va(ia64_boot_param->initrd_start);
 		initrd_end   = initrd_start+ia64_boot_param->initrd_size;
 
-		printk(KERN_INFO "Initial ramdisk at: 0x%lx (%lu bytes)\n",
+		printk(KERN_INFO "Initial ramdisk at: 0x%lx (%llu bytes)\n",
 		       initrd_start, ia64_boot_param->initrd_size);
 	}
 #endif
@@ -505,9 +505,9 @@ static int __init parse_elfcorehdr(char *arg)
 }
 early_param("elfcorehdr", parse_elfcorehdr);
 
-int __init reserve_elfcorehdr(unsigned long *start, unsigned long *end)
+int __init reserve_elfcorehdr(u64 *start, u64 *end)
 {
-	unsigned long length;
+	u64 length;
 
 	/* We get the address using the kernel command line,
 	 * but the size is extracted from the EFI tables.
@@ -588,7 +588,7 @@ setup_arch (char **cmdline_p)
 	ia64_patch_rse((u64) __start___rse_patchlist, (u64) __end___rse_patchlist);
 #else
 	{
-		u64 num_phys_stacked;
+		unsigned long num_phys_stacked;
 
 		if (ia64_pal_rse_info(&num_phys_stacked, 0) == 0 && num_phys_stacked > 96)
 			ia64_patch_rse((u64) __start___rse_patchlist, (u64) __end___rse_patchlist);
@@ -872,9 +872,9 @@ static void __cpuinit
 get_cache_info(void)
 {
 	unsigned long line_size, max = 1;
-	u64 l, levels, unique_caches;
-        pal_cache_config_info_t cci;
-        s64 status;
+	unsigned long l, levels, unique_caches;
+	pal_cache_config_info_t cci;
+	long status;
 
         status = ia64_pal_cache_summary(&levels, &unique_caches);
         if (status != 0) {
@@ -892,9 +892,9 @@ get_cache_info(void)
 		/* cache_type (data_or_unified)=2 */
 		status = ia64_pal_cache_config_info(l, 2, &cci);
 		if (status != 0) {
-			printk(KERN_ERR
-			       "%s: ia64_pal_cache_config_info(l=%lu, 2) failed (status=%ld)\n",
-			       __func__, l, status);
+			printk(KERN_ERR "%s: ia64_pal_cache_config_info"
+				"(l=%lu, 2) failed (status=%ld)\n",
+				__func__, l, status);
 			max = SMP_CACHE_BYTES;
 			/* The safest setup for "flush_icache_range()" */
 			cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
@@ -914,10 +914,10 @@ get_cache_info(void)
 			/* cache_type (instruction)=1*/
 			status = ia64_pal_cache_config_info(l, 1, &cci);
 			if (status != 0) {
-				printk(KERN_ERR
-				"%s: ia64_pal_cache_config_info(l=%lu, 1) failed (status=%ld)\n",
+				printk(KERN_ERR "%s: ia64_pal_cache_config_info"
+					"(l=%lu, 1) failed (status=%ld)\n",
 					__func__, l, status);
-				/* The safest setup for "flush_icache_range()" */
+				/* The safest setup for flush_icache_range() */
 				cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
 			}
 		}

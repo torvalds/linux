@@ -37,7 +37,6 @@
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/ctype.h>
-#include <linux/marker.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
 #include <asm/uaccess.h>
@@ -46,6 +45,9 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/ext4.h>
 
 static int default_mb_history_length = 1000;
 
@@ -301,7 +303,7 @@ static void ext4_handle_error(struct super_block *sb)
 	if (!test_opt(sb, ERRORS_CONT)) {
 		journal_t *journal = EXT4_SB(sb)->s_journal;
 
-		EXT4_SB(sb)->s_mount_opt |= EXT4_MOUNT_ABORT;
+		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
 		if (journal)
 			jbd2_journal_abort(journal, -EIO);
 	}
@@ -414,7 +416,7 @@ void ext4_abort(struct super_block *sb, const char *function,
 	ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 	sb->s_flags |= MS_RDONLY;
-	EXT4_SB(sb)->s_mount_opt |= EXT4_MOUNT_ABORT;
+	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
 	if (EXT4_SB(sb)->s_journal)
 		jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
 }
@@ -664,10 +666,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 
-#ifdef CONFIG_EXT4_FS_POSIX_ACL
-	ei->i_acl = EXT4_ACL_NOT_CACHED;
-	ei->i_default_acl = EXT4_ACL_NOT_CACHED;
-#endif
 	ei->vfs_inode.i_version = 1;
 	ei->vfs_inode.i_data.writeback_index = 0;
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
@@ -733,18 +731,6 @@ static void destroy_inodecache(void)
 
 static void ext4_clear_inode(struct inode *inode)
 {
-#ifdef CONFIG_EXT4_FS_POSIX_ACL
-	if (EXT4_I(inode)->i_acl &&
-			EXT4_I(inode)->i_acl != EXT4_ACL_NOT_CACHED) {
-		posix_acl_release(EXT4_I(inode)->i_acl);
-		EXT4_I(inode)->i_acl = EXT4_ACL_NOT_CACHED;
-	}
-	if (EXT4_I(inode)->i_default_acl &&
-			EXT4_I(inode)->i_default_acl != EXT4_ACL_NOT_CACHED) {
-		posix_acl_release(EXT4_I(inode)->i_default_acl);
-		EXT4_I(inode)->i_default_acl = EXT4_ACL_NOT_CACHED;
-	}
-#endif
 	ext4_discard_preallocations(inode);
 	if (EXT4_JOURNAL(inode))
 		jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
@@ -1474,7 +1460,7 @@ set_qf_format:
 			break;
 #endif
 		case Opt_abort:
-			set_opt(sbi->s_mount_opt, ABORT);
+			sbi->s_mount_flags |= EXT4_MF_FS_ABORTED;
 			break;
 		case Opt_nobarrier:
 			clear_opt(sbi->s_mount_opt, BARRIER);
@@ -1653,7 +1639,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	ext4_commit_super(sb, 1);
 	if (test_opt(sb, DEBUG))
 		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%u, "
-				"bpg=%lu, ipg=%lu, mo=%04lx]\n",
+				"bpg=%lu, ipg=%lu, mo=%04x]\n",
 			sb->s_blocksize,
 			sbi->s_groups_count,
 			EXT4_BLOCKS_PER_GROUP(sb),
@@ -1957,7 +1943,7 @@ static loff_t ext4_max_size(int blkbits, int has_huge_files)
 	/* small i_blocks in vfs inode? */
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * CONFIG_LBD is not enabled implies the inode
+		 * CONFIG_LBDAF is not enabled implies the inode
 		 * i_block represent total blocks in 512 bytes
 		 * 32 == size of vfs inode i_blocks * 8
 		 */
@@ -2000,7 +1986,7 @@ static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * !has_huge_files or CONFIG_LBD not enabled implies that
+		 * !has_huge_files or CONFIG_LBDAF not enabled implies that
 		 * the inode i_block field represents total file blocks in
 		 * 2^32 512-byte sectors == size of vfs inode i_blocks * 8
 		 */
@@ -2204,6 +2190,7 @@ EXT4_RO_ATTR(session_write_kbytes);
 EXT4_RO_ATTR(lifetime_write_kbytes);
 EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, sbi_ui_show,
 		 inode_readahead_blks_store, s_inode_readahead_blks);
+EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
 EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
 EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
 EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
@@ -2216,6 +2203,7 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(session_write_kbytes),
 	ATTR_LIST(lifetime_write_kbytes),
 	ATTR_LIST(inode_readahead_blks),
+	ATTR_LIST(inode_goal),
 	ATTR_LIST(mb_stats),
 	ATTR_LIST(mb_max_to_scan),
 	ATTR_LIST(mb_min_to_scan),
@@ -2436,13 +2424,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (has_huge_files) {
 		/*
 		 * Large file size enabled file system can only be
-		 * mount if kernel is build with CONFIG_LBD
+		 * mount if kernel is build with CONFIG_LBDAF
 		 */
 		if (sizeof(root->i_blocks) < sizeof(u64) &&
 				!(sb->s_flags & MS_RDONLY)) {
 			ext4_msg(sb, KERN_ERR, "Filesystem with huge "
 					"files cannot be mounted read-write "
-					"without CONFIG_LBD");
+					"without CONFIG_LBDAF");
 			goto failed_mount;
 		}
 	}
@@ -2566,7 +2554,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		ext4_msg(sb, KERN_ERR, "filesystem"
 			" too large to mount safely");
 		if (sizeof(sector_t) < 8)
-			ext4_msg(sb, KERN_WARNING, "CONFIG_LBD not enabled");
+			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
 		goto failed_mount;
 	}
 
@@ -3346,7 +3334,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	int ret = 0;
 	tid_t target;
 
-	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
+	trace_ext4_sync_fs(sb, wait);
 	if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, &target)) {
 		if (wait)
 			jbd2_log_wait_commit(EXT4_SB(sb)->s_journal, target);
@@ -3450,7 +3438,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		goto restore_opts;
 	}
 
-	if (sbi->s_mount_opt & EXT4_MOUNT_ABORT)
+	if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
 		ext4_abort(sb, __func__, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -3465,7 +3453,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 
 	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
 		n_blocks_count > ext4_blocks_count(es)) {
-		if (sbi->s_mount_opt & EXT4_MOUNT_ABORT) {
+		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED) {
 			err = -EROFS;
 			goto restore_opts;
 		}

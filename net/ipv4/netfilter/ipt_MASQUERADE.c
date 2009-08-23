@@ -27,9 +27,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: automatic-address SNAT");
 
-/* Lock protects masq region inside conntrack */
-static DEFINE_RWLOCK(masq_lock);
-
 /* FIXME: Multiple targets. --RR */
 static bool masquerade_tg_check(const struct xt_tgchk_param *par)
 {
@@ -72,16 +69,14 @@ masquerade_tg(struct sk_buff *skb, const struct xt_target_param *par)
 		return NF_ACCEPT;
 
 	mr = par->targinfo;
-	rt = skb->rtable;
+	rt = skb_rtable(skb);
 	newsrc = inet_select_addr(par->out, rt->rt_gateway, RT_SCOPE_UNIVERSE);
 	if (!newsrc) {
 		printk("MASQUERADE: %s ate my IP address\n", par->out->name);
 		return NF_DROP;
 	}
 
-	write_lock_bh(&masq_lock);
 	nat->masq_index = par->out->ifindex;
-	write_unlock_bh(&masq_lock);
 
 	/* Transfer from original range. */
 	newrange = ((struct nf_nat_range)
@@ -97,16 +92,11 @@ static int
 device_cmp(struct nf_conn *i, void *ifindex)
 {
 	const struct nf_conn_nat *nat = nfct_nat(i);
-	int ret;
 
 	if (!nat)
 		return 0;
 
-	read_lock_bh(&masq_lock);
-	ret = (nat->masq_index == (int)(long)ifindex);
-	read_unlock_bh(&masq_lock);
-
-	return ret;
+	return nat->masq_index == (int)(long)ifindex;
 }
 
 static int masq_device_event(struct notifier_block *this,

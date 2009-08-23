@@ -1,10 +1,8 @@
 /*
- *  drivers/s390/cio/device_ops.c
+ * Copyright IBM Corp. 2002, 2009
  *
- *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
- *			 IBM Corporation
- *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *               Cornelia Huck (cornelia.huck@de.ibm.com)
+ * Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
+ *	      Cornelia Huck (cornelia.huck@de.ibm.com)
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -116,12 +114,15 @@ int ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 
 	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
+	sch = to_subchannel(cdev->dev.parent);
+	if (!sch->schib.pmcw.ena)
+		return -EINVAL;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE &&
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
-	sch = to_subchannel(cdev->dev.parent);
+
 	ret = cio_clear(sch);
 	if (ret == 0)
 		cdev->private->intparm = intparm;
@@ -162,6 +163,8 @@ int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
 	sch = to_subchannel(cdev->dev.parent);
+	if (!sch->schib.pmcw.ena)
+		return -EINVAL;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_VERIFY ||
@@ -337,12 +340,15 @@ int ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 
 	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
+	sch = to_subchannel(cdev->dev.parent);
+	if (!sch->schib.pmcw.ena)
+		return -EINVAL;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE &&
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
-	sch = to_subchannel(cdev->dev.parent);
+
 	ret = cio_halt(sch);
 	if (ret == 0)
 		cdev->private->intparm = intparm;
@@ -369,6 +375,8 @@ int ccw_device_resume(struct ccw_device *cdev)
 	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
 	sch = to_subchannel(cdev->dev.parent);
+	if (!sch->schib.pmcw.ena)
+		return -EINVAL;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE ||
@@ -580,6 +588,8 @@ int ccw_device_tm_start_key(struct ccw_device *cdev, struct tcw *tcw,
 	int rc;
 
 	sch = to_subchannel(cdev->dev.parent);
+	if (!sch->schib.pmcw.ena)
+		return -EINVAL;
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		return -EIO;
 	/* Adjust requested path mask to excluded varied off paths. */
@@ -669,6 +679,8 @@ int ccw_device_tm_intrg(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 
+	if (!sch->schib.pmcw.ena)
+		return -EINVAL;
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		return -EIO;
 	if (!scsw_is_tm(&sch->schib.scsw) ||

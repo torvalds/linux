@@ -11,6 +11,7 @@
 #include <linux/workqueue.h>
 #include <linux/kobject.h>
 #include <linux/kmemtrace.h>
+#include <linux/kmemleak.h>
 
 enum stat_item {
 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
@@ -233,6 +234,7 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
 	unsigned int order = get_order(size);
 	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
 
+	kmemleak_alloc(ret, size, 1, flags);
 	trace_kmalloc(_THIS_IP_, ret, size, PAGE_SIZE << order, flags);
 
 	return ret;

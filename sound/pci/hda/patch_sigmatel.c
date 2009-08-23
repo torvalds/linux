@@ -76,6 +76,7 @@ enum {
 	STAC_92HD73XX_AUTO,
 	STAC_92HD73XX_NO_JD, /* no jack-detection */
 	STAC_92HD73XX_REF,
+	STAC_92HD73XX_INTEL,
 	STAC_DELL_M6_AMIC,
 	STAC_DELL_M6_DMIC,
 	STAC_DELL_M6_BOTH,
@@ -639,7 +640,7 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 static unsigned int stac92xx_vref_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
 {
-	unsigned int error;
+	int error;
 	unsigned int pincfg;
 	pincfg = snd_hda_codec_read(codec, nid, 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
@@ -1590,8 +1591,6 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_REF),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0xfb30,
-		      "SigmaTel",STAC_9205_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 		      "DFI LanParty", STAC_REF),
 	/* Dell laptops have BIOS problem */
@@ -1779,6 +1778,7 @@ static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_AUTO] = "auto",
 	[STAC_92HD73XX_NO_JD] = "no-jd",
 	[STAC_92HD73XX_REF] = "ref",
+	[STAC_92HD73XX_INTEL] = "intel",
 	[STAC_DELL_M6_AMIC] = "dell-m6-amic",
 	[STAC_DELL_M6_DMIC] = "dell-m6-dmic",
 	[STAC_DELL_M6_BOTH] = "dell-m6",
@@ -1791,6 +1791,10 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"DFI LanParty", STAC_92HD73XX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 				"DFI LanParty", STAC_92HD73XX_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5002,
+				"Intel DG45ID", STAC_92HD73XX_INTEL),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5003,
+				"Intel DG45FC", STAC_92HD73XX_INTEL),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0254,
 				"Dell Studio 1535", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0255,
@@ -1811,6 +1815,8 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"Dell Studio 1537", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02a0,
 				"Dell Studio 17", STAC_DELL_M6_DMIC),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02be,
+				"Dell Studio 1555", STAC_DELL_M6_DMIC),
 	{} /* terminator */
 };
 
@@ -2266,7 +2272,7 @@ static struct snd_pci_quirk stac927x_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f3, "Dell Inspiron 1420", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0227, "Dell Vostro 1400  ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022e, "Dell     ", STAC_DELL_BIOS),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022f, "Dell Inspiron 1525", STAC_DELL_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022f, "Dell Inspiron 1525", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0242, "Dell     ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0243, "Dell     ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x02ff, "Dell     ", STAC_DELL_BIOS),
@@ -2344,6 +2350,8 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_9205_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0xfb30,
+		      "SigmaTel", STAC_9205_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 		      "DFI LanParty", STAC_9205_REF),
 	/* Dell */
@@ -2378,6 +2386,7 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0228,
 		      "Dell Vostro 1500", STAC_9205_DELL_M42),
 	/* Gateway */
+	SND_PCI_QUIRK(0x107b, 0x0560, "Gateway T6834c", STAC_9205_EAPD),
 	SND_PCI_QUIRK(0x107b, 0x0565, "Gateway T1616", STAC_9205_EAPD),
 	{} /* terminator */
 };
@@ -2703,7 +2712,7 @@ static int stac92xx_dc_bias_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int new_vref = 0;
-	unsigned int error;
+	int error;
 	hda_nid_t nid = kcontrol->private_value;
 
 	if (ucontrol->value.enumerated.item[0] == 0)
@@ -4035,7 +4044,7 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 static void stac92xx_free_jack_priv(struct snd_jack *jack)
 {
 	struct sigmatel_jack *jacks = jack->private_data;
@@ -4047,7 +4056,7 @@ static void stac92xx_free_jack_priv(struct snd_jack *jack)
 static int stac92xx_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 	struct sigmatel_spec *spec = codec->spec;
 	struct sigmatel_jack *jack;
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
@@ -4065,7 +4074,7 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	jack->nid = nid;
 	jack->type = type;
 
-	sprintf(name, "%s at %s %s Jack",
+	snprintf(name, sizeof(name), "%s at %s %s Jack",
 		snd_hda_get_jack_type(def_conf),
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
@@ -4336,7 +4345,7 @@ static int stac92xx_init(struct hda_codec *codec)
 
 static void stac92xx_free_jacks(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 	/* free jack instances manually when clearing/reconfiguring */
 	struct sigmatel_spec *spec = codec->spec;
 	if (!codec->bus->shutdown && spec->jacks.list) {
@@ -5642,6 +5651,13 @@ static int patch_stac927x(struct hda_codec *codec)
 		/* GPIO2 High = Enable EAPD */
 		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x04;
 		spec->gpio_data = 0x04;
+		switch (codec->subsystem_id) {
+		case 0x1028022f:
+			/* correct EAPD to be GPIO0 */
+			spec->eapd_mask = spec->gpio_mask = 0x01;
+			spec->gpio_dir = spec->gpio_data = 0x01;
+			break;
+		};
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 
@@ -5854,6 +5870,8 @@ static unsigned int *stac9872_brd_tbl[STAC_9872_MODELS] = {
 };
 
 static struct snd_pci_quirk stac9872_cfg_tbl[] = {
+	SND_PCI_QUIRK_MASK(0x104d, 0xfff0, 0x81e0,
+			   "Sony VAIO F/S", STAC_9872_VAIO),
 	{} /* terminator */
 };
 
@@ -5866,6 +5884,8 @@ static int patch_stac9872(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 	codec->spec = spec;
+	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
+	spec->pin_nids = stac9872_pin_nids;
 
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
 							stac9872_models,
@@ -5877,8 +5897,6 @@ static int patch_stac9872(struct hda_codec *codec)
 		stac92xx_set_config_regs(codec,
 					 stac9872_brd_tbl[spec->board_config]);
 
-	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
-	spec->pin_nids = stac9872_pin_nids;
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->num_adcs = ARRAY_SIZE(stac9872_adc_nids);
 	spec->adc_nids = stac9872_adc_nids;

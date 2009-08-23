@@ -5,10 +5,9 @@
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
+ * Copyright IBM Corp. 1999, 2009
  * EMC Symmetrix ioctl Copyright EMC Corporation, 2008
  * Author.........: Nigel Hislop <hislop_nigel@emc.com>
- *
  */
 
 #define KMSG_COMPONENT "dasd"
@@ -103,17 +102,6 @@ dasd_eckd_set_online(struct ccw_device *cdev)
 {
 	return dasd_generic_set_online(cdev, &dasd_eckd_discipline);
 }
-
-static struct ccw_driver dasd_eckd_driver = {
-	.name        = "dasd-eckd",
-	.owner       = THIS_MODULE,
-	.ids         = dasd_eckd_ids,
-	.probe       = dasd_eckd_probe,
-	.remove      = dasd_generic_remove,
-	.set_offline = dasd_generic_set_offline,
-	.set_online  = dasd_eckd_set_online,
-	.notify      = dasd_generic_notify,
-};
 
 static const int sizes_trk0[] = { 28, 148, 84 };
 #define LABEL_SIZE 140
@@ -1708,8 +1696,7 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 		DBF_DEV_EVENT(DBF_ERR, device, "%s",
 			    "unsolicited interrupt received "
 			    "(sense available)");
-		device->discipline->dump_sense_dbf(device, NULL, irb,
-						   "unsolicited");
+		device->discipline->dump_sense_dbf(device, irb, "unsolicited");
 	}
 
 	dasd_schedule_device_bh(device);
@@ -2953,42 +2940,20 @@ dasd_eckd_dump_ccw_range(struct ccw1 *from, struct ccw1 *to, char *page)
 }
 
 static void
-dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct dasd_ccw_req *req,
-			 struct irb *irb, char *reason)
+dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
+			 char *reason)
 {
 	u64 *sense;
-	int sl;
-	struct tsb *tsb;
 
-	sense = NULL;
-	tsb = NULL;
-	if (req && scsw_is_tm(&req->irb.scsw)) {
-		if (irb->scsw.tm.tcw)
-			tsb = tcw_get_tsb(
-				(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
-		if (tsb && (irb->scsw.tm.fcxs == 0x01)) {
-			switch (tsb->flags & 0x07) {
-			case 1:	/* tsa_iostat */
-				sense = (u64 *)tsb->tsa.iostat.sense;
-			break;
-			case 2: /* ts_ddpc */
-				sense = (u64 *)tsb->tsa.ddpc.sense;
-			break;
-			case 3: /* tsa_intrg */
-			break;
-			}
-		}
-	} else {
-		if (irb->esw.esw0.erw.cons)
-			sense = (u64 *)irb->ecw;
-	}
+	sense = (u64 *) dasd_get_sense(irb);
 	if (sense) {
-		for (sl = 0; sl < 4; sl++) {
-			DBF_DEV_EVENT(DBF_EMERG, device,
-				      "%s: %016llx %016llx %016llx %016llx",
-				      reason, sense[0], sense[1], sense[2],
-				      sense[3]);
-		}
+		DBF_DEV_EVENT(DBF_EMERG, device,
+			      "%s: %s %02x%02x%02x %016llx %016llx %016llx "
+			      "%016llx", reason,
+			      scsw_is_tm(&irb->scsw) ? "t" : "c",
+			      scsw_cc(&irb->scsw), scsw_cstat(&irb->scsw),
+			      scsw_dstat(&irb->scsw), sense[0], sense[1],
+			      sense[2], sense[3]);
 	} else {
 		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
 			      "SORRY - NO VALID SENSE AVAILABLE\n");
@@ -3236,6 +3201,90 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		dasd_eckd_dump_sense_ccw(device, req, irb);
 }
 
+int dasd_eckd_pm_freeze(struct dasd_device *device)
+{
+	/*
+	 * the device should be disconnected from our LCU structure
+	 * on restore we will reconnect it and reread LCU specific
+	 * information like PAV support that might have changed
+	 */
+	dasd_alias_remove_device(device);
+	dasd_alias_disconnect_device_from_lcu(device);
+
+	return 0;
+}
+
+int dasd_eckd_restore_device(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	int is_known, rc;
+	struct dasd_uid temp_uid;
+
+	private = (struct dasd_eckd_private *) device->private;
+
+	/* Read Configuration Data */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		goto out_err;
+
+	/* Generate device unique id and register in devmap */
+	rc = dasd_eckd_generate_uid(device, &private->uid);
+	dasd_get_uid(device->cdev, &temp_uid);
+	if (memcmp(&private->uid, &temp_uid, sizeof(struct dasd_uid)) != 0)
+		dev_err(&device->cdev->dev, "The UID of the DASD has changed\n");
+	if (rc)
+		goto out_err;
+	dasd_set_uid(device->cdev, &private->uid);
+
+	/* register lcu with alias handling, enable PAV if this is a new lcu */
+	is_known = dasd_alias_make_device_known_to_lcu(device);
+	if (is_known < 0)
+		return is_known;
+	if (!is_known) {
+		/* new lcu found */
+		rc = dasd_eckd_validate_server(device); /* will switch pav on */
+		if (rc)
+			goto out_err;
+	}
+
+	/* Read Feature Codes */
+	rc = dasd_eckd_read_features(device);
+	if (rc)
+		goto out_err;
+
+	/* Read Device Characteristics */
+	memset(&private->rdc_data, 0, sizeof(private->rdc_data));
+	rc = dasd_generic_read_dev_chars(device, "ECKD",
+					 &private->rdc_data, 64);
+	if (rc) {
+		DBF_EVENT(DBF_WARNING,
+			  "Read device characteristics failed, rc=%d for "
+			  "device: %s", rc, dev_name(&device->cdev->dev));
+		goto out_err;
+	}
+
+	/* add device to alias management */
+	dasd_alias_add_device(device);
+
+	return 0;
+
+out_err:
+	return -1;
+}
+
+static struct ccw_driver dasd_eckd_driver = {
+	.name	     = "dasd-eckd",
+	.owner	     = THIS_MODULE,
+	.ids	     = dasd_eckd_ids,
+	.probe	     = dasd_eckd_probe,
+	.remove      = dasd_generic_remove,
+	.set_offline = dasd_generic_set_offline,
+	.set_online  = dasd_eckd_set_online,
+	.notify      = dasd_generic_notify,
+	.freeze      = dasd_generic_pm_freeze,
+	.thaw	     = dasd_generic_restore_device,
+	.restore     = dasd_generic_restore_device,
+};
 
 /*
  * max_blocks is dependent on the amount of storage that is available
@@ -3274,6 +3323,8 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.dump_sense_dbf = dasd_eckd_dump_sense_dbf,
 	.fill_info = dasd_eckd_fill_info,
 	.ioctl = dasd_eckd_ioctl,
+	.freeze = dasd_eckd_pm_freeze,
+	.restore = dasd_eckd_restore_device,
 };
 
 static int __init

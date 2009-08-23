@@ -13,6 +13,9 @@
 #include <asm/setup.h>
 #include <asm/irqflags.h>
 
+#include <asm-generic/cmpxchg.h>
+#include <asm-generic/cmpxchg-local.h>
+
 struct task_struct;
 struct thread_info;
 

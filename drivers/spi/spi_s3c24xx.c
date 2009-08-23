@@ -111,29 +111,32 @@ static int s3c24xx_spi_setupxfer(struct spi_device *spi,
 	unsigned int bpw;
 	unsigned int hz;
 	unsigned int div;
+	unsigned long clk;
 
 	bpw = t ? t->bits_per_word : spi->bits_per_word;
 	hz  = t ? t->speed_hz : spi->max_speed_hz;
+
+	if (!bpw)
+		bpw = 8;
+
+	if (!hz)
+		hz = spi->max_speed_hz;
 
 	if (bpw != 8) {
 		dev_err(&spi->dev, "invalid bits-per-word (%d)\n", bpw);
 		return -EINVAL;
 	}
 
-	div = clk_get_rate(hw->clk) / hz;
-
-	/* is clk = pclk / (2 * (pre+1)), or is it
-	 *    clk = (pclk * 2) / ( pre + 1) */
-
-	div /= 2;
-
-	if (div > 0)
-		div -= 1;
+	clk = clk_get_rate(hw->clk);
+	div = DIV_ROUND_UP(clk, hz * 2) - 1;
 
 	if (div > 255)
 		div = 255;
 
-	dev_dbg(&spi->dev, "setting pre-scaler to %d (hz %d)\n", div, hz);
+	dev_dbg(&spi->dev, "setting pre-scaler to %d (wanted %d, got %ld)\n",
+		div, hz, clk / (2 * (div + 1)));
+
+
 	writeb(div, hw->regs + S3C2410_SPPRE);
 
 	spin_lock(&hw->bitbang.lock);
@@ -146,31 +149,15 @@ static int s3c24xx_spi_setupxfer(struct spi_device *spi,
 	return 0;
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
-
 static int s3c24xx_spi_setup(struct spi_device *spi)
 {
 	int ret;
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
 
 	ret = s3c24xx_spi_setupxfer(spi, NULL);
 	if (ret < 0) {
 		dev_err(&spi->dev, "setupxfer returned %d\n", ret);
 		return ret;
 	}
-
-	dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n",
-		__func__, spi->mode, spi->bits_per_word,
-		spi->max_speed_hz);
 
 	return 0;
 }
@@ -289,6 +276,9 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	init_completion(&hw->done);
 
 	/* setup the master state. */
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	master->num_chipselect = hw->pdata->num_cs;
 	master->bus_num = pdata->bus_num;

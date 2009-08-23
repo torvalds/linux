@@ -123,6 +123,7 @@ struct tnode {
 	union {
 		struct rcu_head rcu;
 		struct work_struct work;
+		struct tnode *tnode_free;
 	};
 	struct node *child[0];
 };
@@ -161,6 +162,8 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n,
 static struct node *resize(struct trie *t, struct tnode *tn);
 static struct tnode *inflate(struct trie *t, struct tnode *tn);
 static struct tnode *halve(struct trie *t, struct tnode *tn);
+/* tnodes to free after resize(); protected by RTNL */
+static struct tnode *tnode_free_head;
 
 static struct kmem_cache *fn_alias_kmem __read_mostly;
 static struct kmem_cache *trie_leaf_kmem __read_mostly;
@@ -313,8 +316,8 @@ static inline void check_tnode(const struct tnode *tn)
 
 static const int halve_threshold = 25;
 static const int inflate_threshold = 50;
-static const int halve_threshold_root = 8;
-static const int inflate_threshold_root = 15;
+static const int halve_threshold_root = 15;
+static const int inflate_threshold_root = 25;
 
 
 static void __alias_free_mem(struct rcu_head *head)
@@ -383,6 +386,24 @@ static inline void tnode_free(struct tnode *tn)
 		free_leaf((struct leaf *) tn);
 	else
 		call_rcu(&tn->rcu, __tnode_free_rcu);
+}
+
+static void tnode_free_safe(struct tnode *tn)
+{
+	BUG_ON(IS_LEAF(tn));
+	tn->tnode_free = tnode_free_head;
+	tnode_free_head = tn;
+}
+
+static void tnode_free_flush(void)
+{
+	struct tnode *tn;
+
+	while ((tn = tnode_free_head)) {
+		tnode_free_head = tn->tnode_free;
+		tn->tnode_free = NULL;
+		tnode_free(tn);
+	}
 }
 
 static struct leaf *leaf_new(void)
@@ -495,7 +516,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	/* No children */
 	if (tn->empty_children == tnode_child_length(tn)) {
-		tnode_free(tn);
+		tnode_free_safe(tn);
 		return NULL;
 	}
 	/* One child */
@@ -509,7 +530,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 			/* compress one level */
 			node_set_parent(n, NULL);
-			tnode_free(tn);
+			tnode_free_safe(tn);
 			return n;
 		}
 	/*
@@ -670,7 +691,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 			/* compress one level */
 
 			node_set_parent(n, NULL);
-			tnode_free(tn);
+			tnode_free_safe(tn);
 			return n;
 		}
 
@@ -756,7 +777,7 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn)
 			put_child(t, tn, 2*i, inode->child[0]);
 			put_child(t, tn, 2*i+1, inode->child[1]);
 
-			tnode_free(inode);
+			tnode_free_safe(inode);
 			continue;
 		}
 
@@ -801,9 +822,9 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn)
 		put_child(t, tn, 2*i, resize(t, left));
 		put_child(t, tn, 2*i+1, resize(t, right));
 
-		tnode_free(inode);
+		tnode_free_safe(inode);
 	}
-	tnode_free(oldtnode);
+	tnode_free_safe(oldtnode);
 	return tn;
 nomem:
 	{
@@ -885,7 +906,7 @@ static struct tnode *halve(struct trie *t, struct tnode *tn)
 		put_child(t, newBinNode, 1, right);
 		put_child(t, tn, i/2, resize(t, newBinNode));
 	}
-	tnode_free(oldtnode);
+	tnode_free_safe(oldtnode);
 	return tn;
 nomem:
 	{
@@ -983,13 +1004,12 @@ fib_find_node(struct trie *t, u32 key)
 	return NULL;
 }
 
-static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
+static void trie_rebalance(struct trie *t, struct tnode *tn)
 {
 	int wasfull;
 	t_key cindex, key;
 	struct tnode *tp;
 
-	preempt_disable();
 	key = tn->key;
 
 	while (tn != NULL && (tp = node_parent((struct node *)tn)) != NULL) {
@@ -1002,6 +1022,10 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 
 		tp = node_parent((struct node *) tn);
 		if (!tp)
+			rcu_assign_pointer(t->trie, (struct node *)tn);
+
+		tnode_free_flush();
+		if (!tp)
 			break;
 		tn = tp;
 	}
@@ -1010,8 +1034,10 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 	if (IS_TNODE(tn))
 		tn = (struct tnode *)resize(t, (struct tnode *)tn);
 
-	preempt_enable();
-	return (struct node *)tn;
+	rcu_assign_pointer(t->trie, (struct node *)tn);
+	tnode_free_flush();
+
+	return;
 }
 
 /* only used from updater-side */
@@ -1159,7 +1185,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 
 	/* Rebalance the trie */
 
-	rcu_assign_pointer(t->trie, trie_rebalance(t, tp));
+	trie_rebalance(t, tp);
 done:
 	return fa_head;
 }
@@ -1351,8 +1377,7 @@ static int check_leaf(struct trie *t, struct leaf *l,
 		if (l->key != (key & ntohl(mask)))
 			continue;
 
-		err = fib_semantic_match(&li->falh, flp, res,
-					 htonl(l->key), mask, plen);
+		err = fib_semantic_match(&li->falh, flp, res, plen);
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 		if (err <= 0)
@@ -1579,7 +1604,7 @@ static void trie_leaf_remove(struct trie *t, struct leaf *l)
 	if (tp) {
 		t_key cindex = tkey_extract_bits(l->key, tp->pos, tp->bits);
 		put_child(t, (struct tnode *)tp, cindex, NULL);
-		rcu_assign_pointer(t->trie, trie_rebalance(t, tp));
+		trie_rebalance(t, tp);
 	} else
 		rcu_assign_pointer(t->trie, NULL);
 

@@ -32,7 +32,6 @@
 /*
  * Includes
  */
-#include <linux/version.h>
 #include <linux/module.h>
 
 #include <linux/slab.h>
@@ -458,11 +457,7 @@ me1400_ext_irq_subdevice_t *me1400_ext_irq_constructor(uint32_t device_id,
 	subdevice->irq = irq;
 
 	err = request_irq(irq, me1400_ext_irq_isr,
-#ifdef IRQF_DISABLED
 			  IRQF_DISABLED | IRQF_SHARED,
-#else
-			  SA_INTERRUPT | SA_SHIRQ,
-#endif
 			  ME1400_NAME, (void *)subdevice);
 
 	if (err) {

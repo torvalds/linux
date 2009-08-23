@@ -47,6 +47,16 @@ config REGULATOR_VIRTUAL_CONSUMER
 
           If unsure, say no.
 
+config REGULATOR_USERSPACE_CONSUMER
+	tristate "Userspace regulator consumer support"
+	default n
+	help
+	  There are some classes of devices that are controlled entirely
+	  from user space. Usersapce consumer driver provides ability to
+	  control power supplies for such devices.
+
+          If unsure, say no.
+
 config REGULATOR_BQ24022
 	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
 	default n
@@ -55,6 +65,15 @@ config REGULATOR_BQ24022
 	  GPIOs. The provided current regulator can enable/disable
 	  charging select between 100 mA and 500 mA charging current
 	  limit.
+
+config REGULATOR_MAX1586
+	tristate "Maxim 1586/1587 voltage regulator"
+	depends on I2C
+	default n
+	help
+	  This driver controls a Maxim 1586 or 1587 voltage output
+	  regulator via I2C bus. The provided regulator is suitable
+	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TPS695x0 PMIC"
@@ -90,5 +109,12 @@ config REGULATOR_PCF50633
 	help
 	 Say Y here to support the voltage regulators and convertors
 	 on PCF50633
+
+config REGULATOR_LP3971
+	tristate "National Semiconductors LP3971 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3971 PMIC
 
 endif

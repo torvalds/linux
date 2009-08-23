@@ -751,7 +751,7 @@ survive:
 
 			if (retval == -ENOMEM && is_global_init(current)) {
 				up_read(&current->mm->mmap_sem);
-				congestion_wait(WRITE, HZ/50);
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
 				goto survive;
 			}
 

@@ -1,11 +1,10 @@
 /*
- *  drivers/s390/char/raw3270.h
- *    IBM/3270 Driver
+ * IBM/3270 Driver
  *
- *  Author(s):
- *    Original 3270 Code for 2.4 written by Richard Hitt (UTS Global)
- *    Rewritten for 2.5 by Martin Schwidefsky <schwidefsky@de.ibm.com>
- *	-- Copyright (C) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ * Author(s):
+ *   Original 3270 Code for 2.4 written by Richard Hitt (UTS Global)
+ *   Rewritten for 2.5 by Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *     Copyright IBM Corp. 2003, 2009
  */
 
 #include <asm/idals.h>
@@ -195,6 +194,7 @@ void raw3270_wait_cons_dev(struct raw3270 *);
 /* Notifier for device addition/removal */
 int raw3270_register_notifier(void (*notifier)(int, int));
 void raw3270_unregister_notifier(void (*notifier)(int, int));
+void raw3270_pm_unfreeze(struct raw3270_view *);
 
 /*
  * Little memory allocator for string objects. 

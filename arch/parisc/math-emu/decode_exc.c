@@ -40,7 +40,7 @@
  * END_DESC
 */
 
-
+#include <linux/kernel.h>
 #include "float.h"
 #include "sgl_float.h"
 #include "dbl_float.h"

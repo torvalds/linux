@@ -3,7 +3,6 @@ config B43
 	depends on SSB_POSSIBLE && MAC80211 && WLAN_80211 && HAS_DMA
 	select SSB
 	select FW_LOADER
-	select HW_RANDOM
 	---help---
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
 
@@ -99,11 +98,11 @@ config B43_LEDS
 	depends on B43 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43)
 	default y
 
-# This config option automatically enables b43 RFKILL support,
-# if it's possible.
-config B43_RFKILL
+# This config option automatically enables b43 HW-RNG support,
+# if the HW-RNG core is enabled.
+config B43_HWRNG
 	bool
-	depends on B43 && (RFKILL = y || RFKILL = B43) && RFKILL_INPUT && (INPUT_POLLDEV = y || INPUT_POLLDEV = B43)
+	depends on B43 && (HW_RANDOM = y || HW_RANDOM = B43)
 	default y
 
 config B43_DEBUG

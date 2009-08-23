@@ -59,13 +59,22 @@ struct drm_mm {
 /*
  * Basic range manager support (drm_mm.c)
  */
-
-extern struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *parent,
-					    unsigned long size,
-					    unsigned alignment);
-extern struct drm_mm_node *drm_mm_get_block_atomic(struct drm_mm_node *parent,
+extern struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
+						    unsigned long size,
+						    unsigned alignment,
+						    int atomic);
+static inline struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *parent,
 						   unsigned long size,
-						   unsigned alignment);
+						   unsigned alignment)
+{
+	return drm_mm_get_block_generic(parent, size, alignment, 0);
+}
+static inline struct drm_mm_node *drm_mm_get_block_atomic(struct drm_mm_node *parent,
+							  unsigned long size,
+							  unsigned alignment)
+{
+	return drm_mm_get_block_generic(parent, size, alignment, 1);
+}
 extern void drm_mm_put_block(struct drm_mm_node *cur);
 extern struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 					      unsigned long size,

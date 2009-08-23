@@ -618,8 +618,13 @@ __SYSCALL(__NR_migrate_pages, sys_migrate_pages)
 __SYSCALL(__NR_move_pages, sys_move_pages)
 #endif
 
+#define __NR_rt_tgsigqueueinfo 240
+__SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
+#define __NR_perf_counter_open 241
+__SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
+
 #undef __NR_syscalls
-#define __NR_syscalls 240
+#define __NR_syscalls 242
 
 /*
  * All syscalls below here should go away really,

@@ -62,15 +62,15 @@ static struct sk_buff *alloc_tx(struct atm_vcc *vcc,unsigned int size)
 	struct sk_buff *skb;
 	struct sock *sk = sk_atm(vcc);
 
-	if (atomic_read(&sk->sk_wmem_alloc) && !atm_may_send(vcc, size)) {
+	if (sk_wmem_alloc_get(sk) && !atm_may_send(vcc, size)) {
 		pr_debug("Sorry: wmem_alloc = %d, size = %d, sndbuf = %d\n",
-			atomic_read(&sk->sk_wmem_alloc), size,
+			sk_wmem_alloc_get(sk), size,
 			sk->sk_sndbuf);
 		return NULL;
 	}
-	while (!(skb = alloc_skb(size,GFP_KERNEL))) schedule();
-	pr_debug("AlTx %d += %d\n", atomic_read(&sk->sk_wmem_alloc),
-		skb->truesize);
+	while (!(skb = alloc_skb(size, GFP_KERNEL)))
+		schedule();
+	pr_debug("AlTx %d += %d\n", sk_wmem_alloc_get(sk), skb->truesize);
 	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
 	return skb;
 }
@@ -92,7 +92,7 @@ static void vcc_sock_destruct(struct sock *sk)
 static void vcc_def_wakeup(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+	if (sk_has_sleeper(sk))
 		wake_up(sk->sk_sleep);
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -110,7 +110,7 @@ static void vcc_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	if (vcc_writable(sk)) {
-		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		if (sk_has_sleeper(sk))
 			wake_up_interruptible(sk->sk_sleep);
 
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
@@ -145,7 +145,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	memset(&vcc->local,0,sizeof(struct sockaddr_atmsvc));
 	memset(&vcc->remote,0,sizeof(struct sockaddr_atmsvc));
 	vcc->qos.txtp.max_sdu = 1 << 16; /* for meta VCs */
-	atomic_set(&sk->sk_wmem_alloc, 0);
+	atomic_set(&sk->sk_wmem_alloc, 1);
 	atomic_set(&sk->sk_rmem_alloc, 0);
 	vcc->push = NULL;
 	vcc->pop = NULL;
@@ -594,7 +594,7 @@ unsigned int vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 	struct atm_vcc *vcc;
 	unsigned int mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk->sk_sleep, wait);
 	mask = 0;
 
 	vcc = ATM_SD(sock);

@@ -283,10 +283,11 @@ static void try_fill_recv_maxbufs(struct virtnet_info *vi)
 	for (;;) {
 		struct virtio_net_hdr *hdr;
 
-		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN);
+		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
 		if (unlikely(!skb))
 			break;
 
+		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, MAX_PACKET_LEN);
 
 		hdr = skb_vnet_hdr(skb);
@@ -470,7 +471,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	}
 
 	if (skb_is_gso(skb)) {
-		hdr->hdr_len = skb_transport_header(skb) - skb->data;
+		hdr->hdr_len = skb_headlen(skb);
 		hdr->gso_size = skb_shinfo(skb)->gso_size;
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
@@ -622,12 +623,9 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	unsigned int tmp;
 	int i;
 
-	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ)) {
-		BUG();  /* Caller should know better */
-		return false;
-	}
-
-	BUG_ON(out + in > VIRTNET_SEND_COMMAND_SG_MAX);
+	/* Caller should know better */
+	BUG_ON(!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ) ||
+		(out + in > VIRTNET_SEND_COMMAND_SG_MAX));
 
 	out++; /* Add header */
 	in++; /* Add return status */
@@ -642,8 +640,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 		sg_set_buf(&sg[i + 1], sg_virt(s), s->length);
 	sg_set_buf(&sg[out + in - 1], &status, sizeof(status));
 
-	if (vi->cvq->vq_ops->add_buf(vi->cvq, sg, out, in, vi) != 0)
-		BUG();
+	BUG_ON(vi->cvq->vq_ops->add_buf(vi->cvq, sg, out, in, vi));
 
 	vi->cvq->vq_ops->kick(vi->cvq);
 
@@ -684,6 +681,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	u8 promisc, allmulti;
 	struct virtio_net_ctrl_mac *mac_data;
 	struct dev_addr_list *addr;
+	struct netdev_hw_addr *ha;
 	void *buf;
 	int i;
 
@@ -711,7 +709,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 			 allmulti ? "en" : "dis");
 
 	/* MAC filter - use one buffer for both lists */
-	mac_data = buf = kzalloc(((dev->uc_count + dev->mc_count) * ETH_ALEN) +
+	mac_data = buf = kzalloc(((dev->uc.count + dev->mc_count) * ETH_ALEN) +
 				 (2 * sizeof(mac_data->entries)), GFP_ATOMIC);
 	if (!buf) {
 		dev_warn(&dev->dev, "No memory for MAC address buffer\n");
@@ -721,16 +719,16 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	sg_init_table(sg, 2);
 
 	/* Store the unicast list and count in the front of the buffer */
-	mac_data->entries = dev->uc_count;
-	addr = dev->uc_list;
-	for (i = 0; i < dev->uc_count; i++, addr = addr->next)
-		memcpy(&mac_data->macs[i][0], addr->da_addr, ETH_ALEN);
+	mac_data->entries = dev->uc.count;
+	i = 0;
+	list_for_each_entry(ha, &dev->uc.list, list)
+		memcpy(&mac_data->macs[i++][0], ha->addr, ETH_ALEN);
 
 	sg_set_buf(&sg[0], mac_data,
-		   sizeof(mac_data->entries) + (dev->uc_count * ETH_ALEN));
+		   sizeof(mac_data->entries) + (dev->uc.count * ETH_ALEN));
 
 	/* multicast list and count fill the end */
-	mac_data = (void *)&mac_data->macs[dev->uc_count][0];
+	mac_data = (void *)&mac_data->macs[dev->uc.count][0];
 
 	mac_data->entries = dev->mc_count;
 	addr = dev->mc_list;

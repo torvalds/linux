@@ -69,6 +69,13 @@
 #define D_SUBMODULE rx
 #include "sdio-debug-levels.h"
 
+static const __le32 i2400m_ACK_BARKER[4] = {
+	__constant_cpu_to_le32(I2400M_ACK_BARKER),
+	__constant_cpu_to_le32(I2400M_ACK_BARKER),
+	__constant_cpu_to_le32(I2400M_ACK_BARKER),
+	__constant_cpu_to_le32(I2400M_ACK_BARKER)
+};
+
 
 /*
  * Read and return the amount of bytes available for RX
@@ -131,25 +138,35 @@ void i2400ms_rx(struct i2400ms *i2400ms)
 		ret = rx_size;
 		goto error_get_size;
 	}
+
 	ret = -ENOMEM;
 	skb = alloc_skb(rx_size, GFP_ATOMIC);
 	if (NULL == skb) {
 		dev_err(dev, "RX: unable to alloc skb\n");
 		goto error_alloc_skb;
 	}
-
 	ret = sdio_memcpy_fromio(func, skb->data,
 				 I2400MS_DATA_ADDR, rx_size);
 	if (ret < 0) {
 		dev_err(dev, "RX: SDIO data read failed: %d\n", ret);
 		goto error_memcpy_fromio;
 	}
-	/* Check if device has reset */
-	if (!memcmp(skb->data, i2400m_NBOOT_BARKER,
-		    sizeof(i2400m_NBOOT_BARKER))
-	    || !memcmp(skb->data, i2400m_SBOOT_BARKER,
-		       sizeof(i2400m_SBOOT_BARKER))) {
+
+	rmb();	/* make sure we get boot_mode from dev_reset_handle */
+	if (i2400m->boot_mode == 1) {
+		spin_lock(&i2400m->rx_lock);
+		i2400ms->bm_ack_size = rx_size;
+		spin_unlock(&i2400m->rx_lock);
+		memcpy(i2400m->bm_ack_buf, skb->data, rx_size);
+		wake_up(&i2400ms->bm_wfa_wq);
+		dev_err(dev, "RX: SDIO boot mode message\n");
+		kfree_skb(skb);
+	} else if (unlikely(!memcmp(skb->data, i2400m_NBOOT_BARKER,
+				    sizeof(i2400m_NBOOT_BARKER))
+			    || !memcmp(skb->data, i2400m_SBOOT_BARKER,
+				       sizeof(i2400m_SBOOT_BARKER)))) {
 		ret = i2400m_dev_reset_handle(i2400m);
+		dev_err(dev, "RX: SDIO reboot barker\n");
 		kfree_skb(skb);
 	} else {
 		skb_put(skb, rx_size);
@@ -179,7 +196,6 @@ void i2400ms_irq(struct sdio_func *func)
 {
 	int ret;
 	struct i2400ms *i2400ms = sdio_get_drvdata(func);
-	struct i2400m *i2400m = &i2400ms->i2400m;
 	struct device *dev = &func->dev;
 	int val;
 
@@ -194,10 +210,7 @@ void i2400ms_irq(struct sdio_func *func)
 		goto error_no_irq;
 	}
 	sdio_writeb(func, 1, I2400MS_INTR_CLEAR_ADDR, &ret);
-	if (WARN_ON(i2400m->boot_mode != 0))
-		dev_err(dev, "RX: SW BUG? boot mode and IRQ is up?\n");
-	else
-		i2400ms_rx(i2400ms);
+	i2400ms_rx(i2400ms);
 error_no_irq:
 	d_fnend(6, dev, "(i2400ms %p) = void\n", i2400ms);
 	return;
@@ -214,8 +227,15 @@ int i2400ms_rx_setup(struct i2400ms *i2400ms)
 	int result;
 	struct sdio_func *func = i2400ms->func;
 	struct device *dev = &func->dev;
+	struct i2400m *i2400m = &i2400ms->i2400m;
 
 	d_fnstart(5, dev, "(i2400ms %p)\n", i2400ms);
+
+	init_waitqueue_head(&i2400ms->bm_wfa_wq);
+	spin_lock(&i2400m->rx_lock);
+	i2400ms->bm_wait_result = -EINPROGRESS;
+	spin_unlock(&i2400m->rx_lock);
+
 	sdio_claim_host(func);
 	result = sdio_claim_irq(func, i2400ms_irq);
 	if (result < 0) {
@@ -245,8 +265,13 @@ void i2400ms_rx_release(struct i2400ms *i2400ms)
 	int result;
 	struct sdio_func *func = i2400ms->func;
 	struct device *dev = &func->dev;
+	struct i2400m *i2400m = &i2400ms->i2400m;
 
 	d_fnstart(5, dev, "(i2400ms %p)\n", i2400ms);
+	spin_lock(&i2400m->rx_lock);
+	i2400ms->bm_ack_size = -EINTR;
+	spin_unlock(&i2400m->rx_lock);
+	wake_up_all(&i2400ms->bm_wfa_wq);
 	sdio_claim_host(func);
 	sdio_writeb(func, 0, I2400MS_INTR_ENABLE_ADDR, &result);
 	sdio_release_irq(func);

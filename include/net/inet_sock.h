@@ -17,6 +17,7 @@
 #define _INET_SOCK_H
 
 
+#include <linux/kmemcheck.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/jhash.h>
@@ -66,14 +67,16 @@ struct inet_request_sock {
 	__be32			loc_addr;
 	__be32			rmt_addr;
 	__be16			rmt_port;
-	u16			snd_wscale : 4, 
-				rcv_wscale : 4, 
+	kmemcheck_bitfield_begin(flags);
+	u16			snd_wscale : 4,
+				rcv_wscale : 4,
 				tstamp_ok  : 1,
 				sack_ok	   : 1,
 				wscale_ok  : 1,
 				ecn_ok	   : 1,
 				acked	   : 1,
 				no_srccheck: 1;
+	kmemcheck_bitfield_end(flags);
 	struct ip_options	*opt;
 };
 
@@ -130,7 +133,8 @@ struct inet_sock {
 				freebind:1,
 				hdrincl:1,
 				mc_loop:1,
-				transparent:1;
+				transparent:1,
+				mc_all:1;
 	int			mc_index;
 	__be32			mc_addr;
 	struct ip_mc_socklist	*mc_list;
@@ -198,9 +202,12 @@ static inline int inet_sk_ehashfn(const struct sock *sk)
 static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops)
 {
 	struct request_sock *req = reqsk_alloc(ops);
+	struct inet_request_sock *ireq = inet_rsk(req);
 
-	if (req != NULL)
-		inet_rsk(req)->opt = NULL;
+	if (req != NULL) {
+		kmemcheck_annotate_bitfield(ireq, flags);
+		ireq->opt = NULL;
+	}
 
 	return req;
 }

@@ -530,9 +530,6 @@ atmel_spi_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
-
 static int atmel_spi_setup(struct spi_device *spi)
 {
 	struct atmel_spi	*as;
@@ -555,18 +552,10 @@ static int atmel_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (bits == 0)
-		bits = 8;
 	if (bits < 8 || bits > 16) {
 		dev_dbg(&spi->dev,
 				"setup: invalid bits_per_word %u (8 to 16)\n",
 				bits);
-		return -EINVAL;
-	}
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
 		return -EINVAL;
 	}
 
@@ -774,6 +763,9 @@ static int __init atmel_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(&pdev->dev, sizeof *as);
 	if (!master)
 		goto out_free;
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = 4;

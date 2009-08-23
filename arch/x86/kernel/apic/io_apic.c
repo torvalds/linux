@@ -462,7 +462,8 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 static void
 __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
-	union entry_union eu;
+	union entry_union eu = {{0, 0}};
+
 	eu.entry = e;
 	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
 	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
@@ -1413,6 +1414,9 @@ int setup_ioapic_entry(int apic_id, int irq,
 		irte.vector = vector;
 		irte.dest_id = IRTE_DEST(destination);
 
+		/* Set source-id of interrupt request */
+		set_ioapic_sid(&irte, apic_id);
+
 		modify_irte(irq, &irte);
 
 		ir_entry->index2 = (index >> 15) & 0x1;
@@ -1712,25 +1716,19 @@ __apicdebuginit(void) print_IO_APIC(void)
 	return;
 }
 
-__apicdebuginit(void) print_APIC_bitfield(int base)
+__apicdebuginit(void) print_APIC_field(int base)
 {
-	unsigned int v;
-	int i, j;
+	int i;
 
 	if (apic_verbosity == APIC_QUIET)
 		return;
 
-	printk(KERN_DEBUG "0123456789abcdef0123456789abcdef\n" KERN_DEBUG);
-	for (i = 0; i < 8; i++) {
-		v = apic_read(base + i*0x10);
-		for (j = 0; j < 32; j++) {
-			if (v & (1<<j))
-				printk("1");
-			else
-				printk("0");
-		}
-		printk("\n");
-	}
+	printk(KERN_DEBUG);
+
+	for (i = 0; i < 8; i++)
+		printk(KERN_CONT "%08x", apic_read(base + i*0x10));
+
+	printk(KERN_CONT "\n");
 }
 
 __apicdebuginit(void) print_local_APIC(void *dummy)
@@ -1741,7 +1739,7 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 	if (apic_verbosity == APIC_QUIET)
 		return;
 
-	printk("\n" KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
+	printk(KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
 		smp_processor_id(), hard_smp_processor_id());
 	v = apic_read(APIC_ID);
 	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, read_apic_id());
@@ -1782,11 +1780,11 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 	printk(KERN_DEBUG "... APIC SPIV: %08x\n", v);
 
 	printk(KERN_DEBUG "... APIC ISR field:\n");
-	print_APIC_bitfield(APIC_ISR);
+	print_APIC_field(APIC_ISR);
 	printk(KERN_DEBUG "... APIC TMR field:\n");
-	print_APIC_bitfield(APIC_TMR);
+	print_APIC_field(APIC_TMR);
 	printk(KERN_DEBUG "... APIC IRR field:\n");
-	print_APIC_bitfield(APIC_IRR);
+	print_APIC_field(APIC_IRR);
 
 	if (APIC_INTEGRATED(ver)) {             /* !82489DX */
 		if (maxlvt > 3)         /* Due to the Pentium erratum 3AP. */
@@ -2003,7 +2001,9 @@ void disable_IO_APIC(void)
 	/*
 	 * Use virtual wire A mode when interrupt remapping is enabled.
 	 */
-	disconnect_bsp_APIC(!intr_remapping_enabled && ioapic_i8259.pin != -1);
+	if (cpu_has_apic)
+		disconnect_bsp_APIC(!intr_remapping_enabled &&
+				ioapic_i8259.pin != -1);
 }
 
 #ifdef CONFIG_X86_32
@@ -3287,6 +3287,9 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		irte.vector = cfg->vector;
 		irte.dest_id = IRTE_DEST(dest);
 
+		/* Set source-id of interrupt request */
+		set_msi_sid(&irte, pdev);
+
 		modify_irte(irq, &irte);
 
 		msg->address_hi = MSI_ADDR_BASE_HI;
@@ -3567,7 +3570,7 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 #endif /* CONFIG_SMP */
 
-struct irq_chip dmar_msi_type = {
+static struct irq_chip dmar_msi_type = {
 	.name = "DMAR_MSI",
 	.unmask = dmar_msi_unmask,
 	.mask = dmar_msi_mask,
@@ -3789,6 +3792,9 @@ int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 
 	mmr_pnode = uv_blade_to_pnode(mmr_blade);
 	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
+
+	if (cfg->move_in_progress)
+		send_cleanup_vector(cfg);
 
 	return irq;
 }
@@ -4178,28 +4184,20 @@ fake_ioapic_page:
 	}
 }
 
-static int __init ioapic_insert_resources(void)
+void __init ioapic_insert_resources(void)
 {
 	int i;
 	struct resource *r = ioapic_resources;
 
 	if (!r) {
-		if (nr_ioapics > 0) {
+		if (nr_ioapics > 0)
 			printk(KERN_ERR
 				"IO APIC resources couldn't be allocated.\n");
-			return -1;
-		}
-		return 0;
+		return;
 	}
 
 	for (i = 0; i < nr_ioapics; i++) {
 		insert_resource(&iomem_resource, r);
 		r++;
 	}
-
-	return 0;
 }
-
-/* Insert the IO APIC resources after PCI initialization has occured to handle
- * IO APICS that are mapped in on a BAR in PCI space. */
-late_initcall(ioapic_insert_resources);

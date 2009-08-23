@@ -25,14 +25,10 @@
 #include <linux/posix_acl_xattr.h>
 
 
-#define XFS_ACL_NOT_CACHED	((void *)-1)
-
 /*
  * Locking scheme:
  *  - all ACL updates are protected by inode->i_mutex, which is taken before
  *    calling into this file.
- *  - access and updates to the ip->i_acl and ip->i_default_acl pointers are
- *    protected by inode->i_lock.
  */
 
 STATIC struct posix_acl *
@@ -102,59 +98,35 @@ xfs_acl_to_disk(struct xfs_acl *aclp, const struct posix_acl *acl)
 	}
 }
 
-/*
- * Update the cached ACL pointer in the inode.
- *
- * Because we don't hold any locks while reading/writing the attribute
- * from/to disk another thread could have raced and updated the cached
- * ACL value before us. In that case we release the previous cached value
- * and update it with our new value.
- */
-STATIC void
-xfs_update_cached_acl(struct inode *inode, struct posix_acl **p_acl,
-		struct posix_acl *acl)
-{
-	spin_lock(&inode->i_lock);
-	if (*p_acl && *p_acl != XFS_ACL_NOT_CACHED)
-		posix_acl_release(*p_acl);
-	*p_acl = posix_acl_dup(acl);
-	spin_unlock(&inode->i_lock);
-}
-
 struct posix_acl *
 xfs_get_acl(struct inode *inode, int type)
 {
 	struct xfs_inode *ip = XFS_I(inode);
-	struct posix_acl *acl = NULL, **p_acl;
+	struct posix_acl *acl;
 	struct xfs_acl *xfs_acl;
 	int len = sizeof(struct xfs_acl);
 	char *ea_name;
 	int error;
 
+	acl = get_cached_acl(inode, type);
+	if (acl != ACL_NOT_CACHED)
+		return acl;
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		ea_name = SGI_ACL_FILE;
-		p_acl = &ip->i_acl;
 		break;
 	case ACL_TYPE_DEFAULT:
 		ea_name = SGI_ACL_DEFAULT;
-		p_acl = &ip->i_default_acl;
 		break;
 	default:
-		return ERR_PTR(-EINVAL);
+		BUG();
 	}
-
-	spin_lock(&inode->i_lock);
-	if (*p_acl != XFS_ACL_NOT_CACHED)
-		acl = posix_acl_dup(*p_acl);
-	spin_unlock(&inode->i_lock);
 
 	/*
 	 * If we have a cached ACLs value just return it, not need to
 	 * go out to the disk.
 	 */
-	if (acl)
-		return acl;
 
 	xfs_acl = kzalloc(sizeof(struct xfs_acl), GFP_KERNEL);
 	if (!xfs_acl)
@@ -165,7 +137,7 @@ xfs_get_acl(struct inode *inode, int type)
 		/*
 		 * If the attribute doesn't exist make sure we have a negative
 		 * cache entry, for any other error assume it is transient and
-		 * leave the cache entry as XFS_ACL_NOT_CACHED.
+		 * leave the cache entry as ACL_NOT_CACHED.
 		 */
 		if (error == -ENOATTR) {
 			acl = NULL;
@@ -179,7 +151,7 @@ xfs_get_acl(struct inode *inode, int type)
 		goto out;
 
  out_update_cache:
-	xfs_update_cached_acl(inode, p_acl, acl);
+	set_cached_acl(inode, type, acl);
  out:
 	kfree(xfs_acl);
 	return acl;
@@ -189,7 +161,6 @@ STATIC int
 xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 {
 	struct xfs_inode *ip = XFS_I(inode);
-	struct posix_acl **p_acl;
 	char *ea_name;
 	int error;
 
@@ -199,13 +170,11 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		ea_name = SGI_ACL_FILE;
-		p_acl = &ip->i_acl;
 		break;
 	case ACL_TYPE_DEFAULT:
 		if (!S_ISDIR(inode->i_mode))
 			return acl ? -EACCES : 0;
 		ea_name = SGI_ACL_DEFAULT;
-		p_acl = &ip->i_default_acl;
 		break;
 	default:
 		return -EINVAL;
@@ -242,7 +211,7 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	}
 
 	if (!error)
-		xfs_update_cached_acl(inode, p_acl, acl);
+		set_cached_acl(inode, type, acl);
 	return error;
 }
 
@@ -383,30 +352,6 @@ xfs_acl_chmod(struct inode *inode)
 	posix_acl_release(clone);
 	return error;
 }
-
-void
-xfs_inode_init_acls(struct xfs_inode *ip)
-{
-	/*
-	 * No need for locking, inode is not live yet.
-	 */
-	ip->i_acl = XFS_ACL_NOT_CACHED;
-	ip->i_default_acl = XFS_ACL_NOT_CACHED;
-}
-
-void
-xfs_inode_clear_acls(struct xfs_inode *ip)
-{
-	/*
-	 * No need for locking here, the inode is not live anymore
-	 * and just about to be freed.
-	 */
-	if (ip->i_acl != XFS_ACL_NOT_CACHED)
-		posix_acl_release(ip->i_acl);
-	if (ip->i_default_acl != XFS_ACL_NOT_CACHED)
-		posix_acl_release(ip->i_default_acl);
-}
-
 
 /*
  * System xattr handlers.

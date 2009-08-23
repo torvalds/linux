@@ -358,6 +358,7 @@ void __init paging_init(void)
 	protection_map[15] = PAGE_SHARED;
 	btfixup();
 	prom_build_devicetree();
+	of_fill_in_cpu_data();
 	device_scan();
 }
 

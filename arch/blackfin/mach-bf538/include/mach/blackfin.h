@@ -35,7 +35,6 @@
 #define BF538_FAMILY
 
 #include "bf538.h"
-#include "mem_map.h"
 #include "defBF539.h"
 #include "anomaly.h"
 

@@ -130,6 +130,8 @@
 #define UP2OCR_HXOE	(1 << 17)	/* Transceiver Output Enable */
 #define UP2OCR_SEOS	(1 << 24)	/* Single-Ended Output Select */
 
+#define UDCCSR0_ACM	(1 << 9)	/* Ack Control Mode */
+#define UDCCSR0_AREN	(1 << 8)	/* Ack Response Enable */
 #define UDCCSR0_SA	(1 << 7)	/* Setup Active */
 #define UDCCSR0_RNE	(1 << 6)	/* Receive FIFO Not Empty */
 #define UDCCSR0_FST	(1 << 5)	/* Force Stall */
