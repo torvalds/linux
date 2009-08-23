@@ -36,6 +36,7 @@ config DRM_TDFX
 config DRM_R128
 	tristate "ATI Rage 128"
 	depends on DRM && PCI
+	select FW_LOADER
 	help
 	  Choose this option if you have an ATI Rage 128 graphics card.  If M
 	  is selected, the module will be called r128.  AGP support for
