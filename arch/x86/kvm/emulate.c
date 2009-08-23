@@ -92,19 +92,22 @@ static u32 opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
+	ImplicitOps | Stack, ImplicitOps | Stack,
 	/* 0x08 - 0x0F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	0, 0, 0, 0,
+	0, 0, ImplicitOps | Stack, 0,
 	/* 0x10 - 0x17 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
+	ImplicitOps | Stack, ImplicitOps | Stack,
 	/* 0x18 - 0x1F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
+	ImplicitOps | Stack, ImplicitOps | Stack,
 	/* 0x20 - 0x27 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -244,11 +247,13 @@ static u32 twobyte_table[256] = {
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp,
+	ImplicitOps | Stack, ImplicitOps | Stack,
+	0, DstMem | SrcReg | ModRM | BitOp,
 	DstMem | SrcReg | Src2ImmByte | ModRM,
 	DstMem | SrcReg | Src2CL | ModRM, 0, 0,
 	/* 0xA8 - 0xAF */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp,
+	ImplicitOps | Stack, ImplicitOps | Stack,
+	0, DstMem | SrcReg | ModRM | BitOp,
 	DstMem | SrcReg | Src2ImmByte | ModRM,
 	DstMem | SrcReg | Src2CL | ModRM,
 	ModRM, 0,
@@ -1186,6 +1191,32 @@ static int emulate_pop(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static void emulate_push_sreg(struct x86_emulate_ctxt *ctxt, int seg)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct kvm_segment segment;
+
+	kvm_x86_ops->get_segment(ctxt->vcpu, &segment, seg);
+
+	c->src.val = segment.selector;
+	emulate_push(ctxt);
+}
+
+static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
+			     struct x86_emulate_ops *ops, int seg)
+{
+	struct decode_cache *c = &ctxt->decode;
+	unsigned long selector;
+	int rc;
+
+	rc = emulate_pop(ctxt, ops, &selector, c->op_bytes);
+	if (rc != 0)
+		return rc;
+
+	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)selector, 1, seg);
+	return rc;
+}
+
 static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops)
 {
@@ -1707,17 +1738,65 @@ special_insn:
 	      add:		/* add */
 		emulate_2op_SrcV("add", c->src, c->dst, ctxt->eflags);
 		break;
+	case 0x06:		/* push es */
+		if (ctxt->mode == X86EMUL_MODE_PROT64)
+			goto cannot_emulate;
+
+		emulate_push_sreg(ctxt, VCPU_SREG_ES);
+		break;
+	case 0x07:		/* pop es */
+                if (ctxt->mode == X86EMUL_MODE_PROT64)
+                        goto cannot_emulate;
+
+		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_ES);
+		if (rc != 0)
+			goto done;
+		break;
 	case 0x08 ... 0x0d:
 	      or:		/* or */
 		emulate_2op_SrcV("or", c->src, c->dst, ctxt->eflags);
+		break;
+	case 0x0e:		/* push cs */
+                if (ctxt->mode == X86EMUL_MODE_PROT64)
+                        goto cannot_emulate;
+
+		emulate_push_sreg(ctxt, VCPU_SREG_CS);
 		break;
 	case 0x10 ... 0x15:
 	      adc:		/* adc */
 		emulate_2op_SrcV("adc", c->src, c->dst, ctxt->eflags);
 		break;
+	case 0x16:		/* push ss */
+                if (ctxt->mode == X86EMUL_MODE_PROT64)
+                        goto cannot_emulate;
+
+		emulate_push_sreg(ctxt, VCPU_SREG_SS);
+		break;
+	case 0x17:		/* pop ss */
+                if (ctxt->mode == X86EMUL_MODE_PROT64)
+                        goto cannot_emulate;
+
+		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_SS);
+		if (rc != 0)
+			goto done;
+		break;
 	case 0x18 ... 0x1d:
 	      sbb:		/* sbb */
 		emulate_2op_SrcV("sbb", c->src, c->dst, ctxt->eflags);
+		break;
+	case 0x1e:		/* push ds */
+                if (ctxt->mode == X86EMUL_MODE_PROT64)
+                        goto cannot_emulate;
+
+		emulate_push_sreg(ctxt, VCPU_SREG_DS);
+		break;
+	case 0x1f:		/* pop ds */
+                if (ctxt->mode == X86EMUL_MODE_PROT64)
+                        goto cannot_emulate;
+
+		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_DS);
+		if (rc != 0)
+			goto done;
 		break;
 	case 0x20 ... 0x25:
 	      and:		/* and */
@@ -2297,6 +2376,14 @@ twobyte_insn:
 			jmp_rel(c, c->src.val);
 		c->dst.type = OP_NONE;
 		break;
+	case 0xa0:	  /* push fs */
+		emulate_push_sreg(ctxt, VCPU_SREG_FS);
+		break;
+	case 0xa1:	 /* pop fs */
+		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_FS);
+		if (rc != 0)
+			goto done;
+		break;
 	case 0xa3:
 	      bt:		/* bt */
 		c->dst.type = OP_NONE;
@@ -2307,6 +2394,14 @@ twobyte_insn:
 	case 0xa4: /* shld imm8, r, r/m */
 	case 0xa5: /* shld cl, r, r/m */
 		emulate_2op_cl("shld", c->src2, c->src, c->dst, ctxt->eflags);
+		break;
+	case 0xa8:	/* push gs */
+		emulate_push_sreg(ctxt, VCPU_SREG_GS);
+		break;
+	case 0xa9:	/* pop gs */
+		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_GS);
+		if (rc != 0)
+			goto done;
 		break;
 	case 0xab:
 	      bts:		/* bts */
