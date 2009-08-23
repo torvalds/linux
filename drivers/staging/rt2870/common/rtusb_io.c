@@ -1732,39 +1732,6 @@ VOID CMDHandler(
 						}
 					}
 					break;
-
-#ifdef RT30xx
-//Benson modified for USB interface, avoid in interrupt when write key, 20080724 -->
-				case RT_CMD_SET_KEY_TABLE: //General call for AsicAddPairwiseKeyEntry()
-				{
-					RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
-					KeyInfo = *((PRT_ADD_PAIRWISE_KEY_ENTRY)(pData));
-					AsicAddPairwiseKeyEntry(pAd,
-											KeyInfo.MacAddr,
-											(UCHAR)KeyInfo.MacTabMatchWCID,
-											&KeyInfo.CipherKey);
-				}
-					break;
-				case RT_CMD_SET_RX_WCID_TABLE: //General call for RTMPAddWcidAttributeEntry()
-				{
-					PMAC_TABLE_ENTRY pEntry;
-					UCHAR KeyIdx = 0;
-					UCHAR CipherAlg = 0;
-					UCHAR ApIdx = 0;
-
-					pEntry = (PMAC_TABLE_ENTRY)(pData);
-
-						RTMPAddWcidAttributeEntry(
-										  pAd,
-										  ApIdx,
-										  KeyIdx,
-										  CipherAlg,
-										  pEntry);
-					}
-						break;
-//Benson modified for USB interface, avoid in interrupt when write key, 20080724 <--
-#endif
-
 				case CMDTHREAD_SET_CLIENT_MAC_ENTRY:
 					{
 						MAC_TABLE_ENTRY *pEntry;

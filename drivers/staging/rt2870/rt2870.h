@@ -573,8 +573,6 @@ typedef	struct	_CMDHandler_TLV	{
 #define CMDTHREAD_SET_ASIC_WCID                     0x0D730226	// cmd
 #define CMDTHREAD_SET_ASIC_WCID_CIPHER              0x0D730227	// cmd
 #define CMDTHREAD_QKERIODIC_EXECUT                  0x0D73023D	// cmd
-#define RT_CMD_SET_KEY_TABLE                        0x0D730228  // cmd
-#define RT_CMD_SET_RX_WCID_TABLE                    0x0D730229  // cmd
 #define CMDTHREAD_SET_CLIENT_MAC_ENTRY              0x0D73023E	// cmd
 #define CMDTHREAD_802_11_QUERY_HARDWARE_REGISTER    0x0D710105	// cmd
 #define CMDTHREAD_802_11_SET_PHY_MODE               0x0D79010C	// cmd
