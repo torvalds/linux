@@ -2725,9 +2725,6 @@ PCHAR   RTMPGetRalinkAuthModeStr(
 	{
 		case Ndis802_11AuthModeOpen:
 			return "OPEN";
-#if defined(RT2860) || defined(RT30xx)
-        default:
-#endif
 		case Ndis802_11AuthModeWPAPSK:
 			return "WPAPSK";
 		case Ndis802_11AuthModeShared:
@@ -2742,14 +2739,10 @@ PCHAR   RTMPGetRalinkAuthModeStr(
 			return "WPAPSKWPA2PSK";
         case Ndis802_11AuthModeWPA1WPA2:
 			return "WPA1WPA2";
-#ifndef RT30xx
 		case Ndis802_11AuthModeWPANone:
 			return "WPANONE";
-#ifdef RT2870
 		default:
 			return "UNKNOW";
-#endif
-#endif
 	}
 }
 
