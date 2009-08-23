@@ -982,12 +982,7 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 	PCmdQElmt	cmdqelmt = NULL;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-#ifndef RT30xx
 	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0)
-#endif
-#ifdef RT30xx
-	if (pObj->RTUSBCmdThr_pid < 0)
-#endif
 		return (NDIS_STATUS_RESOURCES);
 
 	status = RTMPAllocateMemory((PVOID *)&cmdqelmt, sizeof(CmdQElmt));
