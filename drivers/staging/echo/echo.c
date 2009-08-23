@@ -106,7 +106,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "bit_operations.h"
 #include "echo.h"
 
 #define MIN_TX_POWER_FOR_ADAPTION	64
@@ -220,6 +219,14 @@ static inline void lms_adapt_bg(struct oslec_state *ec, int clean,
 	}
 }
 #endif
+
+static __inline__ int top_bit(unsigned int bits)
+{
+	if (bits == 0)
+	    return -1;
+        else
+	    return (int)fls((int32_t)bits)-1;
+}
 
 struct oslec_state *oslec_create(int len, int adaption_mode)
 {
@@ -347,7 +354,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 	/*
 	 * Filter DC, 3dB point is 160Hz (I think), note 32 bit precision
 	 * required otherwise values do not track down to 0. Zero at DC, Pole
-	 * at (1-Beta) only real axis.  Some chip sets (like Si labs) don't
+	 * at (1-Beta) on real axis.  Some chip sets (like Si labs) don't
 	 * need this, but something like a $10 X100P card does.  Any DC really
 	 * slows down convergence.
 	 *
@@ -361,7 +368,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 	if (ec->adaption_mode & ECHO_CAN_USE_RX_HPF) {
 		tmp = rx << 15;
-#if 1
+
 		/*
 		 * Make sure the gain of the HPF is 1.0. This can still
 		 * saturate a little under impulse conditions, and it might
@@ -371,7 +378,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		 * the downstream processing.
 		 */
 		tmp -= (tmp >> 4);
-#endif
+
 		ec->rx_1 += -(ec->rx_1 >> DC_LOG2BETA) + tmp - ec->rx_2;
 
 		/*
@@ -453,14 +460,14 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		   therefore the scaled version of (1) is:
 
 		   (2^30) * f  = (2^30) * Beta * clean_bg_rx/P
-		   factor  = (2^30) * Beta * clean_bg_rx/P         ----- (2)
+		   factor      = (2^30) * Beta * clean_bg_rx/P     ----- (2)
 
 		   We have chosen Beta = 0.25 by experiment, so:
 
-		   factor  = (2^30) * (2^-2) * clean_bg_rx/P
+		   factor      = (2^30) * (2^-2) * clean_bg_rx/P
 
-		   (30 - 2 - log2(P))
-		   factor  = clean_bg_rx 2                         ----- (3)
+		                              (30 - 2 - log2(P))
+		   factor      = clean_bg_rx 2                     ----- (3)
 
 		   To avoid a divide we approximate log2(P) as top_bit(P),
 		   which returns the position of the highest non-zero bit in
@@ -624,7 +631,7 @@ int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx)
 
 	if (ec->adaption_mode & ECHO_CAN_USE_TX_HPF) {
 		tmp = tx << 15;
-#if 1
+
 		/*
 		 * Make sure the gain of the HPF is 1.0. The first can still
 		 * saturate a little under impulse conditions, and it might
@@ -634,7 +641,7 @@ int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx)
 		 * the downstream processing.
 		 */
 		tmp -= (tmp >> 4);
-#endif
+
 		ec->tx_1 += -(ec->tx_1 >> DC_LOG2BETA) + tmp - ec->tx_2;
 		tmp1 = ec->tx_1 >> 15;
 		if (tmp1 > 32767)

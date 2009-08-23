@@ -1,5 +1,5 @@
 TODO:
-	- handle bit_operations.h (merge in or make part of common code?)
+	- send to lkml for review
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc: Steve
 Underwood <steveu@coppice.org> and David Rowe <david@rowetel.com>
