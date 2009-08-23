@@ -1293,12 +1293,7 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 				RTMPDeQueuePacket(pAd, FALSE, BulkOutPipeId, MAX_TX_PROCESS);
 			}
 
-#ifndef RT30xx
-			RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL);
-#endif
-#ifdef RT30xx
 			RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL<<4);
-#endif
 			RTUSBKickBulkOut(pAd);
 		}
 	}
