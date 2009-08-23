@@ -3416,7 +3416,7 @@ VOID	UserCfgInit(
 		}
 	}
 
-#ifdef RT30xx
+#ifdef RT2870
 	pAd->EepromAccess = FALSE;
 #endif
 	pAd->Antenna.word = 0;

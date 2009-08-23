@@ -1295,7 +1295,7 @@ typedef struct _BBP_TUNING_STRUCT {
 
 typedef struct _SOFT_RX_ANT_DIVERSITY_STRUCT {
 	UCHAR     EvaluatePeriod;		 // 0:not evalute status, 1: evaluate status, 2: switching status
-#ifdef RT30xx
+#ifdef RT2870
 	UCHAR     EvaluateStableCnt;
 #endif
 	UCHAR     Pair1PrimaryRxAnt;     // 0:Ant-E1, 1:Ant-E2
@@ -1899,9 +1899,6 @@ typedef struct _COMMON_CONFIG {
 
 	BOOLEAN				NdisRadioStateOff; //For HCT 12.0, set this flag to TRUE instead of called MlmeRadioOff.
 	ABGBAND_STATE		BandState;		// For setting BBP used on B/G or A mode.
-#ifdef RT30xx
-	BOOLEAN				bRxAntDiversity; // 0:disable, 1:enable Software Rx Antenna Diversity.
-#endif
 
 	// IEEE802.11H--DFS.
 	RADAR_DETECT_STRUCT	RadarDetect;
@@ -2667,7 +2664,7 @@ typedef struct _RTMP_ADAPTER
 	ULONG                   EepromVersion;          // byte 0: version, byte 1: revision, byte 2~3: unused
 	UCHAR                   EEPROMAddressNum;       // 93c46=6  93c66=8
 	USHORT                  EEPROMDefaultValue[NUM_EEPROM_BBP_PARMS];
-#ifdef RT30xx
+#ifdef RT2870
 	BOOLEAN                 EepromAccess;
 #endif
 	ULONG                   FirmwareVersion;        // byte 0: Minor version, byte 1: Major version, otherwise unused.

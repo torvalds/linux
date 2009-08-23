@@ -181,14 +181,11 @@ USHORT RTMP_EEPROM_READ16(
     UINT32		x;
     USHORT		data;
 
-#ifdef RT30xx
+#ifdef RT2870
 	if (pAd->NicConfig2.field.AntDiversity)
     {
     	pAd->EepromAccess = TRUE;
     }
-//2008/09/11:KH add to support efuse<--
-//2008/09/11:KH add to support efuse-->
-{
 #endif
     Offset /= 2;
     // reset bits and set EECS
@@ -214,7 +211,7 @@ USHORT RTMP_EEPROM_READ16(
 
     EEpromCleanup(pAd);
 
-#ifdef RT30xx
+#ifdef RT2870
 	// Antenna and EEPROM access are both using EESK pin,
     // Therefor we should avoid accessing EESK at the same time
     // Then restore antenna after EEPROM access
@@ -223,7 +220,6 @@ USHORT RTMP_EEPROM_READ16(
 	    pAd->EepromAccess = FALSE;
 	    AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
     }
-}
 #endif
     return data;
 }	//ReadEEprom
@@ -235,14 +231,11 @@ VOID RTMP_EEPROM_WRITE16(
 {
     UINT32 x;
 
-#ifdef RT30xx
+#ifdef RT2870
 	if (pAd->NicConfig2.field.AntDiversity)
     {
     	pAd->EepromAccess = TRUE;
     }
-	//2008/09/11:KH add to support efuse<--
-//2008/09/11:KH add to support efuse-->
-	{
 #endif
 	Offset /= 2;
 
@@ -278,7 +271,7 @@ VOID RTMP_EEPROM_WRITE16(
 
     EEpromCleanup(pAd);
 
-#ifdef RT30xx
+#ifdef RT2870
 	// Antenna and EEPROM access are both using EESK pin,
     // Therefor we should avoid accessing EESK at the same time
     // Then restore antenna after EEPROM access
@@ -287,7 +280,6 @@ VOID RTMP_EEPROM_WRITE16(
 	    pAd->EepromAccess = FALSE;
 	    AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
     }
-}
 #endif
 }
 

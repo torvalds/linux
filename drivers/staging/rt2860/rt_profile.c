@@ -1429,23 +1429,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 								DBGPRINT(RT_DEBUG_TRACE, ("TGnWifiTest=%d\n", pAd->StaCfg.bTGnWifiTest));
 						}
 					}
-
-#ifdef RT30xx
-						{
-							if(RTMPGetKeyParameter("AntDiversity", tmpbuf, 10, buffer))
-							{
-								for (i = 0, macptr = rstrtok(tmpbuf,";"); macptr; macptr = rstrtok(NULL,";"), i++)
-								{
-									if(simple_strtol(macptr, 0, 10) != 0)  //Enable
-										pAd->CommonCfg.bRxAntDiversity = TRUE;
-									else //Disable
-										pAd->CommonCfg.bRxAntDiversity = FALSE;
-
-									DBGPRINT(RT_DEBUG_ERROR, ("AntDiversity=%d\n", pAd->CommonCfg.bRxAntDiversity));
-								}
-							}
-						}
-#endif // RT30xx //
 				}
 			}
 			else

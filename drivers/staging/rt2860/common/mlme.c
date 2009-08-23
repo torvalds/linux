@@ -8004,7 +8004,7 @@ CHAR RTMPMaxRssi(
 	return larger;
 }
 
-#ifdef RT30xx
+#ifdef RT2870
 // Antenna divesity use GPIO3 and EESK pin for control
 // Antenna and EEPROM access are both using EESK pin,
 // Therefor we should avoid accessing EESK at the same time
@@ -8052,7 +8052,7 @@ VOID AsicSetRxAnt(
 		DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicSetRxAnt, switch to aux antenna\n"));
 	}
 }
-#endif /* RT30xx */
+#endif
 
 /*
     ========================================================================
@@ -8078,7 +8078,7 @@ VOID AsicEvaluateRxAnt(
 				fRTMP_ADAPTER_NIC_NOT_EXIST |
 				fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS)
 				|| OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
-#ifdef RT30xx
+#ifdef RT2870
 				|| (pAd->EepromAccess)
 #endif
 				)
@@ -8182,9 +8182,9 @@ VOID AsicRxAntEvalTimeout(
 							fRTMP_ADAPTER_RADIO_OFF			|
 							fRTMP_ADAPTER_NIC_NOT_EXIST)
 							|| OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
-#ifdef RT30xx
+#ifdef RT2870
 							|| (pAd->EepromAccess)
-#endif // RT30xx //
+#endif
 							)
 		return;
 
