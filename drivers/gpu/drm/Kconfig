@@ -116,6 +116,7 @@ endchoice
 config DRM_MGA
 	tristate "Matrox g200/g400"
 	depends on DRM
+	select FW_LOADER
 	help
 	  Choose this option if you have a Matrox G200, G400 or G450 graphics
 	  card.  If M is selected, the module will be called mga.  AGP

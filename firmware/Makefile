@@ -42,6 +42,7 @@ fw-shipped-$(CONFIG_COMPUTONE) += intelliport2.bin
 fw-shipped-$(CONFIG_CHELSIO_T3) += cxgb3/t3b_psram-1.1.0.bin \
 				   cxgb3/t3c_psram-1.1.0.bin \
 				   cxgb3/t3fw-7.4.0.bin
+fw-shipped-$(CONFIG_DRM_MGA) += matrox/g200_warp.fw matrox/g400_warp.fw
 fw-shipped-$(CONFIG_DVB_AV7110) += av7110/bootcode.bin
 fw-shipped-$(CONFIG_DVB_TTUSB_BUDGET) += ttusb-budget/dspbootcode.bin
 fw-shipped-$(CONFIG_E100) += e100/d101m_ucode.bin e100/d101s_ucode.bin \
