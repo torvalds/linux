@@ -1437,9 +1437,6 @@ int rt_ioctl_siwencode(struct net_device *dev,
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
         goto done;
 	} else if (
-#ifndef RT30xx
-		 erq->length == 0 &&
-#endif
 		 (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN)) {
 		STA_PORT_SECURED(pAdapter);
 		pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
@@ -1450,9 +1447,6 @@ int rt_ioctl_siwencode(struct net_device *dev,
 			pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeShared;
     	else
 			pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
-#ifndef RT30xx
-        goto done;
-#endif
 	}
 
     if (erq->length > 0)
@@ -1471,12 +1465,8 @@ int rt_ioctl_siwencode(struct net_device *dev,
             //Using default key
 			keyIdx = pAdapter->StaCfg.DefaultKeyId;
         }
-#ifdef RT30xx
 		else
-		{
 			pAdapter->StaCfg.DefaultKeyId=keyIdx;
-		}
-#endif
 
         NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 
