@@ -643,7 +643,7 @@ int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
-	req.qhdr = cpu_to_le64(NX_NIC_REQUEST << 23);
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
 
 	word = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
 	req.req_hdr = cpu_to_le64(word);
@@ -655,6 +655,35 @@ int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 		printk(KERN_ERR "ERROR. Could not send "
 			"interrupt coalescing parameters\n");
 	}
+
+	return rv;
+}
+
+int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv = 0;
+
+	if ((adapter->flags & NETXEN_NIC_LRO_ENABLED) == enable)
+		return 0;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_CONFIG_HW_LRO | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	req.words[0] = cpu_to_le64(enable);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "ERROR. Could not send "
+			"configure hw lro request\n");
+	}
+
+	adapter->flags ^= NETXEN_NIC_LRO_ENABLED;
 
 	return rv;
 }
@@ -749,6 +778,29 @@ int netxen_linkevent_request(struct netxen_adapter *adapter, int enable)
 				adapter->netdev->name);
 	}
 
+	return rv;
+}
+
+int netxen_send_lro_cleanup(struct netxen_adapter *adapter)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_LRO_REQUEST |
+		((u64)adapter->portnum << 16) |
+		((u64)NX_NIC_LRO_REQUEST_CLEANUP << 56) ;
+
+	req.req_hdr = cpu_to_le64(word);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "%s: could not cleanup lro flows\n",
+				adapter->netdev->name);
+	}
 	return rv;
 }
 
@@ -2066,6 +2118,8 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
 		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
+
+	adapter->flags &= ~NETXEN_NIC_LRO_ENABLED;
 }
 
 int

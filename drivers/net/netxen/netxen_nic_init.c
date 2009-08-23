@@ -1277,7 +1277,7 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 
 	napi_gro_receive(&sds_ring->napi, skb);
 
-	adapter->stats.no_rcv++;
+	adapter->stats.rx_pkts++;
 	adapter->stats.rxbytes += length;
 
 	return buffer;
@@ -1350,7 +1350,12 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	th->psh = push;
 	th->seq = htonl(seq_number);
 
+	length = skb->len;
+
 	netif_receive_skb(skb);
+
+	adapter->stats.lro_pkts++;
+	adapter->stats.rxbytes += length;
 
 	return buffer;
 }

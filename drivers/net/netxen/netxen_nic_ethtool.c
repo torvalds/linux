@@ -57,7 +57,8 @@ static const struct netxen_nic_stats netxen_nic_gstrings_stats[] = {
 	{"rx_dropped", NETXEN_NIC_STAT(stats.rxdropped)},
 	{"tx_dropped", NETXEN_NIC_STAT(stats.txdropped)},
 	{"csummed", NETXEN_NIC_STAT(stats.csummed)},
-	{"no_rcv", NETXEN_NIC_STAT(stats.no_rcv)},
+	{"rx_pkts", NETXEN_NIC_STAT(stats.rx_pkts)},
+	{"lro_pkts", NETXEN_NIC_STAT(stats.lro_pkts)},
 	{"rx_bytes", NETXEN_NIC_STAT(stats.rxbytes)},
 	{"tx_bytes", NETXEN_NIC_STAT(stats.txbytes)},
 };
@@ -941,6 +942,28 @@ static int netxen_get_intr_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static int netxen_nic_set_flags(struct net_device *netdev, u32 data)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	int hw_lro;
+
+	if (!(adapter->capabilities & NX_FW_CAPABILITY_HW_LRO))
+		return -EINVAL;
+
+	ethtool_op_set_flags(netdev, data);
+
+	hw_lro = (data & ETH_FLAG_LRO) ? NETXEN_NIC_LRO_ENABLED : 0;
+
+	if (netxen_config_hw_lro(adapter, hw_lro))
+		return -EIO;
+
+	if ((hw_lro == 0) && netxen_send_lro_cleanup(adapter))
+		return -EIO;
+
+
+	return 0;
+}
+
 struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_settings = netxen_nic_get_settings,
 	.set_settings = netxen_nic_set_settings,
@@ -968,4 +991,6 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_rx_csum = netxen_nic_set_rx_csum,
 	.get_coalesce = netxen_get_intr_coalesce,
 	.set_coalesce = netxen_set_intr_coalesce,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = netxen_nic_set_flags,
 };

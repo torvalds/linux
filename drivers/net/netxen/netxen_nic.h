@@ -576,7 +576,8 @@ struct netxen_adapter_stats {
 	u64  rxdropped;
 	u64  txdropped;
 	u64  csummed;
-	u64  no_rcv;
+	u64  rx_pkts;
+	u64  lro_pkts;
 	u64  rxbytes;
 	u64  txbytes;
 };
@@ -958,7 +959,8 @@ typedef struct {
 #define NX_NIC_H2C_OPCODE_PROXY_STOP_DONE		20
 #define NX_NIC_H2C_OPCODE_GET_LINKEVENT			21
 #define NX_NIC_C2C_OPCODE				22
-#define NX_NIC_H2C_OPCODE_LAST				23
+#define NX_NIC_H2C_OPCODE_CONFIG_HW_LRO			24
+#define NX_NIC_H2C_OPCODE_LAST				25
 
 /*
  * Firmware --> Driver
@@ -983,6 +985,19 @@ typedef struct {
 #define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
 #define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
 #define VPORT_MISS_MODE_ACCEPT_MULTI	2 /* accept unmatched multicast */
+
+#define NX_NIC_LRO_REQUEST_FIRST		0
+#define NX_NIC_LRO_REQUEST_ADD_FLOW		1
+#define NX_NIC_LRO_REQUEST_DELETE_FLOW		2
+#define NX_NIC_LRO_REQUEST_TIMER		3
+#define NX_NIC_LRO_REQUEST_CLEANUP		4
+#define NX_NIC_LRO_REQUEST_ADD_FLOW_SCHEDULED	5
+#define NX_TOE_LRO_REQUEST_ADD_FLOW		6
+#define NX_TOE_LRO_REQUEST_ADD_FLOW_RESPONSE	7
+#define NX_TOE_LRO_REQUEST_DELETE_FLOW		8
+#define NX_TOE_LRO_REQUEST_DELETE_FLOW_RESPONSE	9
+#define NX_TOE_LRO_REQUEST_TIMER		10
+#define NX_NIC_LRO_REQUEST_LAST			11
 
 #define NX_FW_CAPABILITY_LINK_NOTIFICATION	(1 << 5)
 #define NX_FW_CAPABILITY_SWITCHING		(1 << 6)
@@ -1064,6 +1079,7 @@ typedef struct {
 
 #define NETXEN_NIC_MSI_ENABLED		0x02
 #define NETXEN_NIC_MSIX_ENABLED		0x04
+#define NETXEN_NIC_LRO_ENABLED		0x08
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
@@ -1290,6 +1306,8 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
+int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable);
+int netxen_send_lro_cleanup(struct netxen_adapter *adapter);
 
 int netxen_nic_set_mac(struct net_device *netdev, void *p);
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);

@@ -892,6 +892,9 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_config_intr_coalesce(adapter);
 
+	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
+		netxen_config_hw_lro(adapter, NETXEN_NIC_LRO_ENABLED);
+
 	netxen_napi_enable(adapter);
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
@@ -1076,6 +1079,9 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_FVLANTX)
 		netdev->features |= (NETIF_F_HW_VLAN_TX);
+
+	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
+		netdev->features |= NETIF_F_LRO;
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
@@ -1812,7 +1818,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 
 	memset(stats, 0, sizeof(*stats));
 
-	stats->rx_packets = adapter->stats.no_rcv;
+	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;
 	stats->rx_bytes = adapter->stats.rxbytes;
 	stats->tx_bytes = adapter->stats.txbytes;
