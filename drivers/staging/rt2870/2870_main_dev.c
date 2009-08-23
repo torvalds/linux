@@ -50,6 +50,7 @@ MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
+MODULE_ALIAS("rt3070sta");
 
 /* Kernel thread and vars, which handles packets that are completed. Only
  * packets that have a "complete" function are sent here. This way, the
@@ -65,19 +66,15 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x1737, 0x0070) }, /* Linksys */
 	{ USB_DEVICE(0x148F, 0x2870) }, /* Ralink */
 	{ USB_DEVICE(0x148F, 0x3070) }, /* Ralink 3070 */
-#ifdef RT30xx
 	{ USB_DEVICE(0x148F, 0x3071) }, /* Ralink 3071 */
 	{ USB_DEVICE(0x148F, 0x3072) }, /* Ralink 3072 */
-#endif
 	{ USB_DEVICE(0x0B05, 0x1731) }, /* Asus */
 	{ USB_DEVICE(0x0B05, 0x1732) }, /* Asus */
 	{ USB_DEVICE(0x0B05, 0x1742) }, /* Asus */
 	{ USB_DEVICE(0x0DF6, 0x0017) }, /* Sitecom */
 	{ USB_DEVICE(0x0DF6, 0x002B) }, /* Sitecom */
 	{ USB_DEVICE(0x0DF6, 0x002C) }, /* Sitecom */
-#ifdef RT30xx
 	{ USB_DEVICE(0x0DF6, 0x003E) }, /* Sitecom 3070 */
-#endif
 	{ USB_DEVICE(0x0DF6, 0x002D) }, /* Sitecom */
 	{ USB_DEVICE(0x0DF6, 0x0039) }, /* Sitecom 2770 */
 	{ USB_DEVICE(0x0DF6, 0x003F) }, /* Sitecom WL-608 */
@@ -88,10 +85,8 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x2019, 0xAB25) }, /* Planex Communications, Inc. RT3070 */
 	{ USB_DEVICE(0x07D1, 0x3C09) }, /* D-Link */
 	{ USB_DEVICE(0x07D1, 0x3C11) }, /* D-Link */
-#ifdef RT30xx
 	{ USB_DEVICE(0x2001, 0x3C09) }, /* D-Link */
 	{ USB_DEVICE(0x2001, 0x3C0A) }, /* D-Link 3072*/
-#endif
 	{ USB_DEVICE(0x14B2, 0x3C07) }, /* AL */
 	{ USB_DEVICE(0x14B2, 0x3C12) }, /* AL 3070 */
 	{ USB_DEVICE(0x050D, 0x8053) }, /* Belkin */
@@ -104,34 +99,24 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x07AA, 0x003F) }, /* Corega */
 	{ USB_DEVICE(0x18C5, 0x0012) }, /* Corega 3070 */
 	{ USB_DEVICE(0x1044, 0x800B) }, /* Gigabyte */
-#ifdef RT30xx
 	{ USB_DEVICE(0x1044, 0x800D) }, /* Gigabyte GN-WB32L 3070 */
-#endif
 	{ USB_DEVICE(0x15A9, 0x0006) }, /* Sparklan */
 	{ USB_DEVICE(0x083A, 0xB522) }, /* SMC */
 	{ USB_DEVICE(0x083A, 0xA618) }, /* SMC */
-#ifdef RT30xx
 	{ USB_DEVICE(0x083A, 0x8522) }, /* Arcadyan */
 	{ USB_DEVICE(0x083A, 0x7512) }, /* Arcadyan 2770 */
-#endif
 	{ USB_DEVICE(0x083A, 0x7522) }, /* Arcadyan */
-#ifdef RT30xx
 	{ USB_DEVICE(0x083A, 0x7511) }, /* Arcadyan 3070 */
-#endif
 	{ USB_DEVICE(0x0CDE, 0x0022) }, /* ZCOM */
 	{ USB_DEVICE(0x0586, 0x3416) }, /* Zyxel */
 	{ USB_DEVICE(0x0CDE, 0x0025) }, /* Zyxel */
 	{ USB_DEVICE(0x1740, 0x9701) }, /* EnGenius */
 	{ USB_DEVICE(0x1740, 0x9702) }, /* EnGenius */
-#ifdef RT30xx
 	{ USB_DEVICE(0x1740, 0x9703) }, /* EnGenius 3070 */
-#endif
 	{ USB_DEVICE(0x0471, 0x200f) }, /* Philips */
 	{ USB_DEVICE(0x14B2, 0x3C25) }, /* Draytek */
 	{ USB_DEVICE(0x13D3, 0x3247) }, /* AzureWave */
-#ifdef RT30xx
 	{ USB_DEVICE(0x13D3, 0x3273) }, /* AzureWave 3070*/
-#endif
 	{ USB_DEVICE(0x083A, 0x6618) }, /* Accton */
 	{ USB_DEVICE(0x15c5, 0x0008) }, /* Amit */
 	{ USB_DEVICE(0x0E66, 0x0001) }, /* Hawking */
@@ -146,23 +131,17 @@ struct usb_device_id rtusb_usb_id[] = {
 	{ USB_DEVICE(0x07B8, 0x3071) }, /* AboCom 3071 */
 	{ USB_DEVICE(0x07B8, 0x2870) }, /* AboCom */
 	{ USB_DEVICE(0x07B8, 0x2770) }, /* AboCom */
-#ifdef RT30xx
 	{ USB_DEVICE(0x07B8, 0x3072) }, /* Abocom 3072 */
-#endif
 	{ USB_DEVICE(0x7392, 0x7711) }, /* Edimax 3070 */
 	{ USB_DEVICE(0x5A57, 0x0280) }, /* Zinwell */
 	{ USB_DEVICE(0x5A57, 0x0282) }, /* Zinwell */
-#ifdef RT30xx
 	{ USB_DEVICE(0x1A32, 0x0304) }, /* Quanta 3070 */
-#endif
 	{ USB_DEVICE(0x0789, 0x0162) }, /* Logitec 2870 */
 	{ USB_DEVICE(0x0789, 0x0163) }, /* Logitec 2870 */
 	{ USB_DEVICE(0x0789, 0x0164) }, /* Logitec 2870 */
 	{ USB_DEVICE(0x7392, 0x7717) }, /* Edimax */
-#ifdef RT30xx
 	{ USB_DEVICE(0x1EDA, 0x2310) }, /* AirTies 3070 */
 	{ USB_DEVICE(0x1737, 0x0077) }, /* Linksys WUSB54GC-EU v3 */
-#endif
 	{ } /* Terminating entry */
 };
 

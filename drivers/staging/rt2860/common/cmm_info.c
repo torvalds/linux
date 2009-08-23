@@ -1419,17 +1419,6 @@ VOID	RTMPSetHT(
 		pAd->CommonCfg.DesiredHtPhy.RxSTBC = 0;
 	}
 
-#ifndef RT30xx
-#ifdef RT2870
-	/* Frank recommend ,If not, Tx maybe block in high power. Rx has no problem*/
-	if(IS_RT3070(pAd) && ((pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020)))
-	{
-		pAd->CommonCfg.HtCapability.HtCapInfo.TxSTBC = 0;
-		pAd->CommonCfg.DesiredHtPhy.TxSTBC = 0;
-	}
-#endif // RT2870 //
-#endif
-
 	if(pHTPhyMode->SHORTGI == GI_400)
 	{
 		pAd->CommonCfg.HtCapability.HtCapInfo.ShortGIfor20 = 1;

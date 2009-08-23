@@ -391,14 +391,14 @@ typedef struct  _QUEUE_HEADER   {
     (_idx) = (_idx+1) % (_RingSize);       \
 }
 
-#ifdef RT30xx
+#ifdef RT2870
 // We will have a cost down version which mac version is 0x3090xxxx
 #define IS_RT3090(_pAd)				((((_pAd)->MACVersion & 0xffff0000) == 0x30710000) || (((_pAd)->MACVersion & 0xffff0000) == 0x30900000))
 #else
 #define IS_RT3090(_pAd)				0
 #endif
 #define IS_RT3070(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30700000)
-#ifdef RT30xx
+#ifdef RT2870
 #define IS_RT3071(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30710000)
 #define IS_RT30xx(_pAd)				(((_pAd)->MACVersion & 0xfff00000) == 0x30700000)
 #endif

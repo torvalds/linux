@@ -110,11 +110,9 @@ NTSTATUS RTUSBFirmwareWrite(
 	Status = RTUSBWriteMACRegister(pAd, 0x701c, 0xffffffff);
 	Status = RTUSBFirmwareRun(pAd);
 
-#ifdef RT30xx
 	RTMPusecDelay(10000);
 	RTUSBWriteMACRegister(pAd,H2M_MAILBOX_CSR,0);
 	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00);//reset rf by MCU supported by new firmware
-#endif
 
 	return Status;
 }

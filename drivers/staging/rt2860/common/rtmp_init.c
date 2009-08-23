@@ -38,16 +38,12 @@
     Jan Lee  2006-09-15    RT2860. Change for 802.11n , EEPROM, Led, BA, HT.
 */
 #include "../rt_config.h"
-#ifndef RT30xx
 #ifdef RT2860
 #include "firmware.h"
 #include <linux/bitrev.h>
 #endif
 #ifdef RT2870
-#include "../../rt2870/common/firmware.h"
-#endif
-#endif
-#ifdef RT30xx
+/* New firmware handles both RT2870 and RT3070. */
 #include "../../rt3070/firmware.h"
 #endif
 
@@ -147,12 +143,7 @@ REG_PAIR   RT30xx_RFRegTable[] = {
         {RF_R06,          0x02},
         {RF_R07,          0x70},
         {RF_R09,          0x0F},
-#ifndef RT30xx
-        {RF_R10,          0x71},
-#endif
-#ifdef RT30xx
         {RF_R10,          0x41},
-#endif
         {RF_R11,          0x21},
         {RF_R12,          0x7B},
         {RF_R14,          0x90},
@@ -165,9 +156,6 @@ REG_PAIR   RT30xx_RFRegTable[] = {
         {RF_R21,          0xDB},
         {RF_R24,          0x16},
         {RF_R25,          0x01},
-#ifndef RT30xx
-        {RF_R27,          0x03},
-#endif
         {RF_R29,          0x1F},
 };
 #define	NUM_RF_REG_PARMS	(sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR))
@@ -1107,7 +1095,7 @@ VOID RTMPFilterCalibration(
 	UCHAR	RF_R24_Value = 0;
 
 	// Give bbp filter initial value
-#ifndef RT30xx
+#ifndef RT2870
 	pAd->Mlme.CaliBW20RfR24 = 0x16;
 	pAd->Mlme.CaliBW40RfR24 = 0x36;  //Bit[5] must be 1 for BW 40
 #else
@@ -1131,7 +1119,7 @@ VOID RTMPFilterCalibration(
 			BBPValue&= (~0x18);
 			BBPValue|= (0x10);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, BBPValue);
-#ifdef RT30xx
+#ifdef RT2870
 			// set to BW40
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value |= 0x20;
@@ -1147,7 +1135,7 @@ VOID RTMPFilterCalibration(
 				FilterTarget = 0x13;
 			else
 				FilterTarget = 0x16;
-#ifdef RT30xx
+#ifdef RT2870
 			// set to BW20
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value &= (~0x20);
@@ -1263,20 +1251,13 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 	INT i;
 	// Driver must read EEPROM to get RfIcType before initial RF registers
 	// Initialize RF register to default value
-	if (IS_RT3070(pAd)
-#ifdef RT30xx
-	    || IS_RT3071(pAd)
-#else
-	    && (pAd->RfIcType == RFIC_3020 || pAd->RfIcType == RFIC_2020)
-#endif
-	   )
+	if (IS_RT3070(pAd) || IS_RT3071(pAd))
 	{
 		// Init RF calibration
 		// Driver should toggle RF R30 bit7 before init RF registers
 		UINT32 RfReg = 0;
-#ifdef RT30xx
 		UINT32 data;
-#endif
+
 		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR)&RfReg);
 		RfReg |= 0x80;
 		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
@@ -1290,7 +1271,6 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			RT30xxWriteRFRegister(pAd, RT30xx_RFRegTable[i].Register, RT30xx_RFRegTable[i].Value);
 		}
 
-#ifdef RT30xx
 		if (IS_RT3070(pAd))
 		{
 			//  Update MAC 0x05D4 from 01xxxxxx to 0Dxxxxxx (voltage 1.2V to 1.35V) for RT3070 to improve yield rate
@@ -1328,10 +1308,10 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			data &= ~(0x20);
 			RTUSBWriteMACRegister(pAd, GPIO_SWITCH, data);
 		}
-#endif
+
 		//For RF filter Calibration
 		RTMPFilterCalibration(pAd);
-#ifdef RT30xx
+
 		// Initialize RF R27 register, set RF R27 must be behind RTMPFilterCalibration()
 		if ((pAd->MACVersion & 0xffff) < 0x0211)
 			RT30xxWriteRFRegister(pAd, RF_R27, 0x3);
@@ -1346,7 +1326,6 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			// add by johnli, RF power sequence setup, load RF normal operation-mode setup
 			RT30xxLoadRFNormalModeSetup(pAd);
 		}
-#endif
 	}
 }
 #endif // RT2870 //
@@ -1567,9 +1546,6 @@ VOID	NICReadEEPROMParameters(
 	NicConfig2.word = pAd->EEPROMDefaultValue[1];
 
 	{
-#ifndef RT30xx
-		NicConfig2.word = 0;
-#endif
 		if ((NicConfig2.word & 0x00ff) == 0xff)
 		{
 			NicConfig2.word &= 0xff00;
@@ -1806,10 +1782,9 @@ VOID	NICInitAsicFromEEPROM(
 		}
 	}
 
-#ifndef RT30xx
+#ifndef RT2870
 	Antenna.word = pAd->Antenna.word;
-#endif
-#ifdef RT30xx
+#else
 	Antenna.word = pAd->EEPROMDefaultValue[0];
 	if (Antenna.word == 0xFFFF)
 	{
@@ -1820,7 +1795,7 @@ VOID	NICInitAsicFromEEPROM(
 	pAd->Mlme.RealRxPath = (UCHAR) Antenna.field.RxPath;
 	pAd->RfIcType = (UCHAR) Antenna.field.RfIcType;
 
-#ifdef RT30xx
+#ifdef RT2870
 	DBGPRINT(RT_DEBUG_WARN, ("pAd->RfIcType = %d, RealRxPath=%d, TxPath = %d\n", pAd->RfIcType, pAd->Mlme.RealRxPath,Antenna.field.TxPath));
 
 	// Save the antenna for future use
@@ -1828,7 +1803,7 @@ VOID	NICInitAsicFromEEPROM(
 #endif
 	NicConfig2.word = pAd->EEPROMDefaultValue[1];
 
-#ifdef RT30xx
+#ifdef RT2870
 	{
 		if ((NicConfig2.word & 0x00ff) == 0xff)
 		{
@@ -1844,7 +1819,7 @@ VOID	NICInitAsicFromEEPROM(
 	// Save the antenna for future use
 	pAd->NicConfig2.word = NicConfig2.word;
 
-#ifdef RT30xx
+#ifdef RT2870
 	// set default antenna as main
 	if (pAd->RfIcType == RFIC_3020)
 		AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
@@ -2251,20 +2226,7 @@ NDIS_STATUS	NICInitializeAsic(
 #endif // RT3070 //
 		RTMP_IO_WRITE32(pAd, (USHORT)MACRegTable[Index].Register, MACRegTable[Index].Value);
 	}
-
-#ifndef RT30xx
-	if(IS_RT3070(pAd))
-	{
-		// According to Frank Hsu (from Gary Tsao)
-		RTMP_IO_WRITE32(pAd, (USHORT)TX_SW_CFG0, 0x00000400);
-
-		// Initialize RT3070 serial MAC registers which is different from RT2870 serial
-		RTUSBWriteMACRegister(pAd, TX_SW_CFG1, 0);
-		RTUSBWriteMACRegister(pAd, TX_SW_CFG2, 0);
-	}
-#endif
 #endif // RT2870 //
-
 
 	{
 		for (Index = 0; Index < NUM_STA_MAC_REG_PARMS; Index++)
@@ -2300,7 +2262,7 @@ NDIS_STATUS	NICInitializeAsic(
 			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x0);
 		}
 	}
-#ifdef RT30xx
+#ifdef RT2870
 	else if (IS_RT3070(pAd))
 	{
 		RTMP_IO_WRITE32(pAd, TX_SW_CFG1, 0);
@@ -2347,22 +2309,11 @@ NDIS_STATUS	NICInitializeAsic(
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBPRegTable[Index].Register, BBPRegTable[Index].Value);
 	}
 
-#ifndef RT30xx
+#ifndef RT2870
 	// for rt2860E and after, init BBP_R84 with 0x19. This is for extension channel overlapping IOT.
 	if ((pAd->MACVersion&0xffff) != 0x0101)
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R84, 0x19);
-
-#ifdef RT2870
-	//write RT3070 BBP wchich different with 2870 after write RT2870 BBP
-	if (IS_RT3070(pAd))
-	{
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0a);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R84, 0x99);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R105, 0x05);
-	}
-#endif // RT2870 //
-#endif
-#ifdef RT30xx
+#else
 	// for rt2860E and after, init BBP_R84 with 0x19. This is for extension channel overlapping IOT.
 	// RT3090 should not program BBP R84 to 0x19, otherwise TX will block.
 	if (((pAd->MACVersion&0xffff) != 0x0101) && (!IS_RT30xx(pAd)))

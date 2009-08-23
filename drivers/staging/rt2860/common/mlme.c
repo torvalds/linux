@@ -5565,8 +5565,7 @@ VOID 	AsicUpdateProtect(
 	}
 }
 
-#ifdef RT30xx
-// add by johnli, RF power sequence setup
+#ifdef RT2870
 /*
 	==========================================================================
 	Description:
@@ -5721,8 +5720,7 @@ VOID RT30xxReverseRFSleepModeSetup(
 		RTMP_IO_WRITE32(pAd, LDO_CFG0, MACValue);
 	}
 }
-// end johnli
-#endif // RT30xx //
+#endif
 
 /*
 	==========================================================================
@@ -5764,9 +5762,7 @@ VOID AsicSwitchChannel(
 #ifdef RT2870
 	// The RF programming sequence is difference between 3xxx and 2xxx
 	if ((IS_RT3070(pAd) || IS_RT3090(pAd)) && (
-#ifdef RT30xx
 	     (pAd->RfIcType == RFIC_3022) || (pAd->RfIcType == RFIC_3021) ||
-#endif
 	     (pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020)))
 	{
 		/* modify by WY for Read RF Reg. error */
@@ -5789,7 +5785,6 @@ VOID AsicSwitchChannel(
 				RFValue = (RFValue & 0xE0) | TxPwer;
 				RT30xxWriteRFRegister(pAd, RF_R12, RFValue);
 
-#ifdef RT30xx
 				// Set Tx1 Power
 				RT30xxReadRFRegister(pAd, RF_R13, &RFValue);
 				RFValue = (RFValue & 0xE0) | TxPwer2;
@@ -5809,7 +5804,6 @@ VOID AsicSwitchChannel(
 				else if (pAd->Antenna.field.RxPath == 2)
 					RFValue |= 0x40;
 				RT30xxWriteRFRegister(pAd, RF_R01, RFValue);
-#endif
 
 				// Set RF offset
 				RT30xxReadRFRegister(pAd, RF_R23, &RFValue);
@@ -5827,9 +5821,8 @@ VOID AsicSwitchChannel(
 					RFValue = pAd->Mlme.CaliBW20RfR24;
 				}
 				RT30xxWriteRFRegister(pAd, RF_R24, RFValue);
-#ifdef RT30xx
 				RT30xxWriteRFRegister(pAd, RF_R31, RFValue);
-#endif
+
 				// Enable RF tuning
 				RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
 				RFValue = RFValue | 0x1;
@@ -5838,7 +5831,6 @@ VOID AsicSwitchChannel(
 				// latch channel for future usage.
 				pAd->LatchRfRegs.Channel = Channel;
 
-#ifdef RT30xx
 				DBGPRINT(RT_DEBUG_TRACE, ("SwitchChannel#%d(RF=%d, Pwr0=%d, Pwr1=%d, %dT), N=0x%02X, K=0x%02X, R=0x%02X\n",
 					Channel,
 					pAd->RfIcType,
@@ -5848,8 +5840,6 @@ VOID AsicSwitchChannel(
 					FreqItems3020[index].N,
 					FreqItems3020[index].K,
 					FreqItems3020[index].R));
-#endif
-
 				break;
 			}
 		}
@@ -6828,13 +6818,13 @@ VOID AsicSetEdcaParm(
 				Ac2Cfg.field.AcTxop = 5;
 			}
 
-#ifdef RT30xx
+#ifdef RT2870
 			if (pAd->RfIcType == RFIC_3020 || pAd->RfIcType == RFIC_2020)
 			{
 				// Tuning for WiFi WMM S3-T07: connexant legacy sta ==> broadcom 11n sta.
 				Ac2Cfg.field.Aifsn = 5;
 			}
-#endif // RT30xx //
+#endif
 		}
 
 		Ac3Cfg.field.AcTxop = pEdcaParm->Txop[QID_AC_VO];
@@ -6915,11 +6905,10 @@ VOID AsicSetEdcaParm(
 		}
 
 		AifsnCsr.field.Aifsn3 = Ac3Cfg.field.Aifsn - 1; //pEdcaParm->Aifsn[QID_AC_VO]; //for TGn wifi test
-#ifdef RT30xx
+#ifdef RT2870
 		if (pAd->RfIcType == RFIC_3020 || pAd->RfIcType == RFIC_2020)
 			AifsnCsr.field.Aifsn2 = 0x2; //pEdcaParm->Aifsn[QID_AC_VI]; //for WiFi WMM S4-T04.
-#endif // RT30xx //
-
+#endif
 		RTMP_IO_WRITE32(pAd, WMM_AIFSN_CFG, AifsnCsr.word);
 
 		NdisMoveMemory(&pAd->CommonCfg.APEdcaParm, pEdcaParm, sizeof(EDCA_PARM));
@@ -8493,12 +8482,7 @@ VOID AsicStaBbpTuning(
 #ifdef RT2870
 			// RT3070 is a no LNA solution, it should have different control regarding to AGC gain control
 			// Otherwise, it will have some throughput side effect when low RSSI
-#ifndef RT30xx
-			if (IS_RT3070(pAd))
-#endif
-#ifdef RT30xx
 			if (IS_RT30xx(pAd))
-#endif
 			{
 				if (Rssi > RSSI_FOR_MID_LOW_SENSIBILITY)
 				{

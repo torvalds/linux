@@ -349,11 +349,8 @@ extern UCHAR EpToQueue[6];
 	{	RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_PSPOLL);	\
 		RTUSBKickBulkOut(pAd); }
 
-#ifdef RT30xx
-#define RT28xx_CHIP_NAME            "RT3070"
-#else
-#define RT28xx_CHIP_NAME            "RT2870"
-#endif
+#define RT28xx_CHIP_NAME            "RTxx70"
+
 #define USB_CYC_CFG                 0x02a4
 #define STATUS_SUCCESS				0x00
 #define STATUS_UNSUCCESSFUL 		0x01
@@ -462,9 +459,7 @@ typedef struct   _RT_SET_ASIC_WCID {
 	ULONG WCID;          // mechanism for rekeying: 0:disable, 1: time-based, 2: packet-based
 	ULONG SetTid;        // time-based: seconds, packet-based: kilo-packets
 	ULONG DeleteTid;        // time-based: seconds, packet-based: kilo-packets
-#ifndef RT30xx
 	UCHAR Addr[MAC_ADDR_LEN];	// avoid in interrupt when write key
-#endif
 } RT_SET_ASIC_WCID,*PRT_SET_ASIC_WCID;
 
 typedef struct   _RT_SET_ASIC_WCID_ATTRI {

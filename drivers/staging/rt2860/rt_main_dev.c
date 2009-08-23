@@ -522,7 +522,7 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
 	AsicLockChannel(pAd, pAd->CommonCfg.Channel);
 
-#ifndef RT30xx
+#ifndef RT2870
 	// 8051 firmware require the signal during booting time.
 	AsicSendCommandToMcu(pAd, 0x72, 0xFF, 0x00, 0x00);
 #endif
