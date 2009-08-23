@@ -5756,7 +5756,6 @@ VOID AsicSwitchChannel(
 	RTMP_RF_REGS *RFRegTable;
 
 	// Search Tx power value
-#ifdef RT30xx
 	// We can't use ChannelList to search channel, since some central channl's txpowr doesn't list
 	// in ChannelList, so use TxPower array instead.
 	//
@@ -5769,17 +5768,6 @@ VOID AsicSwitchChannel(
 			break;
 		}
 	}
-#else
-	for (index = 0; index < pAd->ChannelListNum; index++)
-	{
-		if (Channel == pAd->ChannelList[index].Channel)
-		{
-			TxPwer = pAd->ChannelList[index].Power;
-			TxPwer2 = pAd->ChannelList[index].Power2;
-			break;
-		}
-	}
-#endif
 
 	if (index == MAX_NUM_OF_CHANNELS)
 		DBGPRINT(RT_DEBUG_ERROR, ("AsicSwitchChannel: Can't find the Channel#%d \n", Channel));
