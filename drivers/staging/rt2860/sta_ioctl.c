@@ -981,7 +981,6 @@ int rt_ioctl_giwscan(struct net_device *dev,
 
         previous_ev = current_ev;
 		current_ev = iwe_stream_add_event(info, current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
-#ifdef RT30xx
         if (current_ev == previous_ev)
 		return -E2BIG;
 
@@ -1057,7 +1056,6 @@ int rt_ioctl_giwscan(struct net_device *dev,
 
 		previous_ev = current_ev;
 		current_ev	 = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
-#endif /* RT30xx */
         if (current_ev == previous_ev)
 		return -E2BIG;
 
