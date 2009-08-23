@@ -53,6 +53,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
+#include "netxen_nic_hdr.h"
 #include "netxen_nic_hw.h"
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
@@ -226,8 +227,6 @@
 
 #define MPORT_SINGLE_FUNCTION_MODE 0x1111
 #define MPORT_MULTI_FUNCTION_MODE 0x2222
-
-#include "netxen_nic_phan_reg.h"
 
 /*
  * NetXen host-peg signal message structure
@@ -503,17 +502,11 @@ struct netxen_skb_frag {
 	u64 length;
 };
 
-#define _netxen_set_bits(config_word, start, bits, val)	{\
-	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));\
-	unsigned long long __tvalue = (val);    \
-	(config_word) &= ~__tmask;      \
-	(config_word) |= (((__tvalue) << (start)) & __tmask); \
-}
-
-#define _netxen_clear_bits(config_word, start, bits) {\
-	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));  \
-	(config_word) &= ~__tmask; \
-}
+struct netxen_recv_crb {
+	u32 crb_rcv_producer[NUM_RCV_DESC_RINGS];
+	u32 crb_sts_consumer[NUM_STS_DESC_RINGS];
+	u32 sw_int_mask[NUM_STS_DESC_RINGS];
+};
 
 /*    Following defines are for the state of the buffers    */
 #define	NETXEN_BUFFER_FREE	0
@@ -1193,6 +1186,18 @@ struct netxen_adapter {
 	u32 fw_version;
 	const struct firmware *fw;
 };
+
+/* Set promiscuous mode for a GbE interface */
+int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, u32 mode);
+int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
+		u32 mode);
+/* Generic enable for GbE ports. Will detect the speed of the link. */
+int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);
+int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
+
+/* Disable a GbE interface */
+int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter);
+int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
 
 int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);

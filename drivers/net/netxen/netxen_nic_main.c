@@ -33,7 +33,6 @@
 #include "netxen_nic_hw.h"
 
 #include "netxen_nic.h"
-#include "netxen_nic_phan_reg.h"
 
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>

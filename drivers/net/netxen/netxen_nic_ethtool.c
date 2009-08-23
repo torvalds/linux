@@ -37,7 +37,6 @@
 
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#include "netxen_nic_phan_reg.h"
 
 struct netxen_nic_stats {
 	char stat_string[ETH_GSTRING_LEN];

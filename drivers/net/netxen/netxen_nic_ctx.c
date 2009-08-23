@@ -30,7 +30,6 @@
 
 #include "netxen_nic_hw.h"
 #include "netxen_nic.h"
-#include "netxen_nic_phan_reg.h"
 
 #define NXHAL_VERSION	1
 

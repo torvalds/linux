@@ -31,8 +31,6 @@
 #ifndef __NETXEN_NIC_HW_H_
 #define __NETXEN_NIC_HW_H_
 
-#include "netxen_nic_hdr.h"
-
 /* Hardware memory size of 128 meg */
 #define NETXEN_MEMADDR_MAX (128 * 1024 * 1024)
 
@@ -386,22 +384,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 
 #define netxen_xg_soft_reset(config_word)	\
 		((config_word) |= 1 << 4)
-
-/* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
-				    u32 mode);
-int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-				       u32 mode);
-
-/* Generic enable for GbE ports. Will detect the speed of the link. */
-int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);
-
-int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
-
-/* Disable a GbE interface */
-int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter);
-
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
 
 typedef struct {
 	unsigned valid;

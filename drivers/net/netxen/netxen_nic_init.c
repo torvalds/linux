@@ -32,7 +32,6 @@
 #include <linux/delay.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#include "netxen_nic_phan_reg.h"
 
 struct crb_addr_pair {
 	u32 addr;
