@@ -7096,7 +7096,6 @@ VOID 	AsicSetSlotTime(
 	SlotTime = (bUseShortSlotTime)? 9 : 20;
 
 	{
-#ifndef RT30xx
 		// force using short SLOT time for FAE to demo performance when TxBurst is ON
 		if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
 			|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE))
@@ -7106,10 +7105,6 @@ VOID 	AsicSetSlotTime(
 			// And we will not set to short slot when bEnableTxBurst is TRUE.
 		}
 		else if (pAd->CommonCfg.bEnableTxBurst)
-#endif
-#ifdef RT30xx
-		if (pAd->CommonCfg.bEnableTxBurst)
-#endif
 			SlotTime = 9;
 	}
 
