@@ -3,7 +3,9 @@
  *
  * This file is released under the GPLv2
  */
-#include <asm-generic/device.h>
+
+struct dev_archdata {
+};
 
 struct platform_device;
 /* allocate contiguous memory chunk and fill in struct resource */
@@ -12,3 +14,6 @@ int platform_resource_setup_memory(struct platform_device *pdev,
 
 void plat_early_device_setup(void);
 
+struct pdev_archdata {
+	int hwblk_id;
+};

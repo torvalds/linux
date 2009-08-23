@@ -360,16 +360,6 @@ config USB_M66592
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config SUPERH_BUILT_IN_M66592
-	boolean "Enable SuperH built-in USB like the M66592"
-	depends on USB_GADGET_M66592 && CPU_SUBTYPE_SH7722
-	help
-	   SH7722 has USB like the M66592.
-
-	   The transfer rate is very slow when use "Ethernet Gadget".
-	   However, this problem is improved if change a value of
-	   NET_IP_ALIGN to 4.
-
 #
 # Controllers available only in discrete form (and all PCI controllers)
 #

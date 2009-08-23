@@ -1,5 +1,5 @@
 /*
- * arch/sh/kernel/cpu/sh4a/pm-sh_mobile.c
+ * arch/sh/kernel/cpu/shmobile/pm.c
  *
  * Power management support code for SuperH Mobile
  *
@@ -32,20 +32,17 @@
  *
  * R-standby mode is unsupported, but will be added in the future
  * U-standby mode is low priority since it needs bootloader hacks
- *
- * All modes should be tied in with cpuidle. But before that can
- * happen we need to keep track of enabled hardware blocks so we
- * can avoid entering sleep modes that stop clocks to hardware
- * blocks that are in use even though the cpu core is idle.
  */
+
+#define ILRAM_BASE 0xe5200000
 
 extern const unsigned char sh_mobile_standby[];
 extern const unsigned int sh_mobile_standby_size;
 
-static void sh_mobile_call_standby(unsigned long mode)
+void sh_mobile_call_standby(unsigned long mode)
 {
 	extern void *vbr_base;
-	void *onchip_mem = (void *)0xe5200000; /* ILRAM */
+	void *onchip_mem = (void *)ILRAM_BASE;
 	void (*standby_onchip_mem)(unsigned long) = onchip_mem;
 
 	/* Note: Wake up from sleep may generate exceptions!
@@ -54,11 +51,6 @@ static void sh_mobile_call_standby(unsigned long mode)
 	 */
 	if (mode & SUSP_SH_SF)
 		asm volatile("ldc %0, vbr" : : "r" (onchip_mem) : "memory");
-
-	/* Copy the assembly snippet to the otherwise ununsed ILRAM */
-	memcpy(onchip_mem, sh_mobile_standby, sh_mobile_standby_size);
-	wmb();
-	ctrl_barrier();
 
 	/* Let assembly snippet in on-chip memory handle the rest */
 	standby_onchip_mem(mode);
@@ -85,7 +77,15 @@ static struct platform_suspend_ops sh_pm_ops = {
 
 static int __init sh_pm_init(void)
 {
+	void *onchip_mem = (void *)ILRAM_BASE;
+
+	/* Copy the assembly snippet to the otherwise ununsed ILRAM */
+	memcpy(onchip_mem, sh_mobile_standby, sh_mobile_standby_size);
+	wmb();
+	ctrl_barrier();
+
 	suspend_set_ops(&sh_pm_ops);
+	sh_mobile_setup_cpuidle();
 	return 0;
 }
 

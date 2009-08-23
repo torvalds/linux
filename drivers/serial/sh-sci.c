@@ -662,10 +662,11 @@ static irqreturn_t sci_rx_interrupt(int irq, void *port)
 static irqreturn_t sci_tx_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
+	unsigned long flags;
 
-	spin_lock_irq(&port->lock);
+	spin_lock_irqsave(&port->lock, flags);
 	sci_transmit_chars(port);
-	spin_unlock_irq(&port->lock);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	return IRQ_HANDLED;
 }

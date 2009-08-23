@@ -106,8 +106,8 @@ EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(clear_user_page);
 #endif
 
-#ifdef CONFIG_FUNCTION_TRACER
-EXPORT_SYMBOL(mcount);
+#ifdef CONFIG_MCOUNT
+DECLARE_EXPORT(mcount);
 #endif
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
