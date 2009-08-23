@@ -422,6 +422,14 @@ static __inline__ void r128_update_ring_snapshot(drm_r128_private_t * dev_priv)
  * Misc helper macros
  */
 
+#define DEV_INIT_TEST_WITH_RETURN(_dev_priv)				\
+do {									\
+	if (!_dev_priv) {						\
+		DRM_ERROR("called with no initialization\n");		\
+		return -EINVAL;						\
+	}								\
+} while (0)
+
 #define RING_SPACE_TEST_WITH_RETURN( dev_priv )				\
 do {									\
 	drm_r128_ring_buffer_t *ring = &dev_priv->ring; int i;		\
