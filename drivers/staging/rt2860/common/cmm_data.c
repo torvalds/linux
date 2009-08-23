@@ -252,114 +252,6 @@ NDIS_STATUS MiniportMMRequestUnlock(
 	return Status;
 }
 #endif
-#ifdef RT30xx
-NDIS_STATUS MlmeDataHardTransmit(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR	QueIdx,
-	IN	PNDIS_PACKET	pPacket);
-
-#define MAX_DATAMM_RETRY	3
-/*
-	========================================================================
-
-	Routine Description:
-		API for MLME to transmit management frame to AP (BSS Mode)
-	or station (IBSS Mode)
-
-	Arguments:
-		pAd Pointer to our adapter
-		pData		Pointer to the outgoing 802.11 frame
-		Length		Size of outgoing management frame
-
-	Return Value:
-		NDIS_STATUS_FAILURE
-		NDIS_STATUS_PENDING
-		NDIS_STATUS_SUCCESS
-
-	IRQL = PASSIVE_LEVEL
-	IRQL = DISPATCH_LEVEL
-
-	Note:
-
-	========================================================================
-*/
-NDIS_STATUS MiniportDataMMRequest(
-							 IN  PRTMP_ADAPTER   pAd,
-							 IN  UCHAR           QueIdx,
-							 IN  PUCHAR          pData,
-							 IN  UINT            Length)
-{
-	PNDIS_PACKET    pPacket;
-	NDIS_STATUS  Status = NDIS_STATUS_SUCCESS;
-	ULONG    FreeNum;
-	int 	retry = 0;
-	UCHAR           IrqState;
-	UCHAR			rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE]; //RTMP_HW_HDR_LEN];
-
-	ASSERT(Length <= MGMT_DMA_BUFFER_SIZE);
-
-	// 2860C use Tx Ring
-	IrqState = pAd->irq_disabled;
-
-	do
-	{
-		// Reset is in progress, stop immediately
-		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS) ||
-			 RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST)||
-			!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_START_UP))
-		{
-			Status = NDIS_STATUS_FAILURE;
-			break;
-		}
-
-		// Check Free priority queue
-		// Since we use PBF Queue2 for management frame.  Its corresponding DMA ring should be using TxRing.
-
-		// 2860C use Tx Ring
-
-		// free Tx(QueIdx) resources
-		FreeNum = GET_TXRING_FREENO(pAd, QueIdx);
-
-		if ((FreeNum > 0))
-		{
-			// We need to reserve space for rtmp hardware header. i.e., TxWI for RT2860 and TxInfo+TxWI for RT2870
-			NdisZeroMemory(&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE));
-			Status = RTMPAllocateNdisPacket(pAd, &pPacket, (PUCHAR)&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE), pData, Length);
-			if (Status != NDIS_STATUS_SUCCESS)
-			{
-				DBGPRINT(RT_DEBUG_WARN, ("MiniportMMRequest (error:: can't allocate NDIS PACKET)\n"));
-				break;
-			}
-
-			//pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_CCK;
-			//pAd->CommonCfg.MlmeRate = RATE_2;
-
-
-			Status = MlmeDataHardTransmit(pAd, QueIdx, pPacket);
-			if (Status != NDIS_STATUS_SUCCESS)
-				RTMPFreeNdisPacket(pAd, pPacket);
-			retry = MAX_DATAMM_RETRY;
-		}
-		else
-		{
-			retry ++;
-
-			printk("retry %d\n", retry);
-			pAd->RalinkCounters.MgmtRingFullCount++;
-
-			if (retry >= MAX_DATAMM_RETRY)
-			{
-				DBGPRINT(RT_DEBUG_ERROR, ("Qidx(%d), not enough space in DataRing, MgmtRingFullCount=%ld!\n",
-											QueIdx, pAd->RalinkCounters.MgmtRingFullCount));
-			}
-		}
-
-	} while (retry < MAX_DATAMM_RETRY);
-
-
-	return Status;
-}
-#endif /* RT30xx */
 
 /*
 	========================================================================
@@ -587,24 +479,6 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 	return NDIS_STATUS_SUCCESS;
 }
 #endif /* RT2860 */
-
-#ifdef RT30xx
-NDIS_STATUS MlmeDataHardTransmit(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR	QueIdx,
-	IN	PNDIS_PACKET	pPacket)
-{
-	if ((pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)
-		)
-	{
-		return NDIS_STATUS_FAILURE;
-	}
-
-#ifdef RT2870
-	return MlmeHardTransmitMgmtRing(pAd,QueIdx,pPacket);
-#endif // RT2870 //
-}
-#endif /* RT30xx */
 
 NDIS_STATUS MlmeHardTransmitMgmtRing(
 	IN	PRTMP_ADAPTER	pAd,

@@ -3562,13 +3562,7 @@ NDIS_STATUS MiniportMMRequest(
 	IN	UCHAR			QueIdx,
 	IN	PUCHAR			pData,
 	IN  UINT            Length);
-#ifdef RT2870
-NDIS_STATUS MiniportDataMMRequest(
-	 IN  PRTMP_ADAPTER   pAd,
-	 IN  UCHAR           QueIdx,
-	 IN  PUCHAR          pData,
-	 IN  UINT            Length);
-#endif
+
 VOID RTMPSendNullFrame(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  UCHAR           TxRate,
