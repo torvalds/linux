@@ -529,11 +529,13 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 	}
 
 	/* Enable transmitter and receiver */
+	tx &= 1;
 	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w | (tx & 1));
+	OMAP_MCBSP_WRITE(io_base, SPCR2, w | tx);
 
+	rx &= 1;
 	w = OMAP_MCBSP_READ(io_base, SPCR1);
-	OMAP_MCBSP_WRITE(io_base, SPCR1, w | (rx & 1));
+	OMAP_MCBSP_WRITE(io_base, SPCR1, w | rx);
 
 	/*
 	 * Worst case: CLKSRG*2 = 8000khz: (1/8000) * 2 * 2 usec
@@ -547,6 +549,16 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 		/* Start frame sync */
 		w = OMAP_MCBSP_READ(io_base, SPCR2);
 		OMAP_MCBSP_WRITE(io_base, SPCR2, w | (1 << 7));
+	}
+
+	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
+		/* Release the transmitter and receiver */
+		w = OMAP_MCBSP_READ(io_base, XCCR);
+		w &= ~(tx ? XDISABLE : 0);
+		OMAP_MCBSP_WRITE(io_base, XCCR, w);
+		w = OMAP_MCBSP_READ(io_base, RCCR);
+		w &= ~(rx ? RDISABLE : 0);
+		OMAP_MCBSP_WRITE(io_base, RCCR, w);
 	}
 
 	/* Dump McBSP Regs */
@@ -570,12 +582,24 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 	io_base = mcbsp->io_base;
 
 	/* Reset transmitter */
+	tx &= 1;
+	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
+		w = OMAP_MCBSP_READ(io_base, XCCR);
+		w |= (tx ? XDISABLE : 0);
+		OMAP_MCBSP_WRITE(io_base, XCCR, w);
+	}
 	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~(tx & 1));
+	OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~tx);
 
 	/* Reset receiver */
+	rx &= 1;
+	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
+		w = OMAP_MCBSP_READ(io_base, RCCR);
+		w |= (tx ? RDISABLE : 0);
+		OMAP_MCBSP_WRITE(io_base, RCCR, w);
+	}
 	w = OMAP_MCBSP_READ(io_base, SPCR1);
-	OMAP_MCBSP_WRITE(io_base, SPCR1, w & ~(rx & 1));
+	OMAP_MCBSP_WRITE(io_base, SPCR1, w & ~rx);
 
 	idle = !((OMAP_MCBSP_READ(io_base, SPCR2) |
 		  OMAP_MCBSP_READ(io_base, SPCR1)) & 1);
@@ -587,58 +611,6 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 	}
 }
 EXPORT_SYMBOL(omap_mcbsp_stop);
-
-void omap_mcbsp_xmit_enable(unsigned int id, u8 enable)
-{
-	struct omap_mcbsp *mcbsp;
-	void __iomem *io_base;
-	u16 w;
-
-	if (!(cpu_is_omap2430() || cpu_is_omap34xx()))
-		return;
-
-	if (!omap_mcbsp_check_valid_id(id)) {
-		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
-		return;
-	}
-
-	mcbsp = id_to_mcbsp_ptr(id);
-	io_base = mcbsp->io_base;
-
-	w = OMAP_MCBSP_READ(io_base, XCCR);
-
-	if (enable)
-		OMAP_MCBSP_WRITE(io_base, XCCR, w & ~(XDISABLE));
-	else
-		OMAP_MCBSP_WRITE(io_base, XCCR, w | XDISABLE);
-}
-EXPORT_SYMBOL(omap_mcbsp_xmit_enable);
-
-void omap_mcbsp_recv_enable(unsigned int id, u8 enable)
-{
-	struct omap_mcbsp *mcbsp;
-	void __iomem *io_base;
-	u16 w;
-
-	if (!(cpu_is_omap2430() || cpu_is_omap34xx()))
-		return;
-
-	if (!omap_mcbsp_check_valid_id(id)) {
-		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
-		return;
-	}
-
-	mcbsp = id_to_mcbsp_ptr(id);
-	io_base = mcbsp->io_base;
-
-	w = OMAP_MCBSP_READ(io_base, RCCR);
-
-	if (enable)
-		OMAP_MCBSP_WRITE(io_base, RCCR, w & ~(RDISABLE));
-	else
-		OMAP_MCBSP_WRITE(io_base, RCCR, w | RDISABLE);
-}
-EXPORT_SYMBOL(omap_mcbsp_recv_enable);
 
 /* polled mcbsp i/o operations */
 int omap_mcbsp_pollwrite(unsigned int id, u16 buf)

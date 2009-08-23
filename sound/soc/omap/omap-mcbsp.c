@@ -231,11 +231,6 @@ static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		mcbsp_data->active++;
 		omap_mcbsp_start(mcbsp_data->bus_id, play, !play);
-		/* Make sure data transfer is frame synchronized */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			omap_mcbsp_xmit_enable(mcbsp_data->bus_id, 1);
-		else
-			omap_mcbsp_recv_enable(mcbsp_data->bus_id, 1);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
