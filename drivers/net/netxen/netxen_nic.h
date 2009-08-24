@@ -964,6 +964,7 @@ typedef struct {
 #define NX_NIC_H2C_OPCODE_PROXY_STOP_DONE		20
 #define NX_NIC_H2C_OPCODE_GET_LINKEVENT			21
 #define NX_NIC_C2C_OPCODE				22
+#define NX_NIC_H2C_OPCODE_CONFIG_BRIDGING               23
 #define NX_NIC_H2C_OPCODE_CONFIG_HW_LRO			24
 #define NX_NIC_H2C_OPCODE_LAST				25
 
@@ -1085,6 +1086,7 @@ typedef struct {
 #define NETXEN_NIC_MSI_ENABLED		0x02
 #define NETXEN_NIC_MSIX_ENABLED		0x04
 #define NETXEN_NIC_LRO_ENABLED		0x08
+#define NETXEN_NIC_BRIDGE_ENABLED       0X10
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
@@ -1332,6 +1334,7 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable);
+int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable);
 int netxen_send_lro_cleanup(struct netxen_adapter *adapter);
 
 int netxen_nic_set_mac(struct net_device *netdev, void *p);

@@ -794,6 +794,37 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 	return rv;
 }
 
+int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv = 0;
+
+	if (!!(adapter->flags & NETXEN_NIC_BRIDGE_ENABLED) == enable)
+		return rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_CONFIG_BRIDGING |
+		((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	req.words[0] = cpu_to_le64(enable);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "ERROR. Could not send "
+				"configure bridge mode request\n");
+	}
+
+	adapter->flags ^= NETXEN_NIC_BRIDGE_ENABLED;
+
+	return rv;
+}
+
+
 #define RSS_HASHTYPE_IP_TCP	0x3
 
 int netxen_config_rss(struct netxen_adapter *adapter, int enable)

@@ -71,6 +71,10 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
 #endif
+
+static void netxen_create_sysfs_entries(struct netxen_adapter *adapter);
+static void netxen_remove_sysfs_entries(struct netxen_adapter *adapter);
+
 static irqreturn_t netxen_intr(int irq, void *data);
 static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
@@ -93,8 +97,6 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, netxen_pci_tbl);
-
-static void netxen_watchdog(unsigned long);
 
 static uint32_t crb_cmd_producer[4] = {
 	CRB_CMD_PRODUCER_OFFSET, CRB_CMD_PRODUCER_OFFSET_1,
@@ -995,6 +997,8 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_nic_init_coalesce_defaults(adapter);
 
+	netxen_create_sysfs_entries(adapter);
+
 	adapter->is_up = NETXEN_ADAPTER_UP_MAGIC;
 	return 0;
 
@@ -1011,6 +1015,8 @@ netxen_nic_detach(struct netxen_adapter *adapter)
 {
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return;
+
+	netxen_remove_sysfs_entries(adapter);
 
 	netxen_free_hw_resources(adapter);
 	netxen_release_rx_buffers(adapter);
@@ -1958,6 +1964,80 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 	enable_irq(adapter->irq);
 }
 #endif
+
+static ssize_t
+netxen_store_bridged_mode(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct net_device *net = to_net_dev(dev);
+	struct netxen_adapter *adapter = netdev_priv(net);
+	unsigned long new;
+	int ret = -EINVAL;
+
+	if (!(adapter->capabilities & NX_FW_CAPABILITY_BDG))
+		goto err_out;
+
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		goto err_out;
+
+	if (strict_strtoul(buf, 2, &new))
+		goto err_out;
+
+	if (!netxen_config_bridged_mode(adapter, !!new))
+		ret = len;
+
+err_out:
+	return ret;
+}
+
+static ssize_t
+netxen_show_bridged_mode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct net_device *net = to_net_dev(dev);
+	struct netxen_adapter *adapter;
+	int bridged_mode = 0;
+
+	adapter = netdev_priv(net);
+
+	if (adapter->capabilities & NX_FW_CAPABILITY_BDG)
+		bridged_mode = !!(adapter->flags & NETXEN_NIC_BRIDGE_ENABLED);
+
+	return sprintf(buf, "%d\n", bridged_mode);
+}
+
+static struct device_attribute dev_attr_bridged_mode = {
+       .attr = {.name = "bridged_mode", .mode = (S_IRUGO | S_IWUSR)},
+       .show = netxen_show_bridged_mode,
+       .store = netxen_store_bridged_mode,
+};
+
+static void
+netxen_create_sysfs_entries(struct netxen_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct device *dev = &netdev->dev;
+
+	if (adapter->capabilities & NX_FW_CAPABILITY_BDG) {
+		/* bridged_mode control */
+		if (device_create_file(dev, &dev_attr_bridged_mode)) {
+			dev_warn(&netdev->dev,
+				"failed to create bridged_mode sysfs entry\n");
+		}
+	}
+}
+
+static void
+netxen_remove_sysfs_entries(struct netxen_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct device *dev = &netdev->dev;
+
+	if (adapter->capabilities & NX_FW_CAPABILITY_BDG)
+		device_remove_file(dev, &dev_attr_bridged_mode);
+}
+
+static void netxen_watchdog(unsigned long);
 
 #ifdef CONFIG_INET
 
