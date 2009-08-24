@@ -8,6 +8,8 @@
 #include <asm/ptrace.h>
 
 
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+
 extern void syscall_regfunc(void);
 extern void syscall_unregfunc(void);
 
@@ -24,6 +26,8 @@ DECLARE_TRACE_WITH_CALLBACK(syscall_exit,
 	syscall_regfunc,
 	syscall_unregfunc
 );
+
+#endif
 
 /*
  * A syscall entry in the ftrace syscalls array.

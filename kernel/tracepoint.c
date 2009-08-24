@@ -576,7 +576,7 @@ __initcall(init_tracepoints);
 
 #endif /* CONFIG_MODULES */
 
-#ifdef CONFIG_FTRACE_SYSCALLS
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 
 static DEFINE_MUTEX(regfunc_mutex);
 static int sys_tracepoint_refcount;
