@@ -77,7 +77,7 @@ static unsigned long ack_handle[NR_IRQS];
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
 	struct irq_chip *chip = get_irq_chip(irq);
-	return (void *)((char *)chip - offsetof(struct intc_desc_int, chip));
+	return container_of(chip, struct intc_desc_int, chip);
 }
 
 static inline unsigned int set_field(unsigned int value,
@@ -95,16 +95,19 @@ static inline unsigned int set_field(unsigned int value,
 static void write_8(unsigned long addr, unsigned long h, unsigned long data)
 {
 	__raw_writeb(set_field(0, data, h), addr);
+	(void)__raw_readb(addr);	/* Defeat write posting */
 }
 
 static void write_16(unsigned long addr, unsigned long h, unsigned long data)
 {
 	__raw_writew(set_field(0, data, h), addr);
+	(void)__raw_readw(addr);	/* Defeat write posting */
 }
 
 static void write_32(unsigned long addr, unsigned long h, unsigned long data)
 {
 	__raw_writel(set_field(0, data, h), addr);
+	(void)__raw_readl(addr);	/* Defeat write posting */
 }
 
 static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
@@ -112,6 +115,7 @@ static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writeb(set_field(__raw_readb(addr), data, h), addr);
+	(void)__raw_readb(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
 }
 
@@ -120,6 +124,7 @@ static void modify_16(unsigned long addr, unsigned long h, unsigned long data)
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writew(set_field(__raw_readw(addr), data, h), addr);
+	(void)__raw_readw(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
 }
 
@@ -128,6 +133,7 @@ static void modify_32(unsigned long addr, unsigned long h, unsigned long data)
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writel(set_field(__raw_readl(addr), data, h), addr);
+	(void)__raw_readl(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
 }
 
