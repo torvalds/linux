@@ -259,6 +259,18 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 	return !list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Do CPU-offline processing for preemptable RCU.
+ */
+static void rcu_preempt_offline_cpu(int cpu)
+{
+	__rcu_offline_cpu(cpu, &rcu_preempt_state);
+}
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
 /*
  * Check for a quiescent state from the current CPU.  When a task blocks,
  * the task is recorded in the corresponding CPU's rcu_node structure,
@@ -394,6 +406,18 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 {
 	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Because preemptable RCU does not exist, it never needs CPU-offline
+ * processing.
+ */
+static void rcu_preempt_offline_cpu(int cpu)
+{
+}
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Because preemptable RCU does not exist, it never has any callbacks
