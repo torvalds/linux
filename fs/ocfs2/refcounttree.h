@@ -33,4 +33,11 @@ struct ocfs2_refcount_tree {
 	struct super_block *rf_sb;
 };
 
+void ocfs2_purge_refcount_trees(struct ocfs2_super *osb);
+int ocfs2_lock_refcount_tree(struct ocfs2_super *osb, u64 ref_blkno, int rw,
+			     struct ocfs2_refcount_tree **tree,
+			     struct buffer_head **ref_bh);
+void ocfs2_unlock_refcount_tree(struct ocfs2_super *osb,
+				struct ocfs2_refcount_tree *tree,
+				int rw);
 #endif /* OCFS2_REFCOUNTTREE_H */
