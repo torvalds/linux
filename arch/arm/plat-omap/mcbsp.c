@@ -1161,25 +1161,31 @@ static DEVICE_ATTR(prop, 0644, prop##_show, prop##_store);
 THRESHOLD_PROP_BUILDER(max_tx_thres);
 THRESHOLD_PROP_BUILDER(max_rx_thres);
 
+static const char *dma_op_modes[] = {
+	"element", "threshold", "frame",
+};
+
 static ssize_t dma_op_mode_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
-	int dma_op_mode;
+	int dma_op_mode, i = 0;
+	ssize_t len = 0;
+	const char * const *s;
 
 	spin_lock_irq(&mcbsp->lock);
 	dma_op_mode = mcbsp->dma_op_mode;
 	spin_unlock_irq(&mcbsp->lock);
 
-	return sprintf(buf, "current mode: %d\n"
-			"possible mode values are:\n"
-			"%d - %s\n"
-			"%d - %s\n"
-			"%d - %s\n",
-			dma_op_mode,
-			MCBSP_DMA_MODE_ELEMENT, "element mode",
-			MCBSP_DMA_MODE_THRESHOLD, "threshold mode",
-			MCBSP_DMA_MODE_FRAME, "frame mode");
+	for (s = &dma_op_modes[i]; i < ARRAY_SIZE(dma_op_modes); s++, i++) {
+		if (dma_op_mode == i)
+			len += sprintf(buf + len, "[%s] ", *s);
+		else
+			len += sprintf(buf + len, "%s ", *s);
+	}
+	len += sprintf(buf + len, "\n");
+
+	return len;
 }
 
 static ssize_t dma_op_mode_store(struct device *dev,
@@ -1187,26 +1193,22 @@ static ssize_t dma_op_mode_store(struct device *dev,
 				const char *buf, size_t size)
 {
 	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
-	unsigned long val;
-	int status;
+	const char * const *s;
+	int i = 0;
 
-	status = strict_strtoul(buf, 0, &val);
-	if (status)
-		return status;
+	for (s = &dma_op_modes[i]; i < ARRAY_SIZE(dma_op_modes); s++, i++)
+		if (sysfs_streq(buf, *s))
+			break;
+
+	if (i == ARRAY_SIZE(dma_op_modes))
+		return -EINVAL;
 
 	spin_lock_irq(&mcbsp->lock);
-
 	if (!mcbsp->free) {
 		size = -EBUSY;
 		goto unlock;
 	}
-
-	if (val > MCBSP_DMA_MODE_FRAME || val < MCBSP_DMA_MODE_ELEMENT) {
-		size = -EINVAL;
-		goto unlock;
-	}
-
-	mcbsp->dma_op_mode = val;
+	mcbsp->dma_op_mode = i;
 
 unlock:
 	spin_unlock_irq(&mcbsp->lock);
