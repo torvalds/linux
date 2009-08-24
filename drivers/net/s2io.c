@@ -125,7 +125,7 @@ static inline int is_s2io_card_up(const struct s2io_nic * sp)
 }
 
 /* Ethtool related variables and Macros. */
-static char s2io_gstrings[][ETH_GSTRING_LEN] = {
+static const char s2io_gstrings[][ETH_GSTRING_LEN] = {
 	"Register test\t(offline)",
 	"Eeprom test\t(offline)",
 	"Link test\t(online)",
@@ -133,7 +133,7 @@ static char s2io_gstrings[][ETH_GSTRING_LEN] = {
 	"BIST Test\t(offline)"
 };
 
-static char ethtool_xena_stats_keys[][ETH_GSTRING_LEN] = {
+static const char ethtool_xena_stats_keys[][ETH_GSTRING_LEN] = {
 	{"tmac_frms"},
 	{"tmac_data_octets"},
 	{"tmac_drop_frms"},
@@ -230,7 +230,7 @@ static char ethtool_xena_stats_keys[][ETH_GSTRING_LEN] = {
 	{"rxf_wr_cnt"}
 };
 
-static char ethtool_enhanced_stats_keys[][ETH_GSTRING_LEN] = {
+static const char ethtool_enhanced_stats_keys[][ETH_GSTRING_LEN] = {
 	{"rmac_ttl_1519_4095_frms"},
 	{"rmac_ttl_4096_8191_frms"},
 	{"rmac_ttl_8192_max_frms"},
@@ -249,7 +249,7 @@ static char ethtool_enhanced_stats_keys[][ETH_GSTRING_LEN] = {
 	{"link_fault_cnt"}
 };
 
-static char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
+static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 	{"\n DRIVER STATISTICS"},
 	{"single_bit_ecc_errs"},
 	{"double_bit_ecc_errs"},
