@@ -31,20 +31,39 @@
 
 #include "ioapic.h"
 
+static inline int kvm_irq_line_state(unsigned long *irq_state,
+				     int irq_source_id, int level)
+{
+	/* Logical OR for level trig interrupt */
+	if (level)
+		set_bit(irq_source_id, irq_state);
+	else
+		clear_bit(irq_source_id, irq_state);
+
+	return !!(*irq_state);
+}
+
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
-			   struct kvm *kvm, int level)
+			   struct kvm *kvm, int irq_source_id, int level)
 {
 #ifdef CONFIG_X86
-	return kvm_pic_set_irq(pic_irqchip(kvm), e->irqchip.pin, level);
+	struct kvm_pic *pic = pic_irqchip(kvm);
+	level = kvm_irq_line_state(&pic->irq_states[e->irqchip.pin],
+				   irq_source_id, level);
+	return kvm_pic_set_irq(pic, e->irqchip.pin, level);
 #else
 	return -1;
 #endif
 }
 
 static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
-			      struct kvm *kvm, int level)
+			      struct kvm *kvm, int irq_source_id, int level)
 {
-	return kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
+	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
+	level = kvm_irq_line_state(&ioapic->irq_states[e->irqchip.pin],
+				   irq_source_id, level);
+
+	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, level);
 }
 
 inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
@@ -96,9 +115,12 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 }
 
 static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
-		       struct kvm *kvm, int level)
+		       struct kvm *kvm, int irq_source_id, int level)
 {
 	struct kvm_lapic_irq irq;
+
+	if (!level)
+		return -1;
 
 	trace_kvm_msi_set_irq(e->msi.address_lo, e->msi.data);
 
@@ -125,26 +147,11 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 {
 	struct kvm_kernel_irq_routing_entry *e;
-	unsigned long *irq_state, sig_level;
 	int ret = -1;
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
 
 	WARN_ON(!mutex_is_locked(&kvm->irq_lock));
-
-	if (irq < KVM_IOAPIC_NUM_PINS) {
-		irq_state = (unsigned long *)&kvm->arch.irq_states[irq];
-
-		/* Logical OR for level trig interrupt */
-		if (level)
-			set_bit(irq_source_id, irq_state);
-		else
-			clear_bit(irq_source_id, irq_state);
-		sig_level = !!(*irq_state);
-	} else if (!level)
-		return ret;
-	else /* Deal with MSI/MSI-X */
-		sig_level = 1;
 
 	/* Not possible to detect if the guest uses the PIC or the
 	 * IOAPIC.  So set the bit in both. The guest will ignore
@@ -152,7 +159,7 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	 */
 	list_for_each_entry(e, &kvm->irq_routing, link)
 		if (e->gsi == irq) {
-			int r = e->set(e, kvm, sig_level);
+			int r = e->set(e, kvm, irq_source_id, level);
 			if (r < 0)
 				continue;
 
@@ -232,8 +239,14 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		printk(KERN_ERR "kvm: IRQ source ID out of range!\n");
 		return;
 	}
-	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++)
-		clear_bit(irq_source_id, &kvm->arch.irq_states[i]);
+	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++) {
+		clear_bit(irq_source_id, &kvm->arch.vioapic->irq_states[i]);
+		if (i >= 16)
+			continue;
+#ifdef CONFIG_X86
+		clear_bit(irq_source_id, &pic_irqchip(kvm)->irq_states[i]);
+#endif
+	}
 	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
 	mutex_unlock(&kvm->irq_lock);
 }

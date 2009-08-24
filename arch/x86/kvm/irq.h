@@ -71,6 +71,7 @@ struct kvm_pic {
 	int output;		/* intr from master PIC */
 	struct kvm_io_device dev;
 	void (*ack_notifier)(void *opaque, int irq);
+	unsigned long irq_states[16];
 };
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm);
