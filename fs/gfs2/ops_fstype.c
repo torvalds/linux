@@ -1168,6 +1168,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	sdp->sd_args.ar_quota = GFS2_QUOTA_DEFAULT;
 	sdp->sd_args.ar_data = GFS2_DATA_DEFAULT;
 	sdp->sd_args.ar_commit = 60;
+	sdp->sd_args.ar_errors = GFS2_ERRORS_DEFAULT;
 
 	error = gfs2_mount_args(sdp, &sdp->sd_args, data);
 	if (error) {
