@@ -183,19 +183,19 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 
 	rcu_read_lock();
 	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
-	rcu_read_unlock();
-
 	if (gsi != -1)
-		hlist_for_each_entry(kian, n, &kvm->irq_ack_notifier_list, link)
+		hlist_for_each_entry_rcu(kian, n, &kvm->irq_ack_notifier_list,
+					 link)
 			if (kian->gsi == gsi)
 				kian->irq_acked(kian);
+	rcu_read_unlock();
 }
 
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian)
 {
 	mutex_lock(&kvm->irq_lock);
-	hlist_add_head(&kian->link, &kvm->irq_ack_notifier_list);
+	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
 }
 
@@ -203,8 +203,9 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 				    struct kvm_irq_ack_notifier *kian)
 {
 	mutex_lock(&kvm->irq_lock);
-	hlist_del_init(&kian->link);
+	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
+	synchronize_rcu();
 }
 
 int kvm_request_irq_source_id(struct kvm *kvm)
@@ -257,7 +258,7 @@ void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
 {
 	mutex_lock(&kvm->irq_lock);
 	kimn->irq = irq;
-	hlist_add_head(&kimn->link, &kvm->mask_notifier_list);
+	hlist_add_head_rcu(&kimn->link, &kvm->mask_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
 }
 
@@ -265,8 +266,9 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 				      struct kvm_irq_mask_notifier *kimn)
 {
 	mutex_lock(&kvm->irq_lock);
-	hlist_del(&kimn->link);
+	hlist_del_rcu(&kimn->link);
 	mutex_unlock(&kvm->irq_lock);
+	synchronize_rcu();
 }
 
 void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
@@ -274,11 +276,11 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
 	struct kvm_irq_mask_notifier *kimn;
 	struct hlist_node *n;
 
-	WARN_ON(!mutex_is_locked(&kvm->irq_lock));
-
-	hlist_for_each_entry(kimn, n, &kvm->mask_notifier_list, link)
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(kimn, n, &kvm->mask_notifier_list, link)
 		if (kimn->irq == irq)
 			kimn->func(kimn, mask);
+	rcu_read_unlock();
 }
 
 void kvm_free_irq_routing(struct kvm *kvm)
