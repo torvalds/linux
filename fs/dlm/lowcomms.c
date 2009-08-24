@@ -1285,7 +1285,6 @@ out:
 static void send_to_sock(struct connection *con)
 {
 	int ret = 0;
-	ssize_t(*sendpage) (struct socket *, struct page *, int, size_t, int);
 	const int msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
 	struct writequeue_entry *e;
 	int len, offset;
@@ -1293,8 +1292,6 @@ static void send_to_sock(struct connection *con)
 	mutex_lock(&con->sock_mutex);
 	if (con->sock == NULL)
 		goto out_connect;
-
-	sendpage = con->sock->ops->sendpage;
 
 	spin_lock(&con->writequeue_lock);
 	for (;;) {
@@ -1310,8 +1307,8 @@ static void send_to_sock(struct connection *con)
 
 		ret = 0;
 		if (len) {
-			ret = sendpage(con->sock, e->page, offset, len,
-				       msg_flags);
+			ret = kernel_sendpage(con->sock, e->page, offset, len,
+					      msg_flags);
 			if (ret == -EAGAIN || ret == 0) {
 				cond_resched();
 				goto out;
