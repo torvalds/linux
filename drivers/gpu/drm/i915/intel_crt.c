@@ -64,6 +64,34 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	I915_WRITE(reg, temp);
+
+	if (IS_IGD(dev)) {
+		if (mode == DRM_MODE_DPMS_OFF) {
+			/* turn off DAC */
+			temp = I915_READ(PORT_HOTPLUG_EN);
+			temp &= ~CRT_EOS_INT_EN;
+			I915_WRITE(PORT_HOTPLUG_EN, temp);
+
+			temp = I915_READ(PORT_HOTPLUG_STAT);
+			if (temp & CRT_EOS_INT_STATUS)
+				I915_WRITE(PORT_HOTPLUG_STAT,
+					CRT_EOS_INT_STATUS);
+		} else {
+			/* turn on DAC. EOS interrupt must be enabled after DAC
+			 * is enabled, so it sounds not good to enable it in
+			 * i915_driver_irq_postinstall()
+			 * wait 12.5ms after DAC is enabled
+			 */
+			msleep(13);
+			temp = I915_READ(PORT_HOTPLUG_STAT);
+			if (temp & CRT_EOS_INT_STATUS)
+				I915_WRITE(PORT_HOTPLUG_STAT,
+					CRT_EOS_INT_STATUS);
+			temp = I915_READ(PORT_HOTPLUG_EN);
+			temp |= CRT_EOS_INT_EN;
+			I915_WRITE(PORT_HOTPLUG_EN, temp);
+		}
+	}
 }
 
 static int intel_crt_mode_valid(struct drm_connector *connector,
