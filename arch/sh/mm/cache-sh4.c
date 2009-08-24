@@ -581,6 +581,17 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
  * Break the 1, 2 and 4 way variants of this out into separate functions to
  * avoid nearly all the overhead of having the conditional stuff in the function
  * bodies (+ the 1 and 2 way cases avoid saving any registers too).
+ *
+ * We want to eliminate unnecessary bus transactions, so this code uses
+ * a non-obvious technique.
+ *
+ * Loop over a cache way sized block of, one cache line at a time. For each
+ * line, use movca.a to cause the current cache line contents to be written
+ * back, but without reading anything from main memory. However this has the
+ * side effect that the cache is now caching that memory location. So follow
+ * this with a cache invalidate to mark the cache line invalid. And do all
+ * this with interrupts disabled, to avoid the cache line being accidently
+ * evicted while it is holding garbage.
  */
 static void __flush_dcache_segment_1way(unsigned long start,
 					unsigned long extent_per_way)
