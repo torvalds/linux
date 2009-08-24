@@ -846,18 +846,76 @@ SOC_DAPM_SINGLE("Output Switch", WM8993_SPEAKER_MIXER, 2, 1, 0),
 SOC_DAPM_SINGLE("DAC Switch", WM8993_SPEAKER_MIXER, 0, 1, 0),
 };
 
+static const char *aif_text[] = {
+	"Left", "Right"
+};
+
+static const struct soc_enum aifoutl_enum =
+	SOC_ENUM_SINGLE(WM8993_AUDIO_INTERFACE_1, 15, 2, aif_text);
+
+static const struct snd_kcontrol_new aifoutl_mux =
+	SOC_DAPM_ENUM("AIFOUTL Mux", aifoutl_enum);
+
+static const struct soc_enum aifoutr_enum =
+	SOC_ENUM_SINGLE(WM8993_AUDIO_INTERFACE_1, 14, 2, aif_text);
+
+static const struct snd_kcontrol_new aifoutr_mux =
+	SOC_DAPM_ENUM("AIFOUTR Mux", aifoutr_enum);
+
+static const struct soc_enum aifinl_enum =
+	SOC_ENUM_SINGLE(WM8993_AUDIO_INTERFACE_2, 15, 2, aif_text);
+
+static const struct snd_kcontrol_new aifinl_mux =
+	SOC_DAPM_ENUM("AIFINL Mux", aifinl_enum);
+
+static const struct soc_enum aifinr_enum =
+	SOC_ENUM_SINGLE(WM8993_AUDIO_INTERFACE_2, 14, 2, aif_text);
+
+static const struct snd_kcontrol_new aifinr_mux =
+	SOC_DAPM_ENUM("AIFINR Mux", aifinr_enum);
+
+static const char *sidetone_text[] = {
+	"None", "Left", "Right"
+};
+
+static const struct soc_enum sidetonel_enum =
+	SOC_ENUM_SINGLE(WM8993_DIGITAL_SIDE_TONE, 2, 3, sidetone_text);
+
+static const struct snd_kcontrol_new sidetonel_mux =
+	SOC_DAPM_ENUM("Left Sidetone", sidetonel_enum);
+
+static const struct soc_enum sidetoner_enum =
+	SOC_ENUM_SINGLE(WM8993_DIGITAL_SIDE_TONE, 0, 3, sidetone_text);
+
+static const struct snd_kcontrol_new sidetoner_mux =
+	SOC_DAPM_ENUM("Right Sidetone", sidetoner_enum);
+
 static const struct snd_soc_dapm_widget wm8993_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("CLK_SYS", WM8993_BUS_CONTROL_1, 1, 0, clk_sys_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("TOCLK", WM8993_CLOCKING_1, 14, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("CLK_DSP", WM8993_CLOCKING_3, 0, 0, NULL, 0),
 
+SND_SOC_DAPM_ADC("ADCL", NULL, WM8993_POWER_MANAGEMENT_2, 1, 0),
+SND_SOC_DAPM_ADC("ADCR", NULL, WM8993_POWER_MANAGEMENT_2, 0, 0),
 
-SND_SOC_DAPM_ADC("ADCL", "Capture", WM8993_POWER_MANAGEMENT_2, 1, 0),
-SND_SOC_DAPM_ADC("ADCR", "Capture", WM8993_POWER_MANAGEMENT_2, 0, 0),
+SND_SOC_DAPM_MUX("AIFOUTL Mux", SND_SOC_NOPM, 0, 0, &aifoutl_mux),
+SND_SOC_DAPM_MUX("AIFOUTR Mux", SND_SOC_NOPM, 0, 0, &aifoutr_mux),
 
-SND_SOC_DAPM_DAC("DACL", "Playback", WM8993_POWER_MANAGEMENT_3, 1, 0),
-SND_SOC_DAPM_DAC("DACR", "Playback", WM8993_POWER_MANAGEMENT_3, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_NOPM, 0, 0, &aifinl_mux),
+SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_NOPM, 0, 0, &aifinr_mux),
+
+SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &sidetonel_mux),
+SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &sidetoner_mux),
+
+SND_SOC_DAPM_DAC("DACL", NULL, WM8993_POWER_MANAGEMENT_3, 1, 0),
+SND_SOC_DAPM_DAC("DACR", NULL, WM8993_POWER_MANAGEMENT_3, 0, 0),
 
 SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &hpl_mux),
 SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &hpr_mux),
@@ -875,10 +933,32 @@ static const struct snd_soc_dapm_route routes[] = {
 	{ "ADCR", NULL, "CLK_SYS" },
 	{ "ADCR", NULL, "CLK_DSP" },
 
+	{ "AIFOUTL Mux", "Left", "ADCL" },
+	{ "AIFOUTL Mux", "Right", "ADCR" },
+	{ "AIFOUTR Mux", "Left", "ADCL" },
+	{ "AIFOUTR Mux", "Right", "ADCR" },
+
+	{ "AIFOUTL", NULL, "AIFOUTL Mux" },
+	{ "AIFOUTR", NULL, "AIFOUTR Mux" },
+
+	{ "DACL Mux", "Left", "AIFINL" },
+	{ "DACL Mux", "Right", "AIFINR" },
+	{ "DACR Mux", "Left", "AIFINL" },
+	{ "DACR Mux", "Right", "AIFINR" },
+
+	{ "DACL Sidetone", "Left", "ADCL" },
+	{ "DACL Sidetone", "Right", "ADCR" },
+	{ "DACR Sidetone", "Left", "ADCL" },
+	{ "DACR Sidetone", "Right", "ADCR" },
+
 	{ "DACL", NULL, "CLK_SYS" },
 	{ "DACL", NULL, "CLK_DSP" },
+	{ "DACL", NULL, "DACL Mux" },
+	{ "DACL", NULL, "DACL Sidetone" },
 	{ "DACR", NULL, "CLK_SYS" },
 	{ "DACR", NULL, "CLK_DSP" },
+	{ "DACR", NULL, "DACR Mux" },
+	{ "DACR", NULL, "DACR Sidetone" },
 
 	{ "Left Output Mixer", "DAC Switch", "DACL" },
 
