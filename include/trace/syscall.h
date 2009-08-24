@@ -13,18 +13,14 @@
 extern void syscall_regfunc(void);
 extern void syscall_unregfunc(void);
 
-DECLARE_TRACE_WITH_CALLBACK(syscall_enter,
+DECLARE_TRACE(syscall_enter,
 	TP_PROTO(struct pt_regs *regs, long id),
-	TP_ARGS(regs, id),
-	syscall_regfunc,
-	syscall_unregfunc
+	TP_ARGS(regs, id)
 );
 
-DECLARE_TRACE_WITH_CALLBACK(syscall_exit,
+DECLARE_TRACE(syscall_exit,
 	TP_PROTO(struct pt_regs *regs, long ret),
-	TP_ARGS(regs, ret),
-	syscall_regfunc,
-	syscall_unregfunc
+	TP_ARGS(regs, ret)
 );
 
 #endif
