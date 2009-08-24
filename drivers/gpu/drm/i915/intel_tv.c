@@ -1437,6 +1437,35 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 	return type;
 }
 
+/*
+ * Here we set accurate tv format according to connector type
+ * i.e Component TV should not be assigned by NTSC or PAL
+ */
+static void intel_tv_find_better_format(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_tv_priv *tv_priv = intel_output->dev_priv;
+	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
+	int i;
+
+	if ((tv_priv->type == DRM_MODE_CONNECTOR_Component) ==
+		tv_mode->component_only)
+		return;
+
+
+	for (i = 0; i < sizeof(tv_modes) / sizeof(*tv_modes); i++) {
+		tv_mode = tv_modes + i;
+
+		if ((tv_priv->type == DRM_MODE_CONNECTOR_Component) ==
+			tv_mode->component_only)
+			break;
+	}
+
+	tv_priv->tv_format = tv_mode->name;
+	drm_connector_property_set_value(connector,
+		connector->dev->mode_config.tv_mode_property, i);
+}
+
 /**
  * Detect the TV connection.
  *
@@ -1473,6 +1502,7 @@ intel_tv_detect(struct drm_connector *connector)
 	if (type < 0)
 		return connector_status_disconnected;
 
+	intel_tv_find_better_format(connector);
 	return connector_status_connected;
 }
 
