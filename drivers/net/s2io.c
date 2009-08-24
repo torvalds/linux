@@ -1001,7 +1001,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 			swstats->mem_freed += PAGE_SIZE;
 		}
 		kfree(fifo->list_info);
-		swstats->mem_freed += nic->config.tx_cfg[i].fifo_len *
+		swstats->mem_freed += tx_cfg->fifo_len *
 			sizeof(struct list_info_hold);
 	}
 
