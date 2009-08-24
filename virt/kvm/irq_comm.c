@@ -146,8 +146,8 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
  */
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 {
-	struct kvm_kernel_irq_routing_entry *e;
-	int ret = -1;
+	struct kvm_kernel_irq_routing_entry *e, irq_set[KVM_NR_IRQCHIPS];
+	int ret = -1, i = 0;
 	struct kvm_irq_routing_table *irq_rt;
 	struct hlist_node *n;
 
@@ -162,14 +162,19 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	rcu_read_lock();
 	irq_rt = rcu_dereference(kvm->irq_routing);
 	if (irq < irq_rt->nr_rt_entries)
-		hlist_for_each_entry(e, n, &irq_rt->map[irq], link) {
-			int r = e->set(e, kvm, irq_source_id, level);
-			if (r < 0)
-				continue;
-
-			ret = r + ((ret < 0) ? 0 : ret);
-		}
+		hlist_for_each_entry(e, n, &irq_rt->map[irq], link)
+			irq_set[i++] = *e;
 	rcu_read_unlock();
+
+	while(i--) {
+		int r;
+		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level);
+		if (r < 0)
+			continue;
+
+		ret = r + ((ret < 0) ? 0 : ret);
+	}
+
 	return ret;
 }
 
