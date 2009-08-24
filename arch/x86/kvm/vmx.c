@@ -2659,7 +2659,7 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	 * Cause the #SS fault with 0 error code in VM86 mode.
 	 */
 	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0)
-		if (emulate_instruction(vcpu, NULL, 0, 0, 0) == EMULATE_DONE)
+		if (emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DONE)
 			return 1;
 	/*
 	 * Forward all other exceptions that are valid in real mode.
@@ -2710,15 +2710,16 @@ static void kvm_machine_check(void)
 #endif
 }
 
-static int handle_machine_check(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_machine_check(struct kvm_vcpu *vcpu)
 {
 	/* already handled by vcpu_run */
 	return 1;
 }
 
-static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_exception(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct kvm_run *kvm_run = vcpu->run;
 	u32 intr_info, ex_no, error_code;
 	unsigned long cr2, rip, dr6;
 	u32 vect_info;
@@ -2728,7 +2729,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 
 	if (is_machine_check(intr_info))
-		return handle_machine_check(vcpu, kvm_run);
+		return handle_machine_check(vcpu);
 
 	if ((vect_info & VECTORING_INFO_VALID_MASK) &&
 						!is_page_fault(intr_info))
@@ -2744,7 +2745,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if (is_invalid_opcode(intr_info)) {
-		er = emulate_instruction(vcpu, kvm_run, 0, 0, EMULTYPE_TRAP_UD);
+		er = emulate_instruction(vcpu, 0, 0, EMULTYPE_TRAP_UD);
 		if (er != EMULATE_DONE)
 			kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
@@ -2803,20 +2804,19 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
-static int handle_external_interrupt(struct kvm_vcpu *vcpu,
-				     struct kvm_run *kvm_run)
+static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.irq_exits;
 	return 1;
 }
 
-static int handle_triple_fault(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_triple_fault(struct kvm_vcpu *vcpu)
 {
-	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
+	vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 	return 0;
 }
 
-static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_io(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
 	int size, in, string;
@@ -2827,8 +2827,7 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	string = (exit_qualification & 16) != 0;
 
 	if (string) {
-		if (emulate_instruction(vcpu,
-					kvm_run, 0, 0, 0) == EMULATE_DO_MMIO)
+		if (emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DO_MMIO)
 			return 0;
 		return 1;
 	}
@@ -2838,7 +2837,7 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	port = exit_qualification >> 16;
 
 	skip_emulated_instruction(vcpu);
-	return kvm_emulate_pio(vcpu, kvm_run, in, size, port);
+	return kvm_emulate_pio(vcpu, in, size, port);
 }
 
 static void
@@ -2852,7 +2851,7 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[2] = 0xc1;
 }
 
-static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_cr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification, val;
 	int cr;
@@ -2887,7 +2886,7 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 					return 1;
 				if (cr8_prev <= cr8)
 					return 1;
-				kvm_run->exit_reason = KVM_EXIT_SET_TPR;
+				vcpu->run->exit_reason = KVM_EXIT_SET_TPR;
 				return 0;
 			}
 		};
@@ -2922,13 +2921,13 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	default:
 		break;
 	}
-	kvm_run->exit_reason = 0;
+	vcpu->run->exit_reason = 0;
 	pr_unimpl(vcpu, "unhandled control register: op %d cr %d\n",
 	       (int)(exit_qualification >> 4) & 3, cr);
 	return 0;
 }
 
-static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_dr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
 	unsigned long val;
@@ -2944,13 +2943,13 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		 * guest debugging itself.
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP) {
-			kvm_run->debug.arch.dr6 = vcpu->arch.dr6;
-			kvm_run->debug.arch.dr7 = dr;
-			kvm_run->debug.arch.pc =
+			vcpu->run->debug.arch.dr6 = vcpu->arch.dr6;
+			vcpu->run->debug.arch.dr7 = dr;
+			vcpu->run->debug.arch.pc =
 				vmcs_readl(GUEST_CS_BASE) +
 				vmcs_readl(GUEST_RIP);
-			kvm_run->debug.arch.exception = DB_VECTOR;
-			kvm_run->exit_reason = KVM_EXIT_DEBUG;
+			vcpu->run->debug.arch.exception = DB_VECTOR;
+			vcpu->run->exit_reason = KVM_EXIT_DEBUG;
 			return 0;
 		} else {
 			vcpu->arch.dr7 &= ~DR7_GD;
@@ -3016,13 +3015,13 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int handle_cpuid(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_cpuid(struct kvm_vcpu *vcpu)
 {
 	kvm_emulate_cpuid(vcpu);
 	return 1;
 }
 
-static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_rdmsr(struct kvm_vcpu *vcpu)
 {
 	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
 	u64 data;
@@ -3041,7 +3040,7 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int handle_wrmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_wrmsr(struct kvm_vcpu *vcpu)
 {
 	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
 	u64 data = (vcpu->arch.regs[VCPU_REGS_RAX] & -1u)
@@ -3058,14 +3057,12 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu,
-				      struct kvm_run *kvm_run)
+static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu)
 {
 	return 1;
 }
 
-static int handle_interrupt_window(struct kvm_vcpu *vcpu,
-				   struct kvm_run *kvm_run)
+static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
 
@@ -3081,34 +3078,34 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	 * possible
 	 */
 	if (!irqchip_in_kernel(vcpu->kvm) &&
-	    kvm_run->request_interrupt_window &&
+	    vcpu->run->request_interrupt_window &&
 	    !kvm_cpu_has_interrupt(vcpu)) {
-		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
+		vcpu->run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		return 0;
 	}
 	return 1;
 }
 
-static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_halt(struct kvm_vcpu *vcpu)
 {
 	skip_emulated_instruction(vcpu);
 	return kvm_emulate_halt(vcpu);
 }
 
-static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_vmcall(struct kvm_vcpu *vcpu)
 {
 	skip_emulated_instruction(vcpu);
 	kvm_emulate_hypercall(vcpu);
 	return 1;
 }
 
-static int handle_vmx_insn(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_vmx_insn(struct kvm_vcpu *vcpu)
 {
 	kvm_queue_exception(vcpu, UD_VECTOR);
 	return 1;
 }
 
-static int handle_invlpg(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_invlpg(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
@@ -3117,14 +3114,14 @@ static int handle_invlpg(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int handle_wbinvd(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_wbinvd(struct kvm_vcpu *vcpu)
 {
 	skip_emulated_instruction(vcpu);
 	/* TODO: Add support for VT-d/pass-through device */
 	return 1;
 }
 
-static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_apic_access(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
 	enum emulation_result er;
@@ -3133,7 +3130,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	offset = exit_qualification & 0xffful;
 
-	er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
+	er = emulate_instruction(vcpu, 0, 0, 0);
 
 	if (er !=  EMULATE_DONE) {
 		printk(KERN_ERR
@@ -3144,7 +3141,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_task_switch(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long exit_qualification;
@@ -3198,7 +3195,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_ept_violation(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
 	gpa_t gpa;
@@ -3219,8 +3216,8 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			vmcs_readl(GUEST_LINEAR_ADDRESS));
 		printk(KERN_ERR "EPT: Exit qualification is 0x%lx\n",
 			(long unsigned int)exit_qualification);
-		kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-		kvm_run->hw.hardware_exit_reason = EXIT_REASON_EPT_VIOLATION;
+		vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
+		vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_VIOLATION;
 		return 0;
 	}
 
@@ -3290,7 +3287,7 @@ static void ept_misconfig_inspect_spte(struct kvm_vcpu *vcpu, u64 spte,
 	}
 }
 
-static int handle_ept_misconfig(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
 	u64 sptes[4];
 	int nr_sptes, i;
@@ -3306,13 +3303,13 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	for (i = PT64_ROOT_LEVEL; i > PT64_ROOT_LEVEL - nr_sptes; --i)
 		ept_misconfig_inspect_spte(vcpu, sptes[i-1], i);
 
-	kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-	kvm_run->hw.hardware_exit_reason = EXIT_REASON_EPT_MISCONFIG;
+	vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
+	vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_MISCONFIG;
 
 	return 0;
 }
 
-static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
 
@@ -3325,8 +3322,7 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
-				struct kvm_run *kvm_run)
+static void handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	enum emulation_result err = EMULATE_DONE;
@@ -3335,7 +3331,7 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
 	preempt_enable();
 
 	while (!guest_state_valid(vcpu)) {
-		err = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
+		err = emulate_instruction(vcpu, 0, 0, 0);
 
 		if (err == EMULATE_DO_MMIO)
 			break;
@@ -3362,8 +3358,7 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
  * to be done to userspace and return 0.
  */
-static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
-				      struct kvm_run *kvm_run) = {
+static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_EXCEPTION_NMI]           = handle_exception,
 	[EXIT_REASON_EXTERNAL_INTERRUPT]      = handle_external_interrupt,
 	[EXIT_REASON_TRIPLE_FAULT]            = handle_triple_fault,
@@ -3403,7 +3398,7 @@ static const int kvm_vmx_max_exit_handlers =
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
  */
-static int vmx_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
@@ -3425,8 +3420,8 @@ static int vmx_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
 
 	if (unlikely(vmx->fail)) {
-		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
-		kvm_run->fail_entry.hardware_entry_failure_reason
+		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= vmcs_read32(VM_INSTRUCTION_ERROR);
 		return 0;
 	}
@@ -3459,10 +3454,10 @@ static int vmx_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason])
-		return kvm_vmx_exit_handlers[exit_reason](vcpu, kvm_run);
+		return kvm_vmx_exit_handlers[exit_reason](vcpu);
 	else {
-		kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-		kvm_run->hw.hardware_exit_reason = exit_reason;
+		vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
+		vcpu->run->hw.hardware_exit_reason = exit_reason;
 	}
 	return 0;
 }
@@ -3600,7 +3595,7 @@ static void fixup_rmode_irq(struct vcpu_vmx *vmx)
 #define Q "l"
 #endif
 
-static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
@@ -3614,7 +3609,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	/* Handle invalid guest state instead of entering VMX */
 	if (vmx->emulation_required && emulate_invalid_guest_state) {
-		handle_invalid_guest_state(vcpu, kvm_run);
+		handle_invalid_guest_state(vcpu);
 		return;
 	}
 
