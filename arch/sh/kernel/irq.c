@@ -114,7 +114,7 @@ asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs)
 #endif
 
 	irq_enter();
-	irq = irq_demux(intc_evt2irq(irq));
+	irq = irq_demux(evt2irq(irq));
 
 #ifdef CONFIG_IRQSTACKS
 	curctx = (union irq_ctx *)current_thread_info();
