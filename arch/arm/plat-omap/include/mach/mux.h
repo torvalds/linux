@@ -885,6 +885,9 @@ enum omap34xx_index {
 	AH9_3430_MMC3_DAT1,
 	AF13_3430_MMC3_DAT2,
 	AF13_3430_MMC3_DAT3,
+
+	/* SYS_NIRQ T2 INT1 */
+	AF26_34XX_SYS_NIRQ,
 };
 
 struct omap_mux_cfg {
