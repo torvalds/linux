@@ -2617,7 +2617,7 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 	priv->capture_beacon = false;
 
 	rc = mwl8k_fw_lock(hw);
-	if (!rc)
+	if (rc)
 		return;
 
 	if (info->assoc) {
