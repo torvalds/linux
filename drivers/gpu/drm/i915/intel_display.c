@@ -3218,30 +3218,30 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_dp_init(dev, PCH_DP_D);
 
 	} else if (IS_I9XX(dev)) {
-		int found;
-		u32 reg;
+		bool found = false;
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
 			found = intel_sdvo_init(dev, SDVOB);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOB);
+
 			if (!found && SUPPORTS_INTEGRATED_DP(dev))
 				intel_dp_init(dev, DP_B);
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
-		if (IS_G4X(dev))
-			reg = SDVOC;
-		else
-			reg = SDVOB;
 
-		if (I915_READ(reg) & SDVO_DETECTED) {
+		if (I915_READ(SDVOB) & SDVO_DETECTED)
 			found = intel_sdvo_init(dev, SDVOC);
-			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+
+		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
+
+			if (SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOC);
-			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+			if (SUPPORTS_INTEGRATED_DP(dev))
 				intel_dp_init(dev, DP_C);
 		}
+
 		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D);
 	} else
