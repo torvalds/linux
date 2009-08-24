@@ -646,6 +646,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_GUITARRIGMOBILE):
 		dev->samplerates |= SNDRV_PCM_RATE_192000;
 		/* fall thru */
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO2DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
 		dev->samplerates |= SNDRV_PCM_RATE_88200;

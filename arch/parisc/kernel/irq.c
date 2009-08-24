@@ -120,7 +120,7 @@ int cpu_check_affinity(unsigned int irq, const struct cpumask *dest)
 	if (CHECK_IRQ_PER_CPU(irq)) {
 		/* Bad linux design decision.  The mask has already
 		 * been set; we must reset it */
-		cpumask_setall(&irq_desc[irq].affinity);
+		cpumask_setall(irq_desc[irq].affinity);
 		return -EINVAL;
 	}
 
@@ -138,13 +138,13 @@ static int cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 	if (cpu_dest < 0)
 		return -1;
 
-	cpumask_copy(&irq_desc[irq].affinity, dest);
+	cpumask_copy(irq_desc[irq].affinity, dest);
 
 	return 0;
 }
 #endif
 
-static struct hw_interrupt_type cpu_interrupt_type = {
+static struct irq_chip cpu_interrupt_type = {
 	.typename	= "CPU",
 	.startup	= cpu_startup_irq,
 	.shutdown	= cpu_disable_irq,
@@ -299,7 +299,7 @@ int txn_alloc_irq(unsigned int bits_wide)
 unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
 #ifdef CONFIG_SMP
-	cpumask_copy(&irq_desc[irq].affinity, cpumask_of(cpu));
+	cpumask_copy(irq_desc[irq].affinity, cpumask_of(cpu));
 #endif
 
 	return per_cpu(cpu_data, cpu).txn_addr;
@@ -356,7 +356,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	irq = eirr_to_irq(eirr_val);
 
 #ifdef CONFIG_SMP
-	cpumask_copy(&dest, &irq_desc[irq].affinity);
+	cpumask_copy(&dest, irq_desc[irq].affinity);
 	if (CHECK_IRQ_PER_CPU(irq_desc[irq].status) &&
 	    !cpu_isset(smp_processor_id(), dest)) {
 		int cpu = first_cpu(dest);

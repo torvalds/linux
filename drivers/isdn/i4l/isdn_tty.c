@@ -13,6 +13,7 @@
 
 #include <linux/isdn.h>
 #include <linux/delay.h>
+#include <linux/smp_lock.h>
 #include "isdn_common.h"
 #include "isdn_tty.h"
 #ifdef CONFIG_ISDN_AUDIO

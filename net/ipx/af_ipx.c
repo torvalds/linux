@@ -41,6 +41,7 @@
 #include <linux/netdevice.h>
 #include <linux/uio.h>
 #include <linux/skbuff.h>
+#include <linux/smp_lock.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/string.h>

@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <linux/compat.h>
 #include <linux/syscalls.h>
-#include <linux/smp_lock.h>
 #include <linux/magic.h>
 #include <linux/dcache.h>
 #include <linux/uaccess.h>

@@ -16,7 +16,7 @@ int prefixcmp(const char *str, const char *prefix)
  */
 char strbuf_slopbuf[1];
 
-void strbuf_init(struct strbuf *sb, size_t hint)
+void strbuf_init(struct strbuf *sb, ssize_t hint)
 {
 	sb->alloc = sb->len = 0;
 	sb->buf = strbuf_slopbuf;
@@ -92,7 +92,8 @@ void strbuf_ltrim(struct strbuf *sb)
 
 void strbuf_tolower(struct strbuf *sb)
 {
-	int i;
+	unsigned int i;
+
 	for (i = 0; i < sb->len; i++)
 		sb->buf[i] = tolower(sb->buf[i]);
 }
@@ -264,7 +265,7 @@ size_t strbuf_fread(struct strbuf *sb, size_t size, FILE *f)
 	return res;
 }
 
-ssize_t strbuf_read(struct strbuf *sb, int fd, size_t hint)
+ssize_t strbuf_read(struct strbuf *sb, int fd, ssize_t hint)
 {
 	size_t oldlen = sb->len;
 	size_t oldalloc = sb->alloc;
@@ -293,7 +294,7 @@ ssize_t strbuf_read(struct strbuf *sb, int fd, size_t hint)
 
 #define STRBUF_MAXLINK (2*PATH_MAX)
 
-int strbuf_readlink(struct strbuf *sb, const char *path, size_t hint)
+int strbuf_readlink(struct strbuf *sb, const char *path, ssize_t hint)
 {
 	size_t oldalloc = sb->alloc;
 
@@ -301,7 +302,7 @@ int strbuf_readlink(struct strbuf *sb, const char *path, size_t hint)
 		hint = 32;
 
 	while (hint < STRBUF_MAXLINK) {
-		int len;
+		ssize_t len;
 
 		strbuf_grow(sb, hint);
 		len = readlink(path, sb->buf, hint);
@@ -343,7 +344,7 @@ int strbuf_getline(struct strbuf *sb, FILE *fp, int term)
 	return 0;
 }
 
-int strbuf_read_file(struct strbuf *sb, const char *path, size_t hint)
+int strbuf_read_file(struct strbuf *sb, const char *path, ssize_t hint)
 {
 	int fd, len;
 

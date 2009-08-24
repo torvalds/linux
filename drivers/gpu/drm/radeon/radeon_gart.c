@@ -177,7 +177,7 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 			return -ENOMEM;
 		}
 		rdev->gart.pages[p] = pagelist[i];
-		page_base = (uint32_t)rdev->gart.pages_addr[p];
+		page_base = rdev->gart.pages_addr[p];
 		for (j = 0; j < (PAGE_SIZE / 4096); j++, t++) {
 			radeon_gart_set_page(rdev, t, page_base);
 			page_base += 4096;

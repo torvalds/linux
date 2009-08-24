@@ -379,6 +379,7 @@ void blk_integrity_unregister(struct gendisk *disk)
 
 	kobject_uevent(&bi->kobj, KOBJ_REMOVE);
 	kobject_del(&bi->kobj);
+	kobject_put(&bi->kobj);
 	kmem_cache_free(integrity_cachep, bi);
 	disk->integrity = NULL;
 }

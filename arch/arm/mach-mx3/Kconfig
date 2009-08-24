@@ -36,6 +36,14 @@ config MACH_PCM037
 	  Include support for Phytec pcm037 platform. This includes
 	  specific configurations for the board and its peripherals.
 
+config MACH_PCM037_EET
+	bool "Support pcm037 EET board extensions"
+	depends on MACH_PCM037
+	help
+	  Add support for PCM037 EET baseboard extensions. If you are using the
+	  OLED display with EET, use "video=mx3fb:CMEL-OLED" kernel
+	  command-line parameter.
+
 config MACH_MX31LITE
 	bool "Support MX31 LITEKIT (LogicPD)"
 	select ARCH_MX31

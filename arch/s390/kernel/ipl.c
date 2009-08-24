@@ -70,6 +70,7 @@ struct shutdown_action {
 	char *name;
 	void (*fn) (struct shutdown_trigger *trigger);
 	int (*init) (void);
+	int init_rc;
 };
 
 static char *ipl_type_str(enum ipl_type type)
@@ -1486,11 +1487,13 @@ static int set_trigger(const char *buf, struct shutdown_trigger *trigger,
 	int i;
 
 	for (i = 0; i < SHUTDOWN_ACTIONS_COUNT; i++) {
-		if (!shutdown_actions_list[i])
-			continue;
 		if (sysfs_streq(buf, shutdown_actions_list[i]->name)) {
-			trigger->action = shutdown_actions_list[i];
-			return len;
+			if (shutdown_actions_list[i]->init_rc) {
+				return shutdown_actions_list[i]->init_rc;
+			} else {
+				trigger->action = shutdown_actions_list[i];
+				return len;
+			}
 		}
 	}
 	return -EINVAL;
@@ -1640,8 +1643,8 @@ static void __init shutdown_actions_init(void)
 	for (i = 0; i < SHUTDOWN_ACTIONS_COUNT; i++) {
 		if (!shutdown_actions_list[i]->init)
 			continue;
-		if (shutdown_actions_list[i]->init())
-			shutdown_actions_list[i] = NULL;
+		shutdown_actions_list[i]->init_rc =
+			shutdown_actions_list[i]->init();
 	}
 }
 

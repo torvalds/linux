@@ -50,7 +50,7 @@ struct strbuf {
 #define STRBUF_INIT  { 0, 0, strbuf_slopbuf }
 
 /*----- strbuf life cycle -----*/
-extern void strbuf_init(struct strbuf *, size_t);
+extern void strbuf_init(struct strbuf *buf, ssize_t hint);
 extern void strbuf_release(struct strbuf *);
 extern char *strbuf_detach(struct strbuf *, size_t *);
 extern void strbuf_attach(struct strbuf *, void *, size_t, size_t);
@@ -61,7 +61,7 @@ static inline void strbuf_swap(struct strbuf *a, struct strbuf *b) {
 }
 
 /*----- strbuf size related -----*/
-static inline size_t strbuf_avail(const struct strbuf *sb) {
+static inline ssize_t strbuf_avail(const struct strbuf *sb) {
 	return sb->alloc ? sb->alloc - sb->len - 1 : 0;
 }
 
@@ -122,9 +122,9 @@ extern void strbuf_addf(struct strbuf *sb, const char *fmt, ...);
 
 extern size_t strbuf_fread(struct strbuf *, size_t, FILE *);
 /* XXX: if read fails, any partial read is undone */
-extern ssize_t strbuf_read(struct strbuf *, int fd, size_t hint);
-extern int strbuf_read_file(struct strbuf *sb, const char *path, size_t hint);
-extern int strbuf_readlink(struct strbuf *sb, const char *path, size_t hint);
+extern ssize_t strbuf_read(struct strbuf *, int fd, ssize_t hint);
+extern int strbuf_read_file(struct strbuf *sb, const char *path, ssize_t hint);
+extern int strbuf_readlink(struct strbuf *sb, const char *path, ssize_t hint);
 
 extern int strbuf_getline(struct strbuf *, FILE *, int);
 

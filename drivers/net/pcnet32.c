@@ -485,7 +485,7 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 					   &new_ring_dma_addr);
 	if (new_tx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Consistent memory allocation failed.\n",
 			       dev->name);
 		return;
@@ -496,7 +496,7 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_dma_addr_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_tx_ring;
 	}
@@ -505,7 +505,7 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_skb_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_lists;
 	}
@@ -563,7 +563,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 					   &new_ring_dma_addr);
 	if (new_rx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Consistent memory allocation failed.\n",
 			       dev->name);
 		return;
@@ -574,7 +574,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_dma_addr_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_rx_ring;
 	}
@@ -583,7 +583,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_skb_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_lists;
 	}
@@ -1611,8 +1611,11 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		if (pcnet32_dwio_read_csr(ioaddr, 0) == 4
 		    && pcnet32_dwio_check(ioaddr)) {
 			a = &pcnet32_dwio;
-		} else
+		} else {
+			if (pcnet32_debug & NETIF_MSG_PROBE)
+				printk(KERN_ERR PFX "No access methods\n");
 			goto err_release_region;
+		}
 	}
 
 	chip_version =
@@ -1719,7 +1722,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		ret = -ENOMEM;
 		goto err_release_region;
 	}
-	SET_NETDEV_DEV(dev, &pdev->dev);
+
+	if (pdev)
+		SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pcnet32_debug & NETIF_MSG_PROBE)
 		printk(KERN_INFO PFX "%s at %#3lx,", chipname, ioaddr);
@@ -1766,38 +1771,38 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		/* Version 0x2623 and 0x2624 */
 		if (((chip_version + 1) & 0xfffe) == 0x2624) {
 			i = a->read_csr(ioaddr, 80) & 0x0C00;	/* Check tx_start_pt */
-			printk("\n" KERN_INFO "    tx_start_pt(0x%04x):", i);
+			printk(KERN_INFO "    tx_start_pt(0x%04x):", i);
 			switch (i >> 10) {
 			case 0:
-				printk("  20 bytes,");
+				printk(KERN_CONT "  20 bytes,");
 				break;
 			case 1:
-				printk("  64 bytes,");
+				printk(KERN_CONT "  64 bytes,");
 				break;
 			case 2:
-				printk(" 128 bytes,");
+				printk(KERN_CONT " 128 bytes,");
 				break;
 			case 3:
-				printk("~220 bytes,");
+				printk(KERN_CONT "~220 bytes,");
 				break;
 			}
 			i = a->read_bcr(ioaddr, 18);	/* Check Burst/Bus control */
-			printk(" BCR18(%x):", i & 0xffff);
+			printk(KERN_CONT " BCR18(%x):", i & 0xffff);
 			if (i & (1 << 5))
-				printk("BurstWrEn ");
+				printk(KERN_CONT "BurstWrEn ");
 			if (i & (1 << 6))
-				printk("BurstRdEn ");
+				printk(KERN_CONT "BurstRdEn ");
 			if (i & (1 << 7))
-				printk("DWordIO ");
+				printk(KERN_CONT "DWordIO ");
 			if (i & (1 << 11))
-				printk("NoUFlow ");
+				printk(KERN_CONT "NoUFlow ");
 			i = a->read_bcr(ioaddr, 25);
-			printk("\n" KERN_INFO "    SRAMSIZE=0x%04x,", i << 8);
+			printk(KERN_INFO "    SRAMSIZE=0x%04x,", i << 8);
 			i = a->read_bcr(ioaddr, 26);
-			printk(" SRAM_BND=0x%04x,", i << 8);
+			printk(KERN_CONT " SRAM_BND=0x%04x,", i << 8);
 			i = a->read_bcr(ioaddr, 27);
 			if (i & (1 << 14))
-				printk("LowLatRx");
+				printk(KERN_CONT "LowLatRx");
 		}
 	}
 
@@ -1818,7 +1823,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	spin_lock_init(&lp->lock);
 
-	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp->name = chipname;
 	lp->shared_irq = shared;
 	lp->tx_ring_size = TX_RING_SIZE;	/* default tx ring size */
@@ -1835,7 +1839,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->chip_version = chip_version;
 	lp->msg_enable = pcnet32_debug;
 	if ((cards_found >= MAX_UNITS)
-	    || (options[cards_found] > sizeof(options_mapping)))
+	    || (options[cards_found] >= sizeof(options_mapping)))
 		lp->options = PCNET32_PORT_ASEL;
 	else
 		lp->options = options_mapping[options[cards_found]];
@@ -1852,12 +1856,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	    ((cards_found >= MAX_UNITS) || full_duplex[cards_found]))
 		lp->options |= PCNET32_PORT_FD;
 
-	if (!a) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
-			printk(KERN_ERR PFX "No access methods\n");
-		ret = -ENODEV;
-		goto err_free_consistent;
-	}
 	lp->a = *a;
 
 	/* prior to register_netdev, dev->name is not yet correct */
@@ -1973,14 +1971,13 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	return 0;
 
-      err_free_ring:
+err_free_ring:
 	pcnet32_free_ring(dev);
-      err_free_consistent:
 	pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block),
 			    lp->init_block, lp->init_dma_addr);
-      err_free_netdev:
+err_free_netdev:
 	free_netdev(dev);
-      err_release_region:
+err_release_region:
 	release_region(ioaddr, PCNET32_TOTAL_SIZE);
 	return ret;
 }
@@ -1996,7 +1993,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 					   &lp->tx_ring_dma_addr);
 	if (lp->tx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Consistent memory allocation failed.\n",
 			       name);
 		return -ENOMEM;
@@ -2008,7 +2005,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 					   &lp->rx_ring_dma_addr);
 	if (lp->rx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Consistent memory allocation failed.\n",
 			       name);
 		return -ENOMEM;
@@ -2018,7 +2015,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				  GFP_ATOMIC);
 	if (!lp->tx_dma_addr) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2027,7 +2024,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				  GFP_ATOMIC);
 	if (!lp->rx_dma_addr) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2036,7 +2033,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				GFP_ATOMIC);
 	if (!lp->tx_skbuff) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2045,7 +2042,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				GFP_ATOMIC);
 	if (!lp->rx_skbuff) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2089,6 +2086,7 @@ static void pcnet32_free_ring(struct net_device *dev)
 static int pcnet32_open(struct net_device *dev)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
+	struct pci_dev *pdev = lp->pci_dev;
 	unsigned long ioaddr = dev->base_addr;
 	u16 val;
 	int i;
@@ -2149,9 +2147,9 @@ static int pcnet32_open(struct net_device *dev)
 	lp->a.write_csr(ioaddr, 124, val);
 
 	/* Allied Telesyn AT 2700/2701 FX are 100Mbit only and do not negotiate */
-	if (lp->pci_dev->subsystem_vendor == PCI_VENDOR_ID_AT &&
-	    (lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
-	     lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
+	if (pdev && pdev->subsystem_vendor == PCI_VENDOR_ID_AT &&
+	    (pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
+	     pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
 		if (lp->options & PCNET32_PORT_ASEL) {
 			lp->options = PCNET32_PORT_FD | PCNET32_PORT_100;
 			if (netif_msg_link(lp))

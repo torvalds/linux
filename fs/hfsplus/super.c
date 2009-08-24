@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/vfs.h>
 #include <linux/nls.h>
 

@@ -642,8 +642,7 @@ static int setup_sge_qsets(struct adapter *adap)
 		struct port_info *pi = netdev_priv(dev);
 
 		pi->qs = &adap->sge.qs[pi->first_qset];
-		for (j = pi->first_qset; j < pi->first_qset + pi->nqsets;
-		     ++j, ++qset_idx) {
+		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
 			set_qset_lro(dev, qset_idx, pi->rx_offload & T3_LRO);
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :

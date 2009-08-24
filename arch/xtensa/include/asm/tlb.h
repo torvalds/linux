@@ -42,6 +42,6 @@
 
 #include <asm-generic/tlb.h>
 
-#define __pte_free_tlb(tlb, pte)		pte_free((tlb)->mm, pte)
+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
 
 #endif	/* _XTENSA_TLB_H */

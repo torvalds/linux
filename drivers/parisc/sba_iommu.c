@@ -2057,6 +2057,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 		r->start = (base & ~1UL) | PCI_F_EXTEND;
 		size = ~ READ_REG32(reg + LMMIO_DIRECT0_MASK);
 		r->end = r->start + size;
+		r->flags = IORESOURCE_MEM;
 	}
 }
 
@@ -2093,4 +2094,5 @@ void sba_distributed_lmmio(struct parisc_device *pci_hba, struct resource *r )
 	size = (~READ_REG32(sba->sba_hpa + LMMIO_DIST_MASK)) / ROPES_PER_IOC;
 	r->start += rope * (size + 1);	/* adjust base for this rope */
 	r->end = r->start + size;
+	r->flags = IORESOURCE_MEM;
 }

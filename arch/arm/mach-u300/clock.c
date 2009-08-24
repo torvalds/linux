@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/seq_file.h>
 
 #include <asm/clkdev.h>
 #include <mach/hardware.h>
@@ -702,6 +703,7 @@ static struct clk amba_clk = {
 	.rate	    = 52000000, /* this varies! */
 	.hw_ctrld   = true,
 	.reset	    = false,
+	.lock       = __SPIN_LOCK_UNLOCKED(amba_clk.lock),
 };
 
 /*
@@ -720,6 +722,7 @@ static struct clk cpu_clk = {
 	.set_rate   = clk_set_rate_cpuclk,
 	.get_rate   = clk_get_rate_cpuclk,
 	.round_rate = clk_round_rate_cpuclk,
+	.lock       = __SPIN_LOCK_UNLOCKED(cpu_clk.lock),
 };
 
 static struct clk nandif_clk = {
@@ -732,6 +735,7 @@ static struct clk nandif_clk = {
 	.clk_val    = U300_SYSCON_SBCER_NANDIF_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(nandif_clk.lock),
 };
 
 static struct clk semi_clk = {
@@ -744,6 +748,7 @@ static struct clk semi_clk = {
 	.clk_val    = U300_SYSCON_SBCER_SEMI_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(semi_clk.lock),
 };
 
 #ifdef CONFIG_MACH_U300_BS335
@@ -758,6 +763,7 @@ static struct clk isp_clk = {
 	.clk_val    = U300_SYSCON_SBCER_ISP_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(isp_clk.lock),
 };
 
 static struct clk cds_clk = {
@@ -771,6 +777,7 @@ static struct clk cds_clk = {
 	.clk_val    = U300_SYSCON_SBCER_CDS_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(cds_clk.lock),
 };
 #endif
 
@@ -785,6 +792,7 @@ static struct clk dma_clk = {
 	.clk_val    = U300_SYSCON_SBCER_DMAC_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(dma_clk.lock),
 };
 
 static struct clk aaif_clk = {
@@ -798,6 +806,7 @@ static struct clk aaif_clk = {
 	.clk_val    = U300_SYSCON_SBCER_AAIF_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(aaif_clk.lock),
 };
 
 static struct clk apex_clk = {
@@ -811,6 +820,7 @@ static struct clk apex_clk = {
 	.clk_val    = U300_SYSCON_SBCER_APEX_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(apex_clk.lock),
 };
 
 static struct clk video_enc_clk = {
@@ -825,6 +835,7 @@ static struct clk video_enc_clk = {
 	.clk_val    = U300_SYSCON_SBCER_VIDEO_ENC_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(video_enc_clk.lock),
 };
 
 static struct clk xgam_clk = {
@@ -839,6 +850,7 @@ static struct clk xgam_clk = {
 	.get_rate   = clk_get_rate_xgamclk,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(xgam_clk.lock),
 };
 
 /* This clock is used to activate the video encoder */
@@ -854,6 +866,7 @@ static struct clk ahb_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_ahb_clk,
+	.lock       = __SPIN_LOCK_UNLOCKED(ahb_clk.lock),
 };
 
 
@@ -871,6 +884,7 @@ static struct clk ahb_subsys_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_ahb_clk,
+	.lock       = __SPIN_LOCK_UNLOCKED(ahb_subsys_clk.lock),
 };
 
 static struct clk intcon_clk = {
@@ -882,6 +896,8 @@ static struct clk intcon_clk = {
 	.res_reg    = U300_SYSCON_VBASE + U300_SYSCON_RRR,
 	.res_mask   = U300_SYSCON_RRR_INTCON_RESET_EN,
 	/* INTCON can be reset but not clock-gated */
+	.lock       = __SPIN_LOCK_UNLOCKED(intcon_clk.lock),
+
 };
 
 static struct clk mspro_clk = {
@@ -895,6 +911,7 @@ static struct clk mspro_clk = {
 	.clk_val    = U300_SYSCON_SBCER_MSPRO_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(mspro_clk.lock),
 };
 
 static struct clk emif_clk = {
@@ -909,6 +926,7 @@ static struct clk emif_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_emif_clk,
+	.lock       = __SPIN_LOCK_UNLOCKED(emif_clk.lock),
 };
 
 
@@ -926,6 +944,7 @@ static struct clk fast_clk = {
 	.clk_val    = U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(fast_clk.lock),
 };
 
 static struct clk mmcsd_clk = {
@@ -942,6 +961,7 @@ static struct clk mmcsd_clk = {
 	.round_rate = clk_round_rate_mclk,
 	.disable    = syscon_clk_disable,
 	.enable     = syscon_clk_enable,
+	.lock       = __SPIN_LOCK_UNLOCKED(mmcsd_clk.lock),
 };
 
 static struct clk i2s0_clk = {
@@ -956,6 +976,7 @@ static struct clk i2s0_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_i2s_i2c_spi,
+	.lock       = __SPIN_LOCK_UNLOCKED(i2s0_clk.lock),
 };
 
 static struct clk i2s1_clk = {
@@ -970,6 +991,7 @@ static struct clk i2s1_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_i2s_i2c_spi,
+	.lock       = __SPIN_LOCK_UNLOCKED(i2s1_clk.lock),
 };
 
 static struct clk i2c0_clk = {
@@ -984,6 +1006,7 @@ static struct clk i2c0_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_i2s_i2c_spi,
+	.lock       = __SPIN_LOCK_UNLOCKED(i2c0_clk.lock),
 };
 
 static struct clk i2c1_clk = {
@@ -998,6 +1021,7 @@ static struct clk i2c1_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_i2s_i2c_spi,
+	.lock       = __SPIN_LOCK_UNLOCKED(i2c1_clk.lock),
 };
 
 static struct clk spi_clk = {
@@ -1012,6 +1036,7 @@ static struct clk spi_clk = {
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
 	.get_rate   = clk_get_rate_i2s_i2c_spi,
+	.lock       = __SPIN_LOCK_UNLOCKED(spi_clk.lock),
 };
 
 #ifdef CONFIG_MACH_U300_BS335
@@ -1026,6 +1051,7 @@ static struct clk uart1_clk = {
 	.clk_val    = U300_SYSCON_SBCER_UART1_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(uart1_clk.lock),
 };
 #endif
 
@@ -1044,6 +1070,7 @@ static struct clk slow_clk = {
 	.clk_val    = U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(slow_clk.lock),
 };
 
 /* TODO: implement SYSCON clock? */
@@ -1055,6 +1082,7 @@ static struct clk wdog_clk = {
 	.rate	    = 32768,
 	.reset	    = false,
 	/* This is always on, cannot be enabled/disabled or reset */
+	.lock       = __SPIN_LOCK_UNLOCKED(wdog_clk.lock),
 };
 
 /* This one is hardwired to PLL13 */
@@ -1069,6 +1097,7 @@ static struct clk uart_clk = {
 	.clk_val    = U300_SYSCON_SBCER_UART_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(uart_clk.lock),
 };
 
 static struct clk keypad_clk = {
@@ -1082,6 +1111,7 @@ static struct clk keypad_clk = {
 	.clk_val    = U300_SYSCON_SBCER_KEYPAD_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(keypad_clk.lock),
 };
 
 static struct clk gpio_clk = {
@@ -1095,6 +1125,7 @@ static struct clk gpio_clk = {
 	.clk_val    = U300_SYSCON_SBCER_GPIO_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(gpio_clk.lock),
 };
 
 static struct clk rtc_clk = {
@@ -1106,6 +1137,7 @@ static struct clk rtc_clk = {
 	.res_reg    = U300_SYSCON_VBASE + U300_SYSCON_RSR,
 	.res_mask   = U300_SYSCON_RSR_RTC_RESET_EN,
 	/* This clock is always on, cannot be enabled/disabled */
+	.lock       = __SPIN_LOCK_UNLOCKED(rtc_clk.lock),
 };
 
 static struct clk bustr_clk = {
@@ -1119,6 +1151,7 @@ static struct clk bustr_clk = {
 	.clk_val    = U300_SYSCON_SBCER_BTR_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(bustr_clk.lock),
 };
 
 static struct clk evhist_clk = {
@@ -1132,6 +1165,7 @@ static struct clk evhist_clk = {
 	.clk_val    = U300_SYSCON_SBCER_EH_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(evhist_clk.lock),
 };
 
 static struct clk timer_clk = {
@@ -1145,6 +1179,7 @@ static struct clk timer_clk = {
 	.clk_val    = U300_SYSCON_SBCER_ACC_TMR_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(timer_clk.lock),
 };
 
 static struct clk app_timer_clk = {
@@ -1158,6 +1193,7 @@ static struct clk app_timer_clk = {
 	.clk_val    = U300_SYSCON_SBCER_APP_TMR_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(app_timer_clk.lock),
 };
 
 #ifdef CONFIG_MACH_U300_BS335
@@ -1172,6 +1208,7 @@ static struct clk ppm_clk = {
 	.clk_val    = U300_SYSCON_SBCER_PPM_CLK_EN,
 	.enable     = syscon_clk_enable,
 	.disable    = syscon_clk_disable,
+	.lock       = __SPIN_LOCK_UNLOCKED(ppm_clk.lock),
 };
 #endif
 
@@ -1187,53 +1224,53 @@ static struct clk ppm_clk = {
  */
 static struct clk_lookup lookups[] = {
 	/* Connected directly to the AMBA bus */
-	DEF_LOOKUP("amba", &amba_clk),
-	DEF_LOOKUP("cpu", &cpu_clk),
-	DEF_LOOKUP("nandif", &nandif_clk),
-	DEF_LOOKUP("semi", &semi_clk),
+	DEF_LOOKUP("amba",      &amba_clk),
+	DEF_LOOKUP("cpu",       &cpu_clk),
+	DEF_LOOKUP("fsmc",      &nandif_clk),
+	DEF_LOOKUP("semi",      &semi_clk),
 #ifdef CONFIG_MACH_U300_BS335
-	DEF_LOOKUP("isp", &isp_clk),
-	DEF_LOOKUP("cds", &cds_clk),
+	DEF_LOOKUP("isp",       &isp_clk),
+	DEF_LOOKUP("cds",       &cds_clk),
 #endif
-	DEF_LOOKUP("dma", &dma_clk),
-	DEF_LOOKUP("aaif", &aaif_clk),
-	DEF_LOOKUP("apex", &apex_clk),
+	DEF_LOOKUP("dma",       &dma_clk),
+	DEF_LOOKUP("msl",       &aaif_clk),
+	DEF_LOOKUP("apex",      &apex_clk),
 	DEF_LOOKUP("video_enc", &video_enc_clk),
-	DEF_LOOKUP("xgam", &xgam_clk),
-	DEF_LOOKUP("ahb", &ahb_clk),
+	DEF_LOOKUP("xgam",      &xgam_clk),
+	DEF_LOOKUP("ahb",       &ahb_clk),
 	/* AHB bridge clocks */
-	DEF_LOOKUP("ahb", &ahb_subsys_clk),
-	DEF_LOOKUP("intcon", &intcon_clk),
-	DEF_LOOKUP("mspro", &mspro_clk),
-	DEF_LOOKUP("pl172", &emif_clk),
+	DEF_LOOKUP("ahb_subsys", &ahb_subsys_clk),
+	DEF_LOOKUP("intcon",    &intcon_clk),
+	DEF_LOOKUP("mspro",     &mspro_clk),
+	DEF_LOOKUP("pl172",     &emif_clk),
 	/* FAST bridge clocks */
-	DEF_LOOKUP("fast", &fast_clk),
-	DEF_LOOKUP("mmci", &mmcsd_clk),
+	DEF_LOOKUP("fast",      &fast_clk),
+	DEF_LOOKUP("mmci",      &mmcsd_clk),
 	/*
 	 * The .0 and .1 identifiers on these comes from the platform device
 	 * .id field and are assigned when the platform devices are registered.
 	 */
-	DEF_LOOKUP("i2s.0", &i2s0_clk),
-	DEF_LOOKUP("i2s.1", &i2s1_clk),
-	DEF_LOOKUP("stddci2c.0", &i2c0_clk),
-	DEF_LOOKUP("stddci2c.1", &i2c1_clk),
-	DEF_LOOKUP("pl022", &spi_clk),
+	DEF_LOOKUP("i2s.0",     &i2s0_clk),
+	DEF_LOOKUP("i2s.1",     &i2s1_clk),
+	DEF_LOOKUP("stu300.0",  &i2c0_clk),
+	DEF_LOOKUP("stu300.1",  &i2c1_clk),
+	DEF_LOOKUP("pl022",     &spi_clk),
 #ifdef CONFIG_MACH_U300_BS335
-	DEF_LOOKUP("uart1", &uart1_clk),
+	DEF_LOOKUP("uart1",     &uart1_clk),
 #endif
 	/* SLOW bridge clocks */
-	DEF_LOOKUP("slow", &slow_clk),
-	DEF_LOOKUP("wdog", &wdog_clk),
-	DEF_LOOKUP("uart0", &uart_clk),
-	DEF_LOOKUP("apptimer", &app_timer_clk),
-	DEF_LOOKUP("keypad", &keypad_clk),
+	DEF_LOOKUP("slow",      &slow_clk),
+	DEF_LOOKUP("coh901327_wdog",      &wdog_clk),
+	DEF_LOOKUP("uart0",     &uart_clk),
+	DEF_LOOKUP("apptimer",  &app_timer_clk),
+	DEF_LOOKUP("coh901461-keypad",    &keypad_clk),
 	DEF_LOOKUP("u300-gpio", &gpio_clk),
-	DEF_LOOKUP("rtc0", &rtc_clk),
-	DEF_LOOKUP("bustr", &bustr_clk),
-	DEF_LOOKUP("evhist", &evhist_clk),
-	DEF_LOOKUP("timer", &timer_clk),
+	DEF_LOOKUP("rtc-coh901331",      &rtc_clk),
+	DEF_LOOKUP("bustr",     &bustr_clk),
+	DEF_LOOKUP("evhist",    &evhist_clk),
+	DEF_LOOKUP("timer",     &timer_clk),
 #ifdef CONFIG_MACH_U300_BS335
-	DEF_LOOKUP("ppm", &ppm_clk),
+	DEF_LOOKUP("ppm",       &ppm_clk),
 #endif
 };
 
@@ -1427,16 +1464,20 @@ static const struct file_operations u300_clocks_operations = {
 	.release	= single_release,
 };
 
-static void init_clk_read_procfs(void)
+static int __init init_clk_read_debugfs(void)
 {
 	/* Expose a simple debugfs interface to view all clocks */
 	(void) debugfs_create_file("u300_clocks", S_IFREG | S_IRUGO,
-				   NULL, NULL, &u300_clocks_operations);
+				   NULL, NULL,
+				   &u300_clocks_operations);
+	return 0;
 }
-#else
-static inline void init_clk_read_procfs(void)
-{
-}
+/*
+ * This needs to come in after the core_initcall() for the
+ * overall clocks, because debugfs is not available until
+ * the subsystems come up.
+ */
+module_init(init_clk_read_debugfs);
 #endif
 
 static int __init u300_clock_init(void)
@@ -1461,8 +1502,6 @@ static int __init u300_clock_init(void)
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_PMCR);
 
 	clk_register();
-
-	init_clk_read_procfs();
 
 	/*
 	 * Some of these may be on when we boot the system so make sure they

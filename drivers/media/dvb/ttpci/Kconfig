@@ -1,5 +1,6 @@
 config TTPCI_EEPROM
 	tristate
+	depends on I2C
 	default n
 
 config DVB_AV7110

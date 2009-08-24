@@ -7,24 +7,36 @@
  *
  */
 
+#include <asm/system.h>
 
-/*
- * save CPU registers before creating a hibernation image and before
- * restoring the memory state from it
- */
 void save_processor_state(void)
 {
-	/* implentation contained in the
-	 * swsusp_arch_suspend function
+	/* swsusp_arch_suspend() actually saves all cpu register contents.
+	 * Machine checks must be disabled since swsusp_arch_suspend() stores
+	 * register contents to their lowcore save areas. That's the same
+	 * place where register contents on machine checks would be saved.
+	 * To avoid register corruption disable machine checks.
+	 * We must also disable machine checks in the new psw mask for
+	 * program checks, since swsusp_arch_suspend() may generate program
+	 * checks. Disabling machine checks for all other new psw masks is
+	 * just paranoia.
 	 */
+	local_mcck_disable();
+	/* Disable lowcore protection */
+	__ctl_clear_bit(0,28);
+	S390_lowcore.external_new_psw.mask &= ~PSW_MASK_MCHECK;
+	S390_lowcore.svc_new_psw.mask &= ~PSW_MASK_MCHECK;
+	S390_lowcore.io_new_psw.mask &= ~PSW_MASK_MCHECK;
+	S390_lowcore.program_new_psw.mask &= ~PSW_MASK_MCHECK;
 }
 
-/*
- * restore the contents of CPU registers
- */
 void restore_processor_state(void)
 {
-	/* implentation contained in the
-	 * swsusp_arch_resume function
-	 */
+	S390_lowcore.external_new_psw.mask |= PSW_MASK_MCHECK;
+	S390_lowcore.svc_new_psw.mask |= PSW_MASK_MCHECK;
+	S390_lowcore.io_new_psw.mask |= PSW_MASK_MCHECK;
+	S390_lowcore.program_new_psw.mask |= PSW_MASK_MCHECK;
+	/* Enable lowcore protection */
+	__ctl_set_bit(0,28);
+	local_mcck_enable();
 }

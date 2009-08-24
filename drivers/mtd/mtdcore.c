@@ -65,8 +65,8 @@ static void mtd_release(struct device *dev)
 static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 {
 	struct mtd_info *mtd = dev_to_mtd(dev);
-	
-	if (mtd->suspend)
+
+	if (mtd && mtd->suspend)
 		return mtd->suspend(mtd);
 	else
 		return 0;
@@ -76,7 +76,7 @@ static int mtd_cls_resume(struct device *dev)
 {
 	struct mtd_info *mtd = dev_to_mtd(dev);
 	
-	if (mtd->resume)
+	if (mtd && mtd->resume)
 		mtd->resume(mtd);
 	return 0;
 }
@@ -298,6 +298,7 @@ int add_mtd_device(struct mtd_info *mtd)
 			mtd->dev.class = &mtd_class;
 			mtd->dev.devt = MTD_DEVT(i);
 			dev_set_name(&mtd->dev, "mtd%d", i);
+			dev_set_drvdata(&mtd->dev, mtd);
 			if (device_register(&mtd->dev) != 0) {
 				mtd_table[i] = NULL;
 				break;

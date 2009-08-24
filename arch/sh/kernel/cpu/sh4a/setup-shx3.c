@@ -256,7 +256,7 @@ static int __init shx3_devices_setup(void)
 	return platform_add_devices(shx3_devices,
 				    ARRAY_SIZE(shx3_devices));
 }
-__initcall(shx3_devices_setup);
+arch_initcall(shx3_devices_setup);
 
 void __init plat_early_device_setup(void)
 {

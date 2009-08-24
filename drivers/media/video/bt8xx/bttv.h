@@ -283,6 +283,7 @@ extern struct tvcard bttv_tvcards[];
 extern void bttv_idcard(struct bttv *btv);
 extern void bttv_init_card1(struct bttv *btv);
 extern void bttv_init_card2(struct bttv *btv);
+extern void bttv_init_tuner(struct bttv *btv);
 
 /* card-specific funtions */
 extern void tea5757_set_freq(struct bttv *btv, unsigned short freq);

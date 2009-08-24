@@ -657,7 +657,8 @@ static void ext4_mb_mark_free_simple(struct super_block *sb,
 	}
 }
 
-static void ext4_mb_generate_buddy(struct super_block *sb,
+static noinline_for_stack
+void ext4_mb_generate_buddy(struct super_block *sb,
 				void *buddy, void *bitmap, ext4_group_t group)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
@@ -1480,7 +1481,8 @@ static void ext4_mb_measure_extent(struct ext4_allocation_context *ac,
 	ext4_mb_check_limits(ac, e4b, 0);
 }
 
-static int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
+static noinline_for_stack
+int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct ext4_free_extent ex = ac->ac_b_ex;
@@ -1507,7 +1509,8 @@ static int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
 	return 0;
 }
 
-static int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
+static noinline_for_stack
+int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 				struct ext4_buddy *e4b)
 {
 	ext4_group_t group = ac->ac_g_ex.fe_group;
@@ -1566,7 +1569,8 @@ static int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
  * The routine scans buddy structures (not bitmap!) from given order
  * to max order and tries to find big enough chunk to satisfy the req
  */
-static void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
+static noinline_for_stack
+void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
@@ -1609,7 +1613,8 @@ static void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
  * In order to optimize scanning, caller must pass number of
  * free blocks in the group, so the routine can know upper limit.
  */
-static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
+static noinline_for_stack
+void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
@@ -1668,7 +1673,8 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
  * we try to find stripe-aligned chunks for stripe-size requests
  * XXX should do so at least for multiples of stripe size as well
  */
-static void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
+static noinline_for_stack
+void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 				 struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
@@ -1831,7 +1837,8 @@ void ext4_mb_put_buddy_cache_lock(struct super_block *sb,
 
 }
 
-static int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
+static noinline_for_stack
+int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 {
 
 	int ret;
@@ -2902,7 +2909,11 @@ int __init init_ext4_mballoc(void)
 
 void exit_ext4_mballoc(void)
 {
-	/* XXX: synchronize_rcu(); */
+	/* 
+	 * Wait for completion of call_rcu()'s on ext4_pspace_cachep
+	 * before destroying the slab cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ext4_pspace_cachep);
 	kmem_cache_destroy(ext4_ac_cachep);
 	kmem_cache_destroy(ext4_free_ext_cachep);
@@ -3457,7 +3468,8 @@ static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
  * used in in-core bitmap. buddy must be generated from this bitmap
  * Need to be called with ext4 group lock held
  */
-static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
+static noinline_for_stack
+void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
@@ -4215,14 +4227,9 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ext4_get_group_no_and_offset(sb, goal, &group, &block);
 
 	/* set up allocation goals */
+	memset(ac, 0, sizeof(struct ext4_allocation_context));
 	ac->ac_b_ex.fe_logical = ar->logical;
-	ac->ac_b_ex.fe_group = 0;
-	ac->ac_b_ex.fe_start = 0;
-	ac->ac_b_ex.fe_len = 0;
 	ac->ac_status = AC_STATUS_CONTINUE;
-	ac->ac_groups_scanned = 0;
-	ac->ac_ex_scanned = 0;
-	ac->ac_found = 0;
 	ac->ac_sb = sb;
 	ac->ac_inode = ar->inode;
 	ac->ac_o_ex.fe_logical = ar->logical;
@@ -4233,15 +4240,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_g_ex.fe_group = group;
 	ac->ac_g_ex.fe_start = block;
 	ac->ac_g_ex.fe_len = len;
-	ac->ac_f_ex.fe_len = 0;
 	ac->ac_flags = ar->flags;
-	ac->ac_2order = 0;
-	ac->ac_criteria = 0;
-	ac->ac_pa = NULL;
-	ac->ac_bitmap_page = NULL;
-	ac->ac_buddy_page = NULL;
-	ac->alloc_semp = NULL;
-	ac->ac_lg = NULL;
 
 	/* we have to define context: we'll we work with a file or
 	 * locality group. this is a policy, actually */
@@ -4509,10 +4508,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	}
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
-	if (ac) {
-		ac->ac_sb = sb;
-		ac->ac_inode = ar->inode;
-	} else {
+	if (!ac) {
 		ar->len = 0;
 		*errp = -ENOMEM;
 		goto out1;

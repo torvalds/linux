@@ -447,6 +447,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	rdev = __cfg80211_drv_from_info(info);
 	if (IS_ERR(rdev)) {
+		mutex_unlock(&cfg80211_mutex);
 		result = PTR_ERR(rdev);
 		goto unlock;
 	}
@@ -996,7 +997,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 
 	if (IS_ERR(hdr)) {
 		err = PTR_ERR(hdr);
-		goto out;
+		goto free_msg;
 	}
 
 	cookie.msg = msg;
@@ -1010,7 +1011,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 				&cookie, get_key_callback);
 
 	if (err)
-		goto out;
+		goto free_msg;
 
 	if (cookie.error)
 		goto nla_put_failure;
@@ -1021,6 +1022,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 
  nla_put_failure:
 	err = -ENOBUFS;
+ free_msg:
 	nlmsg_free(msg);
  out:
 	cfg80211_put_dev(drv);

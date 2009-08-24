@@ -684,10 +684,8 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			goto err_out_free;
 	} else {
 		err = netxen_init_old_ctx(adapter);
-		if (err) {
-			netxen_free_hw_resources(adapter);
-			return err;
-		}
+		if (err)
+			goto err_out_free;
 	}
 
 	return 0;
@@ -708,14 +706,17 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	int port = adapter->portnum;
 
 	if (adapter->fw_major >= 4) {
-		nx_fw_cmd_destroy_tx_ctx(adapter);
 		nx_fw_cmd_destroy_rx_ctx(adapter);
+		nx_fw_cmd_destroy_tx_ctx(adapter);
 	} else {
 		netxen_api_lock(adapter);
 		NXWR32(adapter, CRB_CTX_SIGNATURE_REG(port),
-				NETXEN_CTX_RESET | port);
+				NETXEN_CTX_D3_RESET | port);
 		netxen_api_unlock(adapter);
 	}
+
+	/* Allow dma queues to drain after context reset */
+	msleep(20);
 
 	recv_ctx = &adapter->recv_ctx;
 

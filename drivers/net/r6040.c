@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.23"
-#define DRV_RELDATE	"05May2009"
+#define DRV_VERSION	"0.24"
+#define DRV_RELDATE	"08Jul2009"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
@@ -704,8 +704,11 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	/* Read MISR status and clear */
 	status = ioread16(ioaddr + MISR);
 
-	if (status == 0x0000 || status == 0xffff)
+	if (status == 0x0000 || status == 0xffff) {
+		/* Restore RDC MAC interrupt */
+		iowrite16(misr, ioaddr + MIER);
 		return IRQ_NONE;
+	}
 
 	/* RX interrupt request */
 	if (status & RX_INTS) {

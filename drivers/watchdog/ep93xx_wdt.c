@@ -29,6 +29,7 @@
 #include <linux/watchdog.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 
 #define WDT_VERSION	"0.3"

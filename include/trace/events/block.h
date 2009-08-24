@@ -1,12 +1,12 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM block
+
 #if !defined(_TRACE_BLOCK_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_BLOCK_H
 
 #include <linux/blktrace_api.h>
 #include <linux/blkdev.h>
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM block
 
 TRACE_EVENT(block_rq_abort,
 

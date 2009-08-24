@@ -448,9 +448,9 @@ int cifs_open(struct inode *inode, struct file *file)
 				.mtime	= NO_CHANGE_64,
 				.device	= 0,
 			};
-			CIFSSMBUnixSetInfo(xid, tcon, full_path, &args,
-					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
+			CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
+					       cifs_sb->local_nls,
+					       cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		}
 	}

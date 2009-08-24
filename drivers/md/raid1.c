@@ -1144,7 +1144,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			rcu_assign_pointer(p->rdev, rdev);
 			break;
 		}
-
+	md_integrity_add_rdev(rdev, mddev);
 	print_conf(conf);
 	return err;
 }
@@ -1178,7 +1178,9 @@ static int raid1_remove_disk(mddev_t *mddev, int number)
 			/* lost the race, try later */
 			err = -EBUSY;
 			p->rdev = rdev;
+			goto abort;
 		}
+		md_integrity_register(mddev);
 	}
 abort:
 
@@ -2067,7 +2069,7 @@ static int run(mddev_t *mddev)
 	mddev->queue->unplug_fn = raid1_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid1_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
-
+	md_integrity_register(mddev);
 	return 0;
 
 out_no_mem:
@@ -2132,6 +2134,7 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
+	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->dev_sectors;

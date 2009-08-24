@@ -68,8 +68,8 @@ void pipe_double_lock(struct pipe_inode_info *pipe1,
 		pipe_lock_nested(pipe1, I_MUTEX_PARENT);
 		pipe_lock_nested(pipe2, I_MUTEX_CHILD);
 	} else {
-		pipe_lock_nested(pipe2, I_MUTEX_CHILD);
-		pipe_lock_nested(pipe1, I_MUTEX_PARENT);
+		pipe_lock_nested(pipe2, I_MUTEX_PARENT);
+		pipe_lock_nested(pipe1, I_MUTEX_CHILD);
 	}
 }
 

@@ -580,10 +580,7 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 	int reg_num = 0;
 	struct io_reg *lcd_patch_reg = NULL;
 
-	if (viaparinfo->lvds_setting_info->iga_path == IGA2)
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 1);
-	else
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 0);
+	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 	switch (panel_id) {
 		/* LCD 800x600 */
 	case LCD_PANEL_ID1_800X600:
@@ -761,10 +758,7 @@ static void load_lcd_p880_patch_tbl(int set_hres, int set_vres,
 	int reg_num = 0;
 	struct io_reg *lcd_patch_reg = NULL;
 
-	if (viaparinfo->lvds_setting_info->iga_path == IGA2)
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 1);
-	else
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 0);
+	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 
 	switch (panel_id) {
 	case LCD_PANEL_ID5_1400X1050:
@@ -832,10 +826,7 @@ static void load_lcd_patch_regs(int set_hres, int set_vres,
 {
 	int vmode_index;
 
-	if (viaparinfo->lvds_setting_info->iga_path == IGA2)
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 1);
-	else
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 0);
+	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 
 	viafb_unlock_crt();
 

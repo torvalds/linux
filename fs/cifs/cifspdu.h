@@ -2328,19 +2328,7 @@ struct file_attrib_tag {
 typedef struct {
 	__le32 NextEntryOffset;
 	__u32 ResumeKey; /* as with FileIndex - no need to convert */
-	__le64 EndOfFile;
-	__le64 NumOfBytes;
-	__le64 LastStatusChange; /*SNIA specs DCE time for the 3 time fields */
-	__le64 LastAccessTime;
-	__le64 LastModificationTime;
-	__le64 Uid;
-	__le64 Gid;
-	__le32 Type;
-	__le64 DevMajor;
-	__le64 DevMinor;
-	__le64 UniqueId;
-	__le64 Permissions;
-	__le64 Nlinks;
+	FILE_UNIX_BASIC_INFO basic;
 	char FileName[1];
 } __attribute__((packed)) FILE_UNIX_INFO; /* level 0x202 */
 

@@ -122,7 +122,7 @@ static int s3c6400_serial_probe(struct platform_device *dev)
 	return s3c24xx_serial_probe(dev, &s3c6400_uart_inf);
 }
 
-static struct platform_driver s3c6400_serial_drv = {
+static struct platform_driver s3c6400_serial_driver = {
 	.probe		= s3c6400_serial_probe,
 	.remove		= __devexit_p(s3c24xx_serial_remove),
 	.driver		= {
@@ -131,16 +131,16 @@ static struct platform_driver s3c6400_serial_drv = {
 	},
 };
 
-s3c24xx_console_init(&s3c6400_serial_drv, &s3c6400_uart_inf);
+s3c24xx_console_init(&s3c6400_serial_driver, &s3c6400_uart_inf);
 
 static int __init s3c6400_serial_init(void)
 {
-	return s3c24xx_serial_init(&s3c6400_serial_drv, &s3c6400_uart_inf);
+	return s3c24xx_serial_init(&s3c6400_serial_driver, &s3c6400_uart_inf);
 }
 
 static void __exit s3c6400_serial_exit(void)
 {
-	platform_driver_unregister(&s3c6400_serial_drv);
+	platform_driver_unregister(&s3c6400_serial_driver);
 }
 
 module_init(s3c6400_serial_init);

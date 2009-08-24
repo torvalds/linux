@@ -486,11 +486,13 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = __tun_get(tfile);
-	struct sock *sk = tun->sk;
+	struct sock *sk;
 	unsigned int mask = 0;
 
 	if (!tun)
 		return POLLERR;
+
+	sk = tun->sk;
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
@@ -1046,20 +1048,15 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	return err;
 }
 
-static int tun_get_iff(struct net *net, struct file *file, struct ifreq *ifr)
+static int tun_get_iff(struct net *net, struct tun_struct *tun,
+		       struct ifreq *ifr)
 {
-	struct tun_struct *tun = tun_get(file);
-
-	if (!tun)
-		return -EBADFD;
-
 	DBG(KERN_INFO "%s: tun_get_iff\n", tun->dev->name);
 
 	strcpy(ifr->ifr_name, tun->dev->name);
 
 	ifr->ifr_flags = tun_flags(tun);
 
-	tun_put(tun);
 	return 0;
 }
 
@@ -1103,8 +1100,8 @@ static int set_offload(struct net_device *dev, unsigned long arg)
 	return 0;
 }
 
-static int tun_chr_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long tun_chr_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
@@ -1126,34 +1123,32 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 				(unsigned int __user*)argp);
 	}
 
+	rtnl_lock();
+
 	tun = __tun_get(tfile);
 	if (cmd == TUNSETIFF && !tun) {
-		int err;
-
 		ifr.ifr_name[IFNAMSIZ-1] = '\0';
 
-		rtnl_lock();
-		err = tun_set_iff(tfile->net, file, &ifr);
-		rtnl_unlock();
+		ret = tun_set_iff(tfile->net, file, &ifr);
 
-		if (err)
-			return err;
+		if (ret)
+			goto unlock;
 
 		if (copy_to_user(argp, &ifr, sizeof(ifr)))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		goto unlock;
 	}
 
-
+	ret = -EBADFD;
 	if (!tun)
-		return -EBADFD;
+		goto unlock;
 
 	DBG(KERN_INFO "%s: tun_chr_ioctl cmd %d\n", tun->dev->name, cmd);
 
 	ret = 0;
 	switch (cmd) {
 	case TUNGETIFF:
-		ret = tun_get_iff(current->nsproxy->net_ns, file, &ifr);
+		ret = tun_get_iff(current->nsproxy->net_ns, tun, &ifr);
 		if (ret)
 			break;
 
@@ -1199,7 +1194,6 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 
 	case TUNSETLINK:
 		/* Only allow setting the type when the interface is down */
-		rtnl_lock();
 		if (tun->dev->flags & IFF_UP) {
 			DBG(KERN_INFO "%s: Linktype set failed because interface is up\n",
 				tun->dev->name);
@@ -1209,7 +1203,6 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 			DBG(KERN_INFO "%s: linktype set to %d\n", tun->dev->name, tun->dev->type);
 			ret = 0;
 		}
-		rtnl_unlock();
 		break;
 
 #ifdef TUN_DEBUG
@@ -1218,9 +1211,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		break;
 #endif
 	case TUNSETOFFLOAD:
-		rtnl_lock();
 		ret = set_offload(tun->dev, arg);
-		rtnl_unlock();
 		break;
 
 	case TUNSETTXFILTER:
@@ -1228,9 +1219,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		ret = -EINVAL;
 		if ((tun->flags & TUN_TYPE_MASK) != TUN_TAP_DEV)
 			break;
-		rtnl_lock();
 		ret = update_filter(&tun->txflt, (void __user *)arg);
-		rtnl_unlock();
 		break;
 
 	case SIOCGIFHWADDR:
@@ -1246,9 +1235,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		DBG(KERN_DEBUG "%s: set hw address: %pM\n",
 			tun->dev->name, ifr.ifr_hwaddr.sa_data);
 
-		rtnl_lock();
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
-		rtnl_unlock();
 		break;
 
 	case TUNGETSNDBUF:
@@ -1271,7 +1258,10 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		break;
 	};
 
-	tun_put(tun);
+unlock:
+	rtnl_unlock();
+	if (tun)
+		tun_put(tun);
 	return ret;
 }
 
@@ -1324,20 +1314,22 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
 
-
-	rtnl_lock();
 	tun = __tun_get(tfile);
 	if (tun) {
-		DBG(KERN_INFO "%s: tun_chr_close\n", tun->dev->name);
+		struct net_device *dev = tun->dev;
+
+		DBG(KERN_INFO "%s: tun_chr_close\n", dev->name);
 
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
-		if (!(tun->flags & TUN_PERSIST))
-			unregister_netdevice(tun->dev);
-
+		if (!(tun->flags & TUN_PERSIST)) {
+			rtnl_lock();
+			if (dev->reg_state == NETREG_REGISTERED)
+				unregister_netdevice(dev);
+			rtnl_unlock();
+		}
 	}
-	rtnl_unlock();
 
 	tun = tfile->tun;
 	if (tun)
@@ -1357,7 +1349,7 @@ static const struct file_operations tun_fops = {
 	.write = do_sync_write,
 	.aio_write = tun_chr_aio_write,
 	.poll	= tun_chr_poll,
-	.ioctl	= tun_chr_ioctl,
+	.unlocked_ioctl = tun_chr_ioctl,
 	.open	= tun_chr_open,
 	.release = tun_chr_close,
 	.fasync = tun_chr_fasync

@@ -16,6 +16,7 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>
+#include <linux/smp_lock.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cmb.h>

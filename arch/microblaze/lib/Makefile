@@ -2,7 +2,7 @@
 # Makefile
 #
 
-lib-y :=  memset.o checksum.o
+lib-y :=  memset.o
 
 ifeq ($(CONFIG_OPT_LIB_ASM),y)
 lib-y += fastcopy.o

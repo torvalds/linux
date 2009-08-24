@@ -25,6 +25,7 @@
 #include <linux/console.h>
 #include <linux/consolemap.h>
 #include <linux/signal.h>
+#include <linux/smp_lock.h>
 #include <linux/timex.h>
 
 #include <asm/io.h>

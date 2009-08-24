@@ -105,6 +105,7 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
+	ehci_reset(ehci);
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -118,7 +119,6 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 
 	hcd->has_tt = 1;
 
-	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
 	return retval;
@@ -165,6 +165,8 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	.bus_resume = ehci_bus_resume,
 	.relinquish_port = ehci_relinquish_port,
 	.port_handed_over = ehci_port_handed_over,
+
+	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
 static void __init
