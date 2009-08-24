@@ -328,17 +328,17 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		adapter->macaddr_set = netxen_p2_nic_set_mac_addr;
 		adapter->set_multi = netxen_p2_nic_set_multi;
 		adapter->set_mtu = netxen_nic_set_mtu_xgb;
-		adapter->set_promisc = netxen_niu_xg_set_promiscuous_mode;
+		adapter->set_promisc = netxen_p2_nic_set_promisc;
 	} else {
 		adapter->set_mtu = nx_fw_cmd_set_mtu;
 		adapter->set_promisc = netxen_p3_nic_set_promisc;
 		adapter->macaddr_set = netxen_p3_nic_set_mac_addr;
 		adapter->set_multi = netxen_p3_nic_set_multi;
-	}
 
-	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-		adapter->phy_read = netxen_niu_gbe_phy_read;
-		adapter->phy_write = netxen_niu_gbe_phy_write;
+		if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
+			adapter->phy_read = nx_fw_cmd_query_phy;
+			adapter->phy_write = nx_fw_cmd_set_phy;
+		}
 	}
 }
 

@@ -684,7 +684,19 @@ struct netxen_recv_context {
 #define NX_CDRP_CMD_GET_STATISTICS          0x0000000f
 #define NX_CDRP_CMD_DELETE_STATISTICS       0x00000010
 #define NX_CDRP_CMD_SET_MTU                 0x00000012
-#define NX_CDRP_CMD_MAX                     0x00000013
+#define NX_CDRP_CMD_READ_PHY			0x00000013
+#define NX_CDRP_CMD_WRITE_PHY			0x00000014
+#define NX_CDRP_CMD_READ_HW_REG			0x00000015
+#define NX_CDRP_CMD_GET_FLOW_CTL		0x00000016
+#define NX_CDRP_CMD_SET_FLOW_CTL		0x00000017
+#define NX_CDRP_CMD_READ_MAX_MTU		0x00000018
+#define NX_CDRP_CMD_READ_MAX_LRO		0x00000019
+#define NX_CDRP_CMD_CONFIGURE_TOE		0x0000001a
+#define NX_CDRP_CMD_FUNC_ATTRIB			0x0000001b
+#define NX_CDRP_CMD_READ_PEXQ_PARAMETERS	0x0000001c
+#define NX_CDRP_CMD_GET_LIC_CAPABILITIES	0x0000001d
+#define NX_CDRP_CMD_READ_MAX_LRO_PER_BOARD	0x0000001e
+#define NX_CDRP_CMD_MAX				0x0000001f
 
 #define NX_RCODE_SUCCESS		0
 #define NX_RCODE_NO_HOST_MEM		1
@@ -1152,8 +1164,8 @@ struct netxen_adapter {
 	int (*set_mtu) (struct netxen_adapter *, int);
 	int (*set_promisc) (struct netxen_adapter *, u32);
 	void (*set_multi) (struct net_device *);
-	int (*phy_read) (struct netxen_adapter *, long reg, u32 *);
-	int (*phy_write) (struct netxen_adapter *, long reg, u32 val);
+	int (*phy_read) (struct netxen_adapter *, u32 reg, u32 *);
+	int (*phy_write) (struct netxen_adapter *, u32 reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);
 	int (*stop_port) (struct netxen_adapter *);
 
@@ -1185,15 +1197,11 @@ struct netxen_adapter {
 	const struct firmware *fw;
 };
 
-int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-		u32 mode);
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
 int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
 
-int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
-			    __u32 * readval);
-int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
-			     long reg, __u32 val);
+int nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val);
+int nx_fw_cmd_set_phy(struct netxen_adapter *adapter, u32 reg, u32 val);
 
 /* Functions available from netxen_nic_hw.c */
 int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
@@ -1313,6 +1321,7 @@ int netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max);
 void netxen_p2_nic_set_multi(struct net_device *netdev);
 void netxen_p3_nic_set_multi(struct net_device *netdev);
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
+int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode);
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);

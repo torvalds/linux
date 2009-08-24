@@ -348,6 +348,35 @@ netxen_pcie_sem_unlock(struct netxen_adapter *adapter, int sem)
 	val = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
 }
 
+int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
+{
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_1+(0x10000*port), 0x1447);
+		NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_0+(0x10000*port), 0x5);
+	}
+
+	return 0;
+}
+
+/* Disable an XG interface */
+int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
+{
+	__u32 mac_cfg;
+	u32 port = adapter->physical_port;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
+	if (port > NETXEN_NIU_MAX_XG_PORTS)
+		return -EINVAL;
+
+	mac_cfg = 0;
+	if (NXWR32(adapter,
+			NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), mac_cfg))
+		return -EIO;
+	return 0;
+}
+
 #define NETXEN_UNICAST_ADDR(port, index) \
 	(NETXEN_UNICAST_ADDR_BASE+(port*32)+(index*8))
 #define NETXEN_MCAST_ADDR(port, index) \
@@ -356,6 +385,56 @@ netxen_pcie_sem_unlock(struct netxen_adapter *adapter, int sem)
 	((addr[2] << 16) | (addr[1] << 8) | (addr[0]))
 #define MAC_LO(addr) \
 	((addr[5] << 16) | (addr[4] << 8) | (addr[3]))
+
+int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
+{
+	__u32 reg;
+	u32 port = adapter->physical_port;
+
+	if (port > NETXEN_NIU_MAX_XG_PORTS)
+		return -EINVAL;
+
+	reg = NXRD32(adapter, NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port));
+	if (mode == NETXEN_NIU_PROMISC_MODE)
+		reg = (reg | 0x2000UL);
+	else
+		reg = (reg & ~0x2000UL);
+
+	if (mode == NETXEN_NIU_ALLMULTI_MODE)
+		reg = (reg | 0x1000UL);
+	else
+		reg = (reg & ~0x1000UL);
+
+	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port), reg);
+
+	return 0;
+}
+
+int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+{
+	u32 mac_hi, mac_lo;
+	u32 reg_hi, reg_lo;
+
+	u8 phy = adapter->physical_port;
+
+	if (phy >= NETXEN_NIU_MAX_XG_PORTS)
+		return -EINVAL;
+
+	mac_lo = ((u32)addr[0] << 16) | ((u32)addr[1] << 24);
+	mac_hi = addr[2] | ((u32)addr[3] << 8) |
+		((u32)addr[4] << 16) | ((u32)addr[5] << 24);
+
+	reg_lo = NETXEN_NIU_XGE_STATION_ADDR_0_1 + (0x10000 * phy);
+	reg_hi = NETXEN_NIU_XGE_STATION_ADDR_0_HI + (0x10000 * phy);
+
+	/* write twice to flush */
+	if (NXWR32(adapter, reg_lo, mac_lo) || NXWR32(adapter, reg_hi, mac_hi))
+		return -EIO;
+	if (NXWR32(adapter, reg_lo, mac_lo) || NXWR32(adapter, reg_hi, mac_hi))
+		return -EIO;
+
+	return 0;
+}
 
 static int
 netxen_nic_enable_mcast_filter(struct netxen_adapter *adapter)

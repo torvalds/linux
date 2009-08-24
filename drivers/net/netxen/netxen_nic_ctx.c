@@ -380,6 +380,44 @@ nx_fw_cmd_destroy_tx_ctx(struct netxen_adapter *adapter)
 	}
 }
 
+int
+nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val)
+{
+	u32 rcode;
+
+	rcode = netxen_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			NXHAL_VERSION,
+			reg,
+			0,
+			0,
+			NX_CDRP_CMD_READ_PHY);
+
+	if (rcode != NX_RCODE_SUCCESS)
+		return -EIO;
+
+	return NXRD32(adapter, NX_ARG1_CRB_OFFSET);
+}
+
+int
+nx_fw_cmd_set_phy(struct netxen_adapter *adapter, u32 reg, u32 val)
+{
+	u32 rcode;
+
+	rcode = netxen_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			NXHAL_VERSION,
+			reg,
+			val,
+			0,
+			NX_CDRP_CMD_WRITE_PHY);
+
+	if (rcode != NX_RCODE_SUCCESS)
+		return -EIO;
+
+	return 0;
+}
+
 static u64 ctx_addr_sig_regs[][3] = {
 	{NETXEN_NIC_REG(0x188), NETXEN_NIC_REG(0x18c), NETXEN_NIC_REG(0x1c0)},
 	{NETXEN_NIC_REG(0x190), NETXEN_NIC_REG(0x194), NETXEN_NIC_REG(0x1c4)},
