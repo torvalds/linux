@@ -267,8 +267,9 @@ struct whc_qset {
 	unsigned reset:1;
 	struct urb *pause_after_urb;
 	struct completion remove_complete;
-	int max_burst;
-	int max_seq;
+	uint16_t max_packet;
+	uint8_t max_burst;
+	uint8_t max_seq;
 };
 
 static inline void whc_qset_set_link_ptr(u64 *ptr, u64 target)
