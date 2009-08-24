@@ -225,22 +225,11 @@ int kvm_pic_read_irq(struct kvm *kvm)
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	int irq, irqbase, n;
+	int irq;
 	struct kvm *kvm = s->pics_state->irq_request_opaque;
 	struct kvm_vcpu *vcpu0 = kvm->bsp_vcpu;
+	u8 irr = s->irr, isr = s->imr;
 
-	if (s == &s->pics_state->pics[0])
-		irqbase = 0;
-	else
-		irqbase = 8;
-
-	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
-		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
-			if (s->irr & (1 << irq) || s->isr & (1 << irq)) {
-				n = irq + irqbase;
-				kvm_notify_acked_irq(kvm, SELECT_PIC(n), n);
-			}
-	}
 	s->last_irr = 0;
 	s->irr = 0;
 	s->imr = 0;
@@ -256,6 +245,13 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 	s->rotate_on_auto_eoi = 0;
 	s->special_fully_nested_mode = 0;
 	s->init4 = 0;
+
+	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
+		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
+			if (irr & (1 << irq) || isr & (1 << irq)) {
+				pic_clear_isr(s, irq);
+			}
+	}
 }
 
 static void pic_ioport_write(void *opaque, u32 addr, u32 val)
