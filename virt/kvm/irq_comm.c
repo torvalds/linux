@@ -175,25 +175,16 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
 	struct kvm_irq_ack_notifier *kian;
 	struct hlist_node *n;
-	unsigned gsi = pin;
-	int i;
+	int gsi;
 
 	trace_kvm_ack_irq(irqchip, pin);
 
-	for (i = 0; i < kvm->irq_routing->nr_rt_entries; i++) {
-		struct kvm_kernel_irq_routing_entry *e;
-		e = &kvm->irq_routing->rt_entries[i];
-		if (e->type == KVM_IRQ_ROUTING_IRQCHIP &&
-		    e->irqchip.irqchip == irqchip &&
-		    e->irqchip.pin == pin) {
-			gsi = e->gsi;
-			break;
-		}
-	}
-
-	hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list, link)
-		if (kian->gsi == gsi)
-			kian->irq_acked(kian);
+	gsi = kvm->irq_routing->chip[irqchip][pin];
+	if (gsi != -1)
+		hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list,
+				     link)
+			if (kian->gsi == gsi)
+				kian->irq_acked(kian);
 }
 
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
@@ -332,6 +323,9 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 		}
 		e->irqchip.irqchip = ue->u.irqchip.irqchip;
 		e->irqchip.pin = ue->u.irqchip.pin + delta;
+		if (e->irqchip.pin >= KVM_IOAPIC_NUM_PINS)
+			goto out;
+		rt->chip[ue->u.irqchip.irqchip][e->irqchip.pin] = ue->gsi;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
 		e->set = kvm_set_msi;
@@ -356,7 +350,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			unsigned flags)
 {
 	struct kvm_irq_routing_table *new, *old;
-	u32 i, nr_rt_entries = 0;
+	u32 i, j, nr_rt_entries = 0;
 	int r;
 
 	for (i = 0; i < nr; ++i) {
@@ -377,6 +371,9 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	new->rt_entries = (void *)&new->map[nr_rt_entries];
 
 	new->nr_rt_entries = nr_rt_entries;
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < KVM_IOAPIC_NUM_PINS; j++)
+			new->chip[i][j] = -1;
 
 	for (i = 0; i < nr; ++i) {
 		r = -EINVAL;

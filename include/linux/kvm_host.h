@@ -131,7 +131,10 @@ struct kvm_kernel_irq_routing_entry {
 	struct hlist_node link;
 };
 
+#ifdef __KVM_HAVE_IOAPIC
+
 struct kvm_irq_routing_table {
+	int chip[KVM_NR_IRQCHIPS][KVM_IOAPIC_NUM_PINS];
 	struct kvm_kernel_irq_routing_entry *rt_entries;
 	u32 nr_rt_entries;
 	/*
@@ -140,6 +143,12 @@ struct kvm_irq_routing_table {
 	 */
 	struct hlist_head map[0];
 };
+
+#else
+
+struct kvm_irq_routing_table {};
+
+#endif
 
 struct kvm {
 	spinlock_t mmu_lock;

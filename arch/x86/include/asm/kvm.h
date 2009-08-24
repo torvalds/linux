@@ -79,6 +79,7 @@ struct kvm_ioapic_state {
 #define KVM_IRQCHIP_PIC_MASTER   0
 #define KVM_IRQCHIP_PIC_SLAVE    1
 #define KVM_IRQCHIP_IOAPIC       2
+#define KVM_NR_IRQCHIPS          3
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
