@@ -186,8 +186,7 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 	rcu_read_unlock();
 
 	if (gsi != -1)
-		hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list,
-				     link)
+		hlist_for_each_entry(kian, n, &kvm->irq_ack_notifier_list, link)
 			if (kian->gsi == gsi)
 				kian->irq_acked(kian);
 }
@@ -196,7 +195,7 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian)
 {
 	mutex_lock(&kvm->irq_lock);
-	hlist_add_head(&kian->link, &kvm->arch.irq_ack_notifier_list);
+	hlist_add_head(&kian->link, &kvm->irq_ack_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
 }
 

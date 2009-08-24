@@ -187,6 +187,7 @@ struct kvm {
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	struct kvm_irq_routing_table *irq_routing;
 	struct hlist_head mask_notifier_list;
+	struct hlist_head irq_ack_notifier_list;
 #endif
 
 #ifdef KVM_ARCH_WANT_MMU_NOTIFIER

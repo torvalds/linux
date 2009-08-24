@@ -958,6 +958,7 @@ static struct kvm *kvm_create_vm(void)
 		goto out;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	INIT_HLIST_HEAD(&kvm->mask_notifier_list);
+	INIT_HLIST_HEAD(&kvm->irq_ack_notifier_list);
 #endif
 
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
