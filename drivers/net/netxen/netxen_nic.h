@@ -1148,8 +1148,6 @@ struct netxen_adapter {
 	struct netxen_recv_context recv_ctx;
 	struct nx_host_tx_ring *tx_ring;
 
-	int (*enable_phy_interrupts) (struct netxen_adapter *);
-	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	int (*macaddr_set) (struct netxen_adapter *, u8 *);
 	int (*set_mtu) (struct netxen_adapter *, int);
 	int (*set_promisc) (struct netxen_adapter *, u32);
@@ -1187,22 +1185,11 @@ struct netxen_adapter {
 	const struct firmware *fw;
 };
 
-/* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, u32 mode);
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 		u32 mode);
-/* Generic enable for GbE ports. Will detect the speed of the link. */
-int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
-
-/* Disable a GbE interface */
-int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter);
 int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
 
-int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
-int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);
-int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter);
-int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 			    __u32 * readval);
 int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
