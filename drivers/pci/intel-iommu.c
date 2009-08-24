@@ -2038,7 +2038,7 @@ static int __init si_domain_work_fn(unsigned long start_pfn,
 
 }
 
-static int si_domain_init(int hw)
+static int __init si_domain_init(int hw)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
@@ -2167,7 +2167,7 @@ static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 	return 1;
 }
 
-static int iommu_prepare_static_identity_mapping(int hw)
+static int __init iommu_prepare_static_identity_mapping(int hw)
 {
 	struct pci_dev *pdev = NULL;
 	int ret;
