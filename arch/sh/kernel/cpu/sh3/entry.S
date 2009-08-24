@@ -257,7 +257,7 @@ restore_all:
 	!
 	! Calculate new SR value
 	mov	k3, k2			! original SR value
-	mov	#0xf0, k1
+	mov	#0xfffffff0, k1
 	extu.b	k1, k1
 	not	k1, k1
 	and	k1, k2			! Mask original SR value

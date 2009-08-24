@@ -98,8 +98,9 @@ need_resched:
 
 	mov	#OFF_SR, r0
 	mov.l	@(r0,r15), r0		! get status register
-	and	#0xf0, r0		! interrupts off (exception path)?
-	cmp/eq	#0xf0, r0
+	shlr	r0
+	and	#(0xf0>>1), r0		! interrupts off (exception path)?
+	cmp/eq	#(0xf0>>1), r0
 	bt	noresched
 	mov.l	3f, r0
 	jsr	@r0			! call preempt_schedule_irq
