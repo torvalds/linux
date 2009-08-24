@@ -41,7 +41,7 @@ int (*rtc_sh_set_time)(const time_t) = null_rtc_set_time;
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
 void read_persistent_clock(struct timespec *ts)
 {
-	rtc_sh_get_time(&ts);
+	rtc_sh_get_time(ts);
 }
 
 int update_persistent_clock(struct timespec now)
