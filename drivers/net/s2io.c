@@ -54,6 +54,8 @@
  *      Possible values '1' for enable and '0' for disable. Default is '0'
  ************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -5547,8 +5549,7 @@ static int s2io_ethtool_idnic(struct net_device *dev, u32 data)
 	if ((sp->device_type == XFRAME_I_DEVICE) && ((subid & 0xFF) < 0x07)) {
 		val64 = readq(&bar0->adapter_control);
 		if (!(val64 & ADAPTER_CNTL_EN)) {
-			printk(KERN_ERR
-			       "Adapter Link down, cannot blink LED\n");
+			pr_err("Adapter Link down, cannot blink LED\n");
 			return -EFAULT;
 		}
 	}
@@ -7130,8 +7131,7 @@ static int s2io_add_isr(struct s2io_nic *sp)
 			}
 		}
 		if (!err) {
-			printk(KERN_INFO "MSI-X-RX %d entries enabled\n",
-			       --msix_rx_cnt);
+			pr_info("MSI-X-RX %d entries enabled\n", --msix_rx_cnt);
 			DBG_PRINT(INFO_DBG, "MSI-X-TX entries enabled"
 				  " through alarm vector\n");
 		}
@@ -8724,8 +8724,7 @@ static pci_ers_result_t s2io_io_slot_reset(struct pci_dev *pdev)
 	struct s2io_nic *sp = netdev_priv(netdev);
 
 	if (pci_enable_device(pdev)) {
-		printk(KERN_ERR "s2io: "
-		       "Cannot re-enable PCI device after reset.\n");
+		pr_err("Cannot re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -8749,15 +8748,13 @@ static void s2io_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (s2io_card_up(sp)) {
-			printk(KERN_ERR "s2io: "
-			       "Can't bring device back up after reset.\n");
+			pr_err("Can't bring device back up after reset.\n");
 			return;
 		}
 
 		if (s2io_set_mac_addr(netdev, netdev->dev_addr) == FAILURE) {
 			s2io_card_down(sp);
-			printk(KERN_ERR "s2io: "
-			       "Can't resetore mac addr after reset.\n");
+			pr_err("Can't restore mac addr after reset.\n");
 			return;
 		}
 	}
