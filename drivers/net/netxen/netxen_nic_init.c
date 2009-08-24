@@ -369,37 +369,7 @@ static u32 netxen_decode_crb_addr(u32 addr)
 		return (pci_base + offset);
 }
 
-static long rom_max_timeout = 100;
-static long rom_lock_timeout = 10000;
-
-static int rom_lock(struct netxen_adapter *adapter)
-{
-	int iter;
-	u32 done = 0;
-	int timeout = 0;
-
-	while (!done) {
-		/* acquire semaphore2 from PCI HW block */
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM2_LOCK));
-		if (done == 1)
-			break;
-		if (timeout >= rom_lock_timeout)
-			return -EIO;
-
-		timeout++;
-		/*
-		 * Yield CPU
-		 */
-		if (!in_atomic())
-			schedule();
-		else {
-			for (iter = 0; iter < 20; iter++)
-				cpu_relax();	/*This a nop instr on i386 */
-		}
-	}
-	NXWR32(adapter, NETXEN_ROM_LOCK_ID, ROM_LOCK_DRIVER);
-	return 0;
-}
+#define NETXEN_MAX_ROM_WAIT_USEC	100
 
 static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 {
@@ -411,20 +381,14 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 	while (done == 0) {
 		done = NXRD32(adapter, NETXEN_ROMUSB_GLB_STATUS);
 		done &= 2;
-		timeout++;
-		if (timeout >= rom_max_timeout) {
-			printk("Timeout reached  waiting for rom done");
+		if (++timeout >= NETXEN_MAX_ROM_WAIT_USEC) {
+			dev_err(&adapter->pdev->dev,
+				"Timeout reached  waiting for rom done");
 			return -EIO;
 		}
+		udelay(1);
 	}
 	return 0;
-}
-
-static void netxen_rom_unlock(struct netxen_adapter *adapter)
-{
-	/* release semaphore2 */
-	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM2_UNLOCK));
-
 }
 
 static int do_rom_fast_read(struct netxen_adapter *adapter,
@@ -471,7 +435,7 @@ netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 {
 	int ret;
 
-	ret = rom_lock(adapter);
+	ret = netxen_rom_lock(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -485,7 +449,7 @@ int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 {
 	int ret;
 
-	if (rom_lock(adapter) != 0)
+	if (netxen_rom_lock(adapter) != 0)
 		return -EIO;
 
 	ret = do_rom_fast_read(adapter, addr, valp);
@@ -506,7 +470,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 	u32 off;
 
 	/* resetall */
-	rom_lock(adapter);
+	netxen_rom_lock(adapter);
 	NXWR32(adapter, NETXEN_ROMUSB_GLB_SW_RESET, 0xffffffff);
 	netxen_rom_unlock(adapter);
 

@@ -899,16 +899,24 @@ enum {
 
 #define PCIE_DCR		0x00d8
 
+#define PCIE_SEM0_LOCK		(0x1c000)
+#define PCIE_SEM0_UNLOCK	(0x1c004)
+#define PCIE_SEM1_LOCK		(0x1c008)
+#define PCIE_SEM1_UNLOCK	(0x1c00c)
 #define PCIE_SEM2_LOCK		(0x1c010)	/* Flash lock   */
 #define PCIE_SEM2_UNLOCK	(0x1c014)	/* Flash unlock */
 #define PCIE_SEM3_LOCK	  	(0x1c018)	/* Phy lock     */
 #define PCIE_SEM3_UNLOCK	(0x1c01c)	/* Phy unlock   */
+#define PCIE_SEM4_LOCK	  	(0x1c020)
+#define PCIE_SEM4_UNLOCK	(0x1c024)
 #define PCIE_SEM5_LOCK		(0x1c028)	/* API lock     */
 #define PCIE_SEM5_UNLOCK	(0x1c02c)	/* API unlock   */
 #define PCIE_SEM6_LOCK		(0x1c030)	/* sw lock      */
 #define PCIE_SEM6_UNLOCK	(0x1c034)	/* sw unlock    */
 #define PCIE_SEM7_LOCK		(0x1c038)	/* crb win lock */
 #define PCIE_SEM7_UNLOCK	(0x1c03c)	/* crbwin unlock*/
+#define PCIE_SEM_LOCK(N)	(PCIE_SEM0_LOCK + 8*(N))
+#define PCIE_SEM_UNLOCK(N)	(PCIE_SEM0_UNLOCK + 8*(N))
 
 #define PCIE_SETUP_FUNCTION	(0x12040)
 #define PCIE_SETUP_FUNCTION2	(0x12048)

@@ -86,7 +86,6 @@ static void __iomem *pci_base_offset(struct netxen_adapter *adapter,
 	return NULL;
 }
 
-#define CRB_WIN_LOCK_TIMEOUT 100000000
 static crb_128M_2M_block_map_t
 crb_128M_2M_map[64] __cacheline_aligned_in_smp = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
@@ -319,6 +318,35 @@ static unsigned crb_hub_agt[64] =
 /*  PCI Windowing for DDR regions.  */
 
 #define NETXEN_WINDOW_ONE 	0x2000000 /*CRB Window: bit 25 of CRB address */
+
+#define NETXEN_PCIE_SEM_TIMEOUT	10000
+
+int
+netxen_pcie_sem_lock(struct netxen_adapter *adapter, int sem, u32 id_reg)
+{
+	int done = 0, timeout = 0;
+
+	while (!done) {
+		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_LOCK(sem)));
+		if (done == 1)
+			break;
+		if (++timeout >= NETXEN_PCIE_SEM_TIMEOUT)
+			return -1;
+		msleep(1);
+	}
+
+	if (id_reg)
+		NXWR32(adapter, id_reg, adapter->portnum);
+
+	return 0;
+}
+
+void
+netxen_pcie_sem_unlock(struct netxen_adapter *adapter, int sem)
+{
+	int val;
+	val = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
+}
 
 #define NETXEN_UNICAST_ADDR(port, index) \
 	(NETXEN_UNICAST_ADDR_BASE+(port*32)+(index*8))
@@ -904,33 +932,6 @@ int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 		*mac = le64_to_cpu((u64)mac_lo | ((u64)mac_hi << 32));
 
 	return 0;
-}
-
-#define CRB_WIN_LOCK_TIMEOUT 100000000
-
-static int crb_win_lock(struct netxen_adapter *adapter)
-{
-	int done = 0, timeout = 0;
-
-	while (!done) {
-		/* acquire semaphore3 from PCI HW block */
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM7_LOCK));
-		if (done == 1)
-			break;
-		if (timeout >= CRB_WIN_LOCK_TIMEOUT)
-			return -1;
-		timeout++;
-		udelay(1);
-	}
-	NXWR32(adapter, NETXEN_CRB_WIN_LOCK_ID, adapter->portnum);
-	return 0;
-}
-
-static void crb_win_unlock(struct netxen_adapter *adapter)
-{
-	int val;
-
-	val = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM7_UNLOCK));
 }
 
 /*

@@ -1207,6 +1207,30 @@ int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
 #define NXWR32(adapter, off, val) \
 	(adapter->hw_write_wx(adapter, off, val))
 
+int netxen_pcie_sem_lock(struct netxen_adapter *, int, u32);
+void netxen_pcie_sem_unlock(struct netxen_adapter *, int);
+
+#define netxen_rom_lock(a)	\
+	netxen_pcie_sem_lock((a), 2, NETXEN_ROM_LOCK_ID)
+#define netxen_rom_unlock(a)	\
+	netxen_pcie_sem_unlock((a), 2)
+#define netxen_phy_lock(a)	\
+	netxen_pcie_sem_lock((a), 3, NETXEN_PHY_LOCK_ID)
+#define netxen_phy_unlock(a)	\
+	netxen_pcie_sem_unlock((a), 3)
+#define netxen_api_lock(a)	\
+	netxen_pcie_sem_lock((a), 5, 0)
+#define netxen_api_unlock(a)	\
+	netxen_pcie_sem_unlock((a), 5)
+#define netxen_sw_lock(a)	\
+	netxen_pcie_sem_lock((a), 6, 0)
+#define netxen_sw_unlock(a)	\
+	netxen_pcie_sem_unlock((a), 6)
+#define crb_win_lock(a)	\
+	netxen_pcie_sem_lock((a), 7, NETXEN_CRB_WIN_LOCK_ID)
+#define crb_win_unlock(a)	\
+	netxen_pcie_sem_unlock((a), 7)
+
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
 void netxen_nic_get_firmware_info(struct netxen_adapter *adapter);
 int netxen_nic_wol_supported(struct netxen_adapter *adapter);

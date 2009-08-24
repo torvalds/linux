@@ -33,41 +33,6 @@
 
 #define NXHAL_VERSION	1
 
-static int
-netxen_api_lock(struct netxen_adapter *adapter)
-{
-	u32 done = 0, timeout = 0;
-
-	for (;;) {
-		/* Acquire PCIE HW semaphore5 */
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM5_LOCK));
-
-		if (done == 1)
-			break;
-
-		if (++timeout >= NX_OS_CRB_RETRY_COUNT) {
-			printk(KERN_ERR "%s: lock timeout.\n", __func__);
-			return -1;
-		}
-
-		msleep(1);
-	}
-
-#if 0
-	NXWR32(adapter,
-		NETXEN_API_LOCK_ID, NX_OS_API_LOCK_DRIVER);
-#endif
-	return 0;
-}
-
-static int
-netxen_api_unlock(struct netxen_adapter *adapter)
-{
-	/* Release PCIE HW semaphore5 */
-	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM5_UNLOCK));
-	return 0;
-}
-
 static u32
 netxen_poll_rsp(struct netxen_adapter *adapter)
 {

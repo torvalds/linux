@@ -30,40 +30,6 @@
 
 #include "netxen_nic.h"
 
-static long phy_lock_timeout = 100000000;
-
-static int phy_lock(struct netxen_adapter *adapter)
-{
-	int i;
-	int done = 0, timeout = 0;
-
-	while (!done) {
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM3_LOCK));
-		if (done == 1)
-			break;
-		if (timeout >= phy_lock_timeout) {
-			return -1;
-		}
-		timeout++;
-		if (!in_atomic())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();
-		}
-	}
-
-	NXWR32(adapter, NETXEN_PHY_LOCK_ID, PHY_LOCK_DRIVER);
-	return 0;
-}
-
-static int phy_unlock(struct netxen_adapter *adapter)
-{
-	adapter->pci_read_immediate(adapter, NETXEN_PCIE_REG(PCIE_SEM3_UNLOCK));
-
-	return 0;
-}
-
 /*
  * netxen_niu_gbe_phy_read - read a register from the GbE PHY via
  * mii management interface.
@@ -89,9 +55,8 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 	__u32 status;
 	__u32 mac_cfg0;
 
-	if (phy_lock(adapter) != 0) {
+	if (netxen_phy_lock(adapter) != 0)
 		return -1;
-	}
 
 	/*
 	 * MII mgmt all goes through port 0 MAC interface,
@@ -141,7 +106,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 	if (restore)
 		if (NXWR32(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(0), mac_cfg0))
 			return -EIO;
-	phy_unlock(adapter);
+	netxen_phy_unlock(adapter);
 	return result;
 }
 
