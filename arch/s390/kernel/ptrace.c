@@ -664,7 +664,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		ret = -1;
 	}
 
-	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_syscall_enter(regs, regs->gprs[2]);
 
 	if (unlikely(current->audit_context))
@@ -682,7 +682,7 @@ asmlinkage void do_syscall_trace_exit(struct pt_regs *regs)
 		audit_syscall_exit(AUDITSC_RESULT(regs->gprs[2]),
 				   regs->gprs[2]);
 
-	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_syscall_exit(regs, regs->gprs[2]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
