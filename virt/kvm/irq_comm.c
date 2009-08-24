@@ -159,7 +159,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	 * IOAPIC.  So set the bit in both. The guest will ignore
 	 * writes to the unused one.
 	 */
-	irq_rt = kvm->irq_routing;
+	rcu_read_lock();
+	irq_rt = rcu_dereference(kvm->irq_routing);
 	if (irq < irq_rt->nr_rt_entries)
 		hlist_for_each_entry(e, n, &irq_rt->map[irq], link) {
 			int r = e->set(e, kvm, irq_source_id, level);
@@ -168,6 +169,7 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 
 			ret = r + ((ret < 0) ? 0 : ret);
 		}
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -179,7 +181,10 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 
 	trace_kvm_ack_irq(irqchip, pin);
 
-	gsi = kvm->irq_routing->chip[irqchip][pin];
+	rcu_read_lock();
+	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
+	rcu_read_unlock();
+
 	if (gsi != -1)
 		hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list,
 				     link)
@@ -279,9 +284,9 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
 
 void kvm_free_irq_routing(struct kvm *kvm)
 {
-	mutex_lock(&kvm->irq_lock);
+	/* Called only during vm destruction. Nobody can use the pointer
+	   at this stage */
 	kfree(kvm->irq_routing);
-	mutex_unlock(&kvm->irq_lock);
 }
 
 static int setup_routing_entry(struct kvm_irq_routing_table *rt,
@@ -387,8 +392,9 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	mutex_lock(&kvm->irq_lock);
 	old = kvm->irq_routing;
-	kvm->irq_routing = new;
+	rcu_assign_pointer(kvm->irq_routing, new);
 	mutex_unlock(&kvm->irq_lock);
+	synchronize_rcu();
 
 	new = old;
 	r = 0;
