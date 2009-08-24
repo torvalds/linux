@@ -1192,6 +1192,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	struct sock *sk = (void *) arg;
 	u16 control;
 
+	bh_lock_sock(sk);
 	if (l2cap_pi(sk)->retry_count >= l2cap_pi(sk)->remote_max_tx) {
 		l2cap_send_disconn_req(l2cap_pi(sk)->conn, sk);
 		return;
@@ -1203,6 +1204,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	control = L2CAP_CTRL_POLL;
 	control |= L2CAP_SUPER_RCV_READY;
 	l2cap_send_sframe(l2cap_pi(sk), control);
+	bh_unlock_sock(sk);
 }
 
 static void l2cap_retrans_timeout(unsigned long arg)
@@ -1210,6 +1212,7 @@ static void l2cap_retrans_timeout(unsigned long arg)
 	struct sock *sk = (void *) arg;
 	u16 control;
 
+	bh_lock_sock(sk);
 	l2cap_pi(sk)->retry_count = 1;
 	__mod_monitor_timer();
 
@@ -1218,6 +1221,7 @@ static void l2cap_retrans_timeout(unsigned long arg)
 	control = L2CAP_CTRL_POLL;
 	control |= L2CAP_SUPER_RCV_READY;
 	l2cap_send_sframe(l2cap_pi(sk), control);
+	bh_unlock_sock(sk);
 }
 
 static void l2cap_drop_acked_frames(struct sock *sk)
