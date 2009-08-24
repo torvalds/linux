@@ -3834,7 +3834,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	int size;
 
 	size = nic->num_entries * sizeof(struct msix_entry);
-	nic->entries = kmalloc(size, GFP_KERNEL);
+	nic->entries = kzalloc(size, GFP_KERNEL);
 	if (!nic->entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", \
 			__func__);
@@ -3843,10 +3843,8 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	}
 	nic->mac_control.stats_info->sw_stat.mem_allocated += size;
 
-	memset(nic->entries, 0, size);
-
 	size = nic->num_entries * sizeof(struct s2io_msix_entry);
-	nic->s2io_entries = kmalloc(size, GFP_KERNEL);
+	nic->s2io_entries = kzalloc(size, GFP_KERNEL);
 	if (!nic->s2io_entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n",
 			__func__);
@@ -3857,7 +3855,6 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 		return -ENOMEM;
 	}
 	nic->mac_control.stats_info->sw_stat.mem_allocated += size;
-	memset(nic->s2io_entries, 0, size);
 
 	nic->entries[0].entry = 0;
 	nic->s2io_entries[0].entry = 0;
