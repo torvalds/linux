@@ -592,6 +592,20 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
  * this with a cache invalidate to mark the cache line invalid. And do all
  * this with interrupts disabled, to avoid the cache line being accidently
  * evicted while it is holding garbage.
+ *
+ * This also breaks in a number of circumstances:
+ * - if there are modifications to the region of memory just above
+ *   empty_zero_page (for example because a breakpoint has been placed
+ *   there), then these can be lost.
+ *
+ *   This is because the the memory address which the cache temporarily
+ *   caches in the above description is empty_zero_page. So the
+ *   movca.l hits the cache (it is assumed that it misses, or at least
+ *   isn't dirty), modifies the line and then invalidates it, losing the
+ *   required change.
+ *
+ * - If caches are disabled or configured in write-through mode, then
+ *   the movca.l writes garbage directly into memory.
  */
 static void __flush_dcache_segment_1way(unsigned long start,
 					unsigned long extent_per_way)
@@ -641,6 +655,25 @@ static void __flush_dcache_segment_1way(unsigned long start,
 	} while (a0 < a0e);
 }
 
+#ifdef CONFIG_CACHE_WRITETHROUGH
+/* This method of cache flushing avoids the problems discussed
+ * in the comment above if writethrough caches are enabled. */
+static void __flush_dcache_segment_2way(unsigned long start,
+					unsigned long extent_per_way)
+{
+	unsigned long array_addr;
+
+	array_addr = CACHE_OC_ADDRESS_ARRAY |
+		(start & cpu_data->dcache.entry_mask);
+
+	while (extent_per_way) {
+		ctrl_outl(0, array_addr);
+		ctrl_outl(0, array_addr + cpu_data->dcache.way_incr);
+		array_addr += cpu_data->dcache.linesz;
+		extent_per_way -= cpu_data->dcache.linesz;
+	}
+}
+#else
 static void __flush_dcache_segment_2way(unsigned long start,
 					unsigned long extent_per_way)
 {
@@ -699,6 +732,7 @@ static void __flush_dcache_segment_2way(unsigned long start,
 		a1 += linesz;
 	} while (a0 < a0e);
 }
+#endif
 
 static void __flush_dcache_segment_4way(unsigned long start,
 					unsigned long extent_per_way)
