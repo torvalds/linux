@@ -83,7 +83,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%3u%s", mr->bitrate / 2,
 				(mr->bitrate & 1 ? ".5" : "  "));
 
-		tp = ((mr->cur_tp * 96) / 18000) >> 10;
+		tp = mr->cur_tp / ((18000 << 10) / 96);
 		prob = mr->cur_prob / 18;
 		eprob = mr->probability / 18;
 
