@@ -144,10 +144,12 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
  */
-int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 {
 	struct kvm_kernel_irq_routing_entry *e;
 	int ret = -1;
+	struct kvm_irq_routing_table *irq_rt;
+	struct hlist_node *n;
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
 
@@ -157,8 +159,9 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	 * IOAPIC.  So set the bit in both. The guest will ignore
 	 * writes to the unused one.
 	 */
-	list_for_each_entry(e, &kvm->irq_routing, link)
-		if (e->gsi == irq) {
+	irq_rt = kvm->irq_routing;
+	if (irq < irq_rt->nr_rt_entries)
+		hlist_for_each_entry(e, n, &irq_rt->map[irq], link) {
 			int r = e->set(e, kvm, irq_source_id, level);
 			if (r < 0)
 				continue;
@@ -170,20 +173,23 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
-	struct kvm_kernel_irq_routing_entry *e;
 	struct kvm_irq_ack_notifier *kian;
 	struct hlist_node *n;
 	unsigned gsi = pin;
+	int i;
 
 	trace_kvm_ack_irq(irqchip, pin);
 
-	list_for_each_entry(e, &kvm->irq_routing, link)
+	for (i = 0; i < kvm->irq_routing->nr_rt_entries; i++) {
+		struct kvm_kernel_irq_routing_entry *e;
+		e = &kvm->irq_routing->rt_entries[i];
 		if (e->type == KVM_IRQ_ROUTING_IRQCHIP &&
 		    e->irqchip.irqchip == irqchip &&
 		    e->irqchip.pin == pin) {
 			gsi = e->gsi;
 			break;
 		}
+	}
 
 	hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list, link)
 		if (kian->gsi == gsi)
@@ -280,26 +286,30 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
 			kimn->func(kimn, mask);
 }
 
-static void __kvm_free_irq_routing(struct list_head *irq_routing)
-{
-	struct kvm_kernel_irq_routing_entry *e, *n;
-
-	list_for_each_entry_safe(e, n, irq_routing, link)
-		kfree(e);
-}
-
 void kvm_free_irq_routing(struct kvm *kvm)
 {
 	mutex_lock(&kvm->irq_lock);
-	__kvm_free_irq_routing(&kvm->irq_routing);
+	kfree(kvm->irq_routing);
 	mutex_unlock(&kvm->irq_lock);
 }
 
-static int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+static int setup_routing_entry(struct kvm_irq_routing_table *rt,
+			       struct kvm_kernel_irq_routing_entry *e,
 			       const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
 	int delta;
+	struct kvm_kernel_irq_routing_entry *ei;
+	struct hlist_node *n;
+
+	/*
+	 * Do not allow GSI to be mapped to the same irqchip more than once.
+	 * Allow only one to one mapping between GSI and MSI.
+	 */
+	hlist_for_each_entry(ei, n, &rt->map[ue->gsi], link)
+		if (ei->type == KVM_IRQ_ROUTING_MSI ||
+		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
+			return r;
 
 	e->gsi = ue->gsi;
 	e->type = ue->type;
@@ -332,6 +342,8 @@ static int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 	default:
 		goto out;
 	}
+
+	hlist_add_head(&e->link, &rt->map[e->gsi]);
 	r = 0;
 out:
 	return r;
@@ -343,43 +355,49 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			unsigned nr,
 			unsigned flags)
 {
-	struct list_head irq_list = LIST_HEAD_INIT(irq_list);
-	struct list_head tmp = LIST_HEAD_INIT(tmp);
-	struct kvm_kernel_irq_routing_entry *e = NULL;
-	unsigned i;
+	struct kvm_irq_routing_table *new, *old;
+	u32 i, nr_rt_entries = 0;
 	int r;
 
 	for (i = 0; i < nr; ++i) {
+		if (ue[i].gsi >= KVM_MAX_IRQ_ROUTES)
+			return -EINVAL;
+		nr_rt_entries = max(nr_rt_entries, ue[i].gsi);
+	}
+
+	nr_rt_entries += 1;
+
+	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head))
+		      + (nr * sizeof(struct kvm_kernel_irq_routing_entry)),
+		      GFP_KERNEL);
+
+	if (!new)
+		return -ENOMEM;
+
+	new->rt_entries = (void *)&new->map[nr_rt_entries];
+
+	new->nr_rt_entries = nr_rt_entries;
+
+	for (i = 0; i < nr; ++i) {
 		r = -EINVAL;
-		if (ue->gsi >= KVM_MAX_IRQ_ROUTES)
-			goto out;
 		if (ue->flags)
 			goto out;
-		r = -ENOMEM;
-		e = kzalloc(sizeof(*e), GFP_KERNEL);
-		if (!e)
-			goto out;
-		r = setup_routing_entry(e, ue);
+		r = setup_routing_entry(new, &new->rt_entries[i], ue);
 		if (r)
 			goto out;
 		++ue;
-		list_add(&e->link, &irq_list);
-		e = NULL;
 	}
 
 	mutex_lock(&kvm->irq_lock);
-	list_splice(&kvm->irq_routing, &tmp);
-	INIT_LIST_HEAD(&kvm->irq_routing);
-	list_splice(&irq_list, &kvm->irq_routing);
-	INIT_LIST_HEAD(&irq_list);
-	list_splice(&tmp, &irq_list);
+	old = kvm->irq_routing;
+	kvm->irq_routing = new;
 	mutex_unlock(&kvm->irq_lock);
 
+	new = old;
 	r = 0;
 
 out:
-	kfree(e);
-	__kvm_free_irq_routing(&irq_list);
+	kfree(new);
 	return r;
 }
 

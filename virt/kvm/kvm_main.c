@@ -957,7 +957,6 @@ static struct kvm *kvm_create_vm(void)
 	if (IS_ERR(kvm))
 		goto out;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
-	INIT_LIST_HEAD(&kvm->irq_routing);
 	INIT_HLIST_HEAD(&kvm->mask_notifier_list);
 #endif
 
