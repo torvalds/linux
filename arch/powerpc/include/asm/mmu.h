@@ -58,6 +58,15 @@
  */
 #define MMU_FTR_TLBIE_206		ASM_CONST(0x00400000)
 
+/* Enable use of TLB reservation.  Processor should support tlbsrx.
+ * instruction and MAS0[WQ].
+ */
+#define MMU_FTR_USE_TLBRSRV		ASM_CONST(0x00800000)
+
+/* Use paired MAS registers (MAS7||MAS3, etc.)
+ */
+#define MMU_FTR_USE_PAIRED_MAS		ASM_CONST(0x01000000)
+
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
 
