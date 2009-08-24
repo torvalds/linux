@@ -82,8 +82,6 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	int i, r = -1;
 	struct kvm_vcpu *vcpu, *lowest = NULL;
 
-	WARN_ON(!mutex_is_locked(&kvm->irq_lock));
-
 	if (irq->dest_mode == 0 && irq->dest_id == 0xff &&
 			kvm_is_dm_lowest_prio(irq))
 		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
@@ -138,7 +136,7 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_irq_delivery_to_apic(kvm, NULL, &irq);
 }
 
-/* This should be called with the kvm->irq_lock mutex held
+/*
  * Return value:
  *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
@@ -152,8 +150,6 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	struct hlist_node *n;
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
-
-	WARN_ON(!mutex_is_locked(&kvm->irq_lock));
 
 	/* Not possible to detect if the guest uses the PIC or the
 	 * IOAPIC.  So set the bit in both. The guest will ignore

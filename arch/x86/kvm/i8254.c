@@ -688,10 +688,8 @@ static void __inject_pit_timer_intr(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	int i;
 
-	mutex_lock(&kvm->irq_lock);
 	kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 1);
 	kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 0);
-	mutex_unlock(&kvm->irq_lock);
 
 	/*
 	 * Provides NMI watchdog support via Virtual Wire mode.

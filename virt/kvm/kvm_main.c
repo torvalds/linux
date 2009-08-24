@@ -137,7 +137,6 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 				    interrupt_work);
 	kvm = assigned_dev->kvm;
 
-	mutex_lock(&kvm->irq_lock);
 	spin_lock_irq(&assigned_dev->assigned_dev_lock);
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
 		struct kvm_guest_msix_entry *guest_entries =
@@ -156,7 +155,6 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 			    assigned_dev->guest_irq, 1);
 
 	spin_unlock_irq(&assigned_dev->assigned_dev_lock);
-	mutex_unlock(&assigned_dev->kvm->irq_lock);
 }
 
 static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
