@@ -537,6 +537,10 @@ void intel_crt_init(struct drm_device *dev)
 	}
 
 	intel_output->type = INTEL_OUTPUT_ANALOG;
+	intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+				   (1 << INTEL_ANALOG_CLONE_BIT) |
+				   (1 << INTEL_SDVO_LVDS_CLONE_BIT);
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 

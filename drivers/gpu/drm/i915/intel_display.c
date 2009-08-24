@@ -3170,7 +3170,7 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 
         list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct intel_output *intel_output = to_intel_output(connector);
-		if (type_mask & (1 << intel_output->type))
+		if (type_mask & intel_output->clone_mask)
 			index_mask |= (1 << entry);
 		entry++;
 	}
@@ -3253,51 +3253,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct intel_output *intel_output = to_intel_output(connector);
 		struct drm_encoder *encoder = &intel_output->enc;
-		int crtc_mask = 0, clone_mask = 0;
 
-		/* valid crtcs */
-		switch(intel_output->type) {
-		case INTEL_OUTPUT_HDMI:
-			crtc_mask = ((1 << 0)|
-				     (1 << 1));
-			clone_mask = ((1 << INTEL_OUTPUT_HDMI));
-			break;
-		case INTEL_OUTPUT_DVO:
-		case INTEL_OUTPUT_SDVO:
-			crtc_mask = ((1 << 0)|
-				     (1 << 1));
-			clone_mask = ((1 << INTEL_OUTPUT_ANALOG) |
-				      (1 << INTEL_OUTPUT_DVO) |
-				      (1 << INTEL_OUTPUT_SDVO));
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			crtc_mask = ((1 << 0)|
-				     (1 << 1));
-			clone_mask = ((1 << INTEL_OUTPUT_ANALOG) |
-				      (1 << INTEL_OUTPUT_DVO) |
-				      (1 << INTEL_OUTPUT_SDVO));
-			break;
-		case INTEL_OUTPUT_LVDS:
-			crtc_mask = (1 << 1);
-			clone_mask = (1 << INTEL_OUTPUT_LVDS);
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			crtc_mask = ((1 << 0) |
-				     (1 << 1));
-			clone_mask = (1 << INTEL_OUTPUT_TVOUT);
-			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
-			crtc_mask = ((1 << 0) |
-				     (1 << 1));
-			clone_mask = (1 << INTEL_OUTPUT_DISPLAYPORT);
-			break;
-		case INTEL_OUTPUT_EDP:
-			crtc_mask = (1 << 1);
-			clone_mask = (1 << INTEL_OUTPUT_EDP);
-			break;
-		}
-		encoder->possible_crtcs = crtc_mask;
-		encoder->possible_clones = intel_connector_clones(dev, clone_mask);
+		encoder->possible_crtcs = intel_output->crtc_mask;
+		encoder->possible_clones = intel_connector_clones(dev,
+						intel_output->clone_mask);
 	}
 }
 
