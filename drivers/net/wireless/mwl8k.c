@@ -1474,7 +1474,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 			printk(KERN_ERR "%s: Command %s error 0x%x\n",
 			       priv->name,
 			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-			       cmd->result);
+			       le16_to_cpu(cmd->result));
 	}
 
 	return rc;
