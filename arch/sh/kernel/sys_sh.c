@@ -186,7 +186,7 @@ asmlinkage int sys_cacheflush(unsigned long addr, unsigned long len, int op)
 {
 	struct vm_area_struct *vma;
 
-	if ((op < 0) || (op > (CACHEFLUSH_D_PURGE|CACHEFLUSH_I)))
+	if ((op <= 0) || (op > (CACHEFLUSH_D_PURGE|CACHEFLUSH_I)))
 		return -EINVAL;
 
 	/*

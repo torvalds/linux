@@ -9,4 +9,11 @@
 
 #define CACHEFLUSH_I		0x4
 
+/*
+ * Options for cacheflush system call
+ */
+#define ICACHE	CACHEFLUSH_I		/* flush instruction cache */
+#define DCACHE	CACHEFLUSH_D_PURGE	/* writeback and flush data cache */
+#define BCACHE	(ICACHE|DCACHE)		/* flush both caches */
+
 #endif /* _SH_CACHECTL_H */
