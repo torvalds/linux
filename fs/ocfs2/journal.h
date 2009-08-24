@@ -490,6 +490,20 @@ static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
 	return credits;
 }
 
+/* inode update, new refcount block and its allocation credits. */
+#define OCFS2_REFCOUNT_TREE_CREATE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1 \
+					    + OCFS2_SUBALLOC_ALLOC)
+
+/* inode and the refcount block update. */
+#define OCFS2_REFCOUNT_TREE_SET_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+
+/*
+ * inode and the refcount block update.
+ * It doesn't include the credits for sub alloc change.
+ * So if we need to free the bit, OCFS2_SUBALLOC_FREE needs to be added.
+ */
+#define OCFS2_REFCOUNT_TREE_REMOVE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+
 /*
  * Please note that the caller must make sure that root_el is the root
  * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
