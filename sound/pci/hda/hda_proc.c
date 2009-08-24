@@ -515,9 +515,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
 			    get_wid_type_name(wid_type), wid_caps);
 		if (wid_caps & AC_WCAP_STEREO) {
-			unsigned int chans;
-			chans = (wid_caps & AC_WCAP_CHAN_CNT_EXT) >> 13;
-			chans = ((chans << 1) | 1) + 1;
+			unsigned int chans = get_wcaps_channels(wid_caps);
 			if (chans == 2)
 				snd_iprintf(buffer, " Stereo");
 			else
