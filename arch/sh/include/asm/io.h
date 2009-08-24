@@ -92,8 +92,12 @@
 
 static inline void ctrl_delay(void)
 {
-#ifdef P2SEG
+#ifdef CONFIG_CPU_SH4
+	__raw_readw(CCN_PVR);
+#elif defined(P2SEG)
 	__raw_readw(P2SEG);
+#else
+#error "Need a dummy address for delay"
 #endif
 }
 
