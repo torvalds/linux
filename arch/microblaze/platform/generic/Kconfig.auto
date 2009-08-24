@@ -34,27 +34,27 @@ config XILINX_MICROBLAZE0_FAMILY
 
 config XILINX_MICROBLAZE0_USE_MSR_INSTR
 	int "USE_MSR_INSTR range (0:1)"
-	default 1
+	default 0
 
 config XILINX_MICROBLAZE0_USE_PCMP_INSTR
 	int "USE_PCMP_INSTR range (0:1)"
-	default 1
+	default 0
 
 config XILINX_MICROBLAZE0_USE_BARREL
 	int "USE_BARREL range (0:1)"
-	default 1
+	default 0
 
 config XILINX_MICROBLAZE0_USE_DIV
 	int "USE_DIV range (0:1)"
-	default 1
+	default 0
 
 config XILINX_MICROBLAZE0_USE_HW_MUL
 	int "USE_HW_MUL values (0=NONE, 1=MUL32, 2=MUL64)"
-	default 2
+	default 0
 
 config XILINX_MICROBLAZE0_USE_FPU
 	int "USE_FPU values (0=NONE, 1=BASIC, 2=EXTENDED)"
-	default 2
+	default 0
 
 config XILINX_MICROBLAZE0_HW_VER
 	string "Core version number"
