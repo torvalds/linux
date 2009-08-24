@@ -25,7 +25,7 @@
  * Christopher Hellwig	: Some more 2.6 specific issues in the driver.
  *
  * The module loadable parameters that are supported by the driver and a brief
- * explaination of all the variables.
+ * explanation of all the variables.
  *
  * rx_ring_num : This can be used to program the number of receive rings used
  * in the driver.
