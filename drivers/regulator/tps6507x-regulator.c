@@ -670,9 +670,10 @@ static const struct tps_info tps6507x_regs[] = {
 	},
 };
 
-static const struct i2c_device_id tps_6507x_id = {
-	.name = "tps6507x",
-	.driver_data = (unsigned long) &tps6507x_regs[0],
+static const struct i2c_device_id tps_6507x_id[] = {
+	{.name = "tps6507x",
+	.driver_data = (unsigned long) tps6507x_regs,},
+	{ },
 };
 MODULE_DEVICE_TABLE(i2c, tps_6507x_id);
 
@@ -683,7 +684,7 @@ static struct i2c_driver tps_6507x_i2c_driver = {
 	},
 	.probe = tps_6507x_probe,
 	.remove = __devexit_p(tps_6507x_remove),
-	.id_table = &tps_6507x_id,
+	.id_table = tps_6507x_id,
 };
 
 /**
@@ -710,4 +711,4 @@ module_exit(tps_6507x_cleanup);
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("TPS6507x voltage regulator driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
