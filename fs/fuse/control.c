@@ -156,7 +156,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 		d_drop(dentry);
 		dput(dentry);
 	}
-	fuse_control_sb->s_root->d_inode->i_nlink--;
+	drop_nlink(fuse_control_sb->s_root->d_inode);
 }
 
 static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
