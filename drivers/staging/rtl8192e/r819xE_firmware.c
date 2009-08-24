@@ -122,19 +122,19 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
  */
 static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
+	unsigned long timeout;
 	bool rt_status = true;
-	int check_putcodeOK_time = 200000;
-	int check_bootOk_time = 200000;
 	u32 CPU_status = 0;
 
 	/* Check whether put code OK */
-	do {
+	timeout = jiffies + msecs_to_jiffies(20);
+	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 
 		if (CPU_status & CPU_GEN_PUT_CODE_OK)
 			break;
-
-	} while (check_putcodeOK_time--);
+		msleep(2);
+	}
 
 	if (!(CPU_status & CPU_GEN_PUT_CODE_OK)) {
 		RT_TRACE(COMP_ERR, "Download Firmware: Put code fail!\n");
@@ -150,12 +150,14 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	mdelay(1);
 
 	/* Check whether CPU boot OK */
-	do {
+	timeout = jiffies + msecs_to_jiffies(20);
+	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 
 		if (CPU_status & CPU_GEN_BOOT_RDY)
 			break;
-	} while (check_bootOk_time--);
+		msleep(2);
+	}
 
 	if (!(CPU_status & CPU_GEN_BOOT_RDY))
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
@@ -172,19 +174,19 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 
 static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
-
-	bool		rt_status = true;
-	int		check_time = 200000;
-	u32		CPU_status = 0;
+	unsigned long timeout;
+	bool rt_status = true;
+	u32 CPU_status = 0;
 
 	/* Check Firmware Ready */
-	do {
+	timeout = jiffies + msecs_to_jiffies(20);
+	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 
 		if (CPU_status & CPU_GEN_FIRM_RDY)
 			break;
-
-	} while (check_time--);
+		msleep(2);
+	}
 
 	if (!(CPU_status & CPU_GEN_FIRM_RDY))
 		goto CPUCheckFirmwareReady_Fail;
