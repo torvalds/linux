@@ -7,7 +7,7 @@
 	.endm
 
 	.macro	sti
-	mov	#0xf0, r11
+	mov	#0xfffffff0, r11
 	extu.b	r11, r11
 	not	r11, r11
 	stc	sr, r10

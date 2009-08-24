@@ -57,7 +57,7 @@ ENTRY(clear_page)
 ENTRY(__clear_user)
 	!
 	mov	#0, r0
-	mov	#0xe0, r1	! 0xffffffe0
+	mov	#0xffffffe0, r1
 	!
 	! r4..(r4+31)&~32 	   -------- not aligned	[ Area 0 ]
 	! (r4+31)&~32..(r4+r5)&~32 -------- aligned	[ Area 1 ]
