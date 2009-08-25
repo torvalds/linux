@@ -428,13 +428,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 		if (!rport) {
 			rport = lport->tt.rport_lookup(lport, ids->port_id);
 			if (!rport) {
-				struct fc_disc_port dp;
-				dp.lp = lport;
-				dp.ids.port_id = ids->port_id;
-				dp.ids.port_name = ids->port_name;
-				dp.ids.node_name = ids->node_name;
-				dp.ids.roles = ids->roles;
-				rport = lport->tt.rport_create(&dp);
+				rport = lport->tt.rport_create(lport, ids);
 			}
 			if (!rport)
 				error = -ENOMEM;
@@ -578,7 +572,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	size_t plen;
 	size_t tlen;
 	int error = 0;
-	struct fc_disc_port dp;
+	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
 
@@ -621,15 +615,14 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	 * After the first time through the loop, things return to "normal".
 	 */
 	while (plen >= sizeof(*np)) {
-		dp.lp = lport;
-		dp.ids.port_id = ntoh24(np->fp_fid);
-		dp.ids.port_name = ntohll(np->fp_wwpn);
-		dp.ids.node_name = -1;
-		dp.ids.roles = FC_RPORT_ROLE_UNKNOWN;
+		ids.port_id = ntoh24(np->fp_fid);
+		ids.port_name = ntohll(np->fp_wwpn);
+		ids.node_name = -1;
+		ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
-		if ((dp.ids.port_id != fc_host_port_id(lport->host)) &&
-		    (dp.ids.port_name != lport->wwpn)) {
-			rport = lport->tt.rport_create(&dp);
+		if (ids.port_id != fc_host_port_id(lport->host) &&
+		    ids.port_name != lport->wwpn) {
+			rport = lport->tt.rport_create(lport, &ids);
 			if (rport) {
 				rdata = rport->dd_data;
 				rdata->ops = &fc_disc_rport_ops;
@@ -640,7 +633,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			} else
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
-				       "(%6x)\n", dp.ids.port_id);
+				       "(%6x)\n", ids.port_id);
 		}
 
 		if (np->fp_flags & FC_NS_FID_LAST) {
@@ -781,7 +774,7 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 	if (dp->ids.port_id == fc_host_port_id(lport->host))
 		goto out;
 
-	new_rport = lport->tt.rport_create(dp);
+	new_rport = lport->tt.rport_create(lport, &dp->ids);
 	if (new_rport) {
 		rdata = new_rport->dd_data;
 		rdata->ops = &fc_disc_rport_ops;

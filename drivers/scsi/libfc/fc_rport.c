@@ -93,7 +93,8 @@ static void fc_rport_rogue_destroy(struct device *dev)
 	kfree(rport);
 }
 
-struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *dp)
+struct fc_rport *fc_rport_rogue_create(struct fc_lport *lport,
+				       struct fc_rport_identifiers *ids)
 {
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
@@ -105,10 +106,10 @@ struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *dp)
 	rdata = RPORT_TO_PRIV(rport);
 
 	rport->dd_data = rdata;
-	rport->port_id = dp->ids.port_id;
-	rport->port_name = dp->ids.port_name;
-	rport->node_name = dp->ids.node_name;
-	rport->roles = dp->ids.roles;
+	rport->port_id = ids->port_id;
+	rport->port_name = ids->port_name;
+	rport->node_name = ids->node_name;
+	rport->roles = ids->roles;
 	rport->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	/*
 	 * Note: all this libfc rogue rport code will be removed for
@@ -118,14 +119,14 @@ struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *dp)
 	rport->dev.release = fc_rport_rogue_destroy;
 
 	mutex_init(&rdata->rp_mutex);
-	rdata->local_port = dp->lp;
+	rdata->local_port = lport;
 	rdata->trans_state = FC_PORTSTATE_ROGUE;
 	rdata->rp_state = RPORT_ST_INIT;
 	rdata->event = RPORT_EV_NONE;
 	rdata->flags = FC_RP_FLAGS_REC_SUPPORTED;
 	rdata->ops = NULL;
-	rdata->e_d_tov = dp->lp->e_d_tov;
-	rdata->r_a_tov = dp->lp->r_a_tov;
+	rdata->e_d_tov = lport->e_d_tov;
+	rdata->r_a_tov = lport->r_a_tov;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
 	/*

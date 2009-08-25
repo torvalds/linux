@@ -227,8 +227,6 @@ struct fc_rport_libfc_priv {
 #define RPORT_TO_PRIV(x)						\
 	(struct fc_rport_libfc_priv *)((void *)x + sizeof(struct fc_rport));
 
-struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *);
-
 static inline void fc_rport_set_name(struct fc_rport *rport, u64 wwpn, u64 wwnn)
 {
 	rport->node_name = wwnn;
@@ -569,7 +567,8 @@ struct libfc_function_template {
 	/*
 	 * Create a remote port
 	 */
-	struct fc_rport *(*rport_create)(struct fc_disc_port *);
+	struct fc_rport *(*rport_create)(struct fc_lport *,
+					 struct fc_rport_identifiers *);
 
 	/*
 	 * Initiates the RP state machine. It is called from the LP module.

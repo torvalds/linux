@@ -211,20 +211,19 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 			       u32 remote_fid, u64 remote_wwpn,
 			       u64 remote_wwnn)
 {
-	struct fc_disc_port dp;
+	struct fc_rport_identifiers ids;
 
-	dp.lp = lport;
-	dp.ids.port_id = remote_fid;
-	dp.ids.port_name = remote_wwpn;
-	dp.ids.node_name = remote_wwnn;
-	dp.ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	ids.port_id = remote_fid;
+	ids.port_name = remote_wwpn;
+	ids.node_name = remote_wwnn;
+	ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
 	if (lport->ptp_rp) {
 		lport->tt.rport_logoff(lport->ptp_rp);
 		lport->ptp_rp = NULL;
 	}
 
-	lport->ptp_rp = lport->tt.rport_create(&dp);
+	lport->ptp_rp = lport->tt.rport_create(lport, &ids);
 
 	lport->tt.rport_login(lport->ptp_rp);
 
@@ -1307,20 +1306,19 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 {
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
-	struct fc_disc_port dp;
+	struct fc_rport_identifiers ids;
 
-	dp.ids.port_id = FC_FID_DIR_SERV;
-	dp.ids.port_name = -1;
-	dp.ids.node_name = -1;
-	dp.ids.roles = FC_RPORT_ROLE_UNKNOWN;
-	dp.lp = lport;
+	ids.port_id = FC_FID_DIR_SERV;
+	ids.port_name = -1;
+	ids.node_name = -1;
+	ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
 	FC_LPORT_DBG(lport, "Entered DNS state from %s state\n",
 		     fc_lport_state(lport));
 
 	fc_lport_state_enter(lport, LPORT_ST_DNS);
 
-	rport = lport->tt.rport_create(&dp);
+	rport = lport->tt.rport_create(lport, &ids);
 	if (!rport)
 		goto err;
 
