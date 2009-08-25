@@ -44,7 +44,7 @@ static inline u16 channel2freq_lp(u8 channel)
 static unsigned int b43_lpphy_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-		return 1;
+		return 7; //FIXME temporary - channel 1 is broken
 	return 36;
 }
 
@@ -705,7 +705,7 @@ static void lpphy_set_rc_cap(struct b43_wldev *dev)
 	u8 rc_cap = (lpphy->rc_cap & 0x1F) >> 1;
 
 	if (dev->phy.rev == 1) //FIXME check channel 14!
-		rc_cap = max_t(u8, rc_cap + 5, 15);
+		rc_cap = min_t(u8, rc_cap + 5, 15);
 
 	b43_radio_write(dev, B2062_N_RXBB_CALIB2,
 			max_t(u8, lpphy->rc_cap - 4, 0x80));
@@ -1008,6 +1008,7 @@ static int lpphy_loopback(struct b43_wldev *dev)
 
 	b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xFFFC, 0x3);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x3);
+	b43_phy_set(dev, B43_LPPHY_AFE_CTL_OVR, 1);
 	b43_phy_mask(dev, B43_LPPHY_AFE_CTL_OVRVAL, 0xFFFE);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x800);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0x800);
@@ -1213,7 +1214,7 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 			mean_sq_pwr = ideal_pwr - normal_pwr;
 			mean_sq_pwr *= mean_sq_pwr;
 			inner_sum += mean_sq_pwr;
-			if ((i = 128) || (inner_sum < mean_sq_pwr_min)) {
+			if ((i == 128) || (inner_sum < mean_sq_pwr_min)) {
 				lpphy->rc_cap = i;
 				mean_sq_pwr_min = inner_sum;
 			}
