@@ -22,8 +22,8 @@ struct soc_camera_device {
 	struct list_head list;
 	struct device dev;
 	struct device *pdev;		/* Platform device */
-	struct v4l2_rect rect_current;	/* Current window */
-	struct v4l2_rect rect_max;	/* Maximum window */
+	s32 user_width;
+	s32 user_height;
 	unsigned short width_min;
 	unsigned short height_min;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
@@ -76,6 +76,8 @@ struct soc_camera_host_ops {
 	int (*get_formats)(struct soc_camera_device *, int,
 			   struct soc_camera_format_xlate *);
 	void (*put_formats)(struct soc_camera_device *);
+	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
+	int (*get_crop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_crop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
@@ -275,6 +277,21 @@ static inline unsigned long soc_camera_bus_param_compatible(
 
 	return (!hsync || !vsync || !pclk || !data || !mode || !buswidth) ? 0 :
 		common_flags;
+}
+
+static inline void soc_camera_limit_side(unsigned int *start,
+		unsigned int *length, unsigned int start_min,
+		unsigned int length_min, unsigned int length_max)
+{
+	if (*length < length_min)
+		*length = length_min;
+	else if (*length > length_max)
+		*length = length_max;
+
+	if (*start < start_min)
+		*start = start_min;
+	else if (*start > start_min + length_max - *length)
+		*start = start_min + length_max - *length;
 }
 
 extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,

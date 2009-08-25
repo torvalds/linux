@@ -55,6 +55,13 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 /* Progressive scan, master, defaults */
 #define MT9V022_CHIP_CONTROL_DEFAULT	0x188
 
+#define MT9V022_MAX_WIDTH		752
+#define MT9V022_MAX_HEIGHT		480
+#define MT9V022_MIN_WIDTH		48
+#define MT9V022_MIN_HEIGHT		32
+#define MT9V022_COLUMN_SKIP		1
+#define MT9V022_ROW_SKIP		4
+
 static const struct soc_camera_data_format mt9v022_colour_formats[] = {
 	/* Order important: first natively supported,
 	 * second supported with a GPIO extender */
@@ -86,6 +93,8 @@ static const struct soc_camera_data_format mt9v022_monochrome_formats[] = {
 
 struct mt9v022 {
 	struct v4l2_subdev subdev;
+	struct v4l2_rect rect;	/* Sensor window */
+	__u32 fourcc;
 	int model;	/* V4L2_IDENT_MT9V022* codes from v4l2-chip-ident.h */
 	u16 chip_control;
 };
@@ -250,44 +259,101 @@ static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
 
 static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
 	struct i2c_client *client = sd->priv;
+	struct mt9v022 *mt9v022 = to_mt9v022(client);
+	struct v4l2_rect rect = a->c;
 	struct soc_camera_device *icd = client->dev.platform_data;
 	int ret;
+
+	/* Bayer format - even size lengths */
+	if (mt9v022->fourcc == V4L2_PIX_FMT_SBGGR8 ||
+	    mt9v022->fourcc == V4L2_PIX_FMT_SBGGR16) {
+		rect.width	= ALIGN(rect.width, 2);
+		rect.height	= ALIGN(rect.height, 2);
+		/* Let the user play with the starting pixel */
+	}
+
+	soc_camera_limit_side(&rect.left, &rect.width,
+		     MT9V022_COLUMN_SKIP, MT9V022_MIN_WIDTH, MT9V022_MAX_WIDTH);
+
+	soc_camera_limit_side(&rect.top, &rect.height,
+		     MT9V022_ROW_SKIP, MT9V022_MIN_HEIGHT, MT9V022_MAX_HEIGHT);
 
 	/* Like in example app. Contradicts the datasheet though */
 	ret = reg_read(client, MT9V022_AEC_AGC_ENABLE);
 	if (ret >= 0) {
 		if (ret & 1) /* Autoexposure */
 			ret = reg_write(client, MT9V022_MAX_TOTAL_SHUTTER_WIDTH,
-					rect->height + icd->y_skip_top + 43);
+					rect.height + icd->y_skip_top + 43);
 		else
 			ret = reg_write(client, MT9V022_TOTAL_SHUTTER_WIDTH,
-					rect->height + icd->y_skip_top + 43);
+					rect.height + icd->y_skip_top + 43);
 	}
 	/* Setup frame format: defaults apart from width and height */
 	if (!ret)
-		ret = reg_write(client, MT9V022_COLUMN_START, rect->left);
+		ret = reg_write(client, MT9V022_COLUMN_START, rect.left);
 	if (!ret)
-		ret = reg_write(client, MT9V022_ROW_START, rect->top);
+		ret = reg_write(client, MT9V022_ROW_START, rect.top);
 	if (!ret)
 		/* Default 94, Phytec driver says:
 		 * "width + horizontal blank >= 660" */
 		ret = reg_write(client, MT9V022_HORIZONTAL_BLANKING,
-				rect->width > 660 - 43 ? 43 :
-				660 - rect->width);
+				rect.width > 660 - 43 ? 43 :
+				660 - rect.width);
 	if (!ret)
 		ret = reg_write(client, MT9V022_VERTICAL_BLANKING, 45);
 	if (!ret)
-		ret = reg_write(client, MT9V022_WINDOW_WIDTH, rect->width);
+		ret = reg_write(client, MT9V022_WINDOW_WIDTH, rect.width);
 	if (!ret)
 		ret = reg_write(client, MT9V022_WINDOW_HEIGHT,
-				rect->height + icd->y_skip_top);
+				rect.height + icd->y_skip_top);
 
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(&client->dev, "Frame %ux%u pixel\n", rect->width, rect->height);
+	dev_dbg(&client->dev, "Frame %ux%u pixel\n", rect.width, rect.height);
+
+	mt9v022->rect = rect;
+
+	return 0;
+}
+
+static int mt9v022_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9v022 *mt9v022 = to_mt9v022(client);
+
+	a->c	= mt9v022->rect;
+	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int mt9v022_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= MT9V022_COLUMN_SKIP;
+	a->bounds.top			= MT9V022_ROW_SKIP;
+	a->bounds.width			= MT9V022_MAX_WIDTH;
+	a->bounds.height		= MT9V022_MAX_HEIGHT;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int mt9v022_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9v022 *mt9v022 = to_mt9v022(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	pix->width		= mt9v022->rect.width;
+	pix->height		= mt9v022->rect.height;
+	pix->pixelformat	= mt9v022->fourcc;
+	pix->field		= V4L2_FIELD_NONE;
+	pix->colorspace		= V4L2_COLORSPACE_SRGB;
 
 	return 0;
 }
@@ -296,16 +362,16 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_crop a = {
 		.c = {
-			.left	= icd->rect_current.left,
-			.top	= icd->rect_current.top,
+			.left	= mt9v022->rect.left,
+			.top	= mt9v022->rect.top,
 			.width	= pix->width,
 			.height	= pix->height,
 		},
 	};
+	int ret;
 
 	/* The caller provides a supported format, as verified per call to
 	 * icd->try_fmt(), datawidth is from our supported format list */
@@ -328,7 +394,14 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	}
 
 	/* No support for scaling on this camera, just crop. */
-	return mt9v022_s_crop(sd, &a);
+	ret = mt9v022_s_crop(sd, &a);
+	if (!ret) {
+		pix->width = mt9v022->rect.width;
+		pix->height = mt9v022->rect.height;
+		mt9v022->fourcc = pix->pixelformat;
+	}
+
+	return ret;
 }
 
 static int mt9v022_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
@@ -336,10 +409,13 @@ static int mt9v022_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct i2c_client *client = sd->priv;
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	int align = pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
+		pix->pixelformat == V4L2_PIX_FMT_SBGGR16;
 
-	v4l_bound_align_image(&pix->width, 48, 752, 2 /* ? */,
-			      &pix->height, 32 + icd->y_skip_top,
-			      480 + icd->y_skip_top, 0, 0);
+	v4l_bound_align_image(&pix->width, MT9V022_MIN_WIDTH,
+		MT9V022_MAX_WIDTH, align,
+		&pix->height, MT9V022_MIN_HEIGHT + icd->y_skip_top,
+		MT9V022_MAX_HEIGHT + icd->y_skip_top, align, 0);
 
 	return 0;
 }
@@ -669,6 +745,8 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 	if (flags & SOCAM_DATAWIDTH_8)
 		icd->num_formats++;
 
+	mt9v022->fourcc = icd->formats->fourcc;
+
 	dev_info(&client->dev, "Detected a MT9V022 chip ID %x, %s sensor\n",
 		 data, mt9v022->model == V4L2_IDENT_MT9V022IX7ATM ?
 		 "monochrome" : "colour");
@@ -679,10 +757,9 @@ ei2c:
 
 static void mt9v022_video_remove(struct soc_camera_device *icd)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-	dev_dbg(&client->dev, "Video %x removed: %p, %p\n", client->addr,
+	dev_dbg(&icd->dev, "Video removed: %p, %p\n",
 		icd->dev.parent, icd->vdev);
 	if (icl->free_bus)
 		icl->free_bus(icl);
@@ -701,8 +778,11 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
 	.s_fmt		= mt9v022_s_fmt,
+	.g_fmt		= mt9v022_g_fmt,
 	.try_fmt	= mt9v022_try_fmt,
 	.s_crop		= mt9v022_s_crop,
+	.g_crop		= mt9v022_g_crop,
+	.cropcap	= mt9v022_cropcap,
 };
 
 static struct v4l2_subdev_ops mt9v022_subdev_ops = {
@@ -745,15 +825,12 @@ static int mt9v022_probe(struct i2c_client *client,
 	mt9v022->chip_control = MT9V022_CHIP_CONTROL_DEFAULT;
 
 	icd->ops		= &mt9v022_ops;
-	icd->rect_max.left	= 1;
-	icd->rect_max.top	= 4;
-	icd->rect_max.width	= 752;
-	icd->rect_max.height	= 480;
-	icd->rect_current.left	= 1;
-	icd->rect_current.top	= 4;
-	icd->width_min		= 48;
-	icd->height_min		= 32;
 	icd->y_skip_top		= 1;
+
+	mt9v022->rect.left	= MT9V022_COLUMN_SKIP;
+	mt9v022->rect.top	= MT9V022_ROW_SKIP;
+	mt9v022->rect.width	= MT9V022_MAX_WIDTH;
+	mt9v022->rect.height	= MT9V022_MAX_HEIGHT;
 
 	ret = mt9v022_video_probe(icd, client);
 	if (ret) {

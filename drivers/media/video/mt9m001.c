@@ -39,6 +39,13 @@
 #define MT9M001_GLOBAL_GAIN		0x35
 #define MT9M001_CHIP_ENABLE		0xF1
 
+#define MT9M001_MAX_WIDTH		1280
+#define MT9M001_MAX_HEIGHT		1024
+#define MT9M001_MIN_WIDTH		48
+#define MT9M001_MIN_HEIGHT		32
+#define MT9M001_COLUMN_SKIP		20
+#define MT9M001_ROW_SKIP		12
+
 static const struct soc_camera_data_format mt9m001_colour_formats[] = {
 	/* Order important: first natively supported,
 	 * second supported with a GPIO extender */
@@ -70,6 +77,8 @@ static const struct soc_camera_data_format mt9m001_monochrome_formats[] = {
 
 struct mt9m001 {
 	struct v4l2_subdev subdev;
+	struct v4l2_rect rect;	/* Sensor window */
+	__u32 fourcc;
 	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
 	unsigned char autoexposure;
 };
@@ -196,12 +205,30 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 
 static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
 	struct i2c_client *client = sd->priv;
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	struct v4l2_rect rect = a->c;
 	struct soc_camera_device *icd = client->dev.platform_data;
 	int ret;
 	const u16 hblank = 9, vblank = 25;
+
+	if (mt9m001->fourcc == V4L2_PIX_FMT_SBGGR8 ||
+	    mt9m001->fourcc == V4L2_PIX_FMT_SBGGR16)
+		/*
+		 * Bayer format - even number of rows for simplicity,
+		 * but let the user play with the top row.
+		 */
+		rect.height = ALIGN(rect.height, 2);
+
+	/* Datasheet requirement: see register description */
+	rect.width = ALIGN(rect.width, 2);
+	rect.left = ALIGN(rect.left, 2);
+
+	soc_camera_limit_side(&rect.left, &rect.width,
+		     MT9M001_COLUMN_SKIP, MT9M001_MIN_WIDTH, MT9M001_MAX_WIDTH);
+
+	soc_camera_limit_side(&rect.top, &rect.height,
+		     MT9M001_ROW_SKIP, MT9M001_MIN_HEIGHT, MT9M001_MAX_HEIGHT);
 
 	/* Blanking and start values - default... */
 	ret = reg_write(client, MT9M001_HORIZONTAL_BLANKING, hblank);
@@ -211,46 +238,98 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	/* The caller provides a supported format, as verified per
 	 * call to icd->try_fmt() */
 	if (!ret)
-		ret = reg_write(client, MT9M001_COLUMN_START, rect->left);
+		ret = reg_write(client, MT9M001_COLUMN_START, rect.left);
 	if (!ret)
-		ret = reg_write(client, MT9M001_ROW_START, rect->top);
+		ret = reg_write(client, MT9M001_ROW_START, rect.top);
 	if (!ret)
-		ret = reg_write(client, MT9M001_WINDOW_WIDTH, rect->width - 1);
+		ret = reg_write(client, MT9M001_WINDOW_WIDTH, rect.width - 1);
 	if (!ret)
 		ret = reg_write(client, MT9M001_WINDOW_HEIGHT,
-				rect->height + icd->y_skip_top - 1);
+				rect.height + icd->y_skip_top - 1);
 	if (!ret && mt9m001->autoexposure) {
 		ret = reg_write(client, MT9M001_SHUTTER_WIDTH,
-				rect->height + icd->y_skip_top + vblank);
+				rect.height + icd->y_skip_top + vblank);
 		if (!ret) {
 			const struct v4l2_queryctrl *qctrl =
 				soc_camera_find_qctrl(icd->ops,
 						      V4L2_CID_EXPOSURE);
-			icd->exposure = (524 + (rect->height + icd->y_skip_top +
+			icd->exposure = (524 + (rect.height + icd->y_skip_top +
 						vblank - 1) *
 					 (qctrl->maximum - qctrl->minimum)) /
 				1048 + qctrl->minimum;
 		}
 	}
 
+	if (!ret)
+		mt9m001->rect = rect;
+
 	return ret;
+}
+
+static int mt9m001_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+
+	a->c	= mt9m001->rect;
+	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int mt9m001_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= MT9M001_COLUMN_SKIP;
+	a->bounds.top			= MT9M001_ROW_SKIP;
+	a->bounds.width			= MT9M001_MAX_WIDTH;
+	a->bounds.height		= MT9M001_MAX_HEIGHT;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int mt9m001_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	pix->width		= mt9m001->rect.width;
+	pix->height		= mt9m001->rect.height;
+	pix->pixelformat	= mt9m001->fourcc;
+	pix->field		= V4L2_FIELD_NONE;
+	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+
+	return 0;
 }
 
 static int mt9m001_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct i2c_client *client = sd->priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_crop a = {
 		.c = {
-			.left	= icd->rect_current.left,
-			.top	= icd->rect_current.top,
-			.width	= f->fmt.pix.width,
-			.height	= f->fmt.pix.height,
+			.left	= mt9m001->rect.left,
+			.top	= mt9m001->rect.top,
+			.width	= pix->width,
+			.height	= pix->height,
 		},
 	};
+	int ret;
 
 	/* No support for scaling so far, just crop. TODO: use skipping */
-	return mt9m001_s_crop(sd, &a);
+	ret = mt9m001_s_crop(sd, &a);
+	if (!ret) {
+		pix->width = mt9m001->rect.width;
+		pix->height = mt9m001->rect.height;
+		mt9m001->fourcc = pix->pixelformat;
+	}
+
+	return ret;
 }
 
 static int mt9m001_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
@@ -259,9 +338,14 @@ static int mt9m001_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	v4l_bound_align_image(&pix->width, 48, 1280, 1,
-			      &pix->height, 32 + icd->y_skip_top,
-			      1024 + icd->y_skip_top, 0, 0);
+	v4l_bound_align_image(&pix->width, MT9M001_MIN_WIDTH,
+		MT9M001_MAX_WIDTH, 1,
+		&pix->height, MT9M001_MIN_HEIGHT + icd->y_skip_top,
+		MT9M001_MAX_HEIGHT + icd->y_skip_top, 0, 0);
+
+	if (pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
+	    pix->pixelformat == V4L2_PIX_FMT_SBGGR16)
+		pix->height = ALIGN(pix->height - 1, 2);
 
 	return 0;
 }
@@ -472,11 +556,11 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		if (ctrl->value) {
 			const u16 vblank = 25;
 			if (reg_write(client, MT9M001_SHUTTER_WIDTH,
-				      icd->rect_current.height +
+				      mt9m001->rect.height +
 				      icd->y_skip_top + vblank) < 0)
 				return -EIO;
 			qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
-			icd->exposure = (524 + (icd->rect_current.height +
+			icd->exposure = (524 + (mt9m001->rect.height +
 						icd->y_skip_top + vblank - 1) *
 					 (qctrl->maximum - qctrl->minimum)) /
 				1048 + qctrl->minimum;
@@ -548,6 +632,8 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	if (flags & SOCAM_DATAWIDTH_8)
 		icd->num_formats++;
 
+	mt9m001->fourcc = icd->formats->fourcc;
+
 	dev_info(&client->dev, "Detected a MT9M001 chip ID %x (%s)\n", data,
 		 data == 0x8431 ? "C12STM" : "C12ST");
 
@@ -556,10 +642,9 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 
 static void mt9m001_video_remove(struct soc_camera_device *icd)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-	dev_dbg(&client->dev, "Video %x removed: %p, %p\n", client->addr,
+	dev_dbg(&icd->dev, "Video removed: %p, %p\n",
 		icd->dev.parent, icd->vdev);
 	if (icl->free_bus)
 		icl->free_bus(icl);
@@ -578,8 +663,11 @@ static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 static struct v4l2_subdev_video_ops mt9m001_subdev_video_ops = {
 	.s_stream	= mt9m001_s_stream,
 	.s_fmt		= mt9m001_s_fmt,
+	.g_fmt		= mt9m001_g_fmt,
 	.try_fmt	= mt9m001_try_fmt,
 	.s_crop		= mt9m001_s_crop,
+	.g_crop		= mt9m001_g_crop,
+	.cropcap	= mt9m001_cropcap,
 };
 
 static struct v4l2_subdev_ops mt9m001_subdev_ops = {
@@ -621,15 +709,13 @@ static int mt9m001_probe(struct i2c_client *client,
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops		= &mt9m001_ops;
-	icd->rect_max.left	= 20;
-	icd->rect_max.top	= 12;
-	icd->rect_max.width	= 1280;
-	icd->rect_max.height	= 1024;
-	icd->rect_current.left	= 20;
-	icd->rect_current.top	= 12;
-	icd->width_min		= 48;
-	icd->height_min		= 32;
 	icd->y_skip_top		= 1;
+
+	mt9m001->rect.left	= MT9M001_COLUMN_SKIP;
+	mt9m001->rect.top	= MT9M001_ROW_SKIP;
+	mt9m001->rect.width	= MT9M001_MAX_WIDTH;
+	mt9m001->rect.height	= MT9M001_MAX_HEIGHT;
+
 	/* Simulated autoexposure. If enabled, we calculate shutter width
 	 * ourselves in the driver based on vertical blanking and frame width */
 	mt9m001->autoexposure = 1;

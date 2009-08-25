@@ -382,11 +382,10 @@ struct regval_list {
 };
 
 struct ov772x_color_format {
-	char                     *name;
-	__u32                     fourcc;
-	u8                        dsp3;
-	u8                        com3;
-	u8                        com7;
+	const struct soc_camera_data_format *format;
+	u8 dsp3;
+	u8 com3;
+	u8 com7;
 };
 
 struct ov772x_win_size {
@@ -481,43 +480,43 @@ static const struct soc_camera_data_format ov772x_fmt_lists[] = {
  */
 static const struct ov772x_color_format ov772x_cfmts[] = {
 	{
-		SETFOURCC(YUYV),
+		.format = &ov772x_fmt_lists[0],
 		.dsp3   = 0x0,
 		.com3   = SWAP_YUV,
 		.com7   = OFMT_YUV,
 	},
 	{
-		SETFOURCC(YVYU),
+		.format = &ov772x_fmt_lists[1],
 		.dsp3   = UV_ON,
 		.com3   = SWAP_YUV,
 		.com7   = OFMT_YUV,
 	},
 	{
-		SETFOURCC(UYVY),
+		.format = &ov772x_fmt_lists[2],
 		.dsp3   = 0x0,
 		.com3   = 0x0,
 		.com7   = OFMT_YUV,
 	},
 	{
-		SETFOURCC(RGB555),
+		.format = &ov772x_fmt_lists[3],
 		.dsp3   = 0x0,
 		.com3   = SWAP_RGB,
 		.com7   = FMT_RGB555 | OFMT_RGB,
 	},
 	{
-		SETFOURCC(RGB555X),
+		.format = &ov772x_fmt_lists[4],
 		.dsp3   = 0x0,
 		.com3   = 0x0,
 		.com7   = FMT_RGB555 | OFMT_RGB,
 	},
 	{
-		SETFOURCC(RGB565),
+		.format = &ov772x_fmt_lists[5],
 		.dsp3   = 0x0,
 		.com3   = SWAP_RGB,
 		.com7   = FMT_RGB565 | OFMT_RGB,
 	},
 	{
-		SETFOURCC(RGB565X),
+		.format = &ov772x_fmt_lists[6],
 		.dsp3   = 0x0,
 		.com3   = 0x0,
 		.com7   = FMT_RGB565 | OFMT_RGB,
@@ -648,8 +647,8 @@ static int ov772x_s_stream(struct v4l2_subdev *sd, int enable)
 
 	ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, 0);
 
-	dev_dbg(&client->dev,
-		"format %s, win %s\n", priv->fmt->name, priv->win->name);
+	dev_dbg(&client->dev, "format %s, win %s\n",
+		priv->fmt->format->name, priv->win->name);
 
 	return 0;
 }
@@ -818,7 +817,7 @@ static int ov772x_set_params(struct i2c_client *client,
 	 */
 	priv->fmt = NULL;
 	for (i = 0; i < ARRAY_SIZE(ov772x_cfmts); i++) {
-		if (pixfmt == ov772x_cfmts[i].fourcc) {
+		if (pixfmt == ov772x_cfmts[i].format->fourcc) {
 			priv->fmt = ov772x_cfmts + i;
 			break;
 		}
@@ -955,6 +954,56 @@ ov772x_set_fmt_error:
 	return ret;
 }
 
+static int ov772x_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	a->c.left	= 0;
+	a->c.top	= 0;
+	a->c.width	= VGA_WIDTH;
+	a->c.height	= VGA_HEIGHT;
+	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int ov772x_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= 0;
+	a->bounds.top			= 0;
+	a->bounds.width			= VGA_WIDTH;
+	a->bounds.height		= VGA_HEIGHT;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int ov772x_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct ov772x_priv *priv = to_ov772x(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	if (!priv->win || !priv->fmt) {
+		u32 width = VGA_WIDTH, height = VGA_HEIGHT;
+		int ret = ov772x_set_params(client, &width, &height,
+					    V4L2_PIX_FMT_YUYV);
+		if (ret < 0)
+			return ret;
+	}
+
+	f->type			= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	pix->width		= priv->win->width;
+	pix->height		= priv->win->height;
+	pix->pixelformat	= priv->fmt->format->fourcc;
+	pix->colorspace		= priv->fmt->format->colorspace;
+	pix->field		= V4L2_FIELD_NONE;
+
+	return 0;
+}
+
 static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct i2c_client *client = sd->priv;
@@ -1060,8 +1109,11 @@ static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 
 static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream	= ov772x_s_stream,
+	.g_fmt		= ov772x_g_fmt,
 	.s_fmt		= ov772x_s_fmt,
 	.try_fmt	= ov772x_try_fmt,
+	.cropcap	= ov772x_cropcap,
+	.g_crop		= ov772x_g_crop,
 };
 
 static struct v4l2_subdev_ops ov772x_subdev_ops = {
@@ -1110,8 +1162,6 @@ static int ov772x_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
 
 	icd->ops		= &ov772x_ops;
-	icd->rect_max.width	= MAX_WIDTH;
-	icd->rect_max.height	= MAX_HEIGHT;
 
 	ret = ov772x_video_probe(icd, client);
 	if (ret) {

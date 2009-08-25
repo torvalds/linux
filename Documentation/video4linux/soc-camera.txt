@@ -116,5 +116,45 @@ functionality.
 struct soc_camera_device also links to an array of struct soc_camera_data_format,
 listing pixel formats, supported by the camera.
 
+VIDIOC_S_CROP and VIDIOC_S_FMT behaviour
+----------------------------------------
+
+Above user ioctls modify image geometry as follows:
+
+VIDIOC_S_CROP: sets location and sizes of the sensor window. Unit is one sensor
+pixel. Changing sensor window sizes preserves any scaling factors, therefore
+user window sizes change as well.
+
+VIDIOC_S_FMT: sets user window. Should preserve previously set sensor window as
+much as possible by modifying scaling factors. If the sensor window cannot be
+preserved precisely, it may be changed too.
+
+In soc-camera there are two locations, where scaling and cropping can taks
+place: in the camera driver and in the host driver. User ioctls are first passed
+to the host driver, which then generally passes them down to the camera driver.
+It is more efficient to perform scaling and cropping in the camera driver to
+save camera bus bandwidth and maximise the framerate. However, if the camera
+driver failed to set the required parameters with sufficient precision, the host
+driver may decide to also use its own scaling and cropping to fulfill the user's
+request.
+
+Camera drivers are interfaced to the soc-camera core and to host drivers over
+the v4l2-subdev API, which is completely functional, it doesn't pass any data.
+Therefore all camera drivers shall reply to .g_fmt() requests with their current
+output geometry. This is necessary to correctly configure the camera bus.
+.s_fmt() and .try_fmt() have to be implemented too. Sensor window and scaling
+factors have to be maintained by camera drivers internally. According to the
+V4L2 API all capture drivers must support the VIDIOC_CROPCAP ioctl, hence we
+rely on camera drivers implementing .cropcap(). If the camera driver does not
+support cropping, it may choose to not implement .s_crop(), but to enable
+cropping support by the camera host driver at least the .g_crop method must be
+implemented.
+
+User window geometry is kept in .user_width and .user_height fields in struct
+soc_camera_device and used by the soc-camera core and host drivers. The core
+updates these fields upon successful completion of a .s_fmt() call, but if these
+fields change elsewhere, e.g., during .s_crop() processing, the host driver is
+responsible for updating them.
+
 --
 Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>

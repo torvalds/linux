@@ -47,7 +47,7 @@
 #define MT9T031_MAX_HEIGHT		1536
 #define MT9T031_MAX_WIDTH		2048
 #define MT9T031_MIN_HEIGHT		2
-#define MT9T031_MIN_WIDTH		2
+#define MT9T031_MIN_WIDTH		18
 #define MT9T031_HORIZONTAL_BLANK	142
 #define MT9T031_VERTICAL_BLANK		25
 #define MT9T031_COLUMN_SKIP		32
@@ -69,10 +69,11 @@ static const struct soc_camera_data_format mt9t031_colour_formats[] = {
 
 struct mt9t031 {
 	struct v4l2_subdev subdev;
+	struct v4l2_rect rect;	/* Sensor window */
 	int model;	/* V4L2_IDENT_MT9T031* codes from v4l2-chip-ident.h */
-	unsigned char autoexposure;
 	u16 xskip;
 	u16 yskip;
+	unsigned char autoexposure;
 };
 
 static struct mt9t031 *to_mt9t031(const struct i2c_client *client)
@@ -218,55 +219,67 @@ static unsigned long mt9t031_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, MT9T031_BUS_PARAM);
 }
 
-/* Round up minima and round down maxima */
-static void recalculate_limits(struct soc_camera_device *icd,
-			       u16 xskip, u16 yskip)
+/* target must be _even_ */
+static u16 mt9t031_skip(s32 *source, s32 target, s32 max)
 {
-	icd->rect_max.left = (MT9T031_COLUMN_SKIP + xskip - 1) / xskip;
-	icd->rect_max.top = (MT9T031_ROW_SKIP + yskip - 1) / yskip;
-	icd->width_min = (MT9T031_MIN_WIDTH + xskip - 1) / xskip;
-	icd->height_min = (MT9T031_MIN_HEIGHT + yskip - 1) / yskip;
-	icd->rect_max.width = MT9T031_MAX_WIDTH / xskip;
-	icd->rect_max.height = MT9T031_MAX_HEIGHT / yskip;
+	unsigned int skip;
+
+	if (*source < target + target / 2) {
+		*source = target;
+		return 1;
+	}
+
+	skip = min(max, *source + target / 2) / target;
+	if (skip > 8)
+		skip = 8;
+	*source = target * skip;
+
+	return skip;
 }
 
+/* rect is the sensor rectangle, the caller guarantees parameter validity */
 static int mt9t031_set_params(struct soc_camera_device *icd,
 			      struct v4l2_rect *rect, u16 xskip, u16 yskip)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	int ret;
-	u16 xbin, ybin, width, height, left, top;
+	u16 xbin, ybin;
 	const u16 hblank = MT9T031_HORIZONTAL_BLANK,
 		vblank = MT9T031_VERTICAL_BLANK;
-
-	width = rect->width * xskip;
-	height = rect->height * yskip;
-	left = rect->left * xskip;
-	top = rect->top * yskip;
 
 	xbin = min(xskip, (u16)3);
 	ybin = min(yskip, (u16)3);
 
-	dev_dbg(&client->dev, "xskip %u, width %u/%u, yskip %u, height %u/%u\n",
-		xskip, width, rect->width, yskip, height, rect->height);
-
-	/* Could just do roundup(rect->left, [xy]bin * 2); but this is cheaper */
+	/*
+	 * Could just do roundup(rect->left, [xy]bin * 2); but this is cheaper.
+	 * There is always a valid suitably aligned value. The worst case is
+	 * xbin = 3, width = 2048. Then we will start at 36, the last read out
+	 * pixel will be 2083, which is < 2085 - first black pixel.
+	 *
+	 * MT9T031 datasheet imposes window left border alignment, depending on
+	 * the selected xskip. Failing to conform to this requirement produces
+	 * dark horizontal stripes in the image. However, even obeying to this
+	 * requirement doesn't eliminate the stripes in all configurations. They
+	 * appear "locally reproducibly," but can differ between tests under
+	 * different lighting conditions.
+	 */
 	switch (xbin) {
+	case 1:
+		rect->left &= ~1;
+		break;
 	case 2:
-		left = (left + 3) & ~3;
+		rect->left &= ~3;
 		break;
 	case 3:
-		left = roundup(left, 6);
+		rect->left = rect->left > roundup(MT9T031_COLUMN_SKIP, 6) ?
+			(rect->left / 6) * 6 : roundup(MT9T031_COLUMN_SKIP, 6);
 	}
 
-	switch (ybin) {
-	case 2:
-		top = (top + 3) & ~3;
-		break;
-	case 3:
-		top = roundup(top, 6);
-	}
+	rect->top &= ~1;
+
+	dev_dbg(&client->dev, "skip %u:%u, rect %ux%u@%u:%u\n",
+		xskip, yskip, rect->width, rect->height, rect->left, rect->top);
 
 	/* Disable register update, reconfigure atomically */
 	ret = reg_set(client, MT9T031_OUTPUT_CONTROL, 1);
@@ -287,27 +300,29 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 			ret = reg_write(client, MT9T031_ROW_ADDRESS_MODE,
 					((ybin - 1) << 4) | (yskip - 1));
 	}
-	dev_dbg(&client->dev, "new physical left %u, top %u\n", left, top);
+	dev_dbg(&client->dev, "new physical left %u, top %u\n",
+		rect->left, rect->top);
 
 	/* The caller provides a supported format, as guaranteed by
 	 * icd->try_fmt_cap(), soc_camera_s_crop() and soc_camera_cropcap() */
 	if (ret >= 0)
-		ret = reg_write(client, MT9T031_COLUMN_START, left);
+		ret = reg_write(client, MT9T031_COLUMN_START, rect->left);
 	if (ret >= 0)
-		ret = reg_write(client, MT9T031_ROW_START, top);
+		ret = reg_write(client, MT9T031_ROW_START, rect->top);
 	if (ret >= 0)
-		ret = reg_write(client, MT9T031_WINDOW_WIDTH, width - 1);
+		ret = reg_write(client, MT9T031_WINDOW_WIDTH, rect->width - 1);
 	if (ret >= 0)
 		ret = reg_write(client, MT9T031_WINDOW_HEIGHT,
-				height + icd->y_skip_top - 1);
+				rect->height + icd->y_skip_top - 1);
 	if (ret >= 0 && mt9t031->autoexposure) {
-		ret = set_shutter(client, height + icd->y_skip_top + vblank);
+		ret = set_shutter(client,
+				  rect->height + icd->y_skip_top + vblank);
 		if (ret >= 0) {
 			const u32 shutter_max = MT9T031_MAX_HEIGHT + vblank;
 			const struct v4l2_queryctrl *qctrl =
 				soc_camera_find_qctrl(icd->ops,
 						      V4L2_CID_EXPOSURE);
-			icd->exposure = (shutter_max / 2 + (height +
+			icd->exposure = (shutter_max / 2 + (rect->height +
 					 icd->y_skip_top + vblank - 1) *
 					 (qctrl->maximum - qctrl->minimum)) /
 				shutter_max + qctrl->minimum;
@@ -318,27 +333,72 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 	if (ret >= 0)
 		ret = reg_clear(client, MT9T031_OUTPUT_CONTROL, 1);
 
+	if (ret >= 0) {
+		mt9t031->rect = *rect;
+		mt9t031->xskip = xskip;
+		mt9t031->yskip = yskip;
+	}
+
 	return ret < 0 ? ret : 0;
 }
 
 static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_rect rect = a->c;
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
 
-	/* Make sure we don't exceed sensor limits */
-	if (rect->left + rect->width > icd->rect_max.left + icd->rect_max.width)
-		rect->left = icd->rect_max.width + icd->rect_max.left -
-			rect->width;
+	rect.width = ALIGN(rect.width, 2);
+	rect.height = ALIGN(rect.height, 2);
 
-	if (rect->top + rect->height > icd->rect_max.height + icd->rect_max.top)
-		rect->top = icd->rect_max.height + icd->rect_max.top -
-			rect->height;
+	soc_camera_limit_side(&rect.left, &rect.width,
+		     MT9T031_COLUMN_SKIP, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH);
 
-	/* CROP - no change in scaling, or in limits */
-	return mt9t031_set_params(icd, rect, mt9t031->xskip, mt9t031->yskip);
+	soc_camera_limit_side(&rect.top, &rect.height,
+		     MT9T031_ROW_SKIP, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT);
+
+	return mt9t031_set_params(icd, &rect, mt9t031->xskip, mt9t031->yskip);
+}
+
+static int mt9t031_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9t031 *mt9t031 = to_mt9t031(client);
+
+	a->c	= mt9t031->rect;
+	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int mt9t031_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= MT9T031_COLUMN_SKIP;
+	a->bounds.top			= MT9T031_ROW_SKIP;
+	a->bounds.width			= MT9T031_MAX_WIDTH;
+	a->bounds.height		= MT9T031_MAX_HEIGHT;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int mt9t031_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9t031 *mt9t031 = to_mt9t031(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	pix->width		= mt9t031->rect.width / mt9t031->xskip;
+	pix->height		= mt9t031->rect.height / mt9t031->yskip;
+	pix->pixelformat	= V4L2_PIX_FMT_SGRBG10;
+	pix->field		= V4L2_FIELD_NONE;
+	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+
+	return 0;
 }
 
 static int mt9t031_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
@@ -346,40 +406,25 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
-	int ret;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
 	u16 xskip, yskip;
-	struct v4l2_rect rect = {
-		.left	= icd->rect_current.left,
-		.top	= icd->rect_current.top,
-		.width	= f->fmt.pix.width,
-		.height	= f->fmt.pix.height,
-	};
+	struct v4l2_rect rect = mt9t031->rect;
 
 	/*
-	 * try_fmt has put rectangle within limits.
-	 * S_FMT - use binning and skipping for scaling, recalculate
-	 * limits, used for cropping
+	 * try_fmt has put width and height within limits.
+	 * S_FMT: use binning and skipping for scaling
 	 */
-	/* Is this more optimal than just a division? */
-	for (xskip = 8; xskip > 1; xskip--)
-		if (rect.width * xskip <= MT9T031_MAX_WIDTH)
-			break;
+	xskip = mt9t031_skip(&rect.width, pix->width, MT9T031_MAX_WIDTH);
+	yskip = mt9t031_skip(&rect.height, pix->height, MT9T031_MAX_HEIGHT);
 
-	for (yskip = 8; yskip > 1; yskip--)
-		if (rect.height * yskip <= MT9T031_MAX_HEIGHT)
-			break;
-
-	recalculate_limits(icd, xskip, yskip);
-
-	ret = mt9t031_set_params(icd, &rect, xskip, yskip);
-	if (!ret) {
-		mt9t031->xskip = xskip;
-		mt9t031->yskip = yskip;
-	}
-
-	return ret;
+	/* mt9t031_set_params() doesn't change width and height */
+	return mt9t031_set_params(icd, &rect, xskip, yskip);
 }
 
+/*
+ * If a user window larger than sensor window is requested, we'll increase the
+ * sensor window.
+ */
 static int mt9t031_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
@@ -620,12 +665,12 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		if (ctrl->value) {
 			const u16 vblank = MT9T031_VERTICAL_BLANK;
 			const u32 shutter_max = MT9T031_MAX_HEIGHT + vblank;
-			if (set_shutter(client, icd->rect_current.height +
+			if (set_shutter(client, mt9t031->rect.height +
 					icd->y_skip_top + vblank) < 0)
 				return -EIO;
 			qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
 			icd->exposure = (shutter_max / 2 +
-					 (icd->rect_current.height +
+					 (mt9t031->rect.height +
 					  icd->y_skip_top + vblank - 1) *
 					 (qctrl->maximum - qctrl->minimum)) /
 				shutter_max + qctrl->minimum;
@@ -644,12 +689,6 @@ static int mt9t031_video_probe(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	s32 data;
-
-	/* We must have a parent by now. And it cannot be a wrong one.
-	 * So this entire test is completely redundant. */
-	if (!icd->dev.parent ||
-	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
-		return -ENODEV;
 
 	/* Enable the chip */
 	data = reg_write(client, MT9T031_CHIP_ENABLE, 1);
@@ -688,8 +727,11 @@ static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_stream	= mt9t031_s_stream,
 	.s_fmt		= mt9t031_s_fmt,
+	.g_fmt		= mt9t031_g_fmt,
 	.try_fmt	= mt9t031_try_fmt,
 	.s_crop		= mt9t031_s_crop,
+	.g_crop		= mt9t031_g_crop,
+	.cropcap	= mt9t031_cropcap,
 };
 
 static struct v4l2_subdev_ops mt9t031_subdev_ops = {
@@ -731,15 +773,13 @@ static int mt9t031_probe(struct i2c_client *client,
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops		= &mt9t031_ops;
-	icd->rect_max.left	= MT9T031_COLUMN_SKIP;
-	icd->rect_max.top	= MT9T031_ROW_SKIP;
-	icd->rect_current.left	= icd->rect_max.left;
-	icd->rect_current.top	= icd->rect_max.top;
-	icd->width_min		= MT9T031_MIN_WIDTH;
-	icd->rect_max.width	= MT9T031_MAX_WIDTH;
-	icd->height_min		= MT9T031_MIN_HEIGHT;
-	icd->rect_max.height	= MT9T031_MAX_HEIGHT;
 	icd->y_skip_top		= 0;
+
+	mt9t031->rect.left	= MT9T031_COLUMN_SKIP;
+	mt9t031->rect.top	= MT9T031_ROW_SKIP;
+	mt9t031->rect.width	= MT9T031_MAX_WIDTH;
+	mt9t031->rect.height	= MT9T031_MAX_HEIGHT;
+
 	/* Simulated autoexposure. If enabled, we calculate shutter width
 	 * ourselves in the driver based on vertical blanking and frame width */
 	mt9t031->autoexposure = 1;

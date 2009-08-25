@@ -715,8 +715,88 @@ tw9910_set_fmt_error:
 	return ret;
 }
 
+static int tw9910_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
+
+	if (!priv->scale) {
+		int ret;
+		struct v4l2_crop crop = {
+			.c = {
+				.left	= 0,
+				.top	= 0,
+				.width	= 640,
+				.height	= 480,
+			},
+		};
+		ret = tw9910_s_crop(sd, &crop);
+		if (ret < 0)
+			return ret;
+	}
+
+	a->c.left	= 0;
+	a->c.top	= 0;
+	a->c.width	= priv->scale->width;
+	a->c.height	= priv->scale->height;
+	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= 0;
+	a->bounds.top			= 0;
+	a->bounds.width			= 768;
+	a->bounds.height		= 576;
+	a->defrect.left			= 0;
+	a->defrect.top			= 0;
+	a->defrect.width		= 640;
+	a->defrect.height		= 480;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int tw9910_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	if (!priv->scale) {
+		int ret;
+		struct v4l2_crop crop = {
+			.c = {
+				.left	= 0,
+				.top	= 0,
+				.width	= 640,
+				.height	= 480,
+			},
+		};
+		ret = tw9910_s_crop(sd, &crop);
+		if (ret < 0)
+			return ret;
+	}
+
+	f->type			= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	pix->width		= priv->scale->width;
+	pix->height		= priv->scale->height;
+	pix->pixelformat	= V4L2_PIX_FMT_VYUY;
+	pix->colorspace		= V4L2_COLORSPACE_SMPTE170M;
+	pix->field		= V4L2_FIELD_INTERLACED;
+
+	return 0;
+}
+
 static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	/* See tw9910_s_crop() - no proper cropping support */
 	struct v4l2_crop a = {
@@ -741,8 +821,8 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
 	ret = tw9910_s_crop(sd, &a);
 	if (!ret) {
-		pix->width = a.c.width;
-		pix->height = a.c.height;
+		pix->width = priv->scale->width;
+		pix->height = priv->scale->height;
 	}
 	return ret;
 }
@@ -838,8 +918,11 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 
 static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_stream	= tw9910_s_stream,
+	.g_fmt		= tw9910_g_fmt,
 	.s_fmt		= tw9910_s_fmt,
 	.try_fmt	= tw9910_try_fmt,
+	.cropcap	= tw9910_cropcap,
+	.g_crop		= tw9910_g_crop,
 	.s_crop		= tw9910_s_crop,
 };
 
@@ -852,20 +935,6 @@ static struct v4l2_subdev_ops tw9910_subdev_ops = {
  * i2c_driver function
  */
 
-/* This is called during probe, so, setting rect_max is Ok here: scale == 1 */
-static void limit_to_scale(struct soc_camera_device *icd,
-			   const struct tw9910_scale_ctrl *scale)
-{
-	if (scale->width > icd->rect_max.width)
-		icd->rect_max.width  = scale->width;
-	if (scale->width < icd->width_min)
-		icd->width_min = scale->width;
-	if (scale->height > icd->rect_max.height)
-		icd->rect_max.height = scale->height;
-	if (scale->height < icd->height_min)
-		icd->height_min = scale->height;
-}
-
 static int tw9910_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 
@@ -876,8 +945,7 @@ static int tw9910_probe(struct i2c_client *client,
 	struct i2c_adapter             *adapter =
 		to_i2c_adapter(client->dev.parent);
 	struct soc_camera_link         *icl;
-	const struct tw9910_scale_ctrl *scale;
-	int                             i, ret;
+	int                             ret;
 
 	if (!icd) {
 		dev_err(&client->dev, "TW9910: missing soc-camera data!\n");
@@ -907,22 +975,6 @@ static int tw9910_probe(struct i2c_client *client,
 
 	icd->ops     = &tw9910_ops;
 	icd->iface   = info->link.bus_id;
-
-	/*
-	 * set width and height
-	 */
-	icd->rect_max.width  = tw9910_ntsc_scales[0].width; /* set default */
-	icd->width_min  = tw9910_ntsc_scales[0].width;
-	icd->rect_max.height = tw9910_ntsc_scales[0].height;
-	icd->height_min = tw9910_ntsc_scales[0].height;
-
-	scale = tw9910_ntsc_scales;
-	for (i = 0; i < ARRAY_SIZE(tw9910_ntsc_scales); i++)
-		limit_to_scale(icd, scale + i);
-
-	scale = tw9910_pal_scales;
-	for (i = 0; i < ARRAY_SIZE(tw9910_pal_scales); i++)
-		limit_to_scale(icd, scale + i);
 
 	ret = tw9910_video_probe(icd, client);
 	if (ret) {

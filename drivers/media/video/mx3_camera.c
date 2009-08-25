@@ -220,7 +220,7 @@ static int mx3_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (!mx3_cam->idmac_channel[0])
 		return -EINVAL;
 
-	*size = icd->rect_current.width * icd->rect_current.height * bpp;
+	*size = icd->user_width * icd->user_height * bpp;
 
 	if (!*count)
 		*count = 32;
@@ -241,7 +241,7 @@ static int mx3_videobuf_prepare(struct videobuf_queue *vq,
 	struct mx3_camera_buffer *buf =
 		container_of(vb, struct mx3_camera_buffer, vb);
 	/* current_fmt _must_ always be set */
-	size_t new_size = icd->rect_current.width * icd->rect_current.height *
+	size_t new_size = icd->user_width * icd->user_height *
 		((icd->current_fmt->depth + 7) >> 3);
 	int ret;
 
@@ -251,12 +251,12 @@ static int mx3_videobuf_prepare(struct videobuf_queue *vq,
 	 */
 
 	if (buf->fmt	!= icd->current_fmt ||
-	    vb->width	!= icd->rect_current.width ||
-	    vb->height	!= icd->rect_current.height ||
+	    vb->width	!= icd->user_width ||
+	    vb->height	!= icd->user_height ||
 	    vb->field	!= field) {
 		buf->fmt	= icd->current_fmt;
-		vb->width	= icd->rect_current.width;
-		vb->height	= icd->rect_current.height;
+		vb->width	= icd->user_width;
+		vb->height	= icd->user_height;
 		vb->field	= field;
 		if (vb->state != VIDEOBUF_NEEDS_INIT)
 			free_buffer(vq, buf);
@@ -354,9 +354,9 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 
 	/* This is the configuration of one sg-element */
 	video->out_pixel_fmt	= fourcc_to_ipu_pix(data_fmt->fourcc);
-	video->out_width	= icd->rect_current.width;
-	video->out_height	= icd->rect_current.height;
-	video->out_stride	= icd->rect_current.width;
+	video->out_width	= icd->user_width;
+	video->out_height	= icd->user_height;
+	video->out_stride	= icd->user_width;
 
 #ifdef DEBUG
 	/* helps to see what DMA actually has written */
@@ -541,7 +541,7 @@ static bool channel_change_requested(struct soc_camera_device *icd,
 
 	/* Do buffers have to be re-allocated or channel re-configured? */
 	return ichan && rect->width * rect->height >
-		icd->rect_current.width * icd->rect_current.height;
+		icd->user_width * icd->user_height;
 }
 
 static int test_platform_param(struct mx3_camera_dev *mx3_cam,
@@ -589,8 +589,8 @@ static int test_platform_param(struct mx3_camera_dev *mx3_cam,
 		*flags |= SOCAM_DATAWIDTH_4;
 		break;
 	default:
-		dev_info(mx3_cam->soc_host.v4l2_dev.dev, "Unsupported bus width %d\n",
-			 buswidth);
+		dev_warn(mx3_cam->soc_host.v4l2_dev.dev,
+			 "Unsupported bus width %d\n", buswidth);
 		return -EINVAL;
 	}
 
@@ -605,8 +605,7 @@ static int mx3_camera_try_bus_param(struct soc_camera_device *icd,
 	unsigned long bus_flags, camera_flags;
 	int ret = test_platform_param(mx3_cam, depth, &bus_flags);
 
-	dev_dbg(icd->dev.parent, "requested bus width %d bit: %d\n",
-		depth, ret);
+	dev_dbg(icd->dev.parent, "request bus width %d bit: %d\n", depth, ret);
 
 	if (ret < 0)
 		return ret;
@@ -727,13 +726,13 @@ passthrough:
 }
 
 static void configure_geometry(struct mx3_camera_dev *mx3_cam,
-			       struct v4l2_rect *rect)
+			       unsigned int width, unsigned int height)
 {
 	u32 ctrl, width_field, height_field;
 
 	/* Setup frame size - this cannot be changed on-the-fly... */
-	width_field = rect->width - 1;
-	height_field = rect->height - 1;
+	width_field = width - 1;
+	height_field = height - 1;
 	csi_reg_write(mx3_cam, width_field | (height_field << 16), CSI_SENS_FRM_SIZE);
 
 	csi_reg_write(mx3_cam, width_field << 16, CSI_FLASH_STROBE_1);
@@ -745,11 +744,6 @@ static void configure_geometry(struct mx3_camera_dev *mx3_cam,
 	ctrl = csi_reg_read(mx3_cam, CSI_OUT_FRM_CTRL) & 0xffff0000;
 	/* Sensor does the cropping */
 	csi_reg_write(mx3_cam, ctrl | 0 | (0 << 8), CSI_OUT_FRM_CTRL);
-
-	/*
-	 * No need to free resources here if we fail, we'll see if we need to
-	 * do this next time we are called
-	 */
 }
 
 static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
@@ -786,6 +780,22 @@ static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
 	return 0;
 }
 
+/*
+ * FIXME: learn to use stride != width, then we can keep stride properly aligned
+ * and support arbitrary (even) widths.
+ */
+static inline void stride_align(__s32 *width)
+{
+	if (((*width + 7) &  ~7) < 4096)
+		*width = (*width + 7) &  ~7;
+	else
+		*width = *width &  ~7;
+}
+
+/*
+ * As long as we don't implement host-side cropping and scaling, we can use
+ * default g_crop and cropcap from soc_camera.c
+ */
 static int mx3_camera_set_crop(struct soc_camera_device *icd,
 			       struct v4l2_crop *a)
 {
@@ -793,20 +803,51 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	struct v4l2_format f = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
+	struct v4l2_pix_format *pix = &f.fmt.pix;
+	int ret;
 
-	/*
-	 * We now know pixel formats and can decide upon DMA-channel(s)
-	 * So far only direct camera-to-memory is supported
-	 */
-	if (channel_change_requested(icd, rect)) {
-		int ret = acquire_dma_channel(mx3_cam);
+	soc_camera_limit_side(&rect->left, &rect->width, 0, 2, 4096);
+	soc_camera_limit_side(&rect->top, &rect->height, 0, 2, 4096);
+
+	ret = v4l2_subdev_call(sd, video, s_crop, a);
+	if (ret < 0)
+		return ret;
+
+	/* The capture device might have changed its output  */
+	ret = v4l2_subdev_call(sd, video, g_fmt, &f);
+	if (ret < 0)
+		return ret;
+
+	if (pix->width & 7) {
+		/* Ouch! We can only handle 8-byte aligned width... */
+		stride_align(&pix->width);
+		ret = v4l2_subdev_call(sd, video, s_fmt, &f);
 		if (ret < 0)
 			return ret;
 	}
 
-	configure_geometry(mx3_cam, rect);
+	if (pix->width != icd->user_width || pix->height != icd->user_height) {
+		/*
+		 * We now know pixel formats and can decide upon DMA-channel(s)
+		 * So far only direct camera-to-memory is supported
+		 */
+		if (channel_change_requested(icd, rect)) {
+			int ret = acquire_dma_channel(mx3_cam);
+			if (ret < 0)
+				return ret;
+		}
 
-	return v4l2_subdev_call(sd, video, s_crop, a);
+		configure_geometry(mx3_cam, pix->width, pix->height);
+	}
+
+	dev_dbg(icd->dev.parent, "Sensor cropped %dx%d\n",
+		pix->width, pix->height);
+
+	icd->user_width = pix->width;
+	icd->user_height = pix->height;
+
+	return ret;
 }
 
 static int mx3_camera_set_fmt(struct soc_camera_device *icd,
@@ -817,12 +858,6 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_rect rect = {
-		.left	= icd->rect_current.left,
-		.top	= icd->rect_current.top,
-		.width	= pix->width,
-		.height	= pix->height,
-	};
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
@@ -831,6 +866,9 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 			 pix->pixelformat);
 		return -EINVAL;
 	}
+
+	stride_align(&pix->width);
+	dev_dbg(icd->dev.parent, "Set format %dx%d\n", pix->width, pix->height);
 
 	ret = acquire_dma_channel(mx3_cam);
 	if (ret < 0)
@@ -842,13 +880,15 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	 * mxc_v4l2_s_fmt()
 	 */
 
-	configure_geometry(mx3_cam, &rect);
+	configure_geometry(mx3_cam, pix->width, pix->height);
 
 	ret = v4l2_subdev_call(sd, video, s_fmt, f);
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
 	}
+
+	dev_dbg(icd->dev.parent, "Sensor set %dx%d\n", pix->width, pix->height);
 
 	return ret;
 }

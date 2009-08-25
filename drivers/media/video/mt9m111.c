@@ -194,7 +194,7 @@ static int mt9m111_reg_read(struct i2c_client *client, const u16 reg)
 
 	ret = reg_page_map_set(client, reg);
 	if (!ret)
-		ret = swab16(i2c_smbus_read_word_data(client, (reg & 0xff)));
+		ret = swab16(i2c_smbus_read_word_data(client, reg & 0xff));
 
 	dev_dbg(&client->dev, "read  reg.%03x -> %04x\n", reg, ret);
 	return ret;
@@ -257,8 +257,8 @@ static int mt9m111_setup_rect(struct i2c_client *client,
 	int width = rect->width;
 	int height = rect->height;
 
-	if ((mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8)
-	    || (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16))
+	if (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8 ||
+	    mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16)
 		is_raw_format = 1;
 	else
 		is_raw_format = 0;
@@ -395,21 +395,83 @@ static int mt9m111_set_bus_param(struct soc_camera_device *icd, unsigned long f)
 	return 0;
 }
 
+static int mt9m111_make_rect(struct i2c_client *client,
+			     struct v4l2_rect *rect)
+{
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+
+	if (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8 ||
+	    mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16) {
+		/* Bayer format - even size lengths */
+		rect->width	= ALIGN(rect->width, 2);
+		rect->height	= ALIGN(rect->height, 2);
+		/* Let the user play with the starting pixel */
+	}
+
+	/* FIXME: the datasheet doesn't specify minimum sizes */
+	soc_camera_limit_side(&rect->left, &rect->width,
+		     MT9M111_MIN_DARK_COLS, 2, MT9M111_MAX_WIDTH);
+
+	soc_camera_limit_side(&rect->top, &rect->height,
+		     MT9M111_MIN_DARK_ROWS, 2, MT9M111_MAX_HEIGHT);
+
+	return mt9m111_setup_rect(client, rect);
+}
+
 static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_rect rect = a->c;
 	struct i2c_client *client = sd->priv;
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
 	dev_dbg(&client->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
-		__func__, rect->left, rect->top, rect->width,
-		rect->height);
+		__func__, rect.left, rect.top, rect.width, rect.height);
 
-	ret = mt9m111_setup_rect(client, rect);
+	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
-		mt9m111->rect = *rect;
+		mt9m111->rect = rect;
 	return ret;
+}
+
+static int mt9m111_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+
+	a->c	= mt9m111->rect;
+	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int mt9m111_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= MT9M111_MIN_DARK_COLS;
+	a->bounds.top			= MT9M111_MIN_DARK_ROWS;
+	a->bounds.width			= MT9M111_MAX_WIDTH;
+	a->bounds.height		= MT9M111_MAX_HEIGHT;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int mt9m111_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	pix->width		= mt9m111->rect.width;
+	pix->height		= mt9m111->rect.height;
+	pix->pixelformat	= mt9m111->pixfmt;
+	pix->field		= V4L2_FIELD_NONE;
+	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+
+	return 0;
 }
 
 static int mt9m111_set_pixfmt(struct i2c_client *client, u32 pixfmt)
@@ -478,7 +540,7 @@ static int mt9m111_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		__func__, pix->pixelformat, rect.left, rect.top, rect.width,
 		rect.height);
 
-	ret = mt9m111_setup_rect(client, &rect);
+	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
 		ret = mt9m111_set_pixfmt(client, pix->pixelformat);
 	if (!ret)
@@ -489,11 +551,27 @@ static int mt9m111_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 static int mt9m111_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	bool bayer = pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
+		pix->pixelformat == V4L2_PIX_FMT_SBGGR16;
+
+	/*
+	 * With Bayer format enforce even side lengths, but let the user play
+	 * with the starting pixel
+	 */
 
 	if (pix->height > MT9M111_MAX_HEIGHT)
 		pix->height = MT9M111_MAX_HEIGHT;
+	else if (pix->height < 2)
+		pix->height = 2;
+	else if (bayer)
+		pix->height = ALIGN(pix->height, 2);
+
 	if (pix->width > MT9M111_MAX_WIDTH)
 		pix->width = MT9M111_MAX_WIDTH;
+	else if (pix->width < 2)
+		pix->width = 2;
+	else if (bayer)
+		pix->width = ALIGN(pix->width, 2);
 
 	return 0;
 }
@@ -906,8 +984,11 @@ static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 
 static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.s_fmt		= mt9m111_s_fmt,
+	.g_fmt		= mt9m111_g_fmt,
 	.try_fmt	= mt9m111_try_fmt,
 	.s_crop		= mt9m111_s_crop,
+	.g_crop		= mt9m111_g_crop,
+	.cropcap	= mt9m111_cropcap,
 };
 
 static struct v4l2_subdev_ops mt9m111_subdev_ops = {
@@ -949,15 +1030,12 @@ static int mt9m111_probe(struct i2c_client *client,
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops		= &mt9m111_ops;
-	icd->rect_max.left	= MT9M111_MIN_DARK_COLS;
-	icd->rect_max.top	= MT9M111_MIN_DARK_ROWS;
-	icd->rect_max.width	= MT9M111_MAX_WIDTH;
-	icd->rect_max.height	= MT9M111_MAX_HEIGHT;
-	icd->rect_current.left	= icd->rect_max.left;
-	icd->rect_current.top	= icd->rect_max.top;
-	icd->width_min		= MT9M111_MIN_DARK_ROWS;
-	icd->height_min		= MT9M111_MIN_DARK_COLS;
 	icd->y_skip_top		= 0;
+
+	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
+	mt9m111->rect.top	= MT9M111_MIN_DARK_ROWS;
+	mt9m111->rect.width	= MT9M111_MAX_WIDTH;
+	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
 
 	ret = mt9m111_video_probe(icd, client);
 	if (ret) {

@@ -278,6 +278,9 @@ static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 	icd->user_formats = NULL;
 }
 
+#define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
+	((x) >> 24) & 0xff
+
 /* Called with .vb_lock held */
 static int soc_camera_set_fmt(struct soc_camera_file *icf,
 			      struct v4l2_format *f)
@@ -286,6 +289,9 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	int ret;
+
+	dev_dbg(&icd->dev, "S_FMT(%c%c%c%c, %ux%u)\n",
+		pixfmtstr(pix->pixelformat), pix->width, pix->height);
 
 	/* We always call try_fmt() before set_fmt() or set_crop() */
 	ret = ici->ops->try_fmt(icd, f);
@@ -302,17 +308,17 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 		return -EINVAL;
 	}
 
-	icd->rect_current.width		= pix->width;
-	icd->rect_current.height	= pix->height;
-	icf->vb_vidq.field		=
-		icd->field		= pix->field;
+	icd->user_width		= pix->width;
+	icd->user_height	= pix->height;
+	icf->vb_vidq.field	=
+		icd->field	= pix->field;
 
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
 			 f->type);
 
 	dev_dbg(&icd->dev, "set width: %d height: %d\n",
-		icd->rect_current.width, icd->rect_current.height);
+		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
 	return ici->ops->set_bus_param(icd, pix->pixelformat);
@@ -355,8 +361,8 @@ static int soc_camera_open(struct file *file)
 		struct v4l2_format f = {
 			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			.fmt.pix = {
-				.width		= icd->rect_current.width,
-				.height		= icd->rect_current.height,
+				.width		= icd->user_width,
+				.height		= icd->user_height,
 				.field		= icd->field,
 				.pixelformat	= icd->current_fmt->fourcc,
 				.colorspace	= icd->current_fmt->colorspace,
@@ -557,8 +563,8 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	pix->width		= icd->rect_current.width;
-	pix->height		= icd->rect_current.height;
+	pix->width		= icd->user_width;
+	pix->height		= icd->user_height;
 	pix->field		= icf->vb_vidq.field;
 	pix->pixelformat	= icd->current_fmt->fourcc;
 	pix->bytesperline	= pix->width *
@@ -722,17 +728,9 @@ static int soc_camera_cropcap(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->bounds			= icd->rect_max;
-	a->defrect.left			= icd->rect_max.left;
-	a->defrect.top			= icd->rect_max.top;
-	a->defrect.width		= DEFAULT_WIDTH;
-	a->defrect.height		= DEFAULT_HEIGHT;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	return ici->ops->cropcap(icd, a);
 }
 
 static int soc_camera_g_crop(struct file *file, void *fh,
@@ -740,11 +738,14 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	int ret;
 
-	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->c	= icd->rect_current;
+	mutex_lock(&icf->vb_vidq.vb_lock);
+	ret = ici->ops->get_crop(icd, a);
+	mutex_unlock(&icf->vb_vidq.vb_lock);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -759,49 +760,33 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct v4l2_rect rect = a->c;
+	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop current_crop;
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
+	dev_dbg(&icd->dev, "S_CROP(%ux%u@%u:%u)\n",
+		rect->width, rect->height, rect->left, rect->top);
+
 	/* Cropping is allowed during a running capture, guard consistency */
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
+	/* If get_crop fails, we'll let host and / or client drivers decide */
+	ret = ici->ops->get_crop(icd, &current_crop);
+
 	/* Prohibit window size change with initialised buffers */
-	if (icf->vb_vidq.bufs[0] && (rect.width != icd->rect_current.width ||
-				     rect.height != icd->rect_current.height)) {
+	if (icf->vb_vidq.bufs[0] && !ret &&
+	    (a->c.width != current_crop.c.width ||
+	     a->c.height != current_crop.c.height)) {
 		dev_err(&icd->dev,
 			"S_CROP denied: queue initialised and sizes differ\n");
 		ret = -EBUSY;
-		goto unlock;
+	} else {
+		ret = ici->ops->set_crop(icd, a);
 	}
 
-	if (rect.width > icd->rect_max.width)
-		rect.width = icd->rect_max.width;
-
-	if (rect.width < icd->width_min)
-		rect.width = icd->width_min;
-
-	if (rect.height > icd->rect_max.height)
-		rect.height = icd->rect_max.height;
-
-	if (rect.height < icd->height_min)
-		rect.height = icd->height_min;
-
-	if (rect.width + rect.left > icd->rect_max.width + icd->rect_max.left)
-		rect.left = icd->rect_max.width + icd->rect_max.left -
-			rect.width;
-
-	if (rect.height + rect.top > icd->rect_max.height + icd->rect_max.top)
-		rect.top = icd->rect_max.height + icd->rect_max.top -
-			rect.height;
-
-	ret = ici->ops->set_crop(icd, a);
-	if (!ret)
-		icd->rect_current = rect;
-
-unlock:
 	mutex_unlock(&icf->vb_vidq.vb_lock);
 
 	return ret;
@@ -926,6 +911,8 @@ static int soc_camera_probe(struct device *dev)
 	struct soc_camera_host *ici = to_soc_camera_host(dev->parent);
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	struct device *control = NULL;
+	struct v4l2_subdev *sd;
+	struct v4l2_format f = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
 	int ret;
 
 	dev_info(dev, "Probing %s\n", dev_name(dev));
@@ -982,7 +969,6 @@ static int soc_camera_probe(struct device *dev)
 	if (ret < 0)
 		goto eiufmt;
 
-	icd->rect_current = icd->rect_max;
 	icd->field = V4L2_FIELD_ANY;
 
 	/* ..._video_start() will create a device node, so we have to protect */
@@ -992,9 +978,15 @@ static int soc_camera_probe(struct device *dev)
 	if (ret < 0)
 		goto evidstart;
 
+	/* Try to improve our guess of a reasonable window format */
+	sd = soc_camera_to_subdev(icd);
+	if (!v4l2_subdev_call(sd, video, g_fmt, &f)) {
+		icd->user_width		= f.fmt.pix.width;
+		icd->user_height	= f.fmt.pix.height;
+	}
+
 	/* Do we have to sysfs_remove_link() before device_unregister()? */
-	if (to_soc_camera_control(icd) &&
-	    sysfs_create_link(&icd->dev.kobj, &to_soc_camera_control(icd)->kobj,
+	if (sysfs_create_link(&icd->dev.kobj, &to_soc_camera_control(icd)->kobj,
 			      "control"))
 		dev_warn(&icd->dev, "Failed creating the control symlink\n");
 
@@ -1103,6 +1095,25 @@ static void dummy_release(struct device *dev)
 {
 }
 
+static int default_cropcap(struct soc_camera_device *icd,
+			   struct v4l2_cropcap *a)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, cropcap, a);
+}
+
+static int default_g_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, g_crop, a);
+}
+
+static int default_s_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, s_crop, a);
+}
+
 int soc_camera_host_register(struct soc_camera_host *ici)
 {
 	struct soc_camera_host *ix;
@@ -1111,7 +1122,6 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	if (!ici || !ici->ops ||
 	    !ici->ops->try_fmt ||
 	    !ici->ops->set_fmt ||
-	    !ici->ops->set_crop ||
 	    !ici->ops->set_bus_param ||
 	    !ici->ops->querycap ||
 	    !ici->ops->init_videobuf ||
@@ -1121,6 +1131,13 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	    !ici->ops->poll ||
 	    !ici->v4l2_dev.dev)
 		return -EINVAL;
+
+	if (!ici->ops->set_crop)
+		ici->ops->set_crop = default_s_crop;
+	if (!ici->ops->get_crop)
+		ici->ops->get_crop = default_g_crop;
+	if (!ici->ops->cropcap)
+		ici->ops->cropcap = default_cropcap;
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
@@ -1320,6 +1337,9 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 	ret = soc_camera_device_register(icd);
 	if (ret < 0)
 		goto escdevreg;
+
+	icd->user_width		= DEFAULT_WIDTH;
+	icd->user_height	= DEFAULT_HEIGHT;
 
 	return 0;
 
