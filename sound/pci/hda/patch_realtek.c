@@ -6017,7 +6017,14 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 	nid = cfg->line_out_pins[0];
 	if (nid) {
-		err = alc260_add_playback_controls(spec, nid, "Front", &vols);
+		const char *pfx;
+		if (!cfg->speaker_pins[0] && !cfg->hp_pins[0])
+			pfx = "Master";
+		else if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+			pfx = "Speaker";
+		else
+			pfx = "Front";
+		err = alc260_add_playback_controls(spec, nid, pfx, &vols);
 		if (err < 0)
 			return err;
 	}
