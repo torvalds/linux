@@ -616,9 +616,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Logout of the fabric */
 	fc_fabric_logoff(lport);
 
-	/* Remove the instance from fcoe's list */
-	fcoe_hostlist_remove(lport);
-
 	/* Cleanup the fc_lport */
 	fc_lport_destroy(lport);
 	fc_fcp_destroy(lport);
@@ -757,11 +754,13 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 
 	/*
 	 * fcoe_em_alloc() and fcoe_hostlist_add() both
-	 * need to be atomic under fcoe_hostlist_lock
+	 * need to be atomic with respect to other changes to the hostlist
 	 * since fcoe_em_alloc() looks for an existing EM
 	 * instance on host list updated by fcoe_hostlist_add().
+	 *
+	 * This is currently handled through the fcoe_config_mutex begin held.
 	 */
-	write_lock(&fcoe_hostlist_lock);
+
 	/* lport exch manager allocation */
 	rc = fcoe_em_config(lport);
 	if (rc) {
@@ -769,10 +768,6 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 				"interface\n");
 		goto out_lp_destroy;
 	}
-
-	/* add to lports list */
-	fcoe_hostlist_add(lport);
-	write_unlock(&fcoe_hostlist_lock);
 
 	dev_hold(netdev);
 	fcoe_interface_get(fcoe);
@@ -1713,6 +1708,8 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 		rc = -ENODEV;
 		goto out_putdev;
 	}
+	/* Remove the instance from fcoe's list */
+	fcoe_hostlist_remove(lport);
 	port = lport_priv(lport);
 	fcoe = port->fcoe;
 	fcoe_if_destroy(lport);
@@ -1781,6 +1778,9 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 
 	/* Make this the "master" N_Port */
 	fcoe->ctlr.lp = lport;
+
+	/* add to lports list */
+	fcoe_hostlist_add(lport);
 
 	/* start FIP Discovery and FLOGI */
 	lport->boot_time = jiffies;
@@ -1954,8 +1954,6 @@ struct fc_lport *fcoe_hostlist_lookup(const struct net_device *netdev)
  * fcoe_hostlist_add() - Add a lport to lports list
  * @lp: ptr to the fc_lport to be added
  *
- * Called with write fcoe_hostlist_lock held.
- *
  * Returns: 0 for success
  */
 int fcoe_hostlist_add(const struct fc_lport *lport)
@@ -1963,12 +1961,14 @@ int fcoe_hostlist_add(const struct fc_lport *lport)
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
 
+	write_lock_bh(&fcoe_hostlist_lock);
 	fcoe = fcoe_hostlist_lookup_port(fcoe_netdev(lport));
 	if (!fcoe) {
 		port = lport_priv(lport);
 		fcoe = port->fcoe;
 		list_add_tail(&fcoe->list, &fcoe_hostlist);
 	}
+	write_unlock_bh(&fcoe_hostlist_lock);
 	return 0;
 }
 
@@ -2045,14 +2045,21 @@ static void __exit fcoe_exit(void)
 {
 	unsigned int cpu;
 	struct fcoe_interface *fcoe, *tmp;
+	LIST_HEAD(local_list);
 
 	mutex_lock(&fcoe_config_mutex);
 
 	fcoe_dev_cleanup();
 
 	/* releases the associated fcoe hosts */
-	list_for_each_entry_safe(fcoe, tmp, &fcoe_hostlist, list)
+	write_lock_bh(&fcoe_hostlist_lock);
+	list_splice_init(&fcoe_hostlist, &local_list);
+	write_unlock_bh(&fcoe_hostlist_lock);
+
+	list_for_each_entry_safe(fcoe, tmp, &local_list, list) {
+		list_del(&fcoe->list);
 		fcoe_if_destroy(fcoe->ctlr.lp);
+	}
 
 	unregister_hotcpu_notifier(&fcoe_cpu_notifier);
 
