@@ -32,6 +32,7 @@ struct fc_ct_req {
 		struct fc_ns_gid_ft gid;
 		struct fc_ns_rn_id  rn;
 		struct fc_ns_rft rft;
+		struct fc_ns_fid fid;
 	} payload;
 };
 
@@ -94,10 +95,16 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
 }
 
 /**
- * fc_ct_fill - Fill in a name service request frame
+ * fc_ct_fill() - Fill in a name service request frame
+ * @lport: local port.
+ * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fp: frame to contain payload.
+ * @op: CT opcode.
+ * @r_ctl: pointer to FC header R_CTL.
+ * @fh_type: pointer to FC-4 type.
  */
 static inline int fc_ct_fill(struct fc_lport *lport,
-		      struct fc_frame *fp,
+		      u32 fc_id, struct fc_frame *fp,
 		      unsigned int op, enum fc_rctl *r_ctl,
 		      enum fc_fh_type *fh_type)
 {
@@ -107,6 +114,11 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 	case FC_NS_GPN_FT:
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_gid_ft));
 		ct->payload.gid.fn_fc4_type = FC_TYPE_FCP;
+		break;
+
+	case FC_NS_GPN_ID:
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_fid));
+		hton24(ct->payload.fid.fp_fid, fc_id);
 		break;
 
 	case FC_NS_RFT_ID:

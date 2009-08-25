@@ -47,7 +47,7 @@ static void fc_disc_gpn_ft_req(struct fc_disc *);
 static void fc_disc_gpn_ft_resp(struct fc_seq *, struct fc_frame *, void *);
 static void fc_disc_done(struct fc_disc *, enum fc_disc_event);
 static void fc_disc_timeout(struct work_struct *);
-static void fc_disc_single(struct fc_disc *, struct fc_disc_port *);
+static int fc_disc_single(struct fc_lport *, struct fc_disc_port *);
 static void fc_disc_restart(struct fc_disc *);
 
 /**
@@ -83,7 +83,6 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 				  struct fc_disc *disc)
 {
 	struct fc_lport *lport;
-	struct fc_rport_priv *rdata;
 	struct fc_els_rscn *rp;
 	struct fc_els_rscn_page *pp;
 	struct fc_seq_els_data rjt_data;
@@ -150,6 +149,19 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 		}
 	}
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+
+	/*
+	 * If not doing a complete rediscovery, do GPN_ID on
+	 * the individual ports mentioned in the list.
+	 * If any of these get an error, do a full rediscovery.
+	 * In any case, go through the list and free the entries.
+	 */
+	list_for_each_entry_safe(dp, next, &disc_ports, peers) {
+		list_del(&dp->peers);
+		if (!redisc)
+			redisc = fc_disc_single(lport, dp);
+		kfree(dp);
+	}
 	if (redisc) {
 		FC_DISC_DBG(disc, "RSCN received: rediscovering\n");
 		fc_disc_restart(disc);
@@ -157,14 +169,6 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 		FC_DISC_DBG(disc, "RSCN received: not rediscovering. "
 			    "redisc %d state %d in_prog %d\n",
 			    redisc, lport->state, disc->pending);
-		list_for_each_entry_safe(dp, next, &disc_ports, peers) {
-			list_del(&dp->peers);
-			rdata = lport->tt.rport_lookup(lport, dp->port_id);
-			if (rdata) {
-				lport->tt.rport_logoff(rdata);
-			}
-			fc_disc_single(disc, dp);
-		}
 	}
 	fc_frame_free(fp);
 	return;
@@ -562,32 +566,117 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 }
 
 /**
+ * fc_disc_gpn_id_resp() - Handle a response frame from Get Port Names (GPN_ID)
+ * @sp: exchange sequence
+ * @fp: response frame
+ * @rdata_arg: remote port private data
+ *
+ * Locking Note: This function is called without disc mutex held.
+ */
+static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
+				void *rdata_arg)
+{
+	struct fc_rport_priv *rdata = rdata_arg;
+	struct fc_rport_priv *new_rdata;
+	struct fc_lport *lport;
+	struct fc_disc *disc;
+	struct fc_ct_hdr *cp;
+	struct fc_ns_gid_pn *pn;
+	u64 port_name;
+
+	lport = rdata->local_port;
+	disc = &lport->disc;
+
+	mutex_lock(&disc->disc_mutex);
+	if (PTR_ERR(fp) == -FC_EX_CLOSED)
+		goto out;
+	if (IS_ERR(fp))
+		goto redisc;
+
+	cp = fc_frame_payload_get(fp, sizeof(*cp));
+	if (!cp)
+		goto redisc;
+	if (ntohs(cp->ct_cmd) == FC_FS_ACC) {
+		if (fr_len(fp) < sizeof(struct fc_frame_header) +
+		    sizeof(*cp) + sizeof(*pn))
+			goto redisc;
+		pn = (struct fc_ns_gid_pn *)(cp + 1);
+		port_name = get_unaligned_be64(&pn->fn_wwpn);
+		if (rdata->ids.port_name == -1)
+			rdata->ids.port_name = port_name;
+		else if (rdata->ids.port_name != port_name) {
+			FC_DISC_DBG(disc, "GPN_ID accepted.  WWPN changed. "
+				    "Port-id %x wwpn %llx\n",
+				    rdata->ids.port_id, port_name);
+			lport->tt.rport_logoff(rdata);
+
+			new_rdata = lport->tt.rport_create(lport,
+							   rdata->ids.port_id);
+			if (new_rdata) {
+				new_rdata->disc_id = disc->disc_id;
+				lport->tt.rport_login(new_rdata);
+			}
+			goto out;
+		}
+		rdata->disc_id = disc->disc_id;
+		lport->tt.rport_login(rdata);
+	} else if (ntohs(cp->ct_cmd) == FC_FS_RJT) {
+		FC_DISC_DBG(disc, "GPN_ID rejected reason %x exp %x\n",
+			    cp->ct_reason, cp->ct_explan);
+		lport->tt.rport_logoff(rdata);
+	} else {
+		FC_DISC_DBG(disc, "GPN_ID unexpected response code %x\n",
+			    ntohs(cp->ct_cmd));
+redisc:
+		fc_disc_restart(disc);
+	}
+out:
+	mutex_unlock(&disc->disc_mutex);
+	kref_put(&rdata->kref, lport->tt.rport_destroy);
+}
+
+/**
+ * fc_disc_gpn_id_req() - Send Get Port Names by ID (GPN_ID) request
+ * @lport: local port
+ * @rdata: remote port private data
+ *
+ * Locking Note: This function expects that the disc_mutex is locked
+ *		 before it is called.
+ * On failure, an error code is returned.
+ */
+static int fc_disc_gpn_id_req(struct fc_lport *lport,
+			      struct fc_rport_priv *rdata)
+{
+	struct fc_frame *fp;
+
+	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
+			    sizeof(struct fc_ns_fid));
+	if (!fp)
+		return -ENOMEM;
+	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, FC_NS_GPN_ID,
+				 fc_disc_gpn_id_resp, rdata, lport->e_d_tov))
+		return -ENOMEM;
+	kref_get(&rdata->kref);
+	return 0;
+}
+
+/**
  * fc_disc_single() - Discover the directory information for a single target
- * @lport: FC local port
+ * @lport: local port
  * @dp: The port to rediscover
  *
  * Locking Note: This function expects that the disc_mutex is locked
  *		 before it is called.
  */
-static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
+static int fc_disc_single(struct fc_lport *lport, struct fc_disc_port *dp)
 {
-	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
 
-	lport = disc->lport;
-
-	if (dp->port_id == fc_host_port_id(lport->host))
-		goto out;
-
 	rdata = lport->tt.rport_create(lport, dp->port_id);
-	if (rdata) {
-		rdata->disc_id = disc->disc_id;
-		kfree(dp);
-		lport->tt.rport_login(rdata);
-	}
-	return;
-out:
-	kfree(dp);
+	if (!rdata)
+		return -ENOMEM;
+	rdata->disc_id = 0;
+	return fc_disc_gpn_id_req(lport, rdata);
 }
 
 /**

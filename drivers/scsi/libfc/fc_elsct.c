@@ -49,7 +49,7 @@ static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
 		rc = fc_els_fill(lport, did, fp, op, &r_ctl, &fh_type);
 	else {
 		/* CT requests */
-		rc = fc_ct_fill(lport, fp, op, &r_ctl, &fh_type);
+		rc = fc_ct_fill(lport, did, fp, op, &r_ctl, &fh_type);
 		did = FC_FID_DIR_SERV;
 	}
 
