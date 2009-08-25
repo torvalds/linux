@@ -1340,6 +1340,8 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport,
 	struct fc_rport_priv *rdata;
 	u32 sid;
 
+	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+
 	fh = fc_frame_header_get(fp);
 	sid = ntoh24(fh->fh_s_id);
 
@@ -1349,13 +1351,20 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport,
 		mutex_lock(&rdata->rp_mutex);
 		FC_RPORT_DBG(rdata, "Received LOGO request while in state %s\n",
 			     fc_rport_state(rdata));
-		fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
+
+		/*
+		 * If the remote port was created due to discovery,
+		 * log back in.  It may have seen a stale RSCN about us.
+		 */
+		if (rdata->rp_state != RPORT_ST_DELETE && rdata->disc_id)
+			fc_rport_enter_plogi(rdata);
+		else
+			fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 		mutex_unlock(&rdata->rp_mutex);
 	} else
 		FC_RPORT_ID_DBG(lport, sid,
 				"Received LOGO from non-logged-in port\n");
 	mutex_unlock(&lport->disc.disc_mutex);
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
 	fc_frame_free(fp);
 }
 
