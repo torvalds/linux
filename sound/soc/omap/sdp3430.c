@@ -40,8 +40,10 @@
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
 
-#define TWL4030_INTBR_PMBR1	0x0D
-#define EXTMUTE(value)		(value << 2)
+/* TWL4030 PMBR1 Register */
+#define TWL4030_INTBR_PMBR1		0x0D
+/* TWL4030 PMBR1 Register GPIO6 mux bit */
+#define TWL4030_GPIO6_PWM0_MUTE(value)	(value << 2)
 
 static struct snd_soc_card snd_soc_sdp3430;
 
@@ -299,6 +301,7 @@ static struct platform_device *sdp3430_snd_device;
 static int __init sdp3430_soc_init(void)
 {
 	int ret;
+	u8 pin_mux;
 
 	if (!machine_is_omap_3430sdp()) {
 		pr_debug("Not SDP3430!\n");
@@ -318,8 +321,12 @@ static int __init sdp3430_soc_init(void)
 	*(unsigned int *)sdp3430_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
 
 	/* Set TWL4030 GPIO6 as EXTMUTE signal */
-	twl4030_i2c_write_u8(TWL4030_MODULE_INTBR, EXTMUTE(0x02),
-							TWL4030_MODULE_INTBR);
+	twl4030_i2c_read_u8(TWL4030_MODULE_INTBR, &pin_mux,
+						TWL4030_INTBR_PMBR1);
+	pin_mux &= ~TWL4030_GPIO6_PWM0_MUTE(0x03);
+	pin_mux |= TWL4030_GPIO6_PWM0_MUTE(0x02);
+	twl4030_i2c_write_u8(TWL4030_MODULE_INTBR, pin_mux,
+						TWL4030_INTBR_PMBR1);
 
 	ret = platform_device_add(sdp3430_snd_device);
 	if (ret)
