@@ -326,7 +326,7 @@ static inline void fc_exch_timer_set_locked(struct fc_exch *ep,
 	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE))
 		return;
 
-	FC_EXCH_DBG(ep, "Exchange timed out, notifying the upper layer\n");
+	FC_EXCH_DBG(ep, "Exchange timer armed\n");
 
 	if (schedule_delayed_work(&ep->timeout_work,
 				  msecs_to_jiffies(timer_msec)))
@@ -411,6 +411,8 @@ static void fc_exch_timeout(struct work_struct *work)
 	void *arg;
 	u32 e_stat;
 	int rc = 1;
+
+	FC_EXCH_DBG(ep, "Exchange timed out\n");
 
 	spin_lock_bh(&ep->ex_lock);
 	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE))
