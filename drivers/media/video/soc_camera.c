@@ -297,7 +297,7 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 		return ret;
 	} else if (!icd->current_fmt ||
 		   icd->current_fmt->fourcc != pix->pixelformat) {
-		dev_err(ici->v4l2_dev.dev,
+		dev_err(&icd->dev,
 			"Host driver hasn't set up current format correctly!\n");
 		return -EINVAL;
 	}
@@ -426,7 +426,6 @@ static int soc_camera_close(struct file *file)
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct video_device *vdev = icd->vdev;
 
 	mutex_lock(&icd->video_lock);
 	icd->use_count--;
@@ -446,7 +445,7 @@ static int soc_camera_close(struct file *file)
 
 	vfree(icf);
 
-	dev_dbg(vdev->parent, "camera device close\n");
+	dev_dbg(&icd->dev, "camera device close\n");
 
 	return 0;
 }
@@ -456,10 +455,9 @@ static ssize_t soc_camera_read(struct file *file, char __user *buf,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct video_device *vdev = icd->vdev;
 	int err = -EINVAL;
 
-	dev_err(vdev->parent, "camera device read not implemented\n");
+	dev_err(&icd->dev, "camera device read not implemented\n");
 
 	return err;
 }
