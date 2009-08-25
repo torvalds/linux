@@ -1900,7 +1900,9 @@ static int __init fcoe_init(void)
 	/* Setup link change notification */
 	fcoe_dev_setup();
 
-	fcoe_if_init();
+	rc = fcoe_if_init();
+	if (rc)
+		goto out_free;
 
 	return 0;
 
