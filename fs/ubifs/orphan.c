@@ -672,7 +672,8 @@ static int kill_orphans(struct ubifs_info *c)
 		dbg_rcvry("LEB %d", lnum);
 		sleb = ubifs_scan(c, lnum, 0, c->sbuf, 1);
 		if (IS_ERR(sleb)) {
-			sleb = ubifs_recover_leb(c, lnum, 0, c->sbuf, 0);
+			if (PTR_ERR(sleb) == -EUCLEAN)
+				sleb = ubifs_recover_leb(c, lnum, 0, c->sbuf, 0);
 			if (IS_ERR(sleb)) {
 				err = PTR_ERR(sleb);
 				break;
