@@ -152,12 +152,9 @@ static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id *a)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	int ret = 0;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
-	if (icd->ops->set_std)
-		ret = icd->ops->set_std(icd, a);
-
-	return ret;
+	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, s_std, *a);
 }
 
 static int soc_camera_reqbufs(struct file *file, void *priv,

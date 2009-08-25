@@ -190,7 +190,6 @@ struct soc_camera_ops {
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 	int (*get_chip_id)(struct soc_camera_device *,
 			   struct v4l2_dbg_chip_ident *);
-	int (*set_std)(struct soc_camera_device *, v4l2_std_id *);
 	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
