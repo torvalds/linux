@@ -239,7 +239,7 @@ static int pxa_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 
 	dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
-	*size = roundup(icd->width * icd->height *
+	*size = roundup(icd->rect_current.width * icd->rect_current.height *
 			((icd->current_fmt->depth + 7) >> 3), 8);
 
 	if (0 == *count)
@@ -443,12 +443,12 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 	buf->inwork = 1;
 
 	if (buf->fmt	!= icd->current_fmt ||
-	    vb->width	!= icd->width ||
-	    vb->height	!= icd->height ||
+	    vb->width	!= icd->rect_current.width ||
+	    vb->height	!= icd->rect_current.height ||
 	    vb->field	!= field) {
 		buf->fmt	= icd->current_fmt;
-		vb->width	= icd->width;
-		vb->height	= icd->height;
+		vb->width	= icd->rect_current.width;
+		vb->height	= icd->rect_current.height;
 		vb->field	= field;
 		vb->state	= VIDEOBUF_NEEDS_INIT;
 	}
@@ -1118,7 +1118,7 @@ static int pxa_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	if (cicr0 & CICR0_ENB)
 		__raw_writel(cicr0 & ~CICR0_ENB, pcdev->base + CICR0);
 
-	cicr1 = CICR1_PPL_VAL(icd->width - 1) | bpp | dw;
+	cicr1 = CICR1_PPL_VAL(icd->rect_current.width - 1) | bpp | dw;
 
 	switch (pixfmt) {
 	case V4L2_PIX_FMT_YUV422P:
@@ -1147,7 +1147,7 @@ static int pxa_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	}
 
 	cicr2 = 0;
-	cicr3 = CICR3_LPF_VAL(icd->height - 1) |
+	cicr3 = CICR3_LPF_VAL(icd->rect_current.height - 1) |
 		CICR3_BFW_VAL(min((unsigned short)255, icd->y_skip_top));
 	cicr4 |= pcdev->mclk_divisor;
 

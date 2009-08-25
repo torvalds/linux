@@ -240,8 +240,8 @@ static int mt9m001_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct i2c_client *client = sd->priv;
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_rect rect = {
-		.left	= icd->x_current,
-		.top	= icd->y_current,
+		.left	= icd->rect_current.left,
+		.top	= icd->rect_current.top,
 		.width	= f->fmt.pix.width,
 		.height	= f->fmt.pix.height,
 	};
@@ -467,11 +467,13 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_EXPOSURE_AUTO:
 		if (ctrl->value) {
 			const u16 vblank = 25;
-			if (reg_write(client, MT9M001_SHUTTER_WIDTH, icd->height +
+			if (reg_write(client, MT9M001_SHUTTER_WIDTH,
+				      icd->rect_current.height +
 				      icd->y_skip_top + vblank) < 0)
 				return -EIO;
 			qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
-			icd->exposure = (524 + (icd->height + icd->y_skip_top + vblank - 1) *
+			icd->exposure = (524 + (icd->rect_current.height +
+						icd->y_skip_top + vblank - 1) *
 					 (qctrl->maximum - qctrl->minimum)) /
 				1048 + qctrl->minimum;
 			mt9m001->autoexposure = 1;
@@ -613,16 +615,16 @@ static int mt9m001_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&mt9m001->subdev, client, &mt9m001_subdev_ops);
 
 	/* Second stage probe - when a capture adapter is there */
-	icd->ops	= &mt9m001_ops;
-	icd->x_min	= 20;
-	icd->y_min	= 12;
-	icd->x_current	= 20;
-	icd->y_current	= 12;
-	icd->width_min	= 48;
-	icd->width_max	= 1280;
-	icd->height_min	= 32;
-	icd->height_max	= 1024;
-	icd->y_skip_top	= 1;
+	icd->ops		= &mt9m001_ops;
+	icd->rect_max.left	= 20;
+	icd->rect_max.top	= 12;
+	icd->rect_max.width	= 1280;
+	icd->rect_max.height	= 1024;
+	icd->rect_current.left	= 20;
+	icd->rect_current.top	= 12;
+	icd->width_min		= 48;
+	icd->height_min		= 32;
+	icd->y_skip_top		= 1;
 	/* Simulated autoexposure. If enabled, we calculate shutter width
 	 * ourselves in the driver based on vertical blanking and frame width */
 	mt9m001->autoexposure = 1;

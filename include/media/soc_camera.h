@@ -22,16 +22,10 @@ struct soc_camera_device {
 	struct list_head list;
 	struct device dev;
 	struct device *pdev;		/* Platform device */
-	unsigned short width;		/* Current window */
-	unsigned short height;		/* sizes */
-	unsigned short x_min;		/* Camera capabilities */
-	unsigned short y_min;
-	unsigned short x_current;	/* Current window location */
-	unsigned short y_current;
+	struct v4l2_rect rect_current;	/* Current window */
+	struct v4l2_rect rect_max;	/* Maximum window */
 	unsigned short width_min;
-	unsigned short width_max;
 	unsigned short height_min;
-	unsigned short height_max;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
 	unsigned short gain;
 	unsigned short exposure;

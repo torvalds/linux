@@ -1120,9 +1120,9 @@ static int ov772x_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
 
-	icd->ops        = &ov772x_ops;
-	icd->width_max  = MAX_WIDTH;
-	icd->height_max = MAX_HEIGHT;
+	icd->ops		= &ov772x_ops;
+	icd->rect_max.width	= MAX_WIDTH;
+	icd->rect_max.height	= MAX_HEIGHT;
 
 	ret = ov772x_video_probe(icd, client);
 	if (ret) {

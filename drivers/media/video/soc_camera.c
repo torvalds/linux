@@ -288,17 +288,17 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 		return -EINVAL;
 	}
 
-	icd->width		= pix->width;
-	icd->height		= pix->height;
-	icf->vb_vidq.field	=
-		icd->field	= pix->field;
+	icd->rect_current.width		= pix->width;
+	icd->rect_current.height	= pix->height;
+	icf->vb_vidq.field		=
+		icd->field		= pix->field;
 
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
 			 f->type);
 
 	dev_dbg(&icd->dev, "set width: %d height: %d\n",
-		icd->width, icd->height);
+		icd->rect_current.width, icd->rect_current.height);
 
 	/* set physical bus parameters */
 	return ici->ops->set_bus_param(icd, pix->pixelformat);
@@ -341,8 +341,8 @@ static int soc_camera_open(struct file *file)
 		struct v4l2_format f = {
 			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			.fmt.pix = {
-				.width		= icd->width,
-				.height		= icd->height,
+				.width		= icd->rect_current.width,
+				.height		= icd->rect_current.height,
 				.field		= icd->field,
 			},
 		};
@@ -553,8 +553,8 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	pix->width		= icd->width;
-	pix->height		= icd->height;
+	pix->width		= icd->rect_current.width;
+	pix->height		= icd->rect_current.height;
 	pix->field		= icf->vb_vidq.field;
 	pix->pixelformat	= icd->current_fmt->fourcc;
 	pix->bytesperline	= pix->width *
@@ -718,12 +718,9 @@ static int soc_camera_cropcap(struct file *file, void *fh,
 	struct soc_camera_device *icd = icf->icd;
 
 	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->bounds.left			= icd->x_min;
-	a->bounds.top			= icd->y_min;
-	a->bounds.width			= icd->width_max;
-	a->bounds.height		= icd->height_max;
-	a->defrect.left			= icd->x_min;
-	a->defrect.top			= icd->y_min;
+	a->bounds			= icd->rect_max;
+	a->defrect.left			= icd->rect_max.left;
+	a->defrect.top			= icd->rect_max.top;
 	a->defrect.width		= DEFAULT_WIDTH;
 	a->defrect.height		= DEFAULT_HEIGHT;
 	a->pixelaspect.numerator	= 1;
@@ -738,11 +735,8 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->c.left	= icd->x_current;
-	a->c.top	= icd->y_current;
-	a->c.width	= icd->width;
-	a->c.height	= icd->height;
+	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->c	= icd->rect_current;
 
 	return 0;
 }
@@ -761,13 +755,29 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	/* Cropping is allowed during a running capture, guard consistency */
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
+	if (a->c.width > icd->rect_max.width)
+		a->c.width = icd->rect_max.width;
+
+	if (a->c.width < icd->width_min)
+		a->c.width = icd->width_min;
+
+	if (a->c.height > icd->rect_max.height)
+		a->c.height = icd->rect_max.height;
+
+	if (a->c.height < icd->height_min)
+		a->c.height = icd->height_min;
+
+	if (a->c.width + a->c.left > icd->rect_max.width + icd->rect_max.left)
+		a->c.left = icd->rect_max.width + icd->rect_max.left -
+			a->c.width;
+
+	if (a->c.height + a->c.top > icd->rect_max.height + icd->rect_max.top)
+		a->c.top = icd->rect_max.height + icd->rect_max.top -
+			a->c.height;
+
 	ret = ici->ops->set_crop(icd, &a->c);
-	if (!ret) {
-		icd->width	= a->c.width;
-		icd->height	= a->c.height;
-		icd->x_current	= a->c.left;
-		icd->y_current	= a->c.top;
-	}
+	if (!ret)
+		icd->rect_current = a->c;
 
 	mutex_unlock(&icf->vb_vidq.vb_lock);
 

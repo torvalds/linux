@@ -127,12 +127,12 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	dev_set_drvdata(&icd->dev, &pdev->dev);
 
-	icd->width_min	= 0;
-	icd->width_max	= p->format.width;
-	icd->height_min	= 0;
-	icd->height_max	= p->format.height;
-	icd->y_skip_top	= 0;
-	icd->ops	= &soc_camera_platform_ops;
+	icd->width_min		= 0;
+	icd->rect_max.width	= p->format.width;
+	icd->height_min		= 0;
+	icd->rect_max.height	= p->format.height;
+	icd->y_skip_top		= 0;
+	icd->ops		= &soc_camera_platform_ops;
 
 	ici = to_soc_camera_host(icd->dev.parent);
 

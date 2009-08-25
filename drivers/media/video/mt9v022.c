@@ -298,8 +298,8 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect rect = {
-		.left	= icd->x_current,
-		.top	= icd->y_current,
+		.left	= icd->rect_current.left,
+		.top	= icd->rect_current.top,
 		.width	= pix->width,
 		.height	= pix->height,
 	};
@@ -741,16 +741,16 @@ static int mt9v022_probe(struct i2c_client *client,
 
 	mt9v022->chip_control = MT9V022_CHIP_CONTROL_DEFAULT;
 
-	icd->ops	= &mt9v022_ops;
-	icd->x_min	= 1;
-	icd->y_min	= 4;
-	icd->x_current	= 1;
-	icd->y_current	= 4;
-	icd->width_min	= 48;
-	icd->width_max	= 752;
-	icd->height_min	= 32;
-	icd->height_max	= 480;
-	icd->y_skip_top	= 1;
+	icd->ops		= &mt9v022_ops;
+	icd->rect_max.left	= 1;
+	icd->rect_max.top	= 4;
+	icd->rect_max.width	= 752;
+	icd->rect_max.height	= 480;
+	icd->rect_current.left	= 1;
+	icd->rect_current.top	= 4;
+	icd->width_min		= 48;
+	icd->height_min		= 32;
+	icd->y_skip_top		= 1;
 
 	ret = mt9v022_video_probe(icd, client);
 	if (ret) {

@@ -715,8 +715,8 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect rect = {
-		.left	= icd->x_current,
-		.top	= icd->y_current,
+		.left	= icd->rect_current.left,
+		.top	= icd->rect_current.top,
 		.width	= pix->width,
 		.height	= pix->height,
 	};
@@ -840,6 +840,19 @@ static struct v4l2_subdev_ops tw9910_subdev_ops = {
  * i2c_driver function
  */
 
+static void limit_to_scale(struct soc_camera_device *icd,
+			   const struct tw9910_scale_ctrl *scale)
+{
+	if (scale->width > icd->rect_max.width)
+		icd->rect_max.width  = scale->width;
+	if (scale->width < icd->width_min)
+		icd->width_min = scale->width;
+	if (scale->height > icd->rect_max.height)
+		icd->rect_max.height = scale->height;
+	if (scale->height < icd->height_min)
+		icd->height_min = scale->height;
+}
+
 static int tw9910_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 
@@ -885,25 +898,18 @@ static int tw9910_probe(struct i2c_client *client,
 	/*
 	 * set width and height
 	 */
-	icd->width_max  = tw9910_ntsc_scales[0].width; /* set default */
+	icd->rect_max.width  = tw9910_ntsc_scales[0].width; /* set default */
 	icd->width_min  = tw9910_ntsc_scales[0].width;
-	icd->height_max = tw9910_ntsc_scales[0].height;
+	icd->rect_max.height = tw9910_ntsc_scales[0].height;
 	icd->height_min = tw9910_ntsc_scales[0].height;
 
 	scale = tw9910_ntsc_scales;
-	for (i = 0; i < ARRAY_SIZE(tw9910_ntsc_scales); i++) {
-		icd->width_max  = max(scale[i].width,  icd->width_max);
-		icd->width_min  = min(scale[i].width,  icd->width_min);
-		icd->height_max = max(scale[i].height, icd->height_max);
-		icd->height_min = min(scale[i].height, icd->height_min);
-	}
+	for (i = 0; i < ARRAY_SIZE(tw9910_ntsc_scales); i++)
+		limit_to_scale(icd, scale + i);
+
 	scale = tw9910_pal_scales;
-	for (i = 0; i < ARRAY_SIZE(tw9910_pal_scales); i++) {
-		icd->width_max  = max(scale[i].width,  icd->width_max);
-		icd->width_min  = min(scale[i].width,  icd->width_min);
-		icd->height_max = max(scale[i].height, icd->height_max);
-		icd->height_min = min(scale[i].height, icd->height_min);
-	}
+	for (i = 0; i < ARRAY_SIZE(tw9910_pal_scales); i++)
+		limit_to_scale(icd, scale + i);
 
 	ret = tw9910_video_probe(icd, client);
 	if (ret) {

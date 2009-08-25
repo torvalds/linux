@@ -146,7 +146,8 @@ static int sh_mobile_ceu_videobuf_setup(struct videobuf_queue *vq,
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	int bytes_per_pixel = (icd->current_fmt->depth + 7) >> 3;
 
-	*size = PAGE_ALIGN(icd->width * icd->height * bytes_per_pixel);
+	*size = PAGE_ALIGN(icd->rect_current.width * icd->rect_current.height *
+			   bytes_per_pixel);
 
 	if (0 == *count)
 		*count = 2;
@@ -205,7 +206,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	phys_addr_top = videobuf_to_dma_contig(pcdev->active);
 	ceu_write(pcdev, CDAYR, phys_addr_top);
 	if (pcdev->is_interlaced) {
-		phys_addr_bottom = phys_addr_top + icd->width;
+		phys_addr_bottom = phys_addr_top + icd->rect_current.width;
 		ceu_write(pcdev, CDBYR, phys_addr_bottom);
 	}
 
@@ -214,10 +215,12 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
-		phys_addr_top += icd->width * icd->height;
+		phys_addr_top += icd->rect_current.width *
+			icd->rect_current.height;
 		ceu_write(pcdev, CDACR, phys_addr_top);
 		if (pcdev->is_interlaced) {
-			phys_addr_bottom = phys_addr_top + icd->width;
+			phys_addr_bottom = phys_addr_top +
+				icd->rect_current.width;
 			ceu_write(pcdev, CDBCR, phys_addr_bottom);
 		}
 	}
@@ -251,12 +254,12 @@ static int sh_mobile_ceu_videobuf_prepare(struct videobuf_queue *vq,
 	BUG_ON(NULL == icd->current_fmt);
 
 	if (buf->fmt	!= icd->current_fmt ||
-	    vb->width	!= icd->width ||
-	    vb->height	!= icd->height ||
+	    vb->width	!= icd->rect_current.width ||
+	    vb->height	!= icd->rect_current.height ||
 	    vb->field	!= field) {
 		buf->fmt	= icd->current_fmt;
-		vb->width	= icd->width;
-		vb->height	= icd->height;
+		vb->width	= icd->rect_current.width;
+		vb->height	= icd->rect_current.height;
 		vb->field	= field;
 		vb->state	= VIDEOBUF_NEEDS_INIT;
 	}
@@ -475,17 +478,18 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	mdelay(1);
 
 	if (yuv_mode) {
-		width = icd->width * 2;
+		width = icd->rect_current.width * 2;
 		width = buswidth == 16 ? width / 2 : width;
-		cfszr_width = cdwdr_width = icd->width;
+		cfszr_width = cdwdr_width = icd->rect_current.width;
 	} else {
-		width = icd->width * ((icd->current_fmt->depth + 7) >> 3);
+		width = icd->rect_current.width *
+			((icd->current_fmt->depth + 7) >> 3);
 		width = buswidth == 16 ? width / 2 : width;
 		cfszr_width = buswidth == 8 ? width / 2 : width;
 		cdwdr_width = buswidth == 16 ? width * 2 : width;
 	}
 
-	height = icd->height;
+	height = icd->rect_current.height;
 	if (pcdev->is_interlaced) {
 		height /= 2;
 		cdwdr_width *= 2;

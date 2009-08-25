@@ -948,16 +948,16 @@ static int mt9m111_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
 
 	/* Second stage probe - when a capture adapter is there */
-	icd->ops	= &mt9m111_ops;
-	icd->x_min	= MT9M111_MIN_DARK_COLS;
-	icd->y_min	= MT9M111_MIN_DARK_ROWS;
-	icd->x_current	= icd->x_min;
-	icd->y_current	= icd->y_min;
-	icd->width_min	= MT9M111_MIN_DARK_ROWS;
-	icd->width_max	= MT9M111_MAX_WIDTH;
-	icd->height_min	= MT9M111_MIN_DARK_COLS;
-	icd->height_max	= MT9M111_MAX_HEIGHT;
-	icd->y_skip_top	= 0;
+	icd->ops		= &mt9m111_ops;
+	icd->rect_max.left	= MT9M111_MIN_DARK_COLS;
+	icd->rect_max.top	= MT9M111_MIN_DARK_ROWS;
+	icd->rect_max.width	= MT9M111_MAX_WIDTH;
+	icd->rect_max.height	= MT9M111_MAX_HEIGHT;
+	icd->rect_current.left	= icd->rect_max.left;
+	icd->rect_current.top	= icd->rect_max.top;
+	icd->width_min		= MT9M111_MIN_DARK_ROWS;
+	icd->height_min		= MT9M111_MIN_DARK_COLS;
+	icd->y_skip_top		= 0;
 
 	ret = mt9m111_video_probe(icd, client);
 	if (ret) {

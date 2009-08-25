@@ -220,7 +220,7 @@ static int mx3_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (!mx3_cam->idmac_channel[0])
 		return -EINVAL;
 
-	*size = icd->width * icd->height * bpp;
+	*size = icd->rect_current.width * icd->rect_current.height * bpp;
 
 	if (!*count)
 		*count = 32;
@@ -241,7 +241,7 @@ static int mx3_videobuf_prepare(struct videobuf_queue *vq,
 	struct mx3_camera_buffer *buf =
 		container_of(vb, struct mx3_camera_buffer, vb);
 	/* current_fmt _must_ always be set */
-	size_t new_size = icd->width * icd->height *
+	size_t new_size = icd->rect_current.width * icd->rect_current.height *
 		((icd->current_fmt->depth + 7) >> 3);
 	int ret;
 
@@ -251,12 +251,12 @@ static int mx3_videobuf_prepare(struct videobuf_queue *vq,
 	 */
 
 	if (buf->fmt	!= icd->current_fmt ||
-	    vb->width	!= icd->width ||
-	    vb->height	!= icd->height ||
+	    vb->width	!= icd->rect_current.width ||
+	    vb->height	!= icd->rect_current.height ||
 	    vb->field	!= field) {
 		buf->fmt	= icd->current_fmt;
-		vb->width	= icd->width;
-		vb->height	= icd->height;
+		vb->width	= icd->rect_current.width;
+		vb->height	= icd->rect_current.height;
 		vb->field	= field;
 		if (vb->state != VIDEOBUF_NEEDS_INIT)
 			free_buffer(vq, buf);
@@ -354,9 +354,9 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 
 	/* This is the configuration of one sg-element */
 	video->out_pixel_fmt	= fourcc_to_ipu_pix(data_fmt->fourcc);
-	video->out_width	= icd->width;
-	video->out_height	= icd->height;
-	video->out_stride	= icd->width;
+	video->out_width	= icd->rect_current.width;
+	video->out_height	= icd->rect_current.height;
+	video->out_stride	= icd->rect_current.width;
 
 #ifdef DEBUG
 	/* helps to see what DMA actually has written */
@@ -538,7 +538,8 @@ static bool channel_change_requested(struct soc_camera_device *icd,
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
 
 	/* Do buffers have to be re-allocated or channel re-configured? */
-	return ichan && rect->width * rect->height > icd->width * icd->height;
+	return ichan && rect->width * rect->height >
+		icd->rect_current.width * icd->rect_current.height;
 }
 
 static int test_platform_param(struct mx3_camera_dev *mx3_cam,
@@ -808,8 +809,8 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect rect = {
-		.left	= icd->x_current,
-		.top	= icd->y_current,
+		.left	= icd->rect_current.left,
+		.top	= icd->rect_current.top,
 		.width	= pix->width,
 		.height	= pix->height,
 	};

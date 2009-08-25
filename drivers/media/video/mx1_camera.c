@@ -126,7 +126,7 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 {
 	struct soc_camera_device *icd = vq->priv_data;
 
-	*size = icd->width * icd->height *
+	*size = icd->rect_current.width * icd->rect_current.height *
 		((icd->current_fmt->depth + 7) >> 3);
 
 	if (!*count)
@@ -178,12 +178,12 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 	buf->inwork = 1;
 
 	if (buf->fmt	!= icd->current_fmt ||
-	    vb->width	!= icd->width ||
-	    vb->height	!= icd->height ||
+	    vb->width	!= icd->rect_current.width ||
+	    vb->height	!= icd->rect_current.height ||
 	    vb->field	!= field) {
 		buf->fmt	= icd->current_fmt;
-		vb->width	= icd->width;
-		vb->height	= icd->height;
+		vb->width	= icd->rect_current.width;
+		vb->height	= icd->rect_current.height;
 		vb->field	= field;
 		vb->state	= VIDEOBUF_NEEDS_INIT;
 	}
