@@ -249,10 +249,13 @@ static inline void fc_scr_fill(struct fc_lport *lport, struct fc_frame *fp)
 /**
  * fc_els_fill - Fill in an ELS  request frame
  */
-static inline int fc_els_fill(struct fc_lport *lport, struct fc_rport *rport,
+static inline int fc_els_fill(struct fc_lport *lport,
+		       struct fc_rport_priv *rdata,
 		       struct fc_frame *fp, unsigned int op,
 		       enum fc_rctl *r_ctl, u32 *did, enum fc_fh_type *fh_type)
 {
+	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
+
 	switch (op) {
 	case ELS_PLOGI:
 		fc_plogi_fill(lport, fp, ELS_PLOGI);
@@ -272,7 +275,7 @@ static inline int fc_els_fill(struct fc_lport *lport, struct fc_rport *rport,
 		 * is port logo, therefore
 		 * set did to rport id.
 		 */
-		if (rport)
+		if (rdata)
 			*did = rport->port_id;
 		break;
 

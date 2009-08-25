@@ -1308,7 +1308,7 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, rport->port_id,
 		       fc_host_port_id(rp->local_port->host), FC_TYPE_ELS,
 		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
-	if (lp->tt.elsct_send(lp, rport, fp, ELS_REC, fc_fcp_rec_resp,
+	if (lp->tt.elsct_send(lp, rport->dd_data, fp, ELS_REC, fc_fcp_rec_resp,
 			      fsp, jiffies_to_msecs(FC_SCSI_REC_TOV))) {
 		fc_fcp_pkt_hold(fsp);		/* hold while REC outstanding */
 		return;

@@ -133,16 +133,18 @@ static int fc_frame_drop(struct fc_lport *lport, struct fc_frame *fp)
 /**
  * fc_lport_rport_callback() - Event handler for rport events
  * @lport: The lport which is receiving the event
- * @rport: The rport which the event has occured on
+ * @rdata: private remote port data
  * @event: The event that occured
  *
  * Locking Note: The rport lock should not be held when calling
  *		 this function.
  */
 static void fc_lport_rport_callback(struct fc_lport *lport,
-				    struct fc_rport *rport,
+				    struct fc_rport_priv *rdata,
 				    enum fc_rport_event event)
 {
+	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
+
 	FC_LPORT_DBG(lport, "Received a %d event for port (%6x)\n", event,
 		     rport->port_id);
 
@@ -151,7 +153,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 		if (rport->port_id == FC_FID_DIR_SERV) {
 			mutex_lock(&lport->lp_mutex);
 			if (lport->state == LPORT_ST_DNS) {
-				lport->dns_rp = rport;
+				lport->dns_rp = rdata;
 				fc_lport_enter_rpn_id(lport);
 			} else {
 				FC_LPORT_DBG(lport, "Received an CREATED event "
@@ -160,7 +162,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 					     "in the DNS state, it's in the "
 					     "%d state", rport->port_id,
 					     lport->state);
-				lport->tt.rport_logoff(rport);
+				lport->tt.rport_logoff(rdata);
 			}
 			mutex_unlock(&lport->lp_mutex);
 		} else
@@ -832,7 +834,7 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	void (*recv) (struct fc_seq *, struct fc_frame *, struct fc_lport *);
-	struct fc_rport *rport;
+	struct fc_rport_priv *rdata;
 	u32 s_id;
 	u32 d_id;
 	struct fc_seq_els_data rjt_data;
@@ -888,9 +890,9 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 			s_id = ntoh24(fh->fh_s_id);
 			d_id = ntoh24(fh->fh_d_id);
 
-			rport = lport->tt.rport_lookup(lport, s_id);
-			if (rport)
-				lport->tt.rport_recv_req(sp, fp, rport);
+			rdata = lport->tt.rport_lookup(lport, s_id);
+			if (rdata)
+				lport->tt.rport_recv_req(sp, fp, rdata);
 			else {
 				rjt_data.fp = NULL;
 				rjt_data.reason = ELS_RJT_UNAB;
@@ -1304,7 +1306,6 @@ static struct fc_rport_operations fc_lport_rport_ops = {
  */
 static void fc_lport_enter_dns(struct fc_lport *lport)
 {
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
 	struct fc_rport_identifiers ids;
 
@@ -1318,13 +1319,12 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 
 	fc_lport_state_enter(lport, LPORT_ST_DNS);
 
-	rport = lport->tt.rport_create(lport, &ids);
-	if (!rport)
+	rdata = lport->tt.rport_create(lport, &ids);
+	if (!rdata)
 		goto err;
 
-	rdata = rport->dd_data;
 	rdata->ops = &fc_lport_rport_ops;
-	lport->tt.rport_login(rport);
+	lport->tt.rport_login(rdata);
 	return;
 
 err:

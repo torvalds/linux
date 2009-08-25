@@ -75,10 +75,10 @@ do {								\
 				(lport)->host->host_no,			\
 				(port_id), ##args))
 
-#define FC_RPORT_DBG(rport, fmt, args...)				\
+#define FC_RPORT_DBG(rdata, fmt, args...)				\
 do {									\
-	struct fc_rport_priv *rdata = rport->dd_data;			\
 	struct fc_lport *lport = rdata->local_port;			\
+	struct fc_rport *rport = PRIV_TO_RPORT(rdata);			\
 	FC_RPORT_ID_DBG(lport, rport->port_id, fmt, ##args);		\
 } while (0)
 
@@ -185,8 +185,10 @@ enum fc_rport_event {
  */
 #define fc_rport_priv fc_rport_libfc_priv
 
+struct fc_rport_priv;
+
 struct fc_rport_operations {
-	void (*event_callback)(struct fc_lport *, struct fc_rport *,
+	void (*event_callback)(struct fc_lport *, struct fc_rport_priv *,
 			       enum fc_rport_event);
 };
 
@@ -422,7 +424,7 @@ struct libfc_function_template {
 	 * STATUS: OPTIONAL
 	 */
 	struct fc_seq *(*elsct_send)(struct fc_lport *lport,
-				     struct fc_rport *rport,
+				     struct fc_rport_priv *,
 				     struct fc_frame *fp,
 				     unsigned int op,
 				     void (*resp)(struct fc_seq *,
@@ -567,8 +569,8 @@ struct libfc_function_template {
 	/*
 	 * Create a remote port
 	 */
-	struct fc_rport *(*rport_create)(struct fc_lport *,
-					 struct fc_rport_identifiers *);
+	struct fc_rport_priv *(*rport_create)(struct fc_lport *,
+					      struct fc_rport_identifiers *);
 
 	/*
 	 * Initiates the RP state machine. It is called from the LP module.
@@ -581,7 +583,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	int (*rport_login)(struct fc_rport *rport);
+	int (*rport_login)(struct fc_rport_priv *);
 
 	/*
 	 * Logoff, and remove the rport from the transport if
@@ -589,7 +591,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	int (*rport_logoff)(struct fc_rport *rport);
+	int (*rport_logoff)(struct fc_rport_priv *);
 
 	/*
 	 * Recieve a request from a remote port.
@@ -597,14 +599,14 @@ struct libfc_function_template {
 	 * STATUS: OPTIONAL
 	 */
 	void (*rport_recv_req)(struct fc_seq *, struct fc_frame *,
-			       struct fc_rport *);
+			       struct fc_rport_priv *);
 
 	/*
 	 * lookup an rport by it's port ID.
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	struct fc_rport *(*rport_lookup)(const struct fc_lport *, u32);
+	struct fc_rport_priv *(*rport_lookup)(const struct fc_lport *, u32);
 
 	/*
 	 * Send a fcp cmd from fsp pkt.
@@ -694,8 +696,8 @@ struct fc_lport {
 	/* Associations */
 	struct Scsi_Host	*host;
 	struct list_head	ema_list;
-	struct fc_rport		*dns_rp;
-	struct fc_rport		*ptp_rp;
+	struct fc_rport_priv	*dns_rp;
+	struct fc_rport_priv	*ptp_rp;
 	void			*scsi_priv;
 	struct fc_disc          disc;
 

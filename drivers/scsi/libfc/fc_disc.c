@@ -49,7 +49,6 @@ static void fc_disc_gpn_ft_req(struct fc_disc *);
 static void fc_disc_gpn_ft_resp(struct fc_seq *, struct fc_frame *, void *);
 static int fc_disc_new_target(struct fc_disc *, struct fc_rport *,
 			      struct fc_rport_identifiers *);
-static void fc_disc_del_target(struct fc_disc *, struct fc_rport *);
 static void fc_disc_done(struct fc_disc *);
 static void fc_disc_timeout(struct work_struct *);
 static void fc_disc_single(struct fc_disc *, struct fc_disc_port *);
@@ -60,27 +59,19 @@ static void fc_disc_restart(struct fc_disc *);
  * @lport: Fibre Channel host port instance
  * @port_id: remote port port_id to match
  */
-struct fc_rport *fc_disc_lookup_rport(const struct fc_lport *lport,
-				      u32 port_id)
+struct fc_rport_priv *fc_disc_lookup_rport(const struct fc_lport *lport,
+					   u32 port_id)
 {
 	const struct fc_disc *disc = &lport->disc;
-	struct fc_rport *rport, *found = NULL;
+	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
-	int disc_found = 0;
 
 	list_for_each_entry(rdata, &disc->rports, peers) {
 		rport = PRIV_TO_RPORT(rdata);
-		if (rport->port_id == port_id) {
-			disc_found = 1;
-			found = rport;
-			break;
-		}
+		if (rport->port_id == port_id)
+			return rdata;
 	}
-
-	if (!disc_found)
-		found = NULL;
-
-	return found;
+	return NULL;
 }
 
 /**
@@ -93,21 +84,18 @@ struct fc_rport *fc_disc_lookup_rport(const struct fc_lport *lport,
 void fc_disc_stop_rports(struct fc_disc *disc)
 {
 	struct fc_lport *lport;
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata, *next;
 
 	lport = disc->lport;
 
 	mutex_lock(&disc->disc_mutex);
 	list_for_each_entry_safe(rdata, next, &disc->rports, peers) {
-		rport = PRIV_TO_RPORT(rdata);
 		list_del(&rdata->peers);
-		lport->tt.rport_logoff(rport);
+		lport->tt.rport_logoff(rdata);
 	}
 
 	list_for_each_entry_safe(rdata, next, &disc->rogue_rports, peers) {
-		rport = PRIV_TO_RPORT(rdata);
-		lport->tt.rport_logoff(rport);
+		lport->tt.rport_logoff(rdata);
 	}
 
 	mutex_unlock(&disc->disc_mutex);
@@ -116,18 +104,18 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 /**
  * fc_disc_rport_callback() - Event handler for rport events
  * @lport: The lport which is receiving the event
- * @rport: The rport which the event has occured on
+ * @rdata: private remote port data
  * @event: The event that occured
  *
  * Locking Note: The rport lock should not be held when calling
  *		 this function.
  */
 static void fc_disc_rport_callback(struct fc_lport *lport,
-				   struct fc_rport *rport,
+				   struct fc_rport_priv *rdata,
 				   enum fc_rport_event event)
 {
-	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_disc *disc = &lport->disc;
+	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 
 	FC_DISC_DBG(disc, "Received a %d event for port (%6x)\n", event,
 		    rport->port_id);
@@ -169,7 +157,6 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 				  struct fc_disc *disc)
 {
 	struct fc_lport *lport;
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
 	struct fc_els_rscn *rp;
 	struct fc_els_rscn_page *pp;
@@ -249,11 +236,10 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 			    redisc, lport->state, disc->pending);
 		list_for_each_entry_safe(dp, next, &disc_ports, peers) {
 			list_del(&dp->peers);
-			rport = lport->tt.rport_lookup(lport, dp->ids.port_id);
-			if (rport) {
-				rdata = rport->dd_data;
+			rdata = lport->tt.rport_lookup(lport, dp->ids.port_id);
+			if (rdata) {
 				list_del(&rdata->peers);
-				lport->tt.rport_logoff(rport);
+				lport->tt.rport_logoff(rdata);
 			}
 			fc_disc_single(disc, dp);
 		}
@@ -308,16 +294,14 @@ static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
  */
 static void fc_disc_restart(struct fc_disc *disc)
 {
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata, *next;
 	struct fc_lport *lport = disc->lport;
 
 	FC_DISC_DBG(disc, "Restarting discovery\n");
 
 	list_for_each_entry_safe(rdata, next, &disc->rports, peers) {
-		rport = PRIV_TO_RPORT(rdata);
 		list_del(&rdata->peers);
-		lport->tt.rport_logoff(rport);
+		lport->tt.rport_logoff(rdata);
 	}
 
 	disc->requested = 1;
@@ -335,6 +319,7 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 						enum fc_disc_event),
 			  struct fc_lport *lport)
 {
+	struct fc_rport_priv *rdata;
 	struct fc_rport *rport;
 	struct fc_rport_identifiers ids;
 	struct fc_disc *disc = &lport->disc;
@@ -362,8 +347,9 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 	 * Handle point-to-point mode as a simple discovery
 	 * of the remote port. Yucky, yucky, yuck, yuck!
 	 */
-	rport = disc->lport->ptp_rp;
-	if (rport) {
+	rdata = disc->lport->ptp_rp;
+	if (rdata) {
+		rport = PRIV_TO_RPORT(rdata);
 		ids.port_id = rport->port_id;
 		ids.port_name = rport->port_name;
 		ids.node_name = rport->node_name;
@@ -418,7 +404,9 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			 * assigned the same FCID.  This should be rare.
 			 * Delete the old one and fall thru to re-create.
 			 */
-			fc_disc_del_target(disc, rport);
+			rdata = rport->dd_data;
+			list_del(&rdata->peers);
+			lport->tt.rport_logoff(rdata);
 			rport = NULL;
 		}
 	}
@@ -426,35 +414,24 @@ static int fc_disc_new_target(struct fc_disc *disc,
 	    ids->port_id != fc_host_port_id(lport->host) &&
 	    ids->port_name != lport->wwpn) {
 		if (!rport) {
-			rport = lport->tt.rport_lookup(lport, ids->port_id);
+			rdata = lport->tt.rport_lookup(lport, ids->port_id);
 			if (!rport) {
-				rport = lport->tt.rport_create(lport, ids);
+				rdata = lport->tt.rport_create(lport, ids);
 			}
-			if (!rport)
+			if (!rdata)
 				error = -ENOMEM;
+			else
+				rport = PRIV_TO_RPORT(rdata);
 		}
 		if (rport) {
 			rdata = rport->dd_data;
 			rdata->ops = &fc_disc_rport_ops;
 			rdata->rp_state = RPORT_ST_INIT;
 			list_add_tail(&rdata->peers, &disc->rogue_rports);
-			lport->tt.rport_login(rport);
+			lport->tt.rport_login(rdata);
 		}
 	}
 	return error;
-}
-
-/**
- * fc_disc_del_target() - Delete a target
- * @disc: FC discovery context
- * @rport: The remote port to be removed
- */
-static void fc_disc_del_target(struct fc_disc *disc, struct fc_rport *rport)
-{
-	struct fc_lport *lport = disc->lport;
-	struct fc_rport_priv *rdata = rport->dd_data;
-	list_del(&rdata->peers);
-	lport->tt.rport_logoff(rport);
 }
 
 /**
@@ -573,7 +550,6 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	size_t tlen;
 	int error = 0;
 	struct fc_rport_identifiers ids;
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
 
 	lport = disc->lport;
@@ -622,14 +598,13 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 
 		if (ids.port_id != fc_host_port_id(lport->host) &&
 		    ids.port_name != lport->wwpn) {
-			rport = lport->tt.rport_create(lport, &ids);
-			if (rport) {
-				rdata = rport->dd_data;
+			rdata = lport->tt.rport_create(lport, &ids);
+			if (rdata) {
 				rdata->ops = &fc_disc_rport_ops;
 				rdata->local_port = lport;
 				list_add_tail(&rdata->peers,
 					      &disc->rogue_rports);
-				lport->tt.rport_login(rport);
+				lport->tt.rport_login(rdata);
 			} else
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
@@ -766,7 +741,6 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 {
 	struct fc_lport *lport;
-	struct fc_rport *new_rport;
 	struct fc_rport_priv *rdata;
 
 	lport = disc->lport;
@@ -774,13 +748,12 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 	if (dp->ids.port_id == fc_host_port_id(lport->host))
 		goto out;
 
-	new_rport = lport->tt.rport_create(lport, &dp->ids);
-	if (new_rport) {
-		rdata = new_rport->dd_data;
+	rdata = lport->tt.rport_create(lport, &dp->ids);
+	if (rdata) {
 		rdata->ops = &fc_disc_rport_ops;
 		kfree(dp);
 		list_add_tail(&rdata->peers, &disc->rogue_rports);
-		lport->tt.rport_login(new_rport);
+		lport->tt.rport_login(rdata);
 	}
 	return;
 out:
