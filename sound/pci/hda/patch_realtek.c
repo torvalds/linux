@@ -10790,80 +10790,106 @@ static struct snd_kcontrol_new alc262_ultra_capture_mixer[] = {
 	{ } /* end */
 };
 
+/* We use two mixers depending on the output pin; 0x16 is a mono output
+ * and thus it's bound with a different mixer.
+ * This function returns which mixer amp should be used.
+ */
+static int alc262_check_volbit(hda_nid_t nid)
+{
+	if (!nid)
+		return 0;
+	else if (nid == 0x16)
+		return 2;
+	else
+		return 1;
+}
+
+static int alc262_add_out_vol_ctl(struct alc_spec *spec, hda_nid_t nid,
+				  const char *pfx, int *vbits)
+{
+	char name[32];
+	unsigned long val;
+	int vbit;
+
+	vbit = alc262_check_volbit(nid);
+	if (!vbit)
+		return 0;
+	if (*vbits & vbit) /* a volume control for this mixer already there */
+		return 0;
+	*vbits |= vbit;
+	snprintf(name, sizeof(name), "%s Playback Volume", pfx);
+	if (vbit == 2)
+		val = HDA_COMPOSE_AMP_VAL(0x0e, 2, 0, HDA_OUTPUT);
+	else
+		val = HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT);
+	return add_control(spec, ALC_CTL_WIDGET_VOL, name, val);
+}
+
+static int alc262_add_out_sw_ctl(struct alc_spec *spec, hda_nid_t nid,
+				 const char *pfx)
+{
+	char name[32];
+	unsigned long val;
+
+	if (!nid)
+		return 0;
+	snprintf(name, sizeof(name), "%s Playback Switch", pfx);
+	if (nid == 0x16)
+		val = HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT);
+	else
+		val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT);
+	return add_control(spec, ALC_CTL_WIDGET_MUTE, name, val);
+}
+
 /* add playback controls from the parsed DAC table */
 static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
-	hda_nid_t nid;
+	const char *pfx;
+	int vbits;
 	int err;
 
 	spec->multiout.num_dacs = 1;	/* only use one dac */
 	spec->multiout.dac_nids = spec->private_dac_nids;
 	spec->multiout.dac_nids[0] = 2;
 
-	nid = cfg->line_out_pins[0];
-	if (nid) {
-		err = add_control(spec, ALC_CTL_WIDGET_VOL,
-				  "Front Playback Volume",
-				  HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT));
-		if (err < 0)
-			return err;
-		err = add_control(spec, ALC_CTL_WIDGET_MUTE,
-				  "Front Playback Switch",
-				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
-		if (err < 0)
-			return err;
-	}
+	if (!cfg->speaker_pins[0] && !cfg->hp_pins[0])
+		pfx = "Master";
+	else if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+		pfx = "Speaker";
+	else
+		pfx = "Front";
+	err = alc262_add_out_sw_ctl(spec, cfg->line_out_pins[0], pfx);
+	if (err < 0)
+		return err;
+	err = alc262_add_out_sw_ctl(spec, cfg->speaker_pins[0], "Speaker");
+	if (err < 0)
+		return err;
+	err = alc262_add_out_sw_ctl(spec, cfg->hp_pins[0], "Headphone");
+	if (err < 0)
+		return err;
 
-	nid = cfg->speaker_pins[0];
-	if (nid) {
-		if (nid == 0x16) {
-			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  "Speaker Playback Volume",
-					  HDA_COMPOSE_AMP_VAL(0x0e, 2, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
-					  "Speaker Playback Switch",
-					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else {
-			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
-					  "Speaker Playback Switch",
-					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-	nid = cfg->hp_pins[0];
-	if (nid) {
-		/* spec->multiout.hp_nid = 2; */
-		if (nid == 0x16) {
-			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  "Headphone Playback Volume",
-					  HDA_COMPOSE_AMP_VAL(0x0e, 2, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
-					  "Headphone Playback Switch",
-					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else {
-			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
-					  "Headphone Playback Switch",
-					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
+	vbits = alc262_check_volbit(cfg->line_out_pins[0]) |
+		alc262_check_volbit(cfg->speaker_pins[0]) |
+		alc262_check_volbit(cfg->hp_pins[0]);
+	if (vbits == 1 || vbits == 2)
+		pfx = "Master"; /* only one mixer is used */
+	else if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+		pfx = "Speaker";
+	else
+		pfx = "Front";
+	vbits = 0;
+	err = alc262_add_out_vol_ctl(spec, cfg->line_out_pins[0], pfx, &vbits);
+	if (err < 0)
+		return err;
+	err = alc262_add_out_vol_ctl(spec, cfg->speaker_pins[0], "Speaker",
+				     &vbits);
+	if (err < 0)
+		return err;
+	err = alc262_add_out_vol_ctl(spec, cfg->hp_pins[0], "Headphone",
+				     &vbits);
+	if (err < 0)
+		return err;
 	return 0;
 }
 
