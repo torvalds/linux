@@ -806,7 +806,7 @@ static const struct ov772x_win_size *ov772x_select_win(u32 width, u32 height)
 }
 
 static int ov772x_set_params(struct i2c_client *client,
-			     u32 width, u32 height, u32 pixfmt)
+			     u32 *width, u32 *height, u32 pixfmt)
 {
 	struct ov772x_priv *priv = to_ov772x(client);
 	int ret = -EINVAL;
@@ -829,7 +829,7 @@ static int ov772x_set_params(struct i2c_client *client,
 	/*
 	 * select win
 	 */
-	priv->win = ov772x_select_win(width, height);
+	priv->win = ov772x_select_win(*width, *height);
 
 	/*
 	 * reset hardware
@@ -941,6 +941,9 @@ static int ov772x_set_params(struct i2c_client *client,
 			goto ov772x_set_fmt_error;
 	}
 
+	*width = priv->win->width;
+	*height = priv->win->height;
+
 	return ret;
 
 ov772x_set_fmt_error:
@@ -961,7 +964,7 @@ static int ov772x_set_crop(struct soc_camera_device *icd,
 	if (!priv->fmt)
 		return -EINVAL;
 
-	return ov772x_set_params(client, rect->width, rect->height,
+	return ov772x_set_params(client, &rect->width, &rect->height,
 				 priv->fmt->fourcc);
 }
 
@@ -970,7 +973,7 @@ static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct i2c_client *client = sd->priv;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	return ov772x_set_params(client, pix->width, pix->height,
+	return ov772x_set_params(client, &pix->width, &pix->height,
 				 pix->pixelformat);
 }
 
