@@ -83,7 +83,11 @@ struct soc_camera_host_ops {
 	int (*reqbufs)(struct soc_camera_file *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
+	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
+	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	unsigned int (*poll)(struct file *, poll_table *);
+	const struct v4l2_queryctrl *controls;
+	int num_controls;
 };
 
 #define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)

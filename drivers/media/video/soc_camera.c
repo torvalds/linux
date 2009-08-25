@@ -633,6 +633,7 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int i;
 
 	WARN_ON(priv != file->private_data);
@@ -640,6 +641,15 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 	if (!qc->id)
 		return -EINVAL;
 
+	/* First check host controls */
+	for (i = 0; i < ici->ops->num_controls; i++)
+		if (qc->id == ici->ops->controls[i].id) {
+			memcpy(qc, &(ici->ops->controls[i]),
+				sizeof(*qc));
+			return 0;
+		}
+
+	/* Then device controls */
 	for (i = 0; i < icd->ops->num_controls; i++)
 		if (qc->id == icd->ops->controls[i].id) {
 			memcpy(qc, &(icd->ops->controls[i]),
@@ -656,6 +666,7 @@ static int soc_camera_g_ctrl(struct file *file, void *priv,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	int ret;
 
 	WARN_ON(priv != file->private_data);
 
@@ -672,6 +683,12 @@ static int soc_camera_g_ctrl(struct file *file, void *priv,
 		return 0;
 	}
 
+	if (ici->ops->get_ctrl) {
+		ret = ici->ops->get_ctrl(icd, ctrl);
+		if (ret != -ENOIOCTLCMD)
+			return ret;
+	}
+
 	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, g_ctrl, ctrl);
 }
 
@@ -681,8 +698,15 @@ static int soc_camera_s_ctrl(struct file *file, void *priv,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	int ret;
 
 	WARN_ON(priv != file->private_data);
+
+	if (ici->ops->set_ctrl) {
+		ret = ici->ops->set_ctrl(icd, ctrl);
+		if (ret != -ENOIOCTLCMD)
+			return ret;
+	}
 
 	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, s_ctrl, ctrl);
 }
