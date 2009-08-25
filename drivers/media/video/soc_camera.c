@@ -517,8 +517,8 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
-	if (videobuf_queue_is_busy(&icf->vb_vidq)) {
-		dev_err(&icd->dev, "S_FMT denied: queue busy\n");
+	if (icf->vb_vidq.bufs[0]) {
+		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
@@ -768,6 +768,15 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	/* Cropping is allowed during a running capture, guard consistency */
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
+	/* Prohibit window size change with initialised buffers */
+	if (icf->vb_vidq.bufs[0] && (rect.width != icd->rect_current.width ||
+				     rect.height != icd->rect_current.height)) {
+		dev_err(&icd->dev,
+			"S_CROP denied: queue initialised and sizes differ\n");
+		ret = -EBUSY;
+		goto unlock;
+	}
+
 	if (rect.width > icd->rect_max.width)
 		rect.width = icd->rect_max.width;
 
@@ -792,6 +801,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	if (!ret)
 		icd->rect_current = rect;
 
+unlock:
 	mutex_unlock(&icf->vb_vidq.vb_lock);
 
 	return ret;
