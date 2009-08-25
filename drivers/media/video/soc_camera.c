@@ -211,7 +211,7 @@ static int soc_camera_dqbuf(struct file *file, void *priv,
 static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int i, fmts = 0;
+	int i, fmts = 0, ret;
 
 	if (!ici->ops->get_formats)
 		/*
@@ -224,8 +224,12 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 		 * First pass - only count formats this host-sensor
 		 * configuration can provide
 		 */
-		for (i = 0; i < icd->num_formats; i++)
-			fmts += ici->ops->get_formats(icd, i, NULL);
+		for (i = 0; i < icd->num_formats; i++) {
+			ret = ici->ops->get_formats(icd, i, NULL);
+			if (ret < 0)
+				return ret;
+			fmts += ret;
+		}
 
 	if (!fmts)
 		return -ENXIO;
@@ -247,19 +251,32 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 			icd->user_formats[i].cam_fmt = icd->formats + i;
 			icd->user_formats[i].buswidth = icd->formats[i].depth;
 		} else {
-			fmts += ici->ops->get_formats(icd, i,
-						      &icd->user_formats[fmts]);
+			ret = ici->ops->get_formats(icd, i,
+						    &icd->user_formats[fmts]);
+			if (ret < 0)
+				goto egfmt;
+			fmts += ret;
 		}
 
 	icd->current_fmt = icd->user_formats[0].host_fmt;
 
 	return 0;
+
+egfmt:
+	icd->num_user_formats = 0;
+	vfree(icd->user_formats);
+	return ret;
 }
 
 /* Always entered with .video_lock held */
 static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+
+	if (ici->ops->put_formats)
+		ici->ops->put_formats(icd);
 	icd->current_fmt = NULL;
+	icd->num_user_formats = 0;
 	vfree(icd->user_formats);
 	icd->user_formats = NULL;
 }
@@ -344,15 +361,10 @@ static int soc_camera_open(struct file *file)
 				.width		= icd->rect_current.width,
 				.height		= icd->rect_current.height,
 				.field		= icd->field,
+				.pixelformat	= icd->current_fmt->fourcc,
+				.colorspace	= icd->current_fmt->colorspace,
 			},
 		};
-
-		ret = soc_camera_init_user_formats(icd);
-		if (ret < 0)
-			goto eiufmt;
-
-		f.fmt.pix.pixelformat	= icd->current_fmt->fourcc;
-		f.fmt.pix.colorspace	= icd->current_fmt->colorspace;
 
 		if (icl->power) {
 			ret = icl->power(icd->pdev, 1);
@@ -404,8 +416,6 @@ eiciadd:
 	if (icl->power)
 		icl->power(icd->pdev, 0);
 epower:
-	soc_camera_free_user_formats(icd);
-eiufmt:
 	icd->use_count--;
 	mutex_unlock(&icd->video_lock);
 	module_put(ici->ops->owner);
@@ -431,7 +441,6 @@ static int soc_camera_close(struct file *file)
 		ici->ops->remove(icd);
 		if (icl->power)
 			icl->power(icd->pdev, 0);
-		soc_camera_free_user_formats(icd);
 	}
 
 	mutex_unlock(&icd->video_lock);
@@ -954,6 +963,14 @@ static int soc_camera_probe(struct device *dev)
 		}
 	}
 
+	/* At this point client .probe() should have run already */
+	ret = soc_camera_init_user_formats(icd);
+	if (ret < 0)
+		goto eiufmt;
+
+	icd->rect_current = icd->rect_max;
+	icd->field = V4L2_FIELD_ANY;
+
 	/* ..._video_start() will create a device node, so we have to protect */
 	mutex_lock(&icd->video_lock);
 
@@ -978,6 +995,8 @@ static int soc_camera_probe(struct device *dev)
 
 evidstart:
 	mutex_unlock(&icd->video_lock);
+	soc_camera_free_user_formats(icd);
+eiufmt:
 	if (icl->board_info) {
 		soc_camera_free_i2c(icd);
 	} else {
@@ -1023,6 +1042,7 @@ static int soc_camera_remove(struct device *dev)
 			module_put(drv->owner);
 		}
 	}
+	soc_camera_free_user_formats(icd);
 
 	return 0;
 }

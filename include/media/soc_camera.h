@@ -67,8 +67,15 @@ struct soc_camera_host_ops {
 	void (*remove)(struct soc_camera_device *);
 	int (*suspend)(struct soc_camera_device *, pm_message_t);
 	int (*resume)(struct soc_camera_device *);
+	/*
+	 * .get_formats() is called for each client device format, but
+	 * .put_formats() is only called once. Further, if any of the calls to
+	 * .get_formats() fail, .put_formats() will not be called at all, the
+	 * failing .get_formats() must then clean up internally.
+	 */
 	int (*get_formats)(struct soc_camera_device *, int,
 			   struct soc_camera_format_xlate *);
+	void (*put_formats)(struct soc_camera_device *);
 	int (*set_crop)(struct soc_camera_device *, struct v4l2_rect *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
