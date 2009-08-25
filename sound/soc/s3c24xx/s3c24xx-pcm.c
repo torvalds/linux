@@ -255,7 +255,6 @@ static int s3c24xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		prtd->state |= ST_RUNNING;
 		s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_START);
-		s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_STARTED);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:

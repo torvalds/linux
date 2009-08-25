@@ -290,6 +290,9 @@ static int s3c2443_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
 	u32 ac_glbctrl;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	int channel = ((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	ac_glbctrl = readl(s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
 	switch (cmd) {
@@ -311,6 +314,8 @@ static int s3c2443_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 	}
 	writel(ac_glbctrl, s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
+
+	s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
 
 	return 0;
 }
@@ -334,6 +339,9 @@ static int s3c2443_ac97_mic_trigger(struct snd_pcm_substream *substream,
 				    int cmd, struct snd_soc_dai *dai)
 {
 	u32 ac_glbctrl;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	int channel = ((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	ac_glbctrl = readl(s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
 	switch (cmd) {
@@ -348,6 +356,8 @@ static int s3c2443_ac97_mic_trigger(struct snd_pcm_substream *substream,
 		ac_glbctrl &= ~S3C_AC97_GLBCTRL_PCMINTM_MASK;
 	}
 	writel(ac_glbctrl, s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
+
+	s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
 
 	return 0;
 }
