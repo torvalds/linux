@@ -86,6 +86,7 @@ struct fcoe_interface {
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;
 	struct fcoe_ctlr ctlr;
+	struct fc_exch_mgr *oem;		/* offload exchange manager */
 };
 
 /*
@@ -94,7 +95,6 @@ struct fcoe_interface {
  */
 struct fcoe_port {
 	struct fcoe_interface *fcoe;
-	struct fc_exch_mgr *oem;		/* offload exchange manger */
 	struct sk_buff_head fcoe_pending_queue;
 	u8	fcoe_pending_queue_active;
 	struct timer_list timer;		/* queue timer */

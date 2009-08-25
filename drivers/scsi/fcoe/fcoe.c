@@ -438,7 +438,6 @@ bool fcoe_oem_match(struct fc_frame *fp)
 static inline int fcoe_em_config(struct fc_lport *lp)
 {
 	struct fcoe_port *port = lport_priv(lp);
-	struct fcoe_port *oldport = NULL;
 	struct fcoe_interface *fcoe = port->fcoe;
 	struct fcoe_interface *oldfcoe = NULL;
 	struct net_device *old_real_dev, *cur_real_dev;
@@ -464,30 +463,29 @@ static inline int fcoe_em_config(struct fc_lport *lp)
 		cur_real_dev = fcoe->netdev;
 
 	list_for_each_entry(oldfcoe, &fcoe_hostlist, list) {
-		oldport = oldfcoe->priv;
 		if (oldfcoe->netdev->priv_flags & IFF_802_1Q_VLAN)
 			old_real_dev = vlan_dev_real_dev(oldfcoe->netdev);
 		else
 			old_real_dev = oldfcoe->netdev;
 
 		if (cur_real_dev == old_real_dev) {
-			port->oem = oldport->oem;
+			fcoe->oem = oldfcoe->oem;
 			break;
 		}
 	}
 
-	if (port->oem) {
-		if (!fc_exch_mgr_add(lp, port->oem, fcoe_oem_match)) {
+	if (fcoe->oem) {
+		if (!fc_exch_mgr_add(lp, fcoe->oem, fcoe_oem_match)) {
 			printk(KERN_ERR "fcoe_em_config: failed to add "
 			       "offload em:%p on interface:%s\n",
-			       port->oem, fcoe->netdev->name);
+			       fcoe->oem, fcoe->netdev->name);
 			return -ENOMEM;
 		}
 	} else {
-		port->oem = fc_exch_mgr_alloc(lp, FC_CLASS_3,
+		fcoe->oem = fc_exch_mgr_alloc(lp, FC_CLASS_3,
 					    FCOE_MIN_XID, lp->lro_xid,
 					    fcoe_oem_match);
-		if (!port->oem) {
+		if (!fcoe->oem) {
 			printk(KERN_ERR "fcoe_em_config: failed to allocate "
 			       "em for offload exches on interface:%s\n",
 			       fcoe->netdev->name);
