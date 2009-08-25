@@ -37,11 +37,10 @@ void reiserfs_write_unlock(struct super_block *s)
 
 	/*
 	 * Are we unlocking without even holding the lock?
-	 * Such a situation could even raise a BUG() if we don't
-	 * want the data become corrupted
+	 * Such a situation must raise a BUG() if we don't want
+	 * to corrupt the data.
 	 */
-	WARN_ONCE(sb_i->lock_owner != current,
-		  "Superblock write lock imbalance");
+	BUG_ON(sb_i->lock_owner != current);
 
 	if (--sb_i->lock_depth == -1) {
 		sb_i->lock_owner = NULL;
