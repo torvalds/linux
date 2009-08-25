@@ -2666,6 +2666,7 @@ struct tg3 {
 #define TG3_FLG3_5755_PLUS		0x00002000
 #define TG3_FLG3_NO_NVRAM		0x00004000
 #define TG3_FLG3_TOGGLE_10_100_L1PLLPD	0x00008000
+#define TG3_FLG3_PHY_IS_FET		0x00010000
 
 	struct timer_list		timer;
 	u16				timer_counter;
