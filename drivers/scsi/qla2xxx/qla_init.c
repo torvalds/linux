@@ -1794,7 +1794,8 @@ qla2x00_set_model_info(scsi_qla_host_t *vha, uint8_t *model, size_t len,
 	char *st, *en;
 	uint16_t index;
 	struct qla_hw_data *ha = vha->hw;
-	int use_tbl = !IS_QLA25XX(ha) && !IS_QLA81XX(ha);
+	int use_tbl = !IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) &&
+	    !IS_QLA81XX(ha);
 
 	if (memcmp(model, BINZERO, len) != 0) {
 		strncpy(ha->model_number, model, len);
