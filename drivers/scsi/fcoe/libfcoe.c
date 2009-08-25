@@ -69,7 +69,7 @@ do {                                                            	\
 		do {							\
 			CMD;						\
 		} while (0);						\
-} while (0);
+} while (0)
 
 #define LIBFCOE_DBG(fmt, args...)					\
 	LIBFCOE_CHECK_LOGGING(LIBFCOE_LOGGING,				\

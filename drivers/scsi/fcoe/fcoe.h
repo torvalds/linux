@@ -53,7 +53,7 @@ do {                                                            	\
 		do {							\
 			CMD;						\
 		} while (0);						\
-} while (0);
+} while (0)
 
 #define FCOE_DBG(fmt, args...)						\
 	FCOE_CHECK_LOGGING(FCOE_LOGGING,				\
