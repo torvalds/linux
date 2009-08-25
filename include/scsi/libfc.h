@@ -223,9 +223,9 @@ struct fc_rport_libfc_priv {
 };
 
 #define PRIV_TO_RPORT(x)						\
-	(struct fc_rport *)((void *)x - sizeof(struct fc_rport));
+	((struct fc_rport *)((void *)(x) - sizeof(struct fc_rport)))
 #define RPORT_TO_PRIV(x)						\
-	(struct fc_rport_libfc_priv *)((void *)x + sizeof(struct fc_rport));
+	((struct fc_rport_libfc_priv *)((void *)(x) + sizeof(struct fc_rport)))
 
 static inline void fc_rport_set_name(struct fc_rport *rport, u64 wwpn, u64 wwnn)
 {
