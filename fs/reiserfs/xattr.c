@@ -1004,7 +1004,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 		goto error;
 
 	if (!privroot->d_inode && !(mount_flags & MS_RDONLY)) {
-		mutex_lock(&s->s_root->d_inode->i_mutex);
+		reiserfs_mutex_lock_safe(&s->s_root->d_inode->i_mutex, s);
 		err = create_privroot(REISERFS_SB(s)->priv_root);
 		mutex_unlock(&s->s_root->d_inode->i_mutex);
 	}
