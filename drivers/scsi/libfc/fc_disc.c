@@ -617,6 +617,9 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 				    "(check zoning)\n", cp->ct_reason,
 				    cp->ct_explan);
 			event = DISC_EV_FAILED;
+			if (cp->ct_reason == FC_FS_RJT_UNABL &&
+			    cp->ct_explan == FC_FS_EXP_FTNR)
+				event = DISC_EV_SUCCESS;
 		} else {
 			FC_DISC_DBG(disc, "GPN_FT unexpected response code "
 				    "%x\n", ntohs(cp->ct_cmd));
