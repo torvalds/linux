@@ -240,15 +240,6 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 	const u16 hblank = MT9T031_HORIZONTAL_BLANK,
 		vblank = MT9T031_VERTICAL_BLANK;
 
-	/* Make sure we don't exceed sensor limits */
-	if (rect->left + rect->width > icd->rect_max.width)
-		rect->left = (icd->rect_max.width - rect->width) / 2 +
-			icd->rect_max.left;
-
-	if (rect->top + rect->height > icd->rect_max.height)
-		rect->top = (icd->rect_max.height - rect->height) / 2 +
-			icd->rect_max.top;
-
 	width = rect->width * xskip;
 	height = rect->height * yskip;
 	left = rect->left * xskip;
@@ -335,6 +326,15 @@ static int mt9t031_set_crop(struct soc_camera_device *icd,
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
+
+	/* Make sure we don't exceed sensor limits */
+	if (rect->left + rect->width > icd->rect_max.left + icd->rect_max.width)
+		rect->left = icd->rect_max.width + icd->rect_max.left -
+			rect->width;
+
+	if (rect->top + rect->height > icd->rect_max.height + icd->rect_max.top)
+		rect->top = icd->rect_max.height + icd->rect_max.top -
+			rect->height;
 
 	/* CROP - no change in scaling, or in limits */
 	return mt9t031_set_params(icd, rect, mt9t031->xskip, mt9t031->yskip);
