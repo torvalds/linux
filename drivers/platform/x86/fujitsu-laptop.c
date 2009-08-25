@@ -66,7 +66,7 @@
 #include <linux/kfifo.h>
 #include <linux/video_output.h>
 #include <linux/platform_device.h>
-#ifdef CONFIG_LEDS_CLASS
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 #include <linux/leds.h>
 #endif
 
@@ -96,7 +96,7 @@
 /* FUNC interface - responses */
 #define UNSUPPORTED_CMD 0x80000000
 
-#ifdef CONFIG_LEDS_CLASS
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 /* FUNC interface - LED control */
 #define FUNC_LED_OFF	0x1
 #define FUNC_LED_ON	0x30001
@@ -176,7 +176,7 @@ static struct fujitsu_hotkey_t *fujitsu_hotkey;
 
 static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event);
 
-#ifdef CONFIG_LEDS_CLASS
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
 static void logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
@@ -257,7 +257,7 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 	return out_obj.integer.value;
 }
 
-#ifdef CONFIG_LEDS_CLASS
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 /* LED class callbacks */
 
 static void logolamp_set(struct led_classdev *cdev,
@@ -911,7 +911,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	printk(KERN_INFO "fujitsu-laptop: BTNI: [0x%x]\n",
 		call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
-	#ifdef CONFIG_LEDS_CLASS
+	#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
 		result = led_classdev_register(&fujitsu->pf_device->dev,
 						&logolamp_led);
@@ -1204,7 +1204,7 @@ fail_acpi:
 
 static void __exit fujitsu_cleanup(void)
 {
-	#ifdef CONFIG_LEDS_CLASS
+	#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 	if (fujitsu_hotkey->logolamp_registered != 0)
 		led_classdev_unregister(&logolamp_led);
 
