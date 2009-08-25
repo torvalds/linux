@@ -143,6 +143,12 @@ static struct platform_device da850_evm_nandflash_device = {
 	.resource	= da850_evm_nandflash_resource,
 };
 
+static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	}
+};
+
 static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
@@ -342,6 +348,9 @@ static __init void da850_evm_init(void)
 	}
 
 	davinci_serial_init(&da850_evm_uart_config);
+
+	i2c_register_board_info(1, da850_evm_i2c_devices,
+			ARRAY_SIZE(da850_evm_i2c_devices));
 
 	/*
 	 * shut down uart 0 and 1; they are not used on the board and

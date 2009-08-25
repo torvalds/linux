@@ -139,7 +139,7 @@ static struct i2c_board_info dm355evm_i2c_info[] = {
 	{ I2C_BOARD_INFO("dm355evm_msp", 0x25),
 		.platform_data = dm355evm_mmcsd_gpios,
 		/* plus irq */ },
-	/* { I2C_BOARD_INFO("tlv320aic3x", 0x1b), }, */
+	{ I2C_BOARD_INFO("tlv320aic33", 0x1b), },
 	/* { I2C_BOARD_INFO("tvp5146", 0x5d), }, */
 };
 

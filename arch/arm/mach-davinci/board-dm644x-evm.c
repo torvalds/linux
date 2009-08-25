@@ -559,8 +559,10 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 		I2C_BOARD_INFO("24c256", 0x50),
 		.platform_data	= &eeprom_info,
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic33", 0x1b),
+	},
 	/* ALSO:
-	 * - tvl320aic33 audio codec (0x1b)
 	 * - tvp5146 video decoder (0x5d)
 	 */
 };

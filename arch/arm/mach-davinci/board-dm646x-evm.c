@@ -299,6 +299,9 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("cpld_reg0", 0x3a),
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic33", 0x18),
+	}
 };
 
 static struct davinci_i2c_platform_data i2c_pdata = {

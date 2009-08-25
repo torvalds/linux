@@ -41,6 +41,9 @@ static struct i2c_board_info __initdata da830_evm_i2c_devices[] = {
 		I2C_BOARD_INFO("24c256", 0x50),
 		.platform_data	= &da830_evm_i2c_eeprom_info,
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	}
 };
 
 static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
