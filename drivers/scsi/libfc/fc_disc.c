@@ -66,7 +66,8 @@ struct fc_rport_priv *fc_disc_lookup_rport(const struct fc_lport *lport,
 	struct fc_rport_priv *rdata;
 
 	list_for_each_entry(rdata, &disc->rports, peers) {
-		if (rdata->ids.port_id == port_id)
+		if (rdata->ids.port_id == port_id &&
+		    rdata->rp_state != RPORT_ST_DELETE)
 			return rdata;
 	}
 	return NULL;
@@ -87,15 +88,8 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 	lport = disc->lport;
 
 	mutex_lock(&disc->disc_mutex);
-	list_for_each_entry_safe(rdata, next, &disc->rports, peers) {
-		list_del(&rdata->peers);
+	list_for_each_entry_safe(rdata, next, &disc->rports, peers)
 		lport->tt.rport_logoff(rdata);
-	}
-
-	list_for_each_entry_safe(rdata, next, &disc->rogue_rports, peers) {
-		lport->tt.rport_logoff(rdata);
-	}
-
 	mutex_unlock(&disc->disc_mutex);
 }
 
@@ -119,20 +113,12 @@ static void fc_disc_rport_callback(struct fc_lport *lport,
 
 	switch (event) {
 	case RPORT_EV_READY:
-		if (disc) {
-			mutex_lock(&disc->disc_mutex);
-			list_add_tail(&rdata->peers, &disc->rports);
-			mutex_unlock(&disc->disc_mutex);
-		}
 		break;
 	case RPORT_EV_LOGO:
 	case RPORT_EV_FAILED:
 	case RPORT_EV_STOP:
 		mutex_lock(&disc->disc_mutex);
-		mutex_lock(&rdata->rp_mutex);
-		if (rdata->trans_state == FC_PORTSTATE_ROGUE)
-			list_del(&rdata->peers);
-		mutex_unlock(&rdata->rp_mutex);
+		list_del(&rdata->peers);
 		mutex_unlock(&disc->disc_mutex);
 		break;
 	default:
@@ -235,7 +221,6 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 			list_del(&dp->peers);
 			rdata = lport->tt.rport_lookup(lport, dp->ids.port_id);
 			if (rdata) {
-				list_del(&rdata->peers);
 				lport->tt.rport_logoff(rdata);
 			}
 			fc_disc_single(disc, dp);
@@ -296,10 +281,8 @@ static void fc_disc_restart(struct fc_disc *disc)
 
 	FC_DISC_DBG(disc, "Restarting discovery\n");
 
-	list_for_each_entry_safe(rdata, next, &disc->rports, peers) {
-		list_del(&rdata->peers);
+	list_for_each_entry_safe(rdata, next, &disc->rports, peers)
 		lport->tt.rport_logoff(rdata);
-	}
 
 	disc->requested = 1;
 	if (!disc->pending)
@@ -392,7 +375,6 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			 * assigned the same FCID.  This should be rare.
 			 * Delete the old one and fall thru to re-create.
 			 */
-			list_del(&rdata->peers);
 			lport->tt.rport_logoff(rdata);
 			rdata = NULL;
 		}
@@ -406,12 +388,13 @@ static int fc_disc_new_target(struct fc_disc *disc,
 				rdata = lport->tt.rport_create(lport, ids);
 				if (!rdata)
 					error = -ENOMEM;
+				else
+					list_add_tail(&rdata->peers,
+						      &disc->rports);
 			}
 		}
 		if (rdata) {
 			rdata->ops = &fc_disc_rport_ops;
-			rdata->rp_state = RPORT_ST_INIT;
-			list_add_tail(&rdata->peers, &disc->rogue_rports);
 			lport->tt.rport_login(rdata);
 		}
 	}
@@ -585,9 +568,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			rdata = lport->tt.rport_create(lport, &ids);
 			if (rdata) {
 				rdata->ops = &fc_disc_rport_ops;
-				rdata->local_port = lport;
-				list_add_tail(&rdata->peers,
-					      &disc->rogue_rports);
+				list_add_tail(&rdata->peers, &disc->rports);
 				lport->tt.rport_login(rdata);
 			} else
 				printk(KERN_WARNING "libfc: Failed to allocate "
@@ -736,7 +717,7 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 	if (rdata) {
 		rdata->ops = &fc_disc_rport_ops;
 		kfree(dp);
-		list_add_tail(&rdata->peers, &disc->rogue_rports);
+		list_add_tail(&rdata->peers, &disc->rports);
 		lport->tt.rport_login(rdata);
 	}
 	return;
@@ -798,7 +779,6 @@ int fc_disc_init(struct fc_lport *lport)
 	INIT_DELAYED_WORK(&disc->disc_work, fc_disc_timeout);
 	mutex_init(&disc->disc_mutex);
 	INIT_LIST_HEAD(&disc->rports);
-	INIT_LIST_HEAD(&disc->rogue_rports);
 
 	disc->lport = lport;
 	disc->delay = FC_DISC_DELAY;

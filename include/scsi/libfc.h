@@ -146,11 +146,6 @@ enum fc_rport_state {
 	RPORT_ST_DELETE,	/* port being deleted */
 };
 
-enum fc_rport_trans_state {
-	FC_PORTSTATE_ROGUE,
-	FC_PORTSTATE_REAL,
-};
-
 /**
  * struct fc_disc_port - temporary discovery port to hold rport identifiers
  * @lp: Fibre Channel host port instance
@@ -173,14 +168,6 @@ enum fc_rport_event {
 	RPORT_EV_LOGO
 };
 
-/*
- * Temporary definition to prepare for split off from fc_rport_libfc_priv
- * of a separately-allocated structure called fc_rport_priv.  This will
- * be the primary object for the discovery and rport state machines.
- * This definition is just to make this patch series easier to review.
- */
-#define fc_rport_priv fc_rport_libfc_priv
-
 struct fc_rport_priv;
 
 struct fc_rport_operations {
@@ -190,6 +177,24 @@ struct fc_rport_operations {
 
 /**
  * struct fc_rport_libfc_priv - libfc internal information about a remote port
+ * @local_port: Fibre Channel host port instance
+ * @rp_state: indicates READY for I/O or DELETE when blocked.
+ * @flags: REC and RETRY supported flags
+ * @e_d_tov: error detect timeout value (in msec)
+ * @r_a_tov: resource allocation timeout value (in msec)
+ */
+struct fc_rport_libfc_priv {
+	struct fc_lport		   *local_port;
+	enum fc_rport_state        rp_state;
+	u16			   flags;
+	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
+	#define FC_RP_FLAGS_RETRY		(1 << 1)
+	unsigned int	           e_d_tov;
+	unsigned int	           r_a_tov;
+};
+
+/**
+ * struct fc_rport_priv - libfc rport and discovery info about a remote port
  * @local_port: Fibre Channel host port instance
  * @rport: transport remote port
  * @kref: reference counter
@@ -205,21 +210,18 @@ struct fc_rport_operations {
  * @retry_work:
  * @event_callback: Callback for rport READY, FAILED or LOGO
  */
-struct fc_rport_libfc_priv {
+struct fc_rport_priv {
 	struct fc_lport		   *local_port;
 	struct fc_rport		   *rport;
 	struct kref		   kref;
 	enum fc_rport_state        rp_state;
 	struct fc_rport_identifiers ids;
 	u16			   flags;
-	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
-	#define FC_RP_FLAGS_RETRY		(1 << 1)
 	u16		           max_seq;
 	u16			   maxframe_size;
 	unsigned int	           retries;
 	unsigned int	           e_d_tov;
 	unsigned int	           r_a_tov;
-	enum fc_rport_trans_state  trans_state;
 	struct mutex               rp_mutex;
 	struct delayed_work	   retry_work;
 	enum fc_rport_event        event;
@@ -228,9 +230,6 @@ struct fc_rport_libfc_priv {
 	struct work_struct         event_work;
 	u32			   supported_classes;
 };
-
-#define RPORT_TO_PRIV(x)						\
-	((struct fc_rport_libfc_priv *)((void *)(x) + sizeof(struct fc_rport)))
 
 /*
  * fcoe stats structure
@@ -686,7 +685,6 @@ struct fc_disc {
 			      enum fc_disc_event);
 
 	struct list_head	 rports;
-	struct list_head	 rogue_rports;
 	struct fc_lport		*lport;
 	struct mutex		disc_mutex;
 	struct fc_gpn_ft_resp	partial_buf;	/* partial name buffer */

@@ -86,61 +86,35 @@ static const char *fc_rport_state_names[] = {
 	[RPORT_ST_DELETE] = "Delete",
 };
 
-static void fc_rport_rogue_destroy(struct device *dev)
+/**
+ * fc_rport_create() - create remote port in INIT state.
+ * @lport: local port.
+ * @ids: remote port identifiers.
+ *
+ * Locking note: this may be called without locks held, but
+ * is usually called from discovery with the disc_mutex held.
+ */
+static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
+					     struct fc_rport_identifiers *ids)
 {
-	struct fc_rport *rport = dev_to_rport(dev);
-	struct fc_rport_priv *rdata = RPORT_TO_PRIV(rport);
-
-	FC_RPORT_DBG(rdata, "Destroying rogue rport\n");
-	kfree(rport);
-}
-
-struct fc_rport_priv *fc_rport_rogue_create(struct fc_lport *lport,
-					    struct fc_rport_identifiers *ids)
-{
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
-	rport = kzalloc(sizeof(*rport) + sizeof(*rdata), GFP_KERNEL);
 
-	if (!rport)
+	rdata = kzalloc(sizeof(*rdata), GFP_KERNEL);
+	if (!rdata)
 		return NULL;
-
-	rdata = RPORT_TO_PRIV(rport);
-
-	rport->dd_data = rdata;
-	rport->port_id = ids->port_id;
-	rport->port_name = ids->port_name;
-	rport->node_name = ids->node_name;
-	rport->roles = ids->roles;
-	rport->maxframe_size = FC_MIN_MAX_PAYLOAD;
-	/*
-	 * Note: all this libfc rogue rport code will be removed for
-	 * upstream so it fine that this is really ugly and hacky right now.
-	 */
-	device_initialize(&rport->dev);
-	rport->dev.release = fc_rport_rogue_destroy;
 
 	rdata->ids = *ids;
 	kref_init(&rdata->kref);
 	mutex_init(&rdata->rp_mutex);
-	rdata->rport = rport;
 	rdata->local_port = lport;
-	rdata->trans_state = FC_PORTSTATE_ROGUE;
 	rdata->rp_state = RPORT_ST_INIT;
 	rdata->event = RPORT_EV_NONE;
 	rdata->flags = FC_RP_FLAGS_REC_SUPPORTED;
-	rdata->ops = NULL;
 	rdata->e_d_tov = lport->e_d_tov;
 	rdata->r_a_tov = lport->r_a_tov;
 	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
-	/*
-	 * For good measure, but not necessary as we should only
-	 * add REAL rport to the lport list.
-	 */
-	INIT_LIST_HEAD(&rdata->peers);
-
 	return rdata;
 }
 
@@ -151,11 +125,9 @@ struct fc_rport_priv *fc_rport_rogue_create(struct fc_lport *lport,
 static void fc_rport_destroy(struct kref *kref)
 {
 	struct fc_rport_priv *rdata;
-	struct fc_rport *rport;
 
 	rdata = container_of(kref, struct fc_rport_priv, kref);
-	rport = rdata->rport;
-	put_device(&rport->dev);
+	kfree(rdata);
 }
 
 /**
@@ -229,12 +201,10 @@ static void fc_rport_work(struct work_struct *work)
 	u32 port_id;
 	struct fc_rport_priv *rdata =
 		container_of(work, struct fc_rport_priv, event_work);
+	struct fc_rport_libfc_priv *rp;
 	enum fc_rport_event event;
-	enum fc_rport_trans_state trans_state;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport_operations *rport_ops;
-	struct fc_rport *new_rport;
-	struct fc_rport_priv *new_rdata;
 	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
 
@@ -243,70 +213,72 @@ static void fc_rport_work(struct work_struct *work)
 	rport_ops = rdata->ops;
 	rport = rdata->rport;
 
+	FC_RPORT_DBG(rdata, "work event %u\n", event);
+
 	switch (event) {
 	case RPORT_EV_READY:
 		ids = rdata->ids;
 		rdata->event = RPORT_EV_NONE;
+		kref_get(&rdata->kref);
 		mutex_unlock(&rdata->rp_mutex);
 
-		new_rport = fc_remote_port_add(lport->host, 0, &ids);
-		if (new_rport) {
-			/*
-			 * Switch from the rogue rport to the rport
-			 * returned by the FC class.
-			 */
-			new_rport->maxframe_size = rdata->maxframe_size;
-
-			new_rdata = new_rport->dd_data;
-			new_rdata->rport = new_rport;
-			new_rdata->ids = ids;
-			new_rdata->e_d_tov = rdata->e_d_tov;
-			new_rdata->r_a_tov = rdata->r_a_tov;
-			new_rdata->ops = rdata->ops;
-			new_rdata->local_port = rdata->local_port;
-			new_rdata->flags = FC_RP_FLAGS_REC_SUPPORTED;
-			new_rdata->trans_state = FC_PORTSTATE_REAL;
-			new_rdata->maxframe_size = rdata->maxframe_size;
-			new_rdata->supported_classes = rdata->supported_classes;
-			kref_init(&new_rdata->kref);
-			mutex_init(&new_rdata->rp_mutex);
-			INIT_DELAYED_WORK(&new_rdata->retry_work,
-					  fc_rport_timeout);
-			INIT_LIST_HEAD(&new_rdata->peers);
-			INIT_WORK(&new_rdata->event_work, fc_rport_work);
-
-			fc_rport_state_enter(new_rdata, RPORT_ST_READY);
-		} else {
-			printk(KERN_WARNING "libfc: Failed to allocate "
-			       " memory for rport (%6x)\n", ids.port_id);
-			event = RPORT_EV_FAILED;
+		if (!rport)
+			rport = fc_remote_port_add(lport->host, 0, &ids);
+		if (!rport) {
+			FC_RPORT_DBG(rdata, "Failed to add the rport\n");
+			lport->tt.rport_logoff(rdata);
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			return;
 		}
-		if (rdata->ids.port_id != FC_FID_DIR_SERV)
-			if (rport_ops->event_callback)
-				rport_ops->event_callback(lport, rdata,
-							  RPORT_EV_FAILED);
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
-		rdata = new_rport->dd_data;
-		if (rport_ops->event_callback)
+		mutex_lock(&rdata->rp_mutex);
+		if (rdata->rport)
+			FC_RPORT_DBG(rdata, "rport already allocated\n");
+		rdata->rport = rport;
+		rport->maxframe_size = rdata->maxframe_size;
+		rport->supported_classes = rdata->supported_classes;
+
+		rp = rport->dd_data;
+		rp->local_port = lport;
+		rp->rp_state = rdata->rp_state;
+		rp->flags = rdata->flags;
+		rp->e_d_tov = rdata->e_d_tov;
+		rp->r_a_tov = rdata->r_a_tov;
+		mutex_unlock(&rdata->rp_mutex);
+
+		if (rport_ops->event_callback) {
+			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
+		}
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		break;
 
 	case RPORT_EV_FAILED:
 	case RPORT_EV_LOGO:
 	case RPORT_EV_STOP:
-		trans_state = rdata->trans_state;
+		port_id = rdata->ids.port_id;
 		mutex_unlock(&rdata->rp_mutex);
-		if (rport_ops->event_callback)
+
+		if (rport_ops->event_callback) {
+			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
-		cancel_delayed_work_sync(&rdata->retry_work);
-		if (trans_state == FC_PORTSTATE_ROGUE)
-			kref_put(&rdata->kref, lport->tt.rport_destroy);
-		else {
-			port_id = rport->port_id;
-			fc_remote_port_delete(rport);
-			lport->tt.exch_mgr_reset(lport, 0, port_id);
-			lport->tt.exch_mgr_reset(lport, port_id, 0);
 		}
+		cancel_delayed_work_sync(&rdata->retry_work);
+
+		/*
+		 * Reset any outstanding exchanges before freeing rport.
+		 */
+		lport->tt.exch_mgr_reset(lport, 0, port_id);
+		lport->tt.exch_mgr_reset(lport, port_id, 0);
+
+		if (rport) {
+			rp = rport->dd_data;
+			rp->rp_state = RPORT_ST_DELETE;
+			mutex_lock(&rdata->rp_mutex);
+			rdata->rport = NULL;
+			mutex_unlock(&rdata->rp_mutex);
+			fc_remote_port_delete(rport);
+		}
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		break;
 
 	default:
@@ -1311,7 +1283,7 @@ static void fc_rport_flush_queue(void)
 int fc_rport_init(struct fc_lport *lport)
 {
 	if (!lport->tt.rport_create)
-		lport->tt.rport_create = fc_rport_rogue_create;
+		lport->tt.rport_create = fc_rport_create;
 
 	if (!lport->tt.rport_login)
 		lport->tt.rport_login = fc_rport_login;
