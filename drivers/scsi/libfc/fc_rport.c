@@ -233,6 +233,9 @@ static void fc_rport_work(struct work_struct *work)
 	enum fc_rport_trans_state trans_state;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport_operations *rport_ops;
+	struct fc_rport *new_rport;
+	struct fc_rport_priv *new_rdata;
+	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
 
 	mutex_lock(&rdata->rp_mutex);
@@ -240,11 +243,8 @@ static void fc_rport_work(struct work_struct *work)
 	rport_ops = rdata->ops;
 	rport = rdata->rport;
 
-	if (event == RPORT_EV_CREATED) {
-		struct fc_rport *new_rport;
-		struct fc_rport_priv *new_rdata;
-		struct fc_rport_identifiers ids;
-
+	switch (event) {
+	case RPORT_EV_CREATED:
 		ids = rdata->ids;
 		rdata->event = RPORT_EV_NONE;
 		mutex_unlock(&rdata->rp_mutex);
@@ -289,9 +289,11 @@ static void fc_rport_work(struct work_struct *work)
 		rdata = new_rport->dd_data;
 		if (rport_ops->event_callback)
 			rport_ops->event_callback(lport, rdata, event);
-	} else if ((event == RPORT_EV_FAILED) ||
-		   (event == RPORT_EV_LOGO) ||
-		   (event == RPORT_EV_STOP)) {
+		break;
+
+	case RPORT_EV_FAILED:
+	case RPORT_EV_LOGO:
+	case RPORT_EV_STOP:
 		trans_state = rdata->trans_state;
 		mutex_unlock(&rdata->rp_mutex);
 		if (rport_ops->event_callback)
@@ -305,8 +307,12 @@ static void fc_rport_work(struct work_struct *work)
 			lport->tt.exch_mgr_reset(lport, 0, port_id);
 			lport->tt.exch_mgr_reset(lport, port_id, 0);
 		}
-	} else
+		break;
+
+	default:
 		mutex_unlock(&rdata->rp_mutex);
+		break;
+	}
 }
 
 /**
