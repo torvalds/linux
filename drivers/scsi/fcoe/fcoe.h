@@ -85,6 +85,7 @@ struct fcoe_interface {
 	struct net_device *netdev;
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;
+	struct fcoe_ctlr ctlr;
 };
 
 /*
@@ -97,10 +98,9 @@ struct fcoe_port {
 	struct sk_buff_head fcoe_pending_queue;
 	u8	fcoe_pending_queue_active;
 	struct timer_list timer;		/* queue timer */
-	struct fcoe_ctlr ctlr;
 };
 
-#define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_port, ctlr)
+#define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
 
 static inline struct net_device *fcoe_netdev(const struct fc_lport *lp)
 {
