@@ -620,7 +620,7 @@ static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 };
 
 static int
-nfnetlink_parse_nat(struct nlattr *nat,
+nfnetlink_parse_nat(const struct nlattr *nat,
 		    const struct nf_conn *ct, struct nf_nat_range *range)
 {
 	struct nlattr *tb[CTA_NAT_MAX+1];
@@ -656,7 +656,7 @@ nfnetlink_parse_nat(struct nlattr *nat,
 static int
 nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
-			  struct nlattr *attr)
+			  const struct nlattr *attr)
 {
 	struct nf_nat_range range;
 
@@ -671,7 +671,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 static int
 nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
-			  struct nlattr *attr)
+			  const struct nlattr *attr)
 {
 	return -EOPNOTSUPP;
 }
