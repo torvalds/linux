@@ -59,7 +59,7 @@ static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
  *  increase the value to either 10ms to 250ms for capability version 1 config,
  *  or 16ms to 55ms for version 2.
  **/
-void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
+static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 {
 	struct ixgbe_adapter *adapter = hw->back;
 	u32 gcr = IXGBE_READ_REG(hw, IXGBE_GCR);
@@ -143,7 +143,7 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
  *  not known.  Perform the SFP init if necessary.
  *
  **/
-s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
+static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
@@ -204,7 +204,7 @@ out:
  *  Starts the hardware using the generic start_hw function.
  *  Then set pcie completion timeout
  **/
-s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
+static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
 
