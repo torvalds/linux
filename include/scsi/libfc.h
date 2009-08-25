@@ -368,6 +368,7 @@ struct fc_seq {
  */
 struct fc_exch {
 	struct fc_exch_mgr *em;		/* exchange manager */
+	struct fc_exch_pool *pool;	/* per cpu exches pool */
 	u32		state;		/* internal driver state */
 	u16		xid;		/* our exchange ID */
 	struct list_head	ex_list;	/* free or busy list linkage */
@@ -1045,10 +1046,12 @@ struct fc_exch *fc_exch_alloc(struct fc_lport *lport, struct fc_frame *fp);
  */
 struct fc_seq *fc_seq_start_next(struct fc_seq *sp);
 
+
 /*
- * Reset an exchange manager, completing all sequences and exchanges.
- * If s_id is non-zero, reset only exchanges originating from that FID.
- * If d_id is non-zero, reset only exchanges sending to that FID.
+ * Reset all EMs of a lport, releasing its all sequences and
+ * exchanges. If sid is non-zero, then reset only exchanges
+ * we sourced from that FID. If did is non-zero, reset only
+ * exchanges destined to that FID.
  */
 void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
 

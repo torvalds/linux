@@ -912,8 +912,7 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct fcoe_softc *fc;
 	struct fc_frame_header *fh;
 	struct fcoe_percpu_s *fps;
-	unsigned short oxid;
-	unsigned int cpu = 0;
+	unsigned int cpu;
 
 	fc = container_of(ptype, struct fcoe_softc, fcoe_packet_type);
 	lp = fc->ctlr.lp;
@@ -947,20 +946,20 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_set_transport_header(skb, sizeof(struct fcoe_hdr));
 	fh = (struct fc_frame_header *) skb_transport_header(skb);
 
-	oxid = ntohs(fh->fh_ox_id);
-
 	fr = fcoe_dev_from_skb(skb);
 	fr->fr_dev = lp;
 	fr->ptype = ptype;
 
-#ifdef CONFIG_SMP
 	/*
-	 * The incoming frame exchange id(oxid) is ANDed with num of online
-	 * cpu bits to get cpu and then this cpu is used for selecting
-	 * a per cpu kernel thread from fcoe_percpu.
+	 * In case the incoming frame's exchange is originated from
+	 * the initiator, then received frame's exchange id is ANDed
+	 * with fc_cpu_mask bits to get the same cpu on which exchange
+	 * was originated, otherwise just use the current cpu.
 	 */
-	cpu = oxid & (num_online_cpus() - 1);
-#endif
+	if (ntoh24(fh->fh_f_ctl) & FC_FC_EX_CTX)
+		cpu = ntohs(fh->fh_ox_id) & fc_cpu_mask;
+	else
+		cpu = smp_processor_id();
 
 	fps = &per_cpu(fcoe_percpu, cpu);
 	spin_lock_bh(&fps->fcoe_rx_list.lock);
