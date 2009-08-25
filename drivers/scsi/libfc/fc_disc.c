@@ -219,6 +219,9 @@ static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
  */
 static void fc_disc_restart(struct fc_disc *disc)
 {
+	if (!disc->disc_callback)
+		return;
+
 	FC_DISC_DBG(disc, "Restarting discovery\n");
 
 	disc->requested = 1;
