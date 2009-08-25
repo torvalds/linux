@@ -32,6 +32,9 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
+u16	fc_cpu_mask;		/* cpu mask for possible cpus */
+EXPORT_SYMBOL(fc_cpu_mask);
+static u16	fc_cpu_order;	/* 2's power to represent total possible cpus */
 static struct kmem_cache *fc_em_cachep;        /* cache for exchanges */
 
 /*
@@ -46,6 +49,20 @@ static struct kmem_cache *fc_em_cachep;        /* cache for exchanges */
  *
  * fc_seq holds the state for an individual sequence.
  */
+
+/*
+ * Per cpu exchange pool
+ *
+ * This structure manages per cpu exchanges in array of exchange pointers.
+ * This array is allocated followed by struct fc_exch_pool memory for
+ * assigned range of exchanges to per cpu pool.
+ */
+struct fc_exch_pool {
+	u16		next_index;	/* next possible free exchange index */
+	u16		total_exches;	/* total allocated exchanges */
+	spinlock_t	lock;		/* exch pool lock */
+	struct list_head	ex_list;	/* allocated exchanges list */
+};
 
 /*
  * Exchange manager.
@@ -66,6 +83,8 @@ struct fc_exch_mgr {
 	u32	total_exches;		/* total allocated exchanges */
 	struct list_head	ex_list;	/* allocated exchanges list */
 	mempool_t	*ep_pool;	/* reserve ep's */
+	u16		pool_max_index;	/* max exch array index in exch pool */
+	struct fc_exch_pool *pool;	/* per cpu exch pool */
 
 	/*
 	 * currently exchange mgr stats are updated but not used.
@@ -301,6 +320,19 @@ static int fc_exch_done_locked(struct fc_exch *ep)
 		rc = 0;
 	}
 	return rc;
+}
+
+static inline struct fc_exch *fc_exch_ptr_get(struct fc_exch_pool *pool,
+					      u16 index)
+{
+	struct fc_exch **exches = (struct fc_exch **)(pool + 1);
+	return exches[index];
+}
+
+static inline void fc_exch_ptr_set(struct fc_exch_pool *pool, u16 index,
+				   struct fc_exch *ep)
+{
+	((struct fc_exch **)(pool + 1))[index] = ep;
 }
 
 static void fc_exch_mgr_delete_ep(struct fc_exch *ep)
@@ -1751,6 +1783,7 @@ static void fc_exch_mgr_destroy(struct kref *kref)
 	 */
 	WARN_ON(mp->total_exches != 0);
 	mempool_destroy(mp->ep_pool);
+	free_percpu(mp->pool);
 	kfree(mp);
 }
 
@@ -1770,8 +1803,13 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 {
 	struct fc_exch_mgr *mp;
 	size_t len;
+	u16 pool_exch_range;
+	size_t pool_size;
+	unsigned int cpu;
+	struct fc_exch_pool *pool;
 
-	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN) {
+	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN ||
+	    (min_xid & fc_cpu_mask) != 0) {
 		FC_LPORT_DBG(lp, "Invalid min_xid 0x:%x and max_xid 0x:%x\n",
 			     min_xid, max_xid);
 		return NULL;
@@ -1802,10 +1840,31 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 	if (!mp->ep_pool)
 		goto free_mp;
 
+	/*
+	 * Setup per cpu exch pool with entire exchange id range equally
+	 * divided across all cpus. The exch pointers array memory is
+	 * allocated for exch range per pool.
+	 */
+	pool_exch_range = (mp->max_xid - mp->min_xid + 1) / (fc_cpu_mask + 1);
+	mp->pool_max_index = pool_exch_range - 1;
+
+	/*
+	 * Allocate and initialize per cpu exch pool
+	 */
+	pool_size = sizeof(*pool) + pool_exch_range * sizeof(struct fc_exch *);
+	mp->pool = __alloc_percpu(pool_size, __alignof__(struct fc_exch_pool));
+	if (!mp->pool)
+		goto free_mempool;
+	for_each_possible_cpu(cpu) {
+		pool = per_cpu_ptr(mp->pool, cpu);
+		spin_lock_init(&pool->lock);
+		INIT_LIST_HEAD(&pool->ex_list);
+	}
+
 	kref_init(&mp->kref);
 	if (!fc_exch_mgr_add(lp, mp, match)) {
-		mempool_destroy(mp->ep_pool);
-		goto free_mp;
+		free_percpu(mp->pool);
+		goto free_mempool;
 	}
 
 	/*
@@ -1816,6 +1875,8 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 	kref_put(&mp->kref, fc_exch_mgr_destroy);
 	return mp;
 
+free_mempool:
+	mempool_destroy(mp->ep_pool);
 free_mp:
 	kfree(mp);
 	return NULL;
@@ -1974,6 +2035,28 @@ int fc_exch_init(struct fc_lport *lp)
 
 	if (!lp->tt.seq_exch_abort)
 		lp->tt.seq_exch_abort = fc_seq_exch_abort;
+
+	/*
+	 * Initialize fc_cpu_mask and fc_cpu_order. The
+	 * fc_cpu_mask is set for nr_cpu_ids rounded up
+	 * to order of 2's * power and order is stored
+	 * in fc_cpu_order as this is later required in
+	 * mapping between an exch id and exch array index
+	 * in per cpu exch pool.
+	 *
+	 * This round up is required to align fc_cpu_mask
+	 * to exchange id's lower bits such that all incoming
+	 * frames of an exchange gets delivered to the same
+	 * cpu on which exchange originated by simple bitwise
+	 * AND operation between fc_cpu_mask and exchange id.
+	 */
+	fc_cpu_mask = 1;
+	fc_cpu_order = 0;
+	while (fc_cpu_mask < nr_cpu_ids) {
+		fc_cpu_mask <<= 1;
+		fc_cpu_order++;
+	}
+	fc_cpu_mask--;
 
 	return 0;
 }

@@ -343,6 +343,7 @@ static inline bool fc_fcp_is_read(const struct fc_fcp_pkt *fsp)
 
 struct fc_exch_mgr;
 struct fc_exch_mgr_anchor;
+extern u16	fc_cpu_mask;	/* cpu mask for possible cpus */
 
 /*
  * Sequence.

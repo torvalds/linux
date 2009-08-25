@@ -38,7 +38,7 @@
 #define FCOE_MAX_OUTSTANDING_COMMANDS	1024
 
 #define FCOE_MIN_XID		0x0000	/* the min xid supported by fcoe_sw */
-#define FCOE_MAX_XID		0x07ef	/* the max xid supported by fcoe_sw */
+#define FCOE_MAX_XID		0x0FFF	/* the max xid supported by fcoe_sw */
 
 unsigned int fcoe_debug_logging;
 module_param_named(debug_logging, fcoe_debug_logging, int, S_IRUGO|S_IWUSR);
