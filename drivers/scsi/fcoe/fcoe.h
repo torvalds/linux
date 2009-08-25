@@ -61,7 +61,7 @@ do {                                                            	\
 
 #define FCOE_NETDEV_DBG(netdev, fmt, args...)			\
 	FCOE_CHECK_LOGGING(FCOE_NETDEV_LOGGING,			\
-			   printk(KERN_INFO "fcoe: %s" fmt,	\
+			   printk(KERN_INFO "fcoe: %s: " fmt,	\
 				  netdev->name, ##args);)
 
 /*
