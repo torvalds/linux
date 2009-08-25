@@ -666,6 +666,9 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		goto err;
 	}
 
+	/* reinitialize remote port roles */
+	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC) {
 		pp = fc_frame_payload_get(fp, sizeof(*pp));
@@ -1172,6 +1175,9 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 		pp->prli.prli_spp_len = plen;
 		pp->prli.prli_len = htons(len);
 		len -= sizeof(struct fc_els_prli);
+
+		/* reinitialize remote port roles */
+		rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
 		/*
 		 * Go through all the service parameter pages and build
