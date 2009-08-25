@@ -395,11 +395,12 @@ static int mt9m111_set_bus_param(struct soc_camera_device *icd, unsigned long f)
 	return 0;
 }
 
-static int mt9m111_set_crop(struct soc_camera_device *icd,
-			    struct v4l2_rect *rect)
+static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct v4l2_rect *rect = &a->c;
+	struct i2c_client *client = sd->priv;
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 	int ret;
 
 	dev_dbg(&icd->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
@@ -601,7 +602,6 @@ static struct soc_camera_ops mt9m111_ops = {
 	.init			= mt9m111_init,
 	.resume			= mt9m111_resume,
 	.release		= mt9m111_release,
-	.set_crop		= mt9m111_set_crop,
 	.query_bus_param	= mt9m111_query_bus_param,
 	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,
@@ -908,6 +908,7 @@ static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.s_fmt		= mt9m111_s_fmt,
 	.try_fmt	= mt9m111_try_fmt,
+	.s_crop		= mt9m111_s_crop,
 };
 
 static struct v4l2_subdev_ops mt9m111_subdev_ops = {

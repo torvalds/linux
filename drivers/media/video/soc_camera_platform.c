@@ -25,10 +25,15 @@ struct soc_camera_platform_priv {
 	struct soc_camera_data_format format;
 };
 
-static struct soc_camera_platform_info *
-soc_camera_platform_get_info(struct soc_camera_device *icd)
+static struct soc_camera_platform_priv *get_priv(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev_get_drvdata(&icd->dev));
+	struct v4l2_subdev *subdev = platform_get_drvdata(pdev);
+	return container_of(subdev, struct soc_camera_platform_priv, subdev);
+}
+
+static struct soc_camera_platform_info *get_info(struct soc_camera_device *icd)
+{
+	struct platform_device *pdev = to_platform_device(to_soc_camera_control(icd));
 	return pdev->dev.platform_data;
 }
 
@@ -47,14 +52,8 @@ static int soc_camera_platform_set_bus_param(struct soc_camera_device *icd,
 static unsigned long
 soc_camera_platform_query_bus_param(struct soc_camera_device *icd)
 {
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+	struct soc_camera_platform_info *p = get_info(icd);
 	return p->bus_param;
-}
-
-static int soc_camera_platform_set_crop(struct soc_camera_device *icd,
-					struct v4l2_rect *rect)
-{
-	return 0;
 }
 
 static int soc_camera_platform_try_fmt(struct v4l2_subdev *sd,
@@ -71,7 +70,7 @@ static int soc_camera_platform_try_fmt(struct v4l2_subdev *sd,
 static void soc_camera_platform_video_probe(struct soc_camera_device *icd,
 					    struct platform_device *pdev)
 {
-	struct soc_camera_platform_priv *priv = platform_get_drvdata(pdev);
+	struct soc_camera_platform_priv *priv = get_priv(pdev);
 	struct soc_camera_platform_info *p = pdev->dev.platform_data;
 
 	priv->format.name = p->format_name;
@@ -96,7 +95,6 @@ static struct v4l2_subdev_ops platform_subdev_ops = {
 };
 
 static struct soc_camera_ops soc_camera_platform_ops = {
-	.set_crop		= soc_camera_platform_set_crop,
 	.set_bus_param		= soc_camera_platform_set_bus_param,
 	.query_bus_param	= soc_camera_platform_query_bus_param,
 };
@@ -124,7 +122,9 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 
 	icd = to_soc_camera_dev(p->dev);
 
-	platform_set_drvdata(pdev, priv);
+	/* soc-camera convention: control's drvdata points to the subdev */
+	platform_set_drvdata(pdev, &priv->subdev);
+	/* Set the control device reference */
 	dev_set_drvdata(&icd->dev, &pdev->dev);
 
 	icd->width_min		= 0;
@@ -158,7 +158,7 @@ evdrs:
 
 static int soc_camera_platform_remove(struct platform_device *pdev)
 {
-	struct soc_camera_platform_priv *priv = platform_get_drvdata(pdev);
+	struct soc_camera_platform_priv *priv = get_priv(pdev);
 	struct soc_camera_platform_info *p = pdev->dev.platform_data;
 	struct soc_camera_device *icd = to_soc_camera_dev(p->dev);
 

@@ -194,11 +194,12 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
-static int mt9m001_set_crop(struct soc_camera_device *icd,
-			    struct v4l2_rect *rect)
+static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct v4l2_rect *rect = &a->c;
+	struct i2c_client *client = sd->priv;
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 	int ret;
 	const u16 hblank = 9, vblank = 25;
 
@@ -239,15 +240,17 @@ static int mt9m001_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct i2c_client *client = sd->priv;
 	struct soc_camera_device *icd = client->dev.platform_data;
-	struct v4l2_rect rect = {
-		.left	= icd->rect_current.left,
-		.top	= icd->rect_current.top,
-		.width	= f->fmt.pix.width,
-		.height	= f->fmt.pix.height,
+	struct v4l2_crop a = {
+		.c = {
+			.left	= icd->rect_current.left,
+			.top	= icd->rect_current.top,
+			.width	= f->fmt.pix.width,
+			.height	= f->fmt.pix.height,
+		},
 	};
 
 	/* No support for scaling so far, just crop. TODO: use skipping */
-	return mt9m001_set_crop(icd, &rect);
+	return mt9m001_s_crop(sd, &a);
 }
 
 static int mt9m001_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
@@ -361,7 +364,6 @@ static const struct v4l2_queryctrl mt9m001_controls[] = {
 static struct soc_camera_ops mt9m001_ops = {
 	.init			= mt9m001_init,
 	.release		= mt9m001_release,
-	.set_crop		= mt9m001_set_crop,
 	.set_bus_param		= mt9m001_set_bus_param,
 	.query_bus_param	= mt9m001_query_bus_param,
 	.controls		= mt9m001_controls,
@@ -575,6 +577,7 @@ static struct v4l2_subdev_video_ops mt9m001_subdev_video_ops = {
 	.s_stream	= mt9m001_s_stream,
 	.s_fmt		= mt9m001_s_fmt,
 	.try_fmt	= mt9m001_try_fmt,
+	.s_crop		= mt9m001_s_crop,
 };
 
 static struct v4l2_subdev_ops mt9m001_subdev_ops = {

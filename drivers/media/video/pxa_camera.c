@@ -1281,10 +1281,13 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 }
 
 static int pxa_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_rect *rect)
+			       struct v4l2_crop *a)
 {
+	struct v4l2_rect *rect = &a->c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
+	struct device *control = to_soc_camera_control(icd);
+	struct v4l2_subdev *sd = dev_get_drvdata(control);
 	struct soc_camera_sense sense = {
 		.master_clock = pcdev->mclk,
 		.pixel_clock_max = pcdev->ciclk / 4,
@@ -1295,7 +1298,7 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 	if (pcdev->platform_flags & PXA_CAMERA_PCLK_EN)
 		icd->sense = &sense;
 
-	ret = icd->ops->set_crop(icd, rect);
+	ret = v4l2_subdev_call(sd, video, s_crop, a);
 
 	icd->sense = NULL;
 

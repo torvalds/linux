@@ -616,11 +616,12 @@ static int tw9910_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static int tw9910_set_crop(struct soc_camera_device *icd,
-			   struct v4l2_rect *rect)
+static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct v4l2_rect *rect = &a->c;
+	struct i2c_client *client = sd->priv;
 	struct tw9910_priv *priv = to_tw9910(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 	int                 ret  = -EINVAL;
 	u8                  val;
 
@@ -716,15 +717,15 @@ tw9910_set_fmt_error:
 
 static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
-	struct i2c_client *client = sd->priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	/* See tw9910_set_crop() - no proper cropping support */
-	struct v4l2_rect rect = {
-		.left	= 0,
-		.top	= 0,
-		.width	= pix->width,
-		.height	= pix->height,
+	/* See tw9910_s_crop() - no proper cropping support */
+	struct v4l2_crop a = {
+		.c = {
+			.left	= 0,
+			.top	= 0,
+			.width	= pix->width,
+			.height	= pix->height,
+		},
 	};
 	int i, ret;
 
@@ -738,10 +739,10 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	if (i == ARRAY_SIZE(tw9910_color_fmt))
 		return -EINVAL;
 
-	ret = tw9910_set_crop(icd, &rect);
+	ret = tw9910_s_crop(sd, &a);
 	if (!ret) {
-		pix->width = rect.width;
-		pix->height = rect.height;
+		pix->width = a.c.width;
+		pix->height = a.c.height;
 	}
 	return ret;
 }
@@ -821,7 +822,6 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 }
 
 static struct soc_camera_ops tw9910_ops = {
-	.set_crop		= tw9910_set_crop,
 	.set_bus_param		= tw9910_set_bus_param,
 	.query_bus_param	= tw9910_query_bus_param,
 	.enum_input		= tw9910_enum_input,
@@ -840,6 +840,7 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_stream	= tw9910_s_stream,
 	.s_fmt		= tw9910_s_fmt,
 	.try_fmt	= tw9910_try_fmt,
+	.s_crop		= tw9910_s_crop,
 };
 
 static struct v4l2_subdev_ops tw9910_subdev_ops = {

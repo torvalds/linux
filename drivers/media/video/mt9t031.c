@@ -321,11 +321,12 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 	return ret < 0 ? ret : 0;
 }
 
-static int mt9t031_set_crop(struct soc_camera_device *icd,
-			    struct v4l2_rect *rect)
+static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct v4l2_rect *rect = &a->c;
+	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 
 	/* Make sure we don't exceed sensor limits */
 	if (rect->left + rect->width > icd->rect_max.left + icd->rect_max.width)
@@ -495,7 +496,6 @@ static const struct v4l2_queryctrl mt9t031_controls[] = {
 static struct soc_camera_ops mt9t031_ops = {
 	.init			= mt9t031_init,
 	.release		= mt9t031_release,
-	.set_crop		= mt9t031_set_crop,
 	.set_bus_param		= mt9t031_set_bus_param,
 	.query_bus_param	= mt9t031_query_bus_param,
 	.controls		= mt9t031_controls,
@@ -689,6 +689,7 @@ static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_stream	= mt9t031_s_stream,
 	.s_fmt		= mt9t031_s_fmt,
 	.try_fmt	= mt9t031_try_fmt,
+	.s_crop		= mt9t031_s_crop,
 };
 
 static struct v4l2_subdev_ops mt9t031_subdev_ops = {

@@ -463,9 +463,13 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 }
 
 static int mx1_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_rect *rect)
+			       struct v4l2_crop *a)
 {
-	return icd->ops->set_crop(icd, rect);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct device *control = to_soc_camera_control(icd);
+	struct v4l2_subdev *sd = dev_get_drvdata(control);
+
+	return v4l2_subdev_call(sd, video, s_crop, a);
 }
 
 static int mx1_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)

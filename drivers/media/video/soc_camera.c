@@ -797,7 +797,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 		rect.top = icd->rect_max.height + icd->rect_max.top -
 			rect.height;
 
-	ret = ici->ops->set_crop(icd, &rect);
+	ret = ici->ops->set_crop(icd, a);
 	if (!ret)
 		icd->rect_current = rect;
 
@@ -970,7 +970,7 @@ static int soc_camera_probe(struct device *dev)
 
 		/* FIXME: this is racy, have to use driver-binding notification */
 		control = to_soc_camera_control(icd);
-		if (!control || !control->driver ||
+		if (!control || !control->driver || !dev_get_drvdata(control) ||
 		    !try_module_get(control->driver->owner)) {
 			icl->del_device(icl);
 			goto enodrv;

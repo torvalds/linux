@@ -781,10 +781,13 @@ static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
 }
 
 static int mx3_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_rect *rect)
+			       struct v4l2_crop *a)
 {
+	struct v4l2_rect *rect = &a->c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
+	struct device *control = to_soc_camera_control(icd);
+	struct v4l2_subdev *sd = dev_get_drvdata(control);
 
 	/*
 	 * We now know pixel formats and can decide upon DMA-channel(s)
@@ -798,7 +801,7 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 
 	configure_geometry(mx3_cam, rect);
 
-	return icd->ops->set_crop(icd, rect);
+	return v4l2_subdev_call(sd, video, s_crop, a);
 }
 
 static int mx3_camera_set_fmt(struct soc_camera_device *icd,

@@ -955,24 +955,6 @@ ov772x_set_fmt_error:
 	return ret;
 }
 
-/* Cannot crop, just return the current geometry */
-static int ov772x_set_crop(struct soc_camera_device *icd,
-			   struct v4l2_rect *rect)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = to_ov772x(client);
-
-	if (!priv->fmt || !priv->win)
-		return -EINVAL;
-
-	rect->left = 0;
-	rect->top = 0;
-	rect->width = priv->win->width;
-	rect->height = priv->win->height;
-
-	return 0;
-}
-
 static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct i2c_client *client = sd->priv;
@@ -1060,7 +1042,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 }
 
 static struct soc_camera_ops ov772x_ops = {
-	.set_crop		= ov772x_set_crop,
 	.set_bus_param		= ov772x_set_bus_param,
 	.query_bus_param	= ov772x_query_bus_param,
 	.controls		= ov772x_controls,
