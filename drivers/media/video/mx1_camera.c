@@ -135,7 +135,7 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	while (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
 		(*count)--;
 
-	dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
+	dev_dbg(icd->dev.parent, "count=%d, size=%d\n", *count, *size);
 
 	return 0;
 }
@@ -147,7 +147,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx1_buffer *buf)
 
 	BUG_ON(in_interrupt());
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/* This waits until this buffer is out of danger, i.e., until it is no
@@ -165,7 +165,7 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 	struct mx1_buffer *buf = container_of(vb, struct mx1_buffer, vb);
 	int ret;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/* Added list head initialization on alloc */
@@ -216,10 +216,11 @@ out:
 static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 {
 	struct videobuf_buffer *vbuf = &pcdev->active->vb;
+	struct device *dev = pcdev->icd->dev.parent;
 	int ret;
 
 	if (unlikely(!pcdev->active)) {
-		dev_err(pcdev->icd->dev.parent, "DMA End IRQ with no active buffer\n");
+		dev_err(dev, "DMA End IRQ with no active buffer\n");
 		return -EFAULT;
 	}
 
@@ -229,7 +230,7 @@ static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 		vbuf->size, pcdev->res->start +
 		CSIRXR, DMA_MODE_READ);
 	if (unlikely(ret))
-		dev_err(pcdev->icd->dev.parent, "Failed to setup DMA sg list\n");
+		dev_err(dev, "Failed to setup DMA sg list\n");
 
 	return ret;
 }
@@ -243,7 +244,7 @@ static void mx1_videobuf_queue(struct videobuf_queue *vq,
 	struct mx1_camera_dev *pcdev = ici->priv;
 	struct mx1_buffer *buf = container_of(vb, struct mx1_buffer, vb);
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	list_add_tail(&vb->queue, &pcdev->capture);
@@ -270,22 +271,23 @@ static void mx1_videobuf_release(struct videobuf_queue *vq,
 	struct mx1_buffer *buf = container_of(vb, struct mx1_buffer, vb);
 #ifdef DEBUG
 	struct soc_camera_device *icd = vq->priv_data;
+	struct device *dev = icd->dev.parent;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	switch (vb->state) {
 	case VIDEOBUF_ACTIVE:
-		dev_dbg(&icd->dev, "%s (active)\n", __func__);
+		dev_dbg(dev, "%s (active)\n", __func__);
 		break;
 	case VIDEOBUF_QUEUED:
-		dev_dbg(&icd->dev, "%s (queued)\n", __func__);
+		dev_dbg(dev, "%s (queued)\n", __func__);
 		break;
 	case VIDEOBUF_PREPARED:
-		dev_dbg(&icd->dev, "%s (prepared)\n", __func__);
+		dev_dbg(dev, "%s (prepared)\n", __func__);
 		break;
 	default:
-		dev_dbg(&icd->dev, "%s (unknown)\n", __func__);
+		dev_dbg(dev, "%s (unknown)\n", __func__);
 		break;
 	}
 #endif
@@ -325,6 +327,7 @@ static void mx1_camera_wakeup(struct mx1_camera_dev *pcdev,
 static void mx1_camera_dma_irq(int channel, void *data)
 {
 	struct mx1_camera_dev *pcdev = data;
+	struct device *dev = pcdev->icd->dev.parent;
 	struct mx1_buffer *buf;
 	struct videobuf_buffer *vb;
 	unsigned long flags;
@@ -334,14 +337,14 @@ static void mx1_camera_dma_irq(int channel, void *data)
 	imx_dma_disable(channel);
 
 	if (unlikely(!pcdev->active)) {
-		dev_err(pcdev->icd->dev.parent, "DMA End IRQ with no active buffer\n");
+		dev_err(dev, "DMA End IRQ with no active buffer\n");
 		goto out;
 	}
 
 	vb = &pcdev->active->vb;
 	buf = container_of(vb, struct mx1_buffer, vb);
 	WARN_ON(buf->inwork || list_empty(&vb->queue));
-	dev_dbg(pcdev->icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	mx1_camera_wakeup(pcdev, vb, buf);
@@ -381,8 +384,9 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 	 * they get a nice Oops */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
-	dev_dbg(pcdev->icd->dev.parent, "System clock %lukHz, target freq %dkHz, "
-		"divisor %lu\n", lcdclk / 1000, mclk / 1000, div);
+	dev_dbg(pcdev->icd->dev.parent,
+		"System clock %lukHz, target freq %dkHz, divisor %lu\n",
+		lcdclk / 1000, mclk / 1000, div);
 
 	return div;
 }
@@ -428,7 +432,7 @@ static int mx1_camera_add_device(struct soc_camera_device *icd)
 		goto ebusy;
 	}
 
-	dev_info(&icd->dev, "MX1 Camera driver attached to camera %d\n",
+	dev_info(icd->dev.parent, "MX1 Camera driver attached to camera %d\n",
 		 icd->devnum);
 
 	mx1_camera_activate(pcdev);
@@ -454,7 +458,7 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 	/* Stop DMA engine */
 	imx_dma_disable(pcdev->dma_chan);
 
-	dev_info(&icd->dev, "MX1 Camera driver detached from camera %d\n",
+	dev_info(icd->dev.parent, "MX1 Camera driver detached from camera %d\n",
 		 icd->devnum);
 
 	mx1_camera_deactivate(pcdev);

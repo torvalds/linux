@@ -178,7 +178,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx3_camera_buffer *buf
 
 	BUG_ON(in_interrupt());
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/*
@@ -375,7 +375,8 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 	spin_unlock_irq(&mx3_cam->lock);
 
 	cookie = txd->tx_submit(txd);
-	dev_dbg(&icd->dev, "Submitted cookie %d DMA 0x%08x\n", cookie, sg_dma_address(&buf->sg));
+	dev_dbg(icd->dev.parent, "Submitted cookie %d DMA 0x%08x\n",
+		cookie, sg_dma_address(&buf->sg));
 
 	spin_lock_irq(&mx3_cam->lock);
 
@@ -402,9 +403,10 @@ static void mx3_videobuf_release(struct videobuf_queue *vq,
 		container_of(vb, struct mx3_camera_buffer, vb);
 	unsigned long flags;
 
-	dev_dbg(&icd->dev, "Release%s DMA 0x%08x (state %d), queue %sempty\n",
+	dev_dbg(icd->dev.parent,
+		"Release%s DMA 0x%08x (state %d), queue %sempty\n",
 		mx3_cam->active == buf ? " active" : "", sg_dma_address(&buf->sg),
-		 vb->state, list_empty(&vb->queue) ? "" : "not ");
+		vb->state, list_empty(&vb->queue) ? "" : "not ");
 	spin_lock_irqsave(&mx3_cam->lock, flags);
 	if ((vb->state == VIDEOBUF_ACTIVE || vb->state == VIDEOBUF_QUEUED) &&
 	    !list_empty(&vb->queue)) {
@@ -484,7 +486,7 @@ static void mx3_camera_activate(struct mx3_camera_dev *mx3_cam,
 
 	clk_enable(mx3_cam->clk);
 	rate = clk_round_rate(mx3_cam->clk, mx3_cam->mclk);
-	dev_dbg(&icd->dev, "Set SENS_CONF to %x, rate %ld\n", conf, rate);
+	dev_dbg(icd->dev.parent, "Set SENS_CONF to %x, rate %ld\n", conf, rate);
 	if (rate)
 		clk_set_rate(mx3_cam->clk, rate);
 }
@@ -502,7 +504,7 @@ static int mx3_camera_add_device(struct soc_camera_device *icd)
 
 	mx3_cam->icd = icd;
 
-	dev_info(&icd->dev, "MX3 Camera driver attached to camera %d\n",
+	dev_info(icd->dev.parent, "MX3 Camera driver attached to camera %d\n",
 		 icd->devnum);
 
 	return 0;
@@ -526,7 +528,7 @@ static void mx3_camera_remove_device(struct soc_camera_device *icd)
 
 	mx3_cam->icd = NULL;
 
-	dev_info(&icd->dev, "MX3 Camera driver detached from camera %d\n",
+	dev_info(icd->dev.parent, "MX3 Camera driver detached from camera %d\n",
 		 icd->devnum);
 }
 
@@ -603,7 +605,8 @@ static int mx3_camera_try_bus_param(struct soc_camera_device *icd,
 	unsigned long bus_flags, camera_flags;
 	int ret = test_platform_param(mx3_cam, depth, &bus_flags);
 
-	dev_dbg(icd->dev.parent, "requested bus width %d bit: %d\n", depth, ret);
+	dev_dbg(icd->dev.parent, "requested bus width %d bit: %d\n",
+		depth, ret);
 
 	if (ret < 0)
 		return ret;
@@ -612,7 +615,8 @@ static int mx3_camera_try_bus_param(struct soc_camera_device *icd,
 
 	ret = soc_camera_bus_param_compatible(camera_flags, bus_flags);
 	if (ret < 0)
-		dev_warn(&icd->dev, "Flags incompatible: camera %lx, host %lx\n",
+		dev_warn(icd->dev.parent,
+			 "Flags incompatible: camera %lx, host %lx\n",
 			 camera_flags, bus_flags);
 
 	return ret;
@@ -686,7 +690,8 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(icd->dev.parent, "Providing format %s using %s\n",
+			dev_dbg(icd->dev.parent,
+				"Providing format %s using %s\n",
 				mx3_camera_formats[0].name,
 				icd->formats[idx].name);
 		}
@@ -698,7 +703,8 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(icd->dev.parent, "Providing format %s using %s\n",
+			dev_dbg(icd->dev.parent,
+				"Providing format %s using %s\n",
 				mx3_camera_formats[0].name,
 				icd->formats[idx].name);
 		}
@@ -821,7 +827,8 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(icd->dev.parent, "Format %x not found\n", pix->pixelformat);
+		dev_warn(icd->dev.parent, "Format %x not found\n",
+			 pix->pixelformat);
 		return -EINVAL;
 	}
 
@@ -883,7 +890,7 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 	if (field == V4L2_FIELD_ANY) {
 		pix->field = V4L2_FIELD_NONE;
 	} else if (field != V4L2_FIELD_NONE) {
-		dev_err(&icd->dev, "Field type %d unsupported.\n", field);
+		dev_err(icd->dev.parent, "Field type %d unsupported.\n", field);
 		return -EINVAL;
 	}
 
@@ -922,14 +929,15 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	u32 dw, sens_conf;
 	int ret = test_platform_param(mx3_cam, icd->buswidth, &bus_flags);
 	const struct soc_camera_format_xlate *xlate;
+	struct device *dev = icd->dev.parent;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(icd->dev.parent, "Format %x not found\n", pixfmt);
+		dev_warn(dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
-	dev_dbg(icd->dev.parent, "requested bus width %d bit: %d\n",
+	dev_dbg(dev, "requested bus width %d bit: %d\n",
 		icd->buswidth, ret);
 
 	if (ret < 0)
@@ -938,10 +946,10 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	camera_flags = icd->ops->query_bus_param(icd);
 
 	common_flags = soc_camera_bus_param_compatible(camera_flags, bus_flags);
-	dev_dbg(icd->dev.parent, "Flags cam: 0x%lx host: 0x%lx common: 0x%lx\n",
+	dev_dbg(dev, "Flags cam: 0x%lx host: 0x%lx common: 0x%lx\n",
 		camera_flags, bus_flags, common_flags);
 	if (!common_flags) {
-		dev_dbg(icd->dev.parent, "no common flags");
+		dev_dbg(dev, "no common flags");
 		return -EINVAL;
 	}
 
@@ -995,7 +1003,7 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 
 	ret = icd->ops->set_bus_param(icd, common_flags);
 	if (ret < 0) {
-		dev_dbg(icd->dev.parent, "camera set_bus_param(%lx) returned %d\n",
+		dev_dbg(dev, "camera set_bus_param(%lx) returned %d\n",
 			common_flags, ret);
 		return ret;
 	}
@@ -1050,7 +1058,7 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 
 	csi_reg_write(mx3_cam, sens_conf | dw, CSI_SENS_CONF);
 
-	dev_dbg(icd->dev.parent, "Set SENS_CONF to %x\n", sens_conf | dw);
+	dev_dbg(dev, "Set SENS_CONF to %x\n", sens_conf | dw);
 
 	return 0;
 }
