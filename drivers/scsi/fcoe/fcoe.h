@@ -84,6 +84,7 @@ struct fcoe_interface {
 	struct packet_type  fip_packet_type;
 	struct fcoe_ctlr ctlr;
 	struct fc_exch_mgr *oem;		/* offload exchange manager */
+	struct kref kref;
 };
 
 /*
