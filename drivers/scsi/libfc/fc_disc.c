@@ -606,6 +606,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 		if (!cp) {
 			FC_DISC_DBG(disc, "GPN_FT response too short, len %d\n",
 				    fr_len(fp));
+			event = DISC_EV_FAILED;
 		} else if (ntohs(cp->ct_cmd) == FC_FS_ACC) {
 
 			/* Accepted, parse the response. */
@@ -619,6 +620,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 		} else {
 			FC_DISC_DBG(disc, "GPN_FT unexpected response code "
 				    "%x\n", ntohs(cp->ct_cmd));
+			event = DISC_EV_FAILED;
 		}
 	} else if (fr_sof(fp) == FC_SOF_N3 && seq_cnt == disc->seq_count) {
 		error = fc_disc_gpn_ft_parse(disc, fh + 1, len);
@@ -626,6 +628,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 		FC_DISC_DBG(disc, "GPN_FT unexpected frame - out of sequence? "
 			    "seq_cnt %x expected %x sof %x eof %x\n",
 			    seq_cnt, disc->seq_count, fr_sof(fp), fr_eof(fp));
+		event = DISC_EV_FAILED;
 	}
 	if (error)
 		fc_disc_error(disc, fp);
