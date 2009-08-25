@@ -13,13 +13,13 @@
 #include <linux/i2c.h>
 #include <linux/log2.h>
 
-#include <media/v4l2-common.h>
+#include <media/v4l2-subdev.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 
 /* mt9m001 i2c address 0x5d
- * The platform has to define i2c_board_info
- * and call i2c_register_board_info() */
+ * The platform has to define ctruct i2c_board_info objects and link to them
+ * from struct soc_camera_link */
 
 /* mt9m001 selected register addresses */
 #define MT9M001_CHIP_VERSION		0x00
@@ -69,9 +69,15 @@ static const struct soc_camera_data_format mt9m001_monochrome_formats[] = {
 };
 
 struct mt9m001 {
+	struct v4l2_subdev subdev;
 	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
 	unsigned char autoexposure;
 };
+
+static struct mt9m001 *to_mt9m001(const struct i2c_client *client)
+{
+	return container_of(i2c_get_clientdata(client), struct mt9m001, subdev);
+}
 
 static int reg_read(struct i2c_client *client, const u8 reg)
 {
@@ -110,32 +116,18 @@ static int reg_clear(struct i2c_client *client, const u8 reg,
 static int mt9m001_init(struct soc_camera_device *icd)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	int ret;
 
 	dev_dbg(&icd->dev, "%s\n", __func__);
 
-	if (icl->power) {
-		ret = icl->power(&client->dev, 1);
-		if (ret < 0) {
-			dev_err(icd->vdev->parent,
-				"Platform failed to power-on the camera.\n");
-			return ret;
-		}
-	}
+	/*
+	 * We don't know, whether platform provides reset,
+	 * issue a soft reset too
+	 */
+	ret = reg_write(client, MT9M001_RESET, 1);
+	if (!ret)
+		ret = reg_write(client, MT9M001_RESET, 0);
 
-	/* The camera could have been already on, we reset it additionally */
-	if (icl->reset)
-		ret = icl->reset(&client->dev);
-	else
-		ret = -ENODEV;
-
-	if (ret < 0) {
-		/* Either no platform reset, or platform reset failed */
-		ret = reg_write(client, MT9M001_RESET, 1);
-		if (!ret)
-			ret = reg_write(client, MT9M001_RESET, 0);
-	}
 	/* Disable chip, synchronous option update */
 	if (!ret)
 		ret = reg_write(client, MT9M001_OUTPUT_CONTROL, 0);
@@ -146,33 +138,19 @@ static int mt9m001_init(struct soc_camera_device *icd)
 static int mt9m001_release(struct soc_camera_device *icd)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
 	/* Disable the chip */
 	reg_write(client, MT9M001_OUTPUT_CONTROL, 0);
 
-	if (icl->power)
-		icl->power(&client->dev, 0);
-
 	return 0;
 }
 
-static int mt9m001_start_capture(struct soc_camera_device *icd)
+static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_client *client = sd->priv;
 
-	/* Switch to master "normal" mode */
-	if (reg_write(client, MT9M001_OUTPUT_CONTROL, 2) < 0)
-		return -EIO;
-	return 0;
-}
-
-static int mt9m001_stop_capture(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-
-	/* Stop sensor readout */
-	if (reg_write(client, MT9M001_OUTPUT_CONTROL, 0) < 0)
+	/* Switch to master "normal" mode or stop sensor readout */
+	if (reg_write(client, MT9M001_OUTPUT_CONTROL, enable ? 2 : 0) < 0)
 		return -EIO;
 	return 0;
 }
@@ -220,7 +198,7 @@ static int mt9m001_set_crop(struct soc_camera_device *icd,
 			    struct v4l2_rect *rect)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m001 *mt9m001 = i2c_get_clientdata(client);
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	int ret;
 	const u16 hblank = 9, vblank = 25;
 
@@ -257,9 +235,10 @@ static int mt9m001_set_crop(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mt9m001_set_fmt(struct soc_camera_device *icd,
-			   struct v4l2_format *f)
+static int mt9m001_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
+	struct i2c_client *client = sd->priv;
+	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_rect rect = {
 		.left	= icd->x_current,
 		.top	= icd->y_current,
@@ -271,9 +250,10 @@ static int mt9m001_set_fmt(struct soc_camera_device *icd,
 	return mt9m001_set_crop(icd, &rect);
 }
 
-static int mt9m001_try_fmt(struct soc_camera_device *icd,
-			   struct v4l2_format *f)
+static int mt9m001_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
+	struct i2c_client *client = sd->priv;
+	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
 	v4l_bound_align_image(&pix->width, 48, 1280, 1,
@@ -283,11 +263,11 @@ static int mt9m001_try_fmt(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mt9m001_get_chip_id(struct soc_camera_device *icd,
-			       struct v4l2_dbg_chip_ident *id)
+static int mt9m001_g_chip_ident(struct v4l2_subdev *sd,
+				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m001 *mt9m001 = i2c_get_clientdata(client);
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
 
 	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
 		return -EINVAL;
@@ -302,10 +282,10 @@ static int mt9m001_get_chip_id(struct soc_camera_device *icd,
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int mt9m001_get_register(struct soc_camera_device *icd,
-				struct v4l2_dbg_register *reg)
+static int mt9m001_g_register(struct v4l2_subdev *sd,
+			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_client *client = sd->priv;
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
 		return -EINVAL;
@@ -322,10 +302,10 @@ static int mt9m001_get_register(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mt9m001_set_register(struct soc_camera_device *icd,
-				struct v4l2_dbg_register *reg)
+static int mt9m001_s_register(struct v4l2_subdev *sd,
+			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_client *client = sd->priv;
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
 		return -EINVAL;
@@ -378,35 +358,20 @@ static const struct v4l2_queryctrl mt9m001_controls[] = {
 	}
 };
 
-static int mt9m001_get_control(struct soc_camera_device *, struct v4l2_control *);
-static int mt9m001_set_control(struct soc_camera_device *, struct v4l2_control *);
-
 static struct soc_camera_ops mt9m001_ops = {
-	.owner			= THIS_MODULE,
 	.init			= mt9m001_init,
 	.release		= mt9m001_release,
-	.start_capture		= mt9m001_start_capture,
-	.stop_capture		= mt9m001_stop_capture,
 	.set_crop		= mt9m001_set_crop,
-	.set_fmt		= mt9m001_set_fmt,
-	.try_fmt		= mt9m001_try_fmt,
 	.set_bus_param		= mt9m001_set_bus_param,
 	.query_bus_param	= mt9m001_query_bus_param,
 	.controls		= mt9m001_controls,
 	.num_controls		= ARRAY_SIZE(mt9m001_controls),
-	.get_control		= mt9m001_get_control,
-	.set_control		= mt9m001_set_control,
-	.get_chip_id		= mt9m001_get_chip_id,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.get_register		= mt9m001_get_register,
-	.set_register		= mt9m001_set_register,
-#endif
 };
 
-static int mt9m001_get_control(struct soc_camera_device *icd, struct v4l2_control *ctrl)
+static int mt9m001_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m001 *mt9m001 = i2c_get_clientdata(client);
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	int data;
 
 	switch (ctrl->id) {
@@ -423,10 +388,11 @@ static int mt9m001_get_control(struct soc_camera_device *icd, struct v4l2_contro
 	return 0;
 }
 
-static int mt9m001_set_control(struct soc_camera_device *icd, struct v4l2_control *ctrl)
+static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m001 *mt9m001 = i2c_get_clientdata(client);
+	struct i2c_client *client = sd->priv;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 	const struct v4l2_queryctrl *qctrl;
 	int data;
 
@@ -521,10 +487,9 @@ static int mt9m001_set_control(struct soc_camera_device *icd, struct v4l2_contro
 static int mt9m001_video_probe(struct soc_camera_device *icd,
 			       struct i2c_client *client)
 {
-	struct mt9m001 *mt9m001 = i2c_get_clientdata(client);
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	s32 data;
-	int ret;
 	unsigned long flags;
 
 	/* We must have a parent by now. And it cannot be a wrong one.
@@ -533,19 +498,12 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
 
-	/* Switch master clock on */
-	ret = soc_camera_video_start(icd, &client->dev);
-	if (ret)
-		return ret;
-
 	/* Enable the chip */
 	data = reg_write(client, MT9M001_CHIP_ENABLE, 1);
 	dev_dbg(&icd->dev, "write: %d\n", data);
 
 	/* Read out the chip version register */
 	data = reg_read(client, MT9M001_CHIP_VERSION);
-
-	soc_camera_video_stop(icd);
 
 	/* must be 0x8411 or 0x8421 for colour sensor and 8431 for bw */
 	switch (data) {
@@ -601,6 +559,27 @@ static void mt9m001_video_remove(struct soc_camera_device *icd)
 		icl->free_bus(icl);
 }
 
+static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
+	.g_ctrl		= mt9m001_g_ctrl,
+	.s_ctrl		= mt9m001_s_ctrl,
+	.g_chip_ident	= mt9m001_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register	= mt9m001_g_register,
+	.s_register	= mt9m001_s_register,
+#endif
+};
+
+static struct v4l2_subdev_video_ops mt9m001_subdev_video_ops = {
+	.s_stream	= mt9m001_s_stream,
+	.s_fmt		= mt9m001_s_fmt,
+	.try_fmt	= mt9m001_try_fmt,
+};
+
+static struct v4l2_subdev_ops mt9m001_subdev_ops = {
+	.core	= &mt9m001_subdev_core_ops,
+	.video	= &mt9m001_subdev_video_ops,
+};
+
 static int mt9m001_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
@@ -631,7 +610,7 @@ static int mt9m001_probe(struct i2c_client *client,
 	if (!mt9m001)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, mt9m001);
+	v4l2_i2c_subdev_init(&mt9m001->subdev, client, &mt9m001_subdev_ops);
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops	= &mt9m001_ops;
@@ -660,7 +639,7 @@ static int mt9m001_probe(struct i2c_client *client,
 
 static int mt9m001_remove(struct i2c_client *client)
 {
-	struct mt9m001 *mt9m001 = i2c_get_clientdata(client);
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;

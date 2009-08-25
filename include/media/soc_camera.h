@@ -16,10 +16,12 @@
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
+#include <media/v4l2-device.h>
 
 struct soc_camera_device {
 	struct list_head list;
 	struct device dev;
+	struct device *pdev;		/* Platform device */
 	unsigned short width;		/* Current window */
 	unsigned short height;		/* sizes */
 	unsigned short x_min;		/* Camera capabilities */
@@ -45,7 +47,6 @@ struct soc_camera_device {
 	struct soc_camera_format_xlate *user_formats;
 	int num_user_formats;
 	enum v4l2_field field;		/* Preserve field over close() */
-	struct module *owner;
 	void *host_priv;		/* Per-device host private data */
 	/* soc_camera.c private count. Only accessed with .video_lock held */
 	int use_count;
@@ -58,8 +59,8 @@ struct soc_camera_file {
 };
 
 struct soc_camera_host {
+	struct v4l2_device v4l2_dev;
 	struct list_head list;
-	struct device *dev;
 	unsigned char nr;				/* Host number */
 	void *priv;
 	const char *drv_name;
@@ -127,7 +128,9 @@ static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)
 
 static inline struct soc_camera_host *to_soc_camera_host(struct device *dev)
 {
-	return dev_get_drvdata(dev);
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
+
+	return container_of(v4l2_dev, struct soc_camera_host, v4l2_dev);
 }
 
 static inline struct soc_camera_link *to_soc_camera_link(struct soc_camera_device *icd)
@@ -142,9 +145,6 @@ static inline struct device *to_soc_camera_control(struct soc_camera_device *icd
 
 int soc_camera_host_register(struct soc_camera_host *ici);
 void soc_camera_host_unregister(struct soc_camera_host *ici);
-
-int soc_camera_video_start(struct soc_camera_device *icd, struct device *dev);
-void soc_camera_video_stop(struct soc_camera_device *icd);
 
 const struct soc_camera_data_format *soc_camera_format_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc);
@@ -176,28 +176,17 @@ struct soc_camera_format_xlate {
 };
 
 struct soc_camera_ops {
-	struct module *owner;
 	int (*suspend)(struct soc_camera_device *, pm_message_t state);
 	int (*resume)(struct soc_camera_device *);
 	int (*init)(struct soc_camera_device *);
 	int (*release)(struct soc_camera_device *);
-	int (*start_capture)(struct soc_camera_device *);
-	int (*stop_capture)(struct soc_camera_device *);
 	int (*set_crop)(struct soc_camera_device *, struct v4l2_rect *);
-	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
-	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 	int (*get_chip_id)(struct soc_camera_device *,
 			   struct v4l2_dbg_chip_ident *);
 	int (*set_std)(struct soc_camera_device *, v4l2_std_id *);
 	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	int (*get_register)(struct soc_camera_device *, struct v4l2_dbg_register *);
-	int (*set_register)(struct soc_camera_device *, struct v4l2_dbg_register *);
-#endif
-	int (*get_control)(struct soc_camera_device *, struct v4l2_control *);
-	int (*set_control)(struct soc_camera_device *, struct v4l2_control *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
 };

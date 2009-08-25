@@ -219,7 +219,7 @@ static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 	int ret;
 
 	if (unlikely(!pcdev->active)) {
-		dev_err(pcdev->soc_host.dev, "DMA End IRQ with no active buffer\n");
+		dev_err(pcdev->icd->dev.parent, "DMA End IRQ with no active buffer\n");
 		return -EFAULT;
 	}
 
@@ -229,7 +229,7 @@ static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 		vbuf->size, pcdev->res->start +
 		CSIRXR, DMA_MODE_READ);
 	if (unlikely(ret))
-		dev_err(pcdev->soc_host.dev, "Failed to setup DMA sg list\n");
+		dev_err(pcdev->icd->dev.parent, "Failed to setup DMA sg list\n");
 
 	return ret;
 }
@@ -334,14 +334,14 @@ static void mx1_camera_dma_irq(int channel, void *data)
 	imx_dma_disable(channel);
 
 	if (unlikely(!pcdev->active)) {
-		dev_err(pcdev->soc_host.dev, "DMA End IRQ with no active buffer\n");
+		dev_err(pcdev->icd->dev.parent, "DMA End IRQ with no active buffer\n");
 		goto out;
 	}
 
 	vb = &pcdev->active->vb;
 	buf = container_of(vb, struct mx1_buffer, vb);
 	WARN_ON(buf->inwork || list_empty(&vb->queue));
-	dev_dbg(pcdev->soc_host.dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(pcdev->icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	mx1_camera_wakeup(pcdev, vb, buf);
@@ -362,7 +362,7 @@ static void mx1_camera_init_videobuf(struct videobuf_queue *q,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx1_camera_dev *pcdev = ici->priv;
 
-	videobuf_queue_dma_contig_init(q, &mx1_videobuf_ops, ici->dev,
+	videobuf_queue_dma_contig_init(q, &mx1_videobuf_ops, icd->dev.parent,
 					&pcdev->lock,
 					V4L2_BUF_TYPE_VIDEO_CAPTURE,
 					V4L2_FIELD_NONE,
@@ -381,7 +381,7 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 	 * they get a nice Oops */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
-	dev_dbg(pcdev->soc_host.dev, "System clock %lukHz, target freq %dkHz, "
+	dev_dbg(pcdev->icd->dev.parent, "System clock %lukHz, target freq %dkHz, "
 		"divisor %lu\n", lcdclk / 1000, mclk / 1000, div);
 
 	return div;
@@ -391,7 +391,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 {
 	unsigned int csicr1 = CSICR1_EN;
 
-	dev_dbg(pcdev->soc_host.dev, "Activate device\n");
+	dev_dbg(pcdev->icd->dev.parent, "Activate device\n");
 
 	clk_enable(pcdev->clk);
 
@@ -407,7 +407,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 
 static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 {
-	dev_dbg(pcdev->soc_host.dev, "Deactivate device\n");
+	dev_dbg(pcdev->icd->dev.parent, "Deactivate device\n");
 
 	/* Disable all CSI interface */
 	__raw_writel(0x00, pcdev->base + CSICR1);
@@ -432,10 +432,8 @@ static int mx1_camera_add_device(struct soc_camera_device *icd)
 		 icd->devnum);
 
 	mx1_camera_activate(pcdev);
-	ret = icd->ops->init(icd);
 
-	if (!ret)
-		pcdev->icd = icd;
+	pcdev->icd = icd;
 
 ebusy:
 	return ret;
@@ -458,8 +456,6 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 
 	dev_info(&icd->dev, "MX1 Camera driver detached from camera %d\n",
 		 icd->devnum);
-
-	icd->ops->release(icd);
 
 	mx1_camera_deactivate(pcdev);
 
@@ -546,11 +542,11 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(ici->dev, "Format %x not found\n", pix->pixelformat);
+		dev_warn(icd->dev.parent, "Format %x not found\n", pix->pixelformat);
 		return -EINVAL;
 	}
 
-	ret = icd->ops->set_fmt(icd, f);
+	ret = v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, s_fmt, f);
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
@@ -562,10 +558,11 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 static int mx1_camera_try_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	/* TODO: limit to mx1 hardware capabilities */
 
 	/* limit to sensor capabilities */
-	return icd->ops->try_fmt(icd, f);
+	return v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, try_fmt, f);
 }
 
 static int mx1_camera_reqbufs(struct soc_camera_file *icf,
@@ -737,7 +734,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	pcdev->soc_host.drv_name	= DRIVER_NAME;
 	pcdev->soc_host.ops		= &mx1_soc_camera_host_ops;
 	pcdev->soc_host.priv		= pcdev;
-	pcdev->soc_host.dev		= &pdev->dev;
+	pcdev->soc_host.v4l2_dev.dev	= &pdev->dev;
 	pcdev->soc_host.nr		= pdev->id;
 	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)

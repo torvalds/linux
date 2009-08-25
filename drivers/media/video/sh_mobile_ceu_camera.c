@@ -347,10 +347,9 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int ret = -EBUSY;
 
 	if (pcdev->icd)
-		goto err;
+		return -EBUSY;
 
 	dev_info(&icd->dev,
 		 "SuperH Mobile CEU driver attached to camera %d\n",
@@ -358,19 +357,13 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 
 	clk_enable(pcdev->clk);
 
-	ret = icd->ops->init(icd);
-	if (ret) {
-		clk_disable(pcdev->clk);
-		goto err;
-	}
-
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
 	while (ceu_read(pcdev, CSTSR) & 1)
 		msleep(1);
 
 	pcdev->icd = icd;
-err:
-	return ret;
+
+	return 0;
 }
 
 /* Called with .video_lock held */
@@ -395,8 +388,6 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 		pcdev->active = NULL;
 	}
 	spin_unlock_irqrestore(&pcdev->lock, flags);
-
-	icd->ops->release(icd);
 
 	clk_disable(pcdev->clk);
 
@@ -614,7 +605,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = icd->formats[idx].depth;
 			xlate++;
-			dev_dbg(ici->dev, "Providing format %s using %s\n",
+			dev_dbg(ici->v4l2_dev.dev, "Providing format %s using %s\n",
 				sh_mobile_ceu_formats[k].name,
 				icd->formats[idx].name);
 		}
@@ -627,7 +618,7 @@ add_single_format:
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = icd->formats[idx].depth;
 			xlate++;
-			dev_dbg(ici->dev,
+			dev_dbg(ici->v4l2_dev.dev,
 				"Providing format %s in pass-through mode\n",
 				icd->formats[idx].name);
 		}
@@ -649,18 +640,17 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	__u32 pixfmt = f->fmt.pix.pixelformat;
 	const struct soc_camera_format_xlate *xlate;
-	struct v4l2_format cam_f = *f;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->v4l2_dev.dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
-	cam_f.fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
-	ret = icd->ops->set_fmt(icd, &cam_f);
-
+	f->fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, s_fmt, f);
+	f->fmt.pix.pixelformat = pixfmt;
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
@@ -681,7 +671,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->v4l2_dev.dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
@@ -694,8 +684,11 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 
+	f->fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+
 	/* limit to sensor capabilities */
-	ret = icd->ops->try_fmt(icd, f);
+	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, try_fmt, f);
+	f->fmt.pix.pixelformat = pixfmt;
 	if (ret < 0)
 		return ret;
 
@@ -771,7 +764,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 
 	videobuf_queue_dma_contig_init(q,
 				       &sh_mobile_ceu_videobuf_ops,
-				       ici->dev, &pcdev->lock,
+				       ici->v4l2_dev.dev, &pcdev->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       pcdev->is_interlaced ?
 				       V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE,
@@ -794,7 +787,7 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.init_videobuf	= sh_mobile_ceu_init_videobuf,
 };
 
-static int sh_mobile_ceu_probe(struct platform_device *pdev)
+static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_ceu_dev *pcdev;
 	struct resource *res;
@@ -867,7 +860,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	pm_runtime_resume(&pdev->dev);
 
 	pcdev->ici.priv = pcdev;
-	pcdev->ici.dev = &pdev->dev;
+	pcdev->ici.v4l2_dev.dev = &pdev->dev;
 	pcdev->ici.nr = pdev->id;
 	pcdev->ici.drv_name = dev_name(&pdev->dev);
 	pcdev->ici.ops = &sh_mobile_ceu_host_ops;
@@ -891,7 +884,7 @@ exit:
 	return err;
 }
 
-static int sh_mobile_ceu_remove(struct platform_device *pdev)
+static int __devexit sh_mobile_ceu_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct sh_mobile_ceu_dev *pcdev = container_of(soc_host,
@@ -929,7 +922,7 @@ static struct platform_driver sh_mobile_ceu_driver = {
 		.pm	= &sh_mobile_ceu_dev_pm_ops,
 	},
 	.probe		= sh_mobile_ceu_probe,
-	.remove		= sh_mobile_ceu_remove,
+	.remove		= __exit_p(sh_mobile_ceu_remove),
 };
 
 static int __init sh_mobile_ceu_init(void)

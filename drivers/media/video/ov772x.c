@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-subdev.h>
 #include <media/soc_camera.h>
 #include <media/ov772x.h>
 
@@ -398,6 +398,7 @@ struct ov772x_win_size {
 };
 
 struct ov772x_priv {
+	struct v4l2_subdev                subdev;
 	struct ov772x_camera_info        *info;
 	const struct ov772x_color_format *fmt;
 	const struct ov772x_win_size     *win;
@@ -575,6 +576,11 @@ static const struct v4l2_queryctrl ov772x_controls[] = {
  * general function
  */
 
+static struct ov772x_priv *to_ov772x(const struct i2c_client *client)
+{
+	return container_of(i2c_get_clientdata(client), struct ov772x_priv, subdev);
+}
+
 static int ov772x_write_array(struct i2c_client        *client,
 			      const struct regval_list *vals)
 {
@@ -615,58 +621,26 @@ static int ov772x_reset(struct i2c_client *client)
  * soc_camera_ops function
  */
 
-static int ov772x_init(struct soc_camera_device *icd)
+static int ov772x_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	int ret = 0;
+	struct i2c_client *client = sd->priv;
+	struct ov772x_priv *priv = to_ov772x(client);
 
-	if (icl->power) {
-		ret = icl->power(&client->dev, 1);
-		if (ret < 0)
-			return ret;
+	if (!enable) {
+		ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
+		return 0;
 	}
 
-	if (icl->reset)
-		ret = icl->reset(&client->dev);
-
-	return ret;
-}
-
-static int ov772x_release(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	int ret = 0;
-
-	if (icl->power)
-		ret = icl->power(&client->dev, 0);
-
-	return ret;
-}
-
-static int ov772x_start_capture(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
-
 	if (!priv->win || !priv->fmt) {
-		dev_err(&icd->dev, "norm or win select error\n");
+		dev_err(&client->dev, "norm or win select error\n");
 		return -EPERM;
 	}
 
 	ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, 0);
 
-	dev_dbg(&icd->dev,
+	dev_dbg(&client->dev,
 		"format %s, win %s\n", priv->fmt->name, priv->win->name);
 
-	return 0;
-}
-
-static int ov772x_stop_capture(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
 	return 0;
 }
 
@@ -688,11 +662,10 @@ static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
-static int ov772x_get_control(struct soc_camera_device *icd,
-			      struct v4l2_control *ctrl)
+static int ov772x_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct i2c_client *client = sd->priv;
+	struct ov772x_priv *priv = to_ov772x(client);
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
@@ -705,11 +678,10 @@ static int ov772x_get_control(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int ov772x_set_control(struct soc_camera_device *icd,
-			      struct v4l2_control *ctrl)
+static int ov772x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct i2c_client *client = sd->priv;
+	struct ov772x_priv *priv = to_ov772x(client);
 	int ret = 0;
 	u8 val;
 
@@ -733,11 +705,11 @@ static int ov772x_set_control(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int ov772x_get_chip_id(struct soc_camera_device *icd,
-			      struct v4l2_dbg_chip_ident *id)
+static int ov772x_g_chip_ident(struct v4l2_subdev *sd,
+			       struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct i2c_client *client = sd->priv;
+	struct ov772x_priv *priv = to_ov772x(client);
 
 	id->ident    = priv->model;
 	id->revision = 0;
@@ -746,10 +718,10 @@ static int ov772x_get_chip_id(struct soc_camera_device *icd,
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int ov772x_get_register(struct soc_camera_device *icd,
-			       struct v4l2_dbg_register *reg)
+static int ov772x_g_register(struct v4l2_subdev *sd,
+			     struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_client *client = sd->priv;
 	int ret;
 
 	reg->size = 1;
@@ -765,10 +737,10 @@ static int ov772x_get_register(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int ov772x_set_register(struct soc_camera_device *icd,
-			       struct v4l2_dbg_register *reg)
+static int ov772x_s_register(struct v4l2_subdev *sd,
+			     struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_client *client = sd->priv;
 
 	if (reg->reg > 0xff ||
 	    reg->val > 0xff)
@@ -778,8 +750,7 @@ static int ov772x_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-static const struct ov772x_win_size*
-ov772x_select_win(u32 width, u32 height)
+static const struct ov772x_win_size *ov772x_select_win(u32 width, u32 height)
 {
 	__u32 diff;
 	const struct ov772x_win_size *win;
@@ -798,11 +769,10 @@ ov772x_select_win(u32 width, u32 height)
 	return win;
 }
 
-static int ov772x_set_params(struct soc_camera_device *icd,
+static int ov772x_set_params(struct i2c_client *client,
 			     u32 width, u32 height, u32 pixfmt)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct ov772x_priv *priv = to_ov772x(client);
 	int ret = -EINVAL;
 	u8  val;
 	int i;
@@ -817,7 +787,6 @@ static int ov772x_set_params(struct soc_camera_device *icd,
 			break;
 		}
 	}
-	dev_dbg(&icd->dev, "Using fmt %x #%d\n", pixfmt, i);
 	if (!priv->fmt)
 		goto ov772x_set_fmt_error;
 
@@ -939,26 +908,26 @@ static int ov772x_set_crop(struct soc_camera_device *icd,
 			   struct v4l2_rect *rect)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct ov772x_priv *priv = to_ov772x(client);
 
 	if (!priv->fmt)
 		return -EINVAL;
 
-	return ov772x_set_params(icd, rect->width, rect->height,
+	return ov772x_set_params(client, rect->width, rect->height,
 				 priv->fmt->fourcc);
 }
 
-static int ov772x_set_fmt(struct soc_camera_device *icd,
-			  struct v4l2_format *f)
+static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
+	struct i2c_client *client = sd->priv;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	return ov772x_set_params(icd, pix->width, pix->height,
+	return ov772x_set_params(client, pix->width, pix->height,
 				 pix->pixelformat);
 }
 
-static int ov772x_try_fmt(struct soc_camera_device *icd,
-			  struct v4l2_format       *f)
+static int ov772x_try_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	const struct ov772x_win_size *win;
@@ -978,10 +947,9 @@ static int ov772x_try_fmt(struct soc_camera_device *icd,
 static int ov772x_video_probe(struct soc_camera_device *icd,
 			      struct i2c_client *client)
 {
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct ov772x_priv *priv = to_ov772x(client);
 	u8                  pid, ver;
 	const char         *devname;
-	int ret;
 
 	/*
 	 * We must have a parent by now. And it cannot be a wrong one.
@@ -1003,11 +971,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 	icd->formats     = ov772x_fmt_lists;
 	icd->num_formats = ARRAY_SIZE(ov772x_fmt_lists);
 
-	/* Switch master clock on */
-	ret = soc_camera_video_start(icd, &client->dev);
-	if (ret)
-		return ret;
-
 	/*
 	 * check and show product ID and manufacturer ID
 	 */
@@ -1026,8 +989,7 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 	default:
 		dev_err(&icd->dev,
 			"Product ID error %x:%x\n", pid, ver);
-		ret = -ENODEV;
-		goto ever;
+		return -ENODEV;
 	}
 
 	dev_info(&icd->dev,
@@ -1038,32 +1000,36 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 		 i2c_smbus_read_byte_data(client, MIDH),
 		 i2c_smbus_read_byte_data(client, MIDL));
 
-	soc_camera_video_stop(icd);
-
-ever:
-	return ret;
+	return 0;
 }
 
 static struct soc_camera_ops ov772x_ops = {
-	.owner			= THIS_MODULE,
-	.init			= ov772x_init,
-	.release		= ov772x_release,
-	.start_capture		= ov772x_start_capture,
-	.stop_capture		= ov772x_stop_capture,
 	.set_crop		= ov772x_set_crop,
-	.set_fmt		= ov772x_set_fmt,
-	.try_fmt		= ov772x_try_fmt,
 	.set_bus_param		= ov772x_set_bus_param,
 	.query_bus_param	= ov772x_query_bus_param,
 	.controls		= ov772x_controls,
 	.num_controls		= ARRAY_SIZE(ov772x_controls),
-	.get_control		= ov772x_get_control,
-	.set_control		= ov772x_set_control,
-	.get_chip_id		= ov772x_get_chip_id,
+};
+
+static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
+	.g_ctrl		= ov772x_g_ctrl,
+	.s_ctrl		= ov772x_s_ctrl,
+	.g_chip_ident	= ov772x_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.get_register		= ov772x_get_register,
-	.set_register		= ov772x_set_register,
+	.g_register	= ov772x_g_register,
+	.s_register	= ov772x_s_register,
 #endif
+};
+
+static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
+	.s_stream	= ov772x_s_stream,
+	.s_fmt		= ov772x_s_fmt,
+	.try_fmt	= ov772x_try_fmt,
+};
+
+static struct v4l2_subdev_ops ov772x_subdev_ops = {
+	.core	= &ov772x_subdev_core_ops,
+	.video	= &ov772x_subdev_video_ops,
 };
 
 /*
@@ -1081,7 +1047,7 @@ static int ov772x_probe(struct i2c_client *client,
 	int                        ret;
 
 	if (!icd) {
-		dev_err(&client->dev, "MT9M001: missing soc-camera data!\n");
+		dev_err(&client->dev, "OV772X: missing soc-camera data!\n");
 		return -EINVAL;
 	}
 
@@ -1102,8 +1068,9 @@ static int ov772x_probe(struct i2c_client *client,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->info   = info;
-	i2c_set_clientdata(client, priv);
+	priv->info = info;
+
+	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
 
 	icd->ops        = &ov772x_ops;
 	icd->width_max  = MAX_WIDTH;
@@ -1121,7 +1088,7 @@ static int ov772x_probe(struct i2c_client *client,
 
 static int ov772x_remove(struct i2c_client *client)
 {
-	struct ov772x_priv *priv = i2c_get_clientdata(client);
+	struct ov772x_priv *priv = to_ov772x(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
