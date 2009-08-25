@@ -699,6 +699,11 @@ static int tw9910_set_crop(struct soc_camera_device *icd,
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
+	rect->width = priv->scale->width;
+	rect->height = priv->scale->height;
+	rect->left = 0;
+	rect->top = 0;
+
 	return ret;
 
 tw9910_set_fmt_error:
@@ -720,7 +725,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		.width	= pix->width,
 		.height	= pix->height,
 	};
-	int i;
+	int i, ret;
 
 	/*
 	 * check color format
@@ -732,7 +737,12 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	if (i == ARRAY_SIZE(tw9910_color_fmt))
 		return -EINVAL;
 
-	return tw9910_set_crop(icd, &rect);
+	ret = tw9910_set_crop(icd, &rect);
+	if (!ret) {
+		pix->width = rect.width;
+		pix->height = rect.height;
+	}
+	return ret;
 }
 
 static int tw9910_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
