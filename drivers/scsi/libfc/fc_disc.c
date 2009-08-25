@@ -45,8 +45,6 @@
 
 static void fc_disc_gpn_ft_req(struct fc_disc *);
 static void fc_disc_gpn_ft_resp(struct fc_seq *, struct fc_frame *, void *);
-static int fc_disc_new_target(struct fc_disc *, struct fc_rport_priv *,
-			      struct fc_rport_identifiers *);
 static void fc_disc_done(struct fc_disc *, enum fc_disc_event);
 static void fc_disc_timeout(struct work_struct *);
 static void fc_disc_single(struct fc_disc *, struct fc_disc_port *);
@@ -240,14 +238,12 @@ static void fc_disc_restart(struct fc_disc *disc)
 /**
  * fc_disc_start() - Fibre Channel Target discovery
  * @lport: FC local port
- *
- * Returns non-zero if discovery cannot be started.
+ * @disc_callback: function to be called when discovery is complete
  */
 static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 						enum fc_disc_event),
 			  struct fc_lport *lport)
 {
-	struct fc_rport_priv *rdata;
 	struct fc_disc *disc = &lport->disc;
 
 	/*
@@ -256,85 +252,9 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 	 * and send the GPN_FT request.
 	 */
 	mutex_lock(&disc->disc_mutex);
-
 	disc->disc_callback = disc_callback;
-
-	/*
-	 * If not ready, or already running discovery, just set request flag.
-	 */
-	disc->requested = 1;
-
-	if (disc->pending) {
-		mutex_unlock(&disc->disc_mutex);
-		return;
-	}
-
-	/*
-	 * Handle point-to-point mode as a simple discovery
-	 * of the remote port. Yucky, yucky, yuck, yuck!
-	 */
-	rdata = disc->lport->ptp_rp;
-	if (rdata) {
-		kref_get(&rdata->kref);
-		if (!fc_disc_new_target(disc, rdata, &rdata->ids)) {
-			fc_disc_done(disc, DISC_EV_SUCCESS);
-		}
-		kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
-	} else {
-		disc->disc_id = (disc->disc_id + 2) | 1;
-		fc_disc_gpn_ft_req(disc);	/* get ports by FC-4 type */
-	}
-
+	fc_disc_restart(disc);
 	mutex_unlock(&disc->disc_mutex);
-}
-
-/**
- * fc_disc_new_target() - Handle new target found by discovery
- * @lport: FC local port
- * @rdata: The previous FC remote port priv (NULL if new remote port)
- * @ids: Identifiers for the new FC remote port
- *
- * Locking Note: This function expects that the disc_mutex is locked
- *		 before it is called.
- */
-static int fc_disc_new_target(struct fc_disc *disc,
-			      struct fc_rport_priv *rdata,
-			      struct fc_rport_identifiers *ids)
-{
-	struct fc_lport *lport = disc->lport;
-	int error = 0;
-
-	if (rdata && ids->port_name) {
-		if (rdata->ids.port_name == -1) {
-			/*
-			 * Set WWN and fall through to notify of create.
-			 */
-			rdata->ids.port_name = ids->port_name;
-			rdata->ids.node_name = ids->node_name;
-		} else if (rdata->ids.port_name != ids->port_name) {
-			/*
-			 * This is a new port with the same FCID as
-			 * a previously-discovered port.  Presumably the old
-			 * port logged out and a new port logged in and was
-			 * assigned the same FCID.  This should be rare.
-			 * Delete the old one and fall thru to re-create.
-			 */
-			lport->tt.rport_logoff(rdata);
-			rdata = NULL;
-		}
-	}
-	if (((ids->port_name != -1) || (ids->port_id != -1)) &&
-	    ids->port_id != fc_host_port_id(lport->host) &&
-	    ids->port_name != lport->wwpn) {
-		if (!rdata) {
-			rdata = lport->tt.rport_create(lport, ids);
-			if (!rdata)
-				error = -ENOMEM;
-		}
-		if (rdata)
-			lport->tt.rport_login(rdata);
-	}
-	return error;
 }
 
 /**

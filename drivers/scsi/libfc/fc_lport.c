@@ -708,7 +708,8 @@ static void fc_lport_enter_ready(struct fc_lport *lport)
 
 	fc_lport_state_enter(lport, LPORT_ST_READY);
 
-	lport->tt.disc_start(fc_lport_disc_callback, lport);
+	if (!lport->ptp_rp)
+		lport->tt.disc_start(fc_lport_disc_callback, lport);
 }
 
 /**
@@ -793,8 +794,6 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 	}
 	fc_lport_ptp_setup(lport, remote_fid, remote_wwpn,
 			   get_unaligned_be64(&flp->fl_wwnn));
-
-	lport->tt.disc_start(fc_lport_disc_callback, lport);
 
 out:
 	sp = fr_seq(rx_fp);
@@ -1510,14 +1509,6 @@ static void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				fc_host_fabric_name(lport->host) =
 					get_unaligned_be64(&flp->fl_wwnn);
 				fc_lport_enter_dns(lport);
-			}
-		}
-
-		if (flp) {
-			csp_flags = ntohs(flp->fl_csp.sp_features);
-			if ((csp_flags & FC_SP_FT_FPORT) == 0) {
-				lport->tt.disc_start(fc_lport_disc_callback,
-						     lport);
 			}
 		}
 	} else {
