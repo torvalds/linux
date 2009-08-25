@@ -4398,13 +4398,19 @@ static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec,
 			if (err < 0)
 				return err;
 		} else {
-			sprintf(name, "%s Playback Volume", chname[i]);
+			const char *pfx;
+			if (cfg->line_outs == 1 &&
+			    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+				pfx = "Speaker";
+			else
+				pfx = chname[i];
+			sprintf(name, "%s Playback Volume", pfx);
 			err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
 					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
+			sprintf(name, "%s Playback Switch", pfx);
 			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
 					  HDA_COMPOSE_AMP_VAL(nid, 3, 2,
 							      HDA_INPUT));
