@@ -3495,15 +3495,17 @@ qla2x00_loop_resync(scsi_qla_host_t *vha)
 }
 
 void
-qla2x00_update_fcports(scsi_qla_host_t *vha)
+qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 {
 	fc_port_t *fcport;
+	struct scsi_qla_host *tvp, *vha;
 
 	/* Go with deferred removal of rport references. */
-	list_for_each_entry(fcport, &vha->vp_fcports, list)
-		if (fcport && fcport->drport &&
-		    atomic_read(&fcport->state) != FCS_UNCONFIGURED)
-			qla2x00_rport_del(fcport);
+	list_for_each_entry_safe(vha, tvp, &base_vha->hw->vp_list, list)
+		list_for_each_entry(fcport, &vha->vp_fcports, list)
+			if (fcport && fcport->drport &&
+			    atomic_read(&fcport->state) != FCS_UNCONFIGURED)
+				qla2x00_rport_del(fcport);
 }
 
 /*

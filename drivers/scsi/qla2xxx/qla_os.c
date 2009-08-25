@@ -2181,17 +2181,19 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *vha, fc_port_t *fcport,
     int defer)
 {
 	struct fc_rport *rport;
+	scsi_qla_host_t *base_vha;
 
 	if (!fcport->rport)
 		return;
 
 	rport = fcport->rport;
 	if (defer) {
+		base_vha = pci_get_drvdata(vha->hw->pdev);
 		spin_lock_irq(vha->host->host_lock);
 		fcport->drport = rport;
 		spin_unlock_irq(vha->host->host_lock);
-		set_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags);
-		qla2xxx_wake_dpc(vha);
+		set_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
+		qla2xxx_wake_dpc(base_vha);
 	} else
 		fc_remote_port_delete(rport);
 }
