@@ -49,7 +49,7 @@ static void fc_disc_gpn_ft_req(struct fc_disc *);
 static void fc_disc_gpn_ft_resp(struct fc_seq *, struct fc_frame *, void *);
 static int fc_disc_new_target(struct fc_disc *, struct fc_rport_priv *,
 			      struct fc_rport_identifiers *);
-static void fc_disc_done(struct fc_disc *);
+static void fc_disc_done(struct fc_disc *, enum fc_disc_event);
 static void fc_disc_timeout(struct work_struct *);
 static void fc_disc_single(struct fc_disc *, struct fc_disc_port *);
 static void fc_disc_restart(struct fc_disc *);
@@ -329,8 +329,7 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 	if (rdata) {
 		kref_get(&rdata->kref);
 		if (!fc_disc_new_target(disc, rdata, &rdata->ids)) {
-			disc->event = DISC_EV_SUCCESS;
-			fc_disc_done(disc);
+			fc_disc_done(disc, DISC_EV_SUCCESS);
 		}
 		kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 	} else {
@@ -404,19 +403,17 @@ static int fc_disc_new_target(struct fc_disc *disc,
 /**
  * fc_disc_done() - Discovery has been completed
  * @disc: FC discovery context
+ * @event: discovery completion status
+ *
  * Locking Note: This function expects that the disc mutex is locked before
  * it is called. The discovery callback is then made with the lock released,
  * and the lock is re-taken before returning from this function
  */
-static void fc_disc_done(struct fc_disc *disc)
+static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 {
 	struct fc_lport *lport = disc->lport;
-	enum fc_disc_event event;
 
 	FC_DISC_DBG(disc, "Discovery complete\n");
-
-	event = disc->event;
-	disc->event = DISC_EV_NONE;
 
 	if (disc->requested)
 		fc_disc_gpn_ft_req(disc);
@@ -460,11 +457,8 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 			}
 			disc->retry_count++;
 			schedule_delayed_work(&disc->disc_work, delay);
-		} else {
-			/* exceeded retries */
-			disc->event = DISC_EV_FAILED;
-			fc_disc_done(disc);
-		}
+		} else
+			fc_disc_done(disc, DISC_EV_FAILED);
 	}
 }
 
@@ -503,10 +497,12 @@ err:
 }
 
 /**
- * fc_disc_gpn_ft_parse() - Parse the list of IDs and names resulting from a request
+ * fc_disc_gpn_ft_parse() - Parse the body of the dNS GPN_FT response.
  * @lport: Fibre Channel host port instance
  * @buf: GPN_FT response buffer
  * @len: size of response buffer
+ *
+ * Goes through the list of IDs and names resulting from a request.
  */
 static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 {
@@ -577,8 +573,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 		}
 
 		if (np->fp_flags & FC_NS_FID_LAST) {
-			disc->event = DISC_EV_SUCCESS;
-			fc_disc_done(disc);
+			fc_disc_done(disc, DISC_EV_SUCCESS);
 			len = 0;
 			break;
 		}
@@ -669,8 +664,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 			FC_DISC_DBG(disc, "GPN_FT rejected reason %x exp %x "
 				    "(check zoning)\n", cp->ct_reason,
 				    cp->ct_explan);
-			disc->event = DISC_EV_FAILED;
-			fc_disc_done(disc);
+			fc_disc_done(disc, DISC_EV_FAILED);
 		} else {
 			FC_DISC_DBG(disc, "GPN_FT unexpected response code "
 				    "%x\n", ntohs(cp->ct_cmd));
@@ -782,7 +776,6 @@ int fc_disc_init(struct fc_lport *lport)
 
 	disc->lport = lport;
 	disc->delay = FC_DISC_DELAY;
-	disc->event = DISC_EV_NONE;
 
 	return 0;
 }

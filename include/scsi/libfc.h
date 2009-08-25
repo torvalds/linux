@@ -679,7 +679,6 @@ struct fc_disc {
 	unsigned char		requested;
 	unsigned short		seq_count;
 	unsigned char		buf_len;
-	enum fc_disc_event	event;
 
 	void (*disc_callback)(struct fc_lport *,
 			      enum fc_disc_event);
