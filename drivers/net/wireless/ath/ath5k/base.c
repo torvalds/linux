@@ -1741,7 +1741,7 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 static void
 ath5k_tasklet_rx(unsigned long data)
 {
-	struct ieee80211_rx_status rxs = {};
+	struct ieee80211_rx_status *rxs;
 	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb, *next_skb;
 	dma_addr_t next_skb_addr;
@@ -1751,6 +1751,7 @@ ath5k_tasklet_rx(unsigned long data)
 	int ret;
 	int hdrlen;
 	int padsize;
+	int rx_flag;
 
 	spin_lock(&sc->rxbuflock);
 	if (list_empty(&sc->rxbuf)) {
@@ -1758,7 +1759,7 @@ ath5k_tasklet_rx(unsigned long data)
 		goto unlock;
 	}
 	do {
-		rxs.flag = 0;
+		rx_flag = 0;
 
 		bf = list_first_entry(&sc->rxbuf, struct ath5k_buf, list);
 		BUG_ON(bf->skb == NULL);
@@ -1802,7 +1803,7 @@ ath5k_tasklet_rx(unsigned long data)
 					goto accept;
 			}
 			if (rs.rs_status & AR5K_RXERR_MIC) {
-				rxs.flag |= RX_FLAG_MMIC_ERROR;
+				rx_flag |= RX_FLAG_MMIC_ERROR;
 				goto accept;
 			}
 
@@ -1840,6 +1841,7 @@ accept:
 			memmove(skb->data + padsize, skb->data, hdrlen);
 			skb_pull(skb, padsize);
 		}
+		rxs = IEEE80211_SKB_RXCB(skb);
 
 		/*
 		 * always extend the mac timestamp, since this information is
@@ -1861,41 +1863,40 @@ accept:
 		 * impossible to comply to that. This affects IBSS merge only
 		 * right now, so it's not too bad...
 		 */
-		rxs.mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
-		rxs.flag |= RX_FLAG_TSFT;
+		rxs->mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
+		rxs->flag = rx_flag | RX_FLAG_TSFT;
 
-		rxs.freq = sc->curchan->center_freq;
-		rxs.band = sc->curband->band;
+		rxs->freq = sc->curchan->center_freq;
+		rxs->band = sc->curband->band;
 
-		rxs.noise = sc->ah->ah_noise_floor;
-		rxs.signal = rxs.noise + rs.rs_rssi;
+		rxs->noise = sc->ah->ah_noise_floor;
+		rxs->signal = rxs->noise + rs.rs_rssi;
 
 		/* An rssi of 35 indicates you should be able use
 		 * 54 Mbps reliably. A more elaborate scheme can be used
 		 * here but it requires a map of SNR/throughput for each
 		 * possible mode used */
-		rxs.qual = rs.rs_rssi * 100 / 35;
+		rxs->qual = rs.rs_rssi * 100 / 35;
 
 		/* rssi can be more than 35 though, anything above that
 		 * should be considered at 100% */
-		if (rxs.qual > 100)
-			rxs.qual = 100;
+		if (rxs->qual > 100)
+			rxs->qual = 100;
 
-		rxs.antenna = rs.rs_antenna;
-		rxs.rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
-		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
+		rxs->antenna = rs.rs_antenna;
+		rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
+		rxs->flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
 
-		if (rxs.rate_idx >= 0 && rs.rs_rate ==
-		    sc->curband->bitrates[rxs.rate_idx].hw_value_short)
-			rxs.flag |= RX_FLAG_SHORTPRE;
+		if (rxs->rate_idx >= 0 && rs.rs_rate ==
+		    sc->curband->bitrates[rxs->rate_idx].hw_value_short)
+			rxs->flag |= RX_FLAG_SHORTPRE;
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
 		/* check beacons in IBSS mode */
 		if (sc->opmode == NL80211_IFTYPE_ADHOC)
-			ath5k_check_ibss_tsf(sc, skb, &rxs);
+			ath5k_check_ibss_tsf(sc, skb, rxs);
 
-		memcpy(IEEE80211_SKB_RXCB(skb), &rxs, sizeof(rxs));
 		ieee80211_rx(sc->hw, skb);
 
 		bf->skb = next_skb;
