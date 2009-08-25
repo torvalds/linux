@@ -84,7 +84,9 @@ extern long rcu_batches_completed_sched(void);
 static void cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp,
 			  struct rcu_node *rnp, unsigned long flags);
 static void cpu_quiet_msk_finish(struct rcu_state *rsp, unsigned long flags);
+#ifdef CONFIG_HOTPLUG_CPU
 static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp);
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 static void __rcu_process_callbacks(struct rcu_state *rsp,
 				    struct rcu_data *rdp);
 static void __call_rcu(struct rcu_head *head,
