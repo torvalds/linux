@@ -436,7 +436,8 @@ static void fc_rport_timeout(struct work_struct *work)
 static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 {
 	FC_RPORT_DBG(rdata, "Error %ld in state %s, retries %d\n",
-		     PTR_ERR(fp), fc_rport_state(rdata), rdata->retries);
+		     IS_ERR(fp) ? -PTR_ERR(fp) : 0,
+		     fc_rport_state(rdata), rdata->retries);
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_PLOGI:
