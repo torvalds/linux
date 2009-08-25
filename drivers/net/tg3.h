@@ -214,9 +214,11 @@
 #define  DUAL_MAC_CTRL_ID		 0x00000004
 #define TG3PCI_PRODID_ASICREV		0x000000bc
 #define  PROD_ID_ASIC_REV_MASK		 0x0fffffff
-/* 0xc0 --> 0x100 unused */
+/* 0xc0 --> 0x110 unused */
 
-/* 0x100 --> 0x200 unused */
+#define TG3_CORR_ERR_STAT		0x00000110
+#define  TG3_CORR_ERR_STAT_CLEAR	0xffffffff
+/* 0x114 --> 0x200 unused */
 
 /* Mailbox registers */
 #define MAILBOX_INTERRUPT_0		0x00000200 /* 64-bit */
@@ -1696,11 +1698,18 @@
 #define PCIE_TRANSACTION_CFG		0x00007c04
 #define PCIE_TRANS_CFG_1SHOT_MSI	 0x20000000
 #define PCIE_TRANS_CFG_LOM		 0x00000020
+/* 0x7c08 --> 0x7d28 unused */
 
 #define PCIE_PWR_MGMT_THRESH		0x00007d28
 #define PCIE_PWR_MGMT_L1_THRESH_MSK	 0x0000ff00
 #define PCIE_PWR_MGMT_L1_THRESH_4MS	 0x0000ff00
 #define PCIE_PWR_MGMT_EXT_ASPM_TMR_EN	 0x01000000
+/* 0x7d2c --> 0x7e70 unused */
+
+#define TG3_PCIE_EIDLE_DELAY		0x00007e70
+#define  TG3_PCIE_EIDLE_DELAY_MASK	 0x0000001f
+#define  TG3_PCIE_EIDLE_DELAY_13_CLKS	 0x0000000c
+/* 0x7e74 --> 0x8000 unused */
 
 
 /* OTP bit definitions */

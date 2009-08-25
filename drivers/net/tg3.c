@@ -6719,6 +6719,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		val |= PCIE_PWR_MGMT_EXT_ASPM_TMR_EN |
 		       PCIE_PWR_MGMT_L1_THRESH_4MS;
 		tw32(PCIE_PWR_MGMT_THRESH, val);
+
+		val = tr32(TG3_PCIE_EIDLE_DELAY) & ~TG3_PCIE_EIDLE_DELAY_MASK;
+		tw32(TG3_PCIE_EIDLE_DELAY, val | TG3_PCIE_EIDLE_DELAY_13_CLKS);
+
+		tw32(TG3_CORR_ERR_STAT, TG3_CORR_ERR_STAT_CLEAR);
 	}
 
 	/* This works around an issue with Athlon chipsets on
