@@ -33,7 +33,8 @@ static struct soc_camera_platform_priv *get_priv(struct platform_device *pdev)
 
 static struct soc_camera_platform_info *get_info(struct soc_camera_device *icd)
 {
-	struct platform_device *pdev = to_platform_device(to_soc_camera_control(icd));
+	struct platform_device *pdev =
+		to_platform_device(to_soc_camera_control(icd));
 	return pdev->dev.platform_data;
 }
 

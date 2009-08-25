@@ -80,6 +80,8 @@ struct mt9m001 {
 	struct v4l2_rect rect;	/* Sensor window */
 	__u32 fourcc;
 	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
+	unsigned int gain;
+	unsigned int exposure;
 	unsigned char autoexposure;
 };
 
@@ -129,8 +131,8 @@ static int mt9m001_init(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	/*
-	 * We don't know, whether platform provides reset,
-	 * issue a soft reset too
+	 * We don't know, whether platform provides reset, issue a soft reset
+	 * too. This returns all registers to their default values.
 	 */
 	ret = reg_write(client, MT9M001_RESET, 1);
 	if (!ret)
@@ -200,6 +202,7 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	int ret;
 	const u16 hblank = 9, vblank = 25;
+	unsigned int total_h;
 
 	if (mt9m001->fourcc == V4L2_PIX_FMT_SBGGR8 ||
 	    mt9m001->fourcc == V4L2_PIX_FMT_SBGGR16)
@@ -219,6 +222,8 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	soc_camera_limit_side(&rect.top, &rect.height,
 		     MT9M001_ROW_SKIP, MT9M001_MIN_HEIGHT, MT9M001_MAX_HEIGHT);
 
+	total_h = rect.height + icd->y_skip_top + vblank;
+
 	/* Blanking and start values - default... */
 	ret = reg_write(client, MT9M001_HORIZONTAL_BLANKING, hblank);
 	if (!ret)
@@ -236,15 +241,13 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 		ret = reg_write(client, MT9M001_WINDOW_HEIGHT,
 				rect.height + icd->y_skip_top - 1);
 	if (!ret && mt9m001->autoexposure) {
-		ret = reg_write(client, MT9M001_SHUTTER_WIDTH,
-				rect.height + icd->y_skip_top + vblank);
+		ret = reg_write(client, MT9M001_SHUTTER_WIDTH, total_h);
 		if (!ret) {
 			const struct v4l2_queryctrl *qctrl =
 				soc_camera_find_qctrl(icd->ops,
 						      V4L2_CID_EXPOSURE);
-			icd->exposure = (524 + (rect.height + icd->y_skip_top +
-						vblank - 1) *
-					 (qctrl->maximum - qctrl->minimum)) /
+			mt9m001->exposure = (524 + (total_h - 1) *
+				 (qctrl->maximum - qctrl->minimum)) /
 				1048 + qctrl->minimum;
 		}
 	}
@@ -457,6 +460,12 @@ static int mt9m001_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_EXPOSURE_AUTO:
 		ctrl->value = mt9m001->autoexposure;
 		break;
+	case V4L2_CID_GAIN:
+		ctrl->value = mt9m001->gain;
+		break;
+	case V4L2_CID_EXPOSURE:
+		ctrl->value = mt9m001->exposure;
+		break;
 	}
 	return 0;
 }
@@ -518,7 +527,7 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		}
 
 		/* Success */
-		icd->gain = ctrl->value;
+		mt9m001->gain = ctrl->value;
 		break;
 	case V4L2_CID_EXPOSURE:
 		/* mt9m001 has maximum == default */
@@ -535,21 +544,21 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 				shutter);
 			if (reg_write(client, MT9M001_SHUTTER_WIDTH, shutter) < 0)
 				return -EIO;
-			icd->exposure = ctrl->value;
+			mt9m001->exposure = ctrl->value;
 			mt9m001->autoexposure = 0;
 		}
 		break;
 	case V4L2_CID_EXPOSURE_AUTO:
 		if (ctrl->value) {
 			const u16 vblank = 25;
+			unsigned int total_h = mt9m001->rect.height +
+				icd->y_skip_top + vblank;
 			if (reg_write(client, MT9M001_SHUTTER_WIDTH,
-				      mt9m001->rect.height +
-				      icd->y_skip_top + vblank) < 0)
+				      total_h) < 0)
 				return -EIO;
 			qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
-			icd->exposure = (524 + (mt9m001->rect.height +
-						icd->y_skip_top + vblank - 1) *
-					 (qctrl->maximum - qctrl->minimum)) /
+			mt9m001->exposure = (524 + (total_h - 1) *
+				 (qctrl->maximum - qctrl->minimum)) /
 				1048 + qctrl->minimum;
 			mt9m001->autoexposure = 1;
 		} else
@@ -629,6 +638,10 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	if (ret < 0)
 		dev_err(&client->dev, "Failed to initialise the camera\n");
 
+	/* mt9m001_init() has reset the chip, returning registers to defaults */
+	mt9m001->gain = 64;
+	mt9m001->exposure = 255;
+
 	return ret;
 }
 
@@ -701,7 +714,7 @@ static int mt9m001_probe(struct i2c_client *client,
 
 	/* Second stage probe - when a capture adapter is there */
 	icd->ops		= &mt9m001_ops;
-	icd->y_skip_top		= 1;
+	icd->y_skip_top		= 0;
 
 	mt9m001->rect.left	= MT9M001_COLUMN_SKIP;
 	mt9m001->rect.top	= MT9M001_ROW_SKIP;

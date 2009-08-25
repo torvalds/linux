@@ -27,8 +27,6 @@ struct soc_camera_device {
 	unsigned short width_min;
 	unsigned short height_min;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
-	unsigned short gain;
-	unsigned short exposure;
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
 	unsigned char buswidth;		/* See comment in .c */
@@ -128,29 +126,34 @@ struct soc_camera_link {
 	void (*free_bus)(struct soc_camera_link *);
 };
 
-static inline struct soc_camera_device *to_soc_camera_dev(const struct device *dev)
+static inline struct soc_camera_device *to_soc_camera_dev(
+	const struct device *dev)
 {
 	return container_of(dev, struct soc_camera_device, dev);
 }
 
-static inline struct soc_camera_host *to_soc_camera_host(const struct device *dev)
+static inline struct soc_camera_host *to_soc_camera_host(
+	const struct device *dev)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 
 	return container_of(v4l2_dev, struct soc_camera_host, v4l2_dev);
 }
 
-static inline struct soc_camera_link *to_soc_camera_link(const struct soc_camera_device *icd)
+static inline struct soc_camera_link *to_soc_camera_link(
+	const struct soc_camera_device *icd)
 {
 	return icd->dev.platform_data;
 }
 
-static inline struct device *to_soc_camera_control(const struct soc_camera_device *icd)
+static inline struct device *to_soc_camera_control(
+	const struct soc_camera_device *icd)
 {
 	return dev_get_drvdata(&icd->dev);
 }
 
-static inline struct v4l2_subdev *soc_camera_to_subdev(const struct soc_camera_device *icd)
+static inline struct v4l2_subdev *soc_camera_to_subdev(
+	const struct soc_camera_device *icd)
 {
 	struct device *control = to_soc_camera_control(icd);
 	return dev_get_drvdata(control);

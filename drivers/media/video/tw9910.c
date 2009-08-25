@@ -357,7 +357,8 @@ static const struct tw9910_hsync_ctrl tw9910_hsync_ctrl = {
  */
 static struct tw9910_priv *to_tw9910(const struct i2c_client *client)
 {
-	return container_of(i2c_get_clientdata(client), struct tw9910_priv, subdev);
+	return container_of(i2c_get_clientdata(client), struct tw9910_priv,
+			    subdev);
 }
 
 static int tw9910_set_scale(struct i2c_client *client,

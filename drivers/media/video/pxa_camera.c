@@ -274,7 +274,8 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 
 	for (i = 0; i < ARRAY_SIZE(buf->dmas); i++) {
 		if (buf->dmas[i].sg_cpu)
-			dma_free_coherent(ici->v4l2_dev.dev, buf->dmas[i].sg_size,
+			dma_free_coherent(ici->v4l2_dev.dev,
+					  buf->dmas[i].sg_size,
 					  buf->dmas[i].sg_cpu,
 					  buf->dmas[i].sg_dma);
 		buf->dmas[i].sg_cpu = NULL;

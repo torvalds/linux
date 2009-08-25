@@ -327,7 +327,9 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 static int soc_camera_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct soc_camera_device *icd = container_of(vdev->parent, struct soc_camera_device, dev);
+	struct soc_camera_device *icd = container_of(vdev->parent,
+						     struct soc_camera_device,
+						     dev);
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	struct soc_camera_host *ici;
 	struct soc_camera_file *icf;
@@ -349,7 +351,10 @@ static int soc_camera_open(struct file *file)
 		goto emgi;
 	}
 
-	/* Protect against icd->ops->remove() until we module_get() both drivers. */
+	/*
+	 * Protect against icd->ops->remove() until we module_get() both
+	 * drivers.
+	 */
 	mutex_lock(&icd->video_lock);
 
 	icf->icd = icd;
@@ -670,19 +675,6 @@ static int soc_camera_g_ctrl(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		if (icd->gain == (unsigned short)~0)
-			return -EINVAL;
-		ctrl->value = icd->gain;
-		return 0;
-	case V4L2_CID_EXPOSURE:
-		if (icd->exposure == (unsigned short)~0)
-			return -EINVAL;
-		ctrl->value = icd->exposure;
-		return 0;
-	}
-
 	if (ici->ops->get_ctrl) {
 		ret = ici->ops->get_ctrl(icd, ctrl);
 		if (ret != -ENOIOCTLCMD)
@@ -944,7 +936,10 @@ static int soc_camera_probe(struct device *dev)
 		if (ret < 0)
 			goto eadddev;
 
-		/* FIXME: this is racy, have to use driver-binding notification */
+		/*
+		 * FIXME: this is racy, have to use driver-binding notification,
+		 * when it is available
+		 */
 		control = to_soc_camera_control(icd);
 		if (!control || !control->driver || !dev_get_drvdata(control) ||
 		    !try_module_get(control->driver->owner)) {
@@ -1279,7 +1274,6 @@ static int video_dev_create(struct soc_camera_device *icd)
  */
 static int soc_camera_video_start(struct soc_camera_device *icd)
 {
-	const struct v4l2_queryctrl *qctrl;
 	int ret;
 
 	if (!icd->dev.parent)
@@ -1296,11 +1290,6 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 		dev_err(&icd->dev, "video_register_device failed: %d\n", ret);
 		return ret;
 	}
-
-	qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_GAIN);
-	icd->gain = qctrl ? qctrl->default_value : (unsigned short)~0;
-	qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
-	icd->exposure = qctrl ? qctrl->default_value : (unsigned short)~0;
 
 	return 0;
 }

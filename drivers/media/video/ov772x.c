@@ -404,7 +404,8 @@ struct ov772x_priv {
 	int                               model;
 	unsigned short                    flag_vflip:1;
 	unsigned short                    flag_hflip:1;
-	unsigned short                    band_filter;	/* 256 - BDBASE, 0 if (!COM8[5]) */
+	/* band_filter = COM8[5] ? 256 - BDBASE : 0 */
+	unsigned short                    band_filter;
 };
 
 #define ENDMARKER { 0xff, 0xff }
@@ -587,7 +588,8 @@ static const struct v4l2_queryctrl ov772x_controls[] = {
 
 static struct ov772x_priv *to_ov772x(const struct i2c_client *client)
 {
-	return container_of(i2c_get_clientdata(client), struct ov772x_priv, subdev);
+	return container_of(i2c_get_clientdata(client), struct ov772x_priv,
+			    subdev);
 }
 
 static int ov772x_write_array(struct i2c_client        *client,

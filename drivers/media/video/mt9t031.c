@@ -73,6 +73,8 @@ struct mt9t031 {
 	int model;	/* V4L2_IDENT_MT9T031* codes from v4l2-chip-ident.h */
 	u16 xskip;
 	u16 yskip;
+	unsigned int gain;
+	unsigned int exposure;
 	unsigned char autoexposure;
 };
 
@@ -301,16 +303,15 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 		ret = reg_write(client, MT9T031_WINDOW_HEIGHT,
 				rect->height + icd->y_skip_top - 1);
 	if (ret >= 0 && mt9t031->autoexposure) {
-		ret = set_shutter(client,
-				  rect->height + icd->y_skip_top + vblank);
+		unsigned int total_h = rect->height + icd->y_skip_top + vblank;
+		ret = set_shutter(client, total_h);
 		if (ret >= 0) {
 			const u32 shutter_max = MT9T031_MAX_HEIGHT + vblank;
 			const struct v4l2_queryctrl *qctrl =
 				soc_camera_find_qctrl(icd->ops,
 						      V4L2_CID_EXPOSURE);
-			icd->exposure = (shutter_max / 2 + (rect->height +
-					 icd->y_skip_top + vblank - 1) *
-					 (qctrl->maximum - qctrl->minimum)) /
+			mt9t031->exposure = (shutter_max / 2 + (total_h - 1) *
+				 (qctrl->maximum - qctrl->minimum)) /
 				shutter_max + qctrl->minimum;
 		}
 	}
@@ -553,6 +554,12 @@ static int mt9t031_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_EXPOSURE_AUTO:
 		ctrl->value = mt9t031->autoexposure;
 		break;
+	case V4L2_CID_GAIN:
+		ctrl->value = mt9t031->gain;
+		break;
+	case V4L2_CID_EXPOSURE:
+		ctrl->value = mt9t031->exposure;
+		break;
 	}
 	return 0;
 }
@@ -624,7 +631,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		}
 
 		/* Success */
-		icd->gain = ctrl->value;
+		mt9t031->gain = ctrl->value;
 		break;
 	case V4L2_CID_EXPOSURE:
 		/* mt9t031 has maximum == default */
@@ -641,7 +648,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 				old, shutter);
 			if (set_shutter(client, shutter) < 0)
 				return -EIO;
-			icd->exposure = ctrl->value;
+			mt9t031->exposure = ctrl->value;
 			mt9t031->autoexposure = 0;
 		}
 		break;
@@ -649,14 +656,14 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		if (ctrl->value) {
 			const u16 vblank = MT9T031_VERTICAL_BLANK;
 			const u32 shutter_max = MT9T031_MAX_HEIGHT + vblank;
-			if (set_shutter(client, mt9t031->rect.height +
-					icd->y_skip_top + vblank) < 0)
+			unsigned int total_h = mt9t031->rect.height +
+				icd->y_skip_top + vblank;
+
+			if (set_shutter(client, total_h) < 0)
 				return -EIO;
 			qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
-			icd->exposure = (shutter_max / 2 +
-					 (mt9t031->rect.height +
-					  icd->y_skip_top + vblank - 1) *
-					 (qctrl->maximum - qctrl->minimum)) /
+			mt9t031->exposure = (shutter_max / 2 + (total_h - 1) *
+				 (qctrl->maximum - qctrl->minimum)) /
 				shutter_max + qctrl->minimum;
 			mt9t031->autoexposure = 1;
 		} else
@@ -699,6 +706,10 @@ static int mt9t031_video_probe(struct i2c_client *client)
 	ret = mt9t031_idle(client);
 	if (ret < 0)
 		dev_err(&client->dev, "Failed to initialise the camera\n");
+
+	/* mt9t031_idle() has reset the chip to default. */
+	mt9t031->exposure = 255;
+	mt9t031->gain = 64;
 
 	return ret;
 }

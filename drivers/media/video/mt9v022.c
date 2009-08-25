@@ -45,7 +45,7 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 #define MT9V022_PIXEL_OPERATION_MODE	0x0f
 #define MT9V022_LED_OUT_CONTROL		0x1b
 #define MT9V022_ADC_MODE_CONTROL	0x1c
-#define MT9V022_ANALOG_GAIN		0x34
+#define MT9V022_ANALOG_GAIN		0x35
 #define MT9V022_BLACK_LEVEL_CALIB_CTRL	0x47
 #define MT9V022_PIXCLK_FV_LV		0x74
 #define MT9V022_DIGITAL_TEST_PATTERN	0x7f
@@ -155,6 +155,10 @@ static int mt9v022_init(struct i2c_client *client)
 	if (!ret)
 		/* AEC, AGC on */
 		ret = reg_set(client, MT9V022_AEC_AGC_ENABLE, 0x3);
+	if (!ret)
+		ret = reg_write(client, MT9V022_ANALOG_GAIN, 16);
+	if (!ret)
+		ret = reg_write(client, MT9V022_TOTAL_SHUTTER_WIDTH, 480);
 	if (!ret)
 		ret = reg_write(client, MT9V022_MAX_TOTAL_SHUTTER_WIDTH, 480);
 	if (!ret)
@@ -540,7 +544,11 @@ static struct soc_camera_ops mt9v022_ops = {
 static int mt9v022_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct i2c_client *client = sd->priv;
+	const struct v4l2_queryctrl *qctrl;
+	unsigned long range;
 	int data;
+
+	qctrl = soc_camera_find_qctrl(&mt9v022_ops, ctrl->id);
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
@@ -567,6 +575,24 @@ static int mt9v022_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			return -EIO;
 		ctrl->value = !!(data & 0x2);
 		break;
+	case V4L2_CID_GAIN:
+		data = reg_read(client, MT9V022_ANALOG_GAIN);
+		if (data < 0)
+			return -EIO;
+
+		range = qctrl->maximum - qctrl->minimum;
+		ctrl->value = ((data - 16) * range + 24) / 48 + qctrl->minimum;
+
+		break;
+	case V4L2_CID_EXPOSURE:
+		data = reg_read(client, MT9V022_TOTAL_SHUTTER_WIDTH);
+		if (data < 0)
+			return -EIO;
+
+		range = qctrl->maximum - qctrl->minimum;
+		ctrl->value = ((data - 1) * range + 239) / 479 + qctrl->minimum;
+
+		break;
 	}
 	return 0;
 }
@@ -575,7 +601,6 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	int data;
 	struct i2c_client *client = sd->priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
 	const struct v4l2_queryctrl *qctrl;
 
 	qctrl = soc_camera_find_qctrl(&mt9v022_ops, ctrl->id);
@@ -605,12 +630,9 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			return -EINVAL;
 		else {
 			unsigned long range = qctrl->maximum - qctrl->minimum;
-			/* Datasheet says 16 to 64. autogain only works properly
-			 * after setting gain to maximum 14. Larger values
-			 * produce "white fly" noise effect. On the whole,
-			 * manually setting analog gain does no good. */
+			/* Valid values 16 to 64, 32 to 64 must be even. */
 			unsigned long gain = ((ctrl->value - qctrl->minimum) *
-					      10 + range / 2) / range + 4;
+					      48 + range / 2) / range + 16;
 			if (gain >= 32)
 				gain &= ~1;
 			/* The user wants to set gain manually, hope, she
@@ -619,11 +641,10 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			if (reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x2) < 0)
 				return -EIO;
 
-			dev_info(&client->dev, "Setting gain from %d to %lu\n",
-				 reg_read(client, MT9V022_ANALOG_GAIN), gain);
+			dev_dbg(&client->dev, "Setting gain from %d to %lu\n",
+				reg_read(client, MT9V022_ANALOG_GAIN), gain);
 			if (reg_write(client, MT9V022_ANALOG_GAIN, gain) < 0)
 				return -EIO;
-			icd->gain = ctrl->value;
 		}
 		break;
 	case V4L2_CID_EXPOSURE:
@@ -646,7 +667,6 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			if (reg_write(client, MT9V022_TOTAL_SHUTTER_WIDTH,
 				      shutter) < 0)
 				return -EIO;
-			icd->exposure = ctrl->value;
 		}
 		break;
 	case V4L2_CID_AUTOGAIN:
@@ -827,6 +847,10 @@ static int mt9v022_probe(struct i2c_client *client,
 	mt9v022->chip_control = MT9V022_CHIP_CONTROL_DEFAULT;
 
 	icd->ops		= &mt9v022_ops;
+	/*
+	 * MT9V022 _really_ corrupts the first read out line.
+	 * TODO: verify on i.MX31
+	 */
 	icd->y_skip_top		= 1;
 
 	mt9v022->rect.left	= MT9V022_COLUMN_SKIP;
