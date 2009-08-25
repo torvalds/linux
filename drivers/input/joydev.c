@@ -536,7 +536,7 @@ static int joydev_ioctl_common(struct joydev *joydev,
 	default:
 		if ((cmd & ~IOCSIZE_MASK) == JSIOCGNAME(0)) {
 			int len;
-			const char *name = dev_name(&dev->dev);
+			const char *name = dev->name;
 
 			if (!name)
 				return 0;

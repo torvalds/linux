@@ -296,7 +296,7 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
 	priv->tseq[3] = 0;
 	if (mlc->opacket & HIL_CTRL_APE) {
 		priv->tseq[3] |= HP_SDC_LPC_APE_IPF;
-		down_trylock(&mlc->csem);
+		BUG_ON(down_trylock(&mlc->csem));
 	}
  enqueue:
 	hp_sdc_enqueue_transaction(&priv->trans);

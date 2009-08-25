@@ -354,7 +354,7 @@ void __init efi_init(void)
 	 */
 	c16 = tmp = early_ioremap(efi.systab->fw_vendor, 2);
 	if (c16) {
-		for (i = 0; i < sizeof(vendor) && *c16; ++i)
+		for (i = 0; i < sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = *c16++;
 		vendor[i] = '\0';
 	} else
@@ -512,7 +512,7 @@ void __init efi_enter_virtual_mode(void)
 			&& end_pfn <= max_pfn_mapped))
 			va = __va(md->phys_addr);
 		else
-			va = efi_ioremap(md->phys_addr, size);
+			va = efi_ioremap(md->phys_addr, size, md->type);
 
 		md->virt_addr = (u64) (unsigned long) va;
 

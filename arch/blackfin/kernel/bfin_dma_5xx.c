@@ -253,31 +253,30 @@ void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
 	BUG_ON(src % 4);
 	BUG_ON(size % 4);
 
+	src_ch = 0;
+	/* Find an avalible memDMA channel */
+	while (1) {
+		if (src_ch == (struct dma_register *)MDMA_S0_NEXT_DESC_PTR) {
+			dst_ch = (struct dma_register *)MDMA_D1_NEXT_DESC_PTR;
+			src_ch = (struct dma_register *)MDMA_S1_NEXT_DESC_PTR;
+		} else {
+			dst_ch = (struct dma_register *)MDMA_D0_NEXT_DESC_PTR;
+			src_ch = (struct dma_register *)MDMA_S0_NEXT_DESC_PTR;
+		}
+
+		if (!bfin_read16(&src_ch->cfg))
+			break;
+		else if (bfin_read16(&dst_ch->irq_status) & DMA_DONE) {
+			bfin_write16(&src_ch->cfg, 0);
+			break;
+		}
+	}
+
 	/* Force a sync in case a previous config reset on this channel
 	 * occurred.  This is needed so subsequent writes to DMA registers
 	 * are not spuriously lost/corrupted.
 	 */
 	__builtin_bfin_ssync();
-
-	src_ch = 0;
-	/* Find an avalible memDMA channel */
-	while (1) {
-		if (!src_ch || src_ch == (struct dma_register *)MDMA_S1_NEXT_DESC_PTR) {
-			dst_ch = (struct dma_register *)MDMA_D0_NEXT_DESC_PTR;
-			src_ch = (struct dma_register *)MDMA_S0_NEXT_DESC_PTR;
-		} else {
-			dst_ch = (struct dma_register *)MDMA_D1_NEXT_DESC_PTR;
-			src_ch = (struct dma_register *)MDMA_S1_NEXT_DESC_PTR;
-		}
-
-		if (!bfin_read16(&src_ch->cfg)) {
-			break;
-		} else {
-			if (bfin_read16(&src_ch->irq_status) & DMA_DONE)
-				bfin_write16(&src_ch->cfg, 0);
-		}
-
-	}
 
 	/* Destination */
 	bfin_write32(&dst_ch->start_addr, dst);

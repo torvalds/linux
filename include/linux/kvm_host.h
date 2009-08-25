@@ -110,6 +110,7 @@ struct kvm_memory_slot {
 
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
+	u32 type;
 	int (*set)(struct kvm_kernel_irq_routing_entry *e,
 		    struct kvm *kvm, int level);
 	union {

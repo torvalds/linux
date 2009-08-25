@@ -159,7 +159,9 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 			if (!group->ops->should_send_event(group, to_tell, mask))
 				continue;
 			if (!event) {
-				event = fsnotify_create_event(to_tell, mask, data, data_is, file_name, cookie);
+				event = fsnotify_create_event(to_tell, mask, data,
+							      data_is, file_name, cookie,
+							      GFP_KERNEL);
 				/* shit, we OOM'd and now we can't tell, maybe
 				 * someday someone else will want to do something
 				 * here */

@@ -1809,10 +1809,10 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
 		if (clear & TIOCM_DTR)
 			port->MSVR &= ~MSVR_DTR;
 	}
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_MSVR, port->MSVR);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 	func_exit();
 	return 0;
@@ -1833,11 +1833,11 @@ static int sx_send_break(struct tty_struct *tty, int length)
 	port->break_length = SPECIALIX_TPS / HZ * length;
 	port->COR2 |= COR2_ETC;
 	port->IER  |= IER_TXRDY;
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_COR2, port->COR2);
 	sx_out(bp, CD186x_IER, port->IER);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 	sx_wait_CCR(bp);
 	spin_lock_irqsave(&bp->lock, flags);
@@ -2023,9 +2023,9 @@ static void sx_unthrottle(struct tty_struct *tty)
 	if (sx_crtscts(tty))
 		port->MSVR |= MSVR_DTR;
 	/* Else clause: see remark in "sx_throttle"... */
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	if (I_IXOFF(tty)) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		sx_wait_CCR(bp);
@@ -2035,9 +2035,9 @@ static void sx_unthrottle(struct tty_struct *tty)
 		sx_wait_CCR(bp);
 		spin_lock_irqsave(&port->lock, flags);
 	}
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_MSVR, port->MSVR);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	func_exit();
@@ -2061,10 +2061,10 @@ static void sx_stop(struct tty_struct *tty)
 
 	spin_lock_irqsave(&port->lock, flags);
 	port->IER &= ~IER_TXRDY;
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_IER, port->IER);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	func_exit();
@@ -2089,10 +2089,10 @@ static void sx_start(struct tty_struct *tty)
 	spin_lock_irqsave(&port->lock, flags);
 	if (port->xmit_cnt && port->xmit_buf && !(port->IER & IER_TXRDY)) {
 		port->IER |= IER_TXRDY;
-		spin_lock_irqsave(&bp->lock, flags);
+		spin_lock(&bp->lock);
 		sx_out(bp, CD186x_CAR, port_No(port));
 		sx_out(bp, CD186x_IER, port->IER);
-		spin_unlock_irqrestore(&bp->lock, flags);
+		spin_unlock(&bp->lock);
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
 

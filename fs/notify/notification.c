@@ -136,18 +136,24 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 {
 	if ((old->mask == new->mask) &&
 	    (old->to_tell == new->to_tell) &&
-	    (old->data_type == new->data_type)) {
+	    (old->data_type == new->data_type) &&
+	    (old->name_len == new->name_len)) {
 		switch (old->data_type) {
 		case (FSNOTIFY_EVENT_INODE):
-			if (old->inode == new->inode)
+			/* remember, after old was put on the wait_q we aren't
+			 * allowed to look at the inode any more, only thing
+			 * left to check was if the file_name is the same */
+			if (old->name_len &&
+			    !strcmp(old->file_name, new->file_name))
 				return true;
 			break;
 		case (FSNOTIFY_EVENT_PATH):
 			if ((old->path.mnt == new->path.mnt) &&
 			    (old->path.dentry == new->path.dentry))
 				return true;
+			break;
 		case (FSNOTIFY_EVENT_NONE):
-			return true;
+			return false;
 		};
 	}
 	return false;
@@ -339,18 +345,19 @@ static void initialize_event(struct fsnotify_event *event)
  * @name the filename, if available
  */
 struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, void *data,
-					     int data_type, const char *name, u32 cookie)
+					     int data_type, const char *name, u32 cookie,
+					     gfp_t gfp)
 {
 	struct fsnotify_event *event;
 
-	event = kmem_cache_alloc(fsnotify_event_cachep, GFP_KERNEL);
+	event = kmem_cache_alloc(fsnotify_event_cachep, gfp);
 	if (!event)
 		return NULL;
 
 	initialize_event(event);
 
 	if (name) {
-		event->file_name = kstrdup(name, GFP_KERNEL);
+		event->file_name = kstrdup(name, gfp);
 		if (!event->file_name) {
 			kmem_cache_free(fsnotify_event_cachep, event);
 			return NULL;

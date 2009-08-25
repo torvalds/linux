@@ -34,7 +34,6 @@ obj-$(CONFIG_ANDROID)		+= android/
 obj-$(CONFIG_DST)		+= dst/
 obj-$(CONFIG_POHMELFS)		+= pohmelfs/
 obj-$(CONFIG_STLC45XX)		+= stlc45xx/
-obj-$(CONFIG_USB_SERIAL_ATEN2011)	+= uc2322/
 obj-$(CONFIG_B3DFG)		+= b3dfg/
 obj-$(CONFIG_IDE_PHISON)	+= phison/
 obj-$(CONFIG_PLAN9AUTH)		+= p9auth/

@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_share.h"
 
 /* r520,rv530,rv560,rv570,r580 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
@@ -94,8 +95,8 @@ int r520_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 	/* Write VRAM size in case we are limiting it */
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(R520_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(R520_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32_MC(R520_MC_FB_LOCATION, tmp);
@@ -226,9 +227,20 @@ static void r520_vram_get_type(struct radeon_device *rdev)
 
 void r520_vram_info(struct radeon_device *rdev)
 {
-	r520_vram_get_type(rdev);
-	rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
+	fixed20_12 a;
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r520_vram_get_type(rdev);
+
+	r100_vram_init_sizes(rdev);
+	/* FIXME: we should enforce default clock in case GPU is not in
+	 * default setup
+	 */
+	a.full = rfixed_const(100);
+	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
+	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+}
+
+void r520_bandwidth_update(struct radeon_device *rdev)
+{
+	rv515_bandwidth_avivo_update(rdev);
 }

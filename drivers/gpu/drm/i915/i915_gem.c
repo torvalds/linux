@@ -1570,7 +1570,7 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	}
 
 	if (was_empty && !dev_priv->mm.suspended)
-		schedule_delayed_work(&dev_priv->mm.retire_work, HZ);
+		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
 	return seqno;
 }
 
@@ -1719,7 +1719,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	i915_gem_retire_requests(dev);
 	if (!dev_priv->mm.suspended &&
 	    !list_empty(&dev_priv->mm.request_list))
-		schedule_delayed_work(&dev_priv->mm.retire_work, HZ);
+		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
 	mutex_unlock(&dev->struct_mutex);
 }
 

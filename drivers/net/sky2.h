@@ -2051,6 +2051,7 @@ struct sky2_port {
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */
 	u8		     rx_csum;
 	u8		     wol;
+	u8		     restarting;
  	enum flow_control    flow_mode;
  	enum flow_control    flow_status;
 
