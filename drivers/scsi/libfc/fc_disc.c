@@ -53,25 +53,6 @@ static void fc_disc_single(struct fc_disc *, struct fc_disc_port *);
 static void fc_disc_restart(struct fc_disc *);
 
 /**
- * fc_disc_lookup_rport() - lookup a remote port by port_id
- * @lport: Fibre Channel host port instance
- * @port_id: remote port port_id to match
- */
-struct fc_rport_priv *fc_disc_lookup_rport(const struct fc_lport *lport,
-					   u32 port_id)
-{
-	const struct fc_disc *disc = &lport->disc;
-	struct fc_rport_priv *rdata;
-
-	list_for_each_entry(rdata, &disc->rports, peers) {
-		if (rdata->ids.port_id == port_id &&
-		    rdata->rp_state != RPORT_ST_DELETE)
-			return rdata;
-	}
-	return NULL;
-}
-
-/**
  * fc_disc_stop_rports() - delete all the remote ports associated with the lport
  * @disc: The discovery job to stop rports on
  *
@@ -713,9 +694,6 @@ int fc_disc_init(struct fc_lport *lport)
 
 	if (!lport->tt.disc_recv_req)
 		lport->tt.disc_recv_req = fc_disc_recv_req;
-
-	if (!lport->tt.rport_lookup)
-		lport->tt.rport_lookup = fc_disc_lookup_rport;
 
 	disc = &lport->disc;
 	INIT_DELAYED_WORK(&disc->disc_work, fc_disc_timeout);

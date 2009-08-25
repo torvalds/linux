@@ -87,6 +87,23 @@ static const char *fc_rport_state_names[] = {
 };
 
 /**
+ * fc_rport_lookup() - lookup a remote port by port_id
+ * @lport: Fibre Channel host port instance
+ * @port_id: remote port port_id to match
+ */
+static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
+					     u32 port_id)
+{
+	struct fc_rport_priv *rdata;
+
+	list_for_each_entry(rdata, &lport->disc.rports, peers)
+		if (rdata->ids.port_id == port_id &&
+		    rdata->rp_state != RPORT_ST_DELETE)
+			return rdata;
+	return NULL;
+}
+
+/**
  * fc_rport_create() - create remote port in INIT state.
  * @lport: local port.
  * @ids: remote port identifiers.
@@ -1292,6 +1309,9 @@ static void fc_rport_flush_queue(void)
 
 int fc_rport_init(struct fc_lport *lport)
 {
+	if (!lport->tt.rport_lookup)
+		lport->tt.rport_lookup = fc_rport_lookup;
+
 	if (!lport->tt.rport_create)
 		lport->tt.rport_create = fc_rport_create;
 
