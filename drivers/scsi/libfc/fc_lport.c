@@ -146,44 +146,31 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 	FC_LPORT_DBG(lport, "Received a %d event for port (%6x)\n", event,
 		     rdata->ids.port_id);
 
+	mutex_lock(&lport->lp_mutex);
 	switch (event) {
 	case RPORT_EV_READY:
-		if (rdata->ids.port_id == FC_FID_DIR_SERV) {
-			mutex_lock(&lport->lp_mutex);
-			if (lport->state == LPORT_ST_DNS) {
-				lport->dns_rp = rdata;
-				fc_lport_enter_rpn_id(lport);
-			} else {
-				FC_LPORT_DBG(lport, "Received an READY event "
-					     "on port (%6x) for the directory "
-					     "server, but the lport is not "
-					     "in the DNS state, it's in the "
-					     "%d state", rdata->ids.port_id,
-					     lport->state);
-				lport->tt.rport_logoff(rdata);
-			}
-			mutex_unlock(&lport->lp_mutex);
-		} else
-			FC_LPORT_DBG(lport, "Received an event for port (%6x) "
-				     "which is not the directory server\n",
-				     rdata->ids.port_id);
+		if (lport->state == LPORT_ST_DNS) {
+			lport->dns_rp = rdata;
+			fc_lport_enter_rpn_id(lport);
+		} else {
+			FC_LPORT_DBG(lport, "Received an READY event "
+				     "on port (%6x) for the directory "
+				     "server, but the lport is not "
+				     "in the DNS state, it's in the "
+				     "%d state", rdata->ids.port_id,
+				     lport->state);
+			lport->tt.rport_logoff(rdata);
+		}
 		break;
 	case RPORT_EV_LOGO:
 	case RPORT_EV_FAILED:
 	case RPORT_EV_STOP:
-		if (rdata->ids.port_id == FC_FID_DIR_SERV) {
-			mutex_lock(&lport->lp_mutex);
-			lport->dns_rp = NULL;
-			mutex_unlock(&lport->lp_mutex);
-
-		} else
-			FC_LPORT_DBG(lport, "Received an event for port (%6x) "
-				     "which is not the directory server\n",
-				     rdata->ids.port_id);
+		lport->dns_rp = NULL;
 		break;
 	case RPORT_EV_NONE:
 		break;
 	}
+	mutex_unlock(&lport->lp_mutex);
 }
 
 /**
