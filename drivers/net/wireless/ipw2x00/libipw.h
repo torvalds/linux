@@ -31,6 +31,7 @@
 #include <linux/ieee80211.h>
 
 #include <net/lib80211.h>
+#include <net/cfg80211.h>
 
 #define LIBIPW_VERSION "git-1.1.13"
 
@@ -783,12 +784,15 @@ struct libipw_geo {
 
 struct libipw_device {
 	struct net_device *dev;
+	struct wireless_dev wdev;
 	struct libipw_security sec;
 
 	/* Bookkeeping structures */
 	struct libipw_stats ieee_stats;
 
 	struct libipw_geo geo;
+	struct ieee80211_supported_band bg_band;
+	struct ieee80211_supported_band a_band;
 
 	/* Probe / Beacon management */
 	struct list_head network_free_list;
@@ -1014,8 +1018,8 @@ static inline int libipw_is_cck_rate(u8 rate)
 }
 
 /* ieee80211.c */
-extern void free_ieee80211(struct net_device *dev);
-extern struct net_device *alloc_ieee80211(int sizeof_priv);
+extern void free_ieee80211(struct net_device *dev, int monitor);
+extern struct net_device *alloc_ieee80211(int sizeof_priv, int monitor);
 extern int libipw_change_mtu(struct net_device *dev, int new_mtu);
 
 extern void libipw_networks_age(struct libipw_device *ieee,
