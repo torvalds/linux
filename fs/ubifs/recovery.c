@@ -286,7 +286,7 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 		mst = mst2;
 	}
 
-	dbg_rcvry("recovered master node from LEB %d",
+	ubifs_msg("recovered master node from LEB %d",
 		  (mst == mst1 ? UBIFS_MST_LNUM : UBIFS_MST_LNUM + 1));
 
 	memcpy(c->mst_node, mst, UBIFS_MST_NODE_SZ);
@@ -790,7 +790,7 @@ struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
 		 * We can only recover at the end of the log, so check that the
 		 * next log LEB is empty or out of date.
 		 */
-		sleb = ubifs_scan(c, next_lnum, 0, sbuf);
+		sleb = ubifs_scan(c, next_lnum, 0, sbuf, 0);
 		if (IS_ERR(sleb))
 			return sleb;
 		if (sleb->nodes_cnt) {

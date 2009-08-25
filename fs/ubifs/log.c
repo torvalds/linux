@@ -695,7 +695,7 @@ int ubifs_consolidate_log(struct ubifs_info *c)
 	lnum = c->ltail_lnum;
 	write_lnum = lnum;
 	while (1) {
-		sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+		sleb = ubifs_scan(c, lnum, 0, c->sbuf, 0);
 		if (IS_ERR(sleb)) {
 			err = PTR_ERR(sleb);
 			goto out_free;

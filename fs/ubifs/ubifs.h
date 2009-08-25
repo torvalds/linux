@@ -1451,7 +1451,7 @@ int ubifs_sync_wbufs_by_inode(struct ubifs_info *c, struct inode *inode);
 
 /* scan.c */
 struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
-				  int offs, void *sbuf);
+				  int offs, void *sbuf, int quiet);
 void ubifs_scan_destroy(struct ubifs_scan_leb *sleb);
 int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 		      int offs, int quiet);

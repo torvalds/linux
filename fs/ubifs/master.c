@@ -40,7 +40,7 @@ static int scan_for_master(struct ubifs_info *c)
 
 	lnum = UBIFS_MST_LNUM;
 
-	sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+	sleb = ubifs_scan(c, lnum, 0, c->sbuf, 1);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 	nodes_cnt = sleb->nodes_cnt;
@@ -56,7 +56,7 @@ static int scan_for_master(struct ubifs_info *c)
 
 	lnum += 1;
 
-	sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+	sleb = ubifs_scan(c, lnum, 0, c->sbuf, 1);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 	if (sleb->nodes_cnt != nodes_cnt)

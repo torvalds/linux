@@ -529,7 +529,7 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 	 * We scan the entire LEB even though we only really need to scan up to
 	 * (c->leb_size - lp->free).
 	 */
-	sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+	sleb = ubifs_scan(c, lnum, 0, c->sbuf, 0);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 
