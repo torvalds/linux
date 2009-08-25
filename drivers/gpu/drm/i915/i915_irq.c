@@ -31,6 +31,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_drv.h"
 
 #define MAX_NOPID ((u32)~0)
@@ -279,7 +280,9 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 		}
 
 		if (gt_iir & GT_USER_INTERRUPT) {
-			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+			u32 seqno = i915_get_gem_seqno(dev);
+			dev_priv->mm.irq_gem_seqno = seqno;
+			trace_i915_gem_request_complete(dev, seqno);
 			DRM_WAKEUP(&dev_priv->irq_queue);
 		}
 
@@ -622,7 +625,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		}
 
 		if (iir & I915_USER_INTERRUPT) {
-			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+			u32 seqno = i915_get_gem_seqno(dev);
+			dev_priv->mm.irq_gem_seqno = seqno;
+			trace_i915_gem_request_complete(dev, seqno);
 			DRM_WAKEUP(&dev_priv->irq_queue);
 			dev_priv->hangcheck_count = 0;
 			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);

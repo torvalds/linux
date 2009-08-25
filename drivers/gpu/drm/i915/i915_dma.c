@@ -33,6 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
@@ -49,14 +50,18 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 	u32 last_head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 	int i;
 
+	trace_i915_ring_wait_begin (dev);
+
 	for (i = 0; i < 100000; i++) {
 		ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 		acthd = I915_READ(acthd_reg);
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->Size;
-		if (ring->space >= n)
+		if (ring->space >= n) {
+			trace_i915_ring_wait_end (dev);
 			return 0;
+		}
 
 		if (dev->primary->master) {
 			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
@@ -76,6 +81,7 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 
 	}
 
+	trace_i915_ring_wait_end (dev);
 	return -EBUSY;
 }
 
