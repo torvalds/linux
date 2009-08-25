@@ -568,11 +568,8 @@ qla2x00_eh_wait_on_command(struct scsi_cmnd *cmd)
 	unsigned long wait_iter = ABORT_WAIT_ITER;
 	int ret = QLA_SUCCESS;
 
-	while (CMD_SP(cmd)) {
+	while (CMD_SP(cmd) && wait_iter--) {
 		msleep(ABORT_POLLING_PERIOD);
-
-		if (--wait_iter)
-			break;
 	}
 	if (CMD_SP(cmd))
 		ret = QLA_FUNCTION_FAILED;
