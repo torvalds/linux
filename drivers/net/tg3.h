@@ -1909,7 +1909,6 @@
 
 #define MII_TG3_DSP_RW_PORT		0x15 /* DSP coefficient read/write port */
 
-#define MII_TG3_EPHY_PTEST		0x17 /* 5906 PHY register */
 #define MII_TG3_DSP_ADDRESS		0x17 /* DSP address register */
 
 #define MII_TG3_DSP_TAP1		0x0001
@@ -1976,16 +1975,22 @@
 #define MII_TG3_MISC_SHDW_SCR5_LPED	0x0010
 #define MII_TG3_MISC_SHDW_SCR5_SEL	0x1400
 
-
-#define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
-#define MII_TG3_EPHY_SHADOW_EN		0x80
-
-#define MII_TG3_EPHYTST_MISCCTRL	0x10 /* 5906 EPHY misc ctrl shadow register */
-#define MII_TG3_EPHYTST_MISCCTRL_MDIX	0x4000
-
 #define MII_TG3_TEST1			0x1e
 #define MII_TG3_TEST1_TRIM_EN		0x0010
 #define MII_TG3_TEST1_CRC_EN		0x8000
+
+
+/* Fast Ethernet Tranceiver definitions */
+#define MII_TG3_FET_PTEST		0x17
+#define MII_TG3_FET_TEST		0x1f
+#define  MII_TG3_FET_SHADOW_EN		0x0080
+
+#define MII_TG3_FET_SHDW_MISCCTRL	0x10
+#define  MII_TG3_FET_SHDW_MISCCTRL_MDIX	0x4000
+
+#define MII_TG3_FET_SHDW_AUXSTAT2	0x1b
+#define  MII_TG3_FET_SHDW_AUXSTAT2_APD	0x0020
+
 
 /* APE registers.  Accessible through BAR1 */
 #define TG3_APE_EVENT			0x000c

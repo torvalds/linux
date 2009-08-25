@@ -1514,17 +1514,19 @@ static void tg3_phy_toggle_automdix(struct tg3 *tp, int enable)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		u32 ephy;
 
-		if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &ephy)) {
-			tg3_writephy(tp, MII_TG3_EPHY_TEST,
-				     ephy | MII_TG3_EPHY_SHADOW_EN);
-			if (!tg3_readphy(tp, MII_TG3_EPHYTST_MISCCTRL, &phy)) {
+		if (!tg3_readphy(tp, MII_TG3_FET_TEST, &ephy)) {
+			u32 reg = MII_TG3_FET_SHDW_MISCCTRL;
+
+			tg3_writephy(tp, MII_TG3_FET_TEST,
+				     ephy | MII_TG3_FET_SHADOW_EN);
+			if (!tg3_readphy(tp, reg, &phy)) {
 				if (enable)
-					phy |= MII_TG3_EPHYTST_MISCCTRL_MDIX;
+					phy |= MII_TG3_FET_SHDW_MISCCTRL_MDIX;
 				else
-					phy &= ~MII_TG3_EPHYTST_MISCCTRL_MDIX;
-				tg3_writephy(tp, MII_TG3_EPHYTST_MISCCTRL, phy);
+					phy &= ~MII_TG3_FET_SHDW_MISCCTRL_MDIX;
+				tg3_writephy(tp, reg, phy);
 			}
-			tg3_writephy(tp, MII_TG3_EPHY_TEST, ephy);
+			tg3_writephy(tp, MII_TG3_FET_TEST, ephy);
 		}
 	} else {
 		phy = MII_TG3_AUXCTL_MISC_RDSEL_MISC |
@@ -1915,7 +1917,7 @@ out:
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		/* adjust output voltage */
-		tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x12);
+		tg3_writephy(tp, MII_TG3_FET_PTEST, 0x12);
 	}
 
 	tg3_phy_toggle_automdix(tp, 1);
@@ -9747,14 +9749,16 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 			u32 phytest;
 
-			if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &phytest)) {
-				u32 phy;
+			if (!tg3_readphy(tp, MII_TG3_FET_TEST, &phytest)) {
+				u32 phy, reg = MII_TG3_FET_SHDW_AUXSTAT2;
 
-				tg3_writephy(tp, MII_TG3_EPHY_TEST,
-					     phytest | MII_TG3_EPHY_SHADOW_EN);
-				if (!tg3_readphy(tp, 0x1b, &phy))
-					tg3_writephy(tp, 0x1b, phy & ~0x20);
-				tg3_writephy(tp, MII_TG3_EPHY_TEST, phytest);
+				tg3_writephy(tp, MII_TG3_FET_TEST,
+					     phytest | MII_TG3_FET_SHADOW_EN);
+				if (!tg3_readphy(tp, reg, &phy)) {
+					phy &= ~MII_TG3_FET_SHDW_AUXSTAT2_APD;
+					tg3_writephy(tp, reg, phy);
+				}
+				tg3_writephy(tp, MII_TG3_FET_TEST, phytest);
 			}
 			val = BMCR_LOOPBACK | BMCR_FULLDPLX | BMCR_SPEED100;
 		} else
@@ -9767,7 +9771,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 		mac_mode = tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK;
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-			tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x1800);
+			tg3_writephy(tp, MII_TG3_FET_PTEST, 0x1800);
 			mac_mode |= MAC_MODE_PORT_MODE_MII;
 		} else
 			mac_mode |= MAC_MODE_PORT_MODE_GMII;
