@@ -854,8 +854,7 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	struct v4l2_crop cam_crop;
 	struct v4l2_rect *cam_rect = &cam_crop.c, target, cam_max;
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
-	struct device *control = to_soc_camera_control(icd);
-	struct v4l2_subdev *sd = dev_get_drvdata(control);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	unsigned int hscale = pcdev->cflcr & 0xffff;
 	unsigned int vscale = (pcdev->cflcr >> 16) & 0xffff;
 	unsigned short width, height;
@@ -1016,6 +1015,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	__u32 pixfmt = pix->pixelformat;
 	const struct soc_camera_format_xlate *xlate;
 	unsigned int width = pix->width, height = pix->height, tmp_w, tmp_h;
@@ -1042,7 +1042,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	}
 
 	pix->pixelformat = xlate->cam_fmt->fourcc;
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, s_fmt, f);
+	ret = v4l2_subdev_call(sd, video, s_fmt, f);
 	pix->pixelformat = pixfmt;
 	dev_dbg(&icd->dev, "Camera %d fmt %ux%u, requested %ux%u, max %ux%u\n",
 		ret, pix->width, pix->height, width, height,
@@ -1082,8 +1082,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 		pix->width = tmp_w;
 		pix->height = tmp_h;
 		pix->pixelformat = xlate->cam_fmt->fourcc;
-		ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd,
-						 video, s_fmt, f);
+		ret = v4l2_subdev_call(sd, video, s_fmt, f);
 		pix->pixelformat = pixfmt;
 		dev_dbg(&icd->dev, "Camera scaled to %ux%u\n",
 			pix->width, pix->height);
@@ -1140,6 +1139,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	__u32 pixfmt = pix->pixelformat;
 	int width, height;
 	int ret;
@@ -1165,8 +1165,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	pix->pixelformat = xlate->cam_fmt->fourcc;
 
 	/* limit to sensor capabilities */
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video,
-					 try_fmt, f);
+	ret = v4l2_subdev_call(sd, video, try_fmt, f);
 	pix->pixelformat = pixfmt;
 	if (ret < 0)
 		return ret;
@@ -1182,9 +1181,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 			int tmp_w = pix->width, tmp_h = pix->height;
 			pix->width = 2560;
 			pix->height = 1920;
-			ret = v4l2_device_call_until_err(&ici->v4l2_dev,
-							 (__u32)icd, video,
-							 try_fmt, f);
+			ret = v4l2_subdev_call(sd, video, try_fmt, f);
 			if (ret < 0) {
 				/* Shouldn't actually happen... */
 				dev_err(&icd->dev,

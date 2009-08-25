@@ -786,8 +786,7 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	struct v4l2_rect *rect = &a->c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct device *control = to_soc_camera_control(icd);
-	struct v4l2_subdev *sd = dev_get_drvdata(control);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
 	/*
 	 * We now know pixel formats and can decide upon DMA-channel(s)
@@ -809,6 +808,7 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect rect = {
@@ -837,7 +837,7 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 
 	configure_geometry(mx3_cam, &rect);
 
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, s_fmt, f);
+	ret = v4l2_subdev_call(sd, video, s_fmt, f);
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
@@ -849,7 +849,7 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	__u32 pixfmt = pix->pixelformat;
@@ -875,7 +875,7 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 	/* camera has to see its format, but the user the original one */
 	pix->pixelformat = xlate->cam_fmt->fourcc;
 	/* limit to sensor capabilities */
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, try_fmt, f);
+	ret = v4l2_subdev_call(sd, video, try_fmt, f);
 	pix->pixelformat = xlate->host_fmt->fourcc;
 
 	field = pix->field;

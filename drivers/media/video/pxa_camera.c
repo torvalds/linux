@@ -1286,8 +1286,7 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 	struct v4l2_rect *rect = &a->c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
-	struct device *control = to_soc_camera_control(icd);
-	struct v4l2_subdev *sd = dev_get_drvdata(control);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_sense sense = {
 		.master_clock = pcdev->mclk,
 		.pixel_clock_max = pcdev->ciclk / 4,
@@ -1323,6 +1322,7 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_data_format *cam_fmt = NULL;
 	const struct soc_camera_format_xlate *xlate = NULL;
 	struct soc_camera_sense sense = {
@@ -1346,7 +1346,7 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 		icd->sense = &sense;
 
 	cam_f.fmt.pix.pixelformat = cam_fmt->fourcc;
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, s_fmt, f);
+	ret = v4l2_subdev_call(sd, video, s_fmt, f);
 
 	icd->sense = NULL;
 
@@ -1375,6 +1375,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	__u32 pixfmt = pix->pixelformat;
@@ -1404,7 +1405,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	/* camera has to see its format, but the user the original one */
 	pix->pixelformat = xlate->cam_fmt->fourcc;
 	/* limit to sensor capabilities */
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, try_fmt, f);
+	ret = v4l2_subdev_call(sd, video, try_fmt, f);
 	pix->pixelformat = xlate->host_fmt->fourcc;
 
 	field = pix->field;

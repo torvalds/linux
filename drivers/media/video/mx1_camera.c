@@ -465,9 +465,7 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 static int mx1_camera_set_crop(struct soc_camera_device *icd,
 			       struct v4l2_crop *a)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct device *control = to_soc_camera_control(icd);
-	struct v4l2_subdev *sd = dev_get_drvdata(control);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
 	return v4l2_subdev_call(sd, video, s_crop, a);
 }
@@ -539,7 +537,7 @@ static int mx1_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	int ret;
@@ -550,7 +548,7 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, s_fmt, f);
+	ret = v4l2_subdev_call(sd, video, s_fmt, f);
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
@@ -562,11 +560,11 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 static int mx1_camera_try_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	/* TODO: limit to mx1 hardware capabilities */
 
 	/* limit to sensor capabilities */
-	return v4l2_device_call_until_err(&ici->v4l2_dev, 0, video, try_fmt, f);
+	return v4l2_subdev_call(sd, video, try_fmt, f);
 }
 
 static int mx1_camera_reqbufs(struct soc_camera_file *icf,

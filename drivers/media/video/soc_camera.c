@@ -152,9 +152,9 @@ static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id *a)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, s_std, *a);
+	return v4l2_subdev_call(sd, core, s_std, *a);
 }
 
 static int soc_camera_reqbufs(struct file *file, void *priv,
@@ -589,7 +589,7 @@ static int soc_camera_streamon(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret;
 
 	WARN_ON(priv != file->private_data);
@@ -599,7 +599,7 @@ static int soc_camera_streamon(struct file *file, void *priv,
 
 	mutex_lock(&icd->video_lock);
 
-	v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, s_stream, 1);
+	v4l2_subdev_call(sd, video, s_stream, 1);
 
 	/* This calls buf_queue from host driver's videobuf_queue_ops */
 	ret = videobuf_streamon(&icf->vb_vidq);
@@ -614,7 +614,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
 	WARN_ON(priv != file->private_data);
 
@@ -627,7 +627,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	 * remaining buffers. When the last buffer is freed, stop capture */
 	videobuf_streamoff(&icf->vb_vidq);
 
-	v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, s_stream, 0);
+	v4l2_subdev_call(sd, video, s_stream, 0);
 
 	mutex_unlock(&icd->video_lock);
 
@@ -672,6 +672,7 @@ static int soc_camera_g_ctrl(struct file *file, void *priv,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret;
 
 	WARN_ON(priv != file->private_data);
@@ -695,7 +696,7 @@ static int soc_camera_g_ctrl(struct file *file, void *priv,
 			return ret;
 	}
 
-	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, g_ctrl, ctrl);
+	return v4l2_subdev_call(sd, core, g_ctrl, ctrl);
 }
 
 static int soc_camera_s_ctrl(struct file *file, void *priv,
@@ -704,6 +705,7 @@ static int soc_camera_s_ctrl(struct file *file, void *priv,
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret;
 
 	WARN_ON(priv != file->private_data);
@@ -714,7 +716,7 @@ static int soc_camera_s_ctrl(struct file *file, void *priv,
 			return ret;
 	}
 
-	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, s_ctrl, ctrl);
+	return v4l2_subdev_call(sd, core, s_ctrl, ctrl);
 }
 
 static int soc_camera_cropcap(struct file *file, void *fh,
@@ -812,9 +814,9 @@ static int soc_camera_g_chip_ident(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, g_chip_ident, id);
+	return v4l2_subdev_call(sd, core, g_chip_ident, id);
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -823,9 +825,9 @@ static int soc_camera_g_register(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, g_register, reg);
+	return v4l2_subdev_call(sd, core, g_register, reg);
 }
 
 static int soc_camera_s_register(struct file *file, void *fh,
@@ -833,9 +835,9 @@ static int soc_camera_s_register(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, core, s_register, reg);
+	return v4l2_subdev_call(sd, core, s_register, reg);
 }
 #endif
 
