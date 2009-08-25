@@ -34,9 +34,7 @@ int pcibios_assign_bus_offset = 1;
 void pcibios_make_OF_bus_map(void);
 
 static void fixup_cpc710_pci64(struct pci_dev* dev);
-#ifdef CONFIG_PPC_OF
 static u8* pci_to_OF_bus_map;
-#endif
 
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
@@ -83,7 +81,6 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
 
-#ifdef CONFIG_PPC_OF
 /*
  * Functions below are used on OpenFirmware machines.
  */
@@ -356,12 +353,6 @@ pci_create_OF_bus_map(void)
 		of_node_put(dn);
 	}
 }
-
-#else /* CONFIG_PPC_OF */
-void pcibios_make_OF_bus_map(void)
-{
-}
-#endif /* CONFIG_PPC_OF */
 
 static void __devinit pcibios_scan_phb(struct pci_controller *hose)
 {

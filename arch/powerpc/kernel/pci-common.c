@@ -176,8 +176,6 @@ int pci_domain_nr(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_domain_nr);
 
-#ifdef CONFIG_PPC_OF
-
 /* This routine is meant to be used early during boot, when the
  * PCI bus numbers have not yet been assigned, and you need to
  * issue PCI config cycles to an OF device.
@@ -210,17 +208,11 @@ static ssize_t pci_show_devspec(struct device *dev,
 	return sprintf(buf, "%s", np->full_name);
 }
 static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
-#endif /* CONFIG_PPC_OF */
 
 /* Add sysfs properties */
 int pcibios_add_platform_entries(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PPC_OF
 	return device_create_file(&pdev->dev, &dev_attr_devspec);
-#else
-	return 0;
-#endif /* CONFIG_PPC_OF */
-
 }
 
 char __devinit *pcibios_setup(char *str)
