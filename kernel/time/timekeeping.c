@@ -826,9 +826,11 @@ void update_wall_time(void)
  */
 void getboottime(struct timespec *ts)
 {
-	struct timespec boottime;
+	struct timespec boottime = {
+		.tv_sec = wall_to_monotonic.tv_sec + total_sleep_time.tv_sec,
+		.tv_nsec = wall_to_monotonic.tv_nsec + total_sleep_time.tv_nsec
+	};
 
-	boottime = timespec_add_safe(wall_to_monotonic, total_sleep_time);
 	set_normalized_timespec(ts, -boottime.tv_sec, -boottime.tv_nsec);
 }
 
