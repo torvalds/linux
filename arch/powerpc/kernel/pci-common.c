@@ -1617,4 +1617,3 @@ void __devinit pcibios_setup_phb_resources(struct pci_controller *hose)
 		 (unsigned long)hose->io_base_virt - _IO_BASE);
 
 }
-
