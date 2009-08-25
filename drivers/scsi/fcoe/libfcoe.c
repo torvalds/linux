@@ -148,13 +148,17 @@ static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
  */
 void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 {
-	flush_work(&fip->recv_work);
+	cancel_work_sync(&fip->recv_work);
+	spin_lock_bh(&fip->fip_recv_list.lock);
+	__skb_queue_purge(&fip->fip_recv_list);
+	spin_unlock_bh(&fip->fip_recv_list.lock);
+
 	spin_lock_bh(&fip->lock);
 	fip->state = FIP_ST_DISABLED;
 	fcoe_ctlr_reset_fcfs(fip);
 	spin_unlock_bh(&fip->lock);
 	del_timer_sync(&fip->timer);
-	flush_work(&fip->link_work);
+	cancel_work_sync(&fip->link_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
