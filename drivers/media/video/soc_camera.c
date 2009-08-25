@@ -747,12 +747,19 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 	return 0;
 }
 
+/*
+ * According to the V4L2 API, drivers shall not update the struct v4l2_crop
+ * argument with the actual geometry, instead, the user shall use G_CROP to
+ * retrieve it. However, we expect camera host and client drivers to update
+ * the argument, which we then use internally, but do not return to the user.
+ */
 static int soc_camera_s_crop(struct file *file, void *fh,
 			     struct v4l2_crop *a)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_rect rect = a->c;
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -761,29 +768,29 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	/* Cropping is allowed during a running capture, guard consistency */
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
-	if (a->c.width > icd->rect_max.width)
-		a->c.width = icd->rect_max.width;
+	if (rect.width > icd->rect_max.width)
+		rect.width = icd->rect_max.width;
 
-	if (a->c.width < icd->width_min)
-		a->c.width = icd->width_min;
+	if (rect.width < icd->width_min)
+		rect.width = icd->width_min;
 
-	if (a->c.height > icd->rect_max.height)
-		a->c.height = icd->rect_max.height;
+	if (rect.height > icd->rect_max.height)
+		rect.height = icd->rect_max.height;
 
-	if (a->c.height < icd->height_min)
-		a->c.height = icd->height_min;
+	if (rect.height < icd->height_min)
+		rect.height = icd->height_min;
 
-	if (a->c.width + a->c.left > icd->rect_max.width + icd->rect_max.left)
-		a->c.left = icd->rect_max.width + icd->rect_max.left -
-			a->c.width;
+	if (rect.width + rect.left > icd->rect_max.width + icd->rect_max.left)
+		rect.left = icd->rect_max.width + icd->rect_max.left -
+			rect.width;
 
-	if (a->c.height + a->c.top > icd->rect_max.height + icd->rect_max.top)
-		a->c.top = icd->rect_max.height + icd->rect_max.top -
-			a->c.height;
+	if (rect.height + rect.top > icd->rect_max.height + icd->rect_max.top)
+		rect.top = icd->rect_max.height + icd->rect_max.top -
+			rect.height;
 
-	ret = ici->ops->set_crop(icd, &a->c);
+	ret = ici->ops->set_crop(icd, &rect);
 	if (!ret)
-		icd->rect_current = a->c;
+		icd->rect_current = rect;
 
 	mutex_unlock(&icf->vb_vidq.vb_lock);
 
