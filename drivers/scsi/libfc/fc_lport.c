@@ -198,17 +198,12 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 			       u32 remote_fid, u64 remote_wwpn,
 			       u64 remote_wwnn)
 {
-	struct fc_rport_identifiers ids;
-
-	ids.port_id = remote_fid;
-	ids.port_name = remote_wwpn;
-	ids.node_name = remote_wwnn;
-	ids.roles = FC_RPORT_ROLE_UNKNOWN;
-
 	mutex_lock(&lport->disc.disc_mutex);
 	if (lport->ptp_rp)
 		lport->tt.rport_logoff(lport->ptp_rp);
-	lport->ptp_rp = lport->tt.rport_create(lport, &ids);
+	lport->ptp_rp = lport->tt.rport_create(lport, remote_fid);
+	lport->ptp_rp->ids.port_name = remote_wwpn;
+	lport->ptp_rp->ids.node_name = remote_wwnn;
 	mutex_unlock(&lport->disc.disc_mutex);
 
 	lport->tt.rport_login(lport->ptp_rp);
@@ -1287,12 +1282,6 @@ static struct fc_rport_operations fc_lport_rport_ops = {
 static void fc_lport_enter_dns(struct fc_lport *lport)
 {
 	struct fc_rport_priv *rdata;
-	struct fc_rport_identifiers ids;
-
-	ids.port_id = FC_FID_DIR_SERV;
-	ids.port_name = -1;
-	ids.node_name = -1;
-	ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
 	FC_LPORT_DBG(lport, "Entered DNS state from %s state\n",
 		     fc_lport_state(lport));
@@ -1300,7 +1289,7 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 	fc_lport_state_enter(lport, LPORT_ST_DNS);
 
 	mutex_lock(&lport->disc.disc_mutex);
-	rdata = lport->tt.rport_create(lport, &ids);
+	rdata = lport->tt.rport_create(lport, FC_FID_DIR_SERV);
 	mutex_unlock(&lport->disc.disc_mutex);
 	if (!rdata)
 		goto err;

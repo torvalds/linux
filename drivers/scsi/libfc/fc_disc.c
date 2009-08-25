@@ -137,10 +137,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 				break;
 			}
 			dp->lp = lport;
-			dp->ids.port_id = ntoh24(pp->rscn_fid);
-			dp->ids.port_name = -1;
-			dp->ids.node_name = -1;
-			dp->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+			dp->port_id = ntoh24(pp->rscn_fid);
 			list_add_tail(&dp->peers, &disc_ports);
 			break;
 		case ELS_ADDR_FMT_AREA:
@@ -162,7 +159,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 			    redisc, lport->state, disc->pending);
 		list_for_each_entry_safe(dp, next, &disc_ports, peers) {
 			list_del(&dp->peers);
-			rdata = lport->tt.rport_lookup(lport, dp->ids.port_id);
+			rdata = lport->tt.rport_lookup(lport, dp->port_id);
 			if (rdata) {
 				lport->tt.rport_logoff(rdata);
 			}
@@ -435,15 +432,14 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	while (plen >= sizeof(*np)) {
 		ids.port_id = ntoh24(np->fp_fid);
 		ids.port_name = ntohll(np->fp_wwpn);
-		ids.node_name = -1;
-		ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
 		if (ids.port_id != fc_host_port_id(lport->host) &&
 		    ids.port_name != lport->wwpn) {
-			rdata = lport->tt.rport_create(lport, &ids);
-			if (rdata)
+			rdata = lport->tt.rport_create(lport, ids.port_id);
+			if (rdata) {
+				rdata->ids.port_name = ids.port_name;
 				rdata->disc_id = disc->disc_id;
-			else {
+			} else {
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
 				       "(%6x)\n", ids.port_id);
@@ -580,10 +576,10 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 
 	lport = disc->lport;
 
-	if (dp->ids.port_id == fc_host_port_id(lport->host))
+	if (dp->port_id == fc_host_port_id(lport->host))
 		goto out;
 
-	rdata = lport->tt.rport_create(lport, &dp->ids);
+	rdata = lport->tt.rport_create(lport, dp->port_id);
 	if (rdata) {
 		rdata->disc_id = disc->disc_id;
 		kfree(dp);

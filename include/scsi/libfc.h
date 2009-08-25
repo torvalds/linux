@@ -148,16 +148,16 @@ enum fc_rport_state {
 
 /**
  * struct fc_disc_port - temporary discovery port to hold rport identifiers
- * @lp: Fibre Channel host port instance
- * @peers: node for list management during discovery and RSCN processing
- * @ids: identifiers structure to pass to fc_remote_port_add()
- * @rport_work: work struct for starting the rport state machine
+ * @lp:         Fibre Channel host port instance
+ * @peers:      Node for list management during discovery and RSCN processing
+ * @rport_work: Work struct for starting the rport state machine
+ * @port_id:    Port ID of the discovered port
  */
 struct fc_disc_port {
 	struct fc_lport             *lp;
 	struct list_head            peers;
-	struct fc_rport_identifiers ids;
 	struct work_struct	    rport_work;
+	u32                         port_id;
 };
 
 enum fc_rport_event {
@@ -565,10 +565,11 @@ struct libfc_function_template {
 	int (*lport_reset)(struct fc_lport *);
 
 	/*
-	 * Create a remote port
+	 * Create a remote port with a given port ID
+	 *
+	 * STATUS: OPTIONAL
 	 */
-	struct fc_rport_priv *(*rport_create)(struct fc_lport *,
-					      struct fc_rport_identifiers *);
+	struct fc_rport_priv *(*rport_create)(struct fc_lport *, u32);
 
 	/*
 	 * Initiates the RP state machine. It is called from the LP module.

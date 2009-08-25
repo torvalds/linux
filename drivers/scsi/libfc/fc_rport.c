@@ -104,18 +104,18 @@ static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 }
 
 /**
- * fc_rport_create() - create remote port in INIT state.
- * @lport: local port.
- * @ids: remote port identifiers.
+ * fc_rport_create() - Create a new remote port
+ * @lport:   The local port that the new remote port is for
+ * @port_id: The port ID for the new remote port
  *
  * Locking note:  must be called with the disc_mutex held.
  */
 static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
-					     struct fc_rport_identifiers *ids)
+					     u32 port_id)
 {
 	struct fc_rport_priv *rdata;
 
-	rdata = lport->tt.rport_lookup(lport, ids->port_id);
+	rdata = lport->tt.rport_lookup(lport, port_id);
 	if (rdata)
 		return rdata;
 
@@ -123,7 +123,11 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	if (!rdata)
 		return NULL;
 
-	rdata->ids = *ids;
+	rdata->ids.node_name = -1;
+	rdata->ids.port_name = -1;
+	rdata->ids.port_id = port_id;
+	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+
 	kref_init(&rdata->kref);
 	mutex_init(&rdata->rp_mutex);
 	rdata->local_port = lport;
@@ -135,7 +139,7 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
-	if (ids->port_id != FC_FID_DIR_SERV)
+	if (port_id != FC_FID_DIR_SERV)
 		list_add(&rdata->peers, &lport->disc.rports);
 	return rdata;
 }
