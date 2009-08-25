@@ -479,6 +479,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	plen = len;
 	np = (struct fc_gpn_ft_resp *)bp;
 	tlen = disc->buf_len;
+	disc->buf_len = 0;
 	if (tlen) {
 		WARN_ON(tlen >= sizeof(*np));
 		plen = sizeof(*np) - tlen;
@@ -519,10 +520,12 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			rdata = lport->tt.rport_create(lport, &ids);
 			if (rdata)
 				rdata->disc_id = disc->disc_id;
-			else
+			else {
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
 				       "(%6x)\n", ids.port_id);
+				error = -ENOMEM;
+			}
 		}
 
 		if (np->fp_flags & FC_NS_FID_LAST) {
@@ -546,8 +549,6 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			memcpy(&disc->partial_buf, np, len);
 		}
 		disc->buf_len = (unsigned char) len;
-	} else {
-		disc->buf_len = 0;
 	}
 	return error;
 }
