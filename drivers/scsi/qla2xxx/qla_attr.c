@@ -1736,6 +1736,11 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	qla24xx_deallocate_vp_id(vha);
 
+	mutex_lock(&ha->vport_lock);
+	ha->cur_vport_count--;
+	clear_bit(vha->vp_idx, ha->vp_idx_map);
+	mutex_unlock(&ha->vport_lock);
+
 	if (vha->timer_active) {
 		qla2x00_vp_stop_timer(vha);
 		DEBUG15(printk ("scsi(%ld): timer for the vport[%d] = %p "

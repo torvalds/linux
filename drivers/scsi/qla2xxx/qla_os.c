@@ -1119,8 +1119,7 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	struct fc_port *fcport;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (ha->flags.enable_lip_full_login && !vha->vp_idx &&
-	    !IS_QLA81XX(ha)) {
+	if (ha->flags.enable_lip_full_login && !IS_QLA81XX(ha)) {
 		ret = qla2x00_full_login_lip(vha);
 		if (ret != QLA_SUCCESS) {
 			DEBUG2_3(printk("%s(%ld): failed: "
@@ -1133,7 +1132,7 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 		qla2x00_wait_for_loop_ready(vha);
 	}
 
-	if (ha->flags.enable_lip_reset && !vha->vp_idx) {
+	if (ha->flags.enable_lip_reset) {
 		ret = qla2x00_lip_reset(vha);
 		if (ret != QLA_SUCCESS) {
 			DEBUG2_3(printk("%s(%ld): failed: "
@@ -2264,8 +2263,9 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 	fc_port_t *fcport;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-		if (vha->vp_idx != fcport->vp_idx)
+		if (vha->vp_idx != 0 && vha->vp_idx != fcport->vp_idx)
 			continue;
+
 		/*
 		 * No point in marking the device as lost, if the device is
 		 * already DEAD.
@@ -2273,10 +2273,12 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
 		if (atomic_read(&fcport->state) == FCS_ONLINE) {
-			atomic_set(&fcport->state, FCS_DEVICE_LOST);
-			qla2x00_schedule_rport_del(vha, fcport, defer);
-		} else
-			atomic_set(&fcport->state, FCS_DEVICE_LOST);
+			if (defer)
+				qla2x00_schedule_rport_del(vha, fcport, defer);
+			else if (vha->vp_idx == fcport->vp_idx)
+				qla2x00_schedule_rport_del(vha, fcport, defer);
+		}
+		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 }
 
@@ -3069,8 +3071,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 		/* if the loop has been down for 4 minutes, reinit adapter */
 		if (atomic_dec_and_test(&vha->loop_down_timer) != 0) {
-			if (!(vha->device_flags & DFLG_NO_CABLE) &&
-			    !vha->vp_idx) {
+			if (!(vha->device_flags & DFLG_NO_CABLE)) {
 				DEBUG(printk("scsi(%ld): Loop down - "
 				    "aborting ISP.\n",
 				    vha->host_no));

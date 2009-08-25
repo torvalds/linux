@@ -685,8 +685,9 @@ skip_rio:
 		if (vha->vp_idx && test_bit(VP_SCR_NEEDED, &vha->vp_flags))
 			break;
 		/* Only handle SCNs for our Vport index. */
-		if (vha->vp_idx != (mb[3] & 0xff))
+		if (ha->flags.npiv_supported && vha->vp_idx != (mb[3] & 0xff))
 			break;
+
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    vha->host_no));
 		DEBUG(printk(KERN_INFO
