@@ -2123,24 +2123,8 @@ static void ieee80211_sta_work(struct work_struct *work)
 		}
 	}
 
-	list_for_each_entry(wk, &ifmgd->work_list, list) {
-		if (wk->state != IEEE80211_MGD_STATE_IDLE) {
-			anybusy = true;
-			break;
-		}
-	}
 
 	ieee80211_recalc_idle(local);
-
-	if (!anybusy) {
-		mutex_unlock(&ifmgd->mtx);
-
-		if (test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request))
-			ieee80211_queue_delayed_work(&local->hw,
-						     &local->scan_work,
-						     round_jiffies_relative(0));
-		return;
-	}
 
 	list_for_each_entry_safe(wk, tmp, &ifmgd->work_list, list) {
 		if (time_is_after_jiffies(wk->timeout)) {
@@ -2186,6 +2170,18 @@ static void ieee80211_sta_work(struct work_struct *work)
 			WARN(1, "unexpected: %d", rma);
 		}
 	}
+
+	list_for_each_entry(wk, &ifmgd->work_list, list) {
+		if (wk->state != IEEE80211_MGD_STATE_IDLE) {
+			anybusy = true;
+			break;
+		}
+	}
+	if (!anybusy &&
+	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request))
+		ieee80211_queue_delayed_work(&local->hw,
+					     &local->scan_work,
+					     round_jiffies_relative(0));
 
 	mutex_unlock(&ifmgd->mtx);
 
