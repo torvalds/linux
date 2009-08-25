@@ -93,9 +93,11 @@ struct fcoe_interface {
  */
 struct fcoe_port {
 	struct fcoe_interface *fcoe;
+	struct fc_lport *lport;
 	struct sk_buff_head fcoe_pending_queue;
 	u8	fcoe_pending_queue_active;
 	struct timer_list timer;		/* queue timer */
+	struct work_struct destroy_work;	/* to prevent rtnl deadlocks */
 };
 
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
