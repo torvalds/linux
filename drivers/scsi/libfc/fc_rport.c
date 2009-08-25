@@ -1267,9 +1267,7 @@ static void fc_rport_recv_logo_req(struct fc_rport_priv *rdata,
 		return;
 	}
 
-	rdata->event = RPORT_EV_LOGO;
-	fc_rport_state_enter(rdata, RPORT_ST_DELETE);
-	queue_work(rport_event_queue, &rdata->event_work);
+	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
 	fc_frame_free(fp);
