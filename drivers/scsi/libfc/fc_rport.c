@@ -250,7 +250,7 @@ static void fc_rport_work(struct work_struct *work)
 		rp->r_a_tov = rdata->r_a_tov;
 		mutex_unlock(&rdata->rp_mutex);
 
-		if (rport_ops->event_callback) {
+		if (rport_ops && rport_ops->event_callback) {
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
 		}
@@ -269,7 +269,7 @@ static void fc_rport_work(struct work_struct *work)
 			mutex_unlock(&lport->disc.disc_mutex);
 		}
 
-		if (rport_ops->event_callback) {
+		if (rport_ops && rport_ops->event_callback) {
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
 		}

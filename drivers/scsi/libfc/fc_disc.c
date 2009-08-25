@@ -92,37 +92,6 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 }
 
 /**
- * fc_disc_rport_callback() - Event handler for rport events
- * @lport: The lport which is receiving the event
- * @rdata: private remote port data
- * @event: The event that occured
- *
- * Locking Note: The rport lock should not be held when calling
- *		 this function.
- */
-static void fc_disc_rport_callback(struct fc_lport *lport,
-				   struct fc_rport_priv *rdata,
-				   enum fc_rport_event event)
-{
-	struct fc_disc *disc = &lport->disc;
-
-	FC_DISC_DBG(disc, "Received a %d event for port (%6x)\n", event,
-		    rdata->ids.port_id);
-
-	switch (event) {
-	case RPORT_EV_READY:
-		break;
-	case RPORT_EV_LOGO:
-	case RPORT_EV_FAILED:
-	case RPORT_EV_STOP:
-		break;
-	default:
-		break;
-	}
-
-}
-
-/**
  * fc_disc_recv_rscn_req() - Handle Registered State Change Notification (RSCN)
  * @sp: Current sequence of the RSCN exchange
  * @fp: RSCN Frame
@@ -334,10 +303,6 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 	mutex_unlock(&disc->disc_mutex);
 }
 
-static struct fc_rport_operations fc_disc_rport_ops = {
-	.event_callback = fc_disc_rport_callback,
-};
-
 /**
  * fc_disc_new_target() - Handle new target found by discovery
  * @lport: FC local port
@@ -381,10 +346,8 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			if (!rdata)
 				error = -ENOMEM;
 		}
-		if (rdata) {
-			rdata->ops = &fc_disc_rport_ops;
+		if (rdata)
 			lport->tt.rport_login(rdata);
-		}
 	}
 	return error;
 }
@@ -551,10 +514,9 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 		if (ids.port_id != fc_host_port_id(lport->host) &&
 		    ids.port_name != lport->wwpn) {
 			rdata = lport->tt.rport_create(lport, &ids);
-			if (rdata) {
-				rdata->ops = &fc_disc_rport_ops;
+			if (rdata)
 				lport->tt.rport_login(rdata);
-			} else
+			else
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
 				       "(%6x)\n", ids.port_id);
@@ -697,7 +659,6 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 
 	rdata = lport->tt.rport_create(lport, &dp->ids);
 	if (rdata) {
-		rdata->ops = &fc_disc_rport_ops;
 		kfree(dp);
 		lport->tt.rport_login(rdata);
 	}
