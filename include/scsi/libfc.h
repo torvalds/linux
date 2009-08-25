@@ -202,6 +202,7 @@ struct fc_rport_libfc_priv {
  * @ids: remote port identifiers and roles
  * @flags: REC and RETRY supported flags
  * @max_seq: maximum number of concurrent sequences
+ * @disc_id: discovery identifier
  * @maxframe_size: maximum frame size
  * @retries: retry count in current state
  * @e_d_tov: error detect timeout value (in msec)
@@ -218,6 +219,7 @@ struct fc_rport_priv {
 	struct fc_rport_identifiers ids;
 	u16			   flags;
 	u16		           max_seq;
+	u16			   disc_id;
 	u16			   maxframe_size;
 	unsigned int	           retries;
 	unsigned int	           e_d_tov;
@@ -678,6 +680,7 @@ struct fc_disc {
 	unsigned char		requested;
 	unsigned short		seq_count;
 	unsigned char		buf_len;
+	u16			disc_id;
 
 	void (*disc_callback)(struct fc_lport *,
 			      enum fc_disc_event);
