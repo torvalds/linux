@@ -180,6 +180,7 @@ static inline void tracepoint_synchronize_unregister(void)
 }
 
 #define PARAMS(args...) args
+#endif
 
 #ifndef TRACE_EVENT
 /*
@@ -286,6 +287,4 @@ static inline void tracepoint_synchronize_unregister(void)
 
 #define TRACE_EVENT(name, proto, args, struct, assign, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
-#endif
-
 #endif
