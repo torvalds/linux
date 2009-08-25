@@ -1037,6 +1037,7 @@ struct ath5k_hw {
 	bool			ah_turbo;
 	bool			ah_calibration;
 	bool			ah_single_chip;
+	bool			ah_aes_support;
 	bool			ah_combined_mic;
 
 	enum ath5k_version	ah_version;

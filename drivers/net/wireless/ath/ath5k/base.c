@@ -3022,6 +3022,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case ALG_TKIP:
 		break;
 	case ALG_CCMP:
+		if (sc->ah->ah_aes_support)
+			break;
+
 		return -EOPNOTSUPP;
 	default:
 		WARN_ON(1);

@@ -106,6 +106,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 {
 	struct ath5k_hw *ah;
 	struct pci_dev *pdev = sc->pdev;
+	struct ath5k_eeprom_info *ee;
 	int ret;
 	u32 srev;
 
@@ -314,6 +315,15 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 			sc->pdev->device);
 		goto err_free;
 	}
+
+	/* Crypto settings */
+	ee = &ah->ah_capabilities.cap_eeprom;
+	ah->ah_aes_support =
+		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
+		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5) &&
+		 (ah->ah_mac_version > (AR5K_SREV_AR5212 >> 4) ||
+		  (ah->ah_mac_version == (AR5K_SREV_AR5212 >> 4) &&
+		   ah->ah_mac_revision >= (AR5K_SREV_AR5211 >> 4))));
 
 	if (srev >= AR5K_SREV_AR2414) {
 		ah->ah_combined_mic = true;
