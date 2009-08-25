@@ -254,11 +254,7 @@ char revision[] = "$Revision: 3.1 $"; /* cowlo_init_module() has
 #include <linux/stat.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 #include <linux/semaphore.h>
-#else
-#include <asm/semaphore.h>
-#endif
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>
@@ -421,15 +417,8 @@ static long int cowlo_readcow    (struct cowloop_device *, void *, int, loff_t);
 static long int cowlo_readcowraw (struct cowloop_device *, void *, int, loff_t);
 static long int cowlo_writecow   (struct cowloop_device *, void *, int, loff_t);
 static long int cowlo_writecowraw(struct cowloop_device *, void *, int, loff_t);
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
 static int      cowlo_ioctl      (struct block_device *, fmode_t,
            			 		unsigned int, unsigned long);
-#else
-static int      cowlo_ioctl      (struct inode *, struct file *,
-           			 		unsigned int, unsigned long);
-#endif
-
 static int	cowlo_makepair    (struct cowpair __user *);
 static int	cowlo_removepair  (unsigned long  __user *);
 static int	cowlo_watch       (struct cowpair __user *);
@@ -452,16 +441,10 @@ static void	cowlo_undo_opencow(struct cowloop_device *);
 ** 	0   - okay
 **    < 0   - error value
 */
-static int
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
-cowlo_open(struct block_device *bdev, fmode_t mode)
-#else
-cowlo_open(struct inode *inode, struct file *file)
-#endif
+static int cowlo_open(struct block_device *bdev, fmode_t mode)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
 	struct inode *inode = bdev->bd_inode;
-#endif
+
 	if (!inode)
 		return -EINVAL;
 
@@ -497,20 +480,13 @@ cowlo_open(struct inode *inode, struct file *file)
 ** returns:
 ** 	0   - okay
 */
-static int
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
-cowlo_release(struct gendisk *gd, fmode_t mode)
-#else
-cowlo_release(struct inode *inode, struct file *file)
-#endif
+static int cowlo_release(struct gendisk *gd, fmode_t mode)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
 	struct block_device *bdev;
 	struct inode *inode;
 
 	bdev = bdget_disk(gd, 0);
 	inode = bdev->bd_inode;
-#endif
 	if (!inode)
 		return 0;
 
@@ -529,19 +505,11 @@ cowlo_release(struct inode *inode, struct file *file)
 ** 	0   - okay
 **    < 0   - error value
 */
-static int
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
-cowlo_ioctl(struct block_device *bdev, fmode_t mode,
-            unsigned int cmd, unsigned long arg)
-#else
-cowlo_ioctl(struct inode *inode, struct file *filp,
-            unsigned int cmd, unsigned long arg)
-#endif
+static int cowlo_ioctl(struct block_device *bdev, fmode_t mode,
+		       unsigned int cmd, unsigned long arg)
 {
 	struct hd_geometry	geo;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
 	struct inode *inode = bdev->bd_inode;
-#endif
 
 	DEBUGP(DCOW "cowloop - ioctl cmd %x\n", cmd);
 
@@ -955,12 +923,7 @@ cowlo_cowctl(unsigned long __user *arg, int cmd)
 ** function to be called by core-kernel to handle the I/O-requests
 ** in the queue
 */
-static void
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25))
-cowlo_request(struct request_queue *q)
-#else
-cowlo_request(request_queue_t *q)
-#endif
+static void cowlo_request(struct request_queue *q)
 {
 	struct request		*req;
 	struct cowloop_device	*cowdev;
@@ -1549,11 +1512,7 @@ cowlo_writecow(struct cowloop_device *cowdev, void *buf, int len, loff_t offset)
 	     (cowdev->cowwrites    % SPCDFLINTVL == 0) ) {
 		struct kstatfs		ks;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18))
 		if (vfs_statfs(cowdev->cowfp->f_dentry, &ks)==0){
-#else
-		if (vfs_statfs(cowdev->cowfp->f_dentry->d_inode->i_sb, &ks)==0){
-#endif
 			if (ks.f_bavail <= SPCMINBLK) {
 				switch (ks.f_bavail) {
 				   case 0:
@@ -1860,11 +1819,7 @@ cowlo_openpair(char *rdof, char *cowf, int autorecover, int minor)
 	/*
 	** administer total and available size of filesystem holding cowfile
 	*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18))
-		if (vfs_statfs(cowdev->cowfp->f_dentry, &ks)==0){
-#else
-		if (vfs_statfs(cowdev->cowfp->f_dentry->d_inode->i_sb, &ks)==0){
-#endif
+	if (vfs_statfs(cowdev->cowfp->f_dentry, &ks)==0) {
 		cowdev->blksize  = ks.f_bsize;
 		cowdev->blktotal = ks.f_blocks;
 		cowdev->blkavail = ks.f_bavail;
@@ -2120,13 +2075,8 @@ cowlo_openrdo(struct cowloop_device *cowdev, char *rdof)
 			cowdev->belowq = cowdev->belowgd->queue;
 
 			if (cowdev->numblocks == 0) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 				cowdev->numblocks = get_capacity(cowdev->belowgd)
                          					/ (MAPUNIT/512);
-#else
-				cowdev->numblocks = cowdev->belowgd->capacity
-                         					/ (MAPUNIT/512);
-#endif
 			}
 		}
 
@@ -2869,12 +2819,7 @@ cowlo_cleanup_module(void)
 	for (minor=0; minor < maxcows;  minor++)
 		(void) cowlo_closepair(cowdevall[minor]);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23))
 	unregister_blkdev(COWMAJOR, DEVICE_NAME);
-#else
-	if (unregister_blkdev(COWMAJOR, DEVICE_NAME) != 0)
-		printk(KERN_WARNING "cowloop - cannot unregister blkdev\n");
-#endif
 
 	/*
 	** get rid of /proc/cow and unregister the driver
