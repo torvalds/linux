@@ -323,11 +323,20 @@ static const char *trace_options[] = {
 	"printk-msg-only",
 	"context-info",
 	"latency-format",
-	"global-clock",
 	"sleep-time",
 	"graph-time",
 	NULL
 };
+
+static struct {
+	u64 (*func)(void);
+	const char *name;
+} trace_clocks[] = {
+	{ trace_clock_local,	"local" },
+	{ trace_clock_global,	"global" },
+};
+
+int trace_clock_id;
 
 /*
  * ftrace_max_lock is used to protect the swapping of buffers
@@ -2159,22 +2168,6 @@ static void set_tracer_flags(unsigned int mask, int enabled)
 		trace_flags |= mask;
 	else
 		trace_flags &= ~mask;
-
-	if (mask == TRACE_ITER_GLOBAL_CLK) {
-		u64 (*func)(void);
-
-		if (enabled)
-			func = trace_clock_global;
-		else
-			func = trace_clock_local;
-
-		mutex_lock(&trace_types_lock);
-		ring_buffer_set_clock(global_trace.buffer, func);
-
-		if (max_tr.buffer)
-			ring_buffer_set_clock(max_tr.buffer, func);
-		mutex_unlock(&trace_types_lock);
-	}
 }
 
 static ssize_t
@@ -3142,6 +3135,62 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
+static ssize_t tracing_clock_read(struct file *filp, char __user *ubuf,
+				  size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	int bufiter = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(trace_clocks); i++)
+		bufiter += snprintf(buf + bufiter, sizeof(buf) - bufiter,
+			"%s%s%s%s", i ? " " : "",
+			i == trace_clock_id ? "[" : "", trace_clocks[i].name,
+			i == trace_clock_id ? "]" : "");
+	bufiter += snprintf(buf + bufiter, sizeof(buf) - bufiter, "\n");
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, bufiter);
+}
+
+static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
+				   size_t cnt, loff_t *fpos)
+{
+	char buf[64];
+	const char *clockstr;
+	int i;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	clockstr = strstrip(buf);
+
+	for (i = 0; i < ARRAY_SIZE(trace_clocks); i++) {
+		if (strcmp(trace_clocks[i].name, clockstr) == 0)
+			break;
+	}
+	if (i == ARRAY_SIZE(trace_clocks))
+		return -EINVAL;
+
+	trace_clock_id = i;
+
+	mutex_lock(&trace_types_lock);
+
+	ring_buffer_set_clock(global_trace.buffer, trace_clocks[i].func);
+	if (max_tr.buffer)
+		ring_buffer_set_clock(max_tr.buffer, trace_clocks[i].func);
+
+	mutex_unlock(&trace_types_lock);
+
+	*fpos += cnt;
+
+	return cnt;
+}
+
 static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
@@ -3177,6 +3226,12 @@ static const struct file_operations tracing_entries_fops = {
 static const struct file_operations tracing_mark_fops = {
 	.open		= tracing_open_generic,
 	.write		= tracing_mark_write,
+};
+
+static const struct file_operations trace_clock_fops = {
+	.open		= tracing_open_generic,
+	.read		= tracing_clock_read,
+	.write		= tracing_clock_write,
 };
 
 struct ftrace_buffer_info {
@@ -3917,6 +3972,9 @@ static __init int tracer_init_debugfs(void)
 
 	trace_create_file("saved_cmdlines", 0444, d_tracer,
 			NULL, &tracing_saved_cmdlines_fops);
+
+	trace_create_file("trace_clock", 0644, d_tracer, NULL,
+			  &trace_clock_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
