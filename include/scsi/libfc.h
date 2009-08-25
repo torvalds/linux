@@ -167,7 +167,7 @@ struct fc_disc_port {
 
 enum fc_rport_event {
 	RPORT_EV_NONE = 0,
-	RPORT_EV_CREATED,
+	RPORT_EV_READY,
 	RPORT_EV_FAILED,
 	RPORT_EV_STOP,
 	RPORT_EV_LOGO

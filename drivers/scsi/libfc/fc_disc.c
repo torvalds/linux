@@ -118,7 +118,7 @@ static void fc_disc_rport_callback(struct fc_lport *lport,
 		    rdata->ids.port_id);
 
 	switch (event) {
-	case RPORT_EV_CREATED:
+	case RPORT_EV_READY:
 		if (disc) {
 			mutex_lock(&disc->disc_mutex);
 			list_add_tail(&rdata->peers, &disc->rports);

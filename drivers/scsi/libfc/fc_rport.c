@@ -244,7 +244,7 @@ static void fc_rport_work(struct work_struct *work)
 	rport = rdata->rport;
 
 	switch (event) {
-	case RPORT_EV_CREATED:
+	case RPORT_EV_READY:
 		ids = rdata->ids;
 		rdata->event = RPORT_EV_NONE;
 		mutex_unlock(&rdata->rp_mutex);
@@ -413,7 +413,7 @@ static void fc_rport_enter_ready(struct fc_rport_priv *rdata)
 
 	if (rdata->event == RPORT_EV_NONE)
 		queue_work(rport_event_queue, &rdata->event_work);
-	rdata->event = RPORT_EV_CREATED;
+	rdata->event = RPORT_EV_READY;
 }
 
 /**
