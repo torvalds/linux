@@ -6226,6 +6226,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	udelay(120);
 
 	if ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) && tp->pcie_cap) {
+		u16 val16;
+
 		if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A0) {
 			int i;
 			u32 cfg_val;
@@ -6239,12 +6241,22 @@ static int tg3_chip_reset(struct tg3 *tp)
 					       cfg_val | (1 << 15));
 		}
 
-		/* Set PCIE max payload size to 128 bytes and
-		 * clear the "no snoop" and "relaxed ordering" bits.
+		/* Clear the "no snoop" and "relaxed ordering" bits. */
+		pci_read_config_word(tp->pdev,
+				     tp->pcie_cap + PCI_EXP_DEVCTL,
+				     &val16);
+		val16 &= ~(PCI_EXP_DEVCTL_RELAX_EN |
+			   PCI_EXP_DEVCTL_NOSNOOP_EN);
+		/*
+		 * Older PCIe devices only support the 128 byte
+		 * MPS setting.  Enforce the restriction.
 		 */
+		if (!(tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) ||
+		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784))
+			val16 &= ~PCI_EXP_DEVCTL_PAYLOAD;
 		pci_write_config_word(tp->pdev,
 				      tp->pcie_cap + PCI_EXP_DEVCTL,
-				      0);
+				      val16);
 
 		pcie_set_readrq(tp->pdev, 4096);
 
