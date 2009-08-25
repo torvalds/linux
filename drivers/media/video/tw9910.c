@@ -719,9 +719,10 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	struct i2c_client *client = sd->priv;
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	/* See tw9910_set_crop() - no proper cropping support */
 	struct v4l2_rect rect = {
-		.left	= icd->rect_current.left,
-		.top	= icd->rect_current.top,
+		.left	= 0,
+		.top	= 0,
 		.width	= pix->width,
 		.height	= pix->height,
 	};
@@ -850,6 +851,7 @@ static struct v4l2_subdev_ops tw9910_subdev_ops = {
  * i2c_driver function
  */
 
+/* This is called during probe, so, setting rect_max is Ok here: scale == 1 */
 static void limit_to_scale(struct soc_camera_device *icd,
 			   const struct tw9910_scale_ctrl *scale)
 {
