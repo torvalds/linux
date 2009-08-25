@@ -329,13 +329,19 @@ static struct soc_camera_platform_info camera_info = {
 		.bus_id		= 0,
 		.add_device	= ap325rxa_camera_add,
 		.del_device	= ap325rxa_camera_del,
+		.module_name	= "soc_camera_platform",
 	},
 };
+
+static void dummy_release(struct device *dev)
+{
+}
 
 static struct platform_device camera_device = {
 	.name		= "soc_camera_platform",
 	.dev		= {
 		.platform_data	= &camera_info,
+		.release	= dummy_release,
 	},
 };
 
@@ -352,8 +358,12 @@ static int ap325rxa_camera_add(struct soc_camera_link *icl,
 
 static void ap325rxa_camera_del(struct soc_camera_link *icl)
 {
-	if (icl == &camera_info.link)
-		platform_device_unregister(&camera_device);
+	if (icl != &camera_info.link)
+		return;
+
+	platform_device_unregister(&camera_device);
+	memset(&camera_device.dev.kobj, 0,
+	       sizeof(camera_device.dev.kobj));
 }
 #endif /* CONFIG_I2C */
 
