@@ -206,56 +206,36 @@ static struct snd_soc_card da850_snd_soc_card = {
 	.num_links = 1,
 };
 
-/* evm audio private data */
-static struct aic3x_setup_data evm_aic3x_setup = {
-};
-
-/* dm6467 evm audio private data */
-static struct aic3x_setup_data dm6467_evm_aic3x_setup = {
-       .i2c_bus = 1,
-       .i2c_address = 0x18,
-};
-
-static struct aic3x_setup_data da8xx_evm_aic3x_setup = {
-	.i2c_bus = 1,
-	.i2c_address = 0x18,
-};
+static struct aic3x_setup_data aic3x_setup;
 
 /* evm audio subsystem */
 static struct snd_soc_device evm_snd_devdata = {
 	.card = &snd_soc_card_evm,
 	.codec_dev = &soc_codec_dev_aic3x,
-	.codec_data = &evm_aic3x_setup,
+	.codec_data = &aic3x_setup,
 };
 
 /* evm audio subsystem */
 static struct snd_soc_device dm6467_evm_snd_devdata = {
 	.card = &dm6467_snd_soc_card_evm,
 	.codec_dev = &soc_codec_dev_aic3x,
-	.codec_data = &dm6467_evm_aic3x_setup,
+	.codec_data = &aic3x_setup,
 };
 
 /* evm audio subsystem */
 static struct snd_soc_device da830_evm_snd_devdata = {
 	.card = &da830_snd_soc_card,
 	.codec_dev = &soc_codec_dev_aic3x,
-	.codec_data = &da8xx_evm_aic3x_setup,
+	.codec_data = &aic3x_setup,
 };
 
 static struct snd_soc_device da850_evm_snd_devdata = {
 	.card		= &da850_snd_soc_card,
 	.codec_dev	= &soc_codec_dev_aic3x,
-	.codec_data	= &da8xx_evm_aic3x_setup,
+	.codec_data	= &aic3x_setup,
 };
 
 static struct platform_device *evm_snd_device;
-
-/* temporary i2c device creation until this can be moved into the machine
- * support file.
-*/
-static struct i2c_board_info i2c_device[] = {
-	{ I2C_BOARD_INFO("tlv320aic33", 0x1b), }
-};
 
 static int __init evm_init(void)
 {
@@ -280,8 +260,6 @@ static int __init evm_init(void)
 		index = 0;
 	} else
 		return -EINVAL;
-
-	i2c_register_board_info(1, i2c_device, ARRAY_SIZE(i2c_device));
 
 	evm_snd_device = platform_device_alloc("soc-audio", index);
 	if (!evm_snd_device)
