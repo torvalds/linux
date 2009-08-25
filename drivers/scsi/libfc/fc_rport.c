@@ -62,6 +62,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *);
 static void fc_rport_enter_rtv(struct fc_rport_priv *);
 static void fc_rport_enter_ready(struct fc_rport_priv *);
 static void fc_rport_enter_logo(struct fc_rport_priv *);
+static void fc_rport_enter_adisc(struct fc_rport_priv *);
 
 static void fc_rport_recv_plogi_req(struct fc_lport *,
 				    struct fc_seq *, struct fc_frame *);
@@ -83,6 +84,7 @@ static const char *fc_rport_state_names[] = {
 	[RPORT_ST_RTV] = "RTV",
 	[RPORT_ST_READY] = "Ready",
 	[RPORT_ST_LOGO] = "LOGO",
+	[RPORT_ST_ADISC] = "ADISC",
 	[RPORT_ST_DELETE] = "Delete",
 };
 
@@ -326,15 +328,25 @@ static void fc_rport_work(struct work_struct *work)
  * Locking Note: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
+ *
+ * This indicates the intent to be logged into the remote port.
+ * If it appears we are already logged in, ADISC is used to verify
+ * the setup.
  */
 int fc_rport_login(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
-	FC_RPORT_DBG(rdata, "Login to port\n");
-
-	fc_rport_enter_plogi(rdata);
-
+	switch (rdata->rp_state) {
+	case RPORT_ST_READY:
+		FC_RPORT_DBG(rdata, "ADISC port\n");
+		fc_rport_enter_adisc(rdata);
+		break;
+	default:
+		FC_RPORT_DBG(rdata, "Login to port\n");
+		fc_rport_enter_plogi(rdata);
+		break;
+	}
 	mutex_unlock(&rdata->rp_mutex);
 
 	return 0;
@@ -448,6 +460,9 @@ static void fc_rport_timeout(struct work_struct *work)
 	case RPORT_ST_LOGO:
 		fc_rport_enter_logo(rdata);
 		break;
+	case RPORT_ST_ADISC:
+		fc_rport_enter_adisc(rdata);
+		break;
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
 	case RPORT_ST_DELETE:
@@ -473,12 +488,15 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_PLOGI:
-	case RPORT_ST_PRLI:
 	case RPORT_ST_LOGO:
 		fc_rport_enter_delete(rdata, RPORT_EV_FAILED);
 		break;
 	case RPORT_ST_RTV:
 		fc_rport_enter_ready(rdata);
+		break;
+	case RPORT_ST_PRLI:
+	case RPORT_ST_ADISC:
+		fc_rport_enter_logo(rdata);
 		break;
 	case RPORT_ST_DELETE:
 	case RPORT_ST_READY:
@@ -907,6 +925,93 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 }
 
 /**
+ * fc_rport_els_adisc_resp() - Address Discovery response handler
+ * @sp: current sequence in the ADISC exchange
+ * @fp: response frame
+ * @rdata_arg: remote port private.
+ *
+ * Locking Note: This function will be called without the rport lock
+ * held, but it will lock, call an _enter_* function or fc_rport_error
+ * and then unlock the rport.
+ */
+static void fc_rport_adisc_resp(struct fc_seq *sp, struct fc_frame *fp,
+			      void *rdata_arg)
+{
+	struct fc_rport_priv *rdata = rdata_arg;
+	struct fc_els_adisc *adisc;
+	u8 op;
+
+	mutex_lock(&rdata->rp_mutex);
+
+	FC_RPORT_DBG(rdata, "Received a ADISC response\n");
+
+	if (rdata->rp_state != RPORT_ST_ADISC) {
+		FC_RPORT_DBG(rdata, "Received a ADISC resp but in state %s\n",
+			     fc_rport_state(rdata));
+		if (IS_ERR(fp))
+			goto err;
+		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_rport_error(rdata, fp);
+		goto err;
+	}
+
+	/*
+	 * If address verification failed.  Consider us logged out of the rport.
+	 * Since the rport is still in discovery, we want to be
+	 * logged in, so go to PLOGI state.  Otherwise, go back to READY.
+	 */
+	op = fc_frame_payload_op(fp);
+	adisc = fc_frame_payload_get(fp, sizeof(*adisc));
+	if (op != ELS_LS_ACC || !adisc ||
+	    ntoh24(adisc->adisc_port_id) != rdata->ids.port_id ||
+	    get_unaligned_be64(&adisc->adisc_wwpn) != rdata->ids.port_name ||
+	    get_unaligned_be64(&adisc->adisc_wwnn) != rdata->ids.node_name) {
+		FC_RPORT_DBG(rdata, "ADISC error or mismatch\n");
+		fc_rport_enter_plogi(rdata);
+	} else {
+		FC_RPORT_DBG(rdata, "ADISC OK\n");
+		fc_rport_enter_ready(rdata);
+	}
+out:
+	fc_frame_free(fp);
+err:
+	mutex_unlock(&rdata->rp_mutex);
+	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
+}
+
+/**
+ * fc_rport_enter_adisc() - Send Address Discover (ADISC) request to peer
+ * @rdata: remote port private data
+ *
+ * Locking Note: The rport lock is expected to be held before calling
+ * this routine.
+ */
+static void fc_rport_enter_adisc(struct fc_rport_priv *rdata)
+{
+	struct fc_lport *lport = rdata->local_port;
+	struct fc_frame *fp;
+
+	FC_RPORT_DBG(rdata, "sending ADISC from %s state\n",
+		     fc_rport_state(rdata));
+
+	fc_rport_state_enter(rdata, RPORT_ST_ADISC);
+
+	fp = fc_frame_alloc(lport, sizeof(struct fc_els_adisc));
+	if (!fp) {
+		fc_rport_error_retry(rdata, fp);
+		return;
+	}
+	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_ADISC,
+				  fc_rport_adisc_resp, rdata, lport->e_d_tov))
+		fc_rport_error_retry(rdata, fp);
+	else
+		kref_get(&rdata->kref);
+}
+
+/**
  * fc_rport_recv_els_req() - handle a validated ELS request.
  * @lport: Fibre Channel local port
  * @sp: current sequence in the PLOGI exchange
@@ -943,6 +1048,7 @@ static void fc_rport_recv_els_req(struct fc_lport *lport,
 	case RPORT_ST_PRLI:
 	case RPORT_ST_RTV:
 	case RPORT_ST_READY:
+	case RPORT_ST_ADISC:
 		break;
 	default:
 		mutex_unlock(&rdata->rp_mutex);
@@ -1095,6 +1201,10 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 		break;
 	case RPORT_ST_PRLI:
 	case RPORT_ST_READY:
+	case RPORT_ST_ADISC:
+		FC_RPORT_DBG(rdata, "Received PLOGI in logged-in state %d "
+			     "- ignored for now\n", rdata->rp_state);
+		/* XXX TBD - should reset */
 		break;
 	case RPORT_ST_DELETE:
 	default:
@@ -1178,6 +1288,7 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	case RPORT_ST_PRLI:
 	case RPORT_ST_RTV:
 	case RPORT_ST_READY:
+	case RPORT_ST_ADISC:
 		reason = ELS_RJT_NONE;
 		break;
 	default:
@@ -1283,6 +1394,7 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 			fc_rport_enter_ready(rdata);
 			break;
 		case RPORT_ST_READY:
+		case RPORT_ST_ADISC:
 			break;
 		default:
 			break;

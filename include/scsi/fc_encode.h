@@ -57,6 +57,23 @@ static inline void fc_fill_fc_hdr(struct fc_frame *fp, enum fc_rctl r_ctl,
 }
 
 /**
+ * fc_adisc_fill() - Fill in adisc request frame
+ * @lport: local port.
+ * @fp: fc frame where payload will be placed.
+ */
+static inline void fc_adisc_fill(struct fc_lport *lport, struct fc_frame *fp)
+{
+	struct fc_els_adisc *adisc;
+
+	adisc = fc_frame_payload_get(fp, sizeof(*adisc));
+	memset(adisc, 0, sizeof(*adisc));
+	adisc->adisc_cmd = ELS_ADISC;
+	put_unaligned_be64(lport->wwpn, &adisc->adisc_wwpn);
+	put_unaligned_be64(lport->wwnn, &adisc->adisc_wwnn);
+	hton24(adisc->adisc_port_id, fc_host_port_id(lport->host));
+}
+
+/**
  * fc_ct_hdr_fill- fills ct header and reset ct payload
  * returns pointer to ct request.
  */
@@ -255,6 +272,10 @@ static inline int fc_els_fill(struct fc_lport *lport,
 		       enum fc_rctl *r_ctl, enum fc_fh_type *fh_type)
 {
 	switch (op) {
+	case ELS_ADISC:
+		fc_adisc_fill(lport, fp);
+		break;
+
 	case ELS_PLOGI:
 		fc_plogi_fill(lport, fp, ELS_PLOGI);
 		break;

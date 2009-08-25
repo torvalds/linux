@@ -143,6 +143,7 @@ enum fc_rport_state {
 	RPORT_ST_RTV,		/* waiting for RTV completion */
 	RPORT_ST_READY,		/* ready for use */
 	RPORT_ST_LOGO,		/* port logout sent */
+	RPORT_ST_ADISC,		/* Discover Address sent */
 	RPORT_ST_DELETE,	/* port being deleted */
 };
 
