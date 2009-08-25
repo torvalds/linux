@@ -77,7 +77,7 @@ do {								\
 
 #define FC_RPORT_DBG(rport, fmt, args...)				\
 do {									\
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;		\
+	struct fc_rport_priv *rdata = rport->dd_data;			\
 	struct fc_lport *lport = rdata->local_port;			\
 	FC_RPORT_ID_DBG(lport, rport->port_id, fmt, ##args);		\
 } while (0)
@@ -176,6 +176,14 @@ enum fc_rport_event {
 	RPORT_EV_STOP,
 	RPORT_EV_LOGO
 };
+
+/*
+ * Temporary definition to prepare for split off from fc_rport_libfc_priv
+ * of a separately-allocated structure called fc_rport_priv.  This will
+ * be the primary object for the discovery and rport state machines.
+ * This definition is just to make this patch series easier to review.
+ */
+#define fc_rport_priv fc_rport_libfc_priv
 
 struct fc_rport_operations {
 	void (*event_callback)(struct fc_lport *, struct fc_rport *,

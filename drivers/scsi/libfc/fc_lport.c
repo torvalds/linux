@@ -1306,7 +1306,7 @@ static struct fc_rport_operations fc_lport_rport_ops = {
 static void fc_lport_enter_dns(struct fc_lport *lport)
 {
 	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 	struct fc_disc_port dp;
 
 	dp.ids.port_id = FC_FID_DIR_SERV;

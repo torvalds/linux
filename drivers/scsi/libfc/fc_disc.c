@@ -65,7 +65,7 @@ struct fc_rport *fc_disc_lookup_rport(const struct fc_lport *lport,
 {
 	const struct fc_disc *disc = &lport->disc;
 	struct fc_rport *rport, *found = NULL;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 	int disc_found = 0;
 
 	list_for_each_entry(rdata, &disc->rports, peers) {
@@ -94,7 +94,7 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 {
 	struct fc_lport *lport;
 	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rdata, *next;
+	struct fc_rport_priv *rdata, *next;
 
 	lport = disc->lport;
 
@@ -126,7 +126,7 @@ static void fc_disc_rport_callback(struct fc_lport *lport,
 				   struct fc_rport *rport,
 				   enum fc_rport_event event)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_disc *disc = &lport->disc;
 
 	FC_DISC_DBG(disc, "Received a %d event for port (%6x)\n", event,
@@ -170,7 +170,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 {
 	struct fc_lport *lport;
 	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 	struct fc_els_rscn *rp;
 	struct fc_els_rscn_page *pp;
 	struct fc_seq_els_data rjt_data;
@@ -309,7 +309,7 @@ static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 static void fc_disc_restart(struct fc_disc *disc)
 {
 	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rdata, *next;
+	struct fc_rport_priv *rdata, *next;
 	struct fc_lport *lport = disc->lport;
 
 	FC_DISC_DBG(disc, "Restarting discovery\n");
@@ -400,7 +400,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			      struct fc_rport_identifiers *ids)
 {
 	struct fc_lport *lport = disc->lport;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 	int error = 0;
 
 	if (rport && ids->port_name) {
@@ -458,7 +458,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 static void fc_disc_del_target(struct fc_disc *disc, struct fc_rport *rport)
 {
 	struct fc_lport *lport = disc->lport;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	list_del(&rdata->peers);
 	lport->tt.rport_logoff(rport);
 }
@@ -580,7 +580,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	int error = 0;
 	struct fc_disc_port dp;
 	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 
 	lport = disc->lport;
 
@@ -774,7 +774,7 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 {
 	struct fc_lport *lport;
 	struct fc_rport *new_rport;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 
 	lport = disc->lport;
 

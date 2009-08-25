@@ -96,7 +96,7 @@ static void fc_rport_rogue_destroy(struct device *dev)
 struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *dp)
 {
 	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rdata;
+	struct fc_rport_priv *rdata;
 	rport = kzalloc(sizeof(*rport) + sizeof(*rdata), GFP_KERNEL);
 
 	if (!rport)
@@ -144,7 +144,7 @@ struct fc_rport *fc_rport_rogue_create(struct fc_disc_port *dp)
 static const char *fc_rport_state(struct fc_rport *rport)
 {
 	const char *cp;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 
 	cp = fc_rport_state_names[rdata->rp_state];
 	if (!cp)
@@ -199,7 +199,7 @@ static unsigned int fc_plogi_get_maxframe(struct fc_els_flogi *flp,
 static void fc_rport_state_enter(struct fc_rport *rport,
 				 enum fc_rport_state new)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	if (rdata->rp_state != new)
 		rdata->retries = 0;
 	rdata->rp_state = new;
@@ -208,8 +208,8 @@ static void fc_rport_state_enter(struct fc_rport *rport,
 static void fc_rport_work(struct work_struct *work)
 {
 	u32 port_id;
-	struct fc_rport_libfc_priv *rdata =
-		container_of(work, struct fc_rport_libfc_priv, event_work);
+	struct fc_rport_priv *rdata =
+		container_of(work, struct fc_rport_priv, event_work);
 	enum fc_rport_event event;
 	enum fc_rport_trans_state trans_state;
 	struct fc_lport *lport = rdata->local_port;
@@ -222,7 +222,7 @@ static void fc_rport_work(struct work_struct *work)
 
 	if (event == RPORT_EV_CREATED) {
 		struct fc_rport *new_rport;
-		struct fc_rport_libfc_priv *new_rdata;
+		struct fc_rport_priv *new_rdata;
 		struct fc_rport_identifiers ids;
 
 		ids.port_id = rport->port_id;
@@ -299,7 +299,7 @@ static void fc_rport_work(struct work_struct *work)
  */
 int fc_rport_login(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 
 	mutex_lock(&rdata->rp_mutex);
 
@@ -329,7 +329,7 @@ int fc_rport_login(struct fc_rport *rport)
 static void fc_rport_enter_delete(struct fc_rport *rport,
 				  enum fc_rport_event event)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 
 	if (rdata->rp_state == RPORT_ST_DELETE)
 		return;
@@ -353,7 +353,7 @@ static void fc_rport_enter_delete(struct fc_rport *rport,
  */
 int fc_rport_logoff(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 
 	mutex_lock(&rdata->rp_mutex);
 
@@ -387,7 +387,7 @@ out:
  */
 static void fc_rport_enter_ready(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 
 	fc_rport_state_enter(rport, RPORT_ST_READY);
 
@@ -400,7 +400,7 @@ static void fc_rport_enter_ready(struct fc_rport *rport)
 
 /**
  * fc_rport_timeout() - Handler for the retry_work timer.
- * @work: The work struct of the fc_rport_libfc_priv
+ * @work: The work struct of the fc_rport_priv
  *
  * Locking Note: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
@@ -408,8 +408,8 @@ static void fc_rport_enter_ready(struct fc_rport *rport)
  */
 static void fc_rport_timeout(struct work_struct *work)
 {
-	struct fc_rport_libfc_priv *rdata =
-		container_of(work, struct fc_rport_libfc_priv, retry_work.work);
+	struct fc_rport_priv *rdata =
+		container_of(work, struct fc_rport_priv, retry_work.work);
 	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 
 	mutex_lock(&rdata->rp_mutex);
@@ -446,7 +446,7 @@ static void fc_rport_timeout(struct work_struct *work)
  */
 static void fc_rport_error(struct fc_rport *rport, struct fc_frame *fp)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 
 	FC_RPORT_DBG(rport, "Error %ld in state %s, retries %d\n",
 		     PTR_ERR(fp), fc_rport_state(rport), rdata->retries);
@@ -480,7 +480,7 @@ static void fc_rport_error(struct fc_rport *rport, struct fc_frame *fp)
  */
 static void fc_rport_error_retry(struct fc_rport *rport, struct fc_frame *fp)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	unsigned long delay = FC_DEF_E_D_TOV;
 
 	/* make sure this isn't an FC_EX_CLOSED error, never retry those */
@@ -515,7 +515,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				void *rp_arg)
 {
 	struct fc_rport *rport = rp_arg;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_els_flogi *plp = NULL;
 	unsigned int tov;
@@ -586,7 +586,7 @@ err:
  */
 static void fc_rport_enter_plogi(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
 
@@ -624,7 +624,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 			       void *rp_arg)
 {
 	struct fc_rport *rport = rp_arg;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct {
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
@@ -694,7 +694,7 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 			       void *rp_arg)
 {
 	struct fc_rport *rport = rp_arg;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	u8 op;
 
 	mutex_lock(&rdata->rp_mutex);
@@ -738,7 +738,7 @@ err:
  */
 static void fc_rport_enter_prli(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 	struct {
 		struct fc_els_prli prli;
@@ -780,7 +780,7 @@ static void fc_rport_rtv_resp(struct fc_seq *sp, struct fc_frame *fp,
 			      void *rp_arg)
 {
 	struct fc_rport *rport = rp_arg;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	u8 op;
 
 	mutex_lock(&rdata->rp_mutex);
@@ -841,7 +841,7 @@ err:
 static void fc_rport_enter_rtv(struct fc_rport *rport)
 {
 	struct fc_frame *fp;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 
 	FC_RPORT_DBG(rport, "Port entered RTV state from %s state\n",
@@ -871,7 +871,7 @@ static void fc_rport_enter_rtv(struct fc_rport *rport)
  */
 static void fc_rport_enter_logo(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
 
@@ -907,7 +907,7 @@ static void fc_rport_enter_logo(struct fc_rport *rport)
 void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 		       struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 
 	struct fc_frame_header *fh;
@@ -967,7 +967,7 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 static void fc_rport_recv_plogi_req(struct fc_rport *rport,
 				    struct fc_seq *sp, struct fc_frame *rx_fp)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp = rx_fp;
 	struct fc_exch *ep;
@@ -1090,7 +1090,7 @@ static void fc_rport_recv_plogi_req(struct fc_rport *rport,
 static void fc_rport_recv_prli_req(struct fc_rport *rport,
 				   struct fc_seq *sp, struct fc_frame *rx_fp)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_exch *ep;
 	struct fc_frame *fp;
@@ -1242,7 +1242,7 @@ static void fc_rport_recv_prli_req(struct fc_rport *rport,
 static void fc_rport_recv_prlo_req(struct fc_rport *rport, struct fc_seq *sp,
 				   struct fc_frame *fp)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 
 	struct fc_frame_header *fh;
@@ -1278,7 +1278,7 @@ static void fc_rport_recv_logo_req(struct fc_rport *rport, struct fc_seq *sp,
 				   struct fc_frame *fp)
 {
 	struct fc_frame_header *fh;
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_rport_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
 
 	fh = fc_frame_header_get(fp);
@@ -1342,8 +1342,8 @@ EXPORT_SYMBOL(fc_destroy_rport);
 
 void fc_rport_terminate_io(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rdata = rport->dd_data;
-	struct fc_lport *lport = rdata->local_port;
+	struct fc_rport_libfc_priv *rp = rport->dd_data;
+	struct fc_lport *lport = rp->local_port;
 
 	lport->tt.exch_mgr_reset(lport, 0, rport->port_id);
 	lport->tt.exch_mgr_reset(lport, rport->port_id, 0);
