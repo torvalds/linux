@@ -95,6 +95,8 @@ struct sh_mobile_ceu_dev {
 
 	struct sh_mobile_ceu_info *pdata;
 
+	u32 cflcr;
+
 	unsigned int is_interlaced:1;
 	unsigned int image_mode:1;
 	unsigned int is_16bit:1;
@@ -102,6 +104,7 @@ struct sh_mobile_ceu_dev {
 
 struct sh_mobile_ceu_cam {
 	struct v4l2_rect camera_rect;
+	struct v4l2_rect camera_max;
 	const struct soc_camera_data_format *extra_fmt;
 	const struct soc_camera_data_format *camera_fmt;
 };
@@ -435,54 +438,119 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	pcdev->icd = NULL;
 }
 
+/*
+ * See chapter 29.4.12 "Capture Filter Control Register (CFLCR)"
+ * in SH7722 Hardware Manual
+ */
+static unsigned int size_dst(unsigned int src, unsigned int scale)
+{
+	unsigned int mant_pre = scale >> 12;
+	if (!src || !scale)
+		return src;
+	return ((mant_pre + 2 * (src - 1)) / (2 * mant_pre) - 1) *
+		mant_pre * 4096 / scale + 1;
+}
+
+static unsigned int size_src(unsigned int dst, unsigned int scale)
+{
+	unsigned int mant_pre = scale >> 12, tmp;
+	if (!dst || !scale)
+		return dst;
+	for (tmp = ((dst - 1) * scale + 2048 * mant_pre) / 4096 + 1;
+	     size_dst(tmp, scale) < dst;
+	     tmp++)
+		;
+	return tmp;
+}
+
+static u16 calc_scale(unsigned int src, unsigned int *dst)
+{
+	u16 scale;
+
+	if (src == *dst)
+		return 0;
+
+	scale = (src * 4096 / *dst) & ~7;
+
+	while (scale > 4096 && size_dst(src, scale) < *dst)
+		scale -= 8;
+
+	*dst = size_dst(src, scale);
+
+	return scale;
+}
+
+/* rect is guaranteed to not exceed the scaled camera rectangle */
 static void sh_mobile_ceu_set_rect(struct soc_camera_device *icd,
 				   struct v4l2_rect *rect)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int width, height, cfszr_width, cdwdr_width;
-	unsigned int left_offset, top_offset;
+	int width, height, cfszr_width, cdwdr_width, in_width, in_height;
+	unsigned int left_offset, top_offset, left, top;
+	unsigned int hscale = pcdev->cflcr & 0xffff;
+	unsigned int vscale = (pcdev->cflcr >> 16) & 0xffff;
 	u32 camor;
 
-	if (rect->left > cam->camera_rect.left) {
-		left_offset = rect->left - cam->camera_rect.left;
+	/* Switch to the camera scale */
+	left = size_src(rect->left, hscale);
+	top = size_src(rect->top, vscale);
+
+	dev_dbg(&icd->dev, "Left %u * 0x%x = %u, top %u * 0x%x = %u\n",
+		rect->left, hscale, left, rect->top, vscale, top);
+
+	if (left > cam->camera_rect.left) {
+		left_offset = left - cam->camera_rect.left;
 	} else {
 		left_offset = 0;
-		rect->left = cam->camera_rect.left;
+		left = cam->camera_rect.left;
 	}
 
-	if (rect->top > cam->camera_rect.top) {
-		top_offset = rect->top - cam->camera_rect.top;
+	if (top > cam->camera_rect.top) {
+		top_offset = top - cam->camera_rect.top;
 	} else {
 		top_offset = 0;
-		rect->top = cam->camera_rect.top;
+		top = cam->camera_rect.top;
 	}
 
-	dev_dbg(&icd->dev, "Offsets %u:%u\n", left_offset, top_offset);
+	dev_dbg(&icd->dev, "New left %u, top %u, offsets %u:%u\n",
+		rect->left, rect->top, left_offset, top_offset);
 
 	if (pcdev->image_mode) {
 		width = rect->width;
-		if (!pcdev->is_16bit)
+		in_width = cam->camera_rect.width;
+		if (!pcdev->is_16bit) {
 			width *= 2;
+			in_width *= 2;
+			left_offset *= 2;
+		}
 		cfszr_width = cdwdr_width = rect->width;
 	} else {
-		width = rect->width *
-			((icd->current_fmt->depth + 7) >> 3);
-		width = pcdev->is_16bit ? width / 2 : width;
+		unsigned int w_factor = (icd->current_fmt->depth + 7) >> 3;
+		if (!pcdev->is_16bit)
+			w_factor *= 2;
+
+		width = rect->width * w_factor / 2;
+		in_width = cam->camera_rect.width * w_factor / 2;
+		left_offset = left_offset * w_factor / 2;
+
 		cfszr_width = pcdev->is_16bit ? width : width / 2;
 		cdwdr_width = pcdev->is_16bit ? width * 2 : width;
 	}
 
 	height = rect->height;
+	in_height = cam->camera_rect.height;
 	if (pcdev->is_interlaced) {
 		height /= 2;
+		in_height /= 2;
+		top_offset /= 2;
 		cdwdr_width *= 2;
 	}
 
 	camor = left_offset | (top_offset << 16);
 	ceu_write(pcdev, CAMOR, camor);
-	ceu_write(pcdev, CAPWR, (height << 16) | width);
+	ceu_write(pcdev, CAPWR, (in_height << 16) | in_width);
 	ceu_write(pcdev, CFSZR, (height << 16) | cfszr_width);
 	ceu_write(pcdev, CDWDR, cdwdr_width);
 }
@@ -556,7 +624,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CRCMPR, 0);
 
 	value = 0x00000010; /* data fetch by default */
-	pcdev->image_mode = yuv_lineskip = 0;
+	yuv_lineskip = 0;
 
 	switch (icd->current_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12:
@@ -565,7 +633,6 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 		/* fall-through */
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
-		pcdev->image_mode = 1;
 		switch (cam->camera_fmt->fourcc) {
 		case V4L2_PIX_FMT_UYVY:
 			value = 0x00000000; /* Cb0, Y0, Cr0, Y1 */
@@ -599,7 +666,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	mdelay(1);
 	sh_mobile_ceu_set_rect(icd, &icd->rect_current);
 
-	ceu_write(pcdev, CFLCR, 0); /* no scaling */
+	ceu_write(pcdev, CFLCR, pcdev->cflcr);
 
 	/* A few words about byte order (observed in Big Endian mode)
 	 *
@@ -620,7 +687,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CDOCR, value);
 	ceu_write(pcdev, CFWCR, 0); /* keep "datafetch firewall" disabled */
 
-	dev_dbg(&icd->dev, "S_FMT successful for %c%c%c%c %ux%u@%u.%u\n",
+	dev_dbg(&icd->dev, "S_FMT successful for %c%c%c%c %ux%u@%u:%u\n",
 		pixfmt & 0xff, (pixfmt >> 8) & 0xff,
 		(pixfmt >> 16) & 0xff, (pixfmt >> 24) & 0xff,
 		icd->rect_current.width, icd->rect_current.height,
@@ -692,6 +759,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 			return -ENOMEM;
 
 		icd->host_priv = cam;
+		cam->camera_max = icd->rect_max;
 	} else {
 		cam = icd->host_priv;
 	}
@@ -754,86 +822,150 @@ static void sh_mobile_ceu_put_formats(struct soc_camera_device *icd)
 	icd->host_priv = NULL;
 }
 
+/* Check if any dimension of r1 is smaller than respective one of r2 */
 static bool is_smaller(struct v4l2_rect *r1, struct v4l2_rect *r2)
 {
 	return r1->width < r2->width || r1->height < r2->height;
 }
 
+/* Check if r1 fails to cover r2 */
+static bool is_inside(struct v4l2_rect *r1, struct v4l2_rect *r2)
+{
+	return r1->left > r2->left || r1->top > r2->top ||
+		r1->left + r1->width < r2->left + r2->width ||
+		r1->top + r1->height < r2->top + r2->height;
+}
+
+/*
+ * CEU can scale and crop, but we don't want to waste bandwidth and kill the
+ * framerate by always requesting the maximum image from the client. For
+ * cropping we also have to take care of the current scale. The common for both
+ * scaling and cropping approach is:
+ * 1. try if the client can produce exactly what requested by the user
+ * 2. if (1) failed, try to double the client image until we get one big enough
+ * 3. if (2) failed, try to request the maximum image
+ */
 static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 				  struct v4l2_rect *rect)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	struct v4l2_rect cam_rect = *rect;
+	struct v4l2_rect cam_rect, target, cam_max;
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
+	unsigned int hscale = pcdev->cflcr & 0xffff;
+	unsigned int vscale = (pcdev->cflcr >> 16) & 0xffff;
 	unsigned short width, height;
 	u32 capsr;
 	int ret;
 
-	capsr = capture_save_reset(pcdev);
-	dev_dbg(&icd->dev, "CAPSR %x\n", capsr);
+	/* Scale back up into client units */
+	cam_rect.left	= size_src(rect->left, hscale);
+	cam_rect.width	= size_src(rect->width, hscale);
+	cam_rect.top	= size_src(rect->top, vscale);
+	cam_rect.height	= size_src(rect->height, vscale);
 
+	target = cam_rect;
+
+	capsr = capture_save_reset(pcdev);
+	dev_dbg(&icd->dev, "CAPSR 0x%x, CFLCR 0x%x\n", capsr, pcdev->cflcr);
+
+	/* First attempt - see if the client can deliver a perfect result */
 	ret = icd->ops->set_crop(icd, &cam_rect);
-	if (!ret && !memcmp(rect, &cam_rect, sizeof(*rect))) {
-		dev_dbg(&icd->dev, "Camera S_CROP successful for %ux%u@%u.%u\n",
+	if (!ret && !memcmp(&target, &cam_rect, sizeof(target))) {
+		dev_dbg(&icd->dev, "Camera S_CROP successful for %ux%u@%u:%u\n",
 			cam_rect.width, cam_rect.height,
 			cam_rect.left, cam_rect.top);
 		goto ceu_set_rect;
 	}
 
 	/* Try to fix cropping, that camera hasn't managed to do */
-	dev_dbg(&icd->dev, "Fix camera S_CROP %d for %ux%u@%u.%u\n",
+	dev_dbg(&icd->dev, "Fix camera S_CROP %d for %ux%u@%u:%u"
+		" to %ux%u@%u:%u\n",
 		ret, cam_rect.width, cam_rect.height,
-		cam_rect.left, cam_rect.top);
+		cam_rect.left, cam_rect.top,
+		target.width, target.height, target.left, target.top);
 
 	/*
 	 * Popular special case - some cameras can only handle fixed sizes like
 	 * QVGA, VGA,... Take care to avoid infinite loop.
 	 */
-	width = max(cam_rect.width, 1) * 2;
-	height = max(cam_rect.height, 1) * 2;
-	while (!ret && is_smaller(&cam_rect, rect) &&
-	       (icd->rect_max.width >= width &&
-		icd->rect_max.height >= height)) {
+	width = max(cam_rect.width, 1);
+	height = max(cam_rect.height, 1);
+	cam_max.width = size_src(icd->rect_max.width, hscale);
+	cam_max.left = size_src(icd->rect_max.left, hscale);
+	cam_max.height = size_src(icd->rect_max.height, vscale);
+	cam_max.top = size_src(icd->rect_max.top, vscale);
+	while (!ret && (is_smaller(&cam_rect, &target) ||
+			is_inside(&cam_rect, &target)) &&
+	       cam_max.width >= width && cam_max.height >= height) {
+
+		width *= 2;
+		height *= 2;
 		cam_rect.width = width;
 		cam_rect.height = height;
 
+		/* We do not know what the camera is capable of, play safe */
+		if (cam_rect.left > target.left)
+			cam_rect.left = cam_max.left;
+
+		if (cam_rect.left + cam_rect.width < target.left + target.width)
+			cam_rect.width = target.left + target.width -
+				cam_rect.left;
+
+		if (cam_rect.top > target.top)
+			cam_rect.top = cam_max.top;
+
+		if (cam_rect.top + cam_rect.height < target.top + target.height)
+			cam_rect.height = target.top + target.height -
+				cam_rect.top;
+
 		if (cam_rect.width + cam_rect.left >
-		    icd->rect_max.width + icd->rect_max.left)
-			cam_rect.left = icd->rect_max.width +
-				icd->rect_max.left - cam_rect.width;
+		    cam_max.width + cam_max.left)
+			cam_rect.left = max(cam_max.width + cam_max.left -
+					    cam_rect.width, cam_max.left);
 
 		if (cam_rect.height + cam_rect.top >
-		    icd->rect_max.height + icd->rect_max.top)
-			cam_rect.top = icd->rect_max.height +
-				icd->rect_max.top - cam_rect.height;
+		    cam_max.height + cam_max.top)
+			cam_rect.top = max(cam_max.height + cam_max.top -
+					   cam_rect.height, cam_max.top);
 
 		ret = icd->ops->set_crop(icd, &cam_rect);
-		dev_dbg(&icd->dev, "Camera S_CROP %d for %ux%u@%u.%u\n",
+		dev_dbg(&icd->dev, "Camera S_CROP %d for %ux%u@%u:%u\n",
 			ret, cam_rect.width, cam_rect.height,
 			cam_rect.left, cam_rect.top);
-		width *= 2;
-		height *= 2;
 	}
 
 	/*
 	 * If the camera failed to configure cropping, it should not modify the
 	 * rectangle
 	 */
-	if ((ret < 0 && is_smaller(&icd->rect_current, rect)) ||
-	    is_smaller(&cam_rect, rect)) {
+	if ((ret < 0 && (is_smaller(&icd->rect_current, rect) ||
+			 is_inside(&icd->rect_current, rect))) ||
+	    is_smaller(&cam_rect, &target) || is_inside(&cam_rect, &target)) {
 		/*
 		 * The camera failed to configure a suitable cropping,
 		 * we cannot use the current rectangle, set to max
 		 */
-		cam_rect = icd->rect_max;
+		cam_rect = cam_max;
 		ret = icd->ops->set_crop(icd, &cam_rect);
-		dev_dbg(&icd->dev, "Camera S_CROP %d for max %ux%u@%u.%u\n",
+		dev_dbg(&icd->dev, "Camera S_CROP %d for max %ux%u@%u:%u\n",
 			ret, cam_rect.width, cam_rect.height,
 			cam_rect.left, cam_rect.top);
 		if (ret < 0)
 			/* All failed, hopefully resume current capture */
 			goto resume_capture;
+
+		/* Finally, adjust the target rectangle */
+		if (target.width > cam_rect.width)
+			target.width = cam_rect.width;
+		if (target.height > cam_rect.height)
+			target.height = cam_rect.height;
+		if (target.left + target.width > cam_rect.left + cam_rect.width)
+			target.left = cam_rect.left + cam_rect.width -
+				target.width;
+		if (target.top + target.height > cam_rect.top + cam_rect.height)
+			target.top = cam_rect.top + cam_rect.height -
+				target.height;
 	}
 
 	/* We now have a rectangle, larger than requested, let's crop */
@@ -844,8 +976,10 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	 * last before last close() _user_ rectangle, which can be different
 	 * from camera rectangle.
 	 */
-	dev_dbg(&icd->dev, "SH S_CROP from %ux%u@%u.%u to %ux%u@%u.%u\n",
+	dev_dbg(&icd->dev,
+		"SH S_CROP from %ux%u@%u:%u to %ux%u@%u:%u, scale to %ux%u@%u:%u\n",
 		cam_rect.width, cam_rect.height, cam_rect.left, cam_rect.top,
+		target.width, target.height, target.left, target.top,
 		rect->width, rect->height, rect->left, rect->top);
 
 	ret = 0;
@@ -853,27 +987,49 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 ceu_set_rect:
 	cam->camera_rect = cam_rect;
 
+	rect->width	= size_dst(target.width, hscale);
+	rect->left	= size_dst(target.left, hscale);
+	rect->height	= size_dst(target.height, vscale);
+	rect->top	= size_dst(target.top, vscale);
+
+	sh_mobile_ceu_set_rect(icd, rect);
+
+resume_capture:
 	/* Set CAMOR, CAPWR, CFSZR, take care of CDWDR */
 	if (pcdev->active)
 		capsr |= 1;
-	sh_mobile_ceu_set_rect(icd, rect);
 	capture_restore(pcdev, capsr);
-
-resume_capture:
 
 	/* Even if only camera cropping succeeded */
 	return ret;
 }
 
+/* Similar to set_crop multistage iterative algorithm */
 static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 				 struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	__u32 pixfmt = pix->pixelformat;
 	const struct soc_camera_format_xlate *xlate;
-	int ret;
+	unsigned int width = pix->width, height = pix->height, tmp_w, tmp_h;
+	u16 vscale, hscale;
+	int ret, is_interlaced;
+
+	switch (pix->field) {
+	case V4L2_FIELD_INTERLACED:
+		is_interlaced = 1;
+		break;
+	case V4L2_FIELD_ANY:
+	default:
+		pix->field = V4L2_FIELD_NONE;
+		/* fall-through */
+	case V4L2_FIELD_NONE:
+		is_interlaced = 0;
+		break;
+	}
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
@@ -884,27 +1040,104 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	pix->pixelformat = xlate->cam_fmt->fourcc;
 	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, s_fmt, f);
 	pix->pixelformat = pixfmt;
-	if (!ret) {
-		icd->buswidth = xlate->buswidth;
-		icd->current_fmt = xlate->host_fmt;
-		cam->camera_fmt = xlate->cam_fmt;
-		cam->camera_rect.width = pix->width;
-		cam->camera_rect.height = pix->height;
-		cam->camera_rect.left = icd->rect_current.left;
-		cam->camera_rect.top = icd->rect_current.top;
+	dev_dbg(&icd->dev, "Camera %d fmt %ux%u, requested %ux%u, max %ux%u\n",
+		ret, pix->width, pix->height, width, height,
+		icd->rect_max.width, icd->rect_max.height);
+	if (ret < 0)
+		return ret;
+
+	switch (pixfmt) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		pcdev->image_mode = 1;
+		break;
+	default:
+		pcdev->image_mode = 0;
 	}
 
-	return ret;
+	if ((abs(width - pix->width) < 4 && abs(height - pix->height) < 4) ||
+	    !pcdev->image_mode || is_interlaced) {
+		hscale = 0;
+		vscale = 0;
+		goto out;
+	}
+
+	/* Camera set a format, but geometry is not precise, try to improve */
+	/*
+	 * FIXME: when soc-camera is converted to implement traditional S_FMT
+	 * and S_CROP semantics, replace CEU limits with camera maxima
+	 */
+	tmp_w = pix->width;
+	tmp_h = pix->height;
+	while ((width > tmp_w || height > tmp_h) &&
+	       tmp_w < 2560 && tmp_h < 1920) {
+		tmp_w = min(2 * tmp_w, (__u32)2560);
+		tmp_h = min(2 * tmp_h, (__u32)1920);
+		pix->width = tmp_w;
+		pix->height = tmp_h;
+		pix->pixelformat = xlate->cam_fmt->fourcc;
+		ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd,
+						 video, s_fmt, f);
+		pix->pixelformat = pixfmt;
+		dev_dbg(&icd->dev, "Camera scaled to %ux%u\n",
+			pix->width, pix->height);
+		if (ret < 0) {
+			/* This shouldn't happen */
+			dev_err(&icd->dev, "Client failed to set format: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	/* We cannot scale up */
+	if (width > pix->width)
+		width = pix->width;
+
+	if (height > pix->height)
+		height = pix->height;
+
+	/* Let's rock: scale pix->{width x height} down to width x height */
+	hscale = calc_scale(pix->width, &width);
+	vscale = calc_scale(pix->height, &height);
+
+	dev_dbg(&icd->dev, "W: %u : 0x%x = %u, H: %u : 0x%x = %u\n",
+		pix->width, hscale, width, pix->height, vscale, height);
+
+out:
+	pcdev->cflcr = hscale | (vscale << 16);
+
+	icd->buswidth = xlate->buswidth;
+	icd->current_fmt = xlate->host_fmt;
+	cam->camera_fmt = xlate->cam_fmt;
+	cam->camera_rect.width = pix->width;
+	cam->camera_rect.height = pix->height;
+
+	icd->rect_max.left = size_dst(cam->camera_max.left, hscale);
+	icd->rect_max.width = size_dst(cam->camera_max.width, hscale);
+	icd->rect_max.top = size_dst(cam->camera_max.top, vscale);
+	icd->rect_max.height = size_dst(cam->camera_max.height, vscale);
+
+	icd->rect_current.left = icd->rect_max.left;
+	icd->rect_current.top = icd->rect_max.top;
+
+	pcdev->is_interlaced = is_interlaced;
+
+	pix->width = width;
+	pix->height = height;
+
+	return 0;
 }
 
 static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 				 struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	__u32 pixfmt = pix->pixelformat;
+	int width, height;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
@@ -918,6 +1151,9 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	v4l_bound_align_image(&pix->width, 2, 2560, 1,
 			      &pix->height, 4, 1920, 2, 0);
 
+	width = pix->width;
+	height = pix->height;
+
 	pix->bytesperline = pix->width *
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
 	pix->sizeimage = pix->height * pix->bytesperline;
@@ -925,24 +1161,38 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	pix->pixelformat = xlate->cam_fmt->fourcc;
 
 	/* limit to sensor capabilities */
-	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, try_fmt, f);
+	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video,
+					 try_fmt, f);
 	pix->pixelformat = pixfmt;
 	if (ret < 0)
 		return ret;
 
-	switch (pix->field) {
-	case V4L2_FIELD_INTERLACED:
-		pcdev->is_interlaced = 1;
-		break;
-	case V4L2_FIELD_ANY:
-		pix->field = V4L2_FIELD_NONE;
-		/* fall-through */
-	case V4L2_FIELD_NONE:
-		pcdev->is_interlaced = 0;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
+	switch (pixfmt) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		/* FIXME: check against rect_max after converting soc-camera */
+		/* We can scale precisely, need a bigger image from camera */
+		if (pix->width < width || pix->height < height) {
+			int tmp_w = pix->width, tmp_h = pix->height;
+			pix->width = 2560;
+			pix->height = 1920;
+			ret = v4l2_device_call_until_err(&ici->v4l2_dev,
+							 (__u32)icd, video,
+							 try_fmt, f);
+			if (ret < 0) {
+				/* Shouldn't actually happen... */
+				dev_err(&icd->dev,
+					"FIXME: try_fmt() returned %d\n", ret);
+				pix->width = tmp_w;
+				pix->height = tmp_h;
+			}
+		}
+		if (pix->width > width)
+			pix->width = width;
+		if (pix->height > height)
+			pix->height = height;
 	}
 
 	return ret;
