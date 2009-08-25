@@ -1017,8 +1017,8 @@ static void fc_exch_send_ba_rjt(struct fc_frame *rx_fp,
 	 */
 	memcpy(fh->fh_s_id, rx_fh->fh_d_id, 3);
 	memcpy(fh->fh_d_id, rx_fh->fh_s_id, 3);
-	fh->fh_ox_id = rx_fh->fh_rx_id;
-	fh->fh_rx_id = rx_fh->fh_ox_id;
+	fh->fh_ox_id = rx_fh->fh_ox_id;
+	fh->fh_rx_id = rx_fh->fh_rx_id;
 	fh->fh_seq_cnt = rx_fh->fh_seq_cnt;
 	fh->fh_r_ctl = FC_RCTL_BA_RJT;
 	fh->fh_type = FC_TYPE_BLS;
