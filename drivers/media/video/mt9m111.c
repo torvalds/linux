@@ -672,13 +672,9 @@ static const struct v4l2_queryctrl mt9m111_controls[] = {
 };
 
 static int mt9m111_resume(struct soc_camera_device *icd);
-static int mt9m111_init(struct soc_camera_device *icd);
-static int mt9m111_release(struct soc_camera_device *icd);
 
 static struct soc_camera_ops mt9m111_ops = {
-	.init			= mt9m111_init,
 	.resume			= mt9m111_resume,
-	.release		= mt9m111_release,
 	.query_bus_param	= mt9m111_query_bus_param,
 	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,
@@ -880,9 +876,8 @@ static int mt9m111_resume(struct soc_camera_device *icd)
 	return ret;
 }
 
-static int mt9m111_init(struct soc_camera_device *icd)
+static int mt9m111_init(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
@@ -896,22 +891,6 @@ static int mt9m111_init(struct soc_camera_device *icd)
 		ret = mt9m111_set_autoexposure(client, mt9m111->autoexposure);
 	if (ret)
 		dev_err(&client->dev, "mt9m11x init failed: %d\n", ret);
-	return ret;
-}
-
-static int mt9m111_release(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m111 *mt9m111 = to_mt9m111(client);
-	int ret;
-
-	ret = reg_clear(RESET, MT9M111_RESET_CHIP_ENABLE);
-	if (!ret)
-		mt9m111->powered = 0;
-
-	if (ret < 0)
-		dev_err(&client->dev, "mt9m11x release failed: %d\n", ret);
-
 	return ret;
 }
 
@@ -934,10 +913,13 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
 
-	ret = mt9m111_enable(client);
-	if (ret)
-		goto ei2c;
-	ret = mt9m111_reset(client);
+	mt9m111->autoexposure = 1;
+	mt9m111->autowhitebalance = 1;
+
+	mt9m111->swap_rgb_even_odd = 1;
+	mt9m111->swap_rgb_red_blue = 1;
+
+	ret = mt9m111_init(client);
 	if (ret)
 		goto ei2c;
 
@@ -961,12 +943,6 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 	icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
 
 	dev_info(&client->dev, "Detected a MT9M11x chip ID %x\n", data);
-
-	mt9m111->autoexposure = 1;
-	mt9m111->autowhitebalance = 1;
-
-	mt9m111->swap_rgb_even_odd = 1;
-	mt9m111->swap_rgb_red_blue = 1;
 
 ei2c:
 	return ret;

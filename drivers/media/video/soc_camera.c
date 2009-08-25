@@ -385,12 +385,6 @@ static int soc_camera_open(struct file *file)
 			goto eiciadd;
 		}
 
-		if (icd->ops->init) {
-			ret = icd->ops->init(icd);
-			if (ret < 0)
-				goto einit;
-		}
-
 		/* Try to configure with default parameters */
 		ret = soc_camera_set_fmt(icf, &f);
 		if (ret < 0)
@@ -411,9 +405,6 @@ static int soc_camera_open(struct file *file)
 	 * and use_count == 1
 	 */
 esfmt:
-	if (icd->ops->release)
-		icd->ops->release(icd);
-einit:
 	ici->ops->remove(icd);
 eiciadd:
 	if (icl->power)
@@ -438,8 +429,6 @@ static int soc_camera_close(struct file *file)
 	if (!icd->use_count) {
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-		if (icd->ops->release)
-			icd->ops->release(icd);
 		ici->ops->remove(icd);
 		if (icl->power)
 			icl->power(icd->pdev, 0);

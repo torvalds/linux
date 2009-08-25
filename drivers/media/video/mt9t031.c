@@ -163,20 +163,6 @@ static int mt9t031_disable(struct i2c_client *client)
 	return 0;
 }
 
-static int mt9t031_init(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-
-	return mt9t031_idle(client);
-}
-
-static int mt9t031_release(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-
-	return mt9t031_disable(client);
-}
-
 static int mt9t031_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = sd->priv;
@@ -539,8 +525,6 @@ static const struct v4l2_queryctrl mt9t031_controls[] = {
 };
 
 static struct soc_camera_ops mt9t031_ops = {
-	.init			= mt9t031_init,
-	.release		= mt9t031_release,
 	.set_bus_param		= mt9t031_set_bus_param,
 	.query_bus_param	= mt9t031_query_bus_param,
 	.controls		= mt9t031_controls,
@@ -689,6 +673,7 @@ static int mt9t031_video_probe(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	s32 data;
+	int ret;
 
 	/* Enable the chip */
 	data = reg_write(client, MT9T031_CHIP_ENABLE, 1);
@@ -711,7 +696,11 @@ static int mt9t031_video_probe(struct i2c_client *client)
 
 	dev_info(&client->dev, "Detected a MT9T031 chip ID %x\n", data);
 
-	return 0;
+	ret = mt9t031_idle(client);
+	if (ret < 0)
+		dev_err(&client->dev, "Failed to initialise the camera\n");
+
+	return ret;
 }
 
 static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {

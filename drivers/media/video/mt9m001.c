@@ -122,9 +122,8 @@ static int reg_clear(struct i2c_client *client, const u8 reg,
 	return reg_write(client, reg, ret & ~data);
 }
 
-static int mt9m001_init(struct soc_camera_device *icd)
+static int mt9m001_init(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	int ret;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -142,16 +141,6 @@ static int mt9m001_init(struct soc_camera_device *icd)
 		ret = reg_write(client, MT9M001_OUTPUT_CONTROL, 0);
 
 	return ret;
-}
-
-static int mt9m001_release(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-
-	/* Disable the chip */
-	reg_write(client, MT9M001_OUTPUT_CONTROL, 0);
-
-	return 0;
 }
 
 static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
@@ -446,8 +435,6 @@ static const struct v4l2_queryctrl mt9m001_controls[] = {
 };
 
 static struct soc_camera_ops mt9m001_ops = {
-	.init			= mt9m001_init,
-	.release		= mt9m001_release,
 	.set_bus_param		= mt9m001_set_bus_param,
 	.query_bus_param	= mt9m001_query_bus_param,
 	.controls		= mt9m001_controls,
@@ -581,6 +568,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	s32 data;
 	unsigned long flags;
+	int ret;
 
 	/* We must have a parent by now. And it cannot be a wrong one.
 	 * So this entire test is completely redundant. */
@@ -637,7 +625,11 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	dev_info(&client->dev, "Detected a MT9M001 chip ID %x (%s)\n", data,
 		 data == 0x8431 ? "C12STM" : "C12ST");
 
-	return 0;
+	ret = mt9m001_init(client);
+	if (ret < 0)
+		dev_err(&client->dev, "Failed to initialise the camera\n");
+
+	return ret;
 }
 
 static void mt9m001_video_remove(struct soc_camera_device *icd)

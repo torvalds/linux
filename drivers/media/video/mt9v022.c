@@ -138,9 +138,8 @@ static int reg_clear(struct i2c_client *client, const u8 reg,
 	return reg_write(client, reg, ret & ~data);
 }
 
-static int mt9v022_init(struct soc_camera_device *icd)
+static int mt9v022_init(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	int ret;
 
@@ -532,7 +531,6 @@ static const struct v4l2_queryctrl mt9v022_controls[] = {
 };
 
 static struct soc_camera_ops mt9v022_ops = {
-	.init			= mt9v022_init,
 	.set_bus_param		= mt9v022_set_bus_param,
 	.query_bus_param	= mt9v022_query_bus_param,
 	.controls		= mt9v022_controls,
@@ -750,6 +748,10 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 	dev_info(&client->dev, "Detected a MT9V022 chip ID %x, %s sensor\n",
 		 data, mt9v022->model == V4L2_IDENT_MT9V022IX7ATM ?
 		 "monochrome" : "colour");
+
+	ret = mt9v022_init(client);
+	if (ret < 0)
+		dev_err(&client->dev, "Failed to initialise the camera\n");
 
 ei2c:
 	return ret;
