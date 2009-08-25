@@ -830,7 +830,8 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 				sizeof(struct pxa_buffer), icd);
 }
 
-static u32 mclk_get_divisor(struct pxa_camera_dev *pcdev)
+static u32 mclk_get_divisor(struct platform_device *pdev,
+			    struct pxa_camera_dev *pcdev)
 {
 	unsigned long mclk = pcdev->mclk;
 	u32 div;
@@ -842,7 +843,7 @@ static u32 mclk_get_divisor(struct pxa_camera_dev *pcdev)
 	/* mclk <= ciclk / 4 (27.4.2) */
 	if (mclk > lcdclk / 4) {
 		mclk = lcdclk / 4;
-		dev_warn(pcdev->soc_host.dev, "Limiting master clock to %lu\n", mclk);
+		dev_warn(&pdev->dev, "Limiting master clock to %lu\n", mclk);
 	}
 
 	/* We verify mclk != 0, so if anyone breaks it, here comes their Oops */
@@ -852,8 +853,8 @@ static u32 mclk_get_divisor(struct pxa_camera_dev *pcdev)
 	if (pcdev->platform_flags & PXA_CAMERA_MCLK_EN)
 		pcdev->mclk = lcdclk / (2 * (div + 1));
 
-	dev_dbg(pcdev->soc_host.dev, "LCD clock %luHz, target freq %luHz, "
-		"divisor %u\n", lcdclk, mclk, div);
+	dev_dbg(&pdev->dev, "LCD clock %luHz, target freq %luHz, divisor %u\n",
+		lcdclk, mclk, div);
 
 	return div;
 }
@@ -958,15 +959,20 @@ static int pxa_camera_add_device(struct soc_camera_device *icd)
 		goto ebusy;
 	}
 
+	pxa_camera_activate(pcdev);
+	ret = icd->ops->init(icd);
+	if (ret < 0)
+		goto einit;
+
+	pcdev->icd = icd;
+
 	dev_info(&icd->dev, "PXA Camera driver attached to camera %d\n",
 		 icd->devnum);
 
-	pxa_camera_activate(pcdev);
-	ret = icd->ops->init(icd);
+	return 0;
 
-	if (!ret)
-		pcdev->icd = icd;
-
+einit:
+	pxa_camera_deactivate(pcdev);
 ebusy:
 	return ret;
 }
@@ -1575,8 +1581,7 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 		pcdev->mclk = 20000000;
 	}
 
-	pcdev->soc_host.dev = &pdev->dev;
-	pcdev->mclk_divisor = mclk_get_divisor(pcdev);
+	pcdev->mclk_divisor = mclk_get_divisor(pdev, pcdev);
 
 	INIT_LIST_HEAD(&pcdev->capture);
 	spin_lock_init(&pcdev->lock);
@@ -1641,6 +1646,7 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 	pcdev->soc_host.drv_name	= PXA_CAM_DRV_NAME;
 	pcdev->soc_host.ops		= &pxa_soc_camera_host_ops;
 	pcdev->soc_host.priv		= pcdev;
+	pcdev->soc_host.dev		= &pdev->dev;
 	pcdev->soc_host.nr		= pdev->id;
 
 	err = soc_camera_host_register(&pcdev->soc_host);
@@ -1722,3 +1728,4 @@ module_exit(pxa_camera_exit);
 MODULE_DESCRIPTION("PXA27x SoC Camera Host driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" PXA_CAM_DRV_NAME);

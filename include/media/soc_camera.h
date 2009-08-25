@@ -20,7 +20,6 @@
 struct soc_camera_device {
 	struct list_head list;
 	struct device dev;
-	struct device *control;
 	unsigned short width;		/* Current window */
 	unsigned short height;		/* sizes */
 	unsigned short x_min;		/* Camera capabilities */
@@ -131,17 +130,25 @@ static inline struct soc_camera_host *to_soc_camera_host(struct device *dev)
 	return dev_get_drvdata(dev);
 }
 
-extern int soc_camera_host_register(struct soc_camera_host *ici);
-extern void soc_camera_host_unregister(struct soc_camera_host *ici);
-extern int soc_camera_device_register(struct soc_camera_device *icd);
-extern void soc_camera_device_unregister(struct soc_camera_device *icd);
+static inline struct soc_camera_link *to_soc_camera_link(struct soc_camera_device *icd)
+{
+	return icd->dev.platform_data;
+}
 
-extern int soc_camera_video_start(struct soc_camera_device *icd);
-extern void soc_camera_video_stop(struct soc_camera_device *icd);
+static inline struct device *to_soc_camera_control(struct soc_camera_device *icd)
+{
+	return dev_get_drvdata(&icd->dev);
+}
 
-extern const struct soc_camera_data_format *soc_camera_format_by_fourcc(
+int soc_camera_host_register(struct soc_camera_host *ici);
+void soc_camera_host_unregister(struct soc_camera_host *ici);
+
+int soc_camera_video_start(struct soc_camera_device *icd, struct device *dev);
+void soc_camera_video_stop(struct soc_camera_device *icd);
+
+const struct soc_camera_data_format *soc_camera_format_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc);
-extern const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
+const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc);
 
 struct soc_camera_data_format {
@@ -170,8 +177,6 @@ struct soc_camera_format_xlate {
 
 struct soc_camera_ops {
 	struct module *owner;
-	int (*probe)(struct soc_camera_device *);
-	void (*remove)(struct soc_camera_device *);
 	int (*suspend)(struct soc_camera_device *, pm_message_t state);
 	int (*resume)(struct soc_camera_device *);
 	int (*init)(struct soc_camera_device *);

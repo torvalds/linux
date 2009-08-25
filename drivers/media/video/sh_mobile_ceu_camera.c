@@ -356,11 +356,13 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 		 "SuperH Mobile CEU driver attached to camera %d\n",
 		 icd->devnum);
 
-	ret = icd->ops->init(icd);
-	if (ret)
-		goto err;
+	clk_enable(pcdev->clk);
 
-	pm_runtime_get_sync(ici->dev);
+	ret = icd->ops->init(icd);
+	if (ret) {
+		clk_disable(pcdev->clk);
+		goto err;
+	}
 
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
 	while (ceu_read(pcdev, CSTSR) & 1)
@@ -394,9 +396,9 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	}
 	spin_unlock_irqrestore(&pcdev->lock, flags);
 
-	pm_runtime_put_sync(ici->dev);
-
 	icd->ops->release(icd);
+
+	clk_disable(pcdev->clk);
 
 	dev_info(&icd->dev,
 		 "SuperH Mobile CEU driver detached from camera %d\n",
@@ -946,3 +948,4 @@ module_exit(sh_mobile_ceu_exit);
 MODULE_DESCRIPTION("SuperH Mobile CEU driver");
 MODULE_AUTHOR("Magnus Damm");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sh_mobile_ceu");

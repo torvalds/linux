@@ -503,18 +503,19 @@ static int mx3_camera_add_device(struct soc_camera_device *icd)
 
 	mx3_camera_activate(mx3_cam, icd);
 	ret = icd->ops->init(icd);
-	if (ret < 0) {
-		clk_disable(mx3_cam->clk);
+	if (ret < 0)
 		goto einit;
-	}
 
 	mx3_cam->icd = icd;
 
+	dev_info(&icd->dev, "MX3 Camera driver attached to camera %d\n",
+		 icd->devnum);
+
+	return 0;
+
 einit:
+	clk_disable(mx3_cam->clk);
 ebusy:
-	if (!ret)
-		dev_info(&icd->dev, "MX3 Camera driver attached to camera %d\n",
-			 icd->devnum);
 
 	return ret;
 }
@@ -947,9 +948,10 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	camera_flags = icd->ops->query_bus_param(icd);
 
 	common_flags = soc_camera_bus_param_compatible(camera_flags, bus_flags);
+	dev_dbg(ici->dev, "Flags cam: 0x%lx host: 0x%lx common: 0x%lx\n",
+		camera_flags, bus_flags, common_flags);
 	if (!common_flags) {
-		dev_dbg(ici->dev, "no common flags: camera %lx, host %lx\n",
-			camera_flags, bus_flags);
+		dev_dbg(ici->dev, "no common flags");
 		return -EINVAL;
 	}
 
@@ -1002,8 +1004,11 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 			SOCAM_DATAWIDTH_4;
 
 	ret = icd->ops->set_bus_param(icd, common_flags);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_dbg(ici->dev, "camera set_bus_param(%lx) returned %d\n",
+			common_flags, ret);
 		return ret;
+	}
 
 	/*
 	 * So far only gated clock mode is supported. Add a line
@@ -1127,8 +1132,9 @@ static int __devinit mx3_camera_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&mx3_cam->capture);
 	spin_lock_init(&mx3_cam->lock);
 
-	base = ioremap(res->start, res->end - res->start + 1);
+	base = ioremap(res->start, resource_size(res));
 	if (!base) {
+		pr_err("Couldn't map %x@%x\n", resource_size(res), res->start);
 		err = -ENOMEM;
 		goto eioremap;
 	}
@@ -1215,3 +1221,4 @@ module_exit(mx3_camera_exit);
 MODULE_DESCRIPTION("i.MX3x SoC Camera Host driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <lg@denx.de>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:" MX3_CAM_DRV_NAME);
