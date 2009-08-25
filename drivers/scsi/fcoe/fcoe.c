@@ -1881,9 +1881,6 @@ static int __init fcoe_init(void)
 	int rc = 0;
 	struct fcoe_percpu_s *p;
 
-	INIT_LIST_HEAD(&fcoe_hostlist);
-	rwlock_init(&fcoe_hostlist_lock);
-
 	for_each_possible_cpu(cpu) {
 		p = &per_cpu(fcoe_percpu, cpu);
 		skb_queue_head_init(&p->fcoe_rx_list);
