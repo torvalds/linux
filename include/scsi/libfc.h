@@ -1084,4 +1084,9 @@ void fc_destroy_exch_mgr(void);
 int fc_setup_rport(void);
 void fc_destroy_rport(void);
 
+/*
+ * Internal libfc functions.
+ */
+const char *fc_els_resp_type(struct fc_frame *);
+
 #endif /* _LIBFC_H_ */

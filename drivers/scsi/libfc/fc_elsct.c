@@ -70,3 +70,41 @@ int fc_elsct_init(struct fc_lport *lport)
 	return 0;
 }
 EXPORT_SYMBOL(fc_elsct_init);
+
+/**
+ * fc_els_resp_type() - return string describing ELS response for debug.
+ * @fp: frame pointer with possible error code.
+ */
+const char *fc_els_resp_type(struct fc_frame *fp)
+{
+	const char *msg;
+	if (IS_ERR(fp)) {
+		switch (-PTR_ERR(fp)) {
+		case FC_NO_ERR:
+			msg = "response no error";
+			break;
+		case FC_EX_TIMEOUT:
+			msg = "response timeout";
+			break;
+		case FC_EX_CLOSED:
+			msg = "response closed";
+			break;
+		default:
+			msg = "response unknown error";
+			break;
+		}
+	} else {
+		switch (fc_frame_payload_op(fp)) {
+		case ELS_LS_ACC:
+			msg = "accept";
+			break;
+		case ELS_LS_RJT:
+			msg = "reject";
+			break;
+		default:
+			msg = "response unknown ELS";
+			break;
+		}
+	}
+	return msg;
+}

@@ -1006,12 +1006,12 @@ static void fc_lport_rft_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_frame_header *fh;
 	struct fc_ct_hdr *ct;
 
+	FC_LPORT_DBG(lport, "Received a RFT_ID %s\n", fc_els_resp_type(fp));
+
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
 		return;
 
 	mutex_lock(&lport->lp_mutex);
-
-	FC_LPORT_DBG(lport, "Received a RFT_ID response\n");
 
 	if (lport->state != LPORT_ST_RFT_ID) {
 		FC_LPORT_DBG(lport, "Received a RFT_ID response, but in state "
@@ -1060,12 +1060,12 @@ static void fc_lport_rpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_frame_header *fh;
 	struct fc_ct_hdr *ct;
 
+	FC_LPORT_DBG(lport, "Received a RPN_ID %s\n", fc_els_resp_type(fp));
+
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
 		return;
 
 	mutex_lock(&lport->lp_mutex);
-
-	FC_LPORT_DBG(lport, "Received a RPN_ID response\n");
 
 	if (lport->state != LPORT_ST_RPN_ID) {
 		FC_LPORT_DBG(lport, "Received a RPN_ID response, but in state "
@@ -1112,12 +1112,12 @@ static void fc_lport_scr_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_lport *lport = lp_arg;
 	u8 op;
 
+	FC_LPORT_DBG(lport, "Received a SCR %s\n", fc_els_resp_type(fp));
+
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
 		return;
 
 	mutex_lock(&lport->lp_mutex);
-
-	FC_LPORT_DBG(lport, "Received a SCR response\n");
 
 	if (lport->state != LPORT_ST_SCR) {
 		FC_LPORT_DBG(lport, "Received a SCR response, but in state "
@@ -1333,12 +1333,12 @@ static void fc_lport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_lport *lport = lp_arg;
 	u8 op;
 
+	FC_LPORT_DBG(lport, "Received a LOGO %s\n", fc_els_resp_type(fp));
+
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
 		return;
 
 	mutex_lock(&lport->lp_mutex);
-
-	FC_LPORT_DBG(lport, "Received a LOGO response\n");
 
 	if (lport->state != LPORT_ST_LOGO) {
 		FC_LPORT_DBG(lport, "Received a LOGO response, but in state "
@@ -1415,12 +1415,12 @@ static void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	unsigned int e_d_tov;
 	u16 mfs;
 
+	FC_LPORT_DBG(lport, "Received a FLOGI %s\n", fc_els_resp_type(fp));
+
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
 		return;
 
 	mutex_lock(&lport->lp_mutex);
-
-	FC_LPORT_DBG(lport, "Received a FLOGI response\n");
 
 	if (lport->state != LPORT_ST_FLOGI) {
 		FC_LPORT_DBG(lport, "Received a FLOGI response, but in state "
