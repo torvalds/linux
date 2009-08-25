@@ -1617,3 +1617,74 @@ void __devinit pcibios_setup_phb_resources(struct pci_controller *hose)
 		 (unsigned long)hose->io_base_virt - _IO_BASE);
 
 }
+
+/*
+ * Null PCI config access functions, for the case when we can't
+ * find a hose.
+ */
+#define NULL_PCI_OP(rw, size, type)					\
+static int								\
+null_##rw##_config_##size(struct pci_dev *dev, int offset, type val)	\
+{									\
+	return PCIBIOS_DEVICE_NOT_FOUND;    				\
+}
+
+static int
+null_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
+		 int len, u32 *val)
+{
+	return PCIBIOS_DEVICE_NOT_FOUND;
+}
+
+static int
+null_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
+		  int len, u32 val)
+{
+	return PCIBIOS_DEVICE_NOT_FOUND;
+}
+
+static struct pci_ops null_pci_ops =
+{
+	.read = null_read_config,
+	.write = null_write_config,
+};
+
+/*
+ * These functions are used early on before PCI scanning is done
+ * and all of the pci_dev and pci_bus structures have been created.
+ */
+static struct pci_bus *
+fake_pci_bus(struct pci_controller *hose, int busnr)
+{
+	static struct pci_bus bus;
+
+	if (hose == 0) {
+		printk(KERN_ERR "Can't find hose for PCI bus %d!\n", busnr);
+	}
+	bus.number = busnr;
+	bus.sysdata = hose;
+	bus.ops = hose? hose->ops: &null_pci_ops;
+	return &bus;
+}
+
+#define EARLY_PCI_OP(rw, size, type)					\
+int early_##rw##_config_##size(struct pci_controller *hose, int bus,	\
+			       int devfn, int offset, type value)	\
+{									\
+	return pci_bus_##rw##_config_##size(fake_pci_bus(hose, bus),	\
+					    devfn, offset, value);	\
+}
+
+EARLY_PCI_OP(read, byte, u8 *)
+EARLY_PCI_OP(read, word, u16 *)
+EARLY_PCI_OP(read, dword, u32 *)
+EARLY_PCI_OP(write, byte, u8)
+EARLY_PCI_OP(write, word, u16)
+EARLY_PCI_OP(write, dword, u32)
+
+extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
+int early_find_capability(struct pci_controller *hose, int bus, int devfn,
+			  int cap)
+{
+	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
+}
