@@ -307,6 +307,27 @@ static void sh_mobile_ceu_videobuf_queue(struct videobuf_queue *vq,
 static void sh_mobile_ceu_videobuf_release(struct videobuf_queue *vq,
 					   struct videobuf_buffer *vb)
 {
+	struct soc_camera_device *icd = vq->priv_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcdev->lock, flags);
+
+	if (pcdev->active == vb) {
+		/* disable capture (release DMA buffer), reset */
+		ceu_write(pcdev, CAPSR, 1 << 16);
+		pcdev->active = NULL;
+	}
+
+	if ((vb->state == VIDEOBUF_ACTIVE || vb->state == VIDEOBUF_QUEUED) &&
+	    !list_empty(&vb->queue)) {
+		vb->state = VIDEOBUF_ERROR;
+		list_del_init(&vb->queue);
+	}
+
+	spin_unlock_irqrestore(&pcdev->lock, flags);
+
 	free_buffer(vq, container_of(vb, struct sh_mobile_ceu_buffer, vb));
 }
 
@@ -326,6 +347,10 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 	spin_lock_irqsave(&pcdev->lock, flags);
 
 	vb = pcdev->active;
+	if (!vb)
+		/* Stale interrupt from a released buffer */
+		goto out;
+
 	list_del_init(&vb->queue);
 
 	if (!list_empty(&pcdev->capture))
@@ -340,6 +365,8 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 	do_gettimeofday(&vb->ts);
 	vb->field_count++;
 	wake_up(&vb->done);
+
+out:
 	spin_unlock_irqrestore(&pcdev->lock, flags);
 
 	return IRQ_HANDLED;
