@@ -345,6 +345,8 @@ static int ap325rxa_camera_add(struct soc_camera_link *icl,
 	if (icl != &camera_info.link || camera_probe() <= 0)
 		return -ENODEV;
 
+	camera_info.dev = dev;
+
 	return platform_device_register(&camera_device);
 }
 
