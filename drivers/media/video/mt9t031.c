@@ -248,7 +248,7 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 	xbin = min(xskip, (u16)3);
 	ybin = min(yskip, (u16)3);
 
-	dev_dbg(&icd->dev, "xskip %u, width %u/%u, yskip %u, height %u/%u\n",
+	dev_dbg(&client->dev, "xskip %u, width %u/%u, yskip %u, height %u/%u\n",
 		xskip, width, rect->width, yskip, height, rect->height);
 
 	/* Could just do roundup(rect->left, [xy]bin * 2); but this is cheaper */
@@ -287,7 +287,7 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 			ret = reg_write(client, MT9T031_ROW_ADDRESS_MODE,
 					((ybin - 1) << 4) | (yskip - 1));
 	}
-	dev_dbg(&icd->dev, "new physical left %u, top %u\n", left, top);
+	dev_dbg(&client->dev, "new physical left %u, top %u\n", left, top);
 
 	/* The caller provides a supported format, as guaranteed by
 	 * icd->try_fmt_cap(), soc_camera_s_crop() and soc_camera_cropcap() */
@@ -567,7 +567,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			unsigned long range = qctrl->default_value - qctrl->minimum;
 			data = ((ctrl->value - qctrl->minimum) * 8 + range / 2) / range;
 
-			dev_dbg(&icd->dev, "Setting gain %d\n", data);
+			dev_dbg(&client->dev, "Setting gain %d\n", data);
 			data = reg_write(client, MT9T031_GLOBAL_GAIN, data);
 			if (data < 0)
 				return -EIO;
@@ -587,7 +587,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 				/* calculated gain 65..1024 -> (1..120) << 8 + 0x60 */
 				data = (((gain - 64 + 7) * 32) & 0xff00) | 0x60;
 
-			dev_dbg(&icd->dev, "Setting gain from 0x%x to 0x%x\n",
+			dev_dbg(&client->dev, "Set gain from 0x%x to 0x%x\n",
 				reg_read(client, MT9T031_GLOBAL_GAIN), data);
 			data = reg_write(client, MT9T031_GLOBAL_GAIN, data);
 			if (data < 0)
@@ -608,7 +608,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			u32 old;
 
 			get_shutter(client, &old);
-			dev_dbg(&icd->dev, "Setting shutter width from %u to %u\n",
+			dev_dbg(&client->dev, "Set shutter from %u to %u\n",
 				old, shutter);
 			if (set_shutter(client, shutter) < 0)
 				return -EIO;
@@ -653,7 +653,7 @@ static int mt9t031_video_probe(struct i2c_client *client)
 
 	/* Enable the chip */
 	data = reg_write(client, MT9T031_CHIP_ENABLE, 1);
-	dev_dbg(&icd->dev, "write: %d\n", data);
+	dev_dbg(&client->dev, "write: %d\n", data);
 
 	/* Read out the chip version register */
 	data = reg_read(client, MT9T031_CHIP_VERSION);
@@ -665,12 +665,12 @@ static int mt9t031_video_probe(struct i2c_client *client)
 		icd->num_formats = ARRAY_SIZE(mt9t031_colour_formats);
 		break;
 	default:
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"No MT9T031 chip detected, register read %x\n", data);
 		return -ENODEV;
 	}
 
-	dev_info(&icd->dev, "Detected a MT9T031 chip ID %x\n", data);
+	dev_info(&client->dev, "Detected a MT9T031 chip ID %x\n", data);
 
 	return 0;
 }

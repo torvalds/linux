@@ -1002,7 +1002,7 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 	 */
 	if (SOCAM_DATAWIDTH_10 != priv->info->buswidth &&
 	    SOCAM_DATAWIDTH_8  != priv->info->buswidth) {
-		dev_err(&icd->dev, "bus width error\n");
+		dev_err(&client->dev, "bus width error\n");
 		return -ENODEV;
 	}
 
@@ -1025,12 +1025,12 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 		priv->model = V4L2_IDENT_OV7725;
 		break;
 	default:
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"Product ID error %x:%x\n", pid, ver);
 		return -ENODEV;
 	}
 
-	dev_info(&icd->dev,
+	dev_info(&client->dev,
 		 "%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
 		 devname,
 		 pid,

@@ -400,10 +400,9 @@ static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	struct v4l2_rect *rect = &a->c;
 	struct i2c_client *client = sd->priv;
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 	int ret;
 
-	dev_dbg(&icd->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
+	dev_dbg(&client->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect->left, rect->top, rect->width,
 		rect->height);
 
@@ -818,7 +817,7 @@ static int mt9m111_init(struct soc_camera_device *icd)
 	if (!ret)
 		ret = mt9m111_set_autoexposure(client, mt9m111->autoexposure);
 	if (ret)
-		dev_err(&icd->dev, "mt9m11x init failed: %d\n", ret);
+		dev_err(&client->dev, "mt9m11x init failed: %d\n", ret);
 	return ret;
 }
 
@@ -833,7 +832,7 @@ static int mt9m111_release(struct soc_camera_device *icd)
 		mt9m111->powered = 0;
 
 	if (ret < 0)
-		dev_err(&icd->dev, "mt9m11x release failed: %d\n", ret);
+		dev_err(&client->dev, "mt9m11x release failed: %d\n", ret);
 
 	return ret;
 }
@@ -875,7 +874,7 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 		break;
 	default:
 		ret = -ENODEV;
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"No MT9M11x chip detected, register read %x\n", data);
 		goto ei2c;
 	}
@@ -883,7 +882,7 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 	icd->formats = mt9m111_colour_formats;
 	icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
 
-	dev_info(&icd->dev, "Detected a MT9M11x chip ID %x\n", data);
+	dev_info(&client->dev, "Detected a MT9M11x chip ID %x\n", data);
 
 	mt9m111->autoexposure = 1;
 	mt9m111->autowhitebalance = 1;

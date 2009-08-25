@@ -118,7 +118,7 @@ static int mt9m001_init(struct soc_camera_device *icd)
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	int ret;
 
-	dev_dbg(&icd->dev, "%s\n", __func__);
+	dev_dbg(&client->dev, "%s\n", __func__);
 
 	/*
 	 * We don't know, whether platform provides reset,
@@ -421,7 +421,7 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			unsigned long range = qctrl->default_value - qctrl->minimum;
 			data = ((ctrl->value - qctrl->minimum) * 8 + range / 2) / range;
 
-			dev_dbg(&icd->dev, "Setting gain %d\n", data);
+			dev_dbg(&client->dev, "Setting gain %d\n", data);
 			data = reg_write(client, MT9M001_GLOBAL_GAIN, data);
 			if (data < 0)
 				return -EIO;
@@ -439,7 +439,7 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			else
 				data = ((gain - 64) * 7 + 28) / 56 + 96;
 
-			dev_dbg(&icd->dev, "Setting gain from %d to %d\n",
+			dev_dbg(&client->dev, "Setting gain from %d to %d\n",
 				 reg_read(client, MT9M001_GLOBAL_GAIN), data);
 			data = reg_write(client, MT9M001_GLOBAL_GAIN, data);
 			if (data < 0)
@@ -458,8 +458,10 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			unsigned long shutter = ((ctrl->value - qctrl->minimum) * 1048 +
 						 range / 2) / range + 1;
 
-			dev_dbg(&icd->dev, "Setting shutter width from %d to %lu\n",
-				 reg_read(client, MT9M001_SHUTTER_WIDTH), shutter);
+			dev_dbg(&client->dev,
+				"Setting shutter width from %d to %lu\n",
+				reg_read(client, MT9M001_SHUTTER_WIDTH),
+				shutter);
 			if (reg_write(client, MT9M001_SHUTTER_WIDTH, shutter) < 0)
 				return -EIO;
 			icd->exposure = ctrl->value;
@@ -504,7 +506,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 
 	/* Enable the chip */
 	data = reg_write(client, MT9M001_CHIP_ENABLE, 1);
-	dev_dbg(&icd->dev, "write: %d\n", data);
+	dev_dbg(&client->dev, "write: %d\n", data);
 
 	/* Read out the chip version register */
 	data = reg_read(client, MT9M001_CHIP_VERSION);
@@ -521,7 +523,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 		icd->formats = mt9m001_monochrome_formats;
 		break;
 	default:
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"No MT9M001 chip detected, register read %x\n", data);
 		return -ENODEV;
 	}
@@ -546,7 +548,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	if (flags & SOCAM_DATAWIDTH_8)
 		icd->num_formats++;
 
-	dev_info(&icd->dev, "Detected a MT9M001 chip ID %x (%s)\n", data,
+	dev_info(&client->dev, "Detected a MT9M001 chip ID %x (%s)\n", data,
 		 data == 0x8431 ? "C12STM" : "C12ST");
 
 	return 0;
@@ -557,7 +559,7 @@ static void mt9m001_video_remove(struct soc_camera_device *icd)
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-	dev_dbg(&icd->dev, "Video %x removed: %p, %p\n", client->addr,
+	dev_dbg(&client->dev, "Video %x removed: %p, %p\n", client->addr,
 		icd->dev.parent, icd->vdev);
 	if (icl->free_bus)
 		icl->free_bus(icl);

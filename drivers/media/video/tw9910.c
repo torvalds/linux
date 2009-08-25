@@ -793,7 +793,7 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 	 */
 	if (SOCAM_DATAWIDTH_16 != priv->info->buswidth &&
 	    SOCAM_DATAWIDTH_8  != priv->info->buswidth) {
-		dev_err(&icd->dev, "bus width error\n");
+		dev_err(&client->dev, "bus width error\n");
 		return -ENODEV;
 	}
 
@@ -807,12 +807,12 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 
 	if (0x0B != GET_ID(val) ||
 	    0x00 != GET_ReV(val)) {
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"Product ID error %x:%x\n", GET_ID(val), GET_ReV(val));
 		return -ENODEV;
 	}
 
-	dev_info(&icd->dev,
+	dev_info(&client->dev,
 		 "tw9910 Product ID %0x:%0x\n", GET_ID(val), GET_ReV(val));
 
 	icd->vdev->tvnorms      = V4L2_STD_NTSC | V4L2_STD_PAL;

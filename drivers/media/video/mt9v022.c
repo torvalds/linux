@@ -224,7 +224,7 @@ static int mt9v022_set_bus_param(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(&icd->dev, "Calculated pixclk 0x%x, chip control 0x%x\n",
+	dev_dbg(&client->dev, "Calculated pixclk 0x%x, chip control 0x%x\n",
 		pixclk, mt9v022->chip_control);
 
 	return 0;
@@ -287,7 +287,7 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(&icd->dev, "Frame %ux%u pixel\n", rect->width, rect->height);
+	dev_dbg(&client->dev, "Frame %ux%u pixel\n", rect->width, rect->height);
 
 	return 0;
 }
@@ -545,7 +545,7 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			if (reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x2) < 0)
 				return -EIO;
 
-			dev_info(&icd->dev, "Setting gain from %d to %lu\n",
+			dev_info(&client->dev, "Setting gain from %d to %lu\n",
 				 reg_read(client, MT9V022_ANALOG_GAIN), gain);
 			if (reg_write(client, MT9V022_ANALOG_GAIN, gain) < 0)
 				return -EIO;
@@ -566,7 +566,7 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			if (reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x1) < 0)
 				return -EIO;
 
-			dev_dbg(&icd->dev, "Shutter width from %d to %lu\n",
+			dev_dbg(&client->dev, "Shutter width from %d to %lu\n",
 				reg_read(client, MT9V022_TOTAL_SHUTTER_WIDTH),
 				shutter);
 			if (reg_write(client, MT9V022_TOTAL_SHUTTER_WIDTH,
@@ -616,7 +616,7 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 	/* must be 0x1311 or 0x1313 */
 	if (data != 0x1311 && data != 0x1313) {
 		ret = -ENODEV;
-		dev_info(&icd->dev, "No MT9V022 detected, ID register 0x%x\n",
+		dev_info(&client->dev, "No MT9V022 found, ID register 0x%x\n",
 			 data);
 		goto ei2c;
 	}
@@ -628,7 +628,7 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 	/* 15 clock cycles */
 	udelay(200);
 	if (reg_read(client, MT9V022_RESET)) {
-		dev_err(&icd->dev, "Resetting MT9V022 failed!\n");
+		dev_err(&client->dev, "Resetting MT9V022 failed!\n");
 		if (ret > 0)
 			ret = -EIO;
 		goto ei2c;
@@ -669,7 +669,7 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 	if (flags & SOCAM_DATAWIDTH_8)
 		icd->num_formats++;
 
-	dev_info(&icd->dev, "Detected a MT9V022 chip ID %x, %s sensor\n",
+	dev_info(&client->dev, "Detected a MT9V022 chip ID %x, %s sensor\n",
 		 data, mt9v022->model == V4L2_IDENT_MT9V022IX7ATM ?
 		 "monochrome" : "colour");
 
@@ -682,7 +682,7 @@ static void mt9v022_video_remove(struct soc_camera_device *icd)
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 
-	dev_dbg(&icd->dev, "Video %x removed: %p, %p\n", client->addr,
+	dev_dbg(&client->dev, "Video %x removed: %p, %p\n", client->addr,
 		icd->dev.parent, icd->vdev);
 	if (icl->free_bus)
 		icl->free_bus(icl);
