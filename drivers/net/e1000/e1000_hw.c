@@ -5759,52 +5759,6 @@ u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 }
 
 /******************************************************************************
- * Sets the bit in the multicast table corresponding to the hash value.
- *
- * hw - Struct containing variables accessed by shared code
- * hash_value - Multicast address hash value
- *****************************************************************************/
-void e1000_mta_set(struct e1000_hw *hw, u32 hash_value)
-{
-    u32 hash_bit, hash_reg;
-    u32 mta;
-    u32 temp;
-
-    /* The MTA is a register array of 128 32-bit registers.
-     * It is treated like an array of 4096 bits.  We want to set
-     * bit BitArray[hash_value]. So we figure out what register
-     * the bit is in, read it, OR in the new bit, then write
-     * back the new value.  The register is determined by the
-     * upper 7 bits of the hash value and the bit within that
-     * register are determined by the lower 5 bits of the value.
-     */
-    hash_reg = (hash_value >> 5) & 0x7F;
-    if (hw->mac_type == e1000_ich8lan)
-        hash_reg &= 0x1F;
-
-    hash_bit = hash_value & 0x1F;
-
-    mta = E1000_READ_REG_ARRAY(hw, MTA, hash_reg);
-
-    mta |= (1 << hash_bit);
-
-    /* If we are on an 82544 and we are trying to write an odd offset
-     * in the MTA, save off the previous entry before writing and
-     * restore the old value after writing.
-     */
-    if ((hw->mac_type == e1000_82544) && ((hash_reg & 0x1) == 1)) {
-        temp = E1000_READ_REG_ARRAY(hw, MTA, (hash_reg - 1));
-        E1000_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta);
-        E1000_WRITE_FLUSH();
-        E1000_WRITE_REG_ARRAY(hw, MTA, (hash_reg - 1), temp);
-        E1000_WRITE_FLUSH();
-    } else {
-        E1000_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta);
-        E1000_WRITE_FLUSH();
-    }
-}
-
-/******************************************************************************
  * Puts an ethernet address into a receive address register.
  *
  * hw - Struct containing variables accessed by shared code
