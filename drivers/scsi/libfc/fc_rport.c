@@ -932,14 +932,17 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 	fh = fc_frame_header_get(fp);
 	s_id = ntoh24(fh->fh_s_id);
 
+	mutex_lock(&lport->disc.disc_mutex);
 	rdata = lport->tt.rport_lookup(lport, s_id);
 	if (!rdata) {
+		mutex_unlock(&lport->disc.disc_mutex);
 		els_data.reason = ELS_RJT_UNAB;
 		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &els_data);
 		fc_frame_free(fp);
 		return;
 	}
 	mutex_lock(&rdata->rp_mutex);
+	mutex_unlock(&lport->disc.disc_mutex);
 
 	op = fc_frame_payload_op(fp);
 	switch (op) {
