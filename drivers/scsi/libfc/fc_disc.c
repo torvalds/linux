@@ -526,7 +526,7 @@ static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 	if (!fp)
 		goto err;
 
-	if (lport->tt.elsct_send(lport, NULL, fp,
+	if (lport->tt.elsct_send(lport, 0, fp,
 				 FC_NS_GPN_FT,
 				 fc_disc_gpn_ft_resp,
 				 disc, lport->e_d_tov))

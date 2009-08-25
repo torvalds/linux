@@ -424,7 +424,7 @@ struct libfc_function_template {
 	 * STATUS: OPTIONAL
 	 */
 	struct fc_seq *(*elsct_send)(struct fc_lport *lport,
-				     struct fc_rport_priv *,
+				     u32 did,
 				     struct fc_frame *fp,
 				     unsigned int op,
 				     void (*resp)(struct fc_seq *,

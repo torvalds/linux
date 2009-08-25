@@ -32,7 +32,7 @@
  * fc_elsct_send - sends ELS/CT frame
  */
 static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
-				    struct fc_rport_priv *rdata,
+				    u32 did,
 				    struct fc_frame *fp,
 				    unsigned int op,
 				    void (*resp)(struct fc_seq *,
@@ -41,16 +41,17 @@ static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
 				    void *arg, u32 timer_msec)
 {
 	enum fc_rctl r_ctl;
-	u32 did = FC_FID_NONE;
 	enum fc_fh_type fh_type;
 	int rc;
 
 	/* ELS requests */
 	if ((op >= ELS_LS_RJT) && (op <= ELS_AUTH_ELS))
-		rc = fc_els_fill(lport, rdata, fp, op, &r_ctl, &did, &fh_type);
-	else
+		rc = fc_els_fill(lport, did, fp, op, &r_ctl, &fh_type);
+	else {
 		/* CT requests */
-		rc = fc_ct_fill(lport, fp, op, &r_ctl, &did, &fh_type);
+		rc = fc_ct_fill(lport, fp, op, &r_ctl, &fh_type);
+		did = FC_FID_DIR_SERV;
+	}
 
 	if (rc)
 		return NULL;

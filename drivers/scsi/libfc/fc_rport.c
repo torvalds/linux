@@ -593,7 +593,7 @@ static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
 	}
 	rdata->e_d_tov = lport->e_d_tov;
 
-	if (!lport->tt.elsct_send(lport, rdata, fp, ELS_PLOGI,
+	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_PLOGI,
 				  fc_rport_plogi_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
@@ -747,7 +747,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rdata, fp, ELS_PRLI,
+	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_PRLI,
 				  fc_rport_prli_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
@@ -845,7 +845,7 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rdata, fp, ELS_RTV,
+	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_RTV,
 				     fc_rport_rtv_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
@@ -876,7 +876,7 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rdata, fp, ELS_LOGO,
+	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_LOGO,
 				  fc_rport_logo_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else

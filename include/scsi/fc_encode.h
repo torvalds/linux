@@ -79,8 +79,9 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
 /**
  * fc_ct_fill - Fill in a name service request frame
  */
-static inline int fc_ct_fill(struct fc_lport *lport, struct fc_frame *fp,
-		      unsigned int op, enum fc_rctl *r_ctl, u32 *did,
+static inline int fc_ct_fill(struct fc_lport *lport,
+		      struct fc_frame *fp,
+		      unsigned int op, enum fc_rctl *r_ctl,
 		      enum fc_fh_type *fh_type)
 {
 	struct fc_ct_req *ct;
@@ -110,7 +111,6 @@ static inline int fc_ct_fill(struct fc_lport *lport, struct fc_frame *fp,
 		return -EINVAL;
 	}
 	*r_ctl = FC_RCTL_DD_UNSOL_CTL;
-	*did = FC_FID_DIR_SERV;
 	*fh_type = FC_TYPE_CT;
 	return 0;
 }
@@ -250,53 +250,37 @@ static inline void fc_scr_fill(struct fc_lport *lport, struct fc_frame *fp)
  * fc_els_fill - Fill in an ELS  request frame
  */
 static inline int fc_els_fill(struct fc_lport *lport,
-		       struct fc_rport_priv *rdata,
+		       u32 did,
 		       struct fc_frame *fp, unsigned int op,
-		       enum fc_rctl *r_ctl, u32 *did, enum fc_fh_type *fh_type)
+		       enum fc_rctl *r_ctl, enum fc_fh_type *fh_type)
 {
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
-
 	switch (op) {
 	case ELS_PLOGI:
 		fc_plogi_fill(lport, fp, ELS_PLOGI);
-		*did = rport->port_id;
 		break;
 
 	case ELS_FLOGI:
 		fc_flogi_fill(lport, fp);
-		*did = FC_FID_FLOGI;
 		break;
 
 	case ELS_LOGO:
 		fc_logo_fill(lport, fp);
-		*did = FC_FID_FLOGI;
-		/*
-		 * if rport is valid then it
-		 * is port logo, therefore
-		 * set did to rport id.
-		 */
-		if (rdata)
-			*did = rport->port_id;
 		break;
 
 	case ELS_RTV:
 		fc_rtv_fill(lport, fp);
-		*did = rport->port_id;
 		break;
 
 	case ELS_REC:
 		fc_rec_fill(lport, fp);
-		*did = rport->port_id;
 		break;
 
 	case ELS_PRLI:
 		fc_prli_fill(lport, fp);
-		*did = rport->port_id;
 		break;
 
 	case ELS_SCR:
 		fc_scr_fill(lport, fp);
-		*did = FC_FID_FCTRL;
 		break;
 
 	default:
