@@ -169,23 +169,20 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		}
 	} else if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		/* Set as FIBRE until SERDES defined in kernel */
-		switch (hw->device_id) {
-		case IXGBE_DEV_ID_82598:
-			ecmd->supported |= (SUPPORTED_1000baseT_Full |
-				SUPPORTED_FIBRE);
-			ecmd->advertising = (ADVERTISED_10000baseT_Full |
-				ADVERTISED_1000baseT_Full |
-				ADVERTISED_FIBRE);
-			ecmd->port = PORT_FIBRE;
-			break;
-		case IXGBE_DEV_ID_82598_BX:
+		if (hw->device_id == IXGBE_DEV_ID_82598_BX) {
 			ecmd->supported = (SUPPORTED_1000baseT_Full |
 					   SUPPORTED_FIBRE);
 			ecmd->advertising = (ADVERTISED_1000baseT_Full |
 					     ADVERTISED_FIBRE);
 			ecmd->port = PORT_FIBRE;
 			ecmd->autoneg = AUTONEG_DISABLE;
-			break;
+		} else {
+			ecmd->supported |= (SUPPORTED_1000baseT_Full |
+					    SUPPORTED_FIBRE);
+			ecmd->advertising = (ADVERTISED_10000baseT_Full |
+					     ADVERTISED_1000baseT_Full |
+					     ADVERTISED_FIBRE);
+			ecmd->port = PORT_FIBRE;
 		}
 	} else {
 		ecmd->supported |= SUPPORTED_FIBRE;
