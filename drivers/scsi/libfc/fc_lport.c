@@ -205,12 +205,11 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 	ids.node_name = remote_wwnn;
 	ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
-	if (lport->ptp_rp) {
+	mutex_lock(&lport->disc.disc_mutex);
+	if (lport->ptp_rp)
 		lport->tt.rport_logoff(lport->ptp_rp);
-		lport->ptp_rp = NULL;
-	}
-
 	lport->ptp_rp = lport->tt.rport_create(lport, &ids);
+	mutex_unlock(&lport->disc.disc_mutex);
 
 	lport->tt.rport_login(lport->ptp_rp);
 
@@ -931,10 +930,7 @@ static void fc_lport_reset_locked(struct fc_lport *lport)
 	if (lport->dns_rp)
 		lport->tt.rport_logoff(lport->dns_rp);
 
-	if (lport->ptp_rp) {
-		lport->tt.rport_logoff(lport->ptp_rp);
-		lport->ptp_rp = NULL;
-	}
+	lport->ptp_rp = NULL;
 
 	lport->tt.disc_stop(lport);
 
@@ -1304,7 +1300,9 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 
 	fc_lport_state_enter(lport, LPORT_ST_DNS);
 
+	mutex_lock(&lport->disc.disc_mutex);
 	rdata = lport->tt.rport_create(lport, &ids);
+	mutex_unlock(&lport->disc.disc_mutex);
 	if (!rdata)
 		goto err;
 

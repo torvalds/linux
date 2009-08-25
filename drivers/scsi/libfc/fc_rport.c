@@ -91,8 +91,7 @@ static const char *fc_rport_state_names[] = {
  * @lport: local port.
  * @ids: remote port identifiers.
  *
- * Locking note: this may be called without locks held, but
- * is usually called from discovery with the disc_mutex held.
+ * Locking note:  must be called with the disc_mutex held.
  */
 static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 					     struct fc_rport_identifiers *ids)
@@ -115,6 +114,8 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
+	if (ids->port_id != FC_FID_DIR_SERV)
+		list_add(&rdata->peers, &lport->disc.rports);
 	return rdata;
 }
 
@@ -257,6 +258,12 @@ static void fc_rport_work(struct work_struct *work)
 	case RPORT_EV_STOP:
 		port_id = rdata->ids.port_id;
 		mutex_unlock(&rdata->rp_mutex);
+
+		if (port_id != FC_FID_DIR_SERV) {
+			mutex_lock(&lport->disc.disc_mutex);
+			list_del(&rdata->peers);
+			mutex_unlock(&lport->disc.disc_mutex);
+		}
 
 		if (rport_ops->event_callback) {
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);

@@ -115,9 +115,6 @@ static void fc_disc_rport_callback(struct fc_lport *lport,
 	case RPORT_EV_LOGO:
 	case RPORT_EV_FAILED:
 	case RPORT_EV_STOP:
-		mutex_lock(&disc->disc_mutex);
-		list_del(&rdata->peers);
-		mutex_unlock(&disc->disc_mutex);
 		break;
 	default:
 		break;
@@ -385,9 +382,6 @@ static int fc_disc_new_target(struct fc_disc *disc,
 				rdata = lport->tt.rport_create(lport, ids);
 				if (!rdata)
 					error = -ENOMEM;
-				else
-					list_add_tail(&rdata->peers,
-						      &disc->rports);
 			}
 		}
 		if (rdata) {
@@ -562,7 +556,6 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			rdata = lport->tt.rport_create(lport, &ids);
 			if (rdata) {
 				rdata->ops = &fc_disc_rport_ops;
-				list_add_tail(&rdata->peers, &disc->rports);
 				lport->tt.rport_login(rdata);
 			} else
 				printk(KERN_WARNING "libfc: Failed to allocate "
@@ -709,7 +702,6 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 	if (rdata) {
 		rdata->ops = &fc_disc_rport_ops;
 		kfree(dp);
-		list_add_tail(&rdata->peers, &disc->rports);
 		lport->tt.rport_login(rdata);
 	}
 	return;
