@@ -233,6 +233,7 @@ static void fc_disc_restart(struct fc_disc *disc)
 	 * freshly-discovered remote ports.  Avoid wrapping to zero.
 	 */
 	disc->disc_id = (disc->disc_id + 2) | 1;
+	disc->retry_count = 0;
 	fc_disc_gpn_ft_req(disc);
 }
 
@@ -563,8 +564,7 @@ static void fc_disc_timeout(struct work_struct *work)
 					    struct fc_disc,
 					    disc_work.work);
 	mutex_lock(&disc->disc_mutex);
-	if (disc->requested && !disc->pending)
-		fc_disc_gpn_ft_req(disc);
+	fc_disc_gpn_ft_req(disc);
 	mutex_unlock(&disc->disc_mutex);
 }
 
