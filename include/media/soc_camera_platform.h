@@ -17,7 +17,6 @@
 struct device;
 
 struct soc_camera_platform_info {
-	int iface;
 	const char *format_name;
 	unsigned long format_depth;
 	struct v4l2_pix_format format;
