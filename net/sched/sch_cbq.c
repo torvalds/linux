@@ -593,7 +593,7 @@ static psched_tdiff_t cbq_undelay_prio(struct cbq_sched_data *q, int prio,
 static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 {
 	struct cbq_sched_data *q = container_of(timer, struct cbq_sched_data,
-						delay_timer);
+						delay_timer.timer);
 	struct Qdisc *sch = q->watchdog.qdisc;
 	psched_time_t now;
 	psched_tdiff_t delay = 0;
