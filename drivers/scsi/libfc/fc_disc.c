@@ -629,11 +629,10 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 			    seq_cnt, disc->seq_count, fr_sof(fp), fr_eof(fp));
 	}
 	if (buf) {
+		disc->seq_count++;
 		error = fc_disc_gpn_ft_parse(disc, buf, len);
 		if (error)
 			fc_disc_error(disc, fp);
-		else
-			disc->seq_count++;
 	}
 	fc_frame_free(fp);
 
