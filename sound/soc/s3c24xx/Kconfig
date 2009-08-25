@@ -88,14 +88,14 @@ config SND_S3C24XX_SOC_SIMTEC
 
 config SND_S3C24XX_SOC_SIMTEC_TLV320AIC23
 	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
-	depends on SND_S3C24XX_SOC
+	depends on SND_S3C24XX_SOC && ARCH_S3C2410
 	select SND_S3C24XX_SOC_I2S
 	select SND_SOC_TLV320AIC23
 	select SND_S3C24XX_SOC_SIMTEC
 
 config SND_S3C24XX_SOC_SIMTEC_HERMES
 	tristate "SoC I2S Audio support for Simtec Hermes board"
-	depends on SND_S3C24XX_SOC
+	depends on SND_S3C24XX_SOC && ARCH_S3C2410
 	select SND_S3C24XX_SOC_I2S
 	select SND_SOC_TLV320AIC3X
 	select SND_S3C24XX_SOC_SIMTEC
