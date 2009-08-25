@@ -960,12 +960,18 @@ static int ov772x_set_crop(struct soc_camera_device *icd,
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct ov772x_priv *priv = to_ov772x(client);
+	int ret;
 
 	if (!priv->fmt)
 		return -EINVAL;
 
-	return ov772x_set_params(client, &rect->width, &rect->height,
-				 priv->fmt->fourcc);
+	ret = ov772x_set_params(client, &rect->width, &rect->height,
+				priv->fmt->fourcc);
+	if (!ret) {
+		rect->left = 0;
+		rect->top = 0;
+	}
+	return ret;
 }
 
 static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
