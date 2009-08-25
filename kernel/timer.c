@@ -1023,8 +1023,8 @@ static inline void __run_timers(struct tvec_base *base)
 #ifdef CONFIG_NO_HZ
 /*
  * Find out when the next timer event is due to happen. This
- * is used on S/390 to stop all activity when a cpus is idle.
- * This functions needs to be called disabled.
+ * is used on S/390 to stop all activity when a CPU is idle.
+ * This function needs to be called with interrupts disabled.
  */
 static unsigned long __next_timer_interrupt(struct tvec_base *base)
 {
