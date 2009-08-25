@@ -2918,6 +2918,8 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 	struct ath5k_hw *ah = sc->ah;
 	u32 mfilt[2], rfilt;
 
+	mutex_lock(&sc->lock);
+
 	mfilt[0] = multicast;
 	mfilt[1] = multicast >> 32;
 
@@ -2968,22 +2970,25 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	/* XXX move these to mac80211, and add a beacon IFF flag to mac80211 */
 
-	if (sc->opmode == NL80211_IFTYPE_MONITOR)
-		rfilt |= AR5K_RX_FILTER_CONTROL | AR5K_RX_FILTER_BEACON |
-			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;
-	if (sc->opmode != NL80211_IFTYPE_STATION)
-		rfilt |= AR5K_RX_FILTER_PROBEREQ;
-	if (sc->opmode != NL80211_IFTYPE_AP &&
-		sc->opmode != NL80211_IFTYPE_MESH_POINT &&
-		test_bit(ATH_STAT_PROMISC, sc->status))
-		rfilt |= AR5K_RX_FILTER_PROM;
-	if ((sc->opmode == NL80211_IFTYPE_STATION && sc->assoc) ||
-		sc->opmode == NL80211_IFTYPE_ADHOC ||
-		sc->opmode == NL80211_IFTYPE_AP)
-		rfilt |= AR5K_RX_FILTER_BEACON;
-	if (sc->opmode == NL80211_IFTYPE_MESH_POINT)
-		rfilt |= AR5K_RX_FILTER_CONTROL | AR5K_RX_FILTER_BEACON |
-			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;
+	switch (sc->opmode) {
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_MONITOR:
+		rfilt |= AR5K_RX_FILTER_CONTROL |
+			 AR5K_RX_FILTER_BEACON |
+			 AR5K_RX_FILTER_PROBEREQ |
+			 AR5K_RX_FILTER_PROM;
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		rfilt |= AR5K_RX_FILTER_PROBEREQ |
+			 AR5K_RX_FILTER_BEACON;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (sc->assoc)
+			rfilt |= AR5K_RX_FILTER_BEACON;
+	default:
+		break;
+	}
 
 	/* Set filters */
 	ath5k_hw_set_rx_filter(ah, rfilt);
@@ -2993,6 +2998,8 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 	/* Set the cached hw filter flags, this will alter actually
 	 * be set in HW */
 	sc->filter_flags = rfilt;
+
+	mutex_unlock(&sc->lock);
 }
 
 static int
