@@ -310,6 +310,9 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	return ret;
 }
 
+static int ap325rxa_camera_add(struct soc_camera_link *icl, struct device *dev);
+static void ap325rxa_camera_del(struct soc_camera_link *icl);
+
 static struct soc_camera_platform_info camera_info = {
 	.iface = 0,
 	.format_name = "UYVY",
@@ -323,6 +326,10 @@ static struct soc_camera_platform_info camera_info = {
 	.bus_param = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
 	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8,
 	.set_capture = camera_set_capture,
+	.link = {
+		.add_device	= ap325rxa_camera_add,
+		.del_device	= ap325rxa_camera_del,
+	},
 };
 
 static struct platform_device camera_device = {
@@ -332,15 +339,20 @@ static struct platform_device camera_device = {
 	},
 };
 
-static int __init camera_setup(void)
+static int ap325rxa_camera_add(struct soc_camera_link *icl,
+			       struct device *dev)
 {
-	if (camera_probe() > 0)
-		platform_device_register(&camera_device);
+	if (icl != &camera_info.link || camera_probe() <= 0)
+		return -ENODEV;
 
-	return 0;
+	return platform_device_register(&camera_device);
 }
-late_initcall(camera_setup);
 
+static void ap325rxa_camera_del(struct soc_camera_link *icl)
+{
+	if (icl == &camera_info.link)
+		platform_device_unregister(&camera_device);
+}
 #endif /* CONFIG_I2C */
 
 static int ov7725_power(struct device *dev, int mode)
@@ -423,11 +435,19 @@ static struct ov772x_camera_info ov7725_info = {
 	},
 };
 
-static struct platform_device ap325rxa_camera = {
-	.name	= "soc-camera-pdrv",
-	.id	= 0,
-	.dev	= {
-		.platform_data = &ov7725_info.link,
+static struct platform_device ap325rxa_camera[] = {
+	{
+		.name	= "soc-camera-pdrv",
+		.id	= 0,
+		.dev	= {
+			.platform_data = &ov7725_info.link,
+		},
+	}, {
+		.name	= "soc-camera-pdrv",
+		.id	= 1,
+		.dev	= {
+			.platform_data = &camera_info.link,
+		},
 	},
 };
 
@@ -438,7 +458,8 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ceu_device,
 	&nand_flash_device,
 	&sdcard_cn3_device,
-	&ap325rxa_camera,
+	&ap325rxa_camera[0],
+	&ap325rxa_camera[1],
 };
 
 static struct spi_board_info ap325rxa_spi_devices[] = {

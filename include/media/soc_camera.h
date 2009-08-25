@@ -102,6 +102,12 @@ struct soc_camera_link {
 	int i2c_adapter_id;
 	struct i2c_board_info *board_info;
 	const char *module_name;
+	/*
+	 * For non-I2C devices platform platform has to provide methods to
+	 * add a device to the system and to remove
+	 */
+	int (*add_device)(struct soc_camera_link *, struct device *);
+	void (*del_device)(struct soc_camera_link *);
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);

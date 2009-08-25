@@ -12,6 +12,7 @@
 #define __SOC_CAMERA_H__
 
 #include <linux/videodev2.h>
+#include <media/soc_camera.h>
 
 struct soc_camera_platform_info {
 	int iface;
@@ -21,6 +22,7 @@ struct soc_camera_platform_info {
 	unsigned long bus_param;
 	void (*power)(int);
 	int (*set_capture)(struct soc_camera_platform_info *info, int enable);
+	struct soc_camera_link link;
 };
 
 #endif /* __SOC_CAMERA_H__ */

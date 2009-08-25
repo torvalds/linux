@@ -1165,45 +1165,76 @@ void soc_camera_video_stop(struct soc_camera_device *icd)
 }
 EXPORT_SYMBOL(soc_camera_video_stop);
 
-static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
+#ifdef CONFIG_I2C_BOARDINFO
+static int soc_camera_init_i2c(struct platform_device *pdev,
+			       struct soc_camera_link *icl)
 {
-	struct soc_camera_link *icl = pdev->dev.platform_data;
-	struct i2c_adapter *adap;
 	struct i2c_client *client;
+	struct i2c_adapter *adap = i2c_get_adapter(icl->i2c_adapter_id);
+	int ret;
 
-	if (!icl)
-		return -EINVAL;
-
-	adap = i2c_get_adapter(icl->i2c_adapter_id);
 	if (!adap) {
-		dev_warn(&pdev->dev, "Cannot get adapter #%d. No driver?\n",
-			 icl->i2c_adapter_id);
-		/* -ENODEV and -ENXIO do not produce an error on probe()... */
-		return -ENOENT;
+		ret = -ENODEV;
+		dev_err(&pdev->dev, "Cannot get adapter #%d. No driver?\n",
+			icl->i2c_adapter_id);
+		goto ei2cga;
 	}
 
 	icl->board_info->platform_data = icl;
 	client = i2c_new_device(adap, icl->board_info);
 	if (!client) {
-		i2c_put_adapter(adap);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto ei2cnd;
 	}
 
 	platform_set_drvdata(pdev, client);
 
 	return 0;
+ei2cnd:
+	i2c_put_adapter(adap);
+ei2cga:
+	return ret;
 }
 
-static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
+static void soc_camera_free_i2c(struct platform_device *pdev)
 {
 	struct i2c_client *client = platform_get_drvdata(pdev);
 
 	if (!client)
-		return -ENODEV;
+		return;
 
 	i2c_unregister_device(client);
 	i2c_put_adapter(client->adapter);
+}
+#else
+#define soc_camera_init_i2c(d, icl)	(-ENODEV)
+#define soc_camera_free_i2c(d)		do {} while (0)
+#endif
 
+static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
+{
+	struct soc_camera_link *icl = pdev->dev.platform_data;
+
+	if (!icl)
+		return -EINVAL;
+
+	if (icl->board_info)
+		return soc_camera_init_i2c(pdev, icl);
+	else if (!icl->add_device || !icl->del_device)
+		return -EINVAL;
+
+	/* &pdev->dev will become &icd->dev */
+	return icl->add_device(icl, &pdev->dev);
+}
+
+static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
+{
+	struct soc_camera_link *icl = pdev->dev.platform_data;
+
+	if (icl->board_info)
+		soc_camera_free_i2c(pdev);
+	else
+		icl->del_device(icl);
 	return 0;
 }
 
