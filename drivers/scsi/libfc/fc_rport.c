@@ -1012,6 +1012,50 @@ static void fc_rport_enter_adisc(struct fc_rport_priv *rdata)
 }
 
 /**
+ * fc_rport_recv_adisc_req() - Handle incoming Address Discovery (ADISC) Request
+ * @rdata: remote port private
+ * @sp: current sequence in the ADISC exchange
+ * @in_fp: ADISC request frame
+ *
+ * Locking Note:  Called with the lport and rport locks held.
+ */
+static void fc_rport_recv_adisc_req(struct fc_rport_priv *rdata,
+				    struct fc_seq *sp, struct fc_frame *in_fp)
+{
+	struct fc_lport *lport = rdata->local_port;
+	struct fc_frame *fp;
+	struct fc_exch *ep = fc_seq_exch(sp);
+	struct fc_els_adisc *adisc;
+	struct fc_seq_els_data rjt_data;
+	u32 f_ctl;
+
+	FC_RPORT_DBG(rdata, "Received ADISC request\n");
+
+	adisc = fc_frame_payload_get(in_fp, sizeof(*adisc));
+	if (!adisc) {
+		rjt_data.fp = NULL;
+		rjt_data.reason = ELS_RJT_PROT;
+		rjt_data.explan = ELS_EXPL_INV_LEN;
+		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+		goto drop;
+	}
+
+	fp = fc_frame_alloc(lport, sizeof(*adisc));
+	if (!fp)
+		goto drop;
+	fc_adisc_fill(lport, fp);
+	adisc = fc_frame_payload_get(fp, sizeof(*adisc));
+	adisc->adisc_cmd = ELS_LS_ACC;
+	sp = lport->tt.seq_start_next(sp);
+	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT;
+	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
+		       FC_TYPE_ELS, f_ctl, 0);
+	lport->tt.seq_send(lport, sp, fp);
+drop:
+	fc_frame_free(in_fp);
+}
+
+/**
  * fc_rport_recv_els_req() - handle a validated ELS request.
  * @lport: Fibre Channel local port
  * @sp: current sequence in the PLOGI exchange
@@ -1062,6 +1106,9 @@ static void fc_rport_recv_els_req(struct fc_lport *lport,
 	case ELS_PRLO:
 		fc_rport_recv_prlo_req(rdata, sp, fp);
 		break;
+	case ELS_ADISC:
+		fc_rport_recv_adisc_req(rdata, sp, fp);
+		break;
 	case ELS_RRQ:
 		els_data.fp = fp;
 		lport->tt.seq_els_rsp_send(sp, ELS_RRQ, &els_data);
@@ -1111,6 +1158,7 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 		break;
 	case ELS_PRLI:
 	case ELS_PRLO:
+	case ELS_ADISC:
 	case ELS_RRQ:
 	case ELS_REC:
 		fc_rport_recv_els_req(lport, sp, fp);

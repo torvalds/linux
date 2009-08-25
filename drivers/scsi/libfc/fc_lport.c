@@ -452,56 +452,6 @@ static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
 }
 
 /**
- * fc_lport_recv_adisc_req() - Handle received Address Discovery Request
- * @lport: Fibre Channel local port recieving the ADISC
- * @sp: current sequence in the ADISC exchange
- * @fp: ADISC request frame
- *
- * Locking Note: The lport lock is expected to be held before calling
- * this function.
- */
-static void fc_lport_recv_adisc_req(struct fc_seq *sp, struct fc_frame *in_fp,
-				    struct fc_lport *lport)
-{
-	struct fc_frame *fp;
-	struct fc_exch *ep = fc_seq_exch(sp);
-	struct fc_els_adisc *req, *rp;
-	struct fc_seq_els_data rjt_data;
-	size_t len;
-	u32 f_ctl;
-
-	FC_LPORT_DBG(lport, "Received ADISC request while in state %s\n",
-		     fc_lport_state(lport));
-
-	req = fc_frame_payload_get(in_fp, sizeof(*req));
-	if (!req) {
-		rjt_data.fp = NULL;
-		rjt_data.reason = ELS_RJT_LOGIC;
-		rjt_data.explan = ELS_EXPL_NONE;
-		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
-	} else {
-		len = sizeof(*rp);
-		fp = fc_frame_alloc(lport, len);
-		if (fp) {
-			rp = fc_frame_payload_get(fp, len);
-			memset(rp, 0, len);
-			rp->adisc_cmd = ELS_LS_ACC;
-			rp->adisc_wwpn = htonll(lport->wwpn);
-			rp->adisc_wwnn = htonll(lport->wwnn);
-			hton24(rp->adisc_port_id,
-			       fc_host_port_id(lport->host));
-			sp = lport->tt.seq_start_next(sp);
-			f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ;
-			f_ctl |= FC_FC_END_SEQ | FC_FC_SEQ_INIT;
-			fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-				       FC_TYPE_ELS, f_ctl, 0);
-			lport->tt.seq_send(lport, sp, fp);
-		}
-	}
-	fc_frame_free(in_fp);
-}
-
-/**
  * fc_lport_recv_logo_req() - Handle received fabric LOGO request
  * @lport: Fibre Channel local port recieving the LOGO
  * @sp: current sequence in the LOGO exchange
@@ -848,9 +798,6 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 			break;
 		case ELS_RNID:
 			recv = fc_lport_recv_rnid_req;
-			break;
-		case ELS_ADISC:
-			recv = fc_lport_recv_adisc_req;
 			break;
 		}
 
