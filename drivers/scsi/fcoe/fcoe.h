@@ -79,9 +79,6 @@ struct fcoe_percpu_s {
  */
 struct fcoe_interface {
 	struct list_head list;
-	/* This will be removed once all the shared values are
-	 * moved out of fcoe_port */
-	struct fcoe_port *priv;
 	struct net_device *netdev;
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;

@@ -640,9 +640,7 @@ static struct fc_lport *fcoe_if_create(struct net_device *netdev,
 	}
 	lport = shost_priv(shost);
 	port = lport_priv(lport);
-
 	port->fcoe = fcoe;
-	fcoe->priv = port;
 
 	/* configure fc_lport, e.g., em */
 	rc = fcoe_lport_config(lport);
