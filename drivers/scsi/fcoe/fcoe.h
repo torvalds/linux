@@ -82,6 +82,7 @@ struct fcoe_interface {
 	/* This will be removed once all the shared values are
 	 * moved out of fcoe_port */
 	struct fcoe_port *priv;
+	struct net_device *netdev;
 };
 
 /*
@@ -90,7 +91,6 @@ struct fcoe_interface {
  */
 struct fcoe_port {
 	struct fcoe_interface *fcoe;
-	struct net_device *netdev;
 	struct fc_exch_mgr *oem;		/* offload exchange manger */
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;
@@ -100,12 +100,11 @@ struct fcoe_port {
 	struct fcoe_ctlr ctlr;
 };
 
-#define fcoe_from_ctlr(port) container_of(port, struct fcoe_port, ctlr)
+#define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_port, ctlr)
 
-static inline struct net_device *fcoe_netdev(
-	const struct fc_lport *lp)
+static inline struct net_device *fcoe_netdev(const struct fc_lport *lp)
 {
-	return ((struct fcoe_port *)lport_priv(lp))->netdev;
+	return ((struct fcoe_port *)lport_priv(lp))->fcoe->netdev;
 }
 
 #endif /* _FCOE_H_ */
