@@ -44,6 +44,7 @@
 #include "suballoc.h"
 #include "super.h"
 #include "symlink.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -590,6 +591,8 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
+	/* We should already CoW the refcounted extent. */
+	BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
 	/*
 	 * get_more_blocks() expects us to describe a hole by clearing
 	 * the mapped bit on bh_result().
@@ -1449,6 +1452,9 @@ static int ocfs2_populate_write_desc(struct inode *inode,
 				goto out;
 			}
 
+			/* We should already CoW the refcountd extent. */
+			BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
+
 			/*
 			 * Assume worst case - that we're writing in
 			 * the middle of the extent.
@@ -1698,6 +1704,19 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
+	}
+
+	ret = ocfs2_check_range_for_refcount(inode, pos, len);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	} else if (ret == 1) {
+		ret = ocfs2_refcount_cow(inode, di_bh,
+					 wc->w_cpos, wc->w_clen);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 	}
 
 	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc,
