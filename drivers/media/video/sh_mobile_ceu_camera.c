@@ -92,10 +92,17 @@ struct sh_mobile_ceu_dev {
 	spinlock_t lock;
 	struct list_head capture;
 	struct videobuf_buffer *active;
-	int is_interlaced;
 
 	struct sh_mobile_ceu_info *pdata;
 
+	unsigned int is_interlaced:1;
+	unsigned int image_mode:1;
+	unsigned int is_16bit:1;
+};
+
+struct sh_mobile_ceu_cam {
+	struct v4l2_rect camera_rect;
+	const struct soc_camera_data_format *extra_fmt;
 	const struct soc_camera_data_format *camera_fmt;
 };
 
@@ -428,14 +435,101 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	pcdev->icd = NULL;
 }
 
+static void sh_mobile_ceu_set_rect(struct soc_camera_device *icd,
+				   struct v4l2_rect *rect)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct sh_mobile_ceu_cam *cam = icd->host_priv;
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	int width, height, cfszr_width, cdwdr_width;
+	unsigned int left_offset, top_offset;
+	u32 camor;
+
+	if (rect->left > cam->camera_rect.left) {
+		left_offset = rect->left - cam->camera_rect.left;
+	} else {
+		left_offset = 0;
+		rect->left = cam->camera_rect.left;
+	}
+
+	if (rect->top > cam->camera_rect.top) {
+		top_offset = rect->top - cam->camera_rect.top;
+	} else {
+		top_offset = 0;
+		rect->top = cam->camera_rect.top;
+	}
+
+	dev_dbg(&icd->dev, "Offsets %u:%u\n", left_offset, top_offset);
+
+	if (pcdev->image_mode) {
+		width = rect->width;
+		if (!pcdev->is_16bit)
+			width *= 2;
+		cfszr_width = cdwdr_width = rect->width;
+	} else {
+		width = rect->width *
+			((icd->current_fmt->depth + 7) >> 3);
+		width = pcdev->is_16bit ? width / 2 : width;
+		cfszr_width = pcdev->is_16bit ? width : width / 2;
+		cdwdr_width = pcdev->is_16bit ? width * 2 : width;
+	}
+
+	height = rect->height;
+	if (pcdev->is_interlaced) {
+		height /= 2;
+		cdwdr_width *= 2;
+	}
+
+	camor = left_offset | (top_offset << 16);
+	ceu_write(pcdev, CAMOR, camor);
+	ceu_write(pcdev, CAPWR, (height << 16) | width);
+	ceu_write(pcdev, CFSZR, (height << 16) | cfszr_width);
+	ceu_write(pcdev, CDWDR, cdwdr_width);
+}
+
+static u32 capture_save_reset(struct sh_mobile_ceu_dev *pcdev)
+{
+	u32 capsr = ceu_read(pcdev, CAPSR);
+	ceu_write(pcdev, CAPSR, 1 << 16); /* reset, stop capture */
+	return capsr;
+}
+
+static void capture_restore(struct sh_mobile_ceu_dev *pcdev, u32 capsr)
+{
+	unsigned long timeout = jiffies + 10 * HZ;
+
+	/*
+	 * Wait until the end of the current frame. It can take a long time,
+	 * but if it has been aborted by a CAPSR reset, it shoule exit sooner.
+	 */
+	while ((ceu_read(pcdev, CSTSR) & 1) && time_before(jiffies, timeout))
+		msleep(1);
+
+	if (time_after(jiffies, timeout)) {
+		dev_err(pcdev->ici.v4l2_dev.dev,
+			"Timeout waiting for frame end! Interface problem?\n");
+		return;
+	}
+
+	/* Wait until reset clears, this shall not hang... */
+	while (ceu_read(pcdev, CAPSR) & (1 << 16))
+		udelay(10);
+
+	/* Anything to restore? */
+	if (capsr & ~(1 << 16))
+		ceu_write(pcdev, CAPSR, capsr);
+}
+
 static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 				       __u32 pixfmt)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int ret, buswidth, width, height, cfszr_width, cdwdr_width;
+	int ret;
 	unsigned long camera_flags, common_flags, value;
-	int yuv_mode, yuv_lineskip;
+	int yuv_lineskip;
+	struct sh_mobile_ceu_cam *cam = icd->host_priv;
+	u32 capsr = capture_save_reset(pcdev);
 
 	camera_flags = icd->ops->query_bus_param(icd);
 	common_flags = soc_camera_bus_param_compatible(camera_flags,
@@ -449,10 +543,10 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	switch (common_flags & SOCAM_DATAWIDTH_MASK) {
 	case SOCAM_DATAWIDTH_8:
-		buswidth = 8;
+		pcdev->is_16bit = 0;
 		break;
 	case SOCAM_DATAWIDTH_16:
-		buswidth = 16;
+		pcdev->is_16bit = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -462,7 +556,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CRCMPR, 0);
 
 	value = 0x00000010; /* data fetch by default */
-	yuv_mode = yuv_lineskip = 0;
+	pcdev->image_mode = yuv_lineskip = 0;
 
 	switch (icd->current_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12:
@@ -471,8 +565,8 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 		/* fall-through */
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
-		yuv_mode = 1;
-		switch (pcdev->camera_fmt->fourcc) {
+		pcdev->image_mode = 1;
+		switch (cam->camera_fmt->fourcc) {
 		case V4L2_PIX_FMT_UYVY:
 			value = 0x00000000; /* Cb0, Y0, Cr0, Y1 */
 			break;
@@ -496,36 +590,16 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	value |= common_flags & SOCAM_VSYNC_ACTIVE_LOW ? 1 << 1 : 0;
 	value |= common_flags & SOCAM_HSYNC_ACTIVE_LOW ? 1 << 0 : 0;
-	value |= buswidth == 16 ? 1 << 12 : 0;
+	value |= pcdev->is_16bit ? 1 << 12 : 0;
 	ceu_write(pcdev, CAMCR, value);
 
 	ceu_write(pcdev, CAPCR, 0x00300000);
 	ceu_write(pcdev, CAIFR, pcdev->is_interlaced ? 0x101 : 0);
 
 	mdelay(1);
+	sh_mobile_ceu_set_rect(icd, &icd->rect_current);
 
-	if (yuv_mode) {
-		width = icd->rect_current.width * 2;
-		width = buswidth == 16 ? width / 2 : width;
-		cfszr_width = cdwdr_width = icd->rect_current.width;
-	} else {
-		width = icd->rect_current.width *
-			((icd->current_fmt->depth + 7) >> 3);
-		width = buswidth == 16 ? width / 2 : width;
-		cfszr_width = buswidth == 8 ? width / 2 : width;
-		cdwdr_width = buswidth == 16 ? width * 2 : width;
-	}
-
-	height = icd->rect_current.height;
-	if (pcdev->is_interlaced) {
-		height /= 2;
-		cdwdr_width *= 2;
-	}
-
-	ceu_write(pcdev, CAMOR, 0);
-	ceu_write(pcdev, CAPWR, (height << 16) | width);
 	ceu_write(pcdev, CFLCR, 0); /* no scaling */
-	ceu_write(pcdev, CFSZR, (height << 16) | cfszr_width);
 
 	/* A few words about byte order (observed in Big Endian mode)
 	 *
@@ -544,9 +618,15 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 		value &= ~0x00000010; /* convert 4:2:2 -> 4:2:0 */
 
 	ceu_write(pcdev, CDOCR, value);
-
-	ceu_write(pcdev, CDWDR, cdwdr_width);
 	ceu_write(pcdev, CFWCR, 0); /* keep "datafetch firewall" disabled */
+
+	dev_dbg(&icd->dev, "S_FMT successful for %c%c%c%c %ux%u@%u.%u\n",
+		pixfmt & 0xff, (pixfmt >> 8) & 0xff,
+		(pixfmt >> 16) & 0xff, (pixfmt >> 24) & 0xff,
+		icd->rect_current.width, icd->rect_current.height,
+		icd->rect_current.left, icd->rect_current.top);
+
+	capture_restore(pcdev, capsr);
 
 	/* not in bundle mode: skip CBDSR, CDAYR2, CDACR2, CDBYR2, CDBCR2 */
 	return 0;
@@ -600,21 +680,32 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int ret, k, n;
 	int formats = 0;
+	struct sh_mobile_ceu_cam *cam;
 
 	ret = sh_mobile_ceu_try_bus_param(icd);
 	if (ret < 0)
 		return 0;
 
+	if (!icd->host_priv) {
+		cam = kzalloc(sizeof(*cam), GFP_KERNEL);
+		if (!cam)
+			return -ENOMEM;
+
+		icd->host_priv = cam;
+	} else {
+		cam = icd->host_priv;
+	}
+
 	/* Beginning of a pass */
 	if (!idx)
-		icd->host_priv = NULL;
+		cam->extra_fmt = NULL;
 
 	switch (icd->formats[idx].fourcc) {
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_VYUY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_YVYU:
-		if (icd->host_priv)
+		if (cam->extra_fmt)
 			goto add_single_format;
 
 		/*
@@ -626,7 +717,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 		 * the host_priv pointer and check whether the format you're
 		 * going to add now is already there.
 		 */
-		icd->host_priv = (void *)sh_mobile_ceu_formats;
+		cam->extra_fmt = (void *)sh_mobile_ceu_formats;
 
 		n = ARRAY_SIZE(sh_mobile_ceu_formats);
 		formats += n;
@@ -657,18 +748,130 @@ add_single_format:
 	return formats;
 }
 
+static void sh_mobile_ceu_put_formats(struct soc_camera_device *icd)
+{
+	kfree(icd->host_priv);
+	icd->host_priv = NULL;
+}
+
+static bool is_smaller(struct v4l2_rect *r1, struct v4l2_rect *r2)
+{
+	return r1->width < r2->width || r1->height < r2->height;
+}
+
 static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 				  struct v4l2_rect *rect)
 {
-	return icd->ops->set_crop(icd, rect);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	struct v4l2_rect cam_rect = *rect;
+	struct sh_mobile_ceu_cam *cam = icd->host_priv;
+	unsigned short width, height;
+	u32 capsr;
+	int ret;
+
+	capsr = capture_save_reset(pcdev);
+	dev_dbg(&icd->dev, "CAPSR %x\n", capsr);
+
+	ret = icd->ops->set_crop(icd, &cam_rect);
+	if (!ret && !memcmp(rect, &cam_rect, sizeof(*rect))) {
+		dev_dbg(&icd->dev, "Camera S_CROP successful for %ux%u@%u.%u\n",
+			cam_rect.width, cam_rect.height,
+			cam_rect.left, cam_rect.top);
+		goto ceu_set_rect;
+	}
+
+	/* Try to fix cropping, that camera hasn't managed to do */
+	dev_dbg(&icd->dev, "Fix camera S_CROP %d for %ux%u@%u.%u\n",
+		ret, cam_rect.width, cam_rect.height,
+		cam_rect.left, cam_rect.top);
+
+	/*
+	 * Popular special case - some cameras can only handle fixed sizes like
+	 * QVGA, VGA,... Take care to avoid infinite loop.
+	 */
+	width = max(cam_rect.width, 1) * 2;
+	height = max(cam_rect.height, 1) * 2;
+	while (!ret && is_smaller(&cam_rect, rect) &&
+	       (icd->rect_max.width >= width &&
+		icd->rect_max.height >= height)) {
+		cam_rect.width = width;
+		cam_rect.height = height;
+
+		if (cam_rect.width + cam_rect.left >
+		    icd->rect_max.width + icd->rect_max.left)
+			cam_rect.left = icd->rect_max.width +
+				icd->rect_max.left - cam_rect.width;
+
+		if (cam_rect.height + cam_rect.top >
+		    icd->rect_max.height + icd->rect_max.top)
+			cam_rect.top = icd->rect_max.height +
+				icd->rect_max.top - cam_rect.height;
+
+		ret = icd->ops->set_crop(icd, &cam_rect);
+		dev_dbg(&icd->dev, "Camera S_CROP %d for %ux%u@%u.%u\n",
+			ret, cam_rect.width, cam_rect.height,
+			cam_rect.left, cam_rect.top);
+		width *= 2;
+		height *= 2;
+	}
+
+	/*
+	 * If the camera failed to configure cropping, it should not modify the
+	 * rectangle
+	 */
+	if ((ret < 0 && is_smaller(&icd->rect_current, rect)) ||
+	    is_smaller(&cam_rect, rect)) {
+		/*
+		 * The camera failed to configure a suitable cropping,
+		 * we cannot use the current rectangle, set to max
+		 */
+		cam_rect = icd->rect_max;
+		ret = icd->ops->set_crop(icd, &cam_rect);
+		dev_dbg(&icd->dev, "Camera S_CROP %d for max %ux%u@%u.%u\n",
+			ret, cam_rect.width, cam_rect.height,
+			cam_rect.left, cam_rect.top);
+		if (ret < 0)
+			/* All failed, hopefully resume current capture */
+			goto resume_capture;
+	}
+
+	/* We now have a rectangle, larger than requested, let's crop */
+
+	/*
+	 * We have to preserve camera rectangle between close() / open(),
+	 * because soc-camera core calls .set_fmt() on each first open() with
+	 * last before last close() _user_ rectangle, which can be different
+	 * from camera rectangle.
+	 */
+	dev_dbg(&icd->dev, "SH S_CROP from %ux%u@%u.%u to %ux%u@%u.%u\n",
+		cam_rect.width, cam_rect.height, cam_rect.left, cam_rect.top,
+		rect->width, rect->height, rect->left, rect->top);
+
+	ret = 0;
+
+ceu_set_rect:
+	cam->camera_rect = cam_rect;
+
+	/* Set CAMOR, CAPWR, CFSZR, take care of CDWDR */
+	if (pcdev->active)
+		capsr |= 1;
+	sh_mobile_ceu_set_rect(icd, rect);
+	capture_restore(pcdev, capsr);
+
+resume_capture:
+
+	/* Even if only camera cropping succeeded */
+	return ret;
 }
 
 static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 				 struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	__u32 pixfmt = f->fmt.pix.pixelformat;
+	struct sh_mobile_ceu_cam *cam = icd->host_priv;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	__u32 pixfmt = pix->pixelformat;
 	const struct soc_camera_format_xlate *xlate;
 	int ret;
 
@@ -678,13 +881,17 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	f->fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	pix->pixelformat = xlate->cam_fmt->fourcc;
 	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, s_fmt, f);
-	f->fmt.pix.pixelformat = pixfmt;
+	pix->pixelformat = pixfmt;
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
-		pcdev->camera_fmt = xlate->cam_fmt;
+		cam->camera_fmt = xlate->cam_fmt;
+		cam->camera_rect.width = pix->width;
+		cam->camera_rect.height = pix->height;
+		cam->camera_rect.left = icd->rect_current.left;
+		cam->camera_rect.top = icd->rect_current.top;
 	}
 
 	return ret;
@@ -696,7 +903,8 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	const struct soc_camera_format_xlate *xlate;
-	__u32 pixfmt = f->fmt.pix.pixelformat;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	__u32 pixfmt = pix->pixelformat;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
@@ -707,27 +915,27 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	/* FIXME: calculate using depth and bus width */
 
-	v4l_bound_align_image(&f->fmt.pix.width, 2, 2560, 1,
-			      &f->fmt.pix.height, 4, 1920, 2, 0);
+	v4l_bound_align_image(&pix->width, 2, 2560, 1,
+			      &pix->height, 4, 1920, 2, 0);
 
-	f->fmt.pix.bytesperline = f->fmt.pix.width *
+	pix->bytesperline = pix->width *
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
+	pix->sizeimage = pix->height * pix->bytesperline;
 
-	f->fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	pix->pixelformat = xlate->cam_fmt->fourcc;
 
 	/* limit to sensor capabilities */
 	ret = v4l2_device_call_until_err(&ici->v4l2_dev, (__u32)icd, video, try_fmt, f);
-	f->fmt.pix.pixelformat = pixfmt;
+	pix->pixelformat = pixfmt;
 	if (ret < 0)
 		return ret;
 
-	switch (f->fmt.pix.field) {
+	switch (pix->field) {
 	case V4L2_FIELD_INTERLACED:
 		pcdev->is_interlaced = 1;
 		break;
 	case V4L2_FIELD_ANY:
-		f->fmt.pix.field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_NONE;
 		/* fall-through */
 	case V4L2_FIELD_NONE:
 		pcdev->is_interlaced = 0;
@@ -856,6 +1064,7 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.add		= sh_mobile_ceu_add_device,
 	.remove		= sh_mobile_ceu_remove_device,
 	.get_formats	= sh_mobile_ceu_get_formats,
+	.put_formats	= sh_mobile_ceu_put_formats,
 	.set_crop	= sh_mobile_ceu_set_crop,
 	.set_fmt	= sh_mobile_ceu_set_fmt,
 	.try_fmt	= sh_mobile_ceu_try_fmt,
