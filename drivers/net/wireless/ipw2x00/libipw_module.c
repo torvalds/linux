@@ -62,6 +62,9 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
+struct cfg80211_ops libipw_config_ops = { };
+void *libipw_wiphy_privid = &libipw_wiphy_privid;
+
 static int libipw_networks_allocate(struct libipw_device *ieee)
 {
 	if (ieee->networks)
@@ -140,7 +143,7 @@ int libipw_change_mtu(struct net_device *dev, int new_mtu)
 }
 EXPORT_SYMBOL(libipw_change_mtu);
 
-struct net_device *alloc_ieee80211(int sizeof_priv)
+struct net_device *alloc_ieee80211(int sizeof_priv, int monitor)
 {
 	struct libipw_device *ieee;
 	struct net_device *dev;
@@ -157,10 +160,31 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	ieee->dev = dev;
 
+	if (!monitor) {
+		ieee->wdev.wiphy = wiphy_new(&libipw_config_ops, 0);
+		if (!ieee->wdev.wiphy) {
+			LIBIPW_ERROR("Unable to allocate wiphy.\n");
+			goto failed_free_netdev;
+		}
+
+		ieee->dev->ieee80211_ptr = &ieee->wdev;
+		ieee->wdev.iftype = NL80211_IFTYPE_STATION;
+
+		/* Fill-out wiphy structure bits we know...  Not enough info
+		   here to call set_wiphy_dev or set MAC address or channel info
+		   -- have to do that in ->ndo_init... */
+		ieee->wdev.wiphy->privid = libipw_wiphy_privid;
+
+		ieee->wdev.wiphy->max_scan_ssids = 1;
+		ieee->wdev.wiphy->max_scan_ie_len = 0;
+		ieee->wdev.wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION)
+						| BIT(NL80211_IFTYPE_ADHOC);
+	}
+
 	err = libipw_networks_allocate(ieee);
 	if (err) {
 		LIBIPW_ERROR("Unable to allocate beacon storage: %d\n", err);
-		goto failed_free_netdev;
+		goto failed_free_wiphy;
 	}
 	libipw_networks_initialize(ieee);
 
@@ -193,19 +217,31 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	return dev;
 
+failed_free_wiphy:
+	if (!monitor)
+		wiphy_free(ieee->wdev.wiphy);
 failed_free_netdev:
 	free_netdev(dev);
 failed:
 	return NULL;
 }
 
-void free_ieee80211(struct net_device *dev)
+void free_ieee80211(struct net_device *dev, int monitor)
 {
 	struct libipw_device *ieee = netdev_priv(dev);
 
 	lib80211_crypt_info_free(&ieee->crypt_info);
 
 	libipw_networks_free(ieee);
+
+	/* free cfg80211 resources */
+	if (!monitor) {
+		wiphy_unregister(ieee->wdev.wiphy);
+		kfree(ieee->a_band.channels);
+		kfree(ieee->bg_band.channels);
+		wiphy_free(ieee->wdev.wiphy);
+	}
+
 	free_netdev(dev);
 }
 
