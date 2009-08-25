@@ -80,14 +80,22 @@ int irq_can_set_affinity(unsigned int irq)
 	return 1;
 }
 
-void
-irq_set_thread_affinity(struct irq_desc *desc, const struct cpumask *cpumask)
+/**
+ *	irq_set_thread_affinity - Notify irq threads to adjust affinity
+ *	@desc:		irq descriptor which has affitnity changed
+ *
+ *	We just set IRQTF_AFFINITY and delegate the affinity setting
+ *	to the interrupt thread itself. We can not call
+ *	set_cpus_allowed_ptr() here as we hold desc->lock and this
+ *	code can be called from hard interrupt context.
+ */
+void irq_set_thread_affinity(struct irq_desc *desc)
 {
 	struct irqaction *action = desc->action;
 
 	while (action) {
 		if (action->thread)
-			set_cpus_allowed_ptr(action->thread, cpumask);
+			set_bit(IRQTF_AFFINITY, &action->thread_flags);
 		action = action->next;
 	}
 }
@@ -112,7 +120,7 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	if (desc->status & IRQ_MOVE_PCNTXT) {
 		if (!desc->chip->set_affinity(irq, cpumask)) {
 			cpumask_copy(desc->affinity, cpumask);
-			irq_set_thread_affinity(desc, cpumask);
+			irq_set_thread_affinity(desc);
 		}
 	}
 	else {
@@ -122,7 +130,7 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 #else
 	if (!desc->chip->set_affinity(irq, cpumask)) {
 		cpumask_copy(desc->affinity, cpumask);
-		irq_set_thread_affinity(desc, cpumask);
+		irq_set_thread_affinity(desc);
 	}
 #endif
 	desc->status |= IRQ_AFFINITY_SET;
@@ -176,7 +184,7 @@ int irq_select_affinity_usr(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	ret = setup_affinity(irq, desc);
 	if (!ret)
-		irq_set_thread_affinity(desc, desc->affinity);
+		irq_set_thread_affinity(desc);
 	spin_unlock_irqrestore(&desc->lock, flags);
 
 	return ret;
@@ -443,6 +451,39 @@ static int irq_wait_for_interrupt(struct irqaction *action)
 	return -1;
 }
 
+#ifdef CONFIG_SMP
+/*
+ * Check whether we need to change the affinity of the interrupt thread.
+ */
+static void
+irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action)
+{
+	cpumask_var_t mask;
+
+	if (!test_and_clear_bit(IRQTF_AFFINITY, &action->thread_flags))
+		return;
+
+	/*
+	 * In case we are out of memory we set IRQTF_AFFINITY again and
+	 * try again next time
+	 */
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL)) {
+		set_bit(IRQTF_AFFINITY, &action->thread_flags);
+		return;
+	}
+
+	spin_lock_irq(&desc->lock);
+	cpumask_copy(mask, desc->affinity);
+	spin_unlock_irq(&desc->lock);
+
+	set_cpus_allowed_ptr(current, mask);
+	free_cpumask_var(mask);
+}
+#else
+static inline void
+irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action) { }
+#endif
+
 /*
  * Interrupt handler thread
  */
@@ -457,6 +498,8 @@ static int irq_thread(void *data)
 	current->irqaction = action;
 
 	while (!irq_wait_for_interrupt(action)) {
+
+		irq_thread_check_affinity(desc, action);
 
 		atomic_inc(&desc->threads_active);
 
@@ -564,7 +607,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		 */
 		get_task_struct(t);
 		new->thread = t;
-		wake_up_process(t);
 	}
 
 	/*
@@ -647,6 +689,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 				(int)(new->flags & IRQF_TRIGGER_MASK));
 	}
 
+	new->irq = irq;
 	*old_ptr = new;
 
 	/* Reset broken irq detection when installing new handler */
@@ -664,7 +707,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 	spin_unlock_irqrestore(&desc->lock, flags);
 
-	new->irq = irq;
+	/*
+	 * Strictly no need to wake it up, but hung_task complains
+	 * when no hard interrupt wakes the thread up.
+	 */
+	if (new->thread)
+		wake_up_process(new->thread);
+
 	register_irq_proc(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
@@ -718,7 +767,6 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action, **action_ptr;
-	struct task_struct *irqthread;
 	unsigned long flags;
 
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
@@ -766,21 +814,12 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 			desc->chip->disable(irq);
 	}
 
-	irqthread = action->thread;
-	action->thread = NULL;
-
 	spin_unlock_irqrestore(&desc->lock, flags);
 
 	unregister_handler_proc(irq, action);
 
 	/* Make sure it's not being used on another CPU: */
 	synchronize_irq(irq);
-
-	if (irqthread) {
-		if (!test_bit(IRQTF_DIED, &action->thread_flags))
-			kthread_stop(irqthread);
-		put_task_struct(irqthread);
-	}
 
 #ifdef CONFIG_DEBUG_SHIRQ
 	/*
@@ -797,6 +836,13 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		local_irq_restore(flags);
 	}
 #endif
+
+	if (action->thread) {
+		if (!test_bit(IRQTF_DIED, &action->thread_flags))
+			kthread_stop(action->thread);
+		put_task_struct(action->thread);
+	}
+
 	return action;
 }
 

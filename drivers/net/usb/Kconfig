@@ -369,4 +369,12 @@ config USB_NET_INT51X1
 	  (Powerline Communications) solution with an Intellon
 	  INT51x1/INT5200 chip, like the "devolo dLan duo".
 
+config USB_CDC_PHONET
+	tristate "CDC Phonet support"
+	depends on PHONET
+	help
+	  Choose this option to support the Phonet interface to a Nokia
+	  cellular modem, as found on most Nokia handsets with the
+	  "PC suite" USB profile.
+
 endmenu

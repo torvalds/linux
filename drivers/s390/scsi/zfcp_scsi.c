@@ -167,20 +167,21 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	struct zfcp_unit *unit = scpnt->device->hostdata;
 	struct zfcp_fsf_req *old_req, *abrt_req;
 	unsigned long flags;
-	unsigned long old_req_id = (unsigned long) scpnt->host_scribble;
+	unsigned long old_reqid = (unsigned long) scpnt->host_scribble;
 	int retval = SUCCESS;
 	int retry = 3;
+	char *dbf_tag;
 
 	/* avoid race condition between late normal completion and abort */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 
 	spin_lock(&adapter->req_list_lock);
-	old_req = zfcp_reqlist_find(adapter, old_req_id);
+	old_req = zfcp_reqlist_find(adapter, old_reqid);
 	spin_unlock(&adapter->req_list_lock);
 	if (!old_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
 		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL,
-					  old_req_id);
+					  old_reqid);
 		return FAILED; /* completion could be in progress */
 	}
 	old_req->data = NULL;
@@ -189,7 +190,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	write_unlock_irqrestore(&adapter->abort_lock, flags);
 
 	while (retry--) {
-		abrt_req = zfcp_fsf_abort_fcp_command(old_req_id, unit);
+		abrt_req = zfcp_fsf_abort_fcp_command(old_reqid, unit);
 		if (abrt_req)
 			break;
 
@@ -197,7 +198,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING)) {
 			zfcp_scsi_dbf_event_abort("nres", adapter, scpnt, NULL,
-						  old_req_id);
+						  old_reqid);
 			return SUCCESS;
 		}
 	}
@@ -208,13 +209,14 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		   abrt_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
 	if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED)
-		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, abrt_req, 0);
+		dbf_tag = "okay";
 	else if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED)
-		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, abrt_req, 0);
+		dbf_tag = "lte2";
 	else {
-		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, abrt_req, 0);
+		dbf_tag = "fail";
 		retval = FAILED;
 	}
+	zfcp_scsi_dbf_event_abort(dbf_tag, adapter, scpnt, abrt_req, old_reqid);
 	zfcp_fsf_req_free(abrt_req);
 	return retval;
 }
@@ -534,6 +536,9 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
 
+	if (port->rport)
+		return;
+
 	ids.node_name = port->wwnn;
 	ids.port_name = port->wwpn;
 	ids.port_id = port->d_id;
@@ -557,8 +562,10 @@ static void zfcp_scsi_rport_block(struct zfcp_port *port)
 {
 	struct fc_rport *rport = port->rport;
 
-	if (rport)
+	if (rport) {
 		fc_remote_port_delete(rport);
+		port->rport = NULL;
+	}
 }
 
 void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)

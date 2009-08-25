@@ -1696,8 +1696,7 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 		DBF_DEV_EVENT(DBF_ERR, device, "%s",
 			    "unsolicited interrupt received "
 			    "(sense available)");
-		device->discipline->dump_sense_dbf(device, NULL, irb,
-						   "unsolicited");
+		device->discipline->dump_sense_dbf(device, irb, "unsolicited");
 	}
 
 	dasd_schedule_device_bh(device);
@@ -2941,42 +2940,20 @@ dasd_eckd_dump_ccw_range(struct ccw1 *from, struct ccw1 *to, char *page)
 }
 
 static void
-dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct dasd_ccw_req *req,
-			 struct irb *irb, char *reason)
+dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
+			 char *reason)
 {
 	u64 *sense;
-	int sl;
-	struct tsb *tsb;
 
-	sense = NULL;
-	tsb = NULL;
-	if (req && scsw_is_tm(&req->irb.scsw)) {
-		if (irb->scsw.tm.tcw)
-			tsb = tcw_get_tsb(
-				(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
-		if (tsb && (irb->scsw.tm.fcxs == 0x01)) {
-			switch (tsb->flags & 0x07) {
-			case 1:	/* tsa_iostat */
-				sense = (u64 *)tsb->tsa.iostat.sense;
-			break;
-			case 2: /* ts_ddpc */
-				sense = (u64 *)tsb->tsa.ddpc.sense;
-			break;
-			case 3: /* tsa_intrg */
-			break;
-			}
-		}
-	} else {
-		if (irb->esw.esw0.erw.cons)
-			sense = (u64 *)irb->ecw;
-	}
+	sense = (u64 *) dasd_get_sense(irb);
 	if (sense) {
-		for (sl = 0; sl < 4; sl++) {
-			DBF_DEV_EVENT(DBF_EMERG, device,
-				      "%s: %016llx %016llx %016llx %016llx",
-				      reason, sense[0], sense[1], sense[2],
-				      sense[3]);
-		}
+		DBF_DEV_EVENT(DBF_EMERG, device,
+			      "%s: %s %02x%02x%02x %016llx %016llx %016llx "
+			      "%016llx", reason,
+			      scsw_is_tm(&irb->scsw) ? "t" : "c",
+			      scsw_cc(&irb->scsw), scsw_cstat(&irb->scsw),
+			      scsw_dstat(&irb->scsw), sense[0], sense[1],
+			      sense[2], sense[3]);
 	} else {
 		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
 			      "SORRY - NO VALID SENSE AVAILABLE\n");

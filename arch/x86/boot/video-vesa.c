@@ -45,7 +45,7 @@ static int vesa_probe(void)
 	ireg.di = (size_t)&vginfo;
 	intcall(0x10, &ireg, &oreg);
 
-	if (ireg.ax != 0x004f ||
+	if (oreg.ax != 0x004f ||
 	    vginfo.signature != VESA_MAGIC ||
 	    vginfo.version < 0x0102)
 		return 0;	/* Not present */
@@ -70,7 +70,7 @@ static int vesa_probe(void)
 		ireg.di = (size_t)&vminfo;
 		intcall(0x10, &ireg, &oreg);
 
-		if (ireg.ax != 0x004f)
+		if (oreg.ax != 0x004f)
 			continue;
 
 		if ((vminfo.mode_attr & 0x15) == 0x05) {

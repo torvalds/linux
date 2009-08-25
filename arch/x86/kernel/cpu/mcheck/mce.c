@@ -194,14 +194,14 @@ static void print_mce(struct mce *m)
 		       m->cs, m->ip);
 		if (m->cs == __KERNEL_CS)
 			print_symbol("{%s}", m->ip);
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 	printk(KERN_EMERG "TSC %llx ", m->tsc);
 	if (m->addr)
-		printk("ADDR %llx ", m->addr);
+		printk(KERN_CONT "ADDR %llx ", m->addr);
 	if (m->misc)
-		printk("MISC %llx ", m->misc);
-	printk("\n");
+		printk(KERN_CONT "MISC %llx ", m->misc);
+	printk(KERN_CONT "\n");
 	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
 			m->cpuvendor, m->cpuid, m->time, m->socketid,
 			m->apicid);
@@ -209,13 +209,13 @@ static void print_mce(struct mce *m)
 
 static void print_mce_head(void)
 {
-	printk(KERN_EMERG "\n" KERN_EMERG "HARDWARE ERROR\n");
+	printk(KERN_EMERG "\nHARDWARE ERROR\n");
 }
 
 static void print_mce_tail(void)
 {
 	printk(KERN_EMERG "This is not a software problem!\n"
-	       KERN_EMERG "Run through mcelog --ascii to decode and contact your hardware vendor\n");
+	       "Run through mcelog --ascii to decode and contact your hardware vendor\n");
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
@@ -1226,8 +1226,13 @@ static void mce_init(void)
 }
 
 /* Add per CPU specific workarounds here */
-static void mce_cpu_quirks(struct cpuinfo_x86 *c)
+static int mce_cpu_quirks(struct cpuinfo_x86 *c)
 {
+	if (c->x86_vendor == X86_VENDOR_UNKNOWN) {
+		pr_info("MCE: unknown CPU type - not enabling MCE support.\n");
+		return -EOPNOTSUPP;
+	}
+
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
 		if (c->x86 == 15 && banks > 4) {
@@ -1273,11 +1278,20 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		if ((c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xe)) &&
 			monarch_timeout < 0)
 			monarch_timeout = USEC_PER_SEC;
+
+		/*
+		 * There are also broken BIOSes on some Pentium M and
+		 * earlier systems:
+		 */
+		if (c->x86 == 6 && c->x86_model <= 13 && mce_bootlog < 0)
+			mce_bootlog = 0;
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
 	if (mce_bootlog != 0)
 		mce_panic_timeout = 30;
+
+	return 0;
 }
 
 static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
@@ -1338,11 +1352,10 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 	if (!mce_available(c))
 		return;
 
-	if (mce_cap_init() < 0) {
+	if (mce_cap_init() < 0 || mce_cpu_quirks(c) < 0) {
 		mce_disabled = 1;
 		return;
 	}
-	mce_cpu_quirks(c);
 
 	machine_check_vector = do_machine_check;
 
@@ -1692,17 +1705,15 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 				const char *buf, size_t siz)
 {
 	char *p;
-	int len;
 
 	strncpy(mce_helper, buf, sizeof(mce_helper));
 	mce_helper[sizeof(mce_helper)-1] = 0;
-	len = strlen(mce_helper);
 	p = strchr(mce_helper, '\n');
 
-	if (*p)
+	if (p)
 		*p = 0;
 
-	return len;
+	return strlen(mce_helper) + !!p;
 }
 
 static ssize_t set_ignore_ce(struct sys_device *s,

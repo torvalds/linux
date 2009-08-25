@@ -7,7 +7,7 @@
  * There's no pack memory to release - but stay close to the Git
  * version so wrap this away:
  */
-static inline void release_pack_memory(size_t size, int flag)
+static inline void release_pack_memory(size_t size __used, int flag __used)
 {
 }
 
@@ -59,7 +59,8 @@ void *xmemdupz(const void *data, size_t len)
 char *xstrndup(const char *str, size_t len)
 {
 	char *p = memchr(str, '\0', len);
-	return xmemdupz(str, p ? p - str : len);
+
+	return xmemdupz(str, p ? (size_t)(p - str) : len);
 }
 
 void *xrealloc(void *ptr, size_t size)

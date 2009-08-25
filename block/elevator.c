@@ -101,11 +101,16 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 		return 0;
 
 	/*
-	 * Don't merge if failfast settings don't match
+	 * Don't merge if failfast settings don't match.
+	 *
+	 * FIXME: The negation in front of each condition is necessary
+	 * because bio and request flags use different bit positions
+	 * and the accessors return those bits directly.  This
+	 * ugliness will soon go away.
 	 */
-	if (bio_failfast_dev(bio)	!= blk_failfast_dev(rq)		||
-	    bio_failfast_transport(bio)	!= blk_failfast_transport(rq)	||
-	    bio_failfast_driver(bio)	!= blk_failfast_driver(rq))
+	if (!bio_failfast_dev(bio)	 != !blk_failfast_dev(rq)	||
+	    !bio_failfast_transport(bio) != !blk_failfast_transport(rq)	||
+	    !bio_failfast_driver(bio)	 != !blk_failfast_driver(rq))
 		return 0;
 
 	if (!elv_iosched_allow_merge(rq, bio))

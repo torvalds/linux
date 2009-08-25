@@ -174,7 +174,7 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 	mutex_lock(&bus->cmd_mutex);
 	err = bus->ops.command(bus, cmd);
 	if (!err && res)
-		*res = bus->ops.get_response(bus);
+		*res = bus->ops.get_response(bus, codec->addr);
 	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
 	if (res && *res == -1 && bus->rirb_error) {
@@ -332,6 +332,12 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 						  AC_VERB_GET_CONNECT_LIST, i);
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
+		if (val == 0) {
+			snd_printk(KERN_WARNING "hda_codec: "
+				   "invalid CONNECT_LIST verb %x[%i]:%x\n",
+				    nid, i, parm);
+			return 0;
+		}
 		parm >>= shift;
 		if (range_val) {
 			/* ranges between the previous and this one */

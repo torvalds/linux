@@ -935,10 +935,11 @@ static int serio_suspend(struct device *dev, pm_message_t state)
 {
 	struct serio *serio = to_serio_port(dev);
 
-	if (!serio->suspended && state.event == PM_EVENT_SUSPEND) {
+	if (!serio->suspended && state.event == PM_EVENT_SUSPEND)
 		serio_cleanup(serio);
-		serio->suspended = true;
-	}
+
+	serio->suspended = state.event == PM_EVENT_SUSPEND ||
+			   state.event == PM_EVENT_FREEZE;
 
 	return 0;
 }

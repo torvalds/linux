@@ -1,11 +1,11 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM lockdep
+
 #if !defined(_TRACE_LOCKDEP_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_LOCKDEP_H
 
 #include <linux/lockdep.h>
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM lockdep
 
 #ifdef CONFIG_LOCKDEP
 

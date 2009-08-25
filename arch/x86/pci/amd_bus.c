@@ -100,8 +100,9 @@ void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 	int j;
 	struct pci_root_info *info;
 
-	/* don't go for it if _CRS is used */
-	if (pci_probe & PCI_USE__CRS)
+	/* don't go for it if _CRS is used already */
+	if (b->resource[0] != &ioport_resource ||
+	    b->resource[1] != &iomem_resource)
 		return;
 
 	/* if only one root bus, don't need to anything */
@@ -115,6 +116,9 @@ void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 
 	if (i == pci_root_num)
 		return;
+
+	printk(KERN_DEBUG "PCI: peer root bus %02x res updated from pci conf\n",
+			b->number);
 
 	info = &pci_root_info[i];
 	for (j = 0; j < info->res_num; j++) {

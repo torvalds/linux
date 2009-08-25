@@ -98,9 +98,13 @@ extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 			   struct super_block *sb, int mode, int oflags,
 			   int *poplock, __u16 *pnetfid, int xid);
-extern void posix_fill_in_inode(struct inode *tmp_inode,
-				FILE_UNIX_BASIC_INFO *pData, int isNewInode);
-extern struct inode *cifs_new_inode(struct super_block *sb, __u64 *inum);
+extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
+				     FILE_UNIX_BASIC_INFO *info,
+				     struct cifs_sb_info *cifs_sb);
+extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
+extern struct inode *cifs_iget(struct super_block *sb,
+			       struct cifs_fattr *fattr);
+
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO *pfile_info,
@@ -108,8 +112,9 @@ extern int cifs_get_inode_info(struct inode **pinode,
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
-extern void acl_to_uid_mode(struct cifs_sb_info *cifs_sb, struct inode *inode,
-			    const char *path, const __u16 *pfid);
+extern void cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
+			      struct cifs_fattr *fattr, struct inode *inode,
+			      const char *path, const __u16 *pfid);
 extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
@@ -215,7 +220,11 @@ struct cifs_unix_set_info_args {
 	dev_t	device;
 };
 
-extern int CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *pTcon,
+extern int CIFSSMBUnixSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+				  const struct cifs_unix_set_info_args *args,
+				  u16 fid, u32 pid_of_opener);
+
+extern int CIFSSMBUnixSetPathInfo(const int xid, struct cifsTconInfo *pTcon,
 			char *fileName,
 			const struct cifs_unix_set_info_args *args,
 			const struct nls_table *nls_codepage,

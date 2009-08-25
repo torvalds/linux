@@ -55,7 +55,7 @@ void cifs_dfs_release_automount_timer(void)
  * i.e. strips from UNC trailing path that is not part of share
  * name and fixup missing '\' in the begining of DFS node refferal
  * if neccessary.
- * Returns pointer to share name on success or NULL on error.
+ * Returns pointer to share name on success or ERR_PTR on error.
  * Caller is responsible for freeing returned string.
  */
 static char *cifs_get_share_name(const char *node_name)
@@ -68,7 +68,7 @@ static char *cifs_get_share_name(const char *node_name)
 	UNC = kmalloc(len+2 /*for term null and additional \ if it's missed */,
 			 GFP_KERNEL);
 	if (!UNC)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* get share name and server name */
 	if (node_name[1] != '\\') {
@@ -87,7 +87,7 @@ static char *cifs_get_share_name(const char *node_name)
 		cERROR(1, ("%s: no server name end in node name: %s",
 			__func__, node_name));
 		kfree(UNC);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	/* find sharename end */
@@ -133,6 +133,12 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		return ERR_PTR(-EINVAL);
 
 	*devname = cifs_get_share_name(ref->node_name);
+	if (IS_ERR(*devname)) {
+		rc = PTR_ERR(*devname);
+		*devname = NULL;
+		goto compose_mount_options_err;
+	}
+
 	rc = dns_resolve_server_name_to_ip(*devname, &srvIP);
 	if (rc != 0) {
 		cERROR(1, ("%s: Failed to resolve server part of %s to IP: %d",

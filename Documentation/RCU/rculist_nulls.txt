@@ -83,11 +83,12 @@ not detect it missed following items in original chain.
 obj = kmem_cache_alloc(...);
 lock_chain(); // typically a spin_lock()
 obj->key = key;
-atomic_inc(&obj->refcnt);
 /*
  * we need to make sure obj->key is updated before obj->next
+ * or obj->refcnt
  */
 smp_wmb();
+atomic_set(&obj->refcnt, 1);
 hlist_add_head_rcu(&obj->obj_node, list);
 unlock_chain(); // typically a spin_unlock()
 
@@ -159,6 +160,10 @@ out:
 obj = kmem_cache_alloc(cachep);
 lock_chain(); // typically a spin_lock()
 obj->key = key;
+/*
+ * changes to obj->key must be visible before refcnt one
+ */
+smp_wmb();
 atomic_set(&obj->refcnt, 1);
 /*
  * insert obj in RCU way (readers might be traversing chain)

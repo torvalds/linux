@@ -1145,12 +1145,17 @@ ap_config_timeout(unsigned long ptr)
  */
 static inline void ap_schedule_poll_timer(void)
 {
+	ktime_t hr_time;
 	if (ap_using_interrupts() || ap_suspend_flag)
 		return;
 	if (hrtimer_is_queued(&ap_poll_timer))
 		return;
-	hrtimer_start(&ap_poll_timer, ktime_set(0, poll_timeout),
-		      HRTIMER_MODE_ABS);
+	if (ktime_to_ns(hrtimer_expires_remaining(&ap_poll_timer)) <= 0) {
+		hr_time = ktime_set(0, poll_timeout);
+		hrtimer_forward_now(&ap_poll_timer, hr_time);
+		hrtimer_restart(&ap_poll_timer);
+	}
+	return;
 }
 
 /**

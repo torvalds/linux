@@ -200,7 +200,7 @@ static void kvm_leave_lazy_mmu(void)
 	state->mode = paravirt_get_lazy_mode();
 }
 
-static void paravirt_ops_setup(void)
+static void __init paravirt_ops_setup(void)
 {
 	pv_info.name = "KVM";
 	pv_info.paravirt_enabled = 1;

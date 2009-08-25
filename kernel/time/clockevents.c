@@ -254,15 +254,4 @@ void clockevents_notify(unsigned long reason, void *arg)
 	spin_unlock(&clockevents_lock);
 }
 EXPORT_SYMBOL_GPL(clockevents_notify);
-
-ktime_t clockevents_get_next_event(int cpu)
-{
-	struct tick_device *td;
-	struct clock_event_device *dev;
-
-	td = &per_cpu(tick_cpu_device, cpu);
-	dev = td->evtdev;
-
-	return dev->next_event;
-}
 #endif

@@ -1540,9 +1540,6 @@ static int sm501fb_init_fb(struct fb_info *fb,
 	if (ret)
 		dev_err(info->dev, "check_var() failed on initial setup?\n");
 
-	/* ensure we've activated our new configuration */
-	(fb->fbops->fb_set_par)(fb);
-
 	return 0;
 }
 

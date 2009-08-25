@@ -113,6 +113,12 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		}
 	}
 
+	/* Exit if Address/Length have been disallowed by the host OS */
+
+	if (rgn_desc->common.flags & AOPOBJ_INVALID) {
+		return_ACPI_STATUS(AE_AML_ILLEGAL_ADDRESS);
+	}
+
 	/*
 	 * Exit now for SMBus address space, it has a non-linear address space
 	 * and the request cannot be directly validated

@@ -12,12 +12,7 @@
 #define _ASM_MICROBLAZE_MMU_H
 
 # ifndef CONFIG_MMU
-#  ifndef __ASSEMBLY__
-typedef struct {
-	struct vm_list_struct	*vmlist;
-	unsigned long		end_brk;
-} mm_context_t;
-#  endif /* __ASSEMBLY__ */
+#  include <asm-generic/mmu.h>
 # else /* CONFIG_MMU */
 #  ifdef __KERNEL__
 #   ifndef __ASSEMBLY__

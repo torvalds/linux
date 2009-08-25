@@ -14,8 +14,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
-
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -27,11 +25,6 @@
 #include <linux/compiler.h>
 #include <asm/udbg.h>
 
-#ifdef DEBUG
-#define DBG(fmt...) printk(fmt)
-#else
-#define DBG pr_debug
-#endif
 
 extern void slb_allocate_realmode(unsigned long ea);
 extern void slb_allocate_user(unsigned long ea);
@@ -285,13 +278,13 @@ void slb_initialize(void)
 		patch_slb_encoding(slb_compare_rr_to_size,
 				   mmu_slb_size);
 
-		DBG("SLB: linear  LLP = %04lx\n", linear_llp);
-		DBG("SLB: io      LLP = %04lx\n", io_llp);
+		pr_devel("SLB: linear  LLP = %04lx\n", linear_llp);
+		pr_devel("SLB: io      LLP = %04lx\n", io_llp);
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 		patch_slb_encoding(slb_miss_kernel_load_vmemmap,
 				   SLB_VSID_KERNEL | vmemmap_llp);
-		DBG("SLB: vmemmap LLP = %04lx\n", vmemmap_llp);
+		pr_devel("SLB: vmemmap LLP = %04lx\n", vmemmap_llp);
 #endif
 	}
 

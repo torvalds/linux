@@ -478,6 +478,18 @@ void ath9k_ani_reset(struct ath_hw *ah)
 			"Reset ANI state opmode %u\n", ah->opmode);
 		ah->stats.ast_ani_reset++;
 
+		if (ah->opmode == NL80211_IFTYPE_AP) {
+			/*
+			 * ath9k_hw_ani_control() will only process items set on
+			 * ah->ani_function
+			 */
+			if (IS_CHAN_2GHZ(chan))
+				ah->ani_function = (ATH9K_ANI_SPUR_IMMUNITY_LEVEL |
+						    ATH9K_ANI_FIRSTEP_LEVEL);
+			else
+				ah->ani_function = 0;
+		}
+
 		ath9k_hw_ani_control(ah, ATH9K_ANI_NOISE_IMMUNITY_LEVEL, 0);
 		ath9k_hw_ani_control(ah, ATH9K_ANI_SPUR_IMMUNITY_LEVEL, 0);
 		ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL, 0);

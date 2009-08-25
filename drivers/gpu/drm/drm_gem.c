@@ -134,26 +134,29 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (!obj)
+		goto free;
 
 	obj->dev = dev;
 	obj->filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
-	if (IS_ERR(obj->filp)) {
-		kfree(obj);
-		return NULL;
-	}
+	if (IS_ERR(obj->filp))
+		goto free;
 
 	kref_init(&obj->refcount);
 	kref_init(&obj->handlecount);
 	obj->size = size;
 	if (dev->driver->gem_init_object != NULL &&
 	    dev->driver->gem_init_object(obj) != 0) {
-		fput(obj->filp);
-		kfree(obj);
-		return NULL;
+		goto fput;
 	}
 	atomic_inc(&dev->object_count);
 	atomic_add(obj->size, &dev->object_memory);
 	return obj;
+fput:
+	fput(obj->filp);
+free:
+	kfree(obj);
+	return NULL;
 }
 EXPORT_SYMBOL(drm_gem_object_alloc);
 

@@ -62,13 +62,14 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	event_priv->wd = wd;
 
 	ret = fsnotify_add_notify_event(group, event, fsn_event_priv);
-	/* EEXIST is not an error */
-	if (ret == -EEXIST)
-		ret = 0;
-
-	/* did event_priv get attached? */
-	if (list_empty(&fsn_event_priv->event_list))
+	if (ret) {
 		inotify_free_event_priv(fsn_event_priv);
+		/* EEXIST says we tail matched, EOVERFLOW isn't something
+		 * to report up the stack. */
+		if ((ret == -EEXIST) ||
+		    (ret == -EOVERFLOW))
+			ret = 0;
+	}
 
 	/*
 	 * If we hold the entry until after the event is on the queue

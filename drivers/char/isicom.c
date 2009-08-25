@@ -122,6 +122,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/serial.h>
+#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -1478,10 +1479,10 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 		status = inw(base + 0x4);
 		if (status != 0) {
 			dev_warn(&pdev->dev, "Card%d rejected load header:\n"
-				KERN_WARNING "Address:0x%x\n"
-				KERN_WARNING "Count:0x%x\n"
-				KERN_WARNING "Status:0x%x\n",
-				index + 1, frame->addr, frame->count, status);
+				 "Address:0x%x\n"
+				 "Count:0x%x\n"
+				 "Status:0x%x\n",
+				 index + 1, frame->addr, frame->count, status);
 			goto errrelfw;
 		}
 		outsw(base, frame->data, word_count);
@@ -1526,10 +1527,10 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 		status = inw(base + 0x4);
 		if (status != 0) {
 			dev_warn(&pdev->dev, "Card%d rejected verify header:\n"
-				KERN_WARNING "Address:0x%x\n"
-				KERN_WARNING "Count:0x%x\n"
-				KERN_WARNING "Status: 0x%x\n",
-				index + 1, frame->addr, frame->count, status);
+				 "Address:0x%x\n"
+				 "Count:0x%x\n"
+				 "Status: 0x%x\n",
+				 index + 1, frame->addr, frame->count, status);
 			goto errrelfw;
 		}
 

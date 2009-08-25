@@ -352,7 +352,7 @@ extern void fsnotify_unmount_inodes(struct list_head *list);
 /* put here because inotify does some weird stuff when destroying watches */
 extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
 						    void *data, int data_is, const char *name,
-						    u32 cookie);
+						    u32 cookie, gfp_t gfp);
 
 #else
 

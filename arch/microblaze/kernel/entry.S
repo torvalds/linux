@@ -429,12 +429,11 @@ C_ENTRY(ret_from_fork):
 	brid	ret_from_trap;	/* Do normal trap return */
 	nop;
 
-C_ENTRY(sys_vfork_wrapper):
+C_ENTRY(sys_vfork):
+	brid	microblaze_vfork	/* Do real work (tail-call) */
 	la	r5, r1, PTO
-	brid	sys_vfork	/* Do real work (tail-call) */
-	nop
 
-C_ENTRY(sys_clone_wrapper):
+C_ENTRY(sys_clone):
 	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
 	lwi	r6, r1, PTO+PT_R1;	/* If so, use paret's stack ptr */
 1:	la	r7, r1, PTO;			/* Arg 2: parent context */
@@ -444,20 +443,9 @@ C_ENTRY(sys_clone_wrapper):
 	brid	do_fork		/* Do real work (tail-call) */
 	nop;
 
-C_ENTRY(sys_execve_wrapper):
+C_ENTRY(sys_execve):
 	la	r8, r1, PTO;		/* add user context as 4th arg */
-	brid	sys_execve;	/* Do real work (tail-call).*/
-	nop;
-
-C_ENTRY(sys_sigsuspend_wrapper):
-	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	swi	r4, r1, PTO+PT_R4;
-	la	r6, r1, PTO;		/* add user context as 2nd arg */
-	bralid	r15, sys_sigsuspend; /* Do real work.*/
-	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
-	bri ret_from_trap /* fall through will not work here due to align */
+	brid	microblaze_execve;	/* Do real work (tail-call).*/
 	nop;
 
 C_ENTRY(sys_rt_sigsuspend_wrapper):
@@ -465,18 +453,6 @@ C_ENTRY(sys_rt_sigsuspend_wrapper):
 	swi	r4, r1, PTO+PT_R4;
 	la	r7, r1, PTO;		/* add user context as 3rd arg */
 	brlid	r15, sys_rt_sigsuspend;	/* Do real work.*/
-	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
-	bri ret_from_trap /* fall through will not work here due to align */
-	nop;
-
-
-C_ENTRY(sys_sigreturn_wrapper):
-	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	swi	r4, r1, PTO+PT_R4;
-	la	r5, r1, PTO;		/* add user context as 1st arg */
-	brlid	r15, sys_sigreturn;	/* Do real work.*/
 	nop;
 	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
 	lwi	r4, r1, PTO+PT_R4;
