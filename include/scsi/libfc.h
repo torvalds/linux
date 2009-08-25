@@ -76,11 +76,7 @@ do {								\
 				(port_id), ##args))
 
 #define FC_RPORT_DBG(rdata, fmt, args...)				\
-do {									\
-	struct fc_lport *lport = rdata->local_port;			\
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);			\
-	FC_RPORT_ID_DBG(lport, rport->port_id, fmt, ##args);		\
-} while (0)
+	FC_RPORT_ID_DBG((rdata)->local_port, (rdata)->ids.port_id, fmt, ##args)
 
 #define FC_FCP_DBG(pkt, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_FCP_LOGGING,				\
@@ -195,9 +191,13 @@ struct fc_rport_operations {
 /**
  * struct fc_rport_libfc_priv - libfc internal information about a remote port
  * @local_port: Fibre Channel host port instance
+ * @rport: transport remote port
+ * @kref: reference counter
  * @rp_state: state tracks progress of PLOGI, PRLI, and RTV exchanges
+ * @ids: remote port identifiers and roles
  * @flags: REC and RETRY supported flags
  * @max_seq: maximum number of concurrent sequences
+ * @maxframe_size: maximum frame size
  * @retries: retry count in current state
  * @e_d_tov: error detect timeout value (in msec)
  * @r_a_tov: resource allocation timeout value (in msec)
@@ -207,11 +207,15 @@ struct fc_rport_operations {
  */
 struct fc_rport_libfc_priv {
 	struct fc_lport		   *local_port;
+	struct fc_rport		   *rport;
+	struct kref		   kref;
 	enum fc_rport_state        rp_state;
+	struct fc_rport_identifiers ids;
 	u16			   flags;
 	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
 	#define FC_RP_FLAGS_RETRY		(1 << 1)
 	u16		           max_seq;
+	u16			   maxframe_size;
 	unsigned int	           retries;
 	unsigned int	           e_d_tov;
 	unsigned int	           r_a_tov;
@@ -222,18 +226,11 @@ struct fc_rport_libfc_priv {
 	struct fc_rport_operations *ops;
 	struct list_head           peers;
 	struct work_struct         event_work;
+	u32			   supported_classes;
 };
 
-#define PRIV_TO_RPORT(x)						\
-	((struct fc_rport *)((void *)(x) - sizeof(struct fc_rport)))
 #define RPORT_TO_PRIV(x)						\
 	((struct fc_rport_libfc_priv *)((void *)(x) + sizeof(struct fc_rport)))
-
-static inline void fc_rport_set_name(struct fc_rport *rport, u64 wwpn, u64 wwnn)
-{
-	rport->node_name = wwnn;
-	rport->port_name = wwpn;
-}
 
 /*
  * fcoe stats structure
@@ -607,6 +604,12 @@ struct libfc_function_template {
 	 * STATUS: OPTIONAL
 	 */
 	struct fc_rport_priv *(*rport_lookup)(const struct fc_lport *, u32);
+
+	/*
+	 * Destroy an rport after final kref_put().
+	 * The argument is a pointer to the kref inside the fc_rport_priv.
+	 */
+	void (*rport_destroy)(struct kref *);
 
 	/*
 	 * Send a fcp cmd from fsp pkt.

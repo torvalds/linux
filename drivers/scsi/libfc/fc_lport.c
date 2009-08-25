@@ -143,14 +143,12 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 				    struct fc_rport_priv *rdata,
 				    enum fc_rport_event event)
 {
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
-
 	FC_LPORT_DBG(lport, "Received a %d event for port (%6x)\n", event,
-		     rport->port_id);
+		     rdata->ids.port_id);
 
 	switch (event) {
 	case RPORT_EV_CREATED:
-		if (rport->port_id == FC_FID_DIR_SERV) {
+		if (rdata->ids.port_id == FC_FID_DIR_SERV) {
 			mutex_lock(&lport->lp_mutex);
 			if (lport->state == LPORT_ST_DNS) {
 				lport->dns_rp = rdata;
@@ -160,7 +158,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 					     "on port (%6x) for the directory "
 					     "server, but the lport is not "
 					     "in the DNS state, it's in the "
-					     "%d state", rport->port_id,
+					     "%d state", rdata->ids.port_id,
 					     lport->state);
 				lport->tt.rport_logoff(rdata);
 			}
@@ -168,12 +166,12 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 		} else
 			FC_LPORT_DBG(lport, "Received an event for port (%6x) "
 				     "which is not the directory server\n",
-				     rport->port_id);
+				     rdata->ids.port_id);
 		break;
 	case RPORT_EV_LOGO:
 	case RPORT_EV_FAILED:
 	case RPORT_EV_STOP:
-		if (rport->port_id == FC_FID_DIR_SERV) {
+		if (rdata->ids.port_id == FC_FID_DIR_SERV) {
 			mutex_lock(&lport->lp_mutex);
 			lport->dns_rp = NULL;
 			mutex_unlock(&lport->lp_mutex);
@@ -181,7 +179,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 		} else
 			FC_LPORT_DBG(lport, "Received an event for port (%6x) "
 				     "which is not the directory server\n",
-				     rport->port_id);
+				     rdata->ids.port_id);
 		break;
 	case RPORT_EV_NONE:
 		break;

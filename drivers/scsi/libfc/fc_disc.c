@@ -47,7 +47,7 @@
 
 static void fc_disc_gpn_ft_req(struct fc_disc *);
 static void fc_disc_gpn_ft_resp(struct fc_seq *, struct fc_frame *, void *);
-static int fc_disc_new_target(struct fc_disc *, struct fc_rport *,
+static int fc_disc_new_target(struct fc_disc *, struct fc_rport_priv *,
 			      struct fc_rport_identifiers *);
 static void fc_disc_done(struct fc_disc *);
 static void fc_disc_timeout(struct work_struct *);
@@ -63,12 +63,10 @@ struct fc_rport_priv *fc_disc_lookup_rport(const struct fc_lport *lport,
 					   u32 port_id)
 {
 	const struct fc_disc *disc = &lport->disc;
-	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
 
 	list_for_each_entry(rdata, &disc->rports, peers) {
-		rport = PRIV_TO_RPORT(rdata);
-		if (rport->port_id == port_id)
+		if (rdata->ids.port_id == port_id)
 			return rdata;
 	}
 	return NULL;
@@ -115,10 +113,9 @@ static void fc_disc_rport_callback(struct fc_lport *lport,
 				   enum fc_rport_event event)
 {
 	struct fc_disc *disc = &lport->disc;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 
 	FC_DISC_DBG(disc, "Received a %d event for port (%6x)\n", event,
-		    rport->port_id);
+		    rdata->ids.port_id);
 
 	switch (event) {
 	case RPORT_EV_CREATED:
@@ -320,8 +317,6 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 			  struct fc_lport *lport)
 {
 	struct fc_rport_priv *rdata;
-	struct fc_rport *rport;
-	struct fc_rport_identifiers ids;
 	struct fc_disc *disc = &lport->disc;
 
 	/*
@@ -349,18 +344,12 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
 	 */
 	rdata = disc->lport->ptp_rp;
 	if (rdata) {
-		rport = PRIV_TO_RPORT(rdata);
-		ids.port_id = rport->port_id;
-		ids.port_name = rport->port_name;
-		ids.node_name = rport->node_name;
-		ids.roles = FC_RPORT_ROLE_UNKNOWN;
-		get_device(&rport->dev);
-
-		if (!fc_disc_new_target(disc, rport, &ids)) {
+		kref_get(&rdata->kref);
+		if (!fc_disc_new_target(disc, rdata, &rdata->ids)) {
 			disc->event = DISC_EV_SUCCESS;
 			fc_disc_done(disc);
 		}
-		put_device(&rport->dev);
+		kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 	} else {
 		fc_disc_gpn_ft_req(disc);	/* get ports by FC-4 type */
 	}
@@ -375,28 +364,27 @@ static struct fc_rport_operations fc_disc_rport_ops = {
 /**
  * fc_disc_new_target() - Handle new target found by discovery
  * @lport: FC local port
- * @rport: The previous FC remote port (NULL if new remote port)
+ * @rdata: The previous FC remote port priv (NULL if new remote port)
  * @ids: Identifiers for the new FC remote port
  *
  * Locking Note: This function expects that the disc_mutex is locked
  *		 before it is called.
  */
 static int fc_disc_new_target(struct fc_disc *disc,
-			      struct fc_rport *rport,
+			      struct fc_rport_priv *rdata,
 			      struct fc_rport_identifiers *ids)
 {
 	struct fc_lport *lport = disc->lport;
-	struct fc_rport_priv *rdata;
 	int error = 0;
 
-	if (rport && ids->port_name) {
-		if (rport->port_name == -1) {
+	if (rdata && ids->port_name) {
+		if (rdata->ids.port_name == -1) {
 			/*
 			 * Set WWN and fall through to notify of create.
 			 */
-			fc_rport_set_name(rport, ids->port_name,
-					  rport->node_name);
-		} else if (rport->port_name != ids->port_name) {
+			rdata->ids.port_name = ids->port_name;
+			rdata->ids.node_name = ids->node_name;
+		} else if (rdata->ids.port_name != ids->port_name) {
 			/*
 			 * This is a new port with the same FCID as
 			 * a previously-discovered port.  Presumably the old
@@ -404,27 +392,23 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			 * assigned the same FCID.  This should be rare.
 			 * Delete the old one and fall thru to re-create.
 			 */
-			rdata = rport->dd_data;
 			list_del(&rdata->peers);
 			lport->tt.rport_logoff(rdata);
-			rport = NULL;
+			rdata = NULL;
 		}
 	}
 	if (((ids->port_name != -1) || (ids->port_id != -1)) &&
 	    ids->port_id != fc_host_port_id(lport->host) &&
 	    ids->port_name != lport->wwpn) {
-		if (!rport) {
+		if (!rdata) {
 			rdata = lport->tt.rport_lookup(lport, ids->port_id);
-			if (!rport) {
+			if (!rdata) {
 				rdata = lport->tt.rport_create(lport, ids);
+				if (!rdata)
+					error = -ENOMEM;
 			}
-			if (!rdata)
-				error = -ENOMEM;
-			else
-				rport = PRIV_TO_RPORT(rdata);
 		}
-		if (rport) {
-			rdata = rport->dd_data;
+		if (rdata) {
 			rdata->ops = &fc_disc_rport_ops;
 			rdata->rp_state = RPORT_ST_INIT;
 			list_add_tail(&rdata->peers, &disc->rogue_rports);

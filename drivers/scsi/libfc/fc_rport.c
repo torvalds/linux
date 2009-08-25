@@ -120,7 +120,10 @@ struct fc_rport_priv *fc_rport_rogue_create(struct fc_lport *lport,
 	device_initialize(&rport->dev);
 	rport->dev.release = fc_rport_rogue_destroy;
 
+	rdata->ids = *ids;
+	kref_init(&rdata->kref);
 	mutex_init(&rdata->rp_mutex);
+	rdata->rport = rport;
 	rdata->local_port = lport;
 	rdata->trans_state = FC_PORTSTATE_ROGUE;
 	rdata->rp_state = RPORT_ST_INIT;
@@ -129,6 +132,7 @@ struct fc_rport_priv *fc_rport_rogue_create(struct fc_lport *lport,
 	rdata->ops = NULL;
 	rdata->e_d_tov = lport->e_d_tov;
 	rdata->r_a_tov = lport->r_a_tov;
+	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
 	/*
@@ -138,6 +142,20 @@ struct fc_rport_priv *fc_rport_rogue_create(struct fc_lport *lport,
 	INIT_LIST_HEAD(&rdata->peers);
 
 	return rdata;
+}
+
+/**
+ * fc_rport_destroy() - free a remote port after last reference is released.
+ * @kref: pointer to kref inside struct fc_rport_priv
+ */
+static void fc_rport_destroy(struct kref *kref)
+{
+	struct fc_rport_priv *rdata;
+	struct fc_rport *rport;
+
+	rdata = container_of(kref, struct fc_rport_priv, kref);
+	rport = rdata->rport;
+	put_device(&rport->dev);
 }
 
 /**
@@ -215,22 +233,19 @@ static void fc_rport_work(struct work_struct *work)
 	enum fc_rport_trans_state trans_state;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport_operations *rport_ops;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
+	struct fc_rport *rport;
 
 	mutex_lock(&rdata->rp_mutex);
 	event = rdata->event;
 	rport_ops = rdata->ops;
+	rport = rdata->rport;
 
 	if (event == RPORT_EV_CREATED) {
 		struct fc_rport *new_rport;
 		struct fc_rport_priv *new_rdata;
 		struct fc_rport_identifiers ids;
 
-		ids.port_id = rport->port_id;
-		ids.roles = rport->roles;
-		ids.port_name = rport->port_name;
-		ids.node_name = rport->node_name;
-
+		ids = rdata->ids;
 		rdata->event = RPORT_EV_NONE;
 		mutex_unlock(&rdata->rp_mutex);
 
@@ -240,15 +255,20 @@ static void fc_rport_work(struct work_struct *work)
 			 * Switch from the rogue rport to the rport
 			 * returned by the FC class.
 			 */
-			new_rport->maxframe_size = rport->maxframe_size;
+			new_rport->maxframe_size = rdata->maxframe_size;
 
 			new_rdata = new_rport->dd_data;
+			new_rdata->rport = new_rport;
+			new_rdata->ids = ids;
 			new_rdata->e_d_tov = rdata->e_d_tov;
 			new_rdata->r_a_tov = rdata->r_a_tov;
 			new_rdata->ops = rdata->ops;
 			new_rdata->local_port = rdata->local_port;
 			new_rdata->flags = FC_RP_FLAGS_REC_SUPPORTED;
 			new_rdata->trans_state = FC_PORTSTATE_REAL;
+			new_rdata->maxframe_size = rdata->maxframe_size;
+			new_rdata->supported_classes = rdata->supported_classes;
+			kref_init(&new_rdata->kref);
 			mutex_init(&new_rdata->rp_mutex);
 			INIT_DELAYED_WORK(&new_rdata->retry_work,
 					  fc_rport_timeout);
@@ -261,12 +281,11 @@ static void fc_rport_work(struct work_struct *work)
 			       " memory for rport (%6x)\n", ids.port_id);
 			event = RPORT_EV_FAILED;
 		}
-		if (rport->port_id != FC_FID_DIR_SERV)
+		if (rdata->ids.port_id != FC_FID_DIR_SERV)
 			if (rport_ops->event_callback)
 				rport_ops->event_callback(lport, rdata,
 							  RPORT_EV_FAILED);
-		put_device(&rport->dev);
-		rport = new_rport;
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		rdata = new_rport->dd_data;
 		if (rport_ops->event_callback)
 			rport_ops->event_callback(lport, rdata, event);
@@ -279,7 +298,7 @@ static void fc_rport_work(struct work_struct *work)
 			rport_ops->event_callback(lport, rdata, event);
 		cancel_delayed_work_sync(&rdata->retry_work);
 		if (trans_state == FC_PORTSTATE_ROGUE)
-			put_device(&rport->dev);
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
 		else {
 			port_id = rport->port_id;
 			fc_remote_port_delete(rport);
@@ -505,7 +524,6 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				void *rdata_arg)
 {
 	struct fc_rport_priv *rdata = rdata_arg;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_els_flogi *plp = NULL;
 	unsigned int tov;
@@ -533,8 +551,8 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC &&
 	    (plp = fc_frame_payload_get(fp, sizeof(*plp))) != NULL) {
-		rport->port_name = get_unaligned_be64(&plp->fl_wwpn);
-		rport->node_name = get_unaligned_be64(&plp->fl_wwnn);
+		rdata->ids.port_name = get_unaligned_be64(&plp->fl_wwpn);
+		rdata->ids.node_name = get_unaligned_be64(&plp->fl_wwnn);
 
 		tov = ntohl(plp->fl_csp.sp_e_d_tov);
 		if (ntohs(plp->fl_csp.sp_features) & FC_SP_FT_EDTR)
@@ -546,14 +564,13 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		if (cssp_seq < csp_seq)
 			csp_seq = cssp_seq;
 		rdata->max_seq = csp_seq;
-		rport->maxframe_size =
-			fc_plogi_get_maxframe(plp, lport->mfs);
+		rdata->maxframe_size = fc_plogi_get_maxframe(plp, lport->mfs);
 
 		/*
 		 * If the rport is one of the well known addresses
 		 * we skip PRLI and RTV and go straight to READY.
 		 */
-		if (rport->port_id >= FC_FID_DOM_MGR)
+		if (rdata->ids.port_id >= FC_FID_DOM_MGR)
 			fc_rport_enter_ready(rdata);
 		else
 			fc_rport_enter_prli(rdata);
@@ -564,7 +581,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
-	put_device(&rport->dev);
+	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
 /**
@@ -577,7 +594,6 @@ err:
 static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
 {
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct fc_frame *fp;
 
 	FC_RPORT_DBG(rdata, "Port entered PLOGI state from %s state\n",
@@ -585,7 +601,7 @@ static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
 
 	fc_rport_state_enter(rdata, RPORT_ST_PLOGI);
 
-	rport->maxframe_size = FC_MIN_MAX_PAYLOAD;
+	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_flogi));
 	if (!fp) {
 		fc_rport_error_retry(rdata, fp);
@@ -593,11 +609,11 @@ static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
 	}
 	rdata->e_d_tov = lport->e_d_tov;
 
-	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_PLOGI,
+	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PLOGI,
 				  fc_rport_plogi_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
-		get_device(&rport->dev);
+		kref_get(&rdata->kref);
 }
 
 /**
@@ -614,7 +630,6 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 			       void *rdata_arg)
 {
 	struct fc_rport_priv *rdata = rdata_arg;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct {
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
@@ -649,13 +664,13 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 				rdata->flags |= FC_RP_FLAGS_RETRY;
 		}
 
-		rport->supported_classes = FC_COS_CLASS3;
+		rdata->supported_classes = FC_COS_CLASS3;
 		if (fcp_parm & FCP_SPPF_INIT_FCN)
 			roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 		if (fcp_parm & FCP_SPPF_TARG_FCN)
 			roles |= FC_RPORT_ROLE_FCP_TARGET;
 
-		rport->roles = roles;
+		rdata->ids.roles = roles;
 		fc_rport_enter_rtv(rdata);
 
 	} else {
@@ -667,7 +682,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
-	put_device(&rport->dev);
+	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
 /**
@@ -684,7 +699,6 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 			       void *rdata_arg)
 {
 	struct fc_rport_priv *rdata = rdata_arg;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	u8 op;
 
 	mutex_lock(&rdata->rp_mutex);
@@ -716,7 +730,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
-	put_device(&rport->dev);
+	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
 /**
@@ -728,7 +742,6 @@ err:
  */
 static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 {
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct fc_lport *lport = rdata->local_port;
 	struct {
 		struct fc_els_prli prli;
@@ -747,11 +760,11 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_PRLI,
+	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PRLI,
 				  fc_rport_prli_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
-		get_device(&rport->dev);
+		kref_get(&rdata->kref);
 }
 
 /**
@@ -770,7 +783,6 @@ static void fc_rport_rtv_resp(struct fc_seq *sp, struct fc_frame *fp,
 			      void *rdata_arg)
 {
 	struct fc_rport_priv *rdata = rdata_arg;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	u8 op;
 
 	mutex_lock(&rdata->rp_mutex);
@@ -818,7 +830,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
-	put_device(&rport->dev);
+	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
 /**
@@ -832,7 +844,6 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 {
 	struct fc_frame *fp;
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 
 	FC_RPORT_DBG(rdata, "Port entered RTV state from %s state\n",
 		     fc_rport_state(rdata));
@@ -845,11 +856,11 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_RTV,
+	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_RTV,
 				     fc_rport_rtv_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
-		get_device(&rport->dev);
+		kref_get(&rdata->kref);
 }
 
 /**
@@ -862,7 +873,6 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 {
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct fc_frame *fp;
 
 	FC_RPORT_DBG(rdata, "Port entered LOGO state from %s state\n",
@@ -876,11 +886,11 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rport->port_id, fp, ELS_LOGO,
+	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_LOGO,
 				  fc_rport_logo_resp, rdata, lport->e_d_tov))
 		fc_rport_error_retry(rdata, fp);
 	else
-		get_device(&rport->dev);
+		kref_get(&rdata->kref);
 }
 
 
@@ -956,7 +966,6 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 static void fc_rport_recv_plogi_req(struct fc_rport_priv *rdata,
 				    struct fc_seq *sp, struct fc_frame *rx_fp)
 {
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp = rx_fp;
 	struct fc_exch *ep;
@@ -1041,12 +1050,13 @@ static void fc_rport_recv_plogi_req(struct fc_rport_priv *rdata,
 		} else {
 			sp = lport->tt.seq_start_next(sp);
 			WARN_ON(!sp);
-			fc_rport_set_name(rport, wwpn, wwnn);
+			rdata->ids.port_name = wwpn;
+			rdata->ids.node_name = wwnn;
 
 			/*
 			 * Get session payload size from incoming PLOGI.
 			 */
-			rport->maxframe_size =
+			rdata->maxframe_size =
 				fc_plogi_get_maxframe(pl, lport->mfs);
 			fc_frame_free(rx_fp);
 			fc_plogi_fill(lport, fp, ELS_LS_ACC);
@@ -1079,7 +1089,6 @@ static void fc_rport_recv_plogi_req(struct fc_rport_priv *rdata,
 static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 				   struct fc_seq *sp, struct fc_frame *rx_fp)
 {
-	struct fc_rport *rport = PRIV_TO_RPORT(rdata);
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_exch *ep;
 	struct fc_frame *fp;
@@ -1173,12 +1182,12 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 				fcp_parm = ntohl(rspp->spp_params);
 				if (fcp_parm * FCP_SPPF_RETRY)
 					rdata->flags |= FC_RP_FLAGS_RETRY;
-				rport->supported_classes = FC_COS_CLASS3;
+				rdata->supported_classes = FC_COS_CLASS3;
 				if (fcp_parm & FCP_SPPF_INIT_FCN)
 					roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 				if (fcp_parm & FCP_SPPF_TARG_FCN)
 					roles |= FC_RPORT_ROLE_FCP_TARGET;
-				rport->roles = roles;
+				rdata->ids.roles = roles;
 
 				spp->spp_params =
 					htonl(lport->service_params);
@@ -1309,6 +1318,9 @@ int fc_rport_init(struct fc_lport *lport)
 
 	if (!lport->tt.rport_flush_queue)
 		lport->tt.rport_flush_queue = fc_rport_flush_queue;
+
+	if (!lport->tt.rport_destroy)
+		lport->tt.rport_destroy = fc_rport_destroy;
 
 	return 0;
 }
