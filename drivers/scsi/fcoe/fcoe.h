@@ -75,10 +75,21 @@ struct fcoe_percpu_s {
 };
 
 /*
- * the fcoe sw transport private data
+ * an FCoE interface, 1:1 with netdev
  */
-struct fcoe_softc {
+struct fcoe_interface {
 	struct list_head list;
+	/* This will be removed once all the shared values are
+	 * moved out of fcoe_port */
+	struct fcoe_port *priv;
+};
+
+/*
+ * the FCoE private structure that's allocated along with the
+ * Scsi_Host and libfc fc_lport structures
+ */
+struct fcoe_port {
+	struct fcoe_interface *fcoe;
 	struct net_device *netdev;
 	struct fc_exch_mgr *oem;		/* offload exchange manger */
 	struct packet_type  fcoe_packet_type;
@@ -89,12 +100,12 @@ struct fcoe_softc {
 	struct fcoe_ctlr ctlr;
 };
 
-#define fcoe_from_ctlr(fc) container_of(fc, struct fcoe_softc, ctlr)
+#define fcoe_from_ctlr(port) container_of(port, struct fcoe_port, ctlr)
 
 static inline struct net_device *fcoe_netdev(
 	const struct fc_lport *lp)
 {
-	return ((struct fcoe_softc *)lport_priv(lp))->netdev;
+	return ((struct fcoe_port *)lport_priv(lp))->netdev;
 }
 
 #endif /* _FCOE_H_ */
