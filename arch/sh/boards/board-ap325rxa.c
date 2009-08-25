@@ -314,7 +314,6 @@ static int ap325rxa_camera_add(struct soc_camera_link *icl, struct device *dev);
 static void ap325rxa_camera_del(struct soc_camera_link *icl);
 
 static struct soc_camera_platform_info camera_info = {
-	.iface = 0,
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
@@ -327,6 +326,7 @@ static struct soc_camera_platform_info camera_info = {
 	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8,
 	.set_capture = camera_set_capture,
 	.link = {
+		.bus_id		= 0,
 		.add_device	= ap325rxa_camera_add,
 		.del_device	= ap325rxa_camera_del,
 	},
@@ -430,6 +430,7 @@ static struct ov772x_camera_info ov7725_info = {
 	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
 	.edgectrl	= OV772X_AUTO_EDGECTRL(0xf, 0),
 	.link = {
+		.bus_id		= 0,
 		.power		= ov7725_power,
 		.board_info	= &ap325rxa_i2c_camera[0],
 		.i2c_adapter_id	= 0,
