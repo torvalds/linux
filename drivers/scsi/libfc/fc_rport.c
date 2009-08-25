@@ -725,12 +725,10 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 	}
 
 	op = fc_frame_payload_op(fp);
-	if (op == ELS_LS_ACC) {
-		fc_rport_enter_rtv(rdata);
-	} else {
-		FC_RPORT_DBG(rdata, "Bad ELS response for LOGO command\n");
-		fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
-	}
+	if (op != ELS_LS_ACC)
+		FC_RPORT_DBG(rdata, "Bad ELS response op %x for LOGO command\n",
+			     op);
+	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 
 out:
 	fc_frame_free(fp);
