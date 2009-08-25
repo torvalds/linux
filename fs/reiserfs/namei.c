@@ -732,6 +732,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
 	struct reiserfs_security_handle security;
+	int lock_depth;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
@@ -755,7 +756,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		return retval;
 	}
 	jbegin_count += retval;
-	reiserfs_write_lock(dir->i_sb);
+	lock_depth = reiserfs_write_lock_once(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -805,8 +806,8 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
-      out_failed:
-	reiserfs_write_unlock(dir->i_sb);
+out_failed:
+	reiserfs_write_unlock_once(dir->i_sb, lock_depth);
 	return retval;
 }
 
