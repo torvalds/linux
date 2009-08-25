@@ -49,6 +49,12 @@ MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("FCoE");
 MODULE_LICENSE("GPL v2");
 
+/* Performance tuning parameters for fcoe */
+static unsigned int fcoe_ddp_min;
+module_param_named(ddp_min, fcoe_ddp_min, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ddp_min, "Minimum I/O size in bytes for "	\
+		 "Direct Data Placement (DDP).");
+
 /* fcoe host list */
 LIST_HEAD(fcoe_hostlist);
 DEFINE_RWLOCK(fcoe_hostlist_lock);
@@ -414,7 +420,8 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
  */
 bool fcoe_oem_match(struct fc_frame *fp)
 {
-	return fc_fcp_is_read(fr_fsp(fp));
+	return fc_fcp_is_read(fr_fsp(fp)) &&
+		(fr_fsp(fp)->data_len > fcoe_ddp_min);
 }
 
 /**
