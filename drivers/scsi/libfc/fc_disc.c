@@ -377,12 +377,9 @@ static int fc_disc_new_target(struct fc_disc *disc,
 	    ids->port_id != fc_host_port_id(lport->host) &&
 	    ids->port_name != lport->wwpn) {
 		if (!rdata) {
-			rdata = lport->tt.rport_lookup(lport, ids->port_id);
-			if (!rdata) {
-				rdata = lport->tt.rport_create(lport, ids);
-				if (!rdata)
-					error = -ENOMEM;
-			}
+			rdata = lport->tt.rport_create(lport, ids);
+			if (!rdata)
+				error = -ENOMEM;
 		}
 		if (rdata) {
 			rdata->ops = &fc_disc_rport_ops;

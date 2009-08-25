@@ -98,6 +98,10 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 {
 	struct fc_rport_priv *rdata;
 
+	rdata = lport->tt.rport_lookup(lport, ids->port_id);
+	if (rdata)
+		return rdata;
+
 	rdata = kzalloc(sizeof(*rdata), GFP_KERNEL);
 	if (!rdata)
 		return NULL;
