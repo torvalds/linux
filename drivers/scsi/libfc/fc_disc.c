@@ -43,8 +43,6 @@
 #define FC_DISC_RETRY_LIMIT	3	/* max retries */
 #define FC_DISC_RETRY_DELAY	500UL	/* (msecs) delay */
 
-#define	FC_DISC_DELAY		3
-
 static void fc_disc_gpn_ft_req(struct fc_disc *);
 static void fc_disc_gpn_ft_resp(struct fc_seq *, struct fc_frame *, void *);
 static int fc_disc_new_target(struct fc_disc *, struct fc_rport_priv *,
@@ -775,7 +773,6 @@ int fc_disc_init(struct fc_lport *lport)
 	INIT_LIST_HEAD(&disc->rports);
 
 	disc->lport = lport;
-	disc->delay = FC_DISC_DELAY;
 
 	return 0;
 }

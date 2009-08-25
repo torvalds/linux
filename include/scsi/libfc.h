@@ -674,7 +674,6 @@ struct libfc_function_template {
 /* information used by the discovery layer */
 struct fc_disc {
 	unsigned char		retry_count;
-	unsigned char		delay;
 	unsigned char		pending;
 	unsigned char		requested;
 	unsigned short		seq_count;
