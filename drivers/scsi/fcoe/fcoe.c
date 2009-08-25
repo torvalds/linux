@@ -151,9 +151,11 @@ static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *dev,
 			 struct packet_type *ptype,
 			 struct net_device *orig_dev)
 {
+	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
 
-	port = container_of(ptype, struct fcoe_port, fip_packet_type);
+	fcoe = container_of(ptype, struct fcoe_interface, fip_packet_type);
+	port = fcoe->priv;
 	fcoe_ctlr_recv(&port->ctlr, skb);
 	return 0;
 }
@@ -235,8 +237,8 @@ void fcoe_netdev_cleanup(struct fcoe_port *port)
 	struct fcoe_interface *fcoe = port->fcoe;
 
 	/* Don't listen for Ethernet packets anymore */
-	dev_remove_pack(&port->fcoe_packet_type);
-	dev_remove_pack(&port->fip_packet_type);
+	dev_remove_pack(&fcoe->fcoe_packet_type);
+	dev_remove_pack(&fcoe->fip_packet_type);
 
 	/* Delete secondary MAC addresses */
 	rtnl_lock();
@@ -368,15 +370,15 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	 * setup the receive function from ethernet driver
 	 * on the ethertype for the given device
 	 */
-	port->fcoe_packet_type.func = fcoe_rcv;
-	port->fcoe_packet_type.type = __constant_htons(ETH_P_FCOE);
-	port->fcoe_packet_type.dev = netdev;
-	dev_add_pack(&port->fcoe_packet_type);
+	fcoe->fcoe_packet_type.func = fcoe_rcv;
+	fcoe->fcoe_packet_type.type = __constant_htons(ETH_P_FCOE);
+	fcoe->fcoe_packet_type.dev = netdev;
+	dev_add_pack(&fcoe->fcoe_packet_type);
 
-	port->fip_packet_type.func = fcoe_fip_recv;
-	port->fip_packet_type.type = htons(ETH_P_FIP);
-	port->fip_packet_type.dev = netdev;
-	dev_add_pack(&port->fip_packet_type);
+	fcoe->fip_packet_type.func = fcoe_fip_recv;
+	fcoe->fip_packet_type.type = htons(ETH_P_FIP);
+	fcoe->fip_packet_type.dev = netdev;
+	dev_add_pack(&fcoe->fip_packet_type);
 
 	return 0;
 }
@@ -926,12 +928,14 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct fc_lport *lp;
 	struct fcoe_rcv_info *fr;
+	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
 	struct fc_frame_header *fh;
 	struct fcoe_percpu_s *fps;
 	unsigned int cpu;
 
-	port = container_of(ptype, struct fcoe_port, fcoe_packet_type);
+	fcoe = container_of(ptype, struct fcoe_interface, fcoe_packet_type);
+	port = fcoe->priv;
 	lp = port->ctlr.lp;
 	if (unlikely(lp == NULL)) {
 		FCOE_NETDEV_DBG(dev, "Cannot find hba structure");
