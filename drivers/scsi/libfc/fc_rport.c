@@ -912,57 +912,61 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
  * fc_rport_recv_req() - Receive a request from a rport
  * @sp: current sequence in the PLOGI exchange
  * @fp: response frame
- * @rdata_arg: private remote port data
+ * @lport: Fibre Channel local port
  *
- * Locking Note: Called without the rport lock held. This
- * function will hold the rport lock, call an _enter_*
- * function and then unlock the rport.
+ * Locking Note: Called with the lport lock held.
  */
 void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
-		       struct fc_rport_priv *rdata)
+		       struct fc_lport *lport)
 {
-	struct fc_lport *lport = rdata->local_port;
-
+	struct fc_rport_priv *rdata;
 	struct fc_frame_header *fh;
 	struct fc_seq_els_data els_data;
+	u32 s_id;
 	u8 op;
-
-	mutex_lock(&rdata->rp_mutex);
 
 	els_data.fp = NULL;
 	els_data.explan = ELS_EXPL_NONE;
 	els_data.reason = ELS_RJT_NONE;
 
 	fh = fc_frame_header_get(fp);
+	s_id = ntoh24(fh->fh_s_id);
 
-	if (fh->fh_r_ctl == FC_RCTL_ELS_REQ && fh->fh_type == FC_TYPE_ELS) {
-		op = fc_frame_payload_op(fp);
-		switch (op) {
-		case ELS_PLOGI:
-			fc_rport_recv_plogi_req(rdata, sp, fp);
-			break;
-		case ELS_PRLI:
-			fc_rport_recv_prli_req(rdata, sp, fp);
-			break;
-		case ELS_PRLO:
-			fc_rport_recv_prlo_req(rdata, sp, fp);
-			break;
-		case ELS_LOGO:
-			fc_rport_recv_logo_req(rdata, sp, fp);
-			break;
-		case ELS_RRQ:
-			els_data.fp = fp;
-			lport->tt.seq_els_rsp_send(sp, ELS_RRQ, &els_data);
-			break;
-		case ELS_REC:
-			els_data.fp = fp;
-			lport->tt.seq_els_rsp_send(sp, ELS_REC, &els_data);
-			break;
-		default:
-			els_data.reason = ELS_RJT_UNSUP;
-			lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &els_data);
-			break;
-		}
+	rdata = lport->tt.rport_lookup(lport, s_id);
+	if (!rdata) {
+		els_data.reason = ELS_RJT_UNAB;
+		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &els_data);
+		fc_frame_free(fp);
+		return;
+	}
+	mutex_lock(&rdata->rp_mutex);
+
+	op = fc_frame_payload_op(fp);
+	switch (op) {
+	case ELS_PLOGI:
+		fc_rport_recv_plogi_req(rdata, sp, fp);
+		break;
+	case ELS_PRLI:
+		fc_rport_recv_prli_req(rdata, sp, fp);
+		break;
+	case ELS_PRLO:
+		fc_rport_recv_prlo_req(rdata, sp, fp);
+		break;
+	case ELS_LOGO:
+		fc_rport_recv_logo_req(rdata, sp, fp);
+		break;
+	case ELS_RRQ:
+		els_data.fp = fp;
+		lport->tt.seq_els_rsp_send(sp, ELS_RRQ, &els_data);
+		break;
+	case ELS_REC:
+		els_data.fp = fp;
+		lport->tt.seq_els_rsp_send(sp, ELS_REC, &els_data);
+		break;
+	default:
+		els_data.reason = ELS_RJT_UNSUP;
+		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &els_data);
+		break;
 	}
 
 	mutex_unlock(&rdata->rp_mutex);

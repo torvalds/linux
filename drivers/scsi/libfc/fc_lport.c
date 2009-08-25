@@ -812,10 +812,6 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	void (*recv) (struct fc_seq *, struct fc_frame *, struct fc_lport *);
-	struct fc_rport_priv *rdata;
-	u32 s_id;
-	u32 d_id;
-	struct fc_seq_els_data rjt_data;
 
 	mutex_lock(&lport->lp_mutex);
 
@@ -831,7 +827,7 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 		/*
 		 * Check opcode.
 		 */
-		recv = NULL;
+		recv = lport->tt.rport_recv_req;
 		switch (fc_frame_payload_op(fp)) {
 		case ELS_FLOGI:
 			recv = fc_lport_recv_flogi_req;
@@ -858,29 +854,7 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 			break;
 		}
 
-		if (recv)
-			recv(sp, fp, lport);
-		else {
-			/*
-			 * Find session.
-			 * If this is a new incoming PLOGI, we won't find it.
-			 */
-			s_id = ntoh24(fh->fh_s_id);
-			d_id = ntoh24(fh->fh_d_id);
-
-			rdata = lport->tt.rport_lookup(lport, s_id);
-			if (rdata)
-				lport->tt.rport_recv_req(sp, fp, rdata);
-			else {
-				rjt_data.fp = NULL;
-				rjt_data.reason = ELS_RJT_UNAB;
-				rjt_data.explan = ELS_EXPL_NONE;
-				lport->tt.seq_els_rsp_send(sp,
-							   ELS_LS_RJT,
-							   &rjt_data);
-				fc_frame_free(fp);
-			}
-		}
+		recv(sp, fp, lport);
 	} else {
 		FC_LPORT_DBG(lport, "dropping invalid frame (eof %x)\n",
 			     fr_eof(fp));

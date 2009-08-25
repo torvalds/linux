@@ -598,7 +598,7 @@ struct libfc_function_template {
 	 * STATUS: OPTIONAL
 	 */
 	void (*rport_recv_req)(struct fc_seq *, struct fc_frame *,
-			       struct fc_rport_priv *);
+			       struct fc_lport *);
 
 	/*
 	 * lookup an rport by it's port ID.
