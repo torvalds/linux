@@ -1590,6 +1590,7 @@ typedef struct fc_port {
 #define FCF_FABRIC_DEVICE	BIT_0
 #define FCF_LOGIN_NEEDED	BIT_1
 #define FCF_TAPE_PRESENT	BIT_2
+#define FCF_FCP2_DEVICE		BIT_3
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000

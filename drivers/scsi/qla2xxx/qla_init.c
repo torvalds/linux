@@ -3341,7 +3341,7 @@ qla2x00_fabric_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 			} else {
 				fcport->port_type = FCT_TARGET;
 				if (mb[1] & BIT_1) {
-					fcport->flags |= FCF_TAPE_PRESENT;
+					fcport->flags |= FCF_FCP2_DEVICE;
 				}
 			}
 

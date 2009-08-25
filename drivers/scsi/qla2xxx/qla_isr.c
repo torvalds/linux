@@ -1013,7 +1013,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 		data[0] = MBS_COMMAND_COMPLETE;
 		if (lio->ctx.type == SRB_LOGIN_CMD && le16_to_cpu(mbx->mb1) & BIT_1)
-			fcport->flags |= FCF_TAPE_PRESENT;
+			fcport->flags |= FCF_FCP2_DEVICE;
 
 		goto done_post_logio_done_work;
 	}
@@ -1112,7 +1112,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		if (iop[0] & BIT_4) {
 			fcport->port_type = FCT_TARGET;
 			if (iop[0] & BIT_8)
-				fcport->flags |= FCF_TAPE_PRESENT;
+				fcport->flags |= FCF_FCP2_DEVICE;
 		}
 		if (iop[0] & BIT_5)
 			fcport->port_type = FCT_INITIATOR;
