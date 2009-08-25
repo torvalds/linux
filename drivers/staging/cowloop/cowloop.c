@@ -967,12 +967,12 @@ cowlo_request(request_queue_t *q)
 
 	DEBUGP(DCOW "cowloop - request function called....\n");
 
-	while((req = elv_next_request(q)) != NULL) {
+	while((req = blk_peek_request(q)) != NULL) {
 		DEBUGP(DCOW "cowloop - got next request\n");
 
 		if (! blk_fs_request(req)) {
                		 /* this is not a normal file system request */
-                	end_request(req, 0);
+                	__blk_end_request_cur(req, -EIO);
                 	continue;
         	}
 		cowdev = req->rq_disk->private_data;
@@ -988,7 +988,7 @@ cowlo_request(request_queue_t *q)
 		*/
 		if (!cowdev->pid) {
 			printk(KERN_ERR"cowloop - no thread available\n");
-			end_request(req, 0);	/* request failed */
+			__blk_end_request_cur(req, -EIO);	/* request failed */
 			cowdev->iobusy	= 0;
 			continue;
 		}
@@ -1058,7 +1058,7 @@ cowlo_daemon(struct cowloop_device *cowdev)
 		*/
 		spin_lock_irq(&cowdev->rqlock);
 
-		end_request(cowdev->req, rv);
+		__blk_end_request_cur(cowdev->req, rv);
 		cowdev->iobusy = 0;
 
 		/*
@@ -1090,8 +1090,8 @@ cowlo_do_request(struct request *req)
 	/*
 	** calculate some variables which are needed later on
 	*/
-	len     =          req->current_nr_sectors << 9;
-	offset  = (loff_t) req->sector             << 9;
+	len     =          blk_rq_cur_sectors(req) << 9;
+	offset  = (loff_t) blk_rq_pos(req)         << 9;
 
 	DEBUGP(DCOW"cowloop - req cmd=%d offset=%lld len=%lu addr=%p\n",
 				*(req->cmd), offset, len, req->buffer);
@@ -1918,7 +1918,7 @@ cowlo_openpair(char *rdof, char *cowf, int autorecover, int minor)
 		return -EINVAL;
 	}
 
-	blk_queue_hardsect_size(cowdev->rqueue, cowdev->blocksz);
+	blk_queue_logical_block_size(cowdev->rqueue, cowdev->blocksz);
 	cowdev->gd->queue = cowdev->rqueue;
 
 	/*
@@ -2132,7 +2132,7 @@ cowlo_openrdo(struct cowloop_device *cowdev, char *rdof)
 
 
 		if (cowdev->belowq)
-			cowdev->blocksz = cowdev->belowq->hardsect_size;
+			cowdev->blocksz = queue_logical_block_size(cowdev->belowq);
 
 		if (cowdev->blocksz == 0)
 			cowdev->blocksz = BLOCK_SIZE; /* default 2^10 */
