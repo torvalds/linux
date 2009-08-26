@@ -102,7 +102,7 @@ static inline const int16_t *fir16_create(struct fir16_state_t *fir,
 	fir->taps = taps;
 	fir->curr_pos = taps - 1;
 	fir->coeffs = coeffs;
-#if defined(USE_SSE2) || defined(__bfin__)
+#if defined(__bfin__)
 	fir->history = kcalloc(2 * taps, sizeof(int16_t), GFP_KERNEL);
 #else
 	fir->history = kcalloc(taps, sizeof(int16_t), GFP_KERNEL);
@@ -112,7 +112,7 @@ static inline const int16_t *fir16_create(struct fir16_state_t *fir,
 
 static inline void fir16_flush(struct fir16_state_t *fir)
 {
-#if defined(USE_SSE2) || defined(__bfin__)
+#if defined(__bfin__)
 	memset(fir->history, 0, 2 * fir->taps * sizeof(int16_t));
 #else
 	memset(fir->history, 0, fir->taps * sizeof(int16_t));
@@ -154,40 +154,7 @@ static inline int32_t dot_asm(short *x, short *y, int len)
 static inline int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 {
 	int32_t y;
-#if defined(USE_SSE2)
-	int i;
-	union xmm_t *xmm_coeffs;
-	union xmm_t *xmm_hist;
-
-	fir->history[fir->curr_pos] = sample;
-	fir->history[fir->curr_pos + fir->taps] = sample;
-
-	xmm_coeffs = (union xmm_t *)fir->coeffs;
-	xmm_hist = (union xmm_t *)&fir->history[fir->curr_pos];
-	i = fir->taps;
-	pxor_r2r(xmm4, xmm4);
-	/* 16 samples per iteration, so the filter must be a multiple of 16 long. */
-	while (i > 0) {
-		movdqu_m2r(xmm_coeffs[0], xmm0);
-		movdqu_m2r(xmm_coeffs[1], xmm2);
-		movdqu_m2r(xmm_hist[0], xmm1);
-		movdqu_m2r(xmm_hist[1], xmm3);
-		xmm_coeffs += 2;
-		xmm_hist += 2;
-		pmaddwd_r2r(xmm1, xmm0);
-		pmaddwd_r2r(xmm3, xmm2);
-		paddd_r2r(xmm0, xmm4);
-		paddd_r2r(xmm2, xmm4);
-		i -= 16;
-	}
-	movdqa_r2r(xmm4, xmm0);
-	psrldq_i2r(8, xmm0);
-	paddd_r2r(xmm0, xmm4);
-	movdqa_r2r(xmm4, xmm0);
-	psrldq_i2r(4, xmm0);
-	paddd_r2r(xmm0, xmm4);
-	movd_r2m(xmm4, y);
-#elif defined(__bfin__)
+#if defined(__bfin__)
 	fir->history[fir->curr_pos] = sample;
 	fir->history[fir->curr_pos + fir->taps] = sample;
 	y = dot_asm((int16_t *) fir->coeffs, &fir->history[fir->curr_pos],
