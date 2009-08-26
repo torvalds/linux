@@ -96,4 +96,8 @@ static inline struct drm_mm *drm_get_mm(struct drm_mm_node *block)
 	return block->mm;
 }
 
+#ifdef CONFIG_DEBUG_FS
+int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm);
+#endif
+
 #endif
