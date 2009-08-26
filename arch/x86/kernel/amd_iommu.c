@@ -41,6 +41,12 @@ static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 static LIST_HEAD(iommu_pd_list);
 static DEFINE_SPINLOCK(iommu_pd_list_lock);
 
+/*
+ * Domain for untranslated devices - only allocated
+ * if iommu=pt passed on kernel cmd line.
+ */
+static struct protection_domain *pt_domain;
+
 #ifdef CONFIG_IOMMU_API
 static struct iommu_ops amd_iommu_ops;
 #endif
@@ -1067,9 +1073,9 @@ static struct protection_domain *domain_for_device(u16 devid)
  * If a device is not yet associated with a domain, this function does
  * assigns it visible for the hardware
  */
-static void attach_device(struct amd_iommu *iommu,
-			  struct protection_domain *domain,
-			  u16 devid)
+static void __attach_device(struct amd_iommu *iommu,
+			    struct protection_domain *domain,
+			    u16 devid)
 {
 	unsigned long flags;
 	u64 pte_root = virt_to_phys(domain->pt_root);
@@ -1087,12 +1093,19 @@ static void attach_device(struct amd_iommu *iommu,
 
 	amd_iommu_pd_table[devid] = domain;
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+}
 
-       /*
-        * We might boot into a crash-kernel here. The crashed kernel
-        * left the caches in the IOMMU dirty. So we have to flush
-        * here to evict all dirty stuff.
-        */
+static void attach_device(struct amd_iommu *iommu,
+			  struct protection_domain *domain,
+			  u16 devid)
+{
+	__attach_device(iommu, domain, devid);
+
+	/*
+	 * We might boot into a crash-kernel here. The crashed kernel
+	 * left the caches in the IOMMU dirty. So we have to flush
+	 * here to evict all dirty stuff.
+	 */
 	iommu_queue_inv_dev_entry(iommu, devid);
 	iommu_flush_tlb_pde(iommu, domain->id);
 }
@@ -2219,3 +2232,46 @@ static struct iommu_ops amd_iommu_ops = {
 	.domain_has_cap = amd_iommu_domain_has_cap,
 };
 
+/*****************************************************************************
+ *
+ * The next functions do a basic initialization of IOMMU for pass through
+ * mode
+ *
+ * In passthrough mode the IOMMU is initialized and enabled but not used for
+ * DMA-API translation.
+ *
+ *****************************************************************************/
+
+int __init amd_iommu_init_passthrough(void)
+{
+	struct pci_dev *dev = NULL;
+	u16 devid, devid2;
+
+	/* allocate passthroug domain */
+	pt_domain = protection_domain_alloc();
+	if (!pt_domain)
+		return -ENOMEM;
+
+	pt_domain->mode |= PAGE_MODE_NONE;
+
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+		struct amd_iommu *iommu;
+
+		devid = calc_devid(dev->bus->number, dev->devfn);
+		if (devid > amd_iommu_last_bdf)
+			continue;
+
+		devid2 = amd_iommu_alias_table[devid];
+
+		iommu = amd_iommu_rlookup_table[devid2];
+		if (!iommu)
+			continue;
+
+		__attach_device(iommu, pt_domain, devid);
+		__attach_device(iommu, pt_domain, devid2);
+	}
+
+	pr_info("AMD-Vi: Initialized for Passthrough Mode\n");
+
+	return 0;
+}
