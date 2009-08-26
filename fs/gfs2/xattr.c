@@ -18,7 +18,7 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "acl.h"
-#include "eattr.h"
+#include "xattr.h"
 #include "glock.h"
 #include "inode.h"
 #include "meta_io.h"

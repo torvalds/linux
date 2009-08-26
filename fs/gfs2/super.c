@@ -38,7 +38,7 @@
 #include "trans.h"
 #include "util.h"
 #include "sys.h"
-#include "eattr.h"
+#include "xattr.h"
 
 #define args_neq(a1, a2, x) ((a1)->ar_##x != (a2)->ar_##x)
 
