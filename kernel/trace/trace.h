@@ -11,7 +11,6 @@
 #include <trace/boot.h>
 #include <linux/kmemtrace.h>
 #include <trace/power.h>
-#include <trace/events/skb.h>
 
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
@@ -41,7 +40,6 @@ enum trace_type {
 	TRACE_KMEM_FREE,
 	TRACE_POWER,
 	TRACE_BLK,
-	TRACE_SKB_SOURCE,
 
 	__TRACE_LAST_TYPE,
 };
@@ -171,21 +169,6 @@ struct hw_branch_entry {
 struct trace_power {
 	struct trace_entry	ent;
 	struct power_trace	state_data;
-};
-
-struct skb_record {
-	pid_t pid;		/* pid of the copying process */
-	int anid;		/* node where skb was allocated */
-	int cnid;		/* node to which skb was copied in userspace */
-	char ifname[IFNAMSIZ];	/* Name of the receiving interface */
-	int rx_queue;		/* The rx queue the skb was received on */
-	int ccpu;		/* Cpu the application got this frame from */
-	int len;		/* length of the data copied */
-};
-
-struct trace_skb_event {
-	struct trace_entry	ent;
-	struct skb_record	event_data;
 };
 
 enum kmemtrace_type_id {
@@ -340,8 +323,6 @@ extern void __ftrace_bad_type(void);
 			  TRACE_SYSCALL_ENTER);				\
 		IF_ASSIGN(var, ent, struct syscall_trace_exit,		\
 			  TRACE_SYSCALL_EXIT);				\
-		IF_ASSIGN(var, ent, struct trace_skb_event,		\
-			  TRACE_SKB_SOURCE);				\
 		__ftrace_bad_type();					\
 	} while (0)
 
