@@ -868,7 +868,8 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 			grinfo = ext4_get_group_info(sb, group);
 			grinfo->bb_fragments = 0;
 			memset(grinfo->bb_counters, 0,
-			       sizeof(unsigned short)*(sb->s_blocksize_bits+2));
+			       sizeof(*grinfo->bb_counters) *
+				(sb->s_blocksize_bits+2));
 			/*
 			 * incore got set to the group block bitmap below
 			 */
@@ -2640,14 +2641,14 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	unsigned max;
 	int ret;
 
-	i = (sb->s_blocksize_bits + 2) * sizeof(unsigned short);
+	i = (sb->s_blocksize_bits + 2) * sizeof(*sbi->s_mb_offsets);
 
 	sbi->s_mb_offsets = kmalloc(i, GFP_KERNEL);
 	if (sbi->s_mb_offsets == NULL) {
 		return -ENOMEM;
 	}
 
-	i = (sb->s_blocksize_bits + 2) * sizeof(unsigned int);
+	i = (sb->s_blocksize_bits + 2) * sizeof(*sbi->s_mb_maxs);
 	sbi->s_mb_maxs = kmalloc(i, GFP_KERNEL);
 	if (sbi->s_mb_maxs == NULL) {
 		kfree(sbi->s_mb_offsets);
