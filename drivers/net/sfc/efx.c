@@ -1179,6 +1179,8 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Isolate the MAC from the TX and RX engines, so that queue
 	 * flushes will complete in a timely fashion. */
+	falcon_deconfigure_mac_wrapper(efx);
+	msleep(10); /* Let the Rx FIFO drain */
 	falcon_drain_tx_fifo(efx);
 
 	/* Stop the kernel transmit interface late, so the watchdog
