@@ -1823,7 +1823,7 @@ int iwl_reset_ict(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_disable_interrupts(priv);
 
-	memset(&priv->ict_tbl[0],0, sizeof(u32) * ICT_COUNT);
+	memset(&priv->ict_tbl[0], 0, sizeof(u32) * ICT_COUNT);
 
 	val = priv->aligned_ict_tbl_dma >> PAGE_SHIFT;
 
@@ -1901,13 +1901,13 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* read all entries that not 0 start with ict_index */
 	while (priv->ict_tbl[priv->ict_index]) {
 
-		val |= priv->ict_tbl[priv->ict_index];
+		val |= le32_to_cpu(priv->ict_tbl[priv->ict_index]);
 		IWL_DEBUG_ISR(priv, "ICT index %d value 0x%08X\n",
-					priv->ict_index,
-					priv->ict_tbl[priv->ict_index]);
+				priv->ict_index,
+				le32_to_cpu(priv->ict_tbl[priv->ict_index]));
 		priv->ict_tbl[priv->ict_index] = 0;
 		priv->ict_index = iwl_queue_inc_wrap(priv->ict_index,
-								ICT_COUNT);
+						     ICT_COUNT);
 
 	}
 

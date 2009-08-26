@@ -1170,7 +1170,7 @@ struct iwl_priv {
 	struct iwl_hw_params hw_params;
 
 	/* INT ICT Table */
-	u32 *ict_tbl;
+	__le32 *ict_tbl;
 	dma_addr_t ict_tbl_dma;
 	dma_addr_t aligned_ict_tbl_dma;
 	int ict_index;
