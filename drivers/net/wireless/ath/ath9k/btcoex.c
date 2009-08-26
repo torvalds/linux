@@ -18,6 +18,8 @@
 
 void ath9k_hw_btcoex_init(struct ath_hw *ah)
 {
+	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
+
 	/* connect bt_active to baseband */
 	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
 			(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF |
@@ -29,16 +31,18 @@ void ath9k_hw_btcoex_init(struct ath_hw *ah)
 	/* Set input mux for bt_active to gpio pin */
 	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
 			AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-			ah->btactive_gpio);
+			btcoex_info->btactive_gpio);
 
 	/* Configure the desired gpio port for input */
-	ath9k_hw_cfg_gpio_input(ah, ah->btactive_gpio);
+	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
 }
 
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
+	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
+
 	/* Configure the desired GPIO port for TX_FRAME output */
-	ath9k_hw_cfg_output(ah, ah->wlanactive_gpio,
+	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
 			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
 
 	ah->ah_sc->sc_flags |= SC_OP_BTCOEX_ENABLED;
@@ -46,9 +50,11 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 
 void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 {
-	ath9k_hw_set_gpio(ah, ah->wlanactive_gpio, 0);
+	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
 
-	ath9k_hw_cfg_output(ah, ah->wlanactive_gpio,
+	ath9k_hw_set_gpio(ah, btcoex_info->wlanactive_gpio, 0);
+
+	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
 			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 
 	ah->ah_sc->sc_flags &= ~SC_OP_BTCOEX_ENABLED;

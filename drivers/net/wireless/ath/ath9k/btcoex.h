@@ -17,6 +17,14 @@
 #ifndef BTCOEX_H
 #define BTCOEX_H
 
+#define ATH_WLANACTIVE_GPIO	5
+#define ATH_BTACTIVE_GPIO	6
+
+struct ath_btcoex_info {
+	u8 wlanactive_gpio;
+	u8 btactive_gpio;
+};
+
 void ath9k_hw_btcoex_init(struct ath_hw *ah);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);

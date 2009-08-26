@@ -3666,8 +3666,8 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9280_10_OR_LATER(ah) && btcoex_enable) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
-		ah->btactive_gpio = 6;
-		ah->wlanactive_gpio = 5;
+		ah->ah_sc->btcoex_info.btactive_gpio = ATH_BTACTIVE_GPIO;
+		ah->ah_sc->btcoex_info.wlanactive_gpio = ATH_WLANACTIVE_GPIO;
 	}
 }
 

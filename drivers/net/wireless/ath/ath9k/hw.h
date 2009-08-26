@@ -414,8 +414,6 @@ struct ath_hw {
 	u16 rfsilent;
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
-	u32 btactive_gpio;
-	u32 wlanactive_gpio;
 	u32 ah_flags;
 
 	bool htc_reset_init;
