@@ -3180,6 +3180,7 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	netif_carrier_on(card->dev);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
+	qeth_l3_set_ip_addr_list(card);
 	if (recover_flag == CARD_STATE_RECOVER) {
 		if (recovery_mode)
 			qeth_l3_open(card->dev);
