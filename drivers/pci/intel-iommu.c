@@ -1974,6 +1974,17 @@ static int iommu_prepare_identity_map(struct pci_dev *pdev,
 	printk(KERN_INFO
 	       "IOMMU: Setting identity map for device %s [0x%Lx - 0x%Lx]\n",
 	       pci_name(pdev), start, end);
+	
+	if (end >> agaw_to_width(domain->agaw)) {
+		WARN(1, "Your BIOS is broken; RMRR exceeds permitted address width (%d bits)\n"
+		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		     agaw_to_width(domain->agaw),
+		     dmi_get_system_info(DMI_BIOS_VENDOR),
+		     dmi_get_system_info(DMI_BIOS_VERSION),
+		     dmi_get_system_info(DMI_PRODUCT_VERSION));
+		ret = -EIO;
+		goto error;
+	}
 
 	ret = iommu_domain_identity_map(domain, start, end);
 	if (ret)
