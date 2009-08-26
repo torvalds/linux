@@ -435,6 +435,7 @@ struct qeth_qdio_out_q {
 	 * index of buffer to be filled by driver; state EMPTY or PACKING
 	 */
 	int next_buf_to_fill;
+	int sync_iqdio_error;
 	/*
 	 * number of buffers that are currently filled (PRIMED)
 	 * -> these buffers are hardware-owned
@@ -684,6 +685,14 @@ struct qeth_mc_mac {
 	unsigned char mc_addrlen;
 	int is_vmac;
 };
+
+struct qeth_skb_data {
+	__u32 magic;
+	int count;
+};
+
+#define QETH_SKB_MAGIC 0x71657468
+#define QETH_SIGA_CC2_RETRIES 3
 
 struct qeth_card {
 	struct list_head list;
