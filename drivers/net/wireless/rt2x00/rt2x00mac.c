@@ -582,7 +582,6 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	unsigned int delayed = 0;
 	int update_bssid = 0;
 
 	/*
@@ -645,13 +644,6 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 */
 	if (changes & ~(BSS_CHANGED_ASSOC | BSS_CHANGED_HT))
 		rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
-
-	spin_lock(&intf->lock);
-	if (delayed) {
-		intf->delayed_flags |= delayed;
-		schedule_work(&rt2x00dev->intf_work);
-	}
-	spin_unlock(&intf->lock);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
