@@ -1562,8 +1562,6 @@ no_apic:
 #ifdef CONFIG_X86_64
 void __init early_init_lapic_mapping(void)
 {
-	unsigned long phys_addr;
-
 	/*
 	 * If no local APIC can be found then go out
 	 * : it means there is no mpatable and MADT
@@ -1571,11 +1569,9 @@ void __init early_init_lapic_mapping(void)
 	if (!smp_found_config)
 		return;
 
-	phys_addr = mp_lapic_addr;
-
-	set_fixmap_nocache(FIX_APIC_BASE, phys_addr);
+	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
 	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
-		    APIC_BASE, phys_addr);
+		    APIC_BASE, mp_lapic_addr);
 
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
