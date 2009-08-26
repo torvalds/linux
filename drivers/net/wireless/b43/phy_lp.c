@@ -1496,7 +1496,8 @@ static u16 b43_lpphy_op_read(struct b43_wldev *dev, u16 reg)
 
 static void b43_lpphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
-	b43_write32(dev, B43_MMIO_PHY_CONTROL, ((u32)value << 16) | reg);
+	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16(dev, B43_MMIO_PHY_DATA, value);
 }
 
 static void b43_lpphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
