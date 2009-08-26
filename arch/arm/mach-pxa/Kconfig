@@ -21,6 +21,11 @@ config CPU_PXA930
 
 config CPU_PXA935
 	bool "PXA935 (codename Tavor-P65)"
+	select CPU_PXA930
+
+config CPU_PXA950
+	bool "PXA950 (codename Tavor-PV2)"
+	select CPU_PXA930
 
 endmenu
 
