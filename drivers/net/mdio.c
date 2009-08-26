@@ -109,13 +109,20 @@ int mdio45_links_ok(const struct mdio_if_info *mdio, u32 mmd_mask)
 		if (mmd_mask & (1 << devad)) {
 			mmd_mask &= ~(1 << devad);
 
-			/* Read twice because link state is latched and a
-			 * read moves the current state into the register */
+			/* Reset the latched status and fault flags */
 			mdio->mdio_read(mdio->dev, mdio->prtad,
 					devad, MDIO_STAT1);
+			if (devad == MDIO_MMD_PMAPMD || devad == MDIO_MMD_PCS ||
+			    devad == MDIO_MMD_PHYXS || devad == MDIO_MMD_DTEXS)
+				mdio->mdio_read(mdio->dev, mdio->prtad,
+						devad, MDIO_STAT2);
+
+			/* Check the current status and fault flags */
 			reg = mdio->mdio_read(mdio->dev, mdio->prtad,
 					      devad, MDIO_STAT1);
-			if (reg < 0 || !(reg & MDIO_STAT1_LSTATUS))
+			if (reg < 0 ||
+			    (reg & (MDIO_STAT1_FAULT | MDIO_STAT1_LSTATUS)) !=
+			    MDIO_STAT1_LSTATUS)
 				return false;
 		}
 	}
