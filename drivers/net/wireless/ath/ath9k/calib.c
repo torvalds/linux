@@ -879,6 +879,11 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 
 	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "Running PA Calibration\n");
 
+	/* PA CAL is not needed for high power solution */
+	if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) ==
+	    AR5416_EEP_TXGAIN_HIGH_POWER)
+		return;
+
 	if (AR_SREV_9285_11(ah)) {
 		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
 		udelay(10);
