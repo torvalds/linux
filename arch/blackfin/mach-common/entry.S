@@ -513,14 +513,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	ssync;
 #endif
 
-#if ANOMALY_05000283 || ANOMALY_05000315
-	cc = r7 == r7;
-	p5.h = HI(CHIPID);
-	p5.l = LO(CHIPID);
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
+	ANOMALY_283_315_WORKAROUND(p5, r7)
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
 	/*
@@ -1134,14 +1127,7 @@ ENTRY(_early_trap)
 	SAVE_ALL_SYS
 	trace_buffer_stop(p0,r0);
 
-#if ANOMALY_05000283 || ANOMALY_05000315
-	cc = r5 == r5;
-	p4.h = HI(CHIPID);
-	p4.l = LO(CHIPID);
-	if cc jump 1f;
-	r5.l = W[p4];
-1:
-#endif
+	ANOMALY_283_315_WORKAROUND(p4, r5)
 
 	/* Turn caches off, to ensure we don't get double exceptions */
 

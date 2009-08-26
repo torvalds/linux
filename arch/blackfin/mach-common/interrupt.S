@@ -119,14 +119,8 @@ __common_int_entry:
 	fp = 0;
 #endif
 
-#if ANOMALY_05000283 || ANOMALY_05000315
-	cc = r7 == r7;
-	p5.h = HI(CHIPID);
-	p5.l = LO(CHIPID);
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
+	ANOMALY_283_315_WORKAROUND(p5, r7)
+
 	r1 =  sp;
 	SP += -12;
 #ifdef CONFIG_IPIPE
@@ -158,14 +152,7 @@ ENTRY(_evt_ivhw)
 	fp = 0;
 #endif
 
-#if ANOMALY_05000283 || ANOMALY_05000315
-	cc = r7 == r7;
-	p5.h = HI(CHIPID);
-	p5.l = LO(CHIPID);
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
+	ANOMALY_283_315_WORKAROUND(p5, r7)
 
 	/* Handle all stacked hardware errors
 	 * To make sure we don't hang forever, only do it 10 times
