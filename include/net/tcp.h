@@ -1252,6 +1252,24 @@ static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_bu
 #define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
 	skb_queue_walk_from_safe(&(sk)->sk_write_queue, skb, tmp)
 
+static inline bool retransmits_timed_out(const struct sock *sk,
+					 unsigned int boundary)
+{
+	int limit, K;
+	if (!inet_csk(sk)->icsk_retransmits)
+		return false;
+
+	K = ilog2(TCP_RTO_MAX/TCP_RTO_MIN);
+
+	if (boundary <= K)
+		limit = ((2 << boundary) - 1) * TCP_RTO_MIN;
+	else
+		limit = ((2 << K) - 1) * TCP_RTO_MIN +
+			(boundary - K) * TCP_RTO_MAX;
+
+	return (tcp_time_stamp - tcp_sk(sk)->retrans_stamp) >= limit;
+}
+
 static inline struct sk_buff *tcp_send_head(struct sock *sk)
 {
 	return sk->sk_send_head;
