@@ -1032,9 +1032,10 @@ static int lpphy_loopback(struct b43_wldev *dev)
 	return index;
 }
 
+/* Fixed-point division algorithm using only integer math. */
 static u32 lpphy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
 {
-	u32 quotient, remainder, rbit, roundup, tmp;
+	u32 quotient, remainder;
 
 	if (divisor == 0)
 		return 0;
@@ -1042,20 +1043,16 @@ static u32 lpphy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
 	quotient = dividend / divisor;
 	remainder = dividend % divisor;
 
-	rbit = divisor & 0x1;
-	roundup = (divisor >> 1) + rbit;
-
-	while (precision != 0) {
-		tmp = remainder - roundup;
+	while (precision > 0) {
 		quotient <<= 1;
-		if (remainder >= roundup)
-			remainder = (tmp << 1) + rbit;
-		else
-			remainder <<= 1;
+		if (remainder << 1 >= divisor) {
+			quotient++;
+			remainder = (remainder << 1) - divisor;
+		}
 		precision--;
 	}
 
-	if (remainder >= roundup)
+	if (remainder << 1 >= divisor)
 		quotient++;
 
 	return quotient;
