@@ -1577,15 +1577,18 @@ static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 struct ext4_group_info {
 	unsigned long   bb_state;
 	struct rb_root  bb_free_root;
-	unsigned short  bb_first_free;
-	unsigned short  bb_free;
-	unsigned short  bb_fragments;
+	ext4_grpblk_t	bb_first_free;	/* first free block */
+	ext4_grpblk_t	bb_free;	/* total free blocks */
+	ext4_grpblk_t	bb_fragments;	/* nr of freespace fragments */
 	struct          list_head bb_prealloc_list;
 #ifdef DOUBLE_CHECK
 	void            *bb_bitmap;
 #endif
 	struct rw_semaphore alloc_sem;
-	unsigned short  bb_counters[];
+	ext4_grpblk_t	bb_counters[];	/* Nr of free power-of-two-block
+					 * regions, index is order.
+					 * bb_counters[3] = 5 means
+					 * 5 free 8-block regions. */
 };
 
 #define EXT4_GROUP_INFO_NEED_INIT_BIT	0

@@ -623,13 +623,13 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 
 /* FIXME!! need more doc */
 static void ext4_mb_mark_free_simple(struct super_block *sb,
-				void *buddy, unsigned first, int len,
+				void *buddy, ext4_grpblk_t first, ext4_grpblk_t len,
 					struct ext4_group_info *grp)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	unsigned short min;
-	unsigned short max;
-	unsigned short chunk;
+	ext4_grpblk_t min;
+	ext4_grpblk_t max;
+	ext4_grpblk_t chunk;
 	unsigned short border;
 
 	BUG_ON(len > EXT4_BLOCKS_PER_GROUP(sb));
@@ -663,10 +663,10 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 				void *buddy, void *bitmap, ext4_group_t group)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
-	unsigned short max = EXT4_BLOCKS_PER_GROUP(sb);
-	unsigned short i = 0;
-	unsigned short first;
-	unsigned short len;
+	ext4_grpblk_t max = EXT4_BLOCKS_PER_GROUP(sb);
+	ext4_grpblk_t i = 0;
+	ext4_grpblk_t first;
+	ext4_grpblk_t len;
 	unsigned free = 0;
 	unsigned fragments = 0;
 	unsigned long long period = get_cycles();
@@ -2325,7 +2325,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	struct ext4_buddy e4b;
 	struct sg {
 		struct ext4_group_info info;
-		unsigned short counters[16];
+		ext4_grpblk_t counters[16];
 	} sg;
 
 	group--;
