@@ -2176,7 +2176,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 {
 	struct kvm *kvm = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	int r = -EINVAL;
+	int r = -ENOTTY;
 	/*
 	 * This union makes it completely explicit to gcc-3.x
 	 * that these two variables' stack usage should be

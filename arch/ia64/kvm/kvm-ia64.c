@@ -941,7 +941,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 {
 	struct kvm *kvm = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	int r = -EINVAL;
+	int r = -ENOTTY;
 
 	switch (ioctl) {
 	case KVM_SET_MEMORY_REGION: {

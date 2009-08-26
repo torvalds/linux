@@ -421,7 +421,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 	switch (ioctl) {
 	default:
-		r = -EINVAL;
+		r = -ENOTTY;
 	}
 
 	return r;
