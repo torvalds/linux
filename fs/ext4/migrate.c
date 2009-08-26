@@ -618,7 +618,7 @@ err_out:
 	tmp_inode->i_nlink = 0;
 
 	ext4_journal_stop(handle);
-
+	unlock_new_inode(tmp_inode);
 	iput(tmp_inode);
 
 	return retval;
