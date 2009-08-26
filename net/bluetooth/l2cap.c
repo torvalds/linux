@@ -3348,9 +3348,13 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 	case L2CAP_SUPER_RCV_READY:
 		if (rx_control & L2CAP_CTRL_POLL) {
 			u16 control = L2CAP_CTRL_FINAL;
-			control |= L2CAP_SUPER_RCV_READY;
+			control |= L2CAP_SUPER_RCV_READY |
+				(pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT);
 			l2cap_send_sframe(l2cap_pi(sk), control);
 		} else if (rx_control & L2CAP_CTRL_FINAL) {
+			pi->expected_ack_seq = tx_seq;
+			l2cap_drop_acked_frames(sk);
+
 			if (!(pi->conn_state & L2CAP_CONN_WAIT_F))
 				break;
 
