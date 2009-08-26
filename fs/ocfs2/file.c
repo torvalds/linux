@@ -335,6 +335,39 @@ out:
 	return ret;
 }
 
+static int ocfs2_cow_file_pos(struct inode *inode,
+			      struct buffer_head *fe_bh,
+			      u64 offset)
+{
+	int status;
+	u32 phys, cpos = offset >> OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+	unsigned int num_clusters = 0;
+	unsigned int ext_flags = 0;
+
+	/*
+	 * If the new offset is aligned to the range of the cluster, there is
+	 * no space for ocfs2_zero_range_for_truncate to fill, so no need to
+	 * CoW either.
+	 */
+	if ((offset & (OCFS2_SB(inode->i_sb)->s_clustersize - 1)) == 0)
+		return 0;
+
+	status = ocfs2_get_clusters(inode, cpos, &phys,
+				    &num_clusters, &ext_flags);
+	if (status) {
+		mlog_errno(status);
+		goto out;
+	}
+
+	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
+		goto out;
+
+	return ocfs2_refcount_cow(inode, fe_bh, cpos, 1, cpos+1);
+
+out:
+	return status;
+}
+
 static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 				     struct inode *inode,
 				     struct buffer_head *fe_bh,
@@ -346,6 +379,17 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	u64 cluster_bytes;
 
 	mlog_entry_void();
+
+	/*
+	 * We need to CoW the cluster contains the offset if it is reflinked
+	 * since we will call ocfs2_zero_range_for_truncate later which will
+	 * write "0" from offset to the end of the cluster.
+	 */
+	status = ocfs2_cow_file_pos(inode, fe_bh, new_i_size);
+	if (status) {
+		mlog_errno(status);
+		return status;
+	}
 
 	/* TODO: This needs to actually orphan the inode in this
 	 * transaction. */
@@ -1713,7 +1757,7 @@ static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
 
 	*meta_level = 1;
 
-	ret = ocfs2_refcount_cow(inode, di_bh, cpos, clusters);
+	ret = ocfs2_refcount_cow(inode, di_bh, cpos, clusters, UINT_MAX);
 	if (ret)
 		mlog_errno(ret);
 out:

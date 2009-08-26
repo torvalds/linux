@@ -2482,6 +2482,7 @@ static inline unsigned int ocfs2_cow_align_length(struct super_block *sb,
  *
  * cpos is vitual start cluster position we want to do CoW in a
  * file and write_len is the cluster length.
+ * max_cpos is the place where we want to stop CoW intentionally.
  *
  * Normal we will start CoW from the beginning of extent record cotaining cpos.
  * We try to break up extents on boundaries of MAX_CONTIG_BYTES so that we
@@ -2491,6 +2492,7 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 					   struct buffer_head *di_bh,
 					   u32 cpos,
 					   u32 write_len,
+					   u32 max_cpos,
 					   u32 *cow_start,
 					   u32 *cow_len)
 {
@@ -2504,6 +2506,8 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 	unsigned int want_clusters, rec_end = 0;
 	int contig_clusters = ocfs2_cow_contig_clusters(inode->i_sb);
 	int leaf_clusters;
+
+	BUG_ON(cpos + write_len > max_cpos);
 
 	if (tree_height > 0) {
 		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, cpos, &eb_bh);
@@ -2549,15 +2553,20 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 		}
 
 		/*
-		 * If we encounter a hole or a non-refcounted record,
-		 * stop the search.
+		 * If we encounter a hole, a non-refcounted record or
+		 * pass the max_cpos, stop the search.
 		 */
 		if ((!(rec->e_flags & OCFS2_EXT_REFCOUNTED)) ||
-		    (*cow_len && rec_end != le32_to_cpu(rec->e_cpos)))
+		    (*cow_len && rec_end != le32_to_cpu(rec->e_cpos)) ||
+		    (max_cpos <= le32_to_cpu(rec->e_cpos)))
 			break;
 
 		leaf_clusters = le16_to_cpu(rec->e_leaf_clusters);
 		rec_end = le32_to_cpu(rec->e_cpos) + leaf_clusters;
+		if (rec_end > max_cpos) {
+			rec_end = max_cpos;
+			leaf_clusters = rec_end - le32_to_cpu(rec->e_cpos);
+		}
 
 		/*
 		 * How many clusters do we actually need from
@@ -3184,12 +3193,13 @@ static int ocfs2_replace_cow(struct inode *inode,
 }
 
 /*
- * Starting at cpos, try to CoW write_len clusters.
- * This will stop when it runs into a hole or an unrefcounted extent.
+ * Starting at cpos, try to CoW write_len clusters.  Don't CoW
+ * past max_cpos.  This will stop when it runs into a hole or an
+ * unrefcounted extent.
  */
 static int ocfs2_refcount_cow_hunk(struct inode *inode,
 				   struct buffer_head *di_bh,
-				   u32 cpos, u32 write_len)
+				   u32 cpos, u32 write_len, u32 max_cpos)
 {
 	int ret;
 	u32 cow_start = 0, cow_len = 0;
@@ -3201,12 +3211,14 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 
 	BUG_ON(!(oi->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL));
 
-	ret = ocfs2_refcount_cal_cow_clusters(inode, di_bh, cpos, write_len,
+	ret = ocfs2_refcount_cal_cow_clusters(inode, di_bh,
+					      cpos, write_len, max_cpos,
 					      &cow_start, &cow_len);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
+
 	mlog(0, "CoW inode %lu, cpos %u, write_len %u, cow_start %u, "
 	     "cow_len %u\n", inode->i_ino,
 	     cpos, write_len, cow_start, cow_len);
@@ -3233,12 +3245,12 @@ out:
 
 /*
  * CoW any and all clusters between cpos and cpos+write_len.
- * If this returns successfully, all clusters between cpos and
- * cpos+write_len are safe to modify.
+ * Don't CoW past max_cpos.  If this returns successfully, all
+ * clusters between cpos and cpos+write_len are safe to modify.
  */
 int ocfs2_refcount_cow(struct inode *inode,
 		       struct buffer_head *di_bh,
-		       u32 cpos, u32 write_len)
+		       u32 cpos, u32 write_len, u32 max_cpos)
 {
 	int ret = 0;
 	u32 p_cluster, num_clusters;
@@ -3257,7 +3269,7 @@ int ocfs2_refcount_cow(struct inode *inode,
 
 		if (ext_flags & OCFS2_EXT_REFCOUNTED) {
 			ret = ocfs2_refcount_cow_hunk(inode, di_bh, cpos,
-						      num_clusters);
+						      num_clusters, max_cpos);
 			if (ret) {
 				mlog_errno(ret);
 				break;

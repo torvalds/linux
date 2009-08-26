@@ -1712,7 +1712,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		goto out;
 	} else if (ret == 1) {
 		ret = ocfs2_refcount_cow(inode, di_bh,
-					 wc->w_cpos, wc->w_clen);
+					 wc->w_cpos, wc->w_clen, UINT_MAX);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

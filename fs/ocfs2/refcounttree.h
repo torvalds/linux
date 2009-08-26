@@ -53,5 +53,5 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 					  int *credits,
 					  struct ocfs2_alloc_context **meta_ac);
 int ocfs2_refcount_cow(struct inode *inode, struct buffer_head *di_bh,
-		       u32 cpos, u32 write_len);
+		       u32 cpos, u32 write_len, u32 max_cpos);
 #endif /* OCFS2_REFCOUNTTREE_H */
