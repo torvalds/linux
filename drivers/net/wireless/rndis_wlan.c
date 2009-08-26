@@ -413,6 +413,13 @@ static const struct ieee80211_rate rndis_rates[] = {
 	{ .bitrate = 540 }
 };
 
+static const u32 rndis_cipher_suites[] = {
+	WLAN_CIPHER_SUITE_WEP40,
+	WLAN_CIPHER_SUITE_WEP104,
+	WLAN_CIPHER_SUITE_TKIP,
+	WLAN_CIPHER_SUITE_CCMP,
+};
+
 struct rndis_wlan_encr_key {
 	int len;
 	int cipher;
@@ -441,6 +448,7 @@ struct rndis_wlan_private {
 	struct ieee80211_supported_band band;
 	struct ieee80211_channel channels[ARRAY_SIZE(rndis_channels)];
 	struct ieee80211_rate rates[ARRAY_SIZE(rndis_rates)];
+	u32 cipher_suites[ARRAY_SIZE(rndis_cipher_suites)];
 
 	struct iw_statistics iwstats;
 	struct iw_statistics privstats;
@@ -2892,7 +2900,7 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 					| BIT(NL80211_IFTYPE_ADHOC);
 	wiphy->max_scan_ssids = 1;
 
-	/* TODO: fill-out band information based on priv->caps */
+	/* TODO: fill-out band/encr information based on priv->caps */
 	rndis_wlan_get_caps(usbdev);
 
 	memcpy(priv->channels, rndis_channels, sizeof(rndis_channels));
@@ -2903,6 +2911,11 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	priv->band.n_bitrates = ARRAY_SIZE(rndis_rates);
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+
+	memcpy(priv->cipher_suites, rndis_cipher_suites,
+						sizeof(rndis_cipher_suites));
+	wiphy->cipher_suites = priv->cipher_suites;
+	wiphy->n_cipher_suites = ARRAY_SIZE(rndis_cipher_suites);
 
 	set_wiphy_dev(wiphy, &usbdev->udev->dev);
 
