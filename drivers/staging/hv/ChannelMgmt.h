@@ -50,7 +50,7 @@ struct vmbus_channel {
 
 	enum vmbus_channel_state State;
 
-	VMBUS_CHANNEL_OFFER_CHANNEL OfferMsg;
+	struct vmbus_channel_offer_channel OfferMsg;
 	/*
 	 * These are based on the OfferMsg.MonitorId.
 	 * Save it here for easy access.
@@ -107,11 +107,11 @@ struct vmbus_channel_msginfo {
 	struct osd_waitevent *WaitEvent;
 
 	union {
-		VMBUS_CHANNEL_VERSION_SUPPORTED VersionSupported;
-		VMBUS_CHANNEL_OPEN_RESULT OpenResult;
-		VMBUS_CHANNEL_GPADL_TORNDOWN GpadlTorndown;
-		VMBUS_CHANNEL_GPADL_CREATED GpadlCreated;
-		VMBUS_CHANNEL_VERSION_RESPONSE VersionResponse;
+		struct vmbus_channel_version_supported VersionSupported;
+		struct vmbus_channel_open_result OpenResult;
+		struct vmbus_channel_gpadl_torndown GpadlTorndown;
+		struct vmbus_channel_gpadl_created GpadlCreated;
+		struct vmbus_channel_version_response VersionResponse;
 	} Response;
 
 	u32 MessageSize;

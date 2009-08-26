@@ -195,7 +195,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel,
 	)
 {
 	int ret=0;
-	VMBUS_CHANNEL_OPEN_CHANNEL* openMsg;
+	struct vmbus_channel_open_channel *openMsg;
 	struct vmbus_channel_msginfo *openInfo;
 	void *in, *out;
 	unsigned long flags;
@@ -245,12 +245,12 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel,
 		SendRingBufferSize);
 
 	/* Create and init the channel open message */
-	openInfo = kmalloc(sizeof(*openInfo) + sizeof(VMBUS_CHANNEL_OPEN_CHANNEL), GFP_KERNEL);
+	openInfo = kmalloc(sizeof(*openInfo) + sizeof(struct vmbus_channel_open_channel), GFP_KERNEL);
 	ASSERT(openInfo != NULL);
 
 	openInfo->WaitEvent = osd_WaitEventCreate();
 
-	openMsg = (VMBUS_CHANNEL_OPEN_CHANNEL*)openInfo->Msg;
+	openMsg = (struct vmbus_channel_open_channel *)openInfo->Msg;
 	openMsg->Header.MessageType				= ChannelMessageOpenChannel;
 	openMsg->OpenId							= NewChannel->OfferMsg.ChildRelId; /* FIXME */
     openMsg->ChildRelId						= NewChannel->OfferMsg.ChildRelId;
@@ -271,7 +271,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel,
 
 	DPRINT_DBG(VMBUS, "Sending channel open msg...");
 
-	ret = VmbusPostMessage(openMsg, sizeof(VMBUS_CHANNEL_OPEN_CHANNEL));
+	ret = VmbusPostMessage(openMsg, sizeof(struct vmbus_channel_open_channel));
 	if (ret != 0)
 	{
 		DPRINT_ERR(VMBUS, "unable to open channel - %d", ret);
@@ -312,14 +312,12 @@ Description:
 	Dump the gpadl body message to the console for debugging purposes.
 
 --*/
-static void DumpGpadlBody(
-	VMBUS_CHANNEL_GPADL_BODY	*Gpadl,
-	u32						Len)
+static void DumpGpadlBody(struct vmbus_channel_gpadl_body *Gpadl, u32 Len)
 {
 	int i=0;
 	int pfnCount=0;
 
-	pfnCount = (Len - sizeof(VMBUS_CHANNEL_GPADL_BODY))/ sizeof(u64);
+	pfnCount = (Len - sizeof(struct vmbus_channel_gpadl_body))/ sizeof(u64);
 	DPRINT_DBG(VMBUS, "gpadl body - len %d pfn count %d", Len, pfnCount);
 
 	for (i=0; i< pfnCount; i++)
@@ -338,9 +336,7 @@ Description:
 	Dump the gpadl header message to the console for debugging purposes.
 
 --*/
-static void DumpGpadlHeader(
-	VMBUS_CHANNEL_GPADL_HEADER	*Gpadl
-	)
+static void DumpGpadlHeader(struct vmbus_channel_gpadl_header *Gpadl)
 {
 	int i=0,j=0;
 	int pageCount=0;
@@ -384,8 +380,8 @@ VmbusChannelCreateGpadlHeader(
 	int i;
 	int pageCount;
     unsigned long long pfn;
-	VMBUS_CHANNEL_GPADL_HEADER* gpaHeader;
-	VMBUS_CHANNEL_GPADL_BODY* gpadlBody;
+	struct vmbus_channel_gpadl_header *gpaHeader;
+	struct vmbus_channel_gpadl_body *gpadlBody;
 	struct vmbus_channel_msginfo *msgHeader;
 	struct vmbus_channel_msginfo *msgBody;
 	u32				msgSize;
@@ -399,19 +395,19 @@ VmbusChannelCreateGpadlHeader(
 	pfn = virt_to_phys(Kbuffer) >> PAGE_SHIFT;
 
 	/* do we need a gpadl body msg */
-	pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(VMBUS_CHANNEL_GPADL_HEADER) - sizeof(GPA_RANGE);
+	pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(struct vmbus_channel_gpadl_header) - sizeof(GPA_RANGE);
 	pfnCount = pfnSize / sizeof(u64);
 
 	if (pageCount > pfnCount) /* we need a gpadl body */
 	{
 		/* fill in the header */
-		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
+		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_header) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
 		msgHeader =  kzalloc(msgSize, GFP_KERNEL);
 
 		INITIALIZE_LIST_HEAD(&msgHeader->SubMsgList);
 		msgHeader->MessageSize=msgSize;
 
-		gpaHeader = (VMBUS_CHANNEL_GPADL_HEADER*)msgHeader->Msg;
+		gpaHeader = (struct vmbus_channel_gpadl_header *)msgHeader->Msg;
 		gpaHeader->RangeCount = 1;
 		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		gpaHeader->Range[0].ByteOffset = 0;
@@ -427,7 +423,7 @@ VmbusChannelCreateGpadlHeader(
 		pfnLeft = pageCount - pfnCount;
 
 		/* how many pfns can we fit */
-		pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(VMBUS_CHANNEL_GPADL_BODY);
+		pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(struct vmbus_channel_gpadl_body);
 		pfnCount = pfnSize / sizeof(u64);
 
 		/* fill in the body */
@@ -442,12 +438,12 @@ VmbusChannelCreateGpadlHeader(
 				pfnCurr = pfnLeft;
 			}
 
-			msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(VMBUS_CHANNEL_GPADL_BODY) + pfnCurr*sizeof(u64);
+			msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_body) + pfnCurr*sizeof(u64);
 			msgBody = kzalloc(msgSize, GFP_KERNEL);
 			ASSERT(msgBody);
 			msgBody->MessageSize = msgSize;
 			(*MessageCount)++;
-			gpadlBody = (VMBUS_CHANNEL_GPADL_BODY*)msgBody->Msg;
+			gpadlBody = (struct vmbus_channel_gpadl_body *)msgBody->Msg;
 
 			/* FIXME: Gpadl is u32 and we are using a pointer which could be 64-bit */
 			/* gpadlBody->Gpadl = kbuffer; */
@@ -465,11 +461,11 @@ VmbusChannelCreateGpadlHeader(
 	else
 	{
 		/* everything fits in a header */
-		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
+		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_header) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		msgHeader = kzalloc(msgSize, GFP_KERNEL);
 		msgHeader->MessageSize=msgSize;
 
-		gpaHeader = (VMBUS_CHANNEL_GPADL_HEADER*)msgHeader->Msg;
+		gpaHeader = (struct vmbus_channel_gpadl_header *)msgHeader->Msg;
 		gpaHeader->RangeCount = 1;
 		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		gpaHeader->Range[0].ByteOffset = 0;
@@ -503,9 +499,9 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel,
 	)
 {
 	int ret=0;
-	VMBUS_CHANNEL_GPADL_HEADER* gpadlMsg;
-	VMBUS_CHANNEL_GPADL_BODY* gpadlBody;
-	/* VMBUS_CHANNEL_GPADL_CREATED* gpadlCreated; */
+	struct vmbus_channel_gpadl_header *gpadlMsg;
+	struct vmbus_channel_gpadl_body *gpadlBody;
+	/* struct vmbus_channel_gpadl_created *gpadlCreated; */
 
 	struct vmbus_channel_msginfo *msgInfo;
 	struct vmbus_channel_msginfo *subMsgInfo;
@@ -526,7 +522,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel,
 	ASSERT(msgCount >0);
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
-	gpadlMsg = (VMBUS_CHANNEL_GPADL_HEADER*)msgInfo->Msg;
+	gpadlMsg = (struct vmbus_channel_gpadl_header *)msgInfo->Msg;
 	gpadlMsg->Header.MessageType = ChannelMessageGpadlHeader;
 	gpadlMsg->ChildRelId = Channel->OfferMsg.ChildRelId;
 	gpadlMsg->Gpadl = nextGpadlHandle;
@@ -552,8 +548,8 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel,
 	{
 		ITERATE_LIST_ENTRIES(anchor, curr, &msgInfo->SubMsgList)
 		{
-			subMsgInfo = (struct vmbus_channel_msginfo*)curr;
-			gpadlBody = (VMBUS_CHANNEL_GPADL_BODY*)subMsgInfo->Msg;
+			subMsgInfo = (struct vmbus_channel_msginfo *)curr;
+			gpadlBody = (struct vmbus_channel_gpadl_body *)subMsgInfo->Msg;
 
 			gpadlBody->Header.MessageType = ChannelMessageGpadlBody;
 			gpadlBody->Gpadl = nextGpadlHandle;
@@ -602,7 +598,7 @@ Description:
 int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 {
 	int ret=0;
-	VMBUS_CHANNEL_GPADL_TEARDOWN *msg;
+	struct vmbus_channel_gpadl_teardown *msg;
 	struct vmbus_channel_msginfo *info;
 	unsigned long flags;
 
@@ -610,12 +606,12 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 
 	ASSERT(GpadlHandle != 0);
 
-	info = kmalloc(sizeof(*info) + sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN), GFP_KERNEL);
+	info = kmalloc(sizeof(*info) + sizeof(struct vmbus_channel_gpadl_teardown), GFP_KERNEL);
 	ASSERT(info != NULL);
 
 	info->WaitEvent = osd_WaitEventCreate();
 
-	msg = (VMBUS_CHANNEL_GPADL_TEARDOWN*)info->Msg;
+	msg = (struct vmbus_channel_gpadl_teardown *)info->Msg;
 
 	msg->Header.MessageType = ChannelMessageGpadlTeardown;
     msg->ChildRelId  = Channel->OfferMsg.ChildRelId;
@@ -625,7 +621,7 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList, &info->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
-	ret = VmbusPostMessage(msg, sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN));
+	ret = VmbusPostMessage(msg, sizeof(struct vmbus_channel_gpadl_teardown));
 	if (ret != 0)
 	{
 		/* TODO: */
@@ -659,7 +655,7 @@ Description:
 void VmbusChannelClose(struct vmbus_channel *Channel)
 {
 	int ret=0;
-	VMBUS_CHANNEL_CLOSE_CHANNEL* msg;
+	struct vmbus_channel_close_channel *msg;
 	struct vmbus_channel_msginfo *info;
 	unsigned long flags;
 
@@ -670,16 +666,16 @@ void VmbusChannelClose(struct vmbus_channel *Channel)
 	del_timer(&Channel->poll_timer);
 
 	/* Send a closing message */
-	info = kmalloc(sizeof(*info) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL), GFP_KERNEL);
+	info = kmalloc(sizeof(*info) + sizeof(struct vmbus_channel_close_channel), GFP_KERNEL);
 	ASSERT(info != NULL);
 
 	/* info->waitEvent = osd_WaitEventCreate(); */
 
-	msg = (VMBUS_CHANNEL_CLOSE_CHANNEL*)info->Msg;
+	msg = (struct vmbus_channel_close_channel *)info->Msg;
 	msg->Header.MessageType				= ChannelMessageCloseChannel;
     msg->ChildRelId						= Channel->OfferMsg.ChildRelId;
 
-	ret = VmbusPostMessage(msg, sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL));
+	ret = VmbusPostMessage(msg, sizeof(struct vmbus_channel_close_channel));
 	if (ret != 0)
 	{
 		/* TODO: */

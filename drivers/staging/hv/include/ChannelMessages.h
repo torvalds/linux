@@ -27,7 +27,7 @@
 #include "VmbusPacketFormat.h"
 
 /* Version 1 messages */
-typedef enum _VMBUS_CHANNEL_MESSAGE_TYPE {
+enum vmbus_channel_message_type {
 	ChannelMessageInvalid			=  0,
 	ChannelMessageOfferChannel		=  1,
 	ChannelMessageRescindChannelOffer	=  2,
@@ -50,39 +50,39 @@ typedef enum _VMBUS_CHANNEL_MESSAGE_TYPE {
 	ChannelMessageViewRangeRemove		= 18,
 #endif
 	ChannelMessageCount
-} __attribute__((packed)) VMBUS_CHANNEL_MESSAGE_TYPE, *PVMBUS_CHANNEL_MESSAGE_TYPE;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_MESSAGE_HEADER {
-	VMBUS_CHANNEL_MESSAGE_TYPE MessageType;
+struct vmbus_channel_message_header {
+	enum vmbus_channel_message_type MessageType;
 	u32 Padding;
-} __attribute__((packed)) VMBUS_CHANNEL_MESSAGE_HEADER, *PVMBUS_CHANNEL_MESSAGE_HEADER;
+} __attribute__((packed));
 
 /* Query VMBus Version parameters */
-typedef struct _VMBUS_CHANNEL_QUERY_VMBUS_VERSION {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_query_vmbus_version {
+	struct vmbus_channel_message_header Header;
 	u32 Version;
-} __attribute__((packed)) VMBUS_CHANNEL_QUERY_VMBUS_VERSION, *PVMBUS_CHANNEL_QUERY_VMBUS_VERSION;
+} __attribute__((packed));
 
 /* VMBus Version Supported parameters */
-typedef struct _VMBUS_CHANNEL_VERSION_SUPPORTED {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_version_supported {
+	struct vmbus_channel_message_header Header;
 	bool VersionSupported;
-} __attribute__((packed)) VMBUS_CHANNEL_VERSION_SUPPORTED, *PVMBUS_CHANNEL_VERSION_SUPPORTED;
+} __attribute__((packed));
 
 /* Offer Channel parameters */
-typedef struct _VMBUS_CHANNEL_OFFER_CHANNEL {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_offer_channel {
+	struct vmbus_channel_message_header Header;
 	struct vmbus_channel_offer Offer;
 	u32 ChildRelId;
 	u8 MonitorId;
 	bool MonitorAllocated;
-} __attribute__((packed)) VMBUS_CHANNEL_OFFER_CHANNEL, *PVMBUS_CHANNEL_OFFER_CHANNEL;
+} __attribute__((packed));
 
 /* Rescind Offer parameters */
-typedef struct _VMBUS_CHANNEL_RESCIND_OFFER {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_rescind_offer {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
-} __attribute__((packed)) VMBUS_CHANNEL_RESCIND_OFFER, *PVMBUS_CHANNEL_RESCIND_OFFER;
+} __attribute__((packed));
 
 /*
  * Request Offer -- no parameters, SynIC message contains the partition ID
@@ -94,8 +94,8 @@ typedef struct _VMBUS_CHANNEL_RESCIND_OFFER {
  */
 
 /* Open Channel parameters */
-typedef struct _VMBUS_CHANNEL_OPEN_CHANNEL {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_open_channel {
+	struct vmbus_channel_message_header Header;
 
 	/* Identifies the specific VMBus channel that is being opened. */
 	u32 ChildRelId;
@@ -118,24 +118,21 @@ typedef struct _VMBUS_CHANNEL_OPEN_CHANNEL {
 
 	/* User-specific data to be passed along to the server endpoint. */
 	unsigned char UserData[MAX_USER_DEFINED_BYTES];
-} __attribute__((packed)) VMBUS_CHANNEL_OPEN_CHANNEL, *PVMBUS_CHANNEL_OPEN_CHANNEL;
-
-/* Reopen Channel parameters; */
-typedef VMBUS_CHANNEL_OPEN_CHANNEL VMBUS_CHANNEL_REOPEN_CHANNEL, *PVMBUS_CHANNEL_REOPEN_CHANNEL;
+} __attribute__((packed));
 
 /* Open Channel Result parameters */
-typedef struct _VMBUS_CHANNEL_OPEN_RESULT {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_open_result {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
 	u32 OpenId;
 	u32 Status;
-} __attribute__((packed)) VMBUS_CHANNEL_OPEN_RESULT, *PVMBUS_CHANNEL_OPEN_RESULT;
+} __attribute__((packed));
 
 /* Close channel parameters; */
-typedef struct _VMBUS_CHANNEL_CLOSE_CHANNEL {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_close_channel {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
-} __attribute__((packed)) VMBUS_CHANNEL_CLOSE_CHANNEL, *PVMBUS_CHANNEL_CLOSE_CHANNEL;
+} __attribute__((packed));
 
 /* Channel Message GPADL */
 #define GPADL_TYPE_RING_BUFFER		1
@@ -148,75 +145,73 @@ typedef struct _VMBUS_CHANNEL_CLOSE_CHANNEL {
  * implied number of PFNs won't fit in this packet, there will be a
  * follow-up packet that contains more.
  */
-typedef struct _VMBUS_CHANNEL_GPADL_HEADER {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_gpadl_header {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
 	u32 Gpadl;
 	u16 RangeBufLen;
 	u16 RangeCount;
 	GPA_RANGE Range[0];
-} __attribute__((packed)) VMBUS_CHANNEL_GPADL_HEADER, *PVMBUS_CHANNEL_GPADL_HEADER;
+} __attribute__((packed));
 
 /* This is the followup packet that contains more PFNs. */
-typedef struct _VMBUS_CHANNEL_GPADL_BODY {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_gpadl_body {
+	struct vmbus_channel_message_header Header;
 	u32 MessageNumber;
 	u32 Gpadl;
 	u64 Pfn[0];
-} __attribute__((packed)) VMBUS_CHANNEL_GPADL_BODY, *PVMBUS_CHANNEL_GPADL_BODY;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_GPADL_CREATED {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_gpadl_created {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
 	u32 Gpadl;
 	u32 CreationStatus;
-} __attribute__((packed)) VMBUS_CHANNEL_GPADL_CREATED, *PVMBUS_CHANNEL_GPADL_CREATED;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_GPADL_TEARDOWN {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_gpadl_teardown {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
 	u32 Gpadl;
-} __attribute__((packed)) VMBUS_CHANNEL_GPADL_TEARDOWN, *PVMBUS_CHANNEL_GPADL_TEARDOWN;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_GPADL_TORNDOWN {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_gpadl_torndown {
+	struct vmbus_channel_message_header Header;
 	u32 Gpadl;
-} __attribute__((packed)) VMBUS_CHANNEL_GPADL_TORNDOWN, *PVMBUS_CHANNEL_GPADL_TORNDOWN;
+} __attribute__((packed));
 
 #ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-typedef struct _VMBUS_CHANNEL_VIEW_RANGE_ADD {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_view_range_add {
+	struct vmbus_channel_message_header Header;
 	PHYSICAL_ADDRESS ViewRangeBase;
 	u64 ViewRangeLength;
 	u32 ChildRelId;
-} __attribute__((packed)) VMBUS_CHANNEL_VIEW_RANGE_ADD, *PVMBUS_CHANNEL_VIEW_RANGE_ADD;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_VIEW_RANGE_REMOVE {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_view_range_remove {
+	struct vmbus_channel_message_header Header;
 	PHYSICAL_ADDRESS ViewRangeBase;
 	u32 ChildRelId;
-} __attribute__((packed)) VMBUS_CHANNEL_VIEW_RANGE_REMOVE, *PVMBUS_CHANNEL_VIEW_RANGE_REMOVE;
+} __attribute__((packed));
 #endif
 
-typedef struct _VMBUS_CHANNEL_RELID_RELEASED {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_relid_released {
+	struct vmbus_channel_message_header Header;
 	u32 ChildRelId;
-} __attribute__((packed)) VMBUS_CHANNEL_RELID_RELEASED, *PVMBUS_CHANNEL_RELID_RELEASED;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_INITIATE_CONTACT {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_initiate_contact {
+	struct vmbus_channel_message_header Header;
 	u32 VMBusVersionRequested;
 	u32 Padding2;
 	u64 InterruptPage;
 	u64 MonitorPage1;
 	u64 MonitorPage2;
-} __attribute__((packed)) VMBUS_CHANNEL_INITIATE_CONTACT, *PVMBUS_CHANNEL_INITIATE_CONTACT;
+} __attribute__((packed));
 
-typedef struct _VMBUS_CHANNEL_VERSION_RESPONSE {
-	VMBUS_CHANNEL_MESSAGE_HEADER Header;
+struct vmbus_channel_version_response {
+	struct vmbus_channel_message_header Header;
 	bool VersionSupported;
-} __attribute__((packed)) VMBUS_CHANNEL_VERSION_RESPONSE, *PVMBUS_CHANNEL_VERSION_RESPONSE;
-
-typedef VMBUS_CHANNEL_MESSAGE_HEADER VMBUS_CHANNEL_UNLOAD, *PVMBUS_CHANNEL_UNLOAD;
+} __attribute__((packed));
 
 #endif

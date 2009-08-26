@@ -51,7 +51,7 @@ int VmbusConnect(void)
 {
 	int ret=0;
 	struct vmbus_channel_msginfo *msgInfo = NULL;
-	VMBUS_CHANNEL_INITIATE_CONTACT *msg;
+	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -100,7 +100,7 @@ int VmbusConnect(void)
 		goto Cleanup;
 	}
 
-	msgInfo = kzalloc(sizeof(*msgInfo) + sizeof(VMBUS_CHANNEL_INITIATE_CONTACT), GFP_KERNEL);
+	msgInfo = kzalloc(sizeof(*msgInfo) + sizeof(struct vmbus_channel_initiate_contact), GFP_KERNEL);
 	if (msgInfo == NULL)
 	{
 		ret = -1;
@@ -108,7 +108,7 @@ int VmbusConnect(void)
 	}
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
-	msg = (VMBUS_CHANNEL_INITIATE_CONTACT*)msgInfo->Msg;
+	msg = (struct vmbus_channel_initiate_contact *)msgInfo->Msg;
 
 	msg->Header.MessageType = ChannelMessageInitiateContact;
 	msg->VMBusVersionRequested = VMBUS_REVISION_NUMBER;
@@ -129,7 +129,7 @@ int VmbusConnect(void)
 
 	DPRINT_DBG(VMBUS, "Sending channel initiate msg...");
 
-	ret = VmbusPostMessage(msg, sizeof(VMBUS_CHANNEL_INITIATE_CONTACT));
+	ret = VmbusPostMessage(msg, sizeof(struct vmbus_channel_initiate_contact));
 	if (ret != 0)
 	{
 		REMOVE_ENTRY_LIST(&msgInfo->MsgListEntry);
@@ -208,7 +208,7 @@ Description:
 int VmbusDisconnect(void)
 {
 	int ret=0;
-	VMBUS_CHANNEL_UNLOAD *msg;
+	struct vmbus_channel_message_header *msg;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -216,11 +216,11 @@ int VmbusDisconnect(void)
 	if (gVmbusConnection.ConnectState != Connected)
 		return -1;
 
-	msg = kzalloc(sizeof(VMBUS_CHANNEL_UNLOAD), GFP_KERNEL);
+	msg = kzalloc(sizeof(struct vmbus_channel_message_header), GFP_KERNEL);
 
 	msg->MessageType = ChannelMessageUnload;
 
-	ret = VmbusPostMessage(msg, sizeof(VMBUS_CHANNEL_UNLOAD));
+	ret = VmbusPostMessage(msg, sizeof(struct vmbus_channel_message_header));
 
 	if (ret != 0)
 	{

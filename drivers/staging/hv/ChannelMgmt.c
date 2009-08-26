@@ -31,58 +31,23 @@
 
 /* Data types */
 
-typedef void (*PFN_CHANNEL_MESSAGE_HANDLER)(VMBUS_CHANNEL_MESSAGE_HEADER* msg);
+typedef void (*PFN_CHANNEL_MESSAGE_HANDLER)(struct vmbus_channel_message_header *msg);
 
 typedef struct _VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY {
-	VMBUS_CHANNEL_MESSAGE_TYPE	messageType;
+	enum vmbus_channel_message_type	messageType;
 	PFN_CHANNEL_MESSAGE_HANDLER messageHandler;
 } VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY;
 
 /* Internal routines */
-
-static void
-VmbusChannelOnOffer(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-static void
-VmbusChannelOnOpenResult(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-
-static void
-VmbusChannelOnOfferRescind(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-
-static void
-VmbusChannelOnGpadlCreated(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-
-static void
-VmbusChannelOnGpadlTorndown(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-
-static void
-VmbusChannelOnOffersDelivered(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-
-static void
-VmbusChannelOnVersionResponse(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	);
-
-static void
-VmbusChannelProcessOffer(
-	void * context
-	);
-
-static void
-VmbusChannelProcessRescindOffer(
-	void * context
-	);
+static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelOnGpadlTorndown(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelOnOffersDelivered(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelOnVersionResponse(struct vmbus_channel_message_header *hdr);
+static void VmbusChannelProcessOffer(void * context);
+static void VmbusChannelProcessRescindOffer(void * context);
 
 
 /* Globals */
@@ -355,12 +320,9 @@ Description:
 	and queue a work item to the channel object to process the offer synchronously
 
 --*/
-static void
-VmbusChannelOnOffer(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr)
 {
-	VMBUS_CHANNEL_OFFER_CHANNEL* offer = (VMBUS_CHANNEL_OFFER_CHANNEL*)hdr;
+	struct vmbus_channel_offer_channel *offer = (struct vmbus_channel_offer_channel *)hdr;
 	struct vmbus_channel *newChannel;
 
 	struct hv_guid *guidType;
@@ -415,7 +377,7 @@ VmbusChannelOnOffer(
 
 	DPRINT_DBG(VMBUS, "channel object allocated - %p", newChannel);
 
-	memcpy(&newChannel->OfferMsg, offer, sizeof(VMBUS_CHANNEL_OFFER_CHANNEL));
+	memcpy(&newChannel->OfferMsg, offer, sizeof(struct vmbus_channel_offer_channel));
 	newChannel->MonitorGroup = (u8)offer->MonitorId / 32;
 	newChannel->MonitorBit = (u8)offer->MonitorId % 32;
 
@@ -437,12 +399,9 @@ Description:
 	synchronously
 
 --*/
-static void
-VmbusChannelOnOfferRescind(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *hdr)
 {
-	VMBUS_CHANNEL_RESCIND_OFFER* rescind = (VMBUS_CHANNEL_RESCIND_OFFER*)hdr;
+	struct vmbus_channel_rescind_offer *rescind = (struct vmbus_channel_rescind_offer *)hdr;
 	struct vmbus_channel *channel;
 
 	DPRINT_ENTER(VMBUS);
@@ -472,10 +431,7 @@ Description:
 	Nothing to do here.
 
 --*/
-static void
-VmbusChannelOnOffersDelivered(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnOffersDelivered(struct vmbus_channel_message_header *hdr)
 {
 	DPRINT_ENTER(VMBUS);
 	DPRINT_EXIT(VMBUS);
@@ -493,17 +449,14 @@ Description:
 	response and signal the requesting thread.
 
 --*/
-static void
-VmbusChannelOnOpenResult(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 {
-	VMBUS_CHANNEL_OPEN_RESULT* result = (VMBUS_CHANNEL_OPEN_RESULT*)hdr;
+	struct vmbus_channel_open_result *result = (struct vmbus_channel_open_result *)hdr;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
 	struct vmbus_channel_msginfo *msgInfo;
-	VMBUS_CHANNEL_MESSAGE_HEADER* requestHeader;
-	VMBUS_CHANNEL_OPEN_CHANNEL* openMsg;
+	struct vmbus_channel_message_header *requestHeader;
+	struct vmbus_channel_open_channel *openMsg;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -516,15 +469,15 @@ VmbusChannelOnOpenResult(
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
-		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
+		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageOpenChannel)
 		{
-			openMsg = (VMBUS_CHANNEL_OPEN_CHANNEL*)msgInfo->Msg;
+			openMsg = (struct vmbus_channel_open_channel *)msgInfo->Msg;
 			if (openMsg->ChildRelId == result->ChildRelId &&
 				openMsg->OpenId == result->OpenId)
 			{
-				memcpy(&msgInfo->Response.OpenResult, result, sizeof(VMBUS_CHANNEL_OPEN_RESULT));
+				memcpy(&msgInfo->Response.OpenResult, result, sizeof(struct vmbus_channel_open_result));
 				osd_WaitEventSet(msgInfo->WaitEvent);
 				break;
 			}
@@ -547,17 +500,14 @@ Description:
 	response and signal the requesting thread.
 
 --*/
-static void
-VmbusChannelOnGpadlCreated(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr)
 {
-	VMBUS_CHANNEL_GPADL_CREATED *gpadlCreated = (VMBUS_CHANNEL_GPADL_CREATED*)hdr;
+	struct vmbus_channel_gpadl_created *gpadlCreated = (struct vmbus_channel_gpadl_created *)hdr;
 	LIST_ENTRY *anchor;
 	LIST_ENTRY *curr;
 	struct vmbus_channel_msginfo *msgInfo;
-	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
-	VMBUS_CHANNEL_GPADL_HEADER *gpadlHeader;
+	struct vmbus_channel_message_header *requestHeader;
+	struct vmbus_channel_gpadl_header *gpadlHeader;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -570,16 +520,16 @@ VmbusChannelOnGpadlCreated(
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
-		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
+		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageGpadlHeader)
 		{
-			gpadlHeader = (VMBUS_CHANNEL_GPADL_HEADER*)requestHeader;
+			gpadlHeader = (struct vmbus_channel_gpadl_header *)requestHeader;
 
 			if ((gpadlCreated->ChildRelId == gpadlHeader->ChildRelId) &&
 					(gpadlCreated->Gpadl == gpadlHeader->Gpadl))
 			{
-				memcpy(&msgInfo->Response.GpadlCreated, gpadlCreated, sizeof(VMBUS_CHANNEL_GPADL_CREATED));
+				memcpy(&msgInfo->Response.GpadlCreated, gpadlCreated, sizeof(struct vmbus_channel_gpadl_created));
 				osd_WaitEventSet(msgInfo->WaitEvent);
 				break;
 			}
@@ -602,17 +552,14 @@ Description:
 	response and signal the requesting thread.
 
 --*/
-static void
-VmbusChannelOnGpadlTorndown(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnGpadlTorndown(struct vmbus_channel_message_header *hdr)
 {
-	VMBUS_CHANNEL_GPADL_TORNDOWN* gpadlTorndown  = (VMBUS_CHANNEL_GPADL_TORNDOWN*)hdr;
+	struct vmbus_channel_gpadl_torndown* gpadlTorndown  = (struct vmbus_channel_gpadl_torndown *)hdr;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
 	struct vmbus_channel_msginfo *msgInfo;
-	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
-	VMBUS_CHANNEL_GPADL_TEARDOWN *gpadlTeardown;
+	struct vmbus_channel_message_header *requestHeader;
+	struct vmbus_channel_gpadl_teardown *gpadlTeardown;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -623,15 +570,15 @@ VmbusChannelOnGpadlTorndown(
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
-		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
+		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageGpadlTeardown)
 		{
-			gpadlTeardown = (VMBUS_CHANNEL_GPADL_TEARDOWN*)requestHeader;
+			gpadlTeardown = (struct vmbus_channel_gpadl_teardown *)requestHeader;
 
 			if (gpadlTorndown->Gpadl == gpadlTeardown->Gpadl)
 			{
-				memcpy(&msgInfo->Response.GpadlTorndown, gpadlTorndown, sizeof(VMBUS_CHANNEL_GPADL_TORNDOWN));
+				memcpy(&msgInfo->Response.GpadlTorndown, gpadlTorndown, sizeof(struct vmbus_channel_gpadl_torndown));
 				osd_WaitEventSet(msgInfo->WaitEvent);
 				break;
 			}
@@ -654,17 +601,14 @@ Description:
 	response and signal the requesting thread.
 
 --*/
-static void
-VmbusChannelOnVersionResponse(
-	PVMBUS_CHANNEL_MESSAGE_HEADER hdr
-	)
+static void VmbusChannelOnVersionResponse(struct vmbus_channel_message_header *hdr)
 {
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
 	struct vmbus_channel_msginfo *msgInfo;
-	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
-	VMBUS_CHANNEL_INITIATE_CONTACT *initiate;
-	VMBUS_CHANNEL_VERSION_RESPONSE *versionResponse  = (VMBUS_CHANNEL_VERSION_RESPONSE*)hdr;
+	struct vmbus_channel_message_header *requestHeader;
+	struct vmbus_channel_initiate_contact *initiate;
+	struct vmbus_channel_version_response *versionResponse  = (struct vmbus_channel_version_response *)hdr;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -674,12 +618,12 @@ VmbusChannelOnVersionResponse(
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
-		requestHeader = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
+		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
 		if (requestHeader->MessageType == ChannelMessageInitiateContact)
 		{
-			initiate = (VMBUS_CHANNEL_INITIATE_CONTACT*)requestHeader;
-			memcpy(&msgInfo->Response.VersionResponse, versionResponse, sizeof(VMBUS_CHANNEL_VERSION_RESPONSE));
+			initiate = (struct vmbus_channel_initiate_contact *)requestHeader;
+			memcpy(&msgInfo->Response.VersionResponse, versionResponse, sizeof(struct vmbus_channel_version_response));
 			osd_WaitEventSet(msgInfo->WaitEvent);
 		}
 	}
@@ -702,12 +646,12 @@ Description:
 void VmbusOnChannelMessage(void *Context)
 {
 	struct hv_message *msg = Context;
-	VMBUS_CHANNEL_MESSAGE_HEADER* hdr;
+	struct vmbus_channel_message_header *hdr;
 	int size;
 
 	DPRINT_ENTER(VMBUS);
 
-	hdr = (VMBUS_CHANNEL_MESSAGE_HEADER*)msg->u.Payload;
+	hdr = (struct vmbus_channel_message_header *)msg->u.Payload;
 	size=msg->Header.PayloadSize;
 
 	DPRINT_DBG(VMBUS, "message type %d size %d", hdr->MessageType, size);
@@ -748,16 +692,16 @@ Description:
 int VmbusChannelRequestOffers(void)
 {
 	int ret=0;
-	VMBUS_CHANNEL_MESSAGE_HEADER* msg;
+	struct vmbus_channel_message_header *msg;
 	struct vmbus_channel_msginfo *msgInfo;
 
 	DPRINT_ENTER(VMBUS);
 
-	msgInfo = kmalloc(sizeof(*msgInfo) + sizeof(VMBUS_CHANNEL_MESSAGE_HEADER), GFP_KERNEL);
+	msgInfo = kmalloc(sizeof(*msgInfo) + sizeof(struct vmbus_channel_message_header), GFP_KERNEL);
 	ASSERT(msgInfo != NULL);
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
-	msg = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
+	msg = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
 	msg->MessageType = ChannelMessageRequestOffers;
 
@@ -765,7 +709,7 @@ int VmbusChannelRequestOffers(void)
 	INSERT_TAIL_LIST(&gVmbusConnection.channelMsgList, &msgInfo->msgListEntry);
 	SpinlockRelease(gVmbusConnection.channelMsgLock);*/
 
-	ret = VmbusPostMessage(msg, sizeof(VMBUS_CHANNEL_MESSAGE_HEADER));
+	ret = VmbusPostMessage(msg, sizeof(struct vmbus_channel_message_header));
 	if (ret != 0)
 	{
 		DPRINT_ERR(VMBUS, "Unable to request offers - %d", ret);
