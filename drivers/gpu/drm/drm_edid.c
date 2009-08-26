@@ -60,6 +60,8 @@
 #define EDID_QUIRK_FIRST_DETAILED_PREFERRED	(1 << 5)
 /* use +hsync +vsync for detailed mode */
 #define EDID_QUIRK_DETAILED_SYNC_PP		(1 << 6)
+/* define the number of Extension EDID block */
+#define MAX_EDID_EXT_NUM 4
 
 #define LEVEL_DMT	0
 #define LEVEL_GTF	1
@@ -597,6 +599,122 @@ static int add_detailed_info(struct drm_connector *connector,
 
 	return modes;
 }
+/**
+ * add_detailed_mode_eedid - get detailed mode info from addtional timing
+ * 			EDID block
+ * @connector: attached connector
+ * @edid: EDID block to scan(It is only to get addtional timing EDID block)
+ * @quirks: quirks to apply
+ *
+ * Some of the detailed timing sections may contain mode information.  Grab
+ * it and add it to the list.
+ */
+static int add_detailed_info_eedid(struct drm_connector *connector,
+			     struct edid *edid, u32 quirks)
+{
+	struct drm_device *dev = connector->dev;
+	int i, j, modes = 0;
+	char *edid_ext = NULL;
+	struct detailed_timing *timing;
+	struct detailed_non_pixel *data;
+	struct drm_display_mode *newmode;
+	int edid_ext_num;
+	int start_offset, end_offset;
+	int timing_level;
+
+	if (edid->version == 1 && edid->revision < 3) {
+		/* If the EDID version is less than 1.3, there is no
+		 * extension EDID.
+		 */
+		return 0;
+	}
+	if (!edid->extensions) {
+		/* if there is no extension EDID, it is unnecessary to
+		 * parse the E-EDID to get detailed info
+		 */
+		return 0;
+	}
+
+	/* Chose real EDID extension number */
+	edid_ext_num = edid->extensions > MAX_EDID_EXT_NUM ?
+		       MAX_EDID_EXT_NUM : edid->extensions;
+
+	/* Find CEA extension */
+	for (i = 0; i < edid_ext_num; i++) {
+		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
+		/* This block is CEA extension */
+		if (edid_ext[0] == 0x02)
+			break;
+	}
+
+	if (i == edid_ext_num) {
+		/* if there is no additional timing EDID block, return */
+		return 0;
+	}
+
+	/* Get the start offset of detailed timing block */
+	start_offset = edid_ext[2];
+	if (start_offset == 0) {
+		/* If the start_offset is zero, it means that neither detailed
+		 * info nor data block exist. In such case it is also
+		 * unnecessary to parse the detailed timing info.
+		 */
+		return 0;
+	}
+
+	timing_level = standard_timing_level(edid);
+	end_offset = EDID_LENGTH;
+	end_offset -= sizeof(struct detailed_timing);
+	for (i = start_offset; i < end_offset;
+			i += sizeof(struct detailed_timing)) {
+		timing = (struct detailed_timing *)(edid_ext + i);
+		data = &timing->data.other_data;
+		/* Detailed mode timing */
+		if (timing->pixel_clock) {
+			newmode = drm_mode_detailed(dev, edid, timing, quirks);
+			if (!newmode)
+				continue;
+
+			drm_mode_probed_add(connector, newmode);
+
+			modes++;
+			continue;
+		}
+
+		/* Other timing or info */
+		switch (data->type) {
+		case EDID_DETAIL_MONITOR_SERIAL:
+			break;
+		case EDID_DETAIL_MONITOR_STRING:
+			break;
+		case EDID_DETAIL_MONITOR_RANGE:
+			/* Get monitor range data */
+			break;
+		case EDID_DETAIL_MONITOR_NAME:
+			break;
+		case EDID_DETAIL_MONITOR_CPDATA:
+			break;
+		case EDID_DETAIL_STD_MODES:
+			/* Five modes per detailed section */
+			for (j = 0; j < 5; i++) {
+				struct std_timing *std;
+				struct drm_display_mode *newmode;
+
+				std = &data->data.timings[j];
+				newmode = drm_mode_std(dev, std, timing_level);
+				if (newmode) {
+					drm_mode_probed_add(connector, newmode);
+					modes++;
+				}
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return modes;
+}
 
 #define DDC_ADDR 0x50
 /**
@@ -656,7 +774,6 @@ end:
 	return ret;
 }
 
-#define MAX_EDID_EXT_NUM 4
 /**
  * drm_get_edid - get EDID data, if available
  * @connector: connector we're probing
@@ -809,6 +926,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	num_modes += add_established_modes(connector, edid);
 	num_modes += add_standard_modes(connector, edid);
 	num_modes += add_detailed_info(connector, edid, quirks);
+	num_modes += add_detailed_info_eedid(connector, edid, quirks);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
