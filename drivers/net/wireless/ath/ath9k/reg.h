@@ -970,6 +970,8 @@ enum {
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF_S      7
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB        0x00001000
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB_S      12
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB      0x00001000
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB_S    1
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB         0x00008000
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB_S       15
 #define AR_GPIO_RTC_RESET_OVERRIDE_ENABLE        0x00010000
@@ -978,6 +980,8 @@ enum {
 #define AR_GPIO_INPUT_MUX1                       0x4058
 #define AR_GPIO_INPUT_MUX1_BT_ACTIVE             0x000f0000
 #define AR_GPIO_INPUT_MUX1_BT_ACTIVE_S           16
+#define AR_GPIO_INPUT_MUX1_BT_PRIORITY           0x00000f00
+#define AR_GPIO_INPUT_MUX1_BT_PRIORITY_S         8
 
 #define AR_GPIO_INPUT_MUX2                       0x405c
 #define AR_GPIO_INPUT_MUX2_CLK25                 0x0000000f
@@ -1002,6 +1006,8 @@ enum {
 #define AR_EEPROM_STATUS_DATA_ABSENT_ACCESS      0x00080000
 
 #define AR_OBS                  0x4080
+
+#define AR_GPIO_PDPU                             0x4088
 
 #define AR_PCIE_MSI                              0x4094
 #define AR_PCIE_MSI_ENABLE                       0x00000001
@@ -1436,6 +1442,7 @@ enum {
 #define AR_QUIET1_NEXT_QUIET_M         0x0000ffff
 #define AR_QUIET1_QUIET_ENABLE         0x00010000
 #define AR_QUIET1_QUIET_ACK_CTS_ENABLE 0x00020000
+#define AR_QUIET1_QUIET_ACK_CTS_ENABLE_S 17
 #define AR_QUIET2          0x8100
 #define AR_QUIET2_QUIET_PERIOD_S       0
 #define AR_QUIET2_QUIET_PERIOD_M       0x0000ffff
@@ -1481,6 +1488,8 @@ enum {
 #define AR_PCU_CLEAR_VMF           0x01000000
 #define AR_PCU_CLEAR_BA_VALID      0x04000000
 
+#define AR_PCU_BT_ANT_PREVENT_RX   0x00100000
+#define AR_PCU_BT_ANT_PREVENT_RX_S 20
 
 #define AR_FILT_OFDM           0x8124
 #define AR_FILT_OFDM_COUNT     0x00FFFFFF
@@ -1507,6 +1516,46 @@ enum {
 #define AR_PHY_ERR_3           0x8168
 #define AR_PHY_ERR_3_COUNT     0x00FFFFFF
 #define AR_PHY_ERR_MASK_3      0x816c
+
+#define AR_BT_COEX_MODE            0x8170
+#define AR_BT_TIME_EXTEND          0x000000ff
+#define AR_BT_TIME_EXTEND_S        0
+#define AR_BT_TXSTATE_EXTEND       0x00000100
+#define AR_BT_TXSTATE_EXTEND_S     8
+#define AR_BT_TX_FRAME_EXTEND      0x00000200
+#define AR_BT_TX_FRAME_EXTEND_S    9
+#define AR_BT_MODE                 0x00000c00
+#define AR_BT_MODE_S               10
+#define AR_BT_QUIET                0x00001000
+#define AR_BT_QUIET_S              12
+#define AR_BT_QCU_THRESH           0x0001e000
+#define AR_BT_QCU_THRESH_S         13
+#define AR_BT_RX_CLEAR_POLARITY    0x00020000
+#define AR_BT_RX_CLEAR_POLARITY_S  17
+#define AR_BT_PRIORITY_TIME        0x00fc0000
+#define AR_BT_PRIORITY_TIME_S      18
+#define AR_BT_FIRST_SLOT_TIME      0xff000000
+#define AR_BT_FIRST_SLOT_TIME_S    24
+
+#define AR_BT_COEX_WEIGHT          0x8174
+#define AR_BT_COEX_WGHT		   0xff55
+#define AR_STOMP_ALL_WLAN_WGHT	   0xffcc
+#define AR_STOMP_LOW_WLAN_WGHT	   0xaaa8
+#define AR_STOMP_NONE_WLAN_WGHT	   0xaa00
+#define AR_BTCOEX_BT_WGHT          0x0000ffff
+#define AR_BTCOEX_BT_WGHT_S        0
+#define AR_BTCOEX_WL_WGHT          0xffff0000
+#define AR_BTCOEX_WL_WGHT_S        16
+
+#define AR_BT_COEX_MODE2           0x817c
+#define AR_BT_BCN_MISS_THRESH      0x000000ff
+#define AR_BT_BCN_MISS_THRESH_S    0
+#define AR_BT_BCN_MISS_CNT         0x0000ff00
+#define AR_BT_BCN_MISS_CNT_S       8
+#define AR_BT_HOLD_RX_CLEAR        0x00010000
+#define AR_BT_HOLD_RX_CLEAR_S      16
+#define AR_BT_DISABLE_BT_ANT       0x00100000
+#define AR_BT_DISABLE_BT_ANT_S     20
 
 #define AR_TXSIFS              0x81d0
 #define AR_TXSIFS_TIME         0x000000FF

@@ -79,6 +79,7 @@
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
 #define AR_GPIO_OUTPUT_MUX_AS_TX_FRAME           3
+#define AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL  4
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
 
@@ -662,5 +663,6 @@ void ath_gen_timer_start(struct ath_hw *ah, struct ath_gen_timer *timer,
 void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_isr(struct ath_hw *hw);
+u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
 #endif

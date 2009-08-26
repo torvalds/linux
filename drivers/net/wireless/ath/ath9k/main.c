@@ -602,6 +602,10 @@ irqreturn_t ath_isr(int irq, void *dev)
 			sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
 		}
 
+	if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+		if (status & ATH9K_INT_GENTIMER)
+			ath_gen_timer_isr(ah);
+
 chip_reset:
 
 	ath_debug_stat_interrupt(sc, status);
@@ -1279,6 +1283,10 @@ void ath_detach(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
+	if ((sc->btcoex_info.no_stomp_timer) &&
+	    sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+		ath_gen_timer_free(sc->sc_ah, sc->btcoex_info.no_stomp_timer);
+
 	ath9k_hw_detach(sc->sc_ah);
 	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
@@ -1509,8 +1517,11 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 			ARRAY_SIZE(ath9k_5ghz_chantable);
 	}
 
-	if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_2WIRE)
-		ath9k_hw_btcoex_init(ah);
+	if (sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) {
+		r = ath9k_hw_btcoex_init(ah);
+		if (r)
+			goto bad2;
+	}
 
 	return 0;
 bad2:
@@ -1992,9 +2003,15 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
-	if ((sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) &&
-	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED))
+	if ((sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) &&
+	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED)) {
+		ath_btcoex_set_weight(&sc->btcoex_info, AR_BT_COEX_WGHT,
+				      AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(sc->sc_ah);
+
+		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_btcoex_timer_resume(sc, &sc->btcoex_info);
+	}
 
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
@@ -2129,6 +2146,12 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		return; /* another wiphy still in use */
 	}
 
+	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED) {
+		ath9k_hw_btcoex_disable(sc->sc_ah);
+		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_btcoex_timer_pause(sc, &sc->btcoex_info);
+	}
+
 	/* make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
 	ath9k_hw_set_interrupts(sc->sc_ah, 0);
@@ -2141,9 +2164,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		sc->rx.rxlink = NULL;
 
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
-
-	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED)
-		ath9k_hw_btcoex_disable(sc->sc_ah);
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);

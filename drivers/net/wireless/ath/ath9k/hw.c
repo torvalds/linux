@@ -4141,7 +4141,7 @@ static u32 rightmost_index(struct ath_gen_timer_table *timer_table, u32 *mask)
 	return timer_table->gen_timer_index[b];
 }
 
-static u32 ath9k_hw_gettsf32(struct ath_hw *ah)
+u32 ath9k_hw_gettsf32(struct ath_hw *ah)
 {
 	return REG_READ(ah, AR_TSF_L32);
 }

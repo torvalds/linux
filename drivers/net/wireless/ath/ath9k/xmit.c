@@ -493,7 +493,12 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	if (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE || legacy)
 		return 0;
 
-	aggr_limit = min(max_4ms_framelen, (u32)ATH_AMPDU_LIMIT_MAX);
+	if (sc->sc_flags & SC_OP_BT_PRIORITY_DETECTED)
+		aggr_limit = min((max_4ms_framelen * 3) / 8,
+				 (u32)ATH_AMPDU_LIMIT_MAX);
+	else
+		aggr_limit = min(max_4ms_framelen,
+				 (u32)ATH_AMPDU_LIMIT_MAX);
 
 	/*
 	 * h/w can accept aggregates upto 16 bit lengths (65535).
@@ -872,7 +877,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	return &sc->tx.txq[qnum];
 }
 
-static int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype)
+int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype)
 {
 	int qnum;
 
