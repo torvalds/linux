@@ -3970,6 +3970,14 @@ S:	Maintained
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
 
+PMC SIERRA MaxRAID DRIVER
+P:	Anil Ravindranath
+M:	anil_ravindranath@pmc-sierra.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.pmc-sierra.com/
+S:	Supported
+F:	drivers/scsi/pmcraid.*
+
 POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Supported
