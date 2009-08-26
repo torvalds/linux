@@ -243,6 +243,11 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 {
 	WARN_ON(strcmp((*entry)->name, elem->name) != 0);
 
+	if (elem->regfunc && !elem->state && active)
+		elem->regfunc();
+	else if (elem->unregfunc && elem->state && !active)
+		elem->unregfunc();
+
 	/*
 	 * rcu_assign_pointer has a smp_wmb() which makes sure that the new
 	 * probe callbacks array is consistent before setting a pointer to it.
@@ -262,6 +267,9 @@ static void set_tracepoint(struct tracepoint_entry **entry,
  */
 static void disable_tracepoint(struct tracepoint *elem)
 {
+	if (elem->unregfunc && elem->state)
+		elem->unregfunc();
+
 	elem->state = 0;
 	rcu_assign_pointer(elem->funcs, NULL);
 }
@@ -576,9 +584,9 @@ __initcall(init_tracepoints);
 
 #endif /* CONFIG_MODULES */
 
-#ifdef CONFIG_FTRACE_SYSCALLS
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 
-static DEFINE_MUTEX(regfunc_mutex);
+/* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 static int sys_tracepoint_refcount;
 
 void syscall_regfunc(void)
@@ -586,16 +594,14 @@ void syscall_regfunc(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
-	mutex_lock(&regfunc_mutex);
 	if (!sys_tracepoint_refcount) {
 		read_lock_irqsave(&tasklist_lock, flags);
 		do_each_thread(g, t) {
-			set_tsk_thread_flag(t, TIF_SYSCALL_FTRACE);
+			set_tsk_thread_flag(t, TIF_SYSCALL_TRACEPOINT);
 		} while_each_thread(g, t);
 		read_unlock_irqrestore(&tasklist_lock, flags);
 	}
 	sys_tracepoint_refcount++;
-	mutex_unlock(&regfunc_mutex);
 }
 
 void syscall_unregfunc(void)
@@ -603,15 +609,13 @@ void syscall_unregfunc(void)
 	unsigned long flags;
 	struct task_struct *g, *t;
 
-	mutex_lock(&regfunc_mutex);
 	sys_tracepoint_refcount--;
 	if (!sys_tracepoint_refcount) {
 		read_lock_irqsave(&tasklist_lock, flags);
 		do_each_thread(g, t) {
-			clear_tsk_thread_flag(t, TIF_SYSCALL_FTRACE);
+			clear_tsk_thread_flag(t, TIF_SYSCALL_TRACEPOINT);
 		} while_each_thread(g, t);
 		read_unlock_irqrestore(&tasklist_lock, flags);
 	}
-	mutex_unlock(&regfunc_mutex);
 }
 #endif
