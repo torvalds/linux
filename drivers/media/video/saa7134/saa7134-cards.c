@@ -32,6 +32,7 @@
 #include <media/tveeprom.h>
 #include "tea5767.h"
 #include "tda18271.h"
+#include "xc5000.h"
 
 /* commly used strings */
 static char name_mute[]    = "mute";
@@ -5179,6 +5180,34 @@ struct saa7134_board saa7134_boards[] = {
 			.amux	= LINE1
 		} },
 	},
+	[SAA7134_BOARD_BEHOLD_X7] = {
+		/* Beholder Intl. Ltd. Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV X7",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_XC5000,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 2,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 9,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+		},
+	},
+
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -6299,6 +6328,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0xc900,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_S350,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace, /* Beholder Intl. Ltd. */
+		.subdevice    = 0x7595,
+		.driver_data  = SAA7134_BOARD_BEHOLD_X7,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -6384,6 +6419,32 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 	return -EINVAL;
 }
 
+static int saa7134_xc5000_callback(struct saa7134_dev *dev,
+				   int command, int arg)
+{
+	switch (dev->board) {
+	case SAA7134_BOARD_BEHOLD_X7:
+		if (command == XC5000_TUNER_RESET) {
+		/* Down and UP pheripherial RESET pin for reset all chips */
+			saa_writeb(SAA7134_SPECIAL_MODE, 0x00);
+			msleep(10);
+			saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
+			msleep(10);
+		}
+		break;
+	default:
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x06e20000, 0x06e20000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x06a20000, 0x06a20000);
+		saa_andorl(SAA7133_ANALOG_IO_SELECT >> 2, 0x02, 0x02);
+		saa_andorl(SAA7134_ANALOG_IN_CTRL1 >> 2, 0x81, 0x81);
+		saa_andorl(SAA7134_AUDIO_CLOCK0 >> 2, 0x03187de7, 0x03187de7);
+		saa_andorl(SAA7134_AUDIO_PLL_CTRL >> 2, 0x03, 0x03);
+		saa_andorl(SAA7134_AUDIO_CLOCKS_PER_FIELD0 >> 2,
+			   0x0001e000, 0x0001e000);
+		break;
+	}
+	return 0;
+}
 
 static int saa7134_tda8290_827x_callback(struct saa7134_dev *dev,
 					 int command, int arg)
@@ -6480,6 +6541,8 @@ int saa7134_tuner_callback(void *priv, int component, int command, int arg)
 			return saa7134_tda8290_callback(dev, command, arg);
 		case TUNER_XC2028:
 			return saa7134_xc2028_callback(dev, command, arg);
+		case TUNER_XC5000:
+			return saa7134_xc5000_callback(dev, command, arg);
 		}
 	} else {
 		printk(KERN_ERR "saa7134: Error - device struct undefined.\n");
@@ -6728,6 +6791,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M63:
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
 	case SAA7134_BOARD_BEHOLD_H6:
+	case SAA7134_BOARD_BEHOLD_X7:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
