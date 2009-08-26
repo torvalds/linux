@@ -1614,21 +1614,24 @@ static int efx_register_netdev(struct efx_nic *efx)
 	SET_NETDEV_DEV(net_dev, &efx->pci_dev->dev);
 	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
 
-	/* Always start with carrier off; PHY events will detect the link */
-	netif_carrier_off(efx->net_dev);
-
 	/* Clear MAC statistics */
 	efx->mac_op->update_stats(efx);
 	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
 
-	rc = register_netdev(net_dev);
-	if (rc) {
-		EFX_ERR(efx, "could not register net dev\n");
-		return rc;
-	}
-
 	rtnl_lock();
+
+	rc = dev_alloc_name(net_dev, net_dev->name);
+	if (rc < 0)
+		goto fail_locked;
 	efx_update_name(efx);
+
+	rc = register_netdevice(net_dev);
+	if (rc)
+		goto fail_locked;
+
+	/* Always start with carrier off; PHY events will detect the link */
+	netif_carrier_off(efx->net_dev);
+
 	rtnl_unlock();
 
 	rc = device_create_file(&efx->pci_dev->dev, &dev_attr_phy_type);
@@ -1638,6 +1641,11 @@ static int efx_register_netdev(struct efx_nic *efx)
 	}
 
 	return 0;
+
+fail_locked:
+	rtnl_unlock();
+	EFX_ERR(efx, "could not register net dev\n");
+	return rc;
 
 fail_registered:
 	unregister_netdev(net_dev);
