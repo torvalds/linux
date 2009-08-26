@@ -1236,11 +1236,12 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			} else {
 				return -EINVAL;
 			}
-		} else {
+		} else if (ret < 0) {
 			printk(KERN_ERR "%s: is_enabled() failed for %s: %d\n",
 			       __func__, rdev->desc->name, ret);
 			return ret;
 		}
+		/* Fallthrough on positive return values - already enabled */
 	}
 
 	rdev->use_count++;
