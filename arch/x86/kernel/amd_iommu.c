@@ -41,9 +41,7 @@ static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 static LIST_HEAD(iommu_pd_list);
 static DEFINE_SPINLOCK(iommu_pd_list_lock);
 
-#ifdef CONFIG_IOMMU_API
 static struct iommu_ops amd_iommu_ops;
-#endif
 
 /*
  * general struct to manage commands send to an IOMMU
@@ -61,10 +59,6 @@ static u64* alloc_pte(struct protection_domain *dom,
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages);
-
-#ifndef BUS_NOTIFY_UNBOUND_DRIVER
-#define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
-#endif
 
 #ifdef CONFIG_AMD_IOMMU_STATS
 
