@@ -416,7 +416,9 @@ ecryptfs_find_global_auth_tok_for_sig(
 			    &mount_crypt_stat->global_auth_tok_list,
 			    mount_crypt_stat_list) {
 		if (memcmp(walker->sig, sig, ECRYPTFS_SIG_SIZE_HEX) == 0) {
-			(*global_auth_tok) = walker;
+			rc = key_validate(walker->global_auth_tok_key);
+			if (!rc)
+				(*global_auth_tok) = walker;
 			goto out;
 		}
 	}
