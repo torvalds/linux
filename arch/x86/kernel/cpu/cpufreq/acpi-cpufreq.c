@@ -588,6 +588,21 @@ static const struct dmi_system_id sw_any_bug_dmi_table[] = {
 	},
 	{ }
 };
+
+static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
+{
+	/* http://www.intel.com/Assets/PDF/specupdate/314554.pdf
+	 * AL30: A Machine Check Exception (MCE) Occurring during an
+	 * Enhanced Intel SpeedStep Technology Ratio Change May Cause
+	 * Both Processor Cores to Lock Up when HT is enabled*/
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+		if ((c->x86 == 15) &&
+		    (c->x86_model == 6) &&
+		    (c->x86_mask == 8) && smt_capable())
+			return -ENODEV;
+		}
+	return 0;
+}
 #endif
 
 static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
@@ -601,6 +616,12 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	struct acpi_processor_performance *perf;
 
 	dprintk("acpi_cpufreq_cpu_init\n");
+
+#ifdef CONFIG_SMP
+	result = acpi_cpufreq_blacklist(c);
+	if (result)
+		return result;
+#endif
 
 	data = kzalloc(sizeof(struct acpi_cpufreq_data), GFP_KERNEL);
 	if (!data)
