@@ -126,7 +126,6 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int error;
-	int i;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
@@ -197,19 +196,8 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	for (i = 0; i < keymap_data->keymap_size; i++) {
-		unsigned int key = keymap_data->keymap[i];
-		unsigned int row = KEY_ROW(key);
-		unsigned int col = KEY_COL(key);
-		unsigned short keycode = KEY_VAL(key);
-		unsigned int scancode = MATRIX_SCAN_CODE(row, col,
-							 W90P910_ROW_SHIFT);
-
-		keypad->keymap[scancode] = keycode;
-		__set_bit(keycode, input_dev->keybit);
-	}
-	__clear_bit(KEY_RESERVED, input_dev->keybit);
-
+	matrix_keypad_build_keymap(keymap_data, W90P910_ROW_SHIFT,
+				   input_dev->keycode, input_dev->keybit);
 
 	error = request_irq(keypad->irq, w90p910_keypad_irq_handler,
 			    IRQF_DISABLED, pdev->name, keypad);
