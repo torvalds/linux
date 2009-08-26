@@ -1014,9 +1014,10 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 		dev_kfree_skb_any(skb);
 
 	usb_kill_anchored_urbs(&priv->anchored);
+	mutex_unlock(&priv->conf_mutex);
+
 	if (!priv->is_rtl8187b)
 		cancel_delayed_work_sync(&priv->work);
-	mutex_unlock(&priv->conf_mutex);
 }
 
 static int rtl8187_add_interface(struct ieee80211_hw *dev,
