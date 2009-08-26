@@ -424,6 +424,7 @@ struct ath_hw {
 	enum ath9k_power_mode power_mode;
 
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
