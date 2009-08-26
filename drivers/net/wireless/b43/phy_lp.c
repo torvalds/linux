@@ -234,19 +234,15 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	if ((bus->sprom.boardflags_lo & B43_BFL_FEM) &&
 	   ((b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
 	   (bus->sprom.boardflags_hi & B43_BFH_PAREF))) {
-		/* TODO:
-		 * Set the LDO voltage to 0x0028 - FIXME: What is this?
-		 * Call sb_pmu_set_ldo_voltage with 4 and the LDO voltage
-		 *      as arguments
-		 * Call sb_pmu_paref_ldo_enable with argument TRUE
-		 */
+		ssb_pmu_set_ldo_voltage(&bus->chipco, LDO_PAREF, 0x28);
+		ssb_pmu_set_ldo_paref(&bus->chipco, true);
 		if (dev->phy.rev == 0) {
 			b43_phy_maskset(dev, B43_LPPHY_LP_RF_SIGNAL_LUT,
 					0xFFCF, 0x0010);
 		}
 		b43_lptab_write(dev, B43_LPTAB16(11, 7), 60);
 	} else {
-		//TODO: Call ssb_pmu_paref_ldo_enable with argument FALSE
+		ssb_pmu_set_ldo_paref(&bus->chipco, false);
 		b43_phy_maskset(dev, B43_LPPHY_LP_RF_SIGNAL_LUT,
 				0xFFCF, 0x0020);
 		b43_lptab_write(dev, B43_LPTAB16(11, 7), 100);
