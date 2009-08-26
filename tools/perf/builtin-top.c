@@ -483,11 +483,16 @@ static void print_sym_table(void)
 	if (nr_counters == 1)
 		printf("             samples    pcnt");
 	else
-		printf("  weight     samples    pcnt");
+		printf("   weight    samples    pcnt");
 
-	printf("         RIP          kernel function\n"
-	       	       "  ______     _______   _____   ________________   _______________\n\n"
-	);
+	if (verbose)
+		printf("         RIP       ");
+	printf("   kernel function\n");
+	printf("   %s    _______   _____",
+	       nr_counters == 1 ? "      " : "______");
+	if (verbose)
+		printf("   ________________");
+	printf("   _______________\n\n");
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct symbol *sym;
@@ -508,7 +513,9 @@ static void print_sym_table(void)
 			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
 
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
-		printf(" - %016llx : %s", sym->start, sym->name);
+		if (verbose)
+			printf(" - %016llx", sym->start);
+		printf(" : %s", sym->name);
 		if (sym->module)
 			printf("\t[%s]", sym->module->name);
 		printf("\n");
