@@ -2555,6 +2555,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 #endif
 	}
 
+	if (ah->ah_sc->sc_flags & SC_OP_BTCOEX_ENABLED)
+		ath9k_hw_btcoex_enable(ah);
+
 	return 0;
 }
 
