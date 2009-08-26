@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/parser.h>
 #include <linux/statfs.h>
 #include <linux/random.h>
@@ -27,6 +28,24 @@ MODULE_LICENSE("GPL");
 static struct kmem_cache *fuse_inode_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
+
+static int set_global_limit(const char *val, struct kernel_param *kp);
+
+static unsigned max_user_bgreq;
+module_param_call(max_user_bgreq, set_global_limit, param_get_uint,
+		  &max_user_bgreq, 0644);
+__MODULE_PARM_TYPE(max_user_bgreq, "uint");
+MODULE_PARM_DESC(max_user_bgreq,
+ "Global limit for the maximum number of backgrounded requests an "
+ "unprivileged user can set");
+
+static unsigned max_user_congthresh;
+module_param_call(max_user_congthresh, set_global_limit, param_get_uint,
+		  &max_user_congthresh, 0644);
+__MODULE_PARM_TYPE(max_user_congthresh, "uint");
+MODULE_PARM_DESC(max_user_congthresh,
+ "Global limit for the maximum congestion threshold an "
+ "unprivileged user can set");
 
 #define FUSE_SUPER_MAGIC 0x65735546
 
@@ -735,6 +754,54 @@ static const struct super_operations fuse_super_operations = {
 	.show_options	= fuse_show_options,
 };
 
+static void sanitize_global_limit(unsigned *limit)
+{
+	if (*limit == 0)
+		*limit = ((num_physpages << PAGE_SHIFT) >> 13) /
+			 sizeof(struct fuse_req);
+
+	if (*limit >= 1 << 16)
+		*limit = (1 << 16) - 1;
+}
+
+static int set_global_limit(const char *val, struct kernel_param *kp)
+{
+	int rv;
+
+	rv = param_set_uint(val, kp);
+	if (rv)
+		return rv;
+
+	sanitize_global_limit((unsigned *)kp->arg);
+
+	return 0;
+}
+
+static void process_init_limits(struct fuse_conn *fc, struct fuse_init_out *arg)
+{
+	int cap_sys_admin = capable(CAP_SYS_ADMIN);
+
+	if (arg->minor < 13)
+		return;
+
+	sanitize_global_limit(&max_user_bgreq);
+	sanitize_global_limit(&max_user_congthresh);
+
+	if (arg->max_background) {
+		fc->max_background = arg->max_background;
+
+		if (!cap_sys_admin && fc->max_background > max_user_bgreq)
+			fc->max_background = max_user_bgreq;
+	}
+	if (arg->congestion_threshold) {
+		fc->congestion_threshold = arg->congestion_threshold;
+
+		if (!cap_sys_admin &&
+		    fc->congestion_threshold > max_user_congthresh)
+			fc->congestion_threshold = max_user_congthresh;
+	}
+}
+
 static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct fuse_init_out *arg = &req->misc.init_out;
@@ -744,12 +811,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	else {
 		unsigned long ra_pages;
 
-		if (arg->minor >= 13) {
-			if (arg->max_background)
-				fc->max_background = arg->max_background;
-			if (arg->congestion_threshold)
-				fc->congestion_threshold = arg->congestion_threshold;
-		}
+		process_init_limits(fc, arg);
+
 		if (arg->minor >= 6) {
 			ra_pages = arg->max_readahead / PAGE_CACHE_SIZE;
 			if (arg->flags & FUSE_ASYNC_READ)
@@ -1160,6 +1223,9 @@ static int __init fuse_init(void)
 	res = fuse_ctl_init();
 	if (res)
 		goto err_sysfs_cleanup;
+
+	sanitize_global_limit(&max_user_bgreq);
+	sanitize_global_limit(&max_user_congthresh);
 
 	return 0;
 
