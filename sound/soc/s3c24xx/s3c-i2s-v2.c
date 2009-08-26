@@ -36,6 +36,7 @@
 #include <mach/dma.h>
 
 #include "s3c-i2s-v2.h"
+#include "s3c24xx-pcm.h"
 
 #undef S3C_IIS_V2_SUPPORTED
 
