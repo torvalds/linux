@@ -1385,14 +1385,13 @@ static int aic3x_probe(struct platform_device *pdev)
 	socdev->card->codec = codec;
 	setup = socdev->codec_data;
 
-	if (!setup) {
-		dev_err(&pdev->dev, "No setup data supplied\n");
-		return -EINVAL;
+	if (setup) {
+		/* setup GPIO functions */
+		aic3x_write(codec, AIC3X_GPIO1_REG,
+			    (setup->gpio_func[0] & 0xf) << 4);
+		aic3x_write(codec, AIC3X_GPIO2_REG,
+			    (setup->gpio_func[1] & 0xf) << 4);
 	}
-
-	/* setup GPIO functions */
-	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
-	aic3x_write(codec, AIC3X_GPIO2_REG, (setup->gpio_func[1] & 0xf) << 4);
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
