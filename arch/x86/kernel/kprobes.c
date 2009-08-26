@@ -490,9 +490,13 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 			/* A probe has been hit in the codepath leading up
 			 * to, or just after, single-stepping of a probed
 			 * instruction. This entire codepath should strictly
-			 * reside in .kprobes.text section. Raise a warning
-			 * to highlight this peculiar case.
+			 * reside in .kprobes.text section.
+			 * Raise a BUG or we'll continue in an endless
+			 * reentering loop and eventually a stack overflow.
 			 */
+			arch_disarm_kprobe(p);
+			dump_kprobe(p);
+			BUG();
 		}
 	default:
 		/* impossible cases */
