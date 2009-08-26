@@ -624,30 +624,35 @@ u32 b43_lptab_read(struct b43_wldev *dev, u32 offset)
 void b43_lptab_read_bulk(struct b43_wldev *dev, u32 offset,
 			 unsigned int nr_elements, void *_data)
 {
-	u32 type, value;
+	u32 type;
 	u8 *data = _data;
 	unsigned int i;
 
 	type = offset & B43_LPTAB_TYPEMASK;
+	offset &= ~B43_LPTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	b43_phy_write(dev, B43_LPPHY_TABLE_ADDR, offset);
+
 	for (i = 0; i < nr_elements; i++) {
-		value = b43_lptab_read(dev, offset);
 		switch (type) {
 		case B43_LPTAB_8BIT:
-			*data = value;
+			*data = b43_phy_read(dev, B43_LPPHY_TABLEDATALO) & 0xFF;
 			data++;
 			break;
 		case B43_LPTAB_16BIT:
-			*((u16 *)data) = value;
+			*((u16 *)data) = b43_phy_read(dev, B43_LPPHY_TABLEDATALO);
 			data += 2;
 			break;
 		case B43_LPTAB_32BIT:
-			*((u32 *)data) = value;
+			*((u32 *)data) = b43_phy_read(dev, B43_LPPHY_TABLEDATAHI);
+			*((u32 *)data) <<= 16;
+			*((u32 *)data) |= b43_phy_read(dev, B43_LPPHY_TABLEDATALO);
 			data += 4;
 			break;
 		default:
 			B43_WARN_ON(1);
 		}
-		offset++;
 	}
 }
 
@@ -688,26 +693,34 @@ void b43_lptab_write_bulk(struct b43_wldev *dev, u32 offset,
 	unsigned int i;
 
 	type = offset & B43_LPTAB_TYPEMASK;
+	offset &= ~B43_LPTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	b43_phy_write(dev, B43_LPPHY_TABLE_ADDR, offset);
+
 	for (i = 0; i < nr_elements; i++) {
 		switch (type) {
 		case B43_LPTAB_8BIT:
 			value = *data;
 			data++;
+			B43_WARN_ON(value & ~0xFF);
+			b43_phy_write(dev, B43_LPPHY_TABLEDATALO, value);
 			break;
 		case B43_LPTAB_16BIT:
 			value = *((u16 *)data);
 			data += 2;
+			B43_WARN_ON(value & ~0xFFFF);
+			b43_phy_write(dev, B43_LPPHY_TABLEDATALO, value);
 			break;
 		case B43_LPTAB_32BIT:
 			value = *((u32 *)data);
 			data += 4;
+			b43_phy_write(dev, B43_LPPHY_TABLEDATAHI, value >> 16);
+			b43_phy_write(dev, B43_LPPHY_TABLEDATALO, value);
 			break;
 		default:
 			B43_WARN_ON(1);
-			value = 0;
 		}
-		b43_lptab_write(dev, offset, value);
-		offset++;
 	}
 }
 
@@ -777,7 +790,7 @@ static const u8 lpphy_pll_fraction_table[] = {
 	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 };
 
-static const u16 lpphy_iq_local_table[] = {
+static const u16 lpphy_iqlo_cal_table[] = {
 	0x0200, 0x0300, 0x0400, 0x0600, 0x0800, 0x0b00, 0x1000, 0x1001, 0x1002,
 	0x1003, 0x1004, 0x1005, 0x1006, 0x1007, 0x1707, 0x2007, 0x2d07, 0x4007,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -789,10 +802,17 @@ static const u16 lpphy_iq_local_table[] = {
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x4000, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-static const u16 lpphy_ofdm_cck_gain_table[] = {
+static const u16 lpphy_rev0_ofdm_cck_gain_table[] = {
+	0x0001, 0x0001, 0x0001, 0x0001, 0x1001, 0x2001, 0x3001, 0x4001, 0x5001,
+	0x6001, 0x7001, 0x7011, 0x7021, 0x2035, 0x2045, 0x2055, 0x2065, 0x2075,
+	0x006d, 0x007d, 0x014d, 0x015d, 0x115d, 0x035d, 0x135d, 0x055d, 0x155d,
+	0x0d5d, 0x1d5d, 0x2d5d, 0x555d, 0x655d, 0x755d,
+};
+
+static const u16 lpphy_rev1_ofdm_cck_gain_table[] = {
 	0x5000, 0x6000, 0x7000, 0x0001, 0x1001, 0x2001, 0x3001, 0x4001, 0x5001,
 	0x6001, 0x7001, 0x7011, 0x7021, 0x2035, 0x2045, 0x2055, 0x2065, 0x2075,
 	0x006d, 0x007d, 0x014d, 0x015d, 0x115d, 0x035d, 0x135d, 0x055d, 0x155d,
@@ -2263,11 +2283,18 @@ void lpphy_rev0_1_table_init(struct b43_wldev *dev)
 	b43_lptab_write_bulk(dev, B43_LPTAB8(6, 0),
 		ARRAY_SIZE(lpphy_pll_fraction_table), lpphy_pll_fraction_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(0, 0),
-		ARRAY_SIZE(lpphy_iq_local_table), lpphy_iq_local_table);
-	b43_lptab_write_bulk(dev, B43_LPTAB16(13, 0),
-		ARRAY_SIZE(lpphy_ofdm_cck_gain_table), lpphy_ofdm_cck_gain_table);
-	b43_lptab_write_bulk(dev, B43_LPTAB16(12, 0),
-		ARRAY_SIZE(lpphy_ofdm_cck_gain_table), lpphy_ofdm_cck_gain_table);
+		ARRAY_SIZE(lpphy_iqlo_cal_table), lpphy_iqlo_cal_table);
+	if (dev->phy.rev == 0) {
+		b43_lptab_write_bulk(dev, B43_LPTAB16(13, 0),
+			ARRAY_SIZE(lpphy_rev0_ofdm_cck_gain_table), lpphy_rev0_ofdm_cck_gain_table);
+		b43_lptab_write_bulk(dev, B43_LPTAB16(12, 0),
+			ARRAY_SIZE(lpphy_rev0_ofdm_cck_gain_table), lpphy_rev0_ofdm_cck_gain_table);
+	} else {
+		b43_lptab_write_bulk(dev, B43_LPTAB16(13, 0),
+			ARRAY_SIZE(lpphy_rev1_ofdm_cck_gain_table), lpphy_rev1_ofdm_cck_gain_table);
+		b43_lptab_write_bulk(dev, B43_LPTAB16(12, 0),
+			ARRAY_SIZE(lpphy_rev1_ofdm_cck_gain_table), lpphy_rev1_ofdm_cck_gain_table);
+}
 	b43_lptab_write_bulk(dev, B43_LPTAB16(15, 0),
 		ARRAY_SIZE(lpphy_gain_delta_table), lpphy_gain_delta_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB32(10, 0),
@@ -2281,22 +2308,6 @@ void lpphy_rev2plus_table_init(struct b43_wldev *dev)
 
 	B43_WARN_ON(dev->phy.rev < 2);
 
-	/*
-	 * FIXME This code follows the specs, but it looks wrong:
-	 * In each pass, it writes 4 bytes to an offset in table ID 7,
-	 * then increments the offset by 1 for the next pass. This results
-	 * in the first 3 bytes of each pass except the first one getting
-	 * written to a location that has already been zeroed in the previous
-	 * pass.
-	 * This is what the vendor driver does, but it still looks suspicious.
-	 *
-	 * This should probably suffice:
-	 *
-	 * for (i = 0; i < 704; i+=4)
-	 * 	b43_lptab_write(dev, B43_LPTAB32(7, i), 0)
-	 *
-	 * This should be tested once the code is functional.
-	 */
 	for (i = 0; i < 704; i++)
 		b43_lptab_write(dev, B43_LPTAB32(7, i), 0);
 
@@ -2323,7 +2334,7 @@ void lpphy_rev2plus_table_init(struct b43_wldev *dev)
 	b43_lptab_write_bulk(dev, B43_LPTAB8(6, 0),
 		ARRAY_SIZE(lpphy_pll_fraction_table), lpphy_pll_fraction_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(0, 0),
-		ARRAY_SIZE(lpphy_iq_local_table), lpphy_iq_local_table);
+		ARRAY_SIZE(lpphy_iqlo_cal_table), lpphy_iqlo_cal_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB32(9, 0),
 		ARRAY_SIZE(lpphy_papd_eps_table), lpphy_papd_eps_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB32(10, 0),

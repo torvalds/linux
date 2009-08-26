@@ -95,6 +95,8 @@ enum b43_txpwr_result {
  * 			Must not be NULL.
  * @phy_write:		Write to a PHY register.
  * 			Must not be NULL.
+ * @phy_maskset:	Maskset a PHY register, taking shortcuts.
+ *			If it is NULL, a generic algorithm is used.
  * @radio_read:		Read from a Radio register.
  * 			Must not be NULL.
  * @radio_write:	Write to a Radio register.
@@ -154,6 +156,7 @@ struct b43_phy_operations {
 	/* Register access */
 	u16 (*phy_read)(struct b43_wldev *dev, u16 reg);
 	void (*phy_write)(struct b43_wldev *dev, u16 reg, u16 value);
+	void (*phy_maskset)(struct b43_wldev *dev, u16 reg, u16 mask, u16 set);
 	u16 (*radio_read)(struct b43_wldev *dev, u16 reg);
 	void (*radio_write)(struct b43_wldev *dev, u16 reg, u16 value);
 
