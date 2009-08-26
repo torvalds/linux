@@ -198,10 +198,11 @@ int flex_array_put(struct flex_array *fa, int element_nr, void *src, gfp_t flags
 		return -ENOSPC;
 	if (elements_fit_in_base(fa))
 		part = (struct flex_array_part *)&fa->parts[0];
-	else
+	else {
 		part = __fa_get_part(fa, part_nr, flags);
-	if (!part)
-		return -ENOMEM;
+		if (!part)
+			return -ENOMEM;
+	}
 	dst = &part->elements[index_inside_part(fa, element_nr)];
 	memcpy(dst, src, fa->element_size);
 	return 0;
@@ -257,11 +258,12 @@ void *flex_array_get(struct flex_array *fa, int element_nr)
 
 	if (element_nr >= fa->total_nr_elements)
 		return NULL;
-	if (!fa->parts[part_nr])
-		return NULL;
 	if (elements_fit_in_base(fa))
 		part = (struct flex_array_part *)&fa->parts[0];
-	else
+	else {
 		part = fa->parts[part_nr];
+		if (!part)
+			return NULL;
+	}
 	return &part->elements[index_inside_part(fa, element_nr)];
 }
