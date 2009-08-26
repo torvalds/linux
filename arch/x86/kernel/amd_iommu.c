@@ -1988,19 +1988,47 @@ static void cleanup_domain(struct protection_domain *domain)
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 }
 
-static int amd_iommu_domain_init(struct iommu_domain *dom)
+static void protection_domain_free(struct protection_domain *domain)
+{
+	if (!domain)
+		return;
+
+	if (domain->id)
+		domain_id_free(domain->id);
+
+	kfree(domain);
+}
+
+static struct protection_domain *protection_domain_alloc(void)
 {
 	struct protection_domain *domain;
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
-		return -ENOMEM;
+		return NULL;
 
 	spin_lock_init(&domain->lock);
-	domain->mode = PAGE_MODE_3_LEVEL;
 	domain->id = domain_id_alloc();
 	if (!domain->id)
+		goto out_err;
+
+	return domain;
+
+out_err:
+	kfree(domain);
+
+	return NULL;
+}
+
+static int amd_iommu_domain_init(struct iommu_domain *dom)
+{
+	struct protection_domain *domain;
+
+	domain = protection_domain_alloc();
+	if (!domain)
 		goto out_free;
+
+	domain->mode    = PAGE_MODE_3_LEVEL;
 	domain->pt_root = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!domain->pt_root)
 		goto out_free;
@@ -2010,7 +2038,7 @@ static int amd_iommu_domain_init(struct iommu_domain *dom)
 	return 0;
 
 out_free:
-	kfree(domain);
+	protection_domain_free(domain);
 
 	return -ENOMEM;
 }
