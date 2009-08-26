@@ -216,13 +216,13 @@ static void expire_wake_lock(struct wake_lock *lock)
 		pr_info("expired wake lock %s\n", lock->name);
 }
 
+/* Caller must acquire the list_lock spinlock */
 static void print_active_locks(int type)
 {
 	unsigned long irqflags;
 	struct wake_lock *lock;
 
 	BUG_ON(type >= WAKE_LOCK_TYPE_COUNT);
-	spin_lock_irqsave(&list_lock, irqflags);
 	list_for_each_entry(lock, &active_wake_locks[type], link) {
 		if (lock->flags & WAKE_LOCK_AUTO_EXPIRE) {
 			long timeout = lock->expires - jiffies;
@@ -234,7 +234,6 @@ static void print_active_locks(int type)
 		} else
 			pr_info("active wake lock %s\n", lock->name);
 	}
-	spin_unlock_irqrestore(&list_lock, irqflags);
 }
 
 static long has_wake_lock_locked(int type)
@@ -306,9 +305,9 @@ static void expire_wake_locks(unsigned long data)
 	unsigned long irqflags;
 	if (debug_mask & DEBUG_EXPIRE)
 		pr_info("expire_wake_locks: start\n");
+	spin_lock_irqsave(&list_lock, irqflags);
 	if (debug_mask & DEBUG_SUSPEND)
 		print_active_locks(WAKE_LOCK_SUSPEND);
-	spin_lock_irqsave(&list_lock, irqflags);
 	has_lock = has_wake_lock_locked(WAKE_LOCK_SUSPEND);
 	if (debug_mask & DEBUG_EXPIRE)
 		pr_info("expire_wake_locks: done, has_lock %ld\n", has_lock);
