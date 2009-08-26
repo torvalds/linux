@@ -62,6 +62,7 @@
  * @idx: per channel data
  * @dca: direct cache access context
  * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
+ * @enumerate_channels: hw version specific channel enumeration
  */
 
 struct ioatdma_device {
@@ -76,6 +77,7 @@ struct ioatdma_device {
 	struct ioat_chan_common *idx[4];
 	struct dca_provider *dca;
 	void (*intr_quirk)(struct ioatdma_device *device);
+	int (*enumerate_channels)(struct ioatdma_device *device);
 };
 
 struct ioat_chan_common {
@@ -106,6 +108,7 @@ struct ioat_chan_common {
 	struct tasklet_struct cleanup_task;
 };
 
+
 /**
  * struct ioat_dma_chan - internal representation of a DMA channel
  */
@@ -119,7 +122,6 @@ struct ioat_dma_chan {
 	struct list_head used_desc;
 
 	int pending;
-	u16 dmacount;
 	u16 desccount;
 };
 
@@ -133,6 +135,33 @@ static inline struct ioat_dma_chan *to_ioat_chan(struct dma_chan *c)
 	struct ioat_chan_common *chan = to_chan_common(c);
 
 	return container_of(chan, struct ioat_dma_chan, base);
+}
+
+/**
+ * ioat_is_complete - poll the status of an ioat transaction
+ * @c: channel handle
+ * @cookie: transaction identifier
+ * @done: if set, updated with last completed transaction
+ * @used: if set, updated with last used transaction
+ */
+static inline enum dma_status
+ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
+		 dma_cookie_t *done, dma_cookie_t *used)
+{
+	struct ioat_chan_common *chan = to_chan_common(c);
+	dma_cookie_t last_used;
+	dma_cookie_t last_complete;
+
+	last_used = c->cookie;
+	last_complete = chan->completed_cookie;
+	chan->watchdog_tcp_cookie = cookie;
+
+	if (done)
+		*done = last_complete;
+	if (used)
+		*used = last_used;
+
+	return dma_async_is_complete(cookie, last_complete, last_used);
 }
 
 /* wrapper around hardware descriptor format + additional software fields */
@@ -162,11 +191,22 @@ static inline void ioat_set_tcp_copy_break(unsigned long copybreak)
 	#endif
 }
 
+static inline struct ioat_chan_common *
+ioat_chan_by_index(struct ioatdma_device *device, int index)
+{
+	return device->idx[index];
+}
+
+int ioat_probe(struct ioatdma_device *device);
+int ioat_register(struct ioatdma_device *device);
 int ioat1_dma_probe(struct ioatdma_device *dev, int dca);
-int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
-int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 void ioat_dma_remove(struct ioatdma_device *device);
 struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
+void ioat_init_channel(struct ioatdma_device *device,
+		       struct ioat_chan_common *chan, int idx,
+		       work_func_t work_fn, void (*tasklet)(unsigned long),
+		       unsigned long tasklet_data);
+void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
+		    size_t len, struct ioat_dma_descriptor *hw);
 #endif /* IOATDMA_H */
