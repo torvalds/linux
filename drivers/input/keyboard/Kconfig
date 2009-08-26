@@ -330,6 +330,17 @@ config KEYBOARD_OMAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap-keypad.
 
+config KEYBOARD_TWL4030
+	tristate "TI TWL4030/TWL5030/TPS659x0 keypad support"
+	depends on TWL4030_CORE
+	help
+	  Say Y here if your board use the keypad controller on
+	  TWL4030 family chips.  It's safe to say enable this
+	  even on boards that don't use the keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called twl4030_keypad.
+
 config KEYBOARD_TOSA
 	tristate "Tosa keyboard"
 	depends on MACH_TOSA
