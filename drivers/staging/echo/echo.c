@@ -220,12 +220,12 @@ static inline void lms_adapt_bg(struct oslec_state *ec, int clean,
 }
 #endif
 
-static __inline__ int top_bit(unsigned int bits)
+static inline int top_bit(unsigned int bits)
 {
 	if (bits == 0)
-	    return -1;
-        else
-	    return (int)fls((int32_t)bits)-1;
+		return -1;
+	else
+		return (int)fls((int32_t)bits)-1;
 }
 
 struct oslec_state *oslec_create(int len, int adaption_mode)
@@ -466,7 +466,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 		   factor      = (2^30) * (2^-2) * clean_bg_rx/P
 
-		                              (30 - 2 - log2(P))
+						(30 - 2 - log2(P))
 		   factor      = clean_bg_rx 2                     ----- (3)
 
 		   To avoid a divide we approximate log2(P) as top_bit(P),

@@ -23,14 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/*! \page fir_page FIR filtering
-\section fir_page_sec_1 What does it do?
-???.
-
-\section fir_page_sec_2 How does it work?
-???.
-*/
-
 #if !defined(_FIR_H_)
 #define _FIR_H_
 
@@ -62,10 +54,10 @@
    can.
 */
 
-/*!
-    16 bit integer FIR descriptor. This defines the working state for a single
-    instance of an FIR filter using 16 bit integer coefficients.
-*/
+/*
+ * 16 bit integer FIR descriptor. This defines the working state for a single
+ * instance of an FIR filter using 16 bit integer coefficients.
+ */
 struct fir16_state_t {
 	int taps;
 	int curr_pos;
@@ -73,11 +65,11 @@ struct fir16_state_t {
 	int16_t *history;
 };
 
-/*!
-    32 bit integer FIR descriptor. This defines the working state for a single
-    instance of an FIR filter using 32 bit integer coefficients, and filtering
-    16 bit integer data.
-*/
+/*
+ * 32 bit integer FIR descriptor. This defines the working state for a single
+ * instance of an FIR filter using 32 bit integer coefficients, and filtering
+ * 16 bit integer data.
+ */
 struct fir32_state_t {
 	int taps;
 	int curr_pos;
@@ -85,10 +77,10 @@ struct fir32_state_t {
 	int16_t *history;
 };
 
-/*!
-    Floating point FIR descriptor. This defines the working state for a single
-    instance of an FIR filter using floating point coefficients and data.
-*/
+/*
+ * Floating point FIR descriptor. This defines the working state for a single
+ * instance of an FIR filter using floating point coefficients and data.
+ */
 struct fir_float_state_t {
 	int taps;
 	int curr_pos;
@@ -222,4 +214,3 @@ static inline int16_t fir32(struct fir32_state_t *fir, int16_t sample)
 }
 
 #endif
-/*- End of file ------------------------------------------------------------*/
