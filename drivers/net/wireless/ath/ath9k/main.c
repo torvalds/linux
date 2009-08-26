@@ -440,7 +440,7 @@ static void ath_start_ani(struct ath_softc *sc)
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
 	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
-	    (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)) {
+	    (sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE)) {
 		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
 		sc->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
 	} else {
@@ -1509,8 +1509,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 			ARRAY_SIZE(ath9k_5ghz_chantable);
 	}
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX) &&
-	    (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_2WIRE))
+	if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_2WIRE)
 		ath9k_hw_btcoex_init(ah);
 
 	return 0;
@@ -1993,8 +1992,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX) &&
-	    (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) &&
+	if ((sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) &&
 	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED))
 		ath9k_hw_btcoex_enable(sc->sc_ah);
 

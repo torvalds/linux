@@ -151,7 +151,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(14),
 	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(15),
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(16),
-	ATH9K_HW_CAP_BT_COEX			= BIT(17)
 };
 
 enum ath9k_capability_type {
