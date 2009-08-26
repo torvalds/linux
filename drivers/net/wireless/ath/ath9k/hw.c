@@ -4073,7 +4073,7 @@ void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode)
 /*  Bluetooth Coexistence  */
 /***************************/
 
-void ath9k_hw_btcoex_enable(struct ath_hw *ah)
+void ath9k_hw_btcoex_init(struct ath_hw *ah)
 {
 	/* connect bt_active to baseband */
 	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
@@ -4090,8 +4090,23 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 
 	/* Configure the desired gpio port for input */
 	ath9k_hw_cfg_gpio_input(ah, ah->btactive_gpio);
+}
 
+void ath9k_hw_btcoex_enable(struct ath_hw *ah)
+{
 	/* Configure the desired GPIO port for TX_FRAME output */
 	ath9k_hw_cfg_output(ah, ah->wlanactive_gpio,
 			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
+
+	ah->ah_sc->sc_flags |= SC_OP_BTCOEX_ENABLED;
+}
+
+void ath9k_hw_btcoex_disable(struct ath_hw *ah)
+{
+	ath9k_hw_set_gpio(ah, ah->wlanactive_gpio, 0);
+
+	ath9k_hw_cfg_output(ah, ah->wlanactive_gpio,
+			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+
+	ah->ah_sc->sc_flags &= ~SC_OP_BTCOEX_ENABLED;
 }

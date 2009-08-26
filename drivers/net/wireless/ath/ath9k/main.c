@@ -1509,8 +1509,8 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 			ARRAY_SIZE(ath9k_5ghz_chantable);
 	}
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)
-		ath9k_hw_btcoex_enable(sc->sc_ah);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)
+		ath9k_hw_btcoex_init(ah);
 
 	return 0;
 bad2:
@@ -1992,6 +1992,10 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX) &&
+	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED))
+		ath9k_hw_btcoex_enable(sc->sc_ah);
+
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
 
@@ -2137,6 +2141,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		sc->rx.rxlink = NULL;
 
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
+
+	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED)
+		ath9k_hw_btcoex_disable(sc->sc_ah);
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
