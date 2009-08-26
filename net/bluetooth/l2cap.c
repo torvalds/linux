@@ -366,6 +366,16 @@ static inline int l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 	return hci_send_acl(pi->conn->hcon, skb, 0);
 }
 
+static inline int l2cap_send_rr_or_rnr(struct l2cap_pinfo *pi, u16 control)
+{
+	if (pi->conn_state & L2CAP_CONN_LOCAL_BUSY)
+		control |= L2CAP_SUPER_RCV_NOT_READY;
+	else
+		control |= L2CAP_SUPER_RCV_READY;
+
+	return l2cap_send_sframe(pi, control);
+}
+
 static void l2cap_do_start(struct sock *sk)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
@@ -1202,8 +1212,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	__mod_monitor_timer();
 
 	control = L2CAP_CTRL_POLL;
-	control |= L2CAP_SUPER_RCV_READY;
-	l2cap_send_sframe(l2cap_pi(sk), control);
+	l2cap_send_rr_or_rnr(l2cap_pi(sk), control);
 	bh_unlock_sock(sk);
 }
 
@@ -1219,8 +1228,7 @@ static void l2cap_retrans_timeout(unsigned long arg)
 	l2cap_pi(sk)->conn_state |= L2CAP_CONN_WAIT_F;
 
 	control = L2CAP_CTRL_POLL;
-	control |= L2CAP_SUPER_RCV_READY;
-	l2cap_send_sframe(l2cap_pi(sk), control);
+	l2cap_send_rr_or_rnr(l2cap_pi(sk), control);
 	bh_unlock_sock(sk);
 }
 
@@ -3428,8 +3436,8 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 
 		del_timer(&l2cap_pi(sk)->retrans_timer);
 		if (rx_control & L2CAP_CTRL_POLL) {
-			u16 control = L2CAP_CTRL_FINAL | L2CAP_SUPER_RCV_READY;
-			l2cap_send_sframe(l2cap_pi(sk), control);
+			u16 control = L2CAP_CTRL_FINAL;
+			l2cap_send_rr_or_rnr(l2cap_pi(sk), control);
 		}
 		break;
 	}
