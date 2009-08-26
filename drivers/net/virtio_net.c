@@ -280,7 +280,7 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 	bool oom = false;
 
 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
-	for (;;) {
+	do {
 		struct skb_vnet_hdr *hdr;
 
 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
@@ -323,7 +323,7 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 			break;
 		}
 		vi->num++;
-	}
+	} while (err >= num);
 	if (unlikely(vi->num > vi->max))
 		vi->max = vi->num;
 	vi->rvq->vq_ops->kick(vi->rvq);
@@ -341,7 +341,7 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 	if (!vi->mergeable_rx_bufs)
 		return try_fill_recv_maxbufs(vi, gfp);
 
-	for (;;) {
+	do {
 		skb_frag_t *f;
 
 		skb = netdev_alloc_skb(vi->dev, GOOD_COPY_LEN + NET_IP_ALIGN);
@@ -375,7 +375,7 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 			break;
 		}
 		vi->num++;
-	}
+	} while (err > 0);
 	if (unlikely(vi->num > vi->max))
 		vi->max = vi->num;
 	vi->rvq->vq_ops->kick(vi->rvq);
