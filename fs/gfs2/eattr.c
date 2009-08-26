@@ -18,7 +18,6 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "acl.h"
-#include "eaops.h"
 #include "eattr.h"
 #include "glock.h"
 #include "inode.h"
@@ -38,26 +37,32 @@
  * Returns: 1 if the EA should be stuffed
  */
 
-static int ea_calc_size(struct gfs2_sbd *sdp, struct gfs2_ea_request *er,
+static int ea_calc_size(struct gfs2_sbd *sdp, unsigned int nsize, size_t dsize,
 			unsigned int *size)
 {
-	*size = GFS2_EAREQ_SIZE_STUFFED(er);
-	if (*size <= sdp->sd_jbsize)
+	unsigned int jbsize = sdp->sd_jbsize;
+
+	/* Stuffed */
+	*size = ALIGN(sizeof(struct gfs2_ea_header) + nsize + dsize, 8);
+
+	if (*size <= jbsize)
 		return 1;
 
-	*size = GFS2_EAREQ_SIZE_UNSTUFFED(sdp, er);
+	/* Unstuffed */
+	*size = ALIGN(sizeof(struct gfs2_ea_header) + nsize +
+		      (sizeof(__be64) * DIV_ROUND_UP(dsize, jbsize)), 8);
 
 	return 0;
 }
 
-static int ea_check_size(struct gfs2_sbd *sdp, struct gfs2_ea_request *er)
+static int ea_check_size(struct gfs2_sbd *sdp, unsigned int nsize, size_t dsize)
 {
 	unsigned int size;
 
-	if (er->er_data_len > GFS2_EA_MAX_DATA_LEN)
+	if (dsize > GFS2_EA_MAX_DATA_LEN)
 		return -ERANGE;
 
-	ea_calc_size(sdp, er, &size);
+	ea_calc_size(sdp, nsize, dsize, &size);
 
 	/* This can only happen with 512 byte blocks */
 	if (size > sdp->sd_jbsize)
@@ -151,7 +156,9 @@ out:
 }
 
 struct ea_find {
-	struct gfs2_ea_request *ef_er;
+	int type;
+	const char *name;
+	size_t namel;
 	struct gfs2_ea_location *ef_el;
 };
 
@@ -160,14 +167,13 @@ static int ea_find_i(struct gfs2_inode *ip, struct buffer_head *bh,
 		     void *private)
 {
 	struct ea_find *ef = private;
-	struct gfs2_ea_request *er = ef->ef_er;
 
 	if (ea->ea_type == GFS2_EATYPE_UNUSED)
 		return 0;
 
-	if (ea->ea_type == er->er_type) {
-		if (ea->ea_name_len == er->er_name_len &&
-		    !memcmp(GFS2_EA2NAME(ea), er->er_name, ea->ea_name_len)) {
+	if (ea->ea_type == ef->type) {
+		if (ea->ea_name_len == ef->namel &&
+		    !memcmp(GFS2_EA2NAME(ea), ef->name, ea->ea_name_len)) {
 			struct gfs2_ea_location *el = ef->ef_el;
 			get_bh(bh);
 			el->el_bh = bh;
@@ -180,13 +186,15 @@ static int ea_find_i(struct gfs2_inode *ip, struct buffer_head *bh,
 	return 0;
 }
 
-int gfs2_ea_find(struct gfs2_inode *ip, struct gfs2_ea_request *er,
+int gfs2_ea_find(struct gfs2_inode *ip, int type, const char *name,
 		 struct gfs2_ea_location *el)
 {
 	struct ea_find ef;
 	int error;
 
-	ef.ef_er = er;
+	ef.type = type;
+	ef.name = name;
+	ef.namel = strlen(name);
 	ef.ef_el = el;
 
 	memset(el, 0, sizeof(struct gfs2_ea_location));
@@ -344,6 +352,20 @@ struct ea_list {
 	unsigned int ei_size;
 };
 
+static inline unsigned int gfs2_ea_strlen(struct gfs2_ea_header *ea)
+{
+	switch (ea->ea_type) {
+	case GFS2_EATYPE_USR:
+		return 5 + ea->ea_name_len + 1;
+	case GFS2_EATYPE_SYS:
+		return 7 + ea->ea_name_len + 1;
+	case GFS2_EATYPE_SECURITY:
+		return 9 + ea->ea_name_len + 1;
+	default:
+		return 0;
+	}
+}
+
 static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 		     struct gfs2_ea_header *ea, struct gfs2_ea_header *prev,
 		     void *private)
@@ -392,21 +414,25 @@ static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 }
 
 /**
- * gfs2_ea_list -
- * @ip:
- * @er:
+ * gfs2_listxattr - List gfs2 extended attributes
+ * @dentry: The dentry whose inode we are interested in
+ * @buffer: The buffer to write the results
+ * @size: The size of the buffer
  *
  * Returns: actual size of data on success, -errno on error
  */
 
-int gfs2_ea_list(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
+	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct gfs2_ea_request er;
 	struct gfs2_holder i_gh;
 	int error;
 
-	if (!er->er_data || !er->er_data_len) {
-		er->er_data = NULL;
-		er->er_data_len = 0;
+	memset(&er, 0, sizeof(struct gfs2_ea_request));
+	if (size) {
+		er.er_data = buffer;
+		er.er_data_len = size;
 	}
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
@@ -414,7 +440,7 @@ int gfs2_ea_list(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 		return error;
 
 	if (ip->i_eattr) {
-		struct ea_list ei = { .ei_er = er, .ei_size = 0 };
+		struct ea_list ei = { .ei_er = &er, .ei_size = 0 };
 
 		error = ea_foreach(ip, ea_list_i, &ei);
 		if (!error)
@@ -491,79 +517,56 @@ out:
 }
 
 int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
-		     char *data)
+		     char *data, size_t size)
 {
+	int ret;
+	size_t len = GFS2_EA_DATA_LEN(el->el_ea);
+	if (len > size)
+		return -ERANGE;
+
 	if (GFS2_EA_IS_STUFFED(el->el_ea)) {
-		memcpy(data, GFS2_EA2DATA(el->el_ea), GFS2_EA_DATA_LEN(el->el_ea));
-		return 0;
-	} else
-		return ea_get_unstuffed(ip, el->el_ea, data);
+		memcpy(data, GFS2_EA2DATA(el->el_ea), len);
+		return len;
+	}
+	ret = ea_get_unstuffed(ip, el->el_ea, data);
+	if (ret < 0)
+		return ret;
+	return len;
 }
 
 /**
- * gfs2_ea_get_i -
- * @ip: The GFS2 inode
- * @er: The request structure
+ * gfs2_xattr_get - Get a GFS2 extended attribute
+ * @inode: The inode
+ * @type: The type of extended attribute
+ * @name: The name of the extended attribute
+ * @buffer: The buffer to write the result into
+ * @size: The size of the buffer
  *
  * Returns: actual size of data on success, -errno on error
  */
 
-int gfs2_ea_get_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+int gfs2_xattr_get(struct inode *inode, int type, const char *name,
+		   void *buffer, size_t size)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_ea_location el;
 	int error;
 
 	if (!ip->i_eattr)
 		return -ENODATA;
+	if (strlen(name) > GFS2_EA_MAX_NAME_LEN)
+		return -EINVAL;
 
-	error = gfs2_ea_find(ip, er, &el);
+	error = gfs2_ea_find(ip, type, name, &el);
 	if (error)
 		return error;
 	if (!el.el_ea)
 		return -ENODATA;
-
-	if (er->er_data_len) {
-		if (GFS2_EA_DATA_LEN(el.el_ea) > er->er_data_len)
-			error =  -ERANGE;
-		else
-			error = gfs2_ea_get_copy(ip, &el, er->er_data);
-	}
-	if (!error)
+	if (size) 
+		error = gfs2_ea_get_copy(ip, &el, buffer, size);
+	else
 		error = GFS2_EA_DATA_LEN(el.el_ea);
-
 	brelse(el.el_bh);
-
-	return error;
-}
-
-/**
- * gfs2_ea_get -
- * @ip: The GFS2 inode
- * @er: The request structure
- *
- * Returns: actual size of data on success, -errno on error
- */
-
-int gfs2_ea_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
-{
-	struct gfs2_holder i_gh;
-	int error;
-
-	if (!er->er_name_len ||
-	    er->er_name_len > GFS2_EA_MAX_NAME_LEN)
-		return -EINVAL;
-	if (!er->er_data || !er->er_data_len) {
-		er->er_data = NULL;
-		er->er_data_len = 0;
-	}
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
-	if (error)
-		return error;
-
-	error = gfs2_ea_ops[er->er_type]->eo_get(ip, er);
-
-	gfs2_glock_dq_uninit(&i_gh);
 
 	return error;
 }
@@ -713,12 +716,6 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {
-		if (er->er_flags & GFS2_ERF_MODE) {
-			gfs2_assert_withdraw(GFS2_SB(&ip->i_inode),
-					    (ip->i_inode.i_mode & S_IFMT) ==
-					    (er->er_mode & S_IFMT));
-			ip->i_inode.i_mode = er->er_mode;
-		}
 		ip->i_inode.i_ctime = CURRENT_TIME;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
@@ -762,15 +759,23 @@ static int ea_init_i(struct gfs2_inode *ip, struct gfs2_ea_request *er,
  * Returns: errno
  */
 
-static int ea_init(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+static int ea_init(struct gfs2_inode *ip, int type, const char *name,
+		   const void *data, size_t size)
 {
+	struct gfs2_ea_request er;
 	unsigned int jbsize = GFS2_SB(&ip->i_inode)->sd_jbsize;
 	unsigned int blks = 1;
 
-	if (GFS2_EAREQ_SIZE_STUFFED(er) > jbsize)
-		blks += DIV_ROUND_UP(er->er_data_len, jbsize);
+	er.er_type = type;
+	er.er_name = name;
+	er.er_name_len = strlen(name);
+	er.er_data = (void *)data;
+	er.er_data_len = size;
 
-	return ea_alloc_skeleton(ip, er, blks, ea_init_i, NULL);
+	if (GFS2_EAREQ_SIZE_STUFFED(&er) > jbsize)
+		blks += DIV_ROUND_UP(er.er_data_len, jbsize);
+
+	return ea_alloc_skeleton(ip, &er, blks, ea_init_i, NULL);
 }
 
 static struct gfs2_ea_header *ea_split_ea(struct gfs2_ea_header *ea)
@@ -848,12 +853,6 @@ static int ea_set_simple_noalloc(struct gfs2_inode *ip, struct buffer_head *bh,
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto out;
-
-	if (er->er_flags & GFS2_ERF_MODE) {
-		gfs2_assert_withdraw(GFS2_SB(&ip->i_inode),
-			(ip->i_inode.i_mode & S_IFMT) == (er->er_mode & S_IFMT));
-		ip->i_inode.i_mode = er->er_mode;
-	}
 	ip->i_inode.i_ctime = CURRENT_TIME;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -894,7 +893,8 @@ static int ea_set_simple(struct gfs2_inode *ip, struct buffer_head *bh,
 	int stuffed;
 	int error;
 
-	stuffed = ea_calc_size(GFS2_SB(&ip->i_inode), es->es_er, &size);
+	stuffed = ea_calc_size(GFS2_SB(&ip->i_inode), es->es_er->er_name_len,
+			       es->es_er->er_data_len, &size);
 
 	if (ea->ea_type == GFS2_EATYPE_UNUSED) {
 		if (GFS2_EA_REC_LEN(ea) < size)
@@ -1005,15 +1005,22 @@ out:
 	return error;
 }
 
-static int ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er,
-		    struct gfs2_ea_location *el)
+static int ea_set_i(struct gfs2_inode *ip, int type, const char *name,
+		    const void *value, size_t size, struct gfs2_ea_location *el)
 {
+	struct gfs2_ea_request er;
 	struct ea_set es;
 	unsigned int blks = 2;
 	int error;
 
+	er.er_type = type;
+	er.er_name = name;
+	er.er_data = (void *)value;
+	er.er_name_len = strlen(name);
+	er.er_data_len = size;
+
 	memset(&es, 0, sizeof(struct ea_set));
-	es.es_er = er;
+	es.es_er = &er;
 	es.es_el = el;
 
 	error = ea_foreach(ip, ea_set_simple, &es);
@@ -1024,10 +1031,10 @@ static int ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 
 	if (!(ip->i_diskflags & GFS2_DIF_EA_INDIRECT))
 		blks++;
-	if (GFS2_EAREQ_SIZE_STUFFED(er) > GFS2_SB(&ip->i_inode)->sd_jbsize)
-		blks += DIV_ROUND_UP(er->er_data_len, GFS2_SB(&ip->i_inode)->sd_jbsize);
+	if (GFS2_EAREQ_SIZE_STUFFED(&er) > GFS2_SB(&ip->i_inode)->sd_jbsize)
+		blks += DIV_ROUND_UP(er.er_data_len, GFS2_SB(&ip->i_inode)->sd_jbsize);
 
-	return ea_alloc_skeleton(ip, er, blks, ea_set_block, el);
+	return ea_alloc_skeleton(ip, &er, blks, ea_set_block, el);
 }
 
 static int ea_set_remove_unstuffed(struct gfs2_inode *ip,
@@ -1040,74 +1047,6 @@ static int ea_set_remove_unstuffed(struct gfs2_inode *ip,
 	}
 
 	return ea_remove_unstuffed(ip, el->el_bh, el->el_ea, el->el_prev,0);
-}
-
-int gfs2_ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
-{
-	struct gfs2_ea_location el;
-	int error;
-
-	if (!ip->i_eattr) {
-		if (er->er_flags & XATTR_REPLACE)
-			return -ENODATA;
-		return ea_init(ip, er);
-	}
-
-	error = gfs2_ea_find(ip, er, &el);
-	if (error)
-		return error;
-
-	if (el.el_ea) {
-		if (ip->i_diskflags & GFS2_DIF_APPENDONLY) {
-			brelse(el.el_bh);
-			return -EPERM;
-		}
-
-		error = -EEXIST;
-		if (!(er->er_flags & XATTR_CREATE)) {
-			int unstuffed = !GFS2_EA_IS_STUFFED(el.el_ea);
-			error = ea_set_i(ip, er, &el);
-			if (!error && unstuffed)
-				ea_set_remove_unstuffed(ip, &el);
-		}
-
-		brelse(el.el_bh);
-	} else {
-		error = -ENODATA;
-		if (!(er->er_flags & XATTR_REPLACE))
-			error = ea_set_i(ip, er, NULL);
-	}
-
-	return error;
-}
-
-int gfs2_ea_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
-{
-	struct gfs2_holder i_gh;
-	int error;
-
-	if (!er->er_name_len || er->er_name_len > GFS2_EA_MAX_NAME_LEN)
-		return -EINVAL;
-	if (!er->er_data || !er->er_data_len) {
-		er->er_data = NULL;
-		er->er_data_len = 0;
-	}
-	error = ea_check_size(GFS2_SB(&ip->i_inode), er);
-	if (error)
-		return error;
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
-	if (error)
-		return error;
-
-	if (IS_IMMUTABLE(&ip->i_inode))
-		error = -EPERM;
-	else
-		error = gfs2_ea_ops[er->er_type]->eo_set(ip, er);
-
-	gfs2_glock_dq_uninit(&i_gh);
-
-	return error;
 }
 
 static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
@@ -1131,8 +1070,9 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 
 		if (GFS2_EA_IS_LAST(ea))
 			prev->ea_flags |= GFS2_EAFLAG_LAST;
-	} else
+	} else {
 		ea->ea_type = GFS2_EATYPE_UNUSED;
+	}
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {
@@ -1147,15 +1087,29 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 	return error;
 }
 
-int gfs2_ea_remove_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+/**
+ * gfs2_xattr_remove - Remove a GFS2 extended attribute
+ * @inode: The inode
+ * @type: The type of the extended attribute
+ * @name: The name of the extended attribute
+ *
+ * This is not called directly by the VFS since we use the (common)
+ * scheme of making a "set with NULL data" mean a remove request. Note
+ * that this is different from a set with zero length data.
+ *
+ * Returns: 0, or errno on failure
+ */
+
+static int gfs2_xattr_remove(struct inode *inode, int type, const char *name)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_ea_location el;
 	int error;
 
 	if (!ip->i_eattr)
 		return -ENODATA;
 
-	error = gfs2_ea_find(ip, er, &el);
+	error = gfs2_ea_find(ip, type, name, &el);
 	if (error)
 		return error;
 	if (!el.el_ea)
@@ -1164,8 +1118,7 @@ int gfs2_ea_remove_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 	if (GFS2_EA_IS_STUFFED(el.el_ea))
 		error = ea_remove_stuffed(ip, &el);
 	else
-		error = ea_remove_unstuffed(ip, el.el_bh, el.el_ea, el.el_prev,
-					    0);
+		error = ea_remove_unstuffed(ip, el.el_bh, el.el_ea, el.el_prev, 0);
 
 	brelse(el.el_bh);
 
@@ -1173,31 +1126,70 @@ int gfs2_ea_remove_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 }
 
 /**
- * gfs2_ea_remove - sets (or creates or replaces) an extended attribute
- * @ip: pointer to the inode of the target file
- * @er: request information
+ * gfs2_xattr_set - Set (or remove) a GFS2 extended attribute
+ * @inode: The inode
+ * @type: The type of the extended attribute
+ * @name: The name of the extended attribute
+ * @value: The value of the extended attribute (NULL for remove)
+ * @size: The size of the @value argument
+ * @flags: Create or Replace
  *
- * Returns: errno
+ * See gfs2_xattr_remove() for details of the removal of xattrs.
+ *
+ * Returns: 0 or errno on failure
  */
 
-int gfs2_ea_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+int gfs2_xattr_set(struct inode *inode, int type, const char *name,
+		   const void *value, size_t size, int flags)
 {
-	struct gfs2_holder i_gh;
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_ea_location el;
+	unsigned int namel = strlen(name);
 	int error;
 
-	if (!er->er_name_len || er->er_name_len > GFS2_EA_MAX_NAME_LEN)
-		return -EINVAL;
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
+		return -EPERM;
+	if (namel > GFS2_EA_MAX_NAME_LEN)
+		return -ERANGE;
 
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
+	if (value == NULL)
+		return gfs2_xattr_remove(inode, type, name);
+
+	if (ea_check_size(sdp, namel, size))
+		return -ERANGE;
+
+	if (!ip->i_eattr) {
+		if (flags & XATTR_REPLACE)
+			return -ENODATA;
+		return ea_init(ip, type, name, value, size);
+	}
+
+	error = gfs2_ea_find(ip, type, name, &el);
 	if (error)
 		return error;
 
-	if (IS_IMMUTABLE(&ip->i_inode) || IS_APPEND(&ip->i_inode))
-		error = -EPERM;
-	else
-		error = gfs2_ea_ops[er->er_type]->eo_remove(ip, er);
+	if (el.el_ea) {
+		if (ip->i_diskflags & GFS2_DIF_APPENDONLY) {
+			brelse(el.el_bh);
+			return -EPERM;
+		}
 
-	gfs2_glock_dq_uninit(&i_gh);
+		error = -EEXIST;
+		if (!(flags & XATTR_CREATE)) {
+			int unstuffed = !GFS2_EA_IS_STUFFED(el.el_ea);
+			error = ea_set_i(ip, type, name, value, size, &el);
+			if (!error && unstuffed)
+				ea_set_remove_unstuffed(ip, &el);
+		}
+
+		brelse(el.el_bh);
+		return error;
+	}
+
+	error = -ENODATA;
+	if (!(flags & XATTR_REPLACE))
+		error = ea_set_i(ip, type, name, value, size, NULL);
 
 	return error;
 }
@@ -1502,4 +1494,65 @@ out_alloc:
 	gfs2_alloc_put(ip);
 	return error;
 }
+
+static int gfs2_xattr_user_get(struct inode *inode, const char *name,
+			       void *buffer, size_t size)
+{
+	return gfs2_xattr_get(inode, GFS2_EATYPE_USR, name, buffer, size);
+}
+
+static int gfs2_xattr_user_set(struct inode *inode, const char *name,
+			       const void *value, size_t size, int flags)
+{
+	return gfs2_xattr_set(inode, GFS2_EATYPE_USR, name, value, size, flags);
+}
+
+static int gfs2_xattr_system_get(struct inode *inode, const char *name,
+				 void *buffer, size_t size)
+{
+	return gfs2_xattr_get(inode, GFS2_EATYPE_SYS, name, buffer, size);
+}
+
+static int gfs2_xattr_system_set(struct inode *inode, const char *name,
+				 const void *value, size_t size, int flags)
+{
+	return gfs2_xattr_set(inode, GFS2_EATYPE_SYS, name, value, size, flags);
+}
+
+static int gfs2_xattr_security_get(struct inode *inode, const char *name,
+				   void *buffer, size_t size)
+{
+	return gfs2_xattr_get(inode, GFS2_EATYPE_SECURITY, name, buffer, size);
+}
+
+static int gfs2_xattr_security_set(struct inode *inode, const char *name,
+				   const void *value, size_t size, int flags)
+{
+	return gfs2_xattr_set(inode, GFS2_EATYPE_SECURITY, name, value, size, flags);
+}
+
+static struct xattr_handler gfs2_xattr_user_handler = {
+	.prefix = XATTR_USER_PREFIX,
+	.get    = gfs2_xattr_user_get,
+	.set    = gfs2_xattr_user_set,
+};
+
+static struct xattr_handler gfs2_xattr_security_handler = {
+	.prefix = XATTR_SECURITY_PREFIX,
+	.get    = gfs2_xattr_security_get,
+	.set    = gfs2_xattr_security_set,
+};
+
+static struct xattr_handler gfs2_xattr_system_handler = {
+	.prefix = XATTR_SYSTEM_PREFIX,
+	.get    = gfs2_xattr_system_get,
+	.set    = gfs2_xattr_system_set,
+};
+
+struct xattr_handler *gfs2_xattr_handlers[] = {
+	&gfs2_xattr_user_handler,
+	&gfs2_xattr_security_handler,
+	&gfs2_xattr_system_handler,
+	NULL,
+};
 

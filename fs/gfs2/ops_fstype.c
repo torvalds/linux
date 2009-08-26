@@ -1186,6 +1186,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_export_op = &gfs2_export_ops;
+	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 

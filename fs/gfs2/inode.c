@@ -924,7 +924,6 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	size_t len;
 	void *value;
 	char *name;
-	struct gfs2_ea_request er;
 
 	err = security_inode_init_security(&ip->i_inode, &dip->i_inode,
 					   &name, &value, &len);
@@ -935,16 +934,7 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 		return err;
 	}
 
-	memset(&er, 0, sizeof(struct gfs2_ea_request));
-
-	er.er_type = GFS2_EATYPE_SECURITY;
-	er.er_name = name;
-	er.er_data = value;
-	er.er_name_len = strlen(name);
-	er.er_data_len = len;
-
-	err = gfs2_ea_set_i(ip, &er);
-
+	err = gfs2_xattr_set(&ip->i_inode, GFS2_EATYPE_SECURITY, name, value, len, 0);
 	kfree(value);
 	kfree(name);
 
