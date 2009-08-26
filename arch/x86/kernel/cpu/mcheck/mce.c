@@ -612,7 +612,7 @@ out:
  * This way we prevent any potential data corruption in a unrecoverable case
  * and also makes sure always all CPU's errors are examined.
  *
- * Also this detects the case of an machine check event coming from outer
+ * Also this detects the case of a machine check event coming from outer
  * space (not detected by any CPUs) In this case some external agent wants
  * us to shut down, so panic too.
  *
@@ -665,7 +665,7 @@ static void mce_reign(void)
 	 * No machine check event found. Must be some external
 	 * source or one CPU is hung. Panic.
 	 */
-	if (!m && tolerant < 3)
+	if (global_worst <= MCE_KEEP_SEVERITY && tolerant < 3)
 		mce_panic("Machine check from unknown source", NULL, NULL);
 
 	/*
@@ -889,10 +889,10 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	mce_setup(&m);
 
 	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
-	no_way_out = mce_no_way_out(&m, &msg);
-
 	final = &__get_cpu_var(mces_seen);
 	*final = m;
+
+	no_way_out = mce_no_way_out(&m, &msg);
 
 	barrier();
 
