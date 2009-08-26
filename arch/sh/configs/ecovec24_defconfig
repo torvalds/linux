@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.31-rc6
-# Tue Aug 18 11:32:44 2009
+# Linux kernel version: 2.6.31-rc7
+# Wed Aug 26 09:09:07 2009
 #
 CONFIG_SUPERH=y
 CONFIG_SUPERH32=y
@@ -151,7 +151,7 @@ CONFIG_IOSCHED_CFQ=y
 CONFIG_DEFAULT_CFQ=y
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="cfq"
-# CONFIG_FREEZER is not set
+CONFIG_FREEZER=y
 
 #
 # System type
@@ -185,6 +185,7 @@ CONFIG_ARCH_SHMOBILE=y
 # CONFIG_CPU_SUBTYPE_SH4_202 is not set
 # CONFIG_CPU_SUBTYPE_SH7723 is not set
 CONFIG_CPU_SUBTYPE_SH7724=y
+# CONFIG_CPU_SUBTYPE_SH7757 is not set
 # CONFIG_CPU_SUBTYPE_SH7763 is not set
 # CONFIG_CPU_SUBTYPE_SH7770 is not set
 # CONFIG_CPU_SUBTYPE_SH7780 is not set
@@ -314,7 +315,7 @@ CONFIG_ZERO_PAGE_OFFSET=0x00001000
 CONFIG_BOOT_LINK_OFFSET=0x00800000
 CONFIG_ENTRY_OFFSET=0x00001000
 CONFIG_CMDLINE_BOOL=y
-CONFIG_CMDLINE="console=tty0, console=ttySC3,115200 root=/dev/nfs ip=dhcp mem=120M memchunk.vpu=4m"
+CONFIG_CMDLINE="console=tty0, console=ttySC0,115200 root=/dev/nfs ip=dhcp mem=120M memchunk.vpu=4m"
 
 #
 # Bus options
@@ -333,7 +334,13 @@ CONFIG_BINFMT_ELF=y
 #
 # Power management options (EXPERIMENTAL)
 #
-# CONFIG_PM is not set
+CONFIG_PM=y
+# CONFIG_PM_DEBUG is not set
+CONFIG_PM_SLEEP=y
+CONFIG_SUSPEND=y
+CONFIG_SUSPEND_FREEZER=y
+# CONFIG_HIBERNATION is not set
+CONFIG_PM_RUNTIME=y
 # CONFIG_CPU_IDLE is not set
 CONFIG_NET=y
 
@@ -641,7 +648,7 @@ CONFIG_MII=y
 # CONFIG_AX88796 is not set
 # CONFIG_STNIC is not set
 CONFIG_SH_ETH=y
-CONFIG_SMC91X=y
+# CONFIG_SMC91X is not set
 # CONFIG_ENC28J60 is not set
 # CONFIG_ETHOC is not set
 # CONFIG_SMC911X is not set
@@ -1048,6 +1055,7 @@ CONFIG_USB=y
 CONFIG_USB_DEVICEFS=y
 CONFIG_USB_DEVICE_CLASS=y
 # CONFIG_USB_DYNAMIC_MINORS is not set
+# CONFIG_USB_SUSPEND is not set
 # CONFIG_USB_OTG is not set
 # CONFIG_USB_OTG_WHITELIST is not set
 # CONFIG_USB_OTG_BLACKLIST_HUB is not set
