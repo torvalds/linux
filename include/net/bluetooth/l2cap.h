@@ -373,6 +373,8 @@ struct l2cap_pinfo {
 #define L2CAP_CONN_WAIT_F          0x04
 #define L2CAP_CONN_SREJ_ACT        0x08
 #define L2CAP_CONN_SEND_PBIT       0x10
+#define L2CAP_CONN_REMOTE_BUSY     0x20
+#define L2CAP_CONN_LOCAL_BUSY      0x40
 
 #define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
