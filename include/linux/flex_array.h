@@ -21,7 +21,7 @@ struct flex_array {
 		struct {
 			int element_size;
 			int total_nr_elements;
-			struct flex_array_part *parts[0];
+			struct flex_array_part *parts[];
 		};
 		/*
 		 * This little trick makes sure that
