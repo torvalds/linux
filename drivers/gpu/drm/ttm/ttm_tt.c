@@ -34,75 +34,12 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/swap.h>
+#include "drm_cache.h"
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_placement.h"
 
 static int ttm_tt_swapin(struct ttm_tt *ttm);
-
-#if defined(CONFIG_X86)
-static void ttm_tt_clflush_page(struct page *page)
-{
-	uint8_t *page_virtual;
-	unsigned int i;
-
-	if (unlikely(page == NULL))
-		return;
-
-	page_virtual = kmap_atomic(page, KM_USER0);
-
-	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
-		clflush(page_virtual + i);
-
-	kunmap_atomic(page_virtual, KM_USER0);
-}
-
-static void ttm_tt_cache_flush_clflush(struct page *pages[],
-				       unsigned long num_pages)
-{
-	unsigned long i;
-
-	mb();
-	for (i = 0; i < num_pages; ++i)
-		ttm_tt_clflush_page(*pages++);
-	mb();
-}
-#elif !defined(__powerpc__)
-static void ttm_tt_ipi_handler(void *null)
-{
-	;
-}
-#endif
-
-void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages)
-{
-
-#if defined(CONFIG_X86)
-	if (cpu_has_clflush) {
-		ttm_tt_cache_flush_clflush(pages, num_pages);
-		return;
-	}
-#elif defined(__powerpc__)
-	unsigned long i;
-
-	for (i = 0; i < num_pages; ++i) {
-		struct page *page = pages[i];
-		void *page_virtual;
-
-		if (unlikely(page == NULL))
-			continue;
-
-		page_virtual = kmap_atomic(page, KM_USER0);
-		flush_dcache_range((unsigned long) page_virtual,
-				   (unsigned long) page_virtual + PAGE_SIZE);
-		kunmap_atomic(page_virtual, KM_USER0);
-	}
-#else
-	if (on_each_cpu(ttm_tt_ipi_handler, NULL, 1) != 0)
-		printk(KERN_ERR TTM_PFX
-		       "Timed out waiting for drm cache flush.\n");
-#endif
-}
 
 /**
  * Allocates storage for pointers to the pages that back the ttm.
@@ -302,7 +239,7 @@ static int ttm_tt_set_caching(struct ttm_tt *ttm,
 	}
 
 	if (ttm->caching_state == tt_cached)
-		ttm_tt_cache_flush(ttm->pages, ttm->num_pages);
+		drm_clflush_pages(ttm->pages, ttm->num_pages);
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		cur_page = ttm->pages[i];
