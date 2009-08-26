@@ -93,6 +93,8 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 	int i, qcuOffset = 0, dcuOffset = 0;
 	u32 *qcuBase = &val[0], *dcuBase = &val[4];
 
+	ath9k_ps_wakeup(sc);
+
 	REG_WRITE(ah, AR_MACMISC,
 		  ((AR_MACMISC_DMA_OBS_LINE_8 << AR_MACMISC_DMA_OBS_S) |
 		   (AR_MACMISC_MISC_OBS_BUS_1 <<
@@ -158,6 +160,8 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			REG_READ(ah, AR_OBS_BUS_1));
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"AR_CR: 0x%x \n", REG_READ(ah, AR_CR));
+
+	ath9k_ps_restore(sc);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
