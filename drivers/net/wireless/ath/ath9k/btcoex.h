@@ -20,7 +20,14 @@
 #define ATH_WLANACTIVE_GPIO	5
 #define ATH_BTACTIVE_GPIO	6
 
+enum ath_btcoex_scheme {
+	ATH_BTCOEX_CFG_NONE,
+	ATH_BTCOEX_CFG_2WIRE,
+	ATH_BTCOEX_CFG_3WIRE,
+};
+
 struct ath_btcoex_info {
+	enum ath_btcoex_scheme btcoex_scheme;
 	u8 wlanactive_gpio;
 	u8 btactive_gpio;
 };

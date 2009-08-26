@@ -3489,6 +3489,7 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
+	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
 
 	u16 capField = 0, eeval;
 
@@ -3666,8 +3667,15 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9280_10_OR_LATER(ah) && btcoex_enable) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
-		ah->ah_sc->btcoex_info.btactive_gpio = ATH_BTACTIVE_GPIO;
-		ah->ah_sc->btcoex_info.wlanactive_gpio = ATH_WLANACTIVE_GPIO;
+		btcoex_info->btactive_gpio = ATH_BTACTIVE_GPIO;
+		btcoex_info->wlanactive_gpio = ATH_WLANACTIVE_GPIO;
+
+		if (AR_SREV_9285(ah))
+			btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_3WIRE;
+		else
+			btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_2WIRE;
+	} else {
+		btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_NONE;
 	}
 }
 
