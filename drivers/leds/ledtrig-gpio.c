@@ -146,20 +146,26 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 		return -EINVAL;
 	}
 
+	if (gpio_data->gpio == gpio)
+		return n;
+
 	if (!gpio) {
-		free_irq(gpio_to_irq(gpio_data->gpio), led);
+		if (gpio_data->gpio != 0)
+			free_irq(gpio_to_irq(gpio_data->gpio), led);
+		gpio_data->gpio = 0;
 		return n;
 	}
 
-	if (gpio_data->gpio > 0 && gpio_data->gpio != gpio)
-		free_irq(gpio_to_irq(gpio_data->gpio), led);
-
-	gpio_data->gpio = gpio;
 	ret = request_irq(gpio_to_irq(gpio), gpio_trig_irq,
 			IRQF_SHARED | IRQF_TRIGGER_RISING
 			| IRQF_TRIGGER_FALLING, "ledtrig-gpio", led);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "request_irq failed with error %d\n", ret);
+	} else {
+		if (gpio_data->gpio != 0)
+			free_irq(gpio_to_irq(gpio_data->gpio), led);
+		gpio_data->gpio = gpio;
+	}
 
 	return ret ? ret : n;
 }
@@ -211,7 +217,8 @@ static void gpio_trig_deactivate(struct led_classdev *led)
 		device_remove_file(led->dev, &dev_attr_inverted);
 		device_remove_file(led->dev, &dev_attr_desired_brightness);
 		flush_work(&gpio_data->work);
-		free_irq(gpio_to_irq(gpio_data->gpio),led);
+		if (gpio_data->gpio != 0)
+			free_irq(gpio_to_irq(gpio_data->gpio), led);
 		kfree(gpio_data);
 	}
 }
