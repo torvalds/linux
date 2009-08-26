@@ -195,7 +195,6 @@ static inline notrace void rcu_read_lock_sched_notrace(void)
 {
 	preempt_disable_notrace();
 	__acquire(RCU_SCHED);
-	rcu_read_acquire();
 }
 
 /*
@@ -211,7 +210,6 @@ static inline void rcu_read_unlock_sched(void)
 }
 static inline notrace void rcu_read_unlock_sched_notrace(void)
 {
-	rcu_read_release();
 	__release(RCU_SCHED);
 	preempt_enable_notrace();
 }
