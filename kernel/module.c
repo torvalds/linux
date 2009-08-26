@@ -2355,7 +2355,8 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto unlink;
 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
-	add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
+	if (mod->sect_attrs)
+		add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 
 	/* Get rid of temporary copy */
 	vfree(hdr);
