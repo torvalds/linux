@@ -234,7 +234,15 @@
 #define AR_IMR_S5                   0x00b8
 #define AR_IMR_S5_TIM_TIMER         0x00000010
 #define AR_IMR_S5_DTIM_TIMER        0x00000020
-
+#define AR_ISR_S5_GENTIMER_TRIG     0x0000FF80
+#define AR_ISR_S5_GENTIMER_TRIG_S   0
+#define AR_ISR_S5_GENTIMER_THRESH   0xFF800000
+#define AR_ISR_S5_GENTIMER_THRESH_S 16
+#define AR_ISR_S5_S                 0x00d8
+#define AR_IMR_S5_GENTIMER_TRIG     0x0000FF80
+#define AR_IMR_S5_GENTIMER_TRIG_S   0
+#define AR_IMR_S5_GENTIMER_THRESH   0xFF800000
+#define AR_IMR_S5_GENTIMER_THRESH_S 16
 
 #define AR_IMR               0x00a0
 #define AR_IMR_RXOK          0x00000001
@@ -1516,7 +1524,10 @@ enum {
 #define AR_TXOP_8_11   0x81f8
 #define AR_TXOP_12_15  0x81fc
 
-
+#define AR_NEXT_NDP2_TIMER                  0x8180
+#define AR_FIRST_NDP_TIMER                  7
+#define AR_NDP2_PERIOD                      0x81a0
+#define AR_NDP2_TIMER_MODE                  0x81c0
 #define AR_NEXT_TBTT_TIMER                  0x8200
 #define AR_NEXT_DMA_BEACON_ALERT            0x8204
 #define AR_NEXT_SWBA                        0x8208
