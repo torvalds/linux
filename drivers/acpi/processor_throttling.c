@@ -840,8 +840,8 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 	if (ret >= 0) {
 		state = acpi_get_throttling_state(pr, value);
 		if (state == -1) {
-			ACPI_WARNING((AE_INFO,
-				"Invalid throttling state, reset"));
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				"Invalid throttling state, reset\n"));
 			state = 0;
 			ret = acpi_processor_set_throttling(pr, state, true);
 			if (ret)
