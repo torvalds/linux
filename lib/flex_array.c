@@ -122,9 +122,6 @@ static int fa_element_to_part_nr(struct flex_array *fa, int element_nr)
 
 /**
  * flex_array_free_parts - just free the second-level pages
- * @src:	address of data to copy into the array
- * @element_nr:	index of the position in which to insert
- * 		the new element.
  *
  * This is to be used in cases where the base 'struct flex_array'
  * has been statically allocated and should not be free.
