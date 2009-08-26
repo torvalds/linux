@@ -31,7 +31,7 @@ DEFINE_MUTEX(fuse_mutex);
 
 static int set_global_limit(const char *val, struct kernel_param *kp);
 
-static unsigned max_user_bgreq;
+unsigned max_user_bgreq;
 module_param_call(max_user_bgreq, set_global_limit, param_get_uint,
 		  &max_user_bgreq, 0644);
 __MODULE_PARM_TYPE(max_user_bgreq, "uint");
@@ -39,7 +39,7 @@ MODULE_PARM_DESC(max_user_bgreq,
  "Global limit for the maximum number of backgrounded requests an "
  "unprivileged user can set");
 
-static unsigned max_user_congthresh;
+unsigned max_user_congthresh;
 module_param_call(max_user_congthresh, set_global_limit, param_get_uint,
 		  &max_user_congthresh, 0644);
 __MODULE_PARM_TYPE(max_user_congthresh, "uint");
