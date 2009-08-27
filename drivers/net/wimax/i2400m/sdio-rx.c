@@ -234,6 +234,13 @@ int i2400ms_rx_setup(struct i2400ms *i2400ms)
 	init_waitqueue_head(&i2400ms->bm_wfa_wq);
 	spin_lock(&i2400m->rx_lock);
 	i2400ms->bm_wait_result = -EINPROGRESS;
+	/*
+	 * Before we are about to enable the RX interrupt, make sure
+	 * bm_ack_size is cleared to -EINPROGRESS which indicates
+	 * no RX interrupt happened yet or the previous interrupt
+	 * has been handled, we are ready to take the new interrupt
+	 */
+	i2400ms->bm_ack_size = -EINPROGRESS;
 	spin_unlock(&i2400m->rx_lock);
 
 	sdio_claim_host(func);

@@ -177,10 +177,6 @@ ssize_t i2400ms_bus_bm_wait_for_ack(struct i2400m *i2400m,
 	d_fnstart(5, dev, "(i2400m %p ack %p size %zu)\n",
 		  i2400m, ack, ack_size);
 
-	spin_lock(&i2400m->rx_lock);
-	i2400ms->bm_ack_size = -EINPROGRESS;
-	spin_unlock(&i2400m->rx_lock);
-
 	result = wait_event_timeout(i2400ms->bm_wfa_wq,
 				    i2400ms->bm_ack_size != -EINPROGRESS,
 				    2 * HZ);
@@ -199,6 +195,10 @@ ssize_t i2400ms_bus_bm_wait_for_ack(struct i2400m *i2400m,
 		size = min(ack_size, i2400ms->bm_ack_size);
 		memcpy(ack, i2400m->bm_ack_buf, size);
 	}
+	/*
+	 * Remember always to clear the bm_ack_size to -EINPROGRESS
+	 * after the RX data is processed
+	 */
 	i2400ms->bm_ack_size = -EINPROGRESS;
 	spin_unlock(&i2400m->rx_lock);
 
