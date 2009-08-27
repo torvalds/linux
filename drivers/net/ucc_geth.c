@@ -3497,6 +3497,10 @@ static int ucc_geth_open(struct net_device *dev)
 	napi_enable(&ugeth->napi);
 	netif_start_queue(dev);
 
+	device_set_wakeup_capable(&dev->dev,
+			qe_alive_during_sleep() || ugeth->phydev->irq);
+	device_set_wakeup_enable(&dev->dev, ugeth->wol_en);
+
 	return err;
 
 err:
@@ -3560,6 +3564,85 @@ static void ucc_geth_timeout(struct net_device *dev)
 	netif_carrier_off(dev);
 	schedule_work(&ugeth->timeout_work);
 }
+
+
+#ifdef CONFIG_PM
+
+static int ucc_geth_suspend(struct of_device *ofdev, pm_message_t state)
+{
+	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
+	struct ucc_geth_private *ugeth = netdev_priv(ndev);
+
+	if (!netif_running(ndev))
+		return 0;
+
+	napi_disable(&ugeth->napi);
+
+	/*
+	 * Disable the controller, otherwise we'll wakeup on any network
+	 * activity.
+	 */
+	ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
+
+	if (ugeth->wol_en & WAKE_MAGIC) {
+		setbits32(ugeth->uccf->p_uccm, UCC_GETH_UCCE_MPD);
+		setbits32(&ugeth->ug_regs->maccfg2, MACCFG2_MPE);
+		ucc_fast_enable(ugeth->uccf, COMM_DIR_RX_AND_TX);
+	} else if (!(ugeth->wol_en & WAKE_PHY)) {
+		phy_stop(ugeth->phydev);
+	}
+
+	return 0;
+}
+
+static int ucc_geth_resume(struct of_device *ofdev)
+{
+	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
+	struct ucc_geth_private *ugeth = netdev_priv(ndev);
+	int err;
+
+	if (!netif_running(ndev))
+		return 0;
+
+	if (qe_alive_during_sleep()) {
+		if (ugeth->wol_en & WAKE_MAGIC) {
+			ucc_fast_disable(ugeth->uccf, COMM_DIR_RX_AND_TX);
+			clrbits32(&ugeth->ug_regs->maccfg2, MACCFG2_MPE);
+			clrbits32(ugeth->uccf->p_uccm, UCC_GETH_UCCE_MPD);
+		}
+		ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
+	} else {
+		/*
+		 * Full reinitialization is required if QE shuts down
+		 * during sleep.
+		 */
+		ucc_geth_memclean(ugeth);
+
+		err = ucc_geth_init_mac(ugeth);
+		if (err) {
+			ugeth_err("%s: Cannot initialize MAC, aborting.",
+				  ndev->name);
+			return err;
+		}
+	}
+
+	ugeth->oldlink = 0;
+	ugeth->oldspeed = 0;
+	ugeth->oldduplex = -1;
+
+	phy_stop(ugeth->phydev);
+	phy_start(ugeth->phydev);
+
+	napi_enable(&ugeth->napi);
+	netif_start_queue(ndev);
+
+	return 0;
+}
+
+#else
+#define ucc_geth_suspend NULL
+#define ucc_geth_resume NULL
+#endif
 
 static phy_interface_t to_phy_interface(const char *phy_connection_type)
 {
@@ -3852,6 +3935,8 @@ static struct of_platform_driver ucc_geth_driver = {
 	.match_table	= ucc_geth_match,
 	.probe		= ucc_geth_probe,
 	.remove		= ucc_geth_remove,
+	.suspend	= ucc_geth_suspend,
+	.resume		= ucc_geth_resume,
 };
 
 static int __init ucc_geth_init(void)

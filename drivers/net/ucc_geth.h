@@ -1222,6 +1222,7 @@ struct ucc_geth_private {
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
+	int wol_en;
 
 	struct device_node *node;
 };
