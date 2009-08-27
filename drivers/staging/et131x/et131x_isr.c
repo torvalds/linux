@@ -108,7 +108,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	bool handled = true;
 	struct net_device *netdev = (struct net_device *)dev_id;
 	struct et131x_adapter *adapter = NULL;
-	INTERRUPT_t status;
+	u32 status;
 
 	if (netdev == NULL || !netif_device_present(netdev)) {
 		DBG_WARNING(et131x_dbginfo,
@@ -129,17 +129,17 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	/* Get a copy of the value in the interrupt status register
 	 * so we can process the interrupting section
 	 */
-	status.value = readl(&adapter->regs->global.int_status.value);
+	status = readl(&adapter->regs->global.int_status);
 
 	if (adapter->FlowControl == TxOnly ||
 	    adapter->FlowControl == Both) {
-		status.value &= ~INT_MASK_ENABLE;
+		status &= ~INT_MASK_ENABLE;
 	} else {
-		status.value &= ~INT_MASK_ENABLE_NO_FLOW;
+		status &= ~INT_MASK_ENABLE_NO_FLOW;
 	}
 
 	/* Make sure this is our interrupt */
-	if (!status.value) {
+	if (!status) {
 #ifdef CONFIG_ET131X_DEBUG
 		adapter->Stats.UnhandledInterruptsPerSec++;
 #endif
@@ -151,32 +151,32 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 
 	/* This is our interrupt, so process accordingly */
 #ifdef CONFIG_ET131X_DEBUG
-	if (status.bits.rxdma_xfr_done)
+	if (status & ET_INTR_RXDMA_XFR_DONE)
 		adapter->Stats.RxDmaInterruptsPerSec++;
 
-	if (status.bits.txdma_isr)
+	if (status & ET_INTR_TXDMA_ISR)
 		adapter->Stats.TxDmaInterruptsPerSec++;
 #endif
 
-	if (status.bits.watchdog_interrupt) {
+	if (status & ET_INTR_WATCHDOG) {
 		PMP_TCB pMpTcb = adapter->TxRing.CurrSendHead;
 
 		if (pMpTcb)
 			if (++pMpTcb->PacketStaleCount > 1)
-				status.bits.txdma_isr = 1;
+				status |= ET_INTR_TXDMA_ISR;
 
 		if (adapter->RxRing.UnfinishedReceives)
-			status.bits.rxdma_xfr_done = 1;
+			status |= ET_INTR_RXDMA_XFR_DONE;
 		else if (pMpTcb == NULL)
 			writel(0, &adapter->regs->global.watchdog_timer);
 
-		status.bits.watchdog_interrupt = 0;
+		status &= ~ET_INTR_WATCHDOG;
 #ifdef CONFIG_ET131X_DEBUG
 		adapter->Stats.WatchDogInterruptsPerSec++;
 #endif
 	}
 
-	if (status.value == 0) {
+	if (status == 0) {
 		/* This interrupt has in some way been "handled" by
 		 * the ISR. Either it was a spurious Rx interrupt, or
 		 * it was a Tx interrupt that has been filtered by
@@ -213,7 +213,7 @@ void et131x_isr_handler(struct work_struct *work)
 {
 	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
-	INTERRUPT_t GlobStatus = etdev->Stats.InterruptStatus;
+	u32 status = etdev->Stats.InterruptStatus;
 	ADDRESS_MAP_t __iomem *iomem = etdev->regs;
 
 	/*
@@ -222,22 +222,22 @@ void et131x_isr_handler(struct work_struct *work)
 	 * exit.
 	 */
 	/* Handle all the completed Transmit interrupts */
-	if (GlobStatus.bits.txdma_isr) {
+	if (status & ET_INTR_TXDMA_ISR) {
 		DBG_TX(et131x_dbginfo, "TXDMA_ISR interrupt\n");
 		et131x_handle_send_interrupt(etdev);
 	}
 
 	/* Handle all the completed Receives interrupts */
-	if (GlobStatus.bits.rxdma_xfr_done) {
+	if (status & ET_INTR_RXDMA_XFR_DONE) {
 		DBG_RX(et131x_dbginfo, "RXDMA_XFR_DONE interrupt\n");
 		et131x_handle_recv_interrupt(etdev);
 	}
 
-	GlobStatus.value &= 0xffffffd7;
+	status &= 0xffffffd7;
 
-	if (GlobStatus.value) {
+	if (status) {
 		/* Handle the TXDMA Error interrupt */
-		if (GlobStatus.bits.txdma_err) {
+		if (status & ET_INTR_TXDMA_ERR) {
 			TXDMA_ERROR_t TxDmaErr;
 
 			/* Following read also clears the register (COR) */
@@ -249,8 +249,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle Free Buffer Ring 0 and 1 Low interrupt */
-		if (GlobStatus.bits.rxdma_fb_ring0_low ||
-		    GlobStatus.bits.rxdma_fb_ring1_low) {
+		if (status & (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
 			/*
 			 * This indicates the number of unused buffers in
 			 * RXDMA free buffer ring 0 is <= the limit you
@@ -292,7 +291,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle Packet Status Ring Low Interrupt */
-		if (GlobStatus.bits.rxdma_pkt_stat_ring_low) {
+		if (status & ET_INTR_RXDMA_STAT_LOW) {
 			DBG_WARNING(et131x_dbginfo,
 				    "RXDMA_PKT_STAT_RING_LOW interrupt\n");
 
@@ -308,7 +307,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle RXDMA Error Interrupt */
-		if (GlobStatus.bits.rxdma_err) {
+		if (status & ET_INTR_RXDMA_ERR) {
 			/*
 			 * The rxdma_error interrupt is sent when a time-out
 			 * on a request issued by the JAGCore has occurred or
@@ -337,7 +336,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle the Wake on LAN Event */
-		if (GlobStatus.bits.wake_on_lan) {
+		if (status & ET_INTR_WOL) {
 			/*
 			 * This is a secondary interrupt for wake on LAN.
 			 * The driver should never see this, if it does,
@@ -349,7 +348,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle the PHY interrupt */
-		if (GlobStatus.bits.phy_interrupt) {
+		if (status & ET_INTR_PHY) {
 			u32 pm_csr;
 			MI_BMSR_t BmsrInts, BmsrData;
 			MI_ISR_t myIsr;
@@ -398,7 +397,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Let's move on to the TxMac */
-		if (GlobStatus.bits.txmac_interrupt) {
+		if (status & ET_INTR_TXMAC) {
 			etdev->TxRing.TxMacErr.value =
 				readl(&iomem->txmac.err.value);
 
@@ -424,7 +423,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle RXMAC Interrupt */
-		if (GlobStatus.bits.rxmac_interrupt) {
+		if (status & ET_INTR_RXMAC) {
 			/*
 			 * These interrupts are catastrophic to the device,
 			 * what we need to do is disable the interrupts and
@@ -452,7 +451,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle MAC_STAT Interrupt */
-		if (GlobStatus.bits.mac_stat_interrupt) {
+		if (status & ET_INTR_MAC_STAT) {
 			/*
 			 * This means at least one of the un-masked counters
 			 * in the MAC_STAT block has rolled over.  Use this
@@ -464,7 +463,7 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 
 		/* Handle SLV Timeout Interrupt */
-		if (GlobStatus.bits.slv_timeout) {
+		if (status & ET_INTR_SLV_TIMEOUT) {
 			/*
 			 * This means a timeout has occured on a read or
 			 * write request to one of the JAGCore registers. The

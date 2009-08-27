@@ -184,7 +184,7 @@ typedef struct _ce_stats_t {
 #endif	/* CONFIG_ET131X_DEBUG */
 
 	u32 SynchrounousIterations;
-	INTERRUPT_t InterruptStatus;
+	u32 InterruptStatus;
 } CE_STATS_t, *PCE_STATS_t;
 
 /* The private adapter structure */
@@ -260,7 +260,7 @@ struct et131x_adapter {
 	/* Minimize init-time */
 	struct timer_list ErrorTimer;
 	MP_POWER_MGMT PoMgmt;
-	INTERRUPT_t CachedMaskValue;
+	u32 CachedMaskValue;
 
 	/* Xcvr status at last poll */
 	MI_BMSR_t Bmsr;

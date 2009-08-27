@@ -89,72 +89,30 @@
 #define ET_PMCSR_INIT			0x38
 
 /*
- * structure for interrupt status reg in global address map
- * located at address 0x0018
- */
-typedef union _INTERRUPT_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused5:11;			/* bits 21-31 */
-		u32 slv_timeout:1;			/* bit 20 */
-		u32 mac_stat_interrupt:1;		/* bit 19 */
-		u32 rxmac_interrupt:1;		/* bit 18 */
-		u32 txmac_interrupt:1;		/* bit 17 */
-		u32 phy_interrupt:1;		/* bit 16 */
-		u32 wake_on_lan:1;			/* bit 15 */
-		u32 watchdog_interrupt:1;		/* bit 14 */
-		u32 unused4:4;			/* bits 10-13 */
-		u32 rxdma_err:1;			/* bit 9 */
-		u32 rxdma_pkt_stat_ring_low:1;	/* bit 8 */
-		u32 rxdma_fb_ring1_low:1;		/* bit 7 */
-		u32 rxdma_fb_ring0_low:1;		/* bit 6 */
-		u32 rxdma_xfr_done:1;		/* bit 5 */
-		u32 txdma_err:1;			/* bit 4 */
-		u32 txdma_isr:1;			/* bit 3 */
-		u32 unused3:1;			/* bit 2 */
-		u32 unused2:1;			/* bit 1 */
-		u32 unused1:1;			/* bit 0 */
-#else
-		u32 unused1:1;			/* bit 0 */
-		u32 unused2:1;			/* bit 1 */
-		u32 unused3:1;			/* bit 2 */
-		u32 txdma_isr:1;			/* bit 3 */
-		u32 txdma_err:1;			/* bit 4 */
-		u32 rxdma_xfr_done:1;		/* bit 5 */
-		u32 rxdma_fb_ring0_low:1;		/* bit 6 */
-		u32 rxdma_fb_ring1_low:1;		/* bit 7 */
-		u32 rxdma_pkt_stat_ring_low:1;	/* bit 8 */
-		u32 rxdma_err:1;			/* bit 9 */
-		u32 unused4:4;			/* bits 10-13 */
-		u32 watchdog_interrupt:1;		/* bit 14 */
-		u32 wake_on_lan:1;			/* bit 15 */
-		u32 phy_interrupt:1;		/* bit 16 */
-		u32 txmac_interrupt:1;		/* bit 17 */
-		u32 rxmac_interrupt:1;		/* bit 18 */
-		u32 mac_stat_interrupt:1;		/* bit 19 */
-		u32 slv_timeout:1;			/* bit 20 */
-		u32 unused5:11;			/* bits 21-31 */
-#endif
-	} bits;
-} INTERRUPT_t, *PINTERRUPT_t;
-
-/*
- * structure for interrupt mask reg in global address map
- * located at address 0x001C
- * Defined earlier (INTERRUPT_t), but 'watchdog_interrupt' is not used.
+ * Interrupt status reg at address 0x0018
  */
 
-/*
- * structure for interrupt alias clear mask reg in global address map
- * located at address 0x0020
- * Defined earlier (INTERRUPT_t)
- */
+#define	ET_INTR_TXDMA_ISR	0x00000008
+#define ET_INTR_TXDMA_ERR	0x00000010
+#define ET_INTR_RXDMA_XFR_DONE	0x00000020
+#define ET_INTR_RXDMA_FB_R0_LOW	0x00000040
+#define ET_INTR_RXDMA_FB_R1_LOW	0x00000080
+#define ET_INTR_RXDMA_STAT_LOW	0x00000100
+#define ET_INTR_RXDMA_ERR	0x00000200
+#define ET_INTR_WATCHDOG	0x00004000
+#define ET_INTR_WOL		0x00008000
+#define ET_INTR_PHY		0x00010000
+#define ET_INTR_TXMAC		0x00020000
+#define ET_INTR_RXMAC		0x00040000
+#define ET_INTR_MAC_STAT	0x00080000
+#define ET_INTR_SLV_TIMEOUT	0x00100000
 
 /*
- * structure for interrupt status alias reg in global address map
- * located at address 0x0024
- * Defined earlier (INTERRUPT_t)
+ * Interrupt mask register at address 0x001C
+ * Interrupt alias clear mask reg at address 0x0020
+ * Interrupt status alias reg at address 0x0024
+ *
+ * Same masks as above
  */
 
 /*
@@ -256,10 +214,10 @@ typedef struct _GLOBAL_t {			/* Location: */
 	u32 rxq_end_addr;			/*  0x000C */
 	u32 pm_csr;				/*  0x0010 */
 	u32 unused;				/*  0x0014 */
-	INTERRUPT_t int_status;			/*  0x0018 */
-	INTERRUPT_t int_mask;			/*  0x001C */
-	INTERRUPT_t int_alias_clr_en;		/*  0x0020 */
-	INTERRUPT_t int_status_alias;		/*  0x0024 */
+	u32 int_status;				/*  0x0018 */
+	u32 int_mask;				/*  0x001C */
+	u32 int_alias_clr_en;			/*  0x0020 */
+	u32 int_status_alias;			/*  0x0024 */
 	SW_RESET_t sw_reset;			/*  0x0028 */
 	SLV_TIMER_t slv_timer;			/*  0x002C */
 	MSI_CONFIG_t msi_config;		/*  0x0030 */

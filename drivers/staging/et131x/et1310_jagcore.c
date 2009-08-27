@@ -174,26 +174,41 @@ void ConfigMMCRegs(struct et131x_adapter *etdev)
 	DBG_LEAVE(et131x_dbginfo);
 }
 
+/**
+ *	et131x_enable_interrupts	-	enable interrupt
+ *	@adapter: et131x device
+ *
+ *	Enable the appropriate interrupts on the ET131x according to our
+ *	configuration
+ */
+
 void et131x_enable_interrupts(struct et131x_adapter *adapter)
 {
-	uint32_t MaskValue;
+	u32 mask;
 
 	/* Enable all global interrupts */
 	if (adapter->FlowControl == TxOnly || adapter->FlowControl == Both)
-		MaskValue = INT_MASK_ENABLE;
+		mask = INT_MASK_ENABLE;
 	else
-		MaskValue = INT_MASK_ENABLE_NO_FLOW;
+		mask = INT_MASK_ENABLE_NO_FLOW;
 
 	if (adapter->DriverNoPhyAccess)
-		MaskValue |= 0x10000;
+		mask |= ET_INTR_PHY;
 
-	adapter->CachedMaskValue.value = MaskValue;
-	writel(MaskValue, &adapter->regs->global.int_mask.value);
+	adapter->CachedMaskValue = mask;
+	writel(mask, &adapter->regs->global.int_mask);
 }
+
+/**
+ *	et131x_disable_interrupts	-	interrupt disable
+ *	@adapter: et131x device
+ *
+ *	Block all interrupts from the et131x device at the device itself
+ */
 
 void et131x_disable_interrupts(struct et131x_adapter *adapter)
 {
 	/* Disable all global interrupts */
-	adapter->CachedMaskValue.value = INT_MASK_DISABLE;
-	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask.value);
+	adapter->CachedMaskValue = INT_MASK_DISABLE;
+	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
 }
