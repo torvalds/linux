@@ -29,7 +29,7 @@
 #include "include/logging.h"
 #include "include/StorVscApi.h"
 #include "include/VmbusPacketFormat.h"
-#include "include/vstorage.h"
+#include "vstorage.h"
 
 
 
