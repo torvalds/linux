@@ -895,12 +895,12 @@ void ET1310_PhyAdvertise100BaseT(struct et131x_adapter *adapter,
 void ET1310_PhyAdvertise10BaseT(struct et131x_adapter *adapter,
 				u16 duplex);
 void ET1310_PhyLinkStatus(struct et131x_adapter *adapter,
-			  u8 *ucLinkStatus,
-			  u32 *uiAutoNeg,
-			  u32 *uiLinkSpeed,
-			  u32 *uiDuplexMode,
-			  u32 *uiMdiMdix,
-			  u32 *uiMasterSlave, u32 *uiPolarity);
+			  u8 *Link_status,
+			  u32 *autoneg,
+			  u32 *linkspeed,
+			  u32 *duplex_mode,
+			  u32 *mdi_mdix,
+			  u32 *masterslave, u32 *polarity);
 void ET1310_PhyAndOrReg(struct et131x_adapter *adapter,
 			u16 regnum, u16 andMask, u16 orMask);
 void ET1310_PhyAccessMiBit(struct et131x_adapter *adapter,

@@ -477,13 +477,13 @@ static int et131x_xcvr_init(struct et131x_adapter *adapter)
 void et131x_Mii_check(struct et131x_adapter *etdev,
 		      MI_BMSR_t bmsr, MI_BMSR_t bmsr_ints)
 {
-	uint8_t ucLinkStatus;
-	uint32_t uiAutoNegStatus;
-	uint32_t uiSpeed;
-	uint32_t uiDuplex;
-	uint32_t uiMdiMdix;
-	uint32_t uiMasterSlave;
-	uint32_t uiPolarity;
+	uint8_t link_status;
+	uint32_t autoneg_status;
+	uint32_t speed;
+	uint32_t duplex;
+	uint32_t mdi_mdix;
+	uint32_t masterslave;
+	uint32_t polarity;
 	unsigned long flags;
 
 	DBG_ENTER(et131x_dbginfo);
@@ -509,7 +509,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			DBG_WARNING(et131x_dbginfo,
 				    "Link down cable problem\n");
 
-			if (etdev->uiLinkSpeed == TRUEPHY_SPEED_10MBPS) {
+			if (etdev->linkspeed == TRUEPHY_SPEED_10MBPS) {
 				/* NOTE - Is there a way to query this without
 				 * TruePHY?
 				 * && TRU_QueryCoreType(etdev->hTruePhy, 0) == EMI_TRUEPHY_A13O) {
@@ -546,8 +546,8 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 					netif_carrier_off(etdev->netdev);
 			}
 
-			etdev->uiLinkSpeed = 0;
-			etdev->uiDuplexMode = 0;
+			etdev->linkspeed = 0;
+			etdev->duplexMode = 0;
 
 			/* Free the packets being actively sent & stopped */
 			et131x_free_busy_send_packets(etdev);
@@ -581,21 +581,21 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 	    (etdev->AiForceDpx == 3 && bmsr_ints.bits.link_status)) {
 		if (bmsr.bits.auto_neg_complete || etdev->AiForceDpx == 3) {
 			ET1310_PhyLinkStatus(etdev,
-					     &ucLinkStatus, &uiAutoNegStatus,
-					     &uiSpeed, &uiDuplex, &uiMdiMdix,
-					     &uiMasterSlave, &uiPolarity);
+					     &link_status, &autoneg_status,
+					     &speed, &duplex, &mdi_mdix,
+					     &masterslave, &polarity);
 
-			etdev->uiLinkSpeed = uiSpeed;
-			etdev->uiDuplexMode = uiDuplex;
+			etdev->linkspeed = speed;
+			etdev->duplex_mode = duplex;
 
 			DBG_TRACE(et131x_dbginfo,
-				"etdev->uiLinkSpeed 0x%04x, etdev->uiDuplex 0x%08x\n",
-				etdev->uiLinkSpeed,
-				etdev->uiDuplexMode);
+				"etdev->linkspeed 0x%04x, etdev->duplex_mode 0x%08x\n",
+				etdev->linkspeed,
+				etdev->duplex_mode);
 
 			etdev->PoMgmt.TransPhyComaModeOnBoot = 20;
 
-			if (etdev->uiLinkSpeed == TRUEPHY_SPEED_10MBPS) {
+			if (etdev->linkspeed == TRUEPHY_SPEED_10MBPS) {
 				/*
 				 * NOTE - Is there a way to query this without
 				 * TruePHY?
@@ -612,7 +612,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 
 			ConfigFlowControl(etdev);
 
-			if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS &&
+			if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS &&
 					etdev->RegistryJumboPacket > 2048)
 				ET1310_PhyAndOrReg(etdev, 0x16, 0xcfff,
 								   0x2000);
@@ -905,67 +905,67 @@ static const uint16_t ConfigPhy[25][2] = {
 /* condensed version of the phy initialization routine */
 void ET1310_PhyInit(struct et131x_adapter *etdev)
 {
-	uint16_t usData, usIndex;
+	uint16_t data, index;
 
 	if (etdev == NULL)
 		return;
 
 	/* get the identity (again ?) */
-	MiRead(etdev, PHY_ID_1, &usData);
-	MiRead(etdev, PHY_ID_2, &usData);
+	MiRead(etdev, PHY_ID_1, &data);
+	MiRead(etdev, PHY_ID_2, &data);
 
 	/* what does this do/achieve ? */
-	MiRead(etdev, PHY_MPHY_CONTROL_REG, &usData); /* should read 0002 */
+	MiRead(etdev, PHY_MPHY_CONTROL_REG, &data); /* should read 0002 */
 	MiWrite(etdev, PHY_MPHY_CONTROL_REG,	0x0006);
 
 	/* read modem register 0402, should I do something with the return
 	   data ? */
 	MiWrite(etdev, PHY_INDEX_REG, 0x0402);
-	MiRead(etdev, PHY_DATA_REG, &usData);
+	MiRead(etdev, PHY_DATA_REG, &data);
 
 	/* what does this do/achieve ? */
 	MiWrite(etdev, PHY_MPHY_CONTROL_REG, 0x0002);
 
 	/* get the identity (again ?) */
-	MiRead(etdev, PHY_ID_1, &usData);
-	MiRead(etdev, PHY_ID_2, &usData);
+	MiRead(etdev, PHY_ID_1, &data);
+	MiRead(etdev, PHY_ID_2, &data);
 
 	/* what does this achieve ? */
-	MiRead(etdev, PHY_MPHY_CONTROL_REG, &usData); /* should read 0002 */
+	MiRead(etdev, PHY_MPHY_CONTROL_REG, &data); /* should read 0002 */
 	MiWrite(etdev, PHY_MPHY_CONTROL_REG, 0x0006);
 
 	/* read modem register 0402, should I do something with
 	   the return data? */
 	MiWrite(etdev, PHY_INDEX_REG, 0x0402);
-	MiRead(etdev, PHY_DATA_REG, &usData);
+	MiRead(etdev, PHY_DATA_REG, &data);
 
 	MiWrite(etdev, PHY_MPHY_CONTROL_REG, 0x0002);
 
 	/* what does this achieve (should return 0x1040) */
-	MiRead(etdev, PHY_CONTROL, &usData);
-	MiRead(etdev, PHY_MPHY_CONTROL_REG, &usData); /* should read 0002 */
+	MiRead(etdev, PHY_CONTROL, &data);
+	MiRead(etdev, PHY_MPHY_CONTROL_REG, &data); /* should read 0002 */
 	MiWrite(etdev, PHY_CONTROL, 0x1840);
 
 	MiWrite(etdev, PHY_MPHY_CONTROL_REG, 0x0007);
 
 	/* here the writing of the array starts.... */
-	usIndex = 0;
-	while (ConfigPhy[usIndex][0] != 0x0000) {
+	index = 0;
+	while (ConfigPhy[index][0] != 0x0000) {
 		/* write value */
-		MiWrite(etdev, PHY_INDEX_REG, ConfigPhy[usIndex][0]);
-		MiWrite(etdev, PHY_DATA_REG, ConfigPhy[usIndex][1]);
+		MiWrite(etdev, PHY_INDEX_REG, ConfigPhy[index][0]);
+		MiWrite(etdev, PHY_DATA_REG, ConfigPhy[index][1]);
 
 		/* read it back */
-		MiWrite(etdev, PHY_INDEX_REG, ConfigPhy[usIndex][0]);
-		MiRead(etdev, PHY_DATA_REG, &usData);
+		MiWrite(etdev, PHY_INDEX_REG, ConfigPhy[index][0]);
+		MiRead(etdev, PHY_DATA_REG, &data);
 
 		/* do a check on the value read back ? */
-		usIndex++;
+		index++;
 	}
 	/* here the writing of the array ends... */
 
-	MiRead(etdev, PHY_CONTROL, &usData);		/* 0x1840 */
-	MiRead(etdev, PHY_MPHY_CONTROL_REG, &usData);/* should read 0007 */
+	MiRead(etdev, PHY_CONTROL, &data);		/* 0x1840 */
+	MiRead(etdev, PHY_MPHY_CONTROL_REG, &data);/* should read 0007 */
 	MiWrite(etdev, PHY_CONTROL, 0x1040);
 	MiWrite(etdev, PHY_MPHY_CONTROL_REG, 0x0002);
 }
@@ -977,64 +977,64 @@ void ET1310_PhyReset(struct et131x_adapter *etdev)
 
 void ET1310_PhyPowerDown(struct et131x_adapter *etdev, bool down)
 {
-	uint16_t usData;
+	uint16_t data;
 
-	MiRead(etdev, PHY_CONTROL, &usData);
+	MiRead(etdev, PHY_CONTROL, &data);
 
 	if (down == false) {
 		/* Power UP */
-		usData &= ~0x0800;
-		MiWrite(etdev, PHY_CONTROL, usData);
+		data &= ~0x0800;
+		MiWrite(etdev, PHY_CONTROL, data);
 	} else {
 		/* Power DOWN */
-		usData |= 0x0800;
-		MiWrite(etdev, PHY_CONTROL, usData);
+		data |= 0x0800;
+		MiWrite(etdev, PHY_CONTROL, data);
 	}
 }
 
 void ET1310_PhyAutoNeg(struct et131x_adapter *etdev, bool enable)
 {
-	uint16_t usData;
+	uint16_t data;
 
-	MiRead(etdev, PHY_CONTROL, &usData);
+	MiRead(etdev, PHY_CONTROL, &data);
 
 	if (enable == true) {
 		/* Autonegotiation ON */
-		usData |= 0x1000;
-		MiWrite(etdev, PHY_CONTROL, usData);
+		data |= 0x1000;
+		MiWrite(etdev, PHY_CONTROL, data);
 	} else {
 		/* Autonegotiation OFF */
-		usData &= ~0x1000;
-		MiWrite(etdev, PHY_CONTROL, usData);
+		data &= ~0x1000;
+		MiWrite(etdev, PHY_CONTROL, data);
 	}
 }
 
 void ET1310_PhyDuplexMode(struct et131x_adapter *etdev, uint16_t duplex)
 {
-	uint16_t usData;
+	uint16_t data;
 
-	MiRead(etdev, PHY_CONTROL, &usData);
+	MiRead(etdev, PHY_CONTROL, &data);
 
 	if (duplex == TRUEPHY_DUPLEX_FULL) {
 		/* Set Full Duplex */
-		usData |= 0x100;
-		MiWrite(etdev, PHY_CONTROL, usData);
+		data |= 0x100;
+		MiWrite(etdev, PHY_CONTROL, data);
 	} else {
 		/* Set Half Duplex */
-		usData &= ~0x100;
-		MiWrite(etdev, PHY_CONTROL, usData);
+		data &= ~0x100;
+		MiWrite(etdev, PHY_CONTROL, data);
 	}
 }
 
 void ET1310_PhySpeedSelect(struct et131x_adapter *etdev, uint16_t speed)
 {
-	uint16_t usData;
+	uint16_t data;
 
 	/* Read the PHY control register */
-	MiRead(etdev, PHY_CONTROL, &usData);
+	MiRead(etdev, PHY_CONTROL, &data);
 
 	/* Clear all Speed settings (Bits 6, 13) */
-	usData &= ~0x2040;
+	data &= ~0x2040;
 
 	/* Reset the speed bits based on user selection */
 	switch (speed) {
@@ -1044,29 +1044,29 @@ void ET1310_PhySpeedSelect(struct et131x_adapter *etdev, uint16_t speed)
 
 	case TRUEPHY_SPEED_100MBPS:
 		/* 100M == Set bit 13 */
-		usData |= 0x2000;
+		data |= 0x2000;
 		break;
 
 	case TRUEPHY_SPEED_1000MBPS:
 	default:
-		usData |= 0x0040;
+		data |= 0x0040;
 		break;
 	}
 
 	/* Write back the new speed */
-	MiWrite(etdev, PHY_CONTROL, usData);
+	MiWrite(etdev, PHY_CONTROL, data);
 }
 
 void ET1310_PhyAdvertise1000BaseT(struct et131x_adapter *etdev,
 				  uint16_t duplex)
 {
-	uint16_t usData;
+	uint16_t data;
 
 	/* Read the PHY 1000 Base-T Control Register */
-	MiRead(etdev, PHY_1000_CONTROL, &usData);
+	MiRead(etdev, PHY_1000_CONTROL, &data);
 
 	/* Clear Bits 8,9 */
-	usData &= ~0x0300;
+	data &= ~0x0300;
 
 	switch (duplex) {
 	case TRUEPHY_ADV_DUPLEX_NONE:
@@ -1075,34 +1075,34 @@ void ET1310_PhyAdvertise1000BaseT(struct et131x_adapter *etdev,
 
 	case TRUEPHY_ADV_DUPLEX_FULL:
 		/* Set Bit 9 */
-		usData |= 0x0200;
+		data |= 0x0200;
 		break;
 
 	case TRUEPHY_ADV_DUPLEX_HALF:
 		/* Set Bit 8 */
-		usData |= 0x0100;
+		data |= 0x0100;
 		break;
 
 	case TRUEPHY_ADV_DUPLEX_BOTH:
 	default:
-		usData |= 0x0300;
+		data |= 0x0300;
 		break;
 	}
 
 	/* Write back advertisement */
-	MiWrite(etdev, PHY_1000_CONTROL, usData);
+	MiWrite(etdev, PHY_1000_CONTROL, data);
 }
 
 void ET1310_PhyAdvertise100BaseT(struct et131x_adapter *etdev,
 				 uint16_t duplex)
 {
-	uint16_t usData;
+	uint16_t data;
 
 	/* Read the Autonegotiation Register (10/100) */
-	MiRead(etdev, PHY_AUTO_ADVERTISEMENT, &usData);
+	MiRead(etdev, PHY_AUTO_ADVERTISEMENT, &data);
 
 	/* Clear bits 7,8 */
-	usData &= ~0x0180;
+	data &= ~0x0180;
 
 	switch (duplex) {
 	case TRUEPHY_ADV_DUPLEX_NONE:
@@ -1111,35 +1111,35 @@ void ET1310_PhyAdvertise100BaseT(struct et131x_adapter *etdev,
 
 	case TRUEPHY_ADV_DUPLEX_FULL:
 		/* Set Bit 8 */
-		usData |= 0x0100;
+		data |= 0x0100;
 		break;
 
 	case TRUEPHY_ADV_DUPLEX_HALF:
 		/* Set Bit 7 */
-		usData |= 0x0080;
+		data |= 0x0080;
 		break;
 
 	case TRUEPHY_ADV_DUPLEX_BOTH:
 	default:
 		/* Set Bits 7,8 */
-		usData |= 0x0180;
+		data |= 0x0180;
 		break;
 	}
 
 	/* Write back advertisement */
-	MiWrite(etdev, PHY_AUTO_ADVERTISEMENT, usData);
+	MiWrite(etdev, PHY_AUTO_ADVERTISEMENT, data);
 }
 
 void ET1310_PhyAdvertise10BaseT(struct et131x_adapter *etdev,
 				uint16_t duplex)
 {
-	uint16_t usData;
+	uint16_t data;
 
 	/* Read the Autonegotiation Register (10/100) */
-	MiRead(etdev, PHY_AUTO_ADVERTISEMENT, &usData);
+	MiRead(etdev, PHY_AUTO_ADVERTISEMENT, &data);
 
 	/* Clear bits 5,6 */
-	usData &= ~0x0060;
+	data &= ~0x0060;
 
 	switch (duplex) {
 	case TRUEPHY_ADV_DUPLEX_NONE:
@@ -1148,75 +1148,75 @@ void ET1310_PhyAdvertise10BaseT(struct et131x_adapter *etdev,
 
 	case TRUEPHY_ADV_DUPLEX_FULL:
 		/* Set Bit 6 */
-		usData |= 0x0040;
+		data |= 0x0040;
 		break;
 
 	case TRUEPHY_ADV_DUPLEX_HALF:
 		/* Set Bit 5 */
-		usData |= 0x0020;
+		data |= 0x0020;
 		break;
 
 	case TRUEPHY_ADV_DUPLEX_BOTH:
 	default:
 		/* Set Bits 5,6 */
-		usData |= 0x0060;
+		data |= 0x0060;
 		break;
 	}
 
 	/* Write back advertisement */
-	MiWrite(etdev, PHY_AUTO_ADVERTISEMENT, usData);
+	MiWrite(etdev, PHY_AUTO_ADVERTISEMENT, data);
 }
 
 void ET1310_PhyLinkStatus(struct et131x_adapter *etdev,
-			  uint8_t *ucLinkStatus,
-			  uint32_t *uiAutoNeg,
-			  uint32_t *uiLinkSpeed,
-			  uint32_t *uiDuplexMode,
-			  uint32_t *uiMdiMdix,
-			  uint32_t *uiMasterSlave, uint32_t *uiPolarity)
+			  uint8_t *link_status,
+			  uint32_t *autoneg,
+			  uint32_t *linkspeed,
+			  uint32_t *duplex_mode,
+			  uint32_t *mdi_mdix,
+			  uint32_t *masterslave, uint32_t *polarity)
 {
-	uint16_t usMiStatus = 0;
-	uint16_t us1000BaseT = 0;
-	uint16_t usVmiPhyStatus = 0;
-	uint16_t usControl = 0;
+	uint16_t mistatus = 0;
+	uint16_t is1000BaseT = 0;
+	uint16_t vmi_phystatus = 0;
+	uint16_t control = 0;
 
-	MiRead(etdev, PHY_STATUS, &usMiStatus);
-	MiRead(etdev, PHY_1000_STATUS, &us1000BaseT);
-	MiRead(etdev, PHY_PHY_STATUS, &usVmiPhyStatus);
-	MiRead(etdev, PHY_CONTROL, &usControl);
+	MiRead(etdev, PHY_STATUS, &mistatus);
+	MiRead(etdev, PHY_1000_STATUS, &is1000BaseT);
+	MiRead(etdev, PHY_PHY_STATUS, &vmi_phystatus);
+	MiRead(etdev, PHY_CONTROL, &control);
 
-	if (ucLinkStatus) {
-		*ucLinkStatus =
-		    (unsigned char)((usVmiPhyStatus & 0x0040) ? 1 : 0);
+	if (link_status) {
+		*link_status =
+		    (unsigned char)((vmi_phystatus & 0x0040) ? 1 : 0);
 	}
 
-	if (uiAutoNeg) {
-		*uiAutoNeg =
-		    (usControl & 0x1000) ? ((usVmiPhyStatus & 0x0020) ?
+	if (autoneg) {
+		*autoneg =
+		    (control & 0x1000) ? ((vmi_phystatus & 0x0020) ?
 					    TRUEPHY_ANEG_COMPLETE :
 					    TRUEPHY_ANEG_NOT_COMPLETE) :
 		    TRUEPHY_ANEG_DISABLED;
 	}
 
-	if (uiLinkSpeed)
-		*uiLinkSpeed = (usVmiPhyStatus & 0x0300) >> 8;
+	if (linkspeed)
+		*linkspeed = (vmi_phystatus & 0x0300) >> 8;
 
-	if (uiDuplexMode)
-		*uiDuplexMode = (usVmiPhyStatus & 0x0080) >> 7;
+	if (duplex_mode)
+		*duplex_mode = (vmi_phystatus & 0x0080) >> 7;
 
-	if (uiMdiMdix)
+	if (mdi_mdix)
 		/* NOTE: Need to complete this */
-		*uiMdiMdix = 0;
+		*mdi_mdix = 0;
 
-	if (uiMasterSlave) {
-		*uiMasterSlave =
-		    (us1000BaseT & 0x4000) ? TRUEPHY_CFG_MASTER :
+	if (masterslave) {
+		*masterslave =
+		    (is1000BaseT & 0x4000) ? TRUEPHY_CFG_MASTER :
 		    TRUEPHY_CFG_SLAVE;
 	}
 
-	if (uiPolarity) {
-		*uiPolarity =
-		    (usVmiPhyStatus & 0x0400) ? TRUEPHY_POLARITY_INVERTED :
+	if (polarity) {
+		*polarity =
+		    (vmi_phystatus & 0x0400) ? TRUEPHY_POLARITY_INVERTED :
 		    TRUEPHY_POLARITY_NORMAL;
 	}
 }

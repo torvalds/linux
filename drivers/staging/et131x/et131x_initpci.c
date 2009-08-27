@@ -330,14 +330,14 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 			return -EIO;
 		} else if (rev == 0x01) {
 			int32_t nLoop;
-			uint8_t ucTemp[4] = { 0xFE, 0x13, 0x10, 0xFF };
+			uint8_t temp[4] = { 0xFE, 0x13, 0x10, 0xFF };
 
 			/* Re-write the first 4 bytes if we have an eeprom
 			 * present and the revision id is 1, this fixes the
 			 * corruption seen with 1310 B Silicon
 			 */
 			for (nLoop = 0; nLoop < 3; nLoop++) {
-				EepromWriteByte(adapter, nLoop, ucTemp[nLoop],
+				EepromWriteByte(adapter, nLoop, temp[nLoop],
 						0, SINGLE_BYTE);
 			}
 		}
@@ -351,14 +351,14 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 		 * information that normally would come from the eeprom, like
 		 * MAC Address
 		 */
-		adapter->bEepromPresent = false;
+		adapter->has_eeprom = 0;
 
 		DBG_LEAVE(et131x_dbginfo);
 		return -EIO;
 	} else {
 		DBG_TRACE(et131x_dbginfo, "EEPROM Status Code - 0x%04x\n",
 			  eepromStat);
-		adapter->bEepromPresent = true;
+		adapter->has_eeprom = 1;
 	}
 
 	/* Read the EEPROM for information regarding LED behavior. Refer to
@@ -445,7 +445,7 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	/* Get MAC address from config space if an eeprom exists, otherwise
 	 * the MAC address there will not be valid
 	 */
-	if (adapter->bEepromPresent) {
+	if (adapter->has_eeprom) {
 		int i;
 
 		for (i = 0; i < ETH_ALEN; i++) {
@@ -520,9 +520,6 @@ void et131x_link_detection_handler(unsigned long data)
 	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
 	unsigned long flags;
 
-	/* Let everyone know that we have run */
-	etdev->bLinkTimerActive = false;
-
 	if (etdev->MediaState == 0) {
 		spin_lock_irqsave(&etdev->Lock, flags);
 
@@ -532,8 +529,6 @@ void et131x_link_detection_handler(unsigned long data)
 		spin_unlock_irqrestore(&etdev->Lock, flags);
 
 		netif_carrier_off(etdev->netdev);
-
-		etdev->bSetPending = false;
 	}
 }
 
@@ -608,35 +603,32 @@ void et131x_setup_hardware_properties(struct et131x_adapter *adapter)
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
 	 */
-	if (!adapter->bOverrideAddress) {
-		if (adapter->PermanentAddress[0] == 0x00 &&
-		    adapter->PermanentAddress[1] == 0x00 &&
-		    adapter->PermanentAddress[2] == 0x00 &&
-		    adapter->PermanentAddress[3] == 0x00 &&
-		    adapter->PermanentAddress[4] == 0x00 &&
-		    adapter->PermanentAddress[5] == 0x00) {
-			/*
-			 * We need to randomly generate the last octet so we
-			 * decrease our chances of setting the mac address to
-			 * same as another one of our cards in the system
-			 */
-			get_random_bytes(&adapter->CurrentAddress[5], 1);
-
-			/*
-			 * We have the default value in the register we are
-			 * working with so we need to copy the current
-			 * address into the permanent address
-			 */
-			memcpy(adapter->PermanentAddress,
-			       adapter->CurrentAddress, ETH_ALEN);
-		} else {
-			/* We do not have an override address, so set the
-			 * current address to the permanent address and add
-			 * it to the device
-			 */
-			memcpy(adapter->CurrentAddress,
-			       adapter->PermanentAddress, ETH_ALEN);
-		}
+	if (adapter->PermanentAddress[0] == 0x00 &&
+	    adapter->PermanentAddress[1] == 0x00 &&
+	    adapter->PermanentAddress[2] == 0x00 &&
+	    adapter->PermanentAddress[3] == 0x00 &&
+	    adapter->PermanentAddress[4] == 0x00 &&
+	    adapter->PermanentAddress[5] == 0x00) {
+		/*
+		 * We need to randomly generate the last octet so we
+		 * decrease our chances of setting the mac address to
+		 * same as another one of our cards in the system
+		 */
+		get_random_bytes(&adapter->CurrentAddress[5], 1);
+		/*
+		 * We have the default value in the register we are
+		 * working with so we need to copy the current
+		 * address into the permanent address
+		 */
+		memcpy(adapter->PermanentAddress,
+			adapter->CurrentAddress, ETH_ALEN);
+	} else {
+		/* We do not have an override address, so set the
+		 * current address to the permanent address and add
+		 * it to the device
+		 */
+		memcpy(adapter->CurrentAddress,
+		       adapter->PermanentAddress, ETH_ALEN);
 	}
 
 	DBG_LEAVE(et131x_dbginfo);

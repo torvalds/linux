@@ -133,8 +133,8 @@ typedef struct _MP_RFD {
 	struct list_head list_node;
 	struct sk_buff *Packet;
 	u32 PacketSize;	/* total size of receive frame */
-	u16 iBufferIndex;
-	u8 iRingIndex;
+	u16 bufferindex;
+	u8 ringindex;
 } MP_RFD, *PMP_RFD;
 
 /* Enum for Flow Control */
@@ -214,8 +214,7 @@ struct et131x_adapter {
 	/* Configuration  */
 	u8 PermanentAddress[ETH_ALEN];
 	u8 CurrentAddress[ETH_ALEN];
-	bool bOverrideAddress;
-	bool bEepromPresent;
+	bool has_eeprom;
 	u8 eepromData[2];
 
 	/* Spinlocks */
@@ -234,11 +233,8 @@ struct et131x_adapter {
 
 	/* Packet Filter and look ahead size */
 	u32 PacketFilter;
-	u32 ulLookAhead;
-	u32 uiLinkSpeed;
-	u32 uiDuplexMode;
-	u32 uiAutoNegStatus;
-	u8 ucLinkStatus;
+	u32 linkspeed;
+	u32 duplex_mode;
 
 	/* multicast list */
 	u32 MCAddressCount;
@@ -275,11 +271,7 @@ struct et131x_adapter {
 	u8 DriverNoPhyAccess;
 
 	/* Minimize init-time */
-	bool bQueryPending;
-	bool bSetPending;
-	bool bResetPending;
 	struct timer_list ErrorTimer;
-	bool bLinkTimerActive;
 	MP_POWER_MGMT PoMgmt;
 	INTERRUPT_t CachedMaskValue;
 

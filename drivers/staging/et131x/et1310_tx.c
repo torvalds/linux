@@ -246,22 +246,22 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 
 /**
  * ConfigTxDmaRegs - Set up the tx dma section of the JAGCore.
- * @adapter: pointer to our private adapter structure
+ * @etdev: pointer to our private adapter structure
  */
 void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _TXDMA_t __iomem *pTxDma = &etdev->regs->txdma;
+	struct _TXDMA_t __iomem *txdma = &etdev->regs->txdma;
 
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Load the hardware with the start of the transmit descriptor ring. */
 	writel((uint32_t) (etdev->TxRing.pTxDescRingAdjustedPa >> 32),
-	       &pTxDma->pr_base_hi);
+	       &txdma->pr_base_hi);
 	writel((uint32_t) etdev->TxRing.pTxDescRingAdjustedPa,
-	       &pTxDma->pr_base_lo);
+	       &txdma->pr_base_lo);
 
 	/* Initialise the transmit DMA engine */
-	writel(NUM_DESC_PER_RING_TX - 1, &pTxDma->pr_num_des.value);
+	writel(NUM_DESC_PER_RING_TX - 1, &txdma->pr_num_des.value);
 
 	/* Load the completion writeback physical address
 	 *
@@ -270,12 +270,12 @@ void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 	 * are ever returned, make sure the high part is retrieved here before
 	 * storing the adjusted address.
 	 */
-	writel(0, &pTxDma->dma_wb_base_hi);
-	writel(etdev->TxRing.pTxStatusPa, &pTxDma->dma_wb_base_lo);
+	writel(0, &txdma->dma_wb_base_hi);
+	writel(etdev->TxRing.pTxStatusPa, &txdma->dma_wb_base_lo);
 
 	memset(etdev->TxRing.pTxStatusVa, 0, sizeof(TX_STATUS_BLOCK_t));
 
-	writel(0, &pTxDma->service_request.value);
+	writel(0, &txdma->service_request.value);
 	etdev->TxRing.txDmaReadyToSend.value = 0;
 
 	DBG_LEAVE(et131x_dbginfo);
@@ -461,7 +461,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 {
 	int status = 0;
 	PMP_TCB pMpTcb = NULL;
-	uint16_t *pShBufVa;
+	uint16_t *shbufva;
 	unsigned long flags;
 
 	DBG_TX_ENTER(et131x_dbginfo);
@@ -506,12 +506,12 @@ static int et131x_send_packet(struct sk_buff *skb,
 	pMpTcb->Packet = skb;
 
 	if ((skb->data != NULL) && ((skb->len - skb->data_len) >= 6)) {
-		pShBufVa = (uint16_t *) skb->data;
+		shbufva = (uint16_t *) skb->data;
 
-		if ((pShBufVa[0] == 0xffff) &&
-		    (pShBufVa[1] == 0xffff) && (pShBufVa[2] == 0xffff)) {
+		if ((shbufva[0] == 0xffff) &&
+		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff)) {
 			MP_SET_FLAG(pMpTcb, fMP_DEST_BROAD);
-		} else if ((pShBufVa[0] & 0x3) == 0x0001) {
+		} else if ((shbufva[0] & 0x3) == 0x0001) {
 			MP_SET_FLAG(pMpTcb, fMP_DEST_MULTI);
 		}
 	}
@@ -558,7 +558,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	uint32_t loopIndex;
 	TX_DESC_ENTRY_t CurDesc[24];
 	uint32_t FragmentNumber = 0;
-	uint32_t iThisCopy, iRemainder;
+	uint32_t thiscopy, remainder;
 	struct sk_buff *pPacket = pMpTcb->Packet;
 	uint32_t FragListCount = skb_shinfo(pPacket)->nr_frags + 1;
 	struct skb_frag_struct *pFragList = &skb_shinfo(pPacket)->frags[0];
@@ -710,7 +710,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		return -EIO;
 	}
 
-	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
+	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		if (++etdev->TxRing.TxPacketsSinceLastinterrupt ==
 		    PARM_TX_NUM_BUFS_DEF) {
 			CurDesc[FragmentNumber - 1].word3.value = 0x5;
@@ -729,21 +729,21 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	spin_lock_irqsave(&etdev->SendHWLock, flags);
 
-	iThisCopy =
+	thiscopy =
 	    NUM_DESC_PER_RING_TX - etdev->TxRing.txDmaReadyToSend.bits.val;
 
-	if (iThisCopy >= FragmentNumber) {
-		iRemainder = 0;
-		iThisCopy = FragmentNumber;
+	if (thiscopy >= FragmentNumber) {
+		remainder = 0;
+		thiscopy = FragmentNumber;
 	} else {
-		iRemainder = FragmentNumber - iThisCopy;
+		remainder = FragmentNumber - thiscopy;
 	}
 
 	memcpy(etdev->TxRing.pTxDescRingVa +
 	       etdev->TxRing.txDmaReadyToSend.bits.val, CurDesc,
-	       sizeof(TX_DESC_ENTRY_t) * iThisCopy);
+	       sizeof(TX_DESC_ENTRY_t) * thiscopy);
 
-	etdev->TxRing.txDmaReadyToSend.bits.val += iThisCopy;
+	etdev->TxRing.txDmaReadyToSend.bits.val += thiscopy;
 
 	if ((etdev->TxRing.txDmaReadyToSend.bits.val == 0) ||
 	    (etdev->TxRing.txDmaReadyToSend.bits.val ==
@@ -754,12 +754,12 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 			etdev->TxRing.txDmaReadyToSend.value = 0x400;
 	}
 
-	if (iRemainder) {
+	if (remainder) {
 		memcpy(etdev->TxRing.pTxDescRingVa,
-		       CurDesc + iThisCopy,
-		       sizeof(TX_DESC_ENTRY_t) * iRemainder);
+		       CurDesc + thiscopy,
+		       sizeof(TX_DESC_ENTRY_t) * remainder);
 
-		etdev->TxRing.txDmaReadyToSend.bits.val += iRemainder;
+		etdev->TxRing.txDmaReadyToSend.bits.val += remainder;
 	}
 
 	if (etdev->TxRing.txDmaReadyToSend.bits.val == 0) {
@@ -794,7 +794,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	/* For Gig only, we use Tx Interrupt coalescing.  Enable the software
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
-	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
+	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	}
@@ -824,7 +824,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 {
 	uint32_t loopIndex, fragIndex, loopEnd;
-	uint32_t iSplitFirstElement = 0;
+	uint32_t splitfirstelem = 0;
 	uint32_t SegmentSize = 0;
 	TX_DESC_ENTRY_t CurDesc;
 	TX_DESC_ENTRY_t *CurDescPostCopy = NULL;
@@ -857,21 +857,21 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	DBG_TX(et131x_dbginfo,
 	       "pMpTcb->PacketLength: %d\n", pMpTcb->PacketLength);
 
-	if ((etdev->uiDuplexMode == 0)
+	if ((etdev->duplex_mode == 0)
 	    && (pMpTcb->PacketLength < NIC_MIN_PACKET_SIZE)) {
 		DBG_TX(et131x_dbginfo,
 		       "HALF DUPLEX mode AND len < MIN_PKT_SIZE\n");
 		if ((FragListCount & 0x1) == 0) {
 			DBG_TX(et131x_dbginfo,
 			       "Even number of descs, split 1st elem\n");
-			iSplitFirstElement = 1;
+			splitfirstelem = 1;
 			/* SegmentSize = pFragList[0].size / 2; */
 			SegmentSize = (pPacket->len - pPacket->data_len) / 2;
 		}
 	} else if (FragListCount & 0x1) {
 		DBG_TX(et131x_dbginfo, "Odd number of descs, split 1st elem\n");
 
-		iSplitFirstElement = 1;
+		splitfirstelem = 1;
 		/* SegmentSize = pFragList[0].size / 2; */
 		SegmentSize = (pPacket->len - pPacket->data_len) / 2;
 	}
@@ -894,26 +894,26 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		    etdev->TxRing.txDmaReadyToSend.bits.serv_req;
 	}
 
-	if ((FragListCount + iSplitFirstElement) > SlotsAvailable) {
+	if ((FragListCount + splitfirstelem) > SlotsAvailable) {
 		DBG_WARNING(et131x_dbginfo,
 			    "Not Enough Space in Tx Desc Ring\n");
 		spin_unlock_irqrestore(&etdev->SendHWLock, flags);
 		return -ENOMEM;
 	}
 
-	loopEnd = (FragListCount) + iSplitFirstElement;
+	loopEnd = (FragListCount) + splitfirstelem;
 	fragIndex = 0;
 
 	DBG_TX(et131x_dbginfo,
 	       "TCB           : 0x%p\n"
 	       "Packet (SKB)  : 0x%p\t Packet->len: %d\t Packet->data_len: %d\n"
-	       "FragListCount : %d\t iSplitFirstElement: %d\t loopEnd:%d\n",
+	       "FragListCount : %d\t splitfirstelem: %d\t loopEnd:%d\n",
 	       pMpTcb,
 	       pPacket, pPacket->len, pPacket->data_len,
-	       FragListCount, iSplitFirstElement, loopEnd);
+	       FragListCount, splitfirstelem, loopEnd);
 
 	for (loopIndex = 0; loopIndex < loopEnd; loopIndex++) {
-		if (loopIndex > iSplitFirstElement)
+		if (loopIndex > splitfirstelem)
 			fragIndex++;
 
 		DBG_TX(et131x_dbginfo,
@@ -945,7 +945,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 			CurDesc.word3.value = 0;
 
 			if (fragIndex == 0) {
-				if (iSplitFirstElement) {
+				if (splitfirstelem) {
 					DBG_TX(et131x_dbginfo,
 					       "Split first element: YES\n");
 
@@ -1055,13 +1055,13 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 			}
 
 			if ((loopIndex == (loopEnd - 1)) &&
-			    (etdev->uiDuplexMode ||
+			    (etdev->duplex_mode ||
 			     (pMpTcb->PacketLength >= NIC_MIN_PACKET_SIZE))) {
 				/* This is the Last descriptor of the packet */
 				DBG_TX(et131x_dbginfo,
 				       "THIS is our LAST descriptor\n");
 
-				if (etdev->uiLinkSpeed ==
+				if (etdev->linkspeed ==
 				    TRUEPHY_SPEED_1000MBPS) {
 					if (++etdev->TxRing.
 					    TxPacketsSinceLastinterrupt >=
@@ -1124,14 +1124,14 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		}
 	}
 
-	if (etdev->uiDuplexMode == 0 &&
+	if (etdev->duplex_mode == 0 &&
 	    pMpTcb->PacketLength < NIC_MIN_PACKET_SIZE) {
 		/* NOTE - Same 32/64-bit issue as above... */
 		CurDesc.DataBufferPtrHigh = 0x0;
 		CurDesc.DataBufferPtrLow = etdev->TxRing.pTxDummyBlkPa;
 		CurDesc.word2.value = 0;
 
-		if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
+		if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 			if (++etdev->TxRing.TxPacketsSinceLastinterrupt >=
 			    PARM_TX_NUM_BUFS_DEF) {
 				CurDesc.word3.value = 0x5;
@@ -1212,7 +1212,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	/* For Gig only, we use Tx Interrupt coalescing.  Enable the software
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
-	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
+	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	}
@@ -1339,7 +1339,7 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 {
 	PMP_TCB pMpTcb;
-	struct list_head *pEntry;
+	struct list_head *entry;
 	unsigned long flags;
 	uint32_t FreeCounter = 0;
 
@@ -1351,7 +1351,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 		etdev->TxRing.nWaitSend--;
 		spin_unlock_irqrestore(&etdev->SendWaitLock, flags);
 
-		pEntry = etdev->TxRing.SendWaitQueue.next;
+		entry = etdev->TxRing.SendWaitQueue.next;
 	}
 
 	etdev->TxRing.nWaitSend = 0;
@@ -1496,11 +1496,11 @@ static void et131x_check_send_wait_list(struct et131x_adapter *etdev)
 
 	while (!list_empty(&etdev->TxRing.SendWaitQueue) &&
 				MP_TCB_RESOURCES_AVAILABLE(etdev)) {
-		struct list_head *pEntry;
+		struct list_head *entry;
 
 		DBG_VERBOSE(et131x_dbginfo, "Tx packets on the wait queue\n");
 
-		pEntry = etdev->TxRing.SendWaitQueue.next;
+		entry = etdev->TxRing.SendWaitQueue.next;
 
 		etdev->TxRing.nWaitSend--;
 

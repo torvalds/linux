@@ -195,7 +195,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	cfg2.value = readl(&pMac->cfg2.value);
 	ifctrl.value = readl(&pMac->if_ctrl.value);
 
-	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
+	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		cfg2.bits.if_mode = 0x2;
 		ifctrl.bits.phy_mode = 0x0;
 	} else {
@@ -241,8 +241,8 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	}
 
 	/* 1 - full duplex, 0 - half-duplex */
-	cfg2.bits.full_duplex = etdev->uiDuplexMode;
-	ifctrl.bits.ghd_mode = !etdev->uiDuplexMode;
+	cfg2.bits.full_duplex = etdev->duplex_mode;
+	ifctrl.bits.ghd_mode = !etdev->duplex_mode;
 
 	writel(ifctrl.value, &pMac->if_ctrl.value);
 	writel(cfg2.value, &pMac->cfg2.value);
@@ -262,7 +262,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 
 	DBG_TRACE(et131x_dbginfo,
 		"Speed %d, Dup %d, CFG1 0x%08x, CFG2 0x%08x, if_ctrl 0x%08x\n",
-		etdev->uiLinkSpeed, etdev->uiDuplexMode,
+		etdev->linkspeed, etdev->duplex_mode,
 		readl(&pMac->cfg1.value), readl(&pMac->cfg2.value),
 		readl(&pMac->if_ctrl.value));
 
@@ -408,7 +408,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 * bit 16: Receive frame truncated.
 	 * bit 17: Drop packet enable
 	 */
-	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_100MBPS)
+	if (etdev->linkspeed == TRUEPHY_SPEED_100MBPS)
 		writel(0x30038, &pRxMac->mif_ctrl.value);
 	else
 		writel(0x30030, &pRxMac->mif_ctrl.value);
@@ -540,7 +540,7 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
 {
-	if (etdev->uiDuplexMode == 0) {
+	if (etdev->duplex_mode == 0) {
 		etdev->FlowControl = None;
 	} else {
 		char RemotePause, RemoteAsyncPause;
