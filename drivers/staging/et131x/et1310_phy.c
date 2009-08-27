@@ -547,7 +547,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			}
 
 			etdev->linkspeed = 0;
-			etdev->duplexMode = 0;
+			etdev->duplex_mode = 0;
 
 			/* Free the packets being actively sent & stopped */
 			et131x_free_busy_send_packets(etdev);

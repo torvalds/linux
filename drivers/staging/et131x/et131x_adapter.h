@@ -284,10 +284,6 @@ struct et131x_adapter {
 	/* Rx Memory Variables */
 	RX_RING_t RxRing;
 
-	/* ET1310 register Access */
-	JAGCORE_ACCESS_REGS JagCoreRegs;
-	PCI_CFG_SPACE_REGS PciCfgRegs;
-
 	/* Loopback specifics */
 	u8 ReplicaPhyLoopbk;	/* Replica Enable */
 	u8 ReplicaPhyLoopbkPF;	/* Replica Enable Pass/Fail */
