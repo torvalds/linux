@@ -253,7 +253,7 @@ int et131x_open(struct net_device *netdev)
 	/* Enable device interrupts */
 	et131x_enable_interrupts(adapter);
 
-	MP_SET_FLAG(adapter, fMP_ADAPTER_INTERRUPT_IN_USE);
+	adapter->Flags |= fMP_ADAPTER_INTERRUPT_IN_USE;
 
 	/* We're ready to move some data, so start the queue */
 	netif_start_queue(netdev);
@@ -285,7 +285,7 @@ int et131x_close(struct net_device *netdev)
 	et131x_disable_interrupts(adapter);
 
 	/* Deregistering ISR */
-	MP_CLEAR_FLAG(adapter, fMP_ADAPTER_INTERRUPT_IN_USE);
+	adapter->Flags &= ~fMP_ADAPTER_INTERRUPT_IN_USE;
 
 	DBG_TRACE(et131x_dbginfo, "Deregistering ISR...\n");
 	free_irq(netdev->irq, netdev);
@@ -615,7 +615,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 	DBG_WARNING(et131x_dbginfo, "TX TIMEOUT\n");
 
 	/* Just skip this part if the adapter is doing link detection */
-	if (MP_TEST_FLAG(etdev, fMP_ADAPTER_LINK_DETECTION)) {
+	if (etdev->Flags & fMP_ADAPTER_LINK_DETECTION) {
 		DBG_ERROR(et131x_dbginfo, "Still doing link detection\n");
 		return;
 	}
@@ -623,13 +623,13 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
-	if (MP_TEST_FLAG(etdev, fMP_ADAPTER_NON_RECOVER_ERROR)) {
+	if (etdev->Flags & fMP_ADAPTER_NON_RECOVER_ERROR) {
 		DBG_WARNING(et131x_dbginfo, "Non recoverable error - remove\n");
 		return;
 	}
 
 	/* Hardware failure? */
-	if (MP_TEST_FLAG(etdev, fMP_ADAPTER_HARDWARE_ERROR)) {
+	if (etdev->Flags & fMP_ADAPTER_HARDWARE_ERROR) {
 		DBG_WARNING(et131x_dbginfo, "hardware error - reset\n");
 		return;
 	}
@@ -751,7 +751,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	et131x_adapter_setup(adapter);
 
 	/* Enable interrupts */
-	if (MP_TEST_FLAG(adapter, fMP_ADAPTER_INTERRUPT_IN_USE))
+	if (adapter->Flags & fMP_ADAPTER_INTERRUPT_IN_USE)
 		et131x_enable_interrupts(adapter);
 
 	/* Restart the Tx and Rx DMA engines */
@@ -847,7 +847,7 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 	et131x_adapter_setup(adapter);
 
 	/* Enable interrupts */
-	if (MP_TEST_FLAG(adapter, fMP_ADAPTER_INTERRUPT_IN_USE))
+	if (adapter->Flags & fMP_ADAPTER_INTERRUPT_IN_USE)
 		et131x_enable_interrupts(adapter);
 
 	/* Restart the Tx and Rx DMA engines */

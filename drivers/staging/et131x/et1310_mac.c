@@ -272,7 +272,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	writel(ctl.value, &etdev->regs->txmac.ctl.value);
 
 	/* Ready to start the RXDMA/TXDMA engine */
-	if (!MP_TEST_FLAG(etdev, fMP_ADAPTER_LOWER_POWER)) {
+	if (etdev->Flags & fMP_ADAPTER_LOWER_POWER) {
 		et131x_rx_dma_enable(etdev);
 		et131x_tx_dma_enable(etdev);
 	} else {

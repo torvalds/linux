@@ -510,9 +510,9 @@ static int et131x_send_packet(struct sk_buff *skb,
 
 		if ((shbufva[0] == 0xffff) &&
 		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff)) {
-			MP_SET_FLAG(pMpTcb, fMP_DEST_BROAD);
+			pMpTcb->Flags |= fMP_DEST_BROAD;
 		} else if ((shbufva[0] & 0x3) == 0x0001) {
-			MP_SET_FLAG(pMpTcb, fMP_DEST_MULTI);
+			pMpTcb->Flags |=  fMP_DEST_MULTI;
 		}
 	}
 
@@ -1232,9 +1232,9 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 	TX_DESC_ENTRY_t *desc = NULL;
 	struct net_device_stats *stats = &etdev->net_stats;
 
-	if (MP_TEST_FLAG(pMpTcb, fMP_DEST_BROAD))
+	if (pMpTcb->Flags & fMP_DEST_BROAD)
 		atomic_inc(&etdev->Stats.brdcstxmt);
-	else if (MP_TEST_FLAG(pMpTcb, fMP_DEST_MULTI))
+	else if (pMpTcb->Flags & fMP_DEST_MULTI)
 		atomic_inc(&etdev->Stats.multixmt);
 	else
 		atomic_inc(&etdev->Stats.unixmt);

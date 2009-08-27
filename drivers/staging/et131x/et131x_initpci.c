@@ -523,7 +523,7 @@ void et131x_link_detection_handler(unsigned long data)
 		spin_lock_irqsave(&etdev->Lock, flags);
 
 		etdev->MediaState = NETIF_STATUS_MEDIA_DISCONNECT;
-		MP_CLEAR_FLAG(etdev, fMP_ADAPTER_LINK_DETECTION);
+		etdev->Flags &= ~fMP_ADAPTER_LINK_DETECTION;
 
 		spin_unlock_irqrestore(&etdev->Lock, flags);
 

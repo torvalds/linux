@@ -100,24 +100,11 @@
 #define LO_MARK_PERCENT_FOR_PSR     15
 #define LO_MARK_PERCENT_FOR_RX      15
 
-/* Macros for flag and ref count operations        */
-#define MP_SET_FLAG(_M, _F)         ((_M)->Flags |= (_F))
-#define MP_CLEAR_FLAG(_M, _F)       ((_M)->Flags &= ~(_F))
-#define MP_CLEAR_FLAGS(_M)          ((_M)->Flags = 0)
-#define MP_TEST_FLAG(_M, _F)        (((_M)->Flags & (_F)) != 0)
-#define MP_TEST_FLAGS(_M, _F)       (((_M)->Flags & (_F)) == (_F))
-#define MP_IS_FLAG_CLEAR(_M, _F)    (((_M)->Flags & (_F)) == 0)
-
 /* Macros specific to the private adapter structure */
 #define MP_TCB_RESOURCES_AVAILABLE(_M) ((_M)->TxRing.nBusySend < NUM_TCB)
 #define MP_TCB_RESOURCES_NOT_AVAILABLE(_M) ((_M)->TxRing.nBusySend >= NUM_TCB)
 
 #define MP_SHOULD_FAIL_SEND(_M)   ((_M)->Flags & fMP_ADAPTER_FAIL_SEND_MASK)
-#define MP_IS_NOT_READY(_M)       ((_M)->Flags & fMP_ADAPTER_NOT_READY_MASK)
-#define MP_IS_READY(_M)           (!((_M)->Flags & fMP_ADAPTER_NOT_READY_MASK))
-
-#define MP_HAS_CABLE(_M)           (!((_M)->Flags & fMP_ADAPTER_NO_CABLE))
-#define MP_LINK_DETECTED(_M)       (!((_M)->Flags & fMP_ADAPTER_LINK_DETECTION))
 
 /* Counters for error rate monitoring */
 typedef struct _MP_ERR_COUNTERS {
