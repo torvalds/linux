@@ -321,6 +321,8 @@ void dbg_check_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat,
 int dbg_check_lprops(struct ubifs_info *c);
 int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
 			int row, int col);
+int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
+			 loff_t size);
 
 /* Force the use of in-the-gaps method for testing */
 
@@ -460,6 +462,7 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 #define dbg_check_heap(c, heap, cat, add_pos)      ({})
 #define dbg_check_lprops(c)                        0
 #define dbg_check_lpt_nodes(c, cnode, row, col)    0
+#define dbg_check_inode_size(c, inode, size)       0
 #define dbg_force_in_the_gaps_enabled              0
 #define dbg_force_in_the_gaps()                    0
 #define dbg_failure_mode                           0

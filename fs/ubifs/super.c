@@ -317,6 +317,8 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 		if (err)
 			ubifs_err("can't write inode %lu, error %d",
 				  inode->i_ino, err);
+		else
+			err = dbg_check_inode_size(c, inode, ui->ui_size);
 	}
 
 	ui->dirty = 0;

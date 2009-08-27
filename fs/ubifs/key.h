@@ -278,6 +278,18 @@ static inline void data_key_init(const struct ubifs_info *c,
 }
 
 /**
+ * highest_data_key - get the highest possible data key for an inode.
+ * @c: UBIFS file-system description object
+ * @key: key to initialize
+ * @inum: inode number
+ */
+static inline void highest_data_key(const struct ubifs_info *c,
+				   union ubifs_key *key, ino_t inum)
+{
+	data_key_init(c, key, inum, UBIFS_S_KEY_BLOCK_MASK);
+}
+
+/**
  * trun_key_init - initialize truncation node key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
@@ -518,4 +530,5 @@ static inline unsigned long long key_max_inode_size(const struct ubifs_info *c)
 		return 0;
 	}
 }
+
 #endif /* !__UBIFS_KEY_H__ */
