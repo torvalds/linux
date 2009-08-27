@@ -349,7 +349,7 @@ static int qe_sdma_init(void)
 }
 
 /* The maximum number of RISCs we support */
-#define MAX_QE_RISC     2
+#define MAX_QE_RISC     4
 
 /* Firmware information stored here for qe_get_firmware_info() */
 static struct qe_firmware_info qe_firmware_info;
