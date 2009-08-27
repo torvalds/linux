@@ -1437,6 +1437,14 @@ static struct adp5520_platform_data adp5520_pdev_data = {
 
 #endif
 
+#if defined(CONFIG_GPIO_ADP5588) || defined(CONFIG_GPIO_ADP5588_MODULE)
+#include <linux/i2c/adp5588.h>
+static struct adp5588_gpio_platfrom_data adp5588_gpio_data = {
+	.gpio_start = 50,
+	.pullup_dis_mask = 0,
+};
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_INPUT_EVAL_AD7142EB)
 	{
@@ -1482,6 +1490,12 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		I2C_BOARD_INFO("adxl34x", 0x53),
 		.irq = IRQ_PG3,
 		.platform_data = (void *)&adxl34x_info,
+	},
+#endif
+#if defined(CONFIG_GPIO_ADP5588) || defined(CONFIG_GPIO_ADP5588_MODULE)
+	{
+		I2C_BOARD_INFO("adp5588-gpio", 0x34),
+		.platform_data = (void *)&adp5588_gpio_data,
 	},
 #endif
 };
