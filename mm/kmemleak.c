@@ -232,8 +232,9 @@ struct early_log {
 };
 
 /* early logging buffer and current position */
-static struct early_log early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE];
-static int crt_early_log;
+static struct early_log
+	early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE] __initdata;
+static int crt_early_log __initdata;
 
 static void kmemleak_disable(void);
 
@@ -718,8 +719,8 @@ static void object_no_scan(unsigned long ptr)
  * Log an early kmemleak_* call to the early_log buffer. These calls will be
  * processed later once kmemleak is fully initialized.
  */
-static void log_early(int op_type, const void *ptr, size_t size,
-		      int min_count, unsigned long offset, size_t length)
+static void __init log_early(int op_type, const void *ptr, size_t size,
+			     int min_count, unsigned long offset, size_t length)
 {
 	unsigned long flags;
 	struct early_log *log;
@@ -751,7 +752,8 @@ static void log_early(int op_type, const void *ptr, size_t size,
  * kernel allocators when a new block is allocated (kmem_cache_alloc, kmalloc,
  * vmalloc etc.).
  */
-void kmemleak_alloc(const void *ptr, size_t size, int min_count, gfp_t gfp)
+void __ref kmemleak_alloc(const void *ptr, size_t size, int min_count,
+			  gfp_t gfp)
 {
 	pr_debug("%s(0x%p, %zu, %d)\n", __func__, ptr, size, min_count);
 
@@ -766,7 +768,7 @@ EXPORT_SYMBOL_GPL(kmemleak_alloc);
  * Memory freeing function callback. This function is called from the kernel
  * allocators when a block is freed (kmem_cache_free, kfree, vfree etc.).
  */
-void kmemleak_free(const void *ptr)
+void __ref kmemleak_free(const void *ptr)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
@@ -781,7 +783,7 @@ EXPORT_SYMBOL_GPL(kmemleak_free);
  * Partial memory freeing function callback. This function is usually called
  * from bootmem allocator when (part of) a memory block is freed.
  */
-void kmemleak_free_part(const void *ptr, size_t size)
+void __ref kmemleak_free_part(const void *ptr, size_t size)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
@@ -796,7 +798,7 @@ EXPORT_SYMBOL_GPL(kmemleak_free_part);
  * Mark an already allocated memory block as a false positive. This will cause
  * the block to no longer be reported as leak and always be scanned.
  */
-void kmemleak_not_leak(const void *ptr)
+void __ref kmemleak_not_leak(const void *ptr)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
@@ -812,7 +814,7 @@ EXPORT_SYMBOL(kmemleak_not_leak);
  * corresponding block is not a leak and does not contain any references to
  * other allocated memory blocks.
  */
-void kmemleak_ignore(const void *ptr)
+void __ref kmemleak_ignore(const void *ptr)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
@@ -826,8 +828,8 @@ EXPORT_SYMBOL(kmemleak_ignore);
 /*
  * Limit the range to be scanned in an allocated memory block.
  */
-void kmemleak_scan_area(const void *ptr, unsigned long offset, size_t length,
-			gfp_t gfp)
+void __ref kmemleak_scan_area(const void *ptr, unsigned long offset,
+			      size_t length, gfp_t gfp)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
@@ -841,7 +843,7 @@ EXPORT_SYMBOL(kmemleak_scan_area);
 /*
  * Inform kmemleak not to scan the given memory block.
  */
-void kmemleak_no_scan(const void *ptr)
+void __ref kmemleak_no_scan(const void *ptr)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
