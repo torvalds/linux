@@ -102,16 +102,6 @@
 #include "et1310_eeprom.h"
 
 
-int __devinit et131x_pci_setup(struct pci_dev *pdev,
-			       const struct pci_device_id *ent);
-void __devexit et131x_pci_remove(struct pci_dev *pdev);
-
-
-/* Modinfo parameters (filled out using defines from et131x_version.h) */
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_INFO);
-MODULE_LICENSE(DRIVER_LICENSE);
-
 /* Defines for Parameter Default/Min/Max vaules */
 #define PARM_SPEED_DUPLEX_MIN   0
 #define PARM_SPEED_DUPLEX_MAX   5
@@ -140,60 +130,6 @@ static u32 et131x_speed_set;
 module_param(et131x_speed_set, uint, 0);
 MODULE_PARM_DESC(et131x_speed_set,
 		"Set Link speed and dublex manually (0-5)  [0] \n  1 : 10Mb   Half-Duplex \n  2 : 10Mb   Full-Duplex \n  3 : 100Mb  Half-Duplex \n  4 : 100Mb  Full-Duplex \n  5 : 1000Mb Full-Duplex \n 0 : Auto Speed Auto Dublex");
-
-
-
-static struct pci_device_id et131x_pci_table[] __devinitdata = {
-	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_GIG, PCI_ANY_ID,
-	 PCI_ANY_ID, 0, 0, 0UL},
-	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_FAST, PCI_ANY_ID,
-	 PCI_ANY_ID, 0, 0, 0UL},
-	{0,}
-};
-
-MODULE_DEVICE_TABLE(pci, et131x_pci_table);
-
-static struct pci_driver et131x_driver = {
-      .name	= DRIVER_NAME,
-      .id_table	= et131x_pci_table,
-      .probe	= et131x_pci_setup,
-      .remove	= __devexit_p(et131x_pci_remove),
-      .suspend	= NULL,		/* et131x_pci_suspend */
-      .resume	= NULL,		/* et131x_pci_resume */
-};
-
-
-/**
- * et131x_init_module - The "main" entry point called on driver initialization
- *
- * Returns 0 on success, errno on failure (as defined in errno.h)
- */
-static int et131x_init_module(void)
-{
-	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
-	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
-		printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
-	    	et131x_speed_set = 0;
-	}
-	return pci_register_driver(&et131x_driver);
-}
-
-/**
- * et131x_cleanup_module - The entry point called on driver cleanup
- */
-static void et131x_cleanup_module(void)
-{
-	pci_unregister_driver(&et131x_driver);
-}
-
-/*
- * These macros map the driver-specific init_module() and cleanup_module()
- * routines so they can be called by the kernel.
- */
-
-module_init(et131x_init_module);
-module_exit(et131x_cleanup_module);
-
 
 /**
  * et131x_find_adapter - Find the adapter and get all the assigned resources
@@ -697,35 +633,6 @@ void et131x_adapter_memory_free(struct et131x_adapter *adapter)
 }
 
 /**
- * et131x_pci_remove
- * @pdev: a pointer to the device's pci_dev structure
- *
- * Registered in the pci_driver structure, this function is called when the
- * PCI subsystem detects that a PCI device which matches the information
- * contained in the pci_device_id table has been removed.
- */
-void __devexit et131x_pci_remove(struct pci_dev *pdev)
-{
-	struct net_device *netdev;
-	struct et131x_adapter *adapter;
-
-	/* Retrieve the net_device pointer from the pci_dev struct, as well
-	 * as the private adapter struct
-	 */
-	netdev = (struct net_device *) pci_get_drvdata(pdev);
-	adapter = netdev_priv(netdev);
-
-	/* Perform device cleanup */
-	unregister_netdev(netdev);
-	et131x_adapter_memory_free(adapter);
-	iounmap(adapter->regs);
-	pci_dev_put(adapter->pdev);
-	free_netdev(netdev);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-}
-
-/**
  * et131x_config_parse
  * @etdev: pointer to the private adapter struct
  *
@@ -771,6 +678,37 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 
 
 /**
+ * et131x_pci_remove
+ * @pdev: a pointer to the device's pci_dev structure
+ *
+ * Registered in the pci_driver structure, this function is called when the
+ * PCI subsystem detects that a PCI device which matches the information
+ * contained in the pci_device_id table has been removed.
+ */
+
+void __devexit et131x_pci_remove(struct pci_dev *pdev)
+{
+	struct net_device *netdev;
+	struct et131x_adapter *adapter;
+
+	/* Retrieve the net_device pointer from the pci_dev struct, as well
+	 * as the private adapter struct
+	 */
+	netdev = (struct net_device *) pci_get_drvdata(pdev);
+	adapter = netdev_priv(netdev);
+
+	/* Perform device cleanup */
+	unregister_netdev(netdev);
+	et131x_adapter_memory_free(adapter);
+	iounmap(adapter->regs);
+	pci_dev_put(adapter->pdev);
+	free_netdev(netdev);
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+}
+
+
+/**
  * et131x_pci_setup - Perform device initialization
  * @pdev: a pointer to the device's pci_dev structure
  * @ent: this device's entry in the pci_device_id table
@@ -782,6 +720,7 @@ void et131x_config_parse(struct et131x_adapter *etdev)
  * contained in the pci_device_id table. This routine is the equivalent to
  * a device insertion routine.
  */
+
 int __devinit et131x_pci_setup(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
@@ -1024,3 +963,55 @@ err_disable:
 	pci_disable_device(pdev);
 	goto out;
 }
+
+static struct pci_device_id et131x_pci_table[] __devinitdata = {
+	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_GIG, PCI_ANY_ID,
+	 PCI_ANY_ID, 0, 0, 0UL},
+	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_FAST, PCI_ANY_ID,
+	 PCI_ANY_ID, 0, 0, 0UL},
+	{0,}
+};
+
+MODULE_DEVICE_TABLE(pci, et131x_pci_table);
+
+static struct pci_driver et131x_driver = {
+      .name	= DRIVER_NAME,
+      .id_table	= et131x_pci_table,
+      .probe	= et131x_pci_setup,
+      .remove	= __devexit_p(et131x_pci_remove),
+      .suspend	= NULL,		/* et131x_pci_suspend */
+      .resume	= NULL,		/* et131x_pci_resume */
+};
+
+
+/**
+ * et131x_init_module - The "main" entry point called on driver initialization
+ *
+ * Returns 0 on success, errno on failure (as defined in errno.h)
+ */
+static int et131x_init_module(void)
+{
+	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
+	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
+		printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
+	    	et131x_speed_set = 0;
+	}
+	return pci_register_driver(&et131x_driver);
+}
+
+/**
+ * et131x_cleanup_module - The entry point called on driver cleanup
+ */
+static void et131x_cleanup_module(void)
+{
+	pci_unregister_driver(&et131x_driver);
+}
+
+module_init(et131x_init_module);
+module_exit(et131x_cleanup_module);
+
+
+/* Modinfo parameters (filled out using defines from et131x_version.h) */
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_INFO);
+MODULE_LICENSE(DRIVER_LICENSE);
