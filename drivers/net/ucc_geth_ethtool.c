@@ -319,9 +319,13 @@ static void uec_get_ethtool_stats(struct net_device *netdev,
 	int i, j = 0;
 
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE) {
-		base = (u32 __iomem *)&ugeth->ug_regs->tx64;
+		if (ugeth->ug_regs)
+			base = (u32 __iomem *)&ugeth->ug_regs->tx64;
+		else
+			base = NULL;
+
 		for (i = 0; i < UEC_HW_STATS_LEN; i++)
-			data[j++] = in_be32(&base[i]);
+			data[j++] = base ? in_be32(&base[i]) : 0;
 	}
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX) {
 		base = (u32 __iomem *)ugeth->p_tx_fw_statistics_pram;
