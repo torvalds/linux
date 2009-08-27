@@ -146,14 +146,10 @@
  * @etdev: pointer to our private adapter structure
  * @addr: the address to write
  * @data: the value to write
- * @eeprom_id: the ID of the EEPROM
- * @addrmode: how the EEPROM is to be accessed
  *
  * Returns SUCCESS or FAILURE
  */
-int EepromWriteByte(struct et131x_adapter *etdev, u32 addr,
-			u8 data, u32 eeprom_id,
-			u32 addrmode)
+int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
 {
 	struct pci_dev *pdev = etdev->pdev;
 	int index;
@@ -238,9 +234,6 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr,
 	control = 0;
 	control |= LBCIF_CONTROL_LBCIF_ENABLE | LBCIF_CONTROL_I2C_WRITE;
 
-	if (addrmode == DUAL_BYTE)
-		control |= LBCIF_CONTROL_TWO_BYTE_ADDR;
-
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
 				  control)) {
 		return FAILURE;
@@ -249,8 +242,6 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr,
 	i2c_wack = 1;
 
 	/* Prepare EEPROM address for Step 3 */
-	addr |= (addrmode == DUAL_BYTE) ?
-	    (eeprom_id << 16) : (eeprom_id << 8);
 
 	for (retries = 0; retries < MAX_NUM_WRITE_RETRIES; retries++) {
 		/* Step 3:*/
@@ -357,9 +348,7 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr,
  *
  * Returns SUCCESS or FAILURE
  */
-int EepromReadByte(struct et131x_adapter *etdev, u32 addr,
-		       u8 *pdata, u32 eeprom_id,
-		       u32 addrmode)
+int EepromReadByte(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 {
 	struct pci_dev *pdev = etdev->pdev;
 	int index;
@@ -427,17 +416,12 @@ int EepromReadByte(struct et131x_adapter *etdev, u32 addr,
 	control = 0;
 	control |= LBCIF_CONTROL_LBCIF_ENABLE;
 
-	if (addrmode == DUAL_BYTE)
-		control |= LBCIF_CONTROL_TWO_BYTE_ADDR;
-
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
 				  control)) {
 		return FAILURE;
 	}
 
 	/* Step 3: */
-	addr |= (addrmode == DUAL_BYTE) ?
-	    (eeprom_id << 16) : (eeprom_id << 8);
 
 	if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER_OFFSET,
 				   addr)) {
