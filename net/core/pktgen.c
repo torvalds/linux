@@ -3395,23 +3395,22 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		return;
 	}
 
-	if (pkt_dev->last_ok || !pkt_dev->skb) {
-		if ((++pkt_dev->clone_count >= pkt_dev->clone_skb)
-		    || (!pkt_dev->skb)) {
-			/* build a new pkt */
-			kfree_skb(pkt_dev->skb);
+	if (!pkt_dev->skb || (pkt_dev->last_ok &&
+			      ++pkt_dev->clone_count >= pkt_dev->clone_skb)) {
+		/* build a new pkt */
+		kfree_skb(pkt_dev->skb);
 
-			pkt_dev->skb = fill_packet(odev, pkt_dev);
-			if (pkt_dev->skb == NULL) {
-				printk(KERN_ERR "pktgen: ERROR: couldn't "
-				       "allocate skb in fill_packet.\n");
-				schedule();
-				pkt_dev->clone_count--;	/* back out increment, OOM */
-				return;
-			}
-			pkt_dev->allocated_skbs++;
-			pkt_dev->clone_count = 0;	/* reset counter */
+		pkt_dev->skb = fill_packet(odev, pkt_dev);
+		if (pkt_dev->skb == NULL) {
+			printk(KERN_ERR "pktgen: ERROR: couldn't "
+			       "allocate skb in fill_packet.\n");
+			schedule();
+			pkt_dev->clone_count--;	/* back out increment, OOM */
+			return;
 		}
+
+		pkt_dev->allocated_skbs++;
+		pkt_dev->clone_count = 0;	/* reset counter */
 	}
 
 	/* fill_packet() might have changed the queue */
@@ -3476,7 +3475,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		/* Done with this */
 		pktgen_stop_device(pkt_dev);
 	}
-out:;
 }
 
 /*
