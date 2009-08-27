@@ -129,26 +129,6 @@ extern dbg_info_t *et131x_dbginfo;
 #define PARM_PHY_COMA_MIN       0
 #define PARM_PHY_COMA_MAX       1
 
-#define PARM_RX_NUM_BUFS_DEF    4
-#define PARM_RX_NUM_BUFS_MIN    1
-#define PARM_RX_NUM_BUFS_MAX    64
-
-#define PARM_RX_TIME_INT_DEF    10
-#define PARM_RX_TIME_INT_MIN    2
-#define PARM_RX_TIME_INT_MAX    320
-
-#define PARM_TX_NUM_BUFS_DEF    4
-#define PARM_TX_NUM_BUFS_MIN    1
-#define PARM_TX_NUM_BUFS_MAX    40
-
-#define PARM_TX_TIME_INT_DEF    40
-#define PARM_TX_TIME_INT_MIN    1
-#define PARM_TX_TIME_INT_MAX    140
-
-#define PARM_RX_MEM_END_DEF     0x2bc
-#define PARM_RX_MEM_END_MIN     0
-#define PARM_RX_MEM_END_MAX     0x3ff
-
 #define PARM_MAC_STAT_DEF       1
 #define PARM_MAC_STAT_MIN       0
 #define PARM_MAC_STAT_MAX       1
@@ -166,8 +146,6 @@ extern dbg_info_t *et131x_dbginfo;
 #define PARM_NMI_DISABLE_MAX    2
 
 #define PARM_DMA_CACHE_DEF      0
-#define PARM_DMA_CACHE_MIN      0
-#define PARM_DMA_CACHE_MAX      15
 
 #define PARM_PHY_LOOPBK_DEF     0
 #define PARM_PHY_LOOPBK_MIN     0
@@ -249,11 +227,6 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 	etdev->RegistryFlowControl = PARM_FLOW_CTL_DEF;
 	etdev->RegistryJumboPacket = PARM_JUMBO_PKT_DEF;
 	etdev->RegistryPhyComa = PARM_PHY_COMA_DEF;
-	etdev->RegistryRxNumBuffers = PARM_RX_NUM_BUFS_DEF;
-	etdev->RegistryRxTimeInterval = PARM_RX_TIME_INT_DEF;
-	etdev->RegistryTxNumBuffers = PARM_TX_NUM_BUFS_DEF;
-	etdev->RegistryTxTimeInterval = PARM_TX_TIME_INT_DEF;
-	etdev->RegistryRxMemEnd = PARM_RX_MEM_END_DEF;
 	etdev->RegistryMACStat = PARM_MAC_STAT_DEF;
 
 	if (et131x_nmi_disable != PARM_NMI_DISABLE_DEF)

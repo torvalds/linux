@@ -792,14 +792,14 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 * For version B silicon, this value gets updated once autoneg is
 	 *complete.
 	 */
-	writel(etdev->RegistryRxNumBuffers, &pRxDma->num_pkt_done.value);
+	writel(PARM_RX_NUM_BUFS_DEF, &pRxDma->num_pkt_done.value);
 
 	/* The "time_done" is not working correctly to coalesce interrupts
 	 * after a given time period, but rather is giving us an interrupt
 	 * regardless of whether we have received packets.
 	 * This value gets updated once autoneg is complete.
 	 */
-	writel(etdev->RegistryRxTimeInterval, &pRxDma->max_pkt_time.value);
+	writel(PARM_RX_TIME_INT_DEF, &pRxDma->max_pkt_time.value);
 
 	spin_unlock_irqrestore(&etdev->RcvLock, flags);
 
@@ -1272,7 +1272,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 
 	if ((PacketArrayCount == NUM_PACKETS_HANDLED) || TempUnfinishedRec) {
 		etdev->RxRing.UnfinishedReceives = true;
-		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
+		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	} else {
 		/* Watchdog timer will disable itself if appropriate. */

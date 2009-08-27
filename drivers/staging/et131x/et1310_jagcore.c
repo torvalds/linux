@@ -113,9 +113,9 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 			 * 50/50:
 			 */
 			writel(0, &pGbl->rxq_start_addr.value);
-			writel(etdev->RegistryRxMemEnd,
+			writel(PARM_RX_MEM_END_DEF,
 			       &pGbl->rxq_end_addr.value);
-			writel(etdev->RegistryRxMemEnd + 1,
+			writel(PARM_RX_MEM_END_DEF + 1,
 			       &pGbl->txq_start_addr.value);
 			writel(INTERNAL_MEM_SIZE - 1,
 			       &pGbl->txq_end_addr.value);

@@ -94,6 +94,7 @@
 
 #include "et1310_tx.h"
 
+
 /* Data for debugging facilities */
 #ifdef CONFIG_ET131X_DEBUG
 extern dbg_info_t *et131x_dbginfo;
@@ -711,7 +712,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
 		if (++etdev->TxRing.TxPacketsSinceLastinterrupt ==
-		    etdev->RegistryTxNumBuffers) {
+		    PARM_TX_NUM_BUFS_DEF) {
 			CurDesc[FragmentNumber - 1].word3.value = 0x5;
 			etdev->TxRing.TxPacketsSinceLastinterrupt = 0;
 		} else {
@@ -794,7 +795,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
 	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
-		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
+		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	}
 
@@ -1064,7 +1065,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 				    TRUEPHY_SPEED_1000MBPS) {
 					if (++etdev->TxRing.
 					    TxPacketsSinceLastinterrupt >=
-					    etdev->RegistryTxNumBuffers) {
+					    PARM_TX_NUM_BUFS_DEF) {
 						CurDesc.word3.value = 0x5;
 						etdev->TxRing.
 						    TxPacketsSinceLastinterrupt
@@ -1132,7 +1133,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 		if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
 			if (++etdev->TxRing.TxPacketsSinceLastinterrupt >=
-			    etdev->RegistryTxNumBuffers) {
+			    PARM_TX_NUM_BUFS_DEF) {
 				CurDesc.word3.value = 0x5;
 				etdev->TxRing.TxPacketsSinceLastinterrupt =
 				    0;
@@ -1212,7 +1213,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
 	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
-		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
+		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	}
 

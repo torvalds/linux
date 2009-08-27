@@ -260,12 +260,6 @@ struct et131x_adapter {
 	u32 RegistryVlanTag;	/* 802.1q Vlan TAG */
 	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
 
-	u32 RegistryTxNumBuffers;
-	u32 RegistryTxTimeInterval;
-
-	u32 RegistryRxNumBuffers;
-	u32 RegistryRxTimeInterval;
-
 	/* Validation helpers */
 	u8 RegistryNMIDisable;
 	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */

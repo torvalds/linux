@@ -125,4 +125,12 @@
 /* Define order of magnitude converter */
 #define NANO_IN_A_MICRO	1000
 
+#define PARM_RX_NUM_BUFS_DEF    4
+#define PARM_RX_TIME_INT_DEF    10
+#define PARM_RX_MEM_END_DEF     0x2bc
+#define PARM_TX_TIME_INT_DEF    40
+#define PARM_TX_NUM_BUFS_DEF    4
+#define PARM_DMA_CACHE_DEF      0
+
+
 #endif /* __ET131X_DEFS_H__ */
