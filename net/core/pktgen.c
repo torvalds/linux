@@ -3458,16 +3458,10 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 	/* If pkt_dev->count is zero, then run forever */
 	if ((pkt_dev->count != 0) && (pkt_dev->sofar >= pkt_dev->count)) {
-		if (atomic_read(&(pkt_dev->skb->users)) != 1) {
-			ktime_t idle_start = ktime_now();
-			while (atomic_read(&(pkt_dev->skb->users)) != 1) {
-				if (signal_pending(current)) {
-					break;
-				}
-				schedule();
-			}
-			pkt_dev->idle_acc += ktime_to_ns(ktime_sub(ktime_now(),
-								   idle_start));
+		while (atomic_read(&(pkt_dev->skb->users)) != 1) {
+			if (signal_pending(current))
+				break;
+			idle(pkt_dev);
 		}
 
 		/* Done with this */
