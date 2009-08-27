@@ -742,6 +742,7 @@ void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	et131x_adapter_memory_free(adapter);
 	iounmap(adapter->CSRAddress);
+	pci_dev_put(adapter->pdev);
 	free_netdev(netdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -878,7 +879,7 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 
 	/* Allocate private adapter struct and copy in relevant information */
 	adapter = netdev_priv(netdev);
-	adapter->pdev = pdev;
+	adapter->pdev = pci_dev_get(pdev);
 	adapter->netdev = netdev;
 
 	/* Do the same for the netdev struct */
@@ -1022,6 +1023,7 @@ err_mem_free:
 err_iounmap:
 	iounmap(adapter->CSRAddress);
 err_free_dev:
+	pci_dev_put(pdev);
 	free_netdev(netdev);
 err_release_res:
 	pci_release_regions(pdev);
