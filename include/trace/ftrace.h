@@ -45,14 +45,15 @@
 	};							\
 	static struct ftrace_event_call event_##name
 
+#undef __cpparg
+#define __cpparg(arg...) arg
+
 /* Callbacks are meaningless to ftrace. */
 #undef TRACE_EVENT_FN
-#define TRACE_EVENT_FN(name, proto, args, tstruct,		\
-		assign, print, reg, unreg)			\
-	TRACE_EVENT(name, TP_PROTO(proto), TP_ARGS(args),	\
-		TP_STRUCT__entry(tstruct),			\
-		TP_fast_assign(assign),				\
-		TP_printk(print))
+#define TRACE_EVENT_FN(name, proto, args, tstruct,			\
+		assign, print, reg, unreg)				\
+	TRACE_EVENT(name, __cpparg(proto), __cpparg(args),		\
+		__cpparg(tstruct), __cpparg(assign), __cpparg(print))	\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
