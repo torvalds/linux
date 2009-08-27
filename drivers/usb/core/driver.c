@@ -239,23 +239,30 @@ static int usb_probe_interface(struct device *dev)
 
 		/* Carry out a deferred switch to altsetting 0 */
 		if (intf->needs_altsetting0) {
-			usb_set_interface(udev, intf->altsetting[0].
+			error = usb_set_interface(udev, intf->altsetting[0].
 					desc.bInterfaceNumber, 0);
+			if (error < 0)
+				goto err;
+
 			intf->needs_altsetting0 = 0;
 		}
 
 		error = driver->probe(intf, id);
-		if (error) {
-			mark_quiesced(intf);
-			intf->needs_remote_wakeup = 0;
-			intf->condition = USB_INTERFACE_UNBOUND;
-			usb_cancel_queued_reset(intf);
-		} else
-			intf->condition = USB_INTERFACE_BOUND;
+		if (error)
+			goto err;
 
+		intf->condition = USB_INTERFACE_BOUND;
 		usb_autosuspend_device(udev);
 	}
 
+	return error;
+
+err:
+	mark_quiesced(intf);
+	intf->needs_remote_wakeup = 0;
+	intf->condition = USB_INTERFACE_UNBOUND;
+	usb_cancel_queued_reset(intf);
+	usb_autosuspend_device(udev);
 	return error;
 }
 
@@ -265,7 +272,7 @@ static int usb_unbind_interface(struct device *dev)
 	struct usb_driver *driver = to_usb_driver(dev->driver);
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_device *udev;
-	int error;
+	int error, r;
 
 	intf->condition = USB_INTERFACE_UNBINDING;
 
@@ -293,11 +300,14 @@ static int usb_unbind_interface(struct device *dev)
 		 * Just re-enable it without affecting the endpoint toggles.
 		 */
 		usb_enable_interface(udev, intf, false);
-	} else if (!error && intf->dev.power.status == DPM_ON)
-		usb_set_interface(udev, intf->altsetting[0].
+	} else if (!error && intf->dev.power.status == DPM_ON) {
+		r = usb_set_interface(udev, intf->altsetting[0].
 				desc.bInterfaceNumber, 0);
-	else
+		if (r < 0)
+			intf->needs_altsetting0 = 1;
+	} else {
 		intf->needs_altsetting0 = 1;
+	}
 	usb_set_intfdata(intf, NULL);
 
 	intf->condition = USB_INTERFACE_UNBOUND;
