@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/workqueue.h>
 
 #ifndef MFD_AB3100_H
 #define MFD_AB3100_H

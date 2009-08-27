@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
