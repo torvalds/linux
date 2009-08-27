@@ -12,6 +12,7 @@
 #include <linux/pfn.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
+#include <linux/kmemleak.h>
 
 #include <asm/bug.h>
 #include <asm/io.h>
@@ -335,6 +336,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 {
 	unsigned long start, end;
 
+	kmemleak_free_part(__va(physaddr), size);
+
 	start = PFN_UP(physaddr);
 	end = PFN_DOWN(physaddr + size);
 
@@ -353,6 +356,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 	unsigned long start, end;
+
+	kmemleak_free_part(__va(addr), size);
 
 	start = PFN_UP(addr);
 	end = PFN_DOWN(addr + size);
@@ -516,6 +521,7 @@ find_block:
 		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
 				start_off);
 		memset(region, 0, size);
+		kmemleak_alloc(region, size, 1, 0);
 		return region;
 	}
 

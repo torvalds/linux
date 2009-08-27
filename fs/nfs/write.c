@@ -87,17 +87,15 @@ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 	return p;
 }
 
-static void nfs_writedata_free(struct nfs_write_data *p)
+void nfs_writedata_free(struct nfs_write_data *p)
 {
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_wdata_mempool);
 }
 
-void nfs_writedata_release(void *data)
+static void nfs_writedata_release(struct nfs_write_data *wdata)
 {
-	struct nfs_write_data *wdata = data;
-
 	put_nfs_open_context(wdata->args.context);
 	nfs_writedata_free(wdata);
 }
@@ -202,8 +200,10 @@ static int nfs_set_page_writeback(struct page *page)
 		struct nfs_server *nfss = NFS_SERVER(inode);
 
 		if (atomic_long_inc_return(&nfss->writeback) >
-				NFS_CONGESTION_ON_THRESH)
-			set_bdi_congested(&nfss->backing_dev_info, WRITE);
+				NFS_CONGESTION_ON_THRESH) {
+			set_bdi_congested(&nfss->backing_dev_info,
+						BLK_RW_ASYNC);
+		}
 	}
 	return ret;
 }
@@ -215,7 +215,7 @@ static void nfs_end_page_writeback(struct page *page)
 
 	end_page_writeback(page);
 	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
-		clear_bdi_congested(&nfss->backing_dev_info, WRITE);
+		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
 }
 
 /*

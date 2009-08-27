@@ -17,7 +17,6 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/mnt_namespace.h>
 #include "internal.h"
 
 

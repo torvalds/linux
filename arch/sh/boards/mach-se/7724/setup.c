@@ -19,6 +19,7 @@
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/usb/r8a66597.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <asm/io.h>
@@ -302,6 +303,34 @@ static struct platform_device sh_eth_device = {
 	.resource = sh_eth_resources,
 };
 
+static struct r8a66597_platdata sh7724_usb0_host_data = {
+};
+
+static struct resource sh7724_usb0_host_resources[] = {
+	[0] = {
+		.start	= 0xa4d80000,
+		.end	= 0xa4d800ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 65,
+		.end	= 65,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
+	},
+};
+
+static struct platform_device sh7724_usb0_host_device = {
+	.name		= "r8a66597_hcd",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= NULL,         /*  not use dma */
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &sh7724_usb0_host_data,
+	},
+	.num_resources	= ARRAY_SIZE(sh7724_usb0_host_resources),
+	.resource	= sh7724_usb0_host_resources,
+};
+
 static struct platform_device *ms7724se_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_eth_device,
@@ -311,6 +340,7 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&ceu1_device,
 	&keysc_device,
 	&sh_eth_device,
+	&sh7724_usb0_host_device,
 };
 
 #define EEPROM_OP   0xBA206000
@@ -364,6 +394,7 @@ static void __init sh_eth_init(void)
 #define SW4140    0xBA201000
 #define FPGA_OUT  0xBA200400
 #define PORT_HIZA 0xA4050158
+#define PORT_MSELCRB 0xA4050182
 
 #define SW41_A    0x0100
 #define SW41_B    0x0200
@@ -373,6 +404,7 @@ static void __init sh_eth_init(void)
 #define SW41_F    0x2000
 #define SW41_G    0x4000
 #define SW41_H    0x8000
+
 static int __init devices_setup(void)
 {
 	u16 sw = ctrl_inw(SW4140); /* select camera, monitor */
@@ -384,6 +416,12 @@ static int __init devices_setup(void)
 		    (1 << 12) | /* USB0 */
 		    (1 << 14)), /* RMII */
 		  FPGA_OUT);
+
+	/* turn on USB clocks, use external clock */
+	ctrl_outw((ctrl_inw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
+
+	/* enable USB0 port */
+	ctrl_outw(0x0600, 0xa40501d4);
 
 	/* enable IRQ 0,1,2 */
 	gpio_request(GPIO_FN_INTC_IRQ0, NULL);

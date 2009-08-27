@@ -27,6 +27,7 @@ extern void kmemleak_init(void);
 extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
 			   gfp_t gfp);
 extern void kmemleak_free(const void *ptr);
+extern void kmemleak_free_part(const void *ptr, size_t size);
 extern void kmemleak_padding(const void *ptr, unsigned long offset,
 			     size_t size);
 extern void kmemleak_not_leak(const void *ptr);
@@ -69,6 +70,9 @@ static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
 {
 }
 static inline void kmemleak_free(const void *ptr)
+{
+}
+static inline void kmemleak_free_part(const void *ptr, size_t size)
 {
 }
 static inline void kmemleak_free_recursive(const void *ptr, unsigned long flags)

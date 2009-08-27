@@ -238,8 +238,10 @@ static irqreturn_t pcap_adc_irq(int irq, void *_pcap)
 	mutex_lock(&pcap->adc_mutex);
 	req = pcap->adc_queue[pcap->adc_head];
 
-	if (WARN(!req, KERN_WARNING "adc irq without pending request\n"))
+	if (WARN(!req, KERN_WARNING "adc irq without pending request\n")) {
+		mutex_unlock(&pcap->adc_mutex);
 		return IRQ_HANDLED;
+	}
 
 	/* read requested channels results */
 	ezx_pcap_read(pcap, PCAP_REG_ADC, &tmp);

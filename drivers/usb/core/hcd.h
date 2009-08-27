@@ -227,6 +227,10 @@ struct hc_driver {
 		/* has a port been handed over to a companion? */
 	int	(*port_handed_over)(struct usb_hcd *, int);
 
+		/* CLEAR_TT_BUFFER completion callback */
+	void	(*clear_tt_buffer_complete)(struct usb_hcd *,
+				struct usb_host_endpoint *);
+
 	/* xHCI specific functions */
 		/* Called by usb_alloc_dev to alloc HC device structures */
 	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);

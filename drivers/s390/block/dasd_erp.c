@@ -172,7 +172,7 @@ dasd_log_sense_dbf(struct dasd_ccw_req *cqr, struct irb *irb)
 	device = cqr->startdev;
 	/* dump sense data to s390 debugfeature*/
 	if (device->discipline && device->discipline->dump_sense_dbf)
-		device->discipline->dump_sense_dbf(device, cqr, irb, "log");
+		device->discipline->dump_sense_dbf(device, irb, "log");
 }
 EXPORT_SYMBOL(dasd_log_sense_dbf);
 

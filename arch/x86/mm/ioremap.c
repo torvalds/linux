@@ -233,7 +233,8 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	}
 
 	if (prot_val != new_prot_val) {
-		if (!is_new_memtype_allowed(prot_val, new_prot_val)) {
+		if (!is_new_memtype_allowed(phys_addr, size,
+					    prot_val, new_prot_val)) {
 			printk(KERN_ERR
 		"ioremap error for 0x%llx-0x%llx, requested 0x%lx, got 0x%lx\n",
 				(unsigned long long)phys_addr,

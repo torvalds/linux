@@ -59,7 +59,7 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 			cqicb->pkt_delay =
 			    cpu_to_le16(qdev->tx_max_coalesced_frames);
 			cqicb->flags = FLAGS_LI;
-			status = ql_write_cfg(qdev, cqicb, sizeof(cqicb),
+			status = ql_write_cfg(qdev, cqicb, sizeof(*cqicb),
 						CFG_LCQ, rx_ring->cq_id);
 			if (status) {
 				QPRINTK(qdev, IFUP, ERR,
@@ -82,7 +82,7 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 			cqicb->pkt_delay =
 			    cpu_to_le16(qdev->rx_max_coalesced_frames);
 			cqicb->flags = FLAGS_LI;
-			status = ql_write_cfg(qdev, cqicb, sizeof(cqicb),
+			status = ql_write_cfg(qdev, cqicb, sizeof(*cqicb),
 						CFG_LCQ, rx_ring->cq_id);
 			if (status) {
 				QPRINTK(qdev, IFUP, ERR,

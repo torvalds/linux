@@ -2080,28 +2080,41 @@ static CLASS_ATTR(rfcomm_dlc, S_IRUGO, rfcomm_dlc_sysfs_show, NULL);
 /* ---- Initialization ---- */
 static int __init rfcomm_init(void)
 {
+	int ret;
+
 	l2cap_load();
 
 	hci_register_cb(&rfcomm_cb);
 
 	rfcomm_thread = kthread_run(rfcomm_run, NULL, "krfcommd");
 	if (IS_ERR(rfcomm_thread)) {
-		hci_unregister_cb(&rfcomm_cb);
-		return PTR_ERR(rfcomm_thread);
+		ret = PTR_ERR(rfcomm_thread);
+		goto out_thread;
 	}
 
 	if (class_create_file(bt_class, &class_attr_rfcomm_dlc) < 0)
 		BT_ERR("Failed to create RFCOMM info file");
 
-	rfcomm_init_sockets();
+	ret = rfcomm_init_ttys();
+	if (ret)
+		goto out_tty;
 
-#ifdef CONFIG_BT_RFCOMM_TTY
-	rfcomm_init_ttys();
-#endif
+	ret = rfcomm_init_sockets();
+	if (ret)
+		goto out_sock;
 
 	BT_INFO("RFCOMM ver %s", VERSION);
 
 	return 0;
+
+out_sock:
+	rfcomm_cleanup_ttys();
+out_tty:
+	kthread_stop(rfcomm_thread);
+out_thread:
+	hci_unregister_cb(&rfcomm_cb);
+
+	return ret;
 }
 
 static void __exit rfcomm_exit(void)
@@ -2112,9 +2125,7 @@ static void __exit rfcomm_exit(void)
 
 	kthread_stop(rfcomm_thread);
 
-#ifdef CONFIG_BT_RFCOMM_TTY
 	rfcomm_cleanup_ttys();
-#endif
 
 	rfcomm_cleanup_sockets();
 }

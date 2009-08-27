@@ -60,11 +60,12 @@ struct serial_private {
 
 static void moan_device(const char *str, struct pci_dev *dev)
 {
-	printk(KERN_WARNING "%s: %s\n"
-	       KERN_WARNING "Please send the output of lspci -vv, this\n"
-	       KERN_WARNING "message (0x%04x,0x%04x,0x%04x,0x%04x), the\n"
-	       KERN_WARNING "manufacturer and name of serial board or\n"
-	       KERN_WARNING "modem board to rmk+serial@arm.linux.org.uk.\n",
+	printk(KERN_WARNING
+	       "%s: %s\n"
+	       "Please send the output of lspci -vv, this\n"
+	       "message (0x%04x,0x%04x,0x%04x,0x%04x), the\n"
+	       "manufacturer and name of serial board or\n"
+	       "modem board to rmk+serial@arm.linux.org.uk.\n",
 	       pci_name(dev), str, dev->vendor, dev->device,
 	       dev->subsystem_vendor, dev->subsystem_device);
 }

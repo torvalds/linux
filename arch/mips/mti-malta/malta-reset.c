@@ -28,9 +28,6 @@
 #include <asm/reboot.h>
 #include <asm/mips-boards/generic.h>
 
-static void mips_machine_restart(char *command);
-static void mips_machine_halt(void);
-
 static void mips_machine_restart(char *command)
 {
 	unsigned int __iomem *softres_reg =

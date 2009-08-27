@@ -1505,7 +1505,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 			}
 
 			set_bit(num, iommu->domain_ids);
-			set_bit(iommu->seq_id, &domain->iommu_bmp);
 			iommu->domains[num] = domain;
 			id = num;
 		}
@@ -1648,6 +1647,14 @@ static int domain_context_mapped(struct pci_dev *pdev)
 					     tmp->devfn);
 }
 
+/* Returns a number of VTD pages, but aligned to MM page size */
+static inline unsigned long aligned_nrpages(unsigned long host_addr,
+					    size_t size)
+{
+	host_addr &= ~PAGE_MASK;
+	return PAGE_ALIGN(host_addr + size) >> VTD_PAGE_SHIFT;
+}
+
 static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			    struct scatterlist *sg, unsigned long phys_pfn,
 			    unsigned long nr_pages, int prot)
@@ -1675,7 +1682,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		uint64_t tmp;
 
 		if (!sg_res) {
-			sg_res = (sg->offset + sg->length + VTD_PAGE_SIZE - 1) >> VTD_PAGE_SHIFT;
+			sg_res = aligned_nrpages(sg->offset, sg->length);
 			sg->dma_address = ((dma_addr_t)iov_pfn << VTD_PAGE_SHIFT) + sg->offset;
 			sg->dma_length = sg->length;
 			pteval = page_to_phys(sg_page(sg)) | prot;
@@ -2117,6 +2124,47 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 	return 0;
 }
 
+static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
+{
+	if (iommu_identity_mapping == 2)
+		return IS_GFX_DEVICE(pdev);
+
+	/*
+	 * We want to start off with all devices in the 1:1 domain, and
+	 * take them out later if we find they can't access all of memory.
+	 *
+	 * However, we can't do this for PCI devices behind bridges,
+	 * because all PCI devices behind the same bridge will end up
+	 * with the same source-id on their transactions.
+	 *
+	 * Practically speaking, we can't change things around for these
+	 * devices at run-time, because we can't be sure there'll be no
+	 * DMA transactions in flight for any of their siblings.
+	 * 
+	 * So PCI devices (unless they're on the root bus) as well as
+	 * their parent PCI-PCI or PCIe-PCI bridges must be left _out_ of
+	 * the 1:1 domain, just in _case_ one of their siblings turns out
+	 * not to be able to map all of memory.
+	 */
+	if (!pdev->is_pcie) {
+		if (!pci_is_root_bus(pdev->bus))
+			return 0;
+		if (pdev->class >> 8 == PCI_CLASS_BRIDGE_PCI)
+			return 0;
+	} else if (pdev->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+		return 0;
+
+	/* 
+	 * At boot time, we don't yet know if devices will be 64-bit capable.
+	 * Assume that they will -- if they turn out not to be, then we can 
+	 * take them out of the 1:1 domain later.
+	 */
+	if (!startup)
+		return pdev->dma_mask > DMA_BIT_MASK(32);
+
+	return 1;
+}
+
 static int iommu_prepare_static_identity_mapping(void)
 {
 	struct pci_dev *pdev = NULL;
@@ -2127,16 +2175,18 @@ static int iommu_prepare_static_identity_mapping(void)
 		return -EFAULT;
 
 	for_each_pci_dev(pdev) {
-		printk(KERN_INFO "IOMMU: identity mapping for device %s\n",
-		       pci_name(pdev));
+		if (iommu_should_identity_map(pdev, 1)) {
+			printk(KERN_INFO "IOMMU: identity mapping for device %s\n",
+			       pci_name(pdev));
 
-		ret = domain_context_mapping(si_domain, pdev,
-					     CONTEXT_TT_MULTI_LEVEL);
-		if (ret)
-			return ret;
-		ret = domain_add_dev_info(si_domain, pdev);
-		if (ret)
-			return ret;
+			ret = domain_context_mapping(si_domain, pdev,
+						     CONTEXT_TT_MULTI_LEVEL);
+			if (ret)
+				return ret;
+			ret = domain_add_dev_info(si_domain, pdev);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -2291,6 +2341,10 @@ int __init init_dmars(void)
 	 * identity mapping if iommu_identity_mapping is set.
 	 */
 	if (!iommu_pass_through) {
+#ifdef CONFIG_DMAR_BROKEN_GFX_WA
+		if (!iommu_identity_mapping)
+			iommu_identity_mapping = 2;
+#endif
 		if (iommu_identity_mapping)
 			iommu_prepare_static_identity_mapping();
 		/*
@@ -2368,15 +2422,7 @@ error:
 	return ret;
 }
 
-static inline unsigned long aligned_nrpages(unsigned long host_addr,
-					    size_t size)
-{
-	host_addr &= ~PAGE_MASK;
-	host_addr += size + PAGE_SIZE - 1;
-
-	return host_addr >> VTD_PAGE_SHIFT;
-}
-
+/* This takes a number of _MM_ pages, not VTD pages */
 static struct iova *intel_alloc_iova(struct device *dev,
 				     struct dmar_domain *domain,
 				     unsigned long nrpages, uint64_t dma_mask)
@@ -2443,16 +2489,24 @@ static int iommu_dummy(struct pci_dev *pdev)
 }
 
 /* Check if the pdev needs to go through non-identity map and unmap process.*/
-static int iommu_no_mapping(struct pci_dev *pdev)
+static int iommu_no_mapping(struct device *dev)
 {
+	struct pci_dev *pdev;
 	int found;
 
+	if (unlikely(dev->bus != &pci_bus_type))
+		return 1;
+
+	pdev = to_pci_dev(dev);
+	if (iommu_dummy(pdev))
+		return 1;
+
 	if (!iommu_identity_mapping)
-		return iommu_dummy(pdev);
+		return 0;
 
 	found = identity_mapping(pdev);
 	if (found) {
-		if (pdev->dma_mask > DMA_BIT_MASK(32))
+		if (iommu_should_identity_map(pdev, 0))
 			return 1;
 		else {
 			/*
@@ -2469,9 +2523,12 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 		 * In case of a detached 64 bit DMA device from vm, the device
 		 * is put into si_domain for identity mapping.
 		 */
-		if (pdev->dma_mask > DMA_BIT_MASK(32)) {
+		if (iommu_should_identity_map(pdev, 0)) {
 			int ret;
 			ret = domain_add_dev_info(si_domain, pdev);
+			if (ret)
+				return 0;
+			ret = domain_context_mapping(si_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
 			if (!ret) {
 				printk(KERN_INFO "64bit %s uses identity mapping\n",
 				       pci_name(pdev));
@@ -2480,7 +2537,7 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 		}
 	}
 
-	return iommu_dummy(pdev);
+	return 0;
 }
 
 static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
@@ -2493,10 +2550,11 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	int prot = 0;
 	int ret;
 	struct intel_iommu *iommu;
+	unsigned long paddr_pfn = paddr >> PAGE_SHIFT;
 
 	BUG_ON(dir == DMA_NONE);
 
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(hwdev))
 		return paddr;
 
 	domain = get_valid_domain_for_dev(pdev);
@@ -2506,7 +2564,8 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	iommu = domain_get_iommu(domain);
 	size = aligned_nrpages(paddr, size);
 
-	iova = intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
+	iova = intel_alloc_iova(hwdev, domain, dma_to_mm_pfn(size),
+				pdev->dma_mask);
 	if (!iova)
 		goto error;
 
@@ -2526,7 +2585,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	 * is not a big problem
 	 */
 	ret = domain_pfn_mapping(domain, mm_to_dma_pfn(iova->pfn_lo),
-				 paddr >> VTD_PAGE_SHIFT, size, prot);
+				 mm_to_dma_pfn(paddr_pfn), size, prot);
 	if (ret)
 		goto error;
 
@@ -2635,7 +2694,7 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	struct iova *iova;
 	struct intel_iommu *iommu;
 
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(dev))
 		return;
 
 	domain = find_domain(pdev);
@@ -2726,7 +2785,7 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	struct iova *iova;
 	struct intel_iommu *iommu;
 
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(hwdev))
 		return;
 
 	domain = find_domain(pdev);
@@ -2785,7 +2844,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	struct intel_iommu *iommu;
 
 	BUG_ON(dir == DMA_NONE);
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(hwdev))
 		return intel_nontranslate_map_sg(hwdev, sglist, nelems, dir);
 
 	domain = get_valid_domain_for_dev(pdev);
@@ -2797,7 +2856,8 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	for_each_sg(sglist, sg, nelems, i)
 		size += aligned_nrpages(sg->offset, sg->length);
 
-	iova = intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
+	iova = intel_alloc_iova(hwdev, domain, dma_to_mm_pfn(size),
+				pdev->dma_mask);
 	if (!iova) {
 		sglist->dma_length = 0;
 		return 0;
@@ -2815,7 +2875,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	start_vpfn = mm_to_dma_pfn(iova->pfn_lo);
 
-	ret = domain_sg_mapping(domain, start_vpfn, sglist, mm_to_dma_pfn(size), prot);
+	ret = domain_sg_mapping(domain, start_vpfn, sglist, size, prot);
 	if (unlikely(ret)) {
 		/*  clear the page */
 		dma_pte_clear_range(domain, start_vpfn,
@@ -3348,6 +3408,7 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 
 	domain->iommu_count = 0;
 	domain->iommu_coherency = 0;
+	domain->iommu_snooping = 0;
 	domain->max_addr = 0;
 
 	/* always allocate the top pgd */
@@ -3539,6 +3600,9 @@ static void intel_iommu_unmap_range(struct iommu_domain *domain,
 				    unsigned long iova, size_t size)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
+
+	if (!size)
+		return;
 
 	dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
 			    (iova + size - 1) >> VTD_PAGE_SHIFT);

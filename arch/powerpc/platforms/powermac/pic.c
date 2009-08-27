@@ -609,7 +609,7 @@ static int pmacpic_find_viaint(void)
 	np = of_find_node_by_name(NULL, "via-pmu");
 	if (np == NULL)
 		goto not_found;
-	viaint = irq_of_parse_and_map(np, 0);;
+	viaint = irq_of_parse_and_map(np, 0);
 
 not_found:
 #endif /* CONFIG_ADB_PMU */

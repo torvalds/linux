@@ -33,14 +33,14 @@ static enum power_supply_property *prop;
 
 static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
 {
-	return wm97xx_read_aux_adc(bat_ps->dev->parent->driver_data,
+	return wm97xx_read_aux_adc(dev_get_drvdata(bat_ps->dev->parent),
 					pdata->batt_aux) * pdata->batt_mult /
 					pdata->batt_div;
 }
 
 static unsigned long wm97xx_read_temp(struct power_supply *bat_ps)
 {
-	return wm97xx_read_aux_adc(bat_ps->dev->parent->driver_data,
+	return wm97xx_read_aux_adc(dev_get_drvdata(bat_ps->dev->parent),
 					pdata->temp_aux) * pdata->temp_mult /
 					pdata->temp_div;
 }

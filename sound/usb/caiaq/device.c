@@ -35,13 +35,14 @@
 #include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.17");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.19");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
 			 "{Native Instruments, Kore Controller},"
 			 "{Native Instruments, Kore Controller 2},"
 			 "{Native Instruments, Audio Kontrol 1},"
+			 "{Native Instruments, Audio 2 DJ},"
 			 "{Native Instruments, Audio 4 DJ},"
 			 "{Native Instruments, Audio 8 DJ},"
 			 "{Native Instruments, Session I/O},"
@@ -120,6 +121,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =    USB_PID_AUDIO4DJ
+	},
+	{
+		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =    USB_PID_AUDIO2DJ
 	},
 	{ /* terminator */ }
 };
@@ -349,7 +355,9 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 		log("Unable to set up control system (ret=%d)\n", ret);
 }
 
-static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
+static int create_card(struct usb_device *usb_dev,
+		       struct usb_interface *intf,
+		       struct snd_card **cardp)
 {
 	int devnum;
 	int err;
@@ -374,7 +382,7 @@ static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
 	dev->chip.usb_id = USB_ID(le16_to_cpu(usb_dev->descriptor.idVendor),
 				  le16_to_cpu(usb_dev->descriptor.idProduct));
 	spin_lock_init(&dev->spinlock);
-	snd_card_set_dev(card, &usb_dev->dev);
+	snd_card_set_dev(card, &intf->dev);
 
 	*cardp = card;
 	return 0;
@@ -461,7 +469,7 @@ static int __devinit snd_probe(struct usb_interface *intf,
 	struct snd_card *card;
 	struct usb_device *device = interface_to_usbdev(intf);
 
-	ret = create_card(device, &card);
+	ret = create_card(device, intf, &card);
 
 	if (ret < 0)
 		return ret;

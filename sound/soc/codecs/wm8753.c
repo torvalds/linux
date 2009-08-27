@@ -79,7 +79,7 @@ static const u16 wm8753_reg[] = {
 	0x0097, 0x0097, 0x0000, 0x0004,
 	0x0000, 0x0083, 0x0024, 0x01ba,
 	0x0000, 0x0083, 0x0024, 0x01ba,
-	0x0000, 0x0000
+	0x0000, 0x0000, 0x0000
 };
 
 /* codec private data */
@@ -1660,11 +1660,11 @@ static int wm8753_register(struct wm8753_priv *wm8753)
 	codec->set_bias_level = wm8753_set_bias_level;
 	codec->dai = wm8753_dai;
 	codec->num_dai = 2;
-	codec->reg_cache_size = ARRAY_SIZE(wm8753->reg_cache);
+	codec->reg_cache_size = ARRAY_SIZE(wm8753->reg_cache) + 1;
 	codec->reg_cache = &wm8753->reg_cache;
 	codec->private_data = wm8753;
 
-	memcpy(codec->reg_cache, wm8753_reg, sizeof(codec->reg_cache));
+	memcpy(codec->reg_cache, wm8753_reg, sizeof(wm8753->reg_cache));
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
 
 	ret = wm8753_reset(codec);

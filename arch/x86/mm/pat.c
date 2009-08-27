@@ -631,20 +631,21 @@ static unsigned long lookup_memtype(u64 paddr)
 int io_reserve_memtype(resource_size_t start, resource_size_t end,
 			unsigned long *type)
 {
+	resource_size_t size = end - start;
 	unsigned long req_type = *type;
 	unsigned long new_type;
 	int ret;
 
-	WARN_ON_ONCE(iomem_map_sanity_check(start, end - start));
+	WARN_ON_ONCE(iomem_map_sanity_check(start, size));
 
 	ret = reserve_memtype(start, end, req_type, &new_type);
 	if (ret)
 		goto out_err;
 
-	if (!is_new_memtype_allowed(req_type, new_type))
+	if (!is_new_memtype_allowed(start, size, req_type, new_type))
 		goto out_free;
 
-	if (kernel_map_sync_memtype(start, end - start, new_type) < 0)
+	if (kernel_map_sync_memtype(start, size, new_type) < 0)
 		goto out_free;
 
 	*type = new_type;
@@ -812,7 +813,8 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 		return ret;
 
 	if (flags != want_flags) {
-		if (strict_prot || !is_new_memtype_allowed(want_flags, flags)) {
+		if (strict_prot ||
+		    !is_new_memtype_allowed(paddr, size, want_flags, flags)) {
 			free_memtype(paddr, paddr + size);
 			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
 				" for %Lx-%Lx, got %s\n",

@@ -2405,6 +2405,9 @@ static int do_fb_set_var(struct fb_var_screeninfo *var, int isactive)
 	return 0;
 }
 
+/* fbhw->encode_fix() must be called with fb_info->mm_lock held
+ * if it is called after the register_framebuffer() - not a case here
+ */
 static int atafb_get_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 {
 	struct atafb_par par;
@@ -2414,9 +2417,7 @@ static int atafb_get_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 	if (err)
 		return err;
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
-	mutex_lock(&info->mm_lock);
 	err = fbhw->encode_fix(fix, &par);
-	mutex_unlock(&info->mm_lock);
 	return err;
 }
 

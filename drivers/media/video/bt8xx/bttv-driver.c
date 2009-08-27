@@ -41,6 +41,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
 #include "bttvp.h"
@@ -4418,6 +4419,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 
 	/* some card-specific stuff (needs working i2c) */
 	bttv_init_card2(btv);
+	bttv_init_tuner(btv);
 	init_irqreg(btv);
 
 	/* register video4linux + input */

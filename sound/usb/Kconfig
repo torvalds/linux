@@ -48,6 +48,7 @@ config SND_USB_CAIAQ
 	    * Native Instruments Kore Controller
 	    * Native Instruments Kore Controller 2
 	    * Native Instruments Audio Kontrol 1
+	    * Native Instruments Audio 2 DJ
 	    * Native Instruments Audio 4 DJ
 	    * Native Instruments Audio 8 DJ
 	    * Native Instruments Guitar Rig Session I/O

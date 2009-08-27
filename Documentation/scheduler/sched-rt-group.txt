@@ -73,7 +73,7 @@ The remaining CPU time will be used for user input and other tasks. Because
 realtime tasks have explicitly allocated the CPU time they need to perform
 their tasks, buffer underruns in the graphics or audio can be eliminated.
 
-NOTE: the above example is not fully implemented as of yet (2.6.25). We still
+NOTE: the above example is not fully implemented yet. We still
 lack an EDF scheduler to make non-uniform periods usable.
 
 
@@ -140,14 +140,15 @@ The other option is:
 
 .o CONFIG_CGROUP_SCHED (aka "Basis for grouping tasks" = "Control groups")
 
-This uses the /cgroup virtual file system and "/cgroup/<cgroup>/cpu.rt_runtime_us"
-to control the CPU time reserved for each control group instead.
+This uses the /cgroup virtual file system and
+"/cgroup/<cgroup>/cpu.rt_runtime_us" to control the CPU time reserved for each
+control group instead.
 
 For more information on working with control groups, you should read
 Documentation/cgroups/cgroups.txt as well.
 
-Group settings are checked against the following limits in order to keep the configuration
-schedulable:
+Group settings are checked against the following limits in order to keep the
+configuration schedulable:
 
    \Sum_{i} runtime_{i} / global_period <= global_runtime / global_period
 
@@ -189,7 +190,7 @@ Implementing SCHED_EDF might take a while to complete. Priority Inheritance is
 the biggest challenge as the current linux PI infrastructure is geared towards
 the limited static priority levels 0-99. With deadline scheduling you need to
 do deadline inheritance (since priority is inversely proportional to the
-deadline delta (deadline - now).
+deadline delta (deadline - now)).
 
 This means the whole PI machinery will have to be reworked - and that is one of
 the most complex pieces of code we have.

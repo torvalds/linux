@@ -31,7 +31,7 @@ struct sh_mobile_lcdc_chan {
 	unsigned long enabled; /* ME and SE in LDCNT2R */
 	struct sh_mobile_lcdc_chan_cfg cfg;
 	u32 pseudo_palette[PALETTE_NR];
-	struct fb_info info;
+	struct fb_info *info;
 	dma_addr_t dma_handle;
 	struct fb_deferred_io defio;
 	struct scatterlist *sglist;
@@ -442,22 +442,22 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		/* set bpp format in PKF[4:0] */
 		tmp = lcdc_read_chan(ch, LDDFR);
 		tmp &= ~(0x0001001f);
-		tmp |= (priv->ch[k].info.var.bits_per_pixel == 16) ? 3 : 0;
+		tmp |= (ch->info->var.bits_per_pixel == 16) ? 3 : 0;
 		lcdc_write_chan(ch, LDDFR, tmp);
 
 		/* point out our frame buffer */
-		lcdc_write_chan(ch, LDSA1R, ch->info.fix.smem_start);
+		lcdc_write_chan(ch, LDSA1R, ch->info->fix.smem_start);
 
 		/* set line size */
-		lcdc_write_chan(ch, LDMLSR, ch->info.fix.line_length);
+		lcdc_write_chan(ch, LDMLSR, ch->info->fix.line_length);
 
 		/* setup deferred io if SYS bus */
 		tmp = ch->cfg.sys_bus_cfg.deferred_io_msec;
 		if (ch->ldmt1r_value & (1 << 12) && tmp) {
 			ch->defio.deferred_io = sh_mobile_lcdc_deferred_io;
 			ch->defio.delay = msecs_to_jiffies(tmp);
-			ch->info.fbdefio = &ch->defio;
-			fb_deferred_io_init(&ch->info);
+			ch->info->fbdefio = &ch->defio;
+			fb_deferred_io_init(ch->info);
 
 			/* one-shot mode */
 			lcdc_write_chan(ch, LDSM1R, 1);
@@ -503,12 +503,12 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		 * flush frame, and wait for frame end interrupt
 		 * clean up deferred io and enable clock
 		 */
-		if (ch->info.fbdefio) {
+		if (ch->info->fbdefio) {
 			ch->frame_end = 0;
-			schedule_delayed_work(&ch->info.deferred_work, 0);
+			schedule_delayed_work(&ch->info->deferred_work, 0);
 			wait_event(ch->frame_end_wait, ch->frame_end);
-			fb_deferred_io_cleanup(&ch->info);
-			ch->info.fbdefio = NULL;
+			fb_deferred_io_cleanup(ch->info);
+			ch->info->fbdefio = NULL;
 			sh_mobile_lcdc_clk_on(priv);
 		}
 
@@ -817,9 +817,16 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 	priv->base = ioremap_nocache(res->start, (res->end - res->start) + 1);
 
 	for (i = 0; i < j; i++) {
-		info = &priv->ch[i].info;
 		cfg = &priv->ch[i].cfg;
 
+		priv->ch[i].info = framebuffer_alloc(0, &pdev->dev);
+		if (!priv->ch[i].info) {
+			dev_err(&pdev->dev, "unable to allocate fb_info\n");
+			error = -ENOMEM;
+			break;
+		}
+
+		info = priv->ch[i].info;
 		info->fbops = &sh_mobile_lcdc_ops;
 		info->var.xres = info->var.xres_virtual = cfg->lcd_cfg.xres;
 		info->var.yres = info->var.yres_virtual = cfg->lcd_cfg.yres;
@@ -872,7 +879,7 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 	for (i = 0; i < j; i++) {
 		struct sh_mobile_lcdc_chan *ch = priv->ch + i;
 
-		info = &ch->info;
+		info = ch->info;
 
 		if (info->fbdefio) {
 			priv->ch->sglist = vmalloc(sizeof(struct scatterlist) *
@@ -915,15 +922,15 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++)
-		if (priv->ch[i].info.dev)
-			unregister_framebuffer(&priv->ch[i].info);
+		if (priv->ch[i].info->dev)
+			unregister_framebuffer(priv->ch[i].info);
 
 	sh_mobile_lcdc_stop(priv);
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
-		info = &priv->ch[i].info;
+		info = priv->ch[i].info;
 
-		if (!info->device)
+		if (!info || !info->device)
 			continue;
 
 		if (priv->ch[i].sglist)
@@ -932,6 +939,7 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		dma_free_coherent(&pdev->dev, info->fix.smem_len,
 				  info->screen_base, priv->ch[i].dma_handle);
 		fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
 	}
 
 #ifdef CONFIG_HAVE_CLK

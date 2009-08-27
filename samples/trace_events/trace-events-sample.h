@@ -1,21 +1,4 @@
 /*
- * Notice that this file is not protected like a normal header.
- * We also must allow for rereading of this file. The
- *
- *  || defined(TRACE_HEADER_MULTI_READ)
- *
- * serves this purpose.
- */
-#if !defined(_TRACE_EVENT_SAMPLE_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_EVENT_SAMPLE_H
-
-/*
- * All trace headers should include tracepoint.h, until we finally
- * make it into a standard header.
- */
-#include <linux/tracepoint.h>
-
-/*
  * If TRACE_SYSTEM is defined, that will be the directory created
  * in the ftrace directory under /debugfs/tracing/events/<system>
  *
@@ -34,9 +17,29 @@
  * #define TRACE_INCLUDE_FILE trace-events-sample
  *
  * As we do an the bottom of this file.
+ *
+ * Notice that TRACE_SYSTEM should be defined outside of #if
+ * protection, just like TRACE_INCLUDE_FILE.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM sample
+
+/*
+ * Notice that this file is not protected like a normal header.
+ * We also must allow for rereading of this file. The
+ *
+ *  || defined(TRACE_HEADER_MULTI_READ)
+ *
+ * serves this purpose.
+ */
+#if !defined(_TRACE_EVENT_SAMPLE_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_EVENT_SAMPLE_H
+
+/*
+ * All trace headers should include tracepoint.h, until we finally
+ * make it into a standard header.
+ */
+#include <linux/tracepoint.h>
 
 /*
  * The TRACE_EVENT macro is broken up into 5 parts.

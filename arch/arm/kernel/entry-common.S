@@ -148,7 +148,7 @@ trace:
 	sub r0, r0, #MCOUNT_INSN_SIZE
 	mov lr, pc
 	mov pc, r2
-	mov lr, r1				@ restore lr
+	ldr lr, [fp, #-4]			@ restore lr
 	ldmia sp!, {r0-r3, pc}
 
 #endif /* CONFIG_DYNAMIC_FTRACE */

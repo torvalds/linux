@@ -54,6 +54,7 @@
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
+#include <linux/poll.h>
 
 #include <asm/atomic.h>
 #include <net/dst.h>
@@ -103,15 +104,15 @@ struct net;
 
 /**
  *	struct sock_common - minimal network layer representation of sockets
+ *	@skc_node: main hash linkage for various protocol lookup tables
+ *	@skc_nulls_node: main hash linkage for UDP/UDP-Lite protocol
+ *	@skc_refcnt: reference count
+ *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_family: network address family
  *	@skc_state: Connection state
  *	@skc_reuse: %SO_REUSEADDR setting
  *	@skc_bound_dev_if: bound device index if != 0
- *	@skc_node: main hash linkage for various protocol lookup tables
- *	@skc_nulls_node: main hash linkage for UDP/UDP-Lite protocol
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
- *	@skc_refcnt: reference count
- *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_prot: protocol handlers inside a network family
  *	@skc_net: reference to the network namespace of this socket
  *
@@ -119,17 +120,21 @@ struct net;
  *	for struct sock and struct inet_timewait_sock.
  */
 struct sock_common {
-	unsigned short		skc_family;
-	volatile unsigned char	skc_state;
-	unsigned char		skc_reuse;
-	int			skc_bound_dev_if;
+	/*
+	 * first fields are not copied in sock_copy()
+	 */
 	union {
 		struct hlist_node	skc_node;
 		struct hlist_nulls_node skc_nulls_node;
 	};
-	struct hlist_node	skc_bind_node;
 	atomic_t		skc_refcnt;
+
 	unsigned int		skc_hash;
+	unsigned short		skc_family;
+	volatile unsigned char	skc_state;
+	unsigned char		skc_reuse;
+	int			skc_bound_dev_if;
+	struct hlist_node	skc_bind_node;
 	struct proto		*skc_prot;
 #ifdef CONFIG_NET_NS
 	struct net	 	*skc_net;
@@ -207,15 +212,17 @@ struct sock {
 	 * don't add nothing before this first member (__sk_common) --acme
 	 */
 	struct sock_common	__sk_common;
+#define sk_node			__sk_common.skc_node
+#define sk_nulls_node		__sk_common.skc_nulls_node
+#define sk_refcnt		__sk_common.skc_refcnt
+
+#define sk_copy_start		__sk_common.skc_hash
+#define sk_hash			__sk_common.skc_hash
 #define sk_family		__sk_common.skc_family
 #define sk_state		__sk_common.skc_state
 #define sk_reuse		__sk_common.skc_reuse
 #define sk_bound_dev_if		__sk_common.skc_bound_dev_if
-#define sk_node			__sk_common.skc_node
-#define sk_nulls_node		__sk_common.skc_nulls_node
 #define sk_bind_node		__sk_common.skc_bind_node
-#define sk_refcnt		__sk_common.skc_refcnt
-#define sk_hash			__sk_common.skc_hash
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
 	kmemcheck_bitfield_begin(flags);
@@ -1239,6 +1246,74 @@ static inline int sk_rmem_alloc_get(const struct sock *sk)
 static inline int sk_has_allocations(const struct sock *sk)
 {
 	return sk_wmem_alloc_get(sk) || sk_rmem_alloc_get(sk);
+}
+
+/**
+ * sk_has_sleeper - check if there are any waiting processes
+ * @sk: socket
+ *
+ * Returns true if socket has waiting processes
+ *
+ * The purpose of the sk_has_sleeper and sock_poll_wait is to wrap the memory
+ * barrier call. They were added due to the race found within the tcp code.
+ *
+ * Consider following tcp code paths:
+ *
+ * CPU1                  CPU2
+ *
+ * sys_select            receive packet
+ *   ...                 ...
+ *   __add_wait_queue    update tp->rcv_nxt
+ *   ...                 ...
+ *   tp->rcv_nxt check   sock_def_readable
+ *   ...                 {
+ *   schedule               ...
+ *                          if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+ *                              wake_up_interruptible(sk->sk_sleep)
+ *                          ...
+ *                       }
+ *
+ * The race for tcp fires when the __add_wait_queue changes done by CPU1 stay
+ * in its cache, and so does the tp->rcv_nxt update on CPU2 side.  The CPU1
+ * could then endup calling schedule and sleep forever if there are no more
+ * data on the socket.
+ *
+ * The sk_has_sleeper is always called right after a call to read_lock, so we
+ * can use smp_mb__after_lock barrier.
+ */
+static inline int sk_has_sleeper(struct sock *sk)
+{
+	/*
+	 * We need to be sure we are in sync with the
+	 * add_wait_queue modifications to the wait queue.
+	 *
+	 * This memory barrier is paired in the sock_poll_wait.
+	 */
+	smp_mb__after_lock();
+	return sk->sk_sleep && waitqueue_active(sk->sk_sleep);
+}
+
+/**
+ * sock_poll_wait - place memory barrier behind the poll_wait call.
+ * @filp:           file
+ * @wait_address:   socket wait queue
+ * @p:              poll_table
+ *
+ * See the comments in the sk_has_sleeper function.
+ */
+static inline void sock_poll_wait(struct file *filp,
+		wait_queue_head_t *wait_address, poll_table *p)
+{
+	if (p && wait_address) {
+		poll_wait(filp, wait_address, p);
+		/*
+		 * We need to be sure we are in sync with the
+		 * socket flags modification.
+		 *
+		 * This memory barrier is paired in the sk_has_sleeper.
+		*/
+		smp_mb();
+	}
 }
 
 /*

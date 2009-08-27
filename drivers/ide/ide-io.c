@@ -466,14 +466,10 @@ void do_ide_request(struct request_queue *q)
 
 	if (!ide_lock_port(hwif)) {
 		ide_hwif_t *prev_port;
+
+		WARN_ON_ONCE(hwif->rq);
 repeat:
 		prev_port = hwif->host->cur_port;
-
-		if (drive->dev_flags & IDE_DFLAG_BLOCKED)
-			rq = hwif->rq;
-		else
-			WARN_ON_ONCE(hwif->rq);
-
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING &&
 		    time_after(drive->sleep, jiffies)) {
 			ide_unlock_port(hwif);
@@ -500,29 +496,43 @@ repeat:
 		hwif->cur_dev = drive;
 		drive->dev_flags &= ~(IDE_DFLAG_SLEEPING | IDE_DFLAG_PARKED);
 
-		if (rq == NULL) {
-			spin_unlock_irq(&hwif->lock);
-			spin_lock_irq(q->queue_lock);
-			/*
-			 * we know that the queue isn't empty, but this can
-			 * happen if ->prep_rq_fn() decides to kill a request
-			 */
+		spin_unlock_irq(&hwif->lock);
+		spin_lock_irq(q->queue_lock);
+		/*
+		 * we know that the queue isn't empty, but this can happen
+		 * if the q->prep_rq_fn() decides to kill a request
+		 */
+		if (!rq)
 			rq = blk_fetch_request(drive->queue);
-			spin_unlock_irq(q->queue_lock);
-			spin_lock_irq(&hwif->lock);
 
-			if (rq == NULL) {
-				ide_unlock_port(hwif);
-				goto out;
-			}
+		spin_unlock_irq(q->queue_lock);
+		spin_lock_irq(&hwif->lock);
+
+		if (!rq) {
+			ide_unlock_port(hwif);
+			goto out;
 		}
 
 		/*
 		 * Sanity: don't accept a request that isn't a PM request
-		 * if we are currently power managed.
+		 * if we are currently power managed. This is very important as
+		 * blk_stop_queue() doesn't prevent the blk_fetch_request()
+		 * above to return us whatever is in the queue. Since we call
+		 * ide_do_request() ourselves, we end up taking requests while
+		 * the queue is blocked...
+		 * 
+		 * We let requests forced at head of queue with ide-preempt
+		 * though. I hope that doesn't happen too much, hopefully not
+		 * unless the subdriver triggers such a thing in its own PM
+		 * state machine.
 		 */
-		BUG_ON((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
-		       blk_pm_request(rq) == 0);
+		if ((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
+		    blk_pm_request(rq) == 0 &&
+		    (rq->cmd_flags & REQ_PREEMPT) == 0) {
+			/* there should be no pending command at this point */
+			ide_unlock_port(hwif);
+			goto plug_device;
+		}
 
 		hwif->rq = rq;
 

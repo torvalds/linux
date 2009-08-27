@@ -165,7 +165,14 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #ifdef CONFIG_FLATMEM
 
-#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && (pfn) < max_mapnr)
+#define pfn_valid(pfn)							\
+({									\
+	unsigned long __pfn = (pfn);					\
+	/* avoid <linux/bootmem.h> include hell */			\
+	extern unsigned long min_low_pfn;				\
+									\
+	__pfn >= min_low_pfn && __pfn < max_mapnr;			\
+})
 
 #elif defined(CONFIG_SPARSEMEM)
 

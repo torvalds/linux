@@ -4,29 +4,30 @@
 
 # Each configuration option enables a list of files.
 
-obj-$(CONFIG_KEYBOARD_ATKBD)		+= atkbd.o
-obj-$(CONFIG_KEYBOARD_SUNKBD)		+= sunkbd.o
-obj-$(CONFIG_KEYBOARD_LKKBD)		+= lkkbd.o
-obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o
+obj-$(CONFIG_KEYBOARD_AAED2000)		+= aaed2000_kbd.o
 obj-$(CONFIG_KEYBOARD_AMIGA)		+= amikbd.o
 obj-$(CONFIG_KEYBOARD_ATARI)		+= atakbd.o
-obj-$(CONFIG_KEYBOARD_LOCOMO)		+= locomokbd.o
-obj-$(CONFIG_KEYBOARD_NEWTON)		+= newtonkbd.o
-obj-$(CONFIG_KEYBOARD_STOWAWAY)		+= stowaway.o
+obj-$(CONFIG_KEYBOARD_ATKBD)		+= atkbd.o
+obj-$(CONFIG_KEYBOARD_BFIN)		+= bf54x-keys.o
 obj-$(CONFIG_KEYBOARD_CORGI)		+= corgikbd.o
-obj-$(CONFIG_KEYBOARD_SPITZ)		+= spitzkbd.o
-obj-$(CONFIG_KEYBOARD_TOSA)		+= tosakbd.o
+obj-$(CONFIG_KEYBOARD_EP93XX)		+= ep93xx_keypad.o
+obj-$(CONFIG_KEYBOARD_GPIO)		+= gpio_keys.o
 obj-$(CONFIG_KEYBOARD_HIL)		+= hil_kbd.o
 obj-$(CONFIG_KEYBOARD_HIL_OLD)		+= hilkbd.o
+obj-$(CONFIG_KEYBOARD_HP6XX)		+= jornada680_kbd.o
+obj-$(CONFIG_KEYBOARD_HP7XX)		+= jornada720_kbd.o
+obj-$(CONFIG_KEYBOARD_LKKBD)		+= lkkbd.o
 obj-$(CONFIG_KEYBOARD_LM8323)		+= lm8323.o
+obj-$(CONFIG_KEYBOARD_LOCOMO)		+= locomokbd.o
+obj-$(CONFIG_KEYBOARD_MAPLE)		+= maple_keyb.o
+obj-$(CONFIG_KEYBOARD_MATRIX)		+= matrix_keypad.o
+obj-$(CONFIG_KEYBOARD_NEWTON)		+= newtonkbd.o
 obj-$(CONFIG_KEYBOARD_OMAP)		+= omap-keypad.o
 obj-$(CONFIG_KEYBOARD_PXA27x)		+= pxa27x_keypad.o
 obj-$(CONFIG_KEYBOARD_PXA930_ROTARY)	+= pxa930_rotary.o
-obj-$(CONFIG_KEYBOARD_AAED2000)		+= aaed2000_kbd.o
-obj-$(CONFIG_KEYBOARD_GPIO)		+= gpio_keys.o
-obj-$(CONFIG_KEYBOARD_HP6XX)		+= jornada680_kbd.o
-obj-$(CONFIG_KEYBOARD_HP7XX)		+= jornada720_kbd.o
-obj-$(CONFIG_KEYBOARD_MAPLE)		+= maple_keyb.o
-obj-$(CONFIG_KEYBOARD_BFIN)		+= bf54x-keys.o
 obj-$(CONFIG_KEYBOARD_SH_KEYSC)		+= sh_keysc.o
-obj-$(CONFIG_KEYBOARD_EP93XX)		+= ep93xx_keypad.o
+obj-$(CONFIG_KEYBOARD_SPITZ)		+= spitzkbd.o
+obj-$(CONFIG_KEYBOARD_STOWAWAY)		+= stowaway.o
+obj-$(CONFIG_KEYBOARD_SUNKBD)		+= sunkbd.o
+obj-$(CONFIG_KEYBOARD_TOSA)		+= tosakbd.o
+obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o

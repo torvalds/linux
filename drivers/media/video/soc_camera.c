@@ -237,11 +237,11 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 		return -ENOMEM;
 
 	icd->num_user_formats = fmts;
-	fmts = 0;
 
 	dev_dbg(&icd->dev, "Found %d supported formats.\n", fmts);
 
 	/* Second pass - actually fill data formats */
+	fmts = 0;
 	for (i = 0; i < icd->num_formats; i++)
 		if (!ici->ops->get_formats) {
 			icd->user_formats[i].host_fmt = icd->formats + i;
@@ -877,8 +877,11 @@ static int soc_camera_probe(struct device *dev)
 			(unsigned short)~0;
 
 		ret = soc_camera_init_user_formats(icd);
-		if (ret < 0)
+		if (ret < 0) {
+			if (icd->ops->remove)
+				icd->ops->remove(icd);
 			goto eiufmt;
+		}
 
 		icd->height	= DEFAULT_HEIGHT;
 		icd->width	= DEFAULT_WIDTH;
@@ -902,8 +905,10 @@ static int soc_camera_remove(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
 
+	mutex_lock(&icd->video_lock);
 	if (icd->ops->remove)
 		icd->ops->remove(icd);
+	mutex_unlock(&icd->video_lock);
 
 	soc_camera_free_user_formats(icd);
 
@@ -1145,6 +1150,7 @@ evidallocd:
 }
 EXPORT_SYMBOL(soc_camera_video_start);
 
+/* Called from client .remove() methods with .video_lock held */
 void soc_camera_video_stop(struct soc_camera_device *icd)
 {
 	struct video_device *vdev = icd->vdev;
@@ -1154,10 +1160,8 @@ void soc_camera_video_stop(struct soc_camera_device *icd)
 	if (!icd->dev.parent || !vdev)
 		return;
 
-	mutex_lock(&icd->video_lock);
 	video_unregister_device(vdev);
 	icd->vdev = NULL;
-	mutex_unlock(&icd->video_lock);
 }
 EXPORT_SYMBOL(soc_camera_video_stop);
 

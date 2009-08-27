@@ -461,13 +461,14 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 	i = 0;
 
 	tx_ring = adapter->tx_ring;
-	netif_tx_lock_bh(adapter->netdev);
+	__netif_tx_lock_bh(tx_ring->txq);
 
 	producer = tx_ring->producer;
 	consumer = tx_ring->sw_consumer;
 
-	if (nr_desc >= find_diff_among(producer, consumer, tx_ring->num_desc)) {
-		netif_tx_unlock_bh(adapter->netdev);
+	if (nr_desc >= netxen_tx_avail(tx_ring)) {
+		netif_tx_stop_queue(tx_ring->txq);
+		__netif_tx_unlock_bh(tx_ring->txq);
 		return -EBUSY;
 	}
 
@@ -490,7 +491,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	netxen_nic_update_cmd_producer(adapter, tx_ring);
 
-	netif_tx_unlock_bh(adapter->netdev);
+	__netif_tx_unlock_bh(tx_ring->txq);
 
 	return 0;
 }

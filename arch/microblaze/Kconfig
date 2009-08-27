@@ -53,6 +53,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 config GENERIC_GPIO
 	def_bool y
 
+config GENERIC_CSUM
+	def_bool y
+
 config PCI
 	def_bool n
 

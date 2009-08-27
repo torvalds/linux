@@ -286,6 +286,27 @@ config USB_S3C_HSOTG
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_IMX
+	boolean "Freescale IMX USB Peripheral Controller"
+	depends on ARCH_MX1
+	help
+	   Freescale's IMX series include an integrated full speed
+	   USB 1.1 device controller.  The controller in the IMX series
+	   is register-compatible.
+
+	   It has Six fixed-function endpoints, as well as endpoint
+	   zero (for control transfers).
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "imx_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_IMX
+	tristate
+	depends on USB_GADGET_IMX
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_S3C2410
 	boolean "S3C2410 USB Device Controller"
 	depends on ARCH_S3C2410
@@ -320,27 +341,6 @@ config USB_GADGET_MUSB_HDRC
 	help
 	  This OTG-capable silicon IP is used in dual designs including
 	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
-
-config USB_GADGET_IMX
-	boolean "Freescale IMX USB Peripheral Controller"
-	depends on ARCH_MX1
-	help
-	   Freescale's IMX series include an integrated full speed
-	   USB 1.1 device controller.  The controller in the IMX series
-	   is register-compatible.
-
-	   It has Six fixed-function endpoints, as well as endpoint
-	   zero (for control transfers).
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "imx_udc" and force all
-	   gadget drivers to also be dynamically linked.
-
-config USB_IMX
-	tristate
-	depends on USB_GADGET_IMX
-	default USB_GADGET
-	select USB_GADGET_SELECTED
 
 config USB_GADGET_M66592
 	boolean "Renesas M66592 USB Peripheral Controller"
@@ -604,6 +604,7 @@ config USB_ZERO_HNPTEST
 config USB_AUDIO
 	tristate "Audio Gadget (EXPERIMENTAL)"
 	depends on SND
+	select SND_PCM
 	help
 	  Gadget Audio is compatible with USB Audio Class specification 1.0.
 	  It will include at least one AudioControl interface, zero or more
