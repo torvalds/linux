@@ -474,16 +474,16 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 void et131x_error_timer_handler(unsigned long data)
 {
 	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
-	PM_CSR_t pm_csr;
+	u32 pm_csr;
 
-	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
+	pm_csr = readl(&etdev->regs->global.pm_csr);
 
-	if (pm_csr.bits.pm_phy_sw_coma == 0)
+	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
 		UpdateMacStatHostCounters(etdev);
 	else
 		DBG_VERBOSE(et131x_dbginfo,
 			    "No interrupts, in PHY coma, pm_csr = 0x%x\n",
-			    pm_csr.value);
+			    pm_csr);
 
 	if (!etdev->Bmsr.bits.link_status &&
 	    etdev->RegistryPhyComa &&
@@ -494,7 +494,7 @@ void et131x_error_timer_handler(unsigned long data)
 	if (etdev->PoMgmt.TransPhyComaModeOnBoot == 10) {
 		if (!etdev->Bmsr.bits.link_status
 		    && etdev->RegistryPhyComa) {
-			if (pm_csr.bits.pm_phy_sw_coma == 0) {
+			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?
 				 */
@@ -1002,15 +1002,7 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	/* Perform device-specific initialization here (See code below) */
 
 	/* If Phy COMA mode was enabled when we went down, disable it here. */
-	{
-		PM_CSR_t GlobalPmCSR = { 0 };
-
-		GlobalPmCSR.bits.pm_sysclk_gate = 1;
-		GlobalPmCSR.bits.pm_txclk_gate = 1;
-		GlobalPmCSR.bits.pm_rxclk_gate = 1;
-		writel(GlobalPmCSR.value,
-		       &adapter->regs->global.pm_csr.value);
-	}
+	writel(ET_PMCSR_INIT,  &adapter->regs->global.pm_csr);
 
 	/* Issue a global reset to the et1310 */
 	DBG_TRACE(et131x_dbginfo, "Issuing soft reset...\n");

@@ -274,14 +274,13 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			if (etdev->FlowControl == TxOnly ||
 			    etdev->FlowControl == Both) {
-				PM_CSR_t pm_csr;
+				u32 pm_csr;
 
 				/* Tell the device to send a pause packet via
 				 * the back pressure register
 				 */
-				pm_csr.value =
-					readl(&iomem->global.pm_csr.value);
-				if (pm_csr.bits.pm_phy_sw_coma == 0) {
+				pm_csr = readl(&iomem->global.pm_csr);
+				if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 					TXMAC_BP_CTRL_t bp_ctrl = { 0 };
 
 					bp_ctrl.bits.bp_req = 1;
@@ -351,7 +350,7 @@ void et131x_isr_handler(struct work_struct *work)
 
 		/* Handle the PHY interrupt */
 		if (GlobStatus.bits.phy_interrupt) {
-			PM_CSR_t pm_csr;
+			u32 pm_csr;
 			MI_BMSR_t BmsrInts, BmsrData;
 			MI_ISR_t myIsr;
 
@@ -360,8 +359,8 @@ void et131x_isr_handler(struct work_struct *work)
 			/* If we are in coma mode when we get this interrupt,
 			 * we need to disable it.
 			 */
-			pm_csr.value = readl(&iomem->global.pm_csr.value);
-			if (pm_csr.bits.pm_phy_sw_coma == 1) {
+			pm_csr = readl(&iomem->global.pm_csr);
+			if (pm_csr & ET_PM_PHY_SW_COMA) {
 				/*
 				 * Check to see if we are in coma mode and if
 				 * so, disable it because we will not be able

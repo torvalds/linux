@@ -672,7 +672,7 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 	uint32_t hash2 = 0;
 	uint32_t hash3 = 0;
 	uint32_t hash4 = 0;
-	PM_CSR_t pm_csr;
+	u32 pm_csr;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -718,8 +718,8 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 	}
 
 	/* Write out the new hash to the device */
-	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
-	if (pm_csr.bits.pm_phy_sw_coma == 0) {
+	pm_csr = readl(&etdev->regs->global.pm_csr);
+	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 		writel(hash1, &rxmac->multi_hash1);
 		writel(hash2, &rxmac->multi_hash2);
 		writel(hash3, &rxmac->multi_hash3);
@@ -735,7 +735,7 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	RXMAC_UNI_PF_ADDR1_t uni_pf1;
 	RXMAC_UNI_PF_ADDR2_t uni_pf2;
 	RXMAC_UNI_PF_ADDR3_t uni_pf3;
-	PM_CSR_t pm_csr;
+	u32 pm_csr;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -763,8 +763,8 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	uni_pf1.bits.addr1_5 = etdev->CurrentAddress[4];
 	uni_pf1.bits.addr1_6 = etdev->CurrentAddress[5];
 
-	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
-	if (pm_csr.bits.pm_phy_sw_coma == 0) {
+	pm_csr = readl(&etdev->regs->global.pm_csr);
+	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 		writel(uni_pf1.value, &rxmac->uni_pf_addr1.value);
 		writel(uni_pf2.value, &rxmac->uni_pf_addr2.value);
 		writel(uni_pf3.value, &rxmac->uni_pf_addr3.value);

@@ -73,37 +73,20 @@
 /*
  * structure for power management control status reg in global address map
  * located at address 0x0010
+ *	jagcore_rx_rdy	bit 9
+ *	jagcore_tx_rdy	bit 8
+ *	phy_lped_en	bit 7
+ *	phy_sw_coma	bit 6
+ *	rxclk_gate	bit 5
+ *	txclk_gate	bit 4
+ *	sysclk_gate	bit 3
+ *	jagcore_rx_en	bit 2
+ *	jagcore_tx_en	bit 1
+ *	gigephy_en	bit 0
  */
-typedef union _PM_CSR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;		/* bits 10-31 */
-		u32 pm_jagcore_rx_rdy:1;	/* bit 9 */
-		u32 pm_jagcore_tx_rdy:1;	/* bit 8 */
-		u32 pm_phy_lped_en:1;	/* bit 7 */
-		u32 pm_phy_sw_coma:1;	/* bit 6 */
-		u32 pm_rxclk_gate:1;	/* bit 5 */
-		u32 pm_txclk_gate:1;	/* bit 4 */
-		u32 pm_sysclk_gate:1;	/* bit 3 */
-		u32 pm_jagcore_rx_en:1;	/* bit 2 */
-		u32 pm_jagcore_tx_en:1;	/* bit 1 */
-		u32 pm_gigephy_en:1;	/* bit 0 */
-#else
-		u32 pm_gigephy_en:1;	/* bit 0 */
-		u32 pm_jagcore_tx_en:1;	/* bit 1 */
-		u32 pm_jagcore_rx_en:1;	/* bit 2 */
-		u32 pm_sysclk_gate:1;	/* bit 3 */
-		u32 pm_txclk_gate:1;	/* bit 4 */
-		u32 pm_rxclk_gate:1;	/* bit 5 */
-		u32 pm_phy_sw_coma:1;	/* bit 6 */
-		u32 pm_phy_lped_en:1;	/* bit 7 */
-		u32 pm_jagcore_tx_rdy:1;	/* bit 8 */
-		u32 pm_jagcore_rx_rdy:1;	/* bit 9 */
-		u32 unused:22;		/* bits 10-31 */
-#endif
-	} bits;
-} PM_CSR_t, *PPM_CSR_t;
+
+#define ET_PM_PHY_SW_COMA		0x40
+#define ET_PMCSR_INIT			0x38
 
 /*
  * structure for interrupt status reg in global address map
@@ -271,7 +254,7 @@ typedef struct _GLOBAL_t {			/* Location: */
 	u32 txq_end_addr;			/*  0x0004 */
 	u32 rxq_start_addr;			/*  0x0008 */
 	u32 rxq_end_addr;			/*  0x000C */
-	PM_CSR_t pm_csr;			/*  0x0010 */
+	u32 pm_csr;				/*  0x0010 */
 	u32 unused;				/*  0x0014 */
 	INTERRUPT_t int_status;			/*  0x0018 */
 	INTERRUPT_t int_mask;			/*  0x001C */
