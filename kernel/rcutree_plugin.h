@@ -92,7 +92,7 @@ static void rcu_preempt_qs(int cpu)
 		rnp = rdp->mynode;
 		spin_lock(&rnp->lock);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
-		t->rcu_blocked_cpu = cpu;
+		t->rcu_blocked_node = (void *)rnp;
 
 		/*
 		 * If this CPU has already checked in, then this task
@@ -170,12 +170,21 @@ static void rcu_read_unlock_special(struct task_struct *t)
 	if (special & RCU_READ_UNLOCK_BLOCKED) {
 		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_BLOCKED;
 
-		/* Remove this task from the list it blocked on. */
-		rnp = rcu_preempt_state.rda[t->rcu_blocked_cpu]->mynode;
-		spin_lock(&rnp->lock);
+		/*
+		 * Remove this task from the list it blocked on.  The
+		 * task can migrate while we acquire the lock, but at
+		 * most one time.  So at most two passes through loop.
+		 */
+		for (;;) {
+			rnp = (struct rcu_node *)t->rcu_blocked_node;
+			spin_lock(&rnp->lock);
+			if (rnp == (struct rcu_node *)t->rcu_blocked_node)
+				break;
+			spin_unlock(&rnp->lock);
+		}
 		empty = list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
 		list_del_init(&t->rcu_node_entry);
-		t->rcu_blocked_cpu = -1;
+		t->rcu_blocked_node = NULL;
 
 		/*
 		 * If this was the last task on the current list, and if
@@ -260,6 +269,47 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Handle tasklist migration for case in which all CPUs covered by the
+ * specified rcu_node have gone offline.  Move them up to the root
+ * rcu_node.  The reason for not just moving them to the immediate
+ * parent is to remove the need for rcu_read_unlock_special() to
+ * make more than two attempts to acquire the target rcu_node's lock.
+ *
+ * The caller must hold rnp->lock with irqs disabled.
+ */
+static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
+				      struct rcu_node *rnp)
+{
+	int i;
+	struct list_head *lp;
+	struct list_head *lp_root;
+	struct rcu_node *rnp_root = rcu_get_root(rsp);
+	struct task_struct *tp;
+
+	if (rnp == rnp_root)
+		return;  /* Shouldn't happen: at least one CPU online. */
+
+	/*
+	 * Move tasks up to root rcu_node.  Rely on the fact that the
+	 * root rcu_node can be at most one ahead of the rest of the
+	 * rcu_nodes in terms of gp_num value.  This fact allows us to
+	 * move the blocked_tasks[] array directly, element by element.
+	 */
+	for (i = 0; i < 2; i++) {
+		lp = &rnp->blocked_tasks[i];
+		lp_root = &rnp_root->blocked_tasks[i];
+		while (!list_empty(lp)) {
+			tp = list_entry(lp->next, typeof(*tp), rcu_node_entry);
+			spin_lock(&rnp_root->lock); /* irqs already disabled */
+			list_del(&tp->rcu_node_entry);
+			tp->rcu_blocked_node = rnp_root;
+			list_add(&tp->rcu_node_entry, lp_root);
+			spin_unlock(&rnp_root->lock); /* irqs remain disabled */
+		}
+	}
+}
 
 /*
  * Do CPU-offline processing for preemptable RCU.
@@ -408,6 +458,15 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Because preemptable RCU does not exist, it never needs to migrate
+ * tasks that were blocked within RCU read-side critical sections.
+ */
+static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
+				      struct rcu_node *rnp)
+{
+}
 
 /*
  * Because preemptable RCU does not exist, it never needs CPU-offline

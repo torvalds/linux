@@ -98,7 +98,7 @@ extern struct group_info init_groups;
 #define INIT_TASK_RCU_PREEMPT(tsk)					\
 	.rcu_read_lock_nesting = 0,					\
 	.rcu_read_unlock_special = 0,					\
-	.rcu_blocked_cpu = -1,						\
+	.rcu_blocked_node = NULL,					\
 	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),
 #else
 #define INIT_TASK_RCU_PREEMPT(tsk)

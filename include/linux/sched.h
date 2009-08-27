@@ -1208,7 +1208,7 @@ struct task_struct {
 #ifdef CONFIG_TREE_PREEMPT_RCU
 	int rcu_read_lock_nesting;
 	char rcu_read_unlock_special;
-	int rcu_blocked_cpu;
+	void *rcu_blocked_node;
 	struct list_head rcu_node_entry;
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 
@@ -1735,7 +1735,7 @@ static inline void rcu_copy_process(struct task_struct *p)
 {
 	p->rcu_read_lock_nesting = 0;
 	p->rcu_read_unlock_special = 0;
-	p->rcu_blocked_cpu = -1;
+	p->rcu_blocked_node = NULL;
 	INIT_LIST_HEAD(&p->rcu_node_entry);
 }
 
