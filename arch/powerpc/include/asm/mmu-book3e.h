@@ -114,6 +114,18 @@
 
 #define MAS7_RPN		0xFFFFFFFF
 
+/* Bit definitions for MMUCSR0 */
+#define MMUCSR0_TLB1FI	0x00000002	/* TLB1 Flash invalidate */
+#define MMUCSR0_TLB0FI	0x00000004	/* TLB0 Flash invalidate */
+#define MMUCSR0_TLB2FI	0x00000040	/* TLB2 Flash invalidate */
+#define MMUCSR0_TLB3FI	0x00000020	/* TLB3 Flash invalidate */
+#define MMUCSR0_TLBFI	(MMUCSR0_TLB0FI | MMUCSR0_TLB1FI | \
+			 MMUCSR0_TLB2FI | MMUCSR0_TLB3FI)
+#define MMUCSR0_TLB0PS	0x00000780	/* TLB0 Page Size */
+#define MMUCSR0_TLB1PS	0x00007800	/* TLB1 Page Size */
+#define MMUCSR0_TLB2PS	0x00078000	/* TLB2 Page Size */
+#define MMUCSR0_TLB3PS	0x00780000	/* TLB3 Page Size */
+
 /* TLBnCFG encoding */
 #define TLBnCFG_N_ENTRY		0x00000fff	/* number of entries */
 #define TLBnCFG_HES		0x00002000	/* HW select supported */

@@ -124,8 +124,6 @@ _GLOBAL(_tlbil_pid)
  * to have the larger code path before the _SECTION_ELSE
  */
 
-#define MMUCSR0_TLBFI	(MMUCSR0_TLB0FI | MMUCSR0_TLB1FI | \
-			 MMUCSR0_TLB2FI | MMUCSR0_TLB3FI)
 /*
  * Flush MMU TLB on the local processor
  */

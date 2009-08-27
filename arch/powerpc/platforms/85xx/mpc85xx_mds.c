@@ -47,6 +47,7 @@
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include <sysdev/simple_gpio.h>
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
@@ -304,6 +305,9 @@ static struct of_device_id mpc85xx_ids[] = {
 
 static int __init mpc85xx_publish_devices(void)
 {
+	if (machine_is(mpc8569_mds))
+		simple_gpiochip_init("fsl,mpc8569mds-bcsr-gpio");
+
 	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, mpc85xx_ids, NULL);
 

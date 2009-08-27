@@ -430,12 +430,6 @@
 #define L2CSR0_L2LOA	0x00000080	/* L2 Cache Lock Overflow Allocate */
 #define L2CSR0_L2LO	0x00000020	/* L2 Cache Lock Overflow */
 
-/* Bit definitions for MMUCSR0 */
-#define MMUCSR0_TLB1FI	0x00000002	/* TLB1 Flash invalidate */
-#define MMUCSR0_TLB0FI	0x00000004	/* TLB0 Flash invalidate */
-#define MMUCSR0_TLB2FI	0x00000040	/* TLB2 Flash invalidate */
-#define MMUCSR0_TLB3FI	0x00000020	/* TLB3 Flash invalidate */
-
 /* Bit definitions for SGR. */
 #define SGR_NORMAL	0		/* Speculative fetching allowed. */
 #define SGR_GUARDED	1		/* Speculative fetching disallowed. */
