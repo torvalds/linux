@@ -49,11 +49,11 @@ enum b43_interference_mitigation {
 
 /* Antenna identifiers */
 enum {
-	B43_ANTENNA0,		/* Antenna 0 */
-	B43_ANTENNA1,		/* Antenna 0 */
-	B43_ANTENNA_AUTO1,	/* Automatic, starting with antenna 1 */
-	B43_ANTENNA_AUTO0,	/* Automatic, starting with antenna 0 */
-	B43_ANTENNA2,
+	B43_ANTENNA0 = 0,	/* Antenna 0 */
+	B43_ANTENNA1 = 1,	/* Antenna 1 */
+	B43_ANTENNA_AUTO0 = 2,	/* Automatic, starting with antenna 0 */
+	B43_ANTENNA_AUTO1 = 3,	/* Automatic, starting with antenna 1 */
+	B43_ANTENNA2 = 4,
 	B43_ANTENNA3 = 8,
 
 	B43_ANTENNA_AUTO = B43_ANTENNA_AUTO0,

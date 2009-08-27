@@ -2205,7 +2205,14 @@ static int b43_lpphy_op_init(struct b43_wldev *dev)
 
 static void b43_lpphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)
 {
-	//TODO
+	if (dev->phy.rev >= 2)
+		return; // rev2+ doesn't support antenna diversity
+
+	if (B43_WARN_ON(antenna > B43_ANTENNA_AUTO1))
+		return;
+
+	b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFFFD, antenna & 0x2);
+	b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFFFE, antenna & 0x1);
 }
 
 static void b43_lpphy_op_adjust_txpower(struct b43_wldev *dev)
