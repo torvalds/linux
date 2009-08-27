@@ -318,12 +318,9 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 
 	/* Crypto settings */
 	ee = &ah->ah_capabilities.cap_eeprom;
-	ah->ah_aes_support =
+	ah->ah_aes_support = srev >= AR5K_SREV_AR5212_V4 &&
 		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
-		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5) &&
-		 (ah->ah_mac_version > (AR5K_SREV_AR5212 >> 4) ||
-		  (ah->ah_mac_version == (AR5K_SREV_AR5212 >> 4) &&
-		   ah->ah_mac_revision >= (AR5K_SREV_AR5211 >> 4))));
+		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5));
 
 	if (srev >= AR5K_SREV_AR2414) {
 		ah->ah_combined_mic = true;
