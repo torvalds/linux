@@ -369,7 +369,7 @@ static struct clk timer3_clk = {
 
 static struct clk usb_clk = {
 	.name		= "usb",
-	.parent		= &pll2_sysclk1,
+	.parent		= &pll1_aux_clk,
 	.lpsc		= DAVINCI_LPSC_USB,
 };
 
