@@ -1292,7 +1292,6 @@ struct rx_ring {
 	u32 cpu;		/* Which CPU this should run on. */
 	char name[IFNAMSIZ + 5];
 	struct napi_struct napi;
-	struct delayed_work rx_work;
 	u8 reserved;
 	struct ql_adapter *qdev;
 };
@@ -1366,6 +1365,7 @@ struct nic_stats {
 struct intr_context {
 	struct ql_adapter *qdev;
 	u32 intr;
+	u32 irq_mask;		/* Mask of which rings the vector services. */
 	u32 hooked;
 	u32 intr_en_mask;	/* value/mask used to enable this intr */
 	u32 intr_dis_mask;	/* value/mask used to disable this intr */
@@ -1486,11 +1486,11 @@ struct ql_adapter {
 	struct intr_context intr_context[MAX_RX_RINGS];
 
 	int tx_ring_count;	/* One per online CPU. */
-	u32 rss_ring_count;	/* One per online CPU.  */
+	u32 rss_ring_count;	/* One per irq vector.  */
 	/*
 	 * rx_ring_count =
 	 *  (CPU count * outbound completion rx_ring) +
-	 *  (CPU count * inbound (RSS) completion rx_ring)
+	 *  (irq_vector_cnt * inbound (RSS) completion rx_ring)
 	 */
 	int rx_ring_count;
 	int ring_mem_size;
@@ -1517,7 +1517,6 @@ struct ql_adapter {
 	union flash_params flash;
 
 	struct net_device_stats stats;
-	struct workqueue_struct *q_workqueue;
 	struct workqueue_struct *workqueue;
 	struct delayed_work asic_reset_work;
 	struct delayed_work mpi_reset_work;
