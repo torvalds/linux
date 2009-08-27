@@ -29,6 +29,7 @@
 
 void GetChannelInterface(struct vmbus_channel_interface *ChannelInterface);
 
-void GetChannelInfo(struct hv_device *Device, struct hv_device_info *DeviceInfo);
+void GetChannelInfo(struct hv_device *Device,
+		    struct hv_device_info *DeviceInfo);
 
 #endif /* _CHANNEL_INTERFACE_H_ */
