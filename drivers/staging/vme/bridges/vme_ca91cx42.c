@@ -20,7 +20,6 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/proc_fs.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/poll.h>
@@ -34,1212 +33,1333 @@
 #include "../vme_bridge.h"
 #include "vme_ca91cx42.h"
 
-extern struct vmeSharedData *vmechip_interboard_data;
-extern dma_addr_t vmechip_interboard_datap;
-extern const int vmechip_revision;
-extern const int vmechip_devid;
-extern const int vmechip_irq;
-extern int vmechip_irq_overhead_ticks;
-extern char *vmechip_baseaddr;
-extern const int vme_slotnum;
-extern int vme_syscon;
-extern unsigned int out_image_va[];
-extern unsigned int vme_irqlog[8][0x100];
+static int __init ca91cx42_init(void);
+static int ca91cx42_probe(struct pci_dev *, const struct pci_device_id *);
+static void ca91cx42_remove(struct pci_dev *);
+static void __exit ca91cx42_exit(void);
 
-static int outCTL[] = { LSI0_CTL, LSI1_CTL, LSI2_CTL, LSI3_CTL,
-	LSI4_CTL, LSI5_CTL, LSI6_CTL, LSI7_CTL
+struct vme_bridge *ca91cx42_bridge;
+wait_queue_head_t dma_queue;
+wait_queue_head_t iack_queue;
+wait_queue_head_t lm_queue;
+wait_queue_head_t mbox_queue;
+
+void (*lm_callback[4])(int);    /* Called in interrupt handler, be careful! */
+void *crcsr_kernel;
+dma_addr_t crcsr_bus;
+
+struct mutex vme_rmw;   /* Only one RMW cycle at a time */
+struct mutex vme_int;   /*
+			 * Only one VME interrupt can be
+			 * generated at a time, provide locking
+			 */
+struct mutex vme_irq;   /* Locking for VME irq callback configuration */
+
+
+
+static char driver_name[] = "vme_ca91cx42";
+
+static struct pci_device_id ca91cx42_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_CA91C142) },
+	{ },
 };
 
-static int outBS[] = { LSI0_BS, LSI1_BS, LSI2_BS, LSI3_BS,
-	LSI4_BS, LSI5_BS, LSI6_BS, LSI7_BS
+static struct pci_driver ca91cx42_driver = {
+	.name = driver_name,
+	.id_table = ca91cx42_ids,
+	.probe = ca91cx42_probe,
+	.remove = ca91cx42_remove,
 };
 
-static int outBD[] = { LSI0_BD, LSI1_BD, LSI2_BD, LSI3_BD,
-	LSI4_BD, LSI5_BD, LSI6_BD, LSI7_BD
-};
-
-static int outTO[] = { LSI0_TO, LSI1_TO, LSI2_TO, LSI3_TO,
-	LSI4_TO, LSI5_TO, LSI6_TO, LSI7_TO
-};
-
-static int inCTL[] = { VSI0_CTL, VSI1_CTL, VSI2_CTL, VSI3_CTL,
-	VSI4_CTL, VSI5_CTL, VSI6_CTL, VSI7_CTL
-};
-
-static int inBS[] = { VSI0_BS, VSI1_BS, VSI2_BS, VSI3_BS,
-	VSI4_BS, VSI5_BS, VSI6_BS, VSI7_BS
-};
-
-static int inBD[] = { VSI0_BD, VSI1_BD, VSI2_BD, VSI3_BD,
-	VSI4_BD, VSI5_BD, VSI6_BD, VSI7_BD
-};
-
-static int inTO[] = { VSI0_TO, VSI1_TO, VSI2_TO, VSI3_TO,
-	VSI4_TO, VSI5_TO, VSI6_TO, VSI7_TO
-};
-static int vmevec[7] = { V1_STATID, V2_STATID, V3_STATID, V4_STATID,
-	V5_STATID, V6_STATID, V7_STATID
-};
-
-struct interrupt_counters {
-	unsigned int acfail;
-	unsigned int sysfail;
-	unsigned int sw_int;
-	unsigned int sw_iack;
-	unsigned int verr;
-	unsigned int lerr;
-	unsigned int lm;
-	unsigned int mbox;
-	unsigned int dma;
-	unsigned int virq[7];
-	unsigned int vown;
-};
-
-extern wait_queue_head_t dma_queue[];
-extern wait_queue_head_t lm_queue;
-extern wait_queue_head_t mbox_queue;
-
-extern int tb_speed;
-
-unsigned int uni_irq_time;
-unsigned int uni_dma_irq_time;
-unsigned int uni_lm_event;
-
-static spinlock_t lm_lock = SPIN_LOCK_UNLOCKED;
-
-static struct interrupt_counters Interrupt_counters = { 0, 0,
-	0, 0, 0, 0,
-	0, 0, 0,
-	{0, 0, 0, 0, 0, 0, 0},
-	0
-};
-
-#define read_register(offset) readl(vmechip_baseaddr + offset)
-#define write_register(value,offset) writel(value, vmechip_baseaddr + offset)
-#define read_register_word(offset) readw(vmechip_baseaddr + offset)
-#define write_register_word(value,offset) writew(value, vmechip_baseaddr + offset)
-
-int uni_procinfo(char *buf)
+static u32 ca91cx42_DMA_irqhandler(void)
 {
-	char *p;
+	wake_up(&dma_queue);
 
-	p = buf;
-
-	p += sprintf(p, "\n");
-	{
-		unsigned long misc_ctl;
-
-		misc_ctl = read_register(MISC_CTL);
-		p += sprintf(p, "MISC_CTL:\t\t\t0x%08lx\n", misc_ctl);
-		p += sprintf(p, "VME Bus Time Out:\t\t");
-		switch ((misc_ctl & UNIV_BM_MISC_CTL_VBTO) >>
-			UNIV_OF_MISC_CTL_VBTO) {
-		case 0x0:
-			p += sprintf(p, "Disabled\n");
-			break;
-		case 0x1:
-			p += sprintf(p, "16 us\n");
-			break;
-		case 0x2:
-			p += sprintf(p, "32 us\n");
-			break;
-		case 0x3:
-			p += sprintf(p, "64 us\n");
-			break;
-		case 0x4:
-			p += sprintf(p, "128 us\n");
-			break;
-		case 0x5:
-			p += sprintf(p, "256 us\n");
-			break;
-		case 0x6:
-			p += sprintf(p, "512 us\n");
-			break;
-		case 0x7:
-			p += sprintf(p, "1024 us\n");
-			break;
-		default:
-			p += sprintf(p, "Reserved Value, Undefined\n");
-		}
-		p += sprintf(p, "VME Arbitration Time Out:\t");
-		switch ((misc_ctl & UNIV_BM_MISC_CTL_VARBTO) >>
-			UNIV_OF_MISC_CTL_VARBTO) {
-		case 0x0:
-			p += sprintf(p, "Disabled");
-			break;
-		case 0x1:
-			p += sprintf(p, "16 us");
-			break;
-		case 0x2:
-			p += sprintf(p, "256 us");
-			break;
-		default:
-			p += sprintf(p, "Reserved Value, Undefined");
-		}
-		if (misc_ctl & UNIV_BM_MISC_CTL_VARB)
-			p += sprintf(p, ", Priority Arbitration\n");
-		else
-			p += sprintf(p, ", Round Robin Arbitration\n");
-		p += sprintf(p, "\n");
-	}
-
-	{
-		unsigned int lmisc;
-		unsigned int crt;
-		unsigned int cwt;
-
-		lmisc = read_register(LMISC);
-		p += sprintf(p, "LMISC:\t\t\t\t0x%08x\n", lmisc);
-		crt = (lmisc & UNIV_BM_LMISC_CRT) >> UNIV_OF_LMISC_CRT;
-		cwt = (lmisc & UNIV_BM_LMISC_CWT) >> UNIV_OF_LMISC_CWT;
-		p += sprintf(p, "Coupled Request Timer:\t\t");
-		switch (crt) {
-		case 0x0:
-			p += sprintf(p, "Disabled\n");
-			break;
-		case 0x1:
-			p += sprintf(p, "128 us\n");
-			break;
-		case 0x2:
-			p += sprintf(p, "256 us\n");
-			break;
-		case 0x3:
-			p += sprintf(p, "512 us\n");
-			break;
-		case 0x4:
-			p += sprintf(p, "1024 us\n");
-			break;
-		case 0x5:
-			p += sprintf(p, "2048 us\n");
-			break;
-		case 0x6:
-			p += sprintf(p, "4096 us\n");
-			break;
-		default:
-			p += sprintf(p, "Reserved\n");
-		}
-		p += sprintf(p, "Coupled Window Timer:\t\t");
-		switch (cwt) {
-		case 0x0:
-			p += sprintf(p, "Disabled\n");
-			break;
-		case 0x1:
-			p += sprintf(p, "16 PCI Clocks\n");
-			break;
-		case 0x2:
-			p += sprintf(p, "32 PCI Clocks\n");
-			break;
-		case 0x3:
-			p += sprintf(p, "64 PCI Clocks\n");
-			break;
-		case 0x4:
-			p += sprintf(p, "128 PCI Clocks\n");
-			break;
-		case 0x5:
-			p += sprintf(p, "256 PCI Clocks\n");
-			break;
-		case 0x6:
-			p += sprintf(p, "512 PCI Clocks\n");
-			break;
-		default:
-			p += sprintf(p, "Reserved\n");
-		}
-		p += sprintf(p, "\n");
-	}
-	{
-		unsigned int mast_ctl;
-
-		mast_ctl = read_register(MAST_CTL);
-		p += sprintf(p, "MAST_CTL:\t\t\t0x%08x\n", mast_ctl);
-		{
-			int retries;
-
-			retries = ((mast_ctl & UNIV_BM_MAST_CTL_MAXRTRY)
-				   >> UNIV_OF_MAST_CTL_MAXRTRY) * 64;
-			p += sprintf(p, "Max PCI Master Retries:\t\t");
-			if (retries)
-				p += sprintf(p, "%d\n", retries);
-			else
-				p += sprintf(p, "Forever\n");
-		}
-
-		p += sprintf(p, "Posted Write Transfer Count:\t");
-		switch ((mast_ctl & UNIV_BM_MAST_CTL_PWON) >>
-			UNIV_OF_MAST_CTL_PWON) {
-		case 0x0:
-			p += sprintf(p, "128 Bytes\n");
-			break;
-		case 0x1:
-			p += sprintf(p, "256 Bytes\n");
-			break;
-		case 0x2:
-			p += sprintf(p, "512 Bytes\n");
-			break;
-		case 0x3:
-			p += sprintf(p, "1024 Bytes\n");
-			break;
-		case 0x4:
-			p += sprintf(p, "2048 Bytes\n");
-			break;
-		case 0x5:
-			p += sprintf(p, "4096 Bytes\n");
-			break;
-		default:
-			p += sprintf(p, "Undefined\n");
-		}
-
-		p += sprintf(p, "VMEbus Request Level:\t\t");
-		switch ((mast_ctl & UNIV_BM_MAST_CTL_VRL) >>
-			UNIV_OF_MAST_CTL_VRL) {
-		case 0x0:
-			p += sprintf(p, "Level 0\n");
-		case 0x1:
-			p += sprintf(p, "Level 1\n");
-		case 0x2:
-			p += sprintf(p, "Level 2\n");
-		case 0x3:
-			p += sprintf(p, "Level 3\n");
-		}
-		p += sprintf(p, "VMEbus Request Mode:\t\t");
-		if (mast_ctl & UNIV_BM_MAST_CTL_VRM)
-			p += sprintf(p, "Fair Request Mode\n");
-		else
-			p += sprintf(p, "Demand Request Mode\n");
-		p += sprintf(p, "VMEbus Release Mode:\t\t");
-		if (mast_ctl & UNIV_BM_MAST_CTL_VREL)
-			p += sprintf(p, "Release on Request\n");
-		else
-			p += sprintf(p, "Release when Done\n");
-		p += sprintf(p, "VMEbus Ownership Bit:\t\t");
-		if (mast_ctl & UNIV_BM_MAST_CTL_VOWN)
-			p += sprintf(p, "Acquire and hold VMEbus\n");
-		else
-			p += sprintf(p, "Release VMEbus\n");
-		p += sprintf(p, "VMEbus Ownership Bit Ack:\t");
-		if (mast_ctl & UNIV_BM_MAST_CTL_VOWN_ACK)
-			p += sprintf(p, "Owning VMEbus\n");
-		else
-			p += sprintf(p, "Not Owning VMEbus\n");
-		p += sprintf(p, "\n");
-	}
-	{
-		unsigned int misc_stat;
-
-		misc_stat = read_register(MISC_STAT);
-		p += sprintf(p, "MISC_STAT:\t\t\t0x%08x\n", misc_stat);
-		p += sprintf(p, "Universe BBSY:\t\t\t");
-		if (misc_stat & UNIV_BM_MISC_STAT_MYBBSY)
-			p += sprintf(p, "Negated\n");
-		else
-			p += sprintf(p, "Asserted\n");
-		p += sprintf(p, "Transmit FIFO:\t\t\t");
-		if (misc_stat & UNIV_BM_MISC_STAT_TXFE)
-			p += sprintf(p, "Empty\n");
-		else
-			p += sprintf(p, "Not empty\n");
-		p += sprintf(p, "Receive FIFO:\t\t\t");
-		if (misc_stat & UNIV_BM_MISC_STAT_RXFE)
-			p += sprintf(p, "Empty\n");
-		else
-			p += sprintf(p, "Not Empty\n");
-		p += sprintf(p, "\n");
-	}
-
-	p += sprintf(p, "Latency Timer:\t\t\t%02d Clocks\n\n",
-		     (read_register(UNIV_PCI_MISC0) &
-		      UNIV_BM_PCI_MISC0_LTIMER) >> UNIV_OF_PCI_MISC0_LTIMER);
-
-	{
-		unsigned int lint_en;
-		unsigned int lint_stat;
-
-		lint_en = read_register(LINT_EN);
-		lint_stat = read_register(LINT_STAT);
-
-#define REPORT_IRQ(name,field)     \
-    p += sprintf(p, (lint_en & UNIV_BM_LINT_##name) ? "Enabled" : "Masked"); \
-    p += sprintf(p, ", triggered %d times", Interrupt_counters.field); \
-    p += sprintf(p, (lint_stat & UNIV_BM_LINT_##name) ? ", irq now active\n" : "\n");
-		p += sprintf(p, "ACFAIL Interrupt:\t\t");
-		REPORT_IRQ(ACFAIL, acfail);
-		p += sprintf(p, "SYSFAIL Interrupt:\t\t");
-		REPORT_IRQ(SYSFAIL, sysfail);
-		p += sprintf(p, "SW_INT Interrupt:\t\t");
-		REPORT_IRQ(SW_INT, sw_int);
-		p += sprintf(p, "SW_IACK Interrupt:\t\t");
-		REPORT_IRQ(SW_IACK, sw_iack);
-		p += sprintf(p, "VERR Interrupt:\t\t\t");
-		REPORT_IRQ(VERR, verr);
-		p += sprintf(p, "LERR Interrupt:\t\t\t");
-		REPORT_IRQ(LERR, lerr);
-		p += sprintf(p, "LM Interrupt:\t\t\t");
-		REPORT_IRQ(LM, lm);
-		p += sprintf(p, "MBOX Interrupt:\t\t\t");
-		REPORT_IRQ(MBOX, mbox);
-		p += sprintf(p, "DMA Interrupt:\t\t\t");
-		REPORT_IRQ(DMA, dma);
-		p += sprintf(p, "VIRQ7 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ7, virq[7 - 1]);
-		p += sprintf(p, "VIRQ6 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ6, virq[6 - 1]);
-		p += sprintf(p, "VIRQ5 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ5, virq[5 - 1]);
-		p += sprintf(p, "VIRQ4 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ4, virq[4 - 1]);
-		p += sprintf(p, "VIRQ3 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ3, virq[3 - 1]);
-		p += sprintf(p, "VIRQ2 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ2, virq[2 - 1]);
-		p += sprintf(p, "VIRQ1 Interrupt:\t\t");
-		REPORT_IRQ(VIRQ1, virq[1 - 1]);
-		p += sprintf(p, "VOWN Interrupt:\t\t\t");
-		REPORT_IRQ(VOWN, vown);
-		p += sprintf(p, "\n");
-#undef REPORT_IRQ
-	}
-	{
-		unsigned long vrai_ctl;
-
-		vrai_ctl = read_register(VRAI_CTL);
-		if (vrai_ctl & UNIV_BM_VRAI_CTL_EN) {
-			unsigned int vrai_bs;
-
-			vrai_bs = read_register(VRAI_BS);
-			p += sprintf(p,
-				     "VME Register Image:\t\tEnabled at VME-Address 0x%x\n",
-				     vrai_bs);
-		} else
-			p += sprintf(p, "VME Register Image:\t\tDisabled\n");
-	}
-	{
-		unsigned int slsi;
-
-		slsi = read_register(SLSI);
-		if (slsi & UNIV_BM_SLSI_EN) {
-			/* Not implemented */
-		} else {
-			p += sprintf(p, "Special PCI Slave Image:\tDisabled\n");
-		}
-	}
-	{
-		int i;
-
-		for (i = 0; i < (vmechip_revision > 0 ? 8 : 4); i++) {
-			unsigned int ctl, bs, bd, to, vstart, vend;
-
-			ctl = readl(vmechip_baseaddr + outCTL[i]);
-			bs = readl(vmechip_baseaddr + outBS[i]);
-			bd = readl(vmechip_baseaddr + outBD[i]);
-			to = readl(vmechip_baseaddr + outTO[i]);
-
-			vstart = bs + to;
-			vend = bd + to;
-
-			p += sprintf(p, "PCI Slave Image %d:\t\t", i);
-			if (ctl & UNIV_BM_LSI_CTL_EN) {
-				p += sprintf(p, "Enabled");
-				if (ctl & UNIV_BM_LSI_CTL_PWEN)
-					p += sprintf(p,
-						     ", Posted Write Enabled\n");
-				else
-					p += sprintf(p, "\n");
-				p += sprintf(p,
-					     "\t\t\t\tPCI Addresses from 0x%x to 0x%x\n",
-					     bs, bd);
-				p += sprintf(p,
-					     "\t\t\t\tVME Addresses from 0x%x to 0x%x\n",
-					     vstart, vend);
-			} else
-				p += sprintf(p, "Disabled\n");
-		}
-		p += sprintf(p, "\n");
-	}
-	{
-		int i;
-		for (i = 0; i < (vmechip_revision > 0 ? 8 : 4); i++) {
-			unsigned int ctl, bs, bd, to, vstart, vend;
-
-			ctl = readl(vmechip_baseaddr + inCTL[i]);
-			bs = readl(vmechip_baseaddr + inBS[i]);
-			bd = readl(vmechip_baseaddr + inBD[i]);
-			to = readl(vmechip_baseaddr + inTO[i]);
-			vstart = bs + to;
-			vend = bd + to;
-			p += sprintf(p, "VME Slave Image %d:\t\t", i);
-			if (ctl & UNIV_BM_LSI_CTL_EN) {
-				p += sprintf(p, "Enabled");
-				if (ctl & UNIV_BM_LSI_CTL_PWEN)
-					p += sprintf(p,
-						     ", Posted Write Enabled\n");
-				else
-					p += sprintf(p, "\n");
-				p += sprintf(p,
-					     "\t\t\t\tVME Addresses from 0x%x to 0x%x\n",
-					     bs, bd);
-				p += sprintf(p,
-					     "\t\t\t\tPCI Addresses from 0x%x to 0x%x\n",
-					     vstart, vend);
-			} else
-				p += sprintf(p, "Disabled\n");
-		}
-	}
-
-	return p - buf;
+	return CA91CX42_LINT_DMA;
 }
 
-//----------------------------------------------------------------------------
-//  uni_bus_error_chk()
-//----------------------------------------------------------------------------
-int uni_bus_error_chk(int clrflag)
+static u32 ca91cx42_LM_irqhandler(u32 stat)
+{
+	int i;
+	u32 serviced = 0;
+
+	for (i = 0; i < 4; i++) {
+		if (stat & CA91CX42_LINT_LM[i]) {
+			/* We only enable interrupts if the callback is set */
+			lm_callback[i](i);
+			serviced |= CA91CX42_LINT_LM[i];
+		}
+	}
+
+	return serviced;
+}
+
+/* XXX This needs to be split into 4 queues */
+static u32 ca91cx42_MB_irqhandler(int mbox_mask)
+{
+	wake_up(&mbox_queue);
+
+	return CA91CX42_LINT_MBOX;
+}
+
+static u32 ca91cx42_IACK_irqhandler(void)
+{
+	wake_up(&iack_queue);
+
+	return CA91CX42_LINT_SW_IACK;
+}
+
+#if 0
+int ca91cx42_bus_error_chk(int clrflag)
 {
 	int tmp;
-	tmp = readl(vmechip_baseaddr + PCI_COMMAND);
-	if (tmp & 0x08000000) {	// S_TA is Set
+	tmp = ioread32(ca91cx42_bridge->base + PCI_COMMAND);
+	if (tmp & 0x08000000) {	/* S_TA is Set */
 		if (clrflag)
-			writel(tmp | 0x08000000,
-			       vmechip_baseaddr + PCI_COMMAND);
-		return (1);
+			iowrite32(tmp | 0x08000000,
+			       ca91cx42_bridge->base + PCI_COMMAND);
+		return 1;
 	}
-	return (0);
+	return 0;
 }
+#endif
 
-//-----------------------------------------------------------------------------
-// Function   : DMA_uni_irqhandler
-// Inputs     : void
-// Outputs    : void
-// Description: Saves DMA completion timestamp and then wakes up DMA queue
-//-----------------------------------------------------------------------------
-static void DMA_uni_irqhandler(void)
-{
-	uni_dma_irq_time = uni_irq_time;
-	wake_up(&dma_queue[0]);
-}
-
-//-----------------------------------------------------------------------------
-// Function   : LERR_uni_irqhandler
-// Inputs     : void
-// Outputs    : void
-// Description:
-//-----------------------------------------------------------------------------
-static void LERR_uni_irqhandler(void)
+static u32 ca91cx42_VERR_irqhandler(void)
 {
 	int val;
 
-	val = readl(vmechip_baseaddr + DGCS);
+	val = ioread32(ca91cx42_bridge->base + DGCS);
 
 	if (!(val & 0x00000800)) {
-		printk(KERN_ERR
-		       "ca91c042: LERR_uni_irqhandler DMA Read Error DGCS=%08X\n",
-		       val);
-
+		printk(KERN_ERR "ca91c042: ca91cx42_VERR_irqhandler DMA Read "
+			"Error DGCS=%08X\n", val);
 	}
+
+	return CA91CX42_LINT_VERR;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : VERR_uni_irqhandler
-// Inputs     : void
-// Outputs    : void
-// Description:
-//-----------------------------------------------------------------------------
-static void VERR_uni_irqhandler(void)
+static u32 ca91cx42_LERR_irqhandler(void)
 {
 	int val;
 
-	val = readl(vmechip_baseaddr + DGCS);
+	val = ioread32(ca91cx42_bridge->base + DGCS);
 
 	if (!(val & 0x00000800)) {
-		printk(KERN_ERR
-		       "ca91c042: VERR_uni_irqhandler DMA Read Error DGCS=%08X\n",
-		       val);
+		printk(KERN_ERR "ca91c042: ca91cx42_LERR_irqhandler DMA Read "
+			"Error DGCS=%08X\n", val);
+
 	}
 
+	return CA91CX42_LINT_LERR;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : MB_uni_irqhandler
-// Inputs     : void
-// Outputs    : void
-// Description:
-//-----------------------------------------------------------------------------
-static void MB_uni_irqhandler(int mbox_mask)
-{
-	if (vmechip_irq_overhead_ticks != 0) {
-		wake_up(&mbox_queue);
-	}
-}
 
-//-----------------------------------------------------------------------------
-// Function   : LM_uni_irqhandler
-// Inputs     : void
-// Outputs    : void
-// Description:
-//-----------------------------------------------------------------------------
-static void LM_uni_irqhandler(int lm_mask)
+static u32 ca91cx42_VIRQ_irqhandler(int stat)
 {
-	uni_lm_event = lm_mask;
-	wake_up(&lm_queue);
-}
-
-//-----------------------------------------------------------------------------
-// Function   : VIRQ_uni_irqhandler
-// Inputs     : void
-// Outputs    : void
-// Description:
-//-----------------------------------------------------------------------------
-static void VIRQ_uni_irqhandler(int virq_mask)
-{
-	int iackvec, i;
+	int vec, i, serviced = 0;
+	void (*call)(int, int, void *);
+	void *priv_data;
 
 	for (i = 7; i > 0; i--) {
-		if (virq_mask & (1 << i)) {
-			Interrupt_counters.virq[i - 1]++;
-			iackvec = readl(vmechip_baseaddr + vmevec[i - 1]);
-			vme_irqlog[i][iackvec]++;
+		if (stat & (1 << i)) {
+			vec = ioread32(ca91cx42_bridge->base +
+				CA91CX42_V_STATID[i]) & 0xff;
+
+			call = ca91cx42_bridge->irq[i - 1].callback[vec].func;
+			priv_data =
+			ca91cx42_bridge->irq[i - 1].callback[vec].priv_data;
+
+			if (call != NULL)
+				call(i, vec, priv_data);
+			else
+				printk("Spurilous VME interrupt, level:%x, "
+					"vector:%x\n", i, vec);
+
+			serviced |= (1 << i);
 		}
 	}
+
+	return serviced;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_irqhandler
-// Inputs     : int irq, void *dev_id, struct pt_regs *regs
-// Outputs    : void
-// Description:
-//-----------------------------------------------------------------------------
-static irqreturn_t uni_irqhandler(int irq, void *dev_id)
+static irqreturn_t ca91cx42_irqhandler(int irq, void *dev_id)
 {
-	long stat, enable;
+	u32 stat, enable, serviced = 0;
 
-	if (dev_id != vmechip_baseaddr)
+	if (dev_id != ca91cx42_bridge->base)
 		return IRQ_NONE;
 
-	uni_irq_time = get_tbl();
+	enable = ioread32(ca91cx42_bridge->base + LINT_EN);
+	stat = ioread32(ca91cx42_bridge->base + LINT_STAT);
 
-	stat = readl(vmechip_baseaddr + LINT_STAT);
-	writel(stat, vmechip_baseaddr + LINT_STAT);	// Clear all pending ints
-	enable = readl(vmechip_baseaddr + LINT_EN);
-	stat = stat & enable;
-	if (stat & 0x0100) {
-		Interrupt_counters.dma++;
-		DMA_uni_irqhandler();
-	}
-	if (stat & 0x0200) {
-		Interrupt_counters.lerr++;
-		LERR_uni_irqhandler();
-	}
-	if (stat & 0x0400) {
-		Interrupt_counters.verr++;
-		VERR_uni_irqhandler();
-	}
-	if (stat & 0xF0000) {
-		Interrupt_counters.mbox++;
-		MB_uni_irqhandler((stat & 0xF0000) >> 16);
-	}
-	if (stat & 0xF00000) {
-		Interrupt_counters.lm++;
-		LM_uni_irqhandler((stat & 0xF00000) >> 20);
-	}
-	if (stat & 0x0000FE) {
-		VIRQ_uni_irqhandler(stat & 0x0000FE);
-	}
-	if (stat & UNIV_BM_LINT_ACFAIL) {
-		Interrupt_counters.acfail++;
-	}
-	if (stat & UNIV_BM_LINT_SYSFAIL) {
-		Interrupt_counters.sysfail++;
-	}
-	if (stat & UNIV_BM_LINT_SW_INT) {
-		Interrupt_counters.sw_int++;
-	}
-	if (stat & UNIV_BM_LINT_SW_IACK) {
-		Interrupt_counters.sw_iack++;
-	}
-	if (stat & UNIV_BM_LINT_VOWN) {
-		Interrupt_counters.vown++;
-	}
+	/* Only look at unmasked interrupts */
+	stat &= enable;
+
+	if (unlikely(!stat))
+		return IRQ_NONE;
+
+	if (stat & CA91CX42_LINT_DMA)
+		serviced |= ca91cx42_DMA_irqhandler();
+	if (stat & (CA91CX42_LINT_LM0 | CA91CX42_LINT_LM1 | CA91CX42_LINT_LM2 |
+			CA91CX42_LINT_LM3))
+		serviced |= ca91cx42_LM_irqhandler(stat);
+	if (stat & CA91CX42_LINT_MBOX)
+		serviced |= ca91cx42_MB_irqhandler(stat);
+	if (stat & CA91CX42_LINT_SW_IACK)
+		serviced |= ca91cx42_IACK_irqhandler();
+	if (stat & CA91CX42_LINT_VERR)
+		serviced |= ca91cx42_VERR_irqhandler();
+	if (stat & CA91CX42_LINT_LERR)
+		serviced |= ca91cx42_LERR_irqhandler();
+	if (stat & (CA91CX42_LINT_VIRQ1 | CA91CX42_LINT_VIRQ2 |
+			CA91CX42_LINT_VIRQ3 | CA91CX42_LINT_VIRQ4 |
+			CA91CX42_LINT_VIRQ5 | CA91CX42_LINT_VIRQ6 |
+			CA91CX42_LINT_VIRQ7))
+		serviced |= ca91cx42_VIRQ_irqhandler(stat);
+
+	/* Clear serviced interrupts */
+	iowrite32(stat, ca91cx42_bridge->base + LINT_STAT);
 
 	return IRQ_HANDLED;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_generate_irq
-// Description:
-//-----------------------------------------------------------------------------
-int uni_generate_irq(virqInfo_t * vmeIrq)
+static int ca91cx42_irq_init(struct vme_bridge *bridge)
 {
-	int timeout;
-	int looptimeout;
+	int result, tmp;
+	struct pci_dev *pdev;
 
-	timeout = vmeIrq->waitTime;
-	if (timeout == 0) {
-		timeout++;	// Wait at least 1 tick...
-	}
-	looptimeout = HZ / 20;	// try for 1/20 second
+	/* Need pdev */
+	pdev = container_of(bridge->parent, struct pci_dev, dev);
 
-	vmeIrq->timeOutFlag = 0;
+	/* Initialise list for VME bus errors */
+	INIT_LIST_HEAD(&(bridge->vme_errors));
 
-	// Validate & setup vector register.
-	if (vmeIrq->vector & 1) {	// Universe can only generate even vectors
-		return (-EINVAL);
-	}
-	writel(vmeIrq->vector << 24, vmechip_baseaddr + STATID);
+	/* Disable interrupts from PCI to VME */
+	iowrite32(0, bridge->base + VINT_EN);
 
-	// Assert VMEbus IRQ
-	writel(1 << (vmeIrq->level + 24), vmechip_baseaddr + VINT_EN);
+	/* Disable PCI interrupts */
+	iowrite32(0, bridge->base + LINT_EN);
+	/* Clear Any Pending PCI Interrupts */
+	iowrite32(0x00FFFFFF, bridge->base + LINT_STAT);
 
-	// Wait for syscon to do iack
-	while (readl(vmechip_baseaddr + VINT_STAT) &
-	       (1 << (vmeIrq->level + 24))) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(looptimeout);
-		timeout = timeout - looptimeout;
-		if (timeout <= 0) {
-			vmeIrq->timeOutFlag = 1;
-			break;
-		}
+	result = request_irq(pdev->irq, ca91cx42_irqhandler, IRQF_SHARED,
+			driver_name, pdev);
+	if (result) {
+		dev_err(&pdev->dev, "Can't get assigned pci irq vector %02X\n",
+		       pdev->irq);
+		return result;
 	}
 
-	// Clear VMEbus IRQ bit
-	writel(0, vmechip_baseaddr + VINT_EN);
+	/* Ensure all interrupts are mapped to PCI Interrupt 0 */
+	iowrite32(0, bridge->base + LINT_MAP0);
+	iowrite32(0, bridge->base + LINT_MAP1);
+	iowrite32(0, bridge->base + LINT_MAP2);
 
-	return (0);
+	/* Enable DMA, mailbox & LM Interrupts */
+	tmp = CA91CX42_LINT_MBOX3 | CA91CX42_LINT_MBOX2 | CA91CX42_LINT_MBOX1 |
+		CA91CX42_LINT_MBOX0 | CA91CX42_LINT_SW_IACK |
+		CA91CX42_LINT_VERR | CA91CX42_LINT_LERR | CA91CX42_LINT_DMA;
+
+	iowrite32(tmp, bridge->base + LINT_EN);
+
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_set_arbiter
-// Description:
-//-----------------------------------------------------------------------------
-int uni_set_arbiter(vmeArbiterCfg_t * vmeArb)
+static void ca91cx42_irq_exit(struct pci_dev *pdev)
 {
-	int temp_ctl = 0;
-	int vbto = 0;
+	/* Disable interrupts from PCI to VME */
+	iowrite32(0, ca91cx42_bridge->base + VINT_EN);
 
-	temp_ctl = readl(vmechip_baseaddr + MISC_CTL);
-	temp_ctl &= 0x00FFFFFF;
+	/* Disable PCI interrupts */
+	iowrite32(0, ca91cx42_bridge->base + LINT_EN);
+	/* Clear Any Pending PCI Interrupts */
+	iowrite32(0x00FFFFFF, ca91cx42_bridge->base + LINT_STAT);
 
-	if (vmeArb->globalTimeoutTimer == 0xFFFFFFFF) {
-		vbto = 7;
-	} else if (vmeArb->globalTimeoutTimer > 1024) {
-		return (-EINVAL);
-	} else if (vmeArb->globalTimeoutTimer == 0) {
-		vbto = 0;
-	} else {
-		vbto = 1;
-		while ((16 * (1 << (vbto - 1))) < vmeArb->globalTimeoutTimer) {
-			vbto += 1;
-		}
-	}
-	temp_ctl |= (vbto << 28);
-
-	if (vmeArb->arbiterMode == VME_PRIORITY_MODE) {
-		temp_ctl |= 1 << 26;
-	}
-
-	if (vmeArb->arbiterTimeoutFlag) {
-		temp_ctl |= 2 << 24;
-	}
-
-	writel(temp_ctl, vmechip_baseaddr + MISC_CTL);
-	return (0);
+	free_irq(pdev->irq, pdev);
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_get_arbiter
-// Description:
-//-----------------------------------------------------------------------------
-int uni_get_arbiter(vmeArbiterCfg_t * vmeArb)
+/*
+ * Set up an VME interrupt
+ */
+int ca91cx42_request_irq(int level, int statid,
+	void (*callback)(int level, int vector, void *priv_data),
+	void *priv_data)
 {
-	int temp_ctl = 0;
-	int vbto = 0;
+	u32 tmp;
 
-	temp_ctl = readl(vmechip_baseaddr + MISC_CTL);
+	mutex_lock(&(vme_irq));
 
-	vbto = (temp_ctl >> 28) & 0xF;
-	if (vbto != 0) {
-		vmeArb->globalTimeoutTimer = (16 * (1 << (vbto - 1)));
+	if (ca91cx42_bridge->irq[level - 1].callback[statid].func) {
+		mutex_unlock(&(vme_irq));
+		printk("VME Interrupt already taken\n");
+		return -EBUSY;
 	}
 
-	if (temp_ctl & (1 << 26)) {
-		vmeArb->arbiterMode = VME_PRIORITY_MODE;
-	} else {
-		vmeArb->arbiterMode = VME_R_ROBIN_MODE;
-	}
 
-	if (temp_ctl & (3 << 24)) {
-		vmeArb->arbiterTimeoutFlag = 1;
-	}
-	return (0);
+	ca91cx42_bridge->irq[level - 1].count++;
+	ca91cx42_bridge->irq[level - 1].callback[statid].priv_data = priv_data;
+	ca91cx42_bridge->irq[level - 1].callback[statid].func = callback;
+
+	/* Enable IRQ level */
+	tmp = ioread32(ca91cx42_bridge->base + LINT_EN);
+	tmp |= CA91CX42_LINT_VIRQ[level];
+	iowrite32(tmp, ca91cx42_bridge->base + LINT_EN);
+
+	mutex_unlock(&(vme_irq));
+
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_set_requestor
-// Description:
-//-----------------------------------------------------------------------------
-int uni_set_requestor(vmeRequesterCfg_t * vmeReq)
+/*
+ * Free VME interrupt
+ */
+void ca91cx42_free_irq(int level, int statid)
 {
-	int temp_ctl = 0;
+	u32 tmp;
+	struct pci_dev *pdev;
 
-	temp_ctl = readl(vmechip_baseaddr + MAST_CTL);
-	temp_ctl &= 0xFF0FFFFF;
+	mutex_lock(&(vme_irq));
 
-	if (vmeReq->releaseMode == 1) {
-		temp_ctl |= (1 << 20);
+	ca91cx42_bridge->irq[level - 1].count--;
+
+	/* Disable IRQ level if no more interrupts attached at this level*/
+	if (ca91cx42_bridge->irq[level - 1].count == 0) {
+		tmp = ioread32(ca91cx42_bridge->base + LINT_EN);
+		tmp &= ~CA91CX42_LINT_VIRQ[level];
+		iowrite32(tmp, ca91cx42_bridge->base + LINT_EN);
+
+		pdev = container_of(ca91cx42_bridge->parent, struct pci_dev,
+			dev);
+
+		synchronize_irq(pdev->irq);
 	}
 
-	if (vmeReq->fairMode == 1) {
-		temp_ctl |= (1 << 21);
-	}
+	ca91cx42_bridge->irq[level - 1].callback[statid].func = NULL;
+	ca91cx42_bridge->irq[level - 1].callback[statid].priv_data = NULL;
 
-	temp_ctl |= (vmeReq->requestLevel << 22);
-
-	writel(temp_ctl, vmechip_baseaddr + MAST_CTL);
-	return (0);
+	mutex_unlock(&(vme_irq));
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_get_requestor
-// Description:
-//-----------------------------------------------------------------------------
-int uni_get_requestor(vmeRequesterCfg_t * vmeReq)
+int ca91cx42_generate_irq(int level, int statid)
 {
-	int temp_ctl = 0;
+	u32 tmp;
 
-	temp_ctl = readl(vmechip_baseaddr + MAST_CTL);
+	/* Universe can only generate even vectors */
+	if (statid & 1)
+		return -EINVAL;
 
-	if (temp_ctl & (1 << 20)) {
-		vmeReq->releaseMode = 1;
-	}
+	mutex_lock(&(vme_int));
 
-	if (temp_ctl & (1 << 21)) {
-		vmeReq->fairMode = 1;
-	}
+	tmp = ioread32(ca91cx42_bridge->base + VINT_EN);
 
-	vmeReq->requestLevel = (temp_ctl & 0xC00000) >> 22;
+	/* Set Status/ID */
+	iowrite32(statid << 24, ca91cx42_bridge->base + STATID);
 
-	return (0);
+	/* Assert VMEbus IRQ */
+	tmp = tmp | (1 << (level + 24));
+	iowrite32(tmp, ca91cx42_bridge->base + VINT_EN);
+
+	/* Wait for IACK */
+	wait_event_interruptible(iack_queue, 0);
+
+	/* Return interrupt to low state */
+	tmp = ioread32(ca91cx42_bridge->base + VINT_EN);
+	tmp = tmp & ~(1 << (level + 24));
+	iowrite32(tmp, ca91cx42_bridge->base + VINT_EN);
+
+	mutex_unlock(&(vme_int));
+
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_set_in_bound
-// Description:
-//-----------------------------------------------------------------------------
-int uni_set_in_bound(vmeInWindowCfg_t * vmeIn)
+int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
+	unsigned long long vme_base, unsigned long long size,
+	dma_addr_t pci_base, vme_address_t aspace, vme_cycle_t cycle)
 {
-	int temp_ctl = 0;
+	unsigned int i, addr = 0, granularity = 0;
+	unsigned int temp_ctl = 0;
+	unsigned int vme_bound, pci_offset;
 
-	// Verify input data
-	if (vmeIn->windowNbr > 7) {
-		return (-EINVAL);
-	}
-	if ((vmeIn->vmeAddrU) || (vmeIn->windowSizeU) || (vmeIn->pciAddrU)) {
-		return (-EINVAL);
-	}
-	if ((vmeIn->vmeAddrL & 0xFFF) ||
-	    (vmeIn->windowSizeL & 0xFFF) || (vmeIn->pciAddrL & 0xFFF)) {
-		return (-EINVAL);
-	}
+	i = image->number;
 
-	if (vmeIn->bcastRespond2esst) {
-		return (-EINVAL);
-	}
-	switch (vmeIn->addrSpace) {
+	switch (aspace) {
+	case VME_A16:
+		addr |= CA91CX42_VSI_CTL_VAS_A16;
+		break;
+	case VME_A24:
+		addr |= CA91CX42_VSI_CTL_VAS_A24;
+		break;
+	case VME_A32:
+		addr |= CA91CX42_VSI_CTL_VAS_A32;
+		break;
+	case VME_USER1:
+		addr |= CA91CX42_VSI_CTL_VAS_USER1;
+		break;
+	case VME_USER2:
+		addr |= CA91CX42_VSI_CTL_VAS_USER2;
+		break;
 	case VME_A64:
 	case VME_CRCSR:
 	case VME_USER3:
 	case VME_USER4:
-		return (-EINVAL);
-	case VME_A16:
-		temp_ctl |= 0x00000;
-		break;
-	case VME_A24:
-		temp_ctl |= 0x10000;
-		break;
-	case VME_A32:
-		temp_ctl |= 0x20000;
-		break;
-	case VME_USER1:
-		temp_ctl |= 0x60000;
-		break;
-	case VME_USER2:
-		temp_ctl |= 0x70000;
+	default:
+		printk(KERN_ERR "Invalid address space\n");
+		return -EINVAL;
 		break;
 	}
 
-	// Disable while we are mucking around
-	writel(0x00000000, vmechip_baseaddr + inCTL[vmeIn->windowNbr]);
-	writel(vmeIn->vmeAddrL, vmechip_baseaddr + inBS[vmeIn->windowNbr]);
-	writel(vmeIn->vmeAddrL + vmeIn->windowSizeL,
-	       vmechip_baseaddr + inBD[vmeIn->windowNbr]);
-	writel(vmeIn->pciAddrL - vmeIn->vmeAddrL,
-	       vmechip_baseaddr + inTO[vmeIn->windowNbr]);
+	/*
+	 * Bound address is a valid address for the window, adjust
+	 * accordingly
+	 */
+	vme_bound = vme_base + size - granularity;
+	pci_offset = pci_base - vme_base;
 
-	// Setup CTL register.
+	/* XXX Need to check that vme_base, vme_bound and pci_offset aren't
+	 * too big for registers
+	 */
+
+	if ((i == 0) || (i == 4))
+		granularity = 0x1000;
+	else
+		granularity = 0x10000;
+
+	if (vme_base & (granularity - 1)) {
+		printk(KERN_ERR "Invalid VME base alignment\n");
+		return -EINVAL;
+	}
+	if (vme_bound & (granularity - 1)) {
+		printk(KERN_ERR "Invalid VME bound alignment\n");
+		return -EINVAL;
+	}
+	if (pci_offset & (granularity - 1)) {
+		printk(KERN_ERR "Invalid PCI Offset alignment\n");
+		return -EINVAL;
+	}
+
+	/* Disable while we are mucking around */
+	temp_ctl = ioread32(ca91cx42_bridge->base + CA91CX42_VSI_CTL[i]);
+	temp_ctl &= ~CA91CX42_VSI_CTL_EN;
+	iowrite32(temp_ctl, ca91cx42_bridge->base + CA91CX42_VSI_CTL[i]);
+
+	/* Setup mapping */
+	iowrite32(vme_base, ca91cx42_bridge->base + CA91CX42_VSI_BS[i]);
+	iowrite32(vme_bound, ca91cx42_bridge->base + CA91CX42_VSI_BD[i]);
+	iowrite32(pci_offset, ca91cx42_bridge->base + CA91CX42_VSI_TO[i]);
+
+/* XXX Prefetch stuff currently unsupported */
+#if 0
 	if (vmeIn->wrPostEnable)
-		temp_ctl |= 0x40000000;
+		temp_ctl |= CA91CX42_VSI_CTL_PWEN;
 	if (vmeIn->prefetchEnable)
-		temp_ctl |= 0x20000000;
+		temp_ctl |= CA91CX42_VSI_CTL_PREN;
 	if (vmeIn->rmwLock)
-		temp_ctl |= 0x00000040;
+		temp_ctl |= CA91CX42_VSI_CTL_LLRMW;
 	if (vmeIn->data64BitCapable)
-		temp_ctl |= 0x00000080;
-	if (vmeIn->userAccessType & VME_USER)
-		temp_ctl |= 0x00100000;
-	if (vmeIn->userAccessType & VME_SUPER)
-		temp_ctl |= 0x00200000;
-	if (vmeIn->dataAccessType & VME_DATA)
-		temp_ctl |= 0x00400000;
-	if (vmeIn->dataAccessType & VME_PROG)
-		temp_ctl |= 0x00800000;
+		temp_ctl |= CA91CX42_VSI_CTL_LD64EN;
+#endif
 
-	// Write ctl reg without enable
-	writel(temp_ctl, vmechip_baseaddr + inCTL[vmeIn->windowNbr]);
+	/* Setup address space */
+	temp_ctl &= ~CA91CX42_VSI_CTL_VAS_M;
+	temp_ctl |= addr;
 
-	if (vmeIn->windowEnable)
-		temp_ctl |= 0x80000000;
+	/* Setup cycle types */
+	temp_ctl &= ~(CA91CX42_VSI_CTL_PGM_M | CA91CX42_VSI_CTL_SUPER_M);
+	if (cycle & VME_SUPER)
+		temp_ctl |= CA91CX42_VSI_CTL_SUPER_SUPR;
+	if (cycle & VME_USER)
+		temp_ctl |= CA91CX42_VSI_CTL_SUPER_NPRIV;
+	if (cycle & VME_PROG)
+		temp_ctl |= CA91CX42_VSI_CTL_PGM_PGM;
+	if (cycle & VME_DATA)
+		temp_ctl |= CA91CX42_VSI_CTL_PGM_DATA;
 
-	writel(temp_ctl, vmechip_baseaddr + inCTL[vmeIn->windowNbr]);
-	return (0);
+	/* Write ctl reg without enable */
+	iowrite32(temp_ctl, ca91cx42_bridge->base + CA91CX42_VSI_CTL[i]);
+
+	if (enabled)
+		temp_ctl |= CA91CX42_VSI_CTL_EN;
+
+	iowrite32(temp_ctl, ca91cx42_bridge->base + CA91CX42_VSI_CTL[i]);
+
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_get_in_bound
-// Description:
-//-----------------------------------------------------------------------------
-int uni_get_in_bound(vmeInWindowCfg_t * vmeIn)
+int ca91cx42_slave_get(struct vme_slave_resource *image, int *enabled,
+	unsigned long long *vme_base, unsigned long long *size,
+	dma_addr_t *pci_base, vme_address_t *aspace, vme_cycle_t *cycle)
 {
-	int temp_ctl = 0;
+	unsigned int i, granularity = 0, ctl = 0;
+	unsigned long long vme_bound, pci_offset;
 
-	// Verify input data
-	if (vmeIn->windowNbr > 7) {
-		return (-EINVAL);
-	}
-	// Get Window mappings.
-	vmeIn->vmeAddrL = readl(vmechip_baseaddr + inBS[vmeIn->windowNbr]);
-	vmeIn->pciAddrL = vmeIn->vmeAddrL +
-	    readl(vmechip_baseaddr + inTO[vmeIn->windowNbr]);
-	vmeIn->windowSizeL = readl(vmechip_baseaddr + inBD[vmeIn->windowNbr]) -
-	    vmeIn->vmeAddrL;
+	i = image->number;
 
-	temp_ctl = readl(vmechip_baseaddr + inCTL[vmeIn->windowNbr]);
+	if ((i == 0) || (i == 4))
+		granularity = 0x1000;
+	else
+		granularity = 0x10000;
 
-	// Get Control & BUS attributes
-	if (temp_ctl & 0x40000000)
-		vmeIn->wrPostEnable = 1;
-	if (temp_ctl & 0x20000000)
-		vmeIn->prefetchEnable = 1;
-	if (temp_ctl & 0x00000040)
-		vmeIn->rmwLock = 1;
-	if (temp_ctl & 0x00000080)
-		vmeIn->data64BitCapable = 1;
-	if (temp_ctl & 0x00100000)
-		vmeIn->userAccessType |= VME_USER;
-	if (temp_ctl & 0x00200000)
-		vmeIn->userAccessType |= VME_SUPER;
-	if (temp_ctl & 0x00400000)
-		vmeIn->dataAccessType |= VME_DATA;
-	if (temp_ctl & 0x00800000)
-		vmeIn->dataAccessType |= VME_PROG;
-	if (temp_ctl & 0x80000000)
-		vmeIn->windowEnable = 1;
+	/* Read Registers */
+	ctl = ioread32(ca91cx42_bridge->base + CA91CX42_VSI_CTL[i]);
 
-	switch ((temp_ctl & 0x70000) >> 16) {
-	case 0x0:
-		vmeIn->addrSpace = VME_A16;
-		break;
-	case 0x1:
-		vmeIn->addrSpace = VME_A24;
-		break;
-	case 0x2:
-		vmeIn->addrSpace = VME_A32;
-		break;
-	case 0x6:
-		vmeIn->addrSpace = VME_USER1;
-		break;
-	case 0x7:
-		vmeIn->addrSpace = VME_USER2;
-		break;
-	}
+	*vme_base = ioread32(ca91cx42_bridge->base + CA91CX42_VSI_BS[i]);
+	vme_bound = ioread32(ca91cx42_bridge->base + CA91CX42_VSI_BD[i]);
+	pci_offset = ioread32(ca91cx42_bridge->base + CA91CX42_VSI_TO[i]);
 
-	return (0);
+	*pci_base = (dma_addr_t)vme_base + pci_offset;
+	*size = (unsigned long long)((vme_bound - *vme_base) + granularity);
+
+	*enabled = 0;
+	*aspace = 0;
+	*cycle = 0;
+
+	if (ctl & CA91CX42_VSI_CTL_EN)
+		*enabled = 1;
+
+	if ((ctl & CA91CX42_VSI_CTL_VAS_M) == CA91CX42_VSI_CTL_VAS_A16)
+		*aspace = VME_A16;
+	if ((ctl & CA91CX42_VSI_CTL_VAS_M) == CA91CX42_VSI_CTL_VAS_A24)
+		*aspace = VME_A24;
+	if ((ctl & CA91CX42_VSI_CTL_VAS_M) == CA91CX42_VSI_CTL_VAS_A32)
+		*aspace = VME_A32;
+	if ((ctl & CA91CX42_VSI_CTL_VAS_M) == CA91CX42_VSI_CTL_VAS_USER1)
+		*aspace = VME_USER1;
+	if ((ctl & CA91CX42_VSI_CTL_VAS_M) == CA91CX42_VSI_CTL_VAS_USER2)
+		*aspace = VME_USER2;
+
+	if (ctl & CA91CX42_VSI_CTL_SUPER_SUPR)
+		*cycle |= VME_SUPER;
+	if (ctl & CA91CX42_VSI_CTL_SUPER_NPRIV)
+		*cycle |= VME_USER;
+	if (ctl & CA91CX42_VSI_CTL_PGM_PGM)
+		*cycle |= VME_PROG;
+	if (ctl & CA91CX42_VSI_CTL_PGM_DATA)
+		*cycle |= VME_DATA;
+
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_set_out_bound
-// Description:
-//-----------------------------------------------------------------------------
-int uni_set_out_bound(vmeOutWindowCfg_t * vmeOut)
+/*
+ * Allocate and map PCI Resource
+ */
+static int ca91cx42_alloc_resource(struct vme_master_resource *image,
+	unsigned long long size)
 {
-	int temp_ctl = 0;
+	unsigned long long existing_size;
+	int retval = 0;
+	struct pci_dev *pdev;
 
-	// Verify input data
-	if (vmeOut->windowNbr > 7) {
-		return (-EINVAL);
+	/* Find pci_dev container of dev */
+	if (ca91cx42_bridge->parent == NULL) {
+		printk(KERN_ERR "Dev entry NULL\n");
+		return -EINVAL;
 	}
-	if ((vmeOut->xlatedAddrU) || (vmeOut->windowSizeU)
-	    || (vmeOut->pciBusAddrU)) {
-		return (-EINVAL);
-	}
-	if ((vmeOut->xlatedAddrL & 0xFFF) ||
-	    (vmeOut->windowSizeL & 0xFFF) || (vmeOut->pciBusAddrL & 0xFFF)) {
-		return (-EINVAL);
-	}
-	if (vmeOut->bcastSelect2esst) {
-		return (-EINVAL);
-	}
-	switch (vmeOut->addrSpace) {
-	case VME_A64:
-	case VME_USER3:
-	case VME_USER4:
-		return (-EINVAL);
-	case VME_A16:
-		temp_ctl |= 0x00000;
-		break;
-	case VME_A24:
-		temp_ctl |= 0x10000;
-		break;
-	case VME_A32:
-		temp_ctl |= 0x20000;
-		break;
-	case VME_CRCSR:
-		temp_ctl |= 0x50000;
-		break;
-	case VME_USER1:
-		temp_ctl |= 0x60000;
-		break;
-	case VME_USER2:
-		temp_ctl |= 0x70000;
-		break;
+	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
+
+	existing_size = (unsigned long long)(image->pci_resource.end -
+		image->pci_resource.start);
+
+	/* If the existing size is OK, return */
+	if (existing_size == (size - 1))
+		return 0;
+
+	if (existing_size != 0) {
+		iounmap(image->kern_base);
+		image->kern_base = NULL;
+		if (image->pci_resource.name != NULL)
+			kfree(image->pci_resource.name);
+		release_resource(&(image->pci_resource));
+		memset(&(image->pci_resource), 0, sizeof(struct resource));
 	}
 
-	// Disable while we are mucking around
-	writel(0x00000000, vmechip_baseaddr + outCTL[vmeOut->windowNbr]);
-	writel(vmeOut->pciBusAddrL,
-	       vmechip_baseaddr + outBS[vmeOut->windowNbr]);
-	writel(vmeOut->pciBusAddrL + vmeOut->windowSizeL,
-	       vmechip_baseaddr + outBD[vmeOut->windowNbr]);
-	writel(vmeOut->xlatedAddrL - vmeOut->pciBusAddrL,
-	       vmechip_baseaddr + outTO[vmeOut->windowNbr]);
-
-	// Sanity check.
-	if (vmeOut->pciBusAddrL !=
-	    readl(vmechip_baseaddr + outBS[vmeOut->windowNbr])) {
-		printk(KERN_ERR
-		       "ca91c042: out window: %x, failed to configure\n",
-		       vmeOut->windowNbr);
-		return (-EINVAL);
+	if (image->pci_resource.name == NULL) {
+		image->pci_resource.name = kmalloc(VMENAMSIZ+3, GFP_KERNEL);
+		if (image->pci_resource.name == NULL) {
+			printk(KERN_ERR "Unable to allocate memory for resource"
+				" name\n");
+			retval = -ENOMEM;
+			goto err_name;
+		}
 	}
 
-	if (vmeOut->pciBusAddrL + vmeOut->windowSizeL !=
-	    readl(vmechip_baseaddr + outBD[vmeOut->windowNbr])) {
-		printk(KERN_ERR
-		       "ca91c042: out window: %x, failed to configure\n",
-		       vmeOut->windowNbr);
-		return (-EINVAL);
+	sprintf((char *)image->pci_resource.name, "%s.%d",
+		ca91cx42_bridge->name, image->number);
+
+	image->pci_resource.start = 0;
+	image->pci_resource.end = (unsigned long)size;
+	image->pci_resource.flags = IORESOURCE_MEM;
+
+	retval = pci_bus_alloc_resource(pdev->bus,
+		&(image->pci_resource), size, size, PCIBIOS_MIN_MEM,
+		0, NULL, NULL);
+	if (retval) {
+		printk(KERN_ERR "Failed to allocate mem resource for "
+			"window %d size 0x%lx start 0x%lx\n",
+			image->number, (unsigned long)size,
+			(unsigned long)image->pci_resource.start);
+		goto err_resource;
 	}
 
-	if (vmeOut->xlatedAddrL - vmeOut->pciBusAddrL !=
-	    readl(vmechip_baseaddr + outTO[vmeOut->windowNbr])) {
-		printk(KERN_ERR
-		       "ca91c042: out window: %x, failed to configure\n",
-		       vmeOut->windowNbr);
-		return (-EINVAL);
+	image->kern_base = ioremap_nocache(
+		image->pci_resource.start, size);
+	if (image->kern_base == NULL) {
+		printk(KERN_ERR "Failed to remap resource\n");
+		retval = -ENOMEM;
+		goto err_remap;
 	}
-	// Setup CTL register.
+
+	return 0;
+
+	iounmap(image->kern_base);
+	image->kern_base = NULL;
+err_remap:
+	release_resource(&(image->pci_resource));
+err_resource:
+	kfree(image->pci_resource.name);
+	memset(&(image->pci_resource), 0, sizeof(struct resource));
+err_name:
+	return retval;
+}
+
+/*
+ *  * Free and unmap PCI Resource
+ *   */
+static void ca91cx42_free_resource(struct vme_master_resource *image)
+{
+	iounmap(image->kern_base);
+	image->kern_base = NULL;
+	release_resource(&(image->pci_resource));
+	kfree(image->pci_resource.name);
+	memset(&(image->pci_resource), 0, sizeof(struct resource));
+}
+
+
+int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
+	unsigned long long vme_base, unsigned long long size,
+	vme_address_t aspace, vme_cycle_t cycle, vme_width_t dwidth)
+{
+	int retval = 0;
+	unsigned int i;
+	unsigned int temp_ctl = 0;
+	unsigned long long pci_bound, vme_offset, pci_base;
+
+	/* Verify input data */
+	if (vme_base & 0xFFF) {
+		printk(KERN_ERR "Invalid VME Window alignment\n");
+		retval = -EINVAL;
+		goto err_window;
+	}
+	if (size & 0xFFF) {
+		printk(KERN_ERR "Invalid VME Window alignment\n");
+		retval = -EINVAL;
+		goto err_window;
+	}
+
+	spin_lock(&(image->lock));
+
+	/* XXX We should do this much later, so that we can exit without
+	 *     needing to redo the mapping...
+	 */
+	/*
+	 * Let's allocate the resource here rather than further up the stack as
+	 * it avoids pushing loads of bus dependant stuff up the stack
+	 */
+	retval = ca91cx42_alloc_resource(image, size);
+	if (retval) {
+		spin_unlock(&(image->lock));
+		printk(KERN_ERR "Unable to allocate memory for resource "
+			"name\n");
+		retval = -ENOMEM;
+		goto err_res;
+	}
+
+	pci_base = (unsigned long long)image->pci_resource.start;
+
+	/*
+	 * Bound address is a valid address for the window, adjust
+	 * according to window granularity.
+	 */
+	pci_bound = pci_base + (size - 0x1000);
+	vme_offset = vme_base - pci_base;
+
+	i = image->number;
+
+	/* Disable while we are mucking around */
+	temp_ctl = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_CTL[i]);
+	temp_ctl &= ~CA91CX42_LSI_CTL_EN;
+	iowrite32(temp_ctl, ca91cx42_bridge->base + CA91CX42_LSI_CTL[i]);
+
+/* XXX Prefetch stuff currently unsupported */
+#if 0
 	if (vmeOut->wrPostEnable)
 		temp_ctl |= 0x40000000;
-	if (vmeOut->userAccessType & VME_SUPER)
-		temp_ctl |= 0x001000;
-	if (vmeOut->dataAccessType & VME_PROG)
-		temp_ctl |= 0x004000;
-	if (vmeOut->maxDataWidth == VME_D16)
-		temp_ctl |= 0x00400000;
-	if (vmeOut->maxDataWidth == VME_D32)
-		temp_ctl |= 0x00800000;
-	if (vmeOut->maxDataWidth == VME_D64)
-		temp_ctl |= 0x00C00000;
-	if (vmeOut->xferProtocol & (VME_BLT | VME_MBLT))
-		temp_ctl |= 0x00000100;
+#endif
 
-	// Write ctl reg without enable
-	writel(temp_ctl, vmechip_baseaddr + outCTL[vmeOut->windowNbr]);
+	/* Setup cycle types */
+	temp_ctl &= ~CA91CX42_LSI_CTL_VCT_M;
+	if (cycle & VME_BLT)
+		temp_ctl |= CA91CX42_LSI_CTL_VCT_BLT;
+	if (cycle & VME_MBLT)
+		temp_ctl |= CA91CX42_LSI_CTL_VCT_MBLT;
 
-	if (vmeOut->windowEnable)
-		temp_ctl |= 0x80000000;
-
-	writel(temp_ctl, vmechip_baseaddr + outCTL[vmeOut->windowNbr]);
-	return (0);
-}
-
-//-----------------------------------------------------------------------------
-// Function   : uni_get_out_bound
-// Description:
-//-----------------------------------------------------------------------------
-int uni_get_out_bound(vmeOutWindowCfg_t * vmeOut)
-{
-	int temp_ctl = 0;
-
-	// Verify input data
-	if (vmeOut->windowNbr > 7) {
-		return (-EINVAL);
-	}
-	// Get Window mappings.
-	vmeOut->pciBusAddrL =
-	    readl(vmechip_baseaddr + outBS[vmeOut->windowNbr]);
-	vmeOut->xlatedAddrL =
-	    vmeOut->pciBusAddrL + readl(vmechip_baseaddr +
-					outTO[vmeOut->windowNbr]);
-	vmeOut->windowSizeL =
-	    readl(vmechip_baseaddr + outBD[vmeOut->windowNbr]) -
-	    vmeOut->pciBusAddrL;
-
-	temp_ctl = readl(vmechip_baseaddr + outCTL[vmeOut->windowNbr]);
-
-	// Get Control & BUS attributes
-	if (temp_ctl & 0x40000000)
-		vmeOut->wrPostEnable = 1;
-	if (temp_ctl & 0x001000)
-		vmeOut->userAccessType = VME_SUPER;
-	else
-		vmeOut->userAccessType = VME_USER;
-	if (temp_ctl & 0x004000)
-		vmeOut->dataAccessType = VME_PROG;
-	else
-		vmeOut->dataAccessType = VME_DATA;
-	if (temp_ctl & 0x80000000)
-		vmeOut->windowEnable = 1;
-
-	switch ((temp_ctl & 0x00C00000) >> 22) {
-	case 0:
-		vmeOut->maxDataWidth = VME_D8;
+	/* Setup data width */
+	temp_ctl &= ~CA91CX42_LSI_CTL_VDW_M;
+	switch (dwidth) {
+	case VME_D8:
+		temp_ctl |= CA91CX42_LSI_CTL_VDW_D8;
 		break;
-	case 1:
-		vmeOut->maxDataWidth = VME_D16;
+	case VME_D16:
+		temp_ctl |= CA91CX42_LSI_CTL_VDW_D16;
 		break;
-	case 2:
-		vmeOut->maxDataWidth = VME_D32;
+	case VME_D32:
+		temp_ctl |= CA91CX42_LSI_CTL_VDW_D32;
 		break;
-	case 3:
-		vmeOut->maxDataWidth = VME_D64;
+	case VME_D64:
+		temp_ctl |= CA91CX42_LSI_CTL_VDW_D64;
 		break;
-	}
-	if (temp_ctl & 0x00000100)
-		vmeOut->xferProtocol = VME_BLT;
-	else
-		vmeOut->xferProtocol = VME_SCT;
-
-	switch ((temp_ctl & 0x70000) >> 16) {
-	case 0x0:
-		vmeOut->addrSpace = VME_A16;
-		break;
-	case 0x1:
-		vmeOut->addrSpace = VME_A24;
-		break;
-	case 0x2:
-		vmeOut->addrSpace = VME_A32;
-		break;
-	case 0x5:
-		vmeOut->addrSpace = VME_CRCSR;
-		break;
-	case 0x6:
-		vmeOut->addrSpace = VME_USER1;
-		break;
-	case 0x7:
-		vmeOut->addrSpace = VME_USER2;
+	default:
+		spin_unlock(&(image->lock));
+		printk(KERN_ERR "Invalid data width\n");
+		retval = -EINVAL;
+		goto err_dwidth;
 		break;
 	}
 
-	return (0);
-}
-
-//-----------------------------------------------------------------------------
-// Function   : uni_setup_lm
-// Description:
-//-----------------------------------------------------------------------------
-int uni_setup_lm(vmeLmCfg_t * vmeLm)
-{
-	int temp_ctl = 0;
-
-	if (vmeLm->addrU) {
-		return (-EINVAL);
-	}
-	switch (vmeLm->addrSpace) {
+	/* Setup address space */
+	temp_ctl &= ~CA91CX42_LSI_CTL_VAS_M;
+	switch (aspace) {
+	case VME_A16:
+		temp_ctl |= CA91CX42_LSI_CTL_VAS_A16;
+		break;
+	case VME_A24:
+		temp_ctl |= CA91CX42_LSI_CTL_VAS_A24;
+		break;
+	case VME_A32:
+		temp_ctl |= CA91CX42_LSI_CTL_VAS_A32;
+		break;
+	case VME_CRCSR:
+		temp_ctl |= CA91CX42_LSI_CTL_VAS_CRCSR;
+		break;
+	case VME_USER1:
+		temp_ctl |= CA91CX42_LSI_CTL_VAS_USER1;
+		break;
+	case VME_USER2:
+		temp_ctl |= CA91CX42_LSI_CTL_VAS_USER2;
+		break;
 	case VME_A64:
 	case VME_USER3:
 	case VME_USER4:
-		return (-EINVAL);
-	case VME_A16:
-		temp_ctl |= 0x00000;
-		break;
-	case VME_A24:
-		temp_ctl |= 0x10000;
-		break;
-	case VME_A32:
-		temp_ctl |= 0x20000;
-		break;
-	case VME_CRCSR:
-		temp_ctl |= 0x50000;
-		break;
-	case VME_USER1:
-		temp_ctl |= 0x60000;
-		break;
-	case VME_USER2:
-		temp_ctl |= 0x70000;
+	default:
+		spin_unlock(&(image->lock));
+		printk(KERN_ERR "Invalid address space\n");
+		retval = -EINVAL;
+		goto err_aspace;
 		break;
 	}
 
-	// Disable while we are mucking around
-	writel(0x00000000, vmechip_baseaddr + LM_CTL);
+	temp_ctl &= ~(CA91CX42_LSI_CTL_PGM_M | CA91CX42_LSI_CTL_SUPER_M);
+	if (cycle & VME_SUPER)
+		temp_ctl |= CA91CX42_LSI_CTL_SUPER_SUPR;
+	if (cycle & VME_PROG)
+		temp_ctl |= CA91CX42_LSI_CTL_PGM_PGM;
 
-	writel(vmeLm->addr, vmechip_baseaddr + LM_BS);
+	/* Setup mapping */
+	iowrite32(pci_base, ca91cx42_bridge->base + CA91CX42_LSI_BS[i]);
+	iowrite32(pci_bound, ca91cx42_bridge->base + CA91CX42_LSI_BD[i]);
+	iowrite32(vme_offset, ca91cx42_bridge->base + CA91CX42_LSI_TO[i]);
 
-	// Setup CTL register.
-	if (vmeLm->userAccessType & VME_SUPER)
-		temp_ctl |= 0x00200000;
-	if (vmeLm->userAccessType & VME_USER)
-		temp_ctl |= 0x00100000;
-	if (vmeLm->dataAccessType & VME_PROG)
-		temp_ctl |= 0x00800000;
-	if (vmeLm->dataAccessType & VME_DATA)
-		temp_ctl |= 0x00400000;
+	/* Write ctl reg without enable */
+	iowrite32(temp_ctl, ca91cx42_bridge->base + CA91CX42_LSI_CTL[i]);
 
-	uni_lm_event = 0;
+	if (enabled)
+		temp_ctl |= CA91CX42_LSI_CTL_EN;
 
-	// Write ctl reg and enable
-	writel(0x80000000 | temp_ctl, vmechip_baseaddr + LM_CTL);
-	temp_ctl = readl(vmechip_baseaddr + LM_CTL);
+	iowrite32(temp_ctl, ca91cx42_bridge->base + CA91CX42_LSI_CTL[i]);
 
-	return (0);
+	spin_unlock(&(image->lock));
+	return 0;
+
+err_aspace:
+err_dwidth:
+	ca91cx42_free_resource(image);
+err_res:
+err_window:
+	return retval;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_wait_lm
-// Description:
-//-----------------------------------------------------------------------------
-int uni_wait_lm(vmeLmCfg_t * vmeLm)
+int __ca91cx42_master_get(struct vme_master_resource *image, int *enabled,
+	unsigned long long *vme_base, unsigned long long *size,
+	vme_address_t *aspace, vme_cycle_t *cycle, vme_width_t *dwidth)
 {
-	unsigned long flags;
-	unsigned int tmp;
+	unsigned int i, ctl;
+	unsigned long long pci_base, pci_bound, vme_offset;
 
-	spin_lock_irqsave(&lm_lock, flags);
-	tmp = uni_lm_event;
-	spin_unlock_irqrestore(&lm_lock, flags);
-	if (tmp == 0) {
-		if (vmeLm->lmWait < 10)
-			vmeLm->lmWait = 10;
-		interruptible_sleep_on_timeout(&lm_queue, vmeLm->lmWait);
+	i = image->number;
+
+	ctl = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_CTL[i]);
+
+	pci_base = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_BS[i]);
+	vme_offset = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_TO[i]);
+	pci_bound = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_BD[i]);
+
+	*vme_base = pci_base + vme_offset;
+	*size = (pci_bound - pci_base) + 0x1000;
+
+	*enabled = 0;
+	*aspace = 0;
+	*cycle = 0;
+	*dwidth = 0;
+
+	if (ctl & CA91CX42_LSI_CTL_EN)
+		*enabled = 1;
+
+	/* Setup address space */
+	switch (ctl & CA91CX42_LSI_CTL_VAS_M) {
+	case CA91CX42_LSI_CTL_VAS_A16:
+		*aspace = VME_A16;
+		break;
+	case CA91CX42_LSI_CTL_VAS_A24:
+		*aspace = VME_A24;
+		break;
+	case CA91CX42_LSI_CTL_VAS_A32:
+		*aspace = VME_A32;
+		break;
+	case CA91CX42_LSI_CTL_VAS_CRCSR:
+		*aspace = VME_CRCSR;
+		break;
+	case CA91CX42_LSI_CTL_VAS_USER1:
+		*aspace = VME_USER1;
+		break;
+	case CA91CX42_LSI_CTL_VAS_USER2:
+		*aspace = VME_USER2;
+		break;
 	}
-	writel(0x00000000, vmechip_baseaddr + LM_CTL);
-	vmeLm->lmEvents = uni_lm_event;
 
-	return (0);
+	/* XXX Not sure howto check for MBLT */
+	/* Setup cycle types */
+	if (ctl & CA91CX42_LSI_CTL_VCT_BLT)
+		*cycle |= VME_BLT;
+	else
+		*cycle |= VME_SCT;
+
+	if (ctl & CA91CX42_LSI_CTL_SUPER_SUPR)
+		*cycle |= VME_SUPER;
+	else
+		*cycle |= VME_USER;
+
+	if (ctl & CA91CX42_LSI_CTL_PGM_PGM)
+		*cycle = VME_PROG;
+	else
+		*cycle = VME_DATA;
+
+	/* Setup data width */
+	switch (ctl & CA91CX42_LSI_CTL_VDW_M) {
+	case CA91CX42_LSI_CTL_VDW_D8:
+		*dwidth = VME_D8;
+		break;
+	case CA91CX42_LSI_CTL_VDW_D16:
+		*dwidth = VME_D16;
+		break;
+	case CA91CX42_LSI_CTL_VDW_D32:
+		*dwidth = VME_D32;
+		break;
+	case CA91CX42_LSI_CTL_VDW_D64:
+		*dwidth = VME_D64;
+		break;
+	}
+
+/* XXX Prefetch stuff currently unsupported */
+#if 0
+	if (ctl & 0x40000000)
+		vmeOut->wrPostEnable = 1;
+#endif
+
+	return 0;
 }
 
+int ca91cx42_master_get(struct vme_master_resource *image, int *enabled,
+	unsigned long long *vme_base, unsigned long long *size,
+	vme_address_t *aspace, vme_cycle_t *cycle, vme_width_t *dwidth)
+{
+	int retval;
+
+	spin_lock(&(image->lock));
+
+	retval = __ca91cx42_master_get(image, enabled, vme_base, size, aspace,
+		cycle, dwidth);
+
+	spin_unlock(&(image->lock));
+
+	return retval;
+}
+
+ssize_t ca91cx42_master_read(struct vme_master_resource *image, void *buf,
+	size_t count, loff_t offset)
+{
+	int retval;
+
+	spin_lock(&(image->lock));
+
+	memcpy_fromio(buf, image->kern_base + offset, (unsigned int)count);
+	retval = count;
+
+	spin_unlock(&(image->lock));
+
+	return retval;
+}
+
+ssize_t ca91cx42_master_write(struct vme_master_resource *image, void *buf,
+	size_t count, loff_t offset)
+{
+	int retval = 0;
+
+	spin_lock(&(image->lock));
+
+	memcpy_toio(image->kern_base + offset, buf, (unsigned int)count);
+	retval = count;
+
+	spin_unlock(&(image->lock));
+
+	return retval;
+}
+
+int ca91cx42_slot_get(void)
+{
+	u32 slot = 0;
+
+	slot = ioread32(ca91cx42_bridge->base + VCSR_BS);
+	slot = ((slot & CA91CX42_VCSR_BS_SLOT_M) >> 27);
+	return (int)slot;
+
+}
+
+static int __init ca91cx42_init(void)
+{
+	return pci_register_driver(&ca91cx42_driver);
+}
+
+/*
+ * Configure CR/CSR space
+ *
+ * Access to the CR/CSR can be configured at power-up. The location of the
+ * CR/CSR registers in the CR/CSR address space is determined by the boards
+ * Auto-ID or Geographic address. This function ensures that the window is
+ * enabled at an offset consistent with the boards geopgraphic address.
+ */
+static int ca91cx42_crcsr_init(struct pci_dev *pdev)
+{
+	unsigned int crcsr_addr;
+	int tmp, slot;
+
+/* XXX We may need to set this somehow as the Universe II does not support
+ *     geographical addressing.
+ */
+#if 0
+	if (vme_slotnum != -1)
+		iowrite32(vme_slotnum << 27, ca91cx42_bridge->base + VCSR_BS);
+#endif
+	slot = ca91cx42_slot_get();
+	dev_info(&pdev->dev, "CR/CSR Offset: %d\n", slot);
+	if (slot == 0) {
+		dev_err(&pdev->dev, "Slot number is unset, not configuring "
+			"CR/CSR space\n");
+		return -EINVAL;
+	}
+
+	/* Allocate mem for CR/CSR image */
+	crcsr_kernel = pci_alloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
+		&crcsr_bus);
+	if (crcsr_kernel == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate memory for CR/CSR "
+			"image\n");
+		return -ENOMEM;
+	}
+
+	memset(crcsr_kernel, 0, VME_CRCSR_BUF_SIZE);
+
+	crcsr_addr = slot * (512 * 1024);
+	iowrite32(crcsr_bus - crcsr_addr, ca91cx42_bridge->base + VCSR_TO);
+
+	tmp = ioread32(ca91cx42_bridge->base + VCSR_CTL);
+	tmp |= CA91CX42_VCSR_CTL_EN;
+	iowrite32(tmp, ca91cx42_bridge->base + VCSR_CTL);
+
+	return 0;
+}
+
+static void ca91cx42_crcsr_exit(struct pci_dev *pdev)
+{
+	u32 tmp;
+
+	/* Turn off CR/CSR space */
+	tmp = ioread32(ca91cx42_bridge->base + VCSR_CTL);
+	tmp &= ~CA91CX42_VCSR_CTL_EN;
+	iowrite32(tmp, ca91cx42_bridge->base + VCSR_CTL);
+
+	/* Free image */
+	iowrite32(0, ca91cx42_bridge->base + VCSR_TO);
+
+	pci_free_consistent(pdev, VME_CRCSR_BUF_SIZE, crcsr_kernel, crcsr_bus);
+}
+
+static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	int retval, i;
+	u32 data;
+	struct list_head *pos = NULL;
+	struct vme_master_resource *master_image;
+	struct vme_slave_resource *slave_image;
+#if 0
+	struct vme_dma_resource *dma_ctrlr;
+#endif
+	struct vme_lm_resource *lm;
+
+	/* We want to support more than one of each bridge so we need to
+	 * dynamically allocate the bridge structure
+	 */
+	ca91cx42_bridge = kmalloc(sizeof(struct vme_bridge), GFP_KERNEL);
+
+	if (ca91cx42_bridge == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate memory for device "
+			"structure\n");
+		retval = -ENOMEM;
+		goto err_struct;
+	}
+
+	memset(ca91cx42_bridge, 0, sizeof(struct vme_bridge));
+
+	/* Enable the device */
+	retval = pci_enable_device(pdev);
+	if (retval) {
+		dev_err(&pdev->dev, "Unable to enable device\n");
+		goto err_enable;
+	}
+
+	/* Map Registers */
+	retval = pci_request_regions(pdev, driver_name);
+	if (retval) {
+		dev_err(&pdev->dev, "Unable to reserve resources\n");
+		goto err_resource;
+	}
+
+	/* map registers in BAR 0 */
+	ca91cx42_bridge->base = ioremap_nocache(pci_resource_start(pdev, 0),
+		4096);
+	if (!ca91cx42_bridge->base) {
+		dev_err(&pdev->dev, "Unable to remap CRG region\n");
+		retval = -EIO;
+		goto err_remap;
+	}
+
+	/* Check to see if the mapping worked out */
+	data = ioread32(ca91cx42_bridge->base + CA91CX42_PCI_ID) & 0x0000FFFF;
+	if (data != PCI_VENDOR_ID_TUNDRA) {
+		dev_err(&pdev->dev, "PCI_ID check failed\n");
+		retval = -EIO;
+		goto err_test;
+	}
+
+	/* Initialize wait queues & mutual exclusion flags */
+	/* XXX These need to be moved to the vme_bridge structure */
+	init_waitqueue_head(&dma_queue);
+	init_waitqueue_head(&iack_queue);
+	mutex_init(&(vme_int));
+	mutex_init(&(vme_irq));
+	mutex_init(&(vme_rmw));
+
+	ca91cx42_bridge->parent = &(pdev->dev);
+	strcpy(ca91cx42_bridge->name, driver_name);
+
+	/* Setup IRQ */
+	retval = ca91cx42_irq_init(ca91cx42_bridge);
+	if (retval != 0) {
+		dev_err(&pdev->dev, "Chip Initialization failed.\n");
+		goto err_irq;
+	}
+
+	/* Add master windows to list */
+	INIT_LIST_HEAD(&(ca91cx42_bridge->master_resources));
+	for (i = 0; i < CA91C142_MAX_MASTER; i++) {
+		master_image = kmalloc(sizeof(struct vme_master_resource),
+			GFP_KERNEL);
+		if (master_image == NULL) {
+			dev_err(&pdev->dev, "Failed to allocate memory for "
+			"master resource structure\n");
+			retval = -ENOMEM;
+			goto err_master;
+		}
+		master_image->parent = ca91cx42_bridge;
+		spin_lock_init(&(master_image->lock));
+		master_image->locked = 0;
+		master_image->number = i;
+		master_image->address_attr = VME_A16 | VME_A24 | VME_A32 |
+			VME_CRCSR | VME_USER1 | VME_USER2;
+		master_image->cycle_attr = VME_SCT | VME_BLT | VME_MBLT |
+			VME_SUPER | VME_USER | VME_PROG | VME_DATA;
+		master_image->width_attr = VME_D8 | VME_D16 | VME_D32 | VME_D64;
+		memset(&(master_image->pci_resource), 0,
+			sizeof(struct resource));
+		master_image->kern_base  = NULL;
+		list_add_tail(&(master_image->list),
+			&(ca91cx42_bridge->master_resources));
+	}
+
+	/* Add slave windows to list */
+	INIT_LIST_HEAD(&(ca91cx42_bridge->slave_resources));
+	for (i = 0; i < CA91C142_MAX_SLAVE; i++) {
+		slave_image = kmalloc(sizeof(struct vme_slave_resource),
+			GFP_KERNEL);
+		if (slave_image == NULL) {
+			dev_err(&pdev->dev, "Failed to allocate memory for "
+			"slave resource structure\n");
+			retval = -ENOMEM;
+			goto err_slave;
+		}
+		slave_image->parent = ca91cx42_bridge;
+		mutex_init(&(slave_image->mtx));
+		slave_image->locked = 0;
+		slave_image->number = i;
+		slave_image->address_attr = VME_A24 | VME_A32 | VME_USER1 |
+			VME_USER2;
+
+		/* Only windows 0 and 4 support A16 */
+		if (i == 0 || i == 4)
+			slave_image->address_attr |= VME_A16;
+
+		slave_image->cycle_attr = VME_SCT | VME_BLT | VME_MBLT |
+			VME_SUPER | VME_USER | VME_PROG | VME_DATA;
+		list_add_tail(&(slave_image->list),
+			&(ca91cx42_bridge->slave_resources));
+	}
+#if 0
+	/* Add dma engines to list */
+	INIT_LIST_HEAD(&(ca91cx42_bridge->dma_resources));
+	for (i = 0; i < CA91C142_MAX_DMA; i++) {
+		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
+			GFP_KERNEL);
+		if (dma_ctrlr == NULL) {
+			dev_err(&pdev->dev, "Failed to allocate memory for "
+			"dma resource structure\n");
+			retval = -ENOMEM;
+			goto err_dma;
+		}
+		dma_ctrlr->parent = ca91cx42_bridge;
+		mutex_init(&(dma_ctrlr->mtx));
+		dma_ctrlr->locked = 0;
+		dma_ctrlr->number = i;
+		INIT_LIST_HEAD(&(dma_ctrlr->pending));
+		INIT_LIST_HEAD(&(dma_ctrlr->running));
+		list_add_tail(&(dma_ctrlr->list),
+			&(ca91cx42_bridge->dma_resources));
+	}
+#endif
+	/* Add location monitor to list */
+	INIT_LIST_HEAD(&(ca91cx42_bridge->lm_resources));
+	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
+	if (lm == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate memory for "
+		"location monitor resource structure\n");
+		retval = -ENOMEM;
+		goto err_lm;
+	}
+	lm->parent = ca91cx42_bridge;
+	mutex_init(&(lm->mtx));
+	lm->locked = 0;
+	lm->number = 1;
+	lm->monitors = 4;
+	list_add_tail(&(lm->list), &(ca91cx42_bridge->lm_resources));
+
+	ca91cx42_bridge->slave_get = ca91cx42_slave_get;
+	ca91cx42_bridge->slave_set = ca91cx42_slave_set;
+	ca91cx42_bridge->master_get = ca91cx42_master_get;
+	ca91cx42_bridge->master_set = ca91cx42_master_set;
+	ca91cx42_bridge->master_read = ca91cx42_master_read;
+	ca91cx42_bridge->master_write = ca91cx42_master_write;
+#if 0
+	ca91cx42_bridge->master_rmw = ca91cx42_master_rmw;
+	ca91cx42_bridge->dma_list_add = ca91cx42_dma_list_add;
+	ca91cx42_bridge->dma_list_exec = ca91cx42_dma_list_exec;
+	ca91cx42_bridge->dma_list_empty = ca91cx42_dma_list_empty;
+#endif
+	ca91cx42_bridge->request_irq = ca91cx42_request_irq;
+	ca91cx42_bridge->free_irq = ca91cx42_free_irq;
+	ca91cx42_bridge->generate_irq = ca91cx42_generate_irq;
+#if 0
+	ca91cx42_bridge->lm_set = ca91cx42_lm_set;
+	ca91cx42_bridge->lm_get = ca91cx42_lm_get;
+	ca91cx42_bridge->lm_attach = ca91cx42_lm_attach;
+	ca91cx42_bridge->lm_detach = ca91cx42_lm_detach;
+#endif
+	ca91cx42_bridge->slot_get = ca91cx42_slot_get;
+
+	data = ioread32(ca91cx42_bridge->base + MISC_CTL);
+	dev_info(&pdev->dev, "Board is%s the VME system controller\n",
+		(data & CA91CX42_MISC_CTL_SYSCON) ? "" : " not");
+	dev_info(&pdev->dev, "Slot ID is %d\n", ca91cx42_slot_get());
+
+	if (ca91cx42_crcsr_init(pdev)) {
+		dev_err(&pdev->dev, "CR/CSR configuration failed.\n");
+		retval = -EINVAL;
+#if 0
+		goto err_crcsr;
+#endif
+	}
+
+	/* Need to save ca91cx42_bridge pointer locally in link list for use in
+	 * ca91cx42_remove()
+	 */
+	retval = vme_register_bridge(ca91cx42_bridge);
+	if (retval != 0) {
+		dev_err(&pdev->dev, "Chip Registration failed.\n");
+		goto err_reg;
+	}
+
+	return 0;
+
+	vme_unregister_bridge(ca91cx42_bridge);
+err_reg:
+	ca91cx42_crcsr_exit(pdev);
+err_crcsr:
+err_lm:
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->lm_resources)) {
+		lm = list_entry(pos, struct vme_lm_resource, list);
+		list_del(pos);
+		kfree(lm);
+	}
+#if 0
+err_dma:
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->dma_resources)) {
+		dma_ctrlr = list_entry(pos, struct vme_dma_resource, list);
+		list_del(pos);
+		kfree(dma_ctrlr);
+	}
+#endif
+err_slave:
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->slave_resources)) {
+		slave_image = list_entry(pos, struct vme_slave_resource, list);
+		list_del(pos);
+		kfree(slave_image);
+	}
+err_master:
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->master_resources)) {
+		master_image = list_entry(pos, struct vme_master_resource,
+			list);
+		list_del(pos);
+		kfree(master_image);
+	}
+
+	ca91cx42_irq_exit(pdev);
+err_irq:
+err_test:
+	iounmap(ca91cx42_bridge->base);
+err_remap:
+	pci_release_regions(pdev);
+err_resource:
+	pci_disable_device(pdev);
+err_enable:
+	kfree(ca91cx42_bridge);
+err_struct:
+	return retval;
+
+}
+
+void ca91cx42_remove(struct pci_dev *pdev)
+{
+	struct list_head *pos = NULL;
+	struct vme_master_resource *master_image;
+	struct vme_slave_resource *slave_image;
+	struct vme_dma_resource *dma_ctrlr;
+	struct vme_lm_resource *lm;
+	int i;
+
+	/* Turn off Ints */
+	iowrite32(0, ca91cx42_bridge->base + LINT_EN);
+
+	/* Turn off the windows */
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI0_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI1_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI2_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI3_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI4_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI5_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI6_CTL);
+	iowrite32(0x00800000, ca91cx42_bridge->base + LSI7_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI0_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI1_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI2_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI3_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI4_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI5_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI6_CTL);
+	iowrite32(0x00F00000, ca91cx42_bridge->base + VSI7_CTL);
+
+	vme_unregister_bridge(ca91cx42_bridge);
+#if 0
+	ca91cx42_crcsr_exit(pdev);
+#endif
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->lm_resources)) {
+		lm = list_entry(pos, struct vme_lm_resource, list);
+		list_del(pos);
+		kfree(lm);
+	}
+
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->dma_resources)) {
+		dma_ctrlr = list_entry(pos, struct vme_dma_resource, list);
+		list_del(pos);
+		kfree(dma_ctrlr);
+	}
+
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->slave_resources)) {
+		slave_image = list_entry(pos, struct vme_slave_resource, list);
+		list_del(pos);
+		kfree(slave_image);
+	}
+
+	/* resources are stored in link list */
+	list_for_each(pos, &(ca91cx42_bridge->master_resources)) {
+		master_image = list_entry(pos, struct vme_master_resource,
+			list);
+		list_del(pos);
+		kfree(master_image);
+	}
+
+	ca91cx42_irq_exit(pdev);
+
+	iounmap(ca91cx42_bridge->base);
+
+	pci_release_regions(pdev);
+
+	pci_disable_device(pdev);
+
+	kfree(ca91cx42_bridge);
+}
+
+static void __exit ca91cx42_exit(void)
+{
+	pci_unregister_driver(&ca91cx42_driver);
+}
+
+MODULE_DESCRIPTION("VME driver for the Tundra Universe II VME bridge");
+MODULE_LICENSE("GPL");
+
+module_init(ca91cx42_init);
+module_exit(ca91cx42_exit);
+
+/*----------------------------------------------------------------------------
+ * STAGING
+ *--------------------------------------------------------------------------*/
+
+#if 0
 #define	SWIZZLE(X) ( ((X & 0xFF000000) >> 24) | ((X & 0x00FF0000) >>  8) | ((X & 0x0000FF00) <<  8) | ((X & 0x000000FF) << 24))
 
-//-----------------------------------------------------------------------------
-// Function   : uni_do_rmw
-// Description:
-//-----------------------------------------------------------------------------
-int uni_do_rmw(vmeRmwCfg_t * vmeRmw)
+int ca91cx42_master_rmw(vmeRmwCfg_t *vmeRmw)
 {
 	int temp_ctl = 0;
 	int tempBS = 0;
@@ -1252,26 +1372,27 @@ int uni_do_rmw(vmeRmwCfg_t * vmeRmw)
 	int i;
 	vmeOutWindowCfg_t vmeOut;
 	if (vmeRmw->maxAttempts < 1) {
-		return (-EINVAL);
+		return -EINVAL;
 	}
 	if (vmeRmw->targetAddrU) {
-		return (-EINVAL);
+		return -EINVAL;
 	}
-	// Find the PCI address that maps to the desired VME address
+	/* Find the PCI address that maps to the desired VME address */
 	for (i = 0; i < 8; i++) {
-		temp_ctl = readl(vmechip_baseaddr + outCTL[i]);
+		temp_ctl = ioread32(ca91cx42_bridge->base +
+			CA91CX42_LSI_CTL[i]);
 		if ((temp_ctl & 0x80000000) == 0) {
 			continue;
 		}
 		memset(&vmeOut, 0, sizeof(vmeOut));
 		vmeOut.windowNbr = i;
-		uni_get_out_bound(&vmeOut);
+		ca91cx42_get_out_bound(&vmeOut);
 		if (vmeOut.addrSpace != vmeRmw->addrSpace) {
 			continue;
 		}
-		tempBS = readl(vmechip_baseaddr + outBS[i]);
-		tempBD = readl(vmechip_baseaddr + outBD[i]);
-		tempTO = readl(vmechip_baseaddr + outTO[i]);
+		tempBS = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_BS[i]);
+		tempBD = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_BD[i]);
+		tempTO = ioread32(ca91cx42_bridge->base + CA91CX42_LSI_TO[i]);
 		vmeBS = tempBS + tempTO;
 		vmeBD = tempBD + tempTO;
 		if ((vmeRmw->targetAddr >= vmeBS) &&
@@ -1285,44 +1406,41 @@ int uni_do_rmw(vmeRmwCfg_t * vmeRmw)
 		}
 	}
 
-	// If no window - fail.
+	/* If no window - fail. */
 	if (rmw_pci_data_ptr == NULL) {
-		return (-EINVAL);
+		return -EINVAL;
 	}
-	// Setup the RMW registers.
-	writel(0, vmechip_baseaddr + SCYC_CTL);
-	writel(SWIZZLE(vmeRmw->enableMask), vmechip_baseaddr + SCYC_EN);
-	writel(SWIZZLE(vmeRmw->compareData), vmechip_baseaddr + SCYC_CMP);
-	writel(SWIZZLE(vmeRmw->swapData), vmechip_baseaddr + SCYC_SWP);
-	writel((int)rmw_pci_data_ptr, vmechip_baseaddr + SCYC_ADDR);
-	writel(1, vmechip_baseaddr + SCYC_CTL);
+	/* Setup the RMW registers. */
+	iowrite32(0, ca91cx42_bridge->base + SCYC_CTL);
+	iowrite32(SWIZZLE(vmeRmw->enableMask), ca91cx42_bridge->base + SCYC_EN);
+	iowrite32(SWIZZLE(vmeRmw->compareData), ca91cx42_bridge->base +
+		SCYC_CMP);
+	iowrite32(SWIZZLE(vmeRmw->swapData), ca91cx42_bridge->base + SCYC_SWP);
+	iowrite32((int)rmw_pci_data_ptr, ca91cx42_bridge->base + SCYC_ADDR);
+	iowrite32(1, ca91cx42_bridge->base + SCYC_CTL);
 
-	// Run the RMW cycle until either success or max attempts.
+	/* Run the RMW cycle until either success or max attempts. */
 	vmeRmw->numAttempts = 1;
 	while (vmeRmw->numAttempts <= vmeRmw->maxAttempts) {
 
-		if ((readl(vaDataPtr) & vmeRmw->enableMask) ==
+		if ((ioread32(vaDataPtr) & vmeRmw->enableMask) ==
 		    (vmeRmw->swapData & vmeRmw->enableMask)) {
 
-			writel(0, vmechip_baseaddr + SCYC_CTL);
+			iowrite32(0, ca91cx42_bridge->base + SCYC_CTL);
 			break;
 
 		}
 		vmeRmw->numAttempts++;
 	}
 
-	// If no success, set num Attempts to be greater than max attempts
+	/* If no success, set num Attempts to be greater than max attempts */
 	if (vmeRmw->numAttempts > vmeRmw->maxAttempts) {
 		vmeRmw->numAttempts = vmeRmw->maxAttempts + 1;
 	}
 
-	return (0);
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uniSetupDctlReg
-// Description:
-//-----------------------------------------------------------------------------
 int uniSetupDctlReg(vmeDmaPacket_t * vmeDma, int *dctlregreturn)
 {
 	unsigned int dctlreg = 0x80;
@@ -1366,11 +1484,11 @@ int uniSetupDctlReg(vmeDmaPacket_t * vmeDma, int *dctlregreturn)
 		dctlreg |= 0x00070000;
 		break;
 
-	case VME_A64:		// not supported in Universe DMA
+	case VME_A64:		/* not supported in Universe DMA */
 	case VME_CRCSR:
 	case VME_USER3:
 	case VME_USER4:
-		return (-EINVAL);
+		return -EINVAL;
 		break;
 	}
 	if (vmeAttr->userAccessType == VME_PROG) {
@@ -1383,50 +1501,46 @@ int uniSetupDctlReg(vmeDmaPacket_t * vmeDma, int *dctlregreturn)
 		dctlreg |= 0x00000100;
 	}
 	*dctlregreturn = dctlreg;
-	return (0);
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_start_dma
-// Description:
-//-----------------------------------------------------------------------------
 unsigned int
-uni_start_dma(int channel, unsigned int dgcsreg, TDMA_Cmd_Packet * vmeLL)
+ca91cx42_start_dma(int channel, unsigned int dgcsreg, TDMA_Cmd_Packet *vmeLL)
 {
 	unsigned int val;
 
-	// Setup registers as needed for direct or chained.
+	/* Setup registers as needed for direct or chained. */
 	if (dgcsreg & 0x8000000) {
-		writel(0, vmechip_baseaddr + DTBC);
-		writel((unsigned int)vmeLL, vmechip_baseaddr + DCPP);
+		iowrite32(0, ca91cx42_bridge->base + DTBC);
+		iowrite32((unsigned int)vmeLL, ca91cx42_bridge->base + DCPP);
 	} else {
 #if	0
-		printk("Starting: DGCS = %08x\n", dgcsreg);
-		printk("Starting: DVA  = %08x\n", readl(&vmeLL->dva));
-		printk("Starting: DLV  = %08x\n", readl(&vmeLL->dlv));
-		printk("Starting: DTBC = %08x\n", readl(&vmeLL->dtbc));
-		printk("Starting: DCTL = %08x\n", readl(&vmeLL->dctl));
+		printk(KERN_ERR "Starting: DGCS = %08x\n", dgcsreg);
+		printk(KERN_ERR "Starting: DVA  = %08x\n",
+			ioread32(&vmeLL->dva));
+		printk(KERN_ERR "Starting: DLV  = %08x\n",
+			ioread32(&vmeLL->dlv));
+		printk(KERN_ERR "Starting: DTBC = %08x\n",
+			ioread32(&vmeLL->dtbc));
+		printk(KERN_ERR "Starting: DCTL = %08x\n",
+			ioread32(&vmeLL->dctl));
 #endif
-		// Write registers
-		writel(readl(&vmeLL->dva), vmechip_baseaddr + DVA);
-		writel(readl(&vmeLL->dlv), vmechip_baseaddr + DLA);
-		writel(readl(&vmeLL->dtbc), vmechip_baseaddr + DTBC);
-		writel(readl(&vmeLL->dctl), vmechip_baseaddr + DCTL);
-		writel(0, vmechip_baseaddr + DCPP);
+		/* Write registers */
+		iowrite32(ioread32(&vmeLL->dva), ca91cx42_bridge->base + DVA);
+		iowrite32(ioread32(&vmeLL->dlv), ca91cx42_bridge->base + DLA);
+		iowrite32(ioread32(&vmeLL->dtbc), ca91cx42_bridge->base + DTBC);
+		iowrite32(ioread32(&vmeLL->dctl), ca91cx42_bridge->base + DCTL);
+		iowrite32(0, ca91cx42_bridge->base + DCPP);
 	}
 
-	// Start the operation
-	writel(dgcsreg, vmechip_baseaddr + DGCS);
+	/* Start the operation */
+	iowrite32(dgcsreg, ca91cx42_bridge->base + DGCS);
 	val = get_tbl();
-	writel(dgcsreg | 0x8000000F, vmechip_baseaddr + DGCS);
-	return (val);
+	iowrite32(dgcsreg | 0x8000000F, ca91cx42_bridge->base + DGCS);
+	return val;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_setup_dma
-// Description:
-//-----------------------------------------------------------------------------
-TDMA_Cmd_Packet *uni_setup_dma(vmeDmaPacket_t * vmeDma)
+TDMA_Cmd_Packet *ca91cx42_setup_dma(vmeDmaPacket_t * vmeDma)
 {
 	vmeDmaPacket_t *vmeCur;
 	int maxPerPage;
@@ -1439,9 +1553,9 @@ TDMA_Cmd_Packet *uni_setup_dma(vmeDmaPacket_t * vmeDma)
 	maxPerPage = PAGESIZE / sizeof(TDMA_Cmd_Packet) - 1;
 	startLL = (TDMA_Cmd_Packet *) __get_free_pages(GFP_KERNEL, 0);
 	if (startLL == 0) {
-		return (startLL);
+		return startLL;
 	}
-	// First allocate pages for descriptors and create linked list
+	/* First allocate pages for descriptors and create linked list */
 	vmeCur = vmeDma;
 	currentLL = startLL;
 	currentLLcount = 0;
@@ -1461,57 +1575,53 @@ TDMA_Cmd_Packet *uni_setup_dma(vmeDmaPacket_t * vmeDma)
 		vmeCur = vmeCur->pNextPacket;
 	}
 
-	// Next fill in information for each descriptor
+	/* Next fill in information for each descriptor */
 	vmeCur = vmeDma;
 	currentLL = startLL;
 	while (vmeCur != 0) {
 		if (vmeCur->srcBus == VME_DMA_VME) {
-			writel(vmeCur->srcAddr, &currentLL->dva);
-			writel(vmeCur->dstAddr, &currentLL->dlv);
+			iowrite32(vmeCur->srcAddr, &currentLL->dva);
+			iowrite32(vmeCur->dstAddr, &currentLL->dlv);
 		} else {
-			writel(vmeCur->srcAddr, &currentLL->dlv);
-			writel(vmeCur->dstAddr, &currentLL->dva);
+			iowrite32(vmeCur->srcAddr, &currentLL->dlv);
+			iowrite32(vmeCur->dstAddr, &currentLL->dva);
 		}
 		uniSetupDctlReg(vmeCur, &dctlreg);
-		writel(dctlreg, &currentLL->dctl);
-		writel(vmeCur->byteCount, &currentLL->dtbc);
+		iowrite32(dctlreg, &currentLL->dctl);
+		iowrite32(vmeCur->byteCount, &currentLL->dtbc);
 
 		currentLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
 		vmeCur = vmeCur->pNextPacket;
 	}
 
-	// Convert Links to PCI addresses.
+	/* Convert Links to PCI addresses. */
 	currentLL = startLL;
 	while (currentLL != 0) {
 		nextLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
 		if (nextLL == 0) {
-			writel(1, &currentLL->dcpp);
+			iowrite32(1, &currentLL->dcpp);
 		} else {
-			writel((unsigned int)virt_to_bus(nextLL),
+			iowrite32((unsigned int)virt_to_bus(nextLL),
 			       &currentLL->dcpp);
 		}
 		currentLL = nextLL;
 	}
 
-	// Return pointer to descriptors list
-	return (startLL);
+	/* Return pointer to descriptors list */
+	return startLL;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_free_dma
-// Description:
-//-----------------------------------------------------------------------------
-int uni_free_dma(TDMA_Cmd_Packet * startLL)
+int ca91cx42_free_dma(TDMA_Cmd_Packet *startLL)
 {
 	TDMA_Cmd_Packet *currentLL;
 	TDMA_Cmd_Packet *prevLL;
 	TDMA_Cmd_Packet *nextLL;
 	unsigned int dcppreg;
 
-	// Convert Links to virtual addresses.
+	/* Convert Links to virtual addresses. */
 	currentLL = startLL;
 	while (currentLL != 0) {
-		dcppreg = readl(&currentLL->dcpp);
+		dcppreg = ioread32(&currentLL->dcpp);
 		dcppreg &= ~6;
 		if (dcppreg & 1) {
 			currentLL->dcpp = 0;
@@ -1521,7 +1631,7 @@ int uni_free_dma(TDMA_Cmd_Packet * startLL)
 		currentLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
 	}
 
-	// Free all pages associated with the descriptors.
+	/* Free all pages associated with the descriptors. */
 	currentLL = startLL;
 	prevLL = currentLL;
 	while (currentLL != 0) {
@@ -1533,15 +1643,11 @@ int uni_free_dma(TDMA_Cmd_Packet * startLL)
 		currentLL = nextLL;
 	}
 
-	// Return pointer to descriptors list
-	return (0);
+	/* Return pointer to descriptors list */
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_do_dma
-// Description:
-//-----------------------------------------------------------------------------
-int uni_do_dma(vmeDmaPacket_t * vmeDma)
+int ca91cx42_do_dma(vmeDmaPacket_t *vmeDma)
 {
 	unsigned int dgcsreg = 0;
 	unsigned int dctlreg = 0;
@@ -1550,55 +1656,55 @@ int uni_do_dma(vmeDmaPacket_t * vmeDma)
 	vmeDmaPacket_t *curDma;
 	TDMA_Cmd_Packet *dmaLL;
 
-	// Sanity check the VME chain.
+	/* Sanity check the VME chain. */
 	channel = vmeDma->channel_number;
 	if (channel > 0) {
-		return (-EINVAL);
+		return -EINVAL;
 	}
 	curDma = vmeDma;
 	while (curDma != 0) {
 		if (curDma->byteCount == 0) {
-			return (-EINVAL);
+			return -EINVAL;
 		}
 		if (curDma->byteCount >= 0x1000000) {
-			return (-EINVAL);
+			return -EINVAL;
 		}
 		if ((curDma->srcAddr & 7) != (curDma->dstAddr & 7)) {
-			return (-EINVAL);
+			return -EINVAL;
 		}
 		switch (curDma->srcBus) {
 		case VME_DMA_PCI:
 			if (curDma->dstBus != VME_DMA_VME) {
-				return (-EINVAL);
+				return -EINVAL;
 			}
 			break;
 		case VME_DMA_VME:
 			if (curDma->dstBus != VME_DMA_PCI) {
-				return (-EINVAL);
+				return -EINVAL;
 			}
 			break;
 		default:
-			return (-EINVAL);
+			return -EINVAL;
 			break;
 		}
 		if (uniSetupDctlReg(curDma, &dctlreg) < 0) {
-			return (-EINVAL);
+			return -EINVAL;
 		}
 
 		curDma = curDma->pNextPacket;
-		if (curDma == vmeDma) {	// Endless Loop!
-			return (-EINVAL);
+		if (curDma == vmeDma) {	/* Endless Loop! */
+			return -EINVAL;
 		}
 	}
 
-	// calculate control register
+	/* calculate control register */
 	if (vmeDma->pNextPacket != 0) {
 		dgcsreg = 0x8000000;
 	} else {
 		dgcsreg = 0;
 	}
 
-	for (x = 0; x < 8; x++) {	// vme block size
+	for (x = 0; x < 8; x++) {	/* vme block size */
 		if ((256 << x) >= vmeDma->maxVmeBlockSize) {
 			break;
 		}
@@ -1608,7 +1714,7 @@ int uni_do_dma(vmeDmaPacket_t * vmeDma)
 	dgcsreg |= (x << 20);
 
 	if (vmeDma->vmeBackOffTimer) {
-		for (x = 1; x < 8; x++) {	// vme timer
+		for (x = 1; x < 8; x++) {	/* vme timer */
 			if ((16 << (x - 1)) >= vmeDma->vmeBackOffTimer) {
 				break;
 			}
@@ -1617,195 +1723,211 @@ int uni_do_dma(vmeDmaPacket_t * vmeDma)
 			x = 7;
 		dgcsreg |= (x << 16);
 	}
-	// Setup the dma chain
-	dmaLL = uni_setup_dma(vmeDma);
+	/*` Setup the dma chain */
+	dmaLL = ca91cx42_setup_dma(vmeDma);
 
-	// Start the DMA
+	/* Start the DMA */
 	if (dgcsreg & 0x8000000) {
 		vmeDma->vmeDmaStartTick =
-		    uni_start_dma(channel, dgcsreg,
+		    ca91cx42_start_dma(channel, dgcsreg,
 				  (TDMA_Cmd_Packet *) virt_to_phys(dmaLL));
 	} else {
 		vmeDma->vmeDmaStartTick =
-		    uni_start_dma(channel, dgcsreg, dmaLL);
+		    ca91cx42_start_dma(channel, dgcsreg, dmaLL);
 	}
 
-	wait_event_interruptible(dma_queue[0],
-				 readl(vmechip_baseaddr + DGCS) & 0x800);
+	wait_event_interruptible(dma_queue,
+		ioread32(ca91cx42_bridge->base + DGCS) & 0x800);
 
-	val = readl(vmechip_baseaddr + DGCS);
-	writel(val | 0xF00, vmechip_baseaddr + DGCS);
+	val = ioread32(ca91cx42_bridge->base + DGCS);
+	iowrite32(val | 0xF00, ca91cx42_bridge->base + DGCS);
 
 	vmeDma->vmeDmaStatus = 0;
-	vmeDma->vmeDmaStopTick = uni_dma_irq_time;
-	if (vmeDma->vmeDmaStopTick < vmeDma->vmeDmaStartTick) {
-		vmeDma->vmeDmaElapsedTime =
-		    (0xFFFFFFFF - vmeDma->vmeDmaStartTick) +
-		    vmeDma->vmeDmaStopTick;
-	} else {
-		vmeDma->vmeDmaElapsedTime =
-		    vmeDma->vmeDmaStopTick - vmeDma->vmeDmaStartTick;
-	}
-	vmeDma->vmeDmaElapsedTime -= vmechip_irq_overhead_ticks;
-	vmeDma->vmeDmaElapsedTime /= (tb_speed / 1000000);
 
 	if (!(val & 0x00000800)) {
 		vmeDma->vmeDmaStatus = val & 0x700;
-		printk(KERN_ERR
-		       "ca91c042: DMA Error in DMA_uni_irqhandler DGCS=%08X\n",
-		       val);
-		val = readl(vmechip_baseaddr + DCPP);
+		printk(KERN_ERR "ca91c042: DMA Error in ca91cx42_DMA_irqhandler"
+			" DGCS=%08X\n", val);
+		val = ioread32(ca91cx42_bridge->base + DCPP);
 		printk(KERN_ERR "ca91c042: DCPP=%08X\n", val);
-		val = readl(vmechip_baseaddr + DCTL);
+		val = ioread32(ca91cx42_bridge->base + DCTL);
 		printk(KERN_ERR "ca91c042: DCTL=%08X\n", val);
-		val = readl(vmechip_baseaddr + DTBC);
+		val = ioread32(ca91cx42_bridge->base + DTBC);
 		printk(KERN_ERR "ca91c042: DTBC=%08X\n", val);
-		val = readl(vmechip_baseaddr + DLA);
+		val = ioread32(ca91cx42_bridge->base + DLA);
 		printk(KERN_ERR "ca91c042: DLA=%08X\n", val);
-		val = readl(vmechip_baseaddr + DVA);
+		val = ioread32(ca91cx42_bridge->base + DVA);
 		printk(KERN_ERR "ca91c042: DVA=%08X\n", val);
 
 	}
-	// Free the dma chain
-	uni_free_dma(dmaLL);
+	/* Free the dma chain */
+	ca91cx42_free_dma(dmaLL);
 
-	return (0);
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_shutdown
-// Description: Put VME bridge in quiescent state.
-//-----------------------------------------------------------------------------
-void uni_shutdown(void)
+int ca91cx42_lm_set(vmeLmCfg_t *vmeLm)
 {
-	writel(0, vmechip_baseaddr + LINT_EN);	// Turn off Ints
+	int temp_ctl = 0;
 
-	// Turn off the windows
-	writel(0x00800000, vmechip_baseaddr + LSI0_CTL);
-	writel(0x00800000, vmechip_baseaddr + LSI1_CTL);
-	writel(0x00800000, vmechip_baseaddr + LSI2_CTL);
-	writel(0x00800000, vmechip_baseaddr + LSI3_CTL);
-	writel(0x00F00000, vmechip_baseaddr + VSI0_CTL);
-	writel(0x00F00000, vmechip_baseaddr + VSI1_CTL);
-	writel(0x00F00000, vmechip_baseaddr + VSI2_CTL);
-	writel(0x00F00000, vmechip_baseaddr + VSI3_CTL);
-	if (vmechip_revision >= 2) {
-		writel(0x00800000, vmechip_baseaddr + LSI4_CTL);
-		writel(0x00800000, vmechip_baseaddr + LSI5_CTL);
-		writel(0x00800000, vmechip_baseaddr + LSI6_CTL);
-		writel(0x00800000, vmechip_baseaddr + LSI7_CTL);
-		writel(0x00F00000, vmechip_baseaddr + VSI4_CTL);
-		writel(0x00F00000, vmechip_baseaddr + VSI5_CTL);
-		writel(0x00F00000, vmechip_baseaddr + VSI6_CTL);
-		writel(0x00F00000, vmechip_baseaddr + VSI7_CTL);
+	if (vmeLm->addrU)
+		return -EINVAL;
+
+	switch (vmeLm->addrSpace) {
+	case VME_A64:
+	case VME_USER3:
+	case VME_USER4:
+		return -EINVAL;
+	case VME_A16:
+		temp_ctl |= 0x00000;
+		break;
+	case VME_A24:
+		temp_ctl |= 0x10000;
+		break;
+	case VME_A32:
+		temp_ctl |= 0x20000;
+		break;
+	case VME_CRCSR:
+		temp_ctl |= 0x50000;
+		break;
+	case VME_USER1:
+		temp_ctl |= 0x60000;
+		break;
+	case VME_USER2:
+		temp_ctl |= 0x70000;
+		break;
 	}
+
+	/* Disable while we are mucking around */
+	iowrite32(0x00000000, ca91cx42_bridge->base + LM_CTL);
+
+	iowrite32(vmeLm->addr, ca91cx42_bridge->base + LM_BS);
+
+	/* Setup CTL register. */
+	if (vmeLm->userAccessType & VME_SUPER)
+		temp_ctl |= 0x00200000;
+	if (vmeLm->userAccessType & VME_USER)
+		temp_ctl |= 0x00100000;
+	if (vmeLm->dataAccessType & VME_PROG)
+		temp_ctl |= 0x00800000;
+	if (vmeLm->dataAccessType & VME_DATA)
+		temp_ctl |= 0x00400000;
+
+
+	/* Write ctl reg and enable */
+	iowrite32(0x80000000 | temp_ctl, ca91cx42_bridge->base + LM_CTL);
+	temp_ctl = ioread32(ca91cx42_bridge->base + LM_CTL);
+
+	return 0;
 }
 
-//-----------------------------------------------------------------------------
-// Function   : uni_init()
-// Description:
-//-----------------------------------------------------------------------------
-int uni_init(void)
+int ca91cx42_wait_lm(vmeLmCfg_t *vmeLm)
 {
-	int result;
+	unsigned long flags;
 	unsigned int tmp;
-	unsigned int crcsr_addr;
-	unsigned int irqOverHeadStart;
-	int overHeadTicks;
 
-	uni_shutdown();
-
-	// Write to Misc Register
-	// Set VME Bus Time-out
-	//   Arbitration Mode
-	//   DTACK Enable
-	tmp = readl(vmechip_baseaddr + MISC_CTL) & 0x0832BFFF;
-	tmp |= 0x76040000;
-	writel(tmp, vmechip_baseaddr + MISC_CTL);
-	if (tmp & 0x20000) {
-		vme_syscon = 1;
-	} else {
-		vme_syscon = 0;
+	spin_lock_irqsave(&lm_lock, flags);
+	spin_unlock_irqrestore(&lm_lock, flags);
+	if (tmp == 0) {
+		if (vmeLm->lmWait < 10)
+			vmeLm->lmWait = 10;
+		interruptible_sleep_on_timeout(&lm_queue, vmeLm->lmWait);
 	}
+	iowrite32(0x00000000, ca91cx42_bridge->base + LM_CTL);
 
-	// Clear DMA status log
-	writel(0x00000F00, vmechip_baseaddr + DGCS);
-	// Clear and enable error log
-	writel(0x00800000, vmechip_baseaddr + L_CMDERR);
-	// Turn off location monitor
-	writel(0x00000000, vmechip_baseaddr + LM_CTL);
-
-	// Initialize crcsr map
-	if (vme_slotnum != -1) {
-		writel(vme_slotnum << 27, vmechip_baseaddr + VCSR_BS);
-	}
-	crcsr_addr = readl(vmechip_baseaddr + VCSR_BS) >> 8;
-	writel((unsigned int)vmechip_interboard_datap - crcsr_addr,
-	       vmechip_baseaddr + VCSR_TO);
-	if (vme_slotnum != -1) {
-		writel(0x80000000, vmechip_baseaddr + VCSR_CTL);
-	}
-	// Turn off interrupts
-	writel(0x00000000, vmechip_baseaddr + LINT_EN);	// Disable interrupts in the Universe first
-	writel(0x00FFFFFF, vmechip_baseaddr + LINT_STAT);	// Clear Any Pending Interrupts
-	writel(0x00000000, vmechip_baseaddr + VINT_EN);	// Disable interrupts in the Universe first
-
-	result =
-	    request_irq(vmechip_irq, uni_irqhandler, IRQF_SHARED | IRQF_DISABLED,
-			"VMEBus (ca91c042)", vmechip_baseaddr);
-	if (result) {
-		printk(KERN_ERR
-		       "ca91c042: can't get assigned pci irq vector %02X\n",
-		       vmechip_irq);
-		return (0);
-	} else {
-		writel(0x0000, vmechip_baseaddr + LINT_MAP0);	// Map all ints to 0
-		writel(0x0000, vmechip_baseaddr + LINT_MAP1);	// Map all ints to 0
-		writel(0x0000, vmechip_baseaddr + LINT_MAP2);	// Map all ints to 0
-	}
-
-	// Enable DMA, mailbox, VIRQ & LM Interrupts
-	if (vme_syscon)
-		tmp = 0x00FF07FE;
-	else
-		tmp = 0x00FF0700;
-	writel(tmp, vmechip_baseaddr + LINT_EN);
-
-	// Do a quick sanity test of the bridge
-	if (readl(vmechip_baseaddr + LINT_EN) != tmp) {
-		return (0);
-	}
-	if (readl(vmechip_baseaddr + PCI_CLASS_REVISION) != 0x06800002) {
-		return (0);
-	}
-	for (tmp = 1; tmp < 0x80000000; tmp = tmp << 1) {
-		writel(tmp, vmechip_baseaddr + SCYC_EN);
-		writel(~tmp, vmechip_baseaddr + SCYC_CMP);
-		if (readl(vmechip_baseaddr + SCYC_EN) != tmp) {
-			return (0);
-		}
-		if (readl(vmechip_baseaddr + SCYC_CMP) != ~tmp) {
-			return (0);
-		}
-	}
-
-	// do a mail box interrupt to calibrate the interrupt overhead.
-
-	irqOverHeadStart = get_tbl();
-	writel(0, vmechip_baseaddr + MBOX1);
-	for (tmp = 0; tmp < 10; tmp++) {
-	}
-
-	irqOverHeadStart = get_tbl();
-	writel(0, vmechip_baseaddr + MBOX1);
-	for (tmp = 0; tmp < 10; tmp++) {
-	}
-
-	overHeadTicks = uni_irq_time - irqOverHeadStart;
-	if (overHeadTicks > 0) {
-		vmechip_irq_overhead_ticks = overHeadTicks;
-	} else {
-		vmechip_irq_overhead_ticks = 1;
-	}
-	return (1);
+	return 0;
 }
+
+
+
+int ca91cx42_set_arbiter(vmeArbiterCfg_t *vmeArb)
+{
+	int temp_ctl = 0;
+	int vbto = 0;
+
+	temp_ctl = ioread32(ca91cx42_bridge->base + MISC_CTL);
+	temp_ctl &= 0x00FFFFFF;
+
+	if (vmeArb->globalTimeoutTimer == 0xFFFFFFFF) {
+		vbto = 7;
+	} else if (vmeArb->globalTimeoutTimer > 1024) {
+		return -EINVAL;
+	} else if (vmeArb->globalTimeoutTimer == 0) {
+		vbto = 0;
+	} else {
+		vbto = 1;
+		while ((16 * (1 << (vbto - 1))) < vmeArb->globalTimeoutTimer)
+			vbto += 1;
+	}
+	temp_ctl |= (vbto << 28);
+
+	if (vmeArb->arbiterMode == VME_PRIORITY_MODE)
+		temp_ctl |= 1 << 26;
+
+	if (vmeArb->arbiterTimeoutFlag)
+		temp_ctl |= 2 << 24;
+
+	iowrite32(temp_ctl, ca91cx42_bridge->base + MISC_CTL);
+	return 0;
+}
+
+int ca91cx42_get_arbiter(vmeArbiterCfg_t *vmeArb)
+{
+	int temp_ctl = 0;
+	int vbto = 0;
+
+	temp_ctl = ioread32(ca91cx42_bridge->base + MISC_CTL);
+
+	vbto = (temp_ctl >> 28) & 0xF;
+	if (vbto != 0)
+		vmeArb->globalTimeoutTimer = (16 * (1 << (vbto - 1)));
+
+	if (temp_ctl & (1 << 26))
+		vmeArb->arbiterMode = VME_PRIORITY_MODE;
+	else
+		vmeArb->arbiterMode = VME_R_ROBIN_MODE;
+
+	if (temp_ctl & (3 << 24))
+		vmeArb->arbiterTimeoutFlag = 1;
+
+	return 0;
+}
+
+int ca91cx42_set_requestor(vmeRequesterCfg_t *vmeReq)
+{
+	int temp_ctl = 0;
+
+	temp_ctl = ioread32(ca91cx42_bridge->base + MAST_CTL);
+	temp_ctl &= 0xFF0FFFFF;
+
+	if (vmeReq->releaseMode == 1)
+		temp_ctl |= (1 << 20);
+
+	if (vmeReq->fairMode == 1)
+		temp_ctl |= (1 << 21);
+
+	temp_ctl |= (vmeReq->requestLevel << 22);
+
+	iowrite32(temp_ctl, ca91cx42_bridge->base + MAST_CTL);
+	return 0;
+}
+
+int ca91cx42_get_requestor(vmeRequesterCfg_t *vmeReq)
+{
+	int temp_ctl = 0;
+
+	temp_ctl = ioread32(ca91cx42_bridge->base + MAST_CTL);
+
+	if (temp_ctl & (1 << 20))
+		vmeReq->releaseMode = 1;
+
+	if (temp_ctl & (1 << 21))
+		vmeReq->fairMode = 1;
+
+	vmeReq->requestLevel = (temp_ctl & 0xC00000) >> 22;
+
+	return 0;
+}
+
+
+#endif
