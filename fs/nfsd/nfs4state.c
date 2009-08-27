@@ -991,15 +991,9 @@ nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 {
 	struct nfsd4_cache_entry *entry = &resp->cstate.slot->sl_cache_entry;
 	struct svc_rqst *rqstp = resp->rqstp;
-	struct nfsd4_compoundargs *args = rqstp->rq_argp;
-	struct nfsd4_op *op = &args->ops[resp->opcnt];
 	struct kvec *resv = &rqstp->rq_res.head[0];
 
 	dprintk("--> %s entry %p\n", __func__, entry);
-
-	/* Don't cache a failed OP_SEQUENCE. */
-	if (resp->opcnt == 1 && op->opnum == OP_SEQUENCE && resp->cstate.status)
-		return;
 
 	nfsd4_release_respages(entry->ce_respages, entry->ce_resused);
 	entry->ce_opcnt = resp->opcnt;
@@ -1490,9 +1484,6 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	slot->sl_inuse = true;
 	slot->sl_seqid = seq->seqid;
 	slot->sl_cache_entry.ce_cachethis = seq->cachethis;
-	/* Always set the cache entry cachethis for solo sequence */
-	if (nfsd4_is_solo_sequence(resp))
-		slot->sl_cache_entry.ce_cachethis = 1;
 
 	cstate->slot = slot;
 	cstate->session = session;

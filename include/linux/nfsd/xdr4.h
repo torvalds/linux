@@ -467,7 +467,7 @@ struct nfsd4_compoundres {
 static inline bool nfsd4_is_solo_sequence(struct nfsd4_compoundres *resp)
 {
 	struct nfsd4_compoundargs *args = resp->rqstp->rq_argp;
-	return args->opcnt == 1;
+	return resp->opcnt == 1 && args->ops[0].opnum == OP_SEQUENCE;
 }
 
 static inline bool nfsd4_not_cached(struct nfsd4_compoundres *resp)
