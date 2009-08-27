@@ -28,7 +28,6 @@
 IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE] = {
 	[0x2a] = KEY_COFFEE,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_empty);
 
 /* Michal Majchrowicz <mmajchrowicz@gmail.com> */
@@ -60,8 +59,8 @@ IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE] = {
 	[0x1e] = KEY_RIGHT,	/* volume +    */
 	[0x14] = KEY_F1,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_proteus_2309);
+
 /* Matt Jesson <dvb@jesson.eclipse.co.uk */
 IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 	[0x28] = KEY_0,			/* '0' / 'enter' */
@@ -100,7 +99,6 @@ IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 	[0x1e] = KEY_VOLUMEDOWN,	/* 'volume -' */
 	[0x3e] = KEY_VOLUMEUP,		/* 'volume +' */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_avermedia_dvbt);
 
 /* Mauro Carvalho Chehab <mchehab@infradead.org> */
@@ -252,7 +250,6 @@ IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 	[0x0c] = KEY_KPPLUS,		/* fine tune >>>> */
 	[0x18] = KEY_KPMINUS,		/* fine tune <<<< */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_apac_viewcomp);
 
 /* ---------------------------------------------------------------------- */
@@ -300,7 +297,6 @@ IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE] = {
 	[0x1d] = KEY_REFRESH,		/* reset */
 	[0x18] = KEY_MUTE,		/* mute/unmute */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_pixelview);
 
 /*
@@ -405,7 +401,6 @@ IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE] = {
 	[0x35] = KEY_PHONE,
 	[0x36] = KEY_PC,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_nebula);
 
 /* DigitalNow DNTV Live DVB-T Remote */
@@ -446,7 +441,6 @@ IR_KEYTAB_TYPE ir_codes_dntv_live_dvb_t[IR_KEYTAB_SIZE] = {
 	[0x1e] = KEY_CHANNELDOWN,
 	[0x1f] = KEY_VOLUMEDOWN,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_dntv_live_dvb_t);
 
 /* ---------------------------------------------------------------------- */
@@ -499,7 +493,6 @@ IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE] = {
 	[0x61] = KEY_FASTFORWARD,	/* forward >> */
 	[0x01] = KEY_NEXT,		/* skip >| */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_iodata_bctv7e);
 
 /* ---------------------------------------------------------------------- */
@@ -553,7 +546,6 @@ IR_KEYTAB_TYPE ir_codes_adstech_dvb_t_pci[IR_KEYTAB_SIZE] = {
 	[0x15] = KEY_VOLUMEUP,
 	[0x1c] = KEY_VOLUMEDOWN,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_adstech_dvb_t_pci);
 
 /* ---------------------------------------------------------------------- */
@@ -588,7 +580,6 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 	[0x1e] = KEY_CHANNELDOWN,
 	[0x1f] = KEY_VOLUMEDOWN,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_msi_tvanywhere);
 
 /* ---------------------------------------------------------------------- */
@@ -726,7 +717,6 @@ IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE] = {
 	[0x48] = KEY_STOP,
 	[0x5c] = KEY_NEXT,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_cinergy_1400);
 
 /* ---------------------------------------------------------------------- */
@@ -776,7 +766,6 @@ IR_KEYTAB_TYPE ir_codes_avertv_303[IR_KEYTAB_SIZE] = {
 	[0x13] = KEY_DOWN,
 	[0x1b] = KEY_UP,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_avertv_303);
 
 /* ---------------------------------------------------------------------- */
@@ -838,7 +827,6 @@ IR_KEYTAB_TYPE ir_codes_dntv_live_dvbt_pro[IR_KEYTAB_SIZE] = {
 	[0x5c] = KEY_YELLOW,
 	[0x5d] = KEY_BLUE,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_dntv_live_dvbt_pro);
 
 IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE] = {
@@ -871,7 +859,6 @@ IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE] = {
 	[0x1e] = KEY_STOP,
 	[0x40] = KEY_ZOOM,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_em_terratec);
 
 IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
@@ -924,7 +911,6 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[0x2a] = KEY_MEDIA,
 	[0x18] = KEY_EPG,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_pinnacle_grey);
 
 IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE] = {
@@ -958,7 +944,6 @@ IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE] = {
 	[0x1f] = KEY_FORWARD,	/* Forward ( >>> ) */
 	[0x0a] = KEY_ANGLE,	/* no label, may be used as the PAUSE button */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_flyvideo);
 
 IR_KEYTAB_TYPE ir_codes_flydvb[IR_KEYTAB_SIZE] = {
@@ -999,7 +984,6 @@ IR_KEYTAB_TYPE ir_codes_flydvb[IR_KEYTAB_SIZE] = {
 	[0x11] = KEY_STOP,		/* Stop */
 	[0x0e] = KEY_NEXT,		/* End >>| */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_flydvb);
 
 IR_KEYTAB_TYPE ir_codes_cinergy[IR_KEYTAB_SIZE] = {
@@ -1041,7 +1025,6 @@ IR_KEYTAB_TYPE ir_codes_cinergy[IR_KEYTAB_SIZE] = {
 	[0x22] = KEY_PAUSE,
 	[0x23] = KEY_STOP,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_cinergy);
 
 /* Alfons Geser <a.geser@cox.net>
@@ -1100,7 +1083,6 @@ IR_KEYTAB_TYPE ir_codes_eztv[IR_KEYTAB_SIZE] = {
 	[0x13] = KEY_ENTER,	/* enter */
 	[0x21] = KEY_DOT,	/* . (decimal dot) */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_eztv);
 
 /* Alex Hermann <gaaf@gmx.net> */
@@ -1149,7 +1131,6 @@ IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE] = {
 	[0x11] = KEY_CHANNELDOWN,	/* CHANNEL/PAGE- */
 	[0x31] = KEY_CHANNELUP		/* CHANNEL/PAGE+ */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_avermedia);
 
 IR_KEYTAB_TYPE ir_codes_videomate_tv_pvr[IR_KEYTAB_SIZE] = {
@@ -1200,7 +1181,6 @@ IR_KEYTAB_TYPE ir_codes_videomate_tv_pvr[IR_KEYTAB_SIZE] = {
 	[0x20] = KEY_LANGUAGE,
 	[0x21] = KEY_SLEEP,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_videomate_tv_pvr);
 
 /* Michael Tokarev <mjt@tls.msk.ru>
@@ -1298,7 +1278,6 @@ IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE] = {
 
 	/* 0x1d unused ? */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_manli);
 
 /* Mike Baikov <mike@baikov.com> */
@@ -1340,7 +1319,6 @@ IR_KEYTAB_TYPE ir_codes_gotview7135[IR_KEYTAB_SIZE] = {
 	[0x1e] = KEY_F23,	/* TIMESHIFT */
 	[0x38] = KEY_F24,	/* NORMAL TIMESHIFT */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_gotview7135);
 
 IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
@@ -1382,7 +1360,6 @@ IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[0x42] = KEY_REWIND,	/* Backward ? */
 
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_purpletv);
 
 /* Mapping for the 28 key remote control as seen at
@@ -1425,7 +1402,6 @@ IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[0x17] = KEY_DIGITS,	/* Plus */
 	[0x1f] = KEY_PLAY,	/* Play */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_pctv_sedna);
 
 /* Mark Phalan <phalanm@o2.ie> */
@@ -1466,7 +1442,6 @@ IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
 	[0x14] = KEY_EQUAL,		/* SYNC */
 	[0x1c] = KEY_MEDIA,		/* PC/TV */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_pv951);
 
 /* generic RC5 keytable                                          */
@@ -1510,7 +1485,6 @@ IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE] = {
 	[0x3d] = KEY_SUSPEND,		/* system standby */
 
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_rc5_tv);
 
 /* Table for Leadtek Winfast Remote Controls - used by both bttv and cx88 */
@@ -1574,7 +1548,6 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[0x3b] = KEY_F23,		/* MCE +CH,  on Y04G0033 */
 	[0x3f] = KEY_F24		/* MCE -CH,  on Y04G0033 */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_winfast);
 
 IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE] = {
@@ -1634,7 +1607,6 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE] = {
 	[0x74] = KEY_CHANNEL,
 	[0x0a] = KEY_BACKSPACE,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_pinnacle_color);
 
 /* Hauppauge: the newer, gray remotes (seems there are multiple
@@ -1697,7 +1669,6 @@ IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE] = {
 	[0x3c] = KEY_ZOOM,		/* full */
 	[0x3d] = KEY_POWER,		/* system power (green button) */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_hauppauge_new);
 
 IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE] = {
@@ -1741,7 +1712,6 @@ IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE] = {
 	[0x10] = KEY_POWER,
 
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_npgtech);
 
 /* Norwood Micro (non-Pro) TV Tuner
@@ -1789,7 +1759,6 @@ IR_KEYTAB_TYPE ir_codes_norwood[IR_KEYTAB_SIZE] = {
 	[0x34] = KEY_RADIO,	/* FM                  */
 	[0x65] = KEY_POWER,	/* Computer power      */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_norwood);
 
 /* From reading the following remotes:
@@ -1844,7 +1813,6 @@ IR_KEYTAB_TYPE ir_codes_budget_ci_old[IR_KEYTAB_SIZE] = {
 	[0x3d] = KEY_POWER2,
 	[0x3e] = KEY_TUNER,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_budget_ci_old);
 
 /*
@@ -1898,7 +1866,6 @@ IR_KEYTAB_TYPE ir_codes_asus_pc39[IR_KEYTAB_SIZE] = {
 	[0x3d] = KEY_MUTE,		/* mute */
 	[0x01] = KEY_DVD,		/* dvd */
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_asus_pc39);
 
 
@@ -2070,7 +2037,6 @@ IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
 	[0x3e] = KEY_PAUSE,
 	[0x3f] = KEY_FORWARD,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_tt_1500);
 
 /* DViCO FUSION HDTV MCE remote */
@@ -2131,7 +2097,6 @@ IR_KEYTAB_TYPE ir_codes_fusionhdtv_mce[IR_KEYTAB_SIZE] = {
 	[0x01] = KEY_RECORD,
 	[0x4e] = KEY_POWER,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_fusionhdtv_mce);
 
 /* Pinnacle PCTV HD 800i mini remote */
@@ -2270,7 +2235,6 @@ IR_KEYTAB_TYPE ir_codes_behold[IR_KEYTAB_SIZE] = {
 	[0x5c] = KEY_SAVE,
 
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_behold);
 
 /* Beholder Intl. Ltd. 2008
@@ -2692,7 +2656,6 @@ IR_KEYTAB_TYPE ir_codes_ati_tv_wonder_hd_600[IR_KEYTAB_SIZE] = {
 	[0x16] = KEY_MUTE,
 	[0x17] = KEY_VOLUMEDOWN,
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_ati_tv_wonder_hd_600);
 
 /* DVBWorld remotes
