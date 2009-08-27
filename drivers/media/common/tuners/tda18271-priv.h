@@ -141,13 +141,13 @@ extern int tda18271_debug;
 	if (tda18271_debug & lvl) \
 		tda_printk(KERN_DEBUG, fmt, ##arg); } while (0)
 
-#define tda_info(fmt, arg...) printk(KERN_INFO              fmt, ##arg)
-#define tda_warn(fmt, arg...) tda_printk(KERN_WARNING,      fmt, ##arg)
-#define tda_err(fmt, arg...)  tda_printk(KERN_ERR,          fmt, ##arg)
-#define tda_dbg(fmt, arg...)  tda_dprintk(DBG_INFO,         fmt, ##arg)
-#define tda_map(fmt, arg...)  tda_dprintk(DBG_MAP,          fmt, ##arg)
-#define tda_reg(fmt, arg...)  tda_dprintk(DBG_REG,          fmt, ##arg)
-#define tda_cal(fmt, arg...)  tda_dprintk(DBG_CAL,          fmt, ##arg)
+#define tda_info(fmt, arg...)     printk(KERN_INFO     fmt, ##arg)
+#define tda_warn(fmt, arg...) tda_printk(KERN_WARNING, fmt, ##arg)
+#define tda_err(fmt, arg...)  tda_printk(KERN_ERR,     fmt, ##arg)
+#define tda_dbg(fmt, arg...)  tda_dprintk(DBG_INFO,    fmt, ##arg)
+#define tda_map(fmt, arg...)  tda_dprintk(DBG_MAP,     fmt, ##arg)
+#define tda_reg(fmt, arg...)  tda_dprintk(DBG_REG,     fmt, ##arg)
+#define tda_cal(fmt, arg...)  tda_dprintk(DBG_CAL,     fmt, ##arg)
 
 #define tda_fail(ret)							     \
 ({									     \
