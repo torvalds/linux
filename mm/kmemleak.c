@@ -331,6 +331,7 @@ static void dump_object_info(struct kmemleak_object *object)
 		  object->comm, object->pid, object->jiffies);
 	pr_notice("  min_count = %d\n", object->min_count);
 	pr_notice("  count = %d\n", object->count);
+	pr_notice("  flags = 0x%lx\n", object->flags);
 	pr_notice("  backtrace:\n");
 	print_stack_trace(&trace, 4);
 }
@@ -1307,6 +1308,27 @@ static int kmemleak_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
+static int dump_str_object_info(const char *str)
+{
+	unsigned long flags;
+	struct kmemleak_object *object;
+	unsigned long addr;
+
+	addr= simple_strtoul(str, NULL, 0);
+	object = find_and_get_object(addr, 0);
+	if (!object) {
+		pr_info("Unknown object at 0x%08lx\n", addr);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&object->lock, flags);
+	dump_object_info(object);
+	spin_unlock_irqrestore(&object->lock, flags);
+
+	put_object(object);
+	return 0;
+}
+
 /*
  * File write operation to configure kmemleak at run-time. The following
  * commands can be written to the /sys/kernel/debug/kmemleak file:
@@ -1318,6 +1340,7 @@ static int kmemleak_release(struct inode *inode, struct file *file)
  *   scan=...	- set the automatic memory scanning period in seconds (0 to
  *		  disable it)
  *   scan	- trigger a memory scan
+ *   dump=...	- dump information about the object found at the given address
  */
 static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 			      size_t size, loff_t *ppos)
@@ -1358,6 +1381,8 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 		}
 	} else if (strncmp(buf, "scan", 4) == 0)
 		kmemleak_scan();
+	else if (strncmp(buf, "dump=", 5) == 0)
+		ret = dump_str_object_info(buf + 5);
 	else
 		ret = -EINVAL;
 

@@ -42,6 +42,7 @@ Memory scanning parameters can be modified at run-time by writing to the
   scan=<secs>	- set the automatic memory scanning period in seconds
 		  (default 600, 0 to stop the automatic scanning)
   scan		- trigger a memory scan
+  dump=<addr>	- dump information about the object found at <addr>
 
 Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
 the kernel command line.
