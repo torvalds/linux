@@ -438,38 +438,6 @@ static void hw_add_addr_in_hash(struct ucc_geth_private *ugeth,
 		     QE_CR_PROTOCOL_ETHERNET, 0);
 }
 
-#ifdef CONFIG_UGETH_MAGIC_PACKET
-static void magic_packet_detection_enable(struct ucc_geth_private *ugeth)
-{
-	struct ucc_fast_private *uccf;
-	struct ucc_geth __iomem *ug_regs;
-
-	uccf = ugeth->uccf;
-	ug_regs = ugeth->ug_regs;
-
-	/* Enable interrupts for magic packet detection */
-	setbits32(uccf->p_uccm, UCC_GETH_UCCE_MPD);
-
-	/* Enable magic packet detection */
-	setbits32(&ug_regs->maccfg2, MACCFG2_MPE);
-}
-
-static void magic_packet_detection_disable(struct ucc_geth_private *ugeth)
-{
-	struct ucc_fast_private *uccf;
-	struct ucc_geth __iomem *ug_regs;
-
-	uccf = ugeth->uccf;
-	ug_regs = ugeth->ug_regs;
-
-	/* Disable interrupts for magic packet detection */
-	clrbits32(uccf->p_uccm, UCC_GETH_UCCE_MPD);
-
-	/* Disable magic packet detection */
-	clrbits32(&ug_regs->maccfg2, MACCFG2_MPE);
-}
-#endif /* MAGIC_PACKET */
-
 static inline int compare_addr(u8 **addr1, u8 **addr2)
 {
 	return memcmp(addr1, addr2, ENET_NUM_OCTETS_PER_ADDRESS);
