@@ -463,17 +463,6 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 {
 	switch (kcb->kprobe_status) {
 	case KPROBE_HIT_SSDONE:
-#ifdef CONFIG_X86_64
-		/* TODO: Provide re-entrancy from post_kprobes_handler() and
-		 * avoid exception stack corruption while single-stepping on
-		 * the instruction of the new probe.
-		 */
-		arch_disarm_kprobe(p);
-		regs->ip = (unsigned long)p->addr;
-		reset_current_kprobe();
-		preempt_enable_no_resched();
-		break;
-#endif
 	case KPROBE_HIT_ACTIVE:
 		save_previous_kprobe(kcb);
 		set_current_kprobe(p, regs, kcb);
