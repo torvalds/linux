@@ -376,7 +376,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		result = !apic_test_and_set_irr(vector, apic);
 		trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
-					  trig_mode, vector, result);
+					  trig_mode, vector, !result);
 		if (!result) {
 			if (trig_mode)
 				apic_debug("level trig mode repeatedly for "
