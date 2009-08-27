@@ -21,8 +21,6 @@
  *
  */
 
-
-
 /* vstorage.w revision number.  This is used in the case of a version match, */
 /* to alert the user that structure sizes may be mismatched even though the */
 /* protocol versions match. */
@@ -61,12 +59,12 @@
 /*  The max transfer length will be published when we offer a vmbus channel. */
 #define MAX_TRANSFER_LENGTH	0x40000
 #define DEFAULT_PACKET_SIZE (sizeof(VMDATA_GPA_DIRECT) +		\
-			     sizeof(VSTOR_PACKET) +			\
-			     (sizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
+			sizeof(struct vstor_packet) +		\
+			sizesizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
 
 
 /*  Packet structure describing virtual storage requests. */
-typedef enum {
+enum vstor_packet_operation {
 	VStorOperationCompleteIo            = 1,
 	VStorOperationRemoveDevice          = 2,
 	VStorOperationExecuteSRB            = 3,
@@ -78,16 +76,13 @@ typedef enum {
 	VStorOperationQueryProtocolVersion  = 9,
 	VStorOperationQueryProperties       = 10,
 	VStorOperationMaximum               = 10
-} VSTOR_PACKET_OPERATION;
-
-
+};
 
 /*
  * Platform neutral description of a scsi request -
  * this remains the same across the write regardless of 32/64 bit
  * note: it's patterned off the SCSI_PASS_THROUGH structure
  */
-
 #define CDB16GENERIC_LENGTH			0x10
 
 #ifndef SENSE_BUFFER_SIZE
@@ -96,8 +91,7 @@ typedef enum {
 
 #define MAX_DATA_BUFFER_LENGTH_WITH_PADDING	0x14
 
-
-typedef struct {
+struct vmscsi_request {
 	unsigned short Length;
 	unsigned char SrbStatus;
 	unsigned char ScsiStatus;
@@ -121,14 +115,14 @@ typedef struct {
 
 	unsigned char ReservedArray[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
 	};
-} __attribute((packed)) VMSCSI_REQUEST, *PVMSCSI_REQUEST;
+} __attribute((packed));
 
 
 /*
  * This structure is sent during the intialization phase to get the different
  * properties of the channel.
  */
-typedef struct {
+struct vmstorage_channel_properties {
 	unsigned short ProtocolVersion;
 	unsigned char  PathId;
 	unsigned char  TargetId;
@@ -141,10 +135,10 @@ typedef struct {
 	/*  This id is unique for each channel and will correspond with */
 	/*  vendor specific data in the inquirydata */
 	unsigned long long UniqueId;
-} __attribute__((packed)) VMSTORAGE_CHANNEL_PROPERTIES, *PVMSTORAGE_CHANNEL_PROPERTIES;
+} __attribute__((packed));
 
 /*  This structure is sent during the storage protocol negotiations. */
-typedef struct {
+struct vmstorage_protocol_version {
 	/* Major (MSW) and minor (LSW) version numbers. */
 	unsigned short MajorMinor;
 
@@ -155,16 +149,15 @@ typedef struct {
 	 * builds.
 	 */
 	unsigned short Revision;
-} __attribute__((packed)) VMSTORAGE_PROTOCOL_VERSION, *PVMSTORAGE_PROTOCOL_VERSION;
-
+} __attribute__((packed));
 
 /* Channel Property Flags */
 #define STORAGE_CHANNEL_REMOVABLE_FLAG		0x1
 #define STORAGE_CHANNEL_EMULATED_IDE_FLAG	0x2
 
-typedef struct _VSTOR_PACKET {
+struct vstor_packet {
 	/* Requested operation type */
-	VSTOR_PACKET_OPERATION Operation;
+	enum vstor_packet_operation Operation;
 
 	/*  Flags - see below for values */
 	unsigned int     Flags;
@@ -178,22 +171,17 @@ typedef struct _VSTOR_PACKET {
 		 * Structure used to forward SCSI commands from the
 		 * client to the server.
 		 */
-		VMSCSI_REQUEST VmSrb;
+		struct vmscsi_request VmSrb;
 
 		/* Structure used to query channel properties. */
-		VMSTORAGE_CHANNEL_PROPERTIES StorageChannelProperties;
+		struct vmstorage_channel_properties StorageChannelProperties;
 
 		/* Used during version negotiations. */
-		VMSTORAGE_PROTOCOL_VERSION Version;
+		struct vmstorage_protocol_version Version;
 	};
-
-} __attribute__((packed)) VSTOR_PACKET, *PVSTOR_PACKET;
-
-
+} __attribute__((packed));
 
 /* Packet flags */
-
-
 /*
  * This flag indicates that the server should send back a completion for this
  * packet.
