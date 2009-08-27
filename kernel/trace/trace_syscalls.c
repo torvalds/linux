@@ -193,8 +193,8 @@ int syscall_enter_define_fields(struct ftrace_event_call *call)
 		return ret;
 
 	for (i = 0; i < meta->nb_args; i++) {
-		ret = trace_define_field(call, (char *)meta->types[i],
-					 (char *)meta->args[i], offset,
+		ret = trace_define_field(call, meta->types[i],
+					 meta->args[i], offset,
 					 sizeof(unsigned long), 0,
 					 FILTER_OTHER);
 		offset += sizeof(unsigned long);
