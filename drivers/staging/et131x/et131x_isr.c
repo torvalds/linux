@@ -97,12 +97,53 @@ extern dbg_info_t *et131x_dbginfo;
 #endif /* CONFIG_ET131X_DEBUG */
 
 /**
+ *	et131x_enable_interrupts	-	enable interrupt
+ *	@adapter: et131x device
+ *
+ *	Enable the appropriate interrupts on the ET131x according to our
+ *	configuration
+ */
+
+void et131x_enable_interrupts(struct et131x_adapter *adapter)
+{
+	u32 mask;
+
+	/* Enable all global interrupts */
+	if (adapter->FlowControl == TxOnly || adapter->FlowControl == Both)
+		mask = INT_MASK_ENABLE;
+	else
+		mask = INT_MASK_ENABLE_NO_FLOW;
+
+	if (adapter->DriverNoPhyAccess)
+		mask |= ET_INTR_PHY;
+
+	adapter->CachedMaskValue = mask;
+	writel(mask, &adapter->regs->global.int_mask);
+}
+
+/**
+ *	et131x_disable_interrupts	-	interrupt disable
+ *	@adapter: et131x device
+ *
+ *	Block all interrupts from the et131x device at the device itself
+ */
+
+void et131x_disable_interrupts(struct et131x_adapter *adapter)
+{
+	/* Disable all global interrupts */
+	adapter->CachedMaskValue = INT_MASK_DISABLE;
+	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
+}
+
+
+/**
  * et131x_isr - The Interrupt Service Routine for the driver.
  * @irq: the IRQ on which the interrupt was received.
  * @dev_id: device-specific info (here a pointer to a net_device struct)
  *
  * Returns a value indicating if the interrupt was handled.
  */
+
 irqreturn_t et131x_isr(int irq, void *dev_id)
 {
 	bool handled = true;
@@ -197,7 +238,6 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	 * execution
 	 */
 	schedule_work(&adapter->task);
-
 out:
 	return IRQ_RETVAL(handled);
 }
@@ -476,6 +516,5 @@ void et131x_isr_handler(struct work_struct *work)
 			DBG_VERBOSE(et131x_dbginfo, "SLV_TIMEOUT interrupt\n");
 		}
 	}
-
 	et131x_enable_interrupts(etdev);
 }

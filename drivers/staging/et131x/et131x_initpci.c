@@ -532,6 +532,76 @@ void et131x_link_detection_handler(unsigned long data)
 }
 
 /**
+ * et131x_configure_global_regs	-	configure JAGCore global regs
+ * @etdev: pointer to our adapter structure
+ *
+ * Used to configure the global registers on the JAGCore
+ */
+void ConfigGlobalRegs(struct et131x_adapter *etdev)
+{
+	struct _GLOBAL_t __iomem *pGbl = &etdev->regs->global;
+
+	DBG_ENTER(et131x_dbginfo);
+
+	if (etdev->RegistryPhyLoopbk == false) {
+		if (etdev->RegistryJumboPacket < 2048) {
+			/* Tx / RxDMA and Tx/Rx MAC interfaces have a 1k word
+			 * block of RAM that the driver can split between Tx
+			 * and Rx as it desires.  Our default is to split it
+			 * 50/50:
+			 */
+			writel(0, &pGbl->rxq_start_addr);
+			writel(PARM_RX_MEM_END_DEF, &pGbl->rxq_end_addr);
+			writel(PARM_RX_MEM_END_DEF + 1, &pGbl->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
+		} else if (etdev->RegistryJumboPacket < 8192) {
+			/* For jumbo packets > 2k but < 8k, split 50-50. */
+			writel(0, &pGbl->rxq_start_addr);
+			writel(INTERNAL_MEM_RX_OFFSET, &pGbl->rxq_end_addr);
+			writel(INTERNAL_MEM_RX_OFFSET + 1, &pGbl->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
+		} else {
+			/* 9216 is the only packet size greater than 8k that
+			 * is available. The Tx buffer has to be big enough
+			 * for one whole packet on the Tx side. We'll make
+			 * the Tx 9408, and give the rest to Rx
+			 */
+			writel(0x0000, &pGbl->rxq_start_addr);
+			writel(0x01b3, &pGbl->rxq_end_addr);
+			writel(0x01b4, &pGbl->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1,&pGbl->txq_end_addr);
+		}
+
+		/* Initialize the loopback register. Disable all loopbacks. */
+		writel(0, &pGbl->loopback.value);
+	} else {
+		/* For PHY Line loopback, the memory is configured as if Tx
+		 * and Rx both have all the memory.  This is because the
+		 * RxMAC will write data into the space, and the TxMAC will
+		 * read it out.
+		 */
+		writel(0, &pGbl->rxq_start_addr);
+		writel(INTERNAL_MEM_SIZE - 1, &pGbl->rxq_end_addr);
+		writel(0, &pGbl->txq_start_addr);
+		writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
+
+		/* Initialize the loopback register (MAC loopback). */
+		writel(1, &pGbl->loopback);
+	}
+
+	/* MSI Register */
+	writel(0, &pGbl->msi_config.value);
+
+	/* By default, disable the watchdog timer.  It will be enabled when
+	 * a packet is queued.
+	 */
+	writel(0, &pGbl->watchdog_timer);
+
+	DBG_LEAVE(et131x_dbginfo);
+}
+
+
+/**
  * et131x_adapter_setup - Set the adapter up as per cassini+ documentation
  * @adapter: pointer to our private adapter structure
  *
@@ -547,7 +617,10 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	ConfigGlobalRegs(etdev);
 
 	ConfigMACRegs1(etdev);
-	ConfigMMCRegs(etdev);
+
+	/* Configure the MMC registers */
+	/* All we need to do is initialize the Memory Control Register */
+	writel(ET_MMC_ENABLE, &etdev->regs->mmc.mmc_ctrl);
 
 	ConfigRxMacRegs(etdev);
 	ConfigTxMacRegs(etdev);
@@ -645,7 +718,7 @@ void et131x_soft_reset(struct et131x_adapter *adapter)
 	writel(0xc00f0000, &adapter->regs->mac.cfg1.value);
 
 	/* Set everything to a reset value */
-	writel(0x7F, &adapter->regs->global.sw_reset.value);
+	writel(0x7F, &adapter->regs->global.sw_reset);
 	writel(0x000f0000, &adapter->regs->mac.cfg1.value);
 	writel(0x00000000, &adapter->regs->mac.cfg1.value);
 

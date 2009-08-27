@@ -116,52 +116,20 @@
  */
 
 /*
- * structure for software reset reg in global address map
- * located at address 0x0028
+ * Software reset reg at address 0x0028
+ * 0: 	txdma_sw_reset
+ * 1:	rxdma_sw_reset
+ * 2:	txmac_sw_reset
+ * 3:	rxmac_sw_reset
+ * 4:	mac_sw_reset
+ * 5:	mac_stat_sw_reset
+ * 6:	mmc_sw_reset
+ *31:	selfclr_disable
  */
-typedef union _SW_RESET_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 selfclr_disable:1;	/* bit 31 */
-		u32 unused:24;		/* bits 7-30 */
-		u32 mmc_sw_reset:1;	/* bit 6 */
-		u32 mac_stat_sw_reset:1;	/* bit 5 */
-		u32 mac_sw_reset:1;	/* bit 4 */
-		u32 rxmac_sw_reset:1;	/* bit 3 */
-		u32 txmac_sw_reset:1;	/* bit 2 */
-		u32 rxdma_sw_reset:1;	/* bit 1 */
-		u32 txdma_sw_reset:1;	/* bit 0 */
-#else
-		u32 txdma_sw_reset:1;	/* bit 0 */
-		u32 rxdma_sw_reset:1;	/* bit 1 */
-		u32 txmac_sw_reset:1;	/* bit 2 */
-		u32 rxmac_sw_reset:1;	/* bit 3 */
-		u32 mac_sw_reset:1;	/* bit 4 */
-		u32 mac_stat_sw_reset:1;	/* bit 5 */
-		u32 mmc_sw_reset:1;	/* bit 6 */
-		u32 unused:24;		/* bits 7-30 */
-		u32 selfclr_disable:1;	/* bit 31 */
-#endif
-	} bits;
-} SW_RESET_t, *PSW_RESET_t;
 
 /*
- * structure for SLV Timer reg in global address map
- * located at address 0x002C
+ * SLV Timer reg at address 0x002C (low 24 bits)
  */
-typedef union _SLV_TIMER_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:8;	/* bits 24-31 */
-		u32 timer_ini:24;	/* bits 0-23 */
-#else
-		u32 timer_ini:24;	/* bits 0-23 */
-		u32 unused:8;	/* bits 24-31 */
-#endif
-	} bits;
-} SLV_TIMER_t, *PSLV_TIMER_t;
 
 /*
  * structure for MSI Configuration reg in global address map
@@ -218,8 +186,8 @@ typedef struct _GLOBAL_t {			/* Location: */
 	u32 int_mask;				/*  0x001C */
 	u32 int_alias_clr_en;			/*  0x0020 */
 	u32 int_status_alias;			/*  0x0024 */
-	SW_RESET_t sw_reset;			/*  0x0028 */
-	SLV_TIMER_t slv_timer;			/*  0x002C */
+	u32 sw_reset;				/*  0x0028 */
+	u32 slv_timer;				/*  0x002C */
 	MSI_CONFIG_t msi_config;		/*  0x0030 */
 	LOOPBACK_t loopback;			/*  0x0034 */
 	u32 watchdog_timer;			/*  0x0038 */
