@@ -130,13 +130,13 @@ void __init setup_memory(void)
 	 * (in case the address isn't page-aligned).
 	 */
 #ifndef CONFIG_MMU
-	map_size = init_bootmem_node(NODE_DATA(0), PFN_UP(TOPHYS((u32)_end)),
+	map_size = init_bootmem_node(NODE_DATA(0), PFN_UP(TOPHYS((u32)klimit)),
 					min_low_pfn, max_low_pfn);
 #else
 	map_size = init_bootmem_node(&contig_page_data,
-		PFN_UP(TOPHYS((u32)_end)), min_low_pfn, max_low_pfn);
+		PFN_UP(TOPHYS((u32)klimit)), min_low_pfn, max_low_pfn);
 #endif
-	lmb_reserve(PFN_UP(TOPHYS((u32)_end)) << PAGE_SHIFT, map_size);
+	lmb_reserve(PFN_UP(TOPHYS((u32)klimit)) << PAGE_SHIFT, map_size);
 
 	/* free bootmem is whole main memory */
 	free_bootmem(memory_start, memory_size);

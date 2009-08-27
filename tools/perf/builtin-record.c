@@ -219,7 +219,7 @@ static pid_t pid_synthesize_comm_event(pid_t pid, int full)
 	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
 
 	fp = fopen(filename, "r");
-	if (fd == NULL) {
+	if (fp == NULL) {
 		/*
 		 * We raced with a task exiting - just return:
 		 */
