@@ -61,7 +61,6 @@
 
 /* Packet and header sizes */
 #define NIC_MIN_PACKET_SIZE	60
-#define NIC_HEADER_SIZE		ETH_HLEN	/* 14 */
 
 /* Multicast list size */
 #define NIC_MAX_MCAST_LIST	128
@@ -102,20 +101,13 @@
 #define fMP_ADAPTER_NOT_READY_MASK	0x3ff00000
 
 /* Some offsets in PCI config space that are actually used. */
-#define ET1310_PCI_PM_CAPABILITY	0x40
-#define ET1310_PCI_PM_CSR		0x44
 #define ET1310_PCI_MAX_PYLD		0x4C
-#define ET1310_PCI_DEV_CTRL		0x50
-#define ET1310_PCI_DEV_STAT		0x52
 #define ET1310_NMI_DISABLE		0x61
 #define ET1310_PCI_MAC_ADDRESS		0xA4
 #define ET1310_PCI_EEPROM_STATUS	0xB2
-#define ET1310_PCI_PHY_INDEX_REG	0xB4
 #define ET1310_PCI_ACK_NACK		0xC0
 #define ET1310_PCI_REPLAY		0xC2
 #define ET1310_PCI_L0L1LATENCY		0xCF
-#define ET1310_PCI_SEL_PHY_CTRL		0xE4
-#define ET1310_PCI_ADVANCED_ERR		0x100
 
 /* PCI Vendor/Product IDs */
 #define ET131X_PCI_VENDOR_ID		0x11C1	/* Agere Systems */

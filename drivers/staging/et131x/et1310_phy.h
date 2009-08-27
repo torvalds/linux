@@ -63,9 +63,6 @@
 
 #define TRUEPHY_SUCCESS 0
 #define TRUEPHY_FAILURE 1
-typedef void *TRUEPHY_HANDLE;
-typedef void *TRUEPHY_PLATFORM_HANDLE;
-typedef void *TRUEPHY_OSAL_HANDLE;
 
 /* MI Register Addresses */
 #define MI_CONTROL_REG                      0
@@ -741,28 +738,6 @@ typedef union _MI_LCR2_t {
 } MI_LCR2_t, *PMI_LCR2_t;
 
 /* MI Register 29 - 31: Reserved Reg(0x1D - 0x1E) */
-
-/* TruePHY headers */
-typedef struct _TRUEPHY_ACCESS_MI_REGS_ {
-	TRUEPHY_HANDLE hTruePhy;
-	int32_t nPhyId;
-	u8 bReadWrite;
-	u8 *pbyRegs;
-	u8 *pwData;
-	int32_t nRegCount;
-} TRUEPHY_ACCESS_MI_REGS, *PTRUEPHY_ACCESS_MI_REGS;
-
-/* TruePHY headers */
-typedef struct _TAG_TPAL_ACCESS_MI_REGS_ {
-	u32 nPhyId;
-	u8 bReadWrite;
-	u32 nRegCount;
-	u16 Data[4096];
-	u8 Regs[4096];
-} TPAL_ACCESS_MI_REGS, *PTPAL_ACCESS_MI_REGS;
-
-
-typedef TRUEPHY_HANDLE TPAL_HANDLE;
 
 /* Forward declaration of the private adapter structure */
 struct et131x_adapter;
