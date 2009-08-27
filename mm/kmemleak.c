@@ -107,6 +107,7 @@
 #define SECS_FIRST_SCAN		60	/* delay before the first scan */
 #define SECS_SCAN_WAIT		600	/* subsequent auto scanning delay */
 #define GRAY_LIST_PASSES	25	/* maximum number of gray list scans */
+#define MAX_SCAN_SIZE		4096	/* maximum size of a scanned block */
 
 #define BYTES_PER_POINTER	sizeof(void *)
 
@@ -642,6 +643,7 @@ static void make_black_object(unsigned long ptr)
 
 	spin_lock_irqsave(&object->lock, flags);
 	object->min_count = -1;
+	object->flags |= OBJECT_NO_SCAN;
 	spin_unlock_irqrestore(&object->lock, flags);
 	put_object(object);
 }
@@ -949,10 +951,21 @@ static void scan_object(struct kmemleak_object *object)
 	if (!(object->flags & OBJECT_ALLOCATED))
 		/* already freed object */
 		goto out;
-	if (hlist_empty(&object->area_list))
-		scan_block((void *)object->pointer,
-			   (void *)(object->pointer + object->size), object, 0);
-	else
+	if (hlist_empty(&object->area_list)) {
+		void *start = (void *)object->pointer;
+		void *end = (void *)(object->pointer + object->size);
+
+		while (start < end && (object->flags & OBJECT_ALLOCATED) &&
+		       !(object->flags & OBJECT_NO_SCAN)) {
+			scan_block(start, min(start + MAX_SCAN_SIZE, end),
+				   object, 0);
+			start += MAX_SCAN_SIZE;
+
+			spin_unlock_irqrestore(&object->lock, flags);
+			cond_resched();
+			spin_lock_irqsave(&object->lock, flags);
+		}
+	} else
 		hlist_for_each_entry(area, elem, &object->area_list, node)
 			scan_block((void *)(object->pointer + area->offset),
 				   (void *)(object->pointer + area->offset
