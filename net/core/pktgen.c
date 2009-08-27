@@ -3450,15 +3450,17 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			pkt_dev->last_ok = 0;
 		}
 
-		pkt_dev->next_tx_us = getCurUs();
-		pkt_dev->next_tx_ns = 0;
+		if (pkt_dev->delay_us || pkt_dev->delay_ns) {
+			pkt_dev->next_tx_us = getCurUs();
+			pkt_dev->next_tx_ns = 0;
 
-		pkt_dev->next_tx_us += pkt_dev->delay_us;
-		pkt_dev->next_tx_ns += pkt_dev->delay_ns;
+			pkt_dev->next_tx_us += pkt_dev->delay_us;
+			pkt_dev->next_tx_ns += pkt_dev->delay_ns;
 
-		if (pkt_dev->next_tx_ns > 1000) {
-			pkt_dev->next_tx_us++;
-			pkt_dev->next_tx_ns -= 1000;
+			if (pkt_dev->next_tx_ns > 1000) {
+				pkt_dev->next_tx_us++;
+				pkt_dev->next_tx_ns -= 1000;
+			}
 		}
 	}
 	__netif_tx_unlock_bh(txq);
