@@ -531,7 +531,7 @@ static inline void  smc_rcv(struct net_device *dev)
 		local_irq_restore(flags);				\
 	__ret;								\
 })
-#define smc_special_lock(lock, flags)		spin_lock_irq(lock, flags)
+#define smc_special_lock(lock, flags)		spin_lock_irqsave(lock, flags)
 #define smc_special_unlock(lock, flags) 	spin_unlock_irqrestore(lock, flags)
 #else
 #define smc_special_trylock(lock, flags)	(1)
