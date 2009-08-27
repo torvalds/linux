@@ -874,6 +874,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	struct urb *urb = 0;
 	int status = -EINPROGRESS;
 	struct xhci_ep_ctx *ep_ctx;
+	u32 trb_comp_code;
 
 	xhci_dbg(xhci, "In %s\n", __func__);
 	slot_id = TRB_TO_SLOT_ID(event->flags);
@@ -931,7 +932,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			(unsigned int) event->flags);
 
 	/* Look for common error cases */
-	switch (GET_COMP_CODE(event->transfer_len)) {
+	trb_comp_code = GET_COMP_CODE(event->transfer_len);
+	switch (trb_comp_code) {
 	/* Skip codes that require special handling depending on
 	 * transfer type
 	 */
@@ -974,7 +976,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	/* Was this a control transfer? */
 	if (usb_endpoint_xfer_control(&td->urb->ep->desc)) {
 		xhci_debug_trb(xhci, xhci->event_ring->dequeue);
-		switch (GET_COMP_CODE(event->transfer_len)) {
+		switch (trb_comp_code) {
 		case COMP_SUCCESS:
 			if (event_trb == ep_ring->dequeue) {
 				xhci_warn(xhci, "WARN: Success on ctrl setup TRB without IOC set??\n");
@@ -1031,7 +1033,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				}
 			} else {
 			/* Maybe the event was for the data stage? */
-				if (GET_COMP_CODE(event->transfer_len) != COMP_STOP_INVAL) {
+				if (trb_comp_code != COMP_STOP_INVAL) {
 					/* We didn't stop on a link TRB in the middle */
 					td->urb->actual_length =
 						td->urb->transfer_buffer_length -
@@ -1043,7 +1045,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			}
 		}
 	} else {
-		switch (GET_COMP_CODE(event->transfer_len)) {
+		switch (trb_comp_code) {
 		case COMP_SUCCESS:
 			/* Double check that the HW transferred everything. */
 			if (event_trb != td->last_trb) {
@@ -1120,14 +1122,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			/* If the ring didn't stop on a Link or No-op TRB, add
 			 * in the actual bytes transferred from the Normal TRB
 			 */
-			if (GET_COMP_CODE(event->transfer_len) != COMP_STOP_INVAL)
+			if (trb_comp_code != COMP_STOP_INVAL)
 				td->urb->actual_length +=
 					TRB_LEN(cur_trb->generic.field[2]) -
 					TRB_LEN(event->transfer_len);
 		}
 	}
-	if (GET_COMP_CODE(event->transfer_len) == COMP_STOP_INVAL ||
-			GET_COMP_CODE(event->transfer_len) == COMP_STOP) {
+	if (trb_comp_code == COMP_STOP_INVAL ||
+			trb_comp_code == COMP_STOP) {
 		/* The Endpoint Stop Command completion will take care of any
 		 * stopped TDs.  A stopped TD may be restarted, so don't update
 		 * the ring dequeue pointer or take this TD off any lists yet.
