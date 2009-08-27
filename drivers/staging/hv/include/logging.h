@@ -62,11 +62,11 @@
 extern unsigned int vmbus_loglevel;
 
 #define ASSERT(expr)	\
-        if (!(expr)) {	\
+	if (!(expr)) {	\
 		printk(KERN_CRIT "Assertion failed! %s,%s,%s,line=%d\n", \
 		       #expr, __FILE__, __func__, __LINE__);	\
 		__asm__ __volatile__("int3");	\
-        }
+	}
 
 #define DPRINT(mod, lvl, fmt, args...) do {\
 	if ((mod & (HIWORD(vmbus_loglevel))) &&	\
@@ -89,7 +89,7 @@ extern unsigned int vmbus_loglevel;
 #define DPRINT_WARN(mod, fmt, args...) do {\
 	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
 	    (WARNING_LVL <= LOWORD(vmbus_loglevel)))	\
-	    printk(KERN_WARNING #mod": WARNING! " fmt "\n", ## args);\
+		printk(KERN_WARNING #mod": WARNING! " fmt "\n", ## args);\
 	} while (0)
 
 #define DPRINT_ERR(mod, fmt, args...) do {\
@@ -103,7 +103,7 @@ extern unsigned int vmbus_loglevel;
 #define DPRINT_ENTER(mod) do {\
 	if ((mod & (HIWORD(vmbus_loglevel))) && \
 	    (DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel)))	\
-	    printk(KERN_DEBUG "["#mod"]: %s() enter\n", __func__);\
+		printk(KERN_DEBUG "["#mod"]: %s() enter\n", __func__);\
 	} while (0)
 
 #define DPRINT_EXIT(mod) do {\
