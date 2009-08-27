@@ -3424,27 +3424,29 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->last_ok = 0;
 	else {
 		atomic_inc(&(pkt_dev->skb->users));
-	      retry_now:
+
+	retry_now:
 		ret = (*xmit)(pkt_dev->skb, odev);
-		if (likely(ret == NETDEV_TX_OK)) {
+		switch (ret) {
+		case NETDEV_TX_OK:
 			txq_trans_update(txq);
 			pkt_dev->last_ok = 1;
 			pkt_dev->sofar++;
 			pkt_dev->seq_num++;
 			pkt_dev->tx_bytes += pkt_dev->cur_pkt_size;
-
-		} else if (ret == NETDEV_TX_LOCKED
-			   && (odev->features & NETIF_F_LLTX)) {
+			break;
+		case NETDEV_TX_LOCKED:
 			cpu_relax();
 			goto retry_now;
-		} else {	/* Retry it next time */
-
-			atomic_dec(&(pkt_dev->skb->users));
-
-			if (debug && net_ratelimit())
-				printk(KERN_INFO "pktgen: Hard xmit error\n");
-
+		default: /* Drivers are not supposed to return other values! */
+			if (net_ratelimit())
+				pr_info("pktgen: %s xmit error: %d\n",
+					odev->name, ret);
 			pkt_dev->errors++;
+			/* fallthru */
+		case NETDEV_TX_BUSY:
+			/* Retry it next time */
+			atomic_dec(&(pkt_dev->skb->users));
 			pkt_dev->last_ok = 0;
 		}
 
