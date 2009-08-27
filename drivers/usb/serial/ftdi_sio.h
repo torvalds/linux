@@ -968,6 +968,12 @@
 #define MARVELL_OPENRD_PID	0x9e90
 
 /*
+ * Hameg HO820 and HO870 interface (using VID 0x0403)
+ */
+#define        HAMEG_HO820_PID         0xed74
+#define        HAMEG_HO870_PID         0xed71
+
+/*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
  *   wValue:         0
