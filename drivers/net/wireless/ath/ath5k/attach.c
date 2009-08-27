@@ -95,14 +95,13 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  * ath5k_hw_attach - Check if hw is supported and init the needed structs
  *
  * @sc: The &struct ath5k_softc we got from the driver's attach function
- * @mac_version: The mac version id (check out ath5k.h) based on pci id
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
+struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah;
 	struct pci_dev *pdev = sc->pdev;
@@ -136,9 +135,15 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	ah->ah_software_retry = false;
 
 	/*
-	 * Set the mac version based on the pci id
+	 * Find the mac version
 	 */
-	ah->ah_version = mac_version;
+	srev = ath5k_hw_reg_read(ah, AR5K_SREV);
+	if (srev < AR5K_SREV_AR5311)
+		ah->ah_version = AR5K_AR5210;
+	else if (srev < AR5K_SREV_AR5212)
+		ah->ah_version = AR5K_AR5211;
+	else
+		ah->ah_version = AR5K_AR5212;
 
 	/*Fill the ath5k_hw struct with the needed functions*/
 	ret = ath5k_hw_init_desc_functions(ah);
@@ -151,7 +156,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		goto err_free;
 
 	/* Get MAC, PHY and RADIO revisions */
-	srev = ath5k_hw_reg_read(ah, AR5K_SREV);
 	ah->ah_mac_srev = srev;
 	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
 	ah->ah_mac_revision = AR5K_REG_MS(srev, AR5K_SREV_REV);

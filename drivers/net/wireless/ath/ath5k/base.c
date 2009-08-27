@@ -84,24 +84,24 @@ MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
 /* Known PCI ids */
 static const struct pci_device_id ath5k_pci_id_table[] = {
-	{ PCI_VDEVICE(ATHEROS, 0x0207), .driver_data = AR5K_AR5210 }, /* 5210 early */
-	{ PCI_VDEVICE(ATHEROS, 0x0007), .driver_data = AR5K_AR5210 }, /* 5210 */
-	{ PCI_VDEVICE(ATHEROS, 0x0011), .driver_data = AR5K_AR5211 }, /* 5311 - this is on AHB bus !*/
-	{ PCI_VDEVICE(ATHEROS, 0x0012), .driver_data = AR5K_AR5211 }, /* 5211 */
-	{ PCI_VDEVICE(ATHEROS, 0x0013), .driver_data = AR5K_AR5212 }, /* 5212 */
-	{ PCI_VDEVICE(3COM_2,  0x0013), .driver_data = AR5K_AR5212 }, /* 3com 5212 */
-	{ PCI_VDEVICE(3COM,    0x0013), .driver_data = AR5K_AR5212 }, /* 3com 3CRDAG675 5212 */
-	{ PCI_VDEVICE(ATHEROS, 0x1014), .driver_data = AR5K_AR5212 }, /* IBM minipci 5212 */
-	{ PCI_VDEVICE(ATHEROS, 0x0014), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0015), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0016), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0017), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0018), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0019), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x001a), .driver_data = AR5K_AR5212 }, /* 2413 Griffin-lite */
-	{ PCI_VDEVICE(ATHEROS, 0x001b), .driver_data = AR5K_AR5212 }, /* 5413 Eagle */
-	{ PCI_VDEVICE(ATHEROS, 0x001c), .driver_data = AR5K_AR5212 }, /* PCI-E cards */
-	{ PCI_VDEVICE(ATHEROS, 0x001d), .driver_data = AR5K_AR5212 }, /* 2417 Nala */
+	{ PCI_VDEVICE(ATHEROS, 0x0207) }, /* 5210 early */
+	{ PCI_VDEVICE(ATHEROS, 0x0007) }, /* 5210 */
+	{ PCI_VDEVICE(ATHEROS, 0x0011) }, /* 5311 - this is on AHB bus !*/
+	{ PCI_VDEVICE(ATHEROS, 0x0012) }, /* 5211 */
+	{ PCI_VDEVICE(ATHEROS, 0x0013) }, /* 5212 */
+	{ PCI_VDEVICE(3COM_2,  0x0013) }, /* 3com 5212 */
+	{ PCI_VDEVICE(3COM,    0x0013) }, /* 3com 3CRDAG675 5212 */
+	{ PCI_VDEVICE(ATHEROS, 0x1014) }, /* IBM minipci 5212 */
+	{ PCI_VDEVICE(ATHEROS, 0x0014) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0015) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0016) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0017) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0018) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0019) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x001a) }, /* 2413 Griffin-lite */
+	{ PCI_VDEVICE(ATHEROS, 0x001b) }, /* 5413 Eagle */
+	{ PCI_VDEVICE(ATHEROS, 0x001c) }, /* PCI-E cards */
+	{ PCI_VDEVICE(ATHEROS, 0x001d) }, /* 2417 Nala */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
@@ -566,7 +566,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Initialize device */
-	sc->ah = ath5k_hw_attach(sc, id->driver_data);
+	sc->ah = ath5k_hw_attach(sc);
 	if (IS_ERR(sc->ah)) {
 		ret = PTR_ERR(sc->ah);
 		goto err_irq;
