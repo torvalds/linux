@@ -61,6 +61,14 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 static struct tda18271_config hauppauge_hvr22x0_tuner_config = {
 	.std_map	= &hauppauge_tda18271_std_map,
 	.gate		= TDA18271_GATE_ANALOG,
+	.role		= TDA18271_MASTER,
+};
+
+static struct tda18271_config hauppauge_hvr22x0s_tuner_config = {
+	.std_map	= &hauppauge_tda18271_std_map,
+	.gate		= TDA18271_GATE_ANALOG,
+	.role		= TDA18271_SLAVE,
+	.rf_cal_on_startup = 1
 };
 
 static struct s5h1411_config hauppauge_s5h1411_config = {
@@ -554,10 +562,18 @@ int saa7164_dvb_register(struct saa7164_tsport *port)
 			&i2c_bus->i2c_adap);
 
 		if (port->dvb.frontend != NULL) {
-			/* TODO: addr is in the card struct */
-			dvb_attach(tda18271_attach, port->dvb.frontend,
-				0xc0 >> 1, &i2c_bus->i2c_adap,
-				&hauppauge_hvr22x0_tuner_config);
+			if (port->nr == 0) {
+				/* Master TDA18271 */
+				/* TODO: addr is in the card struct */
+				dvb_attach(tda18271_attach, port->dvb.frontend,
+					0xc0 >> 1, &i2c_bus->i2c_adap,
+					&hauppauge_hvr22x0_tuner_config);
+			} else {
+				/* Slave TDA18271 */
+				dvb_attach(tda18271_attach, port->dvb.frontend,
+					0xc0 >> 1, &i2c_bus->i2c_adap,
+					&hauppauge_hvr22x0s_tuner_config);
+			}
 		}
 
 		break;
