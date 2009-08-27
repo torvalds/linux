@@ -97,6 +97,7 @@
 #include <asm/processor.h>
 #include <asm/atomic.h>
 
+#include <linux/kmemcheck.h>
 #include <linux/kmemleak.h>
 
 /*
@@ -967,14 +968,21 @@ static void scan_block(void *_start, void *_end,
 	unsigned long *end = _end - (BYTES_PER_POINTER - 1);
 
 	for (ptr = start; ptr < end; ptr++) {
-		unsigned long flags;
-		unsigned long pointer = *ptr;
 		struct kmemleak_object *object;
+		unsigned long flags;
+		unsigned long pointer;
 
 		if (allow_resched)
 			cond_resched();
 		if (scan_should_stop())
 			break;
+
+		/* don't scan uninitialized memory */
+		if (!kmemcheck_is_obj_initialized((unsigned long)ptr,
+						  BYTES_PER_POINTER))
+			continue;
+
+		pointer = *ptr;
 
 		object = find_and_get_object(pointer, 1);
 		if (!object)
