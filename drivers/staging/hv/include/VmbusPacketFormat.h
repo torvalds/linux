@@ -23,57 +23,55 @@
 
 #ifndef _VMBUSPACKETFORMAT_H_
 
-typedef struct {
+struct vmpacket_descriptor {
 	u16 Type;
 	u16 DataOffset8;
 	u16 Length8;
 	u16 Flags;
 	u64 TransactionId;
-} __attribute__((packed)) VMPACKET_DESCRIPTOR, *PVMPACKET_DESCRIPTOR;
+} __attribute__((packed));
 
-typedef u32 PREVIOUS_PACKET_OFFSET, *PPREVIOUS_PACKET_OFFSET;
+struct vmpacket_header {
+	u32 PreviousPacketStartOffset;
+	struct vmpacket_descriptor Descriptor;
+} __attribute__((packed));
 
-typedef struct {
-	PREVIOUS_PACKET_OFFSET PreviousPacketStartOffset;
-	VMPACKET_DESCRIPTOR Descriptor;
-} __attribute__((packed)) VMPACKET_HEADER, *PVMPACKET_HEADER;
-
-typedef struct {
+struct vmtransfer_page_range {
 	u32 ByteCount;
 	u32 ByteOffset;
-} __attribute__((packed)) VMTRANSFER_PAGE_RANGE, *PVMTRANSFER_PAGE_RANGE;
+} __attribute__((packed));
 
-typedef struct VMTRANSFER_PAGE_PACKET_HEADER {
-	VMPACKET_DESCRIPTOR d;
+struct vmtransfer_page_packet_header {
+	struct vmpacket_descriptor d;
 	u16 TransferPageSetId;
 	bool SenderOwnsSet;
 	u8 Reserved;
 	u32 RangeCount;
-	VMTRANSFER_PAGE_RANGE Ranges[1];
-} __attribute__((packed)) VMTRANSFER_PAGE_PACKET_HEADER, *PVMTRANSFER_PAGE_PACKET_HEADER;
+	struct vmtransfer_page_range Ranges[1];
+} __attribute__((packed));
 
-typedef struct _VMGPADL_PACKET_HEADER {
-	VMPACKET_DESCRIPTOR d;
+struct vmgpadl_packet_header {
+	struct vmpacket_descriptor d;
 	u32 Gpadl;
 	u32 Reserved;
-} __attribute__((packed)) VMGPADL_PACKET_HEADER, *PVMGPADL_PACKET_HEADER;
+} __attribute__((packed));
 
-typedef struct _VMADD_REMOVE_TRANSFER_PAGE_SET {
-	VMPACKET_DESCRIPTOR d;
+struct vmadd_remove_transfer_page_set {
+	struct vmpacket_descriptor d;
 	u32 Gpadl;
 	u16 TransferPageSetId;
 	u16 Reserved;
-} __attribute__((packed)) VMADD_REMOVE_TRANSFER_PAGE_SET, *PVMADD_REMOVE_TRANSFER_PAGE_SET;
+} __attribute__((packed));
 
 /*
  * This structure defines a range in guest physical space that can be made to
  * look virtually contiguous.
  */
-typedef struct _GPA_RANGE {
+struct gpa_range {
 	u32 ByteCount;
 	u32 ByteOffset;
 	u64 PfnArray[0];
-} GPA_RANGE, *PGPA_RANGE;
+};
 
 /*
  * This is the format for an Establish Gpadl packet, which contains a handle by
@@ -82,71 +80,65 @@ typedef struct _GPA_RANGE {
  * ranges, then the resulting MDL will be "chained," representing multiple VA
  * ranges.
  */
-typedef struct _VMESTABLISH_GPADL {
-	VMPACKET_DESCRIPTOR d;
+struct vmestablish_gpadl {
+	struct vmpacket_descriptor d;
 	u32 Gpadl;
 	u32 RangeCount;
-	GPA_RANGE Range[1];
-} __attribute__((packed)) VMESTABLISH_GPADL, *PVMESTABLISH_GPADL;
+	struct gpa_range Range[1];
+} __attribute__((packed));
 
 /*
  * This is the format for a Teardown Gpadl packet, which indicates that the
  * GPADL handle in the Establish Gpadl packet will never be referenced again.
  */
-typedef struct _VMTEARDOWN_GPADL {
-	VMPACKET_DESCRIPTOR d;
+struct vmteardown_gpadl {
+	struct vmpacket_descriptor d;
 	u32 Gpadl;
 	u32 Reserved;	/* for alignment to a 8-byte boundary */
-} __attribute__((packed)) VMTEARDOWN_GPADL, *PVMTEARDOWN_GPADL;
+} __attribute__((packed));
 
 /*
  * This is the format for a GPA-Direct packet, which contains a set of GPA
  * ranges, in addition to commands and/or data.
  */
-typedef struct _VMDATA_GPA_DIRECT {
-	VMPACKET_DESCRIPTOR d;
+struct vmdata_gpa_direct {
+	struct vmpacket_descriptor d;
 	u32 Reserved;
 	u32 RangeCount;
-	GPA_RANGE Range[1];
-} __attribute__((packed)) VMDATA_GPA_DIRECT, *PVMDATA_GPA_DIRECT;
+	struct gpa_range Range[1];
+} __attribute__((packed));
 
 /* This is the format for a Additional Data Packet. */
-typedef struct _VMADDITIONAL_DATA {
-	VMPACKET_DESCRIPTOR d;
+struct vmadditional_data {
+	struct vmpacket_descriptor d;
 	u64 TotalBytes;
 	u32 ByteOffset;
 	u32 ByteCount;
 	unsigned char Data[1];
-} __attribute__((packed)) VMADDITIONAL_DATA, *PVMADDITIONAL_DATA;
+} __attribute__((packed));
 
-typedef union {
-	VMPACKET_DESCRIPTOR SimpleHeader;
-	VMTRANSFER_PAGE_PACKET_HEADER TransferPageHeader;
-	VMGPADL_PACKET_HEADER GpadlHeader;
-	VMADD_REMOVE_TRANSFER_PAGE_SET AddRemoveTransferPageHeader;
-	VMESTABLISH_GPADL EstablishGpadlHeader;
-	VMTEARDOWN_GPADL TeardownGpadlHeader;
-	VMDATA_GPA_DIRECT DataGpaDirectHeader;
-} VMPACKET_LARGEST_POSSIBLE_HEADER, *PVMPACKET_LARGEST_POSSIBLE_HEADER;
+union vmpacket_largest_possible_header {
+	struct vmpacket_descriptor SimpleHeader;
+	struct vmtransfer_page_packet_header TransferPageHeader;
+	struct vmgpadl_packet_header GpadlHeader;
+	struct vmadd_remove_transfer_page_set AddRemoveTransferPageHeader;
+	struct vmestablish_gpadl EstablishGpadlHeader;
+	struct vmteardown_gpadl TeardownGpadlHeader;
+	struct vmdata_gpa_direct DataGpaDirectHeader;
+};
 
 #define VMPACKET_DATA_START_ADDRESS(__packet)	\
 	(void *)(((unsigned char *)__packet) +	\
-	 ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8 * 8)
+	 ((struct vmpacket_descriptor)__packet)->DataOffset8 * 8)
 
 #define VMPACKET_DATA_LENGTH(__packet)		\
-	((((PVMPACKET_DESCRIPTOR)__packet)->Length8 -	\
-	  ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8) * 8)
+	((((struct vmpacket_descriptor)__packet)->Length8 -	\
+	  ((struct vmpacket_descriptor)__packet)->DataOffset8) * 8)
 
 #define VMPACKET_TRANSFER_MODE(__packet)	\
-	(((PVMPACKET_DESCRIPTOR)__packet)->Type)
+	(((struct IMPACT)__packet)->Type)
 
-typedef enum {
-	VmbusServerEndpoint = 0,
-	VmbusClientEndpoint,
-	VmbusEndpointMaximum
-} ENDPOINT_TYPE, *PENDPOINT_TYPE;
-
-typedef enum {
+enum vmbus_packet_type {
 	VmbusPacketTypeInvalid				= 0x0,
 	VmbusPacketTypeSynch				= 0x1,
 	VmbusPacketTypeAddTransferPageSet		= 0x2,
@@ -161,7 +153,7 @@ typedef enum {
 	VmbusPacketTypeCompletion			= 0xb,
 	VmbusPacketTypeDataUsingAdditionalPackets	= 0xc,
 	VmbusPacketTypeAdditionalData			= 0xd
-} VMBUS_PACKET_TYPE, *PVMBUS_PACKET_TYPE;
+};
 
 #define VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED	1
 

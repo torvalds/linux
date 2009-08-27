@@ -395,13 +395,13 @@ VmbusChannelCreateGpadlHeader(
 	pfn = virt_to_phys(Kbuffer) >> PAGE_SHIFT;
 
 	/* do we need a gpadl body msg */
-	pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(struct vmbus_channel_gpadl_header) - sizeof(GPA_RANGE);
+	pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(struct vmbus_channel_gpadl_header) - sizeof(struct gpa_range);
 	pfnCount = pfnSize / sizeof(u64);
 
 	if (pageCount > pfnCount) /* we need a gpadl body */
 	{
 		/* fill in the header */
-		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_header) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
+		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_header) + sizeof(struct gpa_range) + pfnCount*sizeof(u64);
 		msgHeader =  kzalloc(msgSize, GFP_KERNEL);
 
 		INITIALIZE_LIST_HEAD(&msgHeader->SubMsgList);
@@ -409,7 +409,7 @@ VmbusChannelCreateGpadlHeader(
 
 		gpaHeader = (struct vmbus_channel_gpadl_header *)msgHeader->Msg;
 		gpaHeader->RangeCount = 1;
-		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(u64);
+		gpaHeader->RangeBufLen = sizeof(struct gpa_range) + pageCount*sizeof(u64);
 		gpaHeader->Range[0].ByteOffset = 0;
 		gpaHeader->Range[0].ByteCount = Size;
 		for (i=0; i<pfnCount; i++)
@@ -461,13 +461,13 @@ VmbusChannelCreateGpadlHeader(
 	else
 	{
 		/* everything fits in a header */
-		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_header) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
+		msgSize = sizeof(struct vmbus_channel_msginfo) + sizeof(struct vmbus_channel_gpadl_header) + sizeof(struct gpa_range) + pageCount*sizeof(u64);
 		msgHeader = kzalloc(msgSize, GFP_KERNEL);
 		msgHeader->MessageSize=msgSize;
 
 		gpaHeader = (struct vmbus_channel_gpadl_header *)msgHeader->Msg;
 		gpaHeader->RangeCount = 1;
-		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(u64);
+		gpaHeader->RangeBufLen = sizeof(struct gpa_range) + pageCount*sizeof(u64);
 		gpaHeader->Range[0].ByteOffset = 0;
 		gpaHeader->Range[0].ByteCount = Size;
 		for (i=0; i<pageCount; i++)
@@ -730,13 +730,13 @@ int VmbusChannelSendPacket(struct vmbus_channel *Channel,
 	const void *			Buffer,
 	u32				BufferLen,
 	u64				RequestId,
-	VMBUS_PACKET_TYPE	Type,
+	enum vmbus_packet_type Type,
 	u32				Flags
 )
 {
 	int ret=0;
-	VMPACKET_DESCRIPTOR desc;
-	u32 packetLen = sizeof(VMPACKET_DESCRIPTOR) + BufferLen;
+	struct vmpacket_descriptor desc;
+	u32 packetLen = sizeof(struct vmpacket_descriptor) + BufferLen;
 	u32 packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 	struct scatterlist bufferList[3];
 	u64 alignedData=0;
@@ -751,12 +751,12 @@ int VmbusChannelSendPacket(struct vmbus_channel *Channel,
 	/* Setup the descriptor */
 	desc.Type = Type; /* VmbusPacketTypeDataInBand; */
 	desc.Flags = Flags; /* VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED; */
-	desc.DataOffset8 = sizeof(VMPACKET_DESCRIPTOR) >> 3; /* in 8-bytes granularity */
+	desc.DataOffset8 = sizeof(struct vmpacket_descriptor) >> 3; /* in 8-bytes granularity */
 	desc.Length8 = (u16)(packetLenAligned >> 3);
 	desc.TransactionId = RequestId;
 
 	sg_init_table(bufferList,3);
-	sg_set_buf(&bufferList[0], &desc, sizeof(VMPACKET_DESCRIPTOR));
+	sg_set_buf(&bufferList[0], &desc, sizeof(struct vmpacket_descriptor));
 	sg_set_buf(&bufferList[1], Buffer, BufferLen);
 	sg_set_buf(&bufferList[2], &alignedData, packetLenAligned - packetLen);
 
@@ -946,7 +946,7 @@ int VmbusChannelRecvPacket(struct vmbus_channel *Channel,
 			   u32 *BufferActualLen,
 			   u64 *RequestId)
 {
-	VMPACKET_DESCRIPTOR desc;
+	struct vmpacket_descriptor desc;
 	u32 packetLen;
 	u32 userLen;
 	int ret;
@@ -959,7 +959,7 @@ int VmbusChannelRecvPacket(struct vmbus_channel *Channel,
 
 	spin_lock_irqsave(&Channel->inbound_lock, flags);
 
-	ret = RingBufferPeek(&Channel->Inbound, &desc, sizeof(VMPACKET_DESCRIPTOR));
+	ret = RingBufferPeek(&Channel->Inbound, &desc, sizeof(struct vmpacket_descriptor));
 	if (ret != 0)
 	{
 		spin_unlock_irqrestore(&Channel->inbound_lock, flags);
@@ -1022,7 +1022,7 @@ int VmbusChannelRecvPacketRaw(struct vmbus_channel *Channel,
 	u64*				RequestId
 	)
 {
-	VMPACKET_DESCRIPTOR desc;
+	struct vmpacket_descriptor desc;
 	u32 packetLen;
 	u32 userLen;
 	int ret;
@@ -1035,7 +1035,7 @@ int VmbusChannelRecvPacketRaw(struct vmbus_channel *Channel,
 
 	spin_lock_irqsave(&Channel->inbound_lock, flags);
 
-	ret = RingBufferPeek(&Channel->Inbound, &desc, sizeof(VMPACKET_DESCRIPTOR));
+	ret = RingBufferPeek(&Channel->Inbound, &desc, sizeof(struct vmpacket_descriptor));
 	if (ret != 0)
 	{
 		spin_unlock_irqrestore(&Channel->inbound_lock, flags);

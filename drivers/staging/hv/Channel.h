@@ -27,7 +27,7 @@
 
 #include "ChannelMgmt.h"
 
-/* The format must be the same as VMDATA_GPA_DIRECT */
+/* The format must be the same as struct vmdata_gpa_direct */
 struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 	u16 Type;
 	u16 DataOffset8;
@@ -39,7 +39,7 @@ struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 	struct hv_page_buffer Range[MAX_PAGE_BUFFER_COUNT];
 } __attribute__((packed));
 
-/* The format must be the same as VMDATA_GPA_DIRECT */
+/* The format must be the same as struct vmdata_gpa_direct */
 struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
 	u16 Type;
 	u16 DataOffset8;
@@ -66,7 +66,7 @@ extern int VmbusChannelSendPacket(struct vmbus_channel *channel,
 				  const void *Buffer,
 				  u32 BufferLen,
 				  u64 RequestId,
-				  VMBUS_PACKET_TYPE Type,
+				  enum vmbus_packet_type Type,
 				  u32 Flags);
 
 extern int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *channel,

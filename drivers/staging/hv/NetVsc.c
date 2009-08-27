@@ -92,7 +92,7 @@ NetVscConnectToVsp(
 static void
 NetVscOnSendCompletion(
 	struct hv_device *Device,
-	VMPACKET_DESCRIPTOR *Packet
+	struct vmpacket_descriptor *Packet
 	);
 
 static int
@@ -104,7 +104,7 @@ NetVscOnSend(
 static void
 NetVscOnReceive(
 	struct hv_device *Device,
-	VMPACKET_DESCRIPTOR *Packet
+	struct vmpacket_descriptor *Packet
 	);
 
 static void
@@ -236,8 +236,8 @@ NetVscInitialize(
 
 	DPRINT_ENTER(NETVSC);
 
-	DPRINT_DBG(NETVSC, "sizeof(struct hv_netvsc_packet)=%zd, sizeof(NVSP_MESSAGE)=%zd, sizeof(VMTRANSFER_PAGE_PACKET_HEADER)=%zd",
-		sizeof(struct hv_netvsc_packet), sizeof(NVSP_MESSAGE), sizeof(VMTRANSFER_PAGE_PACKET_HEADER));
+	DPRINT_DBG(NETVSC, "sizeof(struct hv_netvsc_packet)=%zd, sizeof(NVSP_MESSAGE)=%zd, sizeof(struct vmtransfer_page_packet_header)=%zd",
+		sizeof(struct hv_netvsc_packet), sizeof(NVSP_MESSAGE), sizeof(struct vmtransfer_page_packet_header));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 	ASSERT(driver->RingBufferSize >= (PAGE_SIZE << 1));
@@ -991,7 +991,7 @@ NetVscOnCleanup(
 static void
 NetVscOnSendCompletion(
 	struct hv_device *Device,
-	VMPACKET_DESCRIPTOR *Packet
+	struct vmpacket_descriptor *Packet
 	)
 {
 	struct NETVSC_DEVICE *netDevice;
@@ -1109,11 +1109,11 @@ NetVscOnSend(
 static void
 NetVscOnReceive(
 	struct hv_device *Device,
-	VMPACKET_DESCRIPTOR *Packet
+	struct vmpacket_descriptor *Packet
 	)
 {
 	struct NETVSC_DEVICE *netDevice;
-	VMTRANSFER_PAGE_PACKET_HEADER *vmxferpagePacket;
+	struct vmtransfer_page_packet_header *vmxferpagePacket;
 	NVSP_MESSAGE *nvspPacket;
 	struct hv_netvsc_packet *netvscPacket=NULL;
 	LIST_ENTRY* entry;
@@ -1157,7 +1157,7 @@ NetVscOnReceive(
 
 	DPRINT_DBG(NETVSC, "NVSP packet received - type %d", nvspPacket->Header.MessageType);
 
-	vmxferpagePacket = (VMTRANSFER_PAGE_PACKET_HEADER*)Packet;
+	vmxferpagePacket = (struct vmtransfer_page_packet_header *)Packet;
 
 	if (vmxferpagePacket->TransferPageSetId != NETVSC_RECEIVE_BUFFER_ID)
 	{
@@ -1420,7 +1420,7 @@ NetVscOnChannelCallback(
 	u32 bytesRecvd;
 	u64 requestId;
 	unsigned char packet[netPacketSize];
-	VMPACKET_DESCRIPTOR *desc;
+	struct vmpacket_descriptor *desc;
 	unsigned char	*buffer=packet;
 	int		bufferlen=netPacketSize;
 
@@ -1451,7 +1451,7 @@ NetVscOnChannelCallback(
 			{
 				DPRINT_DBG(NETVSC, "receive %d bytes, tid %llx", bytesRecvd, requestId);
 
-				desc = (VMPACKET_DESCRIPTOR*)buffer;
+				desc = (struct vmpacket_descriptor*)buffer;
 				switch (desc->Type)
 				{
 					case VmbusPacketTypeCompletion:

@@ -151,7 +151,7 @@ struct vmbus_channel_gpadl_header {
 	u32 Gpadl;
 	u16 RangeBufLen;
 	u16 RangeCount;
-	GPA_RANGE Range[0];
+	struct gpa_range Range[0];
 } __attribute__((packed));
 
 /* This is the followup packet that contains more PFNs. */

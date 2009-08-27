@@ -58,7 +58,7 @@
 /*  the host adapter. */
 /*  The max transfer length will be published when we offer a vmbus channel. */
 #define MAX_TRANSFER_LENGTH	0x40000
-#define DEFAULT_PACKET_SIZE (sizeof(VMDATA_GPA_DIRECT) +		\
+#define DEFAULT_PACKET_SIZE (sizeof(struct vmdata_gpa_direct) +	\
 			sizeof(struct vstor_packet) +		\
 			sizesizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
 
