@@ -2694,6 +2694,9 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t gpa;
 	int r;
 
+	if (tdp_enabled)
+		return 0;
+
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
