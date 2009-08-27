@@ -103,8 +103,9 @@ static inline void flush_cache_4096(unsigned long start,
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-static void sh4_flush_dcache_page(void *page)
+static void sh4_flush_dcache_page(void *arg)
 {
+	struct page *page = arg;
 #ifndef CONFIG_SMP
 	struct address_space *mapping = page_mapping(page);
 
