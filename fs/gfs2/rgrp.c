@@ -1567,6 +1567,8 @@ int gfs2_alloc_di(struct gfs2_inode *dip, u64 *bn, u64 *generation)
 	rgd->rd_free--;
 	rgd->rd_dinodes++;
 	*generation = rgd->rd_igeneration++;
+	if (*generation == 0)
+		*generation = rgd->rd_igeneration++;
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 

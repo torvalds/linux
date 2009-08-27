@@ -84,7 +84,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	gfs2_tune_init(&sdp->sd_tune);
 
-	mutex_init(&sdp->sd_inum_mutex);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
@@ -833,21 +832,12 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	if (error)
 		goto fail;
 
-	/* Read in the master inode number inode */
-	sdp->sd_inum_inode = gfs2_lookup_simple(master, "inum");
-	if (IS_ERR(sdp->sd_inum_inode)) {
-		error = PTR_ERR(sdp->sd_inum_inode);
-		fs_err(sdp, "can't read in inum inode: %d\n", error);
-		goto fail_journal;
-	}
-
-
 	/* Read in the master statfs inode */
 	sdp->sd_statfs_inode = gfs2_lookup_simple(master, "statfs");
 	if (IS_ERR(sdp->sd_statfs_inode)) {
 		error = PTR_ERR(sdp->sd_statfs_inode);
 		fs_err(sdp, "can't read in statfs inode: %d\n", error);
-		goto fail_inum;
+		goto fail_journal;
 	}
 
 	/* Read in the resource index inode */
@@ -876,8 +866,6 @@ fail_rindex:
 	iput(sdp->sd_rindex);
 fail_statfs:
 	iput(sdp->sd_statfs_inode);
-fail_inum:
-	iput(sdp->sd_inum_inode);
 fail_journal:
 	init_journal(sdp, UNDO);
 fail:
@@ -905,20 +893,12 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		return error;
 	}
 
-	sprintf(buf, "inum_range%u", sdp->sd_jdesc->jd_jid);
-	sdp->sd_ir_inode = gfs2_lookup_simple(pn, buf);
-	if (IS_ERR(sdp->sd_ir_inode)) {
-		error = PTR_ERR(sdp->sd_ir_inode);
-		fs_err(sdp, "can't find local \"ir\" file: %d\n", error);
-		goto fail;
-	}
-
 	sprintf(buf, "statfs_change%u", sdp->sd_jdesc->jd_jid);
 	sdp->sd_sc_inode = gfs2_lookup_simple(pn, buf);
 	if (IS_ERR(sdp->sd_sc_inode)) {
 		error = PTR_ERR(sdp->sd_sc_inode);
 		fs_err(sdp, "can't find local \"sc\" file: %d\n", error);
-		goto fail_ir_i;
+		goto fail;
 	}
 
 	sprintf(buf, "quota_change%u", sdp->sd_jdesc->jd_jid);
@@ -932,27 +912,16 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	iput(pn);
 	pn = NULL;
 
-	ip = GFS2_I(sdp->sd_ir_inode);
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
-				   &sdp->sd_ir_gh);
-	if (error) {
-		fs_err(sdp, "can't lock local \"ir\" file: %d\n", error);
-		goto fail_qc_i;
-	}
-
 	ip = GFS2_I(sdp->sd_sc_inode);
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_sc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"sc\" file: %d\n", error);
-		goto fail_ir_gh;
+		goto fail_qc_i;
 	}
 
 	ip = GFS2_I(sdp->sd_qc_inode);
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_qc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"qc\" file: %d\n", error);
@@ -965,14 +934,10 @@ fail_qc_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
 fail_ut_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
-fail_ir_gh:
-	gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
 fail_qc_i:
 	iput(sdp->sd_qc_inode);
 fail_ut_i:
 	iput(sdp->sd_sc_inode);
-fail_ir_i:
-	iput(sdp->sd_ir_inode);
 fail:
 	if (pn)
 		iput(pn);

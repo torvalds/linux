@@ -788,7 +788,6 @@ restart:
 	/*  Release stuff  */
 
 	iput(sdp->sd_jindex);
-	iput(sdp->sd_inum_inode);
 	iput(sdp->sd_statfs_inode);
 	iput(sdp->sd_rindex);
 	iput(sdp->sd_quota_inode);
@@ -799,10 +798,8 @@ restart:
 	if (!sdp->sd_args.ar_spectator) {
 		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-		iput(sdp->sd_ir_inode);
 		iput(sdp->sd_sc_inode);
 		iput(sdp->sd_qc_inode);
 	}

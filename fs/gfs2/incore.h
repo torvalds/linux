@@ -548,17 +548,11 @@ struct gfs2_sbd {
 	struct dentry *sd_root_dir;
 
 	struct inode *sd_jindex;
-	struct inode *sd_inum_inode;
 	struct inode *sd_statfs_inode;
-	struct inode *sd_ir_inode;
 	struct inode *sd_sc_inode;
 	struct inode *sd_qc_inode;
 	struct inode *sd_rindex;
 	struct inode *sd_quota_inode;
-
-	/* Inum stuff */
-
-	struct mutex sd_inum_mutex;
 
 	/* StatFS stuff */
 
@@ -587,7 +581,6 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_journal_gh;
 	struct gfs2_holder sd_jinode_gh;
 
-	struct gfs2_holder sd_ir_gh;
 	struct gfs2_holder sd_sc_gh;
 	struct gfs2_holder sd_qc_gh;
 

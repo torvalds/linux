@@ -519,139 +519,6 @@ out:
 	return inode ? inode : ERR_PTR(error);
 }
 
-static void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf)
-{
-	const struct gfs2_inum_range *str = buf;
-
-	ir->ir_start = be64_to_cpu(str->ir_start);
-	ir->ir_length = be64_to_cpu(str->ir_length);
-}
-
-static void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf)
-{
-	struct gfs2_inum_range *str = buf;
-
-	str->ir_start = cpu_to_be64(ir->ir_start);
-	str->ir_length = cpu_to_be64(ir->ir_length);
-}
-
-static int pick_formal_ino_1(struct gfs2_sbd *sdp, u64 *formal_ino)
-{
-	struct gfs2_inode *ip = GFS2_I(sdp->sd_ir_inode);
-	struct buffer_head *bh;
-	struct gfs2_inum_range_host ir;
-	int error;
-
-	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
-	if (error)
-		return error;
-	mutex_lock(&sdp->sd_inum_mutex);
-
-	error = gfs2_meta_inode_buffer(ip, &bh);
-	if (error) {
-		mutex_unlock(&sdp->sd_inum_mutex);
-		gfs2_trans_end(sdp);
-		return error;
-	}
-
-	gfs2_inum_range_in(&ir, bh->b_data + sizeof(struct gfs2_dinode));
-
-	if (ir.ir_length) {
-		*formal_ino = ir.ir_start++;
-		ir.ir_length--;
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
-		gfs2_inum_range_out(&ir,
-				    bh->b_data + sizeof(struct gfs2_dinode));
-		brelse(bh);
-		mutex_unlock(&sdp->sd_inum_mutex);
-		gfs2_trans_end(sdp);
-		return 0;
-	}
-
-	brelse(bh);
-
-	mutex_unlock(&sdp->sd_inum_mutex);
-	gfs2_trans_end(sdp);
-
-	return 1;
-}
-
-static int pick_formal_ino_2(struct gfs2_sbd *sdp, u64 *formal_ino)
-{
-	struct gfs2_inode *ip = GFS2_I(sdp->sd_ir_inode);
-	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_inum_inode);
-	struct gfs2_holder gh;
-	struct buffer_head *bh;
-	struct gfs2_inum_range_host ir;
-	int error;
-
-	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	if (error)
-		return error;
-
-	error = gfs2_trans_begin(sdp, 2 * RES_DINODE, 0);
-	if (error)
-		goto out;
-	mutex_lock(&sdp->sd_inum_mutex);
-
-	error = gfs2_meta_inode_buffer(ip, &bh);
-	if (error)
-		goto out_end_trans;
-
-	gfs2_inum_range_in(&ir, bh->b_data + sizeof(struct gfs2_dinode));
-
-	if (!ir.ir_length) {
-		struct buffer_head *m_bh;
-		u64 x, y;
-		__be64 z;
-
-		error = gfs2_meta_inode_buffer(m_ip, &m_bh);
-		if (error)
-			goto out_brelse;
-
-		z = *(__be64 *)(m_bh->b_data + sizeof(struct gfs2_dinode));
-		x = y = be64_to_cpu(z);
-		ir.ir_start = x;
-		ir.ir_length = GFS2_INUM_QUANTUM;
-		x += GFS2_INUM_QUANTUM;
-		if (x < y)
-			gfs2_consist_inode(m_ip);
-		z = cpu_to_be64(x);
-		gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
-		*(__be64 *)(m_bh->b_data + sizeof(struct gfs2_dinode)) = z;
-
-		brelse(m_bh);
-	}
-
-	*formal_ino = ir.ir_start++;
-	ir.ir_length--;
-
-	gfs2_trans_add_bh(ip->i_gl, bh, 1);
-	gfs2_inum_range_out(&ir, bh->b_data + sizeof(struct gfs2_dinode));
-
-out_brelse:
-	brelse(bh);
-out_end_trans:
-	mutex_unlock(&sdp->sd_inum_mutex);
-	gfs2_trans_end(sdp);
-out:
-	gfs2_glock_dq_uninit(&gh);
-	return error;
-}
-
-static int pick_formal_ino(struct gfs2_sbd *sdp, u64 *inum)
-{
-	int error;
-
-	error = pick_formal_ino_1(sdp, inum);
-	if (error <= 0)
-		return error;
-
-	error = pick_formal_ino_2(sdp, inum);
-
-	return error;
-}
-
 /**
  * create_ok - OK to create a new on-disk inode here?
  * @dip:  Directory in which dinode is to be created
@@ -981,13 +848,10 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock;
 
-	error = pick_formal_ino(sdp, &inum.no_formal_ino);
-	if (error)
-		goto fail_gunlock;
-
 	error = alloc_dinode(dip, &inum.no_addr, &generation);
 	if (error)
 		goto fail_gunlock;
+	inum.no_formal_ino = generation;
 
 	error = gfs2_glock_nq_num(sdp, inum.no_addr, &gfs2_inode_glops,
 				  LM_ST_EXCLUSIVE, GL_SKIP, ghs + 1);
@@ -998,9 +862,8 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock2;
 
-	inode = gfs2_inode_lookup(dir->i_sb, IF2DT(mode),
-					inum.no_addr,
-					inum.no_formal_ino, 0);
+	inode = gfs2_inode_lookup(dir->i_sb, IF2DT(mode), inum.no_addr,
+				  inum.no_formal_ino, 0);
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
 
