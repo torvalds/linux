@@ -35,8 +35,17 @@ void release_and_free_resource(struct resource *res)
 EXPORT_SYMBOL(release_and_free_resource);
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
-void snd_verbose_printk(const char *file, int line, const char *format, ...)
+static const char *sanity_file_name(const char *path)
 {
+	if (*path == '/')
+		return strrchr(path, '/') + 1;
+	else
+		return path;
+}
+
+void snd_verbose_printk(const char *path, int line, const char *format, ...)
+{
+	const char *file = sanity_file_name(path);
 	va_list args;
 	
 	if (format[0] == '<' && format[1] >= '0' && format[1] <= '7' && format[2] == '>') {
@@ -56,8 +65,9 @@ EXPORT_SYMBOL(snd_verbose_printk);
 #endif
 
 #if defined(CONFIG_SND_DEBUG) && defined(CONFIG_SND_VERBOSE_PRINTK)
-void snd_verbose_printd(const char *file, int line, const char *format, ...)
+void snd_verbose_printd(const char *path, int line, const char *format, ...)
 {
+	const char *file = sanity_file_name(path);
 	va_list args;
 	
 	if (format[0] == '<' && format[1] >= '0' && format[1] <= '7' && format[2] == '>') {
