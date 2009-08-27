@@ -229,6 +229,8 @@ struct early_log {
 	int min_count;			/* minimum reference count */
 	unsigned long offset;		/* scan area offset */
 	size_t length;			/* scan area length */
+	unsigned long trace[MAX_TRACE];	/* stack trace */
+	unsigned int trace_len;		/* stack trace length */
 };
 
 /* early logging buffer and current position */
@@ -437,21 +439,36 @@ static struct kmemleak_object *find_and_get_object(unsigned long ptr, int alias)
 }
 
 /*
+ * Save stack trace to the given array of MAX_TRACE size.
+ */
+static int __save_stack_trace(unsigned long *trace)
+{
+	struct stack_trace stack_trace;
+
+	stack_trace.max_entries = MAX_TRACE;
+	stack_trace.nr_entries = 0;
+	stack_trace.entries = trace;
+	stack_trace.skip = 2;
+	save_stack_trace(&stack_trace);
+
+	return stack_trace.nr_entries;
+}
+
+/*
  * Create the metadata (struct kmemleak_object) corresponding to an allocated
  * memory block and add it to the object_list and object_tree_root.
  */
-static void create_object(unsigned long ptr, size_t size, int min_count,
-			  gfp_t gfp)
+static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+					     int min_count, gfp_t gfp)
 {
 	unsigned long flags;
 	struct kmemleak_object *object;
 	struct prio_tree_node *node;
-	struct stack_trace trace;
 
 	object = kmem_cache_alloc(object_cache, gfp & GFP_KMEMLEAK_MASK);
 	if (!object) {
 		kmemleak_stop("Cannot allocate a kmemleak_object structure\n");
-		return;
+		return NULL;
 	}
 
 	INIT_LIST_HEAD(&object->object_list);
@@ -485,12 +502,7 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	}
 
 	/* kernel backtrace */
-	trace.max_entries = MAX_TRACE;
-	trace.nr_entries = 0;
-	trace.entries = object->trace;
-	trace.skip = 1;
-	save_stack_trace(&trace);
-	object->trace_len = trace.nr_entries;
+	object->trace_len = __save_stack_trace(object->trace);
 
 	INIT_PRIO_TREE_NODE(&object->tree_node);
 	object->tree_node.start = ptr;
@@ -521,6 +533,7 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	list_add_tail_rcu(&object->object_list, &object_list);
 out:
 	write_unlock_irqrestore(&kmemleak_lock, flags);
+	return object;
 }
 
 /*
@@ -743,8 +756,36 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
 	log->min_count = min_count;
 	log->offset = offset;
 	log->length = length;
+	if (op_type == KMEMLEAK_ALLOC)
+		log->trace_len = __save_stack_trace(log->trace);
 	crt_early_log++;
 	local_irq_restore(flags);
+}
+
+/*
+ * Log an early allocated block and populate the stack trace.
+ */
+static void early_alloc(struct early_log *log)
+{
+	struct kmemleak_object *object;
+	unsigned long flags;
+	int i;
+
+	if (!atomic_read(&kmemleak_enabled) || !log->ptr || IS_ERR(log->ptr))
+		return;
+
+	/*
+	 * RCU locking needed to ensure object is not freed via put_object().
+	 */
+	rcu_read_lock();
+	object = create_object((unsigned long)log->ptr, log->size,
+			       log->min_count, GFP_KERNEL);
+	spin_lock_irqsave(&object->lock, flags);
+	for (i = 0; i < log->trace_len; i++)
+		object->trace[i] = log->trace[i];
+	object->trace_len = log->trace_len;
+	spin_unlock_irqrestore(&object->lock, flags);
+	rcu_read_unlock();
 }
 
 /*
@@ -1509,8 +1550,7 @@ void __init kmemleak_init(void)
 
 		switch (log->op_type) {
 		case KMEMLEAK_ALLOC:
-			kmemleak_alloc(log->ptr, log->size, log->min_count,
-				       GFP_KERNEL);
+			early_alloc(log);
 			break;
 		case KMEMLEAK_FREE:
 			kmemleak_free(log->ptr);
