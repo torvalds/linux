@@ -1092,7 +1092,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				td->urb->actual_length =
 					td->urb->transfer_buffer_length -
 					TRB_LEN(event->transfer_len);
-				if (td->urb->actual_length < 0) {
+				if (td->urb->transfer_buffer_length <
+						td->urb->actual_length) {
 					xhci_warn(xhci, "HC gave bad length "
 							"of %d bytes left\n",
 							TRB_LEN(event->transfer_len));
@@ -1167,6 +1168,20 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 td_cleanup:
 		/* Clean up the endpoint's TD list */
 		urb = td->urb;
+		/* Do one last check of the actual transfer length.
+		 * If the host controller said we transferred more data than
+		 * the buffer length, urb->actual_length will be a very big
+		 * number (since it's unsigned).  Play it safe and say we didn't
+		 * transfer anything.
+		 */
+		if (urb->actual_length > urb->transfer_buffer_length) {
+			xhci_warn(xhci, "URB transfer length is wrong, "
+					"xHC issue? req. len = %u, "
+					"act. len = %u\n",
+					urb->transfer_buffer_length,
+					urb->actual_length);
+			urb->actual_length = 0;
+		}
 		list_del(&td->td_list);
 		/* Was this TD slated to be cancelled but completed anyway? */
 		if (!list_empty(&td->cancelled_td_list)) {
