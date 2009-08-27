@@ -176,13 +176,6 @@ typedef struct _ce_stats_t {
 	u32 code_violations;
 	u32 other_errors;
 
-#ifdef CONFIG_ET131X_DEBUG
-	u32 UnhandledInterruptsPerSec;
-	u32 RxDmaInterruptsPerSec;
-	u32 TxDmaInterruptsPerSec;
-	u32 WatchDogInterruptsPerSec;
-#endif	/* CONFIG_ET131X_DEBUG */
-
 	u32 SynchrounousIterations;
 	u32 InterruptStatus;
 } CE_STATS_t, *PCE_STATS_t;

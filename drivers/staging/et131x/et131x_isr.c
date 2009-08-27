@@ -57,7 +57,6 @@
  */
 
 #include "et131x_version.h"
-#include "et131x_debug.h"
 #include "et131x_defs.h"
 
 #include <linux/init.h>
@@ -76,6 +75,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/pci.h>
 #include <asm/system.h>
 
 #include <linux/netdevice.h>
@@ -90,11 +90,6 @@
 #include "et1310_mac.h"
 
 #include "et131x_adapter.h"
-
-/* Data for debugging facilities */
-#ifdef CONFIG_ET131X_DEBUG
-extern dbg_info_t *et131x_dbginfo;
-#endif /* CONFIG_ET131X_DEBUG */
 
 /**
  *	et131x_enable_interrupts	-	enable interrupt
@@ -151,9 +146,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	struct et131x_adapter *adapter = NULL;
 	u32 status;
 
-	if (netdev == NULL || !netif_device_present(netdev)) {
-		DBG_WARNING(et131x_dbginfo,
-			    "No net_device struct or device not present\n");
+	if (!netif_device_present(netdev)) {
 		handled = false;
 		goto out;
 	}
@@ -181,23 +174,12 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 
 	/* Make sure this is our interrupt */
 	if (!status) {
-#ifdef CONFIG_ET131X_DEBUG
-		adapter->Stats.UnhandledInterruptsPerSec++;
-#endif
 		handled = false;
-		DBG_VERBOSE(et131x_dbginfo, "NOT OUR INTERRUPT\n");
 		et131x_enable_interrupts(adapter);
 		goto out;
 	}
 
 	/* This is our interrupt, so process accordingly */
-#ifdef CONFIG_ET131X_DEBUG
-	if (status & ET_INTR_RXDMA_XFR_DONE)
-		adapter->Stats.RxDmaInterruptsPerSec++;
-
-	if (status & ET_INTR_TXDMA_ISR)
-		adapter->Stats.TxDmaInterruptsPerSec++;
-#endif
 
 	if (status & ET_INTR_WATCHDOG) {
 		PMP_TCB pMpTcb = adapter->TxRing.CurrSendHead;
@@ -212,9 +194,6 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 			writel(0, &adapter->regs->global.watchdog_timer);
 
 		status &= ~ET_INTR_WATCHDOG;
-#ifdef CONFIG_ET131X_DEBUG
-		adapter->Stats.WatchDogInterruptsPerSec++;
-#endif
 	}
 
 	if (status == 0) {
@@ -263,13 +242,11 @@ void et131x_isr_handler(struct work_struct *work)
 	 */
 	/* Handle all the completed Transmit interrupts */
 	if (status & ET_INTR_TXDMA_ISR) {
-		DBG_TX(et131x_dbginfo, "TXDMA_ISR interrupt\n");
 		et131x_handle_send_interrupt(etdev);
 	}
 
 	/* Handle all the completed Receives interrupts */
 	if (status & ET_INTR_RXDMA_XFR_DONE) {
-		DBG_RX(et131x_dbginfo, "RXDMA_XFR_DONE interrupt\n");
 		et131x_handle_recv_interrupt(etdev);
 	}
 
@@ -283,7 +260,7 @@ void et131x_isr_handler(struct work_struct *work)
 			/* Following read also clears the register (COR) */
 			TxDmaErr.value = readl(&iomem->txdma.TxDmaError.value);
 
-			DBG_WARNING(et131x_dbginfo,
+			dev_warn(&etdev->pdev->dev,
 				    "TXDMA_ERR interrupt, error = %d\n",
 				    TxDmaErr.value);
 		}
@@ -304,9 +281,6 @@ void et131x_isr_handler(struct work_struct *work)
 			 * ET1310 for re-use. This interrupt is one method of
 			 * returning resources.
 			 */
-			DBG_WARNING(et131x_dbginfo,
-				    "RXDMA_FB_RING0_LOW or "
-				    "RXDMA_FB_RING1_LOW interrupt\n");
 
 			/* If the user has flow control on, then we will
 			 * send a pause packet, otherwise just exit
@@ -332,8 +306,6 @@ void et131x_isr_handler(struct work_struct *work)
 
 		/* Handle Packet Status Ring Low Interrupt */
 		if (status & ET_INTR_RXDMA_STAT_LOW) {
-			DBG_WARNING(et131x_dbginfo,
-				    "RXDMA_PKT_STAT_RING_LOW interrupt\n");
 
 			/*
 			 * Same idea as with the two Free Buffer Rings.
@@ -370,7 +342,7 @@ void et131x_isr_handler(struct work_struct *work)
 
 			etdev->TxMacTest.value =
 				readl(&iomem->txmac.tx_test.value);
-			DBG_WARNING(et131x_dbginfo,
+			dev_warn(&etdev->pdev->dev,
 				    "RxDMA_ERR interrupt, error %x\n",
 				    etdev->TxMacTest.value);
 		}
@@ -384,7 +356,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * message when we are in DBG mode, otherwise we
 			 * will ignore it.
 			 */
-			DBG_ERROR(et131x_dbginfo, "WAKE_ON_LAN interrupt\n");
+			dev_err(&etdev->pdev->dev, "WAKE_ON_LAN interrupt\n");
 		}
 
 		/* Handle the PHY interrupt */
@@ -392,8 +364,6 @@ void et131x_isr_handler(struct work_struct *work)
 			u32 pm_csr;
 			MI_BMSR_t BmsrInts, BmsrData;
 			MI_ISR_t myIsr;
-
-			DBG_VERBOSE(et131x_dbginfo, "PHY interrupt\n");
 
 			/* If we are in coma mode when we get this interrupt,
 			 * we need to disable it.
@@ -405,9 +375,6 @@ void et131x_isr_handler(struct work_struct *work)
 				 * so, disable it because we will not be able
 				 * to read PHY values until we are out.
 				 */
-				DBG_VERBOSE(et131x_dbginfo,
-					    "Device is in COMA mode, "
-					    "need to wake up\n");
 				DisablePhyComa(etdev);
 			}
 
@@ -425,11 +392,6 @@ void et131x_isr_handler(struct work_struct *work)
 				BmsrInts.value =
 				    etdev->Bmsr.value ^ BmsrData.value;
 				etdev->Bmsr.value = BmsrData.value;
-
-				DBG_VERBOSE(et131x_dbginfo,
-					    "Bmsr.value = 0x%04x,"
-					    "Bmsr_ints.value = 0x%04x\n",
-					    BmsrData.value, BmsrInts.value);
 
 				/* Do all the cable in / cable out stuff */
 				et131x_Mii_check(etdev, BmsrData, BmsrInts);
@@ -451,7 +413,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * a nutshell, the whole Tx path will have to be reset
 			 * and re-configured afterwards.
 			 */
-			DBG_WARNING(et131x_dbginfo,
+			dev_warn(&etdev->pdev->dev,
 				    "TXMAC interrupt, error 0x%08x\n",
 				    etdev->TxRing.TxMacErr.value);
 
@@ -459,7 +421,6 @@ void et131x_isr_handler(struct work_struct *work)
 			 * otherwise we just want the device to be reset and
 			 * continue
 			 */
-			/* DBG_TRAP(); */
 		}
 
 		/* Handle RXMAC Interrupt */
@@ -473,11 +434,11 @@ void et131x_isr_handler(struct work_struct *work)
 			/* MP_SET_FLAG( etdev,
 						fMP_ADAPTER_HARDWARE_ERROR); */
 
-			DBG_WARNING(et131x_dbginfo,
+			dev_warn(&etdev->pdev->dev,
 			  "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
 				    readl(&iomem->rxmac.err_reg.value));
 
-			DBG_WARNING(et131x_dbginfo,
+			dev_warn(&etdev->pdev->dev,
 				    "Enable 0x%08x, Diag 0x%08x\n",
 				    readl(&iomem->rxmac.ctrl.value),
 				    readl(&iomem->rxmac.rxq_diag.value));
@@ -487,7 +448,6 @@ void et131x_isr_handler(struct work_struct *work)
 			 * otherwise we just want the device to be reset and
 			 * continue
 			 */
-			/* TRAP(); */
 		}
 
 		/* Handle MAC_STAT Interrupt */
@@ -498,7 +458,6 @@ void et131x_isr_handler(struct work_struct *work)
 			 * to maintain the top, software managed bits of the
 			 * counter(s).
 			 */
-			DBG_VERBOSE(et131x_dbginfo, "MAC_STAT interrupt\n");
 			HandleMacStatInterrupt(etdev);
 		}
 
@@ -513,7 +472,6 @@ void et131x_isr_handler(struct work_struct *work)
 			 * addressed module is in a power-down state and
 			 * can't respond.
 			 */
-			DBG_VERBOSE(et131x_dbginfo, "SLV_TIMEOUT interrupt\n");
 		}
 	}
 	et131x_enable_interrupts(etdev);

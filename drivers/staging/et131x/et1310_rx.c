@@ -56,7 +56,6 @@
  */
 
 #include "et131x_version.h"
-#include "et131x_debug.h"
 #include "et131x_defs.h"
 
 #include <linux/pci.h>
@@ -93,11 +92,6 @@
 
 #include "et1310_rx.h"
 
-/* Data for debugging facilities */
-#ifdef CONFIG_ET131X_DEBUG
-extern dbg_info_t *et131x_dbginfo;
-#endif /* CONFIG_ET131X_DEBUG */
-
 
 void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd);
 
@@ -116,8 +110,6 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	uint32_t bufsize;
 	uint32_t pktStatRingSize, FBRChunkSize;
 	RX_RING_t *rx_ring;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup some convenience pointers */
 	rx_ring = (RX_RING_t *) &adapter->RxRing;
@@ -183,9 +175,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    bufsize,
 						    &rx_ring->pFbr1RingPa);
 	if (!rx_ring->pFbr1RingVa) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Free Buffer Ring 1\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -ENOMEM;
 	}
 
@@ -213,9 +204,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    bufsize,
 						    &rx_ring->pFbr0RingPa);
 	if (!rx_ring->pFbr0RingVa) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Free Buffer Ring 0\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -ENOMEM;
 	}
 
@@ -262,8 +252,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 					 &rx_ring->Fbr1MemPa[OuterLoop]);
 
 		if (!rx_ring->Fbr1MemVa[OuterLoop]) {
-			DBG_ERROR(et131x_dbginfo, "Could not alloc memory\n");
-			DBG_LEAVE(et131x_dbginfo);
+		dev_err(&adapter->pdev->dev,
+				"Could not alloc memory\n");
 			return -ENOMEM;
 		}
 
@@ -313,8 +303,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 					 &rx_ring->Fbr0MemPa[OuterLoop]);
 
 		if (!rx_ring->Fbr0MemVa[OuterLoop]) {
-			DBG_ERROR(et131x_dbginfo, "Could not alloc memory\n");
-			DBG_LEAVE(et131x_dbginfo);
+			dev_err(&adapter->pdev->dev,
+				"Could not alloc memory\n");
 			return -ENOMEM;
 		}
 
@@ -356,9 +346,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						  &rx_ring->pPSRingPa);
 
 	if (!rx_ring->pPSRingVa) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Packet Status Ring\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -ENOMEM;
 	}
 
@@ -384,9 +373,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    sizeof(RX_STATUS_BLOCK_t) +
 						    0x7, &rx_ring->pRxStatusPa);
 	if (!rx_ring->pRxStatusVa) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Status Block\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -ENOMEM;
 	}
 
@@ -422,8 +410,6 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 */
 	INIT_LIST_HEAD(&rx_ring->RecvList);
 	INIT_LIST_HEAD(&rx_ring->RecvPendingList);
-
-	DBG_LEAVE(et131x_dbginfo);
 	return 0;
 }
 
@@ -439,13 +425,11 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	PMP_RFD pMpRfd;
 	RX_RING_t *rx_ring;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Setup some convenience pointers */
 	rx_ring = (RX_RING_t *) &adapter->RxRing;
 
 	/* Free RFDs and associated packet descriptors */
-	DBG_ASSERT(rx_ring->nReadyRecv == rx_ring->NumRfd);
+	WARN_ON(rx_ring->nReadyRecv != rx_ring->NumRfd);
 
 	while (!list_empty(&rx_ring->RecvList)) {
 		pMpRfd = (MP_RFD *) list_entry(rx_ring->RecvList.next,
@@ -583,8 +567,6 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Reset Counters */
 	rx_ring->nReadyRecv = 0;
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -601,8 +583,6 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 	uint32_t TotalNumRfd = 0;
 	RX_RING_t *rx_ring = NULL;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Setup some convenience pointers */
 	rx_ring = (RX_RING_t *) &adapter->RxRing;
 
@@ -612,7 +592,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 						     GFP_ATOMIC | GFP_DMA);
 
 		if (!pMpRfd) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&adapter->pdev->dev,
 				  "Couldn't alloc RFD out of kmem_cache\n");
 			status = -ENOMEM;
 			continue;
@@ -620,7 +600,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 
 		status = et131x_rfd_resources_alloc(adapter, pMpRfd);
 		if (status != 0) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&adapter->pdev->dev,
 				  "Couldn't alloc packet for RFD\n");
 			kmem_cache_free(rx_ring->RecvLookaside, pMpRfd);
 			continue;
@@ -641,11 +621,9 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 
 	if (status != 0) {
 		kmem_cache_free(rx_ring->RecvLookaside, pMpRfd);
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Allocation problems in et131x_init_recv\n");
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 	return status;
 }
 
@@ -686,8 +664,6 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	uint32_t entry;
 	RXDMA_PSR_NUM_DES_t psr_num_des;
 	unsigned long flags;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Halt RXDMA to perform the reconfigure.  */
 	et131x_rx_dma_disable(etdev);
@@ -786,8 +762,6 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	writel(PARM_RX_TIME_INT_DEF, &rx_dma->max_pkt_time.value);
 
 	spin_unlock_irqrestore(&etdev->RcvLock, flags);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -814,8 +788,6 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 {
 	RXDMA_CSR_t csr;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Setup the receive dma configuration register */
 	writel(0x00002001, &etdev->regs->rxdma.csr.value);
 	csr.value = readl(&etdev->regs->rxdma.csr.value);
@@ -823,12 +795,10 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 		udelay(5);
 		csr.value = readl(&etdev->regs->rxdma.csr.value);
 		if (csr.bits.halt_status != 1)
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&etdev->pdev->dev,
 				"RX Dma failed to enter halt state. CSR 0x%08x\n",
 				csr.value);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -837,8 +807,6 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
  */
 void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 {
-	DBG_RX_ENTER(et131x_dbginfo);
-
 	if (etdev->RegistryPhyLoopbk)
 		/* RxDMA is disabled for loopback operation. */
 		writel(0x1, &etdev->regs->rxdma.csr.value);
@@ -869,14 +837,12 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 			udelay(5);
 			csr.value = readl(&etdev->regs->rxdma.csr.value);
 			if (csr.bits.halt_status != 0) {
-				DBG_ERROR(et131x_dbginfo,
+				dev_err(&etdev->pdev->dev,
 					"RX Dma failed to exit halt state.  CSR 0x%08x\n",
 					csr.value);
 			}
 		}
 	}
-
-	DBG_RX_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -905,9 +871,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	uint32_t localLen;
 	PKT_STAT_DESC_WORD0_t Word0;
 
-
-	DBG_RX_ENTER(et131x_dbginfo);
-
 	/* RX Status block is written by the DMA engine prior to every
 	 * interrupt. It contains the next to be used entry in the Packet
 	 * Status Ring, and also the two Free Buffer rings.
@@ -919,8 +882,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 			pRxStatusBlock->Word1.bits.PSRwrap ==
 			pRxLocal->local_psr_full.bits.psr_full_wrap) {
 		/* Looks like this ring is not updated yet */
-		DBG_RX(et131x_dbginfo, "(0)\n");
-		DBG_RX_LEAVE(et131x_dbginfo);
 		return NULL;
 	}
 
@@ -937,23 +898,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	bufferIndex = (uint16_t) pPSREntry->word1.bits.bi;
 	Word0 = pPSREntry->word0;
 
-	DBG_RX(et131x_dbginfo, "RX PACKET STATUS\n");
-	DBG_RX(et131x_dbginfo, "\tlength      : %d\n", localLen);
-	DBG_RX(et131x_dbginfo, "\tringIndex   : %d\n", ringIndex);
-	DBG_RX(et131x_dbginfo, "\tbufferIndex : %d\n", bufferIndex);
-	DBG_RX(et131x_dbginfo, "\tword0       : 0x%08x\n", Word0.value);
-
-#if 0
-	/* Check the Status Word that the MAC has appended to the PSR
-	 * entry in case the MAC has detected errors.
-	 */
-	if (Word0.value & ALCATEL_BAD_STATUS) {
-		DBG_ERROR(et131x_dbginfo,
-			  "NICRxPkts >> Alcatel Status Word error."
-			  "Value 0x%08x\n", pPSREntry->word0.value);
-	}
-#endif
-
 	/* Indicate that we have used this PSR entry. */
 	if (++pRxLocal->local_psr_full.bits.psr_full >
 	    pRxLocal->PsrNumEntries - 1) {
@@ -966,11 +910,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 
 #ifndef USE_FBR0
 	if (ringIndex != 1) {
-		DBG_ERROR(et131x_dbginfo,
-			  "NICRxPkts PSR Entry %d indicates "
-			  "Buffer Ring 0 in use\n",
-			  pRxLocal->local_psr_full.bits.psr_full);
-		DBG_RX_LEAVE(et131x_dbginfo);
 		return NULL;
 	}
 #endif
@@ -987,12 +926,11 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 #endif
 	{
 		/* Illegal buffer or ring index cannot be used by S/W*/
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&etdev->pdev->dev,
 			  "NICRxPkts PSR Entry %d indicates "
 			  "length of %d and/or bad bi(%d)\n",
 			  pRxLocal->local_psr_full.bits.psr_full,
 			  localLen, bufferIndex);
-		DBG_RX_LEAVE(et131x_dbginfo);
 		return NULL;
 	}
 
@@ -1004,9 +942,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	pMpRfd = (PMP_RFD) list_entry(element, MP_RFD, list_node);
 
 	if (pMpRfd == NULL) {
-		DBG_RX(et131x_dbginfo,
-		       "NULL RFD returned from RecvList via list_entry()\n");
-		DBG_RX_LEAVE(et131x_dbginfo);
 		spin_unlock_irqrestore(&etdev->RcvLock, flags);
 		return NULL;
 	}
@@ -1040,19 +975,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 					etdev->ReplicaPhyLoopbkPF = 1;
 				}
 			}
-			DBG_WARNING(et131x_dbginfo,
-				    "pBufVa:\t%02x:%02x:%02x:%02x:%02x:%02x\n",
-				    pBufVa[6], pBufVa[7], pBufVa[8],
-				    pBufVa[9], pBufVa[10], pBufVa[11]);
-
-			DBG_WARNING(et131x_dbginfo,
-				    "CurrentAddr:\t%02x:%02x:%02x:%02x:%02x:%02x\n",
-				    etdev->CurrentAddress[0],
-				    etdev->CurrentAddress[1],
-				    etdev->CurrentAddress[2],
-				    etdev->CurrentAddress[3],
-				    etdev->CurrentAddress[4],
-				    etdev->CurrentAddress[5]);
 		}
 
 		/* Determine if this is a multicast packet coming in */
@@ -1127,9 +1049,8 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 
 		skb = dev_alloc_skb(pMpRfd->PacketSize + 2);
 		if (!skb) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&etdev->pdev->dev,
 				  "Couldn't alloc an SKB for Rx\n");
-			DBG_RX_LEAVE(et131x_dbginfo);
 			return NULL;
 		}
 
@@ -1149,9 +1070,6 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	}
 
 	nic_return_rfd(etdev, pMpRfd);
-
-	DBG_RX(et131x_dbginfo, "(1)\n");
-	DBG_RX_LEAVE(et131x_dbginfo);
 	return pMpRfd;
 }
 
@@ -1166,9 +1084,7 @@ void et131x_reset_recv(struct et131x_adapter *etdev)
 	PMP_RFD pMpRfd;
 	struct list_head *element;
 
-	DBG_ENTER(et131x_dbginfo);
-
-	DBG_ASSERT(!list_empty(&etdev->RxRing.RecvList));
+	WARN_ON(list_empty(&etdev->RxRing.RecvList));
 
 	/* Take all the RFD's from the pending list, and stick them on the
 	 * RecvList.
@@ -1180,8 +1096,6 @@ void et131x_reset_recv(struct et131x_adapter *etdev)
 
 		list_move_tail(&pMpRfd->list_node, &etdev->RxRing.RecvList);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -1200,15 +1114,12 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 	uint32_t PacketFreeCount = 0;
 	bool TempUnfinishedRec = false;
 
-	DBG_RX_ENTER(et131x_dbginfo);
-
 	PacketsToHandle = NUM_PACKETS_HANDLED;
 
 	/* Process up to available RFD's */
 	while (PacketArrayCount < PacketsToHandle) {
 		if (list_empty(&etdev->RxRing.RecvList)) {
-			DBG_ASSERT(etdev->RxRing.nReadyRecv == 0);
-			DBG_ERROR(et131x_dbginfo, "NO RFD's !!!!!!!!!!!!!\n");
+			WARN_ON(etdev->RxRing.nReadyRecv != 0);
 			TempUnfinishedRec = true;
 			break;
 		}
@@ -1246,8 +1157,8 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 			RFDFreeArray[PacketFreeCount] = pMpRfd;
 			PacketFreeCount++;
 
-			DBG_WARNING(et131x_dbginfo,
-				    "RFD's are running out !!!!!!!!!!!!!\n");
+			dev_warn(&etdev->pdev->dev,
+				    "RFD's are running out\n");
 		}
 
 		PacketArray[PacketArrayCount] = pMpRfd->Packet;
@@ -1262,8 +1173,6 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		/* Watchdog timer will disable itself if appropriate. */
 		etdev->RxRing.UnfinishedReceives = false;
 	}
-
-	DBG_RX_LEAVE(et131x_dbginfo);
 }
 
 static inline u32 bump_fbr(u32 *fbr, u32 limit)
@@ -1288,8 +1197,6 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 	uint16_t bi = pMpRfd->bufferindex;
 	uint8_t ri = pMpRfd->ringindex;
 	unsigned long flags;
-
-	DBG_RX_ENTER(et131x_dbginfo);
 
 	/* We don't use any of the OOB data besides status. Otherwise, we
 	 * need to clean up OOB data
@@ -1339,7 +1246,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 #endif
 		spin_unlock_irqrestore(&etdev->FbrLock, flags);
 	} else {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&etdev->pdev->dev,
 			  "NICReturnRFD illegal Buffer Index returned\n");
 	}
 
@@ -1351,6 +1258,5 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 	rx_local->nReadyRecv++;
 	spin_unlock_irqrestore(&etdev->RcvLock, flags);
 
-	DBG_ASSERT(rx_local->nReadyRecv <= rx_local->NumRfd);
-	DBG_RX_LEAVE(et131x_dbginfo);
+	WARN_ON(rx_local->nReadyRecv > rx_local->NumRfd);
 }

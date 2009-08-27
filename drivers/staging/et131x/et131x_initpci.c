@@ -58,7 +58,6 @@
  */
 
 #include "et131x_version.h"
-#include "et131x_debug.h"
 #include "et131x_defs.h"
 
 #include <linux/pci.h>
@@ -112,33 +111,6 @@ void __devexit et131x_pci_remove(struct pci_dev *pdev);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_INFO);
 MODULE_LICENSE(DRIVER_LICENSE);
-
-/* Module Parameters and related data for debugging facilities */
-#ifdef CONFIG_ET131X_DEBUG
-static u32 et131x_debug_level = DBG_LVL;
-static u32 et131x_debug_flags = DBG_DEFAULTS;
-
-/*
-et131x_debug_level :
- Level of debugging desired (0-7)
-   7 : DBG_RX_ON | DBG_TX_ON
-   6 : DBG_PARAM_ON
-   5 : DBG_VERBOSE_ON
-   4 : DBG_TRACE_ON
-   3 : DBG_NOTICE_ON
-   2 : no debug info
-   1 : no debug info
-   0 : no debug info
-*/
-
-module_param(et131x_debug_level, uint, 0);
-module_param(et131x_debug_flags, uint, 0);
-
-MODULE_PARM_DESC(et131x_debug_level, "Level of debugging desired (0-7)");
-
-static dbg_info_t et131x_info = { DRIVER_NAME_EXT, 0, 0 };
-dbg_info_t *et131x_dbginfo = &et131x_info;
-#endif /* CONFIG_ET131X_DEBUG */
 
 /* Defines for Parameter Default/Min/Max vaules */
 #define PARM_SPEED_DUPLEX_MIN   0
@@ -196,71 +168,29 @@ static struct pci_driver et131x_driver = {
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_init_module(void)
+static int et131x_init_module(void)
 {
-	int result;
-
-#ifdef CONFIG_ET131X_DEBUG
-	/* Set the level of debug messages displayed using the module
-	 * parameter
-	 */
-	et131x_dbginfo->dbgFlags = et131x_debug_flags;
-
-	switch (et131x_debug_level) {
-	case 7:
-		et131x_dbginfo->dbgFlags |= (DBG_RX_ON | DBG_TX_ON);
-
-	case 6:
-		et131x_dbginfo->dbgFlags |= DBG_PARAM_ON;
-
-	case 5:
-		et131x_dbginfo->dbgFlags |= DBG_VERBOSE_ON;
-
-	case 4:
-		et131x_dbginfo->dbgFlags |= DBG_TRACE_ON;
-
-	case 3:
-		et131x_dbginfo->dbgFlags |= DBG_NOTICE_ON;
-
-	case 2:
-	case 1:
-	case 0:
-	default:
-		break;
-	}
-#endif /* CONFIG_ET131X_DEBUG */
-
-	DBG_ENTER(et131x_dbginfo);
-	DBG_PRINT("%s\n", DRIVER_INFO);
-
 	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
 	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
-	    	printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
+		printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
 	    	et131x_speed_set = 0;
 	}
-
-	result = pci_register_driver(&et131x_driver);
-
-	DBG_LEAVE(et131x_dbginfo);
-	return result;
+	return pci_register_driver(&et131x_driver);
 }
 
 /**
  * et131x_cleanup_module - The entry point called on driver cleanup
  */
-void et131x_cleanup_module(void)
+static void et131x_cleanup_module(void)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	pci_unregister_driver(&et131x_driver);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /*
  * These macros map the driver-specific init_module() and cleanup_module()
  * routines so they can be called by the kernel.
  */
+
 module_init(et131x_init_module);
 module_exit(et131x_cleanup_module);
 
@@ -278,8 +208,6 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	uint8_t maxPayload = 0;
 	uint8_t read_size_reg;
 	u8 rev;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Allow disabling of Non-Maskable Interrupts in I/O space, to
 	 * support validation.
@@ -311,9 +239,8 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	result = pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
 				      &eepromStat);
 	if (result != PCIBIOS_SUCCESSFUL) {
-		DBG_ERROR(et131x_dbginfo, "Could not read PCI config space for "
+		dev_err(&pdev->dev, "Could not read PCI config space for "
 			  "EEPROM Status\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -EIO;
 	}
 
@@ -323,10 +250,9 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	if (eepromStat & 0x4C) {
 		result = pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 		if (result != PCIBIOS_SUCCESSFUL) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&pdev->dev,
 				  "Could not read PCI config space for "
 				  "Revision ID\n");
-			DBG_LEAVE(et131x_dbginfo);
 			return -EIO;
 		} else if (rev == 0x01) {
 			int32_t nLoop;
@@ -341,8 +267,7 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 			}
 		}
 
-		DBG_ERROR(et131x_dbginfo,
-			  "Fatal EEPROM Status Error - 0x%04x\n", eepromStat);
+		dev_err(&pdev->dev, "Fatal EEPROM Status Error - 0x%04x\n", eepromStat);
 
 		/* This error could mean that there was an error reading the
 		 * eeprom or that the eeprom doesn't exist.  We will treat
@@ -351,14 +276,9 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 		 * MAC Address
 		 */
 		adapter->has_eeprom = 0;
-
-		DBG_LEAVE(et131x_dbginfo);
 		return -EIO;
-	} else {
-		DBG_TRACE(et131x_dbginfo, "EEPROM Status Code - 0x%04x\n",
-			  eepromStat);
+	} else
 		adapter->has_eeprom = 1;
-	}
 
 	/* Read the EEPROM for information regarding LED behavior. Refer to
 	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
@@ -375,9 +295,8 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	 */
 	result = pci_read_config_byte(pdev, ET1310_PCI_MAX_PYLD, &maxPayload);
 	if (result != PCIBIOS_SUCCESSFUL) {
-		DBG_ERROR(et131x_dbginfo, "Could not read PCI config space for "
-			  "Max Payload Size\n");
-		DBG_LEAVE(et131x_dbginfo);
+		dev_err(&pdev->dev,
+		    "Could not read PCI config space for Max Payload Size\n");
 		return -EIO;
 	}
 
@@ -391,20 +310,16 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 		result = pci_write_config_word(pdev, ET1310_PCI_ACK_NACK,
 					       AckNak[maxPayload]);
 		if (result != PCIBIOS_SUCCESSFUL) {
-			DBG_ERROR(et131x_dbginfo,
-				  "Could not write PCI config space "
-				  "for ACK/NAK\n");
-			DBG_LEAVE(et131x_dbginfo);
+			dev_err(&pdev->dev,
+			  "Could not write PCI config space for ACK/NAK\n");
 			return -EIO;
 		}
 
 		result = pci_write_config_word(pdev, ET1310_PCI_REPLAY,
 					       Replay[maxPayload]);
 		if (result != PCIBIOS_SUCCESSFUL) {
-			DBG_ERROR(et131x_dbginfo,
-				  "Could not write PCI config space "
-				  "for Replay Timer\n");
-			DBG_LEAVE(et131x_dbginfo);
+			dev_err(&pdev->dev,
+			  "Could not write PCI config space for Replay Timer\n");
 			return -EIO;
 		}
 	}
@@ -414,19 +329,16 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	 */
 	result = pci_write_config_byte(pdev, ET1310_PCI_L0L1LATENCY, 0x11);
 	if (result != PCIBIOS_SUCCESSFUL) {
-		DBG_ERROR(et131x_dbginfo,
-			  "Could not write PCI config space for "
-			  "Latency Timers\n");
-		DBG_LEAVE(et131x_dbginfo);
+		dev_err(&pdev->dev,
+		  "Could not write PCI config space for Latency Timers\n");
 		return -EIO;
 	}
 
 	/* Change the max read size to 2k */
 	result = pci_read_config_byte(pdev, 0x51, &read_size_reg);
 	if (result != PCIBIOS_SUCCESSFUL) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&pdev->dev,
 			"Could not read PCI config space for Max read size\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -EIO;
 	}
 
@@ -435,9 +347,8 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 
 	result = pci_write_config_byte(pdev, 0x51, read_size_reg);
 	if (result != PCIBIOS_SUCCESSFUL) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&pdev->dev,
 		      "Could not write PCI config space for Max read size\n");
-		DBG_LEAVE(et131x_dbginfo);
 		return -EIO;
 	}
 
@@ -452,15 +363,11 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 					pdev, ET1310_PCI_MAC_ADDRESS + i,
 					adapter->PermanentAddress + i);
 			if (result != PCIBIOS_SUCCESSFUL) {
-				DBG_ERROR(et131x_dbginfo,
-						"Could not read PCI config space for MAC address\n");
-				DBG_LEAVE(et131x_dbginfo);
+				dev_err(&pdev->dev, ";Could not read PCI config space for MAC address\n");
 				return -EIO;
 			}
 		}
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 	return 0;
 }
 
@@ -481,9 +388,8 @@ void et131x_error_timer_handler(unsigned long data)
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
 		UpdateMacStatHostCounters(etdev);
 	else
-		DBG_VERBOSE(et131x_dbginfo,
-			    "No interrupts, in PHY coma, pm_csr = 0x%x\n",
-			    pm_csr);
+		dev_err(&etdev->pdev->dev,
+		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
 	if (!etdev->Bmsr.bits.link_status &&
 	    etdev->RegistryPhyComa &&
@@ -541,8 +447,6 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 {
 	struct _GLOBAL_t __iomem *regs = &etdev->regs->global;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	if (etdev->RegistryPhyLoopbk == false) {
 		if (etdev->RegistryJumboPacket < 2048) {
 			/* Tx / RxDMA and Tx/Rx MAC interfaces have a 1k word
@@ -596,8 +500,6 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 	 * a packet is queued.
 	 */
 	writel(0, &regs->watchdog_timer);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 
@@ -610,8 +512,6 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 int et131x_adapter_setup(struct et131x_adapter *etdev)
 {
 	int status = 0;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Configure the JAGCore */
 	ConfigGlobalRegs(etdev);
@@ -634,7 +534,7 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	status = et131x_xcvr_find(etdev);
 
 	if (status != 0)
-		DBG_WARNING(et131x_dbginfo, "Could not find the xcvr\n");
+		dev_warn(&etdev->pdev->dev, "Could not find the xcvr\n");
 
 	/* Prepare the TRUEPHY library. */
 	ET1310_PhyInit(etdev);
@@ -658,9 +558,7 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	ET1310_PhyPowerDown(etdev, 0);
 
 	et131x_setphy_normal(etdev);
-
-	DBG_LEAVE(et131x_dbginfo);
-	return status;
+;	return status;
 }
 
 /**
@@ -669,8 +567,6 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
  */
 void et131x_setup_hardware_properties(struct et131x_adapter *adapter)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* If have our default mac from registry and no mac address from
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
@@ -702,8 +598,6 @@ void et131x_setup_hardware_properties(struct et131x_adapter *adapter)
 		memcpy(adapter->CurrentAddress,
 		       adapter->PermanentAddress, ETH_ALEN);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -712,8 +606,6 @@ void et131x_setup_hardware_properties(struct et131x_adapter *adapter)
  */
 void et131x_soft_reset(struct et131x_adapter *adapter)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Disable MAC Core */
 	writel(0xc00f0000, &adapter->regs->mac.cfg1.value);
 
@@ -721,8 +613,6 @@ void et131x_soft_reset(struct et131x_adapter *adapter)
 	writel(0x7F, &adapter->regs->global.sw_reset);
 	writel(0x000f0000, &adapter->regs->mac.cfg1.value);
 	writel(0x00000000, &adapter->regs->mac.cfg1.value);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -738,8 +628,6 @@ void et131x_align_allocated_memory(struct et131x_adapter *adapter,
 {
 	uint64_t new_addr;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	*offset = 0;
 
 	new_addr = *phys_addr & ~mask;
@@ -752,8 +640,6 @@ void et131x_align_allocated_memory(struct et131x_adapter *adapter,
 		/* Return new physical address */
 		*phys_addr = new_addr;
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -768,13 +654,11 @@ int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 {
 	int status = 0;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	do {
 		/* Allocate memory for the Tx Ring */
 		status = et131x_tx_dma_memory_alloc(adapter);
 		if (status != 0) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&adapter->pdev->dev,
 				  "et131x_tx_dma_memory_alloc FAILED\n");
 			break;
 		}
@@ -782,7 +666,7 @@ int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 		/* Receive buffer memory allocation */
 		status = et131x_rx_dma_memory_alloc(adapter);
 		if (status != 0) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&adapter->pdev->dev,
 				  "et131x_rx_dma_memory_alloc FAILED\n");
 			et131x_tx_dma_memory_free(adapter);
 			break;
@@ -791,14 +675,13 @@ int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 		/* Init receive data structures */
 		status = et131x_init_recv(adapter);
 		if (status != 0) {
-			DBG_ERROR(et131x_dbginfo, "et131x_init_recv FAILED\n");
+			dev_err(&adapter->pdev->dev,
+				"et131x_init_recv FAILED\n");
 			et131x_tx_dma_memory_free(adapter);
 			et131x_rx_dma_memory_free(adapter);
 			break;
 		}
 	} while (0);
-
-	DBG_LEAVE(et131x_dbginfo);
 	return status;
 }
 
@@ -808,13 +691,9 @@ int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
  */
 void et131x_adapter_memory_free(struct et131x_adapter *adapter)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Free DMA memory */
 	et131x_tx_dma_memory_free(adapter);
 	et131x_rx_dma_memory_free(adapter);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -830,8 +709,6 @@ void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	struct net_device *netdev;
 	struct et131x_adapter *adapter;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Retrieve the net_device pointer from the pci_dev struct, as well
 	 * as the private adapter struct
 	 */
@@ -846,8 +723,6 @@ void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	free_netdev(netdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -866,11 +741,9 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 	static const u8 duplex[] = { 0, 1, 2, 1, 2, 2 };
 	static const u16 speed[] = { 0, 10, 10, 100, 100, 1000 };
 
-	DBG_ENTER(et131x_dbginfo);
-
 	if (et131x_speed_set)
-		DBG_VERBOSE(et131x_dbginfo, "Speed set manually to : %d \n",
-			    et131x_speed_set);
+		dev_info(&etdev->pdev->dev,
+			"Speed set manually to : %d \n", et131x_speed_set);
 
 	etdev->SpeedDuplex = et131x_speed_set;
 	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
@@ -894,8 +767,6 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 
 	etdev->AiForceSpeed = speed[etdev->SpeedDuplex];
 	etdev->AiForceDpx = duplex[etdev->SpeedDuplex];	/* Auto FDX */
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 
@@ -920,18 +791,17 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	struct net_device *netdev = NULL;
 	struct et131x_adapter *adapter = NULL;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Enable the device via the PCI subsystem */
 	result = pci_enable_device(pdev);
 	if (result != 0) {
-		DBG_ERROR(et131x_dbginfo, "pci_enable_device() failed\n");
+		dev_err(&adapter->pdev->dev,
+			"pci_enable_device() failed\n");
 		goto out;
 	}
 
 	/* Perform some basic PCI checks */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Can't find PCI device's base address\n");
 		result = -ENODEV;
 		goto out;
@@ -939,12 +809,12 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 
 	result = pci_request_regions(pdev, DRIVER_NAME);
 	if (result != 0) {
-		DBG_ERROR(et131x_dbginfo, "Can't get PCI resources\n");
+		dev_err(&adapter->pdev->dev,
+			"Can't get PCI resources\n");
 		goto err_disable;
 	}
 
 	/* Enable PCI bus mastering */
-	DBG_TRACE(et131x_dbginfo, "Setting PCI Bus Mastering...\n");
 	pci_set_master(pdev);
 
 	/* Query PCI for Power Mgmt Capabilities
@@ -954,7 +824,7 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	 */
 	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (pm_cap == 0) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_err(&adapter->pdev->dev,
 			  "Cannot find Power Management capabilities\n");
 		result = -EIO;
 		goto err_release_res;
@@ -962,40 +832,34 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 
 	/* Check the DMA addressing support of this device */
 	if (!pci_set_dma_mask(pdev, 0xffffffffffffffffULL)) {
-		DBG_TRACE(et131x_dbginfo, "64-bit DMA addressing supported\n");
 		pci_using_dac = true;
 
 		result =
 		    pci_set_consistent_dma_mask(pdev, 0xffffffffffffffffULL);
 		if (result != 0) {
-			DBG_ERROR(et131x_dbginfo,
+			dev_err(&pdev->dev,
 				  "Unable to obtain 64 bit DMA for consistent allocations\n");
 			goto err_release_res;
 		}
 	} else if (!pci_set_dma_mask(pdev, 0xffffffffULL)) {
-		DBG_TRACE(et131x_dbginfo,
-			  "64-bit DMA addressing NOT supported\n");
-		DBG_TRACE(et131x_dbginfo,
-			  "32-bit DMA addressing will be used\n");
 		pci_using_dac = false;
 	} else {
-		DBG_ERROR(et131x_dbginfo, "No usable DMA addressing method\n");
+		dev_err(&adapter->pdev->dev,
+			"No usable DMA addressing method\n");
 		result = -EIO;
 		goto err_release_res;
 	}
 
 	/* Allocate netdev and private adapter structs */
-	DBG_TRACE(et131x_dbginfo,
-		  "Allocate netdev and private adapter structs...\n");
 	netdev = et131x_device_alloc();
 	if (netdev == NULL) {
-		DBG_ERROR(et131x_dbginfo, "Couldn't alloc netdev struct\n");
+		dev_err(&adapter->pdev->dev,
+			"Couldn't alloc netdev struct\n");
 		result = -ENOMEM;
 		goto err_release_res;
 	}
 
 	/* Setup the fundamental net_device and private adapter structure elements  */
-	DBG_TRACE(et131x_dbginfo, "Setting fundamental net_device info...\n");
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	/*
 	if (pci_using_dac) {
@@ -1036,8 +900,6 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	netdev->base_addr = pdev->resource[0].start;
 
 	/* Initialize spinlocks here */
-	DBG_TRACE(et131x_dbginfo, "Initialize spinlocks...\n");
-
 	spin_lock_init(&adapter->Lock);
 	spin_lock_init(&adapter->TCBSendQLock);
 	spin_lock_init(&adapter->TCBReadyQLock);
@@ -1061,13 +923,11 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	et131x_find_adapter(adapter, pdev);
 
 	/* Map the bus-relative registers to system virtual memory */
-	DBG_TRACE(et131x_dbginfo,
-		  "Mapping bus-relative registers to virtual memory...\n");
 
 	adapter->regs = ioremap_nocache(pci_resource_start(pdev, 0),
 					      pci_resource_len(pdev, 0));
 	if (adapter->regs == NULL) {
-		DBG_ERROR(et131x_dbginfo, "Cannot map device registers\n");
+		dev_err(&pdev->dev, "Cannot map device registers\n");
 		result = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -1078,23 +938,19 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	writel(ET_PMCSR_INIT,  &adapter->regs->global.pm_csr);
 
 	/* Issue a global reset to the et1310 */
-	DBG_TRACE(et131x_dbginfo, "Issuing soft reset...\n");
 	et131x_soft_reset(adapter);
 
 	/* Disable all interrupts (paranoid) */
-	DBG_TRACE(et131x_dbginfo, "Disable device interrupts...\n");
 	et131x_disable_interrupts(adapter);
 
 	/* Allocate DMA memory */
 	result = et131x_adapter_memory_alloc(adapter);
 	if (result != 0) {
-		DBG_ERROR(et131x_dbginfo,
-			  "Could not alloc adapater memory (DMA)\n");
+		dev_err(&pdev->dev, "Could not alloc adapater memory (DMA)\n");
 		goto err_iounmap;
 	}
 
 	/* Init send data structures */
-	DBG_TRACE(et131x_dbginfo, "Init send data structures...\n");
 	et131x_init_send(adapter);
 
 	/* Register the interrupt
@@ -1109,13 +965,11 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	INIT_WORK(&adapter->task, et131x_isr_handler);
 
 	/* Determine MAC Address, and copy into the net_device struct */
-	DBG_TRACE(et131x_dbginfo, "Retrieve MAC address...\n");
 	et131x_setup_hardware_properties(adapter);
 
 	memcpy(netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN);
 
 	/* Setup et1310 as per the documentation */
-	DBG_TRACE(et131x_dbginfo, "Setup the adapter...\n");
 	et131x_adapter_setup(adapter);
 
 	/* Create a timer to count errors received by the NIC */
@@ -1140,10 +994,9 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	 */
 
 	/* Register the net_device struct with the Linux network layer */
-	DBG_TRACE(et131x_dbginfo, "Registering net_device...\n");
 	result = register_netdev(netdev);
 	if (result != 0) {
-		DBG_ERROR(et131x_dbginfo, "register_netdev() failed\n");
+		dev_err(&pdev->dev, "register_netdev() failed\n");
 		goto err_mem_free;
 	}
 
@@ -1156,7 +1009,6 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	pci_save_state(adapter->pdev);
 
 out:
-	DBG_LEAVE(et131x_dbginfo);
 	return result;
 
 err_mem_free:

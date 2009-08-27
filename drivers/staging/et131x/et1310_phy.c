@@ -56,7 +56,6 @@
  */
 
 #include "et131x_version.h"
-#include "et131x_debug.h"
 #include "et131x_defs.h"
 
 #include <linux/pci.h>
@@ -97,11 +96,6 @@
 #include "et1310_tx.h"
 #include "et1310_rx.h"
 #include "et1310_mac.h"
-
-/* Data for debugging facilities */
-#ifdef CONFIG_ET131X_DEBUG
-extern dbg_info_t *et131x_dbginfo;
-#endif /* CONFIG_ET131X_DEBUG */
 
 /* Prototypes for functions with local scope */
 static int et131x_xcvr_init(struct et131x_adapter *adapter);
@@ -157,9 +151,9 @@ int PhyMiRead(struct et131x_adapter *adapter, uint8_t xcvrAddr,
 
 	/* If we hit the max delay, we could not read the register */
 	if (delay >= 50) {
-		DBG_WARNING(et131x_dbginfo,
+		dev_warn(&adapter->pdev->dev,
 			    "xcvrReg 0x%08x could not be read\n", xcvrReg);
-		DBG_WARNING(et131x_dbginfo, "status is  0x%08x\n",
+		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
 			    miiIndicator.value);
 
 		status = -EIO;
@@ -178,10 +172,6 @@ int PhyMiRead(struct et131x_adapter *adapter, uint8_t xcvrAddr,
 
 	/* Stop the read operation */
 	writel(0, &mac->mii_mgmt_cmd.value);
-
-	DBG_VERBOSE(et131x_dbginfo, "  xcvr_addr = 0x%02x, "
-		    "xcvr_reg  = 0x%02x, "
-		    "value     = 0x%04x.\n", xcvrAddr, xcvrReg, *value);
 
 	/* set the registers we touched back to the state at which we entered
 	 * this function
@@ -242,11 +232,11 @@ int MiWrite(struct et131x_adapter *adapter, uint8_t xcvrReg, uint16_t value)
 	if (delay == 100) {
 		uint16_t TempValue;
 
-		DBG_WARNING(et131x_dbginfo,
-			    "xcvrReg 0x%08x could not be written", xcvrReg);
-		DBG_WARNING(et131x_dbginfo, "status is  0x%08x\n",
+		dev_warn(&adapter->pdev->dev,
+		    "xcvrReg 0x%08x could not be written", xcvrReg);
+		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
 			    miiIndicator.value);
-		DBG_WARNING(et131x_dbginfo, "command is  0x%08x\n",
+		dev_warn(&adapter->pdev->dev, "command is  0x%08x\n",
 			    readl(&mac->mii_mgmt_cmd.value));
 
 		MiRead(adapter, xcvrReg, &TempValue);
@@ -262,10 +252,6 @@ int MiWrite(struct et131x_adapter *adapter, uint8_t xcvrReg, uint16_t value)
 	 */
 	writel(miiAddr.value, &mac->mii_mgmt_addr.value);
 	writel(miiCmd.value, &mac->mii_mgmt_cmd.value);
-
-	DBG_VERBOSE(et131x_dbginfo, " xcvr_addr = 0x%02x, "
-		    "xcvr_reg  = 0x%02x, "
-		    "value     = 0x%04x.\n", xcvrAddr, xcvrReg, value);
 
 	return status;
 }
@@ -284,8 +270,6 @@ int et131x_xcvr_find(struct et131x_adapter *adapter)
 	MI_IDR2_t idr2;
 	uint32_t xcvr_id;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* We need to get xcvr id and address we just get the first one */
 	for (xcvr_addr = 0; xcvr_addr < 32; xcvr_addr++) {
 		/* Read the ID from the PHY */
@@ -299,10 +283,6 @@ int et131x_xcvr_find(struct et131x_adapter *adapter)
 		xcvr_id = (uint32_t) ((idr1.value << 16) | idr2.value);
 
 		if ((idr1.value != 0) && (idr1.value != 0xffff)) {
-			DBG_TRACE(et131x_dbginfo,
-				  "Xcvr addr: 0x%02x\tXcvr_id: 0x%08x\n",
-				  xcvr_addr, xcvr_id);
-
 			adapter->Stats.xcvr_id = xcvr_id;
 			adapter->Stats.xcvr_addr = xcvr_addr;
 
@@ -310,8 +290,6 @@ int et131x_xcvr_find(struct et131x_adapter *adapter)
 			break;
 		}
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 	return status;
 }
 
@@ -327,13 +305,9 @@ int et131x_setphy_normal(struct et131x_adapter *adapter)
 {
 	int status;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Make sure the PHY is powered up */
 	ET1310_PhyPowerDown(adapter, 0);
 	status = et131x_xcvr_init(adapter);
-
-	DBG_LEAVE(et131x_dbginfo);
 	return status;
 }
 
@@ -349,8 +323,6 @@ static int et131x_xcvr_init(struct et131x_adapter *adapter)
 	MI_IMR_t imr;
 	MI_ISR_t isr;
 	MI_LCR2_t lcr2;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Zero out the adapter structure variable representing BMSR */
 	adapter->Bmsr.value = 0;
@@ -412,8 +384,6 @@ static int et131x_xcvr_init(struct et131x_adapter *adapter)
 
 		/* NOTE - Do we need this? */
 		ET1310_PhyAccessMiBit(adapter, TRUEPHY_BIT_SET, 0, 9, NULL);
-
-		DBG_LEAVE(et131x_dbginfo);
 		return status;
 	} else {
 		ET1310_PhyAutoNeg(adapter, false);
@@ -469,7 +439,6 @@ static int et131x_xcvr_init(struct et131x_adapter *adapter)
 			break;
 		}
 
-		DBG_LEAVE(et131x_dbginfo);
 		return status;
 	}
 }
@@ -485,8 +454,6 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 	uint32_t masterslave;
 	uint32_t polarity;
 	unsigned long flags;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	if (bmsr_ints.bits.link_status) {
 		if (bmsr.bits.link_status) {
@@ -506,8 +473,8 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			if (etdev->RegistryPhyLoopbk == false)
 				netif_carrier_on(etdev->netdev);
 		} else {
-			DBG_WARNING(et131x_dbginfo,
-				    "Link down cable problem\n");
+			dev_warn(&etdev->pdev->dev,
+			    "Link down - cable problem ?\n");
 
 			if (etdev->linkspeed == TRUEPHY_SPEED_10MBPS) {
 				/* NOTE - Is there a way to query this without
@@ -586,11 +553,6 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			etdev->linkspeed = speed;
 			etdev->duplex_mode = duplex;
 
-			DBG_TRACE(et131x_dbginfo,
-				"etdev->linkspeed 0x%04x, etdev->duplex_mode 0x%08x\n",
-				etdev->linkspeed,
-				etdev->duplex_mode);
-
 			etdev->PoMgmt.TransPhyComaModeOnBoot = 20;
 
 			if (etdev->linkspeed == TRUEPHY_SPEED_10MBPS) {
@@ -619,8 +581,6 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			ConfigMACRegs2(etdev);
 		}
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -631,8 +591,6 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
  */
 void TPAL_SetPhy10HalfDuplex(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -646,8 +604,6 @@ void TPAL_SetPhy10HalfDuplex(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -658,8 +614,6 @@ void TPAL_SetPhy10HalfDuplex(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhy10FullDuplex(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -673,8 +627,6 @@ void TPAL_SetPhy10FullDuplex(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -683,8 +635,6 @@ void TPAL_SetPhy10FullDuplex(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhy10Force(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -704,8 +654,6 @@ void TPAL_SetPhy10Force(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -716,8 +664,6 @@ void TPAL_SetPhy10Force(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhy100HalfDuplex(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -734,8 +680,6 @@ void TPAL_SetPhy100HalfDuplex(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -746,8 +690,6 @@ void TPAL_SetPhy100HalfDuplex(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhy100FullDuplex(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -761,8 +703,6 @@ void TPAL_SetPhy100FullDuplex(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -771,8 +711,6 @@ void TPAL_SetPhy100FullDuplex(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhy100Force(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -792,8 +730,6 @@ void TPAL_SetPhy100Force(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -804,8 +740,6 @@ void TPAL_SetPhy100Force(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhy1000FullDuplex(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -819,8 +753,6 @@ void TPAL_SetPhy1000FullDuplex(struct et131x_adapter *etdev)
 
 	/* power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -829,8 +761,6 @@ void TPAL_SetPhy1000FullDuplex(struct et131x_adapter *etdev)
  */
 void TPAL_SetPhyAutoNeg(struct et131x_adapter *etdev)
 {
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Power down PHY */
 	ET1310_PhyPowerDown(etdev, 1);
 
@@ -849,8 +779,6 @@ void TPAL_SetPhyAutoNeg(struct et131x_adapter *etdev)
 
 	/* Power up PHY */
 	ET1310_PhyPowerDown(etdev, 0);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 

@@ -56,7 +56,6 @@
  */
 
 #include "et131x_version.h"
-#include "et131x_debug.h"
 #include "et131x_defs.h"
 
 #include <linux/init.h>
@@ -75,6 +74,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/pci.h>
 #include <asm/system.h>
 
 #include <linux/netdevice.h>
@@ -92,11 +92,6 @@
 #include "et131x_adapter.h"
 #include "et131x_initpci.h"
 
-/* Data for debugging facilities */
-#ifdef CONFIG_ET131X_DEBUG
-extern dbg_info_t *et131x_dbginfo;
-#endif /* CONFIG_ET131X_DEBUG */
-
 /**
  * ConfigMacRegs1 - Initialize the first part of MAC regs
  * @pAdpater: pointer to our adapter structure
@@ -109,8 +104,6 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	MAC_IPG_t ipg;
 	MAC_HFDP_t hfdp;
 	MII_MGMT_CFG_t mii_mgmt_cfg;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* First we need to reset everything.  Write to MAC configuration
 	 * register 1 to perform reset.
@@ -171,8 +164,6 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 
 	/* clear out MAC config reset */
 	writel(0, &pMac->cfg1.value);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -187,8 +178,6 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	MAC_CFG2_t cfg2;
 	MAC_IF_CTRL_t ifctrl;
 	TXMAC_CTL_t ctl;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	ctl.value = readl(&etdev->regs->txmac.ctl.value);
 	cfg1.value = readl(&pMac->cfg1.value);
@@ -255,16 +244,10 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 								 delay < 100);
 
 	if (delay == 100) {
-		DBG_ERROR(et131x_dbginfo,
+		dev_warn(&etdev->pdev->dev,
 		    "Syncd bits did not respond correctly cfg1 word 0x%08x\n",
 			cfg1.value);
 	}
-
-	DBG_TRACE(et131x_dbginfo,
-		"Speed %d, Dup %d, CFG1 0x%08x, CFG2 0x%08x, if_ctrl 0x%08x\n",
-		etdev->linkspeed, etdev->duplex_mode,
-		readl(&pMac->cfg1.value), readl(&pMac->cfg2.value),
-		readl(&pMac->if_ctrl.value));
 
 	/* Enable TXMAC */
 	ctl.bits.txmac_en = 0x1;
@@ -275,12 +258,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	if (etdev->Flags & fMP_ADAPTER_LOWER_POWER) {
 		et131x_rx_dma_enable(etdev);
 		et131x_tx_dma_enable(etdev);
-	} else {
-		DBG_WARNING(et131x_dbginfo,
-			    "Didn't enable Rx/Tx due to low-power mode\n");
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 void ConfigRxMacRegs(struct et131x_adapter *etdev)
@@ -289,8 +267,6 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	RXMAC_WOL_SA_LO_t sa_lo;
 	RXMAC_WOL_SA_HI_t sa_hi;
 	RXMAC_PF_CTRL_t pf_ctrl = { 0 };
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
 	writel(0x8, &pRxMac->ctrl.value);
@@ -421,16 +397,12 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 */
 	writel(pf_ctrl.value, &pRxMac->pf_ctrl.value);
 	writel(0x9, &pRxMac->ctrl.value);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 void ConfigTxMacRegs(struct et131x_adapter *etdev)
 {
 	struct _TXMAC_t __iomem *pTxMac = &etdev->regs->txmac;
 	TXMAC_CF_PARAM_t Local;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* We need to update the Control Frame Parameters
 	 * cfpt - control frame pause timer set to 64 (0x40)
@@ -443,16 +415,12 @@ void ConfigTxMacRegs(struct et131x_adapter *etdev)
 		Local.bits.cfep = 0x0;
 		writel(Local.value, &pTxMac->cf_param.value);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
 {
 	struct _MAC_STAT_t __iomem *pDevMacStat =
 		&etdev->regs->macStat;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Next we need to initialize all the MAC_STAT registers to zero on
 	 * the device.
@@ -534,8 +502,6 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 
 		writel(Carry2M.value, &pDevMacStat->Carry2M.value);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
@@ -614,8 +580,6 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	MAC_STAT_REG_1_t Carry1;
 	MAC_STAT_REG_2_t Carry2;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
@@ -659,8 +623,6 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 		etdev->Stats.late_collisions += COUNTER_WRAP_12_BIT;
 	if (Carry2.bits.tncl)
 		etdev->Stats.collisions += COUNTER_WRAP_12_BIT;
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 void SetupDeviceForMulticast(struct et131x_adapter *etdev)
@@ -674,30 +636,14 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 	uint32_t hash4 = 0;
 	u32 pm_csr;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	/* If ET131X_PACKET_TYPE_MULTICAST is specified, then we provision
 	 * the multi-cast LIST.  If it is NOT specified, (and "ALL" is not
 	 * specified) then we should pass NO multi-cast addresses to the
 	 * driver.
 	 */
 	if (etdev->PacketFilter & ET131X_PACKET_TYPE_MULTICAST) {
-		DBG_VERBOSE(et131x_dbginfo,
-			    "MULTICAST flag is set, MCCount: %d\n",
-			    etdev->MCAddressCount);
-
 		/* Loop through our multicast array and set up the device */
 		for (nIndex = 0; nIndex < etdev->MCAddressCount; nIndex++) {
-			DBG_VERBOSE(et131x_dbginfo,
-			    "MCList[%d]: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			    nIndex,
-			    etdev->MCList[nIndex][0],
-			    etdev->MCList[nIndex][1],
-			    etdev->MCList[nIndex][2],
-			    etdev->MCList[nIndex][3],
-			    etdev->MCList[nIndex][4],
-			    etdev->MCList[nIndex][5]);
-
 			result = ether_crc(6, etdev->MCList[nIndex]);
 
 			result = (result & 0x3F800000) >> 23;
@@ -725,8 +671,6 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 		writel(hash3, &rxmac->multi_hash3);
 		writel(hash4, &rxmac->multi_hash4);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 void SetupDeviceForUnicast(struct et131x_adapter *etdev)
@@ -736,8 +680,6 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	RXMAC_UNI_PF_ADDR2_t uni_pf2;
 	RXMAC_UNI_PF_ADDR3_t uni_pf3;
 	u32 pm_csr;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	/* Set up unicast packet filter reg 3 to be the first two octets of
 	 * the MAC address for both address
@@ -769,6 +711,4 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 		writel(uni_pf2.value, &rxmac->uni_pf_addr2.value);
 		writel(uni_pf3.value, &rxmac->uni_pf_addr3.value);
 	}
-
-	DBG_LEAVE(et131x_dbginfo);
 }

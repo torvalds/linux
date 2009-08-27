@@ -56,7 +56,6 @@
  */
 
 #include "et131x_version.h"
-#include "et131x_debug.h"
 #include "et131x_defs.h"
 
 #include <linux/init.h>
@@ -92,11 +91,6 @@
 #include "et131x_adapter.h"
 #include "et131x_initpci.h"
 
-/* Data for debugging facilities */
-#ifdef CONFIG_ET131X_DEBUG
-extern dbg_info_t *et131x_dbginfo;
-#endif /* CONFIG_ET131X_DEBUG */
-
 /**
  * EnablePhyComa - called when network cable is unplugged
  * @etdev: pointer to our adapter structure
@@ -122,8 +116,6 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	unsigned long flags;
 	u32 GlobalPmCSR;
 
-	DBG_ENTER(et131x_dbginfo);
-
 	GlobalPmCSR = readl(&etdev->regs->global.pm_csr);
 
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
@@ -146,8 +138,6 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	/* Program gigE PHY in to Coma mode */
 	GlobalPmCSR |= ET_PM_PHY_SW_COMA;
 	writel(GlobalPmCSR, &etdev->regs->global.pm_csr);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
 /**
@@ -157,8 +147,6 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 void DisablePhyComa(struct et131x_adapter *etdev)
 {
 	u32 GlobalPmCSR;
-
-	DBG_ENTER(et131x_dbginfo);
 
 	GlobalPmCSR = readl(&etdev->regs->global.pm_csr);
 
@@ -193,7 +181,5 @@ void DisablePhyComa(struct et131x_adapter *etdev)
 
 	/* Need to re-enable Rx. */
 	et131x_rx_dma_enable(etdev);
-
-	DBG_LEAVE(et131x_dbginfo);
 }
 
