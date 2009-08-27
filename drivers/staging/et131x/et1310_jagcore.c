@@ -101,7 +101,7 @@ extern dbg_info_t *et131x_dbginfo;
  */
 void ConfigGlobalRegs(struct et131x_adapter *etdev)
 {
-	struct _GLOBAL_t __iomem *pGbl = &etdev->CSRAddress->global;
+	struct _GLOBAL_t __iomem *pGbl = &etdev->regs->global;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -188,7 +188,7 @@ void ConfigMMCRegs(struct et131x_adapter *etdev)
 	mmc_ctrl.bits.arb_disable = 0x0;
 	mmc_ctrl.bits.mmc_enable = 0x1;
 
-	writel(mmc_ctrl.value, &etdev->CSRAddress->mmc.mmc_ctrl.value);
+	writel(mmc_ctrl.value, &etdev->regs->mmc.mmc_ctrl.value);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -207,12 +207,12 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 		MaskValue |= 0x10000;
 
 	adapter->CachedMaskValue.value = MaskValue;
-	writel(MaskValue, &adapter->CSRAddress->global.int_mask.value);
+	writel(MaskValue, &adapter->regs->global.int_mask.value);
 }
 
 void et131x_disable_interrupts(struct et131x_adapter *adapter)
 {
 	/* Disable all global interrupts */
 	adapter->CachedMaskValue.value = INT_MASK_DISABLE;
-	writel(INT_MASK_DISABLE, &adapter->CSRAddress->global.int_mask.value);
+	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask.value);
 }

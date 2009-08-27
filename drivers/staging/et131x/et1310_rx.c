@@ -680,7 +680,7 @@ void et131x_rfd_resources_free(struct et131x_adapter *adapter, MP_RFD *pMpRfd)
  */
 void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _RXDMA_t __iomem *pRxDma = &etdev->CSRAddress->rxdma;
+	struct _RXDMA_t __iomem *pRxDma = &etdev->regs->rxdma;
 	struct _rx_ring_t *pRxLocal = &etdev->RxRing;
 	PFBR_DESC_t pFbrEntry;
 	uint32_t iEntry;
@@ -817,8 +817,8 @@ void SetRxDmaTimer(struct et131x_adapter *etdev)
 	 */
 	if ((etdev->uiLinkSpeed == TRUEPHY_SPEED_100MBPS) ||
 	    (etdev->uiLinkSpeed == TRUEPHY_SPEED_10MBPS)) {
-		writel(0, &etdev->CSRAddress->rxdma.max_pkt_time.value);
-		writel(1, &etdev->CSRAddress->rxdma.num_pkt_done.value);
+		writel(0, &etdev->regs->rxdma.max_pkt_time.value);
+		writel(1, &etdev->regs->rxdma.num_pkt_done.value);
 	}
 }
 
@@ -833,11 +833,11 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup the receive dma configuration register */
-	writel(0x00002001, &etdev->CSRAddress->rxdma.csr.value);
-	csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
+	writel(0x00002001, &etdev->regs->rxdma.csr.value);
+	csr.value = readl(&etdev->regs->rxdma.csr.value);
 	if (csr.bits.halt_status != 1) {
 		udelay(5);
-		csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
+		csr.value = readl(&etdev->regs->rxdma.csr.value);
 		if (csr.bits.halt_status != 1)
 			DBG_ERROR(et131x_dbginfo,
 				"RX Dma failed to enter halt state. CSR 0x%08x\n",
@@ -857,7 +857,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 
 	if (etdev->RegistryPhyLoopbk)
 		/* RxDMA is disabled for loopback operation. */
-		writel(0x1, &etdev->CSRAddress->rxdma.csr.value);
+		writel(0x1, &etdev->regs->rxdma.csr.value);
 	else {
 	/* Setup the receive dma configuration register for normal operation */
 		RXDMA_CSR_t csr = { 0 };
@@ -878,12 +878,12 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 		else if (etdev->RxRing.Fbr0BufferSize == 1024)
 			csr.bits.fbr0_size = 3;
 #endif
-		writel(csr.value, &etdev->CSRAddress->rxdma.csr.value);
+		writel(csr.value, &etdev->regs->rxdma.csr.value);
 
-		csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
+		csr.value = readl(&etdev->regs->rxdma.csr.value);
 		if (csr.bits.halt_status != 0) {
 			udelay(5);
-			csr.value = readl(&etdev->CSRAddress->rxdma.csr.value);
+			csr.value = readl(&etdev->regs->rxdma.csr.value);
 			if (csr.bits.halt_status != 0) {
 				DBG_ERROR(et131x_dbginfo,
 					"RX Dma failed to exit halt state.  CSR 0x%08x\n",
@@ -978,7 +978,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	}
 
 	writel(pRxLocal->local_psr_full.value,
-	       &etdev->CSRAddress->rxdma.psr_full_offset.value);
+	       &etdev->regs->rxdma.psr_full_offset.value);
 
 #ifndef USE_FBR0
 	if (ringIndex != 1) {
@@ -1273,7 +1273,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 	if ((PacketArrayCount == NUM_PACKETS_HANDLED) || TempUnfinishedRec) {
 		etdev->RxRing.UnfinishedReceives = true;
 		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
-		       &etdev->CSRAddress->global.watchdog_timer);
+		       &etdev->regs->global.watchdog_timer);
 	} else {
 		/* Watchdog timer will disable itself if appropriate. */
 		etdev->RxRing.UnfinishedReceives = false;
@@ -1290,7 +1290,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 {
 	struct _rx_ring_t *pRxLocal = &etdev->RxRing;
-	struct _RXDMA_t __iomem *pRxDma = &etdev->CSRAddress->rxdma;
+	struct _RXDMA_t __iomem *pRxDma = &etdev->regs->rxdma;
 	uint16_t bi = pMpRfd->iBufferIndex;
 	uint8_t ri = pMpRfd->iRingIndex;
 	unsigned long flags;

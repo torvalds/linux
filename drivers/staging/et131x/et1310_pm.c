@@ -125,7 +125,7 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 
 	DBG_ENTER(et131x_dbginfo);
 
-	GlobalPmCSR.value = readl(&etdev->CSRAddress->global.pm_csr.value);
+	GlobalPmCSR.value = readl(&etdev->regs->global.pm_csr.value);
 
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
@@ -144,11 +144,11 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	GlobalPmCSR.bits.pm_sysclk_gate = 0;
 	GlobalPmCSR.bits.pm_txclk_gate = 0;
 	GlobalPmCSR.bits.pm_rxclk_gate = 0;
-	writel(GlobalPmCSR.value, &etdev->CSRAddress->global.pm_csr.value);
+	writel(GlobalPmCSR.value, &etdev->regs->global.pm_csr.value);
 
 	/* Program gigE PHY in to Coma mode */
 	GlobalPmCSR.bits.pm_phy_sw_coma = 1;
-	writel(GlobalPmCSR.value, &etdev->CSRAddress->global.pm_csr.value);
+	writel(GlobalPmCSR.value, &etdev->regs->global.pm_csr.value);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -163,14 +163,14 @@ void DisablePhyComa(struct et131x_adapter *etdev)
 
 	DBG_ENTER(et131x_dbginfo);
 
-	GlobalPmCSR.value = readl(&etdev->CSRAddress->global.pm_csr.value);
+	GlobalPmCSR.value = readl(&etdev->regs->global.pm_csr.value);
 
 	/* Disable phy_sw_coma register and re-enable JAGCore clocks */
 	GlobalPmCSR.bits.pm_sysclk_gate = 1;
 	GlobalPmCSR.bits.pm_txclk_gate = 1;
 	GlobalPmCSR.bits.pm_rxclk_gate = 1;
 	GlobalPmCSR.bits.pm_phy_sw_coma = 0;
-	writel(GlobalPmCSR.value, &etdev->CSRAddress->global.pm_csr.value);
+	writel(GlobalPmCSR.value, &etdev->regs->global.pm_csr.value);
 
 	/* Restore the GbE PHY speed and duplex modes;
 	 * Reset JAGCore; re-configure and initialize JAGCore and gigE PHY

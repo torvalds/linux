@@ -393,8 +393,8 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 
 	DBG_ENTER(et131x_dbginfo);
 
-	ctrl.value = readl(&adapter->CSRAddress->rxmac.ctrl.value);
-	pf_ctrl.value = readl(&adapter->CSRAddress->rxmac.pf_ctrl.value);
+	ctrl.value = readl(&adapter->regs->rxmac.ctrl.value);
+	pf_ctrl.value = readl(&adapter->regs->rxmac.pf_ctrl.value);
 
 	/* Default to disabled packet filtering.  Enable it in the individual
 	 * case statements that require the device to filter something
@@ -450,8 +450,8 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 		 * in the control reg.
 		 */
 		writel(pf_ctrl.value,
-		       &adapter->CSRAddress->rxmac.pf_ctrl.value);
-		writel(ctrl.value, &adapter->CSRAddress->rxmac.ctrl.value);
+		       &adapter->regs->rxmac.pf_ctrl.value);
+		writel(ctrl.value, &adapter->regs->rxmac.ctrl.value);
 	}
 
 	DBG_LEAVE(et131x_dbginfo);

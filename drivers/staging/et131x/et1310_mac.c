@@ -103,7 +103,7 @@ extern dbg_info_t *et131x_dbginfo;
  */
 void ConfigMACRegs1(struct et131x_adapter *etdev)
 {
-	struct _MAC_t __iomem *pMac = &etdev->CSRAddress->mac;
+	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
 	MAC_STATION_ADDR1_t station1;
 	MAC_STATION_ADDR2_t station2;
 	MAC_IPG_t ipg;
@@ -182,7 +182,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 void ConfigMACRegs2(struct et131x_adapter *etdev)
 {
 	int32_t delay = 0;
-	struct _MAC_t __iomem *pMac = &etdev->CSRAddress->mac;
+	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
 	MAC_CFG1_t cfg1;
 	MAC_CFG2_t cfg2;
 	MAC_IF_CTRL_t ifctrl;
@@ -190,7 +190,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 
 	DBG_ENTER(et131x_dbginfo);
 
-	ctl.value = readl(&etdev->CSRAddress->txmac.ctl.value);
+	ctl.value = readl(&etdev->regs->txmac.ctl.value);
 	cfg1.value = readl(&pMac->cfg1.value);
 	cfg2.value = readl(&pMac->cfg2.value);
 	ifctrl.value = readl(&pMac->if_ctrl.value);
@@ -269,7 +269,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	/* Enable TXMAC */
 	ctl.bits.txmac_en = 0x1;
 	ctl.bits.fc_disable = 0x1;
-	writel(ctl.value, &etdev->CSRAddress->txmac.ctl.value);
+	writel(ctl.value, &etdev->regs->txmac.ctl.value);
 
 	/* Ready to start the RXDMA/TXDMA engine */
 	if (!MP_TEST_FLAG(etdev, fMP_ADAPTER_LOWER_POWER)) {
@@ -285,7 +285,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 
 void ConfigRxMacRegs(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *pRxMac = &etdev->CSRAddress->rxmac;
+	struct _RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
 	RXMAC_WOL_SA_LO_t sa_lo;
 	RXMAC_WOL_SA_HI_t sa_hi;
 	RXMAC_PF_CTRL_t pf_ctrl = { 0 };
@@ -427,7 +427,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 
 void ConfigTxMacRegs(struct et131x_adapter *etdev)
 {
-	struct _TXMAC_t __iomem *pTxMac = &etdev->CSRAddress->txmac;
+	struct _TXMAC_t __iomem *pTxMac = &etdev->regs->txmac;
 	TXMAC_CF_PARAM_t Local;
 
 	DBG_ENTER(et131x_dbginfo);
@@ -450,7 +450,7 @@ void ConfigTxMacRegs(struct et131x_adapter *etdev)
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
 {
 	struct _MAC_STAT_t __iomem *pDevMacStat =
-		&etdev->CSRAddress->macStat;
+		&etdev->regs->macStat;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -581,7 +581,7 @@ void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
 	struct _ce_stats_t *stats = &etdev->Stats;
 	struct _MAC_STAT_t __iomem *pDevMacStat =
-		&etdev->CSRAddress->macStat;
+		&etdev->regs->macStat;
 
 	stats->collisions += readl(&pDevMacStat->TNcl);
 	stats->first_collision += readl(&pDevMacStat->TScl);
@@ -619,11 +619,11 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1.value = readl(&etdev->CSRAddress->macStat.Carry1.value);
-	Carry2.value = readl(&etdev->CSRAddress->macStat.Carry2.value);
+	Carry1.value = readl(&etdev->regs->macStat.Carry1.value);
+	Carry2.value = readl(&etdev->regs->macStat.Carry2.value);
 
-	writel(Carry1.value, &etdev->CSRAddress->macStat.Carry1.value);
-	writel(Carry2.value, &etdev->CSRAddress->macStat.Carry2.value);
+	writel(Carry1.value, &etdev->regs->macStat.Carry1.value);
+	writel(Carry2.value, &etdev->regs->macStat.Carry2.value);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
@@ -665,7 +665,7 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 
 void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *rxmac = &etdev->CSRAddress->rxmac;
+	struct _RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
 	uint32_t nIndex;
 	uint32_t result;
 	uint32_t hash1 = 0;
@@ -718,7 +718,7 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 	}
 
 	/* Write out the new hash to the device */
-	pm_csr.value = readl(&etdev->CSRAddress->global.pm_csr.value);
+	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
 	if (pm_csr.bits.pm_phy_sw_coma == 0) {
 		writel(hash1, &rxmac->multi_hash1);
 		writel(hash2, &rxmac->multi_hash2);
@@ -731,7 +731,7 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 
 void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *rxmac = &etdev->CSRAddress->rxmac;
+	struct _RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
 	RXMAC_UNI_PF_ADDR1_t uni_pf1;
 	RXMAC_UNI_PF_ADDR2_t uni_pf2;
 	RXMAC_UNI_PF_ADDR3_t uni_pf3;
@@ -763,7 +763,7 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	uni_pf1.bits.addr1_5 = etdev->CurrentAddress[4];
 	uni_pf1.bits.addr1_6 = etdev->CurrentAddress[5];
 
-	pm_csr.value = readl(&etdev->CSRAddress->global.pm_csr.value);
+	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
 	if (pm_csr.bits.pm_phy_sw_coma == 0) {
 		writel(uni_pf1.value, &rxmac->uni_pf_addr1.value);
 		writel(uni_pf2.value, &rxmac->uni_pf_addr2.value);

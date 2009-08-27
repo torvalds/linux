@@ -440,7 +440,7 @@ void et131x_error_timer_handler(unsigned long data)
 	struct et131x_adapter *etdev = (struct et131x_adapter *) data;
 	PM_CSR_t pm_csr;
 
-	pm_csr.value = readl(&etdev->CSRAddress->global.pm_csr.value);
+	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
 
 	if (pm_csr.bits.pm_phy_sw_coma == 0) {
 		if (etdev->RegistryMACStat)
@@ -615,12 +615,12 @@ void et131x_soft_reset(struct et131x_adapter *adapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Disable MAC Core */
-	writel(0xc00f0000, &adapter->CSRAddress->mac.cfg1.value);
+	writel(0xc00f0000, &adapter->regs->mac.cfg1.value);
 
 	/* Set everything to a reset value */
-	writel(0x7F, &adapter->CSRAddress->global.sw_reset.value);
-	writel(0x000f0000, &adapter->CSRAddress->mac.cfg1.value);
-	writel(0x00000000, &adapter->CSRAddress->mac.cfg1.value);
+	writel(0x7F, &adapter->regs->global.sw_reset.value);
+	writel(0x000f0000, &adapter->regs->mac.cfg1.value);
+	writel(0x00000000, &adapter->regs->mac.cfg1.value);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -741,7 +741,7 @@ void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	/* Perform device cleanup */
 	unregister_netdev(netdev);
 	et131x_adapter_memory_free(adapter);
-	iounmap(adapter->CSRAddress);
+	iounmap(adapter->regs);
 	pci_dev_put(adapter->pdev);
 	free_netdev(netdev);
 	pci_release_regions(pdev);
@@ -915,9 +915,9 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	DBG_TRACE(et131x_dbginfo,
 		  "Mapping bus-relative registers to virtual memory...\n");
 
-	adapter->CSRAddress = ioremap_nocache(pci_resource_start(pdev, 0),
+	adapter->regs = ioremap_nocache(pci_resource_start(pdev, 0),
 					      pci_resource_len(pdev, 0));
-	if (adapter->CSRAddress == NULL) {
+	if (adapter->regs == NULL) {
 		DBG_ERROR(et131x_dbginfo, "Cannot map device registers\n");
 		result = -ENOMEM;
 		goto err_free_dev;
@@ -933,7 +933,7 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 		GlobalPmCSR.bits.pm_txclk_gate = 1;
 		GlobalPmCSR.bits.pm_rxclk_gate = 1;
 		writel(GlobalPmCSR.value,
-		       &adapter->CSRAddress->global.pm_csr.value);
+		       &adapter->regs->global.pm_csr.value);
 	}
 
 	/* Issue a global reset to the et1310 */
@@ -1021,7 +1021,7 @@ out:
 err_mem_free:
 	et131x_adapter_memory_free(adapter);
 err_iounmap:
-	iounmap(adapter->CSRAddress);
+	iounmap(adapter->regs);
 err_free_dev:
 	pci_dev_put(pdev);
 	free_netdev(netdev);

@@ -110,7 +110,7 @@ extern dbg_info_t *et131x_dbginfo;
  */
 void DumpTxQueueContents(int dbgLvl, struct et131x_adapter *etdev)
 {
-	MMC_t __iomem *mmc = &etdev->CSRAddress->mmc;
+	MMC_t __iomem *mmc = &etdev->regs->mmc;
 	uint32_t TxQueueAddr;
 
 	if (DBG_FLAGS(et131x_dbginfo) & dbgLvl) {
@@ -134,7 +134,7 @@ void DumpTxQueueContents(int dbgLvl, struct et131x_adapter *etdev)
 		}
 
 		DBG_PRINT("Shadow Pointers 0x%08x\n",
-			  readl(&etdev->CSRAddress->txmac.shadow_ptr.value));
+			  readl(&etdev->regs->txmac.shadow_ptr.value));
 	}
 }
 
@@ -151,7 +151,7 @@ void DumpDeviceBlock(int dbgLvl, struct et131x_adapter *etdev,
 {
 	uint32_t Address1, Address2;
 	uint32_t __iomem *BigDevicePointer =
-		(uint32_t __iomem *) etdev->CSRAddress;
+		(uint32_t __iomem *) etdev->regs;
 	const char *BlockNames[NUM_BLOCKS] = {
 		"Global", "Tx DMA", "Rx DMA", "Tx MAC",
 		"Rx MAC", "MAC", "MAC Stat", "MMC"
@@ -189,7 +189,7 @@ void DumpDeviceReg(int dbgLvl, struct et131x_adapter *etdev)
 	uint32_t Address1, Address2;
 	uint32_t Block;
 	uint32_t __iomem *BigDevicePointer =
-		(uint32_t __iomem *) etdev->CSRAddress;
+		(uint32_t __iomem *) etdev->regs;
 	uint32_t __iomem *Pointer;
 	const char *BlockNames[NUM_BLOCKS] = {
 		"Global", "Tx DMA", "Rx DMA", "Tx MAC",

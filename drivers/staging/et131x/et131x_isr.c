@@ -129,7 +129,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	/* Get a copy of the value in the interrupt status register
 	 * so we can process the interrupting section
 	 */
-	status.value = readl(&adapter->CSRAddress->global.int_status.value);
+	status.value = readl(&adapter->regs->global.int_status.value);
 
 	if (adapter->FlowControl == TxOnly ||
 	    adapter->FlowControl == Both) {
@@ -168,7 +168,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 		if (adapter->RxRing.UnfinishedReceives)
 			status.bits.rxdma_xfr_done = 1;
 		else if (pMpTcb == NULL)
-			writel(0, &adapter->CSRAddress->global.watchdog_timer);
+			writel(0, &adapter->regs->global.watchdog_timer);
 
 		status.bits.watchdog_interrupt = 0;
 #ifdef CONFIG_ET131X_DEBUG
@@ -214,7 +214,7 @@ void et131x_isr_handler(struct work_struct *work)
 	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
 	INTERRUPT_t GlobStatus = etdev->Stats.InterruptStatus;
-	ADDRESS_MAP_t __iomem *iomem = etdev->CSRAddress;
+	ADDRESS_MAP_t __iomem *iomem = etdev->regs;
 
 	/*
 	 * These first two are by far the most common.  Once handled, we clear

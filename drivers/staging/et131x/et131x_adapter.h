@@ -248,7 +248,7 @@ struct et131x_adapter {
 	TXMAC_TXTEST_t TxMacTest;
 
 	/* Pointer to the device's PCI register space */
-	ADDRESS_MAP_t __iomem *CSRAddress;
+	ADDRESS_MAP_t __iomem *regs;
 
 	/* Registry parameters */
 	u8 SpeedDuplex;		/* speed/duplex */

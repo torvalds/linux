@@ -249,7 +249,7 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
  */
 void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _TXDMA_t __iomem *pTxDma = &etdev->CSRAddress->txdma;
+	struct _TXDMA_t __iomem *pTxDma = &etdev->regs->txdma;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -289,7 +289,7 @@ void et131x_tx_dma_disable(struct et131x_adapter *etdev)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup the tramsmit dma configuration register */
-	writel(0x101, &etdev->CSRAddress->txdma.csr.value);
+	writel(0x101, &etdev->regs->txdma.csr.value);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -306,7 +306,7 @@ void et131x_tx_dma_enable(struct et131x_adapter *etdev)
 
 	if (etdev->RegistryPhyLoopbk) {
 		/* TxDMA is disabled for loopback operation. */
-		writel(0x101, &etdev->CSRAddress->txdma.csr.value);
+		writel(0x101, &etdev->regs->txdma.csr.value);
 	} else {
 		TXDMA_CSR_t csr = { 0 };
 
@@ -316,7 +316,7 @@ void et131x_tx_dma_enable(struct et131x_adapter *etdev)
 		csr.bits.sngl_epkt_mode = 1;
 		csr.bits.halt = 0;
 		csr.bits.cache_thrshld = etdev->RegistryDMACache;
-		writel(csr.value, &etdev->CSRAddress->txdma.csr.value);
+		writel(csr.value, &etdev->regs->txdma.csr.value);
 	}
 
 	DBG_LEAVE(et131x_dbginfo);
@@ -788,14 +788,14 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	/* Write the new write pointer back to the device. */
 	writel(etdev->TxRing.txDmaReadyToSend.value,
-	       &etdev->CSRAddress->txdma.service_request.value);
+	       &etdev->regs->txdma.service_request.value);
 
 	/* For Gig only, we use Tx Interrupt coalescing.  Enable the software
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
 	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
 		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
-		       &etdev->CSRAddress->global.watchdog_timer);
+		       &etdev->regs->global.watchdog_timer);
 	}
 
 	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
@@ -837,7 +837,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	DBG_TX_ENTER(et131x_dbginfo);
 
 	ServiceComplete.value =
-		readl(&etdev->CSRAddress->txdma.NewServiceComplete.value);
+		readl(&etdev->regs->txdma.NewServiceComplete.value);
 
 	/*
 	 * Attempt to fix TWO hardware bugs:
@@ -1202,7 +1202,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	/* Write the new write pointer back to the device. */
 	writel(etdev->TxRing.txDmaReadyToSend.value,
-	       &etdev->CSRAddress->txdma.service_request.value);
+	       &etdev->regs->txdma.service_request.value);
 
 #ifdef CONFIG_ET131X_DEBUG
 	DumpDeviceBlock(DBG_TX_ON, etdev, 1);
@@ -1213,7 +1213,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	 */
 	if (etdev->uiLinkSpeed == TRUEPHY_SPEED_1000MBPS) {
 		writel(etdev->RegistryTxTimeInterval * NANO_IN_A_MICRO,
-		       &etdev->CSRAddress->global.watchdog_timer);
+		       &etdev->regs->global.watchdog_timer);
 	}
 
 	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
@@ -1434,7 +1434,7 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 	PMP_TCB pMpTcb;
 
 	ServiceComplete.value =
-	    readl(&etdev->CSRAddress->txdma.NewServiceComplete.value);
+	    readl(&etdev->regs->txdma.NewServiceComplete.value);
 
 	/* Has the ring wrapped?  Process any descriptors that do not have
 	 * the same "wrap" indicator as the current completion indicator
