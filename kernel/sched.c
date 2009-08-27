@@ -1515,30 +1515,29 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
+struct update_shares_data {
+	unsigned long rq_weight[NR_CPUS];
+};
+
+static DEFINE_PER_CPU(struct update_shares_data, update_shares_data);
+
 static void __set_se_shares(struct sched_entity *se, unsigned long shares);
 
 /*
  * Calculate and set the cpu's group shares.
  */
-static void
-update_group_shares_cpu(struct task_group *tg, int cpu,
-			unsigned long sd_shares, unsigned long sd_rq_weight,
-			unsigned long sd_eff_weight)
+static void update_group_shares_cpu(struct task_group *tg, int cpu,
+				    unsigned long sd_shares,
+				    unsigned long sd_rq_weight,
+				    struct update_shares_data *usd)
 {
-	unsigned long rq_weight;
-	unsigned long shares;
+	unsigned long shares, rq_weight;
 	int boost = 0;
 
-	if (!tg->se[cpu])
-		return;
-
-	rq_weight = tg->cfs_rq[cpu]->rq_weight;
+	rq_weight = usd->rq_weight[cpu];
 	if (!rq_weight) {
 		boost = 1;
 		rq_weight = NICE_0_LOAD;
-		if (sd_rq_weight == sd_eff_weight)
-			sd_eff_weight += NICE_0_LOAD;
-		sd_rq_weight = sd_eff_weight;
 	}
 
 	/*
@@ -1555,6 +1554,7 @@ update_group_shares_cpu(struct task_group *tg, int cpu,
 		unsigned long flags;
 
 		spin_lock_irqsave(&rq->lock, flags);
+		tg->cfs_rq[cpu]->rq_weight = boost ? 0 : rq_weight;
 		tg->cfs_rq[cpu]->shares = boost ? 0 : shares;
 		__set_se_shares(tg->se[cpu], shares);
 		spin_unlock_irqrestore(&rq->lock, flags);
@@ -1568,25 +1568,31 @@ update_group_shares_cpu(struct task_group *tg, int cpu,
  */
 static int tg_shares_up(struct task_group *tg, void *data)
 {
-	unsigned long weight, rq_weight = 0, eff_weight = 0;
-	unsigned long shares = 0;
+	unsigned long weight, rq_weight = 0, shares = 0;
+	struct update_shares_data *usd;
 	struct sched_domain *sd = data;
+	unsigned long flags;
 	int i;
 
+	if (!tg->se[0])
+		return 0;
+
+	local_irq_save(flags);
+	usd = &__get_cpu_var(update_shares_data);
+
 	for_each_cpu(i, sched_domain_span(sd)) {
+		weight = tg->cfs_rq[i]->load.weight;
+		usd->rq_weight[i] = weight;
+
 		/*
 		 * If there are currently no tasks on the cpu pretend there
 		 * is one of average load so that when a new task gets to
 		 * run here it will not get delayed by group starvation.
 		 */
-		weight = tg->cfs_rq[i]->load.weight;
-		tg->cfs_rq[i]->rq_weight = weight;
-		rq_weight += weight;
-
 		if (!weight)
 			weight = NICE_0_LOAD;
 
-		eff_weight += weight;
+		rq_weight += weight;
 		shares += tg->cfs_rq[i]->shares;
 	}
 
@@ -1597,7 +1603,9 @@ static int tg_shares_up(struct task_group *tg, void *data)
 		shares = tg->shares;
 
 	for_each_cpu(i, sched_domain_span(sd))
-		update_group_shares_cpu(tg, i, shares, rq_weight, eff_weight);
+		update_group_shares_cpu(tg, i, shares, rq_weight, usd);
+
+	local_irq_restore(flags);
 
 	return 0;
 }
