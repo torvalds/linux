@@ -3339,6 +3339,18 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 	mutex_unlock(&pktgen_thread_lock);
 }
 
+static void idle(struct pktgen_dev *pkt_dev)
+{
+	u64 idle_start = getCurUs();
+
+	if (need_resched())
+		schedule();
+	else
+		cpu_relax();
+
+	pkt_dev->idle_acc += getCurUs() - idle_start;
+}
+
 static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
 	struct net_device *odev = pkt_dev->odev;
@@ -3361,7 +3373,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		if (pkt_dev->delay_us == 0x7FFFFFFF) {
 			pkt_dev->next_tx_us = getCurUs() + pkt_dev->delay_us;
 			pkt_dev->next_tx_ns = pkt_dev->delay_ns;
-			goto out;
+			return;
 		}
 	}
 
@@ -3373,26 +3385,14 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	}
 
 	txq = netdev_get_tx_queue(odev, queue_map);
-	if (netif_tx_queue_stopped(txq) ||
-	    netif_tx_queue_frozen(txq) ||
-	    need_resched()) {
-		u64 idle_start = getCurUs();
-
-		if (!netif_running(odev)) {
+	/* Did we saturate the queue already? */
+	if (netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq)) {
+		/* If device is down, then all queues are permnantly frozen */
+		if (netif_running(odev))
+			idle(pkt_dev);
+		else
 			pktgen_stop_device(pkt_dev);
-			goto out;
-		}
-		if (need_resched())
-			schedule();
-
-		pkt_dev->idle_acc += getCurUs() - idle_start;
-
-		if (netif_tx_queue_stopped(txq) ||
-		    netif_tx_queue_frozen(txq)) {
-			pkt_dev->next_tx_us = getCurUs();	/* TODO */
-			pkt_dev->next_tx_ns = 0;
-			goto out;	/* Try the next interface */
-		}
+		return;
 	}
 
 	if (pkt_dev->last_ok || !pkt_dev->skb) {
@@ -3407,7 +3407,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 				       "allocate skb in fill_packet.\n");
 				schedule();
 				pkt_dev->clone_count--;	/* back out increment, OOM */
-				goto out;
+				return;
 			}
 			pkt_dev->allocated_skbs++;
 			pkt_dev->clone_count = 0;	/* reset counter */
@@ -3419,9 +3419,9 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	txq = netdev_get_tx_queue(odev, queue_map);
 
 	__netif_tx_lock_bh(txq);
-	if (!netif_tx_queue_stopped(txq) &&
-	    !netif_tx_queue_frozen(txq)) {
-
+	if (unlikely(netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq)))
+		pkt_dev->last_ok = 0;
+	else {
 		atomic_inc(&(pkt_dev->skb->users));
 	      retry_now:
 		ret = (*xmit)(pkt_dev->skb, odev);
@@ -3458,13 +3458,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			pkt_dev->next_tx_ns -= 1000;
 		}
 	}
-
-	else {			/* Retry it next time */
-		pkt_dev->last_ok = 0;
-		pkt_dev->next_tx_us = getCurUs();	/* TODO */
-		pkt_dev->next_tx_ns = 0;
-	}
-
 	__netif_tx_unlock_bh(txq);
 
 	/* If pkt_dev->count is zero, then run forever */
