@@ -993,6 +993,16 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			xhci_warn(xhci, "WARN: short transfer on control ep\n");
 			status = -EREMOTEIO;
 			break;
+		case COMP_BABBLE:
+			/* The 0.96 spec says a babbling control endpoint
+			 * is not halted. The 0.96 spec says it is.  Some HW
+			 * claims to be 0.95 compliant, but it halts the control
+			 * endpoint anyway.  Check if a babble halted the
+			 * endpoint.
+			 */
+			if (ep_ctx->ep_info != EP_STATE_HALTED)
+				break;
+			/* else fall through */
 		case COMP_STALL:
 			/* Did we transfer part of the data (middle) phase? */
 			if (event_trb != ep_ring->dequeue &&
@@ -1137,7 +1147,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		ep_ring->stopped_td = td;
 		ep_ring->stopped_trb = event_trb;
 	} else {
-		if (GET_COMP_CODE(event->transfer_len) == COMP_STALL) {
+		if (trb_comp_code == COMP_STALL ||
+				trb_comp_code == COMP_BABBLE) {
 			/* The transfer is completed from the driver's
 			 * perspective, but we need to issue a set dequeue
 			 * command for this stalled endpoint to move the dequeue
@@ -1168,7 +1179,8 @@ td_cleanup:
 		 * control endpoints).
 		 */
 		if (usb_endpoint_xfer_control(&urb->ep->desc) ||
-			GET_COMP_CODE(event->transfer_len) != COMP_STALL) {
+			(trb_comp_code != COMP_STALL &&
+				trb_comp_code != COMP_BABBLE)) {
 			kfree(td);
 		}
 		urb->hcpriv = NULL;
