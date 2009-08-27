@@ -53,10 +53,12 @@ static DEFINE_SPINLOCK(dtest_lock);
 #define IADDR2DTEST(x) \
 	({ unsigned long __addr = (unsigned long)(x); \
 		(__addr & 0x47F8)        | /* address bits 14 & 10:3 */ \
+		(__addr & 0x8000) << 23  | /* Bank A/B               */ \
 		(__addr & 0x0800) << 15  | /* address bit  11        */ \
-		(__addr  & 0x3000) << 4  | /* address bits 13:12     */ \
-		(__addr  & 0x8000) << 8  | /* address bit  15        */ \
-		(0x1000004);               /* isram access           */ \
+		(__addr & 0x3000) <<  4  | /* address bits 13:12     */ \
+		(__addr & 0x8000) <<  8  | /* address bit  15        */ \
+		(0x1000000)              | /* instruction access = 1 */ \
+		(0x4);                     /* data array = 1         */ \
 	})
 
 /* Takes a pointer, and returns the offset (in bits) which things should be shifted */
@@ -73,7 +75,7 @@ static void isram_write(const void *addr, uint64_t data)
 	if (addr >= (void *)(L1_CODE_START + L1_CODE_LENGTH))
 		return;
 
-	cmd = IADDR2DTEST(addr) | 1;             /* write */
+	cmd = IADDR2DTEST(addr) | 2;             /* write */
 
 	/*
 	 * Writes to DTEST_DATA[0:1] need to be atomic with write to DTEST_COMMAND
