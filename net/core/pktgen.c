@@ -424,7 +424,7 @@ static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(void);
 static void pktgen_reset_all_threads(void);
 static void pktgen_stop_all_threads_ifs(void);
-static int pktgen_stop_device(struct pktgen_dev *pkt_dev);
+
 static void pktgen_stop(struct pktgen_thread *t);
 static void pktgen_clear_counters(struct pktgen_dev *pkt_dev);
 
@@ -3221,7 +3221,6 @@ static void show_results(struct pktgen_dev *pkt_dev, int nr_frags)
 }
 
 /* Set stopped-at timer, remove from running list, do counters & statistics */
-
 static int pktgen_stop_device(struct pktgen_dev *pkt_dev)
 {
 	int nr_frags = pkt_dev->skb ? skb_shinfo(pkt_dev->skb)->nr_frags : -1;
@@ -3232,6 +3231,8 @@ static int pktgen_stop_device(struct pktgen_dev *pkt_dev)
 		return -EINVAL;
 	}
 
+	kfree_skb(pkt_dev->skb);
+	pkt_dev->skb = NULL;
 	pkt_dev->stopped_at = getCurUs();
 	pkt_dev->running = 0;
 
@@ -3268,9 +3269,6 @@ static void pktgen_stop(struct pktgen_thread *t)
 
 	list_for_each_entry(pkt_dev, &t->if_list, list) {
 		pktgen_stop_device(pkt_dev);
-		kfree_skb(pkt_dev->skb);
-
-		pkt_dev->skb = NULL;
 	}
 
 	if_unlock(t);
@@ -3382,8 +3380,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 		if (!netif_running(odev)) {
 			pktgen_stop_device(pkt_dev);
-			kfree_skb(pkt_dev->skb);
-			pkt_dev->skb = NULL;
 			goto out;
 		}
 		if (need_resched())
@@ -3486,8 +3482,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 		/* Done with this */
 		pktgen_stop_device(pkt_dev);
-		kfree_skb(pkt_dev->skb);
-		pkt_dev->skb = NULL;
 	}
 out:;
 }
