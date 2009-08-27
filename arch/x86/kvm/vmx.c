@@ -1262,12 +1262,9 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	if (_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) {
 		/* CR3 accesses and invlpg don't need to cause VM Exits when EPT
 		   enabled */
-		min &= ~(CPU_BASED_CR3_LOAD_EXITING |
-			 CPU_BASED_CR3_STORE_EXITING |
-			 CPU_BASED_INVLPG_EXITING);
-		if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS,
-					&_cpu_based_exec_control) < 0)
-			return -EIO;
+		_cpu_based_exec_control &= ~(CPU_BASED_CR3_LOAD_EXITING |
+					     CPU_BASED_CR3_STORE_EXITING |
+					     CPU_BASED_INVLPG_EXITING);
 		rdmsr(MSR_IA32_VMX_EPT_VPID_CAP,
 		      vmx_capability.ept, vmx_capability.vpid);
 	}
