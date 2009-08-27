@@ -1163,6 +1163,8 @@ struct sched_rt_entity {
 #endif
 };
 
+struct rcu_node;
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
@@ -1208,7 +1210,7 @@ struct task_struct {
 #ifdef CONFIG_TREE_PREEMPT_RCU
 	int rcu_read_lock_nesting;
 	char rcu_read_unlock_special;
-	void *rcu_blocked_node;
+	struct rcu_node *rcu_blocked_node;
 	struct list_head rcu_node_entry;
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 

@@ -81,6 +81,8 @@ struct rcu_dynticks {
 struct rcu_node {
 	spinlock_t lock;
 	long	gpnum;		/* Current grace period for this node. */
+				/*  This will either be equal to or one */
+				/*  behind the root rcu_node's gpnum. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
 	unsigned long qsmaskinit;

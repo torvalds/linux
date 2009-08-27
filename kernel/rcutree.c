@@ -229,7 +229,6 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
 #endif /* #ifdef CONFIG_SMP */
 
 #ifdef CONFIG_NO_HZ
-static DEFINE_RATELIMIT_STATE(rcu_rs, 10 * HZ, 5);
 
 /**
  * rcu_enter_nohz - inform RCU that current CPU is entering nohz
@@ -249,7 +248,7 @@ void rcu_enter_nohz(void)
 	rdtp = &__get_cpu_var(rcu_dynticks);
 	rdtp->dynticks++;
 	rdtp->dynticks_nesting--;
-	WARN_ON_RATELIMIT(rdtp->dynticks & 0x1, &rcu_rs);
+	WARN_ON_ONCE(rdtp->dynticks & 0x1);
 	local_irq_restore(flags);
 }
 
@@ -268,7 +267,7 @@ void rcu_exit_nohz(void)
 	rdtp = &__get_cpu_var(rcu_dynticks);
 	rdtp->dynticks++;
 	rdtp->dynticks_nesting++;
-	WARN_ON_RATELIMIT(!(rdtp->dynticks & 0x1), &rcu_rs);
+	WARN_ON_ONCE(!(rdtp->dynticks & 0x1));
 	local_irq_restore(flags);
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
@@ -287,7 +286,7 @@ void rcu_nmi_enter(void)
 	if (rdtp->dynticks & 0x1)
 		return;
 	rdtp->dynticks_nmi++;
-	WARN_ON_RATELIMIT(!(rdtp->dynticks_nmi & 0x1), &rcu_rs);
+	WARN_ON_ONCE(!(rdtp->dynticks_nmi & 0x1));
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
 
@@ -306,7 +305,7 @@ void rcu_nmi_exit(void)
 		return;
 	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	rdtp->dynticks_nmi++;
-	WARN_ON_RATELIMIT(rdtp->dynticks_nmi & 0x1, &rcu_rs);
+	WARN_ON_ONCE(rdtp->dynticks_nmi & 0x1);
 }
 
 /**
@@ -322,7 +321,7 @@ void rcu_irq_enter(void)
 	if (rdtp->dynticks_nesting++)
 		return;
 	rdtp->dynticks++;
-	WARN_ON_RATELIMIT(!(rdtp->dynticks & 0x1), &rcu_rs);
+	WARN_ON_ONCE(!(rdtp->dynticks & 0x1));
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
 
@@ -341,7 +340,7 @@ void rcu_irq_exit(void)
 		return;
 	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	rdtp->dynticks++;
-	WARN_ON_RATELIMIT(rdtp->dynticks & 0x1, &rcu_rs);
+	WARN_ON_ONCE(rdtp->dynticks & 0x1);
 
 	/* If the interrupt queued a callback, get out of dyntick mode. */
 	if (__get_cpu_var(rcu_sched_data).nxtlist ||

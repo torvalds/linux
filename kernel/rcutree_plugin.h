@@ -92,7 +92,7 @@ static void rcu_preempt_qs(int cpu)
 		rnp = rdp->mynode;
 		spin_lock(&rnp->lock);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
-		t->rcu_blocked_node = (void *)rnp;
+		t->rcu_blocked_node = rnp;
 
 		/*
 		 * If this CPU has already checked in, then this task
@@ -176,9 +176,9 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 * most one time.  So at most two passes through loop.
 		 */
 		for (;;) {
-			rnp = (struct rcu_node *)t->rcu_blocked_node;
+			rnp = t->rcu_blocked_node;
 			spin_lock(&rnp->lock);
-			if (rnp == (struct rcu_node *)t->rcu_blocked_node)
+			if (rnp == t->rcu_blocked_node)
 				break;
 			spin_unlock(&rnp->lock);
 		}
@@ -288,8 +288,10 @@ static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	struct task_struct *tp;
 
-	if (rnp == rnp_root)
+	if (rnp == rnp_root) {
+		WARN_ONCE(1, "Last CPU thought to be offlined?");
 		return;  /* Shouldn't happen: at least one CPU online. */
+	}
 
 	/*
 	 * Move tasks up to root rcu_node.  Rely on the fact that the
