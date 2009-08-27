@@ -539,7 +539,7 @@ void et131x_link_detection_handler(unsigned long data)
  */
 void ConfigGlobalRegs(struct et131x_adapter *etdev)
 {
-	struct _GLOBAL_t __iomem *pGbl = &etdev->regs->global;
+	struct _GLOBAL_t __iomem *regs = &etdev->regs->global;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -550,52 +550,52 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 			 * and Rx as it desires.  Our default is to split it
 			 * 50/50:
 			 */
-			writel(0, &pGbl->rxq_start_addr);
-			writel(PARM_RX_MEM_END_DEF, &pGbl->rxq_end_addr);
-			writel(PARM_RX_MEM_END_DEF + 1, &pGbl->txq_start_addr);
-			writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
+			writel(0, &regs->rxq_start_addr);
+			writel(PARM_RX_MEM_END_DEF, &regs->rxq_end_addr);
+			writel(PARM_RX_MEM_END_DEF + 1, &regs->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 		} else if (etdev->RegistryJumboPacket < 8192) {
 			/* For jumbo packets > 2k but < 8k, split 50-50. */
-			writel(0, &pGbl->rxq_start_addr);
-			writel(INTERNAL_MEM_RX_OFFSET, &pGbl->rxq_end_addr);
-			writel(INTERNAL_MEM_RX_OFFSET + 1, &pGbl->txq_start_addr);
-			writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
+			writel(0, &regs->rxq_start_addr);
+			writel(INTERNAL_MEM_RX_OFFSET, &regs->rxq_end_addr);
+			writel(INTERNAL_MEM_RX_OFFSET + 1, &regs->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 		} else {
 			/* 9216 is the only packet size greater than 8k that
 			 * is available. The Tx buffer has to be big enough
 			 * for one whole packet on the Tx side. We'll make
 			 * the Tx 9408, and give the rest to Rx
 			 */
-			writel(0x0000, &pGbl->rxq_start_addr);
-			writel(0x01b3, &pGbl->rxq_end_addr);
-			writel(0x01b4, &pGbl->txq_start_addr);
-			writel(INTERNAL_MEM_SIZE - 1,&pGbl->txq_end_addr);
+			writel(0x0000, &regs->rxq_start_addr);
+			writel(0x01b3, &regs->rxq_end_addr);
+			writel(0x01b4, &regs->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1,&regs->txq_end_addr);
 		}
 
 		/* Initialize the loopback register. Disable all loopbacks. */
-		writel(0, &pGbl->loopback.value);
+		writel(0, &regs->loopback.value);
 	} else {
 		/* For PHY Line loopback, the memory is configured as if Tx
 		 * and Rx both have all the memory.  This is because the
 		 * RxMAC will write data into the space, and the TxMAC will
 		 * read it out.
 		 */
-		writel(0, &pGbl->rxq_start_addr);
-		writel(INTERNAL_MEM_SIZE - 1, &pGbl->rxq_end_addr);
-		writel(0, &pGbl->txq_start_addr);
-		writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
+		writel(0, &regs->rxq_start_addr);
+		writel(INTERNAL_MEM_SIZE - 1, &regs->rxq_end_addr);
+		writel(0, &regs->txq_start_addr);
+		writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 
 		/* Initialize the loopback register (MAC loopback). */
-		writel(1, &pGbl->loopback);
+		writel(1, &regs->loopback);
 	}
 
 	/* MSI Register */
-	writel(0, &pGbl->msi_config.value);
+	writel(0, &regs->msi_config);
 
 	/* By default, disable the watchdog timer.  It will be enabled when
 	 * a packet is queued.
 	 */
-	writel(0, &pGbl->watchdog_timer);
+	writel(0, &regs->watchdog_timer);
 
 	DBG_LEAVE(et131x_dbginfo);
 }

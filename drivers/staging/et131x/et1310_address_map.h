@@ -132,25 +132,11 @@
  */
 
 /*
- * structure for MSI Configuration reg in global address map
- * located at address 0x0030
+ * MSI Configuration reg at address 0x0030
  */
-typedef union _MSI_CONFIG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused1:13;	/* bits 19-31 */
-		u32 msi_tc:3;	/* bits 16-18 */
-		u32 unused2:11;	/* bits 5-15 */
-		u32 msi_vector:5;	/* bits 0-4 */
-#else
-		u32 msi_vector:5;	/* bits 0-4 */
-		u32 unused2:11;	/* bits 5-15 */
-		u32 msi_tc:3;	/* bits 16-18 */
-		u32 unused1:13;	/* bits 19-31 */
-#endif
-	} bits;
-} MSI_CONFIG_t, *PMSI_CONFIG_t;
+
+#define ET_MSI_VECTOR	0x0000001F
+#define ET_MSI_TC	0x00070000
 
 /*
  * structure for Loopback reg in global address map
@@ -188,7 +174,7 @@ typedef struct _GLOBAL_t {			/* Location: */
 	u32 int_status_alias;			/*  0x0024 */
 	u32 sw_reset;				/*  0x0028 */
 	u32 slv_timer;				/*  0x002C */
-	MSI_CONFIG_t msi_config;		/*  0x0030 */
+	u32 msi_config;				/*  0x0030 */
 	LOOPBACK_t loopback;			/*  0x0034 */
 	u32 watchdog_timer;			/*  0x0038 */
 } GLOBAL_t, *PGLOBAL_t;
