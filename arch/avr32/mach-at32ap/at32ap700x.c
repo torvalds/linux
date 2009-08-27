@@ -1181,11 +1181,24 @@ static struct resource atmel_spi1_resource[] = {
 DEFINE_DEV(atmel_spi, 1);
 DEV_CLK(spi_clk, atmel_spi1, pba, 1);
 
-static void __init
-at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
-		      unsigned int n, const u8 *pins)
+void __init
+at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b, unsigned int n)
 {
+	/*
+	 * Manage the chipselects as GPIOs, normally using the same pins
+	 * the SPI controller expects; but boards can use other pins.
+	 */
+	static u8 __initdata spi_pins[][4] = {
+		{ GPIO_PIN_PA(3), GPIO_PIN_PA(4),
+		  GPIO_PIN_PA(5), GPIO_PIN_PA(20) },
+		{ GPIO_PIN_PB(2), GPIO_PIN_PB(3),
+		  GPIO_PIN_PB(4), GPIO_PIN_PA(27) },
+	};
 	unsigned int pin, mode;
+
+	/* There are only 2 SPI controllers */
+	if (bus_num > 1)
+		return;
 
 	for (; n; n--, b++) {
 		b->bus_num = bus_num;
@@ -1193,7 +1206,7 @@ at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
 			continue;
 		pin = (unsigned)b->controller_data;
 		if (!pin) {
-			pin = pins[b->chip_select];
+			pin = spi_pins[bus_num][b->chip_select];
 			b->controller_data = (void *)pin;
 		}
 		mode = AT32_GPIOF_OUTPUT;
@@ -1206,16 +1219,6 @@ at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
 struct platform_device *__init
 at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 {
-	/*
-	 * Manage the chipselects as GPIOs, normally using the same pins
-	 * the SPI controller expects; but boards can use other pins.
-	 */
-	static u8 __initdata spi0_pins[] =
-		{ GPIO_PIN_PA(3), GPIO_PIN_PA(4),
-		  GPIO_PIN_PA(5), GPIO_PIN_PA(20), };
-	static u8 __initdata spi1_pins[] =
-		{ GPIO_PIN_PB(2), GPIO_PIN_PB(3),
-		  GPIO_PIN_PB(4), GPIO_PIN_PA(27), };
 	struct platform_device *pdev;
 	u32 pin_mask;
 
@@ -1228,7 +1231,7 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 		select_peripheral(PIOA, (1 << 0), PERIPH_A, AT32_GPIOF_PULLUP);
 		select_peripheral(PIOA, pin_mask, PERIPH_A, 0);
 
-		at32_spi_setup_slaves(0, b, n, spi0_pins);
+		at32_spi_setup_slaves(0, b, n);
 		break;
 
 	case 1:
@@ -1239,7 +1242,7 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 		select_peripheral(PIOB, (1 << 0), PERIPH_B, AT32_GPIOF_PULLUP);
 		select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
 
-		at32_spi_setup_slaves(1, b, n, spi1_pins);
+		at32_spi_setup_slaves(1, b, n);
 		break;
 
 	default:
