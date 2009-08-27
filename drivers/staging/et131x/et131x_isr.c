@@ -255,14 +255,14 @@ void et131x_isr_handler(struct work_struct *work)
 	if (status) {
 		/* Handle the TXDMA Error interrupt */
 		if (status & ET_INTR_TXDMA_ERR) {
-			TXDMA_ERROR_t TxDmaErr;
+			u32 txdma_err;
 
 			/* Following read also clears the register (COR) */
-			TxDmaErr.value = readl(&iomem->txdma.TxDmaError.value);
+			txdma_err = readl(&iomem->txdma.TxDmaError);
 
 			dev_warn(&etdev->pdev->dev,
 				    "TXDMA_ERR interrupt, error = %d\n",
-				    TxDmaErr.value);
+				    txdma_err);
 		}
 
 		/* Handle Free Buffer Ring 0 and 1 Low interrupt */

@@ -261,34 +261,13 @@ extern inline void add_10bit(u32 *v, int n)
  * txdma tx descriptor cache write index reg in txdma address map at 0x1030
  *
  * txdma error reg in txdma address map at address 0x1034
+ * 0: PyldResend
+ * 1: PyldRewind
+ * 4: DescrResend
+ * 5: DescrRewind
+ * 8: WrbkResend
+ * 9: WrbkRewind
  */
-
-typedef union _TXDMA_ERROR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused3:22;		/* bits 10-31 */
-		u32 WrbkRewind:1;	/* bit 9 */
-		u32 WrbkResend:1;	/* bit 8 */
-		u32 unused2:2;		/* bits 6-7 */
-		u32 DescrRewind:1;	/* bit 5 */
-		u32 DescrResend:1;	/* bit 4 */
-		u32 unused1:2;		/* bits 2-3 */
-		u32 PyldRewind:1;	/* bit 1 */
-		u32 PyldResend:1;	/* bit 0 */
-#else
-		u32 PyldResend:1;	/* bit 0 */
-		u32 PyldRewind:1;	/* bit 1 */
-		u32 unused1:2;		/* bits 2-3 */
-		u32 DescrResend:1;	/* bit 4 */
-		u32 DescrRewind:1;	/* bit 5 */
-		u32 unused2:2;		/* bits 6-7 */
-		u32 WrbkResend:1;	/* bit 8 */
-		u32 WrbkRewind:1;	/* bit 9 */
-		u32 unused3:22;		/* bits 10-31 */
-#endif
-	} bits;
-} TXDMA_ERROR_t, *PTXDMA_ERROR_t;
 
 /*
  * Tx DMA Module of JAGCore Address Mapping
@@ -308,7 +287,7 @@ typedef struct _TXDMA_t {		/* Location: */
 	u32 service_complete;		/*  0x1028 */
 	u32 cache_rd_index;		/*  0x102C */
 	u32 cache_wr_index;		/*  0x1030 */
-	TXDMA_ERROR_t TxDmaError;	/*  0x1034 */
+	u32 TxDmaError;			/*  0x1034 */
 	u32 DescAbortCount;		/*  0x1038 */
 	u32 PayloadAbortCnt;		/*  0x103c */
 	u32 WriteBackAbortCnt;		/*  0x1040 */
