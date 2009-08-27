@@ -841,7 +841,7 @@ void TPAL_SetPhyAutoNeg(struct et131x_adapter *etdev)
 
 	ET1310_PhyAdvertise100BaseT(etdev, TRUEPHY_ADV_DUPLEX_BOTH);
 
-	if (etdev->DeviceID != ET131X_PCI_DEVICE_ID_FAST)
+	if (etdev->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
 		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_FULL);
 	else
 		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);

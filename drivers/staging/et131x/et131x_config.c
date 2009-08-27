@@ -76,6 +76,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/pci.h>
 #include <asm/system.h>
 
 #include <linux/netdevice.h>
@@ -288,7 +289,7 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 	/* If we are the 10/100 device, and gigabit is somehow requested then
 	 * knock it down to 100 full.
 	 */
-	if (etdev->DeviceID == ET131X_PCI_DEVICE_ID_FAST &&
+	if (etdev->pdev->device == ET131X_PCI_DEVICE_ID_FAST &&
 	    etdev->SpeedDuplex == 5)
 		etdev->SpeedDuplex = 4;
 

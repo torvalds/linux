@@ -240,6 +240,7 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	uint8_t eepromStat;
 	uint8_t maxPayload = 0;
 	uint8_t read_size_reg;
+	u8 rev;
 
 	DBG_ENTER(et131x_dbginfo);
 
@@ -283,15 +284,14 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	 * present, we need to fail.
 	 */
 	if (eepromStat & 0x4C) {
-		result = pci_read_config_byte(pdev, PCI_REVISION_ID,
-					      &adapter->RevisionID);
+		result = pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 		if (result != PCIBIOS_SUCCESSFUL) {
 			DBG_ERROR(et131x_dbginfo,
 				  "Could not read PCI config space for "
 				  "Revision ID\n");
 			DBG_LEAVE(et131x_dbginfo);
 			return -EIO;
-		} else if (adapter->RevisionID == 0x01) {
+		} else if (rev == 0x01) {
 			int32_t nLoop;
 			uint8_t ucTemp[4] = { 0xFE, 0x13, 0x10, 0xFF };
 
@@ -401,16 +401,6 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	if (result != PCIBIOS_SUCCESSFUL) {
 		DBG_ERROR(et131x_dbginfo,
 		      "Could not write PCI config space for Max read size\n");
-		DBG_LEAVE(et131x_dbginfo);
-		return -EIO;
-	}
-
-	/* PCI Express Configuration registers 0x48-0x5B (Device Control) */
-	result = pci_read_config_word(pdev, ET1310_PCI_DEV_CTRL,
-				      &adapter->PciXDevCtl);
-	if (result != PCIBIOS_SUCCESSFUL) {
-		DBG_ERROR(et131x_dbginfo,
-		  "Could not read PCI config space for PCI Express Dev Ctl\n");
 		DBG_LEAVE(et131x_dbginfo);
 		return -EIO;
 	}
@@ -556,7 +546,7 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	 * We need to turn off 1000 base half dulplex, the mac does not
 	 * support it. For the 10/100 part, turn off all gig advertisement
 	 */
-	if (etdev->DeviceID != ET131X_PCI_DEVICE_ID_FAST)
+	if (etdev->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
 		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_FULL);
 	else
 		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
@@ -890,8 +880,6 @@ int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	adapter = netdev_priv(netdev);
 	adapter->pdev = pdev;
 	adapter->netdev = netdev;
-	adapter->VendorID = pdev->vendor;
-	adapter->DeviceID = pdev->device;
 
 	/* Do the same for the netdev struct */
 	netdev->irq = pdev->irq;

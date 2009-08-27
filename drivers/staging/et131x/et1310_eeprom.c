@@ -292,7 +292,7 @@ int32_t EepromWriteByte(struct et131x_adapter *etdev, uint32_t unAddress,
 		 *	   so we do a blind write for load bug.
 		 */
 		if (bStatus & LBCIF_STATUS_GENERAL_ERROR
-		    && etdev->RevisionID == 0) {
+		    && etdev->pdev->revision == 0) {
 			break;
 		}
 

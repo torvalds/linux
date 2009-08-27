@@ -250,19 +250,6 @@ struct et131x_adapter {
 	/* Pointer to the device's PCI register space */
 	ADDRESS_MAP_t __iomem *CSRAddress;
 
-	/* PCI config space info, for debug purposes only. */
-	u8 RevisionID;
-	u16 VendorID;
-	u16 DeviceID;
-	u16 SubVendorID;
-	u16 SubSystemID;
-	u32 CacheFillSize;
-	u16 PciXDevCtl;
-	u8 pci_lat_timer;
-	u8 pci_hdr_type;
-	u8 pci_bist;
-	u32 pci_cfg_state[64 / sizeof(u32)];
-
 	/* Registry parameters */
 	u8 SpeedDuplex;		/* speed/duplex */
 	eFLOW_CONTROL_t RegistryFlowControl;	/* for 802.3x flow control */
