@@ -631,7 +631,6 @@ asmlinkage void __init start_kernel(void)
 	softirq_init();
 	timekeeping_init();
 	time_init();
-	sched_clock_init();
 	profile_init();
 	if (!irqs_disabled())
 		printk(KERN_CRIT "start_kernel(): bug: interrupts were "
@@ -682,6 +681,7 @@ asmlinkage void __init start_kernel(void)
 	numa_policy_init();
 	if (late_time_init)
 		late_time_init();
+	sched_clock_init();
 	calibrate_delay();
 	pidmap_init();
 	anon_vma_init();
@@ -733,13 +733,14 @@ static void __init do_ctors(void)
 int initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
 
+static char msgbuf[64];
+static struct boot_trace_call call;
+static struct boot_trace_ret ret;
+
 int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	ktime_t calltime, delta, rettime;
-	char msgbuf[64];
-	struct boot_trace_call call;
-	struct boot_trace_ret ret;
 
 	if (initcall_debug) {
 		call.caller = task_pid_nr(current);

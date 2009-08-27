@@ -5,10 +5,13 @@
  * marked non-static so that assembler code can get at them.
  */
 
-#define MAX_PHYS_ADDRESS	(1UL << 42UL)
-#define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
+#define MAX_PHYS_ADDRESS	(1UL << 41UL)
+#define KPTE_BITMAP_CHUNK_SZ		(256UL * 1024UL * 1024UL)
 #define KPTE_BITMAP_BYTES	\
 	((MAX_PHYS_ADDRESS / KPTE_BITMAP_CHUNK_SZ) / 8)
+#define VALID_ADDR_BITMAP_CHUNK_SZ	(4UL * 1024UL * 1024UL)
+#define VALID_ADDR_BITMAP_BYTES	\
+	((MAX_PHYS_ADDRESS / VALID_ADDR_BITMAP_CHUNK_SZ) / 8)
 
 extern unsigned long kern_linear_pte_xor[2];
 extern unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
