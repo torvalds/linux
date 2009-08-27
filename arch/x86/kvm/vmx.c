@@ -1007,9 +1007,9 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		data = vmcs_readl(GUEST_SYSENTER_ESP);
 		break;
 	default:
-		vmx_load_host_state(to_vmx(vcpu));
 		msr = find_msr_entry(to_vmx(vcpu), msr_index);
 		if (msr) {
+			vmx_load_host_state(to_vmx(vcpu));
 			data = msr->data;
 			break;
 		}
@@ -1066,9 +1066,9 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		}
 		/* Otherwise falls through to kvm_set_msr_common */
 	default:
-		vmx_load_host_state(vmx);
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
+			vmx_load_host_state(vmx);
 			msr->data = data;
 			break;
 		}
