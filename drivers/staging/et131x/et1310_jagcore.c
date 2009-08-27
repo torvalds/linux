@@ -175,21 +175,9 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
  */
 void ConfigMMCRegs(struct et131x_adapter *etdev)
 {
-	MMC_CTRL_t mmc_ctrl = { 0 };
-
 	DBG_ENTER(et131x_dbginfo);
-
 	/* All we need to do is initialize the Memory Control Register */
-	mmc_ctrl.bits.force_ce = 0x0;
-	mmc_ctrl.bits.rxdma_disable = 0x0;
-	mmc_ctrl.bits.txdma_disable = 0x0;
-	mmc_ctrl.bits.txmac_disable = 0x0;
-	mmc_ctrl.bits.rxmac_disable = 0x0;
-	mmc_ctrl.bits.arb_disable = 0x0;
-	mmc_ctrl.bits.mmc_enable = 0x1;
-
-	writel(mmc_ctrl.value, &etdev->regs->mmc.mmc_ctrl.value);
-
+	writel(ET_MMC_ENABLE, &etdev->regs->mmc.mmc_ctrl);
 	DBG_LEAVE(et131x_dbginfo);
 }
 

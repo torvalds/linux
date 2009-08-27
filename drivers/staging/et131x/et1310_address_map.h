@@ -2267,30 +2267,14 @@ typedef struct _MAC_STAT_t {		/* Location: */
  * structure for Main Memory Controller Control reg in mmc address map.
  * located at address 0x7000
  */
-typedef union _MMC_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:25;		/* bits 7-31 */
-		u32 force_ce:1;		/* bit 6 */
-		u32 rxdma_disable:1;	/* bit 5 */
-		u32 txdma_disable:1;	/* bit 4 */
-		u32 txmac_disable:1;	/* bit 3 */
-		u32 rxmac_disable:1;	/* bit 2 */
-		u32 arb_disable:1;		/* bit 1 */
-		u32 mmc_enable:1;		/* bit 0 */
-#else
-		u32 mmc_enable:1;		/* bit 0 */
-		u32 arb_disable:1;		/* bit 1 */
-		u32 rxmac_disable:1;	/* bit 2 */
-		u32 txmac_disable:1;	/* bit 3 */
-		u32 txdma_disable:1;	/* bit 4 */
-		u32 rxdma_disable:1;	/* bit 5 */
-		u32 force_ce:1;		/* bit 6 */
-		u32 reserved:25;		/* bits 7-31 */
-#endif
-	} bits;
-} MMC_CTRL_t, *PMMC_CTRL_t;
+
+#define ET_MMC_ENABLE		1
+#define ET_MMC_ARB_DISABLE	2
+#define ET_MMC_RXMAC_DISABLE	4
+#define ET_MMC_TXMAC_DISABLE	8
+#define ET_MMC_TXDMA_DISABLE	16
+#define ET_MMC_RXDMA_DISABLE	32
+#define ET_MMC_FORCE_CE		64
 
 /*
  * structure for Main Memory Controller Host Memory Access Address reg in mmc
@@ -2329,7 +2313,7 @@ typedef union _MMC_SRAM_ACCESS_t {
  * Memory Control Module of JAGCore Address Mapping
  */
 typedef struct _MMC_t {			/* Location: */
-	MMC_CTRL_t mmc_ctrl;		/*  0x7000 */
+	u32 mmc_ctrl;		/*  0x7000 */
 	MMC_SRAM_ACCESS_t sram_access;	/*  0x7004 */
 	u32 sram_word1;		/*  0x7008 */
 	u32 sram_word2;		/*  0x700C */
