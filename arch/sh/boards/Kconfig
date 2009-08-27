@@ -171,6 +171,13 @@ config SH_SH7785LCR_29BIT_PHYSMAPS
 	  DIP switch(S2-5). If you set the DIP switch for S2-5 = ON,
 	  you can access all on-board device in 29bit address mode.
 
+config SH_SH7785LCR_PT
+	bool "SH7785LCR prototype board on 32-bit MMU mode"
+	depends on SH_SH7785LCR && 32BIT
+	default n
+	help
+	  If you use prototype board, this option is enabled.
+
 config SH_URQUELL
 	bool "Urquell"
 	depends on CPU_SUBTYPE_SH7786
