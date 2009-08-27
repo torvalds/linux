@@ -271,7 +271,6 @@ struct et131x_adapter {
 	/* Validation helpers */
 	u8 RegistryPMWOL;
 	u8 RegistryNMIDisable;
-	u32 RegistryDMACache;
 	u32 RegistrySCGain;
 	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */
 

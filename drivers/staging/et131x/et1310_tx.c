@@ -315,7 +315,7 @@ void et131x_tx_dma_enable(struct et131x_adapter *etdev)
 		 */
 		csr.bits.sngl_epkt_mode = 1;
 		csr.bits.halt = 0;
-		csr.bits.cache_thrshld = etdev->RegistryDMACache;
+		csr.bits.cache_thrshld = PARM_DMA_CACHE_DEF;
 		writel(csr.value, &etdev->regs->txdma.csr.value);
 	}
 

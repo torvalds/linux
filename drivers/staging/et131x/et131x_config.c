@@ -265,7 +265,6 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 	else
 		etdev->RegistryNMIDisable = PARM_NMI_DISABLE_DEF;
 
-	etdev->RegistryDMACache = PARM_DMA_CACHE_DEF;
 	etdev->RegistryPhyLoopbk = PARM_PHY_LOOPBK_DEF;
 
 	/* Set the MAC address to a default */
