@@ -1763,7 +1763,7 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 	if (IS_ERR(*key_tfm)) {
 		rc = PTR_ERR(*key_tfm);
 		printk(KERN_ERR "Unable to allocate crypto cipher with name "
-		       "[%s]; rc = [%d]\n", cipher_name, rc);
+		       "[%s]; rc = [%d]\n", full_alg_name, rc);
 		goto out;
 	}
 	crypto_blkcipher_set_flags(*key_tfm, CRYPTO_TFM_REQ_WEAK_KEY);
@@ -1776,7 +1776,8 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 	rc = crypto_blkcipher_setkey(*key_tfm, dummy_key, *key_size);
 	if (rc) {
 		printk(KERN_ERR "Error attempting to set key of size [%zd] for "
-		       "cipher [%s]; rc = [%d]\n", *key_size, cipher_name, rc);
+		       "cipher [%s]; rc = [%d]\n", *key_size, full_alg_name,
+		       rc);
 		rc = -EINVAL;
 		goto out;
 	}
