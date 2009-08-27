@@ -267,7 +267,8 @@ void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 void et131x_tx_dma_disable(struct et131x_adapter *etdev)
 {
 	/* Setup the tramsmit dma configuration register */
-	writel(0x101, &etdev->regs->txdma.csr.value);
+	writel(ET_TXDMA_CSR_HALT|ET_TXDMA_SNGL_EPKT,
+					&etdev->regs->txdma.csr);
 }
 
 /**
@@ -278,20 +279,16 @@ void et131x_tx_dma_disable(struct et131x_adapter *etdev)
  */
 void et131x_tx_dma_enable(struct et131x_adapter *etdev)
 {
-	if (etdev->RegistryPhyLoopbk) {
+	u32 csr = ET_TXDMA_SNGL_EPKT;
+	if (etdev->RegistryPhyLoopbk)
 		/* TxDMA is disabled for loopback operation. */
-		writel(0x101, &etdev->regs->txdma.csr.value);
-	} else {
-		TXDMA_CSR_t csr = { 0 };
-
+		csr |= ET_TXDMA_CSR_HALT;
+	else
 		/* Setup the transmit dma configuration register for normal
 		 * operation
 		 */
-		csr.bits.sngl_epkt_mode = 1;
-		csr.bits.halt = 0;
-		csr.bits.cache_thrshld = PARM_DMA_CACHE_DEF;
-		writel(csr.value, &etdev->regs->txdma.csr.value);
-	}
+		csr |= PARM_DMA_CACHE_DEF << ET_TXDMA_CACHE_SHIFT;
+	writel(csr, &etdev->regs->txdma.csr);
 }
 
 /**

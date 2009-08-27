@@ -173,31 +173,15 @@ typedef struct _GLOBAL_t {			/* Location: */
 /* START OF TXDMA REGISTER ADDRESS MAP */
 
 /*
- * structure for txdma control status reg in txdma address map
- * located at address 0x1000
+ * txdma control status reg at address 0x1000
  */
-typedef union _TXDMA_CSR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused2:19;		/* bits 13-31 */
-		u32 traffic_class:4;	/* bits 9-12 */
-		u32 sngl_epkt_mode:1;	/* bit 8 */
-		u32 cache_thrshld:4;	/* bits 4-7 */
-		u32 unused1:2;		/* bits 2-3 */
-		u32 drop_TLP_disable:1;	/* bit 1 */
-		u32 halt:1;		/* bit 0 */
-#else
-		u32 halt:1;		/* bit 0 */
-		u32 drop_TLP_disable:1;	/* bit 1 */
-		u32 unused1:2;		/* bits 2-3 */
-		u32 cache_thrshld:4;	/* bits 4-7 */
-		u32 sngl_epkt_mode:1;	/* bit 8 */
-		u32 traffic_class:4;	/* bits 9-12 */
-		u32 unused2:19;		/* bits 13-31 */
-#endif
-	} bits;
-} TXDMA_CSR_t, *PTXDMA_CSR_t;
+
+#define ET_TXDMA_CSR_HALT	0x00000001
+#define ET_TXDMA_DROP_TLP	0x00000002
+#define ET_TXDMA_CACHE_THRS	0x000000F0
+#define ET_TXDMA_CACHE_SHIFT	4
+#define ET_TXDMA_SNGL_EPKT	0x00000100
+#define ET_TXDMA_CLASS		0x00001E00
 
 /*
  * structure for txdma packet ring base address hi reg in txdma address map
@@ -274,7 +258,7 @@ extern inline void add_10bit(u32 *v, int n)
  * Located at address 0x1000
  */
 typedef struct _TXDMA_t {		/* Location: */
-	TXDMA_CSR_t csr;		/*  0x1000 */
+	u32 csr;			/*  0x1000 */
 	u32 pr_base_hi;			/*  0x1004 */
 	u32 pr_base_lo;			/*  0x1008 */
 	TXDMA_PR_NUM_DES_t pr_num_des;	/*  0x100C */
