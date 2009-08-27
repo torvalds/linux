@@ -115,18 +115,16 @@ void DumpTxQueueContents(int dbgLvl, struct et131x_adapter *etdev)
 
 	if (DBG_FLAGS(et131x_dbginfo) & dbgLvl) {
 		for (TxQueueAddr = 0x200; TxQueueAddr < 0x3ff; TxQueueAddr++) {
-			MMC_SRAM_ACCESS_t sram_access;
-
-			sram_access.value = readl(&mmc->sram_access.value);
-			sram_access.bits.req_addr = TxQueueAddr;
-			sram_access.bits.req_access = 1;
-			writel(sram_access.value, &mmc->sram_access.value);
+			u32 sram_access = readl(&mmc->sram_access);
+			sram_access &= 0xFFFF;
+			sram_access |= (TxQueueAddr << 16) | ET_SRAM_REQ_ACCESS;
+			writel(sram_access, &mmc->sram_access);
 
 			DBG_PRINT("Addr 0x%x, Access 0x%08x\t"
 				  "Value 1 0x%08x, Value 2 0x%08x, "
 				  "Value 3 0x%08x, Value 4 0x%08x, \n",
 				  TxQueueAddr,
-				  readl(&mmc->sram_access.value),
+				  readl(&mmc->sram_access),
 				  readl(&mmc->sram_word1),
 				  readl(&mmc->sram_word2),
 				  readl(&mmc->sram_word3),

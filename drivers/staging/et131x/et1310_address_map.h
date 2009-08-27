@@ -2264,7 +2264,7 @@ typedef struct _MAC_STAT_t {		/* Location: */
 /* START OF MMC REGISTER ADDRESS MAP */
 
 /*
- * structure for Main Memory Controller Control reg in mmc address map.
+ * Main Memory Controller Control reg in mmc address map.
  * located at address 0x7000
  */
 
@@ -2277,31 +2277,13 @@ typedef struct _MAC_STAT_t {		/* Location: */
 #define ET_MMC_FORCE_CE		64
 
 /*
- * structure for Main Memory Controller Host Memory Access Address reg in mmc
- * address map.  Located at address 0x7004
+ * Main Memory Controller Host Memory Access Address reg in mmc
+ * address map.  Located at address 0x7004. Top 16 bits hold the address bits
  */
-typedef union _MMC_SRAM_ACCESS_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 byte_enable:16;	/* bits 16-31 */
-		u32 reserved2:2;		/* bits 14-15 */
-		u32 req_addr:10;		/* bits 4-13 */
-		u32 reserved1:1;		/* bit 3 */
-		u32 is_ctrl_word:1;	/* bit 2 */
-		u32 wr_access:1;		/* bit 1 */
-		u32 req_access:1;		/* bit 0 */
-#else
-		u32 req_access:1;		/* bit 0 */
-		u32 wr_access:1;		/* bit 1 */
-		u32 is_ctrl_word:1;	/* bit 2 */
-		u32 reserved1:1;		/* bit 3 */
-		u32 req_addr:10;		/* bits 4-13 */
-		u32 reserved2:2;		/* bits 14-15 */
-		u32 byte_enable:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MMC_SRAM_ACCESS_t, *PMMC_SRAM_ACCESS_t;
+
+#define ET_SRAM_REQ_ACCESS	1
+#define ET_SRAM_WR_ACCESS	2
+#define ET_SRAM_IS_CTRL		4
 
 /*
  * structure for Main Memory Controller Host Memory Access Data reg in mmc
@@ -2314,7 +2296,7 @@ typedef union _MMC_SRAM_ACCESS_t {
  */
 typedef struct _MMC_t {			/* Location: */
 	u32 mmc_ctrl;		/*  0x7000 */
-	MMC_SRAM_ACCESS_t sram_access;	/*  0x7004 */
+	u32 sram_access;	/*  0x7004 */
 	u32 sram_word1;		/*  0x7008 */
 	u32 sram_word2;		/*  0x700C */
 	u32 sram_word3;		/*  0x7010 */
