@@ -329,94 +329,40 @@ typedef union _TXDMA_PR_NUM_DES_t {
 } TXDMA_PR_NUM_DES_t, *PTXDMA_PR_NUM_DES_t;
 
 
-typedef union _DMA10W_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:21;	/* bits 11-31 */
-		u32 wrap:1;	/* bit 10 */
-		u32 val:10;	/* bits 0-9 */
-#else
-		u32 val:10;	/* bits 0-9 */
-		u32 wrap:1;	/* bit 10 */
-		u32 unused:21;	/* bits 11-31 */
-#endif
-	} bits;
-} DMA10W_t, *PDMA10W_t;
+#define ET_DMA10_MASK		0x3FF	/* 10 bit mask for DMA10W types */
+#define ET_DMA10_WRAP		0x400
+#define ET_DMA4_MASK		0x00F	/* 4 bit mask for DMA4W types */
+#define ET_DMA4_WRAP		0x010
+
+#define INDEX10(x)	((x) & ET_DMA10_MASK)
+#define INDEX4(x)	((x) & ET_DMA4_MASK)
+
+extern inline void add_10bit(u32 *v, int n)
+{
+	*v = INDEX10(*v + n);
+}
 
 /*
- * structure for txdma tx queue write address reg in txdma address map
- * located at address 0x1010
- * Defined earlier (DMA10W_t)
+ * 10bit DMA with wrap
+ * txdma tx queue write address reg in txdma address map at 0x1010
+ * txdma tx queue write address external reg in txdma address map at 0x1014
+ * txdma tx queue read address reg in txdma address map at 0x1018
+ *
+ * u32
+ * txdma status writeback address hi reg in txdma address map at0x101C
+ * txdma status writeback address lo reg in txdma address map at 0x1020
+ *
+ * 10bit DMA with wrap
+ * txdma service request reg in txdma address map at 0x1024
+ * structure for txdma service complete reg in txdma address map at 0x1028
+ *
+ * 4bit DMA with wrap
+ * txdma tx descriptor cache read index reg in txdma address map at 0x102C
+ * txdma tx descriptor cache write index reg in txdma address map at 0x1030
+ *
+ * txdma error reg in txdma address map at address 0x1034
  */
 
-/*
- * structure for txdma tx queue write address external reg in txdma address map
- * located at address 0x1014
- * Defined earlier (DMA10W_t)
- */
-
-/*
- * structure for txdma tx queue read address reg in txdma address map
- * located at address 0x1018
- * Defined earlier (DMA10W_t)
- */
-
-/*
- * structure for txdma status writeback address hi reg in txdma address map
- * located at address 0x101C
- * Defined earlier (u32)
- */
-
-/*
- * structure for txdma status writeback address lo reg in txdma address map
- * located at address 0x1020
- * Defined earlier (u32)
- */
-
-/*
- * structure for txdma service request reg in txdma address map
- * located at address 0x1024
- * Defined earlier (DMA10W_t)
- */
-
-/*
- * structure for txdma service complete reg in txdma address map
- * located at address 0x1028
- * Defined earlier (DMA10W_t)
- */
-
-typedef union _DMA4W_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:27;	/* bits 5-31 */
-		u32 wrap:1;	/* bit 4 */
-		u32 val:4;		/* bit 0-3 */
-#else
-		u32 val:4;		/* bits 0-3 */
-		u32 wrap:1;	/* bit 4 */
-		u32 unused:27;	/* bits 5-31 */
-#endif
-	} bits;
-} DMA4W_t, *PDMA4W_t;
-
-/*
- * structure for txdma tx descriptor cache read index reg in txdma address map
- * located at address 0x102C
- * Defined earlier (DMA4W_t)
- */
-
-/*
- * structure for txdma tx descriptor cache write index reg in txdma address map
- * located at address 0x1030
- * Defined earlier (DMA4W_t)
- */
-
-/*
- * structure for txdma error reg in txdma address map
- * located at address 0x1034
- */
 typedef union _TXDMA_ERROR_t {
 	u32 value;
 	struct {
@@ -453,15 +399,15 @@ typedef struct _TXDMA_t {		/* Location: */
 	u32 pr_base_hi;			/*  0x1004 */
 	u32 pr_base_lo;			/*  0x1008 */
 	TXDMA_PR_NUM_DES_t pr_num_des;	/*  0x100C */
-	DMA10W_t txq_wr_addr;		/*  0x1010 */
-	DMA10W_t txq_wr_addr_ext;	/*  0x1014 */
-	DMA10W_t txq_rd_addr;		/*  0x1018 */
+	u32 txq_wr_addr;		/*  0x1010 */
+	u32 txq_wr_addr_ext;		/*  0x1014 */
+	u32 txq_rd_addr;		/*  0x1018 */
 	u32 dma_wb_base_hi;		/*  0x101C */
 	u32 dma_wb_base_lo;		/*  0x1020 */
-	DMA10W_t service_request;	/*  0x1024 */
-	DMA10W_t service_complete;	/*  0x1028 */
-	DMA4W_t cache_rd_index;		/*  0x102C */
-	DMA4W_t cache_wr_index;		/*  0x1030 */
+	u32 service_request;		/*  0x1024 */
+	u32 service_complete;		/*  0x1028 */
+	u32 cache_rd_index;		/*  0x102C */
+	u32 cache_wr_index;		/*  0x1030 */
 	TXDMA_ERROR_t TxDmaError;	/*  0x1034 */
 	u32 DescAbortCount;		/*  0x1038 */
 	u32 PayloadAbortCnt;		/*  0x103c */
@@ -473,7 +419,7 @@ typedef struct _TXDMA_t {		/* Location: */
 	u32 PayloadErrorCnt;		/*  0x1054 */
 	u32 WriteBackErrorCnt;		/*  0x1058 */
 	u32 DroppedTLPCount;		/*  0x105c */
-	DMA10W_t NewServiceComplete;	/*  0x1060 */
+	u32 NewServiceComplete;		/*  0x1060 */
 	u32 EthernetPacketCount;	/*  0x1064 */
 } TXDMA_t, *PTXDMA_t;
 
@@ -574,19 +520,19 @@ typedef union _RXDMA_MAX_PKT_TIME_t {
 /*
  * structure for rx queue read address reg in rxdma address map
  * located at address 0x2014
- * Defined earlier (DMA10W_t)
+ * Defined earlier (u32)
  */
 
 /*
  * structure for rx queue read address external reg in rxdma address map
  * located at address 0x2018
- * Defined earlier (DMA10W_t)
+ * Defined earlier (u32)
  */
 
 /*
  * structure for rx queue write address reg in rxdma address map
  * located at address 0x201C
- * Defined earlier (DMA10W_t)
+ * Defined earlier (u32)
  */
 
 /*
@@ -722,13 +668,13 @@ typedef union _RXDMA_FBR_NUM_DES_t {
 /*
  * structure for free buffer ring 0 available offset reg in rxdma address map
  * located at address 0x2048
- * Defined earlier (DMA10W_t)
+ * Defined earlier (u32)
  */
 
 /*
  * structure for free buffer ring 0 full offset reg in rxdma address map
  * located at address 0x204C
- * Defined earlier (DMA10W_t)
+ * Defined earlier (u32)
  */
 
 /*
@@ -811,9 +757,9 @@ typedef struct _RXDMA_t {				/* Location: */
 	u32 dma_wb_base_hi;				/*  0x2008 */
 	RXDMA_NUM_PKT_DONE_t num_pkt_done;		/*  0x200C */
 	RXDMA_MAX_PKT_TIME_t max_pkt_time;		/*  0x2010 */
-	DMA10W_t rxq_rd_addr;				/*  0x2014 */
-	DMA10W_t rxq_rd_addr_ext;			/*  0x2018 */
-	DMA10W_t rxq_wr_addr;				/*  0x201C */
+	u32 rxq_rd_addr;				/*  0x2014 */
+	u32 rxq_rd_addr_ext;			/*  0x2018 */
+	u32 rxq_wr_addr;				/*  0x201C */
 	u32 psr_base_lo;				/*  0x2020 */
 	u32 psr_base_hi;				/*  0x2024 */
 	RXDMA_PSR_NUM_DES_t psr_num_des;		/*  0x2028 */
@@ -824,15 +770,15 @@ typedef struct _RXDMA_t {				/* Location: */
 	u32 fbr0_base_lo;				/*  0x203C */
 	u32 fbr0_base_hi;				/*  0x2040 */
 	RXDMA_FBR_NUM_DES_t fbr0_num_des;		/*  0x2044 */
-	DMA10W_t fbr0_avail_offset;			/*  0x2048 */
-	DMA10W_t fbr0_full_offset;			/*  0x204C */
+	u32 fbr0_avail_offset;			/*  0x2048 */
+	u32 fbr0_full_offset;			/*  0x204C */
 	RXDMA_FBC_RD_INDEX_t fbr0_rd_index;		/*  0x2050 */
 	RXDMA_FBR_MIN_DES_t fbr0_min_des;		/*  0x2054 */
 	u32 fbr1_base_lo;				/*  0x2058 */
 	u32 fbr1_base_hi;				/*  0x205C */
 	RXDMA_FBR_NUM_DES_t fbr1_num_des;		/*  0x2060 */
-	DMA10W_t fbr1_avail_offset;			/*  0x2064 */
-	DMA10W_t fbr1_full_offset;			/*  0x2068 */
+	u32 fbr1_avail_offset;			/*  0x2064 */
+	u32 fbr1_full_offset;			/*  0x2068 */
 	RXDMA_FBC_RD_INDEX_t fbr1_rd_index;		/*  0x206C */
 	RXDMA_FBR_MIN_DES_t fbr1_min_des;		/*  0x2070 */
 } RXDMA_t, *PRXDMA_t;

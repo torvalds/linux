@@ -739,20 +739,12 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	writel((uint32_t) (pRxLocal->Fbr1Realpa >> 32), &rx_dma->fbr1_base_hi);
 	writel((uint32_t) pRxLocal->Fbr1Realpa, &rx_dma->fbr1_base_lo);
 	writel(pRxLocal->Fbr1NumEntries - 1, &rx_dma->fbr1_num_des.value);
-
-	{
-		DMA10W_t fbr1_full = { 0 };
-
-		fbr1_full.bits.val = 0;
-		fbr1_full.bits.wrap = 1;
-		writel(fbr1_full.value, &rx_dma->fbr1_full_offset.value);
-	}
+	writel(ET_DMA10_WRAP, &rx_dma->fbr1_full_offset);
 
 	/* This variable tracks the free buffer ring 1 full position, so it
 	 * has to match the above.
 	 */
-	pRxLocal->local_Fbr1_full.bits.val = 0;
-	pRxLocal->local_Fbr1_full.bits.wrap = 1;
+	pRxLocal->local_Fbr1_full = ET_DMA10_WRAP;
 	writel(((pRxLocal->Fbr1NumEntries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
 	       &rx_dma->fbr1_min_des.value);
 
@@ -769,20 +761,12 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	writel((uint32_t) (pRxLocal->Fbr0Realpa >> 32), &rx_dma->fbr0_base_hi);
 	writel((uint32_t) pRxLocal->Fbr0Realpa, &rx_dma->fbr0_base_lo);
 	writel(pRxLocal->Fbr0NumEntries - 1, &rx_dma->fbr0_num_des.value);
-
-	{
-		DMA10W_t fbr0_full = { 0 };
-
-		fbr0_full.bits.val = 0;
-		fbr0_full.bits.wrap = 1;
-		writel(fbr0_full.value, &rx_dma->fbr0_full_offset.value);
-	}
+	writel(ET_DMA10_WRAP, &rx_dma->fbr0_full_offset);
 
 	/* This variable tracks the free buffer ring 0 full position, so it
 	 * has to match the above.
 	 */
-	pRxLocal->local_Fbr0_full.bits.val = 0;
-	pRxLocal->local_Fbr0_full.bits.wrap = 1;
+	pRxLocal->local_Fbr0_full = ET_DMA10_WRAP;
 	writel(((pRxLocal->Fbr0NumEntries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
 	       &rx_dma->fbr0_min_des.value);
 #endif
@@ -1282,6 +1266,16 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 	DBG_RX_LEAVE(et131x_dbginfo);
 }
 
+static inline u32 bump_fbr(u32 *fbr, u32 limit)
+{
+	u32 v = *fbr;
+	add_10bit(&v, 1);
+	if (v > limit)
+		v = (*fbr & ~ET_DMA10_MASK) ^ ET_DMA10_WRAP;
+	*fbr = v;
+	return v;
+}
+
 /**
  * NICReturnRFD - Recycle a RFD and put it back onto the receive list
  * @etdev: pointer to our adapter
@@ -1310,7 +1304,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 		if (ri == 1) {
 			PFBR_DESC_t pNextDesc =
 			    (PFBR_DESC_t) (rx_local->pFbr1RingVa) +
-			    rx_local->local_Fbr1_full.bits.val;
+			    INDEX10(rx_local->local_Fbr1_full);
 
 			/* Handle the Free Buffer Ring advancement here. Write
 			 * the PA / Buffer Index for the returned buffer into
@@ -1320,20 +1314,15 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 			pNextDesc->addr_lo = rx_local->Fbr[1]->PALow[bi];
 			pNextDesc->word2.value = bi;
 
-			if (++rx_local->local_Fbr1_full.bits.val >
-			    (rx_local->Fbr1NumEntries - 1)) {
-				rx_local->local_Fbr1_full.bits.val = 0;
-				rx_local->local_Fbr1_full.bits.wrap ^= 1;
-			}
-
-			writel(rx_local->local_Fbr1_full.value,
-			       &rx_dma->fbr1_full_offset.value);
+			writel(bump_fbr(&rx_local->local_Fbr1_full,
+				rx_local->Fbr1NumEntries - 1),
+				&rx_dma->fbr1_full_offset);
 		}
 #ifdef USE_FBR0
 		else {
 			PFBR_DESC_t pNextDesc =
 			    (PFBR_DESC_t) rx_local->pFbr0RingVa +
-			    rx_local->local_Fbr0_full.bits.val;
+			    INDEX10(rx_local->local_Fbr0_full);
 
 			/* Handle the Free Buffer Ring advancement here. Write
 			 * the PA / Buffer Index for the returned buffer into
@@ -1343,14 +1332,9 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd)
 			pNextDesc->addr_lo = rx_local->Fbr[0]->PALow[bi];
 			pNextDesc->word2.value = bi;
 
-			if (++rx_local->local_Fbr0_full.bits.val >
-			    (rx_local->Fbr0NumEntries - 1)) {
-				rx_local->local_Fbr0_full.bits.val = 0;
-				rx_local->local_Fbr0_full.bits.wrap ^= 1;
-			}
-
-			writel(rx_local->local_Fbr0_full.value,
-			       &rx_dma->fbr0_full_offset.value);
+			writel(bump_fbr(&rx_local->local_Fbr0_full,
+					rx_local->Fbr0NumEntries - 1),
+			       &rx_dma->fbr0_full_offset);
 		}
 #endif
 		spin_unlock_irqrestore(&etdev->FbrLock, flags);

@@ -648,14 +648,14 @@ void et131x_tx_timeout(struct net_device *netdev)
 			    *(etdev->TxRing.pTxStatusVa);
 			PTX_DESC_ENTRY_t pDesc =
 			    etdev->TxRing.pTxDescRingVa +
-			    pMpTcb->WrIndex.bits.val;
+			    INDEX10(pMpTcb->WrIndex);
 #endif
 			TX_DESC_ENTRY_t StuckDescriptors[10];
 
-			if (pMpTcb->WrIndex.bits.val > 7) {
+			if (INDEX10(pMpTcb->WrIndex) > 7) {
 				memcpy(StuckDescriptors,
 				       etdev->TxRing.pTxDescRingVa +
-				       pMpTcb->WrIndex.bits.val - 6,
+				       INDEX10(pMpTcb->WrIndex) - 6,
 				       sizeof(TX_DESC_ENTRY_t) * 10);
 			}
 
@@ -664,7 +664,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 
 			DBG_WARNING(et131x_dbginfo,
 				"Send stuck - reset.  pMpTcb->WrIndex %x, Flags 0x%08x\n",
-				pMpTcb->WrIndex.bits.val,
+				pMpTcb->WrIndex,
 				pMpTcb->Flags);
 
 			DBG_WARNING(et131x_dbginfo,

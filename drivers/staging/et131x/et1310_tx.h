@@ -166,8 +166,8 @@ typedef struct _MP_TCB {
 	u32 PacketStaleCount;
 	struct sk_buff *Packet;
 	u32 PacketLength;
-	DMA10W_t WrIndex;
-	DMA10W_t WrIndexStart;
+	u32 WrIndex;
+	u32 WrIndexStart;
 } MP_TCB, *PMP_TCB;
 
 /* Structure to hold the skb's in a list */
@@ -206,7 +206,7 @@ typedef struct _tx_ring_t {
 	uint64_t TxDescOffset;
 
 	/* ReadyToSend indicates where we last wrote to in the descriptor ring. */
-	DMA10W_t txDmaReadyToSend;
+	u32 txDmaReadyToSend;
 
 	/* The location of the write-back status block */
 	PTX_STATUS_BLOCK_t pTxStatusVa;

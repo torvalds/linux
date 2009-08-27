@@ -275,8 +275,8 @@ void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 
 	memset(etdev->TxRing.pTxStatusVa, 0, sizeof(TX_STATUS_BLOCK_t));
 
-	writel(0, &txdma->service_request.value);
-	etdev->TxRing.txDmaReadyToSend.value = 0;
+	writel(0, &txdma->service_request);
+	etdev->TxRing.txDmaReadyToSend = 0;
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -601,8 +601,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 				       "filling desc entry %d, "
 				       "TCB: 0x%p\n",
 				       (pPacket->len - pPacket->data_len),
-				       etdev->TxRing.txDmaReadyToSend.bits.
-				       val, pMpTcb);
+				       etdev->TxRing.txDmaReadyToSend, pMpTcb);
 
 				CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
 
@@ -630,8 +629,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 				       "filling desc entry %d, "
 				       "TCB: 0x%p\n",
 				       (pPacket->len - pPacket->data_len),
-				       etdev->TxRing.txDmaReadyToSend.bits.
-				       val, pMpTcb);
+				       etdev->TxRing.txDmaReadyToSend, pMpTcb);
 
 				CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
 
@@ -682,7 +680,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 			       "filling desc entry %d\n"
 			       "TCB: 0x%p\n",
 			       pFragList[loopIndex].size,
-			       etdev->TxRing.txDmaReadyToSend.bits.val,
+			       etdev->TxRing.txDmaReadyToSend,
 			       pMpTcb);
 
 			CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
@@ -729,8 +727,8 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 
 	spin_lock_irqsave(&etdev->SendHWLock, flags);
 
-	thiscopy =
-	    NUM_DESC_PER_RING_TX - etdev->TxRing.txDmaReadyToSend.bits.val;
+	thiscopy = NUM_DESC_PER_RING_TX -
+				INDEX10(etdev->TxRing.txDmaReadyToSend);
 
 	if (thiscopy >= FragmentNumber) {
 		remainder = 0;
@@ -740,18 +738,15 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	}
 
 	memcpy(etdev->TxRing.pTxDescRingVa +
-	       etdev->TxRing.txDmaReadyToSend.bits.val, CurDesc,
+	       INDEX10(etdev->TxRing.txDmaReadyToSend), CurDesc,
 	       sizeof(TX_DESC_ENTRY_t) * thiscopy);
 
-	etdev->TxRing.txDmaReadyToSend.bits.val += thiscopy;
+	add_10bit(&etdev->TxRing.txDmaReadyToSend, thiscopy);
 
-	if ((etdev->TxRing.txDmaReadyToSend.bits.val == 0) ||
-	    (etdev->TxRing.txDmaReadyToSend.bits.val ==
-	     NUM_DESC_PER_RING_TX)) {
-		if (etdev->TxRing.txDmaReadyToSend.bits.wrap)
-			etdev->TxRing.txDmaReadyToSend.value = 0;
-		else
-			etdev->TxRing.txDmaReadyToSend.value = 0x400;
+	if (INDEX10(etdev->TxRing.txDmaReadyToSend)== 0 ||
+	    INDEX10(etdev->TxRing.txDmaReadyToSend) == NUM_DESC_PER_RING_TX) {
+	     	etdev->TxRing.txDmaReadyToSend &= ~ET_DMA10_MASK;
+	     	etdev->TxRing.txDmaReadyToSend ^= ET_DMA10_WRAP;
 	}
 
 	if (remainder) {
@@ -759,18 +754,16 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 		       CurDesc + thiscopy,
 		       sizeof(TX_DESC_ENTRY_t) * remainder);
 
-		etdev->TxRing.txDmaReadyToSend.bits.val += remainder;
+		add_10bit(&etdev->TxRing.txDmaReadyToSend, remainder);
 	}
 
-	if (etdev->TxRing.txDmaReadyToSend.bits.val == 0) {
-		if (etdev->TxRing.txDmaReadyToSend.value)
-			pMpTcb->WrIndex.value = NUM_DESC_PER_RING_TX - 1;
+	if (INDEX10(etdev->TxRing.txDmaReadyToSend) == 0) {
+		if (etdev->TxRing.txDmaReadyToSend)
+			pMpTcb->WrIndex = NUM_DESC_PER_RING_TX - 1;
 		else
-			pMpTcb->WrIndex.value =
-			    0x400 | (NUM_DESC_PER_RING_TX - 1);
+			pMpTcb->WrIndex= ET_DMA10_WRAP | (NUM_DESC_PER_RING_TX - 1);
 	} else
-		pMpTcb->WrIndex.value =
-		    etdev->TxRing.txDmaReadyToSend.value - 1;
+		pMpTcb->WrIndex = etdev->TxRing.txDmaReadyToSend - 1;
 
 	spin_lock(&etdev->TCBSendQLock);
 
@@ -788,8 +781,8 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	spin_unlock(&etdev->TCBSendQLock);
 
 	/* Write the new write pointer back to the device. */
-	writel(etdev->TxRing.txDmaReadyToSend.value,
-	       &etdev->regs->txdma.service_request.value);
+	writel(etdev->TxRing.txDmaReadyToSend,
+	       &etdev->regs->txdma.service_request);
 
 	/* For Gig only, we use Tx Interrupt coalescing.  Enable the software
 	 * timer to wake us up if this packet isn't followed by N more.
@@ -1258,23 +1251,18 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 		       "TCB                  : 0x%p\n"
 		       "TCB Next             : 0x%p\n"
 		       "TCB PacketLength     : %d\n"
-		       "TCB WrIndex.value    : 0x%08x\n"
-		       "TCB WrIndex.bits.val : %d\n"
-		       "TCB WrIndex.value    : 0x%08x\n"
-		       "TCB WrIndex.bits.val : %d\n",
+		       "TCB WrIndexS.value   : 0x%08x\n"
+		       "TCB WrIndex.value    : 0x%08x\n",
 		       pMpTcb,
 		       pMpTcb->Next,
 		       pMpTcb->PacketLength,
-		       pMpTcb->WrIndexStart.value,
-		       pMpTcb->WrIndexStart.bits.val,
-		       pMpTcb->WrIndex.value,
-		       pMpTcb->WrIndex.bits.val);
+		       pMpTcb->WrIndexStart,
+		       pMpTcb->WrIndex);
 
 		do {
 			desc =
-			    (TX_DESC_ENTRY_t *) (etdev->TxRing.
-						 pTxDescRingVa +
-						 pMpTcb->WrIndexStart.bits.val);
+			    (TX_DESC_ENTRY_t *) (etdev->TxRing.pTxDescRingVa +
+			    	INDEX10(pMpTcb->WrIndexStart));
 
 			DBG_TX(et131x_dbginfo,
 			       "CURRENT DESCRIPTOR\n"
@@ -1293,15 +1281,14 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 					 desc->DataBufferPtrLow,
 					 desc->word2.value, PCI_DMA_TODEVICE);
 
-			if (++pMpTcb->WrIndexStart.bits.val >=
+			add_10bit(&pMpTcb->WrIndexStart, 1);
+			if (INDEX10(pMpTcb->WrIndexStart) >=
 			    NUM_DESC_PER_RING_TX) {
-				if (pMpTcb->WrIndexStart.bits.wrap)
-					pMpTcb->WrIndexStart.value = 0;
-				else
-					pMpTcb->WrIndexStart.value = 0x400;
+			    	pMpTcb->WrIndexStart &= ~ET_DMA10_MASK;
+			    	pMpTcb->WrIndexStart ^= ET_DMA10_WRAP;
 			}
 		} while (desc != (etdev->TxRing.pTxDescRingVa +
-				pMpTcb->WrIndex.bits.val));
+				INDEX10(pMpTcb->WrIndex)));
 
 		DBG_TX(et131x_dbginfo,
 		       "Free Packet (SKB)   : 0x%p\n", pMpTcb->Packet);
@@ -1431,11 +1418,12 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 {
 	unsigned long flags;
-	DMA10W_t ServiceComplete;
+	u32 ServiceComplete;
 	PMP_TCB pMpTcb;
+	u32 index;
 
-	ServiceComplete.value =
-	    readl(&etdev->regs->txdma.NewServiceComplete.value);
+	ServiceComplete = readl(&etdev->regs->txdma.NewServiceComplete);
+	index = INDEX10(ServiceComplete);
 
 	/* Has the ring wrapped?  Process any descriptors that do not have
 	 * the same "wrap" indicator as the current completion indicator
@@ -1443,9 +1431,10 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 	pMpTcb = etdev->TxRing.CurrSendHead;
+
 	while (pMpTcb &&
-	       ServiceComplete.bits.wrap != pMpTcb->WrIndex.bits.wrap  &&
-	       ServiceComplete.bits.val < pMpTcb->WrIndex.bits.val) {
+	       ((ServiceComplete ^ pMpTcb->WrIndex) & ET_DMA10_WRAP) &&
+	       index < INDEX10(pMpTcb->WrIndex)) {
 		etdev->TxRing.nBusySend--;
 		etdev->TxRing.CurrSendHead = pMpTcb->Next;
 		if (pMpTcb->Next == NULL)
@@ -1459,8 +1448,8 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 		pMpTcb = etdev->TxRing.CurrSendHead;
 	}
 	while (pMpTcb &&
-	       ServiceComplete.bits.wrap == pMpTcb->WrIndex.bits.wrap &&
-	       ServiceComplete.bits.val > pMpTcb->WrIndex.bits.val) {
+	       !((ServiceComplete ^ pMpTcb->WrIndex) & ET_DMA10_WRAP)
+	       && index > (pMpTcb->WrIndex & ET_DMA10_MASK)) {
 		etdev->TxRing.nBusySend--;
 		etdev->TxRing.CurrSendHead = pMpTcb->Next;
 		if (pMpTcb->Next == NULL)

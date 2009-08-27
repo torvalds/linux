@@ -302,7 +302,7 @@ typedef struct _rx_ring_t {
 	dma_addr_t Fbr0MemPa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
 	uint64_t Fbr0Realpa;
 	uint64_t Fbr0offset;
-	DMA10W_t local_Fbr0_full;
+	u32 local_Fbr0_full;
 	u32 Fbr0NumEntries;
 	u32 Fbr0BufferSize;
 #endif
@@ -313,7 +313,7 @@ typedef struct _rx_ring_t {
 	uint64_t Fbr1Realpa;
 	uint64_t Fbr1offset;
 	FBRLOOKUPTABLE *Fbr[2];
-	DMA10W_t local_Fbr1_full;
+	u32 local_Fbr1_full;
 	u32 Fbr1NumEntries;
 	u32 Fbr1BufferSize;
 
