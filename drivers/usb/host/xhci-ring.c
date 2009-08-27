@@ -1193,7 +1193,7 @@ cleanup:
 	if (urb) {
 		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
 		xhci_dbg(xhci, "Giveback URB %p, len = %d, status = %d\n",
-				urb, td->urb->actual_length, status);
+				urb, urb->actual_length, status);
 		spin_unlock(&xhci->lock);
 		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, status);
 		spin_lock(&xhci->lock);
