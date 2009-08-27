@@ -333,9 +333,4 @@ struct et131x_adapter {
 	struct net_device_stats net_stats_prev;
 };
 
-#define MPSendPacketsHandler  MPSendPackets
-#define MP_FREE_SEND_PACKET_FUN(Adapter, pMpTcb) \
-	et131x_free_send_packet(Adapter, pMpTcb)
-#define MpSendPacketFun(Adapter, Packet) MpSendPacket(Adapter, Packet)
-
 #endif /* __ET131X_ADAPTER_H__ */

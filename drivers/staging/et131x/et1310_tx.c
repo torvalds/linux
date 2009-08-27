@@ -1375,7 +1375,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 		DBG_VERBOSE(et131x_dbginfo, "pMpTcb = 0x%p\n", pMpTcb);
 
 		FreeCounter++;
-		MP_FREE_SEND_PACKET_FUN(etdev, pMpTcb);
+		et131x_free_send_packet(etdev, pMpTcb);
 
 		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
@@ -1384,7 +1384,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 
 	if (FreeCounter == NUM_TCB) {
 		DBG_ERROR(et131x_dbginfo,
-		    "MpFreeBusySendPackets exitted loop for a bad reason\n");
+		    "MpFreeBusySendPackets exited loop for a bad reason\n");
 		BUG();
 	}
 
@@ -1451,7 +1451,7 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 			etdev->TxRing.CurrSendTail = NULL;
 
 		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
-		MP_FREE_SEND_PACKET_FUN(etdev, pMpTcb);
+		et131x_free_send_packet(etdev, pMpTcb);
 		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 		/* Goto the next packet */
@@ -1466,7 +1466,7 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 			etdev->TxRing.CurrSendTail = NULL;
 
 		spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
-		MP_FREE_SEND_PACKET_FUN(etdev, pMpTcb);
+		et131x_free_send_packet(etdev, pMpTcb);
 		spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
 		/* Goto the next packet */
