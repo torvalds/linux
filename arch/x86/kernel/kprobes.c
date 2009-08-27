@@ -482,22 +482,16 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		kcb->kprobe_status = KPROBE_REENTER;
 		break;
 	case KPROBE_HIT_SS:
-		if (p == kprobe_running()) {
-			regs->flags &= ~X86_EFLAGS_TF;
-			regs->flags |= kcb->kprobe_saved_flags;
-			return 0;
-		} else {
-			/* A probe has been hit in the codepath leading up
-			 * to, or just after, single-stepping of a probed
-			 * instruction. This entire codepath should strictly
-			 * reside in .kprobes.text section.
-			 * Raise a BUG or we'll continue in an endless
-			 * reentering loop and eventually a stack overflow.
-			 */
-			arch_disarm_kprobe(p);
-			dump_kprobe(p);
-			BUG();
-		}
+		/* A probe has been hit in the codepath leading up to, or just
+		 * after, single-stepping of a probed instruction. This entire
+		 * codepath should strictly reside in .kprobes.text section.
+		 * Raise a BUG or we'll continue in an endless reentering loop
+		 * and eventually a stack overflow.
+		 */
+		printk(KERN_WARNING "Unrecoverable kprobe detected at %p.\n",
+		       p->addr);
+		dump_kprobe(p);
+		BUG();
 	default:
 		/* impossible cases */
 		WARN_ON(1);
