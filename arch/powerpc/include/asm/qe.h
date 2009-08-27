@@ -210,8 +210,15 @@ struct qe_firmware_info {
 	u64 extended_modes;	/* Extended modes */
 };
 
+#ifdef CONFIG_QUICC_ENGINE
 /* Upload a firmware to the QE */
 int qe_upload_firmware(const struct qe_firmware *firmware);
+#else
+static inline int qe_upload_firmware(const struct qe_firmware *firmware)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_QUICC_ENGINE */
 
 /* Obtain information on the uploaded firmware */
 struct qe_firmware_info *qe_get_firmware_info(void);
