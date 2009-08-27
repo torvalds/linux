@@ -29,6 +29,8 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 
+#include "rs600_reg_safe.h"
+
 /* rs600 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
@@ -408,4 +410,11 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 		RS600_MC_IND_WR_EN | RS600_MC_IND_CITF_ARB0 |
 		((reg) & RS600_MC_ADDR_MASK));
 	WREG32(RS600_MC_DATA, v);
+}
+
+int rs600_init(struct radeon_device *rdev)
+{
+	rdev->config.r300.reg_safe_bm = rs600_reg_safe_bm;
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(rs600_reg_safe_bm);
+	return 0;
 }

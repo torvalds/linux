@@ -17,9 +17,14 @@ $(obj)/rv515_reg_safe.h: $(src)/reg_srcs/rv515 $(obj)/mkregtable
 $(obj)/r300_reg_safe.h: $(src)/reg_srcs/r300 $(obj)/mkregtable
 	$(call if_changed,mkregtable)
 
+$(obj)/rs600_reg_safe.h: $(src)/reg_srcs/rs600 $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
 $(obj)/rv515.o: $(obj)/rv515_reg_safe.h
 
 $(obj)/r300.o: $(obj)/r300_reg_safe.h
+
+$(obj)/rs600.o: $(obj)/rs600_reg_safe.h
 
 radeon-$(CONFIG_DRM_RADEON_KMS) += radeon_device.o radeon_kms.o \
 	radeon_atombios.o radeon_agp.o atombios_crtc.o radeon_combios.o \
