@@ -1405,8 +1405,8 @@ static int __cmd_report(void)
 		exit(-1);
 	}
 
-	if (!force && (input_stat.st_uid != geteuid())) {
-		fprintf(stderr, "file: %s not owned by current user\n", input_name);
+	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
+		fprintf(stderr, "file: %s not owned by current user or root\n", input_name);
 		exit(-1);
 	}
 
