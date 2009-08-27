@@ -813,6 +813,8 @@ int ip_append_data(struct sock *sk,
 			inet->cork.addr = ipc->addr;
 		}
 		rt = *rtp;
+		if (unlikely(!rt))
+			return -EFAULT;
 		/*
 		 * We steal reference to this route, caller should not release it
 		 */
