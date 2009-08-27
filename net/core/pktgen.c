@@ -2539,8 +2539,9 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	mod_cur_headers(pkt_dev);
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
-	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + datalen +
-			pkt_dev->pkt_overhead, GFP_ATOMIC);
+	skb = __netdev_alloc_skb(odev,
+				 pkt_dev->cur_pkt_size + 64
+				 + datalen + pkt_dev->pkt_overhead, GFP_NOWAIT);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
@@ -2878,8 +2879,9 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
 
-	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16 +
-			pkt_dev->pkt_overhead, GFP_ATOMIC);
+	skb = __netdev_alloc_skb(odev,
+				 pkt_dev->cur_pkt_size + 64
+				 + 16 + pkt_dev->pkt_overhead, GFP_NOWAIT);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
