@@ -108,8 +108,6 @@
 #define MP_TEST_FLAGS(_M, _F)       (((_M)->Flags & (_F)) == (_F))
 #define MP_IS_FLAG_CLEAR(_M, _F)    (((_M)->Flags & (_F)) == 0)
 
-#define MP_INC_RCV_REF(_A)          atomic_inc(&(_A)->RcvRefCount)
-#define MP_DEC_RCV_REF(_A)          atomic_dec(&(_A)->RcvRefCount)
 #define MP_GET_RCV_REF(_A)          atomic_read(&(_A)->RcvRefCount)
 
 /* Macros specific to the private adapter structure */
