@@ -414,7 +414,7 @@ static __u64 getCurUs(void)
 
 /* old include end */
 
-static char version[] __initdata = VERSION;
+static const char version[] __initconst = VERSION;
 
 static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread *t, const char *ifname);
@@ -432,10 +432,10 @@ static unsigned int scan_ip6(const char *s, char ip[16]);
 static unsigned int fmt_ip6(char *s, const char ip[16]);
 
 /* Module parameters, defaults. */
-static int pg_count_d = 1000;	/* 1000 pkts by default */
-static int pg_delay_d;
-static int pg_clone_skb_d;
-static int debug;
+static int pg_count_d __read_mostly = 1000;
+static int pg_delay_d __read_mostly;
+static int pg_clone_skb_d  __read_mostly;
+static int debug  __read_mostly;
 
 static DEFINE_MUTEX(pktgen_thread_lock);
 static LIST_HEAD(pktgen_threads);
