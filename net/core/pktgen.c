@@ -509,7 +509,7 @@ static const struct file_operations pktgen_fops = {
 
 static int pktgen_if_show(struct seq_file *seq, void *v)
 {
-	struct pktgen_dev *pkt_dev = seq->private;
+	const struct pktgen_dev *pkt_dev = seq->private;
 	__u64 sa;
 	__u64 stopped;
 	__u64 now = getCurUs();
@@ -1670,7 +1670,7 @@ static const struct file_operations pktgen_if_fops = {
 static int pktgen_thread_show(struct seq_file *seq, void *v)
 {
 	struct pktgen_thread *t = seq->private;
-	struct pktgen_dev *pkt_dev;
+	const struct pktgen_dev *pkt_dev;
 
 	BUG_ON(!t);
 
@@ -2120,13 +2120,9 @@ static inline void set_pkt_overhead(struct pktgen_dev *pkt_dev)
 	pkt_dev->pkt_overhead += SVLAN_TAG_SIZE(pkt_dev);
 }
 
-static inline int f_seen(struct pktgen_dev *pkt_dev, int flow)
+static inline int f_seen(const struct pktgen_dev *pkt_dev, int flow)
 {
-
-	if (pkt_dev->flows[flow].flags & F_INIT)
-		return 1;
-	else
-		return 0;
+	return !!(pkt_dev->flows[flow].flags & F_INIT);
 }
 
 static inline int f_pick(struct pktgen_dev *pkt_dev)
@@ -3101,17 +3097,14 @@ static void pktgen_stop_all_threads_ifs(void)
 	mutex_unlock(&pktgen_thread_lock);
 }
 
-static int thread_is_running(struct pktgen_thread *t)
+static int thread_is_running(const struct pktgen_thread *t)
 {
-	struct pktgen_dev *pkt_dev;
-	int res = 0;
+	const struct pktgen_dev *pkt_dev;
 
 	list_for_each_entry(pkt_dev, &t->if_list, list)
-		if (pkt_dev->running) {
-			res = 1;
-			break;
-		}
-	return res;
+		if (pkt_dev->running)
+			return 1;
+	return 0;
 }
 
 static int pktgen_wait_thread_run(struct pktgen_thread *t)
