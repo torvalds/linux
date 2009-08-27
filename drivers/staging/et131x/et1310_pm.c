@@ -139,8 +139,6 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
 
 	/* Wait for outstanding Receive packets */
-	while ((MP_GET_RCV_REF(etdev) != 0) && (LoopCounter-- > 0))
-		mdelay(2);
 
 	/* Gate off JAGCore 3 clock domains */
 	GlobalPmCSR.bits.pm_sysclk_gate = 0;

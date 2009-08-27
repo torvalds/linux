@@ -1258,13 +1258,6 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 			 * Besides, we don't really need (at this point) the
 			 * pending list anyway.
 			 */
-			/* spin_lock_irqsave( &etdev->RcvPendLock, flags );
-			 * list_add_tail( &pMpRfd->list_node, &etdev->RxRing.RecvPendingList );
-			 * spin_unlock_irqrestore( &etdev->RcvPendLock, flags );
-			 */
-
-			/* Update the number of outstanding Recvs */
-			/* MP_INC_RCV_REF( etdev ); */
 		} else {
 			RFDFreeArray[PacketFreeCount] = pMpRfd;
 			PacketFreeCount++;

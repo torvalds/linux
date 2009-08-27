@@ -108,8 +108,6 @@
 #define MP_TEST_FLAGS(_M, _F)       (((_M)->Flags & (_F)) == (_F))
 #define MP_IS_FLAG_CLEAR(_M, _F)    (((_M)->Flags & (_F)) == 0)
 
-#define MP_GET_RCV_REF(_A)          atomic_read(&(_A)->RcvRefCount)
-
 /* Macros specific to the private adapter structure */
 #define MP_TCB_RESOURCES_AVAILABLE(_M) ((_M)->TxRing.nBusySend < NUM_TCB)
 #define MP_TCB_RESOURCES_NOT_AVAILABLE(_M) ((_M)->TxRing.nBusySend >= NUM_TCB)
@@ -310,8 +308,6 @@ struct et131x_adapter {
 	bool bLinkTimerActive;
 	MP_POWER_MGMT PoMgmt;
 	INTERRUPT_t CachedMaskValue;
-
-	atomic_t RcvRefCount;	/* Num packets not yet returned */
 
 	/* Xcvr status at last poll */
 	MI_BMSR_t Bmsr;
