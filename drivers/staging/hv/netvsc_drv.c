@@ -67,8 +67,9 @@ struct net_device_context {
 
 struct netvsc_driver_context {
 	/* !! These must be the first 2 fields !! */
+	/* Which is a bug FIXME! */
 	struct driver_context	drv_ctx;
-	NETVSC_DRIVER_OBJECT	drv_obj;
+	struct netvsc_driver drv_obj;
 };
 
 
@@ -94,7 +95,7 @@ Desc:	NetVsc driver initialization
 static int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
-	NETVSC_DRIVER_OBJECT *net_drv_obj=&g_netvsc_drv.drv_obj;
+	struct netvsc_driver *net_drv_obj=&g_netvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_netvsc_drv.drv_ctx;
 
 	DPRINT_ENTER(NETVSC_DRV);
@@ -170,14 +171,14 @@ static int netvsc_probe(struct device *device)
 
 	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
-	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
-	NETVSC_DEVICE_INFO device_info;
+	struct netvsc_device_info device_info;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -246,7 +247,7 @@ static int netvsc_remove(struct device *device)
 	int ret=0;
 	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
-	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
@@ -301,7 +302,7 @@ static int netvsc_open(struct net_device *net)
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct driver_context *driver_ctx = driver_to_driver_context(net_device_ctx->device_ctx->device.driver);
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
-	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 
@@ -343,7 +344,7 @@ static int netvsc_close(struct net_device *net)
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct driver_context *driver_ctx = driver_to_driver_context(net_device_ctx->device_ctx->device.driver);
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
-	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 
@@ -410,7 +411,7 @@ static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net)
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct driver_context *driver_ctx = driver_to_driver_context(net_device_ctx->device_ctx->device.driver);
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
-	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	int i=0;
 	struct hv_netvsc_packet *packet;
@@ -637,7 +638,7 @@ Desc:
 --*/
 static void netvsc_drv_exit(void)
 {
-	NETVSC_DRIVER_OBJECT *netvsc_drv_obj=&g_netvsc_drv.drv_obj;
+	struct netvsc_driver *netvsc_drv_obj=&g_netvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_netvsc_drv.drv_ctx;
 	struct device *current_dev=NULL;
 	int ret;

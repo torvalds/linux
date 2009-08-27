@@ -37,7 +37,7 @@
 
 typedef struct _RNDIS_FILTER_DRIVER_OBJECT {
 	/* The original driver */
-	NETVSC_DRIVER_OBJECT		InnerDriver;
+	struct netvsc_driver InnerDriver;
 
 } RNDIS_FILTER_DRIVER_OBJECT;
 
@@ -721,10 +721,7 @@ Exit:
 	return ret;
 }
 
-int
-RndisFilterInit(
-	NETVSC_DRIVER_OBJECT	*Driver
-	)
+int RndisFilterInit(struct netvsc_driver *Driver)
 {
 	DPRINT_ENTER(NETVSC);
 
@@ -919,7 +916,7 @@ RndisFilterOnDeviceAdd(
 	int ret;
 	struct NETVSC_DEVICE *netDevice;
 	RNDIS_DEVICE *rndisDevice;
-	NETVSC_DEVICE_INFO *deviceInfo = (NETVSC_DEVICE_INFO*)AdditionalInfo;
+	struct netvsc_device_info *deviceInfo = (struct netvsc_device_info *)AdditionalInfo;
 
 	DPRINT_ENTER(NETVSC);
 

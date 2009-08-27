@@ -49,12 +49,12 @@ typedef int (*PFN_ON_RECVCALLBACK)(struct hv_device *dev,
 typedef void (*PFN_ON_LINKSTATUS_CHANGED)(struct hv_device *dev, u32 Status);
 
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
-typedef struct _XFERPAGE_PACKET {
+struct xferpage_packet {
 	LIST_ENTRY ListEntry;
 
 	/* # of netvsc packets this xfer packet contains */
 	u32 Count;
-} XFERPAGE_PACKET;
+};
 
 /* The number of pages which are enough to cover jumbo frame buffer. */
 #define NETVSC_PACKET_MAXPAGE		4
@@ -74,7 +74,7 @@ struct hv_netvsc_packet {
 	 * Valid only for receives when we break a xfer page packet
 	 * into multiple netvsc packets
 	 */
-	XFERPAGE_PACKET *XferPagePacket;
+	struct xferpage_packet *XferPagePacket;
 
 	union {
 		struct{
@@ -99,7 +99,7 @@ struct hv_netvsc_packet {
 };
 
 /* Represents the net vsc driver */
-typedef struct _NETVSC_DRIVER_OBJECT {
+struct netvsc_driver {
 	/* Must be the first field */
 	/* Which is a bug FIXME! */
 	struct hv_driver Base;
@@ -127,12 +127,12 @@ typedef struct _NETVSC_DRIVER_OBJECT {
 	/* PFN_QUERY_LINKSTATUS QueryLinkStatus; */
 
 	void *Context;
-} NETVSC_DRIVER_OBJECT;
+};
 
-typedef struct _NETVSC_DEVICE_INFO {
+struct netvsc_device_info {
     unsigned char MacAddr[6];
     bool LinkState;	/* 0 - link up, 1 - link down */
-} NETVSC_DEVICE_INFO;
+};
 
 /* Interface */
 int NetVscInitialize(struct hv_driver *drv);

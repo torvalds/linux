@@ -231,7 +231,7 @@ NetVscInitialize(
 	struct hv_driver *drv
 	)
 {
-	NETVSC_DRIVER_OBJECT* driver = (NETVSC_DRIVER_OBJECT*)drv;
+	struct netvsc_driver *driver = (struct netvsc_driver *)drv;
 	int ret=0;
 
 	DPRINT_ENTER(NETVSC);
@@ -802,7 +802,7 @@ NetVscOnDeviceAdd(
 	struct hv_netvsc_packet *packet;
 	LIST_ENTRY *entry;
 
-	NETVSC_DRIVER_OBJECT *netDriver = (NETVSC_DRIVER_OBJECT*) Device->Driver;;
+	struct netvsc_driver *netDriver = (struct netvsc_driver *)Device->Driver;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1119,8 +1119,8 @@ NetVscOnReceive(
 	LIST_ENTRY* entry;
 	unsigned long start;
 	unsigned long end, endVirtual;
-	/* NETVSC_DRIVER_OBJECT *netvscDriver; */
-	XFERPAGE_PACKET *xferpagePacket=NULL;
+	/* struct netvsc_driver *netvscDriver; */
+	struct xferpage_packet *xferpagePacket=NULL;
 	LIST_ENTRY listHead;
 
 	int i=0, j=0;
@@ -1217,7 +1217,7 @@ NetVscOnReceive(
 
 	/* Remove the 1st packet to represent the xfer page packet itself */
 	entry = REMOVE_HEAD_LIST(&listHead);
-	xferpagePacket = CONTAINING_RECORD(entry, XFERPAGE_PACKET, ListEntry);
+	xferpagePacket = CONTAINING_RECORD(entry, struct xferpage_packet, ListEntry);
 	xferpagePacket->Count = count - 1; /* This is how much we can satisfy */
 	ASSERT(xferpagePacket->Count > 0 && xferpagePacket->Count <= vmxferpagePacket->RangeCount);
 
@@ -1287,7 +1287,7 @@ NetVscOnReceive(
 			netvscPacket->PageBuffers[0].Length);
 
 		/* Pass it to the upper layer */
-		((NETVSC_DRIVER_OBJECT*)Device->Driver)->OnReceiveCallback(Device, netvscPacket);
+		((struct netvsc_driver *)Device->Driver)->OnReceiveCallback(Device, netvscPacket);
 
 		NetVscOnReceiveCompletion(netvscPacket->Completion.Recv.ReceiveCompletionContext);
 	}
