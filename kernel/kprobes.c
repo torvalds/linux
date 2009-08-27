@@ -90,6 +90,7 @@ static spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
  */
 static struct kprobe_blackpoint kprobe_blacklist[] = {
 	{"preempt_schedule",},
+	{"native_get_debugreg",},
 	{NULL}    /* Terminator */
 };
 
