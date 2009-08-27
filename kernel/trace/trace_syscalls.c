@@ -324,7 +324,7 @@ int reg_event_syscall_exit(struct ftrace_event_call *call)
 	int num;
 	char *name;
 
-	name = (char *)call->data;
+	name = call->data;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
 		return -ENOSYS;
@@ -347,7 +347,7 @@ void unreg_event_syscall_exit(struct ftrace_event_call *call)
 	int num;
 	char *name;
 
-	name = (char *)call->data;
+	name = call->data;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
 		return;
