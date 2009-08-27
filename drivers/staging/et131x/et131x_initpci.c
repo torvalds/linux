@@ -140,6 +140,37 @@ static dbg_info_t et131x_info = { DRIVER_NAME_EXT, 0, 0 };
 dbg_info_t *et131x_dbginfo = &et131x_info;
 #endif /* CONFIG_ET131X_DEBUG */
 
+/* Defines for Parameter Default/Min/Max vaules */
+#define PARM_SPEED_DUPLEX_MIN   0
+#define PARM_SPEED_DUPLEX_MAX   5
+
+/* Module parameter for disabling NMI
+ * et131x_nmi_disable :
+ * Disable NMI (0-2) [0]
+ *  0 :
+ *  1 :
+ *  2 :
+ */
+static u32 et131x_nmi_disable;	/* 0-2 */
+module_param(et131x_nmi_disable, uint, 0);
+MODULE_PARM_DESC(et131x_nmi_disable, "Disable NMI (0-2) [0]");
+
+/* Module parameter for manual speed setting
+ * Set Link speed and dublex manually (0-5)  [0]
+ *  1 : 10Mb   Half-Duplex
+ *  2 : 10Mb   Full-Duplex
+ *  3 : 100Mb  Half-Duplex
+ *  4 : 100Mb  Full-Duplex
+ *  5 : 1000Mb Full-Duplex
+ *  0 : Auto Speed Auto Duplex // default
+ */
+static u32 et131x_speed_set;
+module_param(et131x_speed_set, uint, 0);
+MODULE_PARM_DESC(et131x_speed_set,
+		"Set Link speed and dublex manually (0-5)  [0] \n  1 : 10Mb   Half-Duplex \n  2 : 10Mb   Full-Duplex \n  3 : 100Mb  Half-Duplex \n  4 : 100Mb  Full-Duplex \n  5 : 1000Mb Full-Duplex \n 0 : Auto Speed Auto Dublex");
+
+
+
 static struct pci_device_id et131x_pci_table[] __devinitdata = {
 	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_GIG, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, 0UL},
@@ -201,6 +232,12 @@ int et131x_init_module(void)
 
 	DBG_ENTER(et131x_dbginfo);
 	DBG_PRINT("%s\n", DRIVER_INFO);
+
+	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
+	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
+	    	printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
+	    	et131x_speed_set = 0;
+	}
 
 	result = pci_register_driver(&et131x_driver);
 
@@ -748,6 +785,55 @@ void __devexit et131x_pci_remove(struct pci_dev *pdev)
 
 	DBG_LEAVE(et131x_dbginfo);
 }
+
+/**
+ * et131x_config_parse
+ * @etdev: pointer to the private adapter struct
+ *
+ * Parses a configuration from some location (module parameters, for example)
+ * into the private adapter struct. This really has no sensible analogy in
+ * Linux as sysfs parameters are dynamic. Several things that were hee could
+ * go into sysfs, but other stuff like speed handling is part of the mii
+ * interfaces/ethtool.
+ */
+void et131x_config_parse(struct et131x_adapter *etdev)
+{
+	static const u8 default_mac[] = { 0x00, 0x05, 0x3d, 0x00, 0x02, 0x00 };
+	static const u8 duplex[] = { 0, 1, 2, 1, 2, 2 };
+	static const u16 speed[] = { 0, 10, 10, 100, 100, 1000 };
+
+	DBG_ENTER(et131x_dbginfo);
+
+	if (et131x_speed_set)
+		DBG_VERBOSE(et131x_dbginfo, "Speed set manually to : %d \n",
+			    et131x_speed_set);
+
+	etdev->SpeedDuplex = et131x_speed_set;
+	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
+
+	etdev->RegistryNMIDisable = et131x_nmi_disable;
+
+	/* Set the MAC address to a default */
+	memcpy(etdev->CurrentAddress, default_mac, ETH_ALEN);
+
+	/* Decode SpeedDuplex
+	 *
+	 * Set up as if we are auto negotiating always and then change if we
+	 * go into force mode
+	 *
+	 * If we are the 10/100 device, and gigabit is somehow requested then
+	 * knock it down to 100 full.
+	 */
+	if (etdev->pdev->device == ET131X_PCI_DEVICE_ID_FAST &&
+	    etdev->SpeedDuplex == 5)
+		etdev->SpeedDuplex = 4;
+
+	etdev->AiForceSpeed = speed[etdev->SpeedDuplex];
+	etdev->AiForceDpx = duplex[etdev->SpeedDuplex];	/* Auto FDX */
+
+	DBG_LEAVE(et131x_dbginfo);
+}
+
 
 /**
  * et131x_pci_setup - Perform device initialization
