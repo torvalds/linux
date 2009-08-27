@@ -573,7 +573,7 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 		}
 
 		/* Initialize the loopback register. Disable all loopbacks. */
-		writel(0, &regs->loopback.value);
+		writel(0, &regs->loopback);
 	} else {
 		/* For PHY Line loopback, the memory is configured as if Tx
 		 * and Rx both have all the memory.  This is because the
@@ -586,7 +586,7 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 		writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 
 		/* Initialize the loopback register (MAC loopback). */
-		writel(1, &regs->loopback);
+		writel(ET_LOOP_MAC, &regs->loopback);
 	}
 
 	/* MSI Register */

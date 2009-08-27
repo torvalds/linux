@@ -139,23 +139,11 @@
 #define ET_MSI_TC	0x00070000
 
 /*
- * structure for Loopback reg in global address map
- * located at address 0x0034
+ * Loopback reg located at address 0x0034
  */
-typedef union _LOOPBACK_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:30;		/* bits 2-31 */
-		u32 dma_loopback:1;	/* bit 1 */
-		u32 mac_loopback:1;	/* bit 0 */
-#else
-		u32 mac_loopback:1;	/* bit 0 */
-		u32 dma_loopback:1;	/* bit 1 */
-		u32 unused:30;		/* bits 2-31 */
-#endif
-	} bits;
-} LOOPBACK_t, *PLOOPBACK_t;
+
+#define ET_LOOP_MAC	0x00000001
+#define ET_LOOP_DMA	0x00000002
 
 /*
  * GLOBAL Module of JAGCore Address Mapping
@@ -175,7 +163,7 @@ typedef struct _GLOBAL_t {			/* Location: */
 	u32 sw_reset;				/*  0x0028 */
 	u32 slv_timer;				/*  0x002C */
 	u32 msi_config;				/*  0x0030 */
-	LOOPBACK_t loopback;			/*  0x0034 */
+	u32 loopback;			/*  0x0034 */
 	u32 watchdog_timer;			/*  0x0038 */
 } GLOBAL_t, *PGLOBAL_t;
 
