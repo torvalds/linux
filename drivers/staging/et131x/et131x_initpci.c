@@ -442,10 +442,9 @@ void et131x_error_timer_handler(unsigned long data)
 
 	pm_csr.value = readl(&etdev->regs->global.pm_csr.value);
 
-	if (pm_csr.bits.pm_phy_sw_coma == 0) {
-		if (etdev->RegistryMACStat)
-			UpdateMacStatHostCounters(etdev);
-	} else
+	if (pm_csr.bits.pm_phy_sw_coma == 0)
+		UpdateMacStatHostCounters(etdev);
+	else
 		DBG_VERBOSE(et131x_dbginfo,
 			    "No interrupts, in PHY coma, pm_csr = 0x%x\n",
 			    pm_csr.value);

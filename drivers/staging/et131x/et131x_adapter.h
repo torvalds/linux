@@ -256,8 +256,6 @@ struct et131x_adapter {
 	u8 RegistryPhyComa;	/* Phy Coma mode enable/disable */
 
 	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
-	u8 RegistryMACStat;	/* If set, read MACSTAT, else don't */
-	u32 RegistryVlanTag;	/* 802.1q Vlan TAG */
 	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
 
 	/* Validation helpers */

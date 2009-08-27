@@ -105,21 +105,9 @@ extern dbg_info_t *et131x_dbginfo;
 #define PARM_SPEED_DUPLEX_MIN   0
 #define PARM_SPEED_DUPLEX_MAX   5
 
-#define PARM_VLAN_TAG_DEF       0
-#define PARM_VLAN_TAG_MIN       0
-#define PARM_VLAN_TAG_MAX       4095
-
 #define PARM_FLOW_CTL_DEF       0
 #define PARM_FLOW_CTL_MIN       0
 #define PARM_FLOW_CTL_MAX       3
-
-#define PARM_WOL_LINK_DEF       3
-#define PARM_WOL_LINK_MIN       0
-#define PARM_WOL_LINK_MAX       3
-
-#define PARM_WOL_MATCH_DEF      7
-#define PARM_WOL_MATCH_MIN      0
-#define PARM_WOL_MATCH_MAX      7
 
 #define PARM_JUMBO_PKT_DEF      1514
 #define PARM_JUMBO_PKT_MIN      1514
@@ -128,10 +116,6 @@ extern dbg_info_t *et131x_dbginfo;
 #define PARM_PHY_COMA_DEF       0
 #define PARM_PHY_COMA_MIN       0
 #define PARM_PHY_COMA_MAX       1
-
-#define PARM_MAC_STAT_DEF       1
-#define PARM_MAC_STAT_MIN       0
-#define PARM_MAC_STAT_MAX       1
 
 #define PARM_SC_GAIN_DEF        7
 #define PARM_SC_GAIN_MIN        0
@@ -145,13 +129,7 @@ extern dbg_info_t *et131x_dbginfo;
 #define PARM_NMI_DISABLE_MIN    0
 #define PARM_NMI_DISABLE_MAX    2
 
-#define PARM_DMA_CACHE_DEF      0
 
-#define PARM_PHY_LOOPBK_DEF     0
-#define PARM_PHY_LOOPBK_MIN     0
-#define PARM_PHY_LOOPBK_MAX     1
-
-#define PARM_MAC_ADDRESS_DEF    { 0x00, 0x05, 0x3d, 0x00, 0x02, 0x00 }
 
 /* Module parameter for disabling NMI
  * et131x_speed_set :
@@ -184,109 +162,61 @@ MODULE_PARM_DESC(et131x_speed_set,
  * @etdev: pointer to the private adapter struct
  *
  * Parses a configuration from some location (module parameters, for example)
- * into the private adapter struct
+ * into the private adapter struct. This really has no sensible analogy in
+ * Linux as sysfs parameters are dynamic. Several things that were hee could
+ * go into sysfs, but other stuff like speed handling is part of the mii
+ * interfaces/ethtool.
  */
 void et131x_config_parse(struct et131x_adapter *etdev)
 {
-	uint8_t macAddrDef[] = PARM_MAC_ADDRESS_DEF;
+	static const u8 default_mac[] = { 0x00, 0x05, 0x3d, 0x00, 0x02, 0x00 };
+	static const u8 duplex[] = { 0, 1, 2, 1, 2, 2 };
+	static const u16 speed[] = { 0, 10, 10, 100, 100, 1000 };
 
 	DBG_ENTER(et131x_dbginfo);
 
-	/*
-	 * The NDIS driver uses the registry to store persistent per-device
-	 * configuration, and reads this configuration into the appropriate
-	 * elements of the private adapter structure on initialization.
-	 * Because Linux has no analog to the registry, use this function to
-	 * initialize the private adapter structure with a default
-	 * configuration.
-	 *
-	 * One other possibility is to use a series of module parameters which
-	 * can be passed in by the caller when the module is initialized.
-	 * However, this implementation does not allow for seperate
-	 * configurations in the event multiple devices are present, and hence
-	 * will not suffice.
-	 *
-	 * If another method is derived which addresses this problem, this is
-	 * where it should be implemented.
-	 */
+	etdev->SpeedDuplex = et131x_speed_set;
 
-	 /* Set the private adapter struct with default values for the
-	  * corresponding parameters
-	  */
-	if (et131x_speed_set != PARM_SPEED_DUPLEX_DEF) {
+	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
+	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
+	    	dev_warn(&etdev->pdev->dev, "invalid speed setting ignored.\n");
+	    	et131x_speed_set = PARM_SPEED_DUPLEX_DEF;
+	}
+	else if (et131x_speed_set != PARM_SPEED_DUPLEX_DEF)
 		DBG_VERBOSE(et131x_dbginfo, "Speed set manually to : %d \n",
 			    et131x_speed_set);
-		etdev->SpeedDuplex = et131x_speed_set;
-	} else {
-		etdev->SpeedDuplex = PARM_SPEED_DUPLEX_DEF;
-	}
 
 	/*  etdev->SpeedDuplex            = PARM_SPEED_DUPLEX_DEF; */
 
-	etdev->RegistryVlanTag = PARM_VLAN_TAG_DEF;
 	etdev->RegistryFlowControl = PARM_FLOW_CTL_DEF;
 	etdev->RegistryJumboPacket = PARM_JUMBO_PKT_DEF;
 	etdev->RegistryPhyComa = PARM_PHY_COMA_DEF;
-	etdev->RegistryMACStat = PARM_MAC_STAT_DEF;
 
 	if (et131x_nmi_disable != PARM_NMI_DISABLE_DEF)
 		etdev->RegistryNMIDisable = et131x_nmi_disable;
 	else
 		etdev->RegistryNMIDisable = PARM_NMI_DISABLE_DEF;
 
-	etdev->RegistryPhyLoopbk = PARM_PHY_LOOPBK_DEF;
+	etdev->RegistryPhyLoopbk = 0;	/* 0 off 1 on */
 
 	/* Set the MAC address to a default */
-	memcpy(etdev->CurrentAddress, macAddrDef, ETH_ALEN);
+	memcpy(etdev->CurrentAddress, default_mac, ETH_ALEN);
 	etdev->bOverrideAddress = false;
-
-	DBG_TRACE(et131x_dbginfo,
-		  "Default MAC Address  : %02x:%02x:%02x:%02x:%02x:%02x\n",
-		  etdev->CurrentAddress[0], etdev->CurrentAddress[1],
-		  etdev->CurrentAddress[2], etdev->CurrentAddress[3],
-		  etdev->CurrentAddress[4], etdev->CurrentAddress[5]);
 
 	/* Decode SpeedDuplex
 	 *
 	 * Set up as if we are auto negotiating always and then change if we
 	 * go into force mode
-	 */
-	etdev->AiForceSpeed = 0;	/* Auto speed */
-	etdev->AiForceDpx = 0;	/* Auto FDX */
-
-	/* If we are the 10/100 device, and gigabit is somehow requested then
+	 *
+	 * If we are the 10/100 device, and gigabit is somehow requested then
 	 * knock it down to 100 full.
 	 */
 	if (etdev->pdev->device == ET131X_PCI_DEVICE_ID_FAST &&
 	    etdev->SpeedDuplex == 5)
 		etdev->SpeedDuplex = 4;
 
-	switch (etdev->SpeedDuplex) {
-	case 1:		/* 10Mb   Half-Duplex */
-		etdev->AiForceSpeed = 10;
-		etdev->AiForceDpx = 1;
-		break;
-
-	case 2:		/* 10Mb   Full-Duplex */
-		etdev->AiForceSpeed = 10;
-		etdev->AiForceDpx = 2;
-		break;
-
-	case 3:		/* 100Mb  Half-Duplex */
-		etdev->AiForceSpeed = 100;
-		etdev->AiForceDpx = 1;
-		break;
-
-	case 4:		/* 100Mb  Full-Duplex */
-		etdev->AiForceSpeed = 100;
-		etdev->AiForceDpx = 2;
-		break;
-
-	case 5:		/* 1000Mb Full-Duplex */
-		etdev->AiForceSpeed = 1000;
-		etdev->AiForceDpx = 2;
-		break;
-	}
+	etdev->AiForceSpeed = speed[etdev->SpeedDuplex];
+	etdev->AiForceDpx = duplex[etdev->SpeedDuplex];	/* Auto FDX */
 
 	DBG_LEAVE(et131x_dbginfo);
 }
