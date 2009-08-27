@@ -2438,7 +2438,7 @@ error:
 	return err;
 }
 
-static inline void free_SAs(struct pktgen_dev *pkt_dev)
+static void free_SAs(struct pktgen_dev *pkt_dev)
 {
 	if (pkt_dev->cflows) {
 		/* let go of the SAs if we have them */
@@ -2453,7 +2453,7 @@ static inline void free_SAs(struct pktgen_dev *pkt_dev)
 	}
 }
 
-static inline int process_ipsec(struct pktgen_dev *pkt_dev,
+static int process_ipsec(struct pktgen_dev *pkt_dev,
 			      struct sk_buff *skb, __be16 protocol)
 {
 	if (pkt_dev->flags & F_IPSEC_ON) {
@@ -3029,8 +3029,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	return skb;
 }
 
-static inline struct sk_buff *fill_packet(struct net_device *odev,
-					  struct pktgen_dev *pkt_dev)
+static struct sk_buff *fill_packet(struct net_device *odev,
+				   struct pktgen_dev *pkt_dev)
 {
 	if (pkt_dev->flags & F_IPV6)
 		return fill_packet_ipv6(odev, pkt_dev);
@@ -3341,13 +3341,12 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 	mutex_unlock(&pktgen_thread_lock);
 }
 
-static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
+static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
 	struct net_device *odev = pkt_dev->odev;
 	int (*xmit)(struct sk_buff *, struct net_device *)
 		= odev->netdev_ops->ndo_start_xmit;
 	struct netdev_queue *txq;
-	__u64 idle_start = 0;
 	u16 queue_map;
 	int ret;
 
@@ -3379,7 +3378,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	if (netif_tx_queue_stopped(txq) ||
 	    netif_tx_queue_frozen(txq) ||
 	    need_resched()) {
-		idle_start = getCurUs();
+		u64 idle_start = getCurUs();
 
 		if (!netif_running(odev)) {
 			pktgen_stop_device(pkt_dev);
@@ -3475,7 +3474,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	/* If pkt_dev->count is zero, then run forever */
 	if ((pkt_dev->count != 0) && (pkt_dev->sofar >= pkt_dev->count)) {
 		if (atomic_read(&(pkt_dev->skb->users)) != 1) {
-			idle_start = getCurUs();
+			u64 idle_start = getCurUs();
 			while (atomic_read(&(pkt_dev->skb->users)) != 1) {
 				if (signal_pending(current)) {
 					break;
