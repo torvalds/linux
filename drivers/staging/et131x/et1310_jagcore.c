@@ -112,33 +112,26 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 			 * and Rx as it desires.  Our default is to split it
 			 * 50/50:
 			 */
-			writel(0, &pGbl->rxq_start_addr.value);
-			writel(PARM_RX_MEM_END_DEF,
-			       &pGbl->rxq_end_addr.value);
-			writel(PARM_RX_MEM_END_DEF + 1,
-			       &pGbl->txq_start_addr.value);
-			writel(INTERNAL_MEM_SIZE - 1,
-			       &pGbl->txq_end_addr.value);
+			writel(0, &pGbl->rxq_start_addr);
+			writel(PARM_RX_MEM_END_DEF, &pGbl->rxq_end_addr);
+			writel(PARM_RX_MEM_END_DEF + 1, &pGbl->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
 		} else if (etdev->RegistryJumboPacket < 8192) {
 			/* For jumbo packets > 2k but < 8k, split 50-50. */
-			writel(0, &pGbl->rxq_start_addr.value);
-			writel(INTERNAL_MEM_RX_OFFSET,
-			       &pGbl->rxq_end_addr.value);
-			writel(INTERNAL_MEM_RX_OFFSET + 1,
-			       &pGbl->txq_start_addr.value);
-			writel(INTERNAL_MEM_SIZE - 1,
-			       &pGbl->txq_end_addr.value);
+			writel(0, &pGbl->rxq_start_addr);
+			writel(INTERNAL_MEM_RX_OFFSET, &pGbl->rxq_end_addr);
+			writel(INTERNAL_MEM_RX_OFFSET + 1, &pGbl->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
 		} else {
 			/* 9216 is the only packet size greater than 8k that
 			 * is available. The Tx buffer has to be big enough
 			 * for one whole packet on the Tx side. We'll make
 			 * the Tx 9408, and give the rest to Rx
 			 */
-			writel(0x0000, &pGbl->rxq_start_addr.value);
-			writel(0x01b3, &pGbl->rxq_end_addr.value);
-			writel(0x01b4, &pGbl->txq_start_addr.value);
-			writel(INTERNAL_MEM_SIZE - 1,
-			       &pGbl->txq_end_addr.value);
+			writel(0x0000, &pGbl->rxq_start_addr);
+			writel(0x01b3, &pGbl->rxq_end_addr);
+			writel(0x01b4, &pGbl->txq_start_addr);
+			writel(INTERNAL_MEM_SIZE - 1,&pGbl->txq_end_addr);
 		}
 
 		/* Initialize the loopback register. Disable all loopbacks. */
@@ -149,13 +142,13 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 		 * RxMAC will write data into the space, and the TxMAC will
 		 * read it out.
 		 */
-		writel(0, &pGbl->rxq_start_addr.value);
-		writel(INTERNAL_MEM_SIZE - 1, &pGbl->rxq_end_addr.value);
-		writel(0, &pGbl->txq_start_addr.value);
-		writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr.value);
+		writel(0, &pGbl->rxq_start_addr);
+		writel(INTERNAL_MEM_SIZE - 1, &pGbl->rxq_end_addr);
+		writel(0, &pGbl->txq_start_addr);
+		writel(INTERNAL_MEM_SIZE - 1, &pGbl->txq_end_addr);
 
 		/* Initialize the loopback register (MAC loopback). */
-		writel(1, &pGbl->loopback.value);
+		writel(1, &pGbl->loopback);
 	}
 
 	/* MSI Register */

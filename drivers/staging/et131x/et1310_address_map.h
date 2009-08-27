@@ -61,41 +61,13 @@
 
 /* START OF GLOBAL REGISTER ADDRESS MAP */
 
-typedef union _Q_ADDR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;	/* bits 10-31 */
-		u32 addr:10;	/* bits 0-9 */
-#else
-		u32 addr:10;	/* bits 0-9 */
-		u32 unused:22;	/* bits 10-31 */
-#endif
-	} bits;
-} Q_ADDR_t, *PQ_ADDR_t;
-
 /*
- * structure for tx queue start address reg in global address map
- * located at address 0x0000
- * Defined earlier (Q_ADDR_t)
- */
-
-/*
- * structure for tx queue end address reg in global address map
- * located at address 0x0004
- * Defined earlier (Q_ADDR_t)
- */
-
-/*
- * structure for rx queue start address reg in global address map
- * located at address 0x0008
- * Defined earlier (Q_ADDR_t)
- */
-
-/*
- * structure for rx queue end address reg in global address map
- * located at address 0x000C
- * Defined earlier (Q_ADDR_t)
+ * 10bit registers
+ *
+ * Tx queue start address reg in global address map at address 0x0000
+ * tx queue end address reg in global address map at address 0x0004
+ * rx queue start address reg in global address map at address 0x0008
+ * rx queue end address reg in global address map at address 0x000C
  */
 
 /*
@@ -295,10 +267,10 @@ typedef union _LOOPBACK_t {
  * Located at address 0x0000
  */
 typedef struct _GLOBAL_t {			/* Location: */
-	Q_ADDR_t txq_start_addr;		/*  0x0000 */
-	Q_ADDR_t txq_end_addr;			/*  0x0004 */
-	Q_ADDR_t rxq_start_addr;		/*  0x0008 */
-	Q_ADDR_t rxq_end_addr;			/*  0x000C */
+	u32 txq_start_addr;			/*  0x0000 */
+	u32 txq_end_addr;			/*  0x0004 */
+	u32 rxq_start_addr;			/*  0x0008 */
+	u32 rxq_end_addr;			/*  0x000C */
 	PM_CSR_t pm_csr;			/*  0x0010 */
 	u32 unused;				/*  0x0014 */
 	INTERRUPT_t int_status;			/*  0x0018 */

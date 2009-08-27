@@ -1,3 +1,4 @@
+/*
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
@@ -135,6 +136,8 @@ void DumpTxQueueContents(int debug, struct et131x_adapter *etdev)
 	}
 }
 
+#define NUM_BLOCKS 8
+
 static const char *BlockNames[NUM_BLOCKS] = {
 	"Global", "Tx DMA", "Rx DMA", "Tx MAC",
 	"Rx MAC", "MAC", "MAC Stat", "MMC"
@@ -148,7 +151,6 @@ static const char *BlockNames[NUM_BLOCKS] = {
  * Dumps the first 64 regs of each block of the et-1310 (each block is
  * mapped to a new page, each page is 4096 bytes).
  */
-#define NUM_BLOCKS 8
 void DumpDeviceBlock(int debug, struct et131x_adapter *etdev,
 		     u32 block)
 {
