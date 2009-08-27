@@ -253,8 +253,6 @@ struct et131x_adapter {
 	/* Registry parameters */
 	u8 SpeedDuplex;		/* speed/duplex */
 	eFLOW_CONTROL_t RegistryFlowControl;	/* for 802.3x flow control */
-	u8 RegistryWOLMatch;	/* Enable WOL pattern-matching */
-	u8 RegistryWOLLink;	/* Link state change is independant */
 	u8 RegistryPhyComa;	/* Phy Coma mode enable/disable */
 
 	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
@@ -269,9 +267,7 @@ struct et131x_adapter {
 	u32 RegistryRxTimeInterval;
 
 	/* Validation helpers */
-	u8 RegistryPMWOL;
 	u8 RegistryNMIDisable;
-	u32 RegistrySCGain;
 	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */
 
 	/* Derived from the registry: */

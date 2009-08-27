@@ -247,8 +247,6 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 
 	etdev->RegistryVlanTag = PARM_VLAN_TAG_DEF;
 	etdev->RegistryFlowControl = PARM_FLOW_CTL_DEF;
-	etdev->RegistryWOLLink = PARM_WOL_LINK_DEF;
-	etdev->RegistryWOLMatch = PARM_WOL_MATCH_DEF;
 	etdev->RegistryJumboPacket = PARM_JUMBO_PKT_DEF;
 	etdev->RegistryPhyComa = PARM_PHY_COMA_DEF;
 	etdev->RegistryRxNumBuffers = PARM_RX_NUM_BUFS_DEF;
@@ -257,8 +255,6 @@ void et131x_config_parse(struct et131x_adapter *etdev)
 	etdev->RegistryTxTimeInterval = PARM_TX_TIME_INT_DEF;
 	etdev->RegistryRxMemEnd = PARM_RX_MEM_END_DEF;
 	etdev->RegistryMACStat = PARM_MAC_STAT_DEF;
-	etdev->RegistrySCGain = PARM_SC_GAIN_DEF;
-	etdev->RegistryPMWOL = PARM_PM_WOL_DEF;
 
 	if (et131x_nmi_disable != PARM_NMI_DISABLE_DEF)
 		etdev->RegistryNMIDisable = et131x_nmi_disable;
