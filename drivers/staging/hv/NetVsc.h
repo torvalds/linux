@@ -26,7 +26,7 @@
 
 #include "include/VmbusPacketFormat.h"
 #include "include/VmbusChannelInterface.h"
-#include "include/List.h"
+#include "List.h"
 #include "include/NetVscApi.h"
 
 

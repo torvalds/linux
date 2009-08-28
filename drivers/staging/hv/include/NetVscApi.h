@@ -26,7 +26,7 @@
 #define _NETVSC_API_H_
 
 #include "VmbusApi.h"
-#include "List.h"
+#include "../List.h"
 
 /* Defines */
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(64*PAGE_SIZE)

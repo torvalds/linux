@@ -25,7 +25,7 @@
 #ifndef _CHANNEL_MGMT_H_
 #define _CHANNEL_MGMT_H_
 
-#include "include/List.h"
+#include "List.h"
 #include "RingBuffer.h"
 
 #include "include/VmbusChannelInterface.h"
