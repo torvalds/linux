@@ -361,13 +361,10 @@ cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 static int
 cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *tcon;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(m->mnt_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
 
-	cifs_sb = CIFS_SB(m->mnt_sb);
-	tcon = cifs_sb->tcon;
-
-	seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
+	seq_printf(s, ",unc=%s", tcon->treeName);
 	if (tcon->ses->userName)
 		seq_printf(s, ",username=%s", tcon->ses->userName);
 	if (tcon->ses->domainName)
