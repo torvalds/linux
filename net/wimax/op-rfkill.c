@@ -355,6 +355,7 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 
 	wimax_dev->rfkill = rfkill;
 
+	rfkill_init_sw_state(rfkill, 1);
 	result = rfkill_register(wimax_dev->rfkill);
 	if (result < 0)
 		goto error_rfkill_register;
