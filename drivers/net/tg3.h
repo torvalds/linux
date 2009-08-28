@@ -2492,6 +2492,13 @@ struct tg3_rx_prodring_set {
 struct tg3_napi {
 	struct napi_struct		napi	____cacheline_aligned;
 	struct tg3			*tp;
+	struct tg3_hw_status		*hw_status;
+
+	u32				last_tag;
+	u32				last_irq_tag;
+	u32				int_mbox;
+
+	dma_addr_t			status_mapping;
 };
 
 struct tg3 {
@@ -2545,11 +2552,6 @@ struct tg3 {
 	void __iomem			*aperegs;
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
-
-	struct tg3_hw_status		*hw_status;
-	dma_addr_t			status_mapping;
-	u32				last_tag;
-	u32				last_irq_tag;
 
 	u32				msg_enable;
 
