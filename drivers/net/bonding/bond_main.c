@@ -4759,7 +4759,7 @@ static int bond_check_params(struct bond_params *params)
 		params->ad_select = BOND_AD_STABLE;
 	}
 
-	if (max_bonds < 0 || max_bonds > INT_MAX) {
+	if (max_bonds < 0) {
 		pr_warning(DRV_NAME
 		       ": Warning: max_bonds (%d) not in range %d-%d, so it "
 		       "was reset to BOND_DEFAULT_MAX_BONDS (%d)\n",
