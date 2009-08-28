@@ -106,6 +106,7 @@ struct iop_adma_desc_slot {
 	union {
 		u32 *xor_check_result;
 		u32 *crc32_result;
+		u32 *pq_check_result;
 	};
 };
 
