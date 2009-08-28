@@ -149,13 +149,40 @@ static void clocksource_watchdog_work(struct work_struct *work)
 	kthread_run(clocksource_watchdog_kthread, NULL, "kwatchdog");
 }
 
+static void __clocksource_unstable(struct clocksource *cs)
+{
+	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
+	cs->flags |= CLOCK_SOURCE_UNSTABLE;
+	schedule_work(&watchdog_work);
+}
+
 static void clocksource_unstable(struct clocksource *cs, int64_t delta)
 {
 	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
 	       cs->name, delta);
-	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
-	cs->flags |= CLOCK_SOURCE_UNSTABLE;
-	schedule_work(&watchdog_work);
+	__clocksource_unstable(cs);
+}
+
+/**
+ * clocksource_mark_unstable - mark clocksource unstable via watchdog
+ * @cs:		clocksource to be marked unstable
+ *
+ * This function is called instead of clocksource_change_rating from
+ * cpu hotplug code to avoid a deadlock between the clocksource mutex
+ * and the cpu hotplug mutex. It defers the update of the clocksource
+ * to the watchdog thread.
+ */
+void clocksource_mark_unstable(struct clocksource *cs)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&watchdog_lock, flags);
+	if (!(cs->flags & CLOCK_SOURCE_UNSTABLE)) {
+		if (list_empty(&cs->wd_list))
+			list_add(&cs->wd_list, &watchdog_list);
+		__clocksource_unstable(cs);
+	}
+	spin_unlock_irqrestore(&watchdog_lock, flags);
 }
 
 static void clocksource_watchdog(unsigned long data)
