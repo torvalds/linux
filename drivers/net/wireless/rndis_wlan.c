@@ -921,6 +921,7 @@ static int freq_to_dsconfig(struct iw_freq *freq, unsigned int *dsconfig)
 /*
  * common functions
  */
+static int set_infra_mode(struct usbnet *usbdev, int mode);
 static void restore_keys(struct usbnet *usbdev);
 static int rndis_check_bssid_list(struct usbnet *usbdev);
 
@@ -1014,6 +1015,11 @@ static int disassociate(struct usbnet *usbdev, int reset_ssid)
 	/* disassociate causes radio to be turned off; if reset_ssid
 	 * is given, set random ssid to enable radio */
 	if (reset_ssid) {
+		/* Set device to infrastructure mode so we don't get ad-hoc
+		 * 'media connect' indications with the random ssid.
+		 */
+		set_infra_mode(usbdev, NDIS_80211_INFRA_INFRA);
+
 		ssid.length = cpu_to_le32(sizeof(ssid.essid));
 		get_random_bytes(&ssid.essid[2], sizeof(ssid.essid)-2);
 		ssid.essid[0] = 0x1;
