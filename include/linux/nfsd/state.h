@@ -94,30 +94,23 @@ struct nfs4_cb_conn {
 
 /* Maximum number of slots per session. 160 is useful for long haul TCP */
 #define NFSD_MAX_SLOTS_PER_SESSION     160
-/* Maximum number of pages per slot cache entry */
-#define NFSD_PAGES_PER_SLOT	1
-#define NFSD_SLOT_CACHE_SIZE		PAGE_SIZE
 /* Maximum number of operations per session compound */
 #define NFSD_MAX_OPS_PER_COMPOUND	16
+/* Maximum  session per slot cache size */
+#define NFSD_SLOT_CACHE_SIZE		1024
 /* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
 #define NFSD_CACHE_SIZE_SLOTS_PER_SESSION	32
 #define NFSD_MAX_MEM_PER_SESSION  \
 		(NFSD_CACHE_SIZE_SLOTS_PER_SESSION * NFSD_SLOT_CACHE_SIZE)
 
-struct nfsd4_cache_entry {
-	__be32		ce_status;
-	struct kvec	ce_datav; /* encoded NFSv4.1 data in rq_res.head[0] */
-	struct page	*ce_respages[NFSD_PAGES_PER_SLOT + 1];
-	int		ce_cachethis;
-	short		ce_resused;
-	int		ce_opcnt;
-	int		ce_rpchdrlen;
-};
-
 struct nfsd4_slot {
-	bool				sl_inuse;
-	u32				sl_seqid;
-	struct nfsd4_cache_entry	sl_cache_entry;
+	bool	sl_inuse;
+	bool	sl_cachethis;
+	u16	sl_opcnt;
+	u32	sl_seqid;
+	__be32	sl_status;
+	u32	sl_datalen;
+	char	sl_data[];
 };
 
 struct nfsd4_channel_attrs {
@@ -159,7 +152,7 @@ struct nfsd4_session {
 	struct nfs4_sessionid	se_sessionid;
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_channel_attrs se_bchannel;
-	struct nfsd4_slot	se_slots[];	/* forward channel slots */
+	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };
 
 static inline void
