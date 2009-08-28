@@ -66,13 +66,21 @@
 #define OMAP2_IO_OFFSET		0x90000000
 #define OMAP2_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_IO_OFFSET) /* L3 and L4 */
 
-#if defined(CONFIG_ARCH_OMAP1)
+/*
+ * ----------------------------------------------------------------------------
+ * Omap1 specific IO mapping
+ * ----------------------------------------------------------------------------
+ */
 
-#define IO_PHYS			0xFFFB0000
-#define IO_SIZE			0x40000
-#define IO_VIRT			(IO_PHYS - OMAP1_IO_OFFSET)
+#define OMAP1_IO_PHYS		0xFFFB0000
+#define OMAP1_IO_SIZE		0x40000
+#define OMAP1_IO_VIRT		(OMAP1_IO_PHYS - OMAP1_IO_OFFSET)
 
-#elif defined(CONFIG_ARCH_OMAP2)
+/*
+ * ----------------------------------------------------------------------------
+ * Omap2 specific IO mapping
+ * ----------------------------------------------------------------------------
+ */
 
 /* We map both L3 and L4 on OMAP2 */
 #define L3_24XX_PHYS	L3_24XX_BASE	/* 0x68000000 */
@@ -106,7 +114,11 @@
 #define DSP_MMU_24XX_VIRT	0xe2000000
 #define DSP_MMU_24XX_SIZE	SZ_4K
 
-#elif defined(CONFIG_ARCH_OMAP3)
+/*
+ * ----------------------------------------------------------------------------
+ * Omap3 specific IO mapping
+ * ----------------------------------------------------------------------------
+ */
 
 /* We map both L3 and L4 on OMAP3 */
 #define L3_34XX_PHYS		L3_34XX_BASE	/* 0x68000000 */
@@ -157,8 +169,12 @@
 #define DSP_MMU_34XX_VIRT	0xe2000000
 #define DSP_MMU_34XX_SIZE	SZ_4K
 
+/*
+ * ----------------------------------------------------------------------------
+ * Omap4 specific IO mapping
+ * ----------------------------------------------------------------------------
+ */
 
-#elif defined(CONFIG_ARCH_OMAP4)
 /* We map both L3 and L4 on OMAP4 */
 #define L3_44XX_PHYS		L3_44XX_BASE
 #define L3_44XX_VIRT		0xd4000000
@@ -185,7 +201,12 @@
 #define OMAP44XX_GPMC_VIRT	0xe0000000
 #define OMAP44XX_GPMC_SIZE	SZ_1M
 
-#endif
+
+/*
+ * ----------------------------------------------------------------------------
+ * Omap specific register access
+ * ----------------------------------------------------------------------------
+ */
 
 #ifndef __ASSEMBLER__
 
