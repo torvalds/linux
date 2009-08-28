@@ -6348,13 +6348,13 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32_f(MAC_MODE, 0);
 	udelay(40);
 
-	tg3_mdio_start(tp);
-
 	tg3_ape_unlock(tp, TG3_APE_LOCK_GRC);
 
 	err = tg3_poll_fw(tp);
 	if (err)
 		return err;
+
+	tg3_mdio_start(tp);
 
 	if ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) &&
 	    tp->pci_chip_rev_id != CHIPREV_ID_5750_A0) {
