@@ -2720,9 +2720,10 @@ static void rndis_wlan_auth_indication(struct usbnet *usbdev,
 {
 	u8 *buf;
 	const char *type;
-	int flags, buflen;
+	int flags, buflen, key_id;
 	bool pairwise_error, group_error;
 	struct ndis_80211_auth_request *auth_req;
+	enum nl80211_key_type key_type;
 
 	/* must have at least one array entry */
 	if (len < offsetof(struct ndis_80211_status_indication, u) +
@@ -2758,23 +2759,24 @@ static void rndis_wlan_auth_indication(struct usbnet *usbdev,
 		devinfo(usbdev, "authentication indication: %s (0x%08x)", type,
 				le32_to_cpu(auth_req->flags));
 
-		if (pairwise_error || group_error) {
-			union iwreq_data wrqu;
-			struct iw_michaelmicfailure micfailure;
+		if (pairwise_error) {
+			key_type = NL80211_KEYTYPE_PAIRWISE;
+			key_id = -1;
 
-			memset(&micfailure, 0, sizeof(micfailure));
-			if (pairwise_error)
-				micfailure.flags |= IW_MICFAILURE_PAIRWISE;
-			if (group_error)
-				micfailure.flags |= IW_MICFAILURE_GROUP;
+			cfg80211_michael_mic_failure(usbdev->net,
+							auth_req->bssid,
+							key_type, key_id, NULL,
+							GFP_KERNEL);
+		}
 
-			memcpy(micfailure.src_addr.sa_data, auth_req->bssid,
-				ETH_ALEN);
+		if (group_error) {
+			key_type = NL80211_KEYTYPE_GROUP;
+			key_id = -1;
 
-			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.length = sizeof(micfailure);
-			wireless_send_event(usbdev->net, IWEVMICHAELMICFAILURE,
-						&wrqu, (u8 *)&micfailure);
+			cfg80211_michael_mic_failure(usbdev->net,
+							auth_req->bssid,
+							key_type, key_id, NULL,
+							GFP_KERNEL);
 		}
 
 		buflen -= le32_to_cpu(auth_req->length);
