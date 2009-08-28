@@ -2825,6 +2825,11 @@ static s8 size_index[24] = {
 	2	/* 192 */
 };
 
+static inline int size_index_elem(size_t bytes)
+{
+	return (bytes - 1) / 8;
+}
+
 static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 {
 	int index;
@@ -2833,7 +2838,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 		if (!size)
 			return ZERO_SIZE_PTR;
 
-		index = size_index[(size - 1) / 8];
+		index = size_index[size_index_elem(size)];
 	} else
 		index = fls(size - 1);
 
@@ -3188,10 +3193,12 @@ void __init kmem_cache_init(void)
 	slab_state = PARTIAL;
 
 	/* Caches that are not of the two-to-the-power-of size */
-	if (KMALLOC_MIN_SIZE <= 64) {
+	if (KMALLOC_MIN_SIZE <= 32) {
 		create_kmalloc_cache(&kmalloc_caches[1],
 				"kmalloc-96", 96, GFP_NOWAIT);
 		caches++;
+	}
+	if (KMALLOC_MIN_SIZE <= 64) {
 		create_kmalloc_cache(&kmalloc_caches[2],
 				"kmalloc-192", 192, GFP_NOWAIT);
 		caches++;
@@ -3218,17 +3225,28 @@ void __init kmem_cache_init(void)
 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
 
-	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8)
-		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
+	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
+		int elem = size_index_elem(i);
+		if (elem >= ARRAY_SIZE(size_index))
+			break;
+		size_index[elem] = KMALLOC_SHIFT_LOW;
+	}
 
-	if (KMALLOC_MIN_SIZE == 128) {
+	if (KMALLOC_MIN_SIZE == 64) {
+		/*
+		 * The 96 byte size cache is not used if the alignment
+		 * is 64 byte.
+		 */
+		for (i = 64 + 8; i <= 96; i += 8)
+			size_index[size_index_elem(i)] = 7;
+	} else if (KMALLOC_MIN_SIZE == 128) {
 		/*
 		 * The 192 byte sized cache is not used if the alignment
 		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
 		 * instead.
 		 */
 		for (i = 128 + 8; i <= 192; i += 8)
-			size_index[(i - 1) / 8] = 8;
+			size_index[size_index_elem(i)] = 8;
 	}
 
 	slab_state = UP;
