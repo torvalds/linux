@@ -1,6 +1,7 @@
-#ifndef _PARSE_EVENTS_H
-#define _PARSE_EVENTS_H
+#ifndef _TRACE_EVENTS_H
+#define _TRACE_EVENTS_H
 
+#include "parse-events.h"
 
 #define __unused __attribute__((unused))
 
@@ -233,6 +234,6 @@ extern int header_page_data_size;
 
 int parse_header_page(char *buf, unsigned long size);
 
-void read_tracing_data(void);
+void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters);
 
-#endif /* _PARSE_EVENTS_H */
+#endif /* _TRACE_EVENTS_H */

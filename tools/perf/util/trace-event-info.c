@@ -32,7 +32,9 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdbool.h>
 
+#include "../perf.h"
 #include "trace-event.h"
 
 
@@ -289,7 +291,18 @@ static void read_header_files(void)
 	put_tracing_file(path);
 }
 
-static void copy_event_system(const char *sys)
+static bool name_in_tp_list(char *sys, struct tracepoint_path *tps)
+{
+	while (tps) {
+		if (!strcmp(sys, tps->name))
+			return true;
+		tps = tps->next;
+	}
+
+	return false;
+}
+
+static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 {
 	unsigned long long size, check_size;
 	struct dirent *dent;
@@ -305,7 +318,8 @@ static void copy_event_system(const char *sys)
 
 	while ((dent = readdir(dir))) {
 		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
+		    strcmp(dent->d_name, "..") == 0 ||
+		    !name_in_tp_list(dent->d_name, tps))
 			continue;
 		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
 		sprintf(format, "%s/%s/format", sys, dent->d_name);
@@ -321,7 +335,8 @@ static void copy_event_system(const char *sys)
 	rewinddir(dir);
 	while ((dent = readdir(dir))) {
 		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
+		    strcmp(dent->d_name, "..") == 0 ||
+		    !name_in_tp_list(dent->d_name, tps))
 			continue;
 		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
 		sprintf(format, "%s/%s/format", sys, dent->d_name);
@@ -340,18 +355,29 @@ static void copy_event_system(const char *sys)
 	}
 }
 
-static void read_ftrace_files(void)
+static void read_ftrace_files(struct tracepoint_path *tps)
 {
 	char *path;
 
 	path = get_tracing_file("events/ftrace");
 
-	copy_event_system(path);
+	copy_event_system(path, tps);
 
 	put_tracing_file(path);
 }
 
-static void read_event_files(void)
+static bool system_in_tp_list(char *sys, struct tracepoint_path *tps)
+{
+	while (tps) {
+		if (!strcmp(sys, tps->system))
+			return true;
+		tps = tps->next;
+	}
+
+	return false;
+}
+
+static void read_event_files(struct tracepoint_path *tps)
 {
 	struct dirent *dent;
 	struct stat st;
@@ -370,7 +396,8 @@ static void read_event_files(void)
 	while ((dent = readdir(dir))) {
 		if (strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0)
+		    strcmp(dent->d_name, "ftrace") == 0 ||
+		    !system_in_tp_list(dent->d_name, tps))
 			continue;
 		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
 		sprintf(sys, "%s/%s", path, dent->d_name);
@@ -388,7 +415,8 @@ static void read_event_files(void)
 	while ((dent = readdir(dir))) {
 		if (strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0)
+		    strcmp(dent->d_name, "ftrace") == 0 ||
+		    !system_in_tp_list(dent->d_name, tps))
 			continue;
 		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
 		sprintf(sys, "%s/%s", path, dent->d_name);
@@ -396,7 +424,7 @@ static void read_event_files(void)
 		if (ret >= 0) {
 			if (S_ISDIR(st.st_mode)) {
 				write_or_die(dent->d_name, strlen(dent->d_name) + 1);
-				copy_event_system(sys);
+				copy_event_system(sys, tps);
 			}
 		}
 		free(sys);
@@ -450,9 +478,27 @@ static void read_ftrace_printk(void)
 
 }
 
-void read_tracing_data(void)
+static struct tracepoint_path *
+get_tracepoints_path(struct perf_counter_attr *pattrs, int nb_counters)
+{
+	struct tracepoint_path path, *ppath = &path;
+	int i;
+
+	for (i = 0; i < nb_counters; i++) {
+		if (pattrs[i].type != PERF_TYPE_TRACEPOINT)
+			continue;
+		ppath->next = tracepoint_id_to_path(pattrs[i].config);
+		if (!ppath->next)
+			die("%s\n", "No memory to alloc tracepoints list");
+		ppath = ppath->next;
+	}
+
+	return path.next;
+}
+void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters)
 {
 	char buf[BUFSIZ];
+	struct tracepoint_path *tps;
 
 	output_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 	if (output_fd < 0)
@@ -483,9 +529,11 @@ void read_tracing_data(void)
 	page_size = getpagesize();
 	write_or_die(&page_size, 4);
 
+	tps = get_tracepoints_path(pattrs, nb_counters);
+
 	read_header_files();
-	read_ftrace_files();
-	read_event_files();
+	read_ftrace_files(tps);
+	read_event_files(tps);
 	read_proc_kallsyms();
 	read_ftrace_printk();
 }

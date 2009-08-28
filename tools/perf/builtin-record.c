@@ -549,11 +549,11 @@ static int __cmd_record(int argc, const char **argv)
 
 
 	if (raw_samples) {
-		read_tracing_data();
+		read_tracing_data(attrs, nr_counters);
 	} else {
 		for (i = 0; i < nr_counters; i++) {
 			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				read_tracing_data();
+				read_tracing_data(attrs, nr_counters);
 				break;
 			}
 		}

@@ -29,6 +29,7 @@
 #include <errno.h>
 
 #undef _GNU_SOURCE
+#include "../perf.h"
 #include "util.h"
 #include "trace-event.h"
 
