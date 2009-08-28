@@ -414,34 +414,64 @@ gen_sessionid(struct nfsd4_session *ses)
 }
 
 /*
- * Give the client the number of slots it requests bound by
- * NFSD_MAX_SLOTS_PER_SESSION and by nfsd_drc_max_mem.
- *
- * If we run out of reserved DRC memory we should (up to a point) re-negotiate
- * active sessions and reduce their slot usage to make rooom for new
- * connections. For now we just fail the create session.
+ * The protocol defines ca_maxresponssize_cached to include the size of
+ * the rpc header, but all we need to cache is the data starting after
+ * the end of the initial SEQUENCE operation--the rest we regenerate
+ * each time.  Therefore we can advertise a ca_maxresponssize_cached
+ * value that is the number of bytes in our cache plus a few additional
+ * bytes.  In order to stay on the safe side, and not promise more than
+ * we can cache, those additional bytes must be the minimum possible: 24
+ * bytes of rpc header (xid through accept state, with AUTH_NULL
+ * verifier), 12 for the compound header (with zero-length tag), and 44
+ * for the SEQUENCE op response:
  */
-static int set_forechannel_maxreqs(struct nfsd4_channel_attrs *fchan)
+#define NFSD_MIN_HDR_SEQ_SZ  (24 + 12 + 44)
+
+/*
+ * Give the client the number of ca_maxresponsesize_cached slots it
+ * requests, of size bounded by NFSD_SLOT_CACHE_SIZE,
+ * NFSD_MAX_MEM_PER_SESSION, and nfsd_drc_max_mem. Do not allow more
+ * than NFSD_MAX_SLOTS_PER_SESSION.
+ *
+ * If we run out of reserved DRC memory we should (up to a point)
+ * re-negotiate active sessions and reduce their slot usage to make
+ * rooom for new connections. For now we just fail the create session.
+ */
+static int set_forechannel_drc_size(struct nfsd4_channel_attrs *fchan)
 {
-	int mem;
+	int mem, size = fchan->maxresp_cached;
 
 	if (fchan->maxreqs < 1)
 		return nfserr_inval;
-	else if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
-		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
 
-	mem = fchan->maxreqs * NFSD_SLOT_CACHE_SIZE;
+	if (size < NFSD_MIN_HDR_SEQ_SZ)
+		size = NFSD_MIN_HDR_SEQ_SZ;
+	size -= NFSD_MIN_HDR_SEQ_SZ;
+	if (size > NFSD_SLOT_CACHE_SIZE)
+		size = NFSD_SLOT_CACHE_SIZE;
+
+	/* bound the maxreqs by NFSD_MAX_MEM_PER_SESSION */
+	mem = fchan->maxreqs * size;
+	if (mem > NFSD_MAX_MEM_PER_SESSION) {
+		fchan->maxreqs = NFSD_MAX_MEM_PER_SESSION / size;
+		if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
+			fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
+		mem = fchan->maxreqs * size;
+	}
 
 	spin_lock(&nfsd_drc_lock);
-	if (mem + nfsd_drc_mem_used > nfsd_drc_max_mem)
-		mem = ((nfsd_drc_max_mem - nfsd_drc_mem_used) /
-				NFSD_SLOT_CACHE_SIZE) * NFSD_SLOT_CACHE_SIZE;
+	/* bound the total session drc memory ussage */
+	if (mem + nfsd_drc_mem_used > nfsd_drc_max_mem) {
+		fchan->maxreqs = (nfsd_drc_max_mem - nfsd_drc_mem_used) / size;
+		mem = fchan->maxreqs * size;
+	}
 	nfsd_drc_mem_used += mem;
 	spin_unlock(&nfsd_drc_lock);
 
-	fchan->maxreqs = mem / NFSD_SLOT_CACHE_SIZE;
 	if (fchan->maxreqs == 0)
 		return nfserr_resource;
+
+	fchan->maxresp_cached = size + NFSD_MIN_HDR_SEQ_SZ;
 	return 0;
 }
 
@@ -466,9 +496,6 @@ static int init_forechannel_attrs(struct svc_rqst *rqstp,
 		fchan->maxresp_sz = maxcount;
 	session_fchan->maxresp_sz = fchan->maxresp_sz;
 
-	session_fchan->maxresp_cached = NFSD_SLOT_CACHE_SIZE;
-	fchan->maxresp_cached = session_fchan->maxresp_cached;
-
 	/* Use the client's maxops if possible */
 	if (fchan->maxops > NFSD_MAX_OPS_PER_COMPOUND)
 		fchan->maxops = NFSD_MAX_OPS_PER_COMPOUND;
@@ -478,9 +505,12 @@ static int init_forechannel_attrs(struct svc_rqst *rqstp,
 	 * recover pages from existing sessions. For now fail session
 	 * creation.
 	 */
-	status = set_forechannel_maxreqs(fchan);
+	status = set_forechannel_drc_size(fchan);
 
+	session_fchan->maxresp_cached = fchan->maxresp_cached;
 	session_fchan->maxreqs = fchan->maxreqs;
+
+	dprintk("%s status %d\n", __func__, status);
 	return status;
 }
 

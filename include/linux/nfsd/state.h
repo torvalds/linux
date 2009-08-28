@@ -92,13 +92,17 @@ struct nfs4_cb_conn {
 	struct rpc_cred	*	cb_cred;
 };
 
-/* Maximum number of slots per session. 128 is useful for long haul TCP */
-#define NFSD_MAX_SLOTS_PER_SESSION	128
+/* Maximum number of slots per session. 160 is useful for long haul TCP */
+#define NFSD_MAX_SLOTS_PER_SESSION     160
 /* Maximum number of pages per slot cache entry */
 #define NFSD_PAGES_PER_SLOT	1
 #define NFSD_SLOT_CACHE_SIZE		PAGE_SIZE
 /* Maximum number of operations per session compound */
 #define NFSD_MAX_OPS_PER_COMPOUND	16
+/* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
+#define NFSD_CACHE_SIZE_SLOTS_PER_SESSION	32
+#define NFSD_MAX_MEM_PER_SESSION  \
+		(NFSD_CACHE_SIZE_SLOTS_PER_SESSION * NFSD_SLOT_CACHE_SIZE)
 
 struct nfsd4_cache_entry {
 	__be32		ce_status;
