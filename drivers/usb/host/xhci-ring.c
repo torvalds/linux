@@ -991,7 +991,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			break;
 		case COMP_SHORT_TX:
 			xhci_warn(xhci, "WARN: short transfer on control ep\n");
-			status = -EREMOTEIO;
+			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+				status = -EREMOTEIO;
+			else
+				status = 0;
 			break;
 		case COMP_BABBLE:
 			/* The 0.96 spec says a babbling control endpoint
@@ -1034,7 +1037,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			if (event_trb == td->last_trb) {
 				if (td->urb->actual_length != 0) {
 					/* Don't overwrite a previously set error code */
-					if (status == -EINPROGRESS || status == 0)
+					if ((status == -EINPROGRESS ||
+								status == 0) &&
+							(td->urb->transfer_flags
+							 & URB_SHORT_NOT_OK))
 						/* Did we already see a short data stage? */
 						status = -EREMOTEIO;
 				} else {
