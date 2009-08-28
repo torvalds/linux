@@ -32,10 +32,10 @@
 
 typedef void (*PFN_CHANNEL_MESSAGE_HANDLER)(struct vmbus_channel_message_header *msg);
 
-typedef struct _VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY {
+struct vmbus_channel_message_table_entry {
 	enum vmbus_channel_message_type	messageType;
 	PFN_CHANNEL_MESSAGE_HANDLER messageHandler;
-} VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY;
+};
 
 /* Internal routines */
 static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr);
@@ -92,7 +92,7 @@ static const struct hv_guid gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPO
 };
 
 /* Channel message dispatch table */
-static VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY gChannelMessageTable[ChannelMessageCount]= {
+static struct vmbus_channel_message_table_entry gChannelMessageTable[ChannelMessageCount]= {
     {ChannelMessageInvalid,					NULL},
     {ChannelMessageOfferChannel,            VmbusChannelOnOffer},
     {ChannelMessageRescindChannelOffer,     VmbusChannelOnOfferRescind},
