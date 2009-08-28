@@ -74,6 +74,9 @@ enum tda18271_standby_mode {
 	/* xtal oscillator on */
 	TDA18271_STANDBY_XT_ON,
 
+	/* slave tuner output / loop thru on */
+	TDA18271_STANDBY_LT_ON,
+
 	/* power off */
 	TDA18271_STANDBY_POWER_OFF,
 };

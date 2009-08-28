@@ -1026,6 +1026,10 @@ static int tda18271_sleep(struct dvb_frontend *fe)
 		tda_dbg("standby mode: xtal oscillator on\n");
 		ret = tda18271_set_standby_mode(fe, 1, 1, 0);
 		break;
+	case TDA18271_STANDBY_LT_ON:
+		tda_dbg("standby mode: slave tuner output / loop thru on\n");
+		ret = tda18271_set_standby_mode(fe, 1, 0, 1);
+		break;
 	case TDA18271_STANDBY_LT_XT_ON:
 	default:
 		tda_dbg("standby mode: loop thru & xtal oscillator on\n");
