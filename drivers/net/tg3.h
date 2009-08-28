@@ -2497,8 +2497,13 @@ struct tg3_napi {
 	u32				last_tag;
 	u32				last_irq_tag;
 	u32				int_mbox;
+	u32				consmbox;
+	u32				rx_rcb_ptr;
+
+	struct tg3_rx_buffer_desc	*rx_rcb;
 
 	dma_addr_t			status_mapping;
+	dma_addr_t			rx_rcb_mapping;
 };
 
 struct tg3 {
@@ -2570,7 +2575,6 @@ struct tg3 {
 	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
-	u32				rx_rcb_ptr;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
 	u32				rx_std_max_post;
@@ -2578,9 +2582,6 @@ struct tg3 {
 #if TG3_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
 #endif
-
-	struct tg3_rx_buffer_desc	*rx_rcb;
-	dma_addr_t			rx_rcb_mapping;
 
 	struct tg3_rx_prodring_set	prodring[1];
 
