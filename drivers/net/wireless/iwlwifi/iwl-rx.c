@@ -962,6 +962,9 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		return;
 	}
 
+	/* This will be used in several places later */
+	rate_n_flags = le32_to_cpu(phy_res->rate_n_flags);
+
 	/* rx_status carries information about the packet to mac80211 */
 	rx_status.mactime = le64_to_cpu(phy_res->timestamp);
 	rx_status.freq =
@@ -969,10 +972,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	rx_status.band = (phy_res->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.rate_idx =
-		iwl_hwrate_to_plcp_idx(le32_to_cpu(phy_res->rate_n_flags));
-	if (rx_status.band == IEEE80211_BAND_5GHZ)
-		rx_status.rate_idx -= IWL_FIRST_OFDM_RATE;
-
+		iwl_hwrate_to_mac80211_idx(rate_n_flags, rx_status.band);
 	rx_status.flag = 0;
 
 	/* TSF isn't reliable. In order to allow smooth user experience,
@@ -1034,7 +1034,6 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		rx_status.flag |= RX_FLAG_SHORTPRE;
 
 	/* Set up the HT phy flags */
-	rate_n_flags = le32_to_cpu(phy_res->rate_n_flags);
 	if (rate_n_flags & RATE_MCS_HT_MSK)
 		rx_status.flag |= RX_FLAG_HT;
 	if (rate_n_flags & RATE_MCS_HT40_MSK)

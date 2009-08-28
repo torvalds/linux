@@ -878,6 +878,12 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		rs_index -= IWL_FIRST_OFDM_RATE;
 	mac_flags = info->status.rates[0].flags;
 	mac_index = info->status.rates[0].idx;
+	/* For HT packets, map MCS to PLCP */
+	if (mac_flags & IEEE80211_TX_RC_MCS) {
+		mac_index &= RATE_MCS_CODE_MSK;	/* Remove # of streams */
+		if (mac_index >= (IWL_RATE_9M_INDEX - IWL_FIRST_OFDM_RATE))
+			mac_index++;
+	}
 
 	if ((mac_index < 0) ||
 	    (tbl_type.is_SGI != !!(mac_flags & IEEE80211_TX_RC_SHORT_GI)) ||
@@ -886,8 +892,8 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	    (tbl_type.ant_type != info->antenna_sel_tx) ||
 	    (!!(tx_rate & RATE_MCS_HT_MSK) != !!(mac_flags & IEEE80211_TX_RC_MCS)) ||
 	    (!!(tx_rate & RATE_MCS_GF_MSK) != !!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
-	    rs_index != mac_index) {
-		IWL_DEBUG_RATE(priv, "initial rate does not match 0x%x\n", tx_rate);
+	    (rs_index != mac_index)) {
+		IWL_DEBUG_RATE(priv, "initial rate %d does not match %d (0x%x)\n", mac_index, rs_index, tx_rate);
 		/* the last LQ command could failed so the LQ in ucode not
 		 * the same in driver sync up
 		 */
