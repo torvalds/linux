@@ -2487,6 +2487,13 @@ struct tg3_rx_prodring_set {
 	dma_addr_t			rx_jmb_mapping;
 };
 
+#define TG3_IRQ_MAX_VECS 1
+
+struct tg3_napi {
+	struct napi_struct		napi	____cacheline_aligned;
+	struct tg3			*tp;
+};
+
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
@@ -2558,7 +2565,7 @@ struct tg3 {
 	dma_addr_t			tx_desc_mapping;
 
 	/* begin "rx thread" cacheline section */
-	struct napi_struct		napi;
+	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
 	u32				rx_rcb_ptr;

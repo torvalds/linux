@@ -687,7 +687,7 @@ static void tg3_restart_ints(struct tg3 *tp)
 static inline void tg3_netif_stop(struct tg3 *tp)
 {
 	tp->dev->trans_start = jiffies;	/* prevent tx timeout */
-	napi_disable(&tp->napi);
+	napi_disable(&tp->napi[0].napi);
 	netif_tx_disable(tp->dev);
 }
 
@@ -698,7 +698,7 @@ static inline void tg3_netif_start(struct tg3 *tp)
 	 * so long as all callers are assured to have free tx slots
 	 * (such as after tg3_init_hw)
 	 */
-	napi_enable(&tp->napi);
+	napi_enable(&tp->napi[0].napi);
 	tp->hw_status->status |= SD_STATUS_UPDATED;
 	tg3_enable_ints(tp);
 }
@@ -4447,13 +4447,6 @@ static void tg3_recycle_rx(struct tg3 *tp, u32 opaque_key,
 	src_map->skb = NULL;
 }
 
-#if TG3_VLAN_TAG_USED
-static int tg3_vlan_rx(struct tg3 *tp, struct sk_buff *skb, u16 vlan_tag)
-{
-	return vlan_gro_receive(&tp->napi, tp->vlgrp, vlan_tag, skb);
-}
-#endif
-
 /* The RX ring scheme is composed of multiple rings which post fresh
  * buffers to the chip, and one special ring the chip uses to report
  * status back to the host.
@@ -4591,11 +4584,11 @@ static int tg3_rx(struct tg3 *tp, int budget)
 #if TG3_VLAN_TAG_USED
 		if (tp->vlgrp != NULL &&
 		    desc->type_flags & RXD_FLAG_VLAN) {
-			tg3_vlan_rx(tp, skb,
-				    desc->err_vlan & RXD_VLAN_MASK);
+			vlan_gro_receive(&tp->napi[0].napi, tp->vlgrp,
+					 desc->err_vlan & RXD_VLAN_MASK, skb);
 		} else
 #endif
-			napi_gro_receive(&tp->napi, skb);
+			napi_gro_receive(&tp->napi[0].napi, skb);
 
 		received++;
 		budget--;
@@ -4686,7 +4679,8 @@ static int tg3_poll_work(struct tg3 *tp, int work_done, int budget)
 
 static int tg3_poll(struct napi_struct *napi, int budget)
 {
-	struct tg3 *tp = container_of(napi, struct tg3, napi);
+	struct tg3_napi *tnapi = container_of(napi, struct tg3_napi, napi);
+	struct tg3 *tp = tnapi->tp;
 	int work_done = 0;
 	struct tg3_hw_status *sblk = tp->hw_status;
 
@@ -4770,7 +4764,7 @@ static irqreturn_t tg3_msi_1shot(int irq, void *dev_id)
 	prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
 
 	if (likely(!tg3_irq_sync(tp)))
-		napi_schedule(&tp->napi);
+		napi_schedule(&tp->napi[0].napi);
 
 	return IRQ_HANDLED;
 }
@@ -4795,7 +4789,7 @@ static irqreturn_t tg3_msi(int irq, void *dev_id)
 	 */
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 	if (likely(!tg3_irq_sync(tp)))
-		napi_schedule(&tp->napi);
+		napi_schedule(&tp->napi[0].napi);
 
 	return IRQ_RETVAL(1);
 }
@@ -4837,7 +4831,7 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 	sblk->status &= ~SD_STATUS_UPDATED;
 	if (likely(tg3_has_work(tp))) {
 		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-		napi_schedule(&tp->napi);
+		napi_schedule(&tp->napi[0].napi);
 	} else {
 		/* No work, shared interrupt perhaps?  re-enable
 		 * interrupts, and flush that PCI write
@@ -4895,7 +4889,7 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 
 	prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
 
-	napi_schedule(&tp->napi);
+	napi_schedule(&tp->napi[0].napi);
 
 out:
 	return IRQ_RETVAL(handled);
@@ -4936,7 +4930,7 @@ static int tg3_restart_hw(struct tg3 *tp, int reset_phy)
 		tg3_full_unlock(tp);
 		del_timer_sync(&tp->timer);
 		tp->irq_sync = 0;
-		napi_enable(&tp->napi);
+		napi_enable(&tp->napi[0].napi);
 		dev_close(tp->dev);
 		tg3_full_lock(tp, 0);
 	}
@@ -7935,7 +7929,7 @@ static int tg3_open(struct net_device *dev)
 
 	tg3_ints_init(tp);
 
-	napi_enable(&tp->napi);
+	napi_enable(&tp->napi[0].napi);
 
 	err = tg3_request_irq(tp);
 
@@ -8011,7 +8005,7 @@ err_out2:
 	free_irq(tp->pdev->irq, dev);
 
 err_out1:
-	napi_disable(&tp->napi);
+	napi_disable(&tp->napi[0].napi);
 	tg3_ints_fini(tp);
 	tg3_free_consistent(tp);
 	return err;
@@ -8252,7 +8246,7 @@ static int tg3_close(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	napi_disable(&tp->napi);
+	napi_disable(&tp->napi[0].napi);
 	cancel_work_sync(&tp->reset_task);
 
 	netif_stop_queue(dev);
@@ -13396,7 +13390,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->rx_jumbo_pending = TG3_DEF_RX_JUMBO_RING_PENDING;
 	tp->tx_pending = TG3_DEF_TX_RING_PENDING;
 
-	netif_napi_add(dev, &tp->napi, tg3_poll, 64);
+	tp->napi[0].tp = tp;
+	netif_napi_add(dev, &tp->napi[0].napi, tg3_poll, 64);
 	dev->ethtool_ops = &tg3_ethtool_ops;
 	dev->watchdog_timeo = TG3_TX_TIMEOUT;
 	dev->irq = pdev->irq;
