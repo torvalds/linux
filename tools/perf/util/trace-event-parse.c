@@ -1997,6 +1997,7 @@ static void print_str_arg(void *data, int size,
 		memcpy(str, data + arg->field.field->offset,
 		       arg->field.field->size);
 		str[arg->field.field->size] = 0;
+		printf("%s", str);
 		free(str);
 		break;
 	case PRINT_FLAGS:
