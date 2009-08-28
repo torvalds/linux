@@ -435,7 +435,7 @@ static int exec_permission_lite(struct inode *inode)
 	umode_t	mode = inode->i_mode;
 
 	if (inode->i_op->permission)
-		return -EAGAIN;
+		return inode_permission(inode, MAY_EXEC);
 
 	if (current_fsuid() == inode->i_uid)
 		mode >>= 6;
@@ -853,9 +853,6 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 
 		nd->flags |= LOOKUP_CONTINUE;
 		err = exec_permission_lite(inode);
-		if (err == -EAGAIN)
-			err = inode_permission(nd->path.dentry->d_inode,
-					       MAY_EXEC);
  		if (err)
 			break;
 
