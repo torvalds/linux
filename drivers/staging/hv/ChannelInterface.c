@@ -20,199 +20,133 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *
  */
-
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include "osd.h"
 #include "VmbusPrivate.h"
 
-static int
-IVmbusChannelOpen(
-	struct hv_device *Device,
-	u32				SendBufferSize,
-	u32				RecvRingBufferSize,
-	void *				UserData,
-	u32				UserDataLen,
-	VMBUS_CHANNEL_CALLBACK ChannelCallback,
-	void *				Context
-	)
+static int IVmbusChannelOpen(struct hv_device *device, u32 SendBufferSize,
+			     u32 RecvRingBufferSize, void *UserData,
+			     u32 UserDataLen,
+			     VMBUS_CHANNEL_CALLBACK ChannelCallback,
+			     void *Context)
 {
-	return VmbusChannelOpen((struct vmbus_channel *)Device->context,
-								SendBufferSize,
-								RecvRingBufferSize,
-								UserData,
-								UserDataLen,
-								ChannelCallback,
-								Context);
+	return VmbusChannelOpen(device->context, SendBufferSize,
+				RecvRingBufferSize, UserData, UserDataLen,
+				ChannelCallback, Context);
 }
 
-
-static void
-IVmbusChannelClose(
-	struct hv_device *Device
-	)
+static void IVmbusChannelClose(struct hv_device *device)
 {
-	VmbusChannelClose((struct vmbus_channel *)Device->context);
+	VmbusChannelClose(device->context);
 }
 
-
-static int
-IVmbusChannelSendPacket(
-	struct hv_device *Device,
-	const void *			Buffer,
-	u32				BufferLen,
-	u64				RequestId,
-	u32				Type,
-	u32				Flags
-	)
+static int IVmbusChannelSendPacket(struct hv_device *device, const void *Buffer,
+				   u32 BufferLen, u64 RequestId, u32 Type,
+				   u32 Flags)
 {
-	return VmbusChannelSendPacket((struct vmbus_channel *)Device->context,
-									Buffer,
-									BufferLen,
-									RequestId,
-									Type,
-									Flags);
+	return VmbusChannelSendPacket(device->context, Buffer, BufferLen,
+				      RequestId, Type, Flags);
 }
 
-static int
-IVmbusChannelSendPacketPageBuffer(
-	struct hv_device *Device,
-	struct hv_page_buffer PageBuffers[],
-	u32				PageCount,
-	void *				Buffer,
-	u32				BufferLen,
-	u64				RequestId
-	)
+static int IVmbusChannelSendPacketPageBuffer(struct hv_device *device,
+				struct hv_page_buffer PageBuffers[],
+				u32 PageCount, void *Buffer,
+				u32 BufferLen, u64 RequestId)
 {
-	return VmbusChannelSendPacketPageBuffer((struct vmbus_channel *)Device->context,
-												PageBuffers,
-												PageCount,
-												Buffer,
-												BufferLen,
-												RequestId);
+	return VmbusChannelSendPacketPageBuffer(device->context, PageBuffers,
+						PageCount, Buffer, BufferLen,
+						RequestId);
 }
 
-static int
-IVmbusChannelSendPacketMultiPageBuffer(
-	struct hv_device *Device,
-	struct hv_multipage_buffer *MultiPageBuffer,
-	void *				Buffer,
-	u32				BufferLen,
-	u64				RequestId
-	)
+static int IVmbusChannelSendPacketMultiPageBuffer(struct hv_device *device,
+				struct hv_multipage_buffer *MultiPageBuffer,
+				void *Buffer, u32 BufferLen, u64 RequestId)
 {
-	return VmbusChannelSendPacketMultiPageBuffer((struct vmbus_channel *)Device->context,
-													MultiPageBuffer,
-													Buffer,
-													BufferLen,
-													RequestId);
+	return VmbusChannelSendPacketMultiPageBuffer(device->context,
+						     MultiPageBuffer, Buffer,
+						     BufferLen, RequestId);
 }
 
-static int
-IVmbusChannelRecvPacket (
-	struct hv_device *Device,
-	void *				Buffer,
-	u32				BufferLen,
-	u32*				BufferActualLen,
-	u64*				RequestId
-	)
+static int IVmbusChannelRecvPacket(struct hv_device *device, void *Buffer,
+				   u32 BufferLen, u32 *BufferActualLen,
+				   u64 *RequestId)
 {
-	return VmbusChannelRecvPacket((struct vmbus_channel *)Device->context,
-									Buffer,
-									BufferLen,
-									BufferActualLen,
-									RequestId);
+	return VmbusChannelRecvPacket(device->context, Buffer, BufferLen,
+				      BufferActualLen, RequestId);
 }
 
-static int
-IVmbusChannelRecvPacketRaw(
-	struct hv_device *Device,
-	void *				Buffer,
-	u32				BufferLen,
-	u32*				BufferActualLen,
-	u64*				RequestId
-	)
+static int IVmbusChannelRecvPacketRaw(struct hv_device *device, void *Buffer,
+				      u32 BufferLen, u32 *BufferActualLen,
+				      u64 *RequestId)
 {
-	return VmbusChannelRecvPacketRaw((struct vmbus_channel *)Device->context,
-										Buffer,
-										BufferLen,
-										BufferActualLen,
-										RequestId);
+	return VmbusChannelRecvPacketRaw(device->context, Buffer, BufferLen,
+					 BufferActualLen, RequestId);
 }
 
-static int
-IVmbusChannelEstablishGpadl(
-	struct hv_device *Device,
-	void *				Buffer,
-	u32				BufferLen,
-	u32*				GpadlHandle
-	)
+static int IVmbusChannelEstablishGpadl(struct hv_device *device, void *Buffer,
+				       u32 BufferLen, u32 *GpadlHandle)
 {
-	return VmbusChannelEstablishGpadl((struct vmbus_channel *)Device->context,
-										Buffer,
-										BufferLen,
-										GpadlHandle);
+	return VmbusChannelEstablishGpadl(device->context, Buffer, BufferLen,
+					  GpadlHandle);
 }
 
-static int
-IVmbusChannelTeardownGpadl(
-   struct hv_device *Device,
-   u32				GpadlHandle
-	)
+static int IVmbusChannelTeardownGpadl(struct hv_device *device, u32 GpadlHandle)
 {
-	return VmbusChannelTeardownGpadl((struct vmbus_channel *)Device->context,
-										GpadlHandle);
+	return VmbusChannelTeardownGpadl(device->context, GpadlHandle);
 
 }
 
-void GetChannelInterface(struct vmbus_channel_interface *ChannelInterface)
+void GetChannelInterface(struct vmbus_channel_interface *iface)
 {
-	ChannelInterface->Open						= IVmbusChannelOpen;
-	ChannelInterface->Close						= IVmbusChannelClose;
-	ChannelInterface->SendPacket				= IVmbusChannelSendPacket;
-	ChannelInterface->SendPacketPageBuffer		= IVmbusChannelSendPacketPageBuffer;
-	ChannelInterface->SendPacketMultiPageBuffer = IVmbusChannelSendPacketMultiPageBuffer;
-	ChannelInterface->RecvPacket				= IVmbusChannelRecvPacket;
-	ChannelInterface->RecvPacketRaw				= IVmbusChannelRecvPacketRaw;
-	ChannelInterface->EstablishGpadl			= IVmbusChannelEstablishGpadl;
-	ChannelInterface->TeardownGpadl				= IVmbusChannelTeardownGpadl;
-	ChannelInterface->GetInfo					= GetChannelInfo;
+	iface->Open = IVmbusChannelOpen;
+	iface->Close	= IVmbusChannelClose;
+	iface->SendPacket = IVmbusChannelSendPacket;
+	iface->SendPacketPageBuffer = IVmbusChannelSendPacketPageBuffer;
+	iface->SendPacketMultiPageBuffer =
+					IVmbusChannelSendPacketMultiPageBuffer;
+	iface->RecvPacket = IVmbusChannelRecvPacket;
+	iface->RecvPacketRaw	= IVmbusChannelRecvPacketRaw;
+	iface->EstablishGpadl = IVmbusChannelEstablishGpadl;
+	iface->TeardownGpadl = IVmbusChannelTeardownGpadl;
+	iface->GetInfo = GetChannelInfo;
 }
 
-
-void GetChannelInfo(struct hv_device *Device, struct hv_device_info *DeviceInfo)
+void GetChannelInfo(struct hv_device *device, struct hv_device_info *info)
 {
 	struct vmbus_channel_debug_info debugInfo;
 
-	if (Device->context)
-	{
-		VmbusChannelGetDebugInfo((struct vmbus_channel *)Device->context, &debugInfo);
+	if (!device->context)
+		return;
 
-		DeviceInfo->ChannelId = debugInfo.RelId;
-		DeviceInfo->ChannelState = debugInfo.State;
-		memcpy(&DeviceInfo->ChannelType, &debugInfo.InterfaceType, sizeof(struct hv_guid));
-		memcpy(&DeviceInfo->ChannelInstance, &debugInfo.InterfaceInstance, sizeof(struct hv_guid));
+	VmbusChannelGetDebugInfo(device->context, &debugInfo);
 
-		DeviceInfo->MonitorId = debugInfo.MonitorId;
+	info->ChannelId = debugInfo.RelId;
+	info->ChannelState = debugInfo.State;
+	memcpy(&info->ChannelType, &debugInfo.InterfaceType,
+	       sizeof(struct hv_guid));
+	memcpy(&info->ChannelInstance, &debugInfo.InterfaceInstance,
+	       sizeof(struct hv_guid));
 
-		DeviceInfo->ServerMonitorPending = debugInfo.ServerMonitorPending;
-		DeviceInfo->ServerMonitorLatency = debugInfo.ServerMonitorLatency;
-		DeviceInfo->ServerMonitorConnectionId = debugInfo.ServerMonitorConnectionId;
+	info->MonitorId = debugInfo.MonitorId;
 
-		DeviceInfo->ClientMonitorPending = debugInfo.ClientMonitorPending;
-		DeviceInfo->ClientMonitorLatency = debugInfo.ClientMonitorLatency;
-		DeviceInfo->ClientMonitorConnectionId = debugInfo.ClientMonitorConnectionId;
+	info->ServerMonitorPending = debugInfo.ServerMonitorPending;
+	info->ServerMonitorLatency = debugInfo.ServerMonitorLatency;
+	info->ServerMonitorConnectionId = debugInfo.ServerMonitorConnectionId;
 
-		DeviceInfo->Inbound.InterruptMask = debugInfo.Inbound.CurrentInterruptMask;
-		DeviceInfo->Inbound.ReadIndex = debugInfo.Inbound.CurrentReadIndex;
-		DeviceInfo->Inbound.WriteIndex = debugInfo.Inbound.CurrentWriteIndex;
-		DeviceInfo->Inbound.BytesAvailToRead = debugInfo.Inbound.BytesAvailToRead;
-		DeviceInfo->Inbound.BytesAvailToWrite = debugInfo.Inbound.BytesAvailToWrite;
+	info->ClientMonitorPending = debugInfo.ClientMonitorPending;
+	info->ClientMonitorLatency = debugInfo.ClientMonitorLatency;
+	info->ClientMonitorConnectionId = debugInfo.ClientMonitorConnectionId;
 
-		DeviceInfo->Outbound.InterruptMask = debugInfo.Outbound.CurrentInterruptMask;
-		DeviceInfo->Outbound.ReadIndex = debugInfo.Outbound.CurrentReadIndex;
-		DeviceInfo->Outbound.WriteIndex = debugInfo.Outbound.CurrentWriteIndex;
-		DeviceInfo->Outbound.BytesAvailToRead = debugInfo.Outbound.BytesAvailToRead;
-		DeviceInfo->Outbound.BytesAvailToWrite = debugInfo.Outbound.BytesAvailToWrite;
-	}
+	info->Inbound.InterruptMask = debugInfo.Inbound.CurrentInterruptMask;
+	info->Inbound.ReadIndex = debugInfo.Inbound.CurrentReadIndex;
+	info->Inbound.WriteIndex = debugInfo.Inbound.CurrentWriteIndex;
+	info->Inbound.BytesAvailToRead = debugInfo.Inbound.BytesAvailToRead;
+	info->Inbound.BytesAvailToWrite = debugInfo.Inbound.BytesAvailToWrite;
+
+	info->Outbound.InterruptMask = debugInfo.Outbound.CurrentInterruptMask;
+	info->Outbound.ReadIndex = debugInfo.Outbound.CurrentReadIndex;
+	info->Outbound.WriteIndex = debugInfo.Outbound.CurrentWriteIndex;
+	info->Outbound.BytesAvailToRead = debugInfo.Outbound.BytesAvailToRead;
+	info->Outbound.BytesAvailToWrite = debugInfo.Outbound.BytesAvailToWrite;
 }
