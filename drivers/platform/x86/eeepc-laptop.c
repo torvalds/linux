@@ -579,7 +579,6 @@ static void cmsg_quirks(void)
 
 static int eeepc_hotk_check(void)
 {
-	const struct key_entry *key;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	int result;
 
@@ -603,31 +602,6 @@ static int eeepc_hotk_check(void)
 			cmsg_quirks();
 			pr_info("Get control methods supported: 0x%x\n",
 				ehotk->cm_supported);
-		}
-		ehotk->inputdev = input_allocate_device();
-		if (!ehotk->inputdev) {
-			pr_info("Unable to allocate input device\n");
-			return 0;
-		}
-		ehotk->inputdev->name = "Asus EeePC extra buttons";
-		ehotk->inputdev->phys = EEEPC_HOTK_FILE "/input0";
-		ehotk->inputdev->id.bustype = BUS_HOST;
-		ehotk->inputdev->getkeycode = eeepc_getkeycode;
-		ehotk->inputdev->setkeycode = eeepc_setkeycode;
-
-		for (key = eeepc_keymap; key->type != KE_END; key++) {
-			switch (key->type) {
-			case KE_KEY:
-				set_bit(EV_KEY, ehotk->inputdev->evbit);
-				set_bit(key->keycode, ehotk->inputdev->keybit);
-				break;
-			}
-		}
-		result = input_register_device(ehotk->inputdev);
-		if (result) {
-			pr_info("Unable to register input device\n");
-			input_free_device(ehotk->inputdev);
-			return 0;
 		}
 	} else {
 		pr_err("Hotkey device not present, aborting\n");
@@ -1142,6 +1116,40 @@ static int eeepc_hwmon_init(struct device *dev)
 	return result;
 }
 
+static int eeepc_input_init(struct device *dev)
+{
+	const struct key_entry *key;
+	int result;
+
+	ehotk->inputdev = input_allocate_device();
+	if (!ehotk->inputdev) {
+		pr_info("Unable to allocate input device\n");
+		return -ENOMEM;
+	}
+	ehotk->inputdev->name = "Asus EeePC extra buttons";
+	ehotk->inputdev->dev.parent = dev;
+	ehotk->inputdev->phys = EEEPC_HOTK_FILE "/input0";
+	ehotk->inputdev->id.bustype = BUS_HOST;
+	ehotk->inputdev->getkeycode = eeepc_getkeycode;
+	ehotk->inputdev->setkeycode = eeepc_setkeycode;
+
+	for (key = eeepc_keymap; key->type != KE_END; key++) {
+		switch (key->type) {
+		case KE_KEY:
+			set_bit(EV_KEY, ehotk->inputdev->evbit);
+			set_bit(key->keycode, ehotk->inputdev->keybit);
+			break;
+		}
+	}
+	result = input_register_device(ehotk->inputdev);
+	if (result) {
+		pr_info("Unable to register input device\n");
+		input_free_device(ehotk->inputdev);
+		return result;
+	}
+	return 0;
+}
+
 static int eeepc_hotk_add(struct acpi_device *device)
 {
 	struct device *dev;
@@ -1162,7 +1170,7 @@ static int eeepc_hotk_add(struct acpi_device *device)
 
 	result = eeepc_hotk_check();
 	if (result)
-		goto fail_check;
+		goto fail_platform_driver;
 	eeepc_enable_camera();
 
 	/* Register platform stuff */
@@ -1192,6 +1200,10 @@ static int eeepc_hotk_add(struct acpi_device *device)
 		pr_info("Backlight controlled by ACPI video "
 			"driver\n");
 
+	result = eeepc_input_init(dev);
+	if (result)
+		goto fail_input;
+
 	result = eeepc_hwmon_init(dev);
 	if (result)
 		goto fail_hwmon;
@@ -1205,6 +1217,8 @@ static int eeepc_hotk_add(struct acpi_device *device)
 fail_rfkill:
 	eeepc_hwmon_exit();
 fail_hwmon:
+	eeepc_input_exit();
+fail_input:
 	eeepc_backlight_exit();
 fail_backlight:
 	sysfs_remove_group(&platform_device->dev.kobj,
@@ -1216,8 +1230,6 @@ fail_platform_device2:
 fail_platform_device1:
 	platform_driver_unregister(&platform_driver);
 fail_platform_driver:
-	eeepc_input_exit();
-fail_check:
 	kfree(ehotk);
 
 	return result;
