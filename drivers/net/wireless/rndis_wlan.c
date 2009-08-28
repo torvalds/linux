@@ -531,6 +531,9 @@ static int rndis_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 static int rndis_get_station(struct wiphy *wiphy, struct net_device *dev,
 					u8 *mac, struct station_info *sinfo);
 
+static int rndis_dump_station(struct wiphy *wiphy, struct net_device *dev,
+			       int idx, u8 *mac, struct station_info *sinfo);
+
 static struct cfg80211_ops rndis_config_ops = {
 	.change_virtual_intf = rndis_change_virtual_intf,
 	.scan = rndis_scan,
@@ -546,6 +549,7 @@ static struct cfg80211_ops rndis_config_ops = {
 	.del_key = rndis_del_key,
 	.set_default_key = rndis_set_default_key,
 	.get_station = rndis_get_station,
+	.dump_station = rndis_dump_station,
 };
 
 static void *rndis_wiphy_privid = &rndis_wiphy_privid;
@@ -2149,6 +2153,22 @@ static int rndis_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (compare_ether_addr(priv->bssid, mac))
 		return -ENOENT;
+
+	rndis_fill_station_info(usbdev, sinfo);
+
+	return 0;
+}
+
+static int rndis_dump_station(struct wiphy *wiphy, struct net_device *dev,
+			       int idx, u8 *mac, struct station_info *sinfo)
+{
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+	struct usbnet *usbdev = priv->usbdev;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	memcpy(mac, priv->bssid, ETH_ALEN);
 
 	rndis_fill_station_info(usbdev, sinfo);
 
