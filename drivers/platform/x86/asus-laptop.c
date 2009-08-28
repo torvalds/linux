@@ -246,12 +246,15 @@ static struct workqueue_struct *led_workqueue;
 #define ASUS_LED(object, ledname)					\
 	static void object##_led_set(struct led_classdev *led_cdev,	\
 				     enum led_brightness value);	\
+	static enum led_brightness object##_led_get(			\
+		struct led_classdev *led_cdev);				\
 	static void object##_led_update(struct work_struct *ignored);	\
 	static int object##_led_wk;					\
 	static DECLARE_WORK(object##_led_work, object##_led_update);	\
 	static struct led_classdev object##_led = {			\
 		.name           = "asus::" ledname,			\
 		.brightness_set = object##_led_set,			\
+		.brightness_get = object##_led_get,			\
 	}
 
 ASUS_LED(mled, "mail");
@@ -399,6 +402,11 @@ static void write_status(acpi_handle handle, int out, int mask)
 	{								\
 		int value = object##_led_wk;				\
 		write_status(object##_set_handle, value, (mask));	\
+	}								\
+	static enum led_brightness object##_led_get(			\
+		struct led_classdev *led_cdev)				\
+	{								\
+		return led_cdev->brightness;				\
 	}
 
 ASUS_LED_HANDLER(mled, MLED_ON);
