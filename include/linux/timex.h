@@ -115,13 +115,16 @@ struct timex {
 #define ADJ_OFFSET_SS_READ	0xa001	/* read-only adjtime */
 #endif
 
-/* xntp 3.4 compatibility names */
+/* NTP userland likes the MOD_ prefix better */
 #define MOD_OFFSET	ADJ_OFFSET
 #define MOD_FREQUENCY	ADJ_FREQUENCY
 #define MOD_MAXERROR	ADJ_MAXERROR
 #define MOD_ESTERROR	ADJ_ESTERROR
 #define MOD_STATUS	ADJ_STATUS
 #define MOD_TIMECONST	ADJ_TIMECONST
+#define MOD_TAI	ADJ_TAI
+#define MOD_MICRO	ADJ_MICRO
+#define MOD_NANO	ADJ_NANO
 
 
 /*
