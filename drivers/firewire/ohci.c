@@ -2431,6 +2431,11 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	    dev->device == PCI_DEVICE_ID_AGERE_FW643)
 		ohci->use_dualbuffer = false;
 
+	/* dual-buffer mode is broken */
+	if (dev->vendor == PCI_VENDOR_ID_RICOH &&
+	    dev->device == PCI_DEVICE_ID_RICOH_R5C832)
+		ohci->use_dualbuffer = false;
+
 /* x86-32 currently doesn't use highmem for dma_alloc_coherent */
 #if !defined(CONFIG_X86_32)
 	/* dual-buffer mode is broken with descriptor addresses above 2G */
