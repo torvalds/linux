@@ -229,57 +229,65 @@ ext4_ext_new_meta_block(handle_t *handle, struct inode *inode,
 	return newblock;
 }
 
-static int ext4_ext_space_block(struct inode *inode)
+static inline int ext4_ext_space_block(struct inode *inode, int check)
 {
 	int size;
 
 	size = (inode->i_sb->s_blocksize - sizeof(struct ext4_extent_header))
 			/ sizeof(struct ext4_extent);
+	if (!check) {
 #ifdef AGGRESSIVE_TEST
-	if (size > 6)
-		size = 6;
+		if (size > 6)
+			size = 6;
 #endif
+	}
 	return size;
 }
 
-static int ext4_ext_space_block_idx(struct inode *inode)
+static inline int ext4_ext_space_block_idx(struct inode *inode, int check)
 {
 	int size;
 
 	size = (inode->i_sb->s_blocksize - sizeof(struct ext4_extent_header))
 			/ sizeof(struct ext4_extent_idx);
+	if (!check) {
 #ifdef AGGRESSIVE_TEST
-	if (size > 5)
-		size = 5;
+		if (size > 5)
+			size = 5;
 #endif
+	}
 	return size;
 }
 
-static int ext4_ext_space_root(struct inode *inode)
+static inline int ext4_ext_space_root(struct inode *inode, int check)
 {
 	int size;
 
 	size = sizeof(EXT4_I(inode)->i_data);
 	size -= sizeof(struct ext4_extent_header);
 	size /= sizeof(struct ext4_extent);
+	if (!check) {
 #ifdef AGGRESSIVE_TEST
-	if (size > 3)
-		size = 3;
+		if (size > 3)
+			size = 3;
 #endif
+	}
 	return size;
 }
 
-static int ext4_ext_space_root_idx(struct inode *inode)
+static inline int ext4_ext_space_root_idx(struct inode *inode, int check)
 {
 	int size;
 
 	size = sizeof(EXT4_I(inode)->i_data);
 	size -= sizeof(struct ext4_extent_header);
 	size /= sizeof(struct ext4_extent_idx);
+	if (!check) {
 #ifdef AGGRESSIVE_TEST
-	if (size > 4)
-		size = 4;
+		if (size > 4)
+			size = 4;
 #endif
+	}
 	return size;
 }
 
@@ -293,9 +301,9 @@ int ext4_ext_calc_metadata_amount(struct inode *inode, int blocks)
 	int lcap, icap, rcap, leafs, idxs, num;
 	int newextents = blocks;
 
-	rcap = ext4_ext_space_root_idx(inode);
-	lcap = ext4_ext_space_block(inode);
-	icap = ext4_ext_space_block_idx(inode);
+	rcap = ext4_ext_space_root_idx(inode, 0);
+	lcap = ext4_ext_space_block(inode, 0);
+	icap = ext4_ext_space_block_idx(inode, 0);
 
 	/* number of new leaf blocks needed */
 	num = leafs = (newextents + lcap - 1) / lcap;
@@ -320,14 +328,14 @@ ext4_ext_max_entries(struct inode *inode, int depth)
 
 	if (depth == ext_depth(inode)) {
 		if (depth == 0)
-			max = ext4_ext_space_root(inode);
+			max = ext4_ext_space_root(inode, 1);
 		else
-			max = ext4_ext_space_root_idx(inode);
+			max = ext4_ext_space_root_idx(inode, 1);
 	} else {
 		if (depth == 0)
-			max = ext4_ext_space_block(inode);
+			max = ext4_ext_space_block(inode, 1);
 		else
-			max = ext4_ext_space_block_idx(inode);
+			max = ext4_ext_space_block_idx(inode, 1);
 	}
 
 	return max;
@@ -626,7 +634,7 @@ int ext4_ext_tree_init(handle_t *handle, struct inode *inode)
 	eh->eh_depth = 0;
 	eh->eh_entries = 0;
 	eh->eh_magic = EXT4_EXT_MAGIC;
-	eh->eh_max = cpu_to_le16(ext4_ext_space_root(inode));
+	eh->eh_max = cpu_to_le16(ext4_ext_space_root(inode, 0));
 	ext4_mark_inode_dirty(handle, inode);
 	ext4_ext_invalidate_cache(inode);
 	return 0;
@@ -851,7 +859,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 
 	neh = ext_block_hdr(bh);
 	neh->eh_entries = 0;
-	neh->eh_max = cpu_to_le16(ext4_ext_space_block(inode));
+	neh->eh_max = cpu_to_le16(ext4_ext_space_block(inode, 0));
 	neh->eh_magic = EXT4_EXT_MAGIC;
 	neh->eh_depth = 0;
 	ex = EXT_FIRST_EXTENT(neh);
@@ -927,7 +935,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		neh = ext_block_hdr(bh);
 		neh->eh_entries = cpu_to_le16(1);
 		neh->eh_magic = EXT4_EXT_MAGIC;
-		neh->eh_max = cpu_to_le16(ext4_ext_space_block_idx(inode));
+		neh->eh_max = cpu_to_le16(ext4_ext_space_block_idx(inode, 0));
 		neh->eh_depth = cpu_to_le16(depth - i);
 		fidx = EXT_FIRST_INDEX(neh);
 		fidx->ei_block = border;
@@ -1052,9 +1060,9 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	/* old root could have indexes or leaves
 	 * so calculate e_max right way */
 	if (ext_depth(inode))
-	  neh->eh_max = cpu_to_le16(ext4_ext_space_block_idx(inode));
+		neh->eh_max = cpu_to_le16(ext4_ext_space_block_idx(inode, 0));
 	else
-	  neh->eh_max = cpu_to_le16(ext4_ext_space_block(inode));
+		neh->eh_max = cpu_to_le16(ext4_ext_space_block(inode, 0));
 	neh->eh_magic = EXT4_EXT_MAGIC;
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
@@ -1069,7 +1077,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 		goto out;
 
 	curp->p_hdr->eh_magic = EXT4_EXT_MAGIC;
-	curp->p_hdr->eh_max = cpu_to_le16(ext4_ext_space_root_idx(inode));
+	curp->p_hdr->eh_max = cpu_to_le16(ext4_ext_space_root_idx(inode, 0));
 	curp->p_hdr->eh_entries = cpu_to_le16(1);
 	curp->p_idx = EXT_FIRST_INDEX(curp->p_hdr);
 
@@ -2348,7 +2356,7 @@ static int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start)
 		if (err == 0) {
 			ext_inode_hdr(inode)->eh_depth = 0;
 			ext_inode_hdr(inode)->eh_max =
-				cpu_to_le16(ext4_ext_space_root(inode));
+				cpu_to_le16(ext4_ext_space_root(inode, 0));
 			err = ext4_ext_dirty(handle, inode, path);
 		}
 	}
