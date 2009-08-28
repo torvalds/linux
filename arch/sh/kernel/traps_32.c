@@ -449,7 +449,7 @@ static inline int handle_delayslot(struct pt_regs *regs,
 #define SH_PC_12BIT_OFFSET(instr) ((((signed short)(instr<<4))>>3) + 4)
 
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma)
+			    struct mem_access *ma, int expected)
 {
 	u_int rm;
 	int ret, index;
@@ -458,7 +458,7 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	rm = regs->regs[index];
 
 	/* shout about fixups */
-	if (printk_ratelimit())
+	if (!expected && printk_ratelimit())
 		printk(KERN_NOTICE "Fixing up unaligned %s access "
 		       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 		       user_mode(regs) ? "userspace" : "kernel",
@@ -657,7 +657,7 @@ fixup:
 
 		set_fs(USER_DS);
 		tmp = handle_unaligned_access(instruction, regs,
-					      &user_mem_access);
+					      &user_mem_access, 0);
 		set_fs(oldfs);
 
 		if (tmp==0)
@@ -694,7 +694,8 @@ uspace_segv:
 			die("insn faulting in do_address_error", regs, 0);
 		}
 
-		handle_unaligned_access(instruction, regs, &user_mem_access);
+		handle_unaligned_access(instruction, regs,
+					&user_mem_access, 0);
 		set_fs(oldfs);
 	}
 }

@@ -199,7 +199,7 @@ do {							\
 #endif
 
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma);
+			    struct mem_access *ma, int);
 
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,
