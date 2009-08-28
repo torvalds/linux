@@ -2179,13 +2179,6 @@ static int rndis_dump_station(struct wiphy *wiphy, struct net_device *dev,
  * wireless extension handlers
  */
 
-static int rndis_iw_commit(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	/* dummy op */
-	return 0;
-}
-
 #if 0
 /* Commented code out instead of removing to have more sane patch for review.
  * Will be removed later in the set.
@@ -2558,7 +2551,6 @@ static struct iw_statistics *rndis_get_wireless_stats(struct net_device *dev)
 #define IW_IOCTL(x) [(x) - SIOCSIWCOMMIT]
 static const iw_handler rndis_iw_handler[] =
 {
-	IW_IOCTL(SIOCSIWCOMMIT)    = rndis_iw_commit,
 	IW_IOCTL(SIOCGIWNAME)      = (iw_handler) cfg80211_wext_giwname,
 	IW_IOCTL(SIOCSIWFREQ)      = (iw_handler) cfg80211_wext_siwfreq,
 	IW_IOCTL(SIOCGIWFREQ)      = (iw_handler) cfg80211_wext_giwfreq,
