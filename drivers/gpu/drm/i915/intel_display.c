@@ -3060,8 +3060,6 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	if (intel_crtc->mode_set.mode)
-		drm_mode_destroy(crtc->dev, intel_crtc->mode_set.mode);
 	drm_crtc_cleanup(crtc);
 	kfree(intel_crtc);
 }
@@ -3107,16 +3105,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
-
-	intel_crtc->mode_set.crtc = &intel_crtc->base;
-	intel_crtc->mode_set.connectors = (struct drm_connector **)(intel_crtc + 1);
-	intel_crtc->mode_set.num_connectors = 0;
-
-	if (i915_fbpercrtc) {
-
-
-
-	}
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,

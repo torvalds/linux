@@ -29,6 +29,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc_helper.h"
+#include "drm_fb_helper.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
@@ -1347,7 +1348,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev_priv || drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intelfb_restore();
+		drm_fb_helper_restore();
 		return;
 	}
 

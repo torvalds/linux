@@ -96,9 +96,6 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
-	struct intel_framebuffer *fbdev_fb;
-	/* a mode_set for fbdev users on this crtc */
-	struct drm_mode_set mode_set;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)

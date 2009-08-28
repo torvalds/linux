@@ -195,8 +195,6 @@ struct radeon_crtc {
 	bool enabled;
 	bool can_tile;
 	uint32_t crtc_offset;
-	struct radeon_framebuffer *fbdev_fb;
-	struct drm_mode_set mode_set;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
 	int cursor_width;

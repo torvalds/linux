@@ -158,9 +158,6 @@ static void radeon_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	if (radeon_crtc->mode_set.mode) {
-		drm_mode_destroy(crtc->dev, radeon_crtc->mode_set.mode);
-	}
 	drm_crtc_cleanup(crtc);
 	kfree(radeon_crtc);
 }
@@ -189,9 +186,11 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	radeon_crtc->crtc_id = index;
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
+#if 0
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
 	radeon_crtc->mode_set.connectors = (struct drm_connector **)(radeon_crtc + 1);
 	radeon_crtc->mode_set.num_connectors = 0;
+#endif
 
 	for (i = 0; i < 256; i++) {
 		radeon_crtc->lut_r[i] = i << 2;

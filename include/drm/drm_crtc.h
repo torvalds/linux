@@ -259,6 +259,8 @@ struct drm_framebuffer {
 	void *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head filp_head;
+	/* if you are using the helper */
+	void *helper_private;
 };
 
 struct drm_property_blob {
