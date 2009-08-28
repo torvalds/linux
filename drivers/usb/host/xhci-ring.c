@@ -1104,6 +1104,11 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 							"of %d bytes left\n",
 							TRB_LEN(event->transfer_len));
 					td->urb->actual_length = 0;
+					if (td->urb->transfer_flags &
+							URB_SHORT_NOT_OK)
+						status = -EREMOTEIO;
+					else
+						status = 0;
 				}
 				/* Don't overwrite a previously set error code */
 				if (status == -EINPROGRESS) {
@@ -1187,6 +1192,10 @@ td_cleanup:
 					urb->transfer_buffer_length,
 					urb->actual_length);
 			urb->actual_length = 0;
+			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+				status = -EREMOTEIO;
+			else
+				status = 0;
 		}
 		list_del(&td->td_list);
 		/* Was this TD slated to be cancelled but completed anyway? */
