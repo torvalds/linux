@@ -28,7 +28,7 @@
 
 #include "osd.h"
 #include "logging.h"
-#include "include/NetVscApi.h"
+#include "NetVscApi.h"
 #include "RndisFilter.h"
 
 

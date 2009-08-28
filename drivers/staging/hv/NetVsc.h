@@ -27,7 +27,7 @@
 #include "include/VmbusPacketFormat.h"
 #include "include/VmbusChannelInterface.h"
 #include "List.h"
-#include "include/NetVscApi.h"
+#include "NetVscApi.h"
 
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)

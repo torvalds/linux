@@ -40,7 +40,7 @@
 #include "logging.h"
 #include "vmbus.h"
 
-#include "include/NetVscApi.h"
+#include "NetVscApi.h"
 
 MODULE_LICENSE("GPL");
 
