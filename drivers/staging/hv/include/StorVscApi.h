@@ -27,12 +27,9 @@
 
 #include "VmbusApi.h"
 
-
 /* Defines */
-
-
-#define STORVSC_RING_BUFFER_SIZE			10*PAGE_SIZE
-#define BLKVSC_RING_BUFFER_SIZE				20*PAGE_SIZE
+#define STORVSC_RING_BUFFER_SIZE			(10*PAGE_SIZE)
+#define BLKVSC_RING_BUFFER_SIZE				(20*PAGE_SIZE)
 
 #define STORVSC_MAX_IO_REQUESTS				64
 
@@ -42,26 +39,19 @@
  * scsi host adapter essentially has 1 bus with 1 target that contains
  * up to 256 luns.
  */
-
 #define STORVSC_MAX_LUNS_PER_TARGET			64
-#define STORVSC_MAX_TARGETS					1
+#define STORVSC_MAX_TARGETS				1
 #define STORVSC_MAX_CHANNELS				1
 
-
-/* Fwd decl */
-
-/* struct VMBUS_CHANNEL; */
 struct hv_storvsc_request;
 
-
 /* Data types */
-
-typedef int (*PFN_ON_IO_REQUEST)(struct hv_device *Device, struct hv_storvsc_request *Request);
+typedef int (*PFN_ON_IO_REQUEST)(struct hv_device *Device,
+				 struct hv_storvsc_request *Request);
 typedef void (*PFN_ON_IO_REQUEST_COMPLTN)(struct hv_storvsc_request *Request);
 
 typedef int (*PFN_ON_HOST_RESET)(struct hv_device *Device);
 typedef void (*PFN_ON_HOST_RESCAN)(struct hv_device *Device);
-
 
 /* Matches Windows-end */
 typedef enum _STORVSC_REQUEST_TYPE{
@@ -70,70 +60,61 @@ typedef enum _STORVSC_REQUEST_TYPE{
 	UNKNOWN_TYPE,
 } STORVSC_REQUEST_TYPE;
 
-
 struct hv_storvsc_request {
-	STORVSC_REQUEST_TYPE		Type;
-	u32					Host;
-	u32					Bus;
-	u32					TargetId;
-	u32					LunId;
-	u8 *					Cdb;
-	u32					CdbLen;
-	u32					Status;
-	u32					BytesXfer;
+	STORVSC_REQUEST_TYPE Type;
+	u32 Host;
+	u32 Bus;
+	u32 TargetId;
+	u32 LunId;
+	u8 *Cdb;
+	u32 CdbLen;
+	u32 Status;
+	u32 BytesXfer;
 
-	unsigned char*					SenseBuffer;
-	u32					SenseBufferSize;
+	unsigned char *SenseBuffer;
+	u32 SenseBufferSize;
 
-	void *					Context;
+	void *Context;
 
-	PFN_ON_IO_REQUEST_COMPLTN	OnIOCompletion;
+	PFN_ON_IO_REQUEST_COMPLTN OnIOCompletion;
 
 	/* This points to the memory after DataBuffer */
-	void *					Extension;
+	void *Extension;
 
 	struct hv_multipage_buffer DataBuffer;
 };
 
-
 /* Represents the block vsc driver */
 typedef struct _STORVSC_DRIVER_OBJECT {
-	struct hv_driver Base; /* Must be the first field */
+	/* Must be the first field */
+	/* Which is a bug FIXME! */
+	struct hv_driver Base;
 
 	/* Set by caller (in bytes) */
-	u32					RingBufferSize;
+	u32 RingBufferSize;
 
 	/* Allocate this much private extension for each I/O request */
-	u32					RequestExtSize;
+	u32 RequestExtSize;
 
 	/* Maximum # of requests in flight per channel/device */
-	u32					MaxOutstandingRequestsPerChannel;
+	u32 MaxOutstandingRequestsPerChannel;
 
 	/* Set by the caller to allow us to re-enumerate the bus on the host */
-	PFN_ON_HOST_RESCAN		OnHostRescan;
+	PFN_ON_HOST_RESCAN OnHostRescan;
 
 	/* Specific to this driver */
-	PFN_ON_IO_REQUEST		OnIORequest;
-	PFN_ON_HOST_RESET		OnHostReset;
-
+	PFN_ON_IO_REQUEST OnIORequest;
+	PFN_ON_HOST_RESET OnHostReset;
 } STORVSC_DRIVER_OBJECT;
 
 typedef struct _STORVSC_DEVICE_INFO {
-	unsigned int	PortNumber;
-    unsigned char	PathId;
-    unsigned char	TargetId;
+	unsigned int PortNumber;
+	unsigned char PathId;
+	unsigned char TargetId;
 } STORVSC_DEVICE_INFO;
 
-
 /* Interface */
+int StorVscInitialize(struct hv_driver *driver);
+int BlkVscInitialize(struct hv_driver *driver);
 
-int
-StorVscInitialize(
-	struct hv_driver *Driver
-	);
-
-int
-BlkVscInitialize(
-	struct hv_driver *Driver
-	);
 #endif /* _STORVSC_API_H_ */
