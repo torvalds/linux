@@ -1796,7 +1796,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *oldcurrent;
 	struct sockaddr addr;
-	int mac_addr_differ;
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
@@ -1820,9 +1819,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	if (!bond->params.fail_over_mac) {
-		mac_addr_differ = memcmp(bond_dev->dev_addr, slave->perm_hwaddr,
-					 ETH_ALEN);
-		if (!mac_addr_differ && (bond->slave_cnt > 1))
+		if (!compare_ether_addr(bond_dev->dev_addr, slave->perm_hwaddr)
+		    && bond->slave_cnt > 1)
 			pr_warning(DRV_NAME
 			       ": %s: Warning: the permanent HWaddr of %s - "
 			       "%pM - is still in use by %s. "
