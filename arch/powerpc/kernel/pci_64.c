@@ -43,45 +43,6 @@ unsigned long pci_probe_only = 1;
 unsigned long pci_io_base = ISA_IO_BASE;
 EXPORT_SYMBOL(pci_io_base);
 
-void __devinit scan_phb(struct pci_controller *hose)
-{
-	struct pci_bus *bus;
-	struct device_node *node = hose->dn;
-	int mode;
-
-	pr_debug("PCI: Scanning PHB %s\n",
-		 node ? node->full_name : "<NO NAME>");
-
-	/* Create an empty bus for the toplevel */
-	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, node);
-	if (bus == NULL) {
-		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
-		       hose->global_number);
-		return;
-	}
-	bus->secondary = hose->first_busno;
-	hose->bus = bus;
-
-	/* Get some IO space for the new PHB */
-	pcibios_map_io_space(bus);
-
-	/* Wire up PHB bus resources */
-	pcibios_setup_phb_resources(hose);
-
-	/* Get probe mode and perform scan */
-	mode = PCI_PROBE_NORMAL;
-	if (node && ppc_md.pci_probe_mode)
-		mode = ppc_md.pci_probe_mode(bus);
-	pr_debug("    probe mode: %d\n", mode);
-	if (mode == PCI_PROBE_DEVTREE) {
-		bus->subordinate = hose->last_busno;
-		of_scan_bus(node, bus);
-	}
-
-	if (mode == PCI_PROBE_NORMAL)
-		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
-}
-
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
@@ -103,7 +64,7 @@ static int __init pcibios_init(void)
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		scan_phb(hose);
+		pcibios_scan_phb(hose, hose->dn);
 		pci_bus_add_devices(hose->bus);
 	}
 
@@ -236,6 +197,11 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
+
+void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+{
+	pcibios_map_io_space(hose->bus);
+}
 
 #define IOBASE_BRIDGE_NUMBER	0
 #define IOBASE_MEMORY		1

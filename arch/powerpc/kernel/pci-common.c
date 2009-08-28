@@ -1688,3 +1688,52 @@ int early_find_capability(struct pci_controller *hose, int bus, int devfn,
 {
 	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
 }
+
+/**
+ * pci_scan_phb - Given a pci_controller, setup and scan the PCI bus
+ * @hose: Pointer to the PCI host controller instance structure
+ * @sysdata: value to use for sysdata pointer.  ppc32 and ppc64 differ here
+ *
+ * Note: the 'data' pointer is a temporary measure.  As 32 and 64 bit
+ * pci code gets merged, this parameter should become unnecessary because
+ * both will use the same value.
+ */
+void __devinit pcibios_scan_phb(struct pci_controller *hose, void *sysdata)
+{
+	struct pci_bus *bus;
+	struct device_node *node = hose->dn;
+	int mode;
+
+	pr_debug("PCI: Scanning PHB %s\n",
+		 node ? node->full_name : "<NO NAME>");
+
+	/* Create an empty bus for the toplevel */
+	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops,
+			     sysdata);
+	if (bus == NULL) {
+		pr_err("Failed to create bus for PCI domain %04x\n",
+			hose->global_number);
+		return;
+	}
+	bus->secondary = hose->first_busno;
+	hose->bus = bus;
+
+	/* Get some IO space for the new PHB */
+	pcibios_setup_phb_io_space(hose);
+
+	/* Wire up PHB bus resources */
+	pcibios_setup_phb_resources(hose);
+
+	/* Get probe mode and perform scan */
+	mode = PCI_PROBE_NORMAL;
+	if (node && ppc_md.pci_probe_mode)
+		mode = ppc_md.pci_probe_mode(bus);
+	pr_debug("    probe mode: %d\n", mode);
+	if (mode == PCI_PROBE_DEVTREE) {
+		bus->subordinate = hose->last_busno;
+		of_scan_bus(node, bus);
+	}
+
+	if (mode == PCI_PROBE_NORMAL)
+		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
+}

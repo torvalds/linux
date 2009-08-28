@@ -354,36 +354,15 @@ pci_create_OF_bus_map(void)
 	}
 }
 
-static void __devinit pcibios_scan_phb(struct pci_controller *hose)
+void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
-	struct pci_bus *bus;
-	struct device_node *node = hose->dn;
 	unsigned long io_offset;
 	struct resource *res = &hose->io_resource;
-
-	pr_debug("PCI: Scanning PHB %s\n",
-		 node ? node->full_name : "<NO NAME>");
-
-	/* Create an empty bus for the toplevel */
-	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, hose);
-	if (bus == NULL) {
-		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
-		       hose->global_number);
-		return;
-	}
-	bus->secondary = hose->first_busno;
-	hose->bus = bus;
 
 	/* Fixup IO space offset */
 	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
 	res->start = (res->start + io_offset) & 0xffffffffu;
 	res->end = (res->end + io_offset) & 0xffffffffu;
-
-	/* Wire up PHB bus resources */
-	pcibios_setup_phb_resources(hose);
-
-	/* Scan children */
-	hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 }
 
 static int __init pcibios_init(void)
@@ -401,7 +380,7 @@ static int __init pcibios_init(void)
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
-		pcibios_scan_phb(hose);
+		pcibios_scan_phb(hose, hose);
 		pci_bus_add_devices(hose->bus);
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
