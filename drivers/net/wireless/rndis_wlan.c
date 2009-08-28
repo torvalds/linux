@@ -1607,7 +1607,7 @@ static int rndis_get_tx_power(struct wiphy *wiphy, int *dbm)
 }
 
 
-#define SCAN_DELAY_JIFFIES (HZ)
+#define SCAN_DELAY_JIFFIES (6 * HZ)
 static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request)
 {
