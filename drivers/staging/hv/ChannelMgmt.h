@@ -28,7 +28,7 @@
 #include "List.h"
 #include "RingBuffer.h"
 
-#include "include/VmbusChannelInterface.h"
+#include "VmbusChannelInterface.h"
 #include "include/VmbusPacketFormat.h"
 
 /* Version 1 messages */
