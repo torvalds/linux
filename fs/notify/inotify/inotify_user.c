@@ -154,7 +154,8 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	event = fsnotify_peek_notify_event(group);
 
-	event_size += roundup(event->name_len, event_size);
+	if (event->name_len)
+		event_size += roundup(event->name_len + 1, event_size);
 
 	if (event_size > count)
 		return ERR_PTR(-EINVAL);
@@ -327,8 +328,9 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 		list_for_each_entry(holder, &group->notification_list, event_list) {
 			event = holder->event;
 			send_len += sizeof(struct inotify_event);
-			send_len += roundup(event->name_len,
-					     sizeof(struct inotify_event));
+			if (event->name_len)
+				send_len += roundup(event->name_len + 1,
+						sizeof(struct inotify_event));
 		}
 		mutex_unlock(&group->notification_mutex);
 		ret = put_user(send_len, (int __user *) p);
