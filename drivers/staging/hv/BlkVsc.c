@@ -82,7 +82,7 @@ int BlkVscInitialize(struct hv_driver *Driver)
 	Driver->name = gBlkDriverName;
 	memcpy(&Driver->deviceType, &gBlkVscDeviceType, sizeof(struct hv_guid));
 
-	storDriver->RequestExtSize = sizeof(STORVSC_REQUEST_EXTENSION);
+	storDriver->RequestExtSize = sizeof(struct storvsc_request_extension);
 
 	/*
 	 * Divide the ring buffer data size (which is 1 page less than the ring
