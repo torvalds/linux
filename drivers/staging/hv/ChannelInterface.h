@@ -25,7 +25,7 @@
 #ifndef _CHANNEL_INTERFACE_H_
 #define _CHANNEL_INTERFACE_H_
 
-#include "include/VmbusApi.h"
+#include "VmbusApi.h"
 
 void GetChannelInterface(struct vmbus_channel_interface *ChannelInterface);
 

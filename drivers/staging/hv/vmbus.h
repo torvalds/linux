@@ -27,7 +27,7 @@
 
 #include <linux/device.h>
 
-#include "include/VmbusApi.h"
+#include "VmbusApi.h"
 
 typedef int (*PFN_DRIVERINITIALIZE)(struct hv_driver *drv);
 typedef int (*PFN_DRIVEREXIT)(struct hv_driver *drv);

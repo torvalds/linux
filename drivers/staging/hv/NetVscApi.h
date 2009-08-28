@@ -25,7 +25,7 @@
 #ifndef _NETVSC_API_H_
 #define _NETVSC_API_H_
 
-#include "include/VmbusApi.h"
+#include "VmbusApi.h"
 #include "List.h"
 
 /* Defines */
