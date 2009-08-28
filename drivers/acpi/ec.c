@@ -575,7 +575,8 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 	if (bits != 8 && acpi_strict)
 		return AE_BAD_PARAMETER;
 
-	acpi_ec_burst_enable(ec);
+	if (EC_FLAGS_MSI)
+		acpi_ec_burst_enable(ec);
 
 	if (function == ACPI_READ) {
 		result = acpi_ec_read(ec, address, &temp);
@@ -596,7 +597,8 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 		}
 	}
 
-	acpi_ec_burst_disable(ec);
+	if (EC_FLAGS_MSI)
+		acpi_ec_burst_disable(ec);
 
 	switch (result) {
 	case -EINVAL:
