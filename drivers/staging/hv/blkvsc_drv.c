@@ -117,7 +117,7 @@ struct block_device_context {
 struct blkvsc_driver_context {
 	/* !! These must be the first 2 fields !! */
 	struct driver_context	drv_ctx;
-	STORVSC_DRIVER_OBJECT	drv_obj;
+	struct storvsc_driver_object drv_obj;
 };
 
 /* Static decl */
@@ -173,7 +173,7 @@ Desc:	BlkVsc driver initialization.
 static int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
-	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_blkvsc_drv.drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_blkvsc_drv.drv_ctx;
 
 	DPRINT_ENTER(BLKVSC_DRV);
@@ -217,7 +217,7 @@ Desc:
 --*/
 static void blkvsc_drv_exit(void)
 {
-	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_blkvsc_drv.drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_blkvsc_drv.drv_ctx;
 	struct device *current_dev=NULL;
 	int ret;
@@ -268,13 +268,13 @@ static int blkvsc_probe(struct device *device)
 
 	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx = (struct blkvsc_driver_context*)driver_ctx;
-	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct block_device_context *blkdev=NULL;
-	STORVSC_DEVICE_INFO device_info;
+	struct storvsc_device_info device_info;
 	int major=0;
 	int devnum=0;
 
@@ -777,7 +777,7 @@ static int blkvsc_remove(struct device *device)
 
 	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx = (struct blkvsc_driver_context*)driver_ctx;
-	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
@@ -907,7 +907,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*reque
 	struct device_context *device_ctx=blkdev->device_ctx;
 	struct driver_context *driver_ctx = driver_to_driver_context(device_ctx->device.driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx = (struct blkvsc_driver_context*)driver_ctx;
-	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
 	int ret =0;
 
 	struct hv_storvsc_request *storvsc_req;

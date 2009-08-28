@@ -54,14 +54,14 @@ typedef int (*PFN_ON_HOST_RESET)(struct hv_device *Device);
 typedef void (*PFN_ON_HOST_RESCAN)(struct hv_device *Device);
 
 /* Matches Windows-end */
-typedef enum _STORVSC_REQUEST_TYPE{
+enum storvsc_request_type{
 	WRITE_TYPE,
 	READ_TYPE,
 	UNKNOWN_TYPE,
-} STORVSC_REQUEST_TYPE;
+};
 
 struct hv_storvsc_request {
-	STORVSC_REQUEST_TYPE Type;
+	enum storvsc_request_type Type;
 	u32 Host;
 	u32 Bus;
 	u32 TargetId;
@@ -85,7 +85,7 @@ struct hv_storvsc_request {
 };
 
 /* Represents the block vsc driver */
-typedef struct _STORVSC_DRIVER_OBJECT {
+struct storvsc_driver_object {
 	/* Must be the first field */
 	/* Which is a bug FIXME! */
 	struct hv_driver Base;
@@ -105,13 +105,13 @@ typedef struct _STORVSC_DRIVER_OBJECT {
 	/* Specific to this driver */
 	PFN_ON_IO_REQUEST OnIORequest;
 	PFN_ON_HOST_RESET OnHostReset;
-} STORVSC_DRIVER_OBJECT;
+};
 
-typedef struct _STORVSC_DEVICE_INFO {
+struct storvsc_device_info {
 	unsigned int PortNumber;
 	unsigned char PathId;
 	unsigned char TargetId;
-} STORVSC_DEVICE_INFO;
+};
 
 /* Interface */
 int StorVscInitialize(struct hv_driver *driver);

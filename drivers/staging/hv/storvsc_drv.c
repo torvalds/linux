@@ -72,7 +72,7 @@ struct storvsc_cmd_request {
 struct storvsc_driver_context {
 	/* !! These must be the first 2 fields !! */
 	struct driver_context	drv_ctx;
-	STORVSC_DRIVER_OBJECT	drv_obj;
+	struct storvsc_driver_object drv_obj;
 };
 
 /* Static decl */
@@ -133,7 +133,7 @@ Desc:	StorVsc driver initialization.
 static int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
-	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_storvsc_drv.drv_ctx;
 
 	DPRINT_ENTER(STORVSC_DRV);
@@ -186,7 +186,7 @@ Desc:
 --*/
 static void storvsc_drv_exit(void)
 {
-	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_storvsc_drv.drv_ctx;
 	struct device *current_dev=NULL;
 	int ret;
@@ -236,14 +236,14 @@ static int storvsc_probe(struct device *device)
 
 	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
 	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
-	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
-	STORVSC_DEVICE_INFO device_info;
+	struct storvsc_device_info device_info;
 
 	DPRINT_ENTER(STORVSC_DRV);
 
@@ -339,7 +339,7 @@ static int storvsc_remove(struct device *device)
 
 	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
 	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
-	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
@@ -665,7 +665,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd, void (*done)(struct scs
 	struct device_context *device_ctx=host_device_ctx->device_ctx;
 	struct driver_context *driver_ctx = driver_to_driver_context(device_ctx->device.driver);
 	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
-	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
 	struct hv_storvsc_request *request;
 	struct storvsc_cmd_request *cmd_request;
@@ -887,7 +887,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	struct driver_context *driver_ctx = driver_to_driver_context(device_ctx->device.driver);
 	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
 
-	STORVSC_DRIVER_OBJECT *storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+	struct storvsc_driver_object *storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
 	DPRINT_ENTER(STORVSC_DRV);
 

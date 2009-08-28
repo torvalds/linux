@@ -261,7 +261,7 @@ StorVscInitialize(
 	struct hv_driver *Driver
 	)
 {
-	STORVSC_DRIVER_OBJECT* storDriver = (STORVSC_DRIVER_OBJECT*)Driver;
+	struct storvsc_driver_object *storDriver = (struct storvsc_driver_object *)Driver;
 	int ret=0;
 
 	DPRINT_ENTER(STORVSC);
@@ -319,7 +319,7 @@ StorVscOnDeviceAdd(
 	int ret=0;
 	STORVSC_DEVICE *storDevice;
 	/* struct vmstorage_channel_properties *props; */
-	STORVSC_DEVICE_INFO *deviceInfo = (STORVSC_DEVICE_INFO*)AdditionalInfo;
+	struct storvsc_device_info *deviceInfo = (struct storvsc_device_info *)AdditionalInfo;
 
 	DPRINT_ENTER(STORVSC);
 
@@ -530,7 +530,7 @@ StorVscConnectToVsp(
 	int ret=0;
 	struct vmstorage_channel_properties props;
 
-	STORVSC_DRIVER_OBJECT *storDriver = (STORVSC_DRIVER_OBJECT*) Device->Driver;;
+	struct storvsc_driver_object *storDriver = (struct storvsc_driver_object *)Device->Driver;;
 
 	memset(&props, sizeof(struct vmstorage_channel_properties), 0);
 
@@ -615,11 +615,11 @@ void *Context
 )
 {
 struct hv_device *device=(struct hv_device *)Context;
-STORVSC_DRIVER_OBJECT *storDriver;
+struct storvsc_driver_object *storDriver;
 
 DPRINT_ENTER(STORVSC);
 
-storDriver = (STORVSC_DRIVER_OBJECT*) device->Driver;
+storDriver = (struct storvsc_driver_object*) device->Driver;
 storDriver->OnHostRescan(device);
 
 DPRINT_EXIT(STORVSC);
