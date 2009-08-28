@@ -22,6 +22,7 @@
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/cp_intc.h>
+#include <mach/mux.h>
 #include <mach/da8xx.h>
 #include <mach/asp.h>
 
@@ -53,6 +54,14 @@ static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
 
 static struct davinci_uart_config da830_evm_uart_config __initdata = {
 	.enabled_uarts = 0x7,
+};
+
+static const short da830_evm_mcasp1_pins[] = {
+	DA830_AHCLKX1, DA830_ACLKX1, DA830_AFSX1, DA830_AHCLKR1, DA830_AFSR1,
+	DA830_AMUTE1, DA830_AXR1_0, DA830_AXR1_1, DA830_AXR1_2, DA830_AXR1_5,
+	DA830_ACLKR1, DA830_AXR1_6, DA830_AXR1_7, DA830_AXR1_8, DA830_AXR1_10,
+	DA830_AXR1_11,
+	-1
 };
 
 static u8 da830_iis_serializer_direction[] = {
@@ -117,7 +126,7 @@ static __init void da830_evm_init(void)
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
 
-	ret = da8xx_pinmux_setup(da830_mcasp1_pins);
+	ret = da8xx_pinmux_setup(da830_evm_mcasp1_pins);
 	if (ret)
 		pr_warning("da830_evm_init: mcasp1 mux setup failed: %d\n",
 				ret);
