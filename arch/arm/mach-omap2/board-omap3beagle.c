@@ -108,10 +108,6 @@ static struct platform_device omap3beagle_nand_device = {
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 
-static struct omap_uart_config omap3_beagle_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct twl4030_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -345,7 +341,6 @@ static struct platform_device keys_gpio = {
 };
 
 static struct omap_board_config_kernel omap3_beagle_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3_beagle_uart_config },
 	{ OMAP_TAG_LCD,		&omap3_beagle_lcd_config },
 };
 

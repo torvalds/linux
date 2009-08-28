@@ -555,7 +555,6 @@ static struct omap_uart_state omap_uart[OMAP_MAX_NR_PORTS] = {
 void __init omap_serial_init(void)
 {
 	int i;
-	const struct omap_uart_config *info;
 	char name[16];
 
 	/*
@@ -564,22 +563,11 @@ void __init omap_serial_init(void)
 	 * if not needed.
 	 */
 
-	info = omap_get_config(OMAP_TAG_UART, struct omap_uart_config);
-
-	if (info == NULL)
-		return;
-
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
 		struct omap_uart_state *uart = &omap_uart[i];
 		struct platform_device *pdev = &uart->pdev;
 		struct device *dev = &pdev->dev;
 		struct plat_serial8250_port *p = dev->platform_data;
-
-		if (!(info->enabled_uarts & (1 << i))) {
-			p->membase = NULL;
-			p->mapbase = 0;
-			continue;
-		}
 
 		sprintf(name, "uart%d_ick", i+1);
 		uart->ick = clk_get(NULL, name);

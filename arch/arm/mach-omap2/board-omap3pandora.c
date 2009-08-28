@@ -213,10 +213,6 @@ static struct twl4030_hsmmc_info omap3pandora_mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct omap_uart_config omap3pandora_uart_config __initdata = {
-	.enabled_uarts	= (1 << 2), /* UART3 */
-};
-
 static struct regulator_consumer_supply pandora_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -376,7 +372,6 @@ static struct omap_lcd_config omap3pandora_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel omap3pandora_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3pandora_uart_config },
 	{ OMAP_TAG_LCD,		&omap3pandora_lcd_config },
 };
 

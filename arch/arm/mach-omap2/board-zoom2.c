@@ -30,12 +30,7 @@ static void __init omap_zoom2_init_irq(void)
 	omap_gpio_init();
 }
 
-static struct omap_uart_config zoom2_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_board_config_kernel zoom2_config[] __initdata = {
-	{ OMAP_TAG_UART,	&zoom2_uart_config },
 };
 
 static struct twl4030_gpio_platform_data zoom2_gpio_data = {

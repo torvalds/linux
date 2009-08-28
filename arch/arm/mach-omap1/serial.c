@@ -109,7 +109,6 @@ static struct platform_device serial_device = {
 void __init omap_serial_init(void)
 {
 	int i;
-	const struct omap_uart_config *info;
 
 	if (cpu_is_omap730()) {
 		serial_platform_data[0].regshift = 0;
@@ -131,18 +130,8 @@ void __init omap_serial_init(void)
 		serial_platform_data[2].uartclk = OMAP1510_BASE_BAUD * 16;
 	}
 
-	info = omap_get_config(OMAP_TAG_UART, struct omap_uart_config);
-	if (info == NULL)
-		return;
-
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
 		unsigned char reg;
-
-		if (!((1 << i) & info->enabled_uarts)) {
-			serial_platform_data[i].membase = NULL;
-			serial_platform_data[i].mapbase = 0;
-			continue;
-		}
 
 		switch (i) {
 		case 0:

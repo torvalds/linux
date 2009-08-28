@@ -276,10 +276,6 @@ static void __init omap_ldp_init_irq(void)
 	ldp_init_smsc911x();
 }
 
-static struct omap_uart_config ldp_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct platform_device ldp_lcd_device = {
 	.name		= "ldp_lcd",
 	.id		= -1,
@@ -290,7 +286,6 @@ static struct omap_lcd_config ldp_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel ldp_config[] __initdata = {
-	{ OMAP_TAG_UART,	&ldp_uart_config },
 	{ OMAP_TAG_LCD,		&ldp_lcd_config },
 };
 

@@ -162,10 +162,6 @@ static struct omap_lcd_config ams_delta_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_uart_config ams_delta_uart_config __initdata = {
-	.enabled_uarts = 1,
-};
-
 static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.register_host	= 1,
 	.hmc_mode	= 16,
@@ -174,7 +170,6 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 
 static struct omap_board_config_kernel ams_delta_config[] = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
-	{ OMAP_TAG_UART,	&ams_delta_uart_config },
 };
 
 static struct resource ams_delta_kp_resources[] = {

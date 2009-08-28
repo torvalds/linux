@@ -47,7 +47,6 @@ static struct omap_lcd_config sdp4430_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel sdp4430_config[] __initdata = {
-	{ OMAP_TAG_UART,	&sdp4430_uart_config },
 	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
 

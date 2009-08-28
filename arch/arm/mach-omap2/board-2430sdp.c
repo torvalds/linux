@@ -146,12 +146,7 @@ static void __init omap_2430sdp_init_irq(void)
 	omap_gpio_init();
 }
 
-static struct omap_uart_config sdp2430_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_board_config_kernel sdp2430_config[] = {
-	{OMAP_TAG_UART, &sdp2430_uart_config},
 	{OMAP_TAG_LCD, &sdp2430_lcd_config},
 };
 
