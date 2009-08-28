@@ -591,6 +591,10 @@ retry:
 	/* match the ref from fsnotify_init_markentry() */
 	fsnotify_put_mark(&tmp_ientry->fsn_entry);
 
+	/* if this mark added a new event update the group mask */
+	if (mask & ~group->mask)
+		fsnotify_recalc_group_mask(group);
+
 out_err:
 	if (ret < 0)
 		kmem_cache_free(inotify_inode_mark_cachep, tmp_ientry);
