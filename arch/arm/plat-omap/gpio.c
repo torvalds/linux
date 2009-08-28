@@ -1895,7 +1895,7 @@ void omap2_gpio_resume_after_retention(void)
 		return;
 	for (i = 0; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
-		u32 l;
+		u32 l, gen, gen0, gen1;
 
 		if (!(bank->enabled_non_wakeup_gpios))
 			continue;
@@ -1916,14 +1916,33 @@ void omap2_gpio_resume_after_retention(void)
 #endif
 		l ^= bank->saved_datain;
 		l &= bank->non_wakeup_gpios;
-		if (l) {
+
+		/*
+		 * No need to generate IRQs for the rising edge for gpio IRQs
+		 * configured with falling edge only; and vice versa.
+		 */
+		gen0 = l & bank->saved_fallingdetect;
+		gen0 &= bank->saved_datain;
+
+		gen1 = l & bank->saved_risingdetect;
+		gen1 &= ~(bank->saved_datain);
+
+		/* FIXME: Consider GPIO IRQs with level detections properly! */
+		gen = l & (~(bank->saved_fallingdetect) &
+				~(bank->saved_risingdetect));
+		/* Consider all GPIO IRQs needed to be updated */
+		gen |= gen0 | gen1;
+
+		if (gen) {
 			u32 old0, old1;
 #if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
 			defined(CONFIG_ARCH_OMAP4)
 			old0 = __raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT0);
 			old1 = __raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT1);
-			__raw_writel(old0 | l, bank->base + OMAP24XX_GPIO_LEVELDETECT0);
-			__raw_writel(old1 | l, bank->base + OMAP24XX_GPIO_LEVELDETECT1);
+			__raw_writel(old0 | gen, bank->base +
+					OMAP24XX_GPIO_LEVELDETECT0);
+			__raw_writel(old1 | gen, bank->base +
+					OMAP24XX_GPIO_LEVELDETECT1);
 			__raw_writel(old0, bank->base + OMAP24XX_GPIO_LEVELDETECT0);
 			__raw_writel(old1, bank->base + OMAP24XX_GPIO_LEVELDETECT1);
 #endif
