@@ -2821,13 +2821,15 @@ static void rndis_wlan_pmkid_cand_list_indication(struct usbnet *usbdev,
 		return;
 
 	for (i = 0; i < le32_to_cpu(cand_list->num_candidates); i++) {
-		struct iw_pmkid_cand pcand;
-		union iwreq_data wrqu;
 		struct ndis_80211_pmkid_candidate *cand =
 						&cand_list->candidate_list[i];
 
 		devdbg(usbdev, "cand[%i]: flags: 0x%08x, bssid: %pM",
 				i, le32_to_cpu(cand->flags), cand->bssid);
+
+#if 0
+		struct iw_pmkid_cand pcand;
+		union iwreq_data wrqu;
 
 		memset(&pcand, 0, sizeof(pcand));
 		if (le32_to_cpu(cand->flags) & 0x01)
@@ -2839,6 +2841,7 @@ static void rndis_wlan_pmkid_cand_list_indication(struct usbnet *usbdev,
 		wrqu.data.length = sizeof(pcand);
 		wireless_send_event(usbdev->net, IWEVPMKIDCAND, &wrqu,
 								(u8 *)&pcand);
+#endif
 	}
 }
 
