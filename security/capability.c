@@ -706,9 +706,25 @@ static void cap_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 {
 }
 
+
+
 static void cap_req_classify_flow(const struct request_sock *req,
 				  struct flowi *fl)
 {
+}
+
+static int cap_tun_dev_create(void)
+{
+	return 0;
+}
+
+static void cap_tun_dev_post_create(struct sock *sk)
+{
+}
+
+static int cap_tun_dev_attach(struct sock *sk)
+{
+	return 0;
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 
@@ -1026,6 +1042,9 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, inet_csk_clone);
 	set_to_cap_if_null(ops, inet_conn_established);
 	set_to_cap_if_null(ops, req_classify_flow);
+	set_to_cap_if_null(ops, tun_dev_create);
+	set_to_cap_if_null(ops, tun_dev_post_create);
+	set_to_cap_if_null(ops, tun_dev_attach);
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	set_to_cap_if_null(ops, xfrm_policy_alloc_security);

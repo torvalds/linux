@@ -130,16 +130,9 @@ static inline struct tun_sock *tun_sk(struct sock *sk)
 static int tun_attach(struct tun_struct *tun, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
-	const struct cred *cred = current_cred();
 	int err;
 
 	ASSERT_RTNL();
-
-	/* Check permissions */
-	if (((tun->owner != -1 && cred->euid != tun->owner) ||
-	     (tun->group != -1 && !in_egroup_p(tun->group))) &&
-		!capable(CAP_NET_ADMIN))
-		return -EPERM;
 
 	netif_tx_lock_bh(tun->dev);
 
@@ -926,6 +919,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
+		const struct cred *cred = current_cred();
+
 		if (ifr->ifr_flags & IFF_TUN_EXCL)
 			return -EBUSY;
 		if ((ifr->ifr_flags & IFF_TUN) && dev->netdev_ops == &tun_netdev_ops)
@@ -934,6 +929,14 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			tun = netdev_priv(dev);
 		else
 			return -EINVAL;
+
+		if (((tun->owner != -1 && cred->euid != tun->owner) ||
+		     (tun->group != -1 && !in_egroup_p(tun->group))) &&
+		    !capable(CAP_NET_ADMIN))
+			return -EPERM;
+		err = security_tun_dev_attach(tun->sk);
+		if (err < 0)
+			return err;
 
 		err = tun_attach(tun, file);
 		if (err < 0)
@@ -947,6 +950,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
+		err = security_tun_dev_create();
+		if (err < 0)
+			return err;
 
 		/* Set dev type */
 		if (ifr->ifr_flags & IFF_TUN) {
@@ -988,6 +994,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		tun->sk = sk;
 		container_of(sk, struct tun_sock, sk)->tun = tun;
+
+		security_tun_dev_post_create(sk);
 
 		tun_net_init(dev);
 

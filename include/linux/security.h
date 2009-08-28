@@ -998,6 +998,17 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Sets the connection's peersid to the secmark on skb.
  * @req_classify_flow:
  *	Sets the flow's sid to the openreq sid.
+ * @tun_dev_create:
+ *	Check permissions prior to creating a new TUN device.
+ * @tun_dev_post_create:
+ *	This hook allows a module to update or allocate a per-socket security
+ *	structure.
+ *	@sk contains the newly created sock structure.
+ * @tun_dev_attach:
+ *	Check permissions prior to attaching to a persistent TUN device.  This
+ *	hook can also be used by the module to update any security state
+ *	associated with the TUN device's sock structure.
+ *	@sk contains the existing sock structure.
  *
  * Security hooks for XFRM operations.
  *
@@ -1597,6 +1608,9 @@ struct security_operations {
 	void (*inet_csk_clone) (struct sock *newsk, const struct request_sock *req);
 	void (*inet_conn_established) (struct sock *sk, struct sk_buff *skb);
 	void (*req_classify_flow) (const struct request_sock *req, struct flowi *fl);
+	int (*tun_dev_create)(void);
+	void (*tun_dev_post_create)(struct sock *sk);
+	int (*tun_dev_attach)(struct sock *sk);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -2586,6 +2600,9 @@ void security_inet_csk_clone(struct sock *newsk,
 			const struct request_sock *req);
 void security_inet_conn_established(struct sock *sk,
 			struct sk_buff *skb);
+int security_tun_dev_create(void);
+void security_tun_dev_post_create(struct sock *sk);
+int security_tun_dev_attach(struct sock *sk);
 
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct socket *sock,
@@ -2735,6 +2752,20 @@ static inline void security_inet_csk_clone(struct sock *newsk,
 static inline void security_inet_conn_established(struct sock *sk,
 			struct sk_buff *skb)
 {
+}
+
+static inline int security_tun_dev_create(void)
+{
+	return 0;
+}
+
+static inline void security_tun_dev_post_create(struct sock *sk)
+{
+}
+
+static inline int security_tun_dev_attach(struct sock *sk)
+{
+	return 0;
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 

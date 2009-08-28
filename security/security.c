@@ -1117,6 +1117,24 @@ void security_inet_conn_established(struct sock *sk,
 	security_ops->inet_conn_established(sk, skb);
 }
 
+int security_tun_dev_create(void)
+{
+	return security_ops->tun_dev_create();
+}
+EXPORT_SYMBOL(security_tun_dev_create);
+
+void security_tun_dev_post_create(struct sock *sk)
+{
+	return security_ops->tun_dev_post_create(sk);
+}
+EXPORT_SYMBOL(security_tun_dev_post_create);
+
+int security_tun_dev_attach(struct sock *sk)
+{
+	return security_ops->tun_dev_attach(sk);
+}
+EXPORT_SYMBOL(security_tun_dev_attach);
+
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
