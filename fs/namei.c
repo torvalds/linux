@@ -434,8 +434,12 @@ static int exec_permission_lite(struct inode *inode)
 {
 	umode_t	mode = inode->i_mode;
 
-	if (inode->i_op->permission)
-		return inode_permission(inode, MAY_EXEC);
+	if (inode->i_op->permission) {
+		int ret = inode->i_op->permission(inode, MAY_EXEC);
+		if (!ret)
+			goto ok;
+		return ret;
+	}
 
 	if (current_fsuid() == inode->i_uid)
 		mode >>= 6;
