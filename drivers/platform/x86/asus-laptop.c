@@ -243,7 +243,7 @@ static struct backlight_ops asusbl_ops = {
  * potentially bad time, such as a timer interrupt. */
 static struct workqueue_struct *led_workqueue;
 
-#define ASUS_LED(object, ledname)					\
+#define ASUS_LED(object, ledname, max)					\
 	static void object##_led_set(struct led_classdev *led_cdev,	\
 				     enum led_brightness value);	\
 	static enum led_brightness object##_led_get(			\
@@ -255,13 +255,14 @@ static struct workqueue_struct *led_workqueue;
 		.name           = "asus::" ledname,			\
 		.brightness_set = object##_led_set,			\
 		.brightness_get = object##_led_get,			\
+		.max_brightness = max					\
 	}
 
-ASUS_LED(mled, "mail");
-ASUS_LED(tled, "touchpad");
-ASUS_LED(rled, "record");
-ASUS_LED(pled, "phone");
-ASUS_LED(gled, "gaming");
+ASUS_LED(mled, "mail", 1);
+ASUS_LED(tled, "touchpad", 1);
+ASUS_LED(rled, "record", 1);
+ASUS_LED(pled, "phone", 1);
+ASUS_LED(gled, "gaming", 1);
 
 struct key_entry {
 	char type;
