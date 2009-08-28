@@ -835,8 +835,7 @@ static int eeepc_hotk_resume(struct acpi_device *device)
 		wlan = get_acpi(CM_ASL_WLAN);
 		set_acpi(CM_ASL_WLAN, wlan);
 
-		rfkill_set_sw_state(ehotk->wlan_rfkill, wlan != 1);
-
+		/* Refresh both rfkill state and pci hotplug */
 		eeepc_rfkill_hotplug();
 	}
 
