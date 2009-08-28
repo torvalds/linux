@@ -13,8 +13,8 @@
  *					   Eric Paris <eparis@redhat.com>
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *			    <dgoeddel@trustedcs.com>
- *  Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
- *		Paul Moore <paul.moore@hp.com>
+ *  Copyright (C) 2006, 2007, 2009 Hewlett-Packard Development Company, L.P.
+ *	Paul Moore <paul.moore@hp.com>
  *  Copyright (C) 2007 Hitachi Software Engineering Co., Ltd.
  *		       Yuichi Nakamura <ynakam@hitachisoft.jp>
  *
@@ -4325,6 +4325,59 @@ static void selinux_req_classify_flow(const struct request_sock *req,
 	fl->secid = req->secid;
 }
 
+static int selinux_tun_dev_create(void)
+{
+	u32 sid = current_sid();
+
+	/* we aren't taking into account the "sockcreate" SID since the socket
+	 * that is being created here is not a socket in the traditional sense,
+	 * instead it is a private sock, accessible only to the kernel, and
+	 * representing a wide range of network traffic spanning multiple
+	 * connections unlike traditional sockets - check the TUN driver to
+	 * get a better understanding of why this socket is special */
+
+	return avc_has_perm(sid, sid, SECCLASS_TUN_SOCKET, TUN_SOCKET__CREATE,
+			    NULL);
+}
+
+static void selinux_tun_dev_post_create(struct sock *sk)
+{
+	struct sk_security_struct *sksec = sk->sk_security;
+
+	/* we don't currently perform any NetLabel based labeling here and it
+	 * isn't clear that we would want to do so anyway; while we could apply
+	 * labeling without the support of the TUN user the resulting labeled
+	 * traffic from the other end of the connection would almost certainly
+	 * cause confusion to the TUN user that had no idea network labeling
+	 * protocols were being used */
+
+	/* see the comments in selinux_tun_dev_create() about why we don't use
+	 * the sockcreate SID here */
+
+	sksec->sid = current_sid();
+	sksec->sclass = SECCLASS_TUN_SOCKET;
+}
+
+static int selinux_tun_dev_attach(struct sock *sk)
+{
+	struct sk_security_struct *sksec = sk->sk_security;
+	u32 sid = current_sid();
+	int err;
+
+	err = avc_has_perm(sid, sksec->sid, SECCLASS_TUN_SOCKET,
+			   TUN_SOCKET__RELABELFROM, NULL);
+	if (err)
+		return err;
+	err = avc_has_perm(sid, sid, SECCLASS_TUN_SOCKET,
+			   TUN_SOCKET__RELABELTO, NULL);
+	if (err)
+		return err;
+
+	sksec->sid = sid;
+
+	return 0;
+}
+
 static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 {
 	int err = 0;
@@ -5494,6 +5547,9 @@ static struct security_operations selinux_ops = {
 	.inet_csk_clone =		selinux_inet_csk_clone,
 	.inet_conn_established =	selinux_inet_conn_established,
 	.req_classify_flow =		selinux_req_classify_flow,
+	.tun_dev_create =		selinux_tun_dev_create,
+	.tun_dev_post_create = 		selinux_tun_dev_post_create,
+	.tun_dev_attach =		selinux_tun_dev_attach,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,
