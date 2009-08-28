@@ -2476,6 +2476,17 @@ struct tg3_ethtool_stats {
 	u64		nic_tx_threshold_hit;
 };
 
+struct tg3_rx_prodring_set {
+	u32				rx_std_ptr;
+	u32				rx_jmb_ptr;
+	struct tg3_rx_buffer_desc	*rx_std;
+	struct tg3_rx_buffer_desc	*rx_jmb;
+	struct ring_info		*rx_std_buffers;
+	struct ring_info		*rx_jmb_buffers;
+	dma_addr_t			rx_std_mapping;
+	dma_addr_t			rx_jmb_mapping;
+};
+
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
@@ -2551,27 +2562,19 @@ struct tg3 {
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
 	u32				rx_rcb_ptr;
-	u32				rx_std_ptr;
-	u32				rx_jumbo_ptr;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
+	u32				rx_std_max_post;
+	u32				rx_pkt_map_sz;
 #if TG3_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
 #endif
 
-	struct tg3_rx_buffer_desc	*rx_std;
-	struct ring_info		*rx_std_buffers;
-	dma_addr_t			rx_std_mapping;
-	u32				rx_std_max_post;
-
-	struct tg3_rx_buffer_desc	*rx_jumbo;
-	struct ring_info		*rx_jumbo_buffers;
-	dma_addr_t			rx_jumbo_mapping;
-
 	struct tg3_rx_buffer_desc	*rx_rcb;
 	dma_addr_t			rx_rcb_mapping;
 
-	u32				rx_pkt_map_sz;
+	struct tg3_rx_prodring_set	prodring[1];
+
 
 	/* begin "everything else" cacheline(s) section */
 	struct net_device_stats		net_stats;
