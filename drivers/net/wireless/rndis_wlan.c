@@ -1526,7 +1526,8 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					enum nl80211_iftype type, u32 *flags,
 					struct vif_params *params)
 {
-	struct usbnet *usbdev = netdev_priv(dev);
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+	struct usbnet *usbdev = priv->usbdev;
 	int mode;
 
 	switch (type) {
@@ -1539,6 +1540,8 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy,
 	default:
 		return -EINVAL;
 	}
+
+	priv->wdev.iftype = type;
 
 	return set_infra_mode(usbdev, mode);
 }
