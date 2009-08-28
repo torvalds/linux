@@ -1331,6 +1331,7 @@ static int bond_compute_features(struct bonding *bond)
 	struct slave *slave;
 	struct net_device *bond_dev = bond->dev;
 	unsigned long features = bond_dev->features;
+	unsigned long vlan_features = 0;
 	unsigned short max_hard_header_len = max((u16)ETH_HLEN,
 						bond_dev->hard_header_len);
 	int i;
@@ -1343,10 +1344,14 @@ static int bond_compute_features(struct bonding *bond)
 
 	features &= ~NETIF_F_ONE_FOR_ALL;
 
+	vlan_features = bond->first_slave->dev->vlan_features;
 	bond_for_each_slave(bond, slave, i) {
 		features = netdev_increment_features(features,
 						     slave->dev->features,
 						     NETIF_F_ONE_FOR_ALL);
+		vlan_features = netdev_increment_features(vlan_features,
+							slave->dev->vlan_features,
+							NETIF_F_ONE_FOR_ALL);
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
@@ -1354,6 +1359,7 @@ static int bond_compute_features(struct bonding *bond)
 done:
 	features |= (bond_dev->features & BOND_VLAN_FEATURES);
 	bond_dev->features = netdev_fix_features(features, NULL);
+	bond_dev->vlan_features = netdev_fix_features(vlan_features, NULL);
 	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;
