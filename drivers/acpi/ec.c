@@ -330,10 +330,6 @@ unlock:
 	return status;
 }
 
-/*
- * Note: samsung nv5000 doesn't work with ec burst mode.
- * http://bugzilla.kernel.org/show_bug.cgi?id=4980
- */
 static int acpi_ec_burst_enable(struct acpi_ec *ec)
 {
 	u8 d;
