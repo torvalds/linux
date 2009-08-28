@@ -516,7 +516,17 @@ static ssize_t show_infos(struct device *dev,
 	 */
 	rv = acpi_evaluate_integer(hotk->handle, "SFUN", NULL, &temp);
 	if (!ACPI_FAILURE(rv))
-		len += sprintf(page + len, "SFUN value         : 0x%04x\n",
+		len += sprintf(page + len, "SFUN value         : %#x\n",
+			       (uint) temp);
+	/*
+	 * The HWRS method return informations about the hardware.
+	 * 0x80 bit is for WLAN, 0x100 for Bluetooth.
+	 * The significance of others is yet to be found.
+	 * If we don't find the method, we assume the device are present.
+	 */
+	rv = acpi_evaluate_integer(hotk->handle, "HRWS", NULL, &temp);
+	if (!ACPI_FAILURE(rv))
+		len += sprintf(page + len, "HRWS value         : %#x\n",
 			       (uint) temp);
 	/*
 	 * Another value for userspace: the ASYM method returns 0x02 for
@@ -527,7 +537,7 @@ static ssize_t show_infos(struct device *dev,
 	 */
 	rv = acpi_evaluate_integer(hotk->handle, "ASYM", NULL, &temp);
 	if (!ACPI_FAILURE(rv))
-		len += sprintf(page + len, "ASYM value         : 0x%04x\n",
+		len += sprintf(page + len, "ASYM value         : %#x\n",
 			       (uint) temp);
 	if (asus_info) {
 		snprintf(buf, 16, "%d", asus_info->length);
