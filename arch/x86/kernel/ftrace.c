@@ -494,7 +494,7 @@ static struct syscall_metadata *find_syscall_meta(unsigned long *syscall)
 
 struct syscall_metadata *syscall_nr_to_meta(int nr)
 {
-	if (!syscalls_metadata || nr >= FTRACE_SYSCALL_MAX || nr < 0)
+	if (!syscalls_metadata || nr >= NR_syscalls || nr < 0)
 		return NULL;
 
 	return syscalls_metadata[nr];
@@ -507,7 +507,7 @@ int syscall_name_to_nr(char *name)
 	if (!syscalls_metadata)
 		return -1;
 
-	for (i = 0; i < FTRACE_SYSCALL_MAX; i++) {
+	for (i = 0; i < NR_syscalls; i++) {
 		if (syscalls_metadata[i]) {
 			if (!strcmp(syscalls_metadata[i]->name, name))
 				return i;
@@ -533,13 +533,13 @@ static int __init arch_init_ftrace_syscalls(void)
 	unsigned long **psys_syscall_table = &sys_call_table;
 
 	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) *
-					FTRACE_SYSCALL_MAX, GFP_KERNEL);
+					NR_syscalls, GFP_KERNEL);
 	if (!syscalls_metadata) {
 		WARN_ON(1);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < FTRACE_SYSCALL_MAX; i++) {
+	for (i = 0; i < NR_syscalls; i++) {
 		meta = find_syscall_meta(psys_syscall_table[i]);
 		syscalls_metadata[i] = meta;
 	}

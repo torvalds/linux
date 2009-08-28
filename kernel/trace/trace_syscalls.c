@@ -11,8 +11,8 @@
 static DEFINE_MUTEX(syscall_trace_lock);
 static int sys_refcount_enter;
 static int sys_refcount_exit;
-static DECLARE_BITMAP(enabled_enter_syscalls, FTRACE_SYSCALL_MAX);
-static DECLARE_BITMAP(enabled_exit_syscalls, FTRACE_SYSCALL_MAX);
+static DECLARE_BITMAP(enabled_enter_syscalls, NR_syscalls);
+static DECLARE_BITMAP(enabled_exit_syscalls, NR_syscalls);
 
 enum print_line_t
 print_syscall_enter(struct trace_iterator *iter, int flags)
@@ -227,6 +227,8 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 	int syscall_nr;
 
 	syscall_nr = syscall_get_nr(current, regs);
+	if (syscall_nr < 0)
+		return;
 	if (!test_bit(syscall_nr, enabled_enter_syscalls))
 		return;
 
@@ -257,6 +259,8 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	int syscall_nr;
 
 	syscall_nr = syscall_get_nr(current, regs);
+	if (syscall_nr < 0)
+		return;
 	if (!test_bit(syscall_nr, enabled_exit_syscalls))
 		return;
 
@@ -285,7 +289,7 @@ int reg_event_syscall_enter(void *ptr)
 
 	name = (char *)ptr;
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
 	mutex_lock(&syscall_trace_lock);
 	if (!sys_refcount_enter)
@@ -308,7 +312,7 @@ void unreg_event_syscall_enter(void *ptr)
 
 	name = (char *)ptr;
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return;
 	mutex_lock(&syscall_trace_lock);
 	sys_refcount_enter--;
@@ -326,7 +330,7 @@ int reg_event_syscall_exit(void *ptr)
 
 	name = (char *)ptr;
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
 	mutex_lock(&syscall_trace_lock);
 	if (!sys_refcount_exit)
@@ -349,7 +353,7 @@ void unreg_event_syscall_exit(void *ptr)
 
 	name = (char *)ptr;
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return;
 	mutex_lock(&syscall_trace_lock);
 	sys_refcount_exit--;
@@ -369,8 +373,8 @@ struct trace_event event_syscall_exit = {
 
 #ifdef CONFIG_EVENT_PROFILE
 
-static DECLARE_BITMAP(enabled_prof_enter_syscalls, FTRACE_SYSCALL_MAX);
-static DECLARE_BITMAP(enabled_prof_exit_syscalls, FTRACE_SYSCALL_MAX);
+static DECLARE_BITMAP(enabled_prof_enter_syscalls, NR_syscalls);
+static DECLARE_BITMAP(enabled_prof_exit_syscalls, NR_syscalls);
 static int sys_prof_refcount_enter;
 static int sys_prof_refcount_exit;
 
@@ -416,7 +420,7 @@ int reg_prof_syscall_enter(char *name)
 	int num;
 
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
 
 	mutex_lock(&syscall_trace_lock);
@@ -438,7 +442,7 @@ void unreg_prof_syscall_enter(char *name)
 	int num;
 
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return;
 
 	mutex_lock(&syscall_trace_lock);
@@ -477,7 +481,7 @@ int reg_prof_syscall_exit(char *name)
 	int num;
 
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
 
 	mutex_lock(&syscall_trace_lock);
@@ -499,7 +503,7 @@ void unreg_prof_syscall_exit(char *name)
 	int num;
 
 	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+	if (num < 0 || num >= NR_syscalls)
 		return;
 
 	mutex_lock(&syscall_trace_lock);
