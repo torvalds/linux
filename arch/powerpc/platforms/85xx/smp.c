@@ -79,21 +79,9 @@ smp_85xx_kick_cpu(int nr)
 }
 
 static void __init
-smp_85xx_basic_setup(int cpu_nr)
-{
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-}
-
-static void __init
 smp_85xx_setup_cpu(int cpu_nr)
 {
 	mpic_setup_this_cpu();
-
-	smp_85xx_basic_setup(cpu_nr);
 }
 
 struct smp_ops_t smp_85xx_ops = {

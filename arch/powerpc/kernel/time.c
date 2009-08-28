@@ -727,6 +727,18 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 	return found;
 }
 
+/* should become __cpuinit when secondary_cpu_time_init also is */
+void start_cpu_decrementer(void)
+{
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+	/* Clear any pending timer interrupts */
+	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
+
+	/* Enable decrementer interrupt */
+	mtspr(SPRN_TCR, TCR_DIE);
+#endif /* defined(CONFIG_BOOKE) || defined(CONFIG_40x) */
+}
+
 void __init generic_calibrate_decr(void)
 {
 	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
@@ -746,14 +758,6 @@ void __init generic_calibrate_decr(void)
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
 				"(not found)\n");
 	}
-
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-#endif
 }
 
 int update_persistent_clock(struct timespec now)
@@ -914,6 +918,11 @@ static void __init init_decrementer_clockevent(void)
 
 void secondary_cpu_time_init(void)
 {
+	/* Start the decrementer on CPUs that have manual control
+	 * such as BookE
+	 */
+	start_cpu_decrementer();
+
 	/* FIME: Should make unrelatred change to move snapshot_timebase
 	 * call here ! */
 	register_decrementer_clockevent(smp_processor_id());
@@ -1016,6 +1025,11 @@ void __init time_init(void)
 	vdso_data->tb_to_xs = tb_to_xs;
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
+
+	/* Start the decrementer on CPUs that have manual control
+	 * such as BookE
+	 */
+	start_cpu_decrementer();
 
 	/* Register the clocksource, if we're not running on iSeries */
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
