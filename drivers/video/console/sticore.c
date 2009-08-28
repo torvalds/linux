@@ -957,9 +957,14 @@ static int __devinit sticore_pci_init(struct pci_dev *pd,
 #ifdef CONFIG_PCI
 	unsigned long fb_base, rom_base;
 	unsigned int fb_len, rom_len;
+	int err;
 	struct sti_struct *sti;
 	
-	pci_enable_device(pd);
+	err = pci_enable_device(pd);
+	if (err < 0) {
+		dev_err(&pd->dev, "Cannot enable PCI device\n");
+		return err;
+	}
 
 	fb_base = pci_resource_start(pd, 0);
 	fb_len = pci_resource_len(pd, 0);
@@ -1048,7 +1053,7 @@ static void __devinit sti_init_roms(void)
 
 	/* Register drivers for native & PCI cards */
 	register_parisc_driver(&pa_sti_driver);
-	pci_register_driver(&pci_sti_driver);
+	WARN_ON(pci_register_driver(&pci_sti_driver));
 
 	/* if we didn't find the given default sti, take the first one */
 	if (!default_sti)

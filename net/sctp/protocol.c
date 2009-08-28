@@ -160,6 +160,7 @@ static void sctp_proc_exit(void)
 		remove_proc_entry("sctp", init_net.proc_net);
 	}
 #endif
+	percpu_counter_destroy(&sctp_sockets_allocated);
 }
 
 /* Private helper to extract ipv4 address and stash them in

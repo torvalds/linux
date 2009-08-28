@@ -127,6 +127,10 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO76_LCD_PCLK,
 	GPIO77_LCD_BIAS,
 
+	/* FFUART */
+	GPIO34_FFUART_RXD,
+	GPIO39_FFUART_TXD,
+
 	/* MISC. */
 	GPIO10_GPIO,	/* hotsync button */
 	GPIO12_GPIO,	/* power detect */

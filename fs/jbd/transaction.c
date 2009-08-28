@@ -489,34 +489,15 @@ void journal_unlock_updates (journal_t *journal)
 	wake_up(&journal->j_wait_transaction_locked);
 }
 
-/*
- * Report any unexpected dirty buffers which turn up.  Normally those
- * indicate an error, but they can occur if the user is running (say)
- * tune2fs to modify the live filesystem, so we need the option of
- * continuing as gracefully as possible.  #
- *
- * The caller should already hold the journal lock and
- * j_list_lock spinlock: most callers will need those anyway
- * in order to probe the buffer's journaling state safely.
- */
-static void jbd_unexpected_dirty_buffer(struct journal_head *jh)
+static void warn_dirty_buffer(struct buffer_head *bh)
 {
-	int jlist;
+	char b[BDEVNAME_SIZE];
 
-	/* If this buffer is one which might reasonably be dirty
-	 * --- ie. data, or not part of this journal --- then
-	 * we're OK to leave it alone, but otherwise we need to
-	 * move the dirty bit to the journal's own internal
-	 * JBDDirty bit. */
-	jlist = jh->b_jlist;
-
-	if (jlist == BJ_Metadata || jlist == BJ_Reserved ||
-	    jlist == BJ_Shadow || jlist == BJ_Forget) {
-		struct buffer_head *bh = jh2bh(jh);
-
-		if (test_clear_buffer_dirty(bh))
-			set_buffer_jbddirty(bh);
-	}
+	printk(KERN_WARNING
+	       "JBD: Spotted dirty metadata buffer (dev = %s, blocknr = %llu). "
+	       "There's a risk of filesystem corruption in case of system "
+	       "crash.\n",
+	       bdevname(bh->b_bdev, b), (unsigned long long)bh->b_blocknr);
 }
 
 /*
@@ -583,14 +564,16 @@ repeat:
 			if (jh->b_next_transaction)
 				J_ASSERT_JH(jh, jh->b_next_transaction ==
 							transaction);
+			warn_dirty_buffer(bh);
 		}
 		/*
 		 * In any case we need to clean the dirty flag and we must
 		 * do it under the buffer lock to be sure we don't race
 		 * with running write-out.
 		 */
-		JBUFFER_TRACE(jh, "Unexpected dirty buffer");
-		jbd_unexpected_dirty_buffer(jh);
+		JBUFFER_TRACE(jh, "Journalling dirty buffer");
+		clear_buffer_dirty(bh);
+		set_buffer_jbddirty(bh);
 	}
 
 	unlock_buffer(bh);
@@ -826,6 +809,15 @@ int journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 	J_ASSERT_JH(jh, buffer_locked(jh2bh(jh)));
 
 	if (jh->b_transaction == NULL) {
+		/*
+		 * Previous journal_forget() could have left the buffer
+		 * with jbddirty bit set because it was being committed. When
+		 * the commit finished, we've filed the buffer for
+		 * checkpointing and marked it dirty. Now we are reallocating
+		 * the buffer so the transaction freeing it must have
+		 * committed and so it's safe to clear the dirty bit.
+		 */
+		clear_buffer_dirty(jh2bh(jh));
 		jh->b_transaction = transaction;
 
 		/* first access by this transaction */
@@ -1782,8 +1774,13 @@ static int __dispose_buffer(struct journal_head *jh, transaction_t *transaction)
 
 	if (jh->b_cp_transaction) {
 		JBUFFER_TRACE(jh, "on running+cp transaction");
+		/*
+		 * We don't want to write the buffer anymore, clear the
+		 * bit so that we don't confuse checks in
+		 * __journal_file_buffer
+		 */
+		clear_buffer_dirty(bh);
 		__journal_file_buffer(jh, transaction, BJ_Forget);
-		clear_buffer_jbddirty(bh);
 		may_free = 0;
 	} else {
 		JBUFFER_TRACE(jh, "on running transaction");
@@ -2041,12 +2038,17 @@ void __journal_file_buffer(struct journal_head *jh,
 	if (jh->b_transaction && jh->b_jlist == jlist)
 		return;
 
-	/* The following list of buffer states needs to be consistent
-	 * with __jbd_unexpected_dirty_buffer()'s handling of dirty
-	 * state. */
-
 	if (jlist == BJ_Metadata || jlist == BJ_Reserved ||
 	    jlist == BJ_Shadow || jlist == BJ_Forget) {
+		/*
+		 * For metadata buffers, we track dirty bit in buffer_jbddirty
+		 * instead of buffer_dirty. We should not see a dirty bit set
+		 * here because we clear it in do_get_write_access but e.g.
+		 * tune2fs can modify the sb and set the dirty bit at any time
+		 * so we try to gracefully handle that.
+		 */
+		if (buffer_dirty(bh))
+			warn_dirty_buffer(bh);
 		if (test_clear_buffer_dirty(bh) ||
 		    test_clear_buffer_jbddirty(bh))
 			was_dirty = 1;

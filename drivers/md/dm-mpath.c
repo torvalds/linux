@@ -1453,7 +1453,7 @@ static int multipath_iterate_devices(struct dm_target *ti,
 
 	list_for_each_entry(pg, &m->priority_groups, list) {
 		list_for_each_entry(p, &pg->pgpaths, list) {
-			ret = fn(ti, p->path.dev, ti->begin, data);
+			ret = fn(ti, p->path.dev, ti->begin, ti->len, data);
 			if (ret)
 				goto out;
 		}

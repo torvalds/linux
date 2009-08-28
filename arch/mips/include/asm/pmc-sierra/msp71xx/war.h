@@ -23,6 +23,8 @@
 #if defined(CONFIG_PMC_MSP7120_EVAL) || defined(CONFIG_PMC_MSP7120_GW) || \
 	defined(CONFIG_PMC_MSP7120_FPGA)
 #define MIPS34K_MISSED_ITLB_WAR         1
+#else
+#define MIPS34K_MISSED_ITLB_WAR         0
 #endif
 
 #endif /* __ASM_MIPS_PMC_SIERRA_WAR_H */

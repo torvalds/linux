@@ -2514,7 +2514,7 @@ static void mv_unexpected_intr(struct ata_port *ap, int edma_was_enabled)
 	char *when = "idle";
 
 	ata_ehi_clear_desc(ehi);
-	if (!ap || (ap->flags & ATA_FLAG_DISABLED)) {
+	if (ap->flags & ATA_FLAG_DISABLED) {
 		when = "disabled";
 	} else if (edma_was_enabled) {
 		when = "EDMA enabled";

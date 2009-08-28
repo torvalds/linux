@@ -473,7 +473,6 @@ extern int  nfs_writepages(struct address_space *, struct writeback_control *);
 extern int  nfs_flush_incompatible(struct file *file, struct page *page);
 extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned int);
 extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
-extern void nfs_writedata_release(void *);
 
 /*
  * Try to write back everything synchronously (but check the
@@ -488,7 +487,6 @@ extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commitdata_alloc(void);
 extern void nfs_commit_free(struct nfs_write_data *wdata);
-extern void nfs_commitdata_release(void *wdata);
 #else
 static inline int
 nfs_commit_inode(struct inode *inode, int how)
@@ -507,6 +505,7 @@ nfs_have_writebacks(struct inode *inode)
  * Allocate nfs_write_data structures
  */
 extern struct nfs_write_data *nfs_writedata_alloc(unsigned int npages);
+extern void nfs_writedata_free(struct nfs_write_data *);
 
 /*
  * linux/fs/nfs/read.c
@@ -515,7 +514,6 @@ extern int  nfs_readpage(struct file *, struct page *);
 extern int  nfs_readpages(struct file *, struct address_space *,
 		struct list_head *, unsigned);
 extern int  nfs_readpage_result(struct rpc_task *, struct nfs_read_data *);
-extern void nfs_readdata_release(void *data);
 extern int  nfs_readpage_async(struct nfs_open_context *, struct inode *,
 			       struct page *);
 
@@ -523,6 +521,7 @@ extern int  nfs_readpage_async(struct nfs_open_context *, struct inode *,
  * Allocate nfs_read_data structures
  */
 extern struct nfs_read_data *nfs_readdata_alloc(unsigned int npages);
+extern void nfs_readdata_free(struct nfs_read_data *);
 
 /*
  * linux/fs/nfs3proc.c

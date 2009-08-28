@@ -638,6 +638,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		spin_lock_irq(&ms->lock);
 		bio_list_merge(&ms->writes, &requeue);
 		spin_unlock_irq(&ms->lock);
+		delayed_wake(ms);
 	}
 
 	/*
@@ -1292,7 +1293,7 @@ static int mirror_iterate_devices(struct dm_target *ti,
 
 	for (i = 0; !ret && i < ms->nr_mirrors; i++)
 		ret = fn(ti, ms->mirror[i].dev,
-			 ms->mirror[i].offset, data);
+			 ms->mirror[i].offset, ti->len, data);
 
 	return ret;
 }

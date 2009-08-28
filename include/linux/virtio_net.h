@@ -31,8 +31,7 @@
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
 
-struct virtio_net_config
-{
+struct virtio_net_config {
 	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
 	__u8 mac[6];
 	/* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
@@ -41,8 +40,7 @@ struct virtio_net_config
 
 /* This is the first element of the scatter-gather list.  If you don't
  * specify GSO or CSUM features, you can simply ignore the header. */
-struct virtio_net_hdr
-{
+struct virtio_net_hdr {
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	// Use csum_start, csum_offset
 	__u8 flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	// Not a GSO frame

@@ -8,7 +8,7 @@ subdir-$(CONFIG_SECURITY_SMACK)		+= smack
 subdir-$(CONFIG_SECURITY_TOMOYO)        += tomoyo
 
 # always enable default capabilities
-obj-y		+= commoncap.o
+obj-y		+= commoncap.o min_addr.o
 
 # Object file lists
 obj-$(CONFIG_SECURITY)			+= security.o capability.o

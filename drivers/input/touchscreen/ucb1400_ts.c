@@ -171,11 +171,11 @@ static void ucb1400_handle_pending_irq(struct ucb1400_ts *ucb)
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, isr);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0);
 
-	if (isr & UCB_IE_TSPX) {
+	if (isr & UCB_IE_TSPX)
 		ucb1400_ts_irq_disable(ucb->ac97);
-		enable_irq(ucb->irq);
-	} else
-		printk(KERN_ERR "ucb1400: unexpected IE_STATUS = %#x\n", isr);
+	else
+		dev_dbg(&ucb->ts_idev->dev, "ucb1400: unexpected IE_STATUS = %#x\n", isr);
+	enable_irq(ucb->irq);
 }
 
 static int ucb1400_ts_thread(void *_ucb)
@@ -346,6 +346,7 @@ static int ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
 static int ucb1400_ts_probe(struct platform_device *dev)
 {
 	int error, x_res, y_res;
+	u16 fcsr;
 	struct ucb1400_ts *ucb = dev->dev.platform_data;
 
 	ucb->ts_idev = input_allocate_device();
@@ -382,6 +383,14 @@ static int ucb1400_ts_probe(struct platform_device *dev)
 	ucb->ts_idev->close		= ucb1400_ts_close;
 	ucb->ts_idev->evbit[0]		= BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	ucb->ts_idev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+
+	/*
+	 * Enable ADC filter to prevent horrible jitter on Colibri.
+	 * This also further reduces jitter on boards where ADCSYNC
+	 * pin is connected.
+	 */
+	fcsr = ucb1400_reg_read(ucb->ac97, UCB_FCSR);
+	ucb1400_reg_write(ucb->ac97, UCB_FCSR, fcsr | UCB_FCSR_AVE);
 
 	ucb1400_adc_enable(ucb->ac97);
 	x_res = ucb1400_ts_read_xres(ucb);

@@ -1967,13 +1967,14 @@ static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	int ret;
 
 	mutex_lock(&ar->mutex);
-	if ((param) && !(queue > __AR9170_NUM_TXQ)) {
+	if (queue < __AR9170_NUM_TXQ) {
 		memcpy(&ar->edcf[ar9170_qos_hwmap[queue]],
 		       param, sizeof(*param));
 
 		ret = ar9170_set_qos(ar);
-	} else
+	} else {
 		ret = -EINVAL;
+	}
 
 	mutex_unlock(&ar->mutex);
 	return ret;

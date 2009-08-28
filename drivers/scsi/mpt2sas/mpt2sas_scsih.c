@@ -2767,6 +2767,10 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	char *desc_ioc_state = NULL;
 	char *desc_scsi_status = NULL;
 	char *desc_scsi_state = ioc->tmp_string;
+	u32 log_info = le32_to_cpu(mpi_reply->IOCLogInfo);
+
+	if (log_info == 0x31170000)
+		return;
 
 	switch (ioc_status) {
 	case MPI2_IOCSTATUS_SUCCESS:
@@ -3426,7 +3430,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	__le64 sas_address;
 	int i;
 	unsigned long flags;
-	struct _sas_port *mpt2sas_port;
+	struct _sas_port *mpt2sas_port = NULL;
 	int rc = 0;
 
 	if (!handle)
@@ -3518,12 +3522,20 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		    &expander_pg1, i, handle))) {
 			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 			    ioc->name, __FILE__, __LINE__, __func__);
-			continue;
+			rc = -1;
+			goto out_fail;
 		}
 		sas_expander->phy[i].handle = handle;
 		sas_expander->phy[i].phy_id = i;
-		mpt2sas_transport_add_expander_phy(ioc, &sas_expander->phy[i],
-		    expander_pg1, sas_expander->parent_dev);
+
+		if ((mpt2sas_transport_add_expander_phy(ioc,
+		    &sas_expander->phy[i], expander_pg1,
+		    sas_expander->parent_dev))) {
+			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+			    ioc->name, __FILE__, __LINE__, __func__);
+			rc = -1;
+			goto out_fail;
+		}
 	}
 
 	if (sas_expander->enclosure_handle) {
@@ -3540,8 +3552,9 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 
  out_fail:
 
-	if (sas_expander)
-		kfree(sas_expander->phy);
+	if (mpt2sas_port)
+		mpt2sas_transport_port_remove(ioc, sas_expander->sas_address,
+		    sas_expander->parent_handle);
 	kfree(sas_expander);
 	return rc;
 }
@@ -3663,12 +3676,11 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 	sas_device->hidden_raid_component = is_pd;
 
 	/* get enclosure_logical_id */
-	if (!(mpt2sas_config_get_enclosure_pg0(ioc, &mpi_reply, &enclosure_pg0,
-	   MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
-	   sas_device->enclosure_handle))) {
+	if (sas_device->enclosure_handle && !(mpt2sas_config_get_enclosure_pg0(
+	   ioc, &mpi_reply, &enclosure_pg0, MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
+	   sas_device->enclosure_handle)))
 		sas_device->enclosure_logical_id =
 		    le64_to_cpu(enclosure_pg0.EnclosureLogicalID);
-	}
 
 	/* get device name */
 	sas_device->device_name = le64_to_cpu(sas_device_pg0.DeviceName);
@@ -4250,12 +4262,6 @@ _scsih_sas_volume_add(struct MPT2SAS_ADAPTER *ioc,
 	u16 handle = le16_to_cpu(element->VolDevHandle);
 	int rc;
 
-#if 0 /* RAID_HACKS */
-	if (le32_to_cpu(event_data->Flags) &
-	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG)
-		return;
-#endif
-
 	mpt2sas_config_get_volume_wwid(ioc, handle, &wwid);
 	if (!wwid) {
 		printk(MPT2SAS_ERR_FMT
@@ -4309,12 +4315,6 @@ _scsih_sas_volume_delete(struct MPT2SAS_ADAPTER *ioc,
 	u16 handle = le16_to_cpu(element->VolDevHandle);
 	unsigned long flags;
 	struct MPT2SAS_TARGET *sas_target_priv_data;
-
-#if 0 /* RAID_HACKS */
-	if (le32_to_cpu(event_data->Flags) &
-	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG)
-		return;
-#endif
 
 	spin_lock_irqsave(&ioc->raid_device_lock, flags);
 	raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
@@ -4428,14 +4428,38 @@ _scsih_sas_pd_add(struct MPT2SAS_ADAPTER *ioc,
 	struct _sas_device *sas_device;
 	unsigned long flags;
 	u16 handle = le16_to_cpu(element->PhysDiskDevHandle);
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasDevicePage0_t sas_device_pg0;
+	u32 ioc_status;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-	if (sas_device)
+	if (sas_device) {
 		sas_device->hidden_raid_component = 1;
-	else
-		_scsih_add_device(ioc, handle, 0, 1);
+		return;
+	}
+
+	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return;
+	}
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return;
+	}
+
+	_scsih_link_change(ioc,
+	    le16_to_cpu(sas_device_pg0.ParentDevHandle),
+	    handle, sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
+
+	_scsih_add_device(ioc, handle, 0, 1);
 }
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
@@ -4535,12 +4559,15 @@ _scsih_sas_ir_config_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 {
 	Mpi2EventIrConfigElement_t *element;
 	int i;
+	u8 foreign_config;
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_ir_config_change_event_debug(ioc, event_data);
 
 #endif
+	foreign_config = (le32_to_cpu(event_data->Flags) &
+	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG) ? 1 : 0;
 
 	element = (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
 	for (i = 0; i < event_data->NumElements; i++, element++) {
@@ -4548,11 +4575,13 @@ _scsih_sas_ir_config_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 		switch (element->ReasonCode) {
 		case MPI2_EVENT_IR_CHANGE_RC_VOLUME_CREATED:
 		case MPI2_EVENT_IR_CHANGE_RC_ADDED:
-			_scsih_sas_volume_add(ioc, element);
+			if (!foreign_config)
+				_scsih_sas_volume_add(ioc, element);
 			break;
 		case MPI2_EVENT_IR_CHANGE_RC_VOLUME_DELETED:
 		case MPI2_EVENT_IR_CHANGE_RC_REMOVED:
-			_scsih_sas_volume_delete(ioc, element);
+			if (!foreign_config)
+				_scsih_sas_volume_delete(ioc, element);
 			break;
 		case MPI2_EVENT_IR_CHANGE_RC_PD_CREATED:
 			_scsih_sas_pd_hide(ioc, element);
@@ -4671,6 +4700,9 @@ _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	u32 state;
 	struct _sas_device *sas_device;
 	unsigned long flags;
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasDevicePage0_t sas_device_pg0;
+	u32 ioc_status;
 
 	if (event_data->ReasonCode != MPI2_EVENT_IR_PHYSDISK_RC_STATE_CHANGED)
 		return;
@@ -4687,22 +4719,40 @@ _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
 	switch (state) {
-#if 0
-	case MPI2_RAID_PD_STATE_OFFLINE:
-		if (sas_device)
-			_scsih_remove_device(ioc, handle);
-		break;
-#endif
 	case MPI2_RAID_PD_STATE_ONLINE:
 	case MPI2_RAID_PD_STATE_DEGRADED:
 	case MPI2_RAID_PD_STATE_REBUILDING:
 	case MPI2_RAID_PD_STATE_OPTIMAL:
-		if (sas_device)
+		if (sas_device) {
 			sas_device->hidden_raid_component = 1;
-		else
-			_scsih_add_device(ioc, handle, 0, 1);
+			return;
+		}
+
+		if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply,
+		    &sas_device_pg0, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
+		    handle))) {
+			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+			    ioc->name, __FILE__, __LINE__, __func__);
+			return;
+		}
+
+		ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+		    MPI2_IOCSTATUS_MASK;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+			    ioc->name, __FILE__, __LINE__, __func__);
+			return;
+		}
+
+		_scsih_link_change(ioc,
+		    le16_to_cpu(sas_device_pg0.ParentDevHandle),
+		    handle, sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
+
+		_scsih_add_device(ioc, handle, 0, 1);
+
 		break;
 
+	case MPI2_RAID_PD_STATE_OFFLINE:
 	case MPI2_RAID_PD_STATE_NOT_CONFIGURED:
 	case MPI2_RAID_PD_STATE_NOT_COMPATIBLE:
 	case MPI2_RAID_PD_STATE_HOT_SPARE:
@@ -5774,6 +5824,7 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 	u32 device_state;
 
+	mpt2sas_base_stop_watchdog(ioc);
 	flush_scheduled_work();
 	scsi_block_requests(shost);
 	device_state = pci_choose_state(pdev, state);
@@ -5816,6 +5867,7 @@ _scsih_resume(struct pci_dev *pdev)
 
 	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, SOFT_RESET);
 	scsi_unblock_requests(shost);
+	mpt2sas_base_start_watchdog(ioc);
 	return 0;
 }
 #endif /* CONFIG_PM */

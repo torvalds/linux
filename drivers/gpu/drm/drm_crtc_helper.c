@@ -706,8 +706,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	struct drm_encoder **save_encoders, *new_encoder;
 	struct drm_framebuffer *old_fb = NULL;
 	bool save_enabled;
-	bool mode_changed = false;
-	bool fb_changed = false;
+	bool mode_changed = false; /* if true do a full mode set */
+	bool fb_changed = false; /* if true and !mode_changed just do a flip */
 	struct drm_connector *connector;
 	int count = 0, ro, fail = 0;
 	struct drm_crtc_helper_funcs *crtc_funcs;
@@ -757,6 +757,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->fb == NULL) {
 			DRM_DEBUG("crtc has no fb, full mode set\n");
+			mode_changed = true;
+		} else if (set->fb == NULL) {
 			mode_changed = true;
 		} else if ((set->fb->bits_per_pixel !=
 			 set->crtc->fb->bits_per_pixel) ||

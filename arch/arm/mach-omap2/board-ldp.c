@@ -270,7 +270,7 @@ static inline void __init ldp_init_smsc911x(void)
 
 static void __init omap_ldp_init_irq(void)
 {
-	omap2_init_common_hw(NULL);
+	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	ldp_init_smsc911x();

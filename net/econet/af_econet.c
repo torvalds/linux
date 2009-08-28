@@ -520,6 +520,7 @@ static int econet_getname(struct socket *sock, struct sockaddr *uaddr,
 	if (peer)
 		return -EOPNOTSUPP;
 
+	memset(sec, 0, sizeof(*sec));
 	mutex_lock(&econet_mutex);
 
 	sk = sock->sk;
