@@ -122,7 +122,7 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: mcasp1 mux setup failed: %d\n",
 				ret);
 
-	da8xx_init_mcasp(1, &da830_evm_snd_data);
+	da8xx_register_mcasp(1, &da830_evm_snd_data);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

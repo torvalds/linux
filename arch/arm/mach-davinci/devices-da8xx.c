@@ -343,7 +343,7 @@ static struct platform_device da850_mcasp_device = {
 	.resource	= da850_mcasp_resources,
 };
 
-void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata)
+void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
 	/* DA830/OMAP-L137 has 3 instances of McASP */
 	if (cpu_is_davinci_da830() && id == 1) {

@@ -365,7 +365,7 @@ static __init void da850_evm_init(void)
 		pr_warning("da850_evm_init: mcasp mux setup failed: %d\n",
 				ret);
 
-	da8xx_init_mcasp(0, &da850_evm_snd_data);
+	da8xx_register_mcasp(0, &da850_evm_snd_data);
 
 	ret = da8xx_pinmux_setup(da850_lcdcntl_pins);
 	if (ret)

@@ -74,7 +74,7 @@ int da8xx_register_watchdog(void);
 int da8xx_register_emac(void);
 int da8xx_register_lcdc(void);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
-void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata);
+void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
