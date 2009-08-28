@@ -470,6 +470,7 @@ struct rndis_wlan_private {
 	int radio_on;
 	int infra_mode;
 	struct ndis_80211_ssid essid;
+	__le32 current_command_oid;
 
 	/* encryption stuff */
 	int  encr_tx_key_index;
@@ -665,7 +666,9 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 	u.get->msg_len = cpu_to_le32(sizeof *u.get);
 	u.get->oid = oid;
 
+	priv->current_command_oid = oid;
 	ret = rndis_command(dev, u.header, buflen);
+	priv->current_command_oid = 0;
 	if (ret < 0)
 		devdbg(dev, "rndis_query_oid(%s): rndis_command() failed, %d "
 			"(%08x)", oid_to_string(oid), ret,
@@ -725,7 +728,9 @@ static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
 	u.set->handle = cpu_to_le32(0);
 	memcpy(u.buf + sizeof(*u.set), data, len);
 
+	priv->current_command_oid = oid;
 	ret = rndis_command(dev, u.header, buflen);
+	priv->current_command_oid = 0;
 	if (ret < 0)
 		devdbg(dev, "rndis_set_oid(%s): rndis_command() failed, %d "
 			"(%08x)", oid_to_string(oid), ret,
@@ -760,6 +765,7 @@ static int rndis_reset(struct usbnet *usbdev)
 	memset(reset, 0, sizeof(*reset));
 	reset->msg_type = RNDIS_MSG_RESET;
 	reset->msg_len = cpu_to_le32(sizeof(*reset));
+	priv->current_command_oid = 0;
 	ret = rndis_command(usbdev, (void *)reset, CONTROL_BUFFER_SIZE);
 
 	mutex_unlock(&priv->command_lock);
@@ -2558,6 +2564,17 @@ static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 
 	switch (msg->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
+		if (priv->current_command_oid == OID_802_11_ADD_KEY) {
+			/* OID_802_11_ADD_KEY causes sometimes extra
+			 * "media connect" indications which confuses driver
+			 * and userspace to think that device is
+			 * roaming/reassociating when it isn't.
+			 */
+			devdbg(usbdev, "ignored OID_802_11_ADD_KEY triggered "
+					"'media connect'");
+			return;
+		}
+
 		usbnet_pause_rx(usbdev);
 
 		devinfo(usbdev, "media connect");
