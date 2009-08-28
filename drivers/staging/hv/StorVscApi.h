@@ -25,7 +25,7 @@
 #ifndef _STORVSC_API_H_
 #define _STORVSC_API_H_
 
-#include "VmbusApi.h"
+#include "include/VmbusApi.h"
 
 /* Defines */
 #define STORVSC_RING_BUFFER_SIZE			(10*PAGE_SIZE)

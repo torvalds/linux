@@ -36,8 +36,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
-
-#include "include/StorVscApi.h"
+#include "StorVscApi.h"
 
 
 /* #defines */
