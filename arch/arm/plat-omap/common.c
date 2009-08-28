@@ -54,50 +54,6 @@ static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 	struct omap_board_config_kernel *kinfo = NULL;
 	int i;
 
-#ifdef CONFIG_OMAP_BOOT_TAG
-	struct omap_board_config_entry *info = NULL;
-
-	if (omap_bootloader_tag_len > 4)
-		info = (struct omap_board_config_entry *) omap_bootloader_tag;
-	while (info != NULL) {
-		u8 *next;
-
-		if (info->tag == tag) {
-			if (skip == 0)
-				break;
-			skip--;
-		}
-
-		if ((info->len & 0x03) != 0) {
-			/* We bail out to avoid an alignment fault */
-			printk(KERN_ERR "OMAP peripheral config: Length (%d) not word-aligned (tag %04x)\n",
-			       info->len, info->tag);
-			return NULL;
-		}
-		next = (u8 *) info + sizeof(*info) + info->len;
-		if (next >= omap_bootloader_tag + omap_bootloader_tag_len)
-			info = NULL;
-		else
-			info = (struct omap_board_config_entry *) next;
-	}
-	if (info != NULL) {
-		/* Check the length as a lame attempt to check for
-		 * binary inconsistency. */
-		if (len != NO_LENGTH_CHECK) {
-			/* Word-align len */
-			if (len & 0x03)
-				len = (len + 3) & ~0x03;
-			if (info->len != len) {
-				printk(KERN_ERR "OMAP peripheral config: Length mismatch with tag %x (want %d, got %d)\n",
-				       tag, len, info->len);
-				return NULL;
-			}
-		}
-		if (len_out != NULL)
-			*len_out = info->len;
-		return info->data;
-	}
-#endif
 	/* Try to find the config from the board-specific structures
 	 * in the kernel. */
 	for (i = 0; i < omap_board_config_size; i++) {
