@@ -1274,6 +1274,10 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	struct module_notes_attrs *notes_attrs;
 	struct bin_attribute *nattr;
 
+	/* failed to create section attributes, so can't create notes */
+	if (!mod->sect_attrs)
+		return;
+
 	/* Count notes sections and allocate structures.  */
 	notes = 0;
 	for (i = 0; i < nsect; i++)
@@ -2355,8 +2359,7 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto unlink;
 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
-	if (mod->sect_attrs)
-		add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
+	add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 
 	/* Get rid of temporary copy */
 	vfree(hdr);
