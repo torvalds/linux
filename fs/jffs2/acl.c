@@ -258,7 +258,7 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	return rc;
 }
 
-static int jffs2_check_acl(struct inode *inode, int mask)
+int jffs2_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl;
 	int rc;
@@ -272,11 +272,6 @@ static int jffs2_check_acl(struct inode *inode, int mask)
 		return rc;
 	}
 	return -EAGAIN;
-}
-
-int jffs2_permission(struct inode *inode, int mask)
-{
-	return generic_permission(inode, mask, jffs2_check_acl);
 }
 
 int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
