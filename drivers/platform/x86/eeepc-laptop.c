@@ -847,44 +847,6 @@ error_slot:
 	return ret;
 }
 
-static int eeepc_hotk_add(struct acpi_device *device)
-{
-	int result;
-
-	if (!device)
-		 return -EINVAL;
-	pr_notice(EEEPC_HOTK_NAME "\n");
-	ehotk = kzalloc(sizeof(struct eeepc_hotk), GFP_KERNEL);
-	if (!ehotk)
-		return -ENOMEM;
-	ehotk->init_flag = DISABLE_ASL_WLAN | DISABLE_ASL_DISPLAYSWITCH;
-	ehotk->handle = device->handle;
-	strcpy(acpi_device_name(device), EEEPC_HOTK_DEVICE_NAME);
-	strcpy(acpi_device_class(device), EEEPC_HOTK_CLASS);
-	device->driver_data = ehotk;
-	ehotk->device = device;
-	result = eeepc_hotk_check();
-	if (result)
-		goto ehotk_fail;
-
-	return 0;
-
- ehotk_fail:
-	kfree(ehotk);
-	ehotk = NULL;
-
-	return result;
-}
-
-static int eeepc_hotk_remove(struct acpi_device *device, int type)
-{
-	if (!device || !acpi_driver_data(device))
-		 return -EINVAL;
-
-	kfree(ehotk);
-	return 0;
-}
-
 static int eeepc_hotk_resume(struct acpi_device *device)
 {
 	if (ehotk->wlan_rfkill) {
@@ -1066,19 +1028,6 @@ static void eeepc_hwmon_exit(void)
 	eeepc_hwmon_device = NULL;
 }
 
-static void __exit eeepc_laptop_exit(void)
-{
-	eeepc_backlight_exit();
-	eeepc_rfkill_exit();
-	eeepc_input_exit();
-	eeepc_hwmon_exit();
-	acpi_bus_unregister_driver(&eeepc_hotk_driver);
-	sysfs_remove_group(&platform_device->dev.kobj,
-			   &platform_attribute_group);
-	platform_device_unregister(platform_device);
-	platform_driver_unregister(&platform_driver);
-}
-
 static int eeepc_new_rfkill(struct rfkill **rfkill,
 			    const char *name, struct device *dev,
 			    enum rfkill_type type, int cm)
@@ -1193,21 +1142,27 @@ static int eeepc_hwmon_init(struct device *dev)
 	return result;
 }
 
-static int __init eeepc_laptop_init(void)
+static int eeepc_hotk_add(struct acpi_device *device)
 {
 	struct device *dev;
 	int result;
 
-	if (acpi_disabled)
-		return -ENODEV;
-	result = acpi_bus_register_driver(&eeepc_hotk_driver);
-	if (result < 0)
-		return result;
-	if (!ehotk) {
-		acpi_bus_unregister_driver(&eeepc_hotk_driver);
-		return -ENODEV;
-	}
+	if (!device)
+		 return -EINVAL;
+	pr_notice(EEEPC_HOTK_NAME "\n");
+	ehotk = kzalloc(sizeof(struct eeepc_hotk), GFP_KERNEL);
+	if (!ehotk)
+		return -ENOMEM;
+	ehotk->init_flag = DISABLE_ASL_WLAN | DISABLE_ASL_DISPLAYSWITCH;
+	ehotk->handle = device->handle;
+	strcpy(acpi_device_name(device), EEEPC_HOTK_DEVICE_NAME);
+	strcpy(acpi_device_class(device), EEEPC_HOTK_CLASS);
+	device->driver_data = ehotk;
+	ehotk->device = device;
 
+	result = eeepc_hotk_check();
+	if (result)
+		goto fail_check;
 	eeepc_enable_camera();
 
 	/* Register platform stuff */
@@ -1246,6 +1201,7 @@ static int __init eeepc_laptop_init(void)
 		goto fail_rfkill;
 
 	return 0;
+
 fail_rfkill:
 	eeepc_hwmon_exit();
 fail_hwmon:
@@ -1261,7 +1217,49 @@ fail_platform_device1:
 	platform_driver_unregister(&platform_driver);
 fail_platform_driver:
 	eeepc_input_exit();
+fail_check:
+	kfree(ehotk);
+
 	return result;
+}
+
+static int eeepc_hotk_remove(struct acpi_device *device, int type)
+{
+	if (!device || !acpi_driver_data(device))
+		 return -EINVAL;
+
+	eeepc_backlight_exit();
+	eeepc_rfkill_exit();
+	eeepc_input_exit();
+	eeepc_hwmon_exit();
+	sysfs_remove_group(&platform_device->dev.kobj,
+			   &platform_attribute_group);
+	platform_device_unregister(platform_device);
+	platform_driver_unregister(&platform_driver);
+
+	kfree(ehotk);
+	return 0;
+}
+
+static int __init eeepc_laptop_init(void)
+{
+	int result;
+
+	if (acpi_disabled)
+		return -ENODEV;
+	result = acpi_bus_register_driver(&eeepc_hotk_driver);
+	if (result < 0)
+		return result;
+	if (!ehotk) {
+		acpi_bus_unregister_driver(&eeepc_hotk_driver);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static void __exit eeepc_laptop_exit(void)
+{
+	acpi_bus_unregister_driver(&eeepc_hotk_driver);
 }
 
 module_init(eeepc_laptop_init);
