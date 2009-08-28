@@ -120,6 +120,10 @@ config OMAP_MBOX_FWK
 config OMAP_IOMMU
 	tristate
 
+config OMAP_IOMMU_DEBUG
+	depends on OMAP_IOMMU
+	tristate
+
 choice
         prompt "System timer"
 	default OMAP_MPU_TIMER
