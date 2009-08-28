@@ -24,7 +24,7 @@
 #ifndef _NETVSC_H_
 #define _NETVSC_H_
 
-#include "include/VmbusPacketFormat.h"
+#include "VmbusPacketFormat.h"
 #include "VmbusChannelInterface.h"
 #include "List.h"
 #include "NetVscApi.h"

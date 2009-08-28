@@ -28,7 +28,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "StorVscApi.h"
-#include "include/VmbusPacketFormat.h"
+#include "VmbusPacketFormat.h"
 #include "vstorage.h"
 
 

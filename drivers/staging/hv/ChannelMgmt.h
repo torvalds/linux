@@ -27,9 +27,8 @@
 
 #include "List.h"
 #include "RingBuffer.h"
-
 #include "VmbusChannelInterface.h"
-#include "include/VmbusPacketFormat.h"
+#include "VmbusPacketFormat.h"
 
 /* Version 1 messages */
 enum vmbus_channel_message_type {
