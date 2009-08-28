@@ -3580,21 +3580,30 @@ static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 }
 
 /* create a volume assigned to the given pin (only if supported) */
+/* return 1 if the volume control is created */
 static int create_elem_capture_vol(struct hda_codec *codec, hda_nid_t nid,
-				   const char *label)
+				   const char *label, int direction)
 {
 	unsigned int caps, nums;
 	char name[32];
+	int err;
 
-	if (!(get_wcaps(codec, nid) & AC_WCAP_IN_AMP))
+	if (direction == HDA_OUTPUT)
+		caps = AC_WCAP_OUT_AMP;
+	else
+		caps = AC_WCAP_IN_AMP;
+	if (!(get_wcaps(codec, nid) & caps))
 		return 0;
-	caps = query_amp_caps(codec, nid, HDA_OUTPUT);
+	caps = query_amp_caps(codec, nid, direction);
 	nums = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
 	if (!nums)
 		return 0;
 	snprintf(name, sizeof(name), "%s Capture Volume", label);
-	return stac92xx_add_control(codec->spec, STAC_CTL_WIDGET_VOL, name,
-				    HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
+	err = stac92xx_add_control(codec->spec, STAC_CTL_WIDGET_VOL, name,
+				    HDA_COMPOSE_AMP_VAL(nid, 3, 0, direction));
+	if (err < 0)
+		return err;
+	return 1;
 }
 
 /* create playback/capture controls for input pins on dmic capable codecs */
@@ -3643,9 +3652,15 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 		else
 			label = stac92xx_dmic_labels[dimux->num_items];
 
-		err = create_elem_capture_vol(codec, nid, label);
+		err = create_elem_capture_vol(codec, nid, label, HDA_INPUT);
 		if (err < 0)
 			return err;
+		if (!err) {
+			err = create_elem_capture_vol(codec, nid, label,
+						      HDA_OUTPUT);
+			if (err < 0)
+				return err;
+		}
 
 		dimux->items[dimux->num_items].label = label;
 		dimux->items[dimux->num_items].index = index;
@@ -3766,7 +3781,8 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 			continue;
 
 		err = create_elem_capture_vol(codec, nid,
-					      auto_pin_cfg_labels[i]);
+					      auto_pin_cfg_labels[i],
+					      HDA_INPUT);
 		if (err < 0)
 			return err;
 
