@@ -321,7 +321,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 			if (priv->cfg->ops->lib->update_chain_flags &&
 			    update_chains)
 				priv->cfg->ops->lib->update_chain_flags(priv);
-			else
+			else if (priv->cfg->ops->lib->update_chain_flags)
 				IWL_DEBUG_POWER(priv,
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
