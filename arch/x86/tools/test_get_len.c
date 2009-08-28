@@ -21,11 +21,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef __x86_64__
-#define CONFIG_X86_64
-#else
-#define CONFIG_X86_32
-#endif
 #define unlikely(cond) (cond)
 
 #include <asm/insn.h>
