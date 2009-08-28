@@ -856,9 +856,6 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 		if (err == -EAGAIN)
 			err = inode_permission(nd->path.dentry->d_inode,
 					       MAY_EXEC);
-		if (!err)
-			err = ima_path_check(&nd->path, MAY_EXEC,
-				             IMA_COUNT_UPDATE);
  		if (err)
 			break;
 
