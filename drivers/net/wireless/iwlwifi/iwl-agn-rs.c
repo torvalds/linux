@@ -818,15 +818,15 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 {
 	int status;
 	u8 retries;
-	int rs_index, index = 0;
+	int rs_index, mac_index, index = 0;
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_link_quality_cmd *table;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
-	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_rate_scale_data *window = NULL;
 	struct iwl_rate_scale_data *search_win = NULL;
+	enum mac80211_rate_control_flags mac_flags;
 	u32 tx_rate;
 	struct iwl_scale_tbl_info tbl_type;
 	struct iwl_scale_tbl_info *curr_tbl, *search_tbl;
@@ -876,16 +876,17 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type, &rs_index);
 	if (priv->band == IEEE80211_BAND_5GHZ)
 		rs_index -= IWL_FIRST_OFDM_RATE;
+	mac_flags = info->status.rates[0].flags;
+	mac_index = info->status.rates[0].idx;
 
-	if ((info->status.rates[0].idx < 0) ||
-	    (tbl_type.is_SGI != !!(info->status.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)) ||
-	    (tbl_type.is_ht40 != !!(info->status.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) ||
-	    (tbl_type.is_dup != !!(info->status.rates[0].flags & IEEE80211_TX_RC_DUP_DATA)) ||
+	if ((mac_index < 0) ||
+	    (tbl_type.is_SGI != !!(mac_flags & IEEE80211_TX_RC_SHORT_GI)) ||
+	    (tbl_type.is_ht40 != !!(mac_flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) ||
+	    (tbl_type.is_dup != !!(mac_flags & IEEE80211_TX_RC_DUP_DATA)) ||
 	    (tbl_type.ant_type != info->antenna_sel_tx) ||
-	    (!!(tx_rate & RATE_MCS_HT_MSK) != !!(info->status.rates[0].flags & IEEE80211_TX_RC_MCS)) ||
-	    (!!(tx_rate & RATE_MCS_GF_MSK) != !!(info->status.rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
-	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
-	     hw->wiphy->bands[info->band]->bitrates[info->status.rates[0].idx].bitrate)) {
+	    (!!(tx_rate & RATE_MCS_HT_MSK) != !!(mac_flags & IEEE80211_TX_RC_MCS)) ||
+	    (!!(tx_rate & RATE_MCS_GF_MSK) != !!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
+	    rs_index != mac_index) {
 		IWL_DEBUG_RATE(priv, "initial rate does not match 0x%x\n", tx_rate);
 		/* the last LQ command could failed so the LQ in ucode not
 		 * the same in driver sync up
@@ -2542,8 +2543,12 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 		if (lq_sta->last_rate_n_flags & RATE_MCS_GF_MSK)
 			info->control.rates[0].flags |= IEEE80211_TX_RC_GREEN_FIELD;
 	} else {
-		if (rate_idx < 0 || rate_idx > IWL_RATE_COUNT)
+		/* Check for invalid rates */
+		if ((rate_idx < 0) || (rate_idx >= IWL_RATE_COUNT_LEGACY) ||
+				((sband->band == IEEE80211_BAND_5GHZ) &&
+				 (rate_idx < IWL_FIRST_OFDM_RATE)))
 			rate_idx = rate_lowest_index(sband, sta);
+		/* On valid 5 GHz rate, adjust index */
 		else if (sband->band == IEEE80211_BAND_5GHZ)
 			rate_idx -= IWL_FIRST_OFDM_RATE;
 		info->control.rates[0].flags = 0;
@@ -2584,9 +2589,6 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	struct ieee80211_conf *conf = &priv->hw->conf;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct iwl_lq_sta *lq_sta = priv_sta;
-	u16 mask_bit = 0;
-	int count;
-	int start_rate = 0;
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->supp_rates[sband->band];
@@ -2661,20 +2663,10 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
 	lq_sta->drv = priv;
 
-	/* Find highest tx rate supported by hardware and destination station */
-	mask_bit = sta->supp_rates[sband->band];
-	count = sband->n_bitrates;
-	if (sband->band == IEEE80211_BAND_5GHZ) {
-		count += IWL_FIRST_OFDM_RATE;
-		start_rate = IWL_FIRST_OFDM_RATE;
-		mask_bit <<= IWL_FIRST_OFDM_RATE;
-	}
-
-	mask_bit = mask_bit & lq_sta->active_legacy_rate;
-	lq_sta->last_txrate_idx = 4;
-	for (i = start_rate; i < count; i++)
-		if (mask_bit & BIT(i))
-			lq_sta->last_txrate_idx = i;
+	/* Set last_txrate_idx to lowest rate */
+	lq_sta->last_txrate_idx = rate_lowest_index(sband, sta);
+	if (sband->band == IEEE80211_BAND_5GHZ)
+		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	rs_initialize_lq(priv, conf, sta, lq_sta);
 }
