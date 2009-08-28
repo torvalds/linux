@@ -29,7 +29,7 @@
 #define NVSP_MIN_PROTOCOL_VERSION	NVSP_PROTOCOL_VERSION_1
 #define NVSP_MAX_PROTOCOL_VERSION	NVSP_PROTOCOL_VERSION_1
 
-typedef enum _NVSP_MESSAGE_TYPE {
+enum {
 	NvspMessageTypeNone = 0,
 
 	/* Init Messages */
@@ -57,9 +57,9 @@ typedef enum _NVSP_MESSAGE_TYPE {
 	 * the maximum number of messages.
 	 */
 	NvspNumMessagePerVersion		= 9,
-} NVSP_MESSAGE_TYPE, *PNVSP_MESSAGE_TYPE;
+};
 
-typedef enum _NVSP_STATUS {
+enum {
 	NvspStatusNone = 0,
 	NvspStatusSuccess,
 	NvspStatusFailure,
@@ -68,11 +68,11 @@ typedef enum _NVSP_STATUS {
 	NvspStatusInvalidRndisPacket,
 	NvspStatusBusy,
 	NvspStatusMax,
-} NVSP_STATUS, *PNVSP_STATUS;
+};
 
-typedef struct _NVSP_MESSAGE_HEADER {
+struct nvsp_message_header {
 	u32 MessageType;
-} NVSP_MESSAGE_HEADER, *PNVSP_MESSAGE_HEADER;
+};
 
 /* Init Messages */
 
@@ -81,26 +81,26 @@ typedef struct _NVSP_MESSAGE_HEADER {
  * has been opened. This message should never include anything other then
  * versioning (i.e. this message will be the same for ever).
  */
-typedef struct _NVSP_MESSAGE_INIT {
+struct nvsp_message_init {
 	u32 MinProtocolVersion;
 	u32 MaxProtocolVersion;
-} __attribute__((packed)) NVSP_MESSAGE_INIT, *PNVSP_MESSAGE_INIT;
+} __attribute__((packed));
 
 /*
  * This message is used by the VSP to complete the initialization of the
  * channel. This message should never include anything other then versioning
  * (i.e. this message will be the same for ever).
  */
-typedef struct _NVSP_MESSAGE_INIT_COMPLETE {
+struct nvsp_message_init_complete {
 	u32 NegotiatedProtocolVersion;
 	u32 MaximumMdlChainLength;
 	u32 Status;
-} __attribute__((packed)) NVSP_MESSAGE_INIT_COMPLETE, *PNVSP_MESSAGE_INIT_COMPLETE;
+} __attribute__((packed));
 
-typedef union _NVSP_MESSAGE_INIT_UBER {
-	NVSP_MESSAGE_INIT Init;
-	NVSP_MESSAGE_INIT_COMPLETE InitComplete;
-} __attribute__((packed)) NVSP_MESSAGE_INIT_UBER;
+union nvsp_message_init_uber {
+	struct nvsp_message_init Init;
+	struct nvsp_message_init_complete InitComplete;
+} __attribute__((packed));
 
 /* Version 1 Messages */
 
@@ -108,33 +108,33 @@ typedef union _NVSP_MESSAGE_INIT_UBER {
  * This message is used by the VSC to send the NDIS version to the VSP. The VSP
  * can use this information when handling OIDs sent by the VSC.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_NDIS_VERSION {
+struct nvsp_1_message_send_ndis_version {
 	u32 NdisMajorVersion;
 	u32 NdisMinorVersion;
-} __attribute__((packed)) NVSP_1_MESSAGE_SEND_NDIS_VERSION, *PNVSP_1_MESSAGE_SEND_NDIS_VERSION;
+} __attribute__((packed));
 
 /*
  * This message is used by the VSC to send a receive buffer to the VSP. The VSP
  * can then use the receive buffer to send data to the VSC.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER {
+struct nvsp_1_message_send_receive_buffer {
 	u32 GpadlHandle;
 	u16 Id;
-} __attribute__((packed)) NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER, *PNVSP_1_MESSAGE_SEND_RECEIVE_BUFFER;
+} __attribute__((packed));
 
-typedef struct _NVSP_1_RECEIVE_BUFFER_SECTION {
+struct nvsp_1_receive_buffer_section {
 	u32 Offset;
 	u32 SubAllocationSize;
 	u32 NumSubAllocations;
 	u32 EndOffset;
-} __attribute__((packed)) NVSP_1_RECEIVE_BUFFER_SECTION, *PNVSP_1_RECEIVE_BUFFER_SECTION;
+} __attribute__((packed));
 
 /*
  * This message is used by the VSP to acknowledge a receive buffer send by the
  * VSC. This message must be sent by the VSP before the VSP uses the receive
  * buffer.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE {
+struct nvsp_1_message_send_receive_buffer_complete {
 	u32 Status;
 	u32 NumSections;
 
@@ -157,33 +157,33 @@ typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE {
 	 *  LargeOffset                            SmallOffset
 	 */
 
-	NVSP_1_RECEIVE_BUFFER_SECTION Sections[1];
-} __attribute__((packed)) NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE, *PNVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE;
+	struct nvsp_1_receive_buffer_section Sections[1];
+} __attribute__((packed));
 
 /*
  * This message is sent by the VSC to revoke the receive buffer.  After the VSP
  * completes this transaction, the vsp should never use the receive buffer
  * again.
  */
-typedef struct _NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER {
+struct nvsp_1_message_revoke_receive_buffer {
 	u16 Id;
-} NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER, *PNVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER;
+};
 
 /*
  * This message is used by the VSC to send a send buffer to the VSP. The VSC
  * can then use the send buffer to send data to the VSP.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER {
+struct nvsp_1_message_send_send_buffer {
 	u32 GpadlHandle;
 	u16 Id;
-} __attribute__((packed)) NVSP_1_MESSAGE_SEND_SEND_BUFFER, *PNVSP_1_MESSAGE_SEND_SEND_BUFFER;
+} __attribute__((packed));
 
 /*
  * This message is used by the VSP to acknowledge a send buffer sent by the
  * VSC. This message must be sent by the VSP before the VSP uses the sent
  * buffer.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE {
+struct nvsp_1_message_send_send_buffer_complete {
 	u32 Status;
 
 	/*
@@ -193,21 +193,21 @@ typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE {
 	 * decreases.
 	 */
 	u32 SectionSize;
-} __attribute__((packed)) NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE, *PNVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE;
+} __attribute__((packed));
 
 /*
  * This message is sent by the VSC to revoke the send buffer.  After the VSP
  * completes this transaction, the vsp should never use the send buffer again.
  */
-typedef struct _NVSP_1_MESSAGE_REVOKE_SEND_BUFFER {
+struct nvsp_1_message_revoke_send_buffer {
 	u16 Id;
-} NVSP_1_MESSAGE_REVOKE_SEND_BUFFER, *PNVSP_1_MESSAGE_REVOKE_SEND_BUFFER;
+};
 
 /*
  * This message is used by both the VSP and the VSC to send a RNDIS message to
  * the opposite channel endpoint.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET {
+struct nvsp_1_message_send_rndis_packet {
 	/*
 	 * This field is specified by RNIDS. They assume there's two different
 	 * channels of communication. However, the Network VSP only has one.
@@ -223,40 +223,42 @@ typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET {
 	 */
 	u32 SendBufferSectionIndex;
 	u32 SendBufferSectionSize;
-} __attribute__((packed)) NVSP_1_MESSAGE_SEND_RNDIS_PACKET, *PNVSP_1_MESSAGE_SEND_RNDIS_PACKET;
+} __attribute__((packed));
 
 /*
  * This message is used by both the VSP and the VSC to complete a RNDIS message
  * to the opposite channel endpoint. At this point, the initiator of this
  * message cannot use any resources associated with the original RNDIS packet.
  */
-typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE {
+struct nvsp_1_message_send_rndis_packet_complete {
 	u32 Status;
-} NVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE, *PNVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE;
+};
 
-typedef union _NVSP_MESSAGE_1_UBER {
-	NVSP_1_MESSAGE_SEND_NDIS_VERSION SendNdisVersion;
+union nvsp_1_message_uber {
+	struct nvsp_1_message_send_ndis_version SendNdisVersion;
 
-	NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER SendReceiveBuffer;
-	NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE SendReceiveBufferComplete;
-	NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER RevokeReceiveBuffer;
+	struct nvsp_1_message_send_receive_buffer SendReceiveBuffer;
+	struct nvsp_1_message_send_receive_buffer_complete
+						SendReceiveBufferComplete;
+	struct nvsp_1_message_revoke_receive_buffer RevokeReceiveBuffer;
 
-	NVSP_1_MESSAGE_SEND_SEND_BUFFER SendSendBuffer;
-	NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE SendSendBufferComplete;
-	NVSP_1_MESSAGE_REVOKE_SEND_BUFFER RevokeSendBuffer;
+	struct nvsp_1_message_send_send_buffer SendSendBuffer;
+	struct nvsp_1_message_send_send_buffer_complete SendSendBufferComplete;
+	struct nvsp_1_message_revoke_send_buffer RevokeSendBuffer;
 
-	NVSP_1_MESSAGE_SEND_RNDIS_PACKET SendRNDISPacket;
-	NVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE SendRNDISPacketComplete;
-} __attribute__((packed)) NVSP_1_MESSAGE_UBER;
+	struct nvsp_1_message_send_rndis_packet SendRNDISPacket;
+	struct nvsp_1_message_send_rndis_packet_complete
+						SendRNDISPacketComplete;
+} __attribute__((packed));
 
-typedef union _NVSP_ALL_MESSAGES {
-	NVSP_MESSAGE_INIT_UBER InitMessages;
-	NVSP_1_MESSAGE_UBER Version1Messages;
-} __attribute__((packed)) NVSP_ALL_MESSAGES;
+union nvsp_all_messages {
+	union nvsp_message_init_uber InitMessages;
+	union nvsp_1_message_uber Version1Messages;
+} __attribute__((packed));
 
 /* ALL Messages */
-typedef struct _NVSP_MESSAGE {
-	NVSP_MESSAGE_HEADER Header;
-	NVSP_ALL_MESSAGES Messages;
-} __attribute__((packed)) NVSP_MESSAGE, *PNVSP_MESSAGE;
+struct nvsp_message {
+	struct nvsp_message_header Header;
+	union nvsp_all_messages Messages;
+} __attribute__((packed));
 

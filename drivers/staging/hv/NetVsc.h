@@ -72,13 +72,13 @@ struct NETVSC_DEVICE {
 	u32 ReceiveBufferSize;
 	u32 ReceiveBufferGpadlHandle;
 	u32 ReceiveSectionCount;
-	PNVSP_1_RECEIVE_BUFFER_SECTION ReceiveSections;
+	struct nvsp_1_receive_buffer_section *ReceiveSections;
 
 	/* Used for NetVSP initialization protocol */
 	struct osd_waitevent *ChannelInitEvent;
-	NVSP_MESSAGE ChannelInitPacket;
+	struct nvsp_message ChannelInitPacket;
 
-	NVSP_MESSAGE RevokePacket;
+	struct nvsp_message RevokePacket;
 	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
 
 	/* Holds rndis device info */
