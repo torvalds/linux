@@ -1019,13 +1019,16 @@ static int tda18271_sleep(struct dvb_frontend *fe)
 
 	switch (priv->standby_mode) {
 	case TDA18271_STANDBY_POWER_OFF:
+		tda_dbg("standby mode: power off\n");
 		ret = tda18271_set_standby_mode(fe, 1, 1, 1);
 		break;
 	case TDA18271_STANDBY_XT_ON:
+		tda_dbg("standby mode: xtal oscillator on\n");
 		ret = tda18271_set_standby_mode(fe, 1, 1, 0);
 		break;
 	case TDA18271_STANDBY_LT_XT_ON:
 	default:
+		tda_dbg("standby mode: loop thru & xtal oscillator on\n");
 		ret = tda18271_set_standby_mode(fe, 1, 0, 0);
 	}
 
