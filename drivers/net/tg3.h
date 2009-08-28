@@ -2497,13 +2497,21 @@ struct tg3_napi {
 	u32				last_tag;
 	u32				last_irq_tag;
 	u32				int_mbox;
+	u32				tx_prod;
+	u32				tx_cons;
+	u32				tx_pending;
+	u32				prodmbox;
+
 	u32				consmbox;
 	u32				rx_rcb_ptr;
 
 	struct tg3_rx_buffer_desc	*rx_rcb;
+	struct tg3_tx_buffer_desc	*tx_ring;
+	struct tx_ring_info		*tx_buffers;
 
 	dma_addr_t			status_mapping;
 	dma_addr_t			rx_rcb_mapping;
+	dma_addr_t			tx_desc_mapping;
 };
 
 struct tg3 {
@@ -2563,13 +2571,6 @@ struct tg3 {
 	/* begin "tx thread" cacheline section */
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
 							    u32);
-	u32				tx_prod;
-	u32				tx_cons;
-	u32				tx_pending;
-
-	struct tg3_tx_buffer_desc	*tx_ring;
-	struct tx_ring_info		*tx_buffers;
-	dma_addr_t			tx_desc_mapping;
 
 	/* begin "rx thread" cacheline section */
 	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
