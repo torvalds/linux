@@ -282,6 +282,11 @@ static struct platform_device da8xx_emac_device = {
 	.resource	= da8xx_emac_resources,
 };
 
+int __init da8xx_register_emac(void)
+{
+	return platform_device_register(&da8xx_emac_device);
+}
+
 static struct resource da830_mcasp1_resources[] = {
 	{
 		.name	= "mcasp1",
@@ -337,11 +342,6 @@ static struct platform_device da850_mcasp_device = {
 	.num_resources	= ARRAY_SIZE(da850_mcasp_resources),
 	.resource	= da850_mcasp_resources,
 };
-
-int __init da8xx_register_emac(void)
-{
-	return platform_device_register(&da8xx_emac_device);
-}
 
 void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata)
 {
