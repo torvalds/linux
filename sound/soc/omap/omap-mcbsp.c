@@ -512,6 +512,40 @@ static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
 	return 0;
 }
 
+static int omap_mcbsp_dai_set_rcvr_src(struct omap_mcbsp_data *mcbsp_data,
+				       int clk_id)
+{
+	int sel_bit, set = 0;
+	u16 reg = OMAP2_CONTROL_DEVCONF0;
+
+	if (cpu_class_is_omap1())
+		return -EINVAL; /* TODO: Can this be implemented for OMAP1? */
+	if (mcbsp_data->bus_id != 0)
+		return -EINVAL;
+
+	switch (clk_id) {
+	case OMAP_MCBSP_CLKR_SRC_CLKX:
+		set = 1;
+	case OMAP_MCBSP_CLKR_SRC_CLKR:
+		sel_bit = 3;
+		break;
+	case OMAP_MCBSP_FSR_SRC_FSX:
+		set = 1;
+	case OMAP_MCBSP_FSR_SRC_FSR:
+		sel_bit = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (set)
+		omap_ctrl_writel(omap_ctrl_readl(reg) | (1 << sel_bit), reg);
+	else
+		omap_ctrl_writel(omap_ctrl_readl(reg) & ~(1 << sel_bit), reg);
+
+	return 0;
+}
+
 static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 					 int clk_id, unsigned int freq,
 					 int dir)
@@ -533,6 +567,13 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		regs->srgr2	|= CLKSM;
 	case OMAP_MCBSP_SYSCLK_CLKR_EXT:
 		regs->pcr0	|= SCLKME;
+		break;
+
+	case OMAP_MCBSP_CLKR_SRC_CLKR:
+	case OMAP_MCBSP_CLKR_SRC_CLKX:
+	case OMAP_MCBSP_FSR_SRC_FSR:
+	case OMAP_MCBSP_FSR_SRC_FSX:
+		err = omap_mcbsp_dai_set_rcvr_src(mcbsp_data, clk_id);
 		break;
 	default:
 		err = -ENODEV;
