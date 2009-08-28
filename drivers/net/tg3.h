@@ -2571,7 +2571,7 @@ struct tg3 {
 	struct tg3_rx_buffer_desc	*rx_rcb;
 	dma_addr_t			rx_rcb_mapping;
 
-	u32				rx_pkt_buf_sz;
+	u32				rx_pkt_map_sz;
 
 	/* begin "everything else" cacheline(s) section */
 	struct net_device_stats		net_stats;
