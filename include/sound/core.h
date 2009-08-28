@@ -348,7 +348,7 @@ void __snd_printk(unsigned int level, const char *file, int line,
      __attribute__ ((format (printf, 4, 5)));
 #else
 #define __snd_printk(level, file, line, format, args...) \
-	prinkt(format, ##args)
+	printk(format, ##args)
 #endif
 
 /**
