@@ -656,7 +656,11 @@ GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
  */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;
 
-GLOBAL_EXTERN struct list_head GlobalOplock_Q;
+/* Global list of oplocks */
+GLOBAL_EXTERN struct list_head cifs_oplock_list;
+
+/* Protects the cifs_oplock_list */
+GLOBAL_EXTERN spinlock_t cifs_oplock_lock;
 
 /* Outstanding dir notify requests */
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
