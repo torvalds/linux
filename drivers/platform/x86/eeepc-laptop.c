@@ -826,11 +826,10 @@ static int eeepc_hotk_resume(struct acpi_device *device)
 	if (ehotk->wlan_rfkill) {
 		bool wlan;
 
-		/* Workaround - it seems that _PTS disables the wireless
-		   without notification or changing the value read by WLAN.
-		   Normally this is fine because the correct value is restored
-		   from the non-volatile storage on resume, but we need to do
-		   it ourself if case suspend is aborted, or we lose wireless.
+		/*
+		 * Work around bios bug - acpi _PTS turns off the wireless led
+		 * during suspend.  Normally it restores it on resume, but
+		 * we should kick it ourselves in case suspend is aborted.
 		 */
 		wlan = get_acpi(CM_ASL_WLAN);
 		set_acpi(CM_ASL_WLAN, wlan);
