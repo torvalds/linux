@@ -1577,8 +1577,10 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
-	if (ocfs2_mount_local(osb))
+	if (ocfs2_mount_local(osb)) {
+		mlog_exit(0);
 		return 0;
+	}
 
 	lockres = &OCFS2_I(inode)->ip_rw_lockres;
 
@@ -3038,6 +3040,7 @@ static void ocfs2_unlock_ast(void *opaque, int error)
 		     "unlock_action %d\n", error, lockres->l_name,
 		     lockres->l_unlock_action);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
+		mlog_exit_void();
 		return;
 	}
 
