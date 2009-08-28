@@ -249,12 +249,20 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 static inline void patch_slb_encoding(unsigned int *insn_addr,
 				      unsigned int immed)
 {
-	/* Assume the instruction had a "0" immediate value, just
-	 * "or" in the new value
-	 */
-	*insn_addr |= immed;
+	*insn_addr = (*insn_addr & 0xffff0000) | immed;
 	flush_icache_range((unsigned long)insn_addr, 4+
 			   (unsigned long)insn_addr);
+}
+
+void slb_set_size(u16 size)
+{
+	extern unsigned int *slb_compare_rr_to_size;
+
+	if (mmu_slb_size == size)
+		return;
+
+	mmu_slb_size = size;
+	patch_slb_encoding(slb_compare_rr_to_size, mmu_slb_size);
 }
 
 void slb_initialize(void)
