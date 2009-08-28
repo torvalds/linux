@@ -926,6 +926,7 @@ static int freq_to_dsconfig(struct iw_freq *freq, unsigned int *dsconfig)
  * common functions
  */
 static void restore_keys(struct usbnet *usbdev);
+static int rndis_check_bssid_list(struct usbnet *usbdev);
 
 static int get_essid(struct usbnet *usbdev, struct ndis_80211_ssid *ssid)
 {
@@ -1615,6 +1616,11 @@ static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 	__le32 tmp;
 
 	devdbg(usbdev, "cfg80211.scan");
+
+	/* Get current bssid list from device before new scan, as new scan
+	 * clears internal bssid list.
+	 */
+	rndis_check_bssid_list(usbdev);
 
 	if (!request)
 		return -EINVAL;
