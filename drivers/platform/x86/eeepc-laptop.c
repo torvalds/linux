@@ -664,15 +664,20 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 static void eeepc_hotplug_work(struct work_struct *work)
 {
 	struct pci_dev *dev;
-	struct pci_bus *bus = pci_find_bus(0, 1);
-	bool blocked;
+	struct pci_bus *bus;
+	bool blocked = eeepc_wlan_rfkill_blocked();
 
+	rfkill_set_sw_state(ehotk->wlan_rfkill, blocked);
+
+	if (ehotk->hotplug_slot == NULL)
+		return;
+
+	bus = pci_find_bus(0, 1);
 	if (!bus) {
 		pr_warning("Unable to find PCI bus 1?\n");
 		return;
 	}
 
-	blocked = eeepc_wlan_rfkill_blocked();
 	if (!blocked) {
 		dev = pci_get_slot(bus, 0);
 		if (dev) {
@@ -693,8 +698,6 @@ static void eeepc_hotplug_work(struct work_struct *work)
 			pci_dev_put(dev);
 		}
 	}
-
-	rfkill_set_sw_state(ehotk->wlan_rfkill, blocked);
 }
 
 static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
