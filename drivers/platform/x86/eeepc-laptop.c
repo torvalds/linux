@@ -150,10 +150,19 @@ struct eeepc_hotk {
 static struct eeepc_hotk *ehotk;
 
 /* Platform device/driver */
+static int eeepc_hotk_thaw(struct device *device);
+static int eeepc_hotk_restore(struct device *device);
+
+static struct dev_pm_ops eeepc_pm_ops = {
+	.thaw = eeepc_hotk_thaw,
+	.restore = eeepc_hotk_restore,
+};
+
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = EEEPC_HOTK_FILE,
 		.owner = THIS_MODULE,
+		.pm = &eeepc_pm_ops,
 	}
 };
 
@@ -192,7 +201,6 @@ static struct key_entry eeepc_keymap[] = {
  */
 static int eeepc_hotk_add(struct acpi_device *device);
 static int eeepc_hotk_remove(struct acpi_device *device, int type);
-static int eeepc_hotk_resume(struct acpi_device *device);
 static void eeepc_hotk_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id eeepc_device_ids[] = {
@@ -209,7 +217,6 @@ static struct acpi_driver eeepc_hotk_driver = {
 	.ops = {
 		.add = eeepc_hotk_add,
 		.remove = eeepc_hotk_remove,
-		.resume = eeepc_hotk_resume,
 		.notify = eeepc_hotk_notify,
 	},
 };
@@ -821,7 +828,7 @@ error_slot:
 	return ret;
 }
 
-static int eeepc_hotk_resume(struct acpi_device *device)
+static int eeepc_hotk_thaw(struct device *device)
 {
 	if (ehotk->wlan_rfkill) {
 		bool wlan;
@@ -829,14 +836,20 @@ static int eeepc_hotk_resume(struct acpi_device *device)
 		/*
 		 * Work around bios bug - acpi _PTS turns off the wireless led
 		 * during suspend.  Normally it restores it on resume, but
-		 * we should kick it ourselves in case suspend is aborted.
+		 * we should kick it ourselves in case hibernation is aborted.
 		 */
 		wlan = get_acpi(CM_ASL_WLAN);
 		set_acpi(CM_ASL_WLAN, wlan);
-
-		/* Refresh both rfkill state and pci hotplug */
-		eeepc_rfkill_hotplug();
 	}
+
+	return 0;
+}
+
+static int eeepc_hotk_restore(struct device *device)
+{
+	/* Refresh both wlan rfkill state and pci hotplug */
+	if (ehotk->wlan_rfkill)
+		eeepc_rfkill_hotplug();
 
 	if (ehotk->bluetooth_rfkill)
 		rfkill_set_sw_state(ehotk->bluetooth_rfkill,
