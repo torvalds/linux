@@ -26,7 +26,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include "osd.h"
-#include "include/logging.h"
+#include "logging.h"
 #include "include/StorVscApi.h"
 #include "include/VmbusPacketFormat.h"
 #include "vstorage.h"

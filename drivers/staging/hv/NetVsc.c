@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include "osd.h"
-#include "include/logging.h"
+#include "logging.h"
 #include "NetVsc.h"
 #include "RndisFilter.h"
 

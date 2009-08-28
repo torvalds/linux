@@ -25,7 +25,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include "osd.h"
-#include "include/logging.h"
+#include "logging.h"
 #include "VmbusPrivate.h"
 
 /* Globals */

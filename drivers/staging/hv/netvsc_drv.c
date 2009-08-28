@@ -37,7 +37,7 @@
 #include <net/pkt_sched.h>
 
 #include "osd.h"
-#include "include/logging.h"
+#include "logging.h"
 #include "vmbus.h"
 
 #include "include/NetVscApi.h"

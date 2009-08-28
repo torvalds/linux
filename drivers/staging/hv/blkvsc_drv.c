@@ -34,7 +34,7 @@
 #include <scsi/scsi_dbg.h>
 
 #include "osd.h"
-#include "include/logging.h"
+#include "logging.h"
 #include "vmbus.h"
 
 #include "include/StorVscApi.h"

@@ -24,8 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include "osd.h"
-#include "include/logging.h"
-
+#include "logging.h"
 #include "VmbusPrivate.h"
 
 /* Internal routines */
