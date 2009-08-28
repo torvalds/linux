@@ -291,6 +291,7 @@ static struct key_entry asus_keymap[] = {
 	{KE_KEY, 0x4c, KEY_MEDIA},
 	{KE_KEY, 0x50, KEY_EMAIL},
 	{KE_KEY, 0x51, KEY_WWW},
+	{KE_KEY, 0x55, KEY_CALC},
 	{KE_KEY, 0x5C, KEY_SCREENLOCK},  /* Screenlock */
 	{KE_KEY, 0x5D, KEY_WLAN},
 	{KE_KEY, 0x5E, KEY_WLAN},
