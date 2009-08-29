@@ -36,6 +36,27 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 
 /*---------------------------------------------------------------------*/
 
+static int tda18271_toggle_output(struct dvb_frontend *fe, int standby)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	int ret = tda18271_set_standby_mode(fe, standby ? 1 : 0,
+			priv->output_opt & TDA18271_OUTPUT_LT_OFF ? 1 : 0,
+			priv->output_opt & TDA18271_OUTPUT_XT_OFF ? 1 : 0);
+
+	if (tda_fail(ret))
+		goto fail;
+
+	tda_dbg("%s mode: xtal oscillator %s, slave tuner loop thru %s\n",
+		standby ? "standby" : "active",
+		priv->output_opt & TDA18271_OUTPUT_XT_OFF ? "off" : "on",
+		priv->output_opt & TDA18271_OUTPUT_LT_OFF ? "off" : "on");
+fail:
+	return ret;
+}
+
+/*---------------------------------------------------------------------*/
+
 static inline int charge_pump_source(struct dvb_frontend *fe, int force)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
@@ -800,7 +821,7 @@ static int tda18271_init(struct dvb_frontend *fe)
 
 	mutex_lock(&priv->lock);
 
-	/* power up */
+	/* full power up */
 	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
 	if (tda_fail(ret))
 		goto fail;
@@ -1017,24 +1038,8 @@ static int tda18271_sleep(struct dvb_frontend *fe)
 
 	mutex_lock(&priv->lock);
 
-	switch (priv->standby_mode) {
-	case TDA18271_STANDBY_POWER_OFF:
-		tda_dbg("standby mode: power off\n");
-		ret = tda18271_set_standby_mode(fe, 1, 1, 1);
-		break;
-	case TDA18271_STANDBY_XT_ON:
-		tda_dbg("standby mode: xtal oscillator on\n");
-		ret = tda18271_set_standby_mode(fe, 1, 1, 0);
-		break;
-	case TDA18271_STANDBY_LT_ON:
-		tda_dbg("standby mode: slave tuner output / loop thru on\n");
-		ret = tda18271_set_standby_mode(fe, 1, 0, 1);
-		break;
-	case TDA18271_STANDBY_LT_XT_ON:
-	default:
-		tda_dbg("standby mode: loop thru & xtal oscillator on\n");
-		ret = tda18271_set_standby_mode(fe, 1, 0, 0);
-	}
+	/* enter standby mode, with required output features enabled */
+	ret = tda18271_toggle_output(fe, 1);
 
 	mutex_unlock(&priv->lock);
 
@@ -1214,8 +1219,8 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
 		priv->config = (cfg) ? cfg->config : 0;
-		priv->standby_mode = (cfg) ?
-			cfg->standby_mode : TDA18271_STANDBY_LT_XT_ON;
+		priv->output_opt = (cfg) ?
+			cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
 
 		/* tda18271_cal_on_startup == -1 when cal
 		 * module option is unset */

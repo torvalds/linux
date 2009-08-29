@@ -67,18 +67,15 @@ enum tda18271_i2c_gate {
 	TDA18271_GATE_DIGITAL,
 };
 
-enum tda18271_standby_mode {
-	/* slave tuner output & loop thru & xtal oscillator on */
-	TDA18271_STANDBY_LT_XT_ON = 0,
+enum tda18271_output_options {
+	/* slave tuner output & loop thru & xtal oscillator always on */
+	TDA18271_OUTPUT_LT_XT_ON = 0,
 
-	/* xtal oscillator on */
-	TDA18271_STANDBY_XT_ON,
+	/* slave tuner output loop thru off */
+	TDA18271_OUTPUT_LT_OFF = 1,
 
-	/* slave tuner output / loop thru on */
-	TDA18271_STANDBY_LT_ON,
-
-	/* power off */
-	TDA18271_STANDBY_POWER_OFF,
+	/* xtal oscillator off */
+	TDA18271_OUTPUT_XT_OFF = 2,
 };
 
 struct tda18271_config {
@@ -91,8 +88,8 @@ struct tda18271_config {
 	/* use i2c gate provided by analog or digital demod */
 	enum tda18271_i2c_gate gate;
 
-	/* allow lower power standby modes */
-	enum tda18271_standby_mode standby_mode;
+	/* output options that can be disabled */
+	enum tda18271_output_options output_opt;
 
 	/* force rf tracking filter calibration on startup */
 	unsigned int rf_cal_on_startup:1;
