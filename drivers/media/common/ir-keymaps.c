@@ -48,19 +48,19 @@ IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE] = {
 	[0x08] = KEY_8,
 	[0x09] = KEY_9,
 
-	[0x5c] = KEY_POWER,	/* power       */
-	[0x20] = KEY_ZOOM,	/* full screen */
-	[0x0f] = KEY_BACKSPACE,	/* recall      */
-	[0x1b] = KEY_ENTER,	/* mute        */
-	[0x41] = KEY_RECORD,	/* record      */
-	[0x43] = KEY_STOP,	/* stop        */
+	[0x5c] = KEY_POWER,		/* power       */
+	[0x20] = KEY_ZOOM,		/* full screen */
+	[0x0f] = KEY_BACKSPACE,		/* recall      */
+	[0x1b] = KEY_ENTER,		/* mute        */
+	[0x41] = KEY_RECORD,		/* record      */
+	[0x43] = KEY_STOP,		/* stop        */
 	[0x16] = KEY_S,
-	[0x1a] = KEY_POWER2,	/* off         */
+	[0x1a] = KEY_POWER2,		/* off         */
 	[0x2e] = KEY_RED,
-	[0x1f] = KEY_DOWN,	/* channel -   */
-	[0x1c] = KEY_UP,	/* channel +   */
-	[0x10] = KEY_LEFT,	/* volume -    */
-	[0x1e] = KEY_RIGHT,	/* volume +    */
+	[0x1f] = KEY_CHANNELDOWN,	/* channel -   */
+	[0x1c] = KEY_CHANNELUP,		/* channel +   */
+	[0x10] = KEY_VOLUMEDOWN,	/* volume -    */
+	[0x1e] = KEY_VOLUMEUP,		/* volume +    */
 	[0x14] = KEY_F1,
 };
 EXPORT_SYMBOL_GPL(ir_codes_proteus_2309);
@@ -1247,11 +1247,11 @@ IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE] = {
 	 *         0x015          *
 	 *         Down           *
 	 *                        */
-	[0x0b] = KEY_UP,	/*XXX KEY_SCROLLUP? */
-	[0x18] = KEY_LEFT,	/*XXX KEY_BACK? */
+	[0x0b] = KEY_UP,
+	[0x18] = KEY_LEFT,
 	[0x16] = KEY_OK,	/*XXX KEY_SELECT? KEY_ENTER? */
-	[0x0c] = KEY_RIGHT,	/*XXX KEY_FORWARD? */
-	[0x15] = KEY_DOWN,	/*XXX KEY_SCROLLDOWN? */
+	[0x0c] = KEY_RIGHT,
+	[0x15] = KEY_DOWN,
 
 	/*  0x11            0x0d  *
 	 *  TV/AV           MODE  *
@@ -1584,8 +1584,6 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE] = {
 	[0x23] = KEY_RIGHT,
 	[0x0d] = KEY_SELECT,
 
-
-
 	[0x08] = KEY_BACK,
 	[0x07] = KEY_REFRESH,
 
@@ -1697,11 +1695,11 @@ IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE] = {
 
 	[0x03] = KEY_BRIGHTNESSDOWN,
 	[0x28] = KEY_AUDIO,
-	[0x3c] = KEY_UP,
-	[0x3f] = KEY_LEFT,
+	[0x3c] = KEY_CHANNELUP,
+	[0x3f] = KEY_VOLUMEDOWN,
 	[0x2e] = KEY_MUTE,
-	[0x3b] = KEY_RIGHT,
-	[0x00] = KEY_DOWN,
+	[0x3b] = KEY_VOLUMEUP,
+	[0x00] = KEY_CHANNELDOWN,
 	[0x07] = KEY_BRIGHTNESSUP,
 	[0x2c] = KEY_TEXT,
 
@@ -1905,10 +1903,10 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
 
 	[0x14] = KEY_HOME,		/* win start menu */
 	[0x15] = KEY_EXIT,		/* exit */
-	[0x16] = KEY_UP,
-	[0x12] = KEY_DOWN,
-	[0x0c] = KEY_RIGHT,
-	[0x17] = KEY_LEFT,
+	[0x16] = KEY_CHANNELUP,		/* UP */
+	[0x12] = KEY_CHANNELDOWN,	/* DOWN */
+	[0x0c] = KEY_VOLUMEUP,		/* RIGHT */
+	[0x17] = KEY_VOLUMEDOWN,	/* LEFT */
 
 	[0x18] = KEY_ENTER,		/* OK */
 
@@ -2201,11 +2199,11 @@ IR_KEYTAB_TYPE ir_codes_behold[IR_KEYTAB_SIZE] = {
 	 *         0x015          *
 	 *         Down           *
 	 *                        */
-	[0x0b] = KEY_CHANNELUP,		/* XXX KEY_UP */
-	[0x18] = KEY_VOLUMEDOWN,	/* XXX KEY_LEFT */
+	[0x0b] = KEY_CHANNELUP,
+	[0x18] = KEY_VOLUMEDOWN,
 	[0x16] = KEY_OK,		/* XXX KEY_ENTER */
-	[0x0c] = KEY_VOLUMEUP,		/* XXX KEY_RIGHT */
-	[0x15] = KEY_CHANNELDOWN,	/* XXX KEY_DOWN */
+	[0x0c] = KEY_VOLUMEUP,
+	[0x15] = KEY_CHANNELDOWN,
 
 	/*  0x11            0x0d  *
 	 *  MUTE            INFO  *
@@ -2383,10 +2381,10 @@ IR_KEYTAB_TYPE ir_codes_powercolor_real_angel[IR_KEYTAB_SIZE] = {
 	[0x13] = KEY_BRIGHTNESSDOWN,
 	[0x2b] = KEY_MODE,		/* stereo/mono */
 	[0x2c] = KEY_TEXT,		/* teletext */
-	[0x20] = KEY_UP,		/* channel up */
-	[0x21] = KEY_DOWN,		/* channel down */
-	[0x10] = KEY_RIGHT,		/* volume up */
-	[0x11] = KEY_LEFT,		/* volume down */
+	[0x20] = KEY_CHANNELUP,		/* channel up */
+	[0x21] = KEY_CHANNELDOWN,	/* channel down */
+	[0x10] = KEY_VOLUMEUP,		/* volume up */
+	[0x11] = KEY_VOLUMEDOWN,	/* volume down */
 	[0x0d] = KEY_MUTE,
 	[0x1f] = KEY_RECORD,
 	[0x17] = KEY_PLAY,
@@ -2584,11 +2582,11 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv_fm53[IR_KEYTAB_SIZE] = {
 	[0x54] = KEY_RECORD,
 	[0x4d] = KEY_PLAY,		/* pause */
 
-	[0x1e] = KEY_UP,		/* video setting */
+	[0x1e] = KEY_MENU,		/* video setting */
 	[0x0e] = KEY_RIGHT,		/* <- */
 	[0x1a] = KEY_LEFT,		/* -> */
 
-	[0x0a] = KEY_DOWN,		/* video default */
+	[0x0a] = KEY_CLEAR,		/* video default */
 	[0x0c] = KEY_ZOOM,		/* hide pannel */
 	[0x47] = KEY_SLEEP,		/* shutdown */
 };
@@ -2681,8 +2679,8 @@ IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE] = {
 	[0x18] = KEY_8,
 	[0x19] = KEY_9,
 	[0x10] = KEY_0,
-	[0x1c] = KEY_PAGEUP,		/* ch+ */
-	[0x0f] = KEY_PAGEDOWN,		/* ch- */
+	[0x1c] = KEY_CHANNELUP,		/* ch+ */
+	[0x0f] = KEY_CHANNELDOWN,	/* ch- */
 	[0x1a] = KEY_VOLUMEUP,		/* vol+ */
 	[0x0e] = KEY_VOLUMEDOWN,	/* vol- */
 	[0x04] = KEY_RECORD,		/* rec */
