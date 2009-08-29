@@ -686,11 +686,11 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 		can_stats.matches_delta++;
 	}
 
-	return 0;
+	return NET_RX_SUCCESS;
 
 drop:
 	kfree_skb(skb);
-	return 0;
+	return NET_RX_DROP;
 }
 
 /*
