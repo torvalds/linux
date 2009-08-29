@@ -217,7 +217,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Remove L2 padding which was added during
 	 */
 	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
-		rt2x00queue_payload_align(entry->skb, true, header_length);
+		rt2x00queue_remove_l2pad(entry->skb, header_length);
 
 	/*
 	 * If the IV/EIV data was stripped from the frame before it was
@@ -364,7 +364,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
 	unsigned int header_length;
-	bool l2pad;
 	int rate_idx;
 	/*
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
@@ -393,7 +392,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * aligned on a 4 byte boundary.
 	 */
 	header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	l2pad = !!(rxdesc.dev_flags & RXDONE_L2PAD);
 
 	/*
 	 * Hardware might have stripped the IV/EIV/ICV data,
@@ -403,10 +401,12 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 */
 	if ((rxdesc.dev_flags & RXDONE_CRYPTO_IV) &&
 	    (rxdesc.flags & RX_FLAG_IV_STRIPPED))
-		rt2x00crypto_rx_insert_iv(entry->skb, l2pad, header_length,
+		rt2x00crypto_rx_insert_iv(entry->skb, header_length,
 					  &rxdesc);
+	else if (rxdesc.dev_flags & RXDONE_L2PAD)
+		rt2x00queue_remove_l2pad(entry->skb, header_length);
 	else
-		rt2x00queue_payload_align(entry->skb, l2pad, header_length);
+		rt2x00queue_align_payload(entry->skb, header_length);
 
 	/*
 	 * Check if the frame was received using HT. In that case,

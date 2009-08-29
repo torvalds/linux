@@ -120,21 +120,42 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 
 /**
- * rt2x00queue_payload_align - Align 802.11 payload to 4-byte boundary
+ * rt2x00queue_align_frame - Align 802.11 frame to 4-byte boundary
  * @skb: The skb to align
- * @l2pad: Should L2 padding be used
+ *
+ * Align the start of the 802.11 frame to a 4-byte boundary, this could
+ * mean the payload is not aligned properly though.
+ */
+void rt2x00queue_align_frame(struct sk_buff *skb);
+
+/**
+ * rt2x00queue_align_payload - Align 802.11 payload to 4-byte boundary
+ * @skb: The skb to align
  * @header_length: Length of 802.11 header
  *
- * This function prepares the @skb to be send to the device or mac80211.
- * If @l2pad is set to true padding will occur between the 802.11 header
- * and payload. Otherwise the padding will be done in front of the 802.11
- * header.
- * When @l2pad is set the function will check for the &SKBDESC_L2_PADDED
- * flag in &skb_frame_desc. If that flag is set, the padding is removed
- * and the flag cleared. Otherwise the padding is added and the flag is set.
+ * Align the 802.11 payload to a 4-byte boundary, this could
+ * mean the header is not aligned properly though.
  */
-void rt2x00queue_payload_align(struct sk_buff *skb,
-			       bool l2pad, unsigned int header_length);
+void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length);
+
+/**
+ * rt2x00queue_insert_l2pad - Align 802.11 header & payload to 4-byte boundary
+ * @skb: The skb to align
+ * @header_length: Length of 802.11 header
+ *
+ * Apply L2 padding to align both header and payload to 4-byte boundary
+ */
+void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length);
+
+/**
+ * rt2x00queue_insert_l2pad - Remove L2 padding from 802.11 frame
+ * @skb: The skb to align
+ * @header_length: Length of 802.11 header
+ *
+ * Remove L2 padding used to align both header and payload to 4-byte boundary,
+ * by removing the L2 padding the header will no longer be 4-byte aligned.
+ */
+void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length);
 
 /**
  * rt2x00queue_write_tx_frame - Write TX frame to hardware
@@ -324,7 +345,7 @@ void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
 void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
 			       struct txentry_desc *txdesc);
 void rt2x00crypto_tx_insert_iv(struct sk_buff *skb, unsigned int header_length);
-void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
+void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 			       unsigned int header_length,
 			       struct rxdone_entry_desc *rxdesc);
 #else
