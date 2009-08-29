@@ -309,8 +309,8 @@ void set_tg_uid(struct user_struct *user)
 
 /*
  * Root task group.
- * 	Every UID task group (including init_task_group aka UID-0) will
- * 	be a child to this group.
+ *	Every UID task group (including init_task_group aka UID-0) will
+ *	be a child to this group.
  */
 struct task_group root_task_group;
 
@@ -318,7 +318,7 @@ struct task_group root_task_group;
 /* Default task group's sched entity on each cpu */
 static DEFINE_PER_CPU(struct sched_entity, init_sched_entity);
 /* Default task group's cfs_rq on each cpu */
-static DEFINE_PER_CPU(struct cfs_rq, init_cfs_rq) ____cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(struct cfs_rq, init_tg_cfs_rq) ____cacheline_aligned_in_smp;
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -9400,11 +9400,11 @@ void __init sched_init(void)
 		 * system cpu resource, based on the weight assigned to root
 		 * user's cpu share (INIT_TASK_GROUP_LOAD). This is accomplished
 		 * by letting tasks of init_task_group sit in a separate cfs_rq
-		 * (init_cfs_rq) and having one entity represent this group of
+		 * (init_tg_cfs_rq) and having one entity represent this group of
 		 * tasks in rq->cfs (i.e init_task_group->se[] != NULL).
 		 */
 		init_tg_cfs_entry(&init_task_group,
-				&per_cpu(init_cfs_rq, i),
+				&per_cpu(init_tg_cfs_rq, i),
 				&per_cpu(init_sched_entity, i), i, 1,
 				root_task_group.se[i]);
 
