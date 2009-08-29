@@ -49,13 +49,13 @@ IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE] = {
 	[0x09] = KEY_9,
 
 	[0x5c] = KEY_POWER,	/* power       */
-	[0x20] = KEY_F,		/* full screen */
+	[0x20] = KEY_ZOOM,	/* full screen */
 	[0x0f] = KEY_BACKSPACE,	/* recall      */
 	[0x1b] = KEY_ENTER,	/* mute        */
 	[0x41] = KEY_RECORD,	/* record      */
 	[0x43] = KEY_STOP,	/* stop        */
 	[0x16] = KEY_S,
-	[0x1a] = KEY_Q,		/* off         */
+	[0x1a] = KEY_POWER2,	/* off         */
 	[0x2e] = KEY_RED,
 	[0x1f] = KEY_DOWN,	/* channel -   */
 	[0x1c] = KEY_UP,	/* channel +   */
@@ -431,7 +431,7 @@ IR_KEYTAB_TYPE ir_codes_dntv_live_dvb_t[IR_KEYTAB_SIZE] = {
 	[0x10] = KEY_MUTE,
 	[0x11] = KEY_REWIND,		/* backward << */
 	[0x12] = KEY_POWER,
-	[0x13] = KEY_S,			/* snap */
+	[0x13] = KEY_CAMERA,		/* snap */
 	[0x14] = KEY_AUDIO,		/* stereo */
 	[0x15] = KEY_CLEAR,		/* reset */
 	[0x16] = KEY_PLAY,
@@ -482,13 +482,13 @@ IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE] = {
 	[0x74] = KEY_VOLUMEUP,
 	[0x14] = KEY_MUTE,
 
-	[0x4c] = KEY_S,			/* SVIDEO */
+	[0x4c] = KEY_VCR,		/* SVIDEO */
 	[0x2c] = KEY_CHANNELDOWN,
 	[0x6c] = KEY_VOLUMEDOWN,
 	[0x0c] = KEY_ZOOM,
 
 	[0x5c] = KEY_PAUSE,
-	[0x3c] = KEY_C,			/* || (red) */
+	[0x3c] = KEY_RED,		/* || (red) */
 	[0x7c] = KEY_RECORD,		/* recording */
 	[0x1c] = KEY_STOP,
 
@@ -571,7 +571,7 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 
 	[0x0c] = KEY_MUTE,
 	[0x0f] = KEY_SCREEN,		/* Full Screen */
-	[0x10] = KEY_F,			/* Funtion */
+	[0x10] = KEY_FN,		/* Funtion */
 	[0x11] = KEY_T,			/* Time shift */
 	[0x12] = KEY_POWER,
 	[0x13] = KEY_MEDIA,		/* MTS */
@@ -1353,6 +1353,7 @@ IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[0x48] = KEY_ZOOM,
 
 	[0x1b] = KEY_VIDEO,	/* Video source */
+	[0x1f] = KEY_CAMERA,	/* Snapshot */
 	[0x49] = KEY_LANGUAGE,	/* MTS Select */
 	[0x19] = KEY_SEARCH,	/* Auto Scan */
 
@@ -1360,6 +1361,7 @@ IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[0x46] = KEY_PLAY,
 	[0x45] = KEY_PAUSE,	/* Pause */
 	[0x44] = KEY_STOP,
+	[0x17] = KEY_CHANNEL,	/* SURF CH */
 	[0x40] = KEY_FORWARD,	/* Forward ? */
 	[0x42] = KEY_REWIND,	/* Backward ? */
 
@@ -1910,7 +1912,7 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
 	[0x18] = KEY_ENTER,		/* OK */
 
 	[0x0e] = KEY_ESC,
-	[0x13] = KEY_D,			/* desktop */
+	[0x13] = KEY_CYCLEWINDOWS,	/* desktop */
 	[0x11] = KEY_TAB,
 	[0x19] = KEY_SWITCHVIDEOMODE,	/* switch */
 
@@ -2666,8 +2668,8 @@ EXPORT_SYMBOL_GPL(ir_codes_ati_tv_wonder_hd_600);
    Igor M. Liplianin <liplianin@me.by>
  */
 IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE] = {
-	[0x0a] = KEY_Q,		/*power*/
-	[0x0c] = KEY_M,		/*mute*/
+	[0x0a] = KEY_POWER2,		/* power */
+	[0x0c] = KEY_MUTE,		/* mute */
 	[0x11] = KEY_1,
 	[0x12] = KEY_2,
 	[0x13] = KEY_3,
@@ -2678,25 +2680,25 @@ IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE] = {
 	[0x18] = KEY_8,
 	[0x19] = KEY_9,
 	[0x10] = KEY_0,
-	[0x1c] = KEY_PAGEUP,	/*ch+*/
-	[0x0f] = KEY_PAGEDOWN,	/*ch-*/
-	[0x1a] = KEY_O,		/*vol+*/
-	[0x0e] = KEY_Z,		/*vol-*/
-	[0x04] = KEY_R,		/*rec*/
-	[0x09] = KEY_D,		/*fav*/
-	[0x08] = KEY_BACKSPACE,	/*rewind*/
-	[0x07] = KEY_A,		/*fast*/
-	[0x0b] = KEY_P,		/*pause*/
-	[0x02] = KEY_ESC,	/*cancel*/
-	[0x03] = KEY_G,		/*tab*/
-	[0x00] = KEY_UP,	/*up*/
-	[0x1f] = KEY_ENTER,	/*ok*/
-	[0x01] = KEY_DOWN,	/*down*/
-	[0x05] = KEY_C,		/*cap*/
-	[0x06] = KEY_S,		/*stop*/
-	[0x40] = KEY_F,		/*full*/
-	[0x1e] = KEY_W,		/*tvmode*/
-	[0x1b] = KEY_B,		/*recall*/
+	[0x1c] = KEY_PAGEUP,		/* ch+ */
+	[0x0f] = KEY_PAGEDOWN,		/* ch- */
+	[0x1a] = KEY_VOLUMEUP,		/* vol+ */
+	[0x0e] = KEY_VOLUMEDOWN,	/* vol- */
+	[0x04] = KEY_RECORD,		/* rec */
+	[0x09] = KEY_CHANNEL,		/* fav */
+	[0x08] = KEY_BACKSPACE,		/* rewind */
+	[0x07] = KEY_FASTFORWARD,	/* fast */
+	[0x0b] = KEY_PAUSE,		/* pause */
+	[0x02] = KEY_ESC,		/* cancel */
+	[0x03] = KEY_TAB,		/* tab */
+	[0x00] = KEY_UP,		/* up */
+	[0x1f] = KEY_ENTER,		/* ok */
+	[0x01] = KEY_DOWN,		/* down */
+	[0x05] = KEY_RECORD,		/* cap */
+	[0x06] = KEY_STOP,		/* stop */
+	[0x40] = KEY_ZOOM,		/* full */
+	[0x1e] = KEY_TV,		/* tvmode */
+	[0x1b] = KEY_B,			/* recall */
 };
 EXPORT_SYMBOL_GPL(ir_codes_dm1105_nec);
 
