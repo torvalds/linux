@@ -48,7 +48,7 @@
  *		Patrick McHardy <kaber@trash.net>
  */
 
-#define VERSION "0.408"
+#define VERSION "0.409"
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -325,10 +325,7 @@ static inline void check_tnode(const struct tnode *tn)
 static const int halve_threshold = 25;
 static const int inflate_threshold = 50;
 static const int halve_threshold_root = 15;
-static const int inflate_threshold_root = 25;
-
-static int inflate_threshold_root_fix;
-#define INFLATE_FIX_MAX 10	/* a comment in resize() */
+static const int inflate_threshold_root = 30;
 
 static void __alias_free_mem(struct rcu_head *head)
 {
@@ -516,14 +513,14 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n,
 	rcu_assign_pointer(tn->child[i], n);
 }
 
+#define MAX_WORK 10
 static struct node *resize(struct trie *t, struct tnode *tn)
 {
 	int i;
-	int err = 0;
 	struct tnode *old_tn;
 	int inflate_threshold_use;
 	int halve_threshold_use;
-	int max_resize;
+	int max_work;
 
 	if (!tn)
 		return NULL;
@@ -538,18 +535,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	}
 	/* One child */
 	if (tn->empty_children == tnode_child_length(tn) - 1)
-		for (i = 0; i < tnode_child_length(tn); i++) {
-			struct node *n;
-
-			n = tn->child[i];
-			if (!n)
-				continue;
-
-			/* compress one level */
-			node_set_parent(n, NULL);
-			tnode_free_safe(tn);
-			return n;
-		}
+		goto one_child;
 	/*
 	 * Double as long as the resulting node has a number of
 	 * nonempty nodes that are above the threshold.
@@ -618,15 +604,17 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	/* Keep root node larger  */
 
-	if (!tn->parent)
-		inflate_threshold_use = inflate_threshold_root +
-					inflate_threshold_root_fix;
-	else
+	if (!node_parent((struct node*) tn)) {
+		inflate_threshold_use = inflate_threshold_root;
+		halve_threshold_use = halve_threshold_root;
+	}
+	else {
 		inflate_threshold_use = inflate_threshold;
+		halve_threshold_use = halve_threshold;
+	}
 
-	err = 0;
-	max_resize = 10;
-	while ((tn->full_children > 0 &&  max_resize-- &&
+	max_work = MAX_WORK;
+	while ((tn->full_children > 0 &&  max_work-- &&
 		50 * (tn->full_children + tnode_child_length(tn)
 		      - tn->empty_children)
 		>= inflate_threshold_use * tnode_child_length(tn))) {
@@ -643,47 +631,19 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 		}
 	}
 
-	if (max_resize < 0) {
-		if (!tn->parent) {
-			/*
-			 * It was observed that during large updates even
-			 * inflate_threshold_root = 35 might be needed to avoid
-			 * this warning; but it should be temporary, so let's
-			 * try to handle this automatically.
-			 */
-			if (inflate_threshold_root_fix < INFLATE_FIX_MAX)
-				inflate_threshold_root_fix++;
-			else
-				pr_warning("Fix inflate_threshold_root."
-					   " Now=%d size=%d bits fix=%d\n",
-					   inflate_threshold_root, tn->bits,
-					   inflate_threshold_root_fix);
-		} else {
-			pr_warning("Fix inflate_threshold."
-				   " Now=%d size=%d bits\n",
-				   inflate_threshold, tn->bits);
-		}
-	} else if (max_resize > 3 && !tn->parent && inflate_threshold_root_fix)
-		inflate_threshold_root_fix--;
-
 	check_tnode(tn);
+
+	/* Return if at least one inflate is run */
+	if( max_work != MAX_WORK)
+		return (struct node *) tn;
 
 	/*
 	 * Halve as long as the number of empty children in this
 	 * node is above threshold.
 	 */
 
-
-	/* Keep root node larger  */
-
-	if (!tn->parent)
-		halve_threshold_use = halve_threshold_root;
-	else
-		halve_threshold_use = halve_threshold;
-
-	err = 0;
-	max_resize = 10;
-	while (tn->bits > 1 &&  max_resize-- &&
+	max_work = MAX_WORK;
+	while (tn->bits > 1 &&  max_work-- &&
 	       100 * (tnode_child_length(tn) - tn->empty_children) <
 	       halve_threshold_use * tnode_child_length(tn)) {
 
@@ -698,19 +658,10 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 		}
 	}
 
-	if (max_resize < 0) {
-		if (!tn->parent)
-			pr_warning("Fix halve_threshold_root."
-				   " Now=%d size=%d bits\n",
-				   halve_threshold_root, tn->bits);
-		else
-			pr_warning("Fix halve_threshold."
-				   " Now=%d size=%d bits\n",
-				   halve_threshold, tn->bits);
-	}
 
 	/* Only one child remains */
-	if (tn->empty_children == tnode_child_length(tn) - 1)
+	if (tn->empty_children == tnode_child_length(tn) - 1) {
+one_child:
 		for (i = 0; i < tnode_child_length(tn); i++) {
 			struct node *n;
 
@@ -724,7 +675,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 			tnode_free_safe(tn);
 			return n;
 		}
-
+	}
 	return (struct node *) tn;
 }
 
