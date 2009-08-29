@@ -1257,7 +1257,7 @@ static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 {
 #ifdef CONFIG_NETPOLL_TRAP
 	if (netpoll_trap()) {
-		clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+		netif_tx_start_queue(dev_queue);
 		return;
 	}
 #endif
@@ -1363,7 +1363,8 @@ static inline int netif_running(const struct net_device *dev)
 static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, queue_index);
-	clear_bit(__QUEUE_STATE_XOFF, &txq->state);
+
+	netif_tx_start_queue(txq);
 }
 
 /**
@@ -1380,7 +1381,7 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 	if (netpoll_trap())
 		return;
 #endif
-	set_bit(__QUEUE_STATE_XOFF, &txq->state);
+	netif_tx_stop_queue(txq);
 }
 
 /**
@@ -1394,7 +1395,8 @@ static inline int __netif_subqueue_stopped(const struct net_device *dev,
 					 u16 queue_index)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, queue_index);
-	return test_bit(__QUEUE_STATE_XOFF, &txq->state);
+
+	return netif_tx_queue_stopped(txq);
 }
 
 static inline int netif_subqueue_stopped(const struct net_device *dev,
@@ -1746,8 +1748,7 @@ static inline void netif_tx_unlock(struct net_device *dev)
 		 * force a schedule.
 		 */
 		clear_bit(__QUEUE_STATE_FROZEN, &txq->state);
-		if (!test_bit(__QUEUE_STATE_XOFF, &txq->state))
-			__netif_schedule(txq->qdisc);
+		netif_schedule_queue(txq);
 	}
 	spin_unlock(&dev->tx_global_lock);
 }
