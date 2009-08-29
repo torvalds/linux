@@ -1917,7 +1917,7 @@ gso:
 			HARD_TX_LOCK(dev, txq, cpu);
 
 			if (!netif_tx_queue_stopped(txq)) {
-				rc = 0;
+				rc = NET_XMIT_SUCCESS;
 				if (!dev_hard_start_xmit(skb, dev, txq)) {
 					HARD_TX_UNLOCK(dev, txq);
 					goto out;
