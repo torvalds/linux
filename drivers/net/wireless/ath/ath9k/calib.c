@@ -861,7 +861,7 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
 }
 
-static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
+static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 
 	u32 regVal;
@@ -876,6 +876,13 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 		{ 0x783c, 0 },
 		{ 0x7838, 0 },
 	};
+
+	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "Running PA Calibration\n");
+
+	/* PA CAL is not needed for high power solution */
+	if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) ==
+	    AR5416_EEP_TXGAIN_HIGH_POWER)
+		return;
 
 	if (AR_SREV_9285_11(ah)) {
 		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
@@ -899,13 +906,13 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G2, AR9285_AN_RF2G2_OFFCAL, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PWDDB, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_ENPACAL, 0);
-	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV1, 1);
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV1, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV2, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPAOUT, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G8, AR9285_AN_RF2G8_PADRVGN2TAB0, 7);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PADRVGN2TAB0, 0);
 	ccomp_org = MS(REG_READ(ah, AR9285_AN_RF2G6), AR9285_AN_RF2G6_CCOMP);
-	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_CCOMP, 7);
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_CCOMP, 0xf);
 
 	REG_WRITE(ah, AR9285_AN_TOP2, 0xca0358a0);
 	udelay(30);
@@ -917,7 +924,6 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 		regVal |= (1 << (19 + i));
 		REG_WRITE(ah, 0x7834, regVal);
 		udelay(1);
-		regVal = REG_READ(ah, 0x7834);
 		regVal &= (~(0x1 << (19 + i)));
 		reg_field = MS(REG_READ(ah, 0x7840), AR9285_AN_RXTXBB1_SPARE9);
 		regVal |= (reg_field << (19 + i));
@@ -935,6 +941,17 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 	offset = offset - 0;
 	offs_6_1 = offset>>1;
 	offs_0 = offset & 1;
+
+	if ((!is_reset) && (ah->pacal_info.prev_offset == offset)) {
+		if (ah->pacal_info.max_skipcount < MAX_PACAL_SKIPCOUNT)
+			ah->pacal_info.max_skipcount =
+				2 * ah->pacal_info.max_skipcount;
+		ah->pacal_info.skipcount = ah->pacal_info.max_skipcount;
+	} else {
+		ah->pacal_info.max_skipcount = 1;
+		ah->pacal_info.skipcount = 0;
+		ah->pacal_info.prev_offset = offset;
+	}
 
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_OFFS, offs_6_1);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_PDVCCOMP, offs_0);
@@ -982,8 +999,12 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		/* Do periodic PAOffset Cal */
 		if (AR_SREV_9271(ah))
 			ath9k_hw_9271_pa_cal(ah);
-		else if (AR_SREV_9285_11_OR_LATER(ah))
-			ath9k_hw_9285_pa_cal(ah);
+		else if (AR_SREV_9285_11_OR_LATER(ah)) {
+			if (!ah->pacal_info.skipcount)
+				ath9k_hw_9285_pa_cal(ah, false);
+			else
+				ah->pacal_info.skipcount--;
+		}
 
 		if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
 			ath9k_olc_temp_compensation(ah);
@@ -1081,7 +1102,7 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	/* Do PA Calibration */
 	if (AR_SREV_9285_11_OR_LATER(ah))
-		ath9k_hw_9285_pa_cal(ah);
+		ath9k_hw_9285_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,

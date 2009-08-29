@@ -888,6 +888,9 @@ struct b43_phy_lp {
 	bool crs_usr_disable, crs_sys_disable;
 
 	unsigned int pdiv;
+
+	/* The channel we are tuned to */
+	u8 channel;
 };
 
 enum tssi_mux_mode {

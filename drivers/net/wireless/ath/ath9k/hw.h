@@ -79,6 +79,7 @@
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
 #define AR_GPIO_OUTPUT_MUX_AS_TX_FRAME           3
+#define AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL  4
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
 
@@ -151,7 +152,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(14),
 	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(15),
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(16),
-	ATH9K_HW_CAP_BT_COEX			= BIT(17)
 };
 
 enum ath9k_capability_type {
@@ -238,6 +238,7 @@ enum ath9k_int {
 	ATH9K_INT_GPIO = 0x01000000,
 	ATH9K_INT_CABEND = 0x02000000,
 	ATH9K_INT_TSFOOR = 0x04000000,
+	ATH9K_INT_GENTIMER = 0x08000000,
 	ATH9K_INT_CST = 0x10000000,
 	ATH9K_INT_GTT = 0x20000000,
 	ATH9K_INT_FATAL = 0x40000000,
@@ -391,6 +392,41 @@ struct ath9k_hw_version {
 	u16 analog2GhzRev;
 };
 
+/* Generic TSF timer definitions */
+
+#define ATH_MAX_GEN_TIMER	16
+
+#define AR_GENTMR_BIT(_index)	(1 << (_index))
+
+/*
+ * Using de Bruijin sequence to to look up 1's index in a 32 bit number
+ * debruijn32 = 0000 0111 0111 1100 1011 0101 0011 0001
+ */
+#define debruijn32 0x077CB531UL
+
+struct ath_gen_timer_configuration {
+	u32 next_addr;
+	u32 period_addr;
+	u32 mode_addr;
+	u32 mode_mask;
+};
+
+struct ath_gen_timer {
+	void (*trigger)(void *arg);
+	void (*overflow)(void *arg);
+	void *arg;
+	u8 index;
+};
+
+struct ath_gen_timer_table {
+	u32 gen_timer_index[32];
+	struct ath_gen_timer *timers[ATH_MAX_GEN_TIMER];
+	union {
+		unsigned long timer_bits;
+		u16 val;
+	} timer_mask;
+};
+
 struct ath_hw {
 	struct ath_softc *ah_sc;
 	struct ath9k_hw_version hw_version;
@@ -414,8 +450,6 @@ struct ath_hw {
 	u16 rfsilent;
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
-	u32 btactive_gpio;
-	u32 wlanactive_gpio;
 	u32 ah_flags;
 
 	bool htc_reset_init;
@@ -424,6 +458,7 @@ struct ath_hw {
 	enum ath9k_power_mode power_mode;
 
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
@@ -538,6 +573,10 @@ struct ath_hw {
 	struct ar5416IniArray iniModesAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
+
+	u32 intr_gen_timer_trigger;
+	u32 intr_gen_timer_thresh;
+	struct ath_gen_timer_table hw_gen_timers;
 };
 
 /* Initialization, Detach, Reset */
@@ -613,6 +652,17 @@ bool ath9k_hw_intrpend(struct ath_hw *ah);
 bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
-void ath9k_hw_btcoex_enable(struct ath_hw *ah);
+/* Generic hw timer primitives */
+struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
+					  void (*trigger)(void *),
+					  void (*overflow)(void *),
+					  void *arg,
+					  u8 timer_index);
+void ath_gen_timer_start(struct ath_hw *ah, struct ath_gen_timer *timer,
+			 u32 timer_next, u32 timer_period);
+void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
+void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
+void ath_gen_timer_isr(struct ath_hw *hw);
+u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
 #endif

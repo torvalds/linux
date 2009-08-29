@@ -439,8 +439,8 @@ static void ath_start_ani(struct ath_softc *sc)
  */
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
-	if (is_ht ||
-	    (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)) {
+	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
+	    (sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE)) {
 		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
 		sc->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
 	} else {
@@ -601,6 +601,10 @@ irqreturn_t ath_isr(int irq, void *dev)
 			ath9k_hw_setrxabort(sc->sc_ah, 0);
 			sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
 		}
+
+	if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+		if (status & ATH9K_INT_GENTIMER)
+			ath_gen_timer_isr(ah);
 
 chip_reset:
 
@@ -1279,6 +1283,10 @@ void ath_detach(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
+	if ((sc->btcoex_info.no_stomp_timer) &&
+	    sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+		ath_gen_timer_free(sc->sc_ah, sc->btcoex_info.no_stomp_timer);
+
 	ath9k_hw_detach(sc->sc_ah);
 	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
@@ -1509,8 +1517,11 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 			ARRAY_SIZE(ath9k_5ghz_chantable);
 	}
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)
-		ath9k_hw_btcoex_enable(sc->sc_ah);
+	if (sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) {
+		r = ath9k_hw_btcoex_init(ah);
+		if (r)
+			goto bad2;
+	}
 
 	return 0;
 bad2:
@@ -1992,6 +2003,16 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
+	if ((sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) &&
+	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED)) {
+		ath_btcoex_set_weight(&sc->btcoex_info, AR_BT_COEX_WGHT,
+				      AR_STOMP_LOW_WLAN_WGHT);
+		ath9k_hw_btcoex_enable(sc->sc_ah);
+
+		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_btcoex_timer_resume(sc, &sc->btcoex_info);
+	}
+
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
 
@@ -2123,6 +2144,12 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	if (ath9k_wiphy_started(sc)) {
 		mutex_unlock(&sc->mutex);
 		return; /* another wiphy still in use */
+	}
+
+	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED) {
+		ath9k_hw_btcoex_disable(sc->sc_ah);
+		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_btcoex_timer_pause(sc, &sc->btcoex_info);
 	}
 
 	/* make sure h/w will not generate any interrupt
@@ -2713,6 +2740,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	mutex_lock(&sc->mutex);
 	if (ath9k_wiphy_scanning(sc)) {
 		printk(KERN_DEBUG "ath9k: Two wiphys trying to scan at the "
 		       "same time\n");
@@ -2720,6 +2748,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 		 * Do not allow the concurrent scanning state for now. This
 		 * could be improved with scanning control moved into ath9k.
 		 */
+		mutex_unlock(&sc->mutex);
 		return;
 	}
 
@@ -2729,6 +2758,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	spin_lock_bh(&sc->ani_lock);
 	sc->sc_flags |= SC_OP_SCANNING;
 	spin_unlock_bh(&sc->ani_lock);
+	mutex_unlock(&sc->mutex);
 }
 
 static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
@@ -2736,11 +2766,13 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
+	mutex_lock(&sc->mutex);
 	spin_lock_bh(&sc->ani_lock);
 	aphy->state = ATH_WIPHY_ACTIVE;
 	sc->sc_flags &= ~SC_OP_SCANNING;
 	sc->sc_flags |= SC_OP_FULL_RESET;
 	spin_unlock_bh(&sc->ani_lock);
+	mutex_unlock(&sc->mutex);
 }
 
 struct ieee80211_ops ath9k_ops = {

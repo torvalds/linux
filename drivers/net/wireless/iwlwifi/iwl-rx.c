@@ -915,6 +915,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	u32 len;
 	u32 ampdu_status;
 	u16 fc;
+	u32 rate_n_flags;
 
 	/**
 	 * REPLY_RX and REPLY_RX_MPDU_CMD are handled differently.
@@ -1031,6 +1032,15 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	/* set the preamble flag if appropriate */
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
+
+	/* Set up the HT phy flags */
+	rate_n_flags = le32_to_cpu(phy_res->rate_n_flags);
+	if (rate_n_flags & RATE_MCS_HT_MSK)
+		rx_status.flag |= RX_FLAG_HT;
+	if (rate_n_flags & RATE_MCS_HT40_MSK)
+		rx_status.flag |= RX_FLAG_40MHZ;
+	if (rate_n_flags & RATE_MCS_SGI_MSK)
+		rx_status.flag |= RX_FLAG_SHORT_GI;
 
 	if (iwl_is_network_packet(priv, header)) {
 		priv->last_rx_rssi = rx_status.signal;

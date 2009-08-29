@@ -50,7 +50,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 
 		/* check for holes in the arrays caused by multi fragment frames
 		 * searching for the last fragment of a frame */
-		if (priv->pci_map_tx_address[index] != (dma_addr_t) NULL) {
+		if (priv->pci_map_tx_address[index]) {
 			/* entry is the last fragment of a frame
 			 * free the skb structure and unmap pci memory */
 			skb = priv->data_low_tx[index];
@@ -450,7 +450,7 @@ islpci_eth_receive(islpci_private *priv)
 		    pci_map_single(priv->pdev, (void *) skb->data,
 				   MAX_FRAGMENT_SIZE_RX + 2,
 				   PCI_DMA_FROMDEVICE);
-		if (unlikely(priv->pci_map_rx_address[index] == (dma_addr_t) NULL)) {
+		if (unlikely(!priv->pci_map_rx_address[index])) {
 			/* error mapping the buffer to device accessable memory address */
 			DEBUG(SHOW_ERROR_MESSAGES,
 			      "Error mapping DMA address\n");

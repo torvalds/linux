@@ -543,8 +543,8 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 
 			geo_ch->flags |= ch->ht40_extension_channel;
 
-			if (ch->max_power_avg > priv->tx_power_channel_lmt)
-				priv->tx_power_channel_lmt = ch->max_power_avg;
+			if (ch->max_power_avg > priv->tx_power_device_lmt)
+				priv->tx_power_device_lmt = ch->max_power_avg;
 		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
@@ -1671,7 +1671,10 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_cap.val = 0;
 
 	priv->rates_mask = IWL_RATES_MASK;
-	priv->tx_power_user_lmt = IWL_TX_POWER_TARGET_POWER_MAX;
+	/* Set the tx_power_user_lmt to the lowest power level
+	 * this value will get overwritten by channel max power avg
+	 * from eeprom */
+	priv->tx_power_user_lmt = IWL_TX_POWER_TARGET_POWER_MIN;
 
 	ret = iwl_init_channel_map(priv);
 	if (ret) {
@@ -1698,6 +1701,8 @@ EXPORT_SYMBOL(iwl_init_drv);
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
 	int ret = 0;
+	s8 prev_tx_power = priv->tx_power_user_lmt;
+
 	if (tx_power < IWL_TX_POWER_TARGET_POWER_MIN) {
 		IWL_WARN(priv, "Requested user TXPOWER %d below lower limit %d.\n",
 			 tx_power,
@@ -1705,25 +1710,37 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (tx_power > IWL_TX_POWER_TARGET_POWER_MAX) {
-		IWL_WARN(priv, "Requested user TXPOWER %d above upper limit %d.\n",
-			 tx_power,
-			 IWL_TX_POWER_TARGET_POWER_MAX);
+	if (tx_power > priv->tx_power_device_lmt) {
+		IWL_WARN(priv,
+			"Requested user TXPOWER %d above upper limit %d.\n",
+			 tx_power, priv->tx_power_device_lmt);
 		return -EINVAL;
 	}
 
 	if (priv->tx_power_user_lmt != tx_power)
 		force = true;
 
-	priv->tx_power_user_lmt = tx_power;
-
 	/* if nic is not up don't send command */
-	if (!iwl_is_ready_rf(priv))
-		return ret;
+	if (iwl_is_ready_rf(priv)) {
+		priv->tx_power_user_lmt = tx_power;
+		if (force && priv->cfg->ops->lib->send_tx_power)
+			ret = priv->cfg->ops->lib->send_tx_power(priv);
+		else if (!priv->cfg->ops->lib->send_tx_power)
+			ret = -EOPNOTSUPP;
+		/*
+		 * if fail to set tx_power, restore the orig. tx power
+		 */
+		if (ret)
+			priv->tx_power_user_lmt = prev_tx_power;
+	}
 
-	if (force && priv->cfg->ops->lib->send_tx_power)
-		ret = priv->cfg->ops->lib->send_tx_power(priv);
-
+	/*
+	 * Even this is an async host command, the command
+	 * will always report success from uCode
+	 * So once driver can placing the command into the queue
+	 * successfully, driver can use priv->tx_power_user_lmt
+	 * to reflect the current tx power
+	 */
 	return ret;
 }
 EXPORT_SYMBOL(iwl_set_tx_power);
@@ -1806,7 +1823,7 @@ int iwl_reset_ict(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_disable_interrupts(priv);
 
-	memset(&priv->ict_tbl[0],0, sizeof(u32) * ICT_COUNT);
+	memset(&priv->ict_tbl[0], 0, sizeof(u32) * ICT_COUNT);
 
 	val = priv->aligned_ict_tbl_dma >> PAGE_SHIFT;
 
@@ -1884,13 +1901,13 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* read all entries that not 0 start with ict_index */
 	while (priv->ict_tbl[priv->ict_index]) {
 
-		val |= priv->ict_tbl[priv->ict_index];
+		val |= le32_to_cpu(priv->ict_tbl[priv->ict_index]);
 		IWL_DEBUG_ISR(priv, "ICT index %d value 0x%08X\n",
-					priv->ict_index,
-					priv->ict_tbl[priv->ict_index]);
+				priv->ict_index,
+				le32_to_cpu(priv->ict_tbl[priv->ict_index]));
 		priv->ict_tbl[priv->ict_index] = 0;
 		priv->ict_index = iwl_queue_inc_wrap(priv->ict_index,
-								ICT_COUNT);
+						     ICT_COUNT);
 
 	}
 

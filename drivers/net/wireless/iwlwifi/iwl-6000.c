@@ -46,8 +46,8 @@
 #include "iwl-5000-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL6000_UCODE_API_MAX 3
-#define IWL6050_UCODE_API_MAX 3
+#define IWL6000_UCODE_API_MAX 4
+#define IWL6050_UCODE_API_MAX 4
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 1
@@ -126,6 +126,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 		.calib_version	= iwl5000_eeprom_calib_version,
 		.query_addr = iwl5000_eeprom_query_addr,
+		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
 	.post_associate = iwl_post_associate,
 	.isr = iwl_isr_ict,

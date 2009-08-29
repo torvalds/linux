@@ -416,13 +416,13 @@ struct iw_spy_data
  * data (i.e. valid as long as struct net_device exist, same locking rules).
  */
 /* Forward declaration */
-struct ieee80211_device;
+struct libipw_device;
 /* The struct */
 struct iw_public_data {
 	/* Driver enhanced spy support */
 	struct iw_spy_data *		spy_data;
-	/* Structure managed by the in-kernel IEEE 802.11 layer */
-	struct ieee80211_device *	ieee80211;
+	/* Legacy structure managed by the ipw2x00-specific IEEE 802.11 layer */
+	struct libipw_device *		libipw;
 };
 
 /**************************** PROTOTYPES ****************************/

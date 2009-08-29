@@ -2031,12 +2031,6 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 	}
 
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		err = ar9170_set_beacon_timers(ar);
-		if (err)
-			goto out;
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 
 		/* adjust slot time for 5 GHz */
@@ -2148,11 +2142,17 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 	}
 
-	if (changed & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED)) {
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
+		ar->enable_beacon = bss_conf->enable_beacon;
+
+	if (changed & BSS_CHANGED_BEACON) {
 		err = ar9170_update_beacon(ar);
 		if (err)
 			goto out;
+	}
 
+	if (changed & (BSS_CHANGED_BEACON_ENABLED | BSS_CHANGED_BEACON |
+		       BSS_CHANGED_BEACON_INT)) {
 		err = ar9170_set_beacon_timers(ar);
 		if (err)
 			goto out;
@@ -2163,12 +2163,6 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 		/* enable assoc LED. */
 		err = ar9170_set_leds_state(ar, bss_conf->assoc ? 2 : 0);
 #endif /* CONFIG_AR9170_LEDS */
-	}
-
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		err = ar9170_set_beacon_timers(ar);
-		if (err)
-			goto out;
 	}
 
 	if (changed & BSS_CHANGED_HT) {

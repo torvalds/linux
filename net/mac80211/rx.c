@@ -2440,24 +2440,20 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
  * This is the receive path handler. It is called by a low level driver when an
  * 802.11 MPDU is received from the hardware.
  */
-void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 
-	if (status->band < 0 ||
-	    status->band >= IEEE80211_NUM_BANDS) {
-		WARN_ON(1);
-		return;
-	}
+	if (WARN_ON(status->band < 0 ||
+		    status->band >= IEEE80211_NUM_BANDS))
+		goto drop;
 
 	sband = local->hw.wiphy->bands[status->band];
-	if (!sband) {
-		WARN_ON(1);
-		return;
-	}
+	if (WARN_ON(!sband))
+		goto drop;
 
 	/*
 	 * If we're suspending, it is possible although not too likely
@@ -2466,16 +2462,21 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * that might, for example, cause stations to be added or other
 	 * driver callbacks be invoked.
 	 */
-	if (unlikely(local->quiescing || local->suspended)) {
-		kfree_skb(skb);
-		return;
-	}
+	if (unlikely(local->quiescing || local->suspended))
+		goto drop;
+
+	/*
+	 * The same happens when we're not even started,
+	 * but that's worth a warning.
+	 */
+	if (WARN_ON(!local->started))
+		goto drop;
 
 	if (status->flag & RX_FLAG_HT) {
 		/* rate_idx is MCS index */
 		if (WARN_ON(status->rate_idx < 0 ||
 			    status->rate_idx >= 76))
-			return;
+			goto drop;
 		/* HT rates are not in the table - use the highest legacy rate
 		 * for now since other parts of mac80211 may not yet be fully
 		 * MCS aware. */
@@ -2483,7 +2484,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	} else {
 		if (WARN_ON(status->rate_idx < 0 ||
 			    status->rate_idx >= sband->n_bitrates))
-			return;
+			goto drop;
 		rate = &sband->bitrates[status->rate_idx];
 	}
 
@@ -2522,8 +2523,12 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		__ieee80211_rx_handle_packet(hw, skb, rate);
 
 	rcu_read_unlock();
+
+	return;
+ drop:
+	kfree_skb(skb);
 }
-EXPORT_SYMBOL(__ieee80211_rx);
+EXPORT_SYMBOL(ieee80211_rx);
 
 /* This is a version of the rx handler that can be called from hard irq
  * context. Post the skb on the queue and schedule the tasklet */

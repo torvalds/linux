@@ -182,8 +182,8 @@ static void lpphy_adjust_gain_table(struct b43_wldev *dev, u32 freq)
 	temp[1] = temp[0] + 0x1000;
 	temp[2] = temp[0] + 0x2000;
 
-	b43_lptab_write_bulk(dev, B43_LPTAB16(12, 0), 3, temp);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(13, 0), 3, temp);
+	b43_lptab_write_bulk(dev, B43_LPTAB16(12, 0), 3, temp);
 }
 
 static void lpphy_table_init(struct b43_wldev *dev)
@@ -223,8 +223,8 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_VERYLOWGAINDB, 0xFF00, 0x0006);
 	b43_phy_mask(dev, B43_LPPHY_RX_RADIO_CTL, 0xFFFE);
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFFE0, 0x0005);
-	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFC10, 0x0180);
-	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0x83FF, 0x3800);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFC1F, 0x0180);
+	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0x83FF, 0x3C00);
 	b43_phy_maskset(dev, B43_LPPHY_GAINDIRECTMISMATCH, 0xFFF0, 0x0005);
 	b43_phy_maskset(dev, B43_LPPHY_GAIN_MISMATCH_LIMIT, 0xFFC0, 0x001A);
 	b43_phy_maskset(dev, B43_LPPHY_CRS_ED_THRESH, 0xFF00, 0x00B3);
@@ -234,19 +234,15 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	if ((bus->sprom.boardflags_lo & B43_BFL_FEM) &&
 	   ((b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
 	   (bus->sprom.boardflags_hi & B43_BFH_PAREF))) {
-		/* TODO:
-		 * Set the LDO voltage to 0x0028 - FIXME: What is this?
-		 * Call sb_pmu_set_ldo_voltage with 4 and the LDO voltage
-		 * 	as arguments
-		 * Call sb_pmu_paref_ldo_enable with argument TRUE
-		 */
+		ssb_pmu_set_ldo_voltage(&bus->chipco, LDO_PAREF, 0x28);
+		ssb_pmu_set_ldo_paref(&bus->chipco, true);
 		if (dev->phy.rev == 0) {
 			b43_phy_maskset(dev, B43_LPPHY_LP_RF_SIGNAL_LUT,
 					0xFFCF, 0x0010);
 		}
 		b43_lptab_write(dev, B43_LPTAB16(11, 7), 60);
 	} else {
-		//TODO: Call ssb_pmu_paref_ldo_enable with argument FALSE
+		ssb_pmu_set_ldo_paref(&bus->chipco, false);
 		b43_phy_maskset(dev, B43_LPPHY_LP_RF_SIGNAL_LUT,
 				0xFFCF, 0x0020);
 		b43_lptab_write(dev, B43_LPTAB16(11, 7), 100);
@@ -340,11 +336,11 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	if (dev->phy.rev == 1) {
 		tmp = b43_phy_read(dev, B43_LPPHY_CLIPCTRTHRESH);
 		tmp2 = (tmp & 0x03E0) >> 5;
-		tmp2 |= tmp << 5;
+		tmp2 |= tmp2 << 5;
 		b43_phy_write(dev, B43_LPPHY_4C3, tmp2);
-		tmp = b43_phy_read(dev, B43_LPPHY_OFDMSYNCTHRESH0);
+		tmp = b43_phy_read(dev, B43_LPPHY_GAINDIRECTMISMATCH);
 		tmp2 = (tmp & 0x1F00) >> 8;
-		tmp2 |= tmp << 5;
+		tmp2 |= tmp2 << 5;
 		b43_phy_write(dev, B43_LPPHY_4C4, tmp2);
 		tmp = b43_phy_read(dev, B43_LPPHY_VERYLOWGAINDB);
 		tmp2 = tmp & 0x00FF;
@@ -705,7 +701,7 @@ static void lpphy_set_rc_cap(struct b43_wldev *dev)
 	u8 rc_cap = (lpphy->rc_cap & 0x1F) >> 1;
 
 	if (dev->phy.rev == 1) //FIXME check channel 14!
-		rc_cap = max_t(u8, rc_cap + 5, 15);
+		rc_cap = min_t(u8, rc_cap + 5, 15);
 
 	b43_radio_write(dev, B2062_N_RXBB_CALIB2,
 			max_t(u8, lpphy->rc_cap - 4, 0x80));
@@ -761,7 +757,7 @@ static void lpphy_disable_crs(struct b43_wldev *dev, bool user)
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x3);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xFFFB);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x4);
-	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFF7);
+	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xFFF7);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x8);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0x10);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x10);
@@ -956,7 +952,7 @@ static void lpphy_run_ddfs(struct b43_wldev *dev, int i_on, int q_on,
 	b43_phy_maskset(dev, B43_LPPHY_AFE_DDFS, 0xFF9F, scale_idx << 5);
 	b43_phy_mask(dev, B43_LPPHY_AFE_DDFS, 0xFFFB);
 	b43_phy_set(dev, B43_LPPHY_AFE_DDFS, 0x2);
-	b43_phy_set(dev, B43_LPPHY_AFE_DDFS, 0x20);
+	b43_phy_set(dev, B43_LPPHY_LP_PHY_CTL, 0x20);
 }
 
 static bool lpphy_rx_iq_est(struct b43_wldev *dev, u16 samples, u8 time,
@@ -968,7 +964,7 @@ static bool lpphy_rx_iq_est(struct b43_wldev *dev, u16 samples, u8 time,
 	b43_phy_write(dev, B43_LPPHY_IQ_NUM_SMPLS_ADDR, samples);
 	b43_phy_maskset(dev, B43_LPPHY_IQ_ENABLE_WAIT_TIME_ADDR, 0xFF00, time);
 	b43_phy_mask(dev, B43_LPPHY_IQ_ENABLE_WAIT_TIME_ADDR, 0xFEFF);
-	b43_phy_set(dev, B43_LPPHY_IQ_ENABLE_WAIT_TIME_ADDR, 0xFDFF);
+	b43_phy_set(dev, B43_LPPHY_IQ_ENABLE_WAIT_TIME_ADDR, 0x200);
 
 	for (i = 0; i < 500; i++) {
 		if (!(b43_phy_read(dev,
@@ -1008,6 +1004,7 @@ static int lpphy_loopback(struct b43_wldev *dev)
 
 	b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xFFFC, 0x3);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x3);
+	b43_phy_set(dev, B43_LPPHY_AFE_CTL_OVR, 1);
 	b43_phy_mask(dev, B43_LPPHY_AFE_CTL_OVRVAL, 0xFFFE);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x800);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0x800);
@@ -1031,9 +1028,10 @@ static int lpphy_loopback(struct b43_wldev *dev)
 	return index;
 }
 
+/* Fixed-point division algorithm using only integer math. */
 static u32 lpphy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
 {
-	u32 quotient, remainder, rbit, roundup, tmp;
+	u32 quotient, remainder;
 
 	if (divisor == 0)
 		return 0;
@@ -1041,20 +1039,16 @@ static u32 lpphy_qdiv_roundup(u32 dividend, u32 divisor, u8 precision)
 	quotient = dividend / divisor;
 	remainder = dividend % divisor;
 
-	rbit = divisor & 0x1;
-	roundup = (divisor >> 1) + rbit;
-
-	while (precision != 0) {
-		tmp = remainder - roundup;
+	while (precision > 0) {
 		quotient <<= 1;
-		if (remainder >= roundup)
-			remainder = (tmp << 1) + rbit;
-		else
-			remainder <<= 1;
+		if (remainder << 1 >= divisor) {
+			quotient++;
+			remainder = (remainder << 1) - divisor;
+		}
 		precision--;
 	}
 
-	if (remainder >= roundup)
+	if (remainder << 1 >= divisor)
 		quotient++;
 
 	return quotient;
@@ -1137,9 +1131,9 @@ static void lpphy_set_tx_power_control(struct b43_wldev *dev,
 	}
 	if (dev->phy.rev >= 2) {
 		if (mode == B43_LPPHY_TXPCTL_HW)
-			b43_phy_maskset(dev, B43_PHY_OFDM(0xD0), 0xFD, 0x2);
+			b43_phy_set(dev, B43_PHY_OFDM(0xD0), 0x2);
 		else
-			b43_phy_maskset(dev, B43_PHY_OFDM(0xD0), 0xFD, 0);
+			b43_phy_mask(dev, B43_PHY_OFDM(0xD0), 0xFFFD);
 	}
 	lpphy_write_tx_pctl_mode_to_hardware(dev);
 }
@@ -1171,7 +1165,7 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	err = b43_lpphy_op_switch_channel(dev, 7);
 	if (err) {
 		b43dbg(dev->wl,
-		       "RC calib: Failed to switch to channel 7, error = %d",
+		       "RC calib: Failed to switch to channel 7, error = %d\n",
 		       err);
 	}
 	old_txg_ovr = !!(b43_phy_read(dev, B43_LPPHY_AFE_CTL_OVR) & 0x40);
@@ -1213,7 +1207,7 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 			mean_sq_pwr = ideal_pwr - normal_pwr;
 			mean_sq_pwr *= mean_sq_pwr;
 			inner_sum += mean_sq_pwr;
-			if ((i = 128) || (inner_sum < mean_sq_pwr_min)) {
+			if ((i == 128) || (inner_sum < mean_sq_pwr_min)) {
 				lpphy->rc_cap = i;
 				mean_sq_pwr_min = inner_sum;
 			}
@@ -1504,6 +1498,14 @@ static void b43_lpphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
 	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_PHY_DATA, value);
+}
+
+static void b43_lpphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
+				 u16 set)
+{
+	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16(dev, B43_MMIO_PHY_DATA,
+		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
 }
 
 static u16 b43_lpphy_op_radio_read(struct b43_wldev *dev, u16 reg)
@@ -1922,8 +1924,8 @@ static void lpphy_b2062_reset_pll_bias(struct b43_wldev *dev)
 
 static void lpphy_b2062_vco_calib(struct b43_wldev *dev)
 {
-	b43_phy_write(dev, B2062_S_RFPLL_CTL21, 0x42);
-	b43_phy_write(dev, B2062_S_RFPLL_CTL21, 0x62);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL21, 0x42);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL21, 0x62);
 	udelay(200);
 }
 
@@ -1982,7 +1984,7 @@ static int lpphy_b2062_tune(struct b43_wldev *dev,
 	tmp6 = tmp5 / tmp4;
 	tmp7 = tmp5 % tmp4;
 	b43_radio_write(dev, B2062_S_RFPLL_CTL29, tmp6 + ((2 * tmp7) / tmp4));
-	tmp8 = b43_phy_read(dev, B2062_S_RFPLL_CTL19);
+	tmp8 = b43_radio_read(dev, B2062_S_RFPLL_CTL19);
 	tmp9 = ((2 * tmp3 * (tmp8 + 1)) + (3 * tmp1)) / (6 * tmp1);
 	b43_radio_write(dev, B2062_S_RFPLL_CTL23, (tmp9 >> 8) + 16);
 	b43_radio_write(dev, B2062_S_RFPLL_CTL24, tmp9 & 0xFF);
@@ -2021,17 +2023,17 @@ static void lpphy_b2063_vco_calib(struct b43_wldev *dev)
 {
 	u16 tmp;
 
-	b43_phy_mask(dev, B2063_PLL_SP1, ~0x40);
-	tmp = b43_phy_read(dev, B2063_PLL_JTAG_CALNRST) & 0xF8;
-	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp);
+	b43_radio_mask(dev, B2063_PLL_SP1, ~0x40);
+	tmp = b43_radio_read(dev, B2063_PLL_JTAG_CALNRST) & 0xF8;
+	b43_radio_write(dev, B2063_PLL_JTAG_CALNRST, tmp);
 	udelay(1);
-	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x4);
+	b43_radio_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x4);
 	udelay(1);
-	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x6);
+	b43_radio_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x6);
 	udelay(1);
-	b43_phy_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x7);
+	b43_radio_write(dev, B2063_PLL_JTAG_CALNRST, tmp | 0x7);
 	udelay(300);
-	b43_phy_set(dev, B2063_PLL_SP1, 0x40);
+	b43_radio_set(dev, B2063_PLL_SP1, 0x40);
 }
 
 static int lpphy_b2063_tune(struct b43_wldev *dev,
@@ -2126,31 +2128,31 @@ static int lpphy_b2063_tune(struct b43_wldev *dev,
 		scale = 0;
 		tmp5 = ((tmp4 + (tmp3 >> 1)) / tmp3) - 8;
 	}
-	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP2, 0xFFC0, tmp5);
-	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP2, 0xFFBF, scale << 6);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_CP2, 0xFFC0, tmp5);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_CP2, 0xFFBF, scale << 6);
 
 	tmp6 = lpphy_qdiv_roundup(100 * val1, val3, 16);
 	tmp6 *= (tmp5 * 8) * (scale + 1);
 	if (tmp6 > 150)
 		tmp6 = 0;
 
-	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP3, 0xFFE0, tmp6);
-	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_CP3, 0xFFDF, scale << 5);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_CP3, 0xFFE0, tmp6);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_CP3, 0xFFDF, scale << 5);
 
-	b43_phy_maskset(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0xFFFB, 0x4);
+	b43_radio_maskset(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0xFFFB, 0x4);
 	if (crystal_freq > 26000000)
-		b43_phy_set(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0x2);
+		b43_radio_set(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0x2);
 	else
-		b43_phy_mask(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0xFD);
+		b43_radio_mask(dev, B2063_PLL_JTAG_PLL_XTAL_12, 0xFD);
 
 	if (val1 == 45)
-		b43_phy_set(dev, B2063_PLL_JTAG_PLL_VCO1, 0x2);
+		b43_radio_set(dev, B2063_PLL_JTAG_PLL_VCO1, 0x2);
 	else
-		b43_phy_mask(dev, B2063_PLL_JTAG_PLL_VCO1, 0xFD);
+		b43_radio_mask(dev, B2063_PLL_JTAG_PLL_VCO1, 0xFD);
 
-	b43_phy_set(dev, B2063_PLL_SP2, 0x3);
+	b43_radio_set(dev, B2063_PLL_SP2, 0x3);
 	udelay(1);
-	b43_phy_mask(dev, B2063_PLL_SP2, 0xFFFC);
+	b43_radio_mask(dev, B2063_PLL_SP2, 0xFFFC);
 	lpphy_b2063_vco_calib(dev);
 	b43_radio_write(dev, B2063_COMM15, old_comm15);
 
@@ -2160,9 +2162,8 @@ static int lpphy_b2063_tune(struct b43_wldev *dev,
 static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
 				       unsigned int new_channel)
 {
+	struct b43_phy_lp *lpphy = dev->phy.lp;
 	int err;
-
-	b43_write16(dev, B43_MMIO_CHANNEL, new_channel);
 
 	if (dev->phy.radio_ver == 0x2063) {
 		err = lpphy_b2063_tune(dev, new_channel);
@@ -2176,6 +2177,9 @@ static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
 		lpphy_adjust_gain_table(dev, channel2freq_lp(new_channel));
 	}
 
+	lpphy->channel = new_channel;
+	b43_write16(dev, B43_MMIO_CHANNEL, new_channel);
+
 	return 0;
 }
 
@@ -2187,10 +2191,9 @@ static int b43_lpphy_op_init(struct b43_wldev *dev)
 	lpphy_baseband_init(dev);
 	lpphy_radio_init(dev);
 	lpphy_calibrate_rc(dev);
-	err = b43_lpphy_op_switch_channel(dev,
-				b43_lpphy_op_get_default_chan(dev));
+	err = b43_lpphy_op_switch_channel(dev, 7);
 	if (err) {
-		b43dbg(dev->wl, "Switch to init channel failed, error = %d.\n",
+		b43dbg(dev->wl, "Switch to channel 7 failed, error = %d.\n",
 		       err);
 	}
 	lpphy_tx_pctl_init(dev);
@@ -2202,7 +2205,14 @@ static int b43_lpphy_op_init(struct b43_wldev *dev)
 
 static void b43_lpphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)
 {
-	//TODO
+	if (dev->phy.rev >= 2)
+		return; // rev2+ doesn't support antenna diversity
+
+	if (B43_WARN_ON(antenna > B43_ANTENNA_AUTO1))
+		return;
+
+	b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFFFD, antenna & 0x2);
+	b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xFFFE, antenna & 0x1);
 }
 
 static void b43_lpphy_op_adjust_txpower(struct b43_wldev *dev)
@@ -2224,6 +2234,7 @@ const struct b43_phy_operations b43_phyops_lp = {
 	.init			= b43_lpphy_op_init,
 	.phy_read		= b43_lpphy_op_read,
 	.phy_write		= b43_lpphy_op_write,
+	.phy_maskset		= b43_lpphy_op_maskset,
 	.radio_read		= b43_lpphy_op_radio_read,
 	.radio_write		= b43_lpphy_op_radio_write,
 	.software_rfkill	= b43_lpphy_op_software_rfkill,

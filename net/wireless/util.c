@@ -574,3 +574,111 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	kfree(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 }
+
+static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
+{
+	struct cfg80211_event *ev;
+	unsigned long flags;
+	const u8 *bssid = NULL;
+
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	while (!list_empty(&wdev->event_list)) {
+		ev = list_first_entry(&wdev->event_list,
+				      struct cfg80211_event, list);
+		list_del(&ev->list);
+		spin_unlock_irqrestore(&wdev->event_lock, flags);
+
+		wdev_lock(wdev);
+		switch (ev->type) {
+		case EVENT_CONNECT_RESULT:
+			if (!is_zero_ether_addr(ev->cr.bssid))
+				bssid = ev->cr.bssid;
+			__cfg80211_connect_result(
+				wdev->netdev, bssid,
+				ev->cr.req_ie, ev->cr.req_ie_len,
+				ev->cr.resp_ie, ev->cr.resp_ie_len,
+				ev->cr.status,
+				ev->cr.status == WLAN_STATUS_SUCCESS,
+				NULL);
+			break;
+		case EVENT_ROAMED:
+			__cfg80211_roamed(wdev, ev->rm.bssid,
+					  ev->rm.req_ie, ev->rm.req_ie_len,
+					  ev->rm.resp_ie, ev->rm.resp_ie_len);
+			break;
+		case EVENT_DISCONNECTED:
+			__cfg80211_disconnected(wdev->netdev,
+						ev->dc.ie, ev->dc.ie_len,
+						ev->dc.reason, true);
+			break;
+		case EVENT_IBSS_JOINED:
+			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid);
+			break;
+		}
+		wdev_unlock(wdev);
+
+		kfree(ev);
+
+		spin_lock_irqsave(&wdev->event_lock, flags);
+	}
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+}
+
+void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev)
+{
+	struct wireless_dev *wdev;
+
+	ASSERT_RTNL();
+	ASSERT_RDEV_LOCK(rdev);
+
+	mutex_lock(&rdev->devlist_mtx);
+
+	list_for_each_entry(wdev, &rdev->netdev_list, list)
+		cfg80211_process_wdev_events(wdev);
+
+	mutex_unlock(&rdev->devlist_mtx);
+}
+
+int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, enum nl80211_iftype ntype,
+			  u32 *flags, struct vif_params *params)
+{
+	int err;
+	enum nl80211_iftype otype = dev->ieee80211_ptr->iftype;
+
+	ASSERT_RDEV_LOCK(rdev);
+
+	/* don't support changing VLANs, you just re-create them */
+	if (otype == NL80211_IFTYPE_AP_VLAN)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->change_virtual_intf ||
+	    !(rdev->wiphy.interface_modes & (1 << ntype)))
+		return -EOPNOTSUPP;
+
+	if (ntype != otype) {
+		switch (otype) {
+		case NL80211_IFTYPE_ADHOC:
+			cfg80211_leave_ibss(rdev, dev, false);
+			break;
+		case NL80211_IFTYPE_STATION:
+			cfg80211_disconnect(rdev, dev,
+					    WLAN_REASON_DEAUTH_LEAVING, true);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			/* mesh should be handled? */
+			break;
+		default:
+			break;
+		}
+
+		cfg80211_process_rdev_events(rdev);
+	}
+
+	err = rdev->ops->change_virtual_intf(&rdev->wiphy, dev,
+					     ntype, flags, params);
+
+	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
+
+	return err;
+}

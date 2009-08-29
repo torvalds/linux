@@ -12,7 +12,8 @@ ath9k-y +=	hw.o \
 		recv.o \
 		xmit.o \
 		virtual.o \
-		rc.o
+		rc.o \
+		btcoex.o
 
 ath9k-$(CONFIG_PCI) += pci.o
 ath9k-$(CONFIG_ATHEROS_AR71XX) += ahb.o

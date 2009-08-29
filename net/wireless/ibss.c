@@ -22,7 +22,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_ADHOC))
 		return;
 
-	if (WARN_ON(!wdev->ssid_len))
+	if (!wdev->ssid_len)
 		return;
 
 	bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
@@ -57,6 +57,8 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
+
+	CFG80211_DEV_WARN_ON(!wdev->ssid_len);
 
 	ev = kzalloc(sizeof(*ev), gfp);
 	if (!ev)

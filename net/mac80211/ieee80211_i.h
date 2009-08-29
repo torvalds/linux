@@ -367,6 +367,10 @@ struct ieee80211_if_mesh {
 	u8 mesh_pm_id[4];
 	/* Congestion Control Mode Identifier */
 	u8 mesh_cc_id[4];
+	/* Synchronization Protocol Identifier */
+	u8 mesh_sp_id[4];
+	/* Authentication Protocol Identifier */
+	u8 mesh_auth_id[4];
 	/* Local mesh Destination Sequence Number */
 	u32 dsn;
 	/* Last used PREQ ID */
@@ -662,6 +666,9 @@ struct ieee80211_local {
 	 * ease timer cancelling etc.
 	 */
 	bool quiescing;
+
+	/* device is started */
+	bool started;
 
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
@@ -1082,6 +1089,7 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 
 /* Suspend/resume and hw reconfiguration */
 int ieee80211_reconfig(struct ieee80211_local *local);
+void ieee80211_stop_device(struct ieee80211_local *local);
 
 #ifdef CONFIG_PM
 int __ieee80211_suspend(struct ieee80211_hw *hw);

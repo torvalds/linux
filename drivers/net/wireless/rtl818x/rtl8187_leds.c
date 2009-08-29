@@ -42,7 +42,7 @@ static void led_turn_on(struct work_struct *work)
 	mutex_lock(&priv->conf_mutex);
 	switch (led->ledpin) {
 	case LED_PIN_GPIO0:
-		rtl818x_iowrite8(priv, &priv->map->GPIO, 0x01);
+		rtl818x_iowrite8(priv, &priv->map->GPIO0, 0x01);
 		rtl818x_iowrite8(priv, &priv->map->GP_ENABLE, 0x00);
 		break;
 	case LED_PIN_LED0:
@@ -80,7 +80,7 @@ static void led_turn_off(struct work_struct *work)
 	mutex_lock(&priv->conf_mutex);
 	switch (led->ledpin) {
 	case LED_PIN_GPIO0:
-		rtl818x_iowrite8(priv, &priv->map->GPIO, 0x01);
+		rtl818x_iowrite8(priv, &priv->map->GPIO0, 0x01);
 		rtl818x_iowrite8(priv, &priv->map->GP_ENABLE, 0x01);
 		break;
 	case LED_PIN_LED0:

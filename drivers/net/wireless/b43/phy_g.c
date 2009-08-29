@@ -2664,7 +2664,7 @@ static void b43_gphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)
 
 	tmp = b43_phy_read(dev, B43_PHY_BBANDCFG);
 	tmp &= ~B43_PHY_BBANDCFG_RXANT;
-	tmp |= (autodiv ? B43_ANTENNA_AUTO0 : antenna)
+	tmp |= (autodiv ? B43_ANTENNA_AUTO1 : antenna)
 			<< B43_PHY_BBANDCFG_RXANT_SHIFT;
 	b43_phy_write(dev, B43_PHY_BBANDCFG, tmp);
 

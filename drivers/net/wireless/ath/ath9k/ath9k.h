@@ -26,6 +26,7 @@
 #include "rc.h"
 #include "debug.h"
 #include "../ath.h"
+#include "btcoex.h"
 
 struct ath_node;
 
@@ -521,6 +522,8 @@ struct ath_led {
 #define SC_OP_WAIT_FOR_PSPOLL_DATA BIT(17)
 #define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
 #define SC_OP_BEACON_SYNC       BIT(19)
+#define SC_OP_BTCOEX_ENABLED    BIT(20)
+#define SC_OP_BT_PRIORITY_DETECTED BIT(21)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
@@ -609,6 +612,7 @@ struct ath_softc {
 	struct ath_bus_ops *bus_ops;
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
+	struct ath_btcoex_info btcoex_info;
 };
 
 struct ath_wiphy {
@@ -705,4 +709,5 @@ bool ath9k_all_wiphys_idle(struct ath_softc *sc);
 void ath9k_iowrite32(struct ath_hw *ah, u32 reg_offset, u32 val);
 unsigned int ath9k_ioread32(struct ath_hw *ah, u32 reg_offset);
 
+int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 #endif /* ATH9K_H */

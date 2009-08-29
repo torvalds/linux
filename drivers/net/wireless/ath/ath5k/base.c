@@ -84,24 +84,24 @@ MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
 /* Known PCI ids */
 static const struct pci_device_id ath5k_pci_id_table[] = {
-	{ PCI_VDEVICE(ATHEROS, 0x0207), .driver_data = AR5K_AR5210 }, /* 5210 early */
-	{ PCI_VDEVICE(ATHEROS, 0x0007), .driver_data = AR5K_AR5210 }, /* 5210 */
-	{ PCI_VDEVICE(ATHEROS, 0x0011), .driver_data = AR5K_AR5211 }, /* 5311 - this is on AHB bus !*/
-	{ PCI_VDEVICE(ATHEROS, 0x0012), .driver_data = AR5K_AR5211 }, /* 5211 */
-	{ PCI_VDEVICE(ATHEROS, 0x0013), .driver_data = AR5K_AR5212 }, /* 5212 */
-	{ PCI_VDEVICE(3COM_2,  0x0013), .driver_data = AR5K_AR5212 }, /* 3com 5212 */
-	{ PCI_VDEVICE(3COM,    0x0013), .driver_data = AR5K_AR5212 }, /* 3com 3CRDAG675 5212 */
-	{ PCI_VDEVICE(ATHEROS, 0x1014), .driver_data = AR5K_AR5212 }, /* IBM minipci 5212 */
-	{ PCI_VDEVICE(ATHEROS, 0x0014), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0015), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0016), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0017), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0018), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0019), .driver_data = AR5K_AR5212 }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x001a), .driver_data = AR5K_AR5212 }, /* 2413 Griffin-lite */
-	{ PCI_VDEVICE(ATHEROS, 0x001b), .driver_data = AR5K_AR5212 }, /* 5413 Eagle */
-	{ PCI_VDEVICE(ATHEROS, 0x001c), .driver_data = AR5K_AR5212 }, /* PCI-E cards */
-	{ PCI_VDEVICE(ATHEROS, 0x001d), .driver_data = AR5K_AR5212 }, /* 2417 Nala */
+	{ PCI_VDEVICE(ATHEROS, 0x0207) }, /* 5210 early */
+	{ PCI_VDEVICE(ATHEROS, 0x0007) }, /* 5210 */
+	{ PCI_VDEVICE(ATHEROS, 0x0011) }, /* 5311 - this is on AHB bus !*/
+	{ PCI_VDEVICE(ATHEROS, 0x0012) }, /* 5211 */
+	{ PCI_VDEVICE(ATHEROS, 0x0013) }, /* 5212 */
+	{ PCI_VDEVICE(3COM_2,  0x0013) }, /* 3com 5212 */
+	{ PCI_VDEVICE(3COM,    0x0013) }, /* 3com 3CRDAG675 5212 */
+	{ PCI_VDEVICE(ATHEROS, 0x1014) }, /* IBM minipci 5212 */
+	{ PCI_VDEVICE(ATHEROS, 0x0014) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0015) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0016) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0017) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0018) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0019) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x001a) }, /* 2413 Griffin-lite */
+	{ PCI_VDEVICE(ATHEROS, 0x001b) }, /* 5413 Eagle */
+	{ PCI_VDEVICE(ATHEROS, 0x001c) }, /* PCI-E cards */
+	{ PCI_VDEVICE(ATHEROS, 0x001d) }, /* 2417 Nala */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
@@ -566,7 +566,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Initialize device */
-	sc->ah = ath5k_hw_attach(sc, id->driver_data);
+	sc->ah = ath5k_hw_attach(sc);
 	if (IS_ERR(sc->ah)) {
 		ret = PTR_ERR(sc->ah);
 		goto err_irq;
@@ -1741,7 +1741,7 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 static void
 ath5k_tasklet_rx(unsigned long data)
 {
-	struct ieee80211_rx_status rxs = {};
+	struct ieee80211_rx_status *rxs;
 	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb, *next_skb;
 	dma_addr_t next_skb_addr;
@@ -1751,6 +1751,7 @@ ath5k_tasklet_rx(unsigned long data)
 	int ret;
 	int hdrlen;
 	int padsize;
+	int rx_flag;
 
 	spin_lock(&sc->rxbuflock);
 	if (list_empty(&sc->rxbuf)) {
@@ -1758,7 +1759,7 @@ ath5k_tasklet_rx(unsigned long data)
 		goto unlock;
 	}
 	do {
-		rxs.flag = 0;
+		rx_flag = 0;
 
 		bf = list_first_entry(&sc->rxbuf, struct ath5k_buf, list);
 		BUG_ON(bf->skb == NULL);
@@ -1802,7 +1803,7 @@ ath5k_tasklet_rx(unsigned long data)
 					goto accept;
 			}
 			if (rs.rs_status & AR5K_RXERR_MIC) {
-				rxs.flag |= RX_FLAG_MMIC_ERROR;
+				rx_flag |= RX_FLAG_MMIC_ERROR;
 				goto accept;
 			}
 
@@ -1840,6 +1841,7 @@ accept:
 			memmove(skb->data + padsize, skb->data, hdrlen);
 			skb_pull(skb, padsize);
 		}
+		rxs = IEEE80211_SKB_RXCB(skb);
 
 		/*
 		 * always extend the mac timestamp, since this information is
@@ -1861,41 +1863,40 @@ accept:
 		 * impossible to comply to that. This affects IBSS merge only
 		 * right now, so it's not too bad...
 		 */
-		rxs.mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
-		rxs.flag |= RX_FLAG_TSFT;
+		rxs->mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
+		rxs->flag = rx_flag | RX_FLAG_TSFT;
 
-		rxs.freq = sc->curchan->center_freq;
-		rxs.band = sc->curband->band;
+		rxs->freq = sc->curchan->center_freq;
+		rxs->band = sc->curband->band;
 
-		rxs.noise = sc->ah->ah_noise_floor;
-		rxs.signal = rxs.noise + rs.rs_rssi;
+		rxs->noise = sc->ah->ah_noise_floor;
+		rxs->signal = rxs->noise + rs.rs_rssi;
 
 		/* An rssi of 35 indicates you should be able use
 		 * 54 Mbps reliably. A more elaborate scheme can be used
 		 * here but it requires a map of SNR/throughput for each
 		 * possible mode used */
-		rxs.qual = rs.rs_rssi * 100 / 35;
+		rxs->qual = rs.rs_rssi * 100 / 35;
 
 		/* rssi can be more than 35 though, anything above that
 		 * should be considered at 100% */
-		if (rxs.qual > 100)
-			rxs.qual = 100;
+		if (rxs->qual > 100)
+			rxs->qual = 100;
 
-		rxs.antenna = rs.rs_antenna;
-		rxs.rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
-		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
+		rxs->antenna = rs.rs_antenna;
+		rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
+		rxs->flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
 
-		if (rxs.rate_idx >= 0 && rs.rs_rate ==
-		    sc->curband->bitrates[rxs.rate_idx].hw_value_short)
-			rxs.flag |= RX_FLAG_SHORTPRE;
+		if (rxs->rate_idx >= 0 && rs.rs_rate ==
+		    sc->curband->bitrates[rxs->rate_idx].hw_value_short)
+			rxs->flag |= RX_FLAG_SHORTPRE;
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
 		/* check beacons in IBSS mode */
 		if (sc->opmode == NL80211_IFTYPE_ADHOC)
-			ath5k_check_ibss_tsf(sc, skb, &rxs);
+			ath5k_check_ibss_tsf(sc, skb, rxs);
 
-		memcpy(IEEE80211_SKB_RXCB(skb), &rxs, sizeof(rxs));
 		ieee80211_rx(sc->hw, skb);
 
 		bf->skb = next_skb;
@@ -2918,6 +2919,8 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 	struct ath5k_hw *ah = sc->ah;
 	u32 mfilt[2], rfilt;
 
+	mutex_lock(&sc->lock);
+
 	mfilt[0] = multicast;
 	mfilt[1] = multicast >> 32;
 
@@ -2968,22 +2971,25 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	/* XXX move these to mac80211, and add a beacon IFF flag to mac80211 */
 
-	if (sc->opmode == NL80211_IFTYPE_MONITOR)
-		rfilt |= AR5K_RX_FILTER_CONTROL | AR5K_RX_FILTER_BEACON |
-			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;
-	if (sc->opmode != NL80211_IFTYPE_STATION)
-		rfilt |= AR5K_RX_FILTER_PROBEREQ;
-	if (sc->opmode != NL80211_IFTYPE_AP &&
-		sc->opmode != NL80211_IFTYPE_MESH_POINT &&
-		test_bit(ATH_STAT_PROMISC, sc->status))
-		rfilt |= AR5K_RX_FILTER_PROM;
-	if ((sc->opmode == NL80211_IFTYPE_STATION && sc->assoc) ||
-		sc->opmode == NL80211_IFTYPE_ADHOC ||
-		sc->opmode == NL80211_IFTYPE_AP)
-		rfilt |= AR5K_RX_FILTER_BEACON;
-	if (sc->opmode == NL80211_IFTYPE_MESH_POINT)
-		rfilt |= AR5K_RX_FILTER_CONTROL | AR5K_RX_FILTER_BEACON |
-			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;
+	switch (sc->opmode) {
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_MONITOR:
+		rfilt |= AR5K_RX_FILTER_CONTROL |
+			 AR5K_RX_FILTER_BEACON |
+			 AR5K_RX_FILTER_PROBEREQ |
+			 AR5K_RX_FILTER_PROM;
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		rfilt |= AR5K_RX_FILTER_PROBEREQ |
+			 AR5K_RX_FILTER_BEACON;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (sc->assoc)
+			rfilt |= AR5K_RX_FILTER_BEACON;
+	default:
+		break;
+	}
 
 	/* Set filters */
 	ath5k_hw_set_rx_filter(ah, rfilt);
@@ -2993,6 +2999,8 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 	/* Set the cached hw filter flags, this will alter actually
 	 * be set in HW */
 	sc->filter_flags = rfilt;
+
+	mutex_unlock(&sc->lock);
 }
 
 static int
@@ -3014,6 +3022,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case ALG_TKIP:
 		break;
 	case ALG_CCMP:
+		if (sc->ah->ah_aes_support)
+			break;
+
 		return -EOPNOTSUPP;
 	default:
 		WARN_ON(1);

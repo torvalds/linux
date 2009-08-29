@@ -118,6 +118,30 @@ struct iwl_eeprom_channel {
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
 } __attribute__ ((packed));
 
+/**
+ * iwl_eeprom_enhanced_txpwr structure
+ *    This structure presents the enhanced regulatory tx power limit layout
+ *    in eeprom image
+ *    Enhanced regulatory tx power portion of eeprom image can be broken down
+ *    into individual structures; each one is 8 bytes in size and contain the
+ *    following information
+ * @chain_a_max_pwr: chain a max power in 1/2 dBm
+ * @chain_b_max_pwr: chain b max power in 1/2 dBm
+ * @chain_c_max_pwr: chain c max power in 1/2 dBm
+ * @mimo2_max_pwr: mimo2 max power in 1/2 dBm
+ * @mimo3_max_pwr: mimo3 max power in 1/2 dBm
+ *
+ */
+struct iwl_eeprom_enhanced_txpwr {
+	u16 reserved;
+	s8 chain_a_max;
+	s8 chain_b_max;
+	s8 chain_c_max;
+	s8 reserved1;
+	s8 mimo2_max;
+	s8 mimo3_max;
+} __attribute__ ((packed));
+
 /* 3945 Specific */
 #define EEPROM_3945_EEPROM_VERSION	(0x2f)
 
@@ -174,6 +198,59 @@ struct iwl_eeprom_channel {
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
 #define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
+
+/* 6000 and up regulatory tx power - indirect access */
+/* max. elements per section */
+#define EEPROM_MAX_TXPOWER_SECTION_ELEMENTS	(8)
+#define EEPROM_TXPOWER_COMMON_HT40_INDEX	(2)
+
+/**
+ * Partition the enhanced tx power portion of eeprom image into
+ * 10 sections based on band, modulation, frequency and channel
+ *
+ * Section 1: all CCK channels
+ * Section 2: all 2.4 GHz OFDM (Legacy, HT and HT40 ) channels
+ * Section 3: all 5.2 GHz OFDM (Legacy, HT and HT40) channels
+ * Section 4: 2.4 GHz 20MHz channels: 1, 2, 10, 11. Both Legacy and HT
+ * Section 5: 2.4 GHz 40MHz channels: 1, 2, 6, 7, 9, (_above_)
+ * Section 6: 5.2 GHz 20MHz channels: 36, 64, 100, both Legacy and HT
+ * Section 7: 5.2 GHz 40MHz channels: 36, 60, 100 (_above_)
+ * Section 8: 2.4 GHz channel 13, Both Legacy and HT
+ * Section 9: 2.4 GHz channel 140, Both Legacy and HT
+ * Section 10: 2.4 GHz 40MHz channels: 132, 44 (_above_)
+ */
+/* 2.4 GHz band: CCK */
+#define EEPROM_LB_CCK_20_COMMON       ((0xAA)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 8 bytes */
+/* 2.4 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
+#define EEPROM_LB_OFDM_COMMON       ((0xB2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
+/* 5.2 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
+#define EEPROM_HB_OFDM_COMMON       ((0xCA)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
+/* 2.4GHz band channels:
+ *	1Legacy, 1HT, 2Legacy, 2HT, 10Legacy, 10HT, 11Legacy, 11HT */
+#define EEPROM_LB_OFDM_20_BAND       ((0xE2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 64 bytes */
+/* 2.4 GHz band HT40 channels: (1,+1) (2,+1) (6,+1) (7,+1) (9,+1) */
+#define EEPROM_LB_OFDM_HT40_BAND       ((0x122)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 40 bytes */
+/* 5.2GHz band channels: 36Legacy, 36HT, 64Legacy, 64HT, 100Legacy, 100HT */
+#define EEPROM_HB_OFDM_20_BAND       ((0x14A)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 48 bytes */
+/* 5.2 GHz band HT40 channels: (36,+1) (60,+1) (100,+1) */
+#define EEPROM_HB_OFDM_HT40_BAND       ((0x17A)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
+/* 2.4 GHz band, channnel 13: Legacy, HT */
+#define EEPROM_LB_OFDM_20_CHANNEL_13       ((0x192)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
+/* 5.2 GHz band, channnel 140: Legacy, HT */
+#define EEPROM_HB_OFDM_20_CHANNEL_140       ((0x1A2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
+/* 5.2 GHz band, HT40 channnels (132,+1) (44,+1) */
+#define EEPROM_HB_OFDM_HT40_BAND_1       ((0x1B2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
+
 
 /* 5050 Specific */
 #define EEPROM_5050_TX_POWER_VERSION    (4)
@@ -389,6 +466,7 @@ struct iwl_eeprom_ops {
 	void (*release_semaphore) (struct iwl_priv *priv);
 	u16 (*calib_version) (struct iwl_priv *priv);
 	const u8* (*query_addr) (const struct iwl_priv *priv, size_t offset);
+	void (*update_enhanced_txpower) (struct iwl_priv *priv);
 };
 
 
@@ -403,7 +481,7 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
 int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
 void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
-
+void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
 int iwl_init_channel_map(struct iwl_priv *priv);
 void iwl_free_channel_map(struct iwl_priv *priv);
 const struct iwl_channel_info *iwl_get_channel_info(

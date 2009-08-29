@@ -17,6 +17,23 @@ config NL80211_TESTMODE
 
 	  Say N.
 
+config CFG80211_DEVELOPER_WARNINGS
+	bool "enable developer warnings"
+	depends on CFG80211
+	default n
+	help
+	  This option enables some additional warnings that help
+	  cfg80211 developers and driver developers, but that can
+	  trigger due to races with userspace.
+
+	  For example, when a driver reports that it was disconnected
+	  from the AP, but the user disconnects manually at the same
+	  time, the warning might trigger spuriously due to races.
+
+	  Say Y only if you are developing cfg80211 or a driver based
+	  on it (or mac80211).
+
+
 config CFG80211_REG_DEBUG
 	bool "cfg80211 regulatory debugging"
 	depends on CFG80211

@@ -2555,6 +2555,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 #endif
 	}
 
+	if (ah->ah_sc->sc_flags & SC_OP_BTCOEX_ENABLED)
+		ath9k_hw_btcoex_enable(ah);
+
 	return 0;
 }
 
@@ -3212,6 +3215,23 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 	if (AR_SREV_9100(ah))
 		return true;
 
+	if (isr & AR_ISR_GENTMR) {
+		u32 s5_s;
+
+		s5_s = REG_READ(ah, AR_ISR_S5_S);
+		if (isr & AR_ISR_GENTMR) {
+			ah->intr_gen_timer_trigger =
+				MS(s5_s, AR_ISR_S5_GENTIMER_TRIG);
+
+			ah->intr_gen_timer_thresh =
+				MS(s5_s, AR_ISR_S5_GENTIMER_THRESH);
+
+			if (ah->intr_gen_timer_trigger)
+				*masked |= ATH9K_INT_GENTIMER;
+
+		}
+	}
+
 	if (sync_cause) {
 		fatal_int =
 			(sync_cause &
@@ -3486,6 +3506,7 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
+	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
 
 	u16 capField = 0, eeval;
 
@@ -3662,9 +3683,15 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
 
 	if (AR_SREV_9280_10_OR_LATER(ah) && btcoex_enable) {
-		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
-		ah->btactive_gpio = 6;
-		ah->wlanactive_gpio = 5;
+		btcoex_info->btactive_gpio = ATH_BTACTIVE_GPIO;
+		btcoex_info->wlanactive_gpio = ATH_WLANACTIVE_GPIO;
+
+		if (AR_SREV_9285(ah))
+			btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_3WIRE;
+		else
+			btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_2WIRE;
+	} else {
+		btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_NONE;
 	}
 }
 
@@ -4069,29 +4096,197 @@ void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode)
 	REG_WRITE(ah, AR_2040_MODE, macmode);
 }
 
-/***************************/
-/*  Bluetooth Coexistence  */
-/***************************/
+/* HW Generic timers configuration */
 
-void ath9k_hw_btcoex_enable(struct ath_hw *ah)
+static const struct ath_gen_timer_configuration gen_tmr_configuration[] =
 {
-	/* connect bt_active to baseband */
-	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-			(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF |
-			 AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF));
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP_TIMER, AR_NDP_PERIOD, AR_TIMER_MODE, 0x0080},
+	{AR_NEXT_NDP2_TIMER, AR_NDP2_PERIOD, AR_NDP2_TIMER_MODE, 0x0001},
+	{AR_NEXT_NDP2_TIMER + 1*4, AR_NDP2_PERIOD + 1*4,
+				AR_NDP2_TIMER_MODE, 0x0002},
+	{AR_NEXT_NDP2_TIMER + 2*4, AR_NDP2_PERIOD + 2*4,
+				AR_NDP2_TIMER_MODE, 0x0004},
+	{AR_NEXT_NDP2_TIMER + 3*4, AR_NDP2_PERIOD + 3*4,
+				AR_NDP2_TIMER_MODE, 0x0008},
+	{AR_NEXT_NDP2_TIMER + 4*4, AR_NDP2_PERIOD + 4*4,
+				AR_NDP2_TIMER_MODE, 0x0010},
+	{AR_NEXT_NDP2_TIMER + 5*4, AR_NDP2_PERIOD + 5*4,
+				AR_NDP2_TIMER_MODE, 0x0020},
+	{AR_NEXT_NDP2_TIMER + 6*4, AR_NDP2_PERIOD + 6*4,
+				AR_NDP2_TIMER_MODE, 0x0040},
+	{AR_NEXT_NDP2_TIMER + 7*4, AR_NDP2_PERIOD + 7*4,
+				AR_NDP2_TIMER_MODE, 0x0080}
+};
 
-	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-			AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB);
+/* HW generic timer primitives */
 
-	/* Set input mux for bt_active to gpio pin */
-	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
-			AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-			ah->btactive_gpio);
+/* compute and clear index of rightmost 1 */
+static u32 rightmost_index(struct ath_gen_timer_table *timer_table, u32 *mask)
+{
+	u32 b;
 
-	/* Configure the desired gpio port for input */
-	ath9k_hw_cfg_gpio_input(ah, ah->btactive_gpio);
+	b = *mask;
+	b &= (0-b);
+	*mask &= ~b;
+	b *= debruijn32;
+	b >>= 27;
 
-	/* Configure the desired GPIO port for TX_FRAME output */
-	ath9k_hw_cfg_output(ah, ah->wlanactive_gpio,
-			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
+	return timer_table->gen_timer_index[b];
+}
+
+u32 ath9k_hw_gettsf32(struct ath_hw *ah)
+{
+	return REG_READ(ah, AR_TSF_L32);
+}
+
+struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
+					  void (*trigger)(void *),
+					  void (*overflow)(void *),
+					  void *arg,
+					  u8 timer_index)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+	struct ath_gen_timer *timer;
+
+	timer = kzalloc(sizeof(struct ath_gen_timer), GFP_KERNEL);
+
+	if (timer == NULL) {
+		printk(KERN_DEBUG "Failed to allocate memory"
+		       "for hw timer[%d]\n", timer_index);
+		return NULL;
+	}
+
+	/* allocate a hardware generic timer slot */
+	timer_table->timers[timer_index] = timer;
+	timer->index = timer_index;
+	timer->trigger = trigger;
+	timer->overflow = overflow;
+	timer->arg = arg;
+
+	return timer;
+}
+
+void ath_gen_timer_start(struct ath_hw *ah,
+			 struct ath_gen_timer *timer,
+			 u32 timer_next, u32 timer_period)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+	u32 tsf;
+
+	BUG_ON(!timer_period);
+
+	set_bit(timer->index, &timer_table->timer_mask.timer_bits);
+
+	tsf = ath9k_hw_gettsf32(ah);
+
+	DPRINTF(ah->ah_sc, ATH_DBG_HWTIMER, "curent tsf %x period %x"
+		"timer_next %x\n", tsf, timer_period, timer_next);
+
+	/*
+	 * Pull timer_next forward if the current TSF already passed it
+	 * because of software latency
+	 */
+	if (timer_next < tsf)
+		timer_next = tsf + timer_period;
+
+	/*
+	 * Program generic timer registers
+	 */
+	REG_WRITE(ah, gen_tmr_configuration[timer->index].next_addr,
+		 timer_next);
+	REG_WRITE(ah, gen_tmr_configuration[timer->index].period_addr,
+		  timer_period);
+	REG_SET_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
+		    gen_tmr_configuration[timer->index].mode_mask);
+
+	/* Enable both trigger and thresh interrupt masks */
+	REG_SET_BIT(ah, AR_IMR_S5,
+		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
+		SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_TRIG)));
+
+	if ((ah->ah_sc->imask & ATH9K_INT_GENTIMER) == 0) {
+		ath9k_hw_set_interrupts(ah, 0);
+		ah->ah_sc->imask |= ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
+	}
+}
+
+void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+
+	if ((timer->index < AR_FIRST_NDP_TIMER) ||
+		(timer->index >= ATH_MAX_GEN_TIMER)) {
+		return;
+	}
+
+	/* Clear generic timer enable bits. */
+	REG_CLR_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
+			gen_tmr_configuration[timer->index].mode_mask);
+
+	/* Disable both trigger and thresh interrupt masks */
+	REG_CLR_BIT(ah, AR_IMR_S5,
+		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
+		SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_TRIG)));
+
+	clear_bit(timer->index, &timer_table->timer_mask.timer_bits);
+
+	/* if no timer is enabled, turn off interrupt mask */
+	if (timer_table->timer_mask.val == 0) {
+		ath9k_hw_set_interrupts(ah, 0);
+		ah->ah_sc->imask &= ~ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
+	}
+}
+
+void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+
+	/* free the hardware generic timer slot */
+	timer_table->timers[timer->index] = NULL;
+	kfree(timer);
+}
+
+/*
+ * Generic Timer Interrupts handling
+ */
+void ath_gen_timer_isr(struct ath_hw *ah)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+	struct ath_gen_timer *timer;
+	u32 trigger_mask, thresh_mask, index;
+
+	/* get hardware generic timer interrupt status */
+	trigger_mask = ah->intr_gen_timer_trigger;
+	thresh_mask = ah->intr_gen_timer_thresh;
+	trigger_mask &= timer_table->timer_mask.val;
+	thresh_mask &= timer_table->timer_mask.val;
+
+	trigger_mask &= ~thresh_mask;
+
+	while (thresh_mask) {
+		index = rightmost_index(timer_table, &thresh_mask);
+		timer = timer_table->timers[index];
+		BUG_ON(!timer);
+		DPRINTF(ah->ah_sc, ATH_DBG_HWTIMER,
+			"TSF overflow for Gen timer %d\n", index);
+		timer->overflow(timer->arg);
+	}
+
+	while (trigger_mask) {
+		index = rightmost_index(timer_table, &trigger_mask);
+		timer = timer_table->timers[index];
+		BUG_ON(!timer);
+		DPRINTF(ah->ah_sc, ATH_DBG_HWTIMER,
+			"Gen timer[%d] trigger\n", index);
+		timer->trigger(timer->arg);
+	}
 }

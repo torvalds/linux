@@ -249,20 +249,35 @@ void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg)
 
 void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask)
 {
-	b43_phy_write(dev, offset,
-		      b43_phy_read(dev, offset) & mask);
+	if (dev->phy.ops->phy_maskset) {
+		assert_mac_suspended(dev);
+		dev->phy.ops->phy_maskset(dev, offset, mask, 0);
+	} else {
+		b43_phy_write(dev, offset,
+			      b43_phy_read(dev, offset) & mask);
+	}
 }
 
 void b43_phy_set(struct b43_wldev *dev, u16 offset, u16 set)
 {
-	b43_phy_write(dev, offset,
-		      b43_phy_read(dev, offset) | set);
+	if (dev->phy.ops->phy_maskset) {
+		assert_mac_suspended(dev);
+		dev->phy.ops->phy_maskset(dev, offset, 0xFFFF, set);
+	} else {
+		b43_phy_write(dev, offset,
+			      b43_phy_read(dev, offset) | set);
+	}
 }
 
 void b43_phy_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
 {
-	b43_phy_write(dev, offset,
-		      (b43_phy_read(dev, offset) & mask) | set);
+	if (dev->phy.ops->phy_maskset) {
+		assert_mac_suspended(dev);
+		dev->phy.ops->phy_maskset(dev, offset, mask, set);
+	} else {
+		b43_phy_write(dev, offset,
+			      (b43_phy_read(dev, offset) & mask) | set);
+	}
 }
 
 int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)

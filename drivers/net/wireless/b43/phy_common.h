@@ -49,11 +49,11 @@ enum b43_interference_mitigation {
 
 /* Antenna identifiers */
 enum {
-	B43_ANTENNA0,		/* Antenna 0 */
-	B43_ANTENNA1,		/* Antenna 0 */
-	B43_ANTENNA_AUTO1,	/* Automatic, starting with antenna 1 */
-	B43_ANTENNA_AUTO0,	/* Automatic, starting with antenna 0 */
-	B43_ANTENNA2,
+	B43_ANTENNA0 = 0,	/* Antenna 0 */
+	B43_ANTENNA1 = 1,	/* Antenna 1 */
+	B43_ANTENNA_AUTO0 = 2,	/* Automatic, starting with antenna 0 */
+	B43_ANTENNA_AUTO1 = 3,	/* Automatic, starting with antenna 1 */
+	B43_ANTENNA2 = 4,
 	B43_ANTENNA3 = 8,
 
 	B43_ANTENNA_AUTO = B43_ANTENNA_AUTO0,
@@ -95,6 +95,8 @@ enum b43_txpwr_result {
  * 			Must not be NULL.
  * @phy_write:		Write to a PHY register.
  * 			Must not be NULL.
+ * @phy_maskset:	Maskset a PHY register, taking shortcuts.
+ *			If it is NULL, a generic algorithm is used.
  * @radio_read:		Read from a Radio register.
  * 			Must not be NULL.
  * @radio_write:	Write to a Radio register.
@@ -154,6 +156,7 @@ struct b43_phy_operations {
 	/* Register access */
 	u16 (*phy_read)(struct b43_wldev *dev, u16 reg);
 	void (*phy_write)(struct b43_wldev *dev, u16 reg, u16 value);
+	void (*phy_maskset)(struct b43_wldev *dev, u16 reg, u16 mask, u16 set);
 	u16 (*radio_read)(struct b43_wldev *dev, u16 reg);
 	void (*radio_write)(struct b43_wldev *dev, u16 reg, u16 value);
 

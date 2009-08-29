@@ -277,11 +277,6 @@ static int ieee80211_open(struct net_device *dev)
 		}
 	}
 
-	if (local->open_count == 0) {
-		tasklet_enable(&local->tx_pending_tasklet);
-		tasklet_enable(&local->tasklet);
-	}
-
 	/*
 	 * set_multicast_list will be invoked by the networking core
 	 * which will check whether any increments here were done in
@@ -502,30 +497,8 @@ static int ieee80211_stop(struct net_device *dev)
 		}
 		/* fall through */
 	default:
-		if (local->scan_sdata == sdata) {
-			if (!local->ops->hw_scan)
-				cancel_delayed_work_sync(&local->scan_work);
-			/*
-			 * The software scan can no longer run now, so we can
-			 * clear out the scan_sdata reference. However, the
-			 * hardware scan may still be running. The complete
-			 * function must be prepared to handle a NULL value.
-			 */
-			local->scan_sdata = NULL;
-			/*
-			 * The memory barrier guarantees that another CPU
-			 * that is hardware-scanning will now see the fact
-			 * that this interface is gone.
-			 */
-			smp_mb();
-			/*
-			 * If software scanning, complete the scan but since
-			 * the scan_sdata is NULL already don't send out a
-			 * scan event to userspace -- the scan is incomplete.
-			 */
-			if (test_bit(SCAN_SW_SCANNING, &local->scanning))
-				ieee80211_scan_completed(&local->hw, true);
-		}
+		if (local->scan_sdata == sdata)
+			ieee80211_scan_cancel(local);
 
 		/*
 		 * Disable beaconing for AP and mesh, IBSS can't
@@ -552,14 +525,8 @@ static int ieee80211_stop(struct net_device *dev)
 	ieee80211_recalc_ps(local, -1);
 
 	if (local->open_count == 0) {
-		drv_stop(local);
-
-		ieee80211_led_radio(local, false);
-
-		flush_workqueue(local->workqueue);
-
-		tasklet_disable(&local->tx_pending_tasklet);
-		tasklet_disable(&local->tasklet);
+		ieee80211_clear_tx_pending(local);
+		ieee80211_stop_device(local);
 
 		/* no reconfiguring after stop! */
 		hw_reconf_flags = 0;

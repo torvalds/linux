@@ -383,24 +383,26 @@ int ar9170_set_beacon_timers(struct ar9170 *ar)
 	if (ar->vif) {
 		v |= ar->vif->bss_conf.beacon_int;
 
-		switch (ar->vif->type) {
-		case NL80211_IFTYPE_MESH_POINT:
-		case NL80211_IFTYPE_ADHOC:
-			v |= BIT(25);
+		if (ar->enable_beacon) {
+			switch (ar->vif->type) {
+			case NL80211_IFTYPE_MESH_POINT:
+			case NL80211_IFTYPE_ADHOC:
+				v |= BIT(25);
+				break;
+			case NL80211_IFTYPE_AP:
+				v |= BIT(24);
+				pretbtt = (ar->vif->bss_conf.beacon_int - 6) <<
+					  16;
+				break;
+			default:
 			break;
-		case NL80211_IFTYPE_AP:
-			v |= BIT(24);
-			pretbtt = (ar->vif->bss_conf.beacon_int - 6) << 16;
-			break;
-		default:
-			break;
+			}
 		}
 
 		v |= ar->vif->bss_conf.dtim_period << 16;
 	}
 
 	ar9170_regwrite_begin(ar);
-
 	ar9170_regwrite(AR9170_MAC_REG_PRETBTT, pretbtt);
 	ar9170_regwrite(AR9170_MAC_REG_BCN_PERIOD, v);
 	ar9170_regwrite_finish();

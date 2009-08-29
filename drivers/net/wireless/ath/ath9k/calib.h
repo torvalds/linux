@@ -110,6 +110,13 @@ struct ath9k_nfcal_hist {
 	u8 invalidNFcount;
 };
 
+#define MAX_PACAL_SKIPCOUNT 8
+struct ath9k_pacal_info{
+	int32_t prev_offset;	/* Previous value of PA offset value */
+	int8_t max_skipcount;	/* Max No. of times PACAL can be skipped */
+	int8_t skipcount;	/* No. of times the PACAL to be skipped */
+};
+
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah);
 void ath9k_hw_start_nfcal(struct ath_hw *ah);
 void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan);
