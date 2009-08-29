@@ -521,10 +521,9 @@ int saa7164_dvb_register(struct saa7164_tsport *port)
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_3:
+		i2c_bus = &dev->i2c_bus[port->nr + 1];
 		switch (port->nr) {
 		case 0:
-			i2c_bus = &dev->i2c_bus[1];
-
 			port->dvb.frontend = dvb_attach(tda10048_attach,
 				&hauppauge_hvr2200_1_config,
 				&i2c_bus->i2c_adap);
@@ -538,8 +537,6 @@ int saa7164_dvb_register(struct saa7164_tsport *port)
 
 			break;
 		case 1:
-			i2c_bus = &dev->i2c_bus[2];
-
 			port->dvb.frontend = dvb_attach(tda10048_attach,
 				&hauppauge_hvr2200_2_config,
 				&i2c_bus->i2c_adap);
