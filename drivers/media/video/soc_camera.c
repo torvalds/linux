@@ -856,7 +856,6 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 		goto ei2cnd;
 	}
 
-	subdev->grp_id = (__u32)icd;
 	client = subdev->priv;
 
 	/* Use to_i2c_client(dev) to recover the i2c client */
