@@ -985,6 +985,7 @@ static void eeepc_rfkill_exit(void)
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
 	if (ehotk->wlan_rfkill) {
 		rfkill_unregister(ehotk->wlan_rfkill);
+		rfkill_destroy(ehotk->wlan_rfkill);
 		ehotk->wlan_rfkill = NULL;
 	}
 	/*
@@ -995,12 +996,21 @@ static void eeepc_rfkill_exit(void)
 	if (ehotk->hotplug_slot)
 		pci_hp_deregister(ehotk->hotplug_slot);
 
-	if (ehotk->bluetooth_rfkill)
+	if (ehotk->bluetooth_rfkill) {
 		rfkill_unregister(ehotk->bluetooth_rfkill);
-	if (ehotk->wwan3g_rfkill)
+		rfkill_destroy(ehotk->bluetooth_rfkill);
+		ehotk->bluetooth_rfkill = NULL;
+	}
+	if (ehotk->wwan3g_rfkill) {
 		rfkill_unregister(ehotk->wwan3g_rfkill);
-	if (ehotk->wimax_rfkill)
+		rfkill_destroy(ehotk->wwan3g_rfkill);
+		ehotk->wwan3g_rfkill = NULL;
+	}
+	if (ehotk->wimax_rfkill) {
 		rfkill_unregister(ehotk->wimax_rfkill);
+		rfkill_destroy(ehotk->wimax_rfkill);
+		ehotk->wimax_rfkill = NULL;
+	}
 }
 
 static void eeepc_input_exit(void)
