@@ -91,6 +91,11 @@ struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 /* # of MP IRQ source entries */
 int mp_irq_entries;
 
+/* Number of legacy interrupts */
+static int nr_legacy_irqs __read_mostly = NR_IRQS_LEGACY;
+/* GSI interrupts */
+static int nr_irqs_gsi = NR_IRQS_LEGACY;
+
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
@@ -172,6 +177,12 @@ static struct irq_cfg irq_cfgx[NR_IRQS] = {
 	[15] = { .vector = IRQ15_VECTOR, },
 };
 
+void __init io_apic_disable_legacy(void)
+{
+	nr_legacy_irqs = 0;
+	nr_irqs_gsi = 0;
+}
+
 int __init arch_early_irq_init(void)
 {
 	struct irq_cfg *cfg;
@@ -189,7 +200,7 @@ int __init arch_early_irq_init(void)
 		desc->chip_data = &cfg[i];
 		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
 		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
-		if (i < NR_IRQS_LEGACY)
+		if (i < nr_legacy_irqs)
 			cpumask_setall(cfg[i].domain);
 	}
 
@@ -883,7 +894,7 @@ static int __init find_isa_irq_apic(int irq, int type)
  */
 static int EISA_ELCR(unsigned int irq)
 {
-	if (irq < NR_IRQS_LEGACY) {
+	if (irq < nr_legacy_irqs) {
 		unsigned int port = 0x4d0 + (irq >> 3);
 		return (inb(port) >> (irq & 7)) & 1;
 	}
@@ -1480,7 +1491,7 @@ static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq
 	}
 
 	ioapic_register_intr(irq, desc, trigger);
-	if (irq < NR_IRQS_LEGACY)
+	if (irq < nr_legacy_irqs)
 		disable_8259A_irq(irq);
 
 	ioapic_write_entry(apic_id, pin, entry);
@@ -1851,7 +1862,7 @@ __apicdebuginit(void) print_PIC(void)
 	unsigned int v;
 	unsigned long flags;
 
-	if (apic_verbosity == APIC_QUIET)
+	if (apic_verbosity == APIC_QUIET || !nr_legacy_irqs)
 		return;
 
 	printk(KERN_DEBUG "\nprinting PIC contents\n");
@@ -1914,6 +1925,10 @@ void __init enable_IO_APIC(void)
 		spin_unlock_irqrestore(&ioapic_lock, flags);
 		nr_ioapic_registers[apic] = reg_01.bits.entries+1;
 	}
+
+	if (!nr_legacy_irqs)
+		return;
+
 	for(apic = 0; apic < nr_ioapics; apic++) {
 		int pin;
 		/* See if any of the pins is in ExtINT mode */
@@ -1967,6 +1982,9 @@ void disable_IO_APIC(void)
 	 * Clear the IO-APIC before rebooting:
 	 */
 	clear_IO_APIC();
+
+	if (!nr_legacy_irqs)
+		return;
 
 	/*
 	 * If the i8259 is routed through an IOAPIC
@@ -2198,7 +2216,7 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 	struct irq_cfg *cfg;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	if (irq < NR_IRQS_LEGACY) {
+	if (irq < nr_legacy_irqs) {
 		disable_8259A_irq(irq);
 		if (i8259A_irq_pending(irq))
 			was_pending = 1;
@@ -2709,7 +2727,7 @@ static inline void init_IO_APIC_traps(void)
 			 * so default to an old-fashioned 8259
 			 * interrupt if we can..
 			 */
-			if (irq < NR_IRQS_LEGACY)
+			if (irq < nr_legacy_irqs)
 				make_8259A_irq(irq);
 			else
 				/* Strange. Oh, well.. */
@@ -3045,7 +3063,7 @@ out:
  * the I/O APIC in all cases now.  No actual device should request
  * it anyway.  --macro
  */
-#define PIC_IRQS	(1 << PIC_CASCADE_IR)
+#define PIC_IRQS	(1UL << PIC_CASCADE_IR)
 
 void __init setup_IO_APIC(void)
 {
@@ -3053,8 +3071,7 @@ void __init setup_IO_APIC(void)
 	/*
 	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
 	 */
-
-	io_apic_irqs = ~PIC_IRQS;
+	io_apic_irqs = nr_legacy_irqs ? ~PIC_IRQS : ~0UL;
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
 	/*
@@ -3065,7 +3082,8 @@ void __init setup_IO_APIC(void)
 	sync_Arb_IDs();
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();
-	check_timer();
+	if (nr_legacy_irqs)
+		check_timer();
 }
 
 /*
@@ -3166,7 +3184,6 @@ static int __init ioapic_init_sysfs(void)
 
 device_initcall(ioapic_init_sysfs);
 
-static int nr_irqs_gsi = NR_IRQS_LEGACY;
 /*
  * Dynamic irq allocate and deallocation
  */
@@ -3907,7 +3924,7 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
-	if (irq >= NR_IRQS_LEGACY) {
+	if (irq >= nr_legacy_irqs) {
 		cfg = desc->chip_data;
 		add_pin_to_irq_node(cfg, node, ioapic, pin);
 	}

@@ -143,6 +143,8 @@ extern int noioapicreroute;
 /* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
 extern int timer_through_8259;
 
+extern void io_apic_disable_legacy(void);
+
 /*
  * If we use the IO-APIC for IRQ routing, disable automatic
  * assignment of PCI IRQ's.
