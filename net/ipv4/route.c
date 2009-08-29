@@ -1514,13 +1514,17 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 void ip_rt_send_redirect(struct sk_buff *skb)
 {
 	struct rtable *rt = skb_rtable(skb);
-	struct in_device *in_dev = in_dev_get(rt->u.dst.dev);
+	struct in_device *in_dev;
+	int log_martians;
 
-	if (!in_dev)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(rt->u.dst.dev);
+	if (!in_dev || !IN_DEV_TX_REDIRECTS(in_dev)) {
+		rcu_read_unlock();
 		return;
-
-	if (!IN_DEV_TX_REDIRECTS(in_dev))
-		goto out;
+	}
+	log_martians = IN_DEV_LOG_MARTIANS(in_dev);
+	rcu_read_unlock();
 
 	/* No redirected packets during ip_rt_redirect_silence;
 	 * reset the algorithm.
@@ -1533,7 +1537,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	 */
 	if (rt->u.dst.rate_tokens >= ip_rt_redirect_number) {
 		rt->u.dst.rate_last = jiffies;
-		goto out;
+		return;
 	}
 
 	/* Check for load limit; set rate_last to the latest sent
@@ -1547,7 +1551,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		rt->u.dst.rate_last = jiffies;
 		++rt->u.dst.rate_tokens;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
-		if (IN_DEV_LOG_MARTIANS(in_dev) &&
+		if (log_martians &&
 		    rt->u.dst.rate_tokens == ip_rt_redirect_number &&
 		    net_ratelimit())
 			printk(KERN_WARNING "host %pI4/if%d ignores redirects for %pI4 to %pI4.\n",
@@ -1555,8 +1559,6 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 				&rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
-out:
-	in_dev_put(in_dev);
 }
 
 static int ip_error(struct sk_buff *skb)
