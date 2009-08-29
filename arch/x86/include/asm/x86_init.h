@@ -2,6 +2,7 @@
 #define _ASM_X86_PLATFORM_H
 
 #include <asm/pgtable_types.h>
+#include <asm/bootparam.h>
 
 struct mpc_bus;
 struct mpc_cpu;
@@ -34,14 +35,12 @@ struct x86_init_mpparse {
  * @probe_roms:			probe BIOS roms
  * @reserve_resources:		reserve the standard resources for the
  *				platform
- * @reserve_ebda_region:	reserve the extended bios data area
  * @memory_setup:		platform specific memory setup
  *
  */
 struct x86_init_resources {
 	void (*probe_roms)(void);
 	void (*reserve_resources)(void);
-	void (*reserve_ebda_region)(void);
 	char *(*memory_setup)(void);
 };
 
