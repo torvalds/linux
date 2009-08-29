@@ -530,6 +530,7 @@ int saa7164_dvb_register(struct saa7164_tsport *port)
 				&i2c_bus->i2c_adap);
 
 			if (port->dvb.frontend != NULL) {
+				/* TODO: addr is in the card struct */
 				dvb_attach(tda18271_attach, port->dvb.frontend,
 					0xc0 >> 1, &i2c_bus->i2c_adap,
 					&hauppauge_hvr22x0_tuner_config);
@@ -544,6 +545,7 @@ int saa7164_dvb_register(struct saa7164_tsport *port)
 				&i2c_bus->i2c_adap);
 
 			if (port->dvb.frontend != NULL) {
+				/* TODO: addr is in the card struct */
 				dvb_attach(tda18271_attach, port->dvb.frontend,
 					0xc0 >> 1, &i2c_bus->i2c_adap,
 					&hauppauge_hvr22x0_tuner_config);
