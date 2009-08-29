@@ -1384,7 +1384,14 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	} else {
 		state->internal = kmalloc(sizeof(struct stv0900_internal),
 								GFP_KERNEL);
+		if (state->internal == NULL)
+			return STV0900_INVALID_HANDLE;
 		temp_int = append_internal(state->internal);
+		if (temp_int == NULL) {
+			kfree(state->internal);
+			state->internal = NULL;
+			return STV0900_INVALID_HANDLE;
+		}
 		state->internal->dmds_used = 1;
 		state->internal->i2c_adap = state->i2c_adap;
 		state->internal->i2c_addr = state->config->demod_address;
