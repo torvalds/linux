@@ -318,6 +318,7 @@ config X86_EXTENDED_PLATFORM
 		SGI 320/540 (Visual Workstation)
 		Summit/EXA (IBM x440)
 		Unisys ES7000 IA32 series
+		Moorestown MID devices
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
@@ -376,6 +377,18 @@ config X86_ELAN
 	  Do not use this option for K6/Athlon/Opteron processors!
 
 	  If unsure, choose "PC-compatible" instead.
+
+config X86_MRST
+       bool "Moorestown MID platform"
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	---help---
+	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
+	  Internet Device(MID) platform. Moorestown consists of two chips:
+	  Lincroft (CPU core, graphics, and memory controller) and Langwell IOH.
+	  Unlike standard x86 PCs, Moorestown does not have many legacy devices
+	  nor standard legacy replacement devices/features. e.g. Moorestown does
+	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
 
 config X86_RDC321X
 	bool "RDC R-321x SoC"
