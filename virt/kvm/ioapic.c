@@ -95,8 +95,6 @@ static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 		if (injected && pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
 			pent->fields.remote_irr = 1;
 	}
-	if (!pent->fields.trig_mode)
-		ioapic->irr &= ~(1 << idx);
 
 	return injected;
 }
@@ -136,7 +134,8 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		mask_after = ioapic->redirtbl[index].fields.mask;
 		if (mask_before != mask_after)
 			kvm_fire_mask_notifiers(ioapic->kvm, index, mask_after);
-		if (ioapic->irr & (1 << index))
+		if (ioapic->redirtbl[index].fields.trig_mode == IOAPIC_LEVEL_TRIG
+		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index);
 		break;
 	}
@@ -184,9 +183,10 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 		if (!level)
 			ioapic->irr &= ~mask;
 		else {
+			int edge = (entry.fields.trig_mode == IOAPIC_EDGE_TRIG);
 			ioapic->irr |= mask;
-			if ((!entry.fields.trig_mode && old_irr != ioapic->irr)
-			    || !entry.fields.remote_irr)
+			if ((edge && old_irr != ioapic->irr) ||
+			    (!edge && !entry.fields.remote_irr))
 				ret = ioapic_service(ioapic, irq);
 		}
 	}

@@ -31,6 +31,7 @@ static char		*vmlinux = "vmlinux";
 static char		default_sort_order[] = "comm,symbol";
 static char		*sort_order = default_sort_order;
 
+static int		force;
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
@@ -74,20 +75,12 @@ struct fork_event {
 	u32 pid, ppid;
 };
 
-struct period_event {
-	struct perf_event_header header;
-	u64 time;
-	u64 id;
-	u64 sample_period;
-};
-
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;
 	struct mmap_event		mmap;
 	struct comm_event		comm;
 	struct fork_event		fork;
-	struct period_event		period;
 } event_t;
 
 
@@ -988,24 +981,18 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 		(void *)(long)(event->header.size),
 		event->fork.pid, event->fork.ppid);
 
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
 	if (!thread || !parent || thread__fork(thread, parent)) {
 		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
 		return -1;
 	}
 	total_fork++;
-
-	return 0;
-}
-
-static int
-process_period_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->period.time,
-		event->period.id,
-		event->period.sample_period);
 
 	return 0;
 }
@@ -1025,9 +1012,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	case PERF_EVENT_FORK:
 		return process_fork_event(event, offset, head);
-
-	case PERF_EVENT_PERIOD:
-		return process_period_event(event, offset, head);
 	/*
 	 * We dont process them right now but they are fine:
 	 */
@@ -1351,6 +1335,11 @@ static int __cmd_annotate(void)
 		exit(-1);
 	}
 
+	if (!force && (stat.st_uid != geteuid())) {
+		fprintf(stderr, "file: %s not owned by current user\n", input_name);
+		exit(-1);
+	}
+
 	if (!stat.st_size) {
 		fprintf(stderr, "zero-sized file, nothing to do!\n");
 		exit(0);
@@ -1456,6 +1445,7 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_STRING('s', "symbol", &sym_hist_filter, "symbol",
 		    "symbol to annotate"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,

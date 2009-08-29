@@ -716,6 +716,8 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 		pdx->PixelUrb[frameInfo][i]->transfer_flags =
 		    URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT;
 	}
+	if (i == 0)
+		return -EINVAL;
 	/* only interrupt when last URB completes */
 	pdx->PixelUrb[frameInfo][--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 	pdx->pendedPixelUrbs[frameInfo] =

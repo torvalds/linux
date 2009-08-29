@@ -2197,9 +2197,12 @@ static int __init alsa_card_riptide_init(void)
 	if (err < 0)
 		return err;
 #if defined(SUPPORT_JOYSTICK)
-	pci_register_driver(&joystick_driver);
+	err = pci_register_driver(&joystick_driver);
+	/* On failure unregister formerly registered audio driver */
+	if (err < 0)
+		pci_unregister_driver(&driver);
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_riptide_exit(void)

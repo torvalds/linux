@@ -67,7 +67,7 @@ static unsigned int marxbot_pins[] = {
 
 static int marxbot_sdhc2_get_ro(struct device *dev)
 {
-	return gpio_get_value(SDHC2_WP);
+	return !gpio_get_value(SDHC2_WP);
 }
 
 static int marxbot_sdhc2_init(struct device *dev, irq_handler_t detect_irq,

@@ -456,8 +456,11 @@ static int joydev_ioctl_common(struct joydev *joydev,
 				unsigned int cmd, void __user *argp)
 {
 	struct input_dev *dev = joydev->handle.dev;
+	size_t len;
 	int i, j;
+	const char *name;
 
+	/* Process fixed-sized commands. */
 	switch (cmd) {
 
 	case JS_SET_CAL:
@@ -499,9 +502,22 @@ static int joydev_ioctl_common(struct joydev *joydev,
 		return copy_to_user(argp, joydev->corr,
 			sizeof(joydev->corr[0]) * joydev->nabs) ? -EFAULT : 0;
 
-	case JSIOCSAXMAP:
-		if (copy_from_user(joydev->abspam, argp,
-				   sizeof(__u8) * (ABS_MAX + 1)))
+	}
+
+	/*
+	 * Process variable-sized commands (the axis and button map commands
+	 * are considered variable-sized to decouple them from the values of
+	 * ABS_MAX and KEY_MAX).
+	 */
+	switch (cmd & ~IOCSIZE_MASK) {
+
+	case (JSIOCSAXMAP & ~IOCSIZE_MASK):
+		len = min_t(size_t, _IOC_SIZE(cmd), sizeof(joydev->abspam));
+		/*
+		 * FIXME: we should not copy into our axis map before
+		 * validating the data.
+		 */
+		if (copy_from_user(joydev->abspam, argp, len))
 			return -EFAULT;
 
 		for (i = 0; i < joydev->nabs; i++) {
@@ -511,13 +527,17 @@ static int joydev_ioctl_common(struct joydev *joydev,
 		}
 		return 0;
 
-	case JSIOCGAXMAP:
-		return copy_to_user(argp, joydev->abspam,
-			sizeof(__u8) * (ABS_MAX + 1)) ? -EFAULT : 0;
+	case (JSIOCGAXMAP & ~IOCSIZE_MASK):
+		len = min_t(size_t, _IOC_SIZE(cmd), sizeof(joydev->abspam));
+		return copy_to_user(argp, joydev->abspam, len) ? -EFAULT : 0;
 
-	case JSIOCSBTNMAP:
-		if (copy_from_user(joydev->keypam, argp,
-				   sizeof(__u16) * (KEY_MAX - BTN_MISC + 1)))
+	case (JSIOCSBTNMAP & ~IOCSIZE_MASK):
+		len = min_t(size_t, _IOC_SIZE(cmd), sizeof(joydev->keypam));
+		/*
+		 * FIXME: we should not copy into our keymap before
+		 * validating the data.
+		 */
+		if (copy_from_user(joydev->keypam, argp, len))
 			return -EFAULT;
 
 		for (i = 0; i < joydev->nkey; i++) {
@@ -529,25 +549,19 @@ static int joydev_ioctl_common(struct joydev *joydev,
 
 		return 0;
 
-	case JSIOCGBTNMAP:
-		return copy_to_user(argp, joydev->keypam,
-			sizeof(__u16) * (KEY_MAX - BTN_MISC + 1)) ? -EFAULT : 0;
+	case (JSIOCGBTNMAP & ~IOCSIZE_MASK):
+		len = min_t(size_t, _IOC_SIZE(cmd), sizeof(joydev->keypam));
+		return copy_to_user(argp, joydev->keypam, len) ? -EFAULT : 0;
 
-	default:
-		if ((cmd & ~IOCSIZE_MASK) == JSIOCGNAME(0)) {
-			int len;
-			const char *name = dev_name(&dev->dev);
+	case JSIOCGNAME(0):
+		name = dev->name;
+		if (!name)
+			return 0;
 
-			if (!name)
-				return 0;
-			len = strlen(name) + 1;
-			if (len > _IOC_SIZE(cmd))
-				len = _IOC_SIZE(cmd);
-			if (copy_to_user(argp, name, len))
-				return -EFAULT;
-			return len;
-		}
+		len = min_t(size_t, _IOC_SIZE(cmd), strlen(name) + 1);
+		return copy_to_user(argp, name, len) ? -EFAULT : len;
 	}
+
 	return -EINVAL;
 }
 

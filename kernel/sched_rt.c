@@ -10,6 +10,8 @@ static inline struct task_struct *rt_task_of(struct sched_rt_entity *rt_se)
 
 #ifdef CONFIG_RT_GROUP_SCHED
 
+#define rt_entity_is_task(rt_se) (!(rt_se)->my_q)
+
 static inline struct rq *rq_of_rt_rq(struct rt_rq *rt_rq)
 {
 	return rt_rq->rq;
@@ -21,6 +23,8 @@ static inline struct rt_rq *rt_rq_of_se(struct sched_rt_entity *rt_se)
 }
 
 #else /* CONFIG_RT_GROUP_SCHED */
+
+#define rt_entity_is_task(rt_se) (1)
 
 static inline struct rq *rq_of_rt_rq(struct rt_rq *rt_rq)
 {
@@ -73,7 +77,7 @@ static inline void rt_clear_overload(struct rq *rq)
 
 static void update_rt_migration(struct rt_rq *rt_rq)
 {
-	if (rt_rq->rt_nr_migratory && (rt_rq->rt_nr_running > 1)) {
+	if (rt_rq->rt_nr_migratory && rt_rq->rt_nr_total > 1) {
 		if (!rt_rq->overloaded) {
 			rt_set_overload(rq_of_rt_rq(rt_rq));
 			rt_rq->overloaded = 1;
@@ -86,6 +90,12 @@ static void update_rt_migration(struct rt_rq *rt_rq)
 
 static void inc_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 {
+	if (!rt_entity_is_task(rt_se))
+		return;
+
+	rt_rq = &rq_of_rt_rq(rt_rq)->rt;
+
+	rt_rq->rt_nr_total++;
 	if (rt_se->nr_cpus_allowed > 1)
 		rt_rq->rt_nr_migratory++;
 
@@ -94,6 +104,12 @@ static void inc_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 
 static void dec_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 {
+	if (!rt_entity_is_task(rt_se))
+		return;
+
+	rt_rq = &rq_of_rt_rq(rt_rq)->rt;
+
+	rt_rq->rt_nr_total--;
 	if (rt_se->nr_cpus_allowed > 1)
 		rt_rq->rt_nr_migratory--;
 

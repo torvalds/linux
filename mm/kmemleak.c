@@ -1217,7 +1217,6 @@ static void *kmemleak_seq_start(struct seq_file *seq, loff_t *pos)
 	}
 	object = NULL;
 out:
-	rcu_read_unlock();
 	return object;
 }
 
@@ -1233,13 +1232,11 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	++(*pos);
 
-	rcu_read_lock();
 	list_for_each_continue_rcu(n, &object_list) {
 		next_obj = list_entry(n, struct kmemleak_object, object_list);
 		if (get_object(next_obj))
 			break;
 	}
-	rcu_read_unlock();
 
 	put_object(prev_obj);
 	return next_obj;
@@ -1255,6 +1252,7 @@ static void kmemleak_seq_stop(struct seq_file *seq, void *v)
 		 * kmemleak_seq_start may return ERR_PTR if the scan_mutex
 		 * waiting was interrupted, so only release it if !IS_ERR.
 		 */
+		rcu_read_unlock();
 		mutex_unlock(&scan_mutex);
 		if (v)
 			put_object(v);

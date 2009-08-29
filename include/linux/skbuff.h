@@ -1342,12 +1342,12 @@ static inline int skb_network_offset(const struct sk_buff *skb)
  * shifting the start of the packet by 2 bytes. Drivers should do this
  * with:
  *
- * skb_reserve(NET_IP_ALIGN);
+ * skb_reserve(skb, NET_IP_ALIGN);
  *
  * The downside to this alignment of the IP header is that the DMA is now
  * unaligned. On some architectures the cost of an unaligned DMA is high
  * and this cost outweighs the gains made by aligning the IP header.
- * 
+ *
  * Since this trade off varies between architectures, we allow NET_IP_ALIGN
  * to be overridden.
  */

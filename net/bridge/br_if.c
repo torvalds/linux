@@ -424,7 +424,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
-	kobject_del(&p->kobj);
+	kobject_put(&p->kobj);
 err0:
 	dev_set_promiscuity(dev, -1);
 put_back:

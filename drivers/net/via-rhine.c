@@ -621,6 +621,7 @@ static const struct net_device_ops rhine_netdev_ops = {
 	.ndo_start_xmit		 = rhine_start_tx,
 	.ndo_get_stats		 = rhine_get_stats,
 	.ndo_set_multicast_list	 = rhine_set_rx_mode,
+	.ndo_change_mtu		 = eth_change_mtu,
 	.ndo_validate_addr	 = eth_validate_addr,
 	.ndo_set_mac_address 	 = eth_mac_addr,
 	.ndo_do_ioctl		 = netdev_ioctl,
@@ -1217,6 +1218,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
 	unsigned entry;
+	unsigned long flags;
 
 	/* Caution: the write order is important here, set the field
 	   with the "ownership" bits last. */
@@ -1260,7 +1262,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 		cpu_to_le32(TXDESC | (skb->len >= ETH_ZLEN ? skb->len : ETH_ZLEN));
 
 	/* lock eth irq */
-	spin_lock_irq(&rp->lock);
+	spin_lock_irqsave(&rp->lock, flags);
 	wmb();
 	rp->tx_ring[entry].tx_status = cpu_to_le32(DescOwn);
 	wmb();
@@ -1279,7 +1281,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	spin_unlock_irq(&rp->lock);
+	spin_unlock_irqrestore(&rp->lock, flags);
 
 	if (debug > 4) {
 		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d.\n",

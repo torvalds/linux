@@ -519,16 +519,12 @@ static void c1e_idle(void)
 		if (!cpumask_test_cpu(cpu, c1e_mask)) {
 			cpumask_set_cpu(cpu, c1e_mask);
 			/*
-			 * Force broadcast so ACPI can not interfere. Needs
-			 * to run with interrupts enabled as it uses
-			 * smp_function_call.
+			 * Force broadcast so ACPI can not interfere.
 			 */
-			local_irq_enable();
 			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
 					   &cpu);
 			printk(KERN_INFO "Switch to broadcast mode on CPU%d\n",
 			       cpu);
-			local_irq_disable();
 		}
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 

@@ -124,10 +124,13 @@
 #define BANDB_DEVICE_ID_USOPTL4_4       0xAC44
 #define BANDB_DEVICE_ID_USOPTL4_2       0xAC42
 
-/* This driver also supports the ATEN UC2324 device since it is mos7840 based
- *  - if I knew the device id it would also support the ATEN UC2322 */
+/* This driver also supports
+ * ATEN UC2324 device using Moschip MCS7840
+ * ATEN UC2322 device using Moschip MCS7820
+ */
 #define USB_VENDOR_ID_ATENINTL		0x0557
 #define ATENINTL_DEVICE_ID_UC2324	0x2011
+#define ATENINTL_DEVICE_ID_UC2322	0x7820
 
 /* Interrupt Routine Defines    */
 
@@ -177,6 +180,7 @@ static struct usb_device_id moschip_port_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_4)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_2)},
 	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2324)},
+	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2322)},
 	{}			/* terminating entry */
 };
 
@@ -186,6 +190,7 @@ static __devinitdata struct usb_device_id moschip_id_table_combined[] = {
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_4)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_2)},
 	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2324)},
+	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2322)},
 	{}			/* terminating entry */
 };
 

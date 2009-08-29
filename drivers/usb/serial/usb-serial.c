@@ -32,6 +32,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
+#include <linux/serial.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include "pl2303.h"
@@ -184,6 +185,7 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 	struct usb_serial_port *port;
 	unsigned int portNumber;
 	int retval = 0;
+	int first = 0;
 
 	dbg("%s", __func__);
 
@@ -223,7 +225,7 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 
 	/* If the console is attached, the device is already open */
 	if (port->port.count == 1 && !port->console) {
-
+		first = 1;
 		/* lock this module before we call it
 		 * this may fail, which means we must bail out,
 		 * safe because we are called with BKL held */
@@ -246,13 +248,21 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 		if (retval)
 			goto bailout_interface_put;
 		mutex_unlock(&serial->disc_mutex);
+		set_bit(ASYNCB_INITIALIZED, &port->port.flags);
 	}
 	mutex_unlock(&port->mutex);
 	/* Now do the correct tty layer semantics */
 	retval = tty_port_block_til_ready(&port->port, tty, filp);
-	if (retval == 0)
+	if (retval == 0) {
+		if (!first)
+			usb_serial_put(serial);
 		return 0;
-
+	}
+	mutex_lock(&port->mutex);
+	if (first == 0)
+		goto bailout_mutex_unlock;
+	/* Undo the initial port actions */
+	mutex_lock(&serial->disc_mutex);
 bailout_interface_put:
 	usb_autopm_put_interface(serial->interface);
 bailout_module_put:
@@ -340,6 +350,22 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 	dbg("%s - port %d", __func__, port->number);
 
+	/* FIXME:
+	   This leaves a very narrow race. Really we should do the
+	   serial_do_free() on tty->shutdown(), but tty->shutdown can
+	   be called from IRQ context and serial_do_free can sleep.
+
+	   The right fix is probably to make the tty free (which is rare)
+	   and thus tty->shutdown() occur via a work queue and simplify all
+	   the drivers that use it.
+	*/
+	if (tty_hung_up_p(filp)) {
+		/* serial_hangup already called serial_down at this point.
+		   Another user may have already reopened the port but
+		   serial_do_free is refcounted */
+		serial_do_free(port);
+		return;
+	}
 
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
 		return;
@@ -355,7 +381,8 @@ static void serial_hangup(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	serial_do_down(port);
 	tty_port_hangup(&port->port);
-	serial_do_free(port);
+	/* We must not free port yet - the USB serial layer depends on it's
+	   continued existence */
 }
 
 static int serial_write(struct tty_struct *tty, const unsigned char *buf,
@@ -394,7 +421,6 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s = port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	/* if the device was unplugged then any remaining characters
 	   fell out of the connector ;) */
 	if (port->serial->disconnected)

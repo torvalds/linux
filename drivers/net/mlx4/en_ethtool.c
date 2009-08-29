@@ -220,7 +220,7 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	cmd->autoneg = AUTONEG_DISABLE;
 	cmd->supported = SUPPORTED_10000baseT_Full;
-	cmd->advertising = SUPPORTED_10000baseT_Full;
+	cmd->advertising = ADVERTISED_1000baseT_Full;
 	if (netif_carrier_ok(dev)) {
 		cmd->speed = SPEED_10000;
 		cmd->duplex = DUPLEX_FULL;

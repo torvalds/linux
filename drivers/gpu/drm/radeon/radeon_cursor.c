@@ -111,9 +111,11 @@ static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
 
 	if (ASIC_IS_AVIVO(rdev))
 		WREG32(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset, gpu_addr);
-	else
+	else {
+		radeon_crtc->legacy_cursor_offset = gpu_addr - radeon_crtc->legacy_display_base_addr;
 		/* offset is from DISP(2)_BASE_ADDRESS */
-		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, gpu_addr);
+		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, radeon_crtc->legacy_cursor_offset);
+	}
 }
 
 int radeon_crtc_cursor_set(struct drm_crtc *crtc,
@@ -245,6 +247,9 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		       (RADEON_CUR_LOCK
 			| ((xorigin ? 0 : x) << 16)
 			| (yorigin ? 0 : y)));
+		/* offset is from DISP(2)_BASE_ADDRESS */
+		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, (radeon_crtc->legacy_cursor_offset +
+								      (yorigin * 256)));
 	}
 	radeon_lock_cursor(crtc, false);
 

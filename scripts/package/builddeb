@@ -89,7 +89,7 @@ for script in postinst postrm preinst prerm ; do
 set -e
 
 # Pass maintainer script parameters to hook scripts
-export DEB_MAINT_PARAMS="\$@"
+export DEB_MAINT_PARAMS="\$*"
 
 test -d $debhookdir/$script.d && run-parts --arg="$version" $debhookdir/$script.d
 exit 0

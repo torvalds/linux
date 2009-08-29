@@ -180,7 +180,6 @@ static ssize_t firmware_loading_store(struct device *dev,
 				goto err;
 			}
 			/* Pages will be freed by vfree() */
-			fw_priv->pages = NULL;
 			fw_priv->page_array_size = 0;
 			fw_priv->nr_pages = 0;
 			complete(&fw_priv->completion);

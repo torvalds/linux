@@ -242,6 +242,8 @@ size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
  */
 
 #define SG_MITER_ATOMIC		(1 << 0)	 /* use kmap_atomic */
+#define SG_MITER_TO_SG		(1 << 1)	/* flush back to phys on unmap */
+#define SG_MITER_FROM_SG	(1 << 2)	/* nop */
 
 struct sg_mapping_iter {
 	/* the following three fields can be accessed directly */
