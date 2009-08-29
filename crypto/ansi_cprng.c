@@ -408,17 +408,10 @@ static struct crypto_alg rng_alg = {
 /* Module initalization */
 static int __init prng_mod_init(void)
 {
-	int ret = 0;
-
 	if (fips_enabled)
 		rng_alg.cra_priority += 200;
 
-	ret = crypto_register_alg(&rng_alg);
-
-	if (ret)
-		goto out;
-out:
-	return 0;
+	return crypto_register_alg(&rng_alg);
 }
 
 static void __exit prng_mod_fini(void)
