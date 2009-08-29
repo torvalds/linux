@@ -60,7 +60,6 @@ config EVENT_TRACING
 	bool
 
 config CONTEXT_SWITCH_TRACER
-	select MARKERS
 	bool
 
 # All tracer options should select GENERIC_TRACER. For those options that are
