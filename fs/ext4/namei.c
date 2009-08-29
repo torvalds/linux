@@ -2421,7 +2421,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto end_rename;
 		retval = -EMLINK;
 		if (!new_inode && new_dir != old_dir &&
-				new_dir->i_nlink >= EXT4_LINK_MAX)
+		    EXT4_DIR_LINK_MAX(new_dir))
 			goto end_rename;
 	}
 	if (!new_bh) {
