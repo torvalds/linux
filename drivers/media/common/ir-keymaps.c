@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(ir_codes_pixelview);
    present on PV MPEG 8000GT
  */
 IR_KEYTAB_TYPE ir_codes_pixelview_new[IR_KEYTAB_SIZE] = {
-	[0x3c] = KEY_PAUSE,		/* Timeshift */
+	[0x3c] = KEY_TIME,		/* Timeshift */
 	[0x12] = KEY_POWER,
 
 	[0x3d] = KEY_1,
@@ -469,7 +469,7 @@ IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE] = {
 	[0x78] = KEY_9,
 
 	[0x10] = KEY_L,			/* Live */
-	[0x08] = KEY_T,			/* Time Shift */
+	[0x08] = KEY_TIME,		/* Time Shift */
 
 	[0x18] = KEY_PLAYPAUSE,		/* Play */
 
@@ -572,7 +572,7 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 	[0x0c] = KEY_MUTE,
 	[0x0f] = KEY_SCREEN,		/* Full Screen */
 	[0x10] = KEY_FN,		/* Funtion */
-	[0x11] = KEY_T,			/* Time shift */
+	[0x11] = KEY_TIME,		/* Time shift */
 	[0x12] = KEY_POWER,
 	[0x13] = KEY_MEDIA,		/* MTS */
 	[0x14] = KEY_SLOW,
@@ -1270,7 +1270,7 @@ IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE] = {
 	[0x0f] = KEY_AUDIO,
 	[0x1b] = KEY_VOLUMEUP,
 	[0x1a] = KEY_CHANNELUP,
-	[0x0e] = KEY_SLEEP,	/*XXX maybe KEY_PAUSE	*/
+	[0x0e] = KEY_TIME,
 	[0x1f] = KEY_VOLUMEDOWN,
 	[0x1e] = KEY_CHANNELDOWN,
 
@@ -1320,7 +1320,7 @@ IR_KEYTAB_TYPE ir_codes_gotview7135[IR_KEYTAB_SIZE] = {
 
 	[0x2a] = KEY_F21,	/* LIVE TIMESHIFT */
 	[0x0e] = KEY_F22,	/* MIN TIMESHIFT */
-	[0x1e] = KEY_F23,	/* TIMESHIFT */
+	[0x1e] = KEY_TIME,	/* TIMESHIFT */
 	[0x38] = KEY_F24,	/* NORMAL TIMESHIFT */
 };
 EXPORT_SYMBOL_GPL(ir_codes_gotview7135);
@@ -1361,6 +1361,7 @@ IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[0x46] = KEY_PLAY,
 	[0x45] = KEY_PAUSE,	/* Pause */
 	[0x44] = KEY_STOP,
+	[0x43] = KEY_TIME,	/* Time Shift */
 	[0x17] = KEY_CHANNEL,	/* SURF CH */
 	[0x40] = KEY_FORWARD,	/* Forward ? */
 	[0x42] = KEY_REWIND,	/* Backward ? */
@@ -1398,7 +1399,7 @@ IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[0x18] = KEY_VOLUMEDOWN,
 	[0x19] = KEY_SHUFFLE,	/* Snapshot */
 	[0x1a] = KEY_NEXTSONG,
-	[0x1b] = KEY_TEXT,	/* Time Shift */
+	[0x1b] = KEY_TIME,	/* Time Shift */
 	[0x1c] = KEY_RADIO,	/* FM Radio */
 	[0x1d] = KEY_RECORD,
 	[0x1e] = KEY_PAUSE,
@@ -1534,7 +1535,7 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[0x22] = KEY_PREVIOUS,
 	[0x23] = KEY_PLAYPAUSE,
 	[0x24] = KEY_NEXT,
-	[0x25] = KEY_ARCHIVE,		/* Time Shifting */
+	[0x25] = KEY_TIME,		/* Time Shifting */
 	[0x26] = KEY_STOP,
 	[0x27] = KEY_RECORD,
 	[0x28] = KEY_SAVE,		/* Screenshot */
@@ -2296,7 +2297,7 @@ IR_KEYTAB_TYPE ir_codes_behold_columbus[IR_KEYTAB_SIZE] = {
 	 * Timeshift  Record  ChannelDown  VolumeDown *
 	 *                                            */
 
-	[0x1B] = KEY_REWIND,
+	[0x1B] = KEY_TIME,
 	[0x1D] = KEY_RECORD,
 	[0x15] = KEY_CHANNELDOWN,
 	[0x18] = KEY_VOLUMEDOWN,
@@ -2448,7 +2449,7 @@ IR_KEYTAB_TYPE ir_codes_kworld_plus_tv_analog[IR_KEYTAB_SIZE] = {
 	   Also, it is not related to the time between keyup
 	   and keydown.
 	 */
-	[0x19] = KEY_PAUSE,		/* Timeshift */
+	[0x19] = KEY_TIME,		/* Timeshift */
 	[0x1a] = KEY_STOP,
 	[0x1b] = KEY_RECORD,
 
@@ -2619,7 +2620,7 @@ IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE] = {
 	[0x0d] = KEY_AUDIO,		/* stereo */
 
 	[0x0f] = KEY_PREVIOUS,		/* Prev */
-	[0x1b] = KEY_PAUSE,		/* Timeshift */
+	[0x1b] = KEY_TIME,		/* Timeshift */
 	[0x1a] = KEY_NEXT,		/* Next */
 
 	[0x0e] = KEY_STOP,
