@@ -384,6 +384,9 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head inactive_list;
 
+		/** LRU list of objects with fence regs on them. */
+		struct list_head fence_list;
+
 		/**
 		 * List of breadcrumbs associated with GPU requests currently
 		 * outstanding.
@@ -450,6 +453,9 @@ struct drm_i915_gem_object {
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head list;
+
+	/** This object's place on the fenced object LRU */
+	struct list_head fence_list;
 
 	/**
 	 * This is set if the object is on the active or flushing lists
