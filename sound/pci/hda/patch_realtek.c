@@ -12303,6 +12303,42 @@ static int alc268_auto_create_input_ctls(struct hda_codec *codec,
 	return alc_auto_create_input_ctls(codec, cfg, 0, 0x23, 0x24);
 }
 
+static void alc268_auto_set_output_and_unmute(struct hda_codec *codec,
+					      hda_nid_t nid, int pin_type)
+{
+	int idx;
+
+	alc_set_pin_output(codec, nid, pin_type);
+	if (nid == 0x14 || nid == 0x16)
+		idx = 0;
+	else
+		idx = 1;
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
+}
+
+static void alc268_auto_init_multi_out(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t nid = spec->autocfg.line_out_pins[0];
+	if (nid) {
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		alc268_auto_set_output_and_unmute(codec, nid, pin_type);
+	}
+}
+
+static void alc268_auto_init_hp_out(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t pin;
+
+	pin = spec->autocfg.hp_pins[0];
+	if (pin)
+		alc268_auto_set_output_and_unmute(codec, pin, PIN_HP);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc268_auto_set_output_and_unmute(codec, pin, PIN_OUT);
+}
+
 static void alc268_auto_init_mono_speaker_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -12311,9 +12347,10 @@ static void alc268_auto_init_mono_speaker_out(struct hda_codec *codec)
 	hda_nid_t line_nid = spec->autocfg.line_out_pins[0];
 	unsigned int	dac_vol1, dac_vol2;
 
-	if (speaker_nid) {
+	if (line_nid == 0x1d || speaker_nid == 0x1d) {
 		snd_hda_codec_write(codec, speaker_nid, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		/* mute mixer inputs from 0x1d */
 		snd_hda_codec_write(codec, 0x0f, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(1));
@@ -12321,6 +12358,7 @@ static void alc268_auto_init_mono_speaker_out(struct hda_codec *codec)
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(1));
 	} else {
+		/* unmute mixer inputs from 0x1d */
 		snd_hda_codec_write(codec, 0x0f, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1));
 		snd_hda_codec_write(codec, 0x10, 0,
@@ -12408,8 +12446,6 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	return 1;
 }
 
-#define alc268_auto_init_multi_out	alc882_auto_init_multi_out
-#define alc268_auto_init_hp_out		alc882_auto_init_hp_out
 #define alc268_auto_init_analog_input	alc882_auto_init_analog_input
 
 /* init callback for auto-configuration model -- overriding the default init */
@@ -13220,8 +13256,8 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	return 1;
 }
 
-#define alc269_auto_init_multi_out	alc882_auto_init_multi_out
-#define alc269_auto_init_hp_out		alc882_auto_init_hp_out
+#define alc269_auto_init_multi_out	alc268_auto_init_multi_out
+#define alc269_auto_init_hp_out		alc268_auto_init_hp_out
 #define alc269_auto_init_analog_input	alc882_auto_init_analog_input
 
 
