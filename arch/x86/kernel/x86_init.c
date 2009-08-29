@@ -7,6 +7,7 @@
 
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
+#include <asm/pci_x86.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
@@ -69,6 +70,10 @@ struct x86_init_ops x86_init __initdata = {
 
 	.iommu = {
 		.iommu_init		= iommu_init_noop,
+	},
+
+	.pci = {
+		.init			= x86_default_pci_init,
 	},
 };
 

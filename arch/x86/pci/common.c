@@ -72,12 +72,6 @@ struct pci_ops pci_root_ops = {
 };
 
 /*
- * legacy, numa, and acpi all want to call pcibios_scan_root
- * from their initcalls. This flag prevents that.
- */
-int pcibios_scanned;
-
-/*
  * This interrupt-safe spinlock protects all accesses to PCI
  * configuration space.
  */

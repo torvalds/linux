@@ -49,11 +49,6 @@ extern int no_broadcast;
 char visws_board_type	= -1;
 char visws_board_rev	= -1;
 
-int is_visws_box(void)
-{
-	return visws_board_type >= 0;
-}
-
 static void __init visws_time_init(void)
 {
 	printk(KERN_INFO "Starting Cobalt Timer system clock\n");
@@ -242,6 +237,7 @@ void __init visws_early_detect(void)
 	x86_init.irqs.pre_vector_init = visws_pre_intr_init;
 	x86_init.irqs.trap_init = visws_trap_init;
 	x86_init.timers.timer_init = visws_time_init;
+	x86_init.pci.init = pci_visws_init;
 
 	/*
 	 * Install reboot quirks:
