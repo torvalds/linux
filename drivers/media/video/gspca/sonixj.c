@@ -1150,7 +1150,7 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x17, 0x20);
 		reg_w1(gspca_dev, 0x01, 0x62);
 		reg_w1(gspca_dev, 0x01, 0x42);
-		mdelay(100);
+		msleep(100);
 		reg_w1(gspca_dev, 0x02, 0x62);
 		break;
 /*	case SENSOR_HV7131R: */
