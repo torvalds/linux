@@ -499,8 +499,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	elapsed = tcp_time_stamp - tp->rcv_tstamp;
 
 	if (elapsed >= keepalive_time_when(tp)) {
-		if ((!tp->keepalive_probes && icsk->icsk_probes_out >= sysctl_tcp_keepalive_probes) ||
-		     (tp->keepalive_probes && icsk->icsk_probes_out >= tp->keepalive_probes)) {
+		if (icsk->icsk_probes_out >= keepalive_probes(tp)) {
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 			tcp_write_err(sk);
 			goto out;

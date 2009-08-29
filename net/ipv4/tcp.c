@@ -2336,13 +2336,13 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		val = !!(tp->nonagle&TCP_NAGLE_CORK);
 		break;
 	case TCP_KEEPIDLE:
-		val = (tp->keepalive_time ? : sysctl_tcp_keepalive_time) / HZ;
+		val = keepalive_time_when(tp) / HZ;
 		break;
 	case TCP_KEEPINTVL:
-		val = (tp->keepalive_intvl ? : sysctl_tcp_keepalive_intvl) / HZ;
+		val = keepalive_intvl_when(tp) / HZ;
 		break;
 	case TCP_KEEPCNT:
-		val = tp->keepalive_probes ? : sysctl_tcp_keepalive_probes;
+		val = keepalive_probes(tp);
 		break;
 	case TCP_SYNCNT:
 		val = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
