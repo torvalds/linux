@@ -621,16 +621,16 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere_plus[IR_KEYTAB_SIZE] = {
      <<      FUNC    >>     RESET
 */
 
-	[0x01] = KEY_KP1,	/* 1 */
-	[0x0b] = KEY_KP2,	/* 2 */
-	[0x1b] = KEY_KP3,	/* 3 */
-	[0x05] = KEY_KP4,	/* 4 */
-	[0x09] = KEY_KP5,	/* 5 */
-	[0x15] = KEY_KP6,	/* 6 */
-	[0x06] = KEY_KP7,	/* 7 */
-	[0x0a] = KEY_KP8,	/* 8 */
-	[0x12] = KEY_KP9,	/* 9 */
-	[0x02] = KEY_KP0,	/* 0 */
+	[0x01] = KEY_1,		/* 1 */
+	[0x0b] = KEY_2,		/* 2 */
+	[0x1b] = KEY_3,		/* 3 */
+	[0x05] = KEY_4,		/* 4 */
+	[0x09] = KEY_5,		/* 5 */
+	[0x15] = KEY_6,		/* 6 */
+	[0x06] = KEY_7,		/* 7 */
+	[0x0a] = KEY_8,		/* 8 */
+	[0x12] = KEY_9,		/* 9 */
+	[0x02] = KEY_0,		/* 0 */
 	[0x10] = KEY_KPPLUS,	/* + */
 	[0x13] = KEY_AGAIN,	/* Recall */
 
