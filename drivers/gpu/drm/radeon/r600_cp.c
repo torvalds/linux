@@ -31,7 +31,32 @@
 #include "radeon_drm.h"
 #include "radeon_drv.h"
 
-#include "r600_microcode.h"
+#define PFP_UCODE_SIZE 576
+#define PM4_UCODE_SIZE 1792
+#define R700_PFP_UCODE_SIZE 848
+#define R700_PM4_UCODE_SIZE 1360
+
+/* Firmware Names */
+MODULE_FIRMWARE("radeon/R600_pfp.bin");
+MODULE_FIRMWARE("radeon/R600_me.bin");
+MODULE_FIRMWARE("radeon/RV610_pfp.bin");
+MODULE_FIRMWARE("radeon/RV610_me.bin");
+MODULE_FIRMWARE("radeon/RV630_pfp.bin");
+MODULE_FIRMWARE("radeon/RV630_me.bin");
+MODULE_FIRMWARE("radeon/RV620_pfp.bin");
+MODULE_FIRMWARE("radeon/RV620_me.bin");
+MODULE_FIRMWARE("radeon/RV635_pfp.bin");
+MODULE_FIRMWARE("radeon/RV635_me.bin");
+MODULE_FIRMWARE("radeon/RV670_pfp.bin");
+MODULE_FIRMWARE("radeon/RV670_me.bin");
+MODULE_FIRMWARE("radeon/RS780_pfp.bin");
+MODULE_FIRMWARE("radeon/RS780_me.bin");
+MODULE_FIRMWARE("radeon/RV770_pfp.bin");
+MODULE_FIRMWARE("radeon/RV770_me.bin");
+MODULE_FIRMWARE("radeon/RV730_pfp.bin");
+MODULE_FIRMWARE("radeon/RV730_me.bin");
+MODULE_FIRMWARE("radeon/RV710_pfp.bin");
+MODULE_FIRMWARE("radeon/RV710_me.bin");
 
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 # define ATI_PCIGART_PAGE_MASK		(~(ATI_PCIGART_PAGE_SIZE-1))
@@ -275,10 +300,92 @@ static void r600_vm_init(struct drm_device *dev)
 	r600_vm_flush_gart_range(dev);
 }
 
-/* load r600 microcode */
+static int r600_cp_init_microcode(drm_radeon_private_t *dev_priv)
+{
+	struct platform_device *pdev;
+	const char *chip_name;
+	size_t pfp_req_size, me_req_size;
+	char fw_name[30];
+	int err;
+
+	pdev = platform_device_register_simple("r600_cp", 0, NULL, 0);
+	err = IS_ERR(pdev);
+	if (err) {
+		printk(KERN_ERR "r600_cp: Failed to register firmware\n");
+		return -EINVAL;
+	}
+
+	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
+	case CHIP_R600:  chip_name = "R600";  break;
+	case CHIP_RV610: chip_name = "RV610"; break;
+	case CHIP_RV630: chip_name = "RV630"; break;
+	case CHIP_RV620: chip_name = "RV620"; break;
+	case CHIP_RV635: chip_name = "RV635"; break;
+	case CHIP_RV670: chip_name = "RV670"; break;
+	case CHIP_RS780:
+	case CHIP_RS880: chip_name = "RS780"; break;
+	case CHIP_RV770: chip_name = "RV770"; break;
+	case CHIP_RV730:
+	case CHIP_RV740: chip_name = "RV730"; break;
+	case CHIP_RV710: chip_name = "RV710"; break;
+	default:         BUG();
+	}
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770) {
+		pfp_req_size = R700_PFP_UCODE_SIZE * 4;
+		me_req_size = R700_PM4_UCODE_SIZE * 4;
+	} else {
+		pfp_req_size = PFP_UCODE_SIZE * 4;
+		me_req_size = PM4_UCODE_SIZE * 12;
+	}
+
+	DRM_INFO("Loading %s CP Microcode\n", chip_name);
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
+	err = request_firmware(&dev_priv->pfp_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (dev_priv->pfp_fw->size != pfp_req_size) {
+		printk(KERN_ERR
+		       "r600_cp: Bogus length %zu in firmware \"%s\"\n",
+		       dev_priv->pfp_fw->size, fw_name);
+		err = -EINVAL;
+		goto out;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
+	err = request_firmware(&dev_priv->me_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (dev_priv->me_fw->size != me_req_size) {
+		printk(KERN_ERR
+		       "r600_cp: Bogus length %zu in firmware \"%s\"\n",
+		       dev_priv->me_fw->size, fw_name);
+		err = -EINVAL;
+	}
+out:
+	platform_device_unregister(pdev);
+
+	if (err) {
+		if (err != -EINVAL)
+			printk(KERN_ERR
+			       "r600_cp: Failed to load firmware \"%s\"\n",
+			       fw_name);
+		release_firmware(dev_priv->pfp_fw);
+		dev_priv->pfp_fw = NULL;
+		release_firmware(dev_priv->me_fw);
+		dev_priv->me_fw = NULL;
+	}
+	return err;
+}
+
 static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 {
+	const __be32 *fw_data;
 	int i;
+
+	if (!dev_priv->me_fw || !dev_priv->pfp_fw)
+		return;
 
 	r600_do_cp_stop(dev_priv);
 
@@ -292,115 +399,18 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 	DRM_UDELAY(15000);
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
 
+	fw_data = (const __be32 *)dev_priv->me_fw->data;
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
+	for (i = 0; i < PM4_UCODE_SIZE * 3; i++)
+		RADEON_WRITE(R600_CP_ME_RAM_DATA,
+			     be32_to_cpup(fw_data++));
 
-	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R600)) {
-		DRM_INFO("Loading R600 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     R600_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     R600_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     R600_cp_microcode[i][2]);
-		}
+	fw_data = (const __be32 *)dev_priv->pfp_fw->data;
+	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
+	for (i = 0; i < PFP_UCODE_SIZE; i++)
+		RADEON_WRITE(R600_CP_PFP_UCODE_DATA,
+			     be32_to_cpup(fw_data++));
 
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading R600 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, R600_pfp_microcode[i]);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610)) {
-		DRM_INFO("Loading RV610 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV610_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV610_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV610_cp_microcode[i][2]);
-		}
-
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV610 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV610_pfp_microcode[i]);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV630)) {
-		DRM_INFO("Loading RV630 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV630_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV630_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV630_cp_microcode[i][2]);
-		}
-
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV630 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV630_pfp_microcode[i]);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620)) {
-		DRM_INFO("Loading RV620 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV620_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV620_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV620_cp_microcode[i][2]);
-		}
-
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV620 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV620_pfp_microcode[i]);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV635)) {
-		DRM_INFO("Loading RV635 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV635_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV635_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV635_cp_microcode[i][2]);
-		}
-
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV635 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV635_pfp_microcode[i]);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV670)) {
-		DRM_INFO("Loading RV670 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV670_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV670_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV670_cp_microcode[i][2]);
-		}
-
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV670 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV670_pfp_microcode[i]);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880)) {
-		DRM_INFO("Loading RS780/RS880 CP Microcode\n");
-		for (i = 0; i < PM4_UCODE_SIZE; i++) {
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RS780_cp_microcode[i][0]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RS780_cp_microcode[i][1]);
-			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RS780_cp_microcode[i][2]);
-		}
-
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RS780/RS880 PFP Microcode\n");
-		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RS780_pfp_microcode[i]);
-	}
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_RADDR, 0);
@@ -459,10 +469,13 @@ static void r700_vm_init(struct drm_device *dev)
 	r600_vm_flush_gart_range(dev);
 }
 
-/* load r600 microcode */
 static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 {
+	const __be32 *fw_data;
 	int i;
+
+	if (!dev_priv->me_fw || !dev_priv->pfp_fw)
+		return;
 
 	r600_do_cp_stop(dev_priv);
 
@@ -476,48 +489,18 @@ static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 	DRM_UDELAY(15000);
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
 
+	fw_data = (const __be32 *)dev_priv->pfp_fw->data;
+	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
+	for (i = 0; i < R700_PFP_UCODE_SIZE; i++)
+		RADEON_WRITE(R600_CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
+	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 
-	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV770)) {
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV770/RV790 PFP Microcode\n");
-		for (i = 0; i < R700_PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV770_pfp_microcode[i]);
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
+	fw_data = (const __be32 *)dev_priv->me_fw->data;
+	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
+	for (i = 0; i < R700_PM4_UCODE_SIZE; i++)
+		RADEON_WRITE(R600_CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
+	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
 
-		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-		DRM_INFO("Loading RV770/RV790 CP Microcode\n");
-		for (i = 0; i < R700_PM4_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_ME_RAM_DATA, RV770_cp_microcode[i]);
-		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV730) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV740)) {
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV730/RV740 PFP Microcode\n");
-		for (i = 0; i < R700_PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV730_pfp_microcode[i]);
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-
-		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-		DRM_INFO("Loading RV730/RV740 CP Microcode\n");
-		for (i = 0; i < R700_PM4_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_ME_RAM_DATA, RV730_cp_microcode[i]);
-		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV710)) {
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV710 PFP Microcode\n");
-		for (i = 0; i < R700_PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV710_pfp_microcode[i]);
-		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-
-		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-		DRM_INFO("Loading RV710 CP Microcode\n");
-		for (i = 0; i < R700_PM4_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_ME_RAM_DATA, RV710_cp_microcode[i]);
-		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-
-	}
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_RADDR, 0);
@@ -2147,6 +2130,14 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 			r600_vm_init(dev);
 	}
 
+	if (!dev_priv->me_fw || !dev_priv->pfp_fw) {
+		int err = r600_cp_init_microcode(dev_priv);
+		if (err) {
+			DRM_ERROR("Failed to load firmware!\n");
+			r600_do_cleanup_cp(dev);
+			return err;
+		}
+	}
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770))
 		r700_cp_load_microcode(dev_priv);
 	else

@@ -695,6 +695,7 @@ struct radeon_device {
 	bool				suspend;
 	bool				need_dma32;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
+	const struct firmware *fw;	/* firmware */
 };
 
 int radeon_device_init(struct radeon_device *rdev,

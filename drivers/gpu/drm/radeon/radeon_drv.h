@@ -31,6 +31,9 @@
 #ifndef __RADEON_DRV_H__
 #define __RADEON_DRV_H__
 
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
+
 /* General customization:
  */
 
@@ -351,6 +354,8 @@ typedef struct drm_radeon_private {
 	int r700_sc_hiz_tile_fifo_size;
 	int r700_sc_earlyz_tile_fifo_fize;
 
+	/* firmware */
+	const struct firmware *me_fw, *pfp_fw;
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {
