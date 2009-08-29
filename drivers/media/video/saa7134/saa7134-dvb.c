@@ -1007,6 +1007,7 @@ static struct tda18271_config hcw_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 	.config  = 3,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda829x_config tda829x_no_probe = {
