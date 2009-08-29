@@ -1043,8 +1043,8 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (!buf[1] && keymap[i].custom == buf[0] &&
-		    keymap[i].data == buf[2]) {
+		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
+		    rc5_data(&keymap[i]) == buf[2]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 			break;

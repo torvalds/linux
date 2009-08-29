@@ -178,8 +178,8 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 			}
 			/* See if we can match the raw key code. */
 			for (i = 0; i < d->props.rc_key_map_size; i++)
-				if (keymap[i].custom == keybuf[1] &&
-					keymap[i].data == keybuf[3]) {
+				if (rc5_custom(&keymap[i]) == keybuf[1] &&
+					rc5_data(&keymap[i]) == keybuf[3]) {
 					*event = keymap[i].event;
 					*state = REMOTE_KEY_PRESSED;
 					return 0;
