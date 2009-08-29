@@ -298,6 +298,7 @@ static struct tda829x_config tda829x_no_probe = {
 
 static struct tda18271_config hauppauge_tda18271_dvb_config = {
 	.gate    = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static int pvr2_tda10048_attach(struct pvr2_dvb_adapter *adap)
@@ -393,6 +394,7 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static int pvr2_s5h1409_attach(struct pvr2_dvb_adapter *adap)
