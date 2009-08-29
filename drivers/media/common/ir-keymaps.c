@@ -1,8 +1,6 @@
 /*
-
-
-    Keytables for supported remote controls. This file is part of
-    video4linux.
+    Keytables for supported remote controls, used on drivers/media
+    devices.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +15,13 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
 
+/*
+ * NOTICE FOR DEVELOPERS:
+ *   The IR mappings should be as close as possible to what's
+ *   specified at:
+ *      http://linuxtv.org/wiki/index.php/Remote_Controllers
  */
 #include <linux/module.h>
 
