@@ -778,7 +778,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->version		=	4;
 	iph->ihl		=	sizeof(struct iphdr)>>2;
 	if (mtu > IPV6_MIN_MTU)
-		iph->frag_off	=	htons(IP_DF);
+		iph->frag_off	=	tiph->frag_off;
 	else
 		iph->frag_off	=	0;
 
