@@ -1016,7 +1016,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	return 1;
 }
 
-static void __init pcibios_fixup_irqs(void)
+void __init pcibios_fixup_irqs(void)
 {
 	struct pci_dev *dev = NULL;
 	u8 pin;
@@ -1142,7 +1142,7 @@ void __init pcibios_irq_init(void)
 			pirq_table = NULL;
 	}
 
-	pcibios_fixup_irqs();
+	x86_init.pci.fixup_irqs();
 
 	if (io_apic_assign_pci_irqs && pci_routeirq) {
 		struct pci_dev *dev = NULL;
