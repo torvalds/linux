@@ -154,7 +154,8 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	event = fsnotify_peek_notify_event(group);
 
-	event_size += roundup(event->name_len, event_size);
+	if (event->name_len)
+		event_size += roundup(event->name_len + 1, event_size);
 
 	if (event_size > count)
 		return ERR_PTR(-EINVAL);
@@ -180,7 +181,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	struct fsnotify_event_private_data *fsn_priv;
 	struct inotify_event_private_data *priv;
 	size_t event_size = sizeof(struct inotify_event);
-	size_t name_len;
+	size_t name_len = 0;
 
 	/* we get the inotify watch descriptor from the event private data */
 	spin_lock(&event->lock);
@@ -196,10 +197,12 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 		inotify_free_event_priv(fsn_priv);
 	}
 
-	/* round up event->name_len so it is a multiple of event_size
+	/*
+	 * round up event->name_len so it is a multiple of event_size
 	 * plus an extra byte for the terminating '\0'.
 	 */
-	name_len = roundup(event->name_len + 1, event_size);
+	if (event->name_len)
+		name_len = roundup(event->name_len + 1, event_size);
 	inotify_event.len = name_len;
 
 	inotify_event.mask = inotify_mask_to_arg(event->mask);
@@ -325,8 +328,9 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 		list_for_each_entry(holder, &group->notification_list, event_list) {
 			event = holder->event;
 			send_len += sizeof(struct inotify_event);
-			send_len += roundup(event->name_len,
-					     sizeof(struct inotify_event));
+			if (event->name_len)
+				send_len += roundup(event->name_len + 1,
+						sizeof(struct inotify_event));
 		}
 		mutex_unlock(&group->notification_mutex);
 		ret = put_user(send_len, (int __user *) p);
@@ -586,6 +590,10 @@ retry:
 
 	/* match the ref from fsnotify_init_markentry() */
 	fsnotify_put_mark(&tmp_ientry->fsn_entry);
+
+	/* if this mark added a new event update the group mask */
+	if (mask & ~group->mask)
+		fsnotify_recalc_group_mask(group);
 
 out_err:
 	if (ret < 0)
