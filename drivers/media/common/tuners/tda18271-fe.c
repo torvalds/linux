@@ -839,6 +839,21 @@ fail:
 	return ret;
 }
 
+static int tda18271_sleep(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret;
+
+	mutex_lock(&priv->lock);
+
+	/* enter standby mode, with required output features enabled */
+	ret = tda18271_toggle_output(fe, 1);
+
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 /* ------------------------------------------------------------------ */
 
 static int tda18271_agc(struct dvb_frontend *fe)
@@ -1028,21 +1043,6 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	priv->frequency = freq;
 	priv->bandwidth = 0;
 fail:
-	return ret;
-}
-
-static int tda18271_sleep(struct dvb_frontend *fe)
-{
-	struct tda18271_priv *priv = fe->tuner_priv;
-	int ret;
-
-	mutex_lock(&priv->lock);
-
-	/* enter standby mode, with required output features enabled */
-	ret = tda18271_toggle_output(fe, 1);
-
-	mutex_unlock(&priv->lock);
-
 	return ret;
 }
 
