@@ -399,7 +399,6 @@ unsigned int nr_hardirq_chains;
 unsigned int nr_softirq_chains;
 unsigned int nr_process_chains;
 unsigned int max_lockdep_depth;
-unsigned int max_recursion_depth;
 
 #ifdef CONFIG_DEBUG_LOCKDEP
 /*
@@ -429,11 +428,8 @@ atomic_t redundant_softirqs_on;
 atomic_t redundant_softirqs_off;
 atomic_t nr_unused_locks;
 atomic_t nr_cyclic_checks;
-atomic_t nr_cyclic_check_recursions;
 atomic_t nr_find_usage_forwards_checks;
-atomic_t nr_find_usage_forwards_recursions;
 atomic_t nr_find_usage_backwards_checks;
-atomic_t nr_find_usage_backwards_recursions;
 #endif
 
 /*
