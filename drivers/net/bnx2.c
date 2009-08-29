@@ -61,10 +61,11 @@
 #define PFX DRV_MODULE_NAME	": "
 #define DRV_MODULE_VERSION	"2.0.2"
 #define DRV_MODULE_RELDATE	"Aug 21, 2009"
-#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-4.6.16.fw"
-#define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-4.6.16.fw"
-#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-4.6.17.fw"
-#define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-4.6.15.fw"
+#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-5.0.0.j3.fw"
+#define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-5.0.0.j3.fw"
+#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-5.0.0.j3.fw"
+#define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-5.0.0.j3.fw"
+#define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-5.0.0.j3.fw"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -82,6 +83,7 @@ MODULE_FIRMWARE(FW_MIPS_FILE_06);
 MODULE_FIRMWARE(FW_RV2P_FILE_06);
 MODULE_FIRMWARE(FW_MIPS_FILE_09);
 MODULE_FIRMWARE(FW_RV2P_FILE_09);
+MODULE_FIRMWARE(FW_RV2P_FILE_09_Ax);
 
 static int disable_msi = 0;
 
@@ -3621,7 +3623,11 @@ bnx2_request_firmware(struct bnx2 *bp)
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		mips_fw_file = FW_MIPS_FILE_09;
-		rv2p_fw_file = FW_RV2P_FILE_09;
+		if ((CHIP_ID(bp) == CHIP_ID_5709_A0) ||
+		    (CHIP_ID(bp) == CHIP_ID_5709_A1))
+			rv2p_fw_file = FW_RV2P_FILE_09_Ax;
+		else
+			rv2p_fw_file = FW_RV2P_FILE_09;
 	} else {
 		mips_fw_file = FW_MIPS_FILE_06;
 		rv2p_fw_file = FW_RV2P_FILE_06;

@@ -33,10 +33,11 @@ fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \
 fw-shipped-$(CONFIG_ATARI_DSP56K) += dsp56k/bootstrap.bin
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
 fw-shipped-$(CONFIG_BNX2X) += bnx2x-e1-5.0.21.0.fw bnx2x-e1h-5.0.21.0.fw
-fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-4.6.17.fw \
-			     bnx2/bnx2-rv2p-09-4.6.15.fw \
-			     bnx2/bnx2-mips-06-4.6.16.fw \
-			     bnx2/bnx2-rv2p-06-4.6.16.fw
+fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-5.0.0.j3.fw \
+			     bnx2/bnx2-rv2p-09-5.0.0.j3.fw \
+			     bnx2/bnx2-rv2p-09ax-5.0.0.j3.fw \
+			     bnx2/bnx2-mips-06-5.0.0.j3.fw \
+			     bnx2/bnx2-rv2p-06-5.0.0.j3.fw
 fw-shipped-$(CONFIG_CASSINI) += sun/cassini.bin
 fw-shipped-$(CONFIG_COMPUTONE) += intelliport2.bin
 fw-shipped-$(CONFIG_CHELSIO_T3) += cxgb3/t3b_psram-1.1.0.bin \
