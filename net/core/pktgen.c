@@ -1882,8 +1882,10 @@ static void pktgen_change_name(struct net_device *dev)
 
 			remove_proc_entry(pkt_dev->entry->name, pg_proc_dir);
 
-			pkt_dev->entry = create_proc_entry(dev->name, 0600,
-							   pg_proc_dir);
+			pkt_dev->entry = proc_create_data(dev->name, 0600,
+							  pg_proc_dir,
+							  &pktgen_if_fops,
+							  pkt_dev);
 			if (!pkt_dev->entry)
 				printk(KERN_ERR "pktgen: can't move proc "
 				       " entry for '%s'\n", dev->name);
