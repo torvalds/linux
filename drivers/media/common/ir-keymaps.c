@@ -333,7 +333,7 @@ IR_KEYTAB_TYPE ir_codes_pixelview_new[IR_KEYTAB_SIZE] = {
 	[0x14] = KEY_VOLUMEDOWN,
 	[0x13] = KEY_ZOOM,
 
-	[0x19] = KEY_SHUFFLE,		/* SNAPSHOT */
+	[0x19] = KEY_CAMERA,		/* SNAPSHOT */
 	[0x1a] = KEY_SEARCH,		/* scan */
 
 	[0x37] = KEY_REWIND,		/* << */
@@ -660,7 +660,7 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere_plus[IR_KEYTAB_SIZE] = {
 
 	[0x0f] = KEY_CLOSE,	/* Minimize */
 	[0x19] = KEY_ZOOM,	/* Zoom */
-	[0x1a] = KEY_SHUFFLE,	/* Snapshot */
+	[0x1a] = KEY_CAMERA,	/* Snapshot */
 	[0x0d] = KEY_LANGUAGE,	/* MTS */
 
 	[0x14] = KEY_VOLUMEDOWN,/* Vol- */
@@ -1066,7 +1066,7 @@ IR_KEYTAB_TYPE ir_codes_eztv[IR_KEYTAB_SIZE] = {
 	[0x2b] = KEY_RECORD,	/* recording */
 	[0x2c] = KEY_STOP,	/* stop */
 	[0x2d] = KEY_PLAY,	/* play */
-	[0x2e] = KEY_SHUFFLE,	/* snapshot / shuffle */
+	[0x2e] = KEY_CAMERA,	/* snapshot / shuffle */
 
 	[0x00] = KEY_0,
 	[0x05] = KEY_1,
@@ -1117,7 +1117,7 @@ IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE] = {
 
 	[0x2a] = KEY_SEARCH,		/* AUTOSCAN */
 	[0x1a] = KEY_SLEEP,		/* FREEZE */
-	[0x3a] = KEY_SHUFFLE,		/* SNAPSHOT */
+	[0x3a] = KEY_CAMERA,		/* SNAPSHOT */
 	[0x0a] = KEY_MUTE,		/* MUTE */
 
 	[0x26] = KEY_RECORD,		/* RECORD */
@@ -1278,7 +1278,7 @@ IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE] = {
 	 *         MUTE   SNAPSHOT*
 	 *                        */
 	[0x13] = KEY_MUTE,
-	[0x19] = KEY_RECORD,	/*XXX*/
+	[0x19] = KEY_CAMERA,
 
 	/* 0x1d unused ? */
 };
@@ -1308,8 +1308,8 @@ IR_KEYTAB_TYPE ir_codes_gotview7135[IR_KEYTAB_SIZE] = {
 	[0x0c] = KEY_VOLUMEDOWN,
 	[0x28] = KEY_VOLUMEUP,
 	[0x08] = KEY_MUTE,
-	[0x26] = KEY_SEARCH,	/*SCAN*/
-	[0x3f] = KEY_SHUFFLE,	/* SNAPSHOT */
+	[0x26] = KEY_SEARCH,	/* SCAN */
+	[0x3f] = KEY_CAMERA,	/* SNAPSHOT */
 	[0x12] = KEY_RECORD,
 	[0x32] = KEY_STOP,
 	[0x3c] = KEY_PLAY,
@@ -1397,7 +1397,7 @@ IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[0x13] = KEY_MUTE,
 	[0x15] = KEY_CHANNELDOWN,
 	[0x18] = KEY_VOLUMEDOWN,
-	[0x19] = KEY_SHUFFLE,	/* Snapshot */
+	[0x19] = KEY_CAMERA,	/* Snapshot */
 	[0x1a] = KEY_NEXTSONG,
 	[0x1b] = KEY_TIME,	/* Time Shift */
 	[0x1c] = KEY_RADIO,	/* FM Radio */
@@ -1989,7 +1989,7 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv2[IR_KEYTAB_SIZE] = {
 	[0x72] = KEY_CHANNELDOWN,
 
 	[0x41] = KEY_RECORD,
-	[0x51] = KEY_SHUFFLE,		/* Snapshot */
+	[0x51] = KEY_CAMERA,		/* Snapshot */
 	[0x75] = KEY_TIME,		/* Timeshift */
 	[0x71] = KEY_TV2,		/* PIP */
 
@@ -2237,7 +2237,7 @@ IR_KEYTAB_TYPE ir_codes_behold[IR_KEYTAB_SIZE] = {
 	 * FREEZE        SNAPSHOT *
 	 *                        */
 	[0x58] = KEY_SLOW,
-	[0x5c] = KEY_SAVE,
+	[0x5c] = KEY_CAMERA,
 
 };
 EXPORT_SYMBOL_GPL(ir_codes_behold);
@@ -2277,7 +2277,7 @@ IR_KEYTAB_TYPE ir_codes_behold_columbus[IR_KEYTAB_SIZE] = {
 	[0x04] = KEY_4,
 	[0x05] = KEY_5,
 	[0x06] = KEY_6,
-	[0x19] = KEY_BOOKMARKS,	/* Snapshot key */
+	[0x19] = KEY_CAMERA,	/* Snapshot key */
 	[0x07] = KEY_7,
 	[0x08] = KEY_8,
 	[0x09] = KEY_9,
@@ -2348,7 +2348,7 @@ IR_KEYTAB_TYPE ir_codes_genius_tvgo_a11mce[IR_KEYTAB_SIZE] = {
 	an alternate name written */
 	[0x1e] = KEY_UP,		/* Video Setting */
 	[0x0a] = KEY_DOWN,		/* Video Default */
-	[0x05] = KEY_LEFT,		/* Snapshot */
+	[0x05] = KEY_CAMERA,		/* Snapshot */
 	[0x0c] = KEY_RIGHT,		/* Hide Panel */
 	/* Four buttons without label */
 	[0x49] = KEY_RED,
@@ -2393,7 +2393,7 @@ IR_KEYTAB_TYPE ir_codes_powercolor_real_angel[IR_KEYTAB_SIZE] = {
 	[0x27] = KEY_FASTFORWARD,
 	[0x26] = KEY_REWIND,
 	[0x1e] = KEY_SEARCH,		/* autoscan */
-	[0x0e] = KEY_SHUFFLE,		/* snapshot */
+	[0x0e] = KEY_CAMERA,		/* snapshot */
 	[0x2d] = KEY_SETUP,
 	[0x0f] = KEY_SCREEN,		/* full screen */
 	[0x14] = KEY_RADIO,		/* FM radio */
@@ -2455,7 +2455,7 @@ IR_KEYTAB_TYPE ir_codes_kworld_plus_tv_analog[IR_KEYTAB_SIZE] = {
 
 	[0x15] = KEY_AUDIO,		/* ((*)) */
 	[0x0f] = KEY_ZOOM,
-	[0x1c] = KEY_SHUFFLE,		/* snapshot */
+	[0x1c] = KEY_CAMERA,		/* snapshot */
 
 	[0x18] = KEY_RED,		/* B */
 	[0x23] = KEY_GREEN,		/* C */
@@ -2571,7 +2571,7 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv_fm53[IR_KEYTAB_SIZE] = {
 	[0x40] = KEY_LAST,		/* recall */
 
 	[0x02] = KEY_MODE,		/* TV/AV */
-	[0x05] = KEY_SHUFFLE,		/* SNAPSHOT */
+	[0x05] = KEY_CAMERA,		/* SNAPSHOT */
 
 	[0x4c] = KEY_CHANNELUP,		/* UP */
 	[0x00] = KEY_CHANNELDOWN,	/* DOWN */
@@ -2627,7 +2627,7 @@ IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE] = {
 
 	[0x1d] = KEY_RECORD,
 	[0x13] = KEY_MUTE,
-	[0x19] = KEY_SHUFFLE,		/* Snapshot */
+	[0x19] = KEY_CAMERA,		/* Snapshot */
 
 };
 EXPORT_SYMBOL_GPL(ir_codes_real_audio_220_32_keys);
@@ -2811,7 +2811,7 @@ IR_KEYTAB_TYPE ir_codes_videomate_s350[IR_KEYTAB_SIZE] = {
 	[0x29] = KEY_CHANNEL,	/* SURF */
 	[0x2b] = KEY_A,
 	[0x2c] = KEY_B,
-	[0x2f] = KEY_SHUFFLE,	/* Snapshot */
+	[0x2f] = KEY_CAMERA,	/* Snapshot */
 	[0x23] = KEY_RADIO,
 	[0x02] = KEY_PREVIOUSSONG,
 	[0x06] = KEY_NEXTSONG,
