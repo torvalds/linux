@@ -60,7 +60,7 @@ int __init pci_subsys_init(void)
 		pci_legacy_init();
 
 	pcibios_fixup_peer_bridges();
-	pcibios_irq_init();
+	x86_init.pci.init_irq();
 	pcibios_init();
 
 	return 0;

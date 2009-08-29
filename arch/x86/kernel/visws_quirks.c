@@ -238,6 +238,7 @@ void __init visws_early_detect(void)
 	x86_init.irqs.trap_init = visws_trap_init;
 	x86_init.timers.timer_init = visws_time_init;
 	x86_init.pci.init = pci_visws_init;
+	x86_init.pci.init_irq = x86_init_noop;
 
 	/*
 	 * Install reboot quirks:

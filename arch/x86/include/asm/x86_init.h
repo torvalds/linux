@@ -101,9 +101,11 @@ struct x86_init_iommu {
  /*
   * struct x86_init_pci - platform specific pci init functions
  * @init:			platform specific pci init
+ * @init_irq:			platform specific pci irq init
  */
 struct x86_init_pci {
 	int (*init)(void);
+	void (*init_irq)(void);
 };
 
 /**
