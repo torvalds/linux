@@ -577,7 +577,7 @@ static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 {
 	struct input_dev *input_dev;
-	IR_KEYTAB_TYPE *ir_codes = ir_codes_dm1105_nec;
+	struct ir_scancode_table *ir_codes = &ir_codes_dm1105_nec_table;
 	int ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 

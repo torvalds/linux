@@ -111,7 +111,7 @@ static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
 	switch (hw) {
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
 		memset(&ir_init_data, 0, sizeof(struct IR_i2c_init_data));
-		ir_init_data.ir_codes = ir_codes_hauppauge_new;
+		ir_init_data.ir_codes = &ir_codes_hauppauge_new_table;
 		ir_init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 		ir_init_data.type = IR_TYPE_RC5;
 		ir_init_data.name = "CX23418 Z8F0811 Hauppauge";

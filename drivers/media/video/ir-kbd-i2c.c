@@ -297,7 +297,7 @@ static void ir_work(struct work_struct *work)
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	IR_KEYTAB_TYPE *ir_codes = NULL;
+	struct ir_scancode_table *ir_codes = NULL;
 	const char *name = NULL;
 	int ir_type;
 	struct IR_i2c *ir;
@@ -322,13 +322,13 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Pixelview";
 		ir->get_key = get_key_pixelview;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_empty;
+		ir_codes    = &ir_codes_empty_table;
 		break;
 	case 0x4b:
 		name        = "PV951";
 		ir->get_key = get_key_pv951;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_pv951;
+		ir_codes    = &ir_codes_pv951_table;
 		break;
 	case 0x18:
 	case 0x1a:
@@ -336,22 +336,22 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
 		if (hauppauge == 1) {
-			ir_codes    = ir_codes_hauppauge_new;
+			ir_codes    = &ir_codes_hauppauge_new_table;
 		} else {
-			ir_codes    = ir_codes_rc5_tv;
+			ir_codes    = &ir_codes_rc5_tv_table;
 		}
 		break;
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_empty;
+		ir_codes    = &ir_codes_empty_table;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
 		ir->get_key = get_key_fusionhdtv;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = ir_codes_fusionhdtv_mce;
+		ir_codes    = &ir_codes_fusionhdtv_mce_table;
 		break;
 	case 0x7a:
 	case 0x47:
@@ -365,9 +365,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			ir_type     = IR_TYPE_RC5;
 			ir->get_key = get_key_haup_xvr;
 			if (hauppauge == 1) {
-				ir_codes    = ir_codes_hauppauge_new;
+				ir_codes    = &ir_codes_hauppauge_new_table;
 			} else {
-				ir_codes    = ir_codes_rc5_tv;
+				ir_codes    = &ir_codes_rc5_tv_table;
 			}
 		} else {
 			/* Handled by saa7134-input */
@@ -379,7 +379,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_avermedia_cardbus;
+		ir_codes    = &ir_codes_avermedia_cardbus_table;
 		break;
 	default:
 		dprintk(1, DEVNAME ": Unsupported i2c address 0x%02x\n", addr);

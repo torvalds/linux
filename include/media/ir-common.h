@@ -31,8 +31,18 @@
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */
 #define IR_TYPE_OTHER  99
 
-#define IR_KEYTAB_TYPE	u32
-#define IR_KEYTAB_SIZE	128  // enougth for rc5, probably need more some day ...
+#define IR_KEYTAB_TYPE u32
+#define IR_KEYTAB_SIZE	128  /* enougth for rc5, probably need more some day */
+
+struct ir_scancode {
+	u16	scancode;
+	u32	keycode;
+};
+
+struct ir_scancode_table {
+	struct ir_scancode *scan;
+	int size;
+};
 
 #define IR_KEYCODE(tab,code)	(((unsigned)code < IR_KEYTAB_SIZE) \
 				 ? tab[code] : KEY_RESERVED)
@@ -93,7 +103,7 @@ struct card_ir {
 };
 
 void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type, IR_KEYTAB_TYPE *ir_codes);
+		   int ir_type, struct ir_scancode_table *ir_codes);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 		      u32 ir_key, u32 ir_raw);
@@ -107,70 +117,63 @@ void ir_rc5_timer_keyup(unsigned long data);
 
 /* Keymaps to be used by other modules */
 
-extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avermedia_m135a[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avermedia_cardbus[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pixelview_new[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_dntv_live_dvb_t[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_adstech_dvb_t_pci[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avertv_303[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_dntv_live_dvbt_pro[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_flydvb[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_cinergy[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_eztv[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_videomate_tv_pvr[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_gotview7135[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_norwood[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_proteus_2309[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_budget_ci_old[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_asus_pc39[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_encore_enltv2[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_fusionhdtv_mce[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_behold[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_behold_columbus[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pinnacle_pctv_hd[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_genius_tvgo_a11mce[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_powercolor_real_angel[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avermedia_a16d[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_encore_enltv_fm53[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_msi_tvanywhere_plus[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_ati_tv_wonder_hd_600[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_kworld_plus_tv_analog[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_kaiomy[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_evga_indtube[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_terratec_cinergy_xs[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_videomate_s350[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_gadmei_rm008z[IR_KEYTAB_SIZE];
-
+extern struct ir_scancode_table ir_codes_empty_table;
+extern struct ir_scancode_table ir_codes_avermedia_table;
+extern struct ir_scancode_table ir_codes_avermedia_dvbt_table;
+extern struct ir_scancode_table ir_codes_avermedia_m135a_table;
+extern struct ir_scancode_table ir_codes_avermedia_cardbus_table;
+extern struct ir_scancode_table ir_codes_apac_viewcomp_table;
+extern struct ir_scancode_table ir_codes_pixelview_table;
+extern struct ir_scancode_table ir_codes_pixelview_new_table;
+extern struct ir_scancode_table ir_codes_nebula_table;
+extern struct ir_scancode_table ir_codes_dntv_live_dvb_t_table;
+extern struct ir_scancode_table ir_codes_iodata_bctv7e_table;
+extern struct ir_scancode_table ir_codes_adstech_dvb_t_pci_table;
+extern struct ir_scancode_table ir_codes_msi_tvanywhere_table;
+extern struct ir_scancode_table ir_codes_cinergy_1400_table;
+extern struct ir_scancode_table ir_codes_avertv_303_table;
+extern struct ir_scancode_table ir_codes_dntv_live_dvbt_pro_table;
+extern struct ir_scancode_table ir_codes_em_terratec_table;
+extern struct ir_scancode_table ir_codes_pinnacle_grey_table;
+extern struct ir_scancode_table ir_codes_flyvideo_table;
+extern struct ir_scancode_table ir_codes_flydvb_table;
+extern struct ir_scancode_table ir_codes_cinergy_table;
+extern struct ir_scancode_table ir_codes_eztv_table;
+extern struct ir_scancode_table ir_codes_avermedia_table;
+extern struct ir_scancode_table ir_codes_videomate_tv_pvr_table;
+extern struct ir_scancode_table ir_codes_manli_table;
+extern struct ir_scancode_table ir_codes_gotview7135_table;
+extern struct ir_scancode_table ir_codes_purpletv_table;
+extern struct ir_scancode_table ir_codes_pctv_sedna_table;
+extern struct ir_scancode_table ir_codes_pv951_table;
+extern struct ir_scancode_table ir_codes_rc5_tv_table;
+extern struct ir_scancode_table ir_codes_winfast_table;
+extern struct ir_scancode_table ir_codes_pinnacle_color_table;
+extern struct ir_scancode_table ir_codes_hauppauge_new_table;
+extern struct ir_scancode_table ir_codes_npgtech_table;
+extern struct ir_scancode_table ir_codes_norwood_table;
+extern struct ir_scancode_table ir_codes_proteus_2309_table;
+extern struct ir_scancode_table ir_codes_budget_ci_old_table;
+extern struct ir_scancode_table ir_codes_asus_pc39_table;
+extern struct ir_scancode_table ir_codes_encore_enltv_table;
+extern struct ir_scancode_table ir_codes_encore_enltv2_table;
+extern struct ir_scancode_table ir_codes_tt_1500_table;
+extern struct ir_scancode_table ir_codes_fusionhdtv_mce_table;
+extern struct ir_scancode_table ir_codes_behold_table;
+extern struct ir_scancode_table ir_codes_behold_columbus_table;
+extern struct ir_scancode_table ir_codes_pinnacle_pctv_hd_table;
+extern struct ir_scancode_table ir_codes_genius_tvgo_a11mce_table;
+extern struct ir_scancode_table ir_codes_powercolor_real_angel_table;
+extern struct ir_scancode_table ir_codes_avermedia_a16d_table;
+extern struct ir_scancode_table ir_codes_encore_enltv_fm53_table;
+extern struct ir_scancode_table ir_codes_real_audio_220_32_keys_table;
+extern struct ir_scancode_table ir_codes_msi_tvanywhere_plus_table;
+extern struct ir_scancode_table ir_codes_ati_tv_wonder_hd_600_table;
+extern struct ir_scancode_table ir_codes_kworld_plus_tv_analog_table;
+extern struct ir_scancode_table ir_codes_kaiomy_table;
+extern struct ir_scancode_table ir_codes_dm1105_nec_table;
+extern struct ir_scancode_table ir_codes_evga_indtube_table;
+extern struct ir_scancode_table ir_codes_terratec_cinergy_xs_table;
+extern struct ir_scancode_table ir_codes_videomate_s350_table;
+extern struct ir_scancode_table ir_codes_gadmei_rm008z_table;
 #endif
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
