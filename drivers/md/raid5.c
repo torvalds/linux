@@ -47,6 +47,7 @@
 #include <linux/kthread.h>
 #include <linux/raid/pq.h>
 #include <linux/async_tx.h>
+#include <linux/async.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
 #include "md.h"
@@ -4314,6 +4315,36 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 	return handled;
 }
 
+#ifdef CONFIG_MULTICORE_RAID456
+static void __process_stripe(void *param, async_cookie_t cookie)
+{
+	struct stripe_head *sh = param;
+
+	handle_stripe(sh);
+	release_stripe(sh);
+}
+
+static void process_stripe(struct stripe_head *sh, struct list_head *domain)
+{
+	async_schedule_domain(__process_stripe, sh, domain);
+}
+
+static void synchronize_stripe_processing(struct list_head *domain)
+{
+	async_synchronize_full_domain(domain);
+}
+#else
+static void process_stripe(struct stripe_head *sh, struct list_head *domain)
+{
+	handle_stripe(sh);
+	release_stripe(sh);
+	cond_resched();
+}
+
+static void synchronize_stripe_processing(struct list_head *domain)
+{
+}
+#endif
 
 
 /*
@@ -4328,6 +4359,7 @@ static void raid5d(mddev_t *mddev)
 	struct stripe_head *sh;
 	raid5_conf_t *conf = mddev_to_conf(mddev);
 	int handled;
+	LIST_HEAD(raid_domain);
 
 	pr_debug("+++ raid5d active\n");
 
@@ -4364,8 +4396,7 @@ static void raid5d(mddev_t *mddev)
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;
-		handle_stripe(sh);
-		release_stripe(sh);
+		process_stripe(sh, &raid_domain);
 
 		spin_lock_irq(&conf->device_lock);
 	}
@@ -4373,6 +4404,7 @@ static void raid5d(mddev_t *mddev)
 
 	spin_unlock_irq(&conf->device_lock);
 
+	synchronize_stripe_processing(&raid_domain);
 	async_tx_issue_pending_all();
 	unplug_slaves(mddev);
 
