@@ -57,8 +57,8 @@ extern unsigned long max_low_pfn;
 extern unsigned long min_low_pfn;
 extern unsigned long max_pfn;
 
-#define __pa(vaddr)		((unsigned long) (vaddr))
-#define __va(paddr)		((void *) (paddr))
+#define __pa(x)		((unsigned long)(x) - PAGE_OFFSET)
+#define __va(x)		((void *)((unsigned long) (x) + PAGE_OFFSET))
 
 #define phys_to_pfn(phys)	(PFN_DOWN(phys))
 #define pfn_to_phys(pfn)	(PFN_PHYS(pfn))

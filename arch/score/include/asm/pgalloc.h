@@ -72,7 +72,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 	__free_pages(pte, PTE_ORDER);
 }
 
-#define __pte_free_tlb(tlb, pte)			\
+#define __pte_free_tlb(tlb, pte, buf)			\
 do {							\
 	pgtable_page_dtor(pte);				\
 	tlb_remove_page((tlb), pte);			\

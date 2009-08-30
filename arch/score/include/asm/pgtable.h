@@ -106,7 +106,8 @@ static inline void pmd_clear(pmd_t *pmdp)
 	((swp_entry_t) { pte_val(pte)})
 #define __swp_entry_to_pte(x)	((pte_t) {(x).val})
 
-#define pmd_page(pmd) virt_to_page(__va(pmd_val(pmd)))
+#define pmd_phys(pmd)		__pa((void *)pmd_val(pmd))
+#define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 
@@ -129,13 +130,10 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 #define pgd_clear(pgdp)		do { } while (0)
 
 #define kern_addr_valid(addr)	(1)
-#define	pmd_offset(a, b)	((void *) 0)
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
 #define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
-
-#define pud_offset(pgd, address) ((pud_t *) pgd)
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_CACHE)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
@@ -165,15 +163,27 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 #define __S110	PAGE_SHARED
 #define __S111	PAGE_SHARED
 
-#define pgprot_noncached(x)	(x)
+#define pgprot_noncached pgprot_noncached
 
-#define __swp_type(x)		(0)
-#define __swp_offset(x)		(0)
-#define __swp_entry(typ, off)	((swp_entry_t) { ((typ) | ((off) << 7)) })
+static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+{
+	unsigned long prot = pgprot_val(_prot);
 
-#define ZERO_PAGE(vaddr)	({ BUG(); NULL; })
+	prot = (prot & ~_CACHE_MASK);
 
-#define swapper_pg_dir ((pgd_t *) NULL)
+	return __pgprot(prot);
+}
+
+#define __swp_type(x)		((x).val & 0x1f)
+#define __swp_offset(x) 	((x).val >> 11)
+#define __swp_entry(type, offset) ((swp_entry_t){(type) | ((offset) << 11)})
+
+extern unsigned long empty_zero_page;
+extern unsigned long zero_page_mask;
+
+#define ZERO_PAGE(vaddr) \
+	(virt_to_page((void *)(empty_zero_page + \
+	 (((unsigned long)(vaddr)) & zero_page_mask))))
 
 #define pgtable_cache_init()	do {} while (0)
 
@@ -248,6 +258,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
 
 extern unsigned long pgd_current;
+extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)

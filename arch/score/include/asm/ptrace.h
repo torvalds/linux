@@ -51,9 +51,11 @@
  * system call/exception. As usual the registers k0/k1 aren't being saved.
  */
 struct pt_regs {
-	unsigned long pad0[6];
+	unsigned long pad0[6];	/* stack arguments */
 	unsigned long orig_r4;
 	unsigned long orig_r7;
+	long is_syscall;
+
 	unsigned long regs[32];
 
 	unsigned long cel;
@@ -68,11 +70,11 @@ struct pt_regs {
 	unsigned long cp0_psr;
 	unsigned long cp0_ecr;
 	unsigned long cp0_condition;
-
-	long is_syscall;
 };
 
 #ifdef __KERNEL__
+
+struct task_struct;
 
 /*
  * Does the process account for user or for system time?
