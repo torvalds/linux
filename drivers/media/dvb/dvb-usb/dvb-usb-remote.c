@@ -22,6 +22,19 @@ static int dvb_usb_getkeycode(struct input_dev *dev,
 			*keycode = keymap[i].event;
 			return 0;
 		}
+
+	/*
+	 * If is there extra space, returns KEY_RESERVED,
+	 * otherwise, input core won't let dvb_usb_setkeycode
+	 * to work
+	 */
+	for (i = 0; i < d->props.rc_key_map_size; i++)
+		if (keymap[i].event == KEY_RESERVED ||
+		    keymap[i].event == KEY_UNKNOWN) {
+			*keycode = KEY_RESERVED;
+			return 0;
+		}
+
 	return -EINVAL;
 }
 
