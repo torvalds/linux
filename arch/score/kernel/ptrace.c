@@ -23,10 +23,99 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/elf.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 
 #include <asm/uaccess.h>
+
+/*
+ * retrieve the contents of SCORE userspace general registers
+ */
+static int genregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* skip 9 * sizeof(unsigned long) not use for pt_regs */
+	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					0, offsetof(struct pt_regs, regs));
+
+	/* r0 - r31, cel, ceh, sr0, sr1, sr2, epc, ema, psr, ecr, condition */
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  regs->regs,
+				  offsetof(struct pt_regs, regs),
+				  offsetof(struct pt_regs, cp0_condition));
+
+	if (!ret)
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+						sizeof(struct pt_regs), -1);
+
+	return ret;
+}
+
+/*
+ * update the contents of the SCORE userspace general registers
+ */
+static int genregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* skip 9 * sizeof(unsigned long) */
+	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					0, offsetof(struct pt_regs, regs));
+
+	/* r0 - r31, cel, ceh, sr0, sr1, sr2, epc, ema, psr, ecr, condition */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  regs->regs,
+				  offsetof(struct pt_regs, regs),
+				  offsetof(struct pt_regs, cp0_condition));
+
+	if (!ret)
+		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+						sizeof(struct pt_regs), -1);
+
+	return ret;
+}
+
+/*
+ * Define the register sets available on the score7 under Linux
+ */
+enum score7_regset {
+	REGSET_GENERAL,
+};
+
+static const struct user_regset score7_regsets[] = {
+	[REGSET_GENERAL] = {
+		.core_note_type	= NT_PRSTATUS,
+		.n		= ELF_NGREG,
+		.size		= sizeof(long),
+		.align		= sizeof(long),
+		.get		= genregs_get,
+		.set		= genregs_set,
+	},
+};
+
+static const struct user_regset_view user_score_native_view = {
+	.name		= "score7",
+	.e_machine	= EM_SCORE7,
+	.regsets	= score7_regsets,
+	.n		= ARRAY_SIZE(score7_regsets),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_score_native_view;
+}
 
 static int is_16bitinsn(unsigned long insn)
 {
@@ -78,34 +167,6 @@ write_tsk_long(struct task_struct *child,
 	copied = access_process_vm(child, addr, &val, sizeof(val), 1);
 
 	return copied != sizeof(val) ? -EIO : 0;
-}
-
-/*
- * Get all user integer registers.
- */
-static int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
-{
-	struct pt_regs *regs = task_pt_regs(tsk);
-
-	return copy_to_user(uregs, regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
-}
-
-/*
- * Set all user integer registers.
- */
-static int ptrace_setregs(struct task_struct *tsk, void __user *uregs)
-{
-	struct pt_regs newregs;
-	int ret;
-
-	ret = -EFAULT;
-	if (copy_from_user(&newregs, uregs, sizeof(struct pt_regs)) == 0) {
-		struct pt_regs *regs = task_pt_regs(tsk);
-		*regs = newregs;
-		ret = 0;
-	}
-
-	return ret;
 }
 
 void user_enable_single_step(struct task_struct *child)
@@ -270,97 +331,18 @@ arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	unsigned long __user *datap = (void __user *)data;
 
 	switch (request) {
-	/* Read the word at location addr in the USER area.  */
-	case PTRACE_PEEKUSR: {
-		struct pt_regs *regs;
-		unsigned long tmp;
-
-		regs = task_pt_regs(child);
-
-		tmp = 0;  /* Default return value. */
-		switch (addr) {
-		case 0 ... 31:
-			tmp = regs->regs[addr];
-			break;
-		case PC:
-			tmp = regs->cp0_epc;
-			break;
-		case ECR:
-			tmp = regs->cp0_ecr;
-			break;
-		case EMA:
-			tmp = regs->cp0_ema;
-			break;
-		case CEH:
-			tmp = regs->ceh;
-			break;
-		case CEL:
-			tmp = regs->cel;
-			break;
-		case CONDITION:
-			tmp = regs->cp0_condition;
-			break;
-		case PSR:
-			tmp = regs->cp0_psr;
-			break;
-		case COUNTER:
-			tmp = regs->sr0;
-			break;
-		case LDCR:
-			tmp = regs->sr1;
-			break;
-		case STCR:
-			tmp = regs->sr2;
-			break;
-		default:
-			tmp = 0;
-			return -EIO;
-		}
-
-		ret = put_user(tmp, (unsigned int __user *) datap);
-		return ret;
-	}
-
-	case PTRACE_POKEUSR: {
-		struct pt_regs *regs;
-		ret = 0;
-		regs = task_pt_regs(child);
-
-		switch (addr) {
-		case 0 ... 31:
-			regs->regs[addr] = data;
-			break;
-		case PC:
-			regs->cp0_epc = data;
-			break;
-		case CEH:
-			regs->ceh = data;
-			break;
-		case CEL:
-			regs->cel = data;
-			break;
-		case CONDITION:
-			regs->cp0_condition = data;
-			break;
-		case PSR:
-		case COUNTER:
-		case STCR:
-		case LDCR:
-			break; /* user can't write the reg */
-		default:
-			/* The rest are not allowed. */
-			ret = -EIO;
-			break;
-		}
-		break;
-	}
-
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs(child, (void __user *)datap);
+		ret = copy_regset_to_user(child, &user_score_native_view,
+						REGSET_GENERAL,
+						0, sizeof(struct pt_regs),
+						(void __user *)datap);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs(child, (void __user *)datap);
+		ret = copy_regset_from_user(child, &user_score_native_view,
+						REGSET_GENERAL,
+						0, sizeof(struct pt_regs),
+						(const void __user *)datap);
 		break;
 
 	default:
