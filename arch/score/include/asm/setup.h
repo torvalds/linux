@@ -2,7 +2,8 @@
 #define _ASM_SCORE_SETUP_H
 
 #define COMMAND_LINE_SIZE	256
-#define MEM_SIZE		0x2000000
+#define MEMORY_START		0
+#define MEMORY_SIZE		0x2000000
 
 #ifdef __KERNEL__
 

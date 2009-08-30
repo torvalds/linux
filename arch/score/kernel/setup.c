@@ -26,10 +26,12 @@
 #include <linux/bootmem.h>
 #include <linux/initrd.h>
 #include <linux/ioport.h>
+#include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/screen_info.h>
 
 #include <asm-generic/sections.h>
+#include <asm/setup.h>
 
 struct screen_info screen_info;
 unsigned long kernelsp;
@@ -40,25 +42,25 @@ static struct resource data_resource = { .name = "Kernel data",};
 
 static void __init bootmem_init(void)
 {
-	unsigned long reserved_end, bootmap_size;
+	unsigned long start_pfn, bootmap_size;
 	unsigned long size = initrd_end - initrd_start;
 
-	reserved_end = (unsigned long)_end;
+	start_pfn = PFN_UP(__pa(&_end));
 
-	min_low_pfn = 0;
-	max_low_pfn = MEM_SIZE / PAGE_SIZE;
+	min_low_pfn = PFN_UP(MEMORY_START);
+	max_low_pfn = PFN_UP(MEMORY_START + MEMORY_SIZE);
 
 	/* Initialize the boot-time allocator with low memory only. */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), reserved_end,
+	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
 					 min_low_pfn, max_low_pfn);
 	add_active_range(0, min_low_pfn, max_low_pfn);
 
-	free_bootmem(PFN_PHYS(reserved_end),
-		     (max_low_pfn - reserved_end) << PAGE_SHIFT);
-	memory_present(0, reserved_end, max_low_pfn);
+	free_bootmem(PFN_PHYS(start_pfn),
+		     (max_low_pfn - start_pfn) << PAGE_SHIFT);
+	memory_present(0, start_pfn, max_low_pfn);
 
 	/* Reserve space for the bootmem bitmap. */
-	reserve_bootmem(PFN_PHYS(reserved_end), bootmap_size, BOOTMEM_DEFAULT);
+	reserve_bootmem(PFN_PHYS(start_pfn), bootmap_size, BOOTMEM_DEFAULT);
 
 	if (size == 0) {
 		printk(KERN_INFO "Initrd not found or empty");
@@ -87,15 +89,15 @@ static void __init resource_init(void)
 {
 	struct resource *res;
 
-	code_resource.start = (unsigned long)_text;
-	code_resource.end = (unsigned long)_etext - 1;
-	data_resource.start = (unsigned long)_etext;
-	data_resource.end = (unsigned long)_edata - 1;
+	code_resource.start = __pa(&_text);
+	code_resource.end = __pa(&_etext) - 1;
+	data_resource.start = __pa(&_etext);
+	data_resource.end = __pa(&_edata) - 1;
 
 	res = alloc_bootmem(sizeof(struct resource));
 	res->name = "System RAM";
-	res->start = 0;
-	res->end = MEM_SIZE - 1;
+	res->start = MEMORY_START;
+	res->end = MEMORY_START + MEMORY_SIZE - 1;
 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	request_resource(&iomem_resource, res);
 
