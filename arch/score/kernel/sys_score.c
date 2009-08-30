@@ -25,6 +25,7 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/unistd.h>
@@ -49,14 +50,26 @@ sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 	}
 
 	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags,
-			pgoff >> (PAGE_SHIFT - 12));
+	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
 	up_write(&current->mm->mmap_sem);
 
 	if (file)
 		fput(file);
 
 	return error;
+}
+
+asmlinkage long
+sys_mmap(unsigned long addr, unsigned long len, unsigned long prot,
+	unsigned long flags, unsigned long fd, off_t pgoff)
+{
+	return sys_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
+}
+
+asmlinkage long
+score_fork(struct pt_regs *regs)
+{
+	return do_fork(SIGCHLD, regs->regs[0], regs, 0, NULL, NULL);
 }
 
 /*
@@ -79,6 +92,13 @@ score_clone(struct pt_regs *regs)
 
 	return do_fork(clone_flags, newsp, regs, 0,
 			parent_tidptr, child_tidptr);
+}
+
+asmlinkage long
+score_vfork(struct pt_regs *regs)
+{
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
+			regs->regs[0], regs, 0, NULL, NULL);
 }
 
 /*

@@ -499,3 +499,16 @@ ENTRY(sys_sigaltstack)
 	mv	r4, r0
 	la	r8, score_sigaltstack
 	br	r8
+
+#ifdef __ARCH_WANT_SYSCALL_DEPRECATED
+ENTRY(sys_fork)
+	mv	r4, r0
+	la	r8, score_fork
+	br	r8
+
+ENTRY(sys_vfork)
+	mv	r4, r0
+	la	r8, score_vfork
+	br	r8
+#endif /* __ARCH_WANT_SYSCALL_DEPRECATED */
+
