@@ -428,18 +428,20 @@ static inline void iop_desc_set_block_fill_val(struct iop_adma_desc_slot *desc,
 	hw_desc->block_fill_data = val;
 }
 
-static inline int iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
+static inline enum sum_check_flags
+iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	struct iop13xx_adma_desc_ctrl desc_ctrl = hw_desc->desc_ctrl_field;
 	struct iop13xx_adma_byte_count byte_count = hw_desc->byte_count_field;
+	enum sum_check_flags flags;
 
 	BUG_ON(!(byte_count.tx_complete && desc_ctrl.zero_result));
 
-	if (desc_ctrl.pq_xfer_en)
-		return byte_count.zero_result_err_q;
-	else
-		return byte_count.zero_result_err;
+	flags = byte_count.zero_result_err_q << SUM_CHECK_Q;
+	flags |= byte_count.zero_result_err << SUM_CHECK_P;
+
+	return flags;
 }
 
 static inline void iop_chan_append(struct iop_adma_chan *chan)

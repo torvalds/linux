@@ -2,6 +2,7 @@
 #define _RAID5_H
 
 #include <linux/raid/xor.h>
+#include <linux/dmaengine.h>
 
 /*
  *
@@ -215,8 +216,8 @@ struct stripe_head {
 	 * @target - STRIPE_OP_COMPUTE_BLK target
 	 */
 	struct stripe_operations {
-		int		   target;
-		u32		   zero_sum_result;
+		int		     target;
+		enum sum_check_flags zero_sum_result;
 	} ops;
 	struct r5dev {
 		struct bio	req;

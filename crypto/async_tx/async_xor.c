@@ -246,7 +246,7 @@ static int page_is_zero(struct page *p, unsigned int offset, size_t len)
  */
 struct dma_async_tx_descriptor *
 async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
-	      int src_cnt, size_t len, u32 *result,
+	      int src_cnt, size_t len, enum sum_check_flags *result,
 	      struct async_submit_ctl *submit)
 {
 	struct dma_chan *chan = async_tx_find_channel(submit, DMA_XOR_VAL,
@@ -304,7 +304,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 
 		async_tx_quiesce(&tx);
 
-		*result = page_is_zero(dest, offset, len) ? 0 : 1;
+		*result = !page_is_zero(dest, offset, len) << SUM_CHECK_P;
 
 		async_tx_sync_epilog(submit);
 		submit->flags = flags_orig;
