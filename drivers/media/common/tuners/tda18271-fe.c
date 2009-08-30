@@ -1219,6 +1219,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
 		priv->config = (cfg) ? cfg->config : 0;
+		priv->small_i2c = (cfg) ? cfg->small_i2c : 0;
 		priv->output_opt = (cfg) ?
 			cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
 
@@ -1237,9 +1238,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		mutex_init(&priv->lock);
 
 		fe->tuner_priv = priv;
-
-		if (cfg)
-			priv->small_i2c = cfg->small_i2c;
 
 		if (tda_fail(tda18271_get_id(fe)))
 			goto fail;
