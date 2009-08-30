@@ -623,18 +623,29 @@ static void ops_run_biofill(struct stripe_head *sh)
 	async_trigger_callback(&submit);
 }
 
+static void mark_target_uptodate(struct stripe_head *sh, int target)
+{
+	struct r5dev *tgt;
+
+	if (target < 0)
+		return;
+
+	tgt = &sh->dev[target];
+	set_bit(R5_UPTODATE, &tgt->flags);
+	BUG_ON(!test_bit(R5_Wantcompute, &tgt->flags));
+	clear_bit(R5_Wantcompute, &tgt->flags);
+}
+
 static void ops_complete_compute5(void *stripe_head_ref)
 {
 	struct stripe_head *sh = stripe_head_ref;
-	int target = sh->ops.target;
-	struct r5dev *tgt = &sh->dev[target];
 
 	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
-	set_bit(R5_UPTODATE, &tgt->flags);
-	BUG_ON(!test_bit(R5_Wantcompute, &tgt->flags));
-	clear_bit(R5_Wantcompute, &tgt->flags);
+	/* mark the computed target as uptodate */
+	mark_target_uptodate(sh, sh->ops.target);
+
 	clear_bit(STRIPE_COMPUTE_RUN, &sh->state);
 	if (sh->check_state == check_state_compute_run)
 		sh->check_state = check_state_compute_result;
