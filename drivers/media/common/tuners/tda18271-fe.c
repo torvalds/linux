@@ -1258,9 +1258,19 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		/* existing tuner instance */
 		fe->tuner_priv = priv;
 
-		/* allow dvb driver to override i2c gate setting */
-		if ((cfg) && (cfg->gate != TDA18271_GATE_ANALOG))
-			priv->gate = cfg->gate;
+		/* allow dvb driver to override configuration settings */
+		if (cfg) {
+			if (cfg->gate != TDA18271_GATE_ANALOG)
+				priv->gate = cfg->gate;
+			if (cfg->role)
+				priv->role = cfg->role;
+			if (cfg->config)
+				priv->config = cfg->config;
+			if (cfg->small_i2c)
+				priv->small_i2c = cfg->small_i2c;
+			if (cfg->output_opt)
+				priv->output_opt = cfg->output_opt;
+		}
 		break;
 	}
 
