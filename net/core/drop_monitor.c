@@ -182,7 +182,8 @@ static void trace_napi_poll_hit(struct napi_struct *napi)
 	/*
 	 * Ratelimit our check time to dm_hw_check_delta jiffies
 	 */
-	if (!time_after(jiffies, napi->dev->last_rx + dm_hw_check_delta))
+	if (!napi->dev ||
+	    !time_after(jiffies, napi->dev->last_rx + dm_hw_check_delta))
 		return;
 
 	rcu_read_lock();
