@@ -25,13 +25,13 @@
 
 #include <linux/errno.h>
 #include <linux/signal.h>
+#include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/uaccess.h>
 
+#include <asm/cacheflush.h>
 #include <asm/syscalls.h>
 #include <asm/ucontext.h>
-
-#include <asm/cacheflush.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 

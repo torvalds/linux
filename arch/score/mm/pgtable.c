@@ -47,14 +47,6 @@ void pgd_init(unsigned long page)
 
 void __init pagetable_init(void)
 {
-	unsigned long vaddr;
-	pgd_t *pgd_base;
-
 	/* Initialize the entire pgd. */
-	pgd_init((unsigned long) swapper_pg_dir);
-	pgd_init((unsigned long) swapper_pg_dir
-		+ sizeof(pgd_t) * USER_PTRS_PER_PGD);
-
-	pgd_base = swapper_pg_dir;
-	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
+	pgd_init((unsigned long)swapper_pg_dir);
 }

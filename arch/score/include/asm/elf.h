@@ -1,9 +1,8 @@
 #ifndef _ASM_SCORE_ELF_H
 #define _ASM_SCORE_ELF_H
 
-/* ELF register definitions */
-#define ELF_NGREG	45
-#define ELF_NFPREG	33
+#include <linux/ptrace.h>
+
 #define EM_SCORE7	135
 
 /* Relocation types. */
@@ -30,11 +29,15 @@
 #define R_SCORE_IMM30		20
 #define R_SCORE_IMM32		21
 
-typedef unsigned long elf_greg_t;
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
+/* ELF register definitions */
+typedef unsigned long	elf_greg_t;
 
-typedef double elf_fpreg_t;
-typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
+#define ELF_NGREG	(sizeof(struct pt_regs) / sizeof(elf_greg_t))
+typedef elf_greg_t	elf_gregset_t[ELF_NGREG];
+
+/* Score does not have fp regs. */
+typedef double		elf_fpreg_t;
+typedef elf_fpreg_t	elf_fpregset_t;
 
 #define elf_check_arch(x)	((x)->e_machine == EM_SCORE7)
 
@@ -57,6 +60,7 @@ do {								\
 struct task_struct;
 struct pt_regs;
 
+#define CORE_DUMP_USE_REGSET
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 

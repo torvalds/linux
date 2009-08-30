@@ -144,7 +144,8 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 void __init_refok free_initmem(void)
 {
 	free_init_pages("unused kernel memory",
-	    (unsigned long)__init_begin, (unsigned long)__init_end);
+	__pa(&__init_begin),
+	__pa(&__init_end));
 }
 
 unsigned long pgd_current;
@@ -156,4 +157,5 @@ unsigned long pgd_current;
  * are constants.  So we use the variants from asm-offset.h until that gcc
  * will officially be retired.
  */
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned(PTE_ORDER);
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned(PTE_ORDER);
