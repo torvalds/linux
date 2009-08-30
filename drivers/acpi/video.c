@@ -198,7 +198,7 @@ struct acpi_video_device {
 	struct acpi_device *dev;
 	struct acpi_video_device_brightness *brightness;
 	struct backlight_device *backlight;
-	struct thermal_cooling_device *cdev;
+	struct thermal_cooling_device *cooling_dev;
 	struct output_device *output_dev;
 };
 
@@ -387,20 +387,20 @@ static struct output_properties acpi_output_properties = {
 
 
 /* thermal cooling device callbacks */
-static int video_get_max_state(struct thermal_cooling_device *cdev, unsigned
+static int video_get_max_state(struct thermal_cooling_device *cooling_dev, unsigned
 			       long *state)
 {
-	struct acpi_device *device = cdev->devdata;
+	struct acpi_device *device = cooling_dev->devdata;
 	struct acpi_video_device *video = acpi_driver_data(device);
 
 	*state = video->brightness->count - 3;
 	return 0;
 }
 
-static int video_get_cur_state(struct thermal_cooling_device *cdev, unsigned
+static int video_get_cur_state(struct thermal_cooling_device *cooling_dev, unsigned
 			       long *state)
 {
-	struct acpi_device *device = cdev->devdata;
+	struct acpi_device *device = cooling_dev->devdata;
 	struct acpi_video_device *video = acpi_driver_data(device);
 	unsigned long long level;
 	int offset;
@@ -417,9 +417,9 @@ static int video_get_cur_state(struct thermal_cooling_device *cdev, unsigned
 }
 
 static int
-video_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
+video_set_cur_state(struct thermal_cooling_device *cooling_dev, unsigned long state)
 {
-	struct acpi_device *device = cdev->devdata;
+	struct acpi_device *device = cooling_dev->devdata;
 	struct acpi_video_device *video = acpi_driver_data(device);
 	int level;
 
@@ -995,29 +995,29 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
 
-		device->cdev = thermal_cooling_device_register("LCD",
+		device->cooling_dev = thermal_cooling_device_register("LCD",
 					device->dev, &video_cooling_ops);
-		if (IS_ERR(device->cdev)) {
+		if (IS_ERR(device->cooling_dev)) {
 			/*
-			 * Set cdev to NULL so we don't crash trying to
+			 * Set cooling_dev to NULL so we don't crash trying to
 			 * free it.
 			 * Also, why the hell we are returning early and
 			 * not attempt to register video output if cooling
 			 * device registration failed?
 			 * -- dtor
 			 */
-			device->cdev = NULL;
+			device->cooling_dev = NULL;
 			return;
 		}
 
 		dev_info(&device->dev->dev, "registered as cooling_device%d\n",
-			 device->cdev->id);
+			 device->cooling_dev->id);
 		result = sysfs_create_link(&device->dev->dev.kobj,
-				&device->cdev->device.kobj,
+				&device->cooling_dev->device.kobj,
 				"thermal_cooling");
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
-		result = sysfs_create_link(&device->cdev->device.kobj,
+		result = sysfs_create_link(&device->cooling_dev->device.kobj,
 				&device->dev->dev.kobj, "device");
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
@@ -2020,13 +2020,13 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 					    acpi_video_device_notify);
 	sysfs_remove_link(&device->backlight->dev.kobj, "device");
 	backlight_device_unregister(device->backlight);
-	if (device->cdev) {
+	if (device->cooling_dev) {
 		sysfs_remove_link(&device->dev->dev.kobj,
 				  "thermal_cooling");
-		sysfs_remove_link(&device->cdev->device.kobj,
+		sysfs_remove_link(&device->cooling_dev->device.kobj,
 				  "device");
-		thermal_cooling_device_unregister(device->cdev);
-		device->cdev = NULL;
+		thermal_cooling_device_unregister(device->cooling_dev);
+		device->cooling_dev = NULL;
 	}
 	video_output_unregister(device->output_dev);
 
