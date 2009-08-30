@@ -2318,7 +2318,7 @@ static int ext4_link(struct dentry *old_dentry,
 	struct inode *inode = old_dentry->d_inode;
 	int err, retries = 0;
 
-	if (EXT4_DIR_LINK_MAX(inode))
+	if (inode->i_nlink >= EXT4_LINK_MAX)
 		return -EMLINK;
 
 	/*
