@@ -42,6 +42,9 @@ static void __exit async_tx_exit(void)
 	async_dmaengine_put();
 }
 
+module_init(async_tx_init);
+module_exit(async_tx_exit);
+
 /**
  * __async_tx_find_channel - find a channel to carry out the operation or let
  *	the transaction execute synchronously
@@ -61,17 +64,6 @@ __async_tx_find_channel(struct async_submit_ctl *submit,
 	return async_dma_find_channel(tx_type);
 }
 EXPORT_SYMBOL_GPL(__async_tx_find_channel);
-#else
-static int __init async_tx_init(void)
-{
-	printk(KERN_INFO "async_tx: api initialized (sync-only)\n");
-	return 0;
-}
-
-static void __exit async_tx_exit(void)
-{
-	do { } while (0);
-}
 #endif
 
 
@@ -297,9 +289,6 @@ void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
 	}
 }
 EXPORT_SYMBOL_GPL(async_tx_quiesce);
-
-module_init(async_tx_init);
-module_exit(async_tx_exit);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Asynchronous Bulk Memory Transactions API");
