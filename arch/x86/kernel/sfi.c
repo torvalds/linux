@@ -55,16 +55,12 @@ void __init mp_sfi_register_lapic_address(unsigned long address)
 /* All CPUs enumerated by SFI must be present and enabled */
 void __cpuinit mp_sfi_register_lapic(u8 id)
 {
-	int boot_cpu = 0;
-
 	if (MAX_APICS - id <= 0) {
 		pr_warning("Processor #%d invalid (max %d)\n",
 			id, MAX_APICS);
 		return;
 	}
 
-	if (id == boot_cpu_physical_apicid)
-		boot_cpu = 1;
 	pr_info("registering lapic[%d]\n", id);
 
 	generic_processor_info(id, GET_APIC_VERSION(apic_read(APIC_LVR)));
