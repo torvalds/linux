@@ -183,7 +183,7 @@ sizeof(nop_cmd) = 8;
 static irqreturn_t elmc_interrupt(int irq, void *dev_id);
 static int elmc_open(struct net_device *dev);
 static int elmc_close(struct net_device *dev);
-static int elmc_send_packet(struct sk_buff *, struct net_device *);
+static netdev_tx_t elmc_send_packet(struct sk_buff *, struct net_device *);
 static struct net_device_stats *elmc_get_stats(struct net_device *dev);
 static void elmc_timeout(struct net_device *dev);
 #ifdef ELMC_MULTICAST
@@ -1129,7 +1129,7 @@ static void elmc_timeout(struct net_device *dev)
  * send frame
  */
 
-static int elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	int len;
 	int i;

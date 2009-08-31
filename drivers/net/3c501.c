@@ -409,7 +409,7 @@ static void el_timeout(struct net_device *dev)
  * no real choice.
  */
 
-static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;

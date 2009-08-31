@@ -369,8 +369,8 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 			    struct pnp_dev *idev, int card_number);
 static int corkscrew_open(struct net_device *dev);
 static void corkscrew_timer(unsigned long arg);
-static int corkscrew_start_xmit(struct sk_buff *skb,
-				struct net_device *dev);
+static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static int corkscrew_rx(struct net_device *dev);
 static void corkscrew_timeout(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
@@ -998,8 +998,8 @@ static void corkscrew_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int corkscrew_start_xmit(struct sk_buff *skb,
-				struct net_device *dev)
+static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct corkscrew_private *vp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
