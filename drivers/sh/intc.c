@@ -749,7 +749,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
 		if (unlikely(!irq_desc)) {
-			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
+			pr_info("can't get irq_desc for %d\n", irq);
 			continue;
 		}
 
@@ -761,6 +761,17 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 			if (vect->enum_id != vect2->enum_id)
 				continue;
+
+			/*
+			 * In the case of multi-evt handling and sparse
+			 * IRQ support, each vector still needs to have
+			 * its own backing irq_desc.
+			 */
+			irq_desc = irq_to_desc_alloc_node(irq2, numa_node_id());
+			if (unlikely(!irq_desc)) {
+				pr_info("can't get irq_desc for %d\n", irq2);
+				continue;
+			}
 
 			vect2->enum_id = 0;
 
