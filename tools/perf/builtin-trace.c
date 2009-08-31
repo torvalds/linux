@@ -164,6 +164,7 @@ static int __cmd_trace(void)
 	char *buf;
 
 	trace_report();
+	register_idle_thread(&threads, &last_match);
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
