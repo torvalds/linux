@@ -288,7 +288,8 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return rc;
 }
 
-static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
@@ -325,8 +326,8 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
-					    struct net_device *dev)
+static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
+						    struct net_device *dev)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 	u16 vlan_tci;

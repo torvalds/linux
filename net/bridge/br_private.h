@@ -143,7 +143,8 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 
 /* br_device.c */
 extern void br_dev_setup(struct net_device *dev);
-extern int br_dev_xmit(struct sk_buff *skb, struct net_device *dev);
+extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
+			       struct net_device *dev);
 
 /* br_fdb.c */
 extern int br_fdb_init(void);

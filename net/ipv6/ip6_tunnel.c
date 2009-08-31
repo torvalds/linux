@@ -1036,7 +1036,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static int
+static netdev_tx_t
 ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);

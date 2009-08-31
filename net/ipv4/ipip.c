@@ -387,7 +387,7 @@ static int ipip_rcv(struct sk_buff *skb)
  *	and that skb is filled properly by that function.
  */
 
-static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->dev->stats;

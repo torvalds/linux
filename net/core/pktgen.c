@@ -3381,7 +3381,7 @@ static void idle(struct pktgen_dev *pkt_dev)
 static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
 	struct net_device *odev = pkt_dev->odev;
-	int (*xmit)(struct sk_buff *, struct net_device *)
+	netdev_tx_t (*xmit)(struct sk_buff *, struct net_device *)
 		= odev->netdev_ops->ndo_start_xmit;
 	struct netdev_queue *txq;
 	u16 queue_map;
