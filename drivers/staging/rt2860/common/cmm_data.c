@@ -2011,6 +2011,8 @@ UINT deaggregate_AMSDU_announce(
 		{
 		    // avoid local heap overflow, use dyanamic allocation
 		   MLME_QUEUE_ELEM *Elem = (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM), MEM_ALLOC_FLAG);
+		   if (Elem == NULL)
+			return;
 		   memmove(Elem->Msg+(LENGTH_802_11 + LENGTH_802_1_H), pPayload, PayloadSize);
 		   Elem->MsgLen = LENGTH_802_11 + LENGTH_802_1_H + PayloadSize;
 		   WpaEAPOLKeyAction(pAd, Elem);

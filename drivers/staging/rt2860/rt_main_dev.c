@@ -777,6 +777,8 @@ INT __devinit   rt28xx_probe(
 
 	// Allocate RTMP_ADAPTER miniport adapter structure
 	handle = kmalloc(sizeof(struct os_cookie), GFP_KERNEL);
+	if (handle == NULL)
+		goto err_out_free_netdev;;
 	RT28XX_HANDLE_DEV_ASSIGN(handle, dev_p);
 
 	status = RTMPAllocAdapterBlock(handle, &pAd);

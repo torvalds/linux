@@ -867,6 +867,8 @@ VOID BAOriSessionTearDown(
 			// force send specified TID DelBA
 			MLME_DELBA_REQ_STRUCT   DelbaReq;
 			MLME_QUEUE_ELEM *Elem = (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM), MEM_ALLOC_FLAG);
+			if (Elem == NULL)
+				return;
 
 			NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 			NdisZeroMemory(Elem, sizeof(MLME_QUEUE_ELEM));
@@ -900,6 +902,8 @@ VOID BAOriSessionTearDown(
 	{
 		MLME_DELBA_REQ_STRUCT   DelbaReq;
 		MLME_QUEUE_ELEM *Elem = (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM), MEM_ALLOC_FLAG);
+		if (Elem == NULL)
+			return;
 
 		NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 		NdisZeroMemory(Elem, sizeof(MLME_QUEUE_ELEM));
