@@ -5107,7 +5107,8 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return skb_tx_hash(dev, skb);
 }
 
-static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *tx_ring;

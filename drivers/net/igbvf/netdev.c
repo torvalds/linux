@@ -2204,9 +2204,9 @@ static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
 	mmiowb();
 }
 
-static int igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
-                                   struct net_device *netdev,
-                                   struct igbvf_ring *tx_ring)
+static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
+					     struct net_device *netdev,
+					     struct igbvf_ring *tx_ring)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	unsigned int first, tx_flags = 0;
@@ -2279,11 +2279,11 @@ static int igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static int igbvf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t igbvf_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct igbvf_ring *tx_ring;
-	int retval;
 
 	if (test_bit(__IGBVF_DOWN, &adapter->state)) {
 		dev_kfree_skb_any(skb);
@@ -2292,9 +2292,7 @@ static int igbvf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_ring = &adapter->tx_ring[0];
 
-	retval = igbvf_xmit_frame_ring_adv(skb, netdev, tx_ring);
-
-	return retval;
+	return igbvf_xmit_frame_ring_adv(skb, netdev, tx_ring);
 }
 
 /**

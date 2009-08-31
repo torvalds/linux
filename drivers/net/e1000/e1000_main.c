@@ -125,7 +125,8 @@ static void e1000_set_rx_mode(struct net_device *netdev);
 static void e1000_update_phy_info(unsigned long data);
 static void e1000_watchdog(unsigned long data);
 static void e1000_82547_tx_fifo_stall(unsigned long data);
-static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
+static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev);
 static struct net_device_stats * e1000_get_stats(struct net_device *netdev);
 static int e1000_change_mtu(struct net_device *netdev, int new_mtu);
 static int e1000_set_mac(struct net_device *netdev, void *p);
@@ -3249,7 +3250,8 @@ static int e1000_maybe_stop_tx(struct net_device *netdev,
 }
 
 #define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1 )
-static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;

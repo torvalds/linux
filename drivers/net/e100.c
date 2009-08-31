@@ -1690,7 +1690,8 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
 }
 
-static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
+				   struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 	int err;

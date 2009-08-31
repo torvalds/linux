@@ -98,9 +98,11 @@ static void igb_set_multi(struct net_device *);
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
-static int igb_xmit_frame_ring_adv(struct sk_buff *, struct net_device *,
-				  struct igb_ring *);
-static int igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *);
+static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *,
+					   struct net_device *,
+					   struct igb_ring *);
+static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
+				      struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
 static int igb_set_mac(struct net_device *, void *);
@@ -3295,9 +3297,9 @@ static int igb_maybe_stop_tx(struct net_device *netdev,
 	return __igb_maybe_stop_tx(netdev, tx_ring, size);
 }
 
-static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
-				   struct net_device *netdev,
-				   struct igb_ring *tx_ring)
+static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
+					   struct net_device *netdev,
+					   struct igb_ring *tx_ring)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	unsigned int first;
@@ -3385,7 +3387,8 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static int igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
+				      struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct igb_ring *tx_ring;
@@ -3398,7 +3401,7 @@ static int igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *netdev)
 	 * to a flow.  Right now, performance is impacted slightly negatively
 	 * if using multiple tx queues.  If the stack breaks away from a
 	 * single qdisc implementation, we can look at this again. */
-	return (igb_xmit_frame_ring_adv(skb, netdev, tx_ring));
+	return igb_xmit_frame_ring_adv(skb, netdev, tx_ring);
 }
 
 /**
