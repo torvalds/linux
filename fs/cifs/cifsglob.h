@@ -351,10 +351,23 @@ struct cifsFileInfo {
 	bool closePend:1;	/* file is marked to close */
 	bool invalidHandle:1;	/* file closed via session abend */
 	bool messageMode:1;	/* for pipes: message vs byte mode */
-	atomic_t wrtPending;   /* handle in use - defer close */
+	atomic_t count;		/* reference count */
 	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
 };
+
+/* Take a reference on the file private data */
+static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
+{
+	atomic_inc(&cifs_file->count);
+}
+
+/* Release a reference on the file private data */
+static inline void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
+{
+	if (atomic_dec_and_test(&cifs_file->count))
+		kfree(cifs_file);
+}
 
 /*
  * One of these for each file inode

@@ -153,7 +153,7 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 	mutex_init(&pCifsFile->fh_mutex);
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
-	atomic_set(&pCifsFile->wrtPending, 0);
+	atomic_set(&pCifsFile->count, 1);
 
 	/* set the following in open now
 			pCifsFile->pfile = file; */
