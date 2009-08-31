@@ -215,7 +215,8 @@ static int mode = 8;
 
 /* function declaration ------------------------------------- */
 static int uli526x_open(struct net_device *);
-static int uli526x_start_xmit(struct sk_buff *, struct net_device *);
+static netdev_tx_t uli526x_start_xmit(struct sk_buff *,
+					    struct net_device *);
 static int uli526x_stop(struct net_device *);
 static void uli526x_set_filter_mode(struct net_device *);
 static const struct ethtool_ops netdev_ethtool_ops;
@@ -567,7 +568,8 @@ static void uli526x_init(struct net_device *dev)
  *	Send a packet to media from the upper layer.
  */
 
-static int uli526x_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t uli526x_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct uli526x_board_info *db = netdev_priv(dev);
 	struct tx_desc *txptr;

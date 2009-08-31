@@ -311,7 +311,7 @@ static u8 SF_mode;		/* Special Function: 1:VLAN, 2:RX Flow Control
 
 /* function declaration ------------------------------------- */
 static int dmfe_open(struct DEVICE *);
-static int dmfe_start_xmit(struct sk_buff *, struct DEVICE *);
+static netdev_tx_t dmfe_start_xmit(struct sk_buff *, struct DEVICE *);
 static int dmfe_stop(struct DEVICE *);
 static void dmfe_set_filter_mode(struct DEVICE *);
 static const struct ethtool_ops netdev_ethtool_ops;
@@ -661,7 +661,8 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
  *	Send a packet to media from the upper layer.
  */
 
-static int dmfe_start_xmit(struct sk_buff *skb, struct DEVICE *dev)
+static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
+					 struct DEVICE *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	struct tx_desc *txptr;
