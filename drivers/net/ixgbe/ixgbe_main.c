@@ -3801,6 +3801,8 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
 		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 		adapter->ring_feature[RING_F_FCOE].indices = 0;
+		/* Default traffic class to use for FCoE */
+		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
 #endif /* IXGBE_FCOE */
 	}
 

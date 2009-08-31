@@ -27,6 +27,9 @@
 
 
 #include "ixgbe.h"
+#ifdef CONFIG_IXGBE_DCB
+#include "ixgbe_dcb_82599.h"
+#endif /* CONFIG_IXGBE_DCB */
 #include <linux/if_ether.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -648,3 +651,64 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 out_disable:
 	return rc;
 }
+
+#ifdef CONFIG_IXGBE_DCB
+/**
+ * ixgbe_fcoe_getapp - retrieves current user priority bitmap for FCoE
+ * @adapter : ixgbe adapter
+ *
+ * Finds out the corresponding user priority bitmap from the current
+ * traffic class that FCoE belongs to. Returns 0 as the invalid user
+ * priority bitmap to indicate an error.
+ *
+ * Returns : 802.1p user priority bitmap for FCoE
+ */
+u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter)
+{
+	int i;
+	u8 tc;
+	u32 up2tc;
+
+	up2tc = IXGBE_READ_REG(&adapter->hw, IXGBE_RTTUP2TC);
+	for (i = 0; i < MAX_USER_PRIORITY; i++) {
+		tc = (u8)(up2tc >> (i * IXGBE_RTTUP2TC_UP_SHIFT));
+		tc &= (MAX_TRAFFIC_CLASS - 1);
+		if (adapter->fcoe.tc == tc)
+			return 1 << i;
+	}
+
+	return 0;
+}
+
+/**
+ * ixgbe_fcoe_setapp - sets the user priority bitmap for FCoE
+ * @adapter : ixgbe adapter
+ * @up : 802.1p user priority bitmap
+ *
+ * Finds out the traffic class from the input user priority
+ * bitmap for FCoE.
+ *
+ * Returns : 0 on success otherwise returns 1 on error
+ */
+u8 ixgbe_fcoe_setapp(struct ixgbe_adapter *adapter, u8 up)
+{
+	int i;
+	u32 up2tc;
+
+	/* valid user priority bitmap must not be 0 */
+	if (up) {
+		/* from user priority to the corresponding traffic class */
+		up2tc = IXGBE_READ_REG(&adapter->hw, IXGBE_RTTUP2TC);
+		for (i = 0; i < MAX_USER_PRIORITY; i++) {
+			if (up & (1 << i)) {
+				up2tc >>= (i * IXGBE_RTTUP2TC_UP_SHIFT);
+				up2tc &= (MAX_TRAFFIC_CLASS - 1);
+				adapter->fcoe.tc = (u8)up2tc;
+				return 0;
+			}
+		}
+	}
+
+	return 1;
+}
+#endif /* CONFIG_IXGBE_DCB */

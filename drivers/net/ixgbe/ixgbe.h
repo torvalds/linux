@@ -452,6 +452,10 @@ extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 extern int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid);
 extern int ixgbe_fcoe_enable(struct net_device *netdev);
 extern int ixgbe_fcoe_disable(struct net_device *netdev);
+#ifdef CONFIG_IXGBE_DCB
+extern u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter);
+extern u8 ixgbe_fcoe_setapp(struct ixgbe_adapter *adapter, u8 up);
+#endif /* CONFIG_IXGBE_DCB */
 #endif /* IXGBE_FCOE */
 
 #endif /* _IXGBE_H_ */

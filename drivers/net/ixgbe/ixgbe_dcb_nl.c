@@ -480,6 +480,64 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	return;
 }
 
+/**
+ * ixgbe_dcbnl_getapp - retrieve the DCBX application user priority
+ * @netdev : the corresponding netdev
+ * @idtype : identifies the id as ether type or TCP/UDP port number
+ * @id: id is either ether type or TCP/UDP port number
+ *
+ * Returns : on success, returns a non-zero 802.1p user priority bitmap
+ * otherwise returns 0 as the invalid user priority bitmap to indicate an
+ * error.
+ */
+static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
+{
+	u8 rval = 0;
+
+	switch (idtype) {
+	case DCB_APP_IDTYPE_ETHTYPE:
+#ifdef IXGBE_FCOE
+		if (id == ETH_P_FCOE)
+			rval = ixgbe_fcoe_getapp(netdev_priv(netdev));
+#endif
+		break;
+	case DCB_APP_IDTYPE_PORTNUM:
+		break;
+	default:
+		break;
+	}
+	return rval;
+}
+
+/**
+ * ixgbe_dcbnl_setapp - set the DCBX application user priority
+ * @netdev : the corresponding netdev
+ * @idtype : identifies the id as ether type or TCP/UDP port number
+ * @id: id is either ether type or TCP/UDP port number
+ * @up: the 802.1p user priority bitmap
+ *
+ * Returns : 0 on success or 1 on error
+ */
+static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
+                             u8 idtype, u16 id, u8 up)
+{
+	u8 rval = 1;
+
+	switch (idtype) {
+	case DCB_APP_IDTYPE_ETHTYPE:
+#ifdef IXGBE_FCOE
+		if (id == ETH_P_FCOE)
+			rval = ixgbe_fcoe_setapp(netdev_priv(netdev), up);
+#endif
+		break;
+	case DCB_APP_IDTYPE_PORTNUM:
+		break;
+	default:
+		break;
+	}
+	return rval;
+}
+
 struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
@@ -500,5 +558,7 @@ struct dcbnl_rtnl_ops dcbnl_ops = {
 	.setnumtcs	= ixgbe_dcbnl_setnumtcs,
 	.getpfcstate	= ixgbe_dcbnl_getpfcstate,
 	.setpfcstate	= ixgbe_dcbnl_setpfcstate,
+	.getapp		= ixgbe_dcbnl_getapp,
+	.setapp		= ixgbe_dcbnl_setapp,
 };
 
