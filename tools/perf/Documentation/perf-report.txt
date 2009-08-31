@@ -51,6 +51,16 @@ OPTIONS
 	all occurances of this separator in symbol names (and other output)
 	with a '.' character, that thus it's the only non valid separator.
 
+-g [type,min]::
+--call-graph::
+        Display callchains using type and min percent threshold.
+	type can be either:
+	- flat: single column, linear exposure of callchains.
+	- graph: use a graph tree, displaying absolute overhead rates.
+	- fractal: like graph, but displays relative rates. Each branch of
+		 the tree is considered as a new profiled object. +
+	Default: fractal,0.5.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1]
