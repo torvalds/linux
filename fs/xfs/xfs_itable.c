@@ -444,7 +444,8 @@ xfs_bulkstat(
 			/*
 			 * Lookup the inode chunk that this inode lives in.
 			 */
-			error = xfs_inobt_lookup_le(cur, agino, 0, 0, &tmp);
+			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE,
+						 &tmp);
 			if (!error &&	/* no I/O error */
 			    tmp &&	/* lookup succeeded */
 					/* got the record, should always work */
@@ -492,7 +493,7 @@ xfs_bulkstat(
 			/*
 			 * Start of ag.  Lookup the first inode chunk.
 			 */
-			error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &tmp);
+			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &tmp);
 			icount = 0;
 		}
 		/*
@@ -511,8 +512,8 @@ xfs_bulkstat(
 				if (XFS_AGINO_TO_AGBNO(mp, agino) >=
 						be32_to_cpu(agi->agi_length))
 					break;
-				error = xfs_inobt_lookup_ge(cur, agino, 0, 0,
-							    &tmp);
+				error = xfs_inobt_lookup(cur, agino,
+							 XFS_LOOKUP_GE, &tmp);
 				cond_resched();
 			}
 			/*
@@ -858,7 +859,8 @@ xfs_inumbers(
 				continue;
 			}
 			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno);
-			error = xfs_inobt_lookup_ge(cur, agino, 0, 0, &tmp);
+			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_GE,
+						 &tmp);
 			if (error) {
 				xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 				cur = NULL;

@@ -57,56 +57,19 @@ xfs_ialloc_cluster_alignment(
 }
 
 /*
- * Lookup the record equal to ino in the btree given by cur.
+ * Lookup a record by ino in the btree given by cur.
  */
 STATIC int				/* error */
-xfs_inobt_lookup_eq(
+xfs_inobt_lookup(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agino_t		ino,	/* starting inode of chunk */
-	__int32_t		fcnt,	/* free inode count */
-	xfs_inofree_t		free,	/* free inode mask */
+	xfs_lookup_t		dir,	/* <=, >=, == */
 	int			*stat)	/* success/failure */
 {
 	cur->bc_rec.i.ir_startino = ino;
-	cur->bc_rec.i.ir_freecount = fcnt;
-	cur->bc_rec.i.ir_free = free;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
-}
-
-/*
- * Lookup the first record greater than or equal to ino
- * in the btree given by cur.
- */
-int					/* error */
-xfs_inobt_lookup_ge(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agino_t		ino,	/* starting inode of chunk */
-	__int32_t		fcnt,	/* free inode count */
-	xfs_inofree_t		free,	/* free inode mask */
-	int			*stat)	/* success/failure */
-{
-	cur->bc_rec.i.ir_startino = ino;
-	cur->bc_rec.i.ir_freecount = fcnt;
-	cur->bc_rec.i.ir_free = free;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
-}
-
-/*
- * Lookup the first record less than or equal to ino
- * in the btree given by cur.
- */
-int					/* error */
-xfs_inobt_lookup_le(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agino_t		ino,	/* starting inode of chunk */
-	__int32_t		fcnt,	/* free inode count */
-	xfs_inofree_t		free,	/* free inode mask */
-	int			*stat)	/* success/failure */
-{
-	cur->bc_rec.i.ir_startino = ino;
-	cur->bc_rec.i.ir_freecount = fcnt;
-	cur->bc_rec.i.ir_free = free;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+	cur->bc_rec.i.ir_freecount = 0;
+	cur->bc_rec.i.ir_free = 0;
+	return xfs_btree_lookup(cur, dir, stat);
 }
 
 /*
@@ -162,7 +125,7 @@ xfs_check_agi_freecount(
 		int		error;
 		int		i;
 
-		error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i);
+		error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &i);
 		if (error)
 			return error;
 
@@ -431,13 +394,17 @@ xfs_ialloc_ag_alloc(
 	for (thisino = newino;
 	     thisino < newino + newlen;
 	     thisino += XFS_INODES_PER_CHUNK) {
-		if ((error = xfs_inobt_lookup_eq(cur, thisino,
-				XFS_INODES_PER_CHUNK, XFS_INOBT_ALL_FREE, &i))) {
+		cur->bc_rec.i.ir_startino = thisino;
+		cur->bc_rec.i.ir_freecount = XFS_INODES_PER_CHUNK;
+		cur->bc_rec.i.ir_free = XFS_INOBT_ALL_FREE;
+		error = xfs_btree_lookup(cur, XFS_LOOKUP_EQ, &i);
+		if (error) {
 			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 			return error;
 		}
 		ASSERT(i == 0);
-		if ((error = xfs_btree_insert(cur, &i))) {
+		error = xfs_btree_insert(cur, &i);
+		if (error) {
 			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 			return error;
 		}
@@ -818,7 +785,7 @@ nextag:
 		int		doneleft;	/* done, to the left */
 		int		doneright;	/* done, to the right */
 
-		error = xfs_inobt_lookup_le(cur, pagino, 0, 0, &i);
+		error = xfs_inobt_lookup(cur, pagino, XFS_LOOKUP_LE, &i);
 		if (error)
 			goto error0;
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
@@ -904,8 +871,8 @@ nextag:
 	 * See if the most recently allocated block has any free.
 	 */
 	else if (be32_to_cpu(agi->agi_newino) != NULLAGINO) {
-		error = xfs_inobt_lookup_eq(cur, be32_to_cpu(agi->agi_newino),
-					    0, 0, &i);
+		error = xfs_inobt_lookup(cur, be32_to_cpu(agi->agi_newino),
+					 XFS_LOOKUP_EQ, &i);
 		if (error)
 			goto error0;
 
@@ -926,7 +893,7 @@ nextag:
 		/*
 		 * None left in the last group, search the whole AG
 		 */
-		error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i);
+		error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &i);
 		if (error)
 			goto error0;
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
@@ -1065,9 +1032,9 @@ xfs_difree(
 	/*
 	 * Look for the entry describing this inode.
 	 */
-	if ((error = xfs_inobt_lookup_le(cur, agino, 0, 0, &i))) {
+	if ((error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &i))) {
 		cmn_err(CE_WARN,
-			"xfs_difree: xfs_inobt_lookup_le returned()  an error %d on %s.  Returning error.",
+			"xfs_difree: xfs_inobt_lookup returned()  an error %d on %s.  Returning error.",
 			error, mp->m_fsname);
 		goto error0;
 	}
@@ -1277,10 +1244,10 @@ xfs_imap(
 		}
 
 		cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
-		error = xfs_inobt_lookup_le(cur, agino, 0, 0, &i);
+		error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &i);
 		if (error) {
 			xfs_fs_cmn_err(CE_ALERT, mp, "xfs_imap: "
-					"xfs_inobt_lookup_le() failed");
+					"xfs_inobt_lookup() failed");
 			goto error0;
 		}
 
