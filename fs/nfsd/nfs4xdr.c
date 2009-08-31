@@ -1793,11 +1793,6 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 				goto out_nfserr;
 		}
 	}
-	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
-		if (exp->ex_fslocs.locations == NULL) {
-			bmval0 &= ~FATTR4_WORD0_FS_LOCATIONS;
-		}
-	}
 	if ((buflen -= 16) < 0)
 		goto out_resource;
 
@@ -1825,8 +1820,6 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			goto out_resource;
 		if (!aclsupport)
 			word0 &= ~FATTR4_WORD0_ACL;
-		if (!exp->ex_fslocs.locations)
-			word0 &= ~FATTR4_WORD0_FS_LOCATIONS;
 		if (!word2) {
 			WRITE32(2);
 			WRITE32(word0);

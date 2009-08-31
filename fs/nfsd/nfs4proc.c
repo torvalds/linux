@@ -68,7 +68,6 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		   u32 *bmval, u32 *writable)
 {
 	struct dentry *dentry = cstate->current_fh.fh_dentry;
-	struct svc_export *exp = cstate->current_fh.fh_export;
 
 	/*
 	 * Check about attributes are supported by the NFSv4 server or not.
@@ -80,15 +79,11 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_attrnotsupp;
 
 	/*
-	 * Check FATTR4_WORD0_ACL & FATTR4_WORD0_FS_LOCATIONS can be supported
+	 * Check FATTR4_WORD0_ACL can be supported
 	 * in current environment or not.
 	 */
 	if (bmval[0] & FATTR4_WORD0_ACL) {
 		if (!IS_POSIXACL(dentry->d_inode))
-			return nfserr_attrnotsupp;
-	}
-	if (bmval[0] & FATTR4_WORD0_FS_LOCATIONS) {
-		if (exp->ex_fslocs.locations == NULL)
 			return nfserr_attrnotsupp;
 	}
 
