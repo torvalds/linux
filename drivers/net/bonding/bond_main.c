@@ -4450,7 +4450,7 @@ static void bond_set_xmit_hash_policy(struct bonding *bond)
 	}
 }
 
-static int bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	const struct bonding *bond = netdev_priv(dev);
 

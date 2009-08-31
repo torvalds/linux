@@ -59,7 +59,7 @@ struct ifb_private {
 static int numifbs = 2;
 
 static void ri_tasklet(unsigned long dev);
-static int ifb_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ifb_open(struct net_device *dev);
 static int ifb_close(struct net_device *dev);
 
@@ -160,11 +160,10 @@ static void ifb_setup(struct net_device *dev)
 	random_ether_addr(dev->dev_addr);
 }
 
-static int ifb_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ifb_private *dp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
-	int ret = NETDEV_TX_OK;
 	u32 from = G_TC_FROM(skb->tc_verd);
 
 	stats->rx_packets++;
@@ -173,7 +172,7 @@ static int ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->iif) {
 		dev_kfree_skb(skb);
 		stats->rx_dropped++;
-		return ret;
+		return NETDEV_TX_OK;
 	}
 
 	if (skb_queue_len(&dp->rq) >= dev->tx_queue_len) {
@@ -187,7 +186,7 @@ static int ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 		tasklet_schedule(&dp->ifb_tasklet);
 	}
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 static int ifb_close(struct net_device *dev)

@@ -148,7 +148,7 @@ static struct ethtool_ops veth_ethtool_ops = {
  * xmit
  */
 
-static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device *rcv = NULL;
 	struct veth_priv *priv, *rcv_priv;

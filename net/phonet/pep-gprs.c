@@ -183,7 +183,7 @@ static int gprs_close(struct net_device *dev)
 	return 0;
 }
 
-static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gprs_dev *gp = netdev_priv(dev);
 	struct sock *sk = gp->sk;

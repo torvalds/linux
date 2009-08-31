@@ -519,7 +519,7 @@ static void xmit_tasklet(unsigned long data)
 	netif_tx_unlock_bh(vi->dev);
 }
 
-static int start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 

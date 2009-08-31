@@ -358,7 +358,7 @@ static int tun_net_close(struct net_device *dev)
 }
 
 /* Net device start xmit */
-static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
