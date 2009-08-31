@@ -133,7 +133,6 @@ struct ftrace_event_call {
 #define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	128
 
-extern int init_preds(struct ftrace_event_call *call);
 extern void destroy_preds(struct ftrace_event_call *call);
 extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
 extern int filter_current_check_discard(struct ftrace_event_call *call,

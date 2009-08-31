@@ -309,7 +309,7 @@ void print_event_filter(struct ftrace_event_call *call, struct trace_seq *s)
 	struct event_filter *filter = call->filter;
 
 	mutex_lock(&event_mutex);
-	if (filter->filter_string)
+	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
 		trace_seq_printf(s, "none\n");
@@ -322,7 +322,7 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 	struct event_filter *filter = system->filter;
 
 	mutex_lock(&event_mutex);
-	if (filter->filter_string)
+	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
 		trace_seq_printf(s, "none\n");
@@ -390,6 +390,9 @@ void destroy_preds(struct ftrace_event_call *call)
 	struct event_filter *filter = call->filter;
 	int i;
 
+	if (!filter)
+		return;
+
 	for (i = 0; i < MAX_FILTER_PRED; i++) {
 		if (filter->preds[i])
 			filter_free_pred(filter->preds[i]);
@@ -400,7 +403,7 @@ void destroy_preds(struct ftrace_event_call *call)
 	call->filter = NULL;
 }
 
-int init_preds(struct ftrace_event_call *call)
+static int init_preds(struct ftrace_event_call *call)
 {
 	struct event_filter *filter;
 	struct filter_pred *pred;
@@ -410,7 +413,6 @@ int init_preds(struct ftrace_event_call *call)
 	if (!call->filter)
 		return -ENOMEM;
 
-	call->filter_active = 0;
 	filter->n_preds = 0;
 
 	filter->preds = kzalloc(MAX_FILTER_PRED * sizeof(pred), GFP_KERNEL);
@@ -432,7 +434,28 @@ oom:
 
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_GPL(init_preds);
+
+static int init_subsystem_preds(struct event_subsystem *system)
+{
+	struct ftrace_event_call *call;
+	int err;
+
+	list_for_each_entry(call, &ftrace_events, list) {
+		if (!call->define_fields)
+			continue;
+
+		if (strcmp(call->system, system->name) != 0)
+			continue;
+
+		if (!call->filter) {
+			err = init_preds(call);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
 
 enum {
 	FILTER_DISABLE_ALL,
@@ -449,6 +472,9 @@ static void filter_free_subsystem_preds(struct event_subsystem *system,
 		if (!call->define_fields)
 			continue;
 
+		if (strcmp(call->system, system->name) != 0)
+			continue;
+
 		if (flag == FILTER_INIT_NO_RESET) {
 			call->filter->no_reset = false;
 			continue;
@@ -457,10 +483,8 @@ static void filter_free_subsystem_preds(struct event_subsystem *system,
 		if (flag == FILTER_SKIP_NO_RESET && call->filter->no_reset)
 			continue;
 
-		if (!strcmp(call->system, system->name)) {
-			filter_disable_preds(call);
-			remove_filter_string(call->filter);
-		}
+		filter_disable_preds(call);
+		remove_filter_string(call->filter);
 	}
 }
 
@@ -1094,6 +1118,10 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 
 	mutex_lock(&event_mutex);
 
+	err = init_preds(call);
+	if (err)
+		goto out_unlock;
+
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_disable_preds(call);
 		remove_filter_string(call->filter);
@@ -1138,6 +1166,10 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 	struct filter_parse_state *ps;
 
 	mutex_lock(&event_mutex);
+
+	err = init_subsystem_preds(system);
+	if (err)
+		goto out_unlock;
 
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_free_subsystem_preds(system, FILTER_DISABLE_ALL);
