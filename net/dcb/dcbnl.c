@@ -64,6 +64,7 @@ static struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_CAP]         = {.type = NLA_NESTED},
 	[DCB_ATTR_PFC_STATE]   = {.type = NLA_U8},
 	[DCB_ATTR_BCN]         = {.type = NLA_NESTED},
+	[DCB_ATTR_APP]         = {.type = NLA_NESTED},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -156,6 +157,13 @@ static struct nla_policy dcbnl_bcn_nest[DCB_BCN_ATTR_MAX + 1] = {
 	[DCB_BCN_ATTR_RI]           = {.type = NLA_U32},
 	[DCB_BCN_ATTR_C]            = {.type = NLA_U32},
 	[DCB_BCN_ATTR_ALL]          = {.type = NLA_FLAG},
+};
+
+/* DCB APP nested attributes. */
+static struct nla_policy dcbnl_app_nest[DCB_APP_ATTR_MAX + 1] = {
+	[DCB_APP_ATTR_IDTYPE]       = {.type = NLA_U8},
+	[DCB_APP_ATTR_ID]           = {.type = NLA_U16},
+	[DCB_APP_ATTR_PRIORITY]     = {.type = NLA_U8},
 };
 
 /* standard netlink reply call */
