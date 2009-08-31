@@ -1394,6 +1394,7 @@ static int patch_vt1708(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1708_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1708_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1708_capture_mixer;
 		spec->num_mixers++;
 	}
