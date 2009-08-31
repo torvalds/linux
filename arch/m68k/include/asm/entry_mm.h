@@ -118,9 +118,6 @@ PT_DTRACE_BIT = 2
 #define STR(X) STR1(X)
 #define STR1(X) #X
 
-#define PT_OFF_ORIG_D0	 0x24
-#define PT_OFF_FORMATVEC 0x32
-#define PT_OFF_SR	 0x2C
 #define SAVE_ALL_INT				\
 	"clrl	%%sp@-;"    /* stk_adj */	\
 	"pea	-1:w;"	    /* orig d0 = -1 */	\
