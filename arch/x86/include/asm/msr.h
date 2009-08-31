@@ -113,6 +113,9 @@ notrace static inline int native_write_msr_safe(unsigned int msr,
 
 extern unsigned long long native_read_tsc(void);
 
+extern int native_rdmsr_safe_regs(u32 *regs);
+extern int native_wrmsr_safe_regs(u32 *regs);
+
 static __always_inline unsigned long long __native_read_tsc(void)
 {
 	DECLARE_ARGS(val, low, high);
@@ -187,6 +190,16 @@ static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 
 	*p = native_read_msr_amd_safe(msr, &err);
 	return err;
+}
+
+static inline int rdmsr_safe_regs(u32 *regs)
+{
+	return native_rdmsr_safe_regs(regs);
+}
+
+static inline int wrmsr_safe_regs(u32 *regs)
+{
+	return native_wrmsr_safe_regs(regs);
 }
 
 #define rdtscl(low)						\

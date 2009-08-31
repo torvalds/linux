@@ -168,7 +168,9 @@ struct pv_cpu_ops {
 	   err = 0/-EFAULT.  wrmsr returns 0/-EFAULT. */
 	u64 (*read_msr_amd)(unsigned int msr, int *err);
 	u64 (*read_msr)(unsigned int msr, int *err);
+	int (*rdmsr_regs)(u32 *regs);
 	int (*write_msr)(unsigned int msr, unsigned low, unsigned high);
+	int (*wrmsr_regs)(u32 *regs);
 
 	u64 (*read_tsc)(void);
 	u64 (*read_pmc)(int counter);
@@ -820,6 +822,12 @@ static inline u64 paravirt_read_msr(unsigned msr, int *err)
 {
 	return PVOP_CALL2(u64, pv_cpu_ops.read_msr, msr, err);
 }
+
+static inline int paravirt_rdmsr_regs(u32 *regs)
+{
+	return PVOP_CALL1(int, pv_cpu_ops.rdmsr_regs, regs);
+}
+
 static inline u64 paravirt_read_msr_amd(unsigned msr, int *err)
 {
 	return PVOP_CALL2(u64, pv_cpu_ops.read_msr_amd, msr, err);
@@ -827,6 +835,11 @@ static inline u64 paravirt_read_msr_amd(unsigned msr, int *err)
 static inline int paravirt_write_msr(unsigned msr, unsigned low, unsigned high)
 {
 	return PVOP_CALL3(int, pv_cpu_ops.write_msr, msr, low, high);
+}
+
+static inline int paravirt_wrmsr_regs(u32 *regs)
+{
+	return PVOP_CALL1(int, pv_cpu_ops.wrmsr_regs, regs);
 }
 
 /* These should all do BUG_ON(_err), but our headers are too tangled. */
@@ -861,6 +874,9 @@ do {						\
 	(*b) = _l >> 32;			\
 	_err;					\
 })
+
+#define rdmsr_safe_regs(regs)	paravirt_rdmsr_regs(regs)
+#define wrmsr_safe_regs(regs)	paravirt_wrmsr_regs(regs)
 
 static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 {
