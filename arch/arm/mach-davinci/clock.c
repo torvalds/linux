@@ -123,8 +123,12 @@ int clk_register(struct clk *clk)
 			clk->name, clk->parent->name))
 		return -EINVAL;
 
+	INIT_LIST_HEAD(&clk->children);
+
 	mutex_lock(&clocks_mutex);
 	list_add_tail(&clk->node, &clocks);
+	if (clk->parent)
+		list_add_tail(&clk->childnode, &clk->parent->children);
 	mutex_unlock(&clocks_mutex);
 
 	/* If rate is already set, use it */
@@ -146,6 +150,7 @@ void clk_unregister(struct clk *clk)
 
 	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
+	list_del(&clk->childnode);
 	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
@@ -352,9 +357,8 @@ dump_clock(struct seq_file *s, unsigned nest, struct clk *parent)
 	/* REVISIT show device associations too */
 
 	/* cost is now small, but not linear... */
-	list_for_each_entry(clk, &clocks, node) {
-		if (clk->parent == parent)
-			dump_clock(s, nest + NEST_DELTA, clk);
+	list_for_each_entry(clk, &parent->children, childnode) {
+		dump_clock(s, nest + NEST_DELTA, clk);
 	}
 }
 

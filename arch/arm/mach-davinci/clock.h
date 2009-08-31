@@ -69,6 +69,8 @@ struct clk {
 	u8			lpsc;
 	u8			psc_ctlr;
 	struct clk              *parent;
+	struct list_head	children; 	/* list of children */
+	struct list_head	childnode;	/* parent's child list node */
 	struct pll_data         *pll_data;
 	u32                     div_reg;
 };
