@@ -85,8 +85,8 @@ fp_err_ua2:
 fp_err_ua1:
 	addq.l	#4,%sp
 	move.l	%a0,-(%sp)
-	pea	SEGV_MAPERR
-	pea	SIGSEGV
+	pea	LSEGV_MAPERR
+	pea	LSIGSEGV
 	jsr	fpemu_signal
 	add.w	#12,%sp
 	jra	ret_from_exception
@@ -96,8 +96,8 @@ fp_err_ua1:
 	| it does not really belong here, but...
 fp_sendtrace060:
 	move.l	(FPS_PC,%sp),-(%sp)
-	pea	TRAP_TRACE
-	pea	SIGTRAP
+	pea	LTRAP_TRACE
+	pea	LSIGTRAP
 	jsr	fpemu_signal
 	add.w	#12,%sp
 	jra	ret_from_exception

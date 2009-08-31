@@ -89,10 +89,10 @@ int main(void)
 	DEFINE(FONT_DESC_PREF, offsetof(struct font_desc, pref));
 
 	/* signal defines */
-	DEFINE(SIGSEGV, SIGSEGV);
-	DEFINE(SEGV_MAPERR, SEGV_MAPERR);
-	DEFINE(SIGTRAP, SIGTRAP);
-	DEFINE(TRAP_TRACE, TRAP_TRACE);
+	DEFINE(LSIGSEGV, SIGSEGV);
+	DEFINE(LSEGV_MAPERR, SEGV_MAPERR);
+	DEFINE(LSIGTRAP, SIGTRAP);
+	DEFINE(LTRAP_TRACE, TRAP_TRACE);
 
 	/* offsets into the custom struct */
 	DEFINE(CUSTOMBASE, &amiga_custom);

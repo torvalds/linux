@@ -46,7 +46,6 @@
 #define curptr a2
 
 LFLUSH_I_AND_D = 0x00000808
-LSIGTRAP = 5
 
 /* process bits for task_struct.ptrace */
 PT_TRACESYS_OFF = 3
