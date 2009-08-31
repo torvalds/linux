@@ -413,7 +413,7 @@ static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
 
-static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
+static inline int numaq_check_phys_apicid_present(int phys_apicid)
 {
 	return 1;
 }

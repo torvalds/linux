@@ -129,9 +129,9 @@ int default_cpu_present_to_apicid(int mps_cpu)
 	return __default_cpu_present_to_apicid(mps_cpu);
 }
 
-int default_check_phys_apicid_present(int boot_cpu_physical_apicid)
+int default_check_phys_apicid_present(int phys_apicid)
 {
-	return __default_check_phys_apicid_present(boot_cpu_physical_apicid);
+	return __default_check_phys_apicid_present(phys_apicid);
 }
 #endif
 
