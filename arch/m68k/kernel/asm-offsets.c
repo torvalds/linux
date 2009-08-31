@@ -8,6 +8,8 @@
  * #defines from the assembly-language output.
  */
 
+#define ASM_OFFSETS_C
+
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
@@ -27,6 +29,9 @@ int main(void)
 	DEFINE(TASK_INFO, offsetof(struct task_struct, thread.info));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
 	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
+#ifdef CONFIG_MMU
+	DEFINE(TASK_TINFO, offsetof(struct task_struct, thread.info));
+#endif
 
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
