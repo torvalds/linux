@@ -1259,7 +1259,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
-	int ret, restart, af;
+	int ret, restart, af, pkts;
 
 	af = (skb->protocol == htons(ETH_P_IP)) ? AF_INET : AF_INET6;
 
@@ -1346,12 +1346,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	 * Sync connection if it is about to close to
 	 * encorage the standby servers to update the connections timeout
 	 */
-	atomic_inc(&cp->in_pkts);
+	pkts = atomic_add_return(1, &cp->in_pkts);
 	if (af == AF_INET &&
 	    (ip_vs_sync_state & IP_VS_STATE_MASTER) &&
 	    (((cp->protocol != IPPROTO_TCP ||
 	       cp->state == IP_VS_TCP_S_ESTABLISHED) &&
-	      (atomic_read(&cp->in_pkts) % sysctl_ip_vs_sync_threshold[1]
+	      (pkts % sysctl_ip_vs_sync_threshold[1]
 	       == sysctl_ip_vs_sync_threshold[0])) ||
 	     ((cp->protocol == IPPROTO_TCP) && (cp->old_state != cp->state) &&
 	      ((cp->state == IP_VS_TCP_S_FIN_WAIT) ||
