@@ -69,9 +69,9 @@ struct clk {
 	const char		*name;
 	unsigned long		rate;
 	u8			usecount;
-	u8			flags;
 	u8			lpsc;
 	u8			psc_ctlr;
+	u32			flags;
 	struct clk              *parent;
 	struct list_head	children; 	/* list of children */
 	struct list_head	childnode;	/* parent's child list node */
@@ -82,7 +82,7 @@ struct clk {
 	int (*round_rate) (struct clk *clk, unsigned long rate);
 };
 
-/* Clock flags */
+/* Clock flags: SoC-specific flags start at BIT(16) */
 #define ALWAYS_ENABLED		BIT(1)
 #define CLK_PSC                 BIT(2)
 #define PSC_DSP                 BIT(3) /* PSC uses DSP domain, not ARM */

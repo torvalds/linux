@@ -30,11 +30,16 @@
 #include "clock.h"
 #include "mux.h"
 
+/* SoC specific clock flags */
+#define DA850_CLK_ASYNC3	BIT(16)
+
 #define DA850_PLL1_BASE		0x01e1a000
 #define DA850_TIMER64P2_BASE	0x01f0c000
 #define DA850_TIMER64P3_BASE	0x01f0d000
 
 #define DA850_REF_FREQ		24000000
+
+#define CFGCHIP3_ASYNC3_CLKSRC	BIT(4)
 
 static struct pll_data pll0_data = {
 	.num		= 1,
@@ -232,6 +237,7 @@ static struct clk uart1_clk = {
 	.name		= "uart1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART1,
+	.flags		= DA850_CLK_ASYNC3,
 	.psc_ctlr	= 1,
 };
 
@@ -239,6 +245,7 @@ static struct clk uart2_clk = {
 	.name		= "uart2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART2,
+	.flags		= DA850_CLK_ASYNC3,
 	.psc_ctlr	= 1,
 };
 
@@ -790,6 +797,30 @@ static struct davinci_timer_info da850_timer_info = {
 	.clocksource_id	= T0_TOP,
 };
 
+static void da850_set_async3_src(int pllnum)
+{
+	struct clk *clk, *newparent = pllnum ? &pll1_sysclk2 : &pll0_sysclk2;
+	struct davinci_clk *c;
+	unsigned int v;
+	int ret;
+
+	for (c = da850_clks; c->lk.clk; c++) {
+		clk = c->lk.clk;
+		if (clk->flags & DA850_CLK_ASYNC3) {
+			ret = clk_set_parent(clk, newparent);
+			WARN(ret, "DA850: unable to re-parent clock %s",
+								clk->name);
+		}
+       }
+
+	v = __raw_readl(DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG));
+	if (pllnum)
+		v |= CFGCHIP3_ASYNC3_CLKSRC;
+	else
+		v &= ~CFGCHIP3_ASYNC3_CLKSRC;
+	__raw_writel(v, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG));
+}
+
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da850_io_desc),
@@ -823,4 +854,13 @@ void __init da850_init(void)
 	davinci_soc_info_da850.pinmux_base = DA8XX_SYSCFG_VIRT(0x120);
 
 	davinci_common_init(&davinci_soc_info_da850);
+
+	/*
+	 * Move the clock source of Async3 domain to PLL1 SYSCLK2.
+	 * This helps keeping the peripherals on this domain insulated
+	 * from CPU frequency changes caused by DVFS. The firmware sets
+	 * both PLL0 and PLL1 to the same frequency so, there should not
+	 * be any noticible change even in non-DVFS use cases.
+	 */
+	da850_set_async3_src(1);
 }
