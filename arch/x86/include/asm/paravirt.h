@@ -166,7 +166,6 @@ struct pv_cpu_ops {
 
 	/* MSR, PMC and TSR operations.
 	   err = 0/-EFAULT.  wrmsr returns 0/-EFAULT. */
-	u64 (*read_msr_amd)(unsigned int msr, int *err);
 	u64 (*read_msr)(unsigned int msr, int *err);
 	int (*rdmsr_regs)(u32 *regs);
 	int (*write_msr)(unsigned int msr, unsigned low, unsigned high);
@@ -828,10 +827,6 @@ static inline int paravirt_rdmsr_regs(u32 *regs)
 	return PVOP_CALL1(int, pv_cpu_ops.rdmsr_regs, regs);
 }
 
-static inline u64 paravirt_read_msr_amd(unsigned msr, int *err)
-{
-	return PVOP_CALL2(u64, pv_cpu_ops.read_msr_amd, msr, err);
-}
 static inline int paravirt_write_msr(unsigned msr, unsigned low, unsigned high)
 {
 	return PVOP_CALL3(int, pv_cpu_ops.write_msr, msr, low, high);
@@ -887,10 +882,29 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 }
 static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 {
+	u32 gprs[8] = { 0 };
 	int err;
 
-	*p = paravirt_read_msr_amd(msr, &err);
+	gprs[1] = msr;
+	gprs[7] = 0x9c5a203a;
+
+	err = paravirt_rdmsr_regs(gprs);
+
+	*p = gprs[0] | ((u64)gprs[2] << 32);
+
 	return err;
+}
+
+static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
+{
+	u32 gprs[8] = { 0 };
+
+	gprs[0] = (u32)val;
+	gprs[1] = msr;
+	gprs[2] = val >> 32;
+	gprs[7] = 0x9c5a203a;
+
+	return paravirt_wrmsr_regs(gprs);
 }
 
 static inline u64 paravirt_read_tsc(void)
