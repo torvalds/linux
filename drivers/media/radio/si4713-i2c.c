@@ -1841,15 +1841,11 @@ static int si4713_s_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 	u16 stereo, rds;
 	u32 p;
 
-	if (!sdev) {
-		rval = -ENODEV;
-		goto exit;
-	}
+	if (!sdev)
+		return -ENODEV;
 
-	if (vm->index > 0) {
-		rval = -EINVAL;
-		goto exit;
-	}
+	if (vm->index > 0)
+		return -EINVAL;
 
 	/* Set audio mode: mono or stereo */
 	if (vm->txsubchans & V4L2_TUNER_SUB_STEREO)
@@ -1857,9 +1853,7 @@ static int si4713_s_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 	else if (vm->txsubchans & V4L2_TUNER_SUB_MONO)
 		stereo = 0;
 	else
-		rval = -EINVAL;
-	if (rval < 0)
-		goto exit;
+		return -EINVAL;
 
 	rds = !!(vm->txsubchans & V4L2_TUNER_SUB_RDS);
 
@@ -1885,7 +1879,6 @@ static int si4713_s_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 
 unlock:
 	mutex_unlock(&sdev->mutex);
-exit:
 	return rval;
 }
 
