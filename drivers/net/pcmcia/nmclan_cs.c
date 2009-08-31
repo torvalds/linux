@@ -424,7 +424,8 @@ static void nmclan_reset(struct net_device *dev);
 static int mace_config(struct net_device *dev, struct ifmap *map);
 static int mace_open(struct net_device *dev);
 static int mace_close(struct net_device *dev);
-static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t mace_start_xmit(struct sk_buff *skb,
+					 struct net_device *dev);
 static void mace_tx_timeout(struct net_device *dev);
 static irqreturn_t mace_interrupt(int irq, void *dev_id);
 static struct net_device_stats *mace_get_stats(struct net_device *dev);
@@ -937,7 +938,8 @@ static void mace_tx_timeout(struct net_device *dev)
   netif_wake_queue(dev);
 }
 
-static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mace_start_xmit(struct sk_buff *skb,
+					 struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
   unsigned int ioaddr = dev->base_addr;

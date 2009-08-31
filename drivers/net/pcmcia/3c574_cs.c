@@ -239,7 +239,8 @@ static void tc574_wait_for_completion(struct net_device *dev, int cmd);
 static void tc574_reset(struct net_device *dev);
 static void media_check(unsigned long arg);
 static int el3_open(struct net_device *dev);
-static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static irqreturn_t el3_interrupt(int irq, void *dev_id);
 static void update_stats(struct net_device *dev);
 static struct net_device_stats *el3_get_stats(struct net_device *dev);
@@ -778,7 +779,8 @@ static void pop_tx_status(struct net_device *dev)
 	}
 }
 
-static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	struct el3_private *lp = netdev_priv(dev);

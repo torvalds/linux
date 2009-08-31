@@ -92,7 +92,8 @@ static void axnet_release(struct pcmcia_device *link);
 static int axnet_open(struct net_device *dev);
 static int axnet_close(struct net_device *dev);
 static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static int axnet_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
+					  struct net_device *dev);
 static struct net_device_stats *get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static void axnet_tx_timeout(struct net_device *dev);
@@ -1063,7 +1064,8 @@ static void axnet_tx_timeout(struct net_device *dev)
  * Sends a packet to an 8390 network device.
  */
  
-static int axnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
+					  struct net_device *dev)
 {
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
