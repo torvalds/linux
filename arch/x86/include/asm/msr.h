@@ -67,7 +67,7 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 		     ".previous\n\t"
 		     _ASM_EXTABLE(2b, 3b)
 		     : [err] "=r" (*err), EAX_EDX_RET(val, low, high)
-		     : "c" (msr), [fault] "i" (-EFAULT));
+		     : "c" (msr), [fault] "i" (-EIO));
 	return EAX_EDX_VAL(val, low, high);
 }
 
@@ -90,7 +90,7 @@ notrace static inline int native_write_msr_safe(unsigned int msr,
 		     _ASM_EXTABLE(2b, 3b)
 		     : [err] "=a" (err)
 		     : "c" (msr), "0" (low), "d" (high),
-		       [fault] "i" (-EFAULT)
+		       [fault] "i" (-EIO)
 		     : "memory");
 	return err;
 }

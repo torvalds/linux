@@ -713,7 +713,7 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 	set:
 		base = ((u64)high << 32) | low;
 		if (HYPERVISOR_set_segment_base(which, base) != 0)
-			ret = -EFAULT;
+			ret = -EIO;
 		break;
 #endif
 
