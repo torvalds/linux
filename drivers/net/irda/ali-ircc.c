@@ -111,7 +111,8 @@ static int  ali_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd
 static void ali_ircc_change_speed(struct ali_ircc_cb *self, __u32 baud);
 
 /* SIR function */
-static int  ali_ircc_sir_hard_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ali_ircc_sir_hard_xmit(struct sk_buff *skb,
+						struct net_device *dev);
 static irqreturn_t ali_ircc_sir_interrupt(struct ali_ircc_cb *self);
 static void ali_ircc_sir_receive(struct ali_ircc_cb *self);
 static void ali_ircc_sir_write_wakeup(struct ali_ircc_cb *self);
@@ -119,7 +120,8 @@ static int  ali_ircc_sir_write(int iobase, int fifo_size, __u8 *buf, int len);
 static void ali_ircc_sir_change_speed(struct ali_ircc_cb *priv, __u32 speed);
 
 /* FIR function */
-static int  ali_ircc_fir_hard_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t  ali_ircc_fir_hard_xmit(struct sk_buff *skb,
+						 struct net_device *dev);
 static void ali_ircc_fir_change_speed(struct ali_ircc_cb *priv, __u32 speed);
 static irqreturn_t ali_ircc_fir_interrupt(struct ali_ircc_cb *self);
 static int  ali_ircc_dma_receive(struct ali_ircc_cb *self); 
@@ -1435,7 +1437,8 @@ static int ali_ircc_net_close(struct net_device *dev)
  *    Transmit the frame
  *
  */
-static int ali_ircc_fir_hard_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ali_ircc_fir_hard_xmit(struct sk_buff *skb,
+						struct net_device *dev)
 {
 	struct ali_ircc_cb *self;
 	unsigned long flags;
@@ -1957,7 +1960,8 @@ static int  ali_ircc_dma_receive_complete(struct ali_ircc_cb *self)
  *    Transmit the frame!
  *
  */
-static int ali_ircc_sir_hard_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ali_ircc_sir_hard_xmit(struct sk_buff *skb,
+						struct net_device *dev)
 {
 	struct ali_ircc_cb *self;
 	unsigned long flags;

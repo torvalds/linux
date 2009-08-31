@@ -173,8 +173,10 @@ static int  nsc_ircc_setup(chipio_t *info);
 static void nsc_ircc_pio_receive(struct nsc_ircc_cb *self);
 static int  nsc_ircc_dma_receive(struct nsc_ircc_cb *self); 
 static int  nsc_ircc_dma_receive_complete(struct nsc_ircc_cb *self, int iobase);
-static int  nsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev);
-static int  nsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t  nsc_ircc_hard_xmit_sir(struct sk_buff *skb,
+						 struct net_device *dev);
+static netdev_tx_t  nsc_ircc_hard_xmit_fir(struct sk_buff *skb,
+						 struct net_device *dev);
 static int  nsc_ircc_pio_write(int iobase, __u8 *buf, int len, int fifo_size);
 static void nsc_ircc_dma_xmit(struct nsc_ircc_cb *self, int iobase);
 static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 baud);
@@ -1355,7 +1357,8 @@ static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 speed)
  *    Transmit the frame!
  *
  */
-static int nsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t nsc_ircc_hard_xmit_sir(struct sk_buff *skb,
+						struct net_device *dev)
 {
 	struct nsc_ircc_cb *self;
 	unsigned long flags;
@@ -1427,7 +1430,8 @@ static int nsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int nsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t nsc_ircc_hard_xmit_fir(struct sk_buff *skb,
+						struct net_device *dev)
 {
 	struct nsc_ircc_cb *self;
 	unsigned long flags;

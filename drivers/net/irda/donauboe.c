@@ -970,7 +970,7 @@ toshoboe_probe (struct toshoboe_cb *self)
 /* Netdev style code */
 
 /* Transmit something */
-static int
+static netdev_tx_t
 toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
 {
   struct toshoboe_cb *self;

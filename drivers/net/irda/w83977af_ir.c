@@ -93,7 +93,8 @@ static int  w83977af_close(struct w83977af_ir *self);
 static int  w83977af_probe(int iobase, int irq, int dma);
 static int  w83977af_dma_receive(struct w83977af_ir *self); 
 static int  w83977af_dma_receive_complete(struct w83977af_ir *self);
-static int  w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t  w83977af_hard_xmit(struct sk_buff *skb,
+					     struct net_device *dev);
 static int  w83977af_pio_write(int iobase, __u8 *buf, int len, int fifo_size);
 static void w83977af_dma_write(struct w83977af_ir *self, int iobase);
 static void w83977af_change_speed(struct w83977af_ir *self, __u32 speed);
@@ -490,7 +491,8 @@ static void w83977af_change_speed(struct w83977af_ir *self, __u32 speed)
  *    Sets up a DMA transfer to send the current frame.
  *
  */
-static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t w83977af_hard_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct w83977af_ir *self;
 	__s32 speed;

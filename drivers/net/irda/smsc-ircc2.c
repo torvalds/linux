@@ -194,8 +194,10 @@ static int __exit smsc_ircc_close(struct smsc_ircc_cb *self);
 static int  smsc_ircc_dma_receive(struct smsc_ircc_cb *self);
 static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_sir_receive(struct smsc_ircc_cb *self);
-static int  smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev);
-static int  smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t  smsc_ircc_hard_xmit_sir(struct sk_buff *skb,
+						  struct net_device *dev);
+static netdev_tx_t  smsc_ircc_hard_xmit_fir(struct sk_buff *skb,
+						  struct net_device *dev);
 static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs);
 static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed);
@@ -486,7 +488,8 @@ static int __init smsc_ircc_init(void)
 	return ret;
 }
 
-static int smsc_ircc_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc_ircc_net_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct smsc_ircc_cb *self = netdev_priv(dev);
 
@@ -878,7 +881,8 @@ static void smsc_ircc_timeout(struct net_device *dev)
  *    waits until the next transmit interrupt, and continues until the
  *    frame is transmitted.
  */
-static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc_ircc_hard_xmit_sir(struct sk_buff *skb,
+						 struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	unsigned long flags;
@@ -1183,7 +1187,8 @@ static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
  *    Transmit the frame!
  *
  */
-static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc_ircc_hard_xmit_fir(struct sk_buff *skb,
+						 struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	unsigned long flags;

@@ -582,7 +582,8 @@ EXPORT_SYMBOL(sirdev_receive);
 
 /* callbacks from network layer */
 
-static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t sirdev_hard_xmit(struct sk_buff *skb,
+					  struct net_device *ndev)
 {
 	struct sir_dev *dev = netdev_priv(ndev);
 	unsigned long flags;
