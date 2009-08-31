@@ -50,6 +50,7 @@ struct print_arg_atom {
 
 struct print_arg_string {
 	char			*string;
+	int			offset;
 };
 
 struct print_arg_field {

@@ -1548,6 +1548,7 @@ process_str(struct event *event __unused, struct print_arg *arg, char **tok)
 
 	arg->type = PRINT_STRING;
 	arg->string.string = token;
+	arg->string.offset = -1;
 
 	if (read_expected(EVENT_DELIM, (char *)")") < 0)
 		return EVENT_ERROR;
@@ -2031,9 +2032,20 @@ static void print_str_arg(void *data, int size,
 
 	case PRINT_TYPE:
 		break;
-	case PRINT_STRING:
-		printf("%s", arg->string.string);
+	case PRINT_STRING: {
+		int str_offset;
+
+		if (arg->string.offset == -1) {
+			struct format_field *f;
+
+			f = find_any_field(event, arg->string.string);
+			arg->string.offset = f->offset;
+		}
+		str_offset = *(int *)(data + arg->string.offset);
+		str_offset &= 0xffff;
+		printf("%s", ((char *)data) + str_offset);
 		break;
+	}
 	case PRINT_OP:
 		/*
 		 * The only op for string should be ? :
