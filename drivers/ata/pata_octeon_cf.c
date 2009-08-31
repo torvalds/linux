@@ -653,7 +653,8 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		ocd = ap->dev->platform_data;
-		if (!ap || (ap->flags & ATA_FLAG_DISABLED))
+
+		if (ap->flags & ATA_FLAG_DISABLED)
 			continue;
 
 		ocd = ap->dev->platform_data;

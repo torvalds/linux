@@ -3854,8 +3854,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	skge->speed = -1;
 	skge->advertising = skge_supported_modes(hw);
 
-	if (device_may_wakeup(&hw->pdev->dev))
+	if (device_can_wakeup(&hw->pdev->dev)) {
 		skge->wol = wol_supported(hw) & WAKE_MAGIC;
+		device_set_wakeup_enable(&hw->pdev->dev, skge->wol);
+	}
 
 	hw->dev[port] = dev;
 

@@ -566,7 +566,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 
 	ret = drm_vblank_get(dev, crtc);
 	if (ret) {
-		DRM_ERROR("failed to acquire vblank counter, %d\n", ret);
+		DRM_DEBUG("failed to acquire vblank counter, %d\n", ret);
 		return ret;
 	}
 	seq = drm_vblank_count(dev, crtc);

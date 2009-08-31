@@ -1634,6 +1634,8 @@ static void setfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (gspca_dev->ctrl_dis & (1 << FREQ_IDX))
+		return;
 	if (sd->sensor == SENSOR_OV7660) {
 		switch (sd->freq) {
 		case 0: /* Banding filter disabled */
@@ -1735,6 +1737,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* create the JPEG header */
 	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	if (!sd->jpeg_hdr)
+		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);

@@ -22,7 +22,6 @@
 #include <linux/sysdev.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
-#include <linux/sysdev.h>
 #include <linux/irq.h>
 
 #include <mach/hardware.h>

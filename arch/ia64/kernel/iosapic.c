@@ -1072,6 +1072,10 @@ iosapic_init (unsigned long phys_addr, unsigned int gsi_base)
 	}
 
 	addr = ioremap(phys_addr, 0);
+	if (addr == NULL) {
+		spin_unlock_irqrestore(&iosapic_lock, flags);
+		return -ENOMEM;
+	}
 	ver = iosapic_version(addr);
 	if ((err = iosapic_check_gsi_range(gsi_base, ver))) {
 		iounmap(addr);

@@ -238,6 +238,18 @@ void ieee802154_raw_deliver(struct net_device *dev, struct sk_buff *skb)
 	read_unlock(&raw_lock);
 }
 
+static int raw_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	return -EOPNOTSUPP;
+}
+
+static int raw_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user optlen)
+{
+	return -EOPNOTSUPP;
+}
+
 struct proto ieee802154_raw_prot = {
 	.name		= "IEEE-802.15.4-RAW",
 	.owner		= THIS_MODULE,
@@ -250,5 +262,7 @@ struct proto ieee802154_raw_prot = {
 	.unhash		= raw_unhash,
 	.connect	= raw_connect,
 	.disconnect	= raw_disconnect,
+	.getsockopt	= raw_getsockopt,
+	.setsockopt	= raw_setsockopt,
 };
 

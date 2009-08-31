@@ -169,7 +169,7 @@ static struct platform_device *sdp3430_devices[] __initdata = {
 
 static void __init omap_3430sdp_init_irq(void)
 {
-	omap2_init_common_hw(hyb18m512160af6_sdrc_params);
+	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 }

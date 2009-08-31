@@ -262,11 +262,11 @@ A partial list of the supported mount options follows:
 		mount.	
   domain	Set the SMB/CIFS workgroup name prepended to the
 		username during CIFS session establishment
-  forceuid	Set the default uid for inodes based on the uid
-		passed in. For mounts to servers
+  forceuid	Set the default uid for inodes to the uid
+		passed in on mount. For mounts to servers
 		which do support the CIFS Unix extensions, such as a
 		properly configured Samba server, the server provides
-		the uid, gid and mode so this parameter should  not be
+		the uid, gid and mode so this parameter should not be
 		specified unless the server and clients uid and gid
 		numbering differ.  If the server and client are in the
 		same domain (e.g. running winbind or nss_ldap) and
@@ -278,11 +278,7 @@ A partial list of the supported mount options follows:
 		of existing files will be the uid (gid) of the person
 		who executed the mount (root, except when mount.cifs
 		is configured setuid for user mounts) unless the "uid=" 
-		(gid) mount option is specified.  For the uid (gid) of newly
-		created files and directories, ie files created since 
-		the last mount of the server share, the expected uid 
-		(gid) is cached as long as the inode remains in 
-		memory on the client.   Also note that permission
+		(gid) mount option is specified. Also note that permission
 		checks (authorization checks) on accesses to a file occur
 		at the server, but there are cases in which an administrator
 		may want to restrict at the client as well.  For those
@@ -290,12 +286,15 @@ A partial list of the supported mount options follows:
 		(such as Windows), permissions can also be checked at the
 		client, and a crude form of client side permission checking 
 		can be enabled by specifying file_mode and dir_mode on 
-		the client.  Note that the mount.cifs helper must be
-		at version 1.10 or higher to support specifying the uid
-		(or gid) in non-numeric form.
-  forcegid	(similar to above but for the groupid instead of uid)
+		the client.  (default)
+  forcegid	(similar to above but for the groupid instead of uid) (default)
+  noforceuid	Fill in file owner information (uid) by requesting it from
+		the server if possible. With this option, the value given in
+		the uid= option (on mount) will only be used if the server
+		can not support returning uids on inodes.
+  noforcegid	(similar to above but for the group owner, gid, instead of uid)
   uid		Set the default uid for inodes, and indicate to the
-		cifs kernel driver which local user mounted . If the server
+		cifs kernel driver which local user mounted. If the server
 		supports the unix extensions the default uid is
 		not used to fill in the owner fields of inodes (files)
 		unless the "forceuid" parameter is specified.

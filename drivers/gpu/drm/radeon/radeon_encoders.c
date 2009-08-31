@@ -154,7 +154,6 @@ void radeon_rmx_mode_fixup(struct drm_encoder *encoder,
 
 	if (mode->hdisplay < native_mode->panel_xres ||
 	    mode->vdisplay < native_mode->panel_yres) {
-		radeon_encoder->flags |= RADEON_USE_RMX;
 		if (ASIC_IS_AVIVO(rdev)) {
 			adjusted_mode->hdisplay = native_mode->panel_xres;
 			adjusted_mode->vdisplay = native_mode->panel_yres;
@@ -197,14 +196,12 @@ void radeon_rmx_mode_fixup(struct drm_encoder *encoder,
 	}
 }
 
+
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
-
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-
-	radeon_encoder->flags &= ~RADEON_USE_RMX;
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
@@ -808,234 +805,6 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action)
 
 }
 
-static void atom_rv515_force_tv_scaler(struct radeon_device *rdev)
-{
-
-	WREG32(0x659C, 0x0);
-	WREG32(0x6594, 0x705);
-	WREG32(0x65A4, 0x10001);
-	WREG32(0x65D8, 0x0);
-	WREG32(0x65B0, 0x0);
-	WREG32(0x65C0, 0x0);
-	WREG32(0x65D4, 0x0);
-	WREG32(0x6578, 0x0);
-	WREG32(0x657C, 0x841880A8);
-	WREG32(0x6578, 0x1);
-	WREG32(0x657C, 0x84208680);
-	WREG32(0x6578, 0x2);
-	WREG32(0x657C, 0xBFF880B0);
-	WREG32(0x6578, 0x100);
-	WREG32(0x657C, 0x83D88088);
-	WREG32(0x6578, 0x101);
-	WREG32(0x657C, 0x84608680);
-	WREG32(0x6578, 0x102);
-	WREG32(0x657C, 0xBFF080D0);
-	WREG32(0x6578, 0x200);
-	WREG32(0x657C, 0x83988068);
-	WREG32(0x6578, 0x201);
-	WREG32(0x657C, 0x84A08680);
-	WREG32(0x6578, 0x202);
-	WREG32(0x657C, 0xBFF080F8);
-	WREG32(0x6578, 0x300);
-	WREG32(0x657C, 0x83588058);
-	WREG32(0x6578, 0x301);
-	WREG32(0x657C, 0x84E08660);
-	WREG32(0x6578, 0x302);
-	WREG32(0x657C, 0xBFF88120);
-	WREG32(0x6578, 0x400);
-	WREG32(0x657C, 0x83188040);
-	WREG32(0x6578, 0x401);
-	WREG32(0x657C, 0x85008660);
-	WREG32(0x6578, 0x402);
-	WREG32(0x657C, 0xBFF88150);
-	WREG32(0x6578, 0x500);
-	WREG32(0x657C, 0x82D88030);
-	WREG32(0x6578, 0x501);
-	WREG32(0x657C, 0x85408640);
-	WREG32(0x6578, 0x502);
-	WREG32(0x657C, 0xBFF88180);
-	WREG32(0x6578, 0x600);
-	WREG32(0x657C, 0x82A08018);
-	WREG32(0x6578, 0x601);
-	WREG32(0x657C, 0x85808620);
-	WREG32(0x6578, 0x602);
-	WREG32(0x657C, 0xBFF081B8);
-	WREG32(0x6578, 0x700);
-	WREG32(0x657C, 0x82608010);
-	WREG32(0x6578, 0x701);
-	WREG32(0x657C, 0x85A08600);
-	WREG32(0x6578, 0x702);
-	WREG32(0x657C, 0x800081F0);
-	WREG32(0x6578, 0x800);
-	WREG32(0x657C, 0x8228BFF8);
-	WREG32(0x6578, 0x801);
-	WREG32(0x657C, 0x85E085E0);
-	WREG32(0x6578, 0x802);
-	WREG32(0x657C, 0xBFF88228);
-	WREG32(0x6578, 0x10000);
-	WREG32(0x657C, 0x82A8BF00);
-	WREG32(0x6578, 0x10001);
-	WREG32(0x657C, 0x82A08CC0);
-	WREG32(0x6578, 0x10002);
-	WREG32(0x657C, 0x8008BEF8);
-	WREG32(0x6578, 0x10100);
-	WREG32(0x657C, 0x81F0BF28);
-	WREG32(0x6578, 0x10101);
-	WREG32(0x657C, 0x83608CA0);
-	WREG32(0x6578, 0x10102);
-	WREG32(0x657C, 0x8018BED0);
-	WREG32(0x6578, 0x10200);
-	WREG32(0x657C, 0x8148BF38);
-	WREG32(0x6578, 0x10201);
-	WREG32(0x657C, 0x84408C80);
-	WREG32(0x6578, 0x10202);
-	WREG32(0x657C, 0x8008BEB8);
-	WREG32(0x6578, 0x10300);
-	WREG32(0x657C, 0x80B0BF78);
-	WREG32(0x6578, 0x10301);
-	WREG32(0x657C, 0x85008C20);
-	WREG32(0x6578, 0x10302);
-	WREG32(0x657C, 0x8020BEA0);
-	WREG32(0x6578, 0x10400);
-	WREG32(0x657C, 0x8028BF90);
-	WREG32(0x6578, 0x10401);
-	WREG32(0x657C, 0x85E08BC0);
-	WREG32(0x6578, 0x10402);
-	WREG32(0x657C, 0x8018BE90);
-	WREG32(0x6578, 0x10500);
-	WREG32(0x657C, 0xBFB8BFB0);
-	WREG32(0x6578, 0x10501);
-	WREG32(0x657C, 0x86C08B40);
-	WREG32(0x6578, 0x10502);
-	WREG32(0x657C, 0x8010BE90);
-	WREG32(0x6578, 0x10600);
-	WREG32(0x657C, 0xBF58BFC8);
-	WREG32(0x6578, 0x10601);
-	WREG32(0x657C, 0x87A08AA0);
-	WREG32(0x6578, 0x10602);
-	WREG32(0x657C, 0x8010BE98);
-	WREG32(0x6578, 0x10700);
-	WREG32(0x657C, 0xBF10BFF0);
-	WREG32(0x6578, 0x10701);
-	WREG32(0x657C, 0x886089E0);
-	WREG32(0x6578, 0x10702);
-	WREG32(0x657C, 0x8018BEB0);
-	WREG32(0x6578, 0x10800);
-	WREG32(0x657C, 0xBED8BFE8);
-	WREG32(0x6578, 0x10801);
-	WREG32(0x657C, 0x89408940);
-	WREG32(0x6578, 0x10802);
-	WREG32(0x657C, 0xBFE8BED8);
-	WREG32(0x6578, 0x20000);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x20001);
-	WREG32(0x657C, 0x90008000);
-	WREG32(0x6578, 0x20002);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x20003);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x20100);
-	WREG32(0x657C, 0x80108000);
-	WREG32(0x6578, 0x20101);
-	WREG32(0x657C, 0x8FE0BF70);
-	WREG32(0x6578, 0x20102);
-	WREG32(0x657C, 0xBFE880C0);
-	WREG32(0x6578, 0x20103);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x20200);
-	WREG32(0x657C, 0x8018BFF8);
-	WREG32(0x6578, 0x20201);
-	WREG32(0x657C, 0x8F80BF08);
-	WREG32(0x6578, 0x20202);
-	WREG32(0x657C, 0xBFD081A0);
-	WREG32(0x6578, 0x20203);
-	WREG32(0x657C, 0xBFF88000);
-	WREG32(0x6578, 0x20300);
-	WREG32(0x657C, 0x80188000);
-	WREG32(0x6578, 0x20301);
-	WREG32(0x657C, 0x8EE0BEC0);
-	WREG32(0x6578, 0x20302);
-	WREG32(0x657C, 0xBFB082A0);
-	WREG32(0x6578, 0x20303);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x20400);
-	WREG32(0x657C, 0x80188000);
-	WREG32(0x6578, 0x20401);
-	WREG32(0x657C, 0x8E00BEA0);
-	WREG32(0x6578, 0x20402);
-	WREG32(0x657C, 0xBF8883C0);
-	WREG32(0x6578, 0x20403);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x20500);
-	WREG32(0x657C, 0x80188000);
-	WREG32(0x6578, 0x20501);
-	WREG32(0x657C, 0x8D00BE90);
-	WREG32(0x6578, 0x20502);
-	WREG32(0x657C, 0xBF588500);
-	WREG32(0x6578, 0x20503);
-	WREG32(0x657C, 0x80008008);
-	WREG32(0x6578, 0x20600);
-	WREG32(0x657C, 0x80188000);
-	WREG32(0x6578, 0x20601);
-	WREG32(0x657C, 0x8BC0BE98);
-	WREG32(0x6578, 0x20602);
-	WREG32(0x657C, 0xBF308660);
-	WREG32(0x6578, 0x20603);
-	WREG32(0x657C, 0x80008008);
-	WREG32(0x6578, 0x20700);
-	WREG32(0x657C, 0x80108000);
-	WREG32(0x6578, 0x20701);
-	WREG32(0x657C, 0x8A80BEB0);
-	WREG32(0x6578, 0x20702);
-	WREG32(0x657C, 0xBF0087C0);
-	WREG32(0x6578, 0x20703);
-	WREG32(0x657C, 0x80008008);
-	WREG32(0x6578, 0x20800);
-	WREG32(0x657C, 0x80108000);
-	WREG32(0x6578, 0x20801);
-	WREG32(0x657C, 0x8920BED0);
-	WREG32(0x6578, 0x20802);
-	WREG32(0x657C, 0xBED08920);
-	WREG32(0x6578, 0x20803);
-	WREG32(0x657C, 0x80008010);
-	WREG32(0x6578, 0x30000);
-	WREG32(0x657C, 0x90008000);
-	WREG32(0x6578, 0x30001);
-	WREG32(0x657C, 0x80008000);
-	WREG32(0x6578, 0x30100);
-	WREG32(0x657C, 0x8FE0BF90);
-	WREG32(0x6578, 0x30101);
-	WREG32(0x657C, 0xBFF880A0);
-	WREG32(0x6578, 0x30200);
-	WREG32(0x657C, 0x8F60BF40);
-	WREG32(0x6578, 0x30201);
-	WREG32(0x657C, 0xBFE88180);
-	WREG32(0x6578, 0x30300);
-	WREG32(0x657C, 0x8EC0BF00);
-	WREG32(0x6578, 0x30301);
-	WREG32(0x657C, 0xBFC88280);
-	WREG32(0x6578, 0x30400);
-	WREG32(0x657C, 0x8DE0BEE0);
-	WREG32(0x6578, 0x30401);
-	WREG32(0x657C, 0xBFA083A0);
-	WREG32(0x6578, 0x30500);
-	WREG32(0x657C, 0x8CE0BED0);
-	WREG32(0x6578, 0x30501);
-	WREG32(0x657C, 0xBF7884E0);
-	WREG32(0x6578, 0x30600);
-	WREG32(0x657C, 0x8BA0BED8);
-	WREG32(0x6578, 0x30601);
-	WREG32(0x657C, 0xBF508640);
-	WREG32(0x6578, 0x30700);
-	WREG32(0x657C, 0x8A60BEE8);
-	WREG32(0x6578, 0x30701);
-	WREG32(0x657C, 0xBF2087A0);
-	WREG32(0x6578, 0x30800);
-	WREG32(0x657C, 0x8900BF00);
-	WREG32(0x6578, 0x30801);
-	WREG32(0x657C, 0xBF008900);
-}
-
 static void
 atombios_yuv_setup(struct drm_encoder *encoder, bool enable)
 {
@@ -1071,129 +840,6 @@ atombios_yuv_setup(struct drm_encoder *encoder, bool enable)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
 	WREG32(reg, temp);
-}
-
-static void
-atombios_overscan_setup(struct drm_encoder *encoder,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
-	SET_CRTC_OVERSCAN_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, SetCRTC_OverScan);
-
-	memset(&args, 0, sizeof(args));
-
-	args.usOverscanRight = 0;
-	args.usOverscanLeft = 0;
-	args.usOverscanBottom = 0;
-	args.usOverscanTop = 0;
-	args.ucCRTC = radeon_crtc->crtc_id;
-
-	if (radeon_encoder->flags & RADEON_USE_RMX) {
-		if (radeon_encoder->rmx_type == RMX_FULL) {
-			args.usOverscanRight = 0;
-			args.usOverscanLeft = 0;
-			args.usOverscanBottom = 0;
-			args.usOverscanTop = 0;
-		} else if (radeon_encoder->rmx_type == RMX_CENTER) {
-			args.usOverscanTop = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
-			args.usOverscanBottom = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
-			args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
-			args.usOverscanRight = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
-		} else if (radeon_encoder->rmx_type == RMX_ASPECT) {
-			int a1 = mode->crtc_vdisplay * adjusted_mode->crtc_hdisplay;
-			int a2 = adjusted_mode->crtc_vdisplay * mode->crtc_hdisplay;
-
-			if (a1 > a2) {
-				args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2;
-				args.usOverscanRight = (adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2;
-			} else if (a2 > a1) {
-				args.usOverscanLeft = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
-				args.usOverscanRight = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
-			}
-		}
-	}
-
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
-}
-
-static void
-atombios_scaler_setup(struct drm_encoder *encoder)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
-	ENABLE_SCALER_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, EnableScaler);
-	/* fixme - fill in enc_priv for atom dac */
-	enum radeon_tv_std tv_std = TV_STD_NTSC;
-
-	if (!ASIC_IS_AVIVO(rdev) && radeon_crtc->crtc_id)
-		return;
-
-	memset(&args, 0, sizeof(args));
-
-	args.ucScaler = radeon_crtc->crtc_id;
-
-	if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT)) {
-		switch (tv_std) {
-		case TV_STD_NTSC:
-		default:
-			args.ucTVStandard = ATOM_TV_NTSC;
-			break;
-		case TV_STD_PAL:
-			args.ucTVStandard = ATOM_TV_PAL;
-			break;
-		case TV_STD_PAL_M:
-			args.ucTVStandard = ATOM_TV_PALM;
-			break;
-		case TV_STD_PAL_60:
-			args.ucTVStandard = ATOM_TV_PAL60;
-			break;
-		case TV_STD_NTSC_J:
-			args.ucTVStandard = ATOM_TV_NTSCJ;
-			break;
-		case TV_STD_SCART_PAL:
-			args.ucTVStandard = ATOM_TV_PAL; /* ??? */
-			break;
-		case TV_STD_SECAM:
-			args.ucTVStandard = ATOM_TV_SECAM;
-			break;
-		case TV_STD_PAL_CN:
-			args.ucTVStandard = ATOM_TV_PALCN;
-			break;
-		}
-		args.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
-	} else if (radeon_encoder->devices & (ATOM_DEVICE_CV_SUPPORT)) {
-		args.ucTVStandard = ATOM_TV_CV;
-		args.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
-	} else if (radeon_encoder->flags & RADEON_USE_RMX) {
-		if (radeon_encoder->rmx_type == RMX_FULL)
-			args.ucEnable = ATOM_SCALER_EXPANSION;
-		else if (radeon_encoder->rmx_type == RMX_CENTER)
-			args.ucEnable = ATOM_SCALER_CENTER;
-		else if (radeon_encoder->rmx_type == RMX_ASPECT)
-			args.ucEnable = ATOM_SCALER_EXPANSION;
-	} else {
-		if (ASIC_IS_AVIVO(rdev))
-			args.ucEnable = ATOM_SCALER_DISABLE;
-		else
-			args.ucEnable = ATOM_SCALER_CENTER;
-	}
-
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
-	if (radeon_encoder->devices & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT)
-	    && rdev->family >= CHIP_RV515 && rdev->family <= CHIP_RV570) {
-		atom_rv515_force_tv_scaler(rdev);
-	}
-
 }
 
 static void
@@ -1448,8 +1094,6 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
 	radeon_atombios_encoder_crtc_scratch_regs(encoder, radeon_crtc->crtc_id);
-	atombios_overscan_setup(encoder, mode, adjusted_mode);
-	atombios_scaler_setup(encoder);
 	atombios_set_encoder_crtc_source(encoder);
 
 	if (ASIC_IS_AVIVO(rdev)) {
@@ -1667,6 +1311,7 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 
 	radeon_encoder->encoder_id = encoder_id;
 	radeon_encoder->devices = supported_device;
+	radeon_encoder->rmx_type = RMX_OFF;
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:

@@ -1176,7 +1176,7 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 	if (dma_has_cap(DMA_MEMSET, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_memset = mv_xor_prep_dma_memset;
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
-		dma_dev->max_xor = 8;                  ;
+		dma_dev->max_xor = 8;
 		dma_dev->device_prep_dma_xor = mv_xor_prep_dma_xor;
 	}
 

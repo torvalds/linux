@@ -623,7 +623,8 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 		return ret;
 
 	if (flags != want_flags) {
-		if (strict_prot || !is_new_memtype_allowed(want_flags, flags)) {
+		if (strict_prot ||
+		    !is_new_memtype_allowed(paddr, size, want_flags, flags)) {
 			free_memtype(paddr, paddr + size);
 			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
 				" for %Lx-%Lx, got %s\n",

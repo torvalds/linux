@@ -3793,6 +3793,9 @@ int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 	mmr_pnode = uv_blade_to_pnode(mmr_blade);
 	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
 
+	if (cfg->move_in_progress)
+		send_cleanup_vector(cfg);
+
 	return irq;
 }
 

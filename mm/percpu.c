@@ -8,12 +8,12 @@
  *
  * This is percpu allocator which can handle both static and dynamic
  * areas.  Percpu areas are allocated in chunks in vmalloc area.  Each
- * chunk is consisted of num_possible_cpus() units and the first chunk
- * is used for static percpu variables in the kernel image (special
- * boot time alloc/init handling necessary as these areas need to be
- * brought up before allocation services are running).  Unit grows as
- * necessary and all units grow or shrink in unison.  When a chunk is
- * filled up, another chunk is allocated.  ie. in vmalloc area
+ * chunk is consisted of nr_cpu_ids units and the first chunk is used
+ * for static percpu variables in the kernel image (special boot time
+ * alloc/init handling necessary as these areas need to be brought up
+ * before allocation services are running).  Unit grows as necessary
+ * and all units grow or shrink in unison.  When a chunk is filled up,
+ * another chunk is allocated.  ie. in vmalloc area
  *
  *  c0                           c1                         c2
  *  -------------------          -------------------        ------------
@@ -558,7 +558,7 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
 static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
 		       bool flush_tlb)
 {
-	unsigned int last = num_possible_cpus() - 1;
+	unsigned int last = nr_cpu_ids - 1;
 	unsigned int cpu;
 
 	/* unmap must not be done on immutable chunk */
@@ -643,7 +643,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size,
  */
 static int pcpu_map(struct pcpu_chunk *chunk, int page_start, int page_end)
 {
-	unsigned int last = num_possible_cpus() - 1;
+	unsigned int last = nr_cpu_ids - 1;
 	unsigned int cpu;
 	int err;
 
@@ -749,7 +749,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
 	chunk->map[chunk->map_used++] = pcpu_unit_size;
 	chunk->page = chunk->page_ar;
 
-	chunk->vm = get_vm_area(pcpu_chunk_size, GFP_KERNEL);
+	chunk->vm = get_vm_area(pcpu_chunk_size, VM_ALLOC);
 	if (!chunk->vm) {
 		free_pcpu_chunk(chunk);
 		return NULL;
@@ -1067,9 +1067,9 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 					PFN_UP(size_sum));
 
 	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
-	pcpu_chunk_size = num_possible_cpus() * pcpu_unit_size;
+	pcpu_chunk_size = nr_cpu_ids * pcpu_unit_size;
 	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk)
-		+ num_possible_cpus() * pcpu_unit_pages * sizeof(struct page *);
+		+ nr_cpu_ids * pcpu_unit_pages * sizeof(struct page *);
 
 	if (dyn_size < 0)
 		dyn_size = pcpu_unit_size - static_size - reserved_size;
@@ -1248,7 +1248,7 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	} else
 		pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
 
-	chunk_size = pcpue_unit_size * num_possible_cpus();
+	chunk_size = pcpue_unit_size * nr_cpu_ids;
 
 	pcpue_ptr = __alloc_bootmem_nopanic(chunk_size, PAGE_SIZE,
 					    __pa(MAX_DMA_ADDRESS));
@@ -1259,12 +1259,15 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	}
 
 	/* return the leftover and copy */
-	for_each_possible_cpu(cpu) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 		void *ptr = pcpue_ptr + cpu * pcpue_unit_size;
 
-		free_bootmem(__pa(ptr + pcpue_size),
-			     pcpue_unit_size - pcpue_size);
-		memcpy(ptr, __per_cpu_load, static_size);
+		if (cpu_possible(cpu)) {
+			free_bootmem(__pa(ptr + pcpue_size),
+				     pcpue_unit_size - pcpue_size);
+			memcpy(ptr, __per_cpu_load, static_size);
+		} else
+			free_bootmem(__pa(ptr), pcpue_unit_size);
 	}
 
 	/* we're ready, commit */

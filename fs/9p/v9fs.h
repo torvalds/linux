@@ -85,7 +85,6 @@ struct v9fs_session_info {
 	unsigned int afid;
 	unsigned int cache;
 
-	char *options;		/* copy of mount options */
 	char *uname;		/* user name to mount as */
 	char *aname;		/* name of remote hierarchy being mounted */
 	unsigned int maxdata;	/* max data for client interface */

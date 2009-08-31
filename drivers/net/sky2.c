@@ -1488,6 +1488,8 @@ static int sky2_up(struct net_device *dev)
 	sky2_set_vlan_mode(hw, port, sky2->vlgrp != NULL);
 #endif
 
+	sky2->restarting = 0;
+
 	err = sky2_rx_start(sky2);
 	if (err)
 		goto err_out;
@@ -1499,6 +1501,9 @@ static int sky2_up(struct net_device *dev)
 	sky2_read32(hw, B0_IMSK);
 
 	sky2_set_multicast(dev);
+
+	/* wake queue incase we are restarting */
+	netif_wake_queue(dev);
 
 	if (netif_msg_ifup(sky2))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
@@ -1533,6 +1538,8 @@ static inline int tx_dist(unsigned tail, unsigned head)
 /* Number of list elements available for next tx */
 static inline int tx_avail(const struct sky2_port *sky2)
 {
+	if (unlikely(sky2->restarting))
+		return 0;
 	return sky2->tx_pending - tx_dist(sky2->tx_cons, sky2->tx_prod);
 }
 
@@ -1817,6 +1824,10 @@ static int sky2_down(struct net_device *dev)
 
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
+
+	/* explicitly shut off tx incase we're restarting */
+	sky2->restarting = 1;
+	netif_tx_disable(dev);
 
 	/* Force flow control off */
 	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
@@ -2359,7 +2370,7 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	if (netif_running(dev)) {
+	if (likely(netif_running(dev) && !sky2->restarting)) {
 		netif_tx_lock(dev);
 		sky2_tx_complete(sky2, last);
 		netif_tx_unlock(dev);
@@ -4283,6 +4294,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	spin_lock_init(&sky2->phy_lock);
 	sky2->tx_pending = TX_DEF_PENDING;
 	sky2->rx_pending = RX_DEF_PENDING;
+	sky2->restarting = 0;
 
 	hw->dev[port] = dev;
 

@@ -547,7 +547,7 @@ static int __init ap325rxa_devices_setup(void)
 	return platform_add_devices(ap325rxa_devices,
 				ARRAY_SIZE(ap325rxa_devices));
 }
-device_initcall(ap325rxa_devices_setup);
+arch_initcall(ap325rxa_devices_setup);
 
 /* Return the board specific boot mode pin configuration */
 static int ap325rxa_mode_pins(void)

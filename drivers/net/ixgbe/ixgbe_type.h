@@ -718,6 +718,12 @@
 #define IXGBE_ECC_STATUS_82599  0x110E0
 #define IXGBE_BAR_CTRL_82599    0x110F4
 
+/* PCI Express Control */
+#define IXGBE_GCR_CMPL_TMOUT_MASK       0x0000F000
+#define IXGBE_GCR_CMPL_TMOUT_10ms       0x00001000
+#define IXGBE_GCR_CMPL_TMOUT_RESEND     0x00010000
+#define IXGBE_GCR_CAP_VER2              0x00040000
+
 /* Time Sync Registers */
 #define IXGBE_TSYNCRXCTL 0x05188 /* Rx Time Sync Control register - RW */
 #define IXGBE_TSYNCTXCTL 0x08C00 /* Tx Time Sync Control register - RW */
@@ -1521,6 +1527,7 @@
 
 /* PCI Bus Info */
 #define IXGBE_PCI_LINK_STATUS     0xB2
+#define IXGBE_PCI_DEVICE_CONTROL2 0xC8
 #define IXGBE_PCI_LINK_WIDTH      0x3F0
 #define IXGBE_PCI_LINK_WIDTH_1    0x10
 #define IXGBE_PCI_LINK_WIDTH_2    0x20
@@ -1531,6 +1538,7 @@
 #define IXGBE_PCI_LINK_SPEED_5000 0x2
 #define IXGBE_PCI_HEADER_TYPE_REGISTER  0x0E
 #define IXGBE_PCI_HEADER_TYPE_MULTIFUNC 0x80
+#define IXGBE_PCI_DEVICE_CONTROL2_16ms  0x0005
 
 /* Number of 100 microseconds we wait for PCI Express master disable */
 #define IXGBE_PCI_MASTER_DISABLE_TIMEOUT 800
