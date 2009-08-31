@@ -1712,8 +1712,15 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN |
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
+	if (!AR_SREV_9100(ah))
+		REG_WRITE(ah, AR_RC, AR_RC_AHB);
+
 	REG_WRITE(ah, AR_RTC_RESET, 0);
 	udelay(2);
+
+	if (!AR_SREV_9100(ah))
+		REG_WRITE(ah, AR_RC, 0);
+
 	REG_WRITE(ah, AR_RTC_RESET, 1);
 
 	if (!ath9k_hw_wait(ah,
