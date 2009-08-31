@@ -119,7 +119,7 @@ net_close(struct net_device *dev)
 /* send a packet on this interface. */
 /* new style for kernel >= 2.3.33   */
 /************************************/
-static int
+static netdev_tx_t
 net_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_local *lp = (struct net_local *) dev;
