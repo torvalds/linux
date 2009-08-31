@@ -97,8 +97,8 @@ notrace static inline int native_write_msr_safe(unsigned int msr,
 
 extern unsigned long long native_read_tsc(void);
 
-extern int native_rdmsr_safe_regs(u32 *regs);
-extern int native_wrmsr_safe_regs(u32 *regs);
+extern int native_rdmsr_safe_regs(u32 regs[8]);
+extern int native_wrmsr_safe_regs(u32 regs[8]);
 
 static __always_inline unsigned long long __native_read_tsc(void)
 {
@@ -196,12 +196,12 @@ static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
 	return native_wrmsr_safe_regs(gprs);
 }
 
-static inline int rdmsr_safe_regs(u32 *regs)
+static inline int rdmsr_safe_regs(u32 regs[8])
 {
 	return native_rdmsr_safe_regs(regs);
 }
 
-static inline int wrmsr_safe_regs(u32 *regs)
+static inline int wrmsr_safe_regs(u32 regs[8])
 {
 	return native_wrmsr_safe_regs(regs);
 }
@@ -245,6 +245,8 @@ void rdmsr_on_cpus(const cpumask_t *mask, u32 msr_no, struct msr *msrs);
 void wrmsr_on_cpus(const cpumask_t *mask, u32 msr_no, struct msr *msrs);
 int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
 int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
+int rdmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8]);
+int wrmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8]);
 #else  /*  CONFIG_SMP  */
 static inline int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 {
@@ -274,6 +276,14 @@ static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no,
 static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 {
 	return wrmsr_safe(msr_no, l, h);
+}
+static inline int rdmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8])
+{
+	return rdmsr_safe_regs(regs);
+}
+static inline int wrmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8])
+{
+	return wrmsr_safe_regs(regs);
 }
 #endif  /* CONFIG_SMP */
 #endif /* __ASSEMBLY__ */
