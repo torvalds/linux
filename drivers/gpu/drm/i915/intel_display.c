@@ -3202,7 +3202,7 @@ void intel_increase_renderclock(struct drm_device *dev, bool schedule)
 		return;
 
 	if (!dev_priv->render_reclock_avail) {
-		DRM_ERROR("not reclocking render clock\n");
+		DRM_DEBUG("not reclocking render clock\n");
 		return;
 	}
 
@@ -3227,7 +3227,7 @@ void intel_decrease_renderclock(struct drm_device *dev)
 		return;
 
 	if (!dev_priv->render_reclock_avail) {
-		DRM_ERROR("not reclocking render clock\n");
+		DRM_DEBUG("not reclocking render clock\n");
 		return;
 	}
 
