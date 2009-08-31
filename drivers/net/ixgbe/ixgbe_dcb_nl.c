@@ -139,23 +139,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 		}
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
-#ifdef IXGBE_FCOE
-		/* Turn on FCoE offload */
-		if ((adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) &&
-		    (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))) {
-			adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-			adapter->ring_feature[RING_F_FCOE].indices =
-				IXGBE_FCRETA_SIZE;
-			netdev->features |= NETIF_F_FCOE_CRC;
-			netdev->features |= NETIF_F_FSO;
-			netdev->features |= NETIF_F_FCOE_MTU;
-			netdev->vlan_features |= NETIF_F_FCOE_CRC;
-			netdev->vlan_features |= NETIF_F_FSO;
-			netdev->vlan_features |= NETIF_F_FCOE_MTU;
-			netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-			netdev_features_change(netdev);
-		}
-#endif /* IXGBE_FCOE */
 		ixgbe_init_interrupt_scheme(adapter);
 		if (netif_running(netdev))
 			netdev->netdev_ops->ndo_open(netdev);
@@ -174,22 +157,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			if (adapter->hw.mac.type == ixgbe_mac_82599EB)
 				adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
-#ifdef IXGBE_FCOE
-			/* Turn off FCoE offload */
-			if (adapter->flags & (IXGBE_FLAG_FCOE_CAPABLE |
-			     IXGBE_FLAG_FCOE_ENABLED)) {
-				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-				adapter->ring_feature[RING_F_FCOE].indices = 0;
-				netdev->features &= ~NETIF_F_FCOE_CRC;
-				netdev->features &= ~NETIF_F_FSO;
-				netdev->features &= ~NETIF_F_FCOE_MTU;
-				netdev->vlan_features &= ~NETIF_F_FCOE_CRC;
-				netdev->vlan_features &= ~NETIF_F_FSO;
-				netdev->vlan_features &= ~NETIF_F_FCOE_MTU;
-				netdev->fcoe_ddp_xid = 0;
-				netdev_features_change(netdev);
-			}
-#endif /* IXGBE_FCOE */
 			ixgbe_init_interrupt_scheme(adapter);
 			if (netif_running(netdev))
 				netdev->netdev_ops->ndo_open(netdev);

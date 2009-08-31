@@ -450,6 +450,8 @@ extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
                               struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid);
+extern int ixgbe_fcoe_enable(struct net_device *netdev);
+extern int ixgbe_fcoe_disable(struct net_device *netdev);
 #endif /* IXGBE_FCOE */
 
 #endif /* _IXGBE_H_ */
