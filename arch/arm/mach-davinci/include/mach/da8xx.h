@@ -18,6 +18,8 @@
 #include <mach/asp.h>
 #include <mach/mmc.h>
 
+extern void __iomem *da8xx_syscfg_base;
+
 /*
  * The cp_intc interrupt controller for the da8xx isn't in the same
  * chunk of physical memory space as the other registers (like it is
@@ -30,6 +32,7 @@
 #define DA8XX_CP_INTC_VIRT	(IO_VIRT - DA8XX_CP_INTC_SIZE - SZ_4K)
 
 #define DA8XX_SYSCFG_BASE	(IO_PHYS + 0x14000)
+#define DA8XX_SYSCFG_VIRT(x)	(da8xx_syscfg_base + (x))
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000

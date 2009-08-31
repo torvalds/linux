@@ -43,6 +43,8 @@
 #define DA8XX_MDIO_REG_OFFSET		0x4000
 #define DA8XX_EMAC_CTRL_RAM_SIZE	SZ_8K
 
+void __iomem *da8xx_syscfg_base;
+
 static struct plat_serial8250_port da8xx_serial_pdata[] = {
 	{
 		.mapbase	= DA8XX_UART0_BASE,

@@ -1184,7 +1184,6 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.cpu_clks		= da830_clks,
 	.psc_bases		= da830_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(da830_psc_bases),
-	.pinmux_base		= IO_ADDRESS(DA8XX_SYSCFG_BASE + 0x120),
 	.pinmux_pins		= da830_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(da830_pins),
 	.intc_base		= (void __iomem *)DA8XX_CP_INTC_VIRT,
@@ -1201,5 +1200,11 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 
 void __init da830_init(void)
 {
+	da8xx_syscfg_base = ioremap(DA8XX_SYSCFG_BASE, SZ_4K);
+	if (WARN(!da8xx_syscfg_base, "Unable to map syscfg module"))
+		return;
+
+	davinci_soc_info_da830.pinmux_base = DA8XX_SYSCFG_VIRT(0x120);
+
 	davinci_common_init(&davinci_soc_info_da830);
 }
