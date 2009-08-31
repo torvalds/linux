@@ -1093,15 +1093,8 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 			return NULL; /* still no slave, return NULL */
 	}
 
-	/*
-	 * first try the primary link; if arping, a link must tx/rx
-	 * traffic before it can be considered the curr_active_slave.
-	 * also, we would skip slaves between the curr_active_slave
-	 * and primary_slave that may be up and able to arp
-	 */
 	if ((bond->primary_slave) &&
-	    (!bond->params.arp_interval) &&
-	    (IS_UP(bond->primary_slave->dev))) {
+	    bond->primary_slave->link == BOND_LINK_UP) {
 		new_active = bond->primary_slave;
 	}
 
@@ -1109,15 +1102,14 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 	old_active = new_active;
 
 	bond_for_each_slave_from(bond, new_active, i, old_active) {
-		if (IS_UP(new_active->dev)) {
-			if (new_active->link == BOND_LINK_UP) {
-				return new_active;
-			} else if (new_active->link == BOND_LINK_BACK) {
-				/* link up, but waiting for stabilization */
-				if (new_active->delay < mintime) {
-					mintime = new_active->delay;
-					bestslave = new_active;
-				}
+		if (new_active->link == BOND_LINK_UP) {
+			return new_active;
+		} else if (new_active->link == BOND_LINK_BACK &&
+			   IS_UP(new_active->dev)) {
+			/* link up, but waiting for stabilization */
+			if (new_active->delay < mintime) {
+				mintime = new_active->delay;
+				bestslave = new_active;
 			}
 		}
 	}
@@ -2932,18 +2924,6 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		}
 	}
 
-	read_lock(&bond->curr_slave_lock);
-
-	/*
-	 * Trigger a commit if the primary option setting has changed.
-	 */
-	if (bond->primary_slave &&
-	    (bond->primary_slave != bond->curr_active_slave) &&
-	    (bond->primary_slave->link == BOND_LINK_UP))
-		commit++;
-
-	read_unlock(&bond->curr_slave_lock);
-
 	return commit;
 }
 
@@ -2964,90 +2944,58 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 			continue;
 
 		case BOND_LINK_UP:
-			write_lock_bh(&bond->curr_slave_lock);
-
-			if (!bond->curr_active_slave &&
-			    time_before_eq(jiffies, dev_trans_start(slave->dev) +
-					   delta_in_ticks)) {
+			if ((!bond->curr_active_slave &&
+			     time_before_eq(jiffies,
+					    dev_trans_start(slave->dev) +
+					    delta_in_ticks)) ||
+			    bond->curr_active_slave != slave) {
 				slave->link = BOND_LINK_UP;
-				bond_change_active_slave(bond, slave);
 				bond->current_arp_slave = NULL;
 
 				pr_info(DRV_NAME
-				       ": %s: %s is up and now the "
-				       "active interface\n",
-				       bond->dev->name, slave->dev->name);
+					": %s: link status definitely "
+					"up for interface %s.\n",
+					bond->dev->name, slave->dev->name);
 
-			} else if (bond->curr_active_slave != slave) {
-				/* this slave has just come up but we
-				 * already have a current slave; this can
-				 * also happen if bond_enslave adds a new
-				 * slave that is up while we are searching
-				 * for a new slave
-				 */
-				slave->link = BOND_LINK_UP;
-				bond_set_slave_inactive_flags(slave);
-				bond->current_arp_slave = NULL;
+				if (!bond->curr_active_slave ||
+				    (slave == bond->primary_slave))
+					goto do_failover;
 
-				pr_info(DRV_NAME
-				       ": %s: backup interface %s is now up\n",
-				       bond->dev->name, slave->dev->name);
 			}
 
-			write_unlock_bh(&bond->curr_slave_lock);
-
-			break;
+			continue;
 
 		case BOND_LINK_DOWN:
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
 
 			slave->link = BOND_LINK_DOWN;
+			bond_set_slave_inactive_flags(slave);
+
+			pr_info(DRV_NAME
+				": %s: link status definitely down for "
+				"interface %s, disabling it\n",
+				bond->dev->name, slave->dev->name);
 
 			if (slave == bond->curr_active_slave) {
-				pr_info(DRV_NAME
-				       ": %s: link status down for active "
-				       "interface %s, disabling it\n",
-				       bond->dev->name, slave->dev->name);
-
-				bond_set_slave_inactive_flags(slave);
-
-				write_lock_bh(&bond->curr_slave_lock);
-
-				bond_select_active_slave(bond);
-				if (bond->curr_active_slave)
-					bond->curr_active_slave->jiffies =
-						jiffies;
-
-				write_unlock_bh(&bond->curr_slave_lock);
-
 				bond->current_arp_slave = NULL;
-
-			} else if (slave->state == BOND_STATE_BACKUP) {
-				pr_info(DRV_NAME
-				       ": %s: backup interface %s is now down\n",
-				       bond->dev->name, slave->dev->name);
-
-				bond_set_slave_inactive_flags(slave);
+				goto do_failover;
 			}
-			break;
+
+			continue;
 
 		default:
 			pr_err(DRV_NAME
 			       ": %s: impossible: new_link %d on slave %s\n",
 			       bond->dev->name, slave->new_link,
 			       slave->dev->name);
+			continue;
 		}
-	}
 
-	/*
-	 * No race with changes to primary via sysfs, as we hold rtnl.
-	 */
-	if (bond->primary_slave &&
-	    (bond->primary_slave != bond->curr_active_slave) &&
-	    (bond->primary_slave->link == BOND_LINK_UP)) {
+do_failover:
+		ASSERT_RTNL();
 		write_lock_bh(&bond->curr_slave_lock);
-		bond_change_active_slave(bond, bond->primary_slave);
+		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
 	}
 
