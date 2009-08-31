@@ -3,10 +3,16 @@
 
 #include <asm/msr-index.h>
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <linux/ioctl.h>
+
+#define X86_IOC_RDMSR_REGS	_IOWR('c', 0xA0, __u32[8])
+#define X86_IOC_WRMSR_REGS	_IOWR('c', 0xA1, __u32[8])
+
+#ifdef __KERNEL__
+
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/cpumask.h>
@@ -286,6 +292,6 @@ static inline int wrmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8])
 	return wrmsr_safe_regs(regs);
 }
 #endif  /* CONFIG_SMP */
-#endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_X86_MSR_H */

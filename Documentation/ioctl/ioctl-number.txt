@@ -121,6 +121,7 @@ Code	Seq#	Include File		Comments
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
 'c'	80-9F	arch/s390/include/asm/chsc.h
+'c'	A0-AF   arch/x86/include/asm/msr.h
 'd'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
