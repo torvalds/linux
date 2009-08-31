@@ -727,7 +727,8 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	netif_wake_queue(netdev);
 }
 
-static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t rtl8150_start_xmit(struct sk_buff *skb,
+					    struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	int count, res;

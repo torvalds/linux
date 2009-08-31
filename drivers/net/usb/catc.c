@@ -411,7 +411,8 @@ static void catc_tx_done(struct urb *urb)
 	spin_unlock_irqrestore(&catc->tx_lock, flags);
 }
 
-static int catc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t catc_start_xmit(struct sk_buff *skb,
+					 struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
 	unsigned long flags;

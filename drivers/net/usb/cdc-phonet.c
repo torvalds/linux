@@ -55,7 +55,7 @@ static void rx_complete(struct urb *req);
 /*
  * Network device callbacks
  */
-static int usbpn_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t usbpn_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct usbpn_dev *pnd = netdev_priv(dev);
 	struct urb *req = NULL;
@@ -82,12 +82,12 @@ static int usbpn_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (pnd->tx_queue >= dev->tx_queue_len)
 		netif_stop_queue(dev);
 	spin_unlock_irqrestore(&pnd->tx_lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 
 drop:
 	dev_kfree_skb(skb);
 	dev->stats.tx_dropped++;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void tx_complete(struct urb *req)

@@ -1007,15 +1007,16 @@ EXPORT_SYMBOL_GPL(usbnet_tx_timeout);
 
 /*-------------------------------------------------------------------------*/
 
-int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
+netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
+				     struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 	int			length;
-	int			retval = NET_XMIT_SUCCESS;
 	struct urb		*urb = NULL;
 	struct skb_data		*entry;
 	struct driver_info	*info = dev->driver_info;
 	unsigned long		flags;
+	int retval;
 
 	// some devices want funky USB-level framing, for
 	// win32 driver (usually) and/or hardware quirks
@@ -1079,7 +1080,6 @@ int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 		if (netif_msg_tx_err (dev))
 			devdbg (dev, "drop, code %d", retval);
 drop:
-		retval = NET_XMIT_SUCCESS;
 		dev->net->stats.tx_dropped++;
 		if (skb)
 			dev_kfree_skb_any (skb);
@@ -1088,7 +1088,7 @@ drop:
 		devdbg (dev, "> tx, len %d, type 0x%x",
 			length, skb->protocol);
 	}
-	return retval;
+	return NETDEV_TX_OK;
 }
 EXPORT_SYMBOL_GPL(usbnet_start_xmit);
 
