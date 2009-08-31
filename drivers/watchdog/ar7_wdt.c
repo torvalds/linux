@@ -295,7 +295,7 @@ static int __devinit ar7_wdt_probe(struct platform_device *pdev)
 	if (!ar7_wdt) {
 		printk(KERN_ERR DRVNAME ": could not ioremap registers\n");
 		rc = -ENXIO;
-		goto out;
+		goto out_mem_region;
 	}
 
 	ar7_wdt_disable_wdt();
@@ -311,6 +311,7 @@ static int __devinit ar7_wdt_probe(struct platform_device *pdev)
 
 out_alloc:
 	iounmap(ar7_wdt);
+out_mem_region:
 	release_mem_region(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
 out:
 	return rc;
