@@ -2402,7 +2402,9 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			rctl &= ~E1000_RCTL_MPE;
 		}
 		if (adapter->hw.mac_type != e1000_ich8lan)
-			rctl |= E1000_RCTL_VFE;
+			/* Enable VLAN filter if there is a VLAN */
+			if (adapter->vlgrp)
+				rctl |= E1000_RCTL_VFE;
 	}
 
 	if (netdev->uc.count > rar_entries - 1) {
@@ -4856,6 +4858,8 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 			/* enable VLAN receive filtering */
 			rctl = er32(RCTL);
 			rctl &= ~E1000_RCTL_CFIEN;
+	                if (!(netdev->flags & IFF_PROMISC))
+				rctl |= E1000_RCTL_VFE;
 			ew32(RCTL, rctl);
 			e1000_update_mng_vlan(adapter);
 		}
@@ -4866,6 +4870,11 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 		ew32(CTRL, ctrl);
 
 		if (adapter->hw.mac_type != e1000_ich8lan) {
+			/* disable VLAN receive filtering */
+			rctl = er32(RCTL);
+			rctl &= ~E1000_RCTL_VFE;
+			ew32(RCTL, rctl);
+
 			if (adapter->mng_vlan_id !=
 			    (u16)E1000_MNG_VLAN_NONE) {
 				e1000_vlan_rx_kill_vid(netdev,
