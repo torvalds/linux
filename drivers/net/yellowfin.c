@@ -347,7 +347,8 @@ static int yellowfin_open(struct net_device *dev);
 static void yellowfin_timer(unsigned long data);
 static void yellowfin_tx_timeout(struct net_device *dev);
 static void yellowfin_init_ring(struct net_device *dev);
-static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance);
 static int yellowfin_rx(struct net_device *dev);
 static void yellowfin_error(struct net_device *dev, int intr_status);
@@ -808,7 +809,8 @@ static void yellowfin_init_ring(struct net_device *dev)
 	return;
 }
 
-static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct yellowfin_private *yp = netdev_priv(dev);
 	unsigned entry;

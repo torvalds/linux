@@ -507,7 +507,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(RTL8169_VERSION);
 
 static int rtl8169_open(struct net_device *dev);
-static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev);
 static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance);
 static int rtl8169_init_ring(struct net_device *dev);
 static void rtl_hw_start(struct net_device *dev);
@@ -3357,7 +3358,8 @@ static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	unsigned int frags, entry = tp->cur_tx % NUM_TX_DESC;
@@ -3366,7 +3368,6 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 	u32 status, len;
 	u32 opts1;
-	int ret = NETDEV_TX_OK;
 
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
 		if (netif_msg_drv(tp)) {
@@ -3418,13 +3419,12 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 out:
-	return ret;
+	return NETDEV_TX_OK;
 
 err_stop:
 	netif_stop_queue(dev);
-	ret = NETDEV_TX_BUSY;
 	dev->stats.tx_dropped++;
-	goto out;
+	return NETDEV_TX_BUSY;
 }
 
 static void rtl8169_pcierr_interrupt(struct net_device *dev)

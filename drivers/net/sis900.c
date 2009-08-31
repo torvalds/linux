@@ -214,7 +214,8 @@ static void sis900_check_mode (struct net_device *net_dev, struct mii_phy *mii_p
 static void sis900_tx_timeout(struct net_device *net_dev);
 static void sis900_init_tx_ring(struct net_device *net_dev);
 static void sis900_init_rx_ring(struct net_device *net_dev);
-static int sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
+static netdev_tx_t sis900_start_xmit(struct sk_buff *skb,
+				     struct net_device *net_dev);
 static int sis900_rx(struct net_device *net_dev);
 static void sis900_finish_xmit (struct net_device *net_dev);
 static irqreturn_t sis900_interrupt(int irq, void *dev_instance);
@@ -1571,7 +1572,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
  *	tell upper layer if the buffer is full
  */
 
-static int
+static netdev_tx_t
 sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);

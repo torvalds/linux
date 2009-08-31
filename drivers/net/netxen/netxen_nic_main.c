@@ -63,7 +63,8 @@ static int __devinit netxen_nic_probe(struct pci_dev *pdev,
 static void __devexit netxen_nic_remove(struct pci_dev *pdev);
 static int netxen_nic_open(struct net_device *netdev);
 static int netxen_nic_close(struct net_device *netdev);
-static int netxen_nic_xmit_frame(struct sk_buff *, struct net_device *);
+static netdev_tx_t netxen_nic_xmit_frame(struct sk_buff *,
+					       struct net_device *);
 static void netxen_tx_timeout(struct net_device *netdev);
 static void netxen_reset_task(struct work_struct *work);
 static void netxen_watchdog(unsigned long);
@@ -1599,7 +1600,7 @@ netxen_clear_cmddesc(u64 *desc)
 	desc[2] = 0ULL;
 }
 
-static int
+static netdev_tx_t
 netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);

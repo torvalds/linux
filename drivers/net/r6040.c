@@ -883,13 +883,13 @@ static int r6040_open(struct net_device *dev)
 	return 0;
 }
 
-static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
+				    struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	struct r6040_descriptor *descptr;
 	void __iomem *ioaddr = lp->base;
 	unsigned long flags;
-	int ret = NETDEV_TX_OK;
 
 	/* Critical Section */
 	spin_lock_irqsave(&lp->lock, flags);
@@ -899,8 +899,7 @@ static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&lp->lock, flags);
 		netif_stop_queue(dev);
 		printk(KERN_ERR DRV_NAME ": no tx descriptor\n");
-		ret = NETDEV_TX_BUSY;
-		return ret;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Statistic Counter */
@@ -928,7 +927,8 @@ static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return ret;
+
+	return NETDEV_TX_OK;
 }
 
 static void r6040_multicast_list(struct net_device *dev)

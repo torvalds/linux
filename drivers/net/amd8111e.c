@@ -1300,7 +1300,8 @@ static int amd8111e_tx_queue_avail(struct amd8111e_priv* lp )
 This function will queue the transmit packets to the descriptors and will trigger the send operation. It also initializes the transmit descriptors with buffer physical address, byte count, ownership to hardware etc.
 */
 
-static int amd8111e_start_xmit(struct sk_buff *skb, struct net_device * dev)
+static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
+				       struct net_device * dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int tx_index;

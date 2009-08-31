@@ -1622,7 +1622,8 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
  *   the driver. Note: the driver must NOT put the skb in its DMA ring.
  * o NETDEV_TX_LOCKED Locking failed, please retry quickly.
  */
-static int bdx_tx_transmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
+				   struct net_device *ndev)
 {
 	struct bdx_priv *priv = netdev_priv(ndev);
 	struct txd_fifo *f = &priv->txd_fifo0;

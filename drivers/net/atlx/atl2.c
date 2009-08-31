@@ -821,7 +821,8 @@ static inline int TxdFreeBytes(struct atl2_adapter *adapter)
 		(int) (txd_read_ptr - adapter->txd_write_ptr - 1);
 }
 
-static int atl2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
+					 struct net_device *netdev)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 	struct tx_pkt_header *txph;

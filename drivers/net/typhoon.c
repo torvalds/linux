@@ -762,7 +762,7 @@ typhoon_tso_fill(struct sk_buff *skb, struct transmit_ring *txRing,
 	tcpd->status = 0;
 }
 
-static int
+static netdev_tx_t
 typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct typhoon *tp = netdev_priv(dev);

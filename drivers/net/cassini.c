@@ -2918,7 +2918,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	return 0;
 }
 
-static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct cas *cp = netdev_priv(dev);
 

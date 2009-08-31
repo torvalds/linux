@@ -6283,7 +6283,7 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
  * bnx2_tx_int() runs without netif_tx_lock unless it needs to call
  * netif_wake_queue().
  */
-static int
+static netdev_tx_t
 bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);

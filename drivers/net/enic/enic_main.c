@@ -622,7 +622,8 @@ static inline void enic_queue_wq_skb(struct enic *enic,
 }
 
 /* netif_tx_lock held, process context with BHs disabled, or BH */
-static int enic_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
+					      struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_wq *wq = &enic->wq[0];

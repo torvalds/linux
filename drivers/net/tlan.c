@@ -289,7 +289,7 @@ static void	TLan_EisaProbe( void );
 static void	TLan_Eisa_Cleanup( void );
 static int      TLan_Init( struct net_device * );
 static int	TLan_Open( struct net_device *dev );
-static int	TLan_StartTx( struct sk_buff *, struct net_device *);
+static netdev_tx_t TLan_StartTx( struct sk_buff *, struct net_device *);
 static irqreturn_t TLan_HandleInterrupt( int, void *);
 static int	TLan_Close( struct net_device *);
 static struct	net_device_stats *TLan_GetStats( struct net_device *);
@@ -1083,7 +1083,7 @@ static void TLan_tx_timeout_work(struct work_struct *work)
 	 *
 	 **************************************************************/
 
-static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
+static netdev_tx_t TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 {
 	TLanPrivateInfo *priv = netdev_priv(dev);
 	dma_addr_t	tail_list_phys;

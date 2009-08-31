@@ -10936,7 +10936,7 @@ exit_lbl:
  * bnx2x_tx_int() runs without netif_tx_lock unless it needs to call
  * netif_wake_queue()
  */
-static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	struct bnx2x_fastpath *fp, *fp_stat;

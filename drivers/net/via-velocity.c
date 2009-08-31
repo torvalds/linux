@@ -2465,7 +2465,8 @@ static int velocity_close(struct net_device *dev)
  *	Called by the networ layer to request a packet is queued to
  *	the velocity. Returns zero on success.
  */
-static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t velocity_xmit(struct sk_buff *skb,
+				 struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int qnum = 0;

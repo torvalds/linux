@@ -1931,7 +1931,7 @@ jme_stop_queue_if_full(struct jme_adapter *jme)
  * This function is already protected by netif_tx_lock()
  */
 
-static int
+static netdev_tx_t
 jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);

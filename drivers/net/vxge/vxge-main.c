@@ -812,7 +812,7 @@ static int vxge_learn_mac(struct vxgedev *vdev, u8 *mac_header)
  * NOTE: when device cant queue the pkt, just the trans_start variable will
  * not be upadted.
 */
-static int
+static netdev_tx_t
 vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vxge_fifo *fifo = NULL;

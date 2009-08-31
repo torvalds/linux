@@ -427,7 +427,8 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	return copied;
 }
 
-static int be_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t be_xmit(struct sk_buff *skb,
+				 struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_tx_obj *tx_obj = &adapter->tx_obj;

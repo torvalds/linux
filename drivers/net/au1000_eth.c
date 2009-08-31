@@ -937,7 +937,7 @@ static int au1000_close(struct net_device *dev)
 /*
  * Au1000 transmit routine.
  */
-static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 	struct net_device_stats *ps = &dev->stats;

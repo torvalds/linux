@@ -298,7 +298,7 @@ struct ewrk3_private {
    ** Public Functions
  */
 static int ewrk3_open(struct net_device *dev);
-static int ewrk3_queue_pkt(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ewrk3_queue_pkt(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t ewrk3_interrupt(int irq, void *dev_id);
 static int ewrk3_close(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -764,7 +764,7 @@ static void ewrk3_timeout(struct net_device *dev)
 /*
    ** Writes a socket buffer to the free page queue
  */
-static int ewrk3_queue_pkt (struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ewrk3_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ewrk3_private *lp = netdev_priv(dev);
 	u_long iobase = dev->base_addr;

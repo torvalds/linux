@@ -81,7 +81,8 @@ struct net_local {
 static int seeq8005_probe1(struct net_device *dev, int ioaddr);
 static int seeq8005_open(struct net_device *dev);
 static void seeq8005_timeout(struct net_device *dev);
-static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t seeq8005_send_packet(struct sk_buff *skb,
+					struct net_device *dev);
 static irqreturn_t seeq8005_interrupt(int irq, void *dev_id);
 static void seeq8005_rx(struct net_device *dev);
 static int seeq8005_close(struct net_device *dev);
@@ -394,7 +395,8 @@ static void seeq8005_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t seeq8005_send_packet(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	short length = skb->len;
 	unsigned char *buf;

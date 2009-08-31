@@ -360,7 +360,8 @@ MODULE_PARM_DESC(myri10ge_dca, "Enable DCA if possible");
 #define myri10ge_pio_copy(to,from,size) __iowrite64_copy(to,from,size/8)
 
 static void myri10ge_set_multicast_list(struct net_device *dev);
-static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t myri10ge_sw_tso(struct sk_buff *skb,
+					 struct net_device *dev);
 
 static inline void put_be32(__be32 val, __be32 __iomem * p)
 {
@@ -2656,7 +2657,8 @@ myri10ge_submit_req(struct myri10ge_tx_buf *tx, struct mcp_kreq_ether_send *src,
  * it and try again.
  */
 
-static int myri10ge_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t myri10ge_xmit(struct sk_buff *skb,
+				       struct net_device *dev)
 {
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	struct myri10ge_slice_state *ss;
@@ -2947,12 +2949,13 @@ drop:
 
 }
 
-static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t myri10ge_sw_tso(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct sk_buff *segs, *curr;
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	struct myri10ge_slice_state *ss;
-	int status;
+	netdev_tx_t status;
 
 	segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO6);
 	if (IS_ERR(segs))

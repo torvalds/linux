@@ -2103,7 +2103,7 @@ static void ql_hw_csum_setup(struct sk_buff *skb,
 				    iph->daddr, len, iph->protocol, 0);
 }
 
-static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct tx_ring_desc *tx_ring_desc;
 	struct ob_mac_iocb_req *mac_iocb_ptr;

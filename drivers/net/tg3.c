@@ -5135,7 +5135,8 @@ static void tg3_set_txd(struct tg3_napi *tnapi, int entry,
 /* hard_start_xmit for devices that don't have any bugs and
  * support TG3_FLG2_HW_TSO_2 only.
  */
-static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tg3_start_xmit(struct sk_buff *skb,
+				  struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	u32 len, entry, base_flags, mss;
@@ -5251,7 +5252,8 @@ out_unlock:
 	return NETDEV_TX_OK;
 }
 
-static int tg3_start_xmit_dma_bug(struct sk_buff *, struct net_device *);
+static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *,
+					  struct net_device *);
 
 /* Use GSO to workaround a rare TSO bug that may be triggered when the
  * TSO header is greater than 80 bytes.
@@ -5290,7 +5292,8 @@ tg3_tso_bug_end:
 /* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
  * support TG3_FLG2_HW_TSO_1 or firmware TSO only.
  */
-static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
+					  struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	u32 len, entry, base_flags, mss;

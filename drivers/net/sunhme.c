@@ -2252,7 +2252,8 @@ static void happy_meal_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct happy_meal *hp = netdev_priv(dev);
  	int entry;

@@ -1574,7 +1574,8 @@ static void sky2_tx_unmap(struct pci_dev *pdev,
  * the number of ring elements will probably be less than the number
  * of list elements used.
  */
-static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;

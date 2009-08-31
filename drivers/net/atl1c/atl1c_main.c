@@ -2055,7 +2055,8 @@ static void atl1c_tx_queue(struct atl1c_adapter *adapter, struct sk_buff *skb,
 	AT_WRITE_REG(&adapter->hw, REG_MB_PRIO_PROD_IDX, prod_data);
 }
 
-static int atl1c_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
+					  struct net_device *netdev)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;

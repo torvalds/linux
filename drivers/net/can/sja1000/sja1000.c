@@ -238,7 +238,8 @@ static void chipset_init(struct net_device *dev)
  * xx xx xx xx	 ff	 ll   00 11 22 33 44 55 66 77
  * [  can-id ] [flags] [len] [can data (up to 8 bytes]
  */
-static int sja1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;

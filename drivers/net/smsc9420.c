@@ -968,7 +968,8 @@ static void smsc9420_complete_tx(struct net_device *dev)
 	}
 }
 
-static int smsc9420_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	dma_addr_t mapping;
