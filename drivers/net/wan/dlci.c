@@ -186,12 +186,11 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 }
 
-static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t dlci_transmit(struct sk_buff *skb,
+				       struct net_device *dev)
 {
 	struct dlci_local *dlp;
-	int					ret;
-
-	ret = 0;
+	netdev_tx_t ret;
 
 	if (!skb || !dev)
 		return NETDEV_TX_OK;
@@ -200,6 +199,8 @@ static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 	
+	/* This is hackish, overloads driver specific return values
+	   on top of normal transmit return! */
 	ret = dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
 	switch (ret)
 	{
@@ -207,11 +208,11 @@ static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 			dev->stats.tx_packets++;
 			ret = NETDEV_TX_OK;
 			break;
-			case DLCI_RET_ERR:
+		case DLCI_RET_ERR:
 			dev->stats.tx_errors++;
 			ret = NETDEV_TX_OK;
 			break;
-			case DLCI_RET_DROP:
+		case DLCI_RET_DROP:
 			dev->stats.tx_dropped++;
 			ret = NETDEV_TX_BUSY;
 			break;

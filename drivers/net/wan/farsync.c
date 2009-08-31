@@ -2274,7 +2274,7 @@ fst_tx_timeout(struct net_device *dev)
 	port->start = 0;
 }
 
-static int
+static netdev_tx_t
 fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fst_card_info *card;

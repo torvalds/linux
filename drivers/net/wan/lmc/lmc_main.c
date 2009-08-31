@@ -89,7 +89,8 @@ MODULE_DEVICE_TABLE(pci, lmc_pci_tbl);
 MODULE_LICENSE("GPL v2");
 
 
-static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static int lmc_rx (struct net_device *dev);
 static int lmc_open(struct net_device *dev);
 static int lmc_close(struct net_device *dev);
@@ -1423,12 +1424,12 @@ lmc_int_fail_out:
     return IRQ_RETVAL(handled);
 }
 
-static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 flag;
     int entry;
-    int ret = NETDEV_TX_OK;
     unsigned long flags;
 
     lmc_trace(dev, "lmc_start_xmit in");
@@ -1510,7 +1511,7 @@ static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
 
     lmc_trace(dev, "lmc_start_xmit_out");
-    return ret;
+    return NETDEV_TX_OK;
 }
 
 

@@ -268,7 +268,7 @@ static irqreturn_t wanxl_intr(int irq, void* dev_id)
 
 
 
-static int wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
         port_t *port = dev_to_port(dev);
 	desc_t *desc;

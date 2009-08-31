@@ -407,7 +407,7 @@ static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EINVAL;
 }
 
-static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	pvc_device *pvc = dev->ml_priv;
 

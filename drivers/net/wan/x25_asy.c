@@ -299,7 +299,8 @@ static void x25_asy_timeout(struct net_device *dev)
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
 
-static int x25_asy_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct x25_asy *sl = netdev_priv(dev);
 	int err;
