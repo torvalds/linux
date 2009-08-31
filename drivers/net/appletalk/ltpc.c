@@ -697,7 +697,7 @@ static int do_read(struct net_device *dev, void *cbuf, int cbuflen,
 
 static struct timer_list ltpc_timer;
 
-static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev);
 
 static int read_30 ( struct net_device *dev)
 {
@@ -895,7 +895,7 @@ static void ltpc_poll(unsigned long l)
 
 /* DDP to LLAP translation */
 
-static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	/* in kernel 1.3.xx, on entry skb->data points to ddp header,
 	 * and skb->len is the length of the ddp data + ddp header
