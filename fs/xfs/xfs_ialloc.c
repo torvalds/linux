@@ -110,22 +110,19 @@ xfs_inobt_lookup_le(
 }
 
 /*
- * Update the record referred to by cur to the value given
- * by [ino, fcnt, free].
+ * Update the record referred to by cur to the value given.
  * This either works (return 0) or gets an EFSCORRUPTED error.
  */
 STATIC int				/* error */
 xfs_inobt_update(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agino_t		ino,	/* starting inode of chunk */
-	__int32_t		fcnt,	/* free inode count */
-	xfs_inofree_t		free)	/* free inode mask */
+	xfs_inobt_rec_incore_t	*irec)	/* btree record */
 {
 	union xfs_btree_rec	rec;
 
-	rec.inobt.ir_startino = cpu_to_be32(ino);
-	rec.inobt.ir_freecount = cpu_to_be32(fcnt);
-	rec.inobt.ir_free = cpu_to_be64(free);
+	rec.inobt.ir_startino = cpu_to_be32(irec->ir_startino);
+	rec.inobt.ir_freecount = cpu_to_be32(irec->ir_freecount);
+	rec.inobt.ir_free = cpu_to_be64(irec->ir_free);
 	return xfs_btree_update(cur, &rec);
 }
 
@@ -946,8 +943,8 @@ nextag:
 	ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino + offset);
 	rec.ir_free &= ~XFS_INOBT_MASK(offset);
 	rec.ir_freecount--;
-	if ((error = xfs_inobt_update(cur, rec.ir_startino, rec.ir_freecount,
-			rec.ir_free)))
+	error = xfs_inobt_update(cur, &rec);
+	if (error)
 		goto error0;
 	be32_add_cpu(&agi->agi_freecount, -1);
 	xfs_ialloc_log_agi(tp, agbp, XFS_AGI_FREECOUNT);
@@ -1149,12 +1146,14 @@ xfs_difree(
 	} else {
 		*delete = 0;
 
-		if ((error = xfs_inobt_update(cur, rec.ir_startino, rec.ir_freecount, rec.ir_free))) {
+		error = xfs_inobt_update(cur, &rec);
+		if (error) {
 			cmn_err(CE_WARN,
-				"xfs_difree: xfs_inobt_update()  returned an error %d on %s.  Returning error.",
+	"xfs_difree: xfs_inobt_update returned an error %d on %s.",
 				error, mp->m_fsname);
 			goto error0;
 		}
+
 		/* 
 		 * Change the inode free counts and log the ag/sb changes.
 		 */
