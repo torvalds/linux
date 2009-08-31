@@ -73,7 +73,8 @@ static void mpoad_close(struct atm_vcc *vcc);
 static int msg_from_mpoad(struct atm_vcc *vcc, struct sk_buff *skb);
 
 static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb);
-static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t mpc_send_packet(struct sk_buff *skb,
+					 struct net_device *dev);
 static int mpoa_event_listener(struct notifier_block *mpoa_notifier, unsigned long event, void *dev);
 static void mpc_timer_refresh(void);
 static void mpc_cache_check( unsigned long checking_time  );
@@ -528,7 +529,8 @@ static int send_via_shortcut(struct sk_buff *skb, struct mpoa_client *mpc)
 /*
  * Probably needs some error checks and locking, not sure...
  */
-static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mpc_send_packet(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct mpoa_client *mpc;
 	struct ethhdr *eth;

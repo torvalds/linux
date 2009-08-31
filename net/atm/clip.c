@@ -360,7 +360,8 @@ static int clip_encap(struct atm_vcc *vcc, int mode)
 	return 0;
 }
 
-static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct clip_priv *clip_priv = PRIV(dev);
 	struct atmarp_entry *entry;
