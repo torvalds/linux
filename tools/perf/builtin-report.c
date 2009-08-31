@@ -666,12 +666,9 @@ static void dso__calc_col_width(struct dso *self)
 	self->slen_calculated = 1;
 }
 
-static int thread__set_comm_adjust(struct thread *self, const char *comm)
+static void thread__comm_adjust(struct thread *self)
 {
-	int ret = thread__set_comm(self, comm);
-
-	if (ret)
-		return ret;
+	char *comm = self->comm;
 
 	if (!col_width_list_str && !field_sep &&
 	    (!comm_list || strlist__has_entry(comm_list, comm))) {
@@ -682,6 +679,16 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 			threads__col_width = slen + 6;
 		}
 	}
+}
+
+static int thread__set_comm_adjust(struct thread *self, const char *comm)
+{
+	int ret = thread__set_comm(self, comm);
+
+	if (ret)
+		return ret;
+
+	thread__comm_adjust(self);
 
 	return 0;
 }
@@ -1073,17 +1080,6 @@ print_entries:
 	return ret;
 }
 
-static void register_idle_thread(void)
-{
-	struct thread *thread = threads__findnew(0, &threads, &last_match);
-
-	if (thread == NULL ||
-			thread__set_comm_adjust(thread, "[idle]")) {
-		fprintf(stderr, "problem inserting idle task.\n");
-		exit(-1);
-	}
-}
-
 static unsigned long total = 0,
 		     total_mmap = 0,
 		     total_comm = 0,
@@ -1381,11 +1377,13 @@ static int __cmd_report(void)
 	unsigned long offset = 0;
 	unsigned long head, shift;
 	struct stat input_stat;
+	struct thread *idle;
 	event_t *event;
 	uint32_t size;
 	char *buf;
 
-	register_idle_thread();
+	idle = register_idle_thread(&threads, &last_match);
+	thread__comm_adjust(idle);
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);

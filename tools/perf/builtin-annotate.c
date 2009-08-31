@@ -472,17 +472,6 @@ static void output__resort(void)
 	}
 }
 
-static void register_idle_thread(void)
-{
-	struct thread *thread = threads__findnew(0, &threads, &last_match);
-
-	if (thread == NULL ||
-			thread__set_comm(thread, "[idle]")) {
-		fprintf(stderr, "problem inserting idle task.\n");
-		exit(-1);
-	}
-}
-
 static unsigned long total = 0,
 		     total_mmap = 0,
 		     total_comm = 0,
@@ -970,7 +959,7 @@ static int __cmd_annotate(void)
 	uint32_t size;
 	char *buf;
 
-	register_idle_thread();
+	register_idle_thread(&threads, &last_match);
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
