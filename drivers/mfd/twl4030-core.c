@@ -89,6 +89,12 @@
 #define twl_has_madc()	false
 #endif
 
+#ifdef CONFIG_TWL4030_POWER
+#define twl_has_power()        true
+#else
+#define twl_has_power()        false
+#endif
+
 #if defined(CONFIG_RTC_DRV_TWL4030) || defined(CONFIG_RTC_DRV_TWL4030_MODULE)
 #define twl_has_rtc()	true
 #else
@@ -800,6 +806,10 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* setup clock framework */
 	clocks_init(&client->dev);
+
+	/* load power event scripts */
+	if (twl_has_power() && pdata->power)
+		twl4030_power_init(pdata->power);
 
 	/* Maybe init the T2 Interrupt subsystem */
 	if (client->irq
