@@ -33,10 +33,10 @@ extern void __iomem *da8xx_syscfg_base;
 
 #define DA8XX_SYSCFG_BASE	(IO_PHYS + 0x14000)
 #define DA8XX_SYSCFG_VIRT(x)	(da8xx_syscfg_base + (x))
+#define DA8XX_JTAG_ID_REG	0x18
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000
-#define DA8XX_JTAG_ID_REG	0x01c14018
 #define DA8XX_TIMER64P0_BASE	0x01c20000
 #define DA8XX_TIMER64P1_BASE	0x01c21000
 #define DA8XX_GPIO_BASE		0x01e26000

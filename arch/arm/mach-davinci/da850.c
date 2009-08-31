@@ -793,7 +793,6 @@ static struct davinci_timer_info da850_timer_info = {
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da850_io_desc),
-	.jtag_id_base		= IO_ADDRESS(DA8XX_JTAG_ID_REG),
 	.ids			= da850_ids,
 	.ids_num		= ARRAY_SIZE(da850_ids),
 	.cpu_clks		= da850_clks,
@@ -819,6 +818,8 @@ void __init da850_init(void)
 	if (WARN(!da8xx_syscfg_base, "Unable to map syscfg module"))
 		return;
 
+	davinci_soc_info_da850.jtag_id_base =
+					DA8XX_SYSCFG_VIRT(DA8XX_JTAG_ID_REG);
 	davinci_soc_info_da850.pinmux_base = DA8XX_SYSCFG_VIRT(0x120);
 
 	davinci_common_init(&davinci_soc_info_da850);
