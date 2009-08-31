@@ -2841,7 +2841,8 @@ static int wv_packet_write(struct net_device * dev, void *buf, short length)
  * the packet.  We also prevent reentrance.  Then we call the function
  * to send the packet.
  */
-static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
+static netdev_tx_t wavelan_packet_xmit(struct sk_buff *skb,
+					     struct net_device * dev)
 {
 	net_local *lp = netdev_priv(dev);
 	unsigned long flags;

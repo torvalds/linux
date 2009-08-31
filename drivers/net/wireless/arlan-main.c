@@ -77,7 +77,7 @@ struct arlan_conf_stru arlan_conf[MAX_ARLANS];
 static int arlans_found;
 
 static  int 	arlan_open(struct net_device *dev);
-static  int 	arlan_tx(struct sk_buff *skb, struct net_device *dev);
+static  netdev_tx_t arlan_tx(struct sk_buff *skb, struct net_device *dev);
 static  irqreturn_t arlan_interrupt(int irq, void *dev_id);
 static  int 	arlan_close(struct net_device *dev);
 static  struct net_device_stats *
@@ -1169,7 +1169,7 @@ static void arlan_tx_timeout (struct net_device *dev)
 }
 
 
-static int arlan_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t arlan_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	short length;
 	unsigned char *buf;

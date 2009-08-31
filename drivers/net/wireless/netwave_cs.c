@@ -203,7 +203,8 @@ static int netwave_open(struct net_device *dev);  /* Open the device */
 static int netwave_close(struct net_device *dev); /* Close the device */
 
 /* Packet transmission and Packet reception */
-static int netwave_start_xmit( struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t netwave_start_xmit( struct sk_buff *skb,
+					     struct net_device *dev);
 static int netwave_rx( struct net_device *dev);
 
 /* Interrupt routines */
@@ -1026,7 +1027,8 @@ static int netwave_hw_xmit(unsigned char* data, int len,
     return 0;
 }
 
-static int netwave_start_xmit(struct sk_buff *skb, struct net_device *dev) {
+static netdev_tx_t netwave_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev) {
 	/* This flag indicate that the hardware can't perform a transmission.
 	 * Theoritically, NET3 check it before sending a packet to the driver,
 	 * but in fact it never do that and pool continuously.

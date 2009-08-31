@@ -312,7 +312,8 @@ struct hwsim_radiotap_hdr {
 } __attribute__ ((packed));
 
 
-static int hwsim_mon_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	/* TODO: allow packet injection */
 	dev_kfree_skb(skb);

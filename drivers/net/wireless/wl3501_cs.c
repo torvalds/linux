@@ -1333,7 +1333,8 @@ static void wl3501_tx_timeout(struct net_device *dev)
  *	    1 - Could not transmit (dev_queue_xmit will queue it)
  *		and try to sent it later
  */
-static int wl3501_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t wl3501_hard_start_xmit(struct sk_buff *skb,
+						struct net_device *dev)
 {
 	int enabled, rc;
 	struct wl3501_card *this = netdev_priv(dev);

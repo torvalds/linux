@@ -10459,12 +10459,12 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 }
 #endif
 
-static int ipw_net_hard_start_xmit(struct libipw_txb *txb,
-				   struct net_device *dev, int pri)
+static netdev_tx_t ipw_net_hard_start_xmit(struct libipw_txb *txb,
+					   struct net_device *dev, int pri)
 {
 	struct ipw_priv *priv = libipw_priv(dev);
 	unsigned long flags;
-	int ret;
+	netdev_tx_t ret;
 
 	IPW_DEBUG_TX("dev->xmit(%d bytes)\n", txb->payload_size);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -11602,7 +11602,8 @@ static int ipw_prom_stop(struct net_device *dev)
 	return 0;
 }
 
-static int ipw_prom_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipw_prom_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	IPW_DEBUG_INFO("prom dev->xmit\n");
 	dev_kfree_skb(skb);

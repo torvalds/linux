@@ -72,7 +72,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 	}
 }
 
-int
+netdev_tx_t
 islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	islpci_private *priv = netdev_priv(ndev);

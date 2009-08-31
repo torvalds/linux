@@ -3330,8 +3330,8 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static int ipw2100_tx(struct libipw_txb *txb, struct net_device *dev,
-		      int pri)
+static netdev_tx_t ipw2100_tx(struct libipw_txb *txb,
+			      struct net_device *dev, int pri)
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	struct list_head *element;
@@ -3369,12 +3369,12 @@ static int ipw2100_tx(struct libipw_txb *txb, struct net_device *dev,
 	ipw2100_tx_send_data(priv);
 
 	spin_unlock_irqrestore(&priv->low_lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 
-      fail_unlock:
+fail_unlock:
 	netif_stop_queue(dev);
 	spin_unlock_irqrestore(&priv->low_lock, flags);
-	return 1;
+	return NETDEV_TX_BUSY;
 }
 
 static int ipw2100_msg_allocate(struct ipw2100_priv *priv)

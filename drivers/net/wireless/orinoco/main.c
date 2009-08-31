@@ -337,7 +337,7 @@ static int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 /* Tx path                                                          */
 /********************************************************************/
 
-static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;

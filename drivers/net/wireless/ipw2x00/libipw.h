@@ -867,8 +867,8 @@ struct libipw_device {
 	/* Callback functions */
 	void (*set_security) (struct net_device * dev,
 			      struct libipw_security * sec);
-	int (*hard_start_xmit) (struct libipw_txb * txb,
-				struct net_device * dev, int pri);
+	netdev_tx_t (*hard_start_xmit) (struct libipw_txb * txb,
+					struct net_device * dev, int pri);
 	int (*reset_port) (struct net_device * dev);
 	int (*is_queue_full) (struct net_device * dev, int pri);
 
@@ -1028,7 +1028,8 @@ extern void libipw_networks_age(struct libipw_device *ieee,
 extern int libipw_set_encryption(struct libipw_device *ieee);
 
 /* libipw_tx.c */
-extern int libipw_xmit(struct sk_buff *skb, struct net_device *dev);
+extern netdev_tx_t libipw_xmit(struct sk_buff *skb,
+			       struct net_device *dev);
 extern void libipw_txb_free(struct libipw_txb *);
 
 /* libipw_rx.c */

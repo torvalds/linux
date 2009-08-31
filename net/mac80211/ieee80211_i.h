@@ -1050,8 +1050,10 @@ void ieee80211_recalc_idle(struct ieee80211_local *local);
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
 void ieee80211_tx_pending(unsigned long data);
-int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
-int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
+					 struct net_device *dev);
+netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
+				       struct net_device *dev);
 
 /* HT */
 void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,

@@ -1647,7 +1647,8 @@ static int lbs_rtap_stop(struct net_device *dev)
 	return 0;
 }
 
-static int lbs_rtap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t lbs_rtap_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	netif_stop_queue(dev);
 	return NETDEV_TX_BUSY;

@@ -3078,7 +3078,7 @@ wv_packet_write(struct net_device *	dev,
  * the packet. We also prevent reentrance. Then, we call the function
  * to send the packet...
  */
-static int
+static netdev_tx_t
 wavelan_packet_xmit(struct sk_buff *	skb,
 		    struct net_device *		dev)
 {

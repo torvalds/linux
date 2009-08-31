@@ -53,7 +53,8 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 /* hard_start_xmit function for data interfaces (wlan#, wlan#wds#, wlan#sta)
  * Convert Ethernet header into a suitable IEEE 802.11 header depending on
  * device configuration. */
-int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -261,7 +262,8 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 
 /* hard_start_xmit function for hostapd wlan#ap interfaces */
-int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hostap_mgmt_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -373,11 +375,12 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 /* hard_start_xmit function for master radio interface wifi#.
  * AP processing (TX rate control, power save buffering, etc.).
  * Use hardware TX function to send the frame. */
-int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hostap_master_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	int ret = NETDEV_TX_BUSY;
+	netdev_tx_t ret = NETDEV_TX_BUSY;
 	u16 fc;
 	struct hostap_tx_data tx;
 	ap_tx_ret tx_ret;

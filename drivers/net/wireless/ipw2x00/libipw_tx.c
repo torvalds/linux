@@ -252,7 +252,7 @@ static int libipw_classify(struct sk_buff *skb)
 
 /* Incoming skb is converted to a txb which consists of
  * a block of 802.11 fragment packets (stored as skbs) */
-int libipw_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct libipw_device *ieee = netdev_priv(dev);
 	struct libipw_txb *txb = NULL;
@@ -523,8 +523,8 @@ int libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb_any(skb);
 
 	if (txb) {
-		int ret = (*ieee->hard_start_xmit) (txb, dev, priority);
-		if (ret == 0) {
+		netdev_tx_t ret = (*ieee->hard_start_xmit)(txb, dev, priority);
+		if (ret == NETDEV_TX_OK) {
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += txb->payload_size;
 			return NETDEV_TX_OK;
