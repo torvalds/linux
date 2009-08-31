@@ -79,6 +79,8 @@ struct drm_encoder_helper_funcs {
 	/* detect for DAC style encoders */
 	enum drm_connector_status (*detect)(struct drm_encoder *encoder,
 					    struct drm_connector *connector);
+	/* disable encoder when not in use - more explicit than dpms off */
+	void (*disable)(struct drm_encoder *encoder);
 };
 
 struct drm_connector_helper_funcs {

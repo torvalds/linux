@@ -260,13 +260,27 @@ EXPORT_SYMBOL(drm_helper_crtc_in_use);
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_crtc *crtc;
 
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder)
+			continue;
+		if (connector->status == connector_status_disconnected)
+			connector->encoder = NULL;
+	}
+
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		encoder_funcs = encoder->helper_private;
-		if (!drm_helper_encoder_in_use(encoder))
-			(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+		if (!drm_helper_encoder_in_use(encoder)) {
+			if (encoder_funcs->disable)
+				(*encoder_funcs->disable)(encoder);
+			else
+				(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+		}
+		/* disconnector encoder from any connector */
+		encoder->crtc = NULL;
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -411,7 +425,7 @@ static int drm_pick_crtcs(struct drm_device *dev,
 	c = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 
-		if ((connector->encoder->possible_crtcs & (1 << c)) == 0) {
+		if ((encoder->possible_crtcs & (1 << c)) == 0) {
 			c++;
 			continue;
 		}
@@ -496,8 +510,10 @@ static void drm_setup_crtcs(struct drm_device *dev)
 				  mode->name, crtc->base.id);
 			crtc->desired_mode = mode;
 			connector->encoder->crtc = crtc;
-		} else
+		} else {
 			connector->encoder->crtc = NULL;
+			connector->encoder = NULL;
+		}
 		i++;
 	}
 
