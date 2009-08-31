@@ -128,7 +128,7 @@ static int xl_init(struct net_device *dev);
 static int xl_open(struct net_device *dev);
 static int xl_open_hw(struct net_device *dev) ;  
 static int xl_hw_reset(struct net_device *dev); 
-static int xl_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t xl_xmit(struct sk_buff *skb, struct net_device *dev);
 static void xl_dn_comp(struct net_device *dev); 
 static int xl_close(struct net_device *dev);
 static void xl_set_rx_mode(struct net_device *dev);
@@ -1193,7 +1193,7 @@ static irqreturn_t xl_interrupt(int irq, void *dev_id)
  *	Tx - Polling configuration
  */
 	
-static int xl_xmit(struct sk_buff *skb, struct net_device *dev) 
+static netdev_tx_t xl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xl_private *xl_priv=netdev_priv(dev);
 	struct xl_tx_desc *txd ; 

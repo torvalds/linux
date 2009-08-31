@@ -191,7 +191,8 @@ static int 	tok_init_card(struct net_device *dev);
 static void	tok_open_adapter(unsigned long dev_addr);
 static void 	open_sap(unsigned char type, struct net_device *dev);
 static void 	tok_set_multicast_list(struct net_device *dev);
-static int 	tok_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t tok_send_packet(struct sk_buff *skb,
+					 struct net_device *dev);
 static int 	tok_close(struct net_device *dev);
 static irqreturn_t tok_interrupt(int irq, void *dev_id);
 static void 	initial_tok_int(struct net_device *dev);
@@ -1022,7 +1023,8 @@ static void tok_set_multicast_list(struct net_device *dev)
 
 #define STATION_ID_OFST 4
 
-static int tok_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tok_send_packet(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct tok_info *ti;
 	unsigned long flags;

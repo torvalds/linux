@@ -234,7 +234,8 @@ static int smctr_rx_frame(struct net_device *dev);
 
 /* S */
 static int smctr_send_dat(struct net_device *dev);
-static int smctr_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t smctr_send_packet(struct sk_buff *skb,
+					   struct net_device *dev);
 static int smctr_send_lobe_media_test(struct net_device *dev);
 static int smctr_send_rpt_addr(struct net_device *dev, MAC_HEADER *rmf,
         __u16 correlator);
@@ -4571,7 +4572,8 @@ static void smctr_timeout(struct net_device *dev)
 /*
  * Gets skb from system, queues it and checks if it can be sent
  */
-static int smctr_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smctr_send_packet(struct sk_buff *skb,
+					   struct net_device *dev)
 {
         struct net_local *tp = netdev_priv(dev);
 
