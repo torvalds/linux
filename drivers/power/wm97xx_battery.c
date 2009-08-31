@@ -22,17 +22,19 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
-#include <linux/wm97xx_batt.h>
 
 static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;
 struct mutex work_lock;
 static int bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
-static struct wm97xx_batt_info *pdata;
+static struct wm97xx_batt_info *gpdata;
 static enum power_supply_property *prop;
 
 static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
 {
+	struct wm97xx_pdata *wmdata = bat_ps->dev->parent->platform_data;
+	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+
 	return wm97xx_read_aux_adc(bat_ps->dev->parent->driver_data,
 					pdata->batt_aux) * pdata->batt_mult /
 					pdata->batt_div;
@@ -40,6 +42,9 @@ static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
 
 static unsigned long wm97xx_read_temp(struct power_supply *bat_ps)
 {
+	struct wm97xx_pdata *wmdata = bat_ps->dev->parent->platform_data;
+	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+
 	return wm97xx_read_aux_adc(bat_ps->dev->parent->driver_data,
 					pdata->temp_aux) * pdata->temp_mult /
 					pdata->temp_div;
@@ -49,6 +54,9 @@ static int wm97xx_bat_get_property(struct power_supply *bat_ps,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
+	struct wm97xx_pdata *wmdata = bat_ps->dev->parent->platform_data;
+	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = bat_status;
@@ -97,6 +105,8 @@ static void wm97xx_bat_external_power_changed(struct power_supply *bat_ps)
 static void wm97xx_bat_update(struct power_supply *bat_ps)
 {
 	int old_status = bat_status;
+	struct wm97xx_pdata *wmdata = bat_ps->dev->parent->platform_data;
+	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
 
 	mutex_lock(&work_lock);
 
@@ -149,6 +159,15 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 	int ret = 0;
 	int props = 1;	/* POWER_SUPPLY_PROP_PRESENT */
 	int i = 0;
+	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
+	struct wm97xx_batt_pdata *pdata;
+
+	if (gpdata) {
+		dev_err(&dev->dev, "Do not pass platform_data through "
+			"wm97xx_bat_set_pdata!\n");
+		return -EINVAL;
+	} else
+		pdata = wmdata->batt_pdata;
 
 	if (dev->id != -1)
 		return -EINVAL;
@@ -156,7 +175,7 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 	mutex_init(&work_lock);
 
 	if (!pdata) {
-		dev_err(&dev->dev, "Please use wm97xx_bat_set_pdata\n");
+		dev_err(&dev->dev, "No platform_data supplied\n");
 		return -EINVAL;
 	}
 
@@ -229,6 +248,9 @@ err:
 
 static int __devexit wm97xx_bat_remove(struct platform_device *dev)
 {
+	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
+	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+
 	if (pdata && pdata->charge_gpio && pdata->charge_gpio >= 0)
 		gpio_free(pdata->charge_gpio);
 	flush_scheduled_work();
@@ -258,9 +280,9 @@ static void __exit wm97xx_bat_exit(void)
 	platform_driver_unregister(&wm97xx_bat_driver);
 }
 
-void __init wm97xx_bat_set_pdata(struct wm97xx_batt_info *data)
+void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data)
 {
-	pdata = data;
+	gpdata = data;
 }
 EXPORT_SYMBOL_GPL(wm97xx_bat_set_pdata);
 
