@@ -73,6 +73,7 @@ struct clk {
 	struct list_head	childnode;	/* parent's child list node */
 	struct pll_data         *pll_data;
 	u32                     div_reg;
+	unsigned long (*recalc) (struct clk *);
 };
 
 /* Clock flags */

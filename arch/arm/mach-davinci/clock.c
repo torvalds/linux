@@ -135,8 +135,12 @@ int clk_register(struct clk *clk)
 	if (clk->rate)
 		return 0;
 
+	/* Else, see if there is a way to calculate it */
+	if (clk->recalc)
+		clk->rate = clk->recalc(clk);
+
 	/* Otherwise, default to parent rate */
-	if (clk->parent)
+	else if (clk->parent)
 		clk->rate = clk->parent->rate;
 
 	return 0;
@@ -184,50 +188,62 @@ static int __init clk_disable_unused(void)
 late_initcall(clk_disable_unused);
 #endif
 
-static void clk_sysclk_recalc(struct clk *clk)
+static unsigned long clk_sysclk_recalc(struct clk *clk)
 {
 	u32 v, plldiv;
 	struct pll_data *pll;
+	unsigned long rate = clk->rate;
 
 	/* If this is the PLL base clock, no more calculations needed */
 	if (clk->pll_data)
-		return;
+		return rate;
 
 	if (WARN_ON(!clk->parent))
-		return;
+		return rate;
 
-	clk->rate = clk->parent->rate;
+	rate = clk->parent->rate;
 
 	/* Otherwise, the parent must be a PLL */
 	if (WARN_ON(!clk->parent->pll_data))
-		return;
+		return rate;
 
 	pll = clk->parent->pll_data;
 
 	/* If pre-PLL, source clock is before the multiplier and divider(s) */
 	if (clk->flags & PRE_PLL)
-		clk->rate = pll->input_rate;
+		rate = pll->input_rate;
 
 	if (!clk->div_reg)
-		return;
+		return rate;
 
 	v = __raw_readl(pll->base + clk->div_reg);
 	if (v & PLLDIV_EN) {
 		plldiv = (v & PLLDIV_RATIO_MASK) + 1;
 		if (plldiv)
-			clk->rate /= plldiv;
+			rate /= plldiv;
 	}
+
+	return rate;
 }
 
-static void __init clk_pll_init(struct clk *clk)
+static unsigned long clk_leafclk_recalc(struct clk *clk)
+{
+	if (WARN_ON(!clk->parent))
+		return clk->rate;
+
+	return clk->parent->rate;
+}
+
+static unsigned long clk_pllclk_recalc(struct clk *clk)
 {
 	u32 ctrl, mult = 1, prediv = 1, postdiv = 1;
 	u8 bypass;
 	struct pll_data *pll = clk->pll_data;
+	unsigned long rate = clk->rate;
 
 	pll->base = IO_ADDRESS(pll->phys_base);
 	ctrl = __raw_readl(pll->base + PLLCTL);
-	clk->rate = pll->input_rate = clk->parent->rate;
+	rate = pll->input_rate = clk->parent->rate;
 
 	if (ctrl & PLLCTL_PLLEN) {
 		bypass = 0;
@@ -260,9 +276,9 @@ static void __init clk_pll_init(struct clk *clk)
 	}
 
 	if (!bypass) {
-		clk->rate /= prediv;
-		clk->rate *= mult;
-		clk->rate /= postdiv;
+		rate /= prediv;
+		rate *= mult;
+		rate /= postdiv;
 	}
 
 	pr_debug("PLL%d: input = %lu MHz [ ",
@@ -275,7 +291,9 @@ static void __init clk_pll_init(struct clk *clk)
 		pr_debug("* %d ", mult);
 	if (postdiv > 1)
 		pr_debug("/ %d ", postdiv);
-	pr_debug("] --> %lu MHz output.\n", clk->rate / 1000000);
+	pr_debug("] --> %lu MHz output.\n", rate / 1000000);
+
+	return rate;
 }
 
 int __init davinci_clk_init(struct davinci_clk *clocks)
@@ -286,12 +304,23 @@ int __init davinci_clk_init(struct davinci_clk *clocks)
 	for (c = clocks; c->lk.clk; c++) {
 		clk = c->lk.clk;
 
-		if (clk->pll_data)
-			clk_pll_init(clk);
+		if (!clk->recalc) {
 
-		/* Calculate rates for PLL-derived clocks */
-		else if (clk->flags & CLK_PLL)
-			clk_sysclk_recalc(clk);
+			/* Check if clock is a PLL */
+			if (clk->pll_data)
+				clk->recalc = clk_pllclk_recalc;
+
+			/* Else, if it is a PLL-derived clock */
+			else if (clk->flags & CLK_PLL)
+				clk->recalc = clk_sysclk_recalc;
+
+			/* Otherwise, it is a leaf clock (PSC clock) */
+			else if (clk->parent)
+				clk->recalc = clk_leafclk_recalc;
+		}
+
+		if (clk->recalc)
+			clk->rate = clk->recalc(clk);
 
 		if (clk->lpsc)
 			clk->flags |= CLK_PSC;
