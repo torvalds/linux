@@ -375,6 +375,7 @@ struct v4l2_fmtdesc {
 };
 
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
+#define V4L2_FMT_FLAG_EMULATED   0x0002
 
 #if 1
 	/* Experimental Frame Size and frame rate enumeration */
