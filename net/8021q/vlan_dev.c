@@ -587,6 +587,28 @@ static int vlan_dev_fcoe_ddp_done(struct net_device *dev, u16 xid)
 
 	return len;
 }
+
+static int vlan_dev_fcoe_enable(struct net_device *dev)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
+	int rc = -EINVAL;
+
+	if (ops->ndo_fcoe_enable)
+		rc = ops->ndo_fcoe_enable(real_dev);
+	return rc;
+}
+
+static int vlan_dev_fcoe_disable(struct net_device *dev)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
+	int rc = -EINVAL;
+
+	if (ops->ndo_fcoe_disable)
+		rc = ops->ndo_fcoe_disable(real_dev);
+	return rc;
+}
 #endif
 
 static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
@@ -750,6 +772,8 @@ static const struct net_device_ops vlan_netdev_ops = {
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
 	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
+	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
+	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
 #endif
 };
 
@@ -770,6 +794,8 @@ static const struct net_device_ops vlan_netdev_accel_ops = {
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
 	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
+	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
+	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
 #endif
 };
 
