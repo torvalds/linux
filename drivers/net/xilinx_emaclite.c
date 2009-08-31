@@ -587,7 +587,6 @@ static void xemaclite_rx_handler(struct net_device *dev)
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
-	dev->last_rx = jiffies;
 
 	netif_rx(skb);		/* Send the packet upstream */
 }

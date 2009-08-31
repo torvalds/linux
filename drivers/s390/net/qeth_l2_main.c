@@ -449,7 +449,6 @@ static void qeth_l2_process_inbound_buffer(struct qeth_card *card,
 			QETH_DBF_HEX(CTRL, 3, hdr, QETH_DBF_CTRL_LEN);
 			continue;
 		}
-		card->dev->last_rx = jiffies;
 		card->stats.rx_packets++;
 		card->stats.rx_bytes += len;
 	}

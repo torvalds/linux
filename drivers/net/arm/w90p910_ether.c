@@ -777,7 +777,6 @@ static void netdev_rx(struct net_device *dev)
 
 		rxbd = &ether->rdesc->desclist[ether->cur_rx];
 
-		dev->last_rx = jiffies;
 	} while (1);
 }
 

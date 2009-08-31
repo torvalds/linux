@@ -404,7 +404,6 @@ static int ethoc_rx(struct net_device *dev, int limit)
 				void *src = priv->membase + bd.addr;
 				memcpy_fromio(skb_put(skb, size), src, size);
 				skb->protocol = eth_type_trans(skb, dev);
-				dev->last_rx = jiffies;
 				priv->stats.rx_packets++;
 				priv->stats.rx_bytes += size;
 				netif_receive_skb(skb);

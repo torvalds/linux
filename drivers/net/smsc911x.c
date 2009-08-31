@@ -1047,7 +1047,6 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 		/* Update counters */
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += (pktlength - 4);
-		dev->last_rx = jiffies;
 	}
 
 	/* Return total received packets */

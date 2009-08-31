@@ -96,8 +96,6 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
 		                         E1000_RXD_SPC_VLAN_MASK);
 	else
 		netif_receive_skb(skb);
-
-	netdev->last_rx = jiffies;
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -341,8 +339,6 @@ send_up:
 
 		igbvf_receive_skb(adapter, netdev, skb, staterr,
 		                  rx_desc->wb.upper.vlan);
-
-		netdev->last_rx = jiffies;
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;

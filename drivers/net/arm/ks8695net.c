@@ -467,7 +467,6 @@ ks8695_rx_irq(int irq, void *dev_id)
 			netif_rx(skb);
 
 			/* Record stats */
-			ndev->last_rx = jiffies;
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += pktlen;
 			goto rx_finished;

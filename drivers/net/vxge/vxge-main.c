@@ -588,8 +588,6 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	if (first_dtr)
 		vxge_hw_ring_rxd_post_post_wmb(ringh, first_dtr);
 
-	dev->last_rx = jiffies;
-
 	vxge_debug_entryexit(VXGE_TRACE,
 				"%s:%d  Exiting...",
 				__func__, __LINE__);

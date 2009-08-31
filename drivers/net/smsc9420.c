@@ -817,7 +817,6 @@ static void smsc9420_rx_handoff(struct smsc9420_pdata *pd, const int index,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 }
 
 static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)

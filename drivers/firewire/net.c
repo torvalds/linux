@@ -663,8 +663,6 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	if (netif_queue_stopped(net))
 		netif_wake_queue(net);
 
-	net->last_rx = jiffies;
-
 	return 0;
 }
 

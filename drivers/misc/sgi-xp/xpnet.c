@@ -240,7 +240,6 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 		(void *)skb->head, (void *)skb->data, skb_tail_pointer(skb),
 		skb_end_pointer(skb), skb->len);
 
-	xpnet_device->last_rx = jiffies;
 	xpnet_device->stats.rx_packets++;
 	xpnet_device->stats.rx_bytes += skb->len + ETH_HLEN;
 

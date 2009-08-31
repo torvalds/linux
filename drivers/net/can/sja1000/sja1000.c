@@ -340,7 +340,6 @@ static void sja1000_rx(struct net_device *dev)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += dlc;
 }
@@ -455,7 +454,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 

@@ -1987,7 +1987,6 @@ static void qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			continue;
 		}
 
-		card->dev->last_rx = jiffies;
 		card->stats.rx_packets++;
 		card->stats.rx_bytes += len;
 	}

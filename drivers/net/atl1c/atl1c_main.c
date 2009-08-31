@@ -1740,7 +1740,6 @@ rrs_checked:
 		} else
 			netif_receive_skb(skb);
 
-		netdev->last_rx = jiffies;
 		(*work_done)++;
 		count++;
 	}

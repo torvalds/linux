@@ -676,7 +676,6 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 		 * we must use netif_rx_ni() instead of netif_rx()
 		 */
 		netif_rx_ni(skb);
-		dev->last_rx = jiffies;
 		skb_pull(pskb, header->next);
 		skb_put(pskb, NETIUCV_HDRLEN);
 	}

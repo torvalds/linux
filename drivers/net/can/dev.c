@@ -357,7 +357,6 @@ void can_restart(unsigned long data)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 

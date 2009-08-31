@@ -775,8 +775,6 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 		netif_receive_skb(skb);
 	}
 
-	adapter->netdev->last_rx = jiffies;
-
 	return;
 }
 

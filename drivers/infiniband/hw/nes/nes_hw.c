@@ -2741,7 +2741,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 				}
 
 skip_rx_indicate0:
-				nesvnic->netdev->last_rx = jiffies;
+				;
 				/* nesvnic->netstats.rx_packets++; */
 				/* nesvnic->netstats.rx_bytes += rx_pkt_size; */
 			}

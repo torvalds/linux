@@ -164,7 +164,6 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += skblen;
 		netif_rx_ni(skb);
-		dev->last_rx = jiffies;
 		if (len > 0) {
 			skb_pull(pskb, header->length);
 			if (skb_tailroom(pskb) < LL_HEADER_LENGTH) {
