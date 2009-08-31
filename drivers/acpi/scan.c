@@ -370,7 +370,8 @@ static acpi_status acpi_device_notify_fixed(void *data)
 {
 	struct acpi_device *device = data;
 
-	acpi_device_notify(device->handle, ACPI_FIXED_HARDWARE_EVENT, device);
+	/* Fixed hardware devices have no handles */
+	acpi_device_notify(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
 	return AE_OK;
 }
 
