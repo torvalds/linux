@@ -148,6 +148,47 @@ xfs_inobt_get_rec(
 }
 
 /*
+ * Verify that the number of free inodes in the AGI is correct.
+ */
+#ifdef DEBUG
+STATIC int
+xfs_check_agi_freecount(
+	struct xfs_btree_cur	*cur,
+	struct xfs_agi		*agi)
+{
+	if (cur->bc_nlevels == 1) {
+		xfs_inobt_rec_incore_t rec;
+		int		freecount = 0;
+		int		error;
+		int		i;
+
+		error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i);
+		if (error)
+			return error;
+
+		do {
+			error = xfs_inobt_get_rec(cur, &rec, &i);
+			if (error)
+				return error;
+
+			if (i) {
+				freecount += rec.ir_freecount;
+				error = xfs_btree_increment(cur, 0, &i);
+				if (error)
+					return error;
+			}
+		} while (i == 1);
+
+		if (!XFS_FORCED_SHUTDOWN(cur->bc_mp))
+			ASSERT(freecount == be32_to_cpu(agi->agi_freecount));
+	}
+	return 0;
+}
+#else
+#define xfs_check_agi_freecount(cur, agi)	0
+#endif
+
+/*
  * Initialise a new set of inodes.
  */
 STATIC void
@@ -548,6 +589,7 @@ nextag:
 	}
 }
 
+
 /*
  * Visible inode allocation functions.
  */
@@ -733,27 +775,11 @@ nextag:
 	 */
 	if (!pagino)
 		pagino = be32_to_cpu(agi->agi_newino);
-#ifdef DEBUG
-	if (cur->bc_nlevels == 1) {
-		int	freecount = 0;
 
-		if ((error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i)))
-			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-		do {
-			error = xfs_inobt_get_rec(cur, &rec, &i);
-			if (error)
-				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			freecount += rec.ir_freecount;
-			if ((error = xfs_btree_increment(cur, 0, &i)))
-				goto error0;
-		} while (i == 1);
+	error = xfs_check_agi_freecount(cur, agi);
+	if (error)
+		goto error0;
 
-		ASSERT(freecount == be32_to_cpu(agi->agi_freecount) ||
-		       XFS_FORCED_SHUTDOWN(mp));
-	}
-#endif
 	/*
 	 * If in the same a.g. as the parent, try to get near the parent.
 	 */
@@ -951,25 +977,11 @@ nextag:
 	down_read(&mp->m_peraglock);
 	mp->m_perag[tagno].pagi_freecount--;
 	up_read(&mp->m_peraglock);
-#ifdef DEBUG
-	if (cur->bc_nlevels == 1) {
-		int	freecount = 0;
 
-		if ((error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i)))
-			goto error0;
-		do {
-			error = xfs_inobt_get_rec(cur, &rec, &i);
-			if (error)
-				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			freecount += rec.ir_freecount;
-			if ((error = xfs_btree_increment(cur, 0, &i)))
-				goto error0;
-		} while (i == 1);
-		ASSERT(freecount == be32_to_cpu(agi->agi_freecount) ||
-		       XFS_FORCED_SHUTDOWN(mp));
-	}
-#endif
+	error = xfs_check_agi_freecount(cur, agi);
+	if (error)
+		goto error0;
+
 	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	xfs_trans_mod_sb(tp, XFS_TRANS_SB_IFREE, -1);
 	*inop = ino;
@@ -1060,26 +1072,11 @@ xfs_difree(
 	 * Initialize the cursor.
 	 */
 	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
-#ifdef DEBUG
-	if (cur->bc_nlevels == 1) {
-		int freecount = 0;
 
-		if ((error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i)))
-			goto error0;
-		do {
-			error = xfs_inobt_get_rec(cur, &rec, &i);
-			if (error)
-				goto error0;
-			if (i) {
-				freecount += rec.ir_freecount;
-				if ((error = xfs_btree_increment(cur, 0, &i)))
-					goto error0;
-			}
-		} while (i == 1);
-		ASSERT(freecount == be32_to_cpu(agi->agi_freecount) ||
-		       XFS_FORCED_SHUTDOWN(mp));
-	}
-#endif
+	error = xfs_check_agi_freecount(cur, agi);
+	if (error)
+		goto error0;
+
 	/*
 	 * Look for the entry describing this inode.
 	 */
@@ -1165,26 +1162,10 @@ xfs_difree(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IFREE, 1);
 	}
 
-#ifdef DEBUG
-	if (cur->bc_nlevels == 1) {
-		int freecount = 0;
+	error = xfs_check_agi_freecount(cur, agi);
+	if (error)
+		goto error0;
 
-		if ((error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &i)))
-			goto error0;
-		do {
-			error = xfs_inobt_get_rec(cur, &rec, &i);
-			if (error)
-				goto error0;
-			if (i) {
-				freecount += rec.ir_freecount;
-				if ((error = xfs_btree_increment(cur, 0, &i)))
-					goto error0;
-			}
-		} while (i == 1);
-		ASSERT(freecount == be32_to_cpu(agi->agi_freecount) ||
-		       XFS_FORCED_SHUTDOWN(mp));
-	}
-#endif
 	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	return 0;
 
