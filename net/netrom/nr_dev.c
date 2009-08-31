@@ -169,7 +169,7 @@ static int nr_close(struct net_device *dev)
 	return 0;
 }
 
-static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t nr_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device_stats *stats = &dev->stats;
 	unsigned int len = skb->len;

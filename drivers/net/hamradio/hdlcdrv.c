@@ -399,7 +399,8 @@ void hdlcdrv_arbitrate(struct net_device *dev, struct hdlcdrv_state *s)
  * ===================== network driver interface =========================
  */
 
-static int hdlcdrv_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hdlcdrv_send_packet(struct sk_buff *skb,
+				       struct net_device *dev)
 {
 	struct hdlcdrv_state *sm = netdev_priv(dev);
 
