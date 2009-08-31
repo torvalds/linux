@@ -2749,6 +2749,7 @@ static int ext4_da_writepages(struct address_space *mapping,
 	long pages_skipped;
 	int range_cyclic, cycled = 1, io_done = 0;
 	int needed_blocks, ret = 0, nr_to_writebump = 0;
+	loff_t range_start = wbc->range_start;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 
 	trace_ext4_da_writepages(inode, wbc);
@@ -2917,6 +2918,7 @@ out_writepages:
 	if (!no_nrwrite_index_update)
 		wbc->no_nrwrite_index_update = 0;
 	wbc->nr_to_write -= nr_to_writebump;
+	wbc->range_start = range_start;
 	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
 	return ret;
 }
