@@ -1428,7 +1428,7 @@ static int __cmd_report(void)
 			exit(-1);
 		}
 		if (callchain) {
-			fprintf(stderr, "selected -c but no callchain data."
+			fprintf(stderr, "selected -g but no callchain data."
 					" Did you call perf record without"
 					" -g?\n");
 			exit(-1);

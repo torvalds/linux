@@ -158,9 +158,9 @@ int valid_debugfs_mount(const char *debugfs)
 	return 0;
 }
 
-static const char *tracepoint_id_to_name(u64 config)
+struct tracepoint_path *tracepoint_id_to_path(u64 config)
 {
-	static char tracepoint_name[2 * MAX_EVENT_LENGTH];
+	struct tracepoint_path *path = NULL;
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	struct stat st;
@@ -170,7 +170,7 @@ static const char *tracepoint_id_to_name(u64 config)
 	char evt_path[MAXPATHLEN];
 
 	if (valid_debugfs_mount(debugfs_path))
-		return "unkown";
+		return NULL;
 
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
@@ -197,10 +197,23 @@ static const char *tracepoint_id_to_name(u64 config)
 			if (id == config) {
 				closedir(evt_dir);
 				closedir(sys_dir);
-				snprintf(tracepoint_name, 2 * MAX_EVENT_LENGTH,
-					"%s:%s", sys_dirent.d_name,
-					evt_dirent.d_name);
-				return tracepoint_name;
+				path = calloc(1, sizeof(path));
+				path->system = malloc(MAX_EVENT_LENGTH);
+				if (!path->system) {
+					free(path);
+					return NULL;
+				}
+				path->name = malloc(MAX_EVENT_LENGTH);
+				if (!path->name) {
+					free(path->system);
+					free(path);
+					return NULL;
+				}
+				strncpy(path->system, sys_dirent.d_name,
+					MAX_EVENT_LENGTH);
+				strncpy(path->name, evt_dirent.d_name,
+					MAX_EVENT_LENGTH);
+				return path;
 			}
 		}
 		closedir(evt_dir);
@@ -208,7 +221,25 @@ static const char *tracepoint_id_to_name(u64 config)
 
 cleanup:
 	closedir(sys_dir);
-	return "unkown";
+	return NULL;
+}
+
+#define TP_PATH_LEN (MAX_EVENT_LENGTH * 2 + 1)
+static const char *tracepoint_id_to_name(u64 config)
+{
+	static char buf[TP_PATH_LEN];
+	struct tracepoint_path *path;
+
+	path = tracepoint_id_to_path(config);
+	if (path) {
+		snprintf(buf, TP_PATH_LEN, "%s:%s", path->system, path->name);
+		free(path->name);
+		free(path->system);
+		free(path);
+	} else
+		snprintf(buf, TP_PATH_LEN, "%s:%s", "unknown", "unknown");
+
+	return buf;
 }
 
 static int is_cache_op_valid(u8 cache_type, u8 cache_op)
