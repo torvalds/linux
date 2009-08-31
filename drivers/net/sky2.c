@@ -256,6 +256,9 @@ static void sky2_power_on(struct sky2_hw *hw)
 
 		sky2_read32(hw, B2_GP_IO);
 	}
+
+	/* Turn on "driver loaded" LED */
+	sky2_write16(hw, B0_CTST, Y2_LED_STAT_ON);
 }
 
 static void sky2_power_aux(struct sky2_hw *hw)
@@ -274,6 +277,9 @@ static void sky2_power_aux(struct sky2_hw *hw)
 		sky2_write8(hw, B0_POWER_CTRL,
 			    (PC_VAUX_ENA | PC_VCC_ENA |
 			     PC_VAUX_ON | PC_VCC_OFF));
+
+	/* turn off "driver loaded LED" */
+	sky2_write16(hw, B0_CTST, Y2_LED_STAT_OFF);
 }
 
 static void sky2_gmac_reset(struct sky2_hw *hw, unsigned port)
@@ -1867,9 +1873,6 @@ static int sky2_down(struct net_device *dev)
 	sky2_phy_power_down(hw, port);
 	spin_unlock_bh(&sky2->phy_lock);
 
-	/* turn off LED's */
-	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
-
 	sky2_tx_reset(hw, port);
 
 	/* Free any pending frames stuck in HW queue */
@@ -2982,8 +2985,6 @@ static void sky2_reset(struct sky2_hw *hw)
 	/* turn off hardware timer (unused) */
 	sky2_write8(hw, B2_TI_CTRL, TIM_STOP);
 	sky2_write8(hw, B2_TI_CTRL, TIM_CLR_IRQ);
-
-	sky2_write8(hw, B0_Y2LED, LED_STAT_ON);
 
 	/* Turn off descriptor polling */
 	sky2_write32(hw, B28_DPT_CTRL, DPT_STOP);
@@ -4601,7 +4602,6 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 
 	sky2_power_aux(hw);
 
-	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
 	sky2_write8(hw, B0_CTST, CS_RST_SET);
 	sky2_read8(hw, B0_CTST);
 
