@@ -21,23 +21,29 @@
 #include <linux/debug_locks.h>
 #include <linux/module.h>
 
+#ifndef _spin_trylock
 int __lockfunc _spin_trylock(spinlock_t *lock)
 {
 	return __spin_trylock(lock);
 }
 EXPORT_SYMBOL(_spin_trylock);
+#endif
 
+#ifndef _read_trylock
 int __lockfunc _read_trylock(rwlock_t *lock)
 {
 	return __read_trylock(lock);
 }
 EXPORT_SYMBOL(_read_trylock);
+#endif
 
+#ifndef _write_trylock
 int __lockfunc _write_trylock(rwlock_t *lock)
 {
 	return __write_trylock(lock);
 }
 EXPORT_SYMBOL(_write_trylock);
+#endif
 
 /*
  * If lockdep is enabled then we use the non-preemption spin-ops
@@ -46,77 +52,101 @@ EXPORT_SYMBOL(_write_trylock);
  */
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 
+#ifndef _read_lock
 void __lockfunc _read_lock(rwlock_t *lock)
 {
 	__read_lock(lock);
 }
 EXPORT_SYMBOL(_read_lock);
+#endif
 
+#ifndef _spin_lock_irqsave
 unsigned long __lockfunc _spin_lock_irqsave(spinlock_t *lock)
 {
 	return __spin_lock_irqsave(lock);
 }
 EXPORT_SYMBOL(_spin_lock_irqsave);
+#endif
 
+#ifndef _spin_lock_irq
 void __lockfunc _spin_lock_irq(spinlock_t *lock)
 {
 	__spin_lock_irq(lock);
 }
 EXPORT_SYMBOL(_spin_lock_irq);
+#endif
 
+#ifndef _spin_lock_bh
 void __lockfunc _spin_lock_bh(spinlock_t *lock)
 {
 	__spin_lock_bh(lock);
 }
 EXPORT_SYMBOL(_spin_lock_bh);
+#endif
 
+#ifndef _read_lock_irqsave
 unsigned long __lockfunc _read_lock_irqsave(rwlock_t *lock)
 {
 	return __read_lock_irqsave(lock);
 }
 EXPORT_SYMBOL(_read_lock_irqsave);
+#endif
 
+#ifndef _read_lock_irq
 void __lockfunc _read_lock_irq(rwlock_t *lock)
 {
 	__read_lock_irq(lock);
 }
 EXPORT_SYMBOL(_read_lock_irq);
+#endif
 
+#ifndef _read_lock_bh
 void __lockfunc _read_lock_bh(rwlock_t *lock)
 {
 	__read_lock_bh(lock);
 }
 EXPORT_SYMBOL(_read_lock_bh);
+#endif
 
+#ifndef _write_lock_irqsave
 unsigned long __lockfunc _write_lock_irqsave(rwlock_t *lock)
 {
 	return __write_lock_irqsave(lock);
 }
 EXPORT_SYMBOL(_write_lock_irqsave);
+#endif
 
+#ifndef _write_lock_irq
 void __lockfunc _write_lock_irq(rwlock_t *lock)
 {
 	__write_lock_irq(lock);
 }
 EXPORT_SYMBOL(_write_lock_irq);
+#endif
 
+#ifndef _write_lock_bh
 void __lockfunc _write_lock_bh(rwlock_t *lock)
 {
 	__write_lock_bh(lock);
 }
 EXPORT_SYMBOL(_write_lock_bh);
+#endif
 
+#ifndef _spin_lock
 void __lockfunc _spin_lock(spinlock_t *lock)
 {
 	__spin_lock(lock);
 }
 EXPORT_SYMBOL(_spin_lock);
+#endif
 
+#ifndef _write_lock
 void __lockfunc _write_lock(rwlock_t *lock)
 {
 	__write_lock(lock);
 }
 EXPORT_SYMBOL(_write_lock);
+#endif
 
 #else /* CONFIG_PREEMPT: */
 
@@ -242,83 +272,109 @@ EXPORT_SYMBOL(_spin_lock_nest_lock);
 
 #endif
 
+#ifndef _spin_unlock
 void __lockfunc _spin_unlock(spinlock_t *lock)
 {
 	__spin_unlock(lock);
 }
 EXPORT_SYMBOL(_spin_unlock);
+#endif
 
+#ifndef _write_unlock
 void __lockfunc _write_unlock(rwlock_t *lock)
 {
 	__write_unlock(lock);
 }
 EXPORT_SYMBOL(_write_unlock);
+#endif
 
+#ifndef _read_unlock
 void __lockfunc _read_unlock(rwlock_t *lock)
 {
 	__read_unlock(lock);
 }
 EXPORT_SYMBOL(_read_unlock);
+#endif
 
+#ifndef _spin_unlock_irqrestore
 void __lockfunc _spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
 {
 	__spin_unlock_irqrestore(lock, flags);
 }
 EXPORT_SYMBOL(_spin_unlock_irqrestore);
+#endif
 
+#ifndef _spin_unlock_irq
 void __lockfunc _spin_unlock_irq(spinlock_t *lock)
 {
 	__spin_unlock_irq(lock);
 }
 EXPORT_SYMBOL(_spin_unlock_irq);
+#endif
 
+#ifndef _spin_unlock_bh
 void __lockfunc _spin_unlock_bh(spinlock_t *lock)
 {
 	__spin_unlock_bh(lock);
 }
 EXPORT_SYMBOL(_spin_unlock_bh);
+#endif
 
+#ifndef _read_unlock_irqrestore
 void __lockfunc _read_unlock_irqrestore(rwlock_t *lock, unsigned long flags)
 {
 	__read_unlock_irqrestore(lock, flags);
 }
 EXPORT_SYMBOL(_read_unlock_irqrestore);
+#endif
 
+#ifndef _read_unlock_irq
 void __lockfunc _read_unlock_irq(rwlock_t *lock)
 {
 	__read_unlock_irq(lock);
 }
 EXPORT_SYMBOL(_read_unlock_irq);
+#endif
 
+#ifndef _read_unlock_bh
 void __lockfunc _read_unlock_bh(rwlock_t *lock)
 {
 	__read_unlock_bh(lock);
 }
 EXPORT_SYMBOL(_read_unlock_bh);
+#endif
 
+#ifndef _write_unlock_irqrestore
 void __lockfunc _write_unlock_irqrestore(rwlock_t *lock, unsigned long flags)
 {
 	__write_unlock_irqrestore(lock, flags);
 }
 EXPORT_SYMBOL(_write_unlock_irqrestore);
+#endif
 
+#ifndef _write_unlock_irq
 void __lockfunc _write_unlock_irq(rwlock_t *lock)
 {
 	__write_unlock_irq(lock);
 }
 EXPORT_SYMBOL(_write_unlock_irq);
+#endif
 
+#ifndef _write_unlock_bh
 void __lockfunc _write_unlock_bh(rwlock_t *lock)
 {
 	__write_unlock_bh(lock);
 }
 EXPORT_SYMBOL(_write_unlock_bh);
+#endif
 
+#ifndef _spin_trylock_bh
 int __lockfunc _spin_trylock_bh(spinlock_t *lock)
 {
 	return __spin_trylock_bh(lock);
 }
 EXPORT_SYMBOL(_spin_trylock_bh);
+#endif
 
 notrace int in_lock_functions(unsigned long addr)
 {
