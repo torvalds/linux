@@ -58,6 +58,7 @@ struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
 	void *context;
 	struct work_struct work;
+	int wait;
 };
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -703,21 +704,8 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 		return;
 	}
 
-	dpc->function(dpc->context);
-	kfree(dpc);
-
-	return;
-}
-
-static void acpi_os_execute_hp_deferred(struct work_struct *work)
-{
-	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
-	if (!dpc) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
-
-	acpi_os_wait_events_complete(NULL);
+	if (dpc->wait)
+		acpi_os_wait_events_complete(NULL);
 
 	dpc->function(dpc->context);
 	kfree(dpc);
@@ -746,7 +734,6 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
-	work_func_t func;
 	int ret;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
@@ -779,8 +766,8 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	 */
 	queue = hp ? kacpi_hotplug_wq :
 		(type == OSL_NOTIFY_HANDLER ? kacpi_notify_wq : kacpid_wq);
-	func = hp ? acpi_os_execute_hp_deferred : acpi_os_execute_deferred;
-	INIT_WORK(&dpc->work, func);
+	dpc->wait = hp ? 1 : 0;
+	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
 	ret = queue_work(queue, &dpc->work);
 
 	if (!ret) {
