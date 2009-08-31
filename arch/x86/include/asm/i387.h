@@ -301,6 +301,14 @@ static inline void kernel_fpu_end(void)
 	preempt_enable();
 }
 
+static inline bool irq_fpu_usable(void)
+{
+	struct pt_regs *regs;
+
+	return !in_interrupt() || !(regs = get_irq_regs()) || \
+		user_mode(regs) || (read_cr0() & X86_CR0_TS);
+}
+
 /*
  * Some instructions like VIA's padlock instructions generate a spurious
  * DNA fault but don't modify SSE registers. And these instructions
