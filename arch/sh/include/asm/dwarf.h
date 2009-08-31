@@ -200,7 +200,7 @@
  */
 static __always_inline unsigned long dwarf_read_arch_reg(unsigned int reg)
 {
-	unsigned long value;
+	unsigned long value = 0;
 
 	switch (reg) {
 	case 14:

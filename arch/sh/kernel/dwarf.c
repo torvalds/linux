@@ -887,7 +887,7 @@ static int __init dwarf_unwinder_init(void)
 {
 	u32 entry_type;
 	void *p, *entry;
-	int count, err;
+	int count, err = 0;
 	unsigned long len;
 	unsigned int c_entries, f_entries;
 	unsigned char *end;
