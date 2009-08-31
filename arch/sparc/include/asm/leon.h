@@ -340,6 +340,30 @@ extern int leon_flush_needed(void);
 extern void leon_switch_mm(void);
 extern int srmmu_swprobe_trace;
 
+#ifdef CONFIG_SMP
+extern int leon_smp_nrcpus(void);
+extern void leon_clear_profile_irq(int cpu);
+extern void leon_smp_done(void);
+extern void leon_boot_cpus(void);
+extern int leon_boot_one_cpu(int i);
+void leon_init_smp(void);
+extern void cpu_probe(void);
+extern void cpu_idle(void);
+extern void init_IRQ(void);
+extern void cpu_panic(void);
+extern int __leon_processor_id(void);
+void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu);
+
+extern unsigned int real_irq_entry[], smpleon_ticker[];
+extern unsigned int patchme_maybe_smp_msg[];
+extern unsigned long trapbase_cpu1[];
+extern unsigned long trapbase_cpu2[];
+extern unsigned long trapbase_cpu3[];
+extern unsigned int t_nmi[], linux_trap_ipi15_leon[];
+extern unsigned int linux_trap_ipi15_sun4m[];
+
+#endif /* CONFIG_SMP */
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
@@ -356,6 +380,10 @@ extern int srmmu_swprobe_trace;
 #define leon_switch_mm() do {} while (0)
 #define leon_init_IRQ() do {} while (0)
 #define init_leon() do {} while (0)
+#define leon_smp_done() do {} while (0)
+#define leon_boot_cpus() do {} while (0)
+#define leon_boot_one_cpu(i) 1
+#define leon_init_smp() do {} while (0)
 
 #endif /* !defined(CONFIG_SPARC_LEON) */
 

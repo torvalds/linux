@@ -12,11 +12,14 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
+
 #include <asm/oplib.h>
 #include <asm/timer.h>
 #include <asm/prom.h>
 #include <asm/leon.h>
 #include <asm/leon_amba.h>
+#include <asm/traps.h>
+#include <asm/cacheflush.h>
 
 #include "prom.h"
 #include "irq.h"
@@ -115,6 +118,21 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 				      (((1000000 / 100) - 1)));
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].ctrl, 0);
 
+#ifdef CONFIG_SMP
+		leon_percpu_timer_dev[0].start = (int)leon3_gptimer_regs;
+		leon_percpu_timer_dev[0].irq = leon3_gptimer_irq+1;
+
+		if (!(LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config) &
+		      (1<<LEON3_GPTIMER_SEPIRQ))) {
+			prom_printf("irq timer not configured with seperate irqs \n");
+			BUG();
+		}
+
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].val, 0);
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].rld, (((1000000/100) - 1)));
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].ctrl, 0);
+# endif
+
 	} else {
 		printk(KERN_ERR "No Timer/irqctrl found\n");
 		BUG();
@@ -130,11 +148,41 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 		prom_halt();
 	}
 
+# ifdef CONFIG_SMP
+	{
+		unsigned long flags;
+		struct tt_entry *trap_table = &sparc_ttable[SP_TRAP_IRQ1 + (leon_percpu_timer_dev[0].irq - 1)];
+
+		/* For SMP we use the level 14 ticker, however the bootup code
+		 * has copied the firmwares level 14 vector into boot cpu's
+		 * trap table, we must fix this now or we get squashed.
+		 */
+		local_irq_save(flags);
+
+		patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
+
+		/* Adjust so that we jump directly to smpleon_ticker */
+		trap_table->inst_three += smpleon_ticker - real_irq_entry;
+
+		local_flush_cache_all();
+		local_irq_restore(flags);
+	}
+# endif
+
 	if (leon3_gptimer_regs) {
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].ctrl,
 				      LEON3_GPTIMER_EN |
 				      LEON3_GPTIMER_RL |
 				      LEON3_GPTIMER_LD | LEON3_GPTIMER_IRQEN);
+
+#ifdef CONFIG_SMP
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].ctrl,
+				      LEON3_GPTIMER_EN |
+				      LEON3_GPTIMER_RL |
+				      LEON3_GPTIMER_LD |
+				      LEON3_GPTIMER_IRQEN);
+#endif
+
 	}
 }
 
@@ -174,6 +222,42 @@ void __init leon_node_init(struct device_node *dp, struct device_node ***nextp)
 		prom_amba_init(dp, nextp);
 	}
 }
+
+#ifdef CONFIG_SMP
+
+void leon_set_cpu_int(int cpu, int level)
+{
+	unsigned long mask;
+	mask = get_irqmask(level);
+	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->force[cpu], mask);
+}
+
+static void leon_clear_ipi(int cpu, int level)
+{
+	unsigned long mask;
+	mask = get_irqmask(level);
+	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->force[cpu], mask<<16);
+}
+
+static void leon_set_udt(int cpu)
+{
+}
+
+void leon_clear_profile_irq(int cpu)
+{
+}
+
+void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
+{
+	unsigned long mask, flags, *addr;
+	mask = get_irqmask(irq_nr);
+	local_irq_save(flags);
+	addr = (unsigned long *)&(leon3_irqctrl_regs->mask[cpu]);
+	LEON3_BYPASS_STORE_PA(addr, (LEON3_BYPASS_LOAD_PA(addr) | (mask)));
+	local_irq_restore(flags);
+}
+
+#endif
 
 void __init leon_init_IRQ(void)
 {
