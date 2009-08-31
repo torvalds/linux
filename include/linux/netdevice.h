@@ -627,6 +627,8 @@ struct net_device_ops {
 	void                    (*ndo_poll_controller)(struct net_device *dev);
 #endif
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	int			(*ndo_fcoe_enable)(struct net_device *dev);
+	int			(*ndo_fcoe_disable)(struct net_device *dev);
 	int			(*ndo_fcoe_ddp_setup)(struct net_device *dev,
 						      u16 xid,
 						      struct scatterlist *sgl,
