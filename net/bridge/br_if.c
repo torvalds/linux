@@ -264,6 +264,10 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	return p;
 }
 
+static struct device_type br_type = {
+	.name	= "bridge",
+};
+
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
@@ -279,6 +283,8 @@ int br_add_bridge(struct net *net, const char *name)
 		if (ret < 0)
 			goto out_free;
 	}
+
+	SET_NETDEV_DEVTYPE(dev, &br_type);
 
 	ret = register_netdevice(dev);
 	if (ret)

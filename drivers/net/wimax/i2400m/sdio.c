@@ -371,6 +371,10 @@ error:
 }
 
 
+static struct device_type i2400ms_type = {
+	.name	= "wimax",
+};
+
 /*
  * Probe a i2400m interface and register it
  *
@@ -412,6 +416,7 @@ int i2400ms_probe(struct sdio_func *func,
 		goto error_alloc_netdev;
 	}
 	SET_NETDEV_DEV(net_dev, dev);
+	SET_NETDEV_DEVTYPE(net_dev, &i2400ms_type);
 	i2400m = net_dev_to_i2400m(net_dev);
 	i2400ms = container_of(i2400m, struct i2400ms, i2400m);
 	i2400m->wimax_dev.net_dev = net_dev;

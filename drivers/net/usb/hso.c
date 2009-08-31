@@ -2535,6 +2535,10 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 	}
 }
 
+static struct device_type hso_type = {
+	.name	= "wwan",
+};
+
 /* Creates our network device */
 static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 						int port_spec)
@@ -2575,6 +2579,7 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 		goto exit;
 	}
 	SET_NETDEV_DEV(net, &interface->dev);
+	SET_NETDEV_DEVTYPE(net, &hso_type);
 
 	/* registering our net device */
 	result = register_netdev(net);
