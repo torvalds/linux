@@ -78,8 +78,8 @@ static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
 static struct inet_connection_sock_af_ops ipv6_mapped;
 static struct inet_connection_sock_af_ops ipv6_specific;
 #ifdef CONFIG_TCP_MD5SIG
-static struct tcp_sock_af_ops tcp_sock_ipv6_specific;
-static struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific;
+static const struct tcp_sock_af_ops tcp_sock_ipv6_specific;
+static const struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific;
 #else
 static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(struct sock *sk,
 						   struct in6_addr *addr)
@@ -894,7 +894,7 @@ struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 };
 
 #ifdef CONFIG_TCP_MD5SIG
-static struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
+static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 	.md5_lookup	=	tcp_v6_reqsk_md5_lookup,
 	.calc_md5_hash	=	tcp_v6_md5_hash_skb,
 };
@@ -1780,7 +1780,7 @@ static struct inet_connection_sock_af_ops ipv6_specific = {
 };
 
 #ifdef CONFIG_TCP_MD5SIG
-static struct tcp_sock_af_ops tcp_sock_ipv6_specific = {
+static const struct tcp_sock_af_ops tcp_sock_ipv6_specific = {
 	.md5_lookup	=	tcp_v6_md5_lookup,
 	.calc_md5_hash	=	tcp_v6_md5_hash_skb,
 	.md5_add	=	tcp_v6_md5_add_func,
@@ -1812,7 +1812,7 @@ static struct inet_connection_sock_af_ops ipv6_mapped = {
 };
 
 #ifdef CONFIG_TCP_MD5SIG
-static struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
+static const struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
 	.md5_lookup	=	tcp_v4_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
 	.md5_add	=	tcp_v6_md5_add_func,

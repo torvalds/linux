@@ -1195,7 +1195,7 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 };
 
 #ifdef CONFIG_TCP_MD5SIG
-static struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
 };
@@ -1774,7 +1774,7 @@ struct inet_connection_sock_af_ops ipv4_specific = {
 };
 
 #ifdef CONFIG_TCP_MD5SIG
-static struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
+static const struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
 	.md5_lookup		= tcp_v4_md5_lookup,
 	.calc_md5_hash		= tcp_v4_md5_hash_skb,
 	.md5_add		= tcp_v4_md5_add_func,
