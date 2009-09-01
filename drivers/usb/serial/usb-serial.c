@@ -200,6 +200,8 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	struct usb_serial_port *port;
 	int retval = -ENODEV;
 
+	dbg("%s", __func__);
+
 	serial = usb_serial_get_by_index(idx);
 	if (!serial)
 		return retval;
@@ -250,10 +252,10 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 	int retval = 0;
 	int first = 0;
 
-	dbg("%s", __func__);
-
 	port = tty->driver_data;
 	serial = port->serial;
+
+	dbg("%s - port %d", __func__, port->number);
 
 	if (mutex_lock_interruptible(&port->mutex))
 		return -ERESTARTSYS;
@@ -315,6 +317,12 @@ static void serial_down(struct usb_serial_port *port)
 	if (port->console)
 		return;
 
+	/* Don't call the close method if the hardware hasn't been
+	 * initialized.
+	 */
+	if (!test_and_clear_bit(ASYNCB_INITIALIZED, &port->port.flags))
+		return;
+
 	mutex_lock(&port->mutex);
 	serial = port->serial;
 	owner = serial->type->driver.owner;
@@ -328,10 +336,11 @@ static void serial_down(struct usb_serial_port *port)
 static void serial_hangup(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	dbg("%s - port %d", __func__, port->number);
+
 	serial_down(port);
 	tty_port_hangup(&port->port);
-	/* We must not free port yet - the USB serial layer depends on it's
-	   continued existence */
 }
 
 static void serial_close(struct tty_struct *tty, struct file *filp)
@@ -340,6 +349,8 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 	dbg("%s - port %d", __func__, port->number);
 
+	if (tty_hung_up_p(filp))
+		return;
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
 		return;
 	serial_down(port);
@@ -367,6 +378,8 @@ static void serial_release(struct tty_struct *tty)
 	 */
 	if (port->console)
 		return;
+
+	dbg("%s - port %d", __func__, port->number);
 
 	/* Standard shutdown processing */
 	tty_shutdown(tty);
