@@ -77,7 +77,7 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 	}
 
 	/* Update the expiry counter if fs is busy */
-	if (!may_umount_tree(mnt)) {
+	if (!may_umount_tree(path.mnt)) {
 		struct autofs_info *ino = autofs4_dentry_ino(top);
 		ino->last_used = jiffies;
 		goto done;
