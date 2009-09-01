@@ -95,17 +95,23 @@ static const struct i2400m_poke_table i2400ms_pokes[] = {
  * when we ask it to explicitly doing). Tries until a timeout is
  * reached.
  *
+ * The @maxtries argument indicates how many times (at most) it should
+ * be tried to enable the function. 0 means forever. This acts along
+ * with the timeout (ie: it'll stop trying as soon as the maximum
+ * number of tries is reached _or_ as soon as the timeout is reached).
+ *
  * The reverse of this is...sdio_disable_function()
  *
  * Returns: 0 if the SDIO function was enabled, < 0 errno code on
  *     error (-ENODEV when it was unable to enable the function).
  */
 static
-int i2400ms_enable_function(struct sdio_func *func)
+int i2400ms_enable_function(struct sdio_func *func, unsigned maxtries)
 {
 	u64 timeout;
 	int err;
 	struct device *dev = &func->dev;
+	unsigned tries = 0;
 
 	d_fnstart(3, dev, "(func %p)\n", func);
 	/* Setup timeout (FIXME: This needs to read the CIS table to
@@ -131,6 +137,10 @@ int i2400ms_enable_function(struct sdio_func *func)
 		}
 		d_printf(2, dev, "SDIO function failed to enable: %d\n", err);
 		sdio_release_host(func);
+		if (maxtries > 0 && ++tries >= maxtries) {
+			err = -ETIME;
+			break;
+		}
 		msleep(I2400MS_INIT_SLEEP_INTERVAL);
 	}
 	/* If timed out, device is not there yet -- get -ENODEV so
@@ -305,7 +315,7 @@ do_bus_reset:
 		/* Wait for the device to settle */
 		msleep(40);
 
-		result = i2400ms_enable_function(i2400ms->func);
+		result = i2400ms_enable_function(i2400ms->func, 0);
 		if (result >= 0)
 			i2400ms_rx_setup(i2400ms);
 	} else
@@ -452,7 +462,7 @@ int i2400ms_probe(struct sdio_func *func,
 		goto error_set_blk_size;
 	}
 
-	result = i2400ms_enable_function(i2400ms->func);
+	result = i2400ms_enable_function(i2400ms->func, 1);
 	if (result < 0) {
 		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
 		goto error_func_enable;
