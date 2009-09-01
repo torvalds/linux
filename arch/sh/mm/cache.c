@@ -34,6 +34,15 @@ static inline void noop__flush_region(void *start, int size)
 {
 }
 
+static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
+                                   int wait)
+{
+	preempt_disable();
+	smp_call_function(func, info, wait);
+	func(info);
+	preempt_enable();
+}
+
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long vaddr, void *dst, const void *src,
 		       unsigned long len)
@@ -149,17 +158,17 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 
 void flush_cache_all(void)
 {
-	on_each_cpu(local_flush_cache_all, NULL, 1);
+	cacheop_on_each_cpu(local_flush_cache_all, NULL, 1);
 }
 
 void flush_cache_mm(struct mm_struct *mm)
 {
-	on_each_cpu(local_flush_cache_mm, mm, 1);
+	cacheop_on_each_cpu(local_flush_cache_mm, mm, 1);
 }
 
 void flush_cache_dup_mm(struct mm_struct *mm)
 {
-	on_each_cpu(local_flush_cache_dup_mm, mm, 1);
+	cacheop_on_each_cpu(local_flush_cache_dup_mm, mm, 1);
 }
 
 void flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
@@ -171,7 +180,7 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
 	data.addr1 = addr;
 	data.addr2 = pfn;
 
-	on_each_cpu(local_flush_cache_page, (void *)&data, 1);
+	cacheop_on_each_cpu(local_flush_cache_page, (void *)&data, 1);
 }
 
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
@@ -183,12 +192,12 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	data.addr1 = start;
 	data.addr2 = end;
 
-	on_each_cpu(local_flush_cache_range, (void *)&data, 1);
+	cacheop_on_each_cpu(local_flush_cache_range, (void *)&data, 1);
 }
 
 void flush_dcache_page(struct page *page)
 {
-	on_each_cpu(local_flush_dcache_page, page, 1);
+	cacheop_on_each_cpu(local_flush_dcache_page, page, 1);
 }
 
 void flush_icache_range(unsigned long start, unsigned long end)
@@ -199,18 +208,18 @@ void flush_icache_range(unsigned long start, unsigned long end)
 	data.addr1 = start;
 	data.addr2 = end;
 
-	on_each_cpu(local_flush_icache_range, (void *)&data, 1);
+	cacheop_on_each_cpu(local_flush_icache_range, (void *)&data, 1);
 }
 
 void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 {
 	/* Nothing uses the VMA, so just pass the struct page along */
-	on_each_cpu(local_flush_icache_page, page, 1);
+	cacheop_on_each_cpu(local_flush_icache_page, page, 1);
 }
 
 void flush_cache_sigtramp(unsigned long address)
 {
-	on_each_cpu(local_flush_cache_sigtramp, (void *)address, 1);
+	cacheop_on_each_cpu(local_flush_cache_sigtramp, (void *)address, 1);
 }
 
 static void compute_alias(struct cache_info *c)
