@@ -66,6 +66,11 @@ static struct usb_serial *serial_table[SERIAL_TTY_MINORS];
 static DEFINE_MUTEX(table_lock);
 static LIST_HEAD(usb_serial_driver_list);
 
+/*
+ * Look up the serial structure.  If it is found and it hasn't been
+ * disconnected, return with its disc_mutex held and its refcount
+ * incremented.  Otherwise return NULL.
+ */
 struct usb_serial *usb_serial_get_by_index(unsigned index)
 {
 	struct usb_serial *serial;
@@ -73,8 +78,15 @@ struct usb_serial *usb_serial_get_by_index(unsigned index)
 	mutex_lock(&table_lock);
 	serial = serial_table[index];
 
-	if (serial)
-		kref_get(&serial->kref);
+	if (serial) {
+		mutex_lock(&serial->disc_mutex);
+		if (serial->disconnected) {
+			mutex_unlock(&serial->disc_mutex);
+			serial = NULL;
+		} else {
+			kref_get(&serial->kref);
+		}
+	}
 	mutex_unlock(&table_lock);
 	return serial;
 }
@@ -123,8 +135,10 @@ static void return_serial(struct usb_serial *serial)
 
 	dbg("%s", __func__);
 
+	mutex_lock(&table_lock);
 	for (i = 0; i < serial->num_ports; ++i)
 		serial_table[serial->minor + i] = NULL;
+	mutex_unlock(&table_lock);
 }
 
 static void destroy_serial(struct kref *kref)
@@ -158,9 +172,7 @@ static void destroy_serial(struct kref *kref)
 
 void usb_serial_put(struct usb_serial *serial)
 {
-	mutex_lock(&table_lock);
 	kref_put(&serial->kref, destroy_serial);
-	mutex_unlock(&table_lock);
 }
 
 /*****************************************************************************
@@ -190,9 +202,12 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 			return retval;
 		/* allow the driver to update it */
 		serial = usb_serial_get_by_index(tty->index);
-		if (serial->type->init_termios)
-			serial->type->init_termios(tty);
-		usb_serial_put(serial);
+		if (serial) {
+			if (serial->type->init_termios)
+				serial->type->init_termios(tty);
+			usb_serial_put(serial);
+			mutex_unlock(&serial->disc_mutex);
+		}
 	}
 	/* Final install (we use the default method) */
 	tty_driver_kref_get(driver);
@@ -218,7 +233,6 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 	}
 
-	mutex_lock(&serial->disc_mutex);
 	portNumber = tty->index - serial->minor;
 	port = serial->port[portNumber];
 	if (!port || serial->disconnected)
@@ -529,6 +543,7 @@ static int serial_proc_show(struct seq_file *m, void *v)
 
 		seq_putc(m, '\n');
 		usb_serial_put(serial);
+		mutex_unlock(&serial->disc_mutex);
 	}
 	return 0;
 }
