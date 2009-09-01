@@ -46,6 +46,10 @@
 #define  TG3PCI_DEVICE_TIGON3_57788	 0x1691
 #define  TG3PCI_DEVICE_TIGON3_5785_G	 0x1699 /* GPHY */
 #define  TG3PCI_DEVICE_TIGON3_5785_F	 0x16a0 /* 10/100 only */
+#define  TG3PCI_DEVICE_TIGON3_5717C	 0x1655
+#define  TG3PCI_DEVICE_TIGON3_5717S	 0x1656
+#define  TG3PCI_DEVICE_TIGON3_5718C	 0x1665
+#define  TG3PCI_DEVICE_TIGON3_5718S	 0x1666
 /* 0x04 --> 0x64 unused */
 #define TG3PCI_MSI_DATA			0x00000064
 /* 0x66 --> 0x68 unused */
@@ -117,6 +121,7 @@
 #define   ASIC_REV_5761			 0x5761
 #define   ASIC_REV_5785			 0x5785
 #define   ASIC_REV_57780		 0x57780
+#define   ASIC_REV_5717			 0x5717
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -203,20 +208,20 @@
 #define TG3PCI_MEM_WIN_BASE_ADDR	0x0000007c
 #define TG3PCI_REG_DATA			0x00000080
 #define TG3PCI_MEM_WIN_DATA		0x00000084
-#define TG3PCI_MODE_CTRL		0x00000088
-#define TG3PCI_MISC_CFG			0x0000008c
 #define TG3PCI_MISC_LOCAL_CTRL		0x00000090
 /* 0x94 --> 0x98 unused */
 #define TG3PCI_STD_RING_PROD_IDX	0x00000098 /* 64-bit */
 #define TG3PCI_RCV_RET_RING_CON_IDX	0x000000a0 /* 64-bit */
-#define TG3PCI_SND_PROD_IDX		0x000000a8 /* 64-bit */
-/* 0xb0 --> 0xb8 unused */
+/* 0xa0 --> 0xb8 unused */
 #define TG3PCI_DUAL_MAC_CTRL		0x000000b8
 #define  DUAL_MAC_CTRL_CH_MASK		 0x00000003
 #define  DUAL_MAC_CTRL_ID		 0x00000004
 #define TG3PCI_PRODID_ASICREV		0x000000bc
 #define  PROD_ID_ASIC_REV_MASK		 0x0fffffff
-/* 0xc0 --> 0x110 unused */
+/* 0xc0 --> 0xf4 unused */
+
+#define TG3PCI_GEN2_PRODID_ASICREV	0x000000f4
+/* 0xf8 --> 0x200 unused */
 
 #define TG3_CORR_ERR_STAT		0x00000110
 #define  TG3_CORR_ERR_STAT_CLEAR	0xffffffff
@@ -972,7 +977,11 @@
 #define RCVBDI_MINI_THRESH		0x00002c14
 #define RCVBDI_STD_THRESH		0x00002c18
 #define RCVBDI_JUMBO_THRESH		0x00002c1c
-/* 0x2c20 --> 0x3000 unused */
+/* 0x2c20 --> 0x2d00 unused */
+
+#define STD_REPLENISH_LWM		0x00002d00
+#define JMB_REPLENISH_LWM		0x00002d04
+/* 0x2d08 --> 0x3000 unused */
 
 /* Receive BD Completion Control Registers */
 #define RCVCC_MODE			0x00003000
@@ -1486,6 +1495,7 @@
 #define MSGINT_MODE			0x00006000
 #define  MSGINT_MODE_RESET		 0x00000001
 #define  MSGINT_MODE_ENABLE		 0x00000002
+#define  MSGINT_MODE_ONE_SHOT_DISABLE	 0x00000020
 #define  MSGINT_MODE_MULTIVEC_EN	 0x00000080
 #define MSGINT_STATUS			0x00006004
 #define MSGINT_FIFO			0x00006008
@@ -2124,6 +2134,7 @@ struct tg3_tx_buffer_desc {
 #define TXD_FLAG_IP_CSUM		0x0002
 #define TXD_FLAG_END			0x0004
 #define TXD_FLAG_IP_FRAG		0x0008
+#define TXD_FLAG_JMB_PKT		0x0008
 #define TXD_FLAG_IP_FRAG_END		0x0010
 #define TXD_FLAG_VLAN			0x0040
 #define TXD_FLAG_COAL_NOW		0x0080
@@ -2520,7 +2531,7 @@ struct tg3_rx_prodring_set {
 	dma_addr_t			rx_jmb_mapping;
 };
 
-#define TG3_IRQ_MAX_VECS 1
+#define TG3_IRQ_MAX_VECS 5
 
 struct tg3_napi {
 	struct napi_struct		napi	____cacheline_aligned;
