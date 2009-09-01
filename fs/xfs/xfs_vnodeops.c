@@ -611,7 +611,7 @@ xfs_fsync(
 	xfs_inode_t	*ip)
 {
 	xfs_trans_t	*tp;
-	int		error;
+	int		error = 0;
 	int		log_flushed = 0, changed = 1;
 
 	xfs_itrace_entry(ip);
@@ -619,14 +619,9 @@ xfs_fsync(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return XFS_ERROR(EIO);
 
-	/* capture size updates in I/O completion before writing the inode. */
-	error = xfs_wait_on_pages(ip, 0, -1);
-	if (error)
-		return XFS_ERROR(error);
-
 	/*
 	 * We always need to make sure that the required inode state is safe on
-	 * disk.  The vnode might be clean but we still might need to force the
+	 * disk.  The inode might be clean but we still might need to force the
 	 * log because of committed transactions that haven't hit the disk yet.
 	 * Likewise, there could be unflushed non-transactional changes to the
 	 * inode core that have to go to disk and this requires us to issue
@@ -638,7 +633,7 @@ xfs_fsync(
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
-	if (!(ip->i_update_size || ip->i_update_core)) {
+	if (!ip->i_update_core) {
 		/*
 		 * Timestamps/size haven't changed since last inode flush or
 		 * inode transaction commit.  That means either nothing got

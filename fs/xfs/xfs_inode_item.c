@@ -263,14 +263,6 @@ xfs_inode_item_format(
 	}
 
 	/*
-	 * We don't have to worry about re-ordering here because
-	 * the update_size field is protected by the inode lock
-	 * and we have that held in exclusive mode.
-	 */
-	if (ip->i_update_size)
-		ip->i_update_size = 0;
-
-	/*
 	 * Make sure to get the latest atime from the Linux inode.
 	 */
 	xfs_synchronize_atime(ip);

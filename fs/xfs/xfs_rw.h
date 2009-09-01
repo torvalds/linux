@@ -68,7 +68,6 @@ xfs_get_extsz_hint(
  * Prototypes for functions in xfs_rw.c.
  */
 extern int xfs_write_clear_setuid(struct xfs_inode *ip);
-extern int xfs_write_sync_logforce(struct xfs_mount *mp, struct xfs_inode *ip);
 extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
 extern int xfs_bioerror(struct xfs_buf *bp);
 extern int xfs_bioerror_relse(struct xfs_buf *bp);
