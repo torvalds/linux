@@ -54,7 +54,7 @@ static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 	struct hlist_node *n;
 
 	hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[addr[5]], hlist) {
-		if (!compare_ether_addr(vlan->dev->dev_addr, addr))
+		if (!compare_ether_addr_64bits(vlan->dev->dev_addr, addr))
 			return vlan;
 	}
 	return NULL;
@@ -92,7 +92,7 @@ static int macvlan_addr_busy(const struct macvlan_port *port,
 	 * currently in use by the underlying device or
 	 * another macvlan.
 	 */
-	if (memcmp(port->dev->dev_addr, addr, ETH_ALEN) == 0)
+	if (!compare_ether_addr_64bits(port->dev->dev_addr, addr))
 		return 1;
 
 	if (macvlan_hash_lookup(port, addr))
@@ -130,7 +130,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 			dev->stats.multicast++;
 
 			nskb->dev = dev;
-			if (!compare_ether_addr(eth->h_dest, dev->broadcast))
+			if (!compare_ether_addr_64bits(eth->h_dest, dev->broadcast))
 				nskb->pkt_type = PACKET_BROADCAST;
 			else
 				nskb->pkt_type = PACKET_MULTICAST;
