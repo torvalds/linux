@@ -141,7 +141,7 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 		dev->bss_generation++;
 }
 
-static u8 *find_ie(u8 num, u8 *ies, size_t len)
+static u8 *find_ie(u8 num, u8 *ies, int len)
 {
 	while (len > 2 && ies[0] != num) {
 		len -= ies[1] + 2;
