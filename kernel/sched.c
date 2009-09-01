@@ -3699,14 +3699,46 @@ static inline int check_power_save_busiest_group(struct sd_lb_stats *sds,
 }
 #endif /* CONFIG_SCHED_MC || CONFIG_SCHED_SMT */
 
-static void update_sched_power(struct sched_domain *sd)
+unsigned long __weak arch_smt_gain(struct sched_domain *sd, int cpu)
+{
+	unsigned long weight = cpumask_weight(sched_domain_span(sd));
+	unsigned long smt_gain = sd->smt_gain;
+
+	smt_gain /= weight;
+
+	return smt_gain;
+}
+
+static void update_cpu_power(struct sched_domain *sd, int cpu)
+{
+	unsigned long weight = cpumask_weight(sched_domain_span(sd));
+	unsigned long power = SCHED_LOAD_SCALE;
+	struct sched_group *sdg = sd->groups;
+	unsigned long old = sdg->__cpu_power;
+
+	/* here we could scale based on cpufreq */
+
+	if ((sd->flags & SD_SHARE_CPUPOWER) && weight > 1) {
+		power *= arch_smt_gain(sd, cpu);
+		power >>= SCHED_LOAD_SHIFT;
+	}
+
+	/* here we could scale based on RT time */
+
+	if (power != old) {
+		sdg->__cpu_power = power;
+		sdg->reciprocal_cpu_power = reciprocal_value(power);
+	}
+}
+
+static void update_group_power(struct sched_domain *sd, int cpu)
 {
 	struct sched_domain *child = sd->child;
 	struct sched_group *group, *sdg = sd->groups;
 	unsigned long power = sdg->__cpu_power;
 
 	if (!child) {
-		/* compute cpu power for this cpu */
+		update_cpu_power(sd, cpu);
 		return;
 	}
 
@@ -3749,7 +3781,7 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 	if (local_group) {
 		balance_cpu = group_first_cpu(group);
 		if (balance_cpu == this_cpu)
-			update_sched_power(sd);
+			update_group_power(sd, this_cpu);
 	}
 
 	/* Tally up the load of all CPUs in the group */
