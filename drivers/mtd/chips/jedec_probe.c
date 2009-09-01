@@ -111,6 +111,11 @@
 #define I28F320B3B	0x8897
 #define I28F640B3T	0x8898
 #define I28F640B3B	0x8899
+#define I28F640C3B	0x88CD
+#define I28F160F3T	0x88F3
+#define I28F160F3B	0x88F4
+#define I28F160C3T	0x88C2
+#define I28F160C3B	0x88C3
 #define I82802AB	0x00ad
 #define I82802AC	0x00ac
 
@@ -1100,6 +1105,19 @@ static const struct amd_flash_info jedec_table[] = {
 		.regions	= {
 			ERASEINFO(0x10000, 127),
 			ERASEINFO(0x02000, 8),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_INTEL,
+		.dev_id		= I28F640C3B,
+		.name		= "Intel 28F640C3B",
+		.devtypes	= CFI_DEVICETYPE_X16,
+		.uaddr		= MTD_UADDR_UNNECESSARY,
+		.dev_size	= SIZE_8MiB,
+		.cmd_set	= P_ID_INTEL_STD,
+		.nr_regions	= 2,
+		.regions	= {
+			ERASEINFO(0x02000, 8),
+			ERASEINFO(0x10000, 127),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_INTEL,
