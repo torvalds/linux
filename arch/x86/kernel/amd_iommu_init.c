@@ -252,7 +252,7 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 /* Function to enable the hardware */
 static void iommu_enable(struct amd_iommu *iommu)
 {
-	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at %s cap 0x%hx\n",
+	printk(KERN_INFO "AMD-Vi: Enabling IOMMU at %s cap 0x%hx\n",
 	       dev_name(&iommu->dev->dev), iommu->cap_ptr);
 
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
@@ -902,7 +902,7 @@ static int __init iommu_setup_msi(struct amd_iommu *iommu)
 
 	r = request_irq(iommu->dev->irq, amd_iommu_int_handler,
 			IRQF_SAMPLE_RANDOM,
-			"AMD IOMMU",
+			"AMD-Vi",
 			NULL);
 
 	if (r) {
@@ -1150,7 +1150,7 @@ int __init amd_iommu_init(void)
 
 
 	if (no_iommu) {
-		printk(KERN_INFO "AMD IOMMU disabled by kernel command line\n");
+		printk(KERN_INFO "AMD-Vi disabled by kernel command line\n");
 		return 0;
 	}
 
@@ -1248,16 +1248,16 @@ int __init amd_iommu_init(void)
 
 	enable_iommus();
 
-	printk(KERN_INFO "AMD IOMMU: device isolation ");
+	printk(KERN_INFO "AMD-Vi: device isolation ");
 	if (amd_iommu_isolate)
 		printk("enabled\n");
 	else
 		printk("disabled\n");
 
 	if (amd_iommu_unmap_flush)
-		printk(KERN_INFO "AMD IOMMU: IO/TLB flush on unmap enabled\n");
+		printk(KERN_INFO "AMD-Vi: IO/TLB flush on unmap enabled\n");
 	else
-		printk(KERN_INFO "AMD IOMMU: Lazy IO/TLB flushing enabled\n");
+		printk(KERN_INFO "AMD-Vi: Lazy IO/TLB flushing enabled\n");
 
 out:
 	return ret;

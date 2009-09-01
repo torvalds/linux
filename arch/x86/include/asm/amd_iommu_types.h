@@ -198,7 +198,7 @@ extern bool amd_iommu_dump;
 #define DUMP_printk(format, arg...)					\
 	do {								\
 		if (amd_iommu_dump)						\
-			printk(KERN_INFO "AMD IOMMU: " format, ## arg);	\
+			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
 	} while(0);
 
 /*
