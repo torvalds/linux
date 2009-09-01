@@ -1458,7 +1458,7 @@ intel_sdvo_multifunc_encoder(struct intel_output *intel_output)
 		(SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_RGB1))
 		caps++;
 	if (sdvo_priv->caps.output_flags &
-		(SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_SVID0))
+		(SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_SVID1))
 		caps++;
 	if (sdvo_priv->caps.output_flags &
 		(SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_CVBS1))
@@ -1967,6 +1967,9 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 			intel_sdvo_set_colorimetry(intel_output,
 						   SDVO_COLORIMETRY_RGB256);
 			connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
+			intel_output->clone_mask =
+					(1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+					(1 << INTEL_ANALOG_CLONE_BIT);
 		}
 	} else if (flags & SDVO_OUTPUT_SVID0) {
 
@@ -1975,11 +1978,14 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		connector->connector_type = DRM_MODE_CONNECTOR_SVIDEO;
 		sdvo_priv->is_tv = true;
 		intel_output->needs_tv_clock = true;
+		intel_output->clone_mask = 1 << INTEL_SDVO_TV_CLONE_BIT;
 	} else if (flags & SDVO_OUTPUT_RGB0) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB0;
 		encoder->encoder_type = DRM_MODE_ENCODER_DAC;
 		connector->connector_type = DRM_MODE_CONNECTOR_VGA;
+		intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+					(1 << INTEL_ANALOG_CLONE_BIT);
 	} else if (flags & SDVO_OUTPUT_RGB1) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB1;
@@ -1991,12 +1997,16 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
 		connector->connector_type = DRM_MODE_CONNECTOR_LVDS;
 		sdvo_priv->is_lvds = true;
+		intel_output->clone_mask = (1 << INTEL_ANALOG_CLONE_BIT) |
+					(1 << INTEL_SDVO_LVDS_CLONE_BIT);
 	} else if (flags & SDVO_OUTPUT_LVDS1) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_LVDS1;
 		encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
 		connector->connector_type = DRM_MODE_CONNECTOR_LVDS;
 		sdvo_priv->is_lvds = true;
+		intel_output->clone_mask = (1 << INTEL_ANALOG_CLONE_BIT) |
+					(1 << INTEL_SDVO_LVDS_CLONE_BIT);
 	} else {
 
 		unsigned char bytes[2];
@@ -2009,6 +2019,7 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 				  bytes[0], bytes[1]);
 		ret = false;
 	}
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 
 	if (ret && registered)
 		ret = drm_sysfs_connector_add(connector) == 0 ? true : false;
