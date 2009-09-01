@@ -614,25 +614,33 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 
 static void tg3_disable_ints(struct tg3 *tp)
 {
+	int i;
+
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl | MISC_HOST_CTRL_MASK_PCI_INT));
-	tw32_mailbox_f(tp->napi[0].int_mbox, 0x00000001);
+	for (i = 0; i < tp->irq_max; i++)
+		tw32_mailbox_f(tp->napi[i].int_mbox, 0x00000001);
 }
 
 static void tg3_enable_ints(struct tg3 *tp)
 {
-	u32 coal_now;
-	struct tg3_napi *tnapi = &tp->napi[0];
+	int i;
+	u32 coal_now = 0;
+
 	tp->irq_sync = 0;
 	wmb();
 
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
-	tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
-	if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
-		tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
 
-	coal_now = tnapi->coal_now;
+	for (i = 0; i < tp->irq_cnt; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+		tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
+		if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
+			tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
+
+		coal_now |= tnapi->coal_now;
+	}
 
 	/* Force an initial interrupt */
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) &&
