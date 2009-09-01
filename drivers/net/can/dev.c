@@ -315,12 +315,28 @@ void can_get_echo_skb(struct net_device *dev, int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	if ((dev->flags & IFF_ECHO) && priv->echo_skb[idx]) {
+	if (priv->echo_skb[idx]) {
 		netif_rx(priv->echo_skb[idx]);
 		priv->echo_skb[idx] = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(can_get_echo_skb);
+
+/*
+  * Remove the skb from the stack and free it.
+  *
+  * The function is typically called when TX failed.
+  */
+void can_free_echo_skb(struct net_device *dev, int idx)
+{
+	struct can_priv *priv = netdev_priv(dev);
+
+	if (priv->echo_skb[idx]) {
+		kfree_skb(priv->echo_skb[idx]);
+		priv->echo_skb[idx] = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(can_free_echo_skb);
 
 /*
  * CAN device restart for bus-off recovery
