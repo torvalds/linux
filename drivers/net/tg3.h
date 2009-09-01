@@ -2538,6 +2538,7 @@ struct tg3_napi {
 
 	u32				consmbox;
 	u32				rx_rcb_ptr;
+	u16				*rx_rcb_prod_idx;
 
 	struct tg3_rx_buffer_desc	*rx_rcb;
 	struct tg3_tx_buffer_desc	*tx_ring;
