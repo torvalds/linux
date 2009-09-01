@@ -2516,7 +2516,7 @@ static void ixgbe_sfp_link_config(struct ixgbe_adapter *adapter)
 static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 {
 	u32 autoneg;
-	bool link_up = false;
+	bool negotiation, link_up = false;
 	u32 ret = IXGBE_ERR_LINK_SETUP;
 
 	if (hw->mac.ops.check_link)
@@ -2526,13 +2526,12 @@ static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 		goto link_cfg_out;
 
 	if (hw->mac.ops.get_link_capabilities)
-		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg,
-		                                        &hw->mac.autoneg);
+		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
 	if (ret)
 		goto link_cfg_out;
 
-	if (hw->mac.ops.setup_link_speed)
-		ret = hw->mac.ops.setup_link_speed(hw, autoneg, true, link_up);
+	if (hw->mac.ops.setup_link)
+		ret = hw->mac.ops.setup_link(hw, autoneg, negotiation, link_up);
 link_cfg_out:
 	return ret;
 }
@@ -4517,14 +4516,14 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	                                             multispeed_fiber_task);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 autoneg;
+	bool negotiation;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_LINK_TASK;
 	autoneg = hw->phy.autoneg_advertised;
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
-		hw->mac.ops.get_link_capabilities(hw, &autoneg,
-		                                  &hw->mac.autoneg);
-	if (hw->mac.ops.setup_link_speed)
-		hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
+		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
+	if (hw->mac.ops.setup_link)
+		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
 	adapter->flags &= ~IXGBE_FLAG_IN_SFP_LINK_TASK;
 }

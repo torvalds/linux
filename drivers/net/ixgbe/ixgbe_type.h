@@ -2332,9 +2332,7 @@ struct ixgbe_mac_operations {
 	s32 (*enable_rx_dma)(struct ixgbe_hw *, u32);
 
 	/* Link */
-	s32 (*setup_link)(struct ixgbe_hw *);
-	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool,
-	                        bool);
+	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool, bool);
 	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
 	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
 	                             bool *);
@@ -2406,8 +2404,6 @@ struct ixgbe_mac_info {
 	u32                             orig_autoc;
 	u32                             orig_autoc2;
 	bool                            orig_link_settings_stored;
-	bool                            autoneg;
-	bool                            autoneg_succeeded;
 	bool                            autotry_restart;
 };
 
@@ -2422,7 +2418,6 @@ struct ixgbe_phy_info {
 	enum ixgbe_media_type           media_type;
 	bool                            reset_disable;
 	ixgbe_autoneg_advertised        autoneg_advertised;
-	bool                            autoneg_wait_to_complete;
 	bool                            multispeed_fiber;
 };
 

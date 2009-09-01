@@ -233,11 +233,11 @@ static int ixgbe_set_settings(struct net_device *netdev,
 			return err;
 		/* this sets the link speed and restarts auto-neg */
 		hw->mac.autotry_restart = true;
-		err = hw->mac.ops.setup_link_speed(hw, advertised, true, true);
+		err = hw->mac.ops.setup_link(hw, advertised, true, true);
 		if (err) {
 			DPRINTK(PROBE, INFO,
 			        "setup link failed with code %d\n", err);
-			hw->mac.ops.setup_link_speed(hw, old, true, true);
+			hw->mac.ops.setup_link(hw, old, true, true);
 		}
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
