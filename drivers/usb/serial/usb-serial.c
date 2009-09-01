@@ -187,100 +187,92 @@ void usb_serial_put(struct usb_serial *serial)
  * Create the termios objects for this tty.  We use the default
  * USB serial settings but permit them to be overridden by
  * serial->type->init_termios.
+ *
+ * This is the first place a new tty gets used.  Hence this is where we
+ * acquire references to the usb_serial structure and the driver module,
+ * where we store a pointer to the port, and where we do an autoresume.
+ * All these actions are reversed in serial_do_free().
  */
 static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	int idx = tty->index;
 	struct usb_serial *serial;
-	int retval;
+	struct usb_serial_port *port;
+	int retval = -ENODEV;
+
+	serial = usb_serial_get_by_index(idx);
+	if (!serial)
+		return retval;
+
+	port = serial->port[idx - serial->minor];
+	if (!port)
+		goto error_no_port;
+	if (!try_module_get(serial->type->driver.owner))
+		goto error_module_get;
+
+	retval = usb_autopm_get_interface(serial->interface);
+	if (retval)
+		goto error_get_interface;
 
 	/* If the termios setup has yet to be done */
 	if (tty->driver->termios[idx] == NULL) {
 		/* perform the standard setup */
 		retval = tty_init_termios(tty);
 		if (retval)
-			return retval;
+			goto error_init_termios;
 		/* allow the driver to update it */
-		serial = usb_serial_get_by_index(tty->index);
-		if (serial) {
-			if (serial->type->init_termios)
-				serial->type->init_termios(tty);
-			usb_serial_put(serial);
-			mutex_unlock(&serial->disc_mutex);
-		}
+		if (serial->type->init_termios)
+			serial->type->init_termios(tty);
 	}
+	mutex_unlock(&serial->disc_mutex);
+
+	tty->driver_data = port;
+
 	/* Final install (we use the default method) */
 	tty_driver_kref_get(driver);
 	tty->count++;
 	driver->ttys[idx] = tty;
-	return 0;
+	return retval;
+
+ error_init_termios:
+	usb_autopm_put_interface(serial->interface);
+ error_get_interface:
+	module_put(serial->type->driver.owner);
+ error_module_get:
+ error_no_port:
+	usb_serial_put(serial);
+	mutex_unlock(&serial->disc_mutex);
+	return retval;
 }
 
 static int serial_open (struct tty_struct *tty, struct file *filp)
 {
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
-	unsigned int portNumber;
 	int retval = 0;
 	int first = 0;
 
 	dbg("%s", __func__);
 
-	/* get the serial object associated with this tty pointer */
-	serial = usb_serial_get_by_index(tty->index);
-	if (!serial) {
-		tty->driver_data = NULL;
-		return -ENODEV;
-	}
+	port = tty->driver_data;
+	serial = port->serial;
 
-	portNumber = tty->index - serial->minor;
-	port = serial->port[portNumber];
-	if (!port || serial->disconnected)
-		retval = -ENODEV;
-	/*
-	 * Note: Our locking order requirement does not allow port->mutex
-	 * to be acquired while serial->disc_mutex is held.
-	 */
-	mutex_unlock(&serial->disc_mutex);
-	if (retval)
-		goto bailout_serial_put;
-
-	if (mutex_lock_interruptible(&port->mutex)) {
-		retval = -ERESTARTSYS;
-		goto bailout_serial_put;
-	}
+	if (mutex_lock_interruptible(&port->mutex))
+		return -ERESTARTSYS;
 
 	++port->port.count;
-
-	/* set up our port structure making the tty driver
-	 * remember our port object, and us it */
-	tty->driver_data = port;
 	tty_port_tty_set(&port->port, tty);
 
 	/* If the console is attached, the device is already open */
 	if (port->port.count == 1 && !port->console) {
 		first = 1;
-		/* lock this module before we call it
-		 * this may fail, which means we must bail out,
-		 * safe because we are called with BKL held */
-		if (!try_module_get(serial->type->driver.owner)) {
-			retval = -ENODEV;
-			goto bailout_mutex_unlock;
-		}
-
 		mutex_lock(&serial->disc_mutex);
-		if (serial->disconnected)
-			retval = -ENODEV;
-		else
-			retval = usb_autopm_get_interface(serial->interface);
-		if (retval)
-			goto bailout_module_put;
 
 		/* only call the device specific open if this
 		 * is the first time the port is opened */
 		retval = serial->type->open(tty, port);
 		if (retval)
-			goto bailout_interface_put;
+			goto bailout_module_put;
 		mutex_unlock(&serial->disc_mutex);
 		set_bit(ASYNCB_INITIALIZED, &port->port.flags);
 	}
@@ -297,18 +289,11 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 		goto bailout_mutex_unlock;
 	/* Undo the initial port actions */
 	mutex_lock(&serial->disc_mutex);
-bailout_interface_put:
-	usb_autopm_put_interface(serial->interface);
 bailout_module_put:
 	mutex_unlock(&serial->disc_mutex);
-	module_put(serial->type->driver.owner);
 bailout_mutex_unlock:
 	port->port.count = 0;
-	tty->driver_data = NULL;
-	tty_port_tty_set(&port->port, NULL);
 	mutex_unlock(&port->mutex);
-bailout_serial_put:
-	usb_serial_put(serial);
 	return retval;
 }
 
@@ -355,9 +340,6 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	if (!port)
-		return;
-
 	dbg("%s - port %d", __func__, port->number);
 
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
@@ -365,7 +347,6 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 	serial_do_down(port);
 	tty_port_close_end(&port->port, tty);
 	tty_port_tty_set(&port->port, NULL);
-
 }
 
 /**
@@ -386,8 +367,10 @@ static void serial_do_free(struct tty_struct *tty)
 	/* The console is magical.  Do not hang up the console hardware
 	 * or there will be tears.
 	 */
-	if (port == NULL || port->console)
+	if (port->console)
 		return;
+
+	tty->driver_data = NULL;
 
 	serial = port->serial;
 	owner = serial->type->driver.owner;
