@@ -2239,8 +2239,7 @@ S:	Maintained
 F:	drivers/media/video/gspca/pac207.c
 
 GSPCA SN9C20X SUBDRIVER
-P:	Brian Johnson
-M:	brijohn@gmail.com
+M:	Brian Johnson <brijohn@gmail.com>
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
