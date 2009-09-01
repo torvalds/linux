@@ -81,6 +81,7 @@ static void sh7705_flush_icache_range(void *args)
 static void __flush_dcache_page(unsigned long phys)
 {
 	unsigned long ways, waysize, addrstart;
+	unsigned long flags;
 
 	phys |= SH_CACHE_VALID;
 
@@ -97,6 +98,7 @@ static void __flush_dcache_page(unsigned long phys)
 	 * potential cache aliasing, therefore the optimisation is probably not
 	 * possible.
 	 */
+	local_irq_save(flags);
 	jump_to_uncached();
 
 	ways = current_cpu_data.dcache.ways;
@@ -124,6 +126,7 @@ static void __flush_dcache_page(unsigned long phys)
 	} while (--ways);
 
 	back_to_cached();
+	local_irq_restore(flags);
 }
 
 /*
@@ -142,9 +145,14 @@ static void sh7705_flush_dcache_page(void *page)
 
 static void sh7705_flush_cache_all(void *args)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	jump_to_uncached();
+
 	cache_wback_all();
 	back_to_cached();
+	local_irq_restore(flags);
 }
 
 /*

@@ -48,44 +48,48 @@ static void sh4_flush_icache_range(void *args)
 	struct flusher_data *data = args;
 	int icacheaddr;
 	unsigned long start, end;
-	unsigned long v;
+	unsigned long flags, v;
 	int i;
 
 	start = data->addr1;
 	end = data->addr2;
 
-	/* If there are too many pages then just blow the caches */
-	if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
-		local_flush_cache_all(args);
-	} else {
-		/* selectively flush d-cache then invalidate the i-cache */
-		/* this is inefficient, so only use for small ranges */
-		start &= ~(L1_CACHE_BYTES-1);
-		end += L1_CACHE_BYTES-1;
-		end &= ~(L1_CACHE_BYTES-1);
+       /* If there are too many pages then just blow the caches */
+        if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
+                local_flush_cache_all(args);
+       } else {
+               /* selectively flush d-cache then invalidate the i-cache */
+               /* this is inefficient, so only use for small ranges */
+               start &= ~(L1_CACHE_BYTES-1);
+               end += L1_CACHE_BYTES-1;
+               end &= ~(L1_CACHE_BYTES-1);
 
-		jump_to_uncached();
+               local_irq_save(flags);
+               jump_to_uncached();
 
-		for (v = start; v < end; v+=L1_CACHE_BYTES) {
-			__ocbwb(v);
+               for (v = start; v < end; v+=L1_CACHE_BYTES) {
+                       asm volatile("ocbwb     %0"
+                                    : /* no output */
+                                    : "m" (__m(v)));
 
-			icacheaddr = CACHE_IC_ADDRESS_ARRAY |
-				(v & cpu_data->icache.entry_mask);
+                       icacheaddr = CACHE_IC_ADDRESS_ARRAY | (
+                                       v & cpu_data->icache.entry_mask);
 
-			for (i = 0; i < cpu_data->icache.ways;
-				i++, icacheaddr += cpu_data->icache.way_incr)
-				/* Clear i-cache line valid-bit */
-				ctrl_outl(0, icacheaddr);
-		}
+                       for (i = 0; i < cpu_data->icache.ways;
+                               i++, icacheaddr += cpu_data->icache.way_incr)
+                                       /* Clear i-cache line valid-bit */
+                                       ctrl_outl(0, icacheaddr);
+               }
 
 		back_to_cached();
+		local_irq_restore(flags);
 	}
 }
 
 static inline void flush_cache_4096(unsigned long start,
 				    unsigned long phys)
 {
-	unsigned long exec_offset = 0;
+	unsigned long flags, exec_offset = 0;
 
 	/*
 	 * All types of SH-4 require PC to be in P2 to operate on the I-cache.
@@ -95,8 +99,10 @@ static inline void flush_cache_4096(unsigned long start,
 	    (start < CACHE_OC_ADDRESS_ARRAY))
 		exec_offset = 0x20000000;
 
+	local_irq_save(flags);
 	__flush_cache_4096(start | SH_CACHE_ASSOC,
 			   P1SEGADDR(phys), exec_offset);
+	local_irq_restore(flags);
 }
 
 /*
@@ -130,8 +136,9 @@ static void sh4_flush_dcache_page(void *arg)
 /* TODO: Selective icache invalidation through IC address array.. */
 static void __uses_jump_to_uncached flush_icache_all(void)
 {
-	unsigned long ccr;
+	unsigned long flags, ccr;
 
+	local_irq_save(flags);
 	jump_to_uncached();
 
 	/* Flush I-cache */
@@ -143,7 +150,9 @@ static void __uses_jump_to_uncached flush_icache_all(void)
 	 * back_to_cached() will take care of the barrier for us, don't add
 	 * another one!
 	 */
+
 	back_to_cached();
+	local_irq_restore(flags);
 }
 
 static inline void flush_dcache_all(void)

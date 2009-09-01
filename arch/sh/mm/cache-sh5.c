@@ -34,21 +34,27 @@ static inline void
 sh64_setup_dtlb_cache_slot(unsigned long eaddr, unsigned long asid,
 			   unsigned long paddr)
 {
+	local_irq_disable();
 	sh64_setup_tlb_slot(dtlb_cache_slot, eaddr, asid, paddr);
 }
 
 static inline void sh64_teardown_dtlb_cache_slot(void)
 {
 	sh64_teardown_tlb_slot(dtlb_cache_slot);
+	local_irq_enable();
 }
 
 static inline void sh64_icache_inv_all(void)
 {
 	unsigned long long addr, flag, data;
+	unsigned long flags;
 
 	addr = ICCR0;
 	flag = ICCR0_ICI;
 	data = 0;
+
+	/* Make this a critical section for safety (probably not strictly necessary.) */
+	local_irq_save(flags);
 
 	/* Without %1 it gets unexplicably wrong */
 	__asm__ __volatile__ (
@@ -58,6 +64,8 @@ static inline void sh64_icache_inv_all(void)
 		"synci"
 		: "=&r" (data)
 		: "0" (data), "r" (flag), "r" (addr));
+
+	local_irq_restore(flags);
 }
 
 static void sh64_icache_inv_kernel_range(unsigned long start, unsigned long end)
@@ -82,6 +90,7 @@ static void sh64_icache_inv_user_page(struct vm_area_struct *vma, unsigned long 
 	   Also, eaddr is page-aligned. */
 	unsigned int cpu = smp_processor_id();
 	unsigned long long addr, end_addr;
+	unsigned long flags = 0;
 	unsigned long running_asid, vma_asid;
 	addr = eaddr;
 	end_addr = addr + PAGE_SIZE;
@@ -102,9 +111,10 @@ static void sh64_icache_inv_user_page(struct vm_area_struct *vma, unsigned long 
 
 	running_asid = get_asid();
 	vma_asid = cpu_asid(cpu, vma->vm_mm);
-	if (running_asid != vma_asid)
+	if (running_asid != vma_asid) {
+		local_irq_save(flags);
 		switch_and_save_asid(vma_asid);
-
+	}
 	while (addr < end_addr) {
 		/* Worth unrolling a little */
 		__asm__ __volatile__("icbi %0,  0" : : "r" (addr));
@@ -113,9 +123,10 @@ static void sh64_icache_inv_user_page(struct vm_area_struct *vma, unsigned long 
 		__asm__ __volatile__("icbi %0, 96" : : "r" (addr));
 		addr += 128;
 	}
-
-	if (running_asid != vma_asid)
+	if (running_asid != vma_asid) {
 		switch_and_save_asid(running_asid);
+		local_irq_restore(flags);
+	}
 }
 
 static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
@@ -148,12 +159,16 @@ static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
 		unsigned long eaddr;
 		unsigned long after_last_page_start;
 		unsigned long mm_asid, current_asid;
+		unsigned long flags = 0;
 
 		mm_asid = cpu_asid(smp_processor_id(), mm);
 		current_asid = get_asid();
 
-		if (mm_asid != current_asid)
+		if (mm_asid != current_asid) {
+			/* Switch ASID and run the invalidate loop under cli */
+			local_irq_save(flags);
 			switch_and_save_asid(mm_asid);
+		}
 
 		aligned_start = start & PAGE_MASK;
 		after_last_page_start = PAGE_SIZE + ((end - 1) & PAGE_MASK);
@@ -179,8 +194,10 @@ static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
 			aligned_start = vma->vm_end; /* Skip to start of next region */
 		}
 
-		if (mm_asid != current_asid)
+		if (mm_asid != current_asid) {
 			switch_and_save_asid(current_asid);
+			local_irq_restore(flags);
+		}
 	}
 }
 
