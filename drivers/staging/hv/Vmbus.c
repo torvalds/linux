@@ -51,66 +51,6 @@ static const struct hv_guid gVmbusDeviceId = {
 static struct hv_driver *gDriver; /* vmbus driver object */
 static struct hv_device *gDevice; /* vmbus root device */
 
-static void VmbusGetChannelInterface(struct vmbus_channel_interface *Interface);
-static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
-				struct hv_device_info *DeviceInfo);
-static void VmbusGetChannelOffers(void);
-static int VmbusOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo);
-static int VmbusOnDeviceRemove(struct hv_device *dev);
-static void VmbusOnCleanup(struct hv_driver *drv);
-static int VmbusOnISR(struct hv_driver *drv);
-static void VmbusOnMsgDPC(struct hv_driver *drv);
-static void VmbusOnEventDPC(struct hv_driver *drv);
-
-/**
- * VmbusInitialize - Main entry point
- */
-int VmbusInitialize(struct hv_driver *drv)
-{
-	struct vmbus_driver *driver = (struct vmbus_driver *)drv;
-	int ret;
-
-	DPRINT_ENTER(VMBUS);
-
-	DPRINT_INFO(VMBUS, "+++++++ Build Date=%s %s +++++++",
-			VersionDate, VersionTime);
-	DPRINT_INFO(VMBUS, "+++++++ Build Description=%s +++++++",
-			VersionDesc);
-	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
-			VMBUS_REVISION_NUMBER);
-	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
-			VMBUS_MESSAGE_SINT);
-	DPRINT_DBG(VMBUS, "sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER)=%zd, "
-			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
-			sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER),
-			sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
-
-	drv->name = gDriverName;
-	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
-
-	/* Setup dispatch table */
-	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
-	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
-	driver->Base.OnCleanup		= VmbusOnCleanup;
-	driver->OnIsr			= VmbusOnISR;
-	driver->OnMsgDpc		= VmbusOnMsgDPC;
-	driver->OnEventDpc		= VmbusOnEventDPC;
-	driver->GetChannelOffers	= VmbusGetChannelOffers;
-	driver->GetChannelInterface	= VmbusGetChannelInterface;
-	driver->GetChannelInfo		= VmbusGetChannelInfo;
-
-	/* Hypervisor initialization...setup hypercall page..etc */
-	ret = HvInit();
-	if (ret != 0)
-		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
-				ret);
-	gDriver = drv;
-
-	DPRINT_EXIT(VMBUS);
-
-	return ret;
-}
-
 /**
  * VmbusGetChannelOffers - Retrieve the channel offers from the parent partition
  */
@@ -318,5 +258,54 @@ static int VmbusOnISR(struct hv_driver *drv)
 	}
 
 	DPRINT_EXIT(VMBUS);
+	return ret;
+}
+
+/**
+ * VmbusInitialize - Main entry point
+ */
+int VmbusInitialize(struct hv_driver *drv)
+{
+	struct vmbus_driver *driver = (struct vmbus_driver *)drv;
+	int ret;
+
+	DPRINT_ENTER(VMBUS);
+
+	DPRINT_INFO(VMBUS, "+++++++ Build Date=%s %s +++++++",
+			VersionDate, VersionTime);
+	DPRINT_INFO(VMBUS, "+++++++ Build Description=%s +++++++",
+			VersionDesc);
+	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
+			VMBUS_REVISION_NUMBER);
+	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
+			VMBUS_MESSAGE_SINT);
+	DPRINT_DBG(VMBUS, "sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER)=%zd, "
+			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
+			sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER),
+			sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
+
+	drv->name = gDriverName;
+	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
+
+	/* Setup dispatch table */
+	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
+	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
+	driver->Base.OnCleanup		= VmbusOnCleanup;
+	driver->OnIsr			= VmbusOnISR;
+	driver->OnMsgDpc		= VmbusOnMsgDPC;
+	driver->OnEventDpc		= VmbusOnEventDPC;
+	driver->GetChannelOffers	= VmbusGetChannelOffers;
+	driver->GetChannelInterface	= VmbusGetChannelInterface;
+	driver->GetChannelInfo		= VmbusGetChannelInfo;
+
+	/* Hypervisor initialization...setup hypercall page..etc */
+	ret = HvInit();
+	if (ret != 0)
+		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
+				ret);
+	gDriver = drv;
+
+	DPRINT_EXIT(VMBUS);
+
 	return ret;
 }
