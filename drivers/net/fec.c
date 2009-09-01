@@ -427,7 +427,7 @@ fec_enet_tx(struct net_device *dev)
 	struct	sk_buff	*skb;
 
 	fep = netdev_priv(dev);
-	spin_lock_irq(&fep->hw_lock);
+	spin_lock(&fep->hw_lock);
 	bdp = fep->dirty_tx;
 
 	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
@@ -486,7 +486,7 @@ fec_enet_tx(struct net_device *dev)
 		}
 	}
 	fep->dirty_tx = bdp;
-	spin_unlock_irq(&fep->hw_lock);
+	spin_unlock(&fep->hw_lock);
 }
 
 
@@ -509,7 +509,7 @@ fec_enet_rx(struct net_device *dev)
 	flush_cache_all();
 #endif
 
-	spin_lock_irq(&fep->hw_lock);
+	spin_lock(&fep->hw_lock);
 
 	/* First, grab all of the stats for the incoming packet.
 	 * These get messed up if we get called due to a busy condition.
@@ -604,7 +604,7 @@ rx_processing_done:
 	}
 	fep->cur_rx = bdp;
 
-	spin_unlock_irq(&fep->hw_lock);
+	spin_unlock(&fep->hw_lock);
 }
 
 /* called from interrupt context */
@@ -615,7 +615,7 @@ fec_enet_mii(struct net_device *dev)
 	mii_list_t	*mip;
 
 	fep = netdev_priv(dev);
-	spin_lock_irq(&fep->mii_lock);
+	spin_lock(&fep->mii_lock);
 
 	if ((mip = mii_head) == NULL) {
 		printk("MII and no head!\n");
@@ -633,7 +633,7 @@ fec_enet_mii(struct net_device *dev)
 		writel(mip->mii_regval, fep->hwp + FEC_MII_DATA);
 
 unlock:
-	spin_unlock_irq(&fep->mii_lock);
+	spin_unlock(&fep->mii_lock);
 }
 
 static int
