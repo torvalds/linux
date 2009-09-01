@@ -3623,14 +3623,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	kvm_guest_enter();
 
-	get_debugreg(vcpu->arch.host_dr6, 6);
-	get_debugreg(vcpu->arch.host_dr7, 7);
 	if (unlikely(vcpu->arch.switch_db_regs)) {
-		get_debugreg(vcpu->arch.host_db[0], 0);
-		get_debugreg(vcpu->arch.host_db[1], 1);
-		get_debugreg(vcpu->arch.host_db[2], 2);
-		get_debugreg(vcpu->arch.host_db[3], 3);
-
 		set_debugreg(0, 7);
 		set_debugreg(vcpu->arch.eff_db[0], 0);
 		set_debugreg(vcpu->arch.eff_db[1], 1);
@@ -3641,15 +3634,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	trace_kvm_entry(vcpu->vcpu_id);
 	kvm_x86_ops->run(vcpu, kvm_run);
 
-	if (unlikely(vcpu->arch.switch_db_regs)) {
-		set_debugreg(0, 7);
-		set_debugreg(vcpu->arch.host_db[0], 0);
-		set_debugreg(vcpu->arch.host_db[1], 1);
-		set_debugreg(vcpu->arch.host_db[2], 2);
-		set_debugreg(vcpu->arch.host_db[3], 3);
+	if (unlikely(vcpu->arch.switch_db_regs || test_thread_flag(TIF_DEBUG))) {
+		set_debugreg(current->thread.debugreg0, 0);
+		set_debugreg(current->thread.debugreg1, 1);
+		set_debugreg(current->thread.debugreg2, 2);
+		set_debugreg(current->thread.debugreg3, 3);
+		set_debugreg(current->thread.debugreg6, 6);
+		set_debugreg(current->thread.debugreg7, 7);
 	}
-	set_debugreg(vcpu->arch.host_dr6, 6);
-	set_debugreg(vcpu->arch.host_dr7, 7);
 
 	set_bit(KVM_REQ_KICK, &vcpu->requests);
 	local_irq_enable();

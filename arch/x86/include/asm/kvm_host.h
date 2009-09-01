@@ -362,9 +362,6 @@ struct kvm_vcpu_arch {
 	u32 pat;
 
 	int switch_db_regs;
-	unsigned long host_db[KVM_NR_DB_REGS];
-	unsigned long host_dr6;
-	unsigned long host_dr7;
 	unsigned long db[KVM_NR_DB_REGS];
 	unsigned long dr6;
 	unsigned long dr7;
