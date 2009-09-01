@@ -858,7 +858,7 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 		switch (*p) {
 		case ACPI_IVHD_TYPE:
 
-			DUMP_printk("IOMMU: device: %02x:%02x.%01x cap: %04x "
+			DUMP_printk("device: %02x:%02x.%01x cap: %04x "
 				    "seg: %d flags: %01x info %04x\n",
 				    PCI_BUS(h->devid), PCI_SLOT(h->devid),
 				    PCI_FUNC(h->devid), h->cap_ptr,
