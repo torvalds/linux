@@ -1,6 +1,8 @@
 TODO:
 	- fix checkpatch warnings/errors
 	- fix sparse issues
+	- remove List.h usage to use in-kernel list.h instead
+	- remove RingBuffer.c to us in-kernel ringbuffer functions instead.
 	- fix HANDLE usage to be "real" pointers
 	- audit the vmbus to verify it is working properly with the
 	  driver model
