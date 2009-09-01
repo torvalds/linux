@@ -169,7 +169,7 @@ BUILD_TRAP_HANDLER(breakpoint);
 BUILD_TRAP_HANDLER(singlestep);
 BUILD_TRAP_HANDLER(fpu_error);
 BUILD_TRAP_HANDLER(fpu_state_restore);
-BUILD_TRAP_HANDLER(unwinder);
+BUILD_TRAP_HANDLER(nmi);
 
 #ifdef CONFIG_BUG
 extern void handle_BUG(struct pt_regs *);

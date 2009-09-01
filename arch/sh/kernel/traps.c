@@ -5,6 +5,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
 #include <asm/unwinder.h>
 #include <asm/system.h>
 
@@ -90,4 +91,24 @@ BUILD_TRAP_HANDLER(bug)
 #endif
 
 	force_sig(SIGTRAP, current);
+}
+
+BUILD_TRAP_HANDLER(nmi)
+{
+	TRAP_HANDLER_DECL;
+
+	nmi_enter();
+
+	switch (notify_die(DIE_NMI, "NMI", regs, 0, vec & 0xff, SIGINT)) {
+	case NOTIFY_OK:
+	case NOTIFY_STOP:
+		break;
+	case NOTIFY_BAD:
+		die("Fatal Non-Maskable Interrupt", regs, SIGINT);
+	default:
+		printk(KERN_ALERT "Got NMI, but nobody cared. Ignoring...\n");
+		break;
+	}
+
+	nmi_exit();
 }

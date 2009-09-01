@@ -532,7 +532,33 @@ ENTRY(handle_interrupt)
 	mov.l	2f, r4
 	mov.l	3f, r9
 	mov.l	@r4, r4		! pass INTEVT vector as arg0
+
+	shlr2	r4
+	shlr	r4
+	mov	r4, r0		! save vector->jmp table offset for later
+
+	shlr2	r4		! vector to IRQ# conversion
+	add	#-0x10, r4
+
+	cmp/pz	r4		! is it a valid IRQ?
+	bt	10f
+
+	/*
+	 * We got here as a result of taking the INTEVT path for something
+	 * that isn't a valid hard IRQ, therefore we bypass the do_IRQ()
+	 * path and special case the event dispatch instead.  This is the
+	 * expected path for the NMI (and any other brilliantly implemented
+	 * exception), which effectively wants regular exception dispatch
+	 * but is unfortunately reported through INTEVT rather than
+	 * EXPEVT.  Grr.
+	 */
+	mov.l	6f, r9
+	mov.l	@(r0, r9), r9
 	jmp	@r9
+	 mov	r15, r8		! trap handlers take saved regs in r8
+
+10:
+	jmp	@r9		! Off to do_IRQ() we go.
 	 mov	r15, r5		! pass saved registers as arg1
 
 ENTRY(exception_none)
