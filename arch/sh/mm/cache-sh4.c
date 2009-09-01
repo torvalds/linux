@@ -25,13 +25,14 @@
 #define MAX_DCACHE_PAGES	64	/* XXX: Tune for ways */
 #define MAX_ICACHE_PAGES	32
 
+static void __flush_dcache_segment_writethrough(unsigned long start,
+						unsigned long extent);
 static void __flush_dcache_segment_1way(unsigned long start,
 					unsigned long extent);
 static void __flush_dcache_segment_2way(unsigned long start,
 					unsigned long extent);
 static void __flush_dcache_segment_4way(unsigned long start,
 					unsigned long extent);
-
 static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset);
 
@@ -95,9 +96,16 @@ static void __init emit_cache_params(void)
  */
 void __init p3_cache_init(void)
 {
+	unsigned int wt_enabled = !!(__raw_readl(CCR) & CCR_CACHE_WT);
+
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);
 	compute_alias(&boot_cpu_data.scache);
+
+	if (wt_enabled) {
+		__flush_dcache_segment_fn = __flush_dcache_segment_writethrough;
+		goto out;
+	}
 
 	switch (boot_cpu_data.dcache.ways) {
 	case 1:
@@ -114,6 +122,7 @@ void __init p3_cache_init(void)
 		break;
 	}
 
+out:
 	emit_cache_params();
 }
 
@@ -607,6 +616,23 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
  * - If caches are disabled or configured in write-through mode, then
  *   the movca.l writes garbage directly into memory.
  */
+static void __flush_dcache_segment_writethrough(unsigned long start,
+					        unsigned long extent_per_way)
+{
+	unsigned long addr;
+	int i;
+
+	addr = CACHE_OC_ADDRESS_ARRAY | (start & cpu_data->dcache.entry_mask);
+
+	while (extent_per_way) {
+		for (i = 0; i < cpu_data->dcache.ways; i++)
+			__raw_writel(0, addr + cpu_data->dcache.way_incr * i);
+
+		addr += cpu_data->dcache.linesz;
+		extent_per_way -= cpu_data->dcache.linesz;
+	}
+}
+
 static void __flush_dcache_segment_1way(unsigned long start,
 					unsigned long extent_per_way)
 {
@@ -655,25 +681,6 @@ static void __flush_dcache_segment_1way(unsigned long start,
 	} while (a0 < a0e);
 }
 
-#ifdef CONFIG_CACHE_WRITETHROUGH
-/* This method of cache flushing avoids the problems discussed
- * in the comment above if writethrough caches are enabled. */
-static void __flush_dcache_segment_2way(unsigned long start,
-					unsigned long extent_per_way)
-{
-	unsigned long array_addr;
-
-	array_addr = CACHE_OC_ADDRESS_ARRAY |
-		(start & cpu_data->dcache.entry_mask);
-
-	while (extent_per_way) {
-		ctrl_outl(0, array_addr);
-		ctrl_outl(0, array_addr + cpu_data->dcache.way_incr);
-		array_addr += cpu_data->dcache.linesz;
-		extent_per_way -= cpu_data->dcache.linesz;
-	}
-}
-#else
 static void __flush_dcache_segment_2way(unsigned long start,
 					unsigned long extent_per_way)
 {
@@ -732,7 +739,6 @@ static void __flush_dcache_segment_2way(unsigned long start,
 		a1 += linesz;
 	} while (a0 < a0e);
 }
-#endif
 
 static void __flush_dcache_segment_4way(unsigned long start,
 					unsigned long extent_per_way)
