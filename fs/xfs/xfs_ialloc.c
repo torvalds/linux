@@ -59,7 +59,7 @@ xfs_ialloc_cluster_alignment(
 /*
  * Lookup a record by ino in the btree given by cur.
  */
-STATIC int				/* error */
+int					/* error */
 xfs_inobt_lookup(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agino_t		ino,	/* starting inode of chunk */
