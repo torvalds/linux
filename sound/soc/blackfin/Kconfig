@@ -88,6 +88,14 @@ config SND_BF5XX_SOC_AC97
 	select SND_SOC_AC97_BUS
 	select SND_BF5XX_SOC_SPORT
 
+config SND_BF5XX_SOC_AD1836
+	tristate "SoC AD1836 Audio support for BF5xx"
+	depends on SND_BF5XX_TDM
+	select SND_BF5XX_SOC_TDM
+	select SND_SOC_AD1836
+	help
+	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
+
 config SND_BF5XX_SOC_AD1980
 	tristate "SoC AD1980/1 Audio support for BF5xx"
 	depends on SND_BF5XX_AC97
