@@ -1031,6 +1031,7 @@
 #define  HOSTCC_MODE_CLRTICK_TXBD	 0x00000400
 #define  HOSTCC_MODE_NOINT_ON_NOW	 0x00000800
 #define  HOSTCC_MODE_NOINT_ON_FORCE	 0x00001000
+#define  HOSTCC_MODE_COAL_VEC1_NOW	 0x00002000
 #define HOSTCC_STATUS			0x00003c04
 #define  HOSTCC_STATUS_ERROR_ATTN	 0x00000004
 #define HOSTCC_RXCOL_TICKS		0x00003c08
@@ -2497,6 +2498,7 @@ struct tg3_napi {
 	u32				last_tag;
 	u32				last_irq_tag;
 	u32				int_mbox;
+	u32				coal_now;
 	u32				tx_prod;
 	u32				tx_cons;
 	u32				tx_pending;

@@ -631,7 +631,7 @@ static void tg3_enable_ints(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
 		tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
 
-	coal_now = HOSTCC_MODE_NOW;
+	coal_now = tnapi->coal_now;
 
 	/* Force an initial interrupt */
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) &&
@@ -682,7 +682,7 @@ static void tg3_int_reenable(struct tg3_napi *tnapi)
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) &&
 	    tg3_has_work(tnapi))
 		tw32(HOSTCC_MODE, tp->coalesce_mode |
-		     (HOSTCC_MODE_ENABLE | HOSTCC_MODE_NOW));
+		     HOSTCC_MODE_ENABLE | tnapi->coal_now);
 }
 
 static inline void tg3_netif_stop(struct tg3 *tp)
@@ -7622,7 +7622,7 @@ static void tg3_timer(unsigned long __opaque)
 			     tp->grc_local_ctrl | GRC_LCLCTRL_SETINT);
 		} else {
 			tw32(HOSTCC_MODE, tp->coalesce_mode |
-			     (HOSTCC_MODE_ENABLE | HOSTCC_MODE_NOW));
+			     HOSTCC_MODE_ENABLE | HOSTCC_MODE_NOW);
 		}
 
 		if (!(tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
@@ -7765,7 +7765,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	tg3_enable_ints(tp);
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
-	       HOSTCC_MODE_NOW);
+	       tnapi->coal_now);
 
 	for (i = 0; i < 5; i++) {
 		u32 int_mbox, misc_host_ctrl;
@@ -9840,7 +9840,7 @@ static int tg3_test_memory(struct tg3 *tp)
 static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 {
 	u32 mac_mode, rx_start_idx, rx_idx, tx_idx, opaque_key;
-	u32 desc_idx;
+	u32 desc_idx, coal_now;
 	struct sk_buff *skb, *rx_skb;
 	u8 *tx_data;
 	dma_addr_t map;
@@ -9851,6 +9851,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 	tnapi = &tp->napi[0];
 	rnapi = &tp->napi[0];
+	coal_now = tnapi->coal_now | rnapi->coal_now;
 
 	if (loopback_mode == TG3_MAC_LOOPBACK) {
 		/* HW errata - mac loopback fails in some cases on 5780.
@@ -9929,7 +9930,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	map = pci_map_single(tp->pdev, skb->data, tx_len, PCI_DMA_TODEVICE);
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
-	     HOSTCC_MODE_NOW);
+	       rnapi->coal_now);
 
 	udelay(10);
 
@@ -9950,7 +9951,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	/* 250 usec to allow enough time on some 10/100 Mbps devices.  */
 	for (i = 0; i < 25; i++) {
 		tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
-		       HOSTCC_MODE_NOW);
+		       coal_now);
 
 		udelay(10);
 
@@ -13428,6 +13429,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->napi[0].int_mbox = MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW;
 	tp->napi[0].consmbox = MAILBOX_RCVRET_CON_IDX_0 + TG3_64BIT_REG_LOW;
 	tp->napi[0].prodmbox = MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW;
+	tp->napi[0].coal_now = HOSTCC_MODE_NOW;
 	tp->napi[0].tx_pending = TG3_DEF_TX_RING_PENDING;
 	netif_napi_add(dev, &tp->napi[0].napi, tg3_poll, 64);
 	dev->ethtool_ops = &tg3_ethtool_ops;
