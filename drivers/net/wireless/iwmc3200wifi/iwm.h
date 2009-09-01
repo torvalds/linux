@@ -64,6 +64,7 @@
 struct iwm_conf {
 	u32 sdio_ior_timeout;
 	unsigned long calib_map;
+	unsigned long expected_calib_map;
 	bool reset_on_fatal_err;
 	bool auto_connect;
 	bool wimax_not_present;
