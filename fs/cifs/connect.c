@@ -1415,17 +1415,17 @@ cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
 		case AF_INET6:
 			if (ipv6_addr_equal(&addr6->sin6_addr,
 			    &server->addr.sockAddr6.sin6_addr) &&
-			    (addr6->sin6_scope_id == 
+			    (addr6->sin6_scope_id ==
 			    server->addr.sockAddr6.sin6_scope_id)) {
 				addr6->sin6_port = htons(port);
 				/* user overrode default port? */
 				if (addr6->sin6_port) {
-				       if (addr6->sin6_port !=
+					if (addr6->sin6_port !=
 					   server->addr.sockAddr6.sin6_port)
-					       continue;
+						continue;
 				}
 				break;
-			} else 
+			} else
 				continue;
 		}
 
@@ -2657,9 +2657,9 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		return -EIO;
 
 	smb_buffer = cifs_buf_get();
-	if (smb_buffer == NULL) {
+	if (smb_buffer == NULL)
 		return -ENOMEM;
-	}
+
 	smb_buffer_response = smb_buffer;
 
 	header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
