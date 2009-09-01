@@ -262,8 +262,28 @@ int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
-	/* FIXME: implement */
-	return 0;
+	struct drm_radeon_gem_busy *args = data;
+	struct drm_gem_object *gobj;
+	struct radeon_object *robj;
+	int r;
+	uint32_t cur_placement;
+
+	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	if (gobj == NULL) {
+		return -EINVAL;
+	}
+	robj = gobj->driver_private;
+	r = radeon_object_busy_domain(robj, &cur_placement);
+	if (cur_placement == TTM_PL_VRAM)
+		args->domain = RADEON_GEM_DOMAIN_VRAM;
+	if (cur_placement == TTM_PL_FLAG_TT)
+		args->domain = RADEON_GEM_DOMAIN_GTT;
+	if (cur_placement == TTM_PL_FLAG_SYSTEM)
+		args->domain = RADEON_GEM_DOMAIN_CPU;
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(gobj);
+	mutex_unlock(&dev->struct_mutex);
+	return r;
 }
 
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,

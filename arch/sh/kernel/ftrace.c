@@ -283,8 +283,6 @@ static struct syscall_metadata *find_syscall_meta(unsigned long *syscall)
 	return NULL;
 }
 
-#define FTRACE_SYSCALL_MAX	(NR_syscalls - 1)
-
 struct syscall_metadata *syscall_nr_to_meta(int nr)
 {
 	if (!syscalls_metadata || nr >= FTRACE_SYSCALL_MAX || nr < 0)

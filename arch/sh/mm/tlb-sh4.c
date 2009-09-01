@@ -43,9 +43,12 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	 */
 	ctrl_outl(pte.pte_high, MMU_PTEA);
 #else
-	if (cpu_data->flags & CPU_HAS_PTEA)
-		/* TODO: make this look less hacky */
-		ctrl_outl(((pteval >> 28) & 0xe) | (pteval & 0x1), MMU_PTEA);
+	if (cpu_data->flags & CPU_HAS_PTEA) {
+		/* The last 3 bits and the first one of pteval contains
+		 * the PTEA timing control and space attribute bits
+		 */
+		ctrl_outl(copy_ptea_attributes(pteval), MMU_PTEA);
+	}
 #endif
 
 	/* Set PTEL register */

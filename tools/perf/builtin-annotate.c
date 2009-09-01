@@ -980,6 +980,13 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 		(void *)(long)(event->header.size),
 		event->fork.pid, event->fork.ppid);
 
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
 	if (!thread || !parent || thread__fork(thread, parent)) {
 		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
 		return -1;

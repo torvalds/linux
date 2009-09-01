@@ -6226,7 +6226,7 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 			};
 
 			u8 channel;
-			while (channel_index < IPW_SCAN_CHANNELS) {
+			while (channel_index < IPW_SCAN_CHANNELS - 1) {
 				channel =
 				    priv->speed_scan[priv->speed_scan_pos];
 				if (channel == 0) {

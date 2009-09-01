@@ -316,6 +316,25 @@ int radeon_object_wait(struct radeon_object *robj)
 	return r;
 }
 
+int radeon_object_busy_domain(struct radeon_object *robj, uint32_t *cur_placement)
+{
+	int r = 0;
+
+	r = radeon_object_reserve(robj, true);
+	if (unlikely(r != 0)) {
+		DRM_ERROR("radeon: failed to reserve object for waiting.\n");
+		return r;
+	}
+	spin_lock(&robj->tobj.lock);
+	*cur_placement = robj->tobj.mem.mem_type;
+	if (robj->tobj.sync_obj) {
+		r = ttm_bo_wait(&robj->tobj, true, true, true);
+	}
+	spin_unlock(&robj->tobj.lock);
+	radeon_object_unreserve(robj);
+	return r;
+}
+
 int radeon_object_evict_vram(struct radeon_device *rdev)
 {
 	if (rdev->flags & RADEON_IS_IGP) {

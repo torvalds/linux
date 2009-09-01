@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 #include <asm/unwinder.h>
 #include <asm/atomic.h>
 
@@ -52,8 +53,6 @@ static struct list_head unwinder_list = {
 };
 
 static DEFINE_SPINLOCK(unwinder_lock);
-
-static atomic_t unwinder_running = ATOMIC_INIT(0);
 
 /**
  * select_unwinder - Select the best registered stack unwinder.
@@ -122,6 +121,8 @@ int unwinder_register(struct unwinder *u)
 	return ret;
 }
 
+int unwinder_faulted = 0;
+
 /*
  * Unwind the call stack and pass information to the stacktrace_ops
  * functions. Also handle the case where we need to switch to a new
@@ -144,19 +145,20 @@ void unwind_stack(struct task_struct *task, struct pt_regs *regs,
 	 * Hopefully this will give us a semi-reliable stacktrace so we
 	 * can diagnose why curr_unwinder->dump() faulted.
 	 */
-	if (atomic_inc_return(&unwinder_running) != 1) {
+	if (unwinder_faulted) {
 		spin_lock_irqsave(&unwinder_lock, flags);
 
-		if (!list_is_singular(&unwinder_list)) {
+		/* Make sure no one beat us to changing the unwinder */
+		if (unwinder_faulted && !list_is_singular(&unwinder_list)) {
 			list_del(&curr_unwinder->list);
 			curr_unwinder = select_unwinder();
+
+			unwinder_faulted = 0;
 		}
 
 		spin_unlock_irqrestore(&unwinder_lock, flags);
-		atomic_dec(&unwinder_running);
 	}
 
 	curr_unwinder->dump(task, regs, sp, ops, data);
-
-	atomic_dec(&unwinder_running);
 }
+EXPORT_SYMBOL_GPL(unwind_stack);

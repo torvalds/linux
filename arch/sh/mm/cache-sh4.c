@@ -455,7 +455,49 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
  * Break the 1, 2 and 4 way variants of this out into separate functions to
  * avoid nearly all the overhead of having the conditional stuff in the function
  * bodies (+ the 1 and 2 way cases avoid saving any registers too).
+ *
+ * We want to eliminate unnecessary bus transactions, so this code uses
+ * a non-obvious technique.
+ *
+ * Loop over a cache way sized block of, one cache line at a time. For each
+ * line, use movca.a to cause the current cache line contents to be written
+ * back, but without reading anything from main memory. However this has the
+ * side effect that the cache is now caching that memory location. So follow
+ * this with a cache invalidate to mark the cache line invalid. And do all
+ * this with interrupts disabled, to avoid the cache line being accidently
+ * evicted while it is holding garbage.
+ *
+ * This also breaks in a number of circumstances:
+ * - if there are modifications to the region of memory just above
+ *   empty_zero_page (for example because a breakpoint has been placed
+ *   there), then these can be lost.
+ *
+ *   This is because the the memory address which the cache temporarily
+ *   caches in the above description is empty_zero_page. So the
+ *   movca.l hits the cache (it is assumed that it misses, or at least
+ *   isn't dirty), modifies the line and then invalidates it, losing the
+ *   required change.
+ *
+ * - If caches are disabled or configured in write-through mode, then
+ *   the movca.l writes garbage directly into memory.
  */
+static void __flush_dcache_segment_writethrough(unsigned long start,
+					        unsigned long extent_per_way)
+{
+	unsigned long addr;
+	int i;
+
+	addr = CACHE_OC_ADDRESS_ARRAY | (start & cpu_data->dcache.entry_mask);
+
+	while (extent_per_way) {
+		for (i = 0; i < cpu_data->dcache.ways; i++)
+			__raw_writel(0, addr + cpu_data->dcache.way_incr * i);
+
+		addr += cpu_data->dcache.linesz;
+		extent_per_way -= cpu_data->dcache.linesz;
+	}
+}
+
 static void __flush_dcache_segment_1way(unsigned long start,
 					unsigned long extent_per_way)
 {
@@ -655,24 +697,30 @@ extern void __weak sh4__flush_region_init(void);
  */
 void __init sh4_cache_init(void)
 {
+	unsigned int wt_enabled = !!(__raw_readl(CCR) & CCR_CACHE_WT);
+
 	printk("PVR=%08x CVR=%08x PRR=%08x\n",
 		ctrl_inl(CCN_PVR),
 		ctrl_inl(CCN_CVR),
 		ctrl_inl(CCN_PRR));
 
-	switch (boot_cpu_data.dcache.ways) {
-	case 1:
-		__flush_dcache_segment_fn = __flush_dcache_segment_1way;
-		break;
-	case 2:
-		__flush_dcache_segment_fn = __flush_dcache_segment_2way;
-		break;
-	case 4:
-		__flush_dcache_segment_fn = __flush_dcache_segment_4way;
-		break;
-	default:
-		panic("unknown number of cache ways\n");
-		break;
+	if (wt_enabled)
+		__flush_dcache_segment_fn = __flush_dcache_segment_writethrough;
+	else {
+		switch (boot_cpu_data.dcache.ways) {
+		case 1:
+			__flush_dcache_segment_fn = __flush_dcache_segment_1way;
+			break;
+		case 2:
+			__flush_dcache_segment_fn = __flush_dcache_segment_2way;
+			break;
+		case 4:
+			__flush_dcache_segment_fn = __flush_dcache_segment_4way;
+			break;
+		default:
+			panic("unknown number of cache ways\n");
+			break;
+		}
 	}
 
 	local_flush_icache_range	= sh4_flush_icache_range;

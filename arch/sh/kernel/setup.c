@@ -405,10 +405,14 @@ void __init setup_arch(char **cmdline_p)
 	if (!memory_end)
 		memory_end = memory_start + __MEMORY_SIZE;
 
-#ifdef CONFIG_CMDLINE_BOOL
+#ifdef CONFIG_CMDLINE_OVERWRITE
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));
 #else
 	strlcpy(command_line, COMMAND_LINE, sizeof(command_line));
+#ifdef CONFIG_CMDLINE_EXTEND
+	strlcat(command_line, " ", sizeof(command_line));
+	strlcat(command_line, CONFIG_CMDLINE, sizeof(command_line));
+#endif
 #endif
 
 	/* Save unparsed command line copy for /proc/cmdline */
@@ -482,7 +486,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7763]	= "SH7763",	[CPU_SH7770]	= "SH7770",
 	[CPU_SH7780]	= "SH7780",	[CPU_SH7781]	= "SH7781",
 	[CPU_SH7343]	= "SH7343",	[CPU_SH7785]	= "SH7785",
-	[CPU_SH7786]	= "SH7786",
+	[CPU_SH7786]	= "SH7786",	[CPU_SH7757]	= "SH7757",
 	[CPU_SH7722]	= "SH7722",	[CPU_SHX3]	= "SH-X3",
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",

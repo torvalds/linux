@@ -182,6 +182,9 @@ static struct platform_device lcdc_device = {
 	.dev		= {
 		.platform_data	= &lcdc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
+	},
 };
 
 /* CEU0 */
@@ -213,6 +216,9 @@ static struct platform_device ceu0_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu0_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU0,
+	},
 };
 
 /* CEU1 */
@@ -243,6 +249,9 @@ static struct platform_device ceu1_device = {
 	.resource	= ceu1_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu1_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU1,
 	},
 };
 
@@ -282,6 +291,9 @@ static struct platform_device keysc_device = {
 	.dev	= {
 		.platform_data	= &keysc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
+	},
 };
 
 /* SH Eth */
@@ -310,6 +322,9 @@ static struct platform_device sh_eth_device = {
 	},
 	.num_resources = ARRAY_SIZE(sh_eth_resources),
 	.resource = sh_eth_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_ETHER,
+	},
 };
 
 static struct r8a66597_platdata sh7724_usb0_host_data = {
@@ -319,7 +334,7 @@ static struct r8a66597_platdata sh7724_usb0_host_data = {
 static struct resource sh7724_usb0_host_resources[] = {
 	[0] = {
 		.start	= 0xa4d80000,
-		.end	= 0xa4d800ff,
+		.end	= 0xa4d80124 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -339,6 +354,38 @@ static struct platform_device sh7724_usb0_host_device = {
 	},
 	.num_resources	= ARRAY_SIZE(sh7724_usb0_host_resources),
 	.resource	= sh7724_usb0_host_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_USB0,
+	},
+};
+
+static struct r8a66597_platdata sh7724_usb1_gadget_data = {
+	.on_chip = 1,
+};
+
+static struct resource sh7724_usb1_gadget_resources[] = {
+	[0] = {
+		.start	= 0xa4d90000,
+		.end	= 0xa4d90123,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 66,
+		.end	= 66,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
+	},
+};
+
+static struct platform_device sh7724_usb1_gadget_device = {
+	.name		= "r8a66597_udc",
+	.id		= 1, /* USB1 */
+	.dev = {
+		.dma_mask		= NULL,         /*  not use dma */
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &sh7724_usb1_gadget_data,
+	},
+	.num_resources	= ARRAY_SIZE(sh7724_usb1_gadget_resources),
+	.resource	= sh7724_usb1_gadget_resources,
 };
 
 static struct platform_device *ms7724se_devices[] __initdata = {
@@ -351,6 +398,7 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&keysc_device,
 	&sh_eth_device,
 	&sh7724_usb0_host_device,
+	&sh7724_usb1_gadget_device,
 };
 
 #define EEPROM_OP   0xBA206000
@@ -458,6 +506,9 @@ static int __init devices_setup(void)
 
 	/* enable USB0 port */
 	ctrl_outw(0x0600, 0xa40501d4);
+
+	/* enable USB1 port */
+	ctrl_outw(0x0600, 0xa4050192);
 
 	/* enable IRQ 0,1,2 */
 	gpio_request(GPIO_FN_INTC_IRQ0, NULL);

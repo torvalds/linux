@@ -195,8 +195,6 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	regs->gbr = gdb_regs[GDB_GBR];
 	regs->mach = gdb_regs[GDB_MACH];
 	regs->macl = gdb_regs[GDB_MACL];
-
-	__asm__ __volatile__ ("ldc %0, vbr" : : "r" (gdb_regs[GDB_VBR]));
 }
 
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)

@@ -169,6 +169,11 @@ BUILD_TRAP_HANDLER(breakpoint);
 BUILD_TRAP_HANDLER(singlestep);
 BUILD_TRAP_HANDLER(fpu_error);
 BUILD_TRAP_HANDLER(fpu_state_restore);
+BUILD_TRAP_HANDLER(unwinder);
+
+#ifdef CONFIG_BUG
+extern void handle_BUG(struct pt_regs *);
+#endif
 
 #define arch_align_stack(x) (x)
 

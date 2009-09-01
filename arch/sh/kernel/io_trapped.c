@@ -284,7 +284,8 @@ int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 		return 0;
 	}
 
-	tmp = handle_unaligned_access(instruction, regs, &trapped_io_access);
+	tmp = handle_unaligned_access(instruction, regs,
+				      &trapped_io_access, 1);
 	set_fs(oldfs);
 	return tmp == 0;
 }

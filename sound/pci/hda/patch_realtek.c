@@ -12521,12 +12521,19 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 			   ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
 	SND_PCI_QUIRK(0x1170, 0x0040, "ZEPTO", ALC268_ZEPTO),
-	SND_PCI_QUIRK_MASK(0x1179, 0xff00, 0xff00, "TOSHIBA A/Lx05",
-			   ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x14c0, 0x0025, "COMPAL IFL90/JFL-92", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x152d, 0x0763, "Diverse (CPR2000)", ALC268_ACER),
 	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
 	SND_PCI_QUIRK(0x1854, 0x1775, "LG R510", ALC268_DELL),
+	{}
+};
+
+/* Toshiba laptops have no unique PCI SSID but only codec SSID */
+static struct snd_pci_quirk alc268_ssid_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1179, 0xff0a, "TOSHIBA X-200", ALC268_AUTO),
+	SND_PCI_QUIRK(0x1179, 0xff0e, "TOSHIBA X-200 HDMI", ALC268_AUTO),
+	SND_PCI_QUIRK_MASK(0x1179, 0xff00, 0xff00, "TOSHIBA A/Lx05",
+			   ALC268_TOSHIBA),
 	{}
 };
 
@@ -12695,6 +12702,10 @@ static int patch_alc268(struct hda_codec *codec)
 	board_config = snd_hda_check_board_config(codec, ALC268_MODEL_LAST,
 						  alc268_models,
 						  alc268_cfg_tbl);
+
+	if (board_config < 0 || board_config >= ALC268_MODEL_LAST)
+		board_config = snd_hda_check_board_codec_sid_config(codec,
+			ALC882_MODEL_LAST, alc268_models, alc268_ssid_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC268_MODEL_LAST) {
 		printk(KERN_INFO "hda_codec: Unknown model for %s, "

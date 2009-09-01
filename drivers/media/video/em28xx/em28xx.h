@@ -484,6 +484,9 @@ struct em28xx {
 	int sensor_xres, sensor_yres;
 	int sensor_xtal;
 
+	/* Allows progressive (e. g. non-interlaced) mode */
+	int progressive;
+
 	/* Vinmode/Vinctl used at the driver */
 	int vinmode, vinctl;
 

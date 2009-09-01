@@ -144,8 +144,15 @@ int __init detect_cpu_and_cache_system(void)
 		}
 		break;
 	case 0x300b:
-		boot_cpu_data.type = CPU_SH7724;
-		boot_cpu_data.flags |= CPU_HAS_L2_CACHE;
+		switch (prr) {
+		case 0x20:
+			boot_cpu_data.type = CPU_SH7724;
+			boot_cpu_data.flags |= CPU_HAS_L2_CACHE;
+			break;
+		case 0x50:
+			boot_cpu_data.type = CPU_SH7757;
+			break;
+		}
 		break;
 	case 0x4000:	/* 1st cut */
 	case 0x4001:	/* 2nd cut */

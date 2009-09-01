@@ -49,6 +49,7 @@
 #include <linux/acpi.h>
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
+#include <linux/security.h>
 #include <linux/slow-work.h>
 #include <linux/perf_counter.h>
 
@@ -1306,10 +1307,10 @@ static struct ctl_table vm_table[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "mmap_min_addr",
-		.data		= &mmap_min_addr,
-		.maxlen         = sizeof(unsigned long),
+		.data		= &dac_mmap_min_addr,
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &mmap_min_addr_handler,
 	},
 #ifdef CONFIG_NUMA
 	{

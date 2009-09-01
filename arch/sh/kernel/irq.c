@@ -14,7 +14,6 @@
 #include <asm/processor.h>
 #include <asm/machvec.h>
 #include <asm/uaccess.h>
-#include <asm/dwarf.h>
 #include <asm/thread_info.h>
 #include <cpu/mmu_context.h>
 
@@ -115,7 +114,7 @@ asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs)
 #endif
 
 	irq_enter();
-	irq = irq_demux(intc_evt2irq(irq));
+	irq = irq_demux(evt2irq(irq));
 
 #ifdef CONFIG_IRQSTACKS
 	curctx = (union irq_ctx *)current_thread_info();
@@ -262,9 +261,6 @@ void __init init_IRQ(void)
 		sh_mv.mv_init_irq();
 
 	irq_ctx_init(smp_processor_id());
-
-	/* This needs to be early, but not too early.. */
-	dwarf_unwinder_init();
 }
 
 #ifdef CONFIG_SPARSE_IRQ
