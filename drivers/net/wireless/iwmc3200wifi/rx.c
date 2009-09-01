@@ -514,6 +514,7 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		/* Internal roaming state, avoid notifying SME. */
 		if (!test_and_clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status)
 		    && iwm->conf.mode == UMAC_MODE_BSS) {
+			cancel_delayed_work(&iwm->disconnect);
 			cfg80211_roamed(iwm_to_ndev(iwm),
 					complete->bssid,
 					iwm->req_ie, iwm->req_ie_len,
@@ -540,8 +541,10 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 
 		/* Internal roaming state, avoid notifying SME. */
 		if (!test_and_clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status)
-		    && iwm->conf.mode == UMAC_MODE_BSS)
+		    && iwm->conf.mode == UMAC_MODE_BSS) {
+			cancel_delayed_work(&iwm->disconnect);
 			break;
+		}
 
 		iwm_link_off(iwm);
 
@@ -569,11 +572,18 @@ static int iwm_mlme_profile_invalidate(struct iwm_priv *iwm, u8 *buf,
 				       struct iwm_wifi_cmd *cmd)
 {
 	struct iwm_umac_notif_profile_invalidate *invalid;
+	u32 reason;
 
 	invalid = (struct iwm_umac_notif_profile_invalidate *)buf;
+	reason = le32_to_cpu(invalid->reason);
 
-	IWM_DBG_MLME(iwm, INFO, "Profile Invalidated. Reason: %d\n",
-		     le32_to_cpu(invalid->reason));
+	IWM_DBG_MLME(iwm, INFO, "Profile Invalidated. Reason: %d\n", reason);
+
+	if (reason != UMAC_PROFILE_INVALID_REQUEST &&
+	    test_bit(IWM_STATUS_SME_CONNECTING, &iwm->status))
+		cfg80211_connect_result(iwm_to_ndev(iwm), NULL, NULL, 0, NULL,
+					0, WLAN_STATUS_UNSPECIFIED_FAILURE,
+					GFP_KERNEL);
 
 	clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status);
 	clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
@@ -585,6 +595,19 @@ static int iwm_mlme_profile_invalidate(struct iwm_priv *iwm, u8 *buf,
 	iwm_link_off(iwm);
 
 	wake_up_interruptible(&iwm->mlme_queue);
+
+	return 0;
+}
+
+#define IWM_DISCONNECT_INTERVAL	(5 * HZ)
+
+static int iwm_mlme_connection_terminated(struct iwm_priv *iwm, u8 *buf,
+					  unsigned long buf_size,
+					  struct iwm_wifi_cmd *cmd)
+{
+	IWM_DBG_MLME(iwm, DBG, "Connection terminated\n");
+
+	schedule_delayed_work(&iwm->disconnect, IWM_DISCONNECT_INTERVAL);
 
 	return 0;
 }
@@ -848,8 +871,7 @@ static int iwm_ntf_mlme(struct iwm_priv *iwm, u8 *buf,
 	case WIFI_IF_NTFY_PROFILE_INVALIDATE_COMPLETE:
 		return iwm_mlme_profile_invalidate(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_CONNECTION_TERMINATED:
-		IWM_DBG_MLME(iwm, DBG, "Connection terminated\n");
-		break;
+		return iwm_mlme_connection_terminated(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_SCAN_COMPLETE:
 		return iwm_mlme_scan_complete(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_STA_TABLE_CHANGE:

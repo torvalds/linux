@@ -108,6 +108,26 @@ static void iwm_statistics_request(struct work_struct *work)
 	iwm_send_umac_stats_req(iwm, 0);
 }
 
+static void iwm_disconnect_work(struct work_struct *work)
+{
+	struct iwm_priv *iwm =
+		container_of(work, struct iwm_priv, disconnect.work);
+
+	if (iwm->umac_profile_active)
+		iwm_invalidate_mlme_profile(iwm);
+
+	clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
+	iwm->umac_profile_active = 0;
+	memset(iwm->bssid, 0, ETH_ALEN);
+	iwm->channel = 0;
+
+	iwm_link_off(iwm);
+
+	wake_up_interruptible(&iwm->mlme_queue);
+
+	cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0, GFP_KERNEL);
+}
+
 int __iwm_up(struct iwm_priv *iwm);
 int __iwm_down(struct iwm_priv *iwm);
 
@@ -198,6 +218,7 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	spin_lock_init(&iwm->cmd_lock);
 	iwm->scan_id = 1;
 	INIT_DELAYED_WORK(&iwm->stats_request, iwm_statistics_request);
+	INIT_DELAYED_WORK(&iwm->disconnect, iwm_disconnect_work);
 	INIT_WORK(&iwm->reset_worker, iwm_reset_worker);
 	INIT_LIST_HEAD(&iwm->bss_list);
 
