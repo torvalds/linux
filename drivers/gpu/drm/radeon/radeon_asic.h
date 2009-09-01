@@ -42,6 +42,7 @@ void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
 int r100_init(struct radeon_device *rdev);
+int r200_init(struct radeon_device *rdev);
 uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void r100_errata(struct radeon_device *rdev);

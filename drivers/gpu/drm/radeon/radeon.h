@@ -604,8 +604,14 @@ struct radeon_asic {
 	void (*bandwidth_update)(struct radeon_device *rdev);
 };
 
+struct r100_asic {
+	const unsigned	*reg_safe_bm;
+	unsigned	reg_safe_bm_size;
+};
+
 union radeon_asic_config {
 	struct r300_asic	r300;
+	struct r100_asic	r100;
 };
 
 
