@@ -1117,7 +1117,8 @@
 #define HOSTCC_SND_CON_IDX_13		0x00003cf4
 #define HOSTCC_SND_CON_IDX_14		0x00003cf8
 #define HOSTCC_SND_CON_IDX_15		0x00003cfc
-/* 0x3d00 --> 0x4000 unused */
+#define HOSTCC_STATBLCK_RING1		0x00003d00
+/* 0x3d04 --> 0x4000 unused */
 
 /* Memory arbiter control registers */
 #define MEMARB_MODE			0x00004000
