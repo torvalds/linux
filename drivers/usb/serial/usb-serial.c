@@ -245,55 +245,40 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	return retval;
 }
 
-static int serial_open (struct tty_struct *tty, struct file *filp)
+static int serial_open(struct tty_struct *tty, struct file *filp)
 {
-	struct usb_serial *serial;
-	struct usb_serial_port *port;
-	int retval = 0;
-	int first = 0;
-
-	port = tty->driver_data;
-	serial = port->serial;
+	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial *serial = port->serial;
+	int retval;
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (mutex_lock_interruptible(&port->mutex))
-		return -ERESTARTSYS;
-
-	++port->port.count;
+	spin_lock_irq(&port->port.lock);
+	if (!tty_hung_up_p(filp))
+		++port->port.count;
+	spin_unlock_irq(&port->port.lock);
 	tty_port_tty_set(&port->port, tty);
 
-	/* If the console is attached, the device is already open */
-	if (port->port.count == 1 && !port->console) {
-		first = 1;
+	/* Do the device-specific open only if the hardware isn't
+	 * already initialized.
+	 */
+	if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags)) {
+		if (mutex_lock_interruptible(&port->mutex))
+			return -ERESTARTSYS;
 		mutex_lock(&serial->disc_mutex);
-
-		/* only call the device specific open if this
-		 * is the first time the port is opened */
-		retval = serial->type->open(tty, port);
-		if (retval)
-			goto bailout_module_put;
+		if (serial->disconnected)
+			retval = -ENODEV;
+		else
+			retval = port->serial->type->open(tty, port);
 		mutex_unlock(&serial->disc_mutex);
+		mutex_unlock(&port->mutex);
+		if (retval)
+			return retval;
 		set_bit(ASYNCB_INITIALIZED, &port->port.flags);
 	}
-	mutex_unlock(&port->mutex);
+
 	/* Now do the correct tty layer semantics */
 	retval = tty_port_block_til_ready(&port->port, tty, filp);
-	if (retval == 0) {
-		if (!first)
-			usb_serial_put(serial);
-		return 0;
-	}
-	mutex_lock(&port->mutex);
-	if (first == 0)
-		goto bailout_mutex_unlock;
-	/* Undo the initial port actions */
-	mutex_lock(&serial->disc_mutex);
-bailout_module_put:
-	mutex_unlock(&serial->disc_mutex);
-bailout_mutex_unlock:
-	port->port.count = 0;
-	mutex_unlock(&port->mutex);
 	return retval;
 }
 
