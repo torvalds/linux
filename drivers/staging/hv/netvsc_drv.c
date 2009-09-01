@@ -39,19 +39,6 @@
 
 MODULE_LICENSE("GPL");
 
-static int netvsc_probe(struct device *device);
-static int netvsc_remove(struct device *device);
-static int netvsc_open(struct net_device *net);
-static void netvsc_xmit_completion(void *context);
-static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net);
-static int netvsc_recv_callback(struct hv_device *device_obj,
-				struct hv_netvsc_packet *Packet);
-static int netvsc_close(struct net_device *net);
-static struct net_device_stats *netvsc_get_stats(struct net_device *net);
-static void netvsc_linkstatus_callback(struct hv_device *device_obj,
-				       unsigned int status);
-
-
 struct net_device_context {
 	/* point back to our device context */
 	struct device_context *device_ctx;
@@ -70,38 +57,6 @@ static int netvsc_ringbuffer_size = NETVSC_DEVICE_RING_BUFFER_SIZE;
 /* The one and only one */
 static struct netvsc_driver_context g_netvsc_drv;
 
-static int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
-{
-	struct netvsc_driver *net_drv_obj = &g_netvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
-	int ret;
-
-	DPRINT_ENTER(NETVSC_DRV);
-
-	vmbus_get_interface(&net_drv_obj->Base.VmbusChannelInterface);
-
-	net_drv_obj->RingBufferSize = netvsc_ringbuffer_size;
-	net_drv_obj->OnReceiveCallback = netvsc_recv_callback;
-	net_drv_obj->OnLinkStatusChanged = netvsc_linkstatus_callback;
-
-	/* Callback to client driver to complete the initialization */
-	pfn_drv_init(&net_drv_obj->Base);
-
-	drv_ctx->driver.name = net_drv_obj->Base.name;
-	memcpy(&drv_ctx->class_id, &net_drv_obj->Base.deviceType,
-	       sizeof(struct hv_guid));
-
-	drv_ctx->probe = netvsc_probe;
-	drv_ctx->remove = netvsc_remove;
-
-	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(drv_ctx);
-
-	DPRINT_EXIT(NETVSC_DRV);
-
-	return ret;
-}
-
 static struct net_device_stats *netvsc_get_stats(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
@@ -111,132 +66,6 @@ static struct net_device_stats *netvsc_get_stats(struct net_device *net)
 
 static void netvsc_set_multicast_list(struct net_device *net)
 {
-}
-
-static const struct net_device_ops device_ops = {
-	.ndo_open =			netvsc_open,
-	.ndo_stop =			netvsc_close,
-	.ndo_start_xmit =		netvsc_start_xmit,
-	.ndo_get_stats =		netvsc_get_stats,
-	.ndo_set_multicast_list =	netvsc_set_multicast_list,
-};
-
-static int netvsc_probe(struct device *device)
-{
-	struct driver_context *driver_ctx =
-		driver_to_driver_context(device->driver);
-	struct netvsc_driver_context *net_drv_ctx =
-		(struct netvsc_driver_context *)driver_ctx;
-	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
-	struct net_device *net = NULL;
-	struct net_device_context *net_device_ctx;
-	struct netvsc_device_info device_info;
-	int ret;
-
-	DPRINT_ENTER(NETVSC_DRV);
-
-	if (!net_drv_obj->Base.OnDeviceAdd)
-		return -1;
-
-	net = alloc_netdev(sizeof(struct net_device_context), "seth%d",
-			   ether_setup);
-	if (!net)
-		return -1;
-
-	/* Set initial state */
-	netif_carrier_off(net);
-	netif_stop_queue(net);
-
-	net_device_ctx = netdev_priv(net);
-	net_device_ctx->device_ctx = device_ctx;
-	dev_set_drvdata(device, net);
-
-	/* Notify the netvsc driver of the new device */
-	ret = net_drv_obj->Base.OnDeviceAdd(device_obj, &device_info);
-	if (ret != 0) {
-		free_netdev(net);
-		dev_set_drvdata(device, NULL);
-
-		DPRINT_ERR(NETVSC_DRV, "unable to add netvsc device (ret %d)",
-			   ret);
-		return ret;
-	}
-
-	/*
-	 * If carrier is still off ie we did not get a link status callback,
-	 * update it if necessary
-	 */
-	/*
-	 * FIXME: We should use a atomic or test/set instead to avoid getting
-	 * out of sync with the device's link status
-	 */
-	if (!netif_carrier_ok(net))
-		if (!device_info.LinkState)
-			netif_carrier_on(net);
-
-	memcpy(net->dev_addr, device_info.MacAddr, ETH_ALEN);
-
-	net->netdev_ops = &device_ops;
-
-	SET_NETDEV_DEV(net, device);
-
-	ret = register_netdev(net);
-	if (ret != 0) {
-		/* Remove the device and release the resource */
-		net_drv_obj->Base.OnDeviceRemove(device_obj);
-		free_netdev(net);
-	}
-
-	DPRINT_EXIT(NETVSC_DRV);
-	return ret;
-}
-
-static int netvsc_remove(struct device *device)
-{
-	struct driver_context *driver_ctx =
-		driver_to_driver_context(device->driver);
-	struct netvsc_driver_context *net_drv_ctx =
-		(struct netvsc_driver_context *)driver_ctx;
-	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
-	int ret;
-
-	DPRINT_ENTER(NETVSC_DRV);
-
-	if (net == NULL) {
-		DPRINT_INFO(NETVSC, "no net device to remove");
-		DPRINT_EXIT(NETVSC_DRV);
-		return 0;
-	}
-
-	if (!net_drv_obj->Base.OnDeviceRemove) {
-		DPRINT_EXIT(NETVSC_DRV);
-		return -1;
-	}
-
-	/* Stop outbound asap */
-	netif_stop_queue(net);
-	/* netif_carrier_off(net); */
-
-	unregister_netdev(net);
-
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
-	ret = net_drv_obj->Base.OnDeviceRemove(device_obj);
-	if (ret != 0) {
-		/* TODO: */
-		DPRINT_ERR(NETVSC, "unable to remove vsc device (ret %d)", ret);
-	}
-
-	free_netdev(net);
-	DPRINT_EXIT(NETVSC_DRV);
-	return ret;
 }
 
 static int netvsc_open(struct net_device *net)
@@ -556,6 +385,132 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	return 0;
 }
 
+static const struct net_device_ops device_ops = {
+	.ndo_open =			netvsc_open,
+	.ndo_stop =			netvsc_close,
+	.ndo_start_xmit =		netvsc_start_xmit,
+	.ndo_get_stats =		netvsc_get_stats,
+	.ndo_set_multicast_list =	netvsc_set_multicast_list,
+};
+
+static int netvsc_probe(struct device *device)
+{
+	struct driver_context *driver_ctx =
+		driver_to_driver_context(device->driver);
+	struct netvsc_driver_context *net_drv_ctx =
+		(struct netvsc_driver_context *)driver_ctx;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct device_context *device_ctx = device_to_device_context(device);
+	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct net_device *net = NULL;
+	struct net_device_context *net_device_ctx;
+	struct netvsc_device_info device_info;
+	int ret;
+
+	DPRINT_ENTER(NETVSC_DRV);
+
+	if (!net_drv_obj->Base.OnDeviceAdd)
+		return -1;
+
+	net = alloc_netdev(sizeof(struct net_device_context), "seth%d",
+			   ether_setup);
+	if (!net)
+		return -1;
+
+	/* Set initial state */
+	netif_carrier_off(net);
+	netif_stop_queue(net);
+
+	net_device_ctx = netdev_priv(net);
+	net_device_ctx->device_ctx = device_ctx;
+	dev_set_drvdata(device, net);
+
+	/* Notify the netvsc driver of the new device */
+	ret = net_drv_obj->Base.OnDeviceAdd(device_obj, &device_info);
+	if (ret != 0) {
+		free_netdev(net);
+		dev_set_drvdata(device, NULL);
+
+		DPRINT_ERR(NETVSC_DRV, "unable to add netvsc device (ret %d)",
+			   ret);
+		return ret;
+	}
+
+	/*
+	 * If carrier is still off ie we did not get a link status callback,
+	 * update it if necessary
+	 */
+	/*
+	 * FIXME: We should use a atomic or test/set instead to avoid getting
+	 * out of sync with the device's link status
+	 */
+	if (!netif_carrier_ok(net))
+		if (!device_info.LinkState)
+			netif_carrier_on(net);
+
+	memcpy(net->dev_addr, device_info.MacAddr, ETH_ALEN);
+
+	net->netdev_ops = &device_ops;
+
+	SET_NETDEV_DEV(net, device);
+
+	ret = register_netdev(net);
+	if (ret != 0) {
+		/* Remove the device and release the resource */
+		net_drv_obj->Base.OnDeviceRemove(device_obj);
+		free_netdev(net);
+	}
+
+	DPRINT_EXIT(NETVSC_DRV);
+	return ret;
+}
+
+static int netvsc_remove(struct device *device)
+{
+	struct driver_context *driver_ctx =
+		driver_to_driver_context(device->driver);
+	struct netvsc_driver_context *net_drv_ctx =
+		(struct netvsc_driver_context *)driver_ctx;
+	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct device_context *device_ctx = device_to_device_context(device);
+	struct net_device *net = dev_get_drvdata(&device_ctx->device);
+	struct hv_device *device_obj = &device_ctx->device_obj;
+	int ret;
+
+	DPRINT_ENTER(NETVSC_DRV);
+
+	if (net == NULL) {
+		DPRINT_INFO(NETVSC, "no net device to remove");
+		DPRINT_EXIT(NETVSC_DRV);
+		return 0;
+	}
+
+	if (!net_drv_obj->Base.OnDeviceRemove) {
+		DPRINT_EXIT(NETVSC_DRV);
+		return -1;
+	}
+
+	/* Stop outbound asap */
+	netif_stop_queue(net);
+	/* netif_carrier_off(net); */
+
+	unregister_netdev(net);
+
+	/*
+	 * Call to the vsc driver to let it know that the device is being
+	 * removed
+	 */
+	ret = net_drv_obj->Base.OnDeviceRemove(device_obj);
+	if (ret != 0) {
+		/* TODO: */
+		DPRINT_ERR(NETVSC, "unable to remove vsc device (ret %d)", ret);
+	}
+
+	free_netdev(net);
+	DPRINT_EXIT(NETVSC_DRV);
+	return ret;
+}
+
 static int netvsc_drv_exit_cb(struct device *dev, void *data)
 {
 	struct device **curr = (struct device **)data;
@@ -602,6 +557,38 @@ static void netvsc_drv_exit(void)
 	DPRINT_EXIT(NETVSC_DRV);
 
 	return;
+}
+
+static int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+{
+	struct netvsc_driver *net_drv_obj = &g_netvsc_drv.drv_obj;
+	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
+	int ret;
+
+	DPRINT_ENTER(NETVSC_DRV);
+
+	vmbus_get_interface(&net_drv_obj->Base.VmbusChannelInterface);
+
+	net_drv_obj->RingBufferSize = netvsc_ringbuffer_size;
+	net_drv_obj->OnReceiveCallback = netvsc_recv_callback;
+	net_drv_obj->OnLinkStatusChanged = netvsc_linkstatus_callback;
+
+	/* Callback to client driver to complete the initialization */
+	pfn_drv_init(&net_drv_obj->Base);
+
+	drv_ctx->driver.name = net_drv_obj->Base.name;
+	memcpy(&drv_ctx->class_id, &net_drv_obj->Base.deviceType,
+	       sizeof(struct hv_guid));
+
+	drv_ctx->probe = netvsc_probe;
+	drv_ctx->remove = netvsc_remove;
+
+	/* The driver belongs to vmbus */
+	ret = vmbus_child_driver_register(drv_ctx);
+
+	DPRINT_EXIT(NETVSC_DRV);
+
+	return ret;
 }
 
 static int __init netvsc_init(void)
