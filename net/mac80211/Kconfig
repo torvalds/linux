@@ -13,8 +13,7 @@ config MAC80211
 comment "CFG80211 needs to be enabled for MAC80211"
 	depends on CFG80211=n
 
-menu "Rate control algorithm selection"
-	depends on MAC80211 != n
+if MAC80211 != n
 
 config MAC80211_RC_PID
 	bool "PID controller based rate control algorithm" if EMBEDDED
@@ -61,7 +60,7 @@ config MAC80211_RC_DEFAULT
 	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
 
-endmenu
+endif
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
