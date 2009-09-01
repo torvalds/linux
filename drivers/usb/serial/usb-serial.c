@@ -210,21 +210,20 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (!try_module_get(serial->type->driver.owner))
 		goto error_module_get;
 
+	/* perform the standard setup */
+	retval = tty_init_termios(tty);
+	if (retval)
+		goto error_init_termios;
+
 	retval = usb_autopm_get_interface(serial->interface);
 	if (retval)
 		goto error_get_interface;
 
-	/* If the termios setup has yet to be done */
-	if (tty->driver->termios[idx] == NULL) {
-		/* perform the standard setup */
-		retval = tty_init_termios(tty);
-		if (retval)
-			goto error_init_termios;
-		/* allow the driver to update it */
-		if (serial->type->init_termios)
-			serial->type->init_termios(tty);
-	}
 	mutex_unlock(&serial->disc_mutex);
+
+	/* allow the driver to update the settings */
+	if (serial->type->init_termios)
+		serial->type->init_termios(tty);
 
 	tty->driver_data = port;
 
@@ -234,9 +233,8 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	driver->ttys[idx] = tty;
 	return retval;
 
- error_init_termios:
-	usb_autopm_put_interface(serial->interface);
  error_get_interface:
+ error_init_termios:
 	module_put(serial->type->driver.owner);
  error_module_get:
  error_no_port:
