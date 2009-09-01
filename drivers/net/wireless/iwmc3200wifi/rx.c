@@ -850,7 +850,7 @@ static int iwm_mlme_mgt_frame(struct iwm_priv *iwm, u8 *buf,
 				       iwm->resp_ie_len, GFP_KERNEL);
 	} else {
 		IWM_ERR(iwm, "Unsupported management frame: 0x%x",
-			cpu_to_le16(mgt->frame_control));
+			le16_to_cpu(mgt->frame_control));
 		return 0;
 	}
 

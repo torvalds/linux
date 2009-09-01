@@ -128,8 +128,8 @@ static void iwm_disconnect_work(struct work_struct *work)
 	cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0, GFP_KERNEL);
 }
 
-int __iwm_up(struct iwm_priv *iwm);
-int __iwm_down(struct iwm_priv *iwm);
+static int __iwm_up(struct iwm_priv *iwm);
+static int __iwm_down(struct iwm_priv *iwm);
 
 static void iwm_reset_worker(struct work_struct *work)
 {
@@ -559,7 +559,7 @@ static int iwm_channels_init(struct iwm_priv *iwm)
 	return 0;
 }
 
-int __iwm_up(struct iwm_priv *iwm)
+static int __iwm_up(struct iwm_priv *iwm)
 {
 	int ret;
 	struct iwm_notif *notif_reboot, *notif_ack = NULL;
@@ -693,7 +693,7 @@ int iwm_up(struct iwm_priv *iwm)
 	return ret;
 }
 
-int __iwm_down(struct iwm_priv *iwm)
+static int __iwm_down(struct iwm_priv *iwm)
 {
 	int ret;
 
