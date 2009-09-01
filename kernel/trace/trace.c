@@ -263,6 +263,9 @@ unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO | TRACE_ITER_SLEEP_TIME |
 	TRACE_ITER_GRAPH_TIME;
 
+static int trace_stop_count;
+static DEFINE_SPINLOCK(tracing_start_lock);
+
 /**
  * trace_wake_up - wake up tasks waiting for trace input
  *
@@ -442,6 +445,9 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct ring_buffer *buf = tr->buffer;
 
+	if (trace_stop_count)
+		return;
+
 	WARN_ON_ONCE(!irqs_disabled());
 	__raw_spin_lock(&ftrace_max_lock);
 
@@ -468,6 +474,9 @@ void
 update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	int ret;
+
+	if (trace_stop_count)
+		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
 	__raw_spin_lock(&ftrace_max_lock);
@@ -684,9 +693,6 @@ static void trace_init_cmdlines(void)
 	memset(&map_cmdline_to_pid, NO_CMDLINE_MAP, sizeof(map_cmdline_to_pid));
 	cmdline_idx = 0;
 }
-
-static int trace_stop_count;
-static DEFINE_SPINLOCK(tracing_start_lock);
 
 /**
  * ftrace_off_permanent - disable all ftrace code permanently
