@@ -1077,29 +1077,38 @@ static void __attach_device(struct amd_iommu *iommu,
 			    struct protection_domain *domain,
 			    u16 devid)
 {
-	unsigned long flags;
-	u64 pte_root = virt_to_phys(domain->pt_root);
+	u64 pte_root;
 
-	domain->dev_cnt += 1;
+	/* lock domain */
+	spin_lock(&domain->lock);
+
+	pte_root = virt_to_phys(domain->pt_root);
 
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
 	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | IOMMU_PTE_TV;
 
-	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	amd_iommu_dev_table[devid].data[2] = domain->id;
 	amd_iommu_dev_table[devid].data[1] = upper_32_bits(pte_root);
 	amd_iommu_dev_table[devid].data[0] = lower_32_bits(pte_root);
 
 	amd_iommu_pd_table[devid] = domain;
-	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+
+	domain->dev_cnt += 1;
+
+	/* ready */
+	spin_unlock(&domain->lock);
 }
 
 static void attach_device(struct amd_iommu *iommu,
 			  struct protection_domain *domain,
 			  u16 devid)
 {
+	unsigned long flags;
+
+	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	__attach_device(iommu, domain, devid);
+	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
 	/*
 	 * We might boot into a crash-kernel here. The crashed kernel
