@@ -2094,7 +2094,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		else
 			uninitialized = 0;
 
-		ext_debug("remove ext %lu:%u\n", ex_ee_block, ex_ee_len);
+		ext_debug("remove ext %u:%d\n", ex_ee_block, ex_ee_len);
 		path[depth].p_ext = ex;
 
 		a = ex_ee_block > start ? ex_ee_block : start;
@@ -2786,7 +2786,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_allocation_request ar;
 
 	__clear_bit(BH_New, &bh_result->b_state);
-	ext_debug("blocks %u/%u requested for inode %u\n",
+	ext_debug("blocks %u/%u requested for inode %lu\n",
 			iblock, max_blocks, inode->i_ino);
 
 	/* check in cache */
@@ -2849,7 +2849,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			newblock = iblock - ee_block + ee_start;
 			/* number of remaining blocks in the extent */
 			allocated = ee_len - (iblock - ee_block);
-			ext_debug("%u fit into %lu:%d -> %llu\n", iblock,
+			ext_debug("%u fit into %u:%d -> %llu\n", iblock,
 					ee_block, ee_len, newblock);
 
 			/* Do not put uninitialized extent in the cache */
@@ -2950,7 +2950,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
 		goto out2;
-	ext_debug("allocate new block: goal %llu, found %llu/%lu\n",
+	ext_debug("allocate new block: goal %llu, found %llu/%u\n",
 		  ar.goal, newblock, allocated);
 
 	/* try to insert new extent into found leaf and return */
