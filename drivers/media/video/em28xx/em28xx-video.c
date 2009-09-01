@@ -329,7 +329,7 @@ static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
 static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 {
 	struct em28xx_buffer    *buf;
-	struct em28xx_dmaqueue  *dma_q = urb->context;
+	struct em28xx_dmaqueue  *dma_q = &dev->vidq;
 	unsigned char *outp = NULL;
 	int i, len = 0, rc = 1;
 	unsigned char *p;
@@ -409,6 +409,118 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 	}
 	return rc;
 }
+
+/* Version of isoc handler that takes into account a mixture of video and
+   VBI data */
+static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
+{
+	struct em28xx_buffer    *buf, *vbi_buf;
+	struct em28xx_dmaqueue  *dma_q = &dev->vidq;
+	unsigned char *outp = NULL;
+	unsigned char *vbioutp = NULL;
+	int i, len = 0, rc = 1;
+	unsigned char *p;
+	int vbi_size;
+
+	if (!dev)
+		return 0;
+
+	if ((dev->state & DEV_DISCONNECTED) || (dev->state & DEV_MISCONFIGURED))
+		return 0;
+
+	if (urb->status < 0) {
+		print_err_status(dev, -1, urb->status);
+		if (urb->status == -ENOENT)
+			return 0;
+	}
+
+	buf = dev->isoc_ctl.buf;
+	if (buf != NULL)
+		outp = videobuf_to_vmalloc(&buf->vb);
+	for (i = 0; i < urb->number_of_packets; i++) {
+		int status = urb->iso_frame_desc[i].status;
+
+		if (status < 0) {
+			print_err_status(dev, i, status);
+			if (urb->iso_frame_desc[i].status != -EPROTO)
+				continue;
+		}
+
+		len = urb->iso_frame_desc[i].actual_length - 4;
+
+		if (urb->iso_frame_desc[i].actual_length <= 0) {
+			/* em28xx_isocdbg("packet %d is empty",i); - spammy */
+			continue;
+		}
+		if (urb->iso_frame_desc[i].actual_length >
+						dev->max_pkt_size) {
+			em28xx_isocdbg("packet bigger than packet size");
+			continue;
+		}
+
+		p = urb->transfer_buffer + urb->iso_frame_desc[i].offset;
+
+		/* capture type 0 = vbi start
+		   capture type 1 = video start
+		   capture type 2 = video in progress */
+		if (p[0] == 0x33 && p[1] == 0x95) {
+			dev->capture_type = 0;
+			dev->vbi_read = 0;
+			em28xx_isocdbg("VBI START HEADER!!!\n");
+			dev->cur_field = p[2];
+		}
+
+		/* FIXME: get rid of hard-coded value */
+		vbi_size = 720 * 0x0c;
+
+		if (dev->capture_type == 0) {
+			if (dev->vbi_read >= vbi_size) {
+				/* We've already read all the VBI data, so
+				   treat the rest as video */
+				printk("djh c should never happen\n");
+			} else if ((dev->vbi_read + len) < vbi_size) {
+				/* This entire frame is VBI data */
+				dev->vbi_read += len;
+			} else {
+				/* Some of this frame is VBI data and some is
+				   video data */
+				int vbi_data_len = vbi_size - dev->vbi_read;
+				dev->vbi_read += vbi_data_len;
+				dev->capture_type = 1;
+				p += vbi_data_len;
+				len -= vbi_data_len;
+			}
+		}
+
+		if (dev->capture_type == 1) {
+			dev->capture_type = 2;
+			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
+				       len, (p[2] & 1) ? "odd" : "even");
+
+			if (dev->progressive || !(dev->cur_field & 1)) {
+				if (buf != NULL)
+					buffer_filled(dev, dma_q, buf);
+				get_next_buf(dma_q, &buf);
+				if (buf == NULL)
+					outp = NULL;
+				else
+					outp = videobuf_to_vmalloc(&buf->vb);
+			}
+			if (buf != NULL) {
+				if (dev->cur_field & 1)
+					buf->top_field = 0;
+				else
+					buf->top_field = 1;
+			}
+
+			dma_q->pos = 0;
+		}
+		if (buf != NULL && dev->capture_type == 2)
+			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+	}
+	return rc;
+}
+
 
 /* ------------------------------------------------------------------
 	Videobuf operations
@@ -494,9 +606,16 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		urb_init = 1;
 
 	if (urb_init) {
-		rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
-				      EM28XX_NUM_BUFS, dev->max_pkt_size,
-				      em28xx_isoc_copy);
+		if (em28xx_vbi_supported(dev) == 1)
+			rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+					      EM28XX_NUM_BUFS,
+					      dev->max_pkt_size,
+					      em28xx_isoc_copy_vbi);
+		else
+			rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+					      EM28XX_NUM_BUFS,
+					      dev->max_pkt_size,
+					      em28xx_isoc_copy);
 		if (rc < 0)
 			goto fail;
 	}

@@ -544,6 +544,12 @@ struct em28xx {
 	enum em28xx_dev_state state;
 	enum em28xx_io_method io;
 
+	/* vbi related state tracking */
+	int capture_type;
+	int vbi_read;
+	unsigned char cur_field;
+
+
 	struct work_struct         request_module_wk;
 
 	/* locks */
@@ -639,6 +645,7 @@ int em28xx_audio_setup(struct em28xx *dev);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
+int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
