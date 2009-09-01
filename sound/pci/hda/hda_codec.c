@@ -3127,7 +3127,7 @@ int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
 	tbl = q;
 
 	if (tbl->value >= 0 && tbl->value < num_configs) {
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 		char tmp[10];
 		const char *model = NULL;
 		if (models)
