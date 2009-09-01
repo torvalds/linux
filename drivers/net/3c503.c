@@ -383,7 +383,7 @@ out:
 static int
 el2_open(struct net_device *dev)
 {
-    int retval = -EAGAIN;
+    int retval;
 
     if (dev->irq < 2) {
 	int irqlist[] = {5, 9, 3, 4, 0};
@@ -391,7 +391,8 @@ el2_open(struct net_device *dev)
 
 	outb(EGACFR_NORM, E33G_GACFR);	/* Enable RAM and interrupts. */
 	do {
-	    if (request_irq (*irqp, NULL, 0, "bogus", dev) != -EBUSY) {
+	    retval = request_irq(*irqp, NULL, 0, "bogus", dev);
+	    if (retval >= 0) {
 		/* Twinkle the interrupt, and check if it's seen. */
 		unsigned long cookie = probe_irq_on();
 		outb_p(0x04 << ((*irqp == 9) ? 2 : *irqp), E33G_IDCFR);
@@ -400,11 +401,14 @@ el2_open(struct net_device *dev)
 		    && ((retval = request_irq(dev->irq = *irqp,
 		    eip_interrupt, 0, dev->name, dev)) == 0))
 		    break;
+	    } else {
+		    if (retval != -EBUSY)
+			    return reval;
 	    }
 	} while (*++irqp);
 	if (*irqp == 0) {
 	    outb(EGACFR_IRQOFF, E33G_GACFR);	/* disable interrupts. */
-	    return retval;
+	    return -EAGAIN;
 	}
     } else {
 	if ((retval = request_irq(dev->irq, eip_interrupt, 0, dev->name, dev))) {
