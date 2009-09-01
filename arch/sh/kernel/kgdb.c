@@ -15,8 +15,6 @@
 #include <linux/io.h>
 #include <asm/cacheflush.h>
 
-char in_nmi = 0;	/* Set during NMI to prevent re-entry */
-
 /* Macros for single step instruction identification */
 #define OPCODE_BT(op)		(((op) & 0xff00) == 0x8900)
 #define OPCODE_BF(op)		(((op) & 0xff00) == 0x8b00)

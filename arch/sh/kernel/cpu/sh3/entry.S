@@ -53,10 +53,6 @@
  *	syscall #
  *
  */
-#if defined(CONFIG_KGDB)
-NMI_VEC = 0x1c0			! Must catch early for debounce
-#endif
-
 /* Offsets to the stack */
 OFF_R0  =  0		/* Return value. New ABI also arg4 */
 OFF_R1  =  4     	/* New ABI: arg5 */
@@ -70,7 +66,6 @@ OFF_SP	=  (15*4)
 OFF_PC  =  (16*4)
 OFF_SR	=  (16*4+8)
 OFF_TRA	=  (16*4+6*4)
-
 
 #define k0	r0
 #define k1	r1
@@ -281,21 +276,12 @@ restore_all:
 6:	or	k0, k2			! Set the IMASK-bits
 	ldc	k2, ssr
 	!
-#if defined(CONFIG_KGDB)
-	! Clear in_nmi
-	mov.l	6f, k0
-	mov	#0, k1
-	mov.b	k1, @k0
-#endif
 	mov	k4, r15
 	rte
 	 nop
 
 	.align	2
 5:	.long	0x00001000	! DSP
-#ifdef CONFIG_KGDB
-6:	.long	in_nmi
-#endif
 7:	.long	0x30000000
 
 ! common exception handler
@@ -487,23 +473,6 @@ ENTRY(save_low_regs)
 !
 	.balign 	512,0,512
 ENTRY(handle_interrupt)
-#if defined(CONFIG_KGDB)
-	mov.l	2f, k2
-	! Debounce (filter nested NMI)
-	mov.l	@k2, k0
-	mov.l	9f, k1
-	cmp/eq	k1, k0
-	bf	11f
-	mov.l	10f, k1
-	tas.b	@k1
-	bt	11f
-	rte
-	 nop
-	.align	2
-9:	.long	NMI_VEC
-10:	.long	in_nmi
-11:
-#endif /* defined(CONFIG_KGDB) */
 	sts	pr, k3		! save original pr value in k3
 	mova	exception_data, k0
 
