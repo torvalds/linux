@@ -238,8 +238,9 @@ static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 	return iwm_set_tx_key(iwm, key_index);
 }
 
-int iwm_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
-			     u8 *mac, struct station_info *sinfo)
+static int iwm_cfg80211_get_station(struct wiphy *wiphy,
+				    struct net_device *ndev,
+				    u8 *mac, struct station_info *sinfo)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
 
