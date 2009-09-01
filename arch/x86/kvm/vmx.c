@@ -540,10 +540,12 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	eb = (1u << PF_VECTOR) | (1u << UD_VECTOR) | (1u << MC_VECTOR);
 	if (!vcpu->fpu_active)
 		eb |= 1u << NM_VECTOR;
+	/*
+	 * Unconditionally intercept #DB so we can maintain dr6 without
+	 * reading it every exit.
+	 */
+	eb |= 1u << DB_VECTOR;
 	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
-		if (vcpu->guest_debug &
-		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-			eb |= 1u << DB_VECTOR;
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
 			eb |= 1u << BP_VECTOR;
 	}
@@ -3632,7 +3634,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 */
 	vmcs_writel(HOST_CR0, read_cr0());
 
-	set_debugreg(vcpu->arch.dr6, 6);
+	if (vcpu->arch.switch_db_regs)
+		set_debugreg(vcpu->arch.dr6, 6);
 
 	asm(
 		/* Store host registers */
@@ -3734,7 +3737,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 				  | (1 << VCPU_EXREG_PDPTR));
 	vcpu->arch.regs_dirty = 0;
 
-	get_debugreg(vcpu->arch.dr6, 6);
+	if (vcpu->arch.switch_db_regs)
+		get_debugreg(vcpu->arch.dr6, 6);
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 	if (vmx->rmode.irq.pending)
