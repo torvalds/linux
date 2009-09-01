@@ -704,8 +704,6 @@ xfs_inode_item_unlock(
 	 * Clear out the fields of the inode log item particular
 	 * to the current transaction.
 	 */
-	iip->ili_ilock_recur = 0;
-	iip->ili_iolock_recur = 0;
 	iip->ili_flags = 0;
 
 	/*

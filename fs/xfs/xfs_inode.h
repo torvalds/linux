@@ -467,8 +467,6 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * xfs_iget.c prototypes.
  */
-xfs_inode_t	*xfs_inode_incore(struct xfs_mount *, xfs_ino_t,
-				  struct xfs_trans *);
 int		xfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 			 uint, uint, xfs_inode_t **, xfs_daddr_t);
 void		xfs_iput(xfs_inode_t *, uint);

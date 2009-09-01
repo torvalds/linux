@@ -455,32 +455,6 @@ out_error_or_again:
 	return error;
 }
 
-
-/*
- * Look for the inode corresponding to the given ino in the hash table.
- * If it is there and its i_transp pointer matches tp, return it.
- * Otherwise, return NULL.
- */
-xfs_inode_t *
-xfs_inode_incore(xfs_mount_t	*mp,
-		 xfs_ino_t	ino,
-		 xfs_trans_t	*tp)
-{
-	xfs_inode_t	*ip;
-	xfs_perag_t	*pag;
-
-	pag = xfs_get_perag(mp, ino);
-	read_lock(&pag->pag_ici_lock);
-	ip = radix_tree_lookup(&pag->pag_ici_root, XFS_INO_TO_AGINO(mp, ino));
-	read_unlock(&pag->pag_ici_lock);
-	xfs_put_perag(mp, pag);
-
-	/* the returned inode must match the transaction */
-	if (ip && (ip->i_transp != tp))
-		return NULL;
-	return ip;
-}
-
 /*
  * Decrement reference count of an inode structure and unlock it.
  *
