@@ -2514,6 +2514,9 @@ struct tg3_napi {
 	dma_addr_t			status_mapping;
 	dma_addr_t			rx_rcb_mapping;
 	dma_addr_t			tx_desc_mapping;
+
+	char				irq_lbl[IFNAMSIZ];
+	unsigned int			irq_vec;
 };
 
 struct tg3 {
@@ -2828,6 +2831,9 @@ struct tg3 {
 #define SAIFUN_SA25F0XX_PAGE_SIZE	256
 
 #define SST_25VF0X0_PAGE_SIZE		4098
+
+	unsigned int			irq_max;
+	unsigned int			irq_cnt;
 
 	struct ethtool_coalesce		coal;
 
