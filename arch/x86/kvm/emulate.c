@@ -139,7 +139,8 @@ static u32 opcode_table[256] = {
 	DstReg | Stack, DstReg | Stack, DstReg | Stack, DstReg | Stack,
 	DstReg | Stack, DstReg | Stack, DstReg | Stack, DstReg | Stack,
 	/* 0x60 - 0x67 */
-	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
+	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
+	0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
 	0, 0, 0, 0,
 	/* 0x68 - 0x6F */
 	SrcImm | Mov | Stack, 0, SrcImmByte | Mov | Stack, 0,
@@ -1225,6 +1226,43 @@ static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static void emulate_pusha(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	unsigned long old_esp = c->regs[VCPU_REGS_RSP];
+	int reg = VCPU_REGS_RAX;
+
+	while (reg <= VCPU_REGS_RDI) {
+		(reg == VCPU_REGS_RSP) ?
+		(c->src.val = old_esp) : (c->src.val = c->regs[reg]);
+
+		emulate_push(ctxt);
+		++reg;
+	}
+}
+
+static int emulate_popa(struct x86_emulate_ctxt *ctxt,
+			struct x86_emulate_ops *ops)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc = 0;
+	int reg = VCPU_REGS_RDI;
+
+	while (reg >= VCPU_REGS_RAX) {
+		if (reg == VCPU_REGS_RSP) {
+			register_address_increment(c, &c->regs[VCPU_REGS_RSP],
+							c->op_bytes);
+			--reg;
+		}
+
+		rc = emulate_pop(ctxt, ops, &c->regs[reg], c->op_bytes);
+		if (rc != 0)
+			break;
+		--reg;
+	}
+	return rc;
+}
+
 static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops)
 {
@@ -1813,6 +1851,14 @@ special_insn:
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
 		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
+		if (rc != 0)
+			goto done;
+		break;
+	case 0x60:	/* pusha */
+		emulate_pusha(ctxt);
+		break;
+	case 0x61:	/* popa */
+		rc = emulate_popa(ctxt, ops);
 		if (rc != 0)
 			goto done;
 		break;
