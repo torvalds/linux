@@ -421,15 +421,6 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	hw->mac.ops.get_link_capabilities(hw, &phy_link_speed, &negotiation);
 	speed &= phy_link_speed;
 
-	 /* Set autoneg_advertised value based on input link speed */
-	hw->phy.autoneg_advertised = 0;
-
-	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
-		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
-
-	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
-		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
-
 	/*
 	 * When the driver changes the link speeds that it can support,
 	 * it sets autotry_restart to true to indicate that we need to
@@ -466,7 +457,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		                               autoneg,
 		                               autoneg_wait_to_complete);
 		if (status != 0)
-			goto out;
+			return status;
 
 		/* Flap the tx laser if it has not already been done */
 		if (hw->mac.autotry_restart) {
@@ -520,7 +511,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		                                      autoneg,
 		                                      autoneg_wait_to_complete);
 		if (status != 0)
-			goto out;
+			return status;
 
 		/* Flap the tx laser if it has not already been done */
 		if (hw->mac.autotry_restart) {
@@ -558,6 +549,15 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		                                               autoneg_wait_to_complete);
 
 out:
+	/* Set autoneg_advertised value based on input link speed */
+	hw->phy.autoneg_advertised = 0;
+
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
 	return status;
 }
 
