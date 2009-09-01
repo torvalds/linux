@@ -343,7 +343,6 @@ ssize_t i2400m_bm_cmd(struct i2400m *i2400m,
 	BUG_ON(i2400m->boot_mode == 0);
 
 	if (cmd != NULL) {		/* send the command */
-		memcpy(i2400m->bm_cmd_buf, cmd, cmd_size);
 		result = i2400m->bus_bm_cmd_send(i2400m, cmd, cmd_size, flags);
 		if (result < 0)
 			goto error_cmd_send;

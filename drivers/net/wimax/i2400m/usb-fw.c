@@ -172,7 +172,8 @@ ssize_t i2400mu_bus_bm_cmd_send(struct i2400m *i2400m,
 	result = -E2BIG;
 	if (cmd_size > I2400M_BM_CMD_BUF_SIZE)
 		goto error_too_big;
-	memcpy(i2400m->bm_cmd_buf, _cmd, cmd_size);
+	if (_cmd != i2400m->bm_cmd_buf)
+		memmove(i2400m->bm_cmd_buf, _cmd, cmd_size);
 	cmd = i2400m->bm_cmd_buf;
 	if (cmd_size_a > cmd_size)			/* Zero pad space */
 		memset(i2400m->bm_cmd_buf + cmd_size, 0, cmd_size_a - cmd_size);
