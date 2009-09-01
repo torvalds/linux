@@ -139,7 +139,7 @@ minstrel_stats_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations minstrel_stat_fops = {
+static const struct file_operations minstrel_stat_fops = {
 	.owner = THIS_MODULE,
 	.open = minstrel_stats_open,
 	.read = minstrel_stats_read,

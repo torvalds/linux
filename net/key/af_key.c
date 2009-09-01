@@ -3718,7 +3718,7 @@ static int pfkey_seq_open(struct inode *inode, struct file *file)
 			    sizeof(struct seq_net_private));
 }
 
-static struct file_operations pfkey_proc_ops = {
+static const struct file_operations pfkey_proc_ops = {
 	.open	 = pfkey_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
