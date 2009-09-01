@@ -637,16 +637,15 @@ unlock:
 }
 
 static int
-mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_device *))
+mii_queue_unlocked(struct net_device *dev, int regval,
+		void (*func)(uint, struct net_device *))
 {
 	struct fec_enet_private *fep;
-	unsigned long	flags;
 	mii_list_t	*mip;
 	int		retval;
 
 	/* Add PHY address to register command */
 	fep = netdev_priv(dev);
-	spin_lock_irqsave(&fep->mii_lock, flags);
 
 	regval |= fep->phy_addr << 23;
 	retval = 0;
@@ -667,6 +666,19 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 		retval = 1;
 	}
 
+	return retval;
+}
+
+static int
+mii_queue(struct net_device *dev, int regval,
+		void (*func)(uint, struct net_device *))
+{
+	struct fec_enet_private *fep;
+	unsigned long   flags;
+	int             retval;
+	fep = netdev_priv(dev);
+	spin_lock_irqsave(&fep->mii_lock, flags);
+	retval = mii_queue_unlocked(dev, regval, func);
 	spin_unlock_irqrestore(&fep->mii_lock, flags);
 	return retval;
 }
@@ -1373,11 +1385,11 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 
 			/* Got first part of ID, now get remainder */
 			fep->phy_id = phytype << 16;
-			mii_queue(dev, mk_mii_read(MII_REG_PHYIR2),
+			mii_queue_unlocked(dev, mk_mii_read(MII_REG_PHYIR2),
 							mii_discover_phy3);
 		} else {
 			fep->phy_addr++;
-			mii_queue(dev, mk_mii_read(MII_REG_PHYIR1),
+			mii_queue_unlocked(dev, mk_mii_read(MII_REG_PHYIR1),
 							mii_discover_phy);
 		}
 	} else {
