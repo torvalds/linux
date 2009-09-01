@@ -191,7 +191,7 @@ void usb_serial_put(struct usb_serial *serial)
  * This is the first place a new tty gets used.  Hence this is where we
  * acquire references to the usb_serial structure and the driver module,
  * where we store a pointer to the port, and where we do an autoresume.
- * All these actions are reversed in serial_do_free().
+ * All these actions are reversed in serial_release().
  */
 static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 {
@@ -296,13 +296,13 @@ bailout_mutex_unlock:
 }
 
 /**
- * serial_do_down - shut down hardware
+ * serial_down - shut down hardware
  * @port: port to shut down
  *
  * Shut down a USB serial port unless it is the console.  We never
  * shut down the console hardware as it will always be in use.
  */
-static void serial_do_down(struct usb_serial_port *port)
+static void serial_down(struct usb_serial_port *port)
 {
 	struct usb_serial_driver *drv = port->serial->type;
 	struct usb_serial *serial;
@@ -328,7 +328,7 @@ static void serial_do_down(struct usb_serial_port *port)
 static void serial_hangup(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	serial_do_down(port);
+	serial_down(port);
 	tty_port_hangup(&port->port);
 	/* We must not free port yet - the USB serial layer depends on it's
 	   continued existence */
@@ -342,13 +342,13 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
 		return;
-	serial_do_down(port);
+	serial_down(port);
 	tty_port_close_end(&port->port, tty);
 	tty_port_tty_set(&port->port, NULL);
 }
 
 /**
- * serial_do_free - free resources post close/hangup
+ * serial_release - free resources post close/hangup
  * @port: port to free up
  *
  * Do the resource freeing and refcount dropping for the port.
@@ -356,7 +356,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
  *
  * Called when the last tty kref is dropped.
  */
-static void serial_do_free(struct tty_struct *tty)
+static void serial_release(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial;
@@ -367,6 +367,9 @@ static void serial_do_free(struct tty_struct *tty)
 	 */
 	if (port->console)
 		return;
+
+	/* Standard shutdown processing */
+	tty_shutdown(tty);
 
 	tty->driver_data = NULL;
 
@@ -1204,7 +1207,7 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
-	.shutdown = 		serial_do_free,
+	.shutdown = 		serial_release,
 	.install = 		serial_install,
 	.proc_fops =		&serial_proc_fops,
 };
