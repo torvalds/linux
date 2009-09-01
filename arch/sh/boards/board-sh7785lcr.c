@@ -285,7 +285,7 @@ static int __init sh7785lcr_devices_setup(void)
 				ARRAY_SIZE(sh7785lcr_i2c_devices));
 
 	if (mach_is_sh7785lcr_pt()) {
-		i2c_device.resource = &i2c_proto_resources;
+		i2c_device.resource = i2c_proto_resources;
 		i2c_device.num_resources = ARRAY_SIZE(i2c_proto_resources);
 	}
 
