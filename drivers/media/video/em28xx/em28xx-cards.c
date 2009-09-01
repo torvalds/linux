@@ -2570,7 +2570,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	 * Default format, used for tvp5150 or saa711x output formats
 	 */
 	dev->vinmode = 0x10;
-	dev->vinctl  = 0x11;
+	dev->vinctl  = EM28XX_VINCTRL_INTERLACED |
+		       EM28XX_VINCTRL_CCIR656_ENABLE;
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
