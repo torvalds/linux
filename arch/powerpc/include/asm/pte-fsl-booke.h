@@ -33,13 +33,6 @@
 #define _PAGE_WRITETHRU	0x00400	/* H: W bit */
 #define _PAGE_SPECIAL	0x00800 /* S: Special page */
 
-#ifdef CONFIG_PTE_64BIT
-/* ERPN in a PTE never gets cleared, ignore it */
-#define _PTE_NONE_MASK	0xffffffffffff0000ULL
-/* We extend the size of the PTE flags area when using 64-bit PTEs */
-#define PTE_RPN_SHIFT	(PAGE_SHIFT + 8)
-#endif
-
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)

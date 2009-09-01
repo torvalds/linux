@@ -75,6 +75,9 @@
 /* On 32-bit, we never clear the top part of the PTE */
 #ifdef CONFIG_PPC32
 #define _PTE_NONE_MASK	0xffffffff00000000ULL
+#define _PMD_PRESENT	0
+#define _PMD_PRESENT_MASK (PAGE_MASK)
+#define _PMD_BAD	(~PAGE_MASK)
 #endif
 
 #endif /* __KERNEL__ */

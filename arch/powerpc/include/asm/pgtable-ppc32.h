@@ -111,6 +111,8 @@ extern int icache_44x_need_flush;
 #include <asm/pte-40x.h>
 #elif defined(CONFIG_44x)
 #include <asm/pte-44x.h>
+#elif defined(CONFIG_FSL_BOOKE) && defined(CONFIG_PTE_64BIT)
+#include <asm/pte-book3e.h>
 #elif defined(CONFIG_FSL_BOOKE)
 #include <asm/pte-fsl-booke.h>
 #elif defined(CONFIG_8xx)

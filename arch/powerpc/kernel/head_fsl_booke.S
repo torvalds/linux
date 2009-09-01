@@ -575,7 +575,12 @@ interrupt_base:
 	 *       place or can we save a couple of instructions here ?
 	 */
 	mfspr	r12,SPRN_ESR
+#ifdef CONFIG_PTE_64BIT
+	li	r13,_PAGE_PRESENT
+	oris	r13,r13,_PAGE_ACCESSED@h
+#else
 	li	r13,_PAGE_PRESENT|_PAGE_ACCESSED
+#endif
 	rlwimi	r13,r12,11,29,29
 
 	FIND_PTE
@@ -643,7 +648,12 @@ interrupt_base:
 
 4:
 	/* Make up the required permissions */
+#ifdef CONFIG_PTE_64BIT
+	li	r13,_PAGE_PRESENT | _PAGE_EXEC
+	oris	r13,r13,_PAGE_ACCESSED@h
+#else
 	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
+#endif
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
@@ -733,7 +743,7 @@ finish_tlb_load:
 
 	mfspr	r12, SPRN_MAS2
 #ifdef CONFIG_PTE_64BIT
-	rlwimi	r12, r11, 26, 24, 31	/* extract ...WIMGE from pte */
+	rlwimi	r12, r11, 32-19, 27, 31	/* extract WIMGE from pte */
 #else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
 #endif
@@ -742,6 +752,20 @@ finish_tlb_load:
 #endif
 	mtspr	SPRN_MAS2, r12
 
+#ifdef CONFIG_PTE_64BIT
+	rlwinm	r12, r11, 32-2, 26, 31	/* Move in perm bits */
+	andi.	r10, r11, _PAGE_DIRTY
+	bne	1f
+	li	r10, MAS3_SW | MAS3_UW
+	andc	r12, r12, r10
+1:	rlwimi	r12, r13, 20, 0, 11	/* grab RPN[32:43] */
+	rlwimi	r12, r11, 20, 12, 19	/* grab RPN[44:51] */
+	mtspr	SPRN_MAS3, r12
+BEGIN_MMU_FTR_SECTION
+	srwi	r10, r13, 12		/* grab RPN[12:31] */
+	mtspr	SPRN_MAS7, r10
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
+#else
 	li	r10, (_PAGE_EXEC | _PAGE_PRESENT)
 	rlwimi	r10, r11, 31, 29, 29	/* extract _PAGE_DIRTY into SW */
 	and	r12, r11, r10
@@ -749,16 +773,6 @@ finish_tlb_load:
 	slwi	r10, r12, 1
 	or	r10, r10, r12
 	iseleq	r12, r12, r10
-	
-#ifdef CONFIG_PTE_64BIT
-	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
-	rlwimi	r12, r11, 24, 8, 19	/* grab RPN[40:51] */
-	mtspr	SPRN_MAS3, r12
-BEGIN_MMU_FTR_SECTION
-	srwi	r10, r13, 8		/* grab RPN[8:31] */
-	mtspr	SPRN_MAS7, r10
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
-#else
 	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
 #endif
