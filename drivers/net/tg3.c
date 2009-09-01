@@ -618,18 +618,9 @@ static void tg3_disable_ints(struct tg3 *tp)
 	tw32_mailbox_f(tp->napi[0].int_mbox, 0x00000001);
 }
 
-static inline void tg3_cond_int(struct tg3 *tp)
-{
-	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) &&
-	    (tp->napi[0].hw_status->status & SD_STATUS_UPDATED))
-		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl | GRC_LCLCTRL_SETINT);
-	else
-		tw32(HOSTCC_MODE, tp->coalesce_mode |
-		     (HOSTCC_MODE_ENABLE | HOSTCC_MODE_NOW));
-}
-
 static void tg3_enable_ints(struct tg3 *tp)
 {
+	u32 coal_now;
 	struct tg3_napi *tnapi = &tp->napi[0];
 	tp->irq_sync = 0;
 	wmb();
@@ -639,7 +630,16 @@ static void tg3_enable_ints(struct tg3 *tp)
 	tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
 	if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
 		tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
-	tg3_cond_int(tp);
+
+	coal_now = HOSTCC_MODE_NOW;
+
+	/* Force an initial interrupt */
+	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) &&
+	    (tp->napi[0].hw_status->status & SD_STATUS_UPDATED))
+		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl | GRC_LCLCTRL_SETINT);
+	else
+		tw32(HOSTCC_MODE, tp->coalesce_mode |
+		     HOSTCC_MODE_ENABLE | coal_now);
 }
 
 static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
