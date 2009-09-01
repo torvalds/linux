@@ -24,23 +24,10 @@
 #include "logging.h"
 #include "VmbusPrivate.h"
 
-typedef void (*PFN_CHANNEL_MESSAGE_HANDLER)(struct vmbus_channel_message_header *msg);
-
 struct vmbus_channel_message_table_entry {
-	enum vmbus_channel_message_type	messageType;
-	PFN_CHANNEL_MESSAGE_HANDLER messageHandler;
+	enum vmbus_channel_message_type messageType;
+	void (*messageHandler)(struct vmbus_channel_message_header *msg);
 };
-
-static void VmbusChannelOnOffer(struct vmbus_channel_message_header *);
-static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *);
-static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *);
-static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *);
-static void VmbusChannelOnGpadlTorndown(struct vmbus_channel_message_header *);
-static void VmbusChannelOnOffersDelivered(struct vmbus_channel_message_header *);
-static void VmbusChannelOnVersionResponse(struct vmbus_channel_message_header *);
-static void VmbusChannelProcessOffer(void *context);
-static void VmbusChannelProcessRescindOffer(void *context);
-
 
 #define MAX_NUM_DEVICE_CLASSES_SUPPORTED 4
 static const struct hv_guid
@@ -80,28 +67,6 @@ static const struct hv_guid
 			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
 		}
 	},
-};
-
-/* Channel message dispatch table */
-static struct vmbus_channel_message_table_entry
-	gChannelMessageTable[ChannelMessageCount] = {
-	{ChannelMessageInvalid,			NULL},
-	{ChannelMessageOfferChannel,		VmbusChannelOnOffer},
-	{ChannelMessageRescindChannelOffer,	VmbusChannelOnOfferRescind},
-	{ChannelMessageRequestOffers,		NULL},
-	{ChannelMessageAllOffersDelivered,	VmbusChannelOnOffersDelivered},
-	{ChannelMessageOpenChannel,		NULL},
-	{ChannelMessageOpenChannelResult,	VmbusChannelOnOpenResult},
-	{ChannelMessageCloseChannel,		NULL},
-	{ChannelMessageGpadlHeader,		NULL},
-	{ChannelMessageGpadlBody,		NULL},
-	{ChannelMessageGpadlCreated,		VmbusChannelOnGpadlCreated},
-	{ChannelMessageGpadlTeardown,		NULL},
-	{ChannelMessageGpadlTorndown,		VmbusChannelOnGpadlTorndown},
-	{ChannelMessageRelIdReleased,		NULL},
-	{ChannelMessageInitiateContact,		NULL},
-	{ChannelMessageVersionResponse,		VmbusChannelOnVersionResponse},
-	{ChannelMessageUnload,			NULL},
 };
 
 /**
@@ -573,6 +538,28 @@ static void VmbusChannelOnVersionResponse(
 
 	DPRINT_EXIT(VMBUS);
 }
+
+/* Channel message dispatch table */
+static struct vmbus_channel_message_table_entry
+	gChannelMessageTable[ChannelMessageCount] = {
+	{ChannelMessageInvalid,			NULL},
+	{ChannelMessageOfferChannel,		VmbusChannelOnOffer},
+	{ChannelMessageRescindChannelOffer,	VmbusChannelOnOfferRescind},
+	{ChannelMessageRequestOffers,		NULL},
+	{ChannelMessageAllOffersDelivered,	VmbusChannelOnOffersDelivered},
+	{ChannelMessageOpenChannel,		NULL},
+	{ChannelMessageOpenChannelResult,	VmbusChannelOnOpenResult},
+	{ChannelMessageCloseChannel,		NULL},
+	{ChannelMessageGpadlHeader,		NULL},
+	{ChannelMessageGpadlBody,		NULL},
+	{ChannelMessageGpadlCreated,		VmbusChannelOnGpadlCreated},
+	{ChannelMessageGpadlTeardown,		NULL},
+	{ChannelMessageGpadlTorndown,		VmbusChannelOnGpadlTorndown},
+	{ChannelMessageRelIdReleased,		NULL},
+	{ChannelMessageInitiateContact,		NULL},
+	{ChannelMessageVersionResponse,		VmbusChannelOnVersionResponse},
+	{ChannelMessageUnload,			NULL},
+};
 
 /**
  * VmbusOnChannelMessage - Handler for channel protocol messages.
