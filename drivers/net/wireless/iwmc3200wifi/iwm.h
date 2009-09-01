@@ -289,6 +289,8 @@ struct iwm_priv {
 	u8 *resp_ie;
 	int resp_ie_len;
 
+	struct iwm_fw_error_hdr *last_fw_err;
+
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 

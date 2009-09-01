@@ -102,6 +102,8 @@ static int iwm_ntf_error(struct iwm_priv *iwm, u8 *buf,
 	error = (struct iwm_umac_notif_error *)buf;
 	fw_err = &error->err;
 
+	memcpy(iwm->last_fw_err, fw_err, sizeof(struct iwm_fw_error_hdr));
+
 	IWM_ERR(iwm, "%cMAC FW ERROR:\n",
 	 (le32_to_cpu(fw_err->category) == UMAC_SYS_ERR_CAT_LMAC) ? 'L' : 'U');
 	IWM_ERR(iwm, "\tCategory:    %d\n", le32_to_cpu(fw_err->category));
