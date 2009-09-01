@@ -260,7 +260,7 @@ enum csr_regs {
 	Y2_CFG_AER      = 0x1d00,	/* PCI Advanced Error Report region */
 };
 
-/*	B0_CTST			16 bit	Control/Status register */
+/*	B0_CTST			24 bit	Control/Status register */
 enum {
 	Y2_VMAIN_AVAIL	= 1<<17,/* VMAIN available (YUKON-2 only) */
 	Y2_VAUX_AVAIL	= 1<<16,/* VAUX available (YUKON-2 only) */

@@ -273,7 +273,7 @@ static void sky2_power_aux(struct sky2_hw *hw)
 			    Y2_COR_CLK_LNK2_DIS | Y2_CLK_GAT_LNK2_DIS);
 
 	/* switch power to VAUX */
-	if (sky2_read16(hw, B0_CTST) & Y2_VAUX_AVAIL)
+	if (sky2_read32(hw, B0_CTST) & Y2_VAUX_AVAIL)
 		sky2_write8(hw, B0_POWER_CTRL,
 			    (PC_VAUX_ENA | PC_VCC_ENA |
 			     PC_VAUX_ON | PC_VCC_OFF));
