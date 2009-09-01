@@ -118,6 +118,8 @@ static int iwm_ntf_error(struct iwm_priv *iwm, u8 *buf,
 	IWM_ERR(iwm, "\tLMAC status: 0x%x\n", le32_to_cpu(fw_err->lmac_status));
 	IWM_ERR(iwm, "\tSDIO status: 0x%x\n", le32_to_cpu(fw_err->sdio_status));
 
+	iwm_resetting(iwm);
+
 	return 0;
 }
 
@@ -528,11 +530,19 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		if (iwm->conf.mode == UMAC_MODE_IBSS)
 			goto ibss;
 
-		cfg80211_connect_result(iwm_to_ndev(iwm),
+		if (!test_bit(IWM_STATUS_RESETTING, &iwm->status))
+			cfg80211_connect_result(iwm_to_ndev(iwm),
+						complete->bssid,
+						iwm->req_ie, iwm->req_ie_len,
+						iwm->resp_ie, iwm->resp_ie_len,
+						WLAN_STATUS_SUCCESS,
+						GFP_KERNEL);
+		else
+			cfg80211_roamed(iwm_to_ndev(iwm),
 					complete->bssid,
 					iwm->req_ie, iwm->req_ie_len,
 					iwm->resp_ie, iwm->resp_ie_len,
-					WLAN_STATUS_SUCCESS, GFP_KERNEL);
+					GFP_KERNEL);
 		break;
 	case UMAC_ASSOC_COMPLETE_FAILURE:
 		clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
@@ -551,19 +561,26 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		if (iwm->conf.mode == UMAC_MODE_IBSS)
 			goto ibss;
 
-		cfg80211_connect_result(iwm_to_ndev(iwm), complete->bssid,
-					NULL, 0, NULL, 0,
-					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					GFP_KERNEL);
+		if (!test_bit(IWM_STATUS_RESETTING, &iwm->status))
+			cfg80211_connect_result(iwm_to_ndev(iwm),
+						complete->bssid,
+						NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
+		else
+			cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0,
+					      GFP_KERNEL);
 		break;
 	default:
 		break;
 	}
 
+	clear_bit(IWM_STATUS_RESETTING, &iwm->status);
 	return 0;
 
  ibss:
 	cfg80211_ibss_joined(iwm_to_ndev(iwm), iwm->bssid, GFP_KERNEL);
+	clear_bit(IWM_STATUS_RESETTING, &iwm->status);
 	return 0;
 }
 

@@ -178,6 +178,7 @@ struct iwm_key {
 #define IWM_STATUS_SCAN_ABORTING	2
 #define IWM_STATUS_SME_CONNECTING	3
 #define IWM_STATUS_ASSOCIATED		4
+#define IWM_STATUS_RESETTING		5
 
 struct iwm_tx_queue {
 	int id;
@@ -317,6 +318,7 @@ int iwm_mode_to_nl80211_iftype(int mode);
 int iwm_priv_init(struct iwm_priv *iwm);
 void iwm_priv_deinit(struct iwm_priv *iwm);
 void iwm_reset(struct iwm_priv *iwm);
+void iwm_resetting(struct iwm_priv *iwm);
 void iwm_tx_credit_init_pools(struct iwm_priv *iwm,
 			      struct iwm_umac_notif_alive *alive);
 int iwm_tx_credit_alloc(struct iwm_priv *iwm, int id, int nb);

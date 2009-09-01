@@ -187,7 +187,8 @@ static void iwm_reset_worker(struct work_struct *work)
 		memcpy(iwm->umac_profile, profile, sizeof(*profile));
 		iwm_send_mlme_profile(iwm);
 		kfree(profile);
-	}
+	} else
+		clear_bit(IWM_STATUS_RESETTING, &iwm->status);
 
  out:
 	mutex_unlock(&iwm->mutex);
@@ -200,7 +201,7 @@ static void iwm_watchdog(unsigned long data)
 	IWM_WARN(iwm, "Watchdog expired: UMAC stalls!\n");
 
 	if (modparam_reset)
-		schedule_work(&iwm->reset_worker);
+		iwm_resetting(iwm);
 }
 
 int iwm_priv_init(struct iwm_priv *iwm)
@@ -284,7 +285,11 @@ void iwm_reset(struct iwm_priv *iwm)
 	if (test_bit(IWM_STATUS_READY, &iwm->status))
 		iwm_target_reset(iwm);
 
-	iwm->status = 0;
+	if (test_bit(IWM_STATUS_RESETTING, &iwm->status)) {
+		iwm->status = 0;
+		set_bit(IWM_STATUS_RESETTING, &iwm->status);
+	} else
+		iwm->status = 0;
 	iwm->scan_id = 1;
 
 	list_for_each_entry_safe(notif, next, &iwm->pending_notif, pending) {
@@ -298,6 +303,13 @@ void iwm_reset(struct iwm_priv *iwm)
 	flush_workqueue(iwm->rx_wq);
 
 	iwm_link_off(iwm);
+}
+
+void iwm_resetting(struct iwm_priv *iwm)
+{
+	set_bit(IWM_STATUS_RESETTING, &iwm->status);
+
+	schedule_work(&iwm->reset_worker);
 }
 
 /*
