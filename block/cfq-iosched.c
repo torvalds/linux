@@ -1349,7 +1349,7 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 		cfq_slice_expired(cfqd, 0);
 	}
 
-	cfq_log(cfqd, "dispatched a request");
+	cfq_log_cfqq(cfqd, cfqq, "dispatched a request");
 	return 1;
 }
 
