@@ -1252,22 +1252,27 @@ static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_bu
 #define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
 	skb_queue_walk_from_safe(&(sk)->sk_write_queue, skb, tmp)
 
+/* This function calculates a "timeout" which is equivalent to the timeout of a
+ * TCP connection after "boundary" unsucessful, exponentially backed-off
+ * retransmissions with an initial RTO of TCP_RTO_MIN.
+ */
 static inline bool retransmits_timed_out(const struct sock *sk,
 					 unsigned int boundary)
 {
-	int limit, K;
+	unsigned int timeout, linear_backoff_thresh;
+
 	if (!inet_csk(sk)->icsk_retransmits)
 		return false;
 
-	K = ilog2(TCP_RTO_MAX/TCP_RTO_MIN);
+	linear_backoff_thresh = ilog2(TCP_RTO_MAX/TCP_RTO_MIN);
 
-	if (boundary <= K)
-		limit = ((2 << boundary) - 1) * TCP_RTO_MIN;
+	if (boundary <= linear_backoff_thresh)
+		timeout = ((2 << boundary) - 1) * TCP_RTO_MIN;
 	else
-		limit = ((2 << K) - 1) * TCP_RTO_MIN +
-			(boundary - K) * TCP_RTO_MAX;
+		timeout = ((2 << linear_backoff_thresh) - 1) * TCP_RTO_MIN +
+			  (boundary - linear_backoff_thresh) * TCP_RTO_MAX;
 
-	return (tcp_time_stamp - tcp_sk(sk)->retrans_stamp) >= limit;
+	return (tcp_time_stamp - tcp_sk(sk)->retrans_stamp) >= timeout;
 }
 
 static inline struct sk_buff *tcp_send_head(struct sock *sk)
