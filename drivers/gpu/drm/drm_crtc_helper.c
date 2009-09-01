@@ -842,7 +842,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			/* If the encoder is reused for another connector, then
 			 * the appropriate crtc will be set later.
 			 */
-			connector->encoder->crtc = NULL;
+			if (connector->encoder)
+				connector->encoder->crtc = NULL;
 			connector->encoder = new_encoder;
 		}
 	}
