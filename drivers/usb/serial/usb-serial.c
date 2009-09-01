@@ -166,6 +166,41 @@ void usb_serial_put(struct usb_serial *serial)
 /*****************************************************************************
  * Driver tty interface functions
  *****************************************************************************/
+
+/**
+ * serial_install - install tty
+ * @driver: the driver (USB in our case)
+ * @tty: the tty being created
+ *
+ * Create the termios objects for this tty.  We use the default
+ * USB serial settings but permit them to be overridden by
+ * serial->type->init_termios.
+ */
+static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	int idx = tty->index;
+	struct usb_serial *serial;
+	int retval;
+
+	/* If the termios setup has yet to be done */
+	if (tty->driver->termios[idx] == NULL) {
+		/* perform the standard setup */
+		retval = tty_init_termios(tty);
+		if (retval)
+			return retval;
+		/* allow the driver to update it */
+		serial = usb_serial_get_by_index(tty->index);
+		if (serial->type->init_termios)
+			serial->type->init_termios(tty);
+		usb_serial_put(serial);
+	}
+	/* Final install (we use the default method) */
+	tty_driver_kref_get(driver);
+	tty->count++;
+	driver->ttys[idx] = tty;
+	return 0;
+}
+
 static int serial_open (struct tty_struct *tty, struct file *filp)
 {
 	struct usb_serial *serial;
@@ -264,13 +299,11 @@ bailout_serial_put:
 }
 
 /**
- *	serial_do_down		-	shut down hardware
- *	@port: port to shut down
+ * serial_do_down - shut down hardware
+ * @port: port to shut down
  *
- *	Shut down a USB port unless it is the console. We never shut down the
- *	console hardware as it will always be in use.
- *
- *	Don't free any resources at this point
+ * Shut down a USB serial port unless it is the console.  We never
+ * shut down the console hardware as it will always be in use.
  */
 static void serial_do_down(struct usb_serial_port *port)
 {
@@ -278,8 +311,10 @@ static void serial_do_down(struct usb_serial_port *port)
 	struct usb_serial *serial;
 	struct module *owner;
 
-	/* The console is magical, do not hang up the console hardware
-	   or there will be tears */
+	/*
+	 * The console is magical.  Do not hang up the console hardware
+	 * or there will be tears.
+	 */
 	if (port->console)
 		return;
 
@@ -293,37 +328,13 @@ static void serial_do_down(struct usb_serial_port *port)
 	mutex_unlock(&port->mutex);
 }
 
-/**
- *	serial_do_free		-	free resources post close/hangup
- *	@port: port to free up
- *
- *	Do the resource freeing and refcount dropping for the port. We must
- *	be careful about ordering and we must avoid freeing up the console.
- *
- *	Called when the last tty kref is dropped.
- */
-
-static void serial_do_free(struct tty_struct *tty)
+static void serial_hangup(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial;
-	struct module *owner;
-
-	/* The console is magical, do not hang up the console hardware
-	   or there will be tears */
-	if (port == NULL || port->console)
-		return;
-
-	serial = port->serial;
-	owner = serial->type->driver.owner;
-
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected)
-		usb_autopm_put_interface(serial->interface);
-	mutex_unlock(&serial->disc_mutex);
-
-	usb_serial_put(serial);
-	module_put(owner);
+	serial_do_down(port);
+	tty_port_hangup(&port->port);
+	/* We must not free port yet - the USB serial layer depends on it's
+	   continued existence */
 }
 
 static void serial_close(struct tty_struct *tty, struct file *filp)
@@ -337,19 +348,43 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
 		return;
-	serial_do_down(port);		
+	serial_do_down(port);
 	tty_port_close_end(&port->port, tty);
 	tty_port_tty_set(&port->port, NULL);
 
 }
 
-static void serial_hangup(struct tty_struct *tty)
+/**
+ * serial_do_free - free resources post close/hangup
+ * @port: port to free up
+ *
+ * Do the resource freeing and refcount dropping for the port.
+ * Avoid freeing the console.
+ *
+ * Called when the last tty kref is dropped.
+ */
+static void serial_do_free(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	serial_do_down(port);
-	tty_port_hangup(&port->port);
-	/* We must not free port yet - the USB serial layer depends on it's
-	   continued existence */
+	struct usb_serial *serial;
+	struct module *owner;
+
+	/* The console is magical.  Do not hang up the console hardware
+	 * or there will be tears.
+	 */
+	if (port == NULL || port->console)
+		return;
+
+	serial = port->serial;
+	owner = serial->type->driver.owner;
+
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected)
+		usb_autopm_put_interface(serial->interface);
+	mutex_unlock(&serial->disc_mutex);
+
+	usb_serial_put(serial);
+	module_put(owner);
 }
 
 static int serial_write(struct tty_struct *tty, const unsigned char *buf,
@@ -698,41 +733,6 @@ static const struct tty_port_operations serial_port_ops = {
 	.carrier_raised = serial_carrier_raised,
 	.dtr_rts = serial_dtr_rts,
 };
-
-/**
- *	serial_install		-	install tty
- *	@driver: the driver (USB in our case)
- *	@tty: the tty being created
- *
- *	Create the termios objects for this tty. We use the default USB
- *	serial ones but permit them to be overriddenby serial->type->termios.
- *	This lets us remove all the ugly hackery
- */
-
-static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
-{
-	int idx = tty->index;
-	struct usb_serial *serial;
-	int retval;
-
-	/* If the termios setup has yet to be done */
-	if (tty->driver->termios[idx] == NULL) {
-		/* perform the standard setup */
-		retval = tty_init_termios(tty);
-		if (retval)
-			return retval;
-		/* allow the driver to update it */
-		serial = usb_serial_get_by_index(tty->index);
-		if (serial->type->init_termios)
-			serial->type->init_termios(tty);
-		usb_serial_put(serial);
-	}
-	/* Final install (we use the default method) */
-	tty_driver_kref_get(driver);
-	tty->count++;
-	driver->ttys[idx] = tty;
-	return 0;
-}
 
 int usb_serial_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
