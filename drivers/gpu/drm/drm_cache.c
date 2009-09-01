@@ -62,11 +62,8 @@ drm_clflush_ipi_handler(void *null)
 {
 	wbinvd();
 }
-#elif !defined(__powerpc__)
-static void drm_cache_ipi_handler(void *dummy)
-{
-}
 #endif
+
 void
 drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 {
@@ -95,8 +92,8 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		kunmap_atomic(page_virtual, KM_USER0);
 	}
 #else
-	if (on_each_cpu(drm_clflush_ipi_handler, NULL, 1) != 0)
-		printk(KERN_ERR "Timed out waiting for drm cache flush\n");
+	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	WARN_ON_ONCE(1);
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_pages);
