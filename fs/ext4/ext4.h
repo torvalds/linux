@@ -114,6 +114,21 @@ struct ext4_allocation_request {
 };
 
 /*
+ * For delayed allocation tracking
+ */
+struct mpage_da_data {
+	struct inode *inode;
+	sector_t b_blocknr;		/* start block number of extent */
+	size_t b_size;			/* size of extent */
+	unsigned long b_state;		/* state of the extent */
+	unsigned long first_page, next_page;	/* extent of pages */
+	struct writeback_control *wbc;
+	int io_done;
+	int pages_written;
+	int retval;
+};
+
+/*
  * Special inodes numbers
  */
 #define	EXT4_BAD_INO		 1	/* Bad blocks inode */

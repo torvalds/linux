@@ -1875,18 +1875,6 @@ static void ext4_da_page_release_reservation(struct page *page,
  * Delayed allocation stuff
  */
 
-struct mpage_da_data {
-	struct inode *inode;
-	sector_t b_blocknr;		/* start block number of extent */
-	size_t b_size;			/* size of extent */
-	unsigned long b_state;		/* state of the extent */
-	unsigned long first_page, next_page;	/* extent of pages */
-	struct writeback_control *wbc;
-	int io_done;
-	int pages_written;
-	int retval;
-};
-
 /*
  * mpage_da_submit_io - walks through extent of pages and try to write
  * them with writepage() call back
@@ -2863,6 +2851,7 @@ retry:
 			mpd.io_done = 1;
 			ret = MPAGE_DA_EXTENT_TAIL;
 		}
+		trace_ext4_da_write_pages(inode, &mpd);
 		wbc->nr_to_write -= mpd.pages_written;
 
 		ext4_journal_stop(handle);

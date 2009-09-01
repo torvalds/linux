@@ -251,6 +251,40 @@ TRACE_EVENT(ext4_da_writepages,
 		  __entry->range_cyclic)
 );
 
+TRACE_EVENT(ext4_da_write_pages,
+	TP_PROTO(struct inode *inode, struct mpage_da_data *mpd),
+
+	TP_ARGS(inode, mpd),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	__u64,	b_blocknr		)
+		__field(	__u32,	b_size			)
+		__field(	__u32,	b_state			)
+		__field(	unsigned long,	first_page	)
+		__field(	int,	io_done			)
+		__field(	int,	pages_written		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= inode->i_sb->s_dev;
+		__entry->ino		= inode->i_ino;
+		__entry->b_blocknr	= mpd->b_blocknr;
+		__entry->b_size		= mpd->b_size;
+		__entry->b_state	= mpd->b_state;
+		__entry->first_page	= mpd->first_page;
+		__entry->io_done	= mpd->io_done;
+		__entry->pages_written	= mpd->pages_written;
+	),
+
+	TP_printk("dev %s ino %lu b_blocknr %llu b_size %u b_state 0x%04x first_page %lu io_done %d pages_written %d",
+		  jbd2_dev_to_name(__entry->dev), __entry->ino,
+		  __entry->b_blocknr, __entry->b_size,
+		  __entry->b_state, __entry->first_page,
+		  __entry->io_done, __entry->pages_written)
+);
+
 TRACE_EVENT(ext4_da_writepages_result,
 	TP_PROTO(struct inode *inode, struct writeback_control *wbc,
 			int ret, int pages_written),
