@@ -1141,6 +1141,15 @@ static void __detach_device(struct protection_domain *domain, u16 devid)
 
 	/* ready */
 	spin_unlock(&domain->lock);
+
+	/*
+	 * If we run in passthrough mode the device must be assigned to the
+	 * passthrough domain if it is detached from any other domain
+	 */
+	if (iommu_pass_through) {
+		struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
+		__attach_device(iommu, pt_domain, devid);
+	}
 }
 
 /*
