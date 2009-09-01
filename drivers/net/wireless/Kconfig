@@ -2,8 +2,17 @@
 # Wireless LAN device configuration
 #
 
-menu "Wireless LAN"
+menuconfig WLAN
+	bool "Wireless LAN"
 	depends on !S390
+	---help---
+	  This section contains all the pre 802.11 and 802.11 wireless
+	  device drivers. For a complete list of drivers and documentation
+	  on them refer to the wireless wiki:
+
+	  http://wireless.kernel.org/en/users/Drivers
+
+if WLAN
 
 menuconfig WLAN_PRE80211
 	bool "Wireless LAN (pre-802.11)"
@@ -505,4 +514,4 @@ source "drivers/net/wireless/orinoco/Kconfig"
 source "drivers/net/wireless/wl12xx/Kconfig"
 source "drivers/net/wireless/iwmc3200wifi/Kconfig"
 
-endmenu
+endif # WLAN
