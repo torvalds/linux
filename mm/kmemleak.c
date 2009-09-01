@@ -1074,7 +1074,6 @@ static void kmemleak_scan(void)
 {
 	unsigned long flags;
 	struct kmemleak_object *object, *tmp;
-	struct task_struct *task;
 	int i;
 	int new_leaks = 0;
 	int gray_list_pass = 0;
@@ -1141,15 +1140,16 @@ static void kmemleak_scan(void)
 	}
 
 	/*
-	 * Scanning the task stacks may introduce false negatives and it is
-	 * not enabled by default.
+	 * Scanning the task stacks (may introduce false negatives).
 	 */
 	if (kmemleak_stack_scan) {
+		struct task_struct *p, *g;
+
 		read_lock(&tasklist_lock);
-		for_each_process(task)
-			scan_block(task_stack_page(task),
-				   task_stack_page(task) + THREAD_SIZE,
-				   NULL, 0);
+		do_each_thread(g, p) {
+			scan_block(task_stack_page(p), task_stack_page(p) +
+				   THREAD_SIZE, NULL, 0);
+		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 	}
 
