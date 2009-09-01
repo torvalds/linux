@@ -3705,7 +3705,7 @@ static void pfkey_seq_stop(struct seq_file *f, void *v)
 	read_unlock(&pfkey_table_lock);
 }
 
-static struct seq_operations pfkey_seq_ops = {
+static const struct seq_operations pfkey_seq_ops = {
 	.start	= pfkey_seq_start,
 	.next	= pfkey_seq_next,
 	.stop	= pfkey_seq_stop,
