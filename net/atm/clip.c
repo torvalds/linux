@@ -267,7 +267,7 @@ static void clip_neigh_error(struct neighbour *neigh, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-static struct neigh_ops clip_neigh_ops = {
+static const struct neigh_ops clip_neigh_ops = {
 	.family =		AF_INET,
 	.solicit =		clip_neigh_solicit,
 	.error_report =		clip_neigh_error,

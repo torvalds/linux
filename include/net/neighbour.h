@@ -118,7 +118,7 @@ struct neighbour
 	int			(*output)(struct sk_buff *skb);
 	struct sk_buff_head	arp_queue;
 	struct timer_list	timer;
-	struct neigh_ops	*ops;
+	const struct neigh_ops	*ops;
 	u8			primary_key[0];
 };
 
