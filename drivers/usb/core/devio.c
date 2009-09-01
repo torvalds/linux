@@ -74,6 +74,7 @@ struct dev_state {
 	void __user *disccontext;
 	unsigned long ifclaimed;
 	u32 secid;
+	u32 disabled_bulk_eps;
 };
 
 struct async {
@@ -88,6 +89,8 @@ struct async {
 	struct urb *urb;
 	int status;
 	u32 secid;
+	u8 bulk_addr;
+	u8 bulk_status;
 };
 
 static int usbfs_snoop;
@@ -343,6 +346,43 @@ static void snoop_urb(struct usb_device *udev,
 	}
 }
 
+#define AS_CONTINUATION	1
+#define AS_UNLINK	2
+
+static void cancel_bulk_urbs(struct dev_state *ps, unsigned bulk_addr)
+__releases(ps->lock)
+__acquires(ps->lock)
+{
+	struct async *as;
+
+	/* Mark all the pending URBs that match bulk_addr, up to but not
+	 * including the first one without AS_CONTINUATION.  If such an
+	 * URB is encountered then a new transfer has already started so
+	 * the endpoint doesn't need to be disabled; otherwise it does.
+	 */
+	list_for_each_entry(as, &ps->async_pending, asynclist) {
+		if (as->bulk_addr == bulk_addr) {
+			if (as->bulk_status != AS_CONTINUATION)
+				goto rescan;
+			as->bulk_status = AS_UNLINK;
+			as->bulk_addr = 0;
+		}
+	}
+	ps->disabled_bulk_eps |= (1 << bulk_addr);
+
+	/* Now carefully unlink all the marked pending URBs */
+ rescan:
+	list_for_each_entry(as, &ps->async_pending, asynclist) {
+		if (as->bulk_status == AS_UNLINK) {
+			as->bulk_status = 0;		/* Only once */
+			spin_unlock(&ps->lock);		/* Allow completions */
+			usb_unlink_urb(as->urb);
+			spin_lock(&ps->lock);
+			goto rescan;
+		}
+	}
+}
+
 static void async_completed(struct urb *urb)
 {
 	struct async *as = urb->context;
@@ -371,6 +411,9 @@ static void async_completed(struct urb *urb)
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb->dev, as->userurb, urb->pipe, urb->actual_length,
 			as->status, COMPLETE);
+	if (as->status < 0 && as->bulk_addr && as->status != -ECONNRESET &&
+			as->status != -ENOENT)
+		cancel_bulk_urbs(ps, as->bulk_addr);
 	spin_unlock(&ps->lock);
 
 	if (signr)
@@ -993,6 +1036,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 
 	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP |
 				USBDEVFS_URB_SHORT_NOT_OK |
+				USBDEVFS_URB_BULK_CONTINUATION |
 				USBDEVFS_URB_NO_FSBR |
 				USBDEVFS_URB_ZERO_PACKET |
 				USBDEVFS_URB_NO_INTERRUPT))
@@ -1194,7 +1238,39 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	snoop_urb(ps->dev, as->userurb, as->urb->pipe,
 			as->urb->transfer_buffer_length, 0, SUBMIT);
 	async_newpending(as);
-	if ((ret = usb_submit_urb(as->urb, GFP_KERNEL))) {
+
+	if (usb_endpoint_xfer_bulk(&ep->desc)) {
+		spin_lock_irq(&ps->lock);
+
+		/* Not exactly the endpoint address; the direction bit is
+		 * shifted to the 0x10 position so that the value will be
+		 * between 0 and 31.
+		 */
+		as->bulk_addr = usb_endpoint_num(&ep->desc) |
+			((ep->desc.bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+				>> 3);
+
+		/* If this bulk URB is the start of a new transfer, re-enable
+		 * the endpoint.  Otherwise mark it as a continuation URB.
+		 */
+		if (uurb->flags & USBDEVFS_URB_BULK_CONTINUATION)
+			as->bulk_status = AS_CONTINUATION;
+		else
+			ps->disabled_bulk_eps &= ~(1 << as->bulk_addr);
+
+		/* Don't accept continuation URBs if the endpoint is
+		 * disabled because of an earlier error.
+		 */
+		if (ps->disabled_bulk_eps & (1 << as->bulk_addr))
+			ret = -EREMOTEIO;
+		else
+			ret = usb_submit_urb(as->urb, GFP_ATOMIC);
+		spin_unlock_irq(&ps->lock);
+	} else {
+		ret = usb_submit_urb(as->urb, GFP_KERNEL);
+	}
+
+	if (ret) {
 		dev_printk(KERN_DEBUG, &ps->dev->dev,
 			   "usbfs: usb_submit_urb returned %d\n", ret);
 		snoop_urb(ps->dev, as->userurb, as->urb->pipe,
