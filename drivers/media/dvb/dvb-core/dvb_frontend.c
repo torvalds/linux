@@ -838,6 +838,15 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 		}
 	}
 
+	/* check for supported modulation */
+	if (fe->ops.info.type == FE_QAM &&
+	    (parms->u.qam.modulation > QAM_AUTO ||
+	     !((1 << (parms->u.qam.modulation + 10)) & fe->ops.info.caps))) {
+		printk(KERN_WARNING "DVB: adapter %i frontend %i modulation %u not supported\n",
+		       fe->dvb->num, fe->id, parms->u.qam.modulation);
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
