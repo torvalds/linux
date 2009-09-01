@@ -454,10 +454,6 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tr->buffer = max_tr.buffer;
 	max_tr.buffer = buf;
 
-	ftrace_disable_cpu();
-	ring_buffer_reset(tr->buffer);
-	ftrace_enable_cpu();
-
 	__update_max_tr(tr, tsk, cpu);
 	__raw_spin_unlock(&ftrace_max_lock);
 }
@@ -483,7 +479,6 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	ftrace_disable_cpu();
 
-	ring_buffer_reset(max_tr.buffer);
 	ret = ring_buffer_swap_cpu(max_tr.buffer, tr->buffer, cpu);
 
 	ftrace_enable_cpu();
@@ -1374,6 +1369,37 @@ static void *s_next(struct seq_file *m, void *v, loff_t *pos)
 	return ent;
 }
 
+static void tracing_iter_reset(struct trace_iterator *iter, int cpu)
+{
+	struct trace_array *tr = iter->tr;
+	struct ring_buffer_event *event;
+	struct ring_buffer_iter *buf_iter;
+	unsigned long entries = 0;
+	u64 ts;
+
+	tr->data[cpu]->skipped_entries = 0;
+
+	if (!iter->buffer_iter[cpu])
+		return;
+
+	buf_iter = iter->buffer_iter[cpu];
+	ring_buffer_iter_reset(buf_iter);
+
+	/*
+	 * We could have the case with the max latency tracers
+	 * that a reset never took place on a cpu. This is evident
+	 * by the timestamp being before the start of the buffer.
+	 */
+	while ((event = ring_buffer_iter_peek(buf_iter, &ts))) {
+		if (ts >= iter->tr->time_start)
+			break;
+		entries++;
+		ring_buffer_read(buf_iter, NULL);
+	}
+
+	tr->data[cpu]->skipped_entries = entries;
+}
+
 /*
  * No necessary locking here. The worst thing which can
  * happen is loosing events consumed at the same time
@@ -1412,10 +1438,9 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 
 		if (cpu_file == TRACE_PIPE_ALL_CPU) {
 			for_each_tracing_cpu(cpu)
-				ring_buffer_iter_reset(iter->buffer_iter[cpu]);
+				tracing_iter_reset(iter, cpu);
 		} else
-			ring_buffer_iter_reset(iter->buffer_iter[cpu_file]);
-
+			tracing_iter_reset(iter, cpu_file);
 
 		ftrace_enable_cpu();
 
@@ -1464,16 +1489,32 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	struct trace_array *tr = iter->tr;
 	struct trace_array_cpu *data = tr->data[tr->cpu];
 	struct tracer *type = current_trace;
-	unsigned long total;
-	unsigned long entries;
+	unsigned long entries = 0;
+	unsigned long total = 0;
+	unsigned long count;
 	const char *name = "preemption";
+	int cpu;
 
 	if (type)
 		name = type->name;
 
-	entries = ring_buffer_entries(iter->tr->buffer);
-	total = entries +
-		ring_buffer_overruns(iter->tr->buffer);
+
+	for_each_tracing_cpu(cpu) {
+		count = ring_buffer_entries_cpu(tr->buffer, cpu);
+		/*
+		 * If this buffer has skipped entries, then we hold all
+		 * entries for the trace and we need to ignore the
+		 * ones before the time stamp.
+		 */
+		if (tr->data[cpu]->skipped_entries) {
+			count -= tr->data[cpu]->skipped_entries;
+			/* total is the same as the entries */
+			total += count;
+		} else
+			total += count +
+				ring_buffer_overrun_cpu(tr->buffer, cpu);
+		entries += count;
+	}
 
 	seq_printf(m, "# %s latency trace v1.1.5 on %s\n",
 		   name, UTS_RELEASE);
@@ -1532,6 +1573,9 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 		return;
 
 	if (cpumask_test_cpu(iter->cpu, iter->started))
+		return;
+
+	if (iter->tr->data[iter->cpu]->skipped_entries)
 		return;
 
 	cpumask_set_cpu(iter->cpu, iter->started);
@@ -1796,19 +1840,23 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (ring_buffer_overruns(iter->tr->buffer))
 		iter->iter_flags |= TRACE_FILE_ANNOTATE;
 
+	/* stop the trace while dumping */
+	tracing_stop();
+
 	if (iter->cpu_file == TRACE_PIPE_ALL_CPU) {
 		for_each_tracing_cpu(cpu) {
 
 			iter->buffer_iter[cpu] =
 				ring_buffer_read_start(iter->tr->buffer, cpu);
+			tracing_iter_reset(iter, cpu);
 		}
 	} else {
 		cpu = iter->cpu_file;
 		iter->buffer_iter[cpu] =
 				ring_buffer_read_start(iter->tr->buffer, cpu);
+		tracing_iter_reset(iter, cpu);
 	}
 
-	/* TODO stop tracer */
 	ret = seq_open(file, &tracer_seq_ops);
 	if (ret < 0) {
 		fail_ret = ERR_PTR(ret);
@@ -1817,9 +1865,6 @@ __tracing_open(struct inode *inode, struct file *file)
 
 	m = file->private_data;
 	m->private = iter;
-
-	/* stop the trace while dumping */
-	tracing_stop();
 
 	mutex_unlock(&trace_types_lock);
 
@@ -1831,6 +1876,7 @@ __tracing_open(struct inode *inode, struct file *file)
 			ring_buffer_read_finish(iter->buffer_iter[cpu]);
 	}
 	free_cpumask_var(iter->started);
+	tracing_start();
  fail:
 	mutex_unlock(&trace_types_lock);
 	kfree(iter->trace);
