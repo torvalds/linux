@@ -253,8 +253,8 @@ struct ndis_80211_pmkid_cand_list {
 struct ndis_80211_status_indication {
 	__le32 status_type;
 	union {
-		enum ndis_80211_media_stream_mode	media_stream_mode;
-		enum ndis_80211_radio_status		radio_status;
+		__le32					media_stream_mode;
+		__le32					radio_status;
 		struct ndis_80211_auth_request		auth_request[0];
 		struct ndis_80211_pmkid_cand_list	cand_list;
 	} u;
@@ -1296,7 +1296,7 @@ static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 
 static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 			int index, const u8 *addr, const u8 *rx_seq,
-			int seq_len, u32 cipher, int flags)
+			int seq_len, u32 cipher, __le32 flags)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_key ndis_key;
@@ -2023,7 +2023,7 @@ static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;
-	int flags;
+	__le32 flags;
 
 	devdbg(usbdev, "rndis_add_key(%i, %pM, %08x)", key_index, mac_addr,
 							params->cipher);
