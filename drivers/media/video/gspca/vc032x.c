@@ -2937,21 +2937,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		put_tab_to_reg(gspca_dev, MatrixT, 9, 0xb82c);
 
 		/* set the led on 0x0892 0x0896 */
-		if (sd->sensor == SENSOR_PO1200) {
-			setsharpness(gspca_dev);
-			sethvflip(gspca_dev);
+		switch (sd->sensor) {
+		case SENSOR_PO1200:
+		case SENSOR_HV7131R:
 			reg_w(gspca_dev->dev, 0x89, 0x0400, 0x1415);
-		} else if (sd->sensor == SENSOR_MI1310_SOC) {
+			break;
+		case SENSOR_MI1310_SOC:
 			reg_w(gspca_dev->dev, 0x89, 0x058c, 0x0000);
-			msleep(100);
-			sethvflip(gspca_dev);
-			setlightfreq(gspca_dev);
-		} else {
+			break;
+		default:
 			reg_w(gspca_dev->dev, 0x89, 0xffff, 0xfdff);
-			msleep(100);
-			sethvflip(gspca_dev);
-			setlightfreq(gspca_dev);
+			break;
 		}
+		msleep(100);
+		setsharpness(gspca_dev);
+		sethvflip(gspca_dev);
+		setlightfreq(gspca_dev);
 	}
 	return 0;
 }
