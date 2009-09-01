@@ -964,6 +964,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
+	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;
 	int i;
 	int sb_size, pipe;
 	struct urb *urb;
@@ -993,7 +994,8 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	}
 
 	dev->isoc_ctl.max_pkt_size = max_pkt_size;
-	dev->isoc_ctl.buf = NULL;
+	dev->isoc_ctl.vid_buf = NULL;
+	dev->isoc_ctl.vbi_buf = NULL;
 
 	sb_size = max_packets * dev->isoc_ctl.max_pkt_size;
 
@@ -1043,6 +1045,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	}
 
 	init_waitqueue_head(&dma_q->wq);
+	init_waitqueue_head(&vbi_dma_q->wq);
 
 	em28xx_capture_start(dev, 1);
 

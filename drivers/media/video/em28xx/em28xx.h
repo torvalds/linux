@@ -214,7 +214,8 @@ struct em28xx_usb_isoc_ctl {
 	int				tmp_buf_len;
 
 		/* Stores already requested buffers */
-	struct em28xx_buffer    	*buf;
+	struct em28xx_buffer    	*vid_buf;
+	struct em28xx_buffer    	*vbi_buf;
 
 		/* Stores the number of received fields */
 	int				nfields;
@@ -467,6 +468,7 @@ struct em28xx_fh {
 	int           radio;
 
 	struct videobuf_queue        vb_vidq;
+	struct videobuf_queue        vb_vbiq;
 
 	enum v4l2_buf_type           type;
 };
@@ -565,6 +567,7 @@ struct em28xx {
 
 	/* Isoc control struct */
 	struct em28xx_dmaqueue vidq;
+	struct em28xx_dmaqueue vbiq;
 	struct em28xx_usb_isoc_ctl isoc_ctl;
 	spinlock_t slock;
 
@@ -692,6 +695,9 @@ void em28xx_deregister_snapshot_button(struct em28xx *dev);
 
 int em28xx_ir_init(struct em28xx *dev);
 int em28xx_ir_fini(struct em28xx *dev);
+
+/* Provided by em28xx-vbi.c */
+extern struct videobuf_queue_ops em28xx_vbi_qops;
 
 /* printk macros */
 
