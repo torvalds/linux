@@ -175,7 +175,7 @@ struct iwm_key {
 #define IWM_STATUS_READY		0
 #define IWM_STATUS_SCANNING		1
 #define IWM_STATUS_SCAN_ABORTING	2
-#define IWM_STATUS_ASSOCIATING		3
+#define IWM_STATUS_SME_CONNECTING	3
 #define IWM_STATUS_ASSOCIATED		4
 
 struct iwm_tx_queue {

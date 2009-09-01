@@ -673,7 +673,7 @@ static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	IWM_DBG_WEXT(iwm, DBG, "Active: %d\n", iwm->umac_profile_active);
 
 	if (iwm->umac_profile_active)
-		return iwm_invalidate_mlme_profile(iwm);
+		iwm_invalidate_mlme_profile(iwm);
 
 	return 0;
 }
