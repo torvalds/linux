@@ -694,6 +694,7 @@
 #define  SG_DIG_PARTNER_FULL_DUPLEX	 0x00020000 /* If !MRADV_CRC16_SELECT */
 #define  SG_DIG_PARTNER_NEXT_PAGE	 0x00010000 /* If !MRADV_CRC16_SELECT */
 #define  SG_DIG_AUTONEG_STATE_MASK	 0x00000ff0
+#define  SG_DIG_IS_SERDES		 0x00000100
 #define  SG_DIG_COMMA_DETECTOR		 0x00000008
 #define  SG_DIG_MAC_ACK_STATUS		 0x00000004
 #define  SG_DIG_AUTONEG_COMPLETE	 0x00000002
@@ -2804,6 +2805,8 @@ struct tg3 {
 
 	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
+
+	u8				phy_addr;
 
 	/* PHY info */
 	u32				phy_id;

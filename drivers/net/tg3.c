@@ -782,7 +782,7 @@ static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
 
 	*val = 0x0;
 
-	frame_val  = ((PHY_ADDR << MI_COM_PHY_ADDR_SHIFT) &
+	frame_val  = ((tp->phy_addr << MI_COM_PHY_ADDR_SHIFT) &
 		      MI_COM_PHY_ADDR_MASK);
 	frame_val |= ((reg << MI_COM_REG_ADDR_SHIFT) &
 		      MI_COM_REG_ADDR_MASK);
@@ -833,7 +833,7 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 		udelay(80);
 	}
 
-	frame_val  = ((PHY_ADDR << MI_COM_PHY_ADDR_SHIFT) &
+	frame_val  = ((tp->phy_addr << MI_COM_PHY_ADDR_SHIFT) &
 		      MI_COM_PHY_ADDR_MASK);
 	frame_val |= ((reg << MI_COM_REG_ADDR_SHIFT) &
 		      MI_COM_REG_ADDR_MASK);
@@ -1020,6 +1020,21 @@ static void tg3_mdio_start(struct tg3 *tp)
 	tp->mi_mode &= ~MAC_MI_MODE_AUTO_POLL;
 	tw32_f(MAC_MI_MODE, tp->mi_mode);
 	udelay(80);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
+		u32 funcnum, is_serdes;
+
+		funcnum = tr32(TG3_CPMU_STATUS) & TG3_CPMU_STATUS_PCIE_FUNC;
+		if (funcnum)
+			tp->phy_addr = 2;
+		else
+			tp->phy_addr = 1;
+
+		is_serdes = tr32(SG_DIG_STATUS) & SG_DIG_IS_SERDES;
+		if (is_serdes)
+			tp->phy_addr += 7;
+	} else
+		tp->phy_addr = PHY_ADDR;
 
 	if ((tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
@@ -9266,7 +9281,7 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->speed = tp->link_config.active_speed;
 		cmd->duplex = tp->link_config.active_duplex;
 	}
-	cmd->phy_address = PHY_ADDR;
+	cmd->phy_address = tp->phy_addr;
 	cmd->transceiver = XCVR_INTERNAL;
 	cmd->autoneg = tp->link_config.autoneg;
 	cmd->maxtxpkt = 0;
@@ -10570,7 +10585,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch(cmd) {
 	case SIOCGMIIPHY:
-		data->phy_id = PHY_ADDR;
+		data->phy_id = tp->phy_addr;
 
 		/* fallthru */
 	case SIOCGMIIREG: {
