@@ -403,8 +403,10 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (raw_samples)
+	if (raw_samples) {
 		attr->sample_type	|= PERF_SAMPLE_RAW;
+		attr->sample_type	|= PERF_SAMPLE_CPU;
+	}
 
 	attr->mmap		= track;
 	attr->comm		= track;
