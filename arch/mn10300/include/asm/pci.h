@@ -59,7 +59,6 @@ void pcibios_penalize_isa_irq(int irq);
 #include <linux/slab.h>
 #include <asm/scatterlist.h>
 #include <linux/string.h>
-#include <linux/mm.h>
 #include <asm/io.h>
 
 struct pci_dev;

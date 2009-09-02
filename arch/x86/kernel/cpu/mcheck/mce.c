@@ -1226,8 +1226,13 @@ static void mce_init(void)
 }
 
 /* Add per CPU specific workarounds here */
-static void mce_cpu_quirks(struct cpuinfo_x86 *c)
+static int mce_cpu_quirks(struct cpuinfo_x86 *c)
 {
+	if (c->x86_vendor == X86_VENDOR_UNKNOWN) {
+		pr_info("MCE: unknown CPU type - not enabling MCE support.\n");
+		return -EOPNOTSUPP;
+	}
+
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
 		if (c->x86 == 15 && banks > 4) {
@@ -1273,11 +1278,20 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		if ((c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xe)) &&
 			monarch_timeout < 0)
 			monarch_timeout = USEC_PER_SEC;
+
+		/*
+		 * There are also broken BIOSes on some Pentium M and
+		 * earlier systems:
+		 */
+		if (c->x86 == 6 && c->x86_model <= 13 && mce_bootlog < 0)
+			mce_bootlog = 0;
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
 	if (mce_bootlog != 0)
 		mce_panic_timeout = 30;
+
+	return 0;
 }
 
 static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
@@ -1338,11 +1352,10 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 	if (!mce_available(c))
 		return;
 
-	if (mce_cap_init() < 0) {
+	if (mce_cap_init() < 0 || mce_cpu_quirks(c) < 0) {
 		mce_disabled = 1;
 		return;
 	}
-	mce_cpu_quirks(c);
 
 	machine_check_vector = do_machine_check;
 

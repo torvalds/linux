@@ -1,5 +1,6 @@
 config B3DFG
        tristate "Brontes 3d Frame Framegrabber"
+       depends on PCI
        default n
        ---help---
          This driver provides support for the Brontes 3d Framegrabber

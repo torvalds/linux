@@ -119,8 +119,8 @@ struct p9_poll_wait {
  * @wpos: write position for current frame
  * @wsize: amount of data to write for current frame
  * @wbuf: current write buffer
+ * @poll_pending_link: pending links to be polled per conn
  * @poll_wait: array of wait_q's for various worker threads
- * @poll_waddr: ????
  * @pt: poll state
  * @rq: current read work
  * @wq: current write work
@@ -700,9 +700,9 @@ static int p9_fd_cancel(struct p9_client *client, struct p9_req_t *req)
 }
 
 /**
- * parse_options - parse mount options into session structure
- * @options: options string passed from mount
- * @opts: transport-specific structure to parse options into
+ * parse_opts - parse mount options into p9_fd_opts structure
+ * @params: options string passed from mount
+ * @opts: fd transport-specific structure to parse options into
  *
  * Returns 0 upon success, -ERRNO upon failure
  */

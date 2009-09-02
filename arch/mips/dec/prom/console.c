@@ -1,6 +1,4 @@
 /*
- *	arch/mips/dec/prom/console.c
- *
  *	DECstation PROM-based early console support.
  *
  *	Copyright (C) 2004, 2007  Maciej W. Rozycki

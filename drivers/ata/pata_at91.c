@@ -250,7 +250,7 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 		ata_port_desc(ap, "no IRQ, using PIO polling");
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 
 	if (!info) {
 		dev_err(dev, "failed to allocate memory for private data\n");
@@ -275,7 +275,7 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 	if (!info->ide_addr) {
 		dev_err(dev, "failed to map IO base\n");
 		ret = -ENOMEM;
-		goto err_ide_ioremap;
+		goto err_put;
 	}
 
 	info->alt_addr = devm_ioremap(dev,
@@ -284,7 +284,7 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 	if (!info->alt_addr) {
 		dev_err(dev, "failed to map CTL base\n");
 		ret = -ENOMEM;
-		goto err_alt_ioremap;
+		goto err_put;
 	}
 
 	ap->ioaddr.cmd_addr = info->ide_addr;
@@ -303,13 +303,8 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 			irq ? ata_sff_interrupt : NULL,
 			irq_flags, &pata_at91_sht);
 
-err_alt_ioremap:
-	devm_iounmap(dev, info->ide_addr);
-
-err_ide_ioremap:
+err_put:
 	clk_put(info->mck);
-	kfree(info);
-
 	return ret;
 }
 
@@ -317,7 +312,6 @@ static int __devexit pata_at91_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	struct at91_ide_info *info;
-	struct device *dev = &pdev->dev;
 
 	if (!host)
 		return 0;
@@ -328,11 +322,8 @@ static int __devexit pata_at91_remove(struct platform_device *pdev)
 	if (!info)
 		return 0;
 
-	devm_iounmap(dev, info->ide_addr);
-	devm_iounmap(dev, info->alt_addr);
 	clk_put(info->mck);
 
-	kfree(info);
 	return 0;
 }
 

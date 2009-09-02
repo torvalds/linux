@@ -254,6 +254,72 @@ void r100_mc_fini(struct radeon_device *rdev)
 
 
 /*
+ * Interrupts
+ */
+int r100_irq_set(struct radeon_device *rdev)
+{
+	uint32_t tmp = 0;
+
+	if (rdev->irq.sw_int) {
+		tmp |= RADEON_SW_INT_ENABLE;
+	}
+	if (rdev->irq.crtc_vblank_int[0]) {
+		tmp |= RADEON_CRTC_VBLANK_MASK;
+	}
+	if (rdev->irq.crtc_vblank_int[1]) {
+		tmp |= RADEON_CRTC2_VBLANK_MASK;
+	}
+	WREG32(RADEON_GEN_INT_CNTL, tmp);
+	return 0;
+}
+
+static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
+{
+	uint32_t irqs = RREG32(RADEON_GEN_INT_STATUS);
+	uint32_t irq_mask = RADEON_SW_INT_TEST | RADEON_CRTC_VBLANK_STAT |
+		RADEON_CRTC2_VBLANK_STAT;
+
+	if (irqs) {
+		WREG32(RADEON_GEN_INT_STATUS, irqs);
+	}
+	return irqs & irq_mask;
+}
+
+int r100_irq_process(struct radeon_device *rdev)
+{
+	uint32_t status;
+
+	status = r100_irq_ack(rdev);
+	if (!status) {
+		return IRQ_NONE;
+	}
+	while (status) {
+		/* SW interrupt */
+		if (status & RADEON_SW_INT_TEST) {
+			radeon_fence_process(rdev);
+		}
+		/* Vertical blank interrupts */
+		if (status & RADEON_CRTC_VBLANK_STAT) {
+			drm_handle_vblank(rdev->ddev, 0);
+		}
+		if (status & RADEON_CRTC2_VBLANK_STAT) {
+			drm_handle_vblank(rdev->ddev, 1);
+		}
+		status = r100_irq_ack(rdev);
+	}
+	return IRQ_HANDLED;
+}
+
+u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc)
+{
+	if (crtc == 0)
+		return RREG32(RADEON_CRTC_CRNT_FRAME);
+	else
+		return RREG32(RADEON_CRTC2_CRNT_FRAME);
+}
+
+
+/*
  * Fence emission
  */
 void r100_fence_ring_emit(struct radeon_device *rdev,
@@ -722,13 +788,14 @@ int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 unsigned idx)
 {
 	struct radeon_cs_chunk *ib_chunk = &p->chunks[p->chunk_ib_idx];
-	uint32_t header = ib_chunk->kdata[idx];
+	uint32_t header;
 
 	if (idx >= ib_chunk->length_dw) {
 		DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
 			  idx, ib_chunk->length_dw);
 		return -EINVAL;
 	}
+	header = ib_chunk->kdata[idx];
 	pkt->idx = idx;
 	pkt->type = CP_PACKET_GET_TYPE(header);
 	pkt->count = CP_PACKET_GET_COUNT(header);
@@ -1023,6 +1090,16 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
 			tmp |= tile_flags;
 			ib[idx] = tmp;
+			break;
+		case RADEON_RB3D_ZPASS_ADDR:
+			r = r100_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					  idx, reg);
+				r100_cs_dump_packet(p, pkt);
+				return r;
+			}
+			ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
 			break;
 		default:
 			/* FIXME: we don't want to allow anyothers packet */
@@ -1553,26 +1630,6 @@ void r100_pll_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	r100_pll_errata_after_index(rdev);
 	WREG32(RADEON_CLOCK_CNTL_DATA, v);
 	r100_pll_errata_after_data(rdev);
-}
-
-uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	if (reg < 0x10000)
-		return readl(((void __iomem *)rdev->rmmio) + reg);
-	else {
-		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
-		return readl(((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
-	}
-}
-
-void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	if (reg < 0x10000)
-		writel(v, ((void __iomem *)rdev->rmmio) + reg);
-	else {
-		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
-		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
-	}
 }
 
 int r100_init(struct radeon_device *rdev)

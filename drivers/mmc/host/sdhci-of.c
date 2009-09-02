@@ -234,7 +234,7 @@ static int __devinit sdhci_of_probe(struct of_device *ofdev,
 		return -ENODEV;
 
 	host = sdhci_alloc_host(&ofdev->dev, sizeof(*of_host));
-	if (!host)
+	if (IS_ERR(host))
 		return -ENOMEM;
 
 	of_host = sdhci_priv(host);

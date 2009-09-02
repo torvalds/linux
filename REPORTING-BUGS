@@ -15,7 +15,10 @@ worry too much about getting the wrong person. If you are unsure send it
 to the person responsible for the code relevant to what you were doing.
 If it occurs repeatably try and describe how to recreate it. That is
 worth even more than the oops itself.  The list of maintainers and
-mailing lists is in the MAINTAINERS file in this directory.
+mailing lists is in the MAINTAINERS file in this directory.  If you
+know the file name that causes the problem you can use the following
+command in this directory to find some of the maintainers of that file:
+     perl scripts/get_maintainer.pl -f <filename>
 
       If it is a security bug, please copy the Security Contact listed
 in the MAINTAINERS file.  They can help coordinate bugfix and disclosure.

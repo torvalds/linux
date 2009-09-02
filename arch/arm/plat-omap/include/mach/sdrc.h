@@ -30,6 +30,10 @@
 #define SDRC_ACTIM_CTRL_A_0	0x09c
 #define SDRC_ACTIM_CTRL_B_0	0x0a0
 #define SDRC_RFR_CTRL_0		0x0a4
+#define SDRC_MR_1		0x0B4
+#define SDRC_ACTIM_CTRL_A_1	0x0C4
+#define SDRC_ACTIM_CTRL_B_1	0x0C8
+#define SDRC_RFR_CTRL_1		0x0D4
 
 /*
  * These values represent the number of memory clock cycles between
@@ -102,8 +106,11 @@ struct omap_sdrc_params {
 	u32 mr;
 };
 
-void __init omap2_sdrc_init(struct omap_sdrc_params *sp);
-struct omap_sdrc_params *omap2_sdrc_get_params(unsigned long r);
+void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
+			    struct omap_sdrc_params *sdrc_cs1);
+int omap2_sdrc_get_params(unsigned long r,
+			  struct omap_sdrc_params **sdrc_cs0,
+			  struct omap_sdrc_params **sdrc_cs1);
 
 #ifdef CONFIG_ARCH_OMAP2
 

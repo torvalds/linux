@@ -106,7 +106,7 @@ static inline uint32_t radeon_object_flags_from_domain(uint32_t domain)
 		flags |= TTM_PL_FLAG_VRAM | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
 	}
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		flags |= TTM_PL_FLAG_TT | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
+		flags |= TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
 	}
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
 		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
@@ -310,6 +310,25 @@ int radeon_object_wait(struct radeon_object *robj)
 	spin_lock(&robj->tobj.lock);
 	if (robj->tobj.sync_obj) {
 		r = ttm_bo_wait(&robj->tobj, true, true, false);
+	}
+	spin_unlock(&robj->tobj.lock);
+	radeon_object_unreserve(robj);
+	return r;
+}
+
+int radeon_object_busy_domain(struct radeon_object *robj, uint32_t *cur_placement)
+{
+	int r = 0;
+
+	r = radeon_object_reserve(robj, true);
+	if (unlikely(r != 0)) {
+		DRM_ERROR("radeon: failed to reserve object for waiting.\n");
+		return r;
+	}
+	spin_lock(&robj->tobj.lock);
+	*cur_placement = robj->tobj.mem.mem_type;
+	if (robj->tobj.sync_obj) {
+		r = ttm_bo_wait(&robj->tobj, true, true, true);
 	}
 	spin_unlock(&robj->tobj.lock);
 	radeon_object_unreserve(robj);

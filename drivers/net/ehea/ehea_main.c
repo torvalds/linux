@@ -1545,6 +1545,9 @@ static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 {
 	int ret, i;
 
+	if (pr->qp)
+		netif_napi_del(&pr->napi);
+
 	ret = ehea_destroy_qp(pr->qp);
 
 	if (!ret) {

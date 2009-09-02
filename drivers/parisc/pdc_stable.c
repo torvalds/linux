@@ -370,7 +370,7 @@ pdcspath_layer_read(struct pdcspath_entry *entry, char *buf)
 	if (!i)	/* entry is not ready */
 		return -ENODATA;
 	
-	for (i = 0; devpath->layers[i] && (likely(i < 6)); i++)
+	for (i = 0; i < 6 && devpath->layers[i]; i++)
 		out += sprintf(out, "%u ", devpath->layers[i]);
 
 	out += sprintf(out, "\n");

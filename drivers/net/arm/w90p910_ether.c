@@ -1080,7 +1080,7 @@ static struct platform_driver w90p910_ether_driver = {
 	.probe		= w90p910_ether_probe,
 	.remove		= __devexit_p(w90p910_ether_remove),
 	.driver		= {
-		.name	= "w90p910-emc",
+		.name	= "nuc900-emc",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -1101,5 +1101,5 @@ module_exit(w90p910_ether_exit);
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910 MAC driver!");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:w90p910-emc");
+MODULE_ALIAS("platform:nuc900-emc");
 

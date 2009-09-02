@@ -454,6 +454,10 @@ static int __devinit xenfb_probe(struct xenbus_device *dev,
 
 	xenfb_init_shared_page(info, fb_info);
 
+	ret = xenfb_connect_backend(dev, info);
+	if (ret < 0)
+		goto error;
+
 	ret = register_framebuffer(fb_info);
 	if (ret) {
 		fb_deferred_io_cleanup(fb_info);
@@ -463,10 +467,6 @@ static int __devinit xenfb_probe(struct xenbus_device *dev,
 		goto error;
 	}
 	info->fb_info = fb_info;
-
-	ret = xenfb_connect_backend(dev, info);
-	if (ret < 0)
-		goto error;
 
 	xenfb_make_preferred_console();
 	return 0;

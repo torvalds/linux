@@ -29,7 +29,6 @@ unsigned int __machine_arch_type;
 
 static void putstr(const char *ptr);
 
-#include <linux/compiler.h>
 #include <mach/uncompress.h>
 
 #ifdef CONFIG_DEBUG_ICEDCC

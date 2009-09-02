@@ -63,6 +63,7 @@ struct cpu_dbs_info_s {
 	unsigned int down_skip;
 	unsigned int requested_freq;
 	int cpu;
+	unsigned int enable:1;
 	/*
 	 * percpu mutex that serializes governor limit change with
 	 * do_dbs_timer invocation. We do not want do_dbs_timer to run
@@ -140,6 +141,9 @@ dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 							freq->cpu);
 
 	struct cpufreq_policy *policy;
+
+	if (!this_dbs_info->enable)
+		return 0;
 
 	policy = this_dbs_info->cur_policy;
 
@@ -497,6 +501,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 	delay -= jiffies % delay;
 
+	dbs_info->enable = 1;
 	INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
 	queue_delayed_work_on(dbs_info->cpu, kconservative_wq, &dbs_info->work,
 				delay);
@@ -504,6 +509,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 {
+	dbs_info->enable = 0;
 	cancel_delayed_work_sync(&dbs_info->work);
 }
 

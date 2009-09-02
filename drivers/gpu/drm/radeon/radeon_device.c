@@ -152,7 +152,9 @@ int radeon_mc_setup(struct radeon_device *rdev)
 		}
 	} else {
 		rdev->mc.vram_location = 0;
-		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
+		tmp = rdev->mc.mc_vram_size;
+		tmp = (tmp + rdev->mc.gtt_size - 1) & ~(rdev->mc.gtt_size - 1);
+		rdev->mc.gtt_location = tmp;
 	}
 	DRM_INFO("radeon: VRAM %uM\n", rdev->mc.real_vram_size >> 20);
 	DRM_INFO("radeon: VRAM from 0x%08X to 0x%08X\n",
@@ -223,25 +225,18 @@ void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 
 void radeon_register_accessor_init(struct radeon_device *rdev)
 {
-	rdev->mm_rreg = &r100_mm_rreg;
-	rdev->mm_wreg = &r100_mm_wreg;
 	rdev->mc_rreg = &radeon_invalid_rreg;
 	rdev->mc_wreg = &radeon_invalid_wreg;
 	rdev->pll_rreg = &radeon_invalid_rreg;
 	rdev->pll_wreg = &radeon_invalid_wreg;
-	rdev->pcie_rreg = &radeon_invalid_rreg;
-	rdev->pcie_wreg = &radeon_invalid_wreg;
 	rdev->pciep_rreg = &radeon_invalid_rreg;
 	rdev->pciep_wreg = &radeon_invalid_wreg;
 
 	/* Don't change order as we are overridding accessor. */
 	if (rdev->family < CHIP_RV515) {
-		rdev->pcie_rreg = &rv370_pcie_rreg;
-		rdev->pcie_wreg = &rv370_pcie_wreg;
-	}
-	if (rdev->family >= CHIP_RV515) {
-		rdev->pcie_rreg = &rv515_pcie_rreg;
-		rdev->pcie_wreg = &rv515_pcie_wreg;
+		rdev->pcie_reg_mask = 0xff;
+	} else {
+		rdev->pcie_reg_mask = 0x7ff;
 	}
 	/* FIXME: not sure here */
 	if (rdev->family <= CHIP_R580) {

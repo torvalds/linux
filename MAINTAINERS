@@ -904,7 +904,7 @@ F:	drivers/input/misc/ati_remote2.c
 
 ATLX ETHERNET DRIVERS
 M:	Jay Cliburn <jcliburn@gmail.com>
-M:	Chris Snook <csnook@redhat.com>
+M:	Chris Snook <chris.snook@gmail.com>
 M:	Jie Yang <jie.yang@atheros.com>
 L:	atl1-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/atl1
@@ -2238,6 +2238,14 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	drivers/media/video/gspca/pac207.c
 
+GSPCA SN9C20X SUBDRIVER
+P:	Brian Johnson
+M:	brijohn@gmail.com
+L:	linux-media@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
+S:	Maintained
+F:	drivers/media/video/gspca/sn9c20x.c
+
 GSPCA T613 SUBDRIVER
 M:	Leandro Costantino <lcostantino@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -3421,6 +3429,7 @@ F:	drivers/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 S:	Orphan
+L:	linux-mmc@vger.kernel.org
 F:	drivers/mmc/
 F:	include/linux/mmc/
 
@@ -3555,6 +3564,9 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/
+F:	include/linux/in.h
+F:	include/linux/net.h
+F:	include/linux/netdevice.h
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
@@ -3590,6 +3602,8 @@ W:	http://www.linuxfoundation.org/en/Net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Odd Fixes
 F:	drivers/net/
+F:	include/linux/if_*
+F:	include/linux/*device.h
 
 NETXEN (1/10) GbE SUPPORT
 M:	Dhananjay Phadke <dhananjay@netxen.com>
@@ -3796,7 +3810,7 @@ W:	http://open-osd.org
 T:	git git://git.open-osd.org/open-osd.git
 S:	Maintained
 F:	drivers/scsi/osd/
-F:	drivers/include/scsi/osd_*
+F:	include/scsi/osd_*
 F:	fs/exofs/
 
 P54 WIRELESS DRIVER
@@ -4995,7 +5009,9 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
 
 TTY LAYER
-S:	Orphan
+M:	Greg Kroah-Hartman <gregkh@suse.de>
+S:	Maintained
+T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 F:	drivers/char/tty_*
 F:	drivers/serial/serial_core.c
 F:	include/linux/serial_core.h
