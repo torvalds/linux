@@ -90,6 +90,14 @@ MODULE_PARM_DESC(power_save_disabled,
 		 "False by default (so the device is told to do power "
 		 "saving).");
 
+static char i2400m_debug_params[128];
+module_param_string(debug, i2400m_debug_params, sizeof(i2400m_debug_params),
+		    0644);
+MODULE_PARM_DESC(debug,
+		 "String of space-separated NAME:VALUE pairs, where NAMEs "
+		 "are the different debug submodules and VALUE are the "
+		 "initial debug value to set.");
+
 /**
  * i2400m_queue_work - schedule work on a i2400m's queue
  *
@@ -794,6 +802,8 @@ size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 static
 int __init i2400m_driver_init(void)
 {
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400m_debug_params,
+		       "i2400m.debug");
 	return 0;
 }
 module_init(i2400m_driver_init);

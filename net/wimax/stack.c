@@ -60,6 +60,14 @@
 #define D_SUBMODULE stack
 #include "debug-levels.h"
 
+static char wimax_debug_params[128];
+module_param_string(debug, wimax_debug_params, sizeof(wimax_debug_params),
+		    0644);
+MODULE_PARM_DESC(debug,
+		 "String of space-separated NAME:VALUE pairs, where NAMEs "
+		 "are the different debug submodules and VALUE are the "
+		 "initial debug value to set.");
+
 /*
  * Authoritative source for the RE_STATE_CHANGE attribute policy
  *
@@ -562,6 +570,9 @@ int __init wimax_subsys_init(void)
 	int result, cnt;
 
 	d_fnstart(4, NULL, "()\n");
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, wimax_debug_params,
+		       "wimax.debug");
+
 	snprintf(wimax_gnl_family.name, sizeof(wimax_gnl_family.name),
 		 "WiMAX");
 	result = genl_register_family(&wimax_gnl_family);

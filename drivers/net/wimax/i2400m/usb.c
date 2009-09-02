@@ -71,6 +71,13 @@
 #define D_SUBMODULE usb
 #include "usb-debug-levels.h"
 
+static char i2400mu_debug_params[128];
+module_param_string(debug, i2400mu_debug_params, sizeof(i2400mu_debug_params),
+		    0644);
+MODULE_PARM_DESC(debug,
+		 "String of space-separated NAME:VALUE pairs, where NAMEs "
+		 "are the different debug submodules and VALUE are the "
+		 "initial debug value to set.");
 
 /* Our firmware file name */
 static const char *i2400mu_bus_fw_names[] = {
@@ -633,6 +640,8 @@ struct usb_driver i2400mu_driver = {
 static
 int __init i2400mu_driver_init(void)
 {
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400mu_debug_params,
+		       "i2400m_usb.debug");
 	return usb_register(&i2400mu_driver);
 }
 module_init(i2400mu_driver_init);

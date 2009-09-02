@@ -71,6 +71,14 @@
 static int ioe_timeout = 2;
 module_param(ioe_timeout, int, 0);
 
+static char i2400ms_debug_params[128];
+module_param_string(debug, i2400ms_debug_params, sizeof(i2400ms_debug_params),
+		    0644);
+MODULE_PARM_DESC(debug,
+		 "String of space-separated NAME:VALUE pairs, where NAMEs "
+		 "are the different debug submodules and VALUE are the "
+		 "initial debug value to set.");
+
 /* Our firmware file name list */
 static const char *i2400ms_bus_fw_names[] = {
 #define I2400MS_FW_FILE_NAME "i2400m-fw-sdio-1.3.sbcf"
@@ -559,6 +567,8 @@ struct sdio_driver i2400m_sdio_driver = {
 static
 int __init i2400ms_driver_init(void)
 {
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400ms_debug_params,
+		       "i2400m_sdio.debug");
 	return sdio_register_driver(&i2400m_sdio_driver);
 }
 module_init(i2400ms_driver_init);
