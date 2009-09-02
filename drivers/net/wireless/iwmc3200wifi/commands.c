@@ -756,6 +756,7 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 		return ret;
 	}
 
+	set_bit(IWM_STATUS_SME_CONNECTING, &iwm->status);
 	return 0;
 }
 

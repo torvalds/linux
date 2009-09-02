@@ -566,62 +566,81 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 			      struct iwl_tx_cmd *tx_cmd,
 			      struct ieee80211_tx_info *info,
-			      __le16 fc, int sta_id,
-			      int is_hcca)
+			      __le16 fc, int is_hcca)
 {
-	u32 rate_flags = 0;
+	u32 rate_flags;
 	int rate_idx;
-	u8 rts_retry_limit = 0;
-	u8 data_retry_limit = 0;
+	u8 rts_retry_limit;
+	u8 data_retry_limit;
 	u8 rate_plcp;
 
-	rate_idx = min(ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xffff,
-			IWL_RATE_COUNT - 1);
-
-	rate_plcp = iwl_rates[rate_idx].plcp;
-
-	rts_retry_limit = (is_hcca) ?
-	    RTS_HCCA_RETRY_LIMIT : RTS_DFAULT_RETRY_LIMIT;
-
-	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
-		rate_flags |= RATE_MCS_CCK_MSK;
-
-
-	if (ieee80211_is_probe_resp(fc)) {
-		data_retry_limit = 3;
-		if (data_retry_limit < rts_retry_limit)
-			rts_retry_limit = data_retry_limit;
-	} else
-		data_retry_limit = IWL_DEFAULT_TX_RETRY;
-
+	/* Set retry limit on DATA packets and Probe Responses*/
 	if (priv->data_retry_limit != -1)
 		data_retry_limit = priv->data_retry_limit;
+	else if (ieee80211_is_probe_resp(fc))
+		data_retry_limit = 3;
+	else
+		data_retry_limit = IWL_DEFAULT_TX_RETRY;
+	tx_cmd->data_retry_limit = data_retry_limit;
 
+	/* Set retry limit on RTS packets */
+	rts_retry_limit = (is_hcca) ?  RTS_HCCA_RETRY_LIMIT :
+		RTS_DFAULT_RETRY_LIMIT;
+	if (data_retry_limit < rts_retry_limit)
+		rts_retry_limit = data_retry_limit;
+	tx_cmd->rts_retry_limit = rts_retry_limit;
 
+	/* DATA packets will use the uCode station table for rate/antenna
+	 * selection */
 	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-	} else {
-		switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
-		case cpu_to_le16(IEEE80211_STYPE_AUTH):
-		case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
-		case cpu_to_le16(IEEE80211_STYPE_ASSOC_REQ):
-		case cpu_to_le16(IEEE80211_STYPE_REASSOC_REQ):
-			if (tx_cmd->tx_flags & TX_CMD_FLG_RTS_MSK) {
-				tx_cmd->tx_flags &= ~TX_CMD_FLG_RTS_MSK;
-				tx_cmd->tx_flags |= TX_CMD_FLG_CTS_MSK;
-			}
-			break;
-		default:
-			break;
-		}
-
-		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant);
-		rate_flags |= iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
+		return;
 	}
 
-	tx_cmd->rts_retry_limit = rts_retry_limit;
-	tx_cmd->data_retry_limit = data_retry_limit;
+	/**
+	 * If the current TX rate stored in mac80211 has the MCS bit set, it's
+	 * not really a TX rate.  Thus, we use the lowest supported rate for
+	 * this band.  Also use the lowest supported rate if the stored rate
+	 * index is invalid.
+	 */
+	rate_idx = info->control.rates[0].idx;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS ||
+			(rate_idx < 0) || (rate_idx > IWL_RATE_COUNT_LEGACY))
+		rate_idx = rate_lowest_index(&priv->bands[info->band],
+				info->control.sta);
+	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
+	if (info->band == IEEE80211_BAND_5GHZ)
+		rate_idx += IWL_FIRST_OFDM_RATE;
+	/* Get PLCP rate for tx_cmd->rate_n_flags */
+	rate_plcp = iwl_rates[rate_idx].plcp;
+	/* Zero out flags for this packet */
+	rate_flags = 0;
+
+	/* Set CCK flag as needed */
+	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
+		rate_flags |= RATE_MCS_CCK_MSK;
+
+	/* Set up RTS and CTS flags for certain packets */
+	switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
+	case cpu_to_le16(IEEE80211_STYPE_AUTH):
+	case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
+	case cpu_to_le16(IEEE80211_STYPE_ASSOC_REQ):
+	case cpu_to_le16(IEEE80211_STYPE_REASSOC_REQ):
+		if (tx_cmd->tx_flags & TX_CMD_FLG_RTS_MSK) {
+			tx_cmd->tx_flags &= ~TX_CMD_FLG_RTS_MSK;
+			tx_cmd->tx_flags |= TX_CMD_FLG_CTS_MSK;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Set up antennas */
+	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant);
+	rate_flags |= iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
+
+	/* Set the rate in the TX cmd */
 	tx_cmd->rate_n_flags = iwl_hw_set_rate_n_flags(rate_plcp, rate_flags);
 }
 
@@ -698,12 +717,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->lock, flags);
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_DROP(priv, "Dropping - RF KILL\n");
-		goto drop_unlock;
-	}
-
-	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) ==
-	     IWL_INVALID_RATE) {
-		IWL_ERR(priv, "ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
 
@@ -807,7 +820,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	iwl_dbg_log_tx_data_frame(priv, len, hdr);
 
 	/* set is_hcca to 0; it probably will never be implemented */
-	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, sta_id, 0);
+	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, 0);
 
 	iwl_update_stats(priv, true, fc, len);
 	/*

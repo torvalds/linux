@@ -40,6 +40,10 @@ config CFG80211_REG_DEBUG
 	default n
 	---help---
 	  You can enable this if you want to debug regulatory changes.
+	  For more information on cfg80211 regulatory refer to the wireless
+	  wiki:
+
+	  http://wireless.kernel.org/en/developers/Regulatory
 
 	  If unsure, say N.
 

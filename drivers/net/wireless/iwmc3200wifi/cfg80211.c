@@ -238,8 +238,9 @@ static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 	return iwm_set_tx_key(iwm, key_index);
 }
 
-int iwm_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
-			     u8 *mac, struct station_info *sinfo)
+static int iwm_cfg80211_get_station(struct wiphy *wiphy,
+				    struct net_device *ndev,
+				    u8 *mac, struct station_info *sinfo)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
 
@@ -326,11 +327,8 @@ static int iwm_cfg80211_change_iface(struct wiphy *wiphy,
 
 	iwm->umac_profile->mode = cpu_to_le32(iwm->conf.mode);
 
-	if (iwm->umac_profile_active) {
-		int ret = iwm_invalidate_mlme_profile(iwm);
-		if (ret < 0)
-			IWM_ERR(iwm, "Couldn't invalidate profile\n");
-	}
+	if (iwm->umac_profile_active)
+		iwm_invalidate_mlme_profile(iwm);
 
 	return 0;
 }
@@ -565,6 +563,7 @@ static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 	struct ieee80211_channel *chan = sme->channel;
+	struct key_params key_param;
 	int ret;
 
 	if (!test_bit(IWM_STATUS_READY, &iwm->status))
@@ -572,6 +571,14 @@ static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	if (!sme->ssid)
 		return -EINVAL;
+
+	if (iwm->umac_profile_active) {
+		ret = iwm_invalidate_mlme_profile(iwm);
+		if (ret) {
+			IWM_ERR(iwm, "Couldn't invalidate profile\n");
+			return ret;
+		}
+	}
 
 	if (chan)
 		iwm->channel =
@@ -614,7 +621,48 @@ static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			return ret;
 	}
 
-	return iwm_send_mlme_profile(iwm);
+	/*
+	 * We save the WEP key in case we want to do shared authentication.
+	 * We have to do it so because UMAC will assert whenever it gets a
+	 * key before a profile.
+	 */
+	if (sme->key) {
+		key_param.key = kmemdup(sme->key, sme->key_len, GFP_KERNEL);
+		if (key_param.key == NULL)
+			return -ENOMEM;
+		key_param.key_len = sme->key_len;
+		key_param.seq_len = 0;
+		key_param.cipher = sme->crypto.ciphers_pairwise[0];
+
+		ret = iwm_key_init(&iwm->keys[sme->key_idx], sme->key_idx,
+				   NULL, &key_param);
+		kfree(key_param.key);
+		if (ret < 0) {
+			IWM_ERR(iwm, "Invalid key_params\n");
+			return ret;
+		}
+
+		iwm->default_key = sme->key_idx;
+	}
+
+	ret = iwm_send_mlme_profile(iwm);
+
+	if (iwm->umac_profile->sec.auth_type != UMAC_AUTH_TYPE_LEGACY_PSK ||
+	    sme->key == NULL)
+		return ret;
+
+	/*
+	 * We want to do shared auth.
+	 * We need to actually set the key we previously cached,
+	 * and then tell the UMAC it's the default one.
+	 * That will trigger the auth+assoc UMAC machinery, and again,
+	 * this must be done after setting the profile.
+	 */
+	ret = iwm_set_key(iwm, 0, &iwm->keys[sme->key_idx]);
+	if (ret < 0)
+		return ret;
+
+	return iwm_set_tx_key(iwm, iwm->default_key);
 }
 
 static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
@@ -625,7 +673,7 @@ static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	IWM_DBG_WEXT(iwm, DBG, "Active: %d\n", iwm->umac_profile_active);
 
 	if (iwm->umac_profile_active)
-		return iwm_invalidate_mlme_profile(iwm);
+		iwm_invalidate_mlme_profile(iwm);
 
 	return 0;
 }

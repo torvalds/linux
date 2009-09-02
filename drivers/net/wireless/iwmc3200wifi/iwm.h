@@ -64,6 +64,7 @@
 struct iwm_conf {
 	u32 sdio_ior_timeout;
 	unsigned long calib_map;
+	unsigned long expected_calib_map;
 	bool reset_on_fatal_err;
 	bool auto_connect;
 	bool wimax_not_present;
@@ -175,8 +176,9 @@ struct iwm_key {
 #define IWM_STATUS_READY		0
 #define IWM_STATUS_SCANNING		1
 #define IWM_STATUS_SCAN_ABORTING	2
-#define IWM_STATUS_ASSOCIATING		3
+#define IWM_STATUS_SME_CONNECTING	3
 #define IWM_STATUS_ASSOCIATED		4
+#define IWM_STATUS_RESETTING		5
 
 struct iwm_tx_queue {
 	int id;
@@ -273,6 +275,7 @@ struct iwm_priv {
 
 	struct iw_statistics wstats;
 	struct delayed_work stats_request;
+	struct delayed_work disconnect;
 
 	struct iwm_debugfs dbg;
 
@@ -285,6 +288,8 @@ struct iwm_priv {
 	int req_ie_len;
 	u8 *resp_ie;
 	int resp_ie_len;
+
+	struct iwm_fw_error_hdr *last_fw_err;
 
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
@@ -315,6 +320,7 @@ int iwm_mode_to_nl80211_iftype(int mode);
 int iwm_priv_init(struct iwm_priv *iwm);
 void iwm_priv_deinit(struct iwm_priv *iwm);
 void iwm_reset(struct iwm_priv *iwm);
+void iwm_resetting(struct iwm_priv *iwm);
 void iwm_tx_credit_init_pools(struct iwm_priv *iwm,
 			      struct iwm_umac_notif_alive *alive);
 int iwm_tx_credit_alloc(struct iwm_priv *iwm, int id, int nb);

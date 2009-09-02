@@ -102,6 +102,8 @@ static int iwm_ntf_error(struct iwm_priv *iwm, u8 *buf,
 	error = (struct iwm_umac_notif_error *)buf;
 	fw_err = &error->err;
 
+	memcpy(iwm->last_fw_err, fw_err, sizeof(struct iwm_fw_error_hdr));
+
 	IWM_ERR(iwm, "%cMAC FW ERROR:\n",
 	 (le32_to_cpu(fw_err->category) == UMAC_SYS_ERR_CAT_LMAC) ? 'L' : 'U');
 	IWM_ERR(iwm, "\tCategory:    %d\n", le32_to_cpu(fw_err->category));
@@ -117,6 +119,8 @@ static int iwm_ntf_error(struct iwm_priv *iwm, u8 *buf,
 	IWM_ERR(iwm, "\tUMAC status: 0x%x\n", le32_to_cpu(fw_err->umac_status));
 	IWM_ERR(iwm, "\tLMAC status: 0x%x\n", le32_to_cpu(fw_err->lmac_status));
 	IWM_ERR(iwm, "\tSDIO status: 0x%x\n", le32_to_cpu(fw_err->sdio_status));
+
+	iwm_resetting(iwm);
 
 	return 0;
 }
@@ -487,8 +491,6 @@ static int iwm_mlme_assoc_start(struct iwm_priv *iwm, u8 *buf,
 
 	start = (struct iwm_umac_notif_assoc_start *)buf;
 
-	set_bit(IWM_STATUS_ASSOCIATING, &iwm->status);
-
 	IWM_DBG_MLME(iwm, INFO, "Association with %pM Started, reason: %d\n",
 		     start->bssid, le32_to_cpu(start->roam_reason));
 
@@ -507,47 +509,80 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 	IWM_DBG_MLME(iwm, INFO, "Association with %pM completed, status: %d\n",
 		     complete->bssid, complete->status);
 
-	clear_bit(IWM_STATUS_ASSOCIATING, &iwm->status);
-
 	switch (le32_to_cpu(complete->status)) {
 	case UMAC_ASSOC_COMPLETE_SUCCESS:
 		set_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 		memcpy(iwm->bssid, complete->bssid, ETH_ALEN);
 		iwm->channel = complete->channel;
 
+		/* Internal roaming state, avoid notifying SME. */
+		if (!test_and_clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status)
+		    && iwm->conf.mode == UMAC_MODE_BSS) {
+			cancel_delayed_work(&iwm->disconnect);
+			cfg80211_roamed(iwm_to_ndev(iwm),
+					complete->bssid,
+					iwm->req_ie, iwm->req_ie_len,
+					iwm->resp_ie, iwm->resp_ie_len,
+					GFP_KERNEL);
+			break;
+		}
+
 		iwm_link_on(iwm);
 
 		if (iwm->conf.mode == UMAC_MODE_IBSS)
 			goto ibss;
 
-		cfg80211_connect_result(iwm_to_ndev(iwm),
+		if (!test_bit(IWM_STATUS_RESETTING, &iwm->status))
+			cfg80211_connect_result(iwm_to_ndev(iwm),
+						complete->bssid,
+						iwm->req_ie, iwm->req_ie_len,
+						iwm->resp_ie, iwm->resp_ie_len,
+						WLAN_STATUS_SUCCESS,
+						GFP_KERNEL);
+		else
+			cfg80211_roamed(iwm_to_ndev(iwm),
 					complete->bssid,
 					iwm->req_ie, iwm->req_ie_len,
 					iwm->resp_ie, iwm->resp_ie_len,
-					WLAN_STATUS_SUCCESS, GFP_KERNEL);
+					GFP_KERNEL);
 		break;
 	case UMAC_ASSOC_COMPLETE_FAILURE:
 		clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 		memset(iwm->bssid, 0, ETH_ALEN);
 		iwm->channel = 0;
 
+		/* Internal roaming state, avoid notifying SME. */
+		if (!test_and_clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status)
+		    && iwm->conf.mode == UMAC_MODE_BSS) {
+			cancel_delayed_work(&iwm->disconnect);
+			break;
+		}
+
 		iwm_link_off(iwm);
 
 		if (iwm->conf.mode == UMAC_MODE_IBSS)
 			goto ibss;
 
-		cfg80211_connect_result(iwm_to_ndev(iwm), complete->bssid,
-					NULL, 0, NULL, 0,
-					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					GFP_KERNEL);
+		if (!test_bit(IWM_STATUS_RESETTING, &iwm->status))
+			cfg80211_connect_result(iwm_to_ndev(iwm),
+						complete->bssid,
+						NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
+		else
+			cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0,
+					      GFP_KERNEL);
+		break;
 	default:
 		break;
 	}
 
+	clear_bit(IWM_STATUS_RESETTING, &iwm->status);
 	return 0;
 
  ibss:
 	cfg80211_ibss_joined(iwm_to_ndev(iwm), iwm->bssid, GFP_KERNEL);
+	clear_bit(IWM_STATUS_RESETTING, &iwm->status);
 	return 0;
 }
 
@@ -556,13 +591,20 @@ static int iwm_mlme_profile_invalidate(struct iwm_priv *iwm, u8 *buf,
 				       struct iwm_wifi_cmd *cmd)
 {
 	struct iwm_umac_notif_profile_invalidate *invalid;
+	u32 reason;
 
 	invalid = (struct iwm_umac_notif_profile_invalidate *)buf;
+	reason = le32_to_cpu(invalid->reason);
 
-	IWM_DBG_MLME(iwm, INFO, "Profile Invalidated. Reason: %d\n",
-		     le32_to_cpu(invalid->reason));
+	IWM_DBG_MLME(iwm, INFO, "Profile Invalidated. Reason: %d\n", reason);
 
-	clear_bit(IWM_STATUS_ASSOCIATING, &iwm->status);
+	if (reason != UMAC_PROFILE_INVALID_REQUEST &&
+	    test_bit(IWM_STATUS_SME_CONNECTING, &iwm->status))
+		cfg80211_connect_result(iwm_to_ndev(iwm), NULL, NULL, 0, NULL,
+					0, WLAN_STATUS_UNSPECIFIED_FAILURE,
+					GFP_KERNEL);
+
+	clear_bit(IWM_STATUS_SME_CONNECTING, &iwm->status);
 	clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 
 	iwm->umac_profile_active = 0;
@@ -572,6 +614,19 @@ static int iwm_mlme_profile_invalidate(struct iwm_priv *iwm, u8 *buf,
 	iwm_link_off(iwm);
 
 	wake_up_interruptible(&iwm->mlme_queue);
+
+	return 0;
+}
+
+#define IWM_DISCONNECT_INTERVAL	(5 * HZ)
+
+static int iwm_mlme_connection_terminated(struct iwm_priv *iwm, u8 *buf,
+					  unsigned long buf_size,
+					  struct iwm_wifi_cmd *cmd)
+{
+	IWM_DBG_MLME(iwm, DBG, "Connection terminated\n");
+
+	schedule_delayed_work(&iwm->disconnect, IWM_DISCONNECT_INTERVAL);
 
 	return 0;
 }
@@ -813,7 +868,8 @@ static int iwm_mlme_mgt_frame(struct iwm_priv *iwm, u8 *buf,
 		iwm->resp_ie = kmemdup(mgt->u.reassoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
 	} else {
-		IWM_ERR(iwm, "Unsupported management frame");
+		IWM_ERR(iwm, "Unsupported management frame: 0x%x",
+			le16_to_cpu(mgt->frame_control));
 		return 0;
 	}
 
@@ -834,8 +890,7 @@ static int iwm_ntf_mlme(struct iwm_priv *iwm, u8 *buf,
 	case WIFI_IF_NTFY_PROFILE_INVALIDATE_COMPLETE:
 		return iwm_mlme_profile_invalidate(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_CONNECTION_TERMINATED:
-		IWM_DBG_MLME(iwm, DBG, "Connection terminated\n");
-		break;
+		return iwm_mlme_connection_terminated(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_SCAN_COMPLETE:
 		return iwm_mlme_scan_complete(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_STA_TABLE_CHANGE:

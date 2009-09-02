@@ -423,6 +423,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
+int iwl_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
 

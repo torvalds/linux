@@ -53,7 +53,12 @@
 static struct iwm_conf def_iwm_conf = {
 
 	.sdio_ior_timeout	= 5000,
-	.calib_map		= BIT(PHY_CALIBRATE_DC_CMD)	|
+	.calib_map		= BIT(CALIB_CFG_DC_IDX)	|
+				  BIT(CALIB_CFG_LO_IDX)	|
+				  BIT(CALIB_CFG_TX_IQ_IDX)	|
+				  BIT(CALIB_CFG_RX_IQ_IDX)	|
+				  BIT(SHILOH_PHY_CALIBRATE_BASE_BAND_CMD),
+	.expected_calib_map	= BIT(PHY_CALIBRATE_DC_CMD)	|
 				  BIT(PHY_CALIBRATE_LO_CMD)	|
 				  BIT(PHY_CALIBRATE_TX_IQ_CMD)	|
 				  BIT(PHY_CALIBRATE_RX_IQ_CMD)	|
@@ -108,8 +113,28 @@ static void iwm_statistics_request(struct work_struct *work)
 	iwm_send_umac_stats_req(iwm, 0);
 }
 
-int __iwm_up(struct iwm_priv *iwm);
-int __iwm_down(struct iwm_priv *iwm);
+static void iwm_disconnect_work(struct work_struct *work)
+{
+	struct iwm_priv *iwm =
+		container_of(work, struct iwm_priv, disconnect.work);
+
+	if (iwm->umac_profile_active)
+		iwm_invalidate_mlme_profile(iwm);
+
+	clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
+	iwm->umac_profile_active = 0;
+	memset(iwm->bssid, 0, ETH_ALEN);
+	iwm->channel = 0;
+
+	iwm_link_off(iwm);
+
+	wake_up_interruptible(&iwm->mlme_queue);
+
+	cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0, GFP_KERNEL);
+}
+
+static int __iwm_up(struct iwm_priv *iwm);
+static int __iwm_down(struct iwm_priv *iwm);
 
 static void iwm_reset_worker(struct work_struct *work)
 {
@@ -162,7 +187,8 @@ static void iwm_reset_worker(struct work_struct *work)
 		memcpy(iwm->umac_profile, profile, sizeof(*profile));
 		iwm_send_mlme_profile(iwm);
 		kfree(profile);
-	}
+	} else
+		clear_bit(IWM_STATUS_RESETTING, &iwm->status);
 
  out:
 	mutex_unlock(&iwm->mutex);
@@ -175,7 +201,7 @@ static void iwm_watchdog(unsigned long data)
 	IWM_WARN(iwm, "Watchdog expired: UMAC stalls!\n");
 
 	if (modparam_reset)
-		schedule_work(&iwm->reset_worker);
+		iwm_resetting(iwm);
 }
 
 int iwm_priv_init(struct iwm_priv *iwm)
@@ -198,6 +224,7 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	spin_lock_init(&iwm->cmd_lock);
 	iwm->scan_id = 1;
 	INIT_DELAYED_WORK(&iwm->stats_request, iwm_statistics_request);
+	INIT_DELAYED_WORK(&iwm->disconnect, iwm_disconnect_work);
 	INIT_WORK(&iwm->reset_worker, iwm_reset_worker);
 	INIT_LIST_HEAD(&iwm->bss_list);
 
@@ -233,6 +260,11 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	iwm->watchdog.data = (unsigned long)iwm;
 	mutex_init(&iwm->mutex);
 
+	iwm->last_fw_err = kzalloc(sizeof(struct iwm_fw_error_hdr),
+				   GFP_KERNEL);
+	if (iwm->last_fw_err == NULL)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -244,6 +276,7 @@ void iwm_priv_deinit(struct iwm_priv *iwm)
 		destroy_workqueue(iwm->txq[i].wq);
 
 	destroy_workqueue(iwm->rx_wq);
+	kfree(iwm->last_fw_err);
 }
 
 /*
@@ -258,7 +291,11 @@ void iwm_reset(struct iwm_priv *iwm)
 	if (test_bit(IWM_STATUS_READY, &iwm->status))
 		iwm_target_reset(iwm);
 
-	iwm->status = 0;
+	if (test_bit(IWM_STATUS_RESETTING, &iwm->status)) {
+		iwm->status = 0;
+		set_bit(IWM_STATUS_RESETTING, &iwm->status);
+	} else
+		iwm->status = 0;
 	iwm->scan_id = 1;
 
 	list_for_each_entry_safe(notif, next, &iwm->pending_notif, pending) {
@@ -272,6 +309,13 @@ void iwm_reset(struct iwm_priv *iwm)
 	flush_workqueue(iwm->rx_wq);
 
 	iwm_link_off(iwm);
+}
+
+void iwm_resetting(struct iwm_priv *iwm)
+{
+	set_bit(IWM_STATUS_RESETTING, &iwm->status);
+
+	schedule_work(&iwm->reset_worker);
 }
 
 /*
@@ -538,7 +582,7 @@ static int iwm_channels_init(struct iwm_priv *iwm)
 	return 0;
 }
 
-int __iwm_up(struct iwm_priv *iwm)
+static int __iwm_up(struct iwm_priv *iwm)
 {
 	int ret;
 	struct iwm_notif *notif_reboot, *notif_ack = NULL;
@@ -672,7 +716,7 @@ int iwm_up(struct iwm_priv *iwm)
 	return ret;
 }
 
-int __iwm_down(struct iwm_priv *iwm)
+static int __iwm_down(struct iwm_priv *iwm)
 {
 	int ret;
 
