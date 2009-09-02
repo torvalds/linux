@@ -278,9 +278,9 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 				(*encoder_funcs->disable)(encoder);
 			else
 				(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+			/* disconnector encoder from any connector */
+			encoder->crtc = NULL;
 		}
-		/* disconnector encoder from any connector */
-		encoder->crtc = NULL;
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
