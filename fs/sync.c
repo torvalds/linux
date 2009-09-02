@@ -19,20 +19,22 @@
 			SYNC_FILE_RANGE_WAIT_AFTER)
 
 /*
- * Do the filesystem syncing work. For simple filesystems sync_inodes_sb(sb, 0)
- * just dirties buffers with inodes so we have to submit IO for these buffers
- * via __sync_blockdev(). This also speeds up the wait == 1 case since in that
- * case write_inode() functions do sync_dirty_buffer() and thus effectively
- * write one block at a time.
+ * Do the filesystem syncing work. For simple filesystems
+ * writeback_inodes_sb(sb) just dirties buffers with inodes so we have to
+ * submit IO for these buffers via __sync_blockdev(). This also speeds up the
+ * wait == 1 case since in that case write_inode() functions do
+ * sync_dirty_buffer() and thus effectively write one block at a time.
  */
 static int __sync_filesystem(struct super_block *sb, int wait)
 {
 	/* Avoid doing twice syncing and cache pruning for quota sync */
-	if (!wait)
+	if (!wait) {
 		writeout_quota_sb(sb, -1);
-	else
+		writeback_inodes_sb(sb);
+	} else {
 		sync_quota_sb(sb, -1);
-	sync_inodes_sb(sb, wait);
+		sync_inodes_sb(sb);
+	}
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);
 	return __sync_blockdev(sb->s_bdev, wait);

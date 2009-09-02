@@ -458,8 +458,8 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
  * on the writer throttling path, and we get decent balancing between many
  * throttled threads: we don't want them all piling up on inode_sync_wait.
  */
-void generic_sync_sb_inodes(struct super_block *sb,
-				struct writeback_control *wbc)
+static void generic_sync_sb_inodes(struct super_block *sb,
+				   struct writeback_control *wbc)
 {
 	const unsigned long start = jiffies;	/* livelock avoidance */
 	int sync = wbc->sync_mode == WB_SYNC_ALL;
@@ -593,13 +593,6 @@ void generic_sync_sb_inodes(struct super_block *sb,
 
 	return;		/* Leave any unwritten inodes on s_io */
 }
-EXPORT_SYMBOL_GPL(generic_sync_sb_inodes);
-
-static void sync_sb_inodes(struct super_block *sb,
-				struct writeback_control *wbc)
-{
-	generic_sync_sb_inodes(sb, wbc);
-}
 
 /*
  * Start writeback of dirty pagecache data against all unlocked inodes.
@@ -640,7 +633,7 @@ restart:
 			 */
 			if (down_read_trylock(&sb->s_umount)) {
 				if (sb->s_root)
-					sync_sb_inodes(sb, wbc);
+					generic_sync_sb_inodes(sb, wbc);
 				up_read(&sb->s_umount);
 			}
 			spin_lock(&sb_lock);
@@ -653,35 +646,56 @@ restart:
 	spin_unlock(&sb_lock);
 }
 
-/*
- * writeback and wait upon the filesystem's dirty inodes.  The caller will
- * do this in two passes - one to write, and one to wait.
+/**
+ * writeback_inodes_sb	-	writeback dirty inodes from given super_block
+ * @sb: the superblock
  *
- * A finite limit is set on the number of pages which will be written.
- * To prevent infinite livelock of sys_sync().
- *
- * We add in the number of potentially dirty inodes, because each inode write
- * can dirty pagecache in the underlying blockdev.
+ * Start writeback on some inodes on this super_block. No guarantees are made
+ * on how many (if any) will be written, and this function does not wait
+ * for IO completion of submitted IO. The number of pages submitted is
+ * returned.
  */
-void sync_inodes_sb(struct super_block *sb, int wait)
+long writeback_inodes_sb(struct super_block *sb)
 {
 	struct writeback_control wbc = {
-		.sync_mode	= wait ? WB_SYNC_ALL : WB_SYNC_NONE,
+		.sync_mode	= WB_SYNC_NONE,
 		.range_start	= 0,
 		.range_end	= LLONG_MAX,
 	};
+	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
+	unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
+	long nr_to_write;
 
-	if (!wait) {
-		unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
-		unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
-
-		wbc.nr_to_write = nr_dirty + nr_unstable +
+	nr_to_write = nr_dirty + nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
-	} else
-		wbc.nr_to_write = LONG_MAX; /* doesn't actually matter */
 
-	sync_sb_inodes(sb, &wbc);
+	wbc.nr_to_write = nr_to_write;
+	generic_sync_sb_inodes(sb, &wbc);
+	return nr_to_write - wbc.nr_to_write;
 }
+EXPORT_SYMBOL(writeback_inodes_sb);
+
+/**
+ * sync_inodes_sb	-	sync sb inode pages
+ * @sb: the superblock
+ *
+ * This function writes and waits on any dirty inode belonging to this
+ * super_block. The number of pages synced is returned.
+ */
+long sync_inodes_sb(struct super_block *sb)
+{
+	struct writeback_control wbc = {
+		.sync_mode	= WB_SYNC_ALL,
+		.range_start	= 0,
+		.range_end	= LLONG_MAX,
+	};
+	long nr_to_write = LONG_MAX; /* doesn't actually matter */
+
+	wbc.nr_to_write = nr_to_write;
+	generic_sync_sb_inodes(sb, &wbc);
+	return nr_to_write - wbc.nr_to_write;
+}
+EXPORT_SYMBOL(sync_inodes_sb);
 
 /**
  * write_inode_now	-	write an inode to disk
