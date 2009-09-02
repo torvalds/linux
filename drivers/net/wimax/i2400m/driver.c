@@ -785,6 +785,7 @@ struct d_level D_LEVEL[] = {
 	D_SUBMODULE_DEFINE(netdev),
 	D_SUBMODULE_DEFINE(rfkill),
 	D_SUBMODULE_DEFINE(rx),
+	D_SUBMODULE_DEFINE(sysfs),
 	D_SUBMODULE_DEFINE(tx),
 };
 size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
