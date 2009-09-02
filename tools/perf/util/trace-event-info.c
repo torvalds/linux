@@ -188,7 +188,7 @@ int bigendian(void)
 	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0};
 	unsigned int *ptr;
 
-	ptr = (unsigned int *)str;
+	ptr = (unsigned int *)(void *)str;
 	return *ptr == 0x01020304;
 }
 
