@@ -1058,18 +1058,10 @@ static struct protection_domain *domain_for_device(u16 devid)
 	return dom;
 }
 
-/*
- * If a device is not yet associated with a domain, this function does
- * assigns it visible for the hardware
- */
-static void attach_device(struct amd_iommu *iommu,
-			  struct protection_domain *domain,
-			  u16 devid)
+static void set_dte_entry(u16 devid, struct protection_domain *domain)
 {
-	unsigned long flags;
 	u64 pte_root = virt_to_phys(domain->pt_root);
-
-	domain->dev_cnt += 1;
+	unsigned long flags;
 
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
@@ -1082,6 +1074,21 @@ static void attach_device(struct amd_iommu *iommu,
 
 	amd_iommu_pd_table[devid] = domain;
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+}
+
+/*
+ * If a device is not yet associated with a domain, this function does
+ * assigns it visible for the hardware
+ */
+static void attach_device(struct amd_iommu *iommu,
+			  struct protection_domain *domain,
+			  u16 devid)
+{
+	/* set the DTE entry */
+	set_dte_entry(devid, domain);
+
+	/* increase reference counter */
+	domain->dev_cnt += 1;
 
        /*
         * We might boot into a crash-kernel here. The crashed kernel
