@@ -364,7 +364,8 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
  * unprivileged state. Only a single instance can be in a privileged state at
  * a given time. Trying to perform an operation that requires privileges will
  * automatically acquire the required privileges if possible, or return -EBUSY
- * otherwise. Privileges are dismissed when closing the instance.
+ * otherwise. Privileges are dismissed when closing the instance or when
+ * freeing the video buffers using VIDIOC_REQBUFS.
  *
  * Operations that require privileges are:
  *
@@ -883,6 +884,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		ret = uvc_alloc_buffers(&stream->queue, rb->count, bufsize);
 		if (ret < 0)
 			return ret;
+
+		if (ret == 0)
+			uvc_dismiss_privileges(handle);
 
 		rb->count = ret;
 		ret = 0;
