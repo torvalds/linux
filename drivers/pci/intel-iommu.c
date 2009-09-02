@@ -37,8 +37,8 @@
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 #include <linux/sysdev.h>
+#include <linux/tboot.h>
 #include <asm/cacheflush.h>
-#include <asm/tboot.h>
 #include <asm/iommu.h>
 #include "pci.h"
 

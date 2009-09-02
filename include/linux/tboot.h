@@ -20,10 +20,8 @@
  *
  */
 
-#ifndef _ASM_TBOOT_H
-#define _ASM_TBOOT_H
-
-#include <acpi/acpi.h>
+#ifndef _LINUX_TBOOT_H
+#define _LINUX_TBOOT_H
 
 /* these must have the values from 0-5 in this order */
 enum {
@@ -36,7 +34,7 @@ enum {
 };
 
 #ifdef CONFIG_INTEL_TXT
-
+#include <acpi/acpi.h>
 /* used to communicate between tboot and the launched kernel */
 
 #define TB_KEY_SIZE             64   /* 512 bits */
@@ -144,54 +142,21 @@ static inline int tboot_enabled(void)
 }
 
 extern void tboot_probe(void);
-extern void tboot_create_trampoline(void);
 extern void tboot_shutdown(u32 shutdown_type);
 extern void tboot_sleep(u8 sleep_state, u32 pm1a_control, u32 pm1b_control);
-extern int tboot_wait_for_aps(int num_aps);
 extern struct acpi_table_header *tboot_get_dmar_table(
 				      struct acpi_table_header *dmar_tbl);
 extern int tboot_force_iommu(void);
 
-#else     /* CONFIG_INTEL_TXT */
+#else
 
-static inline int tboot_enabled(void)
-{
-	return 0;
-}
-
-static inline void tboot_probe(void)
-{
-}
-
-static inline void tboot_create_trampoline(void)
-{
-}
-
-static inline void tboot_shutdown(u32 shutdown_type)
-{
-}
-
-static inline void tboot_sleep(u8 sleep_state, u32 pm1a_control,
-			       u32 pm1b_control)
-{
-}
-
-static inline int tboot_wait_for_aps(int num_aps)
-{
-	return 0;
-}
-
-static inline struct acpi_table_header *tboot_get_dmar_table(
-					struct acpi_table_header *dmar_tbl)
-{
-	return dmar_tbl;
-}
-
-static inline int tboot_force_iommu(void)
-{
-	return 0;
-}
+#define tboot_probe()			do { } while (0)
+#define tboot_shutdown(shutdown_type)	do { } while (0)
+#define tboot_sleep(sleep_state, pm1a_control, pm1b_control)	\
+					do { } while (0)
+#define tboot_get_dmar_table(dmar_tbl)	(dmar_tbl)
+#define tboot_force_iommu()		0
 
 #endif /* !CONFIG_INTEL_TXT */
 
-#endif /* _ASM_TBOOT_H */
+#endif /* _LINUX_TBOOT_H */

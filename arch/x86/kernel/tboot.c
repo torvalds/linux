@@ -22,11 +22,14 @@
 #include <linux/dma_remapping.h>
 #include <linux/init_task.h>
 #include <linux/spinlock.h>
+#include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/dmar.h>
+#include <linux/cpu.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
+#include <linux/tboot.h>
 
 #include <asm/trampoline.h>
 #include <asm/processor.h>
@@ -36,7 +39,6 @@
 #include <asm/fixmap.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/tboot.h>
 #include <asm/e820.h>
 #include <asm/io.h>
 
@@ -154,12 +156,9 @@ static int map_tboot_pages(unsigned long vaddr, unsigned long start_pfn,
 	return 0;
 }
 
-void tboot_create_trampoline(void)
+static void tboot_create_trampoline(void)
 {
 	u32 map_base, map_size;
-
-	if (!tboot_enabled())
-		return;
 
 	/* Create identity map for tboot shutdown code. */
 	map_base = PFN_DOWN(tboot->tboot_base);
@@ -295,20 +294,57 @@ void tboot_sleep(u8 sleep_state, u32 pm1a_control, u32 pm1b_control)
 	tboot_shutdown(acpi_shutdown_map[sleep_state]);
 }
 
-int tboot_wait_for_aps(int num_aps)
+static atomic_t ap_wfs_count;
+
+static int tboot_wait_for_aps(int num_aps)
 {
 	unsigned long timeout;
 
+	timeout = AP_WAIT_TIMEOUT*HZ;
+	while (atomic_read((atomic_t *)&tboot->num_in_wfs) != num_aps &&
+	       timeout) {
+		mdelay(1);
+		timeout--;
+	}
+
+	if (timeout)
+		pr_warning("tboot wait for APs timeout\n");
+
+	return !(atomic_read((atomic_t *)&tboot->num_in_wfs) == num_aps);
+}
+
+static int __cpuinit tboot_cpu_callback(struct notifier_block *nfb,
+			unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_DYING:
+		atomic_inc(&ap_wfs_count);
+		if (num_online_cpus() == 1)
+			if (tboot_wait_for_aps(atomic_read(&ap_wfs_count)))
+				return NOTIFY_BAD;
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block tboot_cpu_notifier __cpuinitdata =
+{
+	.notifier_call = tboot_cpu_callback,
+};
+
+static __init int tboot_late_init(void)
+{
 	if (!tboot_enabled())
 		return 0;
 
-	timeout = jiffies + AP_WAIT_TIMEOUT*HZ;
-	while (atomic_read((atomic_t *)&tboot->num_in_wfs) != num_aps &&
-	       time_before(jiffies, timeout))
-		cpu_relax();
+	tboot_create_trampoline();
 
-	return time_before(jiffies, timeout) ? 0 : 1;
+	atomic_set(&ap_wfs_count, 0);
+	register_hotcpu_notifier(&tboot_cpu_notifier);
+	return 0;
 }
+
+late_initcall(tboot_late_init);
 
 /*
  * TXT configuration registers (offsets from TXT_{PUB, PRIV}_CONFIG_REGS_BASE)

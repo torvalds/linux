@@ -14,7 +14,6 @@
 #include <linux/kthread.h>
 #include <linux/stop_machine.h>
 #include <linux/mutex.h>
-#include <asm/tboot.h>
 
 #ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
@@ -377,7 +376,7 @@ static cpumask_var_t frozen_cpus;
 
 int disable_nonboot_cpus(void)
 {
-	int cpu, first_cpu, error, num_cpus = 0;
+	int cpu, first_cpu, error;
 
 	error = stop_machine_create();
 	if (error)
@@ -392,7 +391,6 @@ int disable_nonboot_cpus(void)
 	for_each_online_cpu(cpu) {
 		if (cpu == first_cpu)
 			continue;
-		num_cpus++;
 		error = _cpu_down(cpu, 1);
 		if (!error) {
 			cpumask_set_cpu(cpu, frozen_cpus);
@@ -403,8 +401,6 @@ int disable_nonboot_cpus(void)
 			break;
 		}
 	}
-	/* ensure all CPUs have gone into wait-for-SIPI */
-	error |= tboot_wait_for_aps(num_cpus);
 
 	if (!error) {
 		BUG_ON(num_online_cpus() > 1);

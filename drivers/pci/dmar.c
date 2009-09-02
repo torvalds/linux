@@ -33,7 +33,7 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <asm/tboot.h>
+#include <linux/tboot.h>
 
 #undef PREFIX
 #define PREFIX "DMAR:"

@@ -47,6 +47,7 @@
 #include <linux/bootmem.h>
 #include <linux/err.h>
 #include <linux/nmi.h>
+#include <linux/tboot.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -62,7 +63,6 @@
 #include <asm/vmi.h>
 #include <asm/apic.h>
 #include <asm/setup.h>
-#include <asm/tboot.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 

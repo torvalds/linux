@@ -66,6 +66,7 @@
 
 #include <linux/percpu.h>
 #include <linux/crash_dump.h>
+#include <linux/tboot.h>
 
 #include <video/edid.h>
 
@@ -144,8 +145,6 @@ struct boot_params __initdata boot_params;
 #else
 struct boot_params boot_params;
 #endif
-
-#include <asm/tboot.h>
 
 /*
  * Machine setup..

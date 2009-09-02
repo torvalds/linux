@@ -115,7 +115,7 @@ config SECURITY_ROOTPLUG
 
 config INTEL_TXT
 	bool "Enable Intel(R) Trusted Execution Technology (Intel(R) TXT)"
-	depends on EXPERIMENTAL && X86 && DMAR && ACPI
+	depends on HAVE_INTEL_TXT
 	help
 	  This option enables support for booting the kernel with the
 	  Trusted Boot (tboot) module. This will utilize

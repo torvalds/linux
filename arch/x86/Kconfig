@@ -178,6 +178,10 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
+config HAVE_INTEL_TXT
+	def_bool y
+	depends on EXPERIMENTAL && DMAR && ACPI
+
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
 	bool
