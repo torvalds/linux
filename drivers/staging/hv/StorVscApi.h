@@ -45,14 +45,6 @@
 
 struct hv_storvsc_request;
 
-/* Data types */
-typedef int (*PFN_ON_IO_REQUEST)(struct hv_device *Device,
-				 struct hv_storvsc_request *Request);
-typedef void (*PFN_ON_IO_REQUEST_COMPLTN)(struct hv_storvsc_request *Request);
-
-typedef int (*PFN_ON_HOST_RESET)(struct hv_device *Device);
-typedef void (*PFN_ON_HOST_RESCAN)(struct hv_device *Device);
-
 /* Matches Windows-end */
 enum storvsc_request_type{
 	WRITE_TYPE,
@@ -76,7 +68,7 @@ struct hv_storvsc_request {
 
 	void *Context;
 
-	PFN_ON_IO_REQUEST_COMPLTN OnIOCompletion;
+	void (*OnIOCompletion)(struct hv_storvsc_request *Request);
 
 	/* This points to the memory after DataBuffer */
 	void *Extension;
@@ -100,11 +92,12 @@ struct storvsc_driver_object {
 	u32 MaxOutstandingRequestsPerChannel;
 
 	/* Set by the caller to allow us to re-enumerate the bus on the host */
-	PFN_ON_HOST_RESCAN OnHostRescan;
+	void (*OnHostRescan)(struct hv_device *Device);
 
 	/* Specific to this driver */
-	PFN_ON_IO_REQUEST OnIORequest;
-	PFN_ON_HOST_RESET OnHostReset;
+	int (*OnIORequest)(struct hv_device *Device,
+			   struct hv_storvsc_request *Request);
+	int (*OnHostReset)(struct hv_device *Device);
 };
 
 struct storvsc_device_info {
