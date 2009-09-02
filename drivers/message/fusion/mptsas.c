@@ -852,7 +852,13 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		port_details->num_phys--;
 		port_details->phy_bitmask &= ~ (1 << phy_info->phy_id);
 		memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
-		sas_port_delete_phy(port_details->port, phy_info->phy);
+		if (phy_info->phy) {
+			devtprintk(ioc, dev_printk(KERN_DEBUG,
+				&phy_info->phy->dev, MYIOC_s_FMT
+				"delete phy %d, phy-obj (0x%p)\n", ioc->name,
+				phy_info->phy_id, phy_info->phy));
+			sas_port_delete_phy(port_details->port, phy_info->phy);
+		}
 		phy_info->port_details = NULL;
 	}
 
