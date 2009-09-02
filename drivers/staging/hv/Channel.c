@@ -169,7 +169,7 @@ void VmbusChannelGetDebugInfo(struct vmbus_channel *Channel,
  */
 int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 		     u32 RecvRingBufferSize, void *UserData, u32 UserDataLen,
-		     PFN_CHANNEL_CALLBACK pfnOnChannelCallback, void *Context)
+		     void (*OnChannelCallback)(void *context), void *Context)
 {
 	struct vmbus_channel_open_channel *openMsg;
 	struct vmbus_channel_msginfo *openInfo;
@@ -183,7 +183,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	ASSERT(!(SendRingBufferSize & (PAGE_SIZE - 1)));
 	ASSERT(!(RecvRingBufferSize & (PAGE_SIZE - 1)));
 
-	NewChannel->OnChannelCallback = pfnOnChannelCallback;
+	NewChannel->OnChannelCallback = OnChannelCallback;
 	NewChannel->ChannelCallbackContext = Context;
 
 	/* Allocate the ring buffer */

@@ -57,7 +57,7 @@ extern int VmbusChannelOpen(struct vmbus_channel *channel,
 			    u32 RecvRingBufferSize,
 			    void *UserData,
 			    u32 UserDataLen,
-			    PFN_CHANNEL_CALLBACK pfnOnChannelCallback,
+			    void(*OnChannelCallback)(void *context),
 			    void *Context);
 
 extern void VmbusChannelClose(struct vmbus_channel *channel);

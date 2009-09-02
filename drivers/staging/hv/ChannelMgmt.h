@@ -218,8 +218,6 @@ struct vmbus_channel_version_response {
 	bool VersionSupported;
 } __attribute__((packed));
 
-typedef void (*PFN_CHANNEL_CALLBACK)(void *context);
-
 enum vmbus_channel_state {
 	CHANNEL_OFFER_STATE,
 	CHANNEL_OPENING_STATE,
@@ -256,7 +254,7 @@ struct vmbus_channel {
 	/* Channel callback are invoked in this workqueue context */
 	/* HANDLE dataWorkQueue; */
 
-	PFN_CHANNEL_CALLBACK OnChannelCallback;
+	void (*OnChannelCallback)(void *context);
 	void *ChannelCallbackContext;
 };
 
