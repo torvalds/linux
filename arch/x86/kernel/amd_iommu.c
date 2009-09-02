@@ -63,6 +63,7 @@ static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned int pages);
 static u64 *fetch_pte(struct protection_domain *domain,
 		      unsigned long address);
+static void update_domain(struct protection_domain *domain);
 
 #ifndef BUS_NOTIFY_UNBOUND_DRIVER
 #define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
@@ -546,6 +547,8 @@ static int iommu_map_page(struct protection_domain *dom,
 
 	*pte = __pte;
 
+	update_domain(dom);
+
 	return 0;
 }
 
@@ -762,9 +765,13 @@ static int alloc_new_range(struct amd_iommu *iommu,
 		dma_ops_reserve_addresses(dma_dom, i << PAGE_SHIFT, 1);
 	}
 
+	update_domain(&dma_dom->domain);
+
 	return 0;
 
 out_free:
+	update_domain(&dma_dom->domain);
+
 	free_page((unsigned long)dma_dom->aperture[index]->bitmap);
 
 	kfree(dma_dom->aperture[index]);
@@ -1294,6 +1301,29 @@ static int get_device_resources(struct device *dev,
 	return 1;
 }
 
+static void update_device_table(struct protection_domain *domain)
+{
+	int i;
+
+	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
+		if (amd_iommu_pd_table[i] != domain)
+			continue;
+		set_dte_entry(i, domain);
+	}
+}
+
+static void update_domain(struct protection_domain *domain)
+{
+	if (!domain->updated)
+		return;
+
+	update_device_table(domain);
+	flush_devices_by_domain(domain);
+	iommu_flush_domain(domain->id);
+
+	domain->updated = false;
+}
+
 /*
  * If the pte_page is not yet allocated this function is called
  */
@@ -1350,6 +1380,8 @@ static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
 		aperture->pte_pages[APERTURE_PAGE_INDEX(address)] = pte_page;
 	} else
 		pte += IOMMU_PTE_L0_INDEX(address);
+
+	update_domain(&dom->domain);
 
 	return pte;
 }
