@@ -1402,7 +1402,7 @@ static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
 		pte = alloc_pte(&dom->domain, address, &pte_page, GFP_ATOMIC);
 		aperture->pte_pages[APERTURE_PAGE_INDEX(address)] = pte_page;
 	} else
-		pte += IOMMU_PTE_L0_INDEX(address);
+		pte += PM_LEVEL_INDEX(0, address);
 
 	update_domain(&dom->domain);
 
@@ -1466,7 +1466,7 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 	if (!pte)
 		return;
 
-	pte += IOMMU_PTE_L0_INDEX(address);
+	pte += PM_LEVEL_INDEX(0, address);
 
 	WARN_ON(!*pte);
 
