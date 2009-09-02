@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	u8 brightness;
+	s8 brightness;
 	u8 contrast;
 	u8 colors;
 	u8 autogain;
@@ -73,8 +73,8 @@ static struct ctrl sd_ctrls[] = {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 0xff,
+		.minimum = -128,
+		.maximum = 127,
 		.step    = 1,
 #define BRIGHTNESS_DEF 0
 		.default_value = BRIGHTNESS_DEF,
