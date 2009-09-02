@@ -40,7 +40,7 @@ enum rndis_device_state {
 };
 
 struct rndis_device {
-	struct NETVSC_DEVICE *NetDevice;
+	struct netvsc_device *NetDevice;
 
 	enum rndis_device_state State;
 	u32 LinkStatus;
@@ -390,7 +390,7 @@ static void RndisFilterReceiveData(struct rndis_device *Device,
 static int RndisFilterOnReceive(struct hv_device *Device,
 				struct hv_netvsc_packet	*Packet)
 {
-	struct NETVSC_DEVICE *netDevice = Device->Extension;
+	struct netvsc_device *netDevice = Device->Extension;
 	struct rndis_device *rndisDevice;
 	struct rndis_message rndisMessage;
 	struct rndis_message *rndisHeader;
@@ -791,7 +791,7 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 				  void *AdditionalInfo)
 {
 	int ret;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct rndis_device *rndisDevice;
 	struct netvsc_device_info *deviceInfo = AdditionalInfo;
 
@@ -867,7 +867,7 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 
 static int RndisFilterOnDeviceRemove(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice = Device->Extension;
+	struct netvsc_device *netDevice = Device->Extension;
 	struct rndis_device *rndisDevice = netDevice->Extension;
 
 	DPRINT_ENTER(NETVSC);
@@ -896,7 +896,7 @@ static void RndisFilterOnCleanup(struct hv_driver *Driver)
 static int RndisFilterOnOpen(struct hv_device *Device)
 {
 	int ret;
-	struct NETVSC_DEVICE *netDevice = Device->Extension;
+	struct netvsc_device *netDevice = Device->Extension;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -911,7 +911,7 @@ static int RndisFilterOnOpen(struct hv_device *Device)
 static int RndisFilterOnClose(struct hv_device *Device)
 {
 	int ret;
-	struct NETVSC_DEVICE *netDevice = Device->Extension;
+	struct netvsc_device *netDevice = Device->Extension;
 
 	DPRINT_ENTER(NETVSC);
 

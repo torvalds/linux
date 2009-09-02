@@ -290,7 +290,7 @@ struct nvsp_message {
 
 
 /* Per netvsc channel-specific */
-struct NETVSC_DEVICE {
+struct netvsc_device {
 	struct hv_device *Device;
 
 	atomic_t RefCount;

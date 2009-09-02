@@ -50,9 +50,9 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device);
 
 static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device);
 
-static int NetVscDestroySendBuffer(struct NETVSC_DEVICE *NetDevice);
+static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice);
 
-static int NetVscDestroyReceiveBuffer(struct NETVSC_DEVICE *NetDevice);
+static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice);
 
 static int NetVscConnectToVsp(struct hv_device *Device);
 
@@ -71,11 +71,11 @@ static void NetVscSendReceiveCompletion(struct hv_device *Device,
 					u64 TransactionId);
 
 
-static struct NETVSC_DEVICE *AllocNetDevice(struct hv_device *Device)
+static struct netvsc_device *AllocNetDevice(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 
-	netDevice = kzalloc(sizeof(struct NETVSC_DEVICE), GFP_KERNEL);
+	netDevice = kzalloc(sizeof(struct netvsc_device), GFP_KERNEL);
 	if (!netDevice)
 		return NULL;
 
@@ -88,7 +88,7 @@ static struct NETVSC_DEVICE *AllocNetDevice(struct hv_device *Device)
 	return netDevice;
 }
 
-static void FreeNetDevice(struct NETVSC_DEVICE *Device)
+static void FreeNetDevice(struct netvsc_device *Device)
 {
 	ASSERT(atomic_read(&Device->RefCount) == 0);
 	Device->Device->Extension = NULL;
@@ -97,9 +97,9 @@ static void FreeNetDevice(struct NETVSC_DEVICE *Device)
 
 
 /* Get the net device object iff exists and its refcount > 1 */
-static struct NETVSC_DEVICE *GetOutboundNetDevice(struct hv_device *Device)
+static struct netvsc_device *GetOutboundNetDevice(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 
 	netDevice = Device->Extension;
 	if (netDevice && atomic_read(&netDevice->RefCount) > 1)
@@ -111,9 +111,9 @@ static struct NETVSC_DEVICE *GetOutboundNetDevice(struct hv_device *Device)
 }
 
 /* Get the net device object iff exists and its refcount > 0 */
-static struct NETVSC_DEVICE *GetInboundNetDevice(struct hv_device *Device)
+static struct netvsc_device *GetInboundNetDevice(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 
 	netDevice = Device->Extension;
 	if (netDevice && atomic_read(&netDevice->RefCount))
@@ -126,7 +126,7 @@ static struct NETVSC_DEVICE *GetInboundNetDevice(struct hv_device *Device)
 
 static void PutNetDevice(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 
 	netDevice = Device->Extension;
 	ASSERT(netDevice);
@@ -134,9 +134,9 @@ static void PutNetDevice(struct hv_device *Device)
 	atomic_dec(&netDevice->RefCount);
 }
 
-static struct NETVSC_DEVICE *ReleaseOutboundNetDevice(struct hv_device *Device)
+static struct netvsc_device *ReleaseOutboundNetDevice(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 
 	netDevice = Device->Extension;
 	if (netDevice == NULL)
@@ -149,9 +149,9 @@ static struct NETVSC_DEVICE *ReleaseOutboundNetDevice(struct hv_device *Device)
 	return netDevice;
 }
 
-static struct NETVSC_DEVICE *ReleaseInboundNetDevice(struct hv_device *Device)
+static struct netvsc_device *ReleaseInboundNetDevice(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 
 	netDevice = Device->Extension;
 	if (netDevice == NULL)
@@ -208,7 +208,7 @@ int NetVscInitialize(struct hv_driver *drv)
 static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 {
 	int ret = 0;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct nvsp_message *initPacket;
 
 	DPRINT_ENTER(NETVSC);
@@ -339,7 +339,7 @@ Exit:
 static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 {
 	int ret = 0;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct nvsp_message *initPacket;
 
 	DPRINT_ENTER(NETVSC);
@@ -431,7 +431,7 @@ Exit:
 	return ret;
 }
 
-static int NetVscDestroyReceiveBuffer(struct NETVSC_DEVICE *NetDevice)
+static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 {
 	struct nvsp_message *revokePacket;
 	int ret = 0;
@@ -511,7 +511,7 @@ static int NetVscDestroyReceiveBuffer(struct NETVSC_DEVICE *NetDevice)
 	return ret;
 }
 
-static int NetVscDestroySendBuffer(struct NETVSC_DEVICE *NetDevice)
+static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 {
 	struct nvsp_message *revokePacket;
 	int ret = 0;
@@ -589,7 +589,7 @@ static int NetVscDestroySendBuffer(struct NETVSC_DEVICE *NetDevice)
 static int NetVscConnectToVsp(struct hv_device *Device)
 {
 	int ret;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct nvsp_message *initPacket;
 	int ndisVersion;
 
@@ -693,7 +693,7 @@ Cleanup:
 	return ret;
 }
 
-static void NetVscDisconnectFromVsp(struct NETVSC_DEVICE *NetDevice)
+static void NetVscDisconnectFromVsp(struct netvsc_device *NetDevice)
 {
 	DPRINT_ENTER(NETVSC);
 
@@ -710,7 +710,7 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 {
 	int ret = 0;
 	int i;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct hv_netvsc_packet *packet;
 	LIST_ENTRY *entry;
 	struct netvsc_driver *netDriver =
@@ -813,7 +813,7 @@ Cleanup:
  */
 static int NetVscOnDeviceRemove(struct hv_device *Device)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct hv_netvsc_packet *netvscPacket;
 	LIST_ENTRY *entry;
 
@@ -881,7 +881,7 @@ static void NetVscOnCleanup(struct hv_driver *drv)
 static void NetVscOnSendCompletion(struct hv_device *Device,
 				   struct vmpacket_descriptor *Packet)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct nvsp_message *nvspPacket;
 	struct hv_netvsc_packet *nvscPacket;
 
@@ -931,7 +931,7 @@ static void NetVscOnSendCompletion(struct hv_device *Device,
 static int NetVscOnSend(struct hv_device *Device,
 			struct hv_netvsc_packet *Packet)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	int ret = 0;
 
 	struct nvsp_message sendMessage;
@@ -990,7 +990,7 @@ static int NetVscOnSend(struct hv_device *Device,
 static void NetVscOnReceive(struct hv_device *Device,
 			    struct vmpacket_descriptor *Packet)
 {
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	struct vmtransfer_page_packet_header *vmxferpagePacket;
 	struct nvsp_message *nvspPacket;
 	struct hv_netvsc_packet *netvscPacket = NULL;
@@ -1255,7 +1255,7 @@ static void NetVscOnReceiveCompletion(void *Context)
 {
 	struct hv_netvsc_packet *packet = Context;
 	struct hv_device *device = (struct hv_device *)packet->Device;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	u64 transactionId = 0;
 	bool fSendReceiveComp = false;
 	unsigned long flags;
@@ -1312,7 +1312,7 @@ void NetVscOnChannelCallback(void *Context)
 	const int netPacketSize = 2048;
 	int ret;
 	struct hv_device *device = Context;
-	struct NETVSC_DEVICE *netDevice;
+	struct netvsc_device *netDevice;
 	u32 bytesRecvd;
 	u64 requestId;
 	unsigned char packet[netPacketSize];
