@@ -343,7 +343,13 @@ long keyctl_revoke_key(key_serial_t id)
 	key_ref = lookup_user_key(id, 0, KEY_WRITE);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
-		goto error;
+		if (ret != -EACCES)
+			goto error;
+		key_ref = lookup_user_key(id, 0, KEY_SETATTR);
+		if (IS_ERR(key_ref)) {
+			ret = PTR_ERR(key_ref);
+			goto error;
+		}
 	}
 
 	key_revoke(key_ref_to_ptr(key_ref));
