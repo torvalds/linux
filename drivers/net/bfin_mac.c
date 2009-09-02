@@ -491,7 +491,7 @@ static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
 	strcpy(info->bus_info, dev_name(&dev->dev));
 }
 
-static struct ethtool_ops bfin_mac_ethtool_ops = {
+static const struct ethtool_ops bfin_mac_ethtool_ops = {
 	.get_settings = bfin_mac_ethtool_getsettings,
 	.set_settings = bfin_mac_ethtool_setsettings,
 	.get_link = ethtool_op_get_link,

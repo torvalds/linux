@@ -183,7 +183,7 @@ static int lbs_ethtool_set_wol(struct net_device *dev,
 	return lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
 }
 
-struct ethtool_ops lbs_ethtool_ops = {
+const struct ethtool_ops lbs_ethtool_ops = {
 	.get_drvinfo = lbs_ethtool_get_drvinfo,
 	.get_eeprom =  lbs_ethtool_get_eeprom,
 	.get_eeprom_len = lbs_ethtool_get_eeprom_len,

@@ -625,7 +625,7 @@ static int smsc95xx_ethtool_set_tx_csum(struct net_device *netdev, u32 val)
 	return smsc95xx_set_csums(dev);
 }
 
-static struct ethtool_ops smsc95xx_ethtool_ops = {
+static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= usbnet_get_link,
 	.nway_reset	= usbnet_nway_reset,
 	.get_drvinfo	= usbnet_get_drvinfo,

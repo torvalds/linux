@@ -1174,7 +1174,7 @@ static void pegasus_set_msglevel(struct net_device *dev, u32 v)
 	pegasus->msg_enable = v;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = pegasus_get_drvinfo,
 	.get_settings = pegasus_get_settings,
 	.set_settings = pegasus_set_settings,

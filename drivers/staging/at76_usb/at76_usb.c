@@ -3396,7 +3396,7 @@ static u32 at76_ethtool_get_link(struct net_device *netdev)
 	return priv->mac_state == MAC_CONNECTED;
 }
 
-static struct ethtool_ops at76_ethtool_ops = {
+static const struct ethtool_ops at76_ethtool_ops = {
 	.get_drvinfo = at76_ethtool_get_drvinfo,
 	.get_link = at76_ethtool_get_link,
 };

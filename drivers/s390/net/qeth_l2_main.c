@@ -863,7 +863,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 	return;
 }
 
-static struct ethtool_ops qeth_l2_ethtool_ops = {
+static const struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
@@ -872,7 +872,7 @@ static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_settings = qeth_core_ethtool_get_settings,
 };
 
-static struct ethtool_ops qeth_l2_osn_ops = {
+static const struct ethtool_ops qeth_l2_osn_ops = {
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_stats_count = qeth_core_get_stats_count,

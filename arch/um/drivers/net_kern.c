@@ -285,7 +285,7 @@ static void uml_net_get_drvinfo(struct net_device *dev,
 	strcpy(info->version, "42");
 }
 
-static struct ethtool_ops uml_net_ethtool_ops = {
+static const struct ethtool_ops uml_net_ethtool_ops = {
 	.get_drvinfo	= uml_net_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
 };

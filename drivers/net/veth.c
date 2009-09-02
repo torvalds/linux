@@ -129,7 +129,7 @@ static int veth_set_tx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops veth_ethtool_ops = {
+static const struct ethtool_ops veth_ethtool_ops = {
 	.get_settings		= veth_get_settings,
 	.get_drvinfo		= veth_get_drvinfo,
 	.get_link		= ethtool_op_get_link,

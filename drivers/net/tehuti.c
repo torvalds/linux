@@ -2428,7 +2428,7 @@ static void bdx_get_ethtool_stats(struct net_device *netdev,
  */
 static void bdx_ethtool_ops(struct net_device *netdev)
 {
-	static struct ethtool_ops bdx_ethtool_ops = {
+	static const struct ethtool_ops bdx_ethtool_ops = {
 		.get_settings = bdx_get_settings,
 		.get_drvinfo = bdx_get_drvinfo,
 		.get_link = ethtool_op_get_link,

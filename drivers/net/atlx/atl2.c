@@ -2094,7 +2094,7 @@ static int atl2_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static struct ethtool_ops atl2_ethtool_ops = {
+static const struct ethtool_ops atl2_ethtool_ops = {
 	.get_settings		= atl2_get_settings,
 	.set_settings		= atl2_set_settings,
 	.get_drvinfo		= atl2_get_drvinfo,

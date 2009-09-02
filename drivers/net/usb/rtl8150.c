@@ -865,7 +865,7 @@ static int rtl8150_get_settings(struct net_device *netdev, struct ethtool_cmd *e
 	return 0;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = rtl8150_get_drvinfo,
 	.get_settings = rtl8150_get_settings,
 	.get_link = ethtool_op_get_link

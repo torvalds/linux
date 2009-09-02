@@ -51,7 +51,7 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/grant_table.h>
 
-static struct ethtool_ops xennet_ethtool_ops;
+static const struct ethtool_ops xennet_ethtool_ops;
 
 struct netfront_cb {
 	struct page *page;
@@ -1627,7 +1627,7 @@ static void backend_changed(struct xenbus_device *dev,
 	}
 }
 
-static struct ethtool_ops xennet_ethtool_ops =
+static const struct ethtool_ops xennet_ethtool_ops =
 {
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = xennet_set_sg,

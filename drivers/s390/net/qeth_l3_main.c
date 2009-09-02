@@ -2946,7 +2946,7 @@ static int qeth_l3_ethtool_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops qeth_l3_ethtool_ops = {
+static const struct ethtool_ops qeth_l3_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_hw_csum,

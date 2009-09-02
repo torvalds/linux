@@ -619,7 +619,7 @@ static const struct net_device_ops ks8842_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr
 };
 
-static struct ethtool_ops ks8842_ethtool_ops = {
+static const struct ethtool_ops ks8842_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 };
 

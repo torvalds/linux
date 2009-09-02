@@ -963,7 +963,7 @@ static int netxen_nic_set_flags(struct net_device *netdev, u32 data)
 	return 0;
 }
 
-struct ethtool_ops netxen_nic_ethtool_ops = {
+const struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_settings = netxen_nic_get_settings,
 	.set_settings = netxen_nic_set_settings,
 	.get_drvinfo = netxen_nic_get_drvinfo,

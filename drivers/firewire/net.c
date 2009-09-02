@@ -1342,7 +1342,7 @@ static void fwnet_get_drvinfo(struct net_device *net,
 	strcpy(info->bus_info, "ieee1394");
 }
 
-static struct ethtool_ops fwnet_ethtool_ops = {
+static const struct ethtool_ops fwnet_ethtool_ops = {
 	.get_drvinfo = fwnet_get_drvinfo,
 };
 

@@ -1410,6 +1410,6 @@ extern void netxen_change_ringparam(struct netxen_adapter *adapter);
 extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 				int *valp);
 
-extern struct ethtool_ops netxen_nic_ethtool_ops;
+extern const struct ethtool_ops netxen_nic_ethtool_ops;
 
 #endif				/* __NETXEN_NIC_H_ */

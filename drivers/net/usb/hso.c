@@ -829,7 +829,7 @@ static void hso_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info
 	usb_make_path(odev->parent->usb, info->bus_info, sizeof info->bus_info);
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = hso_get_drvinfo,
 	.get_link = ethtool_op_get_link
 };

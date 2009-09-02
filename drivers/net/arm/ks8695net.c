@@ -1063,7 +1063,7 @@ ks8695_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *info)
 		sizeof(info->bus_info));
 }
 
-static struct ethtool_ops ks8695_ethtool_ops = {
+static const struct ethtool_ops ks8695_ethtool_ops = {
 	.get_msglevel	= ks8695_get_msglevel,
 	.set_msglevel	= ks8695_set_msglevel,
 	.get_settings	= ks8695_get_settings,

@@ -41,6 +41,6 @@
 #include <net/xfrm.h>
 #endif /* CONFIG_XFRM */
 
-extern struct ethtool_ops cvm_oct_ethtool_ops;
+extern const struct ethtool_ops cvm_oct_ethtool_ops;
 int cvm_oct_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int cvm_oct_mdio_setup_device(struct net_device *dev);

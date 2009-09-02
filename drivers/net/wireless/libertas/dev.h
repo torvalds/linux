@@ -14,7 +14,7 @@
 #include "defs.h"
 #include "hostcmd.h"
 
-extern struct ethtool_ops lbs_ethtool_ops;
+extern const struct ethtool_ops lbs_ethtool_ops;
 
 #define	MAX_BSSID_PER_CHANNEL		16
 

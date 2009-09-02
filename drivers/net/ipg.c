@@ -2186,7 +2186,7 @@ static int ipg_nway_reset(struct net_device *dev)
 	return rc;
 }
 
-static struct ethtool_ops ipg_ethtool_ops = {
+static const struct ethtool_ops ipg_ethtool_ops = {
 	.get_settings = ipg_get_settings,
 	.set_settings = ipg_set_settings,
 	.nway_reset   = ipg_nway_reset,

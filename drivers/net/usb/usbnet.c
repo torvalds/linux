@@ -854,7 +854,7 @@ void usbnet_set_msglevel (struct net_device *net, u32 level)
 EXPORT_SYMBOL_GPL(usbnet_set_msglevel);
 
 /* drivers may override default ethtool_ops in their bind() routine */
-static struct ethtool_ops usbnet_ethtool_ops = {
+static const struct ethtool_ops usbnet_ethtool_ops = {
 	.get_settings		= usbnet_get_settings,
 	.set_settings		= usbnet_set_settings,
 	.get_link		= usbnet_get_link,

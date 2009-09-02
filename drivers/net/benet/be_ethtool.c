@@ -332,7 +332,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	return status;
 }
 
-struct ethtool_ops be_ethtool_ops = {
+const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
 	.get_link = ethtool_op_get_link,

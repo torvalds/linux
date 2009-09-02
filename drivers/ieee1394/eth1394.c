@@ -173,7 +173,7 @@ static netdev_tx_t ether1394_tx(struct sk_buff *skb,
 				struct net_device *dev);
 static void ether1394_iso(struct hpsb_iso *iso);
 
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 			   quadlet_t *data, u64 addr, size_t len, u16 flags);
@@ -1706,7 +1706,7 @@ static void ether1394_get_drvinfo(struct net_device *dev,
 	strcpy(info->bus_info, "ieee1394"); /* FIXME provide more detail? */
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = ether1394_get_drvinfo
 };
 

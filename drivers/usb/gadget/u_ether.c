@@ -181,7 +181,7 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
  *   - ... probably more ethtool ops
  */
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = eth_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 };

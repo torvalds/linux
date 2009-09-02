@@ -259,7 +259,7 @@ struct be_adapter {
 	bool promiscuous;
 };
 
-extern struct ethtool_ops be_ethtool_ops;
+extern const struct ethtool_ops be_ethtool_ops;
 
 #define drvr_stats(adapter)		(&adapter->stats.drvr_stats)
 

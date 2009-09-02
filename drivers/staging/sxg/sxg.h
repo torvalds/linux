@@ -782,6 +782,6 @@ struct slic_crash_info {
 #define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
 #define SIOCSLICTRACEDUMP        (SIOCDEVPRIVATE+11)
 
-extern struct ethtool_ops sxg_nic_ethtool_ops;
+extern const struct ethtool_ops sxg_nic_ethtool_ops;
 #define SXG_COMPLETE_SLOW_SEND_LIMIT	128
 #endif /*  __SXG_DRIVER_H__ */
