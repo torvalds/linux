@@ -6903,6 +6903,7 @@ struct bnx2 {
 	u32			idle_chk_status_idx;
 
 #ifdef BCM_CNIC
+	struct mutex		cnic_lock;
 	struct cnic_eth_dev	cnic_eth_dev;
 #endif
 

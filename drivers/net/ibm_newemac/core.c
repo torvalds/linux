@@ -1305,6 +1305,8 @@ static int emac_close(struct net_device *ndev)
 
 	free_irq(dev->emac_irq, dev);
 
+	netif_carrier_off(ndev);
+
 	return 0;
 }
 

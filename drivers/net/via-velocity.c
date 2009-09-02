@@ -1789,7 +1789,7 @@ static void velocity_error(struct velocity_info *vptr, int status)
 			 *	 mode
 			 */
 			if (vptr->rev_id < REV_ID_VT3216_A0) {
-				if (vptr->mii_status | VELOCITY_DUPLEX_FULL)
+				if (vptr->mii_status & VELOCITY_DUPLEX_FULL)
 					BYTE_REG_BITS_ON(TCR_TB2BDIS, &regs->TCR);
 				else
 					BYTE_REG_BITS_OFF(TCR_TB2BDIS, &regs->TCR);

@@ -3084,10 +3084,11 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 __iomem *bd;			/* BD pointer */
 	u32 bd_status;
 	u8 txQ = 0;
+	unsigned long flags;
 
 	ugeth_vdbg("%s: IN", __func__);
 
-	spin_lock_irq(&ugeth->lock);
+	spin_lock_irqsave(&ugeth->lock, flags);
 
 	dev->stats.tx_bytes += skb->len;
 
@@ -3144,7 +3145,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	uccf = ugeth->uccf;
 	out_be16(uccf->p_utodr, UCC_FAST_TOD);
 #endif
-	spin_unlock_irq(&ugeth->lock);
+	spin_unlock_irqrestore(&ugeth->lock, flags);
 
 	return NETDEV_TX_OK;
 }

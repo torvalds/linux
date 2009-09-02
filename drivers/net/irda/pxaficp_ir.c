@@ -803,9 +803,6 @@ static const struct net_device_ops pxa_irda_netdev_ops = {
 	.ndo_stop		= pxa_irda_stop,
 	.ndo_start_xmit		= pxa_irda_hard_xmit,
 	.ndo_do_ioctl		= pxa_irda_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static int pxa_irda_probe(struct platform_device *pdev)
@@ -830,6 +827,7 @@ static int pxa_irda_probe(struct platform_device *pdev)
 	if (!dev)
 		goto err_mem_3;
 
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	si = netdev_priv(dev);
 	si->dev = &pdev->dev;
 	si->pdata = pdev->dev.platform_data;

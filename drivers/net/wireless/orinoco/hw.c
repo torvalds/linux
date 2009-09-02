@@ -644,7 +644,7 @@ int orinoco_hw_get_tkip_iv(struct orinoco_private *priv, int key, u8 *tsc)
 	int err = 0;
 	u8 tsc_arr[4][ORINOCO_SEQ_LEN];
 
-	if ((key < 0) || (key > 4))
+	if ((key < 0) || (key >= 4))
 		return -EINVAL;
 
 	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENT_TKIP_IV,
