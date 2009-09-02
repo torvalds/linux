@@ -3314,6 +3314,7 @@ mptsas_send_expander_event(struct fw_event_work *fw_event)
 	expander_data = (MpiEventDataSasExpanderStatusChange_t *)
 	    fw_event->event_data;
 	memcpy(&sas_address, &expander_data->SASAddress, sizeof(__le64));
+	sas_address = le64_to_cpu(sas_address);
 	port_info = mptsas_find_portinfo_by_sas_address(ioc, sas_address);
 
 	if (expander_data->ReasonCode == MPI_EVENT_SAS_EXP_RC_ADDED) {
