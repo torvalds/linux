@@ -546,23 +546,10 @@ static int iommu_map_page(struct protection_domain *dom,
 static void iommu_unmap_page(struct protection_domain *dom,
 			     unsigned long bus_addr)
 {
-	u64 *pte;
+	u64 *pte = fetch_pte(dom, bus_addr);
 
-	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(bus_addr)];
-
-	if (!IOMMU_PTE_PRESENT(*pte))
-		return;
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L1_INDEX(bus_addr)];
-
-	if (!IOMMU_PTE_PRESENT(*pte))
-		return;
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L1_INDEX(bus_addr)];
-
-	*pte = 0;
+	if (pte)
+		*pte = 0;
 }
 
 /*
