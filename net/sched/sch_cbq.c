@@ -163,7 +163,7 @@ struct cbq_sched_data
 	psched_time_t		now_rt;		/* Cached real time */
 	unsigned		pmask;
 
-	struct tasklet_hrtimer	delay_timer;
+	struct hrtimer		delay_timer;
 	struct qdisc_watchdog	watchdog;	/* Watchdog timer,
 						   started when CBQ has
 						   backlog, but cannot
@@ -503,8 +503,6 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 		cl->undertime = q->now + delay;
 
 		if (delay > 0) {
-			struct hrtimer *ht;
-
 			sched += delay + cl->penalty;
 			cl->penalized = sched;
 			cl->cpriority = TC_CBQ_MAXPRIO;
@@ -512,12 +510,12 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 
 			expires = ktime_set(0, 0);
 			expires = ktime_add_ns(expires, PSCHED_TICKS2NS(sched));
-			ht = &q->delay_timer.timer;
-			if (hrtimer_try_to_cancel(ht) &&
-			    ktime_to_ns(ktime_sub(hrtimer_get_expires(ht),
-						  expires)) > 0)
-				hrtimer_set_expires(ht, expires);
-			hrtimer_restart(ht);
+			if (hrtimer_try_to_cancel(&q->delay_timer) &&
+			    ktime_to_ns(ktime_sub(
+					hrtimer_get_expires(&q->delay_timer),
+					expires)) > 0)
+				hrtimer_set_expires(&q->delay_timer, expires);
+			hrtimer_restart(&q->delay_timer);
 			cl->delayed = 1;
 			cl->xstats.overactions++;
 			return;
@@ -593,7 +591,7 @@ static psched_tdiff_t cbq_undelay_prio(struct cbq_sched_data *q, int prio,
 static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 {
 	struct cbq_sched_data *q = container_of(timer, struct cbq_sched_data,
-						delay_timer.timer);
+						delay_timer);
 	struct Qdisc *sch = q->watchdog.qdisc;
 	psched_time_t now;
 	psched_tdiff_t delay = 0;
@@ -623,7 +621,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 
 		time = ktime_set(0, 0);
 		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
-		tasklet_hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS);
+		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS);
 	}
 
 	sch->flags &= ~TCQ_F_THROTTLED;
@@ -1216,7 +1214,7 @@ cbq_reset(struct Qdisc* sch)
 	q->tx_class = NULL;
 	q->tx_borrowed = NULL;
 	qdisc_watchdog_cancel(&q->watchdog);
-	tasklet_hrtimer_cancel(&q->delay_timer);
+	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
 	q->now_rt = q->now;
@@ -1399,8 +1397,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.minidle = -0x7FFFFFFF;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
-	tasklet_hrtimer_init(&q->delay_timer, cbq_undelay,
-			     CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
