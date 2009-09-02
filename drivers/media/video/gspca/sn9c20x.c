@@ -2007,6 +2007,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	switch (sd->sensor) {
 	case SENSOR_OV9650:
+	case SENSOR_SOI968:
 		cam->cam_mode = sxga_mode;
 		cam->nmodes = ARRAY_SIZE(sxga_mode);
 		break;
@@ -2122,6 +2123,25 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 value;
 	switch (sd->sensor) {
+	case SENSOR_SOI968:
+		if (mode & MODE_SXGA) {
+			i2c_w1(gspca_dev, 0x17, 0x1d);
+			i2c_w1(gspca_dev, 0x18, 0xbd);
+			i2c_w1(gspca_dev, 0x19, 0x01);
+			i2c_w1(gspca_dev, 0x1a, 0x81);
+			i2c_w1(gspca_dev, 0x12, 0x00);
+			sd->hstart = 140;
+			sd->vstart = 19;
+		} else {
+			i2c_w1(gspca_dev, 0x17, 0x13);
+			i2c_w1(gspca_dev, 0x18, 0x63);
+			i2c_w1(gspca_dev, 0x19, 0x01);
+			i2c_w1(gspca_dev, 0x1a, 0x79);
+			i2c_w1(gspca_dev, 0x12, 0x40);
+			sd->hstart = 60;
+			sd->vstart = 11;
+		}
+		break;
 	case SENSOR_OV9650:
 		if (mode & MODE_SXGA) {
 			i2c_w1(gspca_dev, 0x17, 0x1b);
