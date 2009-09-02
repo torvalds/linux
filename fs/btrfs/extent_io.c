@@ -2219,16 +2219,10 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			goto done_unlocked;
 		}
 	}
-	lock_extent_bits(tree, start, page_end, 0, &cached_state, GFP_NOFS);
-
-	unlock_start = start;
-
 	if (tree->ops && tree->ops->writepage_start_hook) {
 		ret = tree->ops->writepage_start_hook(page, start,
 						      page_end);
 		if (ret == -EAGAIN) {
-			unlock_extent_cached(tree, start, page_end,
-					     &cached_state, GFP_NOFS);
 			redirty_page_for_writepage(wbc, page);
 			update_nr_written(page, wbc, nr_written);
 			unlock_page(page);
@@ -2244,13 +2238,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	update_nr_written(page, wbc, nr_written + 1);
 
 	end = page_end;
-	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0))
-		printk(KERN_ERR "btrfs delalloc bits after lock_extent\n");
-
 	if (last_byte <= start) {
-		clear_extent_bit(tree, start, page_end,
-				 EXTENT_LOCKED | EXTENT_DIRTY,
-				 1, 0, NULL, GFP_NOFS);
 		if (tree->ops && tree->ops->writepage_end_io_hook)
 			tree->ops->writepage_end_io_hook(page, start,
 							 page_end, NULL, 1);
@@ -2262,8 +2250,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 	while (cur <= end) {
 		if (cur >= last_byte) {
-			unlock_extent_cached(tree, unlock_start, page_end,
-					     &cached_state, GFP_NOFS);
 			if (tree->ops && tree->ops->writepage_end_io_hook)
 				tree->ops->writepage_end_io_hook(page, cur,
 							 page_end, NULL, 1);
@@ -2295,10 +2281,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		 */
 		if (compressed || block_start == EXTENT_MAP_HOLE ||
 		    block_start == EXTENT_MAP_INLINE) {
-			unlock_extent_cached(tree, unlock_start,
-					     cur + iosize - 1, &cached_state,
-					     GFP_NOFS);
-
 			/*
 			 * end_io notification does not happen here for
 			 * compressed extents
@@ -2366,9 +2348,6 @@ done:
 		set_page_writeback(page);
 		end_page_writeback(page);
 	}
-	if (unlock_start <= page_end)
-		unlock_extent_cached(tree, unlock_start, page_end,
-				     &cached_state, GFP_NOFS);
 	unlock_page(page);
 
 done_unlocked:
