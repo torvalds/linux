@@ -61,6 +61,8 @@ static u64* alloc_pte(struct protection_domain *dom,
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages);
+static u64 *fetch_pte(struct protection_domain *domain,
+		      unsigned long address);
 
 #ifndef BUS_NOTIFY_UNBOUND_DRIVER
 #define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
@@ -670,24 +672,24 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
  * This function checks if there is a PTE for a given dma address. If
  * there is one, it returns the pointer to it.
  */
-static u64* fetch_pte(struct protection_domain *domain,
+static u64 *fetch_pte(struct protection_domain *domain,
 		      unsigned long address)
 {
+	int level;
 	u64 *pte;
 
-	pte = &domain->pt_root[IOMMU_PTE_L2_INDEX(address)];
+	level =  domain->mode - 1;
+	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
 
-	if (!IOMMU_PTE_PRESENT(*pte))
-		return NULL;
+	while (level > 0) {
+		if (!IOMMU_PTE_PRESENT(*pte))
+			return NULL;
 
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L1_INDEX(address)];
+		level -= 1;
 
-	if (!IOMMU_PTE_PRESENT(*pte))
-		return NULL;
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L0_INDEX(address)];
+		pte = IOMMU_PTE_PAGE(*pte);
+		pte = &pte[PM_LEVEL_INDEX(level, address)];
+	}
 
 	return pte;
 }

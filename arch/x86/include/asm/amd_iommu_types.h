@@ -146,11 +146,20 @@
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
 #define PAGE_MODE_3_LEVEL 0x03
+#define PAGE_MODE_4_LEVEL 0x04
+#define PAGE_MODE_5_LEVEL 0x05
+#define PAGE_MODE_6_LEVEL 0x06
 
 #define IOMMU_PDE_NL_0   0x000ULL
 #define IOMMU_PDE_NL_1   0x200ULL
 #define IOMMU_PDE_NL_2   0x400ULL
 #define IOMMU_PDE_NL_3   0x600ULL
+
+#define PM_LEVEL_SHIFT(x)	(12 + ((x) * 9))
+#define PM_LEVEL_SIZE(x)	(((x) < 6) ? \
+				  ((1ULL << PM_LEVEL_SHIFT((x))) - 1): \
+				   (0xffffffffffffffffULL))
+#define PM_LEVEL_INDEX(x, a)	(((a) >> PM_LEVEL_SHIFT((x))) & 0x1ffULL)
 
 #define IOMMU_PTE_L2_INDEX(address) (((address) >> 30) & 0x1ffULL)
 #define IOMMU_PTE_L1_INDEX(address) (((address) >> 21) & 0x1ffULL)
