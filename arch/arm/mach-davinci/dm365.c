@@ -32,6 +32,7 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -456,7 +457,7 @@ static struct davinci_clk dm365_clks[] = {
 	CLK(NULL, "usb", &usb_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
 	CLK("voice_codec", NULL, &voicecodec_clk),
-	CLK("soc-audio.0", NULL, &asp0_clk),
+	CLK("davinci-asp.0", NULL, &asp0_clk),
 	CLK(NULL, "rto", &rto_clk),
 	CLK(NULL, "mjcp", &mjcp_clk),
 	CLK(NULL, NULL, NULL),
@@ -603,6 +604,9 @@ INT_CFG(DM365,  INT_IMX1_ENABLE,     24,    1,    1,     false)
 INT_CFG(DM365,  INT_IMX1_DISABLE,    24,    1,    0,     false)
 INT_CFG(DM365,  INT_NSF_ENABLE,      25,    1,    1,     false)
 INT_CFG(DM365,  INT_NSF_DISABLE,     25,    1,    0,     false)
+
+EVT_CFG(DM365,	EVT2_ASP_TX,         0,     1,    0,     false)
+EVT_CFG(DM365,	EVT3_ASP_RX,         1,     1,    0,     false)
 #endif
 };
 
@@ -806,6 +810,31 @@ static struct platform_device dm365_edma_device = {
 	.resource		= edma_resources,
 };
 
+static struct resource dm365_asp_resources[] = {
+	{
+		.start	= DAVINCI_DM365_ASP0_BASE,
+		.end	= DAVINCI_DM365_ASP0_BASE + SZ_8K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP0_TX,
+		.end	= DAVINCI_DMA_ASP0_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP0_RX,
+		.end	= DAVINCI_DMA_ASP0_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm365_asp_device = {
+	.name		= "davinci-asp",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm365_asp_resources),
+	.resource	= dm365_asp_resources,
+};
+
 static struct map_desc dm365_io_desc[] = {
 	{
 		.virtual	= IO_VIRT,
@@ -906,6 +935,20 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };
+
+void __init dm365_init_asp(struct snd_platform_data *pdata)
+{
+	davinci_cfg_reg(DM365_MCBSP0_BDX);
+	davinci_cfg_reg(DM365_MCBSP0_X);
+	davinci_cfg_reg(DM365_MCBSP0_BFSX);
+	davinci_cfg_reg(DM365_MCBSP0_BDR);
+	davinci_cfg_reg(DM365_MCBSP0_R);
+	davinci_cfg_reg(DM365_MCBSP0_BFSR);
+	davinci_cfg_reg(DM365_EVT2_ASP_TX);
+	davinci_cfg_reg(DM365_EVT3_ASP_RX);
+	dm365_asp_device.dev.platform_data = pdata;
+	platform_device_register(&dm365_asp_device);
+}
 
 void __init dm365_init(void)
 {

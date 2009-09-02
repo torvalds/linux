@@ -176,10 +176,15 @@ static struct at24_platform_data eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
+static struct snd_platform_data dm365_evm_snd_data;
+
 static struct i2c_board_info i2c_info[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
 		.platform_data	= &eeprom_info,
+	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 	},
 };
 
@@ -472,6 +477,8 @@ static __init void dm365_evm_init(void)
 
 	/* maybe setup mmc1/etc ... _after_ mmc0 */
 	evm_init_cpld();
+
+	dm365_init_asp(&dm365_evm_snd_data);
 }
 
 static __init void dm365_evm_irq_init(void)

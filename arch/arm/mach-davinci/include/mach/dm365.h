@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <mach/hardware.h>
 #include <mach/emac.h>
+#include <mach/asp.h>
 
 #define DM365_EMAC_BASE			(0x01D07000)
 #define DM365_EMAC_CNTRL_OFFSET		(0x0000)
@@ -25,5 +26,6 @@
 #define DM365_EMAC_CNTRL_RAM_SIZE	(0x2000)
 
 void __init dm365_init(void);
+void __init dm365_init_asp(struct snd_platform_data *pdata);
 
 #endif /* __ASM_ARCH_DM365_H */
