@@ -481,13 +481,14 @@ void amd_iommu_flush_all_domains(void)
 	}
 }
 
-void amd_iommu_flush_all_devices(void)
+static void flush_devices_by_domain(struct protection_domain *domain)
 {
 	struct amd_iommu *iommu;
 	int i;
 
 	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
-		if (amd_iommu_pd_table[i] == NULL)
+		if ((domain == NULL && amd_iommu_pd_table[i] == NULL) ||
+		    (amd_iommu_pd_table[i] != domain))
 			continue;
 
 		iommu = amd_iommu_rlookup_table[i];
@@ -497,6 +498,11 @@ void amd_iommu_flush_all_devices(void)
 		iommu_queue_inv_dev_entry(iommu, i);
 		iommu_completion_wait(iommu);
 	}
+}
+
+void amd_iommu_flush_all_devices(void)
+{
+	flush_devices_by_domain(NULL);
 }
 
 /****************************************************************************
