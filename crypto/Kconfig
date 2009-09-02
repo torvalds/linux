@@ -269,6 +269,18 @@ config CRYPTO_XCBC
 		http://csrc.nist.gov/encryption/modes/proposedmodes/
 		 xcbc-mac/xcbc-mac-spec.pdf
 
+config CRYPTO_VMAC
+	tristate "VMAC support"
+	depends on EXPERIMENTAL
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  VMAC is a message authentication algorithm designed for
+	  very high speed on 64-bit architectures.
+
+	  See also:
+	  <http://fastcrypto.org/vmac>
+
 comment "Digest"
 
 config CRYPTO_CRC32C

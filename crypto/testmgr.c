@@ -2248,6 +2248,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "vmac(aes)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = aes_vmac128_tv_template,
+				.count = VMAC_AES_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "wp256",
 		.test = alg_test_hash,
 		.suite = {

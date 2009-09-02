@@ -719,6 +719,10 @@ static int do_test(int m)
 		ret += tcrypt_test("hmac(rmd160)");
 		break;
 
+	case 109:
+		ret += tcrypt_test("vmac(aes)");
+		break;
+
 	case 150:
 		ret += tcrypt_test("ansi_cprng");
 		break;
