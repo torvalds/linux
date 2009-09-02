@@ -487,7 +487,7 @@ static int lookup_user_key_possessed(const struct key *key, const void *target)
  * - don't create special keyrings unless so requested
  * - partially constructed keys aren't found unless requested
  */
-key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
+key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 			  key_perm_t perm)
 {
 	struct request_key_auth *rka;
@@ -503,7 +503,7 @@ try_again:
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
 		if (!cred->thread_keyring) {
-			if (!create)
+			if (!(lflags & KEY_LOOKUP_CREATE))
 				goto error;
 
 			ret = install_thread_keyring();
@@ -521,7 +521,7 @@ try_again:
 
 	case KEY_SPEC_PROCESS_KEYRING:
 		if (!cred->tgcred->process_keyring) {
-			if (!create)
+			if (!(lflags & KEY_LOOKUP_CREATE))
 				goto error;
 
 			ret = install_process_keyring();
@@ -642,7 +642,14 @@ try_again:
 		break;
 	}
 
-	if (!partial) {
+	/* unlink does not use the nominated key in any way, so can skip all
+	 * the permission checks as it is only concerned with the keyring */
+	if (lflags & KEY_LOOKUP_FOR_UNLINK) {
+		ret = 0;
+		goto error;
+	}
+
+	if (!(lflags & KEY_LOOKUP_PARTIAL)) {
 		ret = wait_for_key_construction(key, true);
 		switch (ret) {
 		case -ERESTARTSYS:
@@ -660,7 +667,8 @@ try_again:
 	}
 
 	ret = -EIO;
-	if (!partial && !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
+	if (!(lflags & KEY_LOOKUP_PARTIAL) &&
+	    !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto invalid_key;
 
 	/* check the permissions */

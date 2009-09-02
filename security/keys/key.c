@@ -642,10 +642,8 @@ struct key *key_lookup(key_serial_t id)
 	goto error;
 
  found:
-	/* pretend it doesn't exist if it's dead */
-	if (atomic_read(&key->usage) == 0 ||
-	    test_bit(KEY_FLAG_DEAD, &key->flags) ||
-	    key->type == &key_type_dead)
+	/* pretend it doesn't exist if it is awaiting deletion */
+	if (atomic_read(&key->usage) == 0)
 		goto not_found;
 
 	/* this races with key_put(), but that doesn't matter since key_put()
