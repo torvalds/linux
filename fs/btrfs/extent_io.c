@@ -885,13 +885,6 @@ int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 			      NULL, mask);
 }
 
-int set_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
-		       gfp_t mask)
-{
-	return set_extent_bit(tree, start, end, EXTENT_ORDERED, 0, NULL, NULL,
-			      mask);
-}
-
 int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		    int bits, gfp_t mask)
 {
@@ -918,13 +911,6 @@ int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 {
 	return clear_extent_bit(tree, start, end,
 				EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0,
-				NULL, mask);
-}
-
-int clear_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
-			 gfp_t mask)
-{
-	return clear_extent_bit(tree, start, end, EXTENT_ORDERED, 1, 0,
 				NULL, mask);
 }
 
@@ -1373,7 +1359,8 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 				int clear_unlock,
 				int clear_delalloc, int clear_dirty,
 				int set_writeback,
-				int end_writeback)
+				int end_writeback,
+				int set_private2)
 {
 	int ret;
 	struct page *pages[16];
@@ -1392,7 +1379,8 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 		clear_bits |= EXTENT_DELALLOC;
 
 	clear_extent_bit(tree, start, end, clear_bits, 1, 0, NULL, GFP_NOFS);
-	if (!(unlock_pages || clear_dirty || set_writeback || end_writeback))
+	if (!(unlock_pages || clear_dirty || set_writeback || end_writeback ||
+	      set_private2))
 		return 0;
 
 	while (nr_pages > 0) {
@@ -1400,6 +1388,10 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 				     min_t(unsigned long,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
 		for (i = 0; i < ret; i++) {
+
+			if (set_private2)
+				SetPagePrivate2(pages[i]);
+
 			if (pages[i] == locked_page) {
 				page_cache_release(pages[i]);
 				continue;
@@ -2792,7 +2784,7 @@ int try_release_extent_state(struct extent_map_tree *map,
 	int ret = 1;
 
 	if (test_range_bit(tree, start, end,
-			   EXTENT_IOBITS | EXTENT_ORDERED, 0, NULL))
+			   EXTENT_IOBITS, 0, NULL))
 		ret = 0;
 	else {
 		if ((mask & GFP_NOFS) == GFP_NOFS)
@@ -2835,8 +2827,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 			}
 			if (!test_range_bit(tree, em->start,
 					    extent_map_end(em) - 1,
-					    EXTENT_LOCKED | EXTENT_WRITEBACK |
-					    EXTENT_ORDERED,
+					    EXTENT_LOCKED | EXTENT_WRITEBACK,
 					    0, NULL)) {
 				remove_extent_mapping(map, em);
 				/* once for the rb tree */

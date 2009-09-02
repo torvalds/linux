@@ -426,7 +426,7 @@ again:
 			extent_clear_unlock_delalloc(inode,
 						     &BTRFS_I(inode)->io_tree,
 						     start, end, NULL, 1, 0,
-						     0, 1, 1, 1);
+						     0, 1, 1, 1, 0);
 			ret = 0;
 			goto free_pages_out;
 		}
@@ -641,7 +641,7 @@ static noinline int submit_compressed_extents(struct inode *inode,
 					     async_extent->start,
 					     async_extent->start +
 					     async_extent->ram_size - 1,
-					     NULL, 1, 1, 0, 1, 1, 0);
+					     NULL, 1, 1, 0, 1, 1, 0, 0);
 
 		ret = btrfs_submit_compressed_write(inode,
 				    async_extent->start,
@@ -714,7 +714,7 @@ static noinline int cow_file_range(struct inode *inode,
 			extent_clear_unlock_delalloc(inode,
 						     &BTRFS_I(inode)->io_tree,
 						     start, end, NULL, 1, 1,
-						     1, 1, 1, 1);
+						     1, 1, 1, 1, 0);
 			*nr_written = *nr_written +
 			     (end - start + PAGE_CACHE_SIZE) / PAGE_CACHE_SIZE;
 			*page_started = 1;
@@ -777,11 +777,14 @@ static noinline int cow_file_range(struct inode *inode,
 		/* we're not doing compressed IO, don't unlock the first
 		 * page (which the caller expects to stay locked), don't
 		 * clear any dirty bits and don't set any writeback bits
+		 *
+		 * Do set the Private2 bit so we know this page was properly
+		 * setup for writepage
 		 */
 		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
 					     start, start + ram_size - 1,
 					     locked_page, unlock, 1,
-					     1, 0, 0, 0);
+					     1, 0, 0, 0, 1);
 		disk_num_bytes -= cur_alloc_size;
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
@@ -1102,7 +1105,7 @@ out_check:
 
 		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
 					cur_offset, cur_offset + num_bytes - 1,
-					locked_page, 1, 1, 1, 0, 0, 0);
+					locked_page, 1, 1, 1, 0, 0, 0, 1);
 		cur_offset = extent_end;
 		if (cur_offset > end)
 			break;
@@ -1375,10 +1378,8 @@ again:
 	lock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end, GFP_NOFS);
 
 	/* already ordered? We're done */
-	if (test_range_bit(&BTRFS_I(inode)->io_tree, page_start, page_end,
-			     EXTENT_ORDERED, 0, NULL)) {
+	if (PagePrivate2(page))
 		goto out;
-	}
 
 	ordered = btrfs_lookup_ordered_extent(inode, page_start);
 	if (ordered) {
@@ -1414,11 +1415,9 @@ static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 	struct inode *inode = page->mapping->host;
 	struct btrfs_writepage_fixup *fixup;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret;
 
-	ret = test_range_bit(&BTRFS_I(inode)->io_tree, start, end,
-			     EXTENT_ORDERED, 0, NULL);
-	if (ret)
+	/* this page is properly in the ordered list */
+	if (TestClearPagePrivate2(page))
 		return 0;
 
 	if (PageChecked(page))
@@ -1624,6 +1623,7 @@ nocow:
 static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
+	ClearPagePrivate2(page);
 	return btrfs_finish_ordered_io(page->mapping->host, start, end);
 }
 
@@ -4403,13 +4403,21 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 	u64 page_start = page_offset(page);
 	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
 
+
+	/*
+	 * we have the page locked, so new writeback can't start,
+	 * and the dirty bit won't be cleared while we are here.
+	 *
+	 * Wait for IO on this page so that we can safely clear
+	 * the PagePrivate2 bit and do ordered accounting
+	 */
 	wait_on_page_writeback(page);
+
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	if (offset) {
 		btrfs_releasepage(page, GFP_NOFS);
 		return;
 	}
-
 	lock_extent(tree, page_start, page_end, GFP_NOFS);
 	ordered = btrfs_lookup_ordered_extent(page->mapping->host,
 					   page_offset(page));
@@ -4421,14 +4429,19 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		clear_extent_bit(tree, page_start, page_end,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_LOCKED, 1, 0, NULL, GFP_NOFS);
-		btrfs_finish_ordered_io(page->mapping->host,
-					page_start, page_end);
+		/*
+		 * whoever cleared the private bit is responsible
+		 * for the finish_ordered_io
+		 */
+		if (TestClearPagePrivate2(page)) {
+			btrfs_finish_ordered_io(page->mapping->host,
+						page_start, page_end);
+		}
 		btrfs_put_ordered_extent(ordered);
 		lock_extent(tree, page_start, page_end, GFP_NOFS);
 	}
 	clear_extent_bit(tree, page_start, page_end,
-		 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC |
-		 EXTENT_ORDERED,
+		 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC,
 		 1, 1, NULL, GFP_NOFS);
 	__btrfs_releasepage(page, GFP_NOFS);
 

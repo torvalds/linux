@@ -13,10 +13,8 @@
 #define EXTENT_DEFRAG (1 << 6)
 #define EXTENT_DEFRAG_DONE (1 << 7)
 #define EXTENT_BUFFER_FILLED (1 << 8)
-#define EXTENT_ORDERED (1 << 9)
-#define EXTENT_ORDERED_METADATA (1 << 10)
-#define EXTENT_BOUNDARY (1 << 11)
-#define EXTENT_NODATASUM (1 << 12)
+#define EXTENT_BOUNDARY (1 << 9)
+#define EXTENT_NODATASUM (1 << 10)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 /* flags for bio submission */
@@ -285,5 +283,6 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 				int clear_unlock,
 				int clear_delalloc, int clear_dirty,
 				int set_writeback,
-				int end_writeback);
+				int end_writeback,
+				int set_private2);
 #endif
