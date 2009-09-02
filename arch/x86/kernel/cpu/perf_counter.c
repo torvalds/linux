@@ -769,7 +769,7 @@ static int reserve_bts_hardware(void)
 	int cpu, err = 0;
 
 	if (!bts_available())
-		return -EOPNOTSUPP;
+		return 0;
 
 	get_online_cpus();
 
@@ -914,7 +914,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 			if (!reserve_pmc_hardware())
 				err = -EBUSY;
 			else
-				reserve_bts_hardware();
+				err = reserve_bts_hardware();
 		}
 		if (!err)
 			atomic_inc(&active_counters);
@@ -978,6 +978,13 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 
 	if (config == -1LL)
 		return -EINVAL;
+
+	/*
+	 * Branch tracing:
+	 */
+	if ((attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
+	    (hwc->sample_period == 1) && !bts_available())
+		return -EOPNOTSUPP;
 
 	hwc->config |= config;
 
@@ -1355,19 +1362,9 @@ static int x86_pmu_enable(struct perf_counter *counter)
 
 	idx = fixed_mode_idx(counter, hwc);
 	if (idx == X86_PMC_IDX_FIXED_BTS) {
-		/*
-		 * Try to use BTS for branch tracing. If that is not
-		 * available, try to get a generic counter.
-		 */
-		if (unlikely(!cpuc->ds))
-			goto try_generic;
-
-		/*
-		 * Try to get the fixed counter, if that is already taken
-		 * then try to get a generic counter:
-		 */
+		/* BTS is already occupied. */
 		if (test_and_set_bit(idx, cpuc->used_mask))
-			goto try_generic;
+			return -EAGAIN;
 
 		hwc->config_base	= 0;
 		hwc->counter_base	= 0;
