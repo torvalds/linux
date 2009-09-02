@@ -628,6 +628,16 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		return 1;
 	}
 
+	if (ioc->bus_type == SAS) {
+		VirtDevice *vdevice = sc->device->hostdata;
+
+		if (!vdevice || !vdevice->vtarget ||
+		    vdevice->vtarget->deleted) {
+			sc->result = DID_NO_CONNECT << 16;
+			goto out;
+		}
+	}
+
 	sc->host_scribble = NULL;
 	sc->result = DID_OK << 16;		/* Set default reply as OK */
 	pScsiReq = (SCSIIORequest_t *) mf;
@@ -892,7 +902,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 #endif
 
 	} /* end of address reply case */
-
+out:
 	/* Unmap the DMA buffers, if any. */
 	scsi_dma_unmap(sc);
 
