@@ -581,6 +581,7 @@ struct xhci_ep_ctx {
 /* bit 15 is Linear Stream Array */
 /* Interval - period between requests to an endpoint - 125u increments. */
 #define EP_INTERVAL(p)		((p & 0xff) << 16)
+#define EP_INTERVAL_TO_UFRAMES(p)		(1 << (((p) >> 16) & 0xff))
 
 /* ep_info2 bitmasks */
 /*
@@ -1222,6 +1223,8 @@ int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
 int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
+		int slot_id, unsigned int ep_index);
+int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);

@@ -727,6 +727,11 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 		spin_unlock_irqrestore(&xhci->lock, flags);
+	} else if (usb_endpoint_xfer_int(&urb->ep->desc)) {
+		spin_lock_irqsave(&xhci->lock, flags);
+		ret = xhci_queue_intr_tx(xhci, GFP_ATOMIC, urb,
+				slot_id, ep_index);
+		spin_unlock_irqrestore(&xhci->lock, flags);
 	} else {
 		ret = -EINVAL;
 	}

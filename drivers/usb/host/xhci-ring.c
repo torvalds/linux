@@ -1072,7 +1072,12 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				else
 					status = 0;
 			} else {
-				xhci_dbg(xhci, "Successful bulk transfer!\n");
+				if (usb_endpoint_xfer_bulk(&td->urb->ep->desc))
+					xhci_dbg(xhci, "Successful bulk "
+							"transfer!\n");
+				else
+					xhci_dbg(xhci, "Successful interrupt "
+							"transfer!\n");
 				status = 0;
 			}
 			break;
@@ -1462,6 +1467,47 @@ static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 	wmb();
 	start_trb->field[3] |= start_cycle;
 	ring_ep_doorbell(xhci, slot_id, ep_index);
+}
+
+/*
+ * xHCI uses normal TRBs for both bulk and interrupt.  When the interrupt
+ * endpoint is to be serviced, the xHC will consume (at most) one TD.  A TD
+ * (comprised of sg list entries) can take several service intervals to
+ * transmit.
+ */
+int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+		struct urb *urb, int slot_id, unsigned int ep_index)
+{
+	struct xhci_ep_ctx *ep_ctx = xhci_get_ep_ctx(xhci,
+			xhci->devs[slot_id]->out_ctx, ep_index);
+	int xhci_interval;
+	int ep_interval;
+
+	xhci_interval = EP_INTERVAL_TO_UFRAMES(ep_ctx->ep_info);
+	ep_interval = urb->interval;
+	/* Convert to microframes */
+	if (urb->dev->speed == USB_SPEED_LOW ||
+			urb->dev->speed == USB_SPEED_FULL)
+		ep_interval *= 8;
+	/* FIXME change this to a warning and a suggestion to use the new API
+	 * to set the polling interval (once the API is added).
+	 */
+	if (xhci_interval != ep_interval) {
+		if (!printk_ratelimit())
+			dev_dbg(&urb->dev->dev, "Driver uses different interval"
+					" (%d microframe%s) than xHCI "
+					"(%d microframe%s)\n",
+					ep_interval,
+					ep_interval == 1 ? "" : "s",
+					xhci_interval,
+					xhci_interval == 1 ? "" : "s");
+		urb->interval = xhci_interval;
+		/* Convert back to frames for LS/FS devices */
+		if (urb->dev->speed == USB_SPEED_LOW ||
+				urb->dev->speed == USB_SPEED_FULL)
+			urb->interval /= 8;
+	}
+	return xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb, slot_id, ep_index);
 }
 
 static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
