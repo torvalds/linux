@@ -2773,6 +2773,7 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	sc->sc_flags &= ~SC_OP_SCANNING;
 	sc->sc_flags |= SC_OP_FULL_RESET;
 	spin_unlock_bh(&sc->ani_lock);
+	ath_beacon_config(sc, NULL);
 	mutex_unlock(&sc->mutex);
 }
 
