@@ -160,6 +160,10 @@
 				  ((1ULL << PM_LEVEL_SHIFT((x))) - 1): \
 				   (0xffffffffffffffffULL))
 #define PM_LEVEL_INDEX(x, a)	(((a) >> PM_LEVEL_SHIFT((x))) & 0x1ffULL)
+#define PM_LEVEL_ENC(x)		(((x) << 9) & 0xe00ULL)
+#define PM_LEVEL_PDE(x, a)	((a) | PM_LEVEL_ENC((x)) | \
+				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
+
 
 #define IOMMU_PTE_L2_INDEX(address) (((address) >> 30) & 0x1ffULL)
 #define IOMMU_PTE_L1_INDEX(address) (((address) >> 21) & 0x1ffULL)
