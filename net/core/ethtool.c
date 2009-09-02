@@ -898,6 +898,19 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	return actor(dev, edata.data);
 }
 
+static int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_flash efl;
+
+	if (copy_from_user(&efl, useraddr, sizeof(efl)))
+		return -EFAULT;
+
+	if (!dev->ethtool_ops->flash_device)
+		return -EOPNOTSUPP;
+
+	return dev->ethtool_ops->flash_device(dev, &efl);
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -1110,6 +1123,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_SGRO:
 		rc = ethtool_set_gro(dev, useraddr);
+		break;
+	case ETHTOOL_FLASHDEV:
+		rc = ethtool_flash_device(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

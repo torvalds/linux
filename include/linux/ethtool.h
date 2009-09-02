@@ -362,6 +362,18 @@ struct ethtool_rxnfc {
 	__u32				rule_locs[0];
 };
 
+#define ETHTOOL_FLASH_MAX_FILENAME	128
+enum ethtool_flash_op_type {
+	ETHTOOL_FLASH_ALL_REGIONS	= 0,
+};
+
+/* for passing firmware flashing related parameters */
+struct ethtool_flash {
+	__u32	cmd;
+	__u32	region;
+	char	data[ETHTOOL_FLASH_MAX_FILENAME];
+};
+
 #ifdef __KERNEL__
 
 struct net_device;
@@ -489,6 +501,7 @@ struct ethtool_ops {
 	int	(*get_stats_count)(struct net_device *);/* use get_sset_count */
 	int	(*get_rxnfc)(struct net_device *, struct ethtool_rxnfc *, void *);
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
+	int     (*flash_device)(struct net_device *, struct ethtool_flash *);
 };
 #endif /* __KERNEL__ */
 
@@ -545,6 +558,7 @@ struct ethtool_ops {
 #define	ETHTOOL_GRXCLSRLALL	0x00000030 /* Get all RX classification rule */
 #define	ETHTOOL_SRXCLSRLDEL	0x00000031 /* Delete RX classification rule */
 #define	ETHTOOL_SRXCLSRLINS	0x00000032 /* Insert RX classification rule */
+#define	ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
