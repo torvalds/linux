@@ -28,7 +28,7 @@
 static int IVmbusChannelOpen(struct hv_device *device, u32 SendBufferSize,
 			     u32 RecvRingBufferSize, void *UserData,
 			     u32 UserDataLen,
-			     VMBUS_CHANNEL_CALLBACK ChannelCallback,
+			     void (*ChannelCallback)(void *context),
 			     void *Context)
 {
 	return VmbusChannelOpen(device->context, SendBufferSize,

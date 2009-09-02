@@ -58,72 +58,6 @@ struct hv_multipage_buffer {
 struct hv_driver;
 struct hv_device;
 
-/* All drivers */
-typedef int (*PFN_ON_DEVICEADD)(struct hv_device *Device,
-				void *AdditionalInfo);
-typedef int (*PFN_ON_DEVICEREMOVE)(struct hv_device *Device);
-typedef char** (*PFN_ON_GETDEVICEIDS)(void);
-typedef void (*PFN_ON_CLEANUP)(struct hv_driver *Driver);
-
-/* Vmbus extensions */
-typedef int (*PFN_ON_ISR)(struct hv_driver *drv);
-typedef void (*PFN_ON_DPC)(struct hv_driver *drv);
-typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
-
-typedef struct hv_device * (*PFN_ON_CHILDDEVICE_CREATE)
-				(struct hv_guid *DeviceType,
-				 struct hv_guid *DeviceInstance,
-				 void *Context);
-typedef void (*PFN_ON_CHILDDEVICE_DESTROY)(struct hv_device *Device);
-typedef int (*PFN_ON_CHILDDEVICE_ADD)(struct hv_device *RootDevice,
-				      struct hv_device *ChildDevice);
-typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(struct hv_device *Device);
-
-/* Vmbus channel interface */
-typedef void (*VMBUS_CHANNEL_CALLBACK)(void *context);
-typedef int (*VMBUS_CHANNEL_OPEN)(struct hv_device *Device, u32 SendBufferSize,
-				  u32 RecvRingBufferSize,
-				  void *UserData,
-				  u32 UserDataLen,
-				  VMBUS_CHANNEL_CALLBACK ChannelCallback,
-				  void *Context);
-typedef void (*VMBUS_CHANNEL_CLOSE)(struct hv_device *Device);
-typedef int (*VMBUS_CHANNEL_SEND_PACKET)(struct hv_device *Device,
-					 const void *Buffer,
-					 u32 BufferLen,
-					 u64 RequestId,
-					 u32 Type,
-					 u32 Flags);
-typedef int (*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(struct hv_device *Device,
-					struct hv_page_buffer PageBuffers[],
-					u32 PageCount,
-					void *Buffer,
-					u32 BufferLen,
-					u64 RequestId);
-typedef int (*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)
-					(struct hv_device *Device,
-					 struct hv_multipage_buffer *mpb,
-					 void *Buffer,
-					 u32 BufferLen,
-					 u64 RequestId);
-typedef int (*VMBUS_CHANNEL_RECV_PACKET)(struct hv_device *Device,
-					 void *Buffer,
-					 u32 BufferLen,
-					 u32 *BufferActualLen,
-					 u64 *RequestId);
-typedef int(*VMBUS_CHANNEL_RECV_PACKET_PAW)(struct hv_device *Device,
-					    void *Buffer,
-					    u32 BufferLen,
-					    u32 *BufferActualLen,
-					    u64 *RequestId);
-typedef int (*VMBUS_CHANNEL_ESTABLISH_GPADL)(struct hv_device *Device,
-					     void *Buffer,
-					     u32 BufferLen,
-					     u32 *GpadlHandle);
-typedef int (*VMBUS_CHANNEL_TEARDOWN_GPADL)(struct hv_device *Device,
-					    u32 GpadlHandle);
-
-
 struct hv_dev_port_info {
 	u32 InterruptMask;
 	u32 ReadIndex;
@@ -150,23 +84,32 @@ struct hv_device_info {
 	struct hv_dev_port_info Outbound;
 };
 
-typedef void (*VMBUS_GET_CHANNEL_INFO)(struct hv_device *Device,
-				       struct hv_device_info *DeviceInfo);
-
 struct vmbus_channel_interface {
-	VMBUS_CHANNEL_OPEN Open;
-	VMBUS_CHANNEL_CLOSE Close;
-	VMBUS_CHANNEL_SEND_PACKET SendPacket;
-	VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER SendPacketPageBuffer;
-	VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER SendPacketMultiPageBuffer;
-	VMBUS_CHANNEL_RECV_PACKET RecvPacket;
-	VMBUS_CHANNEL_RECV_PACKET_PAW RecvPacketRaw;
-	VMBUS_CHANNEL_ESTABLISH_GPADL EstablishGpadl;
-	VMBUS_CHANNEL_TEARDOWN_GPADL TeardownGpadl;
-	VMBUS_GET_CHANNEL_INFO GetInfo;
+	int (*Open)(struct hv_device *Device, u32 SendBufferSize,
+		    u32 RecvRingBufferSize, void *UserData, u32 UserDataLen,
+		    void (*ChannelCallback)(void *context),
+		    void *Context);
+	void (*Close)(struct hv_device *device);
+	int (*SendPacket)(struct hv_device *Device, const void *Buffer,
+			  u32 BufferLen, u64 RequestId, u32 Type, u32 Flags);
+	int (*SendPacketPageBuffer)(struct hv_device *dev,
+				    struct hv_page_buffer PageBuffers[],
+				    u32 PageCount, void *Buffer, u32 BufferLen,
+				    u64 RequestId);
+	int (*SendPacketMultiPageBuffer)(struct hv_device *device,
+					 struct hv_multipage_buffer *mpb,
+					 void *Buffer,
+					 u32 BufferLen,
+					 u64 RequestId);
+	int (*RecvPacket)(struct hv_device *dev, void *buf, u32 buflen,
+			  u32 *BufferActualLen, u64 *RequestId);
+	int (*RecvPacketRaw)(struct hv_device *dev, void *buf, u32 buflen,
+			     u32 *BufferActualLen, u64 *RequestId);
+	int (*EstablishGpadl)(struct hv_device *dev, void *buf, u32 buflen,
+			      u32 *GpadlHandle);
+	int (*TeardownGpadl)(struct hv_device *device, u32 GpadlHandle);
+	void (*GetInfo)(struct hv_device *dev, struct hv_device_info *devinfo);
 };
-
-typedef void (*VMBUS_GET_CHANNEL_INTERFACE)(struct vmbus_channel_interface *i);
 
 /* Base driver object */
 struct hv_driver {
@@ -175,12 +118,9 @@ struct hv_driver {
 	/* the device type supported by this driver */
 	struct hv_guid deviceType;
 
-	PFN_ON_DEVICEADD OnDeviceAdd;
-	PFN_ON_DEVICEREMOVE OnDeviceRemove;
-
-	/* device ids supported by this driver */
-	PFN_ON_GETDEVICEIDS OnGetDeviceIds;
-	PFN_ON_CLEANUP OnCleanup;
+	int (*OnDeviceAdd)(struct hv_device *device, void *data);
+	int (*OnDeviceRemove)(struct hv_device *device);
+	void (*OnCleanup)(struct hv_driver *driver);
 
 	struct vmbus_channel_interface VmbusChannelInterface;
 };
@@ -211,19 +151,23 @@ struct vmbus_driver {
 	struct hv_driver Base;
 
 	/* Set by the caller */
-	PFN_ON_CHILDDEVICE_CREATE OnChildDeviceCreate;
-	PFN_ON_CHILDDEVICE_DESTROY OnChildDeviceDestroy;
-	PFN_ON_CHILDDEVICE_ADD OnChildDeviceAdd;
-	PFN_ON_CHILDDEVICE_REMOVE OnChildDeviceRemove;
+	struct hv_device * (*OnChildDeviceCreate)(struct hv_guid *DeviceType,
+						struct hv_guid *DeviceInstance,
+						void *Context);
+	void (*OnChildDeviceDestroy)(struct hv_device *device);
+	int (*OnChildDeviceAdd)(struct hv_device *RootDevice,
+				struct hv_device *ChildDevice);
+	void (*OnChildDeviceRemove)(struct hv_device *device);
 
 	/* Set by the callee */
-	PFN_ON_ISR OnIsr;
-	PFN_ON_DPC OnMsgDpc;
-	PFN_ON_DPC OnEventDpc;
-	PFN_GET_CHANNEL_OFFERS GetChannelOffers;
+	int (*OnIsr)(struct hv_driver *driver);
+	void (*OnMsgDpc)(struct hv_driver *driver);
+	void (*OnEventDpc)(struct hv_driver *driver);
+	void (*GetChannelOffers)(void);
 
-	VMBUS_GET_CHANNEL_INTERFACE GetChannelInterface;
-	VMBUS_GET_CHANNEL_INFO GetChannelInfo;
+	void (*GetChannelInterface)(struct vmbus_channel_interface *i);
+	void (*GetChannelInfo)(struct hv_device *dev,
+			       struct hv_device_info *devinfo);
 };
 
 int VmbusInitialize(struct hv_driver *drv);
