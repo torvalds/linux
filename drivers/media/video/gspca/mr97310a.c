@@ -57,6 +57,11 @@ MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,"
 MODULE_DESCRIPTION("GSPCA/Mars-Semi MR97310A USB Camera Driver");
 MODULE_LICENSE("GPL");
 
+/* global parameters */
+int force_sensor_type = -1;
+module_param(force_sensor_type, int, 0644);
+MODULE_PARM_DESC(force_sensor_type, "Force sensor type (-1 (auto), 0 or 1)");
+
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;  /* !! must be the first item */
@@ -401,6 +406,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "MR97310A CIF camera detected, sensor: %d",
 		       sd->sensor_type);
 
+		if (force_sensor_type != -1) {
+			sd->sensor_type = !! force_sensor_type;
+			PDEBUG(D_PROBE, "Forcing sensor type to: %d",
+			       sd->sensor_type);
+		}
+
 		if (sd->sensor_type == 0)
 			gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
 	} else {
@@ -604,6 +615,12 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 			PDEBUG(D_PROBE, "sensor_type corrected to 1");
 		}
 		msleep(200);
+	}
+
+	if (force_sensor_type != -1) {
+		sd->sensor_type = !! force_sensor_type;
+		PDEBUG(D_PROBE, "Forcing sensor type to: %d",
+		       sd->sensor_type);
 	}
 
 	/*
