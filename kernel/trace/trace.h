@@ -234,9 +234,6 @@ struct trace_array_cpu {
 	atomic_t		disabled;
 	void			*buffer_page;	/* ring buffer spare */
 
-	/* these fields get copied into max-trace: */
-	unsigned long		trace_idx;
-	unsigned long		overrun;
 	unsigned long		saved_latency;
 	unsigned long		critical_start;
 	unsigned long		critical_end;

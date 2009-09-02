@@ -407,19 +407,22 @@ static void
 __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data = tr->data[cpu];
+	struct trace_array_cpu *max_data = tr->data[cpu];
 
 	max_tr.cpu = cpu;
 	max_tr.time_start = data->preempt_timestamp;
 
-	data = max_tr.data[cpu];
-	data->saved_latency = tracing_max_latency;
+	max_data = max_tr.data[cpu];
+	max_data->saved_latency = tracing_max_latency;
+	max_data->critical_start = data->critical_start;
+	max_data->critical_end = data->critical_end;
 
 	memcpy(data->comm, tsk->comm, TASK_COMM_LEN);
-	data->pid = tsk->pid;
-	data->uid = task_uid(tsk);
-	data->nice = tsk->static_prio - 20 - MAX_RT_PRIO;
-	data->policy = tsk->policy;
-	data->rt_priority = tsk->rt_priority;
+	max_data->pid = tsk->pid;
+	max_data->uid = task_uid(tsk);
+	max_data->nice = tsk->static_prio - 20 - MAX_RT_PRIO;
+	max_data->policy = tsk->policy;
+	max_data->rt_priority = tsk->rt_priority;
 
 	/* record this tasks comm */
 	tracing_record_cmdline(tsk);
@@ -1501,7 +1504,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 		seq_puts(m, "\n#  => ended at:   ");
 		seq_print_ip_sym(&iter->seq, data->critical_end, sym_flags);
 		trace_print_seq(m, &iter->seq);
-		seq_puts(m, "#\n");
+		seq_puts(m, "\n#\n");
 	}
 
 	seq_puts(m, "#\n");
