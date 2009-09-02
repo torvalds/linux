@@ -325,7 +325,6 @@ mptsas_cleanup_fw_event_q(MPT_ADAPTER *ioc)
 {
 	struct fw_event_work *fw_event, *next;
 	struct mptsas_target_reset_event *target_reset_list, *n;
-	u8	flush_q;
 	MPT_SCSI_HOST	*hd = shost_priv(ioc->sh);
 
 	/* flush the target_reset_list */
@@ -345,15 +344,10 @@ mptsas_cleanup_fw_event_q(MPT_ADAPTER *ioc)
 	     !ioc->fw_event_q || in_interrupt())
 		return;
 
-	flush_q = 0;
 	list_for_each_entry_safe(fw_event, next, &ioc->fw_event_list, list) {
 		if (cancel_delayed_work(&fw_event->work))
 			mptsas_free_fw_event(ioc, fw_event);
-		else
-			flush_q = 1;
 	}
-	if (flush_q)
-		flush_workqueue(ioc->fw_event_q);
 }
 
 
@@ -1279,7 +1273,6 @@ mptsas_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 		}
 		mptsas_cleanup_fw_event_q(ioc);
 		mptsas_queue_rescan(ioc);
-		mptsas_fw_event_on(ioc);
 		break;
 	default:
 		break;
@@ -1599,6 +1592,7 @@ mptsas_firmware_event_work(struct work_struct *work)
 		mptsas_scan_sas_topology(ioc);
 		ioc->in_rescan = 0;
 		mptsas_free_fw_event(ioc, fw_event);
+		mptsas_fw_event_on(ioc);
 		return;
 	}
 
