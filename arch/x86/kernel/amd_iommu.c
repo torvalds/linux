@@ -55,7 +55,7 @@ struct iommu_cmd {
 static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
 static struct dma_ops_domain *find_protection_domain(u16 devid);
-static u64* alloc_pte(struct protection_domain *dom,
+static u64 *alloc_pte(struct protection_domain *domain,
 		      unsigned long address, u64
 		      **pte_page, gfp_t gfp);
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
@@ -1351,39 +1351,35 @@ static bool increase_address_space(struct protection_domain *domain,
 	return true;
 }
 
-/*
- * If the pte_page is not yet allocated this function is called
- */
-static u64* alloc_pte(struct protection_domain *dom,
+static u64 *alloc_pte(struct protection_domain *domain,
 		      unsigned long address, u64 **pte_page, gfp_t gfp)
 {
 	u64 *pte, *page;
+	int level;
 
-	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(address)];
+	while (address > PM_LEVEL_SIZE(domain->mode))
+		increase_address_space(domain, gfp);
 
-	if (!IOMMU_PTE_PRESENT(*pte)) {
-		page = (u64 *)get_zeroed_page(gfp);
-		if (!page)
-			return NULL;
-		*pte = IOMMU_L2_PDE(virt_to_phys(page));
+	level =  domain->mode - 1;
+	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
+
+	while (level > 0) {
+		if (!IOMMU_PTE_PRESENT(*pte)) {
+			page = (u64 *)get_zeroed_page(gfp);
+			if (!page)
+				return NULL;
+			*pte = PM_LEVEL_PDE(level, virt_to_phys(page));
+		}
+
+		level -= 1;
+
+		pte = IOMMU_PTE_PAGE(*pte);
+
+		if (pte_page && level == 0)
+			*pte_page = pte;
+
+		pte = &pte[PM_LEVEL_INDEX(level, address)];
 	}
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L1_INDEX(address)];
-
-	if (!IOMMU_PTE_PRESENT(*pte)) {
-		page = (u64 *)get_zeroed_page(gfp);
-		if (!page)
-			return NULL;
-		*pte = IOMMU_L1_PDE(virt_to_phys(page));
-	}
-
-	pte = IOMMU_PTE_PAGE(*pte);
-
-	if (pte_page)
-		*pte_page = pte;
-
-	pte = &pte[IOMMU_PTE_L0_INDEX(address)];
 
 	return pte;
 }
