@@ -160,8 +160,9 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy) +
 				sizeof(struct ath_softc), &ath9k_ops);
-	if (hw == NULL) {
-		printk(KERN_ERR "ath_pci: no memory for ieee80211_hw\n");
+	if (!hw) {
+		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
+		ret = -ENOMEM;
 		goto bad2;
 	}
 
