@@ -992,6 +992,9 @@ static inline int test_sd_parent(struct sched_domain *sd, int flag)
 	return 0;
 }
 
+unsigned long default_scale_freq_power(struct sched_domain *sd, int cpu);
+unsigned long default_scale_smt_power(struct sched_domain *sd, int cpu);
+
 #else /* CONFIG_SMP */
 
 struct sched_domain_attr;
@@ -1002,6 +1005,7 @@ partition_sched_domains(int ndoms_new, struct cpumask *doms_new,
 {
 }
 #endif	/* !CONFIG_SMP */
+
 
 struct io_context;			/* See blkdev.h */
 
