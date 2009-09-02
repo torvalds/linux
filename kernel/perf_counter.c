@@ -46,11 +46,17 @@ static atomic_t nr_task_counters __read_mostly;
 
 /*
  * perf counter paranoia level:
- *  0 - not paranoid
- *  1 - disallow cpu counters to unpriv
- *  2 - disallow kernel profiling to unpriv
+ *  -1 - not paranoid at all
+ *   0 - disallow raw tracepoint access for unpriv
+ *   1 - disallow cpu counters for unpriv
+ *   2 - disallow kernel profiling for unpriv
  */
 int sysctl_perf_counter_paranoid __read_mostly = 1;
+
+static inline bool perf_paranoid_tracepoint_raw(void)
+{
+	return sysctl_perf_counter_paranoid > -1;
+}
 
 static inline bool perf_paranoid_cpu(void)
 {
@@ -3971,6 +3977,7 @@ static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 	 * have these.
 	 */
 	if ((counter->attr.sample_type & PERF_SAMPLE_RAW) &&
+			perf_paranoid_tracepoint_raw() &&
 			!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
