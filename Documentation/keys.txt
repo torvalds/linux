@@ -757,6 +757,26 @@ The keyctl syscall functions are:
      successful.
 
 
+ (*) Install the calling process's session keyring on its parent.
+
+	long keyctl(KEYCTL_SESSION_TO_PARENT);
+
+     This functions attempts to install the calling process's session keyring
+     on to the calling process's parent, replacing the parent's current session
+     keyring.
+
+     The calling process must have the same ownership as its parent, the
+     keyring must have the same ownership as the calling process, the calling
+     process must have LINK permission on the keyring and the active LSM module
+     mustn't deny permission, otherwise error EPERM will be returned.
+
+     Error ENOMEM will be returned if there was insufficient memory to complete
+     the operation, otherwise 0 will be returned to indicate success.
+
+     The keyring will be replaced next time the parent process leaves the
+     kernel and resumes executing userspace.
+
+
 ===============
 KERNEL SERVICES
 ===============

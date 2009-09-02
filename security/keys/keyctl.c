@@ -1228,6 +1228,105 @@ long keyctl_get_security(key_serial_t keyid,
 	return ret;
 }
 
+/*
+ * attempt to install the calling process's session keyring on the process's
+ * parent process
+ * - the keyring must exist and must grant us LINK permission
+ * - implements keyctl(KEYCTL_SESSION_TO_PARENT)
+ */
+long keyctl_session_to_parent(void)
+{
+	struct task_struct *me, *parent;
+	const struct cred *mycred, *pcred;
+	struct cred *cred, *oldcred;
+	key_ref_t keyring_r;
+	int ret;
+
+	keyring_r = lookup_user_key(KEY_SPEC_SESSION_KEYRING, 0, KEY_LINK);
+	if (IS_ERR(keyring_r))
+		return PTR_ERR(keyring_r);
+
+	/* our parent is going to need a new cred struct, a new tgcred struct
+	 * and new security data, so we allocate them here to prevent ENOMEM in
+	 * our parent */
+	ret = -ENOMEM;
+	cred = cred_alloc_blank();
+	if (!cred)
+		goto error_keyring;
+
+	cred->tgcred->session_keyring = key_ref_to_ptr(keyring_r);
+	keyring_r = NULL;
+
+	me = current;
+	write_lock_irq(&tasklist_lock);
+
+	parent = me->real_parent;
+	ret = -EPERM;
+
+	/* the parent mustn't be init and mustn't be a kernel thread */
+	if (parent->pid <= 1 || !parent->mm)
+		goto not_permitted;
+
+	/* the parent must be single threaded */
+	if (atomic_read(&parent->signal->count) != 1)
+		goto not_permitted;
+
+	/* the parent and the child must have different session keyrings or
+	 * there's no point */
+	mycred = current_cred();
+	pcred = __task_cred(parent);
+	if (mycred == pcred ||
+	    mycred->tgcred->session_keyring == pcred->tgcred->session_keyring)
+		goto already_same;
+
+	/* the parent must have the same effective ownership and mustn't be
+	 * SUID/SGID */
+	if (pcred-> uid	!= mycred->euid	||
+	    pcred->euid	!= mycred->euid	||
+	    pcred->suid	!= mycred->euid	||
+	    pcred-> gid	!= mycred->egid	||
+	    pcred->egid	!= mycred->egid	||
+	    pcred->sgid	!= mycred->egid)
+		goto not_permitted;
+
+	/* the keyrings must have the same UID */
+	if (pcred ->tgcred->session_keyring->uid != mycred->euid ||
+	    mycred->tgcred->session_keyring->uid != mycred->euid)
+		goto not_permitted;
+
+	/* the LSM must permit the replacement of the parent's keyring with the
+	 * keyring from this process */
+	ret = security_key_session_to_parent(mycred, pcred,
+					     key_ref_to_ptr(keyring_r));
+	if (ret < 0)
+		goto not_permitted;
+
+	/* if there's an already pending keyring replacement, then we replace
+	 * that */
+	oldcred = parent->replacement_session_keyring;
+
+	/* the replacement session keyring is applied just prior to userspace
+	 * restarting */
+	parent->replacement_session_keyring = cred;
+	cred = NULL;
+	set_ti_thread_flag(task_thread_info(parent), TIF_NOTIFY_RESUME);
+
+	write_unlock_irq(&tasklist_lock);
+	if (oldcred)
+		put_cred(oldcred);
+	return 0;
+
+already_same:
+	ret = 0;
+not_permitted:
+	put_cred(cred);
+	return ret;
+
+error_keyring:
+	key_ref_put(keyring_r);
+	return ret;
+}
+
 /*****************************************************************************/
 /*
  * the key control system call
@@ -1312,6 +1411,9 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		return keyctl_get_security((key_serial_t) arg2,
 					   (char __user *) arg3,
 					   (size_t) arg4);
+
+	case KEYCTL_SESSION_TO_PARENT:
+		return keyctl_session_to_parent();
 
 	default:
 		return -EOPNOTSUPP;

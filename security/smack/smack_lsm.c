@@ -1080,6 +1080,22 @@ static int smack_file_receive(struct file *file)
  */
 
 /**
+ * smack_cred_alloc_blank - "allocate" blank task-level security credentials
+ * @new: the new credentials
+ * @gfp: the atomicity of any memory allocations
+ *
+ * Prepare a blank set of credentials for modification.  This must allocate all
+ * the memory the LSM module might require such that cred_transfer() can
+ * complete without error.
+ */
+static int smack_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	cred->security = NULL;
+	return 0;
+}
+
+
+/**
  * smack_cred_free - "free" task-level security credentials
  * @cred: the credentials in question
  *
@@ -1114,6 +1130,18 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
  */
 static void smack_cred_commit(struct cred *new, const struct cred *old)
 {
+}
+
+/**
+ * smack_cred_transfer - Transfer the old credentials to the new credentials
+ * @new: the new credentials
+ * @old: the original credentials
+ *
+ * Fill in a set of blank credentials from another set of credentials.
+ */
+static void smack_cred_transfer(struct cred *new, const struct cred *old)
+{
+	new->security = old->security;
 }
 
 /**
@@ -3073,9 +3101,11 @@ struct security_operations smack_ops = {
 	.file_send_sigiotask = 		smack_file_send_sigiotask,
 	.file_receive = 		smack_file_receive,
 
+	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
 	.cred_commit =			smack_cred_commit,
+	.cred_transfer =		smack_cred_transfer,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,
 	.task_setpgid = 		smack_task_setpgid,

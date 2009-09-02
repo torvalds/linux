@@ -3233,6 +3233,21 @@ static int selinux_task_create(unsigned long clone_flags)
 }
 
 /*
+ * allocate the SELinux part of blank credentials
+ */
+static int selinux_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	struct task_security_struct *tsec;
+
+	tsec = kzalloc(sizeof(struct task_security_struct), gfp);
+	if (!tsec)
+		return -ENOMEM;
+
+	cred->security = tsec;
+	return 0;
+}
+
+/*
  * detach and free the LSM part of a set of credentials
  */
 static void selinux_cred_free(struct cred *cred)
@@ -3261,6 +3276,17 @@ static int selinux_cred_prepare(struct cred *new, const struct cred *old,
 
 	new->security = tsec;
 	return 0;
+}
+
+/*
+ * transfer the SELinux data to a blank set of creds
+ */
+static void selinux_cred_transfer(struct cred *new, const struct cred *old)
+{
+	const struct task_security_struct *old_tsec = old->security;
+	struct task_security_struct *tsec = new->security;
+
+	*tsec = *old_tsec;
 }
 
 /*
@@ -5469,8 +5495,10 @@ static struct security_operations selinux_ops = {
 	.dentry_open =			selinux_dentry_open,
 
 	.task_create =			selinux_task_create,
+	.cred_alloc_blank =		selinux_cred_alloc_blank,
 	.cred_free =			selinux_cred_free,
 	.cred_prepare =			selinux_cred_prepare,
+	.cred_transfer =		selinux_cred_transfer,
 	.kernel_act_as =		selinux_kernel_act_as,
 	.kernel_create_files_as =	selinux_kernel_create_files_as,
 	.kernel_module_request =	selinux_kernel_module_request,

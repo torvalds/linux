@@ -373,6 +373,11 @@ static int cap_task_create(unsigned long clone_flags)
 	return 0;
 }
 
+static int cap_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	return 0;
+}
+
 static void cap_cred_free(struct cred *cred)
 {
 }
@@ -383,6 +388,10 @@ static int cap_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
 }
 
 static void cap_cred_commit(struct cred *new, const struct cred *old)
+{
+}
+
+static void cap_cred_transfer(struct cred *new, const struct cred *old)
 {
 }
 
@@ -836,6 +845,13 @@ static int cap_key_getsecurity(struct key *key, char **_buffer)
 	return 0;
 }
 
+static int cap_key_session_to_parent(const struct cred *cred,
+				     const struct cred *parent_cred,
+				     struct key *key)
+{
+	return 0;
+}
+
 #endif /* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
@@ -961,9 +977,11 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, file_receive);
 	set_to_cap_if_null(ops, dentry_open);
 	set_to_cap_if_null(ops, task_create);
+	set_to_cap_if_null(ops, cred_alloc_blank);
 	set_to_cap_if_null(ops, cred_free);
 	set_to_cap_if_null(ops, cred_prepare);
 	set_to_cap_if_null(ops, cred_commit);
+	set_to_cap_if_null(ops, cred_transfer);
 	set_to_cap_if_null(ops, kernel_act_as);
 	set_to_cap_if_null(ops, kernel_create_files_as);
 	set_to_cap_if_null(ops, kernel_module_request);
@@ -1063,6 +1081,7 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, key_free);
 	set_to_cap_if_null(ops, key_permission);
 	set_to_cap_if_null(ops, key_getsecurity);
+	set_to_cap_if_null(ops, key_session_to_parent);
 #endif	/* CONFIG_KEYS */
 #ifdef CONFIG_AUDIT
 	set_to_cap_if_null(ops, audit_rule_init);

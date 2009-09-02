@@ -65,6 +65,7 @@ static void key_gc_timer_func(unsigned long data)
  * - return true if we altered the keyring
  */
 static bool key_gc_keyring(struct key *keyring, time_t limit)
+	__releases(key_serial_lock)
 {
 	struct keyring_list *klist;
 	struct key *key;

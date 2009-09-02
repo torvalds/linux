@@ -684,6 +684,11 @@ int security_task_create(unsigned long clone_flags)
 	return security_ops->task_create(clone_flags);
 }
 
+int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	return security_ops->cred_alloc_blank(cred, gfp);
+}
+
 void security_cred_free(struct cred *cred)
 {
 	security_ops->cred_free(cred);
@@ -697,6 +702,11 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 void security_commit_creds(struct cred *new, const struct cred *old)
 {
 	security_ops->cred_commit(new, old);
+}
+
+void security_transfer_creds(struct cred *new, const struct cred *old)
+{
+	security_ops->cred_transfer(new, old);
 }
 
 int security_kernel_act_as(struct cred *new, u32 secid)
@@ -1239,6 +1249,13 @@ int security_key_permission(key_ref_t key_ref,
 int security_key_getsecurity(struct key *key, char **_buffer)
 {
 	return security_ops->key_getsecurity(key, _buffer);
+}
+
+int security_key_session_to_parent(const struct cred *cred,
+				   const struct cred *parent_cred,
+				   struct key *key)
+{
+	return security_ops->key_session_to_parent(cred, parent_cred, key);
 }
 
 #endif	/* CONFIG_KEYS */

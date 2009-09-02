@@ -201,6 +201,7 @@ extern long keyctl_set_timeout(key_serial_t, unsigned);
 extern long keyctl_assume_authority(key_serial_t);
 extern long keyctl_get_security(key_serial_t keyid, char __user *buffer,
 				size_t buflen);
+extern long keyctl_session_to_parent(void);
 
 /*
  * debugging key validation

@@ -199,6 +199,49 @@ void exit_creds(struct task_struct *tsk)
 	validate_creds(cred);
 	alter_cred_subscribers(cred, -1);
 	put_cred(cred);
+
+	cred = (struct cred *) tsk->replacement_session_keyring;
+	if (cred) {
+		tsk->replacement_session_keyring = NULL;
+		validate_creds(cred);
+		put_cred(cred);
+	}
+}
+
+/*
+ * Allocate blank credentials, such that the credentials can be filled in at a
+ * later date without risk of ENOMEM.
+ */
+struct cred *cred_alloc_blank(void)
+{
+	struct cred *new;
+
+	new = kmem_cache_zalloc(cred_jar, GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+#ifdef CONFIG_KEYS
+	new->tgcred = kzalloc(sizeof(*new->tgcred), GFP_KERNEL);
+	if (!new->tgcred) {
+		kfree(new);
+		return NULL;
+	}
+	atomic_set(&new->tgcred->usage, 1);
+#endif
+
+	atomic_set(&new->usage, 1);
+
+	if (security_cred_alloc_blank(new, GFP_KERNEL) < 0)
+		goto error;
+
+#ifdef CONFIG_DEBUG_CREDENTIALS
+	new->magic = CRED_MAGIC;
+#endif
+	return new;
+
+error:
+	abort_creds(new);
+	return NULL;
 }
 
 /**

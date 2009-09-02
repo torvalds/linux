@@ -278,6 +278,8 @@ static inline key_serial_t key_serial(struct key *key)
 extern ctl_table key_sysctls[];
 #endif
 
+extern void key_replace_session_keyring(void);
+
 /*
  * the userspace interface
  */
@@ -300,6 +302,7 @@ extern void key_init(void);
 #define key_fsuid_changed(t)		do { } while(0)
 #define key_fsgid_changed(t)		do { } while(0)
 #define key_init()			do { } while(0)
+#define key_replace_session_keyring()	do { } while(0)
 
 #endif /* CONFIG_KEYS */
 #endif /* __KERNEL__ */
