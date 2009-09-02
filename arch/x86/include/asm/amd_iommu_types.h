@@ -150,11 +150,6 @@
 #define PAGE_MODE_5_LEVEL 0x05
 #define PAGE_MODE_6_LEVEL 0x06
 
-#define IOMMU_PDE_NL_0   0x000ULL
-#define IOMMU_PDE_NL_1   0x200ULL
-#define IOMMU_PDE_NL_2   0x400ULL
-#define IOMMU_PDE_NL_3   0x600ULL
-
 #define PM_LEVEL_SHIFT(x)	(12 + ((x) * 9))
 #define PM_LEVEL_SIZE(x)	(((x) < 6) ? \
 				  ((1ULL << PM_LEVEL_SHIFT((x))) - 1): \
@@ -164,26 +159,12 @@
 #define PM_LEVEL_PDE(x, a)	((a) | PM_LEVEL_ENC((x)) | \
 				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
 
-
-#define IOMMU_PTE_L2_INDEX(address) (((address) >> 30) & 0x1ffULL)
-#define IOMMU_PTE_L1_INDEX(address) (((address) >> 21) & 0x1ffULL)
-#define IOMMU_PTE_L0_INDEX(address) (((address) >> 12) & 0x1ffULL)
-
-#define IOMMU_MAP_SIZE_L1 (1ULL << 21)
-#define IOMMU_MAP_SIZE_L2 (1ULL << 30)
-#define IOMMU_MAP_SIZE_L3 (1ULL << 39)
-
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)
 #define IOMMU_PTE_FC (1ULL << 60)
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
-
-#define IOMMU_L1_PDE(address) \
-	((address) | IOMMU_PDE_NL_1 | IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
-#define IOMMU_L2_PDE(address) \
-	((address) | IOMMU_PDE_NL_2 | IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
