@@ -579,15 +579,19 @@ xfs_showargs(
 	else if (mp->m_qflags & XFS_UQUOTA_ACCT)
 		seq_puts(m, "," MNTOPT_UQUOTANOENF);
 
-	if (mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))
-		seq_puts(m, "," MNTOPT_PRJQUOTA);
-	else if (mp->m_qflags & XFS_PQUOTA_ACCT)
-		seq_puts(m, "," MNTOPT_PQUOTANOENF);
+	/* Either project or group quotas can be active, not both */
 
-	if (mp->m_qflags & (XFS_GQUOTA_ACCT|XFS_OQUOTA_ENFD))
-		seq_puts(m, "," MNTOPT_GRPQUOTA);
-	else if (mp->m_qflags & XFS_GQUOTA_ACCT)
-		seq_puts(m, "," MNTOPT_GQUOTANOENF);
+	if (mp->m_qflags & XFS_PQUOTA_ACCT) {
+		if (mp->m_qflags & XFS_OQUOTA_ENFD)
+			seq_puts(m, "," MNTOPT_PRJQUOTA);
+		else
+			seq_puts(m, "," MNTOPT_PQUOTANOENF);
+	} else if (mp->m_qflags & XFS_GQUOTA_ACCT) {
+		if (mp->m_qflags & XFS_OQUOTA_ENFD)
+			seq_puts(m, "," MNTOPT_GRPQUOTA);
+		else
+			seq_puts(m, "," MNTOPT_GQUOTANOENF);
+	}
 
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, "," MNTOPT_NOQUOTA);
