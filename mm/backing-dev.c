@@ -22,6 +22,8 @@ struct backing_dev_info default_backing_dev_info = {
 EXPORT_SYMBOL_GPL(default_backing_dev_info);
 
 static struct class *bdi_class;
+DEFINE_MUTEX(bdi_lock);
+LIST_HEAD(bdi_list);
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -211,6 +213,10 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		goto exit;
 	}
 
+	mutex_lock(&bdi_lock);
+	list_add_tail(&bdi->bdi_list, &bdi_list);
+	mutex_unlock(&bdi_lock);
+
 	bdi->dev = dev;
 	bdi_debug_register(bdi, dev_name(dev));
 
@@ -225,9 +231,17 @@ int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev)
 }
 EXPORT_SYMBOL(bdi_register_dev);
 
+static void bdi_remove_from_list(struct backing_dev_info *bdi)
+{
+	mutex_lock(&bdi_lock);
+	list_del(&bdi->bdi_list);
+	mutex_unlock(&bdi_lock);
+}
+
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
+		bdi_remove_from_list(bdi);
 		bdi_debug_unregister(bdi);
 		device_unregister(bdi->dev);
 		bdi->dev = NULL;
@@ -245,6 +259,10 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->min_ratio = 0;
 	bdi->max_ratio = 100;
 	bdi->max_prop_frac = PROP_FRAC_BASE;
+	INIT_LIST_HEAD(&bdi->bdi_list);
+	INIT_LIST_HEAD(&bdi->b_io);
+	INIT_LIST_HEAD(&bdi->b_dirty);
+	INIT_LIST_HEAD(&bdi->b_more_io);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
 		err = percpu_counter_init(&bdi->bdi_stat[i], 0);
@@ -259,6 +277,8 @@ int bdi_init(struct backing_dev_info *bdi)
 err:
 		while (i--)
 			percpu_counter_destroy(&bdi->bdi_stat[i]);
+
+		bdi_remove_from_list(bdi);
 	}
 
 	return err;
@@ -268,6 +288,10 @@ EXPORT_SYMBOL(bdi_init);
 void bdi_destroy(struct backing_dev_info *bdi)
 {
 	int i;
+
+	WARN_ON(!list_empty(&bdi->b_dirty));
+	WARN_ON(!list_empty(&bdi->b_io));
+	WARN_ON(!list_empty(&bdi->b_more_io));
 
 	bdi_unregister(bdi);
 

@@ -25,6 +25,7 @@
 #include <linux/buffer_head.h>
 #include "internal.h"
 
+#define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
 
 /**
  * writeback_acquire - attempt to get exclusive writeback access to a device
@@ -165,12 +166,13 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			goto out;
 
 		/*
-		 * If the inode was already on s_dirty/s_io/s_more_io, don't
-		 * reposition it (that would break s_dirty time-ordering).
+		 * If the inode was already on b_dirty/b_io/b_more_io, don't
+		 * reposition it (that would break b_dirty time-ordering).
 		 */
 		if (!was_dirty) {
 			inode->dirtied_when = jiffies;
-			list_move(&inode->i_list, &sb->s_dirty);
+			list_move(&inode->i_list,
+					&inode_to_bdi(inode)->b_dirty);
 		}
 	}
 out:
@@ -191,31 +193,30 @@ static int write_inode(struct inode *inode, int sync)
  * furthest end of its superblock's dirty-inode list.
  *
  * Before stamping the inode's ->dirtied_when, we check to see whether it is
- * already the most-recently-dirtied inode on the s_dirty list.  If that is
+ * already the most-recently-dirtied inode on the b_dirty list.  If that is
  * the case then the inode must have been redirtied while it was being written
  * out and we don't reset its dirtied_when.
  */
 static void redirty_tail(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
+	struct backing_dev_info *bdi = inode_to_bdi(inode);
 
-	if (!list_empty(&sb->s_dirty)) {
-		struct inode *tail_inode;
+	if (!list_empty(&bdi->b_dirty)) {
+		struct inode *tail;
 
-		tail_inode = list_entry(sb->s_dirty.next, struct inode, i_list);
-		if (time_before(inode->dirtied_when,
-				tail_inode->dirtied_when))
+		tail = list_entry(bdi->b_dirty.next, struct inode, i_list);
+		if (time_before(inode->dirtied_when, tail->dirtied_when))
 			inode->dirtied_when = jiffies;
 	}
-	list_move(&inode->i_list, &sb->s_dirty);
+	list_move(&inode->i_list, &bdi->b_dirty);
 }
 
 /*
- * requeue inode for re-scanning after sb->s_io list is exhausted.
+ * requeue inode for re-scanning after bdi->b_io list is exhausted.
  */
 static void requeue_io(struct inode *inode)
 {
-	list_move(&inode->i_list, &inode->i_sb->s_more_io);
+	list_move(&inode->i_list, &inode_to_bdi(inode)->b_more_io);
 }
 
 static void inode_sync_complete(struct inode *inode)
@@ -262,18 +263,50 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 /*
  * Queue all expired dirty inodes for io, eldest first.
  */
-static void queue_io(struct super_block *sb,
-				unsigned long *older_than_this)
+static void queue_io(struct backing_dev_info *bdi,
+		     unsigned long *older_than_this)
 {
-	list_splice_init(&sb->s_more_io, sb->s_io.prev);
-	move_expired_inodes(&sb->s_dirty, &sb->s_io, older_than_this);
+	list_splice_init(&bdi->b_more_io, bdi->b_io.prev);
+	move_expired_inodes(&bdi->b_dirty, &bdi->b_io, older_than_this);
+}
+
+static int sb_on_inode_list(struct super_block *sb, struct list_head *list)
+{
+	struct inode *inode;
+	int ret = 0;
+
+	spin_lock(&inode_lock);
+	list_for_each_entry(inode, list, i_list) {
+		if (inode->i_sb == sb) {
+			ret = 1;
+			break;
+		}
+	}
+	spin_unlock(&inode_lock);
+	return ret;
 }
 
 int sb_has_dirty_inodes(struct super_block *sb)
 {
-	return !list_empty(&sb->s_dirty) ||
-	       !list_empty(&sb->s_io) ||
-	       !list_empty(&sb->s_more_io);
+	struct backing_dev_info *bdi;
+	int ret = 0;
+
+	/*
+	 * This is REALLY expensive right now, but it'll go away
+	 * when the bdi writeback is introduced
+	 */
+	mutex_lock(&bdi_lock);
+	list_for_each_entry(bdi, &bdi_list, bdi_list) {
+		if (sb_on_inode_list(sb, &bdi->b_dirty) ||
+		    sb_on_inode_list(sb, &bdi->b_io) ||
+		    sb_on_inode_list(sb, &bdi->b_more_io)) {
+			ret = 1;
+			break;
+		}
+	}
+	mutex_unlock(&bdi_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(sb_has_dirty_inodes);
 
@@ -322,11 +355,11 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	if (inode->i_state & I_SYNC) {
 		/*
 		 * If this inode is locked for writeback and we are not doing
-		 * writeback-for-data-integrity, move it to s_more_io so that
+		 * writeback-for-data-integrity, move it to b_more_io so that
 		 * writeback can proceed with the other inodes on s_io.
 		 *
 		 * We'll have another go at writing back this inode when we
-		 * completed a full scan of s_io.
+		 * completed a full scan of b_io.
 		 */
 		if (!wait) {
 			requeue_io(inode);
@@ -371,11 +404,11 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 			/*
 			 * We didn't write back all the pages.  nfs_writepages()
 			 * sometimes bales out without doing anything. Redirty
-			 * the inode; Move it from s_io onto s_more_io/s_dirty.
+			 * the inode; Move it from b_io onto b_more_io/b_dirty.
 			 */
 			/*
 			 * akpm: if the caller was the kupdate function we put
-			 * this inode at the head of s_dirty so it gets first
+			 * this inode at the head of b_dirty so it gets first
 			 * consideration.  Otherwise, move it to the tail, for
 			 * the reasons described there.  I'm not really sure
 			 * how much sense this makes.  Presumably I had a good
@@ -385,7 +418,7 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 			if (wbc->for_kupdate) {
 				/*
 				 * For the kupdate function we move the inode
-				 * to s_more_io so it will get more writeout as
+				 * to b_more_io so it will get more writeout as
 				 * soon as the queue becomes uncongested.
 				 */
 				inode->i_state |= I_DIRTY_PAGES;
@@ -433,51 +466,34 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	return ret;
 }
 
-/*
- * Write out a superblock's list of dirty inodes.  A wait will be performed
- * upon no inodes, all inodes or the final one, depending upon sync_mode.
- *
- * If older_than_this is non-NULL, then only write out inodes which
- * had their first dirtying at a time earlier than *older_than_this.
- *
- * If we're a pdflush thread, then implement pdflush collision avoidance
- * against the entire list.
- *
- * If `bdi' is non-zero then we're being asked to writeback a specific queue.
- * This function assumes that the blockdev superblock's inodes are backed by
- * a variety of queues, so all inodes are searched.  For other superblocks,
- * assume that all inodes are backed by the same queue.
- *
- * FIXME: this linear search could get expensive with many fileystems.  But
- * how to fix?  We need to go from an address_space to all inodes which share
- * a queue with that address_space.  (Easy: have a global "dirty superblocks"
- * list).
- *
- * The inodes to be written are parked on sb->s_io.  They are moved back onto
- * sb->s_dirty as they are selected for writing.  This way, none can be missed
- * on the writer throttling path, and we get decent balancing between many
- * throttled threads: we don't want them all piling up on inode_sync_wait.
- */
-static void generic_sync_sb_inodes(struct super_block *sb,
-				   struct writeback_control *wbc)
+static void generic_sync_bdi_inodes(struct backing_dev_info *bdi,
+				    struct writeback_control *wbc,
+				    struct super_block *sb)
 {
+	const int is_blkdev_sb = sb_is_blkdev_sb(sb);
 	const unsigned long start = jiffies;	/* livelock avoidance */
-	int sync = wbc->sync_mode == WB_SYNC_ALL;
 
 	spin_lock(&inode_lock);
-	if (!wbc->for_kupdate || list_empty(&sb->s_io))
-		queue_io(sb, wbc->older_than_this);
 
-	while (!list_empty(&sb->s_io)) {
-		struct inode *inode = list_entry(sb->s_io.prev,
+	if (!wbc->for_kupdate || list_empty(&bdi->b_io))
+		queue_io(bdi, wbc->older_than_this);
+
+	while (!list_empty(&bdi->b_io)) {
+		struct inode *inode = list_entry(bdi->b_io.prev,
 						struct inode, i_list);
-		struct address_space *mapping = inode->i_mapping;
-		struct backing_dev_info *bdi = mapping->backing_dev_info;
 		long pages_skipped;
+
+		/*
+		 * super block given and doesn't match, skip this inode
+		 */
+		if (sb && sb != inode->i_sb) {
+			redirty_tail(inode);
+			continue;
+		}
 
 		if (!bdi_cap_writeback_dirty(bdi)) {
 			redirty_tail(inode);
-			if (sb_is_blkdev_sb(sb)) {
+			if (is_blkdev_sb) {
 				/*
 				 * Dirty memory-backed blockdev: the ramdisk
 				 * driver does this.  Skip just this inode
@@ -499,14 +515,14 @@ static void generic_sync_sb_inodes(struct super_block *sb,
 
 		if (wbc->nonblocking && bdi_write_congested(bdi)) {
 			wbc->encountered_congestion = 1;
-			if (!sb_is_blkdev_sb(sb))
+			if (!is_blkdev_sb)
 				break;		/* Skip a congested fs */
 			requeue_io(inode);
 			continue;		/* Skip a congested blockdev */
 		}
 
 		if (wbc->bdi && bdi != wbc->bdi) {
-			if (!sb_is_blkdev_sb(sb))
+			if (!is_blkdev_sb)
 				break;		/* fs has the wrong queue */
 			requeue_io(inode);
 			continue;		/* blockdev has wrong queue */
@@ -544,12 +560,56 @@ static void generic_sync_sb_inodes(struct super_block *sb,
 			wbc->more_io = 1;
 			break;
 		}
-		if (!list_empty(&sb->s_more_io))
+		if (!list_empty(&bdi->b_more_io))
 			wbc->more_io = 1;
 	}
 
-	if (sync) {
+	spin_unlock(&inode_lock);
+	/* Leave any unwritten inodes on b_io */
+}
+
+/*
+ * Write out a superblock's list of dirty inodes.  A wait will be performed
+ * upon no inodes, all inodes or the final one, depending upon sync_mode.
+ *
+ * If older_than_this is non-NULL, then only write out inodes which
+ * had their first dirtying at a time earlier than *older_than_this.
+ *
+ * If we're a pdlfush thread, then implement pdflush collision avoidance
+ * against the entire list.
+ *
+ * If `bdi' is non-zero then we're being asked to writeback a specific queue.
+ * This function assumes that the blockdev superblock's inodes are backed by
+ * a variety of queues, so all inodes are searched.  For other superblocks,
+ * assume that all inodes are backed by the same queue.
+ *
+ * FIXME: this linear search could get expensive with many fileystems.  But
+ * how to fix?  We need to go from an address_space to all inodes which share
+ * a queue with that address_space.  (Easy: have a global "dirty superblocks"
+ * list).
+ *
+ * The inodes to be written are parked on bdi->b_io.  They are moved back onto
+ * bdi->b_dirty as they are selected for writing.  This way, none can be missed
+ * on the writer throttling path, and we get decent balancing between many
+ * throttled threads: we don't want them all piling up on inode_sync_wait.
+ */
+static void generic_sync_sb_inodes(struct super_block *sb,
+				   struct writeback_control *wbc)
+{
+	struct backing_dev_info *bdi;
+
+	if (!wbc->bdi) {
+		mutex_lock(&bdi_lock);
+		list_for_each_entry(bdi, &bdi_list, bdi_list)
+			generic_sync_bdi_inodes(bdi, wbc, sb);
+		mutex_unlock(&bdi_lock);
+	} else
+		generic_sync_bdi_inodes(wbc->bdi, wbc, sb);
+
+	if (wbc->sync_mode == WB_SYNC_ALL) {
 		struct inode *inode, *old_inode = NULL;
+
+		spin_lock(&inode_lock);
 
 		/*
 		 * Data integrity sync. Must wait for all pages under writeback,
@@ -588,10 +648,7 @@ static void generic_sync_sb_inodes(struct super_block *sb,
 		}
 		spin_unlock(&inode_lock);
 		iput(old_inode);
-	} else
-		spin_unlock(&inode_lock);
-
-	return;		/* Leave any unwritten inodes on s_io */
+	}
 }
 
 /*
@@ -599,8 +656,8 @@ static void generic_sync_sb_inodes(struct super_block *sb,
  *
  * Note:
  * We don't need to grab a reference to superblock here. If it has non-empty
- * ->s_dirty it's hadn't been killed yet and kill_super() won't proceed
- * past sync_inodes_sb() until the ->s_dirty/s_io/s_more_io lists are all
+ * ->b_dirty it's hadn't been killed yet and kill_super() won't proceed
+ * past sync_inodes_sb() until the ->b_dirty/b_io/b_more_io lists are all
  * empty. Since __sync_single_inode() regains inode_lock before it finally moves
  * inode from superblock lists we are OK.
  *
