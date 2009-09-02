@@ -380,6 +380,7 @@ STAC92HD73*
   dell-m6-dmic	Dell desktops/laptops with digital mics
   dell-m6	Dell desktops/laptops with both type of mics
   dell-eq	Dell desktops/laptops
+  alienware	Alienware M17x
   auto		BIOS setup (default)
 
 STAC92HD83*

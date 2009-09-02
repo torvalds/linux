@@ -83,6 +83,7 @@ enum {
 	STAC_DELL_M6_DMIC,
 	STAC_DELL_M6_BOTH,
 	STAC_DELL_EQ,
+	STAC_ALIENWARE_M17X,
 	STAC_92HD73XX_MODELS
 };
 
@@ -1513,12 +1514,20 @@ static unsigned int dell_m6_pin_configs[13] = {
 	0x4f0000f0,
 };
 
+static unsigned int alienware_m17x_pin_configs[13] = {
+	0x0321101f, 0x0321101f, 0x03a11020, 0x03014020,
+	0x90170110, 0x4f0000f0, 0x4f0000f0, 0x4f0000f0,
+	0x4f0000f0, 0x90a60160, 0x4f0000f0, 0x4f0000f0,
+	0x904601b0,
+};
+
 static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_REF]	= ref92hd73xx_pin_configs,
 	[STAC_DELL_M6_AMIC]	= dell_m6_pin_configs,
 	[STAC_DELL_M6_DMIC]	= dell_m6_pin_configs,
 	[STAC_DELL_M6_BOTH]	= dell_m6_pin_configs,
 	[STAC_DELL_EQ]	= dell_m6_pin_configs,
+	[STAC_ALIENWARE_M17X]	= alienware_m17x_pin_configs,
 };
 
 static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
@@ -1530,6 +1539,7 @@ static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
 	[STAC_DELL_M6_DMIC] = "dell-m6-dmic",
 	[STAC_DELL_M6_BOTH] = "dell-m6",
 	[STAC_DELL_EQ] = "dell-eq",
+	[STAC_ALIENWARE_M17X] = "alienware",
 };
 
 static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
@@ -1564,6 +1574,12 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"Dell Studio 17", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02be,
 				"Dell Studio 1555", STAC_DELL_M6_DMIC),
+	{} /* terminator */
+};
+
+static struct snd_pci_quirk stac92hd73xx_codec_id_cfg_tbl[] = {
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02a1,
+		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	{} /* terminator */
 };
 
@@ -4909,6 +4925,12 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 							STAC_92HD73XX_MODELS,
 							stac92hd73xx_models,
 							stac92hd73xx_cfg_tbl);
+	/* check codec subsystem id if not found */
+	if (spec->board_config < 0)
+		spec->board_config =
+			snd_hda_check_board_codec_sid_config(codec,
+				STAC_92HD73XX_MODELS, stac92hd73xx_models,
+				stac92hd73xx_codec_id_cfg_tbl);
 again:
 	if (spec->board_config < 0)
 		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
@@ -4982,6 +5004,11 @@ again:
 			spec->num_dmics = 1;
 			break;
 		}
+		break;
+	case STAC_ALIENWARE_M17X:
+		spec->num_dmics = STAC92HD73XX_NUM_DMICS;
+		spec->num_smuxes = ARRAY_SIZE(stac92hd73xx_smux_nids);
+		spec->eapd_switch = 0;
 		break;
 	default:
 		spec->num_dmics = STAC92HD73XX_NUM_DMICS;
