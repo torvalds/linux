@@ -170,6 +170,8 @@ static void omap_sram_idle(void)
 		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
 		return;
 	}
+	pwrdm_pre_transition();
+
 	omap2_gpio_prepare_for_retention();
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
@@ -182,6 +184,9 @@ static void omap_sram_idle(void)
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
 	omap2_gpio_resume_after_retention();
+
+	pwrdm_post_transition();
+
 }
 
 /*
@@ -271,6 +276,7 @@ static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	if (sleep_switch) {
 		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
 	}
 
 err:
@@ -658,7 +664,31 @@ static void __init prcm_setup_regs(void)
 	omap3_d2d_idle();
 }
 
-static int __init pwrdms_setup(struct powerdomain *pwrdm)
+int omap3_pm_get_suspend_state(struct powerdomain *pwrdm)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm)
+			return pwrst->next_state;
+	}
+	return -EINVAL;
+}
+
+int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm) {
+			pwrst->next_state = state;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 {
 	struct power_state *pwrst;
 
@@ -683,7 +713,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm)
  * supported. Initiate sleep transition for other clockdomains, if
  * they are not used
  */
-static int __init clkdms_setup(struct clockdomain *clkdm)
+static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
@@ -716,13 +746,13 @@ static int __init omap3_pm_init(void)
 		goto err1;
 	}
 
-	ret = pwrdm_for_each(pwrdms_setup);
+	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		printk(KERN_ERR "Failed to setup powerdomains\n");
 		goto err2;
 	}
 
-	(void) clkdm_for_each(clkdms_setup);
+	(void) clkdm_for_each(clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {
