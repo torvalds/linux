@@ -136,6 +136,17 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	return packet;
 }
 
+static void sctp_packet_reset(struct sctp_packet *packet)
+{
+	packet->size = packet->overhead;
+	packet->has_cookie_echo = 0;
+	packet->has_sack = 0;
+	packet->has_data = 0;
+	packet->has_auth = 0;
+	packet->ipfragok = 0;
+	packet->auth = NULL;
+}
+
 /* Free a packet.  */
 void sctp_packet_free(struct sctp_packet *packet)
 {
@@ -576,7 +587,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	(*tp->af_specific->sctp_xmit)(nskb, tp);
 
 out:
-	packet->size = packet->overhead;
+	sctp_packet_reset(packet);
 	return err;
 no_route:
 	kfree_skb(nskb);
