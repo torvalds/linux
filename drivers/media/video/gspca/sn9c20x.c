@@ -799,7 +799,7 @@ static u8 soi968_init[][2] = {
 	{0x37, 0x04}, {0x45, 0x04}, {0x47, 0xff},
 	{0x3e, 0x00}, {0x3f, 0x00}, {0x3b, 0x20},
 	{0x3a, 0x96}, {0x3d, 0x0a}, {0x14, 0x8e},
-	{0x13, 0x8a}, {0x12, 0x40}, {0x17, 0x13},
+	{0x13, 0x8b}, {0x12, 0x40}, {0x17, 0x13},
 	{0x18, 0x63}, {0x19, 0x01}, {0x1a, 0x79},
 	{0x32, 0x24}, {0x03, 0x00}, {0x11, 0x40},
 	{0x2a, 0x10}, {0x2b, 0xe0}, {0x10, 0x32},
@@ -1246,7 +1246,7 @@ static int soi968_init_sensor(struct gspca_dev *gspca_dev)
 		}
 	}
 	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX);
+	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << EXPOSURE_IDX);
 	sd->hstart = 60;
 	sd->vstart = 11;
 	return 0;
@@ -1622,7 +1622,6 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV7670:
-	case SENSOR_SOI968:
 	case SENSOR_OV9655:
 	case SENSOR_OV9650:
 		exp[0] |= (3 << 4);
@@ -1647,6 +1646,8 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 		exp[4] = ((sd->exposure * 0xffffff) / 0xffff) >> 8;
 		exp[5] = ((sd->exposure * 0xffffff) / 0xffff) & 0xff;
 		break;
+	default:
+		return 0;
 	}
 	i2c_w(gspca_dev, exp);
 	return 0;
@@ -1690,6 +1691,8 @@ static int set_gain(struct gspca_dev *gspca_dev)
 		gain[2] = 0x30;
 		gain[3] = hv7131r_gain[sd->gain];
 		break;
+	default:
+		return 0;
 	}
 	i2c_w(gspca_dev, gain);
 	return 0;
@@ -2213,15 +2216,10 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	kfree(sd->jpeg_hdr);
 }
 
-static void do_autoexposure(struct gspca_dev *gspca_dev)
+static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int avg_lum, new_exp;
-
-	if (!sd->auto_exposure)
-		return;
-
-	avg_lum = atomic_read(&sd->avg_lum);
+	s16 new_exp;
 
 	/*
 	 * some hardcoded values are present
@@ -2266,6 +2264,39 @@ static void do_autoexposure(struct gspca_dev *gspca_dev)
 		else
 			sd->exposure_step += 2;
 	}
+}
+
+static void do_autogain(struct gspca_dev *gspca_dev, u16 avg_lum)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (avg_lum < MIN_AVG_LUM) {
+		if (sd->gain + 1 <= 28) {
+			sd->gain++;
+			set_gain(gspca_dev);
+		}
+	}
+	if (avg_lum > MAX_AVG_LUM) {
+		if (sd->gain - 1 >= 0) {
+			sd->gain--;
+			set_gain(gspca_dev);
+		}
+	}
+}
+
+static void sd_dqcallback(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int avg_lum;
+
+	if (!sd->auto_exposure)
+		return;
+
+	avg_lum = atomic_read(&sd->avg_lum);
+	if (sd->sensor == SENSOR_SOI968)
+		do_autogain(gspca_dev, avg_lum);
+	else
+		do_autoexposure(gspca_dev, avg_lum);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -2335,7 +2366,7 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
-	.dq_callback = do_autoexposure,
+	.dq_callback = sd_dqcallback,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
 	.get_register = sd_dbg_g_register,
