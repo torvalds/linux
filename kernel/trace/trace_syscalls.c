@@ -223,6 +223,7 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 	struct syscall_trace_enter *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	int size;
 	int syscall_nr;
 
@@ -238,8 +239,8 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 
 	size = sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
 
-	event = trace_current_buffer_lock_reserve(sys_data->enter_id, size,
-							0, 0);
+	event = trace_current_buffer_lock_reserve(&buffer, sys_data->enter_id,
+						  size, 0, 0);
 	if (!event)
 		return;
 
@@ -247,8 +248,9 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 	entry->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args, entry->args);
 
-	if (!filter_current_check_discard(sys_data->enter_event, entry, event))
-		trace_current_buffer_unlock_commit(event, 0, 0);
+	if (!filter_current_check_discard(buffer, sys_data->enter_event,
+					  entry, event))
+		trace_current_buffer_unlock_commit(buffer, event, 0, 0);
 }
 
 void ftrace_syscall_exit(struct pt_regs *regs, long ret)
@@ -256,6 +258,7 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	struct syscall_trace_exit *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	int syscall_nr;
 
 	syscall_nr = syscall_get_nr(current, regs);
@@ -268,7 +271,7 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
-	event = trace_current_buffer_lock_reserve(sys_data->exit_id,
+	event = trace_current_buffer_lock_reserve(&buffer, sys_data->exit_id,
 				sizeof(*entry), 0, 0);
 	if (!event)
 		return;
@@ -277,8 +280,9 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	entry->nr = syscall_nr;
 	entry->ret = syscall_get_return_value(current, regs);
 
-	if (!filter_current_check_discard(sys_data->exit_event, entry, event))
-		trace_current_buffer_unlock_commit(event, 0, 0);
+	if (!filter_current_check_discard(buffer, sys_data->exit_event,
+					  entry, event))
+		trace_current_buffer_unlock_commit(buffer, event, 0, 0);
 }
 
 int reg_event_syscall_enter(void *ptr)

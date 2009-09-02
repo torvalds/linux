@@ -1438,6 +1438,7 @@ static void
 function_test_events_call(unsigned long ip, unsigned long parent_ip)
 {
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct ftrace_entry *entry;
 	unsigned long flags;
 	long disabled;
@@ -1455,7 +1456,8 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 
 	local_save_flags(flags);
 
-	event = trace_current_buffer_lock_reserve(TRACE_FN, sizeof(*entry),
+	event = trace_current_buffer_lock_reserve(&buffer,
+						  TRACE_FN, sizeof(*entry),
 						  flags, pc);
 	if (!event)
 		goto out;
@@ -1463,7 +1465,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
 
-	trace_nowake_buffer_unlock_commit(event, flags, pc);
+	trace_nowake_buffer_unlock_commit(buffer, event, flags, pc);
 
  out:
 	atomic_dec(&per_cpu(test_event_disable, cpu));

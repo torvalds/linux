@@ -28,10 +28,11 @@ tracing_sched_switch_trace(struct trace_array *tr,
 			   unsigned long flags, int pc)
 {
 	struct ftrace_event_call *call = &event_context_switch;
+	struct ring_buffer *buffer = tr->buffer;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 
-	event = trace_buffer_lock_reserve(tr, TRACE_CTX,
+	event = trace_buffer_lock_reserve(buffer, TRACE_CTX,
 					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
@@ -44,8 +45,8 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_state		= next->state;
 	entry->next_cpu	= task_cpu(next);
 
-	if (!filter_check_discard(call, entry, tr->buffer, event))
-		trace_buffer_unlock_commit(tr, event, flags, pc);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, flags, pc);
 }
 
 static void
@@ -86,8 +87,9 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	struct ftrace_event_call *call = &event_wakeup;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
+	struct ring_buffer *buffer = tr->buffer;
 
-	event = trace_buffer_lock_reserve(tr, TRACE_WAKE,
+	event = trace_buffer_lock_reserve(buffer, TRACE_WAKE,
 					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
@@ -100,10 +102,10 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_state		= wakee->state;
 	entry->next_cpu			= task_cpu(wakee);
 
-	if (!filter_check_discard(call, entry, tr->buffer, event))
-		ring_buffer_unlock_commit(tr->buffer, event);
-	ftrace_trace_stack(tr, flags, 6, pc);
-	ftrace_trace_userstack(tr, flags, pc);
+	if (!filter_check_discard(call, entry, buffer, event))
+		ring_buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(tr->buffer, flags, 6, pc);
+	ftrace_trace_userstack(tr->buffer, flags, pc);
 }
 
 static void

@@ -65,13 +65,15 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 {
 	struct blk_io_trace *t;
 	struct ring_buffer_event *event = NULL;
+	struct ring_buffer *buffer = NULL;
 	int pc = 0;
 	int cpu = smp_processor_id();
 	bool blk_tracer = blk_tracer_enabled;
 
 	if (blk_tracer) {
+		buffer = blk_tr->buffer;
 		pc = preempt_count();
-		event = trace_buffer_lock_reserve(blk_tr, TRACE_BLK,
+		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + len,
 						  0, pc);
 		if (!event)
@@ -96,7 +98,7 @@ record_it:
 		memcpy((void *) t + sizeof(*t), data, len);
 
 		if (blk_tracer)
-			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
+			trace_buffer_unlock_commit(buffer, event, 0, pc);
 	}
 }
 
@@ -179,6 +181,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 {
 	struct task_struct *tsk = current;
 	struct ring_buffer_event *event = NULL;
+	struct ring_buffer *buffer = NULL;
 	struct blk_io_trace *t;
 	unsigned long flags = 0;
 	unsigned long *sequence;
@@ -204,8 +207,9 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	if (blk_tracer) {
 		tracing_record_cmdline(current);
 
+		buffer = blk_tr->buffer;
 		pc = preempt_count();
-		event = trace_buffer_lock_reserve(blk_tr, TRACE_BLK,
+		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + pdu_len,
 						  0, pc);
 		if (!event)
@@ -252,7 +256,7 @@ record_it:
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
 		if (blk_tracer) {
-			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
+			trace_buffer_unlock_commit(buffer, event, 0, pc);
 			return;
 		}
 	}

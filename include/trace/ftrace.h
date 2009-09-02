@@ -460,13 +460,15 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  * {
  *	struct ring_buffer_event *event;
  *	struct ftrace_raw_<call> *entry; <-- defined in stage 1
+ *	struct ring_buffer *buffer;
  *	unsigned long irq_flags;
  *	int pc;
  *
  *	local_save_flags(irq_flags);
  *	pc = preempt_count();
  *
- *	event = trace_current_buffer_lock_reserve(event_<call>.id,
+ *	event = trace_current_buffer_lock_reserve(&buffer,
+ *				  event_<call>.id,
  *				  sizeof(struct ftrace_raw_<call>),
  *				  irq_flags, pc);
  *	if (!event)
@@ -476,7 +478,7 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  *	<assign>;  <-- Here we assign the entries by the __field and
  *			__array macros.
  *
- *	trace_current_buffer_unlock_commit(event, irq_flags, pc);
+ *	trace_current_buffer_unlock_commit(buffer, event, irq_flags, pc);
  * }
  *
  * static int ftrace_raw_reg_event_<call>(void)
@@ -568,6 +570,7 @@ static void ftrace_raw_event_##call(proto)				\
 	struct ftrace_event_call *event_call = &event_##call;		\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
+	struct ring_buffer *buffer;					\
 	unsigned long irq_flags;					\
 	int __data_size;						\
 	int pc;								\
@@ -577,7 +580,8 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	event = trace_current_buffer_lock_reserve(event_##call.id,	\
+	event = trace_current_buffer_lock_reserve(&buffer,		\
+				 event_##call.id,			\
 				 sizeof(*entry) + __data_size,		\
 				 irq_flags, pc);			\
 	if (!event)							\
@@ -589,8 +593,9 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	{ assign; }							\
 									\
-	if (!filter_current_check_discard(event_call, entry, event))	\
-		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
+	if (!filter_current_check_discard(buffer, event_call, entry, event)) \
+		trace_nowake_buffer_unlock_commit(buffer,		\
+						  event, irq_flags, pc); \
 }									\
 									\
 static int ftrace_raw_reg_event_##call(void *ptr)			\

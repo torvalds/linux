@@ -130,6 +130,7 @@ struct tracer boot_tracer __read_mostly =
 void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 {
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct trace_boot_call *entry;
 	struct trace_array *tr = boot_trace;
 
@@ -142,13 +143,14 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 	sprint_symbol(bt->func, (unsigned long)fn);
 	preempt_disable();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_BOOT_CALL,
+	buffer = tr->buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_BOOT_CALL,
 					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->boot_call = *bt;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
+	trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }
@@ -156,6 +158,7 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 {
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct trace_boot_ret *entry;
 	struct trace_array *tr = boot_trace;
 
@@ -165,13 +168,14 @@ void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 	sprint_symbol(bt->func, (unsigned long)fn);
 	preempt_disable();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_BOOT_RET,
+	buffer = tr->buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_BOOT_RET,
 					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->boot_ret = *bt;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
+	trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }

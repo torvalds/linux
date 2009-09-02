@@ -173,19 +173,20 @@ static int __trace_graph_entry(struct trace_array *tr,
 {
 	struct ftrace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer = tr->buffer;
 	struct ftrace_graph_ent_entry *entry;
 
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
 		return 0;
 
-	event = trace_buffer_lock_reserve(tr, TRACE_GRAPH_ENT,
+	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_ENT,
 					  sizeof(*entry), flags, pc);
 	if (!event)
 		return 0;
 	entry	= ring_buffer_event_data(event);
 	entry->graph_ent			= *trace;
-	if (!filter_current_check_discard(call, entry, event))
-		ring_buffer_unlock_commit(tr->buffer, event);
+	if (!filter_current_check_discard(buffer, call, entry, event))
+		ring_buffer_unlock_commit(buffer, event);
 
 	return 1;
 }
@@ -236,19 +237,20 @@ static void __trace_graph_return(struct trace_array *tr,
 {
 	struct ftrace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer = tr->buffer;
 	struct ftrace_graph_ret_entry *entry;
 
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
 		return;
 
-	event = trace_buffer_lock_reserve(tr, TRACE_GRAPH_RET,
+	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RET,
 					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
 	entry->ret				= *trace;
-	if (!filter_current_check_discard(call, entry, event))
-		ring_buffer_unlock_commit(tr->buffer, event);
+	if (!filter_current_check_discard(buffer, call, entry, event))
+		ring_buffer_unlock_commit(buffer, event);
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace)

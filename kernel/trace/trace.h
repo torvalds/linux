@@ -415,12 +415,13 @@ void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
 
 struct ring_buffer_event;
 
-struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
-						    int type,
-						    unsigned long len,
-						    unsigned long flags,
-						    int pc);
-void trace_buffer_unlock_commit(struct trace_array *tr,
+struct ring_buffer_event *
+trace_buffer_lock_reserve(struct ring_buffer *buffer,
+			  int type,
+			  unsigned long len,
+			  unsigned long flags,
+			  int pc);
+void trace_buffer_unlock_commit(struct ring_buffer *buffer,
 				struct ring_buffer_event *event,
 				unsigned long flags, int pc);
 
@@ -481,10 +482,10 @@ void update_max_tr_single(struct trace_array *tr,
 #endif /* CONFIG_TRACER_MAX_TRACE */
 
 #ifdef CONFIG_STACKTRACE
-void ftrace_trace_stack(struct trace_array *tr, unsigned long flags,
+void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
 			int skip, int pc);
 
-void ftrace_trace_userstack(struct trace_array *tr, unsigned long flags,
+void ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags,
 			    int pc);
 
 void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
