@@ -1064,6 +1064,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			dspcntr &= ~DISPPLANE_TILED;
 	}
 
+	if (IS_IGDNG(dev))
+		/* must disable */
+		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+
 	I915_WRITE(dspcntr_reg, dspcntr);
 
 	Start = obj_priv->gtt_offset;
@@ -2718,6 +2722,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	I915_READ(pipeconf_reg);
 
 	intel_wait_for_vblank(dev);
+
+	if (IS_IGDNG(dev)) {
+		/* enable address swizzle for tiling buffer */
+		temp = I915_READ(DISP_ARB_CTL);
+		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
+	}
 
 	I915_WRITE(dspcntr_reg, dspcntr);
 

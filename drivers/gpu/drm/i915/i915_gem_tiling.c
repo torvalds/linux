@@ -234,7 +234,13 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 	bool need_disable;
 
-	if (!IS_I9XX(dev)) {
+	if (IS_IGDNG(dev)) {
+		/* On IGDNG whatever DRAM config, GPU always do
+		 * same swizzling setup.
+		 */
+		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
+		swizzle_y = I915_BIT_6_SWIZZLE_9;
+	} else if (!IS_I9XX(dev)) {
 		/* As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
@@ -315,13 +321,6 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
-	}
-
-	/* FIXME: check with memory config on IGDNG */
-	if (IS_IGDNG(dev)) {
-		DRM_ERROR("disable tiling on IGDNG...\n");
-		swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-		swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 	}
 
 	dev_priv->mm.bit_6_swizzle_x = swizzle_x;
