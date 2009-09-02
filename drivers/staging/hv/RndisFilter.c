@@ -73,7 +73,7 @@ struct rndis_request {
 
 struct rndis_filter_packet {
 	void *CompletionContext;
-	PFN_ON_SENDRECVCOMPLETION OnCompletion;
+	void (*OnCompletion)(void *context);
 	struct rndis_message Message;
 };
 

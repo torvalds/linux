@@ -35,19 +35,6 @@
 /* Fwd declaration */
 struct hv_netvsc_packet;
 
-/* Data types */
-typedef int (*PFN_ON_OPEN)(struct hv_device *Device);
-typedef int (*PFN_ON_CLOSE)(struct hv_device *Device);
-
-typedef void (*PFN_QUERY_LINKSTATUS)(struct hv_device *Device);
-typedef int (*PFN_ON_SEND)(struct hv_device *dev,
-			   struct hv_netvsc_packet *packet);
-typedef void (*PFN_ON_SENDRECVCOMPLETION)(void *Context);
-
-typedef int (*PFN_ON_RECVCALLBACK)(struct hv_device *dev,
-				   struct hv_netvsc_packet *packet);
-typedef void (*PFN_ON_LINKSTATUS_CHANGED)(struct hv_device *dev, u32 Status);
-
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
 struct xferpage_packet {
 	LIST_ENTRY ListEntry;
@@ -80,12 +67,12 @@ struct hv_netvsc_packet {
 		struct{
 			u64 ReceiveCompletionTid;
 			void *ReceiveCompletionContext;
-			PFN_ON_SENDRECVCOMPLETION OnReceiveCompletion;
+			void (*OnReceiveCompletion)(void *context);
 		} Recv;
 		struct{
 			u64 SendCompletionTid;
 			void *SendCompletionContext;
-			PFN_ON_SENDRECVCOMPLETION OnSendCompletion;
+			void (*OnSendCompletion)(void *context);
 		} Send;
 	} Completion;
 
@@ -114,17 +101,14 @@ struct netvsc_driver {
 	 * This is set by the caller to allow us to callback when we
 	 * receive a packet from the "wire"
 	 */
-	PFN_ON_RECVCALLBACK OnReceiveCallback;
-
-	PFN_ON_LINKSTATUS_CHANGED OnLinkStatusChanged;
+	int (*OnReceiveCallback)(struct hv_device *dev,
+				 struct hv_netvsc_packet *packet);
+	void (*OnLinkStatusChanged)(struct hv_device *dev, u32 Status);
 
 	/* Specific to this driver */
-	PFN_ON_OPEN OnOpen;
-	PFN_ON_CLOSE OnClose;
-	PFN_ON_SEND OnSend;
-	/* PFN_ON_RECVCOMPLETION OnReceiveCompletion; */
-
-	/* PFN_QUERY_LINKSTATUS QueryLinkStatus; */
+	int (*OnOpen)(struct hv_device *dev);
+	int (*OnClose)(struct hv_device *dev);
+	int (*OnSend)(struct hv_device *dev, struct hv_netvsc_packet *packet);
 
 	void *Context;
 };
