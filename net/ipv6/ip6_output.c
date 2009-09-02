@@ -1520,6 +1520,7 @@ out:
 	ip6_cork_release(inet, np);
 	return err;
 error:
+	IP6_INC_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
 	goto out;
 }
 
