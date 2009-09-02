@@ -965,6 +965,11 @@ Desc:	Final callback release of the vmbus root device
 static void vmbus_bus_release(struct device *device)
 {
 	DPRINT_ENTER(VMBUS_DRV);
+	/* FIXME */
+	/* Empty release functions are a bug, or a major sign
+	 * of a problem design, this MUST BE FIXED! */
+	dev_err(device, "%s needs to be fixed!\n", __func__);
+	WARN_ON(1);
 	DPRINT_EXIT(VMBUS_DRV);
 }
 
