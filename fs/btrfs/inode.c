@@ -854,7 +854,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	int limit = 10 * 1024 * 1042;
 
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED |
-			 EXTENT_DELALLOC, 1, 0, GFP_NOFS);
+			 EXTENT_DELALLOC, 1, 0, NULL, GFP_NOFS);
 	while (start < end) {
 		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
 		async_cow->inode = inode;
@@ -4420,7 +4420,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		 */
 		clear_extent_bit(tree, page_start, page_end,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
-				 EXTENT_LOCKED, 1, 0, GFP_NOFS);
+				 EXTENT_LOCKED, 1, 0, NULL, GFP_NOFS);
 		btrfs_finish_ordered_io(page->mapping->host,
 					page_start, page_end);
 		btrfs_put_ordered_extent(ordered);
@@ -4429,7 +4429,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 	clear_extent_bit(tree, page_start, page_end,
 		 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC |
 		 EXTENT_ORDERED,
-		 1, 1, GFP_NOFS);
+		 1, 1, NULL, GFP_NOFS);
 	__btrfs_releasepage(page, GFP_NOFS);
 
 	ClearPageChecked(page);
