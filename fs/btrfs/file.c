@@ -113,8 +113,6 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	int err = 0;
 	int i;
 	struct inode *inode = fdentry(file)->d_inode;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
-	u64 hint_byte;
 	u64 num_bytes;
 	u64 start_pos;
 	u64 end_of_last_block;
@@ -126,20 +124,6 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
 	end_of_last_block = start_pos + num_bytes - 1;
-
-	lock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
-	trans = btrfs_join_transaction(root, 1);
-	if (!trans) {
-		err = -ENOMEM;
-		goto out_unlock;
-	}
-	btrfs_set_trans_block_group(trans, inode);
-	hint_byte = 0;
-
-	/* check for reserved extents on each page, we don't want
-	 * to reset the delalloc bit on things that already have
-	 * extents reserved.
-	 */
 	btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
@@ -154,9 +138,6 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		 * at this time.
 		 */
 	}
-	err = btrfs_end_transaction(trans, root);
-out_unlock:
-	unlock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 	return err;
 }
 
