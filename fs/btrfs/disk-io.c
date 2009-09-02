@@ -121,15 +121,15 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	struct extent_map *em;
 	int ret;
 
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
 	if (em) {
 		em->bdev =
 			BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
-		spin_unlock(&em_tree->lock);
+		read_unlock(&em_tree->lock);
 		goto out;
 	}
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
@@ -142,7 +142,7 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	em->block_start = 0;
 	em->bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
-	spin_lock(&em_tree->lock);
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
 	if (ret == -EEXIST) {
 		u64 failed_start = em->start;
@@ -161,7 +161,7 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 		free_extent_map(em);
 		em = NULL;
 	}
-	spin_unlock(&em_tree->lock);
+	write_unlock(&em_tree->lock);
 
 	if (ret)
 		em = ERR_PTR(ret);
@@ -1323,9 +1323,9 @@ static void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	offset = page_offset(page);
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, offset, PAGE_CACHE_SIZE);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 	if (!em) {
 		__unplug_io_fn(bdi, page);
 		return;

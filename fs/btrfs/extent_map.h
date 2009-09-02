@@ -31,7 +31,7 @@ struct extent_map {
 
 struct extent_map_tree {
 	struct rb_root map;
-	spinlock_t lock;
+	rwlock_t lock;
 };
 
 static inline u64 extent_map_end(struct extent_map *em)

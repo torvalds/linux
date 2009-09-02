@@ -5396,9 +5396,9 @@ static noinline int relocate_data_extent(struct inode *reloc_inode,
 	lock_extent(&BTRFS_I(reloc_inode)->io_tree, start, end, GFP_NOFS);
 	while (1) {
 		int ret;
-		spin_lock(&em_tree->lock);
+		write_lock(&em_tree->lock);
 		ret = add_extent_mapping(em_tree, em);
-		spin_unlock(&em_tree->lock);
+		write_unlock(&em_tree->lock);
 		if (ret != -EEXIST) {
 			free_extent_map(em);
 			break;

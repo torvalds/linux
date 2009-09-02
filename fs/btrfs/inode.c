@@ -612,9 +612,9 @@ static noinline int submit_compressed_extents(struct inode *inode,
 		set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 
 		while (1) {
-			spin_lock(&em_tree->lock);
+			write_lock(&em_tree->lock);
 			ret = add_extent_mapping(em_tree, em);
-			spin_unlock(&em_tree->lock);
+			write_unlock(&em_tree->lock);
 			if (ret != -EEXIST) {
 				free_extent_map(em);
 				break;
@@ -748,9 +748,9 @@ static noinline int cow_file_range(struct inode *inode,
 		set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
 		while (1) {
-			spin_lock(&em_tree->lock);
+			write_lock(&em_tree->lock);
 			ret = add_extent_mapping(em_tree, em);
-			spin_unlock(&em_tree->lock);
+			write_unlock(&em_tree->lock);
 			if (ret != -EEXIST) {
 				free_extent_map(em);
 				break;
@@ -1081,9 +1081,9 @@ out_check:
 			em->bdev = root->fs_info->fs_devices->latest_bdev;
 			set_bit(EXTENT_FLAG_PINNED, &em->flags);
 			while (1) {
-				spin_lock(&em_tree->lock);
+				write_lock(&em_tree->lock);
 				ret = add_extent_mapping(em_tree, em);
-				spin_unlock(&em_tree->lock);
+				write_unlock(&em_tree->lock);
 				if (ret != -EEXIST) {
 					free_extent_map(em);
 					break;
@@ -1670,13 +1670,13 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 		failrec->last_mirror = 0;
 		failrec->bio_flags = 0;
 
-		spin_lock(&em_tree->lock);
+		read_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, failrec->len);
 		if (em->start > start || em->start + em->len < start) {
 			free_extent_map(em);
 			em = NULL;
 		}
-		spin_unlock(&em_tree->lock);
+		read_unlock(&em_tree->lock);
 
 		if (!em || IS_ERR(em)) {
 			kfree(failrec);
@@ -4069,11 +4069,11 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 	int compressed;
 
 again:
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
 	if (em)
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	if (em) {
 		if (em->start > start || em->start + em->len <= start)
@@ -4264,7 +4264,7 @@ insert:
 	}
 
 	err = 0;
-	spin_lock(&em_tree->lock);
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
 	/* it is possible that someone inserted the extent into the tree
 	 * while we had the lock dropped.  It is also possible that
@@ -4304,7 +4304,7 @@ insert:
 			err = 0;
 		}
 	}
-	spin_unlock(&em_tree->lock);
+	write_unlock(&em_tree->lock);
 out:
 	if (path)
 		btrfs_free_path(path);

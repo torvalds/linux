@@ -188,15 +188,15 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		if (!split2)
 			split2 = alloc_extent_map(GFP_NOFS);
 
-		spin_lock(&em_tree->lock);
+		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, len);
 		if (!em) {
-			spin_unlock(&em_tree->lock);
+			write_unlock(&em_tree->lock);
 			break;
 		}
 		flags = em->flags;
 		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
-			spin_unlock(&em_tree->lock);
+			write_unlock(&em_tree->lock);
 			if (em->start <= start &&
 			    (!testend || em->start + em->len >= start + len)) {
 				free_extent_map(em);
@@ -259,7 +259,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			free_extent_map(split);
 			split = NULL;
 		}
-		spin_unlock(&em_tree->lock);
+		write_unlock(&em_tree->lock);
 
 		/* once for us */
 		free_extent_map(em);

@@ -2786,15 +2786,15 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 		u64 len;
 		while (start <= end) {
 			len = end - start + 1;
-			spin_lock(&map->lock);
+			write_lock(&map->lock);
 			em = lookup_extent_mapping(map, start, len);
 			if (!em || IS_ERR(em)) {
-				spin_unlock(&map->lock);
+				write_unlock(&map->lock);
 				break;
 			}
 			if (test_bit(EXTENT_FLAG_PINNED, &em->flags) ||
 			    em->start != start) {
-				spin_unlock(&map->lock);
+				write_unlock(&map->lock);
 				free_extent_map(em);
 				break;
 			}
@@ -2808,7 +2808,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 				free_extent_map(em);
 			}
 			start = extent_map_end(em);
-			spin_unlock(&map->lock);
+			write_unlock(&map->lock);
 
 			/* once for us */
 			free_extent_map(em);

@@ -36,7 +36,7 @@ void extent_map_exit(void)
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
 	tree->map.rb_node = NULL;
-	spin_lock_init(&tree->lock);
+	rwlock_init(&tree->lock);
 }
 
 /**
@@ -222,7 +222,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		ret = -EEXIST;
 		goto out;
 	}
-	assert_spin_locked(&tree->lock);
 	rb = tree_insert(&tree->map, em->start, &em->rb_node);
 	if (rb) {
 		ret = -EEXIST;
@@ -285,7 +284,6 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *next = NULL;
 	u64 end = range_end(start, len);
 
-	assert_spin_locked(&tree->lock);
 	rb_node = __tree_search(&tree->map, start, &prev, &next);
 	if (!rb_node && prev) {
 		em = rb_entry(prev, struct extent_map, rb_node);
@@ -331,7 +329,6 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	int ret = 0;
 
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
-	assert_spin_locked(&tree->lock);
 	rb_erase(&em->rb_node, &tree->map);
 	em->in_tree = 0;
 	return ret;
