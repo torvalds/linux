@@ -262,7 +262,7 @@ int btrfs_dec_test_ordered_pending(struct inode *inode,
 
 	ret = test_range_bit(io_tree, entry->file_offset,
 			     entry->file_offset + entry->len - 1,
-			     EXTENT_ORDERED, 0);
+			     EXTENT_ORDERED, 0, NULL);
 	if (ret == 0)
 		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
 out:
@@ -522,7 +522,7 @@ again:
 		end--;
 	}
 	if (test_range_bit(&BTRFS_I(inode)->io_tree, start, orig_end,
-			   EXTENT_ORDERED | EXTENT_DELALLOC, 0)) {
+			   EXTENT_ORDERED | EXTENT_DELALLOC, 0, NULL)) {
 		schedule_timeout(1);
 		goto again;
 	}
@@ -613,7 +613,7 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 	 */
 	if (test_range_bit(io_tree, disk_i_size,
 			   ordered->file_offset + ordered->len - 1,
-			   EXTENT_DELALLOC, 0)) {
+			   EXTENT_DELALLOC, 0, NULL)) {
 		goto out;
 	}
 	/*
@@ -664,7 +664,7 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 	 */
 	if (i_size_test > entry_end(ordered) &&
 	    !test_range_bit(io_tree, entry_end(ordered), i_size_test - 1,
-			   EXTENT_DELALLOC, 0)) {
+			   EXTENT_DELALLOC, 0, NULL)) {
 		new_i_size = min_t(u64, i_size_test, i_size_read(inode));
 	}
 	BTRFS_I(inode)->disk_i_size = new_i_size;

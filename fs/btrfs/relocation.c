@@ -2180,7 +2180,7 @@ static int tree_block_processed(u64 bytenr, u32 blocksize,
 				struct reloc_control *rc)
 {
 	if (test_range_bit(&rc->processed_blocks, bytenr,
-			   bytenr + blocksize - 1, EXTENT_DIRTY, 1))
+			   bytenr + blocksize - 1, EXTENT_DIRTY, 1, NULL))
 		return 1;
 	return 0;
 }

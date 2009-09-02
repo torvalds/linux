@@ -1376,7 +1376,7 @@ again:
 
 	/* already ordered? We're done */
 	if (test_range_bit(&BTRFS_I(inode)->io_tree, page_start, page_end,
-			     EXTENT_ORDERED, 0)) {
+			     EXTENT_ORDERED, 0, NULL)) {
 		goto out;
 	}
 
@@ -1417,7 +1417,7 @@ static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 	int ret;
 
 	ret = test_range_bit(&BTRFS_I(inode)->io_tree, start, end,
-			     EXTENT_ORDERED, 0);
+			     EXTENT_ORDERED, 0, NULL);
 	if (ret)
 		return 0;
 
@@ -1795,7 +1795,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		return 0;
 
 	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID &&
-	    test_range_bit(io_tree, start, end, EXTENT_NODATASUM, 1)) {
+	    test_range_bit(io_tree, start, end, EXTENT_NODATASUM, 1, NULL)) {
 		clear_extent_bits(io_tree, start, end, EXTENT_NODATASUM,
 				  GFP_NOFS);
 		return 0;
