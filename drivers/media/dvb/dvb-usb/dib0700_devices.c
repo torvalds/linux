@@ -1500,7 +1500,10 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_T3) },
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_T5) },
 	{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_STK7700D) },
-	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_STK7700D_2) },
+/* 55 */{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_STK7700D_2) },
+	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73A) },
+	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
+	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1753,6 +1756,41 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Elgato EyeTV Dtt Dlx PD378S",
 				{ &dib0700_usb_id_table[50], NULL },
+				{ NULL },
+			},
+		},
+
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
+
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = stk7070p_frontend_attach,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 3,
+		.devices = {
+			{   "Pinnacle PCTV 73A",
+				{ &dib0700_usb_id_table[56], NULL },
+				{ NULL },
+			},
+			{   "Pinnacle PCTV 73e SE",
+				{ &dib0700_usb_id_table[57], NULL },
+				{ NULL },
+			},
+			{   "Pinnacle PCTV 282e",
+				{ &dib0700_usb_id_table[58], NULL },
 				{ NULL },
 			},
 		},
