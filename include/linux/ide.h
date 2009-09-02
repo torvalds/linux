@@ -919,8 +919,7 @@ __IDE_PROC_DEVSET(_name, _min, _max, NULL, NULL)
 typedef struct {
 	const char	*name;
 	mode_t		mode;
-	read_proc_t	*read_proc;
-	write_proc_t	*write_proc;
+	const struct file_operations *proc_fops;
 } ide_proc_entry_t;
 
 void proc_ide_create(void);
@@ -932,24 +931,8 @@ void ide_proc_unregister_port(ide_hwif_t *);
 void ide_proc_register_driver(ide_drive_t *, struct ide_driver *);
 void ide_proc_unregister_driver(ide_drive_t *, struct ide_driver *);
 
-read_proc_t proc_ide_read_capacity;
-read_proc_t proc_ide_read_geometry;
-
-/*
- * Standard exit stuff:
- */
-#define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) \
-{					\
-	len -= off;			\
-	if (len < count) {		\
-		*eof = 1;		\
-		if (len <= 0)		\
-			return 0;	\
-	} else				\
-		len = count;		\
-	*start = page + off;		\
-	return len;			\
-}
+extern const struct file_operations ide_capacity_proc_fops;
+extern const struct file_operations ide_geometry_proc_fops;
 #else
 static inline void proc_ide_create(void) { ; }
 static inline void proc_ide_destroy(void) { ; }
@@ -961,7 +944,6 @@ static inline void ide_proc_register_driver(ide_drive_t *drive,
 					    struct ide_driver *driver) { ; }
 static inline void ide_proc_unregister_driver(ide_drive_t *drive,
 					      struct ide_driver *driver) { ; }
-#define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
 enum {

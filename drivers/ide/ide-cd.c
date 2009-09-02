@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
@@ -1389,19 +1390,30 @@ static sector_t ide_cdrom_capacity(ide_drive_t *drive)
 	return capacity * sectors_per_frame;
 }
 
-static int proc_idecd_read_capacity(char *page, char **start, off_t off,
-					int count, int *eof, void *data)
+static int idecd_capacity_proc_show(struct seq_file *m, void *v)
 {
-	ide_drive_t *drive = data;
-	int len;
+	ide_drive_t *drive = m->private;
 
-	len = sprintf(page, "%llu\n", (long long)ide_cdrom_capacity(drive));
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
+	seq_printf(m, "%llu\n", (long long)ide_cdrom_capacity(drive));
+	return 0;
 }
 
+static int idecd_capacity_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, idecd_capacity_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations idecd_capacity_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= idecd_capacity_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static ide_proc_entry_t idecd_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, proc_idecd_read_capacity, NULL },
-	{ NULL, 0, NULL, NULL }
+	{ "capacity", S_IFREG|S_IRUGO, &idecd_capacity_proc_fops },
+	{}
 };
 
 static ide_proc_entry_t *ide_cd_proc_entries(ide_drive_t *drive)

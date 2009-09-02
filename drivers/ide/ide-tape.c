@@ -31,6 +31,7 @@
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
@@ -1816,22 +1817,32 @@ static void ide_tape_release(struct device *dev)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-static int proc_idetape_read_name
-	(char *page, char **start, off_t off, int count, int *eof, void *data)
+static int idetape_name_proc_show(struct seq_file *m, void *v)
 {
-	ide_drive_t	*drive = (ide_drive_t *) data;
+	ide_drive_t	*drive = (ide_drive_t *) m->private;
 	idetape_tape_t	*tape = drive->driver_data;
-	char		*out = page;
-	int		len;
 
-	len = sprintf(out, "%s\n", tape->name);
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
+	seq_printf(m, "%s\n", tape->name);
+	return 0;
 }
 
+static int idetape_name_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, idetape_name_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations idetape_name_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= idetape_name_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static ide_proc_entry_t idetape_proc[] = {
-	{ "capacity",	S_IFREG|S_IRUGO,	proc_ide_read_capacity, NULL },
-	{ "name",	S_IFREG|S_IRUGO,	proc_idetape_read_name,	NULL },
-	{ NULL, 0, NULL, NULL }
+	{ "capacity",	S_IFREG|S_IRUGO,	&ide_capacity_proc_fops	},
+	{ "name",	S_IFREG|S_IRUGO,	&idetape_name_proc_fops	},
+	{}
 };
 
 static ide_proc_entry_t *ide_tape_proc_entries(ide_drive_t *drive)
