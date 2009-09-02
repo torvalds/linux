@@ -209,11 +209,9 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	/* come up with a suitable timeout value */
 	if (key->expiry == 0) {
 		memcpy(xbuf, "perm", 5);
-	}
-	else if (now.tv_sec >= key->expiry) {
+	} else if (now.tv_sec >= key->expiry) {
 		memcpy(xbuf, "expd", 5);
-	}
-	else {
+	} else {
 		timo = key->expiry - now.tv_sec;
 
 		if (timo < 60)
@@ -253,9 +251,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	seq_putc(m, '\n');
 
 	rcu_read_unlock();
-
 	return 0;
-
 }
 
 #endif /* CONFIG_KEYS_DEBUG_PROC_KEYS */
@@ -281,6 +277,7 @@ static struct rb_node *key_user_first(struct rb_root *r)
 	struct rb_node *n = rb_first(r);
 	return __key_user_next(n);
 }
+
 /*****************************************************************************/
 /*
  * implement "/proc/key-users" to provides a list of the key users
@@ -288,7 +285,6 @@ static struct rb_node *key_user_first(struct rb_root *r)
 static int proc_key_users_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &proc_key_users_ops);
-
 }
 
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
@@ -306,14 +302,12 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 	}
 
 	return _p;
-
 }
 
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
 	return key_user_next((struct rb_node *) v);
-
 }
 
 static void proc_key_users_stop(struct seq_file *p, void *v)
