@@ -139,6 +139,7 @@ Code	Seq#	Include File		Comments
 'm'	all	linux/synclink.h	conflict!
 'm'	00-1F	net/irda/irmod.h	conflict!
 'n'	00-7F	linux/ncp_fs.h
+'n'	80-8F	linux/nilfs2_fs.h	NILFS2
 'n'	E0-FF	video/matrox.h          matroxfb
 'o'	00-1F	fs/ocfs2/ocfs2_fs.h	OCFS2
 'o'     00-03   include/mtd/ubi-user.h  conflict! (OCFS2 and UBI overlaps)

@@ -185,6 +185,8 @@ static void do_read(int fd, void *buf, size_t size)
 
 		if (ret < 0)
 			die("failed to read");
+		if (ret == 0)
+			die("failed to read: missing data");
 
 		size -= ret;
 		buf += ret;
@@ -213,9 +215,10 @@ struct perf_header *perf_header__read(int fd)
 
 	for (i = 0; i < nr_attrs; i++) {
 		struct perf_header_attr *attr;
-		off_t tmp = lseek(fd, 0, SEEK_CUR);
+		off_t tmp;
 
 		do_read(fd, &f_attr, sizeof(f_attr));
+		tmp = lseek(fd, 0, SEEK_CUR);
 
 		attr = perf_header_attr__new(&f_attr.attr);
 

@@ -9,6 +9,10 @@
  * out of the OpenFirmware device tree and using it to populate an mii_bus.
  */
 
+#include <linux/kernel.h>
+#include <linux/device.h>
+#include <linux/netdevice.h>
+#include <linux/err.h>
 #include <linux/phy.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
@@ -137,3 +141,41 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	return phy_connect_direct(dev, phy, hndlr, flags, iface) ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_connect);
+
+/**
+ * of_phy_connect_fixed_link - Parse fixed-link property and return a dummy phy
+ * @dev: pointer to net_device claiming the phy
+ * @hndlr: Link state callback for the network device
+ * @iface: PHY data interface type
+ *
+ * This function is a temporary stop-gap and will be removed soon.  It is
+ * only to support the fs_enet, ucc_geth and gianfar Ethernet drivers.  Do
+ * not call this function from new drivers.
+ */
+struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
+					     void (*hndlr)(struct net_device *),
+					     phy_interface_t iface)
+{
+	struct device_node *net_np;
+	char bus_id[MII_BUS_ID_SIZE + 3];
+	struct phy_device *phy;
+	const u32 *phy_id;
+	int sz;
+
+	if (!dev->dev.parent)
+		return NULL;
+
+	net_np = dev_archdata_get_node(&dev->dev.parent->archdata);
+	if (!net_np)
+		return NULL;
+
+	phy_id = of_get_property(net_np, "fixed-link", &sz);
+	if (!phy_id || sz < sizeof(*phy_id))
+		return NULL;
+
+	sprintf(bus_id, PHY_ID_FMT, "0", phy_id[0]);
+
+	phy = phy_connect(dev, bus_id, hndlr, 0, iface);
+	return IS_ERR(phy) ? NULL : phy;
+}
+EXPORT_SYMBOL(of_phy_connect_fixed_link);

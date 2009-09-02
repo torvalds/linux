@@ -1593,6 +1593,7 @@ out:
 static struct pci_device_id sc92031_pci_device_id_table[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
+	{ PCI_DEVICE(0x1088, 0x2031) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sc92031_pci_device_id_table);

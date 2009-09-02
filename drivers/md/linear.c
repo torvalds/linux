@@ -220,6 +220,7 @@ static int linear_run (mddev_t *mddev)
 	mddev->queue->unplug_fn = linear_unplug;
 	mddev->queue->backing_dev_info.congested_fn = linear_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
+	md_integrity_register(mddev);
 	return 0;
 }
 
@@ -256,6 +257,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	rcu_assign_pointer(mddev->private, newconf);
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
+	revalidate_disk(mddev->gendisk);
 	call_rcu(&oldconf->rcu, free_conf);
 	return 0;
 }

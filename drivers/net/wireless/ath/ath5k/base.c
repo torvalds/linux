@@ -2970,6 +2970,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (modparam_nohwcrypt)
 		return -EOPNOTSUPP;
 
+	if (sc->opmode == NL80211_IFTYPE_AP)
+		return -EOPNOTSUPP;
+
 	switch (key->alg) {
 	case ALG_WEP:
 	case ALG_TKIP:

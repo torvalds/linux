@@ -1490,6 +1490,27 @@ static struct input_res {
 	{"1920x1080", 1920, 1080},
 };
 
+/*
+ * Chose preferred mode  according to line number of TV format
+ */
+static void
+intel_tv_chose_preferred_modes(struct drm_connector *connector,
+			       struct drm_display_mode *mode_ptr)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
+
+	if (tv_mode->nbr_end < 480 && mode_ptr->vdisplay == 480)
+		mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
+	else if (tv_mode->nbr_end > 480) {
+		if (tv_mode->progressive == true && tv_mode->nbr_end < 720) {
+			if (mode_ptr->vdisplay == 720)
+				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
+		} else if (mode_ptr->vdisplay == 1080)
+				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
+	}
+}
+
 /**
  * Stub get_modes function.
  *
@@ -1544,6 +1565,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		mode_ptr->clock = (int) tmp;
 
 		mode_ptr->type = DRM_MODE_TYPE_DRIVER;
+		intel_tv_chose_preferred_modes(connector, mode_ptr);
 		drm_mode_probed_add(connector, mode_ptr);
 		count++;
 	}

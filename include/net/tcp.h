@@ -1425,6 +1425,11 @@ struct tcp_request_sock_ops {
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
 						struct request_sock *req);
+	int			(*calc_md5_hash) (char *location,
+						  struct tcp_md5sig_key *md5,
+						  struct sock *sk,
+						  struct request_sock *req,
+						  struct sk_buff *skb);
 #endif
 };
 

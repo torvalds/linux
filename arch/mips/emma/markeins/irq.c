@@ -1,7 +1,4 @@
 /*
- *  arch/mips/emma2rh/markeins/irq.c
- *      This file defines the irq handler for EMMA2RH.
- *
  *  Copyright (C) NEC Electronics Corporation 2004-2006
  *
  *  This file is based on the arch/mips/ddb5xxx/ddb5477/irq.c

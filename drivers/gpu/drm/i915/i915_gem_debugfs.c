@@ -343,6 +343,8 @@ static int i915_error_state(struct seq_file *m, void *unused)
 
 	error = dev_priv->first_error;
 
+	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
+		   error->time.tv_usec);
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
 	seq_printf(m, "  PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);

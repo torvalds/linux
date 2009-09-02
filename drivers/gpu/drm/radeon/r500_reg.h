@@ -350,6 +350,7 @@
 #define AVIVO_D1CRTC_BLANK_CONTROL                              0x6084
 #define AVIVO_D1CRTC_INTERLACE_CONTROL                          0x6088
 #define AVIVO_D1CRTC_INTERLACE_STATUS                           0x608c
+#define AVIVO_D1CRTC_FRAME_COUNT                                0x60a4
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
 /* master controls */
@@ -438,13 +439,15 @@
 #       define AVIVO_DC_LB_DISP1_END_ADR_SHIFT  4
 #       define AVIVO_DC_LB_DISP1_END_ADR_MASK   0x7ff
 
-#define R500_DxMODE_INT_MASK 0x6540
-#define R500_D1MODE_INT_MASK (1<<0)
-#define R500_D2MODE_INT_MASK (1<<8)
-
 #define AVIVO_D1MODE_DATA_FORMAT                0x6528
 #       define AVIVO_D1MODE_INTERLEAVE_EN       (1 << 0)
 #define AVIVO_D1MODE_DESKTOP_HEIGHT             0x652C
+#define AVIVO_D1MODE_VBLANK_STATUS              0x6534
+#       define AVIVO_VBLANK_ACK                 (1 << 4)
+#define AVIVO_D1MODE_VLINE_START_END            0x6538
+#define AVIVO_DxMODE_INT_MASK                   0x6540
+#       define AVIVO_D1MODE_INT_MASK            (1 << 0)
+#       define AVIVO_D2MODE_INT_MASK            (1 << 8)
 #define AVIVO_D1MODE_VIEWPORT_START             0x6580
 #define AVIVO_D1MODE_VIEWPORT_SIZE              0x6584
 #define AVIVO_D1MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6588
@@ -474,6 +477,7 @@
 #define AVIVO_D2CRTC_BLANK_CONTROL                              0x6884
 #define AVIVO_D2CRTC_INTERLACE_CONTROL                          0x6888
 #define AVIVO_D2CRTC_INTERLACE_STATUS                           0x688c
+#define AVIVO_D2CRTC_FRAME_COUNT                                0x68a4
 #define AVIVO_D2CRTC_STEREO_CONTROL                             0x68c4
 
 #define AVIVO_D2GRPH_ENABLE                                     0x6900
@@ -496,6 +500,8 @@
 #define AVIVO_D2CUR_SIZE                        0x6c10
 #define AVIVO_D2CUR_POSITION                    0x6c14
 
+#define AVIVO_D2MODE_VBLANK_STATUS              0x6d34
+#define AVIVO_D2MODE_VLINE_START_END            0x6d38
 #define AVIVO_D2MODE_VIEWPORT_START             0x6d80
 #define AVIVO_D2MODE_VIEWPORT_SIZE              0x6d84
 #define AVIVO_D2MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6d88
@@ -745,5 +751,9 @@
 #define AVIVO_I2C_CNTL						0x7d50
 #	define AVIVO_I2C_EN							(1 << 0)
 #	define AVIVO_I2C_RESET						(1 << 8)
+
+#define AVIVO_DISP_INTERRUPT_STATUS                             0x7edc
+#       define AVIVO_D1_VBLANK_INTERRUPT                        (1 << 4)
+#       define AVIVO_D2_VBLANK_INTERRUPT                        (1 << 5)
 
 #endif

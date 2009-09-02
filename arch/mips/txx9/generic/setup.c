@@ -1,6 +1,4 @@
 /*
- * linux/arch/mips/txx9/generic/setup.c
- *
  * Based on linux/arch/mips/txx9/rbtx4938/setup.c,
  *	    and RBTX49xx patch from CELF patch archive.
  *

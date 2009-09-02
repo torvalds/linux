@@ -101,6 +101,9 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_NOPAGE;
 	}
 
+	if (bdev->driver->fault_reserve_notify)
+		bdev->driver->fault_reserve_notify(bo);
+
 	/*
 	 * Wait for buffer data in transit, due to a pipelined
 	 * move.

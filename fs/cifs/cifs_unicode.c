@@ -44,7 +44,7 @@ cifs_ucs2_bytes(const __le16 *from, int maxbytes,
 	int maxwords = maxbytes / 2;
 	char tmp[NLS_MAX_CHARSET_SIZE];
 
-	for (i = 0; from[i] && i < maxwords; i++) {
+	for (i = 0; i < maxwords && from[i]; i++) {
 		charlen = codepage->uni2char(le16_to_cpu(from[i]), tmp,
 					     NLS_MAX_CHARSET_SIZE);
 		if (charlen > 0)

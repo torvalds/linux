@@ -165,7 +165,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 
 	if (!chosen) {
 		size_t vm_size = VMALLOC_END - VMALLOC_START;
-		size_t tot_size = num_possible_cpus() * PMD_SIZE;
+		size_t tot_size = nr_cpu_ids * PMD_SIZE;
 
 		/* on non-NUMA, embedding is better */
 		if (!pcpu_need_numa())
@@ -199,7 +199,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 	dyn_size = pcpul_size - static_size - PERCPU_FIRST_CHUNK_RESERVE;
 
 	/* allocate pointer array and alloc large pages */
-	map_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpul_map[0]));
+	map_size = PFN_ALIGN(nr_cpu_ids * sizeof(pcpul_map[0]));
 	pcpul_map = alloc_bootmem(map_size);
 
 	for_each_possible_cpu(cpu) {
@@ -228,7 +228,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 
 	/* allocate address and map */
 	pcpul_vm.flags = VM_ALLOC;
-	pcpul_vm.size = num_possible_cpus() * PMD_SIZE;
+	pcpul_vm.size = nr_cpu_ids * PMD_SIZE;
 	vm_area_register_early(&pcpul_vm, PMD_SIZE);
 
 	for_each_possible_cpu(cpu) {
@@ -250,8 +250,8 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 				     PMD_SIZE, pcpul_vm.addr, NULL);
 
 	/* sort pcpul_map array for pcpu_lpage_remapped() */
-	for (i = 0; i < num_possible_cpus() - 1; i++)
-		for (j = i + 1; j < num_possible_cpus(); j++)
+	for (i = 0; i < nr_cpu_ids - 1; i++)
+		for (j = i + 1; j < nr_cpu_ids; j++)
 			if (pcpul_map[i].ptr > pcpul_map[j].ptr) {
 				struct pcpul_ent tmp = pcpul_map[i];
 				pcpul_map[i] = pcpul_map[j];
@@ -288,7 +288,7 @@ void *pcpu_lpage_remapped(void *kaddr)
 {
 	void *pmd_addr = (void *)((unsigned long)kaddr & PMD_MASK);
 	unsigned long offset = (unsigned long)kaddr & ~PMD_MASK;
-	int left = 0, right = num_possible_cpus() - 1;
+	int left = 0, right = nr_cpu_ids - 1;
 	int pos;
 
 	/* pcpul in use at all? */
@@ -377,7 +377,7 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 	pcpu4k_nr_static_pages = PFN_UP(static_size);
 
 	/* unaligned allocations can't be freed, round up to page size */
-	pages_size = PFN_ALIGN(pcpu4k_nr_static_pages * num_possible_cpus()
+	pages_size = PFN_ALIGN(pcpu4k_nr_static_pages * nr_cpu_ids
 			       * sizeof(pcpu4k_pages[0]));
 	pcpu4k_pages = alloc_bootmem(pages_size);
 

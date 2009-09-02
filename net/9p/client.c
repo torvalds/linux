@@ -60,9 +60,9 @@ static struct p9_req_t *
 p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
 
 /**
- * v9fs_parse_options - parse mount options into session structure
- * @options: options string passed from mount
- * @v9ses: existing v9fs session information
+ * parse_options - parse mount options into client structure
+ * @opts: options string passed from mount
+ * @clnt: existing v9fs client information
  *
  * Return 0 upon success, -ERRNO upon failure
  */
@@ -232,7 +232,7 @@ EXPORT_SYMBOL(p9_tag_lookup);
 
 /**
  * p9_tag_init - setup tags structure and contents
- * @tags: tags structure from the client struct
+ * @c:  v9fs client struct
  *
  * This initializes the tags structure for each client instance.
  *
@@ -258,7 +258,7 @@ error:
 
 /**
  * p9_tag_cleanup - cleans up tags structure and reclaims resources
- * @tags: tags structure from the client struct
+ * @c:  v9fs client struct
  *
  * This frees resources associated with the tags structure
  *
@@ -411,13 +411,8 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 		if (c->dotu)
 			err = -ecode;
 
-		if (!err) {
+		if (!err || !IS_ERR_VALUE(err))
 			err = p9_errstr2errno(ename, strlen(ename));
-
-			/* string match failed */
-			if (!err)
-				err = -ESERVERFAULT;
-		}
 
 		P9_DPRINTK(P9_DEBUG_9P, "<<< RERROR (%d) %s\n", -ecode, ename);
 
@@ -430,8 +425,8 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 
 /**
  * p9_client_flush - flush (cancel) a request
- * c: client state
- * req: request to cancel
+ * @c: client state
+ * @oldreq: request to cancel
  *
  * This sents a flush for a particular requests and links
  * the flush request to the original request.  The current

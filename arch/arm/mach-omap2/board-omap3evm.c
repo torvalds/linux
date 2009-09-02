@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl4030.h>
+#include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -279,7 +280,7 @@ struct spi_board_info omap3evm_spi_board_info[] = {
 
 static void __init omap3_evm_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	omap3evm_init_smc911x();
@@ -307,6 +308,10 @@ static void __init omap3_evm_init(void)
 				ARRAY_SIZE(omap3evm_spi_board_info));
 
 	omap_serial_init();
+#ifdef CONFIG_NOP_USB_XCEIV
+	/* OMAP3EVM uses ISP1504 phy and so register nop transceiver */
+	usb_nop_xceiv_register();
+#endif
 	usb_musb_init();
 	ads7846_dev_init();
 }

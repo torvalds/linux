@@ -66,8 +66,10 @@ static int  option_tiocmget(struct tty_struct *tty, struct file *file);
 static int  option_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear);
 static int  option_send_setup(struct usb_serial_port *port);
+#ifdef CONFIG_PM
 static int  option_suspend(struct usb_serial *serial, pm_message_t message);
 static int  option_resume(struct usb_serial *serial);
+#endif
 
 /* Vendor and product IDs */
 #define OPTION_VENDOR_ID			0x0AF0
@@ -205,6 +207,7 @@ static int  option_resume(struct usb_serial *serial);
 #define NOVATELWIRELESS_PRODUCT_MC727		0x4100
 #define NOVATELWIRELESS_PRODUCT_MC950D		0x4400
 #define NOVATELWIRELESS_PRODUCT_U727		0x5010
+#define NOVATELWIRELESS_PRODUCT_MC727_NEW	0x5100
 #define NOVATELWIRELESS_PRODUCT_MC760		0x6000
 #define NOVATELWIRELESS_PRODUCT_OVMC760		0x6002
 
@@ -259,11 +262,6 @@ static int  option_resume(struct usb_serial *serial);
 #define AXESSTEL_VENDOR_ID			0x1726
 #define AXESSTEL_PRODUCT_MV110H			0x1000
 
-#define ONDA_VENDOR_ID				0x19d2
-#define ONDA_PRODUCT_MSA501HS			0x0001
-#define ONDA_PRODUCT_ET502HS			0x0002
-#define ONDA_PRODUCT_MT503HS			0x2000
-
 #define BANDRICH_VENDOR_ID			0x1A8D
 #define BANDRICH_PRODUCT_C100_1			0x1002
 #define BANDRICH_PRODUCT_C100_2			0x1003
@@ -301,6 +299,7 @@ static int  option_resume(struct usb_serial *serial);
 #define ZTE_PRODUCT_MF628			0x0015
 #define ZTE_PRODUCT_MF626			0x0031
 #define ZTE_PRODUCT_CDMA_TECH			0xfffe
+#define ZTE_PRODUCT_AC8710			0xfff1
 
 #define BENQ_VENDOR_ID				0x04a5
 #define BENQ_PRODUCT_H10			0x4068
@@ -321,6 +320,11 @@ static int  option_resume(struct usb_serial *serial);
 
 #define ALINK_VENDOR_ID				0x1e0e
 #define ALINK_PRODUCT_3GU			0x9200
+
+/* ALCATEL PRODUCTS */
+#define ALCATEL_VENDOR_ID			0x1bbb
+#define ALCATEL_PRODUCT_X060S			0x0000
+
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -438,6 +442,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EU870D) }, /* Novatel EU850D/EU860D/EU870D */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC950D) }, /* Novatel MC930D/MC950D */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC727) }, /* Novatel MC727/U727/USB727 */
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC727_NEW) }, /* Novatel MC727/U727/USB727 refresh */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_U727) }, /* Novatel MC727/U727/USB727 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC760) }, /* Novatel MC760/U760/USB760 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_OVMC760) }, /* Novatel Ovation MC760 */
@@ -474,42 +479,6 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_500A) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_620UW) },
 	{ USB_DEVICE(AXESSTEL_VENDOR_ID, AXESSTEL_PRODUCT_MV110H) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, ONDA_PRODUCT_MSA501HS) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, ONDA_PRODUCT_ET502HS) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0003) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0004) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0005) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0006) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0007) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0008) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0009) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x000a) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x000b) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x000c) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x000d) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x000e) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x000f) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0010) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0011) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0012) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0013) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0014) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0015) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0016) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0017) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0018) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0019) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0020) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0021) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0022) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0023) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0024) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0025) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0026) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0027) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0028) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, 0x0029) },
-	{ USB_DEVICE(ONDA_VENDOR_ID, ONDA_PRODUCT_MT503HS) },
 	{ USB_DEVICE(YISO_VENDOR_ID, YISO_PRODUCT_U893) },
 	{ USB_DEVICE(BANDRICH_VENDOR_ID, BANDRICH_PRODUCT_C100_1) },
 	{ USB_DEVICE(BANDRICH_VENDOR_ID, BANDRICH_PRODUCT_C100_2) },
@@ -534,10 +503,75 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6613)}, /* Onda H600/ZTE MF330 */
 	{ USB_DEVICE(MAXON_VENDOR_ID, 0x6280) }, /* BP3-USB & BP3-EXT HSDPA */
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_UC864E) },
-	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF622) },
-	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF626) },
-	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF628) },
-	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_MF622, 0xff, 0xff, 0xff) }, /* ZTE WCDMA products */
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0002, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0003, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0004, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0005, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0006, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0007, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0008, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0009, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000a, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000b, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000c, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000d, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000e, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000f, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0010, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0011, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0012, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0013, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_MF628, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0016, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0017, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0018, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0019, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0020, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0021, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0022, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0023, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0024, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0025, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0026, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0028, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0029, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0030, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_MF626, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0032, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0033, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0037, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0039, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0042, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0043, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0048, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0049, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0051, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0052, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0054, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0055, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0057, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0058, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0061, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0062, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0063, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0064, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0066, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0069, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0076, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0078, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0082, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0086, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x2002, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x2003, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0014, 0xff, 0xff, 0xff) }, /* ZTE CDMA products */
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0027, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0059, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0060, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0070, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0073, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_AC8710, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_H10) },
 	{ USB_DEVICE(DLINK_VENDOR_ID, DLINK_PRODUCT_DWM_652) },
 	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H21_4512) },
@@ -547,6 +581,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(TOSHIBA_VENDOR_ID, TOSHIBA_PRODUCT_HSDPA_MINICARD ) }, /* Toshiba 3G HSDPA == Novatel Expedite EU870D MiniCard */
 	{ USB_DEVICE(ALINK_VENDOR_ID, 0x9000) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -555,8 +590,10 @@ static struct usb_driver option_driver = {
 	.name       = "option",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
+#ifdef CONFIG_PM
 	.suspend    = usb_serial_suspend,
 	.resume     = usb_serial_resume,
+#endif
 	.id_table   = option_ids,
 	.no_dynamic_id = 	1,
 };
@@ -588,8 +625,10 @@ static struct usb_serial_driver option_1port_device = {
 	.disconnect        = option_disconnect,
 	.release           = option_release,
 	.read_int_callback = option_instat_callback,
+#ifdef CONFIG_PM
 	.suspend           = option_suspend,
 	.resume            = option_resume,
+#endif
 };
 
 static int debug;
@@ -831,7 +870,6 @@ static void option_instat_callback(struct urb *urb)
 	int status = urb->status;
 	struct usb_serial_port *port =  urb->context;
 	struct option_port_private *portdata = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
 
 	dbg("%s", __func__);
 	dbg("%s: urb %p port %p has data %p", __func__, urb, port, portdata);
@@ -927,7 +965,6 @@ static int option_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)
 {
 	struct option_port_private *portdata;
-	struct usb_serial *serial = port->serial;
 	int i, err;
 	struct urb *urb;
 
@@ -1187,6 +1224,7 @@ static void option_release(struct usb_serial *serial)
 	}
 }
 
+#ifdef CONFIG_PM
 static int option_suspend(struct usb_serial *serial, pm_message_t message)
 {
 	dbg("%s entered", __func__);
@@ -1245,6 +1283,7 @@ static int option_resume(struct usb_serial *serial)
 	}
 	return 0;
 }
+#endif
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -55,6 +55,7 @@
 #define INTEL_OUTPUT_TVOUT 5
 #define INTEL_OUTPUT_HDMI 6
 #define INTEL_OUTPUT_DISPLAYPORT 7
+#define INTEL_OUTPUT_EDP 8
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -121,6 +122,8 @@ extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
+extern void intel_edp_link_config (struct intel_output *, int *, int *);
+
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);

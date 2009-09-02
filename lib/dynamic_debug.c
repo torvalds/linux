@@ -164,7 +164,7 @@ static void ddebug_change(const struct ddebug_query *query,
 
 			if (!newflags)
 				dt->num_enabled--;
-			else if (!dp-flags)
+			else if (!dp->flags)
 				dt->num_enabled++;
 			dp->flags = newflags;
 			if (newflags) {

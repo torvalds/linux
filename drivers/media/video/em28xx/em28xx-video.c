@@ -194,15 +194,24 @@ static void em28xx_copy_video(struct em28xx *dev,
 	startread = p;
 	remain = len;
 
-	/* Interlaces frame */
-	if (buf->top_field)
+	if (dev->progressive)
 		fieldstart = outp;
-	else
-		fieldstart = outp + bytesperline;
+	else {
+		/* Interlaces two half frames */
+		if (buf->top_field)
+			fieldstart = outp;
+		else
+			fieldstart = outp + bytesperline;
+	}
 
 	linesdone = dma_q->pos / bytesperline;
 	currlinedone = dma_q->pos % bytesperline;
-	offset = linesdone * bytesperline * 2 + currlinedone;
+
+	if (dev->progressive)
+		offset = linesdone * bytesperline + currlinedone;
+	else
+		offset = linesdone * bytesperline * 2 + currlinedone;
+
 	startwrite = fieldstart + offset;
 	lencopy = bytesperline - currlinedone;
 	lencopy = lencopy > remain ? remain : lencopy;
@@ -376,7 +385,7 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
 				       len, (p[2] & 1) ? "odd" : "even");
 
-			if (!(p[2] & 1)) {
+			if (dev->progressive || !(p[2] & 1)) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
 				get_next_buf(dma_q, &buf);
@@ -657,8 +666,8 @@ static void get_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
-	unsigned int          maxw   = norm_maxw(dev);
-	unsigned int          maxh   = norm_maxh(dev);
+	unsigned int          maxw = norm_maxw(dev);
+	unsigned int          maxh = norm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
 	if (*hscale >= 0x4000)
@@ -689,7 +698,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
-	f->fmt.pix.field = dev->interlaced ?
+	if (dev->progressive)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		f->fmt.pix.field = dev->interlaced ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
 	mutex_unlock(&dev->lock);
@@ -726,11 +738,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (dev->board.is_27xx) {
-		/* FIXME: This is the only supported fmt */
-		width  = 640;
-		height = 480;
-	} else if (dev->board.is_em2800) {
+	if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
 		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
 		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
@@ -757,7 +765,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (dev->width * fmt->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	if (dev->progressive)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		f->fmt.pix.field = dev->interlaced ?
+			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
 	return 0;
 }
@@ -766,12 +778,6 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 				   unsigned width, unsigned height)
 {
 	struct em28xx_fmt     *fmt;
-
-	/* FIXME: This is the only supported fmt */
-	if (dev->board.is_27xx) {
-		width  = 640;
-		height = 480;
-	}
 
 	fmt = format_by_fourcc(fourcc);
 	if (!fmt)
@@ -854,6 +860,41 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 
 	mutex_unlock(&dev->lock);
 	return 0;
+}
+
+static int vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *p)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	int rc = 0;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (dev->board.is_webcam)
+		rc = v4l2_device_call_until_err(&dev->v4l2_dev, 0,
+						video, g_parm, p);
+	else
+		v4l2_video_std_frame_period(dev->norm,
+						 &p->parm.capture.timeperframe);
+
+	return rc;
+}
+
+static int vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *p)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+
+	if (!dev->board.is_webcam)
+		return -EINVAL;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	return v4l2_device_call_until_err(&dev->v4l2_dev, 0, video, s_parm, p);
 }
 
 static const char *iname[] = {
@@ -1634,6 +1675,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	struct em28xx *dev;
 	enum v4l2_buf_type fh_type;
 	struct em28xx_fh *fh;
+	enum v4l2_field field;
 
 	dev = em28xx_get_device(minor, &fh_type, &radio);
 
@@ -1675,8 +1717,13 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	dev->users++;
 
+	if (dev->progressive)
+		field = V4L2_FIELD_NONE;
+	else
+		field = V4L2_FIELD_INTERLACED;
+
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
-			NULL, &dev->slock, fh->type, V4L2_FIELD_INTERLACED,
+			NULL, &dev->slock, fh->type, field,
 			sizeof(struct em28xx_buffer), fh);
 
 	mutex_unlock(&dev->lock);
@@ -1895,6 +1942,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf                = vidioc_qbuf,
 	.vidioc_dqbuf               = vidioc_dqbuf,
 	.vidioc_s_std               = vidioc_s_std,
+	.vidioc_g_parm		    = vidioc_g_parm,
+	.vidioc_s_parm		    = vidioc_s_parm,
 	.vidioc_enum_input          = vidioc_enum_input,
 	.vidioc_g_input             = vidioc_g_input,
 	.vidioc_s_input             = vidioc_s_input,

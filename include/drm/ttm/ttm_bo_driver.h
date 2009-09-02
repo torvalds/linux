@@ -121,6 +121,7 @@ struct ttm_backend {
 #define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
 #define TTM_PAGE_FLAG_PERSISTANT_SWAP (1 << 5)
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
+#define TTM_PAGE_FLAG_DMA32           (1 << 7)
 
 enum ttm_caching_state {
 	tt_uncached,
@@ -353,6 +354,14 @@ struct ttm_bo_driver {
 	int (*sync_obj_flush) (void *sync_obj, void *sync_arg);
 	void (*sync_obj_unref) (void **sync_obj);
 	void *(*sync_obj_ref) (void *sync_obj);
+
+	/* hook to notify driver about a driver move so it
+	 * can do tiling things */
+	void (*move_notify)(struct ttm_buffer_object *bo,
+			    struct ttm_mem_reg *new_mem);
+	/* notify the driver we are taking a fault on this BO
+	 * and have reserved it */
+	void (*fault_reserve_notify)(struct ttm_buffer_object *bo);
 };
 
 #define TTM_NUM_MEM_TYPES 8
@@ -429,6 +438,8 @@ struct ttm_bo_device {
 	 */
 
 	struct delayed_work wq;
+
+	bool need_dma32;
 };
 
 /**
@@ -648,7 +659,14 @@ extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 extern int ttm_bo_device_init(struct ttm_bo_device *bdev,
 			      struct ttm_mem_global *mem_glob,
 			      struct ttm_bo_driver *driver,
-			      uint64_t file_page_offset);
+			      uint64_t file_page_offset, bool need_dma32);
+
+/**
+ * ttm_bo_unmap_virtual
+ *
+ * @bo: tear down the virtual mappings for this BO
+ */
+extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_reserve:

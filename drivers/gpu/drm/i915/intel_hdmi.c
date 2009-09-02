@@ -130,16 +130,17 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 }
 
 static enum drm_connector_status
-intel_hdmi_edid_detect(struct drm_connector *connector)
+intel_hdmi_detect(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
+	hdmi_priv->has_hdmi_sink = false;
 	edid = drm_get_edid(&intel_output->base,
 			    intel_output->ddc_bus);
-	hdmi_priv->has_hdmi_sink = false;
+
 	if (edid) {
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
@@ -148,65 +149,8 @@ intel_hdmi_edid_detect(struct drm_connector *connector)
 		intel_output->base.display_info.raw_edid = NULL;
 		kfree(edid);
 	}
+
 	return status;
-}
-
-static enum drm_connector_status
-igdng_hdmi_detect(struct drm_connector *connector)
-{
-	struct intel_output *intel_output = to_intel_output(connector);
-	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
-
-	/* FIXME hotplug detect */
-
-	hdmi_priv->has_hdmi_sink = false;
-	return intel_hdmi_edid_detect(connector);
-}
-
-static enum drm_connector_status
-intel_hdmi_detect(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_output *intel_output = to_intel_output(connector);
-	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
-	u32 temp, bit;
-
-	if (IS_IGDNG(dev))
-		return igdng_hdmi_detect(connector);
-
-	temp = I915_READ(PORT_HOTPLUG_EN);
-
-	switch (hdmi_priv->sdvox_reg) {
-	case SDVOB:
-		temp |= HDMIB_HOTPLUG_INT_EN;
-		break;
-	case SDVOC:
-		temp |= HDMIC_HOTPLUG_INT_EN;
-		break;
-	default:
-		return connector_status_unknown;
-	}
-
-	I915_WRITE(PORT_HOTPLUG_EN, temp);
-
-	POSTING_READ(PORT_HOTPLUG_EN);
-
-	switch (hdmi_priv->sdvox_reg) {
-	case SDVOB:
-		bit = HDMIB_HOTPLUG_INT_STATUS;
-		break;
-	case SDVOC:
-		bit = HDMIC_HOTPLUG_INT_STATUS;
-		break;
-	default:
-		return connector_status_unknown;
-	}
-
-	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0)
-		return intel_hdmi_edid_detect(connector);
-	else
-		return connector_status_disconnected;
 }
 
 static int intel_hdmi_get_modes(struct drm_connector *connector)

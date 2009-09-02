@@ -1459,8 +1459,16 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 * ether type (eg ARPHRD_ETHER and ARPHRD_INFINIBAND) share the same bond
 	 */
 	if (bond->slave_cnt == 0) {
-		if (slave_dev->type != ARPHRD_ETHER)
-			bond_setup_by_slave(bond_dev, slave_dev);
+		if (bond_dev->type != slave_dev->type) {
+			dev_close(bond_dev);
+			pr_debug("%s: change device type from %d to %d\n",
+				bond_dev->name, bond_dev->type, slave_dev->type);
+			if (slave_dev->type != ARPHRD_ETHER)
+				bond_setup_by_slave(bond_dev, slave_dev);
+			else
+				ether_setup(bond_dev);
+			dev_open(bond_dev);
+		}
 	} else if (bond_dev->type != slave_dev->type) {
 		pr_err(DRV_NAME ": %s ether type (%d) is different "
 			"from other slaves (%d), can not enslave it.\n",

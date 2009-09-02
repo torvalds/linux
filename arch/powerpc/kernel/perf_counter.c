@@ -518,6 +518,8 @@ void hw_perf_disable(void)
 	struct cpu_hw_counters *cpuhw;
 	unsigned long flags;
 
+	if (!ppmu)
+		return;
 	local_irq_save(flags);
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 
@@ -572,6 +574,8 @@ void hw_perf_enable(void)
 	int n_lim;
 	int idx;
 
+	if (!ppmu)
+		return;
 	local_irq_save(flags);
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	if (!cpuhw->disabled) {
@@ -737,6 +741,8 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 	long i, n, n0;
 	struct perf_counter *sub;
 
+	if (!ppmu)
+		return 0;
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	n0 = cpuhw->n_counters;
 	n = collect_events(group_leader, ppmu->n_counter - n0,
@@ -1281,6 +1287,8 @@ void hw_perf_counter_setup(int cpu)
 {
 	struct cpu_hw_counters *cpuhw = &per_cpu(cpu_hw_counters, cpu);
 
+	if (!ppmu)
+		return;
 	memset(cpuhw, 0, sizeof(*cpuhw));
 	cpuhw->mmcr[0] = MMCR0_FC;
 }

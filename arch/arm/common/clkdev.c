@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
+#include <linux/clk.h>
 
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>

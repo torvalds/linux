@@ -224,7 +224,7 @@ void rfkill_destroy(struct rfkill *rfkill);
  * should be blocked) so that drivers need not keep track of the soft
  * block state -- which they might not be able to.
  */
-bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
+bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
 
 /**
  * rfkill_set_sw_state - Set the internal rfkill software block state

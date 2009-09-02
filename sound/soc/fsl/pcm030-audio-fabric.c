@@ -30,6 +30,8 @@
 #include "mpc5200_psc_ac97.h"
 #include "../codecs/wm9712.h"
 
+#define DRV_NAME "pcm030-audio-fabric"
+
 static struct snd_soc_device device;
 static struct snd_soc_card card;
 

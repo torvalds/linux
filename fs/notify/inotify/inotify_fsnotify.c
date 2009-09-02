@@ -62,13 +62,14 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	event_priv->wd = wd;
 
 	ret = fsnotify_add_notify_event(group, event, fsn_event_priv);
-	/* EEXIST is not an error */
-	if (ret == -EEXIST)
-		ret = 0;
-
-	/* did event_priv get attached? */
-	if (list_empty(&fsn_event_priv->event_list))
+	if (ret) {
 		inotify_free_event_priv(fsn_event_priv);
+		/* EEXIST says we tail matched, EOVERFLOW isn't something
+		 * to report up the stack. */
+		if ((ret == -EEXIST) ||
+		    (ret == -EOVERFLOW))
+			ret = 0;
+	}
 
 	/*
 	 * If we hold the entry until after the event is on the queue
@@ -104,16 +105,45 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 	return send;
 }
 
+/*
+ * This is NEVER supposed to be called.  Inotify marks should either have been
+ * removed from the idr when the watch was removed or in the
+ * fsnotify_destroy_mark_by_group() call when the inotify instance was being
+ * torn down.  This is only called if the idr is about to be freed but there
+ * are still marks in it.
+ */
 static int idr_callback(int id, void *p, void *data)
 {
-	BUG();
+	struct fsnotify_mark_entry *entry;
+	struct inotify_inode_mark_entry *ientry;
+	static bool warned = false;
+
+	if (warned)
+		return 0;
+
+	warned = false;
+	entry = p;
+	ientry = container_of(entry, struct inotify_inode_mark_entry, fsn_entry);
+
+	WARN(1, "inotify closing but id=%d for entry=%p in group=%p still in "
+		"idr.  Probably leaking memory\n", id, p, data);
+
+	/*
+	 * I'm taking the liberty of assuming that the mark in question is a
+	 * valid address and I'm dereferencing it.  This might help to figure
+	 * out why we got here and the panic is no worse than the original
+	 * BUG() that was here.
+	 */
+	if (entry)
+		printk(KERN_WARNING "entry->group=%p inode=%p wd=%d\n",
+			entry->group, entry->inode, ientry->wd);
 	return 0;
 }
 
 static void inotify_free_group_priv(struct fsnotify_group *group)
 {
 	/* ideally the idr is empty and we won't hit the BUG in teh callback */
-	idr_for_each(&group->inotify_data.idr, idr_callback, NULL);
+	idr_for_each(&group->inotify_data.idr, idr_callback, group);
 	idr_remove_all(&group->inotify_data.idr);
 	idr_destroy(&group->inotify_data.idr);
 }
