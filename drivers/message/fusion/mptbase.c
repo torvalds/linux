@@ -1015,9 +1015,9 @@ mpt_add_sge_64bit(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
 {
 	SGESimple64_t *pSge = (SGESimple64_t *) pAddr;
 	pSge->Address.Low = cpu_to_le32
-			(lower_32_bits((unsigned long)(dma_addr)));
+			(lower_32_bits(dma_addr));
 	pSge->Address.High = cpu_to_le32
-			(upper_32_bits((unsigned long)dma_addr));
+			(upper_32_bits(dma_addr));
 	pSge->FlagsLength = cpu_to_le32
 			((flagslength | MPT_SGE_FLAGS_64_BIT_ADDRESSING));
 }
@@ -1038,8 +1038,8 @@ mpt_add_sge_64bit_1078(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
 	u32 tmp;
 
 	pSge->Address.Low = cpu_to_le32
-			(lower_32_bits((unsigned long)(dma_addr)));
-	tmp = (u32)(upper_32_bits((unsigned long)dma_addr));
+			(lower_32_bits(dma_addr));
+	tmp = (u32)(upper_32_bits(dma_addr));
 
 	/*
 	 * 1078 errata workaround for the 36GB limitation
@@ -1101,7 +1101,7 @@ mpt_add_chain_64bit(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
 		pChain->NextChainOffset = next;
 
 		pChain->Address.Low = cpu_to_le32(tmp);
-		tmp = (u32)(upper_32_bits((unsigned long)dma_addr));
+		tmp = (u32)(upper_32_bits(dma_addr));
 		pChain->Address.High = cpu_to_le32(tmp);
 }
 
