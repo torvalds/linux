@@ -466,6 +466,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 	int retval = 0;
 
 	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
+	validate_creds(sub_info->cred);
 
 	helper_lock();
 	if (sub_info->path[0] == '\0')

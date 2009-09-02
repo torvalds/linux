@@ -1531,6 +1531,8 @@ static int inode_has_perm(const struct cred *cred,
 	struct common_audit_data ad;
 	u32 sid;
 
+	validate_creds(cred);
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 
@@ -3236,7 +3238,9 @@ static int selinux_task_create(unsigned long clone_flags)
 static void selinux_cred_free(struct cred *cred)
 {
 	struct task_security_struct *tsec = cred->security;
-	cred->security = NULL;
+
+	BUG_ON((unsigned long) cred->security < PAGE_SIZE);
+	cred->security = (void *) 0x7UL;
 	kfree(tsec);
 }
 

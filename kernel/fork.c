@@ -152,8 +152,7 @@ void __put_task_struct(struct task_struct *tsk)
 	WARN_ON(atomic_read(&tsk->usage));
 	WARN_ON(tsk == current);
 
-	put_cred(tsk->real_cred);
-	put_cred(tsk->cred);
+	exit_creds(tsk);
 	delayacct_tsk_free(tsk);
 
 	if (!profile_handoff_task(tsk))
@@ -1307,8 +1306,7 @@ bad_fork_cleanup_put_domain:
 	module_put(task_thread_info(p)->exec_domain->module);
 bad_fork_cleanup_count:
 	atomic_dec(&p->cred->user->processes);
-	put_cred(p->real_cred);
-	put_cred(p->cred);
+	exit_creds(p);
 bad_fork_free:
 	free_task(p);
 fork_out:

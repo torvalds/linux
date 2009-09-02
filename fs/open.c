@@ -959,6 +959,8 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
 	int error;
 	struct file *f;
 
+	validate_creds(cred);
+
 	/*
 	 * We must always pass in a valid mount pointer.   Historically
 	 * callers got away with not passing it, but we must enforce this at
