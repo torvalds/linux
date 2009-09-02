@@ -132,6 +132,10 @@ extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 
 extern long join_session_keyring(const char *name);
 
+extern unsigned key_gc_delay;
+extern void keyring_gc(struct key *keyring, time_t limit);
+extern void key_schedule_gc(time_t expiry_at);
+
 /*
  * check to see whether permission is granted to use a key in the desired way
  */
