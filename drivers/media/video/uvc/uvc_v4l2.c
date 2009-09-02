@@ -371,7 +371,6 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
  * - VIDIOC_S_INPUT
  * - VIDIOC_S_PARM
  * - VIDIOC_S_FMT
- * - VIDIOC_TRY_FMT
  * - VIDIOC_REQBUFS
  */
 static int uvc_acquire_privileges(struct uvc_fh *handle)
@@ -730,9 +729,6 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_TRY_FMT:
 	{
 		struct uvc_streaming_control probe;
-
-		if ((ret = uvc_acquire_privileges(handle)) < 0)
-			return ret;
 
 		return uvc_v4l2_try_format(stream, arg, &probe, NULL, NULL);
 	}
