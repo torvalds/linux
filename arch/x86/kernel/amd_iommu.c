@@ -530,8 +530,7 @@ static int iommu_map_page(struct protection_domain *dom,
 	bus_addr  = PAGE_ALIGN(bus_addr);
 	phys_addr = PAGE_ALIGN(phys_addr);
 
-	/* only support 512GB address spaces for now */
-	if (bus_addr > IOMMU_MAP_SIZE_L3 || !(prot & IOMMU_PROT_MASK))
+	if (!(prot & IOMMU_PROT_MASK))
 		return -EINVAL;
 
 	pte = alloc_pte(dom, bus_addr, NULL, GFP_KERNEL);
