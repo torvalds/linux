@@ -984,8 +984,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	 * Branch tracing:
 	 */
 	if ((attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
-	    (hwc->sample_period == 1) && !bts_available())
-		return -EOPNOTSUPP;
+	    (hwc->sample_period == 1)) {
+		/* BTS is not supported by this architecture. */
+		if (!bts_available())
+			return -EOPNOTSUPP;
+
+		/* BTS is currently only allowed for user-mode. */
+		if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
+			return -EOPNOTSUPP;
+	}
 
 	hwc->config |= config;
 
