@@ -620,6 +620,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 	unsigned int len, entry;
 	u32 ctrl;
+	unsigned long flags;
 
 #ifdef DEBUG
 	int i;
@@ -635,12 +636,12 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	len = skb->len;
-	spin_lock_irq(&bp->lock);
+	spin_lock_irqsave(&bp->lock, flags);
 
 	/* This is a hard error, log it. */
 	if (TX_BUFFS_AVAIL(bp) < 1) {
 		netif_stop_queue(dev);
-		spin_unlock_irq(&bp->lock);
+		spin_unlock_irqrestore(&bp->lock, flags);
 		dev_err(&bp->pdev->dev,
 			"BUG! Tx Ring full when queue awake!\n");
 		dev_dbg(&bp->pdev->dev, "tx_head = %u, tx_tail = %u\n",
@@ -674,7 +675,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL(bp) < 1)
 		netif_stop_queue(dev);
 
-	spin_unlock_irq(&bp->lock);
+	spin_unlock_irqrestore(&bp->lock, flags);
 
 	dev->trans_start = jiffies;
 

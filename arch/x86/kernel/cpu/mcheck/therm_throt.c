@@ -116,11 +116,14 @@ static int therm_throt_process(int curr)
 		       cpu, __get_cpu_var(thermal_throttle_count));
 
 		add_taint(TAINT_MACHINE_CHECK);
-	} else if (was_throttled) {
+		return 1;
+	}
+	if (was_throttled) {
 		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", cpu);
+		return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 #ifdef CONFIG_SYSFS

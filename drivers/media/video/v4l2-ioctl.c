@@ -1081,8 +1081,10 @@ static long __video_do_ioctl(struct file *file,
 		/* Calls the specific handler */
 		if (ops->vidioc_g_std)
 			ret = ops->vidioc_g_std(file, fh, id);
-		else
+		else if (vfd->current_norm)
 			*id = vfd->current_norm;
+		else
+			ret = -EINVAL;
 
 		if (!ret)
 			dbgarg(cmd, "std=0x%08Lx\n", (long long unsigned)*id);
@@ -1553,12 +1555,19 @@ static long __video_do_ioctl(struct file *file,
 				break;
 			ret = ops->vidioc_g_parm(file, fh, p);
 		} else {
+			v4l2_std_id std = vfd->current_norm;
+
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 				return -EINVAL;
 
-			v4l2_video_std_frame_period(vfd->current_norm,
-						    &p->parm.capture.timeperframe);
 			ret = 0;
+			if (ops->vidioc_g_std)
+				ret = ops->vidioc_g_std(file, fh, &std);
+			else if (std == 0)
+				ret = -EINVAL;
+			if (ret == 0)
+				v4l2_video_std_frame_period(std,
+						    &p->parm.capture.timeperframe);
 		}
 
 		dbgarg(cmd, "type=%d\n", p->type);

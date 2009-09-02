@@ -3030,9 +3030,21 @@ static int selinux_file_mmap(struct file *file, unsigned long reqprot,
 	int rc = 0;
 	u32 sid = current_sid();
 
-	if (addr < mmap_min_addr)
+	/*
+	 * notice that we are intentionally putting the SELinux check before
+	 * the secondary cap_file_mmap check.  This is such a likely attempt
+	 * at bad behaviour/exploit that we always want to get the AVC, even
+	 * if DAC would have also denied the operation.
+	 */
+	if (addr < CONFIG_LSM_MMAP_MIN_ADDR) {
 		rc = avc_has_perm(sid, sid, SECCLASS_MEMPROTECT,
 				  MEMPROTECT__MMAP_ZERO, NULL);
+		if (rc)
+			return rc;
+	}
+
+	/* do DAC check on address space usage */
+	rc = cap_file_mmap(file, reqprot, prot, flags, addr, addr_only);
 	if (rc || addr_only)
 		return rc;
 

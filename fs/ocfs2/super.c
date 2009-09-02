@@ -1218,13 +1218,17 @@ static void ocfs2_kill_sb(struct super_block *sb)
 {
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
+	/* Failed mount? */
+	if (!osb || atomic_read(&osb->vol_state) == VOLUME_DISABLED)
+		goto out;
+
 	/* Prevent further queueing of inode drop events */
 	spin_lock(&dentry_list_lock);
 	ocfs2_set_osb_flag(osb, OCFS2_OSB_DROP_DENTRY_LOCK_IMMED);
 	spin_unlock(&dentry_list_lock);
 	/* Wait for work to finish and/or remove it */
 	cancel_work_sync(&osb->dentry_lock_work);
-
+out:
 	kill_block_super(sb);
 }
 
