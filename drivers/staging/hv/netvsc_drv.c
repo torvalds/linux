@@ -559,7 +559,7 @@ static void netvsc_drv_exit(void)
 	return;
 }
 
-static int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
 	struct netvsc_driver *net_drv_obj = &g_netvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
@@ -574,7 +574,7 @@ static int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	net_drv_obj->OnLinkStatusChanged = netvsc_linkstatus_callback;
 
 	/* Callback to client driver to complete the initialization */
-	pfn_drv_init(&net_drv_obj->Base);
+	drv_init(&net_drv_obj->Base);
 
 	drv_ctx->driver.name = net_drv_obj->Base.name;
 	memcpy(&drv_ctx->class_id, &net_drv_obj->Base.deviceType,

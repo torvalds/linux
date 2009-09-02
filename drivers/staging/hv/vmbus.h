@@ -26,11 +26,7 @@
 #define _VMBUS_H_
 
 #include <linux/device.h>
-
 #include "VmbusApi.h"
-
-typedef int (*PFN_DRIVERINITIALIZE)(struct hv_driver *drv);
-typedef int (*PFN_DRIVEREXIT)(struct hv_driver *drv);
 
 struct driver_context {
 	struct hv_guid class_id;

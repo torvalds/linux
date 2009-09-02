@@ -165,7 +165,7 @@ static struct block_device_operations block_ops = {
 /**
  * blkvsc_drv_init -  BlkVsc driver initialization.
  */
-static int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
 	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
@@ -178,7 +178,7 @@ static int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	storvsc_drv_obj->RingBufferSize = blkvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */
-	pfn_drv_init(&storvsc_drv_obj->Base);
+	drv_init(&storvsc_drv_obj->Base);
 
 	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
 	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType,

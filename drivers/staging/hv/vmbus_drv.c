@@ -241,7 +241,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
  * 	- setup the vmbus root device
  * 	- retrieve the channel offers
  */
-static int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
 	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
@@ -261,7 +261,7 @@ static int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	vmbus_drv_obj->OnChildDeviceRemove = vmbus_child_device_unregister;
 
 	/* Call to bus driver to initialize */
-	ret = pfn_drv_init(&vmbus_drv_obj->Base);
+	ret = drv_init(&vmbus_drv_obj->Base);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "Unable to initialize vmbus (%d)", ret);
 		goto cleanup;

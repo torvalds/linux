@@ -137,7 +137,7 @@ static struct scsi_host_template scsi_driver = {
 /**
  * storvsc_drv_init - StorVsc driver initialization.
  */
-static int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
 	int ret;
 	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
@@ -151,7 +151,7 @@ static int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	storvsc_drv_obj->OnHostRescan = storvsc_host_rescan;
 
 	/* Callback to client driver to complete the initialization */
-	pfn_drv_init(&storvsc_drv_obj->Base);
+	drv_init(&storvsc_drv_obj->Base);
 
 	DPRINT_INFO(STORVSC_DRV,
 		    "request extension size %u, max outstanding reqs %u",
