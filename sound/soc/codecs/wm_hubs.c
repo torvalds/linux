@@ -273,17 +273,12 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 		/* Start the DC servo */
 		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-				    WM8993_DCS_ENA_CHAN_0 |
-				    WM8993_DCS_ENA_CHAN_1 |
-				    WM8993_DCS_TRIG_STARTUP_1 |
-				    WM8993_DCS_TRIG_STARTUP_0,
+				    0xFFFF,
 				    WM8993_DCS_ENA_CHAN_0 |
 				    WM8993_DCS_ENA_CHAN_1 |
 				    WM8993_DCS_TRIG_STARTUP_1 |
 				    WM8993_DCS_TRIG_STARTUP_0);
 		wait_for_dc_servo(codec);
-		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
-				    WM8993_DCS_TIMER_PERIOD_01_MASK, 0xa);
 
 		reg |= WM8993_HPOUT1R_OUTP | WM8993_HPOUT1R_RMV_SHORT |
 			WM8993_HPOUT1L_OUTP | WM8993_HPOUT1L_RMV_SHORT;
@@ -298,11 +293,8 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 			 WM8993_HPOUT1R_DLY |
 			 WM8993_HPOUT1R_OUTP);
 
-		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
-				    WM8993_DCS_TIMER_PERIOD_01_MASK, 0);
 		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-				    WM8993_DCS_ENA_CHAN_0 |
-				    WM8993_DCS_ENA_CHAN_1, 0);
+				    0xffff, 0);
 
 		snd_soc_write(codec, WM8993_ANALOGUE_HP_0, reg);
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
