@@ -254,16 +254,9 @@ static int treo680_backlight_init(struct device *dev)
 	ret = gpio_direction_output(GPIO_NR_TREO680_BL_POWER, 0);
 	if (ret)
 		goto err2;
-	ret = gpio_request(GPIO_NR_TREO680_LCD_POWER, "LCD POWER");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_TREO680_LCD_POWER, 0);
-	if (ret)
-		goto err3;
 
 	return 0;
-err3:
-	gpio_free(GPIO_NR_TREO680_LCD_POWER);
+
 err2:
 	gpio_free(GPIO_NR_TREO680_BL_POWER);
 err:
@@ -279,7 +272,6 @@ static int treo680_backlight_notify(int brightness)
 static void treo680_backlight_exit(struct device *dev)
 {
 	gpio_free(GPIO_NR_TREO680_BL_POWER);
-	gpio_free(GPIO_NR_TREO680_LCD_POWER);
 }
 
 static struct platform_pwm_backlight_data treo680_backlight_data = {
@@ -470,6 +462,11 @@ static struct pxafb_mode_info treo680_lcd_modes[] = {
 },
 };
 
+static void treo680_lcd_power(int on, struct fb_var_screeninfo *info)
+{
+	gpio_set_value(GPIO_NR_TREO680_BL_POWER, on);
+}
+
 static struct pxafb_mach_info treo680_lcd_screen = {
 	.modes		= treo680_lcd_modes,
 	.num_modes	= ARRAY_SIZE(treo680_lcd_modes),
@@ -509,11 +506,32 @@ static void __init treo680_udc_init(void)
 	}
 }
 
+static void __init treo680_lcd_power_init(void)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_TREO680_LCD_POWER, "LCD POWER");
+	if (ret) {
+		pr_err("Treo680: LCD power GPIO request failed!\n");
+		return;
+	}
+
+	ret = gpio_direction_output(GPIO_NR_TREO680_LCD_POWER, 0);
+	if (ret) {
+		pr_err("Treo680: setting LCD power GPIO direction failed!\n");
+		gpio_free(GPIO_NR_TREO680_LCD_POWER);
+		return;
+	}
+
+	treo680_lcd_screen.pxafb_lcd_power = treo680_lcd_power;
+}
+
 static void __init treo680_init(void)
 {
 	treo680_pm_init();
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
 	pxa_set_keypad_info(&treo680_keypad_platform_data);
+	treo680_lcd_power_init();
 	set_pxa_fb_info(&treo680_lcd_screen);
 	pxa_set_mci_info(&treo680_mci_platform_data);
 	treo680_udc_init();
