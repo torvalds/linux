@@ -57,8 +57,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
 
-source "drivers/staging/at76_usb/Kconfig"
-
 source "drivers/staging/poch/Kconfig"
 
 source "drivers/staging/agnx/Kconfig"
