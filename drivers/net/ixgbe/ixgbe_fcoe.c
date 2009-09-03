@@ -292,6 +292,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		   struct sk_buff *skb)
 {
 	u16 xid;
+	u32 fctl;
 	u32 sterr, fceofe, fcerr, fcstat;
 	int rc = -EINVAL;
 	struct ixgbe_fcoe *fcoe;
@@ -312,7 +313,12 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	skb_set_transport_header(skb, skb_network_offset(skb) +
 				 sizeof(struct fcoe_hdr));
 	fh = (struct fc_frame_header *)skb_transport_header(skb);
-	xid =  be16_to_cpu(fh->fh_ox_id);
+	fctl = ntoh24(fh->fh_f_ctl);
+	if (fctl & FC_FC_EX_CTX)
+		xid =  be16_to_cpu(fh->fh_ox_id);
+	else
+		xid =  be16_to_cpu(fh->fh_rx_id);
+
 	if (xid >= IXGBE_FCOE_DDP_MAX)
 		goto ddp_out;
 
