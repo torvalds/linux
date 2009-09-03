@@ -241,7 +241,7 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	case 0:
 		if (!l1->val)
 			return;
-		assoc = l1->assoc;
+		assoc = assocs[l1->assoc];
 		line_size = l1->line_size;
 		lines_per_tag = l1->lines_per_tag;
 		size_in_kb = l1->size_in_kb;
@@ -249,7 +249,7 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	case 2:
 		if (!l2.val)
 			return;
-		assoc = l2.assoc;
+		assoc = assocs[l2.assoc];
 		line_size = l2.line_size;
 		lines_per_tag = l2.lines_per_tag;
 		/* cpu_data has errata corrections for K7 applied */
@@ -258,10 +258,14 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	case 3:
 		if (!l3.val)
 			return;
-		assoc = l3.assoc;
+		assoc = assocs[l3.assoc];
 		line_size = l3.line_size;
 		lines_per_tag = l3.lines_per_tag;
 		size_in_kb = l3.size_encoded * 512;
+		if (boot_cpu_has(X86_FEATURE_AMD_DCM)) {
+			size_in_kb = size_in_kb >> 1;
+			assoc = assoc >> 1;
+		}
 		break;
 	default:
 		return;
@@ -270,18 +274,14 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	eax->split.is_self_initializing = 1;
 	eax->split.type = types[leaf];
 	eax->split.level = levels[leaf];
-	if (leaf == 3)
-		eax->split.num_threads_sharing =
-			current_cpu_data.x86_max_cores - 1;
-	else
-		eax->split.num_threads_sharing = 0;
+	eax->split.num_threads_sharing = 0;
 	eax->split.num_cores_on_die = current_cpu_data.x86_max_cores - 1;
 
 
-	if (assoc == 0xf)
+	if (assoc == 0xffff)
 		eax->split.is_fully_associative = 1;
 	ebx->split.coherency_line_size = line_size - 1;
-	ebx->split.ways_of_associativity = assocs[assoc] - 1;
+	ebx->split.ways_of_associativity = assoc - 1;
 	ebx->split.physical_line_partition = lines_per_tag - 1;
 	ecx->split.number_of_sets = (size_in_kb * 1024) / line_size /
 		(ebx->split.ways_of_associativity + 1) - 1;
@@ -522,6 +522,18 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 	int index_msb, i;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
+	if ((index == 3) && (c->x86_vendor == X86_VENDOR_AMD)) {
+		struct cpuinfo_x86 *d;
+		for_each_online_cpu(i) {
+			if (!per_cpu(cpuid4_info, i))
+				continue;
+			d = &cpu_data(i);
+			this_leaf = CPUID4_INFO_IDX(i, index);
+			cpumask_copy(to_cpumask(this_leaf->shared_cpu_map),
+				     d->llc_shared_map);
+		}
+		return;
+	}
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
 	num_threads_sharing = 1 + this_leaf->eax.split.num_threads_sharing;
 
