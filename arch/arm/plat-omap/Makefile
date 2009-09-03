@@ -26,3 +26,4 @@ obj-y += $(i2c-omap-m) $(i2c-omap-y)
 # OMAP mailbox framework
 obj-$(CONFIG_OMAP_MBOX_FWK) += mailbox.o
 
+obj-$(CONFIG_OMAP_PM_NOOP) += omap-pm-noop.o
