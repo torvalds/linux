@@ -3132,10 +3132,8 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 		spin_unlock(&cpu_buffer->reader_lock);
 	local_irq_restore(flags);
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
@@ -3160,10 +3158,8 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	event = rb_iter_peek(iter, ts);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
@@ -3209,10 +3205,8 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
  out:
 	preempt_enable();
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
@@ -3302,10 +3296,8 @@ ring_buffer_read(struct ring_buffer_iter *iter, u64 *ts)
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
