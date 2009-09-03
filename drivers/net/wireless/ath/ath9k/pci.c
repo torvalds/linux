@@ -187,7 +187,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* setup interrupt service routine */
 
-	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath", sc);
+	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto bad4;
