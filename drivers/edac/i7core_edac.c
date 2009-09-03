@@ -29,6 +29,7 @@
 #include <linux/mmzone.h>
 #include <linux/edac_mce.h>
 #include <linux/spinlock.h>
+#include <asm/processor.h>
 
 #include "edac_core.h"
 
@@ -206,8 +207,6 @@ struct i7core_pvt {
 	struct i7core_inject	inject;
 	struct i7core_channel	channel[NUM_SOCKETS][NUM_CHANS];
 
-	unsigned int	is_registered:1; /* true if all memories are RDIMMs */
-
 	int			sockets; /* Number of sockets */
 	int			channels; /* Number of active channels */
 
@@ -220,6 +219,8 @@ struct i7core_pvt {
 			/* ECC corrected errors counts per rdimm */
 	unsigned long	rdimm_ce_count[NUM_SOCKETS][NUM_CHANS][MAX_DIMMS];
 	int		rdimm_last_ce_count[NUM_SOCKETS][NUM_CHANS][MAX_DIMMS];
+
+	unsigned int	is_registered[NUM_SOCKETS];
 
 	/* mcelog glue */
 	struct edac_mce		edac_mce;
@@ -490,8 +491,6 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 		numrow(pvt->info.max_dod >> 6),
 		numcol(pvt->info.max_dod >> 9));
 
-	pvt->is_registered = 1;
-
 	for (i = 0; i < NUM_CHANS; i++) {
 		u32 data, dimm_dod[3], value[8];
 
@@ -513,14 +512,8 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 
 		if (data & REGISTERED_DIMM)
 			mtype = MEM_RDDR3;
-		else {
+		else
 			mtype = MEM_DDR3;
-			/*
-			 * FIXME: Currently, the driver will use dev 3:2
-			 * counter registers only if all memories are registered
-			 */
-			pvt->is_registered = 0;
-		}
 #if 0
 		if (data & THREE_DIMMS_PRESENT)
 			pvt->channel[i].dimms = 3;
@@ -1068,7 +1061,7 @@ static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
 			count = sprintf(data, "socket 0 data unavailable\n");
 			continue;
 		}
-		if (!pvt->is_registered)
+		if (!pvt->is_registered[i])
 			count = sprintf(data, "socket %d, dimm0: %lu\n"
 					      "dimm1: %lu\ndimm2: %lu\n",
 					i,
@@ -1310,7 +1303,9 @@ static int mci_bind_devs(struct mem_ctl_info *mci)
 	struct pci_dev *pdev;
 	int i, j, func, slot;
 
+
 	for (i = 0; i < pvt->sockets; i++) {
+		pvt->is_registered[i] = 0;
 		for (j = 0; j < N_DEVS; j++) {
 			pdev = pci_devs[j].pdev[i];
 			if (!pdev)
@@ -1334,6 +1329,10 @@ static int mci_bind_devs(struct mem_ctl_info *mci)
 			debugf0("Associated fn %d.%d, dev = %p, socket %d\n",
 				PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 				pdev, i);
+
+			if (PCI_SLOT(pdev->devfn) == 3 &&
+			   PCI_FUNC(pdev->devfn) == 2)
+				pvt->is_registered[i] = 1;
 		}
 	}
 
@@ -1533,6 +1532,11 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 syndrome = m->misc >> 32;
 	u32 errnum = find_first_bit(&error, 32);
 	int csrow;
+#ifdef CONFIG_SMP
+	u32 socket_id = cpu_data[m->cpu].phys_proc_id;
+#else
+	u32 socket_id = 0;
+#endif
 
 	if (m->mcgstatus & 1)
 		type = "FATAL";
@@ -1596,19 +1600,22 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	msg = kasprintf(GFP_ATOMIC,
 		"%s (addr = 0x%08llx, socket=%d, Dimm=%d, Channel=%d, "
 		"syndrome=0x%08x, count=%d, Err=%08llx:%08llx (%s: %s))\n",
-		type, (long long) m->addr, m->cpu, dimm, channel,
+		type, (long long) m->addr, socket_id, dimm, channel,
 		syndrome, core_err_cnt, (long long)m->status,
 		(long long)m->misc, optype, err);
 
 	debugf0("%s", msg);
 
-	csrow = pvt->csrow_map[m->cpu][channel][dimm];
+	if (socket_id < NUM_SOCKETS)
+		csrow = pvt->csrow_map[socket_id][channel][dimm];
+	else
+		csrow = -1;
 
 	/* Call the helper to output message */
 	if (m->mcgstatus & 1)
 		edac_mc_handle_fbd_ue(mci, csrow, 0,
 				0 /* FIXME: should be channel here */, msg);
-	else if (!pvt->is_registered)
+	else if (!pvt->is_registered[socket_id])
 		edac_mc_handle_fbd_ce(mci, csrow,
 				0 /* FIXME: should be channel here */, msg);
 
@@ -1647,7 +1654,7 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 
 	/* check memory count errors */
 	for (i = 0; i < pvt->sockets; i++)
-		if (!pvt->is_registered)
+		if (!pvt->is_registered[i])
 			i7core_udimm_check_mc_ecc_err(mci, i);
 		else
 			i7core_rdimm_check_mc_ecc_err(mci, i);
