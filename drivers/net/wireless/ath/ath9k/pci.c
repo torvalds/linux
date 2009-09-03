@@ -179,17 +179,17 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->mem = mem;
 	sc->bus_ops = &ath_pci_bus_ops;
 
-	if (ath_init_device(id->device, sc) != 0) {
-		ret = -ENODEV;
+	ret = ath_init_device(id->device, sc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to initialize device\n");
 		goto bad3;
 	}
 
 	/* setup interrupt service routine */
 
-	if (request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath", sc)) {
-		printk(KERN_ERR "%s: request_irq failed\n",
-			wiphy_name(hw->wiphy));
-		ret = -EIO;
+	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath", sc);
+	if (ret) {
+		dev_err(&pdev->dev, "request_irq failed\n");
 		goto bad4;
 	}
 
