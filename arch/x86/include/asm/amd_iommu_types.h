@@ -143,6 +143,7 @@
 #define EVT_BUFFER_SIZE		8192 /* 512 entries */
 #define EVT_LEN_MASK		(0x9ULL << 56)
 
+#define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
 #define PAGE_MODE_3_LEVEL 0x03
@@ -194,6 +195,9 @@
 #define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
+#define PD_PASSTHROUGH_MASK	(1UL << 2) /* domain has no page
+					      translation */
+
 extern bool amd_iommu_dump;
 #define DUMP_printk(format, arg...)					\
 	do {								\
