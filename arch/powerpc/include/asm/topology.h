@@ -58,9 +58,10 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 	.busy_idx		= 3,			\
 	.idle_idx		= 1,			\
 	.newidle_idx		= 2,			\
-	.wake_idx		= 1,			\
+	.wake_idx		= 0,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_EXEC	\
+				| SD_BALANCE_FORK	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_WAKE	\
 				| SD_SERIALIZE,		\

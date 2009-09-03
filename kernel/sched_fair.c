@@ -1232,12 +1232,27 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
  * domain.
  */
 static struct sched_group *
-find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
+find_idlest_group(struct sched_domain *sd, struct task_struct *p,
+		  int this_cpu, int flag)
 {
 	struct sched_group *idlest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long min_load = ULONG_MAX, this_load = 0;
-	int load_idx = sd->forkexec_idx;
 	int imbalance = 100 + (sd->imbalance_pct-100)/2;
+	int load_idx = 0;
+
+	switch (flag) {
+	case SD_BALANCE_FORK:
+	case SD_BALANCE_EXEC:
+		load_idx = sd->forkexec_idx;
+		break;
+
+	case SD_BALANCE_WAKE:
+		load_idx = sd->wake_idx;
+		break;
+
+	default:
+		break;
+	}
 
 	do {
 		unsigned long load, avg_load;
@@ -1392,7 +1407,7 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 			continue;
 		}
 
-		group = find_idlest_group(sd, p, cpu);
+		group = find_idlest_group(sd, p, cpu, flag);
 		if (!group) {
 			sd = sd->child;
 			continue;

@@ -16,7 +16,7 @@
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\
 	.newidle_idx		= 2,			\
-	.wake_idx		= 1,			\
+	.wake_idx		= 0,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_FORK	\

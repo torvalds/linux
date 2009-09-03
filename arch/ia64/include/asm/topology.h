@@ -62,11 +62,12 @@ void build_cpu_to_node_map(void);
 	.busy_idx		= 2,			\
 	.idle_idx		= 1,			\
 	.newidle_idx		= 2,			\
-	.wake_idx		= 1,			\
+	.wake_idx		= 0,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_EXEC	\
+				| SD_BALANCE_FORK	\
 				| SD_BALANCE_WAKE	\
 				| SD_WAKE_AFFINE,	\
 	.last_balance		= jiffies,		\
@@ -87,7 +88,7 @@ void build_cpu_to_node_map(void);
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\
 	.newidle_idx		= 2,			\
-	.wake_idx		= 1,			\
+	.wake_idx		= 0,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_EXEC	\

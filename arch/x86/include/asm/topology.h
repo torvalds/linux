@@ -138,7 +138,7 @@ extern unsigned long node_remap_size[];
 	.busy_idx		= 3,					\
 	.idle_idx		= SD_IDLE_IDX,				\
 	.newidle_idx		= SD_NEWIDLE_IDX,			\
-	.wake_idx		= 1,					\
+	.wake_idx		= 0,					\
 	.forkexec_idx		= SD_FORKEXEC_IDX,			\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
