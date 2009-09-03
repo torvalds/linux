@@ -37,6 +37,7 @@ enum {
 	THE_NILFS_LOADED,       /* Roll-back/roll-forward has done and
 				   the latest checkpoint was loaded */
 	THE_NILFS_DISCONTINUED,	/* 'next' pointer chain has broken */
+	THE_NILFS_GC_RUNNING,	/* gc process is running */
 };
 
 /**
@@ -195,6 +196,7 @@ static inline int nilfs_##name(struct the_nilfs *nilfs)			\
 THE_NILFS_FNS(INIT, init)
 THE_NILFS_FNS(LOADED, loaded)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
+THE_NILFS_FNS(GC_RUNNING, gc_running)
 
 /* Minimum interval of periodical update of superblocks (in seconds) */
 #define NILFS_SB_FREQ		10
