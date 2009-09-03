@@ -156,7 +156,7 @@ static int palmtc_wifi_powerup(void)
 static int palmtc_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 					const socket_state_t *state)
 {
-	int ret;
+	int ret = 1;
 
 	if (state->Vcc == 0)
 		ret = palmtc_wifi_powerdown();
