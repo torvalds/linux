@@ -81,6 +81,9 @@
 
 /* OpenDCC (www.opendcc.de) product id */
 #define FTDI_OPENDCC_PID	0xBFD8
+#define FTDI_OPENDCC_SNIFFER_PID	0xBFD9
+#define FTDI_OPENDCC_THROTTLE_PID	0xBFDA
+#define FTDI_OPENDCC_GATEWAY_PID	0xBFDB
 
 /* Sprog II (Andrew Crosland's SprogII DCC interface) */
 #define FTDI_SPROG_II		0xF0C8
