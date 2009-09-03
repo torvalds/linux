@@ -237,7 +237,7 @@ struct perf_header *perf_header__read(int fd)
 	self->data_offset = f_header.data.offset;
 	self->data_size   = f_header.data.size;
 
-	lseek(fd, self->data_offset + self->data_size, SEEK_SET);
+	lseek(fd, self->data_offset, SEEK_SET);
 
 	self->frozen = 1;
 
