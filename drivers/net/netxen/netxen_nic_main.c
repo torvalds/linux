@@ -1577,8 +1577,8 @@ netxen_map_tx_skb(struct pci_dev *pdev,
 	return 0;
 
 unwind:
-	while (i > 0) {
-		nf = &pbuf->frag_array[i];
+	while (--i >= 0) {
+		nf = &pbuf->frag_array[i+1];
 		pci_unmap_page(pdev, nf->dma, nf->length, PCI_DMA_TODEVICE);
 	}
 
