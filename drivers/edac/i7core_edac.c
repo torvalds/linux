@@ -286,7 +286,7 @@ static struct edac_pci_ctl_info *i7core_pci;
 #define ECCx8(pvt)		((pvt)->info.mc_control & (1 << 1))
 
 	/* MC_STATUS bits */
-#define ECC_ENABLED(pvt)	((pvt)->info.mc_status & (1 << 3))
+#define ECC_ENABLED(pvt)	((pvt)->info.mc_status & (1 << 4))
 #define CH_DISABLED(pvt, ch)	((pvt)->info.mc_status & (1 << ch))
 
 	/* MC_MAX_DOD read functions */
