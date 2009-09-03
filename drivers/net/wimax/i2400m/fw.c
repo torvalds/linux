@@ -509,6 +509,17 @@ error_send:
 
 
 /*
+ * Indicate if the device emitted a reboot barker that indicates
+ * "signed boot"
+ */
+static
+unsigned i2400m_boot_is_signed(struct i2400m *i2400m)
+{
+	return likely(i2400m->sboot);
+}
+
+
+/*
  * Do the final steps of uploading firmware
  *
  * Depending on the boot mode (signed vs non-signed), different
@@ -529,7 +540,7 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
 
 	d_fnstart(3, dev, "offset %zu\n", offset);
 	cmd = (void *) bcf + offset;
-	if (i2400m->sboot == 0) {
+	if (i2400m_boot_is_signed(i2400m) == 0) {
 		struct i2400m_bootrom_header jump_ack;
 		d_printf(1, dev, "unsecure boot, jumping to 0x%08x\n",
 			le32_to_cpu(cmd->target_addr));
@@ -846,28 +857,24 @@ int i2400m_dnload_init(struct i2400m *i2400m, const struct i2400m_bcf_hdr *bcf)
 {
 	int result;
 	struct device *dev = i2400m_dev(i2400m);
-	u32 module_id = le32_to_cpu(bcf->module_id);
 
-	if (i2400m->sboot == 0
-	    && (module_id & I2400M_BCF_MOD_ID_POKES) == 0) {
-		/* non-signed boot process without pokes */
-		result = i2400m_dnload_init_nonsigned(i2400m);
-		if (result == -ERESTARTSYS)
-			return result;
-		if (result < 0)
-			dev_err(dev, "fw %s: non-signed download "
-				"initialization failed: %d\n",
-				i2400m->fw_name, result);
-	} else if (i2400m->sboot == 0
-		 && (module_id & I2400M_BCF_MOD_ID_POKES)) {
-		/* non-signed boot process with pokes, nothing to do */
-		result = 0;
-	} else {		 /* signed boot process */
+	if (i2400m_boot_is_signed(i2400m)) {
+		d_printf(1, dev, "signed boot\n");
 		result = i2400m_dnload_init_signed(i2400m, bcf);
 		if (result == -ERESTARTSYS)
 			return result;
 		if (result < 0)
-			dev_err(dev, "fw %s: signed boot download "
+			dev_err(dev, "firmware %s: signed boot download "
+				"initialization failed: %d\n",
+				i2400m->fw_name, result);
+	} else {
+		/* non-signed boot process without pokes */
+		d_printf(1, dev, "non-signed boot\n");
+		result = i2400m_dnload_init_nonsigned(i2400m);
+		if (result == -ERESTARTSYS)
+			return result;
+		if (result < 0)
+			dev_err(dev, "firmware %s: non-signed download "
 				"initialization failed: %d\n",
 				i2400m->fw_name, result);
 	}

@@ -168,16 +168,6 @@ enum i2400m_brh {
 };
 
 
-/* Constants for bcf->module_id */
-enum i2400m_bcf_mod_id {
-	/* Firmware file carries its own pokes -- pokes are a set of
-	 * magical values that have to be written in certain memory
-	 * addresses to get the device up and ready for firmware
-	 * download when it is in non-signed boot mode. */
-	I2400M_BCF_MOD_ID_POKES = 0x000000001,
-};
-
-
 /**
  * i2400m_bootrom_header - Header for a boot-mode command
  *
