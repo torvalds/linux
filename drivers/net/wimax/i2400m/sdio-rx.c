@@ -53,6 +53,7 @@
  * i2400ms_irq()
  *   i2400ms_rx()
  *     __i2400ms_rx_get_size()
+ *     i2400m_is_boot_barker()
  *     i2400m_rx()
  *
  * i2400ms_rx_setup()
@@ -158,7 +159,7 @@ void i2400ms_rx(struct i2400ms *i2400ms)
 	}
 
 	rmb();	/* make sure we get boot_mode from dev_reset_handle */
-	if (i2400m->boot_mode == 1) {
+	if (unlikely(i2400m->boot_mode == 1)) {
 		spin_lock(&i2400m->rx_lock);
 		i2400ms->bm_ack_size = rx_size;
 		spin_unlock(&i2400m->rx_lock);
@@ -166,17 +167,26 @@ void i2400ms_rx(struct i2400ms *i2400ms)
 		wake_up(&i2400ms->bm_wfa_wq);
 		dev_err(dev, "RX: SDIO boot mode message\n");
 		kfree_skb(skb);
-	} else if (unlikely(!memcmp(skb->data, i2400m_NBOOT_BARKER,
-				    sizeof(i2400m_NBOOT_BARKER))
-			    || !memcmp(skb->data, i2400m_SBOOT_BARKER,
-				       sizeof(i2400m_SBOOT_BARKER)))) {
+		goto out;
+	}
+	ret = -EIO;
+	if (unlikely(rx_size < sizeof(__le32))) {
+		dev_err(dev, "HW BUG? only %zu bytes received\n", rx_size);
+		goto error_bad_size;
+	}
+	if (likely(i2400m_is_d2h_barker(skb->data))) {
+		skb_put(skb, rx_size);
+		i2400m_rx(i2400m, skb);
+	} else if (unlikely(i2400m_is_boot_barker(i2400m,
+						  skb->data, rx_size))) {
 		ret = i2400m_dev_reset_handle(i2400m);
 		dev_err(dev, "RX: SDIO reboot barker\n");
 		kfree_skb(skb);
 	} else {
-		skb_put(skb, rx_size);
-		i2400m_rx(i2400m, skb);
+		i2400m_unknown_barker(i2400m, skb->data, rx_size);
+		kfree_skb(skb);
 	}
+out:
 	d_fnend(7, dev, "(i2400ms %p) = void\n", i2400ms);
 	return;
 
@@ -184,6 +194,7 @@ error_memcpy_fromio:
 	kfree_skb(skb);
 error_alloc_skb:
 error_get_size:
+error_bad_size:
 	d_fnend(7, dev, "(i2400ms %p) = %d\n", i2400ms, ret);
 	return;
 }

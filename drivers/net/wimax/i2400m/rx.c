@@ -1194,6 +1194,28 @@ error_msg_hdr_check:
 EXPORT_SYMBOL_GPL(i2400m_rx);
 
 
+void i2400m_unknown_barker(struct i2400m *i2400m,
+			   const void *buf, size_t size)
+{
+	struct device *dev = i2400m_dev(i2400m);
+	char prefix[64];
+	const __le32 *barker = buf;
+	dev_err(dev, "RX: HW BUG? unknown barker %08x, "
+		"dropping %zu bytes\n", le32_to_cpu(*barker), size);
+	snprintf(prefix, sizeof(prefix), "%s %s: ",
+		 dev_driver_string(dev), dev_name(dev));
+	if (size > 64) {
+		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
+			       8, 4, buf, 64, 0);
+		printk(KERN_ERR "%s... (only first 64 bytes "
+		       "dumped)\n", prefix);
+	} else
+		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
+			       8, 4, buf, size, 0);
+}
+EXPORT_SYMBOL(i2400m_unknown_barker);
+
+
 /*
  * Initialize the RX queue and infrastructure
  *

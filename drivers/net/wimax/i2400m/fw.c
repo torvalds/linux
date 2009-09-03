@@ -40,11 +40,9 @@
  *
  * THE PROCEDURE
  *
- * (this is decribed for USB, but for SDIO is similar)
- *
- * The 2400m works in two modes: boot-mode or normal mode. In boot
- * mode we can execute only a handful of commands targeted at
- * uploading the firmware and launching it.
+ * The 2400m and derived devices work in two modes: boot-mode or
+ * normal mode. In boot mode we can execute only a handful of commands
+ * targeted at uploading the firmware and launching it.
  *
  * The 2400m enters boot mode when it is first connected to the
  * system, when it crashes and when you ask it to reboot. There are
@@ -52,18 +50,26 @@
  * firmwares signed with a certain private key, non-signed takes any
  * firmware. Normal hardware takes only signed firmware.
  *
- * Upon entrance to boot mode, the device sends a few zero length
- * packets (ZLPs) on the notification endpoint, then a reboot barker
- * (4 le32 words with value I2400M_{S,N}BOOT_BARKER). We ack it by
- * sending the same barker on the bulk out endpoint. The device acks
- * with a reboot ack barker (4 le32 words with value 0xfeedbabe) and
- * then the device is fully rebooted. At this point we can upload the
- * firmware.
+ * On boot mode, in USB, we write to the device using the bulk out
+ * endpoint and read from it in the notification endpoint. In SDIO we
+ * talk to it via the write address and read from the read address.
+ *
+ * Upon entrance to boot mode, the device sends (preceeded with a few
+ * zero length packets (ZLPs) on the notification endpoint in USB) a
+ * reboot barker (4 le32 words with the same value). We ack it by
+ * sending the same barker to the device. The device acks with a
+ * reboot ack barker (4 le32 words with value I2400M_ACK_BARKER) and
+ * then is fully booted. At this point we can upload the firmware.
+ *
+ * Note that different iterations of the device and EEPROM
+ * configurations will send different [re]boot barkers; these are
+ * collected in i2400m_barker_db along with the firmware
+ * characteristics they require.
  *
  * This process is accomplished by the i2400m_bootrom_init()
  * function. All the device interaction happens through the
  * i2400m_bm_cmd() [boot mode command]. Special return values will
- * indicate if the device resets.
+ * indicate if the device did reset during the process.
  *
  * After this, we read the MAC address and then (if needed)
  * reinitialize the device. We need to read it ahead of time because
@@ -101,6 +107,11 @@
  *
  * ROADMAP
  *
+ * i2400m_barker_db_init              Called by i2400m_driver_init()
+ *   i2400m_barker_db_add
+ *
+ * i2400m_barker_db_exit              Called by i2400m_driver_exit()
+ *
  * i2400m_dev_bootstrap               Called by __i2400m_dev_start()
  *   request_firmware
  *   i2400m_fw_check
@@ -125,6 +136,7 @@
  *   i2400m->bus_bm_cmd_send()
  *   i2400m->bus_bm_wait_for_ack
  *   __i2400m_bm_ack_verify
+ *     i2400m_is_boot_barker
  *
  * i2400m_bm_cmd_prepare              Used by bus-drivers to prep
  *                                    commands before sending
@@ -175,6 +187,237 @@ EXPORT_SYMBOL_GPL(i2400m_bm_cmd_prepare);
 
 
 /*
+ * Database of known barkers.
+ *
+ * A barker is what the device sends indicating he is ready to be
+ * bootloaded. Different versions of the device will send different
+ * barkers. Depending on the barker, it might mean the device wants
+ * some kind of firmware or the other.
+ */
+static struct i2400m_barker_db {
+	__le32 data[4];
+} *i2400m_barker_db;
+static size_t i2400m_barker_db_used, i2400m_barker_db_size;
+
+
+static
+int i2400m_zrealloc_2x(void **ptr, size_t *_count, size_t el_size,
+		       gfp_t gfp_flags)
+{
+	size_t old_count = *_count,
+		new_count = old_count ? 2 * old_count : 2,
+		old_size = el_size * old_count,
+		new_size = el_size * new_count;
+	void *nptr = krealloc(*ptr, new_size, gfp_flags);
+	if (nptr) {
+		/* zero the other half or the whole thing if old_count
+		 * was zero */
+		if (old_size == 0)
+			memset(nptr, 0, new_size);
+		else
+			memset(nptr + old_size, 0, old_size);
+		*_count = new_count;
+		*ptr = nptr;
+		return 0;
+	} else
+		return -ENOMEM;
+}
+
+
+/*
+ * Add a barker to the database
+ *
+ * This cannot used outside of this module and only at at module_init
+ * time. This is to avoid the need to do locking.
+ */
+static
+int i2400m_barker_db_add(u32 barker_id)
+{
+	int result;
+
+	struct i2400m_barker_db *barker;
+	if (i2400m_barker_db_used >= i2400m_barker_db_size) {
+		result = i2400m_zrealloc_2x(
+			(void **) &i2400m_barker_db, &i2400m_barker_db_size,
+			sizeof(i2400m_barker_db[0]), GFP_KERNEL);
+		if (result < 0)
+			return result;
+	}
+	barker = i2400m_barker_db + i2400m_barker_db_used++;
+	barker->data[0] = le32_to_cpu(barker_id);
+	barker->data[1] = le32_to_cpu(barker_id);
+	barker->data[2] = le32_to_cpu(barker_id);
+	barker->data[3] = le32_to_cpu(barker_id);
+	return 0;
+}
+
+
+void i2400m_barker_db_exit(void)
+{
+	kfree(i2400m_barker_db);
+	i2400m_barker_db = NULL;
+	i2400m_barker_db_size = 0;
+	i2400m_barker_db_used = 0;
+}
+
+
+/*
+ * Helper function to add all the known stable barkers to the barker
+ * database.
+ */
+static
+int i2400m_barker_db_known_barkers(void)
+{
+	int result;
+
+	result = i2400m_barker_db_add(I2400M_NBOOT_BARKER);
+	if (result < 0)
+		goto error_add;
+	result = i2400m_barker_db_add(I2400M_SBOOT_BARKER);
+	if (result < 0)
+		goto error_add;
+error_add:
+       return result;
+}
+
+
+/*
+ * Initialize the barker database
+ *
+ * This can only be used from the module_init function for this
+ * module; this is to avoid the need to do locking.
+ *
+ * @options: command line argument with extra barkers to
+ *     recognize. This is a comma-separated list of 32-bit hex
+ *     numbers. They are appended to the existing list. Setting 0
+ *     cleans the existing list and starts a new one.
+ */
+int i2400m_barker_db_init(const char *_options)
+{
+	int result;
+	char *options = NULL, *options_orig, *token;
+
+	i2400m_barker_db = NULL;
+	i2400m_barker_db_size = 0;
+	i2400m_barker_db_used = 0;
+
+	result = i2400m_barker_db_known_barkers();
+	if (result < 0)
+		goto error_add;
+	/* parse command line options from i2400m.barkers */
+	if (_options != NULL) {
+		unsigned barker;
+
+		options_orig = kstrdup(_options, GFP_KERNEL);
+		if (options_orig == NULL)
+			goto error_parse;
+		options = options_orig;
+
+		while ((token = strsep(&options, ",")) != NULL) {
+			if (*token == '\0')	/* eat joint commas */
+				continue;
+			if (sscanf(token, "%x", &barker) != 1
+			    || barker > 0xffffffff) {
+				printk(KERN_ERR "%s: can't recognize "
+				       "i2400m.barkers value '%s' as "
+				       "a 32-bit number\n",
+				       __func__, token);
+				result = -EINVAL;
+				goto error_parse;
+			}
+			if (barker == 0) {
+				/* clean list and start new */
+				i2400m_barker_db_exit();
+				continue;
+			}
+			result = i2400m_barker_db_add(barker);
+			if (result < 0)
+				goto error_add;
+		}
+		kfree(options_orig);
+	}
+	return 0;
+
+error_parse:
+error_add:
+	kfree(i2400m_barker_db);
+	return result;
+}
+
+
+/*
+ * Recognize a boot barker
+ *
+ * @buf: buffer where the boot barker.
+ * @buf_size: size of the buffer (has to be 16 bytes). It is passed
+ *     here so the function can check it for the caller.
+ *
+ * Note that as a side effect, upon identifying the obtained boot
+ * barker, this function will set i2400m->barker to point to the right
+ * barker database entry. Subsequent calls to the function will result
+ * in verifying that the same type of boot barker is returned when the
+ * device [re]boots (as long as the same device instance is used).
+ *
+ * Return: 0 if @buf matches a known boot barker. -ENOENT if the
+ *     buffer in @buf doesn't match any boot barker in the database or
+ *     -EILSEQ if the buffer doesn't have the right size.
+ */
+int i2400m_is_boot_barker(struct i2400m *i2400m,
+			  const void *buf, size_t buf_size)
+{
+	int result;
+	struct device *dev = i2400m_dev(i2400m);
+	struct i2400m_barker_db *barker;
+	int i;
+
+	result = -ENOENT;
+	if (buf_size != sizeof(i2400m_barker_db[i].data))
+		return result;
+
+	/* Short circuit if we have already discovered the barker
+	 * associated with the device. */
+	if (i2400m->barker
+	    && !memcmp(buf, i2400m->barker, sizeof(i2400m->barker->data))) {
+		unsigned index = (i2400m->barker - i2400m_barker_db)
+			/ sizeof(*i2400m->barker);
+		d_printf(2, dev, "boot barker cache-confirmed #%u/%08x\n",
+			 index, le32_to_cpu(i2400m->barker->data[0]));
+		return 0;
+	}
+
+	for (i = 0; i < i2400m_barker_db_used; i++) {
+		barker = &i2400m_barker_db[i];
+		BUILD_BUG_ON(sizeof(barker->data) != 16);
+		if (memcmp(buf, barker->data, sizeof(barker->data)))
+			continue;
+
+		if (i2400m->barker == NULL) {
+			i2400m->barker = barker;
+			d_printf(1, dev, "boot barker set to #%u/%08x\n",
+				 i, le32_to_cpu(barker->data[0]));
+			if (barker->data[0] == le32_to_cpu(I2400M_NBOOT_BARKER))
+				i2400m->sboot = 0;
+			else
+				i2400m->sboot = 1;
+		} else if (i2400m->barker != barker) {
+			dev_err(dev, "HW inconsistency: device "
+				"reports a different boot barker "
+				"than set (from %08x to %08x)\n",
+				le32_to_cpu(i2400m->barker->data[0]),
+				le32_to_cpu(barker->data[0]));
+			result = -EIO;
+		} else
+			d_printf(2, dev, "boot barker confirmed #%u/%08x\n",
+				 i, le32_to_cpu(barker->data[0]));
+		result = 0;
+		break;
+	}
+	return result;
+}
+EXPORT_SYMBOL_GPL(i2400m_is_boot_barker);
+
+
+/*
  * Verify the ack data received
  *
  * Given a reply to a boot mode command, chew it and verify everything
@@ -204,20 +447,10 @@ ssize_t __i2400m_bm_ack_verify(struct i2400m *i2400m, int opcode,
 			opcode, ack_size, sizeof(*ack));
 		goto error_ack_short;
 	}
-	if (ack_size == sizeof(i2400m_NBOOT_BARKER)
-		 && memcmp(ack, i2400m_NBOOT_BARKER, sizeof(*ack)) == 0) {
+	result = i2400m_is_boot_barker(i2400m, ack, ack_size);
+	if (result >= 0) {
 		result = -ERESTARTSYS;
-		i2400m->sboot = 0;
-		d_printf(6, dev, "boot-mode cmd %d: "
-			 "HW non-signed boot barker\n", opcode);
-		goto error_reboot;
-	}
-	if (ack_size == sizeof(i2400m_SBOOT_BARKER)
-		 && memcmp(ack, i2400m_SBOOT_BARKER, sizeof(*ack)) == 0) {
-		result = -ERESTARTSYS;
-		i2400m->sboot = 1;
-		d_printf(6, dev, "boot-mode cmd %d: HW signed reboot barker\n",
-			 opcode);
+		d_printf(6, dev, "boot-mode cmd %d: HW boot barker\n", opcode);
 		goto error_reboot;
 	}
 	if (ack_size == sizeof(i2400m_ACK_BARKER)
@@ -590,9 +823,6 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
  *
  *     < 0 errno code on error, 0 if ok.
  *
- *     i2400m->sboot set to 0 for unsecure boot process, 1 for secure
- *     boot process.
- *
  * Description:
  *
  * Tries hard enough to put the device in boot-mode. There are two
@@ -619,7 +849,7 @@ int i2400m_bootrom_init(struct i2400m *i2400m, enum i2400m_bri flags)
 	int count = i2400m->bus_bm_retries;
 	int ack_timeout_cnt = 1;
 
-	BUILD_BUG_ON(sizeof(*cmd) != sizeof(i2400m_NBOOT_BARKER));
+	BUILD_BUG_ON(sizeof(*cmd) != sizeof(i2400m_barker_db[0].data));
 	BUILD_BUG_ON(sizeof(ack) != sizeof(i2400m_ACK_BARKER));
 
 	d_fnstart(4, dev, "(i2400m %p flags 0x%08x)\n", i2400m, flags);
@@ -647,8 +877,14 @@ do_reboot:
 	case -ETIMEDOUT:	/* device has timed out, we might be in boot
 				 * mode already and expecting an ack, let's try
 				 * that */
-		dev_info(dev, "warm reset timed out, trying an ack\n");
-		goto do_reboot_ack;
+		if (i2400m->barker == NULL) {
+			dev_info(dev, "warm reset timed out, unknown barker "
+				 "type, rebooting\n");
+			goto do_reboot;
+		} else {
+			dev_info(dev, "warm reset timed out, trying an ack\n");
+			goto do_reboot_ack;
+		}
 	case -EPROTO:
 	case -ESHUTDOWN:	/* dev is gone */
 	case -EINTR:		/* user cancelled */
@@ -664,12 +900,7 @@ do_reboot:
 	 * notification and report it as -EISCONN. */
 do_reboot_ack:
 	d_printf(4, dev, "device reboot ack: sending ack [%d # left]\n", count);
-	if (i2400m->sboot == 0)
-		memcpy(cmd, i2400m_NBOOT_BARKER,
-		       sizeof(i2400m_NBOOT_BARKER));
-	else
-		memcpy(cmd, i2400m_SBOOT_BARKER,
-		       sizeof(i2400m_SBOOT_BARKER));
+	memcpy(cmd, i2400m->barker->data, sizeof(i2400m->barker->data));
 	result = i2400m_bm_cmd(i2400m, cmd, sizeof(*cmd),
 			       &ack, sizeof(ack), I2400M_BM_CMD_RAW);
 	switch (result) {
@@ -682,10 +913,8 @@ do_reboot_ack:
 		d_printf(4, dev, "reboot ack: got ack barker - good\n");
 		break;
 	case -ETIMEDOUT:	/* no response, maybe it is the other type? */
-		if (ack_timeout_cnt-- >= 0) {
-			d_printf(4, dev, "reboot ack timedout: "
-				 "trying the other type?\n");
-			i2400m->sboot = !i2400m->sboot;
+		if (ack_timeout_cnt-- < 0) {
+			d_printf(4, dev, "reboot ack timedout: retrying\n");
 			goto do_reboot_ack;
 		} else {
 			dev_err(dev, "reboot ack timedout too long: "

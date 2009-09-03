@@ -194,6 +194,7 @@ enum i2400m_reset_type {
 
 struct i2400m_reset_ctx;
 struct i2400m_roq;
+struct i2400m_barker_db;
 
 /**
  * struct i2400m - descriptor for an Intel 2400m
@@ -419,6 +420,12 @@ struct i2400m_roq;
  *
  * @fw_version: version of the firmware interface, Major.minor,
  *     encoded in the high word and low word (major << 16 | minor).
+ *
+ * @barker: barker type that the device uses; this is initialized by
+ *     i2400m_is_boot_barker() the first time it is called. Then it
+ *     won't change during the life cycle of the device and everytime
+ *     a boot barker is received, it is just verified for it being the
+ *     same.
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -484,6 +491,7 @@ struct i2400m {
 	struct dentry *debugfs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
+	struct i2400m_barker_db *barker;
 };
 
 
@@ -574,6 +582,14 @@ extern void i2400m_bm_cmd_prepare(struct i2400m_bootrom_header *);
 extern int i2400m_dev_bootstrap(struct i2400m *, enum i2400m_bri);
 extern int i2400m_read_mac_addr(struct i2400m *);
 extern int i2400m_bootrom_init(struct i2400m *, enum i2400m_bri);
+extern int i2400m_is_boot_barker(struct i2400m *, const void *, size_t);
+static inline
+int i2400m_is_d2h_barker(const void *buf)
+{
+	const __le32 *barker = buf;
+	return le32_to_cpu(*barker) == I2400M_D2H_MSG_BARKER;
+}
+extern void i2400m_unknown_barker(struct i2400m *, const void *, size_t);
 
 /* Make/grok boot-rom header commands */
 
@@ -736,20 +752,6 @@ extern int i2400m_rx(struct i2400m *, struct sk_buff *);
 extern struct i2400m_msg_hdr *i2400m_tx_msg_get(struct i2400m *, size_t *);
 extern void i2400m_tx_msg_sent(struct i2400m *);
 
-static const __le32 i2400m_NBOOT_BARKER[4] = {
-	cpu_to_le32(I2400M_NBOOT_BARKER),
-	cpu_to_le32(I2400M_NBOOT_BARKER),
-	cpu_to_le32(I2400M_NBOOT_BARKER),
-	cpu_to_le32(I2400M_NBOOT_BARKER)
-};
-
-static const __le32 i2400m_SBOOT_BARKER[4] = {
-	cpu_to_le32(I2400M_SBOOT_BARKER),
-	cpu_to_le32(I2400M_SBOOT_BARKER),
-	cpu_to_le32(I2400M_SBOOT_BARKER),
-	cpu_to_le32(I2400M_SBOOT_BARKER)
-};
-
 extern int i2400m_power_save_disabled;
 
 /*
@@ -847,6 +849,12 @@ void __i2400m_msleep(unsigned ms)
 	msleep(ms);
 #endif
 }
+
+
+/* module initialization helpers */
+extern int i2400m_barker_db_init(const char *);
+extern void i2400m_barker_db_exit(void);
+
 
 /* Module parameters */
 

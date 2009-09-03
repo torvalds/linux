@@ -98,6 +98,15 @@ MODULE_PARM_DESC(debug,
 		 "are the different debug submodules and VALUE are the "
 		 "initial debug value to set.");
 
+static char i2400m_barkers_params[128];
+module_param_string(barkers, i2400m_barkers_params,
+		    sizeof(i2400m_barkers_params), 0644);
+MODULE_PARM_DESC(barkers,
+		 "String of comma-separated 32-bit values; each is "
+		 "recognized as the value the device sends as a reboot "
+		 "signal; values are appended to a list--setting one value "
+		 "as zero cleans the existing list and starts a new one.");
+
 /**
  * i2400m_queue_work - schedule work on a i2400m's queue
  *
@@ -804,7 +813,7 @@ int __init i2400m_driver_init(void)
 {
 	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400m_debug_params,
 		       "i2400m.debug");
-	return 0;
+	return i2400m_barker_db_init(i2400m_barkers_params);
 }
 module_init(i2400m_driver_init);
 
@@ -813,6 +822,7 @@ void __exit i2400m_driver_exit(void)
 {
 	/* for scheds i2400m_dev_reset_handle() */
 	flush_scheduled_work();
+	i2400m_barker_db_exit();
 	return;
 }
 module_exit(i2400m_driver_exit);
