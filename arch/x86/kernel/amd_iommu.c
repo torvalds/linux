@@ -553,9 +553,16 @@ static void reset_iommu_command_buffer(struct amd_iommu *iommu)
 {
 	pr_err("AMD-Vi: Resetting IOMMU command buffer\n");
 
+	if (iommu->reset_in_progress)
+		panic("AMD-Vi: ILLEGAL_COMMAND_ERROR while resetting command buffer\n");
+
+	iommu->reset_in_progress = true;
+
 	amd_iommu_reset_cmd_buffer(iommu);
 	flush_all_devices_for_iommu(iommu);
 	flush_all_domains_on_iommu(iommu);
+
+	iommu->reset_in_progress = false;
 }
 
 /****************************************************************************
