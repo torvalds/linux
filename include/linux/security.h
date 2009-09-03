@@ -1382,6 +1382,41 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	audit_rule_init.
  *	@rule contains the allocated rule
  *
+ * @inode_notifysecctx:
+ *	Notify the security module of what the security context of an inode
+ *	should be.  Initializes the incore security context managed by the
+ *	security module for this inode.  Example usage:  NFS client invokes
+ *	this hook to initialize the security context in its incore inode to the
+ *	value provided by the server for the file when the server returned the
+ *	file's attributes to the client.
+ *
+ * 	Must be called with inode->i_mutex locked.
+ *
+ * 	@inode we wish to set the security context of.
+ * 	@ctx contains the string which we wish to set in the inode.
+ * 	@ctxlen contains the length of @ctx.
+ *
+ * @inode_setsecctx:
+ * 	Change the security context of an inode.  Updates the
+ * 	incore security context managed by the security module and invokes the
+ * 	fs code as needed (via __vfs_setxattr_noperm) to update any backing
+ * 	xattrs that represent the context.  Example usage:  NFS server invokes
+ * 	this hook to change the security context in its incore inode and on the
+ * 	backing filesystem to a value provided by the client on a SETATTR
+ * 	operation.
+ *
+ * 	Must be called with inode->i_mutex locked.
+ *
+ * 	@dentry contains the inode we wish to set the security context of.
+ * 	@ctx contains the string which we wish to set in the inode.
+ * 	@ctxlen contains the length of @ctx.
+ *
+ * @inode_getsecctx:
+ * 	Returns a string containing all relavent security context information
+ *
+ * 	@inode we wish to set the security context of.
+ *	@ctx is a pointer in which to place the allocated security context.
+ *	@ctxlen points to the place to put the length of @ctx.
  * This is the main security structure.
  */
 struct security_operations {
@@ -1589,6 +1624,10 @@ struct security_operations {
 	int (*secid_to_secctx) (u32 secid, char **secdata, u32 *seclen);
 	int (*secctx_to_secid) (const char *secdata, u32 seclen, u32 *secid);
 	void (*release_secctx) (char *secdata, u32 seclen);
+
+	int (*inode_notifysecctx)(struct inode *inode, void *ctx, u32 ctxlen);
+	int (*inode_setsecctx)(struct dentry *dentry, void *ctx, u32 ctxlen);
+	int (*inode_getsecctx)(struct inode *inode, void **ctx, u32 *ctxlen);
 
 #ifdef CONFIG_SECURITY_NETWORK
 	int (*unix_stream_connect) (struct socket *sock,
@@ -1839,6 +1878,9 @@ int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
 
+int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen);
+int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
+int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen);
 #else /* CONFIG_SECURITY */
 struct security_mnt_opts {
 };
@@ -2594,6 +2636,19 @@ static inline int security_secctx_to_secid(const char *secdata,
 
 static inline void security_release_secctx(char *secdata, u32 seclen)
 {
+}
+
+static inline int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+{
+	return -EOPNOTSUPP;
+}
+static inline int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+{
+	return -EOPNOTSUPP;
+}
+static inline int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+{
+	return -EOPNOTSUPP;
 }
 #endif	/* CONFIG_SECURITY */
 

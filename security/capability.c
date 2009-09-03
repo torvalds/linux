@@ -822,6 +822,20 @@ static void cap_release_secctx(char *secdata, u32 seclen)
 {
 }
 
+static int cap_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+{
+	return 0;
+}
+
+static int cap_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+{
+	return 0;
+}
+
+static int cap_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+{
+	return 0;
+}
 #ifdef CONFIG_KEYS
 static int cap_key_alloc(struct key *key, const struct cred *cred,
 			 unsigned long flags)
@@ -1032,6 +1046,9 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, secid_to_secctx);
 	set_to_cap_if_null(ops, secctx_to_secid);
 	set_to_cap_if_null(ops, release_secctx);
+	set_to_cap_if_null(ops, inode_notifysecctx);
+	set_to_cap_if_null(ops, inode_setsecctx);
+	set_to_cap_if_null(ops, inode_getsecctx);
 #ifdef CONFIG_SECURITY_NETWORK
 	set_to_cap_if_null(ops, unix_stream_connect);
 	set_to_cap_if_null(ops, unix_may_send);

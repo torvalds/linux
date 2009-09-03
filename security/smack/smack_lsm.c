@@ -3057,6 +3057,27 @@ static void smack_release_secctx(char *secdata, u32 seclen)
 {
 }
 
+static int smack_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+{
+	return smack_inode_setsecurity(inode, XATTR_SMACK_SUFFIX, ctx, ctxlen, 0);
+}
+
+static int smack_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+{
+	return __vfs_setxattr_noperm(dentry, XATTR_NAME_SMACK, ctx, ctxlen, 0);
+}
+
+static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+{
+	int len = 0;
+	len = smack_inode_getsecurity(inode, XATTR_SMACK_SUFFIX, ctx, true);
+
+	if (len < 0)
+		return len;
+	*ctxlen = len;
+	return 0;
+}
+
 struct security_operations smack_ops = {
 	.name =				"smack",
 
@@ -3185,6 +3206,9 @@ struct security_operations smack_ops = {
 	.secid_to_secctx = 		smack_secid_to_secctx,
 	.secctx_to_secid = 		smack_secctx_to_secid,
 	.release_secctx = 		smack_release_secctx,
+	.inode_notifysecctx =		smack_inode_notifysecctx,
+	.inode_setsecctx =		smack_inode_setsecctx,
+	.inode_getsecctx =		smack_inode_getsecctx,
 };
 
 
