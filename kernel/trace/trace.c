@@ -482,9 +482,20 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	ret = ring_buffer_swap_cpu(max_tr.buffer, tr->buffer, cpu);
 
+	if (ret == -EBUSY) {
+		/*
+		 * We failed to swap the buffer due to a commit taking
+		 * place on this CPU. We fail to record, but we reset
+		 * the max trace buffer (no one writes directly to it)
+		 * and flag that it failed.
+		 */
+		trace_array_printk(&max_tr, _THIS_IP_,
+			"Failed to swap buffers due to commit in progress\n");
+	}
+
 	ftrace_enable_cpu();
 
-	WARN_ON_ONCE(ret && ret != -EAGAIN);
+	WARN_ON_ONCE(ret && ret != -EAGAIN && ret != -EBUSY);
 
 	__update_max_tr(tr, tsk, cpu);
 	__raw_spin_unlock(&ftrace_max_lock);
