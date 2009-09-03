@@ -393,6 +393,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		 * Sakar Spy-shot	0x28		T. Kilgore	0
 		 * Innovage		0xf5 (unstable)	T. Kilgore	0
 		 * Vivitar Mini		0x53		H. De Goede	0
+		 * Vivitar Mini		0x04 / 0x24	E. Rodriguez	0
 		 * Vivitar Mini		0x08		T. Kilgore	1
 		 * Elta-Media 8212dc	0x23		T. Kaiser	1
 		 * Philips dig. keych.	0x37		T. Kilgore	1
