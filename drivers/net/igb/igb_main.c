@@ -154,6 +154,12 @@ static inline int igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
 	struct e1000_hw *hw = &adapter->hw;
 	u32 vmolr;
 
+	/* if it isn't the PF check to see if VFs are enabled and
+	 * increase the size to support vlan tags */
+	if (vfn < adapter->vfs_allocated_count &&
+	    adapter->vf_data[vfn].vlans_enabled)
+		size += VLAN_TAG_SIZE;
+
 	vmolr = rd32(E1000_VMOLR(vfn));
 	vmolr &= ~E1000_VMOLR_RLPML_MASK;
 	vmolr |= size | E1000_VMOLR_LPE;
@@ -4006,6 +4012,8 @@ static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
 
 		wr32(E1000_VLVF(i), reg);
 	}
+
+	adapter->vf_data[vf].vlans_enabled = 0;
 }
 
 static s32 igb_vlvf_set(struct igb_adapter *adapter, u32 vid, bool add, u32 vf)
@@ -4054,6 +4062,22 @@ static s32 igb_vlvf_set(struct igb_adapter *adapter, u32 vid, bool add, u32 vf)
 			reg |= vid;
 
 			wr32(E1000_VLVF(i), reg);
+
+			/* do not modify RLPML for PF devices */
+			if (vf >= adapter->vfs_allocated_count)
+				return 0;
+
+			if (!adapter->vf_data[vf].vlans_enabled) {
+				u32 size;
+				reg = rd32(E1000_VMOLR(vf));
+				size = reg & E1000_VMOLR_RLPML_MASK;
+				size += 4;
+				reg &= ~E1000_VMOLR_RLPML_MASK;
+				reg |= size;
+				wr32(E1000_VMOLR(vf), reg);
+			}
+			adapter->vf_data[vf].vlans_enabled++;
+
 			return 0;
 		}
 	} else {
@@ -4066,6 +4090,21 @@ static s32 igb_vlvf_set(struct igb_adapter *adapter, u32 vid, bool add, u32 vf)
 				igb_vfta_set(hw, vid, false);
 			}
 			wr32(E1000_VLVF(i), reg);
+
+			/* do not modify RLPML for PF devices */
+			if (vf >= adapter->vfs_allocated_count)
+				return 0;
+
+			adapter->vf_data[vf].vlans_enabled--;
+			if (!adapter->vf_data[vf].vlans_enabled) {
+				u32 size;
+				reg = rd32(E1000_VMOLR(vf));
+				size = reg & E1000_VMOLR_RLPML_MASK;
+				size -= 4;
+				reg &= ~E1000_VMOLR_RLPML_MASK;
+				reg |= size;
+				wr32(E1000_VMOLR(vf), reg);
+			}
 			return 0;
 		}
 	}
