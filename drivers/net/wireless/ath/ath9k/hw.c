@@ -3967,7 +3967,8 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 {
 	u32 phybits;
 
-	REG_WRITE(ah, AR_RX_FILTER, (bits & 0xffff) | AR_RX_COMPR_BAR);
+	REG_WRITE(ah, AR_RX_FILTER, bits);
+
 	phybits = 0;
 	if (bits & ATH9K_RX_FILTER_PHYRADAR)
 		phybits |= AR_PHY_ERR_RADAR;
