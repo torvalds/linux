@@ -61,6 +61,7 @@ static u64* alloc_pte(struct protection_domain *dom,
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages);
+static void reset_iommu_command_buffer(struct amd_iommu *iommu);
 
 #ifndef BUS_NOTIFY_UNBOUND_DRIVER
 #define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
@@ -156,7 +157,7 @@ static void dump_command(unsigned long phys_addr)
 		pr_err("AMD-Vi: CMD[%d]: %08x\n", i, cmd->data[i]);
 }
 
-static void iommu_print_event(void *__evt)
+static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
 	u32 *event = __evt;
 	int type  = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
@@ -195,6 +196,7 @@ static void iommu_print_event(void *__evt)
 		break;
 	case EVENT_TYPE_ILL_CMD:
 		printk("ILLEGAL_COMMAND_ERROR address=0x%016llx]\n", address);
+		reset_iommu_command_buffer(iommu);
 		dump_command(address);
 		break;
 	case EVENT_TYPE_CMD_HARD_ERR:
@@ -229,7 +231,7 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	tail = readl(iommu->mmio_base + MMIO_EVT_TAIL_OFFSET);
 
 	while (head != tail) {
-		iommu_print_event(iommu->evt_buf + head);
+		iommu_print_event(iommu, iommu->evt_buf + head);
 		head = (head + EVENT_ENTRY_SIZE) % iommu->evt_buf_size;
 	}
 
@@ -545,6 +547,15 @@ void amd_iommu_flush_all_devices(void)
 		iommu_queue_inv_dev_entry(iommu, i);
 		iommu_completion_wait(iommu);
 	}
+}
+
+static void reset_iommu_command_buffer(struct amd_iommu *iommu)
+{
+	pr_err("AMD-Vi: Resetting IOMMU command buffer\n");
+
+	amd_iommu_reset_cmd_buffer(iommu);
+	flush_all_devices_for_iommu(iommu);
+	flush_all_domains_on_iommu(iommu);
 }
 
 /****************************************************************************
