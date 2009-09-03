@@ -465,38 +465,55 @@ static void iommu_flush_tlb_pde(struct amd_iommu *iommu, u16 domid)
 }
 
 /*
- * This function is used to flush the IO/TLB for a given protection domain
- * on every IOMMU in the system
+ * This function flushes one domain on one IOMMU
  */
-static void iommu_flush_domain(u16 domid)
+static void flush_domain_on_iommu(struct amd_iommu *iommu, u16 domid)
 {
-	unsigned long flags;
-	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
-
-	INC_STATS_COUNTER(domain_flush_all);
+	unsigned long flags;
 
 	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 				      domid, 1, 1);
 
-	for_each_iommu(iommu) {
-		spin_lock_irqsave(&iommu->lock, flags);
-		__iommu_queue_command(iommu, &cmd);
-		__iommu_completion_wait(iommu);
-		__iommu_wait_for_completion(iommu);
-		spin_unlock_irqrestore(&iommu->lock, flags);
-	}
+	spin_lock_irqsave(&iommu->lock, flags);
+	__iommu_queue_command(iommu, &cmd);
+	__iommu_completion_wait(iommu);
+	__iommu_wait_for_completion(iommu);
+	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-void amd_iommu_flush_all_domains(void)
+static void flush_all_domains_on_iommu(struct amd_iommu *iommu)
 {
 	int i;
 
 	for (i = 1; i < MAX_DOMAIN_ID; ++i) {
 		if (!test_bit(i, amd_iommu_pd_alloc_bitmap))
 			continue;
-		iommu_flush_domain(i);
+		flush_domain_on_iommu(iommu, i);
 	}
+
+}
+
+/*
+ * This function is used to flush the IO/TLB for a given protection domain
+ * on every IOMMU in the system
+ */
+static void iommu_flush_domain(u16 domid)
+{
+	struct amd_iommu *iommu;
+
+	INC_STATS_COUNTER(domain_flush_all);
+
+	for_each_iommu(iommu)
+		flush_domain_on_iommu(iommu, domid);
+}
+
+void amd_iommu_flush_all_domains(void)
+{
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu)
+		flush_all_domains_on_iommu(iommu);
 }
 
 void amd_iommu_flush_all_devices(void)
