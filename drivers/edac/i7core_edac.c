@@ -73,6 +73,18 @@
   #define DIMM1_COR_ERR(r)			(((r) >> 16) & 0x7fff)
   #define DIMM0_COR_ERR(r)			((r) & 0x7fff)
 
+/* OFFSETS for Device 3 Function 2, as inicated on Xeon 5500 datasheet */
+#define MC_COR_ECC_CNT_0	0x80
+#define MC_COR_ECC_CNT_1	0x84
+#define MC_COR_ECC_CNT_2	0x88
+#define MC_COR_ECC_CNT_3	0x8c
+#define MC_COR_ECC_CNT_4	0x90
+#define MC_COR_ECC_CNT_5	0x94
+
+#define DIMM_TOP_COR_ERR(r)			(((r) >> 16) & 0x7fff)
+#define DIMM_BOT_COR_ERR(r)			((r) & 0x7fff)
+
+
 	/* OFFSETS for Devices 4,5 and 6 Function 0 */
 
 #define MC_CHANNEL_DIMM_INIT_PARAMS 0x58
@@ -194,13 +206,20 @@ struct i7core_pvt {
 	struct i7core_inject	inject;
 	struct i7core_channel	channel[NUM_SOCKETS][NUM_CHANS];
 
+	unsigned int	is_registered:1; /* true if all memories are RDIMMs */
+
 	int			sockets; /* Number of sockets */
 	int			channels; /* Number of active channels */
 
 	int		ce_count_available[NUM_SOCKETS];
-			/* ECC corrected errors counts per dimm */
-	unsigned long	ce_count[NUM_SOCKETS][MAX_DIMMS];
-	int		last_ce_count[NUM_SOCKETS][MAX_DIMMS];
+	int 		csrow_map[NUM_SOCKETS][NUM_CHANS][MAX_DIMMS];
+
+			/* ECC corrected errors counts per udimm */
+	unsigned long	udimm_ce_count[NUM_SOCKETS][MAX_DIMMS];
+	int		udimm_last_ce_count[NUM_SOCKETS][MAX_DIMMS];
+			/* ECC corrected errors counts per rdimm */
+	unsigned long	rdimm_ce_count[NUM_SOCKETS][NUM_CHANS][MAX_DIMMS];
+	int		rdimm_last_ce_count[NUM_SOCKETS][NUM_CHANS][MAX_DIMMS];
 
 	/* mcelog glue */
 	struct edac_mce		edac_mce;
@@ -471,6 +490,8 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 		numrow(pvt->info.max_dod >> 6),
 		numcol(pvt->info.max_dod >> 9));
 
+	pvt->is_registered = 1;
+
 	for (i = 0; i < NUM_CHANS; i++) {
 		u32 data, dimm_dod[3], value[8];
 
@@ -492,8 +513,14 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 
 		if (data & REGISTERED_DIMM)
 			mtype = MEM_RDDR3;
-		else
+		else {
 			mtype = MEM_DDR3;
+			/*
+			 * FIXME: Currently, the driver will use dev 3:2
+			 * counter registers only if all memories are registered
+			 */
+			pvt->is_registered = 0;
+		}
 #if 0
 		if (data & THREE_DIMMS_PRESENT)
 			pvt->channel[i].dimms = 3;
@@ -561,6 +588,8 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 
 			csr->channels[0].chan_idx = i;
 			csr->channels[0].ce_count = 0;
+
+			pvt->csrow_map[socket][i][j] = *csrow;
 
 			switch (banks) {
 			case 4:
@@ -1031,19 +1060,31 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 
 static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
 {
-	unsigned i, count, total = 0;
+	unsigned i, j, count, total = 0;
 	struct i7core_pvt *pvt = mci->pvt_info;
 
 	for (i = 0; i < pvt->sockets; i++) {
-		if (!pvt->ce_count_available[i])
+		if (!pvt->ce_count_available[i]) {
 			count = sprintf(data, "socket 0 data unavailable\n");
-		else
+			continue;
+		}
+		if (!pvt->is_registered)
 			count = sprintf(data, "socket %d, dimm0: %lu\n"
 					      "dimm1: %lu\ndimm2: %lu\n",
 					i,
-					pvt->ce_count[i][0],
-					pvt->ce_count[i][1],
-					pvt->ce_count[i][2]);
+					pvt->udimm_ce_count[i][0],
+					pvt->udimm_ce_count[i][1],
+					pvt->udimm_ce_count[i][2]);
+		else
+			for (j = 0; j < NUM_CHANS; j++) {
+				count = sprintf(data, "socket %d, channel %d"
+						"dimm0: %lu\n"
+						"dimm1: %lu\ndimm2: %lu\n",
+						i, j,
+						pvt->rdimm_ce_count[i][j][0],
+						pvt->rdimm_ce_count[i][j][1],
+						pvt->rdimm_ce_count[i][j][2]);
+					}
 		data  += count;
 		total += count;
 	}
@@ -1308,6 +1349,103 @@ error:
 /****************************************************************************
 			Error check routines
  ****************************************************************************/
+static void i7core_rdimm_update_csrow(struct mem_ctl_info *mci, int socket,
+					 int chan, int dimm, int add)
+{
+	char *msg;
+	struct i7core_pvt *pvt = mci->pvt_info;
+	int row = pvt->csrow_map[socket][chan][dimm], i;
+
+	for (i = 0; i < add; i++) {
+		msg = kasprintf(GFP_KERNEL, "Corrected error "
+				"(Socket=%d channel=%d dimm=%d",
+				socket, chan, dimm);
+
+		edac_mc_handle_fbd_ce(mci, row, 0, msg);
+		kfree (msg);
+	}
+}
+
+static void i7core_rdimm_update_ce_count(struct mem_ctl_info *mci,
+			int socket, int chan, int new0, int new1, int new2)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	int add0 = 0, add1 = 0, add2 = 0;
+	/* Updates CE counters if it is not the first time here */
+	if (pvt->ce_count_available[socket]) {
+		/* Updates CE counters */
+
+		add2 = new2 - pvt->rdimm_last_ce_count[socket][chan][2];
+		add1 = new1 - pvt->rdimm_last_ce_count[socket][chan][1];
+		add0 = new0 - pvt->rdimm_last_ce_count[socket][chan][0];
+
+		if (add2 < 0)
+			add2 += 0x7fff;
+		pvt->rdimm_ce_count[socket][chan][2] += add2;
+
+		if (add1 < 0)
+			add1 += 0x7fff;
+		pvt->rdimm_ce_count[socket][chan][1] += add1;
+
+		if (add0 < 0)
+			add0 += 0x7fff;
+		pvt->rdimm_ce_count[socket][chan][0] += add0;
+	} else
+		pvt->ce_count_available[socket] = 1;
+
+	/* Store the new values */
+	pvt->rdimm_last_ce_count[socket][chan][2] = new2;
+	pvt->rdimm_last_ce_count[socket][chan][1] = new1;
+	pvt->rdimm_last_ce_count[socket][chan][0] = new0;
+
+	/*updated the edac core */
+	if (add0 != 0)
+		i7core_rdimm_update_csrow(mci, socket, chan, 0, add0);
+	if (add1 != 0)
+		i7core_rdimm_update_csrow(mci, socket, chan, 1, add1);
+	if (add2 != 0)
+		i7core_rdimm_update_csrow(mci, socket, chan, 2, add2);
+
+}
+
+static void i7core_rdimm_check_mc_ecc_err(struct mem_ctl_info *mci, u8 socket)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	u32 rcv[3][2];
+	int i, new0, new1, new2;
+
+	/*Read DEV 3: FUN 2:  MC_COR_ECC_CNT regs directly*/
+	pci_read_config_dword(pvt->pci_mcr[socket][2], MC_COR_ECC_CNT_0,
+								&rcv[0][0]);
+	pci_read_config_dword(pvt->pci_mcr[socket][2], MC_COR_ECC_CNT_1,
+								&rcv[0][1]);
+	pci_read_config_dword(pvt->pci_mcr[socket][2], MC_COR_ECC_CNT_2,
+								&rcv[1][0]);
+	pci_read_config_dword(pvt->pci_mcr[socket][2], MC_COR_ECC_CNT_3,
+								&rcv[1][1]);
+	pci_read_config_dword(pvt->pci_mcr[socket][2], MC_COR_ECC_CNT_4,
+								&rcv[2][0]);
+	pci_read_config_dword(pvt->pci_mcr[socket][2], MC_COR_ECC_CNT_5,
+								&rcv[2][1]);
+	for (i = 0 ; i < 3; i++) {
+		debugf3("MC_COR_ECC_CNT%d = 0x%x; MC_COR_ECC_CNT%d = 0x%x\n",
+			(i * 2), rcv[i][0], (i * 2) + 1, rcv[i][1]);
+		/*if the channel has 3 dimms*/
+		if (pvt->channel[socket][i].dimms > 2) {
+			new0 = DIMM_BOT_COR_ERR(rcv[i][0]);
+			new1 = DIMM_TOP_COR_ERR(rcv[i][0]);
+			new2 = DIMM_BOT_COR_ERR(rcv[i][1]);
+		} else {
+			new0 = DIMM_TOP_COR_ERR(rcv[i][0]) +
+					DIMM_BOT_COR_ERR(rcv[i][0]);
+			new1 = DIMM_TOP_COR_ERR(rcv[i][1]) +
+					DIMM_BOT_COR_ERR(rcv[i][1]);
+			new2 = 0;
+		}
+
+		i7core_rdimm_update_ce_count(mci, socket, i, new0, new1, new2);
+	}
+}
 
 /* This function is based on the device 3 function 4 registers as described on:
  * Intel Xeon Processor 5500 Series Datasheet Volume 2
@@ -1315,7 +1453,7 @@ error:
  * also available at:
  * 	http://www.arrownac.com/manufacturers/intel/s/nehalem/5500-datasheet-v2.pdf
  */
-static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
+static void i7core_udimm_check_mc_ecc_err(struct mem_ctl_info *mci, u8 socket)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	u32 rcv1, rcv0;
@@ -1326,7 +1464,7 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 		return;
 	}
 
-	/* Corrected error reads */
+	/* Corrected test errors */
 	pci_read_config_dword(pvt->pci_mcr[socket][4], MC_TEST_ERR_RCV1, &rcv1);
 	pci_read_config_dword(pvt->pci_mcr[socket][4], MC_TEST_ERR_RCV0, &rcv0);
 
@@ -1335,39 +1473,38 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 	new1 = DIMM1_COR_ERR(rcv0);
 	new0 = DIMM0_COR_ERR(rcv0);
 
-#if 0
-	debugf2("%s CE rcv1=0x%08x rcv0=0x%08x, %d %d %d\n",
-		(pvt->ce_count_available ? "UPDATE" : "READ"),
-		rcv1, rcv0, new0, new1, new2);
-#endif
-
 	/* Updates CE counters if it is not the first time here */
 	if (pvt->ce_count_available[socket]) {
 		/* Updates CE counters */
 		int add0, add1, add2;
 
-		add2 = new2 - pvt->last_ce_count[socket][2];
-		add1 = new1 - pvt->last_ce_count[socket][1];
-		add0 = new0 - pvt->last_ce_count[socket][0];
+		add2 = new2 - pvt->udimm_last_ce_count[socket][2];
+		add1 = new1 - pvt->udimm_last_ce_count[socket][1];
+		add0 = new0 - pvt->udimm_last_ce_count[socket][0];
 
 		if (add2 < 0)
 			add2 += 0x7fff;
-		pvt->ce_count[socket][2] += add2;
+		pvt->udimm_ce_count[socket][2] += add2;
 
 		if (add1 < 0)
 			add1 += 0x7fff;
-		pvt->ce_count[socket][1] += add1;
+		pvt->udimm_ce_count[socket][1] += add1;
 
 		if (add0 < 0)
 			add0 += 0x7fff;
-		pvt->ce_count[socket][0] += add0;
+		pvt->udimm_ce_count[socket][0] += add0;
+
+		if (add0 | add1 | add2)
+			i7core_printk(KERN_ERR, "New Corrected error(s): "
+				      "dimm0: +%d, dimm1: +%d, dimm2 +%d\n",
+				      add0, add1, add2);
 	} else
 		pvt->ce_count_available[socket] = 1;
 
 	/* Store the new values */
-	pvt->last_ce_count[socket][2] = new2;
-	pvt->last_ce_count[socket][1] = new1;
-	pvt->last_ce_count[socket][0] = new0;
+	pvt->udimm_last_ce_count[socket][2] = new2;
+	pvt->udimm_last_ce_count[socket][1] = new1;
+	pvt->udimm_last_ce_count[socket][0] = new0;
 }
 
 /*
@@ -1386,6 +1523,7 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    struct mce *m)
 {
+	struct i7core_pvt *pvt = mci->pvt_info;
 	char *type, *optype, *err, *msg;
 	unsigned long error = m->status & 0x1ff0000l;
 	u32 optypenum = (m->status >> 4) & 0x07;
@@ -1394,6 +1532,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 channel = (m->misc >> 18) & 0x3;
 	u32 syndrome = m->misc >> 32;
 	u32 errnum = find_first_bit(&error, 32);
+	int csrow;
 
 	if (m->mcgstatus & 1)
 		type = "FATAL";
@@ -1463,9 +1602,15 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 
 	debugf0("%s", msg);
 
+	csrow = pvt->csrow_map[m->cpu][channel][dimm];
+
 	/* Call the helper to output message */
-	edac_mc_handle_fbd_ue(mci, 0 /* FIXME: should be rank here */,
-			      0, 0 /* FIXME: should be channel here */, msg);
+	if (m->mcgstatus & 1)
+		edac_mc_handle_fbd_ue(mci, csrow, 0,
+				0 /* FIXME: should be channel here */, msg);
+	else if (!pvt->is_registered)
+		edac_mc_handle_fbd_ce(mci, csrow,
+				0 /* FIXME: should be channel here */, msg);
 
 	kfree(msg);
 }
@@ -1502,7 +1647,10 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 
 	/* check memory count errors */
 	for (i = 0; i < pvt->sockets; i++)
-		check_mc_test_err(mci, i);
+		if (!pvt->is_registered)
+			i7core_udimm_check_mc_ecc_err(mci, i);
+		else
+			i7core_rdimm_check_mc_ecc_err(mci, i);
 }
 
 /*
