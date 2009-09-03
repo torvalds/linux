@@ -272,8 +272,9 @@ static void sky2_power_aux(struct sky2_hw *hw)
 			    Y2_CLK_GAT_LNK1_DIS | Y2_PCI_CLK_LNK2_DIS |
 			    Y2_COR_CLK_LNK2_DIS | Y2_CLK_GAT_LNK2_DIS);
 
-	/* switch power to VAUX */
-	if (sky2_read32(hw, B0_CTST) & Y2_VAUX_AVAIL)
+	/* switch power to VAUX if supported and PME from D3cold */
+	if ( (sky2_read32(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
+	     pci_pme_capable(hw->pdev, PCI_D3cold))
 		sky2_write8(hw, B0_POWER_CTRL,
 			    (PC_VAUX_ENA | PC_VCC_ENA |
 			     PC_VAUX_ON | PC_VCC_OFF));
