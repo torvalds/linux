@@ -822,6 +822,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 {
 	struct cpa_data cpa;
 	int ret, cache, checkalias;
+	unsigned long baddr = 0;
 
 	/*
 	 * Check, if we are requested to change a not supported
@@ -853,6 +854,11 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 			 */
 			WARN_ON_ONCE(1);
 		}
+		/*
+		 * Save address for cache flush. *addr is modified in the call
+		 * to __change_page_attr_set_clr() below.
+		 */
+		baddr = *addr;
 	}
 
 	/* Must avoid aliasing mappings in the highmem code */
@@ -900,7 +906,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 			cpa_flush_array(addr, numpages, cache,
 					cpa.flags, pages);
 		} else
-			cpa_flush_range(*addr, numpages, cache);
+			cpa_flush_range(baddr, numpages, cache);
 	} else
 		cpa_flush_all(cache);
 
