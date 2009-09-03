@@ -50,7 +50,7 @@ ENDPROC(native_\op\()_safe_regs)
 
 #else /* X86_32 */
 
-.macro op_safe_regs op:req
+.macro op_safe_regs op
 ENTRY(native_\op\()_safe_regs)
 	CFI_STARTPROC
 	pushl_cfi %ebx
