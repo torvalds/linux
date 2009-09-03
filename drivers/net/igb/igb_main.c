@@ -821,9 +821,11 @@ static void igb_irq_disable(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	if (adapter->msix_entries) {
-		wr32(E1000_EIAM, 0);
-		wr32(E1000_EIMC, ~0);
-		wr32(E1000_EIAC, 0);
+		u32 regval = rd32(E1000_EIAM);
+		wr32(E1000_EIAM, regval & ~adapter->eims_enable_mask);
+		wr32(E1000_EIMC, adapter->eims_enable_mask);
+		regval = rd32(E1000_EIAC);
+		wr32(E1000_EIAC, regval & ~adapter->eims_enable_mask);
 	}
 
 	wr32(E1000_IAM, 0);
@@ -841,8 +843,10 @@ static void igb_irq_enable(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	if (adapter->msix_entries) {
-		wr32(E1000_EIAC, adapter->eims_enable_mask);
-		wr32(E1000_EIAM, adapter->eims_enable_mask);
+		u32 regval = rd32(E1000_EIAC);
+		wr32(E1000_EIAC, regval | adapter->eims_enable_mask);
+		regval = rd32(E1000_EIAM);
+		wr32(E1000_EIAM, regval | adapter->eims_enable_mask);
 		wr32(E1000_EIMS, adapter->eims_enable_mask);
 		if (adapter->vfs_allocated_count)
 			wr32(E1000_MBVFIMR, 0xFF);
