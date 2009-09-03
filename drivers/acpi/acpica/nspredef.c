@@ -193,11 +193,15 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	}
 
 	/*
-	 * We have a return value, but if one wasn't expected, just exit, this is
+	 * 1) We have a return value, but if one wasn't expected, just exit, this is
 	 * not a problem. For example, if the "Implicit Return" feature is
 	 * enabled, methods will always return a value.
+	 *
+	 * 2) If the return value can be of any type, then we cannot perform any
+	 * validation, exit.
 	 */
-	if (!predefined->info.expected_btypes) {
+	if ((!predefined->info.expected_btypes) ||
+	    (predefined->info.expected_btypes == ACPI_RTYPE_ALL)) {
 		goto cleanup;
 	}
 
