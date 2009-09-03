@@ -5155,8 +5155,6 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	}
 
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
-	pr_err("%s dev=%p queue_count=%d tx=%p\n", name, dev, queue_count, tx);
-	WARN_ON(queue_count == 1);
 	dev->padded = (char *)dev - (char *)p;
 
 	if (dev_addr_init(dev))
