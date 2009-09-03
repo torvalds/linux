@@ -444,6 +444,10 @@ enum em28xx_dev_state {
 #define EM28XX_AUDIO   0x10
 #define EM28XX_DVB     0x20
 
+/* em28xx resource types (used for res_get/res_lock etc */
+#define EM28XX_RESOURCE_VIDEO 0x01
+#define EM28XX_RESOURCE_VBI   0x02
+
 struct em28xx_audio {
 	char name[50];
 	char *transfer_buffer[EM28XX_AUDIO_BUFS];
@@ -464,8 +468,8 @@ struct em28xx;
 
 struct em28xx_fh {
 	struct em28xx *dev;
-	unsigned int  stream_on:1;	/* Locks streams */
 	int           radio;
+	unsigned int  resources;
 
 	struct videobuf_queue        vb_vidq;
 	struct videobuf_queue        vb_vbiq;
@@ -495,7 +499,6 @@ struct em28xx {
 	/* Vinmode/Vinctl used at the driver */
 	int vinmode, vinctl;
 
-	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
 
@@ -562,6 +565,9 @@ struct em28xx {
 	wait_queue_head_t open, wait_frame, wait_stream;
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
+
+	/* resources in use */
+	unsigned int resources;
 
 	unsigned char eedata[256];
 

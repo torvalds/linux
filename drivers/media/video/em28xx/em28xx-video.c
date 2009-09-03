@@ -833,34 +833,63 @@ static void video_mux(struct em28xx *dev, int index)
 }
 
 /* Usage lock check functions */
-static int res_get(struct em28xx_fh *fh)
-{
-	struct em28xx    *dev = fh->dev;
-	int		 rc   = 0;
-
-	/* This instance already has stream_on */
-	if (fh->stream_on)
-		return rc;
-
-	if (dev->stream_on)
-		return -EBUSY;
-
-	dev->stream_on = 1;
-	fh->stream_on  = 1;
-	return rc;
-}
-
-static int res_check(struct em28xx_fh *fh)
-{
-	return fh->stream_on;
-}
-
-static void res_free(struct em28xx_fh *fh)
+static int res_get(struct em28xx_fh *fh, unsigned int bit)
 {
 	struct em28xx    *dev = fh->dev;
 
-	fh->stream_on = 0;
-	dev->stream_on = 0;
+	if (fh->resources & bit)
+		/* have it already allocated */
+		return 1;
+
+	/* is it free? */
+	mutex_lock(&dev->lock);
+	if (dev->resources & bit) {
+		/* no, someone else uses it */
+		mutex_unlock(&dev->lock);
+		return 0;
+	}
+	/* it's free, grab it */
+	fh->resources  |= bit;
+	dev->resources |= bit;
+	em28xx_videodbg("res: get %d\n", bit);
+	mutex_unlock(&dev->lock);
+	return 1;
+}
+
+static int res_check(struct em28xx_fh *fh, unsigned int bit)
+{
+	return (fh->resources & bit);
+}
+
+static int res_locked(struct em28xx *dev, unsigned int bit)
+{
+	return (dev->resources & bit);
+}
+
+static void res_free(struct em28xx_fh *fh, unsigned int bits)
+{
+	struct em28xx    *dev = fh->dev;
+
+	BUG_ON((fh->resources & bits) != bits);
+
+	mutex_lock(&dev->lock);
+	fh->resources  &= ~bits;
+	dev->resources &= ~bits;
+	em28xx_videodbg("res: put %d\n", bits);
+	mutex_unlock(&dev->lock);
+}
+
+static int get_ressource(struct em28xx_fh *fh)
+{
+	switch (fh->type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		return EM28XX_RESOURCE_VIDEO;
+	case V4L2_BUF_TYPE_VBI_CAPTURE:
+		return EM28XX_RESOURCE_VBI;
+	default:
+		BUG();
+		return 0;
+	}
 }
 
 /*
@@ -1099,12 +1128,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		em28xx_errdev("%s queue busy\n", __func__);
-		rc = -EBUSY;
-		goto out;
-	}
-
-	if (dev->stream_on && !fh->stream_on) {
-		em28xx_errdev("%s device in use by another fh\n", __func__);
 		rc = -EBUSY;
 		goto out;
 	}
@@ -1668,24 +1691,25 @@ static int vidioc_streamon(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
+	int                   rc = -EINVAL;
 
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
 
+	if (unlikely(type != fh->type))
+		return -EINVAL;
 
-	mutex_lock(&dev->lock);
-	rc = res_get(fh);
+	em28xx_videodbg("vidioc_streamon fh=%p t=%d fh->res=%d dev->res=%d\n",
+			fh, type, fh->resources, dev->resources);
 
-	if (likely(rc >= 0)) {
-		if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			rc = videobuf_streamon(&fh->vb_vidq);
-		else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
-			rc = videobuf_streamon(&fh->vb_vbiq);
-	}
+	if (unlikely(!res_get(fh,get_ressource(fh))))
+		return -EBUSY;
 
-	mutex_unlock(&dev->lock);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_streamon(&fh->vb_vidq);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_streamon(&fh->vb_vbiq);
 
 	return rc;
 }
@@ -1707,16 +1731,16 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	if (type != fh->type)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
+	em28xx_videodbg("vidioc_streamoff fh=%p t=%d fh->res=%d dev->res=%d\n",
+			fh, type, fh->resources, dev->resources);
 
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		videobuf_streamoff(&fh->vb_vidq);
-	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		res_free(fh, EM28XX_RESOURCE_VIDEO);
+	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		videobuf_streamoff(&fh->vb_vbiq);
-
-	res_free(fh);
-
-	mutex_unlock(&dev->lock);
+		res_free(fh, EM28XX_RESOURCE_VBI);
+	}
 
 	return 0;
 }
@@ -2095,17 +2119,16 @@ static int em28xx_v4l2_open(struct file *filp)
 	else
 		field = V4L2_FIELD_INTERLACED;
 
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
-					    NULL, &dev->slock, fh->type, field,
-					    sizeof(struct em28xx_buffer), fh);
+	videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
+				    NULL, &dev->slock,
+				    V4L2_BUF_TYPE_VIDEO_CAPTURE, field,
+				    sizeof(struct em28xx_buffer), fh);
 
-	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
-		videobuf_queue_vmalloc_init(&fh->vb_vbiq, &em28xx_vbi_qops,
-					    NULL, &dev->slock,
-					    V4L2_BUF_TYPE_VBI_CAPTURE,
-					    V4L2_FIELD_SEQ_TB,
-					    sizeof(struct em28xx_buffer), fh);
+	videobuf_queue_vmalloc_init(&fh->vb_vbiq, &em28xx_vbi_qops,
+				    NULL, &dev->slock,
+				    V4L2_BUF_TYPE_VBI_CAPTURE,
+				    V4L2_FIELD_SEQ_TB,
+				    sizeof(struct em28xx_buffer), fh);
 
 	mutex_unlock(&dev->lock);
 
@@ -2162,20 +2185,21 @@ static int em28xx_v4l2_close(struct file *filp)
 
 	em28xx_videodbg("users=%d\n", dev->users);
 
-
-	mutex_lock(&dev->lock);
-	if (res_check(fh))
-		res_free(fh);
-
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 1) {
+	if (res_check(fh, EM28XX_RESOURCE_VIDEO)) {
 		videobuf_stop(&fh->vb_vidq);
-		videobuf_mmap_free(&fh->vb_vidq);
+		res_free(fh, EM28XX_RESOURCE_VIDEO);
+	}
 
+	if (res_check(fh, EM28XX_RESOURCE_VBI)) {
+		videobuf_stop(&fh->vb_vbiq);
+		res_free(fh, EM28XX_RESOURCE_VBI);
+	}
+
+	if(dev->users == 1) {
 		/* the device is already disconnect,
 		   free the remaining resources */
 		if (dev->state & DEV_DISCONNECTED) {
 			em28xx_release_resources(dev);
-			mutex_unlock(&dev->lock);
 			kfree(dev);
 			return 0;
 		}
@@ -2197,15 +2221,11 @@ static int em28xx_v4l2_close(struct file *filp)
 		}
 	}
 
-	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		videobuf_stop(&fh->vb_vbiq);
-		videobuf_mmap_free(&fh->vb_vbiq);
-	}
-
+	videobuf_mmap_free(&fh->vb_vidq);
+	videobuf_mmap_free(&fh->vb_vbiq);
 	kfree(fh);
 	dev->users--;
 	wake_up_interruptible_nr(&dev->open, 1);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -2230,12 +2250,8 @@ em28xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
 	 */
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		mutex_lock(&dev->lock);
-		rc = res_get(fh);
-		mutex_unlock(&dev->lock);
-
-		if (unlikely(rc < 0))
-			return rc;
+		if (res_locked(dev, EM28XX_RESOURCE_VIDEO))
+			return -EBUSY;
 
 		return videobuf_read_stream(&fh->vb_vidq, buf, count, pos, 0,
 					filp->f_flags & O_NONBLOCK);
@@ -2243,9 +2259,8 @@ em28xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
 
 
 	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		mutex_lock(&dev->lock);
-		rc = res_get(fh);
-		mutex_unlock(&dev->lock);
+		if (!res_get(fh, EM28XX_RESOURCE_VBI))
+			return -EBUSY;
 
 		return videobuf_read_stream(&fh->vb_vbiq, buf, count, pos, 0,
 					filp->f_flags & O_NONBLOCK);
@@ -2268,19 +2283,17 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table *wait)
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
-	rc = res_get(fh);
-	mutex_unlock(&dev->lock);
-
-	if (unlikely(rc < 0))
-		return POLLERR;
-
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		if (!res_get(fh, EM28XX_RESOURCE_VIDEO))
+			return POLLERR;
 		return videobuf_poll_stream(filp, &fh->vb_vidq, wait);
-	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		if (!res_get(fh, EM28XX_RESOURCE_VBI))
+			return POLLERR;
 		return videobuf_poll_stream(filp, &fh->vb_vbiq, wait);
-	else
+	} else {
 		return POLLERR;
+	}
 }
 
 /*
@@ -2294,13 +2307,6 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	rc = check_dev(dev);
 	if (rc < 0)
-		return rc;
-
-	mutex_lock(&dev->lock);
-	rc = res_get(fh);
-	mutex_unlock(&dev->lock);
-
-	if (unlikely(rc < 0))
 		return rc;
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
