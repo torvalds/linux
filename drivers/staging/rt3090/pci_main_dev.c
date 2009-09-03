@@ -106,7 +106,7 @@ MODULE_VERSION(STA_DRIVER_VERSION);
 //
 static struct pci_driver rt2860_driver =
 {
-    name:       "rt2860",
+    name:       "rt3090",
     id_table:   rt2860_pci_tbl,
     probe:      rt2860_probe,
 #if LINUX_VERSION_CODE >= 0x20412
@@ -326,9 +326,9 @@ static INT __devinit   rt2860_probe(
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-	print_name = pci_dev ? pci_name(pci_dev) : "rt2860";
+	print_name = pci_dev ? pci_name(pci_dev) : "rt3090";
 #else
-	print_name = pci_dev ? pci_dev->slot_name : "rt2860";
+	print_name = pci_dev ? pci_dev->slot_name : "rt3090";
 #endif // LINUX_VERSION_CODE //
 
 	if ((rv = pci_request_regions(pci_dev, print_name)) != 0)
