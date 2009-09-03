@@ -561,12 +561,18 @@ static int udp_push_pending_frames(struct sock *sk)
 
 send:
 	err = ip_push_pending_frames(sk);
+	if (err) {
+		if (err == -ENOBUFS && !inet->recverr) {
+			UDP_INC_STATS_USER(sock_net(sk),
+					   UDP_MIB_SNDBUFERRORS, is_udplite);
+			err = 0;
+		}
+	} else
+		UDP_INC_STATS_USER(sock_net(sk),
+				   UDP_MIB_OUTDATAGRAMS, is_udplite);
 out:
 	up->len = 0;
 	up->pending = 0;
-	if (!err)
-		UDP_INC_STATS_USER(sock_net(sk),
-				UDP_MIB_OUTDATAGRAMS, is_udplite);
 	return err;
 }
 

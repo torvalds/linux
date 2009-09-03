@@ -642,7 +642,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
 	if (err > 0)
-		err = np->recverr ? net_xmit_errno(err) : 0;
+		err = net_xmit_errno(err);
 	if (err)
 		goto error;
 out:
@@ -653,6 +653,8 @@ error_fault:
 	kfree_skb(skb);
 error:
 	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+	if (err == -ENOBUFS && !np->recverr)
+		err = 0;
 	return err;
 }
 

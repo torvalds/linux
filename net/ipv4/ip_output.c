@@ -1302,7 +1302,7 @@ int ip_push_pending_frames(struct sock *sk)
 	err = ip_local_out(skb);
 	if (err) {
 		if (err > 0)
-			err = inet->recverr ? net_xmit_errno(err) : 0;
+			err = net_xmit_errno(err);
 		if (err)
 			goto error;
 	}

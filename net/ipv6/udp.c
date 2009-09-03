@@ -724,12 +724,18 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 
 send:
 	err = ip6_push_pending_frames(sk);
+	if (err) {
+		if (err == -ENOBUFS && !inet6_sk(sk)->recverr) {
+			UDP6_INC_STATS_USER(sock_net(sk),
+					    UDP_MIB_SNDBUFERRORS, is_udplite);
+			err = 0;
+		}
+	} else
+		UDP6_INC_STATS_USER(sock_net(sk),
+				    UDP_MIB_OUTDATAGRAMS, is_udplite);
 out:
 	up->len = 0;
 	up->pending = 0;
-	if (!err)
-		UDP6_INC_STATS_USER(sock_net(sk),
-				UDP_MIB_OUTDATAGRAMS, is_udplite);
 	return err;
 }
 
