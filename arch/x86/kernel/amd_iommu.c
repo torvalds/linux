@@ -138,6 +138,15 @@ static int iommu_has_npcache(struct amd_iommu *iommu)
  *
  ****************************************************************************/
 
+static void dump_dte_entry(u16 devid)
+{
+	int i;
+
+	for (i = 0; i < 8; ++i)
+		pr_err("AMD-Vi: DTE[%d]: %08x\n", i,
+			amd_iommu_dev_table[devid].data[i]);
+}
+
 static void iommu_print_event(void *__evt)
 {
 	u32 *event = __evt;
@@ -155,6 +164,7 @@ static void iommu_print_event(void *__evt)
 		       "address=0x%016llx flags=0x%04x]\n",
 		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
 		       address, flags);
+		dump_dte_entry(devid);
 		break;
 	case EVENT_TYPE_IO_FAULT:
 		printk("IO_PAGE_FAULT device=%02x:%02x.%x "
