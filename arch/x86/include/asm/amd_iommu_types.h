@@ -198,7 +198,7 @@ extern bool amd_iommu_dump;
 #define DUMP_printk(format, arg...)					\
 	do {								\
 		if (amd_iommu_dump)						\
-			printk(KERN_INFO "AMD IOMMU: " format, ## arg);	\
+			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
 	} while(0);
 
 /*
@@ -337,6 +337,9 @@ struct amd_iommu {
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
 
+	/* becomes true if a command buffer reset is running */
+	bool reset_in_progress;
+
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
 };
@@ -456,5 +459,8 @@ struct __iommu_counter {
 static inline void amd_iommu_stats_init(void) { }
 
 #endif /* CONFIG_AMD_IOMMU_STATS */
+
+/* some function prototypes */
+extern void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu);
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */

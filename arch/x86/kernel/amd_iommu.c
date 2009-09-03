@@ -41,9 +41,7 @@ static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 static LIST_HEAD(iommu_pd_list);
 static DEFINE_SPINLOCK(iommu_pd_list_lock);
 
-#ifdef CONFIG_IOMMU_API
 static struct iommu_ops amd_iommu_ops;
-#endif
 
 /*
  * general struct to manage commands send to an IOMMU
@@ -61,10 +59,7 @@ static u64* alloc_pte(struct protection_domain *dom,
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages);
-
-#ifndef BUS_NOTIFY_UNBOUND_DRIVER
-#define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
-#endif
+static void reset_iommu_command_buffer(struct amd_iommu *iommu);
 
 #ifdef CONFIG_AMD_IOMMU_STATS
 
@@ -138,7 +133,25 @@ static int iommu_has_npcache(struct amd_iommu *iommu)
  *
  ****************************************************************************/
 
-static void iommu_print_event(void *__evt)
+static void dump_dte_entry(u16 devid)
+{
+	int i;
+
+	for (i = 0; i < 8; ++i)
+		pr_err("AMD-Vi: DTE[%d]: %08x\n", i,
+			amd_iommu_dev_table[devid].data[i]);
+}
+
+static void dump_command(unsigned long phys_addr)
+{
+	struct iommu_cmd *cmd = phys_to_virt(phys_addr);
+	int i;
+
+	for (i = 0; i < 4; ++i)
+		pr_err("AMD-Vi: CMD[%d]: %08x\n", i, cmd->data[i]);
+}
+
+static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
 	u32 *event = __evt;
 	int type  = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
@@ -147,7 +160,7 @@ static void iommu_print_event(void *__evt)
 	int flags = (event[1] >> EVENT_FLAGS_SHIFT) & EVENT_FLAGS_MASK;
 	u64 address = (u64)(((u64)event[3]) << 32) | event[2];
 
-	printk(KERN_ERR "AMD IOMMU: Event logged [");
+	printk(KERN_ERR "AMD-Vi: Event logged [");
 
 	switch (type) {
 	case EVENT_TYPE_ILL_DEV:
@@ -155,6 +168,7 @@ static void iommu_print_event(void *__evt)
 		       "address=0x%016llx flags=0x%04x]\n",
 		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
 		       address, flags);
+		dump_dte_entry(devid);
 		break;
 	case EVENT_TYPE_IO_FAULT:
 		printk("IO_PAGE_FAULT device=%02x:%02x.%x "
@@ -176,6 +190,8 @@ static void iommu_print_event(void *__evt)
 		break;
 	case EVENT_TYPE_ILL_CMD:
 		printk("ILLEGAL_COMMAND_ERROR address=0x%016llx]\n", address);
+		reset_iommu_command_buffer(iommu);
+		dump_command(address);
 		break;
 	case EVENT_TYPE_CMD_HARD_ERR:
 		printk("COMMAND_HARDWARE_ERROR address=0x%016llx "
@@ -209,7 +225,7 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	tail = readl(iommu->mmio_base + MMIO_EVT_TAIL_OFFSET);
 
 	while (head != tail) {
-		iommu_print_event(iommu->evt_buf + head);
+		iommu_print_event(iommu, iommu->evt_buf + head);
 		head = (head + EVENT_ENTRY_SIZE) % iommu->evt_buf_size;
 	}
 
@@ -296,8 +312,11 @@ static void __iommu_wait_for_completion(struct amd_iommu *iommu)
 	status &= ~MMIO_STATUS_COM_WAIT_INT_MASK;
 	writel(status, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-	if (unlikely(i == EXIT_LOOP_COUNT))
-		panic("AMD IOMMU: Completion wait loop failed\n");
+	if (unlikely(i == EXIT_LOOP_COUNT)) {
+		spin_unlock(&iommu->lock);
+		reset_iommu_command_buffer(iommu);
+		spin_lock(&iommu->lock);
+	}
 }
 
 /*
@@ -445,37 +464,67 @@ static void iommu_flush_tlb_pde(struct amd_iommu *iommu, u16 domid)
 }
 
 /*
- * This function is used to flush the IO/TLB for a given protection domain
- * on every IOMMU in the system
+ * This function flushes one domain on one IOMMU
  */
-static void iommu_flush_domain(u16 domid)
+static void flush_domain_on_iommu(struct amd_iommu *iommu, u16 domid)
 {
-	unsigned long flags;
-	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
-
-	INC_STATS_COUNTER(domain_flush_all);
+	unsigned long flags;
 
 	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 				      domid, 1, 1);
 
-	for_each_iommu(iommu) {
-		spin_lock_irqsave(&iommu->lock, flags);
-		__iommu_queue_command(iommu, &cmd);
-		__iommu_completion_wait(iommu);
-		__iommu_wait_for_completion(iommu);
-		spin_unlock_irqrestore(&iommu->lock, flags);
-	}
+	spin_lock_irqsave(&iommu->lock, flags);
+	__iommu_queue_command(iommu, &cmd);
+	__iommu_completion_wait(iommu);
+	__iommu_wait_for_completion(iommu);
+	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-void amd_iommu_flush_all_domains(void)
+static void flush_all_domains_on_iommu(struct amd_iommu *iommu)
 {
 	int i;
 
 	for (i = 1; i < MAX_DOMAIN_ID; ++i) {
 		if (!test_bit(i, amd_iommu_pd_alloc_bitmap))
 			continue;
-		iommu_flush_domain(i);
+		flush_domain_on_iommu(iommu, i);
+	}
+
+}
+
+/*
+ * This function is used to flush the IO/TLB for a given protection domain
+ * on every IOMMU in the system
+ */
+static void iommu_flush_domain(u16 domid)
+{
+	struct amd_iommu *iommu;
+
+	INC_STATS_COUNTER(domain_flush_all);
+
+	for_each_iommu(iommu)
+		flush_domain_on_iommu(iommu, domid);
+}
+
+void amd_iommu_flush_all_domains(void)
+{
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu)
+		flush_all_domains_on_iommu(iommu);
+}
+
+static void flush_all_devices_for_iommu(struct amd_iommu *iommu)
+{
+	int i;
+
+	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
+		if (iommu != amd_iommu_rlookup_table[i])
+			continue;
+
+		iommu_queue_inv_dev_entry(iommu, i);
+		iommu_completion_wait(iommu);
 	}
 }
 
@@ -485,8 +534,6 @@ void amd_iommu_flush_all_devices(void)
 	int i;
 
 	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
-		if (amd_iommu_pd_table[i] == NULL)
-			continue;
 
 		iommu = amd_iommu_rlookup_table[i];
 		if (!iommu)
@@ -495,6 +542,22 @@ void amd_iommu_flush_all_devices(void)
 		iommu_queue_inv_dev_entry(iommu, i);
 		iommu_completion_wait(iommu);
 	}
+}
+
+static void reset_iommu_command_buffer(struct amd_iommu *iommu)
+{
+	pr_err("AMD-Vi: Resetting IOMMU command buffer\n");
+
+	if (iommu->reset_in_progress)
+		panic("AMD-Vi: ILLEGAL_COMMAND_ERROR while resetting command buffer\n");
+
+	iommu->reset_in_progress = true;
+
+	amd_iommu_reset_cmd_buffer(iommu);
+	flush_all_devices_for_iommu(iommu);
+	flush_all_domains_on_iommu(iommu);
+
+	iommu->reset_in_progress = false;
 }
 
 /****************************************************************************
