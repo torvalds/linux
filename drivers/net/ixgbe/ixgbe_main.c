@@ -5168,9 +5168,15 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	tx_ring = &adapter->tx_ring[r_idx];
 
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    (skb->protocol == htons(ETH_P_FCOE)))
+	    (skb->protocol == htons(ETH_P_FCOE))) {
 		tx_flags |= IXGBE_TX_FLAGS_FCOE;
-
+#ifdef IXGBE_FCOE
+		r_idx = smp_processor_id();
+		r_idx &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
+		r_idx += adapter->ring_feature[RING_F_FCOE].mask;
+		tx_ring = &adapter->tx_ring[r_idx];
+#endif
+	}
 	/* four things can cause us to need a context descriptor */
 	if (skb_is_gso(skb) ||
 	    (skb->ip_summed == CHECKSUM_PARTIAL) ||
