@@ -2708,9 +2708,9 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 		return pretty_print_func_graph(data, size, event, cpu,
 					       pid, comm, secs, usecs);
 
-	printf("%16s-%-5d [%03d] %5lu.%06lu: %s: ",
+	printf("%16s-%-5d [%03d] %5lu.%09Lu: %s: ",
 	       comm, pid,  cpu,
-	       secs, usecs, event->name);
+	       secs, nsecs, event->name);
 
 	pretty_print(data, size, event);
 	printf("\n");
