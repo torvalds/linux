@@ -1201,7 +1201,23 @@ out:
 }
 EXPORT_SYMBOL_GPL(trace_vbprintk);
 
-int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
+int trace_array_printk(struct trace_array *tr,
+		       unsigned long ip, const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
+
+	va_start(ap, fmt);
+	ret = trace_array_vprintk(tr, ip, fmt, ap);
+	va_end(ap);
+	return ret;
+}
+
+int trace_array_vprintk(struct trace_array *tr,
+			unsigned long ip, const char *fmt, va_list args)
 {
 	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
@@ -1209,7 +1225,6 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	struct ftrace_event_call *call = &event_print;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
-	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
 	int cpu, len = 0, size, pc;
 	struct print_entry *entry;
@@ -1259,6 +1274,11 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	preempt_enable_notrace();
 
 	return len;
+}
+
+int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
+{
+	return trace_array_printk(&global_trace, ip, fmt, args);
 }
 EXPORT_SYMBOL_GPL(trace_vprintk);
 

@@ -566,6 +566,11 @@ extern int
 trace_vbprintk(unsigned long ip, const char *fmt, va_list args);
 extern int
 trace_vprintk(unsigned long ip, const char *fmt, va_list args);
+extern int
+trace_array_vprintk(struct trace_array *tr,
+		    unsigned long ip, const char *fmt, va_list args);
+int trace_array_printk(struct trace_array *tr,
+		       unsigned long ip, const char *fmt, ...);
 
 extern unsigned long trace_flags;
 
