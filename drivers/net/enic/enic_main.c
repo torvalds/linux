@@ -362,7 +362,7 @@ static void enic_mtu_check(struct enic *enic)
 {
 	u32 mtu = vnic_dev_mtu(enic->vdev);
 
-	if (mtu != enic->port_mtu) {
+	if (mtu && mtu != enic->port_mtu) {
 		if (mtu < enic->netdev->mtu)
 			printk(KERN_WARNING PFX
 				"%s: interface MTU (%d) set higher "
