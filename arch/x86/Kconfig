@@ -586,7 +586,6 @@ config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
-	select AGP
 	depends on X86_64 && PCI
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
