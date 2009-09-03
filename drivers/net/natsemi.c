@@ -3053,12 +3053,10 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
-	case SIOCDEVPRIVATE:		/* for binary compat, remove in 2.5 */
 		data->phy_id = np->phy_addr_external;
 		/* Fall Through */
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
-	case SIOCDEVPRIVATE+1:		/* for binary compat, remove in 2.5 */
 		/* The phy_id is not enough to uniquely identify
 		 * the intended target. Therefore the command is sent to
 		 * the given mii on the current port.
@@ -3077,7 +3075,6 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-	case SIOCDEVPRIVATE+2:		/* for binary compat, remove in 2.5 */
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		if (dev->if_port == PORT_TP) {

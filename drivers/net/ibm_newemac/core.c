@@ -2218,16 +2218,13 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
-	case SIOCDEVPRIVATE:
 		data[0] = dev->phy.address;
 		/* Fall through */
 	case SIOCGMIIREG:
-	case SIOCDEVPRIVATE + 1:
 		data[3] = emac_mdio_read(ndev, dev->phy.address, data[1]);
 		return 0;
 
 	case SIOCSMIIREG:
-	case SIOCDEVPRIVATE + 2:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		emac_mdio_write(ndev, dev->phy.address, data[1], data[2]);
