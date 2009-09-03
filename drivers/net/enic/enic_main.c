@@ -1609,12 +1609,6 @@ static void enic_clear_intr_mode(struct enic *enic)
 	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKNOWN);
 }
 
-static void enic_iounmap(struct enic *enic)
-{
-	if (enic->bar0.vaddr)
-		iounmap(enic->bar0.vaddr);
-}
-
 static const struct net_device_ops enic_netdev_ops = {
 	.ndo_open		= enic_open,
 	.ndo_stop		= enic_stop,
@@ -1632,6 +1626,15 @@ static const struct net_device_ops enic_netdev_ops = {
 	.ndo_poll_controller	= enic_poll_controller,
 #endif
 };
+
+static void enic_iounmap(struct enic *enic)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(enic->bar); i++)
+		if (enic->bar[i].vaddr)
+			iounmap(enic->bar[i].vaddr);
+}
 
 static int __devinit enic_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
@@ -1710,31 +1713,28 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		using_dac = 1;
 	}
 
-	/* Map vNIC resources from BAR0
+	/* Map vNIC resources from BAR0-5
 	 */
 
-	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX
-			"BAR0 not memory-map'able, aborting.\n");
-		err = -ENODEV;
-		goto err_out_release_regions;
-	}
-
-	enic->bar0.vaddr = pci_iomap(pdev, 0, enic->bar0.len);
-	enic->bar0.bus_addr = pci_resource_start(pdev, 0);
-	enic->bar0.len = pci_resource_len(pdev, 0);
-
-	if (!enic->bar0.vaddr) {
-		printk(KERN_ERR PFX
-			"Cannot memory-map BAR0 res hdr, aborting.\n");
-		err = -ENODEV;
-		goto err_out_release_regions;
+	for (i = 0; i < ARRAY_SIZE(enic->bar); i++) {
+		if (!(pci_resource_flags(pdev, i) & IORESOURCE_MEM))
+			continue;
+		enic->bar[i].len = pci_resource_len(pdev, i);
+		enic->bar[i].vaddr = pci_iomap(pdev, i, enic->bar[i].len);
+		if (!enic->bar[i].vaddr) {
+			printk(KERN_ERR PFX
+				"Cannot memory-map BAR %d, aborting.\n", i);
+			err = -ENODEV;
+			goto err_out_iounmap;
+		}
+		enic->bar[i].bus_addr = pci_resource_start(pdev, i);
 	}
 
 	/* Register vNIC device
 	 */
 
-	enic->vdev = vnic_dev_register(NULL, enic, pdev, &enic->bar0);
+	enic->vdev = vnic_dev_register(NULL, enic, pdev, enic->bar,
+		ARRAY_SIZE(enic->bar));
 	if (!enic->vdev) {
 		printk(KERN_ERR PFX
 			"vNIC registration failed, aborting.\n");

@@ -75,6 +75,8 @@ unsigned int vnic_dev_get_res_count(struct vnic_dev *vdev,
 	enum vnic_res_type type);
 void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 	unsigned int index);
+dma_addr_t vnic_dev_get_res_bus_addr(struct vnic_dev *vdev,
+	enum vnic_res_type type, unsigned int index);
 unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
 	unsigned int desc_count, unsigned int desc_size);
 void vnic_dev_clear_desc_ring(struct vnic_dev_ring *ring);
@@ -117,6 +119,7 @@ void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
 enum vnic_dev_intr_mode vnic_dev_get_intr_mode(struct vnic_dev *vdev);
 void vnic_dev_unregister(struct vnic_dev *vdev);
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
-	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar);
+	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar,
+	unsigned int num_bars);
 
 #endif /* _VNIC_DEV_H_ */
