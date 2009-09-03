@@ -113,8 +113,11 @@ static char *read_string(void)
 		}
 	}
 
+	/* trailing \0: */
+	i++;
+
 	/* move the file descriptor to the end of the string */
-	r = lseek(input_fd, -(r - (i+1)), SEEK_CUR);
+	r = lseek(input_fd, -(r - i), SEEK_CUR);
 	if (r < 0)
 		die("lseek");
 
