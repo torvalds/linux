@@ -1297,6 +1297,16 @@ sctp_rmem - vector of 3 INTEGERs: min, default, max
 sctp_wmem  - vector of 3 INTEGERs: min, default, max
 	See tcp_wmem for a description.
 
+addr_scope_policy - INTEGER
+	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00
+
+	0   - Disable IPv4 address scoping
+	1   - Enable IPv4 address scoping
+	2   - Follow draft but allow IPv4 private addresses
+	3   - Follow draft but allow IPv4 link local addresses
+
+	Default: 1
+
 
 /proc/sys/net/core/*
 dev_weight - INTEGER

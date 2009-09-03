@@ -219,6 +219,15 @@ extern struct sctp_globals {
 	/* Flag to idicate if SCTP-AUTH is enabled */
 	int auth_enable;
 
+	/*
+	 * Policy to control SCTP IPv4 address scoping
+	 * 0   - Disable IPv4 address scoping
+	 * 1   - Enable IPv4 address scoping
+	 * 2   - Selectively allow only IPv4 private addresses
+	 * 3   - Selectively allow only IPv4 link local address
+	 */
+	int ipv4_scope_policy;
+
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
         int checksum_disable;
@@ -252,6 +261,7 @@ extern struct sctp_globals {
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
 #define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
+#define sctp_scope_policy		(sctp_globals.ipv4_scope_policy)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_addip_noauth		(sctp_globals.addip_noauth_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
