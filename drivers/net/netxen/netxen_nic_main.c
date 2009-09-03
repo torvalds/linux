@@ -1095,10 +1095,6 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	err = netxen_napi_add(adapter, netdev);
-	if (err)
-		return err;
-
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
@@ -2037,8 +2033,6 @@ netxen_remove_sysfs_entries(struct netxen_adapter *adapter)
 	if (adapter->capabilities & NX_FW_CAPABILITY_BDG)
 		device_remove_file(dev, &dev_attr_bridged_mode);
 }
-
-static void netxen_watchdog(unsigned long);
 
 #ifdef CONFIG_INET
 
