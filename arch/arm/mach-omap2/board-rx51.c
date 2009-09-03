@@ -56,6 +56,8 @@ static struct omap_board_config_kernel rx51_config[] = {
 
 static void __init rx51_init_irq(void)
 {
+	omap_board_config = rx51_config;
+	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
@@ -65,8 +67,6 @@ extern void __init rx51_peripherals_init(void);
 
 static void __init rx51_init(void)
 {
-	omap_board_config = rx51_config;
-	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap_serial_init();
 	usb_musb_init();
 	rx51_peripherals_init();

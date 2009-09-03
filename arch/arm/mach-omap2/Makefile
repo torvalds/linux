@@ -5,7 +5,7 @@
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o
 
-omap-2-3-common				= irq.o sdrc.o
+omap-2-3-common				= irq.o sdrc.o omap_hwmod.o
 prcm-common				= prcm.o powerdomain.o
 clock-common				= clock.o clockdomain.o
 
@@ -34,6 +34,11 @@ obj-$(CONFIG_ARCH_OMAP24XX)		+= sleep24xx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 endif
+
+# PRCM
+obj-$(CONFIG_ARCH_OMAP2)		+= cm.o
+obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
+obj-$(CONFIG_ARCH_OMAP4)		+= cm4xxx.o
 
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= clock24xx.o

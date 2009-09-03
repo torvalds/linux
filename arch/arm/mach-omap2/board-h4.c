@@ -268,14 +268,6 @@ static void __init h4_init_flash(void)
 	h4_flash_resource.end	= base + SZ_64M - 1;
 }
 
-static void __init omap_h4_init_irq(void)
-{
-	omap2_init_common_hw(NULL, NULL);
-	omap_init_irq();
-	omap_gpio_init();
-	h4_init_flash();
-}
-
 static struct omap_lcd_config h4_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
@@ -316,6 +308,16 @@ static struct omap_usb_config h4_usb_config __initdata = {
 static struct omap_board_config_kernel h4_config[] = {
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
+
+static void __init omap_h4_init_irq(void)
+{
+	omap_board_config = h4_config;
+	omap_board_config_size = ARRAY_SIZE(h4_config);
+	omap2_init_common_hw(NULL, NULL);
+	omap_init_irq();
+	omap_gpio_init();
+	h4_init_flash();
+}
 
 static struct at24_platform_data m24c01 = {
 	.byte_len	= SZ_1K / 8,
@@ -361,8 +363,6 @@ static void __init omap_h4_init(void)
 			ARRAY_SIZE(h4_i2c_board_info));
 
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
-	omap_board_config = h4_config;
-	omap_board_config_size = ARRAY_SIZE(h4_config);
 	omap_usb_init(&h4_usb_config);
 	omap_serial_init();
 }
