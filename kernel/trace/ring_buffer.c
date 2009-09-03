@@ -467,14 +467,19 @@ struct ring_buffer_iter {
 };
 
 /* buffer may be either ring_buffer or ring_buffer_per_cpu */
-#define RB_WARN_ON(buffer, cond)				\
-	({							\
-		int _____ret = unlikely(cond);			\
-		if (_____ret) {					\
-			atomic_inc(&buffer->record_disabled);	\
-			WARN_ON(1);				\
-		}						\
-		_____ret;					\
+#define RB_WARN_ON(b, cond)						\
+	({								\
+		int _____ret = unlikely(cond);				\
+		if (_____ret) {						\
+			if (__same_type(*(b), struct ring_buffer_per_cpu)) { \
+				struct ring_buffer_per_cpu *__b =	\
+					(void *)b;			\
+				atomic_inc(&__b->buffer->record_disabled); \
+			} else						\
+				atomic_inc(&b->record_disabled);	\
+			WARN_ON(1);					\
+		}							\
+		_____ret;						\
 	})
 
 /* Up this if you want to test the TIME_EXTENTS and normalization */
