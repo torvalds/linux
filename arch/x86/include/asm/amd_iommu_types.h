@@ -158,6 +158,7 @@
 #define PM_LEVEL_ENC(x)		(((x) << 9) & 0xe00ULL)
 #define PM_LEVEL_PDE(x, a)	((a) | PM_LEVEL_ENC((x)) | \
 				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
+#define PM_PTE_LEVEL(pte)	(((pte) >> 9) & 0x7ULL)
 
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
