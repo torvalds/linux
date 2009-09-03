@@ -1070,9 +1070,9 @@ static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
 					pvt->udimm_ce_count[i][2]);
 		else
 			for (j = 0; j < NUM_CHANS; j++) {
-				count = sprintf(data, "socket %d, channel %d"
-						"dimm0: %lu\n"
-						"dimm1: %lu\ndimm2: %lu\n",
+				count = sprintf(data, "socket %d, channel %d "
+						"RDIMM0: %lu "
+						"RDIMM1: %lu RDIMM2: %lu\n",
 						i, j,
 						pvt->rdimm_ce_count[i][j][0],
 						pvt->rdimm_ce_count[i][j][1],
