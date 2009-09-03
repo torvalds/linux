@@ -750,4 +750,6 @@ extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 extern struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool interlaced, int margins);
+extern int drm_add_modes_noedid(struct drm_connector *connector,
+				int hdisplay, int vdisplay);
 #endif /* __DRM_CRTC_H__ */

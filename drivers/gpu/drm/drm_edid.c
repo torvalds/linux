@@ -1215,3 +1215,49 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	return num_modes;
 }
 EXPORT_SYMBOL(drm_add_edid_modes);
+
+/**
+ * drm_add_modes_noedid - add modes for the connectors without EDID
+ * @connector: connector we're probing
+ * @hdisplay: the horizontal display limit
+ * @vdisplay: the vertical display limit
+ *
+ * Add the specified modes to the connector's mode list. Only when the
+ * hdisplay/vdisplay is not beyond the given limit, it will be added.
+ *
+ * Return number of modes added or 0 if we couldn't find any.
+ */
+int drm_add_modes_noedid(struct drm_connector *connector,
+			int hdisplay, int vdisplay)
+{
+	int i, count, num_modes = 0;
+	struct drm_display_mode *mode, *ptr;
+	struct drm_device *dev = connector->dev;
+
+	count = sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
+	if (hdisplay < 0)
+		hdisplay = 0;
+	if (vdisplay < 0)
+		vdisplay = 0;
+
+	for (i = 0; i < count; i++) {
+		ptr = &drm_dmt_modes[i];
+		if (hdisplay && vdisplay) {
+			/*
+			 * Only when two are valid, they will be used to check
+			 * whether the mode should be added to the mode list of
+			 * the connector.
+			 */
+			if (ptr->hdisplay > hdisplay ||
+					ptr->vdisplay > vdisplay)
+				continue;
+		}
+		mode = drm_mode_duplicate(dev, ptr);
+		if (mode) {
+			drm_mode_probed_add(connector, mode);
+			num_modes++;
+		}
+	}
+	return num_modes;
+}
+EXPORT_SYMBOL(drm_add_modes_noedid);
