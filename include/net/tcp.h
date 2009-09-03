@@ -1186,7 +1186,7 @@ extern int			tcp_v4_md5_do_del(struct sock *sk,
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
 
-extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(void);
+extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(struct sock *);
 extern void			tcp_free_md5sig_pool(void);
 
 extern struct tcp_md5sig_pool	*__tcp_get_md5sig_pool(int cpu);

@@ -591,7 +591,7 @@ static int tcp_v6_md5_do_add(struct sock *sk, struct in6_addr *peer,
 			}
 			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 		}
-		if (tcp_alloc_md5sig_pool() == NULL) {
+		if (tcp_alloc_md5sig_pool(sk) == NULL) {
 			kfree(newkey);
 			return -ENOMEM;
 		}

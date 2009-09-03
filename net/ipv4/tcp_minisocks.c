@@ -322,7 +322,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			if (key != NULL) {
 				memcpy(&tcptw->tw_md5_key, key->key, key->keylen);
 				tcptw->tw_md5_keylen = key->keylen;
-				if (tcp_alloc_md5sig_pool() == NULL)
+				if (tcp_alloc_md5sig_pool(sk) == NULL)
 					BUG();
 			}
 		} while (0);

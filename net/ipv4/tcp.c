@@ -1839,7 +1839,7 @@ void tcp_close(struct sock *sk, long timeout)
 		/* Unread data was tossed, zap the connection. */
 		NET_INC_STATS_USER(sock_net(sk), LINUX_MIB_TCPABORTONCLOSE);
 		tcp_set_state(sk, TCP_CLOSE);
-		tcp_send_active_reset(sk, GFP_KERNEL);
+		tcp_send_active_reset(sk, sk->sk_allocation);
 	} else if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
@@ -2658,7 +2658,7 @@ void tcp_free_md5sig_pool(void)
 
 EXPORT_SYMBOL(tcp_free_md5sig_pool);
 
-static struct tcp_md5sig_pool **__tcp_alloc_md5sig_pool(void)
+static struct tcp_md5sig_pool **__tcp_alloc_md5sig_pool(struct sock *sk)
 {
 	int cpu;
 	struct tcp_md5sig_pool **pool;
@@ -2671,7 +2671,7 @@ static struct tcp_md5sig_pool **__tcp_alloc_md5sig_pool(void)
 		struct tcp_md5sig_pool *p;
 		struct crypto_hash *hash;
 
-		p = kzalloc(sizeof(*p), GFP_KERNEL);
+		p = kzalloc(sizeof(*p), sk->sk_allocation);
 		if (!p)
 			goto out_free;
 		*per_cpu_ptr(pool, cpu) = p;
@@ -2688,7 +2688,7 @@ out_free:
 	return NULL;
 }
 
-struct tcp_md5sig_pool **tcp_alloc_md5sig_pool(void)
+struct tcp_md5sig_pool **tcp_alloc_md5sig_pool(struct sock *sk)
 {
 	struct tcp_md5sig_pool **pool;
 	int alloc = 0;
@@ -2709,7 +2709,7 @@ retry:
 
 	if (alloc) {
 		/* we cannot hold spinlock here because this may sleep. */
-		struct tcp_md5sig_pool **p = __tcp_alloc_md5sig_pool();
+		struct tcp_md5sig_pool **p = __tcp_alloc_md5sig_pool(sk);
 		spin_lock_bh(&tcp_md5sig_pool_lock);
 		if (!p) {
 			tcp_md5sig_users--;
