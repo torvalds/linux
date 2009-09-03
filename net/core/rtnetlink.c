@@ -974,12 +974,20 @@ struct net_device *rtnl_create_link(struct net *net, char *ifname,
 {
 	int err;
 	struct net_device *dev;
+	unsigned int num_queues = 1;
+	unsigned int real_num_queues = 1;
 
+	if (ops->get_tx_queues) {
+		err = ops->get_tx_queues(net, tb, &num_queues, &real_num_queues);
+		if (err)
+			goto err;
+	}
 	err = -ENOMEM;
-	dev = alloc_netdev(ops->priv_size, ifname, ops->setup);
+	dev = alloc_netdev_mq(ops->priv_size, ifname, ops->setup, num_queues);
 	if (!dev)
 		goto err;
 
+	dev->real_num_tx_queues = real_num_queues;
 	if (strchr(dev->name, '%')) {
 		err = dev_alloc_name(dev, dev->name);
 		if (err < 0)
