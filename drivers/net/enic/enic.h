@@ -99,6 +99,7 @@ struct enic {
 	____cacheline_aligned struct vnic_rq rq[1];
 	unsigned int rq_count;
 	int (*rq_alloc_buf)(struct vnic_rq *rq);
+	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi;
 	struct net_lro_mgr lro_mgr;

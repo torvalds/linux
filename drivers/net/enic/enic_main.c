@@ -738,8 +738,9 @@ static struct net_device_stats *enic_get_stats(struct net_device *netdev)
 	net_stats->rx_bytes = stats->rx.rx_bytes_ok;
 	net_stats->rx_errors = stats->rx.rx_errors;
 	net_stats->multicast = stats->rx.rx_multicast_frames_ok;
+	net_stats->rx_over_errors = enic->rq_truncated_pkts;
 	net_stats->rx_crc_errors = enic->rq_bad_fcs;
-	net_stats->rx_dropped = stats->rx.rx_no_bufs;
+	net_stats->rx_dropped = stats->rx.rx_no_bufs + stats->rx.rx_drop;
 
 	return net_stats;
 }
@@ -1029,8 +1030,12 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 	if (packet_error) {
 
-		if (bytes_written > 0 && !fcs_ok)
-			enic->rq_bad_fcs++;
+		if (!fcs_ok) {
+			if (bytes_written > 0)
+				enic->rq_bad_fcs++;
+			else if (bytes_written == 0)
+				enic->rq_truncated_pkts++;
+		}
 
 		dev_kfree_skb_any(skb);
 
