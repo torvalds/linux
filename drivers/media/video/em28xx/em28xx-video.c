@@ -2303,7 +2303,10 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (unlikely(rc < 0))
 		return rc;
 
-	rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_mmap_mapper(&fh->vb_vbiq, vma);
 
 	em28xx_videodbg("vma start=0x%08lx, size=%ld, ret=%d\n",
 		(unsigned long)vma->vm_start,
