@@ -898,6 +898,9 @@ struct acpi_bit_register_info {
 #define ACPI_OSI_WIN_XP_SP2             0x05
 #define ACPI_OSI_WINSRV_2003_SP1        0x06
 #define ACPI_OSI_WIN_VISTA              0x07
+#define ACPI_OSI_WINSRV_2008            0x08
+#define ACPI_OSI_WIN_VISTA_SP1          0x09
+#define ACPI_OSI_WIN_7                  0x0A
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
