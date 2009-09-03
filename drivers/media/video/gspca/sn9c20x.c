@@ -1038,8 +1038,8 @@ static struct i2c_reg_u16 mt9m001_init[] = {
 static struct i2c_reg_u16 mt9m111_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
-	{0xa1, 0x0280}, {0xa4, 0x0200}, {0x06, 0x708e},
-	{0xf0, 0x0002}, {0x2e, 0x0a1e}, {0xf0, 0x0000},
+	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
+	{0xf0, 0x0000},
 };
 
 static struct i2c_reg_u8 hv7131r_init[] = {
@@ -2005,6 +2005,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->i2c_addr = id->driver_info & 0xff;
 
 	switch (sd->sensor) {
+	case SENSOR_MT9M111:
 	case SENSOR_OV9650:
 	case SENSOR_SOI968:
 		cam->cam_mode = sxga_mode;
@@ -2156,6 +2157,17 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 			i2c_w1(gspca_dev, 0x1a, 0x3c);
 			i2c_r1(gspca_dev, 0x12, &value);
 			i2c_w1(gspca_dev, 0x12, (value & 0x7) | 0x40);
+		}
+		break;
+	case SENSOR_MT9M111:
+		if (mode & MODE_SXGA) {
+			i2c_w2(gspca_dev, 0xf0, 0x0002);
+			i2c_w2(gspca_dev, 0xc8, 0x970b);
+			i2c_w2(gspca_dev, 0xf0, 0x0000);
+		} else {
+			i2c_w2(gspca_dev, 0xf0, 0x0002);
+			i2c_w2(gspca_dev, 0xc8, 0x8000);
+			i2c_w2(gspca_dev, 0xf0, 0x0000);
 		}
 		break;
 	}
