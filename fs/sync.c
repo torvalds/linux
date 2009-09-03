@@ -218,7 +218,7 @@ int vfs_fsync_range(struct file *file, struct dentry *dentry, loff_t start,
 		goto out;
 	}
 
-	ret = filemap_fdatawrite_range(mapping, start, end);
+	ret = filemap_write_and_wait_range(mapping, start, end);
 
 	/*
 	 * We need to protect against concurrent writers, which could cause
@@ -230,9 +230,6 @@ int vfs_fsync_range(struct file *file, struct dentry *dentry, loff_t start,
 		ret = err;
 	mutex_unlock(&mapping->host->i_mutex);
 
-	err = filemap_fdatawait_range(mapping, start, end);
-	if (!ret)
-		ret = err;
 out:
 	return ret;
 }
