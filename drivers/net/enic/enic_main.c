@@ -1741,6 +1741,88 @@ static const struct net_device_ops enic_netdev_ops = {
 #endif
 };
 
+void enic_dev_deinit(struct enic *enic)
+{
+	netif_napi_del(&enic->napi);
+	enic_free_vnic_resources(enic);
+	enic_clear_intr_mode(enic);
+}
+
+int enic_dev_init(struct enic *enic)
+{
+	struct net_device *netdev = enic->netdev;
+	int err;
+
+	/* Get vNIC configuration
+	 */
+
+	err = enic_get_vnic_config(enic);
+	if (err) {
+		printk(KERN_ERR PFX
+			"Get vNIC configuration failed, aborting.\n");
+		return err;
+	}
+
+	/* Get available resource counts
+	 */
+
+	enic_get_res_counts(enic);
+
+	/* Set interrupt mode based on resource counts and system
+	 * capabilities
+	 */
+
+	err = enic_set_intr_mode(enic);
+	if (err) {
+		printk(KERN_ERR PFX
+			"Failed to set intr mode, aborting.\n");
+		return err;
+	}
+
+	/* Allocate and configure vNIC resources
+	 */
+
+	err = enic_alloc_vnic_resources(enic);
+	if (err) {
+		printk(KERN_ERR PFX
+			"Failed to alloc vNIC resources, aborting.\n");
+		goto err_out_free_vnic_resources;
+	}
+
+	enic_init_vnic_resources(enic);
+
+	err = enic_set_rq_alloc_buf(enic);
+	if (err) {
+		printk(KERN_ERR PFX
+			"Failed to set RQ buffer allocator, aborting.\n");
+		goto err_out_free_vnic_resources;
+	}
+
+	err = enic_set_niccfg(enic);
+	if (err) {
+		printk(KERN_ERR PFX
+			"Failed to config nic, aborting.\n");
+		goto err_out_free_vnic_resources;
+	}
+
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	default:
+		netif_napi_add(netdev, &enic->napi, enic_poll, 64);
+		break;
+	case VNIC_DEV_INTR_MODE_MSIX:
+		netif_napi_add(netdev, &enic->napi, enic_poll_msix, 64);
+		break;
+	}
+
+	return 0;
+
+err_out_free_vnic_resources:
+	enic_clear_intr_mode(enic);
+	enic_free_vnic_resources(enic);
+
+	return err;
+}
+
 static void enic_iounmap(struct enic *enic)
 {
 	unsigned int i;
@@ -1883,49 +1965,11 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		goto err_out_dev_close;
 	}
 
-	/* Get vNIC configuration
-	 */
-
-	err = enic_get_vnic_config(enic);
+	err = enic_dev_init(enic);
 	if (err) {
 		printk(KERN_ERR PFX
-			"Get vNIC configuration failed, aborting.\n");
+			"Device initialization failed, aborting.\n");
 		goto err_out_dev_close;
-	}
-
-	/* Get available resource counts
-	 */
-
-	enic_get_res_counts(enic);
-
-	/* Set interrupt mode based on resource counts and system
-	 * capabilities
-	 */
-
-	err = enic_set_intr_mode(enic);
-	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to set intr mode, aborting.\n");
-		goto err_out_dev_close;
-	}
-
-	/* Allocate and configure vNIC resources
-	 */
-
-	err = enic_alloc_vnic_resources(enic);
-	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to alloc vNIC resources, aborting.\n");
-		goto err_out_free_vnic_resources;
-	}
-
-	enic_init_vnic_resources(enic);
-
-	err = enic_set_niccfg(enic);
-	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to config nic, aborting.\n");
-		goto err_out_free_vnic_resources;
 	}
 
 	/* Setup notification timer, HW reset task, and locks
@@ -1952,21 +1996,12 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (err) {
 		printk(KERN_ERR PFX
 			"Invalid MAC address, aborting.\n");
-		goto err_out_free_vnic_resources;
+		goto err_out_dev_deinit;
 	}
 
 	netdev->netdev_ops = &enic_netdev_ops;
 	netdev->watchdog_timeo = 2 * HZ;
 	netdev->ethtool_ops = &enic_ethtool_ops;
-
-	switch (vnic_dev_get_intr_mode(enic->vdev)) {
-	default:
-		netif_napi_add(netdev, &enic->napi, enic_poll, 64);
-		break;
-	case VNIC_DEV_INTR_MODE_MSIX:
-		netif_napi_add(netdev, &enic->napi, enic_poll_msix, 64);
-		break;
-	}
 
 	netdev->features |= NETIF_F_HW_VLAN_TX |
 		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
@@ -1995,17 +2030,16 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (err) {
 		printk(KERN_ERR PFX
 			"Cannot register net device, aborting.\n");
-		goto err_out_free_vnic_resources;
+		goto err_out_dev_deinit;
 	}
 
 	return 0;
 
-err_out_free_vnic_resources:
-	enic_free_vnic_resources(enic);
+err_out_dev_deinit:
+	enic_dev_deinit(enic);
 err_out_dev_close:
 	vnic_dev_close(enic->vdev);
 err_out_vnic_unregister:
-	enic_clear_intr_mode(enic);
 	vnic_dev_unregister(enic->vdev);
 err_out_iounmap:
 	enic_iounmap(enic);
@@ -2029,9 +2063,8 @@ static void __devexit enic_remove(struct pci_dev *pdev)
 
 		flush_scheduled_work();
 		unregister_netdev(netdev);
-		enic_free_vnic_resources(enic);
+		enic_dev_deinit(enic);
 		vnic_dev_close(enic->vdev);
-		enic_clear_intr_mode(enic);
 		vnic_dev_unregister(enic->vdev);
 		enic_iounmap(enic);
 		pci_release_regions(pdev);
