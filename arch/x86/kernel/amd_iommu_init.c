@@ -435,6 +435,20 @@ static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
 }
 
 /*
+ * This function resets the command buffer if the IOMMU stopped fetching
+ * commands from it.
+ */
+void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu)
+{
+	iommu_feature_disable(iommu, CONTROL_CMDBUF_EN);
+
+	writel(0x00, iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
+
+	iommu_feature_enable(iommu, CONTROL_CMDBUF_EN);
+}
+
+/*
  * This function writes the command buffer address to the hardware and
  * enables it.
  */
@@ -450,11 +464,7 @@ static void iommu_enable_command_buffer(struct amd_iommu *iommu)
 	memcpy_toio(iommu->mmio_base + MMIO_CMD_BUF_OFFSET,
 		    &entry, sizeof(entry));
 
-	/* set head and tail to zero manually */
-	writel(0x00, iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
-	writel(0x00, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
-
-	iommu_feature_enable(iommu, CONTROL_CMDBUF_EN);
+	amd_iommu_reset_cmd_buffer(iommu);
 }
 
 static void __init free_command_buffer(struct amd_iommu *iommu)
