@@ -81,7 +81,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	return NULL;
 }
 
-void kunmap_coherent(void)
+void kunmap_coherent(void *kvaddr)
 {
 	BUG();
 }

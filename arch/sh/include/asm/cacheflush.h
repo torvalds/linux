@@ -85,7 +85,7 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 
 void kmap_coherent_init(void);
 void *kmap_coherent(struct page *page, unsigned long addr);
-void kunmap_coherent(void);
+void kunmap_coherent(void *kvaddr);
 
 #define PG_dcache_dirty	PG_arch_1
 

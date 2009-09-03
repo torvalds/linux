@@ -24,9 +24,6 @@ void __init kmap_coherent_init(void)
 {
 	unsigned long vaddr;
 
-	if (!boot_cpu_data.dcache.n_aliases)
-		return;
-
 	/* cache the first coherent kmap pte */
 	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
 	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
@@ -35,30 +32,31 @@ void __init kmap_coherent_init(void)
 void *kmap_coherent(struct page *page, unsigned long addr)
 {
 	enum fixed_addresses idx;
-	unsigned long vaddr, flags;
-	pte_t pte;
+	unsigned long vaddr;
 
 	BUG_ON(test_bit(PG_dcache_dirty, &page->flags));
 
-	inc_preempt_count();
+	pagefault_disable();
 
-	idx = (addr & current_cpu_data.dcache.alias_mask) >> PAGE_SHIFT;
-	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
-	pte = mk_pte(page, PAGE_KERNEL);
+	idx = FIX_CMAP_END -
+		((addr & current_cpu_data.dcache.alias_mask) >> PAGE_SHIFT);
+	vaddr = __fix_to_virt(idx);
 
-	local_irq_save(flags);
-	flush_tlb_one(get_asid(), vaddr);
-	local_irq_restore(flags);
-
-	update_mmu_cache(NULL, vaddr, pte);
-
-	set_pte(kmap_coherent_pte - (FIX_CMAP_END - idx), pte);
+	BUG_ON(!pte_none(*(kmap_coherent_pte - idx)));
+	set_pte(kmap_coherent_pte - idx, mk_pte(page, PAGE_KERNEL));
 
 	return (void *)vaddr;
 }
 
-void kunmap_coherent(void)
+void kunmap_coherent(void *kvaddr)
 {
-	dec_preempt_count();
-	preempt_check_resched();
+	if (kvaddr >= (void *)FIXADDR_START) {
+		unsigned long vaddr = (unsigned long)kvaddr & PAGE_MASK;
+		enum fixed_addresses idx = __virt_to_fix(vaddr);
+
+		pte_clear(&init_mm, vaddr, kmap_coherent_pte - idx);
+		local_flush_tlb_one(get_asid(), vaddr);
+	}
+
+	pagefault_enable();
 }
