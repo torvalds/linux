@@ -851,6 +851,50 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	return 0;
 }
 
+static int enic_rq_alloc_buf_a1(struct vnic_rq *rq)
+{
+	struct rq_enet_desc *desc = vnic_rq_next_desc(rq);
+
+	if (vnic_rq_posting_soon(rq)) {
+
+		/* SW workaround for A0 HW erratum: if we're just about
+		 * to write posted_index, insert a dummy desc
+		 * of type resvd
+		 */
+
+		rq_enet_desc_enc(desc, 0, RQ_ENET_TYPE_RESV2, 0);
+		vnic_rq_post(rq, 0, 0, 0, 0);
+	} else {
+		return enic_rq_alloc_buf(rq);
+	}
+
+	return 0;
+}
+
+static int enic_set_rq_alloc_buf(struct enic *enic)
+{
+	enum vnic_dev_hw_version hw_ver;
+	int err;
+
+	err = vnic_dev_hw_version(enic->vdev, &hw_ver);
+	if (err)
+		return err;
+
+	switch (hw_ver) {
+	case VNIC_DEV_HW_VER_A1:
+		enic->rq_alloc_buf = enic_rq_alloc_buf_a1;
+		break;
+	case VNIC_DEV_HW_VER_A2:
+	case VNIC_DEV_HW_VER_UNKNOWN:
+		enic->rq_alloc_buf = enic_rq_alloc_buf;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int enic_get_skb_header(struct sk_buff *skb, void **iphdr,
 	void **tcph, u64 *hdr_flags, void *priv)
 {
@@ -1058,7 +1102,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		/* Replenish RQ
 		 */
 
-		vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+		vnic_rq_fill(&enic->rq[0], enic->rq_alloc_buf);
 
 	} else {
 
@@ -1093,7 +1137,7 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 		/* Replenish RQ
 		 */
 
-		vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+		vnic_rq_fill(&enic->rq[0], enic->rq_alloc_buf);
 
 		/* Return intr event credits for this polling
 		 * cycle.  An intr event is the completion of a
@@ -1269,7 +1313,7 @@ static int enic_open(struct net_device *netdev)
 	}
 
 	for (i = 0; i < enic->rq_count; i++) {
-		err = vnic_rq_fill(&enic->rq[i], enic_rq_alloc_buf);
+		err = vnic_rq_fill(&enic->rq[i], enic->rq_alloc_buf);
 		if (err) {
 			printk(KERN_ERR PFX
 				"%s: Unable to alloc receive buffers.\n",

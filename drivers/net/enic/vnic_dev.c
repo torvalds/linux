@@ -349,6 +349,25 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 	return err;
 }
 
+int vnic_dev_hw_version(struct vnic_dev *vdev, enum vnic_dev_hw_version *hw_ver)
+{
+	struct vnic_devcmd_fw_info *fw_info;
+	int err;
+
+	err = vnic_dev_fw_info(vdev, &fw_info);
+	if (err)
+		return err;
+
+	if (strncmp(fw_info->hw_version, "A1", sizeof("A1")) == 0)
+		*hw_ver = VNIC_DEV_HW_VER_A1;
+	else if (strncmp(fw_info->hw_version, "A2", sizeof("A2")) == 0)
+		*hw_ver = VNIC_DEV_HW_VER_A2;
+	else
+		*hw_ver = VNIC_DEV_HW_VER_UNKNOWN;
+
+	return 0;
+}
+
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
 	void *value)
 {
