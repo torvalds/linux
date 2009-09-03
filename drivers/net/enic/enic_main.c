@@ -1316,6 +1316,7 @@ static int enic_notify_set(struct enic *enic)
 {
 	int err;
 
+	spin_lock(&enic->devcmd_lock);
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
 		err = vnic_dev_notify_set(enic->vdev, ENIC_INTX_NOTIFY);
@@ -1327,6 +1328,7 @@ static int enic_notify_set(struct enic *enic)
 		err = vnic_dev_notify_set(enic->vdev, -1 /* no intr */);
 		break;
 	}
+	spin_unlock(&enic->devcmd_lock);
 
 	return err;
 }
@@ -1380,12 +1382,16 @@ static int enic_open(struct net_device *netdev)
 	for (i = 0; i < enic->rq_count; i++)
 		vnic_rq_enable(&enic->rq[i]);
 
+	spin_lock(&enic->devcmd_lock);
 	enic_add_station_addr(enic);
+	spin_unlock(&enic->devcmd_lock);
 	enic_set_multicast_list(netdev);
 
 	netif_wake_queue(netdev);
 	napi_enable(&enic->napi);
+	spin_lock(&enic->devcmd_lock);
 	vnic_dev_enable(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
 
 	for (i = 0; i < enic->intr_count; i++)
 		vnic_intr_unmask(&enic->intr[i]);
@@ -1395,7 +1401,9 @@ static int enic_open(struct net_device *netdev)
 	return 0;
 
 err_out_notify_unset:
+	spin_lock(&enic->devcmd_lock);
 	vnic_dev_notify_unset(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
 err_out_free_intr:
 	enic_free_intr(enic);
 
@@ -1411,7 +1419,9 @@ static int enic_stop(struct net_device *netdev)
 
 	del_timer_sync(&enic->notify_timer);
 
+	spin_lock(&enic->devcmd_lock);
 	vnic_dev_disable(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
 	napi_disable(&enic->napi);
 	netif_stop_queue(netdev);
 
@@ -1429,7 +1439,9 @@ static int enic_stop(struct net_device *netdev)
 			return err;
 	}
 
+	spin_lock(&enic->devcmd_lock);
 	vnic_dev_notify_unset(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
 	enic_free_intr(enic);
 
 	(void)vnic_cq_service(&enic->cq[ENIC_CQ_RQ],
