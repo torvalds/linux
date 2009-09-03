@@ -560,6 +560,20 @@ void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 		printk(KERN_ERR "Can't del addr [%pM], %d\n", addr, err);
 }
 
+int vnic_dev_raise_intr(struct vnic_dev *vdev, u16 intr)
+{
+	u64 a0 = intr, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_IAR, &a0, &a1, wait);
+	if (err)
+		printk(KERN_ERR "Failed to raise INTR[%d], err %d\n",
+			intr, err);
+
+	return err;
+}
+
 int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 {
 	u64 a0, a1;
