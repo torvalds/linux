@@ -3113,14 +3113,16 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 
 	f->indices = min((int)num_online_cpus(), f->indices);
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		adapter->num_rx_queues = 1;
+		adapter->num_tx_queues = 1;
 #ifdef CONFIG_IXGBE_DCB
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			DPRINTK(PROBE, INFO, "FCOE enabled with DCB \n");
+			DPRINTK(PROBE, INFO, "FCoE enabled with DCB \n");
 			ixgbe_set_dcb_queues(adapter);
 		}
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			DPRINTK(PROBE, INFO, "FCOE enabled with RSS \n");
+			DPRINTK(PROBE, INFO, "FCoE enabled with RSS \n");
 			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
 			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 				ixgbe_set_fdir_queues(adapter);
@@ -3130,8 +3132,7 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 		/* adding FCoE rx rings to the end */
 		f->mask = adapter->num_rx_queues;
 		adapter->num_rx_queues += f->indices;
-		if (adapter->num_tx_queues == 0)
-			adapter->num_tx_queues = f->indices;
+		adapter->num_tx_queues += f->indices;
 
 		ret = true;
 	}
@@ -3371,15 +3372,36 @@ static bool inline ixgbe_cache_ring_fdir(struct ixgbe_adapter *adapter)
  */
 static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 {
-	int i, fcoe_i = 0;
+	int i, fcoe_rx_i = 0, fcoe_tx_i = 0;
 	bool ret = false;
 	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
 
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
 #ifdef CONFIG_IXGBE_DCB
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			struct ixgbe_fcoe *fcoe = &adapter->fcoe;
+
 			ixgbe_cache_ring_dcb(adapter);
-			fcoe_i = adapter->rx_ring[0].reg_idx + 1;
+			/* find out queues in TC for FCoE */
+			fcoe_rx_i = adapter->rx_ring[fcoe->tc].reg_idx + 1;
+			fcoe_tx_i = adapter->tx_ring[fcoe->tc].reg_idx + 1;
+			/*
+			 * In 82599, the number of Tx queues for each traffic
+			 * class for both 8-TC and 4-TC modes are:
+			 * TCs  : TC0 TC1 TC2 TC3 TC4 TC5 TC6 TC7
+			 * 8 TCs:  32  32  16  16   8   8   8   8
+			 * 4 TCs:  64  64  32  32
+			 * We have max 8 queues for FCoE, where 8 the is
+			 * FCoE redirection table size. If TC for FCoE is
+			 * less than or equal to TC3, we have enough queues
+			 * to add max of 8 queues for FCoE, so we start FCoE
+			 * tx descriptor from the next one, i.e., reg_idx + 1.
+			 * If TC for FCoE is above TC3, implying 8 TC mode,
+			 * and we need 8 for FCoE, we have to take all queues
+			 * in that traffic class for FCoE.
+			 */
+			if ((f->indices == IXGBE_FCRETA_SIZE) && (fcoe->tc > 3))
+				fcoe_tx_i--;
 		}
 #endif /* CONFIG_IXGBE_DCB */
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
@@ -3389,10 +3411,13 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 			else
 				ixgbe_cache_ring_rss(adapter);
 
-			fcoe_i = f->mask;
+			fcoe_rx_i = f->mask;
+			fcoe_tx_i = f->mask;
 		}
-		for (i = 0; i < f->indices; i++, fcoe_i++)
-			adapter->rx_ring[f->mask + i].reg_idx = fcoe_i;
+		for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
+			adapter->rx_ring[f->mask + i].reg_idx = fcoe_rx_i;
+			adapter->tx_ring[f->mask + i].reg_idx = fcoe_tx_i;
+		}
 		ret = true;
 	}
 	return ret;

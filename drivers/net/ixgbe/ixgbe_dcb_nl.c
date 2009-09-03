@@ -36,6 +36,7 @@
 #define BIT_PFC		0x02
 #define BIT_PG_RX	0x04
 #define BIT_PG_TX	0x08
+#define BIT_APP_UPCHG	0x10
 #define BIT_RESETLINK   0x40
 #define BIT_LINKSPEED   0x80
 
@@ -348,8 +349,14 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 			msleep(1);
 
-		if (netif_running(netdev))
-			ixgbe_down(adapter);
+		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+			if (netif_running(netdev))
+				netdev->netdev_ops->ndo_stop(netdev);
+			ixgbe_clear_interrupt_scheme(adapter);
+		} else {
+			if (netif_running(netdev))
+				ixgbe_down(adapter);
+		}
 	}
 
 	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
@@ -373,8 +380,14 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	}
 
 	if (adapter->dcb_set_bitmap & BIT_RESETLINK) {
-		if (netif_running(netdev))
-			ixgbe_up(adapter);
+		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+			ixgbe_init_interrupt_scheme(adapter);
+			if (netif_running(netdev))
+				netdev->netdev_ops->ndo_open(netdev);
+		} else {
+			if (netif_running(netdev))
+				ixgbe_up(adapter);
+		}
 		ret = DCB_HW_CHG_RST;
 	} else if (adapter->dcb_set_bitmap & BIT_PFC) {
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
@@ -526,8 +539,20 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 	switch (idtype) {
 	case DCB_APP_IDTYPE_ETHTYPE:
 #ifdef IXGBE_FCOE
-		if (id == ETH_P_FCOE)
-			rval = ixgbe_fcoe_setapp(netdev_priv(netdev), up);
+		if (id == ETH_P_FCOE) {
+			u8 tc;
+			struct ixgbe_adapter *adapter;
+
+			adapter = netdev_priv(netdev);
+			tc = adapter->fcoe.tc;
+			rval = ixgbe_fcoe_setapp(adapter, up);
+			if ((!rval) && (tc != adapter->fcoe.tc) &&
+			    (adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
+			    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
+				adapter->dcb_set_bitmap |= BIT_APP_UPCHG;
+				adapter->dcb_set_bitmap |= BIT_RESETLINK;
+			}
+		}
 #endif
 		break;
 	case DCB_APP_IDTYPE_PORTNUM:
