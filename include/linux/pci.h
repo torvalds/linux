@@ -796,6 +796,11 @@ int __must_check __pci_register_driver(struct pci_driver *, struct module *,
 void pci_unregister_driver(struct pci_driver *dev);
 void pci_remove_behind_bridge(struct pci_dev *dev);
 struct pci_driver *pci_dev_driver(const struct pci_dev *dev);
+int pci_add_dynid(struct pci_driver *drv,
+		  unsigned int vendor, unsigned int device,
+		  unsigned int subvendor, unsigned int subdevice,
+		  unsigned int class, unsigned int class_mask,
+		  unsigned long driver_data);
 const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 					 struct pci_dev *dev);
 int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
