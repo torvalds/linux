@@ -80,6 +80,7 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/bitops.h>
+#include <linux/mii.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -1558,24 +1559,26 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
     local_info_t *local = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
-    u16 *data = (u16 *)&rq->ifr_ifru;
+    struct mii_ioctl_data *data = if_mii(rq);
 
     DEBUG(1, "%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
 	  dev->name, rq->ifr_ifrn.ifrn_name, cmd,
-	  data[0], data[1], data[2], data[3]);
+	  data->phy_id, data->reg_num, data->val_in, data->val_out);
 
     if (!local->mohawk)
 	return -EOPNOTSUPP;
 
     switch(cmd) {
       case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
-	data[0] = 0;		/* we have only this address */
+	data->phy_id = 0;	/* we have only this address */
 	/* fall through */
       case SIOCGMIIREG:		/* Read the specified MII register. */
-	data[3] = mii_rd(ioaddr, data[0] & 0x1f, data[1] & 0x1f);
+	data->val_out = mii_rd(ioaddr, data->phy_id & 0x1f,
+			       data->reg_num & 0x1f);
 	break;
       case SIOCSMIIREG:		/* Write the specified MII register */
-	mii_wr(ioaddr, data[0] & 0x1f, data[1] & 0x1f, data[2], 16);
+	mii_wr(ioaddr, data->phy_id & 0x1f, data->reg_num & 0x1f, data->val_in,
+	       16);
 	break;
       default:
 	return -EOPNOTSUPP;
