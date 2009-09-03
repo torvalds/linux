@@ -552,7 +552,7 @@ static struct omap_uart_state omap_uart[OMAP_MAX_NR_PORTS] = {
 	},
 };
 
-void __init omap_serial_init(void)
+void __init omap_serial_early_init(void)
 {
 	int i;
 	char name[16];
@@ -595,6 +595,18 @@ void __init omap_serial_init(void)
 			p->irq += 32;
 
 		omap_uart_enable_clocks(uart);
+	}
+}
+
+void __init omap_serial_init(void)
+{
+	int i;
+
+	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
+		struct omap_uart_state *uart = &omap_uart[i];
+		struct platform_device *pdev = &uart->pdev;
+		struct device *dev = &pdev->dev;
+
 		omap_uart_reset(uart);
 		omap_uart_idle_init(uart);
 

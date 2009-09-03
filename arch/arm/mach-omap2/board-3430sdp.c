@@ -167,13 +167,6 @@ static struct platform_device *sdp3430_devices[] __initdata = {
 	&sdp3430_lcd_device,
 };
 
-static void __init omap_3430sdp_init_irq(void)
-{
-	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
 static struct omap_lcd_config sdp3430_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
@@ -181,6 +174,15 @@ static struct omap_lcd_config sdp3430_lcd_config __initdata = {
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&sdp3430_lcd_config },
 };
+
+static void __init omap_3430sdp_init_irq(void)
+{
+	omap_board_config = sdp3430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
+	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
+	omap_init_irq();
+	omap_gpio_init();
+}
 
 static int sdp3430_batt_table[] = {
 /* 0 C*/
@@ -477,8 +479,6 @@ static void __init omap_3430sdp_init(void)
 {
 	omap3430_i2c_init();
 	platform_add_devices(sdp3430_devices, ARRAY_SIZE(sdp3430_devices));
-	omap_board_config = sdp3430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	if (omap_rev() > OMAP3430_REV_ES1_0)
 		ts_gpio = SDP3430_TS_GPIO_IRQ_SDPV2;
 	else

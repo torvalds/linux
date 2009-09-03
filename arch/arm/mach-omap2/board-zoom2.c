@@ -90,13 +90,6 @@ static struct twl4030_keypad_data zoom2_kp_twl4030_data = {
 	.rep		= 1,
 };
 
-static void __init omap_zoom2_init_irq(void)
-{
-	omap2_init_common_hw(NULL, NULL);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
 static struct omap_board_config_kernel zoom2_config[] __initdata = {
 };
 
@@ -212,6 +205,15 @@ static struct twl4030_usb_data zoom2_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
+static void __init omap_zoom2_init_irq(void)
+{
+	omap_board_config = zoom2_config;
+	omap_board_config_size = ARRAY_SIZE(zoom2_config);
+	omap2_init_common_hw(NULL, NULL);
+	omap_init_irq();
+	omap_gpio_init();
+}
+
 static struct twl4030_gpio_platform_data zoom2_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
 	.irq_base	= TWL4030_GPIO_IRQ_BASE,
@@ -262,8 +264,6 @@ extern int __init omap_zoom2_debugboard_init(void);
 static void __init omap_zoom2_init(void)
 {
 	omap_i2c_init();
-	omap_board_config = zoom2_config;
-	omap_board_config_size = ARRAY_SIZE(zoom2_config);
 	omap_serial_init();
 	omap_zoom2_debugboard_init();
 	usb_musb_init();

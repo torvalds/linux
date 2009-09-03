@@ -274,17 +274,19 @@ struct spi_board_info omap3evm_spi_board_info[] = {
 	},
 };
 
+static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
+	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
+};
+
 static void __init omap3_evm_init_irq(void)
 {
+	omap_board_config = omap3_evm_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	omap3evm_init_smc911x();
 }
-
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
-};
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
 	&omap3_evm_lcd_device,
@@ -296,8 +298,6 @@ static void __init omap3_evm_init(void)
 	omap3_evm_i2c_init();
 
 	platform_add_devices(omap3_evm_devices, ARRAY_SIZE(omap3_evm_devices));
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	spi_register_board_info(omap3evm_spi_board_info,
 				ARRAY_SIZE(omap3evm_spi_board_info));
