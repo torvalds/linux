@@ -1043,7 +1043,7 @@ DEFINE_PER_CPU(struct orig_ist, orig_ist);
 #else	/* CONFIG_X86_64 */
 
 #ifdef CONFIG_CC_STACKPROTECTOR
-DEFINE_PER_CPU(unsigned long, stack_canary);
+DEFINE_PER_CPU(struct stack_canary, stack_canary) ____cacheline_aligned;
 #endif
 
 /* Make sure %fs and %gs are initialized properly in idle threads */

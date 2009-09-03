@@ -403,7 +403,17 @@ extern unsigned long kernel_eflags;
 extern asmlinkage void ignore_sysret(void);
 #else	/* X86_64 */
 #ifdef CONFIG_CC_STACKPROTECTOR
-DECLARE_PER_CPU(unsigned long, stack_canary);
+/*
+ * Make sure stack canary segment base is cached-aligned:
+ *   "For Intel Atom processors, avoid non zero segment base address
+ *    that is not aligned to cache line boundary at all cost."
+ * (Optim Ref Manual Assembly/Compiler Coding Rule 15.)
+ */
+struct stack_canary {
+	char __pad[20];		/* canary at %gs:20 */
+	unsigned long canary;
+};
+DECLARE_PER_CPU(struct stack_canary, stack_canary) ____cacheline_aligned;
 #endif
 #endif	/* X86_64 */
 
