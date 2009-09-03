@@ -480,6 +480,26 @@ static struct drm_display_mode drm_dmt_modes[] = {
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
 };
 
+static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
+			int hsize, int vsize, int fresh)
+{
+	int i, count;
+	struct drm_display_mode *ptr, *mode;
+
+	count = sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
+	mode = NULL;
+	for (i = 0; i < count; i++) {
+		ptr = &drm_dmt_modes[i];
+		if (hsize == ptr->hdisplay &&
+			vsize == ptr->vdisplay &&
+			fresh == drm_mode_vrefresh(ptr)) {
+			/* get the expected default mode */
+			mode = drm_mode_duplicate(dev, ptr);
+			break;
+		}
+	}
+	return mode;
+}
 /**
  * drm_mode_std - convert standard mode info (width, height, refresh) into mode
  * @t: standard timing params
@@ -516,16 +536,22 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		vsize = (hsize * 4) / 5;
 	else
 		vsize = (hsize * 9) / 16;
-
+	/* HDTV hack */
+	if (hsize == 1360 && vsize == 765 && vrefresh_rate == 60) {
+		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		mode->hdisplay = 1366;
+		mode->vsync_start = mode->vsync_start - 1;
+		mode->vsync_end = mode->vsync_end - 1;
+		return mode;
+	}
 	mode = NULL;
+	/* check whether it can be found in default mode table */
+	mode = drm_find_dmt(dev, hsize, vsize, vrefresh_rate);
+	if (mode)
+		return mode;
+
 	switch (timing_level) {
 	case LEVEL_DMT:
-		mode = drm_mode_create(dev);
-		if (mode) {
-			mode->hdisplay = hsize;
-			mode->vdisplay = vsize;
-			drm_mode_set_name(mode);
-		}
 		break;
 	case LEVEL_GTF:
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);

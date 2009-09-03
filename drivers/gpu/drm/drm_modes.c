@@ -566,7 +566,9 @@ EXPORT_SYMBOL(drm_mode_height);
  * FIXME: why is this needed?  shouldn't vrefresh be set already?
  *
  * RETURNS:
- * Vertical refresh rate of @mode x 1000. For precision reasons.
+ * Vertical refresh rate. It will be the result of actual value plus 0.5.
+ * If it is 70.288, it will return 70Hz.
+ * If it is 59.6, it will return 60Hz.
  */
 int drm_mode_vrefresh(struct drm_display_mode *mode)
 {
@@ -576,14 +578,13 @@ int drm_mode_vrefresh(struct drm_display_mode *mode)
 	if (mode->vrefresh > 0)
 		refresh = mode->vrefresh;
 	else if (mode->htotal > 0 && mode->vtotal > 0) {
+		int vtotal;
+		vtotal = mode->vtotal;
 		/* work out vrefresh the value will be x1000 */
 		calc_val = (mode->clock * 1000);
-
 		calc_val /= mode->htotal;
-		calc_val *= 1000;
-		calc_val /= mode->vtotal;
+		refresh = (calc_val + vtotal / 2) / vtotal;
 
-		refresh = calc_val;
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 			refresh *= 2;
 		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
