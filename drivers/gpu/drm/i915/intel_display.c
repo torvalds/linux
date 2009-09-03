@@ -3472,6 +3472,9 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 	struct intel_framebuffer *intel_fb;
 	struct intel_crtc *intel_crtc;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
 	dev_priv->busy = true;
 	intel_increase_renderclock(dev, true);
 
