@@ -193,6 +193,8 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 			if ((edge && old_irr != ioapic->irr) ||
 			    (!edge && !entry.fields.remote_irr))
 				ret = ioapic_service(ioapic, irq);
+			else
+				ret = 0; /* report coalesced interrupt */
 		}
 		trace_kvm_ioapic_set_irq(entry.bits, irq, ret == 0);
 	}
