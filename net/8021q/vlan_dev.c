@@ -294,6 +294,8 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	int i = skb_get_queue_mapping(skb);
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
+	unsigned int len;
+	int ret;
 
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
 	 *
@@ -319,11 +321,17 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 			vlan_dev_info(dev)->cnt_inc_headroom_on_tx++;
 	}
 
-	txq->tx_packets++;
-	txq->tx_bytes += skb->len;
 
 	skb->dev = vlan_dev_info(dev)->real_dev;
-	dev_queue_xmit(skb);
+	len = skb->len;
+	ret = dev_queue_xmit(skb);
+
+	if (likely(ret == NET_XMIT_SUCCESS)) {
+		txq->tx_packets++;
+		txq->tx_bytes += len;
+	} else
+		txq->tx_dropped++;
+
 	return NETDEV_TX_OK;
 }
 
@@ -333,16 +341,23 @@ static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	int i = skb_get_queue_mapping(skb);
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 	u16 vlan_tci;
+	unsigned int len;
+	int ret;
 
 	vlan_tci = vlan_dev_info(dev)->vlan_id;
 	vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb);
 	skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 
-	txq->tx_packets++;
-	txq->tx_bytes += skb->len;
-
 	skb->dev = vlan_dev_info(dev)->real_dev;
-	dev_queue_xmit(skb);
+	len = skb->len;
+	ret = dev_queue_xmit(skb);
+
+	if (likely(ret == NET_XMIT_SUCCESS)) {
+		txq->tx_packets++;
+		txq->tx_bytes += len;
+	} else
+		txq->tx_dropped++;
+
 	return NETDEV_TX_OK;
 }
 
