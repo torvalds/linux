@@ -1091,9 +1091,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 {
 	int r;
 	gfn_t base_gfn;
-	unsigned long npages, ugfn;
-	int lpages;
-	unsigned long i, j;
+	unsigned long npages;
+	unsigned long i;
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
 
@@ -1171,6 +1170,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		goto skip_lpage;
 
 	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		unsigned long ugfn;
+		unsigned long j;
+		int lpages;
 		int level = i + 2;
 
 		/* Avoid unused variable warning if no large pages */
