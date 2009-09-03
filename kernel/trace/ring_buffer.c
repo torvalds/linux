@@ -218,17 +218,12 @@ enum {
 
 static inline int rb_null_event(struct ring_buffer_event *event)
 {
-	return event->type_len == RINGBUF_TYPE_PADDING
-			&& event->time_delta == 0;
-}
-
-static inline int rb_discarded_event(struct ring_buffer_event *event)
-{
-	return event->type_len == RINGBUF_TYPE_PADDING && event->time_delta;
+	return event->type_len == RINGBUF_TYPE_PADDING && !event->time_delta;
 }
 
 static void rb_event_set_padding(struct ring_buffer_event *event)
 {
+	/* padding has a NULL time_delta */
 	event->type_len = RINGBUF_TYPE_PADDING;
 	event->time_delta = 0;
 }
@@ -1778,9 +1773,6 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	event->type_len = RINGBUF_TYPE_PADDING;
 	/* time delta must be non zero */
 	event->time_delta = 1;
-	/* Account for this as an entry */
-	local_inc(&tail_page->entries);
-	local_inc(&cpu_buffer->entries);
 
 	/* Set write to end of buffer */
 	length = (tail + length) - BUF_PAGE_SIZE;
@@ -2269,18 +2261,23 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_lock_reserve);
 
-static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
+static void
+rb_update_write_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		      struct ring_buffer_event *event)
 {
-	local_inc(&cpu_buffer->entries);
-
 	/*
 	 * The event first in the commit queue updates the
 	 * time stamp.
 	 */
 	if (rb_event_is_commit(cpu_buffer, event))
 		cpu_buffer->write_stamp += event->time_delta;
+}
 
+static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
+		      struct ring_buffer_event *event)
+{
+	local_inc(&cpu_buffer->entries);
+	rb_update_write_stamp(cpu_buffer, event);
 	rb_end_commit(cpu_buffer);
 }
 
@@ -2327,6 +2324,46 @@ static inline void rb_event_discard(struct ring_buffer_event *event)
 		event->time_delta = 1;
 }
 
+/*
+ * Decrement the entries to the page that an event is on.
+ * The event does not even need to exist, only the pointer
+ * to the page it is on. This may only be called before the commit
+ * takes place.
+ */
+static inline void
+rb_decrement_entry(struct ring_buffer_per_cpu *cpu_buffer,
+		   struct ring_buffer_event *event)
+{
+	unsigned long addr = (unsigned long)event;
+	struct buffer_page *bpage = cpu_buffer->commit_page;
+	struct buffer_page *start;
+
+	addr &= PAGE_MASK;
+
+	/* Do the likely case first */
+	if (likely(bpage->page == (void *)addr)) {
+		local_dec(&bpage->entries);
+		return;
+	}
+
+	/*
+	 * Because the commit page may be on the reader page we
+	 * start with the next page and check the end loop there.
+	 */
+	rb_inc_page(cpu_buffer, &bpage);
+	start = bpage;
+	do {
+		if (bpage->page == (void *)addr) {
+			local_dec(&bpage->entries);
+			return;
+		}
+		rb_inc_page(cpu_buffer, &bpage);
+	} while (bpage != start);
+
+	/* commit not part of this buffer?? */
+	RB_WARN_ON(cpu_buffer, 1);
+}
+
 /**
  * ring_buffer_commit_discard - discard an event that has not been committed
  * @buffer: the ring buffer
@@ -2365,14 +2402,15 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 */
 	RB_WARN_ON(buffer, !local_read(&cpu_buffer->committing));
 
+	rb_decrement_entry(cpu_buffer, event);
 	if (rb_try_to_discard(cpu_buffer, event))
 		goto out;
 
 	/*
 	 * The commit is still visible by the reader, so we
-	 * must increment entries.
+	 * must still update the timestamp.
 	 */
-	local_inc(&cpu_buffer->entries);
+	rb_update_write_stamp(cpu_buffer, event);
  out:
 	rb_end_commit(cpu_buffer);
 
@@ -2884,8 +2922,7 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 
 	event = rb_reader_event(cpu_buffer);
 
-	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX
-			|| rb_discarded_event(event))
+	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 		cpu_buffer->read++;
 
 	rb_update_read_stamp(cpu_buffer, event);
