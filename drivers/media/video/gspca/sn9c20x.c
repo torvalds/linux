@@ -1036,10 +1036,10 @@ static struct i2c_reg_u16 mt9m001_init[] = {
 };
 
 static struct i2c_reg_u16 mt9m111_init[] = {
-	{0xf0, 0x0000}, {0x0d, 0x0008}, {0x0d, 0x0009},
-	{0x0d, 0x0008}, {0xf0, 0x0001}, {0x3a, 0x4300},
-	{0x9b, 0x4300}, {0xa1, 0x0280}, {0xa4, 0x0200},
-	{0x06, 0x308e}, {0xf0, 0x0000},
+	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
+	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
+	{0xa1, 0x0280}, {0xa4, 0x0200}, {0x06, 0x708e},
+	{0xf0, 0x0002}, {0x2e, 0x0a1e}, {0xf0, 0x0000},
 };
 
 static struct i2c_reg_u8 hv7131r_init[] = {
@@ -1379,6 +1379,7 @@ static int mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
 	sd->hstart = 0;
 	sd->vstart = 2;
 	return 0;
@@ -1641,7 +1642,6 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 		exp[4] = sd->exposure >> 8;
 		break;
 	case SENSOR_MT9M001:
-	case SENSOR_MT9M111:
 	case SENSOR_MT9V112:
 	case SENSOR_MT9V111:
 	case SENSOR_MT9V011:
@@ -1685,7 +1685,6 @@ static int set_gain(struct gspca_dev *gspca_dev)
 		gain[4] = micron1_gain[sd->gain] & 0xff;
 		break;
 	case SENSOR_MT9V112:
-	case SENSOR_MT9M111:
 		gain[0] |= (3 << 4);
 		gain[2] = 0x2f;
 		gain[3] = micron1_gain[sd->gain] >> 8;
