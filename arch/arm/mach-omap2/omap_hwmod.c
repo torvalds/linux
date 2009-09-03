@@ -765,8 +765,7 @@ static int _reset(struct omap_hwmod *oh)
 		WARN(1, "omap_hwmod: %s: failed to reset in %d usec\n",
 		     oh->name, MAX_MODULE_RESET_WAIT);
 	else
-		pr_debug("omap_hwmod: %s: reset in %d usec\n", oh->name,
-			 MAX_MODULE_RESET_WAIT);
+		pr_debug("omap_hwmod: %s: reset in %d usec\n", oh->name, c);
 
 	/*
 	 * XXX add _HWMOD_STATE_WEDGED for modules that don't come back from
