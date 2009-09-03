@@ -196,6 +196,7 @@ static int __cmd_trace(void)
 		exit(0);
 	}
 	header = perf_header__read(input);
+	head = header->data_offset;
 	sample_type = perf_header__sample_type(header);
 
 	if (!(sample_type & PERF_SAMPLE_RAW))
