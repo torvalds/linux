@@ -2560,5 +2560,25 @@ void __ocfs2_abort(struct super_block* sb,
 	ocfs2_handle_error(sb);
 }
 
+/*
+ * Void signal blockers, because in-kernel sigprocmask() only fails
+ * when SIG_* is wrong.
+ */
+void ocfs2_block_signals(sigset_t *oldset)
+{
+	int rc;
+	sigset_t blocked;
+
+	sigfillset(&blocked);
+	rc = sigprocmask(SIG_BLOCK, &blocked, oldset);
+	BUG_ON(rc);
+}
+
+void ocfs2_unblock_signals(sigset_t *oldset)
+{
+	int rc = sigprocmask(SIG_SETMASK, oldset, NULL);
+	BUG_ON(rc);
+}
+
 module_init(ocfs2_init);
 module_exit(ocfs2_exit);

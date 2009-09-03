@@ -957,7 +957,7 @@ static void ocfs2_cleanup_delete_inode(struct inode *inode,
 void ocfs2_delete_inode(struct inode *inode)
 {
 	int wipe, status;
-	sigset_t blocked, oldset;
+	sigset_t oldset;
 	struct buffer_head *di_bh = NULL;
 
 	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
@@ -984,13 +984,7 @@ void ocfs2_delete_inode(struct inode *inode)
 	 * messaging paths may return us -ERESTARTSYS. Which would
 	 * cause us to exit early, resulting in inodes being orphaned
 	 * forever. */
-	sigfillset(&blocked);
-	status = sigprocmask(SIG_BLOCK, &blocked, &oldset);
-	if (status < 0) {
-		mlog_errno(status);
-		ocfs2_cleanup_delete_inode(inode, 1);
-		goto bail;
-	}
+	ocfs2_block_signals(&oldset);
 
 	/*
 	 * Synchronize us against ocfs2_get_dentry. We take this in
@@ -1064,9 +1058,7 @@ bail_unlock_nfs_sync:
 	ocfs2_nfs_sync_unlock(OCFS2_SB(inode->i_sb), 0);
 
 bail_unblock:
-	status = sigprocmask(SIG_SETMASK, &oldset, NULL);
-	if (status < 0)
-		mlog_errno(status);
+	ocfs2_unblock_signals(&oldset);
 bail:
 	clear_inode(inode);
 	mlog_exit_void();
