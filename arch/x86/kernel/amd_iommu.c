@@ -56,8 +56,8 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
 static struct dma_ops_domain *find_protection_domain(u16 devid);
 static u64 *alloc_pte(struct protection_domain *domain,
-		      unsigned long address, u64
-		      **pte_page, gfp_t gfp);
+		      unsigned long address, int end_lvl,
+		      u64 **pte_page, gfp_t gfp);
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages);
@@ -523,17 +523,21 @@ void amd_iommu_flush_all_devices(void)
 static int iommu_map_page(struct protection_domain *dom,
 			  unsigned long bus_addr,
 			  unsigned long phys_addr,
-			  int prot)
+			  int prot,
+			  int map_size)
 {
 	u64 __pte, *pte;
 
 	bus_addr  = PAGE_ALIGN(bus_addr);
 	phys_addr = PAGE_ALIGN(phys_addr);
 
+	BUG_ON(!PM_ALIGNED(map_size, bus_addr));
+	BUG_ON(!PM_ALIGNED(map_size, phys_addr));
+
 	if (!(prot & IOMMU_PROT_MASK))
 		return -EINVAL;
 
-	pte = alloc_pte(dom, bus_addr, NULL, GFP_KERNEL);
+	pte = alloc_pte(dom, bus_addr, map_size, NULL, GFP_KERNEL);
 
 	if (IOMMU_PTE_PRESENT(*pte))
 		return -EBUSY;
@@ -612,7 +616,8 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 
 	for (addr = e->address_start; addr < e->address_end;
 	     addr += PAGE_SIZE) {
-		ret = iommu_map_page(&dma_dom->domain, addr, addr, e->prot);
+		ret = iommu_map_page(&dma_dom->domain, addr, addr, e->prot,
+				     PM_MAP_4k);
 		if (ret)
 			return ret;
 		/*
@@ -729,7 +734,7 @@ static int alloc_new_range(struct amd_iommu *iommu,
 		u64 *pte, *pte_page;
 
 		for (i = 0; i < num_ptes; ++i) {
-			pte = alloc_pte(&dma_dom->domain, address,
+			pte = alloc_pte(&dma_dom->domain, address, PM_MAP_4k,
 					&pte_page, gfp);
 			if (!pte)
 				goto out_free;
@@ -1356,7 +1361,10 @@ static bool increase_address_space(struct protection_domain *domain,
 }
 
 static u64 *alloc_pte(struct protection_domain *domain,
-		      unsigned long address, u64 **pte_page, gfp_t gfp)
+		      unsigned long address,
+		      int end_lvl,
+		      u64 **pte_page,
+		      gfp_t gfp)
 {
 	u64 *pte, *page;
 	int level;
@@ -1367,7 +1375,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 	level =  domain->mode - 1;
 	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
 
-	while (level > 0) {
+	while (level > end_lvl) {
 		if (!IOMMU_PTE_PRESENT(*pte)) {
 			page = (u64 *)get_zeroed_page(gfp);
 			if (!page)
@@ -1379,7 +1387,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 
 		pte = IOMMU_PTE_PAGE(*pte);
 
-		if (pte_page && level == 0)
+		if (pte_page && level == end_lvl)
 			*pte_page = pte;
 
 		pte = &pte[PM_LEVEL_INDEX(level, address)];
@@ -1403,7 +1411,8 @@ static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
 
 	pte = aperture->pte_pages[APERTURE_PAGE_INDEX(address)];
 	if (!pte) {
-		pte = alloc_pte(&dom->domain, address, &pte_page, GFP_ATOMIC);
+		pte = alloc_pte(&dom->domain, address, PM_MAP_4k, &pte_page,
+				GFP_ATOMIC);
 		aperture->pte_pages[APERTURE_PAGE_INDEX(address)] = pte_page;
 	} else
 		pte += PM_LEVEL_INDEX(0, address);
@@ -2176,7 +2185,7 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 	paddr &= PAGE_MASK;
 
 	for (i = 0; i < npages; ++i) {
-		ret = iommu_map_page(domain, iova, paddr, prot);
+		ret = iommu_map_page(domain, iova, paddr, prot, PM_MAP_4k);
 		if (ret)
 			return ret;
 

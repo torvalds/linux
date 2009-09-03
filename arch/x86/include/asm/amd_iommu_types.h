@@ -160,6 +160,12 @@
 				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
 #define PM_PTE_LEVEL(pte)	(((pte) >> 9) & 0x7ULL)
 
+#define PM_MAP_4k		0
+#define PM_ADDR_MASK		0x000ffffffffff000ULL
+#define PM_MAP_MASK(lvl)	(PM_ADDR_MASK & \
+				(~((1ULL << (12 + ((lvl) * 9))) - 1)))
+#define PM_ALIGNED(lvl, addr)	((PM_MAP_MASK(lvl) & (addr)) == (addr))
+
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)
