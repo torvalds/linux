@@ -181,7 +181,7 @@ static int nftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 	int res;
 
 	ops.mode = MTD_OOB_PLACE;
-	ops.ooboffs = offs;
+	ops.ooboffs = offs & (mtd->writesize - 1);
 	ops.ooblen = mtd->oobsize;
 	ops.oobbuf = oob;
 	ops.datbuf = buf;
