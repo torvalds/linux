@@ -291,7 +291,8 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
-	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
+	int i = skb_get_queue_mapping(skb);
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
 
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
@@ -329,7 +330,8 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 						    struct net_device *dev)
 {
-	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
+	int i = skb_get_queue_mapping(skb);
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 	u16 vlan_tci;
 
 	vlan_tci = vlan_dev_info(dev)->vlan_id;
