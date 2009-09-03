@@ -29,6 +29,7 @@
 #include "vnic_cq.h"
 #include "vnic_intr.h"
 #include "vnic_stats.h"
+#include "vnic_nic.h"
 #include "vnic_rss.h"
 
 #define DRV_NAME		"enic"
@@ -42,17 +43,20 @@
 
 #define ENIC_BARS_MAX		6
 
+#define ENIC_WQ_MAX		8
+#define ENIC_RQ_MAX		8
+#define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
+#define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
+
 enum enic_cq_index {
 	ENIC_CQ_RQ,
 	ENIC_CQ_WQ,
-	ENIC_CQ_MAX,
 };
 
 enum enic_intx_intr_index {
 	ENIC_INTX_WQ_RQ,
 	ENIC_INTX_ERR,
 	ENIC_INTX_NOTIFY,
-	ENIC_INTX_MAX,
 };
 
 enum enic_msix_intr_index {
@@ -90,13 +94,13 @@ struct enic {
 	u32 port_mtu;
 
 	/* work queue cache line section */
-	____cacheline_aligned struct vnic_wq wq[1];
-	spinlock_t wq_lock[1];
+	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];
+	spinlock_t wq_lock[ENIC_WQ_MAX];
 	unsigned int wq_count;
 	struct vlan_group *vlan_group;
 
 	/* receive queue cache line section */
-	____cacheline_aligned struct vnic_rq rq[1];
+	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
 	int (*rq_alloc_buf)(struct vnic_rq *rq);
 	u64 rq_truncated_pkts;
@@ -106,7 +110,7 @@ struct enic {
 	struct net_lro_desc lro_desc[ENIC_LRO_MAX_DESC];
 
 	/* interrupt resource cache line section */
-	____cacheline_aligned struct vnic_intr intr[ENIC_MSIX_MAX];
+	____cacheline_aligned struct vnic_intr intr[ENIC_INTR_MAX];
 	unsigned int intr_count;
 	u32 __iomem *legacy_pba;		/* memory-mapped */
 

@@ -1586,7 +1586,7 @@ static int enic_set_niccfg(struct enic *enic)
 	const u8 ig_vlan_strip_en = 1;
 
 	/* Enable VLAN tag stripping.  RSS not enabled (yet).
-	*/
+	 */
 
 	return enic_set_nic_cfg(enic,
 		rss_default_cpu, rss_hash_type,
@@ -1621,8 +1621,8 @@ static void enic_reset(struct work_struct *work)
 
 static int enic_set_intr_mode(struct enic *enic)
 {
-	unsigned int n = ARRAY_SIZE(enic->rq);
-	unsigned int m = ARRAY_SIZE(enic->wq);
+	unsigned int n = 1;
+	unsigned int m = 1;
 	unsigned int i;
 
 	/* Set interrupt mode (INTx, MSI, MSI-X) depending
