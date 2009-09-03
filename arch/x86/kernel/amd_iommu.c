@@ -479,8 +479,6 @@ void amd_iommu_flush_all_devices(void)
 	int i;
 
 	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
-		if (amd_iommu_pd_table[i] == NULL)
-			continue;
 
 		iommu = amd_iommu_rlookup_table[i];
 		if (!iommu)
