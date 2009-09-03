@@ -58,12 +58,18 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	struct dso *dso = NULL;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
+	u64 timestamp = -1;
 	u32 cpu = -1;
 	u64 period = 1;
 	void *more_data = event->ip.__more_data;
 	int cpumode;
 
 	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+
+	if (sample_type & PERF_SAMPLE_TIME) {
+		timestamp = *(u64 *)more_data;
+		more_data += sizeof(u64);
+	}
 
 	if (sample_type & PERF_SAMPLE_CPU) {
 		cpu = *(u32 *)more_data;
@@ -127,7 +133,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		 * field, although it should be the same than this perf
 		 * event pid
 		 */
-		print_event(cpu, raw->data, raw->size, 0, thread->comm);
+		print_event(cpu, raw->data, raw->size, timestamp, thread->comm);
 	}
 	total += period;
 

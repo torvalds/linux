@@ -404,6 +404,7 @@ static void create_counter(int counter, int cpu, pid_t pid)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
 	if (raw_samples) {
+		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 	}
