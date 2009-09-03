@@ -29,13 +29,7 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
-#ifdef MODULE
-#ifdef MODVERSIONS
-#include <linux/modversions.h>
-#endif /* MODVERSIONS */
 #include <linux/module.h>
-#endif /* MODULE */
-
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
