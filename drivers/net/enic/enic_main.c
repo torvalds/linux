@@ -1968,7 +1968,8 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		break;
 	}
 
-	netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	netdev->features |= NETIF_F_HW_VLAN_TX |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
 	if (ENIC_SETTING(enic, TXCSUM))
 		netdev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	if (ENIC_SETTING(enic, TSO))
