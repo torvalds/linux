@@ -1414,8 +1414,8 @@
 #define INT_APCLI			0x0400
 #define INT_MESH			0x0500
 
-#define INF_MAIN_DEV_NAME		"ra"
-#define INF_MBSSID_DEV_NAME		"ra"
+#define INF_MAIN_DEV_NAME		"wlan"
+#define INF_MBSSID_DEV_NAME		"wlan"
 #define INF_WDS_DEV_NAME		"wds"
 #define INF_APCLI_DEV_NAME		"apcli"
 #define INF_MESH_DEV_NAME		"mesh"
