@@ -1158,6 +1158,23 @@ static void i7core_put_devices(void)
 			pci_dev_put(pci_devs[j].pdev[i]);
 }
 
+static void i7core_xeon_pci_fixup(void)
+{
+	struct pci_dev *pdev = NULL;
+	int i;
+	/*
+	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core pci buses
+	 * aren't announced by acpi. So, we need to use a legacy scan probing
+	 * to detect them
+	 */
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+			      pci_devs[0].dev_id, NULL);
+	if (unlikely(!pdev)) {
+		for (i = 0; i < NUM_SOCKETS; i ++)
+			pcibios_scan_specific_bus(255-i);
+	}
+}
+
 /*
  *	i7core_get_devices	Find and perform 'get' operation on the MCH's
  *			device/functions we want to reference for this driver
@@ -1172,19 +1189,6 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno)
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 			      pci_devs[devno].dev_id, *prev);
-
-	/*
-	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core pci buses
-	 * aren't announced by acpi. So, we need to use a legacy scan probing
-	 * to detect them
-	 */
-	if (unlikely(!pdev && !devno && !prev)) {
-		pcibios_scan_specific_bus(254);
-		pcibios_scan_specific_bus(255);
-
-		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				      pci_devs[devno].dev_id, *prev);
-	}
 
 	/*
 	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
@@ -1895,6 +1899,8 @@ static int __init i7core_init(void)
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
+
+	i7core_xeon_pci_fixup();
 
 	pci_rc = pci_register_driver(&i7core_driver);
 
