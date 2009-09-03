@@ -413,7 +413,7 @@ struct stack_canary {
 	char __pad[20];		/* canary at %gs:20 */
 	unsigned long canary;
 };
-DECLARE_PER_CPU(struct stack_canary, stack_canary) ____cacheline_aligned;
+DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
 #endif	/* X86_64 */
 
