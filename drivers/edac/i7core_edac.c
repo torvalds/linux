@@ -1743,7 +1743,13 @@ static int __init i7core_init(void)
 
 	pci_rc = pci_register_driver(&i7core_driver);
 
-	return (pci_rc < 0) ? pci_rc : 0;
+	if (pci_rc >= 0)
+		return 0;
+
+	i7core_printk(KERN_ERR, "Failed to register device with error %d.\n",
+		      pci_rc);
+
+	return pci_rc;
 }
 
 /*
