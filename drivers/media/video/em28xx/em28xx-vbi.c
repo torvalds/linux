@@ -85,7 +85,6 @@ static int
 vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	    enum v4l2_field field)
 {
-	struct em28xx_fh     *fh  = q->priv_data;
 	struct em28xx_buffer *buf = container_of(vb, struct em28xx_buffer, vb);
 	int                  rc = 0;
 	unsigned int size;
