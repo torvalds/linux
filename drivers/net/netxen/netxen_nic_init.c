@@ -265,6 +265,10 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			else
 				rds_ring->dma_size =
 					NX_P2_RX_JUMBO_BUF_MAX_LEN;
+
+			if (adapter->capabilities & NX_CAP0_HW_LRO)
+				rds_ring->dma_size += NX_LRO_BUFFER_EXTRA;
+
 			rds_ring->skb_size =
 				rds_ring->dma_size + NET_IP_ALIGN;
 			break;
@@ -1217,6 +1221,7 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
+	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	napi_gro_receive(&sds_ring->napi, skb);
@@ -1278,8 +1283,7 @@ netxen_process_lro(struct netxen_adapter *adapter,
 
 	skb_put(skb, lro_length + data_offset);
 
-	skb->truesize = (skb->len + sizeof(struct sk_buff) +
-			((unsigned long)skb->data - (unsigned long)skb->head));
+	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
 
 	skb_pull(skb, l2_hdr_offset);
 	skb->protocol = eth_type_trans(skb, netdev);
