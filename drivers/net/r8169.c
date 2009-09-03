@@ -1991,8 +1991,6 @@ static int rtl_xmii_ioctl(struct rtl8169_private *tp, struct mii_ioctl_data *dat
 		return 0;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		mdio_write(tp->mmio_addr, data->reg_num & 0x1f, data->val_in);
 		return 0;
 	}

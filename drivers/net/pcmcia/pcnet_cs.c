@@ -1204,8 +1204,6 @@ static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	data[3] = mdio_read(mii_addr, data[0], data[1] & 0x1f);
 	return 0;
     case SIOCSMIIREG:		/* Write MII PHY register. */
-	if (!capable(CAP_NET_ADMIN))
-	    return -EPERM;
 	mdio_write(mii_addr, data[0], data[1] & 0x1f, data[2]);
 	return 0;
     }

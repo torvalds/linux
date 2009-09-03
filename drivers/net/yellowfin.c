@@ -1365,8 +1365,6 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		if (data->phy_id == np->phys[0]) {
 			u16 value = data->val_in;
 			switch (data->reg_num) {

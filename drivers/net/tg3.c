@@ -10610,9 +10610,6 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 			break;			/* We have no PHY */
 
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-
 		if (tp->link_config.phy_is_low_power)
 			return -EAGAIN;
 

@@ -1784,11 +1784,6 @@ static int netdrv_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable (CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
-
 		spin_lock_irqsave (&tp->lock, flags);
 		mdio_write (dev, data->phy_id & 0x1f, data->reg_num & 0x1f, data->val_in);
 		spin_unlock_irqrestore (&tp->lock, flags);

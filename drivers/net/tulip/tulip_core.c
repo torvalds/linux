@@ -923,8 +923,6 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable (CAP_NET_ADMIN))
-			return -EPERM;
 		if (regnum & ~0x1f)
 			return -EINVAL;
 		if (data->phy_id == phy) {

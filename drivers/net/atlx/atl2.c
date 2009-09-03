@@ -966,8 +966,6 @@ static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		data->phy_id = 0;
 		break;
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		spin_lock_irqsave(&adapter->stats_lock, flags);
 		if (atl2_read_phy_reg(&adapter->hw,
 			data->reg_num & 0x1F, &data->val_out)) {
@@ -977,8 +975,6 @@ static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		spin_unlock_irqrestore(&adapter->stats_lock, flags);
 		break;
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		if (data->reg_num & ~(0x1F))
 			return -EFAULT;
 		spin_lock_irqsave(&adapter->stats_lock, flags);

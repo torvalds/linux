@@ -1524,9 +1524,6 @@ static int amd8111e_ioctl(struct net_device * dev , struct ifreq *ifr, int cmd)
 	int err;
 	u32 mii_regval;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	switch(cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = lp->ext_phy_addr;

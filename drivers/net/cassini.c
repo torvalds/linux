@@ -4875,10 +4875,6 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable(CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
 		spin_lock_irqsave(&cp->lock, flags);
 		cas_mif_poll(cp, 0);
 		rc = cas_phy_write(cp, data->reg_num & 0x1f, data->val_in);

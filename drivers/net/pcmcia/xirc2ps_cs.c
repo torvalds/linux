@@ -1575,8 +1575,6 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	data[3] = mii_rd(ioaddr, data[0] & 0x1f, data[1] & 0x1f);
 	break;
       case SIOCSMIIREG:		/* Write the specified MII register */
-	if (!capable(CAP_NET_ADMIN))
-	    return -EPERM;
 	mii_wr(ioaddr, data[0] & 0x1f, data[1] & 0x1f, data[2], 16);
 	break;
       default:

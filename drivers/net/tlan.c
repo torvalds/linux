@@ -1004,8 +1004,6 @@ static int TLan_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-			if (!capable(CAP_NET_ADMIN))
-				return -EPERM;
 			TLan_MiiWriteReg(dev, data->phy_id & 0x1f,
 					 data->reg_num & 0x1f, data->val_in);
 			return 0;

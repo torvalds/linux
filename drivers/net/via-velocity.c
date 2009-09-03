@@ -2328,14 +2328,10 @@ static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
 		miidata->phy_id = readb(&regs->MIIADR) & 0x1f;
 		break;
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		if (velocity_mii_read(vptr->mac_regs, miidata->reg_num & 0x1f, &(miidata->val_out)) < 0)
 			return -ETIMEDOUT;
 		break;
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		spin_lock_irqsave(&vptr->lock, flags);
 		err = velocity_mii_write(vptr->mac_regs, miidata->reg_num & 0x1f, miidata->val_in);
 		spin_unlock_irqrestore(&vptr->lock, flags);

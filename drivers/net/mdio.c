@@ -380,10 +380,7 @@ int mdio_mii_ioctl(const struct mdio_if_info *mdio,
 		cmd = SIOCGMIIREG;
 		break;
 	case SIOCGMIIREG:
-		break;
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		break;
 	default:
 		return -EOPNOTSUPP;

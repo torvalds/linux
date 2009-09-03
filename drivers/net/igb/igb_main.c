@@ -4914,8 +4914,6 @@ static int igb_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		data->phy_id = adapter->hw.phy.addr;
 		break;
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		if (igb_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
 		                     &data->val_out))
 			return -EIO;

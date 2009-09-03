@@ -1214,9 +1214,6 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-
 		spin_lock_bh(&sky2->phy_lock);
 		err = gm_phy_write(hw, sky2->port, data->reg_num & 0x1f,
 				   data->val_in);

@@ -1124,8 +1124,6 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			int saved_window;
                        unsigned long flags;
 
-			if (!capable(CAP_NET_ADMIN))
-				return -EPERM;
 			spin_lock_irqsave(&lp->window_lock, flags);
 			saved_window = inw(ioaddr + EL3_CMD) >> 13;
 			EL3WINDOW(4);

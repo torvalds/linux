@@ -2225,8 +2225,6 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		emac_mdio_write(ndev, dev->phy.address, data[1], data[2]);
 		return 0;
 	default:

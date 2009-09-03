@@ -453,10 +453,6 @@ static int atl1e_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (atl1e_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
 				    &data->val_out)) {
 			retval = -EIO;
@@ -465,10 +461,6 @@ static int atl1e_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (data->reg_num & ~(0x1F)) {
 			retval = -EFAULT;
 			goto out;
