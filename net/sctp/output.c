@@ -697,13 +697,14 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	 */
 	if (!sctp_sk(asoc->base.sk)->nodelay && sctp_packet_empty(packet) &&
 	    inflight && sctp_state(asoc, ESTABLISHED)) {
-		unsigned len = datasize + q->out_qlen;
+		unsigned max = transport->pathmtu - packet->overhead;
+		unsigned len = chunk->skb->len + q->out_qlen;
 
 		/* Check whether this chunk and all the rest of pending
 		 * data will fit or delay in hopes of bundling a full
 		 * sized packet.
 		 */
-		if (len < asoc->frag_point) {
+		if (len < max) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}
