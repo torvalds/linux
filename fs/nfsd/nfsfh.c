@@ -557,8 +557,10 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 
 		if (inode)
 			_fh_update(fhp, exp, dentry);
-		if (fhp->fh_handle.fh_fileid_type == 255)
+		if (fhp->fh_handle.fh_fileid_type == 255) {
+			fh_put(fhp);
 			return nfserr_opnotsupp;
+		}
 	}
 
 	return 0;
