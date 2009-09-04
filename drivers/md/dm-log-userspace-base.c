@@ -577,7 +577,7 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 		break;
 	case STATUSTYPE_TABLE:
 		sz = 0;
-		DMEMIT("%s %u %s %s", log->type->name, lc->usr_argc + 1,
+		DMEMIT("%s %u %s %s ", log->type->name, lc->usr_argc + 1,
 		       lc->uuid, lc->usr_argv_str);
 		break;
 	}
