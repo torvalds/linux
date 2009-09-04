@@ -680,13 +680,15 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	 */
 	peer->param_flags = asoc->param_flags;
 
+	sctp_transport_route(peer, NULL, sp);
+
 	/* Initialize the pmtu of the transport. */
-	if (peer->param_flags & SPP_PMTUD_ENABLE)
-		sctp_transport_pmtu(peer);
-	else if (asoc->pathmtu)
-		peer->pathmtu = asoc->pathmtu;
-	else
-		peer->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
+	if (peer->param_flags & SPP_PMTUD_DISABLE) {
+		if (asoc->pathmtu)
+			peer->pathmtu = asoc->pathmtu;
+		else
+			peer->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
+	}
 
 	/* If this is the first transport addr on this association,
 	 * initialize the association PMTU to the peer's PMTU.
