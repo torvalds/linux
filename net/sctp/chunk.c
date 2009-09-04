@@ -59,6 +59,7 @@ static void sctp_datamsg_init(struct sctp_datamsg *msg)
 	msg->can_abandon = 0;
 	msg->expires_at = 0;
 	INIT_LIST_HEAD(&msg->chunks);
+	msg->msg_size = 0;
 }
 
 /* Allocate and initialize datamsg. */
@@ -155,6 +156,7 @@ static void sctp_datamsg_assign(struct sctp_datamsg *msg, struct sctp_chunk *chu
 {
 	sctp_datamsg_hold(msg);
 	chunk->msg = msg;
+	msg->msg_size += chunk->skb->len;
 }
 
 

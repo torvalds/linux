@@ -703,8 +703,10 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 		/* Check whether this chunk and all the rest of pending
 		 * data will fit or delay in hopes of bundling a full
 		 * sized packet.
+		 * Don't delay large message writes that may have been
+		 * fragmeneted into small peices.
 		 */
-		if (len < max) {
+		if ((len < max) && (chunk->msg->msg_size < max)) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}
