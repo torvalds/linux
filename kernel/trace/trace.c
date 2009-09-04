@@ -550,7 +550,6 @@ __acquires(kernel_lock)
 	if (type->selftest && !tracing_selftest_disabled) {
 		struct tracer *saved_tracer = current_trace;
 		struct trace_array *tr = &global_trace;
-		int i;
 
 		/*
 		 * Run a selftest on this tracer.
@@ -559,8 +558,7 @@ __acquires(kernel_lock)
 		 * internal tracing to verify that everything is in order.
 		 * If we fail, we do not register this tracer.
 		 */
-		for_each_tracing_cpu(i)
-			tracing_reset(tr, i);
+		tracing_reset_online_cpus(tr);
 
 		current_trace = type;
 		/* the test is responsible for initializing and enabling */
@@ -573,8 +571,7 @@ __acquires(kernel_lock)
 			goto out;
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
-		for_each_tracing_cpu(i)
-			tracing_reset(tr, i);
+		tracing_reset_online_cpus(tr);
 
 		printk(KERN_CONT "PASSED\n");
 	}

@@ -144,14 +144,12 @@ static void power_trace_reset(struct trace_array *tr)
 
 static int power_trace_init(struct trace_array *tr)
 {
-	int cpu;
 	power_trace = tr;
 
 	trace_power_enabled = 1;
 	tracing_power_register();
 
-	for_each_cpu(cpu, cpu_possible_mask)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 	return 0;
 }
 

@@ -41,14 +41,12 @@ void disable_boot_trace(void)
 
 static int boot_trace_init(struct trace_array *tr)
 {
-	int cpu;
 	boot_trace = tr;
 
 	if (!tr)
 		return 0;
 
-	for_each_cpu(cpu, cpu_possible_mask)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 
 	tracing_sched_switch_assign_trace(tr);
 	return 0;
