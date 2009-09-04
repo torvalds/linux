@@ -1247,12 +1247,27 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_zero_in_ctx(xhci, virt_dev);
 }
 
+static void xhci_setup_input_ctx_for_config_ep(struct xhci_hcd *xhci,
+		unsigned int slot_id, u32 add_flags, u32 drop_flags)
+{
+	struct xhci_input_control_ctx *ctrl_ctx;
+	ctrl_ctx = xhci_get_input_control_ctx(xhci,
+			xhci->devs[slot_id]->in_ctx);
+	ctrl_ctx->add_flags = add_flags;
+	ctrl_ctx->drop_flags = drop_flags;
+	xhci_slot_copy(xhci, xhci->devs[slot_id]);
+	ctrl_ctx->add_flags |= SLOT_FLAG;
+
+	xhci_dbg(xhci, "Slot ID %d Input Context:\n", slot_id);
+	xhci_dbg_ctx(xhci, xhci->devs[slot_id]->in_ctx,
+			xhci_last_valid_endpoint(add_flags));
+}
+
 void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state)
 {
 	struct xhci_container_ctx *in_ctx;
-	struct xhci_input_control_ctx *ctrl_ctx;
 	struct xhci_ep_ctx *ep_ctx;
 	u32 added_ctxs;
 	dma_addr_t addr;
@@ -1272,15 +1287,9 @@ void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 	}
 	ep_ctx->deq = addr | deq_state->new_cycle_state;
 
-	xhci_slot_copy(xhci, xhci->devs[slot_id]);
-
-	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
 	added_ctxs = xhci_get_endpoint_flag_from_index(ep_index);
-	ctrl_ctx->add_flags = added_ctxs | SLOT_FLAG;
-	ctrl_ctx->drop_flags = added_ctxs;
-
-	xhci_dbg(xhci, "Slot ID %d Input Context:\n", slot_id);
-	xhci_dbg_ctx(xhci, in_ctx, ep_index);
+	xhci_setup_input_ctx_for_config_ep(xhci, slot_id,
+			added_ctxs, added_ctxs);
 }
 
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
