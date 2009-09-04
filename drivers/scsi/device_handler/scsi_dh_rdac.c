@@ -201,6 +201,31 @@ static const char *lun_state[] =
 static LIST_HEAD(ctlr_list);
 static DEFINE_SPINLOCK(list_lock);
 
+/*
+ * module parameter to enable rdac debug logging.
+ * 2 bits for each type of logging, only two types defined for now
+ * Can be enhanced if required at later point
+ */
+static int rdac_logging = 1;
+module_param(rdac_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(rdac_logging, "A bit mask of rdac logging levels, "
+		"Default is 1 - failover logging enabled, "
+		"set it to 0xF to enable all the logs");
+
+#define RDAC_LOG_FAILOVER	0
+#define RDAC_LOG_SENSE		2
+
+#define RDAC_LOG_BITS		2
+
+#define RDAC_LOG_LEVEL(SHIFT)  \
+	((rdac_logging >> (SHIFT)) & ((1 << (RDAC_LOG_BITS)) - 1))
+
+#define RDAC_LOG(SHIFT, sdev, f, arg...) \
+do { \
+	if (unlikely(RDAC_LOG_LEVEL(SHIFT))) \
+		sdev_printk(KERN_INFO, sdev, RDAC_NAME ": " f "\n", ## arg); \
+} while (0);
+
 static inline struct rdac_dh_data *get_rdac_data(struct scsi_device *sdev)
 {
 	struct scsi_dh_data *scsi_dh_data = sdev->scsi_dh_data;
@@ -469,6 +494,7 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 {
 	struct scsi_sense_hdr sense_hdr;
 	int err = SCSI_DH_IO, ret;
+	struct rdac_dh_data *h = get_rdac_data(sdev);
 
 	ret = scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE, &sense_hdr);
 	if (!ret)
@@ -497,10 +523,13 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 			err = SCSI_DH_RETRY;
 		break;
 	default:
-		sdev_printk(KERN_INFO, sdev,
-			    "MODE_SELECT failed with sense %02x/%02x/%02x.\n",
-			    sense_hdr.sense_key, sense_hdr.asc, sense_hdr.ascq);
+		break;
 	}
+
+	RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
+		"MODE_SELECT returned with sense %02x/%02x/%02x",
+		(char *) h->ctlr->array_name, h->ctlr->index,
+		sense_hdr.sense_key, sense_hdr.asc, sense_hdr.ascq);
 
 done:
 	return err;
@@ -518,7 +547,9 @@ retry:
 	if (!rq)
 		goto done;
 
-	sdev_printk(KERN_INFO, sdev, "%s MODE_SELECT command.\n",
+	RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
+		"%s MODE_SELECT command",
+		(char *) h->ctlr->array_name, h->ctlr->index,
 		(retry_cnt == RDAC_RETRY_COUNT) ? "queueing" : "retrying");
 
 	err = blk_execute_rq(q, NULL, rq, 1);
@@ -528,8 +559,12 @@ retry:
 		if (err == SCSI_DH_RETRY && retry_cnt--)
 			goto retry;
 	}
-	if (err == SCSI_DH_OK)
+	if (err == SCSI_DH_OK) {
 		h->state = RDAC_STATE_ACTIVE;
+		RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
+				"MODE_SELECT completed",
+				(char *) h->ctlr->array_name, h->ctlr->index);
+	}
 
 done:
 	return err;
@@ -567,6 +602,12 @@ static int rdac_check_sense(struct scsi_device *sdev,
 				struct scsi_sense_hdr *sense_hdr)
 {
 	struct rdac_dh_data *h = get_rdac_data(sdev);
+
+	RDAC_LOG(RDAC_LOG_SENSE, sdev, "array %s, ctlr %d, "
+			"I/O returned with sense %02x/%02x/%02x",
+			(char *) h->ctlr->array_name, h->ctlr->index,
+			sense_hdr->sense_key, sense_hdr->asc, sense_hdr->ascq);
+
 	switch (sense_hdr->sense_key) {
 	case NOT_READY:
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x01)
