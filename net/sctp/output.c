@@ -220,7 +220,7 @@ static sctp_xmit_t sctp_packet_bundle_auth(struct sctp_packet *pkt,
 	/* See if this is an auth chunk we are bundling or if
 	 * auth is already bundled.
 	 */
-	if (chunk->chunk_hdr->type == SCTP_CID_AUTH || pkt->auth)
+	if (chunk->chunk_hdr->type == SCTP_CID_AUTH || pkt->has_auth)
 		return retval;
 
 	/* if the peer did not request this chunk to be authenticated,
