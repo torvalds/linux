@@ -8191,6 +8191,39 @@ struct static_sched_domain {
 	DECLARE_BITMAP(span, CONFIG_NR_CPUS);
 };
 
+struct s_data {
+#ifdef CONFIG_NUMA
+	int			sd_allnodes;
+	cpumask_var_t		domainspan;
+	cpumask_var_t		covered;
+	cpumask_var_t		notcovered;
+#endif
+	cpumask_var_t		nodemask;
+	cpumask_var_t		this_sibling_map;
+	cpumask_var_t		this_core_map;
+	cpumask_var_t		send_covered;
+	cpumask_var_t		tmpmask;
+	struct sched_group	**sched_group_nodes;
+	struct root_domain	*rd;
+};
+
+enum s_alloc {
+	sa_sched_groups = 0,
+	sa_rootdomain,
+	sa_tmpmask,
+	sa_send_covered,
+	sa_this_core_map,
+	sa_this_sibling_map,
+	sa_nodemask,
+	sa_sched_group_nodes,
+#ifdef CONFIG_NUMA
+	sa_notcovered,
+	sa_covered,
+	sa_domainspan,
+#endif
+	sa_none,
+};
+
 /*
  * SMT sched-domains:
  */
@@ -8312,6 +8345,71 @@ static void init_numa_sched_groups_power(struct sched_group *group_head)
 		}
 		sg = sg->next;
 	} while (sg != group_head);
+}
+
+static int build_numa_sched_groups(struct s_data *d,
+				   const struct cpumask *cpu_map, int num)
+{
+	struct sched_domain *sd;
+	struct sched_group *sg, *prev;
+	int n, j;
+
+	cpumask_clear(d->covered);
+	cpumask_and(d->nodemask, cpumask_of_node(num), cpu_map);
+	if (cpumask_empty(d->nodemask)) {
+		d->sched_group_nodes[num] = NULL;
+		goto out;
+	}
+
+	sched_domain_node_span(num, d->domainspan);
+	cpumask_and(d->domainspan, d->domainspan, cpu_map);
+
+	sg = kmalloc_node(sizeof(struct sched_group) + cpumask_size(),
+			  GFP_KERNEL, num);
+	if (!sg) {
+		printk(KERN_WARNING "Can not alloc domain group for node %d\n",
+		       num);
+		return -ENOMEM;
+	}
+	d->sched_group_nodes[num] = sg;
+
+	for_each_cpu(j, d->nodemask) {
+		sd = &per_cpu(node_domains, j).sd;
+		sd->groups = sg;
+	}
+
+	sg->__cpu_power = 0;
+	cpumask_copy(sched_group_cpus(sg), d->nodemask);
+	sg->next = sg;
+	cpumask_or(d->covered, d->covered, d->nodemask);
+
+	prev = sg;
+	for (j = 0; j < nr_node_ids; j++) {
+		n = (num + j) % nr_node_ids;
+		cpumask_complement(d->notcovered, d->covered);
+		cpumask_and(d->tmpmask, d->notcovered, cpu_map);
+		cpumask_and(d->tmpmask, d->tmpmask, d->domainspan);
+		if (cpumask_empty(d->tmpmask))
+			break;
+		cpumask_and(d->tmpmask, d->tmpmask, cpumask_of_node(n));
+		if (cpumask_empty(d->tmpmask))
+			continue;
+		sg = kmalloc_node(sizeof(struct sched_group) + cpumask_size(),
+				  GFP_KERNEL, num);
+		if (!sg) {
+			printk(KERN_WARNING
+			       "Can not alloc domain group for node %d\n", j);
+			return -ENOMEM;
+		}
+		sg->__cpu_power = 0;
+		cpumask_copy(sched_group_cpus(sg), d->tmpmask);
+		sg->next = prev->next;
+		cpumask_or(d->covered, d->covered, d->tmpmask);
+		prev->next = sg;
+		prev = sg;
+	}
+out:
+	return 0;
 }
 #endif /* CONFIG_NUMA */
 
@@ -8478,6 +8576,199 @@ static void set_domain_attribute(struct sched_domain *sd,
 	}
 }
 
+static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
+				 const struct cpumask *cpu_map)
+{
+	switch (what) {
+	case sa_sched_groups:
+		free_sched_groups(cpu_map, d->tmpmask); /* fall through */
+		d->sched_group_nodes = NULL;
+	case sa_rootdomain:
+		free_rootdomain(d->rd); /* fall through */
+	case sa_tmpmask:
+		free_cpumask_var(d->tmpmask); /* fall through */
+	case sa_send_covered:
+		free_cpumask_var(d->send_covered); /* fall through */
+	case sa_this_core_map:
+		free_cpumask_var(d->this_core_map); /* fall through */
+	case sa_this_sibling_map:
+		free_cpumask_var(d->this_sibling_map); /* fall through */
+	case sa_nodemask:
+		free_cpumask_var(d->nodemask); /* fall through */
+	case sa_sched_group_nodes:
+#ifdef CONFIG_NUMA
+		kfree(d->sched_group_nodes); /* fall through */
+	case sa_notcovered:
+		free_cpumask_var(d->notcovered); /* fall through */
+	case sa_covered:
+		free_cpumask_var(d->covered); /* fall through */
+	case sa_domainspan:
+		free_cpumask_var(d->domainspan); /* fall through */
+#endif
+	case sa_none:
+		break;
+	}
+}
+
+static enum s_alloc __visit_domain_allocation_hell(struct s_data *d,
+						   const struct cpumask *cpu_map)
+{
+#ifdef CONFIG_NUMA
+	if (!alloc_cpumask_var(&d->domainspan, GFP_KERNEL))
+		return sa_none;
+	if (!alloc_cpumask_var(&d->covered, GFP_KERNEL))
+		return sa_domainspan;
+	if (!alloc_cpumask_var(&d->notcovered, GFP_KERNEL))
+		return sa_covered;
+	/* Allocate the per-node list of sched groups */
+	d->sched_group_nodes = kcalloc(nr_node_ids,
+				      sizeof(struct sched_group *), GFP_KERNEL);
+	if (!d->sched_group_nodes) {
+		printk(KERN_WARNING "Can not alloc sched group node list\n");
+		return sa_notcovered;
+	}
+	sched_group_nodes_bycpu[cpumask_first(cpu_map)] = d->sched_group_nodes;
+#endif
+	if (!alloc_cpumask_var(&d->nodemask, GFP_KERNEL))
+		return sa_sched_group_nodes;
+	if (!alloc_cpumask_var(&d->this_sibling_map, GFP_KERNEL))
+		return sa_nodemask;
+	if (!alloc_cpumask_var(&d->this_core_map, GFP_KERNEL))
+		return sa_this_sibling_map;
+	if (!alloc_cpumask_var(&d->send_covered, GFP_KERNEL))
+		return sa_this_core_map;
+	if (!alloc_cpumask_var(&d->tmpmask, GFP_KERNEL))
+		return sa_send_covered;
+	d->rd = alloc_rootdomain();
+	if (!d->rd) {
+		printk(KERN_WARNING "Cannot alloc root domain\n");
+		return sa_tmpmask;
+	}
+	return sa_rootdomain;
+}
+
+static struct sched_domain *__build_numa_sched_domains(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr, int i)
+{
+	struct sched_domain *sd = NULL;
+#ifdef CONFIG_NUMA
+	struct sched_domain *parent;
+
+	d->sd_allnodes = 0;
+	if (cpumask_weight(cpu_map) >
+	    SD_NODES_PER_DOMAIN * cpumask_weight(d->nodemask)) {
+		sd = &per_cpu(allnodes_domains, i).sd;
+		SD_INIT(sd, ALLNODES);
+		set_domain_attribute(sd, attr);
+		cpumask_copy(sched_domain_span(sd), cpu_map);
+		cpu_to_allnodes_group(i, cpu_map, &sd->groups, d->tmpmask);
+		d->sd_allnodes = 1;
+	}
+	parent = sd;
+
+	sd = &per_cpu(node_domains, i).sd;
+	SD_INIT(sd, NODE);
+	set_domain_attribute(sd, attr);
+	sched_domain_node_span(cpu_to_node(i), sched_domain_span(sd));
+	sd->parent = parent;
+	if (parent)
+		parent->child = sd;
+	cpumask_and(sched_domain_span(sd), sched_domain_span(sd), cpu_map);
+#endif
+	return sd;
+}
+
+static struct sched_domain *__build_cpu_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
+{
+	struct sched_domain *sd;
+	sd = &per_cpu(phys_domains, i).sd;
+	SD_INIT(sd, CPU);
+	set_domain_attribute(sd, attr);
+	cpumask_copy(sched_domain_span(sd), d->nodemask);
+	sd->parent = parent;
+	if (parent)
+		parent->child = sd;
+	cpu_to_phys_group(i, cpu_map, &sd->groups, d->tmpmask);
+	return sd;
+}
+
+static struct sched_domain *__build_mc_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
+{
+	struct sched_domain *sd = parent;
+#ifdef CONFIG_SCHED_MC
+	sd = &per_cpu(core_domains, i).sd;
+	SD_INIT(sd, MC);
+	set_domain_attribute(sd, attr);
+	cpumask_and(sched_domain_span(sd), cpu_map, cpu_coregroup_mask(i));
+	sd->parent = parent;
+	parent->child = sd;
+	cpu_to_core_group(i, cpu_map, &sd->groups, d->tmpmask);
+#endif
+	return sd;
+}
+
+static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
+	const struct cpumask *cpu_map, struct sched_domain_attr *attr,
+	struct sched_domain *parent, int i)
+{
+	struct sched_domain *sd = parent;
+#ifdef CONFIG_SCHED_SMT
+	sd = &per_cpu(cpu_domains, i).sd;
+	SD_INIT(sd, SIBLING);
+	set_domain_attribute(sd, attr);
+	cpumask_and(sched_domain_span(sd), cpu_map, topology_thread_cpumask(i));
+	sd->parent = parent;
+	parent->child = sd;
+	cpu_to_cpu_group(i, cpu_map, &sd->groups, d->tmpmask);
+#endif
+	return sd;
+}
+
+static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
+			       const struct cpumask *cpu_map, int cpu)
+{
+	switch (l) {
+#ifdef CONFIG_SCHED_SMT
+	case SD_LV_SIBLING: /* set up CPU (sibling) groups */
+		cpumask_and(d->this_sibling_map, cpu_map,
+			    topology_thread_cpumask(cpu));
+		if (cpu == cpumask_first(d->this_sibling_map))
+			init_sched_build_groups(d->this_sibling_map, cpu_map,
+						&cpu_to_cpu_group,
+						d->send_covered, d->tmpmask);
+		break;
+#endif
+#ifdef CONFIG_SCHED_MC
+	case SD_LV_MC: /* set up multi-core groups */
+		cpumask_and(d->this_core_map, cpu_map, cpu_coregroup_mask(cpu));
+		if (cpu == cpumask_first(d->this_core_map))
+			init_sched_build_groups(d->this_core_map, cpu_map,
+						&cpu_to_core_group,
+						d->send_covered, d->tmpmask);
+		break;
+#endif
+	case SD_LV_CPU: /* set up physical groups */
+		cpumask_and(d->nodemask, cpumask_of_node(cpu), cpu_map);
+		if (!cpumask_empty(d->nodemask))
+			init_sched_build_groups(d->nodemask, cpu_map,
+						&cpu_to_phys_group,
+						d->send_covered, d->tmpmask);
+		break;
+#ifdef CONFIG_NUMA
+	case SD_LV_ALLNODES:
+		init_sched_build_groups(cpu_map, cpu_map, &cpu_to_allnodes_group,
+					d->send_covered, d->tmpmask);
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
@@ -8485,273 +8776,85 @@ static void set_domain_attribute(struct sched_domain *sd,
 static int __build_sched_domains(const struct cpumask *cpu_map,
 				 struct sched_domain_attr *attr)
 {
-	int i, err = -ENOMEM;
-	struct root_domain *rd;
-	cpumask_var_t nodemask, this_sibling_map, this_core_map, send_covered,
-		tmpmask;
+	enum s_alloc alloc_state = sa_none;
+	struct s_data d;
+	struct sched_domain *sd;
+	int i;
 #ifdef CONFIG_NUMA
-	cpumask_var_t domainspan, covered, notcovered;
-	struct sched_group **sched_group_nodes = NULL;
-	int sd_allnodes = 0;
-
-	if (!alloc_cpumask_var(&domainspan, GFP_KERNEL))
-		goto out;
-	if (!alloc_cpumask_var(&covered, GFP_KERNEL))
-		goto free_domainspan;
-	if (!alloc_cpumask_var(&notcovered, GFP_KERNEL))
-		goto free_covered;
+	d.sd_allnodes = 0;
 #endif
 
-	if (!alloc_cpumask_var(&nodemask, GFP_KERNEL))
-		goto free_notcovered;
-	if (!alloc_cpumask_var(&this_sibling_map, GFP_KERNEL))
-		goto free_nodemask;
-	if (!alloc_cpumask_var(&this_core_map, GFP_KERNEL))
-		goto free_this_sibling_map;
-	if (!alloc_cpumask_var(&send_covered, GFP_KERNEL))
-		goto free_this_core_map;
-	if (!alloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		goto free_send_covered;
-
-#ifdef CONFIG_NUMA
-	/*
-	 * Allocate the per-node list of sched groups
-	 */
-	sched_group_nodes = kcalloc(nr_node_ids, sizeof(struct sched_group *),
-				    GFP_KERNEL);
-	if (!sched_group_nodes) {
-		printk(KERN_WARNING "Can not alloc sched group node list\n");
-		goto free_tmpmask;
-	}
-#endif
-
-	rd = alloc_rootdomain();
-	if (!rd) {
-		printk(KERN_WARNING "Cannot alloc root domain\n");
-		goto free_sched_groups;
-	}
-
-#ifdef CONFIG_NUMA
-	sched_group_nodes_bycpu[cpumask_first(cpu_map)] = sched_group_nodes;
-#endif
+	alloc_state = __visit_domain_allocation_hell(&d, cpu_map);
+	if (alloc_state != sa_rootdomain)
+		goto error;
+	alloc_state = sa_sched_groups;
 
 	/*
 	 * Set up domains for cpus specified by the cpu_map.
 	 */
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = NULL, *p;
+		cpumask_and(d.nodemask, cpumask_of_node(cpu_to_node(i)),
+			    cpu_map);
 
-		cpumask_and(nodemask, cpumask_of_node(cpu_to_node(i)), cpu_map);
-
-#ifdef CONFIG_NUMA
-		if (cpumask_weight(cpu_map) >
-				SD_NODES_PER_DOMAIN*cpumask_weight(nodemask)) {
-			sd = &per_cpu(allnodes_domains, i).sd;
-			SD_INIT(sd, ALLNODES);
-			set_domain_attribute(sd, attr);
-			cpumask_copy(sched_domain_span(sd), cpu_map);
-			cpu_to_allnodes_group(i, cpu_map, &sd->groups, tmpmask);
-			p = sd;
-			sd_allnodes = 1;
-		} else
-			p = NULL;
-
-		sd = &per_cpu(node_domains, i).sd;
-		SD_INIT(sd, NODE);
-		set_domain_attribute(sd, attr);
-		sched_domain_node_span(cpu_to_node(i), sched_domain_span(sd));
-		sd->parent = p;
-		if (p)
-			p->child = sd;
-		cpumask_and(sched_domain_span(sd),
-			    sched_domain_span(sd), cpu_map);
-#endif
-
-		p = sd;
-		sd = &per_cpu(phys_domains, i).sd;
-		SD_INIT(sd, CPU);
-		set_domain_attribute(sd, attr);
-		cpumask_copy(sched_domain_span(sd), nodemask);
-		sd->parent = p;
-		if (p)
-			p->child = sd;
-		cpu_to_phys_group(i, cpu_map, &sd->groups, tmpmask);
-
-#ifdef CONFIG_SCHED_MC
-		p = sd;
-		sd = &per_cpu(core_domains, i).sd;
-		SD_INIT(sd, MC);
-		set_domain_attribute(sd, attr);
-		cpumask_and(sched_domain_span(sd), cpu_map,
-						   cpu_coregroup_mask(i));
-		sd->parent = p;
-		p->child = sd;
-		cpu_to_core_group(i, cpu_map, &sd->groups, tmpmask);
-#endif
-
-#ifdef CONFIG_SCHED_SMT
-		p = sd;
-		sd = &per_cpu(cpu_domains, i).sd;
-		SD_INIT(sd, SIBLING);
-		set_domain_attribute(sd, attr);
-		cpumask_and(sched_domain_span(sd),
-			    topology_thread_cpumask(i), cpu_map);
-		sd->parent = p;
-		p->child = sd;
-		cpu_to_cpu_group(i, cpu_map, &sd->groups, tmpmask);
-#endif
+		sd = __build_numa_sched_domains(&d, cpu_map, attr, i);
+		sd = __build_cpu_sched_domain(&d, cpu_map, attr, sd, i);
+		sd = __build_mc_sched_domain(&d, cpu_map, attr, sd, i);
+		sd = __build_smt_sched_domain(&d, cpu_map, attr, sd, i);
 	}
 
-#ifdef CONFIG_SCHED_SMT
-	/* Set up CPU (sibling) groups */
 	for_each_cpu(i, cpu_map) {
-		cpumask_and(this_sibling_map,
-			    topology_thread_cpumask(i), cpu_map);
-		if (i != cpumask_first(this_sibling_map))
-			continue;
-
-		init_sched_build_groups(this_sibling_map, cpu_map,
-					&cpu_to_cpu_group,
-					send_covered, tmpmask);
+		build_sched_groups(&d, SD_LV_SIBLING, cpu_map, i);
+		build_sched_groups(&d, SD_LV_MC, cpu_map, i);
 	}
-#endif
-
-#ifdef CONFIG_SCHED_MC
-	/* Set up multi-core groups */
-	for_each_cpu(i, cpu_map) {
-		cpumask_and(this_core_map, cpu_coregroup_mask(i), cpu_map);
-		if (i != cpumask_first(this_core_map))
-			continue;
-
-		init_sched_build_groups(this_core_map, cpu_map,
-					&cpu_to_core_group,
-					send_covered, tmpmask);
-	}
-#endif
 
 	/* Set up physical groups */
-	for (i = 0; i < nr_node_ids; i++) {
-		cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
-		if (cpumask_empty(nodemask))
-			continue;
-
-		init_sched_build_groups(nodemask, cpu_map,
-					&cpu_to_phys_group,
-					send_covered, tmpmask);
-	}
+	for (i = 0; i < nr_node_ids; i++)
+		build_sched_groups(&d, SD_LV_CPU, cpu_map, i);
 
 #ifdef CONFIG_NUMA
 	/* Set up node groups */
-	if (sd_allnodes) {
-		init_sched_build_groups(cpu_map, cpu_map,
-					&cpu_to_allnodes_group,
-					send_covered, tmpmask);
-	}
+	if (d.sd_allnodes)
+		build_sched_groups(&d, SD_LV_ALLNODES, cpu_map, 0);
 
-	for (i = 0; i < nr_node_ids; i++) {
-		/* Set up node groups */
-		struct sched_group *sg, *prev;
-		int j;
-
-		cpumask_clear(covered);
-		cpumask_and(nodemask, cpumask_of_node(i), cpu_map);
-		if (cpumask_empty(nodemask)) {
-			sched_group_nodes[i] = NULL;
-			continue;
-		}
-
-		sched_domain_node_span(i, domainspan);
-		cpumask_and(domainspan, domainspan, cpu_map);
-
-		sg = kmalloc_node(sizeof(struct sched_group) + cpumask_size(),
-				  GFP_KERNEL, i);
-		if (!sg) {
-			printk(KERN_WARNING "Can not alloc domain group for "
-				"node %d\n", i);
+	for (i = 0; i < nr_node_ids; i++)
+		if (build_numa_sched_groups(&d, cpu_map, i))
 			goto error;
-		}
-		sched_group_nodes[i] = sg;
-		for_each_cpu(j, nodemask) {
-			struct sched_domain *sd;
-
-			sd = &per_cpu(node_domains, j).sd;
-			sd->groups = sg;
-		}
-		sg->__cpu_power = 0;
-		cpumask_copy(sched_group_cpus(sg), nodemask);
-		sg->next = sg;
-		cpumask_or(covered, covered, nodemask);
-		prev = sg;
-
-		for (j = 0; j < nr_node_ids; j++) {
-			int n = (i + j) % nr_node_ids;
-
-			cpumask_complement(notcovered, covered);
-			cpumask_and(tmpmask, notcovered, cpu_map);
-			cpumask_and(tmpmask, tmpmask, domainspan);
-			if (cpumask_empty(tmpmask))
-				break;
-
-			cpumask_and(tmpmask, tmpmask, cpumask_of_node(n));
-			if (cpumask_empty(tmpmask))
-				continue;
-
-			sg = kmalloc_node(sizeof(struct sched_group) +
-					  cpumask_size(),
-					  GFP_KERNEL, i);
-			if (!sg) {
-				printk(KERN_WARNING
-				"Can not alloc domain group for node %d\n", j);
-				goto error;
-			}
-			sg->__cpu_power = 0;
-			cpumask_copy(sched_group_cpus(sg), tmpmask);
-			sg->next = prev->next;
-			cpumask_or(covered, covered, tmpmask);
-			prev->next = sg;
-			prev = sg;
-		}
-	}
 #endif
 
 	/* Calculate CPU power for physical packages and nodes */
 #ifdef CONFIG_SCHED_SMT
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = &per_cpu(cpu_domains, i).sd;
-
+		sd = &per_cpu(cpu_domains, i).sd;
 		init_sched_groups_power(i, sd);
 	}
 #endif
 #ifdef CONFIG_SCHED_MC
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = &per_cpu(core_domains, i).sd;
-
+		sd = &per_cpu(core_domains, i).sd;
 		init_sched_groups_power(i, sd);
 	}
 #endif
 
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd = &per_cpu(phys_domains, i).sd;
-
+		sd = &per_cpu(phys_domains, i).sd;
 		init_sched_groups_power(i, sd);
 	}
 
 #ifdef CONFIG_NUMA
 	for (i = 0; i < nr_node_ids; i++)
-		init_numa_sched_groups_power(sched_group_nodes[i]);
+		init_numa_sched_groups_power(d.sched_group_nodes[i]);
 
-	if (sd_allnodes) {
+	if (d.sd_allnodes) {
 		struct sched_group *sg;
 
 		cpu_to_allnodes_group(cpumask_first(cpu_map), cpu_map, &sg,
-								tmpmask);
+								d.tmpmask);
 		init_numa_sched_groups_power(sg);
 	}
 #endif
 
 	/* Attach the domains */
 	for_each_cpu(i, cpu_map) {
-		struct sched_domain *sd;
 #ifdef CONFIG_SCHED_SMT
 		sd = &per_cpu(cpu_domains, i).sd;
 #elif defined(CONFIG_SCHED_MC)
@@ -8759,44 +8862,16 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 #else
 		sd = &per_cpu(phys_domains, i).sd;
 #endif
-		cpu_attach_domain(sd, rd, i);
+		cpu_attach_domain(sd, d.rd, i);
 	}
 
-	err = 0;
+	d.sched_group_nodes = NULL; /* don't free this we still need it */
+	__free_domain_allocs(&d, sa_tmpmask, cpu_map);
+	return 0;
 
-free_tmpmask:
-	free_cpumask_var(tmpmask);
-free_send_covered:
-	free_cpumask_var(send_covered);
-free_this_core_map:
-	free_cpumask_var(this_core_map);
-free_this_sibling_map:
-	free_cpumask_var(this_sibling_map);
-free_nodemask:
-	free_cpumask_var(nodemask);
-free_notcovered:
-#ifdef CONFIG_NUMA
-	free_cpumask_var(notcovered);
-free_covered:
-	free_cpumask_var(covered);
-free_domainspan:
-	free_cpumask_var(domainspan);
-out:
-#endif
-	return err;
-
-free_sched_groups:
-#ifdef CONFIG_NUMA
-	kfree(sched_group_nodes);
-#endif
-	goto free_tmpmask;
-
-#ifdef CONFIG_NUMA
 error:
-	free_sched_groups(cpu_map, tmpmask);
-	free_rootdomain(rd);
-	goto free_tmpmask;
-#endif
+	__free_domain_allocs(&d, alloc_state, cpu_map);
+	return -ENOMEM;
 }
 
 static int build_sched_domains(const struct cpumask *cpu_map)
