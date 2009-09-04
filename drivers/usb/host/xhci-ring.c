@@ -685,6 +685,34 @@ static void handle_reset_ep_completion(struct xhci_hcd *xhci,
 	}
 }
 
+/* Check to see if a command in the device's command queue matches this one.
+ * Signal the completion or free the command, and return 1.  Return 0 if the
+ * completed command isn't at the head of the command list.
+ */
+static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct xhci_event_cmd *event)
+{
+	struct xhci_command *command;
+
+	if (list_empty(&virt_dev->cmd_list))
+		return 0;
+
+	command = list_entry(virt_dev->cmd_list.next,
+			struct xhci_command, cmd_list);
+	if (xhci->cmd_ring->dequeue != command->command_trb)
+		return 0;
+
+	command->status =
+		GET_COMP_CODE(event->status);
+	list_del(&command->cmd_list);
+	if (command->completion)
+		complete(command->completion);
+	else
+		xhci_free_command(xhci, command);
+	return 1;
+}
+
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
@@ -724,24 +752,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
 		virt_dev = xhci->devs[slot_id];
-		/* Check to see if a command in the device's command queue
-		 * matches this one.  Signal the completion or free the command.
-		 */
-		if (!list_empty(&virt_dev->cmd_list)) {
-			struct xhci_command *command;
-			command = list_entry(virt_dev->cmd_list.next,
-					struct xhci_command, cmd_list);
-			if (xhci->cmd_ring->dequeue == command->command_trb) {
-				command->status =
-					GET_COMP_CODE(event->status);
-				list_del(&command->cmd_list);
-				if (command->completion)
-					complete(command->completion);
-				else
-					xhci_free_command(xhci, command);
-			}
+		if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
 			break;
-		}
 		/*
 		 * Configure endpoint commands can come from the USB core
 		 * configuration or alt setting changes, or because the HW
