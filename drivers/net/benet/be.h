@@ -28,10 +28,11 @@
 #include <linux/if_vlan.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.0.400"
+#define DRV_VER			"2.101.205"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
@@ -361,4 +362,5 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
+extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

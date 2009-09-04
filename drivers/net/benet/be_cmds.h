@@ -117,6 +117,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_MULTICAST_SET		3
 #define OPCODE_COMMON_NTWK_VLAN_CONFIG  		4
 #define OPCODE_COMMON_NTWK_LINK_STATUS_QUERY		5
+#define OPCODE_COMMON_WRITE_FLASHROM			7
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE        		21
@@ -693,8 +694,22 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 be_config_number;
 	u32 asic_revision;
 	u32 phys_port;
-	u32 function_mode;
+	u32 function_cap;
 	u32 rsvd[26];
+};
+
+/****************** Firmware Flash ******************/
+struct flashrom_params {
+	u32 op_code;
+	u32 op_type;
+	u32 data_buf_size;
+	u32 offset;
+	u8 data_buf[4];
+};
+
+struct be_cmd_write_flashrom {
+	struct be_cmd_req_hdr hdr;
+	struct flashrom_params params;
 };
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
@@ -747,3 +762,6 @@ extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern void be_process_mcc(struct be_adapter *adapter);
+extern int be_cmd_write_flashrom(struct be_adapter *adapter,
+			struct be_dma_mem *cmd, u32 flash_oper,
+			u32 flash_opcode, u32 buf_size);

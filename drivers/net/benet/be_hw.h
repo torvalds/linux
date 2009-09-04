@@ -204,7 +204,7 @@ struct amap_eth_rx_compl {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 qnq;			/* dword 2 */
+	u8 vtm;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 rsvd1[23];		/* dword 2 */
 	u8 lro_pkt;		/* dword 2 */
@@ -215,4 +215,87 @@ struct amap_eth_rx_compl {
 
 struct be_eth_rx_compl {
 	u32 dw[4];
+};
+
+/* Flashrom related descriptors */
+#define IMAGE_TYPE_FIRMWARE		160
+#define IMAGE_TYPE_BOOTCODE		224
+#define IMAGE_TYPE_OPTIONROM		32
+
+#define NUM_FLASHDIR_ENTRIES		32
+
+#define FLASHROM_TYPE_ISCSI_ACTIVE	0
+#define FLASHROM_TYPE_BIOS		2
+#define FLASHROM_TYPE_PXE_BIOS		3
+#define FLASHROM_TYPE_FCOE_BIOS		8
+#define FLASHROM_TYPE_ISCSI_BACKUP	9
+#define FLASHROM_TYPE_FCOE_FW_ACTIVE	10
+#define FLASHROM_TYPE_FCOE_FW_BACKUP 	11
+
+#define FLASHROM_OPER_FLASH		1
+#define FLASHROM_OPER_SAVE		2
+
+#define FLASH_IMAGE_MAX_SIZE            (1310720) /* Max firmware image size */
+#define FLASH_BIOS_IMAGE_MAX_SIZE       (262144)  /* Max OPTION ROM image sz */
+
+/* Offsets for components on Flash. */
+#define FLASH_iSCSI_PRIMARY_IMAGE_START (1048576)
+#define FLASH_iSCSI_BACKUP_IMAGE_START  (2359296)
+#define FLASH_FCoE_PRIMARY_IMAGE_START  (3670016)
+#define FLASH_FCoE_BACKUP_IMAGE_START   (4980736)
+#define FLASH_iSCSI_BIOS_START          (7340032)
+#define FLASH_PXE_BIOS_START            (7864320)
+#define FLASH_FCoE_BIOS_START           (524288)
+
+struct controller_id {
+	u32 vendor;
+	u32 device;
+	u32 subvendor;
+	u32 subdevice;
+};
+
+struct flash_file_hdr {
+	u8 sign[32];
+	u32 cksum;
+	u32 antidote;
+	struct controller_id cont_id;
+	u32 file_len;
+	u32 chunk_num;
+	u32 total_chunks;
+	u32 num_imgs;
+	u8 build[24];
+};
+
+struct flash_section_hdr {
+	u32 format_rev;
+	u32 cksum;
+	u32 antidote;
+	u32 build_no;
+	u8 id_string[64];
+	u32 active_entry_mask;
+	u32 valid_entry_mask;
+	u32 org_content_mask;
+	u32 rsvd0;
+	u32 rsvd1;
+	u32 rsvd2;
+	u32 rsvd3;
+	u32 rsvd4;
+};
+
+struct flash_section_entry {
+	u32 type;
+	u32 offset;
+	u32 pad_size;
+	u32 image_size;
+	u32 cksum;
+	u32 entry_point;
+	u32 rsvd0;
+	u32 rsvd1;
+	u8 ver_data[32];
+};
+
+struct flash_section_info {
+	u8 cookie[32];
+	struct flash_section_hdr fsec_hdr;
+	struct flash_section_entry fsec_entry[32];
 };

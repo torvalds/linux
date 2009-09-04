@@ -155,7 +155,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 		if (ready)
 			break;
 
-		if (cnt > 200000) {
+		if (cnt > 4000000) {
 			dev_err(&adapter->pdev->dev, "mbox poll timed out\n");
 			return -1;
 		}
@@ -1034,6 +1034,34 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 
 	be_cmd_hdr_prepare(req, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_FUNCTION_RESET, sizeof(*req));
+
+	status = be_mbox_notify(adapter);
+
+	spin_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
+			u32 flash_type, u32 flash_opcode, u32 buf_size)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&adapter->mbox_mem);
+	struct be_cmd_write_flashrom *req = cmd->va;
+	struct be_sge *sge = nonembedded_sgl(wrb);
+	int status;
+
+	spin_lock(&adapter->mbox_lock);
+	memset(wrb, 0, sizeof(*wrb));
+	be_wrb_hdr_prepare(wrb, cmd->size, false, 1);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_WRITE_FLASHROM, cmd->size);
+	sge->pa_hi = cpu_to_le32(upper_32_bits(cmd->dma));
+	sge->pa_lo = cpu_to_le32(cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(cmd->size);
+
+	req->params.op_type = cpu_to_le32(flash_type);
+	req->params.op_code = cpu_to_le32(flash_opcode);
+	req->params.data_buf_size = cpu_to_le32(buf_size);
 
 	status = be_mbox_notify(adapter);
 

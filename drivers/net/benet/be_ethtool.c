@@ -332,6 +332,20 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	return status;
 }
 
+static int
+be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	char file_name[ETHTOOL_FLASH_MAX_FILENAME];
+	u32 region;
+
+	file_name[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
+	strcpy(file_name, efl->data);
+	region = efl->region;
+
+	return be_load_fw(adapter, file_name);
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -352,4 +366,5 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_strings = be_get_stat_strings,
 	.get_stats_count = be_get_stats_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
+	.flash_device = be_do_flash,
 };

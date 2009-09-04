@@ -1699,6 +1699,173 @@ static int be_close(struct net_device *netdev)
 	return 0;
 }
 
+#define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
+char flash_cookie[2][16] =	{"*** SE FLAS",
+				"H DIRECTORY *** "};
+static int be_flash_image(struct be_adapter *adapter,
+			const struct firmware *fw,
+			struct be_dma_mem *flash_cmd, u32 flash_type)
+{
+	int status;
+	u32 flash_op, image_offset = 0, total_bytes, image_size = 0;
+	int num_bytes;
+	const u8 *p = fw->data;
+	struct be_cmd_write_flashrom *req = flash_cmd->va;
+
+	switch (flash_type) {
+	case FLASHROM_TYPE_ISCSI_ACTIVE:
+		image_offset = FLASH_iSCSI_PRIMARY_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_ISCSI_BACKUP:
+		image_offset = FLASH_iSCSI_BACKUP_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_FCOE_FW_ACTIVE:
+		image_offset = FLASH_FCoE_PRIMARY_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_FCOE_FW_BACKUP:
+		image_offset = FLASH_FCoE_BACKUP_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_BIOS:
+		image_offset = FLASH_iSCSI_BIOS_START;
+		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_FCOE_BIOS:
+		image_offset = FLASH_FCoE_BIOS_START;
+		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_PXE_BIOS:
+		image_offset = FLASH_PXE_BIOS_START;
+		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	default:
+		return 0;
+	}
+
+	p += sizeof(struct flash_file_hdr) + image_offset;
+	if (p + image_size > fw->data + fw->size)
+		return -1;
+
+	total_bytes = image_size;
+
+	while (total_bytes) {
+		if (total_bytes > 32*1024)
+			num_bytes = 32*1024;
+		else
+			num_bytes = total_bytes;
+		total_bytes -= num_bytes;
+
+		if (!total_bytes)
+			flash_op = FLASHROM_OPER_FLASH;
+		else
+			flash_op = FLASHROM_OPER_SAVE;
+		memcpy(req->params.data_buf, p, num_bytes);
+		p += num_bytes;
+		status = be_cmd_write_flashrom(adapter, flash_cmd,
+				flash_type, flash_op, num_bytes);
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+			"cmd to write to flash rom failed. type/op %d/%d\n",
+			flash_type, flash_op);
+			return -1;
+		}
+		yield();
+	}
+
+	return 0;
+}
+
+int be_load_fw(struct be_adapter *adapter, u8 *func)
+{
+	char fw_file[ETHTOOL_FLASH_MAX_FILENAME];
+	const struct firmware *fw;
+	struct flash_file_hdr *fhdr;
+	struct flash_section_info *fsec = NULL;
+	struct be_dma_mem flash_cmd;
+	int status;
+	const u8 *p;
+	bool entry_found = false;
+	int flash_type;
+	char fw_ver[FW_VER_LEN];
+	char fw_cfg;
+
+	status = be_cmd_get_fw_ver(adapter, fw_ver);
+	if (status)
+		return status;
+
+	fw_cfg = *(fw_ver + 2);
+	if (fw_cfg == '0')
+		fw_cfg = '1';
+	strcpy(fw_file, func);
+
+	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);
+	if (status)
+		goto fw_exit;
+
+	p = fw->data;
+	fhdr = (struct flash_file_hdr *) p;
+	if (memcmp(fhdr->sign, FW_FILE_HDR_SIGN, strlen(FW_FILE_HDR_SIGN))) {
+		dev_err(&adapter->pdev->dev,
+			"Firmware(%s) load error (signature did not match)\n",
+				fw_file);
+		status = -1;
+		goto fw_exit;
+	}
+
+	dev_info(&adapter->pdev->dev, "Flashing firmware file %s\n", fw_file);
+
+	p += sizeof(struct flash_file_hdr);
+	while (p < (fw->data + fw->size)) {
+		fsec = (struct flash_section_info *)p;
+		if (!memcmp(flash_cookie, fsec->cookie, sizeof(flash_cookie))) {
+			entry_found = true;
+			break;
+		}
+		p += 32;
+	}
+
+	if (!entry_found) {
+		status = -1;
+		dev_err(&adapter->pdev->dev,
+			"Flash cookie not found in firmware image\n");
+		goto fw_exit;
+	}
+
+	flash_cmd.size = sizeof(struct be_cmd_write_flashrom) + 32*1024;
+	flash_cmd.va = pci_alloc_consistent(adapter->pdev, flash_cmd.size,
+					&flash_cmd.dma);
+	if (!flash_cmd.va) {
+		status = -ENOMEM;
+		dev_err(&adapter->pdev->dev,
+			"Memory allocation failure while flashing\n");
+		goto fw_exit;
+	}
+
+	for (flash_type = FLASHROM_TYPE_ISCSI_ACTIVE;
+		flash_type <= FLASHROM_TYPE_FCOE_FW_BACKUP; flash_type++) {
+		status = be_flash_image(adapter, fw, &flash_cmd,
+				flash_type);
+		if (status)
+			break;
+	}
+
+	pci_free_consistent(adapter->pdev, flash_cmd.size, flash_cmd.va,
+				flash_cmd.dma);
+	if (status) {
+		dev_err(&adapter->pdev->dev, "Firmware load error\n");
+		goto fw_exit;
+	}
+
+	dev_info(&adapter->pdev->dev, "Firmware flashed succesfully\n");
+
+fw_exit:
+	release_firmware(fw);
+	return status;
+}
+
 static struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
