@@ -171,6 +171,14 @@ static int set_chunk_size(struct dm_exception_store *store,
 	 */
 	chunk_size_ulong = round_up(chunk_size_ulong, PAGE_SIZE >> 9);
 
+	return dm_exception_store_set_chunk_size(store, chunk_size_ulong,
+						 error);
+}
+
+int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
+				      unsigned long chunk_size_ulong,
+				      char **error)
+{
 	/* Check chunk_size is a power of 2 */
 	if (!is_power_of_2(chunk_size_ulong)) {
 		*error = "Chunk size is not a power of 2";
