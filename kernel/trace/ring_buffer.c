@@ -2073,7 +2073,8 @@ static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 }
 
 static struct ring_buffer_event *
-rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
+rb_reserve_next_event(struct ring_buffer *buffer,
+		      struct ring_buffer_per_cpu *cpu_buffer,
 		      unsigned long length)
 {
 	struct ring_buffer_event *event;
@@ -2082,6 +2083,19 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	int nr_loops = 0;
 
 	rb_start_commit(cpu_buffer);
+
+	/*
+	 * Due to the ability to swap a cpu buffer from a buffer
+	 * it is possible it was swapped before we committed.
+	 * (committing stops a swap). We check for it here and
+	 * if it happened, we have to fail the write.
+	 */
+	barrier();
+	if (unlikely(ACCESS_ONCE(cpu_buffer->buffer) != buffer)) {
+		local_dec(&cpu_buffer->committing);
+		local_dec(&cpu_buffer->commits);
+		return NULL;
+	}
 
 	length = rb_calculate_event_length(length);
  again:
@@ -2243,7 +2257,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
-	event = rb_reserve_next_event(cpu_buffer, length);
+	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
 		goto out;
 
@@ -2476,7 +2490,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
-	event = rb_reserve_next_event(cpu_buffer, length);
+	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
 		goto out;
 
