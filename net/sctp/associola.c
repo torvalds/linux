@@ -202,6 +202,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->a_rwnd = asoc->rwnd;
 
 	asoc->rwnd_over = 0;
+	asoc->rwnd_press = 0;
 
 	/* Use my own max window until I learn something better.  */
 	asoc->peer.rwnd = SCTP_DEFAULT_MAXWINDOW;
@@ -1374,6 +1375,17 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
 		asoc->rwnd += len;
 	}
 
+	/* If we had window pressure, start recovering it
+	 * once our rwnd had reached the accumulated pressure
+	 * threshold.  The idea is to recover slowly, but up
+	 * to the initial advertised window.
+	 */
+	if (asoc->rwnd_press && asoc->rwnd >= asoc->rwnd_press) {
+		int change = min(asoc->pathmtu, asoc->rwnd_press);
+		asoc->rwnd += change;
+		asoc->rwnd_press -= change;
+	}
+
 	SCTP_DEBUG_PRINTK("%s: asoc %p rwnd increased by %d to (%u, %u) "
 			  "- %u\n", __func__, asoc, len, asoc->rwnd,
 			  asoc->rwnd_over, asoc->a_rwnd);
@@ -1406,17 +1418,38 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
 /* Decrease asoc's rwnd by len. */
 void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
 {
+	int rx_count;
+	int over = 0;
+
 	SCTP_ASSERT(asoc->rwnd, "rwnd zero", return);
 	SCTP_ASSERT(!asoc->rwnd_over, "rwnd_over not zero", return);
+
+	if (asoc->ep->rcvbuf_policy)
+		rx_count = atomic_read(&asoc->rmem_alloc);
+	else
+		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
+
+	/* If we've reached or overflowed our receive buffer, announce
+	 * a 0 rwnd if rwnd would still be positive.  Store the
+	 * the pottential pressure overflow so that the window can be restored
+	 * back to original value.
+	 */
+	if (rx_count >= asoc->base.sk->sk_rcvbuf)
+		over = 1;
+
 	if (asoc->rwnd >= len) {
 		asoc->rwnd -= len;
+		if (over) {
+			asoc->rwnd_press = asoc->rwnd;
+			asoc->rwnd = 0;
+		}
 	} else {
 		asoc->rwnd_over = len - asoc->rwnd;
 		asoc->rwnd = 0;
 	}
-	SCTP_DEBUG_PRINTK("%s: asoc %p rwnd decreased by %d to (%u, %u)\n",
+	SCTP_DEBUG_PRINTK("%s: asoc %p rwnd decreased by %d to (%u, %u, %u)\n",
 			  __func__, asoc, len, asoc->rwnd,
-			  asoc->rwnd_over);
+			  asoc->rwnd_over, asoc->rwnd_press);
 }
 
 /* Build the bind address list for the association based on info from the

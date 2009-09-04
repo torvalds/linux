@@ -1739,6 +1739,12 @@ struct sctp_association {
 	 */
 	__u32 rwnd_over;
 
+	/* Keeps treack of rwnd pressure.  This happens when we have
+	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * is releases slowly (1 PMTU at a time ).
+	 */
+	__u32 rwnd_press;
+
 	/* This is the sndbuf size in use for the association.
 	 * This corresponds to the sndbuf size for the association,
 	 * as specified in the sk->sndbuf.
