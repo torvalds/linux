@@ -449,6 +449,34 @@ static struct dmi_system_id __initdata i8042_dmi_nopnp_table[] = {
 	},
 	{ }
 };
+
+static struct dmi_system_id __initdata i8042_dmi_laptop_table[] = {
+	{
+		.ident = "Portable",
+		.matches = {
+			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
+		},
+	},
+	{
+		.ident = "Laptop",
+		.matches = {
+			DMI_MATCH(DMI_CHASSIS_TYPE, "9"), /* Laptop */
+		},
+	},
+	{
+		.ident = "Notebook",
+		.matches = {
+			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /* Notebook */
+		},
+	},
+	{
+		.ident = "Sub-Notebook",
+		.matches = {
+			DMI_MATCH(DMI_CHASSIS_TYPE, "14"), /* Sub-Notebook */
+		},
+	},
+	{ }
+};
 #endif
 
 /*
@@ -726,6 +754,11 @@ static int __init i8042_pnp_init(void)
 	i8042_command_reg = i8042_pnp_command_reg;
 	i8042_kbd_irq = i8042_pnp_kbd_irq;
 	i8042_aux_irq = i8042_pnp_aux_irq;
+
+#ifdef CONFIG_X86
+	i8042_bypass_aux_irq_test = !pnp_data_busted &&
+				    dmi_check_system(i8042_dmi_laptop_table);
+#endif
 
 	return 0;
 }
