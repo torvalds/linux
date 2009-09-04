@@ -2084,6 +2084,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 	rb_start_commit(cpu_buffer);
 
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
 	/*
 	 * Due to the ability to swap a cpu buffer from a buffer
 	 * it is possible it was swapped before we committed.
@@ -2096,6 +2097,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		local_dec(&cpu_buffer->commits);
 		return NULL;
 	}
+#endif
 
 	length = rb_calculate_event_length(length);
  again:
@@ -3498,6 +3500,7 @@ int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_empty_cpu);
 
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
 /**
  * ring_buffer_swap_cpu - swap a CPU buffer between two ring buffers
  * @buffer_a: One buffer to swap with
@@ -3573,6 +3576,7 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_swap_cpu);
+#endif /* CONFIG_RING_BUFFER_ALLOW_SWAP */
 
 /**
  * ring_buffer_alloc_read_page - allocate a page to read from buffer

@@ -140,8 +140,17 @@ unsigned long ring_buffer_size(struct ring_buffer *buffer);
 void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu);
 void ring_buffer_reset(struct ring_buffer *buffer);
 
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
 int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 			 struct ring_buffer *buffer_b, int cpu);
+#else
+static inline int
+ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
+		     struct ring_buffer *buffer_b, int cpu)
+{
+	return -ENODEV;
+}
+#endif
 
 int ring_buffer_empty(struct ring_buffer *buffer);
 int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu);
