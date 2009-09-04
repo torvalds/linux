@@ -42,12 +42,6 @@ static void ingress_put(struct Qdisc *sch, unsigned long cl)
 {
 }
 
-static int ingress_change(struct Qdisc *sch, u32 classid, u32 parent,
-			  struct nlattr **tca, unsigned long *arg)
-{
-	return 0;
-}
-
 static void ingress_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
 	return;
@@ -120,7 +114,6 @@ static const struct Qdisc_class_ops ingress_class_ops = {
 	.leaf		=	ingress_leaf,
 	.get		=	ingress_get,
 	.put		=	ingress_put,
-	.change		=	ingress_change,
 	.walk		=	ingress_walk,
 	.tcf_chain	=	ingress_find_tcf,
 	.bind_tcf	=	ingress_bind_filter,

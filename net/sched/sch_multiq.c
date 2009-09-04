@@ -348,26 +348,6 @@ static void multiq_put(struct Qdisc *q, unsigned long cl)
 	return;
 }
 
-static int multiq_change(struct Qdisc *sch, u32 handle, u32 parent,
-			 struct nlattr **tca, unsigned long *arg)
-{
-	unsigned long cl = *arg;
-	struct multiq_sched_data *q = qdisc_priv(sch);
-
-	if (cl - 1 > q->bands)
-		return -ENOENT;
-	return 0;
-}
-
-static int multiq_delete(struct Qdisc *sch, unsigned long cl)
-{
-	struct multiq_sched_data *q = qdisc_priv(sch);
-	if (cl - 1 > q->bands)
-		return -ENOENT;
-	return 0;
-}
-
-
 static int multiq_dump_class(struct Qdisc *sch, unsigned long cl,
 			     struct sk_buff *skb, struct tcmsg *tcm)
 {
@@ -430,8 +410,6 @@ static const struct Qdisc_class_ops multiq_class_ops = {
 	.leaf		=	multiq_leaf,
 	.get		=	multiq_get,
 	.put		=	multiq_put,
-	.change		=	multiq_change,
-	.delete		=	multiq_delete,
 	.walk		=	multiq_walk,
 	.tcf_chain	=	multiq_find_tcf,
 	.bind_tcf	=	multiq_bind,

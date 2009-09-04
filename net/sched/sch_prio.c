@@ -311,25 +311,6 @@ static void prio_put(struct Qdisc *q, unsigned long cl)
 	return;
 }
 
-static int prio_change(struct Qdisc *sch, u32 handle, u32 parent, struct nlattr **tca, unsigned long *arg)
-{
-	unsigned long cl = *arg;
-	struct prio_sched_data *q = qdisc_priv(sch);
-
-	if (cl - 1 > q->bands)
-		return -ENOENT;
-	return 0;
-}
-
-static int prio_delete(struct Qdisc *sch, unsigned long cl)
-{
-	struct prio_sched_data *q = qdisc_priv(sch);
-	if (cl - 1 > q->bands)
-		return -ENOENT;
-	return 0;
-}
-
-
 static int prio_dump_class(struct Qdisc *sch, unsigned long cl, struct sk_buff *skb,
 			   struct tcmsg *tcm)
 {
@@ -392,8 +373,6 @@ static const struct Qdisc_class_ops prio_class_ops = {
 	.leaf		=	prio_leaf,
 	.get		=	prio_get,
 	.put		=	prio_put,
-	.change		=	prio_change,
-	.delete		=	prio_delete,
 	.walk		=	prio_walk,
 	.tcf_chain	=	prio_find_tcf,
 	.bind_tcf	=	prio_bind,

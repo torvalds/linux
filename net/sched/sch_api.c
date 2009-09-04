@@ -1417,7 +1417,9 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 				goto out;
 			break;
 		case RTM_DELTCLASS:
-			err = cops->delete(q, cl);
+			err = -EOPNOTSUPP;
+			if (cops->delete)
+				err = cops->delete(q, cl);
 			if (err == 0)
 				tclass_notify(skb, n, q, cl, RTM_DELTCLASS);
 			goto out;
@@ -1431,7 +1433,9 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	}
 
 	new_cl = cl;
-	err = cops->change(q, clid, pid, tca, &new_cl);
+	err = -EOPNOTSUPP;
+	if (cops->change)
+		err = cops->change(q, clid, pid, tca, &new_cl);
 	if (err == 0)
 		tclass_notify(skb, n, q, new_cl, RTM_NEWTCLASS);
 

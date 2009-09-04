@@ -308,17 +308,6 @@ static void red_put(struct Qdisc *sch, unsigned long arg)
 	return;
 }
 
-static int red_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-			    struct nlattr **tca, unsigned long *arg)
-{
-	return -ENOSYS;
-}
-
-static int red_delete(struct Qdisc *sch, unsigned long cl)
-{
-	return -ENOSYS;
-}
-
 static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
 	if (!walker->stop) {
@@ -336,8 +325,6 @@ static const struct Qdisc_class_ops red_class_ops = {
 	.leaf		=	red_leaf,
 	.get		=	red_get,
 	.put		=	red_put,
-	.change		=	red_change_class,
-	.delete		=	red_delete,
 	.walk		=	red_walk,
 	.dump		=	red_dump_class,
 };
