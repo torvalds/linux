@@ -32,9 +32,6 @@
 #include <linux/delay.h>
 
 
-static void b43_pio_rx_work(struct work_struct *work);
-
-
 static u16 generate_cookie(struct b43_pio_txqueue *q,
 			   struct b43_pio_txpacket *pack)
 {
@@ -182,7 +179,6 @@ static struct b43_pio_rxqueue *b43_setup_pioqueue_rx(struct b43_wldev *dev,
 	q->rev = dev->dev->id.revision;
 	q->mmio_base = index_to_pioqueue_base(dev, index) +
 		       pio_rxqueue_offset(dev);
-	INIT_WORK(&q->rx_work, b43_pio_rx_work);
 
 	/* Enable Direct FIFO RX (PIO) on the engine. */
 	b43_dma_direct_fifo_rx(dev, index, 1);
@@ -245,13 +241,6 @@ void b43_pio_free(struct b43_wldev *dev)
 	destroy_queue_tx(pio, tx_queue_AC_VI);
 	destroy_queue_tx(pio, tx_queue_AC_BE);
 	destroy_queue_tx(pio, tx_queue_AC_BK);
-}
-
-void b43_pio_stop(struct b43_wldev *dev)
-{
-	if (!b43_using_pio_transfers(dev))
-		return;
-	cancel_work_sync(&dev->pio.rx_queue->rx_work);
 }
 
 int b43_pio_init(struct b43_wldev *dev)
@@ -745,30 +734,19 @@ rx_error:
 	return 1;
 }
 
-/* RX workqueue. We can sleep, yay! */
-static void b43_pio_rx_work(struct work_struct *work)
-{
-	struct b43_pio_rxqueue *q = container_of(work, struct b43_pio_rxqueue,
-						 rx_work);
-	unsigned int budget = 50;
-	bool stop;
-
-	do {
-		mutex_lock(&q->dev->wl->mutex);
-		stop = (pio_rx_frame(q) == 0);
-		mutex_unlock(&q->dev->wl->mutex);
-		cond_resched();
-		if (stop)
-			break;
-	} while (--budget);
-}
-
-/* Called with IRQs disabled. */
 void b43_pio_rx(struct b43_pio_rxqueue *q)
 {
-	/* Due to latency issues we must run the RX path in
-	 * a workqueue to be able to schedule between packets. */
-	ieee80211_queue_work(q->dev->wl->hw, &q->rx_work);
+	unsigned int count = 0;
+	bool stop;
+
+	while (1) {
+		stop = (pio_rx_frame(q) == 0);
+		if (stop)
+			break;
+		cond_resched();
+		if (WARN_ON_ONCE(++count > 10000))
+			break;
+	}
 }
 
 static void b43_pio_tx_suspend_queue(struct b43_pio_txqueue *q)

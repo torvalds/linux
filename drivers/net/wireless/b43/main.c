@@ -3883,7 +3883,6 @@ redo:
 	while (skb_queue_len(&wl->tx_queue))
 		dev_kfree_skb(skb_dequeue(&wl->tx_queue));
 
-	b43_pio_stop(dev);
 	b43_mac_suspend(dev);
 	free_irq(dev->dev->irq, dev);
 	b43dbg(wl, "Wireless interface stopped\n");
