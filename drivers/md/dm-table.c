@@ -360,8 +360,12 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 
 	if ((start >= dev_size) || (start + len > dev_size)) {
-		DMWARN("%s: %s too small for target",
-		       dm_device_name(ti->table->md), bdevname(bdev, b));
+		DMWARN("%s: %s too small for target: "
+		       "start=%llu, len=%llu, dev_size=%llu",
+		       dm_device_name(ti->table->md), bdevname(bdev, b),
+		       (unsigned long long)start,
+		       (unsigned long long)len,
+		       (unsigned long long)dev_size);
 		return 1;
 	}
 
@@ -370,7 +374,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 
 	if (start & (logical_block_size_sectors - 1)) {
 		DMWARN("%s: start=%llu not aligned to h/w "
-		       "logical block size %hu of %s",
+		       "logical block size %u of %s",
 		       dm_device_name(ti->table->md),
 		       (unsigned long long)start,
 		       limits->logical_block_size, bdevname(bdev, b));
@@ -379,7 +383,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 
 	if (len & (logical_block_size_sectors - 1)) {
 		DMWARN("%s: len=%llu not aligned to h/w "
-		       "logical block size %hu of %s",
+		       "logical block size %u of %s",
 		       dm_device_name(ti->table->md),
 		       (unsigned long long)len,
 		       limits->logical_block_size, bdevname(bdev, b));
@@ -496,8 +500,15 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 	}
 
 	if (blk_stack_limits(limits, &q->limits, start << 9) < 0)
-		DMWARN("%s: target device %s is misaligned",
-		       dm_device_name(ti->table->md), bdevname(bdev, b));
+		DMWARN("%s: target device %s is misaligned: "
+		       "physical_block_size=%u, logical_block_size=%u, "
+		       "alignment_offset=%u, start=%llu",
+		       dm_device_name(ti->table->md), bdevname(bdev, b),
+		       q->limits.physical_block_size,
+		       q->limits.logical_block_size,
+		       q->limits.alignment_offset,
+		       (unsigned long long) start << 9);
+
 
 	/*
 	 * Check if merge fn is supported.
@@ -698,7 +709,7 @@ static int validate_hardware_logical_block_alignment(struct dm_table *table,
 
 	if (remaining) {
 		DMWARN("%s: table line %u (start sect %llu len %llu) "
-		       "not aligned to h/w logical block size %hu",
+		       "not aligned to h/w logical block size %u",
 		       dm_device_name(table->md), i,
 		       (unsigned long long) ti->begin,
 		       (unsigned long long) ti->len,
