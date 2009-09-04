@@ -70,7 +70,6 @@ struct b43_pio_txpacket {
 
 struct b43_pio_txqueue {
 	struct b43_wldev *dev;
-	spinlock_t lock;
 	u16 mmio_base;
 
 	/* The device queue buffer size in bytes. */
@@ -103,7 +102,6 @@ struct b43_pio_txqueue {
 
 struct b43_pio_rxqueue {
 	struct b43_wldev *dev;
-	spinlock_t lock;
 	u16 mmio_base;
 
 	/* Work to reduce latency issues on RX. */

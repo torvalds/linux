@@ -856,7 +856,6 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		} else
 			B43_WARN_ON(1);
 	}
-	spin_lock_init(&ring->lock);
 #ifdef CONFIG_B43_DEBUG
 	ring->last_injected_overflow = jiffies;
 #endif
@@ -1315,7 +1314,6 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	struct b43_dmaring *ring;
 	struct ieee80211_hdr *hdr;
 	int err = 0;
-	unsigned long flags;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -1331,8 +1329,6 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 			dev, skb_get_queue_mapping(skb));
 	}
 
-	spin_lock_irqsave(&ring->lock, flags);
-
 	B43_WARN_ON(!ring->tx);
 
 	if (unlikely(ring->stopped)) {
@@ -1343,7 +1339,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE))
 			b43err(dev->wl, "Packet after queue stopped\n");
 		err = -ENOSPC;
-		goto out_unlock;
+		goto out;
 	}
 
 	if (unlikely(WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME))) {
@@ -1351,7 +1347,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		 * full, but queues not stopped. */
 		b43err(dev->wl, "DMA queue overflow\n");
 		err = -ENOSPC;
-		goto out_unlock;
+		goto out;
 	}
 
 	/* Assign the queue number to the ring (if not already done before)
@@ -1365,11 +1361,11 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		 * anymore and must not transmit it unencrypted. */
 		dev_kfree_skb_any(skb);
 		err = 0;
-		goto out_unlock;
+		goto out;
 	}
 	if (unlikely(err)) {
 		b43err(dev->wl, "DMA tx mapping failure\n");
-		goto out_unlock;
+		goto out;
 	}
 	ring->nr_tx_packets++;
 	if ((free_slots(ring) < TX_SLOTS_PER_FRAME) ||
@@ -1381,8 +1377,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 			b43dbg(dev->wl, "Stopped TX ring %d\n", ring->index);
 		}
 	}
-out_unlock:
-	spin_unlock_irqrestore(&ring->lock, flags);
+out:
 
 	return err;
 }
@@ -1400,8 +1395,6 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	ring = parse_cookie(dev, status->cookie, &slot);
 	if (unlikely(!ring))
 		return;
-
-	spin_lock_irq(&ring->lock);
 
 	B43_WARN_ON(!ring->tx);
 	ops = ring->ops;
@@ -1461,8 +1454,6 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			b43dbg(dev->wl, "Woke up TX ring %d\n", ring->index);
 		}
 	}
-
-	spin_unlock_irq(&ring->lock);
 }
 
 void b43_dma_get_tx_stats(struct b43_wldev *dev,
@@ -1470,17 +1461,14 @@ void b43_dma_get_tx_stats(struct b43_wldev *dev,
 {
 	const int nr_queues = dev->wl->hw->queues;
 	struct b43_dmaring *ring;
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < nr_queues; i++) {
 		ring = select_ring_by_priority(dev, i);
 
-		spin_lock_irqsave(&ring->lock, flags);
 		stats[i].len = ring->used_slots / TX_SLOTS_PER_FRAME;
 		stats[i].limit = ring->nr_slots / TX_SLOTS_PER_FRAME;
 		stats[i].count = ring->nr_tx_packets;
-		spin_unlock_irqrestore(&ring->lock, flags);
 	}
 }
 
@@ -1591,22 +1579,14 @@ void b43_dma_rx(struct b43_dmaring *ring)
 
 static void b43_dma_tx_suspend_ring(struct b43_dmaring *ring)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->lock, flags);
 	B43_WARN_ON(!ring->tx);
 	ring->ops->tx_suspend(ring);
-	spin_unlock_irqrestore(&ring->lock, flags);
 }
 
 static void b43_dma_tx_resume_ring(struct b43_dmaring *ring)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->lock, flags);
 	B43_WARN_ON(!ring->tx);
 	ring->ops->tx_resume(ring);
-	spin_unlock_irqrestore(&ring->lock, flags);
 }
 
 void b43_dma_tx_suspend(struct b43_wldev *dev)
