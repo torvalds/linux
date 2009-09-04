@@ -343,10 +343,10 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
 }
 
 /*
- * If possible, this checks an area of a destination device is valid.
+ * If possible, this checks an area of a destination device is invalid.
  */
-static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
-				sector_t start, sector_t len, void *data)
+static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
+				  sector_t start, sector_t len, void *data)
 {
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
@@ -357,16 +357,16 @@ static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
 	char b[BDEVNAME_SIZE];
 
 	if (!dev_size)
-		return 1;
+		return 0;
 
 	if ((start >= dev_size) || (start + len > dev_size)) {
 		DMWARN("%s: %s too small for target",
 		       dm_device_name(ti->table->md), bdevname(bdev, b));
-		return 0;
+		return 1;
 	}
 
 	if (logical_block_size_sectors <= 1)
-		return 1;
+		return 0;
 
 	if (start & (logical_block_size_sectors - 1)) {
 		DMWARN("%s: start=%llu not aligned to h/w "
@@ -374,7 +374,7 @@ static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
 		       dm_device_name(ti->table->md),
 		       (unsigned long long)start,
 		       limits->logical_block_size, bdevname(bdev, b));
-		return 0;
+		return 1;
 	}
 
 	if (len & (logical_block_size_sectors - 1)) {
@@ -383,10 +383,10 @@ static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
 		       dm_device_name(ti->table->md),
 		       (unsigned long long)len,
 		       limits->logical_block_size, bdevname(bdev, b));
-		return 0;
+		return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 /*
@@ -1000,8 +1000,8 @@ int dm_calculate_queue_limits(struct dm_table *table,
 		 * Check each device area is consistent with the target's
 		 * overall queue limits.
 		 */
-		if (!ti->type->iterate_devices(ti, device_area_is_valid,
-					       &ti_limits))
+		if (ti->type->iterate_devices(ti, device_area_is_invalid,
+					      &ti_limits))
 			return -EINVAL;
 
 combine_limits:
