@@ -79,29 +79,30 @@ static int			event_scaled[MAX_COUNTERS];
 
 struct stats
 {
-	double sum;
-	double sum_sq;
+	double n, mean, M2;
 };
 
 static void update_stats(struct stats *stats, u64 val)
 {
-	double sq = val;
+	double delta;
 
-	stats->sum += val;
-	stats->sum_sq += sq * sq;
+	stats->n++;
+	delta = val - stats->mean;
+	stats->mean += delta / stats->n;
+	stats->M2 += delta*(val - stats->mean);
 }
 
 static double avg_stats(struct stats *stats)
 {
-	return stats->sum / run_count;
+	return stats->mean;
 }
 
 /*
  * http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
  *
- *      (\Sum n_i^2) - ((\Sum n_i)^2)/n
- * s^2  -------------------------------
- *                   n - 1
+ *       (\Sum n_i^2) - ((\Sum n_i)^2)/n
+ * s^2 = -------------------------------
+ *                  n - 1
  *
  * http://en.wikipedia.org/wiki/Stddev
  *
@@ -114,9 +115,8 @@ static double avg_stats(struct stats *stats)
  */
 static double stddev_stats(struct stats *stats)
 {
-	double avg = stats->sum / run_count;
-	double variance = (stats->sum_sq - stats->sum*avg)/(run_count - 1);
-	double variance_mean = variance / run_count;
+	double variance = stats->M2 / (stats->n - 1);
+	double variance_mean = variance / stats->n;
 
 	return sqrt(variance_mean);
 }
