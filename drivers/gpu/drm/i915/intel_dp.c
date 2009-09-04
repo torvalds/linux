@@ -1254,6 +1254,18 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	else
 		intel_output->type = INTEL_OUTPUT_DISPLAYPORT;
 
+	if (output_reg == DP_B)
+		intel_output->clone_mask = (1 << INTEL_DP_B_CLONE_BIT);
+	else if (output_reg == DP_C)
+		intel_output->clone_mask = (1 << INTEL_DP_C_CLONE_BIT);
+	else if (output_reg == DP_D)
+		intel_output->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
+
+	if (IS_eDP(intel_output)) {
+		intel_output->crtc_mask = (1 << 1);
+		intel_output->clone_mask = (1 << INTEL_OUTPUT_EDP);
+	} else
+		intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 

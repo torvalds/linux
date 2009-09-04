@@ -399,9 +399,11 @@ static int bnx2_unregister_cnic(struct net_device *dev)
 	struct bnx2_napi *bnapi = &bp->bnx2_napi[0];
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
 
+	mutex_lock(&bp->cnic_lock);
 	cp->drv_state = 0;
 	bnapi->cnic_present = 0;
 	rcu_assign_pointer(bp->cnic_ops, NULL);
+	mutex_unlock(&bp->cnic_lock);
 	synchronize_rcu();
 	return 0;
 }
@@ -429,13 +431,13 @@ bnx2_cnic_stop(struct bnx2 *bp)
 	struct cnic_ops *c_ops;
 	struct cnic_ctl_info info;
 
-	rcu_read_lock();
-	c_ops = rcu_dereference(bp->cnic_ops);
+	mutex_lock(&bp->cnic_lock);
+	c_ops = bp->cnic_ops;
 	if (c_ops) {
 		info.cmd = CNIC_CTL_STOP_CMD;
 		c_ops->cnic_ctl(bp->cnic_data, &info);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&bp->cnic_lock);
 }
 
 static void
@@ -444,8 +446,8 @@ bnx2_cnic_start(struct bnx2 *bp)
 	struct cnic_ops *c_ops;
 	struct cnic_ctl_info info;
 
-	rcu_read_lock();
-	c_ops = rcu_dereference(bp->cnic_ops);
+	mutex_lock(&bp->cnic_lock);
+	c_ops = bp->cnic_ops;
 	if (c_ops) {
 		if (!(bp->flags & BNX2_FLAG_USING_MSIX)) {
 			struct bnx2_napi *bnapi = &bp->bnx2_napi[0];
@@ -455,7 +457,7 @@ bnx2_cnic_start(struct bnx2 *bp)
 		info.cmd = CNIC_CTL_START_CMD;
 		c_ops->cnic_ctl(bp->cnic_data, &info);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&bp->cnic_lock);
 }
 
 #else
@@ -7663,6 +7665,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	spin_lock_init(&bp->phy_lock);
 	spin_lock_init(&bp->indirect_lock);
+#ifdef BCM_CNIC
+	mutex_init(&bp->cnic_lock);
+#endif
 	INIT_WORK(&bp->reset_task, bnx2_reset_task);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);

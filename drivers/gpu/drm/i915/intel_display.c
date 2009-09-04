@@ -666,7 +666,7 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int err = target;
 
-	if (IS_I9XX(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    (I915_READ(LVDS)) != 0) {
 		/*
 		 * For LVDS, if the panel is on, just rely on its current
@@ -2396,7 +2396,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		if (is_sdvo) {
 			dpll |= DPLL_DVO_HIGH_SPEED;
 			sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
-			if (IS_I945G(dev) || IS_I945GM(dev))
+			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
 			else if (IS_IGDNG(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
@@ -3170,7 +3170,7 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 
         list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct intel_output *intel_output = to_intel_output(connector);
-		if (type_mask & (1 << intel_output->type))
+		if (type_mask & intel_output->clone_mask)
 			index_mask |= (1 << entry);
 		entry++;
 	}
@@ -3218,30 +3218,30 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_dp_init(dev, PCH_DP_D);
 
 	} else if (IS_I9XX(dev)) {
-		int found;
-		u32 reg;
+		bool found = false;
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
 			found = intel_sdvo_init(dev, SDVOB);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOB);
+
 			if (!found && SUPPORTS_INTEGRATED_DP(dev))
 				intel_dp_init(dev, DP_B);
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
-		if (IS_G4X(dev))
-			reg = SDVOC;
-		else
-			reg = SDVOB;
 
-		if (I915_READ(reg) & SDVO_DETECTED) {
+		if (I915_READ(SDVOB) & SDVO_DETECTED)
 			found = intel_sdvo_init(dev, SDVOC);
-			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+
+		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
+
+			if (SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOC);
-			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+			if (SUPPORTS_INTEGRATED_DP(dev))
 				intel_dp_init(dev, DP_C);
 		}
+
 		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D);
 	} else
@@ -3253,51 +3253,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct intel_output *intel_output = to_intel_output(connector);
 		struct drm_encoder *encoder = &intel_output->enc;
-		int crtc_mask = 0, clone_mask = 0;
 
-		/* valid crtcs */
-		switch(intel_output->type) {
-		case INTEL_OUTPUT_HDMI:
-			crtc_mask = ((1 << 0)|
-				     (1 << 1));
-			clone_mask = ((1 << INTEL_OUTPUT_HDMI));
-			break;
-		case INTEL_OUTPUT_DVO:
-		case INTEL_OUTPUT_SDVO:
-			crtc_mask = ((1 << 0)|
-				     (1 << 1));
-			clone_mask = ((1 << INTEL_OUTPUT_ANALOG) |
-				      (1 << INTEL_OUTPUT_DVO) |
-				      (1 << INTEL_OUTPUT_SDVO));
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			crtc_mask = ((1 << 0)|
-				     (1 << 1));
-			clone_mask = ((1 << INTEL_OUTPUT_ANALOG) |
-				      (1 << INTEL_OUTPUT_DVO) |
-				      (1 << INTEL_OUTPUT_SDVO));
-			break;
-		case INTEL_OUTPUT_LVDS:
-			crtc_mask = (1 << 1);
-			clone_mask = (1 << INTEL_OUTPUT_LVDS);
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			crtc_mask = ((1 << 0) |
-				     (1 << 1));
-			clone_mask = (1 << INTEL_OUTPUT_TVOUT);
-			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
-			crtc_mask = ((1 << 0) |
-				     (1 << 1));
-			clone_mask = (1 << INTEL_OUTPUT_DISPLAYPORT);
-			break;
-		case INTEL_OUTPUT_EDP:
-			crtc_mask = (1 << 1);
-			clone_mask = (1 << INTEL_OUTPUT_EDP);
-			break;
-		}
-		encoder->possible_crtcs = crtc_mask;
-		encoder->possible_clones = intel_connector_clones(dev, clone_mask);
+		encoder->possible_crtcs = intel_output->crtc_mask;
+		encoder->possible_clones = intel_connector_clones(dev,
+						intel_output->clone_mask);
 	}
 }
 

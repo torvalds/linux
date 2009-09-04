@@ -381,6 +381,14 @@ static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
 		&local->hw, queue,
 		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 
+	if (!(sta->ampdu_mlme.tid_state_tx[tid] & HT_ADDBA_REQUESTED_MSK))
+		return;
+
+	if (WARN(!sta->ampdu_mlme.tid_tx[tid],
+		 "TID %d gone but expected when splicing aggregates from"
+		 "the pending queue\n", tid))
+		return;
+
 	if (!skb_queue_empty(&sta->ampdu_mlme.tid_tx[tid]->pending)) {
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		/* mark queue as pending, it is stopped already */

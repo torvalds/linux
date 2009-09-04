@@ -44,6 +44,11 @@ static struct apic *apic_probe[] __initdata = {
 	NULL,
 };
 
+static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
+{
+	return hard_smp_processor_id() >> index_msb;
+}
+
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
  */
@@ -67,6 +72,11 @@ void __init default_setup_apic_routing(void)
 		if (max_physical_apicid >= 8)
 			apic = &apic_physflat;
 		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
+	}
+
+	if (is_vsmp_box()) {
+		/* need to update phys_pkg_id */
+		apic->phys_pkg_id = apicid_phys_pkg_id;
 	}
 
 	/*

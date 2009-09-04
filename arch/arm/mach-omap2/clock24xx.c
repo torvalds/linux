@@ -30,6 +30,7 @@
 
 #include <mach/clock.h>
 #include <mach/sram.h>
+#include <mach/prcm.h>
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
@@ -42,6 +43,18 @@
 
 static const struct clkops clkops_oscck;
 static const struct clkops clkops_fixed;
+
+static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
+					   void __iomem **idlest_reg,
+					   u8 *idlest_bit);
+
+/* 2430 I2CHS has non-standard IDLEST register */
+static const struct clkops clkops_omap2430_i2chs_wait = {
+	.enable		= omap2_dflt_clk_enable,
+	.disable	= omap2_dflt_clk_disable,
+	.find_idlest	= omap2430_clk_i2chs_find_idlest,
+	.find_companion = omap2_clk_dflt_find_companion,
+};
 
 #include "clock24xx.h"
 
@@ -240,6 +253,26 @@ static void __iomem *prcm_clksrc_ctrl;
  *-------------------------------------------------------------------------*/
 
 /**
+ * omap2430_clk_i2chs_find_idlest - return CM_IDLEST info for 2430 I2CHS
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ *
+ * OMAP2430 I2CHS CM_IDLEST bits are in CM_IDLEST1_CORE, but the
+ * CM_*CLKEN bits are in CM_{I,F}CLKEN2_CORE.  This custom function
+ * passes back the correct CM_IDLEST register address for I2CHS
+ * modules.  No return value.
+ */
+static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
+					   void __iomem **idlest_reg,
+					   u8 *idlest_bit)
+{
+	*idlest_reg = OMAP_CM_REGADDR(CORE_MOD, CM_IDLEST);
+	*idlest_bit = clk->enable_bit;
+}
+
+
+/**
  * omap2xxx_clk_get_core_rate - return the CORE_CLK rate
  * @clk: pointer to the combined dpll_ck + core_ck (currently "dpll_ck")
  *
@@ -325,8 +358,8 @@ static int omap2_clk_fixed_enable(struct clk *clk)
 	else if (clk == &apll54_ck)
 		cval = OMAP24XX_ST_54M_APLL;
 
-	omap2_wait_clock_ready(OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST), cval,
-			    clk->name);
+	omap2_cm_wait_idlest(OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST), cval,
+			     clk->name);
 
 	/*
 	 * REVISIT: Should we return an error code if omap2_wait_clock_ready()

@@ -106,16 +106,21 @@ gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_basic(struct gnet_dump *d, struct gnet_stats_basic *b)
+gnet_stats_copy_basic(struct gnet_dump *d, struct gnet_stats_basic_packed *b)
 {
 	if (d->compat_tc_stats) {
 		d->tc_stats.bytes = b->bytes;
 		d->tc_stats.packets = b->packets;
 	}
 
-	if (d->tail)
-		return gnet_stats_copy(d, TCA_STATS_BASIC, b, sizeof(*b));
+	if (d->tail) {
+		struct gnet_stats_basic sb;
 
+		memset(&sb, 0, sizeof(sb));
+		sb.bytes = b->bytes;
+		sb.packets = b->packets;
+		return gnet_stats_copy(d, TCA_STATS_BASIC, &sb, sizeof(sb));
+	}
 	return 0;
 }
 

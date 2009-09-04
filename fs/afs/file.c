@@ -134,9 +134,16 @@ static int afs_readpage(struct file *file, struct page *page)
 
 	inode = page->mapping->host;
 
-	ASSERT(file != NULL);
-	key = file->private_data;
-	ASSERT(key != NULL);
+	if (file) {
+		key = file->private_data;
+		ASSERT(key != NULL);
+	} else {
+		key = afs_request_key(AFS_FS_S(inode->i_sb)->volume->cell);
+		if (IS_ERR(key)) {
+			ret = PTR_ERR(key);
+			goto error_nokey;
+		}
+	}
 
 	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
 
@@ -207,12 +214,17 @@ static int afs_readpage(struct file *file, struct page *page)
 		unlock_page(page);
 	}
 
+	if (!file)
+		key_put(key);
 	_leave(" = 0");
 	return 0;
 
 error:
 	SetPageError(page);
 	unlock_page(page);
+	if (!file)
+		key_put(key);
+error_nokey:
 	_leave(" = %d", ret);
 	return ret;
 }
