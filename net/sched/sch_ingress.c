@@ -22,12 +22,6 @@ struct ingress_qdisc_data {
 
 /* ------------------------- Class/flow operations ------------------------- */
 
-static int ingress_graft(struct Qdisc *sch, unsigned long arg,
-			 struct Qdisc *new, struct Qdisc **old)
-{
-	return -EOPNOTSUPP;
-}
-
 static struct Qdisc *ingress_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	return NULL;
@@ -123,7 +117,6 @@ nla_put_failure:
 }
 
 static const struct Qdisc_class_ops ingress_class_ops = {
-	.graft		=	ingress_graft,
 	.leaf		=	ingress_leaf,
 	.get		=	ingress_get,
 	.put		=	ingress_put,

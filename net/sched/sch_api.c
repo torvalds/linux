@@ -728,14 +728,14 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 	} else {
 		const struct Qdisc_class_ops *cops = parent->ops->cl_ops;
 
-		err = -EINVAL;
-
-		if (cops) {
+		err = -EOPNOTSUPP;
+		if (cops && cops->graft) {
 			unsigned long cl = cops->get(parent, classid);
 			if (cl) {
 				err = cops->graft(parent, cl, new, &old);
 				cops->put(parent, cl);
-			}
+			} else
+				err = -ENOENT;
 		}
 		if (!err)
 			notify_and_destroy(skb, n, classid, old, new);
