@@ -158,6 +158,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 {
 	int max, whole, i, offset, over, err;
 	int len, first_len;
+	int max_data;
 	struct sctp_chunk *chunk;
 	struct sctp_datamsg *msg;
 	struct list_head *pos, *temp;
@@ -179,8 +180,14 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 				  __func__, msg, msg->expires_at, jiffies);
 	}
 
-	max = asoc->frag_point;
+	/* This is the biggest possible DATA chunk that can fit into
+	 * the packet
+	 */
+	max_data = asoc->pathmtu -
+		sctp_sk(asoc->base.sk)->pf->af->net_header_len -
+		sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk);
 
+	max = asoc->frag_point;
 	/* If the the peer requested that we authenticate DATA chunks
 	 * we need to accound for bundling of the AUTH chunks along with
 	 * DATA.
@@ -189,23 +196,30 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		struct sctp_hmac *hmac_desc = sctp_auth_asoc_get_hmac(asoc);
 
 		if (hmac_desc)
-			max -= WORD_ROUND(sizeof(sctp_auth_chunk_t) +
+			max_data -= WORD_ROUND(sizeof(sctp_auth_chunk_t) +
 					    hmac_desc->hmac_len);
 	}
+
+	/* Now, check if we need to reduce our max */
+	if (max > max_data)
+		max = max_data;
 
 	whole = 0;
 	first_len = max;
 
 	/* Encourage Cookie-ECHO bundling. */
 	if (asoc->state < SCTP_STATE_COOKIE_ECHOED) {
-		whole = msg_len / (max - SCTP_ARBITRARY_COOKIE_ECHO_LEN);
+		max_data -= SCTP_ARBITRARY_COOKIE_ECHO_LEN;
 
-		/* Account for the DATA to be bundled with the COOKIE-ECHO. */
-		if (whole) {
-			first_len = max - SCTP_ARBITRARY_COOKIE_ECHO_LEN;
-			msg_len -= first_len;
-			whole = 1;
-		}
+		/* This is the biggesr first_len we can have */
+		if (first_len > max_data)
+			first_len = max_data;
+	}
+
+	/* Account for a different sized first fragment */
+	if (msg_len >= first_len) {
+		msg_len -= first_len;
+		whole = 1;
 	}
 
 	/* How many full sized?  How many bytes leftover? */
