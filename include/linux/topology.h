@@ -85,21 +85,29 @@ int arch_update_cpu_topology(void);
 #define ARCH_HAS_SCHED_WAKE_IDLE
 /* Common values for SMT siblings */
 #ifndef SD_SIBLING_INIT
-#define SD_SIBLING_INIT (struct sched_domain) {		\
-	.min_interval		= 1,			\
-	.max_interval		= 2,			\
-	.busy_factor		= 64,			\
-	.imbalance_pct		= 110,			\
-	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_NEWIDLE	\
-				| SD_BALANCE_FORK	\
-				| SD_BALANCE_EXEC	\
-				| SD_WAKE_AFFINE	\
-				| SD_WAKE_BALANCE	\
-				| SD_SHARE_CPUPOWER,	\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 1,			\
-	.smt_gain		= 1178,	/* 15% */	\
+#define SD_SIBLING_INIT (struct sched_domain) {				\
+	.min_interval		= 1,					\
+	.max_interval		= 2,					\
+	.busy_factor		= 64,					\
+	.imbalance_pct		= 110,					\
+									\
+	.flags			= 1*SD_LOAD_BALANCE			\
+				| 1*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_EXEC			\
+				| 1*SD_BALANCE_FORK			\
+				| 0*SD_WAKE_IDLE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 1*SD_WAKE_BALANCE			\
+				| 1*SD_SHARE_CPUPOWER			\
+				| 0*SD_POWERSAVINGS_BALANCE		\
+				| 0*SD_SHARE_PKG_RESOURCES		\
+				| 0*SD_SERIALIZE			\
+				| 0*SD_WAKE_IDLE_FAR			\
+				| 0*SD_PREFER_SIBLING			\
+				,					\
+	.last_balance		= jiffies,				\
+	.balance_interval	= 1,					\
+	.smt_gain		= 1178,	/* 15% */			\
 }
 #endif
 #endif /* CONFIG_SCHED_SMT */
@@ -107,69 +115,94 @@ int arch_update_cpu_topology(void);
 #ifdef CONFIG_SCHED_MC
 /* Common values for MC siblings. for now mostly derived from SD_CPU_INIT */
 #ifndef SD_MC_INIT
-#define SD_MC_INIT (struct sched_domain) {		\
-	.min_interval		= 1,			\
-	.max_interval		= 4,			\
-	.busy_factor		= 64,			\
-	.imbalance_pct		= 125,			\
-	.cache_nice_tries	= 1,			\
-	.busy_idx		= 2,			\
-	.wake_idx		= 1,			\
-	.forkexec_idx		= 1,			\
-	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_FORK	\
-				| SD_BALANCE_EXEC	\
-				| SD_WAKE_AFFINE	\
-				| SD_WAKE_BALANCE	\
-				| SD_SHARE_PKG_RESOURCES\
-				| sd_balance_for_mc_power()\
-				| sd_power_saving_flags(),\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 1,			\
+#define SD_MC_INIT (struct sched_domain) {				\
+	.min_interval		= 1,					\
+	.max_interval		= 4,					\
+	.busy_factor		= 64,					\
+	.imbalance_pct		= 125,					\
+	.cache_nice_tries	= 1,					\
+	.busy_idx		= 2,					\
+	.wake_idx		= 1,					\
+	.forkexec_idx		= 1,					\
+									\
+	.flags			= 1*SD_LOAD_BALANCE			\
+				| 0*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_EXEC			\
+				| 1*SD_BALANCE_FORK			\
+				| 0*SD_WAKE_IDLE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 1*SD_WAKE_BALANCE			\
+				| 0*SD_SHARE_CPUPOWER			\
+				| 1*SD_SHARE_PKG_RESOURCES		\
+				| 0*SD_SERIALIZE			\
+				| 0*SD_WAKE_IDLE_FAR			\
+				| sd_balance_for_mc_power()		\
+				| sd_power_saving_flags()		\
+				,					\
+	.last_balance		= jiffies,				\
+	.balance_interval	= 1,					\
 }
 #endif
 #endif /* CONFIG_SCHED_MC */
 
 /* Common values for CPUs */
 #ifndef SD_CPU_INIT
-#define SD_CPU_INIT (struct sched_domain) {		\
-	.min_interval		= 1,			\
-	.max_interval		= 4,			\
-	.busy_factor		= 64,			\
-	.imbalance_pct		= 125,			\
-	.cache_nice_tries	= 1,			\
-	.busy_idx		= 2,			\
-	.idle_idx		= 1,			\
-	.newidle_idx		= 2,			\
-	.wake_idx		= 1,			\
-	.forkexec_idx		= 1,			\
-	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_EXEC	\
-				| SD_BALANCE_FORK	\
-				| SD_WAKE_AFFINE	\
-				| SD_WAKE_BALANCE	\
-				| sd_balance_for_package_power()\
-				| sd_power_saving_flags(),\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 1,			\
+#define SD_CPU_INIT (struct sched_domain) {				\
+	.min_interval		= 1,					\
+	.max_interval		= 4,					\
+	.busy_factor		= 64,					\
+	.imbalance_pct		= 125,					\
+	.cache_nice_tries	= 1,					\
+	.busy_idx		= 2,					\
+	.idle_idx		= 1,					\
+	.newidle_idx		= 2,					\
+	.wake_idx		= 1,					\
+	.forkexec_idx		= 1,					\
+									\
+	.flags			= 1*SD_LOAD_BALANCE			\
+				| 0*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_EXEC			\
+				| 1*SD_BALANCE_FORK			\
+				| 0*SD_WAKE_IDLE			\
+				| 0*SD_WAKE_AFFINE			\
+				| 1*SD_WAKE_BALANCE			\
+				| 0*SD_SHARE_CPUPOWER			\
+				| 0*SD_SHARE_PKG_RESOURCES		\
+				| 0*SD_SERIALIZE			\
+				| 0*SD_WAKE_IDLE_FAR			\
+				| sd_balance_for_package_power()	\
+				| sd_power_saving_flags()		\
+				,					\
+	.last_balance		= jiffies,				\
+	.balance_interval	= 1,					\
 }
 #endif
 
 /* sched_domains SD_ALLNODES_INIT for NUMA machines */
-#define SD_ALLNODES_INIT (struct sched_domain) {	\
-	.min_interval		= 64,			\
-	.max_interval		= 64*num_online_cpus(),	\
-	.busy_factor		= 128,			\
-	.imbalance_pct		= 133,			\
-	.cache_nice_tries	= 1,			\
-	.busy_idx		= 3,			\
-	.idle_idx		= 3,			\
-	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_NEWIDLE	\
-				| SD_WAKE_AFFINE	\
-				| SD_SERIALIZE,		\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 64,			\
+#define SD_ALLNODES_INIT (struct sched_domain) {			\
+	.min_interval		= 64,					\
+	.max_interval		= 64*num_online_cpus(),			\
+	.busy_factor		= 128,					\
+	.imbalance_pct		= 133,					\
+	.cache_nice_tries	= 1,					\
+	.busy_idx		= 3,					\
+	.idle_idx		= 3,					\
+	.flags			= 1*SD_LOAD_BALANCE			\
+				| 1*SD_BALANCE_NEWIDLE			\
+				| 0*SD_BALANCE_EXEC			\
+				| 0*SD_BALANCE_FORK			\
+				| 0*SD_WAKE_IDLE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 0*SD_WAKE_BALANCE			\
+				| 0*SD_SHARE_CPUPOWER			\
+				| 0*SD_POWERSAVINGS_BALANCE		\
+				| 0*SD_SHARE_PKG_RESOURCES		\
+				| 1*SD_SERIALIZE			\
+				| 0*SD_WAKE_IDLE_FAR			\
+				| 0*SD_PREFER_SIBLING			\
+				,					\
+	.last_balance		= jiffies,				\
+	.balance_interval	= 64,					\
 }
 
 #ifdef CONFIG_NUMA
