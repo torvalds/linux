@@ -625,6 +625,23 @@ struct xhci_input_control_ctx {
 /* add context bitmasks */
 #define	ADD_EP(x)	(0x1 << x)
 
+struct xhci_virt_ep {
+	struct xhci_ring		*ring;
+	/* Temporary storage in case the configure endpoint command fails and we
+	 * have to restore the device state to the previous state
+	 */
+	struct xhci_ring		*new_ring;
+	unsigned int			ep_state;
+#define SET_DEQ_PENDING		(1 << 0)
+#define EP_HALTED		(1 << 1)
+	/* ----  Related to URB cancellation ---- */
+	struct list_head	cancelled_td_list;
+	unsigned int		cancels_pending;
+	/* The TRB that was last reported in a stopped endpoint ring */
+	union xhci_trb		*stopped_trb;
+	struct xhci_td		*stopped_td;
+};
+
 struct xhci_virt_device {
 	/*
 	 * Commands to the hardware are passed an "input context" that
@@ -637,13 +654,7 @@ struct xhci_virt_device {
 	struct xhci_container_ctx       *out_ctx;
 	/* Used for addressing devices and configuration changes */
 	struct xhci_container_ctx       *in_ctx;
-
-	/* FIXME when stream support is added */
-	struct xhci_ring		*ep_rings[31];
-	/* Temporary storage in case the configure endpoint command fails and we
-	 * have to restore the device state to the previous state
-	 */
-	struct xhci_ring		*new_ep_rings[31];
+	struct xhci_virt_ep		eps[31];
 	struct completion		cmd_completion;
 	/* Status of the last command issued for this device */
 	u32				cmd_status;
@@ -945,15 +956,6 @@ struct xhci_ring {
 	struct xhci_segment	*deq_seg;
 	unsigned int		deq_updates;
 	struct list_head	td_list;
-	/* ----  Related to URB cancellation ---- */
-	struct list_head	cancelled_td_list;
-	unsigned int		cancels_pending;
-	unsigned int		state;
-#define SET_DEQ_PENDING		(1 << 0)
-#define EP_HALTED		(1 << 1)
-	/* The TRB that was last reported in a stopped endpoint ring */
-	union xhci_trb		*stopped_trb;
-	struct xhci_td		*stopped_td;
 	/*
 	 * Write the cycle state into the TRB cycle field to give ownership of
 	 * the TRB to the host controller (if we are the producer), or to check
@@ -1236,11 +1238,10 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_td *cur_td, struct xhci_dequeue_state *state);
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
-		struct xhci_ring *ep_ring, unsigned int slot_id,
-		unsigned int ep_index, struct xhci_dequeue_state *deq_state);
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_dequeue_state *deq_state);
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
-		struct usb_device *udev,
-		unsigned int ep_index, struct xhci_ring *ep_ring);
+		struct usb_device *udev, unsigned int ep_index);
 void xhci_queue_config_ep_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state);

@@ -351,13 +351,14 @@ void xhci_event_ring_work(unsigned long arg)
 	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
 	xhci_dbg_cmd_ptrs(xhci);
 	for (i = 0; i < MAX_HC_SLOTS; ++i) {
-		if (xhci->devs[i]) {
-			for (j = 0; j < 31; ++j) {
-				if (xhci->devs[i]->ep_rings[j]) {
-					xhci_dbg(xhci, "Dev %d endpoint ring %d:\n", i, j);
-					xhci_debug_segment(xhci, xhci->devs[i]->ep_rings[j]->deq_seg);
-				}
-			}
+		if (!xhci->devs[i])
+			continue;
+		for (j = 0; j < 31; ++j) {
+			struct xhci_ring *ring = xhci->devs[i]->eps[j].ring;
+			if (!ring)
+				continue;
+			xhci_dbg(xhci, "Dev %d endpoint ring %d:\n", i, j);
+			xhci_debug_segment(xhci, ring->deq_seg);
 		}
 	}
 
@@ -778,6 +779,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct xhci_td *td;
 	unsigned int ep_index;
 	struct xhci_ring *ep_ring;
+	struct xhci_virt_ep *ep;
 
 	xhci = hcd_to_xhci(hcd);
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -790,17 +792,18 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	xhci_dbg(xhci, "Event ring:\n");
 	xhci_debug_ring(xhci, xhci->event_ring);
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
-	ep_ring = xhci->devs[urb->dev->slot_id]->ep_rings[ep_index];
+	ep = &xhci->devs[urb->dev->slot_id]->eps[ep_index];
+	ep_ring = ep->ring;
 	xhci_dbg(xhci, "Endpoint ring:\n");
 	xhci_debug_ring(xhci, ep_ring);
 	td = (struct xhci_td *) urb->hcpriv;
 
-	ep_ring->cancels_pending++;
-	list_add_tail(&td->cancelled_td_list, &ep_ring->cancelled_td_list);
+	ep->cancels_pending++;
+	list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	/* Queue a stop endpoint command, but only if this is
 	 * the first cancellation to be handled.
 	 */
-	if (ep_ring->cancels_pending == 1) {
+	if (ep->cancels_pending == 1) {
 		xhci_queue_stop_endpoint(xhci, urb->dev->slot_id, ep_index);
 		xhci_ring_cmd_db(xhci);
 	}
@@ -1206,10 +1209,10 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_zero_in_ctx(xhci, virt_dev);
 	/* Free any old rings */
 	for (i = 1; i < 31; ++i) {
-		if (virt_dev->new_ep_rings[i]) {
-			xhci_ring_free(xhci, virt_dev->ep_rings[i]);
-			virt_dev->ep_rings[i] = virt_dev->new_ep_rings[i];
-			virt_dev->new_ep_rings[i] = NULL;
+		if (virt_dev->eps[i].new_ring) {
+			xhci_ring_free(xhci, virt_dev->eps[i].ring);
+			virt_dev->eps[i].ring = virt_dev->eps[i].new_ring;
+			virt_dev->eps[i].new_ring = NULL;
 		}
 	}
 
@@ -1236,9 +1239,9 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	virt_dev = xhci->devs[udev->slot_id];
 	/* Free any rings allocated for added endpoints */
 	for (i = 0; i < 31; ++i) {
-		if (virt_dev->new_ep_rings[i]) {
-			xhci_ring_free(xhci, virt_dev->new_ep_rings[i]);
-			virt_dev->new_ep_rings[i] = NULL;
+		if (virt_dev->eps[i].new_ring) {
+			xhci_ring_free(xhci, virt_dev->eps[i].new_ring);
+			virt_dev->eps[i].new_ring = NULL;
 		}
 	}
 	xhci_zero_in_ctx(xhci, virt_dev);
@@ -1281,17 +1284,18 @@ void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 }
 
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
-		struct usb_device *udev,
-		unsigned int ep_index, struct xhci_ring *ep_ring)
+		struct usb_device *udev, unsigned int ep_index)
 {
 	struct xhci_dequeue_state deq_state;
+	struct xhci_virt_ep *ep;
 
 	xhci_dbg(xhci, "Cleaning up stalled endpoint ring\n");
+	ep = &xhci->devs[udev->slot_id]->eps[ep_index];
 	/* We need to move the HW's dequeue pointer past this TD,
 	 * or it will attempt to resend it on the next doorbell ring.
 	 */
 	xhci_find_new_dequeue_state(xhci, udev->slot_id,
-			ep_index, ep_ring->stopped_td,
+			ep_index, ep->stopped_td,
 			&deq_state);
 
 	/* HW with the reset endpoint quirk will use the saved dequeue state to
@@ -1299,8 +1303,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 */
 	if (!(xhci->quirks & XHCI_RESET_EP_QUIRK)) {
 		xhci_dbg(xhci, "Queueing new dequeue state\n");
-		xhci_queue_new_dequeue_state(xhci, ep_ring,
-				udev->slot_id,
+		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
 				ep_index, &deq_state);
 	} else {
 		/* Better hope no one uses the input context between now and the
@@ -1327,7 +1330,7 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	unsigned int ep_index;
 	unsigned long flags;
 	int ret;
-	struct xhci_ring *ep_ring;
+	struct xhci_virt_ep *virt_ep;
 
 	xhci = hcd_to_xhci(hcd);
 	udev = (struct usb_device *) ep->hcpriv;
@@ -1337,8 +1340,8 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	if (!ep->hcpriv)
 		return;
 	ep_index = xhci_get_endpoint_index(&ep->desc);
-	ep_ring = xhci->devs[udev->slot_id]->ep_rings[ep_index];
-	if (!ep_ring->stopped_td) {
+	virt_ep = &xhci->devs[udev->slot_id]->eps[ep_index];
+	if (!virt_ep->stopped_td) {
 		xhci_dbg(xhci, "Endpoint 0x%x not halted, refusing to reset.\n",
 				ep->desc.bEndpointAddress);
 		return;
@@ -1357,8 +1360,8 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	 * command.  Better hope that last command worked!
 	 */
 	if (!ret) {
-		xhci_cleanup_stalled_ring(xhci, udev, ep_index, ep_ring);
-		kfree(ep_ring->stopped_td);
+		xhci_cleanup_stalled_ring(xhci, udev, ep_index);
+		kfree(virt_ep->stopped_td);
 		xhci_ring_cmd_db(xhci);
 	}
 	spin_unlock_irqrestore(&xhci->lock, flags);

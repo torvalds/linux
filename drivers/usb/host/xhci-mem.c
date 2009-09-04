@@ -144,7 +144,6 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		return 0;
 
 	INIT_LIST_HEAD(&ring->td_list);
-	INIT_LIST_HEAD(&ring->cancelled_td_list);
 	if (num_segs == 0)
 		return ring;
 
@@ -265,8 +264,8 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		return;
 
 	for (i = 0; i < 31; ++i)
-		if (dev->ep_rings[i])
-			xhci_ring_free(xhci, dev->ep_rings[i]);
+		if (dev->eps[i].ring)
+			xhci_ring_free(xhci, dev->eps[i].ring);
 
 	if (dev->in_ctx)
 		xhci_free_container_ctx(xhci, dev->in_ctx);
@@ -281,6 +280,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		struct usb_device *udev, gfp_t flags)
 {
 	struct xhci_virt_device *dev;
+	int i;
 
 	/* Slot ID 0 is reserved */
 	if (slot_id == 0 || xhci->devs[slot_id]) {
@@ -309,9 +309,13 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
 			(unsigned long long)dev->in_ctx->dma);
 
+	/* Initialize the cancellation list for each endpoint */
+	for (i = 0; i < 31; i++)
+		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
+
 	/* Allocate endpoint 0 ring */
-	dev->ep_rings[0] = xhci_ring_alloc(xhci, 1, true, flags);
-	if (!dev->ep_rings[0])
+	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, true, flags);
+	if (!dev->eps[0].ring)
 		goto fail;
 
 	init_completion(&dev->cmd_completion);
@@ -428,8 +432,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	ep0_ctx->ep_info2 |= ERROR_COUNT(3);
 
 	ep0_ctx->deq =
-		dev->ep_rings[0]->first_seg->dma;
-	ep0_ctx->deq |= dev->ep_rings[0]->cycle_state;
+		dev->eps[0].ring->first_seg->dma;
+	ep0_ctx->deq |= dev->eps[0].ring->cycle_state;
 
 	/* Steps 7 and 8 were done in xhci_alloc_virt_device() */
 
@@ -539,10 +543,11 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
 	/* Set up the endpoint ring */
-	virt_dev->new_ep_rings[ep_index] = xhci_ring_alloc(xhci, 1, true, mem_flags);
-	if (!virt_dev->new_ep_rings[ep_index])
+	virt_dev->eps[ep_index].new_ring =
+		xhci_ring_alloc(xhci, 1, true, mem_flags);
+	if (!virt_dev->eps[ep_index].new_ring)
 		return -ENOMEM;
-	ep_ring = virt_dev->new_ep_rings[ep_index];
+	ep_ring = virt_dev->eps[ep_index].new_ring;
 	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
 	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
