@@ -525,17 +525,6 @@ static int rdac_activate(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto done;
 
-	if (!h->ctlr) {
-		err = initialize_controller(sdev, h);
-		if (err != SCSI_DH_OK)
-			goto done;
-	}
-
-	if (h->ctlr->use_ms10 == -1) {
-		err = set_mode_select(sdev, h);
-		if (err != SCSI_DH_OK)
-			goto done;
-	}
 	if (h->lun_state == RDAC_LUN_UNOWNED)
 		err = send_mode_select(sdev, h);
 done:
@@ -681,12 +670,20 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto failed;
 
-	err = check_ownership(sdev, h);
+	err = initialize_controller(sdev, h);
 	if (err != SCSI_DH_OK)
 		goto failed;
 
+	err = check_ownership(sdev, h);
+	if (err != SCSI_DH_OK)
+		goto clean_ctlr;
+
+	err = set_mode_select(sdev, h);
+	if (err != SCSI_DH_OK)
+		goto clean_ctlr;
+
 	if (!try_module_get(THIS_MODULE))
-		goto failed;
+		goto clean_ctlr;
 
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = scsi_dh_data;
@@ -697,6 +694,9 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 		    RDAC_NAME, h->lun, lun_state[(int)h->lun_state]);
 
 	return 0;
+
+clean_ctlr:
+	kref_put(&h->ctlr->kref, release_controller);
 
 failed:
 	kfree(scsi_dh_data);
