@@ -153,6 +153,7 @@ static int pcm_substreams[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 8};
 #ifdef CONFIG_HIGH_RES_TIMERS
 static int hrtimer = 1;
 #endif
+static int fake_buffer = 1;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for dummy soundcard.");
@@ -166,6 +167,8 @@ module_param_array(pcm_substreams, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-16) for dummy driver.");
 //module_param_array(midi_devs, int, NULL, 0444);
 //MODULE_PARM_DESC(midi_devs, "MIDI devices # (0-2) for dummy driver.");
+module_param(fake_buffer, bool, 0444);
+MODULE_PARM_DESC(fake_buffer, "Fake buffer allocations.");
 #ifdef CONFIG_HIGH_RES_TIMERS
 module_param(hrtimer, bool, 0644);
 MODULE_PARM_DESC(hrtimer, "Use hrtimer as the timer source.");
@@ -481,11 +484,8 @@ static int dummy_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static int dummy_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dummy *dummy = snd_pcm_substream_chip(substream);
 
-	snd_pcm_format_set_silence(runtime->format, runtime->dma_area,
-			bytes_to_samples(runtime, runtime->dma_bytes));
 	return dummy->timer_ops->prepare(substream);
 }
 
@@ -518,12 +518,19 @@ static struct snd_pcm_hardware dummy_pcm_hardware = {
 static int dummy_pcm_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *hw_params)
 {
+	if (fake_buffer) {
+		/* runtime->dma_bytes has to be set manually to allow mmap */
+		substream->runtime->dma_bytes = params_buffer_bytes(hw_params);
+		return 0;
+	}
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }
 
 static int dummy_pcm_hw_free(struct snd_pcm_substream *substream)
 {
+	if (fake_buffer)
+		return 0;
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -570,6 +577,60 @@ static int dummy_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+/*
+ * dummy buffer handling
+ */
+
+static void *dummy_page[2];
+
+static void free_fake_buffer(void)
+{
+	if (fake_buffer) {
+		int i;
+		for (i = 0; i < 2; i++)
+			if (dummy_page[i]) {
+				free_page((unsigned long)dummy_page[i]);
+				dummy_page[i] = NULL;
+			}
+	}
+}
+
+static int alloc_fake_buffer(void)
+{
+	int i;
+
+	if (!fake_buffer)
+		return 0;
+	for (i = 0; i < 2; i++) {
+		dummy_page[i] = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!dummy_page[i]) {
+			free_fake_buffer();
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+static int dummy_pcm_copy(struct snd_pcm_substream *substream,
+			  int channel, snd_pcm_uframes_t pos,
+			  void __user *dst, snd_pcm_uframes_t count)
+{
+	return 0; /* do nothing */
+}
+
+static int dummy_pcm_silence(struct snd_pcm_substream *substream,
+			     int channel, snd_pcm_uframes_t pos,
+			     snd_pcm_uframes_t count)
+{
+	return 0; /* do nothing */
+}
+
+static struct page *dummy_pcm_page(struct snd_pcm_substream *substream,
+				   unsigned long offset)
+{
+	return virt_to_page(dummy_page[substream->stream]); /* the same page */
+}
+
 static struct snd_pcm_ops dummy_pcm_ops = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
@@ -581,10 +642,25 @@ static struct snd_pcm_ops dummy_pcm_ops = {
 	.pointer =	dummy_pcm_pointer,
 };
 
+static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
+	.open =		dummy_pcm_open,
+	.close =	dummy_pcm_close,
+	.ioctl =	snd_pcm_lib_ioctl,
+	.hw_params =	dummy_pcm_hw_params,
+	.hw_free =	dummy_pcm_hw_free,
+	.prepare =	dummy_pcm_prepare,
+	.trigger =	dummy_pcm_trigger,
+	.pointer =	dummy_pcm_pointer,
+	.copy =		dummy_pcm_copy,
+	.silence =	dummy_pcm_silence,
+	.page =		dummy_pcm_page,
+};
+
 static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 					int substreams)
 {
 	struct snd_pcm *pcm;
+	struct snd_pcm_ops *ops;
 	int err;
 
 	err = snd_pcm_new(dummy->card, "Dummy PCM", device,
@@ -592,14 +668,21 @@ static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	if (err < 0)
 		return err;
 	dummy->pcm = pcm;
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &dummy_pcm_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &dummy_pcm_ops);
+	if (fake_buffer)
+		ops = &dummy_pcm_ops_no_buf;
+	else
+		ops = &dummy_pcm_ops;
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, ops);
 	pcm->private_data = dummy;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "Dummy PCM");
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      0, 64*1024);
+	if (!fake_buffer) {
+		snd_pcm_lib_preallocate_pages_for_all(pcm,
+			SNDRV_DMA_TYPE_CONTINUOUS,
+			snd_dma_continuous_data(GFP_KERNEL),
+			0, 64*1024);
+	}
 	return 0;
 }
 
@@ -822,6 +905,7 @@ static void snd_dummy_unregister_all(void)
 	for (i = 0; i < ARRAY_SIZE(devices); ++i)
 		platform_device_unregister(devices[i]);
 	platform_driver_unregister(&snd_dummy_driver);
+	free_fake_buffer();
 }
 
 static int __init alsa_card_dummy_init(void)
@@ -831,6 +915,12 @@ static int __init alsa_card_dummy_init(void)
 	err = platform_driver_register(&snd_dummy_driver);
 	if (err < 0)
 		return err;
+
+	err = alloc_fake_buffer();
+	if (err < 0) {
+		platform_driver_unregister(&snd_dummy_driver);
+		return err;
+	}
 
 	cards = 0;
 	for (i = 0; i < SNDRV_CARDS; i++) {
