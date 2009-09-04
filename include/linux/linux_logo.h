@@ -40,6 +40,7 @@ extern const struct linux_logo logo_blackfin_clut224;
 extern const struct linux_logo logo_zen_clut224;
 extern const struct linux_logo logo_arch_clut224;
 extern const struct linux_logo logo_gentoo_clut224;
+extern const struct linux_logo logo_exherbo_clut224;
 extern const struct linux_logo logo_debian_clut224;
 extern const struct linux_logo logo_fedorasimple_clut224;
 extern const struct linux_logo logo_fedoraglossy_clut224;
