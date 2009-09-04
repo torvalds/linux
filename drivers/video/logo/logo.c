@@ -75,6 +75,10 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* Gentoo Linux logo */
 		logo = &logo_gentoo_clut224;
 #endif
+#ifdef CONFIG_LOGO_DEBIAN_CLUT224
+		/* Debian Linux logo */
+		logo = &logo_debian_clut224;
+#endif
 #ifdef CONFIG_LOGO_LINUX_CLUT224
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
