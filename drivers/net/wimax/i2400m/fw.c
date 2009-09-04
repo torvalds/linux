@@ -812,7 +812,7 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
  *
  * @i2400m: device descriptor
  * @flags:
- *      I2400M_BRI_SOFT: a reboot notification has been seen
+ *      I2400M_BRI_SOFT: a reboot barker has been seen
  *          already, so don't wait for it.
  *
  *      I2400M_BRI_NO_REBOOT: Don't send a reboot command, but wait
@@ -829,14 +829,25 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
  * main phases to this:
  *
  * a. (1) send a reboot command and (2) get a reboot barker
- * b. (1) ack the reboot sending a reboot barker and (2) getting an
- *        ack barker in return
+ *
+ * b. (1) echo/ack the reboot sending the reboot barker back and (2)
+ *        getting an ack barker in return
  *
  * We want to skip (a) in some cases [soft]. The state machine is
  * horrible, but it is basically: on each phase, send what has to be
  * sent (if any), wait for the answer and act on the answer. We might
  * have to backtrack and retry, so we keep a max tries counter for
  * that.
+ *
+ * It sucks because we don't know ahead of time which is going to be
+ * the reboot barker (the device might send different ones depending
+ * on its EEPROM config) and once the device reboots and waits for the
+ * echo/ack reboot barker being sent back, it doesn't understand
+ * anything else. So we can be left at the point where we don't know
+ * what to send to it -- cold reset and bus reset seem to have little
+ * effect. So the function iterates (in this case) through all the
+ * known barkers and tries them all until an ACK is
+ * received. Otherwise, it gives up.
  *
  * If we get a timeout after sending a warm reset, we do it again.
  */
@@ -848,6 +859,7 @@ int i2400m_bootrom_init(struct i2400m *i2400m, enum i2400m_bri flags)
 	struct i2400m_bootrom_header ack;
 	int count = i2400m->bus_bm_retries;
 	int ack_timeout_cnt = 1;
+	unsigned i;
 
 	BUILD_BUG_ON(sizeof(*cmd) != sizeof(i2400m_barker_db[0].data));
 	BUILD_BUG_ON(sizeof(ack) != sizeof(i2400m_ACK_BARKER));
@@ -858,6 +870,7 @@ int i2400m_bootrom_init(struct i2400m *i2400m, enum i2400m_bri flags)
 	if (flags & I2400M_BRI_SOFT)
 		goto do_reboot_ack;
 do_reboot:
+	ack_timeout_cnt = 1;
 	if (--count < 0)
 		goto error_timeout;
 	d_printf(4, dev, "device reboot: reboot command [%d # left]\n",
@@ -869,22 +882,47 @@ do_reboot:
 	flags &= ~I2400M_BRI_NO_REBOOT;
 	switch (result) {
 	case -ERESTARTSYS:
+		/*
+		 * at this point, i2400m_bm_cmd(), through
+		 * __i2400m_bm_ack_process(), has updated
+		 * i2400m->barker and we are good to go.
+		 */
 		d_printf(4, dev, "device reboot: got reboot barker\n");
 		break;
 	case -EISCONN:	/* we don't know how it got here...but we follow it */
 		d_printf(4, dev, "device reboot: got ack barker - whatever\n");
 		goto do_reboot;
-	case -ETIMEDOUT:	/* device has timed out, we might be in boot
-				 * mode already and expecting an ack, let's try
-				 * that */
-		if (i2400m->barker == NULL) {
-			dev_info(dev, "warm reset timed out, unknown barker "
-				 "type, rebooting\n");
-			goto do_reboot;
-		} else {
-			dev_info(dev, "warm reset timed out, trying an ack\n");
+	case -ETIMEDOUT:
+		/*
+		 * Device has timed out, we might be in boot mode
+		 * already and expecting an ack; if we don't know what
+		 * the barker is, we just send them all. Cold reset
+		 * and bus reset don't work. Beats me.
+		 */
+		if (i2400m->barker != NULL) {
+			dev_err(dev, "device boot: reboot barker timed out, "
+				"trying (set) %08x echo/ack\n",
+				le32_to_cpu(i2400m->barker->data[0]));
 			goto do_reboot_ack;
 		}
+		for (i = 0; i < i2400m_barker_db_used; i++) {
+			struct i2400m_barker_db *barker = &i2400m_barker_db[i];
+			memcpy(cmd, barker->data, sizeof(barker->data));
+			result = i2400m_bm_cmd(i2400m, cmd, sizeof(*cmd),
+					       &ack, sizeof(ack),
+					       I2400M_BM_CMD_RAW);
+			if (result == -EISCONN) {
+				dev_warn(dev, "device boot: got ack barker "
+					 "after sending echo/ack barker "
+					 "#%d/%08x; rebooting j.i.c.\n",
+					 i, le32_to_cpu(barker->data[0]));
+				flags &= ~I2400M_BRI_NO_REBOOT;
+				goto do_reboot;
+			}
+		}
+		dev_err(dev, "device boot: tried all the echo/acks, could "
+			"not get device to respond; giving up");
+		result = -ESHUTDOWN;
 	case -EPROTO:
 	case -ESHUTDOWN:	/* dev is gone */
 	case -EINTR:		/* user cancelled */
@@ -892,6 +930,7 @@ do_reboot:
 	default:
 		dev_err(dev, "device reboot: error %d while waiting "
 			"for reboot barker - rebooting\n", result);
+		d_dump(1, dev, &ack, result);
 		goto do_reboot;
 	}
 	/* At this point we ack back with 4 REBOOT barkers and expect

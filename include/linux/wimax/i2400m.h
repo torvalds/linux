@@ -138,7 +138,7 @@ struct i2400m_bcf_hdr {
 	__le32 module_id;
 	__le32 module_vendor;
 	__le32 date;		/* BCD YYYMMDD */
-	__le32 size;
+	__le32 size;            /* in dwords */
 	__le32 key_size;	/* in dwords */
 	__le32 modulus_size;	/* in dwords */
 	__le32 exponent_size;	/* in dwords */
