@@ -433,11 +433,6 @@ static void tbf_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	}
 }
 
-static struct tcf_proto **tbf_find_tcf(struct Qdisc *sch, unsigned long cl)
-{
-	return NULL;
-}
-
 static const struct Qdisc_class_ops tbf_class_ops =
 {
 	.graft		=	tbf_graft,
@@ -447,7 +442,6 @@ static const struct Qdisc_class_ops tbf_class_ops =
 	.change		=	tbf_change_class,
 	.delete		=	tbf_delete,
 	.walk		=	tbf_walk,
-	.tcf_chain	=	tbf_find_tcf,
 	.dump		=	tbf_dump_class,
 };
 

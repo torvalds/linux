@@ -181,6 +181,9 @@ replay:
 	if ((cops = q->ops->cl_ops) == NULL)
 		return -EINVAL;
 
+	if (cops->tcf_chain == NULL)
+		return -EOPNOTSUPP;
+
 	/* Do we search for filter, attached to class? */
 	if (TC_H_MIN(parent)) {
 		cl = cops->get(q, parent);
@@ -432,6 +435,8 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!q)
 		goto out;
 	if ((cops = q->ops->cl_ops) == NULL)
+		goto errout;
+	if (cops->tcf_chain == NULL)
 		goto errout;
 	if (TC_H_MIN(tcm->tcm_parent)) {
 		cl = cops->get(q, tcm->tcm_parent);

@@ -331,11 +331,6 @@ static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	}
 }
 
-static struct tcf_proto **red_find_tcf(struct Qdisc *sch, unsigned long cl)
-{
-	return NULL;
-}
-
 static const struct Qdisc_class_ops red_class_ops = {
 	.graft		=	red_graft,
 	.leaf		=	red_leaf,
@@ -344,7 +339,6 @@ static const struct Qdisc_class_ops red_class_ops = {
 	.change		=	red_change_class,
 	.delete		=	red_delete,
 	.walk		=	red_walk,
-	.tcf_chain	=	red_find_tcf,
 	.dump		=	red_dump_class,
 };
 
