@@ -1179,7 +1179,7 @@ int i2400m_fw_check(struct i2400m *i2400m,
 
 	module_type = bcf->module_type;
 	header_len = sizeof(u32) * le32_to_cpu(bcf->header_len);
-	major_version = le32_to_cpu(bcf->header_version) & 0xffff0000 >> 16;
+	major_version = (le32_to_cpu(bcf->header_version) & 0xffff0000) >> 16;
 	minor_version = le32_to_cpu(bcf->header_version) & 0x0000ffff;
 	module_id = le32_to_cpu(bcf->module_id);
 	module_vendor = le32_to_cpu(bcf->module_vendor);
@@ -1202,6 +1202,12 @@ int i2400m_fw_check(struct i2400m *i2400m,
 	if (module_type != 6) {		/* built for the right hardware? */
 		dev_err(dev, "bad fw %s: unexpected module type 0x%x; "
 			"aborting\n", i2400m->fw_name, module_type);
+		goto error;
+	}
+
+	if (major_version != 1) {
+		dev_err(dev, "%s: major header version v%u.%u not supported\n",
+			i2400m->fw_name, major_version, minor_version);
 		goto error;
 	}
 
