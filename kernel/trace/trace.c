@@ -658,12 +658,20 @@ void tracing_reset(struct trace_array *tr, int cpu)
 
 void tracing_reset_online_cpus(struct trace_array *tr)
 {
+	struct ring_buffer *buffer = tr->buffer;
 	int cpu;
+
+	ring_buffer_record_disable(buffer);
+
+	/* Make sure all commits have finished */
+	synchronize_sched();
 
 	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
 		tracing_reset(tr, cpu);
+
+	ring_buffer_record_enable(buffer);
 }
 
 void tracing_reset_current(int cpu)
