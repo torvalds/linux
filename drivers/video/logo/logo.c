@@ -79,6 +79,14 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* Debian Linux logo */
 		logo = &logo_debian_clut224;
 #endif
+#ifdef CONFIG_LOGO_FEDORASIMPLE_CLUT224
+		/* Fedora Simple logo */
+		logo = &logo_fedorasimple_clut224;
+#endif
+#ifdef CONFIG_LOGO_FEDORAGLOSSY_CLUT224
+		/* Fedora Glossy logo */
+		logo = &logo_fedoraglossy_clut224;
+#endif
 #ifdef CONFIG_LOGO_LINUX_CLUT224
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
