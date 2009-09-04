@@ -25,6 +25,7 @@ config SPARC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
+	select HAVE_PERF_COUNTERS
 
 config SPARC32
 	def_bool !64BIT
@@ -44,6 +45,7 @@ config SPARC64
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
+	select HAVE_PERF_COUNTERS
 
 config ARCH_DEFCONFIG
 	string
