@@ -188,7 +188,8 @@ static void do_metadata(struct work_struct *work)
 /*
  * Read or write a chunk aligned and sized block of data from a device.
  */
-static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
+static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int rw,
+		    int metadata)
 {
 	struct dm_io_region where = {
 		.bdev = ps->store->cow->bdev,
@@ -198,7 +199,7 @@ static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
 	struct dm_io_request io_req = {
 		.bi_rw = rw,
 		.mem.type = DM_IO_VMA,
-		.mem.ptr.vma = ps->area,
+		.mem.ptr.vma = area,
 		.client = ps->io_client,
 		.notify.fn = NULL,
 	};
@@ -240,7 +241,7 @@ static int area_io(struct pstore *ps, int rw)
 
 	chunk = area_location(ps, ps->current_area);
 
-	r = chunk_io(ps, chunk, rw, 0);
+	r = chunk_io(ps, ps->area, chunk, rw, 0);
 	if (r)
 		return r;
 
@@ -254,20 +255,7 @@ static void zero_memory_area(struct pstore *ps)
 
 static int zero_disk_area(struct pstore *ps, chunk_t area)
 {
-	struct dm_io_region where = {
-		.bdev = ps->store->cow->bdev,
-		.sector = ps->store->chunk_size * area_location(ps, area),
-		.count = ps->store->chunk_size,
-	};
-	struct dm_io_request io_req = {
-		.bi_rw = WRITE,
-		.mem.type = DM_IO_VMA,
-		.mem.ptr.vma = ps->zero_area,
-		.client = ps->io_client,
-		.notify.fn = NULL,
-	};
-
-	return dm_io(&io_req, 1, &where, NULL);
+	return chunk_io(ps, ps->zero_area, area_location(ps, area), WRITE, 0);
 }
 
 static int read_header(struct pstore *ps, int *new_snapshot)
@@ -297,7 +285,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	if (r)
 		return r;
 
-	r = chunk_io(ps, 0, READ, 1);
+	r = chunk_io(ps, ps->area, 0, READ, 1);
 	if (r)
 		goto bad;
 
@@ -359,7 +347,7 @@ static int write_header(struct pstore *ps)
 	dh->version = cpu_to_le32(ps->version);
 	dh->chunk_size = cpu_to_le32(ps->store->chunk_size);
 
-	return chunk_io(ps, 0, WRITE, 1);
+	return chunk_io(ps, ps->area, 0, WRITE, 1);
 }
 
 /*
