@@ -75,7 +75,7 @@ static int			null_run			=  0;
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static u64			event_res[MAX_COUNTERS][3];
-static u64			event_scaled[MAX_COUNTERS];
+static int			event_scaled[MAX_COUNTERS];
 
 struct stats
 {
@@ -97,17 +97,31 @@ static double avg_stats(struct stats *stats)
 }
 
 /*
- * stddev = sqrt(1/N (\Sum n_i^2) - avg(n)^2)
+ * http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+ *
+ *      (\Sum n_i^2) - ((\Sum n_i)^2)/n
+ * s^2  -------------------------------
+ *                   n - 1
+ *
+ * http://en.wikipedia.org/wiki/Stddev
+ *
+ * The std dev of the mean is related to the std dev by:
+ *
+ *             s
+ * s_mean = -------
+ *          sqrt(n)
+ *
  */
 static double stddev_stats(struct stats *stats)
 {
 	double avg = stats->sum / run_count;
+	double variance = (stats->sum_sq - stats->sum*avg)/(run_count - 1);
+	double variance_mean = variance / run_count;
 
-	return sqrt(stats->sum_sq/run_count - avg*avg);
+	return sqrt(variance_mean);
 }
 
 struct stats			event_res_stats[MAX_COUNTERS][3];
-struct stats			event_scaled_stats[MAX_COUNTERS];
 struct stats			runtime_nsecs_stats;
 struct stats			walltime_nsecs_stats;
 struct stats			runtime_cycles_stats;
@@ -343,11 +357,10 @@ static void abs_printout(int counter, double avg, double stddev)
 static void print_counter(int counter)
 {
 	double avg, stddev;
-	int scaled;
+	int scaled = event_scaled[counter];
 
 	avg    = avg_stats(&event_res_stats[counter][0]);
 	stddev = stddev_stats(&event_res_stats[counter][0]);
-	scaled = avg_stats(&event_scaled_stats[counter]);
 
 	if (scaled == -1) {
 		fprintf(stderr, " %14s  %-24s\n",
