@@ -268,8 +268,6 @@ static int red_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
-	if (cl != 1)
-		return -ENOENT;
 	tcm->tcm_handle |= TC_H_MIN(1);
 	tcm->tcm_info = q->qdisc->handle;
 	return 0;

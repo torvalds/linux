@@ -368,9 +368,6 @@ static int tbf_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
-	if (cl != 1) 	/* only one class */
-		return -ENOENT;
-
 	tcm->tcm_handle |= TC_H_MIN(1);
 	tcm->tcm_info = q->qdisc->handle;
 

@@ -262,9 +262,6 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct prio_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
 
-	if (band >= q->bands)
-		return -EINVAL;
-
 	if (new == NULL)
 		new = &noop_qdisc;
 
@@ -283,9 +280,6 @@ prio_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
-
-	if (band >= q->bands)
-		return NULL;
 
 	return q->queues[band];
 }
@@ -316,11 +310,8 @@ static int prio_dump_class(struct Qdisc *sch, unsigned long cl, struct sk_buff *
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 
-	if (cl - 1 > q->bands)
-		return -ENOENT;
 	tcm->tcm_handle |= TC_H_MIN(cl);
-	if (q->queues[cl-1])
-		tcm->tcm_info = q->queues[cl-1]->handle;
+	tcm->tcm_info = q->queues[cl-1]->handle;
 	return 0;
 }
 

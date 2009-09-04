@@ -298,9 +298,6 @@ static int multiq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
 
-	if (band >= q->bands)
-		return -EINVAL;
-
 	if (new == NULL)
 		new = &noop_qdisc;
 
@@ -319,9 +316,6 @@ multiq_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
-
-	if (band >= q->bands)
-		return NULL;
 
 	return q->queues[band];
 }
@@ -353,11 +347,8 @@ static int multiq_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 
-	if (cl - 1 > q->bands)
-		return -ENOENT;
 	tcm->tcm_handle |= TC_H_MIN(cl);
-	if (q->queues[cl-1])
-		tcm->tcm_info = q->queues[cl-1]->handle;
+	tcm->tcm_info = q->queues[cl-1]->handle;
 	return 0;
 }
 

@@ -1117,30 +1117,29 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 {
 	struct htb_class *cl = (struct htb_class *)arg;
 
-	if (cl && !cl->level) {
-		if (new == NULL &&
-		    (new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-					     &pfifo_qdisc_ops,
-					     cl->common.classid))
-		    == NULL)
-			return -ENOBUFS;
-		sch_tree_lock(sch);
-		*old = cl->un.leaf.q;
-		cl->un.leaf.q = new;
-		if (*old != NULL) {
-			qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-			qdisc_reset(*old);
-		}
-		sch_tree_unlock(sch);
-		return 0;
+	if (cl->level)
+		return -EINVAL;
+	if (new == NULL &&
+	    (new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+				     &pfifo_qdisc_ops,
+				     cl->common.classid)) == NULL)
+		return -ENOBUFS;
+
+	sch_tree_lock(sch);
+	*old = cl->un.leaf.q;
+	cl->un.leaf.q = new;
+	if (*old != NULL) {
+		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
+		qdisc_reset(*old);
 	}
-	return -ENOENT;
+	sch_tree_unlock(sch);
+	return 0;
 }
 
 static struct Qdisc *htb_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-	return (cl && !cl->level) ? cl->un.leaf.q : NULL;
+	return !cl->level ? cl->un.leaf.q : NULL;
 }
 
 static void htb_qlen_notify(struct Qdisc *sch, unsigned long arg)
