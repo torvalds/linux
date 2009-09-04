@@ -789,6 +789,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		}
 		break;
 	case TRB_TYPE(TRB_EVAL_CONTEXT):
+		virt_dev = xhci->devs[slot_id];
+		if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
+			break;
 		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
 		complete(&xhci->devs[slot_id]->cmd_completion);
 		break;

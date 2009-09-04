@@ -1594,6 +1594,88 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
+/* Once a hub descriptor is fetched for a device, we need to update the xHC's
+ * internal data structures for the device.
+ */
+int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
+			struct usb_tt *tt, gfp_t mem_flags)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct xhci_virt_device *vdev;
+	struct xhci_command *config_cmd;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	struct xhci_slot_ctx *slot_ctx;
+	unsigned long flags;
+	unsigned think_time;
+	int ret;
+
+	/* Ignore root hubs */
+	if (!hdev->parent)
+		return 0;
+
+	vdev = xhci->devs[hdev->slot_id];
+	if (!vdev) {
+		xhci_warn(xhci, "Cannot update hub desc for unknown device.\n");
+		return -EINVAL;
+	}
+	config_cmd = xhci_alloc_command(xhci, true, mem_flags);
+	if (!config_cmd) {
+		xhci_dbg(xhci, "Could not allocate xHCI command structure.\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	xhci_slot_copy(xhci, config_cmd->in_ctx, vdev->out_ctx);
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, config_cmd->in_ctx);
+	ctrl_ctx->add_flags |= SLOT_FLAG;
+	slot_ctx = xhci_get_slot_ctx(xhci, config_cmd->in_ctx);
+	slot_ctx->dev_info |= DEV_HUB;
+	if (tt->multi)
+		slot_ctx->dev_info |= DEV_MTT;
+	if (xhci->hci_version > 0x95) {
+		xhci_dbg(xhci, "xHCI version %x needs hub "
+				"TT think time and number of ports\n",
+				(unsigned int) xhci->hci_version);
+		slot_ctx->dev_info2 |= XHCI_MAX_PORTS(hdev->maxchild);
+		/* Set TT think time - convert from ns to FS bit times.
+		 * 0 = 8 FS bit times, 1 = 16 FS bit times,
+		 * 2 = 24 FS bit times, 3 = 32 FS bit times.
+		 */
+		think_time = tt->think_time;
+		if (think_time != 0)
+			think_time = (think_time / 666) - 1;
+		slot_ctx->tt_info |= TT_THINK_TIME(think_time);
+	} else {
+		xhci_dbg(xhci, "xHCI version %x doesn't need hub "
+				"TT think time or number of ports\n",
+				(unsigned int) xhci->hci_version);
+	}
+	slot_ctx->dev_state = 0;
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	xhci_dbg(xhci, "Set up %s for hub device.\n",
+			(xhci->hci_version > 0x95) ?
+			"configure endpoint" : "evaluate context");
+	xhci_dbg(xhci, "Slot %u Input Context:\n", hdev->slot_id);
+	xhci_dbg_ctx(xhci, config_cmd->in_ctx, 0);
+
+	/* Issue and wait for the configure endpoint or
+	 * evaluate context command.
+	 */
+	if (xhci->hci_version > 0x95)
+		ret = xhci_configure_endpoint(xhci, hdev, config_cmd,
+				false, false);
+	else
+		ret = xhci_configure_endpoint(xhci, hdev, config_cmd,
+				true, false);
+
+	xhci_dbg(xhci, "Slot %u Output Context:\n", hdev->slot_id);
+	xhci_dbg_ctx(xhci, vdev->out_ctx, 0);
+
+	xhci_free_command(xhci, config_cmd);
+	return ret;
+}
+
 int xhci_get_frame(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);

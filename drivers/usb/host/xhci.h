@@ -509,6 +509,8 @@ struct xhci_slot_ctx {
 #define MAX_EXIT	(0xffff)
 /* Root hub port number that is needed to access the USB device */
 #define ROOT_HUB_PORT(p)	(((p) & 0xff) << 16)
+/* Maximum number of ports under a hub device */
+#define XHCI_MAX_PORTS(p)	(((p) & 0xff) << 24)
 
 /* tt_info bitmasks */
 /*
@@ -522,6 +524,7 @@ struct xhci_slot_ctx {
  * '0' if the device is not low or full speed.
  */
 #define TT_PORT		(0xff << 8)
+#define TT_THINK_TIME(p)	(((p) & 0x3) << 16)
 
 /* dev_state bitmasks */
 /* USB device address - assigned by the HC */
@@ -1231,6 +1234,8 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd);
 int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
+			struct usb_tt *tt, gfp_t mem_flags);
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags);
 int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
