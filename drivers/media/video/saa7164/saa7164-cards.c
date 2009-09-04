@@ -394,6 +394,10 @@ struct saa7164_subid saa7164_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x8891,
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2250_2,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x8851,
+		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2250_2,
 	},
 };
 const unsigned int saa7164_idcount = ARRAY_SIZE(saa7164_subids);
