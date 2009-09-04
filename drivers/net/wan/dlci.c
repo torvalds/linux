@@ -186,46 +186,13 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 }
 
-static netdev_tx_t dlci_transmit(struct sk_buff *skb,
-				       struct net_device *dev)
+static netdev_tx_t dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dlci_local *dlp;
-	netdev_tx_t ret;
+	struct dlci_local *dlp = netdev_priv(dev);
 
-	if (!skb || !dev)
-		return NETDEV_TX_OK;
-
-	dlp = netdev_priv(dev);
-
-	netif_stop_queue(dev);
-	
-	/* This is hackish, overloads driver specific return values
-	   on top of normal transmit return! */
-	ret = dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
-	switch (ret)
-	{
-		case DLCI_RET_OK:
-			dev->stats.tx_packets++;
-			ret = NETDEV_TX_OK;
-			break;
-		case DLCI_RET_ERR:
-			dev->stats.tx_errors++;
-			ret = NETDEV_TX_OK;
-			break;
-		case DLCI_RET_DROP:
-			dev->stats.tx_dropped++;
-			ret = NETDEV_TX_BUSY;
-			break;
-	}
-	/* Alan Cox recommends always returning 0, and always freeing the packet */
-	/* experience suggest a slightly more conservative approach */
-
-	if (ret == NETDEV_TX_OK)
-	{
-		dev_kfree_skb(skb);
-		netif_wake_queue(dev);
-	}
-	return(ret);
+	if (skb)
+		dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
+	return NETDEV_TX_OK;
 }
 
 static int dlci_config(struct net_device *dev, struct dlci_conf __user *conf, int get)
