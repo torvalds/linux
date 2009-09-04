@@ -111,10 +111,9 @@ static int build_constructor_string(struct dm_target *ti,
 		return -ENOMEM;
 	}
 
-	for (i = 0, str_size = 0; i < argc; i++)
-		str_size += sprintf(str + str_size, "%s ", argv[i]);
-	str_size += sprintf(str + str_size, "%llu",
-			    (unsigned long long)ti->len);
+	str_size = sprintf(str, "%llu", (unsigned long long)ti->len);
+	for (i = 0; i < argc; i++)
+		str_size += sprintf(str + str_size, " %s", argv[i]);
 
 	*ctr_str = str;
 	return str_size;
@@ -561,6 +560,7 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 			    char *result, unsigned maxlen)
 {
 	int r = 0;
+	char *table_args;
 	size_t sz = (size_t)maxlen;
 	struct log_c *lc = log->context;
 
@@ -577,8 +577,12 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 		break;
 	case STATUSTYPE_TABLE:
 		sz = 0;
-		DMEMIT("%s %u %s %s ", log->type->name, lc->usr_argc + 1,
-		       lc->uuid, lc->usr_argv_str);
+		table_args = strstr(lc->usr_argv_str, " ");
+		BUG_ON(!table_args); /* There will always be a ' ' */
+		table_args++;
+
+		DMEMIT("%s %u %s %s ", log->type->name, lc->usr_argc,
+		       lc->uuid, table_args);
 		break;
 	}
 	return (r) ? 0 : (int)sz;
