@@ -825,7 +825,6 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 	dparent = cd->fh.fh_dentry;
 	exp  = cd->fh.fh_export;
 
-	fh_init(fhp, NFS3_FHSIZE);
 	if (isdotent(name, namlen)) {
 		if (namlen == 2) {
 			dchild = dget_parent(dparent);
@@ -859,15 +858,17 @@ __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const c
 	struct svc_fh	fh;
 	int err;
 
+	fh_init(&fh, NFS3_FHSIZE);
 	err = compose_entry_fh(cd, &fh, name, namlen);
 	if (err) {
 		*p++ = 0;
 		*p++ = 0;
-		return p;
+		goto out;
 	}
 	p = encode_post_op_attr(cd->rqstp, p, &fh);
 	*p++ = xdr_one;			/* yes, a file handle follows */
 	p = encode_fh(p, &fh);
+out:
 	fh_put(&fh);
 	return p;
 }
