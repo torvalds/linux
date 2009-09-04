@@ -390,14 +390,12 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", top_dev->portnum);
 
 	/* Is this a LS/FS device under a HS hub? */
-	/*
-	 * FIXME: I don't think this is right, where does the TT info for the
-	 * roothub or parent hub come from?
-	 */
 	if ((udev->speed == USB_SPEED_LOW || udev->speed == USB_SPEED_FULL) &&
 			udev->tt) {
 		slot_ctx->tt_info = udev->tt->hub->slot_id;
 		slot_ctx->tt_info |= udev->ttport << 8;
+		if (udev->tt->multi)
+			slot_ctx->dev_info |= DEV_MTT;
 	}
 	xhci_dbg(xhci, "udev->tt = %p\n", udev->tt);
 	xhci_dbg(xhci, "udev->ttport = 0x%x\n", udev->ttport);
