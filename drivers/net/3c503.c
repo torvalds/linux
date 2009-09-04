@@ -403,7 +403,7 @@ el2_open(struct net_device *dev)
 		    break;
 	    } else {
 		    if (retval != -EBUSY)
-			    return reval;
+			    return retval;
 	    }
 	} while (*++irqp);
 	if (*irqp == 0) {
