@@ -191,6 +191,11 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 		return -EINVAL;
 	}
 
+	if (chunk_size_ulong > INT_MAX >> SECTOR_SHIFT) {
+		*error = "Chunk size is too high";
+		return -EINVAL;
+	}
+
 	store->chunk_size = chunk_size_ulong;
 	store->chunk_mask = chunk_size_ulong - 1;
 	store->chunk_shift = ffs(chunk_size_ulong) - 1;

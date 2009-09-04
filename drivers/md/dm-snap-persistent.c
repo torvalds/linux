@@ -286,6 +286,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	struct disk_header *dh;
 	chunk_t chunk_size;
 	int chunk_size_supplied = 1;
+	char *chunk_err;
 
 	/*
 	 * Use default chunk size (or hardsect_size, if larger) if none supplied
@@ -329,20 +330,25 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	ps->version = le32_to_cpu(dh->version);
 	chunk_size = le32_to_cpu(dh->chunk_size);
 
-	if (!chunk_size_supplied || ps->store->chunk_size == chunk_size)
+	if (ps->store->chunk_size == chunk_size)
 		return 0;
 
-	DMWARN("chunk size %llu in device metadata overrides "
-	       "table chunk size of %llu.",
-	       (unsigned long long)chunk_size,
-	       (unsigned long long)ps->store->chunk_size);
+	if (chunk_size_supplied)
+		DMWARN("chunk size %llu in device metadata overrides "
+		       "table chunk size of %llu.",
+		       (unsigned long long)chunk_size,
+		       (unsigned long long)ps->store->chunk_size);
 
 	/* We had a bogus chunk_size. Fix stuff up. */
 	free_area(ps);
 
-	ps->store->chunk_size = chunk_size;
-	ps->store->chunk_mask = chunk_size - 1;
-	ps->store->chunk_shift = ffs(chunk_size) - 1;
+	r = dm_exception_store_set_chunk_size(ps->store, chunk_size,
+					      &chunk_err);
+	if (r) {
+		DMERR("invalid on-disk chunk size %llu: %s.",
+		      (unsigned long long)chunk_size, chunk_err);
+		return r;
+	}
 
 	r = dm_io_client_resize(sectors_to_pages(ps->store->chunk_size),
 				ps->io_client);
