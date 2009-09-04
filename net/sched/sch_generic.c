@@ -623,19 +623,6 @@ void qdisc_destroy(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_destroy);
 
-static bool dev_all_qdisc_sleeping_noop(struct net_device *dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-
-		if (txq->qdisc_sleeping != &noop_qdisc)
-			return false;
-	}
-	return true;
-}
-
 static void attach_one_default_qdisc(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
 				     void *_unused)
@@ -677,6 +664,7 @@ static void transition_one_qdisc(struct net_device *dev,
 
 void dev_activate(struct net_device *dev)
 {
+	struct netdev_queue *txq;
 	int need_watchdog;
 
 	/* No queueing discipline is attached to device;
@@ -685,8 +673,13 @@ void dev_activate(struct net_device *dev)
 	   virtual interfaces
 	 */
 
-	if (dev_all_qdisc_sleeping_noop(dev))
+	if (dev->qdisc == &noop_qdisc) {
 		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
+
+		txq = netdev_get_tx_queue(dev, 0);
+		dev->qdisc = txq->qdisc_sleeping;
+		atomic_inc(&dev->qdisc->refcnt);
+	}
 
 	if (!netif_carrier_ok(dev))
 		/* Delay activation until next carrier-on event */
@@ -777,6 +770,7 @@ static void dev_init_scheduler_queue(struct net_device *dev,
 
 void dev_init_scheduler(struct net_device *dev)
 {
+	dev->qdisc = &noop_qdisc;
 	netdev_for_each_tx_queue(dev, dev_init_scheduler_queue, &noop_qdisc);
 	dev_init_scheduler_queue(dev, &dev->rx_queue, &noop_qdisc);
 
@@ -802,5 +796,8 @@ void dev_shutdown(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &noop_qdisc);
 	shutdown_scheduler_queue(dev, &dev->rx_queue, &noop_qdisc);
+	qdisc_destroy(dev->qdisc);
+	dev->qdisc = &noop_qdisc;
+
 	WARN_ON(timer_pending(&dev->watchdog_timer));
 }

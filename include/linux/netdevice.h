@@ -832,6 +832,9 @@ struct net_device
 	/* Number of TX queues currently active in device  */
 	unsigned int		real_num_tx_queues;
 
+	/* root qdisc from userspace point of view */
+	struct Qdisc		*qdisc;
+
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
 /*
