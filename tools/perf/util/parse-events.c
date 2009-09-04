@@ -1,13 +1,11 @@
 
-#include "../perf.h"
 #include "util.h"
+#include "../perf.h"
 #include "parse-options.h"
 #include "parse-events.h"
 #include "exec_cmd.h"
 #include "string.h"
 #include "cache.h"
-
-extern char *strcasestr(const char *haystack, const char *needle);
 
 int					nr_counters;
 
@@ -113,11 +111,9 @@ static unsigned long hw_cache_stat[C(MAX)] = {
  [C(BPU)]	= (CACHE_READ),
 };
 
-#define for_each_subsystem(sys_dir, sys_dirent, sys_next, file, st)	       \
+#define for_each_subsystem(sys_dir, sys_dirent, sys_next)	       \
 	while (!readdir_r(sys_dir, &sys_dirent, &sys_next) && sys_next)	       \
-	if (snprintf(file, MAXPATHLEN, "%s/%s", debugfs_path,	       	       \
-			sys_dirent.d_name) &&		       		       \
-	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
+	if (sys_dirent.d_type == DT_DIR &&				       \
 	   (strcmp(sys_dirent.d_name, ".")) &&				       \
 	   (strcmp(sys_dirent.d_name, "..")))
 
@@ -136,11 +132,9 @@ static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 	return 0;
 }
 
-#define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next, file, st)    \
+#define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next)	       \
 	while (!readdir_r(evt_dir, &evt_dirent, &evt_next) && evt_next)        \
-	if (snprintf(file, MAXPATHLEN, "%s/%s/%s", debugfs_path,	       \
-		     sys_dirent.d_name, evt_dirent.d_name) &&		       \
-	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
+	if (evt_dirent.d_type == DT_DIR &&				       \
 	   (strcmp(evt_dirent.d_name, ".")) &&				       \
 	   (strcmp(evt_dirent.d_name, "..")) &&				       \
 	   (!tp_event_has_id(&sys_dirent, &evt_dirent)))
@@ -163,9 +157,8 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	struct tracepoint_path *path = NULL;
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
-	struct stat st;
 	char id_buf[4];
-	int fd;
+	int sys_dir_fd, fd;
 	u64 id;
 	char evt_path[MAXPATHLEN];
 
@@ -175,17 +168,23 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
 		goto cleanup;
+	sys_dir_fd = dirfd(sys_dir);
 
-	for_each_subsystem(sys_dir, sys_dirent, sys_next, evt_path, st) {
-		evt_dir = opendir(evt_path);
-		if (!evt_dir)
-			goto cleanup;
-		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next,
-								evt_path, st) {
-			snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id",
-				 debugfs_path, sys_dirent.d_name,
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
+		int dfd = openat(sys_dir_fd, sys_dirent.d_name,
+				 O_RDONLY|O_DIRECTORY), evt_dir_fd;
+		if (dfd == -1)
+			continue;
+		evt_dir = fdopendir(dfd);
+		if (!evt_dir) {
+			close(dfd);
+			continue;
+		}
+		evt_dir_fd = dirfd(evt_dir);
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
+			snprintf(evt_path, MAXPATHLEN, "%s/id",
 				 evt_dirent.d_name);
-			fd = open(evt_path, O_RDONLY);
+			fd = openat(evt_dir_fd, evt_path, O_RDONLY);
 			if (fd < 0)
 				continue;
 			if (read(fd, id_buf, sizeof(id_buf)) < 0) {
@@ -629,7 +628,7 @@ static void print_tracepoint_events(void)
 {
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
-	struct stat st;
+	int sys_dir_fd;
 	char evt_path[MAXPATHLEN];
 
 	if (valid_debugfs_mount(debugfs_path))
@@ -638,13 +637,20 @@ static void print_tracepoint_events(void)
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
 		goto cleanup;
+	sys_dir_fd = dirfd(sys_dir);
 
-	for_each_subsystem(sys_dir, sys_dirent, sys_next, evt_path, st) {
-		evt_dir = opendir(evt_path);
-		if (!evt_dir)
-			goto cleanup;
-		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next,
-								evt_path, st) {
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
+		int dfd = openat(sys_dir_fd, sys_dirent.d_name,
+				 O_RDONLY|O_DIRECTORY), evt_dir_fd;
+		if (dfd == -1)
+			continue;
+		evt_dir = fdopendir(dfd);
+		if (!evt_dir) {
+			close(dfd);
+			continue;
+		}
+		evt_dir_fd = dirfd(evt_dir);
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
 			fprintf(stderr, "  %-40s [%s]\n", evt_path,
