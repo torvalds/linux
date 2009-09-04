@@ -68,7 +68,9 @@ MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and
  * are loadable via a userland utility.
  */
 
-static const unsigned short atkbd_set2_keycode[512] = {
+#define ATKBD_KEYMAP_SIZE	512
+
+static const unsigned short atkbd_set2_keycode[ATKBD_KEYMAP_SIZE] = {
 
 #ifdef CONFIG_KEYBOARD_ATKBD_HP_KEYCODES
 
@@ -99,7 +101,7 @@ static const unsigned short atkbd_set2_keycode[512] = {
 #endif
 };
 
-static const unsigned short atkbd_set3_keycode[512] = {
+static const unsigned short atkbd_set3_keycode[ATKBD_KEYMAP_SIZE] = {
 
 	  0,  0,  0,  0,  0,  0,  0, 59,  1,138,128,129,130, 15, 41, 60,
 	131, 29, 42, 86, 58, 16,  2, 61,133, 56, 44, 31, 30, 17,  3, 62,
@@ -200,8 +202,8 @@ struct atkbd {
 	char phys[32];
 
 	unsigned short id;
-	unsigned short keycode[512];
-	DECLARE_BITMAP(force_release_mask, 512);
+	unsigned short keycode[ATKBD_KEYMAP_SIZE];
+	DECLARE_BITMAP(force_release_mask, ATKBD_KEYMAP_SIZE);
 	unsigned char set;
 	unsigned char translated;
 	unsigned char extra;
@@ -253,6 +255,7 @@ static struct device_attribute atkbd_attr_##_name =				\
 	__ATTR(_name, S_IWUSR | S_IRUGO, atkbd_do_show_##_name, atkbd_do_set_##_name);
 
 ATKBD_DEFINE_ATTR(extra);
+ATKBD_DEFINE_ATTR(force_release);
 ATKBD_DEFINE_ATTR(scroll);
 ATKBD_DEFINE_ATTR(set);
 ATKBD_DEFINE_ATTR(softrepeat);
@@ -272,6 +275,7 @@ ATKBD_DEFINE_RO_ATTR(err_count);
 
 static struct attribute *atkbd_attributes[] = {
 	&atkbd_attr_extra.attr,
+	&atkbd_attr_force_release.attr,
 	&atkbd_attr_scroll.attr,
 	&atkbd_attr_set.attr,
 	&atkbd_attr_softrepeat.attr,
@@ -926,7 +930,7 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 	int i, j;
 
 	memset(atkbd->keycode, 0, sizeof(atkbd->keycode));
-	bitmap_zero(atkbd->force_release_mask, 512);
+	bitmap_zero(atkbd->force_release_mask, ATKBD_KEYMAP_SIZE);
 
 	if (atkbd->translated) {
 		for (i = 0; i < 128; i++) {
@@ -1033,7 +1037,7 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	input_dev->keycodesize = sizeof(unsigned short);
 	input_dev->keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
 
-	for (i = 0; i < 512; i++)
+	for (i = 0; i < ATKBD_KEYMAP_SIZE; i++)
 		if (atkbd->keycode[i] && atkbd->keycode[i] < ATKBD_SPECIAL)
 			__set_bit(atkbd->keycode[i], input_dev->keybit);
 }
@@ -1300,6 +1304,33 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 	}
 	return count;
 }
+
+static ssize_t atkbd_show_force_release(struct atkbd *atkbd, char *buf)
+{
+	size_t len = bitmap_scnlistprintf(buf, PAGE_SIZE - 2,
+			atkbd->force_release_mask, ATKBD_KEYMAP_SIZE);
+
+	buf[len++] = '\n';
+	buf[len] = '\0';
+
+	return len;
+}
+
+static ssize_t atkbd_set_force_release(struct atkbd *atkbd,
+					const char *buf, size_t count)
+{
+	/* 64 bytes on stack should be acceptable */
+	DECLARE_BITMAP(new_mask, ATKBD_KEYMAP_SIZE);
+	int err;
+
+	err = bitmap_parselist(buf, new_mask, ATKBD_KEYMAP_SIZE);
+	if (err)
+		return err;
+
+	memcpy(atkbd->force_release_mask, new_mask, sizeof(atkbd->force_release_mask));
+	return count;
+}
+
 
 static ssize_t atkbd_show_scroll(struct atkbd *atkbd, char *buf)
 {
