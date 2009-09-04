@@ -61,6 +61,11 @@ config LOGO_DEBIAN_CLUT224
 	depends on LOGO
 	default y
 
+config LOGO_SIDUX_CLUT224
+	bool "224-color Sidux Linux logo"
+	depends on LOGO
+	default y
+
 config LOGO_FEDORASIMPLE_CLUT224
 	bool "224-color Fedora Simple Linux logo"
 	depends on LOGO
