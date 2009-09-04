@@ -2891,6 +2891,9 @@ sctp_disposition_t sctp_sf_eat_data_6_2(const struct sctp_endpoint *ep,
 		goto discard_force;
 	case SCTP_IERROR_NO_DATA:
 		goto consume;
+	case SCTP_IERROR_PROTO_VIOLATION:
+		return sctp_sf_abort_violation(ep, asoc, chunk, commands,
+			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
 	default:
 		BUG();
 	}
@@ -3001,6 +3004,9 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(const struct sctp_endpoint *ep,
 		break;
 	case SCTP_IERROR_NO_DATA:
 		goto consume;
+	case SCTP_IERROR_PROTO_VIOLATION:
+		return sctp_sf_abort_violation(ep, asoc, chunk, commands,
+			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
 	default:
 		BUG();
 	}
@@ -5877,6 +5883,9 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	__u32 tsn;
 	struct sctp_tsnmap *map = (struct sctp_tsnmap *)&asoc->peer.tsn_map;
 	struct sock *sk = asoc->base.sk;
+	u16 ssn;
+	u16 sid;
+	u8 ordered = 0;
 
 	data_hdr = chunk->subh.data_hdr = (sctp_datahdr_t *)chunk->skb->data;
 	skb_pull(chunk->skb, sizeof(sctp_datahdr_t));
@@ -6016,8 +6025,10 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 */
 	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
 		SCTP_INC_STATS(SCTP_MIB_INUNORDERCHUNKS);
-	else
+	else {
 		SCTP_INC_STATS(SCTP_MIB_INORDERCHUNKS);
+		ordered = 1;
+	}
 
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
 	 *
@@ -6027,7 +6038,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * with cause set to "Invalid Stream Identifier" (See Section 3.3.10)
 	 * and discard the DATA chunk.
 	 */
-	if (ntohs(data_hdr->stream) >= asoc->c.sinit_max_instreams) {
+	sid = ntohs(data_hdr->stream);
+	if (sid >= asoc->c.sinit_max_instreams) {
 		/* Mark tsn as received even though we drop it */
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
 
@@ -6038,6 +6050,18 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
 					SCTP_CHUNK(err));
 		return SCTP_IERROR_BAD_STREAM;
+	}
+
+	/* Check to see if the SSN is possible for this TSN.
+	 * The biggest gap we can record is 4K wide.  Since SSNs wrap
+	 * at an unsigned short, there is no way that an SSN can
+	 * wrap and for a valid TSN.  We can simply check if the current
+	 * SSN is smaller then the next expected one.  If it is, it wrapped
+	 * and is invalid.
+	 */
+	ssn = ntohs(data_hdr->ssn);
+	if (ordered && SSN_lt(ssn, sctp_ssn_peek(&asoc->ssnmap->in, sid))) {
+		return SCTP_IERROR_PROTO_VIOLATION;
 	}
 
 	/* Send the data up to the user.  Note:  Schedule  the
