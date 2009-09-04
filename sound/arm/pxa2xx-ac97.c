@@ -207,7 +207,7 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s (%s)", dev->dev.driver->name, card->mixername);
 
-	if (pdata && pdata->codec_data[0])
+	if (pdata && pdata->codec_pdata[0])
 		snd_ac97_dev_add_pdata(ac97_bus->codec[0], pdata->codec_pdata[0]);
 	snd_card_set_dev(card, &dev->dev);
 	ret = snd_card_register(card);
