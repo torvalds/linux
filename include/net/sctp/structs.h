@@ -1568,13 +1568,13 @@ struct sctp_association {
 		__u32	sack_cnt;
 
 		/* These are capabilities which our peer advertised.  */
-		__u8	ecn_capable;	 /* Can peer do ECN? */
-		__u8	ipv4_address;	 /* Peer understands IPv4 addresses? */
-		__u8	ipv6_address;	 /* Peer understands IPv6 addresses? */
-		__u8	hostname_address;/* Peer understands DNS addresses? */
-		__u8    asconf_capable;  /* Does peer support ADDIP? */
-		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
-		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
+		__u8	ecn_capable:1,	    /* Can peer do ECN? */
+			ipv4_address:1,	    /* Peer understands IPv4 addresses? */
+			ipv6_address:1,	    /* Peer understands IPv6 addresses? */
+			hostname_address:1, /* Peer understands DNS addresses? */
+			asconf_capable:1,   /* Does peer support ADDIP? */
+			prsctp_capable:1,   /* Can peer do PR-SCTP? */
+			auth_capable:1;	    /* Is peer doing SCTP-AUTH? */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
@@ -1913,11 +1913,8 @@ struct sctp_association {
 
 	__u16 active_key_id;
 
-	/* Need to send an ECNE Chunk? */
-	char need_ecne;
-
-	/* Is it a temporary association? */
-	char temp;
+	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
+	     temp:1;		/* Is it a temporary association? */
 };
 
 
