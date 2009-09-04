@@ -360,9 +360,9 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	/* 3) Only the control endpoint is valid - one endpoint context */
 	slot_ctx->dev_info |= LAST_CTX(1);
 
+	slot_ctx->dev_info |= (u32) udev->route;
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
-		slot_ctx->dev_info |= (u32) udev->route;
 		slot_ctx->dev_info |= (u32) SLOT_SPEED_SS;
 		break;
 	case USB_SPEED_HIGH:
