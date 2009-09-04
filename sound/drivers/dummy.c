@@ -207,19 +207,18 @@ struct dummy_systimer_pcm {
 	struct timer_list timer;
 	unsigned long base_time;
 	unsigned int frac_pos;	/* fractional sample position (based HZ) */
+	unsigned int frac_period_rest;
 	unsigned int frac_buffer_size;	/* buffer_size * HZ */
 	unsigned int frac_period_size;	/* period_size * HZ */
 	unsigned int rate;
+	int elapsed;
 	struct snd_pcm_substream *substream;
 };
 
 static void dummy_systimer_rearm(struct dummy_systimer_pcm *dpcm)
 {
-	unsigned long frac;
-
-	frac = dpcm->frac_pos % dpcm->frac_period_size;
 	dpcm->timer.expires = jiffies +
-		(dpcm->frac_period_size + dpcm->rate - 1) / dpcm->rate;
+		(dpcm->frac_period_rest + dpcm->rate - 1) / dpcm->rate;
 	add_timer(&dpcm->timer);
 }
 
@@ -230,10 +229,16 @@ static void dummy_systimer_update(struct dummy_systimer_pcm *dpcm)
 	delta = jiffies - dpcm->base_time;
 	if (!delta)
 		return;
-	dpcm->base_time = jiffies;
-	dpcm->frac_pos += delta * dpcm->rate;
+	dpcm->base_time += delta;
+	delta *= dpcm->rate;
+	dpcm->frac_pos += delta;
 	while (dpcm->frac_pos >= dpcm->frac_buffer_size)
 		dpcm->frac_pos -= dpcm->frac_buffer_size;
+	while (dpcm->frac_period_rest <= delta) {
+		dpcm->elapsed++;
+		dpcm->frac_period_rest += dpcm->frac_period_size;
+	}
+	dpcm->frac_period_rest -= delta;
 }
 
 static int dummy_systimer_start(struct snd_pcm_substream *substream)
@@ -264,6 +269,8 @@ static int dummy_systimer_prepare(struct snd_pcm_substream *substream)
 	dpcm->rate = runtime->rate;
 	dpcm->frac_buffer_size = runtime->buffer_size * HZ;
 	dpcm->frac_period_size = runtime->period_size * HZ;
+	dpcm->frac_period_rest = dpcm->frac_period_size;
+	dpcm->elapsed = 0;
 
 	return 0;
 }
@@ -272,23 +279,29 @@ static void dummy_systimer_callback(unsigned long data)
 {
 	struct dummy_systimer_pcm *dpcm = (struct dummy_systimer_pcm *)data;
 	unsigned long flags;
+	int elapsed = 0;
 	
 	spin_lock_irqsave(&dpcm->lock, flags);
 	dummy_systimer_update(dpcm);
 	dummy_systimer_rearm(dpcm);
+	elapsed = dpcm->elapsed;
+	dpcm->elapsed = 0;
 	spin_unlock_irqrestore(&dpcm->lock, flags);
-	snd_pcm_period_elapsed(dpcm->substream);
+	if (elapsed)
+		snd_pcm_period_elapsed(dpcm->substream);
 }
 
 static snd_pcm_uframes_t
 dummy_systimer_pointer(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
+	snd_pcm_uframes_t pos;
 
 	spin_lock(&dpcm->lock);
 	dummy_systimer_update(dpcm);
+	pos = dpcm->frac_pos / HZ;
 	spin_unlock(&dpcm->lock);
-	return dpcm->frac_pos / HZ;
+	return pos;
 }
 
 static int dummy_systimer_create(struct snd_pcm_substream *substream)
