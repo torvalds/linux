@@ -74,7 +74,6 @@ static int			null_run			=  0;
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static u64			event_res[MAX_COUNTERS][3];
 static int			event_scaled[MAX_COUNTERS];
 
 struct stats
@@ -179,13 +178,11 @@ static inline int nsec_counter(int counter)
  */
 static void read_counter(int counter)
 {
-	u64 *count, single_count[3];
+	u64 count[3], single_count[3];
 	unsigned int cpu;
 	size_t res, nv;
 	int scaled;
 	int i;
-
-	count = event_res[counter];
 
 	count[0] = count[1] = count[2] = 0;
 
@@ -318,13 +315,16 @@ static int run_perf_stat(int argc __used, const char **argv)
 	return WEXITSTATUS(status);
 }
 
-static void print_noise(double avg, double stddev)
+static void print_noise(int counter, double avg)
 {
-	if (run_count > 1)
-		fprintf(stderr, "   ( +- %7.3f%% )", 100*stddev / avg);
+	if (run_count == 1)
+		return;
+
+	fprintf(stderr, "   ( +- %7.3f%% )",
+			100 * stddev_stats(&event_res_stats[counter][0]) / avg);
 }
 
-static void nsec_printout(int counter, double avg, double stddev)
+static void nsec_printout(int counter, double avg)
 {
 	double msecs = avg / 1e6;
 
@@ -334,10 +334,9 @@ static void nsec_printout(int counter, double avg, double stddev)
 		fprintf(stderr, " # %10.3f CPUs ",
 				avg / avg_stats(&walltime_nsecs_stats));
 	}
-	print_noise(avg, stddev);
 }
 
-static void abs_printout(int counter, double avg, double stddev)
+static void abs_printout(int counter, double avg)
 {
 	fprintf(stderr, " %14.0f  %-24s", avg, event_name(counter));
 
@@ -348,7 +347,6 @@ static void abs_printout(int counter, double avg, double stddev)
 		fprintf(stderr, " # %10.3f M/sec",
 				1000.0 * avg / avg_stats(&runtime_nsecs_stats));
 	}
-	print_noise(avg, stddev);
 }
 
 /*
@@ -356,11 +354,8 @@ static void abs_printout(int counter, double avg, double stddev)
  */
 static void print_counter(int counter)
 {
-	double avg, stddev;
+	double avg = avg_stats(&event_res_stats[counter][0]);
 	int scaled = event_scaled[counter];
-
-	avg    = avg_stats(&event_res_stats[counter][0]);
-	stddev = stddev_stats(&event_res_stats[counter][0]);
 
 	if (scaled == -1) {
 		fprintf(stderr, " %14s  %-24s\n",
@@ -369,9 +364,11 @@ static void print_counter(int counter)
 	}
 
 	if (nsec_counter(counter))
-		nsec_printout(counter, avg, stddev);
+		nsec_printout(counter, avg);
 	else
-		abs_printout(counter, avg, stddev);
+		abs_printout(counter, avg);
+
+	print_noise(counter, avg);
 
 	if (scaled) {
 		double avg_enabled, avg_running;
