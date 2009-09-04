@@ -112,13 +112,9 @@ void b43_tsf_read(struct b43_wldev *dev, u64 * tsf);
 void b43_tsf_write(struct b43_wldev *dev, u64 tsf);
 
 u32 b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset);
-u32 __b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset);
 u16 b43_shm_read16(struct b43_wldev *dev, u16 routing, u16 offset);
-u16 __b43_shm_read16(struct b43_wldev *dev, u16 routing, u16 offset);
 void b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value);
-void __b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value);
 void b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value);
-void __b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value);
 
 u64 b43_hf_read(struct b43_wldev *dev);
 void b43_hf_write(struct b43_wldev *dev, u64 value);

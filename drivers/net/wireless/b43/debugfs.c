@@ -125,7 +125,6 @@ static int shm16write__write_file(struct b43_wldev *dev,
 	unsigned int routing, addr, mask, set;
 	u16 val;
 	int res;
-	unsigned long flags;
 
 	res = sscanf(buf, "0x%X 0x%X 0x%X 0x%X",
 		     &routing, &addr, &mask, &set);
@@ -142,15 +141,13 @@ static int shm16write__write_file(struct b43_wldev *dev,
 	if ((mask > 0xFFFF) || (set > 0xFFFF))
 		return -E2BIG;
 
-	spin_lock_irqsave(&dev->wl->shm_lock, flags);
 	if (mask == 0)
 		val = 0;
 	else
-		val = __b43_shm_read16(dev, routing, addr);
+		val = b43_shm_read16(dev, routing, addr);
 	val &= mask;
 	val |= set;
-	__b43_shm_write16(dev, routing, addr, val);
-	spin_unlock_irqrestore(&dev->wl->shm_lock, flags);
+	b43_shm_write16(dev, routing, addr, val);
 
 	return 0;
 }
@@ -204,7 +201,6 @@ static int shm32write__write_file(struct b43_wldev *dev,
 	unsigned int routing, addr, mask, set;
 	u32 val;
 	int res;
-	unsigned long flags;
 
 	res = sscanf(buf, "0x%X 0x%X 0x%X 0x%X",
 		     &routing, &addr, &mask, &set);
@@ -221,15 +217,13 @@ static int shm32write__write_file(struct b43_wldev *dev,
 	if ((mask > 0xFFFFFFFF) || (set > 0xFFFFFFFF))
 		return -E2BIG;
 
-	spin_lock_irqsave(&dev->wl->shm_lock, flags);
 	if (mask == 0)
 		val = 0;
 	else
-		val = __b43_shm_read32(dev, routing, addr);
+		val = b43_shm_read32(dev, routing, addr);
 	val &= mask;
 	val |= set;
-	__b43_shm_write32(dev, routing, addr, val);
-	spin_unlock_irqrestore(&dev->wl->shm_lock, flags);
+	b43_shm_write32(dev, routing, addr, val);
 
 	return 0;
 }

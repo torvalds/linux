@@ -635,8 +635,6 @@ struct b43_wl {
 	rwlock_t tx_lock;
 	/* Lock for LEDs access. */
 	spinlock_t leds_lock;
-	/* Lock for SHM access. */
-	spinlock_t shm_lock;
 
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.
