@@ -3765,19 +3765,22 @@ static void update_group_power(struct sched_domain *sd, int cpu)
 {
 	struct sched_domain *child = sd->child;
 	struct sched_group *group, *sdg = sd->groups;
+	unsigned long power;
 
 	if (!child) {
 		update_cpu_power(sd, cpu);
 		return;
 	}
 
-	sdg->cpu_power = 0;
+	power = 0;
 
 	group = child->groups;
 	do {
-		sdg->cpu_power += group->cpu_power;
+		power += group->cpu_power;
 		group = group->next;
 	} while (group != child->groups);
+
+	sdg->cpu_power = power;
 }
 
 /**
