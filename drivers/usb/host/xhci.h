@@ -620,6 +620,22 @@ struct xhci_input_control_ctx {
 	u32	rsvd2[6];
 };
 
+/* Represents everything that is needed to issue a command on the command ring.
+ * It's useful to pre-allocate these for commands that cannot fail due to
+ * out-of-memory errors, like freeing streams.
+ */
+struct xhci_command {
+	/* Input context for changing device state */
+	struct xhci_container_ctx	*in_ctx;
+	u32				status;
+	/* If completion is null, no one is waiting on this command
+	 * and the structure can be freed after the command completes.
+	 */
+	struct completion		*completion;
+	union xhci_trb			*command_trb;
+	struct list_head		cmd_list;
+};
+
 /* drop context bitmasks */
 #define	DROP_EP(x)	(0x1 << x)
 /* add context bitmasks */
@@ -658,6 +674,7 @@ struct xhci_virt_device {
 	struct completion		cmd_completion;
 	/* Status of the last command issued for this device */
 	u32				cmd_status;
+	struct list_head		cmd_list;
 };
 
 
@@ -920,6 +937,8 @@ union xhci_trb {
  * It must also be greater than 16.
  */
 #define TRBS_PER_SEGMENT	64
+/* Allow two commands + a link TRB, along with any reserved command TRBs */
+#define MAX_RSVD_CMD_TRBS	(TRBS_PER_SEGMENT - 3)
 #define SEGMENT_SIZE		(TRBS_PER_SEGMENT*16)
 /* TRB buffer pointers can't cross 64KB boundaries */
 #define TRB_MAX_BUFF_SHIFT		16
@@ -1040,6 +1059,7 @@ struct xhci_hcd {
 	/* data structures */
 	struct xhci_device_context_array *dcbaa;
 	struct xhci_ring	*cmd_ring;
+	unsigned int		cmd_ring_reserved_trbs;
 	struct xhci_ring	*event_ring;
 	struct xhci_erst	erst;
 	/* Scratchpad */
@@ -1178,12 +1198,20 @@ unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index);
 unsigned int xhci_last_valid_endpoint(u32 added_ctxs);
 void xhci_endpoint_zero(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_host_endpoint *ep);
 void xhci_endpoint_copy(struct xhci_hcd *xhci,
-		struct xhci_virt_device *vdev, unsigned int ep_index);
-void xhci_slot_copy(struct xhci_hcd *xhci, struct xhci_virt_device *vdev);
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_container_ctx *out_ctx,
+		unsigned int ep_index);
+void xhci_slot_copy(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_container_ctx *out_ctx);
 int xhci_endpoint_init(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev,
 		struct usb_device *udev, struct usb_host_endpoint *ep,
 		gfp_t mem_flags);
 void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring);
+struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
+		bool allocate_completion, gfp_t mem_flags);
+void xhci_free_command(struct xhci_hcd *xhci,
+		struct xhci_command *command);
 
 #ifdef CONFIG_PCI
 /* xHCI PCI glue */
@@ -1229,7 +1257,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id);
+		u32 slot_id, bool command_must_succeed);
 int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,

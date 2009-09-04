@@ -319,6 +319,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		goto fail;
 
 	init_completion(&dev->cmd_completion);
+	INIT_LIST_HEAD(&dev->cmd_list);
 
 	/* Point to output device context in dcbaa. */
 	xhci->dcbaa->dev_context_ptrs[slot_id] = dev->out_ctx->dma;
@@ -624,13 +625,15 @@ void xhci_endpoint_zero(struct xhci_hcd *xhci,
  * issue a configure endpoint command.
  */
 void xhci_endpoint_copy(struct xhci_hcd *xhci,
-		struct xhci_virt_device *vdev, unsigned int ep_index)
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_container_ctx *out_ctx,
+		unsigned int ep_index)
 {
 	struct xhci_ep_ctx *out_ep_ctx;
 	struct xhci_ep_ctx *in_ep_ctx;
 
-	out_ep_ctx = xhci_get_ep_ctx(xhci, vdev->out_ctx, ep_index);
-	in_ep_ctx = xhci_get_ep_ctx(xhci, vdev->in_ctx, ep_index);
+	out_ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
+	in_ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
 
 	in_ep_ctx->ep_info = out_ep_ctx->ep_info;
 	in_ep_ctx->ep_info2 = out_ep_ctx->ep_info2;
@@ -643,13 +646,15 @@ void xhci_endpoint_copy(struct xhci_hcd *xhci,
  * issue a configure endpoint command.  Only the context entries field matters,
  * but we'll copy the whole thing anyway.
  */
-void xhci_slot_copy(struct xhci_hcd *xhci, struct xhci_virt_device *vdev)
+void xhci_slot_copy(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_container_ctx *out_ctx)
 {
 	struct xhci_slot_ctx *in_slot_ctx;
 	struct xhci_slot_ctx *out_slot_ctx;
 
-	in_slot_ctx = xhci_get_slot_ctx(xhci, vdev->in_ctx);
-	out_slot_ctx = xhci_get_slot_ctx(xhci, vdev->out_ctx);
+	in_slot_ctx = xhci_get_slot_ctx(xhci, in_ctx);
+	out_slot_ctx = xhci_get_slot_ctx(xhci, out_ctx);
 
 	in_slot_ctx->dev_info = out_slot_ctx->dev_info;
 	in_slot_ctx->dev_info2 = out_slot_ctx->dev_info2;
@@ -752,6 +757,44 @@ static void scratchpad_free(struct xhci_hcd *xhci)
 			    xhci->scratchpad->sp_dma);
 	kfree(xhci->scratchpad);
 	xhci->scratchpad = NULL;
+}
+
+struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
+		bool allocate_completion, gfp_t mem_flags)
+{
+	struct xhci_command *command;
+
+	command = kzalloc(sizeof(*command), mem_flags);
+	if (!command)
+		return NULL;
+
+	command->in_ctx =
+		xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, mem_flags);
+	if (!command->in_ctx)
+		return NULL;
+
+	if (allocate_completion) {
+		command->completion =
+			kzalloc(sizeof(struct completion), mem_flags);
+		if (!command->completion) {
+			xhci_free_container_ctx(xhci, command->in_ctx);
+			return NULL;
+		}
+		init_completion(command->completion);
+	}
+
+	command->status = 0;
+	INIT_LIST_HEAD(&command->cmd_list);
+	return command;
+}
+
+void xhci_free_command(struct xhci_hcd *xhci,
+		struct xhci_command *command)
+{
+	xhci_free_container_ctx(xhci,
+			command->in_ctx);
+	kfree(command->completion);
+	kfree(command);
 }
 
 void xhci_mem_cleanup(struct xhci_hcd *xhci)

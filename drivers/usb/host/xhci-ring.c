@@ -675,7 +675,8 @@ static void handle_reset_ep_completion(struct xhci_hcd *xhci,
 	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
 		xhci_dbg(xhci, "Queueing configure endpoint command\n");
 		xhci_queue_configure_endpoint(xhci,
-				xhci->devs[slot_id]->in_ctx->dma, slot_id);
+				xhci->devs[slot_id]->in_ctx->dma, slot_id,
+				false);
 		xhci_ring_cmd_db(xhci);
 	} else {
 		/* Clear our internal halted state and restart the ring */
@@ -691,6 +692,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
 	struct xhci_input_control_ctx *ctrl_ctx;
+	struct xhci_virt_device *virt_dev;
 	unsigned int ep_index;
 	struct xhci_ring *ep_ring;
 	unsigned int ep_state;
@@ -721,6 +723,25 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			xhci_free_virt_device(xhci, slot_id);
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
+		virt_dev = xhci->devs[slot_id];
+		/* Check to see if a command in the device's command queue
+		 * matches this one.  Signal the completion or free the command.
+		 */
+		if (!list_empty(&virt_dev->cmd_list)) {
+			struct xhci_command *command;
+			command = list_entry(virt_dev->cmd_list.next,
+					struct xhci_command, cmd_list);
+			if (xhci->cmd_ring->dequeue == command->command_trb) {
+				command->status =
+					GET_COMP_CODE(event->status);
+				list_del(&command->cmd_list);
+				if (command->completion)
+					complete(command->completion);
+				else
+					xhci_free_command(xhci, command);
+			}
+			break;
+		}
 		/*
 		 * Configure endpoint commands can come from the USB core
 		 * configuration or alt setting changes, or because the HW
@@ -729,7 +750,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		 * not waiting on the configure endpoint command.
 		 */
 		ctrl_ctx = xhci_get_input_control_ctx(xhci,
-				xhci->devs[slot_id]->in_ctx);
+				virt_dev->in_ctx);
 		/* Input ctx add_flags are the endpoint index plus one */
 		ep_index = xhci_last_valid_endpoint(ctrl_ctx->add_flags) - 1;
 		ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
@@ -1858,12 +1879,27 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 /****		Command Ring Operations		****/
 
-/* Generic function for queueing a command TRB on the command ring */
-static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2, u32 field3, u32 field4)
+/* Generic function for queueing a command TRB on the command ring.
+ * Check to make sure there's room on the command ring for one command TRB.
+ * Also check that there's room reserved for commands that must not fail.
+ * If this is a command that must not fail, meaning command_must_succeed = TRUE,
+ * then only check for the number of reserved spots.
+ * Don't decrement xhci->cmd_ring_reserved_trbs after we've queued the TRB
+ * because the command event handler may want to resubmit a failed command.
+ */
+static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
+		u32 field3, u32 field4, bool command_must_succeed)
 {
-	if (!room_on_ring(xhci, xhci->cmd_ring, 1)) {
+	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
+	if (!command_must_succeed)
+		reserved_trbs++;
+
+	if (!room_on_ring(xhci, xhci->cmd_ring, reserved_trbs)) {
 		if (!in_interrupt())
 			xhci_err(xhci, "ERR: No room for command on command ring\n");
+		if (command_must_succeed)
+			xhci_err(xhci, "ERR: Reserved TRB counting for "
+					"unfailable commands failed.\n");
 		return -ENOMEM;
 	}
 	queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
@@ -1874,7 +1910,7 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2, u32 fiel
 /* Queue a no-op command on the command ring */
 static int queue_cmd_noop(struct xhci_hcd *xhci)
 {
-	return queue_command(xhci, 0, 0, 0, TRB_TYPE(TRB_CMD_NOOP));
+	return queue_command(xhci, 0, 0, 0, TRB_TYPE(TRB_CMD_NOOP), false);
 }
 
 /*
@@ -1893,7 +1929,7 @@ void *xhci_setup_one_noop(struct xhci_hcd *xhci)
 int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
 {
 	return queue_command(xhci, 0, 0, 0,
-			TRB_TYPE(trb_type) | SLOT_ID_FOR_TRB(slot_id));
+			TRB_TYPE(trb_type) | SLOT_ID_FOR_TRB(slot_id), false);
 }
 
 /* Queue an address device command TRB */
@@ -1902,16 +1938,18 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 {
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
-			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id));
+			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
+			false);
 }
 
 /* Queue a configure endpoint command TRB */
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id)
+		u32 slot_id, bool command_must_succeed)
 {
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
-			TRB_TYPE(TRB_CONFIG_EP) | SLOT_ID_FOR_TRB(slot_id));
+			TRB_TYPE(TRB_CONFIG_EP) | SLOT_ID_FOR_TRB(slot_id),
+			command_must_succeed);
 }
 
 /* Queue an evaluate context command TRB */
@@ -1920,7 +1958,8 @@ int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 {
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
-			TRB_TYPE(TRB_EVAL_CONTEXT) | SLOT_ID_FOR_TRB(slot_id));
+			TRB_TYPE(TRB_EVAL_CONTEXT) | SLOT_ID_FOR_TRB(slot_id),
+			false);
 }
 
 int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
@@ -1931,7 +1970,7 @@ int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
 	u32 type = TRB_TYPE(TRB_STOP_RING);
 
 	return queue_command(xhci, 0, 0, 0,
-			trb_slot_id | trb_ep_index | type);
+			trb_slot_id | trb_ep_index | type, false);
 }
 
 /* Set Transfer Ring Dequeue Pointer command.
@@ -1955,7 +1994,7 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 	}
 	return queue_command(xhci, lower_32_bits(addr) | cycle_state,
 			upper_32_bits(addr), 0,
-			trb_slot_id | trb_ep_index | type);
+			trb_slot_id | trb_ep_index | type, false);
 }
 
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
@@ -1965,5 +2004,6 @@ int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_RESET_EP);
 
-	return queue_command(xhci, 0, 0, 0, trb_slot_id | trb_ep_index | type);
+	return queue_command(xhci, 0, 0, 0, trb_slot_id | trb_ep_index | type,
+			false);
 }

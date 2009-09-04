@@ -612,8 +612,8 @@ int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 }
 
 static int xhci_configure_endpoint(struct xhci_hcd *xhci,
-		struct usb_device *udev, struct xhci_virt_device *virt_dev,
-		bool ctx_change);
+		struct usb_device *udev, struct xhci_command *command,
+		bool ctx_change, bool must_succeed);
 
 /*
  * Full speed devices may have a max packet size greater than 8 bytes, but the
@@ -645,7 +645,8 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 		xhci_dbg(xhci, "Issuing evaluate context command.\n");
 
 		/* Set up the modified control endpoint 0 */
-		xhci_endpoint_copy(xhci, xhci->devs[slot_id], ep_index);
+		xhci_endpoint_copy(xhci, xhci->devs[slot_id]->in_ctx,
+				xhci->devs[slot_id]->out_ctx, ep_index);
 		in_ctx = xhci->devs[slot_id]->in_ctx;
 		ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
 		ep_ctx->ep_info2 &= ~MAX_PACKET_MASK;
@@ -664,8 +665,8 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 		xhci_dbg(xhci, "Slot %d output context\n", slot_id);
 		xhci_dbg_ctx(xhci, out_ctx, ep_index);
 
-		ret = xhci_configure_endpoint(xhci, urb->dev,
-				xhci->devs[slot_id], true);
+		ret = xhci_configure_endpoint(xhci, urb->dev, NULL,
+				true, false);
 
 		/* Clean up the input context for later use by bandwidth
 		 * functions.
@@ -1038,11 +1039,11 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 }
 
 static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
-		struct usb_device *udev, struct xhci_virt_device *virt_dev)
+		struct usb_device *udev, int *cmd_status)
 {
 	int ret;
 
-	switch (virt_dev->cmd_status) {
+	switch (*cmd_status) {
 	case COMP_ENOMEM:
 		dev_warn(&udev->dev, "Not enough host controller resources "
 				"for new device state.\n");
@@ -1068,7 +1069,7 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		break;
 	default:
 		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", virt_dev->cmd_status);
+				"code 0x%x.\n", *cmd_status);
 		ret = -EINVAL;
 		break;
 	}
@@ -1076,11 +1077,12 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 }
 
 static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
-		struct usb_device *udev, struct xhci_virt_device *virt_dev)
+		struct usb_device *udev, int *cmd_status)
 {
 	int ret;
+	struct xhci_virt_device *virt_dev = xhci->devs[udev->slot_id];
 
-	switch (virt_dev->cmd_status) {
+	switch (*cmd_status) {
 	case COMP_EINVAL:
 		dev_warn(&udev->dev, "WARN: xHCI driver setup invalid evaluate "
 				"context command.\n");
@@ -1101,7 +1103,7 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		break;
 	default:
 		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", virt_dev->cmd_status);
+				"code 0x%x.\n", *cmd_status);
 		ret = -EINVAL;
 		break;
 	}
@@ -1112,19 +1114,37 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
  * and wait for it to finish.
  */
 static int xhci_configure_endpoint(struct xhci_hcd *xhci,
-		struct usb_device *udev, struct xhci_virt_device *virt_dev,
-		bool ctx_change)
+		struct usb_device *udev,
+		struct xhci_command *command,
+		bool ctx_change, bool must_succeed)
 {
 	int ret;
 	int timeleft;
 	unsigned long flags;
+	struct xhci_container_ctx *in_ctx;
+	struct completion *cmd_completion;
+	int *cmd_status;
+	struct xhci_virt_device *virt_dev;
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	virt_dev = xhci->devs[udev->slot_id];
+	if (command) {
+		in_ctx = command->in_ctx;
+		cmd_completion = command->completion;
+		cmd_status = &command->status;
+		command->command_trb = xhci->cmd_ring->enqueue;
+		list_add_tail(&command->cmd_list, &virt_dev->cmd_list);
+	} else {
+		in_ctx = virt_dev->in_ctx;
+		cmd_completion = &virt_dev->cmd_completion;
+		cmd_status = &virt_dev->cmd_status;
+	}
+
 	if (!ctx_change)
-		ret = xhci_queue_configure_endpoint(xhci, virt_dev->in_ctx->dma,
-				udev->slot_id);
+		ret = xhci_queue_configure_endpoint(xhci, in_ctx->dma,
+				udev->slot_id, must_succeed);
 	else
-		ret = xhci_queue_evaluate_context(xhci, virt_dev->in_ctx->dma,
+		ret = xhci_queue_evaluate_context(xhci, in_ctx->dma,
 				udev->slot_id);
 	if (ret < 0) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
@@ -1136,7 +1156,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 	/* Wait for the configure endpoint command to complete */
 	timeleft = wait_for_completion_interruptible_timeout(
-			&virt_dev->cmd_completion,
+			cmd_completion,
 			USB_CTRL_SET_TIMEOUT);
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for %s command\n",
@@ -1149,8 +1169,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	}
 
 	if (!ctx_change)
-		return xhci_configure_endpoint_result(xhci, udev, virt_dev);
-	return xhci_evaluate_context_result(xhci, udev, virt_dev);
+		return xhci_configure_endpoint_result(xhci, udev, cmd_status);
+	return xhci_evaluate_context_result(xhci, udev, cmd_status);
 }
 
 /* Called after one or more calls to xhci_add_endpoint() or
@@ -1196,7 +1216,8 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
 			LAST_CTX_TO_EP_NUM(slot_ctx->dev_info));
 
-	ret = xhci_configure_endpoint(xhci, udev, virt_dev, false);
+	ret = xhci_configure_endpoint(xhci, udev, NULL,
+			false, false);
 	if (ret) {
 		/* Callee should call reset_bandwidth() */
 		return ret;
@@ -1248,19 +1269,19 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 }
 
 static void xhci_setup_input_ctx_for_config_ep(struct xhci_hcd *xhci,
-		unsigned int slot_id, u32 add_flags, u32 drop_flags)
+		struct xhci_container_ctx *in_ctx,
+		struct xhci_container_ctx *out_ctx,
+		u32 add_flags, u32 drop_flags)
 {
 	struct xhci_input_control_ctx *ctrl_ctx;
-	ctrl_ctx = xhci_get_input_control_ctx(xhci,
-			xhci->devs[slot_id]->in_ctx);
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
 	ctrl_ctx->add_flags = add_flags;
 	ctrl_ctx->drop_flags = drop_flags;
-	xhci_slot_copy(xhci, xhci->devs[slot_id]);
+	xhci_slot_copy(xhci, in_ctx, out_ctx);
 	ctrl_ctx->add_flags |= SLOT_FLAG;
 
-	xhci_dbg(xhci, "Slot ID %d Input Context:\n", slot_id);
-	xhci_dbg_ctx(xhci, xhci->devs[slot_id]->in_ctx,
-			xhci_last_valid_endpoint(add_flags));
+	xhci_dbg(xhci, "Input Context:\n");
+	xhci_dbg_ctx(xhci, in_ctx, xhci_last_valid_endpoint(add_flags));
 }
 
 void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
@@ -1272,7 +1293,8 @@ void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 	u32 added_ctxs;
 	dma_addr_t addr;
 
-	xhci_endpoint_copy(xhci, xhci->devs[slot_id], ep_index);
+	xhci_endpoint_copy(xhci, xhci->devs[slot_id]->in_ctx,
+			xhci->devs[slot_id]->out_ctx, ep_index);
 	in_ctx = xhci->devs[slot_id]->in_ctx;
 	ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
 	addr = xhci_trb_virt_to_dma(deq_state->new_deq_seg,
@@ -1288,8 +1310,8 @@ void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 	ep_ctx->deq = addr | deq_state->new_cycle_state;
 
 	added_ctxs = xhci_get_endpoint_flag_from_index(ep_index);
-	xhci_setup_input_ctx_for_config_ep(xhci, slot_id,
-			added_ctxs, added_ctxs);
+	xhci_setup_input_ctx_for_config_ep(xhci, xhci->devs[slot_id]->in_ctx,
+			xhci->devs[slot_id]->out_ctx, added_ctxs, added_ctxs);
 }
 
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
