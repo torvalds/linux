@@ -215,6 +215,7 @@ static __init void xen_init_cpuid_mask(void)
 			  (1 << X86_FEATURE_ACPI));  /* disable ACPI */
 
 	ax = 1;
+	cx = 0;
 	xen_cpuid(&ax, &bx, &cx, &dx);
 
 	/* cpuid claims we support xsave; try enabling it to see what happens */
@@ -974,10 +975,6 @@ asmlinkage void __init xen_start_kernel(void)
 
 	xen_domain_type = XEN_PV_DOMAIN;
 
-	BUG_ON(memcmp(xen_start_info->magic, "xen-3", 5) != 0);
-
-	xen_setup_features();
-
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
 	pv_init_ops = xen_init_ops;
@@ -986,8 +983,15 @@ asmlinkage void __init xen_start_kernel(void)
 	pv_apic_ops = xen_apic_ops;
 	pv_mmu_ops = xen_mmu_ops;
 
-	xen_init_irq_ops();
+#ifdef CONFIG_X86_64
+	/*
+	 * Setup percpu state.  We only need to do this for 64-bit
+	 * because 32-bit already has %fs set properly.
+	 */
+	load_percpu_segment(0);
+#endif
 
+	xen_init_irq_ops();
 	xen_init_cpuid_mask();
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -997,6 +1001,8 @@ asmlinkage void __init xen_start_kernel(void)
 	set_xen_basic_apic_ops();
 #endif
 
+	xen_setup_features();
+
 	if (xen_feature(XENFEAT_mmu_pt_update_preserve_ad)) {
 		pv_mmu_ops.ptep_modify_prot_start = xen_ptep_modify_prot_start;
 		pv_mmu_ops.ptep_modify_prot_commit = xen_ptep_modify_prot_commit;
@@ -1004,13 +1010,6 @@ asmlinkage void __init xen_start_kernel(void)
 
 	machine_ops = xen_machine_ops;
 
-#ifdef CONFIG_X86_64
-	/*
-	 * Setup percpu state.  We only need to do this for 64-bit
-	 * because 32-bit already has %fs set properly.
-	 */
-	load_percpu_segment(0);
-#endif
 	/*
 	 * The only reliable way to retain the initial address of the
 	 * percpu gdt_page is to remember it here, so we can go and
@@ -1061,6 +1060,7 @@ asmlinkage void __init xen_start_kernel(void)
 	/* set up basic CPUID stuff */
 	cpu_detect(&new_cpu_data);
 	new_cpu_data.hard_math = 1;
+	new_cpu_data.wp_works_ok = 1;
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 #endif
 
