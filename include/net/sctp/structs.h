@@ -812,22 +812,12 @@ struct sctp_packet {
 	/* pointer to the auth chunk for this packet */
 	struct sctp_chunk *auth;
 
-	/* This packet contains a COOKIE-ECHO chunk. */
-	__u8 has_cookie_echo;
-
-	/* This packet contains a SACK chunk. */
-	__u8 has_sack;
-
-	/* This packet contains an AUTH chunk */
-	__u8 has_auth;
-
-	/* This packet contains at least 1 DATA chunk */
-	__u8 has_data;
-
-	/* SCTP cannot fragment this packet. So let ip fragment it. */
-	__u8 ipfragok;
-
-	__u8 malloced;
+	u8  has_cookie_echo:1,	/* This packet contains a COOKIE-ECHO chunk. */
+	    has_sack:1,		/* This packet contains a SACK chunk. */
+	    has_auth:1,		/* This packet contains an AUTH chunk */
+	    has_data:1,		/* This packet contains at least 1 DATA chunk */
+	    ipfragok:1,		/* So let ip fragment this packet */
+	    malloced:1;		/* Is it malloced? */
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
