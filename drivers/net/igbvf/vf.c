@@ -274,6 +274,8 @@ static s32 e1000_set_vfta_vf(struct e1000_hw *hw, u16 vid, bool set)
 
 	err = mbx->ops.read_posted(hw, msgbuf, 2);
 
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
 	/* if nacked the vlan was rejected */
 	if (!err && (msgbuf[0] == (E1000_VF_SET_VLAN | E1000_VT_MSGTYPE_NACK)))
 		err = -E1000_ERR_MAC_INIT;
@@ -316,6 +318,8 @@ static void e1000_rar_set_vf(struct e1000_hw *hw, u8 * addr, u32 index)
 
 	if (!ret_val)
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
 
 	/* if nacked the address was rejected, use "perm_addr" */
 	if (!ret_val &&

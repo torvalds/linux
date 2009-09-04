@@ -678,8 +678,8 @@ exit:
 }
 EXPORT_SYMBOL(open_exec);
 
-int kernel_read(struct file *file, unsigned long offset,
-	char *addr, unsigned long count)
+int kernel_read(struct file *file, loff_t offset,
+		char *addr, unsigned long count)
 {
 	mm_segment_t old_fs;
 	loff_t pos = offset;

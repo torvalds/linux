@@ -614,7 +614,7 @@ dino_fixup_bus(struct pci_bus *bus)
 			    dev_name(&bus->self->dev), i,
 			    bus->self->resource[i].start,
 			    bus->self->resource[i].end);
-			pci_assign_resource(bus->self, i);
+			WARN_ON(pci_assign_resource(bus->self, i));
 			DBG("DEBUG %s after assign %d [0x%lx,0x%lx]\n",
 			    dev_name(&bus->self->dev), i,
 			    bus->self->resource[i].start,

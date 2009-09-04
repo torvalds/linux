@@ -1,7 +1,0 @@
-TODO:
-	- checkpatch.pl cleanups
-	- remove dead and useless code (auditing the tty ioctls to
-	  verify that they really are correct and needed.)
-
-Please send any patches to Greg Kroah-Hartman <greg@kroah.com> and
-Russell Lang <gsview@ghostgum.com.au>.

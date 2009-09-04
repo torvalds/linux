@@ -848,6 +848,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(need_resched() ? TRACE_FLAG_NEED_RESCHED : 0);
 }
+EXPORT_SYMBOL_GPL(tracing_generic_entry_update);
 
 struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
 						    int type,
@@ -2031,7 +2032,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 
 	/* If this file was open for write, then erase contents */
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND)) {
+	    (file->f_flags & O_TRUNC)) {
 		long cpu = (long) inode->i_private;
 
 		if (cpu == TRACE_PIPE_ALL_CPU)
@@ -3085,7 +3086,8 @@ tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 			break;
 		}
 
-		trace_consume(iter);
+		if (ret != TRACE_TYPE_NO_CONSUME)
+			trace_consume(iter);
 		rem -= count;
 		if (!find_next_entry_inc(iter))	{
 			rem = 0;
@@ -3894,17 +3896,9 @@ trace_options_core_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (ret < 0)
 		return ret;
 
-	switch (val) {
-	case 0:
-		trace_flags &= ~(1 << index);
-		break;
-	case 1:
-		trace_flags |= 1 << index;
-		break;
-
-	default:
+	if (val != 0 && val != 1)
 		return -EINVAL;
-	}
+	set_tracer_flags(1 << index, val);
 
 	*ppos += cnt;
 
@@ -4233,8 +4227,11 @@ static void __ftrace_dump(bool disable_tracing)
 		iter.pos = -1;
 
 		if (find_next_entry_inc(&iter) != NULL) {
-			print_trace_line(&iter);
-			trace_consume(&iter);
+			int ret;
+
+			ret = print_trace_line(&iter);
+			if (ret != TRACE_TYPE_NO_CONSUME)
+				trace_consume(&iter);
 		}
 
 		trace_printk_seq(&iter.seq);

@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/lmb.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
 
@@ -90,11 +91,10 @@ static void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sg,
 static int dma_direct_dma_supported(struct device *dev, u64 mask)
 {
 #ifdef CONFIG_PPC64
-	/* Could be improved to check for memory though it better be
-	 * done via some global so platforms can set the limit in case
+	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= DMA_BIT_MASK(32);
+	return mask >= (lmb_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif

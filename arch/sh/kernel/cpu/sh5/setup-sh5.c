@@ -186,7 +186,7 @@ static int __init sh5_devices_setup(void)
 	return platform_add_devices(sh5_devices,
 				    ARRAY_SIZE(sh5_devices));
 }
-__initcall(sh5_devices_setup);
+arch_initcall(sh5_devices_setup);
 
 void __init plat_early_device_setup(void)
 {

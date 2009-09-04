@@ -796,7 +796,7 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 		return ret;
 
 #else
-	reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
+	reserve_bootmem(phys, len, flags);
 #endif
 
 	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {

@@ -637,7 +637,7 @@ static void __exit sh_mobile_i2c_adap_exit(void)
 	platform_driver_unregister(&sh_mobile_i2c_driver);
 }
 
-module_init(sh_mobile_i2c_adap_init);
+subsys_initcall(sh_mobile_i2c_adap_init);
 module_exit(sh_mobile_i2c_adap_exit);
 
 MODULE_DESCRIPTION("SuperH Mobile I2C Bus Controller driver");

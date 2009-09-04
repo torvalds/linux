@@ -32,7 +32,14 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
-int iommu_pass_through;
+/*
+ * This variable becomes 1 if iommu=pt is passed on the kernel command line.
+ * If this variable is 1, IOMMU implementations do no DMA ranslation for
+ * devices and allow every device to access to whole physical memory. This is
+ * useful if a user want to use an IOMMU only for KVM device assignment to
+ * guests and not for driver dma translation.
+ */
+int iommu_pass_through __read_mostly;
 
 dma_addr_t bad_dma_address __read_mostly = 0;
 EXPORT_SYMBOL(bad_dma_address);

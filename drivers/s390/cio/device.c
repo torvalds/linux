@@ -772,10 +772,8 @@ static struct ccw_device * io_subchannel_create_ccwdev(struct subchannel *sch)
 	cdev = io_subchannel_allocate_dev(sch);
 	if (!IS_ERR(cdev)) {
 		ret = io_subchannel_initialize_dev(sch, cdev);
-		if (ret) {
-			kfree(cdev);
+		if (ret)
 			cdev = ERR_PTR(ret);
-		}
 	}
 	return cdev;
 }

@@ -176,6 +176,7 @@ struct cnic_local {
 	unsigned long ulp_flags[MAX_CNIC_ULP_TYPE];
 #define ULP_F_INIT	0
 #define ULP_F_START	1
+#define ULP_F_CALL_PENDING	2
 	struct cnic_ulp_ops *ulp_ops[MAX_CNIC_ULP_TYPE];
 
 	/* protected by ulp_lock */

@@ -1074,7 +1074,7 @@ int attach_mpu401(struct address_info *hw_config, struct module *owner)
 			sprintf(mpu_synth_info[m].name, "%s (MPU401)", hw_config->name);
 		else
 			sprintf(mpu_synth_info[m].name,
-				"MPU-401 %d.%d%c Midi interface #%d",
+				"MPU-401 %d.%d%c MIDI #%d",
 				(int) (devc->version & 0xf0) >> 4,
 				devc->version & 0x0f,
 				revision_char,

@@ -470,7 +470,7 @@ static void __init prcm_setup_regs(void)
 			  WKUP_MOD, PM_WKEN);
 }
 
-int __init omap2_pm_init(void)
+static int __init omap2_pm_init(void)
 {
 	u32 l;
 

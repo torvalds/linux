@@ -282,6 +282,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 static void ohci_omap_stop(struct usb_hcd *hcd)
 {
 	dev_dbg(hcd->self.controller, "stopping USB Controller\n");
+	ohci_stop(hcd);
 	omap_ohci_clock_power(0);
 }
 

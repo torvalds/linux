@@ -52,7 +52,6 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 		return;
 	tty->link->packet = 0;
 	set_bit(TTY_OTHER_CLOSED, &tty->link->flags);
-	tty_flip_buffer_push(tty->link);
 	wake_up_interruptible(&tty->link->read_wait);
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
@@ -145,6 +144,8 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf,
 
 static int pty_write_room(struct tty_struct *tty)
 {
+	if (tty->stopped)
+		return 0;
 	return pty_space(tty->link);
 }
 
@@ -208,7 +209,6 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
 	retval = 0;
-	tty->low_latency = 1;
 out:
 	return retval;
 }

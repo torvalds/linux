@@ -607,7 +607,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		 */
 		get_task_struct(t);
 		new->thread = t;
-		wake_up_process(t);
 	}
 
 	/*
@@ -690,6 +689,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 				(int)(new->flags & IRQF_TRIGGER_MASK));
 	}
 
+	new->irq = irq;
 	*old_ptr = new;
 
 	/* Reset broken irq detection when installing new handler */
@@ -707,7 +707,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 	spin_unlock_irqrestore(&desc->lock, flags);
 
-	new->irq = irq;
+	/*
+	 * Strictly no need to wake it up, but hung_task complains
+	 * when no hard interrupt wakes the thread up.
+	 */
+	if (new->thread)
+		wake_up_process(new->thread);
+
 	register_irq_proc(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
@@ -761,7 +767,6 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action, **action_ptr;
-	struct task_struct *irqthread;
 	unsigned long flags;
 
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
@@ -809,21 +814,12 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 			desc->chip->disable(irq);
 	}
 
-	irqthread = action->thread;
-	action->thread = NULL;
-
 	spin_unlock_irqrestore(&desc->lock, flags);
 
 	unregister_handler_proc(irq, action);
 
 	/* Make sure it's not being used on another CPU: */
 	synchronize_irq(irq);
-
-	if (irqthread) {
-		if (!test_bit(IRQTF_DIED, &action->thread_flags))
-			kthread_stop(irqthread);
-		put_task_struct(irqthread);
-	}
 
 #ifdef CONFIG_DEBUG_SHIRQ
 	/*
@@ -840,6 +836,13 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		local_irq_restore(flags);
 	}
 #endif
+
+	if (action->thread) {
+		if (!test_bit(IRQTF_DIED, &action->thread_flags))
+			kthread_stop(action->thread);
+		put_task_struct(action->thread);
+	}
+
 	return action;
 }
 

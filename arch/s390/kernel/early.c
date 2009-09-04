@@ -208,6 +208,9 @@ static noinline __init void detect_machine_type(void)
 		machine_flags |= MACHINE_FLAG_KVM;
 	else
 		machine_flags |= MACHINE_FLAG_VM;
+
+	/* Store machine flags for setting up lowcore early */
+	S390_lowcore.machine_flags = machine_flags;
 }
 
 static __init void early_pgm_check_handler(void)

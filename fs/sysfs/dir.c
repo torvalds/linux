@@ -939,8 +939,10 @@ again:
 	/* Remove from old parent's list and insert into new parent's list. */
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
+	drop_nlink(old_parent->d_inode);
 	sysfs_put(sd->s_parent);
 	sd->s_parent = new_parent_sd;
+	inc_nlink(new_parent->d_inode);
 	sysfs_link_sibling(sd);
 
  out_unlock:

@@ -46,11 +46,10 @@ PHDRS {
 	data PT_LOAD FLAGS(7);          /* RWE */
 #ifdef CONFIG_X86_64
 	user PT_LOAD FLAGS(7);          /* RWE */
-	data.init PT_LOAD FLAGS(7);     /* RWE */
 #ifdef CONFIG_SMP
 	percpu PT_LOAD FLAGS(7);        /* RWE */
 #endif
-	data.init2 PT_LOAD FLAGS(7);    /* RWE */
+	init PT_LOAD FLAGS(7);          /* RWE */
 #endif
 	note PT_NOTE FLAGS(0);          /* ___ */
 }
@@ -103,65 +102,43 @@ SECTIONS
 		__stop___ex_table = .;
 	} :text = 0x9090
 
-	RODATA
+	RO_DATA(PAGE_SIZE)
 
 	/* Data */
-	. = ALIGN(PAGE_SIZE);
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 		/* Start of data section */
 		_sdata = .;
+
+		/* init_task */
+		INIT_TASK_DATA(THREAD_SIZE)
+
+#ifdef CONFIG_X86_32
+		/* 32 bit has nosave before _edata */
+		NOSAVE_DATA
+#endif
+
+		PAGE_ALIGNED_DATA(PAGE_SIZE)
+		*(.data.idt)
+
+		CACHELINE_ALIGNED_DATA(CONFIG_X86_L1_CACHE_BYTES)
+
 		DATA_DATA
 		CONSTRUCTORS
-	} :data
 
-#ifdef CONFIG_X86_32
-	/* 32 bit has nosave before _edata */
-	. = ALIGN(PAGE_SIZE);
-	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
-		__nosave_begin = .;
-		*(.data.nosave)
-		. = ALIGN(PAGE_SIZE);
-		__nosave_end = .;
-	}
-#endif
-
-	. = ALIGN(PAGE_SIZE);
-	.data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
-		*(.data.page_aligned)
-		*(.data.idt)
-	}
-
-#ifdef CONFIG_X86_32
-	. = ALIGN(32);
-#else
-	. = ALIGN(PAGE_SIZE);
-	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
-#endif
-	.data.cacheline_aligned :
-		AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
-		*(.data.cacheline_aligned)
-	}
-
-	/* rarely changed data like cpu maps */
-#ifdef CONFIG_X86_32
-	. = ALIGN(32);
-#else
-	. = ALIGN(CONFIG_X86_INTERNODE_CACHE_BYTES);
-#endif
-	.data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
-		*(.data.read_mostly)
+		/* rarely changed data like cpu maps */
+		READ_MOSTLY_DATA(CONFIG_X86_INTERNODE_CACHE_BYTES)
 
 		/* End of data section */
 		_edata = .;
-	}
+	} :data
 
 #ifdef CONFIG_X86_64
 
 #define VSYSCALL_ADDR (-10*1024*1024)
-#define VSYSCALL_PHYS_ADDR ((LOADADDR(.data.read_mostly) + \
-                            SIZEOF(.data.read_mostly) + 4095) & ~(4095))
-#define VSYSCALL_VIRT_ADDR ((ADDR(.data.read_mostly) + \
-                            SIZEOF(.data.read_mostly) + 4095) & ~(4095))
+#define VSYSCALL_PHYS_ADDR ((LOADADDR(.data) + SIZEOF(.data) + \
+                            PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#define VSYSCALL_VIRT_ADDR ((ADDR(.data) + SIZEOF(.data) + \
+                            PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 
 #define VLOAD_OFFSET (VSYSCALL_ADDR - VSYSCALL_PHYS_ADDR)
 #define VLOAD(x) (ADDR(x) - VLOAD_OFFSET)
@@ -227,35 +204,29 @@ SECTIONS
 
 #endif /* CONFIG_X86_64 */
 
-	/* init_task */
-	. = ALIGN(THREAD_SIZE);
-	.data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {
-		*(.data.init_task)
-	}
-#ifdef CONFIG_X86_64
-	 :data.init
-#endif
-
-	/*
-	 * smp_locks might be freed after init
-	 * start/end must be page aligned
-	 */
-	. = ALIGN(PAGE_SIZE);
-	.smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
-		__smp_locks = .;
-		*(.smp_locks)
-		__smp_locks_end = .;
-		. = ALIGN(PAGE_SIZE);
-	}
-
 	/* Init code and data - will be freed after init */
 	. = ALIGN(PAGE_SIZE);
-	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
+	.init.begin : AT(ADDR(.init.begin) - LOAD_OFFSET) {
 		__init_begin = .; /* paired with __init_end */
+	}
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_SMP)
+	/*
+	 * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
+	 * output PHDR, so the next output section - .init.text - should
+	 * start another segment - init.
+	 */
+	PERCPU_VADDR(0, :percpu)
+#endif
+
+	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
 		_sinittext = .;
 		INIT_TEXT
 		_einittext = .;
 	}
+#ifdef CONFIG_X86_64
+	:init
+#endif
 
 	.init.data : AT(ADDR(.init.data) - LOAD_OFFSET) {
 		INIT_DATA
@@ -326,17 +297,7 @@ SECTIONS
 	}
 #endif
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_SMP)
-	/*
-	 * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
-	 * output PHDR, so the next output section - __data_nosave - should
-	 * start another section data.init2.  Also, pda should be at the head of
-	 * percpu area.  Preallocate it and define the percpu offset symbol
-	 * so that it can be accessed as a percpu variable.
-	 */
-	. = ALIGN(PAGE_SIZE);
-	PERCPU_VADDR(0, :percpu)
-#else
+#if !defined(CONFIG_X86_64) || !defined(CONFIG_SMP)
 	PERCPU(PAGE_SIZE)
 #endif
 
@@ -347,15 +308,22 @@ SECTIONS
 		__init_end = .;
 	}
 
+	/*
+	 * smp_locks might be freed after init
+	 * start/end must be page aligned
+	 */
+	. = ALIGN(PAGE_SIZE);
+	.smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
+		__smp_locks = .;
+		*(.smp_locks)
+		__smp_locks_end = .;
+		. = ALIGN(PAGE_SIZE);
+	}
+
 #ifdef CONFIG_X86_64
 	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
-		. = ALIGN(PAGE_SIZE);
-		__nosave_begin = .;
-		*(.data.nosave)
-		. = ALIGN(PAGE_SIZE);
-		__nosave_end = .;
-	} :data.init2
-	/* use another section data.init2, see PERCPU_VADDR() above */
+		NOSAVE_DATA
+	}
 #endif
 
 	/* BSS */
@@ -393,8 +361,8 @@ SECTIONS
 
 
 #ifdef CONFIG_X86_32
-ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
-        "kernel image bigger than KERNEL_IMAGE_SIZE")
+. = ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
+	   "kernel image bigger than KERNEL_IMAGE_SIZE");
 #else
 /*
  * Per-cpu symbols which need to be offset from __per_cpu_load
@@ -407,12 +375,12 @@ INIT_PER_CPU(irq_stack_union);
 /*
  * Build-time check on the image size:
  */
-ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
-	"kernel image bigger than KERNEL_IMAGE_SIZE")
+. = ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
+	   "kernel image bigger than KERNEL_IMAGE_SIZE");
 
 #ifdef CONFIG_SMP
-ASSERT((per_cpu__irq_stack_union == 0),
-        "irq_stack_union is not at start of per-cpu area");
+. = ASSERT((per_cpu__irq_stack_union == 0),
+           "irq_stack_union is not at start of per-cpu area");
 #endif
 
 #endif /* CONFIG_X86_32 */
@@ -420,7 +388,7 @@ ASSERT((per_cpu__irq_stack_union == 0),
 #ifdef CONFIG_KEXEC
 #include <asm/kexec.h>
 
-ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
-       "kexec control code size is too big")
+. = ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
+           "kexec control code size is too big");
 #endif
 
