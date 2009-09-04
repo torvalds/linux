@@ -584,6 +584,33 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 	    asoc->addip_last_asconf->transport == peer)
 		asoc->addip_last_asconf->transport = NULL;
 
+	/* If we have something on the transmitted list, we have to
+	 * save it off.  The best place is the active path.
+	 */
+	if (!list_empty(&peer->transmitted)) {
+		struct sctp_transport *active = asoc->peer.active_path;
+		struct sctp_chunk *ch;
+
+		/* Reset the transport of each chunk on this list */
+		list_for_each_entry(ch, &peer->transmitted,
+					transmitted_list) {
+			ch->transport = NULL;
+			ch->rtt_in_progress = 0;
+		}
+
+		list_splice_tail_init(&peer->transmitted,
+					&active->transmitted);
+
+		/* Start a T3 timer here in case it wasn't running so
+		 * that these migrated packets have a chance to get
+		 * retrnasmitted.
+		 */
+		if (!timer_pending(&active->T3_rtx_timer))
+			if (!mod_timer(&active->T3_rtx_timer,
+					jiffies + active->rto))
+				sctp_transport_hold(active);
+	}
+
 	asoc->peer.transport_count--;
 
 	sctp_transport_free(peer);

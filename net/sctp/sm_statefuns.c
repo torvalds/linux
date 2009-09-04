@@ -3543,6 +3543,12 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 		asconf_ack = sctp_assoc_lookup_asconf_ack(asoc, hdr->serial);
 		if (!asconf_ack)
 			return SCTP_DISPOSITION_DISCARD;
+
+		/* Reset the transport so that we select the correct one
+		 * this time around.  This is to make sure that we don't
+		 * accidentally use a stale transport that's been removed.
+		 */
+		asconf_ack->transport = NULL;
 	} else {
 		/* ADDIP 5.2 E5) Otherwise, the ASCONF Chunk is discarded since
 		 * it must be either a stale packet or from an attacker.
