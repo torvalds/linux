@@ -2823,8 +2823,6 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 
 	b43_mac_suspend(dev);
 
-	spin_lock_irq(&dev->wl->irq_lock);
-
 	/* Calculate the new attenuation values. */
 	bbatt = gphy->bbatt.att;
 	bbatt += gphy->bbatt_delta;
@@ -2863,11 +2861,6 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 	b43_put_attenuation_into_ranges(dev, &bbatt, &rfatt);
 	gphy->rfatt.att = rfatt;
 	gphy->bbatt.att = bbatt;
-
-	/* We drop the lock early, so we can sleep during hardware
-	 * adjustment. Possible races with op_recalc_txpower are harmless,
-	 * as we will be called once again in case we raced. */
-	spin_unlock_irq(&dev->wl->irq_lock);
 
 	if (b43_debug(dev, B43_DBG_XMITPOWER))
 		b43dbg(dev->wl, "Adjusting TX power\n");

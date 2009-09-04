@@ -131,7 +131,7 @@ enum b43_txpwr_result {
  * 			If the parameter "ignore_tssi" is true, the TSSI values should
  * 			be ignored and a recalculation of the power settings should be
  * 			done even if the TSSI values did not change.
- * 			This callback is called with wl->irq_lock held and must not sleep.
+ * 			This function may sleep, but should not.
  * 			Must not be NULL.
  * @adjust_txpower:	Write the previously calculated TX power settings
  * 			(from @recalc_txpower) to the hardware.
@@ -379,7 +379,6 @@ void b43_software_rfkill(struct b43_wldev *dev, bool blocked);
  *
  * Compare the current TX power output to the desired power emission
  * and schedule an adjustment in case it mismatches.
- * Requires wl->irq_lock locked.
  *
  * @flags:	OR'ed enum b43_phy_txpower_check_flags flags.
  * 		See the docs below.
