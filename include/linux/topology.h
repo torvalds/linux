@@ -126,7 +126,7 @@ int arch_update_cpu_topology(void);
 	.forkexec_idx		= 1,					\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
-				| 0*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
 				| 0*SD_WAKE_IDLE			\
@@ -160,7 +160,7 @@ int arch_update_cpu_topology(void);
 	.forkexec_idx		= 1,					\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
-				| 0*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
 				| 0*SD_WAKE_IDLE			\

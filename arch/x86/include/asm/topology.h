@@ -142,7 +142,7 @@ extern unsigned long node_remap_size[];
 	.forkexec_idx		= SD_FORKEXEC_IDX,			\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
-				| 0*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
 				| 0*SD_WAKE_IDLE			\
