@@ -2243,7 +2243,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			sctp_assoc_sync_pmtu(asoc);
 		} else if (asoc) {
 			asoc->pathmtu = params->spp_pathmtu;
-			sctp_frag_point(sp, params->spp_pathmtu);
+			sctp_frag_point(asoc, params->spp_pathmtu);
 		} else {
 			sp->pathmtu = params->spp_pathmtu;
 		}
@@ -2880,15 +2880,10 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
 			val -= sizeof(struct sctphdr) +
 					sizeof(struct sctp_data_chunk);
 		}
-
-		asoc->frag_point = val;
+		asoc->user_frag = val;
+		asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
 	} else {
 		sp->user_frag = val;
-
-		/* Update the frag_point of the existing associations. */
-		list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
-			asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
-		}
 	}
 
 	return 0;

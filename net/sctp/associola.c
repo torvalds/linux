@@ -112,6 +112,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->cookie_life.tv_usec = (sp->assocparams.sasoc_cookie_life % 1000)
 					* 1000;
 	asoc->frag_point = 0;
+	asoc->user_frag = sp->user_frag;
 
 	/* Set the association max_retrans and RTO values from the
 	 * socket values.
@@ -674,7 +675,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 			  "%d\n", asoc, asoc->pathmtu);
 	peer->pmtu_pending = 0;
 
-	asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
+	asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
 
 	/* The asoc->peer.port might not be meaningful yet, but
 	 * initialize the packet structure anyway.
@@ -1330,9 +1331,8 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 	}
 
 	if (pmtu) {
-		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
 		asoc->pathmtu = pmtu;
-		asoc->frag_point = sctp_frag_point(sp, pmtu);
+		asoc->frag_point = sctp_frag_point(asoc, pmtu);
 	}
 
 	SCTP_DEBUG_PRINTK("%s: asoc:%p, pmtu:%d, frag_point:%d\n",

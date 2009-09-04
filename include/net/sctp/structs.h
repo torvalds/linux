@@ -1763,6 +1763,7 @@ struct sctp_association {
 
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;
+	__u32 user_frag;
 
 	/* Counter used to count INIT errors. */
 	int init_err_counter;
