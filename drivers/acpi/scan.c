@@ -1264,16 +1264,6 @@ acpi_add_single_object(struct acpi_device **child,
 	acpi_device_set_id(device, parent, handle, type);
 
 	/*
-	 * The ACPI device is attached to acpi handle before getting
-	 * the power/wakeup/peformance flags. Otherwise OS can't get
-	 * the corresponding ACPI device by the acpi handle in the course
-	 * of getting the power/wakeup/performance flags.
-	 */
-	result = acpi_device_set_context(device, type);
-	if (result)
-		goto end;
-
-	/*
 	 * Power Management
 	 * ----------------
 	 */
@@ -1303,6 +1293,8 @@ acpi_add_single_object(struct acpi_device **child,
 			goto end;
 	}
 
+	if ((result = acpi_device_set_context(device, type)))
+		goto end;
 
 	result = acpi_device_register(device, parent);
 
