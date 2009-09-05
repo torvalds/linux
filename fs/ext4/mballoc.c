@@ -2202,7 +2202,7 @@ static void ext4_mb_seq_history_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations ext4_mb_seq_history_ops = {
+static const struct seq_operations ext4_mb_seq_history_ops = {
 	.start  = ext4_mb_seq_history_start,
 	.next   = ext4_mb_seq_history_next,
 	.stop   = ext4_mb_seq_history_stop,
@@ -2284,7 +2284,7 @@ static ssize_t ext4_mb_seq_history_write(struct file *file,
 	return count;
 }
 
-static struct file_operations ext4_mb_seq_history_fops = {
+static const struct file_operations ext4_mb_seq_history_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ext4_mb_seq_history_open,
 	.read		= seq_read,
@@ -2363,7 +2363,7 @@ static void ext4_mb_seq_groups_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations ext4_mb_seq_groups_ops = {
+static const struct seq_operations ext4_mb_seq_groups_ops = {
 	.start  = ext4_mb_seq_groups_start,
 	.next   = ext4_mb_seq_groups_next,
 	.stop   = ext4_mb_seq_groups_stop,
@@ -2384,7 +2384,7 @@ static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
 
 }
 
-static struct file_operations ext4_mb_seq_groups_fops = {
+static const struct file_operations ext4_mb_seq_groups_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ext4_mb_seq_groups_open,
 	.read		= seq_read,
