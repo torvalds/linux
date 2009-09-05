@@ -154,12 +154,6 @@ enum EnumRd {
 	DEBUG_REG_DMN = 0x01ff,
 };
 
-enum ctl_group {
-	CTL_FCC = 0x10,
-	CTL_MKK = 0x40,
-	CTL_ETSI = 0x30,
-};
-
 /* Regpair to CTL band mapping */
 static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	/* regpair, 5 GHz CTL, 2 GHz CTL */
