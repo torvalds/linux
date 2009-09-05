@@ -1718,6 +1718,7 @@ intel_tv_init(struct drm_device *dev)
 	if (!intel_output) {
 		return;
 	}
+
 	connector = &intel_output->base;
 
 	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
@@ -1729,6 +1730,7 @@ intel_tv_init(struct drm_device *dev)
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	tv_priv = (struct intel_tv_priv *)(intel_output + 1);
 	intel_output->type = INTEL_OUTPUT_TVOUT;
+	intel_output->clone_mask = (1 << INTEL_TV_CLONE_BIT);
 	intel_output->enc.possible_crtcs = ((1 << 0) | (1 << 1));
 	intel_output->enc.possible_clones = (1 << INTEL_OUTPUT_TVOUT);
 	intel_output->dev_priv = tv_priv;

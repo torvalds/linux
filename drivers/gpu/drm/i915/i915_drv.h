@@ -222,6 +222,7 @@ typedef struct drm_i915_private {
 	unsigned int edp_support:1;
 	int lvds_ssc_freq;
 
+	int crt_ddc_bus; /* -1 = unknown, else GPIO to use for CRT DDC */
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -384,6 +385,9 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head inactive_list;
 
+		/** LRU list of objects with fence regs on them. */
+		struct list_head fence_list;
+
 		/**
 		 * List of breadcrumbs associated with GPU requests currently
 		 * outstanding.
@@ -450,6 +454,9 @@ struct drm_i915_gem_object {
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head list;
+
+	/** This object's place on the fenced object LRU */
+	struct list_head fence_list;
 
 	/**
 	 * This is set if the object is on the active or flushing lists
