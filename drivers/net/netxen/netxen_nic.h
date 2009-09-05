@@ -1263,7 +1263,6 @@ void netxen_pcie_sem_unlock(struct netxen_adapter *, int);
 	netxen_pcie_sem_unlock((a), 7)
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
-void netxen_nic_get_firmware_info(struct netxen_adapter *adapter);
 int netxen_nic_wol_supported(struct netxen_adapter *adapter);
 
 /* Functions from netxen_nic_init.c */

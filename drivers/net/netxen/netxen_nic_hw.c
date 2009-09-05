@@ -2240,65 +2240,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 	}
 }
 
-void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
-{
-	u32 fw_major, fw_minor, fw_build;
-	char brd_name[NETXEN_MAX_SHORT_NAME];
-	char serial_num[32];
-	int i, offset, val;
-	int *ptr32;
-	struct pci_dev *pdev = adapter->pdev;
-
-	adapter->driver_mismatch = 0;
-
-	ptr32 = (int *)&serial_num;
-	offset = NX_FW_SERIAL_NUM_OFFSET;
-	for (i = 0; i < 8; i++) {
-		if (netxen_rom_fast_read(adapter, offset, &val) == -1) {
-			dev_err(&pdev->dev, "error reading board info\n");
-			adapter->driver_mismatch = 1;
-			return;
-		}
-		ptr32[i] = cpu_to_le32(val);
-		offset += sizeof(u32);
-	}
-
-	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
-	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
-	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
-
-	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
-
-	if (adapter->portnum == 0) {
-		get_brd_name_by_type(adapter->ahw.board_type, brd_name);
-
-		printk(KERN_INFO "NetXen %s Board S/N %s  Chip rev 0x%x\n",
-				brd_name, serial_num, adapter->ahw.revision_id);
-	}
-
-	if (adapter->fw_version < NETXEN_VERSION_CODE(3, 4, 216)) {
-		adapter->driver_mismatch = 1;
-		dev_warn(&pdev->dev, "firmware version %d.%d.%d unsupported\n",
-				fw_major, fw_minor, fw_build);
-		return;
-	}
-
-	dev_info(&pdev->dev, "firmware version %d.%d.%d\n",
-			fw_major, fw_minor, fw_build);
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		i = NXRD32(adapter, NETXEN_SRE_MISC);
-		adapter->ahw.cut_through = (i & 0x8000) ? 1 : 0;
-		dev_info(&pdev->dev, "firmware running in %s mode\n",
-		adapter->ahw.cut_through ? "cut-through" : "legacy");
-	}
-
-	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
-		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
-
-	adapter->flags &= ~NETXEN_NIC_LRO_ENABLED;
-}
-
 int
 netxen_nic_wol_supported(struct netxen_adapter *adapter)
 {
