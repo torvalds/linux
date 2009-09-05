@@ -333,15 +333,13 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned int head, tail, mask;
+	unsigned int head, tail;
 
 	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 	tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
-	mask = dev_priv->ring.tail_mask;
 
 	seq_printf(m, "RingHead :  %08x\n", head);
 	seq_printf(m, "RingTail :  %08x\n", tail);
-	seq_printf(m, "RingMask :  %08x\n", mask);
 	seq_printf(m, "RingSize :  %08lx\n", dev_priv->ring.Size);
 	seq_printf(m, "Acthd :     %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
 

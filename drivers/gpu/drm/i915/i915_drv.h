@@ -85,7 +85,6 @@ struct drm_i915_gem_phys_object {
 };
 
 typedef struct _drm_i915_ring_buffer {
-	int tail_mask;
 	unsigned long Size;
 	u8 *virtual_start;
 	int head;
@@ -790,33 +789,32 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 
 #define I915_VERBOSE 0
 
-#define RING_LOCALS	unsigned int outring, ringmask, outcount; \
-                        volatile char *virt;
+#define RING_LOCALS	volatile unsigned int *ring_virt__;
 
-#define BEGIN_LP_RING(n) do {				\
-	if (I915_VERBOSE)				\
-		DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
-	if (dev_priv->ring.space < (n)*4)		\
-		i915_wait_ring(dev, (n)*4, __func__);		\
-	outcount = 0;					\
-	outring = dev_priv->ring.tail;			\
-	ringmask = dev_priv->ring.tail_mask;		\
-	virt = dev_priv->ring.virtual_start;		\
+#define BEGIN_LP_RING(n) do {						\
+	int bytes__ = 4*(n);						\
+	if (I915_VERBOSE) DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
+	/* a wrap must occur between instructions so pad beforehand */	\
+	if (unlikely (dev_priv->ring.tail + bytes__ > dev_priv->ring.Size)) \
+		i915_wrap_ring(dev);					\
+	if (unlikely (dev_priv->ring.space < bytes__))			\
+		i915_wait_ring(dev, bytes__, __func__);			\
+	ring_virt__ = (unsigned int *)					\
+	        (dev_priv->ring.virtual_start + dev_priv->ring.tail);	\
+	dev_priv->ring.tail += bytes__;					\
+	dev_priv->ring.tail &= dev_priv->ring.Size - 1;			\
+	dev_priv->ring.space -= bytes__;				\
 } while (0)
 
-#define OUT_RING(n) do {					\
+#define OUT_RING(n) do {						\
 	if (I915_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
-	*(volatile unsigned int *)(virt + outring) = (n);	\
-        outcount++;						\
-	outring += 4;						\
-	outring &= ringmask;					\
+	*ring_virt__++ = (n);						\
 } while (0)
 
 #define ADVANCE_LP_RING() do {						\
-	if (I915_VERBOSE) DRM_DEBUG("ADVANCE_LP_RING %x\n", outring);	\
-	dev_priv->ring.tail = outring;					\
-	dev_priv->ring.space -= outcount * 4;				\
-	I915_WRITE(PRB0_TAIL, outring);			\
+	if (I915_VERBOSE)						\
+		DRM_DEBUG("ADVANCE_LP_RING %x\n", dev_priv->ring.tail);	\
+	I915_WRITE(PRB0_TAIL, dev_priv->ring.tail);			\
 } while(0)
 
 /**
@@ -839,6 +837,7 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 #define I915_GEM_HWS_INDEX		0x20
 #define I915_BREADCRUMB_INDEX		0x21
 
+extern int i915_wrap_ring(struct drm_device * dev);
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define IS_I830(dev) ((dev)->pci_device == 0x3577)

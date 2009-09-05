@@ -4099,7 +4099,6 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 
 	/* Set up the kernel mapping for the ring. */
 	ring->Size = obj->size;
-	ring->tail_mask = obj->size - 1;
 
 	ring->map.offset = dev->agp->base + obj_priv->gtt_offset;
 	ring->map.size = obj->size;
