@@ -136,7 +136,7 @@ int genl_register_mc_group(struct genl_family *family,
 {
 	int id;
 	unsigned long *new_groups;
-	int err;
+	int err = 0;
 
 	BUG_ON(grp->name[0] == '\0');
 
