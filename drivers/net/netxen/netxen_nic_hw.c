@@ -566,6 +566,9 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	i = 0;
 
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return -EIO;
+
 	tx_ring = adapter->tx_ring;
 	__netif_tx_lock_bh(tx_ring->txq);
 

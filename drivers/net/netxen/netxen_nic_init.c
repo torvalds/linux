@@ -905,6 +905,7 @@ netxen_release_firmware(struct netxen_adapter *adapter)
 {
 	if (adapter->fw)
 		release_firmware(adapter->fw);
+	adapter->fw = NULL;
 }
 
 int netxen_init_dummy_dma(struct netxen_adapter *adapter)

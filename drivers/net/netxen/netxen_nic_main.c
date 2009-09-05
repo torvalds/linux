@@ -757,7 +757,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 
 	err = netxen_need_fw_reset(adapter);
 	if (err < 0)
-		return err;
+		goto err_out;
 	if (err == 0)
 		goto wait_init;
 
@@ -771,7 +771,9 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_set_port_mode(adapter);
 
-	netxen_load_firmware(adapter);
+	err = netxen_load_firmware(adapter);
+	if (err)
+		goto err_out;
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 
@@ -785,7 +787,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 
 	err = netxen_init_dummy_dma(adapter);
 	if (err)
-		return err;
+		goto err_out;
 
 	/*
 	 * Tell the hardware our version number.
@@ -800,7 +802,7 @@ wait_init:
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	if (err) {
 		netxen_free_dummy_dma(adapter);
-		return err;
+		goto err_out;
 	}
 
 	nx_update_dma_mask(adapter);
@@ -808,6 +810,10 @@ wait_init:
 	netxen_nic_get_firmware_info(adapter);
 
 	return 0;
+
+err_out:
+	netxen_release_firmware(adapter);
+	return err;
 }
 
 static int
@@ -876,6 +882,9 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	int err;
 
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return -EIO;
+
 	err = adapter->init_port(adapter, adapter->physical_port);
 	if (err) {
 		printk(KERN_ERR "%s: Failed to initialize port %d\n",
@@ -914,6 +923,9 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 static void
 netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return;
+
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
