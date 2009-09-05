@@ -97,11 +97,17 @@ static const char * const hw_devicenames[] = {
 	"ir_rx_z8f0811_haup",
 };
 
+static const struct IR_i2c_init_data z8f0811_ir_init_data = {
+	.ir_codes = &ir_codes_hauppauge_new_table,
+	.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR,
+	.type = IR_TYPE_RC5,
+	.name = "CX23418 Z8F0811 Hauppauge",
+};
+
 static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
 			   u8 addr)
 {
 	struct i2c_board_info info;
-	struct IR_i2c_init_data ir_init_data;
 	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
@@ -110,12 +116,7 @@ static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
-		memset(&ir_init_data, 0, sizeof(struct IR_i2c_init_data));
-		ir_init_data.ir_codes = &ir_codes_hauppauge_new_table;
-		ir_init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		ir_init_data.type = IR_TYPE_RC5;
-		ir_init_data.name = "CX23418 Z8F0811 Hauppauge";
-		info.platform_data = &ir_init_data;
+		info.platform_data = &z8f0811_ir_init_data;
 		break;
 	default:
 		break;
