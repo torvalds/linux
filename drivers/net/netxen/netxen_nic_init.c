@@ -323,29 +323,6 @@ err_out:
 	return -ENOMEM;
 }
 
-void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
-{
-	adapter->init_port = netxen_niu_xg_init_port;
-	adapter->stop_port = netxen_niu_disable_xg_port;
-
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		adapter->macaddr_set = netxen_p2_nic_set_mac_addr;
-		adapter->set_multi = netxen_p2_nic_set_multi;
-		adapter->set_mtu = netxen_nic_set_mtu_xgb;
-		adapter->set_promisc = netxen_p2_nic_set_promisc;
-	} else {
-		adapter->set_mtu = nx_fw_cmd_set_mtu;
-		adapter->set_promisc = netxen_p3_nic_set_promisc;
-		adapter->macaddr_set = netxen_p3_nic_set_mac_addr;
-		adapter->set_multi = netxen_p3_nic_set_multi;
-
-		if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-			adapter->phy_read = nx_fw_cmd_query_phy;
-			adapter->phy_write = nx_fw_cmd_set_phy;
-		}
-	}
-}
-
 /*
  * netxen_decode_crb_addr(0 - utility to translate from internal Phantom CRB
  * address to external PCI CRB address.
@@ -1395,7 +1372,7 @@ skip:
 
 	if (count) {
 		sds_ring->consumer = consumer;
-		NXWR32(adapter, sds_ring->crb_sts_consumer, consumer);
+		NXWRIO(adapter, sds_ring->crb_sts_consumer, consumer);
 	}
 
 	return count;
@@ -1513,7 +1490,7 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 	if (count) {
 		rds_ring->producer = producer;
-		NXWR32(adapter, rds_ring->crb_rcv_producer,
+		NXWRIO(adapter, rds_ring->crb_rcv_producer,
 				(producer-1) & (rds_ring->num_desc-1));
 
 		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
@@ -1529,9 +1506,10 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 					      (rds_ring->num_desc - 1)));
 			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
-			writel(msg,
-			       DB_NORMALIZE(adapter,
+			read_lock(&adapter->adapter_lock);
+			writel(msg, DB_NORMALIZE(adapter,
 					    NETXEN_RCV_PRODUCER_OFFSET));
+			read_unlock(&adapter->adapter_lock);
 		}
 	}
 }
@@ -1573,7 +1551,7 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 
 	if (count) {
 		rds_ring->producer = producer;
-		NXWR32(adapter, rds_ring->crb_rcv_producer,
+		NXWRIO(adapter, rds_ring->crb_rcv_producer,
 				(producer - 1) & (rds_ring->num_desc - 1));
 	}
 	spin_unlock(&rds_ring->lock);

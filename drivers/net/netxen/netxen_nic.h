@@ -584,11 +584,11 @@ struct netxen_adapter_stats {
  */
 struct nx_host_rds_ring {
 	u32 producer;
-	u32 crb_rcv_producer;
 	u32 num_desc;
 	u32 dma_size;
 	u32 skb_size;
 	u32 flags;
+	void __iomem *crb_rcv_producer;
 	struct rcv_desc *desc_head;
 	struct netxen_rx_buffer *rx_buf_arr;
 	struct list_head free_list;
@@ -598,9 +598,9 @@ struct nx_host_rds_ring {
 
 struct nx_host_sds_ring {
 	u32 consumer;
-	u32 crb_sts_consumer;
-	u32 crb_intr_mask;
 	u32 num_desc;
+	void __iomem *crb_sts_consumer;
+	void __iomem *crb_intr_mask;
 
 	struct status_desc *desc_head;
 	struct netxen_adapter *adapter;
@@ -617,8 +617,8 @@ struct nx_host_tx_ring {
 	u32 producer;
 	__le32 *hw_consumer;
 	u32 sw_consumer;
-	u32 crb_cmd_producer;
-	u32 crb_cmd_consumer;
+	void __iomem *crb_cmd_producer;
+	void __iomem *crb_cmd_consumer;
 	u32 num_desc;
 
 	struct netdev_queue *txq;
@@ -1163,7 +1163,7 @@ struct netxen_adapter {
 	u32 irq;
 	u32 temp;
 
-	u32 msi_tgt_status;
+	u32 int_vec_bit;
 	u32 heartbit;
 
 	struct netxen_adapter_stats stats;
@@ -1180,16 +1180,23 @@ struct netxen_adapter {
 	int (*init_port) (struct netxen_adapter *, int);
 	int (*stop_port) (struct netxen_adapter *);
 
-	u32 (*hw_read_wx)(struct netxen_adapter *, ulong);
-	int (*hw_write_wx)(struct netxen_adapter *, ulong, u32);
+	u32 (*crb_read)(struct netxen_adapter *, ulong);
+	int (*crb_write)(struct netxen_adapter *, ulong, u32);
+
 	int (*pci_mem_read)(struct netxen_adapter *, u64, void *, int);
 	int (*pci_mem_write)(struct netxen_adapter *, u64, void *, int);
-	int (*pci_write_immediate)(struct netxen_adapter *, u64, u32);
-	u32 (*pci_read_immediate)(struct netxen_adapter *, u64);
+
 	unsigned long (*pci_set_window)(struct netxen_adapter *,
 			unsigned long long);
 
-	struct netxen_legacy_intr_set legacy_intr;
+	u32 (*io_read)(struct netxen_adapter *, void __iomem *);
+	void (*io_write)(struct netxen_adapter *, void __iomem *, u32);
+
+	void __iomem	*tgt_mask_reg;
+	void __iomem	*pci_int_reg;
+	void __iomem	*tgt_status_reg;
+	void __iomem	*crb_int_state_reg;
+	void __iomem	*isr_int_vec;
 
 	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
 
@@ -1223,9 +1230,13 @@ int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
 int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr);
 
 #define NXRD32(adapter, off) \
-	(adapter->hw_read_wx(adapter, off))
+	(adapter->crb_read(adapter, off))
 #define NXWR32(adapter, off, val) \
-	(adapter->hw_write_wx(adapter, off, val))
+	(adapter->crb_write(adapter, off, val))
+#define NXRDIO(adapter, addr) \
+	(adapter->io_read(adapter, addr))
+#define NXWRIO(adapter, addr, val) \
+	(adapter->io_write(adapter, addr, val))
 
 int netxen_pcie_sem_lock(struct netxen_adapter *, int, u32);
 void netxen_pcie_sem_unlock(struct netxen_adapter *, int);
@@ -1255,40 +1266,6 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter);
 void netxen_nic_get_firmware_info(struct netxen_adapter *adapter);
 int netxen_nic_wol_supported(struct netxen_adapter *adapter);
 
-u32 netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off);
-int netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter,
-		ulong off, u32 data);
-int netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size);
-int netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size);
-int netxen_nic_pci_write_immediate_128M(struct netxen_adapter *adapter,
-		u64 off, u32 data);
-u32 netxen_nic_pci_read_immediate_128M(struct netxen_adapter *adapter, u64 off);
-void netxen_nic_pci_write_normalize_128M(struct netxen_adapter *adapter,
-		u64 off, u32 data);
-u32 netxen_nic_pci_read_normalize_128M(struct netxen_adapter *adapter, u64 off);
-unsigned long netxen_nic_pci_set_window_128M(struct netxen_adapter *adapter,
-		unsigned long long addr);
-void netxen_nic_pci_change_crbwindow_128M(struct netxen_adapter *adapter,
-		u32 wndw);
-
-u32 netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter, ulong off);
-int netxen_nic_hw_write_wx_2M(struct netxen_adapter *adapter,
-		ulong off, u32 data);
-int netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size);
-int netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size);
-int netxen_nic_pci_write_immediate_2M(struct netxen_adapter *adapter,
-		u64 off, u32 data);
-u32 netxen_nic_pci_read_immediate_2M(struct netxen_adapter *adapter, u64 off);
-void netxen_nic_pci_write_normalize_2M(struct netxen_adapter *adapter,
-		u64 off, u32 data);
-u32 netxen_nic_pci_read_normalize_2M(struct netxen_adapter *adapter, u64 off);
-unsigned long netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
-		unsigned long long addr);
-
 /* Functions from netxen_nic_init.c */
 int netxen_init_dummy_dma(struct netxen_adapter *adapter);
 void netxen_free_dummy_dma(struct netxen_adapter *adapter);
@@ -1316,13 +1293,15 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter);
 void netxen_free_sw_resources(struct netxen_adapter *adapter);
 
+void netxen_setup_hwops(struct netxen_adapter *adapter);
+void __iomem *netxen_get_ioaddr(struct netxen_adapter *, u32);
+
 int netxen_alloc_hw_resources(struct netxen_adapter *adapter);
 void netxen_free_hw_resources(struct netxen_adapter *adapter);
 
 void netxen_release_rx_buffers(struct netxen_adapter *adapter);
 void netxen_release_tx_buffers(struct netxen_adapter *adapter);
 
-void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);

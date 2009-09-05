@@ -229,7 +229,8 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		rds_ring = &recv_ctx->rds_rings[i];
 
 		reg = le32_to_cpu(prsp_rds[i].host_producer_crb);
-		rds_ring->crb_rcv_producer = NETXEN_NIC_REG(reg - 0x200);
+		rds_ring->crb_rcv_producer = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(reg - 0x200));
 	}
 
 	prsp_sds = ((nx_cardrsp_sds_ring_t *)
@@ -239,10 +240,12 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		sds_ring = &recv_ctx->sds_rings[i];
 
 		reg = le32_to_cpu(prsp_sds[i].host_consumer_crb);
-		sds_ring->crb_sts_consumer = NETXEN_NIC_REG(reg - 0x200);
+		sds_ring->crb_sts_consumer = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(reg - 0x200));
 
 		reg = le32_to_cpu(prsp_sds[i].interrupt_crb);
-		sds_ring->crb_intr_mask = NETXEN_NIC_REG(reg - 0x200);
+		sds_ring->crb_intr_mask = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(reg - 0x200));
 	}
 
 	recv_ctx->state = le32_to_cpu(prsp->host_ctx_state);
@@ -342,7 +345,8 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 
 	if (err == NX_RCODE_SUCCESS) {
 		temp = le32_to_cpu(prsp->cds_ring.host_producer_crb);
-		tx_ring->crb_cmd_producer = NETXEN_NIC_REG(temp - 0x200);
+		tx_ring->crb_cmd_producer = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(temp - 0x200));
 #if 0
 		adapter->tx_state =
 			le32_to_cpu(prsp->host_ctx_state);
@@ -651,7 +655,8 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 
 		if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 			rds_ring->crb_rcv_producer =
-				recv_crb_registers[port].crb_rcv_producer[ring];
+				netxen_get_ioaddr(adapter,
+			recv_crb_registers[port].crb_rcv_producer[ring]);
 	}
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
@@ -670,10 +675,12 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		sds_ring->desc_head = (struct status_desc *)addr;
 
 		sds_ring->crb_sts_consumer =
-			recv_crb_registers[port].crb_sts_consumer[ring];
+			netxen_get_ioaddr(adapter,
+			recv_crb_registers[port].crb_sts_consumer[ring]);
 
 		sds_ring->crb_intr_mask =
-			recv_crb_registers[port].sw_int_mask[ring];
+			netxen_get_ioaddr(adapter,
+			recv_crb_registers[port].sw_int_mask[ring]);
 	}
 
 

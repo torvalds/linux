@@ -116,7 +116,7 @@ void
 netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring)
 {
-	NXWR32(adapter, tx_ring->crb_cmd_producer, tx_ring->producer);
+	NXWRIO(adapter, tx_ring->crb_cmd_producer, tx_ring->producer);
 
 	if (netxen_tx_avail(tx_ring) <= TX_STOP_THRESH) {
 		netif_stop_queue(adapter->netdev);
@@ -133,7 +133,7 @@ static inline void
 netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring)
 {
-	NXWR32(adapter, tx_ring->crb_cmd_consumer, tx_ring->sw_consumer);
+	NXWRIO(adapter, tx_ring->crb_cmd_consumer, tx_ring->sw_consumer);
 }
 
 static uint32_t msi_tgt_status[8] = {
@@ -149,18 +149,17 @@ static inline void netxen_nic_disable_int(struct nx_host_sds_ring *sds_ring)
 {
 	struct netxen_adapter *adapter = sds_ring->adapter;
 
-	NXWR32(adapter, sds_ring->crb_intr_mask, 0);
+	NXWRIO(adapter, sds_ring->crb_intr_mask, 0);
 }
 
 static inline void netxen_nic_enable_int(struct nx_host_sds_ring *sds_ring)
 {
 	struct netxen_adapter *adapter = sds_ring->adapter;
 
-	NXWR32(adapter, sds_ring->crb_intr_mask, 0x1);
+	NXWRIO(adapter, sds_ring->crb_intr_mask, 0x1);
 
 	if (!NETXEN_IS_MSI_FAMILY(adapter))
-		adapter->pci_write_immediate(adapter,
-				adapter->legacy_intr.tgt_mask_reg, 0xfbff);
+		NXWRIO(adapter, adapter->tgt_mask_reg, 0xfbff);
 }
 
 static int
@@ -556,10 +555,22 @@ netxen_setup_intr(struct netxen_adapter *adapter)
 		legacy_intrp = &legacy_intr[adapter->ahw.pci_func];
 	else
 		legacy_intrp = &legacy_intr[0];
-	adapter->legacy_intr.int_vec_bit = legacy_intrp->int_vec_bit;
-	adapter->legacy_intr.tgt_status_reg = legacy_intrp->tgt_status_reg;
-	adapter->legacy_intr.tgt_mask_reg = legacy_intrp->tgt_mask_reg;
-	adapter->legacy_intr.pci_int_reg = legacy_intrp->pci_int_reg;
+
+	adapter->int_vec_bit = legacy_intrp->int_vec_bit;
+	adapter->tgt_status_reg = netxen_get_ioaddr(adapter,
+			legacy_intrp->tgt_status_reg);
+	adapter->tgt_mask_reg = netxen_get_ioaddr(adapter,
+			legacy_intrp->tgt_mask_reg);
+	adapter->pci_int_reg = netxen_get_ioaddr(adapter,
+			legacy_intrp->pci_int_reg);
+	adapter->isr_int_vec = netxen_get_ioaddr(adapter, ISR_INT_VECTOR);
+
+	if (adapter->ahw.revision_id >= NX_P3_B1)
+		adapter->crb_int_state_reg = netxen_get_ioaddr(adapter,
+			ISR_INT_STATE_REG);
+	else
+		adapter->crb_int_state_reg = netxen_get_ioaddr(adapter,
+			CRB_INT_VECTOR);
 
 	netxen_set_msix_bit(pdev, 0);
 
@@ -586,8 +597,8 @@ netxen_setup_intr(struct netxen_adapter *adapter)
 
 	if (use_msi && !pci_enable_msi(pdev)) {
 		adapter->flags |= NETXEN_NIC_MSI_ENABLED;
-		adapter->msi_tgt_status =
-			msi_tgt_status[adapter->ahw.pci_func];
+		adapter->tgt_status_reg = netxen_get_ioaddr(adapter,
+				msi_tgt_status[adapter->ahw.pci_func]);
 		dev_info(&pdev->dev, "using msi interrupts\n");
 		adapter->msix_entries[0].vector = pdev->irq;
 		return;
@@ -647,14 +658,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	mem_len = pci_resource_len(pdev, 0);
 	pci_len0 = 0;
 
-	adapter->hw_write_wx = netxen_nic_hw_write_wx_128M;
-	adapter->hw_read_wx = netxen_nic_hw_read_wx_128M;
-	adapter->pci_read_immediate = netxen_nic_pci_read_immediate_128M;
-	adapter->pci_write_immediate = netxen_nic_pci_write_immediate_128M;
-	adapter->pci_set_window = netxen_nic_pci_set_window_128M;
-	adapter->pci_mem_read = netxen_nic_pci_mem_read_128M;
-	adapter->pci_mem_write = netxen_nic_pci_mem_write_128M;
-
 	/* 128 Meg of memory */
 	if (mem_len == NETXEN_PCI_128MB_SIZE) {
 		mem_ptr0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
@@ -667,14 +670,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
 			SECOND_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
 	} else if (mem_len == NETXEN_PCI_2MB_SIZE) {
-		adapter->hw_write_wx = netxen_nic_hw_write_wx_2M;
-		adapter->hw_read_wx = netxen_nic_hw_read_wx_2M;
-		adapter->pci_read_immediate = netxen_nic_pci_read_immediate_2M;
-		adapter->pci_write_immediate =
-			netxen_nic_pci_write_immediate_2M;
-		adapter->pci_set_window = netxen_nic_pci_set_window_2M;
-		adapter->pci_mem_read = netxen_nic_pci_mem_read_2M;
-		adapter->pci_mem_write = netxen_nic_pci_mem_write_2M;
 
 		mem_ptr0 = pci_ioremap_bar(pdev, 0);
 		if (mem_ptr0 == NULL) {
@@ -697,6 +692,8 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	} else {
 		return -EIO;
 	}
+
+	netxen_setup_hwops(adapter);
 
 	dev_info(&pdev->dev, "%dMB memory map\n", (int)(mem_len>>20));
 
@@ -990,8 +987,10 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		tx_ring = adapter->tx_ring;
-		tx_ring->crb_cmd_producer = crb_cmd_producer[adapter->portnum];
-		tx_ring->crb_cmd_consumer = crb_cmd_consumer[adapter->portnum];
+		tx_ring->crb_cmd_producer = netxen_get_ioaddr(adapter,
+				crb_cmd_producer[adapter->portnum]);
+		tx_ring->crb_cmd_consumer = netxen_get_ioaddr(adapter,
+				crb_cmd_consumer[adapter->portnum]);
 
 		tx_ring->producer = 0;
 		tx_ring->sw_consumer = 0;
@@ -1212,8 +1211,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error getting board config info.\n");
 		goto err_out_iounmap;
 	}
-
-	netxen_initialize_adapter_ops(adapter);
 
 	/* Mezz cards have PCI function 0,2,3 enabled */
 	switch (adapter->ahw.board_type) {
@@ -1870,41 +1867,37 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	struct netxen_adapter *adapter = sds_ring->adapter;
 	u32 status = 0;
 
-	status = adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+	status = readl(adapter->isr_int_vec);
 
-	if (!(status & adapter->legacy_intr.int_vec_bit))
+	if (!(status & adapter->int_vec_bit))
 		return IRQ_NONE;
 
-	if (adapter->ahw.revision_id >= NX_P3_B1) {
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		/* check interrupt state machine, to be sure */
-		status = adapter->pci_read_immediate(adapter,
-				ISR_INT_STATE_REG);
+		status = readl(adapter->crb_int_state_reg);
 		if (!ISR_LEGACY_INT_TRIGGERED(status))
 			return IRQ_NONE;
 
 	} else {
 		unsigned long our_int = 0;
 
-		our_int = NXRD32(adapter, CRB_INT_VECTOR);
+		our_int = readl(adapter->crb_int_state_reg);
 
 		/* not our interrupt */
 		if (!test_and_clear_bit((7 + adapter->portnum), &our_int))
 			return IRQ_NONE;
 
 		/* claim interrupt */
-		NXWR32(adapter, CRB_INT_VECTOR, (our_int & 0xffffffff));
+		writel((our_int & 0xffffffff), adapter->crb_int_state_reg);
+
+		/* clear interrupt */
+		netxen_nic_disable_int(sds_ring);
 	}
 
-	/* clear interrupt */
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		netxen_nic_disable_int(sds_ring);
-
-	adapter->pci_write_immediate(adapter,
-			adapter->legacy_intr.tgt_status_reg,
-			0xffffffff);
+	writel(0xffffffff, adapter->tgt_status_reg);
 	/* read twice to ensure write is flushed */
-	adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
-	adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+	readl(adapter->isr_int_vec);
+	readl(adapter->isr_int_vec);
 
 	napi_schedule(&sds_ring->napi);
 
@@ -1917,8 +1910,7 @@ static irqreturn_t netxen_msi_intr(int irq, void *data)
 	struct netxen_adapter *adapter = sds_ring->adapter;
 
 	/* clear interrupt */
-	adapter->pci_write_immediate(adapter,
-			adapter->msi_tgt_status, 0xffffffff);
+	writel(0xffffffff, adapter->tgt_status_reg);
 
 	napi_schedule(&sds_ring->napi);
 	return IRQ_HANDLED;
