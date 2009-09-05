@@ -1135,22 +1135,24 @@ static struct mcidev_sysfs_attribute i7core_inj_attrs[] = {
  *	i7core_put_devices	'put' all the devices that we have
  *				reserved via 'get'
  */
-static void i7core_put_devices(void)
+static void i7core_put_devices(struct i7core_dev *i7core_dev)
 {
-	int i, j;
+	int i;
 
-	for (i = 0; i < max_num_sockets; i++) {
-		struct i7core_dev *i7core_dev = get_i7core_dev(i);
-		if (!i7core_dev)
-			continue;
+	for (i = 0; i < N_DEVS; i++)
+		pci_dev_put(i7core_dev->pdev[i]);
 
-		for (j = 0; j < N_DEVS; j++)
-			pci_dev_put(i7core_dev->pdev[j]);
+	list_del(&i7core_dev->list);
+	kfree(i7core_dev->pdev);
+	kfree(i7core_dev);
+}
 
-		list_del(&i7core_dev->list);
-		kfree(i7core_dev->pdev);
-		kfree(i7core_dev);
-	}
+static void i7core_put_all_devices(void)
+{
+	struct i7core_dev *i7core_dev;
+
+	list_for_each_entry(i7core_dev, &i7core_edac_list, list)
+		i7core_put_devices(i7core_dev);
 }
 
 static void i7core_xeon_pci_fixup(void)
@@ -1292,7 +1294,7 @@ static int i7core_get_devices(void)
 		pdev = NULL;
 		do {
 			if (i7core_get_onedevice(&pdev, i) < 0) {
-				i7core_put_devices();
+				i7core_put_all_devices();
 				return -ENODEV;
 			}
 		} while (pdev);
@@ -1849,7 +1851,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	return 0;
 
 fail1:
-	i7core_put_devices();
+	i7core_put_all_devices();
 fail0:
 	mutex_unlock(&i7core_edac_lock);
 	return rc;
@@ -1863,6 +1865,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
+	struct i7core_dev *i7core_dev;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
 
@@ -1876,13 +1879,12 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 
 	/* Unregisters on edac_mce in order to receive memory errors */
 	pvt = mci->pvt_info;
+	i7core_dev = pvt->i7core_dev;
 	edac_mce_unregister(&pvt->edac_mce);
 
 	/* retrieve references to resources, and free those resources */
 	mutex_lock(&i7core_edac_lock);
-
-	/* FIXME: This should put the devices only for this mci!!! */
-	i7core_put_devices();
+	i7core_put_devices(i7core_dev);
 	mutex_unlock(&i7core_edac_lock);
 
 	kfree(mci->ctl_name);
