@@ -229,3 +229,10 @@ config BACKLIGHT_SAHARA
 	help
 	  If you have a Tabletkiosk Sahara Touch-iT, say y to enable the
 	  backlight driver.
+
+config BACKLIGHT_WM831X
+	tristate "WM831x PMIC Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_WM831X
+	help
+	  If you have a backlight driven by the ISINK and DCDC of a
+	  WM831x PMIC say y to enable the backlight driver for it.
