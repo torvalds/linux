@@ -1054,13 +1054,15 @@ static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
 		count = sprintf(data, "data unavailable\n");
 		return 0;
 	}
-	if (!pvt->is_registered)
+	if (!pvt->is_registered) {
 		count = sprintf(data, "all channels "
 				"UDIMM0: %lu UDIMM1: %lu UDIMM2: %lu\n",
 				pvt->udimm_ce_count[0],
 				pvt->udimm_ce_count[1],
 				pvt->udimm_ce_count[2]);
-	else
+		data  += count;
+		total += count;
+	} else {
 		for (i = 0; i < NUM_CHANS; i++) {
 			count = sprintf(data, "channel %d RDIMM0: %lu "
 					"RDIMM1: %lu RDIMM2: %lu\n",
@@ -1068,9 +1070,10 @@ static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
 					pvt->rdimm_ce_count[i][0],
 					pvt->rdimm_ce_count[i][1],
 					pvt->rdimm_ce_count[i][2]);
-				}
-	data  += count;
-	total += count;
+			data  += count;
+			total += count;
+		}
+	}
 
 	return total;
 }
