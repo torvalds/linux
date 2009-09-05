@@ -1352,6 +1352,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 	}
 
 	vma->vm_region = region;
+	add_nommu_region(region);
 
 	/* set up the mapping */
 	if (file && vma->vm_flags & VM_SHARED)
@@ -1360,8 +1361,6 @@ unsigned long do_mmap_pgoff(struct file *file,
 		ret = do_mmap_private(vma, region, len);
 	if (ret < 0)
 		goto error_put_region;
-
-	add_nommu_region(region);
 
 	/* okay... we have a mapping; now we have to register it */
 	result = vma->vm_start;
