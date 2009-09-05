@@ -25,7 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
-
+#include "pci.h"
 
 static void pbus_assign_resources_sorted(const struct pci_bus *bus)
 {
@@ -384,7 +384,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 				continue;
 			r_size = resource_size(r);
 			/* For bridges size != alignment */
-			align = resource_alignment(r);
+			align = pci_resource_alignment(dev, r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
 				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
