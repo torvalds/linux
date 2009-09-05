@@ -678,6 +678,9 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 
 
 	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		if (test_and_set_bit(__NX_FW_ATTACHED, &adapter->state))
+			goto done;
+
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;
@@ -690,6 +693,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			goto err_out_free;
 	}
 
+done:
 	return 0;
 
 err_out_free:
@@ -708,6 +712,9 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	int port = adapter->portnum;
 
 	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		if (!test_and_clear_bit(__NX_FW_ATTACHED, &adapter->state))
+			goto done;
+
 		nx_fw_cmd_destroy_rx_ctx(adapter);
 		nx_fw_cmd_destroy_tx_ctx(adapter);
 	} else {
@@ -720,6 +727,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	/* Allow dma queues to drain after context reset */
 	msleep(20);
 
+done:
 	recv_ctx = &adapter->recv_ctx;
 
 	if (recv_ctx->hwctx != NULL) {

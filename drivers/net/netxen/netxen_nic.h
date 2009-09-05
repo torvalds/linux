@@ -229,6 +229,8 @@
 #define MPORT_SINGLE_FUNCTION_MODE 0x1111
 #define MPORT_MULTI_FUNCTION_MODE 0x2222
 
+#define NX_MAX_PCI_FUNC		8
+
 /*
  * NetXen host-peg signal message structure
  *
@@ -1101,6 +1103,10 @@ typedef struct {
 #define NETXEN_ADAPTER_UP_MAGIC 777
 #define NETXEN_NIC_PEG_TUNE 0
 
+#define __NX_FW_ATTACHED		0
+#define __NX_DEV_UP			1
+#define __NX_RESETTING			2
+
 struct netxen_dummy_dma {
 	void *addr;
 	dma_addr_t phys_addr;
@@ -1137,7 +1143,9 @@ struct netxen_adapter {
 	u8 max_mc_count;
 	u8 rss_supported;
 	u8 link_changed;
-	u32 resv3;
+	u8 fw_wait_cnt;
+	u8 fw_fail_cnt;
+	u16 resv4;
 
 	u8 has_link_events;
 	u8 fw_type;
@@ -1156,7 +1164,7 @@ struct netxen_adapter {
 	u32 temp;
 
 	u32 msi_tgt_status;
-	u32 resv4;
+	u32 heartbit;
 
 	struct netxen_adapter_stats stats;
 
@@ -1187,14 +1195,15 @@ struct netxen_adapter {
 
 	struct netxen_dummy_dma dummy_dma;
 
-	struct work_struct watchdog_task;
-	struct timer_list watchdog_timer;
+	struct delayed_work fw_work;
+
 	struct work_struct  tx_timeout_task;
 
 	struct net_device_stats net_stats;
 
 	nx_nic_intr_coalesce_t coal;
 
+	unsigned long state;
 	u32 resv5;
 	u32 fw_version;
 	const struct firmware *fw;

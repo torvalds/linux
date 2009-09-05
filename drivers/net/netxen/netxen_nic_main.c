@@ -67,7 +67,10 @@ static netdev_tx_t netxen_nic_xmit_frame(struct sk_buff *,
 					       struct net_device *);
 static void netxen_tx_timeout(struct net_device *netdev);
 static void netxen_reset_task(struct work_struct *work);
-static void netxen_watchdog(unsigned long);
+static void netxen_fw_poll_work(struct work_struct *work);
+static void netxen_schedule_work(struct netxen_adapter *adapter,
+		work_func_t func, int delay);
+static void netxen_cancel_fw_work(struct netxen_adapter *adapter);
 static int netxen_nic_poll(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
@@ -75,6 +78,9 @@ static void netxen_nic_poll_controller(struct net_device *netdev);
 
 static void netxen_create_sysfs_entries(struct netxen_adapter *adapter);
 static void netxen_remove_sysfs_entries(struct netxen_adapter *adapter);
+
+static int nx_decr_dev_ref_cnt(struct netxen_adapter *adapter);
+static int netxen_can_start_firmware(struct netxen_adapter *adapter);
 
 static irqreturn_t netxen_intr(int irq, void *data);
 static irqreturn_t netxen_msi_intr(int irq, void *data);
@@ -729,19 +735,12 @@ err_out:
 }
 
 static int
-netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
+netxen_start_firmware(struct netxen_adapter *adapter)
 {
 	int val, err, first_boot;
 	struct pci_dev *pdev = adapter->pdev;
 
-	int first_driver = 0;
-
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		first_driver = (adapter->portnum == 0);
-	else
-		first_driver = (adapter->ahw.pci_func == 0);
-
-	if (!first_driver)
+	if (!netxen_can_start_firmware(adapter))
 		goto wait_init;
 
 	first_boot = NXRD32(adapter, NETXEN_CAM_RAM(0x1fc));
@@ -752,8 +751,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 		return err;
 	}
 
-	if (request_fw)
-		netxen_request_firmware(adapter);
+	netxen_request_firmware(adapter);
 
 	err = netxen_need_fw_reset(adapter);
 	if (err < 0)
@@ -768,12 +766,17 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 	}
 
 	NXWR32(adapter, CRB_DMA_SHIFT, 0x55555555);
+	NXWR32(adapter, NETXEN_PEG_HALT_STATUS1, 0);
+	NXWR32(adapter, NETXEN_PEG_HALT_STATUS2, 0);
+
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_set_port_mode(adapter);
 
 	err = netxen_load_firmware(adapter);
 	if (err)
 		goto err_out;
+
+	netxen_release_firmware(adapter);
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 
@@ -797,6 +800,8 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
 	NXWR32(adapter, CRB_DRIVER_VERSION, val);
 
+	NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_READY);
+
 wait_init:
 	/* Handshake with the card before we register the devices. */
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
@@ -808,6 +813,7 @@ wait_init:
 	nx_update_dma_mask(adapter);
 
 	netxen_nic_get_firmware_info(adapter);
+	netxen_check_options(adapter);
 
 	return 0;
 
@@ -915,8 +921,7 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	else
 		netxen_nic_set_link_parameters(adapter);
 
-	mod_timer(&adapter->watchdog_timer, jiffies);
-
+	set_bit(__NX_DEV_UP, &adapter->state);
 	return 0;
 }
 
@@ -925,6 +930,8 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return;
+
+	clear_bit(__NX_DEV_UP, &adapter->state);
 
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
@@ -942,8 +949,6 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 
 	netxen_release_tx_buffers(adapter);
 	spin_unlock(&adapter->tx_clean_lock);
-
-	del_timer_sync(&adapter->watchdog_timer);
 }
 
 
@@ -973,8 +978,6 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 				netdev->name);
 		return err;
 	}
-
-	netxen_nic_clear_stats(adapter);
 
 	err = netxen_alloc_hw_resources(adapter);
 	if (err) {
@@ -1046,21 +1049,32 @@ netxen_nic_reset_context(struct netxen_adapter *adapter)
 	int err = 0;
 	struct net_device *netdev = adapter->netdev;
 
+	if (test_and_set_bit(__NX_RESETTING, &adapter->state))
+		return -EBUSY;
+
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
+
+		netif_device_detach(netdev);
 
 		if (netif_running(netdev))
 			netxen_nic_down(adapter, netdev);
 
 		netxen_nic_detach(adapter);
 
-		err = netxen_nic_attach(adapter);
-		if (err)
-			goto done;
+		if (netif_running(netdev)) {
+			err = netxen_nic_attach(adapter);
+			if (!err)
+				err = netxen_nic_up(adapter, netdev);
 
-		if (netif_running(netdev))
-			err = netxen_nic_up(adapter, netdev);
+			if (err)
+				goto done;
+		}
+
+		netif_device_attach(netdev);
 	}
+
 done:
+	clear_bit(__NX_RESETTING, &adapter->state);
 	return err;
 }
 
@@ -1107,10 +1121,6 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &netxen_watchdog;
-	adapter->watchdog_timer.data = (unsigned long)adapter;
-	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	INIT_WORK(&adapter->tx_timeout_task, netxen_reset_task);
 
 	if (netxen_read_mac_addr(adapter))
@@ -1214,7 +1224,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	err = netxen_start_firmware(adapter, 1);
+	err = netxen_start_firmware(adapter);
 	if (err)
 		goto err_out_iounmap;
 
@@ -1228,7 +1238,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			adapter->physical_port = i;
 	}
 
-	netxen_check_options(adapter);
+	netxen_nic_clear_stats(adapter);
 
 	netxen_setup_intr(adapter);
 
@@ -1237,6 +1247,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_disable_msi;
 
 	pci_set_drvdata(pdev, adapter);
+
+	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
 
 	switch (adapter->ahw.port_type) {
 	case NETXEN_NIC_GBE:
@@ -1255,6 +1267,8 @@ err_out_disable_msi:
 	netxen_teardown_intr(adapter);
 
 	netxen_free_dummy_dma(adapter);
+
+	nx_decr_dev_ref_cnt(adapter);
 
 err_out_iounmap:
 	netxen_cleanup_pci_map(adapter);
@@ -1282,15 +1296,20 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netdev = adapter->netdev;
 
+	netxen_cancel_fw_work(adapter);
+
 	unregister_netdev(netdev);
 
-	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->tx_timeout_task);
 
 	netxen_nic_detach(adapter);
 
+	nx_decr_dev_ref_cnt(adapter);
+
 	if (adapter->portnum == 0)
 		netxen_free_dummy_dma(adapter);
+
+	clear_bit(__NX_RESETTING, &adapter->state);
 
 	netxen_teardown_intr(adapter);
 
@@ -1312,16 +1331,21 @@ static int __netxen_nic_shutdown(struct pci_dev *pdev)
 
 	netif_device_detach(netdev);
 
+	netxen_cancel_fw_work(adapter);
+
 	if (netif_running(netdev))
 		netxen_nic_down(adapter, netdev);
 
-	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->tx_timeout_task);
 
 	netxen_nic_detach(adapter);
 
 	if (adapter->portnum == 0)
 		netxen_free_dummy_dma(adapter);
+
+	nx_decr_dev_ref_cnt(adapter);
+
+	clear_bit(__NX_RESETTING, &adapter->state);
 
 	retval = pci_save_state(pdev);
 	if (retval)
@@ -1371,7 +1395,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 
 	adapter->curr_window = 255;
 
-	err = netxen_start_firmware(adapter, 0);
+	err = netxen_start_firmware(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "failed to start firmware\n");
 		return err;
@@ -1380,16 +1404,22 @@ netxen_nic_resume(struct pci_dev *pdev)
 	if (netif_running(netdev)) {
 		err = netxen_nic_attach(adapter);
 		if (err)
-			return err;
+			goto err_out;
 
 		err = netxen_nic_up(adapter, netdev);
 		if (err)
-			return err;
+			goto err_out_detach;
 
 		netif_device_attach(netdev);
 	}
 
-	return 0;
+	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
+
+err_out_detach:
+	netxen_nic_detach(adapter);
+err_out:
+	nx_decr_dev_ref_cnt(adapter);
+	return err;
 }
 #endif
 
@@ -1783,58 +1813,12 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 	netxen_advert_link_change(adapter, linkup);
 }
 
-static void netxen_nic_thermal_shutdown(struct netxen_adapter *adapter)
-{
-	struct net_device *netdev = adapter->netdev;
-
-	netif_device_detach(netdev);
-	netxen_nic_down(adapter, netdev);
-	netxen_nic_detach(adapter);
-}
-
-static void netxen_watchdog(unsigned long v)
-{
-	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
-
-	if (netxen_nic_check_temp(adapter))
-		goto do_sched;
-
-	if (!adapter->has_link_events) {
-		netxen_nic_handle_phy_intr(adapter);
-
-		if (adapter->link_changed)
-			goto do_sched;
-	}
-
-	if (netif_running(adapter->netdev))
-		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
-
-	return;
-
-do_sched:
-	schedule_work(&adapter->watchdog_task);
-}
-
-void netxen_watchdog_task(struct work_struct *work)
-{
-	struct netxen_adapter *adapter =
-		container_of(work, struct netxen_adapter, watchdog_task);
-
-	if (adapter->temp == NX_TEMP_PANIC) {
-		netxen_nic_thermal_shutdown(adapter);
-		return;
-	}
-
-	if (adapter->link_changed)
-		netxen_nic_set_link_parameters(adapter);
-
-	if (netif_running(adapter->netdev))
-		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
-}
-
 static void netxen_tx_timeout(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
+
+	if (test_bit(__NX_RESETTING, &adapter->state))
+		return;
 
 	dev_err(&netdev->dev, "transmit timeout, resetting.\n");
 	schedule_work(&adapter->tx_timeout_task);
@@ -1846,6 +1830,9 @@ static void netxen_reset_task(struct work_struct *work)
 		container_of(work, struct netxen_adapter, tx_timeout_task);
 
 	if (!netif_running(adapter->netdev))
+		return;
+
+	if (test_bit(__NX_RESETTING, &adapter->state))
 		return;
 
 	netxen_napi_disable(adapter);
@@ -1973,6 +1960,239 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 	enable_irq(adapter->irq);
 }
 #endif
+
+static int
+nx_incr_dev_ref_cnt(struct netxen_adapter *adapter)
+{
+	int count;
+	if (netxen_api_lock(adapter))
+		return -EIO;
+
+	count = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
+
+	NXWR32(adapter, NX_CRB_DEV_REF_COUNT, ++count);
+
+	netxen_api_unlock(adapter);
+	return count;
+}
+
+static int
+nx_decr_dev_ref_cnt(struct netxen_adapter *adapter)
+{
+	int count;
+	if (netxen_api_lock(adapter))
+		return -EIO;
+
+	count = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
+	WARN_ON(count == 0);
+
+	NXWR32(adapter, NX_CRB_DEV_REF_COUNT, --count);
+
+	if (count == 0)
+		NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_COLD);
+
+	netxen_api_unlock(adapter);
+	return count;
+}
+
+static int
+netxen_can_start_firmware(struct netxen_adapter *adapter)
+{
+	int count;
+	int can_start = 0;
+
+	if (netxen_api_lock(adapter))
+		return 0;
+
+	count = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
+
+	if ((count < 0) || (count >= NX_MAX_PCI_FUNC))
+		count = 0;
+
+	if (count == 0) {
+		can_start = 1;
+		NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_INITALIZING);
+	}
+
+	NXWR32(adapter, NX_CRB_DEV_REF_COUNT, ++count);
+
+	netxen_api_unlock(adapter);
+
+	return can_start;
+}
+
+static void
+netxen_schedule_work(struct netxen_adapter *adapter,
+		work_func_t func, int delay)
+{
+	INIT_DELAYED_WORK(&adapter->fw_work, func);
+	schedule_delayed_work(&adapter->fw_work, delay);
+}
+
+static void
+netxen_cancel_fw_work(struct netxen_adapter *adapter)
+{
+	while (test_and_set_bit(__NX_RESETTING, &adapter->state))
+		msleep(10);
+
+	cancel_delayed_work_sync(&adapter->fw_work);
+}
+
+static void
+netxen_attach_work(struct work_struct *work)
+{
+	struct netxen_adapter *adapter = container_of(work,
+				struct netxen_adapter, fw_work.work);
+	struct net_device *netdev = adapter->netdev;
+	int err = 0;
+
+	if (netif_running(netdev)) {
+		err = netxen_nic_attach(adapter);
+		if (err)
+			goto done;
+
+		err = netxen_nic_up(adapter, netdev);
+		if (err) {
+			netxen_nic_detach(adapter);
+			goto done;
+		}
+
+	}
+
+	netif_device_attach(netdev);
+
+done:
+	adapter->fw_fail_cnt = 0;
+	clear_bit(__NX_RESETTING, &adapter->state);
+	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
+}
+
+static void
+netxen_fwinit_work(struct work_struct *work)
+{
+	struct netxen_adapter *adapter = container_of(work,
+				struct netxen_adapter, fw_work.work);
+	int dev_state;
+
+	dev_state = NXRD32(adapter, NX_CRB_DEV_STATE);
+
+	switch (dev_state) {
+	case NX_DEV_COLD:
+	case NX_DEV_READY:
+		netxen_start_firmware(adapter);
+		netxen_schedule_work(adapter, netxen_attach_work, 0);
+		return;
+
+	case NX_DEV_INITALIZING:
+		if (++adapter->fw_wait_cnt < FW_POLL_THRESH) {
+			netxen_schedule_work(adapter,
+					netxen_fwinit_work, 2 * FW_POLL_DELAY);
+			return;
+		}
+		break;
+
+	case NX_DEV_FAILED:
+	default:
+		break;
+	}
+
+	nx_incr_dev_ref_cnt(adapter);
+	clear_bit(__NX_RESETTING, &adapter->state);
+}
+
+static void
+netxen_detach_work(struct work_struct *work)
+{
+	struct netxen_adapter *adapter = container_of(work,
+				struct netxen_adapter, fw_work.work);
+	struct net_device *netdev = adapter->netdev;
+	int ref_cnt, delay;
+	u32 status;
+
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev))
+		netxen_nic_down(adapter, netdev);
+
+	netxen_nic_detach(adapter);
+
+	status = NXRD32(adapter, NETXEN_PEG_HALT_STATUS1);
+
+	ref_cnt = nx_decr_dev_ref_cnt(adapter);
+
+	if (status & NX_RCODE_FATAL_ERROR)
+		return;
+
+	if (adapter->temp == NX_TEMP_PANIC)
+		return;
+
+	delay = (ref_cnt == 0) ? 0 : (2 * FW_POLL_DELAY);
+
+	adapter->fw_wait_cnt = 0;
+	netxen_schedule_work(adapter, netxen_fwinit_work, delay);
+}
+
+static int
+netxen_check_health(struct netxen_adapter *adapter)
+{
+	u32 state, heartbit;
+	struct net_device *netdev = adapter->netdev;
+
+	if (netxen_nic_check_temp(adapter))
+		goto detach;
+
+	state = NXRD32(adapter, NX_CRB_DEV_STATE);
+	if (state == NX_DEV_NEED_RESET)
+		goto detach;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 0;
+
+	heartbit = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+	if (heartbit != adapter->heartbit) {
+		adapter->heartbit = heartbit;
+		adapter->fw_fail_cnt = 0;
+		return 0;
+	}
+
+	if (++adapter->fw_fail_cnt < FW_FAIL_THRESH)
+		return 0;
+
+	clear_bit(__NX_FW_ATTACHED, &adapter->state);
+
+	dev_info(&netdev->dev, "firmware hang detected\n");
+
+detach:
+	if (!test_and_set_bit(__NX_RESETTING, &adapter->state))
+		netxen_schedule_work(adapter, netxen_detach_work, 0);
+	return 1;
+}
+
+static void
+netxen_fw_poll_work(struct work_struct *work)
+{
+	struct netxen_adapter *adapter = container_of(work,
+				struct netxen_adapter, fw_work.work);
+
+	if (test_bit(__NX_RESETTING, &adapter->state))
+		goto reschedule;
+
+	if (test_bit(__NX_DEV_UP, &adapter->state)) {
+		if (!adapter->has_link_events) {
+
+			netxen_nic_handle_phy_intr(adapter);
+
+			if (adapter->link_changed)
+				netxen_nic_set_link_parameters(adapter);
+		}
+	}
+
+	if (netxen_check_health(adapter))
+		return;
+
+reschedule:
+	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
+}
 
 static ssize_t
 netxen_store_bridged_mode(struct device *dev,
