@@ -152,6 +152,7 @@ ALC882/883/885/888/889
   3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
   6stack-dell	Dell machines with 6stack (Inspiron 530)
   mitac		Mitac 8252D
+  clevo-m540r	Clevo M540R (6ch + digital)
   clevo-m720	Clevo M720 laptop series
   fujitsu-pi2515 Fujitsu AMILO Pi2515
   fujitsu-xa3530 Fujitsu AMILO XA3530

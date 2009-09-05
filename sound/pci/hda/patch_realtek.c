@@ -232,6 +232,7 @@ enum {
 	ALC888_3ST_HP,
 	ALC888_6ST_DELL,
 	ALC883_MITAC,
+	ALC883_CLEVO_M540R,
 	ALC883_CLEVO_M720,
 	ALC883_FUJITSU_PI2515,
 	ALC888_FUJITSU_XA3530,
@@ -6657,6 +6658,52 @@ static struct hda_channel_mode alc882_3ST_6ch_modes[3] = {
 #define alc883_3ST_6ch_modes	alc882_3ST_6ch_modes
 
 /*
+ * 2ch mode
+ */
+static struct hda_verb alc883_3ST_ch2_clevo_init[] = {
+	{ 0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ } /* end */
+};
+
+/*
+ * 4ch mode
+ */
+static struct hda_verb alc883_3ST_ch4_clevo_init[] = {
+	{ 0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+/*
+ * 6ch mode
+ */
+static struct hda_verb alc883_3ST_ch6_clevo_init[] = {
+	{ 0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+static struct hda_channel_mode alc883_3ST_6ch_clevo_modes[3] = {
+	{ 2, alc883_3ST_ch2_clevo_init },
+	{ 4, alc883_3ST_ch4_clevo_init },
+	{ 6, alc883_3ST_ch6_clevo_init },
+};
+
+
+/*
  * 6ch mode
  */
 static struct hda_verb alc882_sixstack_ch6_init[] = {
@@ -8134,6 +8181,22 @@ static struct hda_verb alc883_mitac_verbs[] = {
 	{ } /* end */
 };
 
+static struct hda_verb alc883_clevo_m540r_verbs[] = {
+	/* HP */
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	/* Int speaker */
+	/*{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},*/
+
+	/* enable unsolicited event */
+	/*
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_MIC_EVENT | AC_USRSP_EN},
+	*/
+
+	{ } /* end */
+};
+
 static struct hda_verb alc883_clevo_m720_verbs[] = {
 	/* HP */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -8670,6 +8733,7 @@ static const char *alc882_models[ALC882_MODEL_LAST] = {
 	[ALC888_3ST_HP]		= "3stack-hp",
 	[ALC888_6ST_DELL]	= "6stack-dell",
 	[ALC883_MITAC]		= "mitac",
+	[ALC883_CLEVO_M540R]	= "clevo-m540r",
 	[ALC883_CLEVO_M720]	= "clevo-m720",
 	[ALC883_FUJITSU_PI2515] = "fujitsu-pi2515",
 	[ALC888_FUJITSU_XA3530] = "fujitsu-xa3530",
@@ -8776,6 +8840,7 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x147b, 0x1083, "Abit IP35-PRO", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1558, 0x0721, "Clevo laptop M720R", ALC883_CLEVO_M720),
 	SND_PCI_QUIRK(0x1558, 0x0722, "Clevo laptop M720SR", ALC883_CLEVO_M720),
+	SND_PCI_QUIRK(0x1558, 0x5409, "Clevo laptop M540R", ALC883_CLEVO_M540R),
 	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo laptop", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
 	/* SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA), */
@@ -9263,6 +9328,21 @@ static struct alc_config_preset alc882_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
 		.channel_mode = alc883_3ST_2ch_modes,
 		.input_mux = &alc883_capture_source,
+	},
+	[ALC883_CLEVO_M540R] = {
+		.mixers = { alc883_3ST_6ch_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc883_clevo_m540r_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.dig_out_nid = ALC883_DIGOUT_NID,
+		.dig_in_nid = ALC883_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_clevo_modes),
+		.channel_mode = alc883_3ST_6ch_clevo_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc883_capture_source,
+		/* This machine has the hardware HP auto-muting, thus
+		 * we need no software mute via unsol event
+		 */
 	},
 	[ALC883_CLEVO_M720] = {
 		.mixers = { alc883_clevo_m720_mixer },
