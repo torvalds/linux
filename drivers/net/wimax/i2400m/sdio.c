@@ -550,6 +550,8 @@ const struct sdio_device_id i2400ms_sdio_ids[] = {
 	/* Intel: i2400m WiMAX (iwmc3200) over SDIO */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL,
 		      SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL,
+		      SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX_2G5) },
 	{ /* end: all zeroes */ },
 };
 MODULE_DEVICE_TABLE(sdio, i2400ms_sdio_ids);
