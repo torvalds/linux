@@ -109,12 +109,9 @@ inline void iscsi_conn_queue_work(struct iscsi_conn *conn)
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_queue_work);
 
-void
-iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
+static void __iscsi_update_cmdsn(struct iscsi_session *session,
+				 uint32_t exp_cmdsn, uint32_t max_cmdsn)
 {
-	uint32_t max_cmdsn = be32_to_cpu(hdr->max_cmdsn);
-	uint32_t exp_cmdsn = be32_to_cpu(hdr->exp_cmdsn);
-
 	/*
 	 * standard specifies this check for when to update expected and
 	 * max sequence numbers
@@ -137,6 +134,12 @@ iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 		    !list_empty(&session->leadconn->mgmtqueue))
 			iscsi_conn_queue_work(session->leadconn);
 	}
+}
+
+void iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
+{
+	__iscsi_update_cmdsn(session, be32_to_cpu(hdr->exp_cmdsn),
+			     be32_to_cpu(hdr->max_cmdsn));
 }
 EXPORT_SYMBOL_GPL(iscsi_update_cmdsn);
 
@@ -498,6 +501,31 @@ static void iscsi_complete_task(struct iscsi_task *task, int state)
 	/* release get from queueing */
 	__iscsi_put_task(task);
 }
+
+/**
+ * iscsi_complete_scsi_task - finish scsi task normally
+ * @task: iscsi task for scsi cmd
+ * @exp_cmdsn: expected cmd sn in cpu format
+ * @max_cmdsn: max cmd sn in cpu format
+ *
+ * This is used when drivers do not need or cannot perform
+ * lower level pdu processing.
+ *
+ * Called with session lock
+ */
+void iscsi_complete_scsi_task(struct iscsi_task *task,
+			      uint32_t exp_cmdsn, uint32_t max_cmdsn)
+{
+	struct iscsi_conn *conn = task->conn;
+
+	ISCSI_DBG_SESSION(conn->session, "[itt 0x%x]\n", task->itt);
+
+	conn->last_recv = jiffies;
+	__iscsi_update_cmdsn(conn->session, exp_cmdsn, max_cmdsn);
+	iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
+}
+EXPORT_SYMBOL_GPL(iscsi_complete_scsi_task);
+
 
 /*
  * session lock must be held and if not called for a task that is

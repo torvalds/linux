@@ -415,6 +415,8 @@ extern struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *, itt_t);
 extern void iscsi_requeue_task(struct iscsi_task *task);
 extern void iscsi_put_task(struct iscsi_task *task);
 extern void __iscsi_get_task(struct iscsi_task *task);
+extern void iscsi_complete_scsi_task(struct iscsi_task *task,
+				     uint32_t exp_cmdsn, uint32_t max_cmdsn);
 
 /*
  * generic helpers
