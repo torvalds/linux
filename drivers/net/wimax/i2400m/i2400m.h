@@ -421,6 +421,9 @@ struct i2400m_barker_db;
  * @fw_version: version of the firmware interface, Major.minor,
  *     encoded in the high word and low word (major << 16 | minor).
  *
+ * @fw_hdrs: NULL terminated array of pointers to the firmware
+ *     headers. This is only available during firmware load time.
+ *
  * @barker: barker type that the device uses; this is initialized by
  *     i2400m_is_boot_barker() the first time it is called. Then it
  *     won't change during the life cycle of the device and everytime
@@ -491,6 +494,7 @@ struct i2400m {
 	struct dentry *debugfs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
+	const struct i2400m_bcf_hdr **fw_hdrs;
 	struct i2400m_barker_db *barker;
 };
 
