@@ -86,6 +86,8 @@ static irqreturn_t netxen_intr(int irq, void *data);
 static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
+static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
+
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
 	{PCI_DEVICE(PCI_VENDOR_ID_NETXEN, (device)), \
@@ -1411,6 +1413,8 @@ netxen_nic_resume(struct pci_dev *pdev)
 			goto err_out_detach;
 
 		netif_device_attach(netdev);
+
+		netxen_config_indev_addr(netdev, NETDEV_UP);
 	}
 
 	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
@@ -2057,6 +2061,7 @@ netxen_attach_work(struct work_struct *work)
 			goto done;
 		}
 
+		netxen_config_indev_addr(netdev, NETDEV_UP);
 	}
 
 	netif_device_attach(netdev);
@@ -2282,36 +2287,18 @@ netxen_destip_supported(struct netxen_adapter *adapter)
 	return 1;
 }
 
-static int netxen_netdev_event(struct notifier_block *this,
-				 unsigned long event, void *ptr)
+static void
+netxen_config_indev_addr(struct net_device *dev, unsigned long event)
 {
-	struct netxen_adapter *adapter;
-	struct net_device *dev = (struct net_device *)ptr;
 	struct in_device *indev;
+	struct netxen_adapter *adapter = netdev_priv(dev);
 
-recheck:
-	if (dev == NULL)
-		goto done;
-
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
-		dev = vlan_dev_real_dev(dev);
-		goto recheck;
-	}
-
-	if (!is_netxen_netdev(dev))
-		goto done;
-
-	adapter = netdev_priv(dev);
-
-	if (!adapter || !netxen_destip_supported(adapter))
-		goto done;
-
-	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
-		goto done;
+	if (netxen_destip_supported(adapter))
+		return;
 
 	indev = in_dev_get(dev);
 	if (!indev)
-		goto done;
+		return;
 
 	for_ifa(indev) {
 		switch (event) {
@@ -2329,6 +2316,36 @@ recheck:
 	} endfor_ifa(indev);
 
 	in_dev_put(indev);
+	return;
+}
+
+static int netxen_netdev_event(struct notifier_block *this,
+				 unsigned long event, void *ptr)
+{
+	struct netxen_adapter *adapter;
+	struct net_device *dev = (struct net_device *)ptr;
+
+recheck:
+	if (dev == NULL)
+		goto done;
+
+	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+		dev = vlan_dev_real_dev(dev);
+		goto recheck;
+	}
+
+	if (!is_netxen_netdev(dev))
+		goto done;
+
+	adapter = netdev_priv(dev);
+
+	if (!adapter)
+		goto done;
+
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		goto done;
+
+	netxen_config_indev_addr(dev, event);
 done:
 	return NOTIFY_DONE;
 }
