@@ -74,7 +74,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int zylonite_wm9713_init(struct snd_soc_codec *codec)
 {
 	if (clk_pout)
-		snd_soc_dai_set_pll(&codec->dai[0], 0, clk_get_rate(pout), 0);
+		snd_soc_dai_set_pll(&codec->dai[0], 0, 0,
+				    clk_get_rate(pout), 0);
 
 	snd_soc_dapm_new_controls(codec, zylonite_dapm_widgets,
 				  ARRAY_SIZE(zylonite_dapm_widgets));
@@ -128,7 +129,7 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, pll_out);
+	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, pll_out);
 	if (ret < 0)
 		return ret;
 

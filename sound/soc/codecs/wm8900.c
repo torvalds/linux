@@ -814,8 +814,8 @@ reenable:
 	return 0;
 }
 
-static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	return wm8900_set_fll(codec_dai->codec, pll_id, freq_in, freq_out);
 }

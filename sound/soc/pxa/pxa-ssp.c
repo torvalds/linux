@@ -305,8 +305,8 @@ static int pxa_ssp_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 /*
  * Configure the PLL frequency pxa27x and (afaik - pxa320 only)
  */
-static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai,
-	int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
+	int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
 	struct ssp_device *ssp = priv->dev.ssp;

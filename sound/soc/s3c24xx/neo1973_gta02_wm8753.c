@@ -119,7 +119,7 @@ static int neo1973_gta02_hifi_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* codec PLL input is PCLK/4 */
-	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL1,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0,
 		iis_clkrate / 4, pll_out);
 	if (ret < 0)
 		return ret;

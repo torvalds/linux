@@ -2197,16 +2197,18 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_clkdiv);
  * snd_soc_dai_set_pll - configure DAI PLL.
  * @dai: DAI
  * @pll_id: DAI specific PLL ID
+ * @source: DAI specific source for the PLL
  * @freq_in: PLL input clock frequency in Hz
  * @freq_out: requested PLL output clock frequency in Hz
  *
  * Configures and enables PLL to generate output clock based on input clock.
  */
-int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
-	int pll_id, unsigned int freq_in, unsigned int freq_out)
+int snd_soc_dai_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
+	unsigned int freq_in, unsigned int freq_out)
 {
 	if (dai->ops && dai->ops->set_pll)
-		return dai->ops->set_pll(dai, pll_id, freq_in, freq_out);
+		return dai->ops->set_pll(dai, pll_id, source,
+					 freq_in, freq_out);
 	else
 		return -EINVAL;
 }

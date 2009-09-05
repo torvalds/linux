@@ -1101,7 +1101,7 @@ static inline int fll_factors(struct _fll_div *fll_div, unsigned int input,
 }
 
 static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
-			  int pll_id, unsigned int freq_in,
+			  int pll_id, int source, unsigned int freq_in,
 			  unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
