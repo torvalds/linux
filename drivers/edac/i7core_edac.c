@@ -1681,8 +1681,13 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 		return 0;
 
 	/* Only handle if it is the right mc controller */
-	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket)
+	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket) {
+		debugf0("mc%d: ignoring mce log for socket %d. "
+			"Another mc should get it.\n",
+			pvt->i7core_dev->socket,
+			cpu_data(mce->cpu).phys_proc_id);
 		return 0;
+	}
 
 	spin_lock_irqsave(&pvt->mce_lock, flags);
 	if (pvt->mce_count < MCE_LOG_LEN) {
