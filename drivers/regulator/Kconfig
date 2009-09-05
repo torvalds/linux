@@ -52,7 +52,7 @@ config REGULATOR_USERSPACE_CONSUMER
 	default n
 	help
 	  There are some classes of devices that are controlled entirely
-	  from user space. Usersapce consumer driver provides ability to
+	  from user space. Userspace consumer driver provides ability to
 	  control power supplies for such devices.
 
           If unsure, say no.
