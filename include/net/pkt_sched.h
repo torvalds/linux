@@ -61,8 +61,8 @@ psched_tdiff_bounded(psched_time_t tv1, psched_time_t tv2, psched_time_t bound)
 }
 
 struct qdisc_watchdog {
-	struct tasklet_hrtimer	timer;
-	struct Qdisc		*qdisc;
+	struct hrtimer	timer;
+	struct Qdisc	*qdisc;
 };
 
 extern void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);

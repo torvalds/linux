@@ -491,6 +491,7 @@ static int gfar_remove(struct of_device *ofdev)
 
 	dev_set_drvdata(&ofdev->dev, NULL);
 
+	unregister_netdev(dev);
 	iounmap(priv->regs);
 	free_netdev(priv->ndev);
 

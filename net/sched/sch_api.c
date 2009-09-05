@@ -458,7 +458,7 @@ EXPORT_SYMBOL(qdisc_warn_nonwc);
 static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 {
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
-						 timer.timer);
+						 timer);
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	__netif_schedule(qdisc_root(wd->qdisc));
@@ -468,8 +468,8 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 {
-	tasklet_hrtimer_init(&wd->timer, qdisc_watchdog,
-			     CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	wd->timer.function = qdisc_watchdog;
 	wd->qdisc = qdisc;
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
@@ -485,13 +485,13 @@ void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 	wd->qdisc->flags |= TCQ_F_THROTTLED;
 	time = ktime_set(0, 0);
 	time = ktime_add_ns(time, PSCHED_TICKS2NS(expires));
-	tasklet_hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
+	hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
 }
 EXPORT_SYMBOL(qdisc_watchdog_schedule);
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
-	tasklet_hrtimer_cancel(&wd->timer);
+	hrtimer_cancel(&wd->timer);
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 }
 EXPORT_SYMBOL(qdisc_watchdog_cancel);
@@ -1456,6 +1456,8 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
 	tcm = NLMSG_DATA(nlh);
 	tcm->tcm_family = AF_UNSPEC;
+	tcm->tcm__pad1 = 0;
+	tcm->tcm__pad2 = 0;
 	tcm->tcm_ifindex = qdisc_dev(q)->ifindex;
 	tcm->tcm_parent = q->handle;
 	tcm->tcm_handle = q->handle;
