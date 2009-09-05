@@ -1270,11 +1270,10 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno)
 		return -ENODEV;
 	}
 
-	i7core_printk(KERN_INFO,
-			"Registered socket %d "
-			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-			socket, bus, pci_dev_descr[devno].dev, pci_dev_descr[devno].func,
-			PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id);
+	debugf0("Detected socket %d dev %02x:%02x.%d PCI ID %04x:%04x\n",
+		socket, bus, pci_dev_descr[devno].dev,
+		pci_dev_descr[devno].func,
+		PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id);
 
 	*prev = pdev;
 
@@ -1713,7 +1712,8 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	int rc;
 
 	/* allocate a new MC control structure */
-	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
+	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels,
+			    i7core_dev->socket);
 	if (unlikely(!mci))
 		return -ENOMEM;
 
@@ -1724,7 +1724,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
-	mci->mc_idx = 0;
 
 	/*
 	 * FIXME: how to handle RDDR3 at MCI level? It is possible to have
@@ -1815,7 +1814,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	struct i7core_dev *i7core_dev;
 
 	/*
-	 * FIXME: All memory controllers are allocated at the first pass.
+	 * All memory controllers are allocated at the first pass.
 	 */
 	if (unlikely(dev_idx >= 1))
 		return -EINVAL;
@@ -1836,7 +1835,9 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 		if (unlikely(rc < 0))
 			goto fail1;
 
-		i7core_register_mci(i7core_dev, channels, csrows);
+		rc = i7core_register_mci(i7core_dev, channels, csrows);
+		if (unlikely(rc < 0))
+			goto fail1;
 	}
 
 	i7core_printk(KERN_INFO, "Driver loaded.\n");
@@ -1876,6 +1877,8 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 
 	/* retrieve references to resources, and free those resources */
 	mutex_lock(&i7core_edac_lock);
+
+	/* FIXME: This should put the devices only for this mci!!! */
 	i7core_put_devices();
 	mutex_unlock(&i7core_edac_lock);
 
