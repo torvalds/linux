@@ -1571,6 +1571,12 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		goto fault;
 	}
 
+	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx)) {
+		reason = FAILURE_SESSION_IN_RECOVERY;
+		sc->result = DID_REQUEUE;
+		goto fault;
+	}
+
 	if (iscsi_check_cmdsn_window_closed(conn)) {
 		reason = FAILURE_WINDOW_CLOSED;
 		goto reject;
@@ -1810,6 +1816,33 @@ static void fail_scsi_tasks(struct iscsi_conn *conn, unsigned lun,
 	}
 }
 
+/**
+ * iscsi_suspend_queue - suspend iscsi_queuecommand
+ * @conn: iscsi conn to stop queueing IO on
+ *
+ * This grabs the session lock to make sure no one is in
+ * xmit_task/queuecommand, and then sets suspend to prevent
+ * new commands from being queued. This only needs to be called
+ * by offload drivers that need to sync a path like ep disconnect
+ * with the iscsi_queuecommand/xmit_task. To start IO again libiscsi
+ * will call iscsi_start_tx and iscsi_unblock_session when in FFP.
+ */
+void iscsi_suspend_queue(struct iscsi_conn *conn)
+{
+	spin_lock_bh(&conn->session->lock);
+	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
+	spin_unlock_bh(&conn->session->lock);
+}
+EXPORT_SYMBOL_GPL(iscsi_suspend_queue);
+
+/**
+ * iscsi_suspend_tx - suspend iscsi_data_xmit
+ * @conn: iscsi conn tp stop processing IO on.
+ *
+ * This function sets the suspend bit to prevent iscsi_data_xmit
+ * from sending new IO, and if work is queued on the xmit thread
+ * it will wait for it to be completed.
+ */
 void iscsi_suspend_tx(struct iscsi_conn *conn)
 {
 	struct Scsi_Host *shost = conn->session->host;
