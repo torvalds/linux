@@ -86,13 +86,13 @@ config LOGO_TITS_CLUT224
 	depends on LOGO
 	default y
 
-config LOGO_BSDOLD_CLUT224
+config LOGO_BSD_CLUT224
 	bool "224-color BSD Devil logo"
 	depends on LOGO
 	default y
 
-config LOGO_BSDNEW_CLUT224
-	bool "224-color BSD New Style logo"
+config LOGO_FBSD_CLUT224
+	bool "224-color FreeBSD logo"
 	depends on LOGO
 	default y
 
