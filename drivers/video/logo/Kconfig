@@ -86,6 +86,11 @@ config LOGO_TITS_CLUT224
 	depends on LOGO
 	default y
 
+config LOGO_BSDOLD_CLUT224
+	bool "224-color BSD Devil logo"
+	depends on LOGO
+	default y
+
 config LOGO_DEC_CLUT224
 	bool "224-color Digital Equipment Corporation Linux logo"
 	depends on MACH_DECSTATION || ALPHA

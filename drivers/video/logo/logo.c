@@ -103,6 +103,10 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* Tits logo */
 		logo = &logo_tits_clut224;
 #endif
+#ifdef CONFIG_LOGO_BSDOLD_CLUT224
+		/* Old BSD logo */
+		logo = &logo_bsdold_clut224
+#endif
 #ifdef CONFIG_LOGO_LINUX_CLUT224
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
