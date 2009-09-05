@@ -192,10 +192,9 @@ struct i7core_channel {
 };
 
 struct pci_id_descr {
-	int		dev;
-	int		func;
-	int 		dev_id;
-	struct pci_dev	*pdev[NUM_SOCKETS];
+	int			dev;
+	int			func;
+	int 			dev_id;
 };
 
 struct i7core_pvt {
@@ -229,6 +228,17 @@ struct i7core_pvt {
 	spinlock_t		mce_lock;
 };
 
+struct i7core_dev {
+	struct list_head           list;
+
+	int socket;
+	struct pci_dev **pdev;
+};
+
+/* Static vars */
+static LIST_HEAD(i7core_edac_list);
+static DEFINE_MUTEX(i7core_edac_lock);
+
 /* Device name and register DID (Device ID) */
 struct i7core_dev_info {
 	const char *ctl_name;	/* name for this device */
@@ -240,7 +250,7 @@ struct i7core_dev_info {
 	.func = (function),			\
 	.dev_id = (device_id)
 
-struct pci_id_descr pci_devs[] = {
+struct pci_id_descr pci_dev_descr[] = {
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_I7_MCR)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
@@ -275,11 +285,10 @@ struct pci_id_descr pci_devs[] = {
 	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
 
 };
-#define N_DEVS ARRAY_SIZE(pci_devs)
+#define N_DEVS ARRAY_SIZE(pci_dev_descr)
 
 /*
  *	pci_device_id	table for which devices we are looking for
- * This should match the first device at pci_devs table
  */
 static const struct pci_device_id i7core_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_X58_HUB_MGMT)},
@@ -288,7 +297,7 @@ static const struct pci_device_id i7core_pci_tbl[] __devinitdata = {
 
 
 /* Table of devices attributes supported by this driver */
-static const struct i7core_dev_info i7core_devs[] = {
+static const struct i7core_dev_info i7core_probe_devs[] = {
 	{
 		.ctl_name = "i7 Core",
 		.fsb_mapping_errors = PCI_DEVICE_ID_INTEL_I7_MCR,
@@ -347,21 +356,37 @@ static inline int numcol(u32 col)
 	return cols[col & 0x3];
 }
 
+static struct i7core_dev *get_i7core_dev(int socket)
+{
+	struct i7core_dev *i7core_dev;
+
+	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
+		if (i7core_dev->socket == socket)
+			return i7core_dev;
+	}
+
+	return NULL;
+}
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
 static struct pci_dev *get_pdev_slot_func(u8 socket, unsigned slot,
 					  unsigned func)
 {
+	struct i7core_dev *i7core_dev = get_i7core_dev(socket);
 	int i;
 
+	if (!i7core_dev)
+		return NULL;
+
 	for (i = 0; i < N_DEVS; i++) {
-		if (!pci_devs[i].pdev[socket])
+		if (!i7core_dev->pdev[i])
 			continue;
 
-		if (PCI_SLOT(pci_devs[i].pdev[socket]->devfn) == slot &&
-		    PCI_FUNC(pci_devs[i].pdev[socket]->devfn) == func) {
-			return pci_devs[i].pdev[socket];
+		if (PCI_SLOT(i7core_dev->pdev[i]->devfn) == slot &&
+		    PCI_FUNC(i7core_dev->pdev[i]->devfn) == func) {
+			return i7core_dev->pdev[i];
 		}
 	}
 
@@ -1153,9 +1178,18 @@ static void i7core_put_devices(void)
 {
 	int i, j;
 
-	for (i = 0; i < NUM_SOCKETS; i++)
+	for (i = 0; i < NUM_SOCKETS; i++) {
+		struct i7core_dev *i7core_dev = get_i7core_dev(i);
+		if (!i7core_dev)
+			continue;
+
 		for (j = 0; j < N_DEVS; j++)
-			pci_dev_put(pci_devs[j].pdev[i]);
+			pci_dev_put(i7core_dev->pdev[j]);
+
+		list_del(&i7core_dev->list);
+		kfree(i7core_dev->pdev);
+		kfree(i7core_dev);
+	}
 }
 
 static void i7core_xeon_pci_fixup(void)
@@ -1168,7 +1202,7 @@ static void i7core_xeon_pci_fixup(void)
 	 * to detect them
 	 */
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-			      pci_devs[0].dev_id, NULL);
+			      pci_dev_descr[0].dev_id, NULL);
 	if (unlikely(!pdev)) {
 		for (i = 0; i < NUM_SOCKETS; i ++)
 			pcibios_scan_specific_bus(255-i);
@@ -1183,19 +1217,21 @@ static void i7core_xeon_pci_fixup(void)
  */
 int i7core_get_onedevice(struct pci_dev **prev, int devno)
 {
+	struct i7core_dev *i7core_dev;
+
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
 	u8 socket = 0;
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-			      pci_devs[devno].dev_id, *prev);
+			      pci_dev_descr[devno].dev_id, *prev);
 
 	/*
 	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
 	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
 	 * to probe for the alternate address in case of failure
 	 */
-	if (pci_devs[devno].dev_id == PCI_DEVICE_ID_INTEL_I7_NOCORE && !pdev)
+	if (pci_dev_descr[devno].dev_id == PCI_DEVICE_ID_INTEL_I7_NOCORE && !pdev)
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_I7_NOCORE_ALT, *prev);
 
@@ -1209,15 +1245,15 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno)
 		 * Dev 3 function 2 only exists on chips with RDIMMs
 		 * so, it is ok to not found it
 		 */
-		if ((pci_devs[devno].dev == 3) && (pci_devs[devno].func == 2)) {
+		if ((pci_dev_descr[devno].dev == 3) && (pci_dev_descr[devno].func == 2)) {
 			*prev = pdev;
 			return 0;
 		}
 
 		i7core_printk(KERN_ERR,
 			"Device not found: dev %02x.%d PCI ID %04x:%04x\n",
-			pci_devs[devno].dev, pci_devs[devno].func,
-			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+			pci_dev_descr[devno].dev, pci_dev_descr[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id);
 
 		/* End of list, leave */
 		return -ENODEV;
@@ -1229,37 +1265,40 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno)
 	else
 		socket = 255 - bus;
 
-	if (socket >= NUM_SOCKETS) {
-		i7core_printk(KERN_ERR,
-			"Unexpected socket for "
-			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-			bus, pci_devs[devno].dev, pci_devs[devno].func,
-			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
-		pci_dev_put(pdev);
-		return -ENODEV;
+	i7core_dev = get_i7core_dev(socket);
+	if (!i7core_dev) {
+		i7core_dev = kzalloc(sizeof(*i7core_dev), GFP_KERNEL);
+		if (!i7core_dev)
+			return -ENOMEM;
+		i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev) * N_DEVS,
+					   GFP_KERNEL);
+		if (!i7core_dev->pdev)
+			return -ENOMEM;
+		i7core_dev->socket = socket;
+		list_add_tail(&i7core_dev->list, &i7core_edac_list);
 	}
 
-	if (pci_devs[devno].pdev[socket]) {
+	if (i7core_dev->pdev[devno]) {
 		i7core_printk(KERN_ERR,
 			"Duplicated device for "
 			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-			bus, pci_devs[devno].dev, pci_devs[devno].func,
-			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+			bus, pci_dev_descr[devno].dev, pci_dev_descr[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id);
 		pci_dev_put(pdev);
 		return -ENODEV;
 	}
 
-	pci_devs[devno].pdev[socket] = pdev;
+	i7core_dev->pdev[devno] = pdev;
 
 	/* Sanity check */
-	if (unlikely(PCI_SLOT(pdev->devfn) != pci_devs[devno].dev ||
-			PCI_FUNC(pdev->devfn) != pci_devs[devno].func)) {
+	if (unlikely(PCI_SLOT(pdev->devfn) != pci_dev_descr[devno].dev ||
+			PCI_FUNC(pdev->devfn) != pci_dev_descr[devno].func)) {
 		i7core_printk(KERN_ERR,
 			"Device PCI ID %04x:%04x "
 			"has dev %02x:%02x.%d instead of dev %02x:%02x.%d\n",
-			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id,
+			PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id,
 			bus, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-			bus, pci_devs[devno].dev, pci_devs[devno].func);
+			bus, pci_dev_descr[devno].dev, pci_dev_descr[devno].func);
 		return -ENODEV;
 	}
 
@@ -1268,27 +1307,29 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno)
 		i7core_printk(KERN_ERR,
 			"Couldn't enable "
 			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-			bus, pci_devs[devno].dev, pci_devs[devno].func,
-			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+			bus, pci_dev_descr[devno].dev, pci_dev_descr[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id);
 		return -ENODEV;
 	}
 
 	i7core_printk(KERN_INFO,
 			"Registered socket %d "
 			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-			socket, bus, pci_devs[devno].dev, pci_devs[devno].func,
-			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+			socket, bus, pci_dev_descr[devno].dev, pci_dev_descr[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_dev_descr[devno].dev_id);
 
 	*prev = pdev;
 
 	return 0;
 }
 
-static int i7core_get_devices(void)
+static int i7core_get_devices(u8 *sockets)
 {
 	int i;
 	struct pci_dev *pdev = NULL;
+	struct i7core_dev *i7core_dev = NULL;
 
+	*sockets = 0;
 	for (i = 0; i < N_DEVS; i++) {
 		pdev = NULL;
 		do {
@@ -1298,6 +1339,12 @@ static int i7core_get_devices(void)
 			}
 		} while (pdev);
 	}
+
+	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
+		if (i7core_dev->socket + 1 > *sockets)
+			*sockets = i7core_dev->socket + 1;
+	}
+
 	return 0;
 }
 
@@ -1307,11 +1354,15 @@ static int mci_bind_devs(struct mem_ctl_info *mci)
 	struct pci_dev *pdev;
 	int i, j, func, slot;
 
-
 	for (i = 0; i < pvt->sockets; i++) {
+		struct i7core_dev *i7core_dev = get_i7core_dev(i);
+
+		if (!i7core_dev)
+			continue;
+
 		pvt->is_registered[i] = 0;
 		for (j = 0; j < N_DEVS; j++) {
-			pdev = pci_devs[j].pdev[i];
+			pdev = i7core_dev->pdev[j];
 			if (!pdev)
 				continue;
 
@@ -1723,20 +1774,17 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	int rc, i;
 	u8 sockets;
 
-	if (unlikely(dev_idx >= ARRAY_SIZE(i7core_devs)))
+	/*
+	 * FIXME: All memory controllers are allocated at the first pass.
+	 */
+	if (unlikely(dev_idx >= 1))
 		return -EINVAL;
 
 	/* get the pci devices we want to reserve for our use */
-	rc = i7core_get_devices();
+	mutex_lock(&i7core_edac_lock);
+	rc = i7core_get_devices(&sockets);
 	if (unlikely(rc < 0))
-		return rc;
-
-	sockets = 1;
-	for (i = NUM_SOCKETS - 1; i > 0; i--)
-		if (pci_devs[0].pdev[i]) {
-			sockets = i + 1;
-			break;
-		}
+		goto fail0;
 
 	for (i = 0; i < sockets; i++) {
 		int channels;
@@ -1745,7 +1793,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 		/* Check the number of active and not disabled channels */
 		rc = i7core_get_active_channels(i, &channels, &csrows);
 		if (unlikely(rc < 0))
-			goto fail0;
+			goto fail1;
 
 		num_channels += channels;
 		num_csrows += csrows;
@@ -1755,7 +1803,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
 	if (unlikely(!mci)) {
 		rc = -ENOMEM;
-		goto fail0;
+		goto fail1;
 	}
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
@@ -1776,7 +1824,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7core_edac.c";
 	mci->mod_ver = I7CORE_REVISION;
-	mci->ctl_name = i7core_devs[dev_idx].ctl_name;
+	mci->ctl_name = i7core_probe_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 	mci->mc_driver_sysfs_attributes = i7core_inj_attrs;
@@ -1786,7 +1834,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	/* Store pci devices at mci for faster access */
 	rc = mci_bind_devs(mci);
 	if (unlikely(rc < 0))
-		goto fail1;
+		goto fail2;
 
 	/* Get dimm basic config */
 	for (i = 0; i < sockets; i++)
@@ -1801,7 +1849,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 		 */
 
 		rc = -EINVAL;
-		goto fail1;
+		goto fail2;
 	}
 
 	/* allocating generic PCI control info */
@@ -1832,18 +1880,21 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	if (unlikely(rc < 0)) {
 		debugf0("MC: " __FILE__
 			": %s(): failed edac_mce_register()\n", __func__);
-		goto fail1;
+		goto fail2;
 	}
 
 	i7core_printk(KERN_INFO, "Driver loaded.\n");
 
+	mutex_unlock(&i7core_edac_lock);
 	return 0;
 
-fail1:
+fail2:
 	edac_mc_free(mci);
 
-fail0:
+fail1:
 	i7core_put_devices();
+fail0:
+	mutex_unlock(&i7core_edac_lock);
 	return rc;
 }
 
@@ -1871,7 +1922,9 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 	edac_mce_unregister(&pvt->edac_mce);
 
 	/* retrieve references to resources, and free those resources */
+	mutex_lock(&i7core_edac_lock);
 	i7core_put_devices();
+	mutex_unlock(&i7core_edac_lock);
 
 	edac_mc_free(mci);
 }
