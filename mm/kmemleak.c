@@ -1421,6 +1421,28 @@ static int dump_str_object_info(const char *str)
 }
 
 /*
+ * We use grey instead of black to ensure we can do future scans on the same
+ * objects. If we did not do future scans these black objects could
+ * potentially contain references to newly allocated objects in the future and
+ * we'd end up with false positives.
+ */
+static void kmemleak_clear(void)
+{
+	struct kmemleak_object *object;
+	unsigned long flags;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(object, &object_list, object_list) {
+		spin_lock_irqsave(&object->lock, flags);
+		if ((object->flags & OBJECT_REPORTED) &&
+		    unreferenced_object(object))
+			object->min_count = 0;
+		spin_unlock_irqrestore(&object->lock, flags);
+	}
+	rcu_read_unlock();
+}
+
+/*
  * File write operation to configure kmemleak at run-time. The following
  * commands can be written to the /sys/kernel/debug/kmemleak file:
  *   off	- disable kmemleak (irreversible)
@@ -1431,6 +1453,8 @@ static int dump_str_object_info(const char *str)
  *   scan=...	- set the automatic memory scanning period in seconds (0 to
  *		  disable it)
  *   scan	- trigger a memory scan
+ *   clear	- mark all current reported unreferenced kmemleak objects as
+ *		  grey to ignore printing them
  *   dump=...	- dump information about the object found at the given address
  */
 static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
@@ -1472,6 +1496,8 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 		}
 	} else if (strncmp(buf, "scan", 4) == 0)
 		kmemleak_scan();
+	else if (strncmp(buf, "clear", 5) == 0)
+		kmemleak_clear();
 	else if (strncmp(buf, "dump=", 5) == 0)
 		ret = dump_str_object_info(buf + 5);
 	else
