@@ -1176,6 +1176,15 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
+static int snapshot_iterate_devices(struct dm_target *ti,
+				    iterate_devices_callout_fn fn, void *data)
+{
+	struct dm_snapshot *snap = ti->private;
+
+	return fn(ti, snap->origin, 0, ti->len, data);
+}
+
+
 /*-----------------------------------------------------------------
  * Origin methods
  *---------------------------------------------------------------*/
@@ -1410,20 +1419,29 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 	return 0;
 }
 
+static int origin_iterate_devices(struct dm_target *ti,
+				  iterate_devices_callout_fn fn, void *data)
+{
+	struct dm_dev *dev = ti->private;
+
+	return fn(ti, dev, 0, ti->len, data);
+}
+
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 6, 0},
+	.version = {1, 7, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
 	.map     = origin_map,
 	.resume  = origin_resume,
 	.status  = origin_status,
+	.iterate_devices = origin_iterate_devices,
 };
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 6, 0},
+	.version = {1, 7, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -1431,6 +1449,7 @@ static struct target_type snapshot_target = {
 	.end_io  = snapshot_end_io,
 	.resume  = snapshot_resume,
 	.status  = snapshot_status,
+	.iterate_devices = snapshot_iterate_devices,
 };
 
 static int __init dm_snapshot_init(void)
