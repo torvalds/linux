@@ -1536,8 +1536,10 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 syndrome = m->misc >> 32;
 	u32 errnum = find_first_bit(&error, 32);
 	int csrow;
-#ifdef CONFIG_SMP
-	u32 socket_id = cpu_data[m->cpu].phys_proc_id;
+/* FIXME */
+//#ifdef CONFIG_SMP
+#if 0
+	u32 socket_id = per_cpu(cpu_data, cpu).phys_proc_id;
 #else
 	u32 socket_id = 0;
 #endif
