@@ -247,7 +247,6 @@ struct i7core_pvt {
 /* Static vars */
 static LIST_HEAD(i7core_edac_list);
 static DEFINE_MUTEX(i7core_edac_lock);
-static u8 max_num_sockets;
 
 #define PCI_DESCR(device, function, device_id)	\
 	.dev = (device),			\
