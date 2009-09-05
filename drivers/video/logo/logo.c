@@ -79,6 +79,10 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* Exherbo Linux logo */
 		logo = &logo_exherbo_clut224;
 #endif
+#ifdef CONFIG_LOGO_SLACKWARE_CLUT224
+		/* Slackware Linux logo */
+		logo = &logo_slackware_clut224;
+#endif
 #ifdef CONFIG_LOGO_DEBIAN_CLUT224
 		/* Debian Linux logo */
 		logo = &logo_debian_clut224;

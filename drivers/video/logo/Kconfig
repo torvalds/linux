@@ -56,6 +56,11 @@ config LOGO_EXHERBO_CLUT224
 	depends on LOGO
 	default y
 
+config LOGO_SLACKWARE_CLUT224
+	bool "224-color Slackware Linux logo"
+	depends on LOGO
+	default y
+
 config LOGO_DEBIAN_CLUT224
 	bool "224-color Debian Linux logo"
 	depends on LOGO
