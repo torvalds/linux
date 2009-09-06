@@ -3093,7 +3093,6 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	return NETDEV_TX_OK;
 }
 
-/* Locking: wl->irq_lock */
 static void b43_qos_params_upload(struct b43_wldev *dev,
 				  const struct ieee80211_tx_queue_params *p,
 				  u16 shm_offset)
@@ -3101,6 +3100,9 @@ static void b43_qos_params_upload(struct b43_wldev *dev,
 	u16 params[B43_NR_QOSPARAMS];
 	int bslots, tmp;
 	unsigned int i;
+
+	if (!dev->qos_enabled)
+		return;
 
 	bslots = b43_read16(dev, B43_MMIO_RNG) & p->cw_min;
 
@@ -3146,6 +3148,9 @@ static void b43_qos_upload_all(struct b43_wldev *dev)
 	struct b43_wl *wl = dev->wl;
 	struct b43_qos_params *params;
 	unsigned int i;
+
+	if (!dev->qos_enabled)
+		return;
 
 	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
 		     ARRAY_SIZE(wl->qos_params));
@@ -3206,6 +3211,16 @@ static void b43_qos_clear(struct b43_wl *wl)
 /* Initialize the core's QOS capabilities */
 static void b43_qos_init(struct b43_wldev *dev)
 {
+	if (!dev->qos_enabled) {
+		/* Disable QOS support. */
+		b43_hf_write(dev, b43_hf_read(dev) & ~B43_HF_EDCF);
+		b43_write16(dev, B43_MMIO_IFSCTL,
+			    b43_read16(dev, B43_MMIO_IFSCTL)
+			    & ~B43_MMIO_IFSCTL_USE_EDCF);
+		b43dbg(dev->wl, "QoS disabled\n");
+		return;
+	}
+
 	/* Upload the current QOS parameters. */
 	b43_qos_upload_all(dev);
 
@@ -3214,6 +3229,7 @@ static void b43_qos_init(struct b43_wldev *dev)
 	b43_write16(dev, B43_MMIO_IFSCTL,
 		    b43_read16(dev, B43_MMIO_IFSCTL)
 		    | B43_MMIO_IFSCTL_USE_EDCF);
+	b43dbg(dev->wl, "QoS enabled\n");
 }
 
 static int b43_op_conf_tx(struct ieee80211_hw *hw, u16 _queue,
