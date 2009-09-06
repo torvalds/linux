@@ -720,7 +720,9 @@ out:
 			}
 		}
 
+		spin_unlock_irqrestore(&priv->lock, flags);
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
+		return;
 	}
 
 unlock:
