@@ -1215,15 +1215,11 @@ int __mthca_restart_one(struct pci_dev *pdev)
 static int __devinit mthca_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
-	static int mthca_version_printed = 0;
 	int ret;
 
 	mutex_lock(&mthca_device_mutex);
 
-	if (!mthca_version_printed) {
-		printk(KERN_INFO "%s", mthca_version);
-		++mthca_version_printed;
-	}
+	printk_once(KERN_INFO "%s", mthca_version);
 
 	if (id->driver_data >= ARRAY_SIZE(mthca_hca_table)) {
 		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",

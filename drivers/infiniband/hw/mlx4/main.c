@@ -540,15 +540,11 @@ static struct device_attribute *mlx4_class_attributes[] = {
 
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
-	static int mlx4_ib_version_printed;
 	struct mlx4_ib_dev *ibdev;
 	int num_ports = 0;
 	int i;
 
-	if (!mlx4_ib_version_printed) {
-		printk(KERN_INFO "%s", mlx4_ib_version);
-		++mlx4_ib_version_printed;
-	}
+	printk_once(KERN_INFO "%s", mlx4_ib_version);
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
 		num_ports++;

@@ -105,11 +105,9 @@ static void rnic_init(struct iwch_dev *rnicp)
 static void open_rnic_dev(struct t3cdev *tdev)
 {
 	struct iwch_dev *rnicp;
-	static int vers_printed;
 
 	PDBG("%s t3cdev %p\n", __func__,  tdev);
-	if (!vers_printed++)
-		printk(KERN_INFO MOD "Chelsio T3 RDMA Driver - version %s\n",
+	printk_once(KERN_INFO MOD "Chelsio T3 RDMA Driver - version %s\n",
 		       DRV_VERSION);
 	rnicp = (struct iwch_dev *)ib_alloc_device(sizeof(*rnicp));
 	if (!rnicp) {
