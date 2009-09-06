@@ -382,6 +382,8 @@ static int get_index(struct video_device *vdev)
  *	@type: type of device to register
  *	@nr:   which device node number (0 == /dev/video0, 1 == /dev/video1, ...
  *             -1 == first free)
+ *	@warn_if_nr_in_use: warn if the desired device node number
+ *	       was already in use and another number was chosen instead.
  *
  *	The registration code assigns minor numbers and device node numbers
  *	based on the requested type and registers the new device node with
@@ -401,7 +403,8 @@ static int get_index(struct video_device *vdev)
  *
  *	%VFL_TYPE_RADIO - A radio card
  */
-int video_register_device(struct video_device *vdev, int type, int nr)
+static int __video_register_device(struct video_device *vdev, int type, int nr,
+		int warn_if_nr_in_use)
 {
 	int i = 0;
 	int ret;
@@ -547,6 +550,10 @@ int video_register_device(struct video_device *vdev, int type, int nr)
 	   reference to the device goes away. */
 	vdev->dev.release = v4l2_device_release;
 
+	if (nr != -1 && nr != vdev->num && warn_if_nr_in_use)
+		printk(KERN_WARNING "%s: requested %s%d, got %s%d\n",
+				__func__, name_base, nr, name_base, vdev->num);
+
 	/* Part 5: Activate this minor. The char device can now be used. */
 	mutex_lock(&videodev_lock);
 	video_device[vdev->minor] = vdev;
@@ -563,7 +570,18 @@ cleanup:
 	vdev->minor = -1;
 	return ret;
 }
+
+int video_register_device(struct video_device *vdev, int type, int nr)
+{
+	return __video_register_device(vdev, type, nr, 1);
+}
 EXPORT_SYMBOL(video_register_device);
+
+int video_register_device_no_warn(struct video_device *vdev, int type, int nr)
+{
+	return __video_register_device(vdev, type, nr, 0);
+}
+EXPORT_SYMBOL(video_register_device_no_warn);
 
 /**
  *	video_unregister_device - unregister a video4linux device
