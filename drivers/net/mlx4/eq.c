@@ -525,48 +525,6 @@ static void mlx4_unmap_clr_int(struct mlx4_dev *dev)
 	iounmap(priv->clr_base);
 }
 
-int mlx4_map_eq_icm(struct mlx4_dev *dev, u64 icm_virt)
-{
-	struct mlx4_priv *priv = mlx4_priv(dev);
-	int ret;
-
-	/*
-	 * We assume that mapping one page is enough for the whole EQ
-	 * context table.  This is fine with all current HCAs, because
-	 * we only use 32 EQs and each EQ uses 64 bytes of context
-	 * memory, or 1 KB total.
-	 */
-	priv->eq_table.icm_virt = icm_virt;
-	priv->eq_table.icm_page = alloc_page(GFP_HIGHUSER);
-	if (!priv->eq_table.icm_page)
-		return -ENOMEM;
-	priv->eq_table.icm_dma  = pci_map_page(dev->pdev, priv->eq_table.icm_page, 0,
-					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(dev->pdev, priv->eq_table.icm_dma)) {
-		__free_page(priv->eq_table.icm_page);
-		return -ENOMEM;
-	}
-
-	ret = mlx4_MAP_ICM_page(dev, priv->eq_table.icm_dma, icm_virt);
-	if (ret) {
-		pci_unmap_page(dev->pdev, priv->eq_table.icm_dma, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
-		__free_page(priv->eq_table.icm_page);
-	}
-
-	return ret;
-}
-
-void mlx4_unmap_eq_icm(struct mlx4_dev *dev)
-{
-	struct mlx4_priv *priv = mlx4_priv(dev);
-
-	mlx4_UNMAP_ICM(dev, priv->eq_table.icm_virt, 1);
-	pci_unmap_page(dev->pdev, priv->eq_table.icm_dma, PAGE_SIZE,
-		       PCI_DMA_BIDIRECTIONAL);
-	__free_page(priv->eq_table.icm_page);
-}
-
 int mlx4_alloc_eq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);

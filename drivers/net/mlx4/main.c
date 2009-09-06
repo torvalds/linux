@@ -525,7 +525,10 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 		goto err_unmap_aux;
 	}
 
-	err = mlx4_map_eq_icm(dev, init_hca->eqc_base);
+	err = mlx4_init_icm_table(dev, &priv->eq_table.table,
+				  init_hca->eqc_base, dev_cap->eqc_entry_sz,
+				  dev->caps.num_eqs, dev->caps.num_eqs,
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map EQ context memory, aborting.\n");
 		goto err_unmap_cmpt;
@@ -668,7 +671,7 @@ err_unmap_mtt:
 	mlx4_cleanup_icm_table(dev, &priv->mr_table.mtt_table);
 
 err_unmap_eq:
-	mlx4_unmap_eq_icm(dev);
+	mlx4_cleanup_icm_table(dev, &priv->eq_table.table);
 
 err_unmap_cmpt:
 	mlx4_cleanup_icm_table(dev, &priv->eq_table.cmpt_table);
@@ -698,11 +701,11 @@ static void mlx4_free_icms(struct mlx4_dev *dev)
 	mlx4_cleanup_icm_table(dev, &priv->qp_table.qp_table);
 	mlx4_cleanup_icm_table(dev, &priv->mr_table.dmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->mr_table.mtt_table);
+	mlx4_cleanup_icm_table(dev, &priv->eq_table.table);
 	mlx4_cleanup_icm_table(dev, &priv->eq_table.cmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->cq_table.cmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->srq_table.cmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->qp_table.cmpt_table);
-	mlx4_unmap_eq_icm(dev);
 
 	mlx4_UNMAP_ICM_AUX(dev);
 	mlx4_free_icm(dev, priv->fw.aux_icm, 0);
