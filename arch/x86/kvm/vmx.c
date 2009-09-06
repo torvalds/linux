@@ -99,7 +99,8 @@ struct vcpu_vmx {
 	int                   save_nmsrs;
 	int                   msr_offset_efer;
 #ifdef CONFIG_X86_64
-	int                   msr_offset_kernel_gs_base;
+	u64 		      msr_host_kernel_gs_base;
+	u64 		      msr_guest_kernel_gs_base;
 #endif
 	struct vmcs          *vmcs;
 	struct {
@@ -202,7 +203,7 @@ static void ept_save_pdptrs(struct kvm_vcpu *vcpu);
  */
 static const u32 vmx_msr_index[] = {
 #ifdef CONFIG_X86_64
-	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR, MSR_KERNEL_GS_BASE,
+	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
 	MSR_EFER, MSR_K6_STAR,
 };
@@ -674,10 +675,10 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 #endif
 
 #ifdef CONFIG_X86_64
-	if (is_long_mode(&vmx->vcpu))
-		save_msrs(vmx->host_msrs +
-			  vmx->msr_offset_kernel_gs_base, 1);
-
+	if (is_long_mode(&vmx->vcpu)) {
+		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
+		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	}
 #endif
 	load_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 	load_transition_efer(vmx);
@@ -711,6 +712,12 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 	save_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 	load_msrs(vmx->host_msrs, vmx->save_nmsrs);
 	reload_host_efer(vmx);
+#ifdef CONFIG_X86_64
+	if (is_long_mode(&vmx->vcpu)) {
+		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
+	}
+#endif
 }
 
 static void vmx_load_host_state(struct vcpu_vmx *vmx)
@@ -940,9 +947,6 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		index = __find_msr_index(vmx, MSR_CSTAR);
 		if (index >= 0)
 			move_msr_up(vmx, index, save_nmsrs++);
-		index = __find_msr_index(vmx, MSR_KERNEL_GS_BASE);
-		if (index >= 0)
-			move_msr_up(vmx, index, save_nmsrs++);
 		/*
 		 * MSR_K6_STAR is only needed on long mode guests, and only
 		 * if efer.sce is enabled.
@@ -954,10 +958,6 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 #endif
 	vmx->save_nmsrs = save_nmsrs;
 
-#ifdef CONFIG_X86_64
-	vmx->msr_offset_kernel_gs_base =
-		__find_msr_index(vmx, MSR_KERNEL_GS_BASE);
-#endif
 	vmx->msr_offset_efer = __find_msr_index(vmx, MSR_EFER);
 
 	if (cpu_has_vmx_msr_bitmap()) {
@@ -1015,6 +1015,10 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 	case MSR_GS_BASE:
 		data = vmcs_readl(GUEST_GS_BASE);
 		break;
+	case MSR_KERNEL_GS_BASE:
+		vmx_load_host_state(to_vmx(vcpu));
+		data = to_vmx(vcpu)->msr_guest_kernel_gs_base;
+		break;
 	case MSR_EFER:
 		return kvm_get_msr_common(vcpu, msr_index, pdata);
 #endif
@@ -1067,6 +1071,10 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		break;
 	case MSR_GS_BASE:
 		vmcs_writel(GUEST_GS_BASE, data);
+		break;
+	case MSR_KERNEL_GS_BASE:
+		vmx_load_host_state(vmx);
+		vmx->msr_guest_kernel_gs_base = data;
 		break;
 #endif
 	case MSR_IA32_SYSENTER_CS:
@@ -1559,6 +1567,11 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_msr_entry *msr = find_msr_entry(vmx, MSR_EFER);
 
+	/*
+	 * Force kernel_gs_base reloading before EFER changes, as control
+	 * of this msr depends on is_long_mode().
+	 */
+	vmx_load_host_state(to_vmx(vcpu));
 	vcpu->arch.shadow_efer = efer;
 	if (!msr)
 		return;
