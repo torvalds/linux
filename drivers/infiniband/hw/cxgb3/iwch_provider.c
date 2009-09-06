@@ -1418,6 +1418,7 @@ int iwch_register_device(struct iwch_dev *dev)
 bail2:
 	ib_unregister_device(&dev->ibdev);
 bail1:
+	kfree(dev->ibdev.iwcm);
 	return ret;
 }
 
@@ -1430,5 +1431,6 @@ void iwch_unregister_device(struct iwch_dev *dev)
 		device_remove_file(&dev->ibdev.dev,
 				   iwch_class_attributes[i]);
 	ib_unregister_device(&dev->ibdev);
+	kfree(dev->ibdev.iwcm);
 	return;
 }
