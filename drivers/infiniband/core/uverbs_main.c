@@ -73,7 +73,7 @@ DEFINE_IDR(ib_uverbs_cq_idr);
 DEFINE_IDR(ib_uverbs_qp_idr);
 DEFINE_IDR(ib_uverbs_srq_idr);
 
-static spinlock_t map_lock;
+static DEFINE_SPINLOCK(map_lock);
 static struct ib_uverbs_device *dev_table[IB_UVERBS_MAX_DEVICES];
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 
@@ -835,8 +835,6 @@ static struct file_system_type uverbs_event_fs = {
 static int __init ib_uverbs_init(void)
 {
 	int ret;
-
-	spin_lock_init(&map_lock);
 
 	ret = register_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES,
 				     "infiniband_verbs");
