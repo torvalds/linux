@@ -106,6 +106,13 @@ struct pstore {
 	void *zero_area;
 
 	/*
+	 * An area used for header. The header can be written
+	 * concurrently with metadata (when invalidating the snapshot),
+	 * so it needs a separate buffer.
+	 */
+	void *header_area;
+
+	/*
 	 * Used to keep track of which metadata area the data in
 	 * 'chunk' refers to.
 	 */
@@ -148,16 +155,27 @@ static int alloc_area(struct pstore *ps)
 	 */
 	ps->area = vmalloc(len);
 	if (!ps->area)
-		return r;
+		goto err_area;
 
 	ps->zero_area = vmalloc(len);
-	if (!ps->zero_area) {
-		vfree(ps->area);
-		return r;
-	}
+	if (!ps->zero_area)
+		goto err_zero_area;
 	memset(ps->zero_area, 0, len);
 
+	ps->header_area = vmalloc(len);
+	if (!ps->header_area)
+		goto err_header_area;
+
 	return 0;
+
+err_header_area:
+	vfree(ps->zero_area);
+
+err_zero_area:
+	vfree(ps->area);
+
+err_area:
+	return r;
 }
 
 static void free_area(struct pstore *ps)
@@ -169,6 +187,10 @@ static void free_area(struct pstore *ps)
 	if (ps->zero_area)
 		vfree(ps->zero_area);
 	ps->zero_area = NULL;
+
+	if (ps->header_area)
+		vfree(ps->header_area);
+	ps->header_area = NULL;
 }
 
 struct mdata_req {
@@ -188,7 +210,8 @@ static void do_metadata(struct work_struct *work)
 /*
  * Read or write a chunk aligned and sized block of data from a device.
  */
-static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
+static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int rw,
+		    int metadata)
 {
 	struct dm_io_region where = {
 		.bdev = ps->store->cow->bdev,
@@ -198,7 +221,7 @@ static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
 	struct dm_io_request io_req = {
 		.bi_rw = rw,
 		.mem.type = DM_IO_VMA,
-		.mem.ptr.vma = ps->area,
+		.mem.ptr.vma = area,
 		.client = ps->io_client,
 		.notify.fn = NULL,
 	};
@@ -240,7 +263,7 @@ static int area_io(struct pstore *ps, int rw)
 
 	chunk = area_location(ps, ps->current_area);
 
-	r = chunk_io(ps, chunk, rw, 0);
+	r = chunk_io(ps, ps->area, chunk, rw, 0);
 	if (r)
 		return r;
 
@@ -254,20 +277,7 @@ static void zero_memory_area(struct pstore *ps)
 
 static int zero_disk_area(struct pstore *ps, chunk_t area)
 {
-	struct dm_io_region where = {
-		.bdev = ps->store->cow->bdev,
-		.sector = ps->store->chunk_size * area_location(ps, area),
-		.count = ps->store->chunk_size,
-	};
-	struct dm_io_request io_req = {
-		.bi_rw = WRITE,
-		.mem.type = DM_IO_VMA,
-		.mem.ptr.vma = ps->zero_area,
-		.client = ps->io_client,
-		.notify.fn = NULL,
-	};
-
-	return dm_io(&io_req, 1, &where, NULL);
+	return chunk_io(ps, ps->zero_area, area_location(ps, area), WRITE, 0);
 }
 
 static int read_header(struct pstore *ps, int *new_snapshot)
@@ -276,6 +286,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	struct disk_header *dh;
 	chunk_t chunk_size;
 	int chunk_size_supplied = 1;
+	char *chunk_err;
 
 	/*
 	 * Use default chunk size (or hardsect_size, if larger) if none supplied
@@ -297,11 +308,11 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	if (r)
 		return r;
 
-	r = chunk_io(ps, 0, READ, 1);
+	r = chunk_io(ps, ps->header_area, 0, READ, 1);
 	if (r)
 		goto bad;
 
-	dh = (struct disk_header *) ps->area;
+	dh = ps->header_area;
 
 	if (le32_to_cpu(dh->magic) == 0) {
 		*new_snapshot = 1;
@@ -319,20 +330,25 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	ps->version = le32_to_cpu(dh->version);
 	chunk_size = le32_to_cpu(dh->chunk_size);
 
-	if (!chunk_size_supplied || ps->store->chunk_size == chunk_size)
+	if (ps->store->chunk_size == chunk_size)
 		return 0;
 
-	DMWARN("chunk size %llu in device metadata overrides "
-	       "table chunk size of %llu.",
-	       (unsigned long long)chunk_size,
-	       (unsigned long long)ps->store->chunk_size);
+	if (chunk_size_supplied)
+		DMWARN("chunk size %llu in device metadata overrides "
+		       "table chunk size of %llu.",
+		       (unsigned long long)chunk_size,
+		       (unsigned long long)ps->store->chunk_size);
 
 	/* We had a bogus chunk_size. Fix stuff up. */
 	free_area(ps);
 
-	ps->store->chunk_size = chunk_size;
-	ps->store->chunk_mask = chunk_size - 1;
-	ps->store->chunk_shift = ffs(chunk_size) - 1;
+	r = dm_exception_store_set_chunk_size(ps->store, chunk_size,
+					      &chunk_err);
+	if (r) {
+		DMERR("invalid on-disk chunk size %llu: %s.",
+		      (unsigned long long)chunk_size, chunk_err);
+		return r;
+	}
 
 	r = dm_io_client_resize(sectors_to_pages(ps->store->chunk_size),
 				ps->io_client);
@@ -351,15 +367,15 @@ static int write_header(struct pstore *ps)
 {
 	struct disk_header *dh;
 
-	memset(ps->area, 0, ps->store->chunk_size << SECTOR_SHIFT);
+	memset(ps->header_area, 0, ps->store->chunk_size << SECTOR_SHIFT);
 
-	dh = (struct disk_header *) ps->area;
+	dh = ps->header_area;
 	dh->magic = cpu_to_le32(SNAP_MAGIC);
 	dh->valid = cpu_to_le32(ps->valid);
 	dh->version = cpu_to_le32(ps->version);
 	dh->chunk_size = cpu_to_le32(ps->store->chunk_size);
 
-	return chunk_io(ps, 0, WRITE, 1);
+	return chunk_io(ps, ps->header_area, 0, WRITE, 1);
 }
 
 /*
@@ -679,6 +695,8 @@ static int persistent_ctr(struct dm_exception_store *store,
 	ps->valid = 1;
 	ps->version = SNAPSHOT_DISK_VERSION;
 	ps->area = NULL;
+	ps->zero_area = NULL;
+	ps->header_area = NULL;
 	ps->next_free = 2;	/* skipping the header and first area */
 	ps->current_committed = 0;
 

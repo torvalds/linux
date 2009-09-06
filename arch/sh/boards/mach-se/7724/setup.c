@@ -238,7 +238,7 @@ static struct platform_device ceu1_device = {
 	},
 };
 
-/* KEYSC */
+/* KEYSC in SoC (Needs SW33-2 set to ON) */
 static struct sh_keysc_info keysc_info = {
 	.mode = SH_KEYSC_MODE_1,
 	.scan_timing = 10,
@@ -255,12 +255,13 @@ static struct sh_keysc_info keysc_info = {
 
 static struct resource keysc_resources[] = {
 	[0] = {
-		.start  = 0x1a204000,
-		.end    = 0x1a20400f,
+		.name	= "KEYSC",
+		.start  = 0x044b0000,
+		.end    = 0x044b000f,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = IRQ0_KEY,
+		.start  = 79,
 		.flags  = IORESOURCE_IRQ,
 	},
 };

@@ -418,20 +418,20 @@ static int __init set_pci_reboot(const struct dmi_system_id *d)
 }
 
 static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
-	{	/* Handle problems with rebooting on Apple MacBook5,2 */
+	{	/* Handle problems with rebooting on Apple MacBook5 */
 		.callback = set_pci_reboot,
-		.ident = "Apple MacBook",
+		.ident = "Apple MacBook5",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5,2"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5"),
 		},
 	},
-	{	/* Handle problems with rebooting on Apple MacBookPro5,1 */
+	{	/* Handle problems with rebooting on Apple MacBookPro5 */
 		.callback = set_pci_reboot,
-		.ident = "Apple MacBookPro5,1",
+		.ident = "Apple MacBookPro5",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,1"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5"),
 		},
 	},
 	{ }

@@ -91,6 +91,9 @@ typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
 				      void *data);
 
+typedef void (*dm_io_hints_fn) (struct dm_target *ti,
+				struct queue_limits *limits);
+
 /*
  * Returns:
  *    0: The target can handle the next I/O immediately.
@@ -151,6 +154,7 @@ struct target_type {
 	dm_merge_fn merge;
 	dm_busy_fn busy;
 	dm_iterate_devices_fn iterate_devices;
+	dm_io_hints_fn io_hints;
 
 	/* For internal device-mapper use. */
 	struct list_head list;

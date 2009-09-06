@@ -7,22 +7,7 @@
 #include <gelf.h>
 #include <elf.h>
 
-#ifndef NO_DEMANGLE
-#include <bfd.h>
-#else
-static inline
-char *bfd_demangle(void __used *v, const char __used *c, int __used i)
-{
-	return NULL;
-}
-#endif
-
 const char *sym_hist_filter;
-
-#ifndef DMGL_PARAMS
-#define DMGL_PARAMS      (1 << 0)       /* Include function args */
-#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
-#endif
 
 enum dso_origin {
 	DSO__ORIG_KERNEL = 0,
@@ -816,6 +801,8 @@ more:
 	}
 out:
 	free(name);
+	if (ret < 0 && strstr(self->name, " (deleted)") != NULL)
+		return 0;
 	return ret;
 }
 

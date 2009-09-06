@@ -2337,7 +2337,7 @@ static struct clk i2c2_fck = {
 
 static struct clk i2chs2_fck = {
 	.name		= "i2c_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2430_i2chs_wait,
 	.id		= 2,
 	.parent		= &func_96m_ck,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2370,7 +2370,7 @@ static struct clk i2c1_fck = {
 
 static struct clk i2chs1_fck = {
 	.name		= "i2c_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2430_i2chs_wait,
 	.id		= 1,
 	.parent		= &func_96m_ck,
 	.clkdm_name	= "core_l4_clkdm",

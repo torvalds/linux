@@ -271,8 +271,8 @@ static void blk_trace_free(struct blk_trace *bt)
 {
 	debugfs_remove(bt->msg_file);
 	debugfs_remove(bt->dropped_file);
-	debugfs_remove(bt->dir);
 	relay_close(bt->rchan);
+	debugfs_remove(bt->dir);
 	free_percpu(bt->sequence);
 	free_percpu(bt->msg_data);
 	kfree(bt);
@@ -382,18 +382,8 @@ static int blk_subbuf_start_callback(struct rchan_buf *buf, void *subbuf,
 
 static int blk_remove_buf_file_callback(struct dentry *dentry)
 {
-	struct dentry *parent = dentry->d_parent;
 	debugfs_remove(dentry);
 
-	/*
-	* this will fail for all but the last file, but that is ok. what we
-	* care about is the top level buts->name directory going away, when
-	* the last trace file is gone. Then we don't have to rmdir() that
-	* manually on trace stop, so it nicely solves the issue with
-	* force killing of running traces.
-	*/
-
-	debugfs_remove(parent);
 	return 0;
 }
 
