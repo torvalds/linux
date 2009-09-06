@@ -286,7 +286,7 @@ void __free_ep(struct kref *kref)
 	ep = container_of(container_of(kref, struct iwch_ep_common, kref),
 			  struct iwch_ep, com);
 	PDBG("%s ep %p state %s\n", __func__, ep, states[state_read(&ep->com)]);
-	if (ep->com.flags & RELEASE_RESOURCES) {
+	if (test_bit(RELEASE_RESOURCES, &ep->com.flags)) {
 		cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
 		dst_release(ep->dst);
 		l2t_release(L2DATA(ep->com.tdev), ep->l2t);
@@ -297,7 +297,7 @@ void __free_ep(struct kref *kref)
 static void release_ep_resources(struct iwch_ep *ep)
 {
 	PDBG("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
-	ep->com.flags |= RELEASE_RESOURCES;
+	set_bit(RELEASE_RESOURCES, &ep->com.flags);
 	put_ep(&ep->com);
 }
 
@@ -786,10 +786,12 @@ static void connect_request_upcall(struct iwch_ep *ep)
 	event.private_data_len = ep->plen;
 	event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	event.provider_data = ep;
-	if (state_read(&ep->parent_ep->com) != DEAD)
+	if (state_read(&ep->parent_ep->com) != DEAD) {
+		get_ep(&ep->com);
 		ep->parent_ep->com.cm_id->event_handler(
 						ep->parent_ep->com.cm_id,
 						&event);
+	}
 	put_ep(&ep->parent_ep->com);
 	ep->parent_ep = NULL;
 }
@@ -1156,8 +1158,7 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	 * We get 2 abort replies from the HW.  The first one must
 	 * be ignored except for scribbling that we need one more.
 	 */
-	if (!(ep->com.flags & ABORT_REQ_IN_PROGRESS)) {
-		ep->com.flags |= ABORT_REQ_IN_PROGRESS;
+	if (!test_and_set_bit(ABORT_REQ_IN_PROGRESS, &ep->com.flags)) {
 		return CPL_RET_BUF_DONE;
 	}
 
@@ -1480,7 +1481,6 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		 * rejects the CR.
 		 */
 		__state_set(&ep->com, CLOSING);
-		get_ep(&ep->com);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
@@ -1561,8 +1561,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	 * We get 2 peer aborts from the HW.  The first one must
 	 * be ignored except for scribbling that we need one more.
 	 */
-	if (!(ep->com.flags & PEER_ABORT_IN_PROGRESS)) {
-		ep->com.flags |= PEER_ABORT_IN_PROGRESS;
+	if (!test_and_set_bit(PEER_ABORT_IN_PROGRESS, &ep->com.flags)) {
 		return CPL_RET_BUF_DONE;
 	}
 
@@ -1591,7 +1590,6 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		 * the reference on it until the ULP accepts or
 		 * rejects the CR.
 		 */
-		get_ep(&ep->com);
 		break;
 	case MORIBUND:
 	case CLOSING:
@@ -1797,6 +1795,7 @@ int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		err = send_mpa_reject(ep, pdata, pdata_len);
 		err = iwch_ep_disconnect(ep, 0, GFP_KERNEL);
 	}
+	put_ep(&ep->com);
 	return 0;
 }
 
@@ -1810,8 +1809,10 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct iwch_qp *qp = get_qhp(h, conn_param->qpn);
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	if (state_read(&ep->com) == DEAD)
-		return -ECONNRESET;
+	if (state_read(&ep->com) == DEAD) {
+		err = -ECONNRESET;
+		goto err;
+	}
 
 	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 	BUG_ON(!qp);
@@ -1819,7 +1820,8 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if ((conn_param->ord > qp->rhp->attr.max_rdma_read_qp_depth) ||
 	    (conn_param->ird > qp->rhp->attr.max_rdma_reads_per_qp)) {
 		abort_connection(ep, NULL, GFP_KERNEL);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err;
 	}
 
 	cm_id->add_ref(cm_id);
@@ -1835,8 +1837,6 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ep->ird = 1;
 
 	PDBG("%s %d ird %d ord %d\n", __func__, __LINE__, ep->ird, ep->ord);
-
-	get_ep(&ep->com);
 
 	/* bind QP to EP and move to RTS */
 	attrs.mpa_attr = ep->mpa_attr;
@@ -1855,30 +1855,31 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	err = iwch_modify_qp(ep->com.qp->rhp,
 			     ep->com.qp, mask, &attrs, 1);
 	if (err)
-		goto err;
+		goto err1;
 
 	/* if needed, wait for wr_ack */
 	if (iwch_rqes_posted(qp)) {
 		wait_event(ep->com.waitq, ep->com.rpl_done);
 		err = ep->com.rpl_err;
 		if (err)
-			goto err;
+			goto err1;
 	}
 
 	err = send_mpa_reply(ep, conn_param->private_data,
 			     conn_param->private_data_len);
 	if (err)
-		goto err;
+		goto err1;
 
 
 	state_set(&ep->com, FPDU_MODE);
 	established_upcall(ep);
 	put_ep(&ep->com);
 	return 0;
-err:
+err1:
 	ep->com.cm_id = NULL;
 	ep->com.qp = NULL;
 	cm_id->rem_ref(cm_id);
+err:
 	put_ep(&ep->com);
 	return err;
 }
@@ -2097,14 +2098,17 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 			ep->com.state = CLOSING;
 			start_ep_timer(ep);
 		}
+		set_bit(CLOSE_SENT, &ep->com.flags);
 		break;
 	case CLOSING:
-		close = 1;
-		if (abrupt) {
-			stop_ep_timer(ep);
-			ep->com.state = ABORTING;
-		} else
-			ep->com.state = MORIBUND;
+		if (!test_and_set_bit(CLOSE_SENT, &ep->com.flags)) {
+			close = 1;
+			if (abrupt) {
+				stop_ep_timer(ep);
+				ep->com.state = ABORTING;
+			} else
+				ep->com.state = MORIBUND;
+		}
 		break;
 	case MORIBUND:
 	case ABORTING:
