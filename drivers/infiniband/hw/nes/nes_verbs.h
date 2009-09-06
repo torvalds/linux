@@ -119,6 +119,11 @@ struct nes_wq {
 	spinlock_t lock;
 };
 
+struct disconn_work {
+	struct work_struct    work;
+	struct nes_qp         *nesqp;
+};
+
 struct iw_cm_id;
 struct ietf_mpa_frame;
 
@@ -127,7 +132,6 @@ struct nes_qp {
 	void                  *allocated_buffer;
 	struct iw_cm_id       *cm_id;
 	struct workqueue_struct *wq;
-	struct work_struct    disconn_work;
 	struct nes_cq         *nesscq;
 	struct nes_cq         *nesrcq;
 	struct nes_pd         *nespd;
@@ -165,7 +169,6 @@ struct nes_qp {
 	u8                    hw_iwarp_state;
 	u8                    flush_issued;
 	u8                    hw_tcp_state;
-	u8                    disconn_pending;
 	u8                    destroyed;
 };
 #endif			/* NES_VERBS_H */

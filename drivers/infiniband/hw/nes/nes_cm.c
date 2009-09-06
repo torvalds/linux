@@ -2450,20 +2450,16 @@ static int nes_cm_init_tsa_conn(struct nes_qp *nesqp, struct nes_cm_node *cm_nod
  */
 int nes_cm_disconn(struct nes_qp *nesqp)
 {
-	unsigned long flags;
+	struct disconn_work *work;
 
-	spin_lock_irqsave(&nesqp->lock, flags);
-	if (nesqp->disconn_pending == 0) {
-		nesqp->disconn_pending++;
-		spin_unlock_irqrestore(&nesqp->lock, flags);
-		nes_add_ref(&nesqp->ibqp);
-		/* init our disconnect work element, to */
-		INIT_WORK(&nesqp->disconn_work, nes_disconnect_worker);
+	work = kzalloc(sizeof *work, GFP_ATOMIC);
+	if (!work)
+		return -ENOMEM; /* Timer will clean up */
 
-		queue_work(g_cm_core->disconn_wq, &nesqp->disconn_work);
-	} else
-		spin_unlock_irqrestore(&nesqp->lock, flags);
-
+	nes_add_ref(&nesqp->ibqp);
+	work->nesqp = nesqp;
+	INIT_WORK(&work->work, nes_disconnect_worker);
+	queue_work(g_cm_core->disconn_wq, &work->work);
 	return 0;
 }
 
@@ -2473,8 +2469,10 @@ int nes_cm_disconn(struct nes_qp *nesqp)
  */
 static void nes_disconnect_worker(struct work_struct *work)
 {
-	struct nes_qp *nesqp = container_of(work, struct nes_qp, disconn_work);
+	struct disconn_work *dwork = container_of(work, struct disconn_work, work);
+	struct nes_qp *nesqp = dwork->nesqp;
 
+	kfree(dwork);
 	nes_debug(NES_DBG_CM, "processing AEQE id 0x%04X for QP%u.\n",
 			nesqp->last_aeq, nesqp->hwqp.qp_id);
 	nes_cm_disconn_true(nesqp);
@@ -2557,7 +2555,6 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			spin_lock_irqsave(&nesqp->lock, flags);
 		}
 
-		nesqp->disconn_pending = 0;
 		/* There might have been another AE while the lock was released */
 		original_hw_tcp_state = nesqp->hw_tcp_state;
 		original_ibqp_state   = nesqp->ibqp_state;
@@ -2610,7 +2607,6 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			}
 		}
 	} else {
-		nesqp->disconn_pending = 0;
 		spin_unlock_irqrestore(&nesqp->lock, flags);
 	}
 
