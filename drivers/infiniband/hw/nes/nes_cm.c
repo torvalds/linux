@@ -2493,7 +2493,12 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 	u16 last_ae;
 	u8 original_hw_tcp_state;
 	u8 original_ibqp_state;
-	u8 issued_disconnect_reset = 0;
+	enum iw_cm_event_type disconn_status = IW_CM_EVENT_STATUS_OK;
+	int issue_disconn = 0;
+	int issue_close = 0;
+	int issue_flush = 0;
+	u32 flush_q = NES_CQP_FLUSH_RQ;
+	struct ib_event ibevent;
 
 	if (!nesqp) {
 		nes_debug(NES_DBG_CM, "disconnect_worker nesqp is NULL\n");
@@ -2517,24 +2522,55 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 	original_ibqp_state   = nesqp->ibqp_state;
 	last_ae = nesqp->last_aeq;
 
+	if (nesqp->term_flags) {
+		issue_disconn = 1;
+		issue_close = 1;
+		nesqp->cm_id = NULL;
+		if (nesqp->flush_issued == 0) {
+			nesqp->flush_issued = 1;
+			issue_flush = 1;
+		}
+	} else if ((original_hw_tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
+			((original_ibqp_state == IB_QPS_RTS) &&
+			(last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
+		issue_disconn = 1;
+		if (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET)
+			disconn_status = IW_CM_EVENT_STATUS_RESET;
+	}
 
-	nes_debug(NES_DBG_CM, "set ibqp_state=%u\n", nesqp->ibqp_state);
+	if (((original_hw_tcp_state == NES_AEQE_TCP_STATE_CLOSED) ||
+		 (original_hw_tcp_state == NES_AEQE_TCP_STATE_TIME_WAIT) ||
+		 (last_ae == NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE) ||
+		 (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
+		issue_close = 1;
+		nesqp->cm_id = NULL;
+		if (nesqp->flush_issued == 0) {
+			nesqp->flush_issued = 1;
+			issue_flush = 1;
+		}
+	}
 
-	if ((nesqp->cm_id) && (cm_id->event_handler)) {
-		if ((original_hw_tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
-				((original_ibqp_state == IB_QPS_RTS) &&
-				(last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
+	spin_unlock_irqrestore(&nesqp->lock, flags);
+
+	if ((issue_flush) && (nesqp->destroyed == 0)) {
+		/* Flush the queue(s) */
+		if (nesqp->hw_iwarp_state >= NES_AEQE_IWARP_STATE_TERMINATE)
+			flush_q |= NES_CQP_FLUSH_SQ;
+		flush_wqes(nesvnic->nesdev, nesqp, flush_q, 1);
+
+		if (nesqp->term_flags) {
+			ibevent.device = nesqp->ibqp.device;
+			ibevent.event = nesqp->terminate_eventtype;
+			ibevent.element.qp = &nesqp->ibqp;
+			nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
+		}
+	}
+
+	if ((cm_id) && (cm_id->event_handler)) {
+		if (issue_disconn) {
 			atomic_inc(&cm_disconnects);
 			cm_event.event = IW_CM_EVENT_DISCONNECT;
-			if (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET) {
-				cm_event.status = IW_CM_EVENT_STATUS_RESET;
-				nes_debug(NES_DBG_CM, "Generating a CM "
-					"Disconnect Event (status reset) for "
-					"QP%u, cm_id = %p. \n",
-					nesqp->hwqp.qp_id, cm_id);
-			} else
-				cm_event.status = IW_CM_EVENT_STATUS_OK;
-
+			cm_event.status = disconn_status;
 			cm_event.local_addr = cm_id->local_addr;
 			cm_event.remote_addr = cm_id->remote_addr;
 			cm_event.private_data = NULL;
@@ -2547,28 +2583,14 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 				nesqp->hwqp.sq_tail, cm_id,
 				atomic_read(&nesqp->refcount));
 
-			spin_unlock_irqrestore(&nesqp->lock, flags);
 			ret = cm_id->event_handler(cm_id, &cm_event);
 			if (ret)
 				nes_debug(NES_DBG_CM, "OFA CM event_handler "
 					"returned, ret=%d\n", ret);
-			spin_lock_irqsave(&nesqp->lock, flags);
 		}
 
-		/* There might have been another AE while the lock was released */
-		original_hw_tcp_state = nesqp->hw_tcp_state;
-		original_ibqp_state   = nesqp->ibqp_state;
-		last_ae = nesqp->last_aeq;
-
-		if ((issued_disconnect_reset == 0) && (nesqp->cm_id) &&
-				((original_hw_tcp_state == NES_AEQE_TCP_STATE_CLOSED) ||
-				 (original_hw_tcp_state == NES_AEQE_TCP_STATE_TIME_WAIT) ||
-				 (last_ae == NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE) ||
-				 (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
+		if (issue_close) {
 			atomic_inc(&cm_closes);
-			nesqp->cm_id = NULL;
-			nesqp->in_disconnect = 0;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
 			nes_disconnect(nesqp, 1);
 
 			cm_id->provider_data = nesqp;
@@ -2587,27 +2609,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			}
 
 			cm_id->rem_ref(cm_id);
-
-			spin_lock_irqsave(&nesqp->lock, flags);
-			if (nesqp->flush_issued == 0) {
-				nesqp->flush_issued = 1;
-				spin_unlock_irqrestore(&nesqp->lock, flags);
-				flush_wqes(nesvnic->nesdev, nesqp,
-					NES_CQP_FLUSH_RQ, 1);
-			} else
-				spin_unlock_irqrestore(&nesqp->lock, flags);
-		} else {
-			cm_id = nesqp->cm_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			/* check to see if the inbound reset beat the outbound reset */
-			if ((!cm_id) && (last_ae==NES_AEQE_AEID_RESET_SENT)) {
-				nes_debug(NES_DBG_CM, "QP%u: Decing refcount "
-					"due to inbound reset beating the "
-					"outbound reset.\n", nesqp->hwqp.qp_id);
-			}
 		}
-	} else {
-		spin_unlock_irqrestore(&nesqp->lock, flags);
 	}
 
 	return 0;
