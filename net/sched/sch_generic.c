@@ -514,7 +514,7 @@ static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
 	return 0;
 }
 
-static struct Qdisc_ops pfifo_fast_ops __read_mostly = {
+struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.id		=	"pfifo_fast",
 	.priv_size	=	sizeof(struct pfifo_fast_priv),
 	.enqueue	=	pfifo_fast_enqueue,
@@ -670,6 +670,26 @@ static void attach_one_default_qdisc(struct net_device *dev,
 	dev_queue->qdisc_sleeping = qdisc;
 }
 
+static void attach_default_qdiscs(struct net_device *dev)
+{
+	struct netdev_queue *txq;
+	struct Qdisc *qdisc;
+
+	txq = netdev_get_tx_queue(dev, 0);
+
+	if (!netif_is_multiqueue(dev) || dev->tx_queue_len == 0) {
+		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
+		dev->qdisc = txq->qdisc_sleeping;
+		atomic_inc(&dev->qdisc->refcnt);
+	} else {
+		qdisc = qdisc_create_dflt(dev, txq, &mq_qdisc_ops, TC_H_ROOT);
+		if (qdisc) {
+			qdisc->ops->attach(qdisc);
+			dev->qdisc = qdisc;
+		}
+	}
+}
+
 static void transition_one_qdisc(struct net_device *dev,
 				 struct netdev_queue *dev_queue,
 				 void *_need_watchdog)
@@ -689,7 +709,6 @@ static void transition_one_qdisc(struct net_device *dev,
 
 void dev_activate(struct net_device *dev)
 {
-	struct netdev_queue *txq;
 	int need_watchdog;
 
 	/* No queueing discipline is attached to device;
@@ -698,13 +717,8 @@ void dev_activate(struct net_device *dev)
 	   virtual interfaces
 	 */
 
-	if (dev->qdisc == &noop_qdisc) {
-		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
-
-		txq = netdev_get_tx_queue(dev, 0);
-		dev->qdisc = txq->qdisc_sleeping;
-		atomic_inc(&dev->qdisc->refcnt);
-	}
+	if (dev->qdisc == &noop_qdisc)
+		attach_default_qdiscs(dev);
 
 	if (!netif_carrier_ok(dev))
 		/* Delay activation until next carrier-on event */

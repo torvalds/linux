@@ -80,6 +80,7 @@ struct Qdisc
 struct Qdisc_class_ops
 {
 	/* Child qdisc manipulation */
+	unsigned int		(*select_queue)(struct Qdisc *, struct tcmsg *);
 	int			(*graft)(struct Qdisc *, unsigned long cl,
 					struct Qdisc *, struct Qdisc **);
 	struct Qdisc *		(*leaf)(struct Qdisc *, unsigned long cl);
@@ -122,6 +123,7 @@ struct Qdisc_ops
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
 	int			(*change)(struct Qdisc *, struct nlattr *arg);
+	void			(*attach)(struct Qdisc *);
 
 	int			(*dump)(struct Qdisc *, struct sk_buff *);
 	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
@@ -255,6 +257,8 @@ static inline void sch_tree_unlock(struct Qdisc *q)
 
 extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
+extern struct Qdisc_ops pfifo_fast_ops;
+extern struct Qdisc_ops mq_qdisc_ops;
 
 struct Qdisc_class_common
 {

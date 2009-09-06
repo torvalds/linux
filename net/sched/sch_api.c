@@ -678,6 +678,11 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 		if (dev->flags & IFF_UP)
 			dev_deactivate(dev);
 
+		if (new && new->ops->attach) {
+			new->ops->attach(new);
+			num_q = 0;
+		}
+
 		for (i = 0; i < num_q; i++) {
 			struct netdev_queue *dev_queue = &dev->rx_queue;
 
@@ -692,7 +697,7 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 		}
 
 		notify_and_destroy(skb, n, classid, dev->qdisc, new);
-		if (new)
+		if (new && !new->ops->attach)
 			atomic_inc(&new->refcnt);
 		dev->qdisc = new ? : &noop_qdisc;
 
@@ -1095,10 +1100,16 @@ create_n_graft:
 		q = qdisc_create(dev, &dev->rx_queue,
 				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
-	else
-		q = qdisc_create(dev, netdev_get_tx_queue(dev, 0),
+	else {
+		unsigned int ntx = 0;
+
+		if (p && p->ops->cl_ops && p->ops->cl_ops->select_queue)
+			ntx = p->ops->cl_ops->select_queue(p, tcm);
+
+		q = qdisc_create(dev, netdev_get_tx_queue(dev, ntx),
 				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err);
+	}
 	if (q == NULL) {
 		if (err == -EAGAIN)
 			goto replay;
@@ -1674,6 +1685,7 @@ static int __init pktsched_init(void)
 {
 	register_qdisc(&pfifo_qdisc_ops);
 	register_qdisc(&bfifo_qdisc_ops);
+	register_qdisc(&mq_qdisc_ops);
 	proc_net_fops_create(&init_net, "psched", 0, &psched_fops);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, NULL);
