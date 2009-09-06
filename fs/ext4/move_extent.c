@@ -740,7 +740,7 @@ out:
  * on success, or a negative error value on failure.
  */
 static int
-move_extent_par_page(struct file *o_filp, struct inode *donor_inode,
+move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 		  pgoff_t orig_page_offset, int data_offset_in_page,
 		  int block_len_in_page, int uninit)
 {
@@ -1267,7 +1267,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		while (orig_page_offset <= seq_end_page) {
 
 			/* Swap original branches with new branches */
-			ret = move_extent_par_page(o_filp, donor_inode,
+			ret = move_extent_per_page(o_filp, donor_inode,
 						orig_page_offset,
 						data_offset_in_page,
 						block_len_in_page, uninit);
