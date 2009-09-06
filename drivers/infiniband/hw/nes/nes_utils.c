@@ -548,7 +548,7 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 		spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
 	}
 	if (cqp_request == NULL) {
-		cqp_request = kzalloc(sizeof(struct nes_cqp_request), GFP_KERNEL);
+		cqp_request = kzalloc(sizeof(struct nes_cqp_request), GFP_ATOMIC);
 		if (cqp_request) {
 			cqp_request->dynamic = 1;
 			INIT_LIST_HEAD(&cqp_request->list);
