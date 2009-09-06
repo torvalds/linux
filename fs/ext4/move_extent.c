@@ -1322,8 +1322,5 @@ out2:
 	if (ret)
 		return ret;
 
-	/* All of the specified blocks must be exchanged in succeed */
-	BUG_ON(*moved_len != len);
-
 	return 0;
 }
