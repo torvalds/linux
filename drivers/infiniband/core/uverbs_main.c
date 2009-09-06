@@ -584,13 +584,15 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	if (hdr.command < 0				||
 	    hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
-	    !uverbs_cmd_table[hdr.command]		||
-	    !(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
+	    !uverbs_cmd_table[hdr.command])
 		return -EINVAL;
 
 	if (!file->ucontext &&
 	    hdr.command != IB_USER_VERBS_CMD_GET_CONTEXT)
 		return -EINVAL;
+
+	if (!(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
+		return -ENOSYS;
 
 	return uverbs_cmd_table[hdr.command](file, buf + sizeof hdr,
 					     hdr.in_words * 4, hdr.out_words * 4);
