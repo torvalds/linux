@@ -41,6 +41,10 @@
 #include "fw.h"
 
 enum {
+	MLX4_IRQNAME_SIZE	= 64
+};
+
+enum {
 	MLX4_NUM_ASYNC_EQE	= 0x100,
 	MLX4_NUM_SPARE_EQE	= 0x80,
 	MLX4_EQ_ENTRY_SIZE	= 0x20
@@ -572,7 +576,9 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	priv->eq_table.clr_int  = priv->clr_base +
 		(priv->eq_table.inta_pin < 32 ? 4 : 0);
 
-	priv->eq_table.irq_names = kmalloc(16 * dev->caps.num_comp_vectors, GFP_KERNEL);
+	priv->eq_table.irq_names =
+		kmalloc(MLX4_IRQNAME_SIZE * (dev->caps.num_comp_vectors + 1),
+			GFP_KERNEL);
 	if (!priv->eq_table.irq_names) {
 		err = -ENOMEM;
 		goto err_out_bitmap;
@@ -595,17 +601,25 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 		goto err_out_comp;
 
 	if (dev->flags & MLX4_FLAG_MSI_X) {
-		static const char async_eq_name[] = "mlx4-async";
 		const char *eq_name;
 
 		for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i) {
 			if (i < dev->caps.num_comp_vectors) {
-				snprintf(priv->eq_table.irq_names + i * 16, 16,
-					 "mlx4-comp-%d", i);
-				eq_name = priv->eq_table.irq_names + i * 16;
-			} else
-				eq_name = async_eq_name;
+				snprintf(priv->eq_table.irq_names +
+					 i * MLX4_IRQNAME_SIZE,
+					 MLX4_IRQNAME_SIZE,
+					 "mlx4-comp-%d@pci:%s", i,
+					 pci_name(dev->pdev));
+			} else {
+				snprintf(priv->eq_table.irq_names +
+					 i * MLX4_IRQNAME_SIZE,
+					 MLX4_IRQNAME_SIZE,
+					 "mlx4-async@pci:%s",
+					 pci_name(dev->pdev));
+			}
 
+			eq_name = priv->eq_table.irq_names +
+				  i * MLX4_IRQNAME_SIZE;
 			err = request_irq(priv->eq_table.eq[i].irq,
 					  mlx4_msi_x_interrupt, 0, eq_name,
 					  priv->eq_table.eq + i);
@@ -615,8 +629,12 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 			priv->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
+		snprintf(priv->eq_table.irq_names,
+			 MLX4_IRQNAME_SIZE,
+			 DRV_NAME "@pci:%s",
+			 pci_name(dev->pdev));
 		err = request_irq(dev->pdev->irq, mlx4_interrupt,
-				  IRQF_SHARED, DRV_NAME, dev);
+				  IRQF_SHARED, priv->eq_table.irq_names, dev);
 		if (err)
 			goto err_out_async;
 
