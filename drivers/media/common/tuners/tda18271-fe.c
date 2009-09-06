@@ -863,8 +863,9 @@ static int tda18271_agc(struct dvb_frontend *fe)
 
 	switch (priv->config) {
 	case 0:
-		/* no LNA */
-		tda_dbg("no agc configuration provided\n");
+		/* no external agc configuration required */
+		if (tda18271_debug & DBG_ADV)
+			tda_dbg("no agc configuration provided\n");
 		break;
 	case 3:
 		/* switch with GPIO of saa713x */
