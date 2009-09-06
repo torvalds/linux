@@ -789,7 +789,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	return 0;
 
 err_close:
-	mlx4_close_hca(dev);
+	mlx4_CLOSE_HCA(dev, 0);
 
 err_free_icm:
 	mlx4_free_icms(dev);
