@@ -852,7 +852,9 @@ int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
 	wqe->qpcaps = attr->qpcaps;
 	wqe->ulpdu_size = cpu_to_be16(attr->tcp_emss);
 	wqe->rqe_count = cpu_to_be16(attr->rqe_count);
-	wqe->flags_rtr_type = cpu_to_be16(attr->flags|V_RTR_TYPE(attr->rtr_type));
+	wqe->flags_rtr_type = cpu_to_be16(attr->flags |
+					  V_RTR_TYPE(attr->rtr_type) |
+					  V_CHAN(attr->chan));
 	wqe->ord = cpu_to_be32(attr->ord);
 	wqe->ird = cpu_to_be32(attr->ird);
 	wqe->qp_dma_addr = cpu_to_be64(attr->qp_dma_addr);
