@@ -409,6 +409,9 @@ static int init_preds(struct ftrace_event_call *call)
 	struct filter_pred *pred;
 	int i;
 
+	if (call->filter)
+		return 0;
+
 	filter = call->filter = kzalloc(sizeof(*filter), GFP_KERNEL);
 	if (!call->filter)
 		return -ENOMEM;
@@ -447,11 +450,9 @@ static int init_subsystem_preds(struct event_subsystem *system)
 		if (strcmp(call->system, system->name) != 0)
 			continue;
 
-		if (!call->filter) {
-			err = init_preds(call);
-			if (err)
-				return err;
-		}
+		err = init_preds(call);
+		if (err)
+			return err;
 	}
 
 	return 0;
