@@ -1279,8 +1279,8 @@ static void bus_reset_tasklet(unsigned long data)
 	 * the inverted quadlets and a header quadlet, we shift one
 	 * bit extra to get the actual number of self IDs.
 	 */
-	self_id_count = (reg >> 3) & 0x3ff;
-	if (self_id_count == 0) {
+	self_id_count = (reg >> 3) & 0xff;
+	if (self_id_count == 0 || self_id_count > 252) {
 		fw_notify("inconsistent self IDs\n");
 		return;
 	}
