@@ -1478,9 +1478,14 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		/*
 		 * We're gonna mark this puppy DEAD, but keep
 		 * the reference on it until the ULP accepts or
-		 * rejects the CR.
+		 * rejects the CR. Also wake up anyone waiting
+		 * in rdma connection migration (see iwch_accept_cr()).
 		 */
 		__state_set(&ep->com, CLOSING);
+		ep->com.rpl_done = 1;
+		ep->com.rpl_err = -ECONNRESET;
+		PDBG("waking up ep %p\n", ep);
+		wake_up(&ep->com.waitq);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
@@ -1588,8 +1593,13 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		/*
 		 * We're gonna mark this puppy DEAD, but keep
 		 * the reference on it until the ULP accepts or
-		 * rejects the CR.
+		 * rejects the CR. Also wake up anyone waiting
+		 * in rdma connection migration (see iwch_accept_cr()).
 		 */
+		ep->com.rpl_done = 1;
+		ep->com.rpl_err = -ECONNRESET;
+		PDBG("waking up ep %p\n", ep);
+		wake_up(&ep->com.waitq);
 		break;
 	case MORIBUND:
 	case CLOSING:
@@ -1828,8 +1838,6 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.cm_id = cm_id;
 	ep->com.qp = qp;
 
-	ep->com.rpl_done = 0;
-	ep->com.rpl_err = 0;
 	ep->ird = conn_param->ird;
 	ep->ord = conn_param->ord;
 
