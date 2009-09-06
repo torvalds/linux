@@ -3655,7 +3655,16 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 			if (cqe.cqe_words[NES_CQE_ERROR_CODE_IDX] == 0) {
 				entry->status = IB_WC_SUCCESS;
 			} else {
-				entry->status = IB_WC_WR_FLUSH_ERR;
+				err_code = le32_to_cpu(cqe.cqe_words[NES_CQE_ERROR_CODE_IDX]);
+				if (NES_IWARP_CQE_MAJOR_DRV == (err_code >> 16)) {
+					entry->status = err_code & 0x0000ffff;
+
+					/* The rest of the cqe's will be marked as flushed */
+					nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_ERROR_CODE_IDX] =
+						cpu_to_le32((NES_IWARP_CQE_MAJOR_FLUSH << 16) |
+							    NES_IWARP_CQE_MINOR_FLUSH);
+				} else
+					entry->status = IB_WC_WR_FLUSH_ERR;
 			}
 
 			entry->qp = &nesqp->ibqp;
