@@ -1506,12 +1506,45 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 
 /**
+ * nes_clean_cq
+ */
+static void nes_clean_cq(struct nes_qp *nesqp, struct nes_cq *nescq)
+{
+	u32 cq_head;
+	u32 lo;
+	u32 hi;
+	u64 u64temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&nescq->lock, flags);
+
+	cq_head = nescq->hw_cq.cq_head;
+	while (le32_to_cpu(nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_OPCODE_IDX]) & NES_CQE_VALID) {
+		rmb();
+		lo = le32_to_cpu(nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
+		hi = le32_to_cpu(nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX]);
+		u64temp = (((u64)hi) << 32) | ((u64)lo);
+		u64temp &= ~(NES_SW_CONTEXT_ALIGN-1);
+		if (u64temp == (u64)(unsigned long)nesqp) {
+			/* Zero the context value so cqe will be ignored */
+			nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX] = 0;
+			nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX] = 0;
+		}
+
+		if (++cq_head >= nescq->hw_cq.cq_size)
+			cq_head = 0;
+	}
+
+	spin_unlock_irqrestore(&nescq->lock, flags);
+}
+
+
+/**
  * nes_destroy_qp
  */
 static int nes_destroy_qp(struct ib_qp *ibqp)
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
-	/* struct nes_vnic *nesvnic = to_nesvnic(ibqp->device); */
 	struct nes_ucontext *nes_ucontext;
 	struct ib_qp_attr attr;
 	struct iw_cm_id *cm_id;
@@ -1548,7 +1581,6 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 			nes_debug(NES_DBG_QP, "OFA CM event_handler returned, ret=%d\n", ret);
 	}
 
-
 	if (nesqp->user_mode) {
 		if ((ibqp->uobject)&&(ibqp->uobject->context)) {
 			nes_ucontext = to_nesucontext(ibqp->uobject->context);
@@ -1560,6 +1592,13 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 		}
 		if (nesqp->pbl_pbase)
 			kunmap(nesqp->page);
+	} else {
+		/* Clean any pending completions from the cq(s) */
+		if (nesqp->nesscq)
+			nes_clean_cq(nesqp, nesqp->nesscq);
+
+		if ((nesqp->nesrcq) && (nesqp->nesrcq != nesqp->nesscq))
+			nes_clean_cq(nesqp, nesqp->nesrcq);
 	}
 
 	nes_rem_ref(&nesqp->ibqp);
@@ -3547,7 +3586,6 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 {
 	u64 u64temp;
 	u64 wrid;
-	/* u64 u64temp; */
 	unsigned long flags = 0;
 	struct nes_vnic *nesvnic = to_nesvnic(ibcq->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -3560,7 +3598,6 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	u32 cqe_count = 0;
 	u32 wqe_index;
 	u32 u32temp;
-	/* u32 counter; */
 
 	nes_debug(NES_DBG_CQ, "\n");
 
@@ -3570,24 +3607,27 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	cq_size = nescq->hw_cq.cq_size;
 
 	while (cqe_count < num_entries) {
-		if (le32_to_cpu(nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) &
-				NES_CQE_VALID) {
-			/*
-			 * Make sure we read CQ entry contents *after*
-			 * we've checked the valid bit.
-			 */
-			rmb();
+		if ((le32_to_cpu(nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) &
+				NES_CQE_VALID) == 0)
+			break;
 
-			cqe = nescq->hw_cq.cq_vbase[head];
-			nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX] = 0;
-			u32temp = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
-			wqe_index = u32temp &
-					(nesdev->nesadapter->max_qp_wr - 1);
-			u32temp &= ~(NES_SW_CONTEXT_ALIGN-1);
-			/* parse CQE, get completion context from WQE (either rq or sq */
-			u64temp = (((u64)(le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX])))<<32) |
-					((u64)u32temp);
-			nesqp = *((struct nes_qp **)&u64temp);
+		/*
+		 * Make sure we read CQ entry contents *after*
+		 * we've checked the valid bit.
+		 */
+		rmb();
+
+		cqe = nescq->hw_cq.cq_vbase[head];
+		nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX] = 0;
+		u32temp = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
+		wqe_index = u32temp & (nesdev->nesadapter->max_qp_wr - 1);
+		u32temp &= ~(NES_SW_CONTEXT_ALIGN-1);
+		/* parse CQE, get completion context from WQE (either rq or sq) */
+		u64temp = (((u64)(le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX])))<<32) |
+				((u64)u32temp);
+
+		if (u64temp) {
+			nesqp = (struct nes_qp *)(unsigned long)u64temp;
 			memset(entry, 0, sizeof *entry);
 			if (cqe.cqe_words[NES_CQE_ERROR_CODE_IDX] == 0) {
 				entry->status = IB_WC_SUCCESS;
@@ -3601,7 +3641,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 			if (le32_to_cpu(cqe.cqe_words[NES_CQE_OPCODE_IDX]) & NES_CQE_SQ) {
 				if (nesqp->skip_lsmm) {
 					nesqp->skip_lsmm = 0;
-					wq_tail = nesqp->hwqp.sq_tail++;
+					nesqp->hwqp.sq_tail++;
 				}
 
 				/* Working on a SQ Completion*/
@@ -3643,24 +3683,25 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 					((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wq_tail].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_HIGH_IDX]))<<32);
 					entry->opcode = IB_WC_RECV;
 			}
-			entry->wr_id = wrid;
 
-			if (++head >= cq_size)
-				head = 0;
-			cqe_count++;
-			nescq->polled_completions++;
-			if ((nescq->polled_completions > (cq_size / 2)) ||
-					(nescq->polled_completions == 255)) {
-				nes_debug(NES_DBG_CQ, "CQ%u Issuing CQE Allocate since more than half of cqes"
-						" are pending %u of %u.\n",
-						nescq->hw_cq.cq_number, nescq->polled_completions, cq_size);
-				nes_write32(nesdev->regs+NES_CQE_ALLOC,
-						nescq->hw_cq.cq_number | (nescq->polled_completions << 16));
-				nescq->polled_completions = 0;
-			}
+			entry->wr_id = wrid;
 			entry++;
-		} else
-			break;
+			cqe_count++;
+		}
+
+		if (++head >= cq_size)
+			head = 0;
+		nescq->polled_completions++;
+
+		if ((nescq->polled_completions > (cq_size / 2)) ||
+				(nescq->polled_completions == 255)) {
+			nes_debug(NES_DBG_CQ, "CQ%u Issuing CQE Allocate since more than half of cqes"
+					" are pending %u of %u.\n",
+					nescq->hw_cq.cq_number, nescq->polled_completions, cq_size);
+			nes_write32(nesdev->regs+NES_CQE_ALLOC,
+					nescq->hw_cq.cq_number | (nescq->polled_completions << 16));
+			nescq->polled_completions = 0;
+		}
 	}
 
 	if (nescq->polled_completions) {
