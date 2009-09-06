@@ -168,4 +168,4 @@ relevant to non SoC devices and is split into the following four interfaces:-
       userspace via sysfs. This could be used to help monitor device power
       consumption and status.
 
-        See Documentation/ABI/testing/regulator-sysfs.txt
+        See Documentation/ABI/testing/sysfs-class-regulator
