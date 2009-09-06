@@ -42,8 +42,8 @@ config B43_PCICORE_AUTOSELECT
 	default y
 
 config B43_PCMCIA
-	bool "Broadcom 43xx PCMCIA device support (EXPERIMENTAL)"
-	depends on B43 && SSB_PCMCIAHOST_POSSIBLE && EXPERIMENTAL
+	bool "Broadcom 43xx PCMCIA device support"
+	depends on B43 && SSB_PCMCIAHOST_POSSIBLE
 	select SSB_PCMCIAHOST
 	---help---
 	  Broadcom 43xx PCMCIA device support.
