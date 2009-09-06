@@ -3201,7 +3201,7 @@ static void intel_gpu_idle_timer(unsigned long arg)
 
 	dev_priv->busy = false;
 
-	schedule_work(&dev_priv->idle_work);
+	queue_work(dev_priv->wq, &dev_priv->idle_work);
 }
 
 void intel_increase_renderclock(struct drm_device *dev, bool schedule)
@@ -3335,7 +3335,7 @@ static void intel_crtc_idle_timer(unsigned long arg)
 
 	intel_crtc->busy = false;
 
-	schedule_work(&dev_priv->idle_work);
+	queue_work(dev_priv->wq, &dev_priv->idle_work);
 }
 
 static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
