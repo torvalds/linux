@@ -580,8 +580,7 @@ static void rt2800usb_config_erp(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	rt2x00usb_register_read(rt2x00dev, TX_TIMEOUT_CFG, &reg);
-	rt2x00_set_field32(&reg, TX_TIMEOUT_CFG_RX_ACK_TIMEOUT,
-			   DIV_ROUND_UP(erp->ack_timeout, erp->slot_time));
+	rt2x00_set_field32(&reg, TX_TIMEOUT_CFG_RX_ACK_TIMEOUT, 0x20);
 	rt2x00usb_register_write(rt2x00dev, TX_TIMEOUT_CFG, reg);
 
 	rt2x00usb_register_read(rt2x00dev, AUTO_RSP_CFG, &reg);

@@ -561,7 +561,7 @@ static void rt73usb_config_erp(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	rt2x00usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, erp->ack_timeout);
+	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, 0x32);
 	rt2x00_set_field32(&reg, TXRX_CSR0_TSF_OFFSET, IEEE80211_HEADER);
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR0, reg);
 
