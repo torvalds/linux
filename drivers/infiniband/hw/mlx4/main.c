@@ -342,6 +342,9 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 	struct mlx4_ib_alloc_ucontext_resp resp;
 	int err;
 
+	if (!dev->ib_active)
+		return ERR_PTR(-EAGAIN);
+
 	resp.qp_tab_size      = dev->dev->caps.num_qps;
 	resp.bf_reg_size      = dev->dev->caps.bf_reg_size;
 	resp.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
@@ -673,6 +676,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			goto err_reg;
 	}
 
+	ibdev->ib_active = true;
+
 	return ibdev;
 
 err_reg:
@@ -729,6 +734,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		break;
 
 	case MLX4_DEV_EVENT_CATASTROPHIC_ERROR:
+		ibdev->ib_active = false;
 		ibev.event = IB_EVENT_DEVICE_FATAL;
 		break;
 
