@@ -9,7 +9,7 @@ config VIDEO_SAA7164
 	select VIDEOBUF_DVB
 	select DVB_TDA10048 if !DVB_FE_CUSTOMISE
 	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_TDA18271 if !DVB_FE_CUSTOMIZE
+	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMISE
 	---help---
 	  This is a video4linux driver for NXP SAA7164 based
 	  TV cards.
