@@ -1116,6 +1116,8 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 	pci_set_drvdata(pdev, mdev);
 	mdev->hca_type = hca_type;
 
+	mdev->active = true;
+
 	return 0;
 
 err_unregister:
