@@ -1138,11 +1138,18 @@ static void i7core_put_devices(struct i7core_dev *i7core_dev)
 {
 	int i;
 
-	for (i = 0; i < N_DEVS; i++)
-		pci_dev_put(i7core_dev->pdev[i]);
-
-	list_del(&i7core_dev->list);
+	debugf0(__FILE__ ": %s()\n", __func__);
+	for (i = 0; i < N_DEVS; i++) {
+		struct pci_dev *pdev = i7core_dev->pdev[i];
+		if (!pdev)
+			continue;
+		debugf0("Removing dev %02x:%02x.%d\n",
+			pdev->bus->number,
+			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+		pci_dev_put(pdev);
+	}
 	kfree(i7core_dev->pdev);
+	list_del(&i7core_dev->list);
 	kfree(i7core_dev);
 }
 
@@ -1863,31 +1870,39 @@ fail0:
 static void __devexit i7core_remove(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
-	struct i7core_pvt *pvt;
-	struct i7core_dev *i7core_dev;
+	struct i7core_dev *i7core_dev, *tmp;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
 
 	if (i7core_pci)
 		edac_pci_release_generic_ctl(i7core_pci);
 
+	/*
+	 * we have a trouble here: pdev value for removal will be wrong, since
+	 * it will point to the X58 register used to detect that the machine
+	 * is a Nehalem or upper design. However, due to the way several PCI
+	 * devices are grouped together to provide MC functionality, we need
+	 * to use a different method for releasing the devices
+	 */
 
-	mci = edac_mc_del_mc(&pdev->dev);
-	if (!mci)
-		return;
-
-	/* Unregisters on edac_mce in order to receive memory errors */
-	pvt = mci->pvt_info;
-	i7core_dev = pvt->i7core_dev;
-	edac_mce_unregister(&pvt->edac_mce);
-
-	/* retrieve references to resources, and free those resources */
 	mutex_lock(&i7core_edac_lock);
-	i7core_put_devices(i7core_dev);
-	mutex_unlock(&i7core_edac_lock);
+	list_for_each_entry_safe(i7core_dev, tmp, &i7core_edac_list, list) {
+		mci = edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
+		if (mci) {
+			struct i7core_pvt *pvt = mci->pvt_info;
 
-	kfree(mci->ctl_name);
-	edac_mc_free(mci);
+			i7core_dev = pvt->i7core_dev;
+			edac_mce_unregister(&pvt->edac_mce);
+			kfree(mci->ctl_name);
+			edac_mc_free(mci);
+			i7core_put_devices(i7core_dev);
+		} else {
+			i7core_printk(KERN_ERR,
+				      "Couldn't find mci for socket %d\n",
+				      i7core_dev->socket);
+		}
+	}
+	mutex_unlock(&i7core_edac_lock);
 }
 
 MODULE_DEVICE_TABLE(pci, i7core_pci_tbl);
