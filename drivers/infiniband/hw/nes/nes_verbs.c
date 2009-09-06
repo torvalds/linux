@@ -667,15 +667,32 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
  */
 static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 {
+	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
+	struct net_device *netdev = nesvnic->netdev;
+
 	memset(props, 0, sizeof(*props));
 
-	props->max_mtu = IB_MTU_2048;
-	props->active_mtu = IB_MTU_2048;
+	props->max_mtu = IB_MTU_4096;
+
+	if (netdev->mtu  >= 4096)
+		props->active_mtu = IB_MTU_4096;
+	else if (netdev->mtu  >= 2048)
+		props->active_mtu = IB_MTU_2048;
+	else if (netdev->mtu  >= 1024)
+		props->active_mtu = IB_MTU_1024;
+	else if (netdev->mtu  >= 512)
+		props->active_mtu = IB_MTU_512;
+	else
+		props->active_mtu = IB_MTU_256;
+
 	props->lid = 1;
 	props->lmc = 0;
 	props->sm_lid = 0;
 	props->sm_sl = 0;
-	props->state = IB_PORT_ACTIVE;
+	if (nesvnic->linkup)
+		props->state = IB_PORT_ACTIVE;
+	else
+		props->state = IB_PORT_DOWN;
 	props->phys_state = 0;
 	props->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
 			IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
