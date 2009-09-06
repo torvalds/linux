@@ -2923,7 +2923,7 @@ static int nes_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  * nes_hw_modify_qp
  */
 int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
-		u32 next_iwarp_state, u32 wait_completion)
+		u32 next_iwarp_state, u32 termlen, u32 wait_completion)
 {
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	/* struct iw_cm_id *cm_id = nesqp->cm_id; */
@@ -2954,6 +2954,13 @@ int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
 	nes_fill_init_cqp_wqe(cqp_wqe, nesdev);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_ID_IDX, nesqp->hwqp.qp_id);
 	set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, (u64)nesqp->nesqp_context_pbase);
+
+	/* If sending a terminate message, fill in the length (in words) */
+	if (((next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK) == NES_CQP_QP_IWARP_STATE_TERMINATE) &&
+	    !(next_iwarp_state & NES_CQP_QP_TERM_DONT_SEND_TERM_MSG)) {
+		termlen = ((termlen + 3) >> 2) << NES_CQP_OP_TERMLEN_SHIFT;
+		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_NEW_MSS_IDX, termlen);
+	}
 
 	atomic_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
@@ -3125,6 +3132,9 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				}
 				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = error\n",
 						nesqp->hwqp.qp_id);
+				if (nesqp->term_flags)
+					del_timer(&nesqp->terminate_timer);
+
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR;
 				/* next_iwarp_state = (NES_CQP_QP_IWARP_STATE_TERMINATE | 0x02000000); */
 					if (nesqp->hte_added) {
@@ -3202,7 +3212,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (issue_modify_qp) {
 		nes_debug(NES_DBG_MOD_QP, "call nes_hw_modify_qp\n");
-		ret = nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 1);
+		ret = nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 1);
 		if (ret)
 			nes_debug(NES_DBG_MOD_QP, "nes_hw_modify_qp (next_iwarp_state = 0x%08X)"
 					" failed for QP%u.\n",
@@ -3367,6 +3377,12 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 	head = nesqp->hwqp.sq_head;
 
 	while (ib_wr) {
+		/* Check for QP error */
+		if (nesqp->term_flags) {
+			err = -EINVAL;
+			break;
+		}
+
 		/* Check for SQ overflow */
 		if (((head + (2 * qsize) - nesqp->hwqp.sq_tail) % qsize) == (qsize - 1)) {
 			err = -EINVAL;
@@ -3523,6 +3539,12 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 	head = nesqp->hwqp.rq_head;
 
 	while (ib_wr) {
+		/* Check for QP error */
+		if (nesqp->term_flags) {
+			err = -EINVAL;
+			break;
+		}
+
 		if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
 			err = -EINVAL;
 			break;

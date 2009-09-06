@@ -40,6 +40,10 @@ struct nes_device;
 #define NES_MAX_USER_DB_REGIONS  4096
 #define NES_MAX_USER_WQ_REGIONS  4096
 
+#define NES_TERM_SENT            0x01
+#define NES_TERM_RCVD            0x02
+#define NES_TERM_DONE            0x04
+
 struct nes_ucontext {
 	struct ib_ucontext ibucontext;
 	struct nes_device  *nesdev;
@@ -159,6 +163,8 @@ struct nes_qp {
 	void	              *pbl_vbase;
 	dma_addr_t            pbl_pbase;
 	struct page           *page;
+	struct timer_list     terminate_timer;
+	enum ib_event_type    terminate_eventtype;
 	wait_queue_head_t     kick_waitq;
 	u16                   in_disconnect;
 	u16                   private_data_len;
@@ -169,6 +175,7 @@ struct nes_qp {
 	u8                    hw_iwarp_state;
 	u8                    flush_issued;
 	u8                    hw_tcp_state;
+	u8                    term_flags;
 	u8                    destroyed;
 };
 #endif			/* NES_VERBS_H */
