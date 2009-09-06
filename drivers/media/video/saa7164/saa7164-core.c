@@ -77,7 +77,7 @@ static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
 	struct saa7164_tsport *port = buf->port;
 
 	/* Feed the transport payload into the kernel demux */
-	dvb_dmx_swfilter_packets(&port->dvb.demux, buf->cpu,
+	dvb_dmx_swfilter_packets(&port->dvb.demux, (u8 *)buf->cpu,
 		SAA7164_TS_NUMBER_OF_LINES);
 
 }
