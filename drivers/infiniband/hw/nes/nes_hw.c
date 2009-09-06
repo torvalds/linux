@@ -2913,6 +2913,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	u64 aeqe_context = 0;
 	unsigned long flags;
 	struct nes_qp *nesqp;
+	struct nes_hw_cq *hw_cq;
+	struct nes_cq *nescq;
 	int resource_allocated;
 	/* struct iw_cm_id *cm_id; */
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
@@ -3153,6 +3155,16 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			if (resource_allocated) {
 				printk(KERN_ERR PFX "%s: Processing an NES_AEQE_AEID_CQ_OPERATION_ERROR event on CQ%u\n",
 						__func__, le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]));
+				hw_cq = (struct nes_hw_cq *)(unsigned long)context;
+				if (hw_cq) {
+					nescq = container_of(hw_cq, struct nes_cq, hw_cq);
+					if (nescq->ibcq.event_handler) {
+						ibevent.device = nescq->ibcq.device;
+						ibevent.event = IB_EVENT_CQ_ERR;
+						ibevent.element.cq = &nescq->ibcq;
+						nescq->ibcq.event_handler(&ibevent, nescq->ibcq.cq_context);
+					}
+				}
 			}
 			break;
 		case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
