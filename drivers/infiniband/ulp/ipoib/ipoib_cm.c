@@ -31,7 +31,6 @@
  */
 
 #include <rdma/ib_cm.h>
-#include <rdma/ib_cache.h>
 #include <net/dst.h>
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
