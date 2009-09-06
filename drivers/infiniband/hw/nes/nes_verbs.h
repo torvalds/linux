@@ -168,6 +168,8 @@ struct nes_qp {
 	wait_queue_head_t     kick_waitq;
 	u16                   in_disconnect;
 	u16                   private_data_len;
+	u16                   term_sq_flush_code;
+	u16                   term_rq_flush_code;
 	u8                    active_conn;
 	u8                    skip_lsmm;
 	u8                    user_mode;

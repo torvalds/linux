@@ -2944,6 +2944,7 @@ static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 a
 	u16 ddp_seg_len;
 	int copy_len = 0;
 	u8 is_tagged = 0;
+	u8 flush_code = 0;
 	struct nes_terminate_hdr *termhdr;
 
 	termhdr = (struct nes_terminate_hdr *)nesqp->hwqp.q2_vbase;
@@ -2983,19 +2984,23 @@ static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 a
 	case NES_AEQE_AEID_AMP_UNALLOCATED_STAG:
 		switch (iwarp_opcode(nesqp, aeq_info)) {
 		case IWARP_OPCODE_WRITE:
+			flush_code = IB_WC_LOC_PROT_ERR;
 			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
 			termhdr->error_code = DDP_TAGGED_INV_STAG;
 			break;
 		default:
+			flush_code = IB_WC_REM_ACCESS_ERR;
 			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 			termhdr->error_code = RDMAP_INV_STAG;
 		}
 		break;
 	case NES_AEQE_AEID_AMP_INVALID_STAG:
+		flush_code = IB_WC_REM_ACCESS_ERR;
 		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 		termhdr->error_code = RDMAP_INV_STAG;
 		break;
 	case NES_AEQE_AEID_AMP_BAD_QP:
+		flush_code = IB_WC_LOC_QP_OP_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
 		termhdr->error_code = DDP_UNTAGGED_INV_QN;
 		break;
@@ -3004,19 +3009,23 @@ static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 a
 		switch (iwarp_opcode(nesqp, aeq_info)) {
 		case IWARP_OPCODE_SEND_INV:
 		case IWARP_OPCODE_SEND_SE_INV:
+			flush_code = IB_WC_REM_OP_ERR;
 			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
 			termhdr->error_code = RDMAP_CANT_INV_STAG;
 			break;
 		default:
+			flush_code = IB_WC_REM_ACCESS_ERR;
 			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 			termhdr->error_code = RDMAP_INV_STAG;
 		}
 		break;
 	case NES_AEQE_AEID_AMP_BOUNDS_VIOLATION:
 		if (aeq_info & (NES_AEQE_Q2_DATA_ETHERNET | NES_AEQE_Q2_DATA_MPA)) {
+			flush_code = IB_WC_LOC_PROT_ERR;
 			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
 			termhdr->error_code = DDP_TAGGED_BOUNDS;
 		} else {
+			flush_code = IB_WC_REM_ACCESS_ERR;
 			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 			termhdr->error_code = RDMAP_INV_BOUNDS;
 		}
@@ -3024,57 +3033,69 @@ static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 a
 	case NES_AEQE_AEID_AMP_RIGHTS_VIOLATION:
 	case NES_AEQE_AEID_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
 	case NES_AEQE_AEID_PRIV_OPERATION_DENIED:
+		flush_code = IB_WC_REM_ACCESS_ERR;
 		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 		termhdr->error_code = RDMAP_ACCESS;
 		break;
 	case NES_AEQE_AEID_AMP_TO_WRAP:
+		flush_code = IB_WC_REM_ACCESS_ERR;
 		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 		termhdr->error_code = RDMAP_TO_WRAP;
 		break;
 	case NES_AEQE_AEID_AMP_BAD_PD:
 		switch (iwarp_opcode(nesqp, aeq_info)) {
 		case IWARP_OPCODE_WRITE:
+			flush_code = IB_WC_LOC_PROT_ERR;
 			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
 			termhdr->error_code = DDP_TAGGED_UNASSOC_STAG;
 			break;
 		case IWARP_OPCODE_SEND_INV:
 		case IWARP_OPCODE_SEND_SE_INV:
+			flush_code = IB_WC_REM_ACCESS_ERR;
 			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 			termhdr->error_code = RDMAP_CANT_INV_STAG;
 			break;
 		default:
+			flush_code = IB_WC_REM_ACCESS_ERR;
 			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
 			termhdr->error_code = RDMAP_UNASSOC_STAG;
 		}
 		break;
 	case NES_AEQE_AEID_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH:
+		flush_code = IB_WC_LOC_LEN_ERR;
 		termhdr->layer_etype = (LAYER_MPA << 4) | DDP_LLP;
 		termhdr->error_code = MPA_MARKER;
 		break;
 	case NES_AEQE_AEID_LLP_RECEIVED_MPA_CRC_ERROR:
+		flush_code = IB_WC_GENERAL_ERR;
 		termhdr->layer_etype = (LAYER_MPA << 4) | DDP_LLP;
 		termhdr->error_code = MPA_CRC;
 		break;
 	case NES_AEQE_AEID_LLP_SEGMENT_TOO_LARGE:
 	case NES_AEQE_AEID_LLP_SEGMENT_TOO_SMALL:
+		flush_code = IB_WC_LOC_LEN_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_CATASTROPHIC;
 		termhdr->error_code = DDP_CATASTROPHIC_LOCAL;
 		break;
 	case NES_AEQE_AEID_DDP_LCE_LOCAL_CATASTROPHIC:
 	case NES_AEQE_AEID_DDP_NO_L_BIT:
+		flush_code = IB_WC_FATAL_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_CATASTROPHIC;
 		termhdr->error_code = DDP_CATASTROPHIC_LOCAL;
 		break;
 	case NES_AEQE_AEID_DDP_INVALID_MSN_GAP_IN_MSN:
 	case NES_AEQE_AEID_DDP_INVALID_MSN_RANGE_IS_NOT_VALID:
+		flush_code = IB_WC_GENERAL_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
 		termhdr->error_code = DDP_UNTAGGED_INV_MSN_RANGE;
 		break;
 	case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
+		flush_code = IB_WC_LOC_LEN_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
 		termhdr->error_code = DDP_UNTAGGED_INV_TOO_LONG;
 		break;
 	case NES_AEQE_AEID_DDP_UBE_INVALID_DDP_VERSION:
+		flush_code = IB_WC_GENERAL_ERR;
 		if (is_tagged) {
 			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
 			termhdr->error_code = DDP_TAGGED_INV_DDP_VER;
@@ -3084,26 +3105,32 @@ static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 a
 		}
 		break;
 	case NES_AEQE_AEID_DDP_UBE_INVALID_MO:
+		flush_code = IB_WC_GENERAL_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
 		termhdr->error_code = DDP_UNTAGGED_INV_MO;
 		break;
 	case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:
+		flush_code = IB_WC_REM_OP_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
 		termhdr->error_code = DDP_UNTAGGED_INV_MSN_NO_BUF;
 		break;
 	case NES_AEQE_AEID_DDP_UBE_INVALID_QN:
+		flush_code = IB_WC_GENERAL_ERR;
 		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
 		termhdr->error_code = DDP_UNTAGGED_INV_QN;
 		break;
 	case NES_AEQE_AEID_RDMAP_ROE_INVALID_RDMAP_VERSION:
+		flush_code = IB_WC_GENERAL_ERR;
 		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
 		termhdr->error_code = RDMAP_INV_RDMAP_VER;
 		break;
 	case NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE:
+		flush_code = IB_WC_LOC_QP_OP_ERR;
 		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
 		termhdr->error_code = RDMAP_UNEXPECTED_OP;
 		break;
 	default:
+		flush_code = IB_WC_FATAL_ERR;
 		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
 		termhdr->error_code = RDMAP_UNSPECIFIED;
 		break;
@@ -3111,6 +3138,13 @@ static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 a
 
 	if (copy_len)
 		memcpy(termhdr + 1, pkt, copy_len);
+
+	if ((flush_code) && ((NES_AEQE_INBOUND_RDMA & aeq_info) == 0)) {
+		if (aeq_info & NES_AEQE_SQ)
+			nesqp->term_sq_flush_code = flush_code;
+		else
+			nesqp->term_rq_flush_code = flush_code;
+	}
 
 	return sizeof(struct nes_terminate_hdr) + copy_len;
 }
@@ -3646,6 +3680,8 @@ void flush_wqes(struct nes_device *nesdev, struct nes_qp *nesqp,
 {
 	struct nes_cqp_request *cqp_request;
 	struct nes_hw_cqp_wqe *cqp_wqe;
+	u32 sq_code = (NES_IWARP_CQE_MAJOR_FLUSH << 16) | NES_IWARP_CQE_MINOR_FLUSH;
+	u32 rq_code = (NES_IWARP_CQE_MAJOR_FLUSH << 16) | NES_IWARP_CQE_MINOR_FLUSH;
 	int ret;
 
 	cqp_request = nes_get_cqp_request(nesdev);
@@ -3661,6 +3697,24 @@ void flush_wqes(struct nes_device *nesdev, struct nes_qp *nesqp,
 	}
 	cqp_wqe = &cqp_request->cqp_wqe;
 	nes_fill_init_cqp_wqe(cqp_wqe, nesdev);
+
+	/* If wqe in error was identified, set code to be put into cqe */
+	if ((nesqp->term_sq_flush_code) && (which_wq & NES_CQP_FLUSH_SQ)) {
+		which_wq |= NES_CQP_FLUSH_MAJ_MIN;
+		sq_code = (CQE_MAJOR_DRV << 16) | nesqp->term_sq_flush_code;
+		nesqp->term_sq_flush_code = 0;
+	}
+
+	if ((nesqp->term_rq_flush_code) && (which_wq & NES_CQP_FLUSH_RQ)) {
+		which_wq |= NES_CQP_FLUSH_MAJ_MIN;
+		rq_code = (CQE_MAJOR_DRV << 16) | nesqp->term_rq_flush_code;
+		nesqp->term_rq_flush_code = 0;
+	}
+
+	if (which_wq & NES_CQP_FLUSH_MAJ_MIN) {
+		cqp_wqe->wqe_words[NES_CQP_QP_WQE_FLUSH_SQ_CODE] = cpu_to_le32(sq_code);
+		cqp_wqe->wqe_words[NES_CQP_QP_WQE_FLUSH_RQ_CODE] = cpu_to_le32(rq_code);
+	}
 
 	cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX] =
 			cpu_to_le32(NES_CQP_FLUSH_WQES | which_wq);

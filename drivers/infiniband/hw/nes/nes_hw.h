@@ -274,6 +274,8 @@ enum nes_cqp_qp_bits {
 enum nes_cqp_qp_wqe_word_idx {
 	NES_CQP_QP_WQE_CONTEXT_LOW_IDX = 6,
 	NES_CQP_QP_WQE_CONTEXT_HIGH_IDX = 7,
+	NES_CQP_QP_WQE_FLUSH_SQ_CODE = 8,
+	NES_CQP_QP_WQE_FLUSH_RQ_CODE = 9,
 	NES_CQP_QP_WQE_NEW_MSS_IDX = 15,
 };
 
@@ -364,6 +366,7 @@ enum nes_cqp_arp_bits {
 enum nes_cqp_flush_bits {
 	NES_CQP_FLUSH_SQ = (1<<30),
 	NES_CQP_FLUSH_RQ = (1<<31),
+	NES_CQP_FLUSH_MAJ_MIN = (1<<28),
 };
 
 enum nes_cqe_opcode_bits {
@@ -755,6 +758,15 @@ enum nes_iwarp_sq_wqe_bits {
 	NES_IWARP_SQ_OP_LOCINV = 10,
 	NES_IWARP_SQ_OP_RDMAR_LOCINV = 11,
 	NES_IWARP_SQ_OP_NOP = 12,
+};
+
+enum nes_iwarp_cqe_major_code {
+	NES_IWARP_CQE_MAJOR_FLUSH = 1,
+	NES_IWARP_CQE_MAJOR_DRV = 0x8000
+};
+
+enum nes_iwarp_cqe_minor_code {
+	NES_IWARP_CQE_MINOR_FLUSH = 1
 };
 
 #define NES_EEPROM_READ_REQUEST (1<<16)
