@@ -255,15 +255,18 @@ static struct tda18271_std_map hauppauge_hvr1200_tda18271_std_map = {
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 	.std_map = &hauppauge_hvr1200_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda18271_config hauppauge_hvr1210_tuner_config = {
 	.gate    = TDA18271_GATE_DIGITAL,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda18271_std_map hauppauge_hvr127x_std_map = {
@@ -275,6 +278,7 @@ static struct tda18271_std_map hauppauge_hvr127x_std_map = {
 
 static struct tda18271_config hauppauge_hvr127x_config = {
 	.std_map = &hauppauge_hvr127x_std_map,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct lgdt3305_config hauppauge_lgdt3305_config = {
