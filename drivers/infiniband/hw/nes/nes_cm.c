@@ -2456,6 +2456,7 @@ int nes_cm_disconn(struct nes_qp *nesqp)
 	if (nesqp->disconn_pending == 0) {
 		nesqp->disconn_pending++;
 		spin_unlock_irqrestore(&nesqp->lock, flags);
+		nes_add_ref(&nesqp->ibqp);
 		/* init our disconnect work element, to */
 		INIT_WORK(&nesqp->disconn_work, nes_disconnect_worker);
 
@@ -2477,6 +2478,7 @@ static void nes_disconnect_worker(struct work_struct *work)
 	nes_debug(NES_DBG_CM, "processing AEQE id 0x%04X for QP%u.\n",
 			nesqp->last_aeq, nesqp->hwqp.qp_id);
 	nes_cm_disconn_true(nesqp);
+	nes_rem_ref(&nesqp->ibqp);
 }
 
 
