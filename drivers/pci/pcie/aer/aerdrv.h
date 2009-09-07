@@ -47,9 +47,6 @@
 #define AER_TLP_HEADER_VALID_FLAG	0x00000001
 #define AER_MULTI_ERROR_VALID_FLAG	0x00000002
 
-#define ERR_CORRECTABLE_ERROR_MASK	0x000031c1
-#define ERR_UNCORRECTABLE_ERROR_MASK	0x001ff010
-
 struct header_log_regs {
 	unsigned int dw0;
 	unsigned int dw1;
@@ -65,6 +62,7 @@ struct aer_err_info {
 	int severity;			/* 0:NONFATAL | 1:FATAL | 2:COR */
 	int flags;
 	unsigned int status;		/* COR/UNCOR Error Status */
+	unsigned int mask;		/* COR/UNCOR Error Mask */
 	struct header_log_regs tlp;	/* TLP Header */
 };
 

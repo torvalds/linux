@@ -154,11 +154,13 @@ static char *aer_agent_string[] = {
 
 static void aer_print_error_source(struct aer_err_info *info)
 {
-	int i;
+	int i, status;
 	char *errmsg = NULL;
 
+	status = (info->status & ~info->mask);
+
 	for (i = 0; i < 32; i++) {
-		if (!(info->status & (1 << i)))
+		if (!(status & (1 << i)))
 			continue;
 
 		if (info->severity == AER_CORRECTABLE)

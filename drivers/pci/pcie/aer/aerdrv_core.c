@@ -236,24 +236,16 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	status = 0;
 	mask = 0;
 	if (e_info->severity == AER_CORRECTABLE) {
-		pci_read_config_dword(dev,
-				pos + PCI_ERR_COR_STATUS,
-				&status);
-		pci_read_config_dword(dev,
-				pos + PCI_ERR_COR_MASK,
-				&mask);
-		if (status & ERR_CORRECTABLE_ERROR_MASK & ~mask) {
+		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &status);
+		pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &mask);
+		if (status & ~mask) {
 			add_error_device(e_info, dev);
 			goto added;
 		}
 	} else {
-		pci_read_config_dword(dev,
-				pos + PCI_ERR_UNCOR_STATUS,
-				&status);
-		pci_read_config_dword(dev,
-				pos + PCI_ERR_UNCOR_MASK,
-				&mask);
-		if (status & ERR_UNCORRECTABLE_ERROR_MASK & ~mask) {
+		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
+		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &mask);
+		if (status & ~mask) {
 			add_error_device(e_info, dev);
 			goto added;
 		}
@@ -720,7 +712,9 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 	if (info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS,
 			&info->status);
-		if (!(info->status & ERR_CORRECTABLE_ERROR_MASK))
+		pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK,
+			&info->mask);
+		if (!(info->status & ~info->mask))
 			return AER_UNSUCCESS;
 	} else if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE ||
 		info->severity == AER_NONFATAL) {
@@ -728,7 +722,9 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 		/* Link is still healthy for IO reads */
 		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS,
 			&info->status);
-		if (!(info->status & ERR_UNCORRECTABLE_ERROR_MASK))
+		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK,
+			&info->mask);
+		if (!(info->status & ~info->mask))
 			return AER_UNSUCCESS;
 
 		if (info->status & AER_LOG_TLP_MASKS) {
