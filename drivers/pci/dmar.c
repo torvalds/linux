@@ -570,9 +570,6 @@ int __init dmar_table_init(void)
 		printk(KERN_INFO PREFIX "No ATSR found\n");
 #endif
 
-#ifdef CONFIG_INTR_REMAP
-	parse_ioapics_under_ir();
-#endif
 	return 0;
 }
 
