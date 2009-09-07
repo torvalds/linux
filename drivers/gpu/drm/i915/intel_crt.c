@@ -64,6 +64,34 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	I915_WRITE(reg, temp);
+
+	if (IS_IGD(dev)) {
+		if (mode == DRM_MODE_DPMS_OFF) {
+			/* turn off DAC */
+			temp = I915_READ(PORT_HOTPLUG_EN);
+			temp &= ~CRT_EOS_INT_EN;
+			I915_WRITE(PORT_HOTPLUG_EN, temp);
+
+			temp = I915_READ(PORT_HOTPLUG_STAT);
+			if (temp & CRT_EOS_INT_STATUS)
+				I915_WRITE(PORT_HOTPLUG_STAT,
+					CRT_EOS_INT_STATUS);
+		} else {
+			/* turn on DAC. EOS interrupt must be enabled after DAC
+			 * is enabled, so it sounds not good to enable it in
+			 * i915_driver_irq_postinstall()
+			 * wait 12.5ms after DAC is enabled
+			 */
+			msleep(13);
+			temp = I915_READ(PORT_HOTPLUG_STAT);
+			if (temp & CRT_EOS_INT_STATUS)
+				I915_WRITE(PORT_HOTPLUG_STAT,
+					CRT_EOS_INT_STATUS);
+			temp = I915_READ(PORT_HOTPLUG_EN);
+			temp |= CRT_EOS_INT_EN;
+			I915_WRITE(PORT_HOTPLUG_EN, temp);
+		}
+	}
 }
 
 static int intel_crt_mode_valid(struct drm_connector *connector,
@@ -508,6 +536,7 @@ void intel_crt_init(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 i2c_reg;
 
 	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
@@ -527,8 +556,12 @@ void intel_crt_init(struct drm_device *dev)
 	/* Set up the DDC bus. */
 	if (IS_IGDNG(dev))
 		i2c_reg = PCH_GPIOA;
-	else
+	else {
 		i2c_reg = GPIOA;
+		/* Use VBT information for CRT DDC if available */
+		if (dev_priv->crt_ddc_bus != -1)
+			i2c_reg = dev_priv->crt_ddc_bus;
+	}
 	intel_output->ddc_bus = intel_i2c_create(dev, i2c_reg, "CRTDDC_A");
 	if (!intel_output->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
@@ -537,6 +570,10 @@ void intel_crt_init(struct drm_device *dev)
 	}
 
 	intel_output->type = INTEL_OUTPUT_ANALOG;
+	intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+				   (1 << INTEL_ANALOG_CLONE_BIT) |
+				   (1 << INTEL_SDVO_LVDS_CLONE_BIT);
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 

@@ -79,6 +79,34 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 	return -EBUSY;
 }
 
+/* As a ringbuffer is only allowed to wrap between instructions, fill
+ * the tail with NOOPs.
+ */
+int i915_wrap_ring(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	volatile unsigned int *virt;
+	int rem;
+
+	rem = dev_priv->ring.Size - dev_priv->ring.tail;
+	if (dev_priv->ring.space < rem) {
+		int ret = i915_wait_ring(dev, rem, __func__);
+		if (ret)
+			return ret;
+	}
+	dev_priv->ring.space -= rem;
+
+	virt = (unsigned int *)
+		(dev_priv->ring.virtual_start + dev_priv->ring.tail);
+	rem /= 4;
+	while (rem--)
+		*virt++ = MI_NOOP;
+
+	dev_priv->ring.tail = 0;
+
+	return 0;
+}
+
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
@@ -198,7 +226,6 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		}
 
 		dev_priv->ring.Size = init->ring_size;
-		dev_priv->ring.tail_mask = dev_priv->ring.Size - 1;
 
 		dev_priv->ring.map.offset = init->ring_start;
 		dev_priv->ring.map.size = init->ring_size;

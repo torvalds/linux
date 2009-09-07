@@ -435,14 +435,20 @@ void intel_dvo_init(struct drm_device *dev)
 			continue;
 
 		intel_output->type = INTEL_OUTPUT_DVO;
+		intel_output->crtc_mask = (1 << 0) | (1 << 1);
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
+			intel_output->clone_mask =
+				(1 << INTEL_DVO_TMDS_CLONE_BIT) |
+				(1 << INTEL_ANALOG_CLONE_BIT);
 			drm_connector_init(dev, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
 			encoder_type = DRM_MODE_ENCODER_TMDS;
 			break;
 		case INTEL_DVO_CHIP_LVDS:
+			intel_output->clone_mask =
+				(1 << INTEL_DVO_LVDS_CLONE_BIT);
 			drm_connector_init(dev, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_LVDS);

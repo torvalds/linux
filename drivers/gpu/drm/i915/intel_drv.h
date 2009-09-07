@@ -57,6 +57,24 @@
 #define INTEL_OUTPUT_DISPLAYPORT 7
 #define INTEL_OUTPUT_EDP 8
 
+/* Intel Pipe Clone Bit */
+#define INTEL_HDMIB_CLONE_BIT 1
+#define INTEL_HDMIC_CLONE_BIT 2
+#define INTEL_HDMID_CLONE_BIT 3
+#define INTEL_HDMIE_CLONE_BIT 4
+#define INTEL_HDMIF_CLONE_BIT 5
+#define INTEL_SDVO_NON_TV_CLONE_BIT 6
+#define INTEL_SDVO_TV_CLONE_BIT 7
+#define INTEL_SDVO_LVDS_CLONE_BIT 8
+#define INTEL_ANALOG_CLONE_BIT 9
+#define INTEL_TV_CLONE_BIT 10
+#define INTEL_DP_B_CLONE_BIT 11
+#define INTEL_DP_C_CLONE_BIT 12
+#define INTEL_DP_D_CLONE_BIT 13
+#define INTEL_LVDS_CLONE_BIT 14
+#define INTEL_DVO_TMDS_CLONE_BIT 15
+#define INTEL_DVO_LVDS_CLONE_BIT 16
+
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
 #define INTEL_DVO_CHIP_TMDS 2
@@ -86,6 +104,8 @@ struct intel_output {
 	bool needs_tv_clock;
 	void *dev_priv;
 	void (*hot_plug)(struct intel_output *);
+	int crtc_mask;
+	int clone_mask;
 };
 
 struct intel_crtc {
@@ -96,6 +116,9 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
+	bool busy; /* is scanout buffer being updated frequently? */
+	struct timer_list idle_timer;
+	bool lowfreq_avail;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -114,6 +137,7 @@ extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
+extern void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj);
 extern void intel_lvds_init(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void

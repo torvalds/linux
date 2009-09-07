@@ -904,6 +904,8 @@ void intel_lvds_init(struct drm_device *dev)
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	intel_output->type = INTEL_OUTPUT_LVDS;
 
+	intel_output->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
+	intel_output->crtc_mask = (1 << 1);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

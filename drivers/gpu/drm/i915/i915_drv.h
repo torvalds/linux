@@ -85,7 +85,6 @@ struct drm_i915_gem_phys_object {
 };
 
 typedef struct _drm_i915_ring_buffer {
-	int tail_mask;
 	unsigned long Size;
 	u8 *virtual_start;
 	int head;
@@ -222,6 +221,7 @@ typedef struct drm_i915_private {
 	unsigned int edp_support:1;
 	int lvds_ssc_freq;
 
+	int crt_ddc_bus; /* -1 = unknown, else GPIO to use for CRT DDC */
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -310,7 +310,7 @@ typedef struct drm_i915_private {
 	u32 saveIMR;
 	u32 saveCACHE_MODE_0;
 	u32 saveD_STATE;
-	u32 saveCG_2D_DIS;
+	u32 saveDSPCLK_GATE_D;
 	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
@@ -384,6 +384,9 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head inactive_list;
 
+		/** LRU list of objects with fence regs on them. */
+		struct list_head fence_list;
+
 		/**
 		 * List of breadcrumbs associated with GPU requests currently
 		 * outstanding.
@@ -439,6 +442,14 @@ typedef struct drm_i915_private {
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
 	struct sdvo_device_mapping sdvo_mappings[2];
+
+	/* Reclocking support */
+	bool render_reclock_avail;
+	bool lvds_downclock_avail;
+	struct work_struct idle_work;
+	struct timer_list idle_timer;
+	bool busy;
+	u16 orig_clock;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
@@ -450,6 +461,9 @@ struct drm_i915_gem_object {
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head list;
+
+	/** This object's place on the fenced object LRU */
+	struct list_head fence_list;
 
 	/**
 	 * This is set if the object is on the active or flushing lists
@@ -568,6 +582,7 @@ enum intel_chip_family {
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
+extern unsigned int i915_powersave;
 
 extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
 extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
@@ -723,8 +738,8 @@ void i915_gem_dump_object(struct drm_gem_object *obj, int len,
 void i915_dump_lru(struct drm_device *dev, const char *where);
 
 /* i915_debugfs.c */
-int i915_gem_debugfs_init(struct drm_minor *minor);
-void i915_gem_debugfs_cleanup(struct drm_minor *minor);
+int i915_debugfs_init(struct drm_minor *minor);
+void i915_debugfs_cleanup(struct drm_minor *minor);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
@@ -774,33 +789,32 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 
 #define I915_VERBOSE 0
 
-#define RING_LOCALS	unsigned int outring, ringmask, outcount; \
-                        volatile char *virt;
+#define RING_LOCALS	volatile unsigned int *ring_virt__;
 
-#define BEGIN_LP_RING(n) do {				\
-	if (I915_VERBOSE)				\
-		DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
-	if (dev_priv->ring.space < (n)*4)		\
-		i915_wait_ring(dev, (n)*4, __func__);		\
-	outcount = 0;					\
-	outring = dev_priv->ring.tail;			\
-	ringmask = dev_priv->ring.tail_mask;		\
-	virt = dev_priv->ring.virtual_start;		\
+#define BEGIN_LP_RING(n) do {						\
+	int bytes__ = 4*(n);						\
+	if (I915_VERBOSE) DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
+	/* a wrap must occur between instructions so pad beforehand */	\
+	if (unlikely (dev_priv->ring.tail + bytes__ > dev_priv->ring.Size)) \
+		i915_wrap_ring(dev);					\
+	if (unlikely (dev_priv->ring.space < bytes__))			\
+		i915_wait_ring(dev, bytes__, __func__);			\
+	ring_virt__ = (unsigned int *)					\
+	        (dev_priv->ring.virtual_start + dev_priv->ring.tail);	\
+	dev_priv->ring.tail += bytes__;					\
+	dev_priv->ring.tail &= dev_priv->ring.Size - 1;			\
+	dev_priv->ring.space -= bytes__;				\
 } while (0)
 
-#define OUT_RING(n) do {					\
+#define OUT_RING(n) do {						\
 	if (I915_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
-	*(volatile unsigned int *)(virt + outring) = (n);	\
-        outcount++;						\
-	outring += 4;						\
-	outring &= ringmask;					\
+	*ring_virt__++ = (n);						\
 } while (0)
 
 #define ADVANCE_LP_RING() do {						\
-	if (I915_VERBOSE) DRM_DEBUG("ADVANCE_LP_RING %x\n", outring);	\
-	dev_priv->ring.tail = outring;					\
-	dev_priv->ring.space -= outcount * 4;				\
-	I915_WRITE(PRB0_TAIL, outring);			\
+	if (I915_VERBOSE)						\
+		DRM_DEBUG("ADVANCE_LP_RING %x\n", dev_priv->ring.tail);	\
+	I915_WRITE(PRB0_TAIL, dev_priv->ring.tail);			\
 } while(0)
 
 /**
@@ -823,6 +837,7 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 #define I915_GEM_HWS_INDEX		0x20
 #define I915_BREADCRUMB_INDEX		0x21
 
+extern int i915_wrap_ring(struct drm_device * dev);
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define IS_I830(dev) ((dev)->pci_device == 0x3577)
@@ -895,6 +910,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IGDNG(dev))
+
+#define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IGDNG(dev))
+#define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IGDNG(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

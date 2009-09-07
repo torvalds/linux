@@ -421,6 +421,15 @@ static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
 {
 	uint32_t gb_tile_config, gb_pipe_sel = 0;
 
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV530) {
+		uint32_t z_pipe_sel = RADEON_READ(RV530_GB_PIPE_SELECT2);
+		if ((z_pipe_sel & 3) == 3)
+			dev_priv->num_z_pipes = 2;
+		else
+			dev_priv->num_z_pipes = 1;
+	} else
+		dev_priv->num_z_pipes = 1;
+
 	/* RS4xx/RS6xx/R4xx/R5xx */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R420) {
 		gb_pipe_sel = RADEON_READ(R400_GB_PIPE_SELECT);

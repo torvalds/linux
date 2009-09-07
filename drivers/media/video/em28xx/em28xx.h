@@ -367,6 +367,7 @@ enum em28xx_sensor {
 	EM28XX_NOSENSOR = 0,
 	EM28XX_MT9V011,
 	EM28XX_MT9M001,
+	EM28XX_MT9M111,
 };
 
 enum em28xx_adecoder {

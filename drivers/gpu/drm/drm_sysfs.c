@@ -23,44 +23,50 @@
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 #define to_drm_connector(d) container_of(d, struct drm_connector, kdev)
 
+static struct device_type drm_sysfs_device_minor = {
+	.name = "drm_minor"
+};
+
 /**
- * drm_sysfs_suspend - DRM class suspend hook
+ * drm_class_suspend - DRM class suspend hook
  * @dev: Linux device to suspend
  * @state: power state to enter
  *
  * Just figures out what the actual struct drm_device associated with
  * @dev is and calls its suspend hook, if present.
  */
-static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
+static int drm_class_suspend(struct device *dev, pm_message_t state)
 {
-	struct drm_minor *drm_minor = to_drm_minor(dev);
-	struct drm_device *drm_dev = drm_minor->dev;
+	if (dev->type == &drm_sysfs_device_minor) {
+		struct drm_minor *drm_minor = to_drm_minor(dev);
+		struct drm_device *drm_dev = drm_minor->dev;
 
-	if (drm_minor->type == DRM_MINOR_LEGACY &&
-	    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-	    drm_dev->driver->suspend)
-		return drm_dev->driver->suspend(drm_dev, state);
-
+		if (drm_minor->type == DRM_MINOR_LEGACY &&
+		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
+		    drm_dev->driver->suspend)
+			return drm_dev->driver->suspend(drm_dev, state);
+	}
 	return 0;
 }
 
 /**
- * drm_sysfs_resume - DRM class resume hook
+ * drm_class_resume - DRM class resume hook
  * @dev: Linux device to resume
  *
  * Just figures out what the actual struct drm_device associated with
  * @dev is and calls its resume hook, if present.
  */
-static int drm_sysfs_resume(struct device *dev)
+static int drm_class_resume(struct device *dev)
 {
-	struct drm_minor *drm_minor = to_drm_minor(dev);
-	struct drm_device *drm_dev = drm_minor->dev;
+	if (dev->type == &drm_sysfs_device_minor) {
+		struct drm_minor *drm_minor = to_drm_minor(dev);
+		struct drm_device *drm_dev = drm_minor->dev;
 
-	if (drm_minor->type == DRM_MINOR_LEGACY &&
-	    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-	    drm_dev->driver->resume)
-		return drm_dev->driver->resume(drm_dev);
-
+		if (drm_minor->type == DRM_MINOR_LEGACY &&
+		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
+		    drm_dev->driver->resume)
+			return drm_dev->driver->resume(drm_dev);
+	}
 	return 0;
 }
 
@@ -100,8 +106,8 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 		goto err_out;
 	}
 
-	class->suspend = drm_sysfs_suspend;
-	class->resume = drm_sysfs_resume;
+	class->suspend = drm_class_suspend;
+	class->resume = drm_class_resume;
 
 	err = class_create_file(class, &class_attr_version);
 	if (err)
@@ -484,6 +490,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 	minor->kdev.class = drm_class;
 	minor->kdev.release = drm_sysfs_device_release;
 	minor->kdev.devt = minor->device;
+	minor->kdev.type = &drm_sysfs_device_minor;
 	if (minor->type == DRM_MINOR_CONTROL)
 		minor_str = "controlD%d";
         else if (minor->type == DRM_MINOR_RENDER)

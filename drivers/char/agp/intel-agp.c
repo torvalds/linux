@@ -49,6 +49,7 @@
 #define PCI_DEVICE_ID_INTEL_IGDNG_D_HB	    0x0040
 #define PCI_DEVICE_ID_INTEL_IGDNG_D_IG	    0x0042
 #define PCI_DEVICE_ID_INTEL_IGDNG_M_HB	    0x0044
+#define PCI_DEVICE_ID_INTEL_IGDNG_MA_HB	    0x0062
 #define PCI_DEVICE_ID_INTEL_IGDNG_M_IG	    0x0046
 
 /* cover 915 and 945 variants */
@@ -81,7 +82,8 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_D_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_M_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_M_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MA_HB)
 
 extern int agp_memory_reserved;
 
@@ -1216,6 +1218,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_G41_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_D_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_M_HB:
+	case PCI_DEVICE_ID_INTEL_IGDNG_MA_HB:
 		*gtt_offset = *gtt_size = MB(2);
 		break;
 	default:
@@ -2195,6 +2198,8 @@ static const struct intel_driver_description {
 	    "IGDNG/D", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGDNG_M_HB, PCI_DEVICE_ID_INTEL_IGDNG_M_IG, 0,
 	    "IGDNG/M", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IGDNG_MA_HB, PCI_DEVICE_ID_INTEL_IGDNG_M_IG, 0,
+	    "IGDNG/MA", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2398,6 +2403,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_G41_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_D_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_M_HB),
+	ID(PCI_DEVICE_ID_INTEL_IGDNG_MA_HB),
 	{ }
 };
 

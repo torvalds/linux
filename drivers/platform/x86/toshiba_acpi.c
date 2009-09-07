@@ -335,6 +335,7 @@ static void bt_rfkill_poll(struct rfkill *rfkill, void *data)
 	if (hci_result != HCI_SUCCESS) {
 		/* Can't do anything useful */
 		mutex_unlock(&dev->mutex);
+		return;
 	}
 
 	new_rfk_state = value;

@@ -29,6 +29,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
 #include <linux/swap.h>
 #include <linux/pci.h>
 
@@ -979,8 +980,10 @@ int
 i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_set_domain *args = data;
 	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
 	uint32_t read_domains = args->read_domains;
 	uint32_t write_domain = args->write_domain;
 	int ret;
@@ -1004,14 +1007,26 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EBADF;
+	obj_priv = obj->driver_private;
 
 	mutex_lock(&dev->struct_mutex);
+
+	intel_mark_busy(dev, obj);
+
 #if WATCH_BUF
 	DRM_INFO("set_domain_ioctl %p(%zd), %08x %08x\n",
 		 obj, obj->size, read_domains, write_domain);
 #endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
+
+		/* Update the LRU on the fence for the CPU access that's
+		 * about to occur.
+		 */
+		if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
+			list_move_tail(&obj_priv->fence_list,
+				       &dev_priv->mm.fence_list);
+		}
 
 		/* Silently promote "you're not bound, there was nothing to do"
 		 * to success, since the client was just asking us to
@@ -1156,8 +1171,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* Need a new fence register? */
-	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-	    obj_priv->tiling_mode != I915_TILING_NONE) {
+	if (obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret) {
 			mutex_unlock(&dev->struct_mutex);
@@ -2209,6 +2223,12 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 	struct drm_i915_gem_object *old_obj_priv = NULL;
 	int i, ret, avail;
 
+	/* Just update our place in the LRU if our fence is getting used. */
+	if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
+		list_move_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
+		return 0;
+	}
+
 	switch (obj_priv->tiling_mode) {
 	case I915_TILING_NONE:
 		WARN(1, "allocating a fence for non-tiled object?\n");
@@ -2230,7 +2250,6 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 	}
 
 	/* First try to find a free reg */
-try_again:
 	avail = 0;
 	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
 		reg = &dev_priv->fence_regs[i];
@@ -2244,63 +2263,62 @@ try_again:
 
 	/* None available, try to steal one or wait for a user to finish */
 	if (i == dev_priv->num_fence_regs) {
-		uint32_t seqno = dev_priv->mm.next_gem_seqno;
+		struct drm_gem_object *old_obj = NULL;
 
 		if (avail == 0)
 			return -ENOSPC;
 
-		for (i = dev_priv->fence_reg_start;
-		     i < dev_priv->num_fence_regs; i++) {
-			uint32_t this_seqno;
-
-			reg = &dev_priv->fence_regs[i];
-			old_obj_priv = reg->obj->driver_private;
+		list_for_each_entry(old_obj_priv, &dev_priv->mm.fence_list,
+				    fence_list) {
+			old_obj = old_obj_priv->obj;
 
 			if (old_obj_priv->pin_count)
 				continue;
+
+			/* Take a reference, as otherwise the wait_rendering
+			 * below may cause the object to get freed out from
+			 * under us.
+			 */
+			drm_gem_object_reference(old_obj);
 
 			/* i915 uses fences for GPU access to tiled buffers */
 			if (IS_I965G(dev) || !old_obj_priv->active)
 				break;
 
-			/* find the seqno of the first available fence */
-			this_seqno = old_obj_priv->last_rendering_seqno;
-			if (this_seqno != 0 &&
-			    reg->obj->write_domain == 0 &&
-			    i915_seqno_passed(seqno, this_seqno))
-				seqno = this_seqno;
-		}
-
-		/*
-		 * Now things get ugly... we have to wait for one of the
-		 * objects to finish before trying again.
-		 */
-		if (i == dev_priv->num_fence_regs) {
-			if (seqno == dev_priv->mm.next_gem_seqno) {
-				i915_gem_flush(dev,
-					       I915_GEM_GPU_DOMAINS,
-					       I915_GEM_GPU_DOMAINS);
-				seqno = i915_add_request(dev, NULL,
-							 I915_GEM_GPU_DOMAINS);
-				if (seqno == 0)
-					return -ENOMEM;
+			/* This brings the object to the head of the LRU if it
+			 * had been written to.  The only way this should
+			 * result in us waiting longer than the expected
+			 * optimal amount of time is if there was a
+			 * fence-using buffer later that was read-only.
+			 */
+			i915_gem_object_flush_gpu_write_domain(old_obj);
+			ret = i915_gem_object_wait_rendering(old_obj);
+			if (ret != 0) {
+				drm_gem_object_unreference(old_obj);
+				return ret;
 			}
 
-			ret = i915_wait_request(dev, seqno);
-			if (ret)
-				return ret;
-			goto try_again;
+			break;
 		}
 
 		/*
 		 * Zap this virtual mapping so we can set up a fence again
 		 * for this object next time we need it.
 		 */
-		i915_gem_release_mmap(reg->obj);
+		i915_gem_release_mmap(old_obj);
+
+		i = old_obj_priv->fence_reg;
+		reg = &dev_priv->fence_regs[i];
+
 		old_obj_priv->fence_reg = I915_FENCE_REG_NONE;
+		list_del_init(&old_obj_priv->fence_list);
+
+		drm_gem_object_unreference(old_obj);
 	}
 
 	obj_priv->fence_reg = i;
+	list_add_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
+
 	reg->obj = obj;
 
 	if (IS_I965G(dev))
@@ -2343,6 +2361,7 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 
 	dev_priv->fence_regs[obj_priv->fence_reg].obj = NULL;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
+	list_del_init(&obj_priv->fence_list);
 }
 
 /**
@@ -2761,6 +2780,8 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 
 	BUG_ON(obj->pending_read_domains & I915_GEM_DOMAIN_CPU);
 	BUG_ON(obj->pending_write_domain == I915_GEM_DOMAIN_CPU);
+
+	intel_mark_busy(dev, obj);
 
 #if WATCH_BUF
 	DRM_INFO("%s: object %p read %08x -> %08x write %08x -> %08x\n",
@@ -3596,9 +3617,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	 * Pre-965 chips need a fence register set up in order to
 	 * properly handle tiled surfaces.
 	 */
-	if (!IS_I965G(dev) &&
-	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-	    obj_priv->tiling_mode != I915_TILING_NONE) {
+	if (!IS_I965G(dev) && obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret != 0) {
 			if (ret != -EBUSY && ret != -ERESTARTSYS)
@@ -3807,6 +3826,7 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 	obj_priv->obj = obj;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj_priv->list);
+	INIT_LIST_HEAD(&obj_priv->fence_list);
 
 	return 0;
 }
@@ -4080,7 +4100,6 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 
 	/* Set up the kernel mapping for the ring. */
 	ring->Size = obj->size;
-	ring->tail_mask = obj->size - 1;
 
 	ring->map.offset = dev->agp->base + obj_priv->gtt_offset;
 	ring->map.size = obj->size;
@@ -4254,6 +4273,7 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.request_list);
+	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
 	dev_priv->mm.next_gem_seqno = 1;
