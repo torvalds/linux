@@ -1305,8 +1305,6 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	this_rq		= cpu_rq(this_cpu);
 	new_cpu		= prev_cpu;
 
-	if (prev_cpu == this_cpu)
-		goto out;
 	/*
 	 * 'this_sd' is the first domain that both
 	 * this_cpu and prev_cpu are present in:
