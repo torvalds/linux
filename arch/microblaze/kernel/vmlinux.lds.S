@@ -13,6 +13,8 @@ OUTPUT_ARCH(microblaze)
 ENTRY(_start)
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/page.h>
+#include <asm/thread_info.h>
 
 jiffies = jiffies_64 + 4;
 
@@ -39,12 +41,7 @@ SECTIONS {
 
 	. = ALIGN(16);
 	RODATA
-	. = ALIGN(16);
-	__ex_table : {
-		__start___ex_table = .;
-		*(__ex_table)
-		__stop___ex_table = .;
-	}
+	EXCEPTION_TABLE(16)
 
 	/*
 	 * sdata2 section can go anywhere, but must be word aligned
@@ -61,22 +58,13 @@ SECTIONS {
 	}
 
 	_sdata = . ;
-	.data ALIGN (4096) : { /* page aligned when MMU used - origin 0x4 */
-		DATA_DATA
-		CONSTRUCTORS
-	}
-	. = ALIGN(32);
-	.data.cacheline_aligned : { *(.data.cacheline_aligned) }
+	RW_DATA_SECTION(32, PAGE_SIZE, THREAD_SIZE)
 	_edata = . ;
 
 	/* Reserve some low RAM for r0 based memory references */
 	. = ALIGN(0x4) ;
 	r0_ram = . ;
 	. = . +  4096;	/* a page should be enough */
-
-	/* The initial task */
-	. = ALIGN(8192);
-	.data.init_task : { *(.data.init_task) }
 
 	/* Under the microblaze ABI, .sdata and .sbss must be contiguous */
 	. = ALIGN(8);
@@ -96,12 +84,7 @@ SECTIONS {
 
 	__init_begin = .;
 
-	. = ALIGN(4096);
-	.init.text : {
-		_sinittext = . ;
-		INIT_TEXT
-		_einittext = .;
-	}
+	INIT_TEXT_SECTION(PAGE_SIZE)
 
 	.init.data : {
 		INIT_DATA
@@ -115,21 +98,15 @@ SECTIONS {
 	}
 
 	.init.setup : {
-		__setup_start = .;
-		*(.init.setup)
-		__setup_end = .;
+		INIT_SETUP(0)
 	}
 
 	.initcall.init : {
-		__initcall_start = .;
-		INITCALLS
-		__initcall_end = .;
+		INIT_CALLS
 	}
 
 	.con_initcall.init : {
-		__con_initcall_start = .;
-		*(.con_initcall.init)
-		__con_initcall_end = .;
+		CON_INITCALL
 	}
 
 	SECURITY_INIT
