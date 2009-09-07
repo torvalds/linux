@@ -2010,6 +2010,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 				      AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(sc->sc_ah);
 
+		ath_pcie_aspm_disable(sc);
 		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath_btcoex_timer_resume(sc, &sc->btcoex_info);
 	}
