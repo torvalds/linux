@@ -2988,7 +2988,10 @@ static inline int security_key_getsecurity(struct key *key, char **_buffer)
 
 static inline int security_key_session_to_parent(const struct cred *cred,
 						 const struct cred *parent_cred,
-						 struct key *key);
+						 struct key *key)
+{
+	return 0;
+}
 
 #endif
 #endif /* CONFIG_KEYS */
