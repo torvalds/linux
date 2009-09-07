@@ -61,6 +61,10 @@
 		AER_DATA_LINK_LAYER_ERROR :			\
 		AER_TRANSACTION_LAYER_ERROR)
 
+#define AER_PR(info, fmt, args...)				\
+	printk("%s" fmt, (info->severity == AER_CORRECTABLE) ?	\
+		KERN_WARNING : KERN_ERR, ## args)
+
 /*
  * AER error strings
  */
@@ -185,46 +189,39 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
 	char *errmsg;
 	int err_layer, agent;
-	char *loglevel;
 
-	if (info->severity == AER_CORRECTABLE)
-		loglevel = KERN_WARNING;
-	else
-		loglevel = KERN_ERR;
-
-	printk("%s+------ PCI-Express Device Error ------+\n", loglevel);
-	printk("%sError Severity\t\t: %s\n", loglevel,
+	AER_PR(info, "+------ PCI-Express Device Error ------+\n");
+	AER_PR(info, "Error Severity\t\t: %s\n",
 		aer_error_severity_string[info->severity]);
 
 	if (info->status == 0) {
-		printk("%sPCIE Bus Error type\t: (Unaccessible)\n", loglevel);
-		printk("%sUnaccessible Received\t: %s\n", loglevel,
+		AER_PR(info, "PCIE Bus Error type\t: (Unaccessible)\n");
+		AER_PR(info, "Unaccessible Received\t: %s\n",
 			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
 				"Multiple" : "First");
-		printk("%sUnregistered Agent ID\t: %04x\n", loglevel,
+		AER_PR(info, "Unregistered Agent ID\t: %04x\n",
 			(dev->bus->number << 8) | dev->devfn);
 	} else {
 		err_layer = AER_GET_LAYER_ERROR(info->severity, info->status);
-		printk("%sPCIE Bus Error type\t: %s\n", loglevel,
+		AER_PR(info, "PCIE Bus Error type\t: %s\n",
 			aer_error_layer[err_layer]);
 
 		spin_lock(&logbuf_lock);
 		errmsg = aer_get_error_source_name(info->severity,
 				info->status,
 				errmsg_buff);
-		printk("%s%s\t: %s\n", loglevel, errmsg,
+		AER_PR(info, "%s\t: %s\n", errmsg,
 			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
 				"Multiple" : "First");
 		spin_unlock(&logbuf_lock);
 
 		agent = AER_GET_AGENT(info->severity, info->status);
-		printk("%s%s\t\t: %04x\n", loglevel,
+		AER_PR(info, "%s\t\t: %04x\n",
 			aer_agent_string[agent],
 			(dev->bus->number << 8) | dev->devfn);
 
-		printk("%sVendorID=%04xh, DeviceID=%04xh,"
+		AER_PR(info, "VendorID=%04xh, DeviceID=%04xh,"
 			" Bus=%02xh, Device=%02xh, Function=%02xh\n",
-			loglevel,
 			dev->vendor,
 			dev->device,
 			dev->bus->number,
@@ -233,10 +230,9 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 		if (info->flags & AER_TLP_HEADER_VALID_FLAG) {
 			unsigned char *tlp = (unsigned char *) &info->tlp;
-			printk("%sTLP Header:\n", loglevel);
-			printk("%s%02x%02x%02x%02x %02x%02x%02x%02x"
+			AER_PR(info, "TLP Header:\n");
+			AER_PR(info, "%02x%02x%02x%02x %02x%02x%02x%02x"
 				" %02x%02x%02x%02x %02x%02x%02x%02x\n",
-				loglevel,
 				*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
 				*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
 				*(tlp + 11), *(tlp + 10), *(tlp + 9),
