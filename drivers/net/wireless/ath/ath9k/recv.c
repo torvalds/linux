@@ -306,7 +306,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
 				 min(sc->common.cachelsz, (u16)64));
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+	DPRINTF(sc->sc_ah, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
 		sc->common.cachelsz, sc->rx.bufsize);
 
 	/* Initialize rx descriptors */
@@ -314,7 +314,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
 				  "rx", nbufs, 1);
 	if (error != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
+		DPRINTF(sc->sc_ah, ATH_DBG_FATAL,
 			"failed to allocate rx descriptors: %d\n", error);
 		goto err;
 	}
@@ -334,7 +334,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					       bf->bf_buf_addr))) {
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_FATAL,
+			DPRINTF(sc->sc_ah, ATH_DBG_FATAL,
 				"dma_mapping_error() on RX init\n");
 			error = -ENOMEM;
 			goto err;
@@ -539,7 +539,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 
 	if (sc->sc_flags & SC_OP_BEACON_SYNC) {
 		sc->sc_flags &= ~SC_OP_BEACON_SYNC;
-		DPRINTF(sc, ATH_DBG_PS, "Reconfigure Beacon timers based on "
+		DPRINTF(sc->sc_ah, ATH_DBG_PS, "Reconfigure Beacon timers based on "
 			"timestamp from the AP\n");
 		ath_beacon_config(sc, NULL);
 	}
@@ -552,7 +552,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * a backup trigger for returning into NETWORK SLEEP state,
 		 * so we are waiting for it as well.
 		 */
-		DPRINTF(sc, ATH_DBG_PS, "Received DTIM beacon indicating "
+		DPRINTF(sc->sc_ah, ATH_DBG_PS, "Received DTIM beacon indicating "
 			"buffered broadcast/multicast frame(s)\n");
 		sc->sc_flags |= SC_OP_WAIT_FOR_CAB | SC_OP_WAIT_FOR_BEACON;
 		return;
@@ -565,7 +565,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * been delivered.
 		 */
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
-		DPRINTF(sc, ATH_DBG_PS, "PS wait for CAB frames timed out\n");
+		DPRINTF(sc->sc_ah, ATH_DBG_PS, "PS wait for CAB frames timed out\n");
 	}
 }
 
@@ -589,13 +589,13 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		 * point.
 		 */
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
-		DPRINTF(sc, ATH_DBG_PS, "All PS CAB frames received, back to "
+		DPRINTF(sc->sc_ah, ATH_DBG_PS, "All PS CAB frames received, back to "
 			"sleep\n");
 	} else if ((sc->sc_flags & SC_OP_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_PSPOLL_DATA;
-		DPRINTF(sc, ATH_DBG_PS, "Going back to sleep after having "
+		DPRINTF(sc->sc_ah, ATH_DBG_PS, "Going back to sleep after having "
 			"received PS-Poll data (0x%x)\n",
 			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
 					SC_OP_WAIT_FOR_CAB |
@@ -811,7 +811,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_FATAL,
+			DPRINTF(sc->sc_ah, ATH_DBG_FATAL,
 				"dma_mapping_error() on RX\n");
 			ath_rx_send_to_mac80211(sc, skb, &rx_status);
 			break;

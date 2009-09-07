@@ -17,6 +17,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include "hw.h"
+
 enum ATH_DEBUG {
 	ATH_DBG_RESET		= 0x00000001,
 	ATH_DBG_QUEUE		= 0x00000002,
@@ -151,9 +153,10 @@ struct ath9k_debug {
 	struct ath_stats stats;
 };
 
-void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
-int ath9k_init_debug(struct ath_softc *sc);
-void ath9k_exit_debug(struct ath_softc *sc);
+void DPRINTF(struct ath_hw *ah, int dbg_mask, const char *fmt, ...);
+int ath9k_init_debug(struct ath_hw *ah);
+void ath9k_exit_debug(struct ath_hw *ah);
+
 int ath9k_debug_create_root(void);
 void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
@@ -165,17 +168,17 @@ void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 
 #else
 
-static inline void DPRINTF(struct ath_softc *sc, int dbg_mask,
+static inline void DPRINTF(struct ath_hw *ah, int dbg_mask,
 			   const char *fmt, ...)
 {
 }
 
-static inline int ath9k_init_debug(struct ath_softc *sc)
+static inline int ath9k_init_debug(struct ath_hw *ah)
 {
 	return 0;
 }
 
-static inline void ath9k_exit_debug(struct ath_softc *sc)
+static inline void ath9k_exit_debug(struct ath_hw *ah)
 {
 }
 

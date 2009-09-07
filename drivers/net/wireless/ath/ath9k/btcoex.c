@@ -56,7 +56,7 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 	if (time_after(jiffies, btinfo->bt_priority_time +
 			msecs_to_jiffies(ATH_BT_PRIORITY_TIME_THRESHOLD))) {
 		if (btinfo->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
-			DPRINTF(sc, ATH_DBG_BTCOEX,
+			DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX,
 				"BT priority traffic detected");
 			sc->sc_flags |= SC_OP_BT_PRIORITY_DETECTED;
 		} else {
@@ -90,7 +90,7 @@ static void ath_btcoex_bt_stomp(struct ath_softc *sc,
 				      AR_STOMP_NONE_WLAN_WGHT);
 		break;
 	default:
-		DPRINTF(sc, ATH_DBG_BTCOEX, "Invalid Stomptype\n");
+		DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX, "Invalid Stomptype\n");
 		break;
 	}
 
@@ -142,7 +142,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	struct ath_softc *sc = (struct ath_softc *)arg;
 	struct ath_btcoex_info *btinfo = &sc->btcoex_info;
 
-	DPRINTF(sc, ATH_DBG_BTCOEX, "no stomp timer running \n");
+	DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX, "no stomp timer running \n");
 
 	spin_lock_bh(&btinfo->btcoex_lock);
 
@@ -326,7 +326,7 @@ void ath_btcoex_timer_resume(struct ath_softc *sc,
 			     struct ath_btcoex_info *btinfo)
 {
 
-	DPRINTF(sc, ATH_DBG_BTCOEX, "Starting btcoex timers");
+	DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX, "Starting btcoex timers");
 
 	/* make sure duty cycle timer is also stopped when resuming */
 	if (btinfo->hw_timer_enabled)

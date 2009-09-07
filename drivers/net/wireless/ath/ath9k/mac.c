@@ -19,7 +19,7 @@
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_INTERRUPT,
+	DPRINTF(ah, ATH_DBG_INTERRUPT,
 		"tx ok 0x%x err 0x%x desc 0x%x eol 0x%x urn 0x%x\n",
 		ah->txok_interrupt_mask, ah->txerr_interrupt_mask,
 		ah->txdesc_interrupt_mask, ah->txeol_interrupt_mask,
@@ -47,7 +47,7 @@ void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp)
 
 void ath9k_hw_txstart(struct ath_hw *ah, u32 q)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Enable TXE on queue: %u\n", q);
+	DPRINTF(ah, ATH_DBG_QUEUE, "Enable TXE on queue: %u\n", q);
 	REG_WRITE(ah, AR_Q_TXE, 1 << q);
 }
 
@@ -105,14 +105,14 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 	u32 wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Stopping TX DMA, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Stopping TX DMA, "
 			"invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Stopping TX DMA, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Stopping TX DMA, "
 			"inactive queue: %u\n", q);
 		return false;
 	}
@@ -126,7 +126,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 	}
 
 	if (ath9k_hw_numtxpending(ah, q)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
+		DPRINTF(ah, ATH_DBG_QUEUE,
 			"%s: Num of pending TX Frames %d on Q %d\n",
 			__func__, ath9k_hw_numtxpending(ah, q), q);
 
@@ -142,7 +142,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 			if ((REG_READ(ah, AR_TSF_L32) >> 10) == (tsfLow >> 10))
 				break;
 
-			DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
+			DPRINTF(ah, ATH_DBG_QUEUE,
 				"TSF has moved while trying to set "
 				"quiet time TSF: 0x%08x\n", tsfLow);
 		}
@@ -155,7 +155,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 		wait = wait_time;
 		while (ath9k_hw_numtxpending(ah, q)) {
 			if ((--wait) == 0) {
-				DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
+				DPRINTF(ah, ATH_DBG_QUEUE,
 					"Failed to stop TX DMA in 100 "
 					"msec after killing last frame\n");
 				break;
@@ -449,19 +449,19 @@ bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Set TXQ properties, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Set TXQ properties, "
 			"invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Set TXQ properties, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Set TXQ properties, "
 			"inactive queue: %u\n", q);
 		return false;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Set queue properties for: %u\n", q);
+	DPRINTF(ah, ATH_DBG_QUEUE, "Set queue properties for: %u\n", q);
 
 	qi->tqi_ver = qinfo->tqi_ver;
 	qi->tqi_subtype = qinfo->tqi_subtype;
@@ -518,14 +518,14 @@ bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Get TXQ properties, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Get TXQ properties, "
 			"invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Get TXQ properties, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Get TXQ properties, "
 			"inactive queue: %u\n", q);
 		return false;
 	}
@@ -574,22 +574,22 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			    ATH9K_TX_QUEUE_INACTIVE)
 				break;
 		if (q == pCap->total_queues) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+			DPRINTF(ah, ATH_DBG_FATAL,
 				"No available TX queue\n");
 			return -1;
 		}
 		break;
 	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Invalid TX queue type: %u\n",
+		DPRINTF(ah, ATH_DBG_FATAL, "Invalid TX queue type: %u\n",
 			type);
 		return -1;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Setup TX queue: %u\n", q);
+	DPRINTF(ah, ATH_DBG_QUEUE, "Setup TX queue: %u\n", q);
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type != ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+		DPRINTF(ah, ATH_DBG_FATAL,
 			"TX queue: %u already active\n", q);
 		return -1;
 	}
@@ -620,18 +620,18 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Release TXQ, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Release TXQ, "
 			"invalid queue: %u\n", q);
 		return false;
 	}
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Release TXQ, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Release TXQ, "
 			"inactive queue: %u\n", q);
 		return false;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Release TX queue: %u\n", q);
+	DPRINTF(ah, ATH_DBG_QUEUE, "Release TX queue: %u\n", q);
 
 	qi->tqi_type = ATH9K_TX_QUEUE_INACTIVE;
 	ah->txok_interrupt_mask &= ~(1 << q);
@@ -652,19 +652,19 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	u32 cwMin, chanCwMin, value;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Reset TXQ, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Reset TXQ, "
 			"invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Reset TXQ, "
+		DPRINTF(ah, ATH_DBG_QUEUE, "Reset TXQ, "
 			"inactive queue: %u\n", q);
 		return true;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Reset TX queue: %u\n", q);
+	DPRINTF(ah, ATH_DBG_QUEUE, "Reset TX queue: %u\n", q);
 
 	if (qi->tqi_cwmin == ATH9K_TXQ_USEDEFAULT) {
 		if (chan && IS_CHAN_B(chan))
@@ -911,7 +911,7 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 				     AR_DIAG_RX_ABORT));
 
 			reg = REG_READ(ah, AR_OBS_BUS_1);
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+			DPRINTF(ah, ATH_DBG_FATAL,
 				"RX failed to go idle in 10 ms RXSM=0x%x\n", reg);
 
 			return false;
@@ -967,7 +967,7 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 	}
 
 	if (i == 0) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+		DPRINTF(ah, ATH_DBG_FATAL,
 			"DMA failed to stop in %d ms "
 			"AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
 			AH_RX_STOP_DMA_TIMEOUT / 1000,
