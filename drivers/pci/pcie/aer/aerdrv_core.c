@@ -708,6 +708,9 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 {
 	int pos;
 
+	info->status = 0;
+	info->flags &= ~AER_TLP_HEADER_VALID_FLAG;
+
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 
 	/* The device might not support AER */
