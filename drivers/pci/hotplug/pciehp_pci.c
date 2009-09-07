@@ -285,11 +285,6 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 		}
 		pci_dev_put(temp);
 	}
-	/*
-	 * Some PCI Express root ports require fixup after hot-plug operation.
-	 */
-	if (pcie_mch_quirk)
-		pci_fixup_device(pci_fixup_final, p_slot->ctrl->pci_dev);
 
 	return rc;
 }

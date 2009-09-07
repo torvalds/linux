@@ -31,8 +31,6 @@ int isa_dma_bridge_buggy;
 EXPORT_SYMBOL(isa_dma_bridge_buggy);
 int pci_pci_problems;
 EXPORT_SYMBOL(pci_pci_problems);
-int pcie_mch_quirk;
-EXPORT_SYMBOL(pcie_mch_quirk);
 
 #ifdef CONFIG_PCI_QUIRKS
 /*
@@ -1500,7 +1498,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_a
 
 static void __devinit quirk_pcie_mch(struct pci_dev *pdev)
 {
-	pcie_mch_quirk = 1;
+	pci_msi_off(pdev);
+	pdev->no_msi = 1;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7520_MCH,	quirk_pcie_mch);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7320_MCH,	quirk_pcie_mch);
