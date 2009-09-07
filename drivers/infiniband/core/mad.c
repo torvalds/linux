@@ -1974,7 +1974,7 @@ static void adjust_timeout(struct ib_mad_agent_private *mad_agent_priv)
 	unsigned long delay;
 
 	if (list_empty(&mad_agent_priv->wait_list)) {
-		cancel_delayed_work(&mad_agent_priv->timed_work);
+		__cancel_delayed_work(&mad_agent_priv->timed_work);
 	} else {
 		mad_send_wr = list_entry(mad_agent_priv->wait_list.next,
 					 struct ib_mad_send_wr_private,
@@ -1983,7 +1983,7 @@ static void adjust_timeout(struct ib_mad_agent_private *mad_agent_priv)
 		if (time_after(mad_agent_priv->timeout,
 			       mad_send_wr->timeout)) {
 			mad_agent_priv->timeout = mad_send_wr->timeout;
-			cancel_delayed_work(&mad_agent_priv->timed_work);
+			__cancel_delayed_work(&mad_agent_priv->timed_work);
 			delay = mad_send_wr->timeout - jiffies;
 			if ((long)delay <= 0)
 				delay = 1;
@@ -2023,7 +2023,7 @@ static void wait_for_response(struct ib_mad_send_wr_private *mad_send_wr)
 
 	/* Reschedule a work item if we have a shorter timeout */
 	if (mad_agent_priv->wait_list.next == &mad_send_wr->agent_list) {
-		cancel_delayed_work(&mad_agent_priv->timed_work);
+		__cancel_delayed_work(&mad_agent_priv->timed_work);
 		queue_delayed_work(mad_agent_priv->qp_info->port_priv->wq,
 				   &mad_agent_priv->timed_work, delay);
 	}
