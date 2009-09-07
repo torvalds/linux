@@ -696,6 +696,13 @@ static struct aer_err_source *get_e_source(struct aer_rpc *rpc)
 	return e_source;
 }
 
+/**
+ * get_device_error_info - read error status from dev and store it to info
+ * @dev: pointer to the device expected to have a error record
+ * @info: pointer to structure to store the error record
+ *
+ * Return 1 on success, 0 on error.
+ */
 static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 {
 	int pos, temp;
@@ -707,7 +714,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 
 	/* The device might not support AER */
 	if (!pos)
-		return AER_SUCCESS;
+		return 1;
 
 	if (info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS,
@@ -715,7 +722,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK,
 			&info->mask);
 		if (!(info->status & ~info->mask))
-			return AER_UNSUCCESS;
+			return 0;
 	} else if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE ||
 		info->severity == AER_NONFATAL) {
 
@@ -725,7 +732,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK,
 			&info->mask);
 		if (!(info->status & ~info->mask))
-			return AER_UNSUCCESS;
+			return 0;
 
 		/* Get First Error Pointer */
 		pci_read_config_dword(dev, pos + PCI_ERR_CAP, &temp);
@@ -744,7 +751,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 		}
 	}
 
-	return AER_SUCCESS;
+	return 1;
 }
 
 static inline void aer_process_err_devices(struct pcie_device *p_device,
@@ -758,14 +765,14 @@ static inline void aer_process_err_devices(struct pcie_device *p_device,
 				e_info->id);
 	}
 
+	/* Report all before handle them, not to lost records by reset etc. */
 	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
-		if (get_device_error_info(e_info->dev[i], e_info) ==
-				AER_SUCCESS) {
+		if (get_device_error_info(e_info->dev[i], e_info))
 			aer_print_error(e_info->dev[i], e_info);
-			handle_error_source(p_device,
-					e_info->dev[i],
-					e_info);
-		}
+	}
+	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
+		if (get_device_error_info(e_info->dev[i], e_info))
+			handle_error_source(p_device, e_info->dev[i], e_info);
 	}
 }
 
@@ -870,5 +877,5 @@ int aer_init(struct pcie_device *dev)
 	if (aer_osc_setup(dev) && !forceload)
 		return -ENXIO;
 
-	return AER_SUCCESS;
+	return 0;
 }

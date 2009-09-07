@@ -29,8 +29,6 @@
 #define ERR_COR_ID(d)			(d & 0xffff)
 #define ERR_UNCOR_ID(d)			(d >> 16)
 
-#define AER_SUCCESS			0
-#define AER_UNSUCCESS			1
 #define AER_ERROR_SOURCES_MAX		100
 
 #define AER_LOG_TLP_MASKS		(PCI_ERR_UNC_POISON_TLP|	\
