@@ -169,11 +169,11 @@ static void aer_print_error_source(struct aer_err_info *info)
 			errmsg = aer_uncorrectable_error_string[i];
 
 		if (errmsg)
-			AER_PR(info, "%s\t:\n", errmsg);
+			AER_PR(info, "%s\t: %s\n", errmsg,
+				info->first == i ? "First" : "");
 		else
-			AER_PR(info, "Unknown Error Bit %2d  \t:\n", i);
-
-		break;
+			AER_PR(info, "Unknown Error Bit %2d  \t: %s\n",
+				i, info->first == i ? "First" : "");
 	}
 }
 

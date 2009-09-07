@@ -698,7 +698,7 @@ static struct aer_err_source *get_e_source(struct aer_rpc *rpc)
 
 static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 {
-	int pos;
+	int pos, temp;
 
 	info->status = 0;
 	info->flags &= ~AER_TLP_HEADER_VALID_FLAG;
@@ -726,6 +726,10 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 			&info->mask);
 		if (!(info->status & ~info->mask))
 			return AER_UNSUCCESS;
+
+		/* Get First Error Pointer */
+		pci_read_config_dword(dev, pos + PCI_ERR_CAP, &temp);
+		info->first = PCI_ERR_CAP_FEP(temp);
 
 		if (info->status & AER_LOG_TLP_MASKS) {
 			info->flags |= AER_TLP_HEADER_VALID_FLAG;

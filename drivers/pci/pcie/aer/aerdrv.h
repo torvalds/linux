@@ -61,6 +61,7 @@ struct aer_err_info {
 	u16 id;
 	int severity;			/* 0:NONFATAL | 1:FATAL | 2:COR */
 	int flags;
+	int first;
 	unsigned int status;		/* COR/UNCOR Error Status */
 	unsigned int mask;		/* COR/UNCOR Error Mask */
 	struct header_log_regs tlp;	/* TLP Header */
