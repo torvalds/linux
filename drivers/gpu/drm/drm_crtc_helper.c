@@ -33,15 +33,6 @@
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 
-/*
- * Detailed mode info for 800x600@60Hz
- */
-static struct drm_display_mode std_modes[] = {
-	{ DRM_MODE("800x600", DRM_MODE_TYPE_DEFAULT, 40000, 800, 840,
-		   968, 1056, 0, 600, 601, 605, 628, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-};
-
 static void drm_mode_validate_flag(struct drm_connector *connector,
 				   int flags)
 {
@@ -133,7 +124,6 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 								   mode);
 	}
 
-
 	drm_mode_prune_invalid(dev, &connector->modes, true);
 
 	if (list_empty(&connector->modes))
@@ -168,40 +158,6 @@ int drm_helper_probe_connector_modes(struct drm_device *dev, uint32_t maxX,
 	return count;
 }
 EXPORT_SYMBOL(drm_helper_probe_connector_modes);
-
-static void drm_helper_add_std_modes(struct drm_device *dev,
-				     struct drm_connector *connector)
-{
-	struct drm_display_mode *mode, *t;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(std_modes); i++) {
-		struct drm_display_mode *stdmode;
-
-		/*
-		 * When no valid EDID modes are available we end up
-		 * here and bailed in the past, now we add some standard
-		 * modes and move on.
-		 */
-		stdmode = drm_mode_duplicate(dev, &std_modes[i]);
-		drm_mode_probed_add(connector, stdmode);
-		drm_mode_list_concat(&connector->probed_modes,
-				     &connector->modes);
-
-		DRM_DEBUG_KMS("Adding mode %s to %s\n", stdmode->name,
-			  drm_get_connector_name(connector));
-	}
-	drm_mode_sort(&connector->modes);
-
-	DRM_DEBUG_KMS("Added std modes on %s\n",
-			drm_get_connector_name(connector));
-	list_for_each_entry_safe(mode, t, &connector->modes, head) {
-		mode->vrefresh = drm_mode_vrefresh(mode);
-
-		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-		drm_mode_debug_printmodeline(mode);
-	}
-}
 
 /**
  * drm_helper_encoder_in_use - check if a given encoder is in use
@@ -982,7 +938,6 @@ bool drm_helper_plugged_event(struct drm_device *dev)
  */
 bool drm_helper_initial_config(struct drm_device *dev)
 {
-	struct drm_connector *connector;
 	int count = 0;
 
 	count = drm_helper_probe_connector_modes(dev,
@@ -990,16 +945,9 @@ bool drm_helper_initial_config(struct drm_device *dev)
 						 dev->mode_config.max_height);
 
 	/*
-	 * None of the available connectors had any modes, so add some
-	 * and try to light them up anyway
+	 * we shouldn't end up with no modes here.
 	 */
-	if (!count) {
-		DRM_ERROR("connectors have no modes, using standard modes\n");
-		list_for_each_entry(connector,
-				    &dev->mode_config.connector_list,
-				    head)
-			drm_helper_add_std_modes(dev, connector);
-	}
+	WARN(!count, "Connected connector with 0 modes\n");
 
 	drm_setup_crtcs(dev);
 
