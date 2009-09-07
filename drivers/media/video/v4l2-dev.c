@@ -68,6 +68,48 @@ static struct video_device *video_device[VIDEO_NUM_DEVICES];
 static DEFINE_MUTEX(videodev_lock);
 static DECLARE_BITMAP(devnode_nums[VFL_TYPE_MAX], VIDEO_NUM_DEVICES);
 
+/* Device node utility functions */
+
+/* Note: these utility functions all assume that vfl_type is in the range
+   [0, VFL_TYPE_MAX-1]. */
+
+#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+/* Return the bitmap corresponding to vfl_type. */
+static inline unsigned long *devnode_bits(int vfl_type)
+{
+	/* Any types not assigned to fixed minor ranges must be mapped to
+	   one single bitmap for the purposes of finding a free node number
+	   since all those unassigned types use the same minor range. */
+	int idx = (vfl_type > VFL_TYPE_VTX) ? VFL_TYPE_MAX - 1 : vfl_type;
+
+	return devnode_nums[idx];
+}
+#else
+/* Return the bitmap corresponding to vfl_type. */
+static inline unsigned long *devnode_bits(int vfl_type)
+{
+	return devnode_nums[vfl_type];
+}
+#endif
+
+/* Mark device node number vdev->num as used */
+static inline void devnode_set(struct video_device *vdev)
+{
+	set_bit(vdev->num, devnode_bits(vdev->vfl_type));
+}
+
+/* Mark device node number vdev->num as unused */
+static inline void devnode_clear(struct video_device *vdev)
+{
+	clear_bit(vdev->num, devnode_bits(vdev->vfl_type));
+}
+
+/* Try to find a free device node number in the range [from, to> */
+static inline int devnode_find(struct video_device *vdev, int from, int to)
+{
+	return find_next_zero_bit(devnode_bits(vdev->vfl_type), to, from);
+}
+
 struct video_device *video_device_alloc(void)
 {
 	return kzalloc(sizeof(struct video_device), GFP_KERNEL);
@@ -120,7 +162,7 @@ static void v4l2_device_release(struct device *cd)
 	vdev->cdev = NULL;
 
 	/* Mark device node number as free */
-	clear_bit(vdev->num, devnode_nums[vdev->vfl_type]);
+	devnode_clear(vdev);
 
 	mutex_unlock(&videodev_lock);
 
@@ -435,9 +477,9 @@ int video_register_device(struct video_device *vdev, int type, int nr)
 
 	/* Pick a device node number */
 	mutex_lock(&videodev_lock);
-	nr = find_next_zero_bit(devnode_nums[type], minor_cnt, nr == -1 ? 0 : nr);
+	nr = devnode_find(vdev, nr == -1 ? 0 : nr, minor_cnt);
 	if (nr == minor_cnt)
-		nr = find_first_zero_bit(devnode_nums[type], minor_cnt);
+		nr = devnode_find(vdev, 0, minor_cnt);
 	if (nr == minor_cnt) {
 		printk(KERN_ERR "could not get a free device node number\n");
 		mutex_unlock(&videodev_lock);
@@ -460,7 +502,8 @@ int video_register_device(struct video_device *vdev, int type, int nr)
 #endif
 	vdev->minor = i + minor_offset;
 	vdev->num = nr;
-	set_bit(nr, devnode_nums[type]);
+	devnode_set(vdev);
+
 	/* Should not happen since we thought this minor was free */
 	WARN_ON(video_device[vdev->minor] != NULL);
 	vdev->index = get_index(vdev);
@@ -514,7 +557,7 @@ cleanup:
 	mutex_lock(&videodev_lock);
 	if (vdev->cdev)
 		cdev_del(vdev->cdev);
-	clear_bit(vdev->num, devnode_nums[type]);
+	devnode_clear(vdev);
 	mutex_unlock(&videodev_lock);
 	/* Mark this video device as never having been registered. */
 	vdev->minor = -1;
