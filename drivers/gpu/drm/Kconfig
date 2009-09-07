@@ -18,6 +18,13 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support.
 
+config DRM_MODE_HELPER
+	tristate
+	depends on DRM
+	select FB
+	help
+	  FB and CRTC helpers for kms drivers.
+
 config DRM_TTM
 	tristate
 	depends on DRM
@@ -48,7 +55,6 @@ config DRM_RADEON
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB
 	select FRAMEBUFFER_CONSOLE if !EMBEDDED
 	select FW_LOADER
 	help
@@ -84,10 +90,10 @@ config DRM_I830
 config DRM_I915
 	tristate "i915 driver"
 	depends on AGP_INTEL
+	select DRM_MODE_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB
 	select FRAMEBUFFER_CONSOLE if !EMBEDDED
 	# i915 depends on ACPI_VIDEO when ACPI is enabled
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick

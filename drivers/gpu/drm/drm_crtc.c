@@ -168,6 +168,7 @@ char *drm_get_encoder_name(struct drm_encoder *encoder)
 		 encoder->base.id);
 	return buf;
 }
+EXPORT_SYMBOL(drm_get_encoder_name);
 
 char *drm_get_connector_name(struct drm_connector *connector)
 {
