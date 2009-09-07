@@ -16,9 +16,6 @@
 #define AER_NONFATAL			0
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
-#define AER_UNCORRECTABLE		4
-#define AER_ERROR_MASK			0x001fffff
-#define AER_ERROR(d)			(d & AER_ERROR_MASK)
 
 /* Root Error Status Register Bits */
 #define ROOT_ERR_STATUS_MASKS		0x0f
