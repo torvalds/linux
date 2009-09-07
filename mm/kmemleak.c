@@ -92,6 +92,7 @@
 #include <linux/string.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>
+#include <linux/workqueue.h>
 
 #include <asm/sections.h>
 #include <asm/processor.h>
@@ -1499,7 +1500,7 @@ static const struct file_operations kmemleak_fops = {
  * Perform the freeing of the kmemleak internal objects after waiting for any
  * current memory scan to complete.
  */
-static int kmemleak_cleanup_thread(void *arg)
+static void kmemleak_do_cleanup(struct work_struct *work)
 {
 	struct kmemleak_object *object;
 
@@ -1511,22 +1512,9 @@ static int kmemleak_cleanup_thread(void *arg)
 		delete_object_full(object->pointer);
 	rcu_read_unlock();
 	mutex_unlock(&scan_mutex);
-
-	return 0;
 }
 
-/*
- * Start the clean-up thread.
- */
-static void kmemleak_cleanup(void)
-{
-	struct task_struct *cleanup_thread;
-
-	cleanup_thread = kthread_run(kmemleak_cleanup_thread, NULL,
-				     "kmemleak-clean");
-	if (IS_ERR(cleanup_thread))
-		pr_warning("Failed to create the clean-up thread\n");
-}
+static DECLARE_WORK(cleanup_work, kmemleak_do_cleanup);
 
 /*
  * Disable kmemleak. No memory allocation/freeing will be traced once this
@@ -1544,7 +1532,7 @@ static void kmemleak_disable(void)
 
 	/* check whether it is too early for a kernel thread */
 	if (atomic_read(&kmemleak_initialized))
-		kmemleak_cleanup();
+		schedule_work(&cleanup_work);
 
 	pr_info("Kernel memory leak detector disabled\n");
 }
@@ -1640,7 +1628,7 @@ static int __init kmemleak_late_init(void)
 		 * after setting kmemleak_initialized and we may end up with
 		 * two clean-up threads but serialized by scan_mutex.
 		 */
-		kmemleak_cleanup();
+		schedule_work(&cleanup_work);
 		return -ENOMEM;
 	}
 
