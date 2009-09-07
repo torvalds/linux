@@ -101,6 +101,14 @@ config TXX9_DMAC
 	  Support the TXx9 SoC internal DMA controller.  This can be
 	  integrated in chips such as the Toshiba TX4927/38/39.
 
+config SH_DMAE
+	tristate "Renesas SuperH DMAC support"
+	depends on SUPERH && SH_DMA
+	depends on !SH_DMA_API
+	select DMA_ENGINE
+	help
+	  Enable support for the Renesas SuperH DMA controllers.
+
 config DMA_ENGINE
 	bool
 
