@@ -504,6 +504,21 @@ config MACH_EZX_E2
 	default y
 	depends on PXA_EZX
 
+config MACH_XCEP
+	bool "Iskratel Electronics XCEP"
+	select PXA25x
+	select MTD
+	select MTD_PARTITIONS
+	select MTD_PHYSMAP
+	select MTD_CFI_INTELEXT
+	select MTD_CFI
+	select MTD_CHAR
+	select SMC91X
+	select PXA_SSP
+	help
+	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
+	  Tuned for usage in Libera instruments for particle accelerators.
+
 endmenu
 
 config PXA25x
