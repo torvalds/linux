@@ -78,17 +78,18 @@ void ksym_collect_stats(unsigned long hbp_hit_addr)
 void ksym_hbp_handler(struct hw_breakpoint *hbp, struct pt_regs *regs)
 {
 	struct ring_buffer_event *event;
-	struct trace_array *tr;
 	struct ksym_trace_entry *entry;
+	struct ring_buffer *buffer;
 	int pc;
 
 	if (!ksym_tracing_enabled)
 		return;
 
-	tr = ksym_trace_array;
+	buffer = ksym_trace_array->buffer;
+
 	pc = preempt_count();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_KSYM,
+	event = trace_buffer_lock_reserve(buffer, TRACE_KSYM,
 							sizeof(*entry), 0, pc);
 	if (!event)
 		return;
@@ -103,7 +104,7 @@ void ksym_hbp_handler(struct hw_breakpoint *hbp, struct pt_regs *regs)
 	ksym_collect_stats(hbp->info.address);
 #endif /* CONFIG_PROFILE_KSYM_TRACER */
 
-	trace_buffer_unlock_commit(tr, event, 0, pc);
+	trace_buffer_unlock_commit(buffer, event, 0, pc);
 }
 
 /* Valid access types are represented as
