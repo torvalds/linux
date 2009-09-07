@@ -33,7 +33,7 @@
 #define AER_AGENT_COMPLETER_MASK	PCI_ERR_UNC_COMP_ABORT
 
 #define AER_AGENT_TRANSMITTER_MASK(t, e) (e & (PCI_ERR_COR_REP_ROLL| \
-	((t == AER_CORRECTABLE) ? PCI_ERR_COR_REP_TIMER: 0)))
+	((t == AER_CORRECTABLE) ? PCI_ERR_COR_REP_TIMER : 0)))
 
 #define AER_GET_AGENT(t, e)						\
 	((e & AER_AGENT_COMPLETER_MASK) ? AER_AGENT_COMPLETER :		\
@@ -44,11 +44,11 @@
 #define AER_PHYSICAL_LAYER_ERROR_MASK	PCI_ERR_COR_RCVR
 #define AER_DATA_LINK_LAYER_ERROR_MASK(t, e)	\
 		(PCI_ERR_UNC_DLP|		\
-		PCI_ERR_COR_BAD_TLP| 		\
+		PCI_ERR_COR_BAD_TLP|		\
 		PCI_ERR_COR_BAD_DLLP|		\
-		PCI_ERR_COR_REP_ROLL| 		\
+		PCI_ERR_COR_REP_ROLL|		\
 		((t == AER_CORRECTABLE) ?	\
-		PCI_ERR_COR_REP_TIMER: 0))
+		PCI_ERR_COR_REP_TIMER : 0))
 
 #define AER_PHYSICAL_LAYER_ERROR	0
 #define AER_DATA_LINK_LAYER_ERROR	1
@@ -58,38 +58,38 @@
 	((e & AER_PHYSICAL_LAYER_ERROR_MASK) ?			\
 	AER_PHYSICAL_LAYER_ERROR :				\
 	(e & AER_DATA_LINK_LAYER_ERROR_MASK(t, e)) ?		\
-		AER_DATA_LINK_LAYER_ERROR : 			\
+		AER_DATA_LINK_LAYER_ERROR :			\
 		AER_TRANSACTION_LAYER_ERROR)
 
 /*
  * AER error strings
  */
-static char* aer_error_severity_string[] = {
+static char *aer_error_severity_string[] = {
 	"Uncorrected (Non-Fatal)",
 	"Uncorrected (Fatal)",
 	"Corrected"
 };
 
-static char* aer_error_layer[] = {
+static char *aer_error_layer[] = {
 	"Physical Layer",
 	"Data Link Layer",
 	"Transaction Layer"
 };
-static char* aer_correctable_error_string[] = {
-	"Receiver Error        ",	/* Bit Position 0 	*/
+static char *aer_correctable_error_string[] = {
+	"Receiver Error        ",	/* Bit Position 0	*/
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 	NULL,
-	"Bad TLP               ",	/* Bit Position 6 	*/
-	"Bad DLLP              ",	/* Bit Position 7 	*/
-	"RELAY_NUM Rollover    ",	/* Bit Position 8 	*/
+	"Bad TLP               ",	/* Bit Position 6	*/
+	"Bad DLLP              ",	/* Bit Position 7	*/
+	"RELAY_NUM Rollover    ",	/* Bit Position 8	*/
 	NULL,
 	NULL,
 	NULL,
-	"Replay Timer Timeout  ",	/* Bit Position 12 	*/
-	"Advisory Non-Fatal    ", 	/* Bit Position 13	*/
+	"Replay Timer Timeout  ",	/* Bit Position 12	*/
+	"Advisory Non-Fatal    ",	/* Bit Position 13	*/
 	NULL,
 	NULL,
 	NULL,
@@ -110,7 +110,7 @@ static char* aer_correctable_error_string[] = {
 	NULL,
 };
 
-static char* aer_uncorrectable_error_string[] = {
+static char *aer_uncorrectable_error_string[] = {
 	NULL,
 	NULL,
 	NULL,
@@ -123,10 +123,10 @@ static char* aer_uncorrectable_error_string[] = {
 	NULL,
 	NULL,
 	NULL,
-	"Poisoned TLP          ",	/* Bit Position 12 	*/
+	"Poisoned TLP          ",	/* Bit Position 12	*/
 	"Flow Control Protocol ",	/* Bit Position 13	*/
-	"Completion Timeout    ",	/* Bit Position 14 	*/
-	"Completer Abort       ",	/* Bit Position 15 	*/
+	"Completion Timeout    ",	/* Bit Position 14	*/
+	"Completer Abort       ",	/* Bit Position 15	*/
 	"Unexpected Completion ",	/* Bit Position 16	*/
 	"Receiver Overflow     ",	/* Bit Position 17	*/
 	"Malformed TLP         ",	/* Bit Position 18	*/
@@ -145,19 +145,19 @@ static char* aer_uncorrectable_error_string[] = {
 	NULL,
 };
 
-static char* aer_agent_string[] = {
+static char *aer_agent_string[] = {
 	"Receiver ID",
 	"Requester ID",
 	"Completer ID",
 	"Transmitter ID"
 };
 
-static char * aer_get_error_source_name(int severity,
+static char *aer_get_error_source_name(int severity,
 			unsigned int status,
 			char errmsg_buff[])
 {
 	int i;
-	char * errmsg = NULL;
+	char *errmsg = NULL;
 
 	for (i = 0; i < 32; i++) {
 		if (!(status & (1 << i)))
@@ -183,9 +183,9 @@ static DEFINE_SPINLOCK(logbuf_lock);
 static char errmsg_buff[100];
 void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
-	char * errmsg;
+	char *errmsg;
 	int err_layer, agent;
-	char * loglevel;
+	char *loglevel;
 
 	if (info->severity == AER_CORRECTABLE)
 		loglevel = KERN_WARNING;
@@ -196,7 +196,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	printk("%sError Severity\t\t: %s\n", loglevel,
 		aer_error_severity_string[info->severity]);
 
-	if ( info->status == 0) {
+	if (info->status == 0) {
 		printk("%sPCIE Bus Error type\t: (Unaccessible)\n", loglevel);
 		printk("%sUnaccessible Received\t: %s\n", loglevel,
 			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
@@ -245,4 +245,3 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 		}
 	}
 }
-

@@ -21,7 +21,7 @@
 #define AER_ERROR(d)			(d & AER_ERROR_MASK)
 
 /* Root Error Status Register Bits */
-#define ROOT_ERR_STATUS_MASKS			0x0f
+#define ROOT_ERR_STATUS_MASKS		0x0f
 
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
@@ -65,7 +65,7 @@ struct aer_err_info {
 	int severity;			/* 0:NONFATAL | 1:FATAL | 2:COR */
 	int flags;
 	unsigned int status;		/* COR/UNCOR Error Status */
-	struct header_log_regs tlp; 	/* TLP Header */
+	struct header_log_regs tlp;	/* TLP Header */
 };
 
 struct aer_err_source {
@@ -136,4 +136,4 @@ static inline int aer_osc_setup(struct pcie_device *pciedev)
 }
 #endif
 
-#endif //_AERDRV_H_
+#endif /* _AERDRV_H_ */
