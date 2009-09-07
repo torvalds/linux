@@ -266,6 +266,7 @@ static struct radeon_asic rs400_asic = {
 /*
  * rs600.
  */
+int rs600_init(struct radeon_device *dev);
 void rs600_errata(struct radeon_device *rdev);
 void rs600_vram_info(struct radeon_device *rdev);
 int rs600_mc_init(struct radeon_device *rdev);
@@ -281,7 +282,7 @@ uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs600_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs600_asic = {
-	.init = &r300_init,
+	.init = &rs600_init,
 	.errata = &rs600_errata,
 	.vram_info = &rs600_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -316,7 +317,6 @@ static struct radeon_asic rs600_asic = {
 /*
  * rs690,rs740
  */
-int rs690_init(struct radeon_device *rdev);
 void rs690_errata(struct radeon_device *rdev);
 void rs690_vram_info(struct radeon_device *rdev);
 int rs690_mc_init(struct radeon_device *rdev);
@@ -325,7 +325,7 @@ uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs690_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs690_asic = {
-	.init = &rs690_init,
+	.init = &rs600_init,
 	.errata = &rs690_errata,
 	.vram_info = &rs690_vram_info,
 	.gpu_reset = &r300_gpu_reset,
