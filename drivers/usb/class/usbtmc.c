@@ -57,7 +57,9 @@ MODULE_DEVICE_TABLE(usb, usbtmc_devices);
 
 /*
  * This structure is the capabilities for the device
- * See section 4.2.1.8 of the USBTMC specification for details.
+ * See section 4.2.1.8 of the USBTMC specification,
+ * and section 4.2.2 of the USBTMC usb488 subclass
+ * specification for details.
  */
 struct usbtmc_dev_capabilities {
 	__u8 interface_capabilities;
@@ -796,20 +798,21 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	}
 
 	dev_dbg(dev, "GET_CAPABILITIES returned %x\n", buffer[0]);
-	dev_dbg(dev, "Interface capabilities are %x\n", buffer[4]);
-	dev_dbg(dev, "Device capabilities are %x\n", buffer[5]);
-	dev_dbg(dev, "USB488 interface capabilities are %x\n", buffer[14]);
-	dev_dbg(dev, "USB488 device capabilities are %x\n", buffer[15]);
 	if (buffer[0] != USBTMC_STATUS_SUCCESS) {
 		dev_err(dev, "GET_CAPABILITIES returned %x\n", buffer[0]);
 		rv = -EPERM;
 		goto err_out;
 	}
+	dev_dbg(dev, "Interface capabilities are %x\n", buffer[4]);
+	dev_dbg(dev, "Device capabilities are %x\n", buffer[5]);
+	dev_dbg(dev, "USB488 interface capabilities are %x\n", buffer[14]);
+	dev_dbg(dev, "USB488 device capabilities are %x\n", buffer[15]);
 
 	data->capabilities.interface_capabilities = buffer[4];
 	data->capabilities.device_capabilities = buffer[5];
 	data->capabilities.usb488_interface_capabilities = buffer[14];
 	data->capabilities.usb488_device_capabilities = buffer[15];
+	rv = 0;
 
 err_out:
 	kfree(buffer);
