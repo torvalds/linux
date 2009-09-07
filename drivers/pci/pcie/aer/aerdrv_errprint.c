@@ -57,9 +57,10 @@
 	(e & AER_DATA_LINK_LAYER_ERROR_MASK(t)) ? AER_DATA_LINK_LAYER_ERROR : \
 	AER_TRANSACTION_LAYER_ERROR)
 
-#define AER_PR(info, fmt, args...)				\
-	printk("%s" fmt, (info->severity == AER_CORRECTABLE) ?	\
-		KERN_WARNING : KERN_ERR, ## args)
+#define AER_PR(info, pdev, fmt, args...)				\
+	printk("%s%s %s: " fmt, (info->severity == AER_CORRECTABLE) ?	\
+		KERN_WARNING : KERN_ERR, dev_driver_string(&pdev->dev),	\
+		dev_name(&pdev->dev), ## args)
 
 /*
  * AER error strings
@@ -152,7 +153,7 @@ static char *aer_agent_string[] = {
 	"Transmitter ID"
 };
 
-static void aer_print_error_source(struct aer_err_info *info)
+static void __aer_print_error(struct aer_err_info *info, struct pci_dev *dev)
 {
 	int i, status;
 	char *errmsg = NULL;
@@ -169,48 +170,44 @@ static void aer_print_error_source(struct aer_err_info *info)
 			errmsg = aer_uncorrectable_error_string[i];
 
 		if (errmsg)
-			AER_PR(info, "%s\t: %s\n", errmsg,
-				info->first_error == i ? "First" : "");
+			AER_PR(info, dev, "   [%2d] %s%s\n", i, errmsg,
+				info->first_error == i ? " (First)" : "");
 		else
-			AER_PR(info, "Unknown Error Bit %2d  \t: %s\n",
-				i, info->first_error == i ? "First" : "");
+			AER_PR(info, dev, "   [%2d] Unknown Error Bit%s\n", i,
+				info->first_error == i ? " (First)" : "");
 	}
 }
 
 void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
-	int err_layer, agent;
 	int id = ((dev->bus->number << 8) | dev->devfn);
 
-	AER_PR(info, "+------ PCI-Express Device Error ------+\n");
-	AER_PR(info, "Error Severity\t\t: %s\n",
-		aer_error_severity_string[info->severity]);
-
 	if (info->status == 0) {
-		AER_PR(info, "PCIE Bus Error type\t: (Unaccessible)\n");
-		AER_PR(info, "Unregistered Agent ID\t: %04x\n", id);
+		AER_PR(info, dev,
+			"PCIE Bus Error: severity=%s, type=Unaccessible, "
+			"id=%04x(Unregistered Agent ID)\n",
+			aer_error_severity_string[info->severity], id);
 	} else {
-		err_layer = AER_GET_LAYER_ERROR(info->severity, info->status);
-		AER_PR(info, "PCIE Bus Error type\t: %s\n",
-			aer_error_layer[err_layer]);
+		int layer, agent;
 
-		aer_print_error_source(info);
-
+		layer = AER_GET_LAYER_ERROR(info->severity, info->status);
 		agent = AER_GET_AGENT(info->severity, info->status);
-		AER_PR(info, "%s\t\t: %04x\n", aer_agent_string[agent], id);
 
-		AER_PR(info, "VendorID=%04xh, DeviceID=%04xh,"
-			" Bus=%02xh, Device=%02xh, Function=%02xh\n",
-			dev->vendor,
-			dev->device,
-			dev->bus->number,
-			PCI_SLOT(dev->devfn),
-			PCI_FUNC(dev->devfn));
+		AER_PR(info, dev,
+			"PCIE Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
+			aer_error_severity_string[info->severity],
+			aer_error_layer[layer], id, aer_agent_string[agent]);
+
+		AER_PR(info, dev,
+			"  device [%04x:%04x] error status/mask=%08x/%08x\n",
+			dev->vendor, dev->device, info->status, info->mask);
+
+		__aer_print_error(info, dev);
 
 		if (info->tlp_header_valid) {
 			unsigned char *tlp = (unsigned char *) &info->tlp;
-			AER_PR(info, "TLP Header:\n");
-			AER_PR(info, "%02x%02x%02x%02x %02x%02x%02x%02x"
+			AER_PR(info, dev, "  TLP Header:"
+				" %02x%02x%02x%02x %02x%02x%02x%02x"
 				" %02x%02x%02x%02x %02x%02x%02x%02x\n",
 				*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
 				*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
@@ -221,6 +218,13 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	}
 
 	if (info->id && info->error_dev_num > 1 && info->id == id)
-		AER_PR(info, "Error of this Agent(%04x) is reported first\n",
-			id);
+		AER_PR(info, dev,
+			"  Error of this Agent(%04x) is reported first\n", id);
+}
+
+void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
+{
+	dev_info(&dev->dev, "AER: %s%s error received: id=%04x\n",
+		info->multi_error_valid ? "Multiple " : "",
+		aer_error_severity_string[info->severity], info->id);
 }

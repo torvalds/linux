@@ -813,6 +813,8 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 			 PCI_ERR_ROOT_MULTI_UNCOR_RCV))
 			e_info->multi_error_valid = 1;
 
+		aer_print_port_info(p_device->port, e_info);
+
 		find_source_device(p_device->port, e_info);
 		aer_process_err_devices(p_device, e_info);
 	}
