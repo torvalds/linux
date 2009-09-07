@@ -116,7 +116,7 @@ static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
-		info.platform_data = &z8f0811_ir_init_data;
+		info.platform_data = (void *) &z8f0811_ir_init_data;
 		break;
 	default:
 		break;
