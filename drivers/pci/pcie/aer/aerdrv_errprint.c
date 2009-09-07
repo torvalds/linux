@@ -152,38 +152,31 @@ static char *aer_agent_string[] = {
 	"Transmitter ID"
 };
 
-static char *aer_get_error_source_name(int severity,
-			unsigned int status,
-			char errmsg_buff[])
+static void aer_print_error_source(struct aer_err_info *info)
 {
 	int i;
 	char *errmsg = NULL;
 
 	for (i = 0; i < 32; i++) {
-		if (!(status & (1 << i)))
+		if (!(info->status & (1 << i)))
 			continue;
 
-		if (severity == AER_CORRECTABLE)
+		if (info->severity == AER_CORRECTABLE)
 			errmsg = aer_correctable_error_string[i];
 		else
 			errmsg = aer_uncorrectable_error_string[i];
 
-		if (!errmsg) {
-			sprintf(errmsg_buff, "Unknown Error Bit %2d  ", i);
-			errmsg = errmsg_buff;
-		}
+		if (errmsg)
+			AER_PR(info, "%s\t:\n", errmsg);
+		else
+			AER_PR(info, "Unknown Error Bit %2d  \t:\n", i);
 
 		break;
 	}
-
-	return errmsg;
 }
 
-static DEFINE_SPINLOCK(logbuf_lock);
-static char errmsg_buff[100];
 void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
-	char *errmsg;
 	int err_layer, agent;
 	int id = ((dev->bus->number << 8) | dev->devfn);
 
@@ -199,12 +192,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 		AER_PR(info, "PCIE Bus Error type\t: %s\n",
 			aer_error_layer[err_layer]);
 
-		spin_lock(&logbuf_lock);
-		errmsg = aer_get_error_source_name(info->severity,
-				info->status,
-				errmsg_buff);
-		AER_PR(info, "%s\t:\n", errmsg);
-		spin_unlock(&logbuf_lock);
+		aer_print_error_source(info);
 
 		agent = AER_GET_AGENT(info->severity, info->status);
 		AER_PR(info, "%s\t\t: %04x\n", aer_agent_string[agent], id);
