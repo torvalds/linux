@@ -185,6 +185,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
 	char *errmsg;
 	int err_layer, agent;
+	int id = ((dev->bus->number << 8) | dev->devfn);
 
 	AER_PR(info, "+------ PCI-Express Device Error ------+\n");
 	AER_PR(info, "Error Severity\t\t: %s\n",
@@ -192,11 +193,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 	if (info->status == 0) {
 		AER_PR(info, "PCIE Bus Error type\t: (Unaccessible)\n");
-		AER_PR(info, "Unaccessible Received\t: %s\n",
-			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
-				"Multiple" : "First");
-		AER_PR(info, "Unregistered Agent ID\t: %04x\n",
-			(dev->bus->number << 8) | dev->devfn);
+		AER_PR(info, "Unregistered Agent ID\t: %04x\n", id);
 	} else {
 		err_layer = AER_GET_LAYER_ERROR(info->severity, info->status);
 		AER_PR(info, "PCIE Bus Error type\t: %s\n",
@@ -206,15 +203,11 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 		errmsg = aer_get_error_source_name(info->severity,
 				info->status,
 				errmsg_buff);
-		AER_PR(info, "%s\t: %s\n", errmsg,
-			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
-				"Multiple" : "First");
+		AER_PR(info, "%s\t:\n", errmsg);
 		spin_unlock(&logbuf_lock);
 
 		agent = AER_GET_AGENT(info->severity, info->status);
-		AER_PR(info, "%s\t\t: %04x\n",
-			aer_agent_string[agent],
-			(dev->bus->number << 8) | dev->devfn);
+		AER_PR(info, "%s\t\t: %04x\n", aer_agent_string[agent], id);
 
 		AER_PR(info, "VendorID=%04xh, DeviceID=%04xh,"
 			" Bus=%02xh, Device=%02xh, Function=%02xh\n",
@@ -236,4 +229,8 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 				*(tlp + 13), *(tlp + 12));
 		}
 	}
+
+	if (info->id && info->error_dev_num > 1 && info->id == id)
+		AER_PR(info, "Error of this Agent(%04x) is reported first\n",
+			id);
 }
