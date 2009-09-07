@@ -2196,8 +2196,6 @@ static int em28xx_hint_board(struct em28xx *dev)
 /* ----------------------------------------------------------------------- */
 void em28xx_register_i2c_ir(struct em28xx *dev)
 {
-	struct i2c_board_info info;
-	struct IR_i2c_init_data init_data;
 	const unsigned short addr_list[] = {
 		 0x30, 0x47, I2C_CLIENT_END
 	};
@@ -2205,9 +2203,9 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 	if (disable_ir)
 		return;
 
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	memset(&init_data, 0, sizeof(struct IR_i2c_init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	memset(&dev->info, 0, sizeof(&dev->info));
+	memset(&dev->init_data, 0, sizeof(dev->init_data));
+	strlcpy(dev->info.type, "ir_video", I2C_NAME_SIZE);
 
 	/* detect & configure */
 	switch (dev->model) {
@@ -2217,19 +2215,19 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		break;
 	case (EM2800_BOARD_TERRATEC_CINERGY_200):
 	case (EM2820_BOARD_TERRATEC_CINERGY_250):
-		init_data.ir_codes = &ir_codes_em_terratec_table;
-		init_data.get_key = em28xx_get_key_terratec;
-		init_data.name = "i2c IR (EM28XX Terratec)";
+		dev->init_data.ir_codes = &ir_codes_em_terratec_table;
+		dev->init_data.get_key = em28xx_get_key_terratec;
+		dev->init_data.name = "i2c IR (EM28XX Terratec)";
 		break;
 	case (EM2820_BOARD_PINNACLE_USB_2):
-		init_data.ir_codes = &ir_codes_pinnacle_grey_table;
-		init_data.get_key = em28xx_get_key_pinnacle_usb_grey;
-		init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
+		dev->init_data.ir_codes = &ir_codes_pinnacle_grey_table;
+		dev->init_data.get_key = em28xx_get_key_pinnacle_usb_grey;
+		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
 		break;
 	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):
-		init_data.ir_codes = &ir_codes_hauppauge_new_table;
-		init_data.get_key = em28xx_get_key_em_haup;
-		init_data.name = "i2c IR (EM2840 Hauppauge)";
+		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		dev->init_data.get_key = em28xx_get_key_em_haup;
+		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
 		break;
 	case (EM2820_BOARD_MSI_VOX_USB_2):
 		break;
@@ -2241,9 +2239,9 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		break;
 	}
 
-	if (init_data.name)
-		info.platform_data = &init_data;
-	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
+	if (dev->init_data.name)
+		dev->info.platform_data = &dev->init_data;
+	i2c_new_probed_device(&dev->i2c_adap, &dev->info, addr_list);
 }
 
 void em28xx_card_setup(struct em28xx *dev)

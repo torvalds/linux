@@ -596,6 +596,10 @@ struct em28xx {
 	struct delayed_work sbutton_query_work;
 
 	struct em28xx_dvb *dvb;
+
+	/* I2C keyboard data */
+	struct i2c_board_info info;
+	struct IR_i2c_init_data init_data;
 };
 
 struct em28xx_ops {
