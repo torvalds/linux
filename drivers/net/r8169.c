@@ -3416,7 +3416,6 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 			netif_wake_queue(dev);
 	}
 
-out:
 	return NETDEV_TX_OK;
 
 err_stop:
