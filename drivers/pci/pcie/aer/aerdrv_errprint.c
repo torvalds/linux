@@ -170,10 +170,10 @@ static void aer_print_error_source(struct aer_err_info *info)
 
 		if (errmsg)
 			AER_PR(info, "%s\t: %s\n", errmsg,
-				info->first == i ? "First" : "");
+				info->first_error == i ? "First" : "");
 		else
 			AER_PR(info, "Unknown Error Bit %2d  \t: %s\n",
-				i, info->first == i ? "First" : "");
+				i, info->first_error == i ? "First" : "");
 	}
 }
 
@@ -207,7 +207,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 			PCI_SLOT(dev->devfn),
 			PCI_FUNC(dev->devfn));
 
-		if (info->flags & AER_TLP_HEADER_VALID_FLAG) {
+		if (info->tlp_header_valid) {
 			unsigned char *tlp = (unsigned char *) &info->tlp;
 			AER_PR(info, "TLP Header:\n");
 			AER_PR(info, "%02x%02x%02x%02x %02x%02x%02x%02x"

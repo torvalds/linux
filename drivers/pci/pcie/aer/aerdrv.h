@@ -40,10 +40,6 @@
 					PCI_ERR_UNC_UNX_COMP|		\
 					PCI_ERR_UNC_MALF_TLP)
 
-/* AER Error Info Flags */
-#define AER_TLP_HEADER_VALID_FLAG	0x00000001
-#define AER_MULTI_ERROR_VALID_FLAG	0x00000002
-
 struct header_log_regs {
 	unsigned int dw0;
 	unsigned int dw1;
@@ -55,10 +51,17 @@ struct header_log_regs {
 struct aer_err_info {
 	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
 	int error_dev_num;
-	u16 id;
-	int severity;			/* 0:NONFATAL | 1:FATAL | 2:COR */
-	int flags;
-	int first;
+
+	unsigned int id:16;
+
+	unsigned int severity:2;	/* 0:NONFATAL | 1:FATAL | 2:COR */
+	unsigned int __pad1:5;
+	unsigned int multi_error_valid:1;
+
+	unsigned int first_error:5;
+	unsigned int __pad2:2;
+	unsigned int tlp_header_valid:1;
+
 	unsigned int status;		/* COR/UNCOR Error Status */
 	unsigned int mask;		/* COR/UNCOR Error Mask */
 	struct header_log_regs tlp;	/* TLP Header */

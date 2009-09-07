@@ -196,7 +196,7 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 		 * If there is no multiple error, we stop
 		 * or continue based on the id comparing.
 		 */
-		if (!(e_info->flags & AER_MULTI_ERROR_VALID_FLAG))
+		if (!e_info->multi_error_valid)
 			return result;
 
 		/*
@@ -254,7 +254,7 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	return 0;
 
 added:
-	if (e_info->flags & AER_MULTI_ERROR_VALID_FLAG)
+	if (e_info->multi_error_valid)
 		return 0;
 	else
 		return 1;
@@ -701,7 +701,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 	int pos, temp;
 
 	info->status = 0;
-	info->flags &= ~AER_TLP_HEADER_VALID_FLAG;
+	info->tlp_header_valid = 0;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 
@@ -729,10 +729,10 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 
 		/* Get First Error Pointer */
 		pci_read_config_dword(dev, pos + PCI_ERR_CAP, &temp);
-		info->first = PCI_ERR_CAP_FEP(temp);
+		info->first_error = PCI_ERR_CAP_FEP(temp);
 
 		if (info->status & AER_LOG_TLP_MASKS) {
-			info->flags |= AER_TLP_HEADER_VALID_FLAG;
+			info->tlp_header_valid = 1;
 			pci_read_config_dword(dev,
 				pos + PCI_ERR_HEADER_LOG, &info->tlp.dw0);
 			pci_read_config_dword(dev,
@@ -811,7 +811,7 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 		if (e_src->status &
 			(PCI_ERR_ROOT_MULTI_COR_RCV |
 			 PCI_ERR_ROOT_MULTI_UNCOR_RCV))
-			e_info->flags |= AER_MULTI_ERROR_VALID_FLAG;
+			e_info->multi_error_valid = 1;
 
 		find_source_device(p_device->port, e_info);
 		aer_process_err_devices(p_device, e_info);
