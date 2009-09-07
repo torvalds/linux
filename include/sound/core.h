@@ -93,15 +93,6 @@ struct snd_device {
 
 #define snd_device(n) list_entry(n, struct snd_device, list)
 
-/* monitor files for graceful shutdown (hotplug) */
-
-struct snd_monitor_file {
-	struct file *file;
-	const struct file_operations *disconnected_f_op;
-	struct list_head shutdown_list;	/* still need to shutdown */
-	struct list_head list;	/* link of monitor files */
-};
-
 /* main structure for soundcard */
 
 struct snd_card {
