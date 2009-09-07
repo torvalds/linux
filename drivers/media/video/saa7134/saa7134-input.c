@@ -691,8 +691,6 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 {
-	struct i2c_board_info info;
-	struct IR_i2c_init_data init_data;
 	const unsigned short addr_list[] = {
 		0x7a, 0x47, 0x71, 0x2d,
 		I2C_CLIENT_END
@@ -712,34 +710,34 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		return;
 	}
 
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	memset(&init_data, 0, sizeof(struct IR_i2c_init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	memset(&dev->info, 0, sizeof(dev->info));
+	memset(&dev->init_data, 0, sizeof(dev->init_data));
+	strlcpy(dev->info.type, "ir_video", I2C_NAME_SIZE);
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
-		init_data.name = "Pinnacle PCTV";
+		dev->init_data.name = "Pinnacle PCTV";
 		if (pinnacle_remote == 0) {
-			init_data.get_key = get_key_pinnacle_color;
-			init_data.ir_codes = &ir_codes_pinnacle_color_table;
-			info.addr = 0x47;
+			dev->init_data.get_key = get_key_pinnacle_color;
+			dev->init_data.ir_codes = &ir_codes_pinnacle_color_table;
+			dev->info.addr = 0x47;
 		} else {
-			init_data.get_key = get_key_pinnacle_grey;
-			init_data.ir_codes = &ir_codes_pinnacle_grey_table;
-			info.addr = 0x47;
+			dev->init_data.get_key = get_key_pinnacle_grey;
+			dev->init_data.ir_codes = &ir_codes_pinnacle_grey_table;
+			dev->info.addr = 0x47;
 		}
 		break;
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
-		init_data.name = "Purple TV";
-		init_data.get_key = get_key_purpletv;
-		init_data.ir_codes = &ir_codes_purpletv_table;
+		dev->init_data.name = "Purple TV";
+		dev->init_data.get_key = get_key_purpletv;
+		dev->init_data.ir_codes = &ir_codes_purpletv_table;
 		break;
 	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
-		init_data.name = "MSI TV@nywhere Plus";
-		init_data.get_key = get_key_msi_tvanywhere_plus;
-		init_data.ir_codes = &ir_codes_msi_tvanywhere_plus_table;
-		info.addr = 0x30;
+		dev->init_data.name = "MSI TV@nywhere Plus";
+		dev->init_data.get_key = get_key_msi_tvanywhere_plus;
+		dev->init_data.ir_codes = &ir_codes_msi_tvanywhere_plus_table;
+		dev->info.addr = 0x30;
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
 		   an existing device. Weird...
@@ -750,9 +748,9 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 			(1 == rc) ? "yes" : "no");
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
-		init_data.name = "HVR 1110";
-		init_data.get_key = get_key_hvr1110;
-		init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		dev->init_data.name = "HVR 1110";
+		dev->init_data.get_key = get_key_hvr1110;
+		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:
 	case SAA7134_BOARD_BEHOLD_607FM_MK5:
@@ -767,26 +765,26 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
 	case SAA7134_BOARD_BEHOLD_H6:
 	case SAA7134_BOARD_BEHOLD_X7:
-		init_data.name = "BeholdTV";
-		init_data.get_key = get_key_beholdm6xx;
-		init_data.ir_codes = &ir_codes_behold_table;
+		dev->init_data.name = "BeholdTV";
+		dev->init_data.get_key = get_key_beholdm6xx;
+		dev->init_data.ir_codes = &ir_codes_behold_table;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
-		info.addr = 0x40;
+		dev->info.addr = 0x40;
 		break;
 	}
 
-	if (init_data.name)
-		info.platform_data = &init_data;
+	if (dev->init_data.name)
+		dev->info.platform_data = &dev->init_data;
 	/* No need to probe if address is known */
-	if (info.addr) {
-		i2c_new_device(&dev->i2c_adap, &info);
+	if (dev->info.addr) {
+		i2c_new_device(&dev->i2c_adap, &dev->info);
 		return;
 	}
 
 	/* Address not known, fallback to probing */
-	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
+	i2c_new_probed_device(&dev->i2c_adap, &dev->info, addr_list);
 }
 
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
