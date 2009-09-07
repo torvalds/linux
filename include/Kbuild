@@ -9,3 +9,4 @@ header-y += rdma/
 header-y += video/
 header-y += drm/
 header-y += xen/
+header-y += scsi/

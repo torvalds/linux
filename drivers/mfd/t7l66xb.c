@@ -108,7 +108,7 @@ static int t7l66xb_mmc_disable(struct platform_device *mmc)
 
 /*--------------------------------------------------------------------------*/
 
-static const struct tmio_mmc_data t7166xb_mmc_data = {
+static struct tmio_mmc_data t7166xb_mmc_data = {
 	.hclk = 24000000,
 };
 

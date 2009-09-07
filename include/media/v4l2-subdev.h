@@ -79,7 +79,11 @@ struct v4l2_decode_vbi_line {
    not yet implemented) since ops provide proper type-checking.
  */
 
-/* init: initialize the sensor registors to some sort of reasonable default
+/* s_config: if set, then it is always called by the v4l2_i2c_new_subdev*
+	functions after the v4l2_subdev was registered. It is used to pass
+	platform data to the subdev which can be used during initialization.
+
+   init: initialize the sensor registors to some sort of reasonable default
 	values. Do not use for new drivers and should be removed in existing
 	drivers.
 
@@ -96,6 +100,7 @@ struct v4l2_decode_vbi_line {
 struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
+	int (*s_config)(struct v4l2_subdev *sd, int irq, void *platform_data);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	int (*load_fw)(struct v4l2_subdev *sd);
 	int (*reset)(struct v4l2_subdev *sd, u32 val);

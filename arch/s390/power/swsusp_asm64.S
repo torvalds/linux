@@ -32,19 +32,14 @@ swsusp_arch_suspend:
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
 
-	/* Switch off lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	ni	__SF_EMPTY+4(%r15),0xef
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
-
 	/* Store prefix register on stack */
 	stpx	__SF_EMPTY(%r15)
 
-	/* Setup base register for lowcore (absolute 0) */
-	llgf	%r1,__SF_EMPTY(%r15)
+	/* Save prefix register contents for lowcore */
+	llgf	%r4,__SF_EMPTY(%r15)
 
 	/* Get pointer to save area */
-	aghi	%r1,0x1000
+	lghi	%r1,0x1000
 
 	/* Store registers */
 	mvc	0x318(4,%r1),__SF_EMPTY(%r15)	/* move prefix to lowcore */
@@ -79,16 +74,14 @@ swsusp_arch_suspend:
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
 	spx	__SF_EMPTY(%r15)
 
-	/* Setup lowcore */
-	brasl	%r14,setup_lowcore_early
+	lghi	%r2,0
+	lghi	%r3,2*PAGE_SIZE
+	lghi	%r5,2*PAGE_SIZE
+1:	mvcle	%r2,%r4,0
+	jo	1b
 
 	/* Save image */
 	brasl	%r14,swsusp_save
-
-	/* Switch on lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	oi	__SF_EMPTY+4(%r15),0x10
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
 
 	/* Restore prefix register and return */
 	lghi	%r1,0x1000
@@ -109,17 +102,13 @@ swsusp_arch_resume:
 	aghi	%r15,-STACK_FRAME_OVERHEAD
 	stg	%r1,__SF_BACKCHAIN(%r15)
 
+#ifdef CONFIG_SMP
 	/* Save boot cpu number */
 	brasl	%r14,smp_get_phys_cpu_id
 	lgr	%r10,%r2
-
+#endif
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
-
-	/* Switch off lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	ni	__SF_EMPTY+4(%r15),0xef
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
 
 	/* Set prefix page to zero */
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
@@ -174,21 +163,17 @@ swsusp_arch_resume:
 	/* Load old stack */
 	lg	%r15,0x2f8(%r13)
 
-	/* Pointer to save arae */
+	/* Pointer to save area */
 	lghi	%r13,0x1000
 
+#ifdef CONFIG_SMP
 	/* Switch CPUs */
 	lgr	%r2,%r10		/* get cpu id */
 	llgf	%r3,0x318(%r13)
 	brasl	%r14,smp_switch_boot_cpu_in_resume
-
+#endif
 	/* Restore prefix register */
 	spx	0x318(%r13)
-
-	/* Switch on lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	oi	__SF_EMPTY+4(%r15),0x10
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
 
 	/* Activate DAT */
 	stosm	__SF_EMPTY(%r15),0x04

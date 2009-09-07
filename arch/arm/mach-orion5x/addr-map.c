@@ -200,6 +200,6 @@ void __init orion5x_setup_pcie_wa_win(u32 base, u32 size)
 
 int __init orion5x_setup_sram_win(void)
 {
-	return setup_cpu_win(win_alloc_count, ORION5X_SRAM_PHYS_BASE,
+	return setup_cpu_win(win_alloc_count++, ORION5X_SRAM_PHYS_BASE,
 			ORION5X_SRAM_SIZE, TARGET_SRAM, ATTR_SRAM, -1);
 }

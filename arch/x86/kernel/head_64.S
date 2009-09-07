@@ -12,7 +12,6 @@
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <linux/init.h>
-#include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>

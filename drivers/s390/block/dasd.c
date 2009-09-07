@@ -470,7 +470,7 @@ static int dasd_decrease_state(struct dasd_device *device)
  */
 static void dasd_change_state(struct dasd_device *device)
 {
-        int rc;
+	int rc;
 
 	if (device->state == device->target)
 		/* Already where we want to go today... */
@@ -479,8 +479,10 @@ static void dasd_change_state(struct dasd_device *device)
 		rc = dasd_increase_state(device);
 	else
 		rc = dasd_decrease_state(device);
-        if (rc && rc != -EAGAIN)
-                device->target = device->state;
+	if (rc == -EAGAIN)
+		return;
+	if (rc)
+		device->target = device->state;
 
 	if (device->state == device->target) {
 		wake_up(&dasd_init_waitq);
@@ -2133,9 +2135,9 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	struct dasd_device *base;
 
 	block = bdev->bd_disk->private_data;
-	base = block->base;
 	if (!block)
 		return -ENODEV;
+	base = block->base;
 
 	if (!base->discipline ||
 	    !base->discipline->fill_geometry)
@@ -2503,15 +2505,25 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	/* allow new IO again */
+	device->stopped &= ~DASD_STOPPED_PM;
+	device->stopped &= ~DASD_UNRESUMED_PM;
+
 	dasd_schedule_device_bh(device);
 	if (device->block)
 		dasd_schedule_block_bh(device->block);
 
 	if (device->discipline->restore)
 		rc = device->discipline->restore(device);
+	if (rc)
+		/*
+		 * if the resume failed for the DASD we put it in
+		 * an UNRESUMED stop state
+		 */
+		device->stopped |= DASD_UNRESUMED_PM;
 
 	dasd_put_device(device);
-	return rc;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_restore_device);
 

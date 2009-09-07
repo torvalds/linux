@@ -224,6 +224,11 @@ struct netdev_hw_addr {
 	struct rcu_head		rcu_head;
 };
 
+struct netdev_hw_addr_list {
+	struct list_head	list;
+	int			count;
+};
+
 struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
@@ -776,9 +781,8 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
-	struct list_head	uc_list;	/* Secondary unicast mac
-						   addresses */
-	int			uc_count;	/* Number of installed ucasts	*/
+	struct netdev_hw_addr_list	uc;	/* Secondary unicast
+						   mac addresses */
 	int			uc_promisc;
 	spinlock_t		addr_list_lock;
 	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
@@ -810,7 +814,8 @@ struct net_device
 						   because most packets are
 						   unicast) */
 
-	struct list_head	dev_addr_list; /* list of device hw addresses */
+	struct netdev_hw_addr_list	dev_addrs; /* list of device
+						      hw addresses */
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
@@ -1806,11 +1811,11 @@ static inline void netif_addr_unlock_bh(struct net_device *dev)
 }
 
 /*
- * dev_addr_list walker. Should be used only for read access. Call with
+ * dev_addrs walker. Should be used only for read access. Call with
  * rcu_read_lock held.
  */
 #define for_each_dev_addr(dev, ha) \
-		list_for_each_entry_rcu(ha, &dev->dev_addr_list, list)
+		list_for_each_entry_rcu(ha, &dev->dev_addrs.list, list)
 
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */
 

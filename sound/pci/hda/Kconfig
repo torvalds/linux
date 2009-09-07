@@ -2,7 +2,6 @@ menuconfig SND_HDA_INTEL
 	tristate "Intel HD Audio"
 	select SND_PCM
 	select SND_VMASTER
-	select SND_JACK if INPUT=y || INPUT=SND
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -38,6 +37,14 @@ config SND_HDA_INPUT_BEEP
 	help
 	  Say Y here to build a digital beep interface for HD-audio
 	  driver. This interface is used to generate digital beeps.
+
+config SND_HDA_INPUT_JACK
+	bool "Support jack plugging notification via input layer"
+	depends on INPUT=y || INPUT=SND_HDA_INTEL
+	select SND_JACK
+	help
+	  Say Y here to enable the jack plugging notification via
+	  input layer.
 
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"

@@ -1089,17 +1089,18 @@ static void handle_reg_beacon(struct wiphy *wiphy,
 
 	chan->beacon_found = true;
 
+	if (wiphy->disable_beacon_hints)
+		return;
+
 	chan_before.center_freq = chan->center_freq;
 	chan_before.flags = chan->flags;
 
-	if ((chan->flags & IEEE80211_CHAN_PASSIVE_SCAN) &&
-	    !(chan->orig_flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN) {
 		chan->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
 		channel_changed = true;
 	}
 
-	if ((chan->flags & IEEE80211_CHAN_NO_IBSS) &&
-	    !(chan->orig_flags & IEEE80211_CHAN_NO_IBSS)) {
+	if (chan->flags & IEEE80211_CHAN_NO_IBSS) {
 		chan->flags &= ~IEEE80211_CHAN_NO_IBSS;
 		channel_changed = true;
 	}

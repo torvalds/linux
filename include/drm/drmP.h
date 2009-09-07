@@ -34,9 +34,6 @@
 #ifndef _DRM_P_H_
 #define _DRM_P_H_
 
-/* If you want the memory alloc debug functionality, change define below */
-/* #define DEBUG_MEMORY */
-
 #ifdef __KERNEL__
 #ifdef __alpha__
 /* add include of current.h so that "current" is defined
@@ -132,31 +129,6 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 #define DRM_LOCK_SLICE	      1	/**< Time slice for lock, in jiffies */
 
 #define DRM_FLAG_DEBUG	  0x01
-
-#define DRM_MEM_DMA	   0
-#define DRM_MEM_SAREA	   1
-#define DRM_MEM_DRIVER	   2
-#define DRM_MEM_MAGIC	   3
-#define DRM_MEM_IOCTLS	   4
-#define DRM_MEM_MAPS	   5
-#define DRM_MEM_VMAS	   6
-#define DRM_MEM_BUFS	   7
-#define DRM_MEM_SEGS	   8
-#define DRM_MEM_PAGES	   9
-#define DRM_MEM_FILES	  10
-#define DRM_MEM_QUEUES	  11
-#define DRM_MEM_CMDS	  12
-#define DRM_MEM_MAPPINGS  13
-#define DRM_MEM_BUFLISTS  14
-#define DRM_MEM_AGPLISTS  15
-#define DRM_MEM_TOTALAGP  16
-#define DRM_MEM_BOUNDAGP  17
-#define DRM_MEM_CTXBITMAP 18
-#define DRM_MEM_STUB      19
-#define DRM_MEM_SGLISTS   20
-#define DRM_MEM_CTXLIST   21
-#define DRM_MEM_MM        22
-#define DRM_MEM_HASHTAB   23
 
 #define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
 #define DRM_MAP_HASH_OFFSET 0x10000000
@@ -1517,24 +1489,6 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
-#ifndef DEBUG_MEMORY
-/** Wrapper around kmalloc() */
-static __inline__ void *drm_alloc(size_t size, int area)
-{
-	return kmalloc(size, GFP_KERNEL);
-}
-
-/** Wrapper around kfree() */
-static __inline__ void drm_free(void *pt, size_t size, int area)
-{
-	kfree(pt);
-}
-
-/** Wrapper around kcalloc() */
-static __inline__ void *drm_calloc(size_t nmemb, size_t size, int area)
-{
-	return kcalloc(nmemb, size, GFP_KERNEL);
-}
 
 static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
 {
@@ -1555,12 +1509,6 @@ static __inline void drm_free_large(void *ptr)
 
 	vfree(ptr);
 }
-#else
-extern void *drm_alloc(size_t size, int area);
-extern void drm_free(void *pt, size_t size, int area);
-extern void *drm_calloc(size_t nmemb, size_t size, int area);
-#endif
-
 /*@}*/
 
 #endif				/* __KERNEL__ */

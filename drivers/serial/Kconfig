@@ -527,7 +527,7 @@ config SERIAL_S3C24A0
 
 config SERIAL_S3C6400
 	tristate "Samsung S3C6400/S3C6410 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C600 || CPU_S3C6410)
+	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410)
 	default y
 	help
 	  Serial port support for the Samsung S3C6400 and S3C6410
@@ -1319,6 +1319,16 @@ config SERIAL_SGI_IOC3
 	help
 	  If you have an SGI Altix with an IOC3 serial card,
 	  say Y or M.  Otherwise, say N.
+
+config SERIAL_MSM
+	bool "MSM on-chip serial port support"
+	depends on ARM && ARCH_MSM
+	select SERIAL_CORE
+
+config SERIAL_MSM_CONSOLE
+	bool "MSM serial console support"
+	depends on SERIAL_MSM=y
+	select SERIAL_CORE_CONSOLE
 
 config SERIAL_NETX
 	tristate "NetX serial port support"

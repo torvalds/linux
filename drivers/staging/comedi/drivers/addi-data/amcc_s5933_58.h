@@ -31,15 +31,15 @@
 
 *************************/
 
-#define FIFO_ADVANCE_ON_BYTE_2     0x20000000	// written on base0
+#define FIFO_ADVANCE_ON_BYTE_2     0x20000000	/*  written on base0 */
 
-#define AMWEN_ENABLE                     0x02	// added for step 6 dma written on base2
+#define AMWEN_ENABLE                     0x02	/*  added for step 6 dma written on base2 */
 #define A2P_FIFO_WRITE_ENABLE            0x01
 
-#define AGCSTS_TC_ENABLE		   0x10000000	// Added for transfer count enable bit
+#define AGCSTS_TC_ENABLE		   0x10000000	/*  Added for transfer count enable bit */
 
-//  ADDON RELATED ADDITIONS
-// Constant
+/* ADDON RELATED ADDITIONS */
+/* Constant */
 #define     APCI3120_ENABLE_TRANSFER_ADD_ON_LOW       0x00
 #define     APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH      0x1200
 #define     APCI3120_A2P_FIFO_MANAGEMENT              0x04000400L
@@ -52,7 +52,7 @@
 #define     APCI3120_DISABLE_BUS_MASTER_ADD_ON        0x0
 #define     APCI3120_DISABLE_BUS_MASTER_PCI           0x0
 
- // ADD_ON ::: this needed since apci supports 16 bit interface to add on
+ /*  ADD_ON ::: this needed since apci supports 16 bit interface to add on */
 #define     APCI3120_ADD_ON_AGCSTS_LOW       0x3C
 #define     APCI3120_ADD_ON_AGCSTS_HIGH      APCI3120_ADD_ON_AGCSTS_LOW + 2
 #define     APCI3120_ADD_ON_MWAR_LOW         0x24
@@ -60,7 +60,7 @@
 #define     APCI3120_ADD_ON_MWTC_LOW         0x058
 #define     APCI3120_ADD_ON_MWTC_HIGH        APCI3120_ADD_ON_MWTC_LOW + 2
 
-// AMCC
+/* AMCC */
 #define     APCI3120_AMCC_OP_MCSR            0x3C
 #define     APCI3120_AMCC_OP_REG_INTCSR      0x38
 
@@ -85,7 +85,7 @@
 #define AMCC_OP_REG_MRTC         0x30
 #define AMCC_OP_REG_MBEF         0x34
 #define AMCC_OP_REG_INTCSR       0x38
-#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2)	/* INT source */
+#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2)	/* int source */
 #define  AMCC_OP_REG_INTCSR_FEC  (AMCC_OP_REG_INTCSR + 3)	/* FIFO ctrl */
 #define AMCC_OP_REG_MCSR         0x3c
 #define  AMCC_OP_REG_MCSR_NVDATA (AMCC_OP_REG_MCSR + 2)	/* Data in byte 2 */
@@ -212,7 +212,7 @@ struct pcilst_struct {
 	unsigned int irq;
 };
 
-struct pcilst_struct *amcc_devices;	// ptr to root list of all amcc devices
+struct pcilst_struct *amcc_devices;	/*  ptr to root list of all amcc devices */
 
 /****************************************************************************/
 
@@ -267,7 +267,7 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 			amcc->vendor = pcidev->vendor;
 			amcc->device = pcidev->device;
 #if 0
-			amcc->master = pcidev->master;	// how get this information under 2.4 kernels?
+			amcc->master = pcidev->master;	/*  how get this information under 2.4 kernels? */
 #endif
 			amcc->pci_bus = pcidev->bus->number;
 			amcc->pci_slot = PCI_SLOT(pcidev->devfn);
@@ -333,17 +333,17 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 		    && (amcc->pci_slot == pci_slot)) {
 			if (!(amcc->used)) {
 				*card = amcc;
-				return 0;	// ok, card is found
+				return 0;	/*  ok, card is found */
 			} else {
-				rt_printk
+				printk
 				    (" - \nCard on requested position is used b:s %d:%d!\n",
 				     pci_bus, pci_slot);
-				return 2;	// card exist but is used
+				return 2;	/*  card exist but is used */
 			}
 		}
 	}
 
-	return 1;		// no card found
+	return 1;		/*  no card found */
 }
 
 /****************************************************************************/
@@ -422,11 +422,10 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 {
 	struct pcilst_struct *card;
 
-	if ((pci_bus < 1) & (pci_slot < 1)) {	// use autodetection
-		if ((card = ptr_find_free_pci_card_by_device(vendor_id,
-							     device_id)) ==
-		    NULL) {
-			rt_printk(" - Unused card not found in system!\n");
+	if ((pci_bus < 1) & (pci_slot < 1)) {	/*  use autodetection */
+		card = ptr_find_free_pci_card_by_device(vendor_id, device_id);
+		if (card == NULL) {
+			printk(" - Unused card not found in system!\n");
 			return NULL;
 		}
 	} else {
@@ -434,12 +433,12 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 							 pci_bus, pci_slot,
 							 &card)) {
 		case 1:
-			rt_printk
+			printk
 			    (" - Card not found on requested position b:s %d:%d!\n",
 			     pci_bus, pci_slot);
 			return NULL;
 		case 2:
-			rt_printk
+			printk
 			    (" - Card on requested position is used b:s %d:%d!\n",
 			     pci_bus, pci_slot);
 			return NULL;
@@ -447,7 +446,7 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 	}
 
 	if (i_pci_card_alloc(card) != 0) {
-		rt_printk(" - Can't allocate card!\n");
+		printk(" - Can't allocate card!\n");
 		return NULL;
 	}
 

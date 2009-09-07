@@ -401,7 +401,7 @@ u8 read_from_eeprom(struct agnx_priv *priv, u16 address);
 void agnx_hw_init(struct agnx_priv *priv);
 int agnx_hw_reset(struct agnx_priv *priv);
 int agnx_set_ssid(struct agnx_priv *priv, u8 *ssid, size_t ssid_len);
-void agnx_set_bssid(struct agnx_priv *priv, u8 *bssid);
+void agnx_set_bssid(struct agnx_priv *priv, const u8 *bssid);
 void enable_power_saving(struct agnx_priv *priv);
 void disable_power_saving(struct agnx_priv *priv);
 void calibrate_antenna_period(unsigned long data);

@@ -49,7 +49,8 @@ static struct dentry		*stat_dir;
  * but it will at least advance closer to the next one
  * to be released.
  */
-static struct rb_node *release_next(struct rb_node *node)
+static struct rb_node *release_next(struct tracer_stat *ts,
+				    struct rb_node *node)
 {
 	struct stat_node *snode;
 	struct rb_node *parent = rb_parent(node);
@@ -67,26 +68,35 @@ static struct rb_node *release_next(struct rb_node *node)
 			parent->rb_right = NULL;
 
 		snode = container_of(node, struct stat_node, node);
+		if (ts->stat_release)
+			ts->stat_release(snode->stat);
 		kfree(snode);
 
 		return parent;
 	}
 }
 
-static void reset_stat_session(struct stat_session *session)
+static void __reset_stat_session(struct stat_session *session)
 {
 	struct rb_node *node = session->stat_root.rb_node;
 
 	while (node)
-		node = release_next(node);
+		node = release_next(session->ts, node);
 
 	session->stat_root = RB_ROOT;
+}
+
+static void reset_stat_session(struct stat_session *session)
+{
+	mutex_lock(&session->stat_mutex);
+	__reset_stat_session(session);
+	mutex_unlock(&session->stat_mutex);
 }
 
 static void destroy_session(struct stat_session *session)
 {
 	debugfs_remove(session->file);
-	reset_stat_session(session);
+	__reset_stat_session(session);
 	mutex_destroy(&session->stat_mutex);
 	kfree(session);
 }
@@ -150,7 +160,7 @@ static int stat_seq_init(struct stat_session *session)
 	int i;
 
 	mutex_lock(&session->stat_mutex);
-	reset_stat_session(session);
+	__reset_stat_session(session);
 
 	if (!ts->stat_cmp)
 		ts->stat_cmp = dummy_cmp;
@@ -183,7 +193,7 @@ exit:
 	return ret;
 
 exit_free_rbtree:
-	reset_stat_session(session);
+	__reset_stat_session(session);
 	mutex_unlock(&session->stat_mutex);
 	return ret;
 }
@@ -193,22 +203,22 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct stat_session *session = s->private;
 	struct rb_node *node;
+	int n = *pos;
 	int i;
 
 	/* Prevent from tracer switch or rbtree modification */
 	mutex_lock(&session->stat_mutex);
 
 	/* If we are in the beginning of the file, print the headers */
-	if (!*pos && session->ts->stat_headers) {
-		(*pos)++;
-		return SEQ_START_TOKEN;
+	if (session->ts->stat_headers) {
+		if (n == 0)
+			return SEQ_START_TOKEN;
+		n--;
 	}
 
 	node = rb_first(&session->stat_root);
-	for (i = 0; node && i < *pos; i++)
+	for (i = 0; node && i < n; i++)
 		node = rb_next(node);
-
-	(*pos)++;
 
 	return node;
 }
@@ -254,16 +264,21 @@ static const struct seq_operations trace_stat_seq_ops = {
 static int tracing_stat_open(struct inode *inode, struct file *file)
 {
 	int ret;
-
+	struct seq_file *m;
 	struct stat_session *session = inode->i_private;
 
+	ret = stat_seq_init(session);
+	if (ret)
+		return ret;
+
 	ret = seq_open(file, &trace_stat_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = session;
-		ret = stat_seq_init(session);
+	if (ret) {
+		reset_stat_session(session);
+		return ret;
 	}
 
+	m = file->private_data;
+	m->private = session;
 	return ret;
 }
 
@@ -274,11 +289,9 @@ static int tracing_stat_release(struct inode *i, struct file *f)
 {
 	struct stat_session *session = i->i_private;
 
-	mutex_lock(&session->stat_mutex);
 	reset_stat_session(session);
-	mutex_unlock(&session->stat_mutex);
 
-	return 0;
+	return seq_release(i, f);
 }
 
 static const struct file_operations tracing_stat_fops = {

@@ -460,7 +460,7 @@ static int __init wm8400_module_init(void)
 
 	return ret;
 }
-module_init(wm8400_module_init);
+subsys_initcall(wm8400_module_init);
 
 static void __exit wm8400_module_exit(void)
 {

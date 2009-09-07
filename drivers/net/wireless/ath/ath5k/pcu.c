@@ -733,8 +733,9 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	/*
 	 * Set the beacon register and enable all timers.
 	 */
-	/* When in AP mode zero timer0 to start TSF */
-	if (ah->ah_op_mode == NL80211_IFTYPE_AP)
+	/* When in AP or Mesh Point mode zero timer0 to start TSF */
+	if (ah->ah_op_mode == NL80211_IFTYPE_AP ||
+	    ah->ah_op_mode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_hw_reg_write(ah, 0, AR5K_TIMER0);
 
 	ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);

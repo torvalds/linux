@@ -58,6 +58,8 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if (r) {
 		DRM_ERROR("Failed to initialize radeon, disabling IOCTL\n");
 		radeon_device_fini(rdev);
+		kfree(rdev);
+		dev->dev_private = NULL;
 		return r;
 	}
 	return 0;
@@ -92,6 +94,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_NUM_GB_PIPES:
 		value = rdev->num_gb_pipes;
+		break;
+	case RADEON_INFO_NUM_Z_PIPES:
+		value = rdev->num_z_pipes;
 		break;
 	default:
 		DRM_DEBUG("Invalid request %d\n", info->request);
@@ -139,19 +144,42 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
  */
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
-	return 0;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	return radeon_get_vblank_counter(rdev, crtc);
 }
 
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
-	return 0;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	rdev->irq.crtc_vblank_int[crtc] = true;
+
+	return radeon_irq_set(rdev);
 }
 
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return;
+	}
+
+	rdev->irq.crtc_vblank_int[crtc] = false;
+
+	radeon_irq_set(rdev);
 }
 
 
@@ -169,14 +197,14 @@ int radeon_master_create_kms(struct drm_device *dev, struct drm_master *master)
 	unsigned long sareapage;
 	int ret;
 
-	master_priv = drm_calloc(1, sizeof(*master_priv), DRM_MEM_DRIVER);
+	master_priv = kzalloc(sizeof(*master_priv), GFP_KERNEL);
 	if (master_priv == NULL) {
 		return -ENOMEM;
 	}
 	/* prebuild the SAREA */
 	sareapage = max_t(unsigned long, SAREA_MAX, PAGE_SIZE);
 	ret = drm_addmap(dev, 0, sareapage, _DRM_SHM,
-			 _DRM_CONTAINS_LOCK|_DRM_DRIVER,
+			 _DRM_CONTAINS_LOCK,
 			 &master_priv->sarea);
 	if (ret) {
 		DRM_ERROR("SAREA setup failed\n");
@@ -199,7 +227,7 @@ void radeon_master_destroy_kms(struct drm_device *dev,
 	if (master_priv->sarea) {
 		drm_rmmap_locked(dev, master_priv->sarea);
 	}
-	drm_free(master_priv, sizeof(*master_priv), DRM_MEM_DRIVER);
+	kfree(master_priv);
 	master->driver_priv = NULL;
 }
 
@@ -291,5 +319,8 @@ struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF(DRM_RADEON_GEM_WAIT_IDLE, radeon_gem_wait_idle_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_RADEON_CS, radeon_cs_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_RADEON_INFO, radeon_info_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_RADEON_GEM_SET_TILING, radeon_gem_set_tiling_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH),
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);

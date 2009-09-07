@@ -152,6 +152,16 @@
 			interrupt-parent = <&mpic>;
 			dfsrr;
 
+			hwmon@48 {
+				compatible = "national,lm92";
+				reg = <0x48>;
+			};
+
+			hwmon@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
+
 			rtc@51 {
 				compatible = "epson,rx8581";
 				reg = <0x00000051>;

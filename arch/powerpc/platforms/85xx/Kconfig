@@ -35,12 +35,14 @@ config MPC85xx_MDS
 	select DEFAULT_UIMAGE
 	select PHYLIB
 	select HAS_RAPIDIO
+	select SWIOTLB
 	help
 	  This option enables support for the MPC85xx MDS board
 
 config MPC8536_DS
 	bool "Freescale MPC8536 DS"
 	select DEFAULT_UIMAGE
+	select SWIOTLB
 	help
 	  This option enables support for the MPC8536 DS board
 
@@ -49,6 +51,7 @@ config MPC85xx_DS
 	select PPC_I8259
 	select DEFAULT_UIMAGE
 	select FSL_ULI1575
+	select SWIOTLB
 	help
 	  This option enables support for the MPC85xx DS (MPC8544 DS) board
 
@@ -63,6 +66,16 @@ config KSI8560
         select DEFAULT_UIMAGE
         help
           This option enables support for the Emerson KSI8560 board
+
+config XES_MPC85xx
+	bool "X-ES single-board computer"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the various single-board
+	  computers from Extreme Engineering Solutions (X-ES) based on
+	  Freescale MPC85xx processors.
+	  Manufacturer: Extreme Engineering Solutions, Inc.
+	  URL: <http://www.xes-inc.com/>
 
 config STX_GP3
 	bool "Silicon Turnkey Express GP3"

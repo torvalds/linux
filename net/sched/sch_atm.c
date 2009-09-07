@@ -49,7 +49,7 @@ struct atm_flow_data {
 	struct socket		*sock;		/* for closing */
 	u32			classid;	/* x:y type ID */
 	int			ref;		/* reference count */
-	struct gnet_stats_basic	bstats;
+	struct gnet_stats_basic_packed	bstats;
 	struct gnet_stats_queue	qstats;
 	struct atm_flow_data	*next;
 	struct atm_flow_data	*excess;	/* flow for excess traffic;

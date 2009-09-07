@@ -30,6 +30,8 @@
 #include "drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_drm.h"
+#include "radeon_share.h"
 
 /* r300,r350,rv350,rv370,rv380 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
@@ -44,18 +46,18 @@ int r100_gui_wait_for_idle(struct radeon_device *rdev);
 int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt,
 			 unsigned idx);
+int r100_cs_packet_parse_vline(struct radeon_cs_parser *p);
 int r100_cs_packet_next_reloc(struct radeon_cs_parser *p,
 			      struct radeon_cs_reloc **cs_reloc);
 int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 			  struct radeon_cs_packet *pkt,
-			  unsigned *auth, unsigned n,
+			  const unsigned *auth, unsigned n,
 			  radeon_packet0_check_t check);
-int r100_cs_parse_packet3(struct radeon_cs_parser *p,
-			  struct radeon_cs_packet *pkt,
-			  unsigned *auth, unsigned n,
-			  radeon_packet3_check_t check);
 void r100_cs_dump_packet(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt);
+int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
+					 struct radeon_cs_packet *pkt,
+					 struct radeon_object *robj);
 
 /* This files gather functions specifics to:
  * r300,r350,rv350,rv370,rv380
@@ -81,8 +83,8 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp | RADEON_PCIE_TX_GART_INVALIDATE_TLB);
 		(void)RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
-		mb();
 	}
+	mb();
 }
 
 int rv370_pcie_gart_enable(struct radeon_device *rdev)
@@ -151,8 +153,13 @@ int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	addr = (((u32)addr) >> 8) | ((upper_32_bits(addr) & 0xff) << 4) | 0xC;
-	writel(cpu_to_le32(addr), ((void __iomem *)ptr) + (i * 4));
+	addr = (lower_32_bits(addr) >> 8) |
+	       ((upper_32_bits(addr) & 0xff) << 24) |
+	       0xc;
+	/* on x86 we want this to be CPU endian, on powerpc
+	 * on powerpc without HW swappers, it'll get swapped on way
+	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
+	writel(addr, ((void __iomem *)ptr) + (i * 4));
 	return 0;
 }
 
@@ -288,7 +295,7 @@ int r300_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 	/* Must wait for 2D idle & clean before DMA or hangs might happen */
-	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0 ));
 	radeon_ring_write(rdev, (1 << 16));
 	for (i = 0; i < num_loops; i++) {
 		cur_size = size;
@@ -319,7 +326,7 @@ void r300_ring_start(struct radeon_device *rdev)
 
 	/* Sub pixel 1/12 so we can have 4K rendering according to doc */
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
-	switch (rdev->num_gb_pipes) {
+	switch(rdev->num_gb_pipes) {
 	case 2:
 		gb_tile_config |= R300_PIPE_COUNT_R300;
 		break;
@@ -441,6 +448,7 @@ void r300_gpu_init(struct radeon_device *rdev)
 		/* rv350,rv370,rv380 */
 		rdev->num_gb_pipes = 1;
 	}
+	rdev->num_z_pipes = 1;
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
 	switch (rdev->num_gb_pipes) {
 	case 2:
@@ -452,8 +460,8 @@ void r300_gpu_init(struct radeon_device *rdev)
 	case 4:
 		gb_tile_config |= R300_PIPE_COUNT_R420;
 		break;
-	case 1:
 	default:
+	case 1:
 		gb_tile_config |= R300_PIPE_COUNT_RV350;
 		break;
 	}
@@ -479,7 +487,8 @@ void r300_gpu_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait MC idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-	DRM_INFO("radeon: %d pipes initialized.\n", rdev->num_gb_pipes);
+	DRM_INFO("radeon: %d quad pipes, %d Z pipes initialized.\n",
+		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
 int r300_ga_reset(struct radeon_device *rdev)
@@ -580,33 +589,10 @@ void r300_vram_info(struct radeon_device *rdev)
 	} else {
 		rdev->mc.vram_width = 64;
 	}
-	rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r100_vram_init_sizes(rdev);
 }
 
-
-/*
- * Indirect registers accessor
- */
-uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	uint32_t r;
-
-	WREG8(RADEON_PCIE_INDEX, ((reg) & 0xff));
-	(void)RREG32(RADEON_PCIE_INDEX);
-	r = RREG32(RADEON_PCIE_DATA);
-	return r;
-}
-
-void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	WREG8(RADEON_PCIE_INDEX, ((reg) & 0xff));
-	(void)RREG32(RADEON_PCIE_INDEX);
-	WREG32(RADEON_PCIE_DATA, (v));
-	(void)RREG32(RADEON_PCIE_DATA);
-}
 
 /*
  * PCIE Lanes
@@ -725,18 +711,120 @@ struct r300_cs_track_cb {
 	unsigned		offset;
 };
 
-struct r300_cs_track {
-	unsigned		num_cb;
-	unsigned		maxy;
-	struct r300_cs_track_cb cb[4];
-	struct r300_cs_track_cb zb;
-	bool			z_enabled;
+struct r300_cs_track_array {
+	struct radeon_object	*robj;
+	unsigned		esize;
 };
+
+struct r300_cs_track_texture {
+	struct radeon_object	*robj;
+	unsigned		pitch;
+	unsigned		width;
+	unsigned		height;
+	unsigned		num_levels;
+	unsigned		cpp;
+	unsigned		tex_coord_type;
+	unsigned		txdepth;
+	unsigned		width_11;
+	unsigned		height_11;
+	bool			use_pitch;
+	bool			enabled;
+	bool			roundup_w;
+	bool			roundup_h;
+};
+
+struct r300_cs_track {
+	unsigned			num_cb;
+	unsigned			maxy;
+	unsigned			vtx_size;
+	unsigned			vap_vf_cntl;
+	unsigned			immd_dwords;
+	unsigned			num_arrays;
+	unsigned			max_indx;
+	struct r300_cs_track_array	arrays[11];
+	struct r300_cs_track_cb 	cb[4];
+	struct r300_cs_track_cb 	zb;
+	struct r300_cs_track_texture	textures[16];
+	bool				z_enabled;
+};
+
+static inline void r300_cs_track_texture_print(struct r300_cs_track_texture *t)
+{
+	DRM_ERROR("pitch                      %d\n", t->pitch);
+	DRM_ERROR("width                      %d\n", t->width);
+	DRM_ERROR("height                     %d\n", t->height);
+	DRM_ERROR("num levels                 %d\n", t->num_levels);
+	DRM_ERROR("depth                      %d\n", t->txdepth);
+	DRM_ERROR("bpp                        %d\n", t->cpp);
+	DRM_ERROR("coordinate type            %d\n", t->tex_coord_type);
+	DRM_ERROR("width round to power of 2  %d\n", t->roundup_w);
+	DRM_ERROR("height round to power of 2 %d\n", t->roundup_h);
+}
+
+static inline int r300_cs_track_texture_check(struct radeon_device *rdev,
+					      struct r300_cs_track *track)
+{
+	struct radeon_object *robj;
+	unsigned long size;
+	unsigned u, i, w, h;
+
+	for (u = 0; u < 16; u++) {
+		if (!track->textures[u].enabled)
+			continue;
+		robj = track->textures[u].robj;
+		if (robj == NULL) {
+			DRM_ERROR("No texture bound to unit %u\n", u);
+			return -EINVAL;
+		}
+		size = 0;
+		for (i = 0; i <= track->textures[u].num_levels; i++) {
+			if (track->textures[u].use_pitch) {
+				w = track->textures[u].pitch / (1 << i);
+			} else {
+				w = track->textures[u].width / (1 << i);
+				if (rdev->family >= CHIP_RV515)
+					w |= track->textures[u].width_11;
+				if (track->textures[u].roundup_w)
+					w = roundup_pow_of_two(w);
+			}
+			h = track->textures[u].height / (1 << i);
+			if (rdev->family >= CHIP_RV515)
+				h |= track->textures[u].height_11;
+			if (track->textures[u].roundup_h)
+				h = roundup_pow_of_two(h);
+			size += w * h;
+		}
+		size *= track->textures[u].cpp;
+		switch (track->textures[u].tex_coord_type) {
+		case 0:
+			break;
+		case 1:
+			size *= (1 << track->textures[u].txdepth);
+			break;
+		case 2:
+			size *= 6;
+			break;
+		default:
+			DRM_ERROR("Invalid texture coordinate type %u for unit "
+				  "%u\n", track->textures[u].tex_coord_type, u);
+			return -EINVAL;
+		}
+		if (size > radeon_object_size(robj)) {
+			DRM_ERROR("Texture of unit %u needs %lu bytes but is "
+				  "%lu\n", u, size, radeon_object_size(robj));
+			r300_cs_track_texture_print(&track->textures[u]);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
 
 int r300_cs_track_check(struct radeon_device *rdev, struct r300_cs_track *track)
 {
 	unsigned i;
 	unsigned long size;
+	unsigned prim_walk;
+	unsigned nverts;
 
 	for (i = 0; i < track->num_cb; i++) {
 		if (track->cb[i].robj == NULL) {
@@ -769,7 +857,59 @@ int r300_cs_track_check(struct radeon_device *rdev, struct r300_cs_track *track)
 			return -EINVAL;
 		}
 	}
-	return 0;
+	prim_walk = (track->vap_vf_cntl >> 4) & 0x3;
+	nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
+	switch (prim_walk) {
+	case 1:
+		for (i = 0; i < track->num_arrays; i++) {
+			size = track->arrays[i].esize * track->max_indx * 4;
+			if (track->arrays[i].robj == NULL) {
+				DRM_ERROR("(PW %u) Vertex array %u no buffer "
+					  "bound\n", prim_walk, i);
+				return -EINVAL;
+			}
+			if (size > radeon_object_size(track->arrays[i].robj)) {
+				DRM_ERROR("(PW %u) Vertex array %u need %lu dwords "
+					   "have %lu dwords\n", prim_walk, i,
+					   size >> 2,
+					   radeon_object_size(track->arrays[i].robj) >> 2);
+				DRM_ERROR("Max indices %u\n", track->max_indx);
+				return -EINVAL;
+			}
+		}
+		break;
+	case 2:
+		for (i = 0; i < track->num_arrays; i++) {
+			size = track->arrays[i].esize * (nverts - 1) * 4;
+			if (track->arrays[i].robj == NULL) {
+				DRM_ERROR("(PW %u) Vertex array %u no buffer "
+					  "bound\n", prim_walk, i);
+				return -EINVAL;
+			}
+			if (size > radeon_object_size(track->arrays[i].robj)) {
+				DRM_ERROR("(PW %u) Vertex array %u need %lu dwords "
+					   "have %lu dwords\n", prim_walk, i, size >> 2,
+					   radeon_object_size(track->arrays[i].robj) >> 2);
+				return -EINVAL;
+			}
+		}
+		break;
+	case 3:
+		size = track->vtx_size * nverts;
+		if (size != track->immd_dwords) {
+			DRM_ERROR("IMMD draw %u dwors but needs %lu dwords\n",
+				  track->immd_dwords, size);
+			DRM_ERROR("VAP_VF_CNTL.NUM_VERTICES %u, VTX_SIZE %u\n",
+				  nverts, track->vtx_size);
+			return -EINVAL;
+		}
+		break;
+	default:
+		DRM_ERROR("[drm] Invalid primitive walk %d for VAP_VF_CNTL\n",
+			  prim_walk);
+		return -EINVAL;
+	}
+	return r300_cs_track_texture_check(rdev, track);
 }
 
 static inline void r300_cs_track_clear(struct r300_cs_track *track)
@@ -789,11 +929,35 @@ static inline void r300_cs_track_clear(struct r300_cs_track *track)
 	track->zb.pitch = 8192;
 	track->zb.cpp = 4;
 	track->zb.offset = 0;
+	track->vtx_size = 0x7F;
+	track->immd_dwords = 0xFFFFFFFFUL;
+	track->num_arrays = 11;
+	track->max_indx = 0x00FFFFFFUL;
+	for (i = 0; i < track->num_arrays; i++) {
+		track->arrays[i].robj = NULL;
+		track->arrays[i].esize = 0x7F;
+	}
+	for (i = 0; i < 16; i++) {
+		track->textures[i].pitch = 16536;
+		track->textures[i].width = 16536;
+		track->textures[i].height = 16536;
+		track->textures[i].width_11 = 1 << 11;
+		track->textures[i].height_11 = 1 << 11;
+		track->textures[i].num_levels = 12;
+		track->textures[i].txdepth = 16;
+		track->textures[i].cpp = 64;
+		track->textures[i].tex_coord_type = 1;
+		track->textures[i].robj = NULL;
+		/* CS IB emission code makes sure texture unit are disabled */
+		track->textures[i].enabled = false;
+		track->textures[i].roundup_w = true;
+		track->textures[i].roundup_h = true;
+	}
 }
 
-static unsigned r300_auth_reg[] = {
+static const unsigned r300_reg_safe_bm[159] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-	0xFFFFFFBF, 0xFFFFFFFF, 0xFFFFFFBF, 0xFFFFFFFF,
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
@@ -808,7 +972,7 @@ static unsigned r300_auth_reg[] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFF03F,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-	0xFFFFFFFF, 0xFFFFCFCC, 0xF00E9FFF, 0x007C0000,
+	0xFFFFFFFF, 0xFFFFEFCE, 0xF00EBFFF, 0x007C0000,
 	0xF0000078, 0xFF000009, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
@@ -824,9 +988,9 @@ static unsigned r300_auth_reg[] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-	0xFFFFFC78, 0xFFFFFFFF, 0xFFFFFFFC, 0xFFFFFFFF,
+	0xFFFFFC78, 0xFFFFFFFF, 0xFFFFFFFE, 0xFFFFFFFF,
 	0x38FF8F50, 0xFFF88082, 0xF000000C, 0xFAE009FF,
-	0x00000000, 0x00000000, 0xFFFF0000, 0x00000000,
+	0x0000FFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000,
 	0x00000000, 0x0000C100, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0xFFFF0000, 0xFFFFFFFF, 0xFF80FFFF,
@@ -842,14 +1006,24 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	struct radeon_cs_reloc *reloc;
 	struct r300_cs_track *track;
 	volatile uint32_t *ib;
-	uint32_t tmp;
+	uint32_t tmp, tile_flags = 0;
 	unsigned i;
 	int r;
 
 	ib = p->ib->ptr;
 	ib_chunk = &p->chunks[p->chunk_ib_idx];
-	track = (struct r300_cs_track *)p->track;
-	switch (reg) {
+	track = (struct r300_cs_track*)p->track;
+	switch(reg) {
+	case AVIVO_D1MODE_VLINE_START_END:
+	case RADEON_CRTC_GUI_TRIG_VLINE:
+		r = r100_cs_packet_parse_vline(p);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		break;
 	case RADEON_DST_PITCH_OFFSET:
 	case RADEON_SRC_PITCH_OFFSET:
 		r = r100_cs_packet_next_reloc(p, &reloc);
@@ -861,7 +1035,19 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		tmp = ib_chunk->kdata[idx] & 0x003fffff;
 		tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
-		ib[idx] = (ib_chunk->kdata[idx] & 0xffc00000) | tmp;
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= RADEON_DST_TILE_MACRO;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+			if (reg == RADEON_SRC_PITCH_OFFSET) {
+				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				r100_cs_dump_packet(p, pkt);
+				return -EINVAL;
+			}
+			tile_flags |= RADEON_DST_TILE_MICRO;
+		}
+		tmp |= tile_flags;
+		ib[idx] = (ib_chunk->kdata[idx] & 0x3fc00000) | tmp;
 		break;
 	case R300_RB3D_COLOROFFSET0:
 	case R300_RB3D_COLOROFFSET1:
@@ -907,6 +1093,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case R300_TX_OFFSET_0+52:
 	case R300_TX_OFFSET_0+56:
 	case R300_TX_OFFSET_0+60:
+		i = (reg - R300_TX_OFFSET_0) >> 2;
 		r = r100_cs_packet_next_reloc(p, &reloc);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
@@ -915,11 +1102,23 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		track->textures[i].robj = reloc->robj;
 		break;
 	/* Tracked registers */
+	case 0x2084:
+		/* VAP_VF_CNTL */
+		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		break;
+	case 0x20B4:
+		/* VAP_VTX_SIZE */
+		track->vtx_size = ib_chunk->kdata[idx] & 0x7F;
+		break;
+	case 0x2134:
+		/* VAP_VF_MAX_VTX_INDX */
+		track->max_indx = ib_chunk->kdata[idx] & 0x00FFFFFFUL;
+		break;
 	case 0x43E4:
 		/* SC_SCISSOR1 */
-
 		track->maxy = ((ib_chunk->kdata[idx] >> 13) & 0x1FFF) + 1;
 		if (p->rdev->family < CHIP_RV515) {
 			track->maxy -= 1440;
@@ -937,6 +1136,23 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLORPITCH1 */
 		/* RB3D_COLORPITCH2 */
 		/* RB3D_COLORPITCH3 */
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_COLOR_TILE_ENABLE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_COLOR_MICROTILE_ENABLE;
+
+		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
+
 		i = (reg - 0x4E38) >> 2;
 		track->cb[i].pitch = ib_chunk->kdata[idx] & 0x3FFE;
 		switch (((ib_chunk->kdata[idx] >> 21) & 0xF)) {
@@ -992,10 +1208,200 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_DEPTHMACROTILE_ENABLE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_DEPTHMICROTILE_TILED;;
+
+		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
+
 		track->zb.pitch = ib_chunk->kdata[idx] & 0x3FFC;
 		break;
+	case 0x4104:
+		for (i = 0; i < 16; i++) {
+			bool enabled;
+
+			enabled = !!(ib_chunk->kdata[idx] & (1 << i));
+			track->textures[i].enabled = enabled;
+		}
+		break;
+	case 0x44C0:
+	case 0x44C4:
+	case 0x44C8:
+	case 0x44CC:
+	case 0x44D0:
+	case 0x44D4:
+	case 0x44D8:
+	case 0x44DC:
+	case 0x44E0:
+	case 0x44E4:
+	case 0x44E8:
+	case 0x44EC:
+	case 0x44F0:
+	case 0x44F4:
+	case 0x44F8:
+	case 0x44FC:
+		/* TX_FORMAT1_[0-15] */
+		i = (reg - 0x44C0) >> 2;
+		tmp = (ib_chunk->kdata[idx] >> 25) & 0x3;
+		track->textures[i].tex_coord_type = tmp;
+		switch ((ib_chunk->kdata[idx] & 0x1F)) {
+		case 0:
+		case 2:
+		case 5:
+		case 18:
+		case 20:
+		case 21:
+			track->textures[i].cpp = 1;
+			break;
+		case 1:
+		case 3:
+		case 6:
+		case 7:
+		case 10:
+		case 11:
+		case 19:
+		case 22:
+		case 24:
+			track->textures[i].cpp = 2;
+			break;
+		case 4:
+		case 8:
+		case 9:
+		case 12:
+		case 13:
+		case 23:
+		case 25:
+		case 27:
+		case 30:
+			track->textures[i].cpp = 4;
+			break;
+		case 14:
+		case 26:
+		case 28:
+			track->textures[i].cpp = 8;
+			break;
+		case 29:
+			track->textures[i].cpp = 16;
+			break;
+		default:
+			DRM_ERROR("Invalid texture format %u\n",
+				  (ib_chunk->kdata[idx] & 0x1F));
+			return -EINVAL;
+			break;
+		}
+		break;
+	case 0x4400:
+	case 0x4404:
+	case 0x4408:
+	case 0x440C:
+	case 0x4410:
+	case 0x4414:
+	case 0x4418:
+	case 0x441C:
+	case 0x4420:
+	case 0x4424:
+	case 0x4428:
+	case 0x442C:
+	case 0x4430:
+	case 0x4434:
+	case 0x4438:
+	case 0x443C:
+		/* TX_FILTER0_[0-15] */
+		i = (reg - 0x4400) >> 2;
+		tmp = ib_chunk->kdata[idx] & 0x7;;
+		if (tmp == 2 || tmp == 4 || tmp == 6) {
+			track->textures[i].roundup_w = false;
+		}
+		tmp = (ib_chunk->kdata[idx] >> 3) & 0x7;;
+		if (tmp == 2 || tmp == 4 || tmp == 6) {
+			track->textures[i].roundup_h = false;
+		}
+		break;
+	case 0x4500:
+	case 0x4504:
+	case 0x4508:
+	case 0x450C:
+	case 0x4510:
+	case 0x4514:
+	case 0x4518:
+	case 0x451C:
+	case 0x4520:
+	case 0x4524:
+	case 0x4528:
+	case 0x452C:
+	case 0x4530:
+	case 0x4534:
+	case 0x4538:
+	case 0x453C:
+		/* TX_FORMAT2_[0-15] */
+		i = (reg - 0x4500) >> 2;
+		tmp = ib_chunk->kdata[idx] & 0x3FFF;
+		track->textures[i].pitch = tmp + 1;
+		if (p->rdev->family >= CHIP_RV515) {
+			tmp = ((ib_chunk->kdata[idx] >> 15) & 1) << 11;
+			track->textures[i].width_11 = tmp;
+			tmp = ((ib_chunk->kdata[idx] >> 16) & 1) << 11;
+			track->textures[i].height_11 = tmp;
+		}
+		break;
+	case 0x4480:
+	case 0x4484:
+	case 0x4488:
+	case 0x448C:
+	case 0x4490:
+	case 0x4494:
+	case 0x4498:
+	case 0x449C:
+	case 0x44A0:
+	case 0x44A4:
+	case 0x44A8:
+	case 0x44AC:
+	case 0x44B0:
+	case 0x44B4:
+	case 0x44B8:
+	case 0x44BC:
+		/* TX_FORMAT0_[0-15] */
+		i = (reg - 0x4480) >> 2;
+		tmp = ib_chunk->kdata[idx] & 0x7FF;
+		track->textures[i].width = tmp + 1;
+		tmp = (ib_chunk->kdata[idx] >> 11) & 0x7FF;
+		track->textures[i].height = tmp + 1;
+		tmp = (ib_chunk->kdata[idx] >> 26) & 0xF;
+		track->textures[i].num_levels = tmp;
+		tmp = ib_chunk->kdata[idx] & (1 << 31);
+		track->textures[i].use_pitch = !!tmp;
+		tmp = (ib_chunk->kdata[idx] >> 22) & 0xF;
+		track->textures[i].txdepth = tmp;
+		break;
+	case R300_ZB_ZPASS_ADDR:
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		break;
+	case 0x4be8:
+		/* valid register only on RV530 */
+		if (p->rdev->family == CHIP_RV530)
+			break;
+		/* fallthrough do not move */
 	default:
-		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n", reg, idx);
+		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
+		       reg, idx);
 		return -EINVAL;
 	}
 	return 0;
@@ -1015,11 +1421,12 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	ib = p->ib->ptr;
 	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	idx = pkt->idx + 1;
-	track = (struct r300_cs_track *)p->track;
-	switch (pkt->opcode) {
+	track = (struct r300_cs_track*)p->track;
+	switch(pkt->opcode) {
 	case PACKET3_3D_LOAD_VBPNTR:
-		c = ib_chunk->kdata[idx++];
-		for (i = 0; i < (c - 1); i += 2, idx += 3) {
+		c = ib_chunk->kdata[idx++] & 0x1F;
+		track->num_arrays = c;
+		for (i = 0; i < (c - 1); i+=2, idx+=3) {
 			r = r100_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("No reloc for packet3 %d\n",
@@ -1028,6 +1435,9 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 				return r;
 			}
 			ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
+			track->arrays[i + 0].robj = reloc->robj;
+			track->arrays[i + 0].esize = ib_chunk->kdata[idx] >> 8;
+			track->arrays[i + 0].esize &= 0x7F;
 			r = r100_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("No reloc for packet3 %d\n",
@@ -1036,6 +1446,9 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 				return r;
 			}
 			ib[idx+2] = ib_chunk->kdata[idx+2] + ((u32)reloc->lobj.gpu_offset);
+			track->arrays[i + 1].robj = reloc->robj;
+			track->arrays[i + 1].esize = ib_chunk->kdata[idx] >> 24;
+			track->arrays[i + 1].esize &= 0x7F;
 		}
 		if (c & 1) {
 			r = r100_cs_packet_next_reloc(p, &reloc);
@@ -1046,6 +1459,9 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 				return r;
 			}
 			ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
+			track->arrays[i + 0].robj = reloc->robj;
+			track->arrays[i + 0].esize = ib_chunk->kdata[idx] >> 8;
+			track->arrays[i + 0].esize &= 0x7F;
 		}
 		break;
 	case PACKET3_INDX_BUFFER:
@@ -1056,14 +1472,65 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
+		r = r100_cs_track_check_pkt3_indx_buffer(p, pkt, reloc->robj);
+		if (r) {
+			return r;
+		}
 		break;
 	/* Draw packet */
-	case PACKET3_3D_DRAW_VBUF:
 	case PACKET3_3D_DRAW_IMMD:
-	case PACKET3_3D_DRAW_INDX:
-	case PACKET3_3D_DRAW_VBUF_2:
+		/* Number of dwords is vtx_size * (num_vertices - 1)
+		 * PRIM_WALK must be equal to 3 vertex data in embedded
+		 * in cmd stream */
+		if (((ib_chunk->kdata[idx+1] >> 4) & 0x3) != 3) {
+			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
+			return -EINVAL;
+		}
+		track->vap_vf_cntl = ib_chunk->kdata[idx+1];
+		track->immd_dwords = pkt->count - 1;
+		r = r300_cs_track_check(p->rdev, track);
+		if (r) {
+			return r;
+		}
+		break;
 	case PACKET3_3D_DRAW_IMMD_2:
+		/* Number of dwords is vtx_size * (num_vertices - 1)
+		 * PRIM_WALK must be equal to 3 vertex data in embedded
+		 * in cmd stream */
+		if (((ib_chunk->kdata[idx] >> 4) & 0x3) != 3) {
+			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
+			return -EINVAL;
+		}
+		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		track->immd_dwords = pkt->count;
+		r = r300_cs_track_check(p->rdev, track);
+		if (r) {
+			return r;
+		}
+		break;
+	case PACKET3_3D_DRAW_VBUF:
+		track->vap_vf_cntl = ib_chunk->kdata[idx + 1];
+		r = r300_cs_track_check(p->rdev, track);
+		if (r) {
+			return r;
+		}
+		break;
+	case PACKET3_3D_DRAW_VBUF_2:
+		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		r = r300_cs_track_check(p->rdev, track);
+		if (r) {
+			return r;
+		}
+		break;
+	case PACKET3_3D_DRAW_INDX:
+		track->vap_vf_cntl = ib_chunk->kdata[idx + 1];
+		r = r300_cs_track_check(p->rdev, track);
+		if (r) {
+			return r;
+		}
+		break;
 	case PACKET3_3D_DRAW_INDX_2:
+		track->vap_vf_cntl = ib_chunk->kdata[idx];
 		r = r300_cs_track_check(p->rdev, track);
 		if (r) {
 			return r;
@@ -1095,8 +1562,8 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 		switch (pkt.type) {
 		case PACKET_TYPE0:
 			r = r100_cs_parse_packet0(p, &pkt,
-						  r300_auth_reg,
-						  ARRAY_SIZE(r300_auth_reg),
+						  p->rdev->config.r300.reg_safe_bm,
+						  p->rdev->config.r300.reg_safe_bm_size,
 						  &r300_packet0_check);
 			break;
 		case PACKET_TYPE2:
@@ -1112,5 +1579,12 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 			return r;
 		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
+	return 0;
+}
+
+int r300_init(struct radeon_device *rdev)
+{
+	rdev->config.r300.reg_safe_bm = r300_reg_safe_bm;
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r300_reg_safe_bm);
 	return 0;
 }

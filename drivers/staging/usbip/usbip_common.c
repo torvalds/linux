@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/tcp.h>
 #include <linux/in.h>

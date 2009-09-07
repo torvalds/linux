@@ -80,15 +80,15 @@ void __init setup_memory(void)
 			memory_size = memory_end - memory_start;
 			PAGE_OFFSET = memory_start;
 			printk(KERN_INFO "%s: Main mem: 0x%x-0x%x, "
-				"size 0x%08x\n", __func__, memory_start,
-						memory_end, memory_size);
+				"size 0x%08x\n", __func__, (u32) memory_start,
+					(u32) memory_end, (u32) memory_size);
 			break;
 		}
 	}
 
 	if (!memory_start || !memory_end) {
 		panic("%s: Missing memory setting 0x%08x-0x%08x\n",
-			__func__, memory_start, memory_end);
+			__func__, (u32) memory_start, (u32) memory_end);
 	}
 
 	/* reservation of region where is the kernel */
@@ -130,13 +130,13 @@ void __init setup_memory(void)
 	 * (in case the address isn't page-aligned).
 	 */
 #ifndef CONFIG_MMU
-	map_size = init_bootmem_node(NODE_DATA(0), PFN_UP(TOPHYS((u32)_end)),
+	map_size = init_bootmem_node(NODE_DATA(0), PFN_UP(TOPHYS((u32)klimit)),
 					min_low_pfn, max_low_pfn);
 #else
 	map_size = init_bootmem_node(&contig_page_data,
-		PFN_UP(TOPHYS((u32)_end)), min_low_pfn, max_low_pfn);
+		PFN_UP(TOPHYS((u32)klimit)), min_low_pfn, max_low_pfn);
 #endif
-	lmb_reserve(PFN_UP(TOPHYS((u32)_end)) << PAGE_SHIFT, map_size);
+	lmb_reserve(PFN_UP(TOPHYS((u32)klimit)) << PAGE_SHIFT, map_size);
 
 	/* free bootmem is whole main memory */
 	free_bootmem(memory_start, memory_size);

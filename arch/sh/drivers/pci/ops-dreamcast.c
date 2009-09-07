@@ -18,7 +18,6 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/irq.h>
 #include <mach/pci.h>
 
 /*

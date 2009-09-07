@@ -116,3 +116,5 @@ config HAVE_DEFAULT_NO_SPIN_MUTEXES
 config HAVE_HW_BREAKPOINT
 	bool
 
+
+source "kernel/gcov/Kconfig"

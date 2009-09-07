@@ -1133,8 +1133,9 @@ static void sony_nc_rfkill_update()
 			continue;
 
 		if (hwblock) {
-			if (rfkill_set_hw_state(sony_rfkill_devices[i], true))
-				sony_nc_rfkill_set((void *)i, true);
+			if (rfkill_set_hw_state(sony_rfkill_devices[i], true)) {
+				/* we already know we're blocked */
+			}
 			continue;
 		}
 

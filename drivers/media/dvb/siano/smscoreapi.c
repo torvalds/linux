@@ -816,7 +816,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 
 	sms_debug("set device mode to %d", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
-		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_RAW_TUNER) {
+		if (mode < DEVICE_MODE_DVBT || mode >= DEVICE_MODE_RAW_TUNER) {
 			sms_err("invalid mode specified %d", mode);
 			return -EINVAL;
 		}
@@ -1422,8 +1422,8 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 		struct smscore_gpio_config *pGpioConfig) {
 
 	u32 totalLen;
-	u32 TranslatedPinNum;
-	u32 GroupNum;
+	u32 TranslatedPinNum = 0;
+	u32 GroupNum = 0;
 	u32 ElectricChar;
 	u32 groupCfg;
 	void *buffer;

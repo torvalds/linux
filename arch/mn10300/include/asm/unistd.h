@@ -346,10 +346,12 @@
 #define __NR_inotify_init1	333
 #define __NR_preadv		334
 #define __NR_pwritev		335
+#define __NR_rt_tgsigqueueinfo	336
+#define __NR_perf_counter_open	337
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 326
+#define NR_syscalls 338
 
 /*
  * specify the deprecated syscalls we want to support on this arch

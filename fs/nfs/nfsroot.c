@@ -92,6 +92,9 @@
 #undef NFSROOT_DEBUG
 #define NFSDBG_FACILITY NFSDBG_ROOT
 
+/* Default port to use if server is not running a portmapper */
+#define NFS_MNT_PORT	627
+
 /* Default path we try to mount. "%s" gets replaced by our IP address */
 #define NFS_ROOT		"/tftpboot/%s"
 
@@ -487,6 +490,7 @@ static int __init root_nfs_get_handle(void)
 {
 	struct nfs_fh fh;
 	struct sockaddr_in sin;
+	unsigned int auth_flav_len = 0;
 	struct nfs_mount_request request = {
 		.sap		= (struct sockaddr *)&sin,
 		.salen		= sizeof(sin),
@@ -496,6 +500,7 @@ static int __init root_nfs_get_handle(void)
 		.protocol	= (nfs_data.flags & NFS_MOUNT_TCP) ?
 					XPRT_TRANSPORT_TCP : XPRT_TRANSPORT_UDP,
 		.fh		= &fh,
+		.auth_flav_len	= &auth_flav_len,
 	};
 	int status;
 

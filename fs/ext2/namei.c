@@ -66,8 +66,16 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 	inode = NULL;
 	if (ino) {
 		inode = ext2_iget(dir->i_sb, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
+		if (unlikely(IS_ERR(inode))) {
+			if (PTR_ERR(inode) == -ESTALE) {
+				ext2_error(dir->i_sb, __func__,
+						"deleted inode referenced: %lu",
+						ino);
+				return ERR_PTR(-EIO);
+			} else {
+				return ERR_CAST(inode);
+			}
+		}
 	}
 	return d_splice_alias(inode, dentry);
 }
@@ -320,7 +328,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 		if (!new_de)
 			goto out_dir;
 		inode_inc_link_count(old_inode);
-		ext2_set_link(new_dir, new_de, new_page, old_inode);
+		ext2_set_link(new_dir, new_de, new_page, old_inode, 1);
 		new_inode->i_ctime = CURRENT_TIME_SEC;
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -352,7 +360,12 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	inode_dec_link_count(old_inode);
 
 	if (dir_de) {
-		ext2_set_link(old_inode, dir_de, dir_page, new_dir);
+		if (old_dir != new_dir)
+			ext2_set_link(old_inode, dir_de, dir_page, new_dir, 0);
+		else {
+			kunmap(dir_page);
+			page_cache_release(dir_page);
+		}
 		inode_dec_link_count(old_dir);
 	}
 	return 0;

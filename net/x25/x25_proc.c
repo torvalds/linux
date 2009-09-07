@@ -163,8 +163,8 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 		   devname, x25->lci & 0x0FFF, x25->state, x25->vs, x25->vr,
 		   x25->va, x25_display_timer(s) / HZ, x25->t2  / HZ,
 		   x25->t21 / HZ, x25->t22 / HZ, x25->t23 / HZ,
-		   atomic_read(&s->sk_wmem_alloc),
-		   atomic_read(&s->sk_rmem_alloc),
+		   sk_wmem_alloc_get(s),
+		   sk_rmem_alloc_get(s),
 		   s->sk_socket ? SOCK_INODE(s->sk_socket)->i_ino : 0L);
 out:
 	return 0;

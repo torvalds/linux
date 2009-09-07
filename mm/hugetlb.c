@@ -1985,7 +1985,7 @@ static struct page *hugetlbfs_pagecache_page(struct hstate *h,
 }
 
 static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
-			unsigned long address, pte_t *ptep, int write_access)
+			unsigned long address, pte_t *ptep, unsigned int flags)
 {
 	struct hstate *h = hstate_vma(vma);
 	int ret = VM_FAULT_SIGBUS;
@@ -2053,7 +2053,7 @@ retry:
 	 * any allocations necessary to record that reservation occur outside
 	 * the spinlock.
 	 */
-	if (write_access && !(vma->vm_flags & VM_SHARED))
+	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
 		if (vma_needs_reservation(h, vma, address) < 0) {
 			ret = VM_FAULT_OOM;
 			goto backout_unlocked;
@@ -2072,7 +2072,7 @@ retry:
 				&& (vma->vm_flags & VM_SHARED)));
 	set_huge_pte_at(mm, address, ptep, new_pte);
 
-	if (write_access && !(vma->vm_flags & VM_SHARED)) {
+	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
 		/* Optimization, do the COW without a second fault */
 		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page);
 	}
@@ -2091,7 +2091,7 @@ backout_unlocked:
 }
 
 int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-			unsigned long address, int write_access)
+			unsigned long address, unsigned int flags)
 {
 	pte_t *ptep;
 	pte_t entry;
@@ -2112,7 +2112,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	mutex_lock(&hugetlb_instantiation_mutex);
 	entry = huge_ptep_get(ptep);
 	if (huge_pte_none(entry)) {
-		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
+		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
 		goto out_mutex;
 	}
 
@@ -2126,7 +2126,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * page now as it is used to determine if a reservation has been
 	 * consumed.
 	 */
-	if (write_access && !pte_write(entry)) {
+	if ((flags & FAULT_FLAG_WRITE) && !pte_write(entry)) {
 		if (vma_needs_reservation(h, vma, address) < 0) {
 			ret = VM_FAULT_OOM;
 			goto out_mutex;
@@ -2143,7 +2143,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto out_page_table_lock;
 
 
-	if (write_access) {
+	if (flags & FAULT_FLAG_WRITE) {
 		if (!pte_write(entry)) {
 			ret = hugetlb_cow(mm, vma, address, ptep, entry,
 							pagecache_page);
@@ -2152,7 +2152,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
-	if (huge_ptep_set_access_flags(vma, address, ptep, entry, write_access))
+	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
+						flags & FAULT_FLAG_WRITE))
 		update_mmu_cache(vma, address, entry);
 
 out_page_table_lock:
@@ -2369,7 +2370,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
 
 	spin_lock(&inode->i_lock);
-	inode->i_blocks -= blocks_per_huge_page(h);
+	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
 	spin_unlock(&inode->i_lock);
 
 	hugetlb_put_quota(inode->i_mapping, (chg - freed));

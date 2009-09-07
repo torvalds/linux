@@ -278,6 +278,10 @@ static struct twl4030_gpio_platform_data rx51_gpio_data = {
 	.setup			= rx51_twlgpio_setup,
 };
 
+static struct twl4030_usb_data rx51_usb_data = {
+	.usb_mode		= T2_USB_MODE_ULPI,
+};
+
 static struct twl4030_platform_data rx51_twldata = {
 	.irq_base		= TWL4030_IRQ_BASE,
 	.irq_end		= TWL4030_IRQ_END,
@@ -286,6 +290,7 @@ static struct twl4030_platform_data rx51_twldata = {
 	.gpio			= &rx51_gpio_data,
 	.keypad			= &rx51_kp_data,
 	.madc			= &rx51_madc_data,
+	.usb			= &rx51_usb_data,
 
 	.vaux1			= &rx51_vaux1,
 	.vaux2			= &rx51_vaux2,
@@ -362,6 +367,7 @@ static struct omap_onenand_platform_data board_onenand_data = {
 	.gpio_irq	= 65,
 	.parts		= onenand_partitions,
 	.nr_parts	= ARRAY_SIZE(onenand_partitions),
+	.flags		= ONENAND_SYNC_READWRITE,
 };
 
 static void __init board_onenand_init(void)

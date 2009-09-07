@@ -106,7 +106,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 
 	/* set MII speed */
 	out_be32(&priv->regs->mii_speed,
-		((mpc52xx_find_ipb_freq(of->node) >> 20) / 5) << 1);
+		((mpc5xxx_get_bus_frequency(of->node) >> 20) / 5) << 1);
 
 	err = of_mdiobus_register(bus, np);
 	if (err)

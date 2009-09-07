@@ -46,16 +46,6 @@ typedef struct PACKED _CH_SW_ANN_INFO
 
 typedef union PACKED _MEASURE_REQ_MODE
 {
-#ifdef RT_BIG_ENDIAN
-	struct PACKED
-	{
-		UINT8 Rev1:4;
-		UINT8 Report:1;
-		UINT8 Request:1;
-		UINT8 Enable:1;
-		UINT8 Rev0:1;
-	} field;
-#else
 	struct PACKED
 	{
 		UINT8 Rev0:1;
@@ -64,7 +54,6 @@ typedef union PACKED _MEASURE_REQ_MODE
 		UINT8 Report:1;
 		UINT8 Rev1:4;
 	} field;
-#endif // RT_BIG_ENDIAN //
 	UINT8 word;
 } MEASURE_REQ_MODE, *PMEASURE_REQ_MODE;
 
@@ -85,17 +74,6 @@ typedef struct PACKED _MEASURE_REQ_INFO
 
 typedef union PACKED _MEASURE_BASIC_REPORT_MAP
 {
-#ifdef RT_BIG_ENDIAN
-	struct PACKED
-	{
-		UINT8 Rev:3;
-		UINT8 Unmeasure:1;
-		UINT8 Radar:1;
-		UINT8 UnidentifiedSignal:1;
-		UINT8 OfdmPreamble:1;
-		UINT8 BSS:1;
-	} field;
-#else
 	struct PACKED
 	{
 		UINT8 BSS:1;
@@ -105,7 +83,6 @@ typedef union PACKED _MEASURE_BASIC_REPORT_MAP
 		UINT8 Unmeasure:1;
 		UINT8 Rev:3;
 	} field;
-#endif // RT_BIG_ENDIAN //
 	UINT8 word;
 } MEASURE_BASIC_REPORT_MAP, *PMEASURE_BASIC_REPORT_MAP;
 
@@ -137,17 +114,10 @@ typedef union PACKED _MEASURE_REPORT_MODE
 {
 	struct PACKED
 	{
-#ifdef RT_BIG_ENDIAN
-		UINT8 Rev:5;
-		UINT8 Refused:1;
-		UINT8 Incapable:1;
-		UINT8 Late:1;
-#else
 		UINT8 Late:1;
 		UINT8 Incapable:1;
 		UINT8 Refused:1;
 		UINT8 Rev:5;
-#endif // RT_BIG_ENDIAN //
 	} field;
 	UINT8 word;
 } MEASURE_REPORT_MODE, *PMEASURE_REPORT_MODE;

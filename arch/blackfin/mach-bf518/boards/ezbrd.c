@@ -119,13 +119,19 @@ static struct platform_device bfin_mac_device = {
 };
 
 #if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
-static struct dsa_platform_data ksz8893m_switch_data = {
+static struct dsa_chip_data ksz8893m_switch_chip_data = {
 	.mii_bus = &bfin_mii_bus.dev,
+	.port_names = {
+		NULL,
+		"eth%d",
+		"eth%d",
+		"cpu",
+	},
+};
+static struct dsa_platform_data ksz8893m_switch_data = {
+	.nr_chips = 1,
 	.netdev = &bfin_mac_device.dev,
-	.port_names[0]	= NULL,
-	.port_names[1]	= "eth%d",
-	.port_names[2]	= "eth%d",
-	.port_names[3]	= "cpu",
+	.chip = &ksz8893m_switch_chip_data,
 };
 
 static struct platform_device ksz8893m_switch_device = {
@@ -528,7 +534,7 @@ static struct platform_device i2c_bfin_twi_device = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
-#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
 	},

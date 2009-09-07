@@ -7,7 +7,6 @@ w35und-objs :=			\
 	wb35reg.o		\
 	wb35rx.o		\
 	wb35tx.o		\
-	wbhal.o			\
 	wbusb.o			\
 
 

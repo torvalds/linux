@@ -312,6 +312,14 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_MT9V011
+	tristate "Micron mt9v011 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Micron
+	  mt0v011 1.3 Mpixel camera.  It currently only works with the
+	  em28xx driver.
+
 config VIDEO_TCM825X
 	tristate "TCM825x camera sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -866,9 +874,13 @@ config USB_W9968CF
 	  module will be called w9968cf.
 
 config USB_OV511
-	tristate "USB OV511 Camera support"
+	tristate "USB OV511 Camera support (DEPRECATED)"
 	depends on VIDEO_V4L1
 	---help---
+	  This driver is DEPRECATED please use the gspca ov519 module
+	  instead. Note that for the ov511 / ov518 support of the gspca module
+	  you need atleast version 0.6.0 of libv4l.
+
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
 	  for more information and for a list of supported cameras.
@@ -908,6 +920,8 @@ source "drivers/media/video/pwc/Kconfig"
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
 	depends on VIDEO_V4L2
+	select VIDEOBUF_GEN
+	select VIDEOBUF_VMALLOC
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port.

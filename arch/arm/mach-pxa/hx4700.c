@@ -30,6 +30,7 @@
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/bq24022.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/max1586.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/gpio_vbus.h>
@@ -775,6 +776,45 @@ static struct platform_device strataflash = {
 };
 
 /*
+ * Maxim MAX1587A on PI2C
+ */
+
+static struct regulator_consumer_supply max1587a_consumer = {
+	.supply = "vcc_core",
+};
+
+static struct regulator_init_data max1587a_v3_info = {
+	.constraints = {
+		.name = "vcc_core range",
+		.min_uV =  900000,
+		.max_uV = 1705000,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = 1,
+	.consumer_supplies     = &max1587a_consumer,
+};
+
+static struct max1586_subdev_data max1587a_subdev = {
+	.name = "vcc_core",
+	.id   = MAX1586_V3,
+	.platform_data = &max1587a_v3_info,
+};
+
+static struct max1586_platform_data max1587a_info = {
+	.num_subdevs = 1,
+	.subdevs     = &max1587a_subdev,
+	.v3_gain     = MAX1586_GAIN_R24_3k32, /* 730..1550 mV */
+};
+
+static struct i2c_board_info __initdata pi2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("max1586", 0x14),
+		.platform_data = &max1587a_info,
+	},
+};
+
+/*
  * PCMCIA
  */
 
@@ -828,6 +868,7 @@ static void __init hx4700_init(void)
 	pxa_set_ficp_info(&ficp_info);
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(1, ARRAY_AND_SIZE(pi2c_board_info));
 	pxa2xx_set_spi_info(2, &pxa_ssp2_master_info);
 	spi_register_board_info(ARRAY_AND_SIZE(tsc2046_board_info));
 

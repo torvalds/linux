@@ -428,7 +428,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
 	if (phba->cfg_hba_queue_depth > (mb->un.varRdConfig.max_xri+1))
 		phba->cfg_hba_queue_depth =
-			mb->un.varRdConfig.max_xri + 1;
+			(mb->un.varRdConfig.max_xri + 1) -
+					lpfc_sli4_get_els_iocb_cnt(phba);
 
 	phba->lmt = mb->un.varRdConfig.lmt;
 
@@ -1645,10 +1646,6 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	case PCI_DEVICE_ID_TIGERSHARK:
 		oneConnect = 1;
 		m = (typeof(m)) {"OCe10100-F", max_speed, "PCIe"};
-		break;
-	case PCI_DEVICE_ID_TIGERSHARK_S:
-		oneConnect = 1;
-		m = (typeof(m)) {"OCe10100-F-S", max_speed, "PCIe"};
 		break;
 	default:
 		m = (typeof(m)){ NULL };
@@ -3543,6 +3540,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 
 	/* Free the allocated rpi headers. */
 	lpfc_sli4_remove_rpi_hdrs(phba);
+	lpfc_sli4_remove_rpis(phba);
 
 	/* Free the ELS sgl list */
 	lpfc_free_active_sgl(phba);
@@ -7184,16 +7182,19 @@ lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *phba)
 {
 	int max_xri = phba->sli4_hba.max_cfg_param.max_xri;
 
-	if (max_xri <= 100)
-		return 4;
-	else if (max_xri <= 256)
-		return 8;
-	else if (max_xri <= 512)
-		return 16;
-	else if (max_xri <= 1024)
-		return 32;
-	else
-		return 48;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (max_xri <= 100)
+			return 4;
+		else if (max_xri <= 256)
+			return 8;
+		else if (max_xri <= 512)
+			return 16;
+		else if (max_xri <= 1024)
+			return 32;
+		else
+			return 48;
+	} else
+		return 0;
 }
 
 /**
@@ -7642,7 +7643,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	switch (dev_id) {
 	case PCI_DEVICE_ID_TIGERSHARK:
-	case PCI_DEVICE_ID_TIGERSHARK_S:
 		rc = lpfc_pci_probe_one_s4(pdev, pid);
 		break;
 	default:
@@ -7940,8 +7940,6 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PROTEUS_S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_SERVERENGINE, PCI_DEVICE_ID_TIGERSHARK,
-		PCI_ANY_ID, PCI_ANY_ID, },
-	{PCI_VENDOR_ID_SERVERENGINE, PCI_DEVICE_ID_TIGERSHARK_S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };

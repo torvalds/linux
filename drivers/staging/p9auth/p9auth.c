@@ -180,8 +180,12 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
 
+	user_buf_running = NULL;
+	hash_str = NULL;
 	node_ptr = kmalloc(sizeof(struct cap_node), GFP_KERNEL);
 	user_buf = kzalloc(count, GFP_KERNEL);
+	if (!node_ptr || !user_buf)
+		goto out;
 
 	if (copy_from_user(user_buf, buf, count)) {
 		retval = -EFAULT;
@@ -193,11 +197,21 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 	 * hashed capability supplied by the user to the list of hashes
 	 */
 	if (0 == iminor(filp->f_dentry->d_inode)) {
+		if (count > CAP_NODE_SIZE) {
+			retval = -EINVAL;
+			goto out;
+		}
 		printk(KERN_INFO "Capability being written to /dev/caphash : \n");
 		hexdump(user_buf, count);
 		memcpy(node_ptr->data, user_buf, count);
 		list_add(&(node_ptr->list), &(dev->head->list));
+		node_ptr = NULL;
 	} else {
+		if (!cap_devices[0].head ||
+				list_empty(&(cap_devices[0].head->list))) {
+			retval = -EINVAL;
+			goto out;
+		}
 		/*
 		 * break the supplied string into tokens with @ as the
 		 * delimiter If the string is "user1@user2@randomstring" we
@@ -208,6 +222,10 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 		source_user = strsep(&user_buf_running, "@");
 		target_user = strsep(&user_buf_running, "@");
 		rand_str = strsep(&user_buf_running, "@");
+		if (!source_user || !target_user || !rand_str) {
+			retval = -EINVAL;
+			goto out;
+		}
 
 		/* hash the string user1@user2 with rand_str as the key */
 		len = strlen(source_user) + strlen(target_user) + 1;
@@ -224,7 +242,7 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 			retval = -EFAULT;
 			goto out;
 		}
-		memcpy(node_ptr->data, result, CAP_NODE_SIZE);
+		memcpy(node_ptr->data, result, CAP_NODE_SIZE);  /* why? */
 		/* Change the process's uid if the hash is present in the
 		 * list of hashes
 		 */
@@ -299,6 +317,10 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 		dev->size = *f_pos;
 
 out:
+	kfree(node_ptr);
+	kfree(user_buf);
+	kfree(user_buf_running);
+	kfree(hash_str);
 	up(&dev->sem);
 	return retval;
 }

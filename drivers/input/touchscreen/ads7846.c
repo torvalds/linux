@@ -83,6 +83,7 @@ struct ads7846_packet {
 struct ads7846 {
 	struct input_dev	*input;
 	char			phys[32];
+	char			name[32];
 
 	struct spi_device	*spi;
 
@@ -96,6 +97,8 @@ struct ads7846 {
 	u16			vref_delay_usecs;
 	u16			x_plate_ohms;
 	u16			pressure_max;
+
+	bool			swap_xy;
 
 	struct ads7846_packet	*packet;
 
@@ -599,6 +602,10 @@ static void ads7846_rx(void *ads)
 			dev_dbg(&ts->spi->dev, "DOWN\n");
 #endif
 		}
+
+		if (ts->swap_xy)
+			swap(x, y);
+
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
 		input_report_abs(input, ABS_PRESSURE, Rt);
@@ -917,6 +924,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->spi = spi;
 	ts->input = input_dev;
 	ts->vref_mv = pdata->vref_mv;
+	ts->swap_xy = pdata->swap_xy;
 
 	hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ts->timer.function = ads7846_timer;
@@ -958,8 +966,9 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&spi->dev));
+	snprintf(ts->name, sizeof(ts->name), "ADS%d Touchscreen", ts->model);
 
-	input_dev->name = "ADS784x Touchscreen";
+	input_dev->name = ts->name;
 	input_dev->phys = ts->phys;
 	input_dev->dev.parent = &spi->dev;
 
@@ -1141,9 +1150,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	if (request_irq(spi->irq, ads7846_irq, IRQF_TRIGGER_FALLING,
 			spi->dev.driver->name, ts)) {
-		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
-		err = -EBUSY;
-		goto err_free_gpio;
+		dev_info(&spi->dev,
+			"trying pin change workaround on irq %d\n", spi->irq);
+		err = request_irq(spi->irq, ads7846_irq,
+				  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+				  spi->dev.driver->name, ts);
+		if (err) {
+			dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
+			goto err_free_gpio;
+		}
 	}
 
 	err = ads784x_hwmon_register(spi, ts);

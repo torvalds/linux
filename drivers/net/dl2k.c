@@ -268,8 +268,9 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_INFO "tx_coalesce:\t%d packets\n",
 				tx_coalesce);
 	if (np->coalesce)
-		printk(KERN_INFO "rx_coalesce:\t%d packets\n"
-		       KERN_INFO "rx_timeout: \t%d ns\n",
+		printk(KERN_INFO
+		       "rx_coalesce:\t%d packets\n"
+		       "rx_timeout: \t%d ns\n",
 				np->rx_coalesce, np->rx_timeout*640);
 	if (np->vlan)
 		printk(KERN_INFO "vlan(id):\t%d\n", np->vlan);
@@ -1522,9 +1523,9 @@ mii_get_media (struct net_device *dev)
 			printk (KERN_INFO "Operating at 10 Mbps, ");
 		}
 		if (bmcr & MII_BMCR_DUPLEX_MODE) {
-			printk ("Full duplex\n");
+			printk (KERN_CONT "Full duplex\n");
 		} else {
-			printk ("Half duplex\n");
+			printk (KERN_CONT "Half duplex\n");
 		}
 	}
 	if (np->tx_flow)
@@ -1614,9 +1615,9 @@ mii_set_media (struct net_device *dev)
 		}
 		if (np->full_duplex) {
 			bmcr |= MII_BMCR_DUPLEX_MODE;
-			printk ("Full duplex\n");
+			printk (KERN_CONT "Full duplex\n");
 		} else {
-			printk ("Half duplex\n");
+			printk (KERN_CONT "Half duplex\n");
 		}
 #if 0
 		/* Set 1000BaseT Master/Slave setting */
@@ -1669,9 +1670,9 @@ mii_get_media_pcs (struct net_device *dev)
 		__u16 bmcr = mii_read (dev, phy_addr, PCS_BMCR);
 		printk (KERN_INFO "Operating at 1000 Mbps, ");
 		if (bmcr & MII_BMCR_DUPLEX_MODE) {
-			printk ("Full duplex\n");
+			printk (KERN_CONT "Full duplex\n");
 		} else {
-			printk ("Half duplex\n");
+			printk (KERN_CONT "Half duplex\n");
 		}
 	}
 	if (np->tx_flow)

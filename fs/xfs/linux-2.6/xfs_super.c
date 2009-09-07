@@ -616,7 +616,7 @@ xfs_max_file_offset(
 	 */
 
 #if BITS_PER_LONG == 32
-# if defined(CONFIG_LBD)
+# if defined(CONFIG_LBDAF)
 	ASSERT(sizeof(sector_t) == 8);
 	pagefactor = PAGE_CACHE_SIZE;
 	bitshift = BITS_PER_LONG;

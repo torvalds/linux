@@ -735,10 +735,10 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	tos = tiph->tos;
-	if (tos&1) {
+	if (tos == 1) {
+		tos = 0;
 		if (skb->protocol == htons(ETH_P_IP))
 			tos = old_iph->tos;
-		tos &= ~1;
 	}
 
 	{
@@ -951,7 +951,7 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 			addend += 4;
 	}
 	dev->needed_headroom = addend + hlen;
-	mtu -= dev->hard_header_len - addend;
+	mtu -= dev->hard_header_len + addend;
 
 	if (mtu < 68)
 		mtu = 68;

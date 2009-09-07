@@ -271,6 +271,7 @@ struct stv0900_init_params{
 
 	/* IQ from the tuner2 to the demod */
 	enum stv0900_iq_inversion	tun2_iq_inversion;
+	struct stv0900_reg		*ts_config;
 };
 
 struct stv0900_search_params {
@@ -363,6 +364,7 @@ struct stv0900_internal{
 	u8			i2c_addr;
 	u8			clkmode;/* 0 for CLKI, 2 for XTALI */
 	u8			chip_id;
+	struct stv0900_reg	*ts_config;
 	enum fe_stv0900_error	errs;
 	int dmds_used;
 };

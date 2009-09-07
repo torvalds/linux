@@ -162,7 +162,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	struct radeon_i2c_chan *i2c;
 	int ret;
 
-	i2c = drm_calloc(1, sizeof(struct radeon_i2c_chan), DRM_MEM_DRIVER);
+	i2c = kzalloc(sizeof(struct radeon_i2c_chan), GFP_KERNEL);
 	if (i2c == NULL)
 		return NULL;
 
@@ -189,7 +189,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 
 	return i2c;
 out_free:
-	drm_free(i2c, sizeof(struct radeon_i2c_chan), DRM_MEM_DRIVER);
+	kfree(i2c);
 	return NULL;
 
 }
@@ -200,7 +200,7 @@ void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 		return;
 
 	i2c_del_adapter(&i2c->adapter);
-	drm_free(i2c, sizeof(struct radeon_i2c_chan), DRM_MEM_DRIVER);
+	kfree(i2c);
 }
 
 struct drm_encoder *radeon_best_encoder(struct drm_connector *connector)

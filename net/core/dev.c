@@ -2310,8 +2310,6 @@ ncls:
 	if (!skb)
 		goto out;
 
-	skb_orphan(skb);
-
 	type = skb->protocol;
 	list_for_each_entry_rcu(ptype,
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
@@ -2825,9 +2823,11 @@ static void net_rx_action(struct softirq_action *h)
 		 * move the instance around on the list at-will.
 		 */
 		if (unlikely(work == weight)) {
-			if (unlikely(napi_disable_pending(n)))
-				__napi_complete(n);
-			else
+			if (unlikely(napi_disable_pending(n))) {
+				local_irq_enable();
+				napi_complete(n);
+				local_irq_disable();
+			} else
 				list_move_tail(&n->poll_list, list);
 		}
 
@@ -3461,10 +3461,10 @@ void __dev_set_rx_mode(struct net_device *dev)
 		/* Unicast addresses changes may only happen under the rtnl,
 		 * therefore calling __dev_set_promiscuity here is safe.
 		 */
-		if (dev->uc_count > 0 && !dev->uc_promisc) {
+		if (dev->uc.count > 0 && !dev->uc_promisc) {
 			__dev_set_promiscuity(dev, 1);
 			dev->uc_promisc = 1;
-		} else if (dev->uc_count == 0 && dev->uc_promisc) {
+		} else if (dev->uc.count == 0 && dev->uc_promisc) {
 			__dev_set_promiscuity(dev, -1);
 			dev->uc_promisc = 0;
 		}
@@ -3483,9 +3483,8 @@ void dev_set_rx_mode(struct net_device *dev)
 
 /* hw addresses list handling functions */
 
-static int __hw_addr_add(struct list_head *list, int *delta,
-			 unsigned char *addr, int addr_len,
-			 unsigned char addr_type)
+static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
+			 int addr_len, unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
 	int alloc_size;
@@ -3493,7 +3492,7 @@ static int __hw_addr_add(struct list_head *list, int *delta,
 	if (addr_len > MAX_ADDR_LEN)
 		return -EINVAL;
 
-	list_for_each_entry(ha, list, list) {
+	list_for_each_entry(ha, &list->list, list) {
 		if (!memcmp(ha->addr, addr, addr_len) &&
 		    ha->type == addr_type) {
 			ha->refcount++;
@@ -3512,9 +3511,8 @@ static int __hw_addr_add(struct list_head *list, int *delta,
 	ha->type = addr_type;
 	ha->refcount = 1;
 	ha->synced = false;
-	list_add_tail_rcu(&ha->list, list);
-	if (delta)
-		(*delta)++;
+	list_add_tail_rcu(&ha->list, &list->list);
+	list->count++;
 	return 0;
 }
 
@@ -3526,120 +3524,121 @@ static void ha_rcu_free(struct rcu_head *head)
 	kfree(ha);
 }
 
-static int __hw_addr_del(struct list_head *list, int *delta,
-			 unsigned char *addr, int addr_len,
-			 unsigned char addr_type)
+static int __hw_addr_del(struct netdev_hw_addr_list *list, unsigned char *addr,
+			 int addr_len, unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
 
-	list_for_each_entry(ha, list, list) {
+	list_for_each_entry(ha, &list->list, list) {
 		if (!memcmp(ha->addr, addr, addr_len) &&
 		    (ha->type == addr_type || !addr_type)) {
 			if (--ha->refcount)
 				return 0;
 			list_del_rcu(&ha->list);
 			call_rcu(&ha->rcu_head, ha_rcu_free);
-			if (delta)
-				(*delta)--;
+			list->count--;
 			return 0;
 		}
 	}
 	return -ENOENT;
 }
 
-static int __hw_addr_add_multiple(struct list_head *to_list, int *to_delta,
-				  struct list_head *from_list, int addr_len,
+static int __hw_addr_add_multiple(struct netdev_hw_addr_list *to_list,
+				  struct netdev_hw_addr_list *from_list,
+				  int addr_len,
 				  unsigned char addr_type)
 {
 	int err;
 	struct netdev_hw_addr *ha, *ha2;
 	unsigned char type;
 
-	list_for_each_entry(ha, from_list, list) {
+	list_for_each_entry(ha, &from_list->list, list) {
 		type = addr_type ? addr_type : ha->type;
-		err = __hw_addr_add(to_list, to_delta, ha->addr,
-				    addr_len, type);
+		err = __hw_addr_add(to_list, ha->addr, addr_len, type);
 		if (err)
 			goto unroll;
 	}
 	return 0;
 
 unroll:
-	list_for_each_entry(ha2, from_list, list) {
+	list_for_each_entry(ha2, &from_list->list, list) {
 		if (ha2 == ha)
 			break;
 		type = addr_type ? addr_type : ha2->type;
-		__hw_addr_del(to_list, to_delta, ha2->addr,
-			      addr_len, type);
+		__hw_addr_del(to_list, ha2->addr, addr_len, type);
 	}
 	return err;
 }
 
-static void __hw_addr_del_multiple(struct list_head *to_list, int *to_delta,
-				   struct list_head *from_list, int addr_len,
+static void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
+				   struct netdev_hw_addr_list *from_list,
+				   int addr_len,
 				   unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
 	unsigned char type;
 
-	list_for_each_entry(ha, from_list, list) {
+	list_for_each_entry(ha, &from_list->list, list) {
 		type = addr_type ? addr_type : ha->type;
-		__hw_addr_del(to_list, to_delta, ha->addr,
-			      addr_len, addr_type);
+		__hw_addr_del(to_list, ha->addr, addr_len, addr_type);
 	}
 }
 
-static int __hw_addr_sync(struct list_head *to_list, int *to_delta,
-			  struct list_head *from_list, int *from_delta,
+static int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
+			  struct netdev_hw_addr_list *from_list,
 			  int addr_len)
 {
 	int err = 0;
 	struct netdev_hw_addr *ha, *tmp;
 
-	list_for_each_entry_safe(ha, tmp, from_list, list) {
+	list_for_each_entry_safe(ha, tmp, &from_list->list, list) {
 		if (!ha->synced) {
-			err = __hw_addr_add(to_list, to_delta, ha->addr,
+			err = __hw_addr_add(to_list, ha->addr,
 					    addr_len, ha->type);
 			if (err)
 				break;
 			ha->synced = true;
 			ha->refcount++;
 		} else if (ha->refcount == 1) {
-			__hw_addr_del(to_list, to_delta, ha->addr,
-				      addr_len, ha->type);
-			__hw_addr_del(from_list, from_delta, ha->addr,
-				      addr_len, ha->type);
+			__hw_addr_del(to_list, ha->addr, addr_len, ha->type);
+			__hw_addr_del(from_list, ha->addr, addr_len, ha->type);
 		}
 	}
 	return err;
 }
 
-static void __hw_addr_unsync(struct list_head *to_list, int *to_delta,
-			     struct list_head *from_list, int *from_delta,
+static void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
+			     struct netdev_hw_addr_list *from_list,
 			     int addr_len)
 {
 	struct netdev_hw_addr *ha, *tmp;
 
-	list_for_each_entry_safe(ha, tmp, from_list, list) {
+	list_for_each_entry_safe(ha, tmp, &from_list->list, list) {
 		if (ha->synced) {
-			__hw_addr_del(to_list, to_delta, ha->addr,
+			__hw_addr_del(to_list, ha->addr,
 				      addr_len, ha->type);
 			ha->synced = false;
-			__hw_addr_del(from_list, from_delta, ha->addr,
+			__hw_addr_del(from_list, ha->addr,
 				      addr_len, ha->type);
 		}
 	}
 }
 
-
-static void __hw_addr_flush(struct list_head *list)
+static void __hw_addr_flush(struct netdev_hw_addr_list *list)
 {
 	struct netdev_hw_addr *ha, *tmp;
 
-	list_for_each_entry_safe(ha, tmp, list, list) {
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
 		list_del_rcu(&ha->list);
 		call_rcu(&ha->rcu_head, ha_rcu_free);
 	}
+	list->count = 0;
+}
+
+static void __hw_addr_init(struct netdev_hw_addr_list *list)
+{
+	INIT_LIST_HEAD(&list->list);
+	list->count = 0;
 }
 
 /* Device addresses handling functions */
@@ -3648,7 +3647,7 @@ static void dev_addr_flush(struct net_device *dev)
 {
 	/* rtnl_mutex must be held here */
 
-	__hw_addr_flush(&dev->dev_addr_list);
+	__hw_addr_flush(&dev->dev_addrs);
 	dev->dev_addr = NULL;
 }
 
@@ -3660,16 +3659,16 @@ static int dev_addr_init(struct net_device *dev)
 
 	/* rtnl_mutex must be held here */
 
-	INIT_LIST_HEAD(&dev->dev_addr_list);
+	__hw_addr_init(&dev->dev_addrs);
 	memset(addr, 0, sizeof(addr));
-	err = __hw_addr_add(&dev->dev_addr_list, NULL, addr, sizeof(addr),
+	err = __hw_addr_add(&dev->dev_addrs, addr, sizeof(addr),
 			    NETDEV_HW_ADDR_T_LAN);
 	if (!err) {
 		/*
 		 * Get the first (previously created) address from the list
 		 * and set dev_addr pointer to this location.
 		 */
-		ha = list_first_entry(&dev->dev_addr_list,
+		ha = list_first_entry(&dev->dev_addrs.list,
 				      struct netdev_hw_addr, list);
 		dev->dev_addr = ha->addr;
 	}
@@ -3694,8 +3693,7 @@ int dev_addr_add(struct net_device *dev, unsigned char *addr,
 
 	ASSERT_RTNL();
 
-	err = __hw_addr_add(&dev->dev_addr_list, NULL, addr, dev->addr_len,
-			    addr_type);
+	err = __hw_addr_add(&dev->dev_addrs, addr, dev->addr_len, addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 	return err;
@@ -3725,11 +3723,12 @@ int dev_addr_del(struct net_device *dev, unsigned char *addr,
 	 * We can not remove the first address from the list because
 	 * dev->dev_addr points to that.
 	 */
-	ha = list_first_entry(&dev->dev_addr_list, struct netdev_hw_addr, list);
+	ha = list_first_entry(&dev->dev_addrs.list,
+			      struct netdev_hw_addr, list);
 	if (ha->addr == dev->dev_addr && ha->refcount == 1)
 		return -ENOENT;
 
-	err = __hw_addr_del(&dev->dev_addr_list, NULL, addr, dev->addr_len,
+	err = __hw_addr_del(&dev->dev_addrs, addr, dev->addr_len,
 			    addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
@@ -3757,8 +3756,7 @@ int dev_addr_add_multiple(struct net_device *to_dev,
 
 	if (from_dev->addr_len != to_dev->addr_len)
 		return -EINVAL;
-	err = __hw_addr_add_multiple(&to_dev->dev_addr_list, NULL,
-				     &from_dev->dev_addr_list,
+	err = __hw_addr_add_multiple(&to_dev->dev_addrs, &from_dev->dev_addrs,
 				     to_dev->addr_len, addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, to_dev);
@@ -3784,15 +3782,14 @@ int dev_addr_del_multiple(struct net_device *to_dev,
 
 	if (from_dev->addr_len != to_dev->addr_len)
 		return -EINVAL;
-	__hw_addr_del_multiple(&to_dev->dev_addr_list, NULL,
-			       &from_dev->dev_addr_list,
+	__hw_addr_del_multiple(&to_dev->dev_addrs, &from_dev->dev_addrs,
 			       to_dev->addr_len, addr_type);
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, to_dev);
 	return 0;
 }
 EXPORT_SYMBOL(dev_addr_del_multiple);
 
-/* unicast and multicast addresses handling functions */
+/* multicast addresses handling functions */
 
 int __dev_addr_delete(struct dev_addr_list **list, int *count,
 		      void *addr, int alen, int glbl)
@@ -3868,10 +3865,12 @@ int dev_unicast_delete(struct net_device *dev, void *addr)
 
 	ASSERT_RTNL();
 
-	err = __hw_addr_del(&dev->uc_list, &dev->uc_count, addr,
-			    dev->addr_len, NETDEV_HW_ADDR_T_UNICAST);
+	netif_addr_lock_bh(dev);
+	err = __hw_addr_del(&dev->uc, addr, dev->addr_len,
+			    NETDEV_HW_ADDR_T_UNICAST);
 	if (!err)
 		__dev_set_rx_mode(dev);
+	netif_addr_unlock_bh(dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_delete);
@@ -3892,10 +3891,12 @@ int dev_unicast_add(struct net_device *dev, void *addr)
 
 	ASSERT_RTNL();
 
-	err = __hw_addr_add(&dev->uc_list, &dev->uc_count, addr,
-			    dev->addr_len, NETDEV_HW_ADDR_T_UNICAST);
+	netif_addr_lock_bh(dev);
+	err = __hw_addr_add(&dev->uc, addr, dev->addr_len,
+			    NETDEV_HW_ADDR_T_UNICAST);
 	if (!err)
 		__dev_set_rx_mode(dev);
+	netif_addr_unlock_bh(dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_add);
@@ -3952,7 +3953,8 @@ void __dev_addr_unsync(struct dev_addr_list **to, int *to_count,
  *	@from: source device
  *
  *	Add newly added addresses to the destination device and release
- *	addresses that have no users left.
+ *	addresses that have no users left. The source device must be
+ *	locked by netif_tx_lock_bh.
  *
  *	This function is intended to be called from the dev->set_rx_mode
  *	function of layered software devices.
@@ -3961,15 +3963,14 @@ int dev_unicast_sync(struct net_device *to, struct net_device *from)
 {
 	int err = 0;
 
-	ASSERT_RTNL();
-
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	err = __hw_addr_sync(&to->uc_list, &to->uc_count,
-			     &from->uc_list, &from->uc_count, to->addr_len);
+	netif_addr_lock_bh(to);
+	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
+	netif_addr_unlock_bh(to);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_sync);
@@ -3985,30 +3986,28 @@ EXPORT_SYMBOL(dev_unicast_sync);
  */
 void dev_unicast_unsync(struct net_device *to, struct net_device *from)
 {
-	ASSERT_RTNL();
-
 	if (to->addr_len != from->addr_len)
 		return;
 
-	__hw_addr_unsync(&to->uc_list, &to->uc_count,
-			 &from->uc_list, &from->uc_count, to->addr_len);
+	netif_addr_lock_bh(from);
+	netif_addr_lock(to);
+	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
 	__dev_set_rx_mode(to);
+	netif_addr_unlock(to);
+	netif_addr_unlock_bh(from);
 }
 EXPORT_SYMBOL(dev_unicast_unsync);
 
 static void dev_unicast_flush(struct net_device *dev)
 {
-	/* rtnl_mutex must be held here */
-
-	__hw_addr_flush(&dev->uc_list);
-	dev->uc_count = 0;
+	netif_addr_lock_bh(dev);
+	__hw_addr_flush(&dev->uc);
+	netif_addr_unlock_bh(dev);
 }
 
 static void dev_unicast_init(struct net_device *dev)
 {
-	/* rtnl_mutex must be held here */
-
-	INIT_LIST_HEAD(&dev->uc_list);
+	__hw_addr_init(&dev->uc);
 }
 
 

@@ -1425,15 +1425,12 @@ static void BuildLAF(int *ladrf, int *adr)
   ladrf[byte] |= (1 << (hashcode & 7));
 
 #ifdef PCMCIA_DEBUG
-  if (pc_debug > 2) {
-    printk(KERN_DEBUG "    adr =");
-    for (i = 0; i < 6; i++)
-      printk(" %02X", adr[i]);
-    printk("\n" KERN_DEBUG "    hashcode = %d(decimal), ladrf[0:63]"
-	   " =", hashcode);
-    for (i = 0; i < 8; i++)
-      printk(" %02X", ladrf[i]);
-    printk("\n");
+  if (pc_debug > 2)
+    printk(KERN_DEBUG "    adr =%pM\n", adr);
+  printk(KERN_DEBUG "    hashcode = %d(decimal), ladrf[0:63] =", hashcode);
+  for (i = 0; i < 8; i++)
+    printk(KERN_CONT " %02X", ladrf[i]);
+  printk(KERN_CONT "\n");
   }
 #endif
 } /* BuildLAF */

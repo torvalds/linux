@@ -10,9 +10,9 @@
 #include "util/util.h"
 
 #include "util/color.h"
-#include "util/list.h"
+#include <linux/list.h>
 #include "util/cache.h"
-#include "util/rbtree.h"
+#include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/string.h"
 
@@ -31,6 +31,7 @@ static char		*vmlinux = "vmlinux";
 static char		default_sort_order[] = "comm,symbol";
 static char		*sort_order = default_sort_order;
 
+static int		force;
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
@@ -39,40 +40,39 @@ static int		dump_trace = 0;
 
 static int		verbose;
 
+static int		modules;
+
+static int		full_paths;
+
+static int		print_line;
+
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
 struct ip_event {
 	struct perf_event_header header;
-	__u64 ip;
-	__u32 pid, tid;
+	u64 ip;
+	u32 pid, tid;
 };
 
 struct mmap_event {
 	struct perf_event_header header;
-	__u32 pid, tid;
-	__u64 start;
-	__u64 len;
-	__u64 pgoff;
+	u32 pid, tid;
+	u64 start;
+	u64 len;
+	u64 pgoff;
 	char filename[PATH_MAX];
 };
 
 struct comm_event {
 	struct perf_event_header header;
-	__u32 pid, tid;
+	u32 pid, tid;
 	char comm[16];
 };
 
 struct fork_event {
 	struct perf_event_header header;
-	__u32 pid, ppid;
-};
-
-struct period_event {
-	struct perf_event_header header;
-	__u64 time;
-	__u64 id;
-	__u64 sample_period;
+	u32 pid, ppid;
 };
 
 typedef union event_union {
@@ -81,8 +81,14 @@ typedef union event_union {
 	struct mmap_event		mmap;
 	struct comm_event		comm;
 	struct fork_event		fork;
-	struct period_event		period;
 } event_t;
+
+
+struct sym_ext {
+	struct rb_node	node;
+	double		percent;
+	char		*path;
+};
 
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
@@ -145,9 +151,9 @@ static void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
-static struct symbol *vdso__find_symbol(struct dso *dso, __u64 ip)
+static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
 {
-	return dso__find_symbol(kernel_dso, ip);
+	return dso__find_symbol(dso, ip);
 }
 
 static int load_kernel(void)
@@ -158,8 +164,8 @@ static int load_kernel(void)
 	if (!kernel_dso)
 		return -1;
 
-	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose);
-	if (err) {
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose, modules);
+	if (err <= 0) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;
 	} else
@@ -178,19 +184,19 @@ static int load_kernel(void)
 
 struct map {
 	struct list_head node;
-	__u64	 start;
-	__u64	 end;
-	__u64	 pgoff;
-	__u64	 (*map_ip)(struct map *, __u64);
+	u64	 start;
+	u64	 end;
+	u64	 pgoff;
+	u64	 (*map_ip)(struct map *, u64);
 	struct dso	 *dso;
 };
 
-static __u64 map__map_ip(struct map *map, __u64 ip)
+static u64 map__map_ip(struct map *map, u64 ip)
 {
 	return ip - map->start + map->pgoff;
 }
 
-static __u64 vdso__map_ip(struct map *map, __u64 ip)
+static u64 vdso__map_ip(struct map *map __used, u64 ip)
 {
 	return ip;
 }
@@ -373,7 +379,7 @@ static int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-static struct map *thread__find_map(struct thread *self, __u64 ip)
+static struct map *thread__find_map(struct thread *self, u64 ip)
 {
 	struct map *pos;
 
@@ -414,7 +420,7 @@ struct hist_entry {
 	struct map	 *map;
 	struct dso	 *dso;
 	struct symbol	 *sym;
-	__u64	 ip;
+	u64	 ip;
 	char		 level;
 
 	uint32_t	 count;
@@ -519,7 +525,7 @@ sort__dso_print(FILE *fp, struct hist_entry *self)
 	if (self->dso)
 		return fprintf(fp, "%-25s", self->dso->name);
 
-	return fprintf(fp, "%016llx         ", (__u64)self->ip);
+	return fprintf(fp, "%016llx         ", (u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
@@ -533,7 +539,7 @@ static struct sort_entry sort_dso = {
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	__u64 ip_l, ip_r;
+	u64 ip_l, ip_r;
 
 	if (left->sym == right->sym)
 		return 0;
@@ -550,13 +556,13 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (__u64)self->ip);
+		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
 
 	if (self->sym) {
 		ret += fprintf(fp, "[%c] %s",
 			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
 	} else {
-		ret += fprintf(fp, "%#016llx", (__u64)self->ip);
+		ret += fprintf(fp, "%#016llx", (u64)self->ip);
 	}
 
 	return ret;
@@ -587,7 +593,7 @@ static LIST_HEAD(hist_entry__sort_list);
 
 static int sort_dimension__add(char *tok)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
 		struct sort_dimension *sd = &sort_dimensions[i];
@@ -647,7 +653,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 /*
  * collect histogram counts
  */
-static void hist_hit(struct hist_entry *he, __u64 ip)
+static void hist_hit(struct hist_entry *he, u64 ip)
 {
 	unsigned int sym_size, offset;
 	struct symbol *sym = he->sym;
@@ -676,7 +682,7 @@ static void hist_hit(struct hist_entry *he, __u64 ip)
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, __u64 ip, char level)
+		struct symbol *sym, u64 ip, char level)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
@@ -842,13 +848,13 @@ static unsigned long total = 0,
 		     total_unknown = 0;
 
 static int
-process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
+process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
 	struct dso *dso = NULL;
 	struct thread *thread = threads__findnew(event->ip.pid);
-	__u64 ip = event->ip.ip;
+	u64 ip = event->ip.ip;
 	struct map *map = NULL;
 
 	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
@@ -975,6 +981,13 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 		(void *)(long)(event->header.size),
 		event->fork.pid, event->fork.ppid);
 
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
 	if (!thread || !parent || thread__fork(thread, parent)) {
 		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
 		return -1;
@@ -985,25 +998,12 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_period_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->period.time,
-		event->period.id,
-		event->period.sample_period);
-
-	return 0;
-}
-
-static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
-		return process_overflow_event(event, offset, head);
-
 	switch (event->header.type) {
+	case PERF_EVENT_SAMPLE:
+		return process_sample_event(event, offset, head);
+
 	case PERF_EVENT_MMAP:
 		return process_mmap_event(event, offset, head);
 
@@ -1012,9 +1012,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	case PERF_EVENT_FORK:
 		return process_fork_event(event, offset, head);
-
-	case PERF_EVENT_PERIOD:
-		return process_period_event(event, offset, head);
 	/*
 	 * We dont process them right now but they are fine:
 	 */
@@ -1031,12 +1028,14 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
+parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 {
 	char *line = NULL, *tmp, *tmp2;
+	static const char *prev_line;
+	static const char *prev_color;
 	unsigned int offset;
 	size_t line_len;
-	__u64 line_ip;
+	s64 line_ip;
 	int ret;
 	char *c;
 
@@ -1073,27 +1072,36 @@ parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 	}
 
 	if (line_ip != -1) {
+		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
-		char *color = PERF_COLOR_NORMAL;
+		char *color;
+		struct sym_ext *sym_ext = sym->priv;
 
 		offset = line_ip - start;
 		if (offset < len)
 			hits = sym->hist[offset];
 
-		if (sym->hist_sum)
+		if (offset < len && sym_ext) {
+			path = sym_ext[offset].path;
+			percent = sym_ext[offset].percent;
+		} else if (sym->hist_sum)
 			percent = 100.0 * hits / sym->hist_sum;
 
+		color = get_percent_color(percent);
+
 		/*
-		 * We color high-overhead entries in red, mid-overhead
-		 * entries in green - and keep the low overhead places
-		 * normal:
+		 * Also color the filename and line if needed, with
+		 * the same color than the percentage. Don't print it
+		 * twice for close colored ip with the same filename:line
 		 */
-		if (percent >= 5.0)
-			color = PERF_COLOR_RED;
-		else {
-			if (percent > 0.5)
-				color = PERF_COLOR_GREEN;
+		if (path) {
+			if (!prev_line || strcmp(prev_line, path)
+				       || color != prev_color) {
+				color_fprintf(stdout, color, " %s", path);
+				prev_line = path;
+				prev_color = color;
+			}
 		}
 
 		color_fprintf(stdout, color, " %7.2f", percent);
@@ -1109,33 +1117,160 @@ parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 	return 0;
 }
 
+static struct rb_root root_sym_ext;
+
+static void insert_source_line(struct sym_ext *sym_ext)
+{
+	struct sym_ext *iter;
+	struct rb_node **p = &root_sym_ext.rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct sym_ext, node);
+
+		if (sym_ext->percent > iter->percent)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&sym_ext->node, parent, p);
+	rb_insert_color(&sym_ext->node, &root_sym_ext);
+}
+
+static void free_source_line(struct symbol *sym, int len)
+{
+	struct sym_ext *sym_ext = sym->priv;
+	int i;
+
+	if (!sym_ext)
+		return;
+
+	for (i = 0; i < len; i++)
+		free(sym_ext[i].path);
+	free(sym_ext);
+
+	sym->priv = NULL;
+	root_sym_ext = RB_ROOT;
+}
+
+/* Get the filename:line for the colored entries */
+static void
+get_source_line(struct symbol *sym, u64 start, int len, char *filename)
+{
+	int i;
+	char cmd[PATH_MAX * 2];
+	struct sym_ext *sym_ext;
+
+	if (!sym->hist_sum)
+		return;
+
+	sym->priv = calloc(len, sizeof(struct sym_ext));
+	if (!sym->priv)
+		return;
+
+	sym_ext = sym->priv;
+
+	for (i = 0; i < len; i++) {
+		char *path = NULL;
+		size_t line_len;
+		u64 offset;
+		FILE *fp;
+
+		sym_ext[i].percent = 100.0 * sym->hist[i] / sym->hist_sum;
+		if (sym_ext[i].percent <= 0.5)
+			continue;
+
+		offset = start + i;
+		sprintf(cmd, "addr2line -e %s %016llx", filename, offset);
+		fp = popen(cmd, "r");
+		if (!fp)
+			continue;
+
+		if (getline(&path, &line_len, fp) < 0 || !line_len)
+			goto next;
+
+		sym_ext[i].path = malloc(sizeof(char) * line_len + 1);
+		if (!sym_ext[i].path)
+			goto next;
+
+		strcpy(sym_ext[i].path, path);
+		insert_source_line(&sym_ext[i]);
+
+	next:
+		pclose(fp);
+	}
+}
+
+static void print_summary(char *filename)
+{
+	struct sym_ext *sym_ext;
+	struct rb_node *node;
+
+	printf("\nSorted summary for file %s\n", filename);
+	printf("----------------------------------------------\n\n");
+
+	if (RB_EMPTY_ROOT(&root_sym_ext)) {
+		printf(" Nothing higher than %1.1f%%\n", MIN_GREEN);
+		return;
+	}
+
+	node = rb_first(&root_sym_ext);
+	while (node) {
+		double percent;
+		char *color;
+		char *path;
+
+		sym_ext = rb_entry(node, struct sym_ext, node);
+		percent = sym_ext->percent;
+		color = get_percent_color(percent);
+		path = sym_ext->path;
+
+		color_fprintf(stdout, color, " %7.2f %s", percent, path);
+		node = rb_next(node);
+	}
+}
+
 static void annotate_sym(struct dso *dso, struct symbol *sym)
 {
-	char *filename = dso->name;
-	__u64 start, end, len;
+	char *filename = dso->name, *d_filename;
+	u64 start, end, len;
 	char command[PATH_MAX*2];
 	FILE *file;
 
 	if (!filename)
 		return;
-	if (dso == kernel_dso)
+	if (sym->module)
+		filename = sym->module->path;
+	else if (dso == kernel_dso)
 		filename = vmlinux;
 
-	printf("\n------------------------------------------------\n");
-	printf(" Percent |	Source code & Disassembly of %s\n", filename);
+	start = sym->obj_start;
+	if (!start)
+		start = sym->start;
+	if (full_paths)
+		d_filename = filename;
+	else
+		d_filename = basename(filename);
+
+	end = start + sym->end - sym->start + 1;
+	len = sym->end - sym->start;
+
+	if (print_line) {
+		get_source_line(sym, start, len, filename);
+		print_summary(filename);
+	}
+
+	printf("\n\n------------------------------------------------\n");
+	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
 	printf("------------------------------------------------\n");
 
 	if (verbose >= 2)
 		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
 
-	start = sym->obj_start;
-	if (!start)
-		start = sym->start;
-
-	end = start + sym->end - sym->start + 1;
-	len = sym->end - sym->start;
-
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", (__u64)start, (__u64)end, filename);
+	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
+			(u64)start, (u64)end, filename, filename);
 
 	if (verbose >= 3)
 		printf("doing: %s\n", command);
@@ -1150,6 +1285,8 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	}
 
 	pclose(file);
+	if (print_line)
+		free_source_line(sym, len);
 }
 
 static void find_annotations(void)
@@ -1195,6 +1332,11 @@ static int __cmd_annotate(void)
 	ret = fstat(input, &stat);
 	if (ret < 0) {
 		perror("failed to stat file");
+		exit(-1);
+	}
+
+	if (!force && (stat.st_uid != geteuid())) {
+		fprintf(stderr, "file: %s not owned by current user\n", input_name);
 		exit(-1);
 	}
 
@@ -1264,7 +1406,7 @@ more:
 
 	head += size;
 
-	if (offset + head < stat.st_size)
+	if (offset + head < (unsigned long)stat.st_size)
 		goto more;
 
 	rc = EXIT_SUCCESS;
@@ -1303,11 +1445,18 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_STRING('s', "symbol", &sym_hist_filter, "symbol",
 		    "symbol to annotate"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_BOOLEAN('m', "modules", &modules,
+		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
+	OPT_BOOLEAN('l', "print-line", &print_line,
+		    "print matching source lines (may be slow)"),
+	OPT_BOOLEAN('P', "full-paths", &full_paths,
+		    "Don't shorten the displayed pathnames"),
 	OPT_END()
 };
 
@@ -1326,7 +1475,7 @@ static void setup_sorting(void)
 	free(str);
 }
 
-int cmd_annotate(int argc, const char **argv, const char *prefix)
+int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
 

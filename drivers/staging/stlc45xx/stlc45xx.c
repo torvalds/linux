@@ -1787,7 +1787,6 @@ static int stlc45xx_tx_pspoll(struct stlc45xx *stlc, bool powersave)
 	int payload_len, padding, i;
 	struct s_lm_data_out *data;
 	struct txbuffer *entry;
-	DECLARE_MAC_BUF(mac);
 	struct sk_buff *skb;
 	char *payload;
 	u16 fc;
@@ -1813,8 +1812,8 @@ static int stlc45xx_tx_pspoll(struct stlc45xx *stlc, bool powersave)
 	memcpy(pspoll->addr1, stlc->bssid, ETH_ALEN);
 	memcpy(pspoll->addr2, stlc->mac_addr, ETH_ALEN);
 
-	stlc45xx_debug(DEBUG_PSM, "sending PS-Poll frame to %s (powersave %d, "
-		       "fc 0x%x, aid %d)", print_mac(mac, pspoll->addr1),
+	stlc45xx_debug(DEBUG_PSM, "sending PS-Poll frame to %pM (powersave %d, "
+		       "fc 0x%x, aid %d)", pspoll->addr1,
 		       powersave, fc, stlc->aid);
 
 	spin_lock_bh(&stlc->tx_lock);
@@ -1903,7 +1902,6 @@ static int stlc45xx_tx_nullfunc(struct stlc45xx *stlc, bool powersave)
 	int payload_len, padding, i;
 	struct s_lm_data_out *data;
 	struct txbuffer *entry;
-	DECLARE_MAC_BUF(mac);
 	struct sk_buff *skb;
 	char *payload;
 	u16 fc;
@@ -1928,9 +1926,8 @@ static int stlc45xx_tx_nullfunc(struct stlc45xx *stlc, bool powersave)
 	memcpy(nullfunc->addr2, stlc->mac_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, stlc->bssid, ETH_ALEN);
 
-	stlc45xx_debug(DEBUG_PSM, "sending Null frame to %s (powersave %d, "
-		       "fc 0x%x)",
-		       print_mac(mac, nullfunc->addr1), powersave, fc);
+	stlc45xx_debug(DEBUG_PSM, "sending Null frame to %pM (powersave %d, "
+		       "fc 0x%x)", nullfunc->addr1, powersave, fc);
 
 	spin_lock_bh(&stlc->tx_lock);
 
@@ -2238,24 +2235,6 @@ static void stlc45xx_op_remove_interface(struct ieee80211_hw *hw,
 	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
 }
 
-static int stlc45xx_op_config_interface(struct ieee80211_hw *hw,
-					struct ieee80211_vif *vif,
-					struct ieee80211_if_conf *conf)
-{
-	struct stlc45xx *stlc = hw->priv;
-
-	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
-
-	mutex_lock(&stlc->mutex);
-
-	memcpy(stlc->bssid, conf->bssid, ETH_ALEN);
-	stlc45xx_tx_setup(stlc);
-
-	mutex_unlock(&stlc->mutex);
-
-	return 0;
-}
-
 static int stlc45xx_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct stlc45xx *stlc = hw->priv;
@@ -2297,6 +2276,14 @@ static void stlc45xx_op_bss_info_changed(struct ieee80211_hw *hw,
 					 u32 changed)
 {
 	struct stlc45xx *stlc = hw->priv;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+	mutex_lock(&stlc->mutex);
+
+	memcpy(stlc->bssid, info->bssid, ETH_ALEN);
+	stlc45xx_tx_setup(stlc);
+
+	mutex_unlock(&stlc->mutex);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		stlc->associated = info->assoc;
@@ -2360,7 +2347,6 @@ static const struct ieee80211_ops stlc45xx_ops = {
 	.add_interface = stlc45xx_op_add_interface,
 	.remove_interface = stlc45xx_op_remove_interface,
 	.config = stlc45xx_op_config,
-	.config_interface = stlc45xx_op_config_interface,
 	.configure_filter = stlc45xx_op_configure_filter,
 	.tx = stlc45xx_op_tx,
 	.bss_info_changed = stlc45xx_op_bss_info_changed,

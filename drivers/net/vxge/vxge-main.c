@@ -4203,6 +4203,16 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		max_vpath_supported++;
 	}
 
+	/* Enable SRIOV mode, if firmware has SRIOV support and if it is a PF */
+	if ((VXGE_HW_FUNCTION_MODE_SRIOV ==
+		ll_config.device_hw_info.function_mode) &&
+		(max_config_dev > 1) && (pdev->is_physfn)) {
+			ret = pci_enable_sriov(pdev, max_config_dev - 1);
+			if (ret)
+				vxge_debug_ll_config(VXGE_ERR,
+					"Failed to enable SRIOV: %d \n", ret);
+	}
+
 	/*
 	 * Configure vpaths and get driver configured number of vpaths
 	 * which is less than or equal to the maximum vpaths per function.
@@ -4366,6 +4376,7 @@ _exit6:
 
 	vxge_device_unregister(hldev);
 _exit5:
+	pci_disable_sriov(pdev);
 	vxge_hw_device_terminate(hldev);
 _exit4:
 	iounmap(attr.bar1);
@@ -4428,6 +4439,8 @@ vxge_remove(struct pci_dev *pdev)
 
 	iounmap(vdev->bar0);
 	iounmap(vdev->bar1);
+
+	pci_disable_sriov(pdev);
 
 	/* we are safe to free it now */
 	free_netdev(dev);

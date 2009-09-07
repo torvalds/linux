@@ -34,7 +34,7 @@
 #define _ANOMALY_BF527(rev527) (ANOMALY_BF527 && __SILICON_REVISION__ rev527)
 #define _ANOMALY_BF526_BF527(rev526, rev527) (_ANOMALY_BF526(rev526) || _ANOMALY_BF527(rev527))
 
-/* Multi-issue instruction with dsp32shiftimm in slot1 and P-reg store in slot 2 not supported */
+/* Multi-Issue Instruction with dsp32shiftimm in slot1 and P-reg Store in slot2 Not Supported */
 #define ANOMALY_05000074 (1)
 /* DMA_RUN Bit Is Not Valid after a Peripheral Receive Channel DMA Stops */
 #define ANOMALY_05000119 (1)	/* note: brokenness is noted in documentation, not anomaly sheet */
@@ -176,6 +176,8 @@
 #define ANOMALY_05000443 (1)
 /* The WURESET Bit in the SYSCR Register is not Functional */
 #define ANOMALY_05000445 (1)
+/* USB DMA Short Packet Data Corruption */
+#define ANOMALY_05000450 (1)
 /* BCODE_QUICKBOOT, BCODE_ALLBOOT, and BCODE_FULLBOOT Settings in SYSCR Register Not Functional */
 #define ANOMALY_05000451 (1)
 /* Incorrect Default Hysteresis Setting for RESET, NMI, and BMODE Signals */
@@ -184,8 +186,12 @@
 #define ANOMALY_05000456 (1)
 /* Host DMA Port Responds to Certain Bus Activity Without HOST_CE Assertion */
 #define ANOMALY_05000457 (1)
-/* False Hardware Error when RETI points to invalid memory */
+/* False Hardware Error when RETI Points to Invalid Memory */
 #define ANOMALY_05000461 (1)
+/* USB Rx DMA hang */
+#define ANOMALY_05000465 (1)
+/* Possible RX data corruption when control & data EP FIFOs are accessed via the core */
+#define ANOMALY_05000467 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000099 (0)
@@ -195,24 +201,31 @@
 #define ANOMALY_05000158 (0)
 #define ANOMALY_05000171 (0)
 #define ANOMALY_05000179 (0)
+#define ANOMALY_05000182 (0)
 #define ANOMALY_05000183 (0)
+#define ANOMALY_05000189 (0)
 #define ANOMALY_05000198 (0)
+#define ANOMALY_05000202 (0)
 #define ANOMALY_05000215 (0)
 #define ANOMALY_05000220 (0)
 #define ANOMALY_05000227 (0)
 #define ANOMALY_05000230 (0)
 #define ANOMALY_05000231 (0)
 #define ANOMALY_05000233 (0)
+#define ANOMALY_05000234 (0)
 #define ANOMALY_05000242 (0)
 #define ANOMALY_05000244 (0)
 #define ANOMALY_05000248 (0)
 #define ANOMALY_05000250 (0)
+#define ANOMALY_05000257 (0)
 #define ANOMALY_05000261 (0)
 #define ANOMALY_05000263 (0)
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000273 (0)
 #define ANOMALY_05000274 (0)
 #define ANOMALY_05000278 (0)
+#define ANOMALY_05000281 (0)
+#define ANOMALY_05000283 (0)
 #define ANOMALY_05000285 (0)
 #define ANOMALY_05000287 (0)
 #define ANOMALY_05000301 (0)
@@ -220,6 +233,7 @@
 #define ANOMALY_05000307 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000312 (0)
+#define ANOMALY_05000315 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000362 (1)
 #define ANOMALY_05000363 (0)
@@ -227,6 +241,5 @@
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000447 (0)
 #define ANOMALY_05000448 (0)
-#define ANOMALY_05000450 (0)
 
 #endif

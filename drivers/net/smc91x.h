@@ -186,7 +186,8 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
-#elif	defined(CONFIG_MACH_LOGICPD_PXA270)
+#elif	defined(CONFIG_MACH_LOGICPD_PXA270) \
+	|| defined(CONFIG_MACH_NOMADIK_8815NHK)
 
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1

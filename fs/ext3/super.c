@@ -464,10 +464,6 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(ext3_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
-#ifdef CONFIG_EXT3_FS_POSIX_ACL
-	ei->i_acl = EXT3_ACL_NOT_CACHED;
-	ei->i_default_acl = EXT3_ACL_NOT_CACHED;
-#endif
 	ei->i_block_alloc_info = NULL;
 	ei->vfs_inode.i_version = 1;
 	return &ei->vfs_inode;
@@ -518,18 +514,6 @@ static void destroy_inodecache(void)
 static void ext3_clear_inode(struct inode *inode)
 {
 	struct ext3_block_alloc_info *rsv = EXT3_I(inode)->i_block_alloc_info;
-#ifdef CONFIG_EXT3_FS_POSIX_ACL
-	if (EXT3_I(inode)->i_acl &&
-			EXT3_I(inode)->i_acl != EXT3_ACL_NOT_CACHED) {
-		posix_acl_release(EXT3_I(inode)->i_acl);
-		EXT3_I(inode)->i_acl = EXT3_ACL_NOT_CACHED;
-	}
-	if (EXT3_I(inode)->i_default_acl &&
-			EXT3_I(inode)->i_default_acl != EXT3_ACL_NOT_CACHED) {
-		posix_acl_release(EXT3_I(inode)->i_default_acl);
-		EXT3_I(inode)->i_default_acl = EXT3_ACL_NOT_CACHED;
-	}
-#endif
 	ext3_discard_reservation(inode);
 	EXT3_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))
@@ -557,6 +541,19 @@ static inline void ext3_show_quota_options(struct seq_file *seq, struct super_bl
 	if (sbi->s_mount_opt & EXT3_MOUNT_GRPQUOTA)
 		seq_puts(seq, ",grpquota");
 #endif
+}
+
+static char *data_mode_string(unsigned long mode)
+{
+	switch (mode) {
+	case EXT3_MOUNT_JOURNAL_DATA:
+		return "journal";
+	case EXT3_MOUNT_ORDERED_DATA:
+		return "ordered";
+	case EXT3_MOUNT_WRITEBACK_DATA:
+		return "writeback";
+	}
+	return "unknown";
 }
 
 /*
@@ -632,13 +629,8 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, NOBH))
 		seq_puts(seq, ",nobh");
 
-	if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
-		seq_puts(seq, ",data=journal");
-	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
-		seq_puts(seq, ",data=ordered");
-	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
-		seq_puts(seq, ",data=writeback");
-
+	seq_printf(seq, ",data=%s", data_mode_string(sbi->s_mount_opt &
+						     EXT3_MOUNT_DATA_FLAGS));
 	if (test_opt(sb, DATA_ERR_ABORT))
 		seq_puts(seq, ",data_err=abort");
 
@@ -1040,12 +1032,18 @@ static int parse_options (char *options, struct super_block *sb,
 		datacheck:
 			if (is_remount) {
 				if ((sbi->s_mount_opt & EXT3_MOUNT_DATA_FLAGS)
-						!= data_opt) {
-					printk(KERN_ERR
-						"EXT3-fs: cannot change data "
-						"mode on remount\n");
-					return 0;
-				}
+						== data_opt)
+					break;
+				printk(KERN_ERR
+					"EXT3-fs (device %s): Cannot change "
+					"data mode on remount. The filesystem "
+					"is mounted in data=%s mode and you "
+					"try to remount it in data=%s mode.\n",
+					sb->s_id,
+					data_mode_string(sbi->s_mount_opt &
+							EXT3_MOUNT_DATA_FLAGS),
+					data_mode_string(data_opt));
+				return 0;
 			} else {
 				sbi->s_mount_opt &= ~EXT3_MOUNT_DATA_FLAGS;
 				sbi->s_mount_opt |= data_opt;
@@ -1812,7 +1810,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		printk(KERN_ERR "EXT3-fs: filesystem on %s:"
 			" too large to mount safely\n", sb->s_id);
 		if (sizeof(sector_t) < 8)
-			printk(KERN_WARNING "EXT3-fs: CONFIG_LBD not "
+			printk(KERN_WARNING "EXT3-fs: CONFIG_LBDAF not "
 					"enabled\n");
 		goto failed_mount;
 	}

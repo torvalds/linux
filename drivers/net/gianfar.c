@@ -156,6 +156,8 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_vlan_rx_register = gfar_vlan_rx_register,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gfar_netpoll,
 #endif
@@ -262,15 +264,6 @@ static int gfar_of_init(struct net_device *dev)
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!priv->phy_node) {
-		u32 *fixed_link;
-
-		fixed_link = (u32 *)of_get_property(np, "fixed-link", NULL);
-		if (!fixed_link) {
-			err = -ENODEV;
-			goto err_out;
-		}
-	}
 
 	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
 	priv->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
@@ -498,6 +491,7 @@ static int gfar_remove(struct of_device *ofdev)
 
 	dev_set_drvdata(&ofdev->dev, NULL);
 
+	unregister_netdev(dev);
 	iounmap(priv->regs);
 	free_netdev(priv->ndev);
 
@@ -657,13 +651,14 @@ static int init_phy(struct net_device *dev)
 
 	interface = gfar_get_interface(dev);
 
-	if (priv->phy_node) {
-		priv->phydev = of_phy_connect(dev, priv->phy_node, &adjust_link,
-					      0, interface);
-		if (!priv->phydev) {
-			dev_err(&dev->dev, "error: Could not attach to PHY\n");
-			return -ENODEV;
-		}
+	priv->phydev = of_phy_connect(dev, priv->phy_node, &adjust_link, 0,
+				      interface);
+	if (!priv->phydev)
+		priv->phydev = of_phy_connect_fixed_link(dev, &adjust_link,
+							 interface);
+	if (!priv->phydev) {
+		dev_err(&dev->dev, "could not attach to PHY\n");
+		return -ENODEV;
 	}
 
 	if (interface == PHY_INTERFACE_MODE_SGMII)
@@ -942,6 +937,7 @@ int startup_gfar(struct net_device *dev)
 	struct gfar __iomem *regs = priv->regs;
 	int err = 0;
 	u32 rctrl = 0;
+	u32 tctrl = 0;
 	u32 attrs = 0;
 
 	gfar_write(&regs->imask, IMASK_INIT_CLEAR);
@@ -1117,11 +1113,19 @@ int startup_gfar(struct net_device *dev)
 		rctrl |= RCTRL_PADDING(priv->padding);
 	}
 
+	/* keep vlan related bits if it's enabled */
+	if (priv->vlgrp) {
+		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
+		tctrl |= TCTRL_VLINS;
+	}
+
 	/* Init rctrl based on our settings */
 	gfar_write(&priv->regs->rctrl, rctrl);
 
 	if (dev->features & NETIF_F_IP_CSUM)
-		gfar_write(&priv->regs->tctrl, TCTRL_INIT_CSUM);
+		tctrl |= TCTRL_INIT_CSUM;
+
+	gfar_write(&priv->regs->tctrl, tctrl);
 
 	/* Set the extraction length and index */
 	attrs = ATTRELI_EL(priv->rx_stash_size) |
@@ -1456,7 +1460,6 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 
 		/* Enable VLAN tag extraction */
 		tempval = gfar_read(&priv->regs->rctrl);
-		tempval |= RCTRL_VLEX;
 		tempval |= (RCTRL_VLEX | RCTRL_PRSDEP_INIT);
 		gfar_write(&priv->regs->rctrl, tempval);
 	} else {

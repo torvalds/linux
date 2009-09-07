@@ -1,3 +1,6 @@
+#ifndef FS_MINIX_H
+#define FS_MINIX_H
+
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/minix_fs.h>
@@ -86,3 +89,5 @@ static inline struct minix_inode_info *minix_i(struct inode *inode)
 {
 	return list_entry(inode, struct minix_inode_info, vfs_inode);
 }
+
+#endif /* FS_MINIX_H */

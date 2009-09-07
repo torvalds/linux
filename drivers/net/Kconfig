@@ -1725,8 +1725,18 @@ config TLAN
 
 config KS8842
 	tristate "Micrel KSZ8842"
+	depends on HAS_IOMEM
 	help
-	  This platform driver is for Micrel KSZ8842 chip.
+	  This platform driver is for Micrel KSZ8842 / KS8842
+	  2-port ethernet switch chip (managed, VLAN, QoS).
+
+config KS8851
+       tristate "Micrel KS8851 SPI"
+       depends on SPI
+       select MII
+	select CRC32
+       help
+         SPI driver for Micrel KS8851 SPI attached network chip.
 
 config VIA_RHINE
 	tristate "VIA Rhine support"
@@ -2272,8 +2282,9 @@ config BNX2
 
 config CNIC
 	tristate "Broadcom CNIC support"
-	depends on BNX2
-	depends on UIO
+	depends on PCI
+	select BNX2
+	select UIO
 	help
 	  This driver supports offload features of Broadcom NetXtremeII
 	  gigabit Ethernet cards.
@@ -2441,6 +2452,17 @@ config JME
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called jme.
+
+config S6GMAC
+	tristate "S6105 GMAC ethernet support"
+	depends on XTENSA_VARIANT_S6000
+	select PHYLIB
+	help
+	  This driver supports the on chip ethernet device on the
+	  S6105 xtensa processor.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called s6gmac.
 
 endif # NETDEV_1000
 

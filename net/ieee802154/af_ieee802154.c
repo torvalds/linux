@@ -39,14 +39,6 @@
 
 #include "af802154.h"
 
-#define DBG_DUMP(data, len) { \
-	int i; \
-	pr_debug("function: %s: data: len %d:\n", __func__, len); \
-	for (i = 0; i < len; i++) {\
-		pr_debug("%02x: %02x\n", i, (data)[i]); \
-	} \
-}
-
 /*
  * Utility function for families
  */
@@ -144,7 +136,7 @@ static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,
 		unsigned int cmd)
 {
 	struct ifreq ifr;
-	int ret = -EINVAL;
+	int ret = -ENOIOCTLCMD;
 	struct net_device *dev;
 
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
@@ -154,8 +146,10 @@ static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,
 
 	dev_load(sock_net(sk), ifr.ifr_name);
 	dev = dev_get_by_name(sock_net(sk), ifr.ifr_name);
-	if (dev->type == ARPHRD_IEEE802154 ||
-	    dev->type == ARPHRD_IEEE802154_PHY)
+
+	if ((dev->type == ARPHRD_IEEE802154 ||
+	     dev->type == ARPHRD_IEEE802154_PHY) &&
+	    dev->netdev_ops->ndo_do_ioctl)
 		ret = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, cmd);
 
 	if (!ret && copy_to_user(arg, &ifr, sizeof(struct ifreq)))
@@ -302,10 +296,12 @@ static struct net_proto_family ieee802154_family_ops = {
 static int ieee802154_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
-	DBG_DUMP(skb->data, skb->len);
 	if (!netif_running(dev))
 		return -ENODEV;
 	pr_debug("got frame, type %d, dev %p\n", dev->type, dev);
+#ifdef DEBUG
+	print_hex_dump_bytes("ieee802154_rcv ", DUMP_PREFIX_NONE, skb->data, skb->len);
+#endif
 
 	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;

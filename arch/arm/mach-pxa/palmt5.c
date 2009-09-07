@@ -111,6 +111,10 @@ static unsigned long palmt5_pin_config[] __initdata = {
 	/* PWM */
 	GPIO16_PWM0_OUT,
 
+	/* FFUART */
+	GPIO34_FFUART_RXD,
+	GPIO39_FFUART_TXD,
+
 	/* MISC */
 	GPIO10_GPIO,	/* hotsync button */
 	GPIO90_GPIO,	/* power detect */

@@ -69,9 +69,6 @@ int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
 int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
 int heap_stack_gap = 0;
 
-/* amount of vm to protect from userspace access */
-unsigned long mmap_min_addr = CONFIG_DEFAULT_MMAP_MIN_ADDR;
-
 atomic_long_t mmap_pages_allocated;
 
 EXPORT_SYMBOL(mem_map);
@@ -173,8 +170,8 @@ unsigned int kobjsize(const void *objp)
 }
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int len, int flags,
-		struct page **pages, struct vm_area_struct **vmas)
+		     unsigned long start, int nr_pages, int flags,
+		     struct page **pages, struct vm_area_struct **vmas)
 {
 	struct vm_area_struct *vma;
 	unsigned long vm_flags;
@@ -189,7 +186,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	vm_flags  = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
 	vm_flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 
-	for (i = 0; i < len; i++) {
+	for (i = 0; i < nr_pages; i++) {
 		vma = find_vma(mm, start);
 		if (!vma)
 			goto finish_or_fault;
@@ -224,7 +221,7 @@ finish_or_fault:
  * - don't permit access to VMAs that don't support it, such as I/O mappings
  */
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-	unsigned long start, int len, int write, int force,
+	unsigned long start, int nr_pages, int write, int force,
 	struct page **pages, struct vm_area_struct **vmas)
 {
 	int flags = 0;
@@ -234,11 +231,30 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	if (force)
 		flags |= GUP_FLAGS_FORCE;
 
-	return __get_user_pages(tsk, mm,
-				start, len, flags,
-				pages, vmas);
+	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 }
 EXPORT_SYMBOL(get_user_pages);
+
+/**
+ * follow_pfn - look up PFN at a user virtual address
+ * @vma: memory mapping
+ * @address: user virtual address
+ * @pfn: location to store found PFN
+ *
+ * Only IO mappings and raw PFN mappings are allowed.
+ *
+ * Returns zero and the pfn at @pfn on success, -ve otherwise.
+ */
+int follow_pfn(struct vm_area_struct *vma, unsigned long address,
+	unsigned long *pfn)
+{
+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
+		return -EINVAL;
+
+	*pfn = address >> PAGE_SHIFT;
+	return 0;
+}
+EXPORT_SYMBOL(follow_pfn);
 
 DEFINE_RWLOCK(vmlist_lock);
 struct vm_struct *vmlist;
@@ -903,6 +919,10 @@ static int validate_mmap_request(struct file *file,
 		if (!file->f_op->read)
 			capabilities &= ~BDI_CAP_MAP_COPY;
 
+		/* The file shall have been opened with read permission. */
+		if (!(file->f_mode & FMODE_READ))
+			return -EACCES;
+
 		if (flags & MAP_SHARED) {
 			/* do checks for writing, appending and locking */
 			if ((prot & PROT_WRITE) &&
@@ -1332,6 +1352,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 	}
 
 	vma->vm_region = region;
+	add_nommu_region(region);
 
 	/* set up the mapping */
 	if (file && vma->vm_flags & VM_SHARED)
@@ -1340,8 +1361,6 @@ unsigned long do_mmap_pgoff(struct file *file,
 		ret = do_mmap_private(vma, region, len);
 	if (ret < 0)
 		goto error_put_region;
-
-	add_nommu_region(region);
 
 	/* okay... we have a mapping; now we have to register it */
 	result = vma->vm_start;

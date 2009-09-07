@@ -426,10 +426,11 @@ static noinline int vmalloc_fault(unsigned long address)
 }
 
 static const char errata93_warning[] =
-KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
-KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
-KERN_ERR "******* Please consider a BIOS update.\n"
-KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+KERN_ERR 
+"******* Your BIOS seems to not contain a fix for K8 errata #93\n"
+"******* Working around it, but it may cause SEGVs or burn power.\n"
+"******* Please consider a BIOS update.\n"
+"******* Disabling USB legacy in the BIOS may also help.\n";
 
 /*
  * No vm86 mode in 64-bit mode:
@@ -696,7 +697,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
 	if (!printk_ratelimit())
 		return;
 
-	printk(KERN_CONT "%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
+	printk("%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
 		task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
 		tsk->comm, task_pid_nr(tsk), address,
 		(void *)regs->ip, (void *)regs->sp, error_code);
@@ -952,8 +953,6 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	tsk = current;
 	mm = tsk->mm;
 
-	prefetchw(&mm->mmap_sem);
-
 	/* Get the faulting address: */
 	address = read_cr2();
 
@@ -963,6 +962,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 */
 	if (kmemcheck_active(regs))
 		kmemcheck_hide(regs);
+	prefetchw(&mm->mmap_sem);
 
 	if (unlikely(kmmio_fault(regs, address)))
 		return;
@@ -1114,7 +1114,7 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault:
 	 */
-	fault = handle_mm_fault(mm, vma, address, write);
+	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, error_code, address, fault);

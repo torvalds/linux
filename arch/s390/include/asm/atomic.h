@@ -268,7 +268,12 @@ static __inline__ int atomic64_add_unless(atomic64_t *v,
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 
 #undef __CSG_LOOP
-#endif
+
+#else /* __s390x__ */
+
+#include <asm-generic/atomic64.h>
+
+#endif /* __s390x__ */
 
 #define smp_mb__before_atomic_dec()	smp_mb()
 #define smp_mb__after_atomic_dec()	smp_mb()

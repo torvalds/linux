@@ -42,27 +42,12 @@
  * this governor will not work.
  * All times here are in uS.
  */
-static unsigned int def_sampling_rate;
 #define MIN_SAMPLING_RATE_RATIO			(2)
-/* for correct statistics, we need at least 10 ticks between each measure */
-#define MIN_STAT_SAMPLING_RATE 			\
-			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
-#define MIN_SAMPLING_RATE			\
-			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
-/* Above MIN_SAMPLING_RATE will vanish with its sysfs file soon
- * Define the minimal settable sampling rate to the greater of:
- *   - "HW transition latency" * 100 (same as default sampling / 10)
- *   - MIN_STAT_SAMPLING_RATE
- * To avoid that userspace shoots itself.
-*/
-static unsigned int minimum_sampling_rate(void)
-{
-	return max(def_sampling_rate / 10, MIN_STAT_SAMPLING_RATE);
-}
 
-/* This will also vanish soon with removing sampling_rate_max */
-#define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
+static unsigned int min_sampling_rate;
+
 #define LATENCY_MULTIPLIER			(1000)
+#define MIN_LATENCY_MULTIPLIER			(100)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
@@ -79,21 +64,20 @@ struct cpu_dbs_info_s {
 	unsigned int requested_freq;
 	int cpu;
 	unsigned int enable:1;
+	/*
+	 * percpu mutex that serializes governor limit change with
+	 * do_dbs_timer invocation. We do not want do_dbs_timer to run
+	 * when user is changing the governor or limits.
+	 */
+	struct mutex timer_mutex;
 };
 static DEFINE_PER_CPU(struct cpu_dbs_info_s, cpu_dbs_info);
 
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
 /*
- * DEADLOCK ALERT! There is a ordering requirement between cpu_hotplug
- * lock and dbs_mutex. cpu_hotplug lock should always be held before
- * dbs_mutex. If any function that can potentially take cpu_hotplug lock
- * (like __cpufreq_driver_target()) is being called with dbs_mutex taken, then
- * cpu_hotplug lock should be taken before that. Note that cpu_hotplug lock
- * is recursive for the same process. -Venki
- * DEADLOCK ALERT! (2) : do_dbs_timer() must not take the dbs_mutex, because it
- * would deadlock with cancel_delayed_work_sync(), which is needed for proper
- * raceless workqueue teardown.
+ * dbs_mutex protects data in dbs_tuners_ins from concurrent changes on
+ * different CPUs. It protects dbs_enable in governor start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
 
@@ -182,27 +166,14 @@ static struct notifier_block dbs_cpufreq_notifier_block = {
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
-	static int print_once;
-
-	if (!print_once) {
-		printk(KERN_INFO "CPUFREQ: conservative sampling_rate_max "
-		       "sysfs file is deprecated - used by: %s\n",
-		       current->comm);
-		print_once = 1;
-	}
-	return sprintf(buf, "%u\n", MAX_SAMPLING_RATE);
+	printk_once(KERN_INFO "CPUFREQ: conservative sampling_rate_max "
+		    "sysfs file is deprecated - used by: %s\n", current->comm);
+	return sprintf(buf, "%u\n", -1U);
 }
 
 static ssize_t show_sampling_rate_min(struct cpufreq_policy *policy, char *buf)
 {
-	static int print_once;
-
-	if (!print_once) {
-		printk(KERN_INFO "CPUFREQ: conservative sampling_rate_max "
-		       "sysfs file is deprecated - used by: %s\n", current->comm);
-		print_once = 1;
-	}
-	return sprintf(buf, "%u\n", MIN_SAMPLING_RATE);
+	return sprintf(buf, "%u\n", min_sampling_rate);
 }
 
 #define define_one_ro(_name)		\
@@ -254,7 +225,7 @@ static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 		return -EINVAL;
 
 	mutex_lock(&dbs_mutex);
-	dbs_tuners_ins.sampling_rate = max(input, minimum_sampling_rate());
+	dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
 	mutex_unlock(&dbs_mutex);
 
 	return count;
@@ -516,18 +487,12 @@ static void do_dbs_timer(struct work_struct *work)
 
 	delay -= jiffies % delay;
 
-	if (lock_policy_rwsem_write(cpu) < 0)
-		return;
-
-	if (!dbs_info->enable) {
-		unlock_policy_rwsem_write(cpu);
-		return;
-	}
+	mutex_lock(&dbs_info->timer_mutex);
 
 	dbs_check_cpu(dbs_info);
 
 	queue_delayed_work_on(cpu, kconservative_wq, &dbs_info->work, delay);
-	unlock_policy_rwsem_write(cpu);
+	mutex_unlock(&dbs_info->timer_mutex);
 }
 
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
@@ -563,9 +528,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if ((!cpu_online(cpu)) || (!policy->cur))
 			return -EINVAL;
 
-		if (this_dbs_info->enable) /* Already enabled */
-			break;
-
 		mutex_lock(&dbs_mutex);
 
 		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
@@ -589,6 +551,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		this_dbs_info->down_skip = 0;
 		this_dbs_info->requested_freq = policy->cur;
 
+		mutex_init(&this_dbs_info->timer_mutex);
 		dbs_enable++;
 		/*
 		 * Start the timerschedule work, when this governor
@@ -601,27 +564,36 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			if (latency == 0)
 				latency = 1;
 
-			def_sampling_rate =
-				max(latency * LATENCY_MULTIPLIER,
-				    MIN_STAT_SAMPLING_RATE);
-
-			dbs_tuners_ins.sampling_rate = def_sampling_rate;
+			/*
+			 * conservative does not implement micro like ondemand
+			 * governor, thus we are bound to jiffes/HZ
+			 */
+			min_sampling_rate =
+				MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
+			/* Bring kernel and HW constraints together */
+			min_sampling_rate = max(min_sampling_rate,
+					MIN_LATENCY_MULTIPLIER * latency);
+			dbs_tuners_ins.sampling_rate =
+				max(min_sampling_rate,
+				    latency * LATENCY_MULTIPLIER);
 
 			cpufreq_register_notifier(
 					&dbs_cpufreq_notifier_block,
 					CPUFREQ_TRANSITION_NOTIFIER);
 		}
-		dbs_timer_init(this_dbs_info);
-
 		mutex_unlock(&dbs_mutex);
+
+		dbs_timer_init(this_dbs_info);
 
 		break;
 
 	case CPUFREQ_GOV_STOP:
-		mutex_lock(&dbs_mutex);
 		dbs_timer_exit(this_dbs_info);
+
+		mutex_lock(&dbs_mutex);
 		sysfs_remove_group(&policy->kobj, &dbs_attr_group);
 		dbs_enable--;
+		mutex_destroy(&this_dbs_info->timer_mutex);
 
 		/*
 		 * Stop the timerschedule work, when this governor
@@ -637,7 +609,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
-		mutex_lock(&dbs_mutex);
+		mutex_lock(&this_dbs_info->timer_mutex);
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(
 					this_dbs_info->cur_policy,
@@ -646,7 +618,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			__cpufreq_driver_target(
 					this_dbs_info->cur_policy,
 					policy->min, CPUFREQ_RELATION_L);
-		mutex_unlock(&dbs_mutex);
+		mutex_unlock(&this_dbs_info->timer_mutex);
 
 		break;
 	}

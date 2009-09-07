@@ -3518,7 +3518,7 @@ retry_page:
 		} else
 			mptsas_volume_delete(ioc, sas_info->fw.id);
 	}
-	mutex_lock(&ioc->sas_device_info_mutex);
+	mutex_unlock(&ioc->sas_device_info_mutex);
 
 	/* expanders */
 	mutex_lock(&ioc->sas_topology_mutex);
@@ -3549,7 +3549,7 @@ retry_page:
 			goto redo_expander_scan;
 		}
 	}
-	mutex_lock(&ioc->sas_topology_mutex);
+	mutex_unlock(&ioc->sas_topology_mutex);
 }
 
 /**

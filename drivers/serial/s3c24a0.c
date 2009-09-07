@@ -92,25 +92,25 @@ static int s3c24a0_serial_probe(struct platform_device *dev)
 	return s3c24xx_serial_probe(dev, &s3c24a0_uart_inf);
 }
 
-static struct platform_driver s3c24a0_serial_drv = {
+static struct platform_driver s3c24a0_serial_driver = {
 	.probe		= s3c24a0_serial_probe,
-	.remove		= s3c24xx_serial_remove,
+	.remove		= __devexit_p(s3c24xx_serial_remove),
 	.driver		= {
 		.name	= "s3c24a0-uart",
 		.owner	= THIS_MODULE,
 	},
 };
 
-s3c24xx_console_init(&s3c24a0_serial_drv, &s3c24a0_uart_inf);
+s3c24xx_console_init(&s3c24a0_serial_driver, &s3c24a0_uart_inf);
 
 static int __init s3c24a0_serial_init(void)
 {
-	return s3c24xx_serial_init(&s3c24a0_serial_drv, &s3c24a0_uart_inf);
+	return s3c24xx_serial_init(&s3c24a0_serial_driver, &s3c24a0_uart_inf);
 }
 
 static void __exit s3c24a0_serial_exit(void)
 {
-	platform_driver_unregister(&s3c24a0_serial_drv);
+	platform_driver_unregister(&s3c24a0_serial_driver);
 }
 
 module_init(s3c24a0_serial_init);

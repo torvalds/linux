@@ -1125,6 +1125,7 @@ struct ucc_geth_info {
 	u16 pausePeriod;
 	u16 extensionField;
 	struct device_node *phy_node;
+	struct device_node *tbi_node;
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
 	u8 l2qt[UCC_GETH_VLAN_PRIORITY_MAX];
@@ -1213,7 +1214,6 @@ struct ucc_geth_private {
 
 	struct ugeth_mii_info *mii_info;
 	struct phy_device *phydev;
-	struct phy_device *tbiphy;
 	phy_interface_t phy_interface;
 	int max_speed;
 	uint32_t msg_enable;

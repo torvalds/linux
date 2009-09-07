@@ -584,7 +584,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_data *data)
 	 * longer to time out, but that's much better than having a too-short
 	 * timeout value.
 	 */
-	if ((host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL))
+	if (host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
 		return 0xE;
 
 	/* timeout in us */
@@ -773,8 +773,14 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	}
 
 	if (!(host->flags & SDHCI_REQ_USE_DMA)) {
-		sg_miter_start(&host->sg_miter,
-			data->sg, data->sg_len, SG_MITER_ATOMIC);
+		int flags;
+
+		flags = SG_MITER_ATOMIC;
+		if (host->data->flags & MMC_DATA_READ)
+			flags |= SG_MITER_TO_SG;
+		else
+			flags |= SG_MITER_FROM_SG;
+		sg_miter_start(&host->sg_miter, data->sg, data->sg_len, flags);
 		host->blocks = data->blocks;
 	}
 
@@ -1051,12 +1057,19 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	 * At least the Marvell CaFe chip gets confused if we set the voltage
 	 * and set turn on power at the same time, so set the voltage first.
 	 */
-	if ((host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER))
+	if (host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER)
 		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
 
 	pwr |= SDHCI_POWER_ON;
 
 	sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+
+	/*
+	 * Some controllers need an extra 10ms delay of 10ms before they
+	 * can apply clock after applying power
+	 */
+	if (host->quirks & SDHCI_QUIRK_DELAY_AFTER_POWER)
+		mdelay(10);
 }
 
 /*****************************************************************************\
@@ -1382,6 +1395,35 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 		sdhci_finish_command(host);
 }
 
+#ifdef DEBUG
+static void sdhci_show_adma_error(struct sdhci_host *host)
+{
+	const char *name = mmc_hostname(host->mmc);
+	u8 *desc = host->adma_desc;
+	__le32 *dma;
+	__le16 *len;
+	u8 attr;
+
+	sdhci_dumpregs(host);
+
+	while (true) {
+		dma = (__le32 *)(desc + 4);
+		len = (__le16 *)(desc + 2);
+		attr = *desc;
+
+		DBG("%s: %p: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
+		    name, desc, le32_to_cpu(*dma), le16_to_cpu(*len), attr);
+
+		desc += 8;
+
+		if (attr & 2)
+			break;
+	}
+}
+#else
+static void sdhci_show_adma_error(struct sdhci_host *host) { }
+#endif
+
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 {
 	BUG_ON(intmask == 0);
@@ -1411,8 +1453,11 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		host->data->error = -ETIMEDOUT;
 	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT))
 		host->data->error = -EILSEQ;
-	else if (intmask & SDHCI_INT_ADMA_ERROR)
+	else if (intmask & SDHCI_INT_ADMA_ERROR) {
+		printk(KERN_ERR "%s: ADMA error\n", mmc_hostname(host->mmc));
+		sdhci_show_adma_error(host);
 		host->data->error = -EIO;
+	}
 
 	if (host->data->error)
 		sdhci_finish_data(host);
@@ -1727,9 +1772,15 @@ int sdhci_add_host(struct sdhci_host *host)
 	 * Set host parameters.
 	 */
 	mmc->ops = &sdhci_ops;
-	mmc->f_min = host->max_clk / 256;
+	if (host->ops->get_min_clock)
+		mmc->f_min = host->ops->get_min_clock(host);
+	else
+		mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+	mmc->caps = MMC_CAP_SDIO_IRQ;
+
+	if (!(host->quirks & SDHCI_QUIRK_FORCE_1_BIT_DATA))
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
@@ -1802,7 +1853,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	/*
 	 * Maximum block count.
 	 */
-	mmc->max_blk_count = 65535;
+	mmc->max_blk_count = (host->quirks & SDHCI_QUIRK_NO_MULTIBLOCK) ? 1 : 65535;
 
 	/*
 	 * Init tasklets.

@@ -58,6 +58,7 @@ supported.
 
  */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
@@ -156,16 +157,16 @@ static const struct pcl711_board boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl711_board))
 #define this_board ((const struct pcl711_board *)dev->board_ptr)
 
-static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcl711_detach(struct comedi_device * dev);
+static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl711_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcl711 = {
-      driver_name:"pcl711",
-      module:THIS_MODULE,
-      attach:pcl711_attach,
-      detach:pcl711_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct pcl711_board),
+	.driver_name = "pcl711",
+	.module = THIS_MODULE,
+	.attach = pcl711_attach,
+	.detach = pcl711_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct pcl711_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl711);
@@ -185,7 +186,7 @@ struct pcl711_private {
 
 #define devpriv ((struct pcl711_private *)dev->private)
 
-static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t pcl711_interrupt(int irq, void *d)
 {
 	int lo, hi;
 	int data;
@@ -217,7 +218,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static void pcl711_set_changain(struct comedi_device * dev, int chan)
+static void pcl711_set_changain(struct comedi_device *dev, int chan)
 {
 	int chan_register;
 
@@ -244,8 +245,8 @@ static void pcl711_set_changain(struct comedi_device * dev, int chan)
 	}
 }
 
-static int pcl711_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int hi, lo;
@@ -269,9 +270,9 @@ static int pcl711_ai_insn(struct comedi_device * dev, struct comedi_subdevice * 
 			hi = inb(dev->iobase + PCL711_AD_HI);
 			if (!(hi & PCL711_DRDY))
 				goto ok;
-			comedi_udelay(1);
+			udelay(1);
 		}
-		rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
+		printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;
 
 	      ok:
@@ -283,8 +284,8 @@ static int pcl711_ai_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return n;
 }
 
-static int pcl711_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int pcl711_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int tmp;
 	int err = 0;
@@ -385,7 +386,7 @@ static int pcl711_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice
 	return 0;
 }
 
-static int pcl711_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int timer1, timer2;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -431,8 +432,8 @@ static int pcl711_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 /*
    analog output
 */
-static int pcl711_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl711_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -449,8 +450,8 @@ static int pcl711_ao_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return n;
 }
 
-static int pcl711_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl711_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -464,8 +465,8 @@ static int pcl711_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 }
 
 /* Digital port read - Untested on 8112 */
-static int pcl711_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl711_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -477,8 +478,8 @@ static int pcl711_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 }
 
 /* Digital port write - Untested on 8112 */
-static int pcl711_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl711_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -498,12 +499,12 @@ static int pcl711_do_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 }
 
 /*  Free any resources that we have claimed  */
-static int pcl711_detach(struct comedi_device * dev)
+static int pcl711_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pcl711: remove\n", dev->minor);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->iobase)
 		release_region(dev->iobase, PCL711_SIZE);
@@ -512,7 +513,7 @@ static int pcl711_detach(struct comedi_device * dev)
 }
 
 /*  Initialization */
-static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
@@ -541,7 +542,7 @@ static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * i
 		return -EINVAL;
 	}
 	if (irq) {
-		if (comedi_request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
+		if (request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
 			printk("unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		} else {
@@ -550,9 +551,12 @@ static int pcl711_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	}
 	dev->irq = irq;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct pcl711_private))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct pcl711_private));
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

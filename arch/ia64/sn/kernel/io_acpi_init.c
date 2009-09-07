@@ -40,7 +40,7 @@ struct sn_pcidev_match {
 /*
  * Perform the early IO init in PROM.
  */
-static s64
+static long
 sal_ioif_init(u64 *result)
 {
 	struct ia64_sal_retval isrv = {0,0,0,0};
@@ -492,7 +492,7 @@ void __init
 sn_io_acpi_init(void)
 {
 	u64 result;
-	s64 status;
+	long status;
 
 	/* SN Altix does not follow the IOSAPIC IRQ routing model */
 	acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;

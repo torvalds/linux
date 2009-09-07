@@ -989,8 +989,10 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	if (ret < 0)
 		goto err_iounmap;
 
-	if (velocity_get_link(dev))
+	if (!velocity_get_link(dev)) {
 		netif_carrier_off(dev);
+		vptr->mii_status |= VELOCITY_LINK_FAIL;
+	}
 
 	velocity_print_info(vptr);
 	pci_set_drvdata(pdev, dev);
@@ -1776,7 +1778,7 @@ static void velocity_error(struct velocity_info *vptr, int status)
 			 *	 mode
 			 */
 			if (vptr->rev_id < REV_ID_VT3216_A0) {
-				if (vptr->mii_status | VELOCITY_DUPLEX_FULL)
+				if (vptr->mii_status & VELOCITY_DUPLEX_FULL)
 					BYTE_REG_BITS_ON(TCR_TB2BDIS, &regs->TCR);
 				else
 					BYTE_REG_BITS_OFF(TCR_TB2BDIS, &regs->TCR);
@@ -1845,7 +1847,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
 	 */
 	if (tdinfo->skb_dma) {
 
-		pktlen = (skb->len > ETH_ZLEN ? : ETH_ZLEN);
+		pktlen = max_t(unsigned int, skb->len, ETH_ZLEN);
 		for (i = 0; i < tdinfo->nskb_dma; i++) {
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], le16_to_cpu(td->tdesc1.len), PCI_DMA_TODEVICE);

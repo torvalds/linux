@@ -562,7 +562,7 @@ static struct platform_device orion5x_crypto_device = {
 	.resource       = orion5x_crypto_res,
 };
 
-int __init orion5x_crypto_init(void)
+static int __init orion5x_crypto_init(void)
 {
 	int ret;
 
@@ -695,6 +695,14 @@ void __init orion5x_init(void)
 		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
 		disable_hlt();
 	}
+
+	/*
+	 * The 5082/5181l/5182/6082/6082l/6183 have crypto
+	 * while 5180n/5181/5281 don't have crypto.
+	 */
+	if ((dev == MV88F5181_DEV_ID && rev >= MV88F5181L_REV_A0) ||
+	    dev == MV88F5182_DEV_ID || dev == MV88F6183_DEV_ID)
+		orion5x_crypto_init();
 
 	/*
 	 * Register watchdog driver

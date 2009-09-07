@@ -107,8 +107,7 @@ static long epx_c3_ioctl(struct file *file, unsigned int cmd,
 	int options, retval = -EINVAL;
 	int __user *argp = (void __user *)arg;
 	static const struct watchdog_info ident = {
-		.options		= WDIOF_KEEPALIVEPING |
-					  WDIOF_MAGICCLOSE,
+		.options		= WDIOF_KEEPALIVEPING,
 		.firmware_version	= 0,
 		.identity		= "Winsystems EPX-C3 H/W Watchdog",
 	};
@@ -174,8 +173,8 @@ static struct notifier_block epx_c3_notifier = {
 	.notifier_call = epx_c3_notify_sys,
 };
 
-static const char banner[] __initdata =
-    KERN_INFO PFX "Hardware Watchdog Timer for Winsystems EPX-C3 SBC: 0.1\n";
+static const char banner[] __initdata = KERN_INFO PFX
+	"Hardware Watchdog Timer for Winsystems EPX-C3 SBC: 0.1\n";
 
 static int __init watchdog_init(void)
 {
@@ -219,6 +218,9 @@ module_init(watchdog_init);
 module_exit(watchdog_exit);
 
 MODULE_AUTHOR("Calin A. Culianu <calin@ajvar.org>");
-MODULE_DESCRIPTION("Hardware Watchdog Device for Winsystems EPX-C3 SBC.  Note that there is no way to probe for this device -- so only use it if you are *sure* you are runnning on this specific SBC system from Winsystems!  It writes to IO ports 0x1ee and 0x1ef!");
+MODULE_DESCRIPTION("Hardware Watchdog Device for Winsystems EPX-C3 SBC.  "
+	"Note that there is no way to probe for this device -- "
+	"so only use it if you are *sure* you are runnning on this specific "
+	"SBC system from Winsystems!  It writes to IO ports 0x1ee and 0x1ef!");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

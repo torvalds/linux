@@ -478,6 +478,15 @@ struct scsi_host_template {
 	 * module_init/module_exit.
 	 */
 	struct list_head legacy_hosts;
+
+	/*
+	 * Vendor Identifier associated with the host
+	 *
+	 * Note: When specifying vendor_id, be sure to read the
+	 *   Vendor Type and ID formatting requirements specified in
+	 *   scsi_netlink.h
+	 */
+	u64 vendor_id;
 };
 
 /*

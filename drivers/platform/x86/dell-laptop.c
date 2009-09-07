@@ -177,7 +177,7 @@ dell_send_request(struct calling_interface_buffer *buffer, int class,
 static int dell_rfkill_set(void *data, bool blocked)
 {
 	struct calling_interface_buffer buffer;
-	int disable = blocked ? 0 : 1;
+	int disable = blocked ? 1 : 0;
 	unsigned long radio = (unsigned long)data;
 
 	memset(&buffer, 0, sizeof(struct calling_interface_buffer));

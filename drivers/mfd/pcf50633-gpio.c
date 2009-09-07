@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <linux/mfd/pcf50633/core.h>
 #include <linux/mfd/pcf50633/gpio.h>
@@ -116,3 +117,5 @@ int pcf50633_gpio_power_supply_set(struct pcf50633 *pcf,
 	return pcf50633_reg_set_bit_mask(pcf, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(pcf50633_gpio_power_supply_set);
+
+MODULE_LICENSE("GPL");

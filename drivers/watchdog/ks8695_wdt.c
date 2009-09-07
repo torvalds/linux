@@ -66,7 +66,7 @@ static inline void ks8695_wdt_stop(void)
 static inline void ks8695_wdt_start(void)
 {
 	unsigned long tmcon;
-	unsigned long tval = wdt_time * CLOCK_TICK_RATE;
+	unsigned long tval = wdt_time * KS8695_CLOCK_RATE;
 
 	spin_lock(&ks8695_lock);
 	/* disable timer0 */
@@ -103,7 +103,7 @@ static inline void ks8695_wdt_reload(void)
 static int ks8695_wdt_settimeout(int new_time)
 {
 	/*
-	 * All counting occurs at SLOW_CLOCK / 128 = 0.256 Hz
+	 * All counting occurs at KS8695_CLOCK_RATE / 128 = 0.256 Hz
 	 *
 	 * Since WDV is a 16-bit counter, the maximum period is
 	 * 65536 / 0.256 = 256 seconds.
@@ -293,8 +293,8 @@ static int __init ks8695_wdt_init(void)
 	   if not reset to the default */
 	if (ks8695_wdt_settimeout(wdt_time)) {
 		ks8695_wdt_settimeout(WDT_DEFAULT_TIME);
-		pr_info("ks8695_wdt: wdt_time value must be 1 <= wdt_time <= %i, using %d\n",
-							wdt_time, WDT_MAX_TIME);
+		pr_info("ks8695_wdt: wdt_time value must be 1 <= wdt_time <= %i"
+					", using %d\n", wdt_time, WDT_MAX_TIME);
 	}
 	return platform_driver_register(&ks8695wdt_driver);
 }

@@ -678,6 +678,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->private = s;
 	ti->split_io = s->store->chunk_size;
+	ti->num_flush_requests = 1;
 
 	return 0;
 
@@ -1030,6 +1031,11 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	chunk_t chunk;
 	struct dm_snap_pending_exception *pe = NULL;
 
+	if (unlikely(bio_empty_barrier(bio))) {
+		bio->bi_bdev = s->store->cow->bdev;
+		return DM_MAPIO_REMAPPED;
+	}
+
 	chunk = sector_to_chunk(s->store, bio->bi_sector);
 
 	/* Full snapshots are not usable */
@@ -1169,6 +1175,15 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 
 	return 0;
 }
+
+static int snapshot_iterate_devices(struct dm_target *ti,
+				    iterate_devices_callout_fn fn, void *data)
+{
+	struct dm_snapshot *snap = ti->private;
+
+	return fn(ti, snap->origin, 0, ti->len, data);
+}
+
 
 /*-----------------------------------------------------------------
  * Origin methods
@@ -1338,6 +1353,8 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = dev;
+	ti->num_flush_requests = 1;
+
 	return 0;
 }
 
@@ -1352,6 +1369,9 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 {
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
+
+	if (unlikely(bio_empty_barrier(bio)))
+		return DM_MAPIO_REMAPPED;
 
 	/* Only tell snapshots if this is a write */
 	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : DM_MAPIO_REMAPPED;
@@ -1399,20 +1419,29 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 	return 0;
 }
 
+static int origin_iterate_devices(struct dm_target *ti,
+				  iterate_devices_callout_fn fn, void *data)
+{
+	struct dm_dev *dev = ti->private;
+
+	return fn(ti, dev, 0, ti->len, data);
+}
+
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 6, 0},
+	.version = {1, 7, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
 	.map     = origin_map,
 	.resume  = origin_resume,
 	.status  = origin_status,
+	.iterate_devices = origin_iterate_devices,
 };
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 6, 0},
+	.version = {1, 7, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -1420,6 +1449,7 @@ static struct target_type snapshot_target = {
 	.end_io  = snapshot_end_io,
 	.resume  = snapshot_resume,
 	.status  = snapshot_status,
+	.iterate_devices = snapshot_iterate_devices,
 };
 
 static int __init dm_snapshot_init(void)

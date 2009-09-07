@@ -692,6 +692,7 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 						 "Too many iscsi targets. Max "
 						 "number of targets is %d.\n",
 						 ISCSI_MAX_TARGET - 1);
+			err = -EOVERFLOW;
 			goto release_host;
 		}
 	}
@@ -989,7 +990,7 @@ int iscsi_offload_mesg(struct Scsi_Host *shost,
 	struct iscsi_uevent *ev;
 	int len = NLMSG_SPACE(sizeof(*ev) + data_size);
 
-	skb = alloc_skb(len, GFP_NOIO);
+	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
 		printk(KERN_ERR "can not deliver iscsi offload message:OOM\n");
 		return -ENOMEM;
@@ -1011,7 +1012,7 @@ int iscsi_offload_mesg(struct Scsi_Host *shost,
 
 	memcpy((char *)ev + sizeof(*ev), data, data_size);
 
-	return iscsi_multicast_skb(skb, ISCSI_NL_GRP_UIP, GFP_NOIO);
+	return iscsi_multicast_skb(skb, ISCSI_NL_GRP_UIP, GFP_ATOMIC);
 }
 EXPORT_SYMBOL_GPL(iscsi_offload_mesg);
 

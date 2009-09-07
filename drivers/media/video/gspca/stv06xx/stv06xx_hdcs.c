@@ -64,7 +64,7 @@ static struct v4l2_pix_format hdcs1x00_mode[] = {
 	{
 		HDCS_1X00_DEF_WIDTH,
 		HDCS_1X00_DEF_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
+		V4L2_PIX_FMT_SGRBG8,
 		V4L2_FIELD_NONE,
 		.sizeimage =
 			HDCS_1X00_DEF_WIDTH * HDCS_1X00_DEF_HEIGHT,
@@ -80,7 +80,7 @@ static struct v4l2_pix_format hdcs1020_mode[] = {
 	{
 		HDCS_1020_DEF_WIDTH,
 		HDCS_1020_DEF_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
+		V4L2_PIX_FMT_SGRBG8,
 		V4L2_FIELD_NONE,
 		.sizeimage =
 			HDCS_1020_DEF_WIDTH * HDCS_1020_DEF_HEIGHT,
@@ -131,9 +131,11 @@ static int hdcs_reg_write_seq(struct sd *sd, u8 reg, u8 *vals, u8 len)
 		     (reg + len > 0xff)))
 		return -EINVAL;
 
-	for (i = 0; i < len; i++, reg++) {
-		regs[2*i] = reg;
-		regs[2*i+1] = vals[i];
+	for (i = 0; i < len; i++) {
+		regs[2 * i] = reg;
+		regs[2 * i + 1] = vals[i];
+		/* All addresses are shifted left one bit as bit 0 toggles r/w */
+		reg += 2;
 	}
 
 	return stv06xx_write_sensor_bytes(sd, regs, len);
@@ -174,7 +176,9 @@ static int hdcs_set_state(struct sd *sd, enum hdcs_power_state state)
 	}
 
 	ret = stv06xx_write_sensor(sd, HDCS_REG_CONTROL(sd), val);
-	if (ret < 0)
+
+	/* Update the state if the write succeeded */
+	if (!ret)
 		hdcs->state = state;
 
 	return ret;
@@ -434,7 +438,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	hdcs->exp.er = 100;
 
 	/*
-	 * Frame rate on HDCS-1000 0x46D:0x840 depends on PSMP:
+	 * Frame rate on HDCS-1000 with STV600 depends on PSMP:
 	 *  4 = doesn't work at all
 	 *  5 = 7.8 fps,
 	 *  6 = 6.9 fps,
@@ -443,7 +447,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	 * 15 = 4.4 fps,
 	 * 31 = 2.8 fps
 	 *
-	 * Frame rate on HDCS-1000 0x46D:0x870 depends on PSMP:
+	 * Frame rate on HDCS-1000 with STV602 depends on PSMP:
 	 * 15 = doesn't work at all
 	 * 18 = doesn't work at all
 	 * 19 = 7.3 fps
@@ -453,7 +457,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	 * 24 = 6.3 fps
 	 * 30 = 5.4 fps
 	 */
-	hdcs->psmp = IS_870(sd) ? 20 : 5;
+	hdcs->psmp = (sd->bridge == BRIDGE_STV602) ? 20 : 5;
 
 	sd->sensor_priv = hdcs;
 
@@ -530,7 +534,7 @@ static int hdcs_init(struct sd *sd)
 	int i, err = 0;
 
 	/* Set the STV0602AA in STV0600 emulation mode */
-	if (IS_870(sd))
+	if (sd->bridge == BRIDGE_STV602)
 		stv06xx_write_bridge(sd, STV_STV0600_EMULATION, 1);
 
 	/* Execute the bridge init */
@@ -558,7 +562,7 @@ static int hdcs_init(struct sd *sd)
 		return err;
 
 	/* Set PGA sample duration
-	(was 0x7E for IS_870, but caused slow framerate with HDCS-1020) */
+	(was 0x7E for the STV602, but caused slow framerate with HDCS-1020) */
 	if (IS_1020(sd))
 		err = stv06xx_write_sensor(sd, HDCS_TCTRL,
 				(HDCS_ADC_START_SIG_DUR << 6) | hdcs->psmp);

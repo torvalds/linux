@@ -275,15 +275,20 @@ static unsigned long pit_calibrate_tsc(u32 latch, unsigned long ms, int loopmin)
  * use the TSC value at the transitions to calculate a pretty
  * good value for the TSC frequencty.
  */
+static inline int pit_verify_msb(unsigned char val)
+{
+	/* Ignore LSB */
+	inb(0x42);
+	return inb(0x42) == val;
+}
+
 static inline int pit_expect_msb(unsigned char val, u64 *tscp, unsigned long *deltap)
 {
 	int count;
 	u64 tsc = 0;
 
 	for (count = 0; count < 50000; count++) {
-		/* Ignore LSB */
-		inb(0x42);
-		if (inb(0x42) != val)
+		if (!pit_verify_msb(val))
 			break;
 		tsc = get_cycles();
 	}
@@ -336,8 +341,7 @@ static unsigned long quick_pit_calibrate(void)
 	 * to do that is to just read back the 16-bit counter
 	 * once from the PIT.
 	 */
-	inb(0x42);
-	inb(0x42);
+	pit_verify_msb(0);
 
 	if (pit_expect_msb(0xff, &tsc, &d1)) {
 		for (i = 1; i <= MAX_QUICK_PIT_ITERATIONS; i++) {
@@ -348,8 +352,19 @@ static unsigned long quick_pit_calibrate(void)
 			 * Iterate until the error is less than 500 ppm
 			 */
 			delta -= tsc;
-			if (d1+d2 < delta >> 11)
-				goto success;
+			if (d1+d2 >= delta >> 11)
+				continue;
+
+			/*
+			 * Check the PIT one more time to verify that
+			 * all TSC reads were stable wrt the PIT.
+			 *
+			 * This also guarantees serialization of the
+			 * last cycle read ('d2') in pit_expect_msb.
+			 */
+			if (!pit_verify_msb(0xfe - i))
+				break;
+			goto success;
 		}
 	}
 	printk("Fast TSC calibration failed\n");
@@ -590,22 +605,26 @@ EXPORT_SYMBOL(recalibrate_cpu_khz);
  */
 
 DEFINE_PER_CPU(unsigned long, cyc2ns);
+DEFINE_PER_CPU(unsigned long long, cyc2ns_offset);
 
 static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
-	unsigned long long tsc_now, ns_now;
+	unsigned long long tsc_now, ns_now, *offset;
 	unsigned long flags, *scale;
 
 	local_irq_save(flags);
 	sched_clock_idle_sleep_event();
 
 	scale = &per_cpu(cyc2ns, cpu);
+	offset = &per_cpu(cyc2ns_offset, cpu);
 
 	rdtscll(tsc_now);
 	ns_now = __cycles_2_ns(tsc_now);
 
-	if (cpu_khz)
+	if (cpu_khz) {
 		*scale = (NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR)/cpu_khz;
+		*offset = ns_now - (tsc_now * *scale >> CYC2NS_SCALE_FACTOR);
+	}
 
 	sched_clock_idle_wakeup_event(0);
 	local_irq_restore(flags);
@@ -632,17 +651,15 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)
 {
 	struct cpufreq_freqs *freq = data;
-	unsigned long *lpj, dummy;
+	unsigned long *lpj;
 
 	if (cpu_has(&cpu_data(freq->cpu), X86_FEATURE_CONSTANT_TSC))
 		return 0;
 
-	lpj = &dummy;
-	if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-#ifdef CONFIG_SMP
-		lpj = &cpu_data(freq->cpu).loops_per_jiffy;
-#else
 	lpj = &boot_cpu_data.loops_per_jiffy;
+#ifdef CONFIG_SMP
+	if (!(freq->flags & CPUFREQ_CONST_LOOPS))
+		lpj = &cpu_data(freq->cpu).loops_per_jiffy;
 #endif
 
 	if (!ref_freq) {

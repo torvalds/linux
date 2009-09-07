@@ -390,7 +390,7 @@ static int __init p4_init(char **cpu_type)
 static int force_arch_perfmon;
 static int force_cpu_type(const char *str, struct kernel_param *kp)
 {
-	if (!strcmp(str, "archperfmon")) {
+	if (!strcmp(str, "arch_perfmon")) {
 		force_arch_perfmon = 1;
 		printk(KERN_INFO "oprofile: forcing architectural perfmon\n");
 	}

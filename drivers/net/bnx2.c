@@ -399,9 +399,11 @@ static int bnx2_unregister_cnic(struct net_device *dev)
 	struct bnx2_napi *bnapi = &bp->bnx2_napi[0];
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
 
+	mutex_lock(&bp->cnic_lock);
 	cp->drv_state = 0;
 	bnapi->cnic_present = 0;
 	rcu_assign_pointer(bp->cnic_ops, NULL);
+	mutex_unlock(&bp->cnic_lock);
 	synchronize_rcu();
 	return 0;
 }
@@ -429,13 +431,13 @@ bnx2_cnic_stop(struct bnx2 *bp)
 	struct cnic_ops *c_ops;
 	struct cnic_ctl_info info;
 
-	rcu_read_lock();
-	c_ops = rcu_dereference(bp->cnic_ops);
+	mutex_lock(&bp->cnic_lock);
+	c_ops = bp->cnic_ops;
 	if (c_ops) {
 		info.cmd = CNIC_CTL_STOP_CMD;
 		c_ops->cnic_ctl(bp->cnic_data, &info);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&bp->cnic_lock);
 }
 
 static void
@@ -444,8 +446,8 @@ bnx2_cnic_start(struct bnx2 *bp)
 	struct cnic_ops *c_ops;
 	struct cnic_ctl_info info;
 
-	rcu_read_lock();
-	c_ops = rcu_dereference(bp->cnic_ops);
+	mutex_lock(&bp->cnic_lock);
+	c_ops = bp->cnic_ops;
 	if (c_ops) {
 		if (!(bp->flags & BNX2_FLAG_USING_MSIX)) {
 			struct bnx2_napi *bnapi = &bp->bnx2_napi[0];
@@ -455,7 +457,7 @@ bnx2_cnic_start(struct bnx2 *bp)
 		info.cmd = CNIC_CTL_START_CMD;
 		c_ops->cnic_ctl(bp->cnic_data, &info);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&bp->cnic_lock);
 }
 
 #else
@@ -3552,14 +3554,14 @@ bnx2_set_rx_mode(struct net_device *dev)
 		sort_mode |= BNX2_RPM_SORT_USER0_MC_HSH_EN;
 	}
 
-	if (dev->uc_count > BNX2_MAX_UNICAST_ADDRESSES) {
+	if (dev->uc.count > BNX2_MAX_UNICAST_ADDRESSES) {
 		rx_mode |= BNX2_EMAC_RX_MODE_PROMISCUOUS;
 		sort_mode |= BNX2_RPM_SORT_USER0_PROM_EN |
 			     BNX2_RPM_SORT_USER0_PROM_VLAN;
 	} else if (!(dev->flags & IFF_PROMISC)) {
 		/* Add all entries into to the match filter list */
 		i = 0;
-		list_for_each_entry(ha, &dev->uc_list, list) {
+		list_for_each_entry(ha, &dev->uc.list, list) {
 			bnx2_set_mac_addr(bp, ha->addr,
 					  i + BNX2_START_UNICAST_ADDRESS_INDEX);
 			sort_mode |= (1 <<
@@ -6825,6 +6827,14 @@ bnx2_nway_reset(struct net_device *dev)
 	return 0;
 }
 
+static u32
+bnx2_get_link(struct net_device *dev)
+{
+	struct bnx2 *bp = netdev_priv(dev);
+
+	return bp->link_up;
+}
+
 static int
 bnx2_get_eeprom_len(struct net_device *dev)
 {
@@ -7392,7 +7402,7 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.get_wol		= bnx2_get_wol,
 	.set_wol		= bnx2_set_wol,
 	.nway_reset		= bnx2_nway_reset,
-	.get_link		= ethtool_op_get_link,
+	.get_link		= bnx2_get_link,
 	.get_eeprom_len		= bnx2_get_eeprom_len,
 	.get_eeprom		= bnx2_get_eeprom,
 	.set_eeprom		= bnx2_set_eeprom,
@@ -7655,6 +7665,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	spin_lock_init(&bp->phy_lock);
 	spin_lock_init(&bp->indirect_lock);
+#ifdef BCM_CNIC
+	mutex_init(&bp->cnic_lock);
+#endif
 	INIT_WORK(&bp->reset_task, bnx2_reset_task);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);

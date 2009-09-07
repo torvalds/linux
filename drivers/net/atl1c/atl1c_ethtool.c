@@ -232,11 +232,11 @@ static void atl1c_get_drvinfo(struct net_device *netdev,
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(drvinfo->driver,  atl1c_driver_name, sizeof(drvinfo->driver));
-	strncpy(drvinfo->version, atl1c_driver_version,
+	strlcpy(drvinfo->driver,  atl1c_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, atl1c_driver_version,
 		sizeof(drvinfo->version));
-	strncpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
@@ -280,6 +280,8 @@ static int atl1c_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 		adapter->wol |= AT_WUFC_MAG;
 	if (wol->wolopts & WAKE_PHY)
 		adapter->wol |= AT_WUFC_LNKC;
+
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	return 0;
 }

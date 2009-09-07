@@ -1897,6 +1897,9 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 			if (ioread8(&nic->csr->scb.status) & rus_no_res)
 				nic->ru_running = RU_SUSPENDED;
+		pci_dma_sync_single_for_device(nic->pdev, rx->dma_addr,
+					       sizeof(struct rfd),
+					       PCI_DMA_FROMDEVICE);
 		return -ENODATA;
 	}
 
@@ -2895,12 +2898,13 @@ static void __e100_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 static int __e100_power_off(struct pci_dev *pdev, bool wake)
 {
-	if (wake) {
+	if (wake)
 		return pci_prepare_to_sleep(pdev);
-	} else {
-		pci_wake_from_d3(pdev, false);
-		return pci_set_power_state(pdev, PCI_D3hot);
-	}
+
+	pci_wake_from_d3(pdev, false);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM

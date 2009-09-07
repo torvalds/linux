@@ -37,6 +37,7 @@
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 #include <asm/cplb.h>
+#include <asm/dma.h>
 #include <asm/blackfin.h>
 #include <asm/irq_handler.h>
 #include <linux/irq.h>
@@ -211,7 +212,7 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 	console_verbose();
 	oops_in_progress = 1;
 #ifdef CONFIG_DEBUG_VERBOSE
-	printk(KERN_EMERG "\n" KERN_EMERG "Double Fault\n");
+	printk(KERN_EMERG "Double Fault\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) == VEC_UNCOV) {
 		unsigned int cpu = smp_processor_id();
@@ -569,11 +570,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	if (kernel_mode_regs(fp) || (current && !current->mm)) {
 		console_verbose();
 		oops_in_progress = 1;
-		if (strerror)
-			verbose_printk(strerror);
 	}
 
 	if (sig != SIGTRAP) {
+		if (strerror)
+			verbose_printk(strerror);
+
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
@@ -582,15 +584,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #ifndef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
 		if (trapnr == VEC_CPLB_I_M || trapnr == VEC_CPLB_M)
 			verbose_printk(KERN_NOTICE "No trace since you do not have "
-				"CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE enabled\n"
-				KERN_NOTICE "\n");
+			       "CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE enabled\n\n");
 		else
 #endif
 			dump_bfin_trace_buffer();
 
 		if (oops_in_progress) {
 			/* Dump the current kernel stack */
-			verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "Kernel Stack\n");
+			verbose_printk(KERN_NOTICE "Kernel Stack\n");
 			show_stack(current, NULL);
 			print_modules();
 #ifndef CONFIG_ACCESS_CHECK
@@ -619,7 +620,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		force_sig_info(sig, &info, current);
 	}
 
-	if (ANOMALY_05000461 && trapnr == VEC_HWERR && !access_ok(VERIFY_READ, fp->pc, 8))
+	if ((ANOMALY_05000461 && trapnr == VEC_HWERR && !access_ok(VERIFY_READ, fp->pc, 8)) ||
+	    (ANOMALY_05000281 && trapnr == VEC_HWERR) ||
+	    (ANOMALY_05000189 && (trapnr == VEC_CPLB_I_VL || trapnr == VEC_CPLB_VL)))
 		fp->pc = SAFE_USER_INSTRUCTION;
 
  traps_done:
@@ -636,57 +639,30 @@ asmlinkage void trap_c(struct pt_regs *fp)
  */
 static bool get_instruction(unsigned short *val, unsigned short *address)
 {
-
-	unsigned long addr;
-
-	addr = (unsigned long)address;
+	unsigned long addr = (unsigned long)address;
 
 	/* Check for odd addresses */
 	if (addr & 0x1)
 		return false;
 
-	/* Check that things do not wrap around */
-	if (addr > (addr + 2))
+	/* MMR region will never have instructions */
+	if (addr >= SYSMMR_BASE)
 		return false;
 
-	/*
-	 * Since we are in exception context, we need to do a little address checking
-	 * We need to make sure we are only accessing valid memory, and
-	 * we don't read something in the async space that can hang forever
-	 */
-	if ((addr >= FIXED_CODE_START && (addr + 2) <= physical_mem_end) ||
-#if L2_LENGTH != 0
-	    (addr >= L2_START && (addr + 2) <= (L2_START + L2_LENGTH)) ||
-#endif
-	    (addr >= BOOT_ROM_START && (addr + 2) <= (BOOT_ROM_START + BOOT_ROM_LENGTH)) ||
-#if L1_DATA_A_LENGTH != 0
-	    (addr >= L1_DATA_A_START && (addr + 2) <= (L1_DATA_A_START + L1_DATA_A_LENGTH)) ||
-#endif
-#if L1_DATA_B_LENGTH != 0
-	    (addr >= L1_DATA_B_START && (addr + 2) <= (L1_DATA_B_START + L1_DATA_B_LENGTH)) ||
-#endif
-	    (addr >= L1_SCRATCH_START && (addr + 2) <= (L1_SCRATCH_START + L1_SCRATCH_LENGTH)) ||
-	    (!(bfin_read_EBIU_AMBCTL0() & B0RDYEN) &&
-	       addr >= ASYNC_BANK0_BASE && (addr + 2) <= (ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL0() & B1RDYEN) &&
-	       addr >= ASYNC_BANK1_BASE && (addr + 2) <= (ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL1() & B2RDYEN) &&
-	       addr >= ASYNC_BANK2_BASE && (addr + 2) <= (ASYNC_BANK2_BASE + ASYNC_BANK1_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL1() & B3RDYEN) &&
-	      addr >= ASYNC_BANK3_BASE && (addr + 2) <= (ASYNC_BANK3_BASE + ASYNC_BANK1_SIZE))) {
-		*val = *address;
-		return true;
+	switch (bfin_mem_access_type(addr, 2)) {
+		case BFIN_MEM_ACCESS_CORE:
+		case BFIN_MEM_ACCESS_CORE_ONLY:
+			*val = *address;
+			return true;
+		case BFIN_MEM_ACCESS_DMA:
+			dma_memcpy(val, address, 2);
+			return true;
+		case BFIN_MEM_ACCESS_ITEST:
+			isram_memcpy(val, address, 2);
+			return true;
+		default: /* invalid access */
+			return false;
 	}
-
-#if L1_CODE_LENGTH != 0
-	if (addr >= L1_CODE_START && (addr + 2) <= (L1_CODE_START + L1_CODE_LENGTH)) {
-		isram_memcpy(val, address, 2);
-		return true;
-	}
-#endif
-
-
-	return false;
 }
 
 /*
@@ -932,7 +908,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 
 			ret_addr = 0;
 			if (!j && i % 8 == 0)
-				printk("\n" KERN_NOTICE "%p:",addr);
+				printk(KERN_NOTICE "%p:",addr);
 
 			/* if it is an odd address, or zero, just skip it */
 			if (*addr & 0x1 || !*addr)
@@ -1022,9 +998,9 @@ void dump_bfin_process(struct pt_regs *fp)
 
 		printk(KERN_NOTICE "CPU = %d\n", current_thread_info()->cpu);
 		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE  "TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
-				KERN_NOTICE " BSS = 0x%p-0x%p  USER-STACK = 0x%p\n"
-				KERN_NOTICE "\n",
+			verbose_printk(KERN_NOTICE
+				"TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
+				" BSS = 0x%p-0x%p  USER-STACK = 0x%p\n\n",
 				(void *)current->mm->start_code,
 				(void *)current->mm->end_code,
 				(void *)current->mm->start_data,
@@ -1035,8 +1011,8 @@ void dump_bfin_process(struct pt_regs *fp)
 		else
 			verbose_printk(KERN_NOTICE "invalid mm\n");
 	} else
-		verbose_printk(KERN_NOTICE "\n" KERN_NOTICE
-		     "No Valid process in current context\n");
+		verbose_printk(KERN_NOTICE
+			       "No Valid process in current context\n");
 #endif
 }
 
@@ -1054,7 +1030,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 	     addr < (unsigned short *)((unsigned long)erraddr & ~0xF) + 0x10;
 	     addr++) {
 		if (!((unsigned long)addr & 0xF))
-			verbose_printk("\n" KERN_NOTICE "0x%p: ", addr);
+			verbose_printk(KERN_NOTICE "0x%p: ", addr);
 
 		if (!get_instruction(&val, addr)) {
 				val = 0;
@@ -1082,9 +1058,9 @@ void dump_bfin_mem(struct pt_regs *fp)
 	    oops_in_progress)){
 		verbose_printk(KERN_NOTICE "Looks like this was a deferred error - sorry\n");
 #ifndef CONFIG_DEBUG_HWERR
-		verbose_printk(KERN_NOTICE "The remaining message may be meaningless\n"
-			KERN_NOTICE "You should enable CONFIG_DEBUG_HWERR to get a"
-			 " better idea where it came from\n");
+		verbose_printk(KERN_NOTICE
+"The remaining message may be meaningless\n"
+"You should enable CONFIG_DEBUG_HWERR to get a better idea where it came from\n");
 #else
 		/* If we are handling only one peripheral interrupt
 		 * and current mm and pid are valid, and the last error
@@ -1140,9 +1116,10 @@ void show_regs(struct pt_regs *fp)
 
 	verbose_printk(KERN_NOTICE "%s", linux_banner);
 
-	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
+	verbose_printk(KERN_NOTICE "\nSEQUENCER STATUS:\t\t%s\n",
+		       print_tainted());
 	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
-		(long)fp->seqstat, fp->ipend, fp->syscfg);
+		       (long)fp->seqstat, fp->ipend, fp->syscfg);
 	if ((fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR) {
 		verbose_printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
 			(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14);
@@ -1210,7 +1187,7 @@ unlock:
 		verbose_printk(KERN_NOTICE "ICPLB_FAULT_ADDR: %s\n", buf);
 	}
 
-	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "PROCESSOR STATE:\n");
+	verbose_printk(KERN_NOTICE "PROCESSOR STATE:\n");
 	verbose_printk(KERN_NOTICE " R0 : %08lx    R1 : %08lx    R2 : %08lx    R3 : %08lx\n",
 		fp->r0, fp->r1, fp->r2, fp->r3);
 	verbose_printk(KERN_NOTICE " R4 : %08lx    R5 : %08lx    R6 : %08lx    R7 : %08lx\n",

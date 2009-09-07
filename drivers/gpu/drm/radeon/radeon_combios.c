@@ -685,23 +685,15 @@ static const uint32_t default_tvdac_adj[CHIP_LAST] = {
 	0x00780000,		/* rs480 */
 };
 
-static struct radeon_encoder_tv_dac
-    *radeon_legacy_get_tv_dac_info_from_table(struct radeon_device *rdev)
+static void radeon_legacy_get_tv_dac_info_from_table(struct radeon_device *rdev,
+						     struct radeon_encoder_tv_dac *tv_dac)
 {
-	struct radeon_encoder_tv_dac *tv_dac = NULL;
-
-	tv_dac = kzalloc(sizeof(struct radeon_encoder_tv_dac), GFP_KERNEL);
-
-	if (!tv_dac)
-		return NULL;
-
 	tv_dac->ps2_tvdac_adj = default_tvdac_adj[rdev->family];
 	if ((rdev->flags & RADEON_IS_MOBILITY) && (rdev->family == CHIP_RV250))
 		tv_dac->ps2_tvdac_adj = 0x00880000;
 	tv_dac->pal_tvdac_adj = tv_dac->ps2_tvdac_adj;
 	tv_dac->ntsc_tvdac_adj = tv_dac->ps2_tvdac_adj;
-
-	return tv_dac;
+	return;
 }
 
 struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
@@ -713,19 +705,18 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 	uint16_t dac_info;
 	uint8_t rev, bg, dac;
 	struct radeon_encoder_tv_dac *tv_dac = NULL;
+	int found = 0;
+
+	tv_dac = kzalloc(sizeof(struct radeon_encoder_tv_dac), GFP_KERNEL);
+	if (!tv_dac)
+		return NULL;
 
 	if (rdev->bios == NULL)
-		return radeon_legacy_get_tv_dac_info_from_table(rdev);
+		goto out;
 
 	/* first check TV table */
 	dac_info = combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 	if (dac_info) {
-		tv_dac =
-		    kzalloc(sizeof(struct radeon_encoder_tv_dac), GFP_KERNEL);
-
-		if (!tv_dac)
-			return NULL;
-
 		rev = RBIOS8(dac_info + 0x3);
 		if (rev > 4) {
 			bg = RBIOS8(dac_info + 0xc) & 0xf;
@@ -739,6 +730,7 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 			bg = RBIOS8(dac_info + 0x10) & 0xf;
 			dac = RBIOS8(dac_info + 0x11) & 0xf;
 			tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
+			found = 1;
 		} else if (rev > 1) {
 			bg = RBIOS8(dac_info + 0xc) & 0xf;
 			dac = (RBIOS8(dac_info + 0xc) >> 4) & 0xf;
@@ -751,22 +743,15 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 			bg = RBIOS8(dac_info + 0xe) & 0xf;
 			dac = (RBIOS8(dac_info + 0xe) >> 4) & 0xf;
 			tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
+			found = 1;
 		}
-
 		tv_dac->tv_std = radeon_combios_get_tv_info(encoder);
-
-	} else {
+	}
+	if (!found) {
 		/* then check CRT table */
 		dac_info =
 		    combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
 		if (dac_info) {
-			tv_dac =
-			    kzalloc(sizeof(struct radeon_encoder_tv_dac),
-				    GFP_KERNEL);
-
-			if (!tv_dac)
-				return NULL;
-
 			rev = RBIOS8(dac_info) & 0x3;
 			if (rev < 2) {
 				bg = RBIOS8(dac_info + 0x3) & 0xf;
@@ -775,6 +760,7 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 				    (bg << 16) | (dac << 20);
 				tv_dac->pal_tvdac_adj = tv_dac->ps2_tvdac_adj;
 				tv_dac->ntsc_tvdac_adj = tv_dac->ps2_tvdac_adj;
+				found = 1;
 			} else {
 				bg = RBIOS8(dac_info + 0x4) & 0xf;
 				dac = RBIOS8(dac_info + 0x5) & 0xf;
@@ -782,12 +768,16 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 				    (bg << 16) | (dac << 20);
 				tv_dac->pal_tvdac_adj = tv_dac->ps2_tvdac_adj;
 				tv_dac->ntsc_tvdac_adj = tv_dac->ps2_tvdac_adj;
+				found = 1;
 			}
 		} else {
 			DRM_INFO("No TV DAC info found in BIOS\n");
-			return radeon_legacy_get_tv_dac_info_from_table(rdev);
 		}
 	}
+
+out:
+	if (!found) /* fallback to defaults */
+		radeon_legacy_get_tv_dac_info_from_table(rdev, tv_dac);
 
 	return tv_dac;
 }
@@ -799,6 +789,7 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 	struct radeon_encoder_lvds *lvds = NULL;
 	uint32_t fp_vert_stretch, fp_horz_stretch;
 	uint32_t ppll_div_sel, ppll_val;
+	uint32_t lvds_ss_gen_cntl = RREG32(RADEON_LVDS_SS_GEN_CNTL);
 
 	lvds = kzalloc(sizeof(struct radeon_encoder_lvds), GFP_KERNEL);
 
@@ -807,6 +798,14 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 
 	fp_vert_stretch = RREG32(RADEON_FP_VERT_STRETCH);
 	fp_horz_stretch = RREG32(RADEON_FP_HORZ_STRETCH);
+
+	/* These should be fail-safe defaults, fingers crossed */
+	lvds->panel_pwr_delay = 200;
+	lvds->panel_vcc_delay = 2000;
+
+	lvds->lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
+	lvds->panel_digon_delay = (lvds_ss_gen_cntl >> RADEON_LVDS_PWRSEQ_DELAY1_SHIFT) & 0xf;
+	lvds->panel_blon_delay = (lvds_ss_gen_cntl >> RADEON_LVDS_PWRSEQ_DELAY2_SHIFT) & 0xf;
 
 	if (fp_vert_stretch & RADEON_VERT_STRETCH_ENABLE)
 		lvds->native_mode.panel_yres =

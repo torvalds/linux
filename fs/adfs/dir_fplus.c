@@ -7,15 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/adfs_fs.h>
-#include <linux/time.h>
-#include <linux/stat.h>
-#include <linux/spinlock.h>
 #include <linux/buffer_head.h>
-#include <linux/string.h>
-
 #include "adfs.h"
 #include "dir_fplus.h"
 

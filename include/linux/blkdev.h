@@ -70,11 +70,6 @@ enum rq_cmd_type_bits {
 	REQ_TYPE_ATA_PC,
 };
 
-enum {
-	BLK_RW_ASYNC	= 0,
-	BLK_RW_SYNC	= 1,
-};
-
 /*
  * For request of type REQ_TYPE_LINUX_BLOCK, rq->cmd[0] is the opcode being
  * sent down (similar to how REQ_TYPE_BLOCK_PC means that ->cmd[] holds a
@@ -301,12 +296,6 @@ struct blk_queue_tag {
 #define BLK_SCSI_MAX_CMDS	(256)
 #define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
 
-struct blk_cmd_filter {
-	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
-	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
-	struct kobject kobj;
-};
-
 struct queue_limits {
 	unsigned long		bounce_pfn;
 	unsigned long		seg_boundary_mask;
@@ -445,7 +434,6 @@ struct request_queue
 #if defined(CONFIG_BLK_DEV_BSG)
 	struct bsg_class_device bsg_dev;
 #endif
-	struct blk_cmd_filter cmd_filter;
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
@@ -730,6 +718,7 @@ struct rq_map_data {
 	int nr_entries;
 	unsigned long offset;
 	int null_mapped;
+	int from_user;
 };
 
 struct req_iterator {
@@ -786,18 +775,18 @@ extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
  * congested queues, and wake up anyone who was waiting for requests to be
  * put back.
  */
-static inline void blk_clear_queue_congested(struct request_queue *q, int rw)
+static inline void blk_clear_queue_congested(struct request_queue *q, int sync)
 {
-	clear_bdi_congested(&q->backing_dev_info, rw);
+	clear_bdi_congested(&q->backing_dev_info, sync);
 }
 
 /*
  * A queue has just entered congestion.  Flag that in the queue's VM-visible
  * state flags and increment the global gounter of congested queues.
  */
-static inline void blk_set_queue_congested(struct request_queue *q, int rw)
+static inline void blk_set_queue_congested(struct request_queue *q, int sync)
 {
-	set_bdi_congested(&q->backing_dev_info, rw);
+	set_bdi_congested(&q->backing_dev_info, sync);
 }
 
 extern void blk_start_queue(struct request_queue *q);
@@ -924,6 +913,7 @@ extern void blk_queue_logical_block_size(struct request_queue *, unsigned short)
 extern void blk_queue_physical_block_size(struct request_queue *, unsigned short);
 extern void blk_queue_alignment_offset(struct request_queue *q,
 				       unsigned int alignment);
+extern void blk_limits_io_min(struct queue_limits *limits, unsigned int min);
 extern void blk_queue_io_min(struct request_queue *q, unsigned int min);
 extern void blk_queue_io_opt(struct request_queue *q, unsigned int opt);
 extern void blk_set_default_limits(struct queue_limits *lim);
@@ -998,13 +988,7 @@ static inline int sb_issue_discard(struct super_block *sb,
 	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_KERNEL);
 }
 
-/*
-* command filter functions
-*/
-extern int blk_verify_command(struct blk_cmd_filter *filter,
-			      unsigned char *cmd, fmode_t has_write_perm);
-extern void blk_unregister_filter(struct gendisk *disk);
-extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
+extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
 
 #define MAX_PHYS_SEGMENTS 128
 #define MAX_HW_SEGMENTS 128

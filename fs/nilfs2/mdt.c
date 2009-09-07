@@ -412,8 +412,10 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 		return 0; /* Do not request flush for shadow page cache */
 	if (!sb) {
 		writer = nilfs_get_writer(NILFS_MDT(inode)->mi_nilfs);
-		if (!writer)
+		if (!writer) {
+			nilfs_put_writer(NILFS_MDT(inode)->mi_nilfs);
 			return -EROFS;
+		}
 		sb = writer->s_super;
 	}
 

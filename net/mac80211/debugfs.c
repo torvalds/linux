@@ -163,6 +163,29 @@ static const struct file_operations noack_ops = {
 	.open = mac80211_open_file_generic
 };
 
+static ssize_t queues_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	unsigned long flags;
+	char buf[IEEE80211_MAX_QUEUES * 20];
+	int q, res = 0;
+
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	for (q = 0; q < local->hw.queues; q++)
+		res += sprintf(buf + res, "%02d: %#.8lx/%d\n", q,
+				local->queue_stop_reasons[q],
+				__netif_subqueue_stopped(local->mdev, q));
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, res);
+}
+
+static const struct file_operations queues_ops = {
+	.read = queues_read,
+	.open = mac80211_open_file_generic
+};
+
 /* statistics stuff */
 
 #define DEBUGFS_STATS_FILE(name, buflen, fmt, value...)			\
@@ -298,6 +321,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(tsf);
+	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD_MODE(reset, 0200);
 	DEBUGFS_ADD(noack);
 
@@ -350,6 +374,7 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(total_ps_buffered);
 	DEBUGFS_DEL(wep_iv);
 	DEBUGFS_DEL(tsf);
+	DEBUGFS_DEL(queues);
 	DEBUGFS_DEL(reset);
 	DEBUGFS_DEL(noack);
 

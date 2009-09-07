@@ -16,10 +16,17 @@ LED sub-node properties:
   string defining the trigger assigned to the LED.  Current triggers are:
     "backlight" - LED will act as a back-light, controlled by the framebuffer
 		  system
-    "default-on" - LED will turn on
+    "default-on" - LED will turn on, but see "default-state" below
     "heartbeat" - LED "double" flashes at a load average based rate
     "ide-disk" - LED indicates disk activity
     "timer" - LED flashes at a fixed, configurable rate
+- default-state:  (optional) The initial state of the LED.  Valid
+  values are "on", "off", and "keep".  If the LED is already on or off
+  and the default-state property is set the to same value, then no
+  glitch should be produced where the LED momentarily turns off (or
+  on).  The "keep" setting will keep the LED at whatever its current
+  state is, without producing a glitch.  The default is off if this
+  property is not present.
 
 Examples:
 
@@ -30,14 +37,22 @@ leds {
 		gpios = <&mcu_pio 0 1>; /* Active low */
 		linux,default-trigger = "ide-disk";
 	};
+
+	fault {
+		gpios = <&mcu_pio 1 0>;
+		/* Keep LED on if BIOS detected hardware fault */
+		default-state = "keep";
+	};
 };
 
 run-control {
 	compatible = "gpio-leds";
 	red {
 		gpios = <&mpc8572 6 0>;
+		default-state = "off";
 	};
 	green {
 		gpios = <&mpc8572 7 0>;
+		default-state = "on";
 	};
 }

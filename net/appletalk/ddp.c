@@ -54,6 +54,7 @@
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/if_arp.h>
+#include <linux/smp_lock.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <net/datalink.h>
 #include <net/psnap.h>
@@ -162,8 +163,7 @@ static void atalk_destroy_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
 
-	if (atomic_read(&sk->sk_wmem_alloc) ||
-	    atomic_read(&sk->sk_rmem_alloc)) {
+	if (sk_has_allocations(sk)) {
 		sk->sk_timer.expires = jiffies + SOCK_DESTROY_TIME;
 		add_timer(&sk->sk_timer);
 	} else
@@ -175,8 +175,7 @@ static inline void atalk_destroy_socket(struct sock *sk)
 	atalk_remove_socket(sk);
 	skb_queue_purge(&sk->sk_receive_queue);
 
-	if (atomic_read(&sk->sk_wmem_alloc) ||
-	    atomic_read(&sk->sk_rmem_alloc)) {
+	if (sk_has_allocations(sk)) {
 		setup_timer(&sk->sk_timer, atalk_destroy_timer,
 				(unsigned long)sk);
 		sk->sk_timer.expires	= jiffies + SOCK_DESTROY_TIME;
@@ -1239,6 +1238,7 @@ static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
 			return -ENOBUFS;
 
 	*uaddr_len = sizeof(struct sockaddr_at);
+	memset(&sat.sat_zero, 0, sizeof(sat.sat_zero));
 
 	if (peer) {
 		if (sk->sk_state != TCP_ESTABLISHED)
@@ -1750,8 +1750,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 		/* Protocol layer */
 		case TIOCOUTQ: {
-			long amount = sk->sk_sndbuf -
-				      atomic_read(&sk->sk_wmem_alloc);
+			long amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 
 			if (amount < 0)
 				amount = 0;

@@ -493,7 +493,7 @@ tioce_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 
 		if (&map->ce_dmamap_list == &ce_kern->ce_dmamap_list) {
 			printk(KERN_WARNING
-			       "%s:  %s - no map found for bus_addr 0x%lx\n",
+			       "%s:  %s - no map found for bus_addr 0x%llx\n",
 			       __func__, pci_name(pdev), bus_addr);
 		} else if (--map->refcnt == 0) {
 			for (i = 0; i < map->ate_count; i++) {
@@ -642,7 +642,7 @@ dma_map_done:
  * in the address.
  */
 static u64
-tioce_dma(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
+tioce_dma(struct pci_dev *pdev, unsigned long  paddr, size_t byte_count, int dma_flags)
 {
 	return tioce_do_dma_map(pdev, paddr, byte_count, 0, dma_flags);
 }
@@ -657,7 +657,7 @@ tioce_dma(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
  * in the address.
  */
 static u64
-tioce_dma_consistent(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
+tioce_dma_consistent(struct pci_dev *pdev, unsigned long  paddr, size_t byte_count, int dma_flags)
 {
 	return tioce_do_dma_map(pdev, paddr, byte_count, 1, dma_flags);
 }

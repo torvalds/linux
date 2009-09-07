@@ -133,6 +133,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->gpu_offset = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
+		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
 #if __OS_HAS_AGP
 		if (rdev->flags & RADEON_IS_AGP) {
 			if (!(drm_core_has_AGP(rdev->ddev) && rdev->ddev->agp)) {
@@ -143,8 +144,9 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->io_offset = rdev->mc.agp_base;
 			man->io_size = rdev->mc.gtt_size;
 			man->io_addr = NULL;
-			man->flags = TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
-				     TTM_MEMTYPE_FLAG_MAPPABLE;
+			if (!rdev->ddev->agp->cant_use_aperture)
+				man->flags = TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
+					     TTM_MEMTYPE_FLAG_MAPPABLE;
 			man->available_caching = TTM_PL_FLAG_UNCACHED |
 						 TTM_PL_FLAG_WC;
 			man->default_caching = TTM_PL_FLAG_WC;
@@ -154,8 +156,6 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->io_offset = 0;
 			man->io_size = 0;
 			man->io_addr = NULL;
-			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE |
-				     TTM_MEMTYPE_FLAG_CMA;
 		}
 		break;
 	case TTM_PL_VRAM:
@@ -355,23 +355,26 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	if (!rdev->cp.ready) {
 		/* use memcpy */
 		DRM_ERROR("CP is not ready use memcpy.\n");
-		return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+		goto memcpy;
 	}
 
 	if (old_mem->mem_type == TTM_PL_VRAM &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
-		return radeon_move_vram_ram(bo, evict, interruptible,
+		r = radeon_move_vram_ram(bo, evict, interruptible,
 					    no_wait, new_mem);
 	} else if (old_mem->mem_type == TTM_PL_SYSTEM &&
 		   new_mem->mem_type == TTM_PL_VRAM) {
-		return radeon_move_ram_vram(bo, evict, interruptible,
+		r = radeon_move_ram_vram(bo, evict, interruptible,
 					    no_wait, new_mem);
 	} else {
 		r = radeon_move_blit(bo, evict, no_wait, new_mem, old_mem);
-		if (unlikely(r)) {
-			return r;
-		}
 	}
+
+	if (r) {
+memcpy:
+		r = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+	}
+
 	return r;
 }
 
@@ -429,6 +432,8 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.sync_obj_flush = &radeon_sync_obj_flush,
 	.sync_obj_unref = &radeon_sync_obj_unref,
 	.sync_obj_ref = &radeon_sync_obj_ref,
+	.move_notify = &radeon_bo_move_notify,
+	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
 };
 
 int radeon_ttm_init(struct radeon_device *rdev)
@@ -442,13 +447,14 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&rdev->mman.bdev,
 			       rdev->mman.mem_global_ref.object,
-			       &radeon_bo_driver, DRM_FILE_PAGE_OFFSET);
+			       &radeon_bo_driver, DRM_FILE_PAGE_OFFSET,
+			       rdev->need_dma32);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM, 0,
-			   ((rdev->mc.aper_size) >> PAGE_SHIFT));
+			   ((rdev->mc.real_vram_size) >> PAGE_SHIFT));
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
@@ -465,7 +471,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
-		 rdev->mc.vram_size / (1024 * 1024));
+		 rdev->mc.real_vram_size / (1024 * 1024));
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT, 0,
 			   ((rdev->mc.gtt_size) >> PAGE_SHIFT));
 	if (r) {

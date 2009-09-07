@@ -82,7 +82,6 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		if (reiserfs_allocate_list_bitmaps(s, jbitmap, bmap_nr_new) < 0) {
 			printk
 			    ("reiserfs_resize: unable to allocate memory for journal bitmaps\n");
-			unlock_super(s);
 			return -ENOMEM;
 		}
 		/* the new journal bitmaps are zero filled, now we copy in the bitmap

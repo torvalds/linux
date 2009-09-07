@@ -73,6 +73,10 @@
 
 #define UCB_ADC_DATA		0x68
 #define UCB_ADC_DAT_VALID	(1 << 15)
+
+#define UCB_FCSR		0x6c
+#define UCB_FCSR_AVE		(1 << 12)
+
 #define UCB_ADC_DAT_MASK	0x3ff
 
 #define UCB_ID			0x7e
@@ -134,28 +138,13 @@ static inline void ucb1400_adc_enable(struct snd_ac97 *ac97)
 	ucb1400_reg_write(ac97, UCB_ADC_CR, UCB_ADC_ENA);
 }
 
-static unsigned int ucb1400_adc_read(struct snd_ac97 *ac97, u16 adc_channel,
-					int adcsync)
-{
-	unsigned int val;
-
-	if (adcsync)
-		adc_channel |= UCB_ADC_SYNC_ENA;
-
-	ucb1400_reg_write(ac97, UCB_ADC_CR, UCB_ADC_ENA | adc_channel);
-	ucb1400_reg_write(ac97, UCB_ADC_CR, UCB_ADC_ENA | adc_channel |
-				UCB_ADC_START);
-
-	while (!((val = ucb1400_reg_read(ac97, UCB_ADC_DATA))
-			& UCB_ADC_DAT_VALID))
-		schedule_timeout_uninterruptible(1);
-
-	return val & UCB_ADC_DAT_MASK;
-}
-
 static inline void ucb1400_adc_disable(struct snd_ac97 *ac97)
 {
 	ucb1400_reg_write(ac97, UCB_ADC_CR, 0);
 }
+
+
+unsigned int ucb1400_adc_read(struct snd_ac97 *ac97, u16 adc_channel,
+			      int adcsync);
 
 #endif

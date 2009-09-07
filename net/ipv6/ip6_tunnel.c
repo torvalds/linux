@@ -394,13 +394,13 @@ parse_tlv_tnl_enc_lim(struct sk_buff *skb, __u8 * raw)
 
 static int
 ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
-	    int *type, int *code, int *msg, __u32 *info, int offset)
+	    u8 *type, u8 *code, int *msg, __u32 *info, int offset)
 {
 	struct ipv6hdr *ipv6h = (struct ipv6hdr *) skb->data;
 	struct ip6_tnl *t;
 	int rel_msg = 0;
-	int rel_type = ICMPV6_DEST_UNREACH;
-	int rel_code = ICMPV6_ADDR_UNREACH;
+	u8 rel_type = ICMPV6_DEST_UNREACH;
+	u8 rel_code = ICMPV6_ADDR_UNREACH;
 	__u32 rel_info = 0;
 	__u16 len;
 	int err = -ENOENT;
@@ -488,11 +488,11 @@ out:
 
 static int
 ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-	   int type, int code, int offset, __be32 info)
+	   u8 type, u8 code, int offset, __be32 info)
 {
 	int rel_msg = 0;
-	int rel_type = type;
-	int rel_code = code;
+	u8 rel_type = type;
+	u8 rel_code = code;
 	__u32 rel_info = ntohl(info);
 	int err;
 	struct sk_buff *skb2;
@@ -586,11 +586,11 @@ out:
 
 static int
 ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-	   int type, int code, int offset, __be32 info)
+	   u8 type, u8 code, int offset, __be32 info)
 {
 	int rel_msg = 0;
-	int rel_type = type;
-	int rel_code = code;
+	u8 rel_type = type;
+	u8 rel_code = code;
 	__u32 rel_info = ntohl(info);
 	int err;
 

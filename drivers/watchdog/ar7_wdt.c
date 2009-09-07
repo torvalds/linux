@@ -37,7 +37,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/addrspace.h>
-#include <asm/ar7/ar7.h>
+#include <asm/mach-ar7/ar7.h>
 
 #define DRVNAME "ar7_wdt"
 #define LONGNAME "TI AR7 Watchdog Timer"
@@ -246,7 +246,8 @@ static long ar7_wdt_ioctl(struct file *file,
 	static struct watchdog_info ident = {
 		.identity = LONGNAME,
 		.firmware_version = 1,
-		.options = (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING),
+		.options = (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
+						WDIOF_MAGICCLOSE),
 	};
 	int new_margin;
 

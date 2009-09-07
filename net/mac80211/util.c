@@ -774,31 +774,6 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	dev_queue_xmit(skb);
 }
 
-int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
-{
-	int ret = -EINVAL;
-	struct ieee80211_channel *chan;
-	struct ieee80211_local *local = sdata->local;
-
-	chan = ieee80211_get_channel(local->hw.wiphy, freqMHz);
-
-	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
-		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-		    chan->flags & IEEE80211_CHAN_NO_IBSS)
-			return ret;
-		local->oper_channel = chan;
-		local->oper_channel_type = NL80211_CHAN_NO_HT;
-
-		if (local->sw_scanning || local->hw_scanning)
-			ret = 0;
-		else
-			ret = ieee80211_hw_config(
-				local, IEEE80211_CONF_CHANGE_CHANNEL);
-	}
-
-	return ret;
-}
-
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band)
 {

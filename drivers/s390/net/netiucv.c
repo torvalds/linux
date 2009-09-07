@@ -1307,7 +1307,7 @@ static void netiucv_pm_complete(struct device *dev)
  */
 static int netiucv_pm_freeze(struct device *dev)
 {
-	struct netiucv_priv *priv = dev->driver_data;
+	struct netiucv_priv *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = NULL;
 	int rc = 0;
 
@@ -1331,7 +1331,7 @@ out:
  */
 static int netiucv_pm_restore_thaw(struct device *dev)
 {
-	struct netiucv_priv *priv = dev->driver_data;
+	struct netiucv_priv *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = NULL;
 	int rc = 0;
 

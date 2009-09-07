@@ -156,7 +156,7 @@
 			interrupt-parent = <&ipic>;
 			interrupts = <39 0x8>;
 			phy_type = "ulpi";
-			port1;
+			port0;
 		};
 
 		usb@23000 {

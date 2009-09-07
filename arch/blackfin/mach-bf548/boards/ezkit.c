@@ -76,7 +76,6 @@ static struct resource bfin_isp1760_resources[] = {
 
 static struct isp1760_platform_data isp1760_priv = {
 	.is_isp1761 = 0,
-	.port1_disable = 0,
 	.bus_width_16 = 1,
 	.port1_otg = 0,
 	.analog_oc = 0,
@@ -865,7 +864,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
 static struct i2c_board_info __initdata bfin_i2c_board_info1[] = {
-#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
 	},

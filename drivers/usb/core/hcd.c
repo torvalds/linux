@@ -648,7 +648,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	struct urb	*urb;
 	int		length;
 	unsigned long	flags;
-	char		buffer[4];	/* Any root hubs with > 31 ports? */
+	char		buffer[6];	/* Any root hubs with > 31 ports? */
 
 	if (unlikely(!hcd->rh_registered))
 		return;

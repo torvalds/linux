@@ -145,7 +145,8 @@ static void __init read_obp_memory(const char *property,
 	     cmp_p64, NULL);
 }
 
-unsigned long *sparc64_valid_addr_bitmap __read_mostly;
+unsigned long sparc64_valid_addr_bitmap[VALID_ADDR_BITMAP_BYTES /
+					sizeof(unsigned long)];
 EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
 
 /* Kernel physical address base and size in bytes.  */
@@ -1796,10 +1797,16 @@ void __init paging_init(void)
 
 	prom_build_devicetree();
 	of_populate_present_mask();
+#ifndef CONFIG_SMP
+	of_fill_in_cpu_data();
+#endif
 
 	if (tlb_type == hypervisor) {
 		sun4v_mdesc_init();
 		mdesc_populate_present_mask(cpu_all_mask);
+#ifndef CONFIG_SMP
+		mdesc_fill_in_cpu_data(cpu_all_mask);
+#endif
 	}
 
 	/* Once the OF device tree and MDESC have been setup, we know
@@ -1868,7 +1875,7 @@ static int pavail_rescan_ents __initdata;
  * memory list again, and make sure it provides at least as much
  * memory as 'pavail' does.
  */
-static void __init setup_valid_addr_bitmap_from_pavail(void)
+static void __init setup_valid_addr_bitmap_from_pavail(unsigned long *bitmap)
 {
 	int i;
 
@@ -1891,8 +1898,7 @@ static void __init setup_valid_addr_bitmap_from_pavail(void)
 
 				if (new_start <= old_start &&
 				    new_end >= (old_start + PAGE_SIZE)) {
-					set_bit(old_start >> 22,
-						sparc64_valid_addr_bitmap);
+					set_bit(old_start >> 22, bitmap);
 					goto do_next_page;
 				}
 			}
@@ -1913,20 +1919,21 @@ static void __init setup_valid_addr_bitmap_from_pavail(void)
 	}
 }
 
+static void __init patch_tlb_miss_handler_bitmap(void)
+{
+	extern unsigned int valid_addr_bitmap_insn[];
+	extern unsigned int valid_addr_bitmap_patch[];
+
+	valid_addr_bitmap_insn[1] = valid_addr_bitmap_patch[1];
+	mb();
+	valid_addr_bitmap_insn[0] = valid_addr_bitmap_patch[0];
+	flushi(&valid_addr_bitmap_insn[0]);
+}
+
 void __init mem_init(void)
 {
 	unsigned long codepages, datapages, initpages;
 	unsigned long addr, last;
-	int i;
-
-	i = last_valid_pfn >> ((22 - PAGE_SHIFT) + 6);
-	i += 1;
-	sparc64_valid_addr_bitmap = (unsigned long *) alloc_bootmem(i << 3);
-	if (sparc64_valid_addr_bitmap == NULL) {
-		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
-		prom_halt();
-	}
-	memset(sparc64_valid_addr_bitmap, 0, i << 3);
 
 	addr = PAGE_OFFSET + kern_base;
 	last = PAGE_ALIGN(kern_size) + addr;
@@ -1935,15 +1942,19 @@ void __init mem_init(void)
 		addr += PAGE_SIZE;
 	}
 
-	setup_valid_addr_bitmap_from_pavail();
+	setup_valid_addr_bitmap_from_pavail(sparc64_valid_addr_bitmap);
+	patch_tlb_miss_handler_bitmap();
 
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	for_each_online_node(i) {
-		if (NODE_DATA(i)->node_spanned_pages != 0) {
-			totalram_pages +=
-				free_all_bootmem_node(NODE_DATA(i));
+	{
+		int i;
+		for_each_online_node(i) {
+			if (NODE_DATA(i)->node_spanned_pages != 0) {
+				totalram_pages +=
+					free_all_bootmem_node(NODE_DATA(i));
+			}
 		}
 	}
 #else

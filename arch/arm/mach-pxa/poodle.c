@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/mtd/sharpsl.h>
@@ -486,6 +487,10 @@ static struct platform_device *devices[] __initdata = {
 	&sharpsl_rom_device,
 };
 
+static struct i2c_board_info __initdata poodle_i2c_devices[] = {
+	{ I2C_BOARD_INFO("wm8731", 0x1b) },
+};
+
 static void poodle_poweroff(void)
 {
 	arm_machine_restart('h', NULL);
@@ -519,6 +524,7 @@ static void __init poodle_init(void)
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(poodle_i2c_devices));
 	poodle_init_spi();
 }
 

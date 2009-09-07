@@ -638,6 +638,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		spin_lock_irq(&ms->lock);
 		bio_list_merge(&ms->writes, &requeue);
 		spin_unlock_irq(&ms->lock);
+		delayed_wake(ms);
 	}
 
 	/*
@@ -647,7 +648,13 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 */
 	dm_rh_inc_pending(ms->rh, &sync);
 	dm_rh_inc_pending(ms->rh, &nosync);
-	ms->log_failure = dm_rh_flush(ms->rh) ? 1 : 0;
+
+	/*
+	 * If the flush fails on a previous call and succeeds here,
+	 * we must not reset the log_failure variable.  We need
+	 * userspace interaction to do that.
+	 */
+	ms->log_failure = dm_rh_flush(ms->rh) ? 1 : ms->log_failure;
 
 	/*
 	 * Dispatch io.
@@ -1283,9 +1290,23 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
+static int mirror_iterate_devices(struct dm_target *ti,
+				  iterate_devices_callout_fn fn, void *data)
+{
+	struct mirror_set *ms = ti->private;
+	int ret = 0;
+	unsigned i;
+
+	for (i = 0; !ret && i < ms->nr_mirrors; i++)
+		ret = fn(ti, ms->mirror[i].dev,
+			 ms->mirror[i].offset, ti->len, data);
+
+	return ret;
+}
+
 static struct target_type mirror_target = {
 	.name	 = "mirror",
-	.version = {1, 0, 20},
+	.version = {1, 12, 0},
 	.module	 = THIS_MODULE,
 	.ctr	 = mirror_ctr,
 	.dtr	 = mirror_dtr,
@@ -1295,6 +1316,7 @@ static struct target_type mirror_target = {
 	.postsuspend = mirror_postsuspend,
 	.resume	 = mirror_resume,
 	.status	 = mirror_status,
+	.iterate_devices = mirror_iterate_devices,
 };
 
 static int __init dm_mirror_init(void)

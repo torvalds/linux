@@ -4,11 +4,17 @@
 #include <linux/list.h>
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
+#include <linux/nfs_xdr.h>
+#include <linux/sunrpc/xprt.h>
 
 #include <asm/atomic.h>
 
+struct nfs4_session;
 struct nfs_iostats;
 struct nlm_host;
+struct nfs4_sequence_args;
+struct nfs4_sequence_res;
+struct nfs_server;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -18,6 +24,7 @@ struct nfs_client {
 	int			cl_cons_state;	/* current construction state (-ve: init error) */
 #define NFS_CS_READY		0		/* ready to be used */
 #define NFS_CS_INITING		1		/* busy initialising */
+#define NFS_CS_SESSION_INITING	2		/* busy initialising  session */
 	unsigned long		cl_res_state;	/* NFS resources state */
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
@@ -32,6 +39,7 @@ struct nfs_client {
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
 	int			cl_proto;	/* Network transport protocol */
 
+	u32			cl_minorversion;/* NFSv4 minorversion */
 	struct rpc_cred		*cl_machine_cred;
 
 #ifdef CONFIG_NFS_V4
@@ -63,7 +71,22 @@ struct nfs_client {
 	 */
 	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
-#endif
+	int		     (* cl_call_sync)(struct nfs_server *server,
+					      struct rpc_message *msg,
+					      struct nfs4_sequence_args *args,
+					      struct nfs4_sequence_res *res,
+					      int cache_reply);
+#endif /* CONFIG_NFS_V4 */
+
+#ifdef CONFIG_NFS_V4_1
+	/* clientid returned from EXCHANGE_ID, used by session operations */
+	u64			cl_ex_clid;
+	/* The sequence id to use for the next CREATE_SESSION */
+	u32			cl_seqid;
+	/* The flags used for obtaining the clientid during EXCHANGE_ID */
+	u32			cl_exchange_flags;
+	struct nfs4_session	*cl_session; 	/* sharred session */
+#endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_FSCACHE
 	struct fscache_cookie	*fscache;	/* client index cache cookie */
@@ -145,4 +168,46 @@ struct nfs_server {
 #define NFS_CAP_ACLS		(1U << 3)
 #define NFS_CAP_ATOMIC_OPEN	(1U << 4)
 
+
+/* maximum number of slots to use */
+#define NFS4_MAX_SLOT_TABLE RPC_MAX_SLOT_TABLE
+
+#if defined(CONFIG_NFS_V4_1)
+
+/* Sessions */
+#define SLOT_TABLE_SZ (NFS4_MAX_SLOT_TABLE/(8*sizeof(long)))
+struct nfs4_slot_table {
+	struct nfs4_slot *slots;		/* seqid per slot */
+	unsigned long   used_slots[SLOT_TABLE_SZ]; /* used/unused bitmap */
+	spinlock_t	slot_tbl_lock;
+	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
+	int		max_slots;		/* # slots in table */
+	int		highest_used_slotid;	/* sent to server on each SEQ.
+						 * op for dynamic resizing */
+};
+
+static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)
+{
+	return sp - tbl->slots;
+}
+
+/*
+ * Session related parameters
+ */
+struct nfs4_session {
+	struct nfs4_sessionid		sess_id;
+	u32				flags;
+	unsigned long			session_state;
+	u32				hash_alg;
+	u32				ssv_len;
+
+	/* The fore and back channel */
+	struct nfs4_channel_attrs	fc_attrs;
+	struct nfs4_slot_table		fc_slot_table;
+	struct nfs4_channel_attrs	bc_attrs;
+	struct nfs4_slot_table		bc_slot_table;
+	struct nfs_client		*clp;
+};
+
+#endif /* CONFIG_NFS_V4_1 */
 #endif

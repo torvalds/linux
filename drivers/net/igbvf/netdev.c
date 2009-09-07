@@ -1281,7 +1281,7 @@ static void igbvf_configure_tx(struct igbvf_adapter *adapter)
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	ew32(TDLEN(0), tx_ring->count * sizeof(union e1000_adv_tx_desc));
 	tdba = tx_ring->dma;
-	ew32(TDBAL(0), (tdba & DMA_32BIT_MASK));
+	ew32(TDBAL(0), (tdba & DMA_BIT_MASK(32)));
 	ew32(TDBAH(0), (tdba >> 32));
 	ew32(TDH(0), 0);
 	ew32(TDT(0), 0);
@@ -1367,7 +1367,7 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	 * the Base and Length of the Rx Descriptor Ring
 	 */
 	rdba = rx_ring->dma;
-	ew32(RDBAL(0), (rdba & DMA_32BIT_MASK));
+	ew32(RDBAL(0), (rdba & DMA_BIT_MASK(32)));
 	ew32(RDBAH(0), (rdba >> 32));
 	ew32(RDLEN(0), rx_ring->count * sizeof(union e1000_adv_rx_desc));
 	rx_ring->head = E1000_RDH(0);
@@ -2628,15 +2628,16 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			err = pci_set_consistent_dma_mask(pdev,
+							  DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 				        "configuration, aborting\n");

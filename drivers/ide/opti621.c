@@ -138,6 +138,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *pair = ide_get_pair_dev(drive);
 	unsigned long flags;
+	unsigned long mode = XFER_PIO_0 + pio, pair_mode;
 	u8 tim, misc, addr_pio = pio, clk;
 
 	/* DRDY is default 2 (by OPTi Databook) */
@@ -150,11 +151,12 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		{ 0x48, 0x34, 0x21, 0x10, 0x10 }	/* 25 MHz */
 	};
 
-	drive->drive_data = XFER_PIO_0 + pio;
+	ide_set_drivedata(drive, (void *)mode);
 
 	if (pair) {
-		if (pair->drive_data && pair->drive_data < drive->drive_data)
-			addr_pio = pair->drive_data - XFER_PIO_0;
+		pair_mode = (unsigned long)ide_get_drivedata(pair);
+		if (pair_mode && pair_mode < mode)
+			addr_pio = pair_mode - XFER_PIO_0;
 	}
 
 	spin_lock_irqsave(&opti621_lock, flags);

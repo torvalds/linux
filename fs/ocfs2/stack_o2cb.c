@@ -17,6 +17,7 @@
  * General Public License for more details.
  */
 
+#include <linux/kernel.h>
 #include <linux/crc32.h>
 #include <linux/module.h>
 
@@ -153,7 +154,7 @@ static int status_map[] = {
 
 static int dlm_status_to_errno(enum dlm_status status)
 {
-	BUG_ON(status > (sizeof(status_map) / sizeof(status_map[0])));
+	BUG_ON(status < 0 || status >= ARRAY_SIZE(status_map));
 
 	return status_map[status];
 }
@@ -234,6 +235,16 @@ static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
 static int o2cb_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
 {
 	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
+}
+
+/*
+ * o2dlm aways has a "valid" LVB. If the dlm loses track of the LVB
+ * contents, it will zero out the LVB.  Thus the caller can always trust
+ * the contents.
+ */
+static int o2cb_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+{
+	return 1;
 }
 
 static void *o2cb_dlm_lvb(union ocfs2_dlm_lksb *lksb)
@@ -354,6 +365,7 @@ static struct ocfs2_stack_operations o2cb_stack_ops = {
 	.dlm_lock	= o2cb_dlm_lock,
 	.dlm_unlock	= o2cb_dlm_unlock,
 	.lock_status	= o2cb_dlm_lock_status,
+	.lvb_valid	= o2cb_dlm_lvb_valid,
 	.lock_lvb	= o2cb_dlm_lvb,
 	.dump_lksb	= o2cb_dump_lksb,
 };

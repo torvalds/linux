@@ -99,7 +99,6 @@ enum rfkill_user_states {
 #undef RFKILL_STATE_UNBLOCKED
 #undef RFKILL_STATE_HARD_BLOCKED
 
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -160,8 +159,9 @@ struct rfkill * __must_check rfkill_alloc(const char *name,
  * the rfkill structure. Before calling this function the driver needs
  * to be ready to service method calls from rfkill.
  *
- * If the software blocked state is not set before registration,
- * set_block will be called to initialize it to a default value.
+ * If rfkill_init_sw_state() is not called before registration,
+ * set_block() will be called to initialize the software blocked state
+ * to a default value.
  *
  * If the hardware blocked state is not set before registration,
  * it is assumed to be unblocked.
@@ -224,7 +224,7 @@ void rfkill_destroy(struct rfkill *rfkill);
  * should be blocked) so that drivers need not keep track of the soft
  * block state -- which they might not be able to.
  */
-bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
+bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
 
 /**
  * rfkill_set_sw_state - Set the internal rfkill software block state
@@ -234,9 +234,11 @@ bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
  * rfkill drivers that get events when the soft-blocked state changes
  * (yes, some platforms directly act on input but allow changing again)
  * use this function to notify the rfkill core (and through that also
- * userspace) of the current state.  It is not necessary to notify on
- * resume; since hibernation can always change the soft-blocked state,
- * the rfkill core will unconditionally restore the previous state.
+ * userspace) of the current state.
+ *
+ * Drivers should also call this function after resume if the state has
+ * been changed by the user.  This only makes sense for "persistent"
+ * devices (see rfkill_init_sw_state()).
  *
  * This function can be called in any context, even from within rfkill
  * callbacks.
@@ -245,6 +247,22 @@ bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
  * should be blocked).
  */
 bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked);
+
+/**
+ * rfkill_init_sw_state - Initialize persistent software block state
+ * @rfkill: pointer to the rfkill class to modify.
+ * @state: the current software block state to set
+ *
+ * rfkill drivers that preserve their software block state over power off
+ * use this function to notify the rfkill core (and through that also
+ * userspace) of their initial state.  It should only be used before
+ * registration.
+ *
+ * In addition, it marks the device as "persistent", an attribute which
+ * can be read by userspace.  Persistent devices are expected to preserve
+ * their own state when suspended.
+ */
+void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked);
 
 /**
  * rfkill_set_states - Set the internal rfkill block states
@@ -305,6 +323,10 @@ static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
 static inline bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked)
 {
 	return blocked;
+}
+
+static inline void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked)
+{
 }
 
 static inline void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)

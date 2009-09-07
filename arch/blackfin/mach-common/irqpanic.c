@@ -30,21 +30,17 @@
 #include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
-#include <asm/traps.h>
 #include <asm/blackfin.h>
 
-#ifdef CONFIG_DEBUG_ICACHE_CHECK
 #define L1_ICACHE_START 0xffa10000
 #define L1_ICACHE_END   0xffa13fff
-void irq_panic(int reason, struct pt_regs *regs) __attribute__ ((l1_text));
-#endif
 
 /*
  * irq_panic - calls panic with string setup
  */
+__attribute__ ((l1_text))
 asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 {
-#ifdef CONFIG_DEBUG_ICACHE_CHECK
 	unsigned int cmd, tag, ca, cache_hi, cache_lo, *pa;
 	unsigned short i, j, die;
 	unsigned int bad[10][6];
@@ -126,9 +122,6 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 			     bad[j][3], bad[j][4], bad[j][5]);
 		}
 		panic("icache coherency error");
-	} else {
+	} else
 		printk(KERN_EMERG "icache checked, and OK\n");
-	}
-#endif
-
 }

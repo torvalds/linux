@@ -10,6 +10,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
+#include <asm/io.h>
 
 /* Allow people to have their own Blackfin exception handler in a module */
 EXPORT_SYMBOL(bfin_return_from_exception);

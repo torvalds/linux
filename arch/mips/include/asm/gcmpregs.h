@@ -114,4 +114,6 @@
 #define GCMP_CCB_DINTGROUP_OFS		0x0030		/* DINT Group Participate */
 #define GCMP_CCB_DBGGROUP_OFS		0x0100		/* DebugBreak Group */
 
+extern int __init gcmp_probe(unsigned long, unsigned long);
+
 #endif /* _ASM_GCMPREGS_H */

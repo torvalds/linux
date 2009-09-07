@@ -735,8 +735,6 @@ parse_options(char *options, befs_mount_options * opts)
 static void
 befs_put_super(struct super_block *sb)
 {
-	lock_kernel();
-
 	kfree(BEFS_SB(sb)->mount_opts.iocharset);
 	BEFS_SB(sb)->mount_opts.iocharset = NULL;
 
@@ -747,8 +745,6 @@ befs_put_super(struct super_block *sb)
 
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 /* Allocate private field of the superblock, fill it.

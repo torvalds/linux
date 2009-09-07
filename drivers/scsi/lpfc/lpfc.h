@@ -457,10 +457,6 @@ struct lpfc_hba {
 	void (*lpfc_scsi_prep_cmnd)
 		(struct lpfc_vport *, struct lpfc_scsi_buf *,
 		 struct lpfc_nodelist *);
-	int (*lpfc_scsi_prep_task_mgmt_cmd)
-		(struct lpfc_vport *, struct lpfc_scsi_buf *,
-		 unsigned int, uint8_t);
-
 	/* IOCB interface function jump table entries */
 	int (*__lpfc_sli_issue_iocb)
 		(struct lpfc_hba *, uint32_t,

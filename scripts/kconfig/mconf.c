@@ -888,6 +888,8 @@ int main(int ac, char **av)
 			single_menu_mode = 1;
 	}
 
+	initscr();
+
 	getyx(stdscr, saved_y, saved_x);
 	if (init_dialog(NULL)) {
 		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));

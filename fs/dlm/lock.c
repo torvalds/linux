@@ -435,7 +435,7 @@ static int search_rsb(struct dlm_ls *ls, char *name, int len, int b,
 static int find_rsb(struct dlm_ls *ls, char *name, int namelen,
 		    unsigned int flags, struct dlm_rsb **r_ret)
 {
-	struct dlm_rsb *r, *tmp;
+	struct dlm_rsb *r = NULL, *tmp;
 	uint32_t hash, bucket;
 	int error = -EINVAL;
 

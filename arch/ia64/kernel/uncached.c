@@ -250,8 +250,7 @@ EXPORT_SYMBOL(uncached_free_page);
  * Called at boot time to build a map of pages that can be used for
  * memory special operations.
  */
-static int __init uncached_build_memmap(unsigned long uc_start,
-					unsigned long uc_end, void *arg)
+static int __init uncached_build_memmap(u64 uc_start, u64 uc_end, void *arg)
 {
 	int nid = paddr_to_nid(uc_start - __IA64_UNCACHED_OFFSET);
 	struct gen_pool *pool = uncached_pools[nid].pool;

@@ -266,7 +266,7 @@ static inline int omap2_onenand_bufferram_offset(struct mtd_info *mtd, int area)
 
 	if (ONENAND_CURRENT_BUFFERRAM(this)) {
 		if (area == ONENAND_DATARAM)
-			return mtd->writesize;
+			return this->writesize;
 		if (area == ONENAND_SPARERAM)
 			return mtd->oobsize;
 	}
@@ -565,7 +565,7 @@ int omap2_onenand_rephase(void)
 				      NULL, __adjust_timing);
 }
 
-static void __devexit omap2_onenand_shutdown(struct platform_device *pdev)
+static void omap2_onenand_shutdown(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);
 
@@ -770,6 +770,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	}
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, ONENAND_IO_SIZE);
+	gpmc_cs_free(c->gpmc_cs);
 	kfree(c);
 
 	return 0;
@@ -777,7 +778,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 
 static struct platform_driver omap2_onenand_driver = {
 	.probe		= omap2_onenand_probe,
-	.remove		= omap2_onenand_remove,
+	.remove		= __devexit_p(omap2_onenand_remove),
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

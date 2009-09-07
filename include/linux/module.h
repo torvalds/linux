@@ -17,9 +17,11 @@
 #include <linux/moduleparam.h>
 #include <linux/marker.h>
 #include <linux/tracepoint.h>
-#include <asm/local.h>
 
+#include <asm/local.h>
 #include <asm/module.h>
+
+#include <trace/events/module.h>
 
 /* Not Yet Implemented */
 #define MODULE_SUPPORTED_DEVICE(name)
@@ -363,6 +365,12 @@ struct module
 	local_t ref;
 #endif
 #endif
+
+#ifdef CONFIG_CONSTRUCTORS
+	/* Constructor functions. */
+	ctor_fn_t *ctors;
+	unsigned int num_ctors;
+#endif
 };
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
@@ -456,7 +464,10 @@ static inline local_t *__module_ref_addr(struct module *mod, int cpu)
 static inline void __module_get(struct module *module)
 {
 	if (module) {
-		local_inc(__module_ref_addr(module, get_cpu()));
+		unsigned int cpu = get_cpu();
+		local_inc(__module_ref_addr(module, cpu));
+		trace_module_get(module, _THIS_IP_,
+				 local_read(__module_ref_addr(module, cpu)));
 		put_cpu();
 	}
 }
@@ -467,8 +478,11 @@ static inline int try_module_get(struct module *module)
 
 	if (module) {
 		unsigned int cpu = get_cpu();
-		if (likely(module_is_live(module)))
+		if (likely(module_is_live(module))) {
 			local_inc(__module_ref_addr(module, cpu));
+			trace_module_get(module, _THIS_IP_,
+				local_read(__module_ref_addr(module, cpu)));
+		}
 		else
 			ret = 0;
 		put_cpu();

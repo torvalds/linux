@@ -28,6 +28,8 @@
 #define R_MN10300_PCREL8	6	/* PC-relative 8-bit signed.  */
 #define R_MN10300_24		9	/* Direct 24 bit.  */
 #define R_MN10300_RELATIVE	23	/* Adjust by program base.  */
+#define R_MN10300_SYM_DIFF	33	/* Adjustment when relaxing. */
+#define R_MN10300_ALIGN 	34	/* Alignment requirement. */
 
 /*
  * ELF register definitions..

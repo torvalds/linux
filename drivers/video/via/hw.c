@@ -2407,14 +2407,14 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 			viafb_dvi_set_mode(viafb_get_mode_index
 				     (viaparinfo->tmds_setting_info->h_active,
 				      viaparinfo->tmds_setting_info->
-				      v_active, 1),
+				      v_active),
 				     video_bpp1, viaparinfo->
 				     tmds_setting_info->iga_path);
 		} else {
 			viafb_dvi_set_mode(viafb_get_mode_index
 				     (viaparinfo->tmds_setting_info->h_active,
 				      viaparinfo->
-				      tmds_setting_info->v_active, 0),
+				      tmds_setting_info->v_active),
 				     video_bpp, viaparinfo->
 				     tmds_setting_info->iga_path);
 		}

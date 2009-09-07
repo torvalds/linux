@@ -25,6 +25,7 @@
 #include <linux/fsnotify.h>
 #include <linux/mount.h>
 #include <linux/async.h>
+#include <linux/posix_acl.h>
 
 /*
  * This is needed for the following functions:
@@ -119,12 +120,11 @@ static void wake_up_inode(struct inode *inode)
  * These are initializations that need to be done on every inode
  * allocation as the fields are not initialised by slab allocation.
  */
-struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
+int inode_init_always(struct super_block *sb, struct inode *inode)
 {
 	static const struct address_space_operations empty_aops;
 	static struct inode_operations empty_iops;
 	static const struct file_operations empty_fops;
-
 	struct address_space *const mapping = &inode->i_data;
 
 	inode->i_sb = sb;
@@ -151,7 +151,7 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->dirtied_when = 0;
 
 	if (security_inode_alloc(inode))
-		goto out_free_inode;
+		goto out;
 
 	/* allocate and initialize an i_integrity */
 	if (ima_inode_alloc(inode))
@@ -189,21 +189,20 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 	}
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
+#ifdef CONFIG_FS_POSIX_ACL
+	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
+#endif
 
 #ifdef CONFIG_FSNOTIFY
 	inode->i_fsnotify_mask = 0;
 #endif
 
-	return inode;
+	return 0;
 
 out_free_security:
 	security_inode_free(inode);
-out_free_inode:
-	if (inode->i_sb->s_op->destroy_inode)
-		inode->i_sb->s_op->destroy_inode(inode);
-	else
-		kmem_cache_free(inode_cachep, (inode));
-	return NULL;
+out:
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(inode_init_always);
 
@@ -216,24 +215,43 @@ static struct inode *alloc_inode(struct super_block *sb)
 	else
 		inode = kmem_cache_alloc(inode_cachep, GFP_KERNEL);
 
-	if (inode)
-		return inode_init_always(sb, inode);
-	return NULL;
+	if (!inode)
+		return NULL;
+
+	if (unlikely(inode_init_always(sb, inode))) {
+		if (inode->i_sb->s_op->destroy_inode)
+			inode->i_sb->s_op->destroy_inode(inode);
+		else
+			kmem_cache_free(inode_cachep, inode);
+		return NULL;
+	}
+
+	return inode;
 }
 
-void destroy_inode(struct inode *inode)
+void __destroy_inode(struct inode *inode)
 {
 	BUG_ON(inode_has_buffers(inode));
 	ima_inode_free(inode);
 	security_inode_free(inode);
 	fsnotify_inode_delete(inode);
+#ifdef CONFIG_FS_POSIX_ACL
+	if (inode->i_acl && inode->i_acl != ACL_NOT_CACHED)
+		posix_acl_release(inode->i_acl);
+	if (inode->i_default_acl && inode->i_default_acl != ACL_NOT_CACHED)
+		posix_acl_release(inode->i_default_acl);
+#endif
+}
+EXPORT_SYMBOL(__destroy_inode);
+
+void destroy_inode(struct inode *inode)
+{
+	__destroy_inode(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
 	else
 		kmem_cache_free(inode_cachep, (inode));
 }
-EXPORT_SYMBOL(destroy_inode);
-
 
 /*
  * These are initializations that only need to be done
@@ -665,12 +683,17 @@ void unlock_new_inode(struct inode *inode)
 	if (inode->i_mode & S_IFDIR) {
 		struct file_system_type *type = inode->i_sb->s_type;
 
-		/*
-		 * ensure nobody is actually holding i_mutex
-		 */
-		mutex_destroy(&inode->i_mutex);
-		mutex_init(&inode->i_mutex);
-		lockdep_set_class(&inode->i_mutex, &type->i_mutex_dir_key);
+		/* Set new key only if filesystem hasn't already changed it */
+		if (!lockdep_match_class(&inode->i_mutex,
+		    &type->i_mutex_key)) {
+			/*
+			 * ensure nobody is actually holding i_mutex
+			 */
+			mutex_destroy(&inode->i_mutex);
+			mutex_init(&inode->i_mutex);
+			lockdep_set_class(&inode->i_mutex,
+					  &type->i_mutex_dir_key);
+		}
 	}
 #endif
 	/*

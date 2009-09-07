@@ -7,7 +7,6 @@
 #ifndef _LINUX_QUOTAOPS_
 #define _LINUX_QUOTAOPS_
 
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 
 static inline struct quota_info *sb_dqopt(struct super_block *sb)

@@ -349,13 +349,13 @@ META_COLLECTOR(int_sk_type)
 META_COLLECTOR(int_sk_rmem_alloc)
 {
 	SKIP_NONLOCAL(skb);
-	dst->value = atomic_read(&skb->sk->sk_rmem_alloc);
+	dst->value = sk_rmem_alloc_get(skb->sk);
 }
 
 META_COLLECTOR(int_sk_wmem_alloc)
 {
 	SKIP_NONLOCAL(skb);
-	dst->value = atomic_read(&skb->sk->sk_wmem_alloc);
+	dst->value = sk_wmem_alloc_get(skb->sk);
 }
 
 META_COLLECTOR(int_sk_omem_alloc)

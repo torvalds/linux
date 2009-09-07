@@ -598,8 +598,6 @@ typedef struct risc_timer_pram {
 #define CICR_IEN		((uint)0x00000080)	/* Int. enable */
 #define CICR_SPS		((uint)0x00000001)	/* SCC Spread */
 
-#define IMAP_ADDR		(get_immrbase())
-
 #define CPM_PIN_INPUT     0
 #define CPM_PIN_OUTPUT    1
 #define CPM_PIN_PRIMARY   0

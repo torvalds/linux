@@ -105,13 +105,12 @@ int drm_proc_create_files(struct drm_info_list *files, int count,
 		    (dev->driver->driver_features & features) != features)
 			continue;
 
-		tmp = drm_alloc(sizeof(struct drm_info_node), _DRM_DRIVER);
+		tmp = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
 		ent = create_proc_entry(files[i].name, S_IFREG | S_IRUGO, root);
 		if (!ent) {
 			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
 				  name, files[i].name);
-			drm_free(tmp, sizeof(struct drm_info_node),
-				 _DRM_DRIVER);
+			kfree(tmp);
 			ret = -1;
 			goto fail;
 		}
@@ -192,8 +191,7 @@ int drm_proc_remove_files(struct drm_info_list *files, int count,
 				remove_proc_entry(files[i].name,
 						  minor->proc_root);
 				list_del(pos);
-				drm_free(tmp, sizeof(struct drm_info_node),
-					 _DRM_DRIVER);
+				kfree(tmp);
 			}
 		}
 	}

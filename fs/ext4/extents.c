@@ -49,7 +49,7 @@
  * ext_pblock:
  * combine low and high parts of physical block number into ext4_fsblk_t
  */
-static ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
+ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
 {
 	ext4_fsblk_t block;
 
@@ -1417,7 +1417,7 @@ static int ext4_ext_correct_indexes(handle_t *handle, struct inode *inode,
 	return err;
 }
 
-static int
+int
 ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 				struct ext4_extent *ex2)
 {
@@ -1977,6 +1977,7 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int nrblocks,
 			 */
 			/* 1 bitmap, 1 block group descriptor */
 			ret = 2 + EXT4_META_TRANS_BLOCKS(inode->i_sb);
+			return ret;
 		}
 	}
 

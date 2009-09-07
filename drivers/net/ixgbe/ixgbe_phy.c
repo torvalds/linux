@@ -60,6 +60,7 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 
 	if (hw->phy.type == ixgbe_phy_unknown) {
 		for (phy_addr = 0; phy_addr < IXGBE_MAX_PHY_ADDR; phy_addr++) {
+			hw->phy.mdio.prtad = phy_addr;
 			if (mdio45_probe(&hw->phy.mdio, phy_addr) == 0) {
 				ixgbe_get_phy_id(hw);
 				hw->phy.type =
@@ -68,6 +69,8 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 				break;
 			}
 		}
+		/* clear value if nothing found */
+		hw->phy.mdio.prtad = 0;
 	} else {
 		status = 0;
 	}

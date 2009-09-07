@@ -81,7 +81,6 @@ struct slot {
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
-	unsigned long last_emi_toggle;
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
 };
@@ -203,8 +202,6 @@ struct hpc_ops {
 	int (*set_attention_status)(struct slot *slot, u8 status);
 	int (*get_latch_status)(struct slot *slot, u8 *status);
 	int (*get_adapter_status)(struct slot *slot, u8 *status);
-	int (*get_emi_status)(struct slot *slot, u8 *status);
-	int (*toggle_emi)(struct slot *slot);
 	int (*get_max_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
 	int (*get_cur_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
 	int (*get_max_lnk_width)(struct slot *slot, enum pcie_link_width *val);

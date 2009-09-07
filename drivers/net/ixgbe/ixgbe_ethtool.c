@@ -139,7 +139,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
 		                    SUPPORTED_Autoneg);
 
@@ -217,7 +217,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	s32 err = 0;
 
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		/* 10000/copper and 1000/copper must autoneg
 		 * this function does not support any duplex forcing, but can
 		 * limit the advertising of the adapter to only 10000 or 1000 */
@@ -245,6 +245,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
 		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
+		    (ecmd->advertising != ADVERTISED_10000baseT_Full) ||
 		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 	}
@@ -1829,7 +1830,6 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 		break;
 	default:
 		wol->supported = 0;
-		retval = 0;
 	}
 
 	return retval;
@@ -1948,6 +1948,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_q_vector *q_vector;
 	int i;
 
 	if (ec->tx_max_coalesced_frames_irq)
@@ -1975,18 +1976,31 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
-		adapter->eitr_param = IXGBE_MAX_INT_RATE;
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			adapter->eitr_param = IXGBE_MAX_RSC_INT_RATE;
+		else
+			adapter->eitr_param = IXGBE_MAX_INT_RATE;
 		adapter->itr_setting = 0;
 	}
 
-	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
-		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-		if (q_vector->txr_count && !q_vector->rxr_count)
-			/* tx vector gets half the rate */
-			q_vector->eitr = (adapter->eitr_param >> 1);
-		else
-			/* rx only or mixed */
-			q_vector->eitr = adapter->eitr_param;
+	/* MSI/MSIx Interrupt Mode */
+	if (adapter->flags &
+	    (IXGBE_FLAG_MSIX_ENABLED | IXGBE_FLAG_MSI_ENABLED)) {
+		int num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+		for (i = 0; i < num_vectors; i++) {
+			q_vector = adapter->q_vector[i];
+			if (q_vector->txr_count && !q_vector->rxr_count)
+				/* tx vector gets half the rate */
+				q_vector->eitr = (adapter->eitr_param >> 1);
+			else
+				/* rx only or mixed */
+				q_vector->eitr = adapter->eitr_param;
+			ixgbe_write_eitr(q_vector);
+		}
+	/* Legacy Interrupt Mode */
+	} else {
+		q_vector = adapter->q_vector[0];
+		q_vector->eitr = adapter->eitr_param;
 		ixgbe_write_eitr(q_vector);
 	}
 
@@ -1999,13 +2013,13 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 
 	ethtool_op_set_flags(netdev, data);
 
-	if (!(adapter->flags & IXGBE_FLAG2_RSC_CAPABLE))
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		return 0;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if ((!!(data & ETH_FLAG_LRO)) != 
-	    (!!(adapter->flags & IXGBE_FLAG2_RSC_ENABLED))) {
-		adapter->flags ^= IXGBE_FLAG2_RSC_ENABLED;
+	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
+		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
 		if (netif_running(netdev))
 			ixgbe_reinit_locked(adapter);
 		else

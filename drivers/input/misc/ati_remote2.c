@@ -509,7 +509,7 @@ static int ati_remote2_setkeycode(struct input_dev *idev, int scancode, int keyc
 
 	old_keycode = ar2->keycode[mode][index];
 	ar2->keycode[mode][index] = keycode;
-	set_bit(keycode, idev->keybit);
+	__set_bit(keycode, idev->keybit);
 
 	for (mode = 0; mode < ATI_REMOTE2_MODES; mode++) {
 		for (index = 0; index < ARRAY_SIZE(ati_remote2_key_table); index++) {
@@ -518,7 +518,7 @@ static int ati_remote2_setkeycode(struct input_dev *idev, int scancode, int keyc
 		}
 	}
 
-	clear_bit(old_keycode, idev->keybit);
+	__clear_bit(old_keycode, idev->keybit);
 
 	return 0;
 }
@@ -543,7 +543,7 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	for (mode = 0; mode < ATI_REMOTE2_MODES; mode++) {
 		for (index = 0; index < ARRAY_SIZE(ati_remote2_key_table); index++) {
 			ar2->keycode[mode][index] = ati_remote2_key_table[index].keycode;
-			set_bit(ar2->keycode[mode][index], idev->keybit);
+			__set_bit(ar2->keycode[mode][index], idev->keybit);
 		}
 	}
 
@@ -554,11 +554,11 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	ar2->keycode[ATI_REMOTE2_AUX3][index] = KEY_PROG3;
 	ar2->keycode[ATI_REMOTE2_AUX4][index] = KEY_PROG4;
 	ar2->keycode[ATI_REMOTE2_PC][index] = KEY_PC;
-	set_bit(KEY_PROG1, idev->keybit);
-	set_bit(KEY_PROG2, idev->keybit);
-	set_bit(KEY_PROG3, idev->keybit);
-	set_bit(KEY_PROG4, idev->keybit);
-	set_bit(KEY_PC, idev->keybit);
+	__set_bit(KEY_PROG1, idev->keybit);
+	__set_bit(KEY_PROG2, idev->keybit);
+	__set_bit(KEY_PROG3, idev->keybit);
+	__set_bit(KEY_PROG4, idev->keybit);
+	__set_bit(KEY_PC, idev->keybit);
 
 	idev->rep[REP_DELAY]  = 250;
 	idev->rep[REP_PERIOD] = 33;

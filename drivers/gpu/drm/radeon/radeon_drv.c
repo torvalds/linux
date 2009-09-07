@@ -89,6 +89,7 @@ int radeon_agpmode = 0;
 int radeon_vram_limit = 0;
 int radeon_gart_size = 512; /* default gart size */
 int radeon_benchmarking = 0;
+int radeon_testing = 0;
 int radeon_connector_table = 0;
 #endif
 
@@ -116,6 +117,9 @@ module_param_named(gartsize, radeon_gart_size, int, 0600);
 
 MODULE_PARM_DESC(benchmark, "Run benchmark");
 module_param_named(benchmark, radeon_benchmarking, int, 0444);
+
+MODULE_PARM_DESC(test, "Run tests");
+module_param_named(test, radeon_testing, int, 0444);
 
 MODULE_PARM_DESC(connector_table, "Force connector table");
 module_param_named(connector_table, radeon_connector_table, int, 0444);
@@ -313,7 +317,15 @@ static int __init radeon_init(void)
 {
 	driver = &driver_old;
 	driver->num_ioctls = radeon_max_ioctl;
-#if defined(CONFIG_DRM_RADEON_KMS) && defined(CONFIG_X86)
+#if defined(CONFIG_DRM_RADEON_KMS)
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force() && radeon_modeset == -1) {
+		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
+		driver = &driver_old;
+		driver->driver_features &= ~DRIVER_MODESET;
+		radeon_modeset = 0;
+	}
+#endif
 	/* if enabled by default */
 	if (radeon_modeset == -1) {
 		DRM_INFO("radeon default to kernel modesetting.\n");
@@ -325,17 +337,8 @@ static int __init radeon_init(void)
 		driver->driver_features |= DRIVER_MODESET;
 		driver->num_ioctls = radeon_max_kms_ioctl;
 	}
-
 	/* if the vga console setting is enabled still
 	 * let modprobe override it */
-#ifdef CONFIG_VGA_CONSOLE
-	if (vgacon_text_force() && radeon_modeset == -1) {
-		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
-		driver = &driver_old;
-		driver->driver_features &= ~DRIVER_MODESET;
-		radeon_modeset = 0;
-	}
-#endif
 #endif
 	return drm_init(driver);
 }
@@ -345,7 +348,7 @@ static void __exit radeon_exit(void)
 	drm_exit(driver);
 }
 
-late_initcall(radeon_init);
+module_init(radeon_init);
 module_exit(radeon_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

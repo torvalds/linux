@@ -807,7 +807,7 @@ if RTC_LIB=n
 config RTC
 	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
 	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV \
-			&& !ARM && !SUPERH && !S390 && !AVR32
+			&& !ARM && !SUPERH && !S390 && !AVR32 && !BLACKFIN
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -1028,10 +1028,6 @@ config CS5535_GPIO
 	  CS5536 Geode companion devices.
 
 	  If compiled as a module, it will be called cs5535_gpio.
-
-config GPIO_VR41XX
-	tristate "NEC VR4100 series General-purpose I/O Unit support"
-	depends on CPU_VR41XX
 
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN)"

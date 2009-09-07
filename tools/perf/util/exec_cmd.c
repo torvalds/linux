@@ -1,6 +1,9 @@
 #include "cache.h"
 #include "exec_cmd.h"
 #include "quote.h"
+
+#include <string.h>
+
 #define MAX_ARGS	32
 
 extern char **environ;
@@ -51,7 +54,7 @@ const char *perf_extract_argv0_path(const char *argv0)
 		slash--;
 
 	if (slash >= argv0) {
-		argv0_path = strndup(argv0, slash - argv0);
+		argv0_path = xstrndup(argv0, slash - argv0);
 		return slash + 1;
 	}
 

@@ -51,9 +51,6 @@
 #define TX_BUFFS_AVAIL(tp) \
 	(tp->dirty_tx + NUM_TX_DESC - tp->cur_tx - 1)
 
-/* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static const int max_interrupt_work = 20;
-
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
@@ -2063,8 +2060,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	pci_set_master(pdev);
-
 	/* ioremap MMIO region */
 	ioaddr = ioremap(pci_resource_start(pdev, region), R8169_REGS_SIZE);
 	if (!ioaddr) {
@@ -2091,6 +2086,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	RTL_W16(IntrStatus, 0xffff);
+
+	pci_set_master(pdev);
 
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, ioaddr);
@@ -3811,22 +3808,11 @@ static struct net_device_stats *rtl8169_get_stats(struct net_device *dev)
 
 static void rtl8169_net_suspend(struct net_device *dev)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
-
 	if (!netif_running(dev))
 		return;
 
 	netif_device_detach(dev);
 	netif_stop_queue(dev);
-
-	spin_lock_irq(&tp->lock);
-
-	rtl8169_asic_down(ioaddr);
-
-	rtl8169_rx_missed(dev, ioaddr);
-
-	spin_unlock_irq(&tp->lock);
 }
 
 #ifdef CONFIG_PM
@@ -3876,10 +3862,27 @@ static struct dev_pm_ops rtl8169_pm_ops = {
 static void rtl_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
 
 	rtl8169_net_suspend(dev);
 
+	spin_lock_irq(&tp->lock);
+
+	rtl8169_asic_down(ioaddr);
+
+	spin_unlock_irq(&tp->lock);
+
 	if (system_state == SYSTEM_POWER_OFF) {
+		/* WoL fails with some 8168 when the receiver is disabled. */
+		if (tp->features & RTL_FEATURE_WOL) {
+			pci_clear_master(pdev);
+
+			RTL_W8(ChipCmd, CmdRxEnb);
+			/* PCI commit */
+			RTL_R8(ChipCmd);
+		}
+
 		pci_wake_from_d3(pdev, true);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}

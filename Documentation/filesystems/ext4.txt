@@ -235,6 +235,10 @@ minixdf			Make 'df' act like Minix.
 
 debug			Extra debugging information is sent to syslog.
 
+abort			Simulate the effects of calling ext4_abort() for
+			debugging purposes.  This is normally used while
+			remounting a filesystem which is already mounted.
+
 errors=remount-ro	Remount the filesystem read-only on an error.
 errors=continue		Keep going on a filesystem error.
 errors=panic		Panic and halt the machine if an error occurs.

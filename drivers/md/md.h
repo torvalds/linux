@@ -30,13 +30,6 @@ typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
 
 /*
- * options passed in raidrun:
- */
-
-/* Currently this must fit in an 'int' */
-#define MAX_CHUNK_SIZE (1<<30)
-
-/*
  * MD's 'extended' device
  */
 struct mdk_rdev_s
@@ -145,7 +138,7 @@ struct mddev_s
 	int 				external;	/* metadata is
 							 * managed externally */
 	char				metadata_type[17]; /* externally set*/
-	int				chunk_size;
+	int				chunk_sectors;
 	time_t				ctime, utime;
 	int				level, layout;
 	char				clevel[16];
@@ -166,7 +159,8 @@ struct mddev_s
 	 * If reshape_position is MaxSector, then no reshape is happening (yet).
 	 */
 	sector_t			reshape_position;
-	int				delta_disks, new_level, new_layout, new_chunk;
+	int				delta_disks, new_level, new_layout;
+	int				new_chunk_sectors;
 
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
@@ -229,6 +223,16 @@ struct mddev_s
 							    * so we don't loop trying */
 
 	int				in_sync;	/* know to not need resync */
+	/* 'open_mutex' avoids races between 'md_open' and 'do_md_stop', so
+	 * that we are never stopping an array while it is open.
+	 * 'reconfig_mutex' protects all other reconfiguration.
+	 * These locks are separate due to conflicting interactions
+	 * with bdev->bd_mutex.
+	 * Lock ordering is:
+	 *  reconfig_mutex -> bd_mutex : e.g. do_md_run -> revalidate_disk
+	 *  bd_mutex -> open_mutex:  e.g. __blkdev_get -> md_open
+	 */
+	struct mutex			open_mutex;
 	struct mutex			reconfig_mutex;
 	atomic_t			active;		/* general refcount */
 	atomic_t			openers;	/* number of active opens */
@@ -325,7 +329,6 @@ struct mdk_personality
 	int (*check_reshape) (mddev_t *mddev);
 	int (*start_reshape) (mddev_t *mddev);
 	void (*finish_reshape) (mddev_t *mddev);
-	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
 	/* quiesce moves between quiescence states
 	 * 0 - fully active
 	 * 1 - no new requests allowed
@@ -437,5 +440,8 @@ extern void md_new_event(mddev_t *mddev);
 extern int md_allow_write(mddev_t *mddev);
 extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
+extern int md_check_no_bitmap(mddev_t *mddev);
+extern int md_integrity_register(mddev_t *mddev);
+void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 
 #endif /* _MD_MD_H */

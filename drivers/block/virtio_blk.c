@@ -213,7 +213,7 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 	 * Only allow the generic SCSI ioctls if the host can support it.
 	 */
 	if (!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_SCSI))
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
 }
@@ -360,6 +360,9 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	blk_queue_max_phys_segments(vblk->disk->queue, vblk->sg_elems-2);
 	blk_queue_max_hw_segments(vblk->disk->queue, vblk->sg_elems-2);
 
+	/* No need to bounce any requests */
+	blk_queue_bounce_limit(vblk->disk->queue, BLK_BOUNCE_ANY);
+
 	/* No real sector limit. */
 	blk_queue_max_sectors(vblk->disk->queue, -1U);
 
@@ -424,7 +427,12 @@ static unsigned int features[] = {
 	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_IDENTIFY
 };
 
-static struct virtio_driver virtio_blk = {
+/*
+ * virtio_blk causes spurious section mismatch warning by
+ * simultaneously referring to a __devinit and a __devexit function.
+ * Use __refdata to avoid this warning.
+ */
+static struct virtio_driver __refdata virtio_blk = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,

@@ -2,7 +2,7 @@
  * OMAP3-specific clock framework functions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  * Testing and integration fixes by Jouni Högander
@@ -40,6 +40,37 @@
 #include "cm-regbits-34xx.h"
 
 static const struct clkops clkops_noncore_dpll_ops;
+
+static void omap3430es2_clk_ssi_find_idlest(struct clk *clk,
+					    void __iomem **idlest_reg,
+					    u8 *idlest_bit);
+static void omap3430es2_clk_hsotgusb_find_idlest(struct clk *clk,
+					    void __iomem **idlest_reg,
+					    u8 *idlest_bit);
+static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk *clk,
+						    void __iomem **idlest_reg,
+						    u8 *idlest_bit);
+
+static const struct clkops clkops_omap3430es2_ssi_wait = {
+	.enable		= omap2_dflt_clk_enable,
+	.disable	= omap2_dflt_clk_disable,
+	.find_idlest	= omap3430es2_clk_ssi_find_idlest,
+	.find_companion = omap2_clk_dflt_find_companion,
+};
+
+static const struct clkops clkops_omap3430es2_hsotgusb_wait = {
+	.enable		= omap2_dflt_clk_enable,
+	.disable	= omap2_dflt_clk_disable,
+	.find_idlest	= omap3430es2_clk_hsotgusb_find_idlest,
+	.find_companion = omap2_clk_dflt_find_companion,
+};
+
+static const struct clkops clkops_omap3430es2_dss_usbhost_wait = {
+	.enable		= omap2_dflt_clk_enable,
+	.disable	= omap2_dflt_clk_disable,
+	.find_idlest	= omap3430es2_clk_dss_usbhost_find_idlest,
+	.find_companion = omap2_clk_dflt_find_companion,
+};
 
 #include "clock34xx.h"
 
@@ -157,10 +188,13 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"fshostusb_fck", &fshostusb_fck, CK_3430ES1),
 	CLK(NULL,	"core_12m_fck",	&core_12m_fck,	CK_343X),
 	CLK("omap_hdq.0", "fck",	&hdq_fck,	CK_343X),
-	CLK(NULL,	"ssi_ssr_fck",	&ssi_ssr_fck,	CK_343X),
-	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck,	CK_343X),
+	CLK(NULL,	"ssi_ssr_fck",	&ssi_ssr_fck_3430es1,	CK_3430ES1),
+	CLK(NULL,	"ssi_ssr_fck",	&ssi_ssr_fck_3430es2,	CK_3430ES2),
+	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck_3430es1,	CK_3430ES1),
+	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck_3430es2,	CK_3430ES2),
 	CLK(NULL,	"core_l3_ick",	&core_l3_ick,	CK_343X),
-	CLK("musb_hdrc",	"ick",	&hsotgusb_ick,	CK_343X),
+	CLK("musb_hdrc",	"ick",	&hsotgusb_ick_3430es1,	CK_3430ES1),
+	CLK("musb_hdrc",	"ick",	&hsotgusb_ick_3430es2,	CK_3430ES2),
 	CLK(NULL,	"sdrc_ick",	&sdrc_ick,	CK_343X),
 	CLK(NULL,	"gpmc_fck",	&gpmc_fck,	CK_343X),
 	CLK(NULL,	"security_l3_ick", &security_l3_ick, CK_343X),
@@ -193,18 +227,21 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"mailboxes_ick", &mailboxes_ick, CK_343X),
 	CLK(NULL,	"omapctrl_ick",	&omapctrl_ick,	CK_343X),
 	CLK(NULL,	"ssi_l4_ick",	&ssi_l4_ick,	CK_343X),
-	CLK(NULL,	"ssi_ick",	&ssi_ick,	CK_343X),
+	CLK(NULL,	"ssi_ick",	&ssi_ick_3430es1,	CK_3430ES1),
+	CLK(NULL,	"ssi_ick",	&ssi_ick_3430es2,	CK_3430ES2),
 	CLK(NULL,	"usb_l4_ick",	&usb_l4_ick,	CK_3430ES1),
 	CLK(NULL,	"security_l4_ick2", &security_l4_ick2, CK_343X),
 	CLK(NULL,	"aes1_ick",	&aes1_ick,	CK_343X),
 	CLK("omap_rng",	"ick",		&rng_ick,	CK_343X),
 	CLK(NULL,	"sha11_ick",	&sha11_ick,	CK_343X),
 	CLK(NULL,	"des1_ick",	&des1_ick,	CK_343X),
-	CLK("omapfb",	"dss1_fck",	&dss1_alwon_fck, CK_343X),
+	CLK("omapfb",	"dss1_fck",	&dss1_alwon_fck_3430es1, CK_3430ES1),
+	CLK("omapfb",	"dss1_fck",	&dss1_alwon_fck_3430es2, CK_3430ES2),
 	CLK("omapfb",	"tv_fck",	&dss_tv_fck,	CK_343X),
 	CLK("omapfb",	"video_fck",	&dss_96m_fck,	CK_343X),
 	CLK("omapfb",	"dss2_fck",	&dss2_alwon_fck, CK_343X),
-	CLK("omapfb",	"ick",		&dss_ick,	CK_343X),
+	CLK("omapfb",	"ick",		&dss_ick_3430es1,	CK_3430ES1),
+	CLK("omapfb",	"ick",		&dss_ick_3430es2,	CK_3430ES2),
 	CLK(NULL,	"cam_mclk",	&cam_mclk,	CK_343X),
 	CLK(NULL,	"cam_ick",	&cam_ick,	CK_343X),
 	CLK(NULL,	"csi2_96m_fck",	&csi2_96m_fck,	CK_343X),
@@ -285,6 +322,87 @@ static struct omap_clk omap34xx_clks[] = {
 #define MAX_DPLL_WAIT_TRIES		1000000
 
 #define MIN_SDRC_DLL_LOCK_FREQ		83000000
+
+#define CYCLES_PER_MHZ			1000000
+
+/* Scale factor for fixed-point arith in omap3_core_dpll_m2_set_rate() */
+#define SDRC_MPURATE_SCALE		8
+
+/* 2^SDRC_MPURATE_BASE_SHIFT: MPU MHz that SDRC_MPURATE_LOOPS is defined for */
+#define SDRC_MPURATE_BASE_SHIFT		9
+
+/*
+ * SDRC_MPURATE_LOOPS: Number of MPU loops to execute at
+ * 2^MPURATE_BASE_SHIFT MHz for SDRC to stabilize
+ */
+#define SDRC_MPURATE_LOOPS		96
+
+/**
+ * omap3430es2_clk_ssi_find_idlest - return CM_IDLEST info for SSI
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ *
+ * The OMAP3430ES2 SSI target CM_IDLEST bit is at a different shift
+ * from the CM_{I,F}CLKEN bit.  Pass back the correct info via
+ * @idlest_reg and @idlest_bit.  No return value.
+ */
+static void omap3430es2_clk_ssi_find_idlest(struct clk *clk,
+					    void __iomem **idlest_reg,
+					    u8 *idlest_bit)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	*idlest_bit = OMAP3430ES2_ST_SSI_IDLE_SHIFT;
+}
+
+/**
+ * omap3430es2_clk_dss_usbhost_find_idlest - CM_IDLEST info for DSS, USBHOST
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ *
+ * Some OMAP modules on OMAP3 ES2+ chips have both initiator and
+ * target IDLEST bits.  For our purposes, we are concerned with the
+ * target IDLEST bits, which exist at a different bit position than
+ * the *CLKEN bit position for these modules (DSS and USBHOST) (The
+ * default find_idlest code assumes that they are at the same
+ * position.)  No return value.
+ */
+static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk *clk,
+						    void __iomem **idlest_reg,
+						    u8 *idlest_bit)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	/* USBHOST_IDLE has same shift */
+	*idlest_bit = OMAP3430ES2_ST_DSS_IDLE_SHIFT;
+}
+
+/**
+ * omap3430es2_clk_hsotgusb_find_idlest - return CM_IDLEST info for HSOTGUSB
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ *
+ * The OMAP3430ES2 HSOTGUSB target CM_IDLEST bit is at a different
+ * shift from the CM_{I,F}CLKEN bit.  Pass back the correct info via
+ * @idlest_reg and @idlest_bit.  No return value.
+ */
+static void omap3430es2_clk_hsotgusb_find_idlest(struct clk *clk,
+						 void __iomem **idlest_reg,
+						 u8 *idlest_bit)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	*idlest_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT;
+}
 
 /**
  * omap3_dpll_recalc - recalculate DPLL rate
@@ -709,8 +827,11 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 new_div = 0;
 	u32 unlock_dll = 0;
-	unsigned long validrate, sdrcrate;
-	struct omap_sdrc_params *sp;
+	u32 c;
+	unsigned long validrate, sdrcrate, mpurate;
+	struct omap_sdrc_params *sdrc_cs0;
+	struct omap_sdrc_params *sdrc_cs1;
+	int ret;
 
 	if (!clk || !rate)
 		return -EINVAL;
@@ -718,21 +839,18 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	if (clk != &dpll3_m2_ck)
 		return -EINVAL;
 
-	if (rate == clk->rate)
-		return 0;
-
 	validrate = omap2_clksel_round_rate_div(clk, rate, &new_div);
 	if (validrate != rate)
 		return -EINVAL;
 
 	sdrcrate = sdrc_ick.rate;
 	if (rate > clk->rate)
-		sdrcrate <<= ((rate / clk->rate) - 1);
+		sdrcrate <<= ((rate / clk->rate) >> 1);
 	else
-		sdrcrate >>= ((clk->rate / rate) - 1);
+		sdrcrate >>= ((clk->rate / rate) >> 1);
 
-	sp = omap2_sdrc_get_params(sdrcrate);
-	if (!sp)
+	ret = omap2_sdrc_get_params(sdrcrate, &sdrc_cs0, &sdrc_cs1);
+	if (ret)
 		return -EINVAL;
 
 	if (sdrcrate < MIN_SDRC_DLL_LOCK_FREQ) {
@@ -740,17 +858,42 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 		unlock_dll = 1;
 	}
 
+	/*
+	 * XXX This only needs to be done when the CPU frequency changes
+	 */
+	mpurate = arm_fck.rate / CYCLES_PER_MHZ;
+	c = (mpurate << SDRC_MPURATE_SCALE) >> SDRC_MPURATE_BASE_SHIFT;
+	c += 1;  /* for safety */
+	c *= SDRC_MPURATE_LOOPS;
+	c >>= SDRC_MPURATE_SCALE;
+	if (c == 0)
+		c = 1;
+
 	pr_debug("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
 		 validrate);
-	pr_debug("clock: SDRC timing params used: %08x %08x %08x\n",
-		 sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
+	pr_debug("clock: SDRC CS0 timing params used:"
+		 " RFR %08x CTRLA %08x CTRLB %08x MR %08x\n",
+		 sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
+		 sdrc_cs0->actim_ctrlb, sdrc_cs0->mr);
+	if (sdrc_cs1)
+		pr_debug("clock: SDRC CS1 timing params used: "
+		 " RFR %08x CTRLA %08x CTRLB %08x MR %08x\n",
+		 sdrc_cs1->rfr_ctrl, sdrc_cs1->actim_ctrla,
+		 sdrc_cs1->actim_ctrlb, sdrc_cs1->mr);
 
-	/* REVISIT: SRAM code doesn't support other M2 divisors yet */
-	WARN_ON(new_div != 1 && new_div != 2);
-
-	/* REVISIT: Add SDRC_MR changing to this code also */
-	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
-				  sp->actim_ctrlb, new_div, unlock_dll);
+	if (sdrc_cs1)
+		omap3_configure_core_dpll(
+				  new_div, unlock_dll, c, rate > clk->rate,
+				  sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
+				  sdrc_cs0->actim_ctrlb, sdrc_cs0->mr,
+				  sdrc_cs1->rfr_ctrl, sdrc_cs1->actim_ctrla,
+				  sdrc_cs1->actim_ctrlb, sdrc_cs1->mr);
+	else
+		omap3_configure_core_dpll(
+				  new_div, unlock_dll, c, rate > clk->rate,
+				  sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
+				  sdrc_cs0->actim_ctrlb, sdrc_cs0->mr,
+				  0, 0, 0, 0);
 
 	return 0;
 }

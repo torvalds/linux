@@ -686,6 +686,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 				     "offset=%d, datalen=%d)\n",
 				      tcp_task->data_offset,
 				      tcp_conn->in.datalen);
+			task->last_xfer = jiffies;
 			rc = iscsi_segment_seek_sg(&tcp_conn->in.segment,
 						   sdb->table.sgl,
 						   sdb->table.nents,
@@ -713,9 +714,10 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			rc = ISCSI_ERR_BAD_ITT;
 		else if (ahslen)
 			rc = ISCSI_ERR_AHSLEN;
-		else if (task->sc->sc_data_direction == DMA_TO_DEVICE)
+		else if (task->sc->sc_data_direction == DMA_TO_DEVICE) {
+			task->last_xfer = jiffies;
 			rc = iscsi_tcp_r2t_rsp(conn, task);
-		else
+		} else
 			rc = ISCSI_ERR_PROTO;
 		spin_unlock(&conn->session->lock);
 		break;

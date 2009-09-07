@@ -249,6 +249,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				pci_unmap_page(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data->addr),
 					 frag->size, PCI_DMA_TODEVICE);
+				++data;
 			}
 		}
 		/* Stamp the freed descriptor */
@@ -436,6 +437,7 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 {
 	struct mlx4_en_cq *cq = &priv->tx_cq[tx_ind];
 	struct mlx4_en_tx_ring *ring = &priv->tx_ring[tx_ind];
+	unsigned long flags;
 
 	/* If we don't have a pending timer, set one up to catch our recent
 	   post in case the interface becomes idle */
@@ -444,9 +446,9 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 
 	/* Poll the CQ every mlx4_en_TX_MODER_POLL packets */
 	if ((++ring->poll_cnt & (MLX4_EN_TX_POLL_MODER - 1)) == 0)
-		if (spin_trylock_irq(&ring->comp_lock)) {
+		if (spin_trylock_irqsave(&ring->comp_lock, flags)) {
 			mlx4_en_process_tx_cq(priv->dev, cq);
-			spin_unlock_irq(&ring->comp_lock);
+			spin_unlock_irqrestore(&ring->comp_lock, flags);
 		}
 }
 
@@ -515,15 +517,8 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 			else {
 				if (netif_msg_tx_err(priv))
 					en_warn(priv, "Non-linear headers\n");
-				dev_kfree_skb_any(skb);
 				return 0;
 			}
-		}
-		if (unlikely(*lso_header_size > MAX_LSO_HDR_SIZE)) {
-			if (netif_msg_tx_err(priv))
-				en_warn(priv, "LSO header size too big\n");
-			dev_kfree_skb_any(skb);
-			return 0;
 		}
 	} else {
 		*lso_header_size = 0;
@@ -616,13 +611,9 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	int lso_header_size;
 	void *fragptr;
 
-	if (unlikely(!skb->len)) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
-		return NETDEV_TX_OK;
+		goto tx_drop;
 
 	/* Allign descriptor to TXBB size */
 	desc_size = ALIGN(real_size, TXBB_SIZE);
@@ -630,8 +621,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (netif_msg_tx_err(priv))
 			en_warn(priv, "Oversized header or SG list\n");
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		goto tx_drop;
 	}
 
 	tx_ind = skb->queue_mapping;
@@ -651,14 +641,6 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		cq = &priv->tx_cq[tx_ind];
 		mlx4_en_arm_cq(priv, cq);
 		return NETDEV_TX_BUSY;
-	}
-
-	/* Now that we know what Tx ring to use */
-	if (unlikely(!priv->port_up)) {
-		if (netif_msg_tx_err(priv))
-			en_warn(priv, "xmit: port down!\n");
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
 	}
 
 	/* Track current inflight packets for performance analysis */
@@ -785,5 +767,10 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	mlx4_en_xmit_poll(priv, tx_ind);
 
 	return 0;
+
+tx_drop:
+	dev_kfree_skb_any(skb);
+	priv->stats.tx_dropped++;
+	return NETDEV_TX_OK;
 }
 

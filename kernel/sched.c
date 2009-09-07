@@ -493,6 +493,7 @@ struct rt_rq {
 #endif
 #ifdef CONFIG_SMP
 	unsigned long rt_nr_migratory;
+	unsigned long rt_nr_total;
 	int overloaded;
 	struct plist_head pushable_tasks;
 #endif
@@ -1978,7 +1979,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 		if (task_hot(p, old_rq->clock, NULL))
 			schedstat_inc(p, se.nr_forced2_migrations);
 #endif
-		perf_counter_task_migration(p, new_cpu);
+		perf_swcounter_event(PERF_COUNT_SW_CPU_MIGRATIONS,
+				     1, 1, NULL, 0);
 	}
 	p->se.vruntime -= old_cfsrq->min_vruntime -
 					 new_cfsrq->min_vruntime;
@@ -2570,15 +2572,37 @@ static void __sched_fork(struct task_struct *p)
 	p->se.avg_wakeup		= sysctl_sched_wakeup_granularity;
 
 #ifdef CONFIG_SCHEDSTATS
-	p->se.wait_start		= 0;
-	p->se.sum_sleep_runtime		= 0;
-	p->se.sleep_start		= 0;
-	p->se.block_start		= 0;
-	p->se.sleep_max			= 0;
-	p->se.block_max			= 0;
-	p->se.exec_max			= 0;
-	p->se.slice_max			= 0;
-	p->se.wait_max			= 0;
+	p->se.wait_start			= 0;
+	p->se.wait_max				= 0;
+	p->se.wait_count			= 0;
+	p->se.wait_sum				= 0;
+
+	p->se.sleep_start			= 0;
+	p->se.sleep_max				= 0;
+	p->se.sum_sleep_runtime			= 0;
+
+	p->se.block_start			= 0;
+	p->se.block_max				= 0;
+	p->se.exec_max				= 0;
+	p->se.slice_max				= 0;
+
+	p->se.nr_migrations_cold		= 0;
+	p->se.nr_failed_migrations_affine	= 0;
+	p->se.nr_failed_migrations_running	= 0;
+	p->se.nr_failed_migrations_hot		= 0;
+	p->se.nr_forced_migrations		= 0;
+	p->se.nr_forced2_migrations		= 0;
+
+	p->se.nr_wakeups			= 0;
+	p->se.nr_wakeups_sync			= 0;
+	p->se.nr_wakeups_migrate		= 0;
+	p->se.nr_wakeups_local			= 0;
+	p->se.nr_wakeups_remote			= 0;
+	p->se.nr_wakeups_affine			= 0;
+	p->se.nr_wakeups_affine_attempts	= 0;
+	p->se.nr_wakeups_passive		= 0;
+	p->se.nr_wakeups_idle			= 0;
+
 #endif
 
 	INIT_LIST_HEAD(&p->rt.run_list);
@@ -6540,6 +6564,11 @@ SYSCALL_DEFINE0(sched_yield)
 	return 0;
 }
 
+static inline int should_resched(void)
+{
+	return need_resched() && !(preempt_count() & PREEMPT_ACTIVE);
+}
+
 static void __cond_resched(void)
 {
 #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
@@ -6559,8 +6588,7 @@ static void __cond_resched(void)
 
 int __sched _cond_resched(void)
 {
-	if (need_resched() && !(preempt_count() & PREEMPT_ACTIVE) &&
-					system_state == SYSTEM_RUNNING) {
+	if (should_resched()) {
 		__cond_resched();
 		return 1;
 	}
@@ -6578,12 +6606,12 @@ EXPORT_SYMBOL(_cond_resched);
  */
 int cond_resched_lock(spinlock_t *lock)
 {
-	int resched = need_resched() && system_state == SYSTEM_RUNNING;
+	int resched = should_resched();
 	int ret = 0;
 
 	if (spin_needbreak(lock) || resched) {
 		spin_unlock(lock);
-		if (resched && need_resched())
+		if (resched)
 			__cond_resched();
 		else
 			cpu_relax();
@@ -6598,7 +6626,7 @@ int __sched cond_resched_softirq(void)
 {
 	BUG_ON(!in_softirq());
 
-	if (need_resched() && system_state == SYSTEM_RUNNING) {
+	if (should_resched()) {
 		local_bh_enable();
 		__cond_resched();
 		local_bh_disable();
@@ -7045,7 +7073,7 @@ static int migration_thread(void *data)
 
 		if (cpu_is_offline(cpu)) {
 			spin_unlock_irq(&rq->lock);
-			goto wait_to_die;
+			break;
 		}
 
 		if (rq->active_balance) {
@@ -7071,16 +7099,7 @@ static int migration_thread(void *data)
 		complete(&req->done);
 	}
 	__set_current_state(TASK_RUNNING);
-	return 0;
 
-wait_to_die:
-	/* Wait for kthread_stop */
-	set_current_state(TASK_INTERRUPTIBLE);
-	while (!kthread_should_stop()) {
-		schedule();
-		set_current_state(TASK_INTERRUPTIBLE);
-	}
-	__set_current_state(TASK_RUNNING);
 	return 0;
 }
 
@@ -7270,6 +7289,7 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 static void calc_global_load_remove(struct rq *rq)
 {
 	atomic_long_sub(rq->calc_load_active, &calc_load_tasks);
+	rq->calc_load_active = 0;
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
@@ -7494,7 +7514,9 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		rq = task_rq_lock(p, &flags);
 		__setscheduler(rq, p, SCHED_FIFO, MAX_RT_PRIO-1);
 		task_rq_unlock(rq, &flags);
+		get_task_struct(p);
 		cpu_rq(cpu)->migration_thread = p;
+		rq->calc_load_update = calc_load_update;
 		break;
 
 	case CPU_ONLINE:
@@ -7505,8 +7527,6 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		/* Update our root-domain */
 		rq = cpu_rq(cpu);
 		spin_lock_irqsave(&rq->lock, flags);
-		rq->calc_load_update = calc_load_update;
-		rq->calc_load_active = 0;
 		if (rq->rd) {
 			BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
 
@@ -7524,6 +7544,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		kthread_bind(cpu_rq(cpu)->migration_thread,
 			     cpumask_any(cpu_online_mask));
 		kthread_stop(cpu_rq(cpu)->migration_thread);
+		put_task_struct(cpu_rq(cpu)->migration_thread);
 		cpu_rq(cpu)->migration_thread = NULL;
 		break;
 
@@ -7533,6 +7554,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		migrate_live_tasks(cpu);
 		rq = cpu_rq(cpu);
 		kthread_stop(rq->migration_thread);
+		put_task_struct(rq->migration_thread);
 		rq->migration_thread = NULL;
 		/* Idle task back to normal (off runqueue, low prio) */
 		spin_lock_irq(&rq->lock);
@@ -7828,7 +7850,7 @@ static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		free_rootdomain(old_rd);
 }
 
-static int __init_refok init_rootdomain(struct root_domain *rd, bool bootmem)
+static int init_rootdomain(struct root_domain *rd, bool bootmem)
 {
 	gfp_t gfp = GFP_KERNEL;
 
@@ -9075,7 +9097,7 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 #ifdef CONFIG_SMP
 	rt_rq->rt_nr_migratory = 0;
 	rt_rq->overloaded = 0;
-	plist_head_init(&rq->rt.pushable_tasks, &rq->lock);
+	plist_head_init(&rt_rq->pushable_tasks, &rq->lock);
 #endif
 
 	rt_rq->rt_time = 0;

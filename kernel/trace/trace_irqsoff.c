@@ -178,7 +178,6 @@ out_unlock:
 out:
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
-	tracing_reset(tr, cpu);
 	trace_function(tr, CALLER_ADDR0, parent_ip, flags, pc);
 }
 
@@ -208,7 +207,6 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
 	data->critical_start = parent_ip ? : ip;
-	tracing_reset(tr, cpu);
 
 	local_save_flags(flags);
 
@@ -379,6 +377,7 @@ static void __irqsoff_tracer_init(struct trace_array *tr)
 	irqsoff_trace = tr;
 	/* make sure that the tracer is visible */
 	smp_wmb();
+	tracing_reset_online_cpus(tr);
 	start_irqsoff_tracer(tr);
 }
 

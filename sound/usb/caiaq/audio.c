@@ -199,8 +199,9 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 		dev->period_out_count[index] = BYTES_PER_SAMPLE + 1;
 		dev->audio_out_buf_pos[index] = BYTES_PER_SAMPLE + 1;
 	} else {
-		dev->period_in_count[index] = BYTES_PER_SAMPLE;
-		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE;
+		int in_pos = (dev->spec.data_alignment == 2) ? 0 : 2;
+		dev->period_in_count[index] = BYTES_PER_SAMPLE + in_pos;
+		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE + in_pos;
 	}
 
 	if (dev->streaming)
@@ -645,6 +646,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_GUITARRIGMOBILE):
 		dev->samplerates |= SNDRV_PCM_RATE_192000;
 		/* fall thru */
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO2DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
 		dev->samplerates |= SNDRV_PCM_RATE_88200;

@@ -520,6 +520,7 @@ static int econet_getname(struct socket *sock, struct sockaddr *uaddr,
 	if (peer)
 		return -EOPNOTSUPP;
 
+	memset(sec, 0, sizeof(*sec));
 	mutex_lock(&econet_mutex);
 
 	sk = sock->sk;
@@ -540,8 +541,7 @@ static void econet_destroy_timer(unsigned long data)
 {
 	struct sock *sk=(struct sock *)data;
 
-	if (!atomic_read(&sk->sk_wmem_alloc) &&
-	    !atomic_read(&sk->sk_rmem_alloc)) {
+	if (!sk_has_allocations(sk)) {
 		sk_free(sk);
 		return;
 	}
@@ -579,8 +579,7 @@ static int econet_release(struct socket *sock)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 
-	if (atomic_read(&sk->sk_rmem_alloc) ||
-	    atomic_read(&sk->sk_wmem_alloc)) {
+	if (sk_has_allocations(sk)) {
 		sk->sk_timer.data     = (unsigned long)sk;
 		sk->sk_timer.expires  = jiffies + HZ;
 		sk->sk_timer.function = econet_destroy_timer;

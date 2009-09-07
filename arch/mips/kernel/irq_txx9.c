@@ -1,6 +1,4 @@
 /*
- * linux/arch/mips/kernel/irq_txx9.c
- *
  * Based on linux/arch/mips/jmr3927/rbhma3100/irq.c,
  *          linux/arch/mips/tx4927/common/tx4927_irq.c,
  *          linux/arch/mips/tx4938/common/irq.c

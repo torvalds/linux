@@ -309,6 +309,7 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	struct bcom_fec_bd *bd;
+	unsigned long flags;
 
 	if (bcom_queue_full(priv->tx_dmatsk)) {
 		if (net_ratelimit())
@@ -316,7 +317,7 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	spin_lock_irq(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 	dev->trans_start = jiffies;
 
 	bd = (struct bcom_fec_bd *)
@@ -332,7 +333,7 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	spin_unlock_irq(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return NETDEV_TX_OK;
 }
@@ -948,7 +949,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	/* Start with safe defaults for link connection */
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->mdio_speed = ((mpc52xx_find_ipb_freq(op->node) >> 20) / 5) << 1;
+	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->node) >> 20) / 5) << 1;
 
 	/* The current speed preconfigures the speed of the MII link */
 	prop = of_get_property(op->node, "current-speed", &prop_size);

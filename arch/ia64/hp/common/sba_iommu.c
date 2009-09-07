@@ -1787,7 +1787,7 @@ static struct ioc_iommu ioc_iommu_info[] __initdata = {
 };
 
 static struct ioc * __init
-ioc_init(u64 hpa, void *handle)
+ioc_init(unsigned long hpa, void *handle)
 {
 	struct ioc *ioc;
 	struct ioc_iommu *info;

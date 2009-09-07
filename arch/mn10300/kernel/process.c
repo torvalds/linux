@@ -281,9 +281,6 @@ asmlinkage long sys_execve(char __user *name,
 	error = PTR_ERR(filename);
 	if (!IS_ERR(filename)) {
 		error = do_execve(filename, argv, envp, __frame);
-		if (error == 0)
-			current->ptrace &= ~PT_DTRACE;
-
 		putname(filename);
 	}
 

@@ -1,0 +1,50 @@
+Specifying GPIO information for devices
+============================================
+
+1) gpios property
+-----------------
+
+Nodes that makes use of GPIOs should define them using `gpios' property,
+format of which is: <&gpio-controller1-phandle gpio1-specifier
+		     &gpio-controller2-phandle gpio2-specifier
+		     0 /* holes are permitted, means no GPIO 3 */
+		     &gpio-controller4-phandle gpio4-specifier
+		     ...>;
+
+Note that gpio-specifier length is controller dependent.
+
+gpio-specifier may encode: bank, pin position inside the bank,
+whether pin is open-drain and whether pin is logically inverted.
+
+Example of the node using GPIOs:
+
+	node {
+		gpios = <&qe_pio_e 18 0>;
+	};
+
+In this example gpio-specifier is "18 0" and encodes GPIO pin number,
+and empty GPIO flags as accepted by the "qe_pio_e" gpio-controller.
+
+2) gpio-controller nodes
+------------------------
+
+Every GPIO controller node must have #gpio-cells property defined,
+this information will be used to translate gpio-specifiers.
+
+Example of two SOC GPIO banks defined as gpio-controller nodes:
+
+	qe_pio_a: gpio-controller@1400 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-a", "fsl,qe-pario-bank";
+		reg = <0x1400 0x18>;
+		gpio-controller;
+	};
+
+	qe_pio_e: gpio-controller@1460 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
+		reg = <0x1460 0x18>;
+		gpio-controller;
+	};
+
+

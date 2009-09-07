@@ -306,8 +306,10 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		    v4addr != htonl(INADDR_ANY) &&
 		    chk_addr_ret != RTN_LOCAL &&
 		    chk_addr_ret != RTN_MULTICAST &&
-		    chk_addr_ret != RTN_BROADCAST)
+		    chk_addr_ret != RTN_BROADCAST) {
+			err = -EADDRNOTAVAIL;
 			goto out;
+		}
 	} else {
 		if (addr_type != IPV6_ADDR_ANY) {
 			struct net_device *dev = NULL;
@@ -1284,6 +1286,8 @@ static void __exit inet6_exit(void)
 	proto_unregister(&udplitev6_prot);
 	proto_unregister(&udpv6_prot);
 	proto_unregister(&tcpv6_prot);
+
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 module_exit(inet6_exit);
 

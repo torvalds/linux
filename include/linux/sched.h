@@ -92,7 +92,6 @@ struct sched_param {
 
 #include <asm/processor.h>
 
-struct mem_cgroup;
 struct exec_domain;
 struct futex_pi_state;
 struct robust_list_head;
@@ -210,7 +209,7 @@ extern unsigned long long time_sync_thresh;
 			((task->state & (__TASK_STOPPED | __TASK_TRACED)) != 0)
 #define task_contributes_to_load(task)	\
 				((task->state & TASK_UNINTERRUPTIBLE) != 0 && \
-				 (task->flags & PF_FROZEN) == 0)
+				 (task->flags & PF_FREEZING) == 0)
 
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
@@ -350,8 +349,20 @@ extern int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner);
 struct nsproxy;
 struct user_namespace;
 
-/* Maximum number of active map areas.. This is a random (large) number */
-#define DEFAULT_MAX_MAP_COUNT	65536
+/*
+ * Default maximum number of active map areas, this limits the number of vmas
+ * per mm struct. Users can overwrite this number by sysctl but there is a
+ * problem.
+ *
+ * When a program's coredump is generated as ELF format, a section is created
+ * per a vma. In ELF, the number of sections is represented in unsigned short.
+ * This means the number of sections should be smaller than 65535 at coredump.
+ * Because the kernel adds some informative sections to a image of program at
+ * generating coredump, we need some margin. The number of extra sections is
+ * 1-3 now and depends on arch. We use "5" as safe margin, here.
+ */
+#define MAPCOUNT_ELF_CORE_MARGIN	(5)
+#define DEFAULT_MAX_MAP_COUNT	(USHORT_MAX - MAPCOUNT_ELF_CORE_MARGIN)
 
 extern int sysctl_max_map_count;
 
@@ -486,6 +497,15 @@ struct task_cputime {
 		.stime = cputime_zero,				\
 		.sum_exec_runtime = 0,				\
 	}
+
+/*
+ * Disable preemption until the scheduler is running.
+ * Reset by start_kernel()->sched_init()->init_idle().
+ *
+ * We include PREEMPT_ACTIVE to avoid cond_resched() from working
+ * before the scheduler is active -- see should_resched().
+ */
+#define INIT_PREEMPT_COUNT	(1 + PREEMPT_ACTIVE)
 
 /**
  * struct thread_group_cputimer - thread group interval timer counts
@@ -1178,6 +1198,7 @@ struct task_struct {
 	 * a short time
 	 */
 	unsigned char fpu_counter;
+	s8 oomkilladj; /* OOM kill score adjustment (bit shift). */
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	unsigned int btrace_seq;
 #endif
@@ -1660,6 +1681,7 @@ extern cputime_t task_gtime(struct task_struct *p);
 #define PF_MEMALLOC	0x00000800	/* Allocating memory */
 #define PF_FLUSHER	0x00001000	/* responsible for disk writeback */
 #define PF_USED_MATH	0x00002000	/* if unset the fpu must be initialized before use */
+#define PF_FREEZING	0x00004000	/* freeze in progress. do not account to load */
 #define PF_NOFREEZE	0x00008000	/* this thread should not be frozen */
 #define PF_FROZEN	0x00010000	/* frozen for system suspend */
 #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
@@ -1879,9 +1901,6 @@ extern struct pid_namespace init_pid_ns;
 /*
  * find a task by one of its numerical ids
  *
- * find_task_by_pid_type_ns():
- *      it is the most generic call - it finds a task by all id,
- *      type and namespace specified
  * find_task_by_pid_ns():
  *      finds a task by its pid in the specified namespace
  * find_task_by_vpid():
@@ -1889,9 +1908,6 @@ extern struct pid_namespace init_pid_ns;
  *
  * see also find_vpid() etc in include/linux/pid.h
  */
-
-extern struct task_struct *find_task_by_pid_type_ns(int type, int pid,
-		struct pid_namespace *ns);
 
 extern struct task_struct *find_task_by_vpid(pid_t nr);
 extern struct task_struct *find_task_by_pid_ns(pid_t nr,

@@ -85,6 +85,7 @@ static int joystick;
 static int ac97_clock = 48000;
 static char *ac97_quirk;
 static int dxs_support;
+static int nodelay;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for VIA 82xx bridge.");
@@ -102,6 +103,8 @@ module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 module_param(dxs_support, int, 0444);
 MODULE_PARM_DESC(dxs_support, "Support for DXS channels (0 = auto, 1 = enable, 2 = disable, 3 = 48k only, 4 = no VRA, 5 = enable any sample rate)");
+module_param(nodelay, int, 0444);
+MODULE_PARM_DESC(nodelay, "Disable 500ms init delay");
 
 /* just for backward compatibility */
 static int enable;
@@ -399,9 +402,9 @@ struct via82xx {
 
 static struct pci_device_id snd_via82xx_ids[] = {
 	/* 0x1106, 0x3058 */
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, TYPE_CARD_VIA686, },	/* 686A */
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C686_5), TYPE_CARD_VIA686, },	/* 686A */
 	/* 0x1106, 0x3059 */
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8233_5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, TYPE_CARD_VIA8233, },	/* VT8233 */
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8233_5), TYPE_CARD_VIA8233, },	/* VT8233 */
 	{ 0, }
 };
 
@@ -549,7 +552,8 @@ static void snd_via82xx_codec_wait(struct snd_ac97 *ac97)
 	int err;
 	err = snd_via82xx_codec_ready(chip, ac97->num);
 	/* here we need to wait fairly for long time.. */
-	msleep(500);
+	if (!nodelay)
+		msleep(500);
 }
 
 static void snd_via82xx_codec_write(struct snd_ac97 *ac97,

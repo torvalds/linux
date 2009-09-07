@@ -705,5 +705,5 @@ MODULE_DESCRIPTION("I2C chip driver for NXP PCF50633 PMU");
 MODULE_AUTHOR("Harald Welte <laforge@openmoko.org>");
 MODULE_LICENSE("GPL");
 
-module_init(pcf50633_init);
+subsys_initcall(pcf50633_init);
 module_exit(pcf50633_exit);

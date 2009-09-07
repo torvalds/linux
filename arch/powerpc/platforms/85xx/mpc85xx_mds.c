@@ -33,6 +33,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/phy.h>
+#include <linux/lmb.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -49,6 +50,7 @@
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
+#include <asm/swiotlb.h>
 
 #undef DEBUG
 #ifdef DEBUG
@@ -155,6 +157,10 @@ static void __init mpc85xx_mds_setup_arch(void)
 {
 	struct device_node *np;
 	static u8 __iomem *bcsr_regs = NULL;
+#ifdef CONFIG_PCI
+	struct pci_controller *hose;
+#endif
+	dma_addr_t max = 0xffffffff;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_mds_setup_arch()", 0);
@@ -179,6 +185,10 @@ static void __init mpc85xx_mds_setup_arch(void)
 				fsl_add_bridge(np, 1);
 			else
 				fsl_add_bridge(np, 0);
+
+			hose = pci_find_hose_for_OF_device(np);
+			max = min(max, hose->dma_window_base_cur +
+					hose->dma_window_size);
 		}
 	}
 #endif
@@ -223,10 +233,30 @@ static void __init mpc85xx_mds_setup_arch(void)
 			/* Turn UCC1 & UCC2 on */
 			setbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
 			setbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
+		} else if (machine_is(mpc8569_mds)) {
+#define BCSR7_UCC12_GETHnRST	(0x1 << 2)
+#define BCSR8_UEM_MARVELL_RST	(0x1 << 1)
+			/*
+			 * U-Boot mangles interrupt polarity for Marvell PHYs,
+			 * so reset built-in and UEM Marvell PHYs, this puts
+			 * the PHYs into their normal state.
+			 */
+			clrbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
+			setbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
+
+			setbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
+			clrbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
 		}
 		iounmap(bcsr_regs);
 	}
 #endif	/* CONFIG_QUICC_ENGINE */
+
+#ifdef CONFIG_SWIOTLB
+	if (lmb_end_of_DRAM() > max) {
+		ppc_swiotlb_enable = 1;
+		set_pci_dma_ops(&swiotlb_pci_dma_ops);
+	}
+#endif
 }
 
 
@@ -268,6 +298,7 @@ static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "qe", },
 	{ .compatible = "fsl,qe", },
 	{ .compatible = "gianfar", },
+	{ .compatible = "fsl,rapidio-delta", },
 	{},
 };
 
@@ -280,6 +311,9 @@ static int __init mpc85xx_publish_devices(void)
 }
 machine_device_initcall(mpc8568_mds, mpc85xx_publish_devices);
 machine_device_initcall(mpc8569_mds, mpc85xx_publish_devices);
+
+machine_arch_initcall(mpc8568_mds, swiotlb_setup_bus_notifier);
+machine_arch_initcall(mpc8569_mds, swiotlb_setup_bus_notifier);
 
 static void __init mpc85xx_mds_pic_init(void)
 {

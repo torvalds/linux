@@ -12,6 +12,7 @@
 #include <linux/pfn.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
+#include <linux/kmemleak.h>
 
 #include <asm/bug.h>
 #include <asm/io.h>
@@ -335,6 +336,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 {
 	unsigned long start, end;
 
+	kmemleak_free_part(__va(physaddr), size);
+
 	start = PFN_UP(physaddr);
 	end = PFN_DOWN(physaddr + size);
 
@@ -353,6 +356,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 	unsigned long start, end;
+
+	kmemleak_free_part(__va(addr), size);
 
 	start = PFN_UP(addr);
 	end = PFN_DOWN(addr + size);
@@ -516,6 +521,7 @@ find_block:
 		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
 				start_off);
 		memset(region, 0, size);
+		kmemleak_alloc(region, size, 1, 0);
 		return region;
 	}
 
@@ -536,11 +542,15 @@ static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
 		return kzalloc(size, GFP_NOWAIT);
 
 #ifdef CONFIG_HAVE_ARCH_BOOTMEM
-	bootmem_data_t *p_bdata;
+	{
+		bootmem_data_t *p_bdata;
 
-	p_bdata = bootmem_arch_preferred_node(bdata, size, align, goal, limit);
-	if (p_bdata)
-		return alloc_bootmem_core(p_bdata, size, align, goal, limit);
+		p_bdata = bootmem_arch_preferred_node(bdata, size, align,
+							goal, limit);
+		if (p_bdata)
+			return alloc_bootmem_core(p_bdata, size, align,
+							goal, limit);
+	}
 #endif
 	return NULL;
 }

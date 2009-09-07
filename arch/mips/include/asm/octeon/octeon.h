@@ -245,4 +245,6 @@ static inline uint32_t octeon_npi_read32(uint64_t address)
 	return cvmx_read64_uint32(address ^ 4);
 }
 
+extern struct cvmx_bootinfo *octeon_bootinfo;
+
 #endif /* __ASM_OCTEON_OCTEON_H */

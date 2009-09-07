@@ -339,7 +339,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 		 * to get longer filter period for better noise suppression.
 		 * The filter is iclk (fclk for HS) period.
 		 */
-		if (dev->speed > 400 || cpu_is_omap_2430())
+		if (dev->speed > 400 || cpu_is_omap2430())
 			internal_clk = 19200;
 		else if (dev->speed > 100)
 			internal_clk = 9600;
@@ -672,9 +672,17 @@ omap_i2c_isr(int this_irq, void *dev_id)
 			break;
 		}
 
-		omap_i2c_write_reg(dev, OMAP_I2C_STAT_REG, stat);
-
 		err = 0;
+complete:
+		/*
+		 * Ack the stat in one go, but [R/X]DR and [R/X]RDY should be
+		 * acked after the data operation is complete.
+		 * Ref: TRM SWPU114Q Figure 18-31
+		 */
+		omap_i2c_write_reg(dev, OMAP_I2C_STAT_REG, stat &
+				~(OMAP_I2C_STAT_RRDY | OMAP_I2C_STAT_RDR |
+				OMAP_I2C_STAT_XRDY | OMAP_I2C_STAT_XDR));
+
 		if (stat & OMAP_I2C_STAT_NACK) {
 			err |= OMAP_I2C_STAT_NACK;
 			omap_i2c_write_reg(dev, OMAP_I2C_CON_REG,
@@ -685,16 +693,22 @@ omap_i2c_isr(int this_irq, void *dev_id)
 			err |= OMAP_I2C_STAT_AL;
 		}
 		if (stat & (OMAP_I2C_STAT_ARDY | OMAP_I2C_STAT_NACK |
-					OMAP_I2C_STAT_AL))
+					OMAP_I2C_STAT_AL)) {
+			omap_i2c_ack_stat(dev, stat &
+				(OMAP_I2C_STAT_RRDY | OMAP_I2C_STAT_RDR |
+				OMAP_I2C_STAT_XRDY | OMAP_I2C_STAT_XDR));
 			omap_i2c_complete_cmd(dev, err);
+			return IRQ_HANDLED;
+		}
 		if (stat & (OMAP_I2C_STAT_RRDY | OMAP_I2C_STAT_RDR)) {
 			u8 num_bytes = 1;
 			if (dev->fifo_size) {
 				if (stat & OMAP_I2C_STAT_RRDY)
 					num_bytes = dev->fifo_size;
-				else
-					num_bytes = omap_i2c_read_reg(dev,
-							OMAP_I2C_BUFSTAT_REG);
+				else    /* read RXSTAT on RDR interrupt */
+					num_bytes = (omap_i2c_read_reg(dev,
+							OMAP_I2C_BUFSTAT_REG)
+							>> 8) & 0x3F;
 			}
 			while (num_bytes) {
 				num_bytes--;
@@ -731,9 +745,10 @@ omap_i2c_isr(int this_irq, void *dev_id)
 			if (dev->fifo_size) {
 				if (stat & OMAP_I2C_STAT_XRDY)
 					num_bytes = dev->fifo_size;
-				else
+				else    /* read TXSTAT on XDR interrupt */
 					num_bytes = omap_i2c_read_reg(dev,
-							OMAP_I2C_BUFSTAT_REG);
+							OMAP_I2C_BUFSTAT_REG)
+							& 0x3F;
 			}
 			while (num_bytes) {
 				num_bytes--;
@@ -760,6 +775,27 @@ omap_i2c_isr(int this_irq, void *dev_id)
 							"data to send\n");
 					break;
 				}
+
+				/*
+				 * OMAP3430 Errata 1.153: When an XRDY/XDR
+				 * is hit, wait for XUDF before writing data
+				 * to DATA_REG. Otherwise some data bytes can
+				 * be lost while transferring them from the
+				 * memory to the I2C interface.
+				 */
+
+				if (dev->rev <= OMAP_I2C_REV_ON_3430) {
+						while (!(stat & OMAP_I2C_STAT_XUDF)) {
+							if (stat & (OMAP_I2C_STAT_NACK | OMAP_I2C_STAT_AL)) {
+								omap_i2c_ack_stat(dev, stat & (OMAP_I2C_STAT_XRDY | OMAP_I2C_STAT_XDR));
+								err |= OMAP_I2C_STAT_XUDF;
+								goto complete;
+							}
+							cpu_relax();
+							stat = omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG);
+						}
+				}
+
 				omap_i2c_write_reg(dev, OMAP_I2C_DATA_REG, w);
 			}
 			omap_i2c_ack_stat(dev,
@@ -806,7 +842,7 @@ omap_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ioarea = request_mem_region(mem->start, (mem->end - mem->start) + 1,
+	ioarea = request_mem_region(mem->start, resource_size(mem),
 			pdev->name);
 	if (!ioarea) {
 		dev_err(&pdev->dev, "I2C region already claimed\n");
@@ -879,7 +915,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_HWMON;
-	strncpy(adap->name, "OMAP I2C adapter", sizeof(adap->name));
+	strlcpy(adap->name, "OMAP I2C adapter", sizeof(adap->name));
 	adap->algo = &omap_i2c_algo;
 	adap->dev.parent = &pdev->dev;
 
@@ -905,7 +941,7 @@ err_free_mem:
 	platform_set_drvdata(pdev, NULL);
 	kfree(dev);
 err_release_region:
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 
 	return r;
 }
@@ -925,7 +961,7 @@ omap_i2c_remove(struct platform_device *pdev)
 	iounmap(dev->base);
 	kfree(dev);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
 

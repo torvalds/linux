@@ -278,7 +278,26 @@ int sb_has_dirty_inodes(struct super_block *sb)
 EXPORT_SYMBOL(sb_has_dirty_inodes);
 
 /*
- * Write a single inode's dirty pages and inode data out to disk.
+ * Wait for writeback on an inode to complete.
+ */
+static void inode_wait_for_writeback(struct inode *inode)
+{
+	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
+	wait_queue_head_t *wqh;
+
+	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
+	do {
+		spin_unlock(&inode_lock);
+		__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
+		spin_lock(&inode_lock);
+	} while (inode->i_state & I_SYNC);
+}
+
+/*
+ * Write out an inode's dirty pages.  Called under inode_lock.  Either the
+ * caller has ref on the inode (either via __iget or via syscall against an fd)
+ * or the inode has I_WILL_FREE set (via generic_forget_inode)
+ *
  * If `wait' is set, wait on the writeout.
  *
  * The whole writeout design is quite complex and fragile.  We want to avoid
@@ -288,12 +307,37 @@ EXPORT_SYMBOL(sb_has_dirty_inodes);
  * Called under inode_lock.
  */
 static int
-__sync_single_inode(struct inode *inode, struct writeback_control *wbc)
+writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	unsigned dirty;
 	struct address_space *mapping = inode->i_mapping;
 	int wait = wbc->sync_mode == WB_SYNC_ALL;
+	unsigned dirty;
 	int ret;
+
+	if (!atomic_read(&inode->i_count))
+		WARN_ON(!(inode->i_state & (I_WILL_FREE|I_FREEING)));
+	else
+		WARN_ON(inode->i_state & I_WILL_FREE);
+
+	if (inode->i_state & I_SYNC) {
+		/*
+		 * If this inode is locked for writeback and we are not doing
+		 * writeback-for-data-integrity, move it to s_more_io so that
+		 * writeback can proceed with the other inodes on s_io.
+		 *
+		 * We'll have another go at writing back this inode when we
+		 * completed a full scan of s_io.
+		 */
+		if (!wait) {
+			requeue_io(inode);
+			return 0;
+		}
+
+		/*
+		 * It's a data-integrity sync.  We must wait.
+		 */
+		inode_wait_for_writeback(inode);
+	}
 
 	BUG_ON(inode->i_state & I_SYNC);
 
@@ -390,50 +434,6 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 /*
- * Write out an inode's dirty pages.  Called under inode_lock.  Either the
- * caller has ref on the inode (either via __iget or via syscall against an fd)
- * or the inode has I_WILL_FREE set (via generic_forget_inode)
- */
-static int
-__writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	wait_queue_head_t *wqh;
-
-	if (!atomic_read(&inode->i_count))
-		WARN_ON(!(inode->i_state & (I_WILL_FREE|I_FREEING)));
-	else
-		WARN_ON(inode->i_state & I_WILL_FREE);
-
-	if ((wbc->sync_mode != WB_SYNC_ALL) && (inode->i_state & I_SYNC)) {
-		/*
-		 * We're skipping this inode because it's locked, and we're not
-		 * doing writeback-for-data-integrity.  Move it to s_more_io so
-		 * that writeback can proceed with the other inodes on s_io.
-		 * We'll have another go at writing back this inode when we
-		 * completed a full scan of s_io.
-		 */
-		requeue_io(inode);
-		return 0;
-	}
-
-	/*
-	 * It's a data-integrity sync.  We must wait.
-	 */
-	if (inode->i_state & I_SYNC) {
-		DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
-
-		wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-		do {
-			spin_unlock(&inode_lock);
-			__wait_on_bit(wqh, &wq, inode_wait,
-							TASK_UNINTERRUPTIBLE);
-			spin_lock(&inode_lock);
-		} while (inode->i_state & I_SYNC);
-	}
-	return __sync_single_inode(inode, wbc);
-}
-
-/*
  * Write out a superblock's list of dirty inodes.  A wait will be performed
  * upon no inodes, all inodes or the final one, depending upon sync_mode.
  *
@@ -526,7 +526,7 @@ void generic_sync_sb_inodes(struct super_block *sb,
 		BUG_ON(inode->i_state & (I_FREEING | I_CLEAR));
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
-		__writeback_single_inode(inode, wbc);
+		writeback_single_inode(inode, wbc);
 		if (current_is_pdflush())
 			writeback_release(bdi);
 		if (wbc->pages_skipped != pages_skipped) {
@@ -708,7 +708,7 @@ int write_inode_now(struct inode *inode, int sync)
 
 	might_sleep();
 	spin_lock(&inode_lock);
-	ret = __writeback_single_inode(inode, &wbc);
+	ret = writeback_single_inode(inode, &wbc);
 	spin_unlock(&inode_lock);
 	if (sync)
 		inode_sync_wait(inode);
@@ -732,7 +732,7 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc)
 	int ret;
 
 	spin_lock(&inode_lock);
-	ret = __writeback_single_inode(inode, wbc);
+	ret = writeback_single_inode(inode, wbc);
 	spin_unlock(&inode_lock);
 	return ret;
 }

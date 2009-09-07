@@ -22,7 +22,7 @@
  * data for the MMC controller
  */
 struct tmio_mmc_data {
-	unsigned int		hclk;
+	const unsigned int		hclk;
 };
 
 /*

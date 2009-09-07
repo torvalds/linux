@@ -24,6 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/at73c213.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/clk.h>
 
 #include <mach/hardware.h>
@@ -218,6 +220,56 @@ static struct gpio_led ek_leds[] = {
 	}
 };
 
+
+/*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
+	{
+		.gpio		= AT91_PIN_PA30,
+		.code		= BTN_3,
+		.desc		= "Button 3",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA31,
+		.code		= BTN_4,
+		.desc		= "Button 4",
+		.active_low	= 1,
+		.wakeup		= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PA30, 1);	/* btn3 */
+	at91_set_deglitch(AT91_PIN_PA30, 1);
+	at91_set_gpio_input(AT91_PIN_PA31, 1);	/* btn4 */
+	at91_set_deglitch(AT91_PIN_PA31, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
+#endif
+
+
 static struct i2c_board_info __initdata ek_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("24c512", 0x50),
@@ -245,6 +297,8 @@ static void __init ek_board_init(void)
 	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	/* Push Buttons */
+	ek_add_device_buttons();
 	/* PCK0 provides MCLK to the WM8731 */
 	at91_set_B_periph(AT91_PIN_PC1, 0);
 	/* SSC (for WM8731) */

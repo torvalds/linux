@@ -82,6 +82,7 @@ pin, which can be used to wake up tasks.
  */
 
 #include "../comedidev.h"
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 
 #define PARPORT_SIZE 3
@@ -274,7 +275,7 @@ static int parport_intr_cancel(struct comedi_device *dev, struct comedi_subdevic
 	return 0;
 }
 
-static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 3;
@@ -309,8 +310,8 @@ static int parport_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	irq = it->options[1];
 	if (irq) {
 		printk(" irq=%u", irq);
-		ret = comedi_request_irq(irq, parport_interrupt, 0,
-			"comedi_parport", dev);
+		ret = request_irq(irq, parport_interrupt, 0, "comedi_parport",
+				  dev);
 		if (ret < 0) {
 			printk(" irq not available\n");
 			return -EINVAL;
@@ -384,7 +385,7 @@ static int parport_detach(struct comedi_device *dev)
 		release_region(dev->iobase, PARPORT_SIZE);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	return 0;
 }

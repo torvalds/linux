@@ -1533,7 +1533,7 @@ void __init __rcu_init(void)
 	int j;
 	struct rcu_node *rnp;
 
-	printk(KERN_WARNING "Experimental hierarchical RCU implementation.\n");
+	printk(KERN_INFO "Hierarchical RCU implementation.\n");
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
@@ -1546,7 +1546,6 @@ void __init __rcu_init(void)
 		rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE, (void *)(long)i);
 	/* Register notifier for non-boot CPUs */
 	register_cpu_notifier(&rcu_nb);
-	printk(KERN_WARNING "Experimental hierarchical RCU init done.\n");
 }
 
 module_param(blimit, int, 0);

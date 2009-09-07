@@ -2674,7 +2674,7 @@ static u8 stv090x_optimize_carloop(struct stv090x_state *state, enum stv090x_mod
 
 static u8 stv090x_optimize_carloop_short(struct stv090x_state *state)
 {
-	struct stv090x_short_frame_crloop *short_crl;
+	struct stv090x_short_frame_crloop *short_crl = NULL;
 	s32 index = 0;
 	u8 aclc = 0x0b;
 
@@ -2694,10 +2694,13 @@ static u8 stv090x_optimize_carloop_short(struct stv090x_state *state)
 		break;
 	}
 
-	if (state->dev_ver >= 0x30)
-		short_crl = stv090x_s2_short_crl_cut20;
-	else if (state->dev_ver >= 0x20)
+	if (state->dev_ver >= 0x30) {
+		/* Cut 3.0 and up */
 		short_crl = stv090x_s2_short_crl_cut30;
+	} else {
+		/* Cut 2.0 and up: we don't support cuts older than 2.0 */
+		short_crl = stv090x_s2_short_crl_cut20;
+	}
 
 	if (state->srate <= 3000000)
 		aclc = short_crl[index].crl_2;

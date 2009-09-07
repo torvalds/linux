@@ -52,12 +52,13 @@ static struct tracer_flags tracer_flags = {
 	.opts = trace_opts
 };
 
-/* pid on the last trace processed */
+static struct trace_array *graph_array;
 
 
 /* Add a function return address to the trace stack on thread info.*/
 int
-ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
+			 unsigned long frame_pointer)
 {
 	unsigned long long calltime;
 	int index;
@@ -85,6 +86,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = calltime;
 	current->ret_stack[index].subtime = 0;
+	current->ret_stack[index].fp = frame_pointer;
 	*depth = index;
 
 	return 0;
@@ -92,7 +94,8 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 
 /* Retrieve a function return address to the trace stack on thread info.*/
 static void
-ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
+ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
+			unsigned long frame_pointer)
 {
 	int index;
 
@@ -106,6 +109,31 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 		return;
 	}
 
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	/*
+	 * The arch may choose to record the frame pointer used
+	 * and check it here to make sure that it is what we expect it
+	 * to be. If gcc does not set the place holder of the return
+	 * address in the frame pointer, and does a copy instead, then
+	 * the function graph trace will fail. This test detects this
+	 * case.
+	 *
+	 * Currently, x86_32 with optimize for size (-Os) makes the latest
+	 * gcc do the above.
+	 */
+	if (unlikely(current->ret_stack[index].fp != frame_pointer)) {
+		ftrace_graph_stop();
+		WARN(1, "Bad frame pointer: expected %lx, received %lx\n"
+		     "  from func %pF return to %lx\n",
+		     current->ret_stack[index].fp,
+		     frame_pointer,
+		     (void *)current->ret_stack[index].func,
+		     current->ret_stack[index].ret);
+		*ret = (unsigned long)panic;
+		return;
+	}
+#endif
+
 	*ret = current->ret_stack[index].ret;
 	trace->func = current->ret_stack[index].func;
 	trace->calltime = current->ret_stack[index].calltime;
@@ -117,12 +145,12 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
  * Send the trace to the ring-buffer.
  * @return the original return address.
  */
-unsigned long ftrace_return_to_handler(void)
+unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 {
 	struct ftrace_graph_ret trace;
 	unsigned long ret;
 
-	ftrace_pop_return_trace(&trace, &ret);
+	ftrace_pop_return_trace(&trace, &ret, frame_pointer);
 	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
 	barrier();
@@ -138,15 +166,133 @@ unsigned long ftrace_return_to_handler(void)
 	return ret;
 }
 
+static int __trace_graph_entry(struct trace_array *tr,
+				struct ftrace_graph_ent *trace,
+				unsigned long flags,
+				int pc)
+{
+	struct ftrace_event_call *call = &event_funcgraph_entry;
+	struct ring_buffer_event *event;
+	struct ring_buffer *buffer = tr->buffer;
+	struct ftrace_graph_ent_entry *entry;
+
+	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+		return 0;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_ENT,
+					  sizeof(*entry), flags, pc);
+	if (!event)
+		return 0;
+	entry	= ring_buffer_event_data(event);
+	entry->graph_ent			= *trace;
+	if (!filter_current_check_discard(buffer, call, entry, event))
+		ring_buffer_unlock_commit(buffer, event);
+
+	return 1;
+}
+
+int trace_graph_entry(struct ftrace_graph_ent *trace)
+{
+	struct trace_array *tr = graph_array;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int ret;
+	int cpu;
+	int pc;
+
+	if (unlikely(!tr))
+		return 0;
+
+	if (!ftrace_trace_task(current))
+		return 0;
+
+	if (!ftrace_graph_addr(trace->func))
+		return 0;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+	if (likely(disabled == 1)) {
+		pc = preempt_count();
+		ret = __trace_graph_entry(tr, trace, flags, pc);
+	} else {
+		ret = 0;
+	}
+	/* Only do the atomic if it is not already set */
+	if (!test_tsk_trace_graph(current))
+		set_tsk_trace_graph(current);
+
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+
+	return ret;
+}
+
+static void __trace_graph_return(struct trace_array *tr,
+				struct ftrace_graph_ret *trace,
+				unsigned long flags,
+				int pc)
+{
+	struct ftrace_event_call *call = &event_funcgraph_exit;
+	struct ring_buffer_event *event;
+	struct ring_buffer *buffer = tr->buffer;
+	struct ftrace_graph_ret_entry *entry;
+
+	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+		return;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RET,
+					  sizeof(*entry), flags, pc);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	entry->ret				= *trace;
+	if (!filter_current_check_discard(buffer, call, entry, event))
+		ring_buffer_unlock_commit(buffer, event);
+}
+
+void trace_graph_return(struct ftrace_graph_ret *trace)
+{
+	struct trace_array *tr = graph_array;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+	int pc;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+	if (likely(disabled == 1)) {
+		pc = preempt_count();
+		__trace_graph_return(tr, trace, flags, pc);
+	}
+	if (!trace->depth)
+		clear_tsk_trace_graph(current);
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+}
+
 static int graph_trace_init(struct trace_array *tr)
 {
-	int ret = register_ftrace_graph(&trace_graph_return,
-					&trace_graph_entry);
+	int ret;
+
+	graph_array = tr;
+	ret = register_ftrace_graph(&trace_graph_return,
+				    &trace_graph_entry);
 	if (ret)
 		return ret;
 	tracing_start_cmdline_record();
 
 	return 0;
+}
+
+void set_graph_array(struct trace_array *tr)
+{
+	graph_array = tr;
 }
 
 static void graph_trace_reset(struct trace_array *tr)
@@ -155,43 +301,19 @@ static void graph_trace_reset(struct trace_array *tr)
 	unregister_ftrace_graph();
 }
 
-static inline int log10_cpu(int nb)
-{
-	if (nb / 100)
-		return 3;
-	if (nb / 10)
-		return 2;
-	return 1;
-}
+static int max_bytes_for_cpu;
 
 static enum print_line_t
 print_graph_cpu(struct trace_seq *s, int cpu)
 {
-	int i;
 	int ret;
-	int log10_this = log10_cpu(cpu);
-	int log10_all = log10_cpu(cpumask_weight(cpu_online_mask));
-
 
 	/*
 	 * Start with a space character - to make it stand out
 	 * to the right a bit when trace output is pasted into
 	 * email:
 	 */
-	ret = trace_seq_printf(s, " ");
-
-	/*
-	 * Tricky - we space the CPU field according to the max
-	 * number of online CPUs. On a 2-cpu system it would take
-	 * a maximum of 1 digit - on a 128 cpu system it would
-	 * take up to 3 digits:
-	 */
-	for (i = 0; i < log10_all - log10_this; i++) {
-		ret = trace_seq_printf(s, " ");
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
-	}
-	ret = trace_seq_printf(s, "%d) ", cpu);
+	ret = trace_seq_printf(s, " %*d) ", max_bytes_for_cpu, cpu);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -537,11 +659,7 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
 
-	ret = seq_print_ip_sym(s, call->func, 0);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	ret = trace_seq_printf(s, "();\n");
+	ret = trace_seq_printf(s, "%pf();\n", (void *)call->func);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -584,11 +702,7 @@ print_graph_entry_nested(struct trace_iterator *iter,
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
 
-	ret = seq_print_ip_sym(s, call->func, 0);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	ret = trace_seq_printf(s, "() {\n");
+	ret = trace_seq_printf(s, "%pf() {\n", (void *)call->func);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -815,9 +929,16 @@ print_graph_function(struct trace_iterator *iter)
 
 	switch (entry->type) {
 	case TRACE_GRAPH_ENT: {
-		struct ftrace_graph_ent_entry *field;
+		/*
+		 * print_graph_entry() may consume the current event,
+		 * thus @field may become invalid, so we need to save it.
+		 * sizeof(struct ftrace_graph_ent_entry) is very small,
+		 * it can be safely saved at the stack.
+		 */
+		struct ftrace_graph_ent_entry *field, saved;
 		trace_assign_type(field, entry);
-		return print_graph_entry(field, s, iter);
+		saved = *field;
+		return print_graph_entry(&saved, s, iter);
 	}
 	case TRACE_GRAPH_RET: {
 		struct ftrace_graph_ret_entry *field;
@@ -899,6 +1020,8 @@ static struct tracer graph_trace __read_mostly = {
 
 static __init int init_graph_trace(void)
 {
+	max_bytes_for_cpu = snprintf(NULL, 0, "%d", nr_cpu_ids - 1);
+
 	return register_tracer(&graph_trace);
 }
 

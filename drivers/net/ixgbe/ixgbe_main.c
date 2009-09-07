@@ -34,6 +34,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
@@ -491,12 +492,12 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
 
 	skb_record_rx_queue(skb, ring->queue_index);
 	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
-		if (adapter->vlgrp && is_vlan && (tag != 0))
+		if (adapter->vlgrp && is_vlan && (tag & VLAN_VID_MASK))
 			vlan_gro_receive(napi, adapter->vlgrp, tag, skb);
 		else
 			napi_gro_receive(napi, skb);
 	} else {
-		if (adapter->vlgrp && is_vlan && (tag != 0))
+		if (adapter->vlgrp && is_vlan && (tag & VLAN_VID_MASK))
 			vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
 		else
 			netif_rx(skb);
@@ -510,8 +511,11 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
  * @skb: skb currently being received and modified
  **/
 static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
-                                     u32 status_err, struct sk_buff *skb)
+				     union ixgbe_adv_rx_desc *rx_desc,
+				     struct sk_buff *skb)
 {
+	u32 status_err = le32_to_cpu(rx_desc->wb.upper.status_error);
+
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Rx csum disabled */
@@ -529,6 +533,16 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 		return;
 
 	if (status_err & IXGBE_RXDADV_ERR_TCPE) {
+		u16 pkt_info = rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
+
+		/*
+		 * 82599 errata, UDP frames with a 0 checksum can be marked as
+		 * checksum errors.
+		 */
+		if ((pkt_info & IXGBE_RXDADV_PKTTYPE_UDP) &&
+		    (adapter->hw.mac.type == ixgbe_mac_82599EB))
+			return;
+
 		adapter->hw_csum_rx_error++;
 		return;
 	}
@@ -563,7 +577,6 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
 	unsigned int i;
-	unsigned int bufsz = rx_ring->rx_buf_len + NET_IP_ALIGN;
 
 	i = rx_ring->next_to_use;
 	bi = &rx_ring->rx_buffer_info[i];
@@ -572,7 +585,7 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 		rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
 
 		if (!bi->page_dma &&
-		    (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)) {
+		    (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)) {
 			if (!bi->page) {
 				bi->page = alloc_page(GFP_ATOMIC);
 				if (!bi->page) {
@@ -593,7 +606,9 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 
 		if (!bi->skb) {
 			struct sk_buff *skb;
-			skb = netdev_alloc_skb(adapter->netdev, bufsz);
+			skb = netdev_alloc_skb(adapter->netdev,
+			                       (rx_ring->rx_buf_len +
+			                        NET_IP_ALIGN));
 
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
@@ -608,12 +623,13 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			skb_reserve(skb, NET_IP_ALIGN);
 
 			bi->skb = skb;
-			bi->dma = pci_map_single(pdev, skb->data, bufsz,
+			bi->dma = pci_map_single(pdev, skb->data,
+			                         rx_ring->rx_buf_len,
 			                         PCI_DMA_FROMDEVICE);
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
-		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+		if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
 			rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
 			rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 		} else {
@@ -710,7 +726,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			break;
 		(*work_done)++;
 
-		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+		if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
 			hdr_info = le16_to_cpu(ixgbe_get_hdr_info(rx_desc));
 			len = (hdr_info & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
 			       IXGBE_RXDADV_HDRBUFLEN_SHIFT;
@@ -732,6 +748,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			pci_unmap_single(pdev, rx_buffer_info->dma,
 			                 rx_ring->rx_buf_len,
 			                 PCI_DMA_FROMDEVICE);
+			rx_buffer_info->dma = 0;
 			skb_put(skb, len);
 		}
 
@@ -763,7 +780,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(next_rxd);
 		cleaned_count++;
 
-		if (adapter->flags & IXGBE_FLAG2_RSC_CAPABLE)
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)
 			rsc_count = ixgbe_get_rsc_count(rx_desc);
 
 		if (rsc_count) {
@@ -781,7 +798,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			rx_ring->stats.packets++;
 			rx_ring->stats.bytes += skb->len;
 		} else {
-			if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+			if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
 				rx_buffer_info->skb = next_buffer->skb;
 				rx_buffer_info->dma = next_buffer->dma;
 				next_buffer->skb = skb;
@@ -799,7 +816,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			goto next_desc;
 		}
 
-		ixgbe_rx_checksum(adapter, staterr, skb);
+		ixgbe_rx_checksum(adapter, rx_desc, skb);
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
@@ -1881,46 +1898,19 @@ static void ixgbe_configure_tx(struct ixgbe_adapter *adapter)
 
 #define IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT 2
 
-static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
+static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
+                                   struct ixgbe_ring *rx_ring)
 {
-	struct ixgbe_ring *rx_ring;
 	u32 srrctl;
-	int queue0 = 0;
-	unsigned long mask;
+	int index;
 	struct ixgbe_ring_feature *feature = adapter->ring_feature;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			int dcb_i = feature[RING_F_DCB].indices;
-			if (dcb_i == 8)
-				queue0 = index >> 4;
-			else if (dcb_i == 4)
-				queue0 = index >> 5;
-			else
-				dev_err(&adapter->pdev->dev, "Invalid DCB "
-				        "configuration\n");
-#ifdef IXGBE_FCOE
-			if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
-				struct ixgbe_ring_feature *f;
-
-				rx_ring = &adapter->rx_ring[queue0];
-				f = &adapter->ring_feature[RING_F_FCOE];
-				if ((queue0 == 0) && (index > rx_ring->reg_idx))
-					queue0 = f->mask + index -
-					         rx_ring->reg_idx - 1;
-			}
-#endif /* IXGBE_FCOE */
-		} else {
-			queue0 = index;
-		}
-	} else {
+	index = rx_ring->reg_idx;
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		unsigned long mask;
 		mask = (unsigned long) feature[RING_F_RSS].mask;
-		queue0 = index & mask;
 		index = index & mask;
 	}
-
-	rx_ring = &adapter->rx_ring[queue0];
-
 	srrctl = IXGBE_READ_REG(&adapter->hw, IXGBE_SRRCTL(index));
 
 	srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
@@ -1929,7 +1919,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 	srrctl |= (IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT) &
 		  IXGBE_SRRCTL_BSIZEHDR_MASK;
 
-	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+	if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
 #if (PAGE_SIZE / 2) > IXGBE_MAX_RXBUFFER
 		srrctl |= IXGBE_MAX_RXBUFFER >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 #else
@@ -1985,6 +1975,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 {
 	u64 rdba;
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_ring *rx_ring;
 	struct net_device *netdev = adapter->netdev;
 	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i, j;
@@ -2001,11 +1992,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	/* Decide whether to use packet split mode or not */
 	adapter->flags |= IXGBE_FLAG_RX_PS_ENABLED;
 
-#ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
-		adapter->flags &= ~IXGBE_FLAG_RX_PS_ENABLED;
-#endif /* IXGBE_FCOE */
-
 	/* Set the RX buffer length according to the mode */
 	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
 		rx_buf_len = IXGBE_RX_HDR_SIZE;
@@ -2019,7 +2005,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
 		}
 	} else {
-		if (!(adapter->flags & IXGBE_FLAG2_RSC_ENABLED) &&
+		if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
 		    (netdev->mtu <= ETH_DATA_LEN))
 			rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 		else
@@ -2053,29 +2039,35 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	 * the Base and Length of the Rx Descriptor Ring
 	 */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		rdba = adapter->rx_ring[i].dma;
-		j = adapter->rx_ring[i].reg_idx;
+		rx_ring = &adapter->rx_ring[i];
+		rdba = rx_ring->dma;
+		j = rx_ring->reg_idx;
 		IXGBE_WRITE_REG(hw, IXGBE_RDBAL(j), (rdba & DMA_BIT_MASK(32)));
 		IXGBE_WRITE_REG(hw, IXGBE_RDBAH(j), (rdba >> 32));
 		IXGBE_WRITE_REG(hw, IXGBE_RDLEN(j), rdlen);
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(j), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(j), 0);
-		adapter->rx_ring[i].head = IXGBE_RDH(j);
-		adapter->rx_ring[i].tail = IXGBE_RDT(j);
-		adapter->rx_ring[i].rx_buf_len = rx_buf_len;
+		rx_ring->head = IXGBE_RDH(j);
+		rx_ring->tail = IXGBE_RDT(j);
+		rx_ring->rx_buf_len = rx_buf_len;
+
+		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)
+			rx_ring->flags |= IXGBE_RING_RX_PS_ENABLED;
 
 #ifdef IXGBE_FCOE
 		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
 			struct ixgbe_ring_feature *f;
 			f = &adapter->ring_feature[RING_F_FCOE];
-			if ((rx_buf_len < IXGBE_FCOE_JUMBO_FRAME_SIZE) &&
-			    (i >= f->mask) && (i < f->mask + f->indices))
-				adapter->rx_ring[i].rx_buf_len =
-				        IXGBE_FCOE_JUMBO_FRAME_SIZE;
+			if ((i >= f->mask) && (i < f->mask + f->indices)) {
+				rx_ring->flags &= ~IXGBE_RING_RX_PS_ENABLED;
+				if (rx_buf_len < IXGBE_FCOE_JUMBO_FRAME_SIZE)
+					rx_ring->rx_buf_len =
+					        IXGBE_FCOE_JUMBO_FRAME_SIZE;
+			}
 		}
 
 #endif /* IXGBE_FCOE */
-		ixgbe_configure_srrctl(adapter, j);
+		ixgbe_configure_srrctl(adapter, rx_ring);
 	}
 
 	if (hw->mac.type == ixgbe_mac_82598EB) {
@@ -2148,10 +2140,11 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
 	}
 
-	if (adapter->flags & IXGBE_FLAG2_RSC_ENABLED) {
+	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 		/* Enable 82599 HW-RSC */
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-			j = adapter->rx_ring[i].reg_idx;
+			rx_ring = &adapter->rx_ring[i];
+			j = rx_ring->reg_idx;
 			rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(j));
 			rscctrl |= IXGBE_RSCCTL_RSCEN;
 			/*
@@ -2159,7 +2152,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			 * total size of max desc * buf_len is not greater
 			 * than 65535
 			 */
-			if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+			if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
 #if (MAX_SKB_FRAGS > 16)
 				rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
 #elif (MAX_SKB_FRAGS > 8)
@@ -2321,7 +2314,7 @@ static void ixgbe_set_rx_mode(struct net_device *netdev)
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 
 	/* reprogram secondary unicast list */
-	hw->mac.ops.update_uc_addr_list(hw, &netdev->uc_list);
+	hw->mac.ops.update_uc_addr_list(hw, &netdev->uc.list);
 
 	/* reprogram multicast list */
 	addr_count = netdev->mc_count;
@@ -2694,16 +2687,23 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 	/*
 	 * For hot-pluggable SFP+ devices, a new SFP+ module may have
-	 * arrived before interrupts were enabled.  We need to kick off
-	 * the SFP+ module setup first, then try to bring up link.
+	 * arrived before interrupts were enabled but after probe.  Such
+	 * devices wouldn't have their type identified yet. We need to
+	 * kick off the SFP+ module setup first, then try to bring up link.
 	 * If we're not hot-pluggable SFP+, we just need to configure link
 	 * and bring it up.
 	 */
-	err = hw->phy.ops.identify(hw);
-	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "PHY not supported on this NIC %d\n", err);
-		ixgbe_down(adapter);
-		return err;
+	if (hw->phy.type == ixgbe_phy_unknown) {
+		err = hw->phy.ops.identify(hw);
+		if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+			/*
+			 * Take the device down and schedule the sfp tasklet
+			 * which will unregister_netdev and log it.
+			 */
+			ixgbe_down(adapter);
+			schedule_work(&adapter->sfp_config_module_task);
+			return err;
+		}
 	}
 
 	if (ixgbe_is_sfp(hw)) {
@@ -2812,9 +2812,11 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 		}
 		if (!rx_buffer_info->page)
 			continue;
-		pci_unmap_page(pdev, rx_buffer_info->page_dma, PAGE_SIZE / 2,
-		               PCI_DMA_FROMDEVICE);
-		rx_buffer_info->page_dma = 0;
+		if (rx_buffer_info->page_dma) {
+			pci_unmap_page(pdev, rx_buffer_info->page_dma,
+			               PAGE_SIZE / 2, PCI_DMA_FROMDEVICE);
+			rx_buffer_info->page_dma = 0;
+		}
 		put_page(rx_buffer_info->page);
 		rx_buffer_info->page = NULL;
 		rx_buffer_info->page_offset = 0;
@@ -3118,7 +3120,11 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
 			DPRINTK(PROBE, INFO, "FCOE enabled with RSS \n");
-			ixgbe_set_rss_queues(adapter);
+			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				ixgbe_set_fdir_queues(adapter);
+			else
+				ixgbe_set_rss_queues(adapter);
 		}
 		/* adding FCoE rx rings to the end */
 		f->mask = adapter->num_rx_queues;
@@ -3376,7 +3382,12 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 		}
 #endif /* CONFIG_IXGBE_DCB */
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			ixgbe_cache_ring_rss(adapter);
+			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				ixgbe_cache_ring_fdir(adapter);
+			else
+				ixgbe_cache_ring_rss(adapter);
+
 			fcoe_i = f->mask;
 		}
 		for (i = 0; i < f->indices; i++, fcoe_i++)
@@ -3716,14 +3727,15 @@ static void ixgbe_sfp_task(struct work_struct *work)
 	if ((hw->phy.type == ixgbe_phy_nl) &&
 	    (hw->phy.sfp_type == ixgbe_sfp_type_not_present)) {
 		s32 ret = hw->phy.ops.identify_sfp(hw);
-		if (ret)
+		if (ret == IXGBE_ERR_SFP_NOT_PRESENT)
 			goto reschedule;
 		ret = hw->phy.ops.reset(hw);
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-			DPRINTK(PROBE, ERR, "failed to initialize because an "
-			        "unsupported SFP+ module type was detected.\n"
-			        "Reload the driver after installing a "
-			        "supported module.\n");
+			dev_err(&adapter->pdev->dev, "failed to initialize "
+				"because an unsupported SFP+ module type "
+				"was detected.\n"
+				"Reload the driver after installing a "
+				"supported module.\n");
 			unregister_netdev(adapter->netdev);
 		} else {
 			DPRINTK(PROBE, INFO, "detected SFP+: %d\n",
@@ -3776,16 +3788,17 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
 	} else if (hw->mac.type == ixgbe_mac_82599EB) {
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
-		adapter->flags |= IXGBE_FLAG2_RSC_CAPABLE;
-		adapter->flags |= IXGBE_FLAG2_RSC_ENABLED;
+		adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
+		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
 		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		adapter->ring_feature[RING_F_FDIR].indices =
 		                                         IXGBE_MAX_FDIR_INDICES;
 		adapter->atr_sample_rate = 20;
 		adapter->fdir_pballoc = 0;
 #ifdef IXGBE_FCOE
-		adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-		adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
+		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
+		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
+		adapter->ring_feature[RING_F_FCOE].indices = 0;
 #endif /* IXGBE_FCOE */
 	}
 
@@ -4502,7 +4515,8 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	u32 autoneg;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_LINK_TASK;
-	if (hw->mac.ops.get_link_capabilities)
+	autoneg = hw->phy.autoneg_advertised;
+	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg,
 		                                  &hw->mac.autoneg);
 	if (hw->mac.ops.setup_link_speed)
@@ -4524,10 +4538,17 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	u32 err;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_MOD_TASK;
+
+	/* Time for electrical oscillations to settle down */
+	msleep(100);
 	err = hw->phy.ops.identify_sfp(hw);
+
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "PHY not supported on this NIC %d\n", err);
-		ixgbe_down(adapter);
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
+		unregister_netdev(adapter->netdev);
 		return;
 	}
 	hw->mac.ops.setup_sfp(hw);
@@ -5095,9 +5116,6 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int count = 0;
 	unsigned int f;
 
-	r_idx = skb->queue_mapping;
-	tx_ring = &adapter->tx_ring[r_idx];
-
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb);
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
@@ -5107,10 +5125,18 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		tx_flags |= (skb->queue_mapping << 13);
-		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
-		tx_flags |= IXGBE_TX_FLAGS_VLAN;
+		if (skb->priority != TC_PRIO_CONTROL) {
+			tx_flags |= (skb->queue_mapping << 13);
+			tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
+			tx_flags |= IXGBE_TX_FLAGS_VLAN;
+		} else {
+			skb->queue_mapping =
+				adapter->ring_feature[RING_F_DCB].indices-1;
+		}
 	}
+
+	r_idx = skb->queue_mapping;
+	tx_ring = &adapter->tx_ring[r_idx];
 
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
 	    (skb->protocol == htons(ETH_P_FCOE)))
@@ -5261,7 +5287,7 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 
 /**
  * ixgbe_add_sanmac_netdev - Add the SAN MAC address to the corresponding
- * netdev->dev_addr_list
+ * netdev->dev_addrs
  * @netdev: network interface device structure
  *
  * Returns non-zero on failure
@@ -5282,7 +5308,7 @@ static int ixgbe_add_sanmac_netdev(struct net_device *dev)
 
 /**
  * ixgbe_del_sanmac_netdev - Removes the SAN MAC address to the corresponding
- * netdev->dev_addr_list
+ * netdev->dev_addrs
  * @netdev: network interface device structure
  *
  * Returns non-zero on failure
@@ -5310,12 +5336,19 @@ static int ixgbe_del_sanmac_netdev(struct net_device *dev)
 static void ixgbe_netpoll(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int i;
 
-	disable_irq(adapter->pdev->irq);
 	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
-	ixgbe_intr(adapter->pdev->irq, netdev);
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+		int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+		for (i = 0; i < num_q_vectors; i++) {
+			struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
+			ixgbe_msix_clean_many(0, q_vector);
+		}
+	} else {
+		ixgbe_intr(adapter->pdev->irq, netdev);
+	}
 	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
-	enable_irq(adapter->pdev->irq);
 }
 #endif
 
@@ -5513,8 +5546,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			  round_jiffies(jiffies + (2 * HZ)));
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		dev_err(&adapter->pdev->dev, "failed to load because an "
-		        "unsupported SFP+ module type was detected.\n");
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		goto err_sw_init;
 	} else if (err) {
 		dev_err(&adapter->pdev->dev, "HW Init failed: %d\n", err);
@@ -5548,29 +5583,18 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #endif
 
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
 		if (hw->mac.ops.get_device_caps) {
 			hw->mac.ops.get_device_caps(hw, &device_caps);
-			if (!(device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)) {
-				netdev->features |= NETIF_F_FCOE_CRC;
-				netdev->features |= NETIF_F_FSO;
-				netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-				DPRINTK(DRV, INFO, "FCoE enabled, "
-					"disabling Flow Director\n");
-				adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-				adapter->flags &=
-				        ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-				adapter->atr_sample_rate = 0;
-			} else {
-				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-			}
+			if (device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)
+				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
 	}
 #endif /* IXGBE_FCOE */
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	if (adapter->flags & IXGBE_FLAG2_RSC_ENABLED)
+	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
 		netdev->features |= NETIF_F_LRO;
 
 	/* make sure the EEPROM is good */
@@ -5612,7 +5636,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		adapter->wol = 0;
 		break;
 	}
-	device_init_wakeup(&adapter->pdev->dev, true);
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* pick up the PCI bus settings for reporting later */

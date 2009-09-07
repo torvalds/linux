@@ -65,8 +65,6 @@
 
 static DEFINE_SPINLOCK(ugeth_lock);
 
-static void uec_configure_serdes(struct net_device *dev);
-
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -1536,6 +1534,49 @@ static void adjust_link(struct net_device *dev)
 	spin_unlock_irqrestore(&ugeth->lock, flags);
 }
 
+/* Initialize TBI PHY interface for communicating with the
+ * SERDES lynx PHY on the chip.  We communicate with this PHY
+ * through the MDIO bus on each controller, treating it as a
+ * "normal" PHY at the address found in the UTBIPA register.  We assume
+ * that the UTBIPA register is valid.  Either the MDIO bus code will set
+ * it to a value that doesn't conflict with other PHYs on the bus, or the
+ * value doesn't matter, as there are no other PHYs on the bus.
+ */
+static void uec_configure_serdes(struct net_device *dev)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_geth_info *ug_info = ugeth->ug_info;
+	struct phy_device *tbiphy;
+
+	if (!ug_info->tbi_node) {
+		dev_warn(&dev->dev, "SGMII mode requires that the device "
+			"tree specify a tbi-handle\n");
+		return;
+	}
+
+	tbiphy = of_phy_find_device(ug_info->tbi_node);
+	if (!tbiphy) {
+		dev_err(&dev->dev, "error: Could not get TBI device\n");
+		return;
+	}
+
+	/*
+	 * If the link is already up, we must already be ok, and don't need to
+	 * configure and reset the TBI<->SerDes link.  Maybe U-Boot configured
+	 * everything for us?  Resetting it takes the link down and requires
+	 * several seconds for it to come back.
+	 */
+	if (phy_read(tbiphy, ENET_TBI_MII_SR) & TBISR_LSTATUS)
+		return;
+
+	/* Single clk mode, mii mode off(for serdes communication) */
+	phy_write(tbiphy, ENET_TBI_MII_ANA, TBIANA_SETTINGS);
+
+	phy_write(tbiphy, ENET_TBI_MII_TBICON, TBICON_CLK_SELECT);
+
+	phy_write(tbiphy, ENET_TBI_MII_CR, TBICR_SETTINGS);
+}
+
 /* Configure the PHY for dev.
  * returns 0 if success.  -1 if failure
  */
@@ -1549,13 +1590,13 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	if (!ug_info->phy_node)
-		return 0;
-
 	phydev = of_phy_connect(dev, ug_info->phy_node, &adjust_link, 0,
 				priv->phy_interface);
+	if (!phydev)
+		phydev = of_phy_connect_fixed_link(dev, &adjust_link,
+						   priv->phy_interface);
 	if (!phydev) {
-		printk("%s: Could not attach to PHY\n", dev->name);
+		dev_err(&dev->dev, "Could not attach to PHY\n");
 		return -ENODEV;
 	}
 
@@ -1577,41 +1618,7 @@ static int init_phy(struct net_device *dev)
 	return 0;
 }
 
-/* Initialize TBI PHY interface for communicating with the
- * SERDES lynx PHY on the chip.  We communicate with this PHY
- * through the MDIO bus on each controller, treating it as a
- * "normal" PHY at the address found in the UTBIPA register.  We assume
- * that the UTBIPA register is valid.  Either the MDIO bus code will set
- * it to a value that doesn't conflict with other PHYs on the bus, or the
- * value doesn't matter, as there are no other PHYs on the bus.
- */
-static void uec_configure_serdes(struct net_device *dev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
 
-	if (!ugeth->tbiphy) {
-		printk(KERN_WARNING "SGMII mode requires that the device "
-			"tree specify a tbi-handle\n");
-	return;
-	}
-
-	/*
-	 * If the link is already up, we must already be ok, and don't need to
-	 * configure and reset the TBI<->SerDes link.  Maybe U-Boot configured
-	 * everything for us?  Resetting it takes the link down and requires
-	 * several seconds for it to come back.
-	 */
-	if (phy_read(ugeth->tbiphy, ENET_TBI_MII_SR) & TBISR_LSTATUS)
-		return;
-
-	/* Single clk mode, mii mode off(for serdes communication) */
-	phy_write(ugeth->tbiphy, ENET_TBI_MII_ANA, TBIANA_SETTINGS);
-
-	phy_write(ugeth->tbiphy, ENET_TBI_MII_TBICON, TBICON_CLK_SELECT);
-
-	phy_write(ugeth->tbiphy, ENET_TBI_MII_CR, TBICR_SETTINGS);
-
-}
 
 static int ugeth_graceful_stop_tx(struct ucc_geth_private *ugeth)
 {
@@ -3104,10 +3111,11 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 __iomem *bd;			/* BD pointer */
 	u32 bd_status;
 	u8 txQ = 0;
+	unsigned long flags;
 
 	ugeth_vdbg("%s: IN", __func__);
 
-	spin_lock_irq(&ugeth->lock);
+	spin_lock_irqsave(&ugeth->lock, flags);
 
 	dev->stats.tx_bytes += skb->len;
 
@@ -3164,7 +3172,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	uccf = ugeth->uccf;
 	out_be16(uccf->p_utodr, UCC_FAST_TOD);
 #endif
-	spin_unlock_irq(&ugeth->lock);
+	spin_unlock_irqrestore(&ugeth->lock, flags);
 
 	return 0;
 }
@@ -3601,9 +3609,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
 	struct resource res;
-	struct device_node *phy;
 	int err, ucc_num, max_speed = 0;
-	const u32 *fixed_link;
 	const unsigned int *prop;
 	const char *sprop;
 	const void *mac_addr;
@@ -3701,21 +3707,17 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ug_info->uf_info.regs = res.start;
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
-	fixed_link = of_get_property(np, "fixed-link", NULL);
-	if (fixed_link) {
-		phy = NULL;
-	} else {
-		phy = of_parse_phandle(np, "phy-handle", 0);
-		if (phy == NULL)
-			return -ENODEV;
-	}
-	ug_info->phy_node = phy;
+
+	ug_info->phy_node = of_parse_phandle(np, "phy-handle", 0);
+
+	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
+	ug_info->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
 
 	/* get the phy interface type, or default to MII */
 	prop = of_get_property(np, "phy-connection-type", NULL);
 	if (!prop) {
 		/* handle interface property present in old trees */
-		prop = of_get_property(phy, "interface", NULL);
+		prop = of_get_property(ug_info->phy_node, "interface", NULL);
 		if (prop != NULL) {
 			phy_interface = enet_to_phy_interface[*prop];
 			max_speed = enet_to_speed[*prop];
@@ -3817,37 +3819,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ugeth->dev = device;
 	ugeth->ndev = dev;
 	ugeth->node = np;
-
-	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
-	ph = of_get_property(np, "tbi-handle", NULL);
-	if (ph) {
-		struct device_node *tbi = of_find_node_by_phandle(*ph);
-		struct of_device *ofdev;
-		struct mii_bus *bus;
-		const unsigned int *id;
-
-		if (!tbi)
-			return 0;
-
-		mdio = of_get_parent(tbi);
-		if (!mdio)
-			return 0;
-
-		ofdev = of_find_device_by_node(mdio);
-
-		of_node_put(mdio);
-
-		id = of_get_property(tbi, "reg", NULL);
-		if (!id)
-			return 0;
-		of_node_put(tbi);
-
-		bus = dev_get_drvdata(&ofdev->dev);
-		if (!bus)
-			return 0;
-
-		ugeth->tbiphy = bus->phy_map[*id];
-	}
 
 	return 0;
 }

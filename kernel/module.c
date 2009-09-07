@@ -55,6 +55,11 @@
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/module.h>
+
+EXPORT_TRACEPOINT_SYMBOL(module_get);
+
 #if 0
 #define DEBUGP printk
 #else
@@ -909,16 +914,18 @@ void __symbol_put(const char *symbol)
 }
 EXPORT_SYMBOL(__symbol_put);
 
+/* Note this assumes addr is a function, which it currently always is. */
 void symbol_put_addr(void *addr)
 {
 	struct module *modaddr;
+	unsigned long a = (unsigned long)dereference_function_descriptor(addr);
 
-	if (core_kernel_text((unsigned long)addr))
+	if (core_kernel_text(a))
 		return;
 
 	/* module_text_address is safe here: we're supposed to have reference
 	 * to module from symbol_get, so it can't go away. */
-	modaddr = __module_text_address((unsigned long)addr);
+	modaddr = __module_text_address(a);
 	BUG_ON(!modaddr);
 	module_put(modaddr);
 }
@@ -940,6 +947,8 @@ void module_put(struct module *module)
 	if (module) {
 		unsigned int cpu = get_cpu();
 		local_dec(__module_ref_addr(module, cpu));
+		trace_module_put(module, _RET_IP_,
+				 local_read(__module_ref_addr(module, cpu)));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1068,7 +1077,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 {
 	const unsigned long *crc;
 
-	if (!find_symbol("module_layout", NULL, &crc, true, false))
+	if (!find_symbol(MODULE_SYMBOL_PREFIX "module_layout", NULL,
+			 &crc, true, false))
 		BUG();
 	return check_version(sechdrs, versindex, "module_layout", mod, crc);
 }
@@ -1270,6 +1280,10 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	unsigned int notes, loaded, i;
 	struct module_notes_attrs *notes_attrs;
 	struct bin_attribute *nattr;
+
+	/* failed to create section attributes, so can't create notes */
+	if (!mod->sect_attrs)
+		return;
 
 	/* Count notes sections and allocate structures.  */
 	notes = 0;
@@ -1490,6 +1504,8 @@ static int __unlink_module(void *_mod)
 /* Free a module, remove from lists, etc (must hold module_mutex). */
 static void free_module(struct module *mod)
 {
+	trace_module_free(mod);
+
 	/* Delete from various lists */
 	stop_machine(__unlink_module, mod, NULL);
 	remove_notes_attrs(mod);
@@ -2216,6 +2232,10 @@ static noinline struct module *load_module(void __user *umod,
 	mod->unused_gpl_crcs = section_addr(hdr, sechdrs, secstrings,
 					    "__kcrctab_unused_gpl");
 #endif
+#ifdef CONFIG_CONSTRUCTORS
+	mod->ctors = section_objs(hdr, sechdrs, secstrings, ".ctors",
+				  sizeof(*mod->ctors), &mod->num_ctors);
+#endif
 
 #ifdef CONFIG_MARKERS
 	mod->markers = section_objs(hdr, sechdrs, secstrings, "__markers",
@@ -2353,6 +2373,8 @@ static noinline struct module *load_module(void __user *umod,
 	/* Get rid of temporary copy */
 	vfree(hdr);
 
+	trace_module_load(mod);
+
 	/* Done! */
 	return mod;
 
@@ -2389,6 +2411,17 @@ static noinline struct module *load_module(void __user *umod,
 	goto free_hdr;
 }
 
+/* Call module constructors. */
+static void do_mod_ctors(struct module *mod)
+{
+#ifdef CONFIG_CONSTRUCTORS
+	unsigned long i;
+
+	for (i = 0; i < mod->num_ctors; i++)
+		mod->ctors[i]();
+#endif
+}
+
 /* This is where the real work happens */
 SYSCALL_DEFINE3(init_module, void __user *, umod,
 		unsigned long, len, const char __user *, uargs)
@@ -2417,6 +2450,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	blocking_notifier_call_chain(&module_notify_list,
 			MODULE_STATE_COMING, mod);
 
+	do_mod_ctors(mod);
 	/* Start the module */
 	if (mod->init != NULL)
 		ret = do_one_initcall(mod->init);
@@ -2435,9 +2469,9 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 		return ret;
 	}
 	if (ret > 0) {
-		printk(KERN_WARNING "%s: '%s'->init suspiciously returned %d, "
-				    "it should follow 0/-E convention\n"
-		       KERN_WARNING "%s: loading module anyway...\n",
+		printk(KERN_WARNING
+"%s: '%s'->init suspiciously returned %d, it should follow 0/-E convention\n"
+"%s: loading module anyway...\n",
 		       __func__, mod->name, ret,
 		       __func__);
 		dump_stack();

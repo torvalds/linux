@@ -24,18 +24,21 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_PERF_COUNTERS if (!M386 && !M486)
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_FRAME_POINTERS
+	select HAVE_DMA_ATTRS
 	select HAVE_KRETPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_GRAPH_FP_TEST
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
-	select HAVE_FTRACE_SYSCALLS
+	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KVM
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
@@ -741,7 +744,6 @@ config X86_UP_IOAPIC
 config X86_LOCAL_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC
-	select HAVE_PERF_COUNTERS if (!M386 && !M486)
 
 config X86_IO_APIC
 	def_bool y
@@ -1912,25 +1914,26 @@ config DMAR_DEFAULT_ON
 	  recommended you say N here while the DMAR code remains
 	  experimental.
 
-config DMAR_GFX_WA
-	def_bool y
-	prompt "Support for Graphics workaround"
+config DMAR_BROKEN_GFX_WA
+	def_bool n
+	prompt "Workaround broken graphics drivers (going away soon)"
 	depends on DMAR
 	---help---
 	  Current Graphics drivers tend to use physical address
 	  for DMA and avoid using DMA APIs. Setting this config
 	  option permits the IOMMU driver to set a unity map for
 	  all the OS-visible memory. Hence the driver can continue
-	  to use physical addresses for DMA.
+	  to use physical addresses for DMA, at least until this
+	  option is removed in the 2.6.32 kernel.
 
 config DMAR_FLOPPY_WA
 	def_bool y
 	depends on DMAR
 	---help---
-	  Floppy disk drivers are know to bypass DMA API calls
+	  Floppy disk drivers are known to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
 	  workaround will setup a 1:1 mapping for the first
-	  16M to make floppy (an ISA device) work.
+	  16MiB to make floppy (an ISA device) work.
 
 config INTR_REMAP
 	bool "Support for Interrupt Remapping (EXPERIMENTAL)"

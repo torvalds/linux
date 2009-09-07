@@ -229,14 +229,18 @@ static int vic_set_wake(unsigned int irq, unsigned int on)
 {
 	struct vic_device *v = vic_from_irq(irq);
 	unsigned int off = irq & 31;
+	u32 bit = 1 << off;
 
 	if (!v)
 		return -EINVAL;
 
+	if (!(bit & v->resume_sources))
+		return -EINVAL;
+
 	if (on)
-		v->resume_irqs |= 1 << off;
+		v->resume_irqs |= bit;
 	else
-		v->resume_irqs &= ~(1 << off);
+		v->resume_irqs &= ~bit;
 
 	return 0;
 }

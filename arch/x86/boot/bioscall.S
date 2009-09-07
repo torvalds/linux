@@ -13,7 +13,7 @@
  * touching registers they shouldn't be.
  */
 
-	.code16
+	.code16gcc
 	.text
 	.globl	intcall
 	.type	intcall, @function

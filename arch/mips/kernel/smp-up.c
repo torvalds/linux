@@ -55,6 +55,18 @@ static void __init up_prepare_cpus(unsigned int max_cpus)
 {
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static int up_cpu_disable(void)
+{
+	return -ENOSYS;
+}
+
+static void up_cpu_die(unsigned int cpu)
+{
+	BUG();
+}
+#endif
+
 struct plat_smp_ops up_smp_ops = {
 	.send_ipi_single	= up_send_ipi_single,
 	.send_ipi_mask		= up_send_ipi_mask,
@@ -64,4 +76,8 @@ struct plat_smp_ops up_smp_ops = {
 	.boot_secondary		= up_boot_secondary,
 	.smp_setup		= up_smp_setup,
 	.prepare_cpus		= up_prepare_cpus,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_disable		= up_cpu_disable,
+	.cpu_die		= up_cpu_die,
+#endif
 };

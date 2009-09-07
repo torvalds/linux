@@ -362,6 +362,7 @@ struct ftrace_ret_stack {
 	unsigned long func;
 	unsigned long long calltime;
 	unsigned long long subtime;
+	unsigned long fp;
 };
 
 /*
@@ -372,7 +373,8 @@ struct ftrace_ret_stack {
 extern void return_to_handler(void);
 
 extern int
-ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth);
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
+			 unsigned long frame_pointer);
 
 /*
  * Sometimes we don't want to trace a function with the function

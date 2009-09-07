@@ -538,6 +538,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	sc->iobase = mem; /* So we can unmap it on detach */
 	sc->cachelsz = csz * sizeof(u32); /* convert to bytes */
 	sc->opmode = NL80211_IFTYPE_STATION;
+	sc->bintval = 1000;
 	mutex_init(&sc->lock);
 	spin_lock_init(&sc->rxbuflock);
 	spin_lock_init(&sc->txbuflock);
@@ -685,6 +686,13 @@ ath5k_pci_resume(struct pci_dev *pdev)
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
+
+	/*
+	 * Suspend/Resume resets the PCI configuration space, so we have to
+	 * re-disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state
+	 */
+	pci_write_config_byte(pdev, 0x41, 0);
 
 	err = request_irq(pdev->irq, ath5k_intr, IRQF_SHARED, "ath", sc);
 	if (err) {
@@ -2748,9 +2756,6 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		goto end;
 	}
 
-	/* Set to a reasonable value. Note that this will
-	 * be set to mac80211's value at ath5k_config(). */
-	sc->bintval = 1000;
 	ath5k_hw_set_lladdr(sc->ah, conf->mac_addr);
 
 	ret = 0;
@@ -2963,6 +2968,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int ret = 0;
 
 	if (modparam_nohwcrypt)
+		return -EOPNOTSUPP;
+
+	if (sc->opmode == NL80211_IFTYPE_AP)
 		return -EOPNOTSUPP;
 
 	switch (key->alg) {

@@ -103,7 +103,8 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device
 static bool radeon_atom_apply_quirks(struct drm_device *dev,
 				     uint32_t supported_device,
 				     int *connector_type,
-				     struct radeon_i2c_bus_rec *i2c_bus)
+				     struct radeon_i2c_bus_rec *i2c_bus,
+				     uint8_t *line_mux)
 {
 
 	/* Asus M2A-VM HDMI board lists the DVI port as HDMI */
@@ -127,8 +128,10 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	if ((dev->pdev->device == 0x5653) &&
 	    (dev->pdev->subsystem_vendor == 0x1462) &&
 	    (dev->pdev->subsystem_device == 0x0291)) {
-		if (*connector_type == DRM_MODE_CONNECTOR_LVDS)
+		if (*connector_type == DRM_MODE_CONNECTOR_LVDS) {
 			i2c_bus->valid = false;
+			*line_mux = 53;
+		}
 	}
 
 	/* Funky macbooks */
@@ -526,7 +529,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 
 		if (!radeon_atom_apply_quirks
 		    (dev, (1 << i), &bios_connectors[i].connector_type,
-		     &bios_connectors[i].ddc_bus))
+		     &bios_connectors[i].ddc_bus, &bios_connectors[i].line_mux))
 			continue;
 
 		bios_connectors[i].valid = true;
@@ -835,7 +838,6 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 	struct _COMPASSIONATE_DATA *dac_info;
 	uint8_t frev, crev;
 	uint8_t bg, dac;
-	int i;
 	struct radeon_encoder_primary_dac *p_dac = NULL;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
@@ -867,7 +869,6 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 	struct _COMPASSIONATE_DATA *dac_info;
 	uint8_t frev, crev;
 	uint8_t bg, dac;
-	int i;
 	struct radeon_encoder_tv_dac *tv_dac = NULL;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);

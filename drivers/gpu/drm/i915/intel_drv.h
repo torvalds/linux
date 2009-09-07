@@ -54,6 +54,26 @@
 #define INTEL_OUTPUT_LVDS 4
 #define INTEL_OUTPUT_TVOUT 5
 #define INTEL_OUTPUT_HDMI 6
+#define INTEL_OUTPUT_DISPLAYPORT 7
+#define INTEL_OUTPUT_EDP 8
+
+/* Intel Pipe Clone Bit */
+#define INTEL_HDMIB_CLONE_BIT 1
+#define INTEL_HDMIC_CLONE_BIT 2
+#define INTEL_HDMID_CLONE_BIT 3
+#define INTEL_HDMIE_CLONE_BIT 4
+#define INTEL_HDMIF_CLONE_BIT 5
+#define INTEL_SDVO_NON_TV_CLONE_BIT 6
+#define INTEL_SDVO_TV_CLONE_BIT 7
+#define INTEL_SDVO_LVDS_CLONE_BIT 8
+#define INTEL_ANALOG_CLONE_BIT 9
+#define INTEL_TV_CLONE_BIT 10
+#define INTEL_DP_B_CLONE_BIT 11
+#define INTEL_DP_C_CLONE_BIT 12
+#define INTEL_DP_D_CLONE_BIT 13
+#define INTEL_LVDS_CLONE_BIT 14
+#define INTEL_DVO_TMDS_CLONE_BIT 15
+#define INTEL_DVO_LVDS_CLONE_BIT 16
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -65,7 +85,6 @@ struct intel_i2c_chan {
 	u32 reg; /* GPIO reg */
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo;
-        u8 slave_addr;
 };
 
 struct intel_framebuffer {
@@ -79,11 +98,14 @@ struct intel_output {
 
 	struct drm_encoder enc;
 	int type;
-	struct intel_i2c_chan *i2c_bus; /* for control functions */
-	struct intel_i2c_chan *ddc_bus; /* for DDC only stuff */
+	struct i2c_adapter *i2c_bus;
+	struct i2c_adapter *ddc_bus;
 	bool load_detect_temp;
 	bool needs_tv_clock;
 	void *dev_priv;
+	void (*hot_plug)(struct intel_output *);
+	int crtc_mask;
+	int clone_mask;
 };
 
 struct intel_crtc {
@@ -104,9 +126,9 @@ struct intel_crtc {
 #define enc_to_intel_output(x) container_of(x, struct intel_output, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
-struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
-					const char *name);
-void intel_i2c_destroy(struct intel_i2c_chan *chan);
+struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
+				     const char *name);
+void intel_i2c_destroy(struct i2c_adapter *adapter);
 int intel_ddc_get_modes(struct intel_output *intel_output);
 extern bool intel_ddc_probe(struct intel_output *intel_output);
 void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
@@ -116,6 +138,12 @@ extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
 extern void intel_lvds_init(struct drm_device *dev);
+extern void intel_dp_init(struct drm_device *dev, int dp_reg);
+void
+intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
+		 struct drm_display_mode *adjusted_mode);
+extern void intel_edp_link_config (struct intel_output *, int *, int *);
+
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);

@@ -24,7 +24,6 @@
 #include <linux/unistd.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/mnt_namespace.h>
 #include <linux/completion.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
@@ -37,6 +36,8 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include <asm/uaccess.h>
+
+#include <trace/events/module.h>
 
 extern int max_threads;
 
@@ -108,6 +109,8 @@ int __request_module(bool wait, const char *fmt, ...)
 		atomic_dec(&kmod_concurrent);
 		return -ENOMEM;
 	}
+
+	trace_module_request(module_name, wait, _RET_IP_);
 
 	ret = call_usermodehelper(modprobe_path, argv, envp,
 			wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);

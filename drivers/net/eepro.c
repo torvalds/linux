@@ -1784,7 +1784,7 @@ int __init init_module(void)
 		printk(KERN_INFO "eepro_init_module: Auto-detecting boards (May God protect us...)\n");
 	}
 
-	for (i = 0; io[i] != -1 && i < MAX_EEPRO; i++) {
+	for (i = 0; i < MAX_EEPRO && io[i] != -1; i++) {
 		dev = alloc_etherdev(sizeof(struct eepro_local));
 		if (!dev)
 			break;

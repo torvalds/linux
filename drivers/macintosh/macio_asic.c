@@ -378,6 +378,17 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	dev->ofdev.dev.bus = &macio_bus_type;
 	dev->ofdev.dev.release = macio_release_dev;
 
+#ifdef CONFIG_PCI
+	/* Set the DMA ops to the ones from the PCI device, this could be
+	 * fishy if we didn't know that on PowerMac it's always direct ops
+	 * or iommu ops that will work fine
+	 */
+	dev->ofdev.dev.archdata.dma_ops =
+		chip->lbus.pdev->dev.archdata.dma_ops;
+	dev->ofdev.dev.archdata.dma_data =
+		chip->lbus.pdev->dev.archdata.dma_data;
+#endif /* CONFIG_PCI */
+
 #ifdef DEBUG
 	printk("preparing mdev @%p, ofdev @%p, dev @%p, kobj @%p\n",
 	       dev, &dev->ofdev, &dev->ofdev.dev, &dev->ofdev.dev.kobj);

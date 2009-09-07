@@ -189,16 +189,6 @@ static void nilfs_clear_inode(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 
-#ifdef CONFIG_NILFS_POSIX_ACL
-	if (ii->i_acl && ii->i_acl != NILFS_ACL_NOT_CACHED) {
-		posix_acl_release(ii->i_acl);
-		ii->i_acl = NILFS_ACL_NOT_CACHED;
-	}
-	if (ii->i_default_acl && ii->i_default_acl != NILFS_ACL_NOT_CACHED) {
-		posix_acl_release(ii->i_default_acl);
-		ii->i_default_acl = NILFS_ACL_NOT_CACHED;
-	}
-#endif
 	/*
 	 * Free resources allocated in nilfs_read_inode(), here.
 	 */
@@ -426,8 +416,10 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	if (unlikely(err))
 		goto failed;
 
+	down_read(&nilfs->ns_segctor_sem);
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
 					  &bh_cp);
+	up_read(&nilfs->ns_segctor_sem);
 	if (unlikely(err)) {
 		if (err == -ENOENT || err == -EINVAL) {
 			printk(KERN_ERR

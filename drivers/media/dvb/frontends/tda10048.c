@@ -210,6 +210,7 @@ static struct pll_tab {
 	{ TDA10048_CLK_4000,  TDA10048_IF_36130, 10, 0, 0 },
 	{ TDA10048_CLK_16000, TDA10048_IF_3300,  10, 3, 0 },
 	{ TDA10048_CLK_16000, TDA10048_IF_3500,  10, 3, 0 },
+	{ TDA10048_CLK_16000, TDA10048_IF_3800,  10, 3, 0 },
 	{ TDA10048_CLK_16000, TDA10048_IF_4000,  10, 3, 0 },
 	{ TDA10048_CLK_16000, TDA10048_IF_4300,  10, 3, 0 },
 	{ TDA10048_CLK_16000, TDA10048_IF_36130, 10, 3, 0 },
@@ -1094,7 +1095,7 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	dprintk(1, "%s()\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct tda10048_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tda10048_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

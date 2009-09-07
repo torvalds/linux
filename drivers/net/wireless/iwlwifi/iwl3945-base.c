@@ -2498,8 +2498,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 		struct iwl3945_rxon_cmd *active_rxon =
 				(struct iwl3945_rxon_cmd *)(&priv->active_rxon);
 
-		memcpy(&priv->staging_rxon, &priv->active_rxon,
-		       sizeof(priv->staging_rxon));
+		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
@@ -3147,7 +3146,6 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 	/* we should be verifying the device is ready to be opened */
 	mutex_lock(&priv->mutex);
 
-	memset(&priv->staging_rxon, 0, sizeof(priv->staging_rxon));
 	/* fetch ucode file from disk, alloc and copy to bus-master buffers ...
 	 * ucode filename and max sizes are card-specific. */
 
@@ -3645,12 +3643,10 @@ static ssize_t show_power_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
-	int mode = priv->power_data.user_power_setting;
 	int level = priv->power_data.power_mode;
 	char *p = buf;
 
-	p += sprintf(p, "INDEX:%d\t", level);
-	p += sprintf(p, "USER:%d\n", mode);
+	p += sprintf(p, "%d\n", level);
 	return p - buf + 1;
 }
 
@@ -3972,6 +3968,9 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	hw->wiphy->custom_regulatory = true;
 
+	/* Firmware does not support this */
+	hw->wiphy->disable_beacon_hints = true;
+
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX_3945;
 	/* we create the 802.11 header and a zero-length SSID element */
 	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
@@ -4022,10 +4021,10 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	if ((iwl3945_mod_params.num_of_queues > IWL39_MAX_NUM_QUEUES) ||
-	     (iwl3945_mod_params.num_of_queues < IWL_MIN_NUM_QUEUES)) {
+	     (iwl3945_mod_params.num_of_queues < IWL39_MIN_NUM_QUEUES)) {
 		IWL_ERR(priv,
 			"invalid queues_num, should be between %d and %d\n",
-			IWL_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
+			IWL39_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
 		err = -EINVAL;
 		goto out_ieee80211_free_hw;
 	}

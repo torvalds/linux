@@ -309,10 +309,6 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
-#ifdef CONFIG_NILFS_FS_POSIX_ACL
-	ii->i_acl = NULL;
-	ii->i_default_acl = NULL;
-#endif
 	ii->i_cno = 0;
 	nilfs_set_inode_flags(inode);
 	spin_lock(&sbi->s_next_gen_lock);
@@ -434,10 +430,6 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 
 	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, bh);
 
-#ifdef CONFIG_NILFS_FS_POSIX_ACL
-	ii->i_acl = NILFS_ACL_NOT_CACHED;
-	ii->i_default_acl = NILFS_ACL_NOT_CACHED;
-#endif
 	if (nilfs_read_inode_common(inode, raw_inode))
 		goto failed_unmap;
 

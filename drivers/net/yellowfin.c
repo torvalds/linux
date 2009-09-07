@@ -109,7 +109,7 @@ static int gx_fix;
 /* These identify the driver base version and may not be removed. */
 static const char version[] __devinitconst =
   KERN_INFO DRV_NAME ".c:v1.05  1/09/2001  Written by Donald Becker <becker@scyld.com>\n"
-  KERN_INFO "  (unofficial 2.4.x port, " DRV_VERSION ", " DRV_RELDATE ")\n";
+  "  (unofficial 2.4.x port, " DRV_VERSION ", " DRV_RELDATE ")\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Packet Engines Yellowfin G-NIC Gigabit Ethernet driver");
@@ -346,7 +346,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int yellowfin_open(struct net_device *dev);
 static void yellowfin_timer(unsigned long data);
 static void yellowfin_tx_timeout(struct net_device *dev);
-static void yellowfin_init_ring(struct net_device *dev);
+static int yellowfin_init_ring(struct net_device *dev);
 static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance);
 static int yellowfin_rx(struct net_device *dev);
@@ -573,19 +573,24 @@ static int yellowfin_open(struct net_device *dev)
 {
 	struct yellowfin_private *yp = netdev_priv(dev);
 	void __iomem *ioaddr = yp->base;
-	int i;
+	int i, ret;
 
 	/* Reset the chip. */
 	iowrite32(0x80000000, ioaddr + DMACtrl);
 
-	i = request_irq(dev->irq, &yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
-	if (i) return i;
+	ret = request_irq(dev->irq, &yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
+	if (ret)
+		return ret;
 
 	if (yellowfin_debug > 1)
 		printk(KERN_DEBUG "%s: yellowfin_open() irq %d.\n",
 			   dev->name, dev->irq);
 
-	yellowfin_init_ring(dev);
+	ret = yellowfin_init_ring(dev);
+	if (ret) {
+		free_irq(dev->irq, dev);
+		return ret;
+	}
 
 	iowrite32(yp->rx_ring_dma, ioaddr + RxPtr);
 	iowrite32(yp->tx_ring_dma, ioaddr + TxPtr);
@@ -700,12 +705,15 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 		int i;
 		printk(KERN_WARNING "  Rx ring %p: ", yp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
-			printk(" %8.8x", yp->rx_ring[i].result_status);
-		printk("\n"KERN_WARNING"  Tx ring %p: ", yp->tx_ring);
+			printk(KERN_CONT " %8.8x",
+			       yp->rx_ring[i].result_status);
+		printk(KERN_CONT "\n");
+		printk(KERN_WARNING"  Tx ring %p: ", yp->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(" %4.4x /%8.8x", yp->tx_status[i].tx_errs,
-				   yp->tx_ring[i].result_status);
-		printk("\n");
+			printk(KERN_CONT " %4.4x /%8.8x",
+			       yp->tx_status[i].tx_errs,
+			       yp->tx_ring[i].result_status);
+		printk(KERN_CONT "\n");
 	}
 
 	/* If the hardware is found to hang regularly, we will update the code
@@ -722,10 +730,10 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 }
 
 /* Initialize the Rx and Tx rings, along with various 'dev' bits. */
-static void yellowfin_init_ring(struct net_device *dev)
+static int yellowfin_init_ring(struct net_device *dev)
 {
 	struct yellowfin_private *yp = netdev_priv(dev);
-	int i;
+	int i, j;
 
 	yp->tx_full = 0;
 	yp->cur_rx = yp->cur_tx = 0;
@@ -750,6 +758,11 @@ static void yellowfin_init_ring(struct net_device *dev)
 		yp->rx_ring[i].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
 			skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 	}
+	if (i != RX_RING_SIZE) {
+		for (j = 0; j < i; j++)
+			dev_kfree_skb(yp->rx_skbuff[j]);
+		return -ENOMEM;
+	}
 	yp->rx_ring[i-1].dbdma_cmd = cpu_to_le32(CMD_STOP);
 	yp->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
 
@@ -766,8 +779,6 @@ static void yellowfin_init_ring(struct net_device *dev)
 	yp->tx_ring[--i].dbdma_cmd = cpu_to_le32(CMD_STOP | BRANCH_ALWAYS);
 #else
 {
-	int j;
-
 	/* Tx ring needs a pair of descriptors, the second for the status. */
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		j = 2*i;
@@ -802,7 +813,7 @@ static void yellowfin_init_ring(struct net_device *dev)
 }
 #endif
 	yp->tx_tail_desc = &yp->tx_status[0];
-	return;
+	return 0;
 }
 
 static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1216,20 +1227,20 @@ static int yellowfin_close(struct net_device *dev)
 
 #if defined(__i386__)
 	if (yellowfin_debug > 2) {
-		printk("\n"KERN_DEBUG"  Tx ring at %8.8llx:\n",
+		printk(KERN_DEBUG"  Tx ring at %8.8llx:\n",
 				(unsigned long long)yp->tx_ring_dma);
 		for (i = 0; i < TX_RING_SIZE*2; i++)
-			printk(" %c #%d desc. %8.8x %8.8x %8.8x %8.8x.\n",
+			printk(KERN_DEBUG " %c #%d desc. %8.8x %8.8x %8.8x %8.8x.\n",
 				   ioread32(ioaddr + TxPtr) == (long)&yp->tx_ring[i] ? '>' : ' ',
 				   i, yp->tx_ring[i].dbdma_cmd, yp->tx_ring[i].addr,
 				   yp->tx_ring[i].branch_addr, yp->tx_ring[i].result_status);
 		printk(KERN_DEBUG "  Tx status %p:\n", yp->tx_status);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk("   #%d status %4.4x %4.4x %4.4x %4.4x.\n",
+			printk(KERN_DEBUG "   #%d status %4.4x %4.4x %4.4x %4.4x.\n",
 				   i, yp->tx_status[i].tx_cnt, yp->tx_status[i].tx_errs,
 				   yp->tx_status[i].total_tx_cnt, yp->tx_status[i].paused);
 
-		printk("\n"KERN_DEBUG "  Rx ring %8.8llx:\n",
+		printk(KERN_DEBUG "  Rx ring %8.8llx:\n",
 				(unsigned long long)yp->rx_ring_dma);
 		for (i = 0; i < RX_RING_SIZE; i++) {
 			printk(KERN_DEBUG " %c #%d desc. %8.8x %8.8x %8.8x\n",

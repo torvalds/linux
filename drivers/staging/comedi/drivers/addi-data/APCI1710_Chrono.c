@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -62,11 +62,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_InitChrono                        |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_ChronoMode,             |
-|                                        BYTE_     b_PCIInputClock,          |
-|                                        BYTE_     b_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_ChronoMode,             |
+|                                        unsigned char_     b_PCIInputClock,          |
+|                                        unsigned char_     b_TimingUnit,             |
 |                                        ULONG_   ul_TimingInterval,         |
 |                                        PULONG_ pul_RealTimingInterval)
 
@@ -88,12 +88,12 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                     The mode 4 to 7 is appropriate for measuring the timing|
 |                     between  two event.                                    |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle    : Handle of board APCI-1710   |
-| BYTE_   b_ModulNbr  CR_AREF(insn->chanspec)  : Module number to configure  |
+| Input Parameters  : unsigned char_   b_BoardHandle    : Handle of board APCI-1710   |
+| unsigned char_   b_ModulNbr  CR_AREF(insn->chanspec)  : Module number to configure  |
 |                                                (0 to 3)                    |
-| BYTE_   b_ChronoMode				data[0]    : Chronometer action mode     |
+| unsigned char_   b_ChronoMode				data[0]    : Chronometer action mode     |
 |                                                (0 to 7).                   |
-| BYTE_   b_PCIInputClock			data[1] : Selection from PCI bus clock|
+| unsigned char_   b_PCIInputClock			data[1] : Selection from PCI bus clock|
 |                                                - APCI1710_30MHZ :          |
 |                                                  The PC have a PCI bus     |
 |                                                  clock from 30 MHz         |
@@ -104,7 +104,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                                                  The APCI-1710 have a      |
 |                                                  integrated 40Mhz          |
 |                                                  quartz.                   |
-|               BYTE_   b_TimingUnit	data[2]    : Base timing unity (0 to 4) |
+|               unsigned char_   b_TimingUnit	data[2]    : Base timing unity (0 to 4) |
 |                                                 0 : ns                     |
 |                                                 1 : µs                     |
 |                                                 2 : ms                     |
@@ -131,23 +131,23 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigInitChrono(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	ULONG ul_TimerValue = 0;
-	ULONG ul_TimingInterval = 0;
-	ULONG ul_RealTimingInterval = 0;
+	int i_ReturnValue = 0;
+	unsigned int ul_TimerValue = 0;
+	unsigned int ul_TimingInterval = 0;
+	unsigned int ul_RealTimingInterval = 0;
 	double d_RealTimingInterval = 0;
-	DWORD dw_ModeArray[8] =
+	unsigned int dw_ModeArray[8] =
 		{ 0x01, 0x05, 0x00, 0x04, 0x02, 0x0E, 0x0A, 0x06 };
-	BYTE b_ModulNbr, b_ChronoMode, b_PCIInputClock, b_TimingUnit;
+	unsigned char b_ModulNbr, b_ChronoMode, b_PCIInputClock, b_TimingUnit;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
-	b_ChronoMode = (BYTE) data[0];
-	b_PCIInputClock = (BYTE) data[1];
-	b_TimingUnit = (BYTE) data[2];
-	ul_TimingInterval = (ULONG) data[3];
+	b_ChronoMode = (unsigned char) data[0];
+	b_PCIInputClock = (unsigned char) data[1];
+	b_TimingUnit = (unsigned char) data[2];
+	ul_TimingInterval = (unsigned int) data[3];
 	i_ReturnValue = insn->n;
 
 	/**************************/
@@ -214,7 +214,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimingInterval
 											*
 											(0.001 * b_PCIInputClock));
@@ -237,7 +237,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(0.001 * (double)b_PCIInputClock));
@@ -272,7 +272,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -294,7 +294,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimingInterval
 											*
 											(1.0 * b_PCIInputClock));
@@ -317,7 +317,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1.0 * (double)b_PCIInputClock));
@@ -354,7 +354,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -400,7 +400,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1000.0 * (double)b_PCIInputClock));
@@ -435,7 +435,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -457,7 +457,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimingInterval
 											*
 											(1000000.0
@@ -482,7 +482,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1000000.0
@@ -520,7 +520,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -542,7 +542,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_TimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(ul_TimingInterval
 												*
@@ -570,7 +570,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 										ul_RealTimingInterval
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_TimerValue
 											/
 											(1000000.0
@@ -608,7 +608,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 										if (b_PCIInputClock != APCI1710_40MHZ) {
 											ul_TimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_TimerValue)
@@ -736,7 +736,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 							DPRINTK("Base timing selection is wrong\n");
 							i_ReturnValue = -7;
 						}
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
 					else {
 		       /***********************************/
 						/* Timing unity selection is wrong */
@@ -744,8 +744,8 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 						DPRINTK("Timing unity selection is wrong\n");
 						i_ReturnValue = -6;
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ)) */
 				else {
 		    /*****************************************/
 					/* The selected PCI input clock is wrong */
@@ -753,8 +753,8 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 					DPRINTK("The selected PCI input clock is wrong\n");
 					i_ReturnValue = -5;
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
-			}	// if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ)) */
+			}	/*  if (b_ChronoMode >= 0 && b_ChronoMode <= 7) */
 			else {
 		 /***************************************/
 				/* Chronometer mode selection is wrong */
@@ -762,7 +762,7 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 				DPRINTK("Chronometer mode selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
+			}	/*  if (b_ChronoMode >= 0 && b_ChronoMode <= 7) */
 		} else {
 	      /******************************************/
 			/* The module is not a Chronometer module */
@@ -780,17 +780,17 @@ INT i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 		i_ReturnValue = -2;
 	}
 	data[0] = ul_RealTimingInterval;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_EnableChrono                          |
-|                                               (BYTE_ b_BoardHandle,        |
-|                                                BYTE_ b_ModulNbr,           |
-|                                                BYTE_ b_CycleMode,          |
-|                                                BYTE_ b_InterruptEnable)
-INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device *dev,
+|                                               (unsigned char_ b_BoardHandle,        |
+|                                                unsigned char_ b_ModulNbr,           |
+|                                                unsigned char_ b_CycleMode,          |
+|                                                unsigned char_ b_InterruptEnable)
+int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device *dev,
 struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)						 |
 +----------------------------------------------------------------------------+
 | Task              : Enable the chronometer from selected module            |
@@ -810,12 +810,12 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)						 |
 |                     witch the " i_APCI1710_EnableChrono" function, if no   |
 |                     stop signal occur this start signal is ignored.
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle  : Handle of board APCI-1710       |
-|                     BYTE_ b_ModulNbr   CR_AREF(chanspec)  : Selected module number (0 to 3) |
+| Input Parameters  : unsigned char_ b_BoardHandle  : Handle of board APCI-1710       |
+|                     unsigned char_ b_ModulNbr   CR_AREF(chanspec)  : Selected module number (0 to 3) |
                                   data[0]  ENABle/Disable chrono
-|                     BYTE_ b_CycleMode    : Selected the chronometer        |
+|                     unsigned char_ b_CycleMode    : Selected the chronometer        |
 |                                  data[1]           acquisition mode                |
-|                     BYTE_ b_InterruptEnable : Enable or disable the        |
+|                     unsigned char_ b_InterruptEnable : Enable or disable the        |
 |                                   data[2]            chronometer interrupt.       |
 |                                               APCI1710_ENABLE:             |
 |                                               Enable the chronometer       |
@@ -840,15 +840,15 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)						 |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr, b_CycleMode, b_InterruptEnable, b_Action;
+	int i_ReturnValue = 0;
+	unsigned char b_ModulNbr, b_CycleMode, b_InterruptEnable, b_Action;
 	b_ModulNbr = CR_AREF(insn->chanspec);
-	b_Action = (BYTE) data[0];
-	b_CycleMode = (BYTE) data[1];
-	b_InterruptEnable = (BYTE) data[2];
+	b_Action = (unsigned char) data[0];
+	b_CycleMode = (unsigned char) data[1];
+	b_InterruptEnable = (unsigned char) data[2];
 	i_ReturnValue = insn->n;
 
 	/**************************/
@@ -951,7 +951,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 									ui_Address
 									+ 32 +
 									(64 * b_ModulNbr));
-								devpriv->tsk_Current = current;	// Save the current process task structure
+								devpriv->tsk_Current = current;	/*  Save the current process task structure */
 							}
 
 			  /***********************************/
@@ -980,7 +980,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 								36 +
 								(64 * b_ModulNbr));
 
-						}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
+						}	/*  if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE)) */
 						else {
 		       /********************************/
 							/* Interrupt parameter is wrong */
@@ -988,8 +988,8 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 
 							DPRINTK("Interrupt parameter is wrong\n");
 							i_ReturnValue = -6;
-						}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
-					}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+						}	/*  if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE)) */
+					}	/*  if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS)) */
 					else {
 		    /***********************************************/
 						/* Chronometer acquisition mode cycle is wrong */
@@ -997,7 +997,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 
 						DPRINTK("Chronometer acquisition mode cycle is wrong\n");
 						i_ReturnValue = -5;
-					}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+					}	/*  if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS)) */
 					break;
 
 				case APCI1710_DISABLE:
@@ -1046,7 +1046,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 				default:
 					DPRINTK("Inputs wrong! Enable or Disable chrono\n");
 					i_ReturnValue = -8;
-				}	// switch ENABLE/DISABLE
+				}	/*  switch ENABLE/DISABLE */
 			} else {
 		 /*******************************/
 				/* Chronometer not initialised */
@@ -1072,7 +1072,7 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1090,36 +1090,36 @@ struct comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadChrono(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	BYTE b_ReadType;
-	INT i_ReturnValue = insn->n;
+	unsigned char b_ReadType;
+	int i_ReturnValue = insn->n;
 
 	b_ReadType = CR_CHAN(insn->chanspec);
 
 	switch (b_ReadType) {
 	case APCI1710_CHRONO_PROGRESS_STATUS:
 		i_ReturnValue = i_APCI1710_GetChronoProgressStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_CHRONO_READVALUE:
 		i_ReturnValue = i_APCI1710_ReadChronoValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(UINT) insn->unused[0],
-			(PBYTE) & data[0], (PULONG) & data[1]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned int) insn->unused[0],
+			(unsigned char *) &data[0], (unsigned int *) &data[1]);
 		break;
 
 	case APCI1710_CHRONO_CONVERTVALUE:
 		i_ReturnValue = i_APCI1710_ConvertChronoValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(ULONG) insn->unused[0],
-			(PULONG) & data[0],
-			(PBYTE) & data[1],
-			(PBYTE) & data[2],
-			(PUINT) & data[3],
-			(PUINT) & data[4], (PUINT) & data[5]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned int) insn->unused[0],
+			(unsigned int *) &data[0],
+			(unsigned char *) &data[1],
+			(unsigned char *) &data[2],
+			(unsigned int *) &data[3],
+			(unsigned int *) &data[4], (unsigned int *) &data[5]);
 		break;
 
 	case APCI1710_CHRONO_READINTERRUPT:
@@ -1152,22 +1152,22 @@ INT i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevic
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetChronoProgressStatus               |
-|                               (BYTE_    b_BoardHandle,                     |
-|                                BYTE_    b_ModulNbr,                        |
-|                                PBYTE_  pb_ChronoStatus)                    |
+|                               (unsigned char_    b_BoardHandle,                     |
+|                                unsigned char_    b_ModulNbr,                        |
+|                                unsigned char *_  pb_ChronoStatus)                    |
 +----------------------------------------------------------------------------+
 | Task              : Return the chronometer status (pb_ChronoStatus) from   |
 |                     selected chronometer module (b_ModulNbr).              |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle  : Handle of board APCI-1710       |
-|                     BYTE_ b_ModulNbr     : Selected module number (0 to 3) |
+| Input Parameters  : unsigned char_ b_BoardHandle  : Handle of board APCI-1710       |
+|                     unsigned char_ b_ModulNbr     : Selected module number (0 to 3) |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_  pb_ChronoStatus : Return the chronometer      |
 |                                                status.                     |
@@ -1194,11 +1194,11 @@ INT i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_ChronoStatus)
+int i_APCI1710_GetChronoProgressStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_ChronoStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status;
 
 	/**************************/
 	/* Test the module number */
@@ -1233,7 +1233,7 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 		    /******************/
 
 					*pb_ChronoStatus = 3;
-				}	// if ((dw_Status & 8) == 8)
+				}	/*  if ((dw_Status & 8) == 8) */
 				else {
 		    /*******************************/
 					/* Test if measurement stopped */
@@ -1245,7 +1245,7 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 		       /***********************/
 
 						*pb_ChronoStatus = 2;
-					}	// if ((dw_Status & 2) == 2)
+					}	/*  if ((dw_Status & 2) == 2) */
 					else {
 		       /*******************************/
 						/* Test if measurement started */
@@ -1257,16 +1257,16 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 			  /************************/
 
 							*pb_ChronoStatus = 1;
-						}	// if ((dw_Status & 1) == 1)
+						}	/*  if ((dw_Status & 1) == 1) */
 						else {
 			  /***************************/
 							/* Measurement not started */
 			  /***************************/
 
 							*pb_ChronoStatus = 0;
-						}	// if ((dw_Status & 1) == 1)
-					}	// if ((dw_Status & 2) == 2)
-				}	// if ((dw_Status & 8) == 8)
+						}	/*  if ((dw_Status & 1) == 1) */
+					}	/*  if ((dw_Status & 2) == 2) */
+				}	/*  if ((dw_Status & 8) == 8) */
 			} else {
 		 /*******************************/
 				/* Chronometer not initialised */
@@ -1289,16 +1289,16 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ReadChronoValue                       |
-|                               (BYTE_     b_BoardHandle,                    |
-|                                BYTE_     b_ModulNbr,                       |
-|                                UINT_    ui_TimeOut,                        |
-|                                PBYTE_   pb_ChronoStatus,                   |
+|                               (unsigned char_     b_BoardHandle,                    |
+|                                unsigned char_     b_ModulNbr,                       |
+|                                unsigned int_    ui_TimeOut,                        |
+|                                unsigned char *_   pb_ChronoStatus,                   |
 |                                PULONG_ pul_ChronoValue)                    |
 +----------------------------------------------------------------------------+
 | Task              : Return the chronometer status (pb_ChronoStatus) and the|
@@ -1323,8 +1323,8 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 |                     "i_APCI1710_InitChrono" function and the time unity is |
 |                     the b_TimingUnit from "i_APCI1710_InitChrono" function|
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle  : Handle of board APCI-1710       |
-|                     BYTE_ b_ModulNbr     : Selected module number (0 to 3) |
+| Input Parameters  : unsigned char_ b_BoardHandle  : Handle of board APCI-1710       |
+|                     unsigned char_ b_ModulNbr     : Selected module number (0 to 3) |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_  pb_ChronoStatus : Return the chronometer      |
 |                                                status.                     |
@@ -1341,7 +1341,7 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 |                                                   timing witch the         |
 |                                                   function                 |
 |                                                   "i_APCI1710_InitChrono"  |
-|                     PULONG  pul_ChronoValue  : Chronometer timing value.   |
+|                     unsigned int *  pul_ChronoValue  : Chronometer timing value.   |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -1355,13 +1355,13 @@ INT i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	UINT ui_TimeOut, PBYTE pb_ChronoStatus, PULONG pul_ChronoValue)
+int i_APCI1710_ReadChronoValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned int ui_TimeOut, unsigned char *pb_ChronoStatus, unsigned int *pul_ChronoValue)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status;
-	DWORD dw_TimeOut = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status;
+	unsigned int dw_TimeOut = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1430,7 +1430,7 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 							}
 
 							break;
-						}	// if ((dw_Status & 8) == 8)
+						}	/*  if ((dw_Status & 8) == 8) */
 						else {
 			     /*******************************/
 							/* Test if measurement stopped */
@@ -1464,7 +1464,7 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 									outl(0, devpriv->s_BoardInfos.ui_Address + 36 + (64 * b_ModulNbr));
 								}
 								break;
-							}	// if ((dw_Status & 2) == 2)
+							}	/*  if ((dw_Status & 2) == 2) */
 							else {
 				/*******************************/
 								/* Test if measurement started */
@@ -1478,7 +1478,7 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 									*pb_ChronoStatus
 										=
 										1;
-								}	// if ((dw_Status & 1) == 1)
+								}	/*  if ((dw_Status & 1) == 1) */
 								else {
 				   /***************************/
 									/* Measurement not started */
@@ -1487,9 +1487,9 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 									*pb_ChronoStatus
 										=
 										0;
-								}	// if ((dw_Status & 1) == 1)
-							}	// if ((dw_Status & 2) == 2)
-						}	// if ((dw_Status & 8) == 8)
+								}	/*  if ((dw_Status & 1) == 1) */
+							}	/*  if ((dw_Status & 2) == 2) */
+						}	/*  if ((dw_Status & 8) == 8) */
 
 						if (dw_TimeOut == ui_TimeOut) {
 			     /*****************/
@@ -1507,7 +1507,7 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 							mdelay(1000);
 
 						}
-					}	// for (;;)
+					}	/*  for (;;) */
 
 		       /*****************************/
 					/* Test if stop signal occur */
@@ -1575,39 +1575,39 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ConvertChronoValue                    |
-|                               (BYTE_     b_BoardHandle,                    |
-|                                BYTE_     b_ModulNbr,                       |
+|                               (unsigned char_     b_BoardHandle,                    |
+|                                unsigned char_     b_ModulNbr,                       |
 |                                ULONG_   ul_ChronoValue,                    |
 |                                PULONG_ pul_Hour,                           |
-|                                PBYTE_   pb_Minute,                         |
-|                                PBYTE_   pb_Second,                         |
-|                                PUINT_  pui_MilliSecond,                    |
-|                                PUINT_  pui_MicroSecond,                    |
-|                                PUINT_  pui_NanoSecond)                     |
+|                                unsigned char *_   pb_Minute,                         |
+|                                unsigned char *_   pb_Second,                         |
+|                                unsigned int *_  pui_MilliSecond,                    |
+|                                unsigned int *_  pui_MicroSecond,                    |
+|                                unsigned int *_  pui_NanoSecond)                     |
 +----------------------------------------------------------------------------+
 | Task              : Convert the chronometer measured timing                |
 |                     (ul_ChronoValue) in to h, mn, s, ms, µs, ns.           |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle : Handle of board APCI-1710      |
-|                     BYTE_   b_ModulNbr    : Selected module number (0 to 3)|
+| Input Parameters  : unsigned char_   b_BoardHandle : Handle of board APCI-1710      |
+|                     unsigned char_   b_ModulNbr    : Selected module number (0 to 3)|
 |                     ULONG_ ul_ChronoValue : Measured chronometer timing    |
 |                                             value.                         |
 |                                             See"i_APCI1710_ReadChronoValue"|
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_   pul_Hour        : Chronometer timing hour    |
-|                     PBYTE_     pb_Minute      : Chronometer timing minute  |
-|                     PBYTE_     pb_Second      : Chronometer timing second  |
-|                     PUINT_    pui_MilliSecond  : Chronometer timing mini   |
+|                     unsigned char *_     pb_Minute      : Chronometer timing minute  |
+|                     unsigned char *_     pb_Second      : Chronometer timing second  |
+|                     unsigned int *_    pui_MilliSecond  : Chronometer timing mini   |
 |                                                 second                     |
-|                     PUINT_    pui_MicroSecond : Chronometer timing micro   |
+|                     unsigned int *_    pui_MicroSecond : Chronometer timing micro   |
 |                                                 second                     |
-|                     PUINT_    pui_NanoSecond  : Chronometer timing nano    |
+|                     unsigned int *_    pui_NanoSecond  : Chronometer timing nano    |
 |                                                 second                     |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -1619,15 +1619,15 @@ INT i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	ULONG ul_ChronoValue,
-	PULONG pul_Hour,
-	PBYTE pb_Minute,
-	PBYTE pb_Second,
-	PUINT pui_MilliSecond, PUINT pui_MicroSecond, PUINT pui_NanoSecond)
+int i_APCI1710_ConvertChronoValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned int ul_ChronoValue,
+	unsigned int *pul_Hour,
+	unsigned char *pb_Minute,
+	unsigned char *pb_Second,
+	unsigned int *pui_MilliSecond, unsigned int *pui_MicroSecond, unsigned int *pui_NanoSecond)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 	double d_Hour;
 	double d_Minute;
 	double d_Second;
@@ -1681,7 +1681,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 			    /**********************/
 
 					d_Hour = d_Hour / (double)60.0;
-					*pul_Hour = (ULONG) d_Hour;
+					*pul_Hour = (unsigned int) d_Hour;
 
 			    /************************/
 					/* Calculate the minute */
@@ -1689,7 +1689,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 
 					d_Minute = d_Hour - *pul_Hour;
 					d_Minute = d_Minute * 60;
-					*pb_Minute = (BYTE) d_Minute;
+					*pb_Minute = (unsigned char) d_Minute;
 
 			    /************************/
 					/* Calculate the second */
@@ -1697,7 +1697,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 
 					d_Second = d_Minute - *pb_Minute;
 					d_Second = d_Second * 60;
-					*pb_Second = (BYTE) d_Second;
+					*pb_Second = (unsigned char) d_Second;
 
 			    /*****************************/
 					/* Calculate the mini second */
@@ -1705,7 +1705,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 
 					d_MilliSecond = d_Second - *pb_Second;
 					d_MilliSecond = d_MilliSecond * 1000;
-					*pui_MilliSecond = (UINT) d_MilliSecond;
+					*pui_MilliSecond = (unsigned int) d_MilliSecond;
 
 			    /******************************/
 					/* Calculate the micro second */
@@ -1715,7 +1715,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 						d_MilliSecond -
 						*pui_MilliSecond;
 					d_MicroSecond = d_MicroSecond * 1000;
-					*pui_MicroSecond = (UINT) d_MicroSecond;
+					*pui_MicroSecond = (unsigned int) d_MicroSecond;
 
 			    /******************************/
 					/* Calculate the micro second */
@@ -1725,7 +1725,7 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 						d_MicroSecond -
 						*pui_MicroSecond;
 					d_NanoSecond = d_NanoSecond * 1000;
-					*pui_NanoSecond = (UINT) d_NanoSecond;
+					*pui_NanoSecond = (unsigned int) d_NanoSecond;
 					break;
 				}
 
@@ -1752,21 +1752,21 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,struct comedi_subdevice *s,
+| Function Name     : int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)                    |
 +----------------------------------------------------------------------------+
 | Task              : Sets the output witch has been passed with the         |
 |                     parameter b_Channel. Setting an output means setting an|
 |                     output high.                                           |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle   : Handle of board APCI-1710      |
-|                     BYTE_ b_ModulNbr      : Selected module number (0 to 3)|
-|                     BYTE_ b_OutputChannel : Selection from digital output  |
+| Input Parameters  : unsigned char_ b_BoardHandle   : Handle of board APCI-1710      |
+|                     unsigned char_ b_ModulNbr      : Selected module number (0 to 3)|
+|                     unsigned char_ b_OutputChannel : Selection from digital output  |
 |                           CR_CHAN()                  channel (0 to 2)               |
 |                                              0 : Channel H                 |
 |                                              1 : Channel A                 |
@@ -1787,19 +1787,19 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_SetChronoChlOff                       |
-|                               (BYTE_  b_BoardHandle,                       |
-|                                BYTE_  b_ModulNbr,                          |
-|                                BYTE_  b_OutputChannel)                     |
+|                               (unsigned char_  b_BoardHandle,                       |
+|                                unsigned char_  b_ModulNbr,                          |
+|                                unsigned char_  b_OutputChannel)                     |
 +----------------------------------------------------------------------------+
 | Task              : Resets the output witch has been passed with the       |
 |                     parameter b_Channel. Resetting an output means setting |
 |                     an output low.                                         |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle   : Handle of board APCI-1710
+| Input Parameters  : unsigned char_ b_BoardHandle   : Handle of board APCI-1710
                         data[0] : Chl ON, Chl OFF , Chl Read , Port Read
 
-|                     BYTE_ b_ModulNbr  CR_AREF    : Selected module number (0 to 3)|
-|                     BYTE_ b_OutputChannel CR_CHAN : Selection from digital output  |
+|                     unsigned char_ b_ModulNbr  CR_AREF    : Selected module number (0 to 3)|
+|                     unsigned char_ b_OutputChannel CR_CHAN : Selection from digital output  |
 |                                             channel (0 to 2)               |
 |                                              0 : Channel H                 |
 |                                              1 : Channel A                 |
@@ -1820,24 +1820,24 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ReadChronoChlValue                    |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                BYTE_   b_InputChannel,                     |
-|                                PBYTE_ pb_ChannelStatus)                    |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char_   b_InputChannel,                     |
+|                                unsigned char *_ pb_ChannelStatus)                    |
 +----------------------------------------------------------------------------+
 | Task              : Return the status from selected digital input          |
 |                     (b_InputChannel) from selected chronometer             |
 |                     module (b_ModulNbr).                                   |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle   : Handle of board APCI-1710      |
-|                     BYTE_ b_ModulNbr      : Selected module number (0 to 3)|
-|                     BYTE_ b_InputChannel  : Selection from digital input   |
+| Input Parameters  : unsigned char_ b_BoardHandle   : Handle of board APCI-1710      |
+|                     unsigned char_ b_ModulNbr      : Selected module number (0 to 3)|
+|                     unsigned char_ b_InputChannel  : Selection from digital input   |
 |                                             channel (0 to 2)               |
 |                                   CR_CHAN()             0 : Channel E               |
 |                                                1 : Channel F               |
 |                                                2 : Channel G               |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_ChannelStatus : Digital input channel status.|
+| Output Parameters : unsigned char *_ pb_ChannelStatus : Digital input channel status.|
 |                                data[0]                0 : Channel is not active   |
 |                                                1 : Channel is active       |
 +----------------------------------------------------------------------------+
@@ -1854,17 +1854,17 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ReadChronoPortValue                   |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                PBYTE_ pb_PortValue)                        |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char *_ pb_PortValue)                        |
 +----------------------------------------------------------------------------+
 | Task              : Return the status from digital inputs port from        |
 |                     selected  (b_ModulNbr) chronometer module.             |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle   : Handle of board APCI-1710      |
-|                     BYTE_ b_ModulNbr      : Selected module number (0 to 3)|
+| Input Parameters  : unsigned char_ b_BoardHandle   : Handle of board APCI-1710      |
+|                     unsigned char_ b_ModulNbr      : Selected module number (0 to 3)|
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_PortValue   : Digital inputs port status.
+| Output Parameters : unsigned char *_ pb_PortValue   : Digital inputs port status.
 |                     data[0]
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -1876,18 +1876,18 @@ INT i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;
-	DWORD dw_Status;
-	PBYTE pb_ChannelStatus;
-	PBYTE pb_PortValue;
+	int i_ReturnValue = 0;
+	unsigned char b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;
+	unsigned int dw_Status;
+	unsigned char *pb_ChannelStatus;
+	unsigned char *pb_PortValue;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	i_ReturnValue = insn->n;
-	b_IOType = (BYTE) data[0];
+	b_IOType = (unsigned char) data[0];
 
 	/**************************/
 	/* Test the module number */
@@ -1915,14 +1915,14 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 				case APCI1710_CHRONO_SET_CHANNELOFF:
 
 					b_OutputChannel =
-						(BYTE) CR_CHAN(insn->chanspec);
+						(unsigned char) CR_CHAN(insn->chanspec);
 					if (b_OutputChannel <= 2) {
 
 						outl(0, devpriv->s_BoardInfos.
 							ui_Address + 20 +
 							(b_OutputChannel * 4) +
 							(64 * b_ModulNbr));
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 					else {
 		    /****************************************/
 						/* The selected digital output is wrong */
@@ -1931,21 +1931,21 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 						DPRINTK("The selected digital output is wrong\n");
 						i_ReturnValue = -4;
 
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 
 					break;
 
 				case APCI1710_CHRONO_SET_CHANNELON:
 
 					b_OutputChannel =
-						(BYTE) CR_CHAN(insn->chanspec);
+						(unsigned char) CR_CHAN(insn->chanspec);
 					if (b_OutputChannel <= 2) {
 
 						outl(1, devpriv->s_BoardInfos.
 							ui_Address + 20 +
 							(b_OutputChannel * 4) +
 							(64 * b_ModulNbr));
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 					else {
 		    /****************************************/
 						/* The selected digital output is wrong */
@@ -1954,7 +1954,7 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 						DPRINTK("The selected digital output is wrong\n");
 						i_ReturnValue = -4;
 
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 
 					break;
 
@@ -1962,9 +1962,9 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 		 /**********************************/
 					/* Test the digital input channel */
 		 /**********************************/
-					pb_ChannelStatus = (PBYTE) & data[0];
+					pb_ChannelStatus = (unsigned char *) &data[0];
 					b_InputChannel =
-						(BYTE) CR_CHAN(insn->chanspec);
+						(unsigned char) CR_CHAN(insn->chanspec);
 
 					if (b_InputChannel <= 2) {
 
@@ -1975,10 +1975,10 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 							(64 * b_ModulNbr));
 
 						*pb_ChannelStatus =
-							(BYTE) (((dw_Status >>
+							(unsigned char) (((dw_Status >>
 									b_InputChannel)
 								& 1) ^ 1);
-					}	// if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+					}	/*  if ((b_InputChannel >= 0) && (b_InputChannel <= 2)) */
 					else {
 		    /***************************************/
 						/* The selected digital input is wrong */
@@ -1986,13 +1986,13 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 
 						DPRINTK("The selected digital input is wrong\n");
 						i_ReturnValue = -4;
-					}	// if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+					}	/*  if ((b_InputChannel >= 0) && (b_InputChannel <= 2)) */
 
 					break;
 
 				case APCI1710_CHRONO_READ_PORT:
 
-					pb_PortValue = (PBYTE) & data[0];
+					pb_PortValue = (unsigned char *) &data[0];
 
 					dw_Status =
 						inl(devpriv->s_BoardInfos.
@@ -2000,7 +2000,7 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 						(64 * b_ModulNbr));
 
 					*pb_PortValue =
-						(BYTE) ((dw_Status & 0x7) ^ 7);
+						(unsigned char) ((dw_Status & 0x7) ^ 7);
 					break;
 				}
 			} else {
@@ -2028,5 +2028,5 @@ INT i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

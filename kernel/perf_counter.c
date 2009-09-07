@@ -42,6 +42,7 @@ static int perf_overcommit __read_mostly = 1;
 static atomic_t nr_counters __read_mostly;
 static atomic_t nr_mmap_counters __read_mostly;
 static atomic_t nr_comm_counters __read_mostly;
+static atomic_t nr_task_counters __read_mostly;
 
 /*
  * perf counter paranoia level:
@@ -49,7 +50,7 @@ static atomic_t nr_comm_counters __read_mostly;
  *  1 - disallow cpu counters to unpriv
  *  2 - disallow kernel profiling to unpriv
  */
-int sysctl_perf_counter_paranoid __read_mostly;
+int sysctl_perf_counter_paranoid __read_mostly = 1;
 
 static inline bool perf_paranoid_cpu(void)
 {
@@ -87,6 +88,7 @@ void __weak hw_perf_disable(void)		{ barrier(); }
 void __weak hw_perf_enable(void)		{ barrier(); }
 
 void __weak hw_perf_counter_setup(int cpu)	{ barrier(); }
+void __weak hw_perf_counter_setup_online(int cpu)	{ barrier(); }
 
 int __weak
 hw_perf_group_sched_in(struct perf_counter *group_leader,
@@ -124,7 +126,7 @@ void perf_enable(void)
 
 static void get_ctx(struct perf_counter_context *ctx)
 {
-	atomic_inc(&ctx->refcount);
+	WARN_ON(!atomic_inc_not_zero(&ctx->refcount));
 }
 
 static void free_ctx(struct rcu_head *head)
@@ -144,6 +146,28 @@ static void put_ctx(struct perf_counter_context *ctx)
 			put_task_struct(ctx->task);
 		call_rcu(&ctx->rcu_head, free_ctx);
 	}
+}
+
+static void unclone_ctx(struct perf_counter_context *ctx)
+{
+	if (ctx->parent_ctx) {
+		put_ctx(ctx->parent_ctx);
+		ctx->parent_ctx = NULL;
+	}
+}
+
+/*
+ * If we inherit counters we want to return the parent counter id
+ * to userspace.
+ */
+static u64 primary_counter_id(struct perf_counter *counter)
+{
+	u64 id = counter->id;
+
+	if (counter->parent)
+		id = counter->parent->id;
+
+	return id;
 }
 
 /*
@@ -175,6 +199,11 @@ perf_lock_task_context(struct task_struct *task, unsigned long *flags)
 			spin_unlock_irqrestore(&ctx->lock, *flags);
 			goto retry;
 		}
+
+		if (!atomic_inc_not_zero(&ctx->refcount)) {
+			spin_unlock_irqrestore(&ctx->lock, *flags);
+			ctx = NULL;
+		}
 	}
 	rcu_read_unlock();
 	return ctx;
@@ -193,7 +222,6 @@ static struct perf_counter_context *perf_pin_task_context(struct task_struct *ta
 	ctx = perf_lock_task_context(task, &flags);
 	if (ctx) {
 		++ctx->pin_count;
-		get_ctx(ctx);
 		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 	return ctx;
@@ -232,6 +260,8 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 	list_add_rcu(&counter->event_entry, &ctx->event_list);
 	ctx->nr_counters++;
+	if (counter->attr.inherit_stat)
+		ctx->nr_stat++;
 }
 
 /*
@@ -246,6 +276,8 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	if (list_empty(&counter->list_entry))
 		return;
 	ctx->nr_counters--;
+	if (counter->attr.inherit_stat)
+		ctx->nr_stat--;
 
 	list_del_init(&counter->list_entry);
 	list_del_rcu(&counter->event_entry);
@@ -275,6 +307,10 @@ counter_sched_out(struct perf_counter *counter,
 		return;
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
+	if (counter->pending_disable) {
+		counter->pending_disable = 0;
+		counter->state = PERF_COUNTER_STATE_OFF;
+	}
 	counter->tstamp_stopped = ctx->time;
 	counter->pmu->disable(counter);
 	counter->oncpu = -1;
@@ -1002,6 +1038,81 @@ static int context_equiv(struct perf_counter_context *ctx1,
 		&& !ctx1->pin_count && !ctx2->pin_count;
 }
 
+static void __perf_counter_read(void *counter);
+
+static void __perf_counter_sync_stat(struct perf_counter *counter,
+				     struct perf_counter *next_counter)
+{
+	u64 value;
+
+	if (!counter->attr.inherit_stat)
+		return;
+
+	/*
+	 * Update the counter value, we cannot use perf_counter_read()
+	 * because we're in the middle of a context switch and have IRQs
+	 * disabled, which upsets smp_call_function_single(), however
+	 * we know the counter must be on the current CPU, therefore we
+	 * don't need to use it.
+	 */
+	switch (counter->state) {
+	case PERF_COUNTER_STATE_ACTIVE:
+		__perf_counter_read(counter);
+		break;
+
+	case PERF_COUNTER_STATE_INACTIVE:
+		update_counter_times(counter);
+		break;
+
+	default:
+		break;
+	}
+
+	/*
+	 * In order to keep per-task stats reliable we need to flip the counter
+	 * values when we flip the contexts.
+	 */
+	value = atomic64_read(&next_counter->count);
+	value = atomic64_xchg(&counter->count, value);
+	atomic64_set(&next_counter->count, value);
+
+	swap(counter->total_time_enabled, next_counter->total_time_enabled);
+	swap(counter->total_time_running, next_counter->total_time_running);
+
+	/*
+	 * Since we swizzled the values, update the user visible data too.
+	 */
+	perf_counter_update_userpage(counter);
+	perf_counter_update_userpage(next_counter);
+}
+
+#define list_next_entry(pos, member) \
+	list_entry(pos->member.next, typeof(*pos), member)
+
+static void perf_counter_sync_stat(struct perf_counter_context *ctx,
+				   struct perf_counter_context *next_ctx)
+{
+	struct perf_counter *counter, *next_counter;
+
+	if (!ctx->nr_stat)
+		return;
+
+	counter = list_first_entry(&ctx->event_list,
+				   struct perf_counter, event_entry);
+
+	next_counter = list_first_entry(&next_ctx->event_list,
+					struct perf_counter, event_entry);
+
+	while (&counter->event_entry != &ctx->event_list &&
+	       &next_counter->event_entry != &next_ctx->event_list) {
+
+		__perf_counter_sync_stat(counter, next_counter);
+
+		counter = list_next_entry(counter, event_entry);
+		next_counter = list_next_entry(next_counter, event_entry);
+	}
+}
+
 /*
  * Called from scheduler to remove the counters of the current task,
  * with interrupts disabled.
@@ -1057,6 +1168,8 @@ void perf_counter_task_sched_out(struct task_struct *task,
 			ctx->task = next;
 			next_ctx->task = task;
 			do_switch = 0;
+
+			perf_counter_sync_stat(ctx, next_ctx);
 		}
 		spin_unlock(&next_ctx->lock);
 		spin_unlock(&ctx->lock);
@@ -1203,7 +1316,6 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 #define MAX_INTERRUPTS (~0ULL)
 
 static void perf_log_throttle(struct perf_counter *counter, int enable);
-static void perf_log_period(struct perf_counter *counter, u64 period);
 
 static void perf_adjust_period(struct perf_counter *counter, u64 events)
 {
@@ -1221,8 +1333,6 @@ static void perf_adjust_period(struct perf_counter *counter, u64 events)
 
 	if (!sample_period)
 		sample_period = 1;
-
-	perf_log_period(counter, sample_period);
 
 	hwc->sample_period = sample_period;
 }
@@ -1283,7 +1393,7 @@ static void perf_ctx_adjust_freq(struct perf_counter_context *ctx)
 		if (!interrupts) {
 			perf_disable();
 			counter->pmu->disable(counter);
-			atomic_set(&hwc->period_left, 0);
+			atomic64_set(&hwc->period_left, 0);
 			counter->pmu->enable(counter);
 			perf_enable();
 		}
@@ -1344,13 +1454,69 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 }
 
 /*
+ * Enable all of a task's counters that have been marked enable-on-exec.
+ * This expects task == current.
+ */
+static void perf_counter_enable_on_exec(struct task_struct *task)
+{
+	struct perf_counter_context *ctx;
+	struct perf_counter *counter;
+	unsigned long flags;
+	int enabled = 0;
+
+	local_irq_save(flags);
+	ctx = task->perf_counter_ctxp;
+	if (!ctx || !ctx->nr_counters)
+		goto out;
+
+	__perf_counter_task_sched_out(ctx);
+
+	spin_lock(&ctx->lock);
+
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		if (!counter->attr.enable_on_exec)
+			continue;
+		counter->attr.enable_on_exec = 0;
+		if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
+			continue;
+		counter->state = PERF_COUNTER_STATE_INACTIVE;
+		counter->tstamp_enabled =
+			ctx->time - counter->total_time_enabled;
+		enabled = 1;
+	}
+
+	/*
+	 * Unclone this context if we enabled any counter.
+	 */
+	if (enabled)
+		unclone_ctx(ctx);
+
+	spin_unlock(&ctx->lock);
+
+	perf_counter_task_sched_in(task, smp_processor_id());
+ out:
+	local_irq_restore(flags);
+}
+
+/*
  * Cross CPU call to read the hardware counter
  */
-static void __read(void *info)
+static void __perf_counter_read(void *info)
 {
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter *counter = info;
 	struct perf_counter_context *ctx = counter->ctx;
 	unsigned long flags;
+
+	/*
+	 * If this is a task context, we need to check whether it is
+	 * the current task context of this cpu.  If not it has been
+	 * scheduled out before the smp call arrived.  In that case
+	 * counter->count would have been updated to a recent sample
+	 * when the counter was scheduled out.
+	 */
+	if (ctx->task && cpuctx->task_ctx != ctx)
+		return;
 
 	local_irq_save(flags);
 	if (ctx->is_active)
@@ -1368,7 +1534,7 @@ static u64 perf_counter_read(struct perf_counter *counter)
 	 */
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
 		smp_call_function_single(counter->oncpu,
-					 __read, counter, 1);
+					 __perf_counter_read, counter, 1);
 	} else if (counter->state == PERF_COUNTER_STATE_INACTIVE) {
 		update_counter_times(counter);
 	}
@@ -1394,7 +1560,6 @@ __perf_counter_init_context(struct perf_counter_context *ctx,
 
 static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 {
-	struct perf_counter_context *parent_ctx;
 	struct perf_counter_context *ctx;
 	struct perf_cpu_context *cpuctx;
 	struct task_struct *task;
@@ -1454,16 +1619,7 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
  retry:
 	ctx = perf_lock_task_context(task, &flags);
 	if (ctx) {
-		parent_ctx = ctx->parent_ctx;
-		if (parent_ctx) {
-			put_ctx(parent_ctx);
-			ctx->parent_ctx = NULL;		/* no longer a clone */
-		}
-		/*
-		 * Get an extra reference before dropping the lock so that
-		 * this context won't get freed if the task exits.
-		 */
-		get_ctx(ctx);
+		unclone_ctx(ctx);
 		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 
@@ -1509,11 +1665,15 @@ static void free_counter(struct perf_counter *counter)
 {
 	perf_pending_sync(counter);
 
-	atomic_dec(&nr_counters);
-	if (counter->attr.mmap)
-		atomic_dec(&nr_mmap_counters);
-	if (counter->attr.comm)
-		atomic_dec(&nr_comm_counters);
+	if (!counter->parent) {
+		atomic_dec(&nr_counters);
+		if (counter->attr.mmap)
+			atomic_dec(&nr_mmap_counters);
+		if (counter->attr.comm)
+			atomic_dec(&nr_comm_counters);
+		if (counter->attr.task)
+			atomic_dec(&nr_task_counters);
+	}
 
 	if (counter->destroy)
 		counter->destroy(counter);
@@ -1547,14 +1707,133 @@ static int perf_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int perf_counter_read_size(struct perf_counter *counter)
+{
+	int entry = sizeof(u64); /* value */
+	int size = 0;
+	int nr = 1;
+
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		size += sizeof(u64);
+
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		size += sizeof(u64);
+
+	if (counter->attr.read_format & PERF_FORMAT_ID)
+		entry += sizeof(u64);
+
+	if (counter->attr.read_format & PERF_FORMAT_GROUP) {
+		nr += counter->group_leader->nr_siblings;
+		size += sizeof(u64);
+	}
+
+	size += entry * nr;
+
+	return size;
+}
+
+static u64 perf_counter_read_value(struct perf_counter *counter)
+{
+	struct perf_counter *child;
+	u64 total = 0;
+
+	total += perf_counter_read(counter);
+	list_for_each_entry(child, &counter->child_list, child_list)
+		total += perf_counter_read(child);
+
+	return total;
+}
+
+static int perf_counter_read_entry(struct perf_counter *counter,
+				   u64 read_format, char __user *buf)
+{
+	int n = 0, count = 0;
+	u64 values[2];
+
+	values[n++] = perf_counter_read_value(counter);
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(counter);
+
+	count = n * sizeof(u64);
+
+	if (copy_to_user(buf, values, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static int perf_counter_read_group(struct perf_counter *counter,
+				   u64 read_format, char __user *buf)
+{
+	struct perf_counter *leader = counter->group_leader, *sub;
+	int n = 0, size = 0, err = -EFAULT;
+	u64 values[3];
+
+	values[n++] = 1 + leader->nr_siblings;
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		values[n++] = leader->total_time_enabled +
+			atomic64_read(&leader->child_total_time_enabled);
+	}
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		values[n++] = leader->total_time_running +
+			atomic64_read(&leader->child_total_time_running);
+	}
+
+	size = n * sizeof(u64);
+
+	if (copy_to_user(buf, values, size))
+		return -EFAULT;
+
+	err = perf_counter_read_entry(leader, read_format, buf + size);
+	if (err < 0)
+		return err;
+
+	size += err;
+
+	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+		err = perf_counter_read_entry(sub, read_format,
+				buf + size);
+		if (err < 0)
+			return err;
+
+		size += err;
+	}
+
+	return size;
+}
+
+static int perf_counter_read_one(struct perf_counter *counter,
+				 u64 read_format, char __user *buf)
+{
+	u64 values[4];
+	int n = 0;
+
+	values[n++] = perf_counter_read_value(counter);
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		values[n++] = counter->total_time_enabled +
+			atomic64_read(&counter->child_total_time_enabled);
+	}
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		values[n++] = counter->total_time_running +
+			atomic64_read(&counter->child_total_time_running);
+	}
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(counter);
+
+	if (copy_to_user(buf, values, n * sizeof(u64)))
+		return -EFAULT;
+
+	return n * sizeof(u64);
+}
+
 /*
  * Read the performance counter - simple non blocking version for now
  */
 static ssize_t
 perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 {
-	u64 values[3];
-	int n;
+	u64 read_format = counter->attr.read_format;
+	int ret;
 
 	/*
 	 * Return end-of-file for a read on a counter that is in
@@ -1564,28 +1843,18 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	if (counter->state == PERF_COUNTER_STATE_ERROR)
 		return 0;
 
+	if (count < perf_counter_read_size(counter))
+		return -ENOSPC;
+
 	WARN_ON_ONCE(counter->ctx->parent_ctx);
 	mutex_lock(&counter->child_mutex);
-	values[0] = perf_counter_read(counter);
-	n = 1;
-	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
-		values[n++] = counter->total_time_enabled +
-			atomic64_read(&counter->child_total_time_enabled);
-	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
-		values[n++] = counter->total_time_running +
-			atomic64_read(&counter->child_total_time_running);
-	if (counter->attr.read_format & PERF_FORMAT_ID)
-		values[n++] = counter->id;
+	if (read_format & PERF_FORMAT_GROUP)
+		ret = perf_counter_read_group(counter, read_format, buf);
+	else
+		ret = perf_counter_read_one(counter, read_format, buf);
 	mutex_unlock(&counter->child_mutex);
 
-	if (count < n * sizeof(u64))
-		return -EINVAL;
-	count = n * sizeof(u64);
-
-	if (copy_to_user(buf, values, count))
-		return -EFAULT;
-
-	return count;
+	return ret;
 }
 
 static ssize_t
@@ -1620,22 +1889,6 @@ static void perf_counter_reset(struct perf_counter *counter)
 	perf_counter_update_userpage(counter);
 }
 
-static void perf_counter_for_each_sibling(struct perf_counter *counter,
-					  void (*func)(struct perf_counter *))
-{
-	struct perf_counter_context *ctx = counter->ctx;
-	struct perf_counter *sibling;
-
-	WARN_ON_ONCE(ctx->parent_ctx);
-	mutex_lock(&ctx->mutex);
-	counter = counter->group_leader;
-
-	func(counter);
-	list_for_each_entry(sibling, &counter->sibling_list, list_entry)
-		func(sibling);
-	mutex_unlock(&ctx->mutex);
-}
-
 /*
  * Holding the top-level counter's child_mutex means that any
  * descendant process that has inherited this counter will block
@@ -1658,14 +1911,18 @@ static void perf_counter_for_each_child(struct perf_counter *counter,
 static void perf_counter_for_each(struct perf_counter *counter,
 				  void (*func)(struct perf_counter *))
 {
-	struct perf_counter *child;
+	struct perf_counter_context *ctx = counter->ctx;
+	struct perf_counter *sibling;
 
-	WARN_ON_ONCE(counter->ctx->parent_ctx);
-	mutex_lock(&counter->child_mutex);
-	perf_counter_for_each_sibling(counter, func);
-	list_for_each_entry(child, &counter->child_list, child_list)
-		perf_counter_for_each_sibling(child, func);
-	mutex_unlock(&counter->child_mutex);
+	WARN_ON_ONCE(ctx->parent_ctx);
+	mutex_lock(&ctx->mutex);
+	counter = counter->group_leader;
+
+	perf_counter_for_each_child(counter, func);
+	func(counter);
+	list_for_each_entry(sibling, &counter->sibling_list, list_entry)
+		perf_counter_for_each_child(counter, func);
+	mutex_unlock(&ctx->mutex);
 }
 
 static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
@@ -1694,8 +1951,6 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 
 		counter->attr.sample_freq = value;
 	} else {
-		perf_log_period(counter, value);
-
 		counter->attr.sample_period = value;
 		counter->hw.sample_period = value;
 	}
@@ -1764,6 +2019,18 @@ int perf_counter_task_disable(void)
 	return 0;
 }
 
+#ifndef PERF_COUNTER_INDEX_OFFSET
+# define PERF_COUNTER_INDEX_OFFSET 0
+#endif
+
+static int perf_counter_index(struct perf_counter *counter)
+{
+	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
+		return 0;
+
+	return counter->hw.idx + 1 - PERF_COUNTER_INDEX_OFFSET;
+}
+
 /*
  * Callers need to ensure there can be no nesting of this function, otherwise
  * the seqlock logic goes bad. We can not serialize this because the arch
@@ -1788,10 +2055,16 @@ void perf_counter_update_userpage(struct perf_counter *counter)
 	preempt_disable();
 	++userpg->lock;
 	barrier();
-	userpg->index = counter->hw.idx;
+	userpg->index = perf_counter_index(counter);
 	userpg->offset = atomic64_read(&counter->count);
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&counter->hw.prev_count);
+
+	userpg->time_enabled = counter->total_time_enabled +
+			atomic64_read(&counter->child_total_time_enabled);
+
+	userpg->time_running = counter->total_time_running +
+			atomic64_read(&counter->child_total_time_running);
 
 	barrier();
 	++userpg->lock;
@@ -1806,6 +2079,12 @@ static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct perf_mmap_data *data;
 	int ret = VM_FAULT_SIGBUS;
 
+	if (vmf->flags & FAULT_FLAG_MKWRITE) {
+		if (vmf->pgoff == 0)
+			ret = 0;
+		return ret;
+	}
+
 	rcu_read_lock();
 	data = rcu_dereference(counter->data);
 	if (!data)
@@ -1819,9 +2098,16 @@ static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		if ((unsigned)nr > data->nr_pages)
 			goto unlock;
 
+		if (vmf->flags & FAULT_FLAG_WRITE)
+			goto unlock;
+
 		vmf->page = virt_to_page(data->data_pages[nr]);
 	}
+
 	get_page(vmf->page);
+	vmf->page->mapping = vma->vm_file->f_mapping;
+	vmf->page->index   = vmf->pgoff;
+
 	ret = 0;
 unlock:
 	rcu_read_unlock();
@@ -1874,6 +2160,14 @@ fail:
 	return -ENOMEM;
 }
 
+static void perf_mmap_free_page(unsigned long addr)
+{
+	struct page *page = virt_to_page((void *)addr);
+
+	page->mapping = NULL;
+	__free_page(page);
+}
+
 static void __perf_mmap_data_free(struct rcu_head *rcu_head)
 {
 	struct perf_mmap_data *data;
@@ -1881,9 +2175,10 @@ static void __perf_mmap_data_free(struct rcu_head *rcu_head)
 
 	data = container_of(rcu_head, struct perf_mmap_data, rcu_head);
 
-	free_page((unsigned long)data->user_page);
+	perf_mmap_free_page((unsigned long)data->user_page);
 	for (i = 0; i < data->nr_pages; i++)
-		free_page((unsigned long)data->data_pages[i]);
+		perf_mmap_free_page((unsigned long)data->data_pages[i]);
+
 	kfree(data);
 }
 
@@ -1920,9 +2215,10 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 }
 
 static struct vm_operations_struct perf_mmap_vmops = {
-	.open  = perf_mmap_open,
-	.close = perf_mmap_close,
-	.fault = perf_mmap_fault,
+	.open		= perf_mmap_open,
+	.close		= perf_mmap_close,
+	.fault		= perf_mmap_fault,
+	.page_mkwrite	= perf_mmap_fault,
 };
 
 static int perf_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1936,7 +2232,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	long user_extra, extra;
 	int ret = 0;
 
-	if (!(vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_WRITE))
+	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
 	vma_size = vma->vm_end - vma->vm_start;
@@ -1995,10 +2291,12 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	atomic_long_add(user_extra, &user->locked_vm);
 	vma->vm_mm->locked_vm += extra;
 	counter->data->nr_locked = extra;
+	if (vma->vm_flags & VM_WRITE)
+		counter->data->writable = 1;
+
 unlock:
 	mutex_unlock(&counter->mmap_mutex);
 
-	vma->vm_flags &= ~VM_MAYWRITE;
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_ops = &perf_mmap_vmops;
 
@@ -2064,7 +2362,7 @@ static void perf_pending_counter(struct perf_pending_entry *entry)
 
 	if (counter->pending_disable) {
 		counter->pending_disable = 0;
-		perf_counter_disable(counter);
+		__perf_counter_disable(counter);
 	}
 
 	if (counter->pending_wakeup) {
@@ -2175,10 +2473,37 @@ struct perf_output_handle {
 	unsigned long		head;
 	unsigned long		offset;
 	int			nmi;
-	int			overflow;
+	int			sample;
 	int			locked;
 	unsigned long		flags;
 };
+
+static bool perf_output_space(struct perf_mmap_data *data,
+			      unsigned int offset, unsigned int head)
+{
+	unsigned long tail;
+	unsigned long mask;
+
+	if (!data->writable)
+		return true;
+
+	mask = (data->nr_pages << PAGE_SHIFT) - 1;
+	/*
+	 * Userspace could choose to issue a mb() before updating the tail
+	 * pointer. So that all reads will be completed before the write is
+	 * issued.
+	 */
+	tail = ACCESS_ONCE(data->user_page->data_tail);
+	smp_rmb();
+
+	offset = (offset - tail) & mask;
+	head   = (head   - tail) & mask;
+
+	if ((int)(head - offset) < 0)
+		return false;
+
+	return true;
+}
 
 static void perf_output_wakeup(struct perf_output_handle *handle)
 {
@@ -2270,55 +2595,6 @@ out:
 	local_irq_restore(handle->flags);
 }
 
-static int perf_output_begin(struct perf_output_handle *handle,
-			     struct perf_counter *counter, unsigned int size,
-			     int nmi, int overflow)
-{
-	struct perf_mmap_data *data;
-	unsigned int offset, head;
-
-	/*
-	 * For inherited counters we send all the output towards the parent.
-	 */
-	if (counter->parent)
-		counter = counter->parent;
-
-	rcu_read_lock();
-	data = rcu_dereference(counter->data);
-	if (!data)
-		goto out;
-
-	handle->data	 = data;
-	handle->counter	 = counter;
-	handle->nmi	 = nmi;
-	handle->overflow = overflow;
-
-	if (!data->nr_pages)
-		goto fail;
-
-	perf_output_lock(handle);
-
-	do {
-		offset = head = atomic_long_read(&data->head);
-		head += size;
-	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
-
-	handle->offset	= offset;
-	handle->head	= head;
-
-	if ((offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT))
-		atomic_set(&data->wakeup, 1);
-
-	return 0;
-
-fail:
-	perf_output_wakeup(handle);
-out:
-	rcu_read_unlock();
-
-	return -ENOSPC;
-}
-
 static void perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len)
 {
@@ -2358,6 +2634,78 @@ static void perf_output_copy(struct perf_output_handle *handle,
 #define perf_output_put(handle, x) \
 	perf_output_copy((handle), &(x), sizeof(x))
 
+static int perf_output_begin(struct perf_output_handle *handle,
+			     struct perf_counter *counter, unsigned int size,
+			     int nmi, int sample)
+{
+	struct perf_mmap_data *data;
+	unsigned int offset, head;
+	int have_lost;
+	struct {
+		struct perf_event_header header;
+		u64			 id;
+		u64			 lost;
+	} lost_event;
+
+	/*
+	 * For inherited counters we send all the output towards the parent.
+	 */
+	if (counter->parent)
+		counter = counter->parent;
+
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (!data)
+		goto out;
+
+	handle->data	= data;
+	handle->counter	= counter;
+	handle->nmi	= nmi;
+	handle->sample	= sample;
+
+	if (!data->nr_pages)
+		goto fail;
+
+	have_lost = atomic_read(&data->lost);
+	if (have_lost)
+		size += sizeof(lost_event);
+
+	perf_output_lock(handle);
+
+	do {
+		offset = head = atomic_long_read(&data->head);
+		head += size;
+		if (unlikely(!perf_output_space(data, offset, head)))
+			goto fail;
+	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
+
+	handle->offset	= offset;
+	handle->head	= head;
+
+	if ((offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT))
+		atomic_set(&data->wakeup, 1);
+
+	if (have_lost) {
+		lost_event.header.type = PERF_EVENT_LOST;
+		lost_event.header.misc = 0;
+		lost_event.header.size = sizeof(lost_event);
+		lost_event.id          = counter->id;
+		lost_event.lost        = atomic_xchg(&data->lost, 0);
+
+		perf_output_put(handle, lost_event);
+	}
+
+	return 0;
+
+fail:
+	atomic_inc(&data->lost);
+	perf_output_unlock(handle);
+out:
+	rcu_read_unlock();
+
+	return -ENOSPC;
+}
+
 static void perf_output_end(struct perf_output_handle *handle)
 {
 	struct perf_counter *counter = handle->counter;
@@ -2365,7 +2713,7 @@ static void perf_output_end(struct perf_output_handle *handle)
 
 	int wakeup_events = counter->attr.wakeup_events;
 
-	if (handle->overflow && wakeup_events) {
+	if (handle->sample && wakeup_events) {
 		int events = atomic_inc_return(&data->events);
 		if (events >= wakeup_events) {
 			atomic_sub(wakeup_events, &data->events);
@@ -2399,7 +2747,80 @@ static u32 perf_counter_tid(struct perf_counter *counter, struct task_struct *p)
 	return task_pid_nr_ns(p, counter->ns);
 }
 
-static void perf_counter_output(struct perf_counter *counter, int nmi,
+static void perf_output_read_one(struct perf_output_handle *handle,
+				 struct perf_counter *counter)
+{
+	u64 read_format = counter->attr.read_format;
+	u64 values[4];
+	int n = 0;
+
+	values[n++] = atomic64_read(&counter->count);
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		values[n++] = counter->total_time_enabled +
+			atomic64_read(&counter->child_total_time_enabled);
+	}
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		values[n++] = counter->total_time_running +
+			atomic64_read(&counter->child_total_time_running);
+	}
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(counter);
+
+	perf_output_copy(handle, values, n * sizeof(u64));
+}
+
+/*
+ * XXX PERF_FORMAT_GROUP vs inherited counters seems difficult.
+ */
+static void perf_output_read_group(struct perf_output_handle *handle,
+			    struct perf_counter *counter)
+{
+	struct perf_counter *leader = counter->group_leader, *sub;
+	u64 read_format = counter->attr.read_format;
+	u64 values[5];
+	int n = 0;
+
+	values[n++] = 1 + leader->nr_siblings;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		values[n++] = leader->total_time_enabled;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		values[n++] = leader->total_time_running;
+
+	if (leader != counter)
+		leader->pmu->read(leader);
+
+	values[n++] = atomic64_read(&leader->count);
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(leader);
+
+	perf_output_copy(handle, values, n * sizeof(u64));
+
+	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+		n = 0;
+
+		if (sub != counter)
+			sub->pmu->read(sub);
+
+		values[n++] = atomic64_read(&sub->count);
+		if (read_format & PERF_FORMAT_ID)
+			values[n++] = primary_counter_id(sub);
+
+		perf_output_copy(handle, values, n * sizeof(u64));
+	}
+}
+
+static void perf_output_read(struct perf_output_handle *handle,
+			     struct perf_counter *counter)
+{
+	if (counter->attr.read_format & PERF_FORMAT_GROUP)
+		perf_output_read_group(handle, counter);
+	else
+		perf_output_read_one(handle, counter);
+}
+
+void perf_counter_output(struct perf_counter *counter, int nmi,
 				struct perf_sample_data *data)
 {
 	int ret;
@@ -2410,10 +2831,6 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	struct {
 		u32 pid, tid;
 	} tid_entry;
-	struct {
-		u64 id;
-		u64 counter;
-	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
 	int callchain_size = 0;
 	u64 time;
@@ -2421,15 +2838,14 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		u32 cpu, reserved;
 	} cpu_entry;
 
-	header.type = 0;
+	header.type = PERF_EVENT_SAMPLE;
 	header.size = sizeof(header);
 
-	header.misc = PERF_EVENT_MISC_OVERFLOW;
+	header.misc = 0;
 	header.misc |= perf_misc_flags(data->regs);
 
 	if (sample_type & PERF_SAMPLE_IP) {
 		ip = perf_instruction_pointer(data->regs);
-		header.type |= PERF_SAMPLE_IP;
 		header.size += sizeof(ip);
 	}
 
@@ -2438,7 +2854,6 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		tid_entry.pid = perf_counter_pid(counter, current);
 		tid_entry.tid = perf_counter_tid(counter, current);
 
-		header.type |= PERF_SAMPLE_TID;
 		header.size += sizeof(tid_entry);
 	}
 
@@ -2448,47 +2863,51 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		 */
 		time = sched_clock();
 
-		header.type |= PERF_SAMPLE_TIME;
 		header.size += sizeof(u64);
 	}
 
-	if (sample_type & PERF_SAMPLE_ADDR) {
-		header.type |= PERF_SAMPLE_ADDR;
+	if (sample_type & PERF_SAMPLE_ADDR)
 		header.size += sizeof(u64);
-	}
 
-	if (sample_type & PERF_SAMPLE_ID) {
-		header.type |= PERF_SAMPLE_ID;
+	if (sample_type & PERF_SAMPLE_ID)
 		header.size += sizeof(u64);
-	}
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		header.size += sizeof(u64);
 
 	if (sample_type & PERF_SAMPLE_CPU) {
-		header.type |= PERF_SAMPLE_CPU;
 		header.size += sizeof(cpu_entry);
 
 		cpu_entry.cpu = raw_smp_processor_id();
+		cpu_entry.reserved = 0;
 	}
 
-	if (sample_type & PERF_SAMPLE_PERIOD) {
-		header.type |= PERF_SAMPLE_PERIOD;
+	if (sample_type & PERF_SAMPLE_PERIOD)
 		header.size += sizeof(u64);
-	}
 
-	if (sample_type & PERF_SAMPLE_GROUP) {
-		header.type |= PERF_SAMPLE_GROUP;
-		header.size += sizeof(u64) +
-			counter->nr_siblings * sizeof(group_entry);
-	}
+	if (sample_type & PERF_SAMPLE_READ)
+		header.size += perf_counter_read_size(counter);
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		callchain = perf_callchain(data->regs);
 
 		if (callchain) {
 			callchain_size = (1 + callchain->nr) * sizeof(u64);
-
-			header.type |= PERF_SAMPLE_CALLCHAIN;
 			header.size += callchain_size;
-		}
+		} else
+			header.size += sizeof(u64);
+	}
+
+	if (sample_type & PERF_SAMPLE_RAW) {
+		int size = sizeof(u32);
+
+		if (data->raw)
+			size += data->raw->size;
+		else
+			size += sizeof(u32);
+
+		WARN_ON_ONCE(size & (sizeof(u64)-1));
+		header.size += size;
 	}
 
 	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
@@ -2509,7 +2928,13 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_ADDR)
 		perf_output_put(&handle, data->addr);
 
-	if (sample_type & PERF_SAMPLE_ID)
+	if (sample_type & PERF_SAMPLE_ID) {
+		u64 id = primary_counter_id(counter);
+
+		perf_output_put(&handle, id);
+	}
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
 		perf_output_put(&handle, counter->id);
 
 	if (sample_type & PERF_SAMPLE_CPU)
@@ -2518,76 +2943,125 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_PERIOD)
 		perf_output_put(&handle, data->period);
 
-	/*
-	 * XXX PERF_SAMPLE_GROUP vs inherited counters seems difficult.
-	 */
-	if (sample_type & PERF_SAMPLE_GROUP) {
-		struct perf_counter *leader, *sub;
-		u64 nr = counter->nr_siblings;
+	if (sample_type & PERF_SAMPLE_READ)
+		perf_output_read(&handle, counter);
 
-		perf_output_put(&handle, nr);
-
-		leader = counter->group_leader;
-		list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-			if (sub != counter)
-				sub->pmu->read(sub);
-
-			group_entry.id = sub->id;
-			group_entry.counter = atomic64_read(&sub->count);
-
-			perf_output_put(&handle, group_entry);
+	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
+		if (callchain)
+			perf_output_copy(&handle, callchain, callchain_size);
+		else {
+			u64 nr = 0;
+			perf_output_put(&handle, nr);
 		}
 	}
 
-	if (callchain)
-		perf_output_copy(&handle, callchain, callchain_size);
+	if (sample_type & PERF_SAMPLE_RAW) {
+		if (data->raw) {
+			perf_output_put(&handle, data->raw->size);
+			perf_output_copy(&handle, data->raw->data, data->raw->size);
+		} else {
+			struct {
+				u32	size;
+				u32	data;
+			} raw = {
+				.size = sizeof(u32),
+				.data = 0,
+			};
+			perf_output_put(&handle, raw);
+		}
+	}
 
 	perf_output_end(&handle);
 }
 
 /*
- * fork tracking
+ * read event
  */
 
-struct perf_fork_event {
-	struct task_struct	*task;
+struct perf_read_event {
+	struct perf_event_header	header;
+
+	u32				pid;
+	u32				tid;
+};
+
+static void
+perf_counter_read_event(struct perf_counter *counter,
+			struct task_struct *task)
+{
+	struct perf_output_handle handle;
+	struct perf_read_event event = {
+		.header = {
+			.type = PERF_EVENT_READ,
+			.misc = 0,
+			.size = sizeof(event) + perf_counter_read_size(counter),
+		},
+		.pid = perf_counter_pid(counter, task),
+		.tid = perf_counter_tid(counter, task),
+	};
+	int ret;
+
+	ret = perf_output_begin(&handle, counter, event.header.size, 0, 0);
+	if (ret)
+		return;
+
+	perf_output_put(&handle, event);
+	perf_output_read(&handle, counter);
+
+	perf_output_end(&handle);
+}
+
+/*
+ * task tracking -- fork/exit
+ *
+ * enabled by: attr.comm | attr.mmap | attr.task
+ */
+
+struct perf_task_event {
+	struct task_struct		*task;
+	struct perf_counter_context	*task_ctx;
 
 	struct {
 		struct perf_event_header	header;
 
 		u32				pid;
 		u32				ppid;
+		u32				tid;
+		u32				ptid;
 	} event;
 };
 
-static void perf_counter_fork_output(struct perf_counter *counter,
-				     struct perf_fork_event *fork_event)
+static void perf_counter_task_output(struct perf_counter *counter,
+				     struct perf_task_event *task_event)
 {
 	struct perf_output_handle handle;
-	int size = fork_event->event.header.size;
-	struct task_struct *task = fork_event->task;
+	int size = task_event->event.header.size;
+	struct task_struct *task = task_event->task;
 	int ret = perf_output_begin(&handle, counter, size, 0, 0);
 
 	if (ret)
 		return;
 
-	fork_event->event.pid = perf_counter_pid(counter, task);
-	fork_event->event.ppid = perf_counter_pid(counter, task->real_parent);
+	task_event->event.pid = perf_counter_pid(counter, task);
+	task_event->event.ppid = perf_counter_pid(counter, current);
 
-	perf_output_put(&handle, fork_event->event);
+	task_event->event.tid = perf_counter_tid(counter, task);
+	task_event->event.ptid = perf_counter_tid(counter, current);
+
+	perf_output_put(&handle, task_event->event);
 	perf_output_end(&handle);
 }
 
-static int perf_counter_fork_match(struct perf_counter *counter)
+static int perf_counter_task_match(struct perf_counter *counter)
 {
-	if (counter->attr.comm || counter->attr.mmap)
+	if (counter->attr.comm || counter->attr.mmap || counter->attr.task)
 		return 1;
 
 	return 0;
 }
 
-static void perf_counter_fork_ctx(struct perf_counter_context *ctx,
-				  struct perf_fork_event *fork_event)
+static void perf_counter_task_ctx(struct perf_counter_context *ctx,
+				  struct perf_task_event *task_event)
 {
 	struct perf_counter *counter;
 
@@ -2596,51 +3070,62 @@ static void perf_counter_fork_ctx(struct perf_counter_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_counter_fork_match(counter))
-			perf_counter_fork_output(counter, fork_event);
+		if (perf_counter_task_match(counter))
+			perf_counter_task_output(counter, task_event);
 	}
 	rcu_read_unlock();
 }
 
-static void perf_counter_fork_event(struct perf_fork_event *fork_event)
+static void perf_counter_task_event(struct perf_task_event *task_event)
 {
 	struct perf_cpu_context *cpuctx;
-	struct perf_counter_context *ctx;
+	struct perf_counter_context *ctx = task_event->task_ctx;
 
 	cpuctx = &get_cpu_var(perf_cpu_context);
-	perf_counter_fork_ctx(&cpuctx->ctx, fork_event);
+	perf_counter_task_ctx(&cpuctx->ctx, task_event);
 	put_cpu_var(perf_cpu_context);
 
 	rcu_read_lock();
-	/*
-	 * doesn't really matter which of the child contexts the
-	 * events ends up in.
-	 */
-	ctx = rcu_dereference(current->perf_counter_ctxp);
+	if (!ctx)
+		ctx = rcu_dereference(task_event->task->perf_counter_ctxp);
 	if (ctx)
-		perf_counter_fork_ctx(ctx, fork_event);
+		perf_counter_task_ctx(ctx, task_event);
 	rcu_read_unlock();
+}
+
+static void perf_counter_task(struct task_struct *task,
+			      struct perf_counter_context *task_ctx,
+			      int new)
+{
+	struct perf_task_event task_event;
+
+	if (!atomic_read(&nr_comm_counters) &&
+	    !atomic_read(&nr_mmap_counters) &&
+	    !atomic_read(&nr_task_counters))
+		return;
+
+	task_event = (struct perf_task_event){
+		.task	  = task,
+		.task_ctx = task_ctx,
+		.event    = {
+			.header = {
+				.type = new ? PERF_EVENT_FORK : PERF_EVENT_EXIT,
+				.misc = 0,
+				.size = sizeof(task_event.event),
+			},
+			/* .pid  */
+			/* .ppid */
+			/* .tid  */
+			/* .ptid */
+		},
+	};
+
+	perf_counter_task_event(&task_event);
 }
 
 void perf_counter_fork(struct task_struct *task)
 {
-	struct perf_fork_event fork_event;
-
-	if (!atomic_read(&nr_comm_counters) &&
-	    !atomic_read(&nr_mmap_counters))
-		return;
-
-	fork_event = (struct perf_fork_event){
-		.task	= task,
-		.event  = {
-			.header = {
-				.type = PERF_EVENT_FORK,
-				.size = sizeof(fork_event.event),
-			},
-		},
-	};
-
-	perf_counter_fork_event(&fork_event);
+	perf_counter_task(task, NULL, 1);
 }
 
 /*
@@ -2708,8 +3193,10 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 	struct perf_cpu_context *cpuctx;
 	struct perf_counter_context *ctx;
 	unsigned int size;
-	char *comm = comm_event->task->comm;
+	char comm[TASK_COMM_LEN];
 
+	memset(comm, 0, sizeof(comm));
+	strncpy(comm, comm_event->task->comm, sizeof(comm));
 	size = ALIGN(strlen(comm)+1, sizeof(u64));
 
 	comm_event->comm = comm;
@@ -2736,13 +3223,24 @@ void perf_counter_comm(struct task_struct *task)
 {
 	struct perf_comm_event comm_event;
 
+	if (task->perf_counter_ctxp)
+		perf_counter_enable_on_exec(task);
+
 	if (!atomic_read(&nr_comm_counters))
 		return;
 
 	comm_event = (struct perf_comm_event){
 		.task	= task,
+		/* .comm      */
+		/* .comm_size */
 		.event  = {
-			.header = { .type = PERF_EVENT_COMM, },
+			.header = {
+				.type = PERF_EVENT_COMM,
+				.misc = 0,
+				/* .size */
+			},
+			/* .pid */
+			/* .tid */
 		},
 	};
 
@@ -2825,8 +3323,15 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 	char *buf = NULL;
 	const char *name;
 
+	memset(tmp, 0, sizeof(tmp));
+
 	if (file) {
-		buf = kzalloc(PATH_MAX, GFP_KERNEL);
+		/*
+		 * d_path works from the end of the buffer backwards, so we
+		 * need to add enough zero bytes after the string to handle
+		 * the 64bit alignment we do later.
+		 */
+		buf = kzalloc(PATH_MAX + sizeof(u64), GFP_KERNEL);
 		if (!buf) {
 			name = strncpy(tmp, "//enomem", sizeof(tmp));
 			goto got_name;
@@ -2837,9 +3342,11 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 			goto got_name;
 		}
 	} else {
-		name = arch_vma_name(mmap_event->vma);
-		if (name)
+		if (arch_vma_name(mmap_event->vma)) {
+			name = strncpy(tmp, arch_vma_name(mmap_event->vma),
+				       sizeof(tmp));
 			goto got_name;
+		}
 
 		if (!vma->vm_mm) {
 			name = strncpy(tmp, "[vdso]", sizeof(tmp));
@@ -2884,8 +3391,16 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
 
 	mmap_event = (struct perf_mmap_event){
 		.vma	= vma,
+		/* .file_name */
+		/* .file_size */
 		.event  = {
-			.header = { .type = PERF_EVENT_MMAP, },
+			.header = {
+				.type = PERF_EVENT_MMAP,
+				.misc = 0,
+				/* .size */
+			},
+			/* .pid */
+			/* .tid */
 			.start  = vma->vm_start,
 			.len    = vma->vm_end - vma->vm_start,
 			.pgoff  = vma->vm_pgoff,
@@ -2893,49 +3408,6 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
 	};
 
 	perf_counter_mmap_event(&mmap_event);
-}
-
-/*
- * Log sample_period changes so that analyzing tools can re-normalize the
- * event flow.
- */
-
-struct freq_event {
-	struct perf_event_header	header;
-	u64				time;
-	u64				id;
-	u64				period;
-};
-
-static void perf_log_period(struct perf_counter *counter, u64 period)
-{
-	struct perf_output_handle handle;
-	struct freq_event event;
-	int ret;
-
-	if (counter->hw.sample_period == period)
-		return;
-
-	if (counter->attr.sample_type & PERF_SAMPLE_PERIOD)
-		return;
-
-	event = (struct freq_event) {
-		.header = {
-			.type = PERF_EVENT_PERIOD,
-			.misc = 0,
-			.size = sizeof(event),
-		},
-		.time = sched_clock(),
-		.id = counter->id,
-		.period = period,
-	};
-
-	ret = perf_output_begin(&handle, counter, sizeof(event), 1, 0);
-	if (ret)
-		return;
-
-	perf_output_put(&handle, event);
-	perf_output_end(&handle);
 }
 
 /*
@@ -2951,15 +3423,20 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 		struct perf_event_header	header;
 		u64				time;
 		u64				id;
+		u64				stream_id;
 	} throttle_event = {
 		.header = {
-			.type = PERF_EVENT_THROTTLE + 1,
+			.type = PERF_EVENT_THROTTLE,
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
-		.time	= sched_clock(),
-		.id	= counter->id,
+		.time		= sched_clock(),
+		.id		= primary_counter_id(counter),
+		.stream_id	= counter->id,
 	};
+
+	if (enable)
+		throttle_event.header.type = PERF_EVENT_UNTHROTTLE;
 
 	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 1, 0);
 	if (ret)
@@ -2970,7 +3447,7 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 }
 
 /*
- * Generic counter overflow handling.
+ * Generic counter overflow handling, sampling.
  */
 
 int perf_counter_overflow(struct perf_counter *counter, int nmi,
@@ -3037,45 +3514,241 @@ int perf_counter_overflow(struct perf_counter *counter, int nmi,
  * Generic software counter infrastructure
  */
 
-static void perf_swcounter_update(struct perf_counter *counter)
+/*
+ * We directly increment counter->count and keep a second value in
+ * counter->hw.period_left to count intervals. This period counter
+ * is kept in the range [-sample_period, 0] so that we can use the
+ * sign as trigger.
+ */
+
+static u64 perf_swcounter_set_period(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
-	u64 prev, now;
-	s64 delta;
+	u64 period = hwc->last_period;
+	u64 nr, offset;
+	s64 old, val;
+
+	hwc->last_period = hwc->sample_period;
 
 again:
-	prev = atomic64_read(&hwc->prev_count);
-	now = atomic64_read(&hwc->count);
-	if (atomic64_cmpxchg(&hwc->prev_count, prev, now) != prev)
+	old = val = atomic64_read(&hwc->period_left);
+	if (val < 0)
+		return 0;
+
+	nr = div64_u64(period + val, period);
+	offset = nr * period;
+	val -= offset;
+	if (atomic64_cmpxchg(&hwc->period_left, old, val) != old)
 		goto again;
 
-	delta = now - prev;
-
-	atomic64_add(delta, &counter->count);
-	atomic64_sub(delta, &hwc->period_left);
+	return nr;
 }
 
-static void perf_swcounter_set_period(struct perf_counter *counter)
+static void perf_swcounter_overflow(struct perf_counter *counter,
+				    int nmi, struct perf_sample_data *data)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
-	s64 left = atomic64_read(&hwc->period_left);
-	s64 period = hwc->sample_period;
+	u64 overflow;
 
-	if (unlikely(left <= -period)) {
-		left = period;
-		atomic64_set(&hwc->period_left, left);
-		hwc->last_period = period;
+	data->period = counter->hw.last_period;
+	overflow = perf_swcounter_set_period(counter);
+
+	if (hwc->interrupts == MAX_INTERRUPTS)
+		return;
+
+	for (; overflow; overflow--) {
+		if (perf_counter_overflow(counter, nmi, data)) {
+			/*
+			 * We inhibit the overflow from happening when
+			 * hwc->interrupts == MAX_INTERRUPTS.
+			 */
+			break;
+		}
 	}
-
-	if (unlikely(left <= 0)) {
-		left += period;
-		atomic64_add(period, &hwc->period_left);
-		hwc->last_period = period;
-	}
-
-	atomic64_set(&hwc->prev_count, -left);
-	atomic64_set(&hwc->count, -left);
 }
+
+static void perf_swcounter_unthrottle(struct perf_counter *counter)
+{
+	/*
+	 * Nothing to do, we already reset hwc->interrupts.
+	 */
+}
+
+static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
+			       int nmi, struct perf_sample_data *data)
+{
+	struct hw_perf_counter *hwc = &counter->hw;
+
+	atomic64_add(nr, &counter->count);
+
+	if (!hwc->sample_period)
+		return;
+
+	if (!data->regs)
+		return;
+
+	if (!atomic64_add_negative(nr, &hwc->period_left))
+		perf_swcounter_overflow(counter, nmi, data);
+}
+
+static int perf_swcounter_is_counting(struct perf_counter *counter)
+{
+	/*
+	 * The counter is active, we're good!
+	 */
+	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
+		return 1;
+
+	/*
+	 * The counter is off/error, not counting.
+	 */
+	if (counter->state != PERF_COUNTER_STATE_INACTIVE)
+		return 0;
+
+	/*
+	 * The counter is inactive, if the context is active
+	 * we're part of a group that didn't make it on the 'pmu',
+	 * not counting.
+	 */
+	if (counter->ctx->is_active)
+		return 0;
+
+	/*
+	 * We're inactive and the context is too, this means the
+	 * task is scheduled out, we're counting events that happen
+	 * to us, like migration events.
+	 */
+	return 1;
+}
+
+static int perf_swcounter_match(struct perf_counter *counter,
+				enum perf_type_id type,
+				u32 event, struct pt_regs *regs)
+{
+	if (!perf_swcounter_is_counting(counter))
+		return 0;
+
+	if (counter->attr.type != type)
+		return 0;
+	if (counter->attr.config != event)
+		return 0;
+
+	if (regs) {
+		if (counter->attr.exclude_user && user_mode(regs))
+			return 0;
+
+		if (counter->attr.exclude_kernel && !user_mode(regs))
+			return 0;
+	}
+
+	return 1;
+}
+
+static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
+				     enum perf_type_id type,
+				     u32 event, u64 nr, int nmi,
+				     struct perf_sample_data *data)
+{
+	struct perf_counter *counter;
+
+	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
+		if (perf_swcounter_match(counter, type, event, data->regs))
+			perf_swcounter_add(counter, nr, nmi, data);
+	}
+	rcu_read_unlock();
+}
+
+static int *perf_swcounter_recursion_context(struct perf_cpu_context *cpuctx)
+{
+	if (in_nmi())
+		return &cpuctx->recursion[3];
+
+	if (in_irq())
+		return &cpuctx->recursion[2];
+
+	if (in_softirq())
+		return &cpuctx->recursion[1];
+
+	return &cpuctx->recursion[0];
+}
+
+static void do_perf_swcounter_event(enum perf_type_id type, u32 event,
+				    u64 nr, int nmi,
+				    struct perf_sample_data *data)
+{
+	struct perf_cpu_context *cpuctx = &get_cpu_var(perf_cpu_context);
+	int *recursion = perf_swcounter_recursion_context(cpuctx);
+	struct perf_counter_context *ctx;
+
+	if (*recursion)
+		goto out;
+
+	(*recursion)++;
+	barrier();
+
+	perf_swcounter_ctx_event(&cpuctx->ctx, type, event,
+				 nr, nmi, data);
+	rcu_read_lock();
+	/*
+	 * doesn't really matter which of the child contexts the
+	 * events ends up in.
+	 */
+	ctx = rcu_dereference(current->perf_counter_ctxp);
+	if (ctx)
+		perf_swcounter_ctx_event(ctx, type, event, nr, nmi, data);
+	rcu_read_unlock();
+
+	barrier();
+	(*recursion)--;
+
+out:
+	put_cpu_var(perf_cpu_context);
+}
+
+void __perf_swcounter_event(u32 event, u64 nr, int nmi,
+			    struct pt_regs *regs, u64 addr)
+{
+	struct perf_sample_data data = {
+		.regs = regs,
+		.addr = addr,
+	};
+
+	do_perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, &data);
+}
+
+static void perf_swcounter_read(struct perf_counter *counter)
+{
+}
+
+static int perf_swcounter_enable(struct perf_counter *counter)
+{
+	struct hw_perf_counter *hwc = &counter->hw;
+
+	if (hwc->sample_period) {
+		hwc->last_period = hwc->sample_period;
+		perf_swcounter_set_period(counter);
+	}
+	return 0;
+}
+
+static void perf_swcounter_disable(struct perf_counter *counter)
+{
+}
+
+static const struct pmu perf_ops_generic = {
+	.enable		= perf_swcounter_enable,
+	.disable	= perf_swcounter_disable,
+	.read		= perf_swcounter_read,
+	.unthrottle	= perf_swcounter_unthrottle,
+};
+
+/*
+ * hrtimer based swcounter callback
+ */
 
 static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 {
@@ -3107,186 +3780,6 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 
 	return ret;
 }
-
-static void perf_swcounter_overflow(struct perf_counter *counter,
-				    int nmi, struct pt_regs *regs, u64 addr)
-{
-	struct perf_sample_data data = {
-		.regs	= regs,
-		.addr	= addr,
-		.period	= counter->hw.last_period,
-	};
-
-	perf_swcounter_update(counter);
-	perf_swcounter_set_period(counter);
-	if (perf_counter_overflow(counter, nmi, &data))
-		/* soft-disable the counter */
-		;
-
-}
-
-static int perf_swcounter_is_counting(struct perf_counter *counter)
-{
-	struct perf_counter_context *ctx;
-	unsigned long flags;
-	int count;
-
-	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
-		return 1;
-
-	if (counter->state != PERF_COUNTER_STATE_INACTIVE)
-		return 0;
-
-	/*
-	 * If the counter is inactive, it could be just because
-	 * its task is scheduled out, or because it's in a group
-	 * which could not go on the PMU.  We want to count in
-	 * the first case but not the second.  If the context is
-	 * currently active then an inactive software counter must
-	 * be the second case.  If it's not currently active then
-	 * we need to know whether the counter was active when the
-	 * context was last active, which we can determine by
-	 * comparing counter->tstamp_stopped with ctx->time.
-	 *
-	 * We are within an RCU read-side critical section,
-	 * which protects the existence of *ctx.
-	 */
-	ctx = counter->ctx;
-	spin_lock_irqsave(&ctx->lock, flags);
-	count = 1;
-	/* Re-check state now we have the lock */
-	if (counter->state < PERF_COUNTER_STATE_INACTIVE ||
-	    counter->ctx->is_active ||
-	    counter->tstamp_stopped < ctx->time)
-		count = 0;
-	spin_unlock_irqrestore(&ctx->lock, flags);
-	return count;
-}
-
-static int perf_swcounter_match(struct perf_counter *counter,
-				enum perf_type_id type,
-				u32 event, struct pt_regs *regs)
-{
-	if (!perf_swcounter_is_counting(counter))
-		return 0;
-
-	if (counter->attr.type != type)
-		return 0;
-	if (counter->attr.config != event)
-		return 0;
-
-	if (regs) {
-		if (counter->attr.exclude_user && user_mode(regs))
-			return 0;
-
-		if (counter->attr.exclude_kernel && !user_mode(regs))
-			return 0;
-	}
-
-	return 1;
-}
-
-static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
-			       int nmi, struct pt_regs *regs, u64 addr)
-{
-	int neg = atomic64_add_negative(nr, &counter->hw.count);
-
-	if (counter->hw.sample_period && !neg && regs)
-		perf_swcounter_overflow(counter, nmi, regs, addr);
-}
-
-static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
-				     enum perf_type_id type, u32 event,
-				     u64 nr, int nmi, struct pt_regs *regs,
-				     u64 addr)
-{
-	struct perf_counter *counter;
-
-	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
-		return;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_swcounter_match(counter, type, event, regs))
-			perf_swcounter_add(counter, nr, nmi, regs, addr);
-	}
-	rcu_read_unlock();
-}
-
-static int *perf_swcounter_recursion_context(struct perf_cpu_context *cpuctx)
-{
-	if (in_nmi())
-		return &cpuctx->recursion[3];
-
-	if (in_irq())
-		return &cpuctx->recursion[2];
-
-	if (in_softirq())
-		return &cpuctx->recursion[1];
-
-	return &cpuctx->recursion[0];
-}
-
-static void __perf_swcounter_event(enum perf_type_id type, u32 event,
-				   u64 nr, int nmi, struct pt_regs *regs,
-				   u64 addr)
-{
-	struct perf_cpu_context *cpuctx = &get_cpu_var(perf_cpu_context);
-	int *recursion = perf_swcounter_recursion_context(cpuctx);
-	struct perf_counter_context *ctx;
-
-	if (*recursion)
-		goto out;
-
-	(*recursion)++;
-	barrier();
-
-	perf_swcounter_ctx_event(&cpuctx->ctx, type, event,
-				 nr, nmi, regs, addr);
-	rcu_read_lock();
-	/*
-	 * doesn't really matter which of the child contexts the
-	 * events ends up in.
-	 */
-	ctx = rcu_dereference(current->perf_counter_ctxp);
-	if (ctx)
-		perf_swcounter_ctx_event(ctx, type, event, nr, nmi, regs, addr);
-	rcu_read_unlock();
-
-	barrier();
-	(*recursion)--;
-
-out:
-	put_cpu_var(perf_cpu_context);
-}
-
-void
-perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
-{
-	__perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, regs, addr);
-}
-
-static void perf_swcounter_read(struct perf_counter *counter)
-{
-	perf_swcounter_update(counter);
-}
-
-static int perf_swcounter_enable(struct perf_counter *counter)
-{
-	perf_swcounter_set_period(counter);
-	return 0;
-}
-
-static void perf_swcounter_disable(struct perf_counter *counter)
-{
-	perf_swcounter_update(counter);
-}
-
-static const struct pmu perf_ops_generic = {
-	.enable		= perf_swcounter_enable,
-	.disable	= perf_swcounter_disable,
-	.read		= perf_swcounter_read,
-};
 
 /*
  * Software counter: cpu wall time clock
@@ -3404,36 +3897,25 @@ static const struct pmu perf_ops_task_clock = {
 	.read		= task_clock_perf_counter_read,
 };
 
-/*
- * Software counter: cpu migrations
- */
-void perf_counter_task_migration(struct task_struct *task, int cpu)
-{
-	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
-	struct perf_counter_context *ctx;
-
-	perf_swcounter_ctx_event(&cpuctx->ctx, PERF_TYPE_SOFTWARE,
-				 PERF_COUNT_SW_CPU_MIGRATIONS,
-				 1, 1, NULL, 0);
-
-	ctx = perf_pin_task_context(task);
-	if (ctx) {
-		perf_swcounter_ctx_event(ctx, PERF_TYPE_SOFTWARE,
-					 PERF_COUNT_SW_CPU_MIGRATIONS,
-					 1, 1, NULL, 0);
-		perf_unpin_context(ctx);
-	}
-}
-
 #ifdef CONFIG_EVENT_PROFILE
-void perf_tpcounter_event(int event_id)
+void perf_tpcounter_event(int event_id, u64 addr, u64 count, void *record,
+			  int entry_size)
 {
-	struct pt_regs *regs = get_irq_regs();
+	struct perf_raw_record raw = {
+		.size = entry_size,
+		.data = record,
+	};
 
-	if (!regs)
-		regs = task_pt_regs(current);
+	struct perf_sample_data data = {
+		.regs = get_irq_regs(),
+		.addr = addr,
+		.raw = &raw,
+	};
 
-	__perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, regs, 0);
+	if (!data.regs)
+		data.regs = task_pt_regs(current);
+
+	do_perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, count, 1, &data);
 }
 EXPORT_SYMBOL_GPL(perf_tpcounter_event);
 
@@ -3442,16 +3924,20 @@ extern void ftrace_profile_disable(int);
 
 static void tp_perf_counter_destroy(struct perf_counter *counter)
 {
-	ftrace_profile_disable(perf_event_id(&counter->attr));
+	ftrace_profile_disable(counter->attr.config);
 }
 
 static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
-	int event_id = perf_event_id(&counter->attr);
-	int ret;
+	/*
+	 * Raw tracepoint data is a severe data leak, only allow root to
+	 * have these.
+	 */
+	if ((counter->attr.sample_type & PERF_SAMPLE_RAW) &&
+			!capable(CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
 
-	ret = ftrace_profile_enable(event_id);
-	if (ret)
+	if (ftrace_profile_enable(counter->attr.config))
 		return NULL;
 
 	counter->destroy = tp_perf_counter_destroy;
@@ -3465,9 +3951,21 @@ static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 }
 #endif
 
+atomic_t perf_swcounter_enabled[PERF_COUNT_SW_MAX];
+
+static void sw_perf_counter_destroy(struct perf_counter *counter)
+{
+	u64 event = counter->attr.config;
+
+	WARN_ON(counter->parent);
+
+	atomic_dec(&perf_swcounter_enabled[event]);
+}
+
 static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 {
 	const struct pmu *pmu = NULL;
+	u64 event = counter->attr.config;
 
 	/*
 	 * Software counters (currently) can't in general distinguish
@@ -3476,7 +3974,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (counter->attr.config) {
+	switch (event) {
 	case PERF_COUNT_SW_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
@@ -3497,6 +3995,10 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_SW_CONTEXT_SWITCHES:
 	case PERF_COUNT_SW_CPU_MIGRATIONS:
+		if (!counter->parent) {
+			atomic_inc(&perf_swcounter_enabled[event]);
+			counter->destroy = sw_perf_counter_destroy;
+		}
 		pmu = &perf_ops_generic;
 		break;
 	}
@@ -3512,6 +4014,7 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 		   int cpu,
 		   struct perf_counter_context *ctx,
 		   struct perf_counter *group_leader,
+		   struct perf_counter *parent_counter,
 		   gfp_t gfpflags)
 {
 	const struct pmu *pmu;
@@ -3547,6 +4050,8 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	counter->ctx		= ctx;
 	counter->oncpu		= -1;
 
+	counter->parent		= parent_counter;
+
 	counter->ns		= get_pid_ns(current->nsproxy->pid_ns);
 	counter->id		= atomic64_inc_return(&perf_counter_id);
 
@@ -3561,13 +4066,14 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	hwc->sample_period = attr->sample_period;
 	if (attr->freq && attr->sample_freq)
 		hwc->sample_period = 1;
+	hwc->last_period = hwc->sample_period;
 
 	atomic64_set(&hwc->period_left, hwc->sample_period);
 
 	/*
-	 * we currently do not support PERF_SAMPLE_GROUP on inherited counters
+	 * we currently do not support PERF_FORMAT_GROUP on inherited counters
 	 */
-	if (attr->inherit && (attr->sample_type & PERF_SAMPLE_GROUP))
+	if (attr->inherit && (attr->read_format & PERF_FORMAT_GROUP))
 		goto done;
 
 	switch (attr->type) {
@@ -3604,11 +4110,15 @@ done:
 
 	counter->pmu = pmu;
 
-	atomic_inc(&nr_counters);
-	if (counter->attr.mmap)
-		atomic_inc(&nr_mmap_counters);
-	if (counter->attr.comm)
-		atomic_inc(&nr_comm_counters);
+	if (!counter->parent) {
+		atomic_inc(&nr_counters);
+		if (counter->attr.mmap)
+			atomic_inc(&nr_mmap_counters);
+		if (counter->attr.comm)
+			atomic_inc(&nr_comm_counters);
+		if (counter->attr.task)
+			atomic_inc(&nr_task_counters);
+	}
 
 	return counter;
 }
@@ -3771,7 +4281,7 @@ SYSCALL_DEFINE5(perf_counter_open,
 	}
 
 	counter = perf_counter_alloc(&attr, cpu, ctx, group_leader,
-				     GFP_KERNEL);
+				     NULL, GFP_KERNEL);
 	ret = PTR_ERR(counter);
 	if (IS_ERR(counter))
 		goto err_put_context;
@@ -3837,7 +4347,8 @@ inherit_counter(struct perf_counter *parent_counter,
 
 	child_counter = perf_counter_alloc(&parent_counter->attr,
 					   parent_counter->cpu, child_ctx,
-					   group_leader, GFP_KERNEL);
+					   group_leader, parent_counter,
+					   GFP_KERNEL);
 	if (IS_ERR(child_counter))
 		return child_counter;
 	get_ctx(child_ctx);
@@ -3859,12 +4370,6 @@ inherit_counter(struct perf_counter *parent_counter,
 	 * Link it up in the child's context:
 	 */
 	add_counter_to_ctx(child_counter, child_ctx);
-
-	child_counter->parent = parent_counter;
-	/*
-	 * inherit into child's child as well:
-	 */
-	child_counter->attr.inherit = 1;
 
 	/*
 	 * Get a reference to the parent filp - we will fput it
@@ -3909,9 +4414,13 @@ static int inherit_group(struct perf_counter *parent_counter,
 }
 
 static void sync_child_counter(struct perf_counter *child_counter,
-			       struct perf_counter *parent_counter)
+			       struct task_struct *child)
 {
+	struct perf_counter *parent_counter = child_counter->parent;
 	u64 child_val;
+
+	if (child_counter->attr.inherit_stat)
+		perf_counter_read_event(child_counter, child);
 
 	child_val = atomic64_read(&child_counter->count);
 
@@ -3941,7 +4450,8 @@ static void sync_child_counter(struct perf_counter *child_counter,
 
 static void
 __perf_counter_exit_task(struct perf_counter *child_counter,
-			 struct perf_counter_context *child_ctx)
+			 struct perf_counter_context *child_ctx,
+			 struct task_struct *child)
 {
 	struct perf_counter *parent_counter;
 
@@ -3955,7 +4465,7 @@ __perf_counter_exit_task(struct perf_counter *child_counter,
 	 * counters need to be zapped - but otherwise linger.
 	 */
 	if (parent_counter) {
-		sync_child_counter(child_counter, parent_counter);
+		sync_child_counter(child_counter, child);
 		free_counter(child_counter);
 	}
 }
@@ -3969,8 +4479,10 @@ void perf_counter_exit_task(struct task_struct *child)
 	struct perf_counter_context *child_ctx;
 	unsigned long flags;
 
-	if (likely(!child->perf_counter_ctxp))
+	if (likely(!child->perf_counter_ctxp)) {
+		perf_counter_task(child, NULL, 0);
 		return;
+	}
 
 	local_irq_save(flags);
 	/*
@@ -3989,17 +4501,20 @@ void perf_counter_exit_task(struct task_struct *child)
 	 */
 	spin_lock(&child_ctx->lock);
 	child->perf_counter_ctxp = NULL;
-	if (child_ctx->parent_ctx) {
-		/*
-		 * This context is a clone; unclone it so it can't get
-		 * swapped to another process while we're removing all
-		 * the counters from it.
-		 */
-		put_ctx(child_ctx->parent_ctx);
-		child_ctx->parent_ctx = NULL;
-	}
-	spin_unlock(&child_ctx->lock);
-	local_irq_restore(flags);
+	/*
+	 * If this context is a clone; unclone it so it can't get
+	 * swapped to another process while we're removing all
+	 * the counters from it.
+	 */
+	unclone_ctx(child_ctx);
+	spin_unlock_irqrestore(&child_ctx->lock, flags);
+
+	/*
+	 * Report the task dead after unscheduling the counters so that we
+	 * won't get any samples after PERF_EVENT_EXIT. We can however still
+	 * get a few PERF_EVENT_READ events.
+	 */
+	perf_counter_task(child, child_ctx, 0);
 
 	/*
 	 * We can recurse on the same lock type through:
@@ -4017,7 +4532,7 @@ void perf_counter_exit_task(struct task_struct *child)
 again:
 	list_for_each_entry_safe(child_counter, tmp, &child_ctx->counter_list,
 				 list_entry)
-		__perf_counter_exit_task(child_counter, child_ctx);
+		__perf_counter_exit_task(child_counter, child_ctx, child);
 
 	/*
 	 * If the last counter was a group counter, it will have appended all
@@ -4220,6 +4735,11 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		perf_counter_init_cpu(cpu);
 		break;
 
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		hw_perf_counter_setup_online(cpu);
+		break;
+
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		perf_counter_exit_cpu(cpu);
@@ -4243,6 +4763,8 @@ static struct notifier_block __cpuinitdata perf_cpu_nb = {
 void __init perf_counter_init(void)
 {
 	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_UP_PREPARE,
+			(void *)(long)smp_processor_id());
+	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_ONLINE,
 			(void *)(long)smp_processor_id());
 	register_cpu_notifier(&perf_cpu_nb);
 }

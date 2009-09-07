@@ -38,13 +38,6 @@ EXPORT_SYMBOL(clear_user_page);
 EXPORT_SYMBOL(flush_dcache_page);
 #endif
 
-/* Networking helper routines. */
-EXPORT_SYMBOL(csum_partial);
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
-#ifdef CONFIG_IPV6
-EXPORT_SYMBOL(csum_ipv6_magic);
-#endif
-
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(screen_info);
 #endif

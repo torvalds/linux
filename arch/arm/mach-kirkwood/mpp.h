@@ -289,7 +289,7 @@
 
 #define MPP48_GPIO		MPP( 48, 0x0, 1, 1, 0,   0,   0,   1    )
 #define MPP48_TSMP12		MPP( 48, 0x1, 1, 1, 0,   0,   0,   1    )
-#define MPP48_TDM_DTX		MPP( 48. 0x2, 0, 1, 0,   0,   0,   1    )
+#define MPP48_TDM_DTX		MPP( 48, 0x2, 0, 1, 0,   0,   0,   1    )
 
 #define MPP49_GPIO		MPP( 49, 0x0, 1, 1, 0,   0,   0,   1    )
 #define MPP49_TSMP9		MPP( 49, 0x1, 1, 1, 0,   0,   0,   1    )

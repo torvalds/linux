@@ -687,13 +687,19 @@ __early_param("vmalloc=", early_vmalloc);
 
 static void __init sanity_check_meminfo(void)
 {
-	int i, j;
+	int i, j, highmem = 0;
 
 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
 		struct membank *bank = &meminfo.bank[j];
 		*bank = meminfo.bank[i];
 
 #ifdef CONFIG_HIGHMEM
+		if (__va(bank->start) > VMALLOC_MIN ||
+		    __va(bank->start) < (void *)PAGE_OFFSET)
+			highmem = 1;
+
+		bank->highmem = highmem;
+
 		/*
 		 * Split those memory banks which are partially overlapping
 		 * the vmalloc area greatly simplifying things later.
@@ -714,6 +720,7 @@ static void __init sanity_check_meminfo(void)
 				i++;
 				bank[1].size -= VMALLOC_MIN - __va(bank->start);
 				bank[1].start = __pa(VMALLOC_MIN - 1) + 1;
+				bank[1].highmem = highmem = 1;
 				j++;
 			}
 			bank->size = VMALLOC_MIN - __va(bank->start);
@@ -833,6 +840,13 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
 				BOOTMEM_EXCLUSIVE);
 		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+	}
+
+	if (machine_is_treo680()) {
+		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+		reserve_bootmem_node(pgdat, 0xa2000000, 0x1000,
 				BOOTMEM_EXCLUSIVE);
 	}
 

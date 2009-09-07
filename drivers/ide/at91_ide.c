@@ -185,8 +185,7 @@ static void at91_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	timing = ide_timing_find_mode(XFER_PIO_0 + pio);
 	BUG_ON(!timing);
 
-	if ((pio > 2 || ata_id_has_iordy(drive->id)) &&
-	    !(ata_id_is_cfa(drive->id) && pio > 4))
+	if (ide_pio_need_iordy(drive, pio))
 		use_iordy = 1;
 
 	apply_timings(chipselect, pio, timing, use_iordy);

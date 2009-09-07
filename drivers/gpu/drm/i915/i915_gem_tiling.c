@@ -114,11 +114,13 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
 
 	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
+#ifdef CONFIG_PNP
 	if (mchbar_addr &&
 	    pnp_range_reserved(mchbar_addr, mchbar_addr + MCHBAR_SIZE)) {
 		ret = 0;
 		goto out_put;
 	}
+#endif
 
 	/* Get some space for it */
 	ret = pci_bus_alloc_resource(bridge_dev->bus, &dev_priv->mch_res,
@@ -408,11 +410,38 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (stride & (stride - 1))
 		return false;
 
-	/* We don't handle the aperture area covered by the fence being bigger
+	/* We don't 0handle the aperture area covered by the fence being bigger
 	 * than the object size.
 	 */
 	if (i915_get_fence_size(dev, size) != size)
 		return false;
+
+	return true;
+}
+
+static bool
+i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (obj_priv->gtt_space == NULL)
+		return true;
+
+	if (tiling_mode == I915_TILING_NONE)
+		return true;
+
+	if (!IS_I965G(dev)) {
+		if (obj_priv->gtt_offset & (obj->size - 1))
+			return false;
+		if (IS_I9XX(dev)) {
+			if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
+				return false;
+		} else {
+			if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
+				return false;
+		}
+	}
 
 	return true;
 }
@@ -429,6 +458,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
+	int ret = 0;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
@@ -436,14 +466,15 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	obj_priv = obj->driver_private;
 
 	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode)) {
+		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
 	if (args->tiling_mode == I915_TILING_NONE) {
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
+		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
 			args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
@@ -466,32 +497,44 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		if (args->swizzle_mode == I915_BIT_6_SWIZZLE_UNKNOWN) {
 			args->tiling_mode = I915_TILING_NONE;
 			args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
+			args->stride = 0;
 		}
 	}
-	if (args->tiling_mode != obj_priv->tiling_mode) {
-		int ret;
 
-		/* Unbind the object, as switching tiling means we're
-		 * switching the cache organization due to fencing, probably.
+	mutex_lock(&dev->struct_mutex);
+	if (args->tiling_mode != obj_priv->tiling_mode ||
+	    args->stride != obj_priv->stride) {
+		/* We need to rebind the object if its current allocation
+		 * no longer meets the alignment restrictions for its new
+		 * tiling mode. Otherwise we can just leave it alone, but
+		 * need to ensure that any fence register is cleared.
 		 */
-		ret = i915_gem_object_unbind(obj);
+		if (!i915_gem_object_fence_offset_ok(obj, args->tiling_mode))
+		    ret = i915_gem_object_unbind(obj);
+		else
+		    ret = i915_gem_object_put_fence_reg(obj);
 		if (ret != 0) {
 			WARN(ret != -ERESTARTSYS,
-			     "failed to unbind object for tiling switch");
+			     "failed to reset object for tiling switch");
 			args->tiling_mode = obj_priv->tiling_mode;
-			mutex_unlock(&dev->struct_mutex);
-			drm_gem_object_unreference(obj);
-
-			return ret;
+			args->stride = obj_priv->stride;
+			goto err;
 		}
-		obj_priv->tiling_mode = args->tiling_mode;
-	}
-	obj_priv->stride = args->stride;
 
+		/* If we've changed tiling, GTT-mappings of the object
+		 * need to re-fault to ensure that the correct fence register
+		 * setup is in place.
+		 */
+		i915_gem_release_mmap(obj);
+
+		obj_priv->tiling_mode = args->tiling_mode;
+		obj_priv->stride = args->stride;
+	}
+err:
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
 }
 
 /**

@@ -171,6 +171,9 @@
 /* Timberdale UART */
 #define PORT_TIMBUART	87
 
+/* Qualcomm MSM SoCs */
+#define PORT_MSM	88
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

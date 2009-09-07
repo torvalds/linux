@@ -134,8 +134,10 @@ int phy_scan_fixups(struct phy_device *phydev)
 
 			err = fixup->run(phydev);
 
-			if (err < 0)
+			if (err < 0) {
+				mutex_unlock(&phy_fixup_lock);
 				return err;
+			}
 		}
 	}
 	mutex_unlock(&phy_fixup_lock);
@@ -244,7 +246,7 @@ EXPORT_SYMBOL(get_phy_device);
 
 /**
  * phy_device_register - Register the phy device on the MDIO bus
- * @phy_device: phy_device structure to be added to the MDIO bus
+ * @phydev: phy_device structure to be added to the MDIO bus
  */
 int phy_device_register(struct phy_device *phydev)
 {

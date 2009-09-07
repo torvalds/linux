@@ -283,7 +283,7 @@ static void ds1374_work(struct work_struct *work)
 
 	stat = i2c_smbus_read_byte_data(client, DS1374_REG_SR);
 	if (stat < 0)
-		return;
+		goto unlock;
 
 	if (stat & DS1374_REG_SR_AF) {
 		stat &= ~DS1374_REG_SR_AF;
@@ -296,18 +296,13 @@ static void ds1374_work(struct work_struct *work)
 		control &= ~(DS1374_REG_CR_WACE | DS1374_REG_CR_AIE);
 		i2c_smbus_write_byte_data(client, DS1374_REG_CR, control);
 
-		/* rtc_update_irq() assumes that it is called
-		 * from IRQ-disabled context.
-		 */
-		local_irq_disable();
 		rtc_update_irq(ds1374->rtc, 1, RTC_AF | RTC_IRQF);
-		local_irq_enable();
 	}
 
 out:
 	if (!ds1374->exiting)
 		enable_irq(client->irq);
-
+unlock:
 	mutex_unlock(&ds1374->mutex);
 }
 

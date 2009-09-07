@@ -81,8 +81,21 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
 			continue;
 
-		if (lowest_mask)
+		if (lowest_mask) {
 			cpumask_and(lowest_mask, &p->cpus_allowed, vec->mask);
+
+			/*
+			 * We have to ensure that we have at least one bit
+			 * still set in the array, since the map could have
+			 * been concurrently emptied between the first and
+			 * second reads of vec->mask.  If we hit this
+			 * condition, simply act as though we never hit this
+			 * priority level and continue on.
+			 */
+			if (cpumask_any(lowest_mask) >= nr_cpu_ids)
+				continue;
+		}
+
 		return 1;
 	}
 
@@ -152,7 +165,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  *
  * Returns: -ENOMEM if memory fails.
  */
-int __init_refok cpupri_init(struct cpupri *cp, bool bootmem)
+int cpupri_init(struct cpupri *cp, bool bootmem)
 {
 	gfp_t gfp = GFP_KERNEL;
 	int i;

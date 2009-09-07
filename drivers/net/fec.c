@@ -285,6 +285,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct bufdesc *bdp;
+	void *bufaddr;
 	unsigned short	status;
 	unsigned long flags;
 
@@ -312,7 +313,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	status &= ~BD_ENET_TX_STATS;
 
 	/* Set buffer length and buffer pointer */
-	bdp->cbd_bufaddr = __pa(skb->data);
+	bufaddr = skb->data;
 	bdp->cbd_datlen = skb->len;
 
 	/*
@@ -320,11 +321,11 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * 4-byte boundaries. Use bounce buffers to copy data
 	 * and get it aligned. Ugh.
 	 */
-	if (bdp->cbd_bufaddr & FEC_ALIGNMENT) {
+	if (((unsigned long) bufaddr) & FEC_ALIGNMENT) {
 		unsigned int index;
 		index = bdp - fep->tx_bd_base;
 		memcpy(fep->tx_bounce[index], (void *)skb->data, skb->len);
-		bdp->cbd_bufaddr = __pa(fep->tx_bounce[index]);
+		bufaddr = fep->tx_bounce[index];
 	}
 
 	/* Save skb pointer */
@@ -336,7 +337,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
-	bdp->cbd_bufaddr = dma_map_single(&dev->dev, skb->data,
+	bdp->cbd_bufaddr = dma_map_single(&dev->dev, bufaddr,
 			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
 
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
@@ -1642,6 +1643,7 @@ static const struct net_device_ops fec_netdev_ops = {
 	.ndo_stop		= fec_enet_close,
 	.ndo_start_xmit		= fec_enet_start_xmit,
 	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= fec_timeout,
 	.ndo_set_mac_address	= fec_set_mac_address,

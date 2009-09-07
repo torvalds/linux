@@ -41,7 +41,6 @@
 #ifndef _HECI_DATA_STRUCTURES_H_
 #define _HECI_DATA_STRUCTURES_H_
 
-#include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/pci.h>

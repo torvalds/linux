@@ -7,8 +7,7 @@
  */
 #include <linux/compiler.h>
 #include <linux/types.h>
-
-#define __SWAB_64_THRU_32__
+#include <asm-generic/swab.h>
 
 static inline __attribute_const__ __u32 __arch_swab32(__u32 x)
 {

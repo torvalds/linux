@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
-#include <linux/bootmem.h>
 #include <linux/termios.h>
 #include <linux/err.h>
 #include <linux/reboot.h>
@@ -110,7 +109,7 @@ static void sclp_console_sync_queue(void)
 
 	spin_lock_irqsave(&sclp_con_lock, flags);
 	if (timer_pending(&sclp_con_timer))
-		del_timer_sync(&sclp_con_timer);
+		del_timer(&sclp_con_timer);
 	while (sclp_con_queue_running) {
 		spin_unlock_irqrestore(&sclp_con_lock, flags);
 		sclp_sync_wait();
@@ -298,8 +297,8 @@ sclp_console_init(void)
 	/* Allocate pages for output buffering */
 	INIT_LIST_HEAD(&sclp_con_pages);
 	for (i = 0; i < MAX_CONSOLE_PAGES; i++) {
-		page = alloc_bootmem_low_pages(PAGE_SIZE);
-		list_add_tail((struct list_head *) page, &sclp_con_pages);
+		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		list_add_tail(page, &sclp_con_pages);
 	}
 	INIT_LIST_HEAD(&sclp_con_outqueue);
 	spin_lock_init(&sclp_con_lock);

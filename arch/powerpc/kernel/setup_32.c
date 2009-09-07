@@ -119,6 +119,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  */
 notrace void __init machine_init(unsigned long dt_ptr)
 {
+	lockdep_init();
+
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 

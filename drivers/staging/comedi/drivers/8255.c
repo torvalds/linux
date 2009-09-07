@@ -108,10 +108,10 @@ struct subdev_8255_struct {
 static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * it);
 static int dev_8255_detach(struct comedi_device *dev);
 static struct comedi_driver driver_8255 = {
-      driver_name:"8255",
-      module:THIS_MODULE,
-      attach:dev_8255_attach,
-      detach:dev_8255_detach,
+	.driver_name = "8255",
+	.module = THIS_MODULE,
+	.attach = dev_8255_attach,
+	.detach = dev_8255_detach,
 };
 
 COMEDI_INITCLEANUP(driver_8255);
@@ -144,7 +144,7 @@ static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 }
 
 static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -169,7 +169,7 @@ static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 static int subdev_8255_insn_config(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -223,7 +223,7 @@ static void do_config(struct comedi_device *dev, struct comedi_subdevice * s)
 }
 
 static int subdev_8255_cmdtest(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -361,8 +361,10 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice * s,
 void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice * s)
 {
 	if (s->private) {
-		if (subdevpriv->have_irq) {
-		}
+		/* this test does nothing, so comment it out
+		 * if (subdevpriv->have_irq) {
+		 * }
+		 */
 
 		kfree(s->private);
 	}
@@ -394,7 +396,8 @@ static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * 
 		return -EINVAL;
 	}
 
-	if ((ret = alloc_subdevices(dev, i)) < 0)
+	ret = alloc_subdevices(dev, i);
+	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {

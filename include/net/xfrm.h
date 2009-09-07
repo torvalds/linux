@@ -1274,7 +1274,7 @@ struct xfrm_tunnel {
 struct xfrm6_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			   int type, int code, int offset, __be32 info);
+			   u8 type, u8 code, int offset, __be32 info);
 	struct xfrm6_tunnel *next;
 	int priority;
 };

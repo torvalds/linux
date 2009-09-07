@@ -355,7 +355,17 @@ struct rfcomm_dev_list_req {
 };
 
 int  rfcomm_dev_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
+
+#ifdef CONFIG_BT_RFCOMM_TTY
 int  rfcomm_init_ttys(void);
 void rfcomm_cleanup_ttys(void);
-
+#else
+static inline int rfcomm_init_ttys(void)
+{
+	return 0;
+}
+static inline void rfcomm_cleanup_ttys(void)
+{
+}
+#endif
 #endif /* __RFCOMM_H */

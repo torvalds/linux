@@ -95,9 +95,7 @@ VOID BuildChannelList(
 
 	// if not 11a-only mode, channel list starts from 2.4Ghz band
 	if ((pAd->CommonCfg.PhyMode != PHY_11A)
-#ifdef DOT11_N_SUPPORT
 		&& (pAd->CommonCfg.PhyMode != PHY_11AN_MIXED) && (pAd->CommonCfg.PhyMode != PHY_11N_5G)
-#endif // DOT11_N_SUPPORT //
 	)
 	{
 		switch (pAd->CommonCfg.CountryRegion  & 0x7f)
@@ -146,10 +144,8 @@ VOID BuildChannelList(
 	}
 
 	if ((pAd->CommonCfg.PhyMode == PHY_11A) || (pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
-#ifdef DOT11_N_SUPPORT
 		|| (pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED) || (pAd->CommonCfg.PhyMode == PHY_11AN_MIXED)
 		|| (pAd->CommonCfg.PhyMode == PHY_11AGN_MIXED) || (pAd->CommonCfg.PhyMode == PHY_11N_5G)
-#endif // DOT11_N_SUPPORT //
 	)
 	{
 		switch (pAd->CommonCfg.CountryRegionForABand & 0x7f)
@@ -383,33 +379,18 @@ VOID ScanNextChannel(
 	NDIS_STATUS     NStatus;
 	ULONG           FrameLen = 0;
 	UCHAR           SsidLen = 0, ScanType = pAd->MlmeAux.ScanType, BBPValue = 0;
-#ifdef CONFIG_STA_SUPPORT
 	USHORT          Status;
 	PHEADER_802_11  pHdr80211;
-#endif // CONFIG_STA_SUPPORT //
 	UINT			ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		if (MONITOR_ON(pAd))
-			return;
-	}
-#endif // CONFIG_STA_SUPPORT //
-
-#ifdef RALINK_ATE
-	// Nothing to do in ATE mode.
-	if (ATE_ON(pAd))
+	if (MONITOR_ON(pAd))
 		return;
-#endif // RALINK_ATE //
 
 	if (pAd->MlmeAux.Channel == 0)
 	{
 		if ((pAd->CommonCfg.BBPCurrentBW == BW_40)
-#ifdef CONFIG_STA_SUPPORT
 			&& (INFRA_ON(pAd)
 				|| (pAd->OpMode == OPMODE_AP))
-#endif // CONFIG_STA_SUPPORT //
 			)
 		{
 			AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
@@ -427,8 +408,6 @@ VOID ScanNextChannel(
 			DBGPRINT(RT_DEBUG_TRACE, ("SYNC - End of SCAN, restore to channel %d, Total BSS[%02d]\n",pAd->CommonCfg.Channel, pAd->ScanTab.BssNr));
 		}
 
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			//
 			// To prevent data lost.
@@ -458,31 +437,35 @@ VOID ScanNextChannel(
 			Status = MLME_SUCCESS;
 			MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2, &Status);
 		}
-#endif // CONFIG_STA_SUPPORT //
-
 
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 	}
+#ifdef RT2870
+	else if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->OpMode == OPMODE_STA))
+	{
+		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
+		MlmeCntlConfirm(pAd, MT2_SCAN_CONF, MLME_FAIL_NO_RESOURCE);
+	}
+#endif // RT2870 //
 	else
 	{
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 		// BBP and RF are not accessible in PS mode, we has to wake them up first
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+#ifdef RT2860
 				AsicForceWakeup(pAd, FROM_TX);
-
+#endif
+#ifdef RT2870
+			AsicForceWakeup(pAd, TRUE);
+#endif
 			// leave PSM during scanning. otherwise we may lost ProbeRsp & BEACON
 			if (pAd->StaCfg.Psm == PWR_SAVE)
 				MlmeSetPsmBit(pAd, PWR_ACTIVE);
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		AsicSwitchChannel(pAd, pAd->MlmeAux.Channel, TRUE);
 		AsicLockChannel(pAd, pAd->MlmeAux.Channel);
 
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (pAd->MlmeAux.Channel > 14)
 			{
@@ -492,18 +475,7 @@ VOID ScanNextChannel(
 					ScanTimeIn5gChannel = MIN_CHANNEL_TIME;
 				}
 			}
-
-#ifdef CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-			// carrier detection
-			if (pAd->CommonCfg.CarrierDetect.Enable == TRUE)
-			{
-				ScanType = SCAN_PASSIVE;
-				ScanTimeIn5gChannel = MIN_CHANNEL_TIME;
-			}
-#endif // CARRIER_DETECTION_SUPPORT //
 		}
-
-#endif // CONFIG_STA_SUPPORT //
 
 		//Global country domain(ch1-11:active scan, ch12-14 passive scan)
 		if ((pAd->MlmeAux.Channel <= 14) && (pAd->MlmeAux.Channel >= 12) && ((pAd->CommonCfg.CountryRegion & 0x7f) == REGION_31_BG_BAND))
@@ -515,7 +487,6 @@ VOID ScanNextChannel(
 		// Chnage the channel scan time for CISCO stuff based on its IAPP announcement
 		if (ScanType == FAST_SCAN_ACTIVE)
 			RTMPSetTimer(&pAd->MlmeAux.ScanTimer, FAST_ACTIVE_SCAN_TIME);
-#ifdef CONFIG_STA_SUPPORT
 		else if (((ScanType == SCAN_CISCO_ACTIVE) ||
 				(ScanType == SCAN_CISCO_PASSIVE) ||
 				(ScanType == SCAN_CISCO_CHANNEL_LOAD) ||
@@ -526,13 +497,10 @@ VOID ScanNextChannel(
 			else
 				RTMPSetTimer(&pAd->MlmeAux.ScanTimer, pAd->StaCfg.CCXScanTime);
 		}
-#endif // CONFIG_STA_SUPPORT //
 		else // must be SCAN_PASSIVE or SCAN_ACTIVE
 		{
 			if ((pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
-#ifdef DOT11_N_SUPPORT
 				|| (pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED) || (pAd->CommonCfg.PhyMode == PHY_11AGN_MIXED)
-#endif // DOT11_N_SUPPORT //
 			)
 			{
 				if (pAd->MlmeAux.Channel > 14)
@@ -551,14 +519,12 @@ VOID ScanNextChannel(
 			if (NStatus != NDIS_STATUS_SUCCESS)
 			{
 				DBGPRINT(RT_DEBUG_TRACE, ("SYNC - ScanNextChannel() allocate memory fail\n"));
-#ifdef CONFIG_STA_SUPPORT
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
+
 				{
 					pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 					Status = MLME_FAIL_NO_RESOURCE;
 					MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2, &Status);
 				}
-#endif // CONFIG_STA_SUPPORT //
 
 				return;
 			}
@@ -592,78 +558,35 @@ VOID ScanNextChannel(
 				FrameLen += Tmp;
 			}
 
-#ifdef DOT11_N_SUPPORT
 			if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			{
 				ULONG	Tmp;
 				UCHAR	HtLen;
 				UCHAR	BROADCOM[4] = {0x0, 0x90, 0x4c, 0x33};
-#ifdef RT_BIG_ENDIAN
-				HT_CAPABILITY_IE HtCapabilityTmp;
-#endif
+
 				if (pAd->bBroadComHT == TRUE)
 				{
 					HtLen = pAd->MlmeAux.HtCapabilityLen + 4;
-#ifdef RT_BIG_ENDIAN
-					NdisMoveMemory(&HtCapabilityTmp, &pAd->MlmeAux.HtCapability, SIZE_HT_CAP_IE);
-					*(USHORT *)(&HtCapabilityTmp.HtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.HtCapInfo));
-					*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo));
 
-					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
-									1,                                &WpaIe,
-									1,                                &HtLen,
-									4,                                &BROADCOM[0],
-									pAd->MlmeAux.HtCapabilityLen,     &HtCapabilityTmp,
-									END_OF_ARGS);
-#else
 					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
 									1,                                &WpaIe,
 									1,                                &HtLen,
 									4,                                &BROADCOM[0],
 									pAd->MlmeAux.HtCapabilityLen,     &pAd->MlmeAux.HtCapability,
 									END_OF_ARGS);
-#endif // RT_BIG_ENDIAN //
 				}
 				else
 				{
 					HtLen = pAd->MlmeAux.HtCapabilityLen;
-#ifdef RT_BIG_ENDIAN
-					NdisMoveMemory(&HtCapabilityTmp, &pAd->CommonCfg.HtCapability, SIZE_HT_CAP_IE);
-					*(USHORT *)(&HtCapabilityTmp.HtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.HtCapInfo));
-					*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo));
 
-					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
-									1,                                &HtCapIe,
-									1,                                &HtLen,
-									HtLen,                            &HtCapabilityTmp,
-									END_OF_ARGS);
-#else
 					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
 									1,                                &HtCapIe,
 									1,                                &HtLen,
 									HtLen,                            &pAd->CommonCfg.HtCapability,
 									END_OF_ARGS);
-#endif // RT_BIG_ENDIAN //
 				}
 				FrameLen += Tmp;
-
-#ifdef DOT11N_DRAFT3
-				if (pAd->CommonCfg.BACapability.field.b2040CoexistScanSup == 1)
-				{
-					ULONG		Tmp;
-					HtLen = 1;
-					MakeOutgoingFrame(pOutBuffer + FrameLen,            &Tmp,
-									  1,					&ExtHtCapIe,
-									  1,					&HtLen,
-									  1,          			&pAd->CommonCfg.BSSCoexist2040.word,
-									  END_OF_ARGS);
-
-					FrameLen += Tmp;
-				}
-#endif // DOT11N_DRAFT3 //
 			}
-#endif // DOT11_N_SUPPORT //
-
 
 			MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 			MlmeFreeMemory(pAd, pOutBuffer);
@@ -671,11 +594,7 @@ VOID ScanNextChannel(
 
 		// For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe reponse
 
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
-#endif // CONFIG_STA_SUPPORT //
-
+		pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
 	}
 }
 

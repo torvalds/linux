@@ -345,8 +345,8 @@ static const struct resource *wdt_gpi_get_resource(struct platform_device *pdv,
 	return platform_get_resource_byname(pdv, type, buf);
 }
 
-/* No hotplugging on the platform bus - use __init */
-static int __init wdt_gpi_probe(struct platform_device *pdv)
+/* No hotplugging on the platform bus - use __devinit */
+static int __devinit wdt_gpi_probe(struct platform_device *pdv)
 {
 	int res;
 	const struct resource
@@ -373,7 +373,7 @@ static int __init wdt_gpi_probe(struct platform_device *pdv)
 	return res;
 }
 
-static int __exit wdt_gpi_remove(struct platform_device *dev)
+static int __devexit wdt_gpi_remove(struct platform_device *dev)
 {
 	int res;
 

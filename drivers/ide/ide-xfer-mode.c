@@ -107,6 +107,18 @@ u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 }
 EXPORT_SYMBOL_GPL(ide_get_best_pio_mode);
 
+int ide_pio_need_iordy(ide_drive_t *drive, const u8 pio)
+{
+	/*
+	 * IORDY may lead to controller lock up on certain controllers
+	 * if the port is not occupied.
+	 */
+	if (pio == 0 && (drive->hwif->port_flags & IDE_PFLAG_PROBING))
+		return 0;
+	return ata_id_pio_need_iordy(drive->id, pio);
+}
+EXPORT_SYMBOL_GPL(ide_pio_need_iordy);
+
 int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t *hwif = drive->hwif;

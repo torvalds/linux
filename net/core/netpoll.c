@@ -319,6 +319,11 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 			udelay(USEC_PER_POLL);
 		}
+
+		WARN_ONCE(!irqs_disabled(),
+			"netpoll_send_skb(): %s enabled interrupts in poll (%pF)\n",
+			dev->name, ops->ndo_start_xmit);
+
 		local_irq_restore(flags);
 	}
 
@@ -740,7 +745,7 @@ int netpoll_setup(struct netpoll *np)
 				       np->name);
 				break;
 			}
-			cond_resched();
+			msleep(1);
 		}
 
 		/* If carrier appears to come up instantly, we don't

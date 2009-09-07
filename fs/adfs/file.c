@@ -19,10 +19,6 @@
  *
  *  adfs regular file handling primitives           
  */
-#include <linux/fs.h>
-#include <linux/buffer_head.h>			/* for file_fsync() */
-#include <linux/adfs_fs.h>
-
 #include "adfs.h"
 
 const struct file_operations adfs_file_operations = {

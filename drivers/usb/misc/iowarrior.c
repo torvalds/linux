@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/usb/iowarrior.h>
 

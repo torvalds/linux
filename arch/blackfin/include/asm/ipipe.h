@@ -35,9 +35,9 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.10-00"
+#define IPIPE_ARCH_STRING     "1.11-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    10
+#define IPIPE_MINOR_NUMBER    11
 #define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
@@ -207,7 +207,7 @@ void ipipe_init_irq_threads(void);
 
 int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
+#ifdef CONFIG_TICKSOURCE_CORETMR
 #define IRQ_SYSTMR		IRQ_CORETMR
 #define IRQ_PRIOTMR		IRQ_CORETMR
 #else
@@ -240,8 +240,13 @@ int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 #define ipipe_init_irq_threads()		do { } while (0)
 #define ipipe_start_irq_thread(irq, desc)	0
 
+#ifndef CONFIG_TICKSOURCE_GPTMR0
 #define IRQ_SYSTMR		IRQ_CORETMR
 #define IRQ_PRIOTMR		IRQ_CORETMR
+#else
+#define IRQ_SYSTMR		IRQ_TIMER0
+#define IRQ_PRIOTMR		CONFIG_IRQ_TIMER0
+#endif
 
 #define __ipipe_root_tick_p(regs)	1
 

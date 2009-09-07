@@ -107,7 +107,7 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 {
 	struct drm_master *master;
 
-	master = drm_calloc(1, sizeof(*master), DRM_MEM_DRIVER);
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return NULL;
 
@@ -149,7 +149,7 @@ static void drm_master_destroy(struct kref *kref)
 	}
 
 	if (master->unique) {
-		drm_free(master->unique, master->unique_size, DRM_MEM_DRIVER);
+		kfree(master->unique);
 		master->unique = NULL;
 		master->unique_len = 0;
 	}
@@ -157,12 +157,12 @@ static void drm_master_destroy(struct kref *kref)
 	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
 		list_del(&pt->head);
 		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
-		drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
+		kfree(pt);
 	}
 
 	drm_ht_remove(&master->magiclist);
 
-	drm_free(master, sizeof(*master), DRM_MEM_DRIVER);
+	kfree(master);
 }
 
 void drm_master_put(struct drm_master **master)
@@ -390,7 +390,7 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	DRM_DEBUG("\n");
 
-	dev = drm_calloc(1, sizeof(*dev), DRM_MEM_STUB);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -443,7 +443,7 @@ err_g3:
 err_g2:
 	pci_disable_device(pdev);
 err_g1:
-	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
+	kfree(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_dev);
@@ -489,7 +489,7 @@ int drm_put_minor(struct drm_minor **minor_p)
  */
 void drm_put_dev(struct drm_device *dev)
 {
-	struct drm_driver *driver = dev->driver;
+	struct drm_driver *driver;
 	struct drm_map_list *r_list, *list_temp;
 
 	DRM_DEBUG("\n");
@@ -498,6 +498,7 @@ void drm_put_dev(struct drm_device *dev)
 		DRM_ERROR("cleanup called no dev\n");
 		return;
 	}
+	driver = dev->driver;
 
 	drm_vblank_cleanup(dev);
 
@@ -516,7 +517,7 @@ void drm_put_dev(struct drm_device *dev)
 		dev->driver->unload(dev);
 
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		drm_free(dev->agp, sizeof(*dev->agp), DRM_MEM_AGPLISTS);
+		kfree(dev->agp);
 		dev->agp = NULL;
 	}
 
@@ -535,10 +536,9 @@ void drm_put_dev(struct drm_device *dev)
 	drm_put_minor(&dev->primary);
 
 	if (dev->devname) {
-		drm_free(dev->devname, strlen(dev->devname) + 1,
-			 DRM_MEM_DRIVER);
+		kfree(dev->devname);
 		dev->devname = NULL;
 	}
-	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
+	kfree(dev);
 }
 EXPORT_SYMBOL(drm_put_dev);

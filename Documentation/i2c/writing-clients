@@ -126,19 +126,9 @@ different) configuration information, as do drivers handling chip variants
 that can't be distinguished by protocol probing, or which need some board
 specific information to operate correctly.
 
-Accordingly, the I2C stack now has two models for associating I2C devices
-with their drivers:  the original "legacy" model, and a newer one that's
-fully compatible with the Linux 2.6 driver model.  These models do not mix,
-since the "legacy" model requires drivers to create "i2c_client" device
-objects after SMBus style probing, while the Linux driver model expects
-drivers to be given such device objects in their probe() routines.
 
-The legacy model is deprecated now and will soon be removed, so we no
-longer document it here.
-
-
-Standard Driver Model Binding ("New Style")
--------------------------------------------
+Device/Driver Binding
+---------------------
 
 System infrastructure, typically board-specific initialization code or
 boot firmware, reports what I2C devices exist.  For example, there may be
@@ -201,7 +191,7 @@ a given I2C bus.  This is for example the case of hardware monitoring
 devices on a PC's SMBus.  In that case, you may want to let your driver
 detect supported devices automatically.  This is how the legacy model
 was working, and is now available as an extension to the standard
-driver model (so that we can finally get rid of the legacy model.)
+driver model.
 
 You simply have to define a detect callback which will attempt to
 identify supported devices (returning 0 for supported ones and -ENODEV

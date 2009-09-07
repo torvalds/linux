@@ -121,11 +121,33 @@ static void __devexit ct_card_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
+#ifdef CONFIG_PM
+static int ct_card_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct ct_atc *atc = card->private_data;
+
+	return atc->suspend(atc, state);
+}
+
+static int ct_card_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct ct_atc *atc = card->private_data;
+
+	return atc->resume(atc);
+}
+#endif
+
 static struct pci_driver ct_driver = {
 	.name = "SB-XFi",
 	.id_table = ct_pci_dev_ids,
 	.probe = ct_card_probe,
 	.remove = __devexit_p(ct_card_remove),
+#ifdef CONFIG_PM
+	.suspend = ct_card_suspend,
+	.resume = ct_card_resume,
+#endif
 };
 
 static int __init ct_card_init(void)

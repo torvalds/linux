@@ -99,7 +99,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	kunmap(pg);
 
 	D2(printk(KERN_DEBUG "readpage finished\n"));
-	return 0;
+	return ret;
 }
 
 int jffs2_do_readpage_unlock(struct inode *inode, struct page *pg)

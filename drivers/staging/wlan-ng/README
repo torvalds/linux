@@ -1,7 +1,6 @@
 TODO:
 	- checkpatch.pl cleanups
 	- sparse warnings
-	- Lindent cleanups
 	- move to use the in-kernel wireless stack
 
 Please send any patches or complaints about this driver to Greg

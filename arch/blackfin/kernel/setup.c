@@ -117,15 +117,49 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 	 */
 #ifdef CONFIG_BFIN_ICACHE
 	printk(KERN_INFO "Instruction Cache Enabled for CPU%u\n", cpu);
-#endif
-#ifdef CONFIG_BFIN_DCACHE
-	printk(KERN_INFO "Data Cache Enabled for CPU%u"
-# if defined CONFIG_BFIN_WB
-		" (write-back)"
-# elif defined CONFIG_BFIN_WT
-		" (write-through)"
+	printk(KERN_INFO "  External memory:"
+# ifdef CONFIG_BFIN_EXTMEM_ICACHEABLE
+	       " cacheable"
+# else
+	       " uncacheable"
 # endif
-		"\n", cpu);
+	       " in instruction cache\n");
+	if (L2_LENGTH)
+		printk(KERN_INFO "  L2 SRAM        :"
+# ifdef CONFIG_BFIN_L2_ICACHEABLE
+		       " cacheable"
+# else
+		       " uncacheable"
+# endif
+		       " in instruction cache\n");
+
+#else
+	printk(KERN_INFO "Instruction Cache Disabled for CPU%u\n", cpu);
+#endif
+
+#ifdef CONFIG_BFIN_DCACHE
+	printk(KERN_INFO "Data Cache Enabled for CPU%u\n", cpu);
+	printk(KERN_INFO "  External memory:"
+# if defined CONFIG_BFIN_EXTMEM_WRITEBACK
+	       " cacheable (write-back)"
+# elif defined CONFIG_BFIN_EXTMEM_WRITETHROUGH
+	       " cacheable (write-through)"
+# else
+	       " uncacheable"
+# endif
+	       " in data cache\n");
+	if (L2_LENGTH)
+		printk(KERN_INFO "  L2 SRAM        :"
+# if defined CONFIG_BFIN_L2_WRITEBACK
+		       " cacheable (write-back)"
+# elif defined CONFIG_BFIN_L2_WRITETHROUGH
+		       " cacheable (write-through)"
+# else
+		       " uncacheable"
+# endif
+		       " in data cache\n");
+#else
+	printk(KERN_INFO "Data Cache Disabled for CPU%u\n", cpu);
 #endif
 }
 
@@ -134,7 +168,6 @@ void __cpuinit bfin_setup_cpudata(unsigned int cpu)
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
 
 	cpudata->idle = current;
-	cpudata->loops_per_jiffy = loops_per_jiffy;
 	cpudata->imemctl = bfin_read_IMEM_CONTROL();
 	cpudata->dmemctl = bfin_read_DMEM_CONTROL();
 }
@@ -374,13 +407,14 @@ static void __init print_memory_map(char *who)
 			bfin_memmap.map[i].addr + bfin_memmap.map[i].size);
 		switch (bfin_memmap.map[i].type) {
 		case BFIN_MEMMAP_RAM:
-				printk("(usable)\n");
-				break;
+			printk(KERN_CONT "(usable)\n");
+			break;
 		case BFIN_MEMMAP_RESERVED:
-				printk("(reserved)\n");
-				break;
-		default:	printk("type %lu\n", bfin_memmap.map[i].type);
-				break;
+			printk(KERN_CONT "(reserved)\n");
+			break;
+		default:
+			printk(KERN_CONT "type %lu\n", bfin_memmap.map[i].type);
+			break;
 		}
 	}
 }
@@ -443,9 +477,11 @@ static __init void parse_cmdline_early(char *cmdline_p)
 			} else if (!memcmp(to, "clkin_hz=", 9)) {
 				to += 9;
 				early_init_clkin_hz(to);
+#ifdef CONFIG_EARLY_PRINTK
 			} else if (!memcmp(to, "earlyprintk=", 12)) {
 				to += 12;
 				setup_early_printk(to);
+#endif
 			} else if (!memcmp(to, "memmap=", 7)) {
 				to += 7;
 				parse_memmap(to);
@@ -516,7 +552,7 @@ static __init void memory_setup(void)
 	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-#  if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
+#  if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
@@ -531,20 +567,26 @@ static __init void memory_setup(void)
 #  endif				/* ANOMALY_05000263 */
 # endif				/* CONFIG_ROMFS_FS */
 
-	memory_end -= mtd_size;
+	/* Since the default MTD_UCLINUX has no magic number, we just blindly
+	 * read 8 past the end of the kernel's image, and look at it.
+	 * When no image is attached, mtd_size is set to a random number
+	 * Do some basic sanity checks before operating on things
+	 */
+	if (mtd_size == 0 || memory_end <= mtd_size) {
+		pr_emerg("Could not find valid ram mtd attached.\n");
+	} else {
+		memory_end -= mtd_size;
 
-	if (mtd_size == 0) {
-		console_init();
-		panic("Don't boot kernel without rootfs attached.");
+		/* Relocate MTD image to the top of memory after the uncached memory area */
+		uclinux_ram_map.phys = memory_mtd_start = memory_end;
+		uclinux_ram_map.size = mtd_size;
+		pr_info("Found mtd parition at 0x%p, (len=0x%lx), moving to 0x%p\n",
+			_end, mtd_size, (void *)memory_mtd_start);
+		dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 	}
-
-	/* Relocate MTD image to the top of memory after the uncached memory area */
-	uclinux_ram_map.phys = memory_mtd_start = memory_end;
-	uclinux_ram_map.size = mtd_size;
-	dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 #endif				/* CONFIG_MTD_UCLINUX */
 
-#if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
+#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
@@ -578,19 +620,19 @@ static __init void memory_setup(void)
 	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
 
 	printk(KERN_INFO "Memory map:\n"
-		KERN_INFO "  fixedcode = 0x%p-0x%p\n"
-		KERN_INFO "  text      = 0x%p-0x%p\n"
-		KERN_INFO "  rodata    = 0x%p-0x%p\n"
-		KERN_INFO "  bss       = 0x%p-0x%p\n"
-		KERN_INFO "  data      = 0x%p-0x%p\n"
-		KERN_INFO "    stack   = 0x%p-0x%p\n"
-		KERN_INFO "  init      = 0x%p-0x%p\n"
-		KERN_INFO "  available = 0x%p-0x%p\n"
+	       "  fixedcode = 0x%p-0x%p\n"
+	       "  text      = 0x%p-0x%p\n"
+	       "  rodata    = 0x%p-0x%p\n"
+	       "  bss       = 0x%p-0x%p\n"
+	       "  data      = 0x%p-0x%p\n"
+	       "    stack   = 0x%p-0x%p\n"
+	       "  init      = 0x%p-0x%p\n"
+	       "  available = 0x%p-0x%p\n"
 #ifdef CONFIG_MTD_UCLINUX
-		KERN_INFO "  rootfs    = 0x%p-0x%p\n"
+	       "  rootfs    = 0x%p-0x%p\n"
 #endif
 #if DMA_UNCACHED_REGION > 0
-		KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
+	       "  DMA Zone  = 0x%p-0x%p\n"
 #endif
 		, (void *)FIXED_CODE_START, (void *)FIXED_CODE_END,
 		_stext, _etext,
@@ -764,6 +806,11 @@ void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
 
+	/* Check to make sure we are running on the right processor */
+	if (unlikely(CPUID != bfin_cpuid()))
+		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
+			CPU, bfin_cpuid(), bfin_revid());
+
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
@@ -778,13 +825,16 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	boot_command_line[COMMAND_LINE_SIZE - 1] = '\0';
 
-	/* setup memory defaults from the user config */
-	physical_mem_end = 0;
-	_ramend = get_mem_size() * 1024 * 1024;
-
 	memset(&bfin_memmap, 0, sizeof(bfin_memmap));
 
+	/* If the user does not specify things on the command line, use
+	 * what the bootloader set things up as
+	 */
+	physical_mem_end = 0;
 	parse_cmdline_early(&command_line[0]);
+
+	if (_ramend == 0)
+		_ramend = get_mem_size() * 1024 * 1024;
 
 	if (physical_mem_end == 0)
 		physical_mem_end = _ramend;
@@ -815,20 +865,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	printk(KERN_INFO "Hardware Trace ");
 	if (bfin_read_TBUFCTL() & 0x1)
-		printk("Active ");
+		printk(KERN_CONT "Active ");
 	else
-		printk("Off ");
+		printk(KERN_CONT "Off ");
 	if (bfin_read_TBUFCTL() & 0x2)
-		printk("and Enabled\n");
+		printk(KERN_CONT "and Enabled\n");
 	else
-	printk("and Disabled\n");
-
-#if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
-	/* we need to initialize the Flashrom device here since we might
-	 * do things with flash early on in the boot
-	 */
-	flash_probe();
-#endif
+		printk(KERN_CONT "and Disabled\n");
 
 	printk(KERN_INFO "Boot Mode: %i\n", bfin_read_SYSCR() & 0xF);
 
@@ -837,7 +880,8 @@ void __init setup_arch(char **cmdline_p)
     defined(CONFIG_BF538) || defined(CONFIG_BF539)
 	_bfin_swrst = bfin_read_SWRST();
 #else
-	_bfin_swrst = bfin_read_SYSCR();
+	/* Clear boot mode field */
+	_bfin_swrst = bfin_read_SYSCR() & ~0xf;
 #endif
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
@@ -875,10 +919,7 @@ void __init setup_arch(char **cmdline_p)
 	else
 		printk(KERN_INFO "Compiled for ADSP-%s Rev 0.%d\n", CPU, bfin_compiled_revid());
 
-	if (unlikely(CPUID != bfin_cpuid()))
-		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
-			CPU, bfin_cpuid(), bfin_revid());
-	else {
+	if (likely(CPUID == bfin_cpuid())) {
 		if (bfin_revid() != bfin_compiled_revid()) {
 			if (bfin_compiled_revid() == -1)
 				printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
@@ -894,10 +935,6 @@ void __init setup_arch(char **cmdline_p)
 			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
 			       CPU, bfin_revid());
 	}
-
-	/* We can't run on BF548-0.1 due to ANOMALY 05000448 */
-	if (bfin_cpuid() == 0x27de && bfin_revid() == 1)
-		panic("You can't run on this processor due to 05000448");
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
@@ -1121,9 +1158,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
 		"Calibration\t: %lu loops\n",
-		(cpudata->loops_per_jiffy * HZ) / 500000,
-		((cpudata->loops_per_jiffy * HZ) / 5000) % 100,
-		(cpudata->loops_per_jiffy * HZ));
+		(loops_per_jiffy * HZ) / 500000,
+		((loops_per_jiffy * HZ) / 5000) % 100,
+		(loops_per_jiffy * HZ));
 
 	/* Check Cache configutation */
 	switch (cpudata->dmemctl & (1 << DMC0_P | 1 << DMC1_P)) {
@@ -1157,16 +1194,25 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
-		"%d KB(L1 dcache%s) %d KB(L2 cache)\n",
-		icache_size, dcache_size,
-#if defined CONFIG_BFIN_WB
-		"-wb"
-#elif defined CONFIG_BFIN_WT
-		"-wt"
-#endif
-		"", 0);
-
+		"%d KB(L1 dcache) %d KB(L2 cache)\n",
+		icache_size, dcache_size, 0);
 	seq_printf(m, "%s\n", cache);
+	seq_printf(m, "external memory\t: "
+#if defined(CONFIG_BFIN_EXTMEM_ICACHEABLE)
+		   "cacheable"
+#else
+		   "uncacheable"
+#endif
+		   " in instruction cache\n");
+	seq_printf(m, "external memory\t: "
+#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK)
+		      "cacheable (write-back)"
+#elif defined(CONFIG_BFIN_EXTMEM_WRITETHROUGH)
+		      "cacheable (write-through)"
+#else
+		      "uncacheable"
+#endif
+		      " in data cache\n");
 
 	if (icache_size)
 		seq_printf(m, "icache setup\t: %d Sub-banks/%d Ways, %d Lines/Way\n",
@@ -1239,8 +1285,25 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_num != num_possible_cpus() - 1)
 		return 0;
 
-	if (L2_LENGTH)
+	if (L2_LENGTH) {
 		seq_printf(m, "L2 SRAM\t\t: %dKB\n", L2_LENGTH/0x400);
+		seq_printf(m, "L2 SRAM\t\t: "
+#if defined(CONFIG_BFIN_L2_ICACHEABLE)
+			      "cacheable"
+#else
+			      "uncacheable"
+#endif
+			      " in instruction cache\n");
+		seq_printf(m, "L2 SRAM\t\t: "
+#if defined(CONFIG_BFIN_L2_WRITEBACK)
+			      "cacheable (write-back)"
+#elif defined(CONFIG_BFIN_L2_WRITETHROUGH)
+			      "cacheable (write-through)"
+#else
+			      "uncacheable"
+#endif
+			      " in data cache\n");
+	}
 	seq_printf(m, "board name\t: %s\n", bfin_board_name);
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);

@@ -46,8 +46,6 @@ extern int xfs_check_acl(struct inode *inode, int mask);
 extern struct posix_acl *xfs_get_acl(struct inode *inode, int type);
 extern int xfs_inherit_acl(struct inode *inode, struct posix_acl *default_acl);
 extern int xfs_acl_chmod(struct inode *inode);
-extern void xfs_inode_init_acls(struct xfs_inode *ip);
-extern void xfs_inode_clear_acls(struct xfs_inode *ip);
 extern int posix_acl_access_exists(struct inode *inode);
 extern int posix_acl_default_exists(struct inode *inode);
 
@@ -57,8 +55,6 @@ extern struct xattr_handler xfs_xattr_system_handler;
 # define xfs_get_acl(inode, type)			NULL
 # define xfs_inherit_acl(inode, default_acl)		0
 # define xfs_acl_chmod(inode)				0
-# define xfs_inode_init_acls(ip)
-# define xfs_inode_clear_acls(ip)
 # define posix_acl_access_exists(inode)			0
 # define posix_acl_default_exists(inode)		0
 #endif /* CONFIG_XFS_POSIX_ACL */

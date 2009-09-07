@@ -41,7 +41,7 @@
 
 /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
 #define __PHYSICAL_MASK_SHIFT	46
-#define __VIRTUAL_MASK_SHIFT	48
+#define __VIRTUAL_MASK_SHIFT	47
 
 /*
  * Kernel image size is limited to 512 MB (see level2_kernel_pgt in

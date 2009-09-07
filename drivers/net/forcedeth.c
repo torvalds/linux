@@ -719,7 +719,8 @@ static const struct register_test nv_registers_test[] = {
 struct nv_skb_map {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	unsigned int dma_len;
+	unsigned int dma_len:31;
+	unsigned int dma_single:1;
 	struct ring_desc_ex *first_tx_desc;
 	struct nv_skb_map *next_tx_ctx;
 };
@@ -1912,6 +1913,7 @@ static void nv_init_tx(struct net_device *dev)
 		np->tx_skb[i].skb = NULL;
 		np->tx_skb[i].dma = 0;
 		np->tx_skb[i].dma_len = 0;
+		np->tx_skb[i].dma_single = 0;
 		np->tx_skb[i].first_tx_desc = NULL;
 		np->tx_skb[i].next_tx_ctx = NULL;
 	}
@@ -1930,23 +1932,30 @@ static int nv_init_ring(struct net_device *dev)
 		return nv_alloc_rx_optimized(dev);
 }
 
-static int nv_release_txskb(struct net_device *dev, struct nv_skb_map* tx_skb)
+static void nv_unmap_txskb(struct fe_priv *np, struct nv_skb_map *tx_skb)
 {
-	struct fe_priv *np = netdev_priv(dev);
-
 	if (tx_skb->dma) {
-		pci_unmap_page(np->pci_dev, tx_skb->dma,
-			       tx_skb->dma_len,
-			       PCI_DMA_TODEVICE);
+		if (tx_skb->dma_single)
+			pci_unmap_single(np->pci_dev, tx_skb->dma,
+					 tx_skb->dma_len,
+					 PCI_DMA_TODEVICE);
+		else
+			pci_unmap_page(np->pci_dev, tx_skb->dma,
+				       tx_skb->dma_len,
+				       PCI_DMA_TODEVICE);
 		tx_skb->dma = 0;
 	}
+}
+
+static int nv_release_txskb(struct fe_priv *np, struct nv_skb_map *tx_skb)
+{
+	nv_unmap_txskb(np, tx_skb);
 	if (tx_skb->skb) {
 		dev_kfree_skb_any(tx_skb->skb);
 		tx_skb->skb = NULL;
 		return 1;
-	} else {
-		return 0;
 	}
+	return 0;
 }
 
 static void nv_drain_tx(struct net_device *dev)
@@ -1964,10 +1973,11 @@ static void nv_drain_tx(struct net_device *dev)
 			np->tx_ring.ex[i].bufhigh = 0;
 			np->tx_ring.ex[i].buflow = 0;
 		}
-		if (nv_release_txskb(dev, &np->tx_skb[i]))
+		if (nv_release_txskb(np, &np->tx_skb[i]))
 			dev->stats.tx_dropped++;
 		np->tx_skb[i].dma = 0;
 		np->tx_skb[i].dma_len = 0;
+		np->tx_skb[i].dma_single = 0;
 		np->tx_skb[i].first_tx_desc = NULL;
 		np->tx_skb[i].next_tx_ctx = NULL;
 	}
@@ -2171,6 +2181,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		np->put_tx_ctx->dma = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
 						PCI_DMA_TODEVICE);
 		np->put_tx_ctx->dma_len = bcnt;
+		np->put_tx_ctx->dma_single = 1;
 		put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
 		put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
@@ -2196,6 +2207,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			np->put_tx_ctx->dma = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
 							   PCI_DMA_TODEVICE);
 			np->put_tx_ctx->dma_len = bcnt;
+			np->put_tx_ctx->dma_single = 0;
 			put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
 			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
@@ -2291,6 +2303,7 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 		np->put_tx_ctx->dma = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
 						PCI_DMA_TODEVICE);
 		np->put_tx_ctx->dma_len = bcnt;
+		np->put_tx_ctx->dma_single = 1;
 		put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
 		put_tx->buflow = cpu_to_le32(dma_low(np->put_tx_ctx->dma));
 		put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
@@ -2317,6 +2330,7 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 			np->put_tx_ctx->dma = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
 							   PCI_DMA_TODEVICE);
 			np->put_tx_ctx->dma_len = bcnt;
+			np->put_tx_ctx->dma_single = 0;
 			put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
 			put_tx->buflow = cpu_to_le32(dma_low(np->put_tx_ctx->dma));
 			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
@@ -2434,10 +2448,7 @@ static int nv_tx_done(struct net_device *dev, int limit)
 		dprintk(KERN_DEBUG "%s: nv_tx_done: flags 0x%x.\n",
 					dev->name, flags);
 
-		pci_unmap_page(np->pci_dev, np->get_tx_ctx->dma,
-			       np->get_tx_ctx->dma_len,
-			       PCI_DMA_TODEVICE);
-		np->get_tx_ctx->dma = 0;
+		nv_unmap_txskb(np, np->get_tx_ctx);
 
 		if (np->desc_ver == DESC_VER_1) {
 			if (flags & NV_TX_LASTPACKET) {
@@ -2502,10 +2513,7 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 		dprintk(KERN_DEBUG "%s: nv_tx_done_optimized: flags 0x%x.\n",
 					dev->name, flags);
 
-		pci_unmap_page(np->pci_dev, np->get_tx_ctx->dma,
-			       np->get_tx_ctx->dma_len,
-			       PCI_DMA_TODEVICE);
-		np->get_tx_ctx->dma = 0;
+		nv_unmap_txskb(np, np->get_tx_ctx);
 
 		if (flags & NV_TX2_LASTPACKET) {
 			if (!(flags & NV_TX2_ERROR))
@@ -3506,11 +3514,13 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	napi_schedule(&np->napi);
-
-	/* Disable furthur irq's
-	   (msix not enabled with napi) */
-	writel(0, base + NvRegIrqMask);
+	if (napi_schedule_prep(&np->napi)) {
+		/*
+		 * Disable further irq's (msix not enabled with napi)
+		 */
+		writel(0, base + NvRegIrqMask);
+		__napi_schedule(&np->napi);
+	}
 
 #else
 	do
@@ -3607,12 +3617,13 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	napi_schedule(&np->napi);
-
-	/* Disable furthur irq's
-	   (msix not enabled with napi) */
-	writel(0, base + NvRegIrqMask);
-
+	if (napi_schedule_prep(&np->napi)) {
+		/*
+		 * Disable further irq's (msix not enabled with napi)
+		 */
+		writel(0, base + NvRegIrqMask);
+		__napi_schedule(&np->napi);
+	}
 #else
 	do
 	{
@@ -5091,7 +5102,7 @@ static int nv_loopback_test(struct net_device *dev)
 		dprintk(KERN_DEBUG "%s: loopback - did not receive test packet\n", dev->name);
 	}
 
-	pci_unmap_page(np->pci_dev, test_dma_addr,
+	pci_unmap_single(np->pci_dev, test_dma_addr,
 		       (skb_end_pointer(tx_skb) - tx_skb->data),
 		       PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(tx_skb);

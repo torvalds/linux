@@ -72,6 +72,13 @@ assembling the 16-bit boot code, removing the need for as86 to compile
 your kernel.  This change does, however, mean that you need a recent
 release of binutils.
 
+Perl
+----
+
+You will need perl 5 and the following modules: Getopt::Long, Getopt::Std,
+File::Basename, and File::Find to build the kernel.
+
+
 System utilities
 ================
 
