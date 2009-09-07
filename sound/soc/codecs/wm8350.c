@@ -612,7 +612,7 @@ SOC_DAPM_SINGLE("Switch", WM8350_BEEP_VOLUME, 15, 1, 1);
 
 /* Out4 Capture Mux */
 static const struct snd_kcontrol_new wm8350_out4_capture_controls =
-SOC_DAPM_ENUM("Route", wm8350_enum[8]);
+SOC_DAPM_ENUM("Route", wm8350_enum[7]);
 
 static const struct snd_soc_dapm_widget wm8350_dapm_widgets[] = {
 
