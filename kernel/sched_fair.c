@@ -1262,7 +1262,17 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	tg = task_group(p);
 	weight = p->se.load.weight;
 
-	balanced = 100*(tl + effective_load(tg, this_cpu, weight, weight)) <=
+	/*
+	 * In low-load situations, where prev_cpu is idle and this_cpu is idle
+	 * due to the sync cause above having dropped tl to 0, we'll always have
+	 * an imbalance, but there's really nothing you can do about that, so
+	 * that's good too.
+	 *
+	 * Otherwise check if either cpus are near enough in load to allow this
+	 * task to be woken on this_cpu.
+	 */
+	balanced = !tl ||
+		100*(tl + effective_load(tg, this_cpu, weight, weight)) <=
 		imbalance*(load + effective_load(tg, prev_cpu, 0, weight));
 
 	/*
