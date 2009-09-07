@@ -49,7 +49,7 @@ static void raq_web_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev raq_web_led = {
-	.name		= "raq-web",
+	.name		= "raq::web",
 	.brightness_set	= raq_web_led_set,
 };
 
@@ -70,7 +70,7 @@ static void raq_power_off_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev raq_power_off_led = {
-	.name			= "raq-power-off",
+	.name			= "raq::power-off",
 	.brightness_set		= raq_power_off_led_set,
 	.default_trigger	= "power-off",
 };
