@@ -35,8 +35,7 @@ static void ath_pci_read_cachesize(struct ath_softc *sc, int *csz)
 {
 	u8 u8tmp;
 
-	pci_read_config_byte(to_pci_dev(sc->dev), PCI_CACHE_LINE_SIZE,
-			     (u8 *)&u8tmp);
+	pci_read_config_byte(to_pci_dev(sc->dev), PCI_CACHE_LINE_SIZE, &u8tmp);
 	*csz = (int)u8tmp;
 
 	/*
