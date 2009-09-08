@@ -37,6 +37,9 @@
  * Generic range manager structs
  */
 #include <linux/list.h>
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+#endif
 
 struct drm_mm_node {
 	struct list_head fl_entry;
