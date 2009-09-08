@@ -1121,16 +1121,15 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 		ext4_discard_preallocations(inode);
 }
 
-static int check_block_validity(struct inode *inode, sector_t logical,
-				sector_t phys, int len)
+static int check_block_validity(struct inode *inode, const char *msg,
+				sector_t logical, sector_t phys, int len)
 {
 	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), phys, len)) {
-		ext4_error(inode->i_sb, "check_block_validity",
+		ext4_error(inode->i_sb, msg,
 			   "inode #%lu logical block %llu mapped to %llu "
 			   "(size %d)", inode->i_ino,
 			   (unsigned long long) logical,
 			   (unsigned long long) phys, len);
-		WARN_ON(1);
 		return -EIO;
 	}
 	return 0;
@@ -1182,8 +1181,8 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	up_read((&EXT4_I(inode)->i_data_sem));
 
 	if (retval > 0 && buffer_mapped(bh)) {
-		int ret = check_block_validity(inode, block,
-					       bh->b_blocknr, retval);
+		int ret = check_block_validity(inode, "file system corruption",
+					       block, bh->b_blocknr, retval);
 		if (ret != 0)
 			return ret;
 	}
@@ -1264,8 +1263,9 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && buffer_mapped(bh)) {
-		int ret = check_block_validity(inode, block,
-					       bh->b_blocknr, retval);
+		int ret = check_block_validity(inode, "file system "
+					       "corruption after allocation",
+					       block, bh->b_blocknr, retval);
 		if (ret != 0)
 			return ret;
 	}
