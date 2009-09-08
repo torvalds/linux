@@ -97,7 +97,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	}
 
 	if (pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))
-		__flush_wback_region(vto, PAGE_SIZE);
+		__flush_purge_region(vto, PAGE_SIZE);
 
 	kunmap_atomic(vto, KM_USER1);
 	/* Make sure this page is cleared on other CPU's too before using it */
@@ -112,7 +112,7 @@ void clear_user_highpage(struct page *page, unsigned long vaddr)
 	clear_page(kaddr);
 
 	if (pages_do_alias((unsigned long)kaddr, vaddr & PAGE_MASK))
-		__flush_wback_region(kaddr, PAGE_SIZE);
+		__flush_purge_region(kaddr, PAGE_SIZE);
 
 	kunmap_atomic(kaddr, KM_USER0);
 }
@@ -134,7 +134,7 @@ void __update_cache(struct vm_area_struct *vma,
 			unsigned long addr = (unsigned long)page_address(page);
 
 			if (pages_do_alias(addr, address & PAGE_MASK))
-				__flush_wback_region((void *)addr, PAGE_SIZE);
+				__flush_purge_region((void *)addr, PAGE_SIZE);
 		}
 	}
 }
@@ -149,10 +149,11 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
-			__flush_wback_region((void *)kaddr, PAGE_SIZE);
+			/* XXX.. For now kunmap_coherent() does a purge */
+			/* __flush_purge_region((void *)kaddr, PAGE_SIZE); */
 			kunmap_coherent(kaddr);
 		} else
-			__flush_wback_region((void *)addr, PAGE_SIZE);
+			__flush_purge_region((void *)addr, PAGE_SIZE);
 	}
 }
 

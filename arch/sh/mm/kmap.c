@@ -54,6 +54,9 @@ void kunmap_coherent(void *kvaddr)
 		unsigned long vaddr = (unsigned long)kvaddr & PAGE_MASK;
 		enum fixed_addresses idx = __virt_to_fix(vaddr);
 
+		/* XXX.. Kill this later, here for sanity at the moment.. */
+		__flush_purge_region((void *)vaddr, PAGE_SIZE);
+
 		pte_clear(&init_mm, vaddr, kmap_coherent_pte - idx);
 		local_flush_tlb_one(get_asid(), vaddr);
 	}
