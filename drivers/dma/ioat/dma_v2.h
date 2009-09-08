@@ -37,6 +37,8 @@ extern int ioat_pending_level;
 #define IOAT_MAX_ORDER 16
 #define ioat_get_alloc_order() \
 	(min(ioat_ring_alloc_order, IOAT_MAX_ORDER))
+#define ioat_get_max_alloc_order() \
+	(min(ioat_ring_max_alloc_order, IOAT_MAX_ORDER))
 
 /* struct ioat2_dma_chan - ioat v2 / v3 channel attributes
  * @base: common ioat channel parameters

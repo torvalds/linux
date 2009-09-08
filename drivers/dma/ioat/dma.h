@@ -88,6 +88,7 @@ struct ioat_chan_common {
 	#define IOAT_RESET_PENDING 2
 	struct timer_list timer;
 	#define COMPLETION_TIMEOUT msecs_to_jiffies(100)
+	#define IDLE_TIMEOUT msecs_to_jiffies(2000)
 	#define RESET_DELAY msecs_to_jiffies(100)
 	struct ioatdma_device *device;
 	dma_addr_t completion_dma;
