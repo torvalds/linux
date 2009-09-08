@@ -243,6 +243,7 @@ extern int pci_iov_init(struct pci_dev *dev);
 extern void pci_iov_release(struct pci_dev *dev);
 extern int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 				enum pci_bar_type *type);
+extern int pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 extern void pci_restore_iov_state(struct pci_dev *dev);
 extern int pci_iov_bus_range(struct pci_bus *bus);
 
@@ -297,5 +298,17 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 	return 0;
 }
 #endif /* CONFIG_PCI_IOV */
+
+static inline int pci_resource_alignment(struct pci_dev *dev,
+					 struct resource *res)
+{
+#ifdef CONFIG_PCI_IOV
+	int resno = res - dev->resource;
+
+	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
+		return pci_sriov_resource_alignment(dev, resno);
+#endif
+	return resource_alignment(res);
+}
 
 #endif /* DRIVERS_PCI_H */

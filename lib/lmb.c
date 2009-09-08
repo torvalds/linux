@@ -429,7 +429,7 @@ u64 __init lmb_phys_mem_size(void)
 	return lmb.memory.size;
 }
 
-u64 __init lmb_end_of_DRAM(void)
+u64 lmb_end_of_DRAM(void)
 {
 	int idx = lmb.memory.cnt - 1;
 

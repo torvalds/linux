@@ -123,6 +123,9 @@ available from the same CVS repository.
 There are user and developer mailing lists available through the v9fs project
 on sourceforge (http://sourceforge.net/projects/v9fs).
 
+A stand-alone version of the module (which should build for any 2.6 kernel)
+is available via (http://github.com/ericvh/9p-sac/tree/master)
+
 News and other information is maintained on SWiK (http://swik.net/v9fs).
 
 Bug reports may be issued through the kernel.org bugzilla 

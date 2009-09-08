@@ -99,7 +99,8 @@ static inline int elements_fit_in_base(struct flex_array *fa)
  * capacity in the base structure.  Also note that no effort is made
  * to efficiently pack objects across page boundaries.
  */
-struct flex_array *flex_array_alloc(int element_size, int total, gfp_t flags)
+struct flex_array *flex_array_alloc(int element_size, unsigned int total,
+					gfp_t flags)
 {
 	struct flex_array *ret;
 	int max_size = nr_base_part_ptrs() * __elements_per_part(element_size);
@@ -115,16 +116,14 @@ struct flex_array *flex_array_alloc(int element_size, int total, gfp_t flags)
 	return ret;
 }
 
-static int fa_element_to_part_nr(struct flex_array *fa, int element_nr)
+static int fa_element_to_part_nr(struct flex_array *fa,
+					unsigned int element_nr)
 {
 	return element_nr / __elements_per_part(fa->element_size);
 }
 
 /**
  * flex_array_free_parts - just free the second-level pages
- * @src:	address of data to copy into the array
- * @element_nr:	index of the position in which to insert
- * 		the new element.
  *
  * This is to be used in cases where the base 'struct flex_array'
  * has been statically allocated and should not be free.
@@ -146,14 +145,12 @@ void flex_array_free(struct flex_array *fa)
 	kfree(fa);
 }
 
-static int fa_index_inside_part(struct flex_array *fa, int element_nr)
+static unsigned int index_inside_part(struct flex_array *fa,
+					unsigned int element_nr)
 {
-	return element_nr % __elements_per_part(fa->element_size);
-}
+	unsigned int part_offset;
 
-static int index_inside_part(struct flex_array *fa, int element_nr)
-{
-	int part_offset = fa_index_inside_part(fa, element_nr);
+	part_offset = element_nr % __elements_per_part(fa->element_size);
 	return part_offset * fa->element_size;
 }
 
@@ -188,7 +185,8 @@ __fa_get_part(struct flex_array *fa, int part_nr, gfp_t flags)
  *
  * Locking must be provided by the caller.
  */
-int flex_array_put(struct flex_array *fa, int element_nr, void *src, gfp_t flags)
+int flex_array_put(struct flex_array *fa, unsigned int element_nr, void *src,
+			gfp_t flags)
 {
 	int part_nr = fa_element_to_part_nr(fa, element_nr);
 	struct flex_array_part *part;
@@ -198,10 +196,11 @@ int flex_array_put(struct flex_array *fa, int element_nr, void *src, gfp_t flags
 		return -ENOSPC;
 	if (elements_fit_in_base(fa))
 		part = (struct flex_array_part *)&fa->parts[0];
-	else
+	else {
 		part = __fa_get_part(fa, part_nr, flags);
-	if (!part)
-		return -ENOMEM;
+		if (!part)
+			return -ENOMEM;
+	}
 	dst = &part->elements[index_inside_part(fa, element_nr)];
 	memcpy(dst, src, fa->element_size);
 	return 0;
@@ -219,7 +218,8 @@ int flex_array_put(struct flex_array *fa, int element_nr, void *src, gfp_t flags
  *
  * Locking must be provided by the caller.
  */
-int flex_array_prealloc(struct flex_array *fa, int start, int end, gfp_t flags)
+int flex_array_prealloc(struct flex_array *fa, unsigned int start,
+			unsigned int end, gfp_t flags)
 {
 	int start_part;
 	int end_part;
@@ -250,18 +250,19 @@ int flex_array_prealloc(struct flex_array *fa, int start, int end, gfp_t flags)
  *
  * Locking must be provided by the caller.
  */
-void *flex_array_get(struct flex_array *fa, int element_nr)
+void *flex_array_get(struct flex_array *fa, unsigned int element_nr)
 {
 	int part_nr = fa_element_to_part_nr(fa, element_nr);
 	struct flex_array_part *part;
 
 	if (element_nr >= fa->total_nr_elements)
 		return NULL;
-	if (!fa->parts[part_nr])
-		return NULL;
 	if (elements_fit_in_base(fa))
 		part = (struct flex_array_part *)&fa->parts[0];
-	else
+	else {
 		part = fa->parts[part_nr];
+		if (!part)
+			return NULL;
+	}
 	return &part->elements[index_inside_part(fa, element_nr)];
 }

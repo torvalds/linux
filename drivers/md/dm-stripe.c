@@ -329,9 +329,19 @@ static int stripe_iterate_devices(struct dm_target *ti,
 	return ret;
 }
 
+static void stripe_io_hints(struct dm_target *ti,
+			    struct queue_limits *limits)
+{
+	struct stripe_c *sc = ti->private;
+	unsigned chunk_size = (sc->chunk_mask + 1) << 9;
+
+	blk_limits_io_min(limits, chunk_size);
+	limits->io_opt = chunk_size * sc->stripes;
+}
+
 static struct target_type stripe_target = {
 	.name   = "striped",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,
@@ -339,6 +349,7 @@ static struct target_type stripe_target = {
 	.end_io = stripe_end_io,
 	.status = stripe_status,
 	.iterate_devices = stripe_iterate_devices,
+	.io_hints = stripe_io_hints,
 };
 
 int __init dm_stripe_init(void)

@@ -343,10 +343,10 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
 }
 
 /*
- * If possible, this checks an area of a destination device is valid.
+ * If possible, this checks an area of a destination device is invalid.
  */
-static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
-				sector_t start, sector_t len, void *data)
+static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
+				  sector_t start, sector_t len, void *data)
 {
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
@@ -357,36 +357,40 @@ static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
 	char b[BDEVNAME_SIZE];
 
 	if (!dev_size)
-		return 1;
+		return 0;
 
 	if ((start >= dev_size) || (start + len > dev_size)) {
-		DMWARN("%s: %s too small for target",
-		       dm_device_name(ti->table->md), bdevname(bdev, b));
-		return 0;
+		DMWARN("%s: %s too small for target: "
+		       "start=%llu, len=%llu, dev_size=%llu",
+		       dm_device_name(ti->table->md), bdevname(bdev, b),
+		       (unsigned long long)start,
+		       (unsigned long long)len,
+		       (unsigned long long)dev_size);
+		return 1;
 	}
 
 	if (logical_block_size_sectors <= 1)
-		return 1;
+		return 0;
 
 	if (start & (logical_block_size_sectors - 1)) {
 		DMWARN("%s: start=%llu not aligned to h/w "
-		       "logical block size %hu of %s",
+		       "logical block size %u of %s",
 		       dm_device_name(ti->table->md),
 		       (unsigned long long)start,
 		       limits->logical_block_size, bdevname(bdev, b));
-		return 0;
+		return 1;
 	}
 
 	if (len & (logical_block_size_sectors - 1)) {
 		DMWARN("%s: len=%llu not aligned to h/w "
-		       "logical block size %hu of %s",
+		       "logical block size %u of %s",
 		       dm_device_name(ti->table->md),
 		       (unsigned long long)len,
 		       limits->logical_block_size, bdevname(bdev, b));
-		return 0;
+		return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 /*
@@ -496,8 +500,15 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 	}
 
 	if (blk_stack_limits(limits, &q->limits, start << 9) < 0)
-		DMWARN("%s: target device %s is misaligned",
-		       dm_device_name(ti->table->md), bdevname(bdev, b));
+		DMWARN("%s: target device %s is misaligned: "
+		       "physical_block_size=%u, logical_block_size=%u, "
+		       "alignment_offset=%u, start=%llu",
+		       dm_device_name(ti->table->md), bdevname(bdev, b),
+		       q->limits.physical_block_size,
+		       q->limits.logical_block_size,
+		       q->limits.alignment_offset,
+		       (unsigned long long) start << 9);
+
 
 	/*
 	 * Check if merge fn is supported.
@@ -698,7 +709,7 @@ static int validate_hardware_logical_block_alignment(struct dm_table *table,
 
 	if (remaining) {
 		DMWARN("%s: table line %u (start sect %llu len %llu) "
-		       "not aligned to h/w logical block size %hu",
+		       "not aligned to h/w logical block size %u",
 		       dm_device_name(table->md), i,
 		       (unsigned long long) ti->begin,
 		       (unsigned long long) ti->len,
@@ -996,12 +1007,16 @@ int dm_calculate_queue_limits(struct dm_table *table,
 		ti->type->iterate_devices(ti, dm_set_device_limits,
 					  &ti_limits);
 
+		/* Set I/O hints portion of queue limits */
+		if (ti->type->io_hints)
+			ti->type->io_hints(ti, &ti_limits);
+
 		/*
 		 * Check each device area is consistent with the target's
 		 * overall queue limits.
 		 */
-		if (!ti->type->iterate_devices(ti, device_area_is_valid,
-					       &ti_limits))
+		if (ti->type->iterate_devices(ti, device_area_is_invalid,
+					      &ti_limits))
 			return -EINVAL;
 
 combine_limits:

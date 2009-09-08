@@ -733,13 +733,14 @@ static void __init do_ctors(void)
 int initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
 
+static char msgbuf[64];
+static struct boot_trace_call call;
+static struct boot_trace_ret ret;
+
 int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	ktime_t calltime, delta, rettime;
-	char msgbuf[64];
-	struct boot_trace_call call;
-	struct boot_trace_ret ret;
 
 	if (initcall_debug) {
 		call.caller = task_pid_nr(current);
