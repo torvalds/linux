@@ -345,7 +345,7 @@ static unsigned long s3c64xx_roundrate_clksrc(struct clk *clk,
 	if (rate > parent_rate)
 		rate = parent_rate;
 	else {
-		div = rate / parent_rate;
+		div = parent_rate / rate;
 
 		if (div == 0)
 			div = 1;
