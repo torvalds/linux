@@ -645,41 +645,24 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	spin_lock(&rsp->onofflock);  /* irqs already disabled. */
 
 	/*
-	 * Set the quiescent-state-needed bits in all the non-leaf RCU
-	 * nodes for all currently online CPUs.  This operation relies
-	 * on the layout of the hierarchy within the rsp->node[] array.
-	 * Note that other CPUs will access only the leaves of the
-	 * hierarchy, which still indicate that no grace period is in
-	 * progress.  In addition, we have excluded CPU-hotplug operations.
-	 *
-	 * We therefore do not need to hold any locks.  Any required
-	 * memory barriers will be supplied by the locks guarding the
-	 * leaf rcu_nodes in the hierarchy.
-	 */
-
-	rnp_end = rsp->level[NUM_RCU_LVLS - 1];
-	for (rnp_cur = &rsp->node[0]; rnp_cur < rnp_end; rnp_cur++) {
-		rnp_cur->qsmask = rnp_cur->qsmaskinit;
-		rnp->gpnum = rsp->gpnum;
-	}
-
-	/*
-	 * Now set up the leaf nodes.  Here we must be careful.  First,
-	 * we need to hold the lock in order to exclude other CPUs, which
-	 * might be contending for the leaf nodes' locks.  Second, as
-	 * soon as we initialize a given leaf node, its CPUs might run
-	 * up the rest of the hierarchy.  We must therefore acquire locks
-	 * for each node that we touch during this stage.  (But we still
-	 * are excluding CPU-hotplug operations.)
+	 * Set the quiescent-state-needed bits in all the rcu_node
+	 * structures for all currently online CPUs in breadth-first
+	 * order, starting from the root rcu_node structure.  This
+	 * operation relies on the layout of the hierarchy within the
+	 * rsp->node[] array.  Note that other CPUs will access only
+	 * the leaves of the hierarchy, which still indicate that no
+	 * grace period is in progress, at least until the corresponding
+	 * leaf node has been initialized.  In addition, we have excluded
+	 * CPU-hotplug operations.
 	 *
 	 * Note that the grace period cannot complete until we finish
 	 * the initialization process, as there will be at least one
 	 * qsmask bit set in the root node until that time, namely the
-	 * one corresponding to this CPU.
+	 * one corresponding to this CPU, due to the fact that we have
+	 * irqs disabled.
 	 */
 	rnp_end = &rsp->node[NUM_RCU_NODES];
-	rnp_cur = rsp->level[NUM_RCU_LVLS - 1];
-	for (; rnp_cur < rnp_end; rnp_cur++) {
+	for (rnp_cur = &rsp->node[0]; rnp_cur < rnp_end; rnp_cur++) {
 		spin_lock(&rnp_cur->lock);	/* irqs already disabled. */
 		rnp_cur->qsmask = rnp_cur->qsmaskinit;
 		rnp->gpnum = rsp->gpnum;
