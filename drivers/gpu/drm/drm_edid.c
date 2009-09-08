@@ -1011,7 +1011,6 @@ int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
 	if (i2c_transfer(adapter, msgs, 2) == 2)
 		return 0;
 
-	dev_info(&adapter->dev, "unable to read EDID block.\n");
 	return -1;
 }
 EXPORT_SYMBOL(drm_do_probe_ddc_edid);
@@ -1024,8 +1023,6 @@ static int drm_ddc_read_edid(struct drm_connector *connector,
 
 	ret = drm_do_probe_ddc_edid(adapter, buf, len);
 	if (ret != 0) {
-		dev_info(&connector->dev->pdev->dev, "%s: no EDID data\n",
-			 drm_get_connector_name(connector));
 		goto end;
 	}
 	if (!edid_is_valid((struct edid *)buf)) {
