@@ -80,8 +80,7 @@ use_low_rate(struct sk_buff *skb)
 	fc = le16_to_cpu(hdr->frame_control);
 
 	return ((info->flags & IEEE80211_TX_CTL_NO_ACK) ||
-		(fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-		is_multicast_ether_addr(hdr->addr1));
+		(fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA);
 }
 
 
@@ -216,7 +215,7 @@ minstrel_get_next_sample(struct minstrel_sta_info *mi)
 	unsigned int sample_ndx;
 	sample_ndx = SAMPLE_TBL(mi, mi->sample_idx, mi->sample_column);
 	mi->sample_idx++;
-	if (mi->sample_idx > (mi->n_rates - 2)) {
+	if ((int) mi->sample_idx > (mi->n_rates - 2)) {
 		mi->sample_idx = 0;
 		mi->sample_column++;
 		if (mi->sample_column >= SAMPLE_COLUMNS)
@@ -245,7 +244,10 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 
 	if (!sta || !mi || use_low_rate(skb)) {
 		ar[0].idx = rate_lowest_index(sband, sta);
-		ar[0].count = mp->max_retry;
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			ar[0].count = 1;
+		else
+			ar[0].count = mp->max_retry;
 		return;
 	}
 

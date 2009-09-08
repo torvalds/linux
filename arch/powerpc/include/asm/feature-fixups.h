@@ -8,8 +8,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifdef __ASSEMBLY__
-
 /*
  * Feature section common macros
  *
@@ -23,10 +21,12 @@
 /* 64 bits kernel, 32 bits code (ie. vdso32) */
 #define FTR_ENTRY_LONG		.llong
 #define FTR_ENTRY_OFFSET	.long 0xffffffff; .long
+#elif defined(CONFIG_PPC64)
+#define FTR_ENTRY_LONG		.llong
+#define FTR_ENTRY_OFFSET	.llong
 #else
-/* 64 bit kernel 64 bit code, or 32 bit kernel 32 bit code */
-#define FTR_ENTRY_LONG		PPC_LONG
-#define FTR_ENTRY_OFFSET	PPC_LONG
+#define FTR_ENTRY_LONG		.long
+#define FTR_ENTRY_OFFSET	.long
 #endif
 
 #define START_FTR_SECTION(label)	label##1:
@@ -140,6 +140,21 @@ label##5:					       	\
 	ALT_FW_FTR_SECTION_END_NESTED_IFSET(msk, 97)
 #define ALT_FW_FTR_SECTION_END_IFCLR(msk)	\
 	ALT_FW_FTR_SECTION_END_NESTED_IFCLR(msk, 97)
+
+#ifndef __ASSEMBLY__
+
+#define ASM_MMU_FTR_IF(section_if, section_else, msk, val)	\
+	stringify_in_c(BEGIN_MMU_FTR_SECTION)			\
+	section_if "; "						\
+	stringify_in_c(MMU_FTR_SECTION_ELSE)			\
+	section_else "; "					\
+	stringify_in_c(ALT_MMU_FTR_SECTION_END((msk), (val)))
+
+#define ASM_MMU_FTR_IFSET(section_if, section_else, msk)	\
+	ASM_MMU_FTR_IF(section_if, section_else, (msk), (msk))
+
+#define ASM_MMU_FTR_IFCLR(section_if, section_else, msk)	\
+	ASM_MMU_FTR_IF(section_if, section_else, (msk), 0)
 
 #endif /* __ASSEMBLY__ */
 

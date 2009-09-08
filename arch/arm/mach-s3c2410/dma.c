@@ -17,14 +17,16 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 
+#include <mach/map.h>
 #include <mach/dma.h>
 
 #include <plat/cpu.h>
-#include <plat/dma.h>
+#include <plat/dma-plat.h>
 
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <plat/regs-ac97.h>
+#include <plat/regs-dma.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <mach/regs-sdi.h>

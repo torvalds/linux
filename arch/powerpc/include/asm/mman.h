@@ -1,7 +1,7 @@
 #ifndef _ASM_POWERPC_MMAN_H
 #define _ASM_POWERPC_MMAN_H
 
-#include <asm-generic/mman.h>
+#include <asm-generic/mman-common.h>
 
 /*
  * This program is free software; you can redistribute it and/or

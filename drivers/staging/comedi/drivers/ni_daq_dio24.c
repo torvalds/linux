@@ -37,9 +37,10 @@ This is just a wrapper around the 8255.o driver to properly handle
 the PCMCIA interface.
 */
 
-//#define LABPC_DEBUG   // enable debugging messages
+/* #define LABPC_DEBUG */   /*  enable debugging messages */
 #undef LABPC_DEBUG
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
@@ -54,42 +55,42 @@ the PCMCIA interface.
 
 static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
-#define DIO24_SIZE 4		// size of io region used by board
+#define DIO24_SIZE 4		/*  size of io region used by board */
 
-static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int dio24_detach(struct comedi_device * dev);
+static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dio24_detach(struct comedi_device *dev);
 
 enum dio24_bustype { pcmcia_bustype };
 
-typedef struct dio24_board_struct {
+struct dio24_board_struct {
 	const char *name;
-	int device_id;		// device id for pcmcia board
-	enum dio24_bustype bustype;	// PCMCIA
-	int have_dio;		// have 8255 chip
-	// function pointers so we can use inb/outb or readb/writeb as appropriate
+	int device_id;		/*  device id for pcmcia board */
+	enum dio24_bustype bustype;	/*  PCMCIA */
+	int have_dio;		/*  have 8255 chip */
+	/*  function pointers so we can use inb/outb or readb/writeb as appropriate */
 	unsigned int (*read_byte) (unsigned int address);
 	void (*write_byte) (unsigned int byte, unsigned int address);
-} dio24_board;
+};
 
-static const dio24_board dio24_boards[] = {
+static const struct dio24_board_struct dio24_boards[] = {
 	{
-	      name:	"daqcard-dio24",
-	      device_id:0x475c,// 0x10b is manufacturer id, 0x475c is device id
-	      bustype:	pcmcia_bustype,
-	      have_dio:1,
+	.name = "daqcard-dio24",
+	.device_id = 0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
+	.bustype = pcmcia_bustype,
+	.have_dio = 1,
 		},
 	{
-	      name:	"ni_daq_dio24",
-	      device_id:0x475c,// 0x10b is manufacturer id, 0x475c is device id
-	      bustype:	pcmcia_bustype,
-	      have_dio:1,
+	.name = "ni_daq_dio24",
+	.device_id = 0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
+	.bustype = pcmcia_bustype,
+	.have_dio = 1,
 		},
 };
 
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const dio24_board *)dev->board_ptr)
+#define thisboard ((const struct dio24_board_struct *)dev->board_ptr)
 
 struct dio24_private {
 
@@ -100,16 +101,16 @@ struct dio24_private {
 #define devpriv ((struct dio24_private *)dev->private)
 
 static struct comedi_driver driver_dio24 = {
-      driver_name:"ni_daq_dio24",
-      module:THIS_MODULE,
-      attach:dio24_attach,
-      detach:dio24_detach,
-      num_names:sizeof(dio24_boards) / sizeof(dio24_board),
-      board_name:&dio24_boards[0].name,
-      offset:sizeof(dio24_board),
+	.driver_name = "ni_daq_dio24",
+	.module = THIS_MODULE,
+	.attach = dio24_attach,
+	.detach = dio24_detach,
+	.num_names = ARRAY_SIZE(dio24_boards),
+	.board_name = &dio24_boards[0].name,
+	.offset = sizeof(struct dio24_board_struct),
 };
 
-static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
@@ -122,7 +123,7 @@ static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
 		return -ENOMEM;
 
-	// get base address, irq etc. based on bustype
+	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
 	case pcmcia_bustype:
 		link = pcmcia_cur_dev;	/* XXX hack */
@@ -172,7 +173,7 @@ static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	return 0;
 };
 
-static int dio24_detach(struct comedi_device * dev)
+static int dio24_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: ni_daq_dio24: remove\n", dev->minor);
 
@@ -182,12 +183,12 @@ static int dio24_detach(struct comedi_device * dev)
 	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
 		release_region(dev->iobase, DIO24_SIZE);
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	return 0;
 };
 
-// PCMCIA crap
+/* PCMCIA crap */
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
@@ -236,12 +237,12 @@ static void dio24_cs_detach(struct pcmcia_device *);
 
 static const dev_info_t dev_info = "ni_daq_dio24";
 
-typedef struct local_info_t {
+struct local_info_t {
 	struct pcmcia_device *link;
 	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
-} local_info_t;
+};
 
 /*======================================================================
 
@@ -257,14 +258,14 @@ typedef struct local_info_t {
 
 static int dio24_cs_attach(struct pcmcia_device *link)
 {
-	local_info_t *local;
+	struct local_info_t *local;
 
 	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
 	DEBUG(0, "dio24_cs_attach()\n");
 
 	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 	local->link = link;
@@ -309,7 +310,7 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 	DEBUG(0, "dio24_cs_detach(0x%p)\n", link);
 
 	if (link->dev_node) {
-		((local_info_t *) link->priv)->stop = 1;
+		((struct local_info_t *) link->priv)->stop = 1;
 		dio24_release(link);
 	}
 
@@ -329,7 +330,7 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 
 static void dio24_config(struct pcmcia_device *link)
 {
-	local_info_t *dev = link->priv;
+	struct local_info_t *dev = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_ret;
@@ -351,15 +352,21 @@ static void dio24_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) {
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0) {
+
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0) {
+
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret) {
 		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
@@ -379,7 +386,9 @@ static void dio24_config(struct pcmcia_device *link)
 	   will only use the CIS to fill in implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) {
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
@@ -449,7 +458,9 @@ static void dio24_config(struct pcmcia_device *link)
 		break;
 
 	      next_entry:
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0) {
+
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret) {
 			cs_error(link, GetNextTuple, last_ret);
 			goto cs_failed;
 		}
@@ -460,18 +471,21 @@ static void dio24_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0) {
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret) {
 			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
+	}
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0) {
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret) {
 		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
@@ -529,7 +543,7 @@ static void dio24_release(struct pcmcia_device *link)
 
 static int dio24_cs_suspend(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
@@ -538,7 +552,7 @@ static int dio24_cs_suspend(struct pcmcia_device *link)
 
 static int dio24_cs_resume(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	local->stop = 0;
 	return 0;

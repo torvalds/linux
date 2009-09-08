@@ -81,7 +81,6 @@ struct sh_mobile_ceu_buffer {
 };
 
 struct sh_mobile_ceu_dev {
-	struct device *dev;
 	struct soc_camera_host ici;
 	struct soc_camera_device *icd;
 
@@ -617,7 +616,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = icd->formats[idx].depth;
 			xlate++;
-			dev_dbg(&ici->dev, "Providing format %s using %s\n",
+			dev_dbg(ici->dev, "Providing format %s using %s\n",
 				sh_mobile_ceu_formats[k].name,
 				icd->formats[idx].name);
 		}
@@ -630,7 +629,7 @@ add_single_format:
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = icd->formats[idx].depth;
 			xlate++;
-			dev_dbg(&ici->dev,
+			dev_dbg(ici->dev,
 				"Providing format %s in pass-through mode\n",
 				icd->formats[idx].name);
 		}
@@ -657,7 +656,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
@@ -684,22 +683,14 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
 	/* FIXME: calculate using depth and bus width */
 
-	if (f->fmt.pix.height < 4)
-		f->fmt.pix.height = 4;
-	if (f->fmt.pix.height > 1920)
-		f->fmt.pix.height = 1920;
-	if (f->fmt.pix.width < 2)
-		f->fmt.pix.width = 2;
-	if (f->fmt.pix.width > 2560)
-		f->fmt.pix.width = 2560;
-	f->fmt.pix.width &= ~0x01;
-	f->fmt.pix.height &= ~0x03;
+	v4l_bound_align_image(&f->fmt.pix.width, 2, 2560, 1,
+			      &f->fmt.pix.height, 4, 1920, 2, 0);
 
 	f->fmt.pix.bytesperline = f->fmt.pix.width *
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
@@ -782,7 +773,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 
 	videobuf_queue_dma_contig_init(q,
 				       &sh_mobile_ceu_videobuf_ops,
-				       &ici->dev, &pcdev->lock,
+				       ici->dev, &pcdev->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       pcdev->is_interlaced ?
 				       V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE,
@@ -829,7 +820,6 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	platform_set_drvdata(pdev, pcdev);
 	INIT_LIST_HEAD(&pcdev->capture);
 	spin_lock_init(&pcdev->lock);
 
@@ -840,7 +830,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		goto exit_kfree;
 	}
 
-	base = ioremap_nocache(res->start, res->end - res->start + 1);
+	base = ioremap_nocache(res->start, resource_size(res));
 	if (!base) {
 		err = -ENXIO;
 		dev_err(&pdev->dev, "Unable to ioremap CEU registers.\n");
@@ -850,13 +840,12 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	pcdev->irq = irq;
 	pcdev->base = base;
 	pcdev->video_limit = 0; /* only enabled if second resource exists */
-	pcdev->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		err = dma_declare_coherent_memory(&pdev->dev, res->start,
 						  res->start,
-						  (res->end - res->start) + 1,
+						  resource_size(res),
 						  DMA_MEMORY_MAP |
 						  DMA_MEMORY_EXCLUSIVE);
 		if (!err) {
@@ -865,7 +854,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 			goto exit_iounmap;
 		}
 
-		pcdev->video_limit = (res->end - res->start) + 1;
+		pcdev->video_limit = resource_size(res);
 	}
 
 	/* request irq */
@@ -885,7 +874,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	}
 
 	pcdev->ici.priv = pcdev;
-	pcdev->ici.dev.parent = &pdev->dev;
+	pcdev->ici.dev = &pdev->dev;
 	pcdev->ici.nr = pdev->id;
 	pcdev->ici.drv_name = dev_name(&pdev->dev);
 	pcdev->ici.ops = &sh_mobile_ceu_host_ops;
@@ -913,9 +902,11 @@ exit:
 
 static int sh_mobile_ceu_remove(struct platform_device *pdev)
 {
-	struct sh_mobile_ceu_dev *pcdev = platform_get_drvdata(pdev);
+	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
+	struct sh_mobile_ceu_dev *pcdev = container_of(soc_host,
+					struct sh_mobile_ceu_dev, ici);
 
-	soc_camera_host_unregister(&pcdev->ici);
+	soc_camera_host_unregister(soc_host);
 	clk_put(pcdev->clk);
 	free_irq(pcdev->irq, pcdev);
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))

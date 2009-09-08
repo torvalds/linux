@@ -57,7 +57,7 @@ TRACE_EVENT_FORMAT(context_switch, TRACE_CTX, ctx_switch_entry, ignore,
 	TP_RAW_FMT("%u:%u:%u  ==+ %u:%u:%u [%03u]")
 );
 
-TRACE_EVENT_FORMAT(special, TRACE_SPECIAL, special_entry, ignore,
+TRACE_EVENT_FORMAT_NOFILTER(special, TRACE_SPECIAL, special_entry, ignore,
 	TRACE_STRUCT(
 		TRACE_FIELD(unsigned long, arg1, arg1)
 		TRACE_FIELD(unsigned long, arg2, arg2)
@@ -122,8 +122,10 @@ TRACE_EVENT_FORMAT(print, TRACE_PRINT, print_entry, ignore,
 TRACE_EVENT_FORMAT(branch, TRACE_BRANCH, trace_branch, ignore,
 	TRACE_STRUCT(
 		TRACE_FIELD(unsigned int, line, line)
-		TRACE_FIELD_SPECIAL(char func[TRACE_FUNC_SIZE+1], func, func)
-		TRACE_FIELD_SPECIAL(char file[TRACE_FUNC_SIZE+1], file, file)
+		TRACE_FIELD_SPECIAL(char func[TRACE_FUNC_SIZE+1], func,
+				    TRACE_FUNC_SIZE+1, func)
+		TRACE_FIELD_SPECIAL(char file[TRACE_FUNC_SIZE+1], file,
+				    TRACE_FUNC_SIZE+1, file)
 		TRACE_FIELD(char, correct, correct)
 	),
 	TP_RAW_FMT("%u:%s:%s (%u)")
@@ -139,8 +141,8 @@ TRACE_EVENT_FORMAT(hw_branch, TRACE_HW_BRANCHES, hw_branch_entry, ignore,
 
 TRACE_EVENT_FORMAT(power, TRACE_POWER, trace_power, ignore,
 	TRACE_STRUCT(
-		TRACE_FIELD(ktime_t, state_data.stamp, stamp)
-		TRACE_FIELD(ktime_t, state_data.end, end)
+		TRACE_FIELD_SIGN(ktime_t, state_data.stamp, stamp, 1)
+		TRACE_FIELD_SIGN(ktime_t, state_data.end, end, 1)
 		TRACE_FIELD(int, state_data.type, type)
 		TRACE_FIELD(int, state_data.state, state)
 	),

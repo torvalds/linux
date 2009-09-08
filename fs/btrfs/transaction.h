@@ -62,12 +62,6 @@ struct btrfs_pending_snapshot {
 	struct list_head list;
 };
 
-struct btrfs_dirty_root {
-	struct list_head list;
-	struct btrfs_root *root;
-	struct btrfs_root *latest_root;
-};
-
 static inline void btrfs_set_trans_block_group(struct btrfs_trans_handle *trans,
 					       struct inode *inode)
 {
@@ -100,7 +94,8 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 
-int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest);
+int btrfs_add_dead_root(struct btrfs_root *root);
+int btrfs_drop_dead_root(struct btrfs_root *root);
 int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
 int btrfs_clean_old_snapshots(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
@@ -108,7 +103,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root);
 void btrfs_throttle(struct btrfs_root *root);
-int btrfs_record_root_in_trans(struct btrfs_root *root);
+int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root);
 int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 					struct extent_io_tree *dirty_pages);
 #endif

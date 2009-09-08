@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/sysdev.h>
+#include <linux/gpio.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -76,7 +77,7 @@ static void s3c2410_pm_prepare(void)
 	}
 
 	if ( machine_is_aml_m5900() )
-		s3c2410_gpio_setpin(S3C2410_GPF2, 1);
+		s3c2410_gpio_setpin(S3C2410_GPF(2), 1);
 
 }
 
@@ -91,7 +92,7 @@ static int s3c2410_pm_resume(struct sys_device *dev)
 	__raw_writel(tmp, S3C2410_GSTATUS2);
 
 	if ( machine_is_aml_m5900() )
-		s3c2410_gpio_setpin(S3C2410_GPF2, 0);
+		s3c2410_gpio_setpin(S3C2410_GPF(2), 0);
 
 	return 0;
 }

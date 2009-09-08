@@ -1067,9 +1067,11 @@ static int ov772x_probe(struct i2c_client *client,
 	struct i2c_adapter        *adapter = to_i2c_adapter(client->dev.parent);
 	int                        ret;
 
-	info = client->dev.platform_data;
-	if (!info)
+	if (!client->dev.platform_data)
 		return -EINVAL;
+
+	info = container_of(client->dev.platform_data,
+			    struct ov772x_camera_info, link);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&adapter->dev,

@@ -14,6 +14,7 @@
 #include <linux/compat.h>
 #include <linux/smp_lock.h>
 #include <linux/mount.h>
+#include <linux/file.h>
 #include <asm/uaccess.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
@@ -213,6 +214,41 @@ setversion_out:
 
 		return err;
 	}
+
+	case EXT4_IOC_MOVE_EXT: {
+		struct move_extent me;
+		struct file *donor_filp;
+		int err;
+
+		if (copy_from_user(&me,
+			(struct move_extent __user *)arg, sizeof(me)))
+			return -EFAULT;
+
+		donor_filp = fget(me.donor_fd);
+		if (!donor_filp)
+			return -EBADF;
+
+		if (!capable(CAP_DAC_OVERRIDE)) {
+			if ((current->real_cred->fsuid != inode->i_uid) ||
+				!(inode->i_mode & S_IRUSR) ||
+				!(donor_filp->f_dentry->d_inode->i_mode &
+				S_IRUSR)) {
+				fput(donor_filp);
+				return -EACCES;
+			}
+		}
+
+		err = ext4_move_extents(filp, donor_filp, me.orig_start,
+					me.donor_start, me.len, &me.moved_len);
+		fput(donor_filp);
+
+		if (!err)
+			if (copy_to_user((struct move_extent *)arg,
+				&me, sizeof(me)))
+				return -EFAULT;
+		return err;
+	}
+
 	case EXT4_IOC_GROUP_ADD: {
 		struct ext4_new_group_data input;
 		struct super_block *sb = inode->i_sb;

@@ -46,8 +46,6 @@ void *module_alloc(unsigned long size)
 void module_free(struct module *mod, void *module_region)
 {
 	vfree(module_region);
-	/* FIXME: If module_region == mod->init_region, trim exception
-           table entries. */
 }
 
 /* We don't need anything special. */
@@ -90,7 +88,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		 * SHmedia, the LSB of the symbol needs to be asserted
 		 * for the CPU to be in SHmedia mode when it starts executing
 		 * the branch target. */
-		relocation |= (sym->st_other & 4);
+		relocation |= !!(sym->st_other & 4);
 #endif
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {

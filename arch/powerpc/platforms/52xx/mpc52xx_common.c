@@ -47,36 +47,6 @@ static DEFINE_SPINLOCK(mpc52xx_lock);
 static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
 static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 
-/**
- * 	mpc52xx_find_ipb_freq - Find the IPB bus frequency for a device
- * 	@node:	device node
- *
- * 	Returns IPB bus frequency, or 0 if the bus frequency cannot be found.
- */
-unsigned int
-mpc52xx_find_ipb_freq(struct device_node *node)
-{
-	struct device_node *np;
-	const unsigned int *p_ipb_freq = NULL;
-
-	of_node_get(node);
-	while (node) {
-		p_ipb_freq = of_get_property(node, "bus-frequency", NULL);
-		if (p_ipb_freq)
-			break;
-
-		np = of_get_parent(node);
-		of_node_put(node);
-		node = np;
-	}
-	if (node)
-		of_node_put(node);
-
-	return p_ipb_freq ? *p_ipb_freq : 0;
-}
-EXPORT_SYMBOL(mpc52xx_find_ipb_freq);
-
-
 /*
  * Configure the XLB arbiter settings to match what Linux expects.
  */
@@ -221,7 +191,7 @@ unsigned int mpc52xx_get_xtal_freq(struct device_node *node)
 	if (!mpc52xx_cdm)
 		return 0;
 
-	freq = mpc52xx_find_ipb_freq(node);
+	freq = mpc5xxx_get_bus_frequency(node);
 	if (!freq)
 		return 0;
 

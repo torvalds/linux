@@ -248,6 +248,8 @@
 #include <linux/freezer.h>
 #include <linux/utsname.h>
 
+#include <asm/unaligned.h>
+
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
@@ -799,29 +801,9 @@ static int fsg_set_halt(struct fsg_dev *fsg, struct usb_ep *ep)
 
 /* Routines for unaligned data access */
 
-static u16 get_be16(u8 *buf)
+static u32 get_unaligned_be24(u8 *buf)
 {
-	return ((u16) buf[0] << 8) | ((u16) buf[1]);
-}
-
-static u32 get_be32(u8 *buf)
-{
-	return ((u32) buf[0] << 24) | ((u32) buf[1] << 16) |
-			((u32) buf[2] << 8) | ((u32) buf[3]);
-}
-
-static void put_be16(u8 *buf, u16 val)
-{
-	buf[0] = val >> 8;
-	buf[1] = val;
-}
-
-static void put_be32(u8 *buf, u32 val)
-{
-	buf[0] = val >> 24;
-	buf[1] = val >> 16;
-	buf[2] = val >> 8;
-	buf[3] = val & 0xff;
+	return 0xffffff & (u32) get_unaligned_be32(buf - 1);
 }
 
 
@@ -1582,9 +1564,9 @@ static int do_read(struct fsg_dev *fsg)
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
 	if (fsg->cmnd[0] == SC_READ_6)
-		lba = (fsg->cmnd[1] << 16) | get_be16(&fsg->cmnd[2]);
+		lba = get_unaligned_be24(&fsg->cmnd[1]);
 	else {
-		lba = get_be32(&fsg->cmnd[2]);
+		lba = get_unaligned_be32(&fsg->cmnd[2]);
 
 		/* We allow DPO (Disable Page Out = don't save data in the
 		 * cache) and FUA (Force Unit Access = don't read from the
@@ -1717,9 +1699,9 @@ static int do_write(struct fsg_dev *fsg)
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
 	if (fsg->cmnd[0] == SC_WRITE_6)
-		lba = (fsg->cmnd[1] << 16) | get_be16(&fsg->cmnd[2]);
+		lba = get_unaligned_be24(&fsg->cmnd[1]);
 	else {
-		lba = get_be32(&fsg->cmnd[2]);
+		lba = get_unaligned_be32(&fsg->cmnd[2]);
 
 		/* We allow DPO (Disable Page Out = don't save data in the
 		 * cache) and FUA (Force Unit Access = write directly to the
@@ -1940,7 +1922,7 @@ static int do_verify(struct fsg_dev *fsg)
 
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
-	lba = get_be32(&fsg->cmnd[2]);
+	lba = get_unaligned_be32(&fsg->cmnd[2]);
 	if (lba >= curlun->num_sectors) {
 		curlun->sense_data = SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 		return -EINVAL;
@@ -1953,7 +1935,7 @@ static int do_verify(struct fsg_dev *fsg)
 		return -EINVAL;
 	}
 
-	verification_length = get_be16(&fsg->cmnd[7]);
+	verification_length = get_unaligned_be16(&fsg->cmnd[7]);
 	if (unlikely(verification_length == 0))
 		return -EIO;		// No default reply
 
@@ -2103,7 +2085,7 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	memset(buf, 0, 18);
 	buf[0] = valid | 0x70;			// Valid, current error
 	buf[2] = SK(sd);
-	put_be32(&buf[3], sdinfo);		// Sense information
+	put_unaligned_be32(sdinfo, &buf[3]);	/* Sense information */
 	buf[7] = 18 - 8;			// Additional sense length
 	buf[12] = ASC(sd);
 	buf[13] = ASCQ(sd);
@@ -2114,7 +2096,7 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 static int do_read_capacity(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 {
 	struct lun	*curlun = fsg->curlun;
-	u32		lba = get_be32(&fsg->cmnd[2]);
+	u32		lba = get_unaligned_be32(&fsg->cmnd[2]);
 	int		pmi = fsg->cmnd[8];
 	u8		*buf = (u8 *) bh->buf;
 
@@ -2124,8 +2106,9 @@ static int do_read_capacity(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 		return -EINVAL;
 	}
 
-	put_be32(&buf[0], curlun->num_sectors - 1);	// Max logical block
-	put_be32(&buf[4], 512);				// Block length
+	put_unaligned_be32(curlun->num_sectors - 1, &buf[0]);
+						/* Max logical block */
+	put_unaligned_be32(512, &buf[4]);	/* Block length */
 	return 8;
 }
 
@@ -2144,7 +2127,7 @@ static void store_cdrom_address(u8 *dest, int msf, u32 addr)
 		dest[0] = 0;		/* Reserved */
 	} else {
 		/* Absolute sector */
-		put_be32(dest, addr);
+		put_unaligned_be32(addr, dest);
 	}
 }
 
@@ -2152,7 +2135,7 @@ static int do_read_header(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 {
 	struct lun	*curlun = fsg->curlun;
 	int		msf = fsg->cmnd[1] & 0x02;
-	u32		lba = get_be32(&fsg->cmnd[2]);
+	u32		lba = get_unaligned_be32(&fsg->cmnd[2]);
 	u8		*buf = (u8 *) bh->buf;
 
 	if ((fsg->cmnd[1] & ~0x02) != 0) {		/* Mask away MSF */
@@ -2252,10 +2235,13 @@ static int do_mode_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 			buf[2] = 0x04;	// Write cache enable,
 					// Read cache not disabled
 					// No cache retention priorities
-			put_be16(&buf[4], 0xffff);  // Don't disable prefetch
-					// Minimum prefetch = 0
-			put_be16(&buf[8], 0xffff);  // Maximum prefetch
-			put_be16(&buf[10], 0xffff); // Maximum prefetch ceiling
+			put_unaligned_be16(0xffff, &buf[4]);
+					/* Don't disable prefetch */
+					/* Minimum prefetch = 0 */
+			put_unaligned_be16(0xffff, &buf[8]);
+					/* Maximum prefetch */
+			put_unaligned_be16(0xffff, &buf[10]);
+					/* Maximum prefetch ceiling */
 		}
 		buf += 12;
 	}
@@ -2272,7 +2258,7 @@ static int do_mode_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	if (mscmnd == SC_MODE_SENSE_6)
 		buf0[0] = len - 1;
 	else
-		put_be16(buf0, len - 2);
+		put_unaligned_be16(len - 2, buf0);
 	return len;
 }
 
@@ -2360,9 +2346,10 @@ static int do_read_format_capacities(struct fsg_dev *fsg,
 	buf[3] = 8;		// Only the Current/Maximum Capacity Descriptor
 	buf += 4;
 
-	put_be32(&buf[0], curlun->num_sectors);		// Number of blocks
-	put_be32(&buf[4], 512);				// Block length
-	buf[4] = 0x02;					// Current capacity
+	put_unaligned_be32(curlun->num_sectors, &buf[0]);
+						/* Number of blocks */
+	put_unaligned_be32(512, &buf[4]);	/* Block length */
+	buf[4] = 0x02;				/* Current capacity */
 	return 12;
 }
 
@@ -2882,7 +2869,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_MODE_SELECT_10:
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
 				(1<<1) | (3<<7), 0,
 				"MODE SELECT(10)")) == 0)
@@ -2898,7 +2885,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_MODE_SENSE_10:
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(1<<1) | (1<<2) | (3<<7), 0,
 				"MODE SENSE(10)")) == 0)
@@ -2923,7 +2910,8 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_10:
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]) << 9;
+		fsg->data_size_from_cmnd =
+				get_unaligned_be16(&fsg->cmnd[7]) << 9;
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
 				"READ(10)")) == 0)
@@ -2931,7 +2919,8 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_12:
-		fsg->data_size_from_cmnd = get_be32(&fsg->cmnd[6]) << 9;
+		fsg->data_size_from_cmnd =
+				get_unaligned_be32(&fsg->cmnd[6]) << 9;
 		if ((reply = check_command(fsg, 12, DATA_DIR_TO_HOST,
 				(1<<1) | (0xf<<2) | (0xf<<6), 1,
 				"READ(12)")) == 0)
@@ -2949,7 +2938,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	case SC_READ_HEADER:
 		if (!mod_data.cdrom)
 			goto unknown_cmnd;
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(3<<7) | (0x1f<<1), 1,
 				"READ HEADER")) == 0)
@@ -2959,7 +2948,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	case SC_READ_TOC:
 		if (!mod_data.cdrom)
 			goto unknown_cmnd;
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(7<<6) | (1<<1), 1,
 				"READ TOC")) == 0)
@@ -2967,7 +2956,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_FORMAT_CAPACITIES:
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
 				(3<<7), 1,
 				"READ FORMAT CAPACITIES")) == 0)
@@ -3025,7 +3014,8 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_WRITE_10:
-		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]) << 9;
+		fsg->data_size_from_cmnd =
+				get_unaligned_be16(&fsg->cmnd[7]) << 9;
 		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
 				"WRITE(10)")) == 0)
@@ -3033,7 +3023,8 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_WRITE_12:
-		fsg->data_size_from_cmnd = get_be32(&fsg->cmnd[6]) << 9;
+		fsg->data_size_from_cmnd =
+				get_unaligned_be32(&fsg->cmnd[6]) << 9;
 		if ((reply = check_command(fsg, 12, DATA_DIR_FROM_HOST,
 				(1<<1) | (0xf<<2) | (0xf<<6), 1,
 				"WRITE(12)")) == 0)

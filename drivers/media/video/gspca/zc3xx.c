@@ -6307,7 +6307,7 @@ static __u16 i2c_read(struct gspca_dev *gspca_dev,
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
 	retval = reg_r_i(gspca_dev, 0x0095);		/* read Lowbyte */
 	retval |= reg_r_i(gspca_dev, 0x0096) << 8;	/* read Hightbyte */
-	PDEBUG(D_USBO, "i2c r [%02x] -> %04x (%02x)",
+	PDEBUG(D_USBI, "i2c r [%02x] -> %04x (%02x)",
 			reg, retval, retbyte);
 	return retval;
 }
@@ -6868,7 +6868,6 @@ static const struct sensor_by_chipset_revision chipset_revision_sensor[] = {
 	{0x8001, 0x13},
 	{0x8000, 0x14},		/* CS2102K */
 	{0x8400, 0x15},		/* TAS5130K */
-	{0x4001, 0x16},		/* ADCM2700 */
 };
 
 static int vga_3wr_probe(struct gspca_dev *gspca_dev)
@@ -6904,12 +6903,15 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	retword |= reg_r(gspca_dev, 0x000a);
 	PDEBUG(D_PROBE, "probe 3wr vga 1 0x%04x", retword);
 	reg_r(gspca_dev, 0x0010);
-	/* this is tested only once anyway */
-	for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
-		if (chipset_revision_sensor[i].revision == retword) {
-			sd->chip_revision = retword;
-			send_unknown(dev, SENSOR_PB0330);
-			return chipset_revision_sensor[i].internal_sensor_id;
+	/* value 0x4001 is meaningless */
+	if (retword != 0x4001) {
+		for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
+			if (chipset_revision_sensor[i].revision == retword) {
+				sd->chip_revision = retword;
+				send_unknown(dev, SENSOR_PB0330);
+				return chipset_revision_sensor[i]
+							.internal_sensor_id;
+			}
 		}
 	}
 
@@ -6980,12 +6982,12 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x01, 0x0001);
 	reg_w(dev, 0x03, 0x0012);
 	reg_w(dev, 0x01, 0x0012);
-	reg_w(dev, 0x05, 0x0001);
+	reg_w(dev, 0x05, 0x0012);
 	reg_w(dev, 0xd3, 0x008b);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type 0a ? ret: %04x", retword);
-		return retword;
+		return 0x16;			/* adcm2700 (6100/6200) */
 	}
 	return -1;
 }

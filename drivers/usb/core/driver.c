@@ -154,15 +154,10 @@ static const struct usb_device_id *usb_match_dynamic_id(struct usb_interface *in
 static int usb_probe_device(struct device *dev)
 {
 	struct usb_device_driver *udriver = to_usb_device_driver(dev->driver);
-	struct usb_device *udev;
+	struct usb_device *udev = to_usb_device(dev);
 	int error = -ENODEV;
 
 	dev_dbg(dev, "%s\n", __func__);
-
-	if (!is_usb_device(dev))	/* Sanity check */
-		return error;
-
-	udev = to_usb_device(dev);
 
 	/* TODO: Add real matching code */
 
@@ -203,18 +198,13 @@ static void usb_cancel_queued_reset(struct usb_interface *iface)
 static int usb_probe_interface(struct device *dev)
 {
 	struct usb_driver *driver = to_usb_driver(dev->driver);
-	struct usb_interface *intf;
-	struct usb_device *udev;
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_device *udev = interface_to_usbdev(intf);
 	const struct usb_device_id *id;
 	int error = -ENODEV;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (is_usb_device(dev))		/* Sanity check */
-		return error;
-
-	intf = to_usb_interface(dev);
-	udev = interface_to_usbdev(intf);
 	intf->needs_binding = 0;
 
 	if (udev->authorized == 0) {
@@ -385,7 +375,6 @@ void usb_driver_release_interface(struct usb_driver *driver,
 					struct usb_interface *iface)
 {
 	struct device *dev = &iface->dev;
-	struct usb_device *udev = interface_to_usbdev(iface);
 
 	/* this should never happen, don't release something that's not ours */
 	if (!dev->driver || dev->driver != &driver->drvwrap.driver)
@@ -394,23 +383,19 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	/* don't release from within disconnect() */
 	if (iface->condition != USB_INTERFACE_BOUND)
 		return;
+	iface->condition = USB_INTERFACE_UNBINDING;
 
-	/* don't release if the interface hasn't been added yet */
+	/* Release via the driver core only if the interface
+	 * has already been registered
+	 */
 	if (device_is_registered(dev)) {
-		iface->condition = USB_INTERFACE_UNBINDING;
 		device_release_driver(dev);
 	} else {
-		iface->condition = USB_INTERFACE_UNBOUND;
-		usb_cancel_queued_reset(iface);
+		down(&dev->sem);
+		usb_unbind_interface(dev);
+		dev->driver = NULL;
+		up(&dev->sem);
 	}
-	dev->driver = NULL;
-	usb_set_intfdata(iface, NULL);
-
-	usb_pm_lock(udev);
-	iface->condition = USB_INTERFACE_UNBOUND;
-	mark_quiesced(iface);
-	iface->needs_remote_wakeup = 0;
-	usb_pm_unlock(udev);
 }
 EXPORT_SYMBOL_GPL(usb_driver_release_interface);
 
@@ -598,7 +583,7 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 		/* TODO: Add real matching code */
 		return 1;
 
-	} else {
+	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf;
 		struct usb_driver *usb_drv;
 		const struct usb_device_id *id;
@@ -630,11 +615,14 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	/* driver is often null here; dev_dbg() would oops */
 	pr_debug("usb %s: uevent\n", dev_name(dev));
 
-	if (is_usb_device(dev))
+	if (is_usb_device(dev)) {
 		usb_dev = to_usb_device(dev);
-	else {
+	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf = to_usb_interface(dev);
+
 		usb_dev = interface_to_usbdev(intf);
+	} else {
+		return 0;
 	}
 
 	if (usb_dev->devnum < 0) {
@@ -1762,6 +1750,7 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 int usb_resume(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev;
+	int			status;
 
 	udev = to_usb_device(dev);
 
@@ -1771,7 +1760,14 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	 */
 	if (udev->skip_sys_resume)
 		return 0;
-	return usb_external_resume_device(udev, msg);
+	status = usb_external_resume_device(udev, msg);
+
+	/* Avoid PM error messages for devices disconnected while suspended
+	 * as we'll display regular disconnect messages just a bit later.
+	 */
+	if (status == -ENODEV)
+		return 0;
+	return status;
 }
 
 #endif /* CONFIG_PM */

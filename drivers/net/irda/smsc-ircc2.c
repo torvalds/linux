@@ -2124,7 +2124,7 @@ static void smsc_ircc_sir_wait_hw_transmitter_finish(struct smsc_ircc_cb *self)
 	while (count-- > 0 && !(inb(iobase + UART_LSR) & UART_LSR_TEMT))
 		udelay(1);
 
-	if (count == 0)
+	if (count < 0)
 		IRDA_DEBUG(0, "%s(): stuck transmitter\n", __func__);
 }
 

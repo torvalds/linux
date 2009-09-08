@@ -59,5 +59,14 @@
 #define MCFPIT_IMR		MCFINTC_IMRL
 #define MCFPIT_IMR_IBIT		(1 << MCFINT_PIT1)
 
+/*
+ *  Reset Controll Unit.
+ */
+#define	MCF_RCR			0xFC0A0000
+#define	MCF_RSR			0xFC0A0001
+
+#define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
+#define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
 /****************************************************************************/
 #endif  /* m520xsim_h */

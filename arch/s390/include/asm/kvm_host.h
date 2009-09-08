@@ -13,6 +13,8 @@
 
 #ifndef ASM_KVM_HOST_H
 #define ASM_KVM_HOST_H
+#include <linux/hrtimer.h>
+#include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <asm/debug.h>
 #include <asm/cpuid.h>
@@ -210,7 +212,8 @@ struct kvm_vcpu_arch {
 	s390_fp_regs      guest_fpregs;
 	unsigned int      guest_acrs[NUM_ACRS];
 	struct kvm_s390_local_interrupt local_int;
-	struct timer_list ckc_timer;
+	struct hrtimer    ckc_timer;
+	struct tasklet_struct tasklet;
 	union  {
 		cpuid_t	  cpu_id;
 		u64	  stidp_data;

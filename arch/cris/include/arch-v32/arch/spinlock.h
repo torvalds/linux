@@ -78,7 +78,7 @@ static  inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	__raw_spin_lock(&rw->slock);
 	while (rw->lock != RW_LOCK_BIAS);
-	rw->lock == 0;
+	rw->lock = 0;
 	__raw_spin_unlock(&rw->slock);
 }
 
@@ -93,7 +93,7 @@ static  inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	__raw_spin_lock(&rw->slock);
 	while (rw->lock != RW_LOCK_BIAS);
-	rw->lock == RW_LOCK_BIAS;
+	rw->lock = RW_LOCK_BIAS;
 	__raw_spin_unlock(&rw->slock);
 }
 
@@ -114,7 +114,7 @@ static  inline int __raw_write_trylock(raw_rwlock_t *rw)
 	int ret = 0;
 	__raw_spin_lock(&rw->slock);
 	if (rw->lock == RW_LOCK_BIAS) {
-		rw->lock == 0;
+		rw->lock = 0;
 		ret = 1;
 	}
 	__raw_spin_unlock(&rw->slock);

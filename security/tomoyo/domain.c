@@ -19,11 +19,63 @@
 /* The initial domain. */
 struct tomoyo_domain_info tomoyo_kernel_domain;
 
-/* The list for "struct tomoyo_domain_info". */
+/*
+ * tomoyo_domain_list is used for holding list of domains.
+ * The ->acl_info_list of "struct tomoyo_domain_info" is used for holding
+ * permissions (e.g. "allow_read /lib/libc-2.5.so") given to each domain.
+ *
+ * An entry is added by
+ *
+ * # ( echo "<kernel>"; echo "allow_execute /sbin/init" ) > \
+ *                                  /sys/kernel/security/tomoyo/domain_policy
+ *
+ * and is deleted by
+ *
+ * # ( echo "<kernel>"; echo "delete allow_execute /sbin/init" ) > \
+ *                                  /sys/kernel/security/tomoyo/domain_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # cat /sys/kernel/security/tomoyo/domain_policy
+ *
+ * A domain is added by
+ *
+ * # echo "<kernel>" > /sys/kernel/security/tomoyo/domain_policy
+ *
+ * and is deleted by
+ *
+ * # echo "delete <kernel>" > /sys/kernel/security/tomoyo/domain_policy
+ *
+ * and all domains are retrieved by
+ *
+ * # grep '^<kernel>' /sys/kernel/security/tomoyo/domain_policy
+ *
+ * Normally, a domainname is monotonically getting longer because a domainname
+ * which the process will belong to if an execve() operation succeeds is
+ * defined as a concatenation of "current domainname" + "pathname passed to
+ * execve()".
+ * See tomoyo_domain_initializer_list and tomoyo_domain_keeper_list for
+ * exceptions.
+ */
 LIST_HEAD(tomoyo_domain_list);
 DECLARE_RWSEM(tomoyo_domain_list_lock);
 
-/* Structure for "initialize_domain" and "no_initialize_domain" keyword. */
+/*
+ * tomoyo_domain_initializer_entry is a structure which is used for holding
+ * "initialize_domain" and "no_initialize_domain" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_domain_initializer_list .
+ *  (2) "domainname" which is "a domainname" or "the last component of a
+ *      domainname". This field is NULL if "from" clause is not specified.
+ *  (3) "program" which is a program's pathname.
+ *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ *  (5) "is_not" is a bool which is true if "no_initialize_domain", false
+ *      otherwise.
+ *  (6) "is_last_name" is a bool which is true if "domainname" is "the last
+ *      component of a domainname", false otherwise.
+ */
 struct tomoyo_domain_initializer_entry {
 	struct list_head list;
 	const struct tomoyo_path_info *domainname;    /* This may be NULL */
@@ -34,7 +86,23 @@ struct tomoyo_domain_initializer_entry {
 	bool is_last_name;
 };
 
-/* Structure for "keep_domain" and "no_keep_domain" keyword. */
+/*
+ * tomoyo_domain_keeper_entry is a structure which is used for holding
+ * "keep_domain" and "no_keep_domain" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_domain_keeper_list .
+ *  (2) "domainname" which is "a domainname" or "the last component of a
+ *      domainname".
+ *  (3) "program" which is a program's pathname.
+ *      This field is NULL if "from" clause is not specified.
+ *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ *  (5) "is_not" is a bool which is true if "no_initialize_domain", false
+ *      otherwise.
+ *  (6) "is_last_name" is a bool which is true if "domainname" is "the last
+ *      component of a domainname", false otherwise.
+ */
 struct tomoyo_domain_keeper_entry {
 	struct list_head list;
 	const struct tomoyo_path_info *domainname;
@@ -45,7 +113,16 @@ struct tomoyo_domain_keeper_entry {
 	bool is_last_name;
 };
 
-/* Structure for "alias" keyword. */
+/*
+ * tomoyo_alias_entry is a structure which is used for holding "alias" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_alias_list .
+ *  (2) "original_name" which is a dereferenced pathname.
+ *  (3) "aliased_name" which is a symlink's pathname.
+ *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
 struct tomoyo_alias_entry {
 	struct list_head list;
 	const struct tomoyo_path_info *original_name;
@@ -67,14 +144,12 @@ void tomoyo_set_domain_flag(struct tomoyo_domain_info *domain,
 {
 	/* We need to serialize because this is bitfield operation. */
 	static DEFINE_SPINLOCK(lock);
-	/***** CRITICAL SECTION START *****/
 	spin_lock(&lock);
 	if (!is_delete)
 		domain->flags |= flags;
 	else
 		domain->flags &= ~flags;
 	spin_unlock(&lock);
-	/***** CRITICAL SECTION END *****/
 }
 
 /**
@@ -94,7 +169,42 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
 	return cp0;
 }
 
-/* The list for "struct tomoyo_domain_initializer_entry". */
+/*
+ * tomoyo_domain_initializer_list is used for holding list of programs which
+ * triggers reinitialization of domainname. Normally, a domainname is
+ * monotonically getting longer. But sometimes, we restart daemon programs.
+ * It would be convenient for us that "a daemon started upon system boot" and
+ * "the daemon restarted from console" belong to the same domain. Thus, TOMOYO
+ * provides a way to shorten domainnames.
+ *
+ * An entry is added by
+ *
+ * # echo 'initialize_domain /usr/sbin/httpd' > \
+ *                               /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and is deleted by
+ *
+ * # echo 'delete initialize_domain /usr/sbin/httpd' > \
+ *                               /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^initialize_domain /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, /usr/sbin/httpd will belong to
+ * "<kernel> /usr/sbin/httpd" domain.
+ *
+ * You may specify a domainname using "from" keyword.
+ * "initialize_domain /usr/sbin/httpd from <kernel> /etc/rc.d/init.d/httpd"
+ * will cause "/usr/sbin/httpd" executed from "<kernel> /etc/rc.d/init.d/httpd"
+ * domain to belong to "<kernel> /usr/sbin/httpd" domain.
+ *
+ * You may add "no_" prefix to "initialize_domain".
+ * "initialize_domain /usr/sbin/httpd" and
+ * "no_initialize_domain /usr/sbin/httpd from <kernel> /etc/rc.d/init.d/httpd"
+ * will cause "/usr/sbin/httpd" to belong to "<kernel> /usr/sbin/httpd" domain
+ * unless executed from "<kernel> /etc/rc.d/init.d/httpd" domain.
+ */
 static LIST_HEAD(tomoyo_domain_initializer_list);
 static DECLARE_RWSEM(tomoyo_domain_initializer_list_lock);
 
@@ -135,7 +245,6 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	saved_program = tomoyo_save_name(program);
 	if (!saved_program)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_initializer_list_lock);
 	list_for_each_entry(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
@@ -161,7 +270,6 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	error = 0;
  out:
 	up_write(&tomoyo_domain_initializer_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -193,13 +301,12 @@ bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head)
 			from = " from ";
 			domain = ptr->domainname->name;
 		}
-		if (!tomoyo_io_printf(head,
-				      "%s" TOMOYO_KEYWORD_INITIALIZE_DOMAIN
-				      "%s%s%s\n", no, ptr->program->name, from,
-				      domain)) {
-			done = false;
+		done = tomoyo_io_printf(head,
+					"%s" TOMOYO_KEYWORD_INITIALIZE_DOMAIN
+					"%s%s%s\n", no, ptr->program->name,
+					from, domain);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_domain_initializer_list_lock);
 	return done;
@@ -273,7 +380,44 @@ static bool tomoyo_is_domain_initializer(const struct tomoyo_path_info *
 	return flag;
 }
 
-/* The list for "struct tomoyo_domain_keeper_entry". */
+/*
+ * tomoyo_domain_keeper_list is used for holding list of domainnames which
+ * suppresses domain transition. Normally, a domainname is monotonically
+ * getting longer. But sometimes, we want to suppress domain transition.
+ * It would be convenient for us that programs executed from a login session
+ * belong to the same domain. Thus, TOMOYO provides a way to suppress domain
+ * transition.
+ *
+ * An entry is added by
+ *
+ * # echo 'keep_domain <kernel> /usr/sbin/sshd /bin/bash' > \
+ *                              /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and is deleted by
+ *
+ * # echo 'delete keep_domain <kernel> /usr/sbin/sshd /bin/bash' > \
+ *                              /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^keep_domain /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, any process which belongs to
+ * "<kernel> /usr/sbin/sshd /bin/bash" domain will remain in that domain,
+ * unless explicitly specified by "initialize_domain" or "no_keep_domain".
+ *
+ * You may specify a program using "from" keyword.
+ * "keep_domain /bin/pwd from <kernel> /usr/sbin/sshd /bin/bash"
+ * will cause "/bin/pwd" executed from "<kernel> /usr/sbin/sshd /bin/bash"
+ * domain to remain in "<kernel> /usr/sbin/sshd /bin/bash" domain.
+ *
+ * You may add "no_" prefix to "keep_domain".
+ * "keep_domain <kernel> /usr/sbin/sshd /bin/bash" and
+ * "no_keep_domain /usr/bin/passwd from <kernel> /usr/sbin/sshd /bin/bash" will
+ * cause "/usr/bin/passwd" to belong to
+ * "<kernel> /usr/sbin/sshd /bin/bash /usr/bin/passwd" domain, unless
+ * explicitly specified by "initialize_domain".
+ */
 static LIST_HEAD(tomoyo_domain_keeper_list);
 static DECLARE_RWSEM(tomoyo_domain_keeper_list_lock);
 
@@ -296,7 +440,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	struct tomoyo_domain_keeper_entry *ptr;
 	const struct tomoyo_path_info *saved_domainname;
 	const struct tomoyo_path_info *saved_program = NULL;
-	static DEFINE_MUTEX(lock);
 	int error = -ENOMEM;
 	bool is_last_name = false;
 
@@ -315,7 +458,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_keeper_list_lock);
 	list_for_each_entry(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
@@ -341,7 +483,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	error = 0;
  out:
 	up_write(&tomoyo_domain_keeper_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -394,13 +535,12 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
 			from = " from ";
 			program = ptr->program->name;
 		}
-		if (!tomoyo_io_printf(head,
-				      "%s" TOMOYO_KEYWORD_KEEP_DOMAIN
-				      "%s%s%s\n", no, program, from,
-				      ptr->domainname->name)) {
-			done = false;
+		done = tomoyo_io_printf(head,
+					"%s" TOMOYO_KEYWORD_KEEP_DOMAIN
+					"%s%s%s\n", no, program, from,
+					ptr->domainname->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_domain_keeper_list_lock);
 	return done;
@@ -446,7 +586,36 @@ static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
 	return flag;
 }
 
-/* The list for "struct tomoyo_alias_entry". */
+/*
+ * tomoyo_alias_list is used for holding list of symlink's pathnames which are
+ * allowed to be passed to an execve() request. Normally, the domainname which
+ * the current process will belong to after execve() succeeds is calculated
+ * using dereferenced pathnames. But some programs behave differently depending
+ * on the name passed to argv[0]. For busybox, calculating domainname using
+ * dereferenced pathnames will cause all programs in the busybox to belong to
+ * the same domain. Thus, TOMOYO provides a way to allow use of symlink's
+ * pathname for checking execve()'s permission and calculating domainname which
+ * the current process will belong to after execve() succeeds.
+ *
+ * An entry is added by
+ *
+ * # echo 'alias /bin/busybox /bin/cat' > \
+ *                            /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and is deleted by
+ *
+ * # echo 'delete alias /bin/busybox /bin/cat' > \
+ *                            /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^alias /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, if /bin/cat is a symlink to /bin/busybox and execution
+ * of /bin/cat is requested, permission is checked for /bin/cat rather than
+ * /bin/busybox and domainname which the current process will belong to after
+ * execve() succeeds is calculated using /bin/cat rather than /bin/busybox .
+ */
 static LIST_HEAD(tomoyo_alias_list);
 static DECLARE_RWSEM(tomoyo_alias_list_lock);
 
@@ -476,7 +645,6 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	saved_aliased_name = tomoyo_save_name(aliased_name);
 	if (!saved_original_name || !saved_aliased_name)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_alias_list_lock);
 	list_for_each_entry(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
@@ -499,7 +667,6 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	error = 0;
  out:
 	up_write(&tomoyo_alias_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -522,12 +689,11 @@ bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head)
 		ptr = list_entry(pos, struct tomoyo_alias_entry, list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALIAS "%s %s\n",
-				      ptr->original_name->name,
-				      ptr->aliased_name->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALIAS "%s %s\n",
+					ptr->original_name->name,
+					ptr->aliased_name->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_alias_list_lock);
 	return done;
@@ -567,7 +733,6 @@ int tomoyo_delete_domain(char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_list_lock);
 	/* Is there an active domain? */
 	list_for_each_entry(domain, &tomoyo_domain_list, list) {
@@ -581,7 +746,6 @@ int tomoyo_delete_domain(char *domainname)
 		break;
 	}
 	up_write(&tomoyo_domain_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return 0;
 }
 
@@ -600,7 +764,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	struct tomoyo_domain_info *domain = NULL;
 	const struct tomoyo_path_info *saved_domainname;
 
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_list_lock);
 	domain = tomoyo_find_domain(domainname);
 	if (domain)
@@ -619,7 +782,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		    domain->domainname != saved_domainname)
 			continue;
 		flag = false;
-		/***** CRITICAL SECTION START *****/
 		read_lock(&tasklist_lock);
 		for_each_process(p) {
 			if (tomoyo_real_domain(p) != domain)
@@ -628,7 +790,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 			break;
 		}
 		read_unlock(&tasklist_lock);
-		/***** CRITICAL SECTION END *****/
 		if (flag)
 			continue;
 		list_for_each_entry(ptr, &domain->acl_info_list, list) {
@@ -651,7 +812,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	}
  out:
 	up_write(&tomoyo_domain_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return domain;
 }
 
@@ -739,7 +899,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm,
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_check_exec_perm(old_domain, &r, tmp);
+	retval = tomoyo_check_exec_perm(old_domain, &r);
 	if (retval < 0)
 		goto out;
 

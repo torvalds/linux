@@ -101,15 +101,16 @@ static inline void tx_one_byte(struct sport_uart_port *up, unsigned int value)
 {
 	pr_debug("%s value:%x\n", __func__, value);
 	/* Place a Start and Stop bit */
-	__asm__ volatile (
-		"R2 = b#01111111100;\n\t"
-		"R3 = b#10000000001;\n\t"
-		"%0 <<= 2;\n\t"
-		"%0 = %0 & R2;\n\t"
-		"%0 = %0 | R3;\n\t"
-		:"=r"(value)
-		:"0"(value)
-		:"R2", "R3");
+	__asm__ __volatile__ (
+		"R2 = b#01111111100;"
+		"R3 = b#10000000001;"
+		"%0 <<= 2;"
+		"%0 = %0 & R2;"
+		"%0 = %0 | R3;"
+		: "=d"(value)
+		: "d"(value)
+		: "ASTAT", "R2", "R3"
+	);
 	pr_debug("%s value:%x\n", __func__, value);
 
 	SPORT_PUT_TX(up, value);
@@ -118,27 +119,30 @@ static inline void tx_one_byte(struct sport_uart_port *up, unsigned int value)
 static inline unsigned int rx_one_byte(struct sport_uart_port *up)
 {
 	unsigned int value, extract;
+	u32 tmp_mask1, tmp_mask2, tmp_shift, tmp;
 
 	value = SPORT_GET_RX32(up);
 	pr_debug("%s value:%x\n", __func__, value);
 
 	/* Extract 8 bits data */
-	__asm__ volatile (
-		"R5 = 0;\n\t"
-		"P0 = 8;\n\t"
-		"R1 = 0x1801(Z);\n\t"
-		"R3 = 0x0300(Z);\n\t"
-		"R4 = 0;\n\t"
-		"LSETUP(loop_s, loop_e) LC0 = P0;\nloop_s:\t"
-		"R2 = extract(%1, R1.L)(Z);\n\t"
-		"R2 <<= R4;\n\t"
-		"R5 = R5 | R2;\n\t"
-		"R1 = R1 - R3;\nloop_e:\t"
-		"R4 += 1;\n\t"
-		"%0 = R5;\n\t"
-		:"=r"(extract)
-		:"r"(value)
-		:"P0", "R1", "R2","R3","R4", "R5");
+	__asm__ __volatile__ (
+		"%[extr] = 0;"
+		"%[mask1] = 0x1801(Z);"
+		"%[mask2] = 0x0300(Z);"
+		"%[shift] = 0;"
+		"LSETUP(.Lloop_s, .Lloop_e) LC0 = %[lc];"
+		".Lloop_s:"
+		"%[tmp] = extract(%[val], %[mask1].L)(Z);"
+		"%[tmp] <<= %[shift];"
+		"%[extr] = %[extr] | %[tmp];"
+		"%[mask1] = %[mask1] - %[mask2];"
+		".Lloop_e:"
+		"%[shift] += 1;"
+		: [val]"=d"(value), [extr]"=d"(extract), [shift]"=d"(tmp_shift), [tmp]"=d"(tmp),
+		  [mask1]"=d"(tmp_mask1), [mask2]"=d"(tmp_mask2)
+		: "d"(value), [lc]"a"(8)
+		: "ASTAT", "LB0", "LC0", "LT0"
+	);
 
 	pr_debug("	extract:%x\n", extract);
 	return extract;
@@ -149,7 +153,7 @@ static int sport_uart_setup(struct sport_uart_port *up, int sclk, int baud_rate)
 	int tclkdiv, tfsdiv, rclkdiv;
 
 	/* Set TCR1 and TCR2 */
-	SPORT_PUT_TCR1(up, (LTFS | ITFS | TFSR | TLSBIT | ITCLK));
+	SPORT_PUT_TCR1(up, (LATFS | ITFS | TFSR | TLSBIT | ITCLK));
 	SPORT_PUT_TCR2(up, 10);
 	pr_debug("%s TCR1:%x, TCR2:%x\n", __func__, SPORT_GET_TCR1(up), SPORT_GET_TCR2(up));
 
@@ -419,7 +423,7 @@ static void sport_shutdown(struct uart_port *port)
 }
 
 static void sport_set_termios(struct uart_port *port,
-		struct termios *termios, struct termios *old)
+		struct ktermios *termios, struct ktermios *old)
 {
 	pr_debug("%s enter, c_cflag:%08x\n", __func__, termios->c_cflag);
 	uart_update_timeout(port, CS8 ,port->uartclk);

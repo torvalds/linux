@@ -37,6 +37,8 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+#define I915_LVDS "i915_lvds"
+
 /**
  * Sets the backlight level.
  *
@@ -45,10 +47,15 @@
 static void intel_lvds_set_backlight(struct drm_device *dev, int level)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 blc_pwm_ctl;
+	u32 blc_pwm_ctl, reg;
 
-	blc_pwm_ctl = I915_READ(BLC_PWM_CTL) & ~BACKLIGHT_DUTY_CYCLE_MASK;
-	I915_WRITE(BLC_PWM_CTL, (blc_pwm_ctl |
+	if (IS_IGDNG(dev))
+		reg = BLC_PWM_CPU_CTL;
+	else
+		reg = BLC_PWM_CTL;
+
+	blc_pwm_ctl = I915_READ(reg) & ~BACKLIGHT_DUTY_CYCLE_MASK;
+	I915_WRITE(reg, (blc_pwm_ctl |
 				 (level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
 }
 
@@ -58,8 +65,14 @@ static void intel_lvds_set_backlight(struct drm_device *dev, int level)
 static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
 
-	return ((I915_READ(BLC_PWM_CTL) & BACKLIGHT_MODULATION_FREQ_MASK) >>
+	if (IS_IGDNG(dev))
+		reg = BLC_PWM_PCH_CTL2;
+	else
+		reg = BLC_PWM_CTL;
+
+	return ((I915_READ(reg) & BACKLIGHT_MODULATION_FREQ_MASK) >>
 		BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 }
 
@@ -69,23 +82,31 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 static void intel_lvds_set_power(struct drm_device *dev, bool on)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_status;
+	u32 pp_status, ctl_reg, status_reg;
+
+	if (IS_IGDNG(dev)) {
+		ctl_reg = PCH_PP_CONTROL;
+		status_reg = PCH_PP_STATUS;
+	} else {
+		ctl_reg = PP_CONTROL;
+		status_reg = PP_STATUS;
+	}
 
 	if (on) {
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
+		I915_WRITE(ctl_reg, I915_READ(ctl_reg) |
 			   POWER_TARGET_ON);
 		do {
-			pp_status = I915_READ(PP_STATUS);
+			pp_status = I915_READ(status_reg);
 		} while ((pp_status & PP_ON) == 0);
 
 		intel_lvds_set_backlight(dev, dev_priv->backlight_duty_cycle);
 	} else {
 		intel_lvds_set_backlight(dev, 0);
 
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) &
+		I915_WRITE(ctl_reg, I915_READ(ctl_reg) &
 			   ~POWER_TARGET_ON);
 		do {
-			pp_status = I915_READ(PP_STATUS);
+			pp_status = I915_READ(status_reg);
 		} while (pp_status & PP_ON);
 	}
 }
@@ -106,12 +127,28 @@ static void intel_lvds_save(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_on_reg, pp_off_reg, pp_ctl_reg, pp_div_reg;
+	u32 pwm_ctl_reg;
 
-	dev_priv->savePP_ON = I915_READ(PP_ON_DELAYS);
-	dev_priv->savePP_OFF = I915_READ(PP_OFF_DELAYS);
-	dev_priv->savePP_CONTROL = I915_READ(PP_CONTROL);
-	dev_priv->savePP_DIVISOR = I915_READ(PP_DIVISOR);
-	dev_priv->saveBLC_PWM_CTL = I915_READ(BLC_PWM_CTL);
+	if (IS_IGDNG(dev)) {
+		pp_on_reg = PCH_PP_ON_DELAYS;
+		pp_off_reg = PCH_PP_OFF_DELAYS;
+		pp_ctl_reg = PCH_PP_CONTROL;
+		pp_div_reg = PCH_PP_DIVISOR;
+		pwm_ctl_reg = BLC_PWM_CPU_CTL;
+	} else {
+		pp_on_reg = PP_ON_DELAYS;
+		pp_off_reg = PP_OFF_DELAYS;
+		pp_ctl_reg = PP_CONTROL;
+		pp_div_reg = PP_DIVISOR;
+		pwm_ctl_reg = BLC_PWM_CTL;
+	}
+
+	dev_priv->savePP_ON = I915_READ(pp_on_reg);
+	dev_priv->savePP_OFF = I915_READ(pp_off_reg);
+	dev_priv->savePP_CONTROL = I915_READ(pp_ctl_reg);
+	dev_priv->savePP_DIVISOR = I915_READ(pp_div_reg);
+	dev_priv->saveBLC_PWM_CTL = I915_READ(pwm_ctl_reg);
 	dev_priv->backlight_duty_cycle = (dev_priv->saveBLC_PWM_CTL &
 				       BACKLIGHT_DUTY_CYCLE_MASK);
 
@@ -127,12 +164,28 @@ static void intel_lvds_restore(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_on_reg, pp_off_reg, pp_ctl_reg, pp_div_reg;
+	u32 pwm_ctl_reg;
 
-	I915_WRITE(BLC_PWM_CTL, dev_priv->saveBLC_PWM_CTL);
-	I915_WRITE(PP_ON_DELAYS, dev_priv->savePP_ON);
-	I915_WRITE(PP_OFF_DELAYS, dev_priv->savePP_OFF);
-	I915_WRITE(PP_DIVISOR, dev_priv->savePP_DIVISOR);
-	I915_WRITE(PP_CONTROL, dev_priv->savePP_CONTROL);
+	if (IS_IGDNG(dev)) {
+		pp_on_reg = PCH_PP_ON_DELAYS;
+		pp_off_reg = PCH_PP_OFF_DELAYS;
+		pp_ctl_reg = PCH_PP_CONTROL;
+		pp_div_reg = PCH_PP_DIVISOR;
+		pwm_ctl_reg = BLC_PWM_CPU_CTL;
+	} else {
+		pp_on_reg = PP_ON_DELAYS;
+		pp_off_reg = PP_OFF_DELAYS;
+		pp_ctl_reg = PP_CONTROL;
+		pp_div_reg = PP_DIVISOR;
+		pwm_ctl_reg = BLC_PWM_CTL;
+	}
+
+	I915_WRITE(pwm_ctl_reg, dev_priv->saveBLC_PWM_CTL);
+	I915_WRITE(pp_on_reg, dev_priv->savePP_ON);
+	I915_WRITE(pp_off_reg, dev_priv->savePP_OFF);
+	I915_WRITE(pp_div_reg, dev_priv->savePP_DIVISOR);
+	I915_WRITE(pp_ctl_reg, dev_priv->savePP_CONTROL);
 	if (dev_priv->savePP_CONTROL & POWER_TARGET_ON)
 		intel_lvds_set_power(dev, true);
 	else
@@ -216,8 +269,14 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
 
-	dev_priv->saveBLC_PWM_CTL = I915_READ(BLC_PWM_CTL);
+	if (IS_IGDNG(dev))
+		reg = BLC_PWM_CPU_CTL;
+	else
+		reg = BLC_PWM_CTL;
+
+	dev_priv->saveBLC_PWM_CTL = I915_READ(reg);
 	dev_priv->backlight_duty_cycle = (dev_priv->saveBLC_PWM_CTL &
 				       BACKLIGHT_DUTY_CYCLE_MASK);
 
@@ -250,6 +309,10 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * intel_crtc_mode_set since it has a large impact on the DPLL
 	 * settings.
 	 */
+
+	/* No panel fitting yet, fixme */
+	if (IS_IGDNG(dev))
+		return;
 
 	/*
 	 * Enable automatic panel scaling so that non-native modes fill the
@@ -382,7 +445,8 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 
 static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG("Skipping LVDS initialization for %s\n", id->ident);
+	DRM_DEBUG_KMS(I915_LVDS,
+		      "Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 
@@ -420,8 +484,21 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Studio Hybrid 140g"),
 		},
 	},
-
-	/* FIXME: add a check for the Aopen Mini PC */
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "AOpen Mini PC",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AOpen"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "i965GMx-IF"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Aopen i945GTt-VFA",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
@@ -442,11 +519,17 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_crtc *crtc;
 	u32 lvds;
-	int pipe;
+	int pipe, gpio = GPIOC;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
 		return;
+
+	if (IS_IGDNG(dev)) {
+		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
+			return;
+		gpio = PCH_GPIOC;
+	}
 
 	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
 	if (!intel_output) {
@@ -482,7 +565,7 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Set up the DDC bus. */
-	intel_output->ddc_bus = intel_i2c_create(dev, GPIOC, "LVDSDDC_C");
+	intel_output->ddc_bus = intel_i2c_create(dev, gpio, "LVDSDDC_C");
 	if (!intel_output->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");
@@ -524,6 +607,11 @@ void intel_lvds_init(struct drm_device *dev)
 	 * on.  If so, assume that whatever is currently programmed is the
 	 * correct mode.
 	 */
+
+	/* IGDNG: FIXME if still fail, not try pipe mode now */
+	if (IS_IGDNG(dev))
+		goto failed;
+
 	lvds = I915_READ(LVDS);
 	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
 	crtc = intel_get_crtc_from_pipe(dev, pipe);
@@ -542,11 +630,22 @@ void intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
+	if (IS_IGDNG(dev)) {
+		u32 pwm;
+		/* make sure PWM is enabled */
+		pwm = I915_READ(BLC_PWM_CPU_CTL2);
+		pwm |= (PWM_ENABLE | PWM_PIPE_B);
+		I915_WRITE(BLC_PWM_CPU_CTL2, pwm);
+
+		pwm = I915_READ(BLC_PWM_PCH_CTL1);
+		pwm |= PWM_PCH_ENABLE;
+		I915_WRITE(BLC_PWM_PCH_CTL1, pwm);
+	}
 	drm_sysfs_connector_add(connector);
 	return;
 
 failed:
-	DRM_DEBUG("No LVDS modes found, disabling.\n");
+	DRM_DEBUG_KMS(I915_LVDS, "No LVDS modes found, disabling.\n");
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 	drm_connector_cleanup(connector);

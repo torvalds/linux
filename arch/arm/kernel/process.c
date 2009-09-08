@@ -114,9 +114,6 @@ void arm_machine_restart(char mode, const char *cmd)
 /*
  * Function pointers to optional machine specific functions
  */
-void (*pm_idle)(void);
-EXPORT_SYMBOL(pm_idle);
-
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
@@ -130,20 +127,19 @@ EXPORT_SYMBOL_GPL(arm_pm_restart);
  */
 static void default_idle(void)
 {
-	if (hlt_counter)
-		cpu_relax();
-	else {
-		local_irq_disable();
-		if (!need_resched())
-			arch_idle();
-		local_irq_enable();
-	}
+	if (!need_resched())
+		arch_idle();
+	local_irq_enable();
 }
 
+void (*pm_idle)(void) = default_idle;
+EXPORT_SYMBOL(pm_idle);
+
 /*
- * The idle thread.  We try to conserve power, while trying to keep
- * overall latency low.  The architecture specific idle is passed
- * a value to indicate the level of "idleness" of the system.
+ * The idle thread, has rather strange semantics for calling pm_idle,
+ * but this is what x86 does and we need to do the same, so that
+ * things like cpuidle get called in the same way.  The only difference
+ * is that we always respect 'hlt_counter' to prevent low power idle.
  */
 void cpu_idle(void)
 {
@@ -151,21 +147,31 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		void (*idle)(void) = pm_idle;
-
+		tick_nohz_stop_sched_tick(1);
+		leds_event(led_idle_start);
+		while (!need_resched()) {
 #ifdef CONFIG_HOTPLUG_CPU
-		if (cpu_is_offline(smp_processor_id())) {
-			leds_event(led_idle_start);
-			cpu_die();
-		}
+			if (cpu_is_offline(smp_processor_id()))
+				cpu_die();
 #endif
 
-		if (!idle)
-			idle = default_idle;
-		leds_event(led_idle_start);
-		tick_nohz_stop_sched_tick(1);
-		while (!need_resched())
-			idle();
+			local_irq_disable();
+			if (hlt_counter) {
+				local_irq_enable();
+				cpu_relax();
+			} else {
+				stop_critical_timings();
+				pm_idle();
+				start_critical_timings();
+				/*
+				 * This will eventually be removed - pm_idle
+				 * functions should always return with IRQs
+				 * enabled.
+				 */
+				WARN_ON(irqs_disabled());
+				local_irq_enable();
+			}
+		}
 		leds_event(led_idle_end);
 		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
@@ -352,6 +358,23 @@ asm(	".section .text\n"
 "	.size	kernel_thread_helper, . - kernel_thread_helper\n"
 "	.previous");
 
+#ifdef CONFIG_ARM_UNWIND
+extern void kernel_thread_exit(long code);
+asm(	".section .text\n"
+"	.align\n"
+"	.type	kernel_thread_exit, #function\n"
+"kernel_thread_exit:\n"
+"	.fnstart\n"
+"	.cantunwind\n"
+"	bl	do_exit\n"
+"	nop\n"
+"	.fnend\n"
+"	.size	kernel_thread_exit, . - kernel_thread_exit\n"
+"	.previous");
+#else
+#define kernel_thread_exit	do_exit
+#endif
+
 /*
  * Create a kernel thread.
  */
@@ -363,9 +386,9 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 
 	regs.ARM_r1 = (unsigned long)arg;
 	regs.ARM_r2 = (unsigned long)fn;
-	regs.ARM_r3 = (unsigned long)do_exit;
+	regs.ARM_r3 = (unsigned long)kernel_thread_exit;
 	regs.ARM_pc = (unsigned long)kernel_thread_helper;
-	regs.ARM_cpsr = SVC_MODE;
+	regs.ARM_cpsr = SVC_MODE | PSR_ENDSTATE;
 
 	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }

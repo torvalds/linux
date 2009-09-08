@@ -103,7 +103,7 @@ int ima_calc_template_hash(int template_len, void *template, char *digest)
 	return rc;
 }
 
-static void ima_pcrread(int idx, u8 *pcr)
+static void __init ima_pcrread(int idx, u8 *pcr)
 {
 	if (!ima_used_chip)
 		return;
@@ -115,7 +115,7 @@ static void ima_pcrread(int idx, u8 *pcr)
 /*
  * Calculate the boot aggregate hash
  */
-int ima_calc_boot_aggregate(char *digest)
+int __init ima_calc_boot_aggregate(char *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg;

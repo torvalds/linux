@@ -546,7 +546,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		host->mclk = clk_get_rate(host->clk);
 		DBG(host, "eventual mclk rate: %u Hz\n", host->mclk);
 	}
-	host->base = ioremap(dev->res.start, SZ_4K);
+	host->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!host->base) {
 		ret = -ENOMEM;
 		goto clk_disable;

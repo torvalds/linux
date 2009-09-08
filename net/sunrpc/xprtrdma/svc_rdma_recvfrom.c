@@ -397,13 +397,13 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	if (!ch)
 		return 0;
 
-	/* Allocate temporary reply and chunk maps */
-	rpl_map = svc_rdma_get_req_map();
-	chl_map = svc_rdma_get_req_map();
-
 	svc_rdma_rcl_chunk_counts(ch, &ch_count, &byte_count);
 	if (ch_count > RPCSVC_MAXPAGES)
 		return -EINVAL;
+
+	/* Allocate temporary reply and chunk maps */
+	rpl_map = svc_rdma_get_req_map();
+	chl_map = svc_rdma_get_req_map();
 
 	if (!xprt->sc_frmr_pg_list_len)
 		sge_count = map_read_chunks(xprt, rqstp, hdr_ctxt, rmsgp,

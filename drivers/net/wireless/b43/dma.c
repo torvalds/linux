@@ -1285,7 +1285,7 @@ static struct b43_dmaring *select_ring_by_priority(struct b43_wldev *dev,
 {
 	struct b43_dmaring *ring;
 
-	if (b43_modparam_qos) {
+	if (dev->qos_enabled) {
 		/* 0 = highest priority */
 		switch (queue_prio) {
 		default:

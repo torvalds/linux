@@ -931,7 +931,7 @@ static inline void unlock_fdc(void)
 	del_timer(&fd_timeout);
 	cont = NULL;
 	clear_bit(0, &fdc_busy);
-	if (elv_next_request(floppy_queue))
+	if (current_req || blk_peek_request(floppy_queue))
 		do_fd_request(floppy_queue);
 	spin_unlock_irqrestore(&floppy_lock, flags);
 	wake_up(&fdc_wait);
@@ -2303,7 +2303,7 @@ static void floppy_end_request(struct request *req, int error)
 
 	/* current_count_sectors can be zero if transfer failed */
 	if (error)
-		nr_sectors = req->current_nr_sectors;
+		nr_sectors = blk_rq_cur_sectors(req);
 	if (__blk_end_request(req, error, nr_sectors << 9))
 		return;
 
@@ -2332,7 +2332,7 @@ static void request_done(int uptodate)
 	if (uptodate) {
 		/* maintain values for invalidation on geometry
 		 * change */
-		block = current_count_sectors + req->sector;
+		block = current_count_sectors + blk_rq_pos(req);
 		INFBOUND(DRS->maxblock, block);
 		if (block > _floppy->sect)
 			DRS->maxtrack = 1;
@@ -2346,10 +2346,10 @@ static void request_done(int uptodate)
 			/* record write error information */
 			DRWE->write_errors++;
 			if (DRWE->write_errors == 1) {
-				DRWE->first_error_sector = req->sector;
+				DRWE->first_error_sector = blk_rq_pos(req);
 				DRWE->first_error_generation = DRS->generation;
 			}
-			DRWE->last_error_sector = req->sector;
+			DRWE->last_error_sector = blk_rq_pos(req);
 			DRWE->last_error_generation = DRS->generation;
 		}
 		spin_lock_irqsave(q->queue_lock, flags);
@@ -2503,24 +2503,23 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 
 	max_sector = transfer_size(ssize,
 				   min(max_sector, max_sector_2),
-				   current_req->nr_sectors);
+				   blk_rq_sectors(current_req));
 
 	if (current_count_sectors <= 0 && CT(COMMAND) == FD_WRITE &&
-	    buffer_max > fsector_t + current_req->nr_sectors)
+	    buffer_max > fsector_t + blk_rq_sectors(current_req))
 		current_count_sectors = min_t(int, buffer_max - fsector_t,
-					      current_req->nr_sectors);
+					      blk_rq_sectors(current_req));
 
 	remaining = current_count_sectors << 9;
 #ifdef FLOPPY_SANITY_CHECK
-	if ((remaining >> 9) > current_req->nr_sectors &&
-	    CT(COMMAND) == FD_WRITE) {
+	if (remaining > blk_rq_bytes(current_req) && CT(COMMAND) == FD_WRITE) {
 		DPRINT("in copy buffer\n");
 		printk("current_count_sectors=%ld\n", current_count_sectors);
 		printk("remaining=%d\n", remaining >> 9);
-		printk("current_req->nr_sectors=%ld\n",
-		       current_req->nr_sectors);
+		printk("current_req->nr_sectors=%u\n",
+		       blk_rq_sectors(current_req));
 		printk("current_req->current_nr_sectors=%u\n",
-		       current_req->current_nr_sectors);
+		       blk_rq_cur_sectors(current_req));
 		printk("max_sector=%d\n", max_sector);
 		printk("ssize=%d\n", ssize);
 	}
@@ -2530,7 +2529,7 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 
 	dma_buffer = floppy_track_buffer + ((fsector_t - buffer_min) << 9);
 
-	size = current_req->current_nr_sectors << 9;
+	size = blk_rq_cur_bytes(current_req);
 
 	rq_for_each_segment(bv, current_req, iter) {
 		if (!remaining)
@@ -2648,10 +2647,10 @@ static int make_raw_rw_request(void)
 
 	max_sector = _floppy->sect * _floppy->head;
 
-	TRACK = (int)current_req->sector / max_sector;
-	fsector_t = (int)current_req->sector % max_sector;
+	TRACK = (int)blk_rq_pos(current_req) / max_sector;
+	fsector_t = (int)blk_rq_pos(current_req) % max_sector;
 	if (_floppy->track && TRACK >= _floppy->track) {
-		if (current_req->current_nr_sectors & 1) {
+		if (blk_rq_cur_sectors(current_req) & 1) {
 			current_count_sectors = 1;
 			return 1;
 		} else
@@ -2669,7 +2668,7 @@ static int make_raw_rw_request(void)
 		if (fsector_t >= max_sector) {
 			current_count_sectors =
 			    min_t(int, _floppy->sect - fsector_t,
-				  current_req->nr_sectors);
+				  blk_rq_sectors(current_req));
 			return 1;
 		}
 		SIZECODE = 2;
@@ -2720,7 +2719,7 @@ static int make_raw_rw_request(void)
 
 	in_sector_offset = (fsector_t % _floppy->sect) % ssize;
 	aligned_sector_t = fsector_t - in_sector_offset;
-	max_size = current_req->nr_sectors;
+	max_size = blk_rq_sectors(current_req);
 	if ((raw_cmd->track == buffer_track) &&
 	    (current_drive == buffer_drive) &&
 	    (fsector_t >= buffer_min) && (fsector_t < buffer_max)) {
@@ -2729,10 +2728,10 @@ static int make_raw_rw_request(void)
 			copy_buffer(1, max_sector, buffer_max);
 			return 1;
 		}
-	} else if (in_sector_offset || current_req->nr_sectors < ssize) {
+	} else if (in_sector_offset || blk_rq_sectors(current_req) < ssize) {
 		if (CT(COMMAND) == FD_WRITE) {
-			if (fsector_t + current_req->nr_sectors > ssize &&
-			    fsector_t + current_req->nr_sectors < ssize + ssize)
+			if (fsector_t + blk_rq_sectors(current_req) > ssize &&
+			    fsector_t + blk_rq_sectors(current_req) < ssize + ssize)
 				max_size = ssize + ssize;
 			else
 				max_size = ssize;
@@ -2776,7 +2775,7 @@ static int make_raw_rw_request(void)
 		    (indirect * 2 > direct * 3 &&
 		     *errors < DP->max_errors.read_track && ((!probing
 		       || (DP->read_track & (1 << DRS->probed_format)))))) {
-			max_size = current_req->nr_sectors;
+			max_size = blk_rq_sectors(current_req);
 		} else {
 			raw_cmd->kernel_data = current_req->buffer;
 			raw_cmd->length = current_count_sectors << 9;
@@ -2801,7 +2800,7 @@ static int make_raw_rw_request(void)
 	    fsector_t > buffer_max ||
 	    fsector_t < buffer_min ||
 	    ((CT(COMMAND) == FD_READ ||
-	      (!in_sector_offset && current_req->nr_sectors >= ssize)) &&
+	      (!in_sector_offset && blk_rq_sectors(current_req) >= ssize)) &&
 	     max_sector > 2 * max_buffer_sectors + buffer_min &&
 	     max_size + fsector_t > 2 * max_buffer_sectors + buffer_min)
 	    /* not enough space */
@@ -2879,8 +2878,8 @@ static int make_raw_rw_request(void)
 				printk("write\n");
 			return 0;
 		}
-	} else if (raw_cmd->length > current_req->nr_sectors << 9 ||
-		   current_count_sectors > current_req->nr_sectors) {
+	} else if (raw_cmd->length > blk_rq_bytes(current_req) ||
+		   current_count_sectors > blk_rq_sectors(current_req)) {
 		DPRINT("buffer overrun in direct transfer\n");
 		return 0;
 	} else if (raw_cmd->length < current_count_sectors << 9) {
@@ -2913,7 +2912,7 @@ static void redo_fd_request(void)
 			struct request *req;
 
 			spin_lock_irq(floppy_queue->queue_lock);
-			req = elv_next_request(floppy_queue);
+			req = blk_fetch_request(floppy_queue);
 			spin_unlock_irq(floppy_queue->queue_lock);
 			if (!req) {
 				do_floppy = NULL;
@@ -2990,8 +2989,9 @@ static void do_fd_request(struct request_queue * q)
 	if (usage_count == 0) {
 		printk("warning: usage count=0, current_req=%p exiting\n",
 		       current_req);
-		printk("sect=%ld type=%x flags=%x\n", (long)current_req->sector,
-		       current_req->cmd_type, current_req->cmd_flags);
+		printk("sect=%ld type=%x flags=%x\n",
+		       (long)blk_rq_pos(current_req), current_req->cmd_type,
+		       current_req->cmd_flags);
 		return;
 	}
 	if (test_bit(0, &fdc_busy)) {
@@ -4148,6 +4148,24 @@ static void floppy_device_release(struct device *dev)
 {
 }
 
+static int floppy_resume(struct platform_device *dev)
+{
+	int fdc;
+
+	for (fdc = 0; fdc < N_FDC; fdc++)
+		if (FDCS->address != -1)
+			user_reset_fdc(-1, FD_RESET_ALWAYS, 0);
+
+	return 0;
+}
+
+static struct platform_driver floppy_driver = {
+	.resume = floppy_resume,
+	.driver = {
+		.name = "floppy",
+	},
+};
+
 static struct platform_device floppy_device[N_DRIVE];
 
 static struct kobject *floppy_find(dev_t dev, int *part, void *data)
@@ -4196,10 +4214,14 @@ static int __init floppy_init(void)
 	if (err)
 		goto out_put_disk;
 
+	err = platform_driver_register(&floppy_driver);
+	if (err)
+		goto out_unreg_blkdev;
+
 	floppy_queue = blk_init_queue(do_fd_request, &floppy_lock);
 	if (!floppy_queue) {
 		err = -ENOMEM;
-		goto out_unreg_blkdev;
+		goto out_unreg_driver;
 	}
 	blk_queue_max_sectors(floppy_queue, 64);
 
@@ -4346,6 +4368,8 @@ out_flush_work:
 out_unreg_region:
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);
 	blk_cleanup_queue(floppy_queue);
+out_unreg_driver:
+	platform_driver_unregister(&floppy_driver);
 out_unreg_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 out_put_disk:
@@ -4566,6 +4590,7 @@ static void __exit floppy_module_exit(void)
 
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
+	platform_driver_unregister(&floppy_driver);
 
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		del_timer_sync(&motor_off_timer[drive]);

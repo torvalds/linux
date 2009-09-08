@@ -14,12 +14,9 @@
 /*
  * GENERIC_GPIO primitives.
  */
-int gpio_request(unsigned pin, const char *label);
-void gpio_free(unsigned pin);
-int gpio_direction_input(unsigned pin);
-int gpio_direction_output(unsigned pin, int value);
-int gpio_get_value(unsigned pin);
-void gpio_set_value(unsigned pin, int value);
+#define gpio_get_value  __gpio_get_value
+#define gpio_set_value  __gpio_set_value
+#define gpio_cansleep   __gpio_cansleep
 
 /*
  * Orion-specific GPIO API extensions.
@@ -27,10 +24,12 @@ void gpio_set_value(unsigned pin, int value);
 void orion_gpio_set_unused(unsigned pin);
 void orion_gpio_set_blink(unsigned pin, int blink);
 
-#define GPIO_BIDI_OK		(1 << 0)
-#define GPIO_INPUT_OK		(1 << 1)
-#define GPIO_OUTPUT_OK		(1 << 2)
+#define GPIO_INPUT_OK		(1 << 0)
+#define GPIO_OUTPUT_OK		(1 << 1)
 void orion_gpio_set_valid(unsigned pin, int mode);
+
+/* Initialize gpiolib. */
+void __init orion_gpio_init(void);
 
 /*
  * GPIO interrupt handling.

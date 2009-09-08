@@ -59,10 +59,9 @@ static void _pcol_init(struct page_collect *pcol, unsigned expected_pages,
 		struct inode *inode)
 {
 	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
-	struct request_queue *req_q = sbi->s_dev->scsi_device->request_queue;
 
 	pcol->sbi = sbi;
-	pcol->req_q = req_q;
+	pcol->req_q = osd_request_queue(sbi->s_dev);
 	pcol->inode = inode;
 	pcol->expected_pages = expected_pages;
 
@@ -266,7 +265,7 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 		goto err;
 	}
 
-	osd_req_read(or, &obj, pcol->bio, i_start);
+	osd_req_read(or, &obj, i_start, pcol->bio, pcol->length);
 
 	if (is_sync) {
 		exofs_sync_op(or, pcol->sbi->s_timeout, oi->i_cred);
@@ -522,7 +521,8 @@ static int write_exec(struct page_collect *pcol)
 
 	*pcol_copy = *pcol;
 
-	osd_req_write(or, &obj, pcol_copy->bio, i_start);
+	pcol_copy->bio->bi_rw |= (1 << BIO_RW); /* FIXME: bio_set_dir() */
+	osd_req_write(or, &obj, i_start, pcol_copy->bio, pcol_copy->length);
 	ret = exofs_async_op(or, writepages_done, pcol_copy, oi->i_cred);
 	if (unlikely(ret)) {
 		EXOFS_ERR("write_exec: exofs_async_op() Faild\n");

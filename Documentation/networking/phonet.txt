@@ -36,7 +36,7 @@ Phonet packets have a common header as follows:
 On Linux, the link-layer header includes the pn_media byte (see below).
 The next 7 bytes are part of the network-layer header.
 
-The device ID is split: the 6 higher-order bits consitute the device
+The device ID is split: the 6 higher-order bits constitute the device
 address, while the 2 lower-order bits are used for multiplexing, as are
 the 8-bit object identifiers. As such, Phonet can be considered as a
 network layer with 6 bits of address space and 10 bits for transport

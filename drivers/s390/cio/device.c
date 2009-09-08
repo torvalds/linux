@@ -138,6 +138,19 @@ static struct css_device_id io_subchannel_ids[] = {
 };
 MODULE_DEVICE_TABLE(css, io_subchannel_ids);
 
+static int io_subchannel_prepare(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+	/*
+	 * Don't allow suspend while a ccw device registration
+	 * is still outstanding.
+	 */
+	cdev = sch_get_cdev(sch);
+	if (cdev && !device_is_registered(&cdev->dev))
+		return -EAGAIN;
+	return 0;
+}
+
 static struct css_driver io_subchannel_driver = {
 	.owner = THIS_MODULE,
 	.subchannel_type = io_subchannel_ids,
@@ -148,6 +161,7 @@ static struct css_driver io_subchannel_driver = {
 	.probe = io_subchannel_probe,
 	.remove = io_subchannel_remove,
 	.shutdown = io_subchannel_shutdown,
+	.prepare = io_subchannel_prepare,
 };
 
 struct workqueue_struct *ccw_device_work;
@@ -1775,6 +1789,15 @@ ccw_device_probe_console(void)
 	return &console_cdev;
 }
 
+static int ccw_device_pm_restore(struct device *dev);
+
+int ccw_device_force_console(void)
+{
+	if (!console_cdev_in_use)
+		return -ENODEV;
+	return ccw_device_pm_restore(&console_cdev.dev);
+}
+EXPORT_SYMBOL_GPL(ccw_device_force_console);
 
 const char *cio_get_console_cdev_name(struct subchannel *sch)
 {
@@ -1895,6 +1918,242 @@ static void ccw_device_shutdown(struct device *dev)
 	disable_cmf(cdev);
 }
 
+static int ccw_device_pm_prepare(struct device *dev)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+
+	if (work_pending(&cdev->private->kick_work))
+		return -EAGAIN;
+	/* Fail while device is being set online/offline. */
+	if (atomic_read(&cdev->private->onoff))
+		return -EAGAIN;
+
+	if (cdev->online && cdev->drv && cdev->drv->prepare)
+		return cdev->drv->prepare(cdev);
+
+	return 0;
+}
+
+static void ccw_device_pm_complete(struct device *dev)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+
+	if (cdev->online && cdev->drv && cdev->drv->complete)
+		cdev->drv->complete(cdev);
+}
+
+static int ccw_device_pm_freeze(struct device *dev)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int ret, cm_enabled;
+
+	/* Fail suspend while device is in transistional state. */
+	if (!dev_fsm_final_state(cdev))
+		return -EAGAIN;
+	if (!cdev->online)
+		return 0;
+	if (cdev->drv && cdev->drv->freeze) {
+		ret = cdev->drv->freeze(cdev);
+		if (ret)
+			return ret;
+	}
+
+	spin_lock_irq(sch->lock);
+	cm_enabled = cdev->private->cmb != NULL;
+	spin_unlock_irq(sch->lock);
+	if (cm_enabled) {
+		/* Don't have the css write on memory. */
+		ret = ccw_set_cmf(cdev, 0);
+		if (ret)
+			return ret;
+	}
+	/* From here on, disallow device driver I/O. */
+	spin_lock_irq(sch->lock);
+	ret = cio_disable_subchannel(sch);
+	spin_unlock_irq(sch->lock);
+
+	return ret;
+}
+
+static int ccw_device_pm_thaw(struct device *dev)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int ret, cm_enabled;
+
+	if (!cdev->online)
+		return 0;
+
+	spin_lock_irq(sch->lock);
+	/* Allow device driver I/O again. */
+	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
+	cm_enabled = cdev->private->cmb != NULL;
+	spin_unlock_irq(sch->lock);
+	if (ret)
+		return ret;
+
+	if (cm_enabled) {
+		ret = ccw_set_cmf(cdev, 1);
+		if (ret)
+			return ret;
+	}
+
+	if (cdev->drv && cdev->drv->thaw)
+		ret = cdev->drv->thaw(cdev);
+
+	return ret;
+}
+
+static void __ccw_device_pm_restore(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int ret;
+
+	if (cio_is_console(sch->schid))
+		goto out;
+	/*
+	 * While we were sleeping, devices may have gone or become
+	 * available again. Kick re-detection.
+	 */
+	spin_lock_irq(sch->lock);
+	cdev->private->flags.resuming = 1;
+	ret = ccw_device_recognition(cdev);
+	spin_unlock_irq(sch->lock);
+	if (ret) {
+		CIO_MSG_EVENT(0, "Couldn't start recognition for device "
+			      "%s (ret=%d)\n", dev_name(&cdev->dev), ret);
+		spin_lock_irq(sch->lock);
+		cdev->private->state = DEV_STATE_DISCONNECTED;
+		spin_unlock_irq(sch->lock);
+		/* notify driver after the resume cb */
+		goto out;
+	}
+	wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev) ||
+		   cdev->private->state == DEV_STATE_DISCONNECTED);
+
+out:
+	cdev->private->flags.resuming = 0;
+}
+
+static int resume_handle_boxed(struct ccw_device *cdev)
+{
+	cdev->private->state = DEV_STATE_BOXED;
+	if (ccw_device_notify(cdev, CIO_BOXED))
+		return 0;
+	ccw_device_schedule_sch_unregister(cdev);
+	return -ENODEV;
+}
+
+static int resume_handle_disc(struct ccw_device *cdev)
+{
+	cdev->private->state = DEV_STATE_DISCONNECTED;
+	if (ccw_device_notify(cdev, CIO_GONE))
+		return 0;
+	ccw_device_schedule_sch_unregister(cdev);
+	return -ENODEV;
+}
+
+static int ccw_device_pm_restore(struct device *dev)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int ret = 0, cm_enabled;
+
+	__ccw_device_pm_restore(cdev);
+	spin_lock_irq(sch->lock);
+	if (cio_is_console(sch->schid)) {
+		cio_enable_subchannel(sch, (u32)(addr_t)sch);
+		spin_unlock_irq(sch->lock);
+		goto out_restore;
+	}
+	cdev->private->flags.donotify = 0;
+	/* check recognition results */
+	switch (cdev->private->state) {
+	case DEV_STATE_OFFLINE:
+		break;
+	case DEV_STATE_BOXED:
+		ret = resume_handle_boxed(cdev);
+		spin_unlock_irq(sch->lock);
+		if (ret)
+			goto out;
+		goto out_restore;
+	case DEV_STATE_DISCONNECTED:
+		goto out_disc_unlock;
+	default:
+		goto out_unreg_unlock;
+	}
+	/* check if the device id has changed */
+	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
+		CIO_MSG_EVENT(0, "resume: sch %s: failed (devno changed from "
+			      "%04x to %04x)\n", dev_name(&sch->dev),
+			      cdev->private->dev_id.devno,
+			      sch->schib.pmcw.dev);
+		goto out_unreg_unlock;
+	}
+	/* check if the device type has changed */
+	if (!ccw_device_test_sense_data(cdev)) {
+		ccw_device_update_sense_data(cdev);
+		PREPARE_WORK(&cdev->private->kick_work,
+			     ccw_device_do_unbind_bind);
+		queue_work(ccw_device_work, &cdev->private->kick_work);
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+	if (!cdev->online) {
+		ret = 0;
+		goto out_unlock;
+	}
+	ret = ccw_device_online(cdev);
+	if (ret)
+		goto out_disc_unlock;
+
+	cm_enabled = cdev->private->cmb != NULL;
+	spin_unlock_irq(sch->lock);
+
+	wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
+	if (cdev->private->state != DEV_STATE_ONLINE) {
+		spin_lock_irq(sch->lock);
+		goto out_disc_unlock;
+	}
+	if (cm_enabled) {
+		ret = ccw_set_cmf(cdev, 1);
+		if (ret) {
+			CIO_MSG_EVENT(2, "resume: cdev %s: cmf failed "
+				      "(rc=%d)\n", dev_name(&cdev->dev), ret);
+			ret = 0;
+		}
+	}
+
+out_restore:
+	if (cdev->online && cdev->drv && cdev->drv->restore)
+		ret = cdev->drv->restore(cdev);
+out:
+	return ret;
+
+out_disc_unlock:
+	ret = resume_handle_disc(cdev);
+	spin_unlock_irq(sch->lock);
+	if (ret)
+		return ret;
+	goto out_restore;
+
+out_unreg_unlock:
+	ccw_device_schedule_sch_unregister(cdev);
+	ret = -ENODEV;
+out_unlock:
+	spin_unlock_irq(sch->lock);
+	return ret;
+}
+
+static struct dev_pm_ops ccw_pm_ops = {
+	.prepare = ccw_device_pm_prepare,
+	.complete = ccw_device_pm_complete,
+	.freeze = ccw_device_pm_freeze,
+	.thaw = ccw_device_pm_thaw,
+	.restore = ccw_device_pm_restore,
+};
+
 struct bus_type ccw_bus_type = {
 	.name   = "ccw",
 	.match  = ccw_bus_match,
@@ -1902,6 +2161,7 @@ struct bus_type ccw_bus_type = {
 	.probe  = ccw_device_probe,
 	.remove = ccw_device_remove,
 	.shutdown = ccw_device_shutdown,
+	.pm = &ccw_pm_ops,
 };
 
 /**

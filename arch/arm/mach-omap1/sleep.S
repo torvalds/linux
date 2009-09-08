@@ -35,7 +35,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/io.h>
-#include <mach/pm.h>
+#include "pm.h"
 
 		.text
 

@@ -371,8 +371,6 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
 	int retval = -EINVAL;
 	char *name;
 
-	lock_kernel();
-
 	name = getname(path);
 	retval = PTR_ERR(name);
 	if (IS_ERR(name))
@@ -392,7 +390,6 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
 	}
 	putname(name);
  out:
-	unlock_kernel();
 	return retval;
 }
 

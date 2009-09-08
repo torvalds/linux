@@ -178,7 +178,7 @@ static int set_chunk_size(struct dm_exception_store *store,
 	}
 
 	/* Validate the chunk size against the device block size */
-	if (chunk_size_ulong % (bdev_hardsect_size(store->cow->bdev) >> 9)) {
+	if (chunk_size_ulong % (bdev_logical_block_size(store->cow->bdev) >> 9)) {
 		*error = "Chunk size is not a multiple of device blocksize";
 		return -EINVAL;
 	}
@@ -216,7 +216,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 		return -EINVAL;
 	}
 
-	type = get_type(argv[1]);
+	type = get_type(&persistent);
 	if (!type) {
 		ti->error = "Exception store type not recognised";
 		r = -EINVAL;

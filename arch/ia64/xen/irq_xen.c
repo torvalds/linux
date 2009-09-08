@@ -138,7 +138,7 @@ static void
 __xen_register_percpu_irq(unsigned int cpu, unsigned int vec,
 			struct irqaction *action, int save)
 {
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	int irq = 0;
 
 	if (xen_slab_ready) {

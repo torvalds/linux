@@ -49,7 +49,6 @@
 #include "xfs_utils.h"
 #include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
-#include "xfs_acl.h"
 #include "xfs_filestream.h"
 #include "xfs_vnodeops.h"
 

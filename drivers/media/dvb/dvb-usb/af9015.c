@@ -40,7 +40,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static DEFINE_MUTEX(af9015_usb_mutex);
 
 static struct af9015_config af9015_config;
-static struct dvb_usb_device_properties af9015_properties[2];
+static struct dvb_usb_device_properties af9015_properties[3];
 static int af9015_properties_count = ARRAY_SIZE(af9015_properties);
 
 static struct af9013_config af9015_af9013_config[] = {
@@ -538,7 +538,7 @@ exit:
 /* dump eeprom */
 static int af9015_eeprom_dump(struct dvb_usb_device *d)
 {
-	char buf[52], buf2[4];
+	char buf[4+3*16+1], buf2[4];
 	u8 reg, val;
 
 	for (reg = 0; ; reg++) {
@@ -1261,7 +1261,11 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_2)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_3)},
 	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_TREKSTOR_DVBT)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
+/* 20 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
+	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A805)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_CONCEPTRONIC_CTVDIGRCU)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_MC810)},
+	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1321,7 +1325,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 9,
+		.num_device_descs = 9, /* max 9 */
 		.devices = {
 			{
 				.name = "Afatech AF9015 DVB-T USB2.0 stick",
@@ -1426,7 +1430,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 9,
+		.num_device_descs = 9, /* max 9 */
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1478,7 +1482,85 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.warm_ids = {NULL},
 			},
 		}
-	}
+	}, {
+		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+		.usb_ctrl = DEVICE_SPECIFIC,
+		.download_firmware = af9015_download_firmware,
+		.firmware = "dvb-usb-af9015.fw",
+		.no_reconnect = 1,
+
+		.size_of_priv = sizeof(struct af9015_state), \
+
+		.num_adapters = 2,
+		.adapter = {
+			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
+				.pid_filter_count = 32,
+				.pid_filter       = af9015_pid_filter,
+				.pid_filter_ctrl  = af9015_pid_filter_ctrl,
+
+				.frontend_attach =
+					af9015_af9013_frontend_attach,
+				.tuner_attach    = af9015_tuner_attach,
+				.stream = {
+					.type = USB_BULK,
+					.count = 6,
+					.endpoint = 0x84,
+				},
+			},
+			{
+				.frontend_attach =
+					af9015_af9013_frontend_attach,
+				.tuner_attach    = af9015_tuner_attach,
+				.stream = {
+					.type = USB_BULK,
+					.count = 6,
+					.endpoint = 0x85,
+					.u = {
+						.bulk = {
+							.buffersize =
+						TS_USB20_MAX_PACKET_SIZE,
+						}
+					}
+				},
+			}
+		},
+
+		.identify_state = af9015_identify_state,
+
+		.rc_query         = af9015_rc_query,
+		.rc_interval      = 150,
+
+		.i2c_algo = &af9015_i2c_algo,
+
+		.num_device_descs = 4, /* max 9 */
+		.devices = {
+			{
+				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
+				.cold_ids = {&af9015_usb_table[21], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Conceptronic USB2.0 DVB-T CTVDIGRCU " \
+					"V3.0",
+				.cold_ids = {&af9015_usb_table[22], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "KWorld Digial MC-810",
+				.cold_ids = {&af9015_usb_table[23], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Genius TVGo DVB-T03",
+				.cold_ids = {&af9015_usb_table[24], NULL},
+				.warm_ids = {NULL},
+			},
+		}
+	},
 };
 
 static int af9015_usb_probe(struct usb_interface *intf,

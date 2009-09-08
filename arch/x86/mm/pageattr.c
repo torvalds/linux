@@ -470,7 +470,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 
 	if (!debug_pagealloc)
 		spin_unlock(&cpa_lock);
-	base = alloc_pages(GFP_KERNEL, 0);
+	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
 	if (!debug_pagealloc)
 		spin_lock(&cpa_lock);
 	if (!base)
@@ -839,13 +839,6 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 
 	vm_unmap_aliases();
 
-	/*
-	 * If we're called with lazy mmu updates enabled, the
-	 * in-memory pte state may be stale.  Flush pending updates to
-	 * bring them up to date.
-	 */
-	arch_flush_lazy_mmu_mode();
-
 	cpa.vaddr = addr;
 	cpa.pages = pages;
 	cpa.numpages = numpages;
@@ -889,13 +882,6 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 			cpa_flush_range(*addr, numpages, cache);
 	} else
 		cpa_flush_all(cache);
-
-	/*
-	 * If we've been called with lazy mmu updates enabled, then
-	 * make sure that everything gets flushed out before we
-	 * return.
-	 */
-	arch_flush_lazy_mmu_mode();
 
 out:
 	return ret;

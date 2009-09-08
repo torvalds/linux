@@ -1165,7 +1165,7 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (test_and_set_bit(0, (void*)&p->lock)) {
 		printk(KERN_ERR "%s: Queue was locked.\n", dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	{

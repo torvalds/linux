@@ -245,7 +245,7 @@ static int __devinit rdc321x_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rdc321x_wdt_remove(struct platform_device *pdev)
+static int __devexit rdc321x_wdt_remove(struct platform_device *pdev)
 {
 	if (rdc321x_wdt_device.queue) {
 		rdc321x_wdt_device.queue = 0;
@@ -259,7 +259,7 @@ static int rdc321x_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver rdc321x_wdt_driver = {
 	.probe = rdc321x_wdt_probe,
-	.remove = rdc321x_wdt_remove,
+	.remove = __devexit_p(rdc321x_wdt_remove),
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "rdc321x-wdt",

@@ -271,11 +271,6 @@ struct XENA_dev_config {
 	u64 mdio_control;
 #define MDIO_MMD_INDX_ADDR(val)		vBIT(val, 0, 16)
 #define MDIO_MMD_DEV_ADDR(val)		vBIT(val, 19, 5)
-#define MDIO_MMD_PMA_DEV_ADDR		0x1
-#define MDIO_MMD_PMD_DEV_ADDR		0x1
-#define MDIO_MMD_WIS_DEV_ADDR		0x2
-#define MDIO_MMD_PCS_DEV_ADDR		0x3
-#define MDIO_MMD_PHYXS_DEV_ADDR		0x4
 #define MDIO_MMS_PRT_ADDR(val)		vBIT(val, 27, 5)
 #define MDIO_CTRL_START_TRANS(val)	vBIT(val, 56, 4)
 #define MDIO_OP(val)			vBIT(val, 60, 2)

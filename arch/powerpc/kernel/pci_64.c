@@ -43,16 +43,6 @@ unsigned long pci_probe_only = 1;
 unsigned long pci_io_base = ISA_IO_BASE;
 EXPORT_SYMBOL(pci_io_base);
 
-static void fixup_broken_pcnet32(struct pci_dev* dev)
-{
-	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {
-		dev->vendor = PCI_VENDOR_ID_AMD;
-		pci_write_config_word(dev, PCI_VENDOR_ID, PCI_VENDOR_ID_AMD);
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TRIDENT, PCI_ANY_ID, fixup_broken_pcnet32);
-
-
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 {
 	const u32 *prop;
@@ -430,6 +420,9 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	 * so flushing the hash table is the only sane way to make sure
 	 * that no hash entries are covering that removed bridge area
 	 * while still allowing other busses overlapping those pages
+	 *
+	 * Note: If we ever support P2P hotplug on Book3E, we'll have
+	 * to do an appropriate TLB flush here too
 	 */
 	if (bus->self) {
 		struct resource *res = bus->resource[0];
@@ -437,8 +430,10 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 		pr_debug("IO unmapping for PCI-PCI bridge %s\n",
 			 pci_name(bus->self));
 
+#ifdef CONFIG_PPC_STD_MMU_64
 		__flush_hash_table_range(&init_mm, res->start + _IO_BASE,
 					 res->end + _IO_BASE + 1);
+#endif
 		return 0;
 	}
 
@@ -511,7 +506,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	pr_debug("IO mapping for PHB %s\n", hose->dn->full_name);
 	pr_debug("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
 		 hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
-	pr_debug("  size=0x%016lx (alloc=0x%016lx)\n",
+	pr_debug("  size=0x%016llx (alloc=0x%016lx)\n",
 		 hose->pci_io_size, size_page);
 
 	/* Establish the mapping */

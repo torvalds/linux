@@ -118,7 +118,6 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	u8 args[4], xfer_rate = 0;
 	struct ide_cmd cmd;
 	struct ide_taskfile *tf = &cmd.tf;
-	u16 *id = drive->id;
 
 	if (NULL == (void *) arg) {
 		struct request *rq;
@@ -161,14 +160,10 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER &&
-	    tf->nsect >= XFER_SW_DMA_0 &&
-	    (id[ATA_ID_UDMA_MODES] ||
-	     id[ATA_ID_MWDMA_MODES] ||
-	     id[ATA_ID_SWDMA_MODES])) {
-		xfer_rate = args[1];
-		if (tf->nsect > XFER_UDMA_2 && !eighty_ninty_three(drive)) {
-			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
-					    "be set\n", drive->name);
+	    tf->nsect >= XFER_SW_DMA_0) {
+		xfer_rate = ide_find_dma_mode(drive, XFER_UDMA_6);
+		if (xfer_rate != tf->nsect) {
+			err = -EINVAL;
 			goto abort;
 		}
 	}
@@ -231,7 +226,6 @@ static int generic_drive_reset(ide_drive_t *drive)
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_len = 1;
 	rq->cmd[0] = REQ_DRIVE_RESET;
-	rq->cmd_flags |= REQ_SOFTBARRIER;
 	if (blk_execute_rq(drive->queue, NULL, rq, 1))
 		ret = rq->errors;
 	blk_put_request(rq);

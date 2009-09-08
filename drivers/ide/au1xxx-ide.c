@@ -449,7 +449,7 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 }
 #endif
 
-static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
+static void auide_setup_ports(struct ide_hw *hw, _auide_hwif *ahwif)
 {
 	int i;
 	unsigned long *ata_regs = hw->io_ports_array;
@@ -499,6 +499,7 @@ static const struct ide_port_info au1xxx_port_info = {
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	.mwdma_mask		= ATA_MWDMA2,
 #endif
+	.chipset		= ide_au1xxx,
 };
 
 static int au_ide_probe(struct platform_device *dev)
@@ -507,7 +508,7 @@ static int au_ide_probe(struct platform_device *dev)
 	struct resource *res;
 	struct ide_host *host;
 	int ret = 0;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";
@@ -548,9 +549,8 @@ static int au_ide_probe(struct platform_device *dev)
 	auide_setup_ports(&hw, ahwif);
 	hw.irq = ahwif->irq;
 	hw.dev = &dev->dev;
-	hw.chipset = ide_au1xxx;
 
-	ret = ide_host_add(&au1xxx_port_info, hws, &host);
+	ret = ide_host_add(&au1xxx_port_info, hws, 1, &host);
 	if (ret)
 		goto out;
 

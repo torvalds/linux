@@ -667,7 +667,7 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 		i = 0;
 		while (((nes_read32(nesdev->regs+NES_SOFTWARE_RESET) & 0x00000040) == 0) && i++ < 10000)
 			mdelay(1);
-		if (i >= 10000) {
+		if (i > 10000) {
 			nes_debug(NES_DBG_INIT, "Did not see full soft reset done.\n");
 			return 0;
 		}
@@ -675,7 +675,7 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 		i = 0;
 		while ((nes_read_indexed(nesdev, NES_IDX_INT_CPU_STATUS) != 0x80) && i++ < 10000)
 			mdelay(1);
-		if (i >= 10000) {
+		if (i > 10000) {
 			printk(KERN_ERR PFX "Internal CPU not ready, status = %02X\n",
 			       nes_read_indexed(nesdev, NES_IDX_INT_CPU_STATUS));
 			return 0;
@@ -701,7 +701,7 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 	i = 0;
 	while (((nes_read32(nesdev->regs+NES_SOFTWARE_RESET) & 0x00000040) == 0) && i++ < 10000)
 		mdelay(1);
-	if (i >= 10000) {
+	if (i > 10000) {
 		nes_debug(NES_DBG_INIT, "Did not see port soft reset done.\n");
 		return 0;
 	}
@@ -711,7 +711,7 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 	while (((u32temp = (nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0)
 			& 0x0000000f)) != 0x0000000f) && i++ < 5000)
 		mdelay(1);
-	if (i >= 5000) {
+	if (i > 5000) {
 		nes_debug(NES_DBG_INIT, "Serdes 0 not ready, status=%x\n", u32temp);
 		return 0;
 	}
@@ -722,7 +722,7 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 		while (((u32temp = (nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS1)
 				& 0x0000000f)) != 0x0000000f) && i++ < 5000)
 			mdelay(1);
-		if (i >= 5000) {
+		if (i > 5000) {
 			nes_debug(NES_DBG_INIT, "Serdes 1 not ready, status=%x\n", u32temp);
 			return 0;
 		}
@@ -792,7 +792,7 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 		while (((u32temp = (nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0)
 				& 0x0000000f)) != 0x0000000f) && i++ < 5000)
 			mdelay(1);
-		if (i >= 5000) {
+		if (i > 5000) {
 			nes_debug(NES_DBG_PHY, "Init: serdes 0 not ready, status=%x\n", u32temp);
 			return 1;
 		}
@@ -815,7 +815,7 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 			while (((u32temp = (nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS1)
 				& 0x0000000f)) != 0x0000000f) && (i++ < 5000))
 				mdelay(1);
-			if (i >= 5000) {
+			if (i > 5000) {
 				printk("%s: Init: serdes 1 not ready, status=%x\n", __func__, u32temp);
 				/* return 1; */
 			}

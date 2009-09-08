@@ -31,8 +31,10 @@
 #error TASK_SIZE_USER64 exceeds pagetable range
 #endif
 
+#ifdef CONFIG_PPC_STD_MMU_64
 #if TASK_SIZE_USER64 > (1UL << (USER_ESID_BITS + SID_SHIFT))
 #error TASK_SIZE_USER64 exceeds user VSID range
+#endif
 #endif
 
 /*
@@ -199,8 +201,11 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (old & _PAGE_HASHPTE)
 		hpte_need_flush(mm, addr, ptep, old, huge);
+#endif
+
 	return old;
 }
 

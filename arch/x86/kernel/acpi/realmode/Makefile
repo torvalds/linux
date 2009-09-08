@@ -9,7 +9,7 @@
 always		:= wakeup.bin
 targets		:= wakeup.elf wakeup.lds
 
-wakeup-y	+= wakeup.o wakemain.o video-mode.o copy.o
+wakeup-y	+= wakeup.o wakemain.o video-mode.o copy.o bioscall.o regs.o
 
 # The link order of the video-*.o modules can matter.  In particular,
 # video-vga.o *must* be listed first, followed by video-vesa.o.
@@ -42,6 +42,7 @@ KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D_WAKEUP -D__KERNEL__ \
 		   $(call cc-option, -mpreferred-stack-boundary=2)
 KBUILD_CFLAGS	+= $(call cc-option, -m32)
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
+GCOV_PROFILE := n
 
 WAKEUP_OBJS = $(addprefix $(obj)/,$(wakeup-y))
 

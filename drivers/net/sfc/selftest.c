@@ -80,39 +80,38 @@ struct efx_loopback_state {
  *
  **************************************************************************/
 
-static int efx_test_mii(struct efx_nic *efx, struct efx_self_tests *tests)
+static int efx_test_mdio(struct efx_nic *efx, struct efx_self_tests *tests)
 {
 	int rc = 0;
+	int devad = __ffs(efx->mdio.mmds);
 	u16 physid1, physid2;
-	struct mii_if_info *mii = &efx->mii;
-	struct net_device *net_dev = efx->net_dev;
 
 	if (efx->phy_type == PHY_TYPE_NONE)
 		return 0;
 
 	mutex_lock(&efx->mac_lock);
-	tests->mii = -1;
+	tests->mdio = -1;
 
-	physid1 = mii->mdio_read(net_dev, mii->phy_id, MII_PHYSID1);
-	physid2 = mii->mdio_read(net_dev, mii->phy_id, MII_PHYSID2);
+	physid1 = efx_mdio_read(efx, devad, MDIO_DEVID1);
+	physid2 = efx_mdio_read(efx, devad, MDIO_DEVID2);
 
 	if ((physid1 == 0x0000) || (physid1 == 0xffff) ||
 	    (physid2 == 0x0000) || (physid2 == 0xffff)) {
-		EFX_ERR(efx, "no MII PHY present with ID %d\n",
-			mii->phy_id);
+		EFX_ERR(efx, "no MDIO PHY present with ID %d\n",
+			efx->mdio.prtad);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	if (EFX_IS10G(efx)) {
-		rc = mdio_clause45_check_mmds(efx, efx->phy_op->mmds, 0);
+		rc = efx_mdio_check_mmds(efx, efx->phy_op->mmds, 0);
 		if (rc)
 			goto out;
 	}
 
 out:
 	mutex_unlock(&efx->mac_lock);
-	tests->mii = rc ? -1 : 1;
+	tests->mdio = rc ? -1 : 1;
 	return rc;
 }
 
@@ -439,6 +438,7 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 			kfree_skb(skb);
 			return -EPIPE;
 		}
+		efx->net_dev->trans_start = jiffies;
 	}
 
 	return 0;
@@ -673,7 +673,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* Online (i.e. non-disruptive) testing
 	 * This checks interrupt generation, event delivery and PHY presence. */
 
-	rc = efx_test_mii(efx, tests);
+	rc = efx_test_mdio(efx, tests);
 	if (rc && !rc_test)
 		rc_test = rc;
 

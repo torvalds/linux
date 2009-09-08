@@ -15,11 +15,17 @@ ifdef CONFIG_TRACING_BRANCHES
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 endif
 
+#
+# Make the trace clocks available generally: it's infrastructure
+# relied on by ptrace for example:
+#
+obj-y += trace_clock.o
+
 obj-$(CONFIG_FUNCTION_TRACER) += libftrace.o
 obj-$(CONFIG_RING_BUFFER) += ring_buffer.o
+obj-$(CONFIG_RING_BUFFER_BENCHMARK) += ring_buffer_benchmark.o
 
 obj-$(CONFIG_TRACING) += trace.o
-obj-$(CONFIG_TRACING) += trace_clock.o
 obj-$(CONFIG_TRACING) += trace_output.o
 obj-$(CONFIG_TRACING) += trace_stat.o
 obj-$(CONFIG_TRACING) += trace_printk.o
@@ -39,12 +45,14 @@ obj-$(CONFIG_HW_BRANCH_TRACER) += trace_hw_branches.o
 obj-$(CONFIG_POWER_TRACER) += trace_power.o
 obj-$(CONFIG_KMEMTRACE) += kmemtrace.o
 obj-$(CONFIG_WORKQUEUE_TRACER) += trace_workqueue.o
-obj-$(CONFIG_BLK_DEV_IO_TRACE)	+= blktrace.o
-obj-$(CONFIG_EVENT_TRACER) += trace_events.o
-obj-$(CONFIG_EVENT_TRACER) += events.o
-obj-$(CONFIG_EVENT_TRACER) += trace_export.o
+obj-$(CONFIG_BLK_DEV_IO_TRACE) += blktrace.o
+ifeq ($(CONFIG_BLOCK),y)
+obj-$(CONFIG_EVENT_TRACING) += blktrace.o
+endif
+obj-$(CONFIG_EVENT_TRACING) += trace_events.o
+obj-$(CONFIG_EVENT_TRACING) += trace_export.o
 obj-$(CONFIG_FTRACE_SYSCALLS) += trace_syscalls.o
 obj-$(CONFIG_EVENT_PROFILE) += trace_event_profile.o
-obj-$(CONFIG_EVENT_TRACER) += trace_events_filter.o
+obj-$(CONFIG_EVENT_TRACING) += trace_events_filter.o
 
 libftrace-y := ftrace.o

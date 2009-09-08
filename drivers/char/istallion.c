@@ -1140,14 +1140,14 @@ static int stli_carrier_raised(struct tty_port *port)
 	return (portp->sigs & TIOCM_CD) ? 1 : 0;
 }
 
-static void stli_raise_dtr_rts(struct tty_port *port)
+static void stli_dtr_rts(struct tty_port *port, int on)
 {
 	struct stliport *portp = container_of(port, struct stliport, port);
 	struct stlibrd *brdp = stli_brds[portp->brdnr];
-	stli_mkasysigs(&portp->asig, 1, 1);
+	stli_mkasysigs(&portp->asig, on, on);
 	if (stli_cmdwait(brdp, portp, A_SETSIGNALS, &portp->asig,
 		sizeof(asysigs_t), 0) < 0)
-			printk(KERN_WARNING "istallion: dtr raise failed.\n");
+			printk(KERN_WARNING "istallion: dtr set failed.\n");
 }
 
 
@@ -3785,7 +3785,7 @@ err:
 	return retval;
 }
 
-static void stli_pciremove(struct pci_dev *pdev)
+static void __devexit stli_pciremove(struct pci_dev *pdev)
 {
 	struct stlibrd *brdp = pci_get_drvdata(pdev);
 
@@ -4417,7 +4417,7 @@ static const struct tty_operations stli_ops = {
 
 static const struct tty_port_operations stli_port_ops = {
 	.carrier_raised = stli_carrier_raised,
-	.raise_dtr_rts = stli_raise_dtr_rts,
+	.dtr_rts = stli_dtr_rts,
 };
 
 /*****************************************************************************/

@@ -421,6 +421,7 @@ int ocfs2_global_read_dquot(struct dquot *dquot)
 	OCFS2_DQUOT(dquot)->dq_originodes = dquot->dq_dqb.dqb_curinodes;
 	if (!dquot->dq_off) {	/* No real quota entry? */
 		/* Upgrade to exclusive lock for allocation */
+		ocfs2_qinfo_unlock(info, 0);
 		err = ocfs2_qinfo_lock(info, 1);
 		if (err < 0)
 			goto out_qlock;
@@ -435,7 +436,8 @@ int ocfs2_global_read_dquot(struct dquot *dquot)
 out_qlock:
 	if (ex)
 		ocfs2_qinfo_unlock(info, 1);
-	ocfs2_qinfo_unlock(info, 0);
+	else
+		ocfs2_qinfo_unlock(info, 0);
 out:
 	if (err < 0)
 		mlog_errno(err);

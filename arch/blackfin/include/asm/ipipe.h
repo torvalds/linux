@@ -35,9 +35,9 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.9-00"
+#define IPIPE_ARCH_STRING     "1.11-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    9
+#define IPIPE_MINOR_NUMBER    11
 #define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
@@ -54,10 +54,11 @@ do {						\
 
 #define task_hijacked(p)						\
 	({								\
-		int __x__ = ipipe_current_domain != ipipe_root_domain;	\
-		/* We would need to clear the SYNC flag for the root domain */ \
-		/* over the current processor in SMP mode. */		\
-		local_irq_enable_hw(); __x__;				\
+		int __x__ = __ipipe_root_domain_p;			\
+		__clear_bit(IPIPE_SYNC_FLAG, &ipipe_root_cpudom_var(status)); \
+		if (__x__)						\
+			local_irq_enable_hw();				\
+		!__x__;							\
 	})
 
 struct ipipe_domain;
@@ -179,23 +180,24 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 
 #define __ipipe_run_isr(ipd, irq)					\
 	do {								\
-		if (ipd == ipipe_root_domain) {				\
+		if (!__ipipe_pipeline_head_p(ipd))			\
 			local_irq_enable_hw();				\
-			if (ipipe_virtual_irq_p(irq))			\
+		if (ipd == ipipe_root_domain) {				\
+			if (unlikely(ipipe_virtual_irq_p(irq))) {	\
+				irq_enter();				\
 				ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
-			else						\
+				irq_exit();				\
+			} else 						\
 				ipd->irqs[irq].handler(irq, &__raw_get_cpu_var(__ipipe_tick_regs)); \
-			local_irq_disable_hw();				\
 		} else {						\
 			__clear_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
-			local_irq_enable_nohead(ipd);			\
 			ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
 			/* Attempt to exit the outer interrupt level before \
 			 * starting the deferred IRQ processing. */	\
-			local_irq_disable_nohead(ipd);			\
 			__ipipe_run_irqtail();				\
 			__set_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
 		}							\
+		local_irq_disable_hw();					\
 	} while (0)
 
 #define __ipipe_syscall_watched_p(p, sc)	\
@@ -205,7 +207,7 @@ void ipipe_init_irq_threads(void);
 
 int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
+#ifdef CONFIG_TICKSOURCE_CORETMR
 #define IRQ_SYSTMR		IRQ_CORETMR
 #define IRQ_PRIOTMR		IRQ_CORETMR
 #else
@@ -238,8 +240,13 @@ int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 #define ipipe_init_irq_threads()		do { } while (0)
 #define ipipe_start_irq_thread(irq, desc)	0
 
+#ifndef CONFIG_TICKSOURCE_GPTMR0
 #define IRQ_SYSTMR		IRQ_CORETMR
 #define IRQ_PRIOTMR		IRQ_CORETMR
+#else
+#define IRQ_SYSTMR		IRQ_TIMER0
+#define IRQ_PRIOTMR		CONFIG_IRQ_TIMER0
+#endif
 
 #define __ipipe_root_tick_p(regs)	1
 

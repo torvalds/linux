@@ -132,7 +132,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
 			max_sectors = PAGE_CACHE_SIZE >> 9;
-		if (sdev->request_queue->max_sectors > max_sectors)
+		if (queue_max_sectors(sdev->request_queue) > max_sectors)
 			blk_queue_max_sectors(sdev->request_queue,
 					      max_sectors);
 	} else if (sdev->type == TYPE_TAPE) {
@@ -483,7 +483,7 @@ static ssize_t show_max_sectors(struct device *dev, struct device_attribute *att
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
-	return sprintf(buf, "%u\n", sdev->request_queue->max_sectors);
+	return sprintf(buf, "%u\n", queue_max_sectors(sdev->request_queue));
 }
 
 /* Input routine for the sysfs max_sectors file */

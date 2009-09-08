@@ -89,8 +89,8 @@ struct acm {
 	struct usb_device *dev;				/* the corresponding usb device */
 	struct usb_interface *control;			/* control interface */
 	struct usb_interface *data;			/* data interface */
-	struct tty_struct *tty;				/* the corresponding tty */
-	struct urb *ctrlurb;			/* urbs */
+	struct tty_port port;			 	/* our tty port data */
+	struct urb *ctrlurb;				/* urbs */
 	u8 *ctrl_buffer;				/* buffers of urbs */
 	dma_addr_t ctrl_dma;				/* dma handles of buffers */
 	u8 *country_codes;				/* country codes from device */
@@ -120,12 +120,12 @@ struct acm {
 	unsigned int ctrlout;				/* output control lines (DTR, RTS) */
 	unsigned int writesize;				/* max packet size for the output bulk endpoint */
 	unsigned int readsize,ctrlsize;			/* buffer sizes for freeing */
-	unsigned int used;				/* someone has this acm's device open */
 	unsigned int minor;				/* acm minor number */
 	unsigned char throttle;				/* throttled by tty layer */
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */
+	int combined_interfaces:1;			/* control and data collapsed */
 	struct acm_wb *delayed_wb;			/* write queued for a device about to be woken */
 };
 
@@ -134,3 +134,4 @@ struct acm {
 /* constants describing various quirks and errors */
 #define NO_UNION_NORMAL			1
 #define SINGLE_RX_URB			2
+#define NO_CAP_LINE			4

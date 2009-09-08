@@ -32,9 +32,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	__u8 packet[ISO_MAX_SIZE + 128];
-				/* !! no more than 128 ff in an ISO packet */
-
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
@@ -1103,7 +1100,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, sof = 0;
-	unsigned char *s, *d;
 	static unsigned char ffd9[] = {0xff, 0xd9};
 
 /* frames are jpeg 4.1.1 without 0xff escape */
@@ -1177,22 +1173,19 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	/* add 0x00 after 0xff */
-	for (i = len; --i >= 0; )
-		if (data[i] == 0xff)
-			break;
-	if (i < 0) {			/* no 0xff */
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
-		return;
-	}
-	s = data;
-	d = sd->packet;
-	for (i = 0; i < len; i++) {
-		*d++ = *s++;
-		if (s[-1] == 0xff)
-			*d++ = 0x00;
-	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-			sd->packet, d - sd->packet);
+	i = 0;
+	do {
+		if (data[i] == 0xff) {
+			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+					data, i + 1);
+			len -= i;
+			data += i;
+			*data = 0x00;
+			i = 0;
+		}
+		i++;
+	} while (i < len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)

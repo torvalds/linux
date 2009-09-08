@@ -25,7 +25,7 @@
 #include "trans.h"
 #include "dir.h"
 #include "util.h"
-#include "ops_address.h"
+#include "trace_gfs2.h"
 
 /* This doesn't need to be that large as max 64 bit pointers in a 4k
  * block is 512, so __u16 is fine for that. It saves stack space to
@@ -136,7 +136,9 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 		   and write it out to disk */
 
 		unsigned int n = 1;
-		block = gfs2_alloc_block(ip, &n);
+		error = gfs2_alloc_block(ip, &block, &n);
+		if (error)
+			goto out_brelse;
 		if (isdir) {
 			gfs2_trans_add_unrevoke(GFS2_SB(&ip->i_inode), block, 1);
 			error = gfs2_dir_get_new_buffer(ip, block, &bh);
@@ -476,8 +478,11 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 	blks = dblks + iblks;
 	i = sheight;
 	do {
+		int error;
 		n = blks - alloced;
-		bn = gfs2_alloc_block(ip, &n);
+		error = gfs2_alloc_block(ip, &bn, &n);
+		if (error)
+			return error;
 		alloced += n;
 		if (state != ALLOC_DATA || gfs2_is_jdata(ip))
 			gfs2_trans_add_unrevoke(sdp, bn, n);
@@ -585,6 +590,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	clear_buffer_mapped(bh_map);
 	clear_buffer_new(bh_map);
 	clear_buffer_boundary(bh_map);
+	trace_gfs2_bmap(ip, bh_map, lblock, create, 1);
 	if (gfs2_is_dir(ip)) {
 		bsize = sdp->sd_jbsize;
 		arr = sdp->sd_jheightsize;
@@ -619,6 +625,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	ret = 0;
 out:
 	release_metapath(&mp);
+	trace_gfs2_bmap(ip, bh_map, lblock, create, ret);
 	bmap_unlock(ip, create);
 	return ret;
 
@@ -1008,7 +1015,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
 	zero_user(page, offset, length);
-
+	mark_buffer_dirty(bh);
 unlock:
 	unlock_page(page);
 	page_cache_release(page);

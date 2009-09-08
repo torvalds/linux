@@ -1,5 +1,4 @@
 header-y += inftl-user.h
-header-y += jffs2-user.h
 header-y += mtd-abi.h
 header-y += mtd-user.h
 header-y += nftl-user.h

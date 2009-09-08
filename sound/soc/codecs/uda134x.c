@@ -101,7 +101,7 @@ static int uda134x_write(struct snd_soc_codec *codec, unsigned int reg,
 	pr_debug("%s reg: %02X, value:%02X\n", __func__, reg, value);
 
 	if (reg >= UDA134X_REGS_NUM) {
-		printk(KERN_ERR "%s unkown register: reg: %d",
+		printk(KERN_ERR "%s unkown register: reg: %u",
 		       __func__, reg);
 		return -EINVAL;
 	}
@@ -296,7 +296,7 @@ static int uda134x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct uda134x_priv *uda134x = codec->private_data;
 
-	pr_debug("%s clk_id: %d, freq: %d, dir: %d\n", __func__,
+	pr_debug("%s clk_id: %d, freq: %u, dir: %d\n", __func__,
 		 clk_id, freq, dir);
 
 	/* Anything between 256fs*8Khz and 512fs*48Khz should be acceptable

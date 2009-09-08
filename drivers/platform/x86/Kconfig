@@ -21,7 +21,7 @@ config ACER_WMI
 	depends on NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on SERIO_I8042
-	depends on RFKILL
+	depends on RFKILL || RFKILL = n
 	select ACPI_WMI
 	---help---
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
@@ -34,10 +34,27 @@ config ACER_WMI
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
+config ACERHDF
+	tristate "Acer Aspire One temperature and fan driver"
+	depends on THERMAL && THERMAL_HWMON && ACPI
+	---help---
+	  This is a driver for Acer Aspire One netbooks. It allows to access
+	  the temperature sensor and to control the fan.
+
+	  After loading this driver the BIOS is still in control of the fan.
+	  To let the kernel handle the fan, do:
+	  echo -n enabled > /sys/class/thermal/thermal_zone0/mode
+
+	  For more information about this driver see
+	  <http://piie.net/files/acerhdf_README.txt>
+
+	  If you have an Acer Aspire One netbook, say Y or M
+	  here.
+
 config ASUS_LAPTOP
-	tristate "Asus Laptop Extras (EXPERIMENTAL)"
+	tristate "Asus Laptop Extras"
 	depends on ACPI
-	depends on EXPERIMENTAL && !ACPI_ASUS
+	depends on !ACPI_ASUS
 	select LEDS_CLASS
 	select NEW_LEDS
 	select BACKLIGHT_CLASS_DEVICE
@@ -45,12 +62,12 @@ config ASUS_LAPTOP
 	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
 	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
-	  standard ACPI events that go through /proc/acpi/events. It also adds
+	  standard ACPI events and input events. It also adds
 	  support for video output switching, LCD backlight control, Bluetooth and
 	  Wlan control, and most importantly, allows you to blink those fancy LEDs.
 
 	  For more information and a userspace daemon for handling the extra
-	  buttons see <http://acpi4asus.sf.net/>.
+	  buttons see <http://acpi4asus.sf.net>.
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
@@ -60,7 +77,7 @@ config DELL_LAPTOP
 	depends on DCDBAS
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
-	depends on RFKILL
+	depends on RFKILL || RFKILL = n
 	depends on POWER_SUPPLY
 	default n
 	---help---
@@ -117,7 +134,7 @@ config HP_WMI
 	tristate "HP WMI extras"
 	depends on ACPI_WMI
 	depends on INPUT
-	depends on RFKILL
+	depends on RFKILL || RFKILL = n
 	help
 	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
 	 to read data from WMI such as docking or ambient light sensor state.
@@ -196,14 +213,13 @@ config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
 	depends on INPUT
+	depends on RFKILL || RFKILL = n
 	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select NVRAM
 	select NEW_LEDS
 	select LEDS_CLASS
-	select NET
-	select RFKILL
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -338,12 +354,15 @@ config EEEPC_LAPTOP
 	depends on ACPI
 	depends on INPUT
 	depends on EXPERIMENTAL
+	depends on RFKILL || RFKILL = n
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
-	select RFKILL
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
-	  It also adds the ability to switch camera/wlan on/off.
+
+	  It  also gives access to some extra laptop functionalities like
+	  Bluetooth, backlight and allows powering on/off some other
+	  devices.
 
 	  If you have an Eee PC laptop, say Y or M here.
 
@@ -370,7 +389,7 @@ config ACPI_WMI
 	  any ACPI-WMI devices.
 
 config ACPI_ASUS
-	tristate "ASUS/Medion Laptop Extras"
+	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
 	depends on ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
@@ -391,7 +410,7 @@ config ACPI_ASUS
 	  parameters.
 
 	  More information and a userspace daemon for handling the extra buttons
-	  at <http://sourceforge.net/projects/acpi4asus/>.
+	  at <http://acpi4asus.sf.net>.
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here. This
 	  driver is still under development, so if your laptop is unsupported or
@@ -405,9 +424,8 @@ config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
 	depends on INPUT
+	depends on RFKILL || RFKILL = n
 	select INPUT_POLLDEV
-	select NET
-	select RFKILL
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings

@@ -702,30 +702,26 @@ static int rtl8180_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static int rtl8180_config_interface(struct ieee80211_hw *dev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_if_conf *conf)
-{
-	struct rtl8180_priv *priv = dev->priv;
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);
-
-	if (is_valid_ether_addr(conf->bssid))
-		rtl818x_iowrite8(priv, &priv->map->MSR, RTL818X_MSR_INFRA);
-	else
-		rtl818x_iowrite8(priv, &priv->map->MSR, RTL818X_MSR_NO_LINK);
-
-	return 0;
-}
-
 static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *info,
 				     u32 changed)
 {
 	struct rtl8180_priv *priv = dev->priv;
+	int i;
+
+	if (changed & BSS_CHANGED_BSSID) {
+		for (i = 0; i < ETH_ALEN; i++)
+			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
+					 info->bssid[i]);
+
+		if (is_valid_ether_addr(info->bssid))
+			rtl818x_iowrite8(priv, &priv->map->MSR,
+					 RTL818X_MSR_INFRA);
+		else
+			rtl818x_iowrite8(priv, &priv->map->MSR,
+					 RTL818X_MSR_NO_LINK);
+	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)
 	        priv->rf->conf_erp(dev, info);
@@ -770,7 +766,6 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.add_interface		= rtl8180_add_interface,
 	.remove_interface	= rtl8180_remove_interface,
 	.config			= rtl8180_config,
-	.config_interface	= rtl8180_config_interface,
 	.bss_info_changed	= rtl8180_bss_info_changed,
 	.configure_filter	= rtl8180_configure_filter,
 };

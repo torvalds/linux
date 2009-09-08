@@ -229,10 +229,10 @@ kernel.  It is the use of atomic counters to implement reference
 counting, and it works such that once the counter falls to zero it can
 be guaranteed that no other entity can be accessing the object:
 
-static void obj_list_add(struct obj *obj)
+static void obj_list_add(struct obj *obj, struct list_head *head)
 {
 	obj->active = 1;
-	list_add(&obj->list);
+	list_add(&obj->list, head);
 }
 
 static void obj_list_del(struct obj *obj)

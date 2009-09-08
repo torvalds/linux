@@ -10,7 +10,7 @@
  * assinged
  *
  * After PCI devices are glued with ACPI devices
- * acpi_get_physical_pci_device() can be called to identify ACPI graphics
+ * acpi_get_pci_dev() can be called to identify ACPI graphics
  * devices for which a real graphics card is plugged in
  *
  * Now acpi_video_get_capabilities() can be called to check which
@@ -36,6 +36,7 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/pci.h>
 
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
@@ -109,7 +110,7 @@ static acpi_status
 find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	long *cap = context;
-	struct device *dev;
+	struct pci_dev *dev;
 	struct acpi_device *acpi_dev;
 
 	const struct acpi_device_id video_ids[] = {
@@ -120,10 +121,10 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 
 	if (!acpi_match_device_ids(acpi_dev, video_ids)) {
-		dev = acpi_get_physical_pci_device(handle);
+		dev = acpi_get_pci_dev(handle);
 		if (!dev)
 			return AE_OK;
-		put_device(dev);
+		pci_dev_put(dev);
 		*cap |= acpi_is_video_device(acpi_dev);
 	}
 	return AE_OK;

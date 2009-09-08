@@ -988,20 +988,20 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 	 * for locking on FreeBSD.
 	 */
 	if (cmdbuf->size) {
-		kcmd_addr = drm_alloc(cmdbuf->size * 8, DRM_MEM_DRIVER);
+		kcmd_addr = kmalloc(cmdbuf->size * 8, GFP_KERNEL);
 		if (kcmd_addr == NULL)
 			return -ENOMEM;
 
 		if (DRM_COPY_FROM_USER(kcmd_addr, cmdbuf->cmd_addr,
 				       cmdbuf->size * 8))
 		{
-			drm_free(kcmd_addr, cmdbuf->size * 8, DRM_MEM_DRIVER);
+			kfree(kcmd_addr);
 			return -EFAULT;
 		}
 		cmdbuf->cmd_addr = kcmd_addr;
 	}
 	if (cmdbuf->vb_size) {
-		kvb_addr = drm_alloc(cmdbuf->vb_size, DRM_MEM_DRIVER);
+		kvb_addr = kmalloc(cmdbuf->vb_size, GFP_KERNEL);
 		if (kvb_addr == NULL) {
 			ret = -ENOMEM;
 			goto done;
@@ -1015,8 +1015,8 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		cmdbuf->vb_addr = kvb_addr;
 	}
 	if (cmdbuf->nbox) {
-		kbox_addr = drm_alloc(cmdbuf->nbox * sizeof(struct drm_clip_rect),
-				       DRM_MEM_DRIVER);
+		kbox_addr = kmalloc(cmdbuf->nbox * sizeof(struct drm_clip_rect),
+				    GFP_KERNEL);
 		if (kbox_addr == NULL) {
 			ret = -ENOMEM;
 			goto done;
@@ -1154,10 +1154,9 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 
 done:
 	/* If we didn't need to allocate them, these'll be NULL */
-	drm_free(kcmd_addr, cmdbuf->size * 8, DRM_MEM_DRIVER);
-	drm_free(kvb_addr, cmdbuf->vb_size, DRM_MEM_DRIVER);
-	drm_free(kbox_addr, cmdbuf->nbox * sizeof(struct drm_clip_rect),
-		 DRM_MEM_DRIVER);
+	kfree(kcmd_addr);
+	kfree(kvb_addr);
+	kfree(kbox_addr);
 
 	return ret;
 }

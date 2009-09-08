@@ -103,6 +103,15 @@
 #define GET_DURATION_RES(__size, __rate)(((__size) * 8 * 10) % (__rate))
 
 /*
+ * Determine the alignment requirement,
+ * to make sure the 802.11 payload is padded to a 4-byte boundrary
+ * we must determine the address of the payload and calculate the
+ * amount of bytes needed to move the data.
+ */
+#define ALIGN_SIZE(__skb, __header) \
+	(  ((unsigned long)((__skb)->data + (__header))) & 3 )
+
+/*
  * Standard timing and size defines.
  * These values should follow the ieee80211 specifications.
  */
@@ -138,6 +147,7 @@ struct rt2x00_chip {
 #define RT2561		0x0302
 #define RT2661		0x0401
 #define RT2571		0x1300
+#define RT2870		0x1600
 
 	u16 rf;
 	u32 rev;
@@ -357,6 +367,7 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
  *	for @tx_power_a, @tx_power_bg and @channels.
  * @channels: Device/chipset specific channel values (See &struct rf_channel).
  * @channels_info: Additional information for channels (See &struct channel_info).
+ * @ht: Driver HT Capabilities (See &ieee80211_sta_ht_cap).
  */
 struct hw_mode_spec {
 	unsigned int supported_bands;
@@ -370,6 +381,8 @@ struct hw_mode_spec {
 	unsigned int num_channels;
 	const struct rf_channel *channels;
 	const struct channel_info *channels_info;
+
+	struct ieee80211_sta_ht_cap ht;
 };
 
 /*
@@ -404,6 +417,8 @@ struct rt2x00lib_erp {
 	short pifs;
 	short difs;
 	short eifs;
+
+	u16 beacon_int;
 };
 
 /*
@@ -590,6 +605,7 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_SCHEDULED,
 	DRIVER_REQUIRE_DMA,
 	DRIVER_REQUIRE_COPY_IV,
+	DRIVER_REQUIRE_L2PAD,
 
 	/*
 	 * Driver features
@@ -606,6 +622,7 @@ enum rt2x00_flags {
 	CONFIG_EXTERNAL_LNA_BG,
 	CONFIG_DOUBLE_ANTENNA,
 	CONFIG_DISABLE_LINK_TUNING,
+	CONFIG_CHANNEL_HT40,
 };
 
 /*
@@ -670,6 +687,12 @@ struct rt2x00_dev {
 	 * of the device capabilities are stored.
 	 */
 	unsigned long flags;
+
+	/*
+	 * Device information, Bus IRQ and name (PCI, SoC)
+	 */
+	int irq;
+	const char *name;
 
 	/*
 	 * Chipset identification.
@@ -772,6 +795,18 @@ struct rt2x00_dev {
 	u8 freq_offset;
 
 	/*
+	 * Calibration information (for rt2800usb & rt2800pci).
+	 * [0] -> BW20
+	 * [1] -> BW40
+	 */
+	u8 calibration[2];
+
+	/*
+	 * Beacon interval.
+	 */
+	u16 beacon_int;
+
+	/*
 	 * Low level statistics which will have
 	 * to be kept up to date while device is running.
 	 */
@@ -860,6 +895,18 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->chip.rev = rev;
 }
 
+static inline void rt2x00_set_chip_rt(struct rt2x00_dev *rt2x00dev,
+				      const u16 rt)
+{
+	rt2x00dev->chip.rt = rt;
+}
+
+static inline void rt2x00_set_chip_rf(struct rt2x00_dev *rt2x00dev,
+				      const u16 rf, const u32 rev)
+{
+	rt2x00_set_chip(rt2x00dev, rt2x00dev->chip.rt, rf, rev);
+}
+
 static inline char rt2x00_rt(const struct rt2x00_chip *chipset, const u16 chip)
 {
 	return (chipset->rt == chip);
@@ -875,11 +922,10 @@ static inline u32 rt2x00_rev(const struct rt2x00_chip *chipset)
 	return chipset->rev;
 }
 
-static inline u16 rt2x00_check_rev(const struct rt2x00_chip *chipset,
-				   const u32 rev)
+static inline bool rt2x00_check_rev(const struct rt2x00_chip *chipset,
+				    const u32 mask, const u32 rev)
 {
-	return (((chipset->rev & 0xffff0) == rev) &&
-		!!(chipset->rev & 0x0000f));
+	return ((chipset->rev & mask) == rev);
 }
 
 /**
@@ -925,9 +971,6 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 				struct ieee80211_if_init_conf *conf);
 int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed);
-int rt2x00mac_config_interface(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       struct ieee80211_if_conf *conf);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,

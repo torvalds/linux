@@ -47,7 +47,6 @@ int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 	mutex_lock(&nf_log_mutex);
 
 	if (pf == NFPROTO_UNSPEC) {
-		int i;
 		for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
 			list_add_tail(&(logger->list[i]), &(nf_loggers_l[i]));
 	} else {
@@ -216,7 +215,7 @@ static const struct file_operations nflog_file_ops = {
 #endif /* PROC_FS */
 
 #ifdef CONFIG_SYSCTL
-struct ctl_path nf_log_sysctl_path[] = {
+static struct ctl_path nf_log_sysctl_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "netfilter", .ctl_name = NET_NETFILTER, },
 	{ .procname = "nf_log", .ctl_name = CTL_UNNUMBERED, },
@@ -228,19 +227,26 @@ static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO+1];
 static struct ctl_table_header *nf_log_dir_header;
 
 static int nf_log_proc_dostring(ctl_table *table, int write, struct file *filp,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
+	char buf[NFLOGGER_NAME_LEN];
+	size_t size = *lenp;
 	int r = 0;
 	int tindex = (unsigned long)table->extra1;
 
 	if (write) {
-		if (!strcmp(buffer, "NONE")) {
+		if (size > sizeof(buf))
+			size = sizeof(buf);
+		if (copy_from_user(buf, buffer, size))
+			return -EFAULT;
+
+		if (!strcmp(buf, "NONE")) {
 			nf_log_unbind_pf(tindex);
 			return 0;
 		}
 		mutex_lock(&nf_log_mutex);
-		logger = __find_logger(tindex, buffer);
+		logger = __find_logger(tindex, buf);
 		if (logger == NULL) {
 			mutex_unlock(&nf_log_mutex);
 			return -ENOENT;
@@ -248,14 +254,14 @@ static int nf_log_proc_dostring(ctl_table *table, int write, struct file *filp,
 		rcu_assign_pointer(nf_loggers[tindex], logger);
 		mutex_unlock(&nf_log_mutex);
 	} else {
-		rcu_read_lock();
-		logger = rcu_dereference(nf_loggers[tindex]);
+		mutex_lock(&nf_log_mutex);
+		logger = nf_loggers[tindex];
 		if (!logger)
 			table->data = "NONE";
 		else
 			table->data = logger->name;
 		r = proc_dostring(table, write, filp, buffer, lenp, ppos);
-		rcu_read_unlock();
+		mutex_unlock(&nf_log_mutex);
 	}
 
 	return r;

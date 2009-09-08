@@ -1130,7 +1130,7 @@ static int axnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		outb_p(ENISR_ALL, e8390_base + EN0_IMR);
 		spin_unlock_irqrestore(&ei_local->page_lock, flags);
 		dev->stats.tx_errors++;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/*

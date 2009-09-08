@@ -50,6 +50,7 @@ except maybe the 6514.
 #define _GNU_SOURCE
 #define DEBUG 1
 #define DEBUG_FLAGS
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include "mite.h"
@@ -102,13 +103,13 @@ static inline unsigned Filter_Enable(unsigned port)
 #define OverflowIntEnable		0x02
 #define EdgeIntEnable			0x01
 
-static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int ni_65xx_detach(struct comedi_device * dev);
+static int ni_65xx_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int ni_65xx_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_65xx = {
-      driver_name:"ni_65xx",
-      module:THIS_MODULE,
-      attach:ni_65xx_attach,
-      detach:ni_65xx_detach,
+	.driver_name = "ni_65xx",
+	.module = THIS_MODULE,
+	.attach = ni_65xx_attach,
+	.detach = ni_65xx_detach,
 };
 
 struct ni_65xx_board {
@@ -123,120 +124,120 @@ struct ni_65xx_board {
 
 static const struct ni_65xx_board ni_65xx_boards[] = {
 	{
-	      dev_id:	0x7085,
-	      name:	"pci-6509",
-	      num_dio_ports:12,
-      invert_outputs:0},
+	.dev_id = 0x7085,
+	.name = "pci-6509",
+	.num_dio_ports = 12,
+	.invert_outputs = 0},
 	{
-	      dev_id:	0x1710,
-	      name:	"pxi-6509",
-	      num_dio_ports:12,
-      invert_outputs:0},
+	.dev_id = 0x1710,
+	.name = "pxi-6509",
+	.num_dio_ports = 12,
+	.invert_outputs = 0},
 	{
-	      dev_id:	0x7124,
-	      name:	"pci-6510",
-      num_di_ports:4},
+	.dev_id = 0x7124,
+	.name = "pci-6510",
+	.num_di_ports = 4},
 	{
-	      dev_id:	0x70c3,
-	      name:	"pci-6511",
-      num_di_ports:8},
+	.dev_id = 0x70c3,
+	.name = "pci-6511",
+	.num_di_ports = 8},
 	{
-	      dev_id:	0x70d3,
-	      name:	"pxi-6511",
-      num_di_ports:8},
+	.dev_id = 0x70d3,
+	.name = "pxi-6511",
+	.num_di_ports = 8},
 	{
-	      dev_id:	0x70cc,
-	      name:	"pci-6512",
-      num_do_ports:8},
+	.dev_id = 0x70cc,
+	.name = "pci-6512",
+	.num_do_ports = 8},
 	{
-	      dev_id:	0x70d2,
-	      name:	"pxi-6512",
-      num_do_ports:8},
+	.dev_id = 0x70d2,
+	.name = "pxi-6512",
+	.num_do_ports = 8},
 	{
-	      dev_id:	0x70c8,
-	      name:	"pci-6513",
-	      num_do_ports:8,
-      invert_outputs:1},
+	.dev_id = 0x70c8,
+	.name = "pci-6513",
+	.num_do_ports = 8,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x70d1,
-	      name:	"pxi-6513",
-	      num_do_ports:8,
-      invert_outputs:1},
+	.dev_id = 0x70d1,
+	.name = "pxi-6513",
+	.num_do_ports = 8,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x7088,
-	      name:	"pci-6514",
-	      num_di_ports:4,
-	      num_do_ports:4,
-      invert_outputs:1},
+	.dev_id = 0x7088,
+	.name = "pci-6514",
+	.num_di_ports = 4,
+	.num_do_ports = 4,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x70CD,
-	      name:	"pxi-6514",
-	      num_di_ports:4,
-	      num_do_ports:4,
-      invert_outputs:1},
+	.dev_id = 0x70CD,
+	.name = "pxi-6514",
+	.num_di_ports = 4,
+	.num_do_ports = 4,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x7087,
-	      name:	"pci-6515",
-	      num_di_ports:4,
-	      num_do_ports:4,
-      invert_outputs:1},
+	.dev_id = 0x7087,
+	.name = "pci-6515",
+	.num_di_ports = 4,
+	.num_do_ports = 4,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x70c9,
-	      name:	"pxi-6515",
-	      num_di_ports:4,
-	      num_do_ports:4,
-      invert_outputs:1},
+	.dev_id = 0x70c9,
+	.name = "pxi-6515",
+	.num_di_ports = 4,
+	.num_do_ports = 4,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x7125,
-	      name:	"pci-6516",
-	      num_do_ports:4,
-      invert_outputs:1},
+	.dev_id = 0x7125,
+	.name = "pci-6516",
+	.num_do_ports = 4,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x7126,
-	      name:	"pci-6517",
-	      num_do_ports:4,
-      invert_outputs:1},
+	.dev_id = 0x7126,
+	.name = "pci-6517",
+	.num_do_ports = 4,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x7127,
-	      name:	"pci-6518",
-	      num_di_ports:2,
-	      num_do_ports:2,
-      invert_outputs:1},
+	.dev_id = 0x7127,
+	.name = "pci-6518",
+	.num_di_ports = 2,
+	.num_do_ports = 2,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x7128,
-	      name:	"pci-6519",
-	      num_di_ports:2,
-	      num_do_ports:2,
-      invert_outputs:1},
+	.dev_id = 0x7128,
+	.name = "pci-6519",
+	.num_di_ports = 2,
+	.num_do_ports = 2,
+	.invert_outputs = 1},
 	{
-	      dev_id:	0x71c5,
-	      name:	"pci-6520",
-	      num_di_ports:1,
-	      num_do_ports:1,
+	.dev_id = 0x71c5,
+	.name = "pci-6520",
+	.num_di_ports = 1,
+	.num_do_ports = 1,
 		},
 	{
-	      dev_id:	0x718b,
-	      name:	"pci-6521",
-	      num_di_ports:1,
-	      num_do_ports:1,
+	.dev_id = 0x718b,
+	.name = "pci-6521",
+	.num_di_ports = 1,
+	.num_do_ports = 1,
 		},
 	{
-	      dev_id:	0x718c,
-	      name:	"pxi-6521",
-	      num_di_ports:1,
-	      num_do_ports:1,
+	.dev_id = 0x718c,
+	.name = "pxi-6521",
+	.num_di_ports = 1,
+	.num_do_ports = 1,
 		},
 	{
-	      dev_id:	0x70a9,
-	      name:	"pci-6528",
-	      num_di_ports:3,
-	      num_do_ports:3,
+	.dev_id = 0x70a9,
+	.name = "pci-6528",
+	.num_di_ports = 3,
+	.num_do_ports = 3,
 		},
 	{
-	      dev_id:	0x7086,
-	      name:	"pxi-6528",
-	      num_di_ports:3,
-	      num_do_ports:3,
+	.dev_id = 0x7086,
+	.name = "pxi-6528",
+	.num_di_ports = 3,
+	.num_do_ports = 3,
 		},
 };
 
@@ -249,7 +250,7 @@ static inline unsigned ni_65xx_port_by_channel(unsigned channel)
 {
 	return channel / ni_65xx_channels_per_port;
 }
-static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board * board)
+static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board *board)
 {
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
@@ -312,10 +313,10 @@ static struct ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
 	return subdev_private;
 }
 
-static int ni_65xx_find_device(struct comedi_device * dev, int bus, int slot);
+static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot);
 
-static int ni_65xx_config_filter(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_65xx_config_filter(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	const unsigned chan = CR_CHAN(insn->chanspec);
 	const unsigned port =
@@ -353,8 +354,8 @@ static int ni_65xx_config_filter(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int ni_65xx_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_65xx_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned port;
 
@@ -392,8 +393,8 @@ static int ni_65xx_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 	return -EINVAL;
 }
 
-static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_65xx_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned base_bitfield_channel;
 	const unsigned max_ports_per_bitfield = 5;
@@ -437,12 +438,12 @@ static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 			writeb(bits,
 				private(dev)->mite->daq_io_addr +
 				Port_Data(port));
-//                      rt_printk("wrote 0x%x to port %i\n", bits, port);
+/* printk("wrote 0x%x to port %i\n", bits, port); */
 		}
 		port_read_bits =
 			readb(private(dev)->mite->daq_io_addr +
 			Port_Data(port));
-//              rt_printk("read 0x%x from port %i\n", port_read_bits, port);
+/* printk("read 0x%x from port %i\n", port_read_bits, port); */
 		if (bitshift > 0) {
 			port_read_bits <<= bitshift;
 		} else {
@@ -454,7 +455,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return insn->n;
 }
 
-static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 2;
@@ -475,8 +476,8 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static int ni_65xx_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int ni_65xx_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -551,9 +552,9 @@ static int ni_65xx_intr_cmdtest(struct comedi_device * dev, struct comedi_subdev
 	return 0;
 }
 
-static int ni_65xx_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ni_65xx_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	//struct comedi_cmd *cmd = &s->async->cmd;
+	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
 	writeb(ClrEdge | ClrOverflow,
 		private(dev)->mite->daq_io_addr + Clear_Register);
@@ -564,7 +565,7 @@ static int ni_65xx_intr_cmd(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int ni_65xx_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ni_65xx_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	writeb(0x00,
 		private(dev)->mite->daq_io_addr + Master_Interrupt_Control);
@@ -572,8 +573,8 @@ static int ni_65xx_intr_cancel(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int ni_65xx_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_65xx_intr_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -582,8 +583,8 @@ static int ni_65xx_intr_insn_bits(struct comedi_device * dev, struct comedi_subd
 	return 2;
 }
 
-static int ni_65xx_intr_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_65xx_intr_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -619,7 +620,7 @@ static int ni_65xx_intr_insn_config(struct comedi_device * dev, struct comedi_su
 	return 2;
 }
 
-static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int ni_65xx_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned i;
@@ -627,7 +628,8 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	printk("comedi%d: ni_65xx:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct ni_65xx_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct ni_65xx_private));
+	if (ret < 0)
 		return ret;
 
 	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
@@ -647,7 +649,8 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	printk(" ID=0x%02x",
 		readb(private(dev)->mite->daq_io_addr + ID_Register));
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -700,7 +703,7 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 			return -ENOMEM;
 		sprivate(s)->base_port = 0;
 		for (i = 0; i < board(dev)->num_dio_ports; ++i) {
-			// configure all ports for input
+			/*  configure all ports for input */
 			writeb(0x1,
 				private(dev)->mite->daq_io_addr +
 				Port_Select(i));
@@ -740,8 +743,8 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	/* Set filter interval to 0  (32bit reg) */
 	writeb(0x00000000, private(dev)->mite->daq_io_addr + Filter_Interval);
 
-	ret = comedi_request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
-		"ni_65xx", dev);
+	ret = request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
+			  "ni_65xx", dev);
 	if (ret < 0) {
 		dev->irq = 0;
 		printk(" irq not available");
@@ -752,7 +755,7 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 0;
 }
 
-static int ni_65xx_detach(struct comedi_device * dev)
+static int ni_65xx_detach(struct comedi_device *dev)
 {
 	if (private(dev) && private(dev)->mite
 		&& private(dev)->mite->daq_io_addr) {
@@ -762,7 +765,7 @@ static int ni_65xx_detach(struct comedi_device * dev)
 	}
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	if (private(dev)) {
@@ -780,7 +783,7 @@ static int ni_65xx_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int ni_65xx_find_device(struct comedi_device * dev, int bus, int slot)
+static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;

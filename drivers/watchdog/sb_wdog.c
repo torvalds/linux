@@ -93,7 +93,7 @@ static int expect_close;
 
 static const struct watchdog_info ident = {
 	.options	= WDIOF_CARDRESET | WDIOF_SETTIMEOUT |
-						WDIOF_KEEPALIVEPING,
+					WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity	= "SiByte Watchdog",
 };
 
@@ -269,9 +269,10 @@ irqreturn_t sbwdog_interrupt(int irq, void *addr)
 	 * if it's the second watchdog timer, it's for those users
 	 */
 	if (wd_cfg_reg == user_dog)
-		printk(KERN_CRIT
-			"%s in danger of initiating system reset in %ld.%01ld seconds\n",
-			ident.identity, wd_init / 1000000, (wd_init / 100000) % 10);
+		printk(KERN_CRIT "%s in danger of initiating system reset "
+			"in %ld.%01ld seconds\n",
+			ident.identity,
+			wd_init / 1000000, (wd_init / 100000) % 10);
 	else
 		cfg |= 1;
 

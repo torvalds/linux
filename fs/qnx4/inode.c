@@ -13,19 +13,15 @@
  */
 
 #include <linux/module.h>
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/highuid.h>
 #include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
-#include <linux/vfs.h>
-#include <asm/uaccess.h>
+#include <linux/writeback.h>
+#include <linux/statfs.h>
+#include "qnx4.h"
 
 #define QNX4_VERSION  4
 #define QNX4_BMNAME   ".bitmap"
@@ -33,31 +29,6 @@
 static const struct super_operations qnx4_sops;
 
 #ifdef CONFIG_QNX4FS_RW
-
-int qnx4_sync_inode(struct inode *inode)
-{
-	int err = 0;
-# if 0
-	struct buffer_head *bh;
-
-   	bh = qnx4_update_inode(inode);
-	if (bh && buffer_dirty(bh))
-	{
-		sync_dirty_buffer(bh);
-		if (buffer_req(bh) && !buffer_uptodate(bh))
-		{
-			printk ("IO error syncing qnx4 inode [%s:%08lx]\n",
-				inode->i_sb->s_id, inode->i_ino);
-			err = -1;
-		}
-	        brelse (bh);
-	} else if (!bh) {
-		err = -1;
-	}
-# endif
-
-	return err;
-}
 
 static void qnx4_delete_inode(struct inode *inode)
 {
@@ -70,15 +41,7 @@ static void qnx4_delete_inode(struct inode *inode)
 	unlock_kernel();
 }
 
-static void qnx4_write_super(struct super_block *sb)
-{
-	lock_kernel();
-	QNX4DEBUG(("qnx4: write_super\n"));
-	sb->s_dirt = 0;
-	unlock_kernel();
-}
-
-static int qnx4_write_inode(struct inode *inode, int unused)
+static int qnx4_write_inode(struct inode *inode, int do_sync)
 {
 	struct qnx4_inode_entry *raw_inode;
 	int block, ino;
@@ -115,6 +78,16 @@ static int qnx4_write_inode(struct inode *inode, int unused)
 	raw_inode->di_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
 	raw_inode->di_first_xtnt.xtnt_size = cpu_to_le32(inode->i_blocks);
 	mark_buffer_dirty(bh);
+	if (do_sync) {
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh)) {
+			printk("qnx4: IO error syncing inode [%s:%08x]\n",
+					inode->i_sb->s_id, ino);
+			brelse(bh);
+			unlock_kernel();
+			return -EIO;
+		}
+	}
 	brelse(bh);
 	unlock_kernel();
 	return 0;
@@ -138,7 +111,6 @@ static const struct super_operations qnx4_sops =
 #ifdef CONFIG_QNX4FS_RW
 	.write_inode	= qnx4_write_inode,
 	.delete_inode	= qnx4_delete_inode,
-	.write_super	= qnx4_write_super,
 #endif
 };
 

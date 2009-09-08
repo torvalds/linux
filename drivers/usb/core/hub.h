@@ -47,7 +47,10 @@
 #define USB_PORT_FEAT_L1		5	/* L1 suspend */
 #define USB_PORT_FEAT_POWER		8
 #define USB_PORT_FEAT_LOWSPEED		9
+/* This value was never in Table 11-17 */
 #define USB_PORT_FEAT_HIGHSPEED		10
+/* This value is also fake */
+#define USB_PORT_FEAT_SUPERSPEED	11
 #define USB_PORT_FEAT_C_CONNECTION	16
 #define USB_PORT_FEAT_C_ENABLE		17
 #define USB_PORT_FEAT_C_SUSPEND		18

@@ -20,6 +20,11 @@
 #define _ASM_POWERPC_LPPACA_H
 #ifdef __KERNEL__
 
+/* These definitions relate to hypervisors that only exist when using
+ * a server type processor
+ */
+#ifdef CONFIG_PPC_BOOK3S
+
 //=============================================================================
 //
 //	This control block contains the data that is shared between the
@@ -158,5 +163,6 @@ struct slb_shadow {
 
 extern struct slb_shadow slb_shadow[];
 
+#endif /* CONFIG_PPC_BOOK3S */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_LPPACA_H */

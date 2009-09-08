@@ -41,8 +41,6 @@ extern int  usb_hub_init(void);
 extern void usb_hub_cleanup(void);
 extern int usb_major_init(void);
 extern void usb_major_cleanup(void);
-extern int usb_host_init(void);
-extern void usb_host_cleanup(void);
 
 #ifdef	CONFIG_PM
 
@@ -106,11 +104,22 @@ extern struct workqueue_struct *ksuspend_usb_wq;
 extern struct bus_type usb_bus_type;
 extern struct device_type usb_device_type;
 extern struct device_type usb_if_device_type;
+extern struct device_type usb_ep_device_type;
 extern struct usb_device_driver usb_generic_driver;
 
 static inline int is_usb_device(const struct device *dev)
 {
 	return dev->type == &usb_device_type;
+}
+
+static inline int is_usb_interface(const struct device *dev)
+{
+	return dev->type == &usb_if_device_type;
+}
+
+static inline int is_usb_endpoint(const struct device *dev)
+{
+	return dev->type == &usb_ep_device_type;
 }
 
 /* Do the same for device drivers and interface drivers. */

@@ -3321,7 +3321,7 @@ static int DAC960_process_queue(DAC960_Controller_T *Controller, struct request_
 	DAC960_Command_T *Command;
 
    while(1) {
-	Request = elv_next_request(req_q);
+	Request = blk_peek_request(req_q);
 	if (!Request)
 		return 1;
 
@@ -3338,10 +3338,10 @@ static int DAC960_process_queue(DAC960_Controller_T *Controller, struct request_
 	}
 	Command->Completion = Request->end_io_data;
 	Command->LogicalDriveNumber = (long)Request->rq_disk->private_data;
-	Command->BlockNumber = Request->sector;
-	Command->BlockCount = Request->nr_sectors;
+	Command->BlockNumber = blk_rq_pos(Request);
+	Command->BlockCount = blk_rq_sectors(Request);
 	Command->Request = Request;
-	blkdev_dequeue_request(Request);
+	blk_start_request(Request);
 	Command->SegmentCount = blk_rq_map_sg(req_q,
 		  Command->Request, Command->cmd_sglist);
 	/* pci_map_sg MAY change the value of SegCount */
@@ -3431,7 +3431,7 @@ static void DAC960_queue_partial_rw(DAC960_Command_T *Command)
    * successfully as possible.
    */
   Command->SegmentCount = 1;
-  Command->BlockNumber = Request->sector;
+  Command->BlockNumber = blk_rq_pos(Request);
   Command->BlockCount = 1;
   DAC960_QueueReadWriteCommand(Command);
   return;

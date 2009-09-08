@@ -36,7 +36,7 @@
 #include "intel_sdvo_regs.h"
 
 #undef SDVO_DEBUG
-
+#define I915_SDVO	"i915_sdvo"
 struct intel_sdvo_priv {
 	struct intel_i2c_chan *i2c_bus;
 	int slaveaddr;
@@ -277,20 +277,21 @@ static void intel_sdvo_debug_write(struct intel_output *intel_output, u8 cmd,
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 	int i;
 
-	printk(KERN_DEBUG "%s: W: %02X ", SDVO_NAME(sdvo_priv), cmd);
+	DRM_DEBUG_KMS(I915_SDVO, "%s: W: %02X ",
+				SDVO_NAME(sdvo_priv), cmd);
 	for (i = 0; i < args_len; i++)
-		printk(KERN_DEBUG "%02X ", ((u8 *)args)[i]);
+		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
 	for (; i < 8; i++)
-		printk(KERN_DEBUG "   ");
+		DRM_LOG_KMS("   ");
 	for (i = 0; i < sizeof(sdvo_cmd_names) / sizeof(sdvo_cmd_names[0]); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
-			printk(KERN_DEBUG "(%s)", sdvo_cmd_names[i].name);
+			DRM_LOG_KMS("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
 	if (i == sizeof(sdvo_cmd_names)/ sizeof(sdvo_cmd_names[0]))
-		printk(KERN_DEBUG "(%02X)", cmd);
-	printk(KERN_DEBUG "\n");
+		DRM_LOG_KMS("(%02X)", cmd);
+	DRM_LOG_KMS("\n");
 }
 #else
 #define intel_sdvo_debug_write(o, c, a, l)
@@ -329,16 +330,16 @@ static void intel_sdvo_debug_response(struct intel_output *intel_output,
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 	int i;
 
-	printk(KERN_DEBUG "%s: R: ", SDVO_NAME(sdvo_priv));
+	DRM_DEBUG_KMS(I915_SDVO, "%s: R: ", SDVO_NAME(sdvo_priv));
 	for (i = 0; i < response_len; i++)
-		printk(KERN_DEBUG "%02X ", ((u8 *)response)[i]);
+		DRM_LOG_KMS("%02X ", ((u8 *)response)[i]);
 	for (; i < 8; i++)
-		printk(KERN_DEBUG "   ");
+		DRM_LOG_KMS("   ");
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
-		printk(KERN_DEBUG "(%s)", cmd_status_names[status]);
+		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
 	else
-		printk(KERN_DEBUG "(??? %d)", status);
-	printk(KERN_DEBUG "\n");
+		DRM_LOG_KMS("(??? %d)", status);
+	DRM_LOG_KMS("\n");
 }
 #else
 #define intel_sdvo_debug_response(o, r, l, s)
@@ -1742,6 +1743,43 @@ static struct i2c_algorithm intel_sdvo_i2c_bit_algo = {
 	.master_xfer	= intel_sdvo_master_xfer,
 };
 
+static u8
+intel_sdvo_get_slave_addr(struct drm_device *dev, int output_device)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct sdvo_device_mapping *my_mapping, *other_mapping;
+
+	if (output_device == SDVOB) {
+		my_mapping = &dev_priv->sdvo_mappings[0];
+		other_mapping = &dev_priv->sdvo_mappings[1];
+	} else {
+		my_mapping = &dev_priv->sdvo_mappings[1];
+		other_mapping = &dev_priv->sdvo_mappings[0];
+	}
+
+	/* If the BIOS described our SDVO device, take advantage of it. */
+	if (my_mapping->slave_addr)
+		return my_mapping->slave_addr;
+
+	/* If the BIOS only described a different SDVO device, use the
+	 * address that it isn't using.
+	 */
+	if (other_mapping->slave_addr) {
+		if (other_mapping->slave_addr == 0x70)
+			return 0x72;
+		else
+			return 0x70;
+	}
+
+	/* No SDVO device info is found for another DVO port,
+	 * so use mapping assumption we had before BIOS parsing.
+	 */
+	if (output_device == SDVOB)
+		return 0x70;
+	else
+		return 0x72;
+}
+
 bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
 	struct drm_connector *connector;
@@ -1753,6 +1791,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	u8 ch[0x40];
 	int i;
 	int encoder_type, output_id;
+	u8 slave_addr;
 
 	intel_output = kcalloc(sizeof(struct intel_output)+sizeof(struct intel_sdvo_priv), 1, GFP_KERNEL);
 	if (!intel_output) {
@@ -1771,16 +1810,15 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	if (!i2cbus)
 		goto err_inteloutput;
 
+	slave_addr = intel_sdvo_get_slave_addr(dev, output_device);
 	sdvo_priv->i2c_bus = i2cbus;
 
 	if (output_device == SDVOB) {
 		output_id = 1;
-		sdvo_priv->i2c_bus->slave_addr = 0x38;
 	} else {
 		output_id = 2;
-		sdvo_priv->i2c_bus->slave_addr = 0x39;
 	}
-
+	sdvo_priv->i2c_bus->slave_addr = slave_addr >> 1;
 	sdvo_priv->output_device = output_device;
 	intel_output->i2c_bus = i2cbus;
 	intel_output->dev_priv = sdvo_priv;
@@ -1788,8 +1826,9 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {
 		if (!intel_sdvo_read_byte(intel_output, i, &ch[i])) {
-			DRM_DEBUG("No SDVO device found on SDVO%c\n",
-				  output_device == SDVOB ? 'B' : 'C');
+			DRM_DEBUG_KMS(I915_SDVO,
+					"No SDVO device found on SDVO%c\n",
+					output_device == SDVOB ? 'B' : 'C');
 			goto err_i2c;
 		}
 	}
@@ -1873,9 +1912,10 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 
 		sdvo_priv->controlled_output = 0;
 		memcpy (bytes, &sdvo_priv->caps.output_flags, 2);
-		DRM_DEBUG("%s: Unknown SDVO output type (0x%02x%02x)\n",
-			  SDVO_NAME(sdvo_priv),
-			  bytes[0], bytes[1]);
+		DRM_DEBUG_KMS(I915_SDVO,
+				"%s: Unknown SDVO output type (0x%02x%02x)\n",
+				  SDVO_NAME(sdvo_priv),
+				  bytes[0], bytes[1]);
 		encoder_type = DRM_MODE_ENCODER_NONE;
 		connector_type = DRM_MODE_CONNECTOR_Unknown;
 		goto err_i2c;
@@ -1905,21 +1945,21 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 					       &sdvo_priv->pixel_clock_max);
 
 
-	DRM_DEBUG("%s device VID/DID: %02X:%02X.%02X, "
-		  "clock range %dMHz - %dMHz, "
-		  "input 1: %c, input 2: %c, "
-		  "output 1: %c, output 2: %c\n",
-		  SDVO_NAME(sdvo_priv),
-		  sdvo_priv->caps.vendor_id, sdvo_priv->caps.device_id,
-		  sdvo_priv->caps.device_rev_id,
-		  sdvo_priv->pixel_clock_min / 1000,
-		  sdvo_priv->pixel_clock_max / 1000,
-		  (sdvo_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
-		  (sdvo_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
-		  /* check currently supported outputs */
-		  sdvo_priv->caps.output_flags &
+	DRM_DEBUG_KMS(I915_SDVO, "%s device VID/DID: %02X:%02X.%02X, "
+			"clock range %dMHz - %dMHz, "
+			"input 1: %c, input 2: %c, "
+			"output 1: %c, output 2: %c\n",
+			SDVO_NAME(sdvo_priv),
+			sdvo_priv->caps.vendor_id, sdvo_priv->caps.device_id,
+			sdvo_priv->caps.device_rev_id,
+			sdvo_priv->pixel_clock_min / 1000,
+			sdvo_priv->pixel_clock_max / 1000,
+			(sdvo_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
+			(sdvo_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
+			/* check currently supported outputs */
+			sdvo_priv->caps.output_flags &
 			(SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_RGB0) ? 'Y' : 'N',
-		  sdvo_priv->caps.output_flags &
+			sdvo_priv->caps.output_flags &
 			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1) ? 'Y' : 'N');
 
 	return true;

@@ -21,6 +21,9 @@
 
 #include <linux/kvm_host.h>
 #include <linux/smp.h>
+#include <asm/sn/addrs.h>
+#include <asm/sn/clksupport.h>
+#include <asm/sn/shub_mmr.h>
 
 #include "vti.h"
 #include "misc.h"
@@ -188,12 +191,35 @@ static struct ia64_pal_retval pal_freq_base(struct kvm_vcpu *vcpu)
 	return result;
 }
 
+/*
+ * On the SGI SN2, the ITC isn't stable. Emulation backed by the SN2
+ * RTC is used instead. This function patches the ratios from SAL
+ * to match the RTC before providing them to the guest.
+ */
+static void sn2_patch_itc_freq_ratios(struct ia64_pal_retval *result)
+{
+	struct pal_freq_ratio *ratio;
+	unsigned long sal_freq, sal_drift, factor;
+
+	result->status = ia64_sal_freq_base(SAL_FREQ_BASE_PLATFORM,
+					    &sal_freq, &sal_drift);
+	ratio = (struct pal_freq_ratio *)&result->v2;
+	factor = ((sal_freq * 3) + (sn_rtc_cycles_per_second / 2)) /
+		sn_rtc_cycles_per_second;
+
+	ratio->num = 3;
+	ratio->den = factor;
+}
+
 static struct ia64_pal_retval pal_freq_ratios(struct kvm_vcpu *vcpu)
 {
-
 	struct ia64_pal_retval result;
 
 	PAL_CALL(result, PAL_FREQ_RATIOS, 0, 0, 0);
+
+	if (vcpu->kvm->arch.is_sn2)
+		sn2_patch_itc_freq_ratios(&result);
+
 	return result;
 }
 

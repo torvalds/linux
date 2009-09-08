@@ -206,7 +206,7 @@ of MOVE MEMORY instructions.
 The 896 and the 895A allows handling of the phase mismatch context from 
 SCRIPTS (avoids the phase mismatch interrupt that stops the SCSI processor 
 until the C code has saved the context of the transfer).
-Implementing this without using LOAD/STORE instructions would be painfull 
+Implementing this without using LOAD/STORE instructions would be painful 
 and I didn't even want to try it.
 
 The 896 chip supports 64 bit PCI transactions and addressing, while the 
@@ -240,7 +240,7 @@ characteristics. This feature may also reduce average command latency.
 In order to really gain advantage of this feature, devices must have 
 a reasonable cache size (No miracle is to be expected for a low-end 
 hard disk with 128 KB or less).
-Some kown SCSI devices do not properly support tagged command queuing.
+Some known SCSI devices do not properly support tagged command queuing.
 Generally, firmware revisions that fix this kind of problems are available 
 at respective vendor web/ftp sites.
 All I can say is that the hard disks I use on my machines behave well with 

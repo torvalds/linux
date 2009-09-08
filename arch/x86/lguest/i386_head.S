@@ -46,10 +46,64 @@ ENTRY(lguest_entry)
 	.globl lgstart_##name; .globl lgend_##name
 
 LGUEST_PATCH(cli, movl $0, lguest_data+LGUEST_DATA_irq_enabled)
-LGUEST_PATCH(sti, movl $X86_EFLAGS_IF, lguest_data+LGUEST_DATA_irq_enabled)
-LGUEST_PATCH(popf, movl %eax, lguest_data+LGUEST_DATA_irq_enabled)
 LGUEST_PATCH(pushf, movl lguest_data+LGUEST_DATA_irq_enabled, %eax)
-/*:*/
+
+/*G:033 But using those wrappers is inefficient (we'll see why that doesn't
+ * matter for save_fl and irq_disable later).  If we write our routines
+ * carefully in assembler, we can avoid clobbering any registers and avoid
+ * jumping through the wrapper functions.
+ *
+ * I skipped over our first piece of assembler, but this one is worth studying
+ * in a bit more detail so I'll describe in easy stages.  First, the routine
+ * to enable interrupts: */
+ENTRY(lg_irq_enable)
+	/* The reverse of irq_disable, this sets lguest_data.irq_enabled to
+	 * X86_EFLAGS_IF (ie. "Interrupts enabled"). */
+	movl $X86_EFLAGS_IF, lguest_data+LGUEST_DATA_irq_enabled
+	/* But now we need to check if the Host wants to know: there might have
+	 * been interrupts waiting to be delivered, in which case it will have
+	 * set lguest_data.irq_pending to X86_EFLAGS_IF.  If it's not zero, we
+	 * jump to send_interrupts, otherwise we're done. */
+	testl $0, lguest_data+LGUEST_DATA_irq_pending
+	jnz send_interrupts
+	/* One cool thing about x86 is that you can do many things without using
+	 * a register.  In this case, the normal path hasn't needed to save or
+	 * restore any registers at all! */
+	ret
+send_interrupts:
+	/* OK, now we need a register: eax is used for the hypercall number,
+	 * which is LHCALL_SEND_INTERRUPTS.
+	 *
+	 * We used not to bother with this pending detection at all, which was
+	 * much simpler.  Sooner or later the Host would realize it had to
+	 * send us an interrupt.  But that turns out to make performance 7
+	 * times worse on a simple tcp benchmark.  So now we do this the hard
+	 * way. */
+	pushl %eax
+	movl $LHCALL_SEND_INTERRUPTS, %eax
+	/* This is a vmcall instruction (same thing that KVM uses).  Older
+	 * assembler versions might not know the "vmcall" instruction, so we
+	 * create one manually here. */
+	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
+	popl %eax
+	ret
+
+/* Finally, the "popf" or "restore flags" routine.  The %eax register holds the
+ * flags (in practice, either X86_EFLAGS_IF or 0): if it's X86_EFLAGS_IF we're
+ * enabling interrupts again, if it's 0 we're leaving them off. */
+ENTRY(lg_restore_fl)
+	/* This is just "lguest_data.irq_enabled = flags;" */
+	movl %eax, lguest_data+LGUEST_DATA_irq_enabled
+	/* Now, if the %eax value has enabled interrupts and
+	 * lguest_data.irq_pending is set, we want to tell the Host so it can
+	 * deliver any outstanding interrupts.  Fortunately, both values will
+	 * be X86_EFLAGS_IF (ie. 512) in that case, and the "testl"
+	 * instruction will AND them together for us.  If both are set, we
+	 * jump to send_interrupts. */
+	testl lguest_data+LGUEST_DATA_irq_pending, %eax
+	jnz send_interrupts
+	/* Again, the normal path has used no extra registers.  Clever, huh? */
+	ret
 
 /* These demark the EIP range where host should never deliver interrupts. */
 .global lguest_noirq_start

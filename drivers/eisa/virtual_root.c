@@ -57,7 +57,7 @@ static int __init virtual_eisa_root_init (void)
 
 	eisa_bus_root.force_probe = force_probe;
 	
-	eisa_root_dev.dev.driver_data = &eisa_bus_root;
+	dev_set_drvdata(&eisa_root_dev.dev, &eisa_bus_root);
 
 	if (eisa_root_register (&eisa_bus_root)) {
 		/* A real bridge may have been registered before

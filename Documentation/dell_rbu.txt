@@ -76,9 +76,9 @@ Do the steps below to download the BIOS image.
 
 The /sys/class/firmware/dell_rbu/ entries will remain till the following is
 done.
-echo -1 > /sys/class/firmware/dell_rbu/loading.
+echo -1 > /sys/class/firmware/dell_rbu/loading
 Until this step is completed the driver cannot be unloaded.
-Also echoing either mono ,packet or init in to image_type will free up the
+Also echoing either mono, packet or init in to image_type will free up the
 memory allocated by the driver.
 
 If a user by accident executes steps 1 and 3 above without executing step 2;

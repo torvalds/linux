@@ -717,7 +717,7 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 	if (yp->cur_tx - yp->dirty_tx < TX_QUEUE_SIZE)
 		netif_wake_queue (dev);		/* Typical path */
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 }
 
@@ -876,7 +876,6 @@ static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_start_queue (dev);		/* Typical path */
 	else
 		yp->tx_full = 1;
-	dev->trans_start = jiffies;
 
 	if (yellowfin_debug > 4) {
 		printk(KERN_DEBUG "%s: Yellowfin transmit frame #%d queued in slot %d.\n",

@@ -494,6 +494,9 @@ struct usb_ov511 {
 	int has_decoder;	/* Device has a video decoder */
 	int pal;		/* Device is designed for PAL resolution */
 
+	/* ov511 device number ID */
+	int nr;			/* Stores a device number */
+
 	/* I2C interface */
 	struct mutex i2c_lock;	  /* Protect I2C controller regs */
 	unsigned char primary_i2c_slave;  /* I2C write id of sensor */

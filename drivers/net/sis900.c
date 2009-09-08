@@ -1584,7 +1584,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	/* Don't transmit data before the complete of auto-negotiation */
 	if(!sis_priv->autong_complete){
 		netif_stop_queue(net_dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	spin_lock_irqsave(&sis_priv->lock, flags);

@@ -218,15 +218,9 @@ VOID PeerAuthRspAtSeq2Action(
             {
                 // Authentication Mode "LEAP" has allow for CCX 1.X
                 if ((pAd->MlmeAux.Alg == Ndis802_11AuthModeOpen)
-#ifdef LEAP_SUPPORT
-					|| (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
 				)
                 {
                     pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
-#ifdef LEAP_SUPPORT
-                    pAd->Mlme.LeapMachine.CurrState = LEAP_IDLE;
-#endif // LEAP_SUPPORT //
                     MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
                 }
                 else
@@ -282,14 +276,6 @@ VOID PeerAuthRspAtSeq2Action(
             }
             else
             {
-#ifdef LEAP_SUPPORT
-                if (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-                {
-                    //Invalid Authentication possible rogue AP
-                    //Add this Ap to Rogue AP.
-                    RogueApTableSetEntry(pAd, &pAd->StaCfg.RogueApTab, Addr2, LEAP_REASON_INVALID_AUTH);
-				}
-#endif // LEAP_SUPPORT //
                 pAd->StaCfg.AuthFailReason = Status;
                 COPY_MAC_ADDR(pAd->StaCfg.AuthFailSta, Addr2);
                 pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;

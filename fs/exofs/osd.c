@@ -50,10 +50,10 @@ int exofs_check_ok_resid(struct osd_request *or, u64 *in_resid, u64 *out_resid)
 
 	/* FIXME: should be include in osd_sense_info */
 	if (in_resid)
-		*in_resid = or->in.req ? or->in.req->data_len : 0;
+		*in_resid = or->in.req ? or->in.req->resid_len : 0;
 
 	if (out_resid)
-		*out_resid = or->out.req ? or->out.req->data_len : 0;
+		*out_resid = or->out.req ? or->out.req->resid_len : 0;
 
 	return ret;
 }
@@ -124,30 +124,4 @@ int extract_attr_from_req(struct osd_request *or, struct osd_attr *attr)
 	} while (iter);
 
 	return -EIO;
-}
-
-int osd_req_read_kern(struct osd_request *or,
-	const struct osd_obj_id *obj, u64 offset, void* buff, u64 len)
-{
-	struct request_queue *req_q = or->osd_dev->scsi_device->request_queue;
-	struct bio *bio = bio_map_kern(req_q, buff, len, GFP_KERNEL);
-
-	if (!bio)
-		return -ENOMEM;
-
-	osd_req_read(or, obj, bio, offset);
-	return 0;
-}
-
-int osd_req_write_kern(struct osd_request *or,
-	const struct osd_obj_id *obj, u64 offset, void* buff, u64 len)
-{
-	struct request_queue *req_q = or->osd_dev->scsi_device->request_queue;
-	struct bio *bio = bio_map_kern(req_q, buff, len, GFP_KERNEL);
-
-	if (!bio)
-		return -ENOMEM;
-
-	osd_req_write(or, obj, bio, offset);
-	return 0;
 }

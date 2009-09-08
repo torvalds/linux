@@ -97,6 +97,14 @@
  */
 #define r1b_timeout		(HZ * 3)
 
+/* One of the critical speed parameters is the amount of data which may
+ * be transfered in one command. If this value is too low, the SD card
+ * controller has to do multiple partial block writes (argggh!). With
+ * today (2008) SD cards there is little speed gain if we transfer more
+ * than 64 KBytes at a time. So use this value until there is any indication
+ * that we should do more here.
+ */
+#define MMC_SPI_BLOCKSATONCE	128
 
 /****************************************************************************/
 
@@ -327,15 +335,16 @@ checkstatus:
 
 	/* Status byte: the entire seven-bit R1 response.  */
 	if (cmd->resp[0] != 0) {
-		if ((R1_SPI_PARAMETER | R1_SPI_ADDRESS
-				      | R1_SPI_ILLEGAL_COMMAND)
+		if ((R1_SPI_PARAMETER | R1_SPI_ADDRESS)
 				& cmd->resp[0])
-			value = -EINVAL;
+			value = -EFAULT; /* Bad address */
+		else if (R1_SPI_ILLEGAL_COMMAND & cmd->resp[0])
+			value = -ENOSYS; /* Function not implemented */
 		else if (R1_SPI_COM_CRC & cmd->resp[0])
-			value = -EILSEQ;
+			value = -EILSEQ; /* Illegal byte sequence */
 		else if ((R1_SPI_ERASE_SEQ | R1_SPI_ERASE_RESET)
 				& cmd->resp[0])
-			value = -EIO;
+			value = -EIO;    /* I/O error */
 		/* else R1_SPI_IDLE, "it's resetting" */
 	}
 
@@ -1366,6 +1375,10 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
+	mmc->max_hw_segs = MMC_SPI_BLOCKSATONCE;
+	mmc->max_phys_segs = MMC_SPI_BLOCKSATONCE;
+	mmc->max_req_size = MMC_SPI_BLOCKSATONCE * MMC_SPI_BLOCKSIZE;
+	mmc->max_blk_count = MMC_SPI_BLOCKSATONCE;
 
 	mmc->caps = MMC_CAP_SPI;
 

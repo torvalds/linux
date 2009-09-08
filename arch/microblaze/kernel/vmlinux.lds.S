@@ -17,8 +17,7 @@ ENTRY(_start)
 jiffies = jiffies_64 + 4;
 
 SECTIONS {
-	. = CONFIG_KERNEL_BASE_ADDR;
-
+	. = CONFIG_KERNEL_START;
 	.text : {
 		_text = . ;
 		_stext = . ;
@@ -63,7 +62,8 @@ SECTIONS {
 
 	_sdata = . ;
 	.data ALIGN (4096) : { /* page aligned when MMU used - origin 0x4 */
-		*(.data)
+		DATA_DATA
+		CONSTRUCTORS
 	}
 	. = ALIGN(32);
 	.data.cacheline_aligned : { *(.data.cacheline_aligned) }
@@ -99,13 +99,13 @@ SECTIONS {
 	. = ALIGN(4096);
 	.init.text : {
 		_sinittext = . ;
-		*(.init.text)
-		*(.exit.text)
-		*(.exit.data)
+		INIT_TEXT
 		_einittext = .;
 	}
 
-	.init.data : { *(.init.data) }
+	.init.data : {
+		INIT_DATA
+	}
 
 	. = ALIGN(4);
 	.init.ivt : {
@@ -131,6 +131,8 @@ SECTIONS {
 		*(.con_initcall.init)
 		__con_initcall_end = .;
 	}
+
+	SECURITY_INIT
 
 	__init_end_before_initramfs = .;
 

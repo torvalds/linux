@@ -198,15 +198,19 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 }
 
 static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
-                     uid_t uid, uid_t euid, int force)
+                     int force)
 {
 	write_lock_irq(&filp->f_owner.lock);
 	if (force || !filp->f_owner.pid) {
 		put_pid(filp->f_owner.pid);
 		filp->f_owner.pid = get_pid(pid);
 		filp->f_owner.pid_type = type;
-		filp->f_owner.uid = uid;
-		filp->f_owner.euid = euid;
+
+		if (pid) {
+			const struct cred *cred = current_cred();
+			filp->f_owner.uid = cred->uid;
+			filp->f_owner.euid = cred->euid;
+		}
 	}
 	write_unlock_irq(&filp->f_owner.lock);
 }
@@ -214,14 +218,13 @@ static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
 int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 		int force)
 {
-	const struct cred *cred = current_cred();
 	int err;
-	
+
 	err = security_file_set_fowner(filp);
 	if (err)
 		return err;
 
-	f_modown(filp, pid, type, cred->uid, cred->euid, force);
+	f_modown(filp, pid, type, force);
 	return 0;
 }
 EXPORT_SYMBOL(__f_setown);
@@ -247,7 +250,7 @@ EXPORT_SYMBOL(f_setown);
 
 void f_delown(struct file *filp)
 {
-	f_modown(filp, NULL, PIDTYPE_PID, 0, 0, 1);
+	f_modown(filp, NULL, PIDTYPE_PID, 1);
 }
 
 pid_t f_getown(struct file *filp)
@@ -425,14 +428,20 @@ static inline int sigio_perm(struct task_struct *p,
 }
 
 static void send_sigio_to_task(struct task_struct *p,
-			       struct fown_struct *fown, 
+			       struct fown_struct *fown,
 			       int fd,
 			       int reason)
 {
-	if (!sigio_perm(p, fown, fown->signum))
+	/*
+	 * F_SETSIG can change ->signum lockless in parallel, make
+	 * sure we read it once and use the same value throughout.
+	 */
+	int signum = ACCESS_ONCE(fown->signum);
+
+	if (!sigio_perm(p, fown, signum))
 		return;
 
-	switch (fown->signum) {
+	switch (signum) {
 		siginfo_t si;
 		default:
 			/* Queue a rt signal with the appropriate fd as its
@@ -441,7 +450,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
-			si.si_signo = fown->signum;
+			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
 			/* Make sure we are called with one of the POLL_*
@@ -453,7 +462,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = band_table[reason - POLL_IN];
 			si.si_fd    = fd;
-			if (!group_send_sig_info(fown->signum, &si, p))
+			if (!group_send_sig_info(signum, &si, p))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:

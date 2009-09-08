@@ -857,7 +857,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
 	data->state = IWL_CHAIN_NOISE_DONE;
-	iwl_power_enable_management(priv);
+	iwl_power_update_mode(priv, 0);
 }
 EXPORT_SYMBOL(iwl_chain_noise_calibration);
 

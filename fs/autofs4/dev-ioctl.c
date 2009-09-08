@@ -192,77 +192,42 @@ static int autofs_dev_ioctl_protosubver(struct file *fp,
 	return 0;
 }
 
-/*
- * Walk down the mount stack looking for an autofs mount that
- * has the requested device number (aka. new_encode_dev(sb->s_dev).
- */
-static int autofs_dev_ioctl_find_super(struct nameidata *nd, dev_t devno)
+static int find_autofs_mount(const char *pathname,
+			     struct path *res,
+			     int test(struct path *path, void *data),
+			     void *data)
 {
-	struct dentry *dentry;
-	struct inode *inode;
-	struct super_block *sb;
-	dev_t s_dev;
-	unsigned int err;
-
+	struct path path;
+	int err = kern_path(pathname, 0, &path);
+	if (err)
+		return err;
 	err = -ENOENT;
-
-	/* Lookup the dentry name at the base of our mount point */
-	dentry = d_lookup(nd->path.dentry, &nd->last);
-	if (!dentry)
-		goto out;
-
-	dput(nd->path.dentry);
-	nd->path.dentry = dentry;
-
-	/* And follow the mount stack looking for our autofs mount */
-	while (follow_down(&nd->path.mnt, &nd->path.dentry)) {
-		inode = nd->path.dentry->d_inode;
-		if (!inode)
-			break;
-
-		sb = inode->i_sb;
-		s_dev = new_encode_dev(sb->s_dev);
-		if (devno == s_dev) {
-			if (sb->s_magic == AUTOFS_SUPER_MAGIC) {
+	while (path.dentry == path.mnt->mnt_root) {
+		if (path.mnt->mnt_sb->s_magic == AUTOFS_SUPER_MAGIC) {
+			if (test(&path, data)) {
+				path_get(&path);
+				if (!err) /* already found some */
+					path_put(res);
+				*res = path;
 				err = 0;
-				break;
 			}
 		}
+		if (!follow_up(&path))
+			break;
 	}
-out:
+	path_put(&path);
 	return err;
 }
 
-/*
- * Walk down the mount stack looking for an autofs mount that
- * has the requested mount type (ie. indirect, direct or offset).
- */
-static int autofs_dev_ioctl_find_sbi_type(struct nameidata *nd, unsigned int type)
+static int test_by_dev(struct path *path, void *p)
 {
-	struct dentry *dentry;
-	struct autofs_info *ino;
-	unsigned int err;
+	return path->mnt->mnt_sb->s_dev == *(dev_t *)p;
+}
 
-	err = -ENOENT;
-
-	/* Lookup the dentry name at the base of our mount point */
-	dentry = d_lookup(nd->path.dentry, &nd->last);
-	if (!dentry)
-		goto out;
-
-	dput(nd->path.dentry);
-	nd->path.dentry = dentry;
-
-	/* And follow the mount stack looking for our autofs mount */
-	while (follow_down(&nd->path.mnt, &nd->path.dentry)) {
-		ino = autofs4_dentry_ino(nd->path.dentry);
-		if (ino && ino->sbi->type & type) {
-			err = 0;
-			break;
-		}
-	}
-out:
-	return err;
+static int test_by_type(struct path *path, void *p)
+{
+	struct autofs_info *ino = autofs4_dentry_ino(path->dentry);
+	return ino && ino->sbi->type & *(unsigned *)p;
 }
 
 static void autofs_dev_ioctl_fd_install(unsigned int fd, struct file *file)
@@ -283,31 +248,25 @@ static void autofs_dev_ioctl_fd_install(unsigned int fd, struct file *file)
  * Open a file descriptor on the autofs mount point corresponding
  * to the given path and device number (aka. new_encode_dev(sb->s_dev)).
  */
-static int autofs_dev_ioctl_open_mountpoint(const char *path, dev_t devid)
+static int autofs_dev_ioctl_open_mountpoint(const char *name, dev_t devid)
 {
-	struct file *filp;
-	struct nameidata nd;
 	int err, fd;
 
 	fd = get_unused_fd();
 	if (likely(fd >= 0)) {
-		/* Get nameidata of the parent directory */
-		err = path_lookup(path, LOOKUP_PARENT, &nd);
+		struct file *filp;
+		struct path path;
+
+		err = find_autofs_mount(name, &path, test_by_dev, &devid);
 		if (err)
 			goto out;
 
 		/*
-		 * Search down, within the parent, looking for an
-		 * autofs super block that has the device number
+		 * Find autofs super block that has the device number
 		 * corresponding to the autofs fs we want to open.
 		 */
-		err = autofs_dev_ioctl_find_super(&nd, devid);
-		if (err) {
-			path_put(&nd.path);
-			goto out;
-		}
 
-		filp = dentry_open(nd.path.dentry, nd.path.mnt, O_RDONLY,
+		filp = dentry_open(path.dentry, path.mnt, O_RDONLY,
 				   current_cred());
 		if (IS_ERR(filp)) {
 			err = PTR_ERR(filp);
@@ -340,7 +299,7 @@ static int autofs_dev_ioctl_openmount(struct file *fp,
 	param->ioctlfd = -1;
 
 	path = param->path;
-	devid = param->openmount.devid;
+	devid = new_decode_dev(param->openmount.devid);
 
 	err = 0;
 	fd = autofs_dev_ioctl_open_mountpoint(path, devid);
@@ -475,8 +434,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 				      struct autofs_dev_ioctl *param)
 {
 	struct autofs_info *ino;
-	struct nameidata nd;
-	const char *path;
+	struct path path;
 	dev_t devid;
 	int err = -ENOENT;
 
@@ -485,32 +443,24 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 		goto out;
 	}
 
-	path = param->path;
-	devid = new_encode_dev(sbi->sb->s_dev);
+	devid = sbi->sb->s_dev;
 
 	param->requester.uid = param->requester.gid = -1;
 
-	/* Get nameidata of the parent directory */
-	err = path_lookup(path, LOOKUP_PARENT, &nd);
+	err = find_autofs_mount(param->path, &path, test_by_dev, &devid);
 	if (err)
 		goto out;
 
-	err = autofs_dev_ioctl_find_super(&nd, devid);
-	if (err)
-		goto out_release;
-
-	ino = autofs4_dentry_ino(nd.path.dentry);
+	ino = autofs4_dentry_ino(path.dentry);
 	if (ino) {
 		err = 0;
-		autofs4_expire_wait(nd.path.dentry);
+		autofs4_expire_wait(path.dentry);
 		spin_lock(&sbi->fs_lock);
 		param->requester.uid = ino->uid;
 		param->requester.gid = ino->gid;
 		spin_unlock(&sbi->fs_lock);
 	}
-
-out_release:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return err;
 }
@@ -569,8 +519,8 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 					 struct autofs_sb_info *sbi,
 					 struct autofs_dev_ioctl *param)
 {
-	struct nameidata nd;
-	const char *path;
+	struct path path;
+	const char *name;
 	unsigned int type;
 	unsigned int devid, magic;
 	int err = -ENOENT;
@@ -580,71 +530,46 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 		goto out;
 	}
 
-	path = param->path;
+	name = param->path;
 	type = param->ismountpoint.in.type;
 
 	param->ismountpoint.out.devid = devid = 0;
 	param->ismountpoint.out.magic = magic = 0;
 
 	if (!fp || param->ioctlfd == -1) {
-		if (autofs_type_any(type)) {
-			struct super_block *sb;
-
-			err = path_lookup(path, LOOKUP_FOLLOW, &nd);
-			if (err)
-				goto out;
-
-			sb = nd.path.dentry->d_sb;
-			devid = new_encode_dev(sb->s_dev);
-		} else {
-			struct autofs_info *ino;
-
-			err = path_lookup(path, LOOKUP_PARENT, &nd);
-			if (err)
-				goto out;
-
-			err = autofs_dev_ioctl_find_sbi_type(&nd, type);
-			if (err)
-				goto out_release;
-
-			ino = autofs4_dentry_ino(nd.path.dentry);
-			devid = autofs4_get_dev(ino->sbi);
-		}
-
+		if (autofs_type_any(type))
+			err = kern_path(name, LOOKUP_FOLLOW, &path);
+		else
+			err = find_autofs_mount(name, &path, test_by_type, &type);
+		if (err)
+			goto out;
+		devid = new_encode_dev(path.mnt->mnt_sb->s_dev);
 		err = 0;
-		if (nd.path.dentry->d_inode &&
-		    nd.path.mnt->mnt_root == nd.path.dentry) {
+		if (path.dentry->d_inode &&
+		    path.mnt->mnt_root == path.dentry) {
 			err = 1;
-			magic = nd.path.dentry->d_inode->i_sb->s_magic;
+			magic = path.dentry->d_inode->i_sb->s_magic;
 		}
 	} else {
-		dev_t dev = autofs4_get_dev(sbi);
+		dev_t dev = sbi->sb->s_dev;
 
-		err = path_lookup(path, LOOKUP_PARENT, &nd);
+		err = find_autofs_mount(name, &path, test_by_dev, &dev);
 		if (err)
 			goto out;
 
-		err = autofs_dev_ioctl_find_super(&nd, dev);
-		if (err)
-			goto out_release;
+		devid = new_encode_dev(dev);
 
-		devid = dev;
+		err = have_submounts(path.dentry);
 
-		err = have_submounts(nd.path.dentry);
-
-		if (nd.path.mnt->mnt_mountpoint != nd.path.mnt->mnt_root) {
-			if (follow_down(&nd.path.mnt, &nd.path.dentry)) {
-				struct inode *inode = nd.path.dentry->d_inode;
-				magic = inode->i_sb->s_magic;
-			}
+		if (path.mnt->mnt_mountpoint != path.mnt->mnt_root) {
+			if (follow_down(&path))
+				magic = path.mnt->mnt_sb->s_magic;
 		}
 	}
 
 	param->ismountpoint.out.devid = devid;
 	param->ismountpoint.out.magic = magic;
-
-out_release:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return err;
 }

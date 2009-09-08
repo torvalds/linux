@@ -33,7 +33,8 @@
 #include <linux/kallsyms.h>
 #include <linux/debug_locks.h>
 #include <linux/lockdep.h>
-#include <trace/workqueue.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/workqueue.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -123,8 +124,6 @@ struct cpu_workqueue_struct *get_wq_data(struct work_struct *work)
 {
 	return (void *) (atomic_long_read(&work->data) & WORK_STRUCT_WQ_DATA_MASK);
 }
-
-DEFINE_TRACE(workqueue_insertion);
 
 static void insert_work(struct cpu_workqueue_struct *cwq,
 			struct work_struct *work, struct list_head *head)
@@ -261,8 +260,6 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(queue_delayed_work_on);
-
-DEFINE_TRACE(workqueue_execution);
 
 static void run_workqueue(struct cpu_workqueue_struct *cwq)
 {
@@ -753,8 +750,6 @@ init_cpu_workqueue(struct workqueue_struct *wq, int cpu)
 	return cwq;
 }
 
-DEFINE_TRACE(workqueue_creation);
-
 static int create_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
@@ -859,8 +854,6 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 	return wq;
 }
 EXPORT_SYMBOL_GPL(__create_workqueue_key);
-
-DEFINE_TRACE(workqueue_destruction);
 
 static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq)
 {

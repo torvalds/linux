@@ -25,7 +25,7 @@
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
 #define KERNEL_DS	MAKE_MM_SEG(-1UL)
-#define USER_DS		MAKE_MM_SEG(PAGE_OFFSET)
+#define USER_DS 	MAKE_MM_SEG(TASK_SIZE_MAX)
 
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)

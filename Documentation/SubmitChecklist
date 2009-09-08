@@ -54,7 +54,7 @@ kernel patches.
     CONFIG_PREEMPT.
 
 14: If the patch affects IO/Disk, etc: has been tested with and without
-    CONFIG_LBD.
+    CONFIG_LBDAF.
 
 15: All codepaths have been exercised with all lockdep features enabled.
 

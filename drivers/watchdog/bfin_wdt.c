@@ -27,10 +27,15 @@
 #include <linux/uaccess.h>
 #include <asm/blackfin.h>
 
-#define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
+#define stamp(fmt, args...) \
+	pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")
-#define pr_devinit(fmt, args...) ({ static const __devinitconst char __fmt[] = fmt; printk(__fmt, ## args); })
-#define pr_init(fmt, args...) ({ static const __initconst char __fmt[] = fmt; printk(__fmt, ## args); })
+#define pr_devinit(fmt, args...) \
+	({ static const __devinitconst char __fmt[] = fmt; \
+	printk(__fmt, ## args); })
+#define pr_init(fmt, args...) \
+	({ static const __initconst char __fmt[] = fmt; \
+	printk(__fmt, ## args); })
 
 #define WATCHDOG_NAME "bfin-wdt"
 #define PFX WATCHDOG_NAME ": "
@@ -476,7 +481,8 @@ static int __init bfin_wdt_init(void)
 		return ret;
 	}
 
-	bfin_wdt_device = platform_device_register_simple(WATCHDOG_NAME, -1, NULL, 0);
+	bfin_wdt_device = platform_device_register_simple(WATCHDOG_NAME,
+								-1, NULL, 0);
 	if (IS_ERR(bfin_wdt_device)) {
 		pr_init(KERN_ERR PFX "unable to register device\n");
 		platform_driver_unregister(&bfin_wdt_driver);

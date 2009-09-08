@@ -19,7 +19,7 @@
  * default the offset is PCI_DRAM_OFFSET.
  */
 
-static unsigned long get_dma_direct_offset(struct device *dev)
+unsigned long get_dma_direct_offset(struct device *dev)
 {
 	if (dev)
 		return (unsigned long)dev->archdata.dma_data;

@@ -1,6 +1,20 @@
 #ifndef __ASM_SH7723_H__
 #define __ASM_SH7723_H__
 
+/* Boot Mode Pins:
+ *
+ * MD0: CPG - Clock Mode 0->3
+ * MD1: CPG - Clock Mode 0->3
+ * MD2: CPG - Reserved (L: Normal operation)
+ * MD3: BSC - Area0 Bus Width (16/32-bit) [CS0BCR.9,10]
+ * MD5: BSC - Endian Mode (L: Big, H: Little) [CMNCR.3]
+ * MD8: Test Mode
+ */
+
+/* Pin Function Controller:
+ * GPIO_FN_xx - GPIO used to select pin function
+ * GPIO_Pxx - GPIO mapped to real I/O pin on CPU
+ */
 enum {
 	/* PTA */
 	GPIO_PTA7, GPIO_PTA6, GPIO_PTA5, GPIO_PTA4,

@@ -266,6 +266,19 @@ static inline int tcp_too_many_orphans(struct sock *sk, int num)
 		 atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2]);
 }
 
+/* syncookies: remember time of last synqueue overflow */
+static inline void tcp_synq_overflow(struct sock *sk)
+{
+	tcp_sk(sk)->rx_opt.ts_recent_stamp = jiffies;
+}
+
+/* syncookies: no recent synqueue overflow on this listening socket? */
+static inline int tcp_synq_no_recent_overflow(const struct sock *sk)
+{
+	unsigned long last_overflow = tcp_sk(sk)->rx_opt.ts_recent_stamp;
+	return time_after(jiffies, last_overflow + TCP_TIMEOUT_INIT);
+}
+
 extern struct proto tcp_prot;
 
 #define TCP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.tcp_statistics, field)
@@ -889,30 +902,32 @@ static inline int tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (!sysctl_tcp_low_latency && tp->ucopy.task) {
-		__skb_queue_tail(&tp->ucopy.prequeue, skb);
-		tp->ucopy.memory += skb->truesize;
-		if (tp->ucopy.memory > sk->sk_rcvbuf) {
-			struct sk_buff *skb1;
+	if (sysctl_tcp_low_latency || !tp->ucopy.task)
+		return 0;
 
-			BUG_ON(sock_owned_by_user(sk));
+	__skb_queue_tail(&tp->ucopy.prequeue, skb);
+	tp->ucopy.memory += skb->truesize;
+	if (tp->ucopy.memory > sk->sk_rcvbuf) {
+		struct sk_buff *skb1;
 
-			while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
-				sk_backlog_rcv(sk, skb1);
-				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPPREQUEUEDROPPED);
-			}
+		BUG_ON(sock_owned_by_user(sk));
 
-			tp->ucopy.memory = 0;
-		} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
-			wake_up_interruptible(sk->sk_sleep);
-			if (!inet_csk_ack_scheduled(sk))
-				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-						          (3 * tcp_rto_min(sk)) / 4,
-							  TCP_RTO_MAX);
+		while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
+			sk_backlog_rcv(sk, skb1);
+			NET_INC_STATS_BH(sock_net(sk),
+					 LINUX_MIB_TCPPREQUEUEDROPPED);
 		}
-		return 1;
+
+		tp->ucopy.memory = 0;
+	} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
+		wake_up_interruptible_poll(sk->sk_sleep,
+					   POLLIN | POLLRDNORM | POLLRDBAND);
+		if (!inet_csk_ack_scheduled(sk))
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  (3 * tcp_rto_min(sk)) / 4,
+						  TCP_RTO_MAX);
 	}
-	return 0;
+	return 1;
 }
 
 

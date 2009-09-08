@@ -102,13 +102,8 @@ int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 			return ret;
 		}
 
-		/* restore this queue's parameters in nic hardware. */
-		ret = iwl_grab_nic_access(priv);
-		if (ret)
-			return ret;
 		iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 				     txq->q.write_ptr | (txq_id << 8));
-		iwl_release_nic_access(priv);
 
 	/* else not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx). */
@@ -429,11 +424,6 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 		goto error_kw;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (unlikely(ret)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		goto error_reset;
-	}
 
 	/* Turn off all Tx DMA fifos */
 	priv->cfg->ops->lib->txq_set_sched(priv, 0);
@@ -441,7 +431,6 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	/* Tell NIC where to find the "keep warm" buffer */
 	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Alloc and init all Tx queues, including the command queue (#4) */
@@ -460,7 +449,6 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 
  error:
 	iwl_hw_txq_ctx_free(priv);
- error_reset:
 	iwl_free_dma_ptr(priv, &priv->kw);
  error_kw:
 	iwl_free_dma_ptr(priv, &priv->scd_bc_tbls);
@@ -478,10 +466,6 @@ void iwl_txq_ctx_stop(struct iwl_priv *priv)
 
 	/* Turn off all Tx DMA fifos */
 	spin_lock_irqsave(&priv->lock, flags);
-	if (iwl_grab_nic_access(priv)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return;
-	}
 
 	priv->cfg->ops->lib->txq_set_sched(priv, 0);
 
@@ -492,7 +476,6 @@ void iwl_txq_ctx_stop(struct iwl_priv *priv)
 				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
 				    1000);
 	}
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Deallocate memory for all Tx queues */
@@ -728,7 +711,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* drop all data frame if we are not associated */
 	if (ieee80211_is_data(fc) &&
-	    (priv->iw_mode != NL80211_IFTYPE_MONITOR ||
+	    (!iwl_is_monitor_mode(priv) ||
 	    !(info->flags & IEEE80211_TX_CTL_INJECTED)) && /* packet injection */
 	    (!iwl_is_associated(priv) ||
 	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id) ||
@@ -1183,8 +1166,10 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 			__func__, ra, tid);
 
 	sta_id = iwl_find_station(priv, ra);
-	if (sta_id == IWL_INVALID_STATION)
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Start AGG on invalid station\n");
 		return -ENXIO;
+	}
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
 		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
@@ -1192,8 +1177,10 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	}
 
 	txq_id = iwl_txq_ctx_activate_free(priv);
-	if (txq_id == -1)
+	if (txq_id == -1) {
+		IWL_ERR(priv, "No free aggregation queue available\n");
 		return -ENXIO;
+	}
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	tid_data = &priv->stations[sta_id].tid[tid];
@@ -1207,7 +1194,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		return ret;
 
 	if (tid_data->tfds_in_queue == 0) {
-		IWL_ERR(priv, "HW queue is empty\n");
+		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
 		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, ra, tid);
 	} else {

@@ -309,6 +309,20 @@ static void lowcomms_state_change(struct sock *sk)
 		lowcomms_write_space(sk);
 }
 
+int dlm_lowcomms_connect_node(int nodeid)
+{
+	struct connection *con;
+
+	if (nodeid == dlm_our_nodeid())
+		return 0;
+
+	con = nodeid2con(nodeid, GFP_NOFS);
+	if (!con)
+		return -ENOMEM;
+	lowcomms_connect_sock(con);
+	return 0;
+}
+
 /* Make a socket active */
 static int add_sock(struct socket *sock, struct connection *con)
 {
@@ -486,7 +500,7 @@ static void process_sctp_notification(struct connection *con,
 				return;
 			}
 
-			new_con = nodeid2con(nodeid, GFP_KERNEL);
+			new_con = nodeid2con(nodeid, GFP_NOFS);
 			if (!new_con)
 				return;
 
@@ -722,7 +736,7 @@ static int tcp_accept_from_sock(struct connection *con)
 	 *  the same time and the connections cross on the wire.
 	 *  In this case we store the incoming one in "othercon"
 	 */
-	newcon = nodeid2con(nodeid, GFP_KERNEL);
+	newcon = nodeid2con(nodeid, GFP_NOFS);
 	if (!newcon) {
 		result = -ENOMEM;
 		goto accept_err;
@@ -732,7 +746,7 @@ static int tcp_accept_from_sock(struct connection *con)
 		struct connection *othercon = newcon->othercon;
 
 		if (!othercon) {
-			othercon = kmem_cache_zalloc(con_cache, GFP_KERNEL);
+			othercon = kmem_cache_zalloc(con_cache, GFP_NOFS);
 			if (!othercon) {
 				log_print("failed to allocate incoming socket");
 				mutex_unlock(&newcon->sock_mutex);
@@ -1421,7 +1435,7 @@ static int work_start(void)
 static void stop_conn(struct connection *con)
 {
 	con->flags |= 0x0F;
-	if (con->sock)
+	if (con->sock && con->sock->sk)
 		con->sock->sk->sk_user_data = NULL;
 }
 

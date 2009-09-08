@@ -226,7 +226,7 @@ static int __device_attach(struct device_driver *drv, void *data)
  * pair is found, break out and return.
  *
  * Returns 1 if the device was bound to a driver;
- * 0 if no matching device was found;
+ * 0 if no matching driver was found;
  * -ENODEV if the device is not registered.
  *
  * When called for a USB interface, @dev->parent->sem must be held.
@@ -320,6 +320,10 @@ static void __device_release_driver(struct device *dev)
 		devres_release_all(dev);
 		dev->driver = NULL;
 		klist_remove(&dev->p->knode_driver);
+		if (dev->bus)
+			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
+						     BUS_NOTIFY_UNBOUND_DRIVER,
+						     dev);
 	}
 }
 

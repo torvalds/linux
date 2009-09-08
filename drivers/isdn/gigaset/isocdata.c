@@ -246,6 +246,10 @@ static inline void dump_bytes(enum debuglevel level, const char *tag,
 	unsigned char c;
 	static char dbgline[3 * 32 + 1];
 	int i = 0;
+
+	if (!(gigaset_debuglevel & level))
+		return;
+
 	while (count-- > 0) {
 		if (i > sizeof(dbgline) - 4) {
 			dbgline[i] = '\0';

@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -68,25 +68,25 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "addi_common.h"
 #include "addi_amcc_s5933.h"
 
-//Update-0.7.57->0.7.68MODULE_AUTHOR("ADDI-DATA GmbH <info@addi-data.com>");
-//Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module");
-//Update-0.7.57->0.7.68MODULE_LICENSE("GPL");
+/* Update-0.7.57->0.7.68MODULE_AUTHOR("ADDI-DATA GmbH <info@addi-data.com>"); */
+/* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
+/* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
 
-#define devpriv ((addi_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define devpriv ((struct addi_private *)dev->private)
+#define this_board ((struct addi_board *)dev->board_ptr)
 
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
-//BYTE b_SaveFPUReg [94];
+/* BYTE b_SaveFPUReg [94]; */
 
 void fpu_begin(void)
 {
-	//asm ("fstenv b_SaveFPUReg");
+	/* asm ("fstenv b_SaveFPUReg"); */
 	kernel_fpu_begin();
 }
 
 void fpu_end(void)
 {
-	// asm ("frstor b_SaveFPUReg");
+	/*  asm ("frstor b_SaveFPUReg"); */
 	kernel_fpu_end();
 }
 #endif
@@ -219,7 +219,7 @@ static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
 
-static const boardtype boardtypes[] = {
+static const struct addi_board boardtypes[] = {
 #ifdef CONFIG_APCI_3120
 	{"apci3120",
 			APCI3120_BOARD_VENDOR_ID,
@@ -901,7 +901,7 @@ static const boardtype boardtypes[] = {
 		NULL},
 #endif
 #ifdef CONFIG_APCI_3300
-	//Begin JK 20.10.2004: APCI-3300 integration
+	/* Begin JK	.20.10.2004 = APCI-3300 integration */
 	{"apci3300",
 			APCI3200_BOARD_VENDOR_ID,
 			0x3007,
@@ -2525,16 +2525,16 @@ static const boardtype boardtypes[] = {
 #endif
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
 
 struct comedi_driver driver_addi = {
-      driver_name:"addi_common",
-      module:THIS_MODULE,
-      attach:i_ADDI_Attach,
-      detach:i_ADDI_Detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].pc_DriverName,
-      offset:sizeof(boardtype),
+	.driver_name = "addi_common",
+	.module = THIS_MODULE,
+	.attach = i_ADDI_Attach,
+	.detach = i_ADDI_Detach,
+	.num_names = n_boardtypes,
+	.board_name = &boardtypes[0].pc_DriverName,
+	.offset = sizeof(struct addi_board),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
@@ -2559,11 +2559,11 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
-	DWORD dw_Dummy;
+	unsigned int dw_Dummy;
 	resource_size_t io_addr[5];
 	unsigned int irq;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
@@ -2575,26 +2575,28 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
 		this_board->pc_DriverName);
 
-	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
-	  	return -ENOMEM;
-	}
+	ret = alloc_private(dev, sizeof(struct addi_private));
+	if (ret < 0)
+		return -ENOMEM;
 
 	if (!pci_list_builded) {
-		v_pci_card_list_init(this_board->i_VendorId, 1);	//1 for displaying the list..
+		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
 		pci_list_builded = 1;
 	}
-	//rt_printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName);
+	/* printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName); */
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
 	}
 
-	if ((card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
-				this_board->i_DeviceId,
-				it->options[0],
-				it->options[1], i_Dma)) == NULL) {
+	card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
+					     this_board->i_DeviceId,
+					     it->options[0],
+					     it->options[1], i_Dma);
+
+	if (card == NULL)
 		return -EIO;
-	}
+
 	devpriv->allocated = 1;
 
 	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
@@ -2617,63 +2619,63 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 	   /************************************/
 
 		if (this_board->i_IorangeBase1 != 0) {
-			dev->iobase = (unsigned long)iobase_main;	// DAQ base address...
+			dev->iobase = (unsigned long)iobase_main;	/*  DAQ base address... */
 		} else {
-			dev->iobase = (unsigned long)iobase_a;	// DAQ base address...
+			dev->iobase = (unsigned long)iobase_a;	/*  DAQ base address... */
 		}
 
 		dev->board_name = this_board->pc_DriverName;
 		devpriv->amcc = card;
-		devpriv->iobase = (INT) dev->iobase;
-		devpriv->i_IobaseAmcc = (INT) iobase_a;	//AMCC base address...
-		devpriv->i_IobaseAddon = (INT) iobase_addon;	//ADD ON base address....
-		devpriv->i_IobaseReserved = (INT) iobase_reserved;
+		devpriv->iobase = (int) dev->iobase;
+		devpriv->i_IobaseAmcc = (int) iobase_a;	/* AMCC base address... */
+		devpriv->i_IobaseAddon = (int) iobase_addon;	/* ADD ON base address.... */
+		devpriv->i_IobaseReserved = (int) iobase_reserved;
 		devpriv->ps_BoardInfo = this_board;
 	} else {
 		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = (unsigned long)io_addr[2];
 		devpriv->amcc = card;
-		devpriv->iobase = (INT) io_addr[2];
+		devpriv->iobase = (int) io_addr[2];
 		devpriv->ps_BoardInfo = this_board;
-		devpriv->i_IobaseReserved = (INT) io_addr[3];
+		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
 		devpriv->dw_AiBase =
-			(ULONG_PTR) ioremap(io_addr[3],
+			(unsigned long) ioremap(io_addr[3],
 			this_board->i_IorangeBase3);
 		printk("\nioremap end");
 	}
 
-	//##
+	/* ## */
 
 	if (irq > 0) {
-		if (comedi_request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
+		if (request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
 				c_Identifier, dev) < 0) {
 			printk(", unable to allocate IRQ %u, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
 		} else {
-			rt_printk("\nirq=%u", irq);
+			printk("\nirq=%u", irq);
 		}
 	} else {
-		rt_printk(", IRQ disabled");
+		printk(", IRQ disabled");
 	}
 
 	printk("\nOption %d %d %d\n", it->options[0], it->options[1],
 		it->options[2]);
 	dev->irq = irq;
 
-	// Read eepeom and fill boardtype Structure
+	/*  Read eepeom and fill addi_board Structure */
 
 	if (this_board->i_PCIEeprom) {
 		printk("\nPCI Eeprom used");
 		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
-			// Set 3 wait stait
+			/*  Set 3 wait stait */
 			if (!(strcmp(this_board->pc_DriverName, "apci035"))) {
 				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
 			} else {
 				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
 			}
-			// Enable the interrupt for the controler
+			/*  Enable the interrupt for the controler */
 			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
 			printk("\nEnable the interrupt for the controler");
@@ -2694,16 +2696,15 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 	if (this_board->i_Dma) {
 		printk("\nDMA used");
 		if (devpriv->us_UseDma == ADDI_ENABLE) {
-			// alloc DMA buffers
+			/*  alloc DMA buffers */
 			devpriv->b_DmaDoubleBuffer = 0;
 			for (i = 0; i < 2; i++) {
 				for (pages = 4; pages >= 0; pages--) {
-					if ((devpriv->ul_DmaBufferVirtual[i] =
-							(void *)
-							__get_free_pages
-							(GFP_KERNEL, pages))) {
+					devpriv->ul_DmaBufferVirtual[i] =
+						(void *) __get_free_pages(GFP_KERNEL, pages);
+
+					if (devpriv->ul_DmaBufferVirtual[i])
 						break;
-					}
 				}
 				if (devpriv->ul_DmaBufferVirtual[i]) {
 					devpriv->ui_DmaBufferPages[i] = pages;
@@ -2718,7 +2719,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 				}
 			}
 			if (!devpriv->ul_DmaBufferVirtual[0]) {
-				rt_printk
+				printk
 					(", Can't allocate DMA buffer, DMA disabled!");
 				devpriv->us_UseDma = ADDI_DISABLE;
 			}
@@ -2729,7 +2730,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 		}
 
 		if ((devpriv->us_UseDma == ADDI_ENABLE)) {
-			rt_printk("\nDMA ENABLED\n");
+			printk("\nDMA ENABLED\n");
 		} else {
 			printk("\nDMA DISABLED\n");
 		}
@@ -2739,23 +2740,24 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 #ifdef CONFIG_APCI_1710
 		i_ADDI_AttachPCI1710(dev);
 
-		// save base address
+		/*  save base address */
 		devpriv->s_BoardInfos.ui_Address = io_addr[2];
 #endif
 	} else {
-		//Update-0.7.57->0.7.68dev->n_subdevices = 7;
+		/* Update-0.7.57->0.7.68dev->n_subdevices = 7; */
 		n_subdevices = 7;
-		if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
+		ret = alloc_subdevices(dev, n_subdevices);
+		if (ret < 0)
 			return ret;
 
-		// Allocate and Initialise AI Subdevice Structures
+		/*  Allocate and Initialise AI Subdevice Structures */
 		s = dev->subdevices + 0;
 		if ((this_board->i_NbrAiChannel)
 			|| (this_board->i_NbrAiChannelDiff)) {
 			dev->read_subdev = s;
 			s->type = COMEDI_SUBD_AI;
 			s->subdev_flags =
-				SDF_READABLE | SDF_RT | SDF_COMMON | SDF_GROUND
+				SDF_READABLE | SDF_COMMON | SDF_GROUND
 				| SDF_DIFF;
 			if (this_board->i_NbrAiChannel) {
 				s->n_chan = this_board->i_NbrAiChannel;
@@ -2786,13 +2788,11 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 
-		// Allocate and Initialise AO Subdevice Structures
+		/*  Allocate and Initialise AO Subdevice Structures */
 		s = dev->subdevices + 1;
 		if (this_board->i_NbrAoChannel) {
 			s->type = COMEDI_SUBD_AO;
-			s->subdev_flags =
-				SDF_WRITEABLE | SDF_GROUND | SDF_COMMON |
-				SDF_RT;
+			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrAoChannel;
 			s->maxdata = this_board->i_AoMaxdata;
 			s->len_chanlist = this_board->i_NbrAoChannel;
@@ -2804,12 +2804,11 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
-		// Allocate and Initialise DI Subdevice Structures
+		/*  Allocate and Initialise DI Subdevice Structures */
 		s = dev->subdevices + 2;
 		if (this_board->i_NbrDiChannel) {
 			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags =
-				SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+			s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrDiChannel;
 			s->maxdata = 1;
 			s->len_chanlist = this_board->i_NbrDiChannel;
@@ -2824,20 +2823,19 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
-		// Allocate and Initialise DO Subdevice Structures
+		/*  Allocate and Initialise DO Subdevice Structures */
 		s = dev->subdevices + 3;
 		if (this_board->i_NbrDoChannel) {
 			s->type = COMEDI_SUBD_DO;
 			s->subdev_flags =
-				SDF_READABLE | SDF_WRITEABLE | SDF_RT |
-				SDF_GROUND | SDF_COMMON;
+				SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrDoChannel;
 			s->maxdata = this_board->i_DoMaxdata;
 			s->len_chanlist = this_board->i_NbrDoChannel;
 			s->range_table = &range_digital;
 			s->io_bits = 0xf;	/* all bits output */
 
-			s->insn_config = this_board->i_hwdrv_InsnConfigDigitalOutput;	//for digital output memory..
+			s->insn_config = this_board->i_hwdrv_InsnConfigDigitalOutput;	/* for digital output memory.. */
 			s->insn_write =
 				this_board->i_hwdrv_InsnWriteDigitalOutput;
 			s->insn_bits =
@@ -2848,13 +2846,11 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 
-		// Allocate and Initialise Timer Subdevice Structures
+		/*  Allocate and Initialise Timer Subdevice Structures */
 		s = dev->subdevices + 4;
 		if (this_board->i_Timer) {
 			s->type = COMEDI_SUBD_TIMER;
-			s->subdev_flags =
-				SDF_WRITEABLE | SDF_RT | SDF_GROUND |
-				SDF_COMMON;
+			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = 1;
 			s->maxdata = 0;
 			s->len_chanlist = 1;
@@ -2868,13 +2864,12 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 
-		// Allocate and Initialise TTL
+		/*  Allocate and Initialise TTL */
 		s = dev->subdevices + 5;
 		if (this_board->i_NbrTTLChannel) {
 			s->type = COMEDI_SUBD_TTLIO;
 			s->subdev_flags =
-				SDF_WRITEABLE | SDF_READABLE | SDF_RT |
-				SDF_GROUND | SDF_COMMON;
+				SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrTTLChannel;
 			s->maxdata = 1;
 			s->io_bits = 0;	/* all bits input */
@@ -2926,7 +2921,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Detach(struct comedi_device * dev)
+static int i_ADDI_Detach(struct comedi_device *dev)
 {
 
 	if (dev->private) {
@@ -2935,7 +2930,7 @@ static int i_ADDI_Detach(struct comedi_device * dev)
 		}
 
 		if (dev->irq) {
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 		}
 
 		if ((devpriv->ps_BoardInfo->pc_EepromChip == NULL)
@@ -2965,7 +2960,7 @@ static int i_ADDI_Detach(struct comedi_device * dev)
 		}
 
 		if (pci_list_builded) {
-			//v_pci_card_list_cleanup(PCI_VENDOR_ID_AMCC);
+			/* v_pci_card_list_cleanup(PCI_VENDOR_ID_AMCC); */
 			v_pci_card_list_cleanup(this_board->i_VendorId);
 			pci_list_builded = 0;
 		}
@@ -2992,18 +2987,18 @@ static int i_ADDI_Detach(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Reset(struct comedi_device * dev)
+static int i_ADDI_Reset(struct comedi_device *dev)
 {
 
 	this_board->i_hwdrv_Reset(dev);
 	return 0;
 }
 
-// Interrupt function
+/* Interrupt function */
 /*
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
-|static void v_ADDI_Interrupt(int irq, void *d  PT_REGS_ARG)                 |
+|static void v_ADDI_Interrupt(int irq, void *d)                 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Registerd interrupt routine						     |
@@ -3018,14 +3013,14 @@ static int i_ADDI_Reset(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	this_board->v_hwdrv_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
-// EEPROM Read Function
+/* EEPROM Read Function */
 /*
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
@@ -3046,17 +3041,17 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	WORD w_Data;
-	WORD w_Address;
-	w_Address = CR_CHAN(insn->chanspec);	// address to be read as 0,1,2,3...255
+	unsigned short w_Data;
+	unsigned short w_Address;
+	w_Address = CR_CHAN(insn->chanspec);	/*  address to be read as 0,1,2,3...255 */
 
 	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,
 		this_board->pc_EepromChip, 0x100 + (2 * w_Address));
 	data[0] = w_Data;
-	//multiplied by 2 bcozinput will be like 0,1,2...255
+	/* multiplied by 2 bcozinput will be like 0,1,2...255 */
 	return insn->n;
 
 }

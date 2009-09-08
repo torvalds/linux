@@ -85,10 +85,10 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 	__u64 num_of_bytes = le64_to_cpu(info->NumOfBytes);
 	__u64 end_of_file = le64_to_cpu(info->EndOfFile);
 
-	inode->i_atime = cifs_NTtimeToUnix(le64_to_cpu(info->LastAccessTime));
+	inode->i_atime = cifs_NTtimeToUnix(info->LastAccessTime);
 	inode->i_mtime =
-		cifs_NTtimeToUnix(le64_to_cpu(info->LastModificationTime));
-	inode->i_ctime = cifs_NTtimeToUnix(le64_to_cpu(info->LastStatusChange));
+		cifs_NTtimeToUnix(info->LastModificationTime);
+	inode->i_ctime = cifs_NTtimeToUnix(info->LastStatusChange);
 	inode->i_mode = le64_to_cpu(info->Permissions);
 
 	/*
@@ -554,14 +554,11 @@ int cifs_get_inode_info(struct inode **pinode,
 
 	/* Linux can not store file creation time so ignore it */
 	if (pfindData->LastAccessTime)
-		inode->i_atime = cifs_NTtimeToUnix
-			(le64_to_cpu(pfindData->LastAccessTime));
+		inode->i_atime = cifs_NTtimeToUnix(pfindData->LastAccessTime);
 	else /* do not need to use current_fs_time - time not stored */
 		inode->i_atime = CURRENT_TIME;
-	inode->i_mtime =
-		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
-	inode->i_ctime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
+	inode->i_mtime = cifs_NTtimeToUnix(pfindData->LastWriteTime);
+	inode->i_ctime = cifs_NTtimeToUnix(pfindData->ChangeTime);
 	cFYI(DBG2, ("Attributes came in as 0x%x", attr));
 	if (adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
 		inode->i_ctime.tv_sec += pTcon->ses->server->timeAdj;
@@ -629,7 +626,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	/* fill in 0777 bits from ACL */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 		cFYI(1, ("Getting mode bits from ACL"));
-		acl_to_uid_mode(inode, full_path, pfid);
+		acl_to_uid_mode(cifs_sb, inode, full_path, pfid);
 	}
 #endif
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
@@ -699,7 +696,7 @@ char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb)
 }
 
 /* gets root inode */
-struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
+struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 {
 	int xid;
 	struct cifs_sb_info *cifs_sb;

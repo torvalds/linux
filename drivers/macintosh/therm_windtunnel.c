@@ -48,16 +48,6 @@
 
 #define LOG_TEMP		0			/* continously log temperature */
 
-static int 			do_probe( struct i2c_adapter *adapter, int addr, int kind);
-
-/* scan 0x48-0x4f (DS1775) and 0x2c-2x2f (ADM1030) */
-static const unsigned short	normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
-						 0x4c, 0x4d, 0x4e, 0x4f,
-						 0x2c, 0x2d, 0x2e, 0x2f,
-						 I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
-
 static struct {
 	volatile int		running;
 	struct task_struct	*poll_task;
@@ -315,53 +305,54 @@ static int control_loop(void *dummy)
 static int
 do_attach( struct i2c_adapter *adapter )
 {
-	int ret = 0;
+	/* scan 0x48-0x4f (DS1775) and 0x2c-2x2f (ADM1030) */
+	static const unsigned short scan_ds1775[] = {
+		0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+		I2C_CLIENT_END
+	};
+	static const unsigned short scan_adm1030[] = {
+		0x2c, 0x2d, 0x2e, 0x2f,
+		I2C_CLIENT_END
+	};
 
 	if( strncmp(adapter->name, "uni-n", 5) )
 		return 0;
 
 	if( !x.running ) {
-		ret = i2c_probe( adapter, &addr_data, &do_probe );
+		struct i2c_board_info info;
+
+		memset(&info, 0, sizeof(struct i2c_board_info));
+		strlcpy(info.type, "therm_ds1775", I2C_NAME_SIZE);
+		i2c_new_probed_device(adapter, &info, scan_ds1775);
+
+		strlcpy(info.type, "therm_adm1030", I2C_NAME_SIZE);
+		i2c_new_probed_device(adapter, &info, scan_adm1030);
+
 		if( x.thermostat && x.fan ) {
 			x.running = 1;
 			x.poll_task = kthread_run(control_loop, NULL, "g4fand");
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static int
-do_detach( struct i2c_client *client )
+do_remove(struct i2c_client *client)
 {
-	int err;
-
-	if( (err=i2c_detach_client(client)) )
-		printk(KERN_ERR "failed to detach thermostat client\n");
-	else {
-		if( x.running ) {
-			x.running = 0;
-			kthread_stop(x.poll_task);
-			x.poll_task = NULL;
-		}
-		if( client == x.thermostat )
-			x.thermostat = NULL;
-		else if( client == x.fan )
-			x.fan = NULL;
-		else {
-			printk(KERN_ERR "g4fan: bad client\n");
-		}
-		kfree( client );
+	if (x.running) {
+		x.running = 0;
+		kthread_stop(x.poll_task);
+		x.poll_task = NULL;
 	}
-	return err;
-}
+	if (client == x.thermostat)
+		x.thermostat = NULL;
+	else if (client == x.fan)
+		x.fan = NULL;
+	else
+		printk(KERN_ERR "g4fan: bad client\n");
 
-static struct i2c_driver g4fan_driver = {  
-	.driver = {
-		.name	= "therm_windtunnel",
-	},
-	.attach_adapter = do_attach,
-	.detach_client	= do_detach,
-};
+	return 0;
+}
 
 static int
 attach_fan( struct i2c_client *cl )
@@ -374,13 +365,8 @@ attach_fan( struct i2c_client *cl )
 		goto out;
 	printk("ADM1030 fan controller [@%02x]\n", cl->addr );
 
-	strlcpy( cl->name, "ADM1030 fan controller", sizeof(cl->name) );
-
-	if( !i2c_attach_client(cl) )
-		x.fan = cl;
+	x.fan = cl;
  out:
-	if( cl != x.fan )
-		kfree( cl );
 	return 0;
 }
 
@@ -412,38 +398,46 @@ attach_thermostat( struct i2c_client *cl )
 	x.temp = temp;
 	x.overheat_temp = os_temp;
 	x.overheat_hyst = hyst_temp;
-	
-	strlcpy( cl->name, "DS1775 thermostat", sizeof(cl->name) );
-
-	if( !i2c_attach_client(cl) )
-		x.thermostat = cl;
+	x.thermostat = cl;
 out:
-	if( cl != x.thermostat )
-		kfree( cl );
 	return 0;
 }
 
+enum chip { ds1775, adm1030 };
+
+static const struct i2c_device_id therm_windtunnel_id[] = {
+	{ "therm_ds1775", ds1775 },
+	{ "therm_adm1030", adm1030 },
+	{ }
+};
+
 static int
-do_probe( struct i2c_adapter *adapter, int addr, int kind )
+do_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
-	struct i2c_client *cl;
+	struct i2c_adapter *adapter = cl->adapter;
 
 	if( !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA
 				     | I2C_FUNC_SMBUS_WRITE_BYTE) )
 		return 0;
 
-	if( !(cl=kzalloc(sizeof(*cl), GFP_KERNEL)) )
-		return -ENOMEM;
-
-	cl->addr = addr;
-	cl->adapter = adapter;
-	cl->driver = &g4fan_driver;
-	cl->flags = 0;
-
-	if( addr < 0x48 )
+	switch (id->driver_data) {
+	case adm1030:
 		return attach_fan( cl );
-	return attach_thermostat( cl );
+	case ds1775:
+		return attach_thermostat(cl);
+	}
+	return 0;
 }
+
+static struct i2c_driver g4fan_driver = {
+	.driver = {
+		.name	= "therm_windtunnel",
+	},
+	.attach_adapter = do_attach,
+	.probe		= do_probe,
+	.remove		= do_remove,
+	.id_table	= therm_windtunnel_id,
+};
 
 
 /************************************************************************/

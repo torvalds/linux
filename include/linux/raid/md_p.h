@@ -232,7 +232,7 @@ struct mdp_superblock_1 {
 	__le64	reshape_position;	/* next address in array-space for reshape */
 	__le32	delta_disks;	/* change in number of raid_disks		*/
 	__le32	new_layout;	/* new layout					*/
-	__le32	new_chunk;	/* new chunk size (bytes)			*/
+	__le32	new_chunk;	/* new chunk size (512byte sectors)		*/
 	__u8	pad1[128-124];	/* set to 0 when written */
 
 	/* constant this-device information - 64 bytes */

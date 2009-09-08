@@ -63,7 +63,7 @@ hardware during resume operations where a value can be set that will
 survive a reboot.
 
 Consequence is that after a resume (even if it is successful) your system
-clock will have a value corresponding to the magic mumber instead of the
+clock will have a value corresponding to the magic number instead of the
 correct date/time! It is therefore advisable to use a program like ntp-date
 or rdate to reset the correct date/time from an external time source when
 using this trace option.

@@ -68,6 +68,34 @@ int w1_ds2760_write(struct device *dev, char *buf, int addr, size_t count)
 	return w1_ds2760_io(dev, buf, addr, count, 1);
 }
 
+static int w1_ds2760_eeprom_cmd(struct device *dev, int addr, int cmd)
+{
+	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
+
+	if (!dev)
+		return -EINVAL;
+
+	mutex_lock(&sl->master->mutex);
+
+	if (w1_reset_select_slave(sl) == 0) {
+		w1_write_8(sl->master, cmd);
+		w1_write_8(sl->master, addr);
+	}
+
+	mutex_unlock(&sl->master->mutex);
+	return 0;
+}
+
+int w1_ds2760_store_eeprom(struct device *dev, int addr)
+{
+	return w1_ds2760_eeprom_cmd(dev, addr, W1_DS2760_COPY_DATA);
+}
+
+int w1_ds2760_recall_eeprom(struct device *dev, int addr)
+{
+	return w1_ds2760_eeprom_cmd(dev, addr, W1_DS2760_RECALL_DATA);
+}
+
 static ssize_t w1_ds2760_read_bin(struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t off, size_t count)
@@ -200,6 +228,8 @@ static void __exit w1_ds2760_exit(void)
 
 EXPORT_SYMBOL(w1_ds2760_read);
 EXPORT_SYMBOL(w1_ds2760_write);
+EXPORT_SYMBOL(w1_ds2760_store_eeprom);
+EXPORT_SYMBOL(w1_ds2760_recall_eeprom);
 
 module_init(w1_ds2760_init);
 module_exit(w1_ds2760_exit);

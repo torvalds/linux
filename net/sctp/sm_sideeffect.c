@@ -686,7 +686,8 @@ static void sctp_cmd_setup_t2(sctp_cmd_seq_t *cmds,
 {
 	struct sctp_transport *t;
 
-	t = sctp_assoc_choose_shutdown_transport(asoc);
+	t = sctp_assoc_choose_alter_transport(asoc,
+					      asoc->shutdown_last_sent_to);
 	asoc->shutdown_last_sent_to = t;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = t->rto;
 	chunk->transport = t;
@@ -777,7 +778,7 @@ static void sctp_cmd_setup_t4(sctp_cmd_seq_t *cmds,
 {
 	struct sctp_transport *t;
 
-	t = asoc->peer.active_path;
+	t = sctp_assoc_choose_alter_transport(asoc, chunk->transport);
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T4_RTO] = t->rto;
 	chunk->transport = t;
 }
@@ -1379,7 +1380,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_INIT_CHOOSE_TRANSPORT:
 			chunk = cmd->obj.ptr;
-			t = sctp_assoc_choose_init_transport(asoc);
+			t = sctp_assoc_choose_alter_transport(asoc,
+						asoc->init_last_sent_to);
 			asoc->init_last_sent_to = t;
 			chunk->transport = t;
 			t->init_sent_count++;

@@ -929,7 +929,7 @@ ia64_sn_sysctl_tio_clock_reset(nasid_t nasid)
 /*
  * Get the associated ioboard type for a given nasid.
  */
-static inline s64
+static inline long
 ia64_sn_sysctl_ioboard_get(nasid_t nasid, u16 *ioboard)
 {
 	struct ia64_sal_retval isrv;

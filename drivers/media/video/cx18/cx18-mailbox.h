@@ -95,6 +95,6 @@ int cx18_api_func(void *priv, u32 cmd, int in, int out,
 
 void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu);
 
-void cx18_epu_work_handler(struct work_struct *work);
+void cx18_in_work_handler(struct work_struct *work);
 
 #endif

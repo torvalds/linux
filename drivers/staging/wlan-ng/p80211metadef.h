@@ -50,6 +50,14 @@
 #define DIDmsg_dot11req_mibget \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(1))
+#define DIDmsg_dot11req_mibget_mibattribute \
+			(P80211DID_MKSECTION(1) | \
+			P80211DID_MKGROUP(1) | \
+			P80211DID_MKITEM(1) | 0x00000000)
+#define DIDmsg_dot11req_mibget_resultcode \
+			(P80211DID_MKSECTION(1) | \
+			P80211DID_MKGROUP(1) | \
+			P80211DID_MKITEM(2) | 0x00000000)
 #define DIDmsg_dot11req_mibset \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2))
@@ -94,12 +102,48 @@
 #define DIDmsg_p2req_readpda \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2))
+#define DIDmsg_p2req_readpda_pda \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(2) | \
+			P80211DID_MKITEM(1) | 0x00000000)
+#define DIDmsg_p2req_readpda_resultcode \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(2) | \
+			P80211DID_MKITEM(2) | 0x00000000)
 #define DIDmsg_p2req_ramdl_state \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11))
+#define DIDmsg_p2req_ramdl_state_enable \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(11) | \
+			P80211DID_MKITEM(1) | 0x00000000)
+#define DIDmsg_p2req_ramdl_state_exeaddr \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(11) | \
+			P80211DID_MKITEM(2) | 0x00000000)
+#define DIDmsg_p2req_ramdl_state_resultcode \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(11) | \
+			P80211DID_MKITEM(3) | 0x00000000)
 #define DIDmsg_p2req_ramdl_write \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12))
+#define DIDmsg_p2req_ramdl_write_addr \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(12) | \
+			P80211DID_MKITEM(1) | 0x00000000)
+#define DIDmsg_p2req_ramdl_write_len \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(12) | \
+			P80211DID_MKITEM(2) | 0x00000000)
+#define DIDmsg_p2req_ramdl_write_data \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(12) | \
+			P80211DID_MKITEM(3) | 0x00000000)
+#define DIDmsg_p2req_ramdl_write_resultcode \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(12) | \
+			P80211DID_MKITEM(4) | 0x00000000)
 #define DIDmsg_p2req_flashdl_state \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(13))
@@ -203,6 +247,10 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(1) | 0x18000000)
+#define DIDmib_p2_p2NIC_p2PRISupRange \
+			(P80211DID_MKSECTION(5) | \
+			P80211DID_MKGROUP(5) | \
+			P80211DID_MKITEM(6) | 0x10000000)
 #define DIDmib_p2_p2MAC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6))

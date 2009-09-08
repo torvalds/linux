@@ -121,6 +121,13 @@ struct fuse_file_lock {
 #define FUSE_BIG_WRITES		(1 << 5)
 
 /**
+ * CUSE INIT request/reply flags
+ *
+ * CUSE_UNRESTRICTED_IOCTL:  use unrestricted ioctl
+ */
+#define CUSE_UNRESTRICTED_IOCTL	(1 << 0)
+
+/**
  * Release flags
  */
 #define FUSE_RELEASE_FLUSH	(1 << 0)
@@ -210,6 +217,9 @@ enum fuse_opcode {
 	FUSE_DESTROY       = 38,
 	FUSE_IOCTL         = 39,
 	FUSE_POLL          = 40,
+
+	/* CUSE specific operations */
+	CUSE_INIT          = 4096,
 };
 
 enum fuse_notify_code {
@@ -399,6 +409,27 @@ struct fuse_init_out {
 	__u32	flags;
 	__u32	unused;
 	__u32	max_write;
+};
+
+#define CUSE_INIT_INFO_MAX 4096
+
+struct cuse_init_in {
+	__u32	major;
+	__u32	minor;
+	__u32	unused;
+	__u32	flags;
+};
+
+struct cuse_init_out {
+	__u32	major;
+	__u32	minor;
+	__u32	unused;
+	__u32	flags;
+	__u32	max_read;
+	__u32	max_write;
+	__u32	dev_major;		/* chardev major */
+	__u32	dev_minor;		/* chardev minor */
+	__u32	spare[10];
 };
 
 struct fuse_interrupt_in {

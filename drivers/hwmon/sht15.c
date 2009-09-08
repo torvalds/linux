@@ -627,35 +627,35 @@ static struct platform_driver sht_drivers[] = {
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht11",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht15",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht71",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht75",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	},
 };
 

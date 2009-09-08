@@ -137,7 +137,7 @@ static int rose_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "ROSE: rose_xmit - called when iface is down\n");
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	dev_kfree_skb(skb);
 	stats->tx_errors++;

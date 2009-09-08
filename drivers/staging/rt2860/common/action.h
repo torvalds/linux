@@ -41,17 +41,10 @@
 
 typedef struct PACKED __HT_INFO_OCTET
 {
-#ifdef RT_BIG_ENDIAN
-	UCHAR	Reserved:5;
-	UCHAR 	STA_Channel_Width:1;
-	UCHAR	Forty_MHz_Intolerant:1;
-	UCHAR	Request:1;
-#else
 	UCHAR	Request:1;
 	UCHAR	Forty_MHz_Intolerant:1;
 	UCHAR 	STA_Channel_Width:1;
 	UCHAR	Reserved:5;
-#endif
 } HT_INFORMATION_OCTET;
 
 

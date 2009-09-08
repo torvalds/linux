@@ -136,9 +136,9 @@ int au0828_tuner_callback(void *priv, int component, int command, int arg)
 			/* Tuner Reset Command from xc5000 */
 			/* Drive the tuner into reset and out */
 			au0828_clear(dev, REG_001, 2);
-			mdelay(200);
+			mdelay(10);
 			au0828_set(dev, REG_001, 2);
-			mdelay(50);
+			mdelay(10);
 			return 0;
 		} else {
 			printk(KERN_ERR

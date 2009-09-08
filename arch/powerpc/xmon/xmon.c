@@ -110,6 +110,7 @@ static int bsesc(void);
 static void dump(void);
 static void prdump(unsigned long, long);
 static int ppc_inst_dump(unsigned long, long, int);
+static void dump_log_buf(void);
 static void backtrace(struct pt_regs *);
 static void excprint(struct pt_regs *);
 static void prregs(struct pt_regs *);
@@ -197,6 +198,7 @@ Commands:\n\
   di	dump instructions\n\
   df	dump float values\n\
   dd	dump double values\n\
+  dl    dump the kernel log buffer\n\
   dr	dump stream of raw bytes\n\
   e	print exception information\n\
   f	flush cache\n\
@@ -2009,6 +2011,8 @@ dump(void)
 			nidump = MAX_DUMP;
 		adrs += ppc_inst_dump(adrs, nidump, 1);
 		last_cmd = "di\n";
+	} else if (c == 'l') {
+		dump_log_buf();
 	} else if (c == 'r') {
 		scanhex(&ndump);
 		if (ndump == 0)
@@ -2122,6 +2126,49 @@ print_address(unsigned long addr)
 	xmon_print_symbol(addr, "\t# ", "");
 }
 
+void
+dump_log_buf(void)
+{
+        const unsigned long size = 128;
+        unsigned long end, addr;
+        unsigned char buf[size + 1];
+
+        addr = 0;
+        buf[size] = '\0';
+
+        if (setjmp(bus_error_jmp) != 0) {
+                printf("Unable to lookup symbol __log_buf!\n");
+                return;
+        }
+
+        catch_memory_errors = 1;
+        sync();
+        addr = kallsyms_lookup_name("__log_buf");
+
+        if (! addr)
+                printf("Symbol __log_buf not found!\n");
+        else {
+                end = addr + (1 << CONFIG_LOG_BUF_SHIFT);
+                while (addr < end) {
+                        if (! mread(addr, buf, size)) {
+                                printf("Can't read memory at address 0x%lx\n", addr);
+                                break;
+                        }
+
+                        printf("%s", buf);
+
+                        if (strlen(buf) < size)
+                                break;
+
+                        addr += size;
+                }
+        }
+
+        sync();
+        /* wait a little while to see if we get a machine check */
+        __delay(200);
+        catch_memory_errors = 0;
+}
 
 /*
  * Memory operations - move, set, print differences

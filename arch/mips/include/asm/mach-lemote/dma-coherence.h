@@ -25,12 +25,14 @@ static inline dma_addr_t plat_map_dma_mem_page(struct device *dev,
 	return page_to_phys(page) | 0x80000000;
 }
 
-static inline unsigned long plat_dma_addr_to_phys(dma_addr_t dma_addr)
+static inline unsigned long plat_dma_addr_to_phys(struct device *dev,
+	dma_addr_t dma_addr)
 {
 	return dma_addr & 0x7fffffff;
 }
 
-static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr)
+static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr,
+	size_t size, enum dma_data_direction direction)
 {
 }
 

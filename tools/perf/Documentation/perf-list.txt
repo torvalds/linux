@@ -1,0 +1,25 @@
+perf-list(1)
+============
+
+NAME
+----
+perf-list - List all symbolic event types
+
+SYNOPSIS
+--------
+[verse]
+'perf list'
+
+DESCRIPTION
+-----------
+This command displays the symbolic event types which can be selected in the
+various perf commands with the -e option.
+
+OPTIONS
+-------
+None
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-top[1],
+linkperf:perf-record[1]

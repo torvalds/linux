@@ -135,6 +135,24 @@ struct clk_lookup *clkdev_alloc(struct clk *clk, const char *con_id,
 }
 EXPORT_SYMBOL(clkdev_alloc);
 
+int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
+	struct device *dev)
+{
+	struct clk *r = clk_get(dev, id);
+	struct clk_lookup *l;
+
+	if (IS_ERR(r))
+		return PTR_ERR(r);
+
+	l = clkdev_alloc(r, alias, alias_dev_name);
+	clk_put(r);
+	if (!l)
+		return -ENODEV;
+	clkdev_add(l);
+	return 0;
+}
+EXPORT_SYMBOL(clk_add_alias);
+
 /*
  * clkdev_drop - remove a clock dynamically allocated
  */

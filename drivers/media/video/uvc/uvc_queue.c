@@ -172,6 +172,20 @@ int uvc_free_buffers(struct uvc_video_queue *queue)
 	return 0;
 }
 
+/*
+ * Check if buffers have been allocated.
+ */
+int uvc_queue_allocated(struct uvc_video_queue *queue)
+{
+	int allocated;
+
+	mutex_lock(&queue->mutex);
+	allocated = queue->count != 0;
+	mutex_unlock(&queue->mutex);
+
+	return allocated;
+}
+
 static void __uvc_query_buffer(struct uvc_buffer *buf,
 		struct v4l2_buffer *v4l2_buf)
 {

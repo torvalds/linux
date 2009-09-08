@@ -32,6 +32,7 @@
 #include <linux/elfcore.h>
 #include <linux/kernel_stat.h>
 #include <linux/syscalls.h>
+#include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -204,7 +205,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	save_fp_regs(&p->thread.fp_regs);
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
-		if (test_thread_flag(TIF_31BIT)) {
+		if (is_compat_task()) {
 			p->thread.acrs[0] = (unsigned int) regs->gprs[6];
 		} else {
 			p->thread.acrs[0] = (unsigned int)(regs->gprs[6] >> 32);
@@ -265,9 +266,6 @@ SYSCALL_DEFINE0(vfork)
 
 asmlinkage void execve_tail(void)
 {
-	task_lock(current);
-	current->ptrace &= ~PT_DTRACE;
-	task_unlock(current);
 	current->thread.fp_regs.fpc = 0;
 	if (MACHINE_HAS_IEEE)
 		asm volatile("sfpc %0,%0" : : "d" (0));

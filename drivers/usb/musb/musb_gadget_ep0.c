@@ -4,6 +4,7 @@
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2008-2009 MontaVista Software, Inc. <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,7 +59,8 @@
 static char *decode_ep0stage(u8 stage)
 {
 	switch (stage) {
-	case MUSB_EP0_STAGE_SETUP:	return "idle";
+	case MUSB_EP0_STAGE_IDLE:	return "idle";
+	case MUSB_EP0_STAGE_SETUP:	return "setup";
 	case MUSB_EP0_STAGE_TX:		return "in";
 	case MUSB_EP0_STAGE_RX:		return "out";
 	case MUSB_EP0_STAGE_ACKWAIT:	return "wait";
@@ -628,7 +630,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 		musb_writew(regs, MUSB_CSR0,
 				csr & ~MUSB_CSR0_P_SENTSTALL);
 		retval = IRQ_HANDLED;
-		musb->ep0_state = MUSB_EP0_STAGE_SETUP;
+		musb->ep0_state = MUSB_EP0_STAGE_IDLE;
 		csr = musb_readw(regs, MUSB_CSR0);
 	}
 
@@ -636,7 +638,18 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 	if (csr & MUSB_CSR0_P_SETUPEND) {
 		musb_writew(regs, MUSB_CSR0, MUSB_CSR0_P_SVDSETUPEND);
 		retval = IRQ_HANDLED;
-		musb->ep0_state = MUSB_EP0_STAGE_SETUP;
+		/* Transition into the early status phase */
+		switch (musb->ep0_state) {
+		case MUSB_EP0_STAGE_TX:
+			musb->ep0_state = MUSB_EP0_STAGE_STATUSOUT;
+			break;
+		case MUSB_EP0_STAGE_RX:
+			musb->ep0_state = MUSB_EP0_STAGE_STATUSIN;
+			break;
+		default:
+			ERR("SetupEnd came in a wrong ep0stage %s",
+			    decode_ep0stage(musb->ep0_state));
+		}
 		csr = musb_readw(regs, MUSB_CSR0);
 		/* NOTE:  request may need completion */
 	}
@@ -697,11 +710,31 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 			if (req)
 				musb_g_ep0_giveback(musb, req);
 		}
+
+		/*
+		 * In case when several interrupts can get coalesced,
+		 * check to see if we've already received a SETUP packet...
+		 */
+		if (csr & MUSB_CSR0_RXPKTRDY)
+			goto setup;
+
+		retval = IRQ_HANDLED;
+		musb->ep0_state = MUSB_EP0_STAGE_IDLE;
+		break;
+
+	case MUSB_EP0_STAGE_IDLE:
+		/*
+		 * This state is typically (but not always) indiscernible
+		 * from the status states since the corresponding interrupts
+		 * tend to happen within too little period of time (with only
+		 * a zero-length packet in between) and so get coalesced...
+		 */
 		retval = IRQ_HANDLED;
 		musb->ep0_state = MUSB_EP0_STAGE_SETUP;
 		/* FALLTHROUGH */
 
 	case MUSB_EP0_STAGE_SETUP:
+setup:
 		if (csr & MUSB_CSR0_RXPKTRDY) {
 			struct usb_ctrlrequest	setup;
 			int			handled = 0;
@@ -783,7 +816,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 stall:
 				DBG(3, "stall (%d)\n", handled);
 				musb->ackpend |= MUSB_CSR0_P_SENDSTALL;
-				musb->ep0_state = MUSB_EP0_STAGE_SETUP;
+				musb->ep0_state = MUSB_EP0_STAGE_IDLE;
 finish:
 				musb_writew(regs, MUSB_CSR0,
 						musb->ackpend);
@@ -803,7 +836,7 @@ finish:
 		/* "can't happen" */
 		WARN_ON(1);
 		musb_writew(regs, MUSB_CSR0, MUSB_CSR0_P_SENDSTALL);
-		musb->ep0_state = MUSB_EP0_STAGE_SETUP;
+		musb->ep0_state = MUSB_EP0_STAGE_IDLE;
 		break;
 	}
 
@@ -959,7 +992,7 @@ static int musb_g_ep0_halt(struct usb_ep *e, int value)
 
 		csr |= MUSB_CSR0_P_SENDSTALL;
 		musb_writew(regs, MUSB_CSR0, csr);
-		musb->ep0_state = MUSB_EP0_STAGE_SETUP;
+		musb->ep0_state = MUSB_EP0_STAGE_IDLE;
 		musb->ackpend = 0;
 		break;
 	default:

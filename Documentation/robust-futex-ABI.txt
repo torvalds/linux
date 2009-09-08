@@ -135,7 +135,7 @@ manipulating this list), the user code must observe the following
 protocol on 'lock entry' insertion and removal:
 
 On insertion:
- 1) set the 'list_op_pending' word to the address of the 'lock word'
+ 1) set the 'list_op_pending' word to the address of the 'lock entry'
     to be inserted,
  2) acquire the futex lock,
  3) add the lock entry, with its thread id (TID) in the bottom 29 bits
@@ -143,7 +143,7 @@ On insertion:
  4) clear the 'list_op_pending' word.
 
 On removal:
- 1) set the 'list_op_pending' word to the address of the 'lock word'
+ 1) set the 'list_op_pending' word to the address of the 'lock entry'
     to be removed,
  2) remove the lock entry for this lock from the 'head' list,
  2) release the futex lock, and

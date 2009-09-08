@@ -239,10 +239,13 @@ typedef struct xfs_fsop_resblks {
  * Minimum and maximum sizes need for growth checks
  */
 #define XFS_MIN_AG_BLOCKS	64
-#define XFS_MIN_LOG_BLOCKS	512
-#define XFS_MAX_LOG_BLOCKS	(64 * 1024)
-#define XFS_MIN_LOG_BYTES	(256 * 1024)
-#define XFS_MAX_LOG_BYTES	(128 * 1024 * 1024)
+#define XFS_MIN_LOG_BLOCKS	512ULL
+#define XFS_MAX_LOG_BLOCKS	(1024 * 1024ULL)
+#define XFS_MIN_LOG_BYTES	(10 * 1024 * 1024ULL)
+
+/* keep the maximum size under 2^31 by a small amount */
+#define XFS_MAX_LOG_BYTES \
+	((2 * 1024 * 1024 * 1024ULL) - XFS_MIN_LOG_BYTES)
 
 /*
  * Structures for XFS_IOC_FSGROWFSDATA, XFS_IOC_FSGROWFSLOG & XFS_IOC_FSGROWFSRT

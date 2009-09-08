@@ -1060,27 +1060,6 @@ VOID NotifyChSwAnnToPeerAPs(
 	IN UINT8 ChSwMode,
 	IN UINT8 Channel)
 {
-#ifdef WDS_SUPPORT
-	if (!((pRA[0] & 0xff) == 0xff)) // is pRA a broadcase address.
-	{
-		INT i;
-		// info neighbor APs that Radar signal found throgh WDS link.
-		for (i = 0; i < MAX_WDS_ENTRY; i++)
-		{
-			if (ValidWdsEntry(pAd, i))
-			{
-				PUCHAR pDA = pAd->WdsTab.WdsEntry[i].PeerWdsAddr;
-
-				// DA equal to SA. have no necessary orignal AP which found Radar signal.
-				if (MAC_ADDR_EQUAL(pTA, pDA))
-					continue;
-
-				// send Channel Switch Action frame to info Neighbro APs.
-				EnqueueChSwAnn(pAd, pDA, ChSwMode, Channel);
-			}
-		}
-	}
-#endif // WDS_SUPPORT //
 }
 
 static VOID StartDFSProcedure(
@@ -1090,9 +1069,9 @@ static VOID StartDFSProcedure(
 {
 	// start DFS procedure
 	pAd->CommonCfg.Channel = Channel;
-#ifdef DOT11_N_SUPPORT
+
 	N_ChannelCheck(pAd);
-#endif // DOT11_N_SUPPORT //
+
 	pAd->CommonCfg.RadarDetect.RDMode = RD_SWITCHING_MODE;
 	pAd->CommonCfg.RadarDetect.CSCount = 0;
 }
@@ -1475,10 +1454,8 @@ static VOID PeerChSwAnnAction(
 {
 	CH_SW_ANN_INFO ChSwAnnInfo;
 	PFRAME_802_11 pFr = (PFRAME_802_11)Elem->Msg;
-#ifdef CONFIG_STA_SUPPORT
 	UCHAR index = 0, Channel = 0, NewChannel = 0;
 	ULONG Bssidx = 0;
-#endif // CONFIG_STA_SUPPORT //
 
 	NdisZeroMemory(&ChSwAnnInfo, sizeof(CH_SW_ANN_INFO));
 	if (! PeerChSwAnnSanity(pAd, Elem->Msg, Elem->MsgLen, &ChSwAnnInfo))
@@ -1487,8 +1464,6 @@ static VOID PeerChSwAnnAction(
 		return;
 	}
 
-
-#ifdef CONFIG_STA_SUPPORT
 	if (pAd->OpMode == OPMODE_STA)
 	{
 		Bssidx = BssTableSearch(&pAd->ScanTab, pFr->Hdr.Addr3, pAd->CommonCfg.Channel);
@@ -1535,7 +1510,6 @@ static VOID PeerChSwAnnAction(
 			}
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	return;
 }
@@ -1596,7 +1570,12 @@ static VOID PeerMeasureReportAction(
 
 	if ((pMeasureReportInfo = kmalloc(sizeof(MEASURE_RPI_REPORT), GFP_ATOMIC)) == NULL)
 	{
+#ifndef RT30xx
 		DBGPRINT(RT_DEBUG_ERROR, ("%s unable to alloc memory for measure report buffer (size=%zu).\n", __func__, sizeof(MEASURE_RPI_REPORT)));
+#endif
+#ifdef RT30xx
+		DBGPRINT(RT_DEBUG_ERROR, ("%s unable to alloc memory for measure report buffer (size=%d).\n", __func__, sizeof(MEASURE_RPI_REPORT)));
+#endif
 		return;
 	}
 
@@ -1756,28 +1735,6 @@ VOID PeerSpectrumAction(
 
 		case SPEC_CHANNEL_SWITCH:
 {
-#ifdef DOT11N_DRAFT3
-				SEC_CHA_OFFSET_IE	Secondary;
-				CHA_SWITCH_ANNOUNCE_IE	ChannelSwitch;
-
-				// 802.11h only has Channel Switch Announcement IE.
-				RTMPMoveMemory(&ChannelSwitch, &Elem->Msg[LENGTH_802_11+4], sizeof (CHA_SWITCH_ANNOUNCE_IE));
-
-				// 802.11n D3.03 adds secondary channel offset element in the end.
-				if (Elem->MsgLen ==  (LENGTH_802_11 + 2 + sizeof (CHA_SWITCH_ANNOUNCE_IE) + sizeof (SEC_CHA_OFFSET_IE)))
-				{
-					RTMPMoveMemory(&Secondary, &Elem->Msg[LENGTH_802_11+9], sizeof (SEC_CHA_OFFSET_IE));
-				}
-				else
-				{
-					Secondary.SecondaryChannelOffset = 0;
-				}
-
-				if ((Elem->Msg[LENGTH_802_11+2] == IE_CHANNEL_SWITCH_ANNOUNCEMENT) && (Elem->Msg[LENGTH_802_11+3] == 3))
-				{
-					ChannelSwitchAction(pAd, Elem->Wcid, ChannelSwitch.NewChannel, Secondary.SecondaryChannelOffset);
-				}
-#endif // DOT11N_DRAFT3 //
 }
 			PeerChSwAnnAction(pAd, Elem);
 			break;

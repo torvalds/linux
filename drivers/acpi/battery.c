@@ -796,13 +796,12 @@ static void acpi_battery_remove_fs(struct acpi_device *device)
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_battery_notify(struct acpi_device *device, u32 event)
 {
-	struct acpi_battery *battery = data;
-	struct acpi_device *device;
+	struct acpi_battery *battery = acpi_driver_data(device);
+
 	if (!battery)
 		return;
-	device = battery->device;
 	acpi_battery_update(battery);
 	acpi_bus_generate_proc_event(device, event,
 				     acpi_battery_present(battery));
@@ -819,7 +818,6 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 static int acpi_battery_add(struct acpi_device *device)
 {
 	int result = 0;
-	acpi_status status = 0;
 	struct acpi_battery *battery = NULL;
 	if (!device)
 		return -EINVAL;
@@ -834,22 +832,12 @@ static int acpi_battery_add(struct acpi_device *device)
 	acpi_battery_update(battery);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_battery_add_fs(device);
-	if (result)
-		goto end;
 #endif
-	status = acpi_install_notify_handler(device->handle,
-					     ACPI_ALL_NOTIFY,
-					     acpi_battery_notify, battery);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Installing notify handler"));
-		result = -ENODEV;
-		goto end;
-	}
-	printk(KERN_INFO PREFIX "%s Slot [%s] (battery %s)\n",
-	       ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
-	       device->status.battery_present ? "present" : "absent");
-      end:
-	if (result) {
+	if (!result) {
+		printk(KERN_INFO PREFIX "%s Slot [%s] (battery %s)\n",
+			ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
+			device->status.battery_present ? "present" : "absent");
+	} else {
 #ifdef CONFIG_ACPI_PROCFS_POWER
 		acpi_battery_remove_fs(device);
 #endif
@@ -860,15 +848,11 @@ static int acpi_battery_add(struct acpi_device *device)
 
 static int acpi_battery_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
 	struct acpi_battery *battery = NULL;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 	battery = acpi_driver_data(device);
-	status = acpi_remove_notify_handler(device->handle,
-					    ACPI_ALL_NOTIFY,
-					    acpi_battery_notify);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_remove_fs(device);
 #endif
@@ -896,10 +880,12 @@ static struct acpi_driver acpi_battery_driver = {
 	.name = "battery",
 	.class = ACPI_BATTERY_CLASS,
 	.ids = battery_device_ids,
+	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = acpi_battery_add,
 		.resume = acpi_battery_resume,
 		.remove = acpi_battery_remove,
+		.notify = acpi_battery_notify,
 		},
 };
 

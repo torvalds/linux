@@ -326,7 +326,7 @@ int wlp_prepare_tx_frame(struct device *dev, struct wlp *wlp,
 	int result = -EINVAL;
 	struct ethhdr *eth_hdr = (void *) skb->data;
 
-	if (is_broadcast_ether_addr(eth_hdr->h_dest)) {
+	if (is_multicast_ether_addr(eth_hdr->h_dest)) {
 		result = wlp_eda_for_each(&wlp->eda, wlp_wss_send_copy, skb);
 		if (result < 0) {
 			if (printk_ratelimit())

@@ -33,6 +33,10 @@
 
  History:
 
+ Version 0.46:
+	Removed usb_dsbr100_open/close calls and radio->users counter. Also,
+	radio->muted changed to radio->status and suspend/resume calls updated.
+
  Version 0.45:
 	Converted to v4l2_device.
 
@@ -100,8 +104,8 @@
  */
 #include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
 
-#define DRIVER_VERSION "v0.45"
-#define RADIO_VERSION KERNEL_VERSION(0, 4, 5)
+#define DRIVER_VERSION "v0.46"
+#define RADIO_VERSION KERNEL_VERSION(0, 4, 6)
 
 #define DRIVER_AUTHOR "Markus Demleitner <msdemlei@tucana.harvard.edu>"
 #define DRIVER_DESC "D-Link DSB-R100 USB FM radio driver"
@@ -121,13 +125,15 @@ devices, that would be 76 and 91.  */
 #define FREQ_MAX 108.0
 #define FREQ_MUL 16000
 
+/* defines for radio->status */
+#define STARTED	0
+#define STOPPED	1
+
 #define videodev_to_radio(d) container_of(d, struct dsbr100_device, videodev)
 
 static int usb_dsbr100_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id);
 static void usb_dsbr100_disconnect(struct usb_interface *intf);
-static int usb_dsbr100_open(struct file *file);
-static int usb_dsbr100_close(struct file *file);
 static int usb_dsbr100_suspend(struct usb_interface *intf,
 						pm_message_t message);
 static int usb_dsbr100_resume(struct usb_interface *intf);
@@ -145,9 +151,8 @@ struct dsbr100_device {
 	struct mutex lock;	/* buffer locking */
 	int curfreq;
 	int stereo;
-	int users;
 	int removed;
-	int muted;
+	int status;
 };
 
 static struct usb_device_id usb_dsbr100_device_table [] = {
@@ -201,7 +206,7 @@ static int dsbr100_start(struct dsbr100_device *radio)
 		goto usb_control_msg_failed;
 	}
 
-	radio->muted = 0;
+	radio->status = STARTED;
 	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
 
@@ -244,7 +249,7 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 		goto usb_control_msg_failed;
 	}
 
-	radio->muted = 1;
+	radio->status = STOPPED;
 	mutex_unlock(&radio->lock);
 	return (radio->transfer_buffer)[0];
 
@@ -258,12 +263,12 @@ usb_control_msg_failed:
 }
 
 /* set a frequency, freq is defined by v4l's TUNER_LOW, i.e. 1/16th kHz */
-static int dsbr100_setfreq(struct dsbr100_device *radio, int freq)
+static int dsbr100_setfreq(struct dsbr100_device *radio)
 {
 	int retval;
 	int request;
+	int freq = (radio->curfreq / 16 * 80) / 1000 + 856;
 
-	freq = (freq / 16 * 80) / 1000 + 856;
 	mutex_lock(&radio->lock);
 
 	retval = usb_control_msg(radio->usbdev,
@@ -431,7 +436,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	radio->curfreq = f->frequency;
 	mutex_unlock(&radio->lock);
 
-	retval = dsbr100_setfreq(radio, radio->curfreq);
+	retval = dsbr100_setfreq(radio);
 	if (retval < 0)
 		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
 	return 0;
@@ -473,7 +478,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = radio->muted;
+		ctrl->value = radio->status;
 		return 0;
 	}
 	return -EINVAL;
@@ -543,65 +548,27 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
-static int usb_dsbr100_open(struct file *file)
-{
-	struct dsbr100_device *radio = video_drvdata(file);
-	int retval;
-
-	lock_kernel();
-	radio->users = 1;
-	radio->muted = 1;
-
-	retval = dsbr100_start(radio);
-	if (retval < 0) {
-		dev_warn(&radio->usbdev->dev,
-			 "Radio did not start up properly\n");
-		radio->users = 0;
-		unlock_kernel();
-		return -EIO;
-	}
-
-	retval = dsbr100_setfreq(radio, radio->curfreq);
-	if (retval < 0)
-		dev_warn(&radio->usbdev->dev,
-			"set frequency failed\n");
-
-	unlock_kernel();
-	return 0;
-}
-
-static int usb_dsbr100_close(struct file *file)
-{
-	struct dsbr100_device *radio = video_drvdata(file);
-	int retval;
-
-	if (!radio)
-		return -ENODEV;
-
-	mutex_lock(&radio->lock);
-	radio->users = 0;
-	mutex_unlock(&radio->lock);
-
-	if (!radio->removed) {
-		retval = dsbr100_stop(radio);
-		if (retval < 0) {
-			dev_warn(&radio->usbdev->dev,
-				"dsbr100_stop failed\n");
-		}
-
-	}
-	return 0;
-}
-
 /* Suspend device - stop device. */
 static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct dsbr100_device *radio = usb_get_intfdata(intf);
 	int retval;
 
-	retval = dsbr100_stop(radio);
-	if (retval < 0)
-		dev_warn(&intf->dev, "dsbr100_stop failed\n");
+	if (radio->status == STARTED) {
+		retval = dsbr100_stop(radio);
+		if (retval < 0)
+			dev_warn(&intf->dev, "dsbr100_stop failed\n");
+
+		/* After dsbr100_stop() status set to STOPPED.
+		 * If we want driver to start radio on resume
+		 * we set status equal to STARTED.
+		 * On resume we will check status and run radio if needed.
+		 */
+
+		mutex_lock(&radio->lock);
+		radio->status = STARTED;
+		mutex_unlock(&radio->lock);
+	}
 
 	dev_info(&intf->dev, "going into suspend..\n");
 
@@ -614,9 +581,11 @@ static int usb_dsbr100_resume(struct usb_interface *intf)
 	struct dsbr100_device *radio = usb_get_intfdata(intf);
 	int retval;
 
-	retval = dsbr100_start(radio);
-	if (retval < 0)
-		dev_warn(&intf->dev, "dsbr100_start failed\n");
+	if (radio->status == STARTED) {
+		retval = dsbr100_start(radio);
+		if (retval < 0)
+			dev_warn(&intf->dev, "dsbr100_start failed\n");
+	}
 
 	dev_info(&intf->dev, "coming out of suspend..\n");
 
@@ -636,8 +605,6 @@ static void usb_dsbr100_video_device_release(struct video_device *videodev)
 /* File system interface */
 static const struct v4l2_file_operations usb_dsbr100_fops = {
 	.owner		= THIS_MODULE,
-	.open		= usb_dsbr100_open,
-	.release	= usb_dsbr100_close,
 	.ioctl		= video_ioctl2,
 };
 
@@ -695,9 +662,9 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	mutex_init(&radio->lock);
 
 	radio->removed = 0;
-	radio->users = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;
+	radio->status = STOPPED;
 
 	video_set_drvdata(&radio->videodev, radio);
 

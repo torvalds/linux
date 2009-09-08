@@ -316,7 +316,7 @@ static int __init pcf50633_regulator_init(void)
 {
 	return platform_driver_register(&pcf50633_regulator_driver);
 }
-module_init(pcf50633_regulator_init);
+subsys_initcall(pcf50633_regulator_init);
 
 static void __exit pcf50633_regulator_exit(void)
 {

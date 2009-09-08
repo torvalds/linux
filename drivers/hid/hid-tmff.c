@@ -33,11 +33,6 @@
 
 #include "hid-ids.h"
 
-#include "usbhid/usbhid.h"
-
-/* Usages for thrustmaster devices I know about */
-#define THRUSTMASTER_USAGE_FF	(HID_UP_GENDESK | 0xbb)
-
 static const signed short ff_rumble[] = {
 	FF_RUMBLE,
 	-1
@@ -47,6 +42,12 @@ static const signed short ff_joystick[] = {
 	FF_CONSTANT,
 	-1
 };
+
+#ifdef CONFIG_THRUSTMASTER_FF
+#include "usbhid/usbhid.h"
+
+/* Usages for thrustmaster devices I know about */
+#define THRUSTMASTER_USAGE_FF	(HID_UP_GENDESK | 0xbb)
 
 struct tmff_device {
 	struct hid_report *report;
@@ -209,6 +210,12 @@ fail:
 	kfree(tmff);
 	return error;
 }
+#else
+static inline int tmff_init(struct hid_device *hid, const signed short *ff_bits)
+{
+	return 0;
+}
+#endif
 
 static int tm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {

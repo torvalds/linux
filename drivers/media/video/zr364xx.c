@@ -882,9 +882,11 @@ static void zr364xx_disconnect(struct usb_interface *intf)
 		video_unregister_device(cam->vdev);
 	cam->vdev = NULL;
 	kfree(cam->buffer);
-	if (cam->framebuf)
-		vfree(cam->framebuf);
+	cam->buffer = NULL;
+	vfree(cam->framebuf);
+	cam->framebuf = NULL;
 	kfree(cam);
+	cam = NULL;
 }
 
 

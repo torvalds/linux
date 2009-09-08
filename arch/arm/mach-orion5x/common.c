@@ -31,7 +31,7 @@
 #include <plat/ehci-orion.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
-#include <plat/orion5x_wdt.h>
+#include <plat/orion_wdt.h>
 #include <plat/time.h>
 #include "common.h"
 
@@ -536,16 +536,52 @@ void __init orion5x_xor_init(void)
 	platform_device_register(&orion5x_xor1_channel);
 }
 
+static struct resource orion5x_crypto_res[] = {
+	{
+		.name   = "regs",
+		.start  = ORION5X_CRYPTO_PHYS_BASE,
+		.end    = ORION5X_CRYPTO_PHYS_BASE + 0xffff,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "sram",
+		.start  = ORION5X_SRAM_PHYS_BASE,
+		.end    = ORION5X_SRAM_PHYS_BASE + SZ_8K - 1,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "crypto interrupt",
+		.start  = IRQ_ORION5X_CESA,
+		.end    = IRQ_ORION5X_CESA,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion5x_crypto_device = {
+	.name           = "mv_crypto",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(orion5x_crypto_res),
+	.resource       = orion5x_crypto_res,
+};
+
+static int __init orion5x_crypto_init(void)
+{
+	int ret;
+
+	ret = orion5x_setup_sram_win();
+	if (ret)
+		return ret;
+
+	return platform_device_register(&orion5x_crypto_device);
+}
 
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct orion5x_wdt_platform_data orion5x_wdt_data = {
+static struct orion_wdt_platform_data orion5x_wdt_data = {
 	.tclk			= 0,
 };
 
 static struct platform_device orion5x_wdt_device = {
-	.name		= "orion5x_wdt",
+	.name		= "orion_wdt",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &orion5x_wdt_data,
@@ -659,6 +695,14 @@ void __init orion5x_init(void)
 		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
 		disable_hlt();
 	}
+
+	/*
+	 * The 5082/5181l/5182/6082/6082l/6183 have crypto
+	 * while 5180n/5181/5281 don't have crypto.
+	 */
+	if ((dev == MV88F5181_DEV_ID && rev >= MV88F5181L_REV_A0) ||
+	    dev == MV88F5182_DEV_ID || dev == MV88F6183_DEV_ID)
+		orion5x_crypto_init();
 
 	/*
 	 * Register watchdog driver

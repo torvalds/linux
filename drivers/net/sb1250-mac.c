@@ -2084,7 +2084,7 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	dev->trans_start = jiffies;
@@ -2271,6 +2271,21 @@ static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops sbmac_netdev_ops = {
+	.ndo_open		= sbmac_open,
+	.ndo_stop		= sbmac_close,
+	.ndo_start_xmit		= sbmac_start_tx,
+	.ndo_set_multicast_list	= sbmac_set_rx_mode,
+	.ndo_tx_timeout		= sbmac_tx_timeout,
+	.ndo_do_ioctl		= sbmac_mii_ioctl,
+	.ndo_change_mtu		= sb1250_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= sbmac_netpoll,
+#endif
+};
+
 /**********************************************************************
  *  SBMAC_INIT(dev)
  *
@@ -2285,7 +2300,7 @@ static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
 
 static int sbmac_init(struct platform_device *pldev, long long base)
 {
-	struct net_device *dev = pldev->dev.driver_data;
+	struct net_device *dev = dev_get_drvdata(&pldev->dev);
 	int idx = pldev->id;
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned char *eaddr;
@@ -2327,20 +2342,10 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 
 	spin_lock_init(&(sc->sbm_lock));
 
-	dev->open               = sbmac_open;
-	dev->hard_start_xmit    = sbmac_start_tx;
-	dev->stop               = sbmac_close;
-	dev->set_multicast_list = sbmac_set_rx_mode;
-	dev->do_ioctl           = sbmac_mii_ioctl;
-	dev->tx_timeout         = sbmac_tx_timeout;
-	dev->watchdog_timeo     = TX_TIMEOUT;
+	dev->netdev_ops = &sbmac_netdev_ops;
+	dev->watchdog_timeo = TX_TIMEOUT;
 
 	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
-
-	dev->change_mtu         = sb1250_change_mtu;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = sbmac_netpoll;
-#endif
 
 	dev->irq		= UNIT_INT(idx);
 
@@ -2726,7 +2731,7 @@ static int __init sbmac_probe(struct platform_device *pldev)
 		goto out_unmap;
 	}
 
-	pldev->dev.driver_data = dev;
+	dev_set_drvdata(&pldev->dev, dev);
 	SET_NETDEV_DEV(dev, &pldev->dev);
 
 	sc = netdev_priv(dev);
@@ -2751,7 +2756,7 @@ out_out:
 
 static int __exit sbmac_remove(struct platform_device *pldev)
 {
-	struct net_device *dev = pldev->dev.driver_data;
+	struct net_device *dev = dev_get_drvdata(&pldev->dev);
 	struct sbmac_softc *sc = netdev_priv(dev);
 
 	unregister_netdev(dev);

@@ -11,4 +11,10 @@ extern void *memcpy(void *, const void *, size_t);
 #define __HAVE_ARCH_MEMSET
 extern void *memset(void *, int, size_t);
 
+#ifdef CONFIG_ETRAX_ARCH_V32
+/* For v32 we provide strcmp.  */
+#define __HAVE_ARCH_STRCMP
+extern int strcmp(const char *s1, const char *s2);
+#endif
+
 #endif

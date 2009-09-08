@@ -29,7 +29,6 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *sp, unsigned long bp, char *log_lvl);
 
 extern unsigned int code_bytes;
-extern int kstack_depth_to_print;
 
 /* The form of the top of the frame on the stack */
 struct stack_frame {

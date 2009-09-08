@@ -194,7 +194,7 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 
 static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 {
-	int result = 0, state;
+	int result = 0;
 	int found = 0;
 	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
@@ -236,18 +236,6 @@ static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	if (!acpi_power_nocheck) {
-		/*
-		 * If acpi_power_nocheck is set, it is unnecessary to check
-		 * the power state after power transition.
-		 */
-		result = acpi_power_get_state(resource->device->handle,
-				&state);
-		if (result)
-			return result;
-		if (state != ACPI_POWER_RESOURCE_STATE_ON)
-			return -ENOEXEC;
-	}
 	/* Update the power resource's _device_ power state */
 	resource->device->power.state = ACPI_STATE_D0;
 
@@ -258,7 +246,7 @@ static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 
 static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 {
-	int result = 0, state;
+	int result = 0;
 	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
 	struct list_head *node, *next;
@@ -292,18 +280,6 @@ static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 	status = acpi_evaluate_object(resource->device->handle, "_OFF", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
-
-	if (!acpi_power_nocheck) {
-		/*
-		 * If acpi_power_nocheck is set, it is unnecessary to check
-		 * the power state after power transition.
-		 */
-		result = acpi_power_get_state(handle, &state);
-		if (result)
-			return result;
-		if (state != ACPI_POWER_RESOURCE_STATE_OFF)
-			return -ENOEXEC;
-	}
 
 	/* Update the power resource's _device_ power state */
 	resource->device->power.state = ACPI_STATE_D3;

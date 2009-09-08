@@ -220,11 +220,14 @@ config X86_LONGHAUL
 	  If in doubt, say N.
 
 config X86_E_POWERSAVER
-	tristate "VIA C7 Enhanced PowerSaver"
+	tristate "VIA C7 Enhanced PowerSaver (DANGEROUS)"
 	select CPU_FREQ_TABLE
-	depends on X86_32
+	depends on X86_32 && EXPERIMENTAL
 	help
-	  This adds the CPUFreq driver for VIA C7 processors.
+	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver
+	  does not have any safeguards to prevent operating the CPU out of spec
+	  and is thus considered dangerous.  Please use the regular ACPI cpufreq
+	  driver, enabled by CONFIG_X86_ACPI_CPUFREQ.
 
 	  If in doubt, say N.
 

@@ -28,10 +28,10 @@ setup_serial_console(struct pcdp_uart *uart)
 	char parity;
 
 	mmio = (uart->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY);
-	p += sprintf(p, "uart8250,%s,0x%lx",
+	p += sprintf(p, "uart8250,%s,0x%llx",
 		mmio ? "mmio" : "io", uart->addr.address);
 	if (uart->baud) {
-		p += sprintf(p, ",%lu", uart->baud);
+		p += sprintf(p, ",%llu", uart->baud);
 		if (uart->bits) {
 			switch (uart->parity) {
 			    case 0x2: parity = 'e'; break;

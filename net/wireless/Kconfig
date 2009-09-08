@@ -1,5 +1,6 @@
 config CFG80211
-        tristate "Improved wireless configuration API"
+	tristate "Improved wireless configuration API"
+	depends on RFKILL || !RFKILL
 
 config CFG80211_REG_DEBUG
 	bool "cfg80211 regulatory debugging"
@@ -7,6 +8,14 @@ config CFG80211_REG_DEBUG
 	default n
 	---help---
 	  You can enable this if you want to debug regulatory changes.
+
+	  If unsure, say N.
+
+config CFG80211_DEBUGFS
+	bool "cfg80211 DebugFS entries"
+	depends on CFG80211 && DEBUG_FS
+	---help---
+	  You can enable this if you want to debugfs entries for cfg80211.
 
 	  If unsure, say N.
 

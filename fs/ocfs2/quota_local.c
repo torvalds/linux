@@ -444,10 +444,6 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 
 	mlog_entry("ino=%lu type=%u", (unsigned long)lqinode->i_ino, type);
 
-	status = ocfs2_lock_global_qf(oinfo, 1);
-	if (status < 0)
-		goto out;
-
 	list_for_each_entry_safe(rchunk, next, &(rec->r_list[type]), rc_list) {
 		chunk = rchunk->rc_chunk;
 		hbh = NULL;
@@ -480,12 +476,18 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				     type);
 				goto out_put_bh;
 			}
+			status = ocfs2_lock_global_qf(oinfo, 1);
+			if (status < 0) {
+				mlog_errno(status);
+				goto out_put_dquot;
+			}
+
 			handle = ocfs2_start_trans(OCFS2_SB(sb),
 						   OCFS2_QSYNC_CREDITS);
 			if (IS_ERR(handle)) {
 				status = PTR_ERR(handle);
 				mlog_errno(status);
-				goto out_put_dquot;
+				goto out_drop_lock;
 			}
 			mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 			spin_lock(&dq_data_lock);
@@ -523,6 +525,8 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 out_commit:
 			mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 			ocfs2_commit_trans(OCFS2_SB(sb), handle);
+out_drop_lock:
+			ocfs2_unlock_global_qf(oinfo, 1);
 out_put_dquot:
 			dqput(dquot);
 out_put_bh:
@@ -537,8 +541,6 @@ out_put_bh:
 		if (status < 0)
 			break;
 	}
-	ocfs2_unlock_global_qf(oinfo, 1);
-out:
 	if (status < 0)
 		free_recovery_list(&(rec->r_list[type]));
 	mlog_exit(status);
@@ -655,6 +657,9 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	struct ocfs2_quota_recovery *rec;
 	int locked = 0;
 
+	/* We don't need the lock and we have to acquire quota file locks
+	 * which will later depend on this lock */
+	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	info->dqi_maxblimit = 0x7fffffffffffffffLL;
 	info->dqi_maxilimit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
@@ -733,6 +738,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 		goto out_err;
 	}
 
+	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	return 0;
 out_err:
 	if (oinfo) {
@@ -746,6 +752,7 @@ out_err:
 		kfree(oinfo);
 	}
 	brelse(bh);
+	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	return -1;
 }
 

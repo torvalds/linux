@@ -313,6 +313,4 @@ void __init prom_build_devicetree(void)
 
 	printk("PROM: Built device tree with %u bytes of memory.\n",
 	       prom_early_allocated);
-
-	of_fill_in_cpu_data();
 }

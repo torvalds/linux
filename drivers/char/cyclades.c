@@ -604,7 +604,6 @@
 
 #define NR_PORTS	256
 
-#define ZE_V1_NPORTS	64
 #define ZO_V1	0
 #define ZO_V2	1
 #define ZE_V1	2
@@ -663,18 +662,6 @@
 static void cy_throttle(struct tty_struct *tty);
 static void cy_send_xchar(struct tty_struct *tty, char ch);
 
-#define IS_CYC_Z(card) ((card).num_chips == (unsigned int)-1)
-
-#define Z_FPGA_CHECK(card) \
-	((readl(&((struct RUNTIME_9060 __iomem *) \
-		((card).ctl_addr))->init_ctrl) & (1<<17)) != 0)
-
-#define ISZLOADED(card)	(((ZO_V1 == readl(&((struct RUNTIME_9060 __iomem *) \
-			((card).ctl_addr))->mail_box_0)) || \
-			Z_FPGA_CHECK(card)) && \
-			(ZFIRM_ID == readl(&((struct FIRM_ID __iomem *) \
-			((card).base_addr+ID_ADDRESS))->signature)))
-
 #ifndef SERIAL_XMIT_SIZE
 #define	SERIAL_XMIT_SIZE	(min(PAGE_SIZE, 4096))
 #endif
@@ -686,8 +673,6 @@ static void cy_send_xchar(struct tty_struct *tty, char ch);
 #define ZL_MAX_BLOCKS	16
 #define DRIVER_VERSION	0x02010203
 #define RAM_SIZE 0x80000
-
-#define Z_FPGA_LOADED(X)	((readl(&(X)->init_ctrl) & (1<<17)) != 0)
 
 enum zblock_type {
 	ZBLOCK_PRG = 0,
@@ -882,6 +867,29 @@ static DEFINE_TIMER(cyz_timerlist, cyz_poll, 0, 0);
 static void cyz_rx_restart(unsigned long);
 static struct timer_list cyz_rx_full_timer[NR_PORTS];
 #endif				/* CONFIG_CYZ_INTR */
+
+static inline bool cy_is_Z(struct cyclades_card *card)
+{
+	return card->num_chips == (unsigned int)-1;
+}
+
+static inline bool __cyz_fpga_loaded(struct RUNTIME_9060 __iomem *ctl_addr)
+{
+	return readl(&ctl_addr->init_ctrl) & (1 << 17);
+}
+
+static inline bool cyz_fpga_loaded(struct cyclades_card *card)
+{
+	return __cyz_fpga_loaded(card->ctl_addr.p9060);
+}
+
+static inline bool cyz_is_loaded(struct cyclades_card *card)
+{
+	struct FIRM_ID __iomem *fw_id = card->base_addr + ID_ADDRESS;
+
+	return (card->hw_ver == ZO_V1 || cyz_fpga_loaded(card)) &&
+			readl(&fw_id->signature) == ZFIRM_ID;
+}
 
 static inline int serial_paranoia_check(struct cyclades_port *info,
 		char *name, const char *routine)
@@ -1395,19 +1403,15 @@ cyz_fetch_msg(struct cyclades_card *cinfo,
 	unsigned long loc_doorbell;
 
 	firm_id = cinfo->base_addr + ID_ADDRESS;
-	if (!ISZLOADED(*cinfo))
-		return -1;
 	zfw_ctrl = cinfo->base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
 	board_ctrl = &zfw_ctrl->board_ctrl;
 
-	loc_doorbell = readl(&((struct RUNTIME_9060 __iomem *)
-				  (cinfo->ctl_addr))->loc_doorbell);
+	loc_doorbell = readl(&cinfo->ctl_addr.p9060->loc_doorbell);
 	if (loc_doorbell) {
 		*cmd = (char)(0xff & loc_doorbell);
 		*channel = readl(&board_ctrl->fwcmd_channel);
 		*param = (__u32) readl(&board_ctrl->fwcmd_param);
-		cy_writel(&((struct RUNTIME_9060 __iomem *)(cinfo->ctl_addr))->
-			  loc_doorbell, 0xffffffff);
+		cy_writel(&cinfo->ctl_addr.p9060->loc_doorbell, 0xffffffff);
 		return 1;
 	}
 	return 0;
@@ -1424,15 +1428,14 @@ cyz_issue_cmd(struct cyclades_card *cinfo,
 	unsigned int index;
 
 	firm_id = cinfo->base_addr + ID_ADDRESS;
-	if (!ISZLOADED(*cinfo))
+	if (!cyz_is_loaded(cinfo))
 		return -1;
 
 	zfw_ctrl = cinfo->base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
 	board_ctrl = &zfw_ctrl->board_ctrl;
 
 	index = 0;
-	pci_doorbell =
-	    &((struct RUNTIME_9060 __iomem *)(cinfo->ctl_addr))->pci_doorbell;
+	pci_doorbell = &cinfo->ctl_addr.p9060->pci_doorbell;
 	while ((readl(pci_doorbell) & 0xff) != 0) {
 		if (index++ == 1000)
 			return (int)(readl(pci_doorbell) & 0xff);
@@ -1624,10 +1627,8 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 	static struct BOARD_CTRL __iomem *board_ctrl;
 	static struct CH_CTRL __iomem *ch_ctrl;
 	static struct BUF_CTRL __iomem *buf_ctrl;
-	__u32 channel;
+	__u32 channel, param, fw_ver;
 	__u8 cmd;
-	__u32 param;
-	__u32 hw_ver, fw_ver;
 	int special_count;
 	int delta_count;
 
@@ -1635,8 +1636,6 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 	zfw_ctrl = cinfo->base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
 	board_ctrl = &zfw_ctrl->board_ctrl;
 	fw_ver = readl(&board_ctrl->fw_version);
-	hw_ver = readl(&((struct RUNTIME_9060 __iomem *)(cinfo->ctl_addr))->
-			mail_box_0);
 
 	while (cyz_fetch_msg(cinfo, &channel, &cmd, &param) == 1) {
 		special_count = 0;
@@ -1737,15 +1736,7 @@ static irqreturn_t cyz_interrupt(int irq, void *dev_id)
 {
 	struct cyclades_card *cinfo = dev_id;
 
-	if (unlikely(cinfo == NULL)) {
-#ifdef CY_DEBUG_INTERRUPTS
-		printk(KERN_DEBUG "cyz_interrupt: spurious interrupt %d\n",
-									irq);
-#endif
-		return IRQ_NONE;	/* spurious interrupt */
-	}
-
-	if (unlikely(!ISZLOADED(*cinfo))) {
+	if (unlikely(!cyz_is_loaded(cinfo))) {
 #ifdef CY_DEBUG_INTERRUPTS
 		printk(KERN_DEBUG "cyz_interrupt: board not yet loaded "
 				"(IRQ%d).\n", irq);
@@ -1785,7 +1776,6 @@ static void cyz_poll(unsigned long arg)
 	struct tty_struct *tty;
 	struct FIRM_ID __iomem *firm_id;
 	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct BOARD_CTRL __iomem *board_ctrl;
 	struct BUF_CTRL __iomem *buf_ctrl;
 	unsigned long expires = jiffies + HZ;
 	unsigned int port, card;
@@ -1793,19 +1783,17 @@ static void cyz_poll(unsigned long arg)
 	for (card = 0; card < NR_CARDS; card++) {
 		cinfo = &cy_card[card];
 
-		if (!IS_CYC_Z(*cinfo))
+		if (!cy_is_Z(cinfo))
 			continue;
-		if (!ISZLOADED(*cinfo))
+		if (!cyz_is_loaded(cinfo))
 			continue;
 
 		firm_id = cinfo->base_addr + ID_ADDRESS;
 		zfw_ctrl = cinfo->base_addr +
 				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		board_ctrl = &(zfw_ctrl->board_ctrl);
 
 	/* Skip first polling cycle to avoid racing conditions with the FW */
 		if (!cinfo->intr_enabled) {
-			cinfo->nports = (int)readl(&board_ctrl->n_channel);
 			cinfo->intr_enabled = 1;
 			continue;
 		}
@@ -1874,7 +1862,7 @@ static int startup(struct cyclades_port *info)
 
 	set_line_char(info);
 
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -1931,7 +1919,7 @@ static int startup(struct cyclades_port *info)
 		base_addr = card->base_addr;
 
 		firm_id = base_addr + ID_ADDRESS;
-		if (!ISZLOADED(*card))
+		if (!cyz_is_loaded(card))
 			return -ENODEV;
 
 		zfw_ctrl = card->base_addr +
@@ -2026,7 +2014,7 @@ static void start_xmit(struct cyclades_port *info)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -2070,7 +2058,7 @@ static void shutdown(struct cyclades_port *info)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -2126,7 +2114,7 @@ static void shutdown(struct cyclades_port *info)
 #endif
 
 		firm_id = base_addr + ID_ADDRESS;
-		if (!ISZLOADED(*card))
+		if (!cyz_is_loaded(card))
 			return;
 
 		zfw_ctrl = card->base_addr +
@@ -2233,7 +2221,7 @@ block_til_ready(struct tty_struct *tty, struct file *filp,
 #endif
 	info->port.blocked_open++;
 
-	if (!IS_CYC_Z(*cinfo)) {
+	if (!cy_is_Z(cinfo)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = cinfo->bus_index;
@@ -2296,7 +2284,7 @@ block_til_ready(struct tty_struct *tty, struct file *filp,
 
 		base_addr = cinfo->base_addr;
 		firm_id = base_addr + ID_ADDRESS;
-		if (!ISZLOADED(*cinfo)) {
+		if (!cyz_is_loaded(cinfo)) {
 			__set_current_state(TASK_RUNNING);
 			remove_wait_queue(&info->port.open_wait, &wait);
 			return -EINVAL;
@@ -2397,16 +2385,14 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 	   treat it as absent from the system.  This
 	   will make the user pay attention.
 	 */
-	if (IS_CYC_Z(*info->card)) {
+	if (cy_is_Z(info->card)) {
 		struct cyclades_card *cinfo = info->card;
 		struct FIRM_ID __iomem *firm_id = cinfo->base_addr + ID_ADDRESS;
 
-		if (!ISZLOADED(*cinfo)) {
-			if (((ZE_V1 == readl(&((struct RUNTIME_9060 __iomem *)
-					 (cinfo->ctl_addr))->mail_box_0)) &&
-					Z_FPGA_CHECK(*cinfo)) &&
-					(ZFIRM_HLT == readl(
-						&firm_id->signature))) {
+		if (!cyz_is_loaded(cinfo)) {
+			if (cinfo->hw_ver == ZE_V1 && cyz_fpga_loaded(cinfo) &&
+					readl(&firm_id->signature) ==
+					ZFIRM_HLT) {
 				printk(KERN_ERR "cyc:Cyclades-Z Error: you "
 					"need an external power supply for "
 					"this number of ports.\nFirmware "
@@ -2423,18 +2409,13 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 		   interrupts should be enabled as soon as the first open
 		   happens to one of its ports. */
 			if (!cinfo->intr_enabled) {
-				struct ZFW_CTRL __iomem *zfw_ctrl;
-				struct BOARD_CTRL __iomem *board_ctrl;
-
-				zfw_ctrl = cinfo->base_addr +
-					(readl(&firm_id->zfwctrl_addr) &
-					 0xfffff);
-
-				board_ctrl = &zfw_ctrl->board_ctrl;
+				u16 intr;
 
 				/* Enable interrupts on the PLX chip */
-				cy_writew(cinfo->ctl_addr + 0x68,
-					readw(cinfo->ctl_addr + 0x68) | 0x0900);
+				intr = readw(&cinfo->ctl_addr.p9060->
+						intr_ctrl_stat) | 0x0900;
+				cy_writew(&cinfo->ctl_addr.p9060->
+						intr_ctrl_stat, intr);
 				/* Enable interrupts on the FW */
 				retval = cyz_issue_cmd(cinfo, 0,
 						C_CM_IRQ_ENBL, 0L);
@@ -2442,8 +2423,6 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 					printk(KERN_ERR "cyc:IRQ enable retval "
 						"was %x\n", retval);
 				}
-				cinfo->nports =
-					(int)readl(&board_ctrl->n_channel);
 				cinfo->intr_enabled = 1;
 			}
 		}
@@ -2556,7 +2535,7 @@ static void cy_wait_until_sent(struct tty_struct *tty, int timeout)
 #endif
 	card = info->card;
 	channel = (info->line) - (card->first_line);
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -2601,7 +2580,7 @@ static void cy_flush_buffer(struct tty_struct *tty)
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
-	if (IS_CYC_Z(*card)) {	/* If it is a Z card, flush the on-board
+	if (cy_is_Z(card)) {	/* If it is a Z card, flush the on-board
 					   buffers as well */
 		spin_lock_irqsave(&card->card_lock, flags);
 		retval = cyz_issue_cmd(card, channel, C_CM_FLUSH_TX, 0L);
@@ -2682,7 +2661,7 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		int channel = info->line - card->first_line;
 		int index = card->bus_index;
 		void __iomem *base_addr = card->base_addr +
@@ -2902,7 +2881,7 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
 	channel = (info->line) - (card->first_line);
 
 #ifdef Z_EXT_CHARS_IN_BUFFER
-	if (!IS_CYC_Z(cy_card[card])) {
+	if (!cy_is_Z(card)) {
 #endif				/* Z_EXT_CHARS_IN_BUFFER */
 #ifdef CY_DEBUG_IO
 		printk(KERN_DEBUG "cyc:cy_chars_in_buffer ttyC%d %d\n",
@@ -2984,7 +2963,6 @@ static void set_line_char(struct cyclades_port *info)
 	void __iomem *base_addr;
 	int chip, channel, index;
 	unsigned cflag, iflag;
-	unsigned short chip_number;
 	int baud, baud_rate = 0;
 	int i;
 
@@ -3013,9 +2991,8 @@ static void set_line_char(struct cyclades_port *info)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	chip_number = channel / 4;
 
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 
 		index = card->bus_index;
 
@@ -3233,21 +3210,17 @@ static void set_line_char(struct cyclades_port *info)
 	} else {
 		struct FIRM_ID __iomem *firm_id;
 		struct ZFW_CTRL __iomem *zfw_ctrl;
-		struct BOARD_CTRL __iomem *board_ctrl;
 		struct CH_CTRL __iomem *ch_ctrl;
-		struct BUF_CTRL __iomem *buf_ctrl;
 		__u32 sw_flow;
 		int retval;
 
 		firm_id = card->base_addr + ID_ADDRESS;
-		if (!ISZLOADED(*card))
+		if (!cyz_is_loaded(card))
 			return;
 
 		zfw_ctrl = card->base_addr +
 			(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		board_ctrl = &zfw_ctrl->board_ctrl;
 		ch_ctrl = &(zfw_ctrl->ch_ctrl[channel]);
-		buf_ctrl = &zfw_ctrl->buf_ctrl[channel];
 
 		/* baud rate */
 		baud = tty_get_baud_rate(info->port.tty);
@@ -3457,7 +3430,7 @@ static int get_lsr_info(struct cyclades_port *info, unsigned int __user *value)
 
 	card = info->card;
 	channel = (info->line) - (card->first_line);
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3497,7 +3470,7 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3523,7 +3496,7 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 	} else {
 		base_addr = card->base_addr;
 		firm_id = card->base_addr + ID_ADDRESS;
-		if (ISZLOADED(*card)) {
+		if (cyz_is_loaded(card)) {
 			zfw_ctrl = card->base_addr +
 				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
 			board_ctrl = &zfw_ctrl->board_ctrl;
@@ -3566,7 +3539,7 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 
 	card = info->card;
 	channel = (info->line) - (card->first_line);
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3641,7 +3614,7 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 		base_addr = card->base_addr;
 
 		firm_id = card->base_addr + ID_ADDRESS;
-		if (ISZLOADED(*card)) {
+		if (cyz_is_loaded(card)) {
 			zfw_ctrl = card->base_addr +
 				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
 			board_ctrl = &zfw_ctrl->board_ctrl;
@@ -3713,7 +3686,7 @@ static int cy_break(struct tty_struct *tty, int break_state)
 	card = info->card;
 
 	spin_lock_irqsave(&card->card_lock, flags);
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		/* Let the transmit ISR take care of this (since it
 		   requires stuffing characters into the output stream).
 		 */
@@ -3782,7 +3755,7 @@ static int set_threshold(struct cyclades_port *info, unsigned long value)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3810,7 +3783,7 @@ static int get_threshold(struct cyclades_port *info,
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3844,7 +3817,7 @@ static int set_timeout(struct cyclades_port *info, unsigned long value)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3867,7 +3840,7 @@ static int get_timeout(struct cyclades_port *info,
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	if (!IS_CYC_Z(*card)) {
+	if (!cy_is_Z(card)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -4121,7 +4094,7 @@ static void cy_send_xchar(struct tty_struct *tty, char ch)
 	card = info->card;
 	channel = info->line - card->first_line;
 
-	if (IS_CYC_Z(*card)) {
+	if (cy_is_Z(card)) {
 		if (ch == STOP_CHAR(tty))
 			cyz_issue_cmd(card, channel, C_CM_SENDXOFF, 0L);
 		else if (ch == START_CHAR(tty))
@@ -4154,7 +4127,7 @@ static void cy_throttle(struct tty_struct *tty)
 	card = info->card;
 
 	if (I_IXOFF(tty)) {
-		if (!IS_CYC_Z(*card))
+		if (!cy_is_Z(card))
 			cy_send_xchar(tty, STOP_CHAR(tty));
 		else
 			info->throttle = 1;
@@ -4162,7 +4135,7 @@ static void cy_throttle(struct tty_struct *tty)
 
 	if (tty->termios->c_cflag & CRTSCTS) {
 		channel = info->line - card->first_line;
-		if (!IS_CYC_Z(*card)) {
+		if (!cy_is_Z(card)) {
 			chip = channel >> 2;
 			channel &= 0x03;
 			index = card->bus_index;
@@ -4219,7 +4192,7 @@ static void cy_unthrottle(struct tty_struct *tty)
 	if (tty->termios->c_cflag & CRTSCTS) {
 		card = info->card;
 		channel = info->line - card->first_line;
-		if (!IS_CYC_Z(*card)) {
+		if (!cy_is_Z(card)) {
 			chip = channel >> 2;
 			channel &= 0x03;
 			index = card->bus_index;
@@ -4263,7 +4236,7 @@ static void cy_stop(struct tty_struct *tty)
 
 	cinfo = info->card;
 	channel = info->line - cinfo->first_line;
-	if (!IS_CYC_Z(*cinfo)) {
+	if (!cy_is_Z(cinfo)) {
 		index = cinfo->bus_index;
 		chip = channel >> 2;
 		channel &= 0x03;
@@ -4296,7 +4269,7 @@ static void cy_start(struct tty_struct *tty)
 	cinfo = info->card;
 	channel = info->line - cinfo->first_line;
 	index = cinfo->bus_index;
-	if (!IS_CYC_Z(*cinfo)) {
+	if (!cy_is_Z(cinfo)) {
 		chip = channel >> 2;
 		channel &= 0x03;
 		base_addr = cinfo->base_addr + (cy_chip_offset[chip] << index);
@@ -4347,33 +4320,20 @@ static void cy_hangup(struct tty_struct *tty)
 static int __devinit cy_init_card(struct cyclades_card *cinfo)
 {
 	struct cyclades_port *info;
-	u32 uninitialized_var(mailbox);
-	unsigned int nports, port;
+	unsigned int port;
 	unsigned short chip_number;
-	int uninitialized_var(index);
 
 	spin_lock_init(&cinfo->card_lock);
+	cinfo->intr_enabled = 0;
 
-	if (IS_CYC_Z(*cinfo)) {	/* Cyclades-Z */
-		mailbox = readl(&((struct RUNTIME_9060 __iomem *)
-				     cinfo->ctl_addr)->mail_box_0);
-		nports = (mailbox == ZE_V1) ? ZE_V1_NPORTS : 8;
-		cinfo->intr_enabled = 0;
-		cinfo->nports = 0;	/* Will be correctly set later, after
-					   Z FW is loaded */
-	} else {
-		index = cinfo->bus_index;
-		nports = cinfo->nports = CyPORTS_PER_CHIP * cinfo->num_chips;
-	}
-
-	cinfo->ports = kzalloc(sizeof(*cinfo->ports) * nports, GFP_KERNEL);
+	cinfo->ports = kcalloc(cinfo->nports, sizeof(*cinfo->ports),
+			GFP_KERNEL);
 	if (cinfo->ports == NULL) {
 		printk(KERN_ERR "Cyclades: cannot allocate ports\n");
-		cinfo->nports = 0;
 		return -ENOMEM;
 	}
 
-	for (port = cinfo->first_line; port < cinfo->first_line + nports;
+	for (port = cinfo->first_line; port < cinfo->first_line + cinfo->nports;
 			port++) {
 		info = &cinfo->ports[port - cinfo->first_line];
 		tty_port_init(&info->port);
@@ -4387,9 +4347,9 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 		init_completion(&info->shutdown_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 
-		if (IS_CYC_Z(*cinfo)) {
+		if (cy_is_Z(cinfo)) {
 			info->type = PORT_STARTECH;
-			if (mailbox == ZO_V1)
+			if (cinfo->hw_ver == ZO_V1)
 				info->xmit_fifo_size = CYZ_FIFO_SIZE;
 			else
 				info->xmit_fifo_size = 4 * CYZ_FIFO_SIZE;
@@ -4398,6 +4358,7 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 				cyz_rx_restart, (unsigned long)info);
 #endif
 		} else {
+			int index = cinfo->bus_index;
 			info->type = PORT_CIRRUS;
 			info->xmit_fifo_size = CyMAX_CHAR_FIFO;
 			info->cor1 = CyPARITY_NONE | Cy_1_STOP | Cy_8_BITS;
@@ -4430,7 +4391,7 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 	}
 
 #ifndef CONFIG_CYZ_INTR
-	if (IS_CYC_Z(*cinfo) && !timer_pending(&cyz_timerlist)) {
+	if (cy_is_Z(cinfo) && !timer_pending(&cyz_timerlist)) {
 		mod_timer(&cyz_timerlist, jiffies + 1);
 #ifdef CY_PCI_DEBUG
 		printk(KERN_DEBUG "Cyclades-Z polling initialized\n");
@@ -4621,11 +4582,12 @@ static int __init cy_detect_isa(void)
 
 		/* set cy_card */
 		cy_card[j].base_addr = cy_isa_address;
-		cy_card[j].ctl_addr = NULL;
+		cy_card[j].ctl_addr.p9050 = NULL;
 		cy_card[j].irq = (int)cy_isa_irq;
 		cy_card[j].bus_index = 0;
 		cy_card[j].first_line = cy_next_channel;
-		cy_card[j].num_chips = cy_isa_nchan / 4;
+		cy_card[j].num_chips = cy_isa_nchan / CyPORTS_PER_CHIP;
+		cy_card[j].nports = cy_isa_nchan;
 		if (cy_init_card(&cy_card[j])) {
 			cy_card[j].base_addr = NULL;
 			free_irq(cy_isa_irq, &cy_card[j]);
@@ -4781,7 +4743,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 	struct CUSTOM_REG __iomem *cust = base_addr;
 	struct ZFW_CTRL __iomem *pt_zfwctrl;
 	void __iomem *tmp;
-	u32 mailbox, status;
+	u32 mailbox, status, nchan;
 	unsigned int i;
 	int retval;
 
@@ -4793,7 +4755,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 
 	/* Check whether the firmware is already loaded and running. If
 	   positive, skip this board */
-	if (Z_FPGA_LOADED(ctl_addr) && readl(&fid->signature) == ZFIRM_ID) {
+	if (__cyz_fpga_loaded(ctl_addr) && readl(&fid->signature) == ZFIRM_ID) {
 		u32 cntval = readl(base_addr + 0x190);
 
 		udelay(100);
@@ -4812,7 +4774,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 
 	mailbox = readl(&ctl_addr->mail_box_0);
 
-	if (mailbox == 0 || Z_FPGA_LOADED(ctl_addr)) {
+	if (mailbox == 0 || __cyz_fpga_loaded(ctl_addr)) {
 		/* stops CPU and set window to beginning of RAM */
 		cy_writel(&ctl_addr->loc_addr_base, WIN_CREG);
 		cy_writel(&cust->cpu_stop, 0);
@@ -4828,7 +4790,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 				base_addr);
 		if (retval)
 			goto err_rel;
-		if (!Z_FPGA_LOADED(ctl_addr)) {
+		if (!__cyz_fpga_loaded(ctl_addr)) {
 			dev_err(&pdev->dev, "fw upload successful, but fw is "
 					"not loaded\n");
 			goto err_rel;
@@ -4887,7 +4849,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 				"system before loading the new FW to the "
 				"Cyclades-Z.\n");
 
-			if (Z_FPGA_LOADED(ctl_addr))
+			if (__cyz_fpga_loaded(ctl_addr))
 				plx_init(pdev, irq, ctl_addr);
 
 			retval = -EIO;
@@ -4902,16 +4864,16 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 			base_addr + ID_ADDRESS, readl(&fid->zfwctrl_addr),
 			base_addr + readl(&fid->zfwctrl_addr));
 
+	nchan = readl(&pt_zfwctrl->board_ctrl.n_channel);
 	dev_info(&pdev->dev, "Cyclades-Z FW loaded: version = %x, ports = %u\n",
-		readl(&pt_zfwctrl->board_ctrl.fw_version),
-		readl(&pt_zfwctrl->board_ctrl.n_channel));
+		readl(&pt_zfwctrl->board_ctrl.fw_version), nchan);
 
-	if (readl(&pt_zfwctrl->board_ctrl.n_channel) == 0) {
+	if (nchan == 0) {
 		dev_warn(&pdev->dev, "no Cyclades-Z ports were found. Please "
 			"check the connection between the Z host card and the "
 			"serial expanders.\n");
 
-		if (Z_FPGA_LOADED(ctl_addr))
+		if (__cyz_fpga_loaded(ctl_addr))
 			plx_init(pdev, irq, ctl_addr);
 
 		dev_info(&pdev->dev, "Null number of ports detected. Board "
@@ -4932,9 +4894,7 @@ static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 	cy_writel(&ctl_addr->intr_ctrl_stat, readl(&ctl_addr->intr_ctrl_stat) |
 			0x00030800UL);
 
-	plx_init(pdev, irq, ctl_addr);
-
-	return 0;
+	return nchan;
 err_rel:
 	release_firmware(fw);
 err:
@@ -4946,7 +4906,7 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 {
 	void __iomem *addr0 = NULL, *addr2 = NULL;
 	char *card_name = NULL;
-	u32 mailbox;
+	u32 uninitialized_var(mailbox);
 	unsigned int device_id, nchan = 0, card_no, i;
 	unsigned char plx_ver;
 	int retval, irq;
@@ -5023,11 +4983,12 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		}
 
 		/* Disable interrupts on the PLX before resetting it */
-		cy_writew(addr0 + 0x68, readw(addr0 + 0x68) & ~0x0900);
+		cy_writew(&ctl_addr->intr_ctrl_stat,
+				readw(&ctl_addr->intr_ctrl_stat) & ~0x0900);
 
 		plx_init(pdev, irq, addr0);
 
-		mailbox = (u32)readl(&ctl_addr->mail_box_0);
+		mailbox = readl(&ctl_addr->mail_box_0);
 
 		addr2 = ioremap_nocache(pci_resource_start(pdev, 2),
 				mailbox == ZE_V1 ? CyPCI_Ze_win : CyPCI_Zwin);
@@ -5038,12 +4999,8 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 		if (mailbox == ZE_V1) {
 			card_name = "Cyclades-Ze";
-
-			readl(&ctl_addr->mail_box_0);
-			nchan = ZE_V1_NPORTS;
 		} else {
 			card_name = "Cyclades-8Zo";
-
 #ifdef CY_PCI_DEBUG
 			if (mailbox == ZO_V1) {
 				cy_writel(&ctl_addr->loc_addr_base, WIN_CREG);
@@ -5065,15 +5022,12 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 			 */
 			if ((mailbox == ZO_V1) || (mailbox == ZO_V2))
 				cy_writel(addr2 + ID_ADDRESS, 0L);
-
-			retval = cyz_load_fw(pdev, addr2, addr0, irq);
-			if (retval)
-				goto err_unmap;
-			/* This must be a Cyclades-8Zo/PCI.  The extendable
-			   version will have a different device_id and will
-			   be allocated its maximum number of ports. */
-			nchan = 8;
 		}
+
+		retval = cyz_load_fw(pdev, addr2, addr0, irq);
+		if (retval <= 0)
+			goto err_unmap;
+		nchan = retval;
 	}
 
 	if ((cy_next_channel + nchan) > NR_PORTS) {
@@ -5103,8 +5057,10 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 			dev_err(&pdev->dev, "could not allocate IRQ\n");
 			goto err_unmap;
 		}
-		cy_card[card_no].num_chips = nchan / 4;
+		cy_card[card_no].num_chips = nchan / CyPORTS_PER_CHIP;
 	} else {
+		cy_card[card_no].hw_ver = mailbox;
+		cy_card[card_no].num_chips = (unsigned int)-1;
 #ifdef CONFIG_CYZ_INTR
 		/* allocate IRQ only if board has an IRQ */
 		if (irq != 0 && irq != 255) {
@@ -5117,15 +5073,15 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 			}
 		}
 #endif				/* CONFIG_CYZ_INTR */
-		cy_card[card_no].num_chips = (unsigned int)-1;
 	}
 
 	/* set cy_card */
 	cy_card[card_no].base_addr = addr2;
-	cy_card[card_no].ctl_addr = addr0;
+	cy_card[card_no].ctl_addr.p9050 = addr0;
 	cy_card[card_no].irq = irq;
 	cy_card[card_no].bus_index = 1;
 	cy_card[card_no].first_line = cy_next_channel;
+	cy_card[card_no].nports = nchan;
 	retval = cy_init_card(&cy_card[card_no]);
 	if (retval)
 		goto err_null;
@@ -5138,16 +5094,19 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		plx_ver = readb(addr2 + CyPLX_VER) & 0x0f;
 		switch (plx_ver) {
 		case PLX_9050:
-
 			cy_writeb(addr0 + 0x4c, 0x43);
 			break;
 
 		case PLX_9060:
 		case PLX_9080:
 		default:	/* Old boards, use PLX_9060 */
-			plx_init(pdev, irq, addr0);
-			cy_writew(addr0 + 0x68, readw(addr0 + 0x68) | 0x0900);
+		{
+			struct RUNTIME_9060 __iomem *ctl_addr = addr0;
+			plx_init(pdev, irq, ctl_addr);
+			cy_writew(&ctl_addr->intr_ctrl_stat,
+				readw(&ctl_addr->intr_ctrl_stat) | 0x0900);
 			break;
+		}
 		}
 	}
 
@@ -5179,22 +5138,23 @@ static void __devexit cy_pci_remove(struct pci_dev *pdev)
 	unsigned int i;
 
 	/* non-Z with old PLX */
-	if (!IS_CYC_Z(*cinfo) && (readb(cinfo->base_addr + CyPLX_VER) & 0x0f) ==
+	if (!cy_is_Z(cinfo) && (readb(cinfo->base_addr + CyPLX_VER) & 0x0f) ==
 			PLX_9050)
-		cy_writeb(cinfo->ctl_addr + 0x4c, 0);
+		cy_writeb(cinfo->ctl_addr.p9050 + 0x4c, 0);
 	else
 #ifndef CONFIG_CYZ_INTR
-		if (!IS_CYC_Z(*cinfo))
+		if (!cy_is_Z(cinfo))
 #endif
-		cy_writew(cinfo->ctl_addr + 0x68,
-				readw(cinfo->ctl_addr + 0x68) & ~0x0900);
+		cy_writew(&cinfo->ctl_addr.p9060->intr_ctrl_stat,
+			readw(&cinfo->ctl_addr.p9060->intr_ctrl_stat) &
+			~0x0900);
 
 	iounmap(cinfo->base_addr);
-	if (cinfo->ctl_addr)
-		iounmap(cinfo->ctl_addr);
+	if (cinfo->ctl_addr.p9050)
+		iounmap(cinfo->ctl_addr.p9050);
 	if (cinfo->irq
 #ifndef CONFIG_CYZ_INTR
-		&& !IS_CYC_Z(*cinfo)
+		&& !cy_is_Z(cinfo)
 #endif /* CONFIG_CYZ_INTR */
 		)
 		free_irq(cinfo->irq, cinfo);
@@ -5240,7 +5200,7 @@ static int cyclades_proc_show(struct seq_file *m, void *v)
 					(cur_jifs - info->idle_stats.recv_idle)/
 					HZ, info->idle_stats.overruns,
 					/* FIXME: double check locking */
-					(long)info->port.tty->ldisc.ops->num);
+					(long)info->port.tty->ldisc->ops->num);
 			else
 				seq_printf(m, "%3d %8lu %10lu %8lu "
 					"%10lu %8lu %9lu %6ld\n",
@@ -5386,11 +5346,11 @@ static void __exit cy_cleanup_module(void)
 			/* clear interrupt */
 			cy_writeb(card->base_addr + Cy_ClrIntr, 0);
 			iounmap(card->base_addr);
-			if (card->ctl_addr)
-				iounmap(card->ctl_addr);
+			if (card->ctl_addr.p9050)
+				iounmap(card->ctl_addr.p9050);
 			if (card->irq
 #ifndef CONFIG_CYZ_INTR
-				&& !IS_CYC_Z(*card)
+				&& !cy_is_Z(card)
 #endif /* CONFIG_CYZ_INTR */
 				)
 				free_irq(card->irq, card);

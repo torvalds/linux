@@ -1084,7 +1084,7 @@ static void e752x_init_sysbus_parity_mask(struct e752x_pvt *pvt)
 	struct pci_dev *dev = pvt->dev_d0f1;
 	int enable = 1;
 
-	/* Allow module paramter override, else see if CPU supports parity */
+	/* Allow module parameter override, else see if CPU supports parity */
 	if (sysbus_parity != -1) {
 		enable = sysbus_parity;
 	} else if (cpu_id[0] &&

@@ -24,6 +24,7 @@
 
 #include <linux/platform_device.h>
 #include <mach/hardware.h>
+#include <mach/emac.h>
 
 #define DM644X_EMAC_BASE		(0x01C80000)
 #define DM644X_EMAC_CNTRL_OFFSET	(0x0000)

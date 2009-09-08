@@ -45,6 +45,10 @@
 #include "accommon.h"
 #include "acnamesp.h"
 
+#ifdef ACPI_ASL_COMPILER
+#include "amlcode.h"
+#endif
+
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nssearch")
 

@@ -53,10 +53,6 @@ struct btrfs_inode {
 	/* used to order data wrt metadata */
 	struct btrfs_ordered_inode_tree ordered_tree;
 
-	/* standard acl pointers */
-	struct posix_acl *i_acl;
-	struct posix_acl *i_default_acl;
-
 	/* for keeping track of orphaned inodes */
 	struct list_head i_orphan;
 
@@ -71,6 +67,9 @@ struct btrfs_inode {
 	 * rename or truncate commit
 	 */
 	struct list_head ordered_operations;
+
+	/* node for the red-black tree that links inodes in subvolume root */
+	struct rb_node rb_node;
 
 	/* the space_info for where this inode's data allocations are done */
 	struct btrfs_space_info *space_info;
@@ -153,6 +152,5 @@ static inline void btrfs_i_size_write(struct inode *inode, u64 size)
 	inode->i_size = size;
 	BTRFS_I(inode)->disk_i_size = size;
 }
-
 
 #endif

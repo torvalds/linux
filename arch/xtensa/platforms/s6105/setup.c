@@ -35,12 +35,21 @@ void __init platform_setup(char **cmdline)
 {
 	unsigned long reg;
 
+	reg = readl(S6_REG_GREG1 + S6_GREG1_PLLSEL);
+	reg &= ~(S6_GREG1_PLLSEL_GMAC_MASK << S6_GREG1_PLLSEL_GMAC |
+		S6_GREG1_PLLSEL_GMII_MASK << S6_GREG1_PLLSEL_GMII);
+	reg |= S6_GREG1_PLLSEL_GMAC_125MHZ << S6_GREG1_PLLSEL_GMAC |
+		S6_GREG1_PLLSEL_GMII_125MHZ << S6_GREG1_PLLSEL_GMII;
+	writel(reg, S6_REG_GREG1 + S6_GREG1_PLLSEL);
+
 	reg = readl(S6_REG_GREG1 + S6_GREG1_CLKGATE);
 	reg &= ~(1 << S6_GREG1_BLOCK_SB);
+	reg &= ~(1 << S6_GREG1_BLOCK_GMAC);
 	writel(reg, S6_REG_GREG1 + S6_GREG1_CLKGATE);
 
 	reg = readl(S6_REG_GREG1 + S6_GREG1_BLOCKENA);
 	reg |= 1 << S6_GREG1_BLOCK_SB;
+	reg |= 1 << S6_GREG1_BLOCK_GMAC;
 	writel(reg, S6_REG_GREG1 + S6_GREG1_BLOCKENA);
 
 	printk(KERN_NOTICE "S6105 on Stretch S6000 - "
@@ -49,7 +58,7 @@ void __init platform_setup(char **cmdline)
 
 void __init platform_init(bp_tag_t *first)
 {
-	s6_gpio_init();
+	s6_gpio_init(0);
 	gpio_request(GPIO_LED1_NGREEN, "led1_green");
 	gpio_request(GPIO_LED1_RED, "led1_red");
 	gpio_direction_output(GPIO_LED1_NGREEN, 1);

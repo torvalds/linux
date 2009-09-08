@@ -2,6 +2,7 @@
 #define _ASM_GENERIC_BITOPS_ATOMIC_H_
 
 #include <asm/types.h>
+#include <asm/system.h>
 
 #ifdef CONFIG_SMP
 #include <asm/spinlock.h>

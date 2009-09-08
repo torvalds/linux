@@ -66,6 +66,25 @@ EXPORT_SYMBOL(pci_bus_write_config_byte);
 EXPORT_SYMBOL(pci_bus_write_config_word);
 EXPORT_SYMBOL(pci_bus_write_config_dword);
 
+/**
+ * pci_bus_set_ops - Set raw operations of pci bus
+ * @bus:	pci bus struct
+ * @ops:	new raw operations
+ *
+ * Return previous raw operations
+ */
+struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops)
+{
+	struct pci_ops *old_ops;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pci_lock, flags);
+	old_ops = bus->ops;
+	bus->ops = ops;
+	spin_unlock_irqrestore(&pci_lock, flags);
+	return old_ops;
+}
+EXPORT_SYMBOL(pci_bus_set_ops);
 
 /**
  * pci_read_vpd - Read one entry from Vital Product Data

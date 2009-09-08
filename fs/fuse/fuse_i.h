@@ -97,8 +97,13 @@ struct fuse_inode {
 	struct list_head writepages;
 };
 
+struct fuse_conn;
+
 /** FUSE specific file data */
 struct fuse_file {
+	/** Fuse connection for this file */
+	struct fuse_conn *fc;
+
 	/** Request reserved for flush and release */
 	struct fuse_req *reserved_req;
 
@@ -108,8 +113,14 @@ struct fuse_file {
 	/** File handle used by userspace */
 	u64 fh;
 
+	/** Node id of this file */
+	u64 nodeid;
+
 	/** Refcount */
 	atomic_t count;
+
+	/** FOPEN_* flags returned by open */
+	u32 open_flags;
 
 	/** Entry on inode's write_files list */
 	struct list_head write_entry;
@@ -185,8 +196,6 @@ enum fuse_req_state {
 	FUSE_REQ_FINISHED
 };
 
-struct fuse_conn;
-
 /**
  * A request to the client
  */
@@ -248,11 +257,12 @@ struct fuse_req {
 		struct fuse_forget_in forget_in;
 		struct {
 			struct fuse_release_in in;
-			struct vfsmount *vfsmount;
-			struct dentry *dentry;
+			struct path path;
 		} release;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
+		struct cuse_init_in cuse_init_in;
+		struct cuse_init_out cuse_init_out;
 		struct {
 			struct fuse_read_in in;
 			u64 attr_ver;
@@ -386,6 +396,9 @@ struct fuse_conn {
 	/** Filesystem supports NFS exporting.  Only set in INIT */
 	unsigned export_support:1;
 
+	/** Set if bdi is valid */
+	unsigned bdi_initialized:1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -515,25 +528,24 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
  * Initialize READ or READDIR request
  */
 void fuse_read_fill(struct fuse_req *req, struct file *file,
-		    struct inode *inode, loff_t pos, size_t count, int opcode);
+		    loff_t pos, size_t count, int opcode);
 
 /**
  * Send OPEN or OPENDIR request
  */
-int fuse_open_common(struct inode *inode, struct file *file, int isdir);
+int fuse_open_common(struct inode *inode, struct file *file, bool isdir);
 
 struct fuse_file *fuse_file_alloc(struct fuse_conn *fc);
+struct fuse_file *fuse_file_get(struct fuse_file *ff);
 void fuse_file_free(struct fuse_file *ff);
-void fuse_finish_open(struct inode *inode, struct file *file,
-		      struct fuse_file *ff, struct fuse_open_out *outarg);
+void fuse_finish_open(struct inode *inode, struct file *file);
 
-/** Fill in ff->reserved_req with a RELEASE request */
-void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode);
+void fuse_sync_release(struct fuse_file *ff, int flags);
 
 /**
  * Send RELEASE or RELEASEDIR request
  */
-int fuse_release_common(struct inode *inode, struct file *file, int isdir);
+void fuse_release_common(struct file *file, int opcode);
 
 /**
  * Send FSYNC or FSYNCDIR request
@@ -652,10 +664,12 @@ void fuse_invalidate_entry_cache(struct dentry *entry);
  */
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 
+void fuse_conn_kill(struct fuse_conn *fc);
+
 /**
  * Initialize fuse_conn
  */
-int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb);
+void fuse_conn_init(struct fuse_conn *fc);
 
 /**
  * Release reference to fuse_conn
@@ -693,5 +707,14 @@ void fuse_set_nowrite(struct inode *inode);
 void fuse_release_nowrite(struct inode *inode);
 
 u64 fuse_get_attr_version(struct fuse_conn *fc);
+
+int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+		 bool isdir);
+ssize_t fuse_direct_io(struct file *file, const char __user *buf,
+		       size_t count, loff_t *ppos, int write);
+long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
+		   unsigned int flags);
+unsigned fuse_file_poll(struct file *file, poll_table *wait);
+int fuse_dev_release(struct inode *inode, struct file *file);
 
 #endif /* _FS_FUSE_I_H */

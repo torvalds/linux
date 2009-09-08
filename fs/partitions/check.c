@@ -219,6 +219,13 @@ ssize_t part_size_show(struct device *dev,
 	return sprintf(buf, "%llu\n",(unsigned long long)p->nr_sects);
 }
 
+ssize_t part_alignment_offset_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct hd_struct *p = dev_to_part(dev);
+	return sprintf(buf, "%llu\n", (unsigned long long)p->alignment_offset);
+}
+
 ssize_t part_stat_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
@@ -272,6 +279,7 @@ ssize_t part_fail_store(struct device *dev,
 static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
 static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
+static DEVICE_ATTR(alignment_offset, S_IRUGO, part_alignment_offset_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
@@ -282,6 +290,7 @@ static struct attribute *part_attrs[] = {
 	&dev_attr_partition.attr,
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
+	&dev_attr_alignment_offset.attr,
 	&dev_attr_stat.attr,
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	&dev_attr_fail.attr,
@@ -383,6 +392,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
+	p->alignment_offset = queue_sector_alignment_offset(disk->queue, start);
 	p->nr_sects = len;
 	p->partno = partno;
 	p->policy = get_disk_ro(disk);
@@ -546,27 +556,49 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 
 	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
-		sector_t size = state->parts[p].size;
-		sector_t from = state->parts[p].from;
+		sector_t size, from;
+try_scan:
+		size = state->parts[p].size;
 		if (!size)
 			continue;
+
+		from = state->parts[p].from;
 		if (from >= get_capacity(disk)) {
 			printk(KERN_WARNING
 			       "%s: p%d ignored, start %llu is behind the end of the disk\n",
 			       disk->disk_name, p, (unsigned long long) from);
 			continue;
 		}
+
 		if (from + size > get_capacity(disk)) {
-			/*
-			 * we can not ignore partitions of broken tables
-			 * created by for example camera firmware, but we
-			 * limit them to the end of the disk to avoid
-			 * creating invalid block devices
-			 */
+			struct block_device_operations *bdops = disk->fops;
+			unsigned long long capacity;
+
 			printk(KERN_WARNING
-			       "%s: p%d size %llu limited to end of disk\n",
+			       "%s: p%d size %llu exceeds device capacity, ",
 			       disk->disk_name, p, (unsigned long long) size);
-			size = get_capacity(disk) - from;
+
+			if (bdops->set_capacity &&
+			    (disk->flags & GENHD_FL_NATIVE_CAPACITY) == 0) {
+				printk(KERN_CONT "enabling native capacity\n");
+				capacity = bdops->set_capacity(disk, ~0ULL);
+				disk->flags |= GENHD_FL_NATIVE_CAPACITY;
+				if (capacity > get_capacity(disk)) {
+					set_capacity(disk, capacity);
+					check_disk_size_change(disk, bdev);
+					bdev->bd_invalidated = 0;
+				}
+				goto try_scan;
+			} else {
+				/*
+				 * we can not ignore partitions of broken tables
+				 * created by for example camera firmware, but
+				 * we limit them to the end of the disk to avoid
+				 * creating invalid block devices
+				 */
+				printk(KERN_CONT "limited to end of disk\n");
+				size = get_capacity(disk) - from;
+			}
 		}
 		part = add_partition(disk, p, from, size,
 				     state->parts[p].flags);

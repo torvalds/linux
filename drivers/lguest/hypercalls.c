@@ -37,6 +37,10 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		/* This call does nothing, except by breaking out of the Guest
 		 * it makes us process all the asynchronous hypercalls. */
 		break;
+	case LHCALL_SEND_INTERRUPTS:
+		/* This call does nothing too, but by breaking out of the Guest
+		 * it makes us process any pending interrupts. */
+		break;
 	case LHCALL_LGUEST_INIT:
 		/* You can't get here unless you're already initialized.  Don't
 		 * do that. */
@@ -73,11 +77,21 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		guest_set_stack(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_SET_PTE:
+#ifdef CONFIG_X86_PAE
+		guest_set_pte(cpu, args->arg1, args->arg2,
+				__pte(args->arg3 | (u64)args->arg4 << 32));
+#else
 		guest_set_pte(cpu, args->arg1, args->arg2, __pte(args->arg3));
+#endif
 		break;
+	case LHCALL_SET_PGD:
+		guest_set_pgd(cpu->lg, args->arg1, args->arg2);
+		break;
+#ifdef CONFIG_X86_PAE
 	case LHCALL_SET_PMD:
 		guest_set_pmd(cpu->lg, args->arg1, args->arg2);
 		break;
+#endif
 	case LHCALL_SET_CLOCKEVENT:
 		guest_set_clockevent(cpu, args->arg1);
 		break;

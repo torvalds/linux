@@ -334,3 +334,5 @@ ENTRY(sys_call_table)
 	.long sys_inotify_init1
 	.long sys_preadv
 	.long sys_pwritev
+	.long sys_rt_tgsigqueueinfo	/* 335 */
+	.long sys_perf_counter_open

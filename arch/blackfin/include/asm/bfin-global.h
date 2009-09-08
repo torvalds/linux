@@ -31,7 +31,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm-generic/sections.h>
+#include <asm/sections.h>
 #include <asm/ptrace.h>
 #include <asm/user.h>
 #include <linux/linkage.h>
@@ -99,15 +99,6 @@ extern const char bfin_board_name[];
 extern unsigned long bfin_sic_iwr[];
 extern unsigned vr_wakeup;
 extern u16 _bfin_swrst; /* shadow for Software Reset Register (SWRST) */
-extern unsigned long _ramstart, _ramend, _rambase;
-extern unsigned long memory_start, memory_end, physical_mem_end;
-extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
-	_ebss_l1[], _l1_lma_start[], _sdata_b_l1[], _sbss_b_l1[], _ebss_b_l1[],
-	_stext_l2[], _etext_l2[], _sdata_l2[], _edata_l2[], _sbss_l2[],
-	_ebss_l2[], _l2_lma_start[];
-
-/* only used when MTD_UCLINUX */
-extern unsigned long memory_mtd_start, memory_mtd_end, mtd_size;
 
 #ifdef CONFIG_BFIN_ICACHE_LOCK
 extern void cache_grab_lock(int way);

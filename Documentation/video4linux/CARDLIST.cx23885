@@ -16,3 +16,8 @@
  15 -> TeVii S470                                          [d470:9022]
  16 -> DVBWorld DVB-S2 2005                                [0001:2005]
  17 -> NetUP Dual DVB-S2 CI                                [1b55:2a2c]
+ 18 -> Hauppauge WinTV-HVR1270                             [0070:2211]
+ 19 -> Hauppauge WinTV-HVR1275                             [0070:2215]
+ 20 -> Hauppauge WinTV-HVR1255                             [0070:2251]
+ 21 -> Hauppauge WinTV-HVR1210                             [0070:2291,0070:2295]
+ 22 -> Mygica X8506 DMB-TH                                 [14f1:8651]

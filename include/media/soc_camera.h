@@ -60,7 +60,7 @@ struct soc_camera_file {
 
 struct soc_camera_host {
 	struct list_head list;
-	struct device dev;
+	struct device *dev;
 	unsigned char nr;				/* Host number */
 	void *priv;
 	const char *drv_name;
@@ -92,11 +92,16 @@ struct soc_camera_host_ops {
 #define SOCAM_SENSOR_INVERT_VSYNC	(1 << 3)
 #define SOCAM_SENSOR_INVERT_DATA	(1 << 4)
 
+struct i2c_board_info;
+
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
 	int bus_id;
 	/* Per camera SOCAM_SENSOR_* bus flags */
 	unsigned long flags;
+	int i2c_adapter_id;
+	struct i2c_board_info *board_info;
+	const char *module_name;
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -107,6 +112,7 @@ struct soc_camera_link {
 	 */
 	int (*set_bus_param)(struct soc_camera_link *, unsigned long flags);
 	unsigned long (*query_bus_param)(struct soc_camera_link *);
+	void (*free_bus)(struct soc_camera_link *);
 };
 
 static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)
@@ -116,7 +122,7 @@ static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)
 
 static inline struct soc_camera_host *to_soc_camera_host(struct device *dev)
 {
-	return container_of(dev, struct soc_camera_host, dev);
+	return dev_get_drvdata(dev);
 }
 
 extern int soc_camera_host_register(struct soc_camera_host *ici);

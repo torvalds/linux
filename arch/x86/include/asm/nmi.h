@@ -64,7 +64,7 @@ static inline int nmi_watchdog_active(void)
 	 * but since they are power of two we could use a
 	 * cheaper way --cvg
 	 */
-	return nmi_watchdog & 0x3;
+	return nmi_watchdog & (NMI_LOCAL_APIC | NMI_IO_APIC);
 }
 #endif
 

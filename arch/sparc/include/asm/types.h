@@ -21,8 +21,6 @@ typedef unsigned short umode_t;
 
 #ifdef __KERNEL__
 
-#define BITS_PER_LONG 64
-
 #ifndef __ASSEMBLY__
 
 /* Dma addresses come in generic and 64-bit flavours.  */
@@ -45,8 +43,6 @@ typedef unsigned short umode_t;
 #endif /* __ASSEMBLY__ */
 
 #ifdef __KERNEL__
-
-#define BITS_PER_LONG 32
 
 #ifndef __ASSEMBLY__
 

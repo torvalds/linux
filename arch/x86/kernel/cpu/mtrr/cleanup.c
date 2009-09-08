@@ -808,7 +808,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 
 	if (!is_cpu(INTEL) || enable_mtrr_cleanup < 1)
 		return 0;
-	rdmsr(MTRRdefType_MSR, def, dummy);
+	rdmsr(MSR_MTRRdefType, def, dummy);
 	def &= 0xff;
 	if (def != MTRR_TYPE_UNCACHABLE)
 		return 0;
@@ -1003,7 +1003,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	 */
 	if (!is_cpu(INTEL) || disable_mtrr_trim)
 		return 0;
-	rdmsr(MTRRdefType_MSR, def, dummy);
+	rdmsr(MSR_MTRRdefType, def, dummy);
 	def &= 0xff;
 	if (def != MTRR_TYPE_UNCACHABLE)
 		return 0;

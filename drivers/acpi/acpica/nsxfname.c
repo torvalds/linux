@@ -45,6 +45,8 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
+#include "acparser.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsxfname")
@@ -358,3 +360,151 @@ acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_object_info)
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_install_method
+ *
+ * PARAMETERS:  Buffer         - An ACPI table containing one control method
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install a control method into the namespace. If the method
+ *              name already exists in the namespace, it is overwritten. The
+ *              input buffer must contain a valid DSDT or SSDT containing a
+ *              single control method.
+ *
+ ******************************************************************************/
+acpi_status acpi_install_method(u8 *buffer)
+{
+	struct acpi_table_header *table =
+	    ACPI_CAST_PTR(struct acpi_table_header, buffer);
+	u8 *aml_buffer;
+	u8 *aml_start;
+	char *path;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *method_obj;
+	struct acpi_parse_state parser_state;
+	u32 aml_length;
+	u16 opcode;
+	u8 method_flags;
+	acpi_status status;
+
+	/* Parameter validation */
+
+	if (!buffer) {
+		return AE_BAD_PARAMETER;
+	}
+
+	/* Table must be a DSDT or SSDT */
+
+	if (!ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) &&
+	    !ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
+		return AE_BAD_HEADER;
+	}
+
+	/* First AML opcode in the table must be a control method */
+
+	parser_state.aml = buffer + sizeof(struct acpi_table_header);
+	opcode = acpi_ps_peek_opcode(&parser_state);
+	if (opcode != AML_METHOD_OP) {
+		return AE_BAD_PARAMETER;
+	}
+
+	/* Extract method information from the raw AML */
+
+	parser_state.aml += acpi_ps_get_opcode_size(opcode);
+	parser_state.pkg_end = acpi_ps_get_next_package_end(&parser_state);
+	path = acpi_ps_get_next_namestring(&parser_state);
+	method_flags = *parser_state.aml++;
+	aml_start = parser_state.aml;
+	aml_length = ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);
+
+	/*
+	 * Allocate resources up-front. We don't want to have to delete a new
+	 * node from the namespace if we cannot allocate memory.
+	 */
+	aml_buffer = ACPI_ALLOCATE(aml_length);
+	if (!aml_buffer) {
+		return AE_NO_MEMORY;
+	}
+
+	method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
+	if (!method_obj) {
+		ACPI_FREE(aml_buffer);
+		return AE_NO_MEMORY;
+	}
+
+	/* Lock namespace for acpi_ns_lookup, we may be creating a new node */
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		goto error_exit;
+	}
+
+	/* The lookup either returns an existing node or creates a new one */
+
+	status =
+	    acpi_ns_lookup(NULL, path, ACPI_TYPE_METHOD, ACPI_IMODE_LOAD_PASS1,
+			   ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND,
+			   NULL, &node);
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+
+	if (ACPI_FAILURE(status)) {	/* ns_lookup */
+		if (status != AE_ALREADY_EXISTS) {
+			goto error_exit;
+		}
+
+		/* Node existed previously, make sure it is a method node */
+
+		if (node->type != ACPI_TYPE_METHOD) {
+			status = AE_TYPE;
+			goto error_exit;
+		}
+	}
+
+	/* Copy the method AML to the local buffer */
+
+	ACPI_MEMCPY(aml_buffer, aml_start, aml_length);
+
+	/* Initialize the method object with the new method's information */
+
+	method_obj->method.aml_start = aml_buffer;
+	method_obj->method.aml_length = aml_length;
+
+	method_obj->method.param_count = (u8)
+	    (method_flags & AML_METHOD_ARG_COUNT);
+
+	method_obj->method.method_flags = (u8)
+	    (method_flags & ~AML_METHOD_ARG_COUNT);
+
+	if (method_flags & AML_METHOD_SERIALIZED) {
+		method_obj->method.sync_level = (u8)
+		    ((method_flags & AML_METHOD_SYNC_LEVEL) >> 4);
+	}
+
+	/*
+	 * Now that it is complete, we can attach the new method object to
+	 * the method Node (detaches/deletes any existing object)
+	 */
+	status = acpi_ns_attach_object(node, method_obj, ACPI_TYPE_METHOD);
+
+	/*
+	 * Flag indicates AML buffer is dynamic, must be deleted later.
+	 * Must be set only after attach above.
+	 */
+	node->flags |= ANOBJ_ALLOCATED_BUFFER;
+
+	/* Remove local reference to the method object */
+
+	acpi_ut_remove_reference(method_obj);
+	return status;
+
+error_exit:
+
+	ACPI_FREE(aml_buffer);
+	ACPI_FREE(method_obj);
+	return status;
+}
+ACPI_EXPORT_SYMBOL(acpi_install_method)

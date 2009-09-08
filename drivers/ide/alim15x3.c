@@ -402,26 +402,22 @@ static u8 ali_cable_detect(ide_hwif_t *hwif)
 	return cbl;
 }
 
-#if !defined(CONFIG_SPARC64) && !defined(CONFIG_PPC)
+#ifndef CONFIG_SPARC64
 /**
  *	init_hwif_ali15x3	-	Initialize the ALI IDE x86 stuff
  *	@hwif: interface to configure
  *
  *	Obtain the IRQ tables for an ALi based IDE solution on the PC
  *	class platforms. This part of the code isn't applicable to the
- *	Sparc and PowerPC systems.
+ *	Sparc systems.
  */
 
 static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 ideic, inmir;
 	s8 irq_routing_table[] = { -1,  9, 3, 10, 4,  5, 7,  6,
 				      1, 11, 0, 12, 0, 14, 0, 15 };
 	int irq = -1;
-
-	if (dev->device == PCI_DEVICE_ID_AL_M5229)
-		hwif->irq = hwif->channel ? 15 : 14;
 
 	if (isa_dev) {
 		/*
@@ -455,7 +451,7 @@ static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 }
 #else
 #define init_hwif_ali15x3 NULL
-#endif /* !defined(CONFIG_SPARC64) && !defined(CONFIG_PPC) */
+#endif /* CONFIG_SPARC64 */
 
 /**
  *	init_dma_ali15x3	-	set up DMA on ALi15x3

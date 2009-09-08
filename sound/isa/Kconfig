@@ -177,14 +177,17 @@ config SND_ES18XX
 	  will be called snd-es18xx.
 
 config SND_SC6000
-	tristate "Gallant SC-6000, Audio Excel DSP 16"
+	tristate "Gallant SC-6000/6600/7000 and Audio Excel DSP 16"
 	depends on HAS_IOPORT
 	select SND_WSS_LIB
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	help
-	  Say Y here to include support for Gallant SC-6000 card and clones:
+	  Say Y here to include support for Gallant SC-6000, SC-6600, SC-7000
+	  cards and clones:
 	  Audio Excel DSP 16 and Zoltrix AV302.
+
+	  These cards are based on CompuMedia ASC-9308 or ASC-9408 chips.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sc6000.

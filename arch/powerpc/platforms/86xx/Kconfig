@@ -15,6 +15,7 @@ config MPC8641_HPCN
 	select DEFAULT_UIMAGE
 	select FSL_ULI1575
 	select HAS_RAPIDIO
+	select SWIOTLB
 	help
 	  This option enables support for the MPC8641 HPCN board.
 

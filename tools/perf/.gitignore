@@ -1,0 +1,16 @@
+PERF-BUILD-OPTIONS
+PERF-CFLAGS
+PERF-GUI-VARS
+PERF-VERSION-FILE
+perf
+perf-help
+perf-record
+perf-report
+perf-stat
+perf-top
+perf*.1
+perf*.xml
+common-cmds.h
+tags
+TAGS
+cscope*

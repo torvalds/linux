@@ -206,10 +206,16 @@ static inline unsigned long get_dma_curr_addr(unsigned int channel)
 
 static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize)
 {
+	/* Make sure the internal data buffers in the core are drained
+	 * so that the DMA descriptors are completely written when the
+	 * DMA engine goes to fetch them below.
+	 */
+	SSYNC();
+
+	dma_ch[channel].regs->next_desc_ptr = sg;
 	dma_ch[channel].regs->cfg =
 		(dma_ch[channel].regs->cfg & ~(0xf << 8)) |
 		((ndsize & 0xf) << 8);
-	dma_ch[channel].regs->next_desc_ptr = sg;
 }
 
 static inline int dma_channel_active(unsigned int channel)
@@ -253,5 +259,7 @@ static inline void clear_dma_irqstat(unsigned int channel)
 void *dma_memcpy(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
 void blackfin_dma_early_init(void);
+void early_dma_memcpy(void *dest, const void *src, size_t count);
+void early_dma_memcpy_done(void);
 
 #endif

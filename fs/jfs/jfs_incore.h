@@ -74,10 +74,6 @@ struct jfs_inode_info {
 	/* xattr_sem allows us to access the xattrs without taking i_mutex */
 	struct rw_semaphore xattr_sem;
 	lid_t	xtlid;		/* lid of xtree lock on directory */
-#ifdef CONFIG_JFS_POSIX_ACL
-	struct posix_acl *i_acl;
-	struct posix_acl *i_default_acl;
-#endif
 	union {
 		struct {
 			xtpage_t _xtroot;	/* 288: xtree root */
@@ -106,8 +102,6 @@ struct jfs_inode_info {
 #define i_dtroot u.dir._dtroot
 #define i_inline u.link._inline
 #define i_inline_ea u.link._inline_ea
-
-#define JFS_ACL_NOT_CACHED ((void *)-1)
 
 #define IREAD_LOCK(ip, subclass) \
 	down_read_nested(&JFS_IP(ip)->rdwrlock, subclass)

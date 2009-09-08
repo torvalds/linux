@@ -38,14 +38,14 @@ static inline int gpio_cansleep(unsigned int gpio)
 	return __gpio_cansleep(gpio);
 }
 
+static inline int gpio_to_irq(unsigned int gpio)
+{
+	return __gpio_to_irq(gpio);
+}
+
 /*
  * Not implemented, yet.
  */
-static inline int gpio_to_irq(unsigned int gpio)
-{
-	return -ENOSYS;
-}
-
 static inline int irq_to_gpio(unsigned int irq)
 {
 	return -EINVAL;

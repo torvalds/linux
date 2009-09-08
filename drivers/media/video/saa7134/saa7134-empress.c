@@ -255,6 +255,16 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static int empress_try_fmt_vid_cap(struct file *file, void *priv,
+				struct v4l2_format *f)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+
+	return 0;
+}
 
 static int empress_reqbufs(struct file *file, void *priv,
 					struct v4l2_requestbuffers *p)
@@ -450,6 +460,7 @@ static const struct v4l2_file_operations ts_fops =
 static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_querycap		= empress_querycap,
 	.vidioc_enum_fmt_vid_cap	= empress_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		= empress_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= empress_s_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap		= empress_g_fmt_vid_cap,
 	.vidioc_reqbufs			= empress_reqbufs,
@@ -491,11 +502,8 @@ static void empress_signal_update(struct work_struct *work)
 
 	if (dev->nosignal) {
 		dprintk("no video signal\n");
-		ts_reset_encoder(dev);
 	} else {
 		dprintk("video signal acquired\n");
-		if (atomic_read(&dev->empress_users))
-			ts_init_encoder(dev);
 	}
 }
 

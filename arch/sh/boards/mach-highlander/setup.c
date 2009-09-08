@@ -17,8 +17,11 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/types.h>
+#include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <linux/usb/r8a66597.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <mach/highlander.h>
@@ -27,18 +30,21 @@
 #include <asm/io.h>
 #include <asm/io_trapped.h>
 
+static struct r8a66597_platdata r8a66597_data = {
+	.xtal = R8A66597_PLATDATA_XTAL_12MHZ,
+	.vif = 1,
+};
+
 static struct resource r8a66597_usb_host_resources[] = {
 	[0] = {
-		.name	= "r8a66597_hcd",
 		.start	= 0xA4200000,
 		.end	= 0xA42000FF,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.name	= "r8a66597_hcd",
 		.start	= IRQ_EXT1,		/* irq number */
 		.end	= IRQ_EXT1,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
 
@@ -48,6 +54,7 @@ static struct platform_device r8a66597_usb_host_device = {
 	.dev = {
 		.dma_mask		= NULL,		/* don't use dma */
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &r8a66597_data,
 	},
 	.num_resources	= ARRAY_SIZE(r8a66597_usb_host_resources),
 	.resource	= r8a66597_usb_host_resources,
@@ -178,6 +185,53 @@ static struct platform_device ax88796_device = {
 	.resource       = ax88796_resources,
 };
 
+static struct mtd_partition nor_flash_partitions[] = {
+	{
+		.name		= "loader",
+		.offset		= 0x00000000,
+		.size		= 512 * 1024,
+	},
+	{
+		.name		= "bootenv",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 512 * 1024,
+	},
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 4 * 1024 * 1024,
+	},
+	{
+		.name		= "data",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data nor_flash_data = {
+	.width		= 4,
+	.parts		= nor_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+};
+
+/* This config is flash board for mass production. */
+static struct resource nor_flash_resources[] = {
+	[0]	= {
+		.start	= PA_NORFLASH_ADDR,
+		.end	= PA_NORFLASH_ADDR + PA_NORFLASH_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device nor_flash_device = {
+	.name		= "physmap-flash",
+	.dev		= {
+		.platform_data	= &nor_flash_data,
+	},
+	.num_resources	= ARRAY_SIZE(nor_flash_resources),
+	.resource	= nor_flash_resources,
+};
+
 static struct resource smbus_resources[] = {
 	[0] = {
 		.start	= PA_SMCR,
@@ -209,6 +263,7 @@ static struct platform_device *r7780rp_devices[] __initdata = {
 	&m66592_usb_peripheral_device,
 	&heartbeat_device,
 	&smbus_device,
+	&nor_flash_device,
 #ifndef CONFIG_SH_R7780RP
 	&ax88796_device,
 #endif
@@ -247,9 +302,10 @@ device_initcall(r7780rp_devices_setup);
 /*
  * Platform specific clocks
  */
-static void ivdr_clk_enable(struct clk *clk)
+static int ivdr_clk_enable(struct clk *clk)
 {
 	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << IVDR_CK_ON), PA_IVDRCTL);
+	return 0;
 }
 
 static void ivdr_clk_disable(struct clk *clk)

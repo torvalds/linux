@@ -24,6 +24,7 @@
  * f1000000	on-chip peripheral registers
  * f2000000	PCIe I/O space
  * f2100000	PCI I/O space
+ * f2200000	SRAM dedicated for the crypto unit
  * f4000000	device bus mappings (boot)
  * fa000000	device bus mappings (cs0)
  * fa800000	device bus mappings (cs2)
@@ -48,6 +49,9 @@
 #define ORION5X_PCI_IO_VIRT_BASE	0xfdf00000
 #define ORION5X_PCI_IO_BUS_BASE		0x00100000
 #define ORION5X_PCI_IO_SIZE		SZ_1M
+
+#define ORION5X_SRAM_PHYS_BASE		(0xf2200000)
+#define ORION5X_SRAM_SIZE		SZ_8K
 
 /* Relevant only for Orion-1/Orion-NAS */
 #define ORION5X_PCIE_WA_PHYS_BASE	0xf0000000
@@ -93,6 +97,8 @@
 
 #define ORION5X_SATA_PHYS_BASE		(ORION5X_REGS_PHYS_BASE | 0x80000)
 #define ORION5X_SATA_VIRT_BASE		(ORION5X_REGS_VIRT_BASE | 0x80000)
+
+#define ORION5X_CRYPTO_PHYS_BASE	(ORION5X_REGS_PHYS_BASE | 0x90000)
 
 #define ORION5X_USB1_PHYS_BASE		(ORION5X_REGS_PHYS_BASE | 0xa0000)
 #define ORION5X_USB1_VIRT_BASE		(ORION5X_REGS_VIRT_BASE | 0xa0000)

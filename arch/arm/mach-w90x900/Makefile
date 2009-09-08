@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y				:= irq.o time.o
+obj-y				:= irq.o time.o mfp-w90p910.o gpio.o clock.o
 
 # W90X900 CPU support files
 

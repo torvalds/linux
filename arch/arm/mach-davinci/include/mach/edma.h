@@ -208,10 +208,6 @@ void edma_clear_event(unsigned channel);
 void edma_pause(unsigned channel);
 void edma_resume(unsigned channel);
 
-/* UNRELATED TO DMA */
-int davinci_alloc_iram(unsigned size);
-void davinci_free_iram(unsigned addr, unsigned size);
-
 /* platform_data for EDMA driver */
 struct edma_soc_info {
 

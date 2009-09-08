@@ -873,7 +873,7 @@ static int ewrk3_queue_pkt (struct sk_buff *skb, struct net_device *dev)
 err_out:
 	ENABLE_IRQs;
 	spin_unlock_irq (&lp->hw_lock);
-	return 1;
+	return NETDEV_TX_BUSY;
 }
 
 /*

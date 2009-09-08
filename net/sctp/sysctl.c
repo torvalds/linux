@@ -49,8 +49,8 @@ static int zero = 0;
 static int one = 1;
 static int timer_max = 86400000; /* ms in one day */
 static int int_max = INT_MAX;
-static long sack_timer_min = 1;
-static long sack_timer_max = 500;
+static int sack_timer_min = 1;
+static int sack_timer_max = 500;
 
 extern int sysctl_sctp_mem[3];
 extern int sysctl_sctp_rmem[3];
@@ -223,7 +223,7 @@ static ctl_table sctp_table[] = {
 		.ctl_name	= NET_SCTP_SACK_TIMEOUT,
 		.procname	= "sack_timeout",
 		.data		= &sctp_sack_timeout,
-		.maxlen		= sizeof(long),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.strategy	= sysctl_intvec,

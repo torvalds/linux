@@ -185,13 +185,13 @@ recv_Echannel(struct dchannel *ech, struct dchannel *dch)
 EXPORT_SYMBOL(recv_Echannel);
 
 void
-recv_Bchannel(struct bchannel *bch)
+recv_Bchannel(struct bchannel *bch, unsigned int id)
 {
 	struct mISDNhead *hh;
 
 	hh = mISDN_HEAD_P(bch->rx_skb);
 	hh->prim = PH_DATA_IND;
-	hh->id = MISDN_ID_ANY;
+	hh->id = id;
 	if (bch->rcount >= 64) {
 		printk(KERN_WARNING "B-channel %p receive queue overflow, "
 			"fushing!\n", bch);

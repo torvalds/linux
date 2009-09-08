@@ -718,7 +718,7 @@ static int sbp2_remove(struct device *dev)
 	struct scsi_device *sdev;
 
 	ud = container_of(dev, struct unit_directory, device);
-	lu = ud->device.driver_data;
+	lu = dev_get_drvdata(&ud->device);
 	if (!lu)
 		return 0;
 
@@ -746,7 +746,7 @@ static int sbp2_remove(struct device *dev)
 
 static int sbp2_update(struct unit_directory *ud)
 {
-	struct sbp2_lu *lu = ud->device.driver_data;
+	struct sbp2_lu *lu = dev_get_drvdata(&ud->device);
 
 	if (sbp2_reconnect_device(lu) != 0) {
 		/*
@@ -815,7 +815,7 @@ static struct sbp2_lu *sbp2_alloc_device(struct unit_directory *ud)
 	atomic_set(&lu->state, SBP2LU_STATE_RUNNING);
 	INIT_WORK(&lu->protocol_work, NULL);
 
-	ud->device.driver_data = lu;
+	dev_set_drvdata(&ud->device, lu);
 
 	hi = hpsb_get_hostinfo(&sbp2_highlevel, ud->ne->host);
 	if (!hi) {
@@ -1051,7 +1051,7 @@ static void sbp2_remove_device(struct sbp2_lu *lu)
 		hpsb_unregister_addrspace(&sbp2_highlevel, hi->host,
 					  lu->status_fifo_addr);
 
-	lu->ud->device.driver_data = NULL;
+	dev_set_drvdata(&lu->ud->device, NULL);
 
 	module_put(hi->host->driver->owner);
 no_hi:

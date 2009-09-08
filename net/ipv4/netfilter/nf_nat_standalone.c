@@ -167,10 +167,9 @@ nf_nat_in(unsigned int hooknum,
 
 	ret = nf_nat_fn(hooknum, skb, in, out, okfn);
 	if (ret != NF_DROP && ret != NF_STOLEN &&
-	    daddr != ip_hdr(skb)->daddr) {
-		dst_release(skb->dst);
-		skb->dst = NULL;
-	}
+	    daddr != ip_hdr(skb)->daddr)
+		skb_dst_drop(skb);
+
 	return ret;
 }
 

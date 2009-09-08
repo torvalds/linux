@@ -320,7 +320,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 		if (!new_de)
 			goto out_dir;
 		inode_inc_link_count(old_inode);
-		ext2_set_link(new_dir, new_de, new_page, old_inode);
+		ext2_set_link(new_dir, new_de, new_page, old_inode, 1);
 		new_inode->i_ctime = CURRENT_TIME_SEC;
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -352,7 +352,8 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	inode_dec_link_count(old_inode);
 
 	if (dir_de) {
-		ext2_set_link(old_inode, dir_de, dir_page, new_dir);
+		if (old_dir != new_dir)
+			ext2_set_link(old_inode, dir_de, dir_page, new_dir, 0);
 		inode_dec_link_count(old_dir);
 	}
 	return 0;

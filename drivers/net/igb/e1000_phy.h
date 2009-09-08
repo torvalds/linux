@@ -80,7 +80,7 @@ s32  igb_phy_init_script_igp3(struct e1000_hw *hw);
 #define IGP02E1000_PM_D3_LPLU             0x0004 /* For all other states */
 #define IGP01E1000_PLHR_SS_DOWNGRADE      0x8000
 #define IGP01E1000_PSSR_POLARITY_REVERSED 0x0002
-#define IGP01E1000_PSSR_MDIX              0x0008
+#define IGP01E1000_PSSR_MDIX              0x0800
 #define IGP01E1000_PSSR_SPEED_MASK        0xC000
 #define IGP01E1000_PSSR_SPEED_1000MBPS    0xC000
 #define IGP02E1000_PHY_CHANNEL_NUM        4

@@ -71,6 +71,19 @@ static struct dio_driver hplance_driver = {
 	.remove    = __devexit_p(hplance_remove_one),
 };
 
+static const struct net_device_ops hplance_netdev_ops = {
+	.ndo_open		= hplance_open,
+	.ndo_stop		= hplance_close,
+	.ndo_start_xmit		= lance_start_xmit,
+	.ndo_set_multicast_list	= lance_set_multicast,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= lance_poll,
+#endif
+};
+
 /* Find all the HP Lance boards and initialise them... */
 static int __devinit hplance_init_one(struct dio_dev *d,
 				const struct dio_device_id *ent)
@@ -135,13 +148,7 @@ static void __init hplance_init(struct net_device *dev, struct dio_dev *d)
 
         /* Fill the dev fields */
         dev->base_addr = va;
-        dev->open = &hplance_open;
-        dev->stop = &hplance_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-        dev->poll_controller = lance_poll;
-#endif
-        dev->hard_start_xmit = &lance_start_xmit;
-        dev->set_multicast_list = &lance_set_multicast;
+        dev->netdev_ops = &hplance_netdev_ops;
         dev->dma = 0;
 
         for (i=0; i<6; i++) {

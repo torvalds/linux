@@ -89,7 +89,7 @@ alcor_end_irq(unsigned int irq)
 		alcor_enable_irq(irq);
 }
 
-static struct hw_interrupt_type alcor_irq_type = {
+static struct irq_chip alcor_irq_type = {
 	.typename	= "ALCOR",
 	.startup	= alcor_startup_irq,
 	.shutdown	= alcor_disable_irq,

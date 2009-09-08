@@ -30,15 +30,19 @@ MODULE_AUTHOR("Intel");
 MODULE_LICENSE("GPL");
 
 extern char kvm_ia64_ivt;
+extern char kvm_asm_mov_from_ar;
+extern char kvm_asm_mov_from_ar_sn2;
 extern fpswa_interface_t *vmm_fpswa_interface;
 
 long vmm_sanity = 1;
 
 struct kvm_vmm_info vmm_info = {
-	.module	     = THIS_MODULE,
-	.vmm_entry   = vmm_entry,
-	.tramp_entry = vmm_trampoline,
-	.vmm_ivt     = (unsigned long)&kvm_ia64_ivt,
+	.module			= THIS_MODULE,
+	.vmm_entry		= vmm_entry,
+	.tramp_entry		= vmm_trampoline,
+	.vmm_ivt		= (unsigned long)&kvm_ia64_ivt,
+	.patch_mov_ar		= (unsigned long)&kvm_asm_mov_from_ar,
+	.patch_mov_ar_sn2	= (unsigned long)&kvm_asm_mov_from_ar_sn2,
 };
 
 static int __init  kvm_vmm_init(void)

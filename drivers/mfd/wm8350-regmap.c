@@ -3186,7 +3186,7 @@ const struct wm8350_reg_access wm8350_reg_io_map[] = {
 	/*  read    write volatile */
 	{ 0xFFFF, 0xFFFF, 0xFFFF }, /* R0   - Reset/ID */
 	{ 0x7CFF, 0x0C00, 0x7FFF }, /* R1   - ID */
-	{ 0x0000, 0x0000, 0x0000 }, /* R2 */
+	{ 0x007F, 0x0000, 0x0000 }, /* R2   - ROM Mask ID */
 	{ 0xBE3B, 0xBE3B, 0x8000 }, /* R3   - System Control 1 */
 	{ 0xFEF7, 0xFEF7, 0xF800 }, /* R4   - System Control 2 */
 	{ 0x80FF, 0x80FF, 0x8000 }, /* R5   - System Hibernate */
@@ -3411,7 +3411,7 @@ const struct wm8350_reg_access wm8350_reg_io_map[] = {
 	{ 0x0000, 0x0000, 0x0000 }, /* R224 */
 	{ 0x8F3F, 0x0000, 0xFFFF }, /* R225 - DCDC/LDO status */
 	{ 0x0000, 0x0000, 0xFFFF }, /* R226 - Charger status */
-	{ 0x0000, 0x0000, 0xFFFF }, /* R227 */
+	{ 0x34FE, 0x0000, 0xFFFF }, /* R227 */
 	{ 0x0000, 0x0000, 0x0000 }, /* R228 */
 	{ 0x0000, 0x0000, 0x0000 }, /* R229 */
 	{ 0xFFFF, 0x1FFF, 0xFFFF }, /* R230 - GPIO Pin Status */

@@ -398,9 +398,8 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 
 	qla2x00_start_timer(vha, qla2x00_timer, WATCH_INTERVAL);
 
-	memset(vha->req_ques, 0, sizeof(vha->req_ques));
-	vha->req_ques[0] = ha->req_q_map[0]->id;
-	host->can_queue = ha->req_q_map[0]->length + 128;
+	vha->req = base_vha->req;
+	host->can_queue = base_vha->req->length + 128;
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	host->max_cmd_len = MAX_CMDSZ;
@@ -515,76 +514,53 @@ int qla25xx_update_req_que(struct scsi_qla_host *vha, uint8_t que, uint8_t qos)
 
 /* Delete all queues for a given vhost */
 int
-qla25xx_delete_queues(struct scsi_qla_host *vha, uint8_t que_no)
+qla25xx_delete_queues(struct scsi_qla_host *vha)
 {
 	int cnt, ret = 0;
 	struct req_que *req = NULL;
 	struct rsp_que *rsp = NULL;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (que_no) {
-	/* Delete request queue */
-		req = ha->req_q_map[que_no];
+	/* Delete request queues */
+	for (cnt = 1; cnt < ha->max_req_queues; cnt++) {
+		req = ha->req_q_map[cnt];
 		if (req) {
-			rsp = req->rsp;
 			ret = qla25xx_delete_req_que(vha, req);
 			if (ret != QLA_SUCCESS) {
 				qla_printk(KERN_WARNING, ha,
-				"Couldn't delete req que %d\n", req->id);
+				"Couldn't delete req que %d\n",
+				req->id);
 				return ret;
-			}
-			/* Delete associated response queue */
-			if (rsp) {
-				ret = qla25xx_delete_rsp_que(vha, rsp);
-				if (ret != QLA_SUCCESS) {
-					qla_printk(KERN_WARNING, ha,
-						"Couldn't delete rsp que %d\n",
-						rsp->id);
-					return ret;
-				}
-			}
-		}
-	} else {  /* delete all queues of this host */
-		for (cnt = 0; cnt < QLA_MAX_HOST_QUES; cnt++) {
-			/* Delete request queues */
-			req = ha->req_q_map[vha->req_ques[cnt]];
-			if (req && req->id) {
-				rsp = req->rsp;
-				ret = qla25xx_delete_req_que(vha, req);
-				if (ret != QLA_SUCCESS) {
-					qla_printk(KERN_WARNING, ha,
-						"Couldn't delete req que %d\n",
-						vha->req_ques[cnt]);
-					return ret;
-				}
-				vha->req_ques[cnt] = ha->req_q_map[0]->id;
-			/* Delete associated response queue */
-				if (rsp && rsp->id) {
-					ret = qla25xx_delete_rsp_que(vha, rsp);
-					if (ret != QLA_SUCCESS) {
-						qla_printk(KERN_WARNING, ha,
-						"Couldn't delete rsp que %d\n",
-						rsp->id);
-						return ret;
-					}
-				}
 			}
 		}
 	}
-	qla_printk(KERN_INFO, ha, "Queues deleted for vport:%d\n",
-		vha->vp_idx);
+
+	/* Delete response queues */
+	for (cnt = 1; cnt < ha->max_rsp_queues; cnt++) {
+		rsp = ha->rsp_q_map[cnt];
+		if (rsp) {
+			ret = qla25xx_delete_rsp_que(vha, rsp);
+			if (ret != QLA_SUCCESS) {
+				qla_printk(KERN_WARNING, ha,
+				"Couldn't delete rsp que %d\n",
+				rsp->id);
+				return ret;
+			}
+		}
+	}
 	return ret;
 }
 
 int
 qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
-	uint8_t vp_idx, uint16_t rid, uint8_t rsp_que, uint8_t qos)
+	uint8_t vp_idx, uint16_t rid, int rsp_que, uint8_t qos)
 {
 	int ret = 0;
 	struct req_que *req = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	uint16_t que_id = 0;
 	device_reg_t __iomem *reg;
+	uint32_t cnt;
 
 	req = kzalloc(sizeof(struct req_que), GFP_KERNEL);
 	if (req == NULL) {
@@ -604,8 +580,8 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	}
 
 	mutex_lock(&ha->vport_lock);
-	que_id = find_first_zero_bit(ha->req_qid_map, ha->max_queues);
-	if (que_id >= ha->max_queues) {
+	que_id = find_first_zero_bit(ha->req_qid_map, ha->max_req_queues);
+	if (que_id >= ha->max_req_queues) {
 		mutex_unlock(&ha->vport_lock);
 		qla_printk(KERN_INFO, ha, "No resources to create "
 			 "additional request queue\n");
@@ -617,10 +593,10 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->vp_idx = vp_idx;
 	req->qos = qos;
 
-	if (ha->rsp_q_map[rsp_que]) {
+	if (rsp_que < 0)
+		req->rsp = NULL;
+	else
 		req->rsp = ha->rsp_q_map[rsp_que];
-		req->rsp->req = req;
-	}
 	/* Use alternate PCI bus number */
 	if (MSB(req->rid))
 		options |= BIT_4;
@@ -628,13 +604,16 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	if (LSB(req->rid))
 		options |= BIT_5;
 	req->options = options;
+
+	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++)
+		req->outstanding_cmds[cnt] = NULL;
+	req->current_outstanding_cmd = 1;
+
 	req->ring_ptr = req->ring;
 	req->ring_index = 0;
 	req->cnt = req->length;
 	req->id = que_id;
 	reg = ISP_QUE_REG(ha, que_id);
-	req->req_q_in = &reg->isp25mq.req_q_in;
-	req->req_q_out = &reg->isp25mq.req_q_out;
 	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
 	mutex_unlock(&ha->vport_lock);
 
@@ -654,10 +633,19 @@ que_failed:
 	return 0;
 }
 
+static void qla_do_work(struct work_struct *work)
+{
+	struct rsp_que *rsp = container_of(work, struct rsp_que, q_work);
+	struct scsi_qla_host *vha;
+
+	vha = qla25xx_get_host(rsp);
+	qla24xx_process_response_queue(vha, rsp);
+}
+
 /* create response queue */
 int
 qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
-	uint8_t vp_idx, uint16_t rid)
+	uint8_t vp_idx, uint16_t rid, int req)
 {
 	int ret = 0;
 	struct rsp_que *rsp = NULL;
@@ -672,7 +660,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 		goto que_failed;
 	}
 
-	rsp->length = RESPONSE_ENTRY_CNT_2300;
+	rsp->length = RESPONSE_ENTRY_CNT_MQ;
 	rsp->ring = dma_alloc_coherent(&ha->pdev->dev,
 			(rsp->length + 1) * sizeof(response_t),
 			&rsp->dma, GFP_KERNEL);
@@ -683,8 +671,8 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	}
 
 	mutex_lock(&ha->vport_lock);
-	que_id = find_first_zero_bit(ha->rsp_qid_map, ha->max_queues);
-	if (que_id >= ha->max_queues) {
+	que_id = find_first_zero_bit(ha->rsp_qid_map, ha->max_rsp_queues);
+	if (que_id >= ha->max_rsp_queues) {
 		mutex_unlock(&ha->vport_lock);
 		qla_printk(KERN_INFO, ha, "No resources to create "
 			 "additional response queue\n");
@@ -708,8 +696,6 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	if (LSB(rsp->rid))
 		options |= BIT_5;
 	rsp->options = options;
-	rsp->ring_ptr = rsp->ring;
-	rsp->ring_index = 0;
 	rsp->id = que_id;
 	reg = ISP_QUE_REG(ha, que_id);
 	rsp->rsp_q_in = &reg->isp25mq.rsp_q_in;
@@ -728,9 +714,14 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 		mutex_unlock(&ha->vport_lock);
 		goto que_failed;
 	}
+	if (req >= 0)
+		rsp->req = ha->req_q_map[req];
+	else
+		rsp->req = NULL;
 
 	qla2x00_init_response_q_entries(rsp);
-
+	if (rsp->hw->wq)
+		INIT_WORK(&rsp->q_work, qla_do_work);
 	return rsp->id;
 
 que_failed:
@@ -744,14 +735,16 @@ qla25xx_create_queues(struct scsi_qla_host *vha, uint8_t qos)
 	uint16_t options = 0;
 	uint8_t ret = 0;
 	struct qla_hw_data *ha = vha->hw;
+	struct rsp_que *rsp;
 
 	options |= BIT_1;
-	ret = qla25xx_create_rsp_que(ha, options, vha->vp_idx, 0);
+	ret = qla25xx_create_rsp_que(ha, options, vha->vp_idx, 0, -1);
 	if (!ret) {
 		qla_printk(KERN_WARNING, ha, "Response Que create failed\n");
 		return ret;
 	} else
 		qla_printk(KERN_INFO, ha, "Response Que:%d created.\n", ret);
+	rsp = ha->rsp_q_map[ret];
 
 	options = 0;
 	if (qos & BIT_7)
@@ -759,10 +752,11 @@ qla25xx_create_queues(struct scsi_qla_host *vha, uint8_t qos)
 	ret = qla25xx_create_req_que(ha, options, vha->vp_idx, 0, ret,
 					qos & ~BIT_7);
 	if (ret) {
-		vha->req_ques[0] = ret;
+		vha->req = ha->req_q_map[ret];
 		qla_printk(KERN_INFO, ha, "Request Que:%d created.\n", ret);
 	} else
 		qla_printk(KERN_WARNING, ha, "Request Que create failed\n");
+	rsp->req = ha->req_q_map[ret];
 
 	return ret;
 }

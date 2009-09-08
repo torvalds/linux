@@ -252,16 +252,18 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 {
 	struct drm_display_mode *mode;
 	int hsize = t->hsize * 8 + 248, vsize;
+	unsigned aspect_ratio = (t->vfreq_aspect & EDID_TIMING_ASPECT_MASK)
+		>> EDID_TIMING_ASPECT_SHIFT;
 
 	mode = drm_mode_create(dev);
 	if (!mode)
 		return NULL;
 
-	if (t->aspect_ratio == 0)
+	if (aspect_ratio == 0)
 		vsize = (hsize * 10) / 16;
-	else if (t->aspect_ratio == 1)
+	else if (aspect_ratio == 1)
 		vsize = (hsize * 3) / 4;
-	else if (t->aspect_ratio == 2)
+	else if (aspect_ratio == 2)
 		vsize = (hsize * 4) / 5;
 	else
 		vsize = (hsize * 9) / 16;
@@ -288,17 +290,24 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 {
 	struct drm_display_mode *mode;
 	struct detailed_pixel_timing *pt = &timing->data.pixel_data;
+	unsigned hactive = (pt->hactive_hblank_hi & 0xf0) << 4 | pt->hactive_lo;
+	unsigned vactive = (pt->vactive_vblank_hi & 0xf0) << 4 | pt->vactive_lo;
+	unsigned hblank = (pt->hactive_hblank_hi & 0xf) << 8 | pt->hblank_lo;
+	unsigned vblank = (pt->vactive_vblank_hi & 0xf) << 8 | pt->vblank_lo;
+	unsigned hsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0x3) << 8 | pt->hsync_offset_lo;
+	unsigned hsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0xc) << 6 | pt->hsync_pulse_width_lo;
+	unsigned vsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0x30) | (pt->vsync_offset_pulse_width_lo & 0xf);
+	unsigned vsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0xc0) >> 2 | pt->vsync_offset_pulse_width_lo >> 4;
 
 	/* ignore tiny modes */
-	if (((pt->hactive_hi << 8) | pt->hactive_lo) < 64 ||
-	    ((pt->vactive_hi << 8) | pt->hactive_lo) < 64)
+	if (hactive < 64 || vactive < 64)
 		return NULL;
 
-	if (pt->stereo) {
+	if (pt->misc & DRM_EDID_PT_STEREO) {
 		printk(KERN_WARNING "stereo mode not supported\n");
 		return NULL;
 	}
-	if (!pt->separate_sync) {
+	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
 		printk(KERN_WARNING "integrated sync not supported\n");
 		return NULL;
 	}
@@ -310,41 +319,36 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	mode->type = DRM_MODE_TYPE_DRIVER;
 
 	if (quirks & EDID_QUIRK_135_CLOCK_TOO_HIGH)
-		timing->pixel_clock = 1088;
+		timing->pixel_clock = cpu_to_le16(1088);
 
-	mode->clock = timing->pixel_clock * 10;
+	mode->clock = le16_to_cpu(timing->pixel_clock) * 10;
 
-	mode->hdisplay = (pt->hactive_hi << 8) | pt->hactive_lo;
-	mode->hsync_start = mode->hdisplay + ((pt->hsync_offset_hi << 8) |
-					      pt->hsync_offset_lo);
-	mode->hsync_end = mode->hsync_start +
-		((pt->hsync_pulse_width_hi << 8) |
-		 pt->hsync_pulse_width_lo);
-	mode->htotal = mode->hdisplay + ((pt->hblank_hi << 8) | pt->hblank_lo);
+	mode->hdisplay = hactive;
+	mode->hsync_start = mode->hdisplay + hsync_offset;
+	mode->hsync_end = mode->hsync_start + hsync_pulse_width;
+	mode->htotal = mode->hdisplay + hblank;
 
-	mode->vdisplay = (pt->vactive_hi << 8) | pt->vactive_lo;
-	mode->vsync_start = mode->vdisplay + ((pt->vsync_offset_hi << 4) |
-					      pt->vsync_offset_lo);
-	mode->vsync_end = mode->vsync_start +
-		((pt->vsync_pulse_width_hi << 4) |
-		 pt->vsync_pulse_width_lo);
-	mode->vtotal = mode->vdisplay + ((pt->vblank_hi << 8) | pt->vblank_lo);
+	mode->vdisplay = vactive;
+	mode->vsync_start = mode->vdisplay + vsync_offset;
+	mode->vsync_end = mode->vsync_start + vsync_pulse_width;
+	mode->vtotal = mode->vdisplay + vblank;
 
 	drm_mode_set_name(mode);
 
-	if (pt->interlaced)
+	if (pt->misc & DRM_EDID_PT_INTERLACED)
 		mode->flags |= DRM_MODE_FLAG_INTERLACE;
 
 	if (quirks & EDID_QUIRK_DETAILED_SYNC_PP) {
-		pt->hsync_positive = 1;
-		pt->vsync_positive = 1;
+		pt->misc |= DRM_EDID_PT_HSYNC_POSITIVE | DRM_EDID_PT_VSYNC_POSITIVE;
 	}
 
-	mode->flags |= pt->hsync_positive ? DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
-	mode->flags |= pt->vsync_positive ? DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+	mode->flags |= (pt->misc & DRM_EDID_PT_HSYNC_POSITIVE) ?
+		DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
+	mode->flags |= (pt->misc & DRM_EDID_PT_VSYNC_POSITIVE) ?
+		DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 
-	mode->width_mm = pt->width_mm_lo | (pt->width_mm_hi << 8);
-	mode->height_mm = pt->height_mm_lo | (pt->height_mm_hi << 8);
+	mode->width_mm = pt->width_mm_lo | (pt->width_height_mm_hi & 0xf) << 8;
+	mode->height_mm = pt->height_mm_lo | (pt->width_height_mm_hi & 0xf0) << 4;
 
 	if (quirks & EDID_QUIRK_DETAILED_IN_CM) {
 		mode->width_mm *= 10;
@@ -465,7 +469,7 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 		struct drm_display_mode *newmode;
 
 		/* If std timings bytes are 1, 1 it's empty */
-		if (t->hsize == 1 && (t->aspect_ratio | t->vfreq) == 1)
+		if (t->hsize == 1 && t->vfreq_aspect == 1)
 			continue;
 
 		newmode = drm_mode_std(dev, &edid->standard_timings[i]);
@@ -509,7 +513,7 @@ static int add_detailed_info(struct drm_connector *connector,
 				continue;
 
 			/* First detailed mode is preferred */
-			if (i == 0 && edid->preferred_timing)
+			if (i == 0 && (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING))
 				newmode->type |= DRM_MODE_TYPE_PREFERRED;
 			drm_mode_probed_add(connector, newmode);
 
@@ -589,85 +593,13 @@ int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
 }
 EXPORT_SYMBOL(drm_do_probe_ddc_edid);
 
-/**
- * Get EDID information.
- *
- * \param adapter : i2c device adaptor.
- * \param buf     : EDID data buffer to be filled
- * \param len     : EDID data buffer length
- * \return 0 on success or -1 on failure.
- *
- * Initialize DDC, then fetch EDID information
- * by calling drm_do_probe_ddc_edid function.
- */
-static int drm_ddc_read(struct i2c_adapter *adapter,
-			unsigned char *buf, int len)
-{
-	struct i2c_algo_bit_data *algo_data = adapter->algo_data;
-	int i, j;
-	int ret = -1;
-
-	algo_data->setscl(algo_data->data, 1);
-
-	for (i = 0; i < 1; i++) {
-		/* For some old monitors we need the
-		 * following process to initialize/stop DDC
-		 */
-		algo_data->setsda(algo_data->data, 1);
-		msleep(13);
-
-		algo_data->setscl(algo_data->data, 1);
-		for (j = 0; j < 5; j++) {
-			msleep(10);
-			if (algo_data->getscl(algo_data->data))
-				break;
-		}
-		if (j == 5)
-			continue;
-
-		algo_data->setsda(algo_data->data, 0);
-		msleep(15);
-		algo_data->setscl(algo_data->data, 0);
-		msleep(15);
-		algo_data->setsda(algo_data->data, 1);
-		msleep(15);
-
-		/* Do the real work */
-		ret = drm_do_probe_ddc_edid(adapter, buf, len);
-		algo_data->setsda(algo_data->data, 0);
-		algo_data->setscl(algo_data->data, 0);
-		msleep(15);
-
-		algo_data->setscl(algo_data->data, 1);
-		for (j = 0; j < 10; j++) {
-			msleep(10);
-			if (algo_data->getscl(algo_data->data))
-				break;
-		}
-
-		algo_data->setsda(algo_data->data, 1);
-		msleep(15);
-		algo_data->setscl(algo_data->data, 0);
-		algo_data->setsda(algo_data->data, 0);
-		if (ret == 0)
-			break;
-	}
-	/* Release the DDC lines when done or the Apple Cinema HD display
-	 * will switch off
-	 */
-	algo_data->setsda(algo_data->data, 1);
-	algo_data->setscl(algo_data->data, 1);
-
-	return ret;
-}
-
 static int drm_ddc_read_edid(struct drm_connector *connector,
 			     struct i2c_adapter *adapter,
 			     char *buf, int len)
 {
 	int ret;
 
-	ret = drm_ddc_read(adapter, buf, len);
+	ret = drm_do_probe_ddc_edid(adapter, buf, len);
 	if (ret != 0) {
 		dev_info(&connector->dev->pdev->dev, "%s: no EDID data\n",
 			 drm_get_connector_name(connector));
@@ -839,22 +771,22 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
 
-	connector->display_info.serration_vsync = edid->serration_vsync;
-	connector->display_info.sync_on_green = edid->sync_on_green;
-	connector->display_info.composite_sync = edid->composite_sync;
-	connector->display_info.separate_syncs = edid->separate_syncs;
-	connector->display_info.blank_to_black = edid->blank_to_black;
-	connector->display_info.video_level = edid->video_level;
-	connector->display_info.digital = edid->digital;
+	connector->display_info.serration_vsync = (edid->input & DRM_EDID_INPUT_SERRATION_VSYNC) ? 1 : 0;
+	connector->display_info.sync_on_green = (edid->input & DRM_EDID_INPUT_SYNC_ON_GREEN) ? 1 : 0;
+	connector->display_info.composite_sync = (edid->input & DRM_EDID_INPUT_COMPOSITE_SYNC) ? 1 : 0;
+	connector->display_info.separate_syncs = (edid->input & DRM_EDID_INPUT_SEPARATE_SYNCS) ? 1 : 0;
+	connector->display_info.blank_to_black = (edid->input & DRM_EDID_INPUT_BLANK_TO_BLACK) ? 1 : 0;
+	connector->display_info.video_level = (edid->input & DRM_EDID_INPUT_VIDEO_LEVEL) >> 5;
+	connector->display_info.digital = (edid->input & DRM_EDID_INPUT_DIGITAL) ? 1 : 0;
 	connector->display_info.width_mm = edid->width_cm * 10;
 	connector->display_info.height_mm = edid->height_cm * 10;
 	connector->display_info.gamma = edid->gamma;
-	connector->display_info.gtf_supported = edid->default_gtf;
-	connector->display_info.standard_color = edid->standard_color;
-	connector->display_info.display_type = edid->display_type;
-	connector->display_info.active_off_supported = edid->pm_active_off;
-	connector->display_info.suspend_supported = edid->pm_suspend;
-	connector->display_info.standby_supported = edid->pm_standby;
+	connector->display_info.gtf_supported = (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF) ? 1 : 0;
+	connector->display_info.standard_color = (edid->features & DRM_EDID_FEATURE_STANDARD_COLOR) ? 1 : 0;
+	connector->display_info.display_type = (edid->features & DRM_EDID_FEATURE_DISPLAY_TYPE) >> 3;
+	connector->display_info.active_off_supported = (edid->features & DRM_EDID_FEATURE_PM_ACTIVE_OFF) ? 1 : 0;
+	connector->display_info.suspend_supported = (edid->features & DRM_EDID_FEATURE_PM_SUSPEND) ? 1 : 0;
+	connector->display_info.standby_supported = (edid->features & DRM_EDID_FEATURE_PM_STANDBY) ? 1 : 0;
 	connector->display_info.gamma = edid->gamma;
 
 	return num_modes;

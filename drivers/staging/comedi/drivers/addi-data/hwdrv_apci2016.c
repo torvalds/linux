@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -62,7 +62,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 | Task              : Configures The Digital Output Subdevice.               |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |			  data[0]            : 1 Digital Memory On               |
@@ -75,20 +75,20 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
-	}			// if  ((data[0]!=0) && (data[0]!=1))
+	}			/*  if  ((data[0]!=0) && (data[0]!=1)) */
 	if (data[0]) {
 		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			// if  (data[0]
+	}			/*  if  (data[0] */
 	else {
 		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			// else if  (data[0]
+	}			/*  else if  (data[0] */
 	return insn->n;
 }
 
@@ -101,8 +101,8 @@ int i_APCI2016_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To Write      |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -111,34 +111,34 @@ int i_APCI2016_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_NoOfChannel;
-	UINT ui_Temp, ui_Temp1;
+	unsigned int ui_NoOfChannel;
+	unsigned int ui_Temp, ui_Temp1;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	if ((ui_NoOfChannel < 0) || (ui_NoOfChannel > 15)) {
 		comedi_error(dev,
 			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
 		return -EINVAL;
-	}			// if  ((ui_NoOfChannel<0) || (ui_NoOfChannel>15))
+	}			/*  if  ((ui_NoOfChannel<0) || (ui_NoOfChannel>15)) */
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inw(devpriv->iobase + APCI2016_DIGITAL_OP);
-	}			// if  (devpriv->b_OutputMemoryStatus )
+	}			/*  if  (devpriv->b_OutputMemoryStatus ) */
 	else {
 		ui_Temp = 0;
-	}			// else if  (devpriv->b_OutputMemoryStatus )
+	}			/*  else if  (devpriv->b_OutputMemoryStatus ) */
 	if ((data[1] != 0) && (data[1] != 1)) {
 		comedi_error(dev,
 			"Invalid Data[1] value !!!, Data[1] should be 0 or 1\n");
 		return -EINVAL;
-	}			// if  ((data[1]!=0) && (data[1]!=1))
+	}			/*  if  ((data[1]!=0) && (data[1]!=1)) */
 
 	if (data[3] == 0) {
 		if (data[1] == 0) {
 			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
 			outw(data[0], devpriv->iobase + APCI2016_DIGITAL_OP);
-		}		// if (data[1]==0)
+		}		/*  if (data[1]==0) */
 		else {
 			if (data[1] == 1) {
 				switch (ui_NoOfChannel) {
@@ -162,16 +162,16 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 					break;
 				default:
 					comedi_error(dev, " chan spec wrong");
-					return -EINVAL;	// "sorry channel spec wrong "
-				}	//switch(ui_NoOfChannels)
+					return -EINVAL;	/*  "sorry channel spec wrong " */
+				}	/* switch(ui_NoOfChannels) */
 				outw(data[0],
 					devpriv->iobase + APCI2016_DIGITAL_OP);
-			}	// if  (data[1]==1)
+			}	/*  if  (data[1]==1) */
 			else {
 				printk("\nSpecified channel not supported\n");
-			}	// else if  (data[1]==1)
-		}		// else if (data[1]==0)
-	}			// if (data[3]==0)
+			}	/*  else if  (data[1]==1) */
+		}		/*  else if (data[1]==0) */
+	}			/*  if (data[3]==0) */
 	else {
 		if (data[3] == 1) {
 			if (data[1] == 0) {
@@ -183,7 +183,7 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 				data[0] = data[0] & ui_Temp;
 				outw(data[0],
 					devpriv->iobase + APCI2016_DIGITAL_OP);
-			}	// if  (data[1]==0)
+			}	/*  if  (data[1]==0) */
 			else {
 				if (data[1] == 1) {
 					switch (ui_NoOfChannel) {
@@ -228,22 +228,22 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 					default:
 						comedi_error(dev,
 							" chan spec wrong");
-						return -EINVAL;	// "sorry channel spec wrong "
-					}	//switch(ui_NoOfChannels)
+						return -EINVAL;	/*  "sorry channel spec wrong " */
+					}	/* switch(ui_NoOfChannels) */
 					outw(data[0],
 						devpriv->iobase +
 						APCI2016_DIGITAL_OP);
-				}	// if(data[1]==1)
+				}	/*  if(data[1]==1) */
 				else {
 					printk("\nSpecified channel not supported\n");
-				}	//else if(data[1]==1)
-			}	//elseif(data[1]==0)
-		}		//if(data[3]==1);
+				}	/* else if(data[1]==1) */
+			}	/* elseif(data[1]==0) */
+		}		/* if(data[3]==1); */
 		else {
 			printk("\nSpecified functionality does not exist\n");
 			return -EINVAL;
-		}		//if else data[3]==1)
-	}			//if else data[3]==0)
+		}		/* if else data[3]==1) */
+	}			/* if else data[3]==0) */
 	return insn->n;
 }
 
@@ -256,8 +256,8 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To read       |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -266,27 +266,27 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_BitsDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_Temp;
-	UINT ui_NoOfChannel;
+	unsigned int ui_Temp;
+	unsigned int ui_NoOfChannel;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
 	if ((ui_NoOfChannel < 0) || (ui_NoOfChannel > 15)) {
 		comedi_error(dev,
 			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
 		return -EINVAL;
-	}			// if  ((ui_NoOfChannel<0) || (ui_NoOfChannel>15))
+	}			/*  if  ((ui_NoOfChannel<0) || (ui_NoOfChannel>15)) */
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
 			"Invalid Data[0] value !!!, Data[0] should be 0 or 1\n");
 		return -EINVAL;
-	}			// if  ((data[0]!=0) && (data[0]!=1))
+	}			/*  if  ((data[0]!=0) && (data[0]!=1)) */
 	ui_Temp = data[0];
 	*data = inw(devpriv->iobase + APCI2016_DIGITAL_OP_RW);
 	if (ui_Temp == 0) {
 		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			// if  (ui_Temp==0)
+	}			/*  if  (ui_Temp==0) */
 	else {
 		if (ui_Temp == 1) {
 			switch (ui_NoOfChannel) {
@@ -307,13 +307,13 @@ int i_APCI2016_BitsDigitalOutput(struct comedi_device * dev, struct comedi_subde
 
 			default:
 				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	// "sorry channel spec wrong "
-			}	//switch(ui_NoOfChannel)
-		}		// if  (ui_Temp==1)
+				return -EINVAL;	/*  "sorry channel spec wrong " */
+			}	/* switch(ui_NoOfChannel) */
+		}		/*  if  (ui_Temp==1) */
 		else {
 			printk("\nSpecified channel not supported \n");
-		}		// else if  (ui_Temp==1)
-	}			// if  (ui_Temp==0)
+		}		/*  else if  (ui_Temp==1) */
+	}			/*  if  (ui_Temp==0) */
 	return insn->n;
 }
 
@@ -337,16 +337,16 @@ int i_APCI2016_BitsDigitalOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2016_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	if (data[0] == 0) {
-		//Disable the watchdog
+		/* Disable the watchdog */
 		outw(0x0,
 			devpriv->i_IobaseAddon +
 			APCI2016_WATCHDOG_ENABLEDISABLE);
-		//Loading the Reload value
+		/* Loading the Reload value */
 		outw(data[1],
 			devpriv->i_IobaseAddon +
 			APCI2016_WATCHDOG_RELOAD_VALUE);
@@ -380,20 +380,20 @@ int i_APCI2016_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevic
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2016_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2016_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	switch (data[0]) {
-	case 0:		//stop the watchdog
-		outw(0x0, devpriv->i_IobaseAddon + APCI2016_WATCHDOG_ENABLEDISABLE);	//disable the watchdog
+	case 0:		/* stop the watchdog */
+		outw(0x0, devpriv->i_IobaseAddon + APCI2016_WATCHDOG_ENABLEDISABLE);	/* disable the watchdog */
 		break;
-	case 1:		//start the watchdog
+	case 1:		/* start the watchdog */
 		outw(0x0001,
 			devpriv->i_IobaseAddon +
 			APCI2016_WATCHDOG_ENABLEDISABLE);
 		break;
-	case 2:		//Software trigger
+	case 2:		/* Software trigger */
 		outw(0x0201,
 			devpriv->i_IobaseAddon +
 			APCI2016_WATCHDOG_ENABLEDISABLE);
@@ -401,7 +401,7 @@ int i_APCI2016_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_
 	default:
 		printk("\nSpecified functionality does not exist\n");
 		return -EINVAL;
-	}			// switch(data[0])
+	}			/*  switch(data[0]) */
 
 	return insn->n;
 }
@@ -427,8 +427,8 @@ int i_APCI2016_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2016_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2016_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	udelay(5);
 	data[0] = inw(devpriv->i_IobaseAddon + APCI2016_WATCHDOG_STATUS) & 0x1;
@@ -450,9 +450,9 @@ int i_APCI2016_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI2016_Reset(struct comedi_device * dev)
+int i_APCI2016_Reset(struct comedi_device *dev)
 {
-	outw(0x0, devpriv->iobase + APCI2016_DIGITAL_OP);	// Resets the digital output channels
+	outw(0x0, devpriv->iobase + APCI2016_DIGITAL_OP);	/*  Resets the digital output channels */
 	outw(0x0, devpriv->i_IobaseAddon + APCI2016_WATCHDOG_ENABLEDISABLE);
 	outw(0x0, devpriv->i_IobaseAddon + APCI2016_WATCHDOG_RELOAD_VALUE);
 	outw(0x0, devpriv->i_IobaseAddon + APCI2016_WATCHDOG_RELOAD_VALUE + 2);

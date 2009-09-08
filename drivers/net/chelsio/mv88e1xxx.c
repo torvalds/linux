@@ -353,15 +353,16 @@ static struct cphy_ops mv88e1xxx_ops = {
 	.get_link_status      = mv88e1xxx_get_link_status,
 };
 
-static struct cphy *mv88e1xxx_phy_create(adapter_t *adapter, int phy_addr,
+static struct cphy *mv88e1xxx_phy_create(struct net_device *dev, int phy_addr,
 					 const struct mdio_ops *mdio_ops)
 {
+	struct adapter *adapter = netdev_priv(dev);
 	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
 
 	if (!cphy)
 		return NULL;
 
-	cphy_init(cphy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops);
+	cphy_init(cphy, dev, phy_addr, &mv88e1xxx_ops, mdio_ops);
 
 	/* Configure particular PHY's to run in a different mode. */
 	if ((board_info(adapter)->caps & SUPPORTED_TP) &&

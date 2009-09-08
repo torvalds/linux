@@ -957,7 +957,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 		/* We've wrapped around and the transmitter is still busy */
 		netif_stop_queue(dev);
 		aup->tx_full = 1;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	else if (buff_stat & TX_T_DONE) {
 		update_tx_stats(dev, ptxd->status);

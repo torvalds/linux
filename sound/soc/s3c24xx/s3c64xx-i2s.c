@@ -108,48 +108,19 @@ static int s3c64xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-
-unsigned long s3c64xx_i2s_get_clockrate(struct snd_soc_dai *dai)
+struct clk *s3c64xx_i2s_get_clock(struct snd_soc_dai *dai)
 {
 	struct s3c_i2sv2_info *i2s = to_info(dai);
 
-	return clk_get_rate(i2s->iis_cclk);
+	return i2s->iis_cclk;
 }
-EXPORT_SYMBOL_GPL(s3c64xx_i2s_get_clockrate);
+EXPORT_SYMBOL_GPL(s3c64xx_i2s_get_clock);
 
 static int s3c64xx_i2s_probe(struct platform_device *pdev,
 			     struct snd_soc_dai *dai)
 {
-	struct device *dev = &pdev->dev;
-	struct s3c_i2sv2_info *i2s;
-	int ret;
-
-	dev_dbg(dev, "%s: probing dai %d\n", __func__, pdev->id);
-
-	if (pdev->id < 0 || pdev->id > ARRAY_SIZE(s3c64xx_i2s)) {
-		dev_err(dev, "id %d out of range\n", pdev->id);
-		return -EINVAL;
-	}
-
-	i2s = &s3c64xx_i2s[pdev->id];
-
-	ret = s3c_i2sv2_probe(pdev, dai, i2s,
-			      pdev->id ? S3C64XX_PA_IIS1 : S3C64XX_PA_IIS0);
-	if (ret)
-		return ret;
-
-	i2s->dma_capture = &s3c64xx_i2s_pcm_stereo_in[pdev->id];
-	i2s->dma_playback = &s3c64xx_i2s_pcm_stereo_out[pdev->id];
-
-	i2s->iis_cclk = clk_get(dev, "audio-bus");
-	if (IS_ERR(i2s->iis_cclk)) {
-		dev_err(dev, "failed to get audio-bus");
-		iounmap(i2s->regs);
-		return -ENODEV;
-	}
-
 	/* configure GPIO for i2s port */
-	switch (pdev->id) {
+	switch (dai->id) {
 	case 0:
 		s3c_gpio_cfgpin(S3C64XX_GPD(0), S3C64XX_GPD0_I2S0_CLK);
 		s3c_gpio_cfgpin(S3C64XX_GPD(1), S3C64XX_GPD1_I2S0_CDCLK);
@@ -175,41 +146,122 @@ static int s3c64xx_i2s_probe(struct platform_device *pdev,
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
 #define S3C64XX_I2S_FMTS \
-	(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE)
+	(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |\
+	 SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_ops s3c64xx_i2s_dai_ops = {
 	.set_sysclk	= s3c64xx_i2s_set_sysclk,	
 };
 
-struct snd_soc_dai s3c64xx_i2s_dai = {
-	.name		= "s3c64xx-i2s",
-	.id		= 0,
-	.probe		= s3c64xx_i2s_probe,
-	.playback = {
-		.channels_min	= 2,
-		.channels_max	= 2,
-		.rates		= S3C64XX_I2S_RATES,
-		.formats	= S3C64XX_I2S_FMTS,
+struct snd_soc_dai s3c64xx_i2s_dai[] = {
+	{
+		.name		= "s3c64xx-i2s",
+		.id		= 0,
+		.probe		= s3c64xx_i2s_probe,
+		.playback = {
+			.channels_min	= 2,
+			.channels_max	= 2,
+			.rates		= S3C64XX_I2S_RATES,
+			.formats	= S3C64XX_I2S_FMTS,
+		},
+		.capture = {
+			 .channels_min	= 2,
+			 .channels_max	= 2,
+			 .rates		= S3C64XX_I2S_RATES,
+			 .formats	= S3C64XX_I2S_FMTS,
+		 },
+		.ops = &s3c64xx_i2s_dai_ops,
+		.symmetric_rates = 1,
 	},
-	.capture = {
-		.channels_min	= 2,
-		.channels_max	= 2,
-		.rates		= S3C64XX_I2S_RATES,
-		.formats	= S3C64XX_I2S_FMTS,
+	{
+		.name		= "s3c64xx-i2s",
+		.id		= 1,
+		.probe		= s3c64xx_i2s_probe,
+		.playback = {
+			.channels_min	= 2,
+			.channels_max	= 2,
+			.rates		= S3C64XX_I2S_RATES,
+			.formats	= S3C64XX_I2S_FMTS,
+		},
+		.capture = {
+			 .channels_min	= 2,
+			 .channels_max	= 2,
+			 .rates		= S3C64XX_I2S_RATES,
+			 .formats	= S3C64XX_I2S_FMTS,
+		 },
+		.ops = &s3c64xx_i2s_dai_ops,
+		.symmetric_rates = 1,
 	},
-	.ops = &s3c64xx_i2s_dai_ops,
 };
 EXPORT_SYMBOL_GPL(s3c64xx_i2s_dai);
 
+static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
+{
+	struct s3c_i2sv2_info *i2s;
+	struct snd_soc_dai *dai;
+	int ret;
+
+	if (pdev->id >= ARRAY_SIZE(s3c64xx_i2s)) {
+		dev_err(&pdev->dev, "id %d out of range\n", pdev->id);
+		return -EINVAL;
+	}
+
+	i2s = &s3c64xx_i2s[pdev->id];
+	dai = &s3c64xx_i2s_dai[pdev->id];
+	dai->dev = &pdev->dev;
+
+	i2s->dma_capture = &s3c64xx_i2s_pcm_stereo_in[pdev->id];
+	i2s->dma_playback = &s3c64xx_i2s_pcm_stereo_out[pdev->id];
+
+	i2s->iis_cclk = clk_get(&pdev->dev, "audio-bus");
+	if (IS_ERR(i2s->iis_cclk)) {
+		dev_err(&pdev->dev, "failed to get audio-bus\n");
+		ret = PTR_ERR(i2s->iis_cclk);
+		goto err;
+	}
+
+	ret = s3c_i2sv2_probe(pdev, dai, i2s, 0);
+	if (ret)
+		goto err_clk;
+
+	ret = s3c_i2sv2_register_dai(dai);
+	if (ret != 0)
+		goto err_i2sv2;
+
+	return 0;
+
+err_i2sv2:
+	/* Not implemented for I2Sv2 core yet */
+err_clk:
+	clk_put(i2s->iis_cclk);
+err:
+	return ret;
+}
+
+static __devexit int s3c64xx_iis_dev_remove(struct platform_device *pdev)
+{
+	dev_err(&pdev->dev, "Device removal not yet supported\n");
+	return 0;
+}
+
+static struct platform_driver s3c64xx_iis_driver = {
+	.probe  = s3c64xx_iis_dev_probe,
+	.remove = s3c64xx_iis_dev_remove,
+	.driver = {
+		.name = "s3c64xx-iis",
+		.owner = THIS_MODULE,
+	},
+};
+
 static int __init s3c64xx_i2s_init(void)
 {
-	return  s3c_i2sv2_register_dai(&s3c64xx_i2s_dai);
+	return platform_driver_register(&s3c64xx_iis_driver);
 }
 module_init(s3c64xx_i2s_init);
 
 static void __exit s3c64xx_i2s_exit(void)
 {
-	snd_soc_unregister_dai(&s3c64xx_i2s_dai);
+	platform_driver_unregister(&s3c64xx_iis_driver);
 }
 module_exit(s3c64xx_i2s_exit);
 
@@ -217,6 +269,3 @@ module_exit(s3c64xx_i2s_exit);
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C64XX I2S SoC Interface");
 MODULE_LICENSE("GPL");
-
-
-

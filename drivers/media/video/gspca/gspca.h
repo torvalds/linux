@@ -44,8 +44,6 @@ extern int gspca_debug;
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */
 #define MAX_NURBS 4		/* max number of URBs */
-#define ISO_MAX_PKT 32		/* max number of packets in an ISOC transfer */
-#define ISO_MAX_SIZE 0x8000	/* max size of one URB buffer (32 Kb) */
 
 /* device information - set at probe time */
 struct cam {
@@ -56,6 +54,9 @@ struct cam {
 				 * - cannot be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
 				 *   1 URB and submit done by subdriver */
+	u8 bulk;		/* image transfer by 0:isoc / 1:bulk */
+	u8 npkt;		/* number of packets in an ISOC message
+				 * 0 is the default value: 32 packets */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
 };
 
@@ -168,7 +169,6 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
-	u8 bulk;			/* image transfer by 0:isoc / 1:bulk */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,

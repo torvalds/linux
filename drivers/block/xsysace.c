@@ -463,10 +463,11 @@ struct request *ace_get_next_request(struct request_queue * q)
 {
 	struct request *req;
 
-	while ((req = elv_next_request(q)) != NULL) {
+	while ((req = blk_peek_request(q)) != NULL) {
 		if (blk_fs_request(req))
 			break;
-		end_request(req, 0);
+		blk_start_request(req);
+		__blk_end_request_all(req, -EIO);
 	}
 	return req;
 }
@@ -492,9 +493,13 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		set_capacity(ace->gd, 0);
 		dev_info(ace->dev, "No CF in slot\n");
 
-		/* Drop all pending requests */
-		while ((req = elv_next_request(ace->queue)) != NULL)
-			end_request(req, 0);
+		/* Drop all in-flight and pending requests */
+		if (ace->req) {
+			__blk_end_request_all(ace->req, -EIO);
+			ace->req = NULL;
+		}
+		while ((req = blk_fetch_request(ace->queue)) != NULL)
+			__blk_end_request_all(req, -EIO);
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
@@ -642,19 +647,21 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			ace->fsm_state = ACE_FSM_STATE_IDLE;
 			break;
 		}
+		blk_start_request(req);
 
 		/* Okay, it's a data request, set it up for transfer */
 		dev_dbg(ace->dev,
-			"request: sec=%llx hcnt=%lx, ccnt=%x, dir=%i\n",
-			(unsigned long long) req->sector, req->hard_nr_sectors,
-			req->current_nr_sectors, rq_data_dir(req));
+			"request: sec=%llx hcnt=%x, ccnt=%x, dir=%i\n",
+			(unsigned long long)blk_rq_pos(req),
+			blk_rq_sectors(req), blk_rq_cur_sectors(req),
+			rq_data_dir(req));
 
 		ace->req = req;
 		ace->data_ptr = req->buffer;
-		ace->data_count = req->current_nr_sectors * ACE_BUF_PER_SECTOR;
-		ace_out32(ace, ACE_MPULBA, req->sector & 0x0FFFFFFF);
+		ace->data_count = blk_rq_cur_sectors(req) * ACE_BUF_PER_SECTOR;
+		ace_out32(ace, ACE_MPULBA, blk_rq_pos(req) & 0x0FFFFFFF);
 
-		count = req->hard_nr_sectors;
+		count = blk_rq_sectors(req);
 		if (rq_data_dir(req)) {
 			/* Kick off write request */
 			dev_dbg(ace->dev, "write data\n");
@@ -688,7 +695,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			dev_dbg(ace->dev,
 				"CFBSY set; t=%i iter=%i c=%i dc=%i irq=%i\n",
 				ace->fsm_task, ace->fsm_iter_num,
-				ace->req->current_nr_sectors * 16,
+				blk_rq_cur_sectors(ace->req) * 16,
 				ace->data_count, ace->in_irq);
 			ace_fsm_yield(ace);	/* need to poll CFBSY bit */
 			break;
@@ -697,7 +704,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			dev_dbg(ace->dev,
 				"DATABUF not set; t=%i iter=%i c=%i dc=%i irq=%i\n",
 				ace->fsm_task, ace->fsm_iter_num,
-				ace->req->current_nr_sectors * 16,
+				blk_rq_cur_sectors(ace->req) * 16,
 				ace->data_count, ace->in_irq);
 			ace_fsm_yieldirq(ace);
 			break;
@@ -717,14 +724,13 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		}
 
 		/* bio finished; is there another one? */
-		if (__blk_end_request(ace->req, 0,
-					blk_rq_cur_bytes(ace->req))) {
-			/* dev_dbg(ace->dev, "next block; h=%li c=%i\n",
-			 *      ace->req->hard_nr_sectors,
-			 *      ace->req->current_nr_sectors);
+		if (__blk_end_request_cur(ace->req, 0)) {
+			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
+			 *      blk_rq_sectors(ace->req),
+			 *      blk_rq_cur_sectors(ace->req));
 			 */
 			ace->data_ptr = ace->req->buffer;
-			ace->data_count = ace->req->current_nr_sectors * 16;
+			ace->data_count = blk_rq_cur_sectors(ace->req) * 16;
 			ace_fsm_yieldirq(ace);
 			break;
 		}
@@ -978,7 +984,7 @@ static int __devinit ace_setup(struct ace_device *ace)
 	ace->queue = blk_init_queue(ace_request, &ace->lock);
 	if (ace->queue == NULL)
 		goto err_blk_initq;
-	blk_queue_hardsect_size(ace->queue, 512);
+	blk_queue_logical_block_size(ace->queue, 512);
 
 	/*
 	 * Allocate and initialize GD structure

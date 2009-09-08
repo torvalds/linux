@@ -228,7 +228,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
 
-	pr_debug("br2684_start_xmit, skb->dst=%p\n", skb->dst);
+	pr_debug("br2684_start_xmit, skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
@@ -445,9 +445,10 @@ free_skb:
  */
 static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 {
+	struct sk_buff_head queue;
 	int err;
 	struct br2684_vcc *brvcc;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *tmp;
 	struct sk_buff_head *rq;
 	struct br2684_dev *brdev;
 	struct net_device *net_dev;
@@ -505,29 +506,20 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	barrier();
 	atmvcc->push = br2684_push;
 
+	__skb_queue_head_init(&queue);
 	rq = &sk_atm(atmvcc)->sk_receive_queue;
 
 	spin_lock_irqsave(&rq->lock, flags);
-	if (skb_queue_empty(rq)) {
-		skb = NULL;
-	} else {
-		/* NULL terminate the list.  */
-		rq->prev->next = NULL;
-		skb = rq->next;
-	}
-	rq->prev = rq->next = (struct sk_buff *)rq;
-	rq->qlen = 0;
+	skb_queue_splice_init(rq, &queue);
 	spin_unlock_irqrestore(&rq->lock, flags);
 
-	while (skb) {
-		struct sk_buff *next = skb->next;
+	skb_queue_walk_safe(&queue, skb, tmp) {
+		struct net_device *dev = skb->dev;
 
-		skb->next = skb->prev = NULL;
+		dev->stats.rx_bytes -= skb->len;
+		dev->stats.rx_packets--;
+
 		br2684_push(atmvcc, skb);
-		skb->dev->stats.rx_bytes -= skb->len;
-		skb->dev->stats.rx_packets--;
-
-		skb = next;
 	}
 	__module_get(THIS_MODULE);
 	return 0;

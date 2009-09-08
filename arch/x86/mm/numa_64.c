@@ -179,16 +179,23 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 }
 
 /* Initialize bootmem allocator for a node */
-void __init setup_node_bootmem(int nodeid, unsigned long start,
-			       unsigned long end)
+void __init
+setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 {
 	unsigned long start_pfn, last_pfn, bootmap_pages, bootmap_size;
+	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	unsigned long bootmap_start, nodedata_phys;
 	void *bootmap;
-	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	int nid;
 
 	if (!end)
+		return;
+
+	/*
+	 * Don't confuse VM with a node that doesn't have the
+	 * minimum amount of memory:
+	 */
+	if (end && (end - start) < NODE_MIN_SIZE)
 		return;
 
 	start = roundup(start, ZONE_ALIGN);
@@ -272,9 +279,6 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 		reserve_bootmem_node(NODE_DATA(nodeid), bootmap_start,
 				 bootmap_pages<<PAGE_SHIFT, BOOTMEM_DEFAULT);
 
-#ifdef CONFIG_ACPI_NUMA
-	srat_reserve_add_area(nodeid);
-#endif
 	node_set_online(nodeid);
 }
 
@@ -578,21 +582,6 @@ unsigned long __init numa_free_all_bootmem(void)
 	return pages;
 }
 
-void __init paging_init(void)
-{
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
-	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
-	max_zone_pfns[ZONE_NORMAL] = max_pfn;
-
-	sparse_memory_present_with_active_regions(MAX_NUMNODES);
-	sparse_init();
-
-	free_area_init_nodes(max_zone_pfns);
-}
-
 static __init int numa_setup(char *opt)
 {
 	if (!opt)
@@ -606,8 +595,6 @@ static __init int numa_setup(char *opt)
 #ifdef CONFIG_ACPI_NUMA
 	if (!strncmp(opt, "noacpi", 6))
 		acpi_numa = -1;
-	if (!strncmp(opt, "hotadd=", 7))
-		hotadd_percent = simple_strtoul(opt+7, NULL, 10);
 #endif
 	return 0;
 }

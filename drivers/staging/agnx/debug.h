@@ -312,7 +312,6 @@ static inline void dump_ieee80211_hdr(struct ieee80211_hdr *hdr, char *tag)
 {
 	u16 fctl;
 	int hdrlen;
-	DECLARE_MAC_BUF(mac);
 
 	fctl = le16_to_cpu(hdr->frame_control);
 	switch (fctl & IEEE80211_FCTL_FTYPE) {
@@ -375,13 +374,13 @@ static inline void dump_ieee80211_hdr(struct ieee80211_hdr *hdr, char *tag)
 		printk("FC=0x%04x DUR=0x%04x",
 		       fctl, le16_to_cpu(hdr->duration_id));
 	if (hdrlen >= 10)
-		printk(" A1=%s", print_mac(mac, hdr->addr1));
+		printk(" A1=%pM", hdr->addr1);
 	if (hdrlen >= 16)
-		printk(" A2=%s", print_mac(mac, hdr->addr2));
+		printk(" A2=%pM", hdr->addr2);
 	if (hdrlen >= 24)
-		printk(" A3=%s", print_mac(mac, hdr->addr3));
+		printk(" A3=%pM", hdr->addr3);
 	if (hdrlen >= 30)
-		printk(" A4=%s", print_mac(mac, hdr->addr4));
+		printk(" A4=%pM", hdr->addr4);
 	printk("\n");
 }
 

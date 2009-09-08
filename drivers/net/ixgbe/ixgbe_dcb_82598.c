@@ -294,6 +294,9 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw,
 	u32 reg, rx_pba_size;
 	u8  i;
 
+	if (!dcb_config->pfc_mode_enable)
+		goto out;
+
 	/* Enable Transmit Priority Flow Control */
 	reg = IXGBE_READ_REG(hw, IXGBE_RMCS);
 	reg &= ~IXGBE_RMCS_TFCE_802_3X;
@@ -341,6 +344,7 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw,
 	/* Configure flow control refresh threshold value */
 	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, 0x3400);
 
+out:
 	return 0;
 }
 

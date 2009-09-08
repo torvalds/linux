@@ -142,8 +142,7 @@ static int pl031_probe(struct amba_device *adev, struct amba_id *id)
 		goto out;
 	}
 
-	ldata->base = ioremap(adev->res.start,
-			      adev->res.end - adev->res.start + 1);
+	ldata->base = ioremap(adev->res.start, resource_size(&adev->res));
 	if (!ldata->base) {
 		ret = -ENOMEM;
 		goto out_no_remap;

@@ -35,6 +35,7 @@
 #include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
+#include <linux/inet.h>
 #include <net/ipv6.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -61,7 +62,6 @@ struct smb_vol {
 	char *domainname;
 	char *UNC;
 	char *UNCip;
-	char *in6_addr;   /* ipv6 address as human readable form of in6_addr */
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[16]; /* netbios name of client */
 	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
@@ -827,14 +827,16 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->target_rfc1001_name[0] = 0;
 	vol->linux_uid = current_uid();  /* use current_euid() instead? */
 	vol->linux_gid = current_gid();
-	vol->dir_mode = S_IRWXUGO;
-	/* 2767 perms indicate mandatory locking support */
-	vol->file_mode = (S_IRWXUGO | S_ISGID) & (~S_IXGRP);
+
+	/* default to only allowing write access to owner of the mount */
+	vol->dir_mode = vol->file_mode = S_IRUGO | S_IXUGO | S_IWUSR;
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
 	vol->rw = true;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
+	/* default to using server inode numbers where available */
+	vol->server_ino = 1;
 
 	if (!options)
 		return 1;
@@ -955,10 +957,12 @@ cifs_parse_mount_options(char *options, const char *devname,
 				}
 				strcpy(vol->password, value);
 			}
-		} else if (strnicmp(data, "ip", 2) == 0) {
+		} else if (!strnicmp(data, "ip", 2) ||
+			   !strnicmp(data, "addr", 4)) {
 			if (!value || !*value) {
 				vol->UNCip = NULL;
-			} else if (strnlen(value, 35) < 35) {
+			} else if (strnlen(value, INET6_ADDRSTRLEN) <
+							INET6_ADDRSTRLEN) {
 				vol->UNCip = value;
 			} else {
 				printk(KERN_WARNING "CIFS: ip address "
@@ -1092,17 +1096,17 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			}
 		} else if (strnicmp(data, "uid", 3) == 0) {
-			if (value && *value) {
+			if (value && *value)
 				vol->linux_uid =
 					simple_strtoul(value, &value, 0);
+		} else if (strnicmp(data, "forceuid", 8) == 0) {
 				vol->override_uid = 1;
-			}
 		} else if (strnicmp(data, "gid", 3) == 0) {
-			if (value && *value) {
+			if (value && *value)
 				vol->linux_gid =
 					simple_strtoul(value, &value, 0);
+		} else if (strnicmp(data, "forcegid", 8) == 0) {
 				vol->override_gid = 1;
-			}
 		} else if (strnicmp(data, "file_mode", 4) == 0) {
 			if (value && *value) {
 				vol->file_mode =
@@ -1315,16 +1319,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->direct_io = 1;
 		} else if (strnicmp(data, "forcedirectio", 13) == 0) {
 			vol->direct_io = 1;
-		} else if (strnicmp(data, "in6_addr", 8) == 0) {
-			if (!value || !*value) {
-				vol->in6_addr = NULL;
-			} else if (strnlen(value, 49) == 48) {
-				vol->in6_addr = value;
-			} else {
-				printk(KERN_WARNING "CIFS: ip v6 address not "
-						    "48 characters long\n");
-				return 1;
-			}
 		} else if (strnicmp(data, "noac", 4) == 0) {
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "

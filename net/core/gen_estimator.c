@@ -128,12 +128,12 @@ static void est_timer(unsigned long arg)
 		npackets = e->bstats->packets;
 		brate = (nbytes - e->last_bytes)<<(7 - idx);
 		e->last_bytes = nbytes;
-		e->avbps += ((s64)(brate - e->avbps)) >> e->ewma_log;
+		e->avbps += (brate >> e->ewma_log) - (e->avbps >> e->ewma_log);
 		e->rate_est->bps = (e->avbps+0xF)>>5;
 
 		rate = (npackets - e->last_packets)<<(12 - idx);
 		e->last_packets = npackets;
-		e->avpps += ((long)rate - (long)e->avpps) >> e->ewma_log;
+		e->avpps += (rate >> e->ewma_log) - (e->avpps >> e->ewma_log);
 		e->rate_est->pps = (e->avpps+0x1FF)>>10;
 skip:
 		read_unlock(&est_lock);

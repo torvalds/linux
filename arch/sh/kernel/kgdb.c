@@ -47,7 +47,7 @@ char in_nmi = 0;	/* Set during NMI to prevent re-entry */
 /* Calculate the new address for after a step */
 static short *get_step_address(struct pt_regs *linux_regs)
 {
-	opcode_t op = __raw_readw(linux_regs->pc);
+	insn_size_t op = __raw_readw(linux_regs->pc);
 	long addr;
 
 	/* BT */
@@ -134,7 +134,7 @@ static short *get_step_address(struct pt_regs *linux_regs)
  */
 
 static unsigned long stepped_address;
-static opcode_t stepped_opcode;
+static insn_size_t stepped_opcode;
 
 static void do_single_step(struct pt_regs *linux_regs)
 {

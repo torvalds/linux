@@ -1,5 +1,8 @@
 config SND_SOC_OF_SIMPLE
 	tristate
+	
+config SND_MPC52xx_DMA
+	tristate
 
 # ASoC platform support for the Freescale MPC8610 SOC.  This compiles drivers
 # for the SSI and the Elo DMA controller.  You will still need to select
@@ -22,7 +25,34 @@ config SND_SOC_MPC8610_HPCD
 config SND_SOC_MPC5200_I2S
 	tristate "Freescale MPC5200 PSC in I2S mode driver"
 	depends on PPC_MPC52xx && PPC_BESTCOMM
-	select SND_SOC_OF_SIMPLE
+	select SND_MPC52xx_DMA
 	select PPC_BESTCOMM_GEN_BD
 	help
 	  Say Y here to support the MPC5200 PSCs in I2S mode.
+
+config SND_SOC_MPC5200_AC97
+	tristate "Freescale MPC5200 PSC in AC97 mode driver"
+	depends on PPC_MPC52xx && PPC_BESTCOMM
+	select AC97_BUS
+	select SND_MPC52xx_DMA
+	select PPC_BESTCOMM_GEN_BD
+	help
+	  Say Y here to support the MPC5200 PSCs in AC97 mode.
+
+config SND_MPC52xx_SOC_PCM030
+	tristate "SoC AC97 Audio support for Phytec pcm030 and WM9712"
+	depends on PPC_MPC5200_SIMPLE && BROKEN
+	select SND_SOC_MPC5200_AC97
+	select SND_SOC_WM9712
+	help
+	  Say Y if you want to add support for sound on the Phytec pcm030
+	  baseboard.
+
+config SND_MPC52xx_SOC_EFIKA
+	tristate "SoC AC97 Audio support for bbplan Efika and STAC9766"
+	depends on PPC_EFIKA && BROKEN
+	select SND_SOC_MPC5200_AC97
+	select SND_SOC_STAC9766
+	help
+	  Say Y if you want to add support for sound on the Efika.
+

@@ -87,6 +87,9 @@ int __init setup_early_printk(char *opt)
 	base_addr = early_uartlite_console();
 	if (base_addr) {
 		early_console_initialized = 1;
+#ifdef CONFIG_MMU
+		early_console_reg_tlb_alloc(base_addr);
+#endif
 		early_printk("early_printk_console is enabled at 0x%08x\n",
 							base_addr);
 

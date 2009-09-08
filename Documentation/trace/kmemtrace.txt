@@ -64,7 +64,7 @@ III. Quick usage guide
 CONFIG_KMEMTRACE).
 
 2) Get the userspace tool and build it:
-$ git-clone git://repo.or.cz/kmemtrace-user.git		# current repository
+$ git clone git://repo.or.cz/kmemtrace-user.git		# current repository
 $ cd kmemtrace-user/
 $ ./autogen.sh
 $ ./configure

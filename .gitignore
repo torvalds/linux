@@ -3,7 +3,7 @@
 # subdirectories here. Add them in the ".gitignore" file
 # in that subdirectory instead.
 #
-# NOTE! Please use 'git-ls-files -i --exclude-standard'
+# NOTE! Please use 'git ls-files -i --exclude-standard'
 # command after changing this file, to see if there are
 # any tracked files which get ignored after the change.
 #
@@ -25,6 +25,8 @@
 *.elf
 *.bin
 *.gz
+*.lzma
+*.patch
 
 #
 # Top-level generic files
@@ -61,6 +63,12 @@ series
 # cscope files
 cscope.*
 ncscope.*
+
+# gnu global files
+GPATH
+GRTAGS
+GSYMS
+GTAGS
 
 *.orig
 *~

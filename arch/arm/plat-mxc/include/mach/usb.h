@@ -17,7 +17,7 @@
 
 struct imxusb_platform_data {
 	int (*init)(struct device *);
-	int (*exit)(struct device *);
+	void (*exit)(struct device *);
 };
 
 #endif /* __ASM_ARCH_MXC_USB */

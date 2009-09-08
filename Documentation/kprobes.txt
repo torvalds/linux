@@ -507,9 +507,9 @@ http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf (pages 101-115)
 Appendix A: The kprobes debugfs interface
 
 With recent kernels (> 2.6.20) the list of registered kprobes is visible
-under the /debug/kprobes/ directory (assuming debugfs is mounted at /debug).
+under the /sys/kernel/debug/kprobes/ directory (assuming debugfs is mounted at //sys/kernel/debug).
 
-/debug/kprobes/list: Lists all registered probes on the system
+/sys/kernel/debug/kprobes/list: Lists all registered probes on the system
 
 c015d71a  k  vfs_read+0x0
 c011a316  j  do_fork+0x0
@@ -525,7 +525,7 @@ virtual addresses that correspond to modules that've been unloaded),
 such probes are marked with [GONE]. If the probe is temporarily disabled,
 such probes are marked with [DISABLED].
 
-/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
+/sys/kernel/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
 
 Provides a knob to globally and forcibly turn registered kprobes ON or OFF.
 By default, all kprobes are enabled. By echoing "0" to this file, all

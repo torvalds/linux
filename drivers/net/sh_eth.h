@@ -2,7 +2,7 @@
  *  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2008 Nobuhiro Iwamatsu
- *  Copyright (C) 2008 Renesas Solutions Corp.
+ *  Copyright (C) 2008-2009 Renesas Solutions Corp.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -39,12 +39,12 @@
 #define ETHERSMALL		60
 #define PKT_BUF_SZ		1538
 
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+/* This CPU register maps is very difference by other SH4 CPU */
 
-#define SH7763_SKB_ALIGN 32
 /* Chip Base Address */
 # define SH_TSU_ADDR	0xFEE01800
-# define ARSTR			SH_TSU_ADDR
+# define ARSTR		SH_TSU_ADDR
 
 /* Chip Registers */
 /* E-DMAC */
@@ -143,8 +143,60 @@
 # define FWNLCR1         0xB0
 # define FWALCR1         0x40
 
-#else /* CONFIG_CPU_SUBTYPE_SH7763 */
-# define RX_OFFSET 2	/* skb offset */
+#elif defined(CONFIG_CPU_SH4)	/* #if defined(CONFIG_CPU_SUBTYPE_SH7763) */
+/* EtherC */
+#define ECMR		0x100
+#define RFLR		0x108
+#define ECSR		0x110
+#define ECSIPR		0x118
+#define PIR		0x120
+#define PSR		0x128
+#define RDMLR		0x140
+#define IPGR		0x150
+#define APR		0x154
+#define MPR		0x158
+#define TPAUSER		0x164
+#define RFCF		0x160
+#define TPAUSECR	0x168
+#define BCFRR		0x16c
+#define MAHR		0x1c0
+#define MALR		0x1c8
+#define TROCR		0x1d0
+#define CDCR		0x1d4
+#define LCCR		0x1d8
+#define CNDCR		0x1dc
+#define CEFCR		0x1e4
+#define FRECR		0x1e8
+#define TSFRCR		0x1ec
+#define TLFRCR		0x1f0
+#define RFCR		0x1f4
+#define MAFCR		0x1f8
+#define RTRATE		0x1fc
+
+/* E-DMAC */
+#define EDMR		0x000
+#define EDTRR		0x008
+#define EDRRR		0x010
+#define TDLAR		0x018
+#define RDLAR		0x020
+#define EESR		0x028
+#define EESIPR		0x030
+#define TRSCER		0x038
+#define RMFCR		0x040
+#define TFTR		0x048
+#define FDR		0x050
+#define RMCR		0x058
+#define TFUCR		0x064
+#define RFOCR		0x068
+#define FCFTR		0x070
+#define RPADIR		0x078
+#define TRIMD		0x07c
+#define RBWAR		0x0c8
+#define RDFAR		0x0cc
+#define TBRAR		0x0d4
+#define TDFAR		0x0d8
+#else /* #elif defined(CONFIG_CPU_SH4) */
+/* This section is SH3 or SH2 */
 #ifndef CONFIG_CPU_SUBTYPE_SH7619
 /* Chip base address */
 # define SH_TSU_ADDR  0xA7000804
@@ -243,6 +295,30 @@
 
 #endif /* CONFIG_CPU_SUBTYPE_SH7763 */
 
+/* There are avoid compile error... */
+#if !defined(BCULR)
+#define BCULR	0x0fc
+#endif
+#if !defined(TRIMD)
+#define TRIMD	0x0fc
+#endif
+#if !defined(APR)
+#define APR	0x0fc
+#endif
+#if !defined(MPR)
+#define MPR	0x0fc
+#endif
+#if !defined(TPAUSER)
+#define TPAUSER	0x0fc
+#endif
+
+/* Driver's parameters */
+#if defined(CONFIG_CPU_SH4)
+#define SH4_SKB_RX_ALIGN	32
+#else
+#define SH2_SH3_SKB_RX_ALIGN	2
+#endif
+
 /*
  * Register's bits
  */
@@ -261,11 +337,10 @@ enum GECMR_BIT {
 
 /* EDMR */
 enum DMAC_M_BIT {
+	EDMR_EL = 0x40, /* Litte endian */
 	EDMR_DL1 = 0x20, EDMR_DL0 = 0x10,
 #ifdef CONFIG_CPU_SUBTYPE_SH7763
-	EDMR_SRST	= 0x03,
-	EMDR_DESC_R	= 0x30, /* Descriptor reserve size */
-	EDMR_EL		= 0x40, /* Litte endian */
+	EDMR_SRST = 0x03,
 #else /* CONFIG_CPU_SUBTYPE_SH7763 */
 	EDMR_SRST = 0x01,
 #endif
@@ -307,47 +382,43 @@ enum PHY_STATUS_BIT { PHY_ST_LINK = 0x01, };
 
 /* EESR */
 enum EESR_BIT {
-#ifndef CONFIG_CPU_SUBTYPE_SH7763
-	EESR_TWB  = 0x40000000,
-#else
-	EESR_TWB  = 0xC0000000,
-	EESR_TC1  = 0x20000000,
-	EESR_TUC  = 0x10000000,
-	EESR_ROC  = 0x80000000,
-#endif
-	EESR_TABT = 0x04000000,
-	EESR_RABT = 0x02000000, EESR_RFRMER = 0x01000000,
-#ifndef CONFIG_CPU_SUBTYPE_SH7763
-	EESR_ADE  = 0x00800000,
-#endif
-	EESR_ECI  = 0x00400000,
-	EESR_FTC  = 0x00200000, EESR_TDE  = 0x00100000,
-	EESR_TFE  = 0x00080000, EESR_FRC  = 0x00040000,
-	EESR_RDE  = 0x00020000, EESR_RFE  = 0x00010000,
-#ifndef CONFIG_CPU_SUBTYPE_SH7763
-	EESR_CND  = 0x00000800,
-#endif
-	EESR_DLC  = 0x00000400,
-	EESR_CD   = 0x00000200, EESR_RTO  = 0x00000100,
-	EESR_RMAF = 0x00000080, EESR_CEEF = 0x00000040,
-	EESR_CELF = 0x00000020, EESR_RRF  = 0x00000010,
-	EESR_RTLF = 0x00000008, EESR_RTSF = 0x00000004,
-	EESR_PRE  = 0x00000002, EESR_CERF = 0x00000001,
+	EESR_TWB1	= 0x80000000,
+	EESR_TWB	= 0x40000000,	/* same as TWB0 */
+	EESR_TC1	= 0x20000000,
+	EESR_TUC	= 0x10000000,
+	EESR_ROC	= 0x08000000,
+	EESR_TABT	= 0x04000000,
+	EESR_RABT	= 0x02000000,
+	EESR_RFRMER	= 0x01000000,	/* same as RFCOF */
+	EESR_ADE	= 0x00800000,
+	EESR_ECI	= 0x00400000,
+	EESR_FTC	= 0x00200000,	/* same as TC or TC0 */
+	EESR_TDE	= 0x00100000,
+	EESR_TFE	= 0x00080000,	/* same as TFUF */
+	EESR_FRC	= 0x00040000,	/* same as FR */
+	EESR_RDE	= 0x00020000,
+	EESR_RFE	= 0x00010000,
+	EESR_CND	= 0x00000800,
+	EESR_DLC	= 0x00000400,
+	EESR_CD		= 0x00000200,
+	EESR_RTO	= 0x00000100,
+	EESR_RMAF	= 0x00000080,
+	EESR_CEEF	= 0x00000040,
+	EESR_CELF	= 0x00000020,
+	EESR_RRF	= 0x00000010,
+	EESR_RTLF	= 0x00000008,
+	EESR_RTSF	= 0x00000004,
+	EESR_PRE	= 0x00000002,
+	EESR_CERF	= 0x00000001,
 };
 
-
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
-# define TX_CHECK (EESR_TC1 | EESR_FTC)
-# define EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RDE \
-		| EESR_RFRMER | EESR_TFE | EESR_TDE | EESR_ECI)
-# define TX_ERROR_CEHCK (EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE)
-
-#else
-# define TX_CHECK (EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO)
-# define EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RDE \
-		| EESR_RFRMER | EESR_ADE | EESR_TFE | EESR_TDE | EESR_ECI)
-# define TX_ERROR_CEHCK (EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | EESR_TFE)
-#endif
+#define DEFAULT_TX_CHECK	(EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | \
+				 EESR_RTO)
+#define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | \
+				 EESR_RDE | EESR_RFRMER | EESR_ADE | \
+				 EESR_TFE | EESR_TDE | EESR_ECI)
+#define DEFAULT_TX_ERROR_CHECK	(EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | \
+				 EESR_TFE)
 
 /* EESIPR */
 enum DMAC_IM_BIT {
@@ -386,12 +457,8 @@ enum FCFTR_BIT {
 	FCFTR_RFF0 = 0x00010000, FCFTR_RFD2 = 0x00000004,
 	FCFTR_RFD1 = 0x00000002, FCFTR_RFD0 = 0x00000001,
 };
-#define FIFO_F_D_RFF	(FCFTR_RFF2|FCFTR_RFF1|FCFTR_RFF0)
-#ifndef CONFIG_CPU_SUBTYPE_SH7619
-#define FIFO_F_D_RFD	(FCFTR_RFD2|FCFTR_RFD1|FCFTR_RFD0)
-#else
-#define FIFO_F_D_RFD	(FCFTR_RFD0)
-#endif
+#define DEFAULT_FIFO_F_D_RFF	(FCFTR_RFF2 | FCFTR_RFF1 | FCFTR_RFF0)
+#define DEFAULT_FIFO_F_D_RFD	(FCFTR_RFD2 | FCFTR_RFD1 | FCFTR_RFD0)
 
 /* Transfer descriptor bit */
 enum TD_STS_BIT {
@@ -404,60 +471,38 @@ enum TD_STS_BIT {
 #define TD_TFP	(TD_TFP1|TD_TFP0)
 
 /* RMCR */
-enum RECV_RST_BIT { RMCR_RST = 0x01, };
+#define DEFAULT_RMCR_VALUE	0x00000000
+
 /* ECMR */
 enum FELIC_MODE_BIT {
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
 	ECMR_TRCCM = 0x04000000, ECMR_RCSC = 0x00800000,
 	ECMR_DPAD = 0x00200000, ECMR_RZPF = 0x00100000,
-#endif
 	ECMR_ZPF = 0x00080000, ECMR_PFR = 0x00040000, ECMR_RXF = 0x00020000,
 	ECMR_TXF = 0x00010000, ECMR_MCT = 0x00002000, ECMR_PRCEF = 0x00001000,
 	ECMR_PMDE = 0x00000200, ECMR_RE = 0x00000040, ECMR_TE = 0x00000020,
-	ECMR_ILB = 0x00000008, ECMR_ELB = 0x00000004, ECMR_DM = 0x00000002,
-	ECMR_PRM = 0x00000001,
+	ECMR_RTM = 0x00000010, ECMR_ILB = 0x00000008, ECMR_ELB = 0x00000004,
+	ECMR_DM = 0x00000002, ECMR_PRM = 0x00000001,
 };
-
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
-#define ECMR_CHG_DM	(ECMR_TRCCM | ECMR_RZPF | ECMR_ZPF |\
-			ECMR_PFR | ECMR_RXF | ECMR_TXF | ECMR_MCT)
-#elif CONFIG_CPU_SUBTYPE_SH7619
-#define ECMR_CHG_DM	(ECMR_ZPF | ECMR_PFR | ECMR_RXF | ECMR_TXF)
-#else
-#define ECMR_CHG_DM	(ECMR_ZPF | ECMR_PFR | ECMR_RXF | ECMR_TXF | ECMR_MCT)
-#endif
 
 /* ECSR */
 enum ECSR_STATUS_BIT {
-#ifndef CONFIG_CPU_SUBTYPE_SH7763
 	ECSR_BRCRX = 0x20, ECSR_PSRTO = 0x10,
-#endif
 	ECSR_LCHNG = 0x04,
 	ECSR_MPD = 0x02, ECSR_ICD = 0x01,
 };
 
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
-# define ECSR_INIT (ECSR_ICD | ECSIPR_MPDIP)
-#else
-# define ECSR_INIT (ECSR_BRCRX | ECSR_PSRTO | \
-			ECSR_LCHNG | ECSR_ICD | ECSIPR_MPDIP)
-#endif
+#define DEFAULT_ECSR_INIT	(ECSR_BRCRX | ECSR_PSRTO | ECSR_LCHNG | \
+				 ECSR_ICD | ECSIPR_MPDIP)
 
 /* ECSIPR */
 enum ECSIPR_STATUS_MASK_BIT {
-#ifndef CONFIG_CPU_SUBTYPE_SH7763
 	ECSIPR_BRCRXIP = 0x20, ECSIPR_PSRTOIP = 0x10,
-#endif
 	ECSIPR_LCHNGIP = 0x04,
 	ECSIPR_MPDIP = 0x02, ECSIPR_ICDIP = 0x01,
 };
 
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
-# define ECSIPR_INIT (ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP)
-#else
-# define ECSIPR_INIT (ECSIPR_BRCRXIP | ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | \
-				ECSIPR_ICDIP | ECSIPR_MPDIP)
-#endif
+#define DEFAULT_ECSIPR_INIT	(ECSIPR_BRCRXIP | ECSIPR_PSRTOIP | \
+				 ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP)
 
 /* APR */
 enum APR_BIT {
@@ -483,23 +528,12 @@ enum RPADIR_BIT {
 	RPADIR_PADR = 0x0003f,
 };
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7763)
-# define RPADIR_INIT (0x00)
-#else
-# define RPADIR_INIT (RPADIR_PADS1)
-#endif
-
 /* RFLR */
 #define RFLR_VALUE 0x1000
 
 /* FDR */
-enum FIFO_SIZE_BIT {
-#ifndef CONFIG_CPU_SUBTYPE_SH7619
-	FIFO_SIZE_T = 0x00000700, FIFO_SIZE_R = 0x00000007,
-#else
-	FIFO_SIZE_T = 0x00000100, FIFO_SIZE_R = 0x00000001,
-#endif
-};
+#define DEFAULT_FDR_INIT	0x00000707
+
 enum phy_offsets {
 	PHY_CTRL = 0, PHY_STAT = 1, PHY_IDT1 = 2, PHY_IDT2 = 3,
 	PHY_ANA = 4, PHY_ANL = 5, PHY_ANE = 6,
@@ -633,7 +667,43 @@ struct sh_eth_rxdesc {
 	u32 pad0;		/* padding data */
 } __attribute__((aligned(2), packed));
 
+/* This structure is used by each CPU dependency handling. */
+struct sh_eth_cpu_data {
+	/* optional functions */
+	void (*chip_reset)(struct net_device *ndev);
+	void (*set_duplex)(struct net_device *ndev);
+	void (*set_rate)(struct net_device *ndev);
+
+	/* mandatory initialize value */
+	unsigned long eesipr_value;
+
+	/* optional initialize value */
+	unsigned long ecsr_value;
+	unsigned long ecsipr_value;
+	unsigned long fdr_value;
+	unsigned long fcftr_value;
+	unsigned long rpadir_value;
+	unsigned long rmcr_value;
+
+	/* interrupt checking mask */
+	unsigned long tx_check;
+	unsigned long eesr_err_check;
+	unsigned long tx_error_check;
+
+	/* hardware features */
+	unsigned no_psr:1;		/* EtherC DO NOT have PSR */
+	unsigned apr:1;			/* EtherC have APR */
+	unsigned mpr:1;			/* EtherC have MPR */
+	unsigned tpauser:1;		/* EtherC have TPAUSER */
+	unsigned bculr:1;		/* EtherC have BCULR */
+	unsigned hw_swap:1;		/* E-DMAC have DE bit in EDMR */
+	unsigned rpadir:1;		/* E-DMAC have RPADIR */
+	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */
+	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
+};
+
 struct sh_eth_private {
+	struct sh_eth_cpu_data *cd;
 	dma_addr_t rx_desc_dma;
 	dma_addr_t tx_desc_dma;
 	struct sh_eth_rxdesc *rx_ring;
@@ -661,11 +731,7 @@ struct sh_eth_private {
 	struct net_device_stats tsu_stats;	/* TSU forward status */
 };
 
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
-/* SH7763 has endian control register */
-#define swaps(x, y)
-#else
-static void swaps(char *src, int len)
+static inline void sh_eth_soft_swap(char *src, int len)
 {
 #ifdef __LITTLE_ENDIAN__
 	u32 *p = (u32 *)src;
@@ -676,5 +742,5 @@ static void swaps(char *src, int len)
 		*p = swab32(*p);
 #endif
 }
-#endif /* CONFIG_CPU_SUBTYPE_SH7763 */
-#endif
+
+#endif	/* #ifndef __SH_ETH_H__ */

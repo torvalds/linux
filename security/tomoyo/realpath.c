@@ -220,7 +220,6 @@ void *tomoyo_alloc_element(const unsigned int size)
 		= roundup(size, max(sizeof(void *), sizeof(long)));
 	if (word_aligned_size > PATH_MAX)
 		return NULL;
-	/***** EXCLUSIVE SECTION START *****/
 	mutex_lock(&lock);
 	if (buf_used_len + word_aligned_size > PATH_MAX) {
 		if (!tomoyo_quota_for_elements ||
@@ -251,7 +250,6 @@ void *tomoyo_alloc_element(const unsigned int size)
 		}
 	}
 	mutex_unlock(&lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return ptr;
 }
 
@@ -267,7 +265,16 @@ static unsigned int tomoyo_quota_for_savename;
  */
 #define TOMOYO_MAX_HASH 256
 
-/* Structure for string data. */
+/*
+ * tomoyo_name_entry is a structure which is used for linking
+ * "struct tomoyo_path_info" into tomoyo_name_list .
+ *
+ * Since tomoyo_name_list manages a list of strings which are shared by
+ * multiple processes (whereas "struct tomoyo_path_info" inside
+ * "struct tomoyo_path_info_with_data" is not shared), a reference counter will
+ * be added to "struct tomoyo_name_entry" rather than "struct tomoyo_path_info"
+ * when TOMOYO starts supporting garbage collector.
+ */
 struct tomoyo_name_entry {
 	struct list_head list;
 	struct tomoyo_path_info entry;
@@ -281,10 +288,10 @@ struct tomoyo_free_memory_block_list {
 };
 
 /*
- * The list for "struct tomoyo_name_entry".
- *
- * This list is updated only inside tomoyo_save_name(), thus
- * no global mutex exists.
+ * tomoyo_name_list is used for holding string data used by TOMOYO.
+ * Since same string data is likely used for multiple times (e.g.
+ * "/lib/libc-2.5.so"), TOMOYO shares string data in the form of
+ * "const struct tomoyo_path_info *".
  */
 static struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
 
@@ -318,7 +325,6 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 		return NULL;
 	}
 	hash = full_name_hash((const unsigned char *) name, len - 1);
-	/***** EXCLUSIVE SECTION START *****/
 	mutex_lock(&lock);
 	list_for_each_entry(ptr, &tomoyo_name_list[hash % TOMOYO_MAX_HASH],
 			     list) {
@@ -366,7 +372,6 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 	}
  out:
 	mutex_unlock(&lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return ptr ? &ptr->entry : NULL;
 }
 

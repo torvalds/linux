@@ -22,11 +22,11 @@ shmem_get_acl(struct inode *inode, int type)
 	spin_lock(&inode->i_lock);
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			acl = posix_acl_dup(SHMEM_I(inode)->i_acl);
+			acl = posix_acl_dup(inode->i_acl);
 			break;
 
 		case ACL_TYPE_DEFAULT:
-			acl = posix_acl_dup(SHMEM_I(inode)->i_default_acl);
+			acl = posix_acl_dup(inode->i_default_acl);
 			break;
 	}
 	spin_unlock(&inode->i_lock);
@@ -45,13 +45,13 @@ shmem_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	spin_lock(&inode->i_lock);
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			free = SHMEM_I(inode)->i_acl;
-			SHMEM_I(inode)->i_acl = posix_acl_dup(acl);
+			free = inode->i_acl;
+			inode->i_acl = posix_acl_dup(acl);
 			break;
 
 		case ACL_TYPE_DEFAULT:
-			free = SHMEM_I(inode)->i_default_acl;
-			SHMEM_I(inode)->i_default_acl = posix_acl_dup(acl);
+			free = inode->i_default_acl;
+			inode->i_default_acl = posix_acl_dup(acl);
 			break;
 	}
 	spin_unlock(&inode->i_lock);
@@ -152,23 +152,6 @@ int
 shmem_acl_init(struct inode *inode, struct inode *dir)
 {
 	return generic_acl_init(inode, dir, &shmem_acl_ops);
-}
-
-/**
- * shmem_acl_destroy_inode  -  destroy acls hanging off the in-memory inode
- *
- * This is done before destroying the actual inode.
- */
-
-void
-shmem_acl_destroy_inode(struct inode *inode)
-{
-	if (SHMEM_I(inode)->i_acl)
-		posix_acl_release(SHMEM_I(inode)->i_acl);
-	SHMEM_I(inode)->i_acl = NULL;
-	if (SHMEM_I(inode)->i_default_acl)
-		posix_acl_release(SHMEM_I(inode)->i_default_acl);
-	SHMEM_I(inode)->i_default_acl = NULL;
 }
 
 /**

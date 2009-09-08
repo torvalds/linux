@@ -52,7 +52,7 @@
 #include "ehca_tools.h"
 #include "hcp_if.h"
 
-#define HCAD_VERSION "0026"
+#define HCAD_VERSION "0028"
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
@@ -506,6 +506,7 @@ static int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.detach_mcast	    = ehca_detach_mcast;
 	shca->ib_device.process_mad	    = ehca_process_mad;
 	shca->ib_device.mmap		    = ehca_mmap;
+	shca->ib_device.dma_ops		    = &ehca_dma_mapping_ops;
 
 	if (EHCA_BMASK_GET(HCA_CAP_SRQ, shca->hca_cap)) {
 		shca->ib_device.uverbs_cmd_mask |=
@@ -636,7 +637,7 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 	struct hipz_query_hca *rblock;				           \
 	int data;                                                          \
 									   \
-	shca = dev->driver_data;					   \
+	shca = dev_get_drvdata(dev);					   \
 									   \
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);			   \
 	if (!rblock) {						           \
@@ -680,7 +681,7 @@ static ssize_t ehca_show_adapter_handle(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct ehca_shca *shca = dev->driver_data;
+	struct ehca_shca *shca = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%llx\n", shca->ipz_hca_handle.handle);
 
@@ -749,7 +750,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 
 	shca->ofdev = dev;
 	shca->ipz_hca_handle.handle = *handle;
-	dev->dev.driver_data = shca;
+	dev_set_drvdata(&dev->dev, shca);
 
 	ret = ehca_sense_attributes(shca);
 	if (ret < 0) {
@@ -878,7 +879,7 @@ probe1:
 
 static int __devexit ehca_remove(struct of_device *dev)
 {
-	struct ehca_shca *shca = dev->dev.driver_data;
+	struct ehca_shca *shca = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
 	int ret;
 
@@ -1028,17 +1029,23 @@ static int __init ehca_module_init(void)
 		goto module_init1;
 	}
 
+	ret = ehca_create_busmap();
+	if (ret) {
+		ehca_gen_err("Cannot create busmap.");
+		goto module_init2;
+	}
+
 	ret = ibmebus_register_driver(&ehca_driver);
 	if (ret) {
 		ehca_gen_err("Cannot register eHCA device driver");
 		ret = -EINVAL;
-		goto module_init2;
+		goto module_init3;
 	}
 
 	ret = register_memory_notifier(&ehca_mem_nb);
 	if (ret) {
 		ehca_gen_err("Failed registering memory add/remove notifier");
-		goto module_init3;
+		goto module_init4;
 	}
 
 	if (ehca_poll_all_eqs != 1) {
@@ -1053,8 +1060,11 @@ static int __init ehca_module_init(void)
 
 	return 0;
 
-module_init3:
+module_init4:
 	ibmebus_unregister_driver(&ehca_driver);
+
+module_init3:
+	ehca_destroy_busmap();
 
 module_init2:
 	ehca_destroy_slab_caches();
@@ -1072,6 +1082,8 @@ static void __exit ehca_module_exit(void)
 	ibmebus_unregister_driver(&ehca_driver);
 
 	unregister_memory_notifier(&ehca_mem_nb);
+
+	ehca_destroy_busmap();
 
 	ehca_destroy_slab_caches();
 

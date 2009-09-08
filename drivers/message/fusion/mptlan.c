@@ -703,7 +703,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 
 		printk (KERN_ERR "%s: no tx context available: %u\n",
 			__func__, priv->mpt_txfidx_tail);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	mf = mpt_get_msg_frame(LanCtx, mpt_dev);
@@ -713,7 +713,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 
 		printk (KERN_ERR "%s: Unable to alloc request frame\n",
 			__func__);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	ctx = priv->mpt_txfidx[priv->mpt_txfidx_tail--];

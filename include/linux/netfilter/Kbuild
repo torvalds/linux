@@ -33,6 +33,7 @@ header-y += xt_limit.h
 header-y += xt_mac.h
 header-y += xt_mark.h
 header-y += xt_multiport.h
+header-y += xt_osf.h
 header-y += xt_owner.h
 header-y += xt_pkttype.h
 header-y += xt_quota.h
