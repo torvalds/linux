@@ -691,7 +691,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 	struct acpi_device *adev;
 	int error;
 
-	if (!device_may_wakeup(dev))
+	if (!device_can_wakeup(dev))
 		return -EINVAL;
 
 	handle = DEVICE_ACPI_HANDLE(dev);
