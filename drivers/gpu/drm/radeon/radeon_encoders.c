@@ -136,9 +136,9 @@ void radeon_encoder_set_active_device(struct drm_encoder *encoder)
 		if (connector->encoder == encoder) {
 			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 			radeon_encoder->active_device = radeon_encoder->devices & radeon_connector->devices;
-			DRM_INFO("setting active device to %08x from %08x %08x for encoder %d\n",
-				 radeon_encoder->active_device, radeon_encoder->devices,
-				 radeon_connector->devices, encoder->encoder_type);
+			DRM_DEBUG("setting active device to %08x from %08x %08x for encoder %d\n",
+				  radeon_encoder->active_device, radeon_encoder->devices,
+				  radeon_connector->devices, encoder->encoder_type);
 		}
 	}
 }
@@ -878,9 +878,9 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	else
 		devices = radeon_encoder->active_device;
 
-	DRM_INFO("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
-		 radeon_encoder->encoder_id, mode, radeon_encoder->devices,
-		radeon_encoder->active_device);
+	DRM_DEBUG("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
+		  radeon_encoder->encoder_id, mode, radeon_encoder->devices,
+		  radeon_encoder->active_device);
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
@@ -1276,7 +1276,6 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-	DRM_INFO("setting active device to 0 for encoder %d\n", encoder->encoder_type);
 	radeon_encoder->active_device = 0;
 }
 
