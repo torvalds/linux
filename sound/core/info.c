@@ -108,7 +108,7 @@ static int resize_info_buffer(struct snd_info_buffer *buffer,
  *
  * Returns the size of output string.
  */
-int snd_iprintf(struct snd_info_buffer *buffer, char *fmt,...)
+int snd_iprintf(struct snd_info_buffer *buffer, const char *fmt, ...)
 {
 	va_list args;
 	int len, res;
@@ -727,7 +727,7 @@ EXPORT_SYMBOL(snd_info_get_line);
  * Returns the updated pointer of the original string so that
  * it can be used for the next call.
  */
-char *snd_info_get_str(char *dest, char *src, int len)
+const char *snd_info_get_str(char *dest, const char *src, int len)
 {
 	int c;
 
