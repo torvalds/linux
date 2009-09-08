@@ -96,14 +96,8 @@ struct ioat_chan_common {
 	struct ioatdma_device *device;
 	struct dma_chan common;
 
-	dma_addr_t completion_addr;
-	union {
-		u64 full; /* HW completion writeback */
-		struct {
-			u32 low;
-			u32 high;
-		};
-	} *completion_virt;
+	dma_addr_t completion_dma;
+	u64 *completion;
 	unsigned long last_compl_desc_addr_hw;
 	struct tasklet_struct cleanup_task;
 };

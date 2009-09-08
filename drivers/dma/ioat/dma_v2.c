@@ -200,8 +200,7 @@ static void ioat2_reset_channel(struct ioat2_dma_chan *ioat)
 		return;
 
 	chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
-	chansts = (chan->completion_virt->low
-					& IOAT_CHANSTS_DMA_TRANSFER_STATUS);
+	chansts = *chan->completion & IOAT_CHANSTS_DMA_TRANSFER_STATUS;
 	if (chanerr) {
 		dev_err(to_dev(chan),
 			"chan%d, CHANSTS = 0x%08x CHANERR = 0x%04x, clearing\n",
@@ -281,7 +280,7 @@ static void ioat2_cleanup(struct ioat2_dma_chan *ioat)
 	int i;
 	struct dma_async_tx_descriptor *tx;
 
-	prefetch(chan->completion_virt);
+	prefetch(chan->completion);
 
 	spin_lock_bh(&chan->cleanup_lock);
 	phys_complete = ioat_get_current_completion(chan);
@@ -470,17 +469,15 @@ static int ioat2_alloc_chan_resources(struct dma_chan *c)
 
 	/* allocate a completion writeback area */
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
-	chan->completion_virt = pci_pool_alloc(chan->device->completion_pool,
-					       GFP_KERNEL,
-					       &chan->completion_addr);
-	if (!chan->completion_virt)
+	chan->completion = pci_pool_alloc(chan->device->completion_pool,
+					  GFP_KERNEL, &chan->completion_dma);
+	if (!chan->completion)
 		return -ENOMEM;
 
-	memset(chan->completion_virt, 0,
-	       sizeof(*chan->completion_virt));
-	writel(((u64) chan->completion_addr) & 0x00000000FFFFFFFF,
+	memset(chan->completion, 0, sizeof(*chan->completion));
+	writel(((u64) chan->completion_dma) & 0x00000000FFFFFFFF,
 	       chan->reg_base + IOAT_CHANCMP_OFFSET_LOW);
-	writel(((u64) chan->completion_addr) >> 32,
+	writel(((u64) chan->completion_dma) >> 32,
 	       chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
 	ioat->alloc_order = ioat_get_alloc_order();
@@ -655,12 +652,12 @@ static void ioat2_free_chan_resources(struct dma_chan *c)
 	ioat->ring = NULL;
 	ioat->alloc_order = 0;
 	pci_pool_free(ioatdma_device->completion_pool,
-		      chan->completion_virt,
-		      chan->completion_addr);
+		      chan->completion,
+		      chan->completion_dma);
 	spin_unlock_bh(&ioat->ring_lock);
 
 	chan->last_completion = 0;
-	chan->completion_addr = 0;
+	chan->completion_dma = 0;
 	ioat->pending = 0;
 	ioat->dmacount = 0;
 	chan->watchdog_completion = 0;

@@ -201,8 +201,7 @@ static void ioat1_reset_part2(struct work_struct *work)
 	spin_lock_bh(&chan->cleanup_lock);
 	spin_lock_bh(&ioat->desc_lock);
 
-	chan->completion_virt->low = 0;
-	chan->completion_virt->high = 0;
+	*chan->completion = 0;
 	ioat->pending = 0;
 
 	/* count the descriptors waiting */
@@ -256,8 +255,7 @@ static void ioat1_reset_channel(struct ioat_dma_chan *ioat)
 
 	dev_dbg(to_dev(chan), "%s\n", __func__);
 	chanerr = readl(reg_base + IOAT_CHANERR_OFFSET);
-	chansts = (chan->completion_virt->low
-					& IOAT_CHANSTS_DMA_TRANSFER_STATUS);
+	chansts = *chan->completion & IOAT_CHANSTS_DMA_TRANSFER_STATUS;
 	if (chanerr) {
 		dev_err(to_dev(chan),
 			"chan%d, CHANSTS = 0x%08x CHANERR = 0x%04x, clearing\n",
@@ -293,14 +291,8 @@ static void ioat1_chan_watchdog(struct work_struct *work)
 	struct ioat_dma_chan *ioat;
 	struct ioat_chan_common *chan;
 	int i;
-
-	union {
-		u64 full;
-		struct {
-			u32 low;
-			u32 high;
-		};
-	} completion_hw;
+	u64 completion;
+	u32 completion_low;
 	unsigned long compl_desc_addr_hw;
 
 	for (i = 0; i < device->common.chancnt; i++) {
@@ -334,25 +326,24 @@ static void ioat1_chan_watchdog(struct work_struct *work)
 			 *     try resetting the channel
 			 */
 
-			completion_hw.low = readl(chan->reg_base +
+			/* we need to read the low address first as this
+			 * causes the chipset to latch the upper bits
+			 * for the subsequent read
+			 */
+			completion_low = readl(chan->reg_base +
 				IOAT_CHANSTS_OFFSET_LOW(chan->device->version));
-			completion_hw.high = readl(chan->reg_base +
+			completion = readl(chan->reg_base +
 				IOAT_CHANSTS_OFFSET_HIGH(chan->device->version));
-#if (BITS_PER_LONG == 64)
-			compl_desc_addr_hw =
-				completion_hw.full
-				& IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
-#else
-			compl_desc_addr_hw =
-				completion_hw.low & IOAT_LOW_COMPLETION_MASK;
-#endif
+			completion <<= 32;
+			completion |= completion_low;
+			compl_desc_addr_hw = completion &
+					IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
 
 			if ((compl_desc_addr_hw != 0)
 			   && (compl_desc_addr_hw != chan->watchdog_completion)
 			   && (compl_desc_addr_hw != chan->last_compl_desc_addr_hw)) {
 				chan->last_compl_desc_addr_hw = compl_desc_addr_hw;
-				chan->completion_virt->low = completion_hw.low;
-				chan->completion_virt->high = completion_hw.high;
+				*chan->completion = completion;
 			} else {
 				ioat1_reset_channel(ioat);
 				chan->watchdog_completion = 0;
@@ -492,14 +483,12 @@ static int ioat1_dma_alloc_chan_resources(struct dma_chan *c)
 
 	/* allocate a completion writeback area */
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
-	chan->completion_virt = pci_pool_alloc(chan->device->completion_pool,
-					       GFP_KERNEL,
-					       &chan->completion_addr);
-	memset(chan->completion_virt, 0,
-	       sizeof(*chan->completion_virt));
-	writel(((u64) chan->completion_addr) & 0x00000000FFFFFFFF,
+	chan->completion = pci_pool_alloc(chan->device->completion_pool,
+					  GFP_KERNEL, &chan->completion_dma);
+	memset(chan->completion, 0, sizeof(*chan->completion));
+	writel(((u64) chan->completion_dma) & 0x00000000FFFFFFFF,
 	       chan->reg_base + IOAT_CHANCMP_OFFSET_LOW);
-	writel(((u64) chan->completion_addr) >> 32,
+	writel(((u64) chan->completion_dma) >> 32,
 	       chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
 	tasklet_enable(&chan->cleanup_task);
@@ -558,15 +547,16 @@ static void ioat1_dma_free_chan_resources(struct dma_chan *c)
 	spin_unlock_bh(&ioat->desc_lock);
 
 	pci_pool_free(ioatdma_device->completion_pool,
-		      chan->completion_virt,
-		      chan->completion_addr);
+		      chan->completion,
+		      chan->completion_dma);
 
 	/* one is ok since we left it on there on purpose */
 	if (in_use_descs > 1)
 		dev_err(to_dev(chan), "Freeing %d in use descriptors!\n",
 			in_use_descs - 1);
 
-	chan->last_completion = chan->completion_addr = 0;
+	chan->last_completion = 0;
+	chan->completion_dma = 0;
 	chan->watchdog_completion = 0;
 	chan->last_compl_desc_addr_hw = 0;
 	chan->watchdog_tcp_cookie = chan->watchdog_last_tcp_cookie = 0;
@@ -709,25 +699,15 @@ void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 unsigned long ioat_get_current_completion(struct ioat_chan_common *chan)
 {
 	unsigned long phys_complete;
+	u64 completion;
 
-	/* The completion writeback can happen at any time,
-	   so reads by the driver need to be atomic operations
-	   The descriptor physical addresses are limited to 32-bits
-	   when the CPU can only do a 32-bit mov */
-
-#if (BITS_PER_LONG == 64)
-	phys_complete =
-		chan->completion_virt->full
-		& IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
-#else
-	phys_complete = chan->completion_virt->low & IOAT_LOW_COMPLETION_MASK;
-#endif
+	completion = *chan->completion;
+	phys_complete = completion & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
 
 	dev_dbg(to_dev(chan), "%s: phys_complete: %#llx\n", __func__,
 		(unsigned long long) phys_complete);
 
-	if ((chan->completion_virt->full
-		& IOAT_CHANSTS_DMA_TRANSFER_STATUS) ==
+	if ((completion & IOAT_CHANSTS_DMA_TRANSFER_STATUS) ==
 				IOAT_CHANSTS_DMA_TRANSFER_STATUS_HALTED) {
 		dev_err(to_dev(chan), "Channel halted, chanerr = %x\n",
 			readl(chan->reg_base + IOAT_CHANERR_OFFSET));
@@ -750,7 +730,7 @@ static void ioat1_cleanup(struct ioat_dma_chan *ioat)
 	dma_cookie_t cookie = 0;
 	struct dma_async_tx_descriptor *tx;
 
-	prefetch(chan->completion_virt);
+	prefetch(chan->completion);
 
 	if (!spin_trylock_bh(&chan->cleanup_lock))
 		return;
