@@ -718,6 +718,10 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 
 	/* Check if one of our outputs is connected */
 	list_for_each_entry(path, &w->sinks, list_source) {
+		if (path->connected &&
+		    !path->connected(path->source, path->sink))
+			continue;
+
 		if (path->sink && path->sink->power_check &&
 		    path->sink->power_check(path->sink)) {
 			power = 1;
@@ -1136,6 +1140,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->sname);
 
 	list_for_each_entry(p, &w->sources, list_sink) {
+		if (p->connected && !p->connected(w, p->sink))
+			continue;
+
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					" in  %s %s\n",
@@ -1143,6 +1150,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 					p->source->name);
 	}
 	list_for_each_entry(p, &w->sinks, list_source) {
+		if (p->connected && !p->connected(w, p->sink))
+			continue;
+
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					" out %s %s\n",
@@ -1385,10 +1395,13 @@ int snd_soc_dapm_sync(struct snd_soc_codec *codec)
 EXPORT_SYMBOL_GPL(snd_soc_dapm_sync);
 
 static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
-	const char *sink, const char *control, const char *source)
+				  const struct snd_soc_dapm_route *route)
 {
 	struct snd_soc_dapm_path *path;
 	struct snd_soc_dapm_widget *wsource = NULL, *wsink = NULL, *w;
+	const char *sink = route->sink;
+	const char *control = route->control;
+	const char *source = route->source;
 	int ret = 0;
 
 	/* find src and dest widgets */
@@ -1412,6 +1425,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 
 	path->source = wsource;
 	path->sink = wsink;
+	path->connected = route->connected;
 	INIT_LIST_HEAD(&path->list);
 	INIT_LIST_HEAD(&path->list_source);
 	INIT_LIST_HEAD(&path->list_sink);
@@ -1512,8 +1526,7 @@ int snd_soc_dapm_add_routes(struct snd_soc_codec *codec,
 	int i, ret;
 
 	for (i = 0; i < num; i++) {
-		ret = snd_soc_dapm_add_route(codec, route->sink,
-					     route->control, route->source);
+		ret = snd_soc_dapm_add_route(codec, route);
 		if (ret < 0) {
 			printk(KERN_ERR "Failed to add route %s->%s\n",
 			       route->source,

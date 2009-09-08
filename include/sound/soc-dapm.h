@@ -333,6 +333,10 @@ struct snd_soc_dapm_route {
 	const char *sink;
 	const char *control;
 	const char *source;
+
+	/* Note: currently only supported for links where source is a supply */
+	int (*connected)(struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink);
 };
 
 /* dapm audio path between two widgets */
@@ -348,6 +352,9 @@ struct snd_soc_dapm_path {
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
 	u32 walked:1;	/* path has been walked */
+
+	int (*connected)(struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink);
 
 	struct list_head list_source;
 	struct list_head list_sink;
