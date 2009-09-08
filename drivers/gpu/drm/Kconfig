@@ -56,8 +56,9 @@ config DRM_RADEON
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FRAMEBUFFER_CONSOLE if !EMBEDDED
 	select FW_LOADER
+        select DRM_KMS_HELPER
+        select DRM_TTM
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to

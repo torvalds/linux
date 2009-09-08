@@ -3,8 +3,6 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ccflags-y := -Iinclude/drm
-radeon-y := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o \
-	radeon_irq.o r300_cmdbuf.o r600_cp.o
 
 hostprogs-y := mkregtable
 
@@ -39,7 +37,10 @@ $(obj)/r300.o: $(obj)/r300_reg_safe.h
 
 $(obj)/rs600.o: $(obj)/rs600_reg_safe.h
 
-radeon-$(CONFIG_DRM_RADEON_KMS) += radeon_device.o radeon_kms.o \
+radeon-y := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o \
+	radeon_irq.o r300_cmdbuf.o r600_cp.o
+# add KMS driver
+radeon-y += radeon_device.o radeon_kms.o \
 	radeon_atombios.o radeon_agp.o atombios_crtc.o radeon_combios.o \
 	atom.o radeon_fence.o radeon_ttm.o radeon_object.o radeon_gart.o \
 	radeon_legacy_crtc.o radeon_legacy_encoders.o radeon_connectors.o \
