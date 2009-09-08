@@ -308,17 +308,17 @@ static void hex_dump_object(struct seq_file *seq,
  * Newly created objects don't have any color assigned (object->count == -1)
  * before the next memory scan when they become white.
  */
-static int color_white(const struct kmemleak_object *object)
+static bool color_white(const struct kmemleak_object *object)
 {
 	return object->count != -1 && object->count < object->min_count;
 }
 
-static int color_gray(const struct kmemleak_object *object)
+static bool color_gray(const struct kmemleak_object *object)
 {
 	return object->min_count != -1 && object->count >= object->min_count;
 }
 
-static int color_black(const struct kmemleak_object *object)
+static bool color_black(const struct kmemleak_object *object)
 {
 	return object->min_count == -1;
 }
@@ -328,7 +328,7 @@ static int color_black(const struct kmemleak_object *object)
  * not be deleted and have a minimum age to avoid false positives caused by
  * pointers temporarily stored in CPU registers.
  */
-static int unreferenced_object(struct kmemleak_object *object)
+static bool unreferenced_object(struct kmemleak_object *object)
 {
 	return (object->flags & OBJECT_ALLOCATED) && color_white(object) &&
 		time_before_eq(object->jiffies + jiffies_min_age,
