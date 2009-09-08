@@ -34,6 +34,10 @@
 #include "drm_fb_helper.h"
 #include "drm_crtc_helper.h"
 
+MODULE_AUTHOR("David Airlie, Jesse Barnes");
+MODULE_DESCRIPTION("DRM KMS helper");
+MODULE_LICENSE("GPL and additional rights");
+
 static LIST_HEAD(kernel_fb_helper_list);
 
 bool drm_fb_helper_force_kernel_mode(void)

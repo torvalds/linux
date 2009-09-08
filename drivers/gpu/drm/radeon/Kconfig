@@ -1,7 +1,7 @@
 config DRM_RADEON_KMS
 	bool "Enable modesetting on radeon by default"
 	depends on DRM_RADEON
-	select DRM_MODE_HELPER
+	select DRM_KMS_HELPER
 	select DRM_TTM
 	help
 	  Choose this option if you want kernel modesetting enabled by default,
