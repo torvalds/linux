@@ -1256,7 +1256,7 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
  * Returns: The block type (GFS2_BLKST_*)
  */
 
-unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
+static unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
 {
 	struct gfs2_bitmap *bi = NULL;
 	u32 length, rgrp_block, buf_block;
@@ -1691,6 +1691,46 @@ void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 	trace_gfs2_block_alloc(ip, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	gfs2_quota_change(ip, -1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_meta_wipe(ip, ip->i_no_addr, 1);
+}
+
+/**
+ * gfs2_check_blk_type - Check the type of a block
+ * @sdp: The superblock
+ * @no_addr: The block number to check
+ * @type: The block type we are looking for
+ *
+ * Returns: 0 if the block type matches the expected type
+ *          -ESTALE if it doesn't match
+ *          or -ve errno if something went wrong while checking
+ */
+
+int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
+{
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_holder ri_gh, rgd_gh;
+	int error;
+
+	error = gfs2_rindex_hold(sdp, &ri_gh);
+	if (error)
+		goto fail;
+
+	error = -EINVAL;
+	rgd = gfs2_blk2rgrpd(sdp, no_addr);
+	if (!rgd)
+		goto fail_rindex;
+
+	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_SHARED, 0, &rgd_gh);
+	if (error)
+		goto fail_rindex;
+
+	if (gfs2_get_block_type(rgd, no_addr) != type)
+		error = -ESTALE;
+
+	gfs2_glock_dq_uninit(&rgd_gh);
+fail_rindex:
+	gfs2_glock_dq_uninit(&ri_gh);
+fail:
+	return error;
 }
 
 /**
