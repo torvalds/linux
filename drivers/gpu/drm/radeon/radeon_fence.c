@@ -199,7 +199,7 @@ int r600_fence_wait(struct radeon_fence *fence,  bool intr, bool lazy)
 			schedule_timeout(1);
 
 		if (intr && signal_pending(current)) {
-			ret = -ERESTART;
+			ret = -ERESTARTSYS;
 			break;
 		}
 	}
@@ -225,8 +225,12 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 		return 0;
 	}
 
-	if (rdev->family >= CHIP_R600)
-		return r600_fence_wait(fence, intr, 0);
+	if (rdev->family >= CHIP_R600) {
+		r = r600_fence_wait(fence, intr, 0);
+		if (r == -ERESTARTSYS)
+			return -EBUSY;
+		return r;
+	}
 
 retry:
 	cur_jiffies = jiffies;
