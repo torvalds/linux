@@ -33,6 +33,7 @@
 #include <sound/tlv.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
+#include <sound/info.h>
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -686,6 +687,10 @@ static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	return 0;
 }
 
+/*
+ * mixer interface
+ */
+
 #define DUMMY_VOLUME(xname, xindex, addr) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
@@ -816,6 +821,131 @@ static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	return 0;
 }
 
+#if defined(CONFIG_SND_DEBUG) && defined(CONFIG_PROC_FS)
+/*
+ * proc interface
+ */
+static void print_formats(struct snd_info_buffer *buffer)
+{
+	int i;
+
+	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
+		if (dummy_pcm_hardware.formats & (1ULL << i))
+			snd_iprintf(buffer, " %s", snd_pcm_format_name(i));
+	}
+}
+
+static void print_rates(struct snd_info_buffer *buffer)
+{
+	static int rates[] = {
+		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000,
+		64000, 88200, 96000, 176400, 192000,
+	};
+	int i;
+
+	if (dummy_pcm_hardware.rates & SNDRV_PCM_RATE_CONTINUOUS)
+		snd_iprintf(buffer, " continuous");
+	if (dummy_pcm_hardware.rates & SNDRV_PCM_RATE_KNOT)
+		snd_iprintf(buffer, " knot");
+	for (i = 0; i < ARRAY_SIZE(rates); i++)
+		if (dummy_pcm_hardware.rates & (1 << i))
+			snd_iprintf(buffer, " %d", rates[i]);
+}
+
+#define get_dummy_int_ptr(ofs) \
+	(unsigned int *)((char *)&dummy_pcm_hardware + (ofs))
+#define get_dummy_ll_ptr(ofs) \
+	(unsigned long long *)((char *)&dummy_pcm_hardware + (ofs))
+
+struct dummy_hw_field {
+	const char *name;
+	const char *format;
+	unsigned int offset;
+	unsigned int size;
+};
+#define FIELD_ENTRY(item, fmt) {		   \
+	.name = #item,				   \
+	.format = fmt,				   \
+	.offset = offsetof(struct snd_pcm_hardware, item), \
+	.size = sizeof(dummy_pcm_hardware.item) }
+
+static struct dummy_hw_field fields[] = {
+	FIELD_ENTRY(formats, "%#llx"),
+	FIELD_ENTRY(rates, "%#x"),
+	FIELD_ENTRY(rate_min, "%d"),
+	FIELD_ENTRY(rate_max, "%d"),
+	FIELD_ENTRY(channels_min, "%d"),
+	FIELD_ENTRY(channels_max, "%d"),
+	FIELD_ENTRY(buffer_bytes_max, "%ld"),
+	FIELD_ENTRY(period_bytes_min, "%ld"),
+	FIELD_ENTRY(period_bytes_max, "%ld"),
+	FIELD_ENTRY(periods_min, "%d"),
+	FIELD_ENTRY(periods_max, "%d"),
+};
+
+static void dummy_proc_read(struct snd_info_entry *entry,
+			    struct snd_info_buffer *buffer)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fields); i++) {
+		snd_iprintf(buffer, "%s ", fields[i].name);
+		if (fields[i].size == sizeof(int))
+			snd_iprintf(buffer, fields[i].format,
+				    *get_dummy_int_ptr(fields[i].offset));
+		else
+			snd_iprintf(buffer, fields[i].format,
+				    *get_dummy_ll_ptr(fields[i].offset));
+		if (!strcmp(fields[i].name, "formats"))
+			print_formats(buffer);
+		else if (!strcmp(fields[i].name, "rates"))
+			print_rates(buffer);
+		snd_iprintf(buffer, "\n");
+	}
+}
+
+static void dummy_proc_write(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	char line[64];
+
+	while (!snd_info_get_line(buffer, line, sizeof(line))) {
+		char item[20];
+		const char *ptr;
+		unsigned long long val;
+		int i;
+
+		ptr = snd_info_get_str(item, line, sizeof(item));
+		for (i = 0; i < ARRAY_SIZE(fields); i++) {
+			if (!strcmp(item, fields[i].name))
+				break;
+		}
+		if (i >= ARRAY_SIZE(fields))
+			continue;
+		snd_info_get_str(item, ptr, sizeof(item));
+		if (strict_strtoull(item, 0, &val))
+			continue;
+		if (fields[i].size == sizeof(int))
+			*get_dummy_int_ptr(fields[i].offset) = val;
+		else
+			*get_dummy_ll_ptr(fields[i].offset) = val;
+	}
+}
+
+static void __devinit dummy_proc_init(struct snd_dummy *chip)
+{
+	struct snd_info_entry *entry;
+
+	if (!snd_card_proc_new(chip->card, "dummy_pcm", &entry)) {
+		snd_info_set_text_ops(entry, chip, dummy_proc_read);
+		entry->c.text.write = dummy_proc_write;
+		entry->mode |= S_IWUSR;
+	}
+}
+#else
+#define dummy_proc_init(x)
+#endif /* CONFIG_SND_DEBUG && CONFIG_PROC_FS */
+
 static int __devinit snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
@@ -844,6 +974,8 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 	strcpy(card->driver, "Dummy");
 	strcpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
+
+	dummy_proc_init(dummy);
 
 	snd_card_set_dev(card, &devptr->dev);
 
