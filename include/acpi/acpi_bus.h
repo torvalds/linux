@@ -248,7 +248,6 @@ struct acpi_device_perf {
 /* Wakeup Management */
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
-	u8 prepared:1;		/* Has the wake-up capability been enabled? */
 	u8 run_wake:1;		/* Run-Wake GPE devices */
 };
 
@@ -263,6 +262,7 @@ struct acpi_device_wakeup {
 	struct acpi_handle_list resources;
 	struct acpi_device_wakeup_state state;
 	struct acpi_device_wakeup_flags flags;
+	int prepare_count;
 };
 
 /* Device */
