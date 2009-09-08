@@ -439,7 +439,7 @@ F:	drivers/hwmon/ams/
 AMSO1100 RNIC DRIVER
 M:	Tom Tucker <tom@opengridcomputing.com>
 M:	Steve Wise <swise@opengridcomputing.com>
-L:	general@lists.openfabrics.org
+L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/hw/amso1100/
 
@@ -1494,7 +1494,7 @@ F:	drivers/net/cxgb3/
 
 CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
 M:	Steve Wise <swise@chelsio.com>
-L:	general@lists.openfabrics.org
+L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org
 S:	Supported
 F:	drivers/infiniband/hw/cxgb3/
@@ -1868,7 +1868,7 @@ F:	fs/efs/
 EHCA (IBM GX bus InfiniBand adapter) DRIVER
 M:	Hoang-Nam Nguyen <hnguyen@de.ibm.com>
 M:	Christoph Raisch <raisch@de.ibm.com>
-L:	general@lists.openfabrics.org
+L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/ehca/
 
@@ -2552,7 +2552,7 @@ INFINIBAND SUBSYSTEM
 M:	Roland Dreier <rolandd@cisco.com>
 M:	Sean Hefty <sean.hefty@intel.com>
 M:	Hal Rosenstock <hal.rosenstock@gmail.com>
-L:	general@lists.openfabrics.org (moderated for non-subscribers)
+L:	linux-rdma@vger.kernel.org
 W:	http://www.openib.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
@@ -2729,7 +2729,7 @@ F:	drivers/net/ipg.c
 
 IPATH DRIVER
 M:	Ralph Campbell <infinipath@qlogic.com>
-L:	general@lists.openfabrics.org
+L:	linux-rdma@vger.kernel.org
 T:	git git://git.qlogic.com/ipath-linux-2.6
 S:	Supported
 F:	drivers/infiniband/hw/ipath/
@@ -3485,7 +3485,7 @@ F:	drivers/scsi/NCR_D700.*
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 M:	Faisal Latif <faisal.latif@intel.com>
 M:	Chien Tung <chien.tin.tung@intel.com>
-L:	general@lists.openfabrics.org
+L:	linux-rdma@vger.kernel.org
 W:	http://www.neteffect.com
 S:	Supported
 F:	drivers/infiniband/hw/nes/
