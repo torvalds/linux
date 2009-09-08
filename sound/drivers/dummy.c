@@ -42,7 +42,7 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ALSA,Dummy soundcard}}");
 
 #define MAX_PCM_DEVICES		4
-#define MAX_PCM_SUBSTREAMS	16
+#define MAX_PCM_SUBSTREAMS	128
 #define MAX_MIDI_DEVICES	2
 
 #if 0 /* emu10k1 emulation */
