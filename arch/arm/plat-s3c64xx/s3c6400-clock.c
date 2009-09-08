@@ -328,6 +328,8 @@ static int s3c64xx_setparent_clksrc(struct clk *clk, struct clk *parent)
 		clksrc |= src_nr << sclk->shift;
 
 		__raw_writel(clksrc, S3C_CLK_SRC);
+
+		clk->parent = parent;
 		return 0;
 	}
 
