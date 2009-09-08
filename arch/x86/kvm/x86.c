@@ -2152,7 +2152,6 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		spin_lock(&kvm->mmu_lock);
 		kvm_mmu_slot_remove_write_access(kvm, log->slot);
 		spin_unlock(&kvm->mmu_lock);
-		kvm_flush_remote_tlbs(kvm);
 		memslot = &kvm->memslots[log->slot];
 		n = ALIGN(memslot->npages, BITS_PER_LONG) / 8;
 		memset(memslot->dirty_bitmap, 0, n);
@@ -4896,7 +4895,6 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 
 	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
 	spin_unlock(&kvm->mmu_lock);
-	kvm_flush_remote_tlbs(kvm);
 
 	return 0;
 }
