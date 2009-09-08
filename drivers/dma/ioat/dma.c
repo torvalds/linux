@@ -648,8 +648,6 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 
 	desc->txd.flags = flags;
 	desc->tx_cnt = tx_cnt;
-	desc->src = dma_src;
-	desc->dst = dma_dest;
 	desc->len = total_len;
 	list_splice(&chain, &desc->txd.tx_list);
 	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);

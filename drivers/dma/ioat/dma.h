@@ -179,8 +179,6 @@ struct ioat_desc_sw {
 	struct list_head node;
 	int tx_cnt;
 	size_t len;
-	dma_addr_t src;
-	dma_addr_t dst;
 	struct dma_async_tx_descriptor txd;
 };
 
