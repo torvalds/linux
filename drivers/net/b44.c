@@ -1303,9 +1303,12 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 		     & MDIO_CTRL_MAXF_MASK)));
 		break;
 	case SSB_BUSTYPE_PCI:
-	case SSB_BUSTYPE_PCMCIA:
 		bw32(bp, B44_MDIO_CTRL, (MDIO_CTRL_PREAMBLE |
 		     (0x0d & MDIO_CTRL_MAXF_MASK)));
+		break;
+	case SSB_BUSTYPE_PCMCIA:
+	case SSB_BUSTYPE_SDIO:
+		WARN_ON(1); /* A device with this bus does not exist. */
 		break;
 	}
 
@@ -1764,9 +1767,12 @@ static void b44_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *inf
 	case SSB_BUSTYPE_PCI:
 		strlcpy(info->bus_info, pci_name(bus->host_pci), sizeof(info->bus_info));
 		break;
-	case SSB_BUSTYPE_PCMCIA:
 	case SSB_BUSTYPE_SSB:
 		strlcpy(info->bus_info, "SSB", sizeof(info->bus_info));
+		break;
+	case SSB_BUSTYPE_PCMCIA:
+	case SSB_BUSTYPE_SDIO:
+		WARN_ON(1); /* A device with this bus does not exist. */
 		break;
 	}
 }

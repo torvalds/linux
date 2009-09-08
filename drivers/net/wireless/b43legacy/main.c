@@ -3106,15 +3106,19 @@ static void b43legacy_imcfglo_timeouts_workaround(struct b43legacy_wldev *dev)
 	    bus->pcicore.dev->id.revision <= 5) {
 		/* IMCFGLO timeouts workaround. */
 		tmp = ssb_read32(dev->dev, SSB_IMCFGLO);
-		tmp &= ~SSB_IMCFGLO_REQTO;
-		tmp &= ~SSB_IMCFGLO_SERTO;
 		switch (bus->bustype) {
 		case SSB_BUSTYPE_PCI:
 		case SSB_BUSTYPE_PCMCIA:
+			tmp &= ~SSB_IMCFGLO_REQTO;
+			tmp &= ~SSB_IMCFGLO_SERTO;
 			tmp |= 0x32;
 			break;
 		case SSB_BUSTYPE_SSB:
+			tmp &= ~SSB_IMCFGLO_REQTO;
+			tmp &= ~SSB_IMCFGLO_SERTO;
 			tmp |= 0x53;
+			break;
+		default:
 			break;
 		}
 		ssb_write32(dev->dev, SSB_IMCFGLO, tmp);
