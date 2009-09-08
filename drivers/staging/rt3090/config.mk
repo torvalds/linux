@@ -20,7 +20,7 @@ HAS_APCLI=n
 HAS_WPA_SUPPLICANT=y
 
 # Support Native WpaSupplicant for Network Maganger
-HAS_NATIVE_WPA_SUPPLICANT_SUPPORT=n
+HAS_NATIVE_WPA_SUPPLICANT_SUPPORT=y
 
 #Support Net interface block while Tx-Sw queue full
 HAS_BLOCK_NET_IF=n
