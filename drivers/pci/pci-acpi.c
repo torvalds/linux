@@ -111,17 +111,8 @@ static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 
 static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
 {
-	int error;
-
-	if (!acpi_pci_can_wakeup(dev))
-		return 0;
-
-	error = acpi_pm_device_sleep_wake(&dev->dev, enable);
-	if (!error)
-		dev_info(&dev->dev, "wake-up capability %s by ACPI\n",
-				enable ? "enabled" : "disabled");
-
-	return error;
+	return acpi_pci_can_wakeup(dev) ?
+		acpi_pm_device_sleep_wake(&dev->dev, enable) : 0;
 }
 
 static struct pci_platform_pm_ops acpi_pci_platform_pm = {
