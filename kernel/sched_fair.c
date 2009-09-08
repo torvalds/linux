@@ -728,10 +728,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 			vruntime -= thresh;
 		}
-
-		/* ensure we never gain time by being placed backwards. */
-		vruntime = max_vruntime(se->vruntime, vruntime);
 	}
+
+	/* ensure we never gain time by being placed backwards. */
+	vruntime = max_vruntime(se->vruntime, vruntime);
 
 	se->vruntime = vruntime;
 }
@@ -1756,6 +1756,8 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	sched_info_queued(p);
 
 	update_curr(cfs_rq);
+	if (curr)
+		se->vruntime = curr->vruntime;
 	place_entity(cfs_rq, se, 1);
 
 	/* 'curr' will be NULL if the child belongs to a different group */
