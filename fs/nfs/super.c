@@ -747,6 +747,21 @@ static int nfs_verify_server_address(struct sockaddr *addr)
 }
 
 /*
+ * Select between a default port value and a user-specified port value.
+ * If a zero value is set, then autobind will be used.
+ */
+static void nfs_set_default_port(struct sockaddr *sap, const int parsed_port,
+				 const unsigned short default_port)
+{
+	unsigned short port = default_port;
+
+	if (parsed_port != NFS_UNSPEC_PORT)
+		port = parsed_port;
+
+	rpc_set_port(sap, port);
+}
+
+/*
  * Sanity check the NFS transport protocol.
  *
  */
@@ -1415,11 +1430,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		args->mount_server.addrlen = args->nfs_server.addrlen;
 	}
 	request.salen = args->mount_server.addrlen;
-
-	/*
-	 * autobind will be used if mount_server.port == 0
-	 */
-	rpc_set_port(request.sap, args->mount_server.port);
+	nfs_set_default_port(request.sap, args->mount_server.port, 0);
 
 	/*
 	 * Now ask the mount server to map our export path
@@ -1597,6 +1608,7 @@ static int nfs_validate_mount_data(void *options,
 				   const char *dev_name)
 {
 	struct nfs_mount_data *data = (struct nfs_mount_data *)options;
+	struct sockaddr *sap = (struct sockaddr *)&args->nfs_server.address;
 
 	if (data == NULL)
 		goto out_no_data;
@@ -1608,8 +1620,8 @@ static int nfs_validate_mount_data(void *options,
 	args->acregmax		= NFS_DEF_ACREGMAX;
 	args->acdirmin		= NFS_DEF_ACDIRMIN;
 	args->acdirmax		= NFS_DEF_ACDIRMAX;
-	args->mount_server.port	= 0;	/* autobind unless user sets port */
-	args->nfs_server.port	= 0;	/* autobind unless user sets port */
+	args->mount_server.port	= NFS_UNSPEC_PORT;
+	args->nfs_server.port	= NFS_UNSPEC_PORT;
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 	args->auth_flavors[0]	= RPC_AUTH_UNIX;
 	args->auth_flavor_len	= 1;
@@ -1657,11 +1669,9 @@ static int nfs_validate_mount_data(void *options,
 		args->acdirmin		= data->acdirmin;
 		args->acdirmax		= data->acdirmax;
 
-		memcpy(&args->nfs_server.address, &data->addr,
-		       sizeof(data->addr));
+		memcpy(sap, &data->addr, sizeof(data->addr));
 		args->nfs_server.addrlen = sizeof(data->addr);
-		if (!nfs_verify_server_address((struct sockaddr *)
-						&args->nfs_server.address))
+		if (!nfs_verify_server_address(sap))
 			goto out_no_address;
 
 		if (!(data->flags & NFS_MOUNT_TCP))
@@ -1709,12 +1719,10 @@ static int nfs_validate_mount_data(void *options,
 		if (nfs_parse_mount_options((char *)options, args) == 0)
 			return -EINVAL;
 
-		if (!nfs_verify_server_address((struct sockaddr *)
-						&args->nfs_server.address))
+		if (!nfs_verify_server_address(sap))
 			goto out_no_address;
 
-		rpc_set_port((struct sockaddr *)&args->nfs_server.address,
-				args->nfs_server.port);
+		nfs_set_default_port(sap, args->nfs_server.port, 0);
 
 		nfs_set_mount_transport_protocol(args);
 
@@ -2261,7 +2269,7 @@ static int nfs4_validate_mount_data(void *options,
 				    struct nfs_parsed_mount_data *args,
 				    const char *dev_name)
 {
-	struct sockaddr_in *ap;
+	struct sockaddr *sap = (struct sockaddr *)&args->nfs_server.address;
 	struct nfs4_mount_data *data = (struct nfs4_mount_data *)options;
 	char *c;
 
@@ -2274,23 +2282,21 @@ static int nfs4_validate_mount_data(void *options,
 	args->acregmax		= NFS_DEF_ACREGMAX;
 	args->acdirmin		= NFS_DEF_ACDIRMIN;
 	args->acdirmax		= NFS_DEF_ACDIRMAX;
-	args->nfs_server.port	= NFS_PORT; /* 2049 unless user set port= */
+	args->nfs_server.port	= NFS_UNSPEC_PORT;
 	args->auth_flavors[0]	= RPC_AUTH_UNIX;
 	args->auth_flavor_len	= 1;
 	args->minorversion	= 0;
 
 	switch (data->version) {
 	case 1:
-		ap = (struct sockaddr_in *)&args->nfs_server.address;
 		if (data->host_addrlen > sizeof(args->nfs_server.address))
 			goto out_no_address;
 		if (data->host_addrlen == 0)
 			goto out_no_address;
 		args->nfs_server.addrlen = data->host_addrlen;
-		if (copy_from_user(ap, data->host_addr, data->host_addrlen))
+		if (copy_from_user(sap, data->host_addr, data->host_addrlen))
 			return -EFAULT;
-		if (!nfs_verify_server_address((struct sockaddr *)
-						&args->nfs_server.address))
+		if (!nfs_verify_server_address(sap))
 			goto out_no_address;
 
 		if (data->auth_flavourlen) {
@@ -2342,12 +2348,9 @@ static int nfs4_validate_mount_data(void *options,
 		if (nfs_parse_mount_options((char *)options, args) == 0)
 			return -EINVAL;
 
-		if (!nfs_verify_server_address((struct sockaddr *)
-						&args->nfs_server.address))
+		if (!nfs_verify_server_address(sap))
 			return -EINVAL;
-
-		rpc_set_port((struct sockaddr *)&args->nfs_server.address,
-				args->nfs_server.port);
+		nfs_set_default_port(sap, args->nfs_server.port, NFS_PORT);
 
 		nfs_validate_transport_protocol(args);
 
