@@ -452,7 +452,6 @@ static int ioat1_dma_alloc_chan_resources(struct dma_chan *c)
 	struct ioat_dma_chan *ioat = to_ioat_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
 	struct ioat_desc_sw *desc;
-	u16 chanctrl;
 	u32 chanerr;
 	int i;
 	LIST_HEAD(tmp_list);
@@ -462,10 +461,7 @@ static int ioat1_dma_alloc_chan_resources(struct dma_chan *c)
 		return ioat->desccount;
 
 	/* Setup register to interrupt and write completion status on error */
-	chanctrl = IOAT_CHANCTRL_ERR_INT_EN |
-		IOAT_CHANCTRL_ANY_ERR_ABORT_EN |
-		IOAT_CHANCTRL_ERR_COMPLETION_EN;
-	writew(chanctrl, chan->reg_base + IOAT_CHANCTRL_OFFSET);
+	writew(IOAT_CHANCTRL_RUN, chan->reg_base + IOAT_CHANCTRL_OFFSET);
 
 	chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
 	if (chanerr) {
@@ -672,9 +668,9 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 static void ioat1_cleanup_tasklet(unsigned long data)
 {
 	struct ioat_dma_chan *chan = (void *)data;
+
 	ioat1_cleanup(chan);
-	writew(IOAT_CHANCTRL_INT_DISABLE,
-	       chan->base.reg_base + IOAT_CHANCTRL_OFFSET);
+	writew(IOAT_CHANCTRL_RUN, chan->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
 static void ioat_unmap(struct pci_dev *pdev, dma_addr_t addr, size_t len,

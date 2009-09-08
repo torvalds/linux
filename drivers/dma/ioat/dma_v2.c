@@ -341,8 +341,7 @@ static void ioat2_cleanup_tasklet(unsigned long data)
 	struct ioat2_dma_chan *ioat = (void *) data;
 
 	ioat2_cleanup(ioat);
-	writew(IOAT_CHANCTRL_INT_DISABLE,
-	       ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
+	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
 /**
@@ -454,7 +453,6 @@ static int ioat2_alloc_chan_resources(struct dma_chan *c)
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
 	struct ioat_ring_ent **ring;
-	u16 chanctrl;
 	u32 chanerr;
 	int descs;
 	int i;
@@ -464,9 +462,7 @@ static int ioat2_alloc_chan_resources(struct dma_chan *c)
 		return 1 << ioat->alloc_order;
 
 	/* Setup register to interrupt and write completion status on error */
-	chanctrl = IOAT_CHANCTRL_ERR_INT_EN | IOAT_CHANCTRL_ANY_ERR_ABORT_EN |
-		   IOAT_CHANCTRL_ERR_COMPLETION_EN;
-	writew(chanctrl, chan->reg_base + IOAT_CHANCTRL_OFFSET);
+	writew(IOAT_CHANCTRL_RUN, chan->reg_base + IOAT_CHANCTRL_OFFSET);
 
 	chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
 	if (chanerr) {
