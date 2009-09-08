@@ -31,6 +31,8 @@
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "r100d.h"
+
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
@@ -391,9 +393,9 @@ int r100_wb_init(struct radeon_device *rdev)
 			return r;
 		}
 	}
-	WREG32(0x774, rdev->wb.gpu_addr);
-	WREG32(0x70C, rdev->wb.gpu_addr + 1024);
-	WREG32(0x770, 0xff);
+	WREG32(RADEON_SCRATCH_ADDR, rdev->wb.gpu_addr);
+	WREG32(RADEON_CP_RB_RPTR_ADDR, rdev->wb.gpu_addr + 1024);
+	WREG32(RADEON_SCRATCH_UMSK, 0xff);
 	return 0;
 }
 
@@ -559,18 +561,18 @@ static int r100_cp_init_microcode(struct radeon_device *rdev)
 		fw_name = FIRMWARE_R520;
 	}
 
-	err = request_firmware(&rdev->fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
 	platform_device_unregister(pdev);
 	if (err) {
 		printk(KERN_ERR "radeon_cp: Failed to load firmware \"%s\"\n",
 		       fw_name);
-	} else if (rdev->fw->size % 8) {
+	} else if (rdev->me_fw->size % 8) {
 		printk(KERN_ERR
 		       "radeon_cp: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->fw->size, fw_name);
+		       rdev->me_fw->size, fw_name);
 		err = -EINVAL;
-		release_firmware(rdev->fw);
-		rdev->fw = NULL;
+		release_firmware(rdev->me_fw);
+		rdev->me_fw = NULL;
 	}
 	return err;
 }
@@ -584,9 +586,9 @@ static void r100_cp_load_microcode(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	if (rdev->fw) {
-		size = rdev->fw->size / 4;
-		fw_data = (const __be32 *)&rdev->fw->data[0];
+	if (rdev->me_fw) {
+		size = rdev->me_fw->size / 4;
+		fw_data = (const __be32 *)&rdev->me_fw->data[0];
 		WREG32(RADEON_CP_ME_RAM_ADDR, 0);
 		for (i = 0; i < size; i += 2) {
 			WREG32(RADEON_CP_ME_RAM_DATAH,
@@ -632,7 +634,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 		DRM_INFO("radeon: cp idle (0x%08X)\n", tmp);
 	}
 
-	if (!rdev->fw) {
+	if (!rdev->me_fw) {
 		r = r100_cp_init_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load firmware!\n");
@@ -763,6 +765,12 @@ int r100_cp_reset(struct radeon_device *rdev)
 	tmp = RREG32(RADEON_RBBM_STATUS);
 	DRM_ERROR("Failed to reset CP (RBBM_STATUS=0x%08X)!\n", tmp);
 	return -1;
+}
+
+void r100_cp_commit(struct radeon_device *rdev)
+{
+	WREG32(RADEON_CP_RB_WPTR, rdev->cp.wptr);
+	(void)RREG32(RADEON_CP_RB_WPTR);
 }
 
 
@@ -2953,4 +2961,107 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 				track->textures[i].cube_info[face].offset = 0;
 			}
 	}
+}
+
+int r100_ring_test(struct radeon_device *rdev)
+{
+	uint32_t scratch;
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	r = radeon_scratch_get(rdev, &scratch);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
+	r = radeon_ring_lock(rdev, 2);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		radeon_scratch_free(rdev, scratch);
+		return r;
+	}
+	radeon_ring_write(rdev, PACKET0(scratch, 0));
+	radeon_ring_write(rdev, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev);
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF) {
+			break;
+		}
+		DRM_UDELAY(1);
+	}
+	if (i < rdev->usec_timeout) {
+		DRM_INFO("ring test succeeded in %d usecs\n", i);
+	} else {
+		DRM_ERROR("radeon: ring test failed (sracth(0x%04X)=0x%08X)\n",
+			  scratch, tmp);
+		r = -EINVAL;
+	}
+	radeon_scratch_free(rdev, scratch);
+	return r;
+}
+
+void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	radeon_ring_write(rdev, PACKET0(RADEON_CP_IB_BASE, 1));
+	radeon_ring_write(rdev, ib->gpu_addr);
+	radeon_ring_write(rdev, ib->length_dw);
+}
+
+int r100_ib_test(struct radeon_device *rdev)
+{
+	struct radeon_ib *ib;
+	uint32_t scratch;
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	r = radeon_scratch_get(rdev, &scratch);
+	if (r) {
+		DRM_ERROR("radeon: failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
+	r = radeon_ib_get(rdev, &ib);
+	if (r) {
+		return r;
+	}
+	ib->ptr[0] = PACKET0(scratch, 0);
+	ib->ptr[1] = 0xDEADBEEF;
+	ib->ptr[2] = PACKET2(0);
+	ib->ptr[3] = PACKET2(0);
+	ib->ptr[4] = PACKET2(0);
+	ib->ptr[5] = PACKET2(0);
+	ib->ptr[6] = PACKET2(0);
+	ib->ptr[7] = PACKET2(0);
+	ib->length_dw = 8;
+	r = radeon_ib_schedule(rdev, ib);
+	if (r) {
+		radeon_scratch_free(rdev, scratch);
+		radeon_ib_free(rdev, &ib);
+		return r;
+	}
+	r = radeon_fence_wait(ib->fence, false);
+	if (r) {
+		return r;
+	}
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF) {
+			break;
+		}
+		DRM_UDELAY(1);
+	}
+	if (i < rdev->usec_timeout) {
+		DRM_INFO("ib test succeeded in %u usecs\n", i);
+	} else {
+		DRM_ERROR("radeon: ib test failed (sracth(0x%04X)=0x%08X)\n",
+			  scratch, tmp);
+		r = -EINVAL;
+	}
+	radeon_scratch_free(rdev, scratch);
+	radeon_ib_free(rdev, &ib);
+	return r;
 }

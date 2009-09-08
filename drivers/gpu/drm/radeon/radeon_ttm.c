@@ -376,9 +376,8 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 		radeon_move_null(bo, new_mem);
 		return 0;
 	}
-	if (!rdev->cp.ready) {
+	if (!rdev->cp.ready || rdev->asic->copy == NULL) {
 		/* use memcpy */
-		DRM_ERROR("CP is not ready use memcpy.\n");
 		goto memcpy;
 	}
 
@@ -495,7 +494,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
-		 rdev->mc.real_vram_size / (1024 * 1024));
+		 (unsigned)rdev->mc.real_vram_size / (1024 * 1024));
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT, 0,
 			   ((rdev->mc.gtt_size) >> PAGE_SHIFT));
 	if (r) {
@@ -503,7 +502,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	DRM_INFO("radeon: %uM of GTT memory ready.\n",
-		 rdev->mc.gtt_size / (1024 * 1024));
+		 (unsigned)(rdev->mc.gtt_size / (1024 * 1024)));
 	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
 		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
 	}

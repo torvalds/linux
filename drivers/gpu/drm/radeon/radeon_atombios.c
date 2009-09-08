@@ -370,10 +370,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						       && record->
 						       ucRecordType <=
 						       ATOM_MAX_OBJECT_RECORD_NUMBER) {
-							DRM_ERROR
-							    ("record type %d\n",
-							     record->
-							     ucRecordType);
 							switch (record->
 								ucRecordType) {
 							case ATOM_I2C_RECORD_TYPE:

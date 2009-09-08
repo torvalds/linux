@@ -3255,6 +3255,24 @@
 #define RADEON_CP_RB_WPTR                   0x0714
 #define RADEON_CP_RB_RPTR_WR                0x071c
 
+#define RADEON_SCRATCH_UMSK		    0x0770
+#define RADEON_SCRATCH_ADDR		    0x0774
+
+#define R600_CP_RB_BASE                     0xc100
+#define R600_CP_RB_CNTL                     0xc104
+#       define R600_RB_BUFSZ(x)             ((x) << 0)
+#       define R600_RB_BLKSZ(x)             ((x) << 8)
+#       define R600_RB_NO_UPDATE            (1 << 27)
+#       define R600_RB_RPTR_WR_ENA          (1 << 31)
+#define R600_CP_RB_RPTR_WR                  0xc108
+#define R600_CP_RB_RPTR_ADDR                0xc10c
+#define R600_CP_RB_RPTR_ADDR_HI             0xc110
+#define R600_CP_RB_WPTR                     0xc114
+#define R600_CP_RB_WPTR_ADDR                0xc118
+#define R600_CP_RB_WPTR_ADDR_HI             0xc11c
+#define R600_CP_RB_RPTR                     0x8700
+#define R600_CP_RB_WPTR_DELAY               0x8704
+
 #define RADEON_CP_IB_BASE                   0x0738
 #define RADEON_CP_IB_BUFSZ                  0x073c
 

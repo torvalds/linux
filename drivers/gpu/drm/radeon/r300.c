@@ -33,6 +33,7 @@
 #include "radeon_drm.h"
 #include "radeon_share.h"
 #include "r100_track.h"
+#include "r300d.h"
 
 #include "r300_reg_safe.h"
 
@@ -127,7 +128,7 @@ int rv370_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
 	rv370_pcie_gart_tlb_flush(rdev);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%08X).\n",
-		 rdev->mc.gtt_size >> 20, table_addr);
+		 (unsigned)(rdev->mc.gtt_size >> 20), table_addr);
 	rdev->gart.ready = true;
 	return 0;
 }

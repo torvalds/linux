@@ -50,8 +50,8 @@
 #include <linux/kref.h>
 
 #include "radeon_mode.h"
+#include "radeon_share.h"
 #include "radeon_reg.h"
-#include "r300.h"
 
 /*
  * Modules parameters.
@@ -112,10 +112,11 @@ enum radeon_family {
 	CHIP_RV635,
 	CHIP_RV670,
 	CHIP_RS780,
+	CHIP_RS880,
 	CHIP_RV770,
 	CHIP_RV730,
 	CHIP_RV710,
-	CHIP_RS880,
+	CHIP_RV740,
 	CHIP_LAST,
 };
 
@@ -152,10 +153,21 @@ struct radeon_device;
  */
 bool radeon_get_bios(struct radeon_device *rdev);
 
+
+/*
+ * Dummy page
+ */
+struct radeon_dummy_page {
+	struct page	*page;
+	dma_addr_t	addr;
+};
+int radeon_dummy_page_init(struct radeon_device *rdev);
+void radeon_dummy_page_fini(struct radeon_device *rdev);
+
+
 /*
  * Clocks
  */
-
 struct radeon_clock {
 	struct radeon_pll p1pll;
 	struct radeon_pll p2pll;
@@ -165,6 +177,7 @@ struct radeon_clock {
 	uint32_t default_mclk;
 	uint32_t default_sclk;
 };
+
 
 /*
  * Fences.
@@ -332,14 +345,18 @@ struct radeon_mc {
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
 	resource_size_t		agp_base;
-	unsigned		gtt_location;
-	unsigned		gtt_size;
-	unsigned		vram_location;
 	/* for some chips with <= 32MB we need to lie
 	 * about vram size near mc fb location */
-	unsigned		mc_vram_size;
+	u64			mc_vram_size;
+	u64			gtt_location;
+	u64			gtt_size;
+	u64			gtt_start;
+	u64			gtt_end;
+	u64			vram_location;
+	u64			vram_start;
+	u64			vram_end;
 	unsigned		vram_width;
-	unsigned		real_vram_size;
+	u64			real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
 };
@@ -411,6 +428,16 @@ struct radeon_cp {
 	bool			ready;
 };
 
+struct r600_blit {
+	struct radeon_object	*shader_obj;
+	u64 shader_gpu_addr;
+	u32 vs_offset, ps_offset;
+	u32 state_offset;
+	u32 state_len;
+	u32 vb_used, vb_total;
+	struct radeon_ib *vb_ib;
+};
+
 int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -463,6 +490,7 @@ struct radeon_cs_parser {
 	int			chunk_relocs_idx;
 	struct radeon_ib	*ib;
 	void			*track;
+	unsigned		family;
 };
 
 struct radeon_cs_packet {
@@ -559,6 +587,9 @@ int r100_debugfs_cp_init(struct radeon_device *rdev);
  */
 struct radeon_asic {
 	int (*init)(struct radeon_device *rdev);
+	void (*fini)(struct radeon_device *rdev);
+	int (*resume)(struct radeon_device *rdev);
+	int (*suspend)(struct radeon_device *rdev);
 	void (*errata)(struct radeon_device *rdev);
 	void (*vram_info)(struct radeon_device *rdev);
 	int (*gpu_reset)(struct radeon_device *rdev);
@@ -573,7 +604,11 @@ struct radeon_asic {
 	int (*cp_init)(struct radeon_device *rdev, unsigned ring_size);
 	void (*cp_fini)(struct radeon_device *rdev);
 	void (*cp_disable)(struct radeon_device *rdev);
+	void (*cp_commit)(struct radeon_device *rdev);
 	void (*ring_start)(struct radeon_device *rdev);
+	int (*ring_test)(struct radeon_device *rdev);
+	void (*ring_ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
+	int (*ib_test)(struct radeon_device *rdev);
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
@@ -613,6 +648,8 @@ struct r100_asic {
 union radeon_asic_config {
 	struct r300_asic	r300;
 	struct r100_asic	r100;
+	struct r600_asic	r600;
+	struct rv770_asic	rv770;
 };
 
 
@@ -698,12 +735,16 @@ struct radeon_device {
 	struct radeon_pm		pm;
 	struct mutex			cs_mutex;
 	struct radeon_wb		wb;
+	struct radeon_dummy_page	dummy_page;
 	bool				gpu_lockup;
 	bool				shutdown;
 	bool				suspend;
 	bool				need_dma32;
+	bool				new_init_path;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
-	const struct firmware *fw;	/* firmware */
+	const struct firmware *me_fw;	/* all family ME firmware */
+	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
+	struct r600_blit r600_blit;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -712,6 +753,13 @@ int radeon_device_init(struct radeon_device *rdev,
 		       uint32_t flags);
 void radeon_device_fini(struct radeon_device *rdev);
 int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
+
+/* r600 blit */
+int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
+void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
+void r600_kms_blit_copy(struct radeon_device *rdev,
+			u64 src_gpu_addr, u64 dst_gpu_addr,
+			int size_bytes);
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
@@ -740,6 +788,7 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 #define RREG8(reg) readb(((void __iomem *)rdev->rmmio) + (reg))
 #define WREG8(reg, v) writeb(v, ((void __iomem *)rdev->rmmio) + (reg))
 #define RREG32(reg) r100_mm_rreg(rdev, (reg))
+#define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg)))
 #define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v))
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
@@ -763,6 +812,7 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 		tmp_ |= ((val) & ~(mask));			\
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
+#define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg)))
 
 /*
  * Indirect registers accessor
@@ -827,51 +877,6 @@ void radeon_atombios_fini(struct radeon_device *rdev);
 /*
  * RING helpers.
  */
-#define CP_PACKET0			0x00000000
-#define		PACKET0_BASE_INDEX_SHIFT	0
-#define		PACKET0_BASE_INDEX_MASK		(0x1ffff << 0)
-#define		PACKET0_COUNT_SHIFT		16
-#define		PACKET0_COUNT_MASK		(0x3fff << 16)
-#define CP_PACKET1			0x40000000
-#define CP_PACKET2			0x80000000
-#define		PACKET2_PAD_SHIFT		0
-#define		PACKET2_PAD_MASK		(0x3fffffff << 0)
-#define CP_PACKET3			0xC0000000
-#define		PACKET3_IT_OPCODE_SHIFT		8
-#define		PACKET3_IT_OPCODE_MASK		(0xff << 8)
-#define		PACKET3_COUNT_SHIFT		16
-#define		PACKET3_COUNT_MASK		(0x3fff << 16)
-/* PACKET3 op code */
-#define		PACKET3_NOP			0x10
-#define		PACKET3_3D_DRAW_VBUF		0x28
-#define		PACKET3_3D_DRAW_IMMD		0x29
-#define		PACKET3_3D_DRAW_INDX		0x2A
-#define		PACKET3_3D_LOAD_VBPNTR		0x2F
-#define		PACKET3_INDX_BUFFER		0x33
-#define		PACKET3_3D_DRAW_VBUF_2		0x34
-#define		PACKET3_3D_DRAW_IMMD_2		0x35
-#define		PACKET3_3D_DRAW_INDX_2		0x36
-#define		PACKET3_BITBLT_MULTI		0x9B
-
-#define PACKET0(reg, n)	(CP_PACKET0 |					\
-			 REG_SET(PACKET0_BASE_INDEX, (reg) >> 2) |	\
-			 REG_SET(PACKET0_COUNT, (n)))
-#define PACKET2(v)	(CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
-#define PACKET3(op, n)	(CP_PACKET3 |					\
-			 REG_SET(PACKET3_IT_OPCODE, (op)) |		\
-			 REG_SET(PACKET3_COUNT, (n)))
-
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0x1FFF) << 2)
-#define CP_PACKET0_GET_ONE_REG_WR(h) (((h) >> 15) & 1)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
-
 static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 {
 #if DRM_DEBUG_CODE
@@ -890,6 +895,9 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
  * ASICs macro.
  */
 #define radeon_init(rdev) (rdev)->asic->init((rdev))
+#define radeon_fini(rdev) (rdev)->asic->fini((rdev))
+#define radeon_resume(rdev) (rdev)->asic->resume((rdev))
+#define radeon_suspend(rdev) (rdev)->asic->suspend((rdev))
 #define radeon_cs_parse(p) rdev->asic->cs_parse((p))
 #define radeon_errata(rdev) (rdev)->asic->errata((rdev))
 #define radeon_vram_info(rdev) (rdev)->asic->vram_info((rdev))
@@ -905,7 +913,11 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_cp_init(rdev,rsize) (rdev)->asic->cp_init((rdev), (rsize))
 #define radeon_cp_fini(rdev) (rdev)->asic->cp_fini((rdev))
 #define radeon_cp_disable(rdev) (rdev)->asic->cp_disable((rdev))
+#define radeon_cp_commit(rdev) (rdev)->asic->cp_commit((rdev))
 #define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
+#define radeon_ring_test(rdev) (rdev)->asic->ring_test((rdev))
+#define radeon_ring_ib_execute(rdev, ib) (rdev)->asic->ring_ib_execute((rdev), (ib))
+#define radeon_ib_test(rdev) (rdev)->asic->ib_test((rdev))
 #define radeon_irq_set(rdev) (rdev)->asic->irq_set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq_process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))

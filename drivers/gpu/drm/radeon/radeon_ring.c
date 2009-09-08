@@ -110,7 +110,6 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 		return;
 	}
 	list_del(&tmp->list);
-	INIT_LIST_HEAD(&tmp->list);
 	if (tmp->fence) {
 		radeon_fence_unref(&tmp->fence);
 	}
@@ -119,19 +118,11 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 	mutex_unlock(&rdev->ib_pool.mutex);
 }
 
-static void radeon_ib_align(struct radeon_device *rdev, struct radeon_ib *ib)
-{
-	while ((ib->length_dw & rdev->cp.align_mask)) {
-		ib->ptr[ib->length_dw++] = PACKET2(0);
-	}
-}
-
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	int r = 0;
 
 	mutex_lock(&rdev->ib_pool.mutex);
-	radeon_ib_align(rdev, ib);
 	if (!ib->length_dw || !rdev->cp.ready) {
 		/* TODO: Nothings in the ib we should report. */
 		mutex_unlock(&rdev->ib_pool.mutex);
@@ -145,9 +136,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 		mutex_unlock(&rdev->ib_pool.mutex);
 		return r;
 	}
-	radeon_ring_write(rdev, PACKET0(RADEON_CP_IB_BASE, 1));
-	radeon_ring_write(rdev, ib->gpu_addr);
-	radeon_ring_write(rdev, ib->length_dw);
+	radeon_ring_ib_execute(rdev, ib);
 	radeon_fence_emit(rdev, ib->fence);
 	radeon_ring_unlock_commit(rdev);
 	list_add_tail(&ib->list, &rdev->ib_pool.scheduled_ibs);
@@ -215,69 +204,16 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 	mutex_unlock(&rdev->ib_pool.mutex);
 }
 
-int radeon_ib_test(struct radeon_device *rdev)
-{
-	struct radeon_ib *ib;
-	uint32_t scratch;
-	uint32_t tmp = 0;
-	unsigned i;
-	int r;
-
-	r = radeon_scratch_get(rdev, &scratch);
-	if (r) {
-		DRM_ERROR("radeon: failed to get scratch reg (%d).\n", r);
-		return r;
-	}
-	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, &ib);
-	if (r) {
-		return r;
-	}
-	ib->ptr[0] = PACKET0(scratch, 0);
-	ib->ptr[1] = 0xDEADBEEF;
-	ib->ptr[2] = PACKET2(0);
-	ib->ptr[3] = PACKET2(0);
-	ib->ptr[4] = PACKET2(0);
-	ib->ptr[5] = PACKET2(0);
-	ib->ptr[6] = PACKET2(0);
-	ib->ptr[7] = PACKET2(0);
-	ib->length_dw = 8;
-	r = radeon_ib_schedule(rdev, ib);
-	if (r) {
-		radeon_scratch_free(rdev, scratch);
-		radeon_ib_free(rdev, &ib);
-		return r;
-	}
-	r = radeon_fence_wait(ib->fence, false);
-	if (r) {
-		return r;
-	}
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(scratch);
-		if (tmp == 0xDEADBEEF) {
-			break;
-		}
-		DRM_UDELAY(1);
-	}
-	if (i < rdev->usec_timeout) {
-		DRM_INFO("ib test succeeded in %u usecs\n", i);
-	} else {
-		DRM_ERROR("radeon: ib test failed (sracth(0x%04X)=0x%08X)\n",
-			  scratch, tmp);
-		r = -EINVAL;
-	}
-	radeon_scratch_free(rdev, scratch);
-	radeon_ib_free(rdev, &ib);
-	return r;
-}
-
 
 /*
  * Ring.
  */
 void radeon_ring_free_size(struct radeon_device *rdev)
 {
-	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
+	if (rdev->family >= CHIP_R600)
+		rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
+	else
+		rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
 	/* This works because ring_size is a power of 2 */
 	rdev->cp.ring_free_dw = (rdev->cp.rptr + (rdev->cp.ring_size / 4));
 	rdev->cp.ring_free_dw -= rdev->cp.wptr;
@@ -320,11 +256,10 @@ void radeon_ring_unlock_commit(struct radeon_device *rdev)
 	count_dw_pad = (rdev->cp.align_mask + 1) -
 		       (rdev->cp.wptr & rdev->cp.align_mask);
 	for (i = 0; i < count_dw_pad; i++) {
-		radeon_ring_write(rdev, PACKET2(0));
+		radeon_ring_write(rdev, 2 << 30);
 	}
 	DRM_MEMORYBARRIER();
-	WREG32(RADEON_CP_RB_WPTR, rdev->cp.wptr);
-	(void)RREG32(RADEON_CP_RB_WPTR);
+	radeon_cp_commit(rdev);
 	mutex_unlock(&rdev->cp.mutex);
 }
 
@@ -332,46 +267,6 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev)
 {
 	rdev->cp.wptr = rdev->cp.wptr_old;
 	mutex_unlock(&rdev->cp.mutex);
-}
-
-int radeon_ring_test(struct radeon_device *rdev)
-{
-	uint32_t scratch;
-	uint32_t tmp = 0;
-	unsigned i;
-	int r;
-
-	r = radeon_scratch_get(rdev, &scratch);
-	if (r) {
-		DRM_ERROR("radeon: cp failed to get scratch reg (%d).\n", r);
-		return r;
-	}
-	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ring_lock(rdev, 2);
-	if (r) {
-		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
-		radeon_scratch_free(rdev, scratch);
-		return r;
-	}
-	radeon_ring_write(rdev, PACKET0(scratch, 0));
-	radeon_ring_write(rdev, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(scratch);
-		if (tmp == 0xDEADBEEF) {
-			break;
-		}
-		DRM_UDELAY(1);
-	}
-	if (i < rdev->usec_timeout) {
-		DRM_INFO("ring test succeeded in %d usecs\n", i);
-	} else {
-		DRM_ERROR("radeon: ring test failed (sracth(0x%04X)=0x%08X)\n",
-			  scratch, tmp);
-		r = -EINVAL;
-	}
-	radeon_scratch_free(rdev, scratch);
-	return r;
 }
 
 int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
