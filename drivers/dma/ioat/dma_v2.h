@@ -127,6 +127,16 @@ ioat2_get_ring_ent(struct ioat2_dma_chan *ioat, u16 idx)
 	return ioat->ring[idx & ioat2_ring_mask(ioat)];
 }
 
+static inline void ioat2_set_chainaddr(struct ioat2_dma_chan *ioat, u64 addr)
+{
+	struct ioat_chan_common *chan = &ioat->base;
+
+	writel(addr & 0x00000000FFFFFFFF,
+	       chan->reg_base + IOAT2_CHAINADDR_OFFSET_LOW);
+	writel(addr >> 32,
+	       chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
+}
+
 int __devinit ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int __devinit ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 struct dca_provider * __devinit ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);

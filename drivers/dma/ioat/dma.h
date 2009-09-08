@@ -23,6 +23,7 @@
 
 #include <linux/dmaengine.h>
 #include "hw.h"
+#include "registers.h"
 #include <linux/init.h>
 #include <linux/dmapool.h>
 #include <linux/cache.h>
@@ -33,7 +34,6 @@
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 #define IOAT_DMA_DCA_ANY_CPU		~0
-#define IOAT_WATCHDOG_PERIOD		(2 * HZ)
 
 #define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)
 #define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
@@ -41,9 +41,6 @@
 #define to_dev(ioat_chan) (&(ioat_chan)->device->pdev->dev)
 
 #define chan_num(ch) ((int)((ch)->reg_base - (ch)->device->reg_base) / 0x80)
-
-#define RESET_DELAY  msecs_to_jiffies(100)
-#define WATCHDOG_DELAY  round_jiffies(msecs_to_jiffies(2000))
 
 /*
  * workaround for IOAT ver.3.0 null descriptor issue
@@ -72,7 +69,6 @@ struct ioatdma_device {
 	struct pci_pool *completion_pool;
 	struct dma_device common;
 	u8 version;
-	struct delayed_work work;
 	struct msix_entry msix_entries[4];
 	struct ioat_chan_common *idx[4];
 	struct dca_provider *dca;
@@ -81,24 +77,21 @@ struct ioatdma_device {
 };
 
 struct ioat_chan_common {
+	struct dma_chan common;
 	void __iomem *reg_base;
-
 	unsigned long last_completion;
-	unsigned long last_completion_time;
-
 	spinlock_t cleanup_lock;
 	dma_cookie_t completed_cookie;
-	unsigned long watchdog_completion;
-	int watchdog_tcp_cookie;
-	u32 watchdog_last_tcp_cookie;
-	struct delayed_work work;
-
+	unsigned long state;
+	#define IOAT_COMPLETION_PENDING 0
+	#define IOAT_COMPLETION_ACK 1
+	#define IOAT_RESET_PENDING 2
+	struct timer_list timer;
+	#define COMPLETION_TIMEOUT msecs_to_jiffies(100)
+	#define RESET_DELAY msecs_to_jiffies(100)
 	struct ioatdma_device *device;
-	struct dma_chan common;
-
 	dma_addr_t completion_dma;
 	u64 *completion;
-	unsigned long last_compl_desc_addr_hw;
 	struct tasklet_struct cleanup_task;
 };
 
@@ -148,7 +141,6 @@ ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 
 	last_used = c->cookie;
 	last_complete = chan->completed_cookie;
-	chan->watchdog_tcp_cookie = cookie;
 
 	if (done)
 		*done = last_complete;
@@ -215,6 +207,85 @@ ioat_chan_by_index(struct ioatdma_device *device, int index)
 	return device->idx[index];
 }
 
+static inline u64 ioat_chansts(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+	u64 status;
+	u32 status_lo;
+
+	/* We need to read the low address first as this causes the
+	 * chipset to latch the upper bits for the subsequent read
+	 */
+	status_lo = readl(chan->reg_base + IOAT_CHANSTS_OFFSET_LOW(ver));
+	status = readl(chan->reg_base + IOAT_CHANSTS_OFFSET_HIGH(ver));
+	status <<= 32;
+	status |= status_lo;
+
+	return status;
+}
+
+static inline void ioat_start(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+
+	writeb(IOAT_CHANCMD_START, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+}
+
+static inline u64 ioat_chansts_to_addr(u64 status)
+{
+	return status & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
+}
+
+static inline u32 ioat_chanerr(struct ioat_chan_common *chan)
+{
+	return readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+}
+
+static inline void ioat_suspend(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+
+	writeb(IOAT_CHANCMD_SUSPEND, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+}
+
+static inline void ioat_set_chainaddr(struct ioat_dma_chan *ioat, u64 addr)
+{
+	struct ioat_chan_common *chan = &ioat->base;
+
+	writel(addr & 0x00000000FFFFFFFF,
+	       chan->reg_base + IOAT1_CHAINADDR_OFFSET_LOW);
+	writel(addr >> 32,
+	       chan->reg_base + IOAT1_CHAINADDR_OFFSET_HIGH);
+}
+
+static inline bool is_ioat_active(unsigned long status)
+{
+	return ((status & IOAT_CHANSTS_STATUS) == IOAT_CHANSTS_ACTIVE);
+}
+
+static inline bool is_ioat_idle(unsigned long status)
+{
+	return ((status & IOAT_CHANSTS_STATUS) == IOAT_CHANSTS_DONE);
+}
+
+static inline bool is_ioat_halted(unsigned long status)
+{
+	return ((status & IOAT_CHANSTS_STATUS) == IOAT_CHANSTS_HALTED);
+}
+
+static inline bool is_ioat_suspended(unsigned long status)
+{
+	return ((status & IOAT_CHANSTS_STATUS) == IOAT_CHANSTS_SUSPENDED);
+}
+
+/* channel was fatally programmed */
+static inline bool is_ioat_bug(unsigned long err)
+{
+	return !!(err & (IOAT_CHANERR_SRC_ADDR_ERR|IOAT_CHANERR_DEST_ADDR_ERR|
+			 IOAT_CHANERR_NEXT_ADDR_ERR|IOAT_CHANERR_CONTROL_ERR|
+			 IOAT_CHANERR_LENGTH_ERR));
+}
+
 int __devinit ioat_probe(struct ioatdma_device *device);
 int __devinit ioat_register(struct ioatdma_device *device);
 int __devinit ioat1_dma_probe(struct ioatdma_device *dev, int dca);
@@ -224,8 +295,11 @@ struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
 unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
 		       struct ioat_chan_common *chan, int idx,
-		       work_func_t work_fn, void (*tasklet)(unsigned long),
-		       unsigned long tasklet_data);
+		       void (*timer_fn)(unsigned long),
+		       void (*tasklet)(unsigned long),
+		       unsigned long ioat);
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw);
+bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
+			   unsigned long *phys_complete);
 #endif /* IOATDMA_H */
