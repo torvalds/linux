@@ -2213,33 +2213,21 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 
 	/* detect & configure */
 	switch (dev->model) {
-	case (EM2800_BOARD_UNKNOWN):
-		break;
-	case (EM2820_BOARD_UNKNOWN):
-		break;
-	case (EM2800_BOARD_TERRATEC_CINERGY_200):
-	case (EM2820_BOARD_TERRATEC_CINERGY_250):
+	case EM2800_BOARD_TERRATEC_CINERGY_200:
+	case EM2820_BOARD_TERRATEC_CINERGY_250:
 		dev->init_data.ir_codes = &ir_codes_em_terratec_table;
 		dev->init_data.get_key = em28xx_get_key_terratec;
 		dev->init_data.name = "i2c IR (EM28XX Terratec)";
 		break;
-	case (EM2820_BOARD_PINNACLE_USB_2):
+	case EM2820_BOARD_PINNACLE_USB_2:
 		dev->init_data.ir_codes = &ir_codes_pinnacle_grey_table;
 		dev->init_data.get_key = em28xx_get_key_pinnacle_usb_grey;
 		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
 		break;
-	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):
+	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
-		break;
-	case (EM2820_BOARD_MSI_VOX_USB_2):
-		break;
-	case (EM2800_BOARD_LEADTEK_WINFAST_USBII):
-		break;
-	case (EM2800_BOARD_KWORLD_USB2800):
-		break;
-	case (EM2800_BOARD_GRABBEEX_USB2800):
 		break;
 	}
 
