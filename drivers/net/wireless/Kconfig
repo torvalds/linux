@@ -275,51 +275,26 @@ config PCMCIA_WL3501
 	 micro support for ethtool.
 
 config PRISM54
-	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus' 
+	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus (DEPRECATED)'
 	depends on PCI && EXPERIMENTAL && WLAN_80211
 	select WIRELESS_EXT
 	select FW_LOADER
 	---help---
-	  Enable PCI and Cardbus support for the following chipset based cards:
+	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
+	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
+	  p54pci supports FullMAC PCI/Cardbus devices as well. For details on
+	  the scheduled removal of this driver on the kernel see the feature
+	  removal schedule:
 
-	  ISL3880 - Prism GT            802.11 b/g
-	  ISL3877 - Prism Indigo        802.11 a
-	  ISL3890 - Prism Duette        802.11 a/b/g
-	  
-	  For a complete list of supported cards visit <http://prism54.org>.
-	  Here is the latest confirmed list of supported cards:
+	  Documentation/feature-removal-schedule.txt
 
-	  3com OfficeConnect 11g Cardbus Card aka 3CRWE154G72 (version 1)
-	  Allnet ALL0271 PCI Card
-	  Compex WL54G Cardbus Card
-	  Corega CG-WLCB54GT Cardbus Card
-	  D-Link Air Plus Xtreme G A1 Cardbus Card aka DWL-g650
-	  I-O Data WN-G54/CB Cardbus Card
-	  Kobishi XG-300 aka Z-Com Cardbus Card
-	  Netgear WG511 Cardbus Card
-	  Ovislink WL-5400PCI PCI Card
-	  Peabird WLG-PCI PCI Card
-	  Sitecom WL-100i Cardbus Card
-	  Sitecom WL-110i PCI Card
-	  SMC2802W -    EZ Connect g 2.4GHz 54 Mbps Wireless PCI Card
-	  SMC2835W -    EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
-	  SMC2835W-V2 - EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
-	  Z-Com XG-900 PCI Card
-	  Zyxel G-100 Cardbus Card
+	  For more information refer to the p54 wiki:
 
-	  If you enable this you will need a firmware file as well.
-	  You will need to copy this to /usr/lib/hotplug/firmware/isl3890.
-	  You can get this non-GPL'd firmware file from the Prism54 project page:
-	  <http://prism54.org>
-	  You will also need the /etc/hotplug/firmware.agent script from
-	  a current hotplug package.
+	  http://wireless.kernel.org/en/users/Drivers/p54
 
-	  Note: You need a motherboard with DMA support to use any of these cards 
-	  
-	  If you want to compile the driver as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
-	  The module will be called prism54.
+	  Note: You need a motherboard with DMA support to use any of these cards
+
+	  When built as module you get the module prism54
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"

@@ -6,6 +6,35 @@ be removed from this file.
 
 ---------------------------
 
+What:	PRISM54
+When:	2.6.34
+
+Why:	prism54 FullMAC PCI / Cardbus devices used to be supported only by the
+	prism54 wireless driver. After Intersil stopped selling these
+	devices in preference for the newer more flexible SoftMAC devices
+	a SoftMAC device driver was required and prism54 did not support
+	them. The p54pci driver now exists and has been present in the kernel for
+	a while. This driver supports both SoftMAC devices and FullMAC devices.
+	The main difference between these devices was the amount of memory which
+	could be used for the firmware. The SoftMAC devices support a smaller
+	amount of memory. Because of this the SoftMAC firmware fits into FullMAC
+	devices's memory. p54pci supports not only PCI / Cardbus but also USB
+	and SPI. Since p54pci supports all devices prism54 supports
+	you will have a conflict. I'm not quite sure how distributions are
+	handling this conflict right now. prism54 was kept around due to
+	claims users may experience issues when using the SoftMAC driver.
+	Time has passed users have not reported issues. If you use prism54
+	and for whatever reason you cannot use p54pci please let us know!
+	E-mail us at: linux-wireless@vger.kernel.org
+
+	For more information see the p54 wiki page:
+
+	http://wireless.kernel.org/en/users/Drivers/p54
+
+Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
+
+---------------------------
+
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
