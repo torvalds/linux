@@ -1462,8 +1462,6 @@ static inline void __generic_make_request(struct bio *bio)
 		if (old_sector != -1)
 			trace_block_remap(q, bio, old_dev, old_sector);
 
-		trace_block_bio_queue(q, bio);
-
 		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
 
@@ -1475,6 +1473,8 @@ static inline void __generic_make_request(struct bio *bio)
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
+
+		trace_block_bio_queue(q, bio);
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
