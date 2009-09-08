@@ -683,7 +683,7 @@ ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 	return ioat_is_complete(c, cookie, done, used);
 }
 
-int ioat2_dma_probe(struct ioatdma_device *device, int dca)
+int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
 	struct dma_device *dma;
@@ -722,7 +722,7 @@ int ioat2_dma_probe(struct ioatdma_device *device, int dca)
 	return err;
 }
 
-int ioat3_dma_probe(struct ioatdma_device *device, int dca)
+int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
 	struct dma_device *dma;

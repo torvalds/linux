@@ -127,8 +127,8 @@ ioat2_get_ring_ent(struct ioat2_dma_chan *ioat, u16 idx)
 	return ioat->ring[idx & ioat2_ring_mask(ioat)];
 }
 
-int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
-int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
-struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+int __devinit ioat2_dma_probe(struct ioatdma_device *dev, int dca);
+int __devinit ioat3_dma_probe(struct ioatdma_device *dev, int dca);
+struct dca_provider * __devinit ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+struct dca_provider * __devinit ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 #endif /* IOATDMA_V2_H */

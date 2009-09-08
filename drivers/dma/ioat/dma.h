@@ -217,11 +217,12 @@ ioat_chan_by_index(struct ioatdma_device *device, int index)
 	return device->idx[index];
 }
 
-int ioat_probe(struct ioatdma_device *device);
-int ioat_register(struct ioatdma_device *device);
-int ioat1_dma_probe(struct ioatdma_device *dev, int dca);
-void ioat_dma_remove(struct ioatdma_device *device);
-struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+int __devinit ioat_probe(struct ioatdma_device *device);
+int __devinit ioat_register(struct ioatdma_device *device);
+int __devinit ioat1_dma_probe(struct ioatdma_device *dev, int dca);
+void __devexit ioat_dma_remove(struct ioatdma_device *device);
+struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
+					      void __iomem *iobase);
 unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
 		       struct ioat_chan_common *chan, int idx,

@@ -870,7 +870,7 @@ static void ioat1_dma_start_null_desc(struct ioat_dma_chan *ioat)
  */
 #define IOAT_TEST_SIZE 2000
 
-static void ioat_dma_test_callback(void *dma_async_param)
+static void __devinit ioat_dma_test_callback(void *dma_async_param)
 {
 	struct completion *cmp = dma_async_param;
 
@@ -881,7 +881,7 @@ static void ioat_dma_test_callback(void *dma_async_param)
  * ioat_dma_self_test - Perform a IOAT transaction to verify the HW works.
  * @device: device to be tested
  */
-static int ioat_dma_self_test(struct ioatdma_device *device)
+static int __devinit ioat_dma_self_test(struct ioatdma_device *device)
 {
 	int i;
 	u8 *src;
@@ -1082,7 +1082,7 @@ static void ioat_disable_interrupts(struct ioatdma_device *device)
 	writeb(0, device->reg_base + IOAT_INTRCTRL_OFFSET);
 }
 
-int ioat_probe(struct ioatdma_device *device)
+int __devinit ioat_probe(struct ioatdma_device *device)
 {
 	int err = -ENODEV;
 	struct dma_device *dma = &device->common;
@@ -1142,7 +1142,7 @@ err_dma_pool:
 	return err;
 }
 
-int ioat_register(struct ioatdma_device *device)
+int __devinit ioat_register(struct ioatdma_device *device)
 {
 	int err = dma_async_device_register(&device->common);
 
@@ -1169,7 +1169,7 @@ static void ioat1_intr_quirk(struct ioatdma_device *device)
 	pci_write_config_dword(pdev, IOAT_PCI_DMACTRL_OFFSET, dmactrl);
 }
 
-int ioat1_dma_probe(struct ioatdma_device *device, int dca)
+int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
 	struct dma_device *dma;
@@ -1200,7 +1200,7 @@ int ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	return err;
 }
 
-void ioat_dma_remove(struct ioatdma_device *device)
+void __devexit ioat_dma_remove(struct ioatdma_device *device)
 {
 	struct dma_device *dma = &device->common;
 
