@@ -627,6 +627,7 @@ config USB_AUDIO
 config USB_ETH
 	tristate "Ethernet Gadget (with CDC Ethernet support)"
 	depends on NET
+	select CRC32
 	help
 	  This driver implements Ethernet style communication, in one of
 	  several ways:
