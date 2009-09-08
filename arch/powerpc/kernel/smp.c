@@ -269,7 +269,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	cpu_callin_map[boot_cpuid] = 1;
 
 	if (smp_ops)
-		max_cpus = smp_ops->probe();
+		if (smp_ops->probe)
+			max_cpus = smp_ops->probe();
+		else
+			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
  
@@ -493,7 +496,8 @@ int __devinit start_secondary(void *unused)
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 
-	smp_ops->setup_cpu(cpu);
+	if (smp_ops->setup_cpu)
+		smp_ops->setup_cpu(cpu);
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
 
@@ -556,7 +560,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	old_mask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
 	
-	if (smp_ops)
+	if (smp_ops && smp_ops->setup_cpu)
 		smp_ops->setup_cpu(boot_cpuid);
 
 	set_cpus_allowed(current, old_mask);
