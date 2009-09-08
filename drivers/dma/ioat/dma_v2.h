@@ -116,6 +116,9 @@ struct ioat_ring_ent {
 	struct ioat_dma_descriptor *hw;
 	struct dma_async_tx_descriptor txd;
 	size_t len;
+	#ifdef DEBUG
+	int id;
+	#endif
 };
 
 static inline struct ioat_ring_ent *

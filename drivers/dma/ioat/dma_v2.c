@@ -54,7 +54,9 @@ static void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 	/* make descriptor updates globally visible before notifying channel */
 	wmb();
 	writew(ioat->dmacount, reg_base + IOAT_CHAN_DMACOUNT_OFFSET);
-
+	dev_dbg(to_dev(&ioat->base),
+		"%s: head: %#x tail: %#x issued: %#x count: %#x\n",
+		__func__, ioat->head, ioat->tail, ioat->issued, ioat->dmacount);
 }
 
 static void ioat2_issue_pending(struct dma_chan *chan)
@@ -101,6 +103,8 @@ static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 		return;
 	}
 
+	dev_dbg(to_dev(&ioat->base), "%s: head: %#x tail: %#x issued: %#x\n",
+		__func__, ioat->head, ioat->tail, ioat->issued);
 	idx = ioat2_desc_alloc(ioat, 1);
 	desc = ioat2_get_ring_ent(ioat, idx);
 
@@ -118,6 +122,7 @@ static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 	       reg_base + IOAT2_CHAINADDR_OFFSET_LOW);
 	writel(((u64) desc->txd.phys) >> 32,
 	       reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
+	dump_desc_dbg(ioat, desc);
 	__ioat2_issue_pending(ioat);
 }
 
@@ -153,6 +158,10 @@ static void ioat2_reset_part2(struct work_struct *work)
 	/* set the tail to be re-issued */
 	ioat->issued = ioat->tail;
 	ioat->dmacount = 0;
+
+	dev_dbg(to_dev(&ioat->base),
+		"%s: head: %#x tail: %#x issued: %#x count: %#x\n",
+		__func__, ioat->head, ioat->tail, ioat->issued, ioat->dmacount);
 
 	if (ioat2_ring_pending(ioat)) {
 		struct ioat_ring_ent *desc;
@@ -220,6 +229,8 @@ static void ioat2_chan_watchdog(struct work_struct *work)
 	struct ioat_chan_common *chan;
 	u16 active;
 	int i;
+
+	dev_dbg(&device->pdev->dev, "%s\n", __func__);
 
 	for (i = 0; i < device->common.chancnt; i++) {
 		chan = ioat_chan_by_index(device, i);
@@ -295,11 +306,15 @@ static void ioat2_cleanup(struct ioat2_dma_chan *ioat)
 
 	spin_lock_bh(&ioat->ring_lock);
 
+	dev_dbg(to_dev(chan), "%s: head: %#x tail: %#x issued: %#x\n",
+		__func__, ioat->head, ioat->tail, ioat->issued);
+
 	active = ioat2_ring_active(ioat);
 	for (i = 0; i < active && !seen_current; i++) {
 		prefetch(ioat2_get_ring_ent(ioat, ioat->tail + i + 1));
 		desc = ioat2_get_ring_ent(ioat, ioat->tail + i);
 		tx = &desc->txd;
+		dump_desc_dbg(ioat, desc);
 		if (tx->cookie) {
 			ioat_dma_unmap(chan, tx->flags, desc->len, desc->hw);
 			chan->completed_cookie = tx->cookie;
@@ -348,6 +363,7 @@ static int ioat2_enumerate_channels(struct ioatdma_device *device)
 	xfercap_log = readb(device->reg_base + IOAT_XFERCAP_OFFSET);
 	if (xfercap_log == 0)
 		return 0;
+	dev_dbg(dev, "%s: xfercap = %d\n", __func__, 1 << xfercap_log);
 
 	/* FIXME which i/oat version is i7300? */
 #ifdef CONFIG_I7300_IDLE_IOAT_CHANNEL
@@ -381,6 +397,8 @@ static dma_cookie_t ioat2_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
 		cookie = 1;
 	tx->cookie = cookie;
 	c->cookie = cookie;
+	dev_dbg(to_dev(&ioat->base), "%s: cookie: %d\n", __func__, cookie);
+
 	ioat2_update_pending(ioat);
 	spin_unlock_bh(&ioat->ring_lock);
 
@@ -480,6 +498,7 @@ static int ioat2_alloc_chan_resources(struct dma_chan *c)
 			kfree(ring);
 			return -ENOMEM;
 		}
+		set_desc_id(ring[i], i);
 	}
 
 	/* link descs */
@@ -571,12 +590,14 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 		len -= copy;
 		dst += copy;
 		src += copy;
+		dump_desc_dbg(ioat, desc);
 	}
 
 	desc->txd.flags = flags;
 	desc->len = total_len;
 	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
 	hw->ctl_f.compl_write = 1;
+	dump_desc_dbg(ioat, desc);
 	/* we leave the channel locked to ensure in order submission */
 
 	return &desc->txd;
@@ -614,6 +635,7 @@ static void ioat2_free_chan_resources(struct dma_chan *c)
 
 	spin_lock_bh(&ioat->ring_lock);
 	descs = ioat2_ring_space(ioat);
+	dev_dbg(to_dev(chan), "freeing %d idle descriptors\n", descs);
 	for (i = 0; i < descs; i++) {
 		desc = ioat2_get_ring_ent(ioat, ioat->head + i);
 		ioat2_free_ring_ent(desc, c);
@@ -625,6 +647,7 @@ static void ioat2_free_chan_resources(struct dma_chan *c)
 
 	for (i = 0; i < total_descs - descs; i++) {
 		desc = ioat2_get_ring_ent(ioat, ioat->tail + i);
+		dump_desc_dbg(ioat, desc);
 		ioat2_free_ring_ent(desc, c);
 	}
 

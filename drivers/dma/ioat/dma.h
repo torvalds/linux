@@ -173,6 +173,7 @@ ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
  *     or attached to a transaction list (async_tx.tx_list)
  * @tx_cnt: number of descriptors required to complete the transaction
  * @txd: the generic software descriptor for all engines
+ * @id: identifier for debug
  */
 struct ioat_desc_sw {
 	struct ioat_dma_descriptor *hw;
@@ -180,7 +181,34 @@ struct ioat_desc_sw {
 	int tx_cnt;
 	size_t len;
 	struct dma_async_tx_descriptor txd;
+	#ifdef DEBUG
+	int id;
+	#endif
 };
+
+#ifdef DEBUG
+#define set_desc_id(desc, i) ((desc)->id = (i))
+#define desc_id(desc) ((desc)->id)
+#else
+#define set_desc_id(desc, i)
+#define desc_id(desc) (0)
+#endif
+
+static inline void
+__dump_desc_dbg(struct ioat_chan_common *chan, struct ioat_dma_descriptor *hw,
+		struct dma_async_tx_descriptor *tx, int id)
+{
+	struct device *dev = to_dev(chan);
+
+	dev_dbg(dev, "desc[%d]: (%#llx->%#llx) cookie: %d flags: %#x"
+		" ctl: %#x (op: %d int_en: %d compl: %d)\n", id,
+		(unsigned long long) tx->phys,
+		(unsigned long long) hw->next, tx->cookie, tx->flags,
+		hw->ctl, hw->ctl_f.op, hw->ctl_f.int_en, hw->ctl_f.compl_write);
+}
+
+#define dump_desc_dbg(c, d) \
+	({ if (d) __dump_desc_dbg(&c->base, d->hw, &d->txd, desc_id(d)); 0; })
 
 static inline void ioat_set_tcp_copy_break(unsigned long copybreak)
 {
