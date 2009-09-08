@@ -1225,6 +1225,10 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 	if (enable && !device_may_wakeup(&dev->dev))
 		return -EINVAL;
 
+	/* Don't do the same thing twice in a row for one device. */
+	if (!!enable == !!dev->wakeup_prepared)
+		return 0;
+
 	/*
 	 * According to "PCI System Architecture" 4th ed. by Tom Shanley & Don
 	 * Anderson we should be doing PME# wake enable followed by ACPI wake
@@ -1241,9 +1245,12 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 		error = platform_pci_sleep_wake(dev, true);
 		if (ret)
 			ret = error;
+		if (!ret)
+			dev->wakeup_prepared = true;
 	} else {
 		platform_pci_sleep_wake(dev, false);
 		pci_pme_active(dev, false);
+		dev->wakeup_prepared = false;
 	}
 
 	return ret;
@@ -1365,6 +1372,7 @@ void pci_pm_init(struct pci_dev *dev)
 	int pm;
 	u16 pmc;
 
+	dev->wakeup_prepared = false;
 	dev->pm_cap = 0;
 
 	/* find PCI PM capability in list */
