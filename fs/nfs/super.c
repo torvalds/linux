@@ -2321,6 +2321,12 @@ static int nfs4_validate_text_mount_data(void *options,
 
 	nfs4_validate_mount_flags(args);
 
+	if (args->version != 4) {
+		dfprintk(MOUNT,
+			 "NFS4: Illegal mount version\n");
+		return -EINVAL;
+	}
+
 	if (args->auth_flavor_len > 1) {
 		dfprintk(MOUNT,
 			 "NFS4: Too many RPC auth flavours specified\n");
