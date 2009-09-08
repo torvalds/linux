@@ -396,7 +396,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	dump_desc_dbg(ioat, chain_tail);
 	dump_desc_dbg(ioat, first);
 
-	ioat->pending += desc->tx_cnt;
+	ioat->pending += desc->hw->tx_cnt;
 	if (ioat->pending >= ioat_pending_level)
 		__ioat1_dma_memcpy_issue_pending(ioat);
 	spin_unlock_bh(&ioat->desc_lock);
@@ -655,11 +655,11 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 	spin_unlock_bh(&ioat->desc_lock);
 
 	desc->txd.flags = flags;
-	desc->tx_cnt = tx_cnt;
 	desc->len = total_len;
 	list_splice(&chain, &desc->txd.tx_list);
 	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
 	hw->ctl_f.compl_write = 1;
+	hw->tx_cnt = tx_cnt;
 	dump_desc_dbg(ioat, desc);
 
 	return &desc->txd;

@@ -165,14 +165,12 @@ ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
  * @hw: hardware DMA descriptor
  * @node: this descriptor will either be on the free list,
  *     or attached to a transaction list (async_tx.tx_list)
- * @tx_cnt: number of descriptors required to complete the transaction
  * @txd: the generic software descriptor for all engines
  * @id: identifier for debug
  */
 struct ioat_desc_sw {
 	struct ioat_dma_descriptor *hw;
 	struct list_head node;
-	int tx_cnt;
 	size_t len;
 	struct dma_async_tx_descriptor txd;
 	#ifdef DEBUG
