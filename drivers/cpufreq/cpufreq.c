@@ -1250,19 +1250,10 @@ static int cpufreq_suspend(struct sys_device *sysdev, pm_message_t pmsg)
 {
 	int ret = 0;
 
-#ifdef __powerpc__
 	int cpu = sysdev->id;
-	unsigned int cur_freq = 0;
 	struct cpufreq_policy *cpu_policy;
 
 	dprintk("suspending cpu %u\n", cpu);
-
-	/*
-	 * This whole bogosity is here because Powerbooks are made of fail.
-	 * No sane platform should need any of the code below to be run.
-	 * (it's entirely the wrong thing to do, as driver->get may
-	 *  reenable interrupts on some architectures).
-	 */
 
 	if (!cpu_online(cpu))
 		return 0;
@@ -1282,47 +1273,13 @@ static int cpufreq_suspend(struct sys_device *sysdev, pm_message_t pmsg)
 
 	if (cpufreq_driver->suspend) {
 		ret = cpufreq_driver->suspend(cpu_policy, pmsg);
-		if (ret) {
+		if (ret)
 			printk(KERN_ERR "cpufreq: suspend failed in ->suspend "
 					"step on CPU %u\n", cpu_policy->cpu);
-			goto out;
-		}
-	}
-
-	if (cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)
-		goto out;
-
-	if (cpufreq_driver->get)
-		cur_freq = cpufreq_driver->get(cpu_policy->cpu);
-
-	if (!cur_freq || !cpu_policy->cur) {
-		printk(KERN_ERR "cpufreq: suspend failed to assert current "
-		       "frequency is what timing core thinks it is.\n");
-		goto out;
-	}
-
-	if (unlikely(cur_freq != cpu_policy->cur)) {
-		struct cpufreq_freqs freqs;
-
-		if (!(cpufreq_driver->flags & CPUFREQ_PM_NO_WARN))
-			dprintk("Warning: CPU frequency is %u, "
-			       "cpufreq assumed %u kHz.\n",
-			       cur_freq, cpu_policy->cur);
-
-		freqs.cpu = cpu;
-		freqs.old = cpu_policy->cur;
-		freqs.new = cur_freq;
-
-		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-				    CPUFREQ_SUSPENDCHANGE, &freqs);
-		adjust_jiffies(CPUFREQ_SUSPENDCHANGE, &freqs);
-
-		cpu_policy->cur = cur_freq;
 	}
 
 out:
 	cpufreq_cpu_put(cpu_policy);
-#endif	/* __powerpc__ */
 	return ret;
 }
 
@@ -1330,23 +1287,20 @@ out:
  *	cpufreq_resume -  restore proper CPU frequency handling after resume
  *
  *	1.) resume CPUfreq hardware support (cpufreq_driver->resume())
- *	2.) if ->target and !CPUFREQ_CONST_LOOPS: verify we're in sync
- *	3.) schedule call cpufreq_update_policy() ASAP as interrupts are
- *	    restored.
+ *	2.) schedule call cpufreq_update_policy() ASAP as interrupts are
+ *	    restored. It will verify that the current freq is in sync with
+ *	    what we believe it to be. This is a bit later than when it
+ *	    should be, but nonethteless it's better than calling
+ *	    cpufreq_driver->get() here which might re-enable interrupts...
  */
 static int cpufreq_resume(struct sys_device *sysdev)
 {
 	int ret = 0;
 
-#ifdef __powerpc__
 	int cpu = sysdev->id;
 	struct cpufreq_policy *cpu_policy;
 
 	dprintk("resuming cpu %u\n", cpu);
-
-	/* As with the ->suspend method, all the code below is
-	 * only necessary because Powerbooks suck.
-	 * See commit 42d4dc3f4e1e for jokes. */
 
 	if (!cpu_online(cpu))
 		return 0;
@@ -1373,45 +1327,10 @@ static int cpufreq_resume(struct sys_device *sysdev)
 		}
 	}
 
-	if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-		unsigned int cur_freq = 0;
-
-		if (cpufreq_driver->get)
-			cur_freq = cpufreq_driver->get(cpu_policy->cpu);
-
-		if (!cur_freq || !cpu_policy->cur) {
-			printk(KERN_ERR "cpufreq: resume failed to assert "
-					"current frequency is what timing core "
-					"thinks it is.\n");
-			goto out;
-		}
-
-		if (unlikely(cur_freq != cpu_policy->cur)) {
-			struct cpufreq_freqs freqs;
-
-			if (!(cpufreq_driver->flags & CPUFREQ_PM_NO_WARN))
-				dprintk("Warning: CPU frequency "
-				       "is %u, cpufreq assumed %u kHz.\n",
-				       cur_freq, cpu_policy->cur);
-
-			freqs.cpu = cpu;
-			freqs.old = cpu_policy->cur;
-			freqs.new = cur_freq;
-
-			srcu_notifier_call_chain(
-					&cpufreq_transition_notifier_list,
-					CPUFREQ_RESUMECHANGE, &freqs);
-			adjust_jiffies(CPUFREQ_RESUMECHANGE, &freqs);
-
-			cpu_policy->cur = cur_freq;
-		}
-	}
-
-out:
 	schedule_work(&cpu_policy->update);
+
 fail:
 	cpufreq_cpu_put(cpu_policy);
-#endif	/* __powerpc__ */
 	return ret;
 }
 

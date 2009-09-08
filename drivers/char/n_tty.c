@@ -300,8 +300,7 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 			if (space < 2)
 				return -1;
 			tty->canon_column = tty->column = 0;
-			tty_put_char(tty, '\r');
-			tty_put_char(tty, c);
+			tty->ops->write(tty, "\r\n", 2);
 			return 2;
 		}
 		tty->canon_column = tty->column;
