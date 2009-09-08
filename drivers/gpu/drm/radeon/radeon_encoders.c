@@ -1400,8 +1400,14 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-		drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_TMDS);
-		radeon_encoder->enc_priv = radeon_atombios_set_dig_info(radeon_encoder);
+		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+			radeon_encoder->rmx_type = RMX_FULL;
+			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_LVDS);
+			radeon_encoder->enc_priv = radeon_atombios_get_lvds_info(radeon_encoder);
+		} else {
+			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_TMDS);
+			radeon_encoder->enc_priv = radeon_atombios_set_dig_info(radeon_encoder);
+		}
 		drm_encoder_helper_add(encoder, &radeon_atom_dig_helper_funcs);
 		break;
 	}
