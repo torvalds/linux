@@ -132,7 +132,14 @@ static int ioat1_enumerate_channels(struct ioatdma_device *device)
 
 	INIT_LIST_HEAD(&dma->channels);
 	dma->chancnt = readb(device->reg_base + IOAT_CHANCNT_OFFSET);
+	dma->chancnt &= 0x1f; /* bits [4:0] valid */
+	if (dma->chancnt > ARRAY_SIZE(device->idx)) {
+		dev_warn(dev, "(%d) exceeds max supported channels (%zu)\n",
+			 dma->chancnt, ARRAY_SIZE(device->idx));
+		dma->chancnt = ARRAY_SIZE(device->idx);
+	}
 	xfercap_scale = readb(device->reg_base + IOAT_XFERCAP_OFFSET);
+	xfercap_scale &= 0x1f; /* bits [4:0] valid */
 	xfercap = (xfercap_scale == 0 ? -1 : (1UL << xfercap_scale));
 	dev_dbg(dev, "%s: xfercap = %d\n", __func__, xfercap);
 
