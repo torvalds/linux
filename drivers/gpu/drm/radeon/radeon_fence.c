@@ -171,16 +171,7 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 int r600_fence_wait(struct radeon_fence *fence,  bool intr, bool lazy)
 {
 	struct radeon_device *rdev;
-	unsigned long cur_jiffies;
-	unsigned long timeout;
 	int ret = 0;
-
-	cur_jiffies = jiffies;
-	timeout = HZ / 100;
-
-	if (time_after(fence->timeout, cur_jiffies)) {
-		timeout = fence->timeout - cur_jiffies;
-	}
 
 	rdev = fence->rdev;
 
@@ -190,7 +181,7 @@ int r600_fence_wait(struct radeon_fence *fence,  bool intr, bool lazy)
 		if (radeon_fence_signaled(fence))
 			break;
 
-		if (time_after_eq(jiffies, timeout)) {
+		if (time_after_eq(jiffies, fence->timeout)) {
 			ret = -EBUSY;
 			break;
 		}
