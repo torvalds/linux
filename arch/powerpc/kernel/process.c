@@ -284,13 +284,12 @@ int set_dabr(unsigned long dabr)
 		return ppc_md.set_dabr(dabr);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
-#if defined(CONFIG_PPC64) || defined(CONFIG_6xx)
+#if defined(CONFIG_BOOKE)
+	mtspr(SPRN_DAC1, dabr);
+#elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
 #endif
 
-#if defined(CONFIG_BOOKE)
-	mtspr(SPRN_DAC1, dabr);
-#endif
 
 	return 0;
 }
@@ -372,14 +371,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr);
-
 #if defined(CONFIG_BOOKE)
 	/* If new thread DAC (HW breakpoint) is the same then leave it */
 	if (new->thread.dabr)
 		set_dabr(new->thread.dabr);
+#else
+	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
+		set_dabr(new->thread.dabr);
 #endif
+
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
