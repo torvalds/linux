@@ -128,7 +128,7 @@ config NET_DMA
 
 config ASYNC_TX_DMA
 	bool "Async_tx: Offload support for the async_tx api"
-	depends on DMA_ENGINE && !HIGHMEM64G
+	depends on DMA_ENGINE
 	help
 	  This allows the async_tx api to take advantage of offload engines for
 	  memcpy, memset, xor, and raid6 p+q operations.  If your platform has
