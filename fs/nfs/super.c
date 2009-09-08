@@ -73,7 +73,7 @@ enum {
 	Opt_cto, Opt_nocto,
 	Opt_ac, Opt_noac,
 	Opt_lock, Opt_nolock,
-	Opt_v2, Opt_v3,
+	Opt_v2, Opt_v3, Opt_v4,
 	Opt_udp, Opt_tcp, Opt_rdma,
 	Opt_acl, Opt_noacl,
 	Opt_rdirplus, Opt_nordirplus,
@@ -127,6 +127,7 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_nolock, "nolock" },
 	{ Opt_v2, "v2" },
 	{ Opt_v3, "v3" },
+	{ Opt_v4, "v4" },
 	{ Opt_udp, "udp" },
 	{ Opt_tcp, "tcp" },
 	{ Opt_rdma, "rdma" },
@@ -934,10 +935,18 @@ static int nfs_parse_mount_options(char *raw,
 			break;
 		case Opt_v2:
 			mnt->flags &= ~NFS_MOUNT_VER3;
+			mnt->version = 2;
 			break;
 		case Opt_v3:
 			mnt->flags |= NFS_MOUNT_VER3;
+			mnt->version = 3;
 			break;
+#ifdef CONFIG_NFS_V4
+		case Opt_v4:
+			mnt->flags &= ~NFS_MOUNT_VER3;
+			mnt->version = 4;
+			break;
+#endif
 		case Opt_udp:
 			mnt->flags &= ~NFS_MOUNT_TCP;
 			mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
@@ -1151,10 +1160,18 @@ static int nfs_parse_mount_options(char *raw,
 			switch (option) {
 			case NFS2_VERSION:
 				mnt->flags &= ~NFS_MOUNT_VER3;
+				mnt->version = 2;
 				break;
 			case NFS3_VERSION:
 				mnt->flags |= NFS_MOUNT_VER3;
+				mnt->version = 3;
 				break;
+#ifdef CONFIG_NFS_V4
+			case NFS4_VERSION:
+				mnt->flags &= ~NFS_MOUNT_VER3;
+				mnt->version = 4;
+				break;
+#endif
 			default:
 				goto out_invalid_value;
 			}
@@ -1629,6 +1646,7 @@ static int nfs_validate_mount_data(void *options,
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 	args->auth_flavors[0]	= RPC_AUTH_UNIX;
 	args->auth_flavor_len	= 1;
+	args->minorversion	= 0;
 
 	switch (data->version) {
 	case 1:
@@ -1650,8 +1668,11 @@ static int nfs_validate_mount_data(void *options,
 			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)
 				goto out_invalid_fh;
 			mntfh->size = data->root.size;
-		} else
+			args->version = 3;
+		} else {
 			mntfh->size = NFS2_FHSIZE;
+			args->version = 2;
+		}
 
 
 		memcpy(mntfh->data, data->root.data, mntfh->size);
@@ -1726,6 +1747,14 @@ static int nfs_validate_mount_data(void *options,
 		if (!nfs_verify_server_address(sap))
 			goto out_no_address;
 
+		if (args->version == 4)
+#ifdef CONFIG_NFS_V4
+			return nfs4_validate_text_mount_data(options,
+							     args, dev_name);
+#else
+			goto out_v4_not_compiled;
+#endif
+
 		nfs_set_default_port(sap, args->nfs_server.port, 0);
 
 		nfs_set_mount_transport_protocol(args);
@@ -1773,6 +1802,12 @@ out_v3_not_compiled:
 	dfprintk(MOUNT, "NFS: NFSv3 is not compiled into kernel\n");
 	return -EPROTONOSUPPORT;
 #endif /* !CONFIG_NFS_V3 */
+
+#ifndef CONFIG_NFS_V4
+out_v4_not_compiled:
+	dfprintk(MOUNT, "NFS: NFSv4 is not compiled into kernel\n");
+	return -EPROTONOSUPPORT;
+#endif /* !CONFIG_NFS_V4 */
 
 out_nomem:
 	dfprintk(MOUNT, "NFS: not enough memory to handle mount options\n");
@@ -2069,6 +2104,14 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (error < 0)
 		goto out;
 
+#ifdef CONFIG_NFS_V4
+	if (data->version == 4) {
+		error = nfs4_try_mount(flags, dev_name, data, mnt);
+		kfree(data->client_address);
+		goto out;
+	}
+#endif	/* CONFIG_NFS_V4 */
+
 	/* Get a volume representation */
 	server = nfs_create_server(data, mntfh);
 	if (IS_ERR(server)) {
@@ -2320,6 +2363,7 @@ static int nfs4_validate_mount_data(void *options,
 	args->nfs_server.port	= NFS_UNSPEC_PORT;
 	args->auth_flavors[0]	= RPC_AUTH_UNIX;
 	args->auth_flavor_len	= 1;
+	args->version		= 4;
 	args->minorversion	= 0;
 
 	switch (data->version) {
