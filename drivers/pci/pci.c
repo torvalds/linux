@@ -1220,8 +1220,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
  */
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
-	int error = 0;
-	bool pme_done = false;
+	int ret = 0;
 
 	if (enable && !device_may_wakeup(&dev->dev))
 		return -EINVAL;
@@ -1232,18 +1231,22 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 	 * enable.  To disable wake-up we call the platform first, for symmetry.
 	 */
 
-	if (!enable && platform_pci_can_wakeup(dev))
-		error = platform_pci_sleep_wake(dev, false);
+	if (enable) {
+		int error;
 
-	if (!enable || pci_pme_capable(dev, state)) {
-		pci_pme_active(dev, enable);
-		pme_done = true;
+		if (pci_pme_capable(dev, state))
+			pci_pme_active(dev, true);
+		else
+			ret = 1;
+		error = platform_pci_sleep_wake(dev, true);
+		if (ret)
+			ret = error;
+	} else {
+		platform_pci_sleep_wake(dev, false);
+		pci_pme_active(dev, false);
 	}
 
-	if (enable && platform_pci_can_wakeup(dev))
-		error = platform_pci_sleep_wake(dev, true);
-
-	return pme_done ? 0 : error;
+	return ret;
 }
 
 /**
