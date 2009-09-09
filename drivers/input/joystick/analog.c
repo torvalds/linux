@@ -35,7 +35,7 @@
 #include <linux/input.h>
 #include <linux/gameport.h>
 #include <linux/jiffies.h>
-#include <asm/timex.h>
+#include <linux/timex.h>
 
 #define DRIVER_DESC	"Analog joystick and gamepad driver"
 

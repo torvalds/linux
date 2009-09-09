@@ -55,7 +55,7 @@ __cmpxchg_u32(volatile int *m, unsigned long old, unsigned long new)
 		"mov		%0, %1				\n\t"
 		"cmp/eq		%1, %3				\n\t"
 		"bf		2f				\n\t"
-		"mov		%3, %0				\n\t"
+		"mov		%4, %0				\n\t"
 		"2:						\n\t"
 		"movco.l	%0, @%2				\n\t"
 		"bf		1b				\n\t"

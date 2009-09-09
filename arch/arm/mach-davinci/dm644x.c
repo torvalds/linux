@@ -11,7 +11,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
+#include <linux/serial_8250.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
+
+#include <asm/mach/map.h>
 
 #include <mach/dm644x.h>
 #include <mach/clock.h>
@@ -20,6 +24,9 @@
 #include <mach/irqs.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
+#include <mach/time.h>
+#include <mach/serial.h>
+#include <mach/common.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -312,7 +319,14 @@ struct davinci_clk dm644x_clks[] = {
 	CLK(NULL, NULL, NULL),
 };
 
-#if defined(CONFIG_TI_DAVINCI_EMAC) || defined(CONFIG_TI_DAVINCI_EMAC_MODULE)
+static struct emac_platform_data dm644x_emac_pdata = {
+	.ctrl_reg_offset	= DM644X_EMAC_CNTRL_OFFSET,
+	.ctrl_mod_reg_offset	= DM644X_EMAC_CNTRL_MOD_OFFSET,
+	.ctrl_ram_offset	= DM644X_EMAC_CNTRL_RAM_OFFSET,
+	.mdio_reg_offset	= DM644X_EMAC_MDIO_OFFSET,
+	.ctrl_ram_size		= DM644X_EMAC_CNTRL_RAM_SIZE,
+	.version		= EMAC_VERSION_1,
+};
 
 static struct resource dm644x_emac_resources[] = {
 	{
@@ -330,11 +344,15 @@ static struct resource dm644x_emac_resources[] = {
 static struct platform_device dm644x_emac_device = {
        .name		= "davinci_emac",
        .id		= 1,
+       .dev = {
+	       .platform_data	= &dm644x_emac_pdata,
+       },
        .num_resources	= ARRAY_SIZE(dm644x_emac_resources),
        .resource	= dm644x_emac_resources,
 };
 
-#endif
+#define PINMUX0		0x00
+#define PINMUX1		0x04
 
 /*
  * Device specific mux setup
@@ -343,6 +361,7 @@ static struct platform_device dm644x_emac_device = {
  *				reg  offset mask  mode
  */
 static const struct mux_config dm644x_pins[] = {
+#ifdef CONFIG_DAVINCI_MUX
 MUX_CFG(DM644X, HDIREN,		0,   16,    1,	  1,	 true)
 MUX_CFG(DM644X, ATAEN,		0,   17,    1,	  1,	 true)
 MUX_CFG(DM644X, ATAEN_DISABLE,	0,   17,    1,	  0,	 true)
@@ -383,8 +402,76 @@ MUX_CFG(DM644X, RGB666,		0,   22,    1,	  1,	 true)
 
 MUX_CFG(DM644X, LOEEN,		0,   24,    1,	  1,	 true)
 MUX_CFG(DM644X, LFLDEN,		0,   25,    1,	  1,	 false)
+#endif
 };
 
+/* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
+static u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
+	[IRQ_VDINT0]		= 2,
+	[IRQ_VDINT1]		= 6,
+	[IRQ_VDINT2]		= 6,
+	[IRQ_HISTINT]		= 6,
+	[IRQ_H3AINT]		= 6,
+	[IRQ_PRVUINT]		= 6,
+	[IRQ_RSZINT]		= 6,
+	[7]			= 7,
+	[IRQ_VENCINT]		= 6,
+	[IRQ_ASQINT]		= 6,
+	[IRQ_IMXINT]		= 6,
+	[IRQ_VLCDINT]		= 6,
+	[IRQ_USBINT]		= 4,
+	[IRQ_EMACINT]		= 4,
+	[14]			= 7,
+	[15]			= 7,
+	[IRQ_CCINT0]		= 5,	/* dma */
+	[IRQ_CCERRINT]		= 5,	/* dma */
+	[IRQ_TCERRINT0]		= 5,	/* dma */
+	[IRQ_TCERRINT]		= 5,	/* dma */
+	[IRQ_PSCIN]		= 7,
+	[21]			= 7,
+	[IRQ_IDE]		= 4,
+	[23]			= 7,
+	[IRQ_MBXINT]		= 7,
+	[IRQ_MBRINT]		= 7,
+	[IRQ_MMCINT]		= 7,
+	[IRQ_SDIOINT]		= 7,
+	[28]			= 7,
+	[IRQ_DDRINT]		= 7,
+	[IRQ_AEMIFINT]		= 7,
+	[IRQ_VLQINT]		= 4,
+	[IRQ_TINT0_TINT12]	= 2,	/* clockevent */
+	[IRQ_TINT0_TINT34]	= 2,	/* clocksource */
+	[IRQ_TINT1_TINT12]	= 7,	/* DSP timer */
+	[IRQ_TINT1_TINT34]	= 7,	/* system tick */
+	[IRQ_PWMINT0]		= 7,
+	[IRQ_PWMINT1]		= 7,
+	[IRQ_PWMINT2]		= 7,
+	[IRQ_I2C]		= 3,
+	[IRQ_UARTINT0]		= 3,
+	[IRQ_UARTINT1]		= 3,
+	[IRQ_UARTINT2]		= 3,
+	[IRQ_SPINT0]		= 3,
+	[IRQ_SPINT1]		= 3,
+	[45]			= 7,
+	[IRQ_DSP2ARM0]		= 4,
+	[IRQ_DSP2ARM1]		= 4,
+	[IRQ_GPIO0]		= 7,
+	[IRQ_GPIO1]		= 7,
+	[IRQ_GPIO2]		= 7,
+	[IRQ_GPIO3]		= 7,
+	[IRQ_GPIO4]		= 7,
+	[IRQ_GPIO5]		= 7,
+	[IRQ_GPIO6]		= 7,
+	[IRQ_GPIO7]		= 7,
+	[IRQ_GPIOBNK0]		= 7,
+	[IRQ_GPIOBNK1]		= 7,
+	[IRQ_GPIOBNK2]		= 7,
+	[IRQ_GPIOBNK3]		= 7,
+	[IRQ_GPIOBNK4]		= 7,
+	[IRQ_COMMTX]		= 7,
+	[IRQ_COMMRX]		= 7,
+	[IRQ_EMUINT]		= 7,
+};
 
 /*----------------------------------------------------------------------*/
 
@@ -444,10 +531,118 @@ static struct platform_device dm644x_edma_device = {
 };
 
 /*----------------------------------------------------------------------*/
+
+static struct map_desc dm644x_io_desc[] = {
+	{
+		.virtual	= IO_VIRT,
+		.pfn		= __phys_to_pfn(IO_PHYS),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	},
+	{
+		.virtual	= SRAM_VIRT,
+		.pfn		= __phys_to_pfn(0x00008000),
+		.length		= SZ_16K,
+		/* MT_MEMORY_NONCACHED requires supersection alignment */
+		.type		= MT_DEVICE,
+	},
+};
+
+/* Contents of JTAG ID register used to identify exact cpu type */
+static struct davinci_id dm644x_ids[] = {
+	{
+		.variant	= 0x0,
+		.part_no	= 0xb700,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DM6446,
+		.name		= "dm6446",
+	},
+};
+
+static void __iomem *dm644x_psc_bases[] = {
+	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
+};
+
+/*
+ * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers
+ * T0_TOP: Timer 0, top   :  clocksource for generic timekeeping
+ * T1_BOT: Timer 1, bottom:  (used by DSP in TI DSPLink code)
+ * T1_TOP: Timer 1, top   :  <unused>
+ */
+struct davinci_timer_info dm644x_timer_info = {
+	.timers		= davinci_timer_instance,
+	.clockevent_id	= T0_BOT,
+	.clocksource_id	= T0_TOP,
+};
+
+static struct plat_serial8250_port dm644x_serial_platform_data[] = {
+	{
+		.mapbase	= DAVINCI_UART0_BASE,
+		.irq		= IRQ_UARTINT0,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
+				  UPF_IOREMAP,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+	},
+	{
+		.mapbase	= DAVINCI_UART1_BASE,
+		.irq		= IRQ_UARTINT1,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
+				  UPF_IOREMAP,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+	},
+	{
+		.mapbase	= DAVINCI_UART2_BASE,
+		.irq		= IRQ_UARTINT2,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
+				  UPF_IOREMAP,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+	},
+	{
+		.flags		= 0
+	},
+};
+
+static struct platform_device dm644x_serial_device = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= dm644x_serial_platform_data,
+	},
+};
+
+static struct davinci_soc_info davinci_soc_info_dm644x = {
+	.io_desc		= dm644x_io_desc,
+	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
+	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.ids			= dm644x_ids,
+	.ids_num		= ARRAY_SIZE(dm644x_ids),
+	.cpu_clks		= dm644x_clks,
+	.psc_bases		= dm644x_psc_bases,
+	.psc_bases_num		= ARRAY_SIZE(dm644x_psc_bases),
+	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_pins		= dm644x_pins,
+	.pinmux_pins_num	= ARRAY_SIZE(dm644x_pins),
+	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
+	.intc_irq_prios 	= dm644x_default_priorities,
+	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
+	.timer_info		= &dm644x_timer_info,
+	.wdt_base		= IO_ADDRESS(DAVINCI_WDOG_BASE),
+	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_num		= 71,
+	.gpio_irq		= IRQ_GPIOBNK0,
+	.serial_dev		= &dm644x_serial_device,
+	.emac_pdata		= &dm644x_emac_pdata,
+	.sram_dma		= 0x00008000,
+	.sram_len		= SZ_16K,
+};
+
 void __init dm644x_init(void)
 {
-	davinci_clk_init(dm644x_clks);
-	davinci_mux_register(dm644x_pins, ARRAY_SIZE(dm644x_pins));
+	davinci_common_init(&davinci_soc_info_dm644x);
 }
 
 static int __init dm644x_init_devices(void)
@@ -456,6 +651,7 @@ static int __init dm644x_init_devices(void)
 		return 0;
 
 	platform_device_register(&dm644x_edma_device);
+	platform_device_register(&dm644x_emac_device);
 	return 0;
 }
 postcore_initcall(dm644x_init_devices);

@@ -998,7 +998,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
-		"WM8990 N value outwith recommended range! N = %d\n", Ndiv);
+		"WM8990 N value outwith recommended range! N = %u\n", Ndiv);
 
 	pll_div->n = Ndiv;
 	Nmod = target % source;

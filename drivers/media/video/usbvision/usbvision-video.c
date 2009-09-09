@@ -541,7 +541,7 @@ static int vidioc_enum_input (struct file *file, void *priv,
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int chan;
 
-	if ((vi->index >= usbvision->video_inputs) || (vi->index < 0) )
+	if (vi->index >= usbvision->video_inputs)
 		return -EINVAL;
 	if (usbvision->have_tuner) {
 		chan = vi->index;
@@ -1794,7 +1794,7 @@ static struct usb_driver usbvision_driver = {
 	.name		= "usbvision",
 	.id_table	= usbvision_table,
 	.probe		= usbvision_probe,
-	.disconnect	= usbvision_disconnect
+	.disconnect	= __devexit_p(usbvision_disconnect),
 };
 
 /*

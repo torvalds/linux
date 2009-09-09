@@ -4,11 +4,13 @@
  * OMAP2 I/O mapping code
  *
  * Copyright (C) 2005 Nokia Corporation
- * Copyright (C) 2007 Texas Instruments
+ * Copyright (C) 2007-2009 Texas Instruments
  *
  * Author:
  *	Juha Yrjola <juha.yrjola@nokia.com>
  *	Syed Khasim <x0khasim@ti.com>
+ *
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 
 #include <asm/tlb.h>
 
@@ -30,6 +33,7 @@
 #include <mach/sdrc.h>
 #include <mach/gpmc.h>
 
+#ifndef CONFIG_ARCH_OMAP4	/* FIXME: Remove this once clkdev is ready */
 #include "clock.h"
 
 #include <mach/powerdomain.h>
@@ -38,7 +42,7 @@
 
 #include <mach/clockdomain.h>
 #include "clockdomains.h"
-
+#endif
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
@@ -166,6 +170,46 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 	},
 };
 #endif
+#ifdef	CONFIG_ARCH_OMAP4
+static struct map_desc omap44xx_io_desc[] __initdata = {
+	{
+		.virtual	= L3_44XX_VIRT,
+		.pfn		= __phys_to_pfn(L3_44XX_PHYS),
+		.length		= L3_44XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_44XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_44XX_PHYS),
+		.length		= L4_44XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_WK_44XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_WK_44XX_PHYS),
+		.length		= L4_WK_44XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= OMAP44XX_GPMC_VIRT,
+		.pfn		= __phys_to_pfn(OMAP44XX_GPMC_PHYS),
+		.length		= OMAP44XX_GPMC_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_PER_44XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_PER_44XX_PHYS),
+		.length		= L4_PER_44XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_EMU_44XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_EMU_44XX_PHYS),
+		.length		= L4_EMU_44XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+};
+#endif
 
 void __init omap2_map_common_io(void)
 {
@@ -183,6 +227,9 @@ void __init omap2_map_common_io(void)
 	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
 #endif
 
+#if defined(CONFIG_ARCH_OMAP4)
+	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
+#endif
 	/* Normally devicemaps_init() would flush caches and tlb after
 	 * mdesc->map_io(), but we must also do it here because of the CPU
 	 * revision check below.
@@ -195,12 +242,49 @@ void __init omap2_map_common_io(void)
 	omapfb_reserve_sdram();
 }
 
+/*
+ * omap2_init_reprogram_sdrc - reprogram SDRC timing parameters
+ *
+ * Sets the CORE DPLL3 M2 divider to the same value that it's at
+ * currently.  This has the effect of setting the SDRC SDRAM AC timing
+ * registers to the values currently defined by the kernel.  Currently
+ * only defined for OMAP3; will return 0 if called on OMAP2.  Returns
+ * -EINVAL if the dpll3_m2_ck cannot be found, 0 if called on OMAP2,
+ * or passes along the return value of clk_set_rate().
+ */
+static int __init _omap2_init_reprogram_sdrc(void)
+{
+	struct clk *dpll3_m2_ck;
+	int v = -EINVAL;
+	long rate;
+
+	if (!cpu_is_omap34xx())
+		return 0;
+
+	dpll3_m2_ck = clk_get(NULL, "dpll3_m2_ck");
+	if (!dpll3_m2_ck)
+		return -EINVAL;
+
+	rate = clk_get_rate(dpll3_m2_ck);
+	pr_info("Reprogramming SDRC clock to %ld Hz\n", rate);
+	v = clk_set_rate(dpll3_m2_ck, rate);
+	if (v)
+		pr_err("dpll3_m2_clk rate change failed: %d\n", v);
+
+	clk_put(dpll3_m2_ck);
+
+	return v;
+}
+
 void __init omap2_init_common_hw(struct omap_sdrc_params *sp)
 {
 	omap2_mux_init();
+#ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
 	omap2_clk_init();
 	omap2_sdrc_init(sp);
+	_omap2_init_reprogram_sdrc();
+#endif
 	gpmc_init();
 }

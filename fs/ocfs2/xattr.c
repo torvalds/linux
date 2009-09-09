@@ -3154,7 +3154,7 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 		     le32_to_cpu(bucket_xh(bucket)->xh_entries[0].xe_name_hash));
 		if (func) {
 			ret = func(inode, bucket, para);
-			if (ret)
+			if (ret && ret != -ERANGE)
 				mlog_errno(ret);
 			/* Fall through to bucket_relse() */
 		}
@@ -3261,7 +3261,8 @@ static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
 						  ocfs2_list_xattr_bucket,
 						  &xl);
 		if (ret) {
-			mlog_errno(ret);
+			if (ret != -ERANGE)
+				mlog_errno(ret);
 			goto out;
 		}
 

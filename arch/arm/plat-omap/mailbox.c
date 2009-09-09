@@ -147,24 +147,40 @@ static int __mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg, void *arg)
 	return ret;
 }
 
+struct omap_msg_tx_data {
+	mbox_msg_t	msg;
+	void		*arg;
+};
+
+static void omap_msg_tx_end_io(struct request *rq, int error)
+{
+	kfree(rq->special);
+	__blk_put_request(rq->q, rq);
+}
+
 int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg, void* arg)
 {
+	struct omap_msg_tx_data *tx_data;
 	struct request *rq;
 	struct request_queue *q = mbox->txq->queue;
-	int ret = 0;
+
+	tx_data = kmalloc(sizeof(*tx_data), GFP_ATOMIC);
+	if (unlikely(!tx_data))
+		return -ENOMEM;
 
 	rq = blk_get_request(q, WRITE, GFP_ATOMIC);
 	if (unlikely(!rq)) {
-		ret = -ENOMEM;
-		goto fail;
+		kfree(tx_data);
+		return -ENOMEM;
 	}
 
-	rq->data = (void *)msg;
-	blk_insert_request(q, rq, 0, arg);
+	tx_data->msg = msg;
+	tx_data->arg = arg;
+	rq->end_io = omap_msg_tx_end_io;
+	blk_insert_request(q, rq, 0, tx_data);
 
 	schedule_work(&mbox->txq->work);
- fail:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(omap_mbox_msg_send);
 
@@ -178,22 +194,28 @@ static void mbox_tx_work(struct work_struct *work)
 	struct request_queue *q = mbox->txq->queue;
 
 	while (1) {
+		struct omap_msg_tx_data *tx_data;
+
 		spin_lock(q->queue_lock);
-		rq = elv_next_request(q);
+		rq = blk_fetch_request(q);
 		spin_unlock(q->queue_lock);
 
 		if (!rq)
 			break;
 
-		ret = __mbox_msg_send(mbox, (mbox_msg_t) rq->data, rq->special);
+		tx_data = rq->special;
+
+		ret = __mbox_msg_send(mbox, tx_data->msg, tx_data->arg);
 		if (ret) {
 			enable_mbox_irq(mbox, IRQ_TX);
+			spin_lock(q->queue_lock);
+			blk_requeue_request(q, rq);
+			spin_unlock(q->queue_lock);
 			return;
 		}
 
 		spin_lock(q->queue_lock);
-		if (__blk_end_request(rq, 0, 0))
-			BUG();
+		__blk_end_request_all(rq, 0);
 		spin_unlock(q->queue_lock);
 	}
 }
@@ -218,16 +240,13 @@ static void mbox_rx_work(struct work_struct *work)
 
 	while (1) {
 		spin_lock_irqsave(q->queue_lock, flags);
-		rq = elv_next_request(q);
+		rq = blk_fetch_request(q);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 		if (!rq)
 			break;
 
-		msg = (mbox_msg_t) rq->data;
-
-		if (blk_end_request(rq, 0, 0))
-			BUG();
-
+		msg = (mbox_msg_t)rq->special;
+		blk_end_request_all(rq, 0);
 		mbox->rxq->callback((void *)msg);
 	}
 }
@@ -264,7 +283,6 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 			goto nomem;
 
 		msg = mbox_fifo_read(mbox);
-		rq->data = (void *)msg;
 
 		if (unlikely(mbox_seq_test(mbox, msg))) {
 			pr_info("mbox: Illegal seq bit!(%08x)\n", msg);
@@ -272,7 +290,7 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 				mbox->err_notify();
 		}
 
-		blk_insert_request(q, rq, 0, NULL);
+		blk_insert_request(q, rq, 0, (void *)msg);
 		if (mbox->ops->type == OMAP_MBOX_TYPE1)
 			break;
 	}
@@ -329,16 +347,15 @@ omap_mbox_read(struct device *dev, struct device_attribute *attr, char *buf)
 
 	while (1) {
 		spin_lock_irqsave(q->queue_lock, flags);
-		rq = elv_next_request(q);
+		rq = blk_fetch_request(q);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
 		if (!rq)
 			break;
 
-		*p = (mbox_msg_t) rq->data;
+		*p = (mbox_msg_t)rq->special;
 
-		if (blk_end_request(rq, 0, 0))
-			BUG();
+		blk_end_request_all(rq, 0);
 
 		if (unlikely(mbox_seq_test(mbox, *p))) {
 			pr_info("mbox: Illegal seq bit!(%08x) ignored\n", *p);

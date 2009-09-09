@@ -19,7 +19,7 @@ Example:
 	reg = <119c0 30>;
      }
 
-* Properties common to mulitple CPM/QE devices
+* Properties common to multiple CPM/QE devices
 
 - fsl,cpm-command : This value is ORed with the opcode and command flag
                     to specify the device on which a CPM command operates.

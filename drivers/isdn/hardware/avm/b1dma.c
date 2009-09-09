@@ -759,7 +759,7 @@ void b1dma_reset_ctr(struct capi_ctr *ctrl)
 	memset(cinfo->version, 0, sizeof(cinfo->version));
 	capilib_release(&cinfo->ncci_head);
 	spin_unlock_irqrestore(&card->lock, flags);
-	capi_ctr_reseted(ctrl);
+	capi_ctr_down(ctrl);
 }
 
 /* ------------------------------------------------------------- */

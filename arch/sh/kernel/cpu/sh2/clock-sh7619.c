@@ -38,32 +38,27 @@ static struct clk_ops sh7619_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(FREQCR) & 0x0007);
-	clk->rate = clk->parent->rate / pfc_divisors[idx];
+	return clk->parent->rate / pfc_divisors[idx];
 }
 
 static struct clk_ops sh7619_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void bus_clk_recalc(struct clk *clk)
+static unsigned long bus_clk_recalc(struct clk *clk)
 {
-	clk->rate = clk->parent->rate / pll1rate[(ctrl_inw(FREQCR) >> 8) & 7];
+	return clk->parent->rate / pll1rate[(ctrl_inw(FREQCR) >> 8) & 7];
 }
 
 static struct clk_ops sh7619_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
-{
-	clk->rate = clk->parent->rate;
-}
-
 static struct clk_ops sh7619_cpu_clk_ops = {
-	.recalc		= cpu_clk_recalc,
+	.recalc		= followparent_recalc,
 };
 
 static struct clk_ops *sh7619_clk_ops[] = {
@@ -78,4 +73,3 @@ void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 	if (idx < ARRAY_SIZE(sh7619_clk_ops))
 		*ops = sh7619_clk_ops[idx];
 }
-

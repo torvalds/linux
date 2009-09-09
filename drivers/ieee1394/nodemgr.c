@@ -10,6 +10,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/kernel.h>
+#include <linux/kmemcheck.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -39,7 +40,10 @@ struct nodemgr_csr_info {
 	struct hpsb_host *host;
 	nodeid_t nodeid;
 	unsigned int generation;
+
+	kmemcheck_bitfield_begin(flags);
 	unsigned int speed_unverified:1;
+	kmemcheck_bitfield_end(flags);
 };
 
 
@@ -1293,6 +1297,7 @@ static void nodemgr_node_scan_one(struct hpsb_host *host,
 	u8 *speed;
 
 	ci = kmalloc(sizeof(*ci), GFP_KERNEL);
+	kmemcheck_annotate_bitfield(ci, flags);
 	if (!ci)
 		return;
 

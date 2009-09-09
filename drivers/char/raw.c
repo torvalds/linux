@@ -71,7 +71,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 	err = bd_claim(bdev, raw_open);
 	if (err)
 		goto out1;
-	err = set_blocksize(bdev, bdev_hardsect_size(bdev));
+	err = set_blocksize(bdev, bdev_logical_block_size(bdev));
 	if (err)
 		goto out2;
 	filp->f_flags |= O_DIRECT;
@@ -261,6 +261,11 @@ static const struct file_operations raw_ctl_fops = {
 
 static struct cdev raw_cdev;
 
+static char *raw_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "raw/%s", dev_name(dev));
+}
+
 static int __init raw_init(void)
 {
 	dev_t dev = MKDEV(RAW_MAJOR, 0);
@@ -284,6 +289,7 @@ static int __init raw_init(void)
 		ret = PTR_ERR(raw_class);
 		goto error_region;
 	}
+	raw_class->nodename = raw_nodename;
 	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
 	return 0;

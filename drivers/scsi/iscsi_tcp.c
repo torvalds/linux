@@ -253,8 +253,6 @@ static int iscsi_sw_tcp_xmit_segment(struct iscsi_tcp_conn *tcp_conn,
 
 		if (r < 0) {
 			iscsi_tcp_segment_unmap(segment);
-			if (copied || r == -EAGAIN)
-				break;
 			return r;
 		}
 		copied += r;
@@ -275,11 +273,17 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 
 	while (1) {
 		rc = iscsi_sw_tcp_xmit_segment(tcp_conn, segment);
-		if (rc < 0) {
+		/*
+		 * We may not have been able to send data because the conn
+		 * is getting stopped. libiscsi will know so propogate err
+		 * for it to do the right thing.
+		 */
+		if (rc == -EAGAIN)
+			return rc;
+		else if (rc < 0) {
 			rc = ISCSI_ERR_XMIT_FAILED;
 			goto error;
-		}
-		if (rc == 0)
+		} else if (rc == 0)
 			break;
 
 		consumed += rc;

@@ -49,10 +49,6 @@ extern ULONG    RTDebugLevel;
 
 #define GROUP_KEY_NO                4
 
-#define IWE_STREAM_ADD_EVENT(_A, _B, _C, _D, _E)		iwe_stream_add_event(_A, _B, _C, _D, _E)
-#define IWE_STREAM_ADD_POINT(_A, _B, _C, _D, _E)		iwe_stream_add_point(_A, _B, _C, _D, _E)
-#define IWE_STREAM_ADD_VALUE(_A, _B, _C, _D, _E, _F)	iwe_stream_add_value(_A, _B, _C, _D, _E, _F)
-
 extern UCHAR    CipherWpa2Template[];
 extern UCHAR    CipherWpaPskTkip[];
 extern UCHAR    CipherWpaPskTkipLen;
@@ -89,12 +85,12 @@ struct iw_priv_args privtab[] = {
 	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "radio_off" },
 	{ RAIO_ON,
 	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "radio_on" },
-#ifdef QOS_DLS_SUPPORT
-	{ SHOW_DLS_ENTRY_INFO,
-	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "dlsentryinfo" },
-#endif // QOS_DLS_SUPPORT //
 	{ SHOW_CFG_VALUE,
 	  IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "show" },
+#if !defined(RT2860) && !defined(RT30xx)
+	{ SHOW_ADHOC_ENTRY_INFO,
+	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "adhocEntry" },
+#endif
 /* --- sub-ioctls relations --- */
 
 #ifdef DBG
@@ -104,6 +100,11 @@ struct iw_priv_args privtab[] = {
 { RTPRIV_IOCTL_MAC,
   IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | 1024,
   "mac"},
+#ifdef RT30xx
+{ RTPRIV_IOCTL_RF,
+  IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK,
+  "rf"},
+#endif // RT30xx //
 { RTPRIV_IOCTL_E2P,
   IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | 1024,
   "e2p"},
@@ -168,16 +169,16 @@ INT Set_PSMode_Proc(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  PUCHAR          arg);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 INT Set_Wpa_Support(
     IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 #ifdef DBG
+#if !defined(RT2860) && !defined(RT30xx)
 VOID RTMPIoctlBBP(
 	IN	PRTMP_ADAPTER	pAdapter,
 	IN	struct iwreq	*wrq);
+#endif
 
 VOID RTMPIoctlMAC(
 	IN	PRTMP_ADAPTER	pAdapter,
@@ -186,6 +187,12 @@ VOID RTMPIoctlMAC(
 VOID RTMPIoctlE2PROM(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  struct iwreq    *wrq);
+
+#ifdef RT30xx
+VOID RTMPIoctlRF(
+    IN  PRTMP_ADAPTER   pAdapter,
+    IN  struct iwreq    *wrq);
+#endif // RT30xx //
 #endif // DBG //
 
 
@@ -197,11 +204,9 @@ INT Set_FragTest_Proc(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  PUCHAR          arg);
 
-#ifdef DOT11_N_SUPPORT
 INT Set_TGnWifiTest_Proc(
     IN  PRTMP_ADAPTER   pAd,
     IN  PUCHAR          arg);
-#endif // DOT11_N_SUPPORT //
 
 INT Set_LongRetryLimit_Proc(
 	IN	PRTMP_ADAPTER	pAdapter,
@@ -211,17 +216,11 @@ INT Set_ShortRetryLimit_Proc(
 	IN	PRTMP_ADAPTER	pAdapter,
 	IN	PUCHAR			arg);
 
-#ifdef EXT_BUILD_CHANNEL_LIST
-INT Set_Ieee80211dClientMode_Proc(
-    IN  PRTMP_ADAPTER   pAdapter,
-    IN  PUCHAR          arg);
-#endif // EXT_BUILD_CHANNEL_LIST //
-
-#ifdef CARRIER_DETECTION_SUPPORT
-INT Set_CarrierDetect_Proc(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          arg);
-#endif // CARRIER_DETECTION_SUPPORT //
+#if !defined(RT2860) && !defined(RT30xx)
+INT	Show_Adhoc_MacTable_Proc(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	PCHAR			extra);
+#endif
 
 static struct {
 	CHAR *name;
@@ -239,7 +238,6 @@ static struct {
 	{"BGProtection",				Set_BGProtection_Proc},
 	{"RTSThreshold",				Set_RTSThreshold_Proc},
 	{"FragThreshold",				Set_FragThreshold_Proc},
-#ifdef DOT11_N_SUPPORT
 	{"HtBw",		                Set_HtBw_Proc},
 	{"HtMcs",		                Set_HtMcs_Proc},
 	{"HtGi",		                Set_HtGi_Proc},
@@ -253,8 +251,6 @@ static struct {
 	{"HtBaDecline",					Set_BADecline_Proc},
 	{"HtProtect",		        	Set_HtProtect_Proc},
 	{"HtMimoPs",		        	Set_HtMimoPs_Proc},
-#endif // DOT11_N_SUPPORT //
-
 #ifdef AGGREGATION_SUPPORT
 	{"PktAggregate",				Set_PktAggregate_Proc},
 #endif
@@ -277,68 +273,19 @@ static struct {
 #ifdef DBG
 	{"Debug",						Set_Debug_Proc},
 #endif
-
-#ifdef RALINK_ATE
-	{"ATE",							Set_ATE_Proc},
-	{"ATEDA",						Set_ATE_DA_Proc},
-	{"ATESA",						Set_ATE_SA_Proc},
-	{"ATEBSSID",					Set_ATE_BSSID_Proc},
-	{"ATECHANNEL",					Set_ATE_CHANNEL_Proc},
-	{"ATETXPOW0",					Set_ATE_TX_POWER0_Proc},
-	{"ATETXPOW1",					Set_ATE_TX_POWER1_Proc},
-	{"ATETXANT",					Set_ATE_TX_Antenna_Proc},
-	{"ATERXANT",					Set_ATE_RX_Antenna_Proc},
-	{"ATETXFREQOFFSET",				Set_ATE_TX_FREQOFFSET_Proc},
-	{"ATETXBW",						Set_ATE_TX_BW_Proc},
-	{"ATETXLEN",					Set_ATE_TX_LENGTH_Proc},
-	{"ATETXCNT",					Set_ATE_TX_COUNT_Proc},
-	{"ATETXMCS",					Set_ATE_TX_MCS_Proc},
-	{"ATETXMODE",					Set_ATE_TX_MODE_Proc},
-	{"ATETXGI",						Set_ATE_TX_GI_Proc},
-	{"ATERXFER",					Set_ATE_RX_FER_Proc},
-	{"ATERRF",						Set_ATE_Read_RF_Proc},
-	{"ATEWRF1",						Set_ATE_Write_RF1_Proc},
-	{"ATEWRF2",						Set_ATE_Write_RF2_Proc},
-	{"ATEWRF3",						Set_ATE_Write_RF3_Proc},
-	{"ATEWRF4",						Set_ATE_Write_RF4_Proc},
-	{"ATELDE2P",				    Set_ATE_Load_E2P_Proc},
-	{"ATERE2P",						Set_ATE_Read_E2P_Proc},
-	{"ATESHOW",						Set_ATE_Show_Proc},
-	{"ATEHELP",						Set_ATE_Help_Proc},
-
-#ifdef RALINK_28xx_QA
-	{"TxStop",						Set_TxStop_Proc},
-	{"RxStop",						Set_RxStop_Proc},
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
-
-#ifdef WPA_SUPPLICANT_SUPPORT
     {"WpaSupport",                  Set_Wpa_Support},
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-
-
 	{"FixedTxMode",                 Set_FixedTxMode_Proc},
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-	{"OpMode",						Set_OpMode_Proc},
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
-#ifdef DOT11_N_SUPPORT
     {"TGnWifiTest",                 Set_TGnWifiTest_Proc},
     {"ForceGF",		        		Set_ForceGF_Proc},
-#endif // DOT11_N_SUPPORT //
-#ifdef QOS_DLS_SUPPORT
-	{"DlsAddEntry",					Set_DlsAddEntry_Proc},
-	{"DlsTearDownEntry",			Set_DlsTearDownEntry_Proc},
-#endif // QOS_DLS_SUPPORT //
 	{"LongRetry",	        		Set_LongRetryLimit_Proc},
 	{"ShortRetry",	        		Set_ShortRetryLimit_Proc},
-#ifdef EXT_BUILD_CHANNEL_LIST
-	{"11dClientMode",				Set_Ieee80211dClientMode_Proc},
-#endif // EXT_BUILD_CHANNEL_LIST //
-#ifdef CARRIER_DETECTION_SUPPORT
-	{"CarrierDetect",				Set_CarrierDetect_Proc},
-#endif // CARRIER_DETECTION_SUPPORT //
-
+//2008/09/11:KH add to support efuse<--
+#ifdef RT30xx
+	{"efuseFreeNumber",				set_eFuseGetFreeBlockCount_Proc},
+	{"efuseDump",					set_eFusedump_Proc},
+	{"efuseLoadFromBin",				set_eFuseLoadFromBin_Proc},
+#endif // RT30xx //
+//2008/09/11:KH add to support efuse-->
 	{NULL,}
 };
 
@@ -352,6 +299,7 @@ VOID RTMPAddKey(
 
     DBGPRINT(RT_DEBUG_TRACE, ("RTMPAddKey ------>\n"));
 
+#ifdef RT2860
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
 	{
@@ -365,6 +313,7 @@ VOID RTMPAddKey(
 		RTMPusecDelay(6000);
 		pAd->bPCIclkOff = FALSE;
 	}
+#endif
 
 	if (pAd->StaCfg.AuthMode >= Ndis802_11AuthModeWPA)
 	{
@@ -380,14 +329,13 @@ VOID RTMPAddKey(
 		    NdisZeroMemory(&pAd->SharedKey[BSS0][0], sizeof(CIPHER_KEY));
             pAd->SharedKey[BSS0][0].KeyLen = LEN_TKIP_EK;
             NdisMoveMemory(pAd->SharedKey[BSS0][0].Key, pKey->KeyMaterial, LEN_TKIP_EK);
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.PairCipher == Ndis802_11Encryption2Enabled)
             {
                 NdisMoveMemory(pAd->SharedKey[BSS0][0].RxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][0].TxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
             }
             else
-#endif // WPA_SUPPLICANT_SUPPORT //
             {
             	NdisMoveMemory(pAd->SharedKey[BSS0][0].TxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][0].RxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
@@ -440,14 +388,13 @@ VOID RTMPAddKey(
             NdisZeroMemory(&pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId], sizeof(CIPHER_KEY));
             pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].KeyLen = LEN_TKIP_EK;
             NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].Key, pKey->KeyMaterial, LEN_TKIP_EK);
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption2Enabled)
             {
                 NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].RxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].TxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
             }
             else
-#endif // WPA_SUPPLICANT_SUPPORT //
             {
             	NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].TxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].RxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
@@ -559,8 +506,10 @@ VOID RTMPAddKey(
 		}
 	}
 end:
+#ifdef RT2860
 	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
     DBGPRINT(RT_DEBUG_INFO, ("<------ RTMPAddKey\n"));
+#endif
 	return;
 }
 
@@ -582,8 +531,12 @@ rt_ioctl_giwname(struct net_device *dev,
 		   char *name, char *extra)
 {
 //	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-
+#ifdef RT2860
     strncpy(name, "RT2860 Wireless", IFNAMSIZ);
+#endif
+#ifdef RT2870
+	strncpy(name, "RT2870 Wireless", IFNAMSIZ);
+#endif // RT2870 //
 	return 0;
 }
 
@@ -625,7 +578,12 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 		   struct iw_freq *freq, char *extra)
 {
     VIRTUAL_ADAPTER *pVirtualAd = NULL;
+#ifndef RT30xx
 	PRTMP_ADAPTER pAdapter = NULL;
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter;
+#endif
 	UCHAR ch;
 	ULONG	m;
 
@@ -636,7 +594,9 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 	else
 	{
 		pVirtualAd = dev->ml_priv;
+#ifndef RT30xx
 		if (pVirtualAd && pVirtualAd->RtmpDev)
+#endif
 			pAdapter = pVirtualAd->RtmpDev->ml_priv;
 	}
 
@@ -696,6 +656,7 @@ int rt_ioctl_giwmode(struct net_device *dev,
 		   struct iw_request_info *info,
 		   __u32 *mode, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -716,6 +677,10 @@ int rt_ioctl_giwmode(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	if (ADHOC_ON(pAdapter))
 		*mode = IW_MODE_ADHOC;
@@ -759,12 +724,18 @@ int rt_ioctl_giwrange(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *data, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 	struct iw_range *range = (struct iw_range *) extra;
 	u16 val;
 	int i;
 
+#ifndef RT30xx
 	if (dev->priv_flags == INT_MAIN)
 	{
 		pAdapter = dev->ml_priv;
@@ -782,6 +753,7 @@ int rt_ioctl_giwrange(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
 
 	DBGPRINT(RT_DEBUG_TRACE ,("===>rt_ioctl_giwrange\n"));
 	data->length = sizeof(struct iw_range);
@@ -901,6 +873,7 @@ int rt_ioctl_giwap(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct sockaddr *ap_addr, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -921,20 +894,22 @@ int rt_ioctl_giwap(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	if (INFRA_ON(pAdapter) || ADHOC_ON(pAdapter))
 	{
 		ap_addr->sa_family = ARPHRD_ETHER;
 		memcpy(ap_addr->sa_data, &pAdapter->CommonCfg.Bssid, ETH_ALEN);
 	}
-#ifdef WPA_SUPPLICANT_SUPPORT
     // Add for RT2870
     else if (pAdapter->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
     {
         ap_addr->sa_family = ARPHRD_ETHER;
         memcpy(ap_addr->sa_data, &pAdapter->MlmeAux.Bssid, ETH_ALEN);
     }
-#endif // WPA_SUPPLICANT_SUPPORT //
 	else
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("IOCTL::SIOCGIWAP(=EMPTY)\n"));
@@ -1041,7 +1016,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
         DBGPRINT(RT_DEBUG_TRACE, ("!!! Driver is in Monitor Mode now !!!\n"));
         return -EINVAL;
     }
-
+#ifdef RT2860
 	if ((pAdapter->OpMode == OPMODE_STA) && (IDLE_ON(pAdapter))
 		&& (pAdapter->StaCfg.bRadio == TRUE)
 		&& (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
@@ -1051,13 +1026,11 @@ int rt_ioctl_siwscan(struct net_device *dev,
 	// Check if still radio off.
 	else if (pAdapter->bPCIclkOff == TRUE)
 		return 0;
-
-#ifdef WPA_SUPPLICANT_SUPPORT
+#endif
 	if (pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
 		pAdapter->StaCfg.WpaSupplicantScanCount++;
 	}
-#endif // WPA_SUPPLICANT_SUPPORT //
 
     pAdapter->StaCfg.bScanReqIsFromWebUI = TRUE;
 	if (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
@@ -1065,7 +1038,6 @@ int rt_ioctl_siwscan(struct net_device *dev,
 	do{
 		Now = jiffies;
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 		if ((pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE) &&
 			(pAdapter->StaCfg.WpaSupplicantScanCount > 3))
 		{
@@ -1073,7 +1045,6 @@ int rt_ioctl_siwscan(struct net_device *dev,
 			Status = NDIS_STATUS_SUCCESS;
 			break;
 		}
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 		if ((OPSTATUS_TEST_FLAG(pAdapter, fOP_STATUS_MEDIA_STATE_CONNECTED)) &&
 			((pAdapter->StaCfg.AuthMode == Ndis802_11AuthModeWPA) ||
@@ -1133,13 +1104,10 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		return -EAGAIN;
 	}
 
-
-#ifdef WPA_SUPPLICANT_SUPPORT
 	if (pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
 		pAdapter->StaCfg.WpaSupplicantScanCount = 0;
 	}
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 	if (pAdapter->ScanTab.BssNr == 0)
 	{
@@ -1175,7 +1143,88 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		memcpy(iwe.u.ap_addr.sa_data, &pAdapter->ScanTab.BssEntry[i].Bssid, ETH_ALEN);
 
         previous_ev = current_ev;
-		current_ev = IWE_STREAM_ADD_EVENT(info, current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
+#ifdef RT30xx
+        if (current_ev == previous_ev)
+#if WIRELESS_EXT >= 17
+            return -E2BIG;
+#else
+			break;
+#endif
+
+		/*
+		Protocol:
+			it will show scanned AP's WirelessMode .
+			it might be
+					802.11a
+					802.11a/n
+					802.11g/n
+					802.11b/g/n
+					802.11g
+					802.11b/g
+		*/
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = SIOCGIWNAME;
+
+
+	{
+		PBSS_ENTRY pBssEntry=&pAdapter->ScanTab.BssEntry[i];
+		BOOLEAN isGonly=FALSE;
+		int rateCnt=0;
+
+		if (pBssEntry->Channel>14)
+		{
+			if (pBssEntry->HtCapabilityLen!=0)
+				strcpy(iwe.u.name,"802.11a/n");
+			else
+				strcpy(iwe.u.name,"802.11a");
+		}
+		else
+		{
+			/*
+				if one of non B mode rate is set supported rate . it mean G only.
+			*/
+			for (rateCnt=0;rateCnt<pBssEntry->SupRateLen;rateCnt++)
+			{
+				/*
+					6Mbps(140) 9Mbps(146) and >=12Mbps(152) are supported rate , it mean G only.
+				*/
+				if (pBssEntry->SupRate[rateCnt]==140 || pBssEntry->SupRate[rateCnt]==146 || pBssEntry->SupRate[rateCnt]>=152)
+					isGonly=TRUE;
+			}
+
+			for (rateCnt=0;rateCnt<pBssEntry->ExtRateLen;rateCnt++)
+			{
+				if (pBssEntry->ExtRate[rateCnt]==140 || pBssEntry->ExtRate[rateCnt]==146 || pBssEntry->ExtRate[rateCnt]>=152)
+					isGonly=TRUE;
+			}
+
+
+			if (pBssEntry->HtCapabilityLen!=0)
+			{
+				if (isGonly==TRUE)
+					strcpy(iwe.u.name,"802.11g/n");
+				else
+					strcpy(iwe.u.name,"802.11b/g/n");
+			}
+			else
+			{
+				if (isGonly==TRUE)
+					strcpy(iwe.u.name,"802.11g");
+				else
+				{
+					if (pBssEntry->SupRateLen==4 && pBssEntry->ExtRateLen==0)
+						strcpy(iwe.u.name,"802.11b");
+					else
+						strcpy(iwe.u.name,"802.11b/g");
+				}
+			}
+		}
+	}
+
+		previous_ev = current_ev;
+		current_ev	 = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
+#endif /* RT30xx */
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1191,7 +1240,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		iwe.u.data.flags = 1;
 
         previous_ev = current_ev;
-		current_ev = IWE_STREAM_ADD_POINT(info, current_ev,end_buf, &iwe, pAdapter->ScanTab.BssEntry[i].Ssid);
+		current_ev = iwe_stream_add_point(info, current_ev,end_buf, &iwe, pAdapter->ScanTab.BssEntry[i].Ssid);
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1218,7 +1267,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		iwe.len = IW_EV_UINT_LEN;
 
         previous_ev = current_ev;
-		current_ev = IWE_STREAM_ADD_EVENT(info, current_ev, end_buf, &iwe,  IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,  IW_EV_UINT_LEN);
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1238,7 +1287,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		iwe.u.freq.i = 0;
 
 		previous_ev = current_ev;
-		current_ev = IWE_STREAM_ADD_EVENT(info, current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1253,7 +1302,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
     	iwe.u.qual.level = 0;
     	iwe.u.qual.noise = 0;
         set_quality(pAdapter, &iwe.u.qual, pAdapter->ScanTab.BssEntry[i].Rssi);
-    	current_ev = IWE_STREAM_ADD_EVENT(info, current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
+    	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1271,7 +1320,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
 
         previous_ev = current_ev;
-        current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf,&iwe, (char *)pAdapter->SharedKey[BSS0][(iwe.u.data.flags & IW_ENCODE_INDEX)-1].Key);
+        current_ev = iwe_stream_add_point(info, current_ev, end_buf,&iwe, (char *)pAdapter->SharedKey[BSS0][(iwe.u.data.flags & IW_ENCODE_INDEX)-1].Key);
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1299,7 +1348,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
     		    iwe.u.bitrate.value =  (tmpRate/2) * 1000000;
 
 			iwe.u.bitrate.disabled = 0;
-			current_val = IWE_STREAM_ADD_VALUE(info, current_ev,
+			current_val = iwe_stream_add_value(info, current_ev,
 				current_val, end_buf, &iwe,
     			IW_EV_PARAM_LEN);
 
@@ -1323,7 +1372,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 						   pAdapter->ScanTab.BssEntry[i].WpaIE.IELen);
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = pAdapter->ScanTab.BssEntry[i].WpaIE.IELen;
-			current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe, custom);
+			current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, custom);
 			if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
                 return -E2BIG;
@@ -1341,7 +1390,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 						   pAdapter->ScanTab.BssEntry[i].RsnIE.IELen);
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = pAdapter->ScanTab.BssEntry[i].RsnIE.IELen;
-			current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe, custom);
+			current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, custom);
 			if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
                 return -E2BIG;
@@ -1360,9 +1409,9 @@ int rt_ioctl_giwscan(struct net_device *dev,
             iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].WpaIE.IELen * 2) + 7;
             NdisMoveMemory(custom, "wpa_ie=", 7);
             for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].WpaIE.IELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].WpaIE.IE[idx]);
             previous_ev = current_ev;
-    		current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe,  custom);
+    		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
                 return -E2BIG;
@@ -1380,9 +1429,9 @@ int rt_ioctl_giwscan(struct net_device *dev,
             iwe.u.data.length = (pAdapter->ScanTab.BssEntry[i].RsnIE.IELen * 2) + 7;
             NdisMoveMemory(custom, "rsn_ie=", 7);
 			for (idx = 0; idx < pAdapter->ScanTab.BssEntry[i].RsnIE.IELen; idx++)
-                sprintf(custom, "%s%02x", custom, pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
+                sprintf(custom + strlen(custom), "%02x", pAdapter->ScanTab.BssEntry[i].RsnIE.IE[idx]);
             previous_ev = current_ev;
-    		current_ev = IWE_STREAM_ADD_POINT(info, current_ev, end_buf, &iwe,  custom);
+    		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
                 return -E2BIG;
@@ -1445,6 +1494,7 @@ int rt_ioctl_giwessid(struct net_device *dev,
 			 struct iw_request_info *info,
 			 struct iw_point *data, char *essid)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1465,6 +1515,10 @@ int rt_ioctl_giwessid(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	data->flags = 1;
     if (MONITOR_ON(pAdapter))
@@ -1479,6 +1533,14 @@ int rt_ioctl_giwessid(struct net_device *dev,
 		data->length = pAdapter->CommonCfg.SsidLen;
 		memcpy(essid, pAdapter->CommonCfg.Ssid, pAdapter->CommonCfg.SsidLen);
 	}
+#ifdef RT2870
+    // Add for RT2870
+    else if (pAdapter->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
+    {
+        data->length = pAdapter->CommonCfg.SsidLen;
+		memcpy(essid, pAdapter->CommonCfg.Ssid, pAdapter->CommonCfg.SsidLen);
+	}
+#endif // RT2870 //
 	else
 	{//the ANY ssid was specified
 		data->length  = 0;
@@ -1516,6 +1578,7 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 			 struct iw_request_info *info,
 			 struct iw_point *data, char *nickname)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1536,6 +1599,10 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	if (data->length > strlen(pAdapter->nickname) + 1)
 		data->length = strlen(pAdapter->nickname) + 1;
@@ -1579,6 +1646,7 @@ int rt_ioctl_giwrts(struct net_device *dev,
 		       struct iw_request_info *info,
 		       struct iw_param *rts, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1599,6 +1667,10 @@ int rt_ioctl_giwrts(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	//check if the interface is down
     	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1645,6 +1717,7 @@ int rt_ioctl_giwfrag(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_param *frag, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1665,6 +1738,10 @@ int rt_ioctl_giwfrag(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	//check if the interface is down
     	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1705,8 +1782,13 @@ int rt_ioctl_siwencode(struct net_device *dev,
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
         goto done;
 	}
+#ifndef RT30xx
 	else if ((erq->length == 0) &&
              (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN))
+#endif
+#ifdef RT30xx
+	else if (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN)
+#endif
 	{
 		STA_PORT_SECURED(pAdapter);
 		pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
@@ -1717,7 +1799,9 @@ int rt_ioctl_siwencode(struct net_device *dev,
 			pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeShared;
     	else
 			pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
+#ifndef RT30xx
         goto done;
+#endif
 	}
 
     if (erq->length > 0)
@@ -1736,6 +1820,12 @@ int rt_ioctl_siwencode(struct net_device *dev,
             //Using default key
 			keyIdx = pAdapter->StaCfg.DefaultKeyId;
         }
+#ifdef RT30xx
+		else
+		{
+			pAdapter->StaCfg.DefaultKeyId=keyIdx;
+		}
+#endif
 
         NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 
@@ -1787,7 +1877,11 @@ rt_ioctl_giwencode(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_point *erq, char *key)
 {
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 	int kid;
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1808,6 +1902,7 @@ rt_ioctl_giwencode(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
 
 	//check if the interface is down
 	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1952,14 +2047,6 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
     memset(extra, 0x00, IW_PRIV_SIZE_MASK);
     sprintf(extra, "\n\n");
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-	    sprintf(extra+strlen(extra), "Tx success                      = %ld\n", (ULONG)pAd->ate.TxDoneCount);
-	    //sprintf(extra+strlen(extra), "Tx success without retry        = %ld\n", (ULONG)pAd->ate.TxDoneCount);
-	}
-	else
-#endif // RALINK_ATE //
 	{
     sprintf(extra+strlen(extra), "Tx success                      = %ld\n", (ULONG)pAd->WlanCounters.TransmittedFragmentCount.QuadPart);
     sprintf(extra+strlen(extra), "Tx success without retry        = %ld\n", (ULONG)pAd->WlanCounters.TransmittedFragmentCount.QuadPart - (ULONG)pAd->WlanCounters.RetryCount.QuadPart);
@@ -1975,31 +2062,12 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
     sprintf(extra+strlen(extra), "Rx duplicate frame              = %ld\n", (ULONG)pAd->WlanCounters.FrameDuplicateCount.QuadPart);
 
     sprintf(extra+strlen(extra), "False CCA (one second)          = %ld\n", (ULONG)pAd->RalinkCounters.OneSecFalseCCACnt);
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-		if (pAd->ate.RxAntennaSel == 0)
-		{
-    		sprintf(extra+strlen(extra), "RSSI-A                          = %ld\n", (LONG)(pAd->ate.LastRssi0 - pAd->BbpRssiToDbmDelta));
-			sprintf(extra+strlen(extra), "RSSI-B (if available)           = %ld\n", (LONG)(pAd->ate.LastRssi1 - pAd->BbpRssiToDbmDelta));
-			sprintf(extra+strlen(extra), "RSSI-C (if available)           = %ld\n\n", (LONG)(pAd->ate.LastRssi2 - pAd->BbpRssiToDbmDelta));
-		}
-		else
-		{
-    		sprintf(extra+strlen(extra), "RSSI                            = %ld\n", (LONG)(pAd->ate.LastRssi0 - pAd->BbpRssiToDbmDelta));
-		}
-	}
-	else
-#endif // RALINK_ATE //
 	{
     	sprintf(extra+strlen(extra), "RSSI-A                          = %ld\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi0 - pAd->BbpRssiToDbmDelta));
         sprintf(extra+strlen(extra), "RSSI-B (if available)           = %ld\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi1 - pAd->BbpRssiToDbmDelta));
         sprintf(extra+strlen(extra), "RSSI-C (if available)           = %ld\n\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi2 - pAd->BbpRssiToDbmDelta));
 	}
-#ifdef WPA_SUPPLICANT_SUPPORT
     sprintf(extra+strlen(extra), "WpaSupplicantUP                 = %d\n\n", pAd->StaCfg.WpaSupplicantUP);
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 
     wrq->length = strlen(extra) + 1; // 1: size of '\0'
     DBGPRINT(RT_DEBUG_TRACE, ("<== rt_private_get_statistics, wrq->length = %d\n", wrq->length));
@@ -2007,7 +2075,6 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
     return Status;
 }
 
-#ifdef DOT11_N_SUPPORT
 void	getBaInfo(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			pOutBuf)
@@ -2022,8 +2089,7 @@ void	getBaInfo(
 		if (((pEntry->ValidAsCLI || pEntry->ValidAsApCli) && (pEntry->Sst == SST_ASSOC))
 			|| (pEntry->ValidAsWDS) || (pEntry->ValidAsMesh))
 		{
-			sprintf(pOutBuf, "%s\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
-                pOutBuf,
+			sprintf(pOutBuf + strlen(pOutBuf), "\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
 				pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2],
 				pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5], pEntry->Aid);
 
@@ -2033,7 +2099,7 @@ void	getBaInfo(
 				if (pEntry->BARecWcidArray[j] != 0)
 				{
 					pRecBAEntry =&pAd->BATable.BARecEntry[pEntry->BARecWcidArray[j]];
-					sprintf(pOutBuf, "%sTID=%d, BAWinSize=%d, LastIndSeq=%d, ReorderingPkts=%d\n", pOutBuf, j, pRecBAEntry->BAWinSize, pRecBAEntry->LastIndSeq, pRecBAEntry->list.qlen);
+					sprintf(pOutBuf + strlen(pOutBuf), "TID=%d, BAWinSize=%d, LastIndSeq=%d, ReorderingPkts=%d\n", j, pRecBAEntry->BAWinSize, pRecBAEntry->LastIndSeq, pRecBAEntry->list.qlen);
 				}
 			}
 			sprintf(pOutBuf, "%s\n", pOutBuf);
@@ -2044,7 +2110,7 @@ void	getBaInfo(
 				if (pEntry->BAOriWcidArray[j] != 0)
 				{
 					pOriBAEntry =&pAd->BATable.BAOriEntry[pEntry->BAOriWcidArray[j]];
-					sprintf(pOutBuf, "%sTID=%d, BAWinSize=%d, StartSeq=%d, CurTxSeq=%d\n", pOutBuf, j, pOriBAEntry->BAWinSize, pOriBAEntry->Sequence, pEntry->TxSeq[j]);
+					sprintf(pOutBuf + strlen(pOutBuf), "TID=%d, BAWinSize=%d, StartSeq=%d, CurTxSeq=%d\n", j, pOriBAEntry->BAWinSize, pOriBAEntry->Sequence, pEntry->TxSeq[j]);
 				}
 			}
 			sprintf(pOutBuf, "%s\n\n", pOutBuf);
@@ -2055,7 +2121,6 @@ void	getBaInfo(
 
 	return;
 }
-#endif // DOT11_N_SUPPORT //
 
 static int
 rt_private_show(struct net_device *dev, struct iw_request_info *info,
@@ -2101,12 +2166,10 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
         case SHOW_CONN_STATUS:
             if (MONITOR_ON(pAd))
             {
-#ifdef DOT11_N_SUPPORT
                 if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED &&
                     pAd->CommonCfg.RegTransmitSetting.field.BW)
                     sprintf(extra, "Monitor Mode(CentralChannel %d)\n", pAd->CommonCfg.CentralChannel);
                 else
-#endif // DOT11_N_SUPPORT //
                     sprintf(extra, "Monitor Mode(Channel %d)\n", pAd->CommonCfg.Channel);
             }
             else
@@ -2140,12 +2203,10 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
             sprintf(extra, "Driver version-%s, %s %s\n", STA_DRIVER_VERSION, __DATE__, __TIME__ );
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
-#ifdef DOT11_N_SUPPORT
         case SHOW_BA_INFO:
             getBaInfo(pAd, extra);
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
-#endif // DOT11_N_SUPPORT //
 		case SHOW_DESC_INFO:
 			{
 				Show_DescInfo_Proc(pAd, NULL);
@@ -2174,6 +2235,14 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
         case RAIO_ON:
+#ifdef RT2870
+            if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
+            {
+                sprintf(extra, "Scanning\n");
+                wrq->length = strlen(extra) + 1; // 1: size of '\0'
+                break;
+            }
+#endif
             pAd->StaCfg.bSwRadio = TRUE;
             //if (pAd->StaCfg.bRadio != (pAd->StaCfg.bHwRadio && pAd->StaCfg.bSwRadio))
             {
@@ -2189,16 +2258,6 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
 
-
-#ifdef QOS_DLS_SUPPORT
-		case SHOW_DLS_ENTRY_INFO:
-			{
-				Set_DlsEntryInfo_Display_Proc(pAd, NULL);
-				wrq->length = 0; // 1: size of '\0'
-			}
-			break;
-#endif // QOS_DLS_SUPPORT //
-
 		case SHOW_CFG_VALUE:
 			{
 				Status = RTMPShowCfgValue(pAd, wrq->pointer, extra);
@@ -2206,6 +2265,12 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
 					wrq->length = strlen(extra) + 1; // 1: size of '\0'
 			}
 			break;
+#if !defined(RT2860) && !defined(RT30xx)
+		case SHOW_ADHOC_ENTRY_INFO:
+			Show_Adhoc_MacTable_Proc(pAd, extra);
+			wrq->length = strlen(extra) + 1; // 1: size of '\0'
+			break;
+#endif
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("%s - unknow subcmd = %d\n", __func__, subcmd));
             break;
@@ -2312,9 +2377,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 pAdapter->StaCfg.WepStatus = Ndis802_11WEPEnabled;
                 pAdapter->StaCfg.OrigWepStatus = pAdapter->StaCfg.WepStatus;
                 pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
-#ifdef WPA_SUPPLICANT_SUPPORT
                 pAdapter->StaCfg.IEEE8021X = FALSE;
-#endif // WPA_SUPPLICANT_SUPPORT //
             }
             else if (param->value == IW_AUTH_CIPHER_TKIP)
             {
@@ -2356,22 +2419,16 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 if (pAdapter->StaCfg.AuthMode == Ndis802_11AuthModeWPAPSK)
                 {
                     pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA;
-#ifdef WPA_SUPPLICANT_SUPPORT
                     pAdapter->StaCfg.IEEE8021X = FALSE;
-#endif // WPA_SUPPLICANT_SUPPORT //
                 }
                 else if (pAdapter->StaCfg.AuthMode == Ndis802_11AuthModeWPA2PSK)
                 {
                     pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2;
-#ifdef WPA_SUPPLICANT_SUPPORT
                     pAdapter->StaCfg.IEEE8021X = FALSE;
-#endif // WPA_SUPPLICANT_SUPPORT //
                 }
-#ifdef WPA_SUPPLICANT_SUPPORT
                 else
                     // WEP 1x
                     pAdapter->StaCfg.IEEE8021X = TRUE;
-#endif // WPA_SUPPLICANT_SUPPORT //
             }
             else if (param->value == 0)
             {
@@ -2457,6 +2514,7 @@ void fnSetCipherKey(
     IN  BOOLEAN         bGTK,
     IN  struct iw_encode_ext *ext)
 {
+#ifdef RT2860
 	RTMP_CLEAR_PSFLAG(pAdapter, fRTMP_PS_CAN_GO_SLEEP);
 	if (RTMP_TEST_PSFLAG(pAdapter, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
 	{
@@ -2470,7 +2528,7 @@ void fnSetCipherKey(
 		RTMPusecDelay(6000);
 		pAdapter->bPCIclkOff = FALSE;
 	}
-
+#endif
     NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx], sizeof(CIPHER_KEY));
     pAdapter->SharedKey[BSS0][keyIdx].KeyLen = LEN_TKIP_EK;
     NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key, LEN_TKIP_EK);
@@ -2501,8 +2559,9 @@ void fnSetCipherKey(
     							  keyIdx,
     							  pAdapter->SharedKey[BSS0][keyIdx].CipherAlg,
     							  &pAdapter->MacTab.Content[BSSID_WCID]);
-
+#ifdef RT2860
 	RTMP_SET_PSFLAG(pAdapter, fRTMP_PS_CAN_GO_SLEEP);
+#endif
 }
 
 int rt_ioctl_siwencodeext(struct net_device *dev,
@@ -2567,7 +2626,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 
                 NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 			    NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key, ext->key_len);
-
+#ifndef RT30xx
 				if (pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled ||
 					pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
 				{
@@ -2582,6 +2641,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
     				// Indicate Connected for GUI
     				pAdapter->IndicateMediaState = NdisMediaStateConnected;
 				}
+#endif
     			break;
             case IW_ENCODE_ALG_TKIP:
                 DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_TKIP - keyIdx = %d, ext->key_len = %d\n", __func__, keyIdx, ext->key_len));
@@ -2752,7 +2812,6 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 		return 0;
 	}
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 #ifdef SIOCSIWGENIE
 	if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
@@ -2764,7 +2823,6 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 	}
 	else
 #endif // SIOCSIWGENIE //
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 	{
 		UCHAR RSNIe = IE_WPA;
 
@@ -2895,15 +2953,13 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 			DBGPRINT(RT_DEBUG_TRACE, ("this_char=%s, value=%s\n", this_char, value));
 			if (sscanf(this_char, "%d", &(bbpId)) == 1)
 			{
+#ifndef RT30xx
 				if (bbpId <= 136)
+#endif // RT30xx //
+#ifdef RT30xx
+				if (bbpId <= 138)  // edit by johnli, RF power sequence setup, add BBP R138 for ADC dynamic on/off control
+#endif // RT30xx //
 				{
-#ifdef RALINK_ATE
-					if (ATE_ON(pAdapter))
-					{
-						ATE_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
-					}
-					else
-#endif // RALINK_ATE //
 					{
 					RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
 					}
@@ -2927,17 +2983,13 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 		{ //Write
 			if ((sscanf(this_char, "%d", &(bbpId)) == 1) && (sscanf(value, "%x", &(bbpValue)) == 1))
 			{
+#ifndef RT30xx
 				if (bbpId <= 136)
+#endif // RT30xx //
+#ifdef RT30xx
+				if (bbpId <= 138)  // edit by johnli, RF power sequence setup, add BBP R138 for ADC dynamic on/off control
+#endif // RT30xx //
 				{
-#ifdef RALINK_ATE
-					if (ATE_ON(pAdapter))
-					{
-						ATE_BBP_IO_WRITE8_BY_REG_ID(pAdapter, bbpId, bbpValue);
-						//Read it back for showing
-						ATE_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
-					}
-					else
-#endif // RALINK_ATE //
 					{
 					    RTMP_BBP_IO_WRITE8_BY_REG_ID(pAdapter, bbpId, bbpValue);
     					//Read it back for showing
@@ -2968,21 +3020,24 @@ next:
 	{
 		memset(extra, 0x00, IW_PRIV_SIZE_MASK);
 		sprintf(extra, "\n");
+#ifndef RT30xx
 		for (bbpId = 0; bbpId <= 136; bbpId++)
+#endif // RT30xx //
+#ifdef RT30xx
+		for (bbpId = 0; bbpId <= 138; bbpId++)  // edit by johnli, RF power sequence setup, add BBP R138 for ADC dynamic on/off control
+#endif // RT30xx //
 		{
 		    if (strlen(extra) >= (IW_PRIV_SIZE_MASK - 10))
                 break;
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				ATE_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
-			}
-			else
-#endif // RALINK_ATE //
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+#ifndef RT30xx
 			sprintf(extra+strlen(extra), "R%02d[0x%02X]:%02X    ", bbpId, bbpId*2, regBBP);
 			if (bbpId%5 == 4)
 				sprintf(extra+strlen(extra), "\n");
+#endif
+#ifdef RT30xx
+			sprintf(extra+strlen(extra), "%03d = %02X\n", bbpId, regBBP);  // edit by johnli, change display format
+#endif
 		}
 
         wrq->length = strlen(extra) + 1; // 1: size of '\0'
@@ -3022,9 +3077,7 @@ int rt_ioctl_siwrate(struct net_device *dev,
 		    (pAd->MacTab.Content[BSSID_WCID].HTPhyMode.field.MODE <= MODE_OFDM))
 			RTMPSetDesiredRates(pAd, -1);
 
-#ifdef DOT11_N_SUPPORT
 		SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
     }
     else
     {
@@ -3037,9 +3090,7 @@ int rt_ioctl_siwrate(struct net_device *dev,
             else
             {
                 pAd->StaCfg.DesiredTransmitSetting.field.MCS = MCS_AUTO;
-#ifdef DOT11_N_SUPPORT
                 SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
             }
             DBGPRINT(RT_DEBUG_TRACE, ("rt_ioctl_siwrate::(HtMcs=%d)\n",pAd->StaCfg.DesiredTransmitSetting.field.MCS));
         }
@@ -3087,13 +3138,11 @@ int rt_ioctl_giwrate(struct net_device *dev,
     else
         ht_setting.word = pAd->MacTab.Content[BSSID_WCID].HTPhyMode.word;
 
-#ifdef DOT11_N_SUPPORT
     if (ht_setting.field.MODE >= MODE_HTMIX)
     {
     	rate_index = 12 + ((UCHAR)ht_setting.field.BW *24) + ((UCHAR)ht_setting.field.ShortGI *48) + ((UCHAR)ht_setting.field.MCS);
     }
     else
-#endif // DOT11_N_SUPPORT //
     if (ht_setting.field.MODE == MODE_OFDM)
     	rate_index = (UCHAR)(ht_setting.field.MCS) + 4;
     else if (ht_setting.field.MODE == MODE_CCK)
@@ -3184,11 +3233,7 @@ static const iw_handler rt_handler[] =
 static const iw_handler rt_priv_handlers[] = {
 	(iw_handler) NULL, /* + 0x00 */
 	(iw_handler) NULL, /* + 0x01 */
-#ifndef CONFIG_AP_SUPPORT
 	(iw_handler) rt_ioctl_setparam, /* + 0x02 */
-#else
-	(iw_handler) NULL, /* + 0x02 */
-#endif // CONFIG_AP_SUPPORT //
 #ifdef DBG
 	(iw_handler) rt_private_ioctl_bbp, /* + 0x03 */
 #else
@@ -3258,27 +3303,13 @@ INT RTMPSetInformation(
     ULONG                               PowerTemp;
     BOOLEAN                             RadioState;
     BOOLEAN                             StateMachineTouched = FALSE;
-#ifdef DOT11_N_SUPPORT
 	OID_SET_HT_PHYMODE					HT_PhyMode;	//11n ,kathy
-#endif // DOT11_N_SUPPORT //
-#ifdef WPA_SUPPLICANT_SUPPORT
     PNDIS_802_11_PMKID                  pPmkId = NULL;
     BOOLEAN				                IEEE8021xState = FALSE;
     BOOLEAN				                IEEE8021x_required_keys = FALSE;
     UCHAR                               wpa_supplicant_enable = 0;
-#endif // WPA_SUPPLICANT_SUPPORT //
 
-#ifdef SNMP_SUPPORT
-	TX_RTY_CFG_STRUC			tx_rty_cfg;
-	ULONG						ShortRetryLimit, LongRetryLimit;
-	UCHAR						ctmp;
-#endif // SNMP_SUPPORT //
-
-
-#ifdef DOT11_N_SUPPORT
 	MaxPhyMode = PHY_11N_5G;
-#endif // DOT11_N_SUPPORT //
-
 
 	DBGPRINT(RT_DEBUG_TRACE, ("-->RTMPSetInformation(),	0x%08x\n", cmd&0x7FFF));
     switch(cmd & 0x7FFF) {
@@ -3298,21 +3329,12 @@ INT RTMPSetInformation(
 				pAdapter->CommonCfg.PhyMode = 0xff;
 				// Build all corresponding channel information
 				RTMPSetPhyMode(pAdapter, TmpPhy);
-#ifdef DOT11_N_SUPPORT
 				SetCommonHT(pAdapter);
-#endif // DOT11_N_SUPPORT //
 				DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_COUNTRY_REGION (A:%d  B/G:%d)\n", pAdapter->CommonCfg.CountryRegionForABand,
 				    pAdapter->CommonCfg.CountryRegion));
             }
             break;
         case OID_802_11_BSSID_LIST_SCAN:
- #ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
             Now = jiffies;
 			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_BSSID_LIST_SCAN, TxCnt = %d \n", pAdapter->RalinkCounters.LastOneSecTotalTxCount));
 
@@ -3414,13 +3436,6 @@ INT RTMPSetInformation(
             }
             break;
         case OID_802_11_BSSID:
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
             if (wrq->u.data.length != sizeof(NDIS_802_11_MAC_ADDRESS))
                 Status  = -EINVAL;
             else
@@ -3492,9 +3507,7 @@ INT RTMPSetInformation(
 				if (PhyMode <= MaxPhyMode)
 				{
                 	RTMPSetPhyMode(pAdapter, PhyMode);
-#ifdef DOT11_N_SUPPORT
 					SetCommonHT(pAdapter);
-#endif // DOT11_N_SUPPORT //
 				}
                 DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_PHY_MODE (=%d)\n", PhyMode));
             }
@@ -3513,9 +3526,14 @@ INT RTMPSetInformation(
                 {
                     // allow dynamic change of "USE OFDM rate or not" in ADHOC mode
                     // if setting changed, need to reset current TX rate as well as BEACON frame format
+#ifdef RT30xx
+                    pAdapter->CommonCfg.PhyMode = StaConfig.AdhocMode;
+#endif
                     if (pAdapter->StaCfg.BssType == BSS_ADHOC)
                     {
+#ifndef RT30xx
 						pAdapter->CommonCfg.PhyMode = StaConfig.AdhocMode;
+#endif
                     	RTMPSetPhyMode(pAdapter, PhyMode);
                         MlmeUpdateTxRates(pAdapter, FALSE, 0);
                         MakeIbssBeacon(pAdapter);           // re-build BEACON frame
@@ -3679,6 +3697,15 @@ INT RTMPSetInformation(
             pAdapter->Counters8023.RxNoBuffer   = 0;
 			pAdapter->Counters8023.GoodReceives = 0;
 			pAdapter->Counters8023.RxNoBuffer   = 0;
+#ifdef RT2870
+			pAdapter->BulkOutComplete	= 0;
+			pAdapter->BulkOutCompleteOther= 0;
+			pAdapter->BulkOutCompleteCancel = 0;
+			pAdapter->BulkOutReq = 0;
+			pAdapter->BulkInReq= 0;
+			pAdapter->BulkInComplete = 0;
+			pAdapter->BulkInCompleteFail = 0;
+#endif // RT2870 //
             DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_RESET_COUNTERS \n"));
             break;
         case OID_802_11_RTS_THRESHOLD:
@@ -3763,10 +3790,10 @@ INT RTMPSetInformation(
 					RTMPSetPhyMode(pAdapter, PHY_11A);
 				else
 					Status = -EINVAL;
-#ifdef DOT11_N_SUPPORT
+
 				if (Status == NDIS_STATUS_SUCCESS)
 					SetCommonHT(pAdapter);
-#endif // DOT11_N_SUPPORT //
+
                 DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_NETWORK_TYPE_IN_USE (=%d)\n",NetType));
 		    }
 			break;
@@ -3910,7 +3937,6 @@ INT RTMPSetInformation(
                 pAdapter->bConfigChanged = TRUE;
             }
             break;
-#ifdef DOT11_N_SUPPORT
 		case RT_OID_802_11_SET_HT_PHYMODE:
 			if (wrq->u.data.length	!= sizeof(OID_SET_HT_PHYMODE))
 				Status = -EINVAL;
@@ -3929,7 +3955,6 @@ INT RTMPSetInformation(
 				pAdapter->StaCfg.HTPhyMode.field.MCS, pAdapter->StaCfg.HTPhyMode.field.BW, pAdapter->StaCfg.HTPhyMode.field.ShortGI,
 				pAdapter->StaCfg.HTPhyMode.field.STBC));
 			break;
-#endif // DOT11_N_SUPPORT //
 		case RT_OID_802_11_SET_APSD_SETTING:
 			if (wrq->u.data.length != sizeof(ULONG))
 				Status = -EINVAL;
@@ -3970,62 +3995,7 @@ INT RTMPSetInformation(
 				DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_SET_APSD_PSM (bAPSDForcePowerSave:%d)\n",	pAdapter->CommonCfg.bAPSDForcePowerSave));
 			}
 			break;
-#ifdef QOS_DLS_SUPPORT
-		case RT_OID_802_11_SET_DLS:
-			if (wrq->u.data.length != sizeof(ULONG))
-				Status = -EINVAL;
-			else
-			{
-				BOOLEAN	oldvalue = pAdapter->CommonCfg.bDLSCapable;
-				Status = copy_from_user(&pAdapter->CommonCfg.bDLSCapable, wrq->u.data.pointer, wrq->u.data.length);
-				if (oldvalue &&	!pAdapter->CommonCfg.bDLSCapable)
-				{
-					int	i;
-					// tear	down local dls table entry
-					for	(i=0; i<MAX_NUM_OF_INIT_DLS_ENTRY; i++)
-					{
-						if (pAdapter->StaCfg.DLSEntry[i].Valid && (pAdapter->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-						{
-							pAdapter->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-							pAdapter->StaCfg.DLSEntry[i].Valid	= FALSE;
-							RTMPSendDLSTearDownFrame(pAdapter, pAdapter->StaCfg.DLSEntry[i].MacAddr);
-						}
-					}
 
-					// tear	down peer dls table	entry
-					for	(i=MAX_NUM_OF_INIT_DLS_ENTRY; i<MAX_NUM_OF_DLS_ENTRY; i++)
-					{
-						if (pAdapter->StaCfg.DLSEntry[i].Valid && (pAdapter->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-						{
-							pAdapter->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-							pAdapter->StaCfg.DLSEntry[i].Valid	= FALSE;
-							RTMPSendDLSTearDownFrame(pAdapter, pAdapter->StaCfg.DLSEntry[i].MacAddr);
-						}
-					}
-				}
-
-				DBGPRINT(RT_DEBUG_TRACE,("Set::RT_OID_802_11_SET_DLS (=%d)\n", pAdapter->CommonCfg.bDLSCapable));
-			}
-			break;
-
-		case RT_OID_802_11_SET_DLS_PARAM:
-			if (wrq->u.data.length	!= sizeof(RT_802_11_DLS_UI))
-				Status = -EINVAL;
-			else
-			{
-				RT_802_11_DLS	Dls;
-
-				NdisZeroMemory(&Dls, sizeof(RT_802_11_DLS));
-				RTMPMoveMemory(&Dls, wrq->u.data.pointer, sizeof(RT_802_11_DLS_UI));
-				MlmeEnqueue(pAdapter,
-							MLME_CNTL_STATE_MACHINE,
-							RT_OID_802_11_SET_DLS_PARAM,
-							sizeof(RT_802_11_DLS),
-							&Dls);
-				DBGPRINT(RT_DEBUG_TRACE,("Set::RT_OID_802_11_SET_DLS_PARAM \n"));
-			}
-			break;
-#endif // QOS_DLS_SUPPORT //
 		case RT_OID_802_11_SET_WMM:
 			if (wrq->u.data.length	!= sizeof(BOOLEAN))
 				Status = -EINVAL;
@@ -4037,13 +4007,6 @@ INT RTMPSetInformation(
 			break;
 
 		case OID_802_11_DISASSOCIATE:
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
 			//
 			// Set NdisRadioStateOff to	TRUE, instead of called	MlmeRadioOff.
 			// Later on, NDIS_802_11_BSSID_LIST_EX->NumberOfItems should be	0
@@ -4074,8 +4037,6 @@ INT RTMPSetInformation(
 				StateMachineTouched	= TRUE;
 			}
 			break;
-
-#ifdef DOT11_N_SUPPORT
 		case RT_OID_802_11_SET_IMME_BA_CAP:
 				if (wrq->u.data.length != sizeof(OID_BACAP_STRUC))
 					Status = -EINVAL;
@@ -4230,8 +4191,6 @@ INT RTMPSetInformation(
 				}
             }
             break;
-#endif // DOT11_N_SUPPORT //
-
         // For WPA_SUPPLICANT to set static wep key
     	case OID_802_11_ADD_WEP:
     	    pWepKey = kmalloc(wrq->u.data.length, MEM_ALLOC_FLAG);
@@ -4285,19 +4244,21 @@ INT RTMPSetInformation(
                     // Default key for tx (shared key)
                     if (pWepKey->KeyIndex & 0x80000000)
                     {
-#ifdef WPA_SUPPLICANT_SUPPORT
                         // set key material and key length
                         NdisZeroMemory(pAdapter->StaCfg.DesireSharedKey[KeyIdx].Key, 16);
                         pAdapter->StaCfg.DesireSharedKey[KeyIdx].KeyLen = (UCHAR) pWepKey->KeyLength;
                         NdisMoveMemory(pAdapter->StaCfg.DesireSharedKey[KeyIdx].Key, &pWepKey->KeyMaterial, pWepKey->KeyLength);
                         pAdapter->StaCfg.DesireSharedKeyId = KeyIdx;
                         pAdapter->StaCfg.DesireSharedKey[KeyIdx].CipherAlg = CipherAlg;
-#endif // WPA_SUPPLICANT_SUPPORT //
                         pAdapter->StaCfg.DefaultKeyId = (UCHAR) KeyIdx;
                     }
-
-#ifdef WPA_SUPPLICANT_SUPPORT
+#ifndef RT30xx
+#ifdef RT2860
 					if ((pAdapter->StaCfg.WpaSupplicantUP != 0) &&
+#endif
+#ifdef RT2870
+					if ((pAdapter->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE) &&
+#endif
 						(pAdapter->StaCfg.AuthMode >= Ndis802_11AuthModeWPA))
 					{
 						Key = pWepKey->KeyMaterial;
@@ -4314,7 +4275,10 @@ INT RTMPSetInformation(
         				pAdapter->IndicateMediaState = NdisMediaStateConnected;
 					}
                     else if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
-#endif // WPA_SUPPLICANT_SUPPORT
+#endif
+#ifdef RT30xx
+                    if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
+#endif
                     {
                         Key = pAdapter->SharedKey[BSS0][KeyIdx].Key;
 
@@ -4335,7 +4299,6 @@ INT RTMPSetInformation(
             }
             kfree(pWepKey);
             break;
-#ifdef WPA_SUPPLICANT_SUPPORT
 	    case OID_SET_COUNTERMEASURES:
             if (wrq->u.data.length != sizeof(int))
                 Status  = -EINVAL;
@@ -4469,95 +4432,6 @@ INT RTMPSetInformation(
 			if(pPmkId)
 				kfree(pPmkId);
 	        break;
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-
-
-#ifdef SNMP_SUPPORT
-		case OID_802_11_SHORTRETRYLIMIT:
-			if (wrq->u.data.length != sizeof(ULONG))
-				Status = -EINVAL;
-			else
-			{
-				Status = copy_from_user(&ShortRetryLimit, wrq->u.data.pointer, wrq->u.data.length);
-				RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-				tx_rty_cfg.field.ShortRtyLimit = ShortRetryLimit;
-				RTMP_IO_WRITE32(pAdapter, TX_RTY_CFG, tx_rty_cfg.word);
-				DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_SHORTRETRYLIMIT (tx_rty_cfg.field.ShortRetryLimit=%d, ShortRetryLimit=%ld)\n", tx_rty_cfg.field.ShortRtyLimit, ShortRetryLimit));
-			}
-			break;
-
-		case OID_802_11_LONGRETRYLIMIT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_LONGRETRYLIMIT \n"));
-			if (wrq->u.data.length != sizeof(ULONG))
-				Status = -EINVAL;
-			else
-			{
-				Status = copy_from_user(&LongRetryLimit, wrq->u.data.pointer, wrq->u.data.length);
-				RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-				tx_rty_cfg.field.LongRtyLimit = LongRetryLimit;
-				RTMP_IO_WRITE32(pAdapter, TX_RTY_CFG, tx_rty_cfg.word);
-				DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_LONGRETRYLIMIT (tx_rty_cfg.field.LongRetryLimit= %d,LongRetryLimit=%ld)\n", tx_rty_cfg.field.LongRtyLimit, LongRetryLimit));
-			}
-			break;
-
-		case OID_802_11_WEPDEFAULTKEYVALUE:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_WEPDEFAULTKEYVALUE\n"));
-			pKey = kmalloc(wrq->u.data.length, GFP_KERNEL);
-			Status = copy_from_user(pKey, wrq->u.data.pointer, wrq->u.data.length);
-			//pKey = &WepKey;
-
-			if ( pKey->Length != wrq->u.data.length)
-			{
-				Status = -EINVAL;
-				DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_WEPDEFAULTKEYVALUE, Failed!!\n"));
-			}
-			KeyIdx = pKey->KeyIndex & 0x0fffffff;
-			DBGPRINT(RT_DEBUG_TRACE,("pKey->KeyIndex =%d, pKey->KeyLength=%d\n", pKey->KeyIndex, pKey->KeyLength));
-
-			// it is a shared key
-			if (KeyIdx > 4)
-				Status = -EINVAL;
-			else
-			{
-				pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen = (UCHAR) pKey->KeyLength;
-				NdisMoveMemory(&pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].Key, &pKey->KeyMaterial, pKey->KeyLength);
-				if (pKey->KeyIndex & 0x80000000)
-				{
-					// Default key for tx (shared key)
-					pAdapter->StaCfg.DefaultKeyId = (UCHAR) KeyIdx;
-				}
-				//RestartAPIsRequired = TRUE;
-			}
-			break;
-
-
-		case OID_802_11_WEPDEFAULTKEYID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_WEPDEFAULTKEYID \n"));
-
-			if (wrq->u.data.length != sizeof(UCHAR))
-				Status = -EINVAL;
-			else
-				Status = copy_from_user(&pAdapter->StaCfg.DefaultKeyId, wrq->u.data.pointer, wrq->u.data.length);
-
-			break;
-
-
-		case OID_802_11_CURRENTCHANNEL:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_CURRENTCHANNEL \n"));
-			if (wrq->u.data.length != sizeof(UCHAR))
-				Status = -EINVAL;
-			else
-			{
-				Status = copy_from_user(&ctmp, wrq->u.data.pointer, wrq->u.data.length);
-				sprintf(&ctmp,"%d", ctmp);
-				Set_Channel_Proc(pAdapter, &ctmp);
-			}
-			break;
-#endif
-
-
-
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("Set::unknown IOCTL's subcmd = 0x%08x\n", cmd));
             Status = -EOPNOTSUPP;
@@ -4599,16 +4473,6 @@ INT RTMPQueryInformation(
 	UCHAR	driverVersion[8];
     OID_SET_HT_PHYMODE			        *pHTPhyMode = NULL;
 
-
-#ifdef SNMP_SUPPORT
-	//for snmp, kathy
-	DefaultKeyIdxValue			*pKeyIdxValue;
-	INT							valueLen;
-	TX_RTY_CFG_STRUC			tx_rty_cfg;
-	ULONG						ShortRetryLimit, LongRetryLimit;
-	UCHAR						tmp[64];
-#endif //SNMP
-
     switch(cmd)
     {
         case RT_OID_DEVICE_NAME:
@@ -4625,16 +4489,6 @@ INT RTMPQueryInformation(
 				Status = -EFAULT;
             }
             break;
-#ifdef RALINK_ATE
-		case RT_QUERY_ATE_TXDONE_COUNT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_QUERY_ATE_TXDONE_COUNT \n"));
-			wrq->u.data.length = sizeof(UINT32);
-			if (copy_to_user(wrq->u.data.pointer, &pAdapter->ate.TxDoneCount, wrq->u.data.length))
-			{
-				Status = -EFAULT;
-			}
-			break;
-#endif // RALINK_ATE //
         case OID_802_11_BSSID_LIST:
             if (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
             {
@@ -4776,14 +4630,6 @@ INT RTMPQueryInformation(
             Status = copy_to_user(wrq->u.data.pointer, &MediaState, wrq->u.data.length);
             break;
         case OID_802_11_BSSID:
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				Status = NDIS_STATUS_RESOURCES;
-				break;
-			}
-#endif // RALINK_ATE //
             if (INFRA_ON(pAdapter) || ADHOC_ON(pAdapter))
             {
                 Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.Bssid, sizeof(NDIS_802_11_MAC_ADDRESS));
@@ -5121,7 +4967,6 @@ INT RTMPQueryInformation(
 			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.bWmmCapable, wrq->u.data.length);
 			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_QUERY_WMM (=%d)\n",	pAdapter->CommonCfg.bWmmCapable));
 			break;
-#ifdef WPA_SUPPLICANT_SUPPORT
         case RT_OID_NEW_DRIVER:
             {
                 UCHAR enabled = 1;
@@ -5135,8 +4980,6 @@ INT RTMPQueryInformation(
 	        Status = copy_to_user(wrq->u.data.pointer, &pAdapter->StaCfg.WpaSupplicantUP, wrq->u.data.length);
             DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_WPA_SUPPLICANT_SUPPORT (=%d)\n", pAdapter->StaCfg.WpaSupplicantUP));
 	        break;
-#endif // WPA_SUPPLICANT_SUPPORT //
-
         case RT_OID_DRIVER_DEVICE_NAME:
             DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_DRIVER_DEVICE_NAME \n"));
 			wrq->u.data.length = 16;
@@ -5211,154 +5054,20 @@ INT RTMPQueryInformation(
         case RT_OID_QUERY_MULTIPLE_CARD_SUPPORT:
 			wrq->u.data.length = sizeof(UCHAR);
             i = 0;
-#ifdef MULTIPLE_CARD_SUPPORT
-            i = 1;
-#endif // MULTIPLE_CARD_SUPPORT //
 			if (copy_to_user(wrq->u.data.pointer, &i, wrq->u.data.length))
             {
 				Status = -EFAULT;
             }
             DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_QUERY_MULTIPLE_CARD_SUPPORT(=%d) \n", i));
             break;
-#ifdef SNMP_SUPPORT
-		case RT_OID_802_11_MAC_ADDRESS:
-            wrq->u.data.length = MAC_ADDR_LEN;
-            Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CurrentAddress, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_MANUFACTUREROUI:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_MANUFACTUREROUI \n"));
-			wrq->u.data.length = ManufacturerOUI_LEN;
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CurrentAddress, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_MANUFACTURERNAME:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_MANUFACTURERNAME \n"));
-			wrq->u.data.length = strlen(ManufacturerNAME);
-			Status = copy_to_user(wrq->u.data.pointer, ManufacturerNAME, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_RESOURCETYPEIDNAME:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_RESOURCETYPEIDNAME \n"));
-			wrq->u.data.length = strlen(ResourceTypeIdName);
-			Status = copy_to_user(wrq->u.data.pointer, ResourceTypeIdName, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_PRIVACYOPTIONIMPLEMENTED:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_PRIVACYOPTIONIMPLEMENTED \n"));
-			ulInfo = 1; // 1 is support wep else 2 is not support.
-			wrq->u.data.length = sizeof(ulInfo);
-			Status = copy_to_user(wrq->u.data.pointer, &ulInfo, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_POWERMANAGEMENTMODE:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_POWERMANAGEMENTMODE \n"));
-			if (pAdapter->StaCfg.Psm == PSMP_ACTION)
-				ulInfo = 1; // 1 is power active else 2 is power save.
-			else
-				ulInfo = 2;
-
-			wrq->u.data.length = sizeof(ulInfo);
-			Status = copy_to_user(wrq->u.data.pointer, &ulInfo, wrq->u.data.length);
-			break;
-
-		case OID_802_11_WEPDEFAULTKEYVALUE:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_WEPDEFAULTKEYVALUE \n"));
-			//KeyIdxValue.KeyIdx = pAd->PortCfg.MBSSID[pAd->IoctlIF].DefaultKeyId;
-			pKeyIdxValue = wrq->u.data.pointer;
-			DBGPRINT(RT_DEBUG_TRACE,("KeyIdxValue.KeyIdx = %d, \n",pKeyIdxValue->KeyIdx));
-			valueLen = pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen;
-			NdisMoveMemory(pKeyIdxValue->Value,
-						   &pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].Key,
-						   valueLen);
-			pKeyIdxValue->Value[valueLen]='\0';
-
-			wrq->u.data.length = sizeof(DefaultKeyIdxValue);
-
-			Status = copy_to_user(wrq->u.data.pointer, pKeyIdxValue, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE,("DefaultKeyId = %d, total len = %d, str len=%d, KeyValue= %02x %02x %02x %02x \n", pAdapter->StaCfg.DefaultKeyId, wrq->u.data.length, pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen,
-			pAdapter->SharedKey[BSS0][0].Key[0],
-			pAdapter->SharedKey[BSS0][1].Key[0],
-			pAdapter->SharedKey[BSS0][2].Key[0],
-			pAdapter->SharedKey[BSS0][3].Key[0]));
-			break;
-
-		case OID_802_11_WEPDEFAULTKEYID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_WEPDEFAULTKEYID \n"));
-			wrq->u.data.length = sizeof(UCHAR);
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->StaCfg.DefaultKeyId, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE, ("DefaultKeyId =%d \n", pAdapter->StaCfg.DefaultKeyId));
-			break;
-
-		case RT_OID_802_11_WEPKEYMAPPINGLENGTH:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_WEPKEYMAPPINGLENGTH \n"));
-			wrq->u.data.length = sizeof(UCHAR);
-			Status = copy_to_user(wrq->u.data.pointer,
-									&pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen,
-									wrq->u.data.length);
-			break;
-
-		case OID_802_11_SHORTRETRYLIMIT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_SHORTRETRYLIMIT \n"));
-			wrq->u.data.length = sizeof(ULONG);
-			RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-			ShortRetryLimit = tx_rty_cfg.field.ShortRtyLimit;
-			DBGPRINT(RT_DEBUG_TRACE, ("ShortRetryLimit =%ld,  tx_rty_cfg.field.ShortRetryLimit=%d\n", ShortRetryLimit, tx_rty_cfg.field.ShortRtyLimit));
-			Status = copy_to_user(wrq->u.data.pointer, &ShortRetryLimit, wrq->u.data.length);
-			break;
-
-		case OID_802_11_LONGRETRYLIMIT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_LONGRETRYLIMIT \n"));
-			wrq->u.data.length = sizeof(ULONG);
-			RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-			LongRetryLimit = tx_rty_cfg.field.LongRtyLimit;
-			DBGPRINT(RT_DEBUG_TRACE, ("LongRetryLimit =%ld,  tx_rty_cfg.field.LongRtyLimit=%d\n", LongRetryLimit, tx_rty_cfg.field.LongRtyLimit));
-			Status = copy_to_user(wrq->u.data.pointer, &LongRetryLimit, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_PRODUCTID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_PRODUCTID \n"));
-
-			{
-
-				USHORT  device_id;
-				if (((POS_COOKIE)pAdapter->OS_Cookie)->pci_dev != NULL)
-			    	pci_read_config_word(((POS_COOKIE)pAdapter->OS_Cookie)->pci_dev, PCI_DEVICE_ID, &device_id);
-				else
-					DBGPRINT(RT_DEBUG_TRACE, (" pci_dev = NULL\n"));
-				sprintf(tmp, "%04x %04x\n", NIC_PCI_VENDOR_ID, device_id);
-			}
-			wrq->u.data.length = strlen(tmp);
-			Status = copy_to_user(wrq->u.data.pointer, tmp, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_MANUFACTUREID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_MANUFACTUREID \n"));
-			wrq->u.data.length = strlen(ManufacturerNAME);
-			Status = copy_to_user(wrq->u.data.pointer, ManufacturerNAME, wrq->u.data.length);
-			break;
-
-		case OID_802_11_CURRENTCHANNEL:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_CURRENTCHANNEL \n"));
-			wrq->u.data.length = sizeof(UCHAR);
-			DBGPRINT(RT_DEBUG_TRACE, ("sizeof UCHAR=%d, channel=%d \n", sizeof(UCHAR), pAdapter->CommonCfg.Channel));
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.Channel, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE, ("Status=%d\n", Status));
-			break;
-#endif //SNMP_SUPPORT
 
 		case OID_802_11_BUILD_CHANNEL_EX:
 			{
 				UCHAR value;
 				DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_BUILD_CHANNEL_EX \n"));
 				wrq->u.data.length = sizeof(UCHAR);
-#ifdef EXT_BUILD_CHANNEL_LIST
-				DBGPRINT(RT_DEBUG_TRACE, ("Support EXT_BUILD_CHANNEL_LIST.\n"));
-				value = 1;
-#else
 				DBGPRINT(RT_DEBUG_TRACE, ("Doesn't support EXT_BUILD_CHANNEL_LIST.\n"));
 				value = 0;
-#endif // EXT_BUILD_CHANNEL_LIST //
 				Status = copy_to_user(wrq->u.data.pointer, &value, 1);
 				DBGPRINT(RT_DEBUG_TRACE, ("Status=%d\n", Status));
 			}
@@ -5409,35 +5118,6 @@ INT RTMPQueryInformation(
 			DBGPRINT(RT_DEBUG_TRACE, ("Status=%d\n", Status));
 			break;
 
-
-#ifdef QOS_DLS_SUPPORT
-		case RT_OID_802_11_QUERY_DLS:
-			wrq->u.data.length = sizeof(BOOLEAN);
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.bDLSCapable, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_QUERY_DLS(=%d)\n", pAdapter->CommonCfg.bDLSCapable));
-			break;
-
-		case RT_OID_802_11_QUERY_DLS_PARAM:
-			{
-				PRT_802_11_DLS_INFO	pDlsInfo = kmalloc(sizeof(RT_802_11_DLS_INFO), GFP_ATOMIC);
-				if (pDlsInfo == NULL)
-					break;
-
-				for (i=0; i<MAX_NUM_OF_DLS_ENTRY; i++)
-				{
-					RTMPMoveMemory(&pDlsInfo->Entry[i], &pAdapter->StaCfg.DLSEntry[i], sizeof(RT_802_11_DLS_UI));
-				}
-
-				pDlsInfo->num = MAX_NUM_OF_DLS_ENTRY;
-				wrq->u.data.length = sizeof(RT_802_11_DLS_INFO);
-				Status = copy_to_user(wrq->u.data.pointer, pDlsInfo, wrq->u.data.length);
-				DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_QUERY_DLS_PARAM\n"));
-
-				if (pDlsInfo)
-					kfree(pDlsInfo);
-			}
-			break;
-#endif // QOS_DLS_SUPPORT //
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("Query::unknown IOCTL's subcmd = 0x%08x\n", cmd));
             Status = -EOPNOTSUPP;
@@ -5480,14 +5160,6 @@ INT rt28xx_sta_ioctl(
     //check if the interface is down
     if(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE))
     {
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-	    if (wrq->u.data.pointer == NULL)
-	    {
-		    return Status;
-	    }
-
-	    if (strstr(wrq->u.data.pointer, "OpMode") == NULL)
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
         {
             DBGPRINT(RT_DEBUG_TRACE, ("INFO::Network is down!\n"));
 		    return -ENETDOWN;
@@ -5501,15 +5173,6 @@ INT rt28xx_sta_ioctl(
 
 	switch(cmd)
 	{
-#ifdef RALINK_ATE
-#ifdef RALINK_28xx_QA
-		case RTPRIV_IOCTL_ATE:
-			{
-				RtmpDoAte(pAd, wrq);
-			}
-			break;
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
         case SIOCGIFHWADDR:
 			DBGPRINT(RT_DEBUG_TRACE, ("IOCTL::SIOCGIFHWADDR\n"));
 			memcpy(wrq->u.name, pAd->CurrentAddress, ETH_ALEN);
@@ -5640,6 +5303,9 @@ INT rt28xx_sta_ioctl(
 			Status = -EOPNOTSUPP;
 			break;
 		case RT_PRIV_IOCTL:
+#ifdef RT30xx
+        case RT_PRIV_IOCTL_EXT:
+#endif
 			subcmd = wrq->u.data.flags;
 			if( subcmd & OID_GET_SET_TOGGLE)
 				Status = RTMPSetInformation(pAd, rq, subcmd);
@@ -5671,6 +5337,11 @@ INT rt28xx_sta_ioctl(
 		case RTPRIV_IOCTL_E2P:
 			RTMPIoctlE2PROM(pAd, wrq);
 			break;
+#ifdef RT30xx
+		case RTPRIV_IOCTL_RF:
+			RTMPIoctlRF(pAd, wrq);
+			break;
+#endif // RT30xx //
 #endif // DBG //
         case SIOCETHTOOL:
                 break;
@@ -5766,6 +5437,9 @@ INT	Set_WmmCapable_Proc(
 	bWmmCapable = simple_strtol(arg, 0, 10);
 
 	if ((bWmmCapable == 1)
+#ifdef RT2870
+		&& (pAd->NumberOfPipes >= 5)
+#endif // RT2870 //
 		)
 		pAd->CommonCfg.bWmmCapable = TRUE;
 	else if (bWmmCapable == 0)
@@ -5873,19 +5547,14 @@ INT Set_NetworkType_Proc(
 		DBGPRINT(RT_DEBUG_TRACE, ("fOP_STATUS_MEDIA_STATE_CONNECTED \n"));
         if (pAdapter->CommonCfg.CentralChannel == 0)
         {
-#ifdef DOT11_N_SUPPORT
             if (pAdapter->CommonCfg.PhyMode == PHY_11AN_MIXED)
                 pAdapter->CommonCfg.CentralChannel = 36;
             else
-#endif // DOT11_N_SUPPORT //
                 pAdapter->CommonCfg.CentralChannel = 6;
         }
-#ifdef DOT11_N_SUPPORT
         else
             N_ChannelCheck(pAdapter);
-#endif // DOT11_N_SUPPORT //
 
-#ifdef DOT11_N_SUPPORT
 	if (pAdapter->CommonCfg.PhyMode >= PHY_11ABGN_MIXED &&
             pAdapter->CommonCfg.RegTransmitSetting.field.BW == BW_40 &&
             pAdapter->CommonCfg.RegTransmitSetting.field.EXTCHA == EXTCHA_ABOVE)
@@ -5936,7 +5605,6 @@ INT Set_NetworkType_Proc(
                                        pAdapter->CommonCfg.CentralChannel));
 		}
 		else
-#endif // DOT11_N_SUPPORT //
 		{
 			// 20MHz
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, BBP_R4, &bbpValue);
@@ -5997,12 +5665,10 @@ INT Set_AuthMode_Proc(
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPANone;
     else if ((strcmp(arg, "WPA2PSK") == 0) || (strcmp(arg, "wpa2psk") == 0))
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2PSK;
-#ifdef WPA_SUPPLICANT_SUPPORT
     else if ((strcmp(arg, "WPA") == 0) || (strcmp(arg, "wpa") == 0))
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA;
     else if ((strcmp(arg, "WPA2") == 0) || (strcmp(arg, "wpa2") == 0))
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2;
-#endif // WPA_SUPPLICANT_SUPPORT //
     else
         return FALSE;
 
@@ -6544,7 +6210,6 @@ INT Set_PSMode_Proc(
     return TRUE;
 }
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 /*
     ==========================================================================
     Description:
@@ -6575,7 +6240,6 @@ INT Set_Wpa_Support(
 
     return TRUE;
 }
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 #ifdef DBG
 /*
@@ -6608,7 +6272,9 @@ VOID RTMPIoctlMAC(
 	UCHAR				temp[16], temp2[16];
 	UINT32				macValue = 0;
 	INT					Status;
-
+#ifdef RT30xx
+	BOOLEAN				bIsPrintAllMAC = FALSE;
+#endif
 
 	memset(msg, 0x00, 1024);
 	if (wrq->u.data.length > 1) //No parameters.
@@ -6659,7 +6325,13 @@ VOID RTMPIoctlMAC(
 					sprintf(msg+strlen(msg), "[0x%08lX]:%08X  ", macAddr , macValue);
 				}
 				else
+#ifndef RT30xx
 				{//Invalid parametes, so default printk all bbp
+#endif
+#ifdef RT30xx
+				{//Invalid parametes, so default printk all mac
+					bIsPrintAllMAC = TRUE;
+#endif
 					goto next;
 				}
 			}
@@ -6730,13 +6402,6 @@ VOID RTMPIoctlMAC(
                         UCHAR R66;
                         pAdapter->BbpTuning.bEnable = FALSE;
                         R66 = 0x26 + GET_LNA_GAIN(pAdapter);
-#ifdef RALINK_ATE
-						if (ATE_ON(pAdapter))
-						{
-							ATE_BBP_IO_WRITE8_BY_REG_ID(pAdapter, BBP_R66, (0x26 + GET_LNA_GAIN(pAdapter)));
-						}
-						else
-#endif // RALINK_ATE //
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAdapter, BBP_R66, (0x26 + GET_LNA_GAIN(pAdapter)));
                         DBGPRINT(RT_DEBUG_TRACE,("turn off R17 tuning, restore to 0x%02x\n", R66));
                     }
@@ -6750,7 +6415,52 @@ VOID RTMPIoctlMAC(
 			}
 		}
 	}
+#ifdef RT30xx
+	else
+		bIsPrintAllMAC = TRUE;
+#endif
 next:
+#ifdef RT30xx
+	if (bIsPrintAllMAC)
+	{
+		struct file		*file_w;
+		PCHAR			fileName = "MacDump.txt";
+		mm_segment_t	orig_fs;
+
+		orig_fs = get_fs();
+		set_fs(KERNEL_DS);
+
+		// open file
+		file_w = filp_open(fileName, O_WRONLY|O_CREAT, 0);
+		if (IS_ERR(file_w))
+		{
+			DBGPRINT(RT_DEBUG_TRACE, ("-->2) %s: Error %ld opening %s\n", __func__, -PTR_ERR(file_w), fileName));
+		}
+		else
+		{
+			if (file_w->f_op && file_w->f_op->write)
+			{
+				file_w->f_pos = 0;
+				macAddr = 0x1000;
+
+				while (macAddr <= 0x1800)
+				{
+					RTMP_IO_READ32(pAdapter, macAddr, &macValue);
+					sprintf(msg, "%08lx = %08X\n", macAddr, macValue);
+
+					// write data to file
+					file_w->f_op->write(file_w, msg, strlen(msg), &file_w->f_pos);
+
+					printk("%s", msg);
+					macAddr += 4;
+				}
+				sprintf(msg, "\nDump all MAC values to %s\n", fileName);
+			}
+			filp_close(file_w, NULL);
+		}
+		set_fs(orig_fs);
+	}
+#endif /* RT30xx */
 	if(strlen(msg) == 1)
 		sprintf(msg+strlen(msg), "===>Error command format!");
 
@@ -6791,7 +6501,9 @@ VOID RTMPIoctlE2PROM(
 	UCHAR				temp[16], temp2[16];
 	USHORT				eepValue;
 	int					Status;
-
+#ifdef RT30xx
+	BOOLEAN				bIsPrintAllE2P = FALSE;
+#endif
 
 	memset(msg, 0x00, 1024);
 	if (wrq->u.data.length > 1) //No parameters.
@@ -6845,6 +6557,9 @@ VOID RTMPIoctlE2PROM(
 				}
 				else
 				{//Invalid parametes, so default printk all bbp
+#ifdef RT30xx
+					bIsPrintAllE2P = TRUE;
+#endif
 					goto next;
 				}
 			}
@@ -6903,7 +6618,52 @@ VOID RTMPIoctlE2PROM(
 			sprintf(msg+strlen(msg), "[0x%02X]:%02X  ", eepAddr, eepValue);
 		}
 	}
+#ifdef RT30xx
+	else
+		bIsPrintAllE2P = TRUE;
+#endif
 next:
+#ifdef RT30xx
+	if (bIsPrintAllE2P)
+	{
+		struct file		*file_w;
+		PCHAR			fileName = "EEPROMDump.txt";
+		mm_segment_t	orig_fs;
+
+		orig_fs = get_fs();
+		set_fs(KERNEL_DS);
+
+		// open file
+		file_w = filp_open(fileName, O_WRONLY|O_CREAT, 0);
+		if (IS_ERR(file_w))
+		{
+			DBGPRINT(RT_DEBUG_TRACE, ("-->2) %s: Error %ld opening %s\n", __func__, -PTR_ERR(file_w), fileName));
+		}
+		else
+		{
+			if (file_w->f_op && file_w->f_op->write)
+			{
+				file_w->f_pos = 0;
+				eepAddr = 0x00;
+
+				while (eepAddr <= 0xFE)
+				{
+					RT28xx_EEPROM_READ16(pAdapter, eepAddr, eepValue);
+					sprintf(msg, "%08x = %04x\n", eepAddr , eepValue);
+
+					// write data to file
+					file_w->f_op->write(file_w, msg, strlen(msg), &file_w->f_pos);
+
+					printk("%s", msg);
+					eepAddr += 2;
+				}
+				sprintf(msg, "\nDump all EEPROM values to %s\n", fileName);
+			}
+			filp_close(file_w, NULL);
+		}
+		set_fs(orig_fs);
+	}
+#endif /* RT30xx */
 	if(strlen(msg) == 1)
 		sprintf(msg+strlen(msg), "===>Error command format!");
 
@@ -6914,6 +6674,154 @@ next:
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<==RTMPIoctlE2PROM\n"));
 }
+#ifdef RT30xx
+/*
+    ==========================================================================
+    Description:
+        Read / Write RF register
+Arguments:
+    pAdapter                    Pointer to our adapter
+    wrq                         Pointer to the ioctl argument
+
+    Return Value:
+        None
+
+    Note:
+        Usage:
+               1.) iwpriv ra0 rf                ==> read all RF registers
+               2.) iwpriv ra0 rf 1              ==> read RF where RegID=1
+               3.) iwpriv ra0 rf 1=10		    ==> write RF R1=0x10
+    ==========================================================================
+*/
+VOID RTMPIoctlRF(
+	IN	PRTMP_ADAPTER	pAdapter,
+	IN	struct iwreq	*wrq)
+{
+	CHAR				*this_char;
+	CHAR				*value;
+	UCHAR				regRF = 0;
+	CHAR				msg[2048];
+	CHAR				arg[255];
+	INT					rfId;
+	LONG				rfValue;
+	int					Status;
+	BOOLEAN				bIsPrintAllRF = FALSE;
+
+
+	memset(msg, 0x00, 2048);
+	if (wrq->u.data.length > 1) //No parameters.
+	{
+	    Status = copy_from_user(arg, wrq->u.data.pointer, (wrq->u.data.length > 255) ? 255 : wrq->u.data.length);
+		sprintf(msg, "\n");
+
+	    //Parsing Read or Write
+		this_char = arg;
+		if (!*this_char)
+			goto next;
+
+		if ((value = strchr(this_char, '=')) != NULL)
+			*value++ = 0;
+
+		if (!value || !*value)
+		{ //Read
+			if (sscanf(this_char, "%d", &(rfId)) == 1)
+			{
+				if (rfId <= 31)
+				{
+					// In RT2860 ATE mode, we do not load 8051 firmware.
+                                            //We must access RF directly.
+                    // For RT2870 ATE mode, ATE_RF_IO_WRITE8(/READ8)_BY_REG_ID are redefined.
+					// according to Andy, Gary, David require.
+					// the command rf shall read rf register directly for dubug.
+					// BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+					RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+
+					sprintf(msg+strlen(msg), "R%02d[0x%02x]:%02X  ", rfId, rfId*2, regRF);
+				}
+				else
+				{//Invalid parametes, so default printk all RF
+					bIsPrintAllRF = TRUE;
+					goto next;
+				}
+			}
+			else
+			{ //Invalid parametes, so default printk all RF
+				bIsPrintAllRF = TRUE;
+				goto next;
+			}
+		}
+		else
+		{ //Write
+			if ((sscanf(this_char, "%d", &(rfId)) == 1) && (sscanf(value, "%lx", &(rfValue)) == 1))
+			{
+				if (rfId <= 31)
+				{
+					// In RT2860 ATE mode, we do not load 8051 firmware.
+					// We should access RF registers directly.
+                    // For RT2870 ATE mode, ATE_RF_IO_WRITE8/READ8_BY_REG_ID are redefined.
+						{
+							// according to Andy, Gary, David require.
+							// the command RF shall read/write RF register directly for dubug.
+							//BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+					                //BBP_IO_WRITE8_BY_REG_ID(pAdapter, (UCHAR)bbpId,(UCHAR) bbpValue);
+							RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+							RT30xxWriteRFRegister(pAdapter, (UCHAR)rfId,(UCHAR) rfValue);
+					                //Read it back for showing
+							//BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+							RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+					                sprintf(msg+strlen(msg), "R%02d[0x%02X]:%02X\n", rfId, rfId*2, regRF);
+				                }
+				}
+				else
+				{//Invalid parametes, so default printk all RF
+					bIsPrintAllRF = TRUE;
+				}
+			}
+			else
+			{ //Invalid parametes, so default printk all RF
+				bIsPrintAllRF = TRUE;
+			}
+		}
+	}
+	else
+		bIsPrintAllRF = TRUE;
+next:
+	if (bIsPrintAllRF)
+	{
+		memset(msg, 0x00, 2048);
+		sprintf(msg, "\n");
+		for (rfId = 0; rfId <= 31; rfId++)
+		{
+			// according to Andy, Gary, David require.
+			// the command RF shall read/write RF register directly for dubug.
+			RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+			sprintf(msg+strlen(msg), "%03d = %02X\n", rfId, regRF);
+		}
+		// Copy the information into the user buffer
+		DBGPRINT(RT_DEBUG_TRACE, ("strlen(msg)=%d\n", (UINT32)strlen(msg)));
+		wrq->u.data.length = strlen(msg);
+		if (copy_to_user(wrq->u.data.pointer, msg, wrq->u.data.length))
+		{
+			DBGPRINT(RT_DEBUG_TRACE, ("%s: copy_to_user() fail\n", __func__));
+		}
+	}
+	else
+	{
+		if(strlen(msg) == 1)
+			sprintf(msg+strlen(msg), "===>Error command format!");
+
+		DBGPRINT(RT_DEBUG_TRACE, ("copy to user [msg=%s]\n", msg));
+		// Copy the information into the user buffer
+		DBGPRINT(RT_DEBUG_TRACE, ("strlen(msg) =%d\n", (UINT32)strlen(msg)));
+
+		// Copy the information into the user buffer
+		wrq->u.data.length = strlen(msg);
+		Status = copy_to_user(wrq->u.data.pointer, msg, wrq->u.data.length);
+	}
+
+	DBGPRINT(RT_DEBUG_TRACE, ("<==RTMPIoctlRF\n\n"));
+}
+#endif // RT30xx //
 #endif // DBG //
 
 
@@ -6960,37 +6868,47 @@ INT Set_ShortRetryLimit_Proc(
 	return TRUE;
 }
 
-#ifdef EXT_BUILD_CHANNEL_LIST
-INT Set_Ieee80211dClientMode_Proc(
-    IN  PRTMP_ADAPTER   pAdapter,
-    IN  PUCHAR          arg)
+#if !defined(RT2860) && !defined(RT30xx)
+INT	Show_Adhoc_MacTable_Proc(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	PCHAR			extra)
 {
-    if (simple_strtol(arg, 0, 10) == 0)
-        pAdapter->StaCfg.IEEE80211dClientMode = Rt802_11_D_None;
-    else if (simple_strtol(arg, 0, 10) == 1)
-        pAdapter->StaCfg.IEEE80211dClientMode = Rt802_11_D_Flexible;
-    else if (simple_strtol(arg, 0, 10) == 2)
-        pAdapter->StaCfg.IEEE80211dClientMode = Rt802_11_D_Strict;
-    else
-        return FALSE;
+	INT i;
 
-    DBGPRINT(RT_DEBUG_TRACE, ("Set_Ieee802dMode_Proc::(IEEEE0211dMode=%d)\n", pAdapter->StaCfg.IEEE80211dClientMode));
-    return TRUE;
-}
-#endif // EXT_BUILD_CHANNEL_LIST //
+	sprintf(extra, "\n");
 
-#ifdef CARRIER_DETECTION_SUPPORT
-INT Set_CarrierDetect_Proc(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          arg)
-{
-    if (simple_strtol(arg, 0, 10) == 0)
-        pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-    else
-        pAd->CommonCfg.CarrierDetect.Enable = TRUE;
+	sprintf(extra + strlen(extra), "HT Operating Mode : %d\n", pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode);
 
-    DBGPRINT(RT_DEBUG_TRACE, ("IF Set_CarrierDetect_Proc::(CarrierDetect.Enable=%d)\n", pAd->CommonCfg.CarrierDetect.Enable));
+	sprintf(extra + strlen(extra), "\n%-19s%-4s%-4s%-7s%-7s%-7s%-10s%-6s%-6s%-6s%-6s\n",
+			"MAC", "AID", "BSS", "RSSI0", "RSSI1", "RSSI2", "PhMd", "BW", "MCS", "SGI", "STBC");
+
+	for (i=1; i<MAX_LEN_OF_MAC_TABLE; i++)
+	{
+		PMAC_TABLE_ENTRY pEntry = &pAd->MacTab.Content[i];
+
+		if (strlen(extra) > (IW_PRIV_SIZE_MASK - 30))
+		    break;
+		if ((pEntry->ValidAsCLI || pEntry->ValidAsApCli) && (pEntry->Sst == SST_ASSOC))
+		{
+			sprintf(extra + strlen(extra), "%02X:%02X:%02X:%02X:%02X:%02X  ",
+				pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2],
+				pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5]);
+			sprintf(extra + strlen(extra), "%-4d", (int)pEntry->Aid);
+			sprintf(extra + strlen(extra), "%-4d", (int)pEntry->apidx);
+			sprintf(extra + strlen(extra), "%-7d", pEntry->RssiSample.AvgRssi0);
+			sprintf(extra + strlen(extra), "%-7d", pEntry->RssiSample.AvgRssi1);
+			sprintf(extra + strlen(extra), "%-7d", pEntry->RssiSample.AvgRssi2);
+			sprintf(extra + strlen(extra), "%-10s", GetPhyMode(pEntry->HTPhyMode.field.MODE));
+			sprintf(extra + strlen(extra), "%-6s", GetBW(pEntry->HTPhyMode.field.BW));
+			sprintf(extra + strlen(extra), "%-6d", pEntry->HTPhyMode.field.MCS);
+			sprintf(extra + strlen(extra), "%-6d", pEntry->HTPhyMode.field.ShortGI);
+			sprintf(extra + strlen(extra), "%-6d", pEntry->HTPhyMode.field.STBC);
+			sprintf(extra + strlen(extra), "%-10d, %d, %d%%\n", pEntry->DebugFIFOCount, pEntry->DebugTxCount,
+						(pEntry->DebugTxCount) ? ((pEntry->DebugTxCount-pEntry->DebugFIFOCount)*100/pEntry->DebugTxCount) : 0);
+			sprintf(extra, "%s\n", extra);
+		}
+	}
+
 	return TRUE;
 }
-#endif // CARRIER_DETECTION_SUPPORT //
-
+#endif /* RT2870 */

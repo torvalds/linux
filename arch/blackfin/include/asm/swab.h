@@ -2,11 +2,7 @@
 #define _BLACKFIN_SWAB_H
 
 #include <linux/types.h>
-#include <linux/compiler.h>
-
-#if defined(__GNUC__) && !defined(__STRICT_ANSI__) || defined(__KERNEL__)
-#  define __SWAB_64_THRU_32__
-#endif
+#include <asm-generic/swab.h>
 
 #ifdef __GNUC__
 

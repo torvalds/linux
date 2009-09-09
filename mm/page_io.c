@@ -120,7 +120,7 @@ out:
 	return ret;
 }
 
-int swap_readpage(struct file *file, struct page *page)
+int swap_readpage(struct page *page)
 {
 	struct bio *bio;
 	int ret = 0;

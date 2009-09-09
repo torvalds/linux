@@ -108,7 +108,7 @@ void snd_aw2_saa7146_setup(struct snd_aw2_saa7146 *chip,
 #endif
 	/* WS0_CTRL, WS0_SYNC: input TSL1, I2S */
 
-	/* At initialization WS1 and WS2 are disbaled (configured as input */
+	/* At initialization WS1 and WS2 are disabled (configured as input) */
 	acon1 |= 0 * WS1_CTRL;
 	acon1 |= 0 * WS2_CTRL;
 

@@ -16,6 +16,7 @@
 #include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/xilinx_intc.h>
+#include <asm/xilinx_pci.h>
 #include <asm/reg.h>
 #include <asm/ppc4xx.h>
 #include "44x.h"
@@ -53,6 +54,7 @@ static int __init virtex_probe(void)
 define_machine(virtex) {
 	.name			= "Xilinx Virtex440",
 	.probe			= virtex_probe,
+	.setup_arch		= xilinx_pci_init,
 	.init_IRQ		= xilinx_intc_init_tree,
 	.get_irq		= xilinx_intc_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,

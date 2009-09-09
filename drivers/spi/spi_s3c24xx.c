@@ -146,31 +146,15 @@ static int s3c24xx_spi_setupxfer(struct spi_device *spi,
 	return 0;
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
-
 static int s3c24xx_spi_setup(struct spi_device *spi)
 {
 	int ret;
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
 
 	ret = s3c24xx_spi_setupxfer(spi, NULL);
 	if (ret < 0) {
 		dev_err(&spi->dev, "setupxfer returned %d\n", ret);
 		return ret;
 	}
-
-	dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n",
-		__func__, spi->mode, spi->bits_per_word,
-		spi->max_speed_hz);
 
 	return 0;
 }
@@ -289,6 +273,9 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	init_completion(&hw->done);
 
 	/* setup the master state. */
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	master->num_chipselect = hw->pdata->num_cs;
 	master->bus_num = pdata->bus_num;

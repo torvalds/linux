@@ -727,10 +727,7 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		/*
 		 * We're changing the ACL.  Get rid of the cached one
 		 */
-		acl =JFS_IP(inode)->i_acl;
-		if (acl != JFS_ACL_NOT_CACHED)
-			posix_acl_release(acl);
-		JFS_IP(inode)->i_acl = JFS_ACL_NOT_CACHED;
+		forget_cached_acl(inode, ACL_TYPE_ACCESS);
 
 		return 0;
 	} else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0) {
@@ -746,10 +743,7 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		/*
 		 * We're changing the default ACL.  Get rid of the cached one
 		 */
-		acl =JFS_IP(inode)->i_default_acl;
-		if (acl && (acl != JFS_ACL_NOT_CACHED))
-			posix_acl_release(acl);
-		JFS_IP(inode)->i_default_acl = JFS_ACL_NOT_CACHED;
+		forget_cached_acl(inode, ACL_TYPE_DEFAULT);
 
 		return 0;
 	}

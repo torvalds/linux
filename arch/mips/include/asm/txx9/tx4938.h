@@ -305,5 +305,8 @@ struct tx4938ide_platform_info {
 };
 
 void tx4938_ata_init(unsigned int irq, unsigned int shift, int tune);
+void tx4938_dmac_init(int memcpy_chan0, int memcpy_chan1);
+void tx4938_aclc_init(void);
+void tx4938_sramc_init(void);
 
 #endif

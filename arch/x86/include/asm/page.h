@@ -56,7 +56,7 @@ extern bool __virt_addr_valid(unsigned long kaddr);
 #endif	/* __ASSEMBLY__ */
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #define __HAVE_ARCH_GATE_AREA 1
 

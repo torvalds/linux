@@ -15,8 +15,8 @@ Properties:
   compatible; all statements below that apply to "fsl,mpc8548-pmc" also
   apply to "fsl,mpc8641d-pmc".
 
-  Compatibility does not include bit assigments in SCCR/PMCDR/DEVDISR; these
-  bit assigments are indicated via the sleep specifier in each device's
+  Compatibility does not include bit assignments in SCCR/PMCDR/DEVDISR; these
+  bit assignments are indicated via the sleep specifier in each device's
   sleep property.
 
 - reg: For devices compatible with "fsl,mpc8349-pmc", the first resource

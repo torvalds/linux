@@ -445,13 +445,6 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
 	int ret;
-	u8 *ssid = NULL;
-	size_t ssid_len = 0;
-
-	if (req->n_ssids) {
-		ssid = req->ssids[0].ssid;
-		ssid_len = req->ssids[0].ssid_len;
-	}
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -485,13 +478,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		goto out_unlock;
 	}
 
-	if (ssid_len) {
-		priv->one_direct_scan = 1;
-		priv->direct_ssid_len =  ssid_len;
-		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
-	} else {
-		priv->one_direct_scan = 0;
-	}
+	priv->scan_request = req;
 
 	ret = iwl_scan_initiate(priv);
 
@@ -530,73 +517,14 @@ void iwl_bg_scan_check(struct work_struct *data)
 EXPORT_SYMBOL(iwl_bg_scan_check);
 
 /**
- * iwl_supported_rate_to_ie - fill in the supported rate in IE field
- *
- * return : set the bit for each supported rate insert in ie
- */
-static u16 iwl_supported_rate_to_ie(u8 *ie, u16 supported_rate,
-				    u16 basic_rate, int *left)
-{
-	u16 ret_rates = 0, bit;
-	int i;
-	u8 *cnt = ie;
-	u8 *rates = ie + 1;
-
-	for (bit = 1, i = 0; i < IWL_RATE_COUNT; i++, bit <<= 1) {
-		if (bit & supported_rate) {
-			ret_rates |= bit;
-			rates[*cnt] = iwl_rates[i].ieee |
-				((bit & basic_rate) ? 0x80 : 0x00);
-			(*cnt)++;
-			(*left)--;
-			if ((*left <= 0) ||
-			    (*cnt >= IWL_SUPPORTED_RATES_IE_LEN))
-				break;
-		}
-	}
-
-	return ret_rates;
-}
-
-
-static void iwl_ht_cap_to_ie(const struct ieee80211_supported_band *sband,
-			     u8 *pos, int *left)
-{
-	struct ieee80211_ht_cap *ht_cap;
-
-	if (!sband || !sband->ht_cap.ht_supported)
-		return;
-
-	if (*left < sizeof(struct ieee80211_ht_cap))
-		return;
-
-	*pos++ = sizeof(struct ieee80211_ht_cap);
-	ht_cap = (struct ieee80211_ht_cap *) pos;
-
-	ht_cap->cap_info = cpu_to_le16(sband->ht_cap.cap);
-	memcpy(&ht_cap->mcs, &sband->ht_cap.mcs, 16);
-	ht_cap->ampdu_params_info =
-		(sband->ht_cap.ampdu_factor & IEEE80211_HT_AMPDU_PARM_FACTOR) |
-		((sband->ht_cap.ampdu_density << 2) &
-			IEEE80211_HT_AMPDU_PARM_DENSITY);
-	*left -= sizeof(struct ieee80211_ht_cap);
-}
-
-/**
  * iwl_fill_probe_req - fill in all required fields and IE for probe request
  */
 
-u16 iwl_fill_probe_req(struct iwl_priv *priv,
-		       enum ieee80211_band band,
-		       struct ieee80211_mgmt *frame,
-		       int left)
+u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
+		       const u8 *ies, int ie_len, int left)
 {
 	int len = 0;
 	u8 *pos = NULL;
-	u16 active_rates, ret_rates, cck_rates, active_rate_basic;
-	const struct ieee80211_supported_band *sband =
-						iwl_get_hw_mode(priv, band);
-
 
 	/* Make sure there is enough space for the probe request,
 	 * two mandatory IEs and the data */
@@ -624,62 +552,12 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv,
 
 	len += 2;
 
-	/* fill in supported rate */
-	left -= 2;
-	if (left < 0)
-		return 0;
+	if (WARN_ON(left < ie_len))
+		return len;
 
-	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos = 0;
-
-	/* exclude 60M rate */
-	active_rates = priv->rates_mask;
-	active_rates &= ~IWL_RATE_60M_MASK;
-
-	active_rate_basic = active_rates & IWL_BASIC_RATES_MASK;
-
-	cck_rates = IWL_CCK_RATES_MASK & active_rates;
-	ret_rates = iwl_supported_rate_to_ie(pos, cck_rates,
-					     active_rate_basic, &left);
-	active_rates &= ~ret_rates;
-
-	ret_rates = iwl_supported_rate_to_ie(pos, active_rates,
-					     active_rate_basic, &left);
-	active_rates &= ~ret_rates;
-
-	len += 2 + *pos;
-	pos += (*pos) + 1;
-
-	if (active_rates == 0)
-		goto fill_end;
-
-	/* fill in supported extended rate */
-	/* ...next IE... */
-	left -= 2;
-	if (left < 0)
-		return 0;
-	/* ... fill it in... */
-	*pos++ = WLAN_EID_EXT_SUPP_RATES;
-	*pos = 0;
-	iwl_supported_rate_to_ie(pos, active_rates, active_rate_basic, &left);
-	if (*pos > 0) {
-		len += 2 + *pos;
-		pos += (*pos) + 1;
-	} else {
-		pos--;
-	}
-
- fill_end:
-
-	left -= 2;
-	if (left < 0)
-		return 0;
-
-	*pos++ = WLAN_EID_HT_CAPABILITY;
-	*pos = 0;
-	iwl_ht_cap_to_ie(sband, pos, &left);
-	if (*pos > 0)
-		len += 2 + *pos;
+	memcpy(pos, ies, ie_len);
+	len += ie_len;
+	left -= ie_len;
 
 	return (u16)len;
 }
@@ -699,11 +577,13 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	int ret = 0;
 	u32 rate_flags = 0;
 	u16 cmd_len;
+	u16 rx_chain = 0;
 	enum ieee80211_band band;
-	u8 n_probes = 2;
-	u8 rx_chain = priv->hw_params.valid_rx_ant;
+	u8 n_probes = 0;
+	u8 rx_ant = priv->hw_params.valid_rx_ant;
 	u8 rate;
-	DECLARE_SSID_BUF(ssid);
+	bool is_active = false;
+	int  chan_mod;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -795,19 +675,25 @@ static void iwl_bg_request_scan(struct work_struct *data)
 			       scan_suspend_time, interval);
 	}
 
-	/* We should add the ability for user to lock to PASSIVE ONLY */
-	if (priv->one_direct_scan) {
-		IWL_DEBUG_SCAN(priv, "Start direct scan for '%s'\n",
-				print_ssid(ssid, priv->direct_ssid,
-					   priv->direct_ssid_len));
-		scan->direct_scan[0].id = WLAN_EID_SSID;
-		scan->direct_scan[0].len = priv->direct_ssid_len;
-		memcpy(scan->direct_scan[0].ssid,
-		       priv->direct_ssid, priv->direct_ssid_len);
-		n_probes++;
-	} else {
-		IWL_DEBUG_SCAN(priv, "Start indirect scan.\n");
-	}
+	if (priv->scan_request->n_ssids) {
+		int i, p = 0;
+		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
+		for (i = 0; i < priv->scan_request->n_ssids; i++) {
+			/* always does wildcard anyway */
+			if (!priv->scan_request->ssids[i].ssid_len)
+				continue;
+			scan->direct_scan[p].id = WLAN_EID_SSID;
+			scan->direct_scan[p].len =
+				priv->scan_request->ssids[i].ssid_len;
+			memcpy(scan->direct_scan[p].ssid,
+			       priv->scan_request->ssids[i].ssid,
+			       priv->scan_request->ssids[i].ssid_len);
+			n_probes++;
+			p++;
+		}
+		is_active = true;
+	} else
+		IWL_DEBUG_SCAN(priv, "Start passive scan.\n");
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = priv->hw_params.bcast_sta_id;
@@ -817,7 +703,9 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
 		band = IEEE80211_BAND_2GHZ;
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
-		if (priv->active_rxon.flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK) {
+		chan_mod = le32_to_cpu(priv->active_rxon.flags & RXON_FLG_CHANNEL_MODE_MSK)
+				       >> RXON_FLG_CHANNEL_MODE_POS;
+		if (chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = IWL_RATE_6M_PLCP;
 		} else {
 			rate = IWL_RATE_1M_PLCP;
@@ -827,13 +715,18 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
 		band = IEEE80211_BAND_5GHZ;
 		rate = IWL_RATE_6M_PLCP;
-		scan->good_CRC_th = IWL_GOOD_CRC_TH;
+		/*
+		 * If active scaning is requested but a certain channel
+		 * is marked passive, we can do active scanning if we
+		 * detect transmissions.
+		 */
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
 		 */
 		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
-			rx_chain = 0x6;
+			rx_ant = ANT_BC;
 	} else {
 		IWL_WARN(priv, "Invalid scan band count\n");
 		goto done;
@@ -845,26 +738,27 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
 	/* MIMO is not used here, but value is required */
-	scan->rx_chain = RXON_RX_CHAIN_DRIVER_FORCE_MSK |
-				cpu_to_le16((0x7 << RXON_RX_CHAIN_VALID_POS) |
-				(rx_chain << RXON_RX_CHAIN_FORCE_SEL_POS) |
-				(0x7 << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS));
-
-	cmd_len = iwl_fill_probe_req(priv, band,
-				     (struct ieee80211_mgmt *)scan->data,
-				     IWL_MAX_SCAN_SIZE - sizeof(*scan));
+	rx_chain |= ANT_ABC << RXON_RX_CHAIN_VALID_POS;
+	rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
+	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
+	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
+	scan->rx_chain = cpu_to_le16(rx_chain);
+	cmd_len = iwl_fill_probe_req(priv,
+				(struct ieee80211_mgmt *)scan->data,
+				priv->scan_request->ie,
+				priv->scan_request->ie_len,
+				IWL_MAX_SCAN_SIZE - sizeof(*scan));
 
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
-	if (priv->iw_mode == NL80211_IFTYPE_MONITOR)
+	if (iwl_is_monitor_mode(priv))
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
 			       RXON_FILTER_BCON_AWARE_MSK);
 
 	scan->channel_count =
-		iwl_get_channels_for_scan(priv, band, 1, /* active */
-			n_probes,
+		iwl_get_channels_for_scan(priv, band, is_active, n_probes,
 			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
 
 	if (scan->channel_count == 0) {

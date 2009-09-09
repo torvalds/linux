@@ -35,13 +35,13 @@ static DECLARE_COMPLETION(have_data);
 
 static void random_recv_done(struct virtqueue *vq)
 {
-	int len;
+	unsigned int len;
 
 	/* We can get spurious callbacks, e.g. shared IRQs + virtio_pci. */
 	if (!vq->vq_ops->get_buf(vq, &len))
 		return;
 
-	data_left = len / sizeof(random_data[0]);
+	data_left += len;
 	complete(&have_data);
 }
 
@@ -49,7 +49,7 @@ static void register_buffer(void)
 {
 	struct scatterlist sg;
 
-	sg_init_one(&sg, random_data, RANDOM_DATA_SIZE);
+	sg_init_one(&sg, random_data+data_left, RANDOM_DATA_SIZE-data_left);
 	/* There should always be room for one buffer. */
 	if (vq->vq_ops->add_buf(vq, &sg, 0, 1, random_data) != 0)
 		BUG();
@@ -59,24 +59,32 @@ static void register_buffer(void)
 /* At least we don't udelay() in a loop like some other drivers. */
 static int virtio_data_present(struct hwrng *rng, int wait)
 {
-	if (data_left)
+	if (data_left >= sizeof(u32))
 		return 1;
 
+again:
 	if (!wait)
 		return 0;
 
 	wait_for_completion(&have_data);
+
+	/* Not enough?  Re-register. */
+	if (unlikely(data_left < sizeof(u32))) {
+		register_buffer();
+		goto again;
+	}
+
 	return 1;
 }
 
 /* virtio_data_present() must have succeeded before this is called. */
 static int virtio_data_read(struct hwrng *rng, u32 *data)
 {
-	BUG_ON(!data_left);
+	BUG_ON(data_left < sizeof(u32));
+	data_left -= sizeof(u32);
+	*data = random_data[data_left / 4];
 
-	*data = random_data[--data_left];
-
-	if (!data_left) {
+	if (data_left < sizeof(u32)) {
 		init_completion(&have_data);
 		register_buffer();
 	}
@@ -94,13 +102,13 @@ static int virtrng_probe(struct virtio_device *vdev)
 	int err;
 
 	/* We expect a single virtqueue. */
-	vq = vdev->config->find_vq(vdev, 0, random_recv_done);
+	vq = virtio_find_single_vq(vdev, random_recv_done, "input");
 	if (IS_ERR(vq))
 		return PTR_ERR(vq);
 
 	err = hwrng_register(&virtio_hwrng);
 	if (err) {
-		vdev->config->del_vq(vq);
+		vdev->config->del_vqs(vdev);
 		return err;
 	}
 
@@ -112,7 +120,7 @@ static void virtrng_remove(struct virtio_device *vdev)
 {
 	vdev->config->reset(vdev);
 	hwrng_unregister(&virtio_hwrng);
-	vdev->config->del_vq(vq);
+	vdev->config->del_vqs(vdev);
 }
 
 static struct virtio_device_id id_table[] = {

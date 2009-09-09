@@ -1385,7 +1385,7 @@ UNUSUAL_DEV(  0x10d6, 0x2200, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x1186, 0x3e04, 0x0000, 0x0000,
            "D-Link",
            "USB Mass Storage",
-           US_SC_DEVICE, US_PR_DEVICE, option_ms_init, 0),
+           US_SC_DEVICE, US_PR_DEVICE, option_ms_init, US_FL_IGNORE_DEVICE),
 
 /* Reported by Kevin Lloyd <linux@sierrawireless.com>
  * Entry is needed for the initializer function override,

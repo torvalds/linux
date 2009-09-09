@@ -205,6 +205,8 @@ is packed into a short value, one bit per requested channel, in the
 order they appear in the channel list.
 */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -288,59 +290,59 @@ struct dio200_board {
 
 static const struct dio200_board dio200_boards[] = {
 	{
-	      name:	"pc212e",
-	      bustype:	isa_bustype,
-	      model:	pc212e_model,
-	      layout:	pc212_layout,
+	.name = "pc212e",
+	.bustype = isa_bustype,
+	.model = pc212e_model,
+	.layout = pc212_layout,
 		},
 	{
-	      name:	"pc214e",
-	      bustype:	isa_bustype,
-	      model:	pc214e_model,
-	      layout:	pc214_layout,
+	.name = "pc214e",
+	.bustype = isa_bustype,
+	.model = pc214e_model,
+	.layout = pc214_layout,
 		},
 	{
-	      name:	"pc215e",
-	      bustype:	isa_bustype,
-	      model:	pc215e_model,
-	      layout:	pc215_layout,
+	.name = "pc215e",
+	.bustype = isa_bustype,
+	.model = pc215e_model,
+	.layout = pc215_layout,
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	"pci215",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI215,
-	      bustype:	pci_bustype,
-	      model:	pci215_model,
-	      layout:	pc215_layout,
+	.name = "pci215",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI215,
+	.bustype = pci_bustype,
+	.model = pci215_model,
+	.layout = pc215_layout,
 		},
 #endif
 	{
-	      name:	"pc218e",
-	      bustype:	isa_bustype,
-	      model:	pc218e_model,
-	      layout:	pc218_layout,
+	.name = "pc218e",
+	.bustype = isa_bustype,
+	.model = pc218e_model,
+	.layout = pc218_layout,
 		},
 	{
-	      name:	"pc272e",
-	      bustype:	isa_bustype,
-	      model:	pc272e_model,
-	      layout:	pc272_layout,
+	.name = "pc272e",
+	.bustype = isa_bustype,
+	.model = pc272e_model,
+	.layout = pc272_layout,
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	"pci272",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI272,
-	      bustype:	pci_bustype,
-	      model:	pci272_model,
-	      layout:	pc272_layout,
+	.name = "pci272",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI272,
+	.bustype = pci_bustype,
+	.model = pci272_model,
+	.layout = pc272_layout,
 		},
 #endif
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	DIO200_DRIVER_NAME,
-	      devid:	PCI_DEVICE_ID_INVALID,
-	      bustype:	pci_bustype,
-	      model:	anypci_model,	/* wildcard */
+	.name = DIO200_DRIVER_NAME,
+	.devid = PCI_DEVICE_ID_INVALID,
+	.bustype = pci_bustype,
+	.model = anypci_model,	/* wildcard */
 		},
 #endif
 };
@@ -365,50 +367,50 @@ struct dio200_layout_struct {
 
 static const struct dio200_layout_struct dio200_layouts[] = {
 	[pc212_layout] = {
-	      n_subdevs:6,
-	      sdtype:	{sd_8255, sd_8254, sd_8254, sd_8254,
+	.n_subdevs = 6,
+	.sdtype = {sd_8255, sd_8254, sd_8254, sd_8254,
 					sd_8254,
 				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x0C, 0x10, 0x14,
+	.sdinfo = {0x00, 0x08, 0x0C, 0x10, 0x14,
 				0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
+	.has_int_sce = 1,
+	.has_clk_gat_sce = 1,
 		},
 	[pc214_layout] = {
-	      n_subdevs:4,
-	      sdtype:	{sd_8255, sd_8255, sd_8254,
+	.n_subdevs = 4,
+	.sdtype = {sd_8255, sd_8255, sd_8254,
 				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x10, 0x01},
-	      has_int_sce:0,
-	      has_clk_gat_sce:0,
+	.sdinfo = {0x00, 0x08, 0x10, 0x01},
+	.has_int_sce = 0,
+	.has_clk_gat_sce = 0,
 		},
 	[pc215_layout] = {
-	      n_subdevs:5,
-	      sdtype:	{sd_8255, sd_8255, sd_8254,
+	.n_subdevs = 5,
+	.sdtype = {sd_8255, sd_8255, sd_8254,
 					sd_8254,
 				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x10, 0x14, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
+	.sdinfo = {0x00, 0x08, 0x10, 0x14, 0x3F},
+	.has_int_sce = 1,
+	.has_clk_gat_sce = 1,
 		},
 	[pc218_layout] = {
-	      n_subdevs:7,
-	      sdtype:	{sd_8254, sd_8254, sd_8255, sd_8254,
+	.n_subdevs = 7,
+	.sdtype = {sd_8254, sd_8254, sd_8255, sd_8254,
 					sd_8254,
 				sd_intr},
-	      sdinfo:	{0x00, 0x04, 0x08, 0x0C, 0x10,
+	.sdinfo = {0x00, 0x04, 0x08, 0x0C, 0x10,
 					0x14,
 				0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
+	.has_int_sce = 1,
+	.has_clk_gat_sce = 1,
 		},
 	[pc272_layout] = {
-	      n_subdevs:4,
-	      sdtype:	{sd_8255, sd_8255, sd_8255,
+	.n_subdevs = 4,
+	.sdtype = {sd_8255, sd_8255, sd_8255,
 				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x10, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:0,
+	.sdinfo = {0x00, 0x08, 0x10, 0x3F},
+	.has_int_sce = 1,
+	.has_clk_gat_sce = 0,
 		},
 };
 
@@ -473,16 +475,16 @@ struct dio200_subdev_intr {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int dio200_detach(struct comedi_device * dev);
+static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dio200_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_dio200 = {
-      driver_name:DIO200_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:dio200_attach,
-      detach:dio200_detach,
-      board_name:&dio200_boards[0].name,
-      offset:sizeof(struct dio200_board),
-      num_names:sizeof(dio200_boards) / sizeof(struct dio200_board),
+	.driver_name = DIO200_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = dio200_attach,
+	.detach = dio200_detach,
+	.board_name = &dio200_boards[0].name,
+	.offset = sizeof(struct dio200_board),
+	.num_names = ARRAY_SIZE(dio200_boards),
 };
 
 #ifdef CONFIG_COMEDI_PCI
@@ -497,7 +499,7 @@ COMEDI_INITCLEANUP(driver_amplc_dio200);
  */
 #ifdef CONFIG_COMEDI_PCI
 static int
-dio200_find_pci(struct comedi_device * dev, int bus, int slot,
+dio200_find_pci(struct comedi_device *dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
@@ -572,8 +574,8 @@ dio200_request_region(unsigned minor, unsigned long from, unsigned long extent)
  * 'insn_bits' function for an 'INTERRUPT' subdevice.
  */
 static int
-dio200_subdev_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+dio200_subdev_intr_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
 
@@ -591,7 +593,7 @@ dio200_subdev_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice
 /*
  * Called to stop acquisition for an 'INTERRUPT' subdevice.
  */
-static void dio200_stop_intr(struct comedi_device * dev, struct comedi_subdevice * s)
+static void dio200_stop_intr(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
 
@@ -605,7 +607,7 @@ static void dio200_stop_intr(struct comedi_device * dev, struct comedi_subdevice
 /*
  * Called to start acquisition for an 'INTERRUPT' subdevice.
  */
-static int dio200_start_intr(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dio200_start_intr(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned int n;
 	unsigned isn_bits;
@@ -641,7 +643,7 @@ static int dio200_start_intr(struct comedi_device * dev, struct comedi_subdevice
  * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
  */
 static int
-dio200_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * s,
+dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum)
 {
 	struct dio200_subdev_intr *subpriv;
@@ -653,12 +655,12 @@ dio200_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * 
 
 	subpriv = s->private;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	s->async->inttrig = 0;
 	if (subpriv->active) {
 		event = dio200_start_intr(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
 		comedi_event(dev, s);
@@ -671,7 +673,7 @@ dio200_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * 
  * This is called from the interrupt service routine to handle a read
  * scan on an 'INTERRUPT' subdevice.
  */
-static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dio200_handle_read_intr(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned triggered;
@@ -682,7 +684,7 @@ static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_sub
 
 	triggered = 0;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	oldevents = s->async->events;
 	if (subpriv->has_int_sce) {
 		/*
@@ -771,7 +773,7 @@ static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_sub
 			}
 		}
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (oldevents != s->async->events) {
 		comedi_event(dev, s);
@@ -783,16 +785,16 @@ static int dio200_handle_read_intr(struct comedi_device * dev, struct comedi_sub
 /*
  * 'cancel' function for an 'INTERRUPT' subdevice.
  */
-static int dio200_subdev_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dio200_subdev_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	if (subpriv->active) {
 		dio200_stop_intr(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 0;
 }
@@ -801,8 +803,8 @@ static int dio200_subdev_intr_cancel(struct comedi_device * dev, struct comedi_s
  * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
  */
 static int
-dio200_subdev_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+dio200_subdev_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -907,14 +909,14 @@ dio200_subdev_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice *
 /*
  * 'do_cmd' function for an 'INTERRUPT' subdevice.
  */
-static int dio200_subdev_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dio200_subdev_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
 	int event = 0;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	subpriv->active = 1;
 
 	/* Set up end of acquisition. */
@@ -940,7 +942,7 @@ static int dio200_subdev_intr_cmd(struct comedi_device * dev, struct comedi_subd
 		event = dio200_start_intr(dev, s);
 		break;
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
 		comedi_event(dev, s);
@@ -953,7 +955,7 @@ static int dio200_subdev_intr_cmd(struct comedi_device * dev, struct comedi_subd
  * This function initializes an 'INTERRUPT' subdevice.
  */
 static int
-dio200_subdev_intr_init(struct comedi_device * dev, struct comedi_subdevice * s,
+dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long iobase, unsigned valid_isns, int has_int_sce)
 {
 	struct dio200_subdev_intr *subpriv;
@@ -998,7 +1000,7 @@ dio200_subdev_intr_init(struct comedi_device * dev, struct comedi_subdevice * s,
  * This function cleans up an 'INTERRUPT' subdevice.
  */
 static void
-dio200_subdev_intr_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
+dio200_subdev_intr_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
 
@@ -1010,7 +1012,7 @@ dio200_subdev_intr_cleanup(struct comedi_device * dev, struct comedi_subdevice *
 /*
  * Interrupt service routine.
  */
-static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	int handled;
@@ -1033,8 +1035,8 @@ static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
  * Handle 'insn_read' for an '8254' counter subdevice.
  */
 static int
-dio200_subdev_8254_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1048,8 +1050,8 @@ dio200_subdev_8254_read(struct comedi_device * dev, struct comedi_subdevice * s,
  * Handle 'insn_write' for an '8254' counter subdevice.
  */
 static int
-dio200_subdev_8254_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1063,7 +1065,7 @@ dio200_subdev_8254_write(struct comedi_device * dev, struct comedi_subdevice * s
  * Set gate source for an '8254' counter subdevice channel.
  */
 static int
-dio200_set_gate_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number,
+dio200_set_gate_src(struct dio200_subdev_8254 *subpriv, unsigned int counter_number,
 	unsigned int gate_src)
 {
 	unsigned char byte;
@@ -1086,7 +1088,7 @@ dio200_set_gate_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_nu
  * Get gate source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_gate_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number)
+dio200_get_gate_src(struct dio200_subdev_8254 *subpriv, unsigned int counter_number)
 {
 	if (!subpriv->has_clk_gat_sce)
 		return -1;
@@ -1100,7 +1102,7 @@ dio200_get_gate_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_nu
  * Set clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_set_clock_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number,
+dio200_set_clock_src(struct dio200_subdev_8254 *subpriv, unsigned int counter_number,
 	unsigned int clock_src)
 {
 	unsigned char byte;
@@ -1123,8 +1125,8 @@ dio200_set_clock_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_n
  * Get clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_clock_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_number,
-	unsigned int * period_ns)
+dio200_get_clock_src(struct dio200_subdev_8254 *subpriv, unsigned int counter_number,
+	unsigned int *period_ns)
 {
 	unsigned clock_src;
 
@@ -1142,8 +1144,8 @@ dio200_get_clock_src(struct dio200_subdev_8254 * subpriv, unsigned int counter_n
  * Handle 'insn_config' for an '8254' counter subdevice.
  */
 static int
-dio200_subdev_8254_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int ret;
@@ -1194,7 +1196,7 @@ dio200_subdev_8254_config(struct comedi_device * dev, struct comedi_subdevice * 
  * offset is the offset to the 8254 chip.
  */
 static int
-dio200_subdev_8254_init(struct comedi_device * dev, struct comedi_subdevice * s,
+dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long iobase, unsigned offset, int has_clk_gat_sce)
 {
 	struct dio200_subdev_8254 *subpriv;
@@ -1247,7 +1249,7 @@ dio200_subdev_8254_init(struct comedi_device * dev, struct comedi_subdevice * s,
  * This function cleans up an '8254' counter subdevice.
  */
 static void
-dio200_subdev_8254_cleanup(struct comedi_device * dev, struct comedi_subdevice * s)
+dio200_subdev_8254_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dio200_subdev_intr *subpriv = s->private;
 
@@ -1262,7 +1264,7 @@ dio200_subdev_8254_cleanup(struct comedi_device * dev, struct comedi_subdevice *
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
@@ -1280,7 +1282,8 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
 		DIO200_DRIVER_NAME);
 
-	if ((ret = alloc_private(dev, sizeof(struct dio200_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct dio200_private));
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
@@ -1299,7 +1302,8 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
 		slot = it->options[1];
 		share_irq = 1;
 
-		if ((ret = dio200_find_pci(dev, bus, slot, &pci_dev)) < 0)
+		ret = dio200_find_pci(dev, bus, slot, &pci_dev);
+		if (ret < 0)
 			return ret;
 		devpriv->pci_dev = pci_dev;
 		break;
@@ -1337,7 +1341,9 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	dev->iobase = iobase;
 
 	layout = thislayout;
-	if ((ret = alloc_subdevices(dev, layout->n_subdevs)) < 0) {
+
+	ret = alloc_subdevices(dev, layout->n_subdevs);
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
@@ -1392,7 +1398,7 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	if (irq) {
 		unsigned long flags = share_irq ? IRQF_SHARED : 0;
 
-		if (comedi_request_irq(irq, dio200_interrupt, flags,
+		if (request_irq(irq, dio200_interrupt, flags,
 				DIO200_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 		} else {
@@ -1429,7 +1435,7 @@ static int dio200_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int dio200_detach(struct comedi_device * dev)
+static int dio200_detach(struct comedi_device *dev)
 {
 	const struct dio200_layout_struct *layout;
 	unsigned n;
@@ -1438,7 +1444,7 @@ static int dio200_detach(struct comedi_device * dev)
 		DIO200_DRIVER_NAME);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->subdevices) {
 		layout = thislayout;

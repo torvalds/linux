@@ -14,10 +14,24 @@
 /* must be a power of 2 */
 #define EVENT_HASHSIZE	128
 
-static DEFINE_MUTEX(trace_event_mutex);
+DECLARE_RWSEM(trace_event_mutex);
+
+DEFINE_PER_CPU(struct trace_seq, ftrace_event_seq);
+EXPORT_PER_CPU_SYMBOL(ftrace_event_seq);
+
 static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
 static int next_event_type = __TRACE_LAST_TYPE + 1;
+
+void trace_print_seq(struct seq_file *m, struct trace_seq *s)
+{
+	int len = s->len >= PAGE_SIZE ? PAGE_SIZE - 1 : s->len;
+
+	s->buffer[len] = 0;
+	seq_puts(m, s->buffer);
+
+	trace_seq_init(s);
+}
 
 enum print_line_t trace_print_bprintk_msg_only(struct trace_iterator *iter)
 {
@@ -84,6 +98,39 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 
 	return len;
 }
+EXPORT_SYMBOL_GPL(trace_seq_printf);
+
+/**
+ * trace_seq_vprintf - sequence printing of trace information
+ * @s: trace sequence descriptor
+ * @fmt: printf format string
+ *
+ * The tracer may use either sequence operations or its own
+ * copy to user routines. To simplify formating of a trace
+ * trace_seq_printf is used to store strings into a special
+ * buffer (@s). Then the output may be either used by
+ * the sequencer or pulled into another buffer.
+ */
+int
+trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
+{
+	int len = (PAGE_SIZE - 1) - s->len;
+	int ret;
+
+	if (!len)
+		return 0;
+
+	ret = vsnprintf(s->buffer + s->len, len, fmt, args);
+
+	/* If we can't write it all, don't bother writing anything */
+	if (ret >= len)
+		return 0;
+
+	s->len += ret;
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(trace_seq_vprintf);
 
 int trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
 {
@@ -201,6 +248,67 @@ int trace_seq_path(struct trace_seq *s, struct path *path)
 	return 0;
 }
 
+const char *
+ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
+		       unsigned long flags,
+		       const struct trace_print_flags *flag_array)
+{
+	unsigned long mask;
+	const char *str;
+	const char *ret = p->buffer + p->len;
+	int i;
+
+	for (i = 0;  flag_array[i].name && flags; i++) {
+
+		mask = flag_array[i].mask;
+		if ((flags & mask) != mask)
+			continue;
+
+		str = flag_array[i].name;
+		flags &= ~mask;
+		if (p->len && delim)
+			trace_seq_puts(p, delim);
+		trace_seq_puts(p, str);
+	}
+
+	/* check for left over flags */
+	if (flags) {
+		if (p->len && delim)
+			trace_seq_puts(p, delim);
+		trace_seq_printf(p, "0x%lx", flags);
+	}
+
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(ftrace_print_flags_seq);
+
+const char *
+ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+			 const struct trace_print_flags *symbol_array)
+{
+	int i;
+	const char *ret = p->buffer + p->len;
+
+	for (i = 0;  symbol_array[i].name; i++) {
+
+		if (val != symbol_array[i].mask)
+			continue;
+
+		trace_seq_puts(p, symbol_array[i].name);
+		break;
+	}
+
+	if (!p->len)
+		trace_seq_printf(p, "0x%lx", val);
+		
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(ftrace_print_symbols_seq);
+
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
 {
@@ -311,17 +419,20 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 
 		if (ip == ULONG_MAX || !ret)
 			break;
-		if (i && ret)
-			ret = trace_seq_puts(s, " <- ");
+		if (ret)
+			ret = trace_seq_puts(s, " => ");
 		if (!ip) {
 			if (ret)
 				ret = trace_seq_puts(s, "??");
+			if (ret)
+				ret = trace_seq_puts(s, "\n");
 			continue;
 		}
 		if (!ret)
 			break;
 		if (ret)
 			ret = seq_print_user_ip(s, mm, ip, sym_flags);
+		ret = trace_seq_puts(s, "\n");
 	}
 
 	if (mm)
@@ -455,6 +566,7 @@ static int task_state_char(unsigned long state)
  * @type: the type of event to look for
  *
  * Returns an event of type @type otherwise NULL
+ * Called with trace_event_read_lock() held.
  */
 struct trace_event *ftrace_find_event(int type)
 {
@@ -464,12 +576,52 @@ struct trace_event *ftrace_find_event(int type)
 
 	key = type & (EVENT_HASHSIZE - 1);
 
-	hlist_for_each_entry_rcu(event, n, &event_hash[key], node) {
+	hlist_for_each_entry(event, n, &event_hash[key], node) {
 		if (event->type == type)
 			return event;
 	}
 
 	return NULL;
+}
+
+static LIST_HEAD(ftrace_event_list);
+
+static int trace_search_list(struct list_head **list)
+{
+	struct trace_event *e;
+	int last = __TRACE_LAST_TYPE;
+
+	if (list_empty(&ftrace_event_list)) {
+		*list = &ftrace_event_list;
+		return last + 1;
+	}
+
+	/*
+	 * We used up all possible max events,
+	 * lets see if somebody freed one.
+	 */
+	list_for_each_entry(e, &ftrace_event_list, list) {
+		if (e->type != last + 1)
+			break;
+		last++;
+	}
+
+	/* Did we used up all 65 thousand events??? */
+	if ((last + 1) > FTRACE_MAX_EVENT)
+		return 0;
+
+	*list = &e->list;
+	return last + 1;
+}
+
+void trace_event_read_lock(void)
+{
+	down_read(&trace_event_mutex);
+}
+
+void trace_event_read_unlock(void)
+{
+	up_read(&trace_event_mutex);
 }
 
 /**
@@ -492,22 +644,42 @@ int register_ftrace_event(struct trace_event *event)
 	unsigned key;
 	int ret = 0;
 
-	mutex_lock(&trace_event_mutex);
+	down_write(&trace_event_mutex);
 
-	if (!event) {
-		ret = next_event_type++;
+	if (WARN_ON(!event))
 		goto out;
-	}
 
-	if (!event->type)
-		event->type = next_event_type++;
-	else if (event->type > __TRACE_LAST_TYPE) {
+	INIT_LIST_HEAD(&event->list);
+
+	if (!event->type) {
+		struct list_head *list = NULL;
+
+		if (next_event_type > FTRACE_MAX_EVENT) {
+
+			event->type = trace_search_list(&list);
+			if (!event->type)
+				goto out;
+
+		} else {
+			
+			event->type = next_event_type++;
+			list = &ftrace_event_list;
+		}
+
+		if (WARN_ON(ftrace_find_event(event->type)))
+			goto out;
+
+		list_add_tail(&event->list, list);
+
+	} else if (event->type > __TRACE_LAST_TYPE) {
 		printk(KERN_WARNING "Need to add type to trace.h\n");
 		WARN_ON(1);
-	}
-
-	if (ftrace_find_event(event->type))
 		goto out;
+	} else {
+		/* Is this event already used */
+		if (ftrace_find_event(event->type))
+			goto out;
+	}
 
 	if (event->trace == NULL)
 		event->trace = trace_nop_print;
@@ -520,13 +692,24 @@ int register_ftrace_event(struct trace_event *event)
 
 	key = event->type & (EVENT_HASHSIZE - 1);
 
-	hlist_add_head_rcu(&event->node, &event_hash[key]);
+	hlist_add_head(&event->node, &event_hash[key]);
 
 	ret = event->type;
  out:
-	mutex_unlock(&trace_event_mutex);
+	up_write(&trace_event_mutex);
 
 	return ret;
+}
+EXPORT_SYMBOL_GPL(register_ftrace_event);
+
+/*
+ * Used by module code with the trace_event_mutex held for write.
+ */
+int __unregister_ftrace_event(struct trace_event *event)
+{
+	hlist_del(&event->node);
+	list_del(&event->list);
+	return 0;
 }
 
 /**
@@ -535,12 +718,13 @@ int register_ftrace_event(struct trace_event *event)
  */
 int unregister_ftrace_event(struct trace_event *event)
 {
-	mutex_lock(&trace_event_mutex);
-	hlist_del(&event->node);
-	mutex_unlock(&trace_event_mutex);
+	down_write(&trace_event_mutex);
+	__unregister_ftrace_event(event);
+	up_write(&trace_event_mutex);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(unregister_ftrace_event);
 
 /*
  * Standard events
@@ -833,14 +1017,16 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
+	if (!trace_seq_puts(s, "<stack trace>\n"))
+		goto partial;
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
-		if (i) {
-			if (!trace_seq_puts(s, " <= "))
-				goto partial;
+		if (!field->caller[i] || (field->caller[i] == ULONG_MAX))
+			break;
+		if (!trace_seq_puts(s, " => "))
+			goto partial;
 
-			if (!seq_print_ip_sym(s, field->caller[i], flags))
-				goto partial;
-		}
+		if (!seq_print_ip_sym(s, field->caller[i], flags))
+			goto partial;
 		if (!trace_seq_puts(s, "\n"))
 			goto partial;
 	}
@@ -868,10 +1054,10 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (!seq_print_userip_objs(field, s, flags))
+	if (!trace_seq_puts(s, "<user stack trace>\n"))
 		goto partial;
 
-	if (!trace_seq_putc(s, '\n'))
+	if (!seq_print_userip_objs(field, s, flags))
 		goto partial;
 
 	return TRACE_TYPE_HANDLED;

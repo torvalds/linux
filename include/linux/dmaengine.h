@@ -211,8 +211,6 @@ typedef void (*dma_async_tx_callback)(void *dma_async_param);
  * @flags: flags to augment operation preparation, control completion, and
  * 	communicate status
  * @phys: physical address of the descriptor
- * @tx_list: driver common field for operations that require multiple
- *	descriptors
  * @chan: target channel for this operation
  * @tx_submit: set the prepared descriptor(s) to be executed by the engine
  * @callback: routine to call after this operation is complete
@@ -226,7 +224,6 @@ struct dma_async_tx_descriptor {
 	dma_cookie_t cookie;
 	enum dma_ctrl_flags flags; /* not a 'long' to pack with cookie */
 	dma_addr_t phys;
-	struct list_head tx_list;
 	struct dma_chan *chan;
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;

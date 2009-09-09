@@ -101,7 +101,7 @@ Bugs:
 
 	need to slow down DAC loading.  I don't trust NI's claim that
 	two writes to the PCI bus slows IO enough.  I would prefer to
-	use comedi_udelay().  Timing specs: (clock)
+	use udelay().  Timing specs: (clock)
 		AD8522		30ns
 		DAC8043		120ns
 		DAC8800		60ns
@@ -117,7 +117,7 @@ Bugs:
 #include "ni_stc.h"
 #include "mite.h"
 
-//#define PCI_DEBUG
+/* #define PCI_DEBUG */
 
 #define PCIDMA
 
@@ -216,9 +216,9 @@ static const struct comedi_lrange range_ni_M_622x_ao = { 1, {
 	}
 };
 
-static const ni_board ni_boards[] = {
+static const struct ni_board_struct ni_boards[] = {
 	{
-			.device_id = 0x0162,	// NI also says 0x1620.  typo?
+			.device_id = 0x0162,	/*  NI also says 0x1620.  typo? */
 			.name = "pci-mio-16xe-50",
 			.n_adchan = 16,
 			.adbits = 16,
@@ -238,7 +238,7 @@ static const ni_board ni_boards[] = {
 		},
 	{
 			.device_id = 0x1170,
-			.name = "pci-mio-16xe-10",	// aka pci-6030E
+			.name = "pci-mio-16xe-10",	/*  aka pci-6030E */
 			.n_adchan = 16,
 			.adbits = 16,
 			.ai_fifo_depth = 512,
@@ -320,7 +320,7 @@ static const ni_board ni_boards[] = {
 			.ai_fifo_depth = 512,
 			.alwaysdither = 0,
 			.gainlkup = ai_gain_16,
-			/* Note: there have been reported problems with full speed
+			/*	.Note = there have been reported problems with full speed
 			 * on this board */
 			.ai_speed = 2000,
 			.n_aochan = 2,
@@ -330,7 +330,7 @@ static const ni_board ni_boards[] = {
 			.ao_unipolar = 1,
 			.ao_speed = 1000,
 			.num_p0_dio_channels = 8,
-			.caldac = {ad8804_debug},	// doc says mb88341
+			.caldac = {ad8804_debug},	/*  doc says mb88341 */
 			.has_8255 = 0,
 		},
 	{
@@ -846,7 +846,7 @@ static const ni_board ni_boards[] = {
 			.n_adchan = 16,
 			.adbits = 16,
 			.ai_fifo_depth = 512,
-			//FIXME:  guess
+			/*	.FIXME = guess */
 			.gainlkup = ai_gain_622x,
 			.ai_speed = 4000,
 			.n_aochan = 0,
@@ -1207,28 +1207,29 @@ static const ni_board ni_boards[] = {
 
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
 
-static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcimio_detach(struct comedi_device * dev);
+static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcimio_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcimio = {
-	driver_name: DRV_NAME,
-	module:THIS_MODULE,
-	attach:pcimio_attach,
-	detach:pcimio_detach,
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = pcimio_attach,
+	.detach = pcimio_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_pcimio, ni_pci_table)
 
-typedef struct {
-NI_PRIVATE_COMMON} ni_private;
-#define devpriv ((ni_private *)dev->private)
+struct ni_private {
+	NI_PRIVATE_COMMON
+};
+#define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
 
-#define ni_writel(a,b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_writel(a, b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
 #define ni_readl(a)	(readl(devpriv->mite->daq_io_addr + (a)))
-#define ni_writew(a,b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_writew(a, b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
 #define ni_readw(a)	(readw(devpriv->mite->daq_io_addr + (a)))
-#define ni_writeb(a,b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_writeb(a, b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
 #define ni_readb(a)	(readb(devpriv->mite->daq_io_addr + (a)))
 
 /* How we access STC registers */
@@ -1241,30 +1242,30 @@ NI_PRIVATE_COMMON} ni_private;
 /* However, the 611x boards still aren't working, so I'm disabling
  * non-windowed STC access temporarily */
 
-static void e_series_win_out(struct comedi_device * dev, uint16_t data, int reg)
+static void e_series_win_out(struct comedi_device *dev, uint16_t data, int reg)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	ni_writew(reg, Window_Address);
 	ni_writew(data, Window_Data);
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static uint16_t e_series_win_in(struct comedi_device * dev, int reg)
+static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
 {
 	unsigned long flags;
 	uint16_t ret;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	ni_writew(reg, Window_Address);
 	ret = ni_readw(Window_Data);
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
 }
 
-static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int reg)
+static void m_series_stc_writew(struct comedi_device *dev, uint16_t data, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1293,12 +1294,12 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 		offset = M_Offset_AI_Personal;
 		break;
 	case AI_SI2_Load_A_Register:
-		// this is actually a 32 bit register on m series boards
+		/*  this is actually a 32 bit register on m series boards */
 		ni_writel(data, M_Offset_AI_SI2_Load_A);
 		return;
 		break;
 	case AI_SI2_Load_B_Register:
-		// this is actually a 32 bit register on m series boards
+		/*  this is actually a 32 bit register on m series boards */
 		ni_writel(data, M_Offset_AI_SI2_Load_B);
 		return;
 		break;
@@ -1348,9 +1349,9 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 		offset = M_Offset_AO_FIFO_Clear;
 		break;
 	case DIO_Control_Register:
-		rt_printk
+		printk
 			("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n",
-			__FUNCTION__, reg);
+			__func__, reg);
 		return;
 		break;
 	case G_Autoincrement_Register(0):
@@ -1410,8 +1411,8 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 		/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
 		   and M_Offset_SCXI_Serial_Data_Out (8 bit) */
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
+			__func__, reg);
 		BUG();
 		return;
 		break;
@@ -1419,7 +1420,7 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 	ni_writew(data, offset);
 }
 
-static uint16_t m_series_stc_readw(struct comedi_device * dev, int reg)
+static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1445,8 +1446,8 @@ static uint16_t m_series_stc_readw(struct comedi_device * dev, int reg)
 		offset = M_Offset_G01_Status;
 		break;
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
+			__func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -1454,7 +1455,7 @@ static uint16_t m_series_stc_readw(struct comedi_device * dev, int reg)
 	return ni_readw(offset);
 }
 
-static void m_series_stc_writel(struct comedi_device * dev, uint32_t data, int reg)
+static void m_series_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1486,8 +1487,8 @@ static void m_series_stc_writel(struct comedi_device * dev, uint32_t data, int r
 		offset = M_Offset_G1_Load_B;
 		break;
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
+			__func__, reg);
 		BUG();
 		return;
 		break;
@@ -1495,7 +1496,7 @@ static void m_series_stc_writel(struct comedi_device * dev, uint32_t data, int r
 	ni_writel(data, offset);
 }
 
-static uint32_t m_series_stc_readl(struct comedi_device * dev, int reg)
+static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1512,8 +1513,8 @@ static uint32_t m_series_stc_readl(struct comedi_device * dev, int reg)
 		offset = M_Offset_G1_Save;
 		break;
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
-			__FUNCTION__, reg);
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
+			__func__, reg);
 		BUG();
 		return 0;
 		break;
@@ -1528,19 +1529,19 @@ static uint32_t m_series_stc_readl(struct comedi_device * dev, int reg)
 
 #include "ni_mio_common.c"
 
-static int pcimio_find_device(struct comedi_device * dev, int bus, int slot);
-static int pcimio_ai_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_find_device(struct comedi_device *dev, int bus, int slot);
+static int pcimio_ai_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_ao_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_ao_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_gpct0_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct0_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_gpct1_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct1_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_dio_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_dio_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
 
-static void m_series_init_eeprom_buffer(struct comedi_device * dev)
+static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned window_size = 10;
@@ -1577,19 +1578,19 @@ static void m_series_init_eeprom_buffer(struct comedi_device * dev)
 	writel(0x0, devpriv->mite->mite_io_addr + 0x30);
 }
 
-static void init_6143(struct comedi_device * dev)
+static void init_6143(struct comedi_device *dev)
 {
-	// Disable interrupts
+	/*  Disable interrupts */
 	devpriv->stc_writew(dev, 0, Interrupt_Control_Register);
 
-	// Initialise 6143 AI specific bits
-	ni_writeb(0x00, Magic_6143);	// Set G0,G1 DMA mode to E series version
-	ni_writeb(0x80, PipelineDelay_6143);	// Set EOCMode, ADCMode and pipelinedelay
-	ni_writeb(0x00, EOC_Set_6143);	// Set EOC Delay
+	/*  Initialise 6143 AI specific bits */
+	ni_writeb(0x00, Magic_6143);	/*  Set G0,G1 DMA mode to E series version */
+	ni_writeb(0x80, PipelineDelay_6143);	/*  Set EOCMode, ADCMode and pipelinedelay */
+	ni_writeb(0x00, EOC_Set_6143);	/*  Set EOC Delay */
 
-	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	// Set the FIFO half full level
+	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	/*  Set the FIFO half full level */
 
-	// Strobe Relay disable bit
+	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
 	ni_writew(devpriv->ai_calib_source | Calibration_Channel_6143_RelayOff,
 		Calibration_Channel_6143);
@@ -1597,11 +1598,11 @@ static void init_6143(struct comedi_device * dev)
 }
 
 /* cleans up allocated resources */
-static int pcimio_detach(struct comedi_device * dev)
+static int pcimio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->private) {
 		mite_free_ring(devpriv->ai_mite_ring);
@@ -1616,7 +1617,7 @@ static int pcimio_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 
@@ -1678,9 +1679,9 @@ static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 		printk(" unknown irq (bad)\n");
 	} else {
 		printk(" ( irq = %u )", dev->irq);
-		if ((ret = comedi_request_irq(dev->irq, ni_E_interrupt,
-					NI_E_IRQ_FLAGS, DRV_NAME,
-					dev)) < 0) {
+		ret = request_irq(dev->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				  DRV_NAME, dev);
+		if (ret < 0) {
 			printk(" irq not available\n");
 			dev->irq = 0;
 		}
@@ -1699,7 +1700,7 @@ static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return ret;
 }
 
-static int pcimio_find_device(struct comedi_device * dev, int bus, int slot)
+static int pcimio_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;
@@ -1727,7 +1728,7 @@ static int pcimio_find_device(struct comedi_device * dev, int bus, int slot)
 	return -EIO;
 }
 
-static int pcimio_ai_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_ai_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1739,7 +1740,7 @@ static int pcimio_ai_change(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int pcimio_ao_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_ao_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1751,7 +1752,7 @@ static int pcimio_ao_change(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int pcimio_gpct0_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct0_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1763,7 +1764,7 @@ static int pcimio_gpct0_change(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int pcimio_gpct1_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct1_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1775,7 +1776,7 @@ static int pcimio_gpct1_change(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int pcimio_dio_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_dio_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;

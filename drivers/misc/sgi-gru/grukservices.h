@@ -146,4 +146,55 @@ extern void *gru_get_next_message(struct gru_message_queue_desc *mqd);
 extern int gru_copy_gpa(unsigned long dest_gpa, unsigned long src_gpa,
 							unsigned int bytes);
 
+/*
+ * Reserve GRU resources to be used asynchronously.
+ *
+ * 	input:
+ * 		blade_id  - blade on which resources should be reserved
+ * 		cbrs	  - number of CBRs
+ * 		dsr_bytes - number of DSR bytes needed
+ * 		cmp	  - completion structure for waiting for
+ * 			    async completions
+ *	output:
+ *		handle to identify resource
+ *		(0 = no resources)
+ */
+extern unsigned long gru_reserve_async_resources(int blade_id, int cbrs, int dsr_bytes,
+				struct completion *cmp);
+
+/*
+ * Release async resources previously reserved.
+ *
+ *	input:
+ *		han - handle to identify resources
+ */
+extern void gru_release_async_resources(unsigned long han);
+
+/*
+ * Wait for async GRU instructions to complete.
+ *
+ *	input:
+ *		han - handle to identify resources
+ */
+extern void gru_wait_async_cbr(unsigned long han);
+
+/*
+ * Lock previous reserved async GRU resources
+ *
+ *	input:
+ *		han - handle to identify resources
+ *	output:
+ *		cb  - pointer to first CBR
+ *		dsr - pointer to first DSR
+ */
+extern void gru_lock_async_resource(unsigned long han,  void **cb, void **dsr);
+
+/*
+ * Unlock previous reserved async GRU resources
+ *
+ *	input:
+ *		han - handle to identify resources
+ */
+extern void gru_unlock_async_resource(unsigned long han);
+
 #endif 		/* __GRU_KSERVICES_H_ */

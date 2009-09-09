@@ -21,6 +21,9 @@
 #define CAPAB_OFFSET 17
 #define ACCEPT_PLINKS 0x80
 
+#define TMR_RUNNING_HK	0
+#define TMR_RUNNING_MP	1
+
 int mesh_allocated;
 static struct kmem_cache *rm_cache;
 
@@ -45,6 +48,12 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
 	ifmsh->housekeeping = true;
+
+	if (local->quiescing) {
+		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
+		return;
+	}
+
 	queue_work(local->hw.workqueue, &ifmsh->work);
 }
 
@@ -343,6 +352,11 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 
+	if (local->quiescing) {
+		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
+		return;
+	}
+
 	queue_work(local->hw.workqueue, &ifmsh->work);
 }
 
@@ -417,13 +431,39 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 
 	free_plinks = mesh_plink_availables(sdata);
 	if (free_plinks != sdata->u.mesh.accepting_plinks)
-		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 
 	ifmsh->housekeeping = false;
 	mod_timer(&ifmsh->housekeeping_timer,
 		  round_jiffies(jiffies + IEEE80211_MESH_HOUSEKEEPING_INTERVAL));
 }
 
+#ifdef CONFIG_PM
+void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	/* might restart the timer but that doesn't matter */
+	cancel_work_sync(&ifmsh->work);
+
+	/* use atomic bitops in case both timers fire at the same time */
+
+	if (del_timer_sync(&ifmsh->housekeeping_timer))
+		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
+	if (del_timer_sync(&ifmsh->mesh_path_timer))
+		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
+}
+
+void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	if (test_and_clear_bit(TMR_RUNNING_HK, &ifmsh->timers_running))
+		add_timer(&ifmsh->housekeeping_timer);
+	if (test_and_clear_bit(TMR_RUNNING_MP, &ifmsh->timers_running))
+		add_timer(&ifmsh->mesh_path_timer);
+}
+#endif
 
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 {
@@ -432,8 +472,8 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 
 	ifmsh->housekeeping = true;
 	queue_work(local->hw.workqueue, &ifmsh->work);
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
-				   IEEE80211_IFCC_BEACON_ENABLED);
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
+						BSS_CHANGED_BEACON_ENABLED);
 }
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)

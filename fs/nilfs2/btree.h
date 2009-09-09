@@ -34,28 +34,6 @@ struct nilfs_btree;
 struct nilfs_btree_path;
 
 /**
- * struct nilfs_btree_operations - B-tree operation table
- */
-struct nilfs_btree_operations {
-	__u64 (*btop_find_target)(const struct nilfs_btree *,
-				  const struct nilfs_btree_path *, __u64);
-	void (*btop_set_target)(struct nilfs_btree *, __u64, __u64);
-
-	struct the_nilfs *(*btop_get_nilfs)(struct nilfs_btree *);
-
-	int (*btop_propagate)(struct nilfs_btree *,
-			      struct nilfs_btree_path *,
-			      int,
-			      struct buffer_head *);
-	int (*btop_assign)(struct nilfs_btree *,
-			   struct nilfs_btree_path *,
-			   int,
-			   struct buffer_head **,
-			   sector_t,
-			   union nilfs_binfo *);
-};
-
-/**
  * struct nilfs_btree_node - B-tree node
  * @bn_flags: flags
  * @bn_level: level
@@ -80,13 +58,9 @@ struct nilfs_btree_node {
 /**
  * struct nilfs_btree - B-tree structure
  * @bt_bmap: bmap base structure
- * @bt_ops: B-tree operation table
  */
 struct nilfs_btree {
 	struct nilfs_bmap bt_bmap;
-
-	/* B-tree-specific members */
-	const struct nilfs_btree_operations *bt_ops;
 };
 
 
@@ -108,10 +82,9 @@ struct nilfs_btree {
 
 int nilfs_btree_path_cache_init(void);
 void nilfs_btree_path_cache_destroy(void);
-int nilfs_btree_init(struct nilfs_bmap *, __u64, __u64);
+int nilfs_btree_init(struct nilfs_bmap *);
 int nilfs_btree_convert_and_insert(struct nilfs_bmap *, __u64, __u64,
-				   const __u64 *, const __u64 *,
-				   int, __u64, __u64);
+				   const __u64 *, const __u64 *, int);
 void nilfs_btree_init_gc(struct nilfs_bmap *);
 
 #endif	/* _NILFS_BTREE_H */

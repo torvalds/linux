@@ -455,7 +455,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 			break;
 	}
 	if (tv.tuner_type == TUNER_ABSENT)
-		IVTV_ERR("tveeprom cannot autodetect tuner!");
+		IVTV_ERR("tveeprom cannot autodetect tuner!\n");
 
 	if (itv->options.tuner == -1)
 		itv->options.tuner = tv.tuner_type;
@@ -946,17 +946,14 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	if (itv == NULL)
 		return -ENOMEM;
 	itv->pdev = pdev;
-	itv->instance = atomic_inc_return(&ivtv_instance) - 1;
+	itv->instance = v4l2_device_set_name(&itv->v4l2_dev, "ivtv",
+						&ivtv_instance);
 
 	retval = v4l2_device_register(&pdev->dev, &itv->v4l2_dev);
 	if (retval) {
 		kfree(itv);
 		return retval;
 	}
-	/* "ivtv + PCI ID" is a bit of a mouthful, so use
-	   "ivtv + instance" instead. */
-	snprintf(itv->v4l2_dev.name, sizeof(itv->v4l2_dev.name),
-			"ivtv%d", itv->instance);
 	IVTV_INFO("Initializing card %d\n", itv->instance);
 
 	ivtv_process_options(itv);

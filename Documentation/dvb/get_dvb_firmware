@@ -112,7 +112,7 @@ sub tda10045 {
 
 sub tda10046 {
 	my $sourcefile = "TT_PCI_2.19h_28_11_2006.zip";
-	my $url = "http://technotrend-online.com/download/software/219/$sourcefile";
+	my $url = "http://www.tt-download.com/download/updates/219/$sourcefile";
 	my $hash = "6a7e1e2f2644b162ff0502367553c72d";
 	my $outfile = "dvb-fe-tda10046.fw";
 	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
@@ -129,8 +129,8 @@ sub tda10046 {
 }
 
 sub tda10046lifeview {
-    my $sourcefile = "Drv_2.11.02.zip";
-    my $url = "http://www.lifeview.com.tw/drivers/pci_card/FlyDVB-T/$sourcefile";
+    my $sourcefile = "7%5Cdrv_2.11.02.zip";
+    my $url = "http://www.lifeview.hk/dbimages/document/$sourcefile";
     my $hash = "1ea24dee4eea8fe971686981f34fd2e0";
     my $outfile = "dvb-fe-tda10046.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
@@ -317,7 +317,7 @@ sub nxt2002 {
 
 sub nxt2004 {
     my $sourcefile = "AVerTVHD_MCE_A180_Drv_v1.2.2.16.zip";
-    my $url = "http://www.aver.com/support/Drivers/$sourcefile";
+    my $url = "http://www.avermedia-usa.com/support/Drivers/$sourcefile";
     my $hash = "111cb885b1e009188346d72acfed024c";
     my $outfile = "dvb-fe-nxt2004.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);

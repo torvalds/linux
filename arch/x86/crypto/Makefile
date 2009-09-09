@@ -2,6 +2,8 @@
 # Arch-specific CryptoAPI modules.
 #
 
+obj-$(CONFIG_CRYPTO_FPU) += fpu.o
+
 obj-$(CONFIG_CRYPTO_AES_586) += aes-i586.o
 obj-$(CONFIG_CRYPTO_TWOFISH_586) += twofish-i586.o
 obj-$(CONFIG_CRYPTO_SALSA20_586) += salsa20-i586.o

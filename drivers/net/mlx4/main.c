@@ -100,6 +100,10 @@ module_param_named(use_prio, use_prio, bool, 0444);
 MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports "
 		  "(0/1, default 0)");
 
+static int log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
+module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
+MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
+
 int mlx4_check_port_params(struct mlx4_dev *dev,
 			   enum mlx4_port_type *port_type)
 {
@@ -203,12 +207,13 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_cqes	     = dev_cap->max_cq_sz - 1;
 	dev->caps.reserved_cqs	     = dev_cap->reserved_cqs;
 	dev->caps.reserved_eqs	     = dev_cap->reserved_eqs;
+	dev->caps.mtts_per_seg	     = 1 << log_mtts_per_seg;
 	dev->caps.reserved_mtts	     = DIV_ROUND_UP(dev_cap->reserved_mtts,
-						    MLX4_MTT_ENTRY_PER_SEG);
+						    dev->caps.mtts_per_seg);
 	dev->caps.reserved_mrws	     = dev_cap->reserved_mrws;
 	dev->caps.reserved_uars	     = dev_cap->reserved_uars;
 	dev->caps.reserved_pds	     = dev_cap->reserved_pds;
-	dev->caps.mtt_entry_sz	     = MLX4_MTT_ENTRY_PER_SEG * dev_cap->mtt_entry_sz;
+	dev->caps.mtt_entry_sz	     = dev->caps.mtts_per_seg * dev_cap->mtt_entry_sz;
 	dev->caps.max_msg_sz         = dev_cap->max_msg_sz;
 	dev->caps.page_size_cap	     = ~(u32) (dev_cap->min_page_sz - 1);
 	dev->caps.flags		     = dev_cap->flags;
@@ -1301,6 +1306,11 @@ static int __init mlx4_verify_params(void)
 
 	if ((log_num_vlan < 0) || (log_num_vlan > 7)) {
 		printk(KERN_WARNING "mlx4_core: bad num_vlan: %d\n", log_num_vlan);
+		return -1;
+	}
+
+	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
+		printk(KERN_WARNING "mlx4_core: bad log_mtts_per_seg: %d\n", log_mtts_per_seg);
 		return -1;
 	}
 

@@ -204,6 +204,9 @@ static int balloon(void *_vballoon)
 static int virtballoon_probe(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb;
+	struct virtqueue *vqs[2];
+	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack };
+	const char *names[] = { "inflate", "deflate" };
 	int err;
 
 	vdev->priv = vb = kmalloc(sizeof(*vb), GFP_KERNEL);
@@ -218,22 +221,17 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	vb->vdev = vdev;
 
 	/* We expect two virtqueues. */
-	vb->inflate_vq = vdev->config->find_vq(vdev, 0, balloon_ack);
-	if (IS_ERR(vb->inflate_vq)) {
-		err = PTR_ERR(vb->inflate_vq);
+	err = vdev->config->find_vqs(vdev, 2, vqs, callbacks, names);
+	if (err)
 		goto out_free_vb;
-	}
 
-	vb->deflate_vq = vdev->config->find_vq(vdev, 1, balloon_ack);
-	if (IS_ERR(vb->deflate_vq)) {
-		err = PTR_ERR(vb->deflate_vq);
-		goto out_del_inflate_vq;
-	}
+	vb->inflate_vq = vqs[0];
+	vb->deflate_vq = vqs[1];
 
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {
 		err = PTR_ERR(vb->thread);
-		goto out_del_deflate_vq;
+		goto out_del_vqs;
 	}
 
 	vb->tell_host_first
@@ -241,10 +239,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
 
 	return 0;
 
-out_del_deflate_vq:
-	vdev->config->del_vq(vb->deflate_vq);
-out_del_inflate_vq:
-	vdev->config->del_vq(vb->inflate_vq);
+out_del_vqs:
+	vdev->config->del_vqs(vdev);
 out_free_vb:
 	kfree(vb);
 out:
@@ -264,8 +260,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
 	/* Now we reset the device so we can clean up the queues. */
 	vdev->config->reset(vdev);
 
-	vdev->config->del_vq(vb->deflate_vq);
-	vdev->config->del_vq(vb->inflate_vq);
+	vdev->config->del_vqs(vdev);
 	kfree(vb);
 }
 

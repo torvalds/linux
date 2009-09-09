@@ -192,7 +192,7 @@ static int iop_wdt_release(struct inode *inode, struct file *file)
 		if (test_bit(WDT_ENABLED, &wdt_status))
 			state = wdt_disable();
 
-	/* if the timer is not disbaled reload and notify that we are still
+	/* if the timer is not disabled reload and notify that we are still
 	 * going down
 	 */
 	if (state != 0) {

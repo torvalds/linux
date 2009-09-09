@@ -241,7 +241,7 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 	/* BB need same check in cifs_create too? */
 	/* if not oplocked, invalidate inode pages if mtime or file
 	   size changed */
-	temp = cifs_NTtimeToUnix(le64_to_cpu(buf->LastWriteTime));
+	temp = cifs_NTtimeToUnix(buf->LastWriteTime);
 	if (timespec_equal(&file->f_path.dentry->d_inode->i_mtime, &temp) &&
 			   (file->f_path.dentry->d_inode->i_size ==
 			    (loff_t)le64_to_cpu(buf->EndOfFile))) {

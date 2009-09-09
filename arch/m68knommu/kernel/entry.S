@@ -26,7 +26,6 @@
 
 #include <linux/sys.h>
 #include <linux/linkage.h>
-#include <asm/thread_info.h>
 #include <asm/errno.h>
 #include <asm/setup.h>
 #include <asm/segment.h>

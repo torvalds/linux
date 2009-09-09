@@ -159,6 +159,7 @@ static int omap_wdt_open(struct inode *inode, struct file *file)
 	file->private_data = (void *) wdev;
 
 	omap_wdt_set_timeout(wdev);
+	omap_wdt_ping(wdev); /* trigger loading of new timeout value */
 	omap_wdt_enable(wdev);
 
 	return nonseekable_open(inode, file);
@@ -313,6 +314,9 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdev);
 
+	clk_enable(wdev->ick);
+	clk_enable(wdev->fck);
+
 	omap_wdt_disable(wdev);
 	omap_wdt_adjust_timeout(timer_margin);
 
@@ -331,6 +335,9 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 
 	/* autogate OCP interface clock */
 	__raw_writel(0x01, wdev->base + OMAP_WATCHDOG_SYS_CONFIG);
+
+	clk_disable(wdev->ick);
+	clk_disable(wdev->fck);
 
 	omap_wdt_dev = pdev;
 

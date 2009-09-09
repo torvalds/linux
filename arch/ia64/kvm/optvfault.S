@@ -11,6 +11,7 @@
 
 #include <asm/asmmacro.h>
 #include <asm/processor.h>
+#include <asm/kvm_host.h>
 
 #include "vti.h"
 #include "asm-offsets.h"
@@ -139,6 +140,35 @@ GLOBAL_ENTRY(kvm_asm_mov_from_ar)
 	br.sptk.few b0
 	;;
 END(kvm_asm_mov_from_ar)
+
+/*
+ * Special SGI SN2 optimized version of mov_from_ar using the SN2 RTC
+ * clock as it's source for emulating the ITC. This version will be
+ * copied on top of the original version if the host is determined to
+ * be an SN2.
+ */
+GLOBAL_ENTRY(kvm_asm_mov_from_ar_sn2)
+	add r18=VMM_VCPU_ITC_OFS_OFFSET, r21
+	movl r19 = (KVM_VMM_BASE+(1<<KVM_VMM_SHIFT))
+
+	add r16=VMM_VCPU_LAST_ITC_OFFSET,r21
+	extr.u r17=r25,6,7
+	mov r24=b0
+	;;
+	ld8 r18=[r18]
+	ld8 r19=[r19]
+	addl r20=@gprel(asm_mov_to_reg),gp
+	;;
+	add r19=r19,r18
+	shladd r17=r17,4,r20
+	;;
+	adds r30=kvm_resume_to_guest-asm_mov_to_reg,r20
+	st8 [r16] = r19
+	mov b0=r17
+	br.sptk.few b0
+	;;
+END(kvm_asm_mov_from_ar_sn2)
+
 
 
 // mov r1=rr[r3]

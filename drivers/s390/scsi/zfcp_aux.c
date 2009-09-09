@@ -470,6 +470,12 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (!adapter)
 		return -ENOMEM;
 
+	adapter->gs = kzalloc(sizeof(struct zfcp_wka_ports), GFP_KERNEL);
+	if (!adapter->gs) {
+		kfree(adapter);
+		return -ENOMEM;
+	}
+
 	ccw_device->handler = NULL;
 	adapter->ccw_device = ccw_device;
 	atomic_set(&adapter->refcount, 0);
@@ -523,8 +529,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto sysfs_failed;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-
-	zfcp_fc_nameserver_init(adapter);
+	zfcp_fc_wka_ports_init(adapter);
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return 0;
@@ -571,6 +576,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	kfree(adapter->req_list);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);
+	kfree(adapter->gs);
 	kfree(adapter);
 }
 

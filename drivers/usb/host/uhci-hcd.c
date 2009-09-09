@@ -769,7 +769,7 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	return rc;
 }
 
-static int uhci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
+static int uhci_pci_suspend(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int rc = 0;
@@ -795,10 +795,6 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 
 	/* FIXME: Enable non-PME# remote wakeup? */
 
-	/* make sure snapshot being resumed re-enumerates everything */
-	if (message.event == PM_EVENT_PRETHAW)
-		uhci_hc_died(uhci);
-
 done_okay:
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 done:
@@ -806,7 +802,7 @@ done:
 	return rc;
 }
 
-static int uhci_pci_resume(struct usb_hcd *hcd)
+static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
@@ -819,6 +815,10 @@ static int uhci_pci_resume(struct usb_hcd *hcd)
 	mb();
 
 	spin_lock_irq(&uhci->lock);
+
+	/* Make sure resume from hibernation re-enumerates everything */
+	if (hibernated)
+		uhci_hc_died(uhci);
 
 	/* FIXME: Disable non-PME# remote wakeup? */
 
@@ -940,10 +940,11 @@ static struct pci_driver uhci_pci_driver = {
 	.remove =	usb_hcd_pci_remove,
 	.shutdown =	uhci_shutdown,
 
-#ifdef	CONFIG_PM
-	.suspend =	usb_hcd_pci_suspend,
-	.resume =	usb_hcd_pci_resume,
-#endif	/* PM */
+#ifdef CONFIG_PM_SLEEP
+	.driver =	{
+		.pm =	&usb_hcd_pci_pm_ops
+	},
+#endif
 };
  
 static int __init uhci_hcd_init(void)
@@ -961,7 +962,7 @@ static int __init uhci_hcd_init(void)
 		errbuf = kmalloc(ERRBUF_LEN, GFP_KERNEL);
 		if (!errbuf)
 			goto errbuf_failed;
-		uhci_debugfs_root = debugfs_create_dir("uhci", NULL);
+		uhci_debugfs_root = debugfs_create_dir("uhci", usb_debug_root);
 		if (!uhci_debugfs_root)
 			goto debug_failed;
 	}

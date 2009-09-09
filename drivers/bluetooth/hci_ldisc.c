@@ -277,8 +277,8 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	/* FIXME: why is this needed. Note don't use ldisc_ref here as the
 	   open path is before the ldisc is referencable */
 
-	if (tty->ldisc.ops->flush_buffer)
-		tty->ldisc.ops->flush_buffer(tty);
+	if (tty->ldisc->ops->flush_buffer)
+		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
 	return 0;
@@ -463,7 +463,6 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 				clear_bit(HCI_UART_PROTO_SET, &hu->flags);
 				return err;
 			}
-			tty->low_latency = 1;
 		} else
 			return -EBUSY;
 		break;

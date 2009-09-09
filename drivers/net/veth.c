@@ -176,8 +176,6 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (dev->features & NETIF_F_NO_CSUM)
 		skb->ip_summed = rcv_priv->ip_summed;
 
-	dst_release(skb->dst);
-	skb->dst = NULL;
 	skb->mark = 0;
 	secpath_reset(skb);
 	nf_reset(skb);

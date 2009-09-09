@@ -20,9 +20,9 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/marker.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <trace/events/jbd2.h>
 
 /*
  * Unlink a buffer from a transaction checkpoint list.
@@ -358,8 +358,7 @@ int jbd2_log_do_checkpoint(journal_t *journal)
 	 * journal straight away.
 	 */
 	result = jbd2_cleanup_journal_tail(journal);
-	trace_mark(jbd2_checkpoint, "dev %s need_checkpoint %d",
-		   journal->j_devname, result);
+	trace_jbd2_checkpoint(journal, result);
 	jbd_debug(1, "cleanup_journal_tail returned %d\n", result);
 	if (result <= 0)
 		return result;

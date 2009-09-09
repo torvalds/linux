@@ -16,7 +16,7 @@ extern void __disable_irq(struct irq_desc *desc, unsigned int irq, bool susp);
 extern void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume);
 
 extern struct lock_class_key irq_desc_lock_class;
-extern void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr);
+extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 extern void clear_kstat_irqs(struct irq_desc *desc);
 extern spinlock_t sparse_irq_lock;
 
@@ -41,6 +41,9 @@ static inline void unregister_handler_proc(unsigned int irq,
 #endif
 
 extern int irq_select_affinity_usr(unsigned int irq);
+
+extern void
+irq_set_thread_affinity(struct irq_desc *desc, const struct cpumask *cpumask);
 
 /*
  * Debugging printout:

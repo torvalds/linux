@@ -2934,7 +2934,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *      individual queues.
 	 */
 	if (cas_xmit_tx_ringN(cp, ring++ & N_TX_RINGS_MASK, skb))
-		return 1;
+		return NETDEV_TX_BUSY;
 	dev->trans_start = jiffies;
 	return 0;
 }

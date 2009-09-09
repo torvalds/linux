@@ -24,7 +24,7 @@
 #include <linux/io.h>
 
 #include <linux/of_platform.h>
-#include <asm/mpc512x.h>
+#include <asm/mpc5xxx.h>
 #include <asm/clk_interface.h>
 
 #undef CLK_DEBUG
@@ -83,13 +83,13 @@ static void dump_clocks(void)
 	mutex_lock(&clocks_mutex);
 	printk(KERN_INFO "CLOCKS:\n");
 	list_for_each_entry(p, &clocks, node) {
-		printk(KERN_INFO "  %s %ld", p->name, p->rate);
+		pr_info("  %s=%ld", p->name, p->rate);
 		if (p->parent)
-			printk(KERN_INFO " %s %ld", p->parent->name,
+			pr_cont(" %s=%ld", p->parent->name,
 			       p->parent->rate);
 		if (p->flags & CLK_HAS_CTRL)
-			printk(KERN_INFO " reg/bit %d/%d", p->reg, p->bit);
-		printk("\n");
+			pr_cont(" reg/bit=%d/%d", p->reg, p->bit);
+		pr_cont("\n");
 	}
 	mutex_unlock(&clocks_mutex);
 }

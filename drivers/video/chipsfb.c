@@ -414,7 +414,6 @@ chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	}
 
 	pci_set_drvdata(dp, p);
-	p->device = &dp->dev;
 
 	init_chips(p, addr);
 

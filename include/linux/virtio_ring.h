@@ -14,6 +14,8 @@
 #define VRING_DESC_F_NEXT	1
 /* This marks a buffer as write-only (otherwise read-only). */
 #define VRING_DESC_F_WRITE	2
+/* This means the buffer contains a list of buffer descriptors. */
+#define VRING_DESC_F_INDIRECT	4
 
 /* The Host uses this in used->flags to advise the Guest: don't kick me when
  * you add a buffer.  It's unreliable, so it's simply an optimization.  Guest
@@ -23,6 +25,9 @@
  * when you consume a buffer.  It's unreliable, so it's simply an
  * optimization.  */
 #define VRING_AVAIL_F_NO_INTERRUPT	1
+
+/* We support indirect buffer descriptors */
+#define VIRTIO_RING_F_INDIRECT_DESC	28
 
 /* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
 struct vring_desc
@@ -119,7 +124,8 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      struct virtio_device *vdev,
 				      void *pages,
 				      void (*notify)(struct virtqueue *vq),
-				      void (*callback)(struct virtqueue *vq));
+				      void (*callback)(struct virtqueue *vq),
+				      const char *name);
 void vring_del_virtqueue(struct virtqueue *vq);
 /* Filter out transport-specific feature bits. */
 void vring_transport_features(struct virtio_device *vdev);

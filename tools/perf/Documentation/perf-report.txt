@@ -1,0 +1,26 @@
+perf-report(1)
+==============
+
+NAME
+----
+perf-report - Read perf.data (created by perf record) and display the profile
+
+SYNOPSIS
+--------
+[verse]
+'perf report' [-i <file> | --input=file]
+
+DESCRIPTION
+-----------
+This command displays the performance counter profile information recorded
+via perf report.
+
+OPTIONS
+-------
+-i::
+--input=::
+        Input file name. (default: perf.data)
+
+SEE ALSO
+--------
+linkperf:perf-stat[1]

@@ -159,9 +159,6 @@ USHORT APBuildAssociation(
     IN UCHAR  *pRSNLen,
     IN BOOLEAN bWmmCapable,
     IN ULONG  RalinkIe,
-#ifdef DOT11N_DRAFT3
-    IN EXT_CAP_INFO_ELEMENT ExtCapInfo,
-#endif // DOT11N_DRAFT3 //
 	IN HT_CAPABILITY_IE		*pHtCapability,
 	IN UCHAR		 HtCapabilityLen,
     OUT USHORT *pAid);
@@ -282,11 +279,6 @@ VOID SupportRate(
 BOOLEAN ApScanRunning(
 	IN PRTMP_ADAPTER pAd);
 
-#ifdef DOT11N_DRAFT3
-VOID APOverlappingBSSScan(
-	IN RTMP_ADAPTER *pAd);
-#endif // DOT11N_DRAFT3 //
-
 // ap_wpa.c
 
 VOID APWpaStateMachineInit(
@@ -332,6 +324,13 @@ VOID APQuickResponeForRateUpExec(
     IN PVOID SystemSpecific2,
     IN PVOID SystemSpecific3);
 
+#ifdef RT2870
+VOID BeaconUpdateExec(
+    IN PVOID SystemSpecific1,
+    IN PVOID FunctionContext,
+    IN PVOID SystemSpecific2,
+    IN PVOID SystemSpecific3);
+#endif // RT2870 //
 
 VOID RTMPSetPiggyBack(
 	IN PRTMP_ADAPTER	pAd,
@@ -408,10 +407,8 @@ VOID ApLogEvent(
     IN PUCHAR           pAddr,
     IN USHORT           Event);
 
-#ifdef DOT11_N_SUPPORT
 VOID APUpdateOperationMode(
     IN PRTMP_ADAPTER pAd);
-#endif // DOT11_N_SUPPORT //
 
 VOID APUpdateCapabilityAndErpIe(
 	IN PRTMP_ADAPTER pAd);
@@ -472,9 +469,6 @@ BOOLEAN PeerAssocReqCmmSanity(
     OUT UCHAR *pRSNLen,
     OUT BOOLEAN *pbWmmCapable,
     OUT ULONG  *pRalinkIe,
-#ifdef DOT11N_DRAFT3
-    OUT EXT_CAP_INFO_ELEMENT	*pExtCapInfo,
-#endif // DOT11N_DRAFT3 //
     OUT UCHAR		 *pHtCapabilityLen,
     OUT HT_CAPABILITY_IE *pHtCapability);
 
@@ -528,26 +522,6 @@ BOOLEAN APPeerBeaconAndProbeRspSanity(
     OUT UCHAR *RateLen,
     OUT BOOLEAN *ExtendedRateIeExist,
     OUT UCHAR *Erp);
-
-// ap_info.c
-
-#ifdef WIN_NDIS
-NDIS_STATUS APQueryInformation(
-    IN  NDIS_HANDLE MiniportAdapterContext,
-    IN  NDIS_OID    Oid,
-    IN  PVOID       pInformationBuffer,
-    IN  ULONG       InformationBufferLength,
-    OUT PULONG      pBytesWritten,
-    OUT PULONG      pBytesNeeded);
-
-NDIS_STATUS APSetInformation(
-    IN  NDIS_HANDLE MiniportAdapterContext,
-    IN  NDIS_OID    Oid,
-    IN  PVOID       pInformationBuffer,
-    IN  ULONG       InformationBufferLength,
-    OUT PULONG      pBytesRead,
-    OUT PULONG      pBytesNeeded);
-#endif
 
 
 // ================== end of AP RTMP.h ========================

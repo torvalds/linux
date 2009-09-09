@@ -112,7 +112,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 		return;
 	}
 
-	nskb->dst = dst;
+	skb_dst_set(nskb, dst);
 
 	skb_reserve(nskb, hh_len + dst->header_len);
 

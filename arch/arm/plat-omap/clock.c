@@ -36,10 +36,40 @@ static struct clk_functions *arch_clock;
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
+/* This functions is moved to arch/arm/common/clkdev.c. For OMAP4 since
+ * clock framework is not up , it is defined here to avoid rework in
+ * every driver. Also dummy prcm reset function is added */
+
+/* Dummy hooks only for OMAP4.For rest OMAPs, common clkdev is used */
+#if defined(CONFIG_ARCH_OMAP4)
+struct clk *clk_get(struct device *dev, const char *id)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(clk_get);
+
+void clk_put(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_put);
+
+void omap2_clk_prepare_for_reboot(void)
+{
+}
+EXPORT_SYMBOL(omap2_clk_prepare_for_reboot);
+
+void omap_prcm_arch_reset(char mode)
+{
+}
+EXPORT_SYMBOL(omap_prcm_arch_reset);
+#endif
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
 	int ret = 0;
+	if (cpu_is_omap44xx())
+		/* OMAP4 clk framework not supported yet */
+		return 0;
 
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
@@ -140,6 +170,9 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long flags;
 	int ret = -EINVAL;
 
+	if (cpu_is_omap44xx())
+	/* OMAP4 clk framework not supported yet */
+		return 0;
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
@@ -240,13 +273,13 @@ void recalculate_root_clocks(void)
 }
 
 /**
- * clk_init_one - initialize any fields in the struct clk before clk init
+ * clk_preinit - initialize any fields in the struct clk before clk init
  * @clk: struct clk * to initialize
  *
  * Initialize any struct clk fields needed before normal clk initialization
  * can run.  No return value.
  */
-void clk_init_one(struct clk *clk)
+void clk_preinit(struct clk *clk)
 {
 	INIT_LIST_HEAD(&clk->children);
 }

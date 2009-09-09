@@ -788,13 +788,29 @@ void vcpu_set_fpreg(struct kvm_vcpu *vcpu, unsigned long reg,
 		setfpreg(reg, val, regs);   /* FIXME: handle NATs later*/
 }
 
+/*
+ * The Altix RTC is mapped specially here for the vmm module
+ */
+#define SN_RTC_BASE	(u64 *)(KVM_VMM_BASE+(1UL<<KVM_VMM_SHIFT))
+static long kvm_get_itc(struct kvm_vcpu *vcpu)
+{
+#if defined(CONFIG_IA64_SGI_SN2) || defined(CONFIG_IA64_GENERIC)
+	struct kvm *kvm = (struct kvm *)KVM_VM_BASE;
+
+	if (kvm->arch.is_sn2)
+		return (*SN_RTC_BASE);
+	else
+#endif
+		return ia64_getreg(_IA64_REG_AR_ITC);
+}
+
 /************************************************************************
  * lsapic timer
  ***********************************************************************/
 u64 vcpu_get_itc(struct kvm_vcpu *vcpu)
 {
 	unsigned long guest_itc;
-	guest_itc = VMX(vcpu, itc_offset) + ia64_getreg(_IA64_REG_AR_ITC);
+	guest_itc = VMX(vcpu, itc_offset) + kvm_get_itc(vcpu);
 
 	if (guest_itc >= VMX(vcpu, last_itc)) {
 		VMX(vcpu, last_itc) = guest_itc;
@@ -809,7 +825,7 @@ static void vcpu_set_itc(struct kvm_vcpu *vcpu, u64 val)
 	struct kvm_vcpu *v;
 	struct kvm *kvm;
 	int i;
-	long itc_offset = val - ia64_getreg(_IA64_REG_AR_ITC);
+	long itc_offset = val - kvm_get_itc(vcpu);
 	unsigned long vitv = VCPU(vcpu, itv);
 
 	kvm = (struct kvm *)KVM_VM_BASE;

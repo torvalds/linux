@@ -393,7 +393,7 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 		return 0;
 
 	/* Is this a broadcast address? */
-	if (skb && skb->rtable->rt_flags & RTCF_BROADCAST)
+	if (skb && skb_rtable(skb)->rt_flags & RTCF_BROADCAST)
 		return 0;
 
 	return 1;
@@ -572,7 +572,7 @@ static void sctp_v4_get_saddr(struct sctp_sock *sk,
 /* What interface did this skb arrive on? */
 static int sctp_v4_skb_iif(const struct sk_buff *skb)
 {
-	return skb->rtable->rt_iif;
+	return skb_rtable(skb)->rt_iif;
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -848,8 +848,8 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n",
 			  __func__, skb, skb->len,
-			  &skb->rtable->rt_src,
-			  &skb->rtable->rt_dst);
+			  &skb_rtable(skb)->rt_src,
+			  &skb_rtable(skb)->rt_dst);
 
 	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
@@ -1369,6 +1369,8 @@ SCTP_STATIC __exit void sctp_exit(void)
 	sctp_dbg_objcnt_exit();
 	sctp_proc_exit();
 	cleanup_sctp_mibs();
+
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
 	kmem_cache_destroy(sctp_chunk_cachep);
 	kmem_cache_destroy(sctp_bucket_cachep);

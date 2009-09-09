@@ -77,7 +77,7 @@ void pci_no_aer(void)
  *
  * Invoked when Root Port detects AER messages.
  **/
-static irqreturn_t aer_irq(int irq, void *context)
+irqreturn_t aer_irq(int irq, void *context)
 {
 	unsigned int status, id;
 	struct pcie_device *pdev = (struct pcie_device *)context;
@@ -126,6 +126,7 @@ static irqreturn_t aer_irq(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(aer_irq);
 
 /**
  * aer_alloc_rpc - allocate Root Port data structure

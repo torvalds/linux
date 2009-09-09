@@ -214,6 +214,7 @@ struct slgt_desc
 #define set_desc_next(a,b) (a).next   = cpu_to_le32((unsigned int)(b))
 #define set_desc_count(a,b)(a).count  = cpu_to_le16((unsigned short)(b))
 #define set_desc_eof(a,b)  (a).status = cpu_to_le16((b) ? (le16_to_cpu((a).status) | BIT0) : (le16_to_cpu((a).status) & ~BIT0))
+#define set_desc_status(a, b) (a).status = cpu_to_le16((unsigned short)(b))
 #define desc_count(a)      (le16_to_cpu((a).count))
 #define desc_status(a)     (le16_to_cpu((a).status))
 #define desc_complete(a)   (le16_to_cpu((a).status) & BIT15)
@@ -297,6 +298,7 @@ struct slgt_info {
 	u32 max_frame_size;       /* as set by device config */
 
 	unsigned int rbuf_fill_level;
+	unsigned int rx_pio;
 	unsigned int if_mode;
 	unsigned int base_clock;
 
@@ -331,6 +333,8 @@ struct slgt_info {
 	struct slgt_desc *rbufs;
 	unsigned int rbuf_current;
 	unsigned int rbuf_index;
+	unsigned int rbuf_fill_index;
+	unsigned short rbuf_fill_count;
 
 	unsigned int tbuf_count;
 	struct slgt_desc *tbufs;
@@ -463,7 +467,6 @@ static unsigned int free_tbuf_count(struct slgt_info *info);
 static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
-static void tdma_start(struct slgt_info *info);
 static void tx_load(struct slgt_info *info, const char *buf, unsigned int count);
 
 static void get_signals(struct slgt_info *info);
@@ -791,6 +794,18 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	}
 }
 
+static void update_tx_timer(struct slgt_info *info)
+{
+	/*
+	 * use worst case speed of 1200bps to calculate transmit timeout
+	 * based on data in buffers (tbuf_bytes) and FIFO (128 bytes)
+	 */
+	if (info->params.mode == MGSL_MODE_HDLC) {
+		int timeout  = (tbuf_bytes(info) * 7) + 1000;
+		mod_timer(&info->tx_timer, jiffies + msecs_to_jiffies(timeout));
+	}
+}
+
 static int write(struct tty_struct *tty,
 		 const unsigned char *buf, int count)
 {
@@ -834,8 +849,18 @@ start:
 		spin_lock_irqsave(&info->lock,flags);
 		if (!info->tx_active)
 		 	tx_start(info);
-		else
-			tdma_start(info);
+		else if (!(rd_reg32(info, TDCSR) & BIT0)) {
+			/* transmit still active but transmit DMA stopped */
+			unsigned int i = info->tbuf_current;
+			if (!i)
+				i = info->tbuf_count;
+			i--;
+			/* if DMA buf unsent must try later after tx idle */
+			if (desc_count(info->tbufs[i]))
+				ret = 0;
+		}
+		if (ret > 0)
+			update_tx_timer(info);
 		spin_unlock_irqrestore(&info->lock,flags);
  	}
 
@@ -1498,10 +1523,9 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* save start time for transmit timeout detection */
 	dev->trans_start = jiffies;
 
-	/* start hardware transmitter if necessary */
 	spin_lock_irqsave(&info->lock,flags);
-	if (!info->tx_active)
-	 	tx_start(info);
+	tx_start(info);
+	update_tx_timer(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 
 	return 0;
@@ -2110,6 +2134,40 @@ static void ri_change(struct slgt_info *info, unsigned short status)
 	info->pending_bh |= BH_STATUS;
 }
 
+static void isr_rxdata(struct slgt_info *info)
+{
+	unsigned int count = info->rbuf_fill_count;
+	unsigned int i = info->rbuf_fill_index;
+	unsigned short reg;
+
+	while (rd_reg16(info, SSR) & IRQ_RXDATA) {
+		reg = rd_reg16(info, RDR);
+		DBGISR(("isr_rxdata %s RDR=%04X\n", info->device_name, reg));
+		if (desc_complete(info->rbufs[i])) {
+			/* all buffers full */
+			rx_stop(info);
+			info->rx_restart = 1;
+			continue;
+		}
+		info->rbufs[i].buf[count++] = (unsigned char)reg;
+		/* async mode saves status byte to buffer for each data byte */
+		if (info->params.mode == MGSL_MODE_ASYNC)
+			info->rbufs[i].buf[count++] = (unsigned char)(reg >> 8);
+		if (count == info->rbuf_fill_level || (reg & BIT10)) {
+			/* buffer full or end of frame */
+			set_desc_count(info->rbufs[i], count);
+			set_desc_status(info->rbufs[i], BIT15 | (reg >> 8));
+			info->rbuf_fill_count = count = 0;
+			if (++i == info->rbuf_count)
+				i = 0;
+			info->pending_bh |= BH_RECEIVE;
+		}
+	}
+
+	info->rbuf_fill_index = i;
+	info->rbuf_fill_count = count;
+}
+
 static void isr_serial(struct slgt_info *info)
 {
 	unsigned short status = rd_reg16(info, SSR);
@@ -2125,6 +2183,8 @@ static void isr_serial(struct slgt_info *info)
 			if (info->tx_count)
 				isr_txeom(info, status);
 		}
+		if (info->rx_pio && (status & IRQ_RXDATA))
+			isr_rxdata(info);
 		if ((status & IRQ_RXBREAK) && (status & RXBREAK)) {
 			info->icount.brk++;
 			/* process break detection if tty control allows */
@@ -2141,7 +2201,8 @@ static void isr_serial(struct slgt_info *info)
 	} else {
 		if (status & (IRQ_TXIDLE + IRQ_TXUNDER))
 			isr_txeom(info, status);
-
+		if (info->rx_pio && (status & IRQ_RXDATA))
+			isr_rxdata(info);
 		if (status & IRQ_RXIDLE) {
 			if (status & RXIDLE)
 				info->icount.rxidle++;
@@ -2642,6 +2703,10 @@ static int rx_enable(struct slgt_info *info, int enable)
 			return -EINVAL;
 		}
 		info->rbuf_fill_level = rbuf_fill_level;
+		if (rbuf_fill_level < 128)
+			info->rx_pio = 1; /* PIO mode */
+		else
+			info->rx_pio = 0; /* DMA mode */
 		rx_stop(info); /* restart receiver to use new fill level */
 	}
 
@@ -3099,13 +3164,16 @@ static int carrier_raised(struct tty_port *port)
 	return (info->signals & SerialSignal_DCD) ? 1 : 0;
 }
 
-static void raise_dtr_rts(struct tty_port *port)
+static void dtr_rts(struct tty_port *port, int on)
 {
 	unsigned long flags;
 	struct slgt_info *info = container_of(port, struct slgt_info, port);
 
 	spin_lock_irqsave(&info->lock,flags);
-	info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+	if (on)
+		info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+	else
+		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
  	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -3419,7 +3487,7 @@ static void add_device(struct slgt_info *info)
 
 static const struct tty_port_operations slgt_port_ops = {
 	.carrier_raised = carrier_raised,
-	.raise_dtr_rts = raise_dtr_rts,
+	.dtr_rts = dtr_rts,
 };
 
 /*
@@ -3841,15 +3909,27 @@ static void rx_start(struct slgt_info *info)
 	rdma_reset(info);
 	reset_rbufs(info);
 
-	/* set 1st descriptor address */
-	wr_reg32(info, RDDAR, info->rbufs[0].pdesc);
-
-	if (info->params.mode != MGSL_MODE_ASYNC) {
-		/* enable rx DMA and DMA interrupt */
-		wr_reg32(info, RDCSR, (BIT2 + BIT0));
+	if (info->rx_pio) {
+		/* rx request when rx FIFO not empty */
+		wr_reg16(info, SCR, (unsigned short)(rd_reg16(info, SCR) & ~BIT14));
+		slgt_irq_on(info, IRQ_RXDATA);
+		if (info->params.mode == MGSL_MODE_ASYNC) {
+			/* enable saving of rx status */
+			wr_reg32(info, RDCSR, BIT6);
+		}
 	} else {
-		/* enable saving of rx status, rx DMA and DMA interrupt */
-		wr_reg32(info, RDCSR, (BIT6 + BIT2 + BIT0));
+		/* rx request when rx FIFO half full */
+		wr_reg16(info, SCR, (unsigned short)(rd_reg16(info, SCR) | BIT14));
+		/* set 1st descriptor address */
+		wr_reg32(info, RDDAR, info->rbufs[0].pdesc);
+
+		if (info->params.mode != MGSL_MODE_ASYNC) {
+			/* enable rx DMA and DMA interrupt */
+			wr_reg32(info, RDCSR, (BIT2 + BIT0));
+		} else {
+			/* enable saving of rx status, rx DMA and DMA interrupt */
+			wr_reg32(info, RDCSR, (BIT6 + BIT2 + BIT0));
+		}
 	}
 
 	slgt_irq_on(info, IRQ_RXOVER);
@@ -3886,48 +3966,17 @@ static void tx_start(struct slgt_info *info)
 			slgt_irq_on(info, IRQ_TXUNDER + IRQ_TXIDLE);
 			/* clear tx idle and underrun status bits */
 			wr_reg16(info, SSR, (unsigned short)(IRQ_TXIDLE + IRQ_TXUNDER));
-			if (info->params.mode == MGSL_MODE_HDLC)
-				mod_timer(&info->tx_timer, jiffies +
-						msecs_to_jiffies(5000));
 		} else {
 			slgt_irq_off(info, IRQ_TXDATA);
 			slgt_irq_on(info, IRQ_TXIDLE);
 			/* clear tx idle status bit */
 			wr_reg16(info, SSR, IRQ_TXIDLE);
 		}
-		tdma_start(info);
+		/* set 1st descriptor address and start DMA */
+		wr_reg32(info, TDDAR, info->tbufs[info->tbuf_start].pdesc);
+		wr_reg32(info, TDCSR, BIT2 + BIT0);
 		info->tx_active = true;
 	}
-}
-
-/*
- * start transmit DMA if inactive and there are unsent buffers
- */
-static void tdma_start(struct slgt_info *info)
-{
-	unsigned int i;
-
-	if (rd_reg32(info, TDCSR) & BIT0)
-		return;
-
-	/* transmit DMA inactive, check for unsent buffers */
-	i = info->tbuf_start;
-	while (!desc_count(info->tbufs[i])) {
-		if (++i == info->tbuf_count)
-			i = 0;
-		if (i == info->tbuf_current)
-			return;
-	}
-	info->tbuf_start = i;
-
-	/* there are unsent buffers, start transmit DMA */
-
-	/* reset needed if previous error condition */
-	tdma_reset(info);
-
-	/* set 1st descriptor address */
-	wr_reg32(info, TDDAR, info->tbufs[info->tbuf_start].pdesc);
-	wr_reg32(info, TDCSR, BIT2 + BIT0); /* IRQ + DMA enable */
 }
 
 static void tx_stop(struct slgt_info *info)
@@ -4467,6 +4516,8 @@ static void free_rbufs(struct slgt_info *info, unsigned int i, unsigned int last
 static void reset_rbufs(struct slgt_info *info)
 {
 	free_rbufs(info, 0, info->rbuf_count - 1);
+	info->rbuf_fill_index = 0;
+	info->rbuf_fill_count = 0;
 }
 
 /*
@@ -4942,8 +4993,7 @@ static void tx_timeout(unsigned long context)
 		info->icount.txtimeout++;
 	}
 	spin_lock_irqsave(&info->lock,flags);
-	info->tx_active = false;
-	info->tx_count = 0;
+	tx_stop(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 
 #if SYNCLINK_GENERIC_HDLC

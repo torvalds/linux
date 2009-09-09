@@ -372,7 +372,7 @@ cftree_update(struct hfsc_class *cl)
  *	ism: (psched_us/byte) << ISM_SHIFT
  *	dx: psched_us
  *
- * The clock source resolution with ktime is 1.024us.
+ * The clock source resolution with ktime and PSCHED_SHIFT 10 is 1.024us.
  *
  * sm and ism are scaled in order to keep effective digits.
  * SM_SHIFT and ISM_SHIFT are selected to keep at least 4 effective
@@ -383,9 +383,11 @@ cftree_update(struct hfsc_class *cl)
  *  bytes/1.024us 12.8e-3    128e-3     1280e-3    12800e-3   128000e-3
  *
  *  1.024us/byte  78.125     7.8125     0.78125    0.078125   0.0078125
+ *
+ * So, for PSCHED_SHIFT 10 we need: SM_SHIFT 20, ISM_SHIFT 18.
  */
-#define	SM_SHIFT	20
-#define	ISM_SHIFT	18
+#define	SM_SHIFT	(30 - PSCHED_SHIFT)
+#define	ISM_SHIFT	(8 + PSCHED_SHIFT)
 
 #define	SM_MASK		((1ULL << SM_SHIFT) - 1)
 #define	ISM_MASK	((1ULL << ISM_SHIFT) - 1)

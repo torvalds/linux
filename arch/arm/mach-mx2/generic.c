@@ -69,7 +69,17 @@ static struct map_desc mxc_io_desc[] __initdata = {
  * system startup to create static physical to virtual
  * memory map for the IO modules.
  */
-void __init mxc_map_io(void)
+void __init mx21_map_io(void)
 {
+	mxc_set_cpu_type(MXC_CPU_MX21);
+
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
+
+void __init mx27_map_io(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX27);
+
+	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+}
+

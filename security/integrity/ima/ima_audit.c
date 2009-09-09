@@ -22,18 +22,9 @@ static int ima_audit;
 static int __init ima_audit_setup(char *str)
 {
 	unsigned long audit;
-	int rc, result = 0;
-	char *op = "ima_audit";
-	char *cause;
 
-	rc = strict_strtoul(str, 0, &audit);
-	if (rc || audit > 1)
-		result = 1;
-	else
-		ima_audit = audit;
-	cause = ima_audit ? "enabled" : "not_enabled";
-	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
-			    op, cause, result, 0);
+	if (!strict_strtoul(str, 0, &audit))
+		ima_audit = audit ? 1 : 0;
 	return 1;
 }
 __setup("ima_audit=", ima_audit_setup);
@@ -50,23 +41,14 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 
 	ab = audit_log_start(current->audit_context, GFP_KERNEL, audit_msgno);
 	audit_log_format(ab, "integrity: pid=%d uid=%u auid=%u ses=%u",
-			 current->pid, current->cred->uid,
+			 current->pid, current_cred()->uid,
 			 audit_get_loginuid(current),
 			 audit_get_sessionid(current));
 	audit_log_task_context(ab);
-	switch (audit_msgno) {
-	case AUDIT_INTEGRITY_DATA:
-	case AUDIT_INTEGRITY_METADATA:
-	case AUDIT_INTEGRITY_PCR:
-	case AUDIT_INTEGRITY_STATUS:
-		audit_log_format(ab, " op=%s cause=%s", op, cause);
-		break;
-	case AUDIT_INTEGRITY_HASH:
-		audit_log_format(ab, " op=%s hash=%s", op, cause);
-		break;
-	default:
-		audit_log_format(ab, " op=%s", op);
-	}
+	audit_log_format(ab, " op=");
+	audit_log_string(ab, op);
+	audit_log_format(ab, " cause=");
+	audit_log_string(ab, cause);
 	audit_log_format(ab, " comm=");
 	audit_log_untrustedstring(ab, current->comm);
 	if (fname) {

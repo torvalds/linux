@@ -47,6 +47,7 @@
 #include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/swab.h>
 #include <linux/phy.h>
 #include <linux/smsc911x.h>
 #include "smsc911x.h"
@@ -175,6 +176,12 @@ static inline void
 smsc911x_tx_writefifo(struct smsc911x_data *pdata, unsigned int *buf,
 		      unsigned int wordcount)
 {
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			smsc911x_reg_write(pdata, TX_DATA_FIFO, swab32(*buf++));
+		return;
+	}
+
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
 		writesl(pdata->ioaddr + TX_DATA_FIFO, buf, wordcount);
 		return;
@@ -194,6 +201,12 @@ static inline void
 smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
 		     unsigned int wordcount)
 {
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			*buf++ = swab32(smsc911x_reg_read(pdata, RX_DATA_FIFO));
+		return;
+	}
+
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
 		readsl(pdata->ioaddr + RX_DATA_FIFO, buf, wordcount);
 		return;
@@ -1963,7 +1976,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		retval = -ENODEV;
 		goto out_0;
 	}
-	res_size = res->end - res->start;
+	res_size = res->end - res->start + 1;
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
@@ -2096,12 +2109,58 @@ out_0:
 	return retval;
 }
 
+#ifdef CONFIG_PM
+/* This implementation assumes the devices remains powered on its VDDVARIO
+ * pins during suspend. */
+
+static int smsc911x_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(dev);
+
+	/* enable wake on LAN, energy detection and the external PME
+	 * signal. */
+	smsc911x_reg_write(pdata, PMT_CTRL,
+		PMT_CTRL_PM_MODE_D1_ | PMT_CTRL_WOL_EN_ |
+		PMT_CTRL_ED_EN_ | PMT_CTRL_PME_EN_);
+
+	return 0;
+}
+
+static int smsc911x_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(dev);
+	unsigned int to = 100;
+
+	/* Note 3.11 from the datasheet:
+	 * 	"When the LAN9220 is in a power saving state, a write of any
+	 * 	 data to the BYTE_TEST register will wake-up the device."
+	 */
+	smsc911x_reg_write(pdata, BYTE_TEST, 0);
+
+	/* poll the READY bit in PMT_CTRL. Any other access to the device is
+	 * forbidden while this bit isn't set. Try for 100ms and return -EIO
+	 * if it failed. */
+	while (!(smsc911x_reg_read(pdata, PMT_CTRL) & PMT_CTRL_READY_) && --to)
+		udelay(1000);
+
+	return (to == 0) ? -EIO : 0;
+}
+
+#else
+#define smsc911x_suspend	NULL
+#define smsc911x_resume		NULL
+#endif
+
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
-	.remove = smsc911x_drv_remove,
+	.remove = __devexit_p(smsc911x_drv_remove),
 	.driver = {
 		.name = SMSC_CHIPNAME,
 	},
+	.suspend = smsc911x_suspend,
+	.resume = smsc911x_resume,
 };
 
 /* Entry point for loading the module */

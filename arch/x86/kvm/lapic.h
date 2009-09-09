@@ -2,18 +2,15 @@
 #define __KVM_X86_LAPIC_H
 
 #include "iodev.h"
+#include "kvm_timer.h"
 
 #include <linux/kvm_host.h>
 
 struct kvm_lapic {
 	unsigned long base_address;
 	struct kvm_io_device dev;
-	struct {
-		atomic_t pending;
-		s64 period;	/* unit: ns */
-		u32 divide_count;
-		struct hrtimer dev;
-	} timer;
+	struct kvm_timer lapic_timer;
+	u32 divide_count;
 	struct kvm_vcpu *vcpu;
 	struct page *regs_page;
 	void *regs;
@@ -34,12 +31,13 @@ u64 kvm_lapic_get_base(struct kvm_vcpu *vcpu);
 
 int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
-int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig);
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq);
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
 void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu);
 int kvm_lapic_enabled(struct kvm_vcpu *vcpu);
+bool kvm_apic_present(struct kvm_vcpu *vcpu);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
 
 void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);

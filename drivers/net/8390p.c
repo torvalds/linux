@@ -79,14 +79,8 @@ EXPORT_SYMBOL(eip_netdev_ops);
 struct net_device *__alloc_eip_netdev(int size)
 {
 	struct net_device *dev = ____alloc_ei_netdev(size);
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	if (dev) {
-		dev->hard_start_xmit = eip_start_xmit;
-		dev->get_stats	= eip_get_stats;
-		dev->set_multicast_list = eip_set_multicast_list;
-		dev->tx_timeout = eip_tx_timeout;
-	}
-#endif
+	if (dev)
+		dev->netdev_ops = &eip_netdev_ops;
 	return dev;
 }
 EXPORT_SYMBOL(__alloc_eip_netdev);
@@ -97,16 +91,15 @@ void NS8390p_init(struct net_device *dev, int startp)
 }
 EXPORT_SYMBOL(NS8390p_init);
 
-#if defined(MODULE)
-
-int init_module(void)
+static int __init NS8390p_init_module(void)
 {
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit NS8390p_cleanup_module(void)
 {
 }
 
-#endif /* MODULE */
+module_init(NS8390p_init_module);
+module_exit(NS8390p_cleanup_module);
 MODULE_LICENSE("GPL");

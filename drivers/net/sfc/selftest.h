@@ -32,7 +32,7 @@ struct efx_loopback_self_tests {
  */
 struct efx_self_tests {
 	/* online tests */
-	int mii;
+	int mdio;
 	int nvram;
 	int interrupt;
 	int eventq_dma[EFX_MAX_CHANNELS];

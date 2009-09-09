@@ -257,6 +257,17 @@ config DM_MIRROR
          Allow volume managers to mirror logical volumes, also
          needed for live data migration tools such as 'pvmove'.
 
+config DM_LOG_USERSPACE
+	tristate "Mirror userspace logging (EXPERIMENTAL)"
+	depends on DM_MIRROR && EXPERIMENTAL && NET
+	select CONNECTOR
+	---help---
+	  The userspace logging module provides a mechanism for
+	  relaying the dm-dirty-log API to userspace.  Log designs
+	  which are more suited to userspace implementation (e.g.
+	  shared storage logs) or experimental logs can be implemented
+	  by leveraging this framework.
+
 config DM_ZERO
 	tristate "Zero target"
 	depends on BLK_DEV_DM
@@ -274,6 +285,25 @@ config DM_MULTIPATH
 	depends on SCSI_DH || !SCSI_DH
 	---help---
 	  Allow volume managers to support multipath hardware.
+
+config DM_MULTIPATH_QL
+	tristate "I/O Path Selector based on the number of in-flight I/Os"
+	depends on DM_MULTIPATH
+	---help---
+	  This path selector is a dynamic load balancer which selects
+	  the path with the least number of in-flight I/Os.
+
+	  If unsure, say N.
+
+config DM_MULTIPATH_ST
+	tristate "I/O Path Selector based on the service time"
+	depends on DM_MULTIPATH
+	---help---
+	  This path selector is a dynamic load balancer which selects
+	  the path expected to complete the incoming I/O in the shortest
+	  time.
+
+	  If unsure, say N.
 
 config DM_DELAY
 	tristate "I/O delaying target (EXPERIMENTAL)"

@@ -15,6 +15,7 @@
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/fs.h>
+#include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
@@ -195,6 +196,10 @@ out_nokvm:
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
+	if (vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda ==
+		(__u64) vcpu->arch.sie_block)
+		vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda = 0;
+	smp_mb();
 	free_page((unsigned long)(vcpu->arch.sie_block));
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu);
@@ -283,8 +288,10 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->gmsor = vcpu->kvm->arch.guest_origin;
 	vcpu->arch.sie_block->ecb   = 2;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
-	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
-		 (unsigned long) vcpu);
+	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	tasklet_init(&vcpu->arch.tasklet, kvm_s390_tasklet,
+		     (unsigned long) vcpu);
+	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
 	get_cpu_id(&vcpu->arch.cpu_id);
 	vcpu->arch.cpu_id.version = 0xff;
 	return 0;
@@ -307,19 +314,21 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu->arch.sie_block->icpua = id;
 	BUG_ON(!kvm->arch.sca);
-	BUG_ON(kvm->arch.sca->cpu[id].sda);
-	kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+	if (!kvm->arch.sca->cpu[id].sda)
+		kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+	else
+		BUG_ON(!kvm->vcpus[id]); /* vcpu does already exist */
 	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)kvm->arch.sca) >> 32);
 	vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
 
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	INIT_LIST_HEAD(&vcpu->arch.local_int.list);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
-	spin_lock_bh(&kvm->arch.float_int.lock);
+	spin_lock(&kvm->arch.float_int.lock);
 	kvm->arch.float_int.local_int[id] = &vcpu->arch.local_int;
 	init_waitqueue_head(&vcpu->arch.local_int.wq);
 	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
-	spin_unlock_bh(&kvm->arch.float_int.lock);
+	spin_unlock(&kvm->arch.float_int.lock);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
@@ -478,6 +487,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu_load(vcpu);
 
+	/* verify, that memory has been registered */
+	if (!vcpu->kvm->arch.guest_memsize) {
+		vcpu_put(vcpu);
+		return -EINVAL;
+	}
+
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -497,7 +512,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		BUG();
 	}
 
-	might_sleep();
+	might_fault();
 
 	do {
 		__vcpu_run(vcpu);
@@ -657,6 +672,8 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot old,
 				int user_alloc)
 {
+	int i;
+
 	/* A few sanity checks. We can have exactly one memory slot which has
 	   to start at guest virtual zero and which has to be located at a
 	   page boundary in userland and which has to end at a page boundary.
@@ -664,7 +681,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	   vmas. It is okay to mmap() and munmap() stuff in this slot after
 	   doing this call at any time */
 
-	if (mem->slot)
+	if (mem->slot || kvm->arch.guest_memsize)
 		return -EINVAL;
 
 	if (mem->guest_phys_addr)
@@ -676,15 +693,39 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	if (mem->memory_size & (PAGE_SIZE - 1))
 		return -EINVAL;
 
+	if (!user_alloc)
+		return -EINVAL;
+
+	/* lock all vcpus */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (!kvm->vcpus[i])
+			continue;
+		if (!mutex_trylock(&kvm->vcpus[i]->mutex))
+			goto fail_out;
+	}
+
 	kvm->arch.guest_origin = mem->userspace_addr;
 	kvm->arch.guest_memsize = mem->memory_size;
 
-	/* FIXME: we do want to interrupt running CPUs and update their memory
-	   configuration now to avoid race conditions. But hey, changing the
-	   memory layout while virtual CPUs are running is usually bad
-	   programming practice. */
+	/* update sie control blocks, and unlock all vcpus */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (kvm->vcpus[i]) {
+			kvm->vcpus[i]->arch.sie_block->gmsor =
+				kvm->arch.guest_origin;
+			kvm->vcpus[i]->arch.sie_block->gmslm =
+				kvm->arch.guest_memsize +
+				kvm->arch.guest_origin +
+				VIRTIODESCSPACE - 1ul;
+			mutex_unlock(&kvm->vcpus[i]->mutex);
+		}
+	}
 
 	return 0;
+
+fail_out:
+	for (; i >= 0; i--)
+		mutex_unlock(&kvm->vcpus[i]->mutex);
+	return -EINVAL;
 }
 
 void kvm_arch_flush_shadow(struct kvm *kvm)

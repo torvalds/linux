@@ -33,6 +33,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	       enum nf_nat_manip_type maniptype)
 {
 	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
+	struct sk_buff *frag;
 	sctp_sctphdr_t *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 	__be32 oldip, newip;
@@ -57,8 +58,8 @@ sctp_manip_pkt(struct sk_buff *skb,
 	}
 
 	crc32 = sctp_start_cksum((u8 *)hdr, skb_headlen(skb) - hdroff);
-	for (skb = skb_shinfo(skb)->frag_list; skb; skb = skb->next)
-		crc32 = sctp_update_cksum((u8 *)skb->data, skb_headlen(skb),
+	skb_walk_frags(skb, frag)
+		crc32 = sctp_update_cksum((u8 *)frag->data, skb_headlen(frag),
 					  crc32);
 	crc32 = sctp_end_cksum(crc32);
 	hdr->checksum = crc32;

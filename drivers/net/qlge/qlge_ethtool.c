@@ -293,7 +293,10 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	strncpy(drvinfo->driver, qlge_driver_name, 32);
 	strncpy(drvinfo->version, qlge_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
+	snprintf(drvinfo->fw_version, 32, "v%d.%d.%d",
+		 (qdev->fw_rev_id & 0x00ff0000) >> 16,
+		 (qdev->fw_rev_id & 0x0000ff00) >> 8,
+		 (qdev->fw_rev_id & 0x000000ff));
 	strncpy(drvinfo->bus_info, pci_name(qdev->pdev), 32);
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
@@ -401,6 +404,7 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_rx_csum = ql_get_rx_csum,
 	.set_rx_csum = ql_set_rx_csum,
 	.get_tx_csum = ethtool_op_get_tx_csum,
+	.set_tx_csum = ethtool_op_set_tx_csum,
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,

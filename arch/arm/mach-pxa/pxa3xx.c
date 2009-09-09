@@ -30,7 +30,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/ssp.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -552,7 +552,7 @@ void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 }
 
 static struct platform_device *devices[] __initdata = {
-/*	&pxa_device_udc,	The UDC driver is PXA25x only */
+	&pxa27x_device_udc,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,

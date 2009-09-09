@@ -1113,11 +1113,13 @@ ncp__io2vol(struct ncp_server *server, unsigned char *vname, unsigned int *vlen,
 
 		if (NCP_IS_FLAG(server, NCP_FLAG_UTF8)) {
 			int k;
+			unicode_t u;
 
-			k = utf8_mbtowc(&ec, iname, iname_end - iname);
-			if (k < 0)
+			k = utf8_to_utf32(iname, iname_end - iname, &u);
+			if (k < 0 || u > MAX_WCHAR_T)
 				return -EINVAL;
 			iname += k;
+			ec = u;
 		} else {
 			if (*iname == NCP_ESC) {
 				int k;
@@ -1214,7 +1216,7 @@ ncp__vol2io(struct ncp_server *server, unsigned char *iname, unsigned int *ilen,
 		if (NCP_IS_FLAG(server, NCP_FLAG_UTF8)) {
 			int k;
 
-			k = utf8_wctomb(iname, ec, iname_end - iname);
+			k = utf32_to_utf8(ec, iname, iname_end - iname);
 			if (k < 0) {
 				err = -ENAMETOOLONG;
 				goto quit;

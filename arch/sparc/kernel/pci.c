@@ -711,19 +711,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 	pbus->resource[1] = &pbm->mem_space;
 }
 
-struct resource *pcibios_select_root(struct pci_dev *pdev, struct resource *r)
-{
-	struct pci_pbm_info *pbm = pdev->bus->sysdata;
-	struct resource *root = NULL;
-
-	if (r->flags & IORESOURCE_IO)
-		root = &pbm->io_space;
-	if (r->flags & IORESOURCE_MEM)
-		root = &pbm->mem_space;
-
-	return root;
-}
-
 void pcibios_update_irq(struct pci_dev *pdev, int irq)
 {
 }

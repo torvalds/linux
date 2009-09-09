@@ -45,7 +45,8 @@ struct s3c_adc_client {
 	unsigned char		 channel;
 
 	void	(*select_cb)(unsigned selected);
-	void	(*convert_cb)(unsigned val1, unsigned val2);
+	void	(*convert_cb)(unsigned val1, unsigned val2,
+			      unsigned *samples_left);
 };
 
 struct adc_device {
@@ -158,7 +159,8 @@ static void s3c_adc_default_select(unsigned select)
 
 struct s3c_adc_client *s3c_adc_register(struct platform_device *pdev,
 					void (*select)(unsigned int selected),
-					void (*conv)(unsigned d0, unsigned d1),
+					void (*conv)(unsigned d0, unsigned d1,
+						     unsigned *samples_left),
 					unsigned int is_ts)
 {
 	struct s3c_adc_client *client;
@@ -227,9 +229,10 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 	data1 = readl(adc->regs + S3C2410_ADCDAT1);
 	adc_dbg(adc, "read %d: 0x%04x, 0x%04x\n", client->nr_samples, data0, data1);
 
-	(client->convert_cb)(data0 & 0x3ff, data1 & 0x3ff);
+	client->nr_samples--;
+	(client->convert_cb)(data0 & 0x3ff, data1 & 0x3ff, &client->nr_samples);
 
-	if (--client->nr_samples > 0) {
+	if (client->nr_samples > 0) {
 		/* fire another conversion for this */
 
 		client->select_cb(1);

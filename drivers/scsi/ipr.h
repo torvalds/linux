@@ -37,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.4.2"
-#define IPR_DRIVER_DATE "(January 21, 2009)"
+#define IPR_DRIVER_VERSION "2.4.3"
+#define IPR_DRIVER_DATE "(June 10, 2009)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -1025,6 +1025,9 @@ struct ipr_chip_cfg_t {
 struct ipr_chip_t {
 	u16 vendor;
 	u16 device;
+	u16 intr_type;
+#define IPR_USE_LSI			0x00
+#define IPR_USE_MSI			0x01
 	const struct ipr_chip_cfg_t *cfg;
 };
 
@@ -1094,6 +1097,7 @@ struct ipr_ioa_cfg {
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
 	u8 needs_warm_reset:1;
+	u8 msi_received:1;
 
 	u8 revid;
 
@@ -1159,6 +1163,7 @@ struct ipr_ioa_cfg {
 
 	unsigned int transop_timeout;
 	const struct ipr_chip_cfg_t *chip_cfg;
+	const struct ipr_chip_t *ipr_chip;
 
 	void __iomem *hdw_dma_regs;	/* iomapped PCI memory space */
 	unsigned long hdw_dma_regs_pci;	/* raw PCI memory space */
@@ -1179,6 +1184,7 @@ struct ipr_ioa_cfg {
 	struct work_struct work_q;
 
 	wait_queue_head_t reset_wait_q;
+	wait_queue_head_t msi_wait_q;
 
 	struct ipr_dump *dump;
 	enum ipr_sdt_state sdt_state;

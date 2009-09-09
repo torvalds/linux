@@ -50,7 +50,7 @@ byte 255:  bit7 bit6 bit5 bit4 bit3 bit2 bit1 bit0   rp1 rp3 rp5 ... rp15
            cp5  cp5  cp5  cp5  cp4  cp4  cp4  cp4
 
 This figure represents a sector of 256 bytes.
-cp is my abbreviaton for column parity, rp for row parity.
+cp is my abbreviation for column parity, rp for row parity.
 
 Let's start to explain column parity.
 cp0 is the parity that belongs to all bit0, bit2, bit4, bit6.
@@ -560,7 +560,7 @@ Measuring this code again showed big gain. When executing the original
 linux code 1 million times, this took about 1 second on my system.
 (using time to measure the performance). After this iteration I was back
 to 0.075 sec. Actually I had to decide to start measuring over 10
-million interations in order not to loose too much accuracy. This one
+million iterations in order not to lose too much accuracy. This one
 definitely seemed to be the jackpot!
 
 There is a little bit more room for improvement though. There are three
@@ -571,8 +571,8 @@ loop; This eliminates 3 statements per loop. Of course after the loop we
 need to correct by adding:
     rp4 ^= rp4_6;
     rp6 ^= rp4_6
-Furthermore there are 4 sequential assingments to rp8. This can be
-encoded slightly more efficient by saving tmppar before those 4 lines
+Furthermore there are 4 sequential assignments to rp8. This can be
+encoded slightly more efficiently by saving tmppar before those 4 lines
 and later do rp8 = rp8 ^ tmppar ^ notrp8;
 (where notrp8 is the value of rp8 before those 4 lines).
 Again a use of the commutative property of xor.
@@ -622,7 +622,7 @@ Not a big change, but every penny counts :-)
 Analysis 7
 ==========
 
-Acutally this made things worse. Not very much, but I don't want to move
+Actually this made things worse. Not very much, but I don't want to move
 into the wrong direction. Maybe something to investigate later. Could
 have to do with caching again.
 
@@ -642,7 +642,7 @@ Analysis 8
 This makes things worse. Let's stick with attempt 6 and continue from there.
 Although it seems that the code within the loop cannot be optimised
 further there is still room to optimize the generation of the ecc codes.
-We can simply calcualate the total parity. If this is 0 then rp4 = rp5
+We can simply calculate the total parity. If this is 0 then rp4 = rp5
 etc. If the parity is 1, then rp4 = !rp5;
 But if rp4 = rp5 we do not need rp5 etc. We can just write the even bits
 in the result byte and then do something like

@@ -75,8 +75,17 @@ void _exception(long signr, struct pt_regs *regs, int code,
 {
 	siginfo_t info;
 
-	if (!user_mode(regs))
+	if (!user_mode(regs)) {
+		const struct exception_table_entry *fixup;
+
+		/* Are we prepared to handle this kernel fault? */
+		fixup = search_exception_tables(regs->pc);
+		if (fixup) {
+			regs->pc = fixup->fixup;
+			return;
+		}
 		die("Unhandled exception in kernel mode", regs, signr);
+	}
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;

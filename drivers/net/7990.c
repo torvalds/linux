@@ -541,7 +541,7 @@ int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
         if (!TX_BUFFS_AVAIL)
-                return -1;
+                return NETDEV_TX_LOCKED;
 
 	netif_stop_queue (dev);
 

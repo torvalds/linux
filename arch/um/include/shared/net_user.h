@@ -8,7 +8,7 @@
 
 #define ETH_ADDR_LEN (6)
 #define ETH_HEADER_ETHERTAP (16)
-#define ETH_HEADER_OTHER (14)
+#define ETH_HEADER_OTHER (26) /* 14 for ethernet + VLAN + MPLS for crazy people */
 #define ETH_MAX_PACKET (1500)
 
 #define UML_NET_VERSION (4)

@@ -95,6 +95,8 @@
 #define  CHIPREV_ID_5752_A1		 0x6001
 #define  CHIPREV_ID_5714_A2		 0x9002
 #define  CHIPREV_ID_5906_A1		 0xc001
+#define  CHIPREV_ID_57780_A0		 0x57780000
+#define  CHIPREV_ID_57780_A1		 0x57780001
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -1697,6 +1699,8 @@
 
 #define PCIE_PWR_MGMT_THRESH		0x00007d28
 #define PCIE_PWR_MGMT_L1_THRESH_MSK	 0x0000ff00
+#define PCIE_PWR_MGMT_L1_THRESH_4MS	 0x0000ff00
+#define PCIE_PWR_MGMT_EXT_ASPM_TMR_EN	 0x01000000
 
 
 /* OTP bit definitions */
@@ -2501,6 +2505,7 @@ struct tg3 {
 	struct tg3_hw_status		*hw_status;
 	dma_addr_t			status_mapping;
 	u32				last_tag;
+	u32				last_irq_tag;
 
 	u32				msg_enable;
 
@@ -2635,6 +2640,7 @@ struct tg3 {
 #define TG3_FLG3_CLKREQ_BUG		0x00000800
 #define TG3_FLG3_PHY_ENABLE_APD		0x00001000
 #define TG3_FLG3_5755_PLUS		0x00002000
+#define TG3_FLG3_NO_NVRAM		0x00004000
 
 	struct timer_list		timer;
 	u16				timer_counter;

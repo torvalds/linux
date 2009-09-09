@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>
+#include <linux/nls.h>
 #include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/usb/quirks.h>
@@ -364,6 +365,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	int i;
 	int urb_flags;
 	int dma;
+	int use_sg;
 
 	if (!io || !dev || !sg
 			|| usb_pipecontrol(pipe)
@@ -391,7 +393,19 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (io->entries <= 0)
 		return io->entries;
 
-	io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
+	/* If we're running on an xHCI host controller, queue the whole scatter
+	 * gather list with one call to urb_enqueue().  This is only for bulk,
+	 * as that endpoint type does not care how the data gets broken up
+	 * across frames.
+	 */
+	if (usb_pipebulk(pipe) &&
+			bus_to_hcd(dev->bus)->driver->flags & HCD_USB3) {
+		io->urbs = kmalloc(sizeof *io->urbs, mem_flags);
+		use_sg = true;
+	} else {
+		io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
+		use_sg = false;
+	}
 	if (!io->urbs)
 		goto nomem;
 
@@ -401,62 +415,92 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
-	for_each_sg(sg, sg, io->entries, i) {
-		unsigned len;
-
-		io->urbs[i] = usb_alloc_urb(0, mem_flags);
-		if (!io->urbs[i]) {
-			io->entries = i;
+	if (use_sg) {
+		io->urbs[0] = usb_alloc_urb(0, mem_flags);
+		if (!io->urbs[0]) {
+			io->entries = 0;
 			goto nomem;
 		}
 
-		io->urbs[i]->dev = NULL;
-		io->urbs[i]->pipe = pipe;
-		io->urbs[i]->interval = period;
-		io->urbs[i]->transfer_flags = urb_flags;
+		io->urbs[0]->dev = NULL;
+		io->urbs[0]->pipe = pipe;
+		io->urbs[0]->interval = period;
+		io->urbs[0]->transfer_flags = urb_flags;
 
-		io->urbs[i]->complete = sg_complete;
-		io->urbs[i]->context = io;
+		io->urbs[0]->complete = sg_complete;
+		io->urbs[0]->context = io;
+		/* A length of zero means transfer the whole sg list */
+		io->urbs[0]->transfer_buffer_length = length;
+		if (length == 0) {
+			for_each_sg(sg, sg, io->entries, i) {
+				io->urbs[0]->transfer_buffer_length +=
+					sg_dma_len(sg);
+			}
+		}
+		io->urbs[0]->sg = io;
+		io->urbs[0]->num_sgs = io->entries;
+		io->entries = 1;
+	} else {
+		for_each_sg(sg, sg, io->entries, i) {
+			unsigned len;
 
-		/*
-		 * Some systems need to revert to PIO when DMA is temporarily
-		 * unavailable.  For their sakes, both transfer_buffer and
-		 * transfer_dma are set when possible.  However this can only
-		 * work on systems without:
-		 *
-		 *  - HIGHMEM, since DMA buffers located in high memory are
-		 *    not directly addressable by the CPU for PIO;
-		 *
-		 *  - IOMMU, since dma_map_sg() is allowed to use an IOMMU to
-		 *    make virtually discontiguous buffers be "dma-contiguous"
-		 *    so that PIO and DMA need diferent numbers of URBs.
-		 *
-		 * So when HIGHMEM or IOMMU are in use, transfer_buffer is NULL
-		 * to prevent stale pointers and to help spot bugs.
-		 */
-		if (dma) {
-			io->urbs[i]->transfer_dma = sg_dma_address(sg);
-			len = sg_dma_len(sg);
+			io->urbs[i] = usb_alloc_urb(0, mem_flags);
+			if (!io->urbs[i]) {
+				io->entries = i;
+				goto nomem;
+			}
+
+			io->urbs[i]->dev = NULL;
+			io->urbs[i]->pipe = pipe;
+			io->urbs[i]->interval = period;
+			io->urbs[i]->transfer_flags = urb_flags;
+
+			io->urbs[i]->complete = sg_complete;
+			io->urbs[i]->context = io;
+
+			/*
+			 * Some systems need to revert to PIO when DMA is
+			 * temporarily unavailable.  For their sakes, both
+			 * transfer_buffer and transfer_dma are set when
+			 * possible.  However this can only work on systems
+			 * without:
+			 *
+			 *  - HIGHMEM, since DMA buffers located in high memory
+			 *    are not directly addressable by the CPU for PIO;
+			 *
+			 *  - IOMMU, since dma_map_sg() is allowed to use an
+			 *    IOMMU to make virtually discontiguous buffers be
+			 *    "dma-contiguous" so that PIO and DMA need diferent
+			 *    numbers of URBs.
+			 *
+			 * So when HIGHMEM or IOMMU are in use, transfer_buffer
+			 * is NULL to prevent stale pointers and to help spot
+			 * bugs.
+			 */
+			if (dma) {
+				io->urbs[i]->transfer_dma = sg_dma_address(sg);
+				len = sg_dma_len(sg);
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_GART_IOMMU)
-			io->urbs[i]->transfer_buffer = NULL;
+				io->urbs[i]->transfer_buffer = NULL;
 #else
-			io->urbs[i]->transfer_buffer = sg_virt(sg);
+				io->urbs[i]->transfer_buffer = sg_virt(sg);
 #endif
-		} else {
-			/* hc may use _only_ transfer_buffer */
-			io->urbs[i]->transfer_buffer = sg_virt(sg);
-			len = sg->length;
-		}
+			} else {
+				/* hc may use _only_ transfer_buffer */
+				io->urbs[i]->transfer_buffer = sg_virt(sg);
+				len = sg->length;
+			}
 
-		if (length) {
-			len = min_t(unsigned, len, length);
-			length -= len;
-			if (length == 0)
-				io->entries = i + 1;
+			if (length) {
+				len = min_t(unsigned, len, length);
+				length -= len;
+				if (length == 0)
+					io->entries = i + 1;
+			}
+			io->urbs[i]->transfer_buffer_length = len;
 		}
-		io->urbs[i]->transfer_buffer_length = len;
+		io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 	}
-	io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 
 	/* transaction state */
 	io->count = io->entries;
@@ -509,6 +553,10 @@ EXPORT_SYMBOL_GPL(usb_sg_init);
  * could be transferred.  That capability is less useful for low or full
  * speed interrupt endpoints, which allow at most one packet per millisecond,
  * of at most 8 or 64 bytes (respectively).
+ *
+ * It is not necessary to call this function to reserve bandwidth for devices
+ * under an xHCI host controller, as the bandwidth is reserved when the
+ * configuration or interface alt setting is selected.
  */
 void usb_sg_wait(struct usb_sg_request *io)
 {
@@ -759,7 +807,7 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
 }
 
 /**
- * usb_string - returns ISO 8859-1 version of a string descriptor
+ * usb_string - returns UTF-8 version of a string descriptor
  * @dev: the device whose string descriptor is being retrieved
  * @index: the number of the descriptor
  * @buf: where to put the string
@@ -767,16 +815,9 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
  * Context: !in_interrupt ()
  *
  * This converts the UTF-16LE encoded strings returned by devices, from
- * usb_get_string_descriptor(), to null-terminated ISO-8859-1 encoded ones
- * that are more usable in most kernel contexts.  Note that all characters
- * in the chosen descriptor that can't be encoded using ISO-8859-1
- * are converted to the question mark ("?") character, and this function
+ * usb_get_string_descriptor(), to null-terminated UTF-8 encoded ones
+ * that are more usable in most kernel contexts.  Note that this function
  * chooses strings in the first language supported by the device.
- *
- * The ASCII (or, redundantly, "US-ASCII") character set is the seven-bit
- * subset of ISO 8859-1. ISO-8859-1 is the eight-bit subset of Unicode,
- * and is appropriate for use many uses of English and several other
- * Western European languages.  (But it doesn't include the "Euro" symbol.)
  *
  * This call is synchronous, and may not be used in an interrupt context.
  *
@@ -786,7 +827,6 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 {
 	unsigned char *tbuf;
 	int err;
-	unsigned int u, idx;
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -821,16 +861,9 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 		goto errout;
 
 	size--;		/* leave room for trailing NULL char in output buffer */
-	for (idx = 0, u = 2; u < err; u += 2) {
-		if (idx >= size)
-			break;
-		if (tbuf[u+1])			/* high byte */
-			buf[idx++] = '?';  /* non ISO-8859-1 character */
-		else
-			buf[idx++] = tbuf[u];
-	}
-	buf[idx] = 0;
-	err = idx;
+	err = utf16s_to_utf8s((wchar_t *) &tbuf[2], (err - 2) / 2,
+			UTF16_LITTLE_ENDIAN, buf, size);
+	buf[err] = 0;
 
 	if (tbuf[1] != USB_DT_STRING)
 		dev_dbg(&dev->dev,
@@ -842,6 +875,9 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	return err;
 }
 EXPORT_SYMBOL_GPL(usb_string);
+
+/* one UTF-8-encoded 16-bit character has at most three bytes */
+#define MAX_USB_STRING_SIZE (127 * 3 + 1)
 
 /**
  * usb_cache_string - read a string descriptor and cache it for later use
@@ -860,9 +896,9 @@ char *usb_cache_string(struct usb_device *udev, int index)
 	if (index <= 0)
 		return NULL;
 
-	buf = kmalloc(256, GFP_KERNEL);
+	buf = kmalloc(MAX_USB_STRING_SIZE, GFP_KERNEL);
 	if (buf) {
-		len = usb_string(udev, index, buf, 256);
+		len = usb_string(udev, index, buf, MAX_USB_STRING_SIZE);
 		if (len > 0) {
 			smallbuf = kmalloc(++len, GFP_KERNEL);
 			if (!smallbuf)
@@ -1664,6 +1700,21 @@ free_interfaces:
 	if (ret)
 		goto free_interfaces;
 
+	/* Make sure we have bandwidth (and available HCD resources) for this
+	 * configuration.  Remove endpoints from the schedule if we're dropping
+	 * this configuration to set configuration 0.  After this point, the
+	 * host controller will not allow submissions to dropped endpoints.  If
+	 * this call fails, the device state is unchanged.
+	 */
+	if (cp)
+		ret = usb_hcd_check_bandwidth(dev, cp, NULL);
+	else
+		ret = usb_hcd_check_bandwidth(dev, NULL, NULL);
+	if (ret < 0) {
+		usb_autosuspend_device(dev);
+		goto free_interfaces;
+	}
+
 	/* if it's already configured, clear out old state first.
 	 * getting rid of old interfaces means unbinding their drivers.
 	 */
@@ -1686,6 +1737,7 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
+		usb_hcd_check_bandwidth(dev, NULL, NULL);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
 	}

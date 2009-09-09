@@ -70,5 +70,14 @@
 #define UART2_ENABLE_MASK	0x3f00 
 #endif
 
+/*
+ *  Reset Controll Unit (relative to IPSBAR).
+ */
+#define	MCF_RCR			0x110000
+#define	MCF_RSR			0x110001
+
+#define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
+#define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
 /****************************************************************************/
 #endif	/* m527xsim_h */

@@ -85,6 +85,8 @@ source "drivers/staging/altpciechdma/Kconfig"
 
 source "drivers/staging/rtl8187se/Kconfig"
 
+source "drivers/staging/rtl8192su/Kconfig"
+
 source "drivers/staging/rspiusb/Kconfig"
 
 source "drivers/staging/mimio/Kconfig"
@@ -113,7 +115,19 @@ source "drivers/staging/heci/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
 
-source "drivers/staging/serqt_usb/Kconfig"
+source "drivers/gpu/drm/radeon/Kconfig"
+
+source "drivers/staging/octeon/Kconfig"
+
+source "drivers/staging/serqt_usb2/Kconfig"
+
+source "drivers/staging/vt6655/Kconfig"
+
+source "drivers/staging/cpc-usb/Kconfig"
+
+source "drivers/staging/pata_rdc/Kconfig"
+
+source "drivers/staging/udlfb/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

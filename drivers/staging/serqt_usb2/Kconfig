@@ -1,0 +1,9 @@
+config USB_SERIAL_QUATECH2
+	tristate "USB Quatech ESU-100 8 Port Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use the Quatech ESU-100 8 port usb to
+	  serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serqt_usb2.

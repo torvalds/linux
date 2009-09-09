@@ -181,7 +181,7 @@ static int hdpvr_submit_buffers(struct hdpvr_device *dev)
 				 buff_list);
 		if (buf->status != BUFSTAT_AVAILABLE) {
 			v4l2_err(&dev->v4l2_dev,
-				 "buffer not marked as availbale\n");
+				 "buffer not marked as available\n");
 			ret = -EFAULT;
 			goto err;
 		}

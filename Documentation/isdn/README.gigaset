@@ -149,10 +149,8 @@ GigaSet 307x Device Driver
      configuration files and chat scripts in the gigaset-VERSION/ppp directory
      in the driver packages from http://sourceforge.net/projects/gigaset307x/.
      Please note that the USB drivers are not able to change the state of the
-     control lines (the M105 driver can be configured to use some undocumented
-     control requests, if you really need the control lines, though). This means
-     you must use "Stupid Mode" if you are using wvdial or you should use the
-     nocrtscts option of pppd.
+     control lines. This means you must use "Stupid Mode" if you are using
+     wvdial or you should use the nocrtscts option of pppd.
      You must also assure that the ppp_async module is loaded with the parameter
      flag_time=0. You can do this e.g. by adding a line like
 
@@ -190,20 +188,19 @@ GigaSet 307x Device Driver
      You can also use /sys/class/tty/ttyGxy/cidmode for changing the CID mode
      setting (ttyGxy is ttyGU0 or ttyGB0).
 
-2.6. M105 Undocumented USB Requests
-     ------------------------------
+2.6. Unregistered Wireless Devices (M101/M105)
+     -----------------------------------------
+     The main purpose of the ser_gigaset and usb_gigaset drivers is to allow
+     the M101 and M105 wireless devices to be used as ISDN devices for ISDN
+     connections through a Gigaset base. Therefore they assume that the device
+     is registered to a DECT base.
 
-     The Gigaset M105 USB data box understands a couple of useful, but
-     undocumented USB commands. These requests are not used in normal
-     operation (for wireless access to the base), but are needed for access
-     to the M105's own configuration mode (registration to the base, baudrate
-     and line format settings, device status queries) via the gigacontr
-     utility. Their use is controlled by the kernel configuration option
-     "Support for undocumented USB requests" (CONFIG_GIGASET_UNDOCREQ). If you
-     encounter error code -ENOTTY when trying to use some features of the
-     M105, try setting that option to "y" via 'make {x,menu}config' and
-     recompiling the driver.
-
+     If the M101/M105 device is not registered to a base, initialization of
+     the device fails, and a corresponding error message is logged by the
+     driver. In that situation, a restricted set of functions is available
+     which includes, in particular, those necessary for registering the device
+     to a base or for switching it between Fixed Part and Portable Part
+     modes.
 
 3.   Troubleshooting
      ---------------
@@ -234,11 +231,12 @@ GigaSet 307x Device Driver
         Select Unimodem mode for all DECT data adapters. (see section 2.4.)
 
      Problem:
-        You want to configure your USB DECT data adapter (M105) but gigacontr
-        reports an error: "/dev/ttyGU0: Inappropriate ioctl for device".
+	Messages like this:
+	    usb_gigaset 3-2:1.0: Could not initialize the device.
+	appear in your syslog.
      Solution:
-        Recompile the usb_gigaset driver with the kernel configuration option
-        CONFIG_GIGASET_UNDOCREQ set to 'y'. (see section 2.6.)
+	Check whether your M10x wireless device is correctly registered to the
+	Gigaset base. (see section 2.6.)
 
 3.2. Telling the driver to provide more information
      ----------------------------------------------

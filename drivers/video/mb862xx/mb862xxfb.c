@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#if defined(CONFIG_PPC_OF)
+#if defined(CONFIG_OF)
 #include <linux/of_platform.h>
 #endif
 #include "mb862xxfb.h"

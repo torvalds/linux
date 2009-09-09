@@ -29,7 +29,7 @@ config HOSTAP
 	PLX/PCI/CS version of the driver to actually use the driver.
 
 	The driver can be compiled as a module and it will be called
-	"hostap.ko".
+	hostap.
 
 config HOSTAP_FIRMWARE
 	bool "Support downloading firmware images with Host AP driver"
@@ -68,7 +68,7 @@ config HOSTAP_PLX
 	driver.
 
 	The driver can be compiled as a module and will be named
-	"hostap_plx.ko".
+	hostap_plx.
 
 config HOSTAP_PCI
 	tristate "Host AP driver for Prism2.5 PCI adaptors"
@@ -81,7 +81,7 @@ config HOSTAP_PCI
 	driver.
 
 	The driver can be compiled as a module and will be named
-	"hostap_pci.ko".
+	hostap_pci.
 
 config HOSTAP_CS
 	tristate "Host AP driver for Prism2/2.5/3 PC Cards"
@@ -94,4 +94,4 @@ config HOSTAP_CS
 	driver.
 
 	The driver can be compiled as a module and will be named
-	"hostap_cs.ko".
+	hostap_cs.

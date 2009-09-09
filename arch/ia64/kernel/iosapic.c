@@ -329,7 +329,7 @@ unmask_irq (unsigned int irq)
 }
 
 
-static void
+static int
 iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
@@ -343,15 +343,15 @@ iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 	cpu = cpumask_first_and(cpu_online_mask, mask);
 	if (cpu >= nr_cpu_ids)
-		return;
+		return -1;
 
 	if (irq_prepare_move(irq, cpu))
-		return;
+		return -1;
 
 	dest = cpu_physical_id(cpu);
 
 	if (!iosapic_intr_info[irq].count)
-		return;			/* not an IOSAPIC interrupt */
+		return -1;			/* not an IOSAPIC interrupt */
 
 	set_irq_affinity_info(irq, dest, redir);
 
@@ -376,7 +376,9 @@ iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 		iosapic_write(iosapic, IOSAPIC_RTE_HIGH(rte_index), high32);
 		iosapic_write(iosapic, IOSAPIC_RTE_LOW(rte_index), low32);
 	}
+
 #endif
+	return 0;
 }
 
 /*
@@ -449,7 +451,7 @@ iosapic_startup_edge_irq (unsigned int irq)
 static void
 iosapic_ack_edge_irq (unsigned int irq)
 {
-	irq_desc_t *idesc = irq_desc + irq;
+	struct irq_desc *idesc = irq_desc + irq;
 
 	irq_complete_move(irq);
 	move_native_irq(irq);
@@ -598,8 +600,8 @@ static int
 register_intr (unsigned int gsi, int irq, unsigned char delivery,
 	       unsigned long polarity, unsigned long trigger)
 {
-	irq_desc_t *idesc;
-	struct hw_interrupt_type *irq_type;
+	struct irq_desc *idesc;
+	struct irq_chip *irq_type;
 	int index;
 	struct iosapic_rte_info *rte;
 
@@ -648,7 +650,7 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 
 	idesc = irq_desc + irq;
 	if (irq_type != NULL && idesc->chip != irq_type) {
-		if (idesc->chip != &no_irq_type)
+		if (idesc->chip != &no_irq_chip)
 			printk(KERN_WARNING
 			       "%s: changing vector %d from %s to %s\n",
 			       __func__, irq_to_vector(irq),
@@ -826,7 +828,7 @@ iosapic_unregister_intr (unsigned int gsi)
 {
 	unsigned long flags;
 	int irq, index;
-	irq_desc_t *idesc;
+	struct irq_desc *idesc;
 	u32 low32;
 	unsigned long trigger, polarity;
 	unsigned int dest;

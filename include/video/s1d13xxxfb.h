@@ -136,6 +136,15 @@
 #define S1DREG_DELAYOFF			0xFFFE
 #define S1DREG_DELAYON			0xFFFF
 
+#define BBLT_FIFO_EMPTY			0x00
+#define BBLT_FIFO_NOT_EMPTY		0x40
+#define BBLT_FIFO_NOT_FULL		0x30
+#define BBLT_FIFO_HALF_FULL		0x20
+#define BBLT_FIFO_FULL			0x10
+
+#define BBLT_SOLID_FILL			0x0c
+
+
 /* Note: all above defines should go in separate header files
    when implementing other S1D13xxx chip support. */
 

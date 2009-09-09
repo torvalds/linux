@@ -19,6 +19,9 @@ Supported adapters:
   * VIA Technologies, Inc. VX800/VX820
     Datasheet: available on http://linux.via.com.tw
 
+  * VIA Technologies, Inc. VX855/VX875
+    Datasheet: Availability unknown
+
 Authors:
 	Kyösti Mälkki <kmalkki@cc.hut.fi>,
 	Mark D. Studebaker <mdsxyz123@yahoo.com>,
@@ -53,6 +56,7 @@ Your lspci -n listing must show one of these :
  device 1106:3287   (VT8251)
  device 1106:8324   (CX700)
  device 1106:8353   (VX800/VX820)
+ device 1106:8409   (VX855/VX875)
 
 If none of these show up, you should look in the BIOS for settings like
 enable ACPI / SMBus or even USB.

@@ -539,7 +539,7 @@ rio_tx_timeout (struct net_device *dev)
 		dev->name, readl (ioaddr + TxStatus));
 	rio_free_tx(dev, 0);
 	dev->if_port = 0;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
  /* allocate and initialize Tx and Rx descriptors */
@@ -610,7 +610,7 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	if (np->link_status == 0) {	/* Link Down */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	ioaddr = dev->base_addr;
 	entry = np->cur_tx % TX_RING_SIZE;
@@ -665,9 +665,7 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 		writel (0, dev->base_addr + TFDListPtr1);
 	}
 
-	/* NETDEV WATCHDOG timer */
-	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static irqreturn_t

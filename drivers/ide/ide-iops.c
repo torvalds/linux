@@ -282,6 +282,29 @@ no_80w:
 	return 0;
 }
 
+static const char *nien_quirk_list[] = {
+	"QUANTUM FIREBALLlct08 08",
+	"QUANTUM FIREBALLP KA6.4",
+	"QUANTUM FIREBALLP KA9.1",
+	"QUANTUM FIREBALLP KX13.6",
+	"QUANTUM FIREBALLP KX20.5",
+	"QUANTUM FIREBALLP KX27.3",
+	"QUANTUM FIREBALLP LM20.4",
+	"QUANTUM FIREBALLP LM20.5",
+	NULL
+};
+
+void ide_check_nien_quirk_list(ide_drive_t *drive)
+{
+	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
+
+	for (list = nien_quirk_list; *list != NULL; list++)
+		if (strstr(m, *list) != NULL) {
+			drive->dev_flags |= IDE_DFLAG_NIEN_QUIRK;
+			return;
+		}
+}
+
 int ide_driveid_update(ide_drive_t *drive)
 {
 	u16 *id;
@@ -311,7 +334,6 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	return 1;
 out_err:
-	SELECT_MASK(drive, 0);
 	if (rc == 2)
 		printk(KERN_ERR "%s: %s: bad status\n", drive->name, __func__);
 	kfree(id);
@@ -365,7 +387,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
 	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 
-	if (drive->quirk_list == 2)
+	if (drive->dev_flags & IDE_DFLAG_NIEN_QUIRK)
 		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,

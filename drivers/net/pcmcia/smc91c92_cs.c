@@ -1388,7 +1388,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_aborted_errors++;
 	printk(KERN_DEBUG "%s: Internal error -- sent packet while busy.\n",
 	       dev->name);
-	return 1;
+	return NETDEV_TX_BUSY;
     }
     smc->saved_skb = skb;
 

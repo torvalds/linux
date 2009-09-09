@@ -389,7 +389,7 @@ i2c_au1550_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	priv->ioarea = request_mem_region(r->start, r->end - r->start + 1,
+	priv->ioarea = request_mem_region(r->start, resource_size(r),
 					  pdev->name);
 	if (!priv->ioarea) {
 		ret = -EBUSY;

@@ -155,7 +155,7 @@
 			};
 
 			sdhci@2e000 {
-				compatible = "fsl,mpc8378-esdhc", "fsl,mpc8379-esdhc";
+				compatible = "fsl,mpc8378-esdhc", "fsl,esdhc";
 				reg = <0x2e000 0x1000>;
 				interrupts = <42 0x8>;
 				interrupt-parent = <&ipic>;
@@ -367,7 +367,6 @@
 	};
 
 	pci0: pci@e0008500 {
-		cell-index = <0>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 

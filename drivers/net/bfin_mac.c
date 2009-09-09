@@ -194,13 +194,13 @@ static int desc_list_init(void)
 		struct dma_descriptor *b = &(r->desc_b);
 
 		/* allocate a new skb for next time receive */
-		new_skb = dev_alloc_skb(PKT_BUF_SZ + 2);
+		new_skb = dev_alloc_skb(PKT_BUF_SZ + NET_IP_ALIGN);
 		if (!new_skb) {
 			printk(KERN_NOTICE DRV_NAME
 			       ": init: low on mem - packet dropped\n");
 			goto init_error;
 		}
-		skb_reserve(new_skb, 2);
+		skb_reserve(new_skb, NET_IP_ALIGN);
 		r->skb = new_skb;
 
 		/*
@@ -566,9 +566,9 @@ static void adjust_tx_list(void)
 	 */
 	if (current_tx_ptr->next->next == tx_list_head) {
 		while (tx_list_head->status.status_word == 0) {
-			mdelay(1);
+			udelay(10);
 			if (tx_list_head->status.status_word != 0
-			    || !(bfin_read_DMA2_IRQ_STATUS() & 0x08)) {
+			    || !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
 				goto adjust_head;
 			}
 			if (timeout_cnt-- < 0) {
@@ -606,93 +606,41 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
 	u16 *data;
-
+	u32 data_align = (unsigned long)(skb->data) & 0x3;
 	current_tx_ptr->skb = skb;
 
-	if (ANOMALY_05000285) {
-		/*
-		 * TXDWA feature is not avaible to older revision < 0.3 silicon
-		 * of BF537
-		 *
-		 * Only if data buffer is ODD WORD alignment, we do not
-		 * need to memcpy
-		 */
-		u32 data_align = (u32)(skb->data) & 0x3;
-		if (data_align == 0x2) {
-			/* move skb->data to current_tx_ptr payload */
-			data = (u16 *)(skb->data) - 1;
-			*data = (u16)(skb->len);
-			current_tx_ptr->desc_a.start_addr = (u32)data;
-			/* this is important! */
-			blackfin_dcache_flush_range((u32)data,
-					(u32)((u8 *)data + skb->len + 4));
-		} else {
-			*((u16 *)(current_tx_ptr->packet)) = (u16)(skb->len);
-			memcpy((u8 *)(current_tx_ptr->packet + 2), skb->data,
-				skb->len);
-			current_tx_ptr->desc_a.start_addr =
-				(u32)current_tx_ptr->packet;
-			if (current_tx_ptr->status.status_word != 0)
-				current_tx_ptr->status.status_word = 0;
-			blackfin_dcache_flush_range(
-				(u32)current_tx_ptr->packet,
-				(u32)(current_tx_ptr->packet + skb->len + 2));
-		}
+	if (data_align == 0x2) {
+		/* move skb->data to current_tx_ptr payload */
+		data = (u16 *)(skb->data) - 1;
+				*data = (u16)(skb->len);
+		current_tx_ptr->desc_a.start_addr = (u32)data;
+		/* this is important! */
+		blackfin_dcache_flush_range((u32)data,
+				(u32)((u8 *)data + skb->len + 4));
 	} else {
-		/*
-		 * TXDWA feature is avaible to revision < 0.3 silicon of
-		 * BF537 and always avaible to BF52x
-		 */
-		u32 data_align = (u32)(skb->data) & 0x3;
-		if (data_align == 0x0) {
-			u16 sysctl = bfin_read_EMAC_SYSCTL();
-			sysctl |= TXDWA;
-			bfin_write_EMAC_SYSCTL(sysctl);
-
-			/* move skb->data to current_tx_ptr payload */
-			data = (u16 *)(skb->data) - 2;
-			*data = (u16)(skb->len);
-			current_tx_ptr->desc_a.start_addr = (u32)data;
-			/* this is important! */
-			blackfin_dcache_flush_range(
-					(u32)data,
-					(u32)((u8 *)data + skb->len + 4));
-		} else if (data_align == 0x2) {
-			u16 sysctl = bfin_read_EMAC_SYSCTL();
-			sysctl &= ~TXDWA;
-			bfin_write_EMAC_SYSCTL(sysctl);
-
-			/* move skb->data to current_tx_ptr payload */
-			data = (u16 *)(skb->data) - 1;
-			*data = (u16)(skb->len);
-			current_tx_ptr->desc_a.start_addr = (u32)data;
-			/* this is important! */
-			blackfin_dcache_flush_range(
-					(u32)data,
-					(u32)((u8 *)data + skb->len + 4));
-		} else {
-			u16 sysctl = bfin_read_EMAC_SYSCTL();
-			sysctl &= ~TXDWA;
-			bfin_write_EMAC_SYSCTL(sysctl);
-
-			*((u16 *)(current_tx_ptr->packet)) = (u16)(skb->len);
-			memcpy((u8 *)(current_tx_ptr->packet + 2), skb->data,
-				skb->len);
-			current_tx_ptr->desc_a.start_addr =
-				(u32)current_tx_ptr->packet;
-			if (current_tx_ptr->status.status_word != 0)
-				current_tx_ptr->status.status_word = 0;
-			blackfin_dcache_flush_range(
-				(u32)current_tx_ptr->packet,
-				(u32)(current_tx_ptr->packet + skb->len + 2));
-		}
+		*((u16 *)(current_tx_ptr->packet)) = (u16)(skb->len);
+		memcpy((u8 *)(current_tx_ptr->packet + 2), skb->data,
+			skb->len);
+		current_tx_ptr->desc_a.start_addr =
+			(u32)current_tx_ptr->packet;
+		if (current_tx_ptr->status.status_word != 0)
+			current_tx_ptr->status.status_word = 0;
+		blackfin_dcache_flush_range(
+			(u32)current_tx_ptr->packet,
+			(u32)(current_tx_ptr->packet + skb->len + 2));
 	}
+
+	/* make sure the internal data buffers in the core are drained
+	 * so that the DMA descriptors are completely written when the
+	 * DMA engine goes to fetch them below
+	 */
+	SSYNC();
 
 	/* enable this packet's dma */
 	current_tx_ptr->desc_a.config |= DMAEN;
 
 	/* tx dma is running, just return */
-	if (bfin_read_DMA2_IRQ_STATUS() & 0x08)
+	if (bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)
 		goto out;
 
 	/* tx dma is not running */
@@ -718,7 +666,7 @@ static void bfin_mac_rx(struct net_device *dev)
 
 	/* allocate a new skb for next time receive */
 	skb = current_rx_ptr->skb;
-	new_skb = dev_alloc_skb(PKT_BUF_SZ + 2);
+	new_skb = dev_alloc_skb(PKT_BUF_SZ + NET_IP_ALIGN);
 	if (!new_skb) {
 		printk(KERN_NOTICE DRV_NAME
 		       ": rx: low on mem - packet dropped\n");
@@ -726,7 +674,7 @@ static void bfin_mac_rx(struct net_device *dev)
 		goto out;
 	}
 	/* reserve 2 bytes for RXDWA padding */
-	skb_reserve(new_skb, 2);
+	skb_reserve(new_skb, NET_IP_ALIGN);
 	current_rx_ptr->skb = new_skb;
 	current_rx_ptr->desc_a.start_addr = (unsigned long)new_skb->data - 2;
 
@@ -1022,7 +970,8 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct bfin_mac_local *lp;
-	int rc, i;
+	struct platform_device *pd;
+	int rc;
 
 	ndev = alloc_etherdev(sizeof(struct bfin_mac_local));
 	if (!ndev) {
@@ -1047,13 +996,6 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 		goto out_err_probe_mac;
 	}
 
-	/* set the GPIO pins to Ethernet mode */
-	rc = peripheral_request_list(pin_req, DRV_NAME);
-	if (rc) {
-		dev_err(&pdev->dev, "Requesting peripherals failed!\n");
-		rc = -EFAULT;
-		goto out_err_setup_pin_mux;
-	}
 
 	/*
 	 * Is it valid? (Did bootloader initialize it?)
@@ -1069,26 +1011,14 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 
 	setup_mac_addr(ndev->dev_addr);
 
-	/* MDIO bus initial */
-	lp->mii_bus = mdiobus_alloc();
-	if (lp->mii_bus == NULL)
-		goto out_err_mdiobus_alloc;
-
-	lp->mii_bus->priv = ndev;
-	lp->mii_bus->read = bfin_mdiobus_read;
-	lp->mii_bus->write = bfin_mdiobus_write;
-	lp->mii_bus->reset = bfin_mdiobus_reset;
-	lp->mii_bus->name = "bfin_mac_mdio";
-	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "0");
-	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		lp->mii_bus->irq[i] = PHY_POLL;
-
-	rc = mdiobus_register(lp->mii_bus);
-	if (rc) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
-		goto out_err_mdiobus_register;
+	if (!pdev->dev.platform_data) {
+		dev_err(&pdev->dev, "Cannot get platform device bfin_mii_bus!\n");
+		rc = -ENODEV;
+		goto out_err_probe_mac;
 	}
+	pd = pdev->dev.platform_data;
+	lp->mii_bus = platform_get_drvdata(pd);
+	lp->mii_bus->priv = ndev;
 
 	rc = mii_probe(ndev);
 	if (rc) {
@@ -1107,7 +1037,7 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	/* now, enable interrupts */
 	/* register irq handler */
 	rc = request_irq(IRQ_MAC_RX, bfin_mac_interrupt,
-			IRQF_DISABLED | IRQF_SHARED, "EMAC_RX", ndev);
+			IRQF_DISABLED, "EMAC_RX", ndev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot request Blackfin MAC RX IRQ!\n");
 		rc = -EBUSY;
@@ -1130,11 +1060,8 @@ out_err_reg_ndev:
 out_err_request_irq:
 out_err_mii_probe:
 	mdiobus_unregister(lp->mii_bus);
-out_err_mdiobus_register:
 	mdiobus_free(lp->mii_bus);
-out_err_mdiobus_alloc:
 	peripheral_free_list(pin_req);
-out_err_setup_pin_mux:
 out_err_probe_mac:
 	platform_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
@@ -1149,8 +1076,7 @@ static int __devexit bfin_mac_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	mdiobus_unregister(lp->mii_bus);
-	mdiobus_free(lp->mii_bus);
+	lp->mii_bus->priv = NULL;
 
 	unregister_netdev(ndev);
 
@@ -1188,6 +1114,74 @@ static int bfin_mac_resume(struct platform_device *pdev)
 #define bfin_mac_resume NULL
 #endif	/* CONFIG_PM */
 
+static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
+{
+	struct mii_bus *miibus;
+	int rc, i;
+
+	/*
+	 * We are setting up a network card,
+	 * so set the GPIO pins to Ethernet mode
+	 */
+	rc = peripheral_request_list(pin_req, DRV_NAME);
+	if (rc) {
+		dev_err(&pdev->dev, "Requesting peripherals failed!\n");
+		return rc;
+	}
+
+	rc = -ENOMEM;
+	miibus = mdiobus_alloc();
+	if (miibus == NULL)
+		goto out_err_alloc;
+	miibus->read = bfin_mdiobus_read;
+	miibus->write = bfin_mdiobus_write;
+	miibus->reset = bfin_mdiobus_reset;
+
+	miibus->parent = &pdev->dev;
+	miibus->name = "bfin_mii_bus";
+	snprintf(miibus->id, MII_BUS_ID_SIZE, "0");
+	miibus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (miibus->irq == NULL)
+		goto out_err_alloc;
+	for (i = 0; i < PHY_MAX_ADDR; ++i)
+		miibus->irq[i] = PHY_POLL;
+
+	rc = mdiobus_register(miibus);
+	if (rc) {
+		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
+		goto out_err_mdiobus_register;
+	}
+
+	platform_set_drvdata(pdev, miibus);
+	return 0;
+
+out_err_mdiobus_register:
+	mdiobus_free(miibus);
+out_err_alloc:
+	peripheral_free_list(pin_req);
+
+	return rc;
+}
+
+static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
+{
+	struct mii_bus *miibus = platform_get_drvdata(pdev);
+	platform_set_drvdata(pdev, NULL);
+	mdiobus_unregister(miibus);
+	mdiobus_free(miibus);
+	peripheral_free_list(pin_req);
+	return 0;
+}
+
+static struct platform_driver bfin_mii_bus_driver = {
+	.probe = bfin_mii_bus_probe,
+	.remove = __devexit_p(bfin_mii_bus_remove),
+	.driver = {
+		.name = "bfin_mii_bus",
+		.owner	= THIS_MODULE,
+	},
+};
+
 static struct platform_driver bfin_mac_driver = {
 	.probe = bfin_mac_probe,
 	.remove = __devexit_p(bfin_mac_remove),
@@ -1201,7 +1195,11 @@ static struct platform_driver bfin_mac_driver = {
 
 static int __init bfin_mac_init(void)
 {
-	return platform_driver_register(&bfin_mac_driver);
+	int ret;
+	ret = platform_driver_register(&bfin_mii_bus_driver);
+	if (!ret)
+		return platform_driver_register(&bfin_mac_driver);
+	return -ENODEV;
 }
 
 module_init(bfin_mac_init);
@@ -1209,6 +1207,7 @@ module_init(bfin_mac_init);
 static void __exit bfin_mac_cleanup(void)
 {
 	platform_driver_unregister(&bfin_mac_driver);
+	platform_driver_unregister(&bfin_mii_bus_driver);
 }
 
 module_exit(bfin_mac_cleanup);

@@ -53,7 +53,7 @@ static				DEFINE_SPINLOCK(nsm_lock);
 /*
  * Local NSM state
  */
-int	__read_mostly		nsm_local_state;
+u32	__read_mostly		nsm_local_state;
 int	__read_mostly		nsm_use_hostnames;
 
 static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
@@ -112,6 +112,7 @@ static struct rpc_clnt *nsm_create(void)
 		.program		= &nsm_program,
 		.version		= NSM_VERSION,
 		.authflavor		= RPC_AUTH_NULL,
+		.flags			= RPC_CLNT_CREATE_NOPING,
 	};
 
 	return rpc_create(&args);
@@ -184,13 +185,19 @@ int nsm_monitor(const struct nlm_host *host)
 	nsm->sm_mon_name = nsm_use_hostnames ? nsm->sm_name : nsm->sm_addrbuf;
 
 	status = nsm_mon_unmon(nsm, NSMPROC_MON, &res);
-	if (res.status != 0)
+	if (unlikely(res.status != 0))
 		status = -EIO;
-	if (status < 0)
+	if (unlikely(status < 0)) {
 		printk(KERN_NOTICE "lockd: cannot monitor %s\n", nsm->sm_name);
-	else
-		nsm->sm_monitored = 1;
-	return status;
+		return status;
+	}
+
+	nsm->sm_monitored = 1;
+	if (unlikely(nsm_local_state != res.state)) {
+		nsm_local_state = res.state;
+		dprintk("lockd: NSM state changed to %d\n", nsm_local_state);
+	}
+	return 0;
 }
 
 /**

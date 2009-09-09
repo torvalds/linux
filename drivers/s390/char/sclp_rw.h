@@ -1,11 +1,10 @@
 /*
- *  drivers/s390/char/sclp_rw.h
- *    interface to the SCLP-read/write driver
+ * interface to the SCLP-read/write driver
  *
- *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
+ * Copyright IBM Corporation 1999, 2009
+ *
+ * Author(s): Martin Peschke <mpeschke@de.ibm.com>
+ *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #ifndef __SCLP_RW_H__
@@ -93,4 +92,5 @@ void sclp_set_columns(struct sclp_buffer *, unsigned short);
 void sclp_set_htab(struct sclp_buffer *, unsigned short);
 int sclp_chars_in_buffer(struct sclp_buffer *);
 
+void sclp_console_pm_event(enum sclp_pm_event sclp_pm_event);
 #endif	/* __SCLP_RW_H__ */

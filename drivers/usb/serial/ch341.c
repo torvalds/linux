@@ -262,13 +262,33 @@ error:	kfree(priv);
 	return r;
 }
 
-static void ch341_close(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int ch341_carrier_raised(struct usb_serial_port *port)
+{
+	struct ch341_private *priv = usb_get_serial_port_data(port);
+	if (priv->line_status & CH341_BIT_DCD)
+		return 1;
+	return 0;
+}
+
+static void ch341_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	unsigned int c_cflag;
 
+	dbg("%s - port %d", __func__, port->number);
+	/* drop DTR and RTS */
+	spin_lock_irqsave(&priv->lock, flags);
+	if (on)
+		priv->line_control |= CH341_BIT_RTS | CH341_BIT_DTR;
+	else
+		priv->line_control &= ~(CH341_BIT_RTS | CH341_BIT_DTR);
+	spin_unlock_irqrestore(&priv->lock, flags);
+	ch341_set_handshake(port->serial->dev, priv->line_control);
+	wake_up_interruptible(&priv->delta_msr_wait);
+}
+
+static void ch341_close(struct usb_serial_port *port)
+{
 	dbg("%s - port %d", __func__, port->number);
 
 	/* shutdown our urbs */
@@ -276,18 +296,6 @@ static void ch341_close(struct tty_struct *tty, struct usb_serial_port *port,
 	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->interrupt_in_urb);
-
-	if (tty) {
-		c_cflag = tty->termios->c_cflag;
-		if (c_cflag & HUPCL) {
-			/* drop DTR and RTS */
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->line_control = 0;
-			spin_unlock_irqrestore(&priv->lock, flags);
-			ch341_set_handshake(port->serial->dev, 0);
-		}
-	}
-	wake_up_interruptible(&priv->delta_msr_wait);
 }
 
 
@@ -302,7 +310,6 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
 	dbg("ch341_open()");
 
 	priv->baud_rate = DEFAULT_BAUD_RATE;
-	priv->line_control = CH341_BIT_RTS | CH341_BIT_DTR;
 
 	r = ch341_configure(serial->dev, priv);
 	if (r)
@@ -322,7 +329,7 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
 	if (r) {
 		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
 			" error %d\n", __func__, r);
-		ch341_close(tty, port, NULL);
+		ch341_close(port);
 		return -EPROTO;
 	}
 
@@ -342,9 +349,6 @@ static void ch341_set_termios(struct tty_struct *tty,
 	unsigned long flags;
 
 	dbg("ch341_set_termios()");
-
-	if (!tty || !tty->termios)
-		return;
 
 	baud_rate = tty_get_baud_rate(tty);
 
@@ -568,6 +572,8 @@ static struct usb_serial_driver ch341_device = {
 	.usb_driver        = &ch341_driver,
 	.num_ports         = 1,
 	.open              = ch341_open,
+	.dtr_rts	   = ch341_dtr_rts,
+	.carrier_raised	   = ch341_carrier_raised,
 	.close             = ch341_close,
 	.ioctl             = ch341_ioctl,
 	.set_termios       = ch341_set_termios,

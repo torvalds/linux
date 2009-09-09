@@ -298,7 +298,7 @@ static void pll_factors(unsigned int target, unsigned int source)
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
-			"WM8510 N value %d outwith recommended range!d\n",
+			"WM8510 N value %u outwith recommended range!d\n",
 			Ndiv);
 
 	pll_div.n = Ndiv;

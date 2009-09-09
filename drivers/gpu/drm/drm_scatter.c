@@ -58,11 +58,9 @@ void drm_sg_cleanup(struct drm_sg_mem * entry)
 
 	vfree(entry->virtual);
 
-	drm_free(entry->busaddr,
-		 entry->pages * sizeof(*entry->busaddr), DRM_MEM_PAGES);
-	drm_free(entry->pagelist,
-		 entry->pages * sizeof(*entry->pagelist), DRM_MEM_PAGES);
-	drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
+	kfree(entry->busaddr);
+	kfree(entry->pagelist);
+	kfree(entry);
 }
 
 #ifdef _LP64
@@ -84,7 +82,7 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 	if (dev->sg)
 		return -EINVAL;
 
-	entry = drm_alloc(sizeof(*entry), DRM_MEM_SGLISTS);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -93,34 +91,27 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 	DRM_DEBUG("size=%ld pages=%ld\n", request->size, pages);
 
 	entry->pages = pages;
-	entry->pagelist = drm_alloc(pages * sizeof(*entry->pagelist),
-				    DRM_MEM_PAGES);
+	entry->pagelist = kmalloc(pages * sizeof(*entry->pagelist), GFP_KERNEL);
 	if (!entry->pagelist) {
-		drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
+		kfree(entry);
 		return -ENOMEM;
 	}
 
 	memset(entry->pagelist, 0, pages * sizeof(*entry->pagelist));
 
-	entry->busaddr = drm_alloc(pages * sizeof(*entry->busaddr),
-				   DRM_MEM_PAGES);
+	entry->busaddr = kmalloc(pages * sizeof(*entry->busaddr), GFP_KERNEL);
 	if (!entry->busaddr) {
-		drm_free(entry->pagelist,
-			 entry->pages * sizeof(*entry->pagelist),
-			 DRM_MEM_PAGES);
-		drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
+		kfree(entry->pagelist);
+		kfree(entry);
 		return -ENOMEM;
 	}
 	memset((void *)entry->busaddr, 0, pages * sizeof(*entry->busaddr));
 
 	entry->virtual = drm_vmalloc_dma(pages << PAGE_SHIFT);
 	if (!entry->virtual) {
-		drm_free(entry->busaddr,
-			 entry->pages * sizeof(*entry->busaddr), DRM_MEM_PAGES);
-		drm_free(entry->pagelist,
-			 entry->pages * sizeof(*entry->pagelist),
-			 DRM_MEM_PAGES);
-		drm_free(entry, sizeof(*entry), DRM_MEM_SGLISTS);
+		kfree(entry->busaddr);
+		kfree(entry->pagelist);
+		kfree(entry);
 		return -ENOMEM;
 	}
 

@@ -1163,7 +1163,7 @@ static void hamachi_tx_timeout(struct net_device *dev)
 	hmp->rx_ring[RX_RING_SIZE-1].status_n_length |= cpu_to_le32(DescEndRing);
 
 	/* Trigger an immediate transmit demand. */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	hmp->stats.tx_errors++;
 
 	/* Restart the chip's Tx/Rx processes . */
@@ -1280,7 +1280,7 @@ static int hamachi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		status=readw(hmp->base + TxStatus);
 		if( !(status & 0x0001) || (status & 0x0002))
 			writew(0x0001, hmp->base + TxCmd);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Caution: the write order is important here, set the field
@@ -1364,7 +1364,6 @@ static int hamachi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hmp->tx_full = 1;
 		netif_stop_queue(dev);
 	}
-	dev->trans_start = jiffies;
 
 	if (hamachi_debug > 4) {
 		printk(KERN_DEBUG "%s: Hamachi transmit frame #%d queued in slot %d.\n",

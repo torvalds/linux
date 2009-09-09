@@ -24,9 +24,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-/* We abuse the high bits of "perm" to record whether we kmalloc'ed. */
-#define KPARAM_KMALLOCED	0x80000000
-
 #if 0
 #define DEBUGP printk
 #else
@@ -220,13 +217,13 @@ int param_set_charp(const char *val, struct kernel_param *kp)
 		return -ENOSPC;
 	}
 
-	if (kp->perm & KPARAM_KMALLOCED)
+	if (kp->flags & KPARAM_KMALLOCED)
 		kfree(*(char **)kp->arg);
 
 	/* This is a hack.  We can't need to strdup in early boot, and we
 	 * don't need to; this mangled commandline is preserved. */
 	if (slab_is_available()) {
-		kp->perm |= KPARAM_KMALLOCED;
+		kp->flags |= KPARAM_KMALLOCED;
 		*(char **)kp->arg = kstrdup(val, GFP_KERNEL);
 		if (!kp->arg)
 			return -ENOMEM;
@@ -241,44 +238,63 @@ int param_get_charp(char *buffer, struct kernel_param *kp)
 	return sprintf(buffer, "%s", *((char **)kp->arg));
 }
 
+/* Actually could be a bool or an int, for historical reasons. */
 int param_set_bool(const char *val, struct kernel_param *kp)
 {
+	bool v;
+
 	/* No equals means "set"... */
 	if (!val) val = "1";
 
 	/* One of =[yYnN01] */
 	switch (val[0]) {
 	case 'y': case 'Y': case '1':
-		*(int *)kp->arg = 1;
-		return 0;
+		v = true;
+		break;
 	case 'n': case 'N': case '0':
-		*(int *)kp->arg = 0;
-		return 0;
+		v = false;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	if (kp->flags & KPARAM_ISBOOL)
+		*(bool *)kp->arg = v;
+	else
+		*(int *)kp->arg = v;
+	return 0;
 }
 
 int param_get_bool(char *buffer, struct kernel_param *kp)
 {
+	bool val;
+	if (kp->flags & KPARAM_ISBOOL)
+		val = *(bool *)kp->arg;
+	else
+		val = *(int *)kp->arg;
+
 	/* Y and N chosen as being relatively non-coder friendly */
-	return sprintf(buffer, "%c", (*(int *)kp->arg) ? 'Y' : 'N');
+	return sprintf(buffer, "%c", val ? 'Y' : 'N');
 }
 
+/* This one must be bool. */
 int param_set_invbool(const char *val, struct kernel_param *kp)
 {
-	int boolval, ret;
+	int ret;
+	bool boolval;
 	struct kernel_param dummy;
 
 	dummy.arg = &boolval;
+	dummy.flags = KPARAM_ISBOOL;
 	ret = param_set_bool(val, &dummy);
 	if (ret == 0)
-		*(int *)kp->arg = !boolval;
+		*(bool *)kp->arg = !boolval;
 	return ret;
 }
 
 int param_get_invbool(char *buffer, struct kernel_param *kp)
 {
-	return sprintf(buffer, "%c", (*(int *)kp->arg) ? 'N' : 'Y');
+	return sprintf(buffer, "%c", (*(bool *)kp->arg) ? 'N' : 'Y');
 }
 
 /* We break the rule and mangle the string. */
@@ -591,7 +607,7 @@ void destroy_params(const struct kernel_param *params, unsigned num)
 	unsigned int i;
 
 	for (i = 0; i < num; i++)
-		if (params[i].perm & KPARAM_KMALLOCED)
+		if (params[i].flags & KPARAM_KMALLOCED)
 			kfree(*(char **)params[i].arg);
 }
 

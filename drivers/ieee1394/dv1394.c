@@ -1789,12 +1789,13 @@ static int dv1394_open(struct inode *inode, struct file *file)
 	} else {
 		/* look up the card by ID */
 		unsigned long flags;
+		int idx = ieee1394_file_to_instance(file);
 
 		spin_lock_irqsave(&dv1394_cards_lock, flags);
 		if (!list_empty(&dv1394_cards)) {
 			struct video_card *p;
 			list_for_each_entry(p, &dv1394_cards, list) {
-				if ((p->id) == ieee1394_file_to_instance(file)) {
+				if ((p->id) == idx) {
 					video = p;
 					break;
 				}
@@ -1803,7 +1804,7 @@ static int dv1394_open(struct inode *inode, struct file *file)
 		spin_unlock_irqrestore(&dv1394_cards_lock, flags);
 
 		if (!video) {
-			debug_printk("dv1394: OHCI card %d not found", ieee1394_file_to_instance(file));
+			debug_printk("dv1394: OHCI card %d not found", idx);
 			return -ENODEV;
 		}
 

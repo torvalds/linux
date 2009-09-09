@@ -141,37 +141,37 @@ static void m1541_cache_flush(void)
 	}
 }
 
-static void *m1541_alloc_page(struct agp_bridge_data *bridge)
+static struct page *m1541_alloc_page(struct agp_bridge_data *bridge)
 {
-	void *addr = agp_generic_alloc_page(agp_bridge);
+	struct page *page = agp_generic_alloc_page(agp_bridge);
 	u32 temp;
 
-	if (!addr)
+	if (!page)
 		return NULL;
 
 	pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
 	pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
 			(((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-			  virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN ));
-	return addr;
+			  phys_to_gart(page_to_phys(page))) | ALI_CACHE_FLUSH_EN ));
+	return page;
 }
 
-static void ali_destroy_page(void * addr, int flags)
+static void ali_destroy_page(struct page *page, int flags)
 {
-	if (addr) {
+	if (page) {
 		if (flags & AGP_PAGE_DESTROY_UNMAP) {
 			global_cache_flush();	/* is this really needed?  --hch */
-			agp_generic_destroy_page(addr, flags);
+			agp_generic_destroy_page(page, flags);
 		} else
-			agp_generic_destroy_page(addr, flags);
+			agp_generic_destroy_page(page, flags);
 	}
 }
 
-static void m1541_destroy_page(void * addr, int flags)
+static void m1541_destroy_page(struct page *page, int flags)
 {
 	u32 temp;
 
-	if (addr == NULL)
+	if (page == NULL)
 		return;
 
 	if (flags & AGP_PAGE_DESTROY_UNMAP) {
@@ -180,9 +180,9 @@ static void m1541_destroy_page(void * addr, int flags)
 		pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
 		pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
 				       (((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-					 virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN));
+					 phys_to_gart(page_to_phys(page))) | ALI_CACHE_FLUSH_EN));
 	}
-	agp_generic_destroy_page(addr, flags);
+	agp_generic_destroy_page(page, flags);
 }
 
 
@@ -346,7 +346,7 @@ found:
 			devs[j].chipset_name = "M1641";
 			break;
 		case 0x43:
-			devs[j].chipset_name = "M????";
+			devs[j].chipset_name = "M1621";
 			break;
 		case 0x47:
 			devs[j].chipset_name = "M1647";

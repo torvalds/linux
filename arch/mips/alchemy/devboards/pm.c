@@ -9,6 +9,7 @@
 #include <linux/suspend.h>
 #include <linux/sysfs.h>
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/gpio.h>
 
 /*
  * Generic suspend userspace interface for Alchemy development boards.
@@ -26,7 +27,7 @@ static unsigned long db1x_pm_last_wakesrc;
 static int db1x_pm_enter(suspend_state_t state)
 {
 	/* enable GPIO based wakeup */
-	au_writel(1, SYS_PININPUTEN);
+	alchemy_gpio1_input_enable();
 
 	/* clear and setup wake cause and source */
 	au_writel(0, SYS_WAKEMSK);

@@ -61,13 +61,12 @@ struct fmr2
 	int stereo; /* card is producing stereo audio */
 	unsigned long curfreq; /* freq in kHz */
 	int card_type;
-	u32 flags;
 };
 
 static struct fmr2 fmr2_card;
 
 /* hw precision is 12.5 kHz
- * It is only useful to give freq in intervall of 200 (=0.0125Mhz),
+ * It is only useful to give freq in interval of 200 (=0.0125Mhz),
  * other bits will be truncated
  */
 #define RSF16_ENCODE(x)	((x) / 200 + 856)
@@ -221,7 +220,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
-	int mult;
 	struct fmr2 *fmr2 = video_drvdata(file);
 
 	if (v->index > 0)
@@ -230,13 +228,12 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	strlcpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 
-	mult = (fmr2->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
-	v->rangelow = RSF16_MINFREQ / mult;
-	v->rangehigh = RSF16_MAXFREQ / mult;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	v->capability = fmr2->flags&V4L2_TUNER_CAP_LOW;
-	v->audmode = fmr2->stereo ? V4L2_TUNER_MODE_STEREO:
-				V4L2_TUNER_MODE_MONO;
+	v->rangelow = RSF16_MINFREQ;
+	v->rangehigh = RSF16_MAXFREQ;
+	v->rxsubchans = fmr2->stereo ? V4L2_TUNER_SUB_STEREO :
+					V4L2_TUNER_SUB_MONO;
+	v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW;
+	v->audmode = V4L2_TUNER_MODE_STEREO;
 	mutex_lock(&fmr2->lock);
 	v->signal = fmr2_getsigstr(fmr2);
 	mutex_unlock(&fmr2->lock);
@@ -254,8 +251,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct fmr2 *fmr2 = video_drvdata(file);
 
-	if (!(fmr2->flags & V4L2_TUNER_CAP_LOW))
-		f->frequency *= 1000;
 	if (f->frequency < RSF16_MINFREQ ||
 			f->frequency > RSF16_MAXFREQ)
 		return -EINVAL;
@@ -279,8 +274,6 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = fmr2->curfreq;
-	if (!(fmr2->flags & V4L2_TUNER_CAP_LOW))
-		f->frequency /= 1000;
 	return 0;
 }
 
@@ -406,7 +399,6 @@ static int __init fmr2_init(void)
 	strlcpy(v4l2_dev->name, "sf16fmr2", sizeof(v4l2_dev->name));
 	fmr2->io = io;
 	fmr2->stereo = 1;
-	fmr2->flags = V4L2_TUNER_CAP_LOW;
 	mutex_init(&fmr2->lock);
 
 	if (!request_region(fmr2->io, 2, "sf16fmr2")) {

@@ -46,17 +46,24 @@
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  *  - SDIO rehash for changes in the bus-driver model
  *
+ * Dirk Brandewie <dirk.j.brandewie@intel.com>
+ *  - Make it IRQ based, not polling
+ *
  * THE PROCEDURE
  *
  * See fw.c for the generic description of this procedure.
  *
  * This file implements only the SDIO specifics. It boils down to how
  * to send a command and waiting for an acknowledgement from the
- * device. We do polled reads.
+ * device.
+ *
+ * All this code is sequential -- all i2400ms_bus_bm_*() functions are
+ * executed in the same thread, except i2400ms_bm_irq() [on its own by
+ * the SDIO driver]. This makes it possible to avoid locking.
  *
  * COMMAND EXECUTION
  *
- * THe generic firmware upload code will call i2400m_bus_bm_cmd_send()
+ * The generic firmware upload code will call i2400m_bus_bm_cmd_send()
  * to send commands.
  *
  * The SDIO devices expects things in 256 byte blocks, so it will pad
@@ -64,12 +71,15 @@
  *
  * ACK RECEPTION
  *
- * This works in polling mode -- the fw loader says when to wait for
- * data and for that it calls i2400ms_bus_bm_wait_for_ack().
+ * This works in IRQ mode -- the fw loader says when to wait for data
+ * and for that it calls i2400ms_bus_bm_wait_for_ack().
  *
- * This will poll the device for data until it is received. We need to
- * receive at least as much bytes as where asked for (although it'll
- * always be a multiple of 256 bytes).
+ * This checks if there is any data available (RX size > 0); if not,
+ * waits for the IRQ handler to notify about it. Once there is data,
+ * it is read and passed to the caller. Doing it this way we don't
+ * need much coordination/locking, and it makes it much more difficult
+ * for an interrupt to be lost and the wait_for_ack() function getting
+ * stuck even when data is pending.
  */
 #include <linux/mmc/sdio_func.h>
 #include "i2400m-sdio.h"
@@ -77,6 +87,7 @@
 
 #define D_SUBMODULE fw
 #include "sdio-debug-levels.h"
+
 
 /*
  * Send a boot-mode command to the SDIO function
@@ -139,7 +150,7 @@ error_too_big:
 
 
 /*
- * Read an ack from the device's boot-mode (polling)
+ * Read an ack from the device's boot-mode
  *
  * @i2400m:
  * @_ack: pointer to where to store the read data
@@ -150,75 +161,49 @@ error_too_big:
  * The ACK for a BM command is always at least sizeof(*ack) bytes, so
  * check for that. We don't need to check for device reboots
  *
- * NOTE: We do an artificial timeout of 1 sec over the SDIO timeout;
- *     this way we have control over it...there is no way that I know
- *     of setting an SDIO transaction timeout.
  */
 ssize_t i2400ms_bus_bm_wait_for_ack(struct i2400m *i2400m,
 				    struct i2400m_bootrom_header *ack,
 				    size_t ack_size)
 {
-	int result;
-	ssize_t rx_size;
-	u64 timeout;
+	ssize_t result;
 	struct i2400ms *i2400ms = container_of(i2400m, struct i2400ms, i2400m);
 	struct sdio_func *func = i2400ms->func;
 	struct device *dev = &func->dev;
+	int size;
 
 	BUG_ON(sizeof(*ack) > ack_size);
 
 	d_fnstart(5, dev, "(i2400m %p ack %p size %zu)\n",
 		  i2400m, ack, ack_size);
 
-	timeout = get_jiffies_64() + 2 * HZ;
-	sdio_claim_host(func);
-	while (1) {
-		if (time_after64(get_jiffies_64(), timeout)) {
-			rx_size = -ETIMEDOUT;
-			dev_err(dev, "timeout waiting for ack data\n");
-			goto error_timedout;
-		}
+	spin_lock(&i2400m->rx_lock);
+	i2400ms->bm_ack_size = -EINPROGRESS;
+	spin_unlock(&i2400m->rx_lock);
 
-		/* Find the RX size, check if it fits or not -- it if
-		 * doesn't fit, fail, as we have no way to dispose of
-		 * the extra data. */
-		rx_size = __i2400ms_rx_get_size(i2400ms);
-		if (rx_size < 0)
-			goto error_rx_get_size;
-		result = -ENOSPC;		/* Check it fits */
-		if (rx_size < sizeof(*ack)) {
-			rx_size = -EIO;
-			dev_err(dev, "HW BUG? received is too small (%zu vs "
-				"%zu needed)\n", sizeof(*ack), rx_size);
-			goto error_too_small;
-		}
-		if (rx_size > I2400M_BM_ACK_BUF_SIZE) {
-			dev_err(dev, "SW BUG? BM_ACK_BUF is too small (%u vs "
-				"%zu needed)\n", I2400M_BM_ACK_BUF_SIZE,
-				rx_size);
-			goto error_too_small;
-		}
-
-		/* Read it */
-		result = sdio_memcpy_fromio(func, i2400m->bm_ack_buf,
-					    I2400MS_DATA_ADDR, rx_size);
-		if (result == -ETIMEDOUT || result == -ETIME)
-			continue;
-		if (result < 0) {
-			dev_err(dev, "BM SDIO receive (%zu B) failed: %d\n",
-				rx_size, result);
-			goto error_read;
-		} else
-			break;
+	result = wait_event_timeout(i2400ms->bm_wfa_wq,
+				    i2400ms->bm_ack_size != -EINPROGRESS,
+				    2 * HZ);
+	if (result == 0) {
+		result = -ETIMEDOUT;
+		dev_err(dev, "BM: error waiting for an ack\n");
+		goto error_timeout;
 	}
-	rx_size = min((ssize_t)ack_size, rx_size);
-	memcpy(ack, i2400m->bm_ack_buf, rx_size);
-error_read:
-error_too_small:
-error_rx_get_size:
-error_timedout:
-	sdio_release_host(func);
-	d_fnend(5, dev, "(i2400m %p ack %p size %zu) = %ld\n",
-		i2400m, ack, ack_size, (long) rx_size);
-	return rx_size;
+
+	spin_lock(&i2400m->rx_lock);
+	result = i2400ms->bm_ack_size;
+	BUG_ON(result == -EINPROGRESS);
+	if (result < 0)        /* so we exit when rx_release() is called */
+		dev_err(dev, "BM: %s failed: %zd\n", __func__, result);
+	else {
+		size = min(ack_size, i2400ms->bm_ack_size);
+		memcpy(ack, i2400m->bm_ack_buf, size);
+	}
+	i2400ms->bm_ack_size = -EINPROGRESS;
+	spin_unlock(&i2400m->rx_lock);
+
+error_timeout:
+	d_fnend(5, dev, "(i2400m %p ack %p size %zu) = %zd\n",
+		i2400m, ack, ack_size, result);
+	return result;
 }

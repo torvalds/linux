@@ -47,7 +47,6 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 
 #include "meids.h"
 #include "meerror.h"

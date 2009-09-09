@@ -181,6 +181,19 @@ static inline void musb_h_tx_dma_start(struct musb_hw_ep *ep)
 	musb_writew(ep->regs, MUSB_TXCSR, txcsr);
 }
 
+static void musb_ep_set_qh(struct musb_hw_ep *ep, int is_in, struct musb_qh *qh)
+{
+	if (is_in != 0 || ep->is_shared_fifo)
+		ep->in_qh  = qh;
+	if (is_in == 0 || ep->is_shared_fifo)
+		ep->out_qh = qh;
+}
+
+static struct musb_qh *musb_ep_get_qh(struct musb_hw_ep *ep, int is_in)
+{
+	return is_in ? ep->in_qh : ep->out_qh;
+}
+
 /*
  * Start the URB at the front of an endpoint's queue
  * end must be claimed from the caller.
@@ -210,7 +223,6 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 	case USB_ENDPOINT_XFER_CONTROL:
 		/* control transfers always start with SETUP */
 		is_in = 0;
-		hw_ep->out_qh = qh;
 		musb->ep0_stage = MUSB_EP0_START;
 		buf = urb->setup_packet;
 		len = 8;
@@ -239,10 +251,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 			epnum, buf + offset, len);
 
 	/* Configure endpoint */
-	if (is_in || hw_ep->is_shared_fifo)
-		hw_ep->in_qh = qh;
-	else
-		hw_ep->out_qh = qh;
+	musb_ep_set_qh(hw_ep, is_in, qh);
 	musb_ep_program(musb, epnum, urb, !is_in, buf, offset, len);
 
 	/* transmit may have more work: start it when it is time */
@@ -286,9 +295,8 @@ start:
 	}
 }
 
-/* caller owns controller lock, irqs are blocked */
-static void
-__musb_giveback(struct musb *musb, struct urb *urb, int status)
+/* Context: caller owns controller lock, IRQs are blocked */
+static void musb_giveback(struct musb *musb, struct urb *urb, int status)
 __releases(musb->lock)
 __acquires(musb->lock)
 {
@@ -321,60 +329,57 @@ __acquires(musb->lock)
 	spin_lock(&musb->lock);
 }
 
-/* for bulk/interrupt endpoints only */
-static inline void
-musb_save_toggle(struct musb_hw_ep *ep, int is_in, struct urb *urb)
+/* For bulk/interrupt endpoints only */
+static inline void musb_save_toggle(struct musb_qh *qh, int is_in,
+				    struct urb *urb)
 {
-	struct usb_device	*udev = urb->dev;
+	void __iomem		*epio = qh->hw_ep->regs;
 	u16			csr;
-	void __iomem		*epio = ep->regs;
-	struct musb_qh		*qh;
 
-	/* FIXME:  the current Mentor DMA code seems to have
+	/*
+	 * FIXME: the current Mentor DMA code seems to have
 	 * problems getting toggle correct.
 	 */
 
-	if (is_in || ep->is_shared_fifo)
-		qh = ep->in_qh;
+	if (is_in)
+		csr = musb_readw(epio, MUSB_RXCSR) & MUSB_RXCSR_H_DATATOGGLE;
 	else
-		qh = ep->out_qh;
+		csr = musb_readw(epio, MUSB_TXCSR) & MUSB_TXCSR_H_DATATOGGLE;
 
-	if (!is_in) {
-		csr = musb_readw(epio, MUSB_TXCSR);
-		usb_settoggle(udev, qh->epnum, 1,
-			(csr & MUSB_TXCSR_H_DATATOGGLE)
-				? 1 : 0);
-	} else {
-		csr = musb_readw(epio, MUSB_RXCSR);
-		usb_settoggle(udev, qh->epnum, 0,
-			(csr & MUSB_RXCSR_H_DATATOGGLE)
-				? 1 : 0);
-	}
+	usb_settoggle(urb->dev, qh->epnum, !is_in, csr ? 1 : 0);
 }
 
-/* caller owns controller lock, irqs are blocked */
-static struct musb_qh *
-musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
+/*
+ * Advance this hardware endpoint's queue, completing the specified URB and
+ * advancing to either the next URB queued to that qh, or else invalidating
+ * that qh and advancing to the next qh scheduled after the current one.
+ *
+ * Context: caller owns controller lock, IRQs are blocked
+ */
+static void musb_advance_schedule(struct musb *musb, struct urb *urb,
+				  struct musb_hw_ep *hw_ep, int is_in)
 {
+	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, is_in);
 	struct musb_hw_ep	*ep = qh->hw_ep;
-	struct musb		*musb = ep->musb;
-	int			is_in = usb_pipein(urb->pipe);
 	int			ready = qh->is_ready;
+	int			status;
+
+	status = (urb->status == -EINPROGRESS) ? 0 : urb->status;
 
 	/* save toggle eagerly, for paranoia */
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_BULK:
 	case USB_ENDPOINT_XFER_INT:
-		musb_save_toggle(ep, is_in, urb);
+		musb_save_toggle(qh, is_in, urb);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (status == 0 && urb->error_count)
+		if (urb->error_count)
 			status = -EXDEV;
 		break;
 	}
 
 	qh->is_ready = 0;
-	__musb_giveback(musb, urb, status);
+	musb_giveback(musb, urb, status);
 	qh->is_ready = ready;
 
 	/* reclaim resources (and bandwidth) ASAP; deschedule it, and
@@ -388,11 +393,8 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 		else
 			ep->tx_reinit = 1;
 
-		/* clobber old pointers to this qh */
-		if (is_in || ep->is_shared_fifo)
-			ep->in_qh = NULL;
-		else
-			ep->out_qh = NULL;
+		/* Clobber old pointers to this qh */
+		musb_ep_set_qh(ep, is_in, NULL);
 		qh->hep->hcpriv = NULL;
 
 		switch (qh->type) {
@@ -421,36 +423,10 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			break;
 		}
 	}
-	return qh;
-}
-
-/*
- * Advance this hardware endpoint's queue, completing the specified urb and
- * advancing to either the next urb queued to that qh, or else invalidating
- * that qh and advancing to the next qh scheduled after the current one.
- *
- * Context: caller owns controller lock, irqs are blocked
- */
-static void
-musb_advance_schedule(struct musb *musb, struct urb *urb,
-		struct musb_hw_ep *hw_ep, int is_in)
-{
-	struct musb_qh	*qh;
-
-	if (is_in || hw_ep->is_shared_fifo)
-		qh = hw_ep->in_qh;
-	else
-		qh = hw_ep->out_qh;
-
-	if (urb->status == -EINPROGRESS)
-		qh = musb_giveback(qh, urb, 0);
-	else
-		qh = musb_giveback(qh, urb, urb->status);
 
 	if (qh != NULL && qh->is_ready) {
 		DBG(4, "... next ep%d %cX urb %p\n",
-				hw_ep->epnum, is_in ? 'R' : 'T',
-				next_urb(qh));
+		    hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
 		musb_start_urb(musb, is_in, qh);
 	}
 }
@@ -629,7 +605,8 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 	musb_writeb(ep->regs, MUSB_RXTYPE, qh->type_reg);
 	musb_writeb(ep->regs, MUSB_RXINTERVAL, qh->intv_reg);
 	/* NOTE: bulk combining rewrites high bits of maxpacket */
-	musb_writew(ep->regs, MUSB_RXMAXP, qh->maxpacket);
+	musb_writew(ep->regs, MUSB_RXMAXP,
+			qh->maxpacket | ((qh->hb_mult - 1) << 11));
 
 	ep->rx_reinit = 0;
 }
@@ -651,9 +628,10 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	csr = musb_readw(epio, MUSB_TXCSR);
 	if (length > pkt_size) {
 		mode = 1;
-		csr |= MUSB_TXCSR_AUTOSET
-			| MUSB_TXCSR_DMAMODE
-			| MUSB_TXCSR_DMAENAB;
+		csr |= MUSB_TXCSR_DMAMODE | MUSB_TXCSR_DMAENAB;
+		/* autoset shouldn't be set in high bandwidth */
+		if (qh->hb_mult == 1)
+			csr |= MUSB_TXCSR_AUTOSET;
 	} else {
 		mode = 0;
 		csr &= ~(MUSB_TXCSR_AUTOSET | MUSB_TXCSR_DMAMODE);
@@ -703,15 +681,8 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 	void __iomem		*mbase = musb->mregs;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
 	void __iomem		*epio = hw_ep->regs;
-	struct musb_qh		*qh;
-	u16			packet_sz;
-
-	if (!is_out || hw_ep->is_shared_fifo)
-		qh = hw_ep->in_qh;
-	else
-		qh = hw_ep->out_qh;
-
-	packet_sz = qh->maxpacket;
+	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, !is_out);
+	u16			packet_sz = qh->maxpacket;
 
 	DBG(3, "%s hw%d urb %p spd%d dev%d ep%d%s "
 				"h_addr%02x h_port%02x bytes %d\n",
@@ -1129,16 +1100,13 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	u16			tx_csr;
 	size_t			length = 0;
 	size_t			offset = 0;
-	struct urb		*urb;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
 	void __iomem		*epio = hw_ep->regs;
-	struct musb_qh		*qh = hw_ep->is_shared_fifo ? hw_ep->in_qh
-							    : hw_ep->out_qh;
+	struct musb_qh		*qh = hw_ep->out_qh;
+	struct urb		*urb = next_urb(qh);
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
-
-	urb = next_urb(qh);
 
 	musb_ep_select(mbase, epnum);
 	tx_csr = musb_readw(epio, MUSB_TXCSR);
@@ -1427,7 +1395,7 @@ static void musb_bulk_rx_nak_timeout(struct musb *musb, struct musb_hw_ep *ep)
 			urb->actual_length += dma->actual_len;
 			dma->actual_len = 0L;
 		}
-		musb_save_toggle(ep, 1, urb);
+		musb_save_toggle(cur_qh, 1, urb);
 
 		/* move cur_qh to end of queue */
 		list_move_tail(&cur_qh->ring, &musb->in_bulk);
@@ -1531,6 +1499,10 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			/* packet error reported later */
 			iso_err = true;
 		}
+	} else if (rx_csr & MUSB_RXCSR_INCOMPRX) {
+		DBG(3, "end %d high bandwidth incomplete ISO packet RX\n",
+				epnum);
+		status = -EPROTO;
 	}
 
 	/* faults abort the transfer */
@@ -1738,7 +1710,11 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				val &= ~MUSB_RXCSR_H_AUTOREQ;
 			else
 				val |= MUSB_RXCSR_H_AUTOREQ;
-			val |= MUSB_RXCSR_AUTOCLEAR | MUSB_RXCSR_DMAENAB;
+			val |= MUSB_RXCSR_DMAENAB;
+
+			/* autoclear shouldn't be set in high bandwidth */
+			if (qh->hb_mult == 1)
+				val |= MUSB_RXCSR_AUTOCLEAR;
 
 			musb_writew(epio, MUSB_RXCSR,
 				MUSB_RXCSR_H_WZC_BITS | val);
@@ -1817,19 +1793,17 @@ static int musb_schedule(
 			epnum++, hw_ep++) {
 		int	diff;
 
-		if (is_in || hw_ep->is_shared_fifo) {
-			if (hw_ep->in_qh  != NULL)
-				continue;
-		} else	if (hw_ep->out_qh != NULL)
+		if (musb_ep_get_qh(hw_ep, is_in) != NULL)
 			continue;
 
 		if (hw_ep == musb->bulk_ep)
 			continue;
 
 		if (is_in)
-			diff = hw_ep->max_packet_sz_rx - qh->maxpacket;
+			diff = hw_ep->max_packet_sz_rx;
 		else
-			diff = hw_ep->max_packet_sz_tx - qh->maxpacket;
+			diff = hw_ep->max_packet_sz_tx;
+		diff -= (qh->maxpacket * qh->hb_mult);
 
 		if (diff >= 0 && best_diff > diff) {
 			best_diff = diff;
@@ -1932,15 +1906,27 @@ static int musb_urb_enqueue(
 	qh->is_ready = 1;
 
 	qh->maxpacket = le16_to_cpu(epd->wMaxPacketSize);
+	qh->type = usb_endpoint_type(epd);
 
-	/* no high bandwidth support yet */
-	if (qh->maxpacket & ~0x7ff) {
-		ret = -EMSGSIZE;
-		goto done;
+	/* Bits 11 & 12 of wMaxPacketSize encode high bandwidth multiplier.
+	 * Some musb cores don't support high bandwidth ISO transfers; and
+	 * we don't (yet!) support high bandwidth interrupt transfers.
+	 */
+	qh->hb_mult = 1 + ((qh->maxpacket >> 11) & 0x03);
+	if (qh->hb_mult > 1) {
+		int ok = (qh->type == USB_ENDPOINT_XFER_ISOC);
+
+		if (ok)
+			ok = (usb_pipein(urb->pipe) && musb->hb_iso_rx)
+				|| (usb_pipeout(urb->pipe) && musb->hb_iso_tx);
+		if (!ok) {
+			ret = -EMSGSIZE;
+			goto done;
+		}
+		qh->maxpacket &= 0x7ff;
 	}
 
 	qh->epnum = usb_endpoint_num(epd);
-	qh->type = usb_endpoint_type(epd);
 
 	/* NOTE: urb->dev->devnum is wrong during SET_ADDRESS */
 	qh->addr_reg = (u8) usb_pipedevice(urb->pipe);
@@ -2052,14 +2038,15 @@ done:
  * called with controller locked, irqs blocked
  * that hardware queue advances to the next transfer, unless prevented
  */
-static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh, int is_in)
+static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh)
 {
 	struct musb_hw_ep	*ep = qh->hw_ep;
 	void __iomem		*epio = ep->regs;
 	unsigned		hw_end = ep->epnum;
 	void __iomem		*regs = ep->musb->mregs;
-	u16			csr;
+	int			is_in = usb_pipein(urb->pipe);
 	int			status = 0;
+	u16			csr;
 
 	musb_ep_select(regs, hw_end);
 
@@ -2112,14 +2099,14 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct musb		*musb = hcd_to_musb(hcd);
 	struct musb_qh		*qh;
-	struct list_head	*sched;
 	unsigned long		flags;
+	int			is_in  = usb_pipein(urb->pipe);
 	int			ret;
 
 	DBG(4, "urb=%p, dev%d ep%d%s\n", urb,
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe),
-			usb_pipein(urb->pipe) ? "in" : "out");
+			is_in ? "in" : "out");
 
 	spin_lock_irqsave(&musb->lock, flags);
 	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
@@ -2130,47 +2117,25 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (!qh)
 		goto done;
 
-	/* Any URB not actively programmed into endpoint hardware can be
+	/*
+	 * Any URB not actively programmed into endpoint hardware can be
 	 * immediately given back; that's any URB not at the head of an
 	 * endpoint queue, unless someday we get real DMA queues.  And even
 	 * if it's at the head, it might not be known to the hardware...
 	 *
-	 * Otherwise abort current transfer, pending dma, etc.; urb->status
+	 * Otherwise abort current transfer, pending DMA, etc.; urb->status
 	 * has already been updated.  This is a synchronous abort; it'd be
 	 * OK to hold off until after some IRQ, though.
+	 *
+	 * NOTE: qh is invalid unless !list_empty(&hep->urb_list)
 	 */
-	if (!qh->is_ready || urb->urb_list.prev != &qh->hep->urb_list)
-		ret = -EINPROGRESS;
-	else {
-		switch (qh->type) {
-		case USB_ENDPOINT_XFER_CONTROL:
-			sched = &musb->control;
-			break;
-		case USB_ENDPOINT_XFER_BULK:
-			if (qh->mux == 1) {
-				if (usb_pipein(urb->pipe))
-					sched = &musb->in_bulk;
-				else
-					sched = &musb->out_bulk;
-				break;
-			}
-		default:
-			/* REVISIT when we get a schedule tree, periodic
-			 * transfers won't always be at the head of a
-			 * singleton queue...
-			 */
-			sched = NULL;
-			break;
-		}
-	}
-
-	/* NOTE:  qh is invalid unless !list_empty(&hep->urb_list) */
-	if (ret < 0 || (sched && qh != first_qh(sched))) {
+	if (!qh->is_ready
+			|| urb->urb_list.prev != &qh->hep->urb_list
+			|| musb_ep_get_qh(qh->hw_ep, is_in) != qh) {
 		int	ready = qh->is_ready;
 
-		ret = 0;
 		qh->is_ready = 0;
-		__musb_giveback(musb, urb, 0);
+		musb_giveback(musb, urb, 0);
 		qh->is_ready = ready;
 
 		/* If nothing else (usually musb_giveback) is using it
@@ -2182,7 +2147,7 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			kfree(qh);
 		}
 	} else
-		ret = musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
+		ret = musb_cleanup_urb(urb, qh);
 done:
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return ret;
@@ -2192,13 +2157,11 @@ done:
 static void
 musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 {
-	u8			epnum = hep->desc.bEndpointAddress;
+	u8			is_in = hep->desc.bEndpointAddress & USB_DIR_IN;
 	unsigned long		flags;
 	struct musb		*musb = hcd_to_musb(hcd);
-	u8			is_in = epnum & USB_DIR_IN;
 	struct musb_qh		*qh;
 	struct urb		*urb;
-	struct list_head	*sched;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -2206,31 +2169,11 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	if (qh == NULL)
 		goto exit;
 
-	switch (qh->type) {
-	case USB_ENDPOINT_XFER_CONTROL:
-		sched = &musb->control;
-		break;
-	case USB_ENDPOINT_XFER_BULK:
-		if (qh->mux == 1) {
-			if (is_in)
-				sched = &musb->in_bulk;
-			else
-				sched = &musb->out_bulk;
-			break;
-		}
-	default:
-		/* REVISIT when we get a schedule tree, periodic transfers
-		 * won't always be at the head of a singleton queue...
-		 */
-		sched = NULL;
-		break;
-	}
+	/* NOTE: qh is invalid unless !list_empty(&hep->urb_list) */
 
-	/* NOTE:  qh is invalid unless !list_empty(&hep->urb_list) */
-
-	/* kick first urb off the hardware, if needed */
+	/* Kick the first URB off the hardware, if needed */
 	qh->is_ready = 0;
-	if (!sched || qh == first_qh(sched)) {
+	if (musb_ep_get_qh(qh->hw_ep, is_in) == qh) {
 		urb = next_urb(qh);
 
 		/* make software (then hardware) stop ASAP */
@@ -2238,7 +2181,7 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 			urb->status = -ESHUTDOWN;
 
 		/* cleanup */
-		musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
+		musb_cleanup_urb(urb, qh);
 
 		/* Then nuke all the others ... and advance the
 		 * queue on hw_ep (e.g. bulk ring) when we're done.
@@ -2254,7 +2197,7 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		 * will activate any of these as it advances.
 		 */
 		while (!list_empty(&hep->urb_list))
-			__musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
+			musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
 
 		hep->hcpriv = NULL;
 		list_del(&qh->ring);
@@ -2293,7 +2236,7 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
 
-	if (musb->xceiv.state == OTG_STATE_A_SUSPEND)
+	if (musb->xceiv->state == OTG_STATE_A_SUSPEND)
 		return 0;
 
 	if (is_host_active(musb) && musb->is_active) {

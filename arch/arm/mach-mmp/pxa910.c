@@ -103,11 +103,23 @@ void __init pxa910_init_irq(void)
 /* APB peripheral clocks */
 static APBC_CLK(uart1, PXA910_UART0, 1, 14745600);
 static APBC_CLK(uart2, PXA910_UART1, 1, 14745600);
+static APBC_CLK(twsi0, PXA168_TWSI0, 1, 33000000);
+static APBC_CLK(twsi1, PXA168_TWSI1, 1, 33000000);
+static APBC_CLK(pwm1, PXA910_PWM1, 1, 13000000);
+static APBC_CLK(pwm2, PXA910_PWM2, 1, 13000000);
+static APBC_CLK(pwm3, PXA910_PWM3, 1, 13000000);
+static APBC_CLK(pwm4, PXA910_PWM4, 1, 13000000);
 
 /* device and clock bindings */
 static struct clk_lookup pxa910_clkregs[] = {
 	INIT_CLKREG(&clk_uart1, "pxa2xx-uart.0", NULL),
 	INIT_CLKREG(&clk_uart2, "pxa2xx-uart.1", NULL),
+	INIT_CLKREG(&clk_twsi0, "pxa2xx-i2c.0", NULL),
+	INIT_CLKREG(&clk_twsi1, "pxa2xx-i2c.1", NULL),
+	INIT_CLKREG(&clk_pwm1, "pxa910-pwm.0", NULL),
+	INIT_CLKREG(&clk_pwm2, "pxa910-pwm.1", NULL),
+	INIT_CLKREG(&clk_pwm3, "pxa910-pwm.2", NULL),
+	INIT_CLKREG(&clk_pwm4, "pxa910-pwm.3", NULL),
 };
 
 static int __init pxa910_init(void)
@@ -156,3 +168,9 @@ struct sys_timer pxa910_timer = {
  */
 PXA910_DEVICE(uart1, "pxa2xx-uart", 0, UART2, 0xd4017000, 0x30, 21, 22);
 PXA910_DEVICE(uart2, "pxa2xx-uart", 1, UART3, 0xd4018000, 0x30, 23, 24);
+PXA910_DEVICE(twsi0, "pxa2xx-i2c", 0, TWSI0, 0xd4011000, 0x28);
+PXA910_DEVICE(twsi1, "pxa2xx-i2c", 1, TWSI1, 0xd4025000, 0x28);
+PXA910_DEVICE(pwm1, "pxa910-pwm", 0, NONE, 0xd401a000, 0x10);
+PXA910_DEVICE(pwm2, "pxa910-pwm", 1, NONE, 0xd401a400, 0x10);
+PXA910_DEVICE(pwm3, "pxa910-pwm", 2, NONE, 0xd401a800, 0x10);
+PXA910_DEVICE(pwm4, "pxa910-pwm", 3, NONE, 0xd401ac00, 0x10);

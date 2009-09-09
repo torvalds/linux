@@ -514,7 +514,7 @@ static int floppy_read_sectors(struct floppy_state *fs,
 			ret = swim_read_sector(fs, side, track, sector,
 						buffer);
 			if (try-- == 0)
-				return -1;
+				return -EIO;
 		} while (ret != 512);
 
 		buffer += ret;
@@ -528,45 +528,31 @@ static void redo_fd_request(struct request_queue *q)
 	struct request *req;
 	struct floppy_state *fs;
 
-	while ((req = elv_next_request(q))) {
+	req = blk_fetch_request(q);
+	while (req) {
+		int err = -EIO;
 
 		fs = req->rq_disk->private_data;
-		if (req->sector < 0 || req->sector >= fs->total_secs) {
-			end_request(req, 0);
-			continue;
-		}
-		if (req->current_nr_sectors == 0) {
-			end_request(req, 1);
-			continue;
-		}
-		if (!fs->disk_in) {
-			end_request(req, 0);
-			continue;
-		}
-		if (rq_data_dir(req) == WRITE) {
-			if (fs->write_protected) {
-				end_request(req, 0);
-				continue;
-			}
-		}
+		if (blk_rq_pos(req) >= fs->total_secs)
+			goto done;
+		if (!fs->disk_in)
+			goto done;
+		if (rq_data_dir(req) == WRITE && fs->write_protected)
+			goto done;
+
 		switch (rq_data_dir(req)) {
 		case WRITE:
 			/* NOT IMPLEMENTED */
-			end_request(req, 0);
 			break;
 		case READ:
-			if (floppy_read_sectors(fs, req->sector,
-						req->current_nr_sectors,
-						req->buffer)) {
-				end_request(req, 0);
-				continue;
-			}
-			req->nr_sectors -= req->current_nr_sectors;
-			req->sector += req->current_nr_sectors;
-			req->buffer += req->current_nr_sectors * 512;
-			end_request(req, 1);
+			err = floppy_read_sectors(fs, blk_rq_pos(req),
+						  blk_rq_cur_sectors(req),
+						  req->buffer);
 			break;
 		}
+	done:
+		if (!__blk_end_request_cur(req, err))
+			req = blk_fetch_request(q);
 	}
 }
 

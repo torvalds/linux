@@ -395,7 +395,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		old = (int)ec->fir_state.history[ec->fir_state.curr_pos] *
 		    (int)ec->fir_state.history[ec->fir_state.curr_pos];
 		ec->Pstates +=
-		    ((new - old) + (1 << ec->log2taps)) >> ec->log2taps;
+		    ((new - old) + (1 << (ec->log2taps-1))) >> ec->log2taps;
 		if (ec->Pstates < 0)
 			ec->Pstates = 0;
 	}

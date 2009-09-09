@@ -777,7 +777,7 @@ static int baycom_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 	if (bc->skb)
-		return -1;
+		return NETDEV_TX_LOCKED;
 	/* strip KISS byte */
 	if (skb->len >= HDLCDRV_MAXFLEN+1 || skb->len < 3) {
 		dev_kfree_skb(skb);

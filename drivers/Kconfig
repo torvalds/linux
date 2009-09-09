@@ -52,6 +52,8 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
+source "drivers/pps/Kconfig"
+
 source "drivers/gpio/Kconfig"
 
 source "drivers/w1/Kconfig"
@@ -103,6 +105,8 @@ source "drivers/dca/Kconfig"
 source "drivers/auxdisplay/Kconfig"
 
 source "drivers/uio/Kconfig"
+
+source "drivers/vlynq/Kconfig"
 
 source "drivers/xen/Kconfig"
 

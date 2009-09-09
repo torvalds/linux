@@ -497,10 +497,10 @@ static int dm9601_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	int len;
 
 	/* format:
-	   b0: rx status
-	   b1: packet length (incl crc) low
-	   b2: packet length (incl crc) high
-	   b3..n-4: packet data
+	   b1: rx status
+	   b2: packet length (incl crc) low
+	   b3: packet length (incl crc) high
+	   b4..n-4: packet data
 	   bn-3..bn: ethernet crc
 	 */
 
@@ -533,8 +533,8 @@ static struct sk_buff *dm9601_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	int len;
 
 	/* format:
-	   b0: packet length low
-	   b1: packet length high
+	   b1: packet length low
+	   b2: packet length high
 	   b3..n: packet data
 	*/
 

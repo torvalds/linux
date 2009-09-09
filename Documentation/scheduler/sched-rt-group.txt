@@ -4,6 +4,7 @@
 CONTENTS
 ========
 
+0. WARNING
 1. Overview
   1.1 The problem
   1.2 The solution
@@ -13,6 +14,23 @@ CONTENTS
   2.3 Basis for grouping tasks
 3. Future plans
 
+
+0. WARNING
+==========
+
+ Fiddling with these settings can result in an unstable system, the knobs are
+ root only and assumes root knows what he is doing.
+
+Most notable:
+
+ * very small values in sched_rt_period_us can result in an unstable
+   system when the period is smaller than either the available hrtimer
+   resolution, or the time it takes to handle the budget refresh itself.
+
+ * very small values in sched_rt_runtime_us can result in an unstable
+   system when the runtime is so small the system has difficulty making
+   forward progress (NOTE: the migration thread and kstopmachine both
+   are real-time processes).
 
 1. Overview
 ===========
@@ -169,7 +187,7 @@ get their allocated time.
 
 Implementing SCHED_EDF might take a while to complete. Priority Inheritance is
 the biggest challenge as the current linux PI infrastructure is geared towards
-the limited static priority levels 0-139. With deadline scheduling you need to
+the limited static priority levels 0-99. With deadline scheduling you need to
 do deadline inheritance (since priority is inversely proportional to the
 deadline delta (deadline - now).
 

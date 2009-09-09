@@ -73,11 +73,11 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	}
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
-		if (dst_mtu(skb->dst) <= minlen) {
+		if (dst_mtu(skb_dst(skb)) <= minlen) {
 			if (net_ratelimit())
 				printk(KERN_ERR "xt_TCPMSS: "
 				       "unknown or invalid path-MTU (%u)\n",
-				       dst_mtu(skb->dst));
+				       dst_mtu(skb_dst(skb)));
 			return -1;
 		}
 		if (in_mtu <= minlen) {
@@ -86,7 +86,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 				       "invalid path-MTU (%u)\n", in_mtu);
 			return -1;
 		}
-		newmss = min(dst_mtu(skb->dst), in_mtu) - minlen;
+		newmss = min(dst_mtu(skb_dst(skb)), in_mtu) - minlen;
 	} else
 		newmss = info->mss;
 

@@ -66,7 +66,7 @@ static DEFINE_PER_CPU(unsigned short, shadow_flush_counts[NR_CPUS]) ____cachelin
 #define IPI_KDUMP_CPU_STOP	3
 
 /* This needs to be cacheline aligned because it is written to by *other* CPUs.  */
-static DEFINE_PER_CPU_SHARED_ALIGNED(u64, ipi_operation);
+static DEFINE_PER_CPU_SHARED_ALIGNED(unsigned long, ipi_operation);
 
 extern void cpu_halt (void);
 

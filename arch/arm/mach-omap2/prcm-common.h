@@ -276,6 +276,8 @@
 /* CM_FCLKEN_WKUP, CM_ICLKEN_WKUP, PM_WKEN_WKUP shared bits */
 #define OMAP3430_EN_GPIO1				(1 << 3)
 #define OMAP3430_EN_GPIO1_SHIFT				3
+#define OMAP3430_EN_GPT12				(1 << 1)
+#define OMAP3430_EN_GPT12_SHIFT				1
 #define OMAP3430_EN_GPT1				(1 << 0)
 #define OMAP3430_EN_GPT1_SHIFT				0
 

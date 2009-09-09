@@ -266,6 +266,7 @@ config ACPI_DEBUG_FUNC_TRACE
 
 config ACPI_PCI_SLOT
 	tristate "PCI slot detection driver"
+	depends on SYSFS
 	default n
 	help
 	  This driver creates entries in /sys/bus/pci/slots/ for all PCI

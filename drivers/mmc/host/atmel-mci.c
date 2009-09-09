@@ -177,6 +177,7 @@ struct atmel_mci {
  *	available.
  * @wp_pin: GPIO pin used for card write protect sending, or negative
  *	if not available.
+ * @detect_is_active_high: The state of the detect pin when it is active.
  * @detect_timer: Timer used for debouncing @detect_pin interrupts.
  */
 struct atmel_mci_slot {
@@ -196,6 +197,7 @@ struct atmel_mci_slot {
 
 	int			detect_pin;
 	int			wp_pin;
+	bool			detect_is_active_high;
 
 	struct timer_list	detect_timer;
 };
@@ -574,6 +576,7 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	struct scatterlist		*sg;
 	unsigned int			i;
 	enum dma_data_direction		direction;
+	unsigned int			sglen;
 
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
@@ -603,11 +606,14 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	else
 		direction = DMA_TO_DEVICE;
 
+	sglen = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, direction);
+	if (sglen != data->sg_len)
+		goto unmap_exit;
 	desc = chan->device->device_prep_slave_sg(chan,
 			data->sg, data->sg_len, direction,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
-		return -ENOMEM;
+		goto unmap_exit;
 
 	host->dma.data_desc = desc;
 	desc->callback = atmci_dma_complete;
@@ -618,6 +624,9 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	chan->device->device_issue_pending(chan);
 
 	return 0;
+unmap_exit:
+	dma_unmap_sg(&host->pdev->dev, data->sg, sglen, direction);
+	return -ENOMEM;
 }
 
 #else /* CONFIG_MMC_ATMELMCI_DMA */
@@ -924,7 +933,8 @@ static int atmci_get_cd(struct mmc_host *mmc)
 	struct atmel_mci_slot	*slot = mmc_priv(mmc);
 
 	if (gpio_is_valid(slot->detect_pin)) {
-		present = !gpio_get_value(slot->detect_pin);
+		present = !(gpio_get_value(slot->detect_pin) ^
+			    slot->detect_is_active_high);
 		dev_dbg(&mmc->class_dev, "card is %spresent\n",
 				present ? "" : "not ");
 	}
@@ -1028,7 +1038,8 @@ static void atmci_detect_change(unsigned long data)
 		return;
 
 	enable_irq(gpio_to_irq(slot->detect_pin));
-	present = !gpio_get_value(slot->detect_pin);
+	present = !(gpio_get_value(slot->detect_pin) ^
+		    slot->detect_is_active_high);
 	present_old = test_bit(ATMCI_CARD_PRESENT, &slot->flags);
 
 	dev_vdbg(&slot->mmc->class_dev, "detect change: %d (was %d)\n",
@@ -1456,6 +1467,7 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 	slot->host = host;
 	slot->detect_pin = slot_data->detect_pin;
 	slot->wp_pin = slot_data->wp_pin;
+	slot->detect_is_active_high = slot_data->detect_is_active_high;
 	slot->sdc_reg = sdc_reg;
 
 	mmc->ops = &atmci_ops;
@@ -1477,7 +1489,8 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 		if (gpio_request(slot->detect_pin, "mmc_detect")) {
 			dev_dbg(&mmc->class_dev, "no detect pin available\n");
 			slot->detect_pin = -EBUSY;
-		} else if (gpio_get_value(slot->detect_pin)) {
+		} else if (gpio_get_value(slot->detect_pin) ^
+				slot->detect_is_active_high) {
 			clear_bit(ATMCI_CARD_PRESENT, &slot->flags);
 		}
 	}

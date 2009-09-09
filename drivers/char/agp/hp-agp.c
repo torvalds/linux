@@ -361,13 +361,11 @@ hp_zx1_insert_memory (struct agp_memory *mem, off_t pg_start, int type)
 	for (i = 0, j = io_pg_start; i < mem->page_count; i++) {
 		unsigned long paddr;
 
-		paddr = mem->memory[i];
+		paddr = page_to_phys(mem->pages[i]);
 		for (k = 0;
 		     k < hp->io_pages_per_kpage;
 		     k++, j++, paddr += hp->io_page_size) {
-			hp->gatt[j] =
-				agp_bridge->driver->mask_memory(agp_bridge,
-					paddr, type);
+			hp->gatt[j] = HP_ZX1_PDIR_VALID_BIT | paddr;
 		}
 	}
 
@@ -397,8 +395,9 @@ hp_zx1_remove_memory (struct agp_memory *mem, off_t pg_start, int type)
 
 static unsigned long
 hp_zx1_mask_memory (struct agp_bridge_data *bridge,
-	unsigned long addr, int type)
+		    struct page *page, int type)
 {
+	unsigned long addr = phys_to_gart(page_to_phys(page));
 	return HP_ZX1_PDIR_VALID_BIT | addr;
 }
 
@@ -518,8 +517,9 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 	if (hp_zx1_setup(sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa))
 		return AE_OK;
 
-	printk(KERN_INFO PFX "Detected HP ZX1 %s AGP chipset (ioc=%lx, lba=%lx)\n",
-		(char *) context, sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa);
+	printk(KERN_INFO PFX "Detected HP ZX1 %s AGP chipset "
+		"(ioc=%llx, lba=%llx)\n", (char *)context,
+		sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa);
 
 	hp_zx1_gart_found = 1;
 	return AE_CTRL_TERMINATE; /* we only support one bridge; quit looking */

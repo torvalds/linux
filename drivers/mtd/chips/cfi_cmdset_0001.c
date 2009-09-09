@@ -46,6 +46,7 @@
 #define MANUFACTURER_INTEL	0x0089
 #define I82802AB	0x00ad
 #define I82802AC	0x00ac
+#define PF38F4476	0x881c
 #define MANUFACTURER_ST         0x0020
 #define M50LPW080       0x002F
 #define M50FLW080A	0x0080
@@ -315,16 +316,28 @@ static struct cfi_fixup fixup_table[] = {
 	{ 0, 0, NULL, NULL }
 };
 
+static void cfi_fixup_major_minor(struct cfi_private *cfi,
+						struct cfi_pri_intelext *extp)
+{
+	if (cfi->mfr == MANUFACTURER_INTEL &&
+			cfi->id == PF38F4476 && extp->MinorVersion == '3')
+		extp->MinorVersion = '1';
+}
+
 static inline struct cfi_pri_intelext *
 read_pri_intelext(struct map_info *map, __u16 adr)
 {
+	struct cfi_private *cfi = map->fldrv_priv;
 	struct cfi_pri_intelext *extp;
+	unsigned int extra_size = 0;
 	unsigned int extp_size = sizeof(*extp);
 
  again:
 	extp = (struct cfi_pri_intelext *)cfi_read_pri(map, adr, extp_size, "Intel/Sharp");
 	if (!extp)
 		return NULL;
+
+	cfi_fixup_major_minor(cfi, extp);
 
 	if (extp->MajorVersion != '1' ||
 	    (extp->MinorVersion < '0' || extp->MinorVersion > '5')) {
@@ -340,19 +353,24 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 	extp->BlkStatusRegMask = le16_to_cpu(extp->BlkStatusRegMask);
 	extp->ProtRegAddr = le16_to_cpu(extp->ProtRegAddr);
 
-	if (extp->MajorVersion == '1' && extp->MinorVersion >= '3') {
-		unsigned int extra_size = 0;
-		int nb_parts, i;
+	if (extp->MinorVersion >= '0') {
+		extra_size = 0;
 
 		/* Protection Register info */
 		extra_size += (extp->NumProtectionFields - 1) *
 			      sizeof(struct cfi_intelext_otpinfo);
+	}
 
+	if (extp->MinorVersion >= '1') {
 		/* Burst Read info */
 		extra_size += 2;
 		if (extp_size < sizeof(*extp) + extra_size)
 			goto need_more;
-		extra_size += extp->extra[extra_size-1];
+		extra_size += extp->extra[extra_size - 1];
+	}
+
+	if (extp->MinorVersion >= '3') {
+		int nb_parts, i;
 
 		/* Number of hardware-partitions */
 		extra_size += 1;

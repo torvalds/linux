@@ -4,6 +4,14 @@ config ARM_GIC
 config ARM_VIC
 	bool
 
+config ARM_VIC_NR
+	int
+	default 2
+	depends on ARM_VIC
+	help
+	  The maximum number of VICs available in the system, for
+	  power management.
+
 config ICST525
 	bool
 
@@ -26,10 +34,6 @@ config SHARP_LOCOMO
 
 config SHARP_PARAM
 	bool
-
-config SHARPSL_PM
-	bool
-	select APM_EMULATION
 
 config SHARP_SCOOP
 	bool

@@ -37,7 +37,7 @@ MODULE_PARM_DESC(option_zero_cd, "ZeroCD mode (1=Force Modem (default),"
 
 #define RESPONSE_LEN 1024
 
-static int option_rezero(struct us_data *us, int ep_in, int ep_out)
+static int option_rezero(struct us_data *us)
 {
 	const unsigned char rezero_msg[] = {
 	  0x55, 0x53, 0x42, 0x43, 0x78, 0x56, 0x34, 0x12,
@@ -54,10 +54,10 @@ static int option_rezero(struct us_data *us, int ep_in, int ep_out)
 	if (buffer == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	memcpy(buffer, rezero_msg, sizeof (rezero_msg));
+	memcpy(buffer, rezero_msg, sizeof(rezero_msg));
 	result = usb_stor_bulk_transfer_buf(us,
-			usb_sndbulkpipe(us->pusb_dev, ep_out),
-			buffer, sizeof (rezero_msg), NULL);
+			us->send_bulk_pipe,
+			buffer, sizeof(rezero_msg), NULL);
 	if (result != USB_STOR_XFER_GOOD) {
 		result = USB_STOR_XFER_ERROR;
 		goto out;
@@ -66,9 +66,15 @@ static int option_rezero(struct us_data *us, int ep_in, int ep_out)
 	/* Some of the devices need to be asked for a response, but we don't
 	 * care what that response is.
 	 */
-	result = usb_stor_bulk_transfer_buf(us,
-			usb_sndbulkpipe(us->pusb_dev, ep_out),
+	usb_stor_bulk_transfer_buf(us,
+			us->recv_bulk_pipe,
 			buffer, RESPONSE_LEN, NULL);
+
+	/* Read the CSW */
+	usb_stor_bulk_transfer_buf(us,
+			us->recv_bulk_pipe,
+			buffer, 13, NULL);
+
 	result = USB_STOR_XFER_GOOD;
 
 out:
@@ -76,63 +82,75 @@ out:
 	return result;
 }
 
+static int option_inquiry(struct us_data *us)
+{
+	const unsigned char inquiry_msg[] = {
+	  0x55, 0x53, 0x42, 0x43, 0x12, 0x34, 0x56, 0x78,
+	  0x24, 0x00, 0x00, 0x00, 0x80, 0x00, 0x06, 0x12,
+	  0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	char *buffer;
+	int result;
+
+	US_DEBUGP("Option MS: %s", "device inquiry for vendor name\n");
+
+	buffer = kzalloc(0x24, GFP_KERNEL);
+	if (buffer == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
+
+	memcpy(buffer, inquiry_msg, sizeof(inquiry_msg));
+	result = usb_stor_bulk_transfer_buf(us,
+			us->send_bulk_pipe,
+			buffer, sizeof(inquiry_msg), NULL);
+	if (result != USB_STOR_XFER_GOOD) {
+		result = USB_STOR_XFER_ERROR;
+		goto out;
+	}
+
+	result = usb_stor_bulk_transfer_buf(us,
+			us->recv_bulk_pipe,
+			buffer, 0x24, NULL);
+	if (result != USB_STOR_XFER_GOOD) {
+		result = USB_STOR_XFER_ERROR;
+		goto out;
+	}
+
+	result = memcmp(buffer+8, "Option", 6);
+
+	/* Read the CSW */
+	usb_stor_bulk_transfer_buf(us,
+			us->recv_bulk_pipe,
+			buffer, 13, NULL);
+
+out:
+	kfree(buffer);
+	return result;
+}
+
+
 int option_ms_init(struct us_data *us)
 {
-	struct usb_device *udev;
-	struct usb_interface *intf;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint = NULL;
-	u8 ep_in = 0, ep_out = 0;
-	int ep_in_size = 0, ep_out_size = 0;
-	int i, result;
-
-	udev = us->pusb_dev;
-	intf = us->pusb_intf;
-
-	/* Ensure it's really a ZeroCD device; devices that are already
-	 * in modem mode return 0xFF for class, subclass, and protocol.
-	 */
-	if (udev->descriptor.bDeviceClass != 0 ||
-	    udev->descriptor.bDeviceSubClass != 0 ||
-	    udev->descriptor.bDeviceProtocol != 0)
-		return USB_STOR_TRANSPORT_GOOD;
+	int result;
 
 	US_DEBUGP("Option MS: option_ms_init called\n");
 
-	/* Find the right mass storage interface */
-	iface_desc = intf->cur_altsetting;
-	if (iface_desc->desc.bInterfaceClass != 0x8 ||
-	    iface_desc->desc.bInterfaceSubClass != 0x6 ||
-	    iface_desc->desc.bInterfaceProtocol != 0x50) {
-		US_DEBUGP("Option MS: mass storage interface not found, no action "
-		          "required\n");
-		return USB_STOR_TRANSPORT_GOOD;
-	}
-
-	/* Find the mass storage bulk endpoints */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints && (!ep_in_size || !ep_out_size); ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_bulk_in(endpoint)) {
-			ep_in = usb_endpoint_num(endpoint);
-			ep_in_size = le16_to_cpu(endpoint->wMaxPacketSize);
-		} else if (usb_endpoint_is_bulk_out(endpoint)) {
-			ep_out = usb_endpoint_num(endpoint);
-			ep_out_size = le16_to_cpu(endpoint->wMaxPacketSize);
-		}
-	}
-
-	/* Can't find the mass storage endpoints */
-	if (!ep_in_size || !ep_out_size) {
-		US_DEBUGP("Option MS: mass storage endpoints not found, no action "
-		          "required\n");
-		return USB_STOR_TRANSPORT_GOOD;
-	}
+	/* Additional test for vendor information via INQUIRY,
+	 * because some vendor/product IDs are ambiguous
+	 */
+	result = option_inquiry(us);
+	if (result != 0) {
+		US_DEBUGP("Option MS: vendor is not Option or not determinable,"
+			  " no action taken\n");
+		return 0;
+	} else
+		US_DEBUGP("Option MS: this is a genuine Option device,"
+			  " proceeding\n");
 
 	/* Force Modem mode */
 	if (option_zero_cd == ZCD_FORCE_MODEM) {
 		US_DEBUGP("Option MS: %s", "Forcing Modem Mode\n");
-		result = option_rezero(us, ep_in, ep_out);
+		result = option_rezero(us);
 		if (result != USB_STOR_XFER_GOOD)
 			US_DEBUGP("Option MS: Failed to switch to modem mode.\n");
 		return -EIO;
@@ -142,6 +160,6 @@ int option_ms_init(struct us_data *us)
 		          " requests it\n");
 	}
 
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 

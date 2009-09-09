@@ -1547,36 +1547,6 @@ out:
 	return;
 }
 
-/*
- * jbd2_journal_try_to_free_buffers() could race with
- * jbd2_journal_commit_transaction(). The later might still hold the
- * reference count to the buffers when inspecting them on
- * t_syncdata_list or t_locked_list.
- *
- * jbd2_journal_try_to_free_buffers() will call this function to
- * wait for the current transaction to finish syncing data buffers, before
- * try to free that buffer.
- *
- * Called with journal->j_state_lock hold.
- */
-static void jbd2_journal_wait_for_transaction_sync_data(journal_t *journal)
-{
-	transaction_t *transaction;
-	tid_t tid;
-
-	spin_lock(&journal->j_state_lock);
-	transaction = journal->j_committing_transaction;
-
-	if (!transaction) {
-		spin_unlock(&journal->j_state_lock);
-		return;
-	}
-
-	tid = transaction->t_tid;
-	spin_unlock(&journal->j_state_lock);
-	jbd2_log_wait_commit(journal, tid);
-}
-
 /**
  * int jbd2_journal_try_to_free_buffers() - try to free page buffers.
  * @journal: journal for operation
@@ -1648,25 +1618,6 @@ int jbd2_journal_try_to_free_buffers(journal_t *journal,
 	} while ((bh = bh->b_this_page) != head);
 
 	ret = try_to_free_buffers(page);
-
-	/*
-	 * There are a number of places where jbd2_journal_try_to_free_buffers()
-	 * could race with jbd2_journal_commit_transaction(), the later still
-	 * holds the reference to the buffers to free while processing them.
-	 * try_to_free_buffers() failed to free those buffers. Some of the
-	 * caller of releasepage() request page buffers to be dropped, otherwise
-	 * treat the fail-to-free as errors (such as generic_file_direct_IO())
-	 *
-	 * So, if the caller of try_to_release_page() wants the synchronous
-	 * behaviour(i.e make sure buffers are dropped upon return),
-	 * let's wait for the current transaction to finish flush of
-	 * dirty data buffers, then try to free those buffers again,
-	 * with the journal locked.
-	 */
-	if (ret == 0 && (gfp_mask & __GFP_WAIT) && (gfp_mask & __GFP_FS)) {
-		jbd2_journal_wait_for_transaction_sync_data(journal);
-		ret = try_to_free_buffers(page);
-	}
 
 busy:
 	return ret;

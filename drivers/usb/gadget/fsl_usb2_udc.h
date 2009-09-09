@@ -563,4 +563,22 @@ static void dump_msg(const char *label, const u8 * buf, unsigned int length)
 					* 2 + ((windex & USB_DIR_IN) ? 1 : 0))
 #define get_pipe_by_ep(EP)	(ep_index(EP) * 2 + ep_is_in(EP))
 
+struct platform_device;
+#ifdef CONFIG_ARCH_MXC
+int fsl_udc_clk_init(struct platform_device *pdev);
+void fsl_udc_clk_finalize(struct platform_device *pdev);
+void fsl_udc_clk_release(void);
+#else
+static inline int fsl_udc_clk_init(struct platform_device *pdev)
+{
+	return 0;
+}
+static inline void fsl_udc_clk_finalize(struct platform_device *pdev)
+{
+}
+static inline void fsl_udc_clk_release(void)
+{
+}
+#endif
+
 #endif

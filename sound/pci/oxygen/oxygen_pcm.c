@@ -487,10 +487,14 @@ static int oxygen_hw_free(struct snd_pcm_substream *substream)
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
 	unsigned int channel = oxygen_substream_channel(substream);
+	unsigned int channel_mask = 1 << channel;
 
 	spin_lock_irq(&chip->reg_lock);
-	chip->interrupt_mask &= ~(1 << channel);
+	chip->interrupt_mask &= ~channel_mask;
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, chip->interrupt_mask);
+
+	oxygen_set_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
+	oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 	spin_unlock_irq(&chip->reg_lock);
 
 	return snd_pcm_lib_free_pages(substream);

@@ -472,7 +472,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
-		if (__test_bit(gpionr, gpio_enabled))
+		if (test_bit(gpionr, gpio_enabled))
 			return 0;
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
@@ -782,7 +782,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
-		if (__test_bit(gpionr, gpio_enabled))
+		if (test_bit(gpionr, gpio_enabled))
 			return 0;
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
@@ -1052,35 +1052,34 @@ int __init init_arch_irq(void)
 			set_irq_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
-		case IRQ_TIMER0:
-			set_irq_handler(irq, handle_percpu_irq);
-			break;
-#endif
 #ifdef CONFIG_SMP
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
 			set_irq_handler(irq, handle_percpu_irq);
 			break;
 #endif
-		default:
 #ifdef CONFIG_IPIPE
-			/*
-			 * We want internal interrupt sources to be
-			 * masked, because ISRs may trigger interrupts
-			 * recursively (e.g. DMA), but interrupts are
-			 * _not_ masked at CPU level. So let's handle
-			 * most of them as level interrupts, except
-			 * the timer interrupt which is special.
-			 */
-			if (irq == IRQ_SYSTMR || irq == IRQ_CORETMR)
-				set_irq_handler(irq, handle_simple_irq);
-			else
-				set_irq_handler(irq, handle_level_irq);
-#else /* !CONFIG_IPIPE */
+#ifndef CONFIG_TICKSOURCE_CORETMR
+		case IRQ_TIMER0:
 			set_irq_handler(irq, handle_simple_irq);
-#endif /* !CONFIG_IPIPE */
 			break;
+#endif /* !CONFIG_TICKSOURCE_CORETMR */
+		case IRQ_CORETMR:
+			set_irq_handler(irq, handle_simple_irq);
+			break;
+		default:
+			set_irq_handler(irq, handle_level_irq);
+			break;
+#else /* !CONFIG_IPIPE */
+#ifdef CONFIG_TICKSOURCE_GPTMR0
+		case IRQ_TIMER0:
+			set_irq_handler(irq, handle_percpu_irq);
+			break;
+#endif /* CONFIG_TICKSOURCE_GPTMR0 */
+		default:
+			set_irq_handler(irq, handle_simple_irq);
+			break;
+#endif	/* !CONFIG_IPIPE */
 		}
 	}
 
@@ -1116,6 +1115,9 @@ int __init init_arch_irq(void)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
+	/* This implicitly covers ANOMALY_05000171
+	 * Boot-ROM code modifies SICA_IWRx wakeup registers
+	 */
 #ifdef SIC_IWR0
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
 # ifdef SIC_IWR1
@@ -1136,13 +1138,6 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
 
-#ifdef CONFIG_IPIPE
-	for (irq = 0; irq < NR_IRQS; irq++) {
-		struct irq_desc *desc = irq_to_desc(irq);
-		desc->ic_prio = __ipipe_get_irq_priority(irq);
-	}
-#endif /* CONFIG_IPIPE */
-
 	return 0;
 }
 
@@ -1156,23 +1151,22 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
-	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
+#if defined(SIC_ISR0) || defined(SICA_ISR0)
 		unsigned long sic_status[3];
 
 		if (smp_processor_id()) {
-#ifdef CONFIG_SMP
+# ifdef SICB_ISR0
 			/* This will be optimized out in UP mode. */
 			sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
 			sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
-#endif
+# endif
 		} else {
 			sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
 			sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
 		}
-#ifdef CONFIG_BF54x
+# ifdef SIC_ISR2
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-#endif
+# endif
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
 				atomic_inc(&num_spurious);
@@ -1229,27 +1223,22 @@ __attribute__((l1_text))
 asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 {
 	struct ipipe_percpu_domain_data *p = ipipe_root_cpudom_ptr();
-	struct ipipe_domain *this_domain = ipipe_current_domain;
+	struct ipipe_domain *this_domain = __ipipe_current_domain;
 	struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
 	int irq, s;
 
-	if (likely(vec == EVT_IVTMR_P)) {
+	if (likely(vec == EVT_IVTMR_P))
 		irq = IRQ_CORETMR;
-		goto core_tick;
-	}
-
-	SSYNC();
-
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
-	{
+	else {
+#if defined(SIC_ISR0) || defined(SICA_ISR0)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
 		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
-#ifdef CONFIG_BF54x
+# ifdef SIC_ISR2
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-#endif
+# endif
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
 				atomic_inc(&num_spurious);
@@ -1258,9 +1247,7 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
 				break;
 		}
-	}
 #else
-	{
 		unsigned long sic_status;
 
 		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
@@ -1272,15 +1259,12 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 			} else if (sic_status & ivg->isrflag)
 				break;
 		}
-	}
 #endif
-
-	irq = ivg->irqno;
+		irq = ivg->irqno;
+	}
 
 	if (irq == IRQ_SYSTMR) {
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
-core_tick:
-#else
+#if !defined(CONFIG_GENERIC_CLOCKEVENTS) || defined(CONFIG_TICKSOURCE_GPTMR0)
 		bfin_write_TIMER_STATUS(1); /* Latch TIMIL0 */
 #endif
 		/* This is basically what we need from the register frame. */
@@ -1292,9 +1276,6 @@ core_tick:
 			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
 	}
 
-#ifndef CONFIG_GENERIC_CLOCKEVENTS
-core_tick:
-#endif
 	if (this_domain == ipipe_root_domain) {
 		s = __test_and_set_bit(IPIPE_SYNCDEFER_FLAG, &p->status);
 		barrier();
@@ -1312,7 +1293,7 @@ core_tick:
 		}
 	}
 
-       return 0;
+	return 0;
 }
 
 #endif /* CONFIG_IPIPE */

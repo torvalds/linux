@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -77,7 +77,7 @@ int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled =
 |			  data[0]            :Number of the input port on        |
 |                                         which the event will take place    |
 |                                         (1 or 2)
-                      data[1]            : The event logic for port 1 has    |
+|                      data[1]            : The event logic for port 1 has    |
 |                                            three possibilities             |
 |                                        :0  APCI1500_AND       :This logic  |
 |                                                                links       |
@@ -137,8 +137,8 @@ int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled =
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ConfigDigitalInputEvent(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
 	int i_MaxChannel = 0, i_Count = 0, i_EventMask = 0;
@@ -157,16 +157,16 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 
 	if (data[0] == 1) {
 		i_MaxChannel = 8;
-	}			// if (data[0] == 1)
+	}			/*  if (data[0] == 1) */
 	else {
 		if (data[0] == 2) {
 			i_MaxChannel = 6;
-		}		// if(data[0]==2)
+		}		/*  if(data[0]==2) */
 		else {
 			printk("\nThe specified port event  does not exist\n");
 			return -EINVAL;
-		}		//else if(data[0]==2)
-	}			//else  if (data[0] == 1)
+		}		/* else if(data[0]==2) */
+	}			/* else  if (data[0] == 1) */
 	switch (data[1]) {
 	case 0:
 		data[1] = APCI1500_AND;
@@ -180,7 +180,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 	default:
 		printk("\nThe specified interrupt logic does not exist\n");
 		return -EINVAL;
-	}			//switch(data[1]);
+	}			/* switch(data[1]); */
 
 	i_Logic = data[1];
 	for (i_Count = i_MaxChannel, i = 0; i_Count > 0; i_Count--, i++) {
@@ -224,8 +224,8 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 		default:
 			printk("\nThe option indicated in the event mask does not exist\n");
 			return -EINVAL;
-		}		// switch(i_EventMask)
-	}			//for (i_Count = i_MaxChannel; i_Count >0;i_Count --)
+		}		/*  switch(i_EventMask) */
+	}			/* for (i_Count = i_MaxChannel; i_Count >0;i_Count --) */
 
 	if (data[0] == 1) {
 		    /****************************/
@@ -247,7 +247,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 			      /********************************************/
 				printk("\nTransition error on an OR PRIORITY logic\n");
 				return -EINVAL;
-			}	// if (data[1]== APCI1500_OR_PRIORITY && i_PatternTransition != 0)
+			}	/*  if (data[1]== APCI1500_OR_PRIORITY && i_PatternTransition != 0) */
 
 		       /*************************************/
 			/* Tests if more than one transition */
@@ -261,7 +261,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 						((i_PatternTransition >>
 							i_Count) & 0x1);
 
-				}	//for (i_Count = 0; i_Count < 8; i_Count++)
+				}	/* for (i_Count = 0; i_Count < 8; i_Count++) */
 
 				if (i_PatternTransitionCount > 1) {
 				  /****************************************/
@@ -269,8 +269,8 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 				  /****************************************/
 					printk("\n Transition error on an AND logic\n");
 					return -EINVAL;
-				}	// if (i_PatternTransitionCount > 1)
-			}	// if (data[1]== APCI1500_AND)
+				}	/*  if (i_PatternTransitionCount > 1) */
+			}	/*  if (data[1]== APCI1500_AND) */
 
 			    /*****************************************************************/
 			/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
@@ -359,12 +359,12 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 
-		}		// if(data[1]==APCI1500_AND||data[1]==APCI1500_OR||data[1]==APCI1500_OR_PRIORITY)
+		}		/*  if(data[1]==APCI1500_AND||data[1]==APCI1500_OR||data[1]==APCI1500_OR_PRIORITY) */
 		else {
 			printk("\nThe choice for interrupt logic does not exist\n");
 			return -EINVAL;
-		}		// else }// if(data[1]==APCI1500_AND||data[1]==APCI1500_OR||data[1]==APCI1500_OR_PRIORITY)
-	}			//   if (data[0]== 1)
+		}		/*  else }// if(data[1]==APCI1500_AND||data[1]==APCI1500_OR||data[1]==APCI1500_OR_PRIORITY) */
+	}			/*    if (data[0]== 1) */
 
 		 /************************************/
 	/* Test if event setting for port 2 */
@@ -487,12 +487,12 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 			outb(0xF4,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-		}		//  if (data[1] == APCI1500_OR)
+		}		/*   if (data[1] == APCI1500_OR) */
 		else {
 			printk("\nThe choice for interrupt logic does not exist\n");
 			return -EINVAL;
-		}		//elseif (data[1] == APCI1500_OR)
-	}			//if(data[0]==2)
+		}		/* elseif (data[1] == APCI1500_OR) */
+	}			/* if(data[0]==2) */
 
 	return insn->n;
 }
@@ -506,11 +506,11 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 | Task              :  Allows or disallows a port event                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              UINT ui_Channel : Channel number to read       |
+|		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
-                      data[0]                 :0 Start input event
-                                               1 Stop input event
-                      data[1]                 :No of port (1 or 2)
+|                      data[0]                 :0 Start input event
+|                                               1 Stop input event
+|                      data[1]                 :No of port (1 or 2)
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -519,8 +519,8 @@ INT i_APCI1500_ConfigDigitalInputEvent(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_StartStopInputEvent(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_Event1InterruptStatus = 0, i_Event2InterruptStatus =
 		0, i_RegValue;
@@ -589,12 +589,12 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
 
-				}	// if(i_Event1Status==1)
+				}	/*  if(i_Event1Status==1) */
 				else {
 					printk("\nEvent 1 not initialised\n");
 					return -EINVAL;
-				}	//else if(i_Event1Status==1)
-			}	//if (data[1]==1)
+				}	/* else if(i_Event1Status==1) */
+			}	/* if (data[1]==1) */
 			if (data[1] == 2) {
 
 				if (i_Event2Status == 1) {
@@ -640,17 +640,17 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
 					i_Event2InterruptStatus = 1;
-				}	// if(i_Event2Status==1)
+				}	/*  if(i_Event2Status==1) */
 				else {
 					printk("\nEvent 2 not initialised\n");
 					return -EINVAL;
-				}	//else if(i_Event2Status==1)
-			}	// if(data[1]==2)
-		}		// if (data[1] == 1 || data[0] == 2)
+				}	/* else if(i_Event2Status==1) */
+			}	/*  if(data[1]==2) */
+		}		/*  if (data[1] == 1 || data[0] == 2) */
 		else {
 			printk("\nThe port parameter is in error\n");
 			return -EINVAL;
-		}		//else if (data[1] == 1 || data[0] == 2)
+		}		/* else if (data[1] == 1 || data[0] == 2) */
 
 		break;
 
@@ -701,12 +701,12 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
 					i_Event1InterruptStatus = 0;
-				}	// if(i_Event1Status==1)
+				}	/*  if(i_Event1Status==1) */
 				else {
 					printk("\nEvent 1 not initialised\n");
 					return -EINVAL;
-				}	//else if(i_Event1Status==1)
-			}	//if (data[1]==1)
+				}	/* else if(i_Event1Status==1) */
+			}	/* if (data[1]==1) */
 			if (data[1] == 2) {
 			 /*****************************/
 				/* Test if event initialised */
@@ -744,23 +744,23 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
 					i_Event2InterruptStatus = 0;
-				}	// if(i_Event2Status==1)
+				}	/*  if(i_Event2Status==1) */
 				else {
 					printk("\nEvent 2 not initialised\n");
 					return -EINVAL;
-				}	//else if(i_Event2Status==1)
-			}	//if(data[1]==2)
+				}	/* else if(i_Event2Status==1) */
+			}	/* if(data[1]==2) */
 
-		}		// if (data[1] == 1 || data[1] == 2)
+		}		/*  if (data[1] == 1 || data[1] == 2) */
 		else {
 			printk("\nThe port parameter is in error\n");
 			return -EINVAL;
-		}		//else if (data[1] == 1 || data[1] == 2)
+		}		/* else if (data[1] == 1 || data[1] == 2) */
 		break;
 	default:
 		printk("\nThe option of START/STOP logic does not exist\n");
 		return -EINVAL;
-	}			//switch(data[0])
+	}			/* switch(data[0]) */
 
 	return insn->n;
 }
@@ -774,7 +774,7 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 | Task              : Return the status of the digital input                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              UINT ui_Channel : Channel number to read       |
+|		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -784,8 +784,8 @@ int i_APCI1500_StartStopInputEvent(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_Initialisation(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_DummyRead = 0;
     /******************/
@@ -943,11 +943,11 @@ INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 | Task              : Return the status of the Requested digital inputs      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To be Read    |
-|                      UINT *data             : Data Pointer
-                      data[0]                 : 0 Read a single channel
-                                                1 read a port value
-                      data[1]                 : port value
+|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
+|                      unsigned int *data             : Data Pointer
+|                      data[0]                 : 0 Read a single channel
+|                                                1 read a port value
+|                      data[1]                 : port value
 +----------------------------------------------------------------------------+
 | Output Parameters :	--	data[0]    :The read status value
 +----------------------------------------------------------------------------+
@@ -957,31 +957,31 @@ INT i_APCI1500_Initialisation(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_PortValue = data[1];
-	UINT ui_Mask = 0;
-	UINT ui_Channel;
-	UINT ui_TmpValue = 0;
+	unsigned int ui_PortValue = data[1];
+	unsigned int ui_Mask = 0;
+	unsigned int ui_Channel;
+	unsigned int ui_TmpValue = 0;
 	ui_Channel = CR_CHAN(insn->chanspec);
 
 	switch (data[0]) {
 	case 0:
 		if (ui_Channel >= 0 && ui_Channel <= 15) {
 			ui_TmpValue =
-				(UINT) inw(devpriv->i_IobaseAddon +
+				(unsigned int) inw(devpriv->i_IobaseAddon +
 				APCI1500_DIGITAL_IP);
 			*data = (ui_TmpValue >> ui_Channel) & 0x1;
-		}		//if(ui_Channel >= 0 && ui_Channel <=15)
+		}		/* if(ui_Channel >= 0 && ui_Channel <=15) */
 		else {
 			printk("\nThe channel specification are in error\n");
-			return -EINVAL;	// "sorry channel spec wrong "
-		}		//else if(ui_Channel >= 0 && ui_Channel <=15)
+			return -EINVAL;	/*  "sorry channel spec wrong " */
+		}		/* else if(ui_Channel >= 0 && ui_Channel <=15) */
 		break;
 	case 1:
 
-		*data = (UINT) inw(devpriv->i_IobaseAddon +
+		*data = (unsigned int) inw(devpriv->i_IobaseAddon +
 			APCI1500_DIGITAL_IP);
 		switch (ui_Channel) {
 		case 2:
@@ -1001,35 +1001,35 @@ INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 
 		default:
 			printk("\nSpecified channel cannot be read \n");
-			return -EINVAL;	// "sorry channel spec wrong "
+			return -EINVAL;	/*  "sorry channel spec wrong " */
 			break;
-		}		//switch(ui_Channel)
+		}		/* switch(ui_Channel) */
 		break;
 	default:
 		printk("\nThe specified functionality does not exist\n");
 		return -EINVAL;
-	}			//switch(data[0])
+	}			/* switch(data[0]) */
 	return insn->n;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigDigitalOutputErrorInterrupt
-                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
-                      *insn,unsigned int *data)                                  |
+|                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
+|                      *insn,unsigned int *data)                                  |
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the digital output memory and the digital
-                      output error interrupt                                 |
+|                      output error interrupt                                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
 |                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                      struct comedi_subdevice *s,   :pointer to subdevice structure
-                       struct comedi_insn *insn      :pointer to insn structure                                                                                                                |
+|                       struct comedi_insn *insn      :pointer to insn structure                                                                                                                |
 |					  data[0]  :1:Memory on                          |
 |					            0:Memory off                         |
-                              data[1]  :1 Enable the voltage error interrupt
+|                              data[1]  :1 Enable the voltage error interrupt
 |							   :0 Disable the voltage error interrupt 		                                                                                                    |
 |																	 |
 +----------------------------------------------------------------------------+
@@ -1040,8 +1040,8 @@ INT i_APCI1500_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
@@ -1056,8 +1056,8 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To Write      |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -1067,24 +1067,24 @@ int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	static UINT ui_Temp = 0;
-	UINT ui_Temp1;
+	static unsigned int ui_Temp = 0;
+	unsigned int ui_Temp1;
 
-	UINT ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
 	if (!devpriv->b_OutputMemoryStatus) {
 		ui_Temp = 0;
 
-	}			//if(!devpriv->b_OutputMemoryStatus )
+	}			/* if(!devpriv->b_OutputMemoryStatus ) */
 	if (data[3] == 0) {
 		if (data[1] == 0) {
 			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
 			outw(data[0],
 				devpriv->i_IobaseAddon + APCI1500_DIGITAL_OP);
-		}		//if(data[1]==0)
+		}		/* if(data[1]==0) */
 		else {
 			if (data[1] == 1) {
 				switch (ui_NoOfChannel) {
@@ -1113,19 +1113,19 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 
 				default:
 					comedi_error(dev, " chan spec wrong");
-					return -EINVAL;	// "sorry channel spec wrong "
+					return -EINVAL;	/*  "sorry channel spec wrong " */
 
-				}	//switch(ui_NoOfChannels)
+				}	/* switch(ui_NoOfChannels) */
 
 				outw(data[0],
 					devpriv->i_IobaseAddon +
 					APCI1500_DIGITAL_OP);
-			}	// if(data[1]==1)
+			}	/*  if(data[1]==1) */
 			else {
 				printk("\nSpecified channel not supported\n");
-			}	//else if(data[1]==1)
-		}		//elseif(data[1]==0)
-	}			//if(data[3]==0)
+			}	/* else if(data[1]==1) */
+		}		/* elseif(data[1]==0) */
+	}			/* if(data[3]==0) */
 	else {
 		if (data[3] == 1) {
 			if (data[1] == 0) {
@@ -1140,7 +1140,7 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 				outw(data[0],
 					devpriv->i_IobaseAddon +
 					APCI1500_DIGITAL_OP);
-			}	//if(data[1]==0)
+			}	/* if(data[1]==0) */
 			else {
 				if (data[1] == 1) {
 					switch (ui_NoOfChannel) {
@@ -1190,48 +1190,48 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 					default:
 						comedi_error(dev,
 							" chan spec wrong");
-						return -EINVAL;	// "sorry channel spec wrong "
+						return -EINVAL;	/*  "sorry channel spec wrong " */
 
-					}	//switch(ui_NoOfChannels)
+					}	/* switch(ui_NoOfChannels) */
 
 					outw(data[0],
 						devpriv->i_IobaseAddon +
 						APCI1500_DIGITAL_OP);
-				}	// if(data[1]==1)
+				}	/*  if(data[1]==1) */
 				else {
 					printk("\nSpecified channel not supported\n");
-				}	//else if(data[1]==1)
-			}	//elseif(data[1]==0)
-		}		//if(data[3]==1);
+				}	/* else if(data[1]==1) */
+			}	/* elseif(data[1]==0) */
+		}		/* if(data[3]==1); */
 		else {
 			printk("\nSpecified functionality does not exist\n");
 			return -EINVAL;
-		}		//if else data[3]==1)
-	}			//if else data[3]==0)
+		}		/* if else data[3]==1) */
+	}			/* if else data[3]==0) */
 	ui_Temp = data[0];
-	return (insn->n);;
+	return insn->n;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device
-                   *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
+|                   *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data         : Data Pointer to read status                                                       data[0]                : 2     APCI1500_1_8_KHZ
 |                                              1     APCI1500_3_6_KHZ        |
 |                                              0     APCI1500_115_KHZ
-                      data[1]                : 0     Counter1/Timer1
-                                               1     Counter2/Timer2
-                                               2     Counter3/Watchdog
-                      data[2]                : 0     Counter
-                                               1     Timer/Watchdog
-                      data[3]                :         This parameter has    |
+|                      data[1]                : 0     Counter1/Timer1
+|                                               1     Counter2/Timer2
+|                                               2     Counter3/Watchdog
+|                      data[2]                : 0     Counter
+|                                               1     Timer/Watchdog
+|                      data[3]                :         This parameter has    |
 |                                                      two meanings.         |
 |                                                    - If the counter/timer  |
 |                                                      is used as a counter  |
@@ -1243,15 +1243,15 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 |                                                      the divider factor    |
 |                                                      for the output is     |
 |                                                      given.
-                       data[4]                 : 0    APCI1500_CONTINUOUS
-                                                 1    APCI1500_SINGLE
-                       data[5]                 : 0    Software Trigger
-                                                 1    Hardware Trigger
-
-                       data[6]                  :0    Software gate
-                                                 1    Hardware gate
-                       data[7]                  :0    Interrupt Disable
-                                                 1    Interrupt Enable
+|                       data[4]                 : 0    APCI1500_CONTINUOUS
+|                                                 1    APCI1500_SINGLE
+|                       data[5]                 : 0    Software Trigger
+|                                                 1    Hardware Trigger
+|
+|                       data[6]                  :0    Software gate
+|                                                 1    Hardware gate
+|                       data[7]                  :0    Interrupt Disable
+|                                                 1    Interrupt Enable
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -1261,27 +1261,27 @@ INT i_APCI1500_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_TimerCounterMode, i_MasterConfiguration;
 
 	devpriv->tsk_Current = current;
 
-//Selection of the input clock
+/* Selection of the input clock */
 	if (data[0] == 0 || data[0] == 1 || data[0] == 2) {
 		outw(data[0], devpriv->i_IobaseAddon + APCI1500_CLK_SELECT);
-	}			// if(data[0]==0||data[0]==1||data[0]==2)
+	}			/*  if(data[0]==0||data[0]==1||data[0]==2) */
 	else {
 		if (data[0] != 3) {
 			printk("\nThe option for input clock selection does not exist\n");
 			return -EINVAL;
-		}		// if(data[0]!=3)
-	}			//elseif(data[0]==0||data[0]==1||data[0]==2)
-	//Select the counter/timer
+		}		/*  if(data[0]!=3) */
+	}			/* elseif(data[0]==0||data[0]==1||data[0]==2) */
+	/* Select the counter/timer */
 	switch (data[1]) {
 	case COUNTER1:
-		//selecting counter or timer
+		/* selecting counter or timer */
 		switch (data[2]) {
 		case 0:
 			data[2] = APCI1500_COUNTER;
@@ -1292,9 +1292,9 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis choice is not a timer nor a counter\n");
 			return -EINVAL;
-		}		// switch(data[2])
+		}		/*  switch(data[2]) */
 
-		//Selecting  single or continuous mode
+		/* Selecting  single or continuous mode */
 		switch (data[4]) {
 		case 0:
 			data[4] = APCI1500_CONTINUOUS;
@@ -1305,7 +1305,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis option for single/continuous mode does not exist\n");
 			return -EINVAL;
-		}		// switch(data[4])
+		}		/*  switch(data[4]) */
 
 		i_TimerCounterMode = data[2] | data[4] | 7;
 			 /*************************/
@@ -1428,21 +1428,21 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 				outb(0x2,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
-			}	//if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
+			}	/* if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE) */
 			else {
 				printk("\nError in selection of interrupt enable or disable\n");
 				return -EINVAL;
-			}	//elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
-		}		// if ((data[3]>= 0) && (data[3] <= 65535))
+			}	/* elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE) */
+		}		/*  if ((data[3]>= 0) && (data[3] <= 65535)) */
 		else {
 			printk("\nError in selection of reload value\n");
 			return -EINVAL;
-		}		//else if ((data[3]>= 0) && (data[3] <= 65535))
+		}		/* else if ((data[3]>= 0) && (data[3] <= 65535)) */
 		i_TimerCounterWatchdogInterrupt = data[7];
 		i_TimerCounter1Init = 1;
 		break;
 
-	case COUNTER2:		//selecting counter or timer
+	case COUNTER2:		/* selecting counter or timer */
 		switch (data[2]) {
 		case 0:
 			data[2] = APCI1500_COUNTER;
@@ -1453,9 +1453,9 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis choice is not a timer nor a counter\n");
 			return -EINVAL;
-		}		// switch(data[2])
+		}		/*  switch(data[2]) */
 
-		//Selecting  single or continuous mode
+		/* Selecting  single or continuous mode */
 		switch (data[4]) {
 		case 0:
 			data[4] = APCI1500_CONTINUOUS;
@@ -1466,9 +1466,9 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis option for single/continuous mode does not exist\n");
 			return -EINVAL;
-		}		// switch(data[4])
+		}		/*  switch(data[4]) */
 
-		//Selecting  software or hardware trigger
+		/* Selecting  software or hardware trigger */
 		switch (data[5]) {
 		case 0:
 			data[5] = APCI1500_SOFTWARE_TRIGGER;
@@ -1479,9 +1479,9 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis choice for software or hardware trigger does not exist\n");
 			return -EINVAL;
-		}		// switch(data[5])
+		}		/*  switch(data[5]) */
 
-		//Selecting  software or hardware gate
+		/* Selecting  software or hardware gate */
 		switch (data[6]) {
 		case 0:
 			data[6] = APCI1500_SOFTWARE_GATE;
@@ -1492,7 +1492,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis choice for software or hardware gate does not exist\n");
 			return -EINVAL;
-		}		// switch(data[6])
+		}		/*  switch(data[6]) */
 
 		i_TimerCounterMode = data[2] | data[4] | data[5] | data[6] | 7;
 
@@ -1616,21 +1616,21 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 				outb(0x2,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
-			}	//if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
+			}	/* if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE) */
 			else {
 				printk("\nError in selection of interrupt enable or disable\n");
 				return -EINVAL;
-			}	//elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
-		}		// if ((data[3]>= 0) && (data[3] <= 65535))
+			}	/* elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE) */
+		}		/*  if ((data[3]>= 0) && (data[3] <= 65535)) */
 		else {
 			printk("\nError in selection of reload value\n");
 			return -EINVAL;
-		}		//else if ((data[3]>= 0) && (data[3] <= 65535))
+		}		/* else if ((data[3]>= 0) && (data[3] <= 65535)) */
 		i_TimerCounterWatchdogInterrupt = data[7];
 		i_TimerCounter2Init = 1;
 		break;
 
-	case COUNTER3:		//selecting counter or watchdog
+	case COUNTER3:		/* selecting counter or watchdog */
 		switch (data[2]) {
 		case 0:
 			data[2] = APCI1500_COUNTER;
@@ -1641,9 +1641,9 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis choice is not a watchdog nor a counter\n");
 			return -EINVAL;
-		}		// switch(data[2])
+		}		/*  switch(data[2]) */
 
-		//Selecting  single or continuous mode
+		/* Selecting  single or continuous mode */
 		switch (data[4]) {
 		case 0:
 			data[4] = APCI1500_CONTINUOUS;
@@ -1654,9 +1654,9 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis option for single/continuous mode does not exist\n");
 			return -EINVAL;
-		}		// switch(data[4])
+		}		/*  switch(data[4]) */
 
-		//Selecting  software or hardware gate
+		/* Selecting  software or hardware gate */
 		switch (data[6]) {
 		case 0:
 			data[6] = APCI1500_SOFTWARE_GATE;
@@ -1667,7 +1667,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThis choice for software or hardware gate does not exist\n");
 			return -EINVAL;
-		}		// switch(data[6])
+		}		/*  switch(data[6]) */
 
 		      /*****************************/
 		/* Test if used for watchdog */
@@ -1680,10 +1680,10 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 			/* - Pulses output           */
 			     /*****************************/
 			i_TimerCounterMode = data[2] | data[4] | 0x54;
-		}		//if (data[2] == APCI1500_WATCHDOG)
+		}		/* if (data[2] == APCI1500_WATCHDOG) */
 		else {
 			i_TimerCounterMode = data[2] | data[4] | data[6] | 7;
-		}		//elseif (data[2] == APCI1500_WATCHDOG)
+		}		/* elseif (data[2] == APCI1500_WATCHDOG) */
 				 /*************************/
 		/* Test the reload value */
 			     /*************************/
@@ -1809,25 +1809,25 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
 
-				}	//elseif(data[2]==APCI1500_COUNTER)
+				}	/* elseif(data[2]==APCI1500_COUNTER) */
 
-			}	//if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
+			}	/* if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE) */
 			else {
 				printk("\nError in selection of interrupt enable or disable\n");
 				return -EINVAL;
-			}	//elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
-		}		// if ((data[3]>= 0) && (data[3] <= 65535))
+			}	/* elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE) */
+		}		/*  if ((data[3]>= 0) && (data[3] <= 65535)) */
 		else {
 			printk("\nError in selection of reload value\n");
 			return -EINVAL;
-		}		//else if ((data[3]>= 0) && (data[3] <= 65535))
+		}		/* else if ((data[3]>= 0) && (data[3] <= 65535)) */
 		i_TimerCounterWatchdogInterrupt = data[7];
 		i_WatchdogCounter3Init = 1;
 		break;
 
 	default:
 		printk("\nThe specified counter\timer option does not exist\n");
-	}			//switch(data[1])
+	}			/* switch(data[1]) */
 	i_CounterLogic = data[2];
 	return insn->n;
 }
@@ -1836,22 +1836,22 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_StartStopTriggerTimerCounterWatchdog      |
 |				(struct comedi_device *dev,struct comedi_subdevice *s,
-                         struct comedi_insn *insn,unsigned int *data);                  |
+|                         struct comedi_insn *insn,unsigned int *data);                  |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop or trigger the timer counter or Watchdog  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev     : Driver handle                 |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data         : Data Pointer to read status   |
-                      data[0]                : 0     Counter1/Timer1
-                                               1     Counter2/Timer2
-                                               2     Counter3/Watchdog
-                      data[1]                : 0     start
-                                               1     stop
-                                               2     Trigger
-                      data[2]                : 0     Counter
-                                               1     Timer/Watchdog
+|                      data[0]                : 0     Counter1/Timer1
+|                                               1     Counter2/Timer2
+|                                               2     Counter3/Watchdog
+|                      data[1]                : 0     start
+|                                               1     stop
+|                                               2     Trigger
+|                      data[2]                : 0     Counter
+|                                               1     Timer/Watchdog
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -1860,8 +1860,8 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_CommandAndStatusValue;
 
@@ -1871,11 +1871,11 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 		case START:
 			if (i_TimerCounter1Init == 1) {
 				if (i_TimerCounterWatchdogInterrupt == 1) {
-					i_CommandAndStatusValue = 0xC4;	//Enable the interrupt
-				}	// if(i_TimerCounterWatchdogInterrupt==1)
+					i_CommandAndStatusValue = 0xC4;	/* Enable the interrupt */
+				}	/*  if(i_TimerCounterWatchdogInterrupt==1) */
 				else {
-					i_CommandAndStatusValue = 0xE4;	//disable the interrupt
-				}	//elseif(i_TimerCounterWatchdogInterrupt==1)
+					i_CommandAndStatusValue = 0xE4;	/* disable the interrupt */
+				}	/* elseif(i_TimerCounterWatchdogInterrupt==1) */
 					      /**************************/
 				/* Starts timer/counter 1 */
 					      /**************************/
@@ -1889,7 +1889,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 				outb(i_CommandAndStatusValue,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
-			}	//if( i_TimerCounter1Init==1)
+			}	/* if( i_TimerCounter1Init==1) */
 			else {
 				printk("\nCounter/Timer1 not configured\n");
 				return -EINVAL;
@@ -1922,14 +1922,14 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 						 /************************/
 
 					i_CommandAndStatusValue = 0x6;
-				}	//if( i_TimerCounter1Enabled==1)
+				}	/* if( i_TimerCounter1Enabled==1) */
 				else {
 						   /***************/
 					/* Set Trigger */
 						   /***************/
 
 					i_CommandAndStatusValue = 0x2;
-				}	//elseif(i_TimerCounter1Enabled==1)
+				}	/* elseif(i_TimerCounter1Enabled==1) */
 
 						/********************************************/
 				/* Selects the commands and status register */
@@ -1940,7 +1940,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 				outb(i_CommandAndStatusValue,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
-			}	//if( i_TimerCounter1Init==1)
+			}	/* if( i_TimerCounter1Init==1) */
 			else {
 				printk("\nCounter/Timer1 not configured\n");
 				return -EINVAL;
@@ -1950,7 +1950,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThe specified option for start/stop/trigger does not exist\n");
 			return -EINVAL;
-		}		//switch(data[1])
+		}		/* switch(data[1]) */
 		break;
 
 	case COUNTER2:
@@ -1958,11 +1958,11 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 		case START:
 			if (i_TimerCounter2Init == 1) {
 				if (i_TimerCounterWatchdogInterrupt == 1) {
-					i_CommandAndStatusValue = 0xC4;	//Enable the interrupt
-				}	// if(i_TimerCounterWatchdogInterrupt==1)
+					i_CommandAndStatusValue = 0xC4;	/* Enable the interrupt */
+				}	/*  if(i_TimerCounterWatchdogInterrupt==1) */
 				else {
-					i_CommandAndStatusValue = 0xE4;	//disable the interrupt
-				}	//elseif(i_TimerCounterWatchdogInterrupt==1)
+					i_CommandAndStatusValue = 0xE4;	/* disable the interrupt */
+				}	/* elseif(i_TimerCounterWatchdogInterrupt==1) */
 					      /**************************/
 				/* Starts timer/counter 2 */
 					      /**************************/
@@ -1976,7 +1976,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 				outb(i_CommandAndStatusValue,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
-			}	//if( i_TimerCounter2Init==1)
+			}	/* if( i_TimerCounter2Init==1) */
 			else {
 				printk("\nCounter/Timer2 not configured\n");
 				return -EINVAL;
@@ -2008,14 +2008,14 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 						 /************************/
 
 					i_CommandAndStatusValue = 0x6;
-				}	//if( i_TimerCounter2Enabled==1)
+				}	/* if( i_TimerCounter2Enabled==1) */
 				else {
 						   /***************/
 					/* Set Trigger */
 						   /***************/
 
 					i_CommandAndStatusValue = 0x2;
-				}	//elseif(i_TimerCounter2Enabled==1)
+				}	/* elseif(i_TimerCounter2Enabled==1) */
 
 						/********************************************/
 				/* Selects the commands and status register */
@@ -2026,7 +2026,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 				outb(i_CommandAndStatusValue,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
-			}	//if( i_TimerCounter2Init==1)
+			}	/* if( i_TimerCounter2Init==1) */
 			else {
 				printk("\nCounter/Timer2 not configured\n");
 				return -EINVAL;
@@ -2035,7 +2035,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 		default:
 			printk("\nThe specified option for start/stop/trigger does not exist\n");
 			return -EINVAL;
-		}		//switch(data[1])
+		}		/* switch(data[1]) */
 		break;
 	case COUNTER3:
 		switch (data[1]) {
@@ -2043,11 +2043,11 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 			if (i_WatchdogCounter3Init == 1) {
 
 				if (i_TimerCounterWatchdogInterrupt == 1) {
-					i_CommandAndStatusValue = 0xC4;	//Enable the interrupt
-				}	// if(i_TimerCounterWatchdogInterrupt==1)
+					i_CommandAndStatusValue = 0xC4;	/* Enable the interrupt */
+				}	/*  if(i_TimerCounterWatchdogInterrupt==1) */
 				else {
-					i_CommandAndStatusValue = 0xE4;	//disable the interrupt
-				}	//elseif(i_TimerCounterWatchdogInterrupt==1)
+					i_CommandAndStatusValue = 0xE4;	/* disable the interrupt */
+				}	/* elseif(i_TimerCounterWatchdogInterrupt==1) */
 					      /**************************/
 				/* Starts Watchdog/counter 3 */
 					      /**************************/
@@ -2062,7 +2062,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
 
-			}	// if( i_WatchdogCounter3init==1)
+			}	/*  if( i_WatchdogCounter3init==1) */
 			else {
 				printk("\nWatchdog/Counter3 not configured\n");
 				return -EINVAL;
@@ -2089,7 +2089,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 
 		case TRIGGER:
 			switch (data[2]) {
-			case 0:	//triggering counter 3
+			case 0:	/* triggering counter 3 */
 				if (i_WatchdogCounter3Init == 1) {
 					if (i_WatchdogCounter3Enabled == 1) {
 							       /************************/
@@ -2097,14 +2097,14 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 							       /************************/
 
 						i_CommandAndStatusValue = 0x6;
-					}	//if( i_WatchdogCounter3Enabled==1)
+					}	/* if( i_WatchdogCounter3Enabled==1) */
 					else {
 							   /***************/
 						/* Set Trigger */
 							   /***************/
 
 						i_CommandAndStatusValue = 0x2;
-					}	//elseif(i_WatchdogCounter3Enabled==1)
+					}	/* elseif(i_WatchdogCounter3Enabled==1) */
 
 						/********************************************/
 					/* Selects the commands and status register */
@@ -2115,14 +2115,14 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 					outb(i_CommandAndStatusValue,
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
-				}	//if( i_WatchdogCounter3Init==1)
+				}	/* if( i_WatchdogCounter3Init==1) */
 				else {
 					printk("\nCounter3 not configured\n");
 					return -EINVAL;
 				}
 				break;
 			case 1:
-				//triggering Watchdog 3
+				/* triggering Watchdog 3 */
 				if (i_WatchdogCounter3Init == 1) {
 
 						/********************************************/
@@ -2134,7 +2134,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 					outb(0x6,
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
-				}	//if( i_WatchdogCounter3Init==1)
+				}	/* if( i_WatchdogCounter3Init==1) */
 				else {
 					printk("\nWatchdog 3 not configured\n");
 					return -EINVAL;
@@ -2143,17 +2143,17 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 			default:
 				printk("\nWrong choice of watchdog/counter3\n");
 				return -EINVAL;
-			}	//switch(data[2])
+			}	/* switch(data[2]) */
 			break;
 		default:
 			printk("\nThe specified option for start/stop/trigger does not exist\n");
 			return -EINVAL;
-		}		//switch(data[1])
+		}		/* switch(data[1]) */
 		break;
 	default:
 		printk("\nThe specified choice for counter/watchdog/timer does not exist\n");
 		return -EINVAL;
-	}			//switch(data[0])
+	}			/* switch(data[0]) */
 	return insn->n;
 }
 
@@ -2161,18 +2161,18 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ReadCounterTimerWatchdog                |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data); 	                                     |
+|                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
-                      data[0]                : 0     Counter1/Timer1
-                                               1     Counter2/Timer2
-                                               2     Counter3/Watchdog
-
+|                      data[0]                : 0     Counter1/Timer1
+|                                               1     Counter2/Timer2
+|                                               2     Counter3/Watchdog
+|
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -2182,13 +2182,13 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_CommandAndStatusValue;
 	switch (data[0]) {
 	case COUNTER1:
-		//Read counter/timer1
+		/* Read counter/timer1 */
 		if (i_TimerCounter1Init == 1) {
 			if (i_TimerCounter1Enabled == 1) {
 		  /************************/
@@ -2196,14 +2196,14 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 		  /************************/
 
 				i_CommandAndStatusValue = 0xC;
-			}	//if( i_TimerCounter1Init==1)
+			}	/* if( i_TimerCounter1Init==1) */
 			else {
 		    /***************/
 				/* Set RCC */
 		    /***************/
 
 				i_CommandAndStatusValue = 0x8;
-			}	//elseif(i_TimerCounter1Init==1)
+			}	/* elseif(i_TimerCounter1Init==1) */
 
 		/********************************************/
 			/* Selects the commands and status register */
@@ -2232,14 +2232,14 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 			data[0] =
 				data[0] | inb(devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-		}		//if( i_TimerCounter1Init==1)
+		}		/* if( i_TimerCounter1Init==1) */
 		else {
 			printk("\nTimer/Counter1 not configured\n");
 			return -EINVAL;
-		}		//elseif( i_TimerCounter1Init==1)
+		}		/* elseif( i_TimerCounter1Init==1) */
 		break;
 	case COUNTER2:
-		//Read counter/timer2
+		/* Read counter/timer2 */
 		if (i_TimerCounter2Init == 1) {
 			if (i_TimerCounter2Enabled == 1) {
 		  /************************/
@@ -2247,14 +2247,14 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 		  /************************/
 
 				i_CommandAndStatusValue = 0xC;
-			}	//if( i_TimerCounter2Init==1)
+			}	/* if( i_TimerCounter2Init==1) */
 			else {
 		    /***************/
 				/* Set RCC */
 		    /***************/
 
 				i_CommandAndStatusValue = 0x8;
-			}	//elseif(i_TimerCounter2Init==1)
+			}	/* elseif(i_TimerCounter2Init==1) */
 
 		/********************************************/
 			/* Selects the commands and status register */
@@ -2283,14 +2283,14 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 			data[0] =
 				data[0] | inb(devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-		}		//if( i_TimerCounter2Init==1)
+		}		/* if( i_TimerCounter2Init==1) */
 		else {
 			printk("\nTimer/Counter2 not configured\n");
 			return -EINVAL;
-		}		//elseif( i_TimerCounter2Init==1)
+		}		/* elseif( i_TimerCounter2Init==1) */
 		break;
 	case COUNTER3:
-		//Read counter/watchdog2
+		/* Read counter/watchdog2 */
 		if (i_WatchdogCounter3Init == 1) {
 			if (i_WatchdogCounter3Enabled == 1) {
 		  /************************/
@@ -2298,14 +2298,14 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 		  /************************/
 
 				i_CommandAndStatusValue = 0xC;
-			}	//if( i_TimerCounter2Init==1)
+			}	/* if( i_TimerCounter2Init==1) */
 			else {
 		    /***************/
 				/* Set RCC */
 		    /***************/
 
 				i_CommandAndStatusValue = 0x8;
-			}	//elseif(i_WatchdogCounter3Init==1)
+			}	/* elseif(i_WatchdogCounter3Init==1) */
 
 		/********************************************/
 			/* Selects the commands and status register */
@@ -2334,16 +2334,16 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 			data[0] =
 				data[0] | inb(devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-		}		//if( i_WatchdogCounter3Init==1)
+		}		/* if( i_WatchdogCounter3Init==1) */
 		else {
 			printk("\nWatchdogCounter3 not configured\n");
 			return -EINVAL;
-		}		//elseif( i_WatchdogCounter3Init==1)
+		}		/* elseif( i_WatchdogCounter3Init==1) */
 		break;
 	default:
 		printk("\nThe choice of timer/counter/watchdog does not exist\n");
 		return -EINVAL;
-	}			//switch(data[0])
+	}			/* switch(data[0]) */
 
 	return insn->n;
 }
@@ -2352,13 +2352,13 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int  i_APCI1500_ReadInterruptMask                      |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data); 	                                     |
+|                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read the interrupt mask                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
 
 
@@ -2370,8 +2370,8 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ReadInterruptMask(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = i_InterruptMask;
 	data[1] = i_InputChannel;
@@ -2383,15 +2383,15 @@ int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 | Function   Name   : int  i_APCI1500_ConfigureInterrupt                     |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data); 	                                     |
+|                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the interrupt registers                     |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer                 |
-
+|
 
 +----------------------------------------------------------------------------+
 | Output Parameters :	--
@@ -2401,26 +2401,26 @@ int i_APCI1500_ReadInterruptMask(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1500_ConfigureInterrupt(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1500_ConfigureInterrupt(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_Status;
+	unsigned int ui_Status;
 	int i_RegValue;
 	int i_Constant;
 	devpriv->tsk_Current = current;
 	outl(0x0, devpriv->i_IobaseAmcc + 0x38);
 	if (data[0] == 1) {
 		i_Constant = 0xC0;
-	}			//if(data[0]==1)
+	}			/* if(data[0]==1) */
 	else {
 		if (data[0] == 0) {
 			i_Constant = 0x00;
-		}		//if{data[0]==0)
+		}		/* if{data[0]==0) */
 		else {
 			printk("\nThe parameter passed to driver is in error for enabling the voltage interrupt\n");
 			return -EINVAL;
-		}		//else if(data[0]==0)
-	}			//elseif(data[0]==1)
+		}		/* else if(data[0]==0) */
+	}			/* elseif(data[0]==1) */
 
 	 /*****************************************************/
 	/* Selects the mode specification register of port B */
@@ -2580,7 +2580,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;
-	UINT ui_InterruptStatus = 0;
+	unsigned int ui_InterruptStatus = 0;
 	int i_RegValue = 0;
 	i_InterruptMask = 0;
 
@@ -2599,11 +2599,11 @@ static void v_APCI1500_Interrupt(int irq, void *d)
       /*************************************************/
 		/* Selects the master interrupt control register */
       /*************************************************/
-		//outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,devpriv->iobase+APCI1500_Z8536_CONTROL_REGISTER);
+		/* outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,devpriv->iobase+APCI1500_Z8536_CONTROL_REGISTER); */
 	/**********************************************/
 		/* Disables  the main interrupt on the board */
 	/**********************************************/
-		//outb(0x00,devpriv->iobase+APCI1500_Z8536_CONTROL_REGISTER);
+		/* outb(0x00,devpriv->iobase+APCI1500_Z8536_CONTROL_REGISTER); */
 
    /*****************************************************/
 		/* Selects the command and status register of port A */
@@ -2647,11 +2647,11 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 
 				i_InputChannel = 1 + (i_RegValue >> 1);
 
-			}	// if(i_Logic==APCI1500_OR_PRIORITY)
+			}	/*  if(i_Logic==APCI1500_OR_PRIORITY) */
 			else {
 				i_InputChannel = 0;
-			}	//elseif(i_Logic==APCI1500_OR_PRIORITY)
-		}		// if ((i_RegValue & 0x60) == 0x60)
+			}	/* elseif(i_Logic==APCI1500_OR_PRIORITY) */
+		}		/*  if ((i_RegValue & 0x60) == 0x60) */
 
 	   /*****************************************************/
 		/* Selects the command and status register of port B */
@@ -2679,7 +2679,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 			/* Reads port B */
 	     /****************/
 			i_RegValue =
-				inb((UINT) devpriv->iobase +
+				inb((unsigned int) devpriv->iobase +
 				APCI1500_Z8536_PORT_B);
 
 			i_RegValue = i_RegValue & 0xC0;
@@ -2688,7 +2688,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 	      /**************************************/
 
 			if (i_RegValue) {
-				//Disable the interrupt
+				/* Disable the interrupt */
 		     /*****************************************************/
 				/* Selects the command and status register of port B */
 		     /*****************************************************/
@@ -2697,17 +2697,17 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 				if (i_RegValue & 0x80) {
 					i_InterruptMask =
 						i_InterruptMask | 0x40;
-				}	//if (i_RegValue & 0x80)
+				}	/* if (i_RegValue & 0x80) */
 
 				if (i_RegValue & 0x40) {
 					i_InterruptMask =
 						i_InterruptMask | 0x80;
-				}	//if (i_RegValue & 0x40)
-			}	// if (i_RegValue)
+				}	/* if (i_RegValue & 0x40) */
+			}	/*  if (i_RegValue) */
 			else {
 				i_InterruptMask = i_InterruptMask | 2;
-			}	// if (i_RegValue)
-		}		//if ((i_RegValue & 0x60) == 0x60)
+			}	/*  if (i_RegValue) */
+		}		/* if ((i_RegValue & 0x60) == 0x60) */
 
 		/*****************************************************/
 		/* Selects the command and status register of timer 1 */
@@ -2731,7 +2731,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 			i_InterruptMask = i_InterruptMask | 4;
-		}		// if ((i_RegValue & 0x60) == 0x60)
+		}		/*  if ((i_RegValue & 0x60) == 0x60) */
 		/*****************************************************/
 		/* Selects the command and status register of timer 2 */
 		/*****************************************************/
@@ -2754,7 +2754,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 			i_InterruptMask = i_InterruptMask | 8;
-		}		// if ((i_RegValue & 0x60) == 0x60)
+		}		/*  if ((i_RegValue & 0x60) == 0x60) */
 
 		/*****************************************************/
 		/* Selects the command and status register of timer 3 */
@@ -2779,13 +2779,13 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 				APCI1500_Z8536_CONTROL_REGISTER);
 			if (i_CounterLogic == APCI1500_COUNTER) {
 				i_InterruptMask = i_InterruptMask | 0x10;
-			}	//if(i_CounterLogic==APCI1500_COUNTER)
+			}	/* if(i_CounterLogic==APCI1500_COUNTER) */
 			else {
 				i_InterruptMask = i_InterruptMask | 0x20;
 			}
-		}		// if ((i_RegValue & 0x60) == 0x60)
+		}		/*  if ((i_RegValue & 0x60) == 0x60) */
 
-		send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
+		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 	       /***********************/
 		/* Enable all Interrupts */
 	       /***********************/
@@ -2799,11 +2799,11 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 		/* Authorizes the main interrupt on the board */
 	       /**********************************************/
 		outb(0xD0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	}			//  if ((ui_InterruptStatus & 0x800000) == 0x800000)
+	}			/*   if ((ui_InterruptStatus & 0x800000) == 0x800000) */
 	else {
 		printk("\nInterrupt from unknown source\n");
 
-	}			//else if ((ui_InterruptStatus & 0x800000) == 0x800000)
+	}			/* else if ((ui_InterruptStatus & 0x800000) == 0x800000) */
 	return;
 }
 
@@ -2822,7 +2822,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1500_Reset(struct comedi_device * dev)
+int i_APCI1500_Reset(struct comedi_device *dev)
 {
 	int i_DummyRead = 0;
 	i_TimerCounter1Init = 0;
@@ -2982,7 +2982,7 @@ INT i_APCI1500_Reset(struct comedi_device * dev)
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes all interrupts */
 	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	//reset all the digital outputs
+	/* reset all the digital outputs */
 	outw(0x0, devpriv->i_IobaseAddon + APCI1500_DIGITAL_OP);
 /*******************************/
 /* Disable the board interrupt */

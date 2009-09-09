@@ -13,8 +13,19 @@
 
 /* TxPD descriptor */
 struct txpd {
-	/* Current Tx packet status */
-	__le32 tx_status;
+	/* union to cope up with later FW revisions */
+	union {
+		/* Current Tx packet status */
+		__le32 tx_status;
+		struct {
+			/* BSS type: client, AP, etc. */
+			u8 bss_type;
+			/* BSS number */
+			u8 bss_num;
+			/* Reserved */
+			__le16 reserved;
+		} bss;
+	} u;
 	/* Tx control */
 	__le32 tx_control;
 	__le32 tx_packet_location;
@@ -36,8 +47,17 @@ struct txpd {
 
 /* RxPD Descriptor */
 struct rxpd {
-	/* Current Rx packet status */
-	__le16 status;
+	/* union to cope up with later FW revisions */
+	union {
+		/* Current Rx packet status */
+		__le16 status;
+		struct {
+			/* BSS type: client, AP, etc. */
+			u8 bss_type;
+			/* BSS number */
+			u8 bss_num;
+		} bss;
+	} u;
 
 	/* SNR */
 	u8 snr;
@@ -230,7 +250,9 @@ struct cmd_ds_gspi_bus_config {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_authenticate {
-	u8 macaddr[ETH_ALEN];
+	struct cmd_header hdr;
+
+	u8 bssid[ETH_ALEN];
 	u8 authtype;
 	u8 reserved[10];
 } __attribute__ ((packed));
@@ -243,22 +265,23 @@ struct cmd_ds_802_11_deauthenticate {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_associate {
-	u8 peerstaaddr[6];
+	struct cmd_header hdr;
+
+	u8 bssid[6];
 	__le16 capability;
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
-
-#if 0
-	mrvlietypes_ssidparamset_t ssidParamSet;
-	mrvlietypes_phyparamset_t phyparamset;
-	mrvlietypes_ssparamset_t ssparamset;
-	mrvlietypes_ratesparamset_t ratesParamSet;
-#endif
+	u8 iebuf[512];    /* Enough for required and most optional IEs */
 } __attribute__ ((packed));
 
-struct cmd_ds_802_11_associate_rsp {
-	struct ieeetypes_assocrsp assocRsp;
+struct cmd_ds_802_11_associate_response {
+	struct cmd_header hdr;
+
+	__le16 capability;
+	__le16 statuscode;
+	__le16 aid;
+	u8 iebuf[512];
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_set_wep {
@@ -515,9 +538,11 @@ struct cmd_ds_802_11_ad_hoc_start {
 	u8 bsstype;
 	__le16 beaconperiod;
 	u8 dtimperiod;   /* Reserved on v9 and later */
-	union IEEEtypes_ssparamset ssparamset;
-	union ieeetypes_phyparamset phyparamset;
-	__le16 probedelay;
+	struct ieee_ie_ibss_param_set ibss;
+	u8 reserved1[4];
+	struct ieee_ie_ds_param_set ds;
+	u8 reserved2[4];
+	__le16 probedelay;  /* Reserved on v9 and later */
 	__le16 capability;
 	u8 rates[MAX_RATES];
 	u8 tlv_memory_size_pad[100];
@@ -538,8 +563,10 @@ struct adhoc_bssdesc {
 	u8 dtimperiod;
 	__le64 timestamp;
 	__le64 localtime;
-	union ieeetypes_phyparamset phyparamset;
-	union IEEEtypes_ssparamset ssparamset;
+	struct ieee_ie_ds_param_set ds;
+	u8 reserved1[4];
+	struct ieee_ie_ibss_param_set ibss;
+	u8 reserved2[4];
 	__le16 capability;
 	u8 rates[MAX_RATES];
 
@@ -745,8 +772,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_802_11_associate associate;
-		struct cmd_ds_802_11_authenticate auth;
 		struct cmd_ds_802_11_get_stat gstat;
 		struct cmd_ds_802_3_get_stat gstat_8023;
 		struct cmd_ds_802_11_rf_antenna rant;

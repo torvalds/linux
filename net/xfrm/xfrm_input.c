@@ -251,8 +251,7 @@ resume:
 	nf_reset(skb);
 
 	if (decaps) {
-		dst_release(skb->dst);
-		skb->dst = NULL;
+		skb_dst_drop(skb);
 		netif_rx(skb);
 		return 0;
 	} else {

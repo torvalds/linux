@@ -124,6 +124,7 @@ struct usb_function {
 	void			(*suspend)(struct usb_function *);
 	void			(*resume)(struct usb_function *);
 
+	/* private: */
 	/* internals */
 	struct list_head		list;
 };
@@ -219,6 +220,7 @@ struct usb_configuration {
 
 	struct usb_composite_dev	*cdev;
 
+	/* private: */
 	/* internals */
 	struct list_head	list;
 	struct list_head	functions;
@@ -321,6 +323,7 @@ struct usb_composite_dev {
 
 	struct usb_configuration	*config;
 
+	/* private: */
 	/* internals */
 	struct usb_device_descriptor	desc;
 	struct list_head		configs;

@@ -61,6 +61,7 @@ struct qe_immap __iomem *qe_immr;
 EXPORT_SYMBOL(qe_immr);
 
 static struct qe_snum snums[QE_NUM_OF_SNUM];	/* Dynamically allocated SNUMs */
+static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
 
@@ -264,10 +265,14 @@ static void qe_snums_init(void)
 		0x04, 0x05, 0x0C, 0x0D, 0x14, 0x15, 0x1C, 0x1D,
 		0x24, 0x25, 0x2C, 0x2D, 0x34, 0x35, 0x88, 0x89,
 		0x98, 0x99, 0xA8, 0xA9, 0xB8, 0xB9, 0xC8, 0xC9,
-		0xD8, 0xD9, 0xE8, 0xE9,
+		0xD8, 0xD9, 0xE8, 0xE9, 0x08, 0x09, 0x18, 0x19,
+		0x28, 0x29, 0x38, 0x39, 0x48, 0x49, 0x58, 0x59,
+		0x68, 0x69, 0x78, 0x79, 0x80, 0x81,
 	};
 
-	for (i = 0; i < QE_NUM_OF_SNUM; i++) {
+	qe_num_of_snum = qe_get_num_of_snums();
+
+	for (i = 0; i < qe_num_of_snum; i++) {
 		snums[i].num = snum_init[i];
 		snums[i].state = QE_SNUM_STATE_FREE;
 	}
@@ -280,7 +285,7 @@ int qe_get_snum(void)
 	int i;
 
 	spin_lock_irqsave(&qe_lock, flags);
-	for (i = 0; i < QE_NUM_OF_SNUM; i++) {
+	for (i = 0; i < qe_num_of_snum; i++) {
 		if (snums[i].state == QE_SNUM_STATE_FREE) {
 			snums[i].state = QE_SNUM_STATE_USED;
 			snum = snums[i].num;
@@ -297,7 +302,7 @@ void qe_put_snum(u8 snum)
 {
 	int i;
 
-	for (i = 0; i < QE_NUM_OF_SNUM; i++) {
+	for (i = 0; i < qe_num_of_snum; i++) {
 		if (snums[i].num == snum) {
 			snums[i].state = QE_SNUM_STATE_FREE;
 			break;
@@ -575,3 +580,65 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 }
 EXPORT_SYMBOL(qe_get_firmware_info);
 
+unsigned int qe_get_num_of_risc(void)
+{
+	struct device_node *qe;
+	int size;
+	unsigned int num_of_risc = 0;
+	const u32 *prop;
+
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!qe) {
+		/* Older devices trees did not have an "fsl,qe"
+		 * compatible property, so we need to look for
+		 * the QE node by name.
+		 */
+		qe = of_find_node_by_type(NULL, "qe");
+		if (!qe)
+			return num_of_risc;
+	}
+
+	prop = of_get_property(qe, "fsl,qe-num-riscs", &size);
+	if (prop && size == sizeof(*prop))
+		num_of_risc = *prop;
+
+	of_node_put(qe);
+
+	return num_of_risc;
+}
+EXPORT_SYMBOL(qe_get_num_of_risc);
+
+unsigned int qe_get_num_of_snums(void)
+{
+	struct device_node *qe;
+	int size;
+	unsigned int num_of_snums;
+	const u32 *prop;
+
+	num_of_snums = 28; /* The default number of snum for threads is 28 */
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!qe) {
+		/* Older devices trees did not have an "fsl,qe"
+		 * compatible property, so we need to look for
+		 * the QE node by name.
+		 */
+		qe = of_find_node_by_type(NULL, "qe");
+		if (!qe)
+			return num_of_snums;
+	}
+
+	prop = of_get_property(qe, "fsl,qe-num-snums", &size);
+	if (prop && size == sizeof(*prop)) {
+		num_of_snums = *prop;
+		if ((num_of_snums < 28) || (num_of_snums > QE_NUM_OF_SNUM)) {
+			/* No QE ever has fewer than 28 SNUMs */
+			pr_err("QE: number of snum is invalid\n");
+			return -EINVAL;
+		}
+	}
+
+	of_node_put(qe);
+
+	return num_of_snums;
+}
+EXPORT_SYMBOL(qe_get_num_of_snums);

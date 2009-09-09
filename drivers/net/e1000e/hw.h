@@ -193,7 +193,11 @@ enum e1e_registers {
 	E1000_RXCSUM   = 0x05000, /* Rx Checksum Control - RW */
 	E1000_RFCTL    = 0x05008, /* Receive Filter Control */
 	E1000_MTA      = 0x05200, /* Multicast Table Array - RW Array */
-	E1000_RA       = 0x05400, /* Receive Address - RW Array */
+	E1000_RAL_BASE = 0x05400, /* Receive Address Low - RW */
+#define E1000_RAL(_n)   (E1000_RAL_BASE + ((_n) * 8))
+#define E1000_RA        (E1000_RAL(0))
+	E1000_RAH_BASE = 0x05404, /* Receive Address High - RW */
+#define E1000_RAH(_n)   (E1000_RAH_BASE + ((_n) * 8))
 	E1000_VFTA     = 0x05600, /* VLAN Filter Table Array - RW Array */
 	E1000_WUC      = 0x05800, /* Wakeup Control - RW */
 	E1000_WUFC     = 0x05808, /* Wakeup Filter Control - RW */
@@ -210,6 +214,7 @@ enum e1e_registers {
 	E1000_FACTPS    = 0x05B30, /* Function Active and Power State to MNG */
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
+	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
@@ -253,7 +258,7 @@ enum e1e_registers {
 #define IGP01E1000_PLHR_SS_DOWNGRADE	0x8000
 
 #define IGP01E1000_PSSR_POLARITY_REVERSED	0x0002
-#define IGP01E1000_PSSR_MDIX			0x0008
+#define IGP01E1000_PSSR_MDIX			0x0800
 #define IGP01E1000_PSSR_SPEED_MASK		0xC000
 #define IGP01E1000_PSSR_SPEED_1000MBPS		0xC000
 
@@ -368,6 +373,10 @@ enum e1e_registers {
 #define E1000_DEV_ID_ICH10_R_BM_V		0x10CE
 #define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
+#define E1000_DEV_ID_PCH_M_HV_LM		0x10EA
+#define E1000_DEV_ID_PCH_M_HV_LC		0x10EB
+#define E1000_DEV_ID_PCH_D_HV_DM		0x10EF
+#define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
 
 #define E1000_REVISION_4 4
 
@@ -383,6 +392,7 @@ enum e1000_mac_type {
 	e1000_ich8lan,
 	e1000_ich9lan,
 	e1000_ich10lan,
+	e1000_pchlan,
 };
 
 enum e1000_media_type {
@@ -417,6 +427,8 @@ enum e1000_phy_type {
 	e1000_phy_igp_3,
 	e1000_phy_ife,
 	e1000_phy_bm,
+	e1000_phy_82578,
+	e1000_phy_82577,
 };
 
 enum e1000_bus_width {
@@ -720,6 +732,7 @@ struct e1000_host_mng_command_info {
 
 /* Function pointers and static data for the MAC. */
 struct e1000_mac_operations {
+	s32  (*id_led_init)(struct e1000_hw *);
 	bool (*check_mng_mode)(struct e1000_hw *);
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*cleanup_led)(struct e1000_hw *);
@@ -733,11 +746,13 @@ struct e1000_mac_operations {
 	s32  (*init_hw)(struct e1000_hw *);
 	s32  (*setup_link)(struct e1000_hw *);
 	s32  (*setup_physical_interface)(struct e1000_hw *);
+	s32  (*setup_led)(struct e1000_hw *);
 };
 
 /* Function pointers for the PHY. */
 struct e1000_phy_operations {
 	s32  (*acquire_phy)(struct e1000_hw *);
+	s32  (*check_polarity)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
 	s32  (*commit_phy)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
@@ -869,6 +884,7 @@ struct e1000_fc_info {
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
 	bool alt_mac_addr_is_present;
+	u32 smb_counter;
 };
 
 struct e1000_shadow_ram {

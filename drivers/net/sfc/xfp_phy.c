@@ -15,13 +15,12 @@
 #include <linux/delay.h>
 #include "efx.h"
 #include "mdio_10g.h"
-#include "xenpack.h"
 #include "phy.h"
 #include "falcon.h"
 
-#define XFP_REQUIRED_DEVS (MDIO_MMDREG_DEVS_PCS |	\
-			   MDIO_MMDREG_DEVS_PMAPMD |	\
-			   MDIO_MMDREG_DEVS_PHYXS)
+#define XFP_REQUIRED_DEVS (MDIO_DEVS_PCS |	\
+			   MDIO_DEVS_PMAPMD |	\
+			   MDIO_DEVS_PHYXS)
 
 #define XFP_LOOPBACKS ((1 << LOOPBACK_PCS) |		\
 		       (1 << LOOPBACK_PMAPMD) |		\
@@ -49,8 +48,7 @@
 void xfp_set_led(struct efx_nic *p, int led, int mode)
 {
 	int addr = MDIO_QUAKE_LED0_REG + led;
-	mdio_clause45_write(p, p->mii.phy_id, MDIO_MMD_PMAPMD, addr,
-			    mode);
+	efx_mdio_write(p, MDIO_MMD_PMAPMD, addr, mode);
 }
 
 struct xfp_phy_data {
@@ -63,14 +61,12 @@ struct xfp_phy_data {
 static int qt2025c_wait_reset(struct efx_nic *efx)
 {
 	unsigned long timeout = jiffies + 10 * HZ;
-	int phy_id = efx->mii.phy_id;
 	int reg, old_counter = 0;
 
 	/* Wait for firmware heartbeat to start */
 	for (;;) {
 		int counter;
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PCS,
-					 PCS_FW_HEARTBEAT_REG);
+		reg = efx_mdio_read(efx, MDIO_MMD_PCS, PCS_FW_HEARTBEAT_REG);
 		if (reg < 0)
 			return reg;
 		counter = ((reg >> PCS_FW_HEARTB_LBN) &
@@ -86,8 +82,7 @@ static int qt2025c_wait_reset(struct efx_nic *efx)
 
 	/* Wait for firmware status to look good */
 	for (;;) {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PCS,
-					 PCS_UC8051_STATUS_REG);
+		reg = efx_mdio_read(efx, MDIO_MMD_PCS, PCS_UC8051_STATUS_REG);
 		if (reg < 0)
 			return reg;
 		if ((reg &
@@ -109,9 +104,9 @@ static int xfp_reset_phy(struct efx_nic *efx)
 {
 	int rc;
 
-	rc = mdio_clause45_reset_mmd(efx, MDIO_MMD_PHYXS,
-				     XFP_MAX_RESET_TIME / XFP_RESET_WAIT,
-				     XFP_RESET_WAIT);
+	rc = efx_mdio_reset_mmd(efx, MDIO_MMD_PHYXS,
+				XFP_MAX_RESET_TIME / XFP_RESET_WAIT,
+				XFP_RESET_WAIT);
 	if (rc < 0)
 		goto fail;
 
@@ -126,8 +121,7 @@ static int xfp_reset_phy(struct efx_nic *efx)
 
 	/* Check that all the MMDs we expect are present and responding. We
 	 * expect faults on some if the link is down, but not on the PHY XS */
-	rc = mdio_clause45_check_mmds(efx, XFP_REQUIRED_DEVS,
-				      MDIO_MMDREG_DEVS_PHYXS);
+	rc = efx_mdio_check_mmds(efx, XFP_REQUIRED_DEVS, MDIO_DEVS_PHYXS);
 	if (rc < 0)
 		goto fail;
 
@@ -143,7 +137,7 @@ static int xfp_reset_phy(struct efx_nic *efx)
 static int xfp_phy_init(struct efx_nic *efx)
 {
 	struct xfp_phy_data *phy_data;
-	u32 devid = mdio_clause45_read_id(efx, MDIO_MMD_PHYXS);
+	u32 devid = efx_mdio_read_id(efx, MDIO_MMD_PHYXS);
 	int rc;
 
 	phy_data = kzalloc(sizeof(struct xfp_phy_data), GFP_KERNEL);
@@ -152,8 +146,8 @@ static int xfp_phy_init(struct efx_nic *efx)
 	efx->phy_data = phy_data;
 
 	EFX_INFO(efx, "PHY ID reg %x (OUI %06x model %02x revision %x)\n",
-		 devid, mdio_id_oui(devid), mdio_id_model(devid),
-		 mdio_id_rev(devid));
+		 devid, efx_mdio_id_oui(devid), efx_mdio_id_model(devid),
+		 efx_mdio_id_rev(devid));
 
 	phy_data->phy_mode = efx->phy_mode;
 
@@ -174,12 +168,13 @@ static int xfp_phy_init(struct efx_nic *efx)
 
 static void xfp_phy_clear_interrupt(struct efx_nic *efx)
 {
-	xenpack_clear_lasi_irqs(efx);
+	/* Read to clear link status alarm */
+	efx_mdio_read(efx, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT);
 }
 
 static int xfp_link_ok(struct efx_nic *efx)
 {
-	return mdio_clause45_links_ok(efx, XFP_REQUIRED_DEVS);
+	return efx_mdio_links_ok(efx, XFP_REQUIRED_DEVS);
 }
 
 static void xfp_phy_poll(struct efx_nic *efx)
@@ -200,9 +195,9 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 		 * or optical transceivers, varying somewhat between
 		 * firmware versions.  Only 'static mode' appears to
 		 * cover everything. */
-		mdio_clause45_set_flag(
-			efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-			PMA_PMD_FTX_CTRL2_REG, PMA_PMD_FTX_STATIC_LBN,
+		mdio_set_flag(
+			&efx->mdio, efx->mdio.prtad, MDIO_MMD_PMAPMD,
+			PMA_PMD_FTX_CTRL2_REG, 1 << PMA_PMD_FTX_STATIC_LBN,
 			efx->phy_mode & PHY_MODE_TX_DISABLED ||
 			efx->phy_mode & PHY_MODE_LOW_POWER ||
 			efx->loopback_mode == LOOPBACK_PCS ||
@@ -213,10 +208,10 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 		    (phy_data->phy_mode & PHY_MODE_TX_DISABLED))
 			xfp_reset_phy(efx);
 
-		mdio_clause45_transmit_disable(efx);
+		efx_mdio_transmit_disable(efx);
 	}
 
-	mdio_clause45_phy_reconfigure(efx);
+	efx_mdio_phy_reconfigure(efx);
 
 	phy_data->phy_mode = efx->phy_mode;
 	efx->link_up = xfp_link_ok(efx);
@@ -225,6 +220,10 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 	efx->link_fc = efx->wanted_fc;
 }
 
+static void xfp_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+{
+	mdio45_ethtool_gset(&efx->mdio, ecmd);
+}
 
 static void xfp_phy_fini(struct efx_nic *efx)
 {
@@ -243,8 +242,8 @@ struct efx_phy_operations falcon_xfp_phy_ops = {
 	.poll            = xfp_phy_poll,
 	.fini            = xfp_phy_fini,
 	.clear_interrupt = xfp_phy_clear_interrupt,
-	.get_settings    = mdio_clause45_get_settings,
-	.set_settings	 = mdio_clause45_set_settings,
+	.get_settings    = xfp_phy_get_settings,
+	.set_settings	 = efx_mdio_set_settings,
 	.mmds            = XFP_REQUIRED_DEVS,
 	.loopbacks       = XFP_LOOPBACKS,
 };

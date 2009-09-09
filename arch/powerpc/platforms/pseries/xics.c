@@ -333,7 +333,7 @@ static void xics_eoi_lpar(unsigned int virq)
 	lpar_xirr_info_set((0xff << 24) | irq);
 }
 
-static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
+static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 {
 	unsigned int irq;
 	int status;
@@ -342,14 +342,14 @@ static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 
 	irq = (unsigned int)irq_map[virq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
-		return;
+		return -1;
 
 	status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
 
 	if (status) {
 		printk(KERN_ERR "%s: ibm,get-xive irq=%u returns %d\n",
 			__func__, irq, status);
-		return;
+		return -1;
 	}
 
 	/*
@@ -363,7 +363,7 @@ static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 		printk(KERN_WARNING
 			"%s: No online cpus in the mask %s for irq %d\n",
 			__func__, cpulist, virq);
-		return;
+		return -1;
 	}
 
 	status = rtas_call(ibm_set_xive, 3, 1, NULL,
@@ -372,8 +372,10 @@ static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 	if (status) {
 		printk(KERN_ERR "%s: ibm,set-xive irq=%u returns %d\n",
 			__func__, irq, status);
-		return;
+		return -1;
 	}
+
+	return 0;
 }
 
 static struct irq_chip xics_pic_direct = {

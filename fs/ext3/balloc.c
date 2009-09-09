@@ -649,7 +649,7 @@ do_more:
 		count = overflow;
 		goto do_more;
 	}
-	sb->s_dirt = 1;
+
 error_return:
 	brelse(bitmap_bh);
 	ext3_std_error(sb, err);
@@ -1708,7 +1708,6 @@ allocated:
 	if (!fatal)
 		fatal = err;
 
-	sb->s_dirt = 1;
 	if (fatal)
 		goto out;
 

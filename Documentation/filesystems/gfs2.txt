@@ -11,18 +11,15 @@ their I/O so file system consistency is maintained.  One of the nifty
 features of GFS is perfect consistency -- changes made to the file system
 on one machine show up immediately on all other machines in the cluster.
 
-GFS uses interchangable inter-node locking mechanisms.  Different lock
-modules can plug into GFS and each file system selects the appropriate
-lock module at mount time.  Lock modules include:
+GFS uses interchangable inter-node locking mechanisms, the currently
+supported mechanisms are:
 
   lock_nolock -- allows gfs to be used as a local file system
 
   lock_dlm -- uses a distributed lock manager (dlm) for inter-node locking
   The dlm is found at linux/fs/dlm/
 
-In addition to interfacing with an external locking manager, a gfs lock
-module is responsible for interacting with external cluster management
-systems.  Lock_dlm depends on user space cluster management systems found
+Lock_dlm depends on user space cluster management systems found
 at the URL above.
 
 To use gfs as a local file system, no external clustering systems are
@@ -31,13 +28,19 @@ needed, simply:
   $ mkfs -t gfs2 -p lock_nolock -j 1 /dev/block_device
   $ mount -t gfs2 /dev/block_device /dir
 
-GFS2 is not on-disk compatible with previous versions of GFS.
+If you are using Fedora, you need to install the gfs2-utils package
+and, for lock_dlm, you will also need to install the cman package
+and write a cluster.conf as per the documentation.
+
+GFS2 is not on-disk compatible with previous versions of GFS, but it
+is pretty close.
 
 The following man pages can be found at the URL above:
-  gfs2_fsck	to repair a filesystem
+  fsck.gfs2	to repair a filesystem
   gfs2_grow	to expand a filesystem online
   gfs2_jadd	to add journals to a filesystem online
   gfs2_tool	to manipulate, examine and tune a filesystem
   gfs2_quota	to examine and change quota values in a filesystem
+  gfs2_convert	to convert a gfs filesystem to gfs2 in-place
   mount.gfs2	to help mount(8) mount a filesystem
   mkfs.gfs2	to make a filesystem

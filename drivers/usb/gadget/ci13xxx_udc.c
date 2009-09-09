@@ -1977,9 +1977,9 @@ static int ep_enable(struct usb_ep *ep,
 	if (!list_empty(&mEp->qh[mEp->dir].queue))
 		warn("enabling a non-empty endpoint!");
 
-	mEp->dir  = (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ? TX : RX;
-	mEp->num  =  desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-	mEp->type =  desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	mEp->dir  = usb_endpoint_dir_in(desc) ? TX : RX;
+	mEp->num  = usb_endpoint_num(desc);
+	mEp->type = usb_endpoint_type(desc);
 
 	mEp->ep.maxpacket = __constant_le16_to_cpu(desc->wMaxPacketSize);
 

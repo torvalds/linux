@@ -20,6 +20,12 @@ config MACH_RD88F6281
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell RD-88F6281 Reference Board.
 
+config MACH_MV88F6281GTW_GE
+	bool "Marvell 88F6281 GTW GE Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell 88F6281 GTW GE Board.
+
 config MACH_SHEEVAPLUG
 	bool "Marvell SheevaPlug Reference Board"
 	help

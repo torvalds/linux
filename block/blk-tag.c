@@ -336,7 +336,7 @@ EXPORT_SYMBOL(blk_queue_end_tag);
 int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
-	unsigned max_depth, offset;
+	unsigned max_depth;
 	int tag;
 
 	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
@@ -355,13 +355,16 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	 * to starve sync IO on behalf of flooding async IO.
 	 */
 	max_depth = bqt->max_depth;
-	if (rq_is_sync(rq))
-		offset = 0;
-	else
-		offset = max_depth >> 2;
+	if (!rq_is_sync(rq) && max_depth > 1) {
+		max_depth -= 2;
+		if (!max_depth)
+			max_depth = 1;
+		if (q->in_flight[0] > max_depth)
+			return 1;
+	}
 
 	do {
-		tag = find_next_zero_bit(bqt->tag_map, max_depth, offset);
+		tag = find_first_zero_bit(bqt->tag_map, max_depth);
 		if (tag >= max_depth)
 			return 1;
 
@@ -374,7 +377,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	rq->cmd_flags |= REQ_QUEUED;
 	rq->tag = tag;
 	bqt->tag_index[tag] = rq;
-	blkdev_dequeue_request(rq);
+	blk_start_request(rq);
 	list_add(&rq->queuelist, &q->tag_busy_list);
 	return 0;
 }

@@ -50,7 +50,8 @@ static dma_addr_t plat_map_dma_mem_page(struct device *dev, struct page *page)
 }
 
 /* This is almost certainly wrong but it's what dma-ip32.c used to use  */
-static unsigned long plat_dma_addr_to_phys(dma_addr_t dma_addr)
+static unsigned long plat_dma_addr_to_phys(struct device *dev,
+	dma_addr_t dma_addr)
 {
 	unsigned long addr = dma_addr & RAM_OFFSET_MASK;
 
@@ -60,7 +61,8 @@ static unsigned long plat_dma_addr_to_phys(dma_addr_t dma_addr)
 	return addr;
 }
 
-static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr)
+static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr,
+	size_t size, enum dma_data_direction direction)
 {
 }
 

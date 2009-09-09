@@ -79,7 +79,7 @@ MODULE_AUTHOR("Mike Phillips <mikep@linuxtr.net>") ;
 MODULE_DESCRIPTION("3Com 3C359 Velocity XL Token Ring Adapter Driver \n") ;
 MODULE_FIRMWARE(FW_NAME);
 
-/* Module paramters */
+/* Module parameters */
 
 /* Ring Speed 0,4,16 
  * 0 = Autosense   
@@ -1243,7 +1243,7 @@ static int xl_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	} else {
 		spin_unlock_irqrestore(&xl_priv->xl_lock,flags) ; 
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 }

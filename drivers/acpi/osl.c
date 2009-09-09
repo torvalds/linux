@@ -79,6 +79,7 @@ static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
 static struct workqueue_struct *kacpi_notify_wq;
+static struct workqueue_struct *kacpi_hotplug_wq;
 
 struct acpi_res_list {
 	resource_size_t start;
@@ -192,8 +193,10 @@ acpi_status acpi_os_initialize1(void)
 {
 	kacpid_wq = create_singlethread_workqueue("kacpid");
 	kacpi_notify_wq = create_singlethread_workqueue("kacpi_notify");
+	kacpi_hotplug_wq = create_singlethread_workqueue("kacpi_hotplug");
 	BUG_ON(!kacpid_wq);
 	BUG_ON(!kacpi_notify_wq);
+	BUG_ON(!kacpi_hotplug_wq);
 	return AE_OK;
 }
 
@@ -206,6 +209,7 @@ acpi_status acpi_os_terminate(void)
 
 	destroy_workqueue(kacpid_wq);
 	destroy_workqueue(kacpi_notify_wq);
+	destroy_workqueue(kacpi_hotplug_wq);
 
 	return AE_OK;
 }
@@ -716,6 +720,7 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
+	work_func_t func;
 	int ret;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
@@ -740,15 +745,17 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	dpc->function = function;
 	dpc->context = context;
 
-	if (!hp) {
-		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-		queue = (type == OSL_NOTIFY_HANDLER) ?
-			kacpi_notify_wq : kacpid_wq;
-		ret = queue_work(queue, &dpc->work);
-	} else {
-		INIT_WORK(&dpc->work, acpi_os_execute_hp_deferred);
-		ret = schedule_work(&dpc->work);
-	}
+	/*
+	 * We can't run hotplug code in keventd_wq/kacpid_wq/kacpid_notify_wq
+	 * because the hotplug code may call driver .remove() functions,
+	 * which invoke flush_scheduled_work/acpi_os_wait_events_complete
+	 * to flush these workqueues.
+	 */
+	queue = hp ? kacpi_hotplug_wq :
+		(type == OSL_NOTIFY_HANDLER ? kacpi_notify_wq : kacpid_wq);
+	func = hp ? acpi_os_execute_hp_deferred : acpi_os_execute_deferred;
+	INIT_WORK(&dpc->work, func);
+	ret = queue_work(queue, &dpc->work);
 
 	if (!ret) {
 		printk(KERN_ERR PREFIX

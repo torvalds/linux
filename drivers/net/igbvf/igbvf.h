@@ -45,7 +45,7 @@ struct igbvf_adapter;
 /* Interrupt defines */
 #define IGBVF_START_ITR                 648 /* ~6000 ints/sec */
 
-/* Interrupt modes, as used by the IntMode paramter */
+/* Interrupt modes, as used by the IntMode parameter */
 #define IGBVF_INT_MODE_LEGACY           0
 #define IGBVF_INT_MODE_MSI              1
 #define IGBVF_INT_MODE_MSIX             2
@@ -286,11 +286,7 @@ struct igbvf_info {
 };
 
 /* hardware capability, feature, and workaround flags */
-#define FLAG_HAS_HW_VLAN_FILTER           (1 << 0)
-#define FLAG_HAS_JUMBO_FRAMES             (1 << 1)
-#define FLAG_MSI_ENABLED                  (1 << 2)
-#define FLAG_RX_CSUM_ENABLED              (1 << 3)
-#define FLAG_TSO_FORCE                    (1 << 4)
+#define IGBVF_FLAG_RX_CSUM_DISABLED             (1 << 0)
 
 #define IGBVF_RX_DESC_ADV(R, i)     \
 	(&((((R).desc))[i].rx_desc))

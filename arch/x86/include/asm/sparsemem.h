@@ -27,7 +27,7 @@
 #else /* CONFIG_X86_32 */
 # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
 # define MAX_PHYSADDR_BITS	44
-# define MAX_PHYSMEM_BITS	44 /* Can be max 45 bits */
+# define MAX_PHYSMEM_BITS	46
 #endif
 
 #endif /* CONFIG_SPARSEMEM */

@@ -490,7 +490,14 @@ static void pars_2_message(_cmsg * cmsg)
 	}
 }
 
-/*-------------------------------------------------------*/
+/**
+ * capi_cmsg2message() - assemble CAPI 2.0 message from _cmsg structure
+ * @cmsg:	_cmsg structure
+ * @msg:	buffer for assembled message
+ *
+ * Return value: 0 for success
+ */
+
 unsigned capi_cmsg2message(_cmsg * cmsg, u8 * msg)
 {
 	cmsg->m = msg;
@@ -553,7 +560,14 @@ static void message_2_pars(_cmsg * cmsg)
 	}
 }
 
-/*-------------------------------------------------------*/
+/**
+ * capi_message2cmsg() - disassemble CAPI 2.0 message into _cmsg structure
+ * @cmsg:	_cmsg structure
+ * @msg:	buffer for assembled message
+ *
+ * Return value: 0 for success
+ */
+
 unsigned capi_message2cmsg(_cmsg * cmsg, u8 * msg)
 {
 	memset(cmsg, 0, sizeof(_cmsg));
@@ -573,7 +587,18 @@ unsigned capi_message2cmsg(_cmsg * cmsg, u8 * msg)
 	return 0;
 }
 
-/*-------------------------------------------------------*/
+/**
+ * capi_cmsg_header() - initialize header part of _cmsg structure
+ * @cmsg:	_cmsg structure
+ * @_ApplId:	ApplID field value
+ * @_Command:	Command field value
+ * @_Subcommand:	Subcommand field value
+ * @_Messagenumber:	Message Number field value
+ * @_Controller:	Controller/PLCI/NCCI field value
+ *
+ * Return value: 0 for success
+ */
+
 unsigned capi_cmsg_header(_cmsg * cmsg, u16 _ApplId,
 			  u8 _Command, u8 _Subcommand,
 			  u16 _Messagenumber, u32 _Controller)
@@ -640,6 +665,14 @@ static char *mnames[] =
 	[0x47] = "CONNECT_B3_T90_ACTIVE_RESP",
 	[0x4e] = "MANUFACTURER_RESP"
 };
+
+/**
+ * capi_cmd2str() - convert CAPI 2.0 command/subcommand number to name
+ * @cmd:	command number
+ * @subcmd:	subcommand number
+ *
+ * Return value: static string, NULL if command/subcommand unknown
+ */
 
 char *capi_cmd2str(u8 cmd, u8 subcmd)
 {
@@ -879,6 +912,11 @@ init:
 	return cdb;
 }
 
+/**
+ * cdebbuf_free() - free CAPI debug buffer
+ * @cdb:	buffer to free
+ */
+
 void cdebbuf_free(_cdebbuf *cdb)
 {
 	if (likely(cdb == g_debbuf)) {
@@ -890,6 +928,16 @@ void cdebbuf_free(_cdebbuf *cdb)
 	kfree(cdb);
 }
 
+
+/**
+ * capi_message2str() - format CAPI 2.0 message for printing
+ * @msg:	CAPI 2.0 message
+ *
+ * Allocates a CAPI debug buffer and fills it with a printable representation
+ * of the CAPI 2.0 message in @msg.
+ * Return value: allocated debug buffer, NULL on error
+ * The returned buffer should be freed by a call to cdebbuf_free() after use.
+ */
 
 _cdebbuf *capi_message2str(u8 * msg)
 {
@@ -926,10 +974,23 @@ _cdebbuf *capi_message2str(u8 * msg)
 	return cdb;
 }
 
+/**
+ * capi_cmsg2str() - format _cmsg structure for printing
+ * @cmsg:	_cmsg structure
+ *
+ * Allocates a CAPI debug buffer and fills it with a printable representation
+ * of the CAPI 2.0 message stored in @cmsg by a previous call to
+ * capi_cmsg2message() or capi_message2cmsg().
+ * Return value: allocated debug buffer, NULL on error
+ * The returned buffer should be freed by a call to cdebbuf_free() after use.
+ */
+
 _cdebbuf *capi_cmsg2str(_cmsg * cmsg)
 {
 	_cdebbuf *cdb;
 
+	if (!cmsg->m)
+		return NULL;	/* no message */
 	cdb = cdebbuf_alloc();
 	if (!cdb)
 		return NULL;

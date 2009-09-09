@@ -39,8 +39,10 @@ if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
 	        printf -- '-svn%s' "`git svn find-rev $head`"
 	fi
 
-	# Are there uncommitted changes?
-	git update-index --refresh --unmerged > /dev/null
+	# Update index only on r/w media
+	[ -w . ] && git update-index --refresh --unmerged > /dev/null
+
+	# Check for uncommitted changes
 	if git diff-index --name-only HEAD | grep -v "^scripts/package" \
 	    | read dummy; then
 		printf '%s' -dirty

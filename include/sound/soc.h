@@ -118,6 +118,14 @@
 	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) }
+#define SOC_DOUBLE_EXT(xname, xreg, shift_left, shift_right, xmax, xinvert,\
+	 xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
+	.info = snd_soc_info_volsw, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
+		 .max = xmax, .invert = xinvert} }
 #define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -205,10 +213,6 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
 #endif
-
-/* codec IO */
-#define snd_soc_read(codec, reg) codec->read(codec, reg)
-#define snd_soc_write(codec, reg, value) codec->write(codec, reg, value)
 
 /* codec register bit access */
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
@@ -331,6 +335,7 @@ struct snd_soc_codec {
 	struct module *owner;
 	struct mutex mutex;
 	struct device *dev;
+	struct snd_soc_device *socdev;
 
 	struct list_head list;
 
@@ -364,6 +369,8 @@ struct snd_soc_codec {
 	enum snd_soc_bias_level bias_level;
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
+	struct list_head up_list;
+	struct list_head down_list;
 
 	/* codec DAI's */
 	struct snd_soc_dai *dai;
@@ -416,6 +423,12 @@ struct snd_soc_dai_link  {
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_codec *codec);
+
+	/* Symmetry requirements */
+	unsigned int symmetric_rates:1;
+
+	/* Symmetry data - only valid if symmetry is being enforced */
+	unsigned int rate;
 
 	/* DAI pcm */
 	struct snd_pcm *pcm;
@@ -489,6 +502,19 @@ struct soc_enum {
 	const unsigned int *values;
 	void *dapm;
 };
+
+/* codec IO */
+static inline unsigned int snd_soc_read(struct snd_soc_codec *codec,
+					unsigned int reg)
+{
+	return codec->read(codec, reg);
+}
+
+static inline unsigned int snd_soc_write(struct snd_soc_codec *codec,
+					 unsigned int reg, unsigned int val)
+{
+	return codec->write(codec, reg, val);
+}
 
 #include <sound/soc-dai.h>
 

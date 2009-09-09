@@ -179,7 +179,7 @@
 #define DMA_REQ_UART1_T		30
 #define DMA_REQ_UART1_R		31
 
-/* mandatory for CONFIG_LL_DEBUG */
+/* mandatory for CONFIG_DEBUG_LL */
 #define MXC_LL_UART_PADDR	UART1_BASE_ADDR
 #define MXC_LL_UART_VADDR	IO_ADDRESS(UART1_BASE_ADDR)
 

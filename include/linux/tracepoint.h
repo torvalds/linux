@@ -31,6 +31,8 @@ struct tracepoint {
 					 * Keep in sync with vmlinux.lds.h.
 					 */
 
+#ifndef DECLARE_TRACE
+
 #define TP_PROTO(args...)	args
 #define TP_ARGS(args...)		args
 
@@ -114,6 +116,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	struct tracepoint *end)
 { }
 #endif /* CONFIG_TRACEPOINTS */
+#endif /* DECLARE_TRACE */
 
 /*
  * Connect a probe to a tracepoint.
@@ -154,10 +157,8 @@ static inline void tracepoint_synchronize_unregister(void)
 }
 
 #define PARAMS(args...) args
-#define TRACE_FORMAT(name, proto, args, fmt)		\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 
-
+#ifndef TRACE_EVENT
 /*
  * For use with the TRACE_EVENT macro:
  *
@@ -197,7 +198,7 @@ static inline void tracepoint_synchronize_unregister(void)
  *	* This is how the trace record is structured and will
  *	* be saved into the ring buffer. These are the fields
  *	* that will be exposed to user-space in
- *	* /debug/tracing/events/<*>/format.
+ *	* /sys/kernel/debug/tracing/events/<*>/format.
  *	*
  *	* The declared 'local variable' is called '__entry'
  *	*
@@ -257,10 +258,11 @@ static inline void tracepoint_synchronize_unregister(void)
  * tracepoint callback (this is used by programmatic plugins and
  * can also by used by generic instrumentation like SystemTap), and
  * it is also used to expose a structured trace record in
- * /debug/tracing/events/.
+ * /sys/kernel/debug/tracing/events/.
  */
 
 #define TRACE_EVENT(name, proto, args, struct, assign, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#endif
 
 #endif

@@ -329,7 +329,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */
-	if (skb->dst == NULL) {
+	if (skb_dst(skb) == NULL) {
 		int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
 					 skb->dev);
 		if (unlikely(err)) {
@@ -344,9 +344,9 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_NET_CLS_ROUTE
-	if (unlikely(skb->dst->tclassid)) {
+	if (unlikely(skb_dst(skb)->tclassid)) {
 		struct ip_rt_acct *st = per_cpu_ptr(ip_rt_acct, smp_processor_id());
-		u32 idx = skb->dst->tclassid;
+		u32 idx = skb_dst(skb)->tclassid;
 		st[idx&0xFF].o_packets++;
 		st[idx&0xFF].o_bytes += skb->len;
 		st[(idx>>16)&0xFF].i_packets++;
@@ -357,11 +357,13 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	if (iph->ihl > 5 && ip_rcv_options(skb))
 		goto drop;
 
-	rt = skb->rtable;
-	if (rt->rt_type == RTN_MULTICAST)
-		IP_INC_STATS_BH(dev_net(rt->u.dst.dev), IPSTATS_MIB_INMCASTPKTS);
-	else if (rt->rt_type == RTN_BROADCAST)
-		IP_INC_STATS_BH(dev_net(rt->u.dst.dev), IPSTATS_MIB_INBCASTPKTS);
+	rt = skb_rtable(skb);
+	if (rt->rt_type == RTN_MULTICAST) {
+		IP_UPD_PO_STATS_BH(dev_net(rt->u.dst.dev), IPSTATS_MIB_INMCAST,
+				skb->len);
+	} else if (rt->rt_type == RTN_BROADCAST)
+		IP_UPD_PO_STATS_BH(dev_net(rt->u.dst.dev), IPSTATS_MIB_INBCAST,
+				skb->len);
 
 	return dst_input(skb);
 
@@ -384,7 +386,8 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 
-	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INRECEIVES);
+
+	IP_UPD_PO_STATS_BH(dev_net(dev), IPSTATS_MIB_IN, skb->len);
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
 		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INDISCARDS);

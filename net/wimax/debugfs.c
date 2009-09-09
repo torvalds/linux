@@ -61,6 +61,7 @@ int wimax_debugfs_add(struct wimax_dev *wimax_dev)
 	__debugfs_register("wimax_dl_", op_msg, dentry);
 	__debugfs_register("wimax_dl_", op_reset, dentry);
 	__debugfs_register("wimax_dl_", op_rfkill, dentry);
+	__debugfs_register("wimax_dl_", op_state_get, dentry);
 	__debugfs_register("wimax_dl_", stack, dentry);
 	result = 0;
 out:

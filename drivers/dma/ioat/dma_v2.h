@@ -142,8 +142,8 @@ struct ioat_ring_ent {
 		struct ioat_pq_update_descriptor *pqu;
 		struct ioat_raw_descriptor *raw;
 	};
-	struct dma_async_tx_descriptor txd;
 	size_t len;
+	struct dma_async_tx_descriptor txd;
 	enum sum_check_flags *result;
 	#ifdef DEBUG
 	int id;
@@ -186,4 +186,5 @@ void __ioat2_issue_pending(struct ioat2_dma_chan *ioat);
 void ioat2_cleanup_tasklet(unsigned long data);
 void ioat2_timer_event(unsigned long data);
 extern struct kobj_type ioat2_ktype;
+extern struct kmem_cache *ioat2_cache;
 #endif /* IOATDMA_V2_H */

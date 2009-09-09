@@ -141,6 +141,14 @@ static void destroy_serial(struct kref *kref)
 	if (serial->minor != SERIAL_TTY_NO_MINOR)
 		return_serial(serial);
 
+	serial->type->release(serial);
+
+	for (i = 0; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		if (port)
+			put_device(&port->dev);
+	}
+
 	/* If this is a "fake" port, we have to clean it up here, as it will
 	 * not get cleaned up in port_release() as it was never registered with
 	 * the driver core */
@@ -148,9 +156,8 @@ static void destroy_serial(struct kref *kref)
 		for (i = serial->num_ports;
 					i < serial->num_port_pointers; ++i) {
 			port = serial->port[i];
-			if (!port)
-				continue;
-			port_free(port);
+			if (port)
+				port_free(port);
 		}
 	}
 
@@ -238,9 +245,11 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 			goto bailout_interface_put;
 		mutex_unlock(&serial->disc_mutex);
 	}
-
 	mutex_unlock(&port->mutex);
-	return 0;
+	/* Now do the correct tty layer semantics */
+	retval = tty_port_block_til_ready(&port->port, tty, filp);
+	if (retval == 0)
+		return 0;
 
 bailout_interface_put:
 	usb_autopm_put_interface(serial->interface);
@@ -259,64 +268,89 @@ bailout_serial_put:
 	return retval;
 }
 
-static void serial_close(struct tty_struct *tty, struct file *filp)
+/**
+ *	serial_do_down		-	shut down hardware
+ *	@port: port to shut down
+ *
+ *	Shut down a USB port unless it is the console. We never shut down the
+ *	console hardware as it will always be in use.
+ *
+ *	Don't free any resources at this point
+ */
+static void serial_do_down(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial_driver *drv = port->serial->type;
 	struct usb_serial *serial;
 	struct module *owner;
-	int count;
 
-	if (!port)
+	/* The console is magical, do not hang up the console hardware
+	   or there will be tears */
+	if (port->console)
 		return;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	mutex_lock(&port->mutex);
 	serial = port->serial;
 	owner = serial->type->driver.owner;
 
-	if (port->port.count == 0) {
-		mutex_unlock(&port->mutex);
-		return;
-	}
+	if (drv->close)
+		drv->close(port);
 
-	if (port->port.count == 1)
-		/* only call the device specific close if this
-		 * port is being closed by the last owner. Ensure we do
-		 * this before we drop the port count. The call is protected
-		 * by the port mutex
-		 */
-		serial->type->close(tty, port, filp);
-
-	if (port->port.count == (port->console ? 2 : 1)) {
-		struct tty_struct *tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			/* We must do this before we drop the port count to
-			   zero. */
-			if (tty->driver_data)
-				tty->driver_data = NULL;
-			tty_port_tty_set(&port->port, NULL);
-			tty_kref_put(tty);
-		}
-	}
-
-	--port->port.count;
-	count = port->port.count;
 	mutex_unlock(&port->mutex);
+}
+
+/**
+ *	serial_do_free		-	free resources post close/hangup
+ *	@port: port to free up
+ *
+ *	Do the resource freeing and refcount dropping for the port. We must
+ *	be careful about ordering and we must avoid freeing up the console.
+ */
+
+static void serial_do_free(struct usb_serial_port *port)
+{
+	struct usb_serial *serial;
+	struct module *owner;
+
+	/* The console is magical, do not hang up the console hardware
+	   or there will be tears */
+	if (port->console)
+		return;
+
+	serial = port->serial;
+	owner = serial->type->driver.owner;
 	put_device(&port->dev);
-
 	/* Mustn't dereference port any more */
-	if (count == 0) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
-			usb_autopm_put_interface(serial->interface);
-		mutex_unlock(&serial->disc_mutex);
-	}
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected)
+		usb_autopm_put_interface(serial->interface);
+	mutex_unlock(&serial->disc_mutex);
 	usb_serial_put(serial);
-
 	/* Mustn't dereference serial any more */
-	if (count == 0)
-		module_put(owner);
+	module_put(owner);
+}
+
+static void serial_close(struct tty_struct *tty, struct file *filp)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	dbg("%s - port %d", __func__, port->number);
+
+
+	if (tty_port_close_start(&port->port, tty, filp) == 0)
+		return;
+
+	serial_do_down(port);		
+	tty_port_close_end(&port->port, tty);
+	tty_port_tty_set(&port->port, NULL);
+	serial_do_free(port);
+}
+
+static void serial_hangup(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	serial_do_down(port);
+	tty_port_hangup(&port->port);
+	serial_do_free(port);
 }
 
 static int serial_write(struct tty_struct *tty, const unsigned char *buf,
@@ -648,6 +682,29 @@ static struct usb_serial_driver *search_serial_device(
 	return NULL;
 }
 
+static int serial_carrier_raised(struct tty_port *port)
+{
+	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
+	struct usb_serial_driver *drv = p->serial->type;
+	if (drv->carrier_raised)
+		return drv->carrier_raised(p);
+	/* No carrier control - don't block */
+	return 1;	
+}
+
+static void serial_dtr_rts(struct tty_port *port, int on)
+{
+	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
+	struct usb_serial_driver *drv = p->serial->type;
+	if (drv->dtr_rts)
+		drv->dtr_rts(p, on);
+}
+
+static const struct tty_port_operations serial_port_ops = {
+	.carrier_raised = serial_carrier_raised,
+	.dtr_rts = serial_dtr_rts,
+};
+
 int usb_serial_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
@@ -841,6 +898,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		if (!port)
 			goto probe_error;
 		tty_port_init(&port->port);
+		port->port.ops = &serial_port_ops;
 		port->serial = serial;
 		spin_lock_init(&port->lock);
 		mutex_init(&port->mutex);
@@ -995,10 +1053,15 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		dev_set_name(&port->dev, "ttyUSB%d", port->number);
 		dbg ("%s - registering %s", __func__, dev_name(&port->dev));
+		port->dev_state = PORT_REGISTERING;
 		retval = device_register(&port->dev);
-		if (retval)
+		if (retval) {
 			dev_err(&port->dev, "Error registering port device, "
 				"continuing\n");
+			port->dev_state = PORT_UNREGISTERED;
+		} else {
+			port->dev_state = PORT_REGISTERED;
+		}
 	}
 
 	usb_serial_console_init(debug, minor);
@@ -1062,31 +1125,38 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	serial->disconnected = 1;
 	mutex_unlock(&serial->disc_mutex);
 
-	/* Unfortunately, many of the sub-drivers expect the port structures
-	 * to exist when their shutdown method is called, so we have to go
-	 * through this awkward two-step unregistration procedure.
-	 */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (port) {
 			struct tty_struct *tty = tty_port_tty_get(&port->port);
 			if (tty) {
+				/* The hangup will occur asynchronously but
+				   the object refcounts will sort out all the
+				   cleanup */
 				tty_hangup(tty);
 				tty_kref_put(tty);
 			}
 			kill_traffic(port);
 			cancel_work_sync(&port->work);
-			device_del(&port->dev);
+			if (port->dev_state == PORT_REGISTERED) {
+
+				/* Make sure the port is bound so that the
+				 * driver's port_remove method is called.
+				 */
+				if (!port->dev.driver) {
+					int rc;
+
+					port->dev.driver =
+							&serial->type->driver;
+					rc = device_bind_driver(&port->dev);
+				}
+				port->dev_state = PORT_UNREGISTERING;
+				device_del(&port->dev);
+				port->dev_state = PORT_UNREGISTERED;
+			}
 		}
 	}
-	serial->type->shutdown(serial);
-	for (i = 0; i < serial->num_ports; ++i) {
-		port = serial->port[i];
-		if (port) {
-			put_device(&port->dev);
-			serial->port[i] = NULL;
-		}
-	}
+	serial->type->disconnect(serial);
 
 	/* let the last holder of this object
 	 * cause it to be cleaned up */
@@ -1135,6 +1205,7 @@ static const struct tty_operations serial_ops = {
 	.open =			serial_open,
 	.close =		serial_close,
 	.write =		serial_write,
+	.hangup = 		serial_hangup,
 	.write_room =		serial_write_room,
 	.ioctl =		serial_ioctl,
 	.set_termios =		serial_set_termios,
@@ -1146,6 +1217,7 @@ static const struct tty_operations serial_ops = {
 	.tiocmset =		serial_tiocmset,
 	.proc_fops =		&serial_proc_fops,
 };
+
 
 struct tty_driver *usb_serial_tty_driver;
 
@@ -1262,7 +1334,8 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, chars_in_buffer);
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
-	set_to_generic_if_null(device, shutdown);
+	set_to_generic_if_null(device, disconnect);
+	set_to_generic_if_null(device, release);
 }
 
 int usb_serial_register(struct usb_serial_driver *driver)

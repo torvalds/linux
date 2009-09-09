@@ -46,6 +46,22 @@
 #define DV_RETRIES	3	/* should only need at most 
 				 * two cc/ua clears */
 
+/* Our blacklist flags */
+enum {
+	SPI_BLIST_NOIUS = 0x1,
+};
+
+/* blacklist table, modelled on scsi_devinfo.c */
+static struct {
+	char *vendor;
+	char *model;
+	unsigned flags;
+} spi_static_device_list[] __initdata = {
+	{"HP", "Ultrium 3-SCSI", SPI_BLIST_NOIUS },
+	{"IBM", "ULTRIUM-TD3", SPI_BLIST_NOIUS },
+	{NULL, NULL, 0}
+};
+
 /* Private data accessors (keep these out of the header file) */
 #define spi_dv_in_progress(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_in_progress)
 #define spi_dv_mutex(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_mutex)
@@ -207,6 +223,9 @@ static int spi_device_configure(struct transport_container *tc,
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_target *starget = sdev->sdev_target;
+	unsigned bflags = scsi_get_device_flags_keyed(sdev, &sdev->inquiry[8],
+						      &sdev->inquiry[16],
+						      SCSI_DEVINFO_SPI);
 
 	/* Populate the target capability fields with the values
 	 * gleaned from the device inquiry */
@@ -216,6 +235,10 @@ static int spi_device_configure(struct transport_container *tc,
 	spi_support_dt(starget) = scsi_device_dt(sdev);
 	spi_support_dt_only(starget) = scsi_device_dt_only(sdev);
 	spi_support_ius(starget) = scsi_device_ius(sdev);
+	if (bflags & SPI_BLIST_NOIUS) {
+		dev_info(dev, "Information Units disabled by blacklist\n");
+		spi_support_ius(starget) = 0;
+	}
 	spi_support_qas(starget) = scsi_device_qas(sdev);
 
 	return 0;
@@ -234,8 +257,10 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 	spi_width(starget) = 0;	/* narrow */
 	spi_max_width(starget) = 1;
 	spi_iu(starget) = 0;	/* no IU */
+	spi_max_iu(starget) = 1;
 	spi_dt(starget) = 0;	/* ST */
 	spi_qas(starget) = 0;
+	spi_max_qas(starget) = 1;
 	spi_wr_flow(starget) = 0;
 	spi_rd_strm(starget) = 0;
 	spi_rti(starget) = 0;
@@ -360,9 +385,9 @@ static DEVICE_ATTR(field, S_IRUGO,				\
 /* The Parallel SCSI Tranport Attributes: */
 spi_transport_max_attr(offset, "%d\n");
 spi_transport_max_attr(width, "%d\n");
-spi_transport_rd_attr(iu, "%d\n");
+spi_transport_max_attr(iu, "%d\n");
 spi_transport_rd_attr(dt, "%d\n");
-spi_transport_rd_attr(qas, "%d\n");
+spi_transport_max_attr(qas, "%d\n");
 spi_transport_rd_attr(wr_flow, "%d\n");
 spi_transport_rd_attr(rd_strm, "%d\n");
 spi_transport_rd_attr(rti, "%d\n");
@@ -831,7 +856,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		return;
 	}
 
-	if (!scsi_device_wide(sdev)) {
+	if (!spi_support_wide(starget)) {
 		spi_max_width(starget) = 0;
 		max_width = 0;
 	}
@@ -858,7 +883,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		return;
 
 	/* device can't handle synchronous */
-	if (!scsi_device_sync(sdev) && !scsi_device_dt(sdev))
+	if (!spi_support_sync(starget) && !spi_support_dt(starget))
 		return;
 
 	/* len == -1 is the signal that we need to ascertain the
@@ -874,13 +899,14 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 
 	/* try QAS requests; this should be harmless to set if the
 	 * target supports it */
-	if (scsi_device_qas(sdev)) {
+	if (spi_support_qas(starget) && spi_max_qas(starget)) {
 		DV_SET(qas, 1);
 	} else {
 		DV_SET(qas, 0);
 	}
 
-	if (scsi_device_ius(sdev) && min_period < 9) {
+	if (spi_support_ius(starget) && spi_max_iu(starget) &&
+	    min_period < 9) {
 		/* This u320 (or u640). Set IU transfers */
 		DV_SET(iu, 1);
 		/* Then set the optional parameters */
@@ -900,7 +926,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		i->f->get_signalling(shost);
 	if (spi_signalling(shost) == SPI_SIGNAL_SE ||
 	    spi_signalling(shost) == SPI_SIGNAL_HVD ||
-	    !scsi_device_dt(sdev)) {
+	    !spi_support_dt(starget)) {
 		DV_SET(dt, 0);
 	} else {
 		DV_SET(dt, 1);
@@ -1412,10 +1438,16 @@ static mode_t target_attribute_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_iu.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(iu);
+	else if (attr == &dev_attr_max_iu.attr &&
+		 spi_support_ius(starget))
+		return TARGET_ATTRIBUTE_HELPER(iu);
 	else if (attr == &dev_attr_dt.attr &&
 		 spi_support_dt(starget))
 		return TARGET_ATTRIBUTE_HELPER(dt);
 	else if (attr == &dev_attr_qas.attr &&
+		 spi_support_qas(starget))
+		return TARGET_ATTRIBUTE_HELPER(qas);
+	else if (attr == &dev_attr_max_qas.attr &&
 		 spi_support_qas(starget))
 		return TARGET_ATTRIBUTE_HELPER(qas);
 	else if (attr == &dev_attr_wr_flow.attr &&
@@ -1447,8 +1479,10 @@ static struct attribute *target_attributes[] = {
 	&dev_attr_width.attr,
 	&dev_attr_max_width.attr,
 	&dev_attr_iu.attr,
+	&dev_attr_max_iu.attr,
 	&dev_attr_dt.attr,
 	&dev_attr_qas.attr,
+	&dev_attr_max_qas.attr,
 	&dev_attr_wr_flow.attr,
 	&dev_attr_rd_strm.attr,
 	&dev_attr_rti.attr,
@@ -1513,7 +1547,21 @@ EXPORT_SYMBOL(spi_release_transport);
 
 static __init int spi_transport_init(void)
 {
-	int error = transport_class_register(&spi_transport_class);
+	int error = scsi_dev_info_add_list(SCSI_DEVINFO_SPI,
+					   "SCSI Parallel Transport Class");
+	if (!error) {
+		int i;
+
+		for (i = 0; spi_static_device_list[i].vendor; i++)
+			scsi_dev_info_list_add_keyed(1,	/* compatible */
+						     spi_static_device_list[i].vendor,
+						     spi_static_device_list[i].model,
+						     NULL,
+						     spi_static_device_list[i].flags,
+						     SCSI_DEVINFO_SPI);
+	}
+
+	error = transport_class_register(&spi_transport_class);
 	if (error)
 		return error;
 	error = anon_transport_class_register(&spi_device_class);
@@ -1525,6 +1573,7 @@ static void __exit spi_transport_exit(void)
 	transport_class_unregister(&spi_transport_class);
 	anon_transport_class_unregister(&spi_device_class);
 	transport_class_unregister(&spi_host_class);
+	scsi_dev_info_remove_list(SCSI_DEVINFO_SPI);
 }
 
 MODULE_AUTHOR("Martin Hicks");

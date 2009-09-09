@@ -171,7 +171,7 @@ ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
  * struct ioat_desc_sw - wrapper around hardware descriptor
  * @hw: hardware DMA descriptor (for memcpy)
  * @node: this descriptor will either be on the free list,
- *     or attached to a transaction list (async_tx.tx_list)
+ *     or attached to a transaction list (tx_list)
  * @txd: the generic software descriptor for all engines
  * @id: identifier for debug
  */
@@ -179,6 +179,7 @@ struct ioat_desc_sw {
 	struct ioat_dma_descriptor *hw;
 	struct list_head node;
 	size_t len;
+	struct list_head tx_list;
 	struct dma_async_tx_descriptor txd;
 	#ifdef DEBUG
 	int id;

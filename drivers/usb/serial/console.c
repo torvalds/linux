@@ -169,7 +169,9 @@ static int usb_console_setup(struct console *co, char *options)
 			kfree(tty);
 		}
 	}
-
+	/* So we know not to kill the hardware on a hangup on this
+	   port. We have also bumped the use count by one so it won't go
+	   idle */
 	port->console = 1;
 	retval = 0;
 
@@ -182,7 +184,7 @@ free_tty:
 	kfree(tty);
 reset_open_count:
 	port->port.count = 0;
-goto out;
+	goto out;
 }
 
 static void usb_console_write(struct console *co,

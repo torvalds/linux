@@ -30,6 +30,7 @@
 #include <linux/dnotify.h>
 #include <linux/statfs.h>
 #include <linux/security.h>
+#include <linux/ima.h>
 
 #include <asm/uaccess.h>
 
@@ -986,6 +987,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
 			&hugetlbfs_file_operations);
 	if (!file)
 		goto out_dentry; /* inode is already attached */
+	ima_counts_get(file);
 
 	return file;
 

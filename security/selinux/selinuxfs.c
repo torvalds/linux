@@ -527,10 +527,10 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 		goto out2;
 
 	length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
-			  "%x %x %x %x %u",
+			  "%x %x %x %x %u %x",
 			  avd.allowed, 0xffffffff,
 			  avd.auditallow, avd.auditdeny,
-			  avd.seqno);
+			  avd.seqno, avd.flags);
 out2:
 	kfree(tcon);
 out:
@@ -803,10 +803,6 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 		goto out;
 	}
 
-	if (count > PAGE_SIZE) {
-		ret = -EINVAL;
-		goto out;
-	}
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page) {
 		ret = -ENOMEM;

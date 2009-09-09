@@ -148,11 +148,13 @@
 #include <linux/wait.h>
 #include <linux/mmu_notifier.h>
 #include "gru.h"
+#include "grulib.h"
 #include "gruhandles.h"
 
 extern struct gru_stats_s gru_stats;
 extern struct gru_blade_state *gru_base[];
 extern unsigned long gru_start_paddr, gru_end_paddr;
+extern void *gru_start_vaddr;
 extern unsigned int gru_max_gids;
 
 #define GRU_MAX_BLADES		MAX_NUMNODES
@@ -174,9 +176,12 @@ struct gru_stats_s {
 	atomic_long_t assign_context;
 	atomic_long_t assign_context_failed;
 	atomic_long_t free_context;
-	atomic_long_t load_context;
-	atomic_long_t unload_context;
-	atomic_long_t steal_context;
+	atomic_long_t load_user_context;
+	atomic_long_t load_kernel_context;
+	atomic_long_t lock_kernel_context;
+	atomic_long_t unlock_kernel_context;
+	atomic_long_t steal_user_context;
+	atomic_long_t steal_kernel_context;
 	atomic_long_t steal_context_failed;
 	atomic_long_t nopfn;
 	atomic_long_t break_cow;
@@ -193,7 +198,7 @@ struct gru_stats_s {
 	atomic_long_t user_flush_tlb;
 	atomic_long_t user_unload_context;
 	atomic_long_t user_exception;
-	atomic_long_t set_task_slice;
+	atomic_long_t set_context_option;
 	atomic_long_t migrate_check;
 	atomic_long_t migrated_retarget;
 	atomic_long_t migrated_unload;
@@ -207,6 +212,9 @@ struct gru_stats_s {
 	atomic_long_t tlb_dropin_fail_range_active;
 	atomic_long_t tlb_dropin_fail_idle;
 	atomic_long_t tlb_dropin_fail_fmm;
+	atomic_long_t tlb_dropin_fail_no_exception;
+	atomic_long_t tlb_dropin_fail_no_exception_war;
+	atomic_long_t tfh_stale_on_fault;
 	atomic_long_t mmu_invalidate_range;
 	atomic_long_t mmu_invalidate_page;
 	atomic_long_t mmu_clear_flush_young;
@@ -253,7 +261,6 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
 #define OPT_DPRINT	1
 #define OPT_STATS	2
-#define GRU_QUICKLOOK	4
 
 
 #define IRQ_GRU			110	/* Starting IRQ number for interrupts */
@@ -373,6 +380,7 @@ struct gru_thread_state {
 						   required for contest */
 	unsigned char		ts_cbr_au_count;/* Number of CBR resources
 						   required for contest */
+	char			ts_cch_req_slice;/* CCH packet slice */
 	char			ts_blade;	/* If >= 0, migrate context if
 						   ref from diferent blade */
 	char			ts_force_cch_reload;
@@ -380,6 +388,9 @@ struct gru_thread_state {
 						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
 							  allocated CB */
+	int			ts_data_valid;	/* Indicates if ts_gdata has
+						   valid data */
+	struct gts_statistics	ustats;		/* User statistics */
 	unsigned long		ts_gdata[0];	/* save area for GRU data (CB,
 						   DS, CBE) */
 };
@@ -452,6 +463,14 @@ struct gru_blade_state {
 							   reserved cb */
 	void			*kernel_dsr;		/* First kernel
 							   reserved DSR */
+	struct rw_semaphore	bs_kgts_sema;		/* lock for kgts */
+	struct gru_thread_state *bs_kgts;		/* GTS for kernel use */
+
+	/* ---- the following are used for managing kernel async GRU CBRs --- */
+	int			bs_async_dsr_bytes;	/* DSRs for async */
+	int			bs_async_cbrs;		/* CBRs AU for async */
+	struct completion	*bs_async_wq;
+
 	/* ---- the following are protected by the bs_lock spinlock ---- */
 	spinlock_t		bs_lock;		/* lock used for
 							   stealing contexts */
@@ -552,6 +571,12 @@ struct gru_blade_state {
 
 /* Lock hierarchy checking enabled only in emulator */
 
+/* 0 = lock failed, 1 = locked */
+static inline int __trylock_handle(void *h)
+{
+	return !test_and_set_bit(1, h);
+}
+
 static inline void __lock_handle(void *h)
 {
 	while (test_and_set_bit(1, h))
@@ -561,6 +586,11 @@ static inline void __lock_handle(void *h)
 static inline void __unlock_handle(void *h)
 {
 	clear_bit(1, h);
+}
+
+static inline int trylock_cch_handle(struct gru_context_configuration_handle *cch)
+{
+	return __trylock_handle(cch);
 }
 
 static inline void lock_cch_handle(struct gru_context_configuration_handle *cch)
@@ -584,6 +614,11 @@ static inline void unlock_tgh_handle(struct gru_tlb_global_handle *tgh)
 	__unlock_handle(tgh);
 }
 
+static inline int is_kernel_context(struct gru_thread_state *gts)
+{
+	return !gts->ts_mm;
+}
+
 /*-----------------------------------------------------------------------------
  * Function prototypes & externs
  */
@@ -598,24 +633,32 @@ extern struct gru_thread_state *gru_find_thread_state(struct vm_area_struct
 				*vma, int tsid);
 extern struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct
 				*vma, int tsid);
+extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
+		int blade);
+extern void gru_load_context(struct gru_thread_state *gts);
+extern void gru_steal_context(struct gru_thread_state *gts, int blade_id);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
 extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
 extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
-extern int gru_kservices_init(struct gru_state *gru);
-extern void gru_kservices_exit(struct gru_state *gru);
+extern int gru_kservices_init(void);
+extern void gru_kservices_exit(void);
+extern int gru_dump_chiplet_request(unsigned long arg);
+extern long gru_get_gseg_statistics(unsigned long arg);
 extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);
 extern int gru_user_unload_context(unsigned long arg);
 extern int gru_get_exception_detail(unsigned long arg);
-extern int gru_set_task_slice(long address);
+extern int gru_set_context_option(unsigned long address);
 extern int gru_cpu_fault_map_id(void);
 extern struct vm_area_struct *gru_find_vma(unsigned long vaddr);
 extern void gru_flush_all_tlb(struct gru_state *gru);
 extern int gru_proc_init(void);
 extern void gru_proc_exit(void);
 
+extern struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
+		int cbr_au_count, int dsr_au_count, int options, int tsid);
 extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
@@ -624,6 +667,7 @@ extern int gru_fault(struct vm_area_struct *, struct vm_fault *vmf);
 extern struct gru_mm_struct *gru_register_mmu_notifier(void);
 extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
 
+extern int gru_ktest(unsigned long arg);
 extern void gru_flush_tlb_range(struct gru_mm_struct *gms, unsigned long start,
 					unsigned long len);
 

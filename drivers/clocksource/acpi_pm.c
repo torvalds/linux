@@ -18,6 +18,7 @@
 
 #include <linux/acpi_pmtmr.h>
 #include <linux/clocksource.h>
+#include <linux/timex.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/pci.h>

@@ -44,10 +44,22 @@ static int fixed_voltage_get_voltage(struct regulator_dev *dev)
 	return data->microvolts;
 }
 
+static int fixed_voltage_list_voltage(struct regulator_dev *dev,
+				      unsigned selector)
+{
+	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
+
+	if (selector != 0)
+		return -EINVAL;
+
+	return data->microvolts;
+}
+
 static struct regulator_ops fixed_voltage_ops = {
 	.is_enabled = fixed_voltage_is_enabled,
 	.enable = fixed_voltage_enable,
 	.get_voltage = fixed_voltage_get_voltage,
+	.list_voltage = fixed_voltage_list_voltage,
 };
 
 static int regulator_fixed_voltage_probe(struct platform_device *pdev)
@@ -69,7 +81,8 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 	}
 	drvdata->desc.type = REGULATOR_VOLTAGE;
 	drvdata->desc.owner = THIS_MODULE;
-	drvdata->desc.ops = &fixed_voltage_ops,
+	drvdata->desc.ops = &fixed_voltage_ops;
+	drvdata->desc.n_voltages = 1;
 
 	drvdata->microvolts = config->microvolts;
 
@@ -117,7 +130,7 @@ static int __init regulator_fixed_voltage_init(void)
 {
 	return platform_driver_register(&regulator_fixed_voltage_driver);
 }
-module_init(regulator_fixed_voltage_init);
+subsys_initcall(regulator_fixed_voltage_init);
 
 static void __exit regulator_fixed_voltage_exit(void)
 {
@@ -128,3 +141,4 @@ module_exit(regulator_fixed_voltage_exit);
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("Fixed voltage regulator");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:reg-fixed-voltage");

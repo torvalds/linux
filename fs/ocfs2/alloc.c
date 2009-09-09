@@ -475,6 +475,12 @@ struct ocfs2_path {
 #define path_leaf_el(_path) ((_path)->p_node[(_path)->p_tree_depth].el)
 #define path_num_items(_path) ((_path)->p_tree_depth + 1)
 
+static int ocfs2_find_path(struct inode *inode, struct ocfs2_path *path,
+			   u32 cpos);
+static void ocfs2_adjust_rightmost_records(struct inode *inode,
+					   handle_t *handle,
+					   struct ocfs2_path *path,
+					   struct ocfs2_extent_rec *insert_rec);
 /*
  * Reset the actual path elements so that we can re-use the structure
  * to build another path. Generally, this involves freeing the buffer
@@ -1013,6 +1019,54 @@ static inline u32 ocfs2_sum_rightmost_rec(struct ocfs2_extent_list  *el)
 }
 
 /*
+ * Change range of the branches in the right most path according to the leaf
+ * extent block's rightmost record.
+ */
+static int ocfs2_adjust_rightmost_branch(handle_t *handle,
+					 struct inode *inode,
+					 struct ocfs2_extent_tree *et)
+{
+	int status;
+	struct ocfs2_path *path = NULL;
+	struct ocfs2_extent_list *el;
+	struct ocfs2_extent_rec *rec;
+
+	path = ocfs2_new_path_from_et(et);
+	if (!path) {
+		status = -ENOMEM;
+		return status;
+	}
+
+	status = ocfs2_find_path(inode, path, UINT_MAX);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out;
+	}
+
+	status = ocfs2_extend_trans(handle, path_num_items(path) +
+				    handle->h_buffer_credits);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out;
+	}
+
+	status = ocfs2_journal_access_path(inode, handle, path);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out;
+	}
+
+	el = path_leaf_el(path);
+	rec = &el->l_recs[le32_to_cpu(el->l_next_free_rec) - 1];
+
+	ocfs2_adjust_rightmost_records(inode, handle, path, rec);
+
+out:
+	ocfs2_free_path(path);
+	return status;
+}
+
+/*
  * Add an entire tree branch to our inode. eb_bh is the extent block
  * to start at, if we don't want to start the branch at the dinode
  * structure.
@@ -1038,7 +1092,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list  *eb_el;
 	struct ocfs2_extent_list  *el;
-	u32 new_cpos;
+	u32 new_cpos, root_end;
 
 	mlog_entry_void();
 
@@ -1055,6 +1109,27 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 
 	new_blocks = le16_to_cpu(el->l_tree_depth);
 
+	eb = (struct ocfs2_extent_block *)(*last_eb_bh)->b_data;
+	new_cpos = ocfs2_sum_rightmost_rec(&eb->h_list);
+	root_end = ocfs2_sum_rightmost_rec(et->et_root_el);
+
+	/*
+	 * If there is a gap before the root end and the real end
+	 * of the righmost leaf block, we need to remove the gap
+	 * between new_cpos and root_end first so that the tree
+	 * is consistent after we add a new branch(it will start
+	 * from new_cpos).
+	 */
+	if (root_end > new_cpos) {
+		mlog(0, "adjust the cluster end from %u to %u\n",
+		     root_end, new_cpos);
+		status = ocfs2_adjust_rightmost_branch(handle, inode, et);
+		if (status) {
+			mlog_errno(status);
+			goto bail;
+		}
+	}
+
 	/* allocate the number of new eb blocks we need */
 	new_eb_bhs = kcalloc(new_blocks, sizeof(struct buffer_head *),
 			     GFP_KERNEL);
@@ -1070,9 +1145,6 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
-
-	eb = (struct ocfs2_extent_block *)(*last_eb_bh)->b_data;
-	new_cpos = ocfs2_sum_rightmost_rec(&eb->h_list);
 
 	/* Note: new_eb_bhs[new_blocks - 1] is the guy which will be
 	 * linked with the rest of the tree.

@@ -111,7 +111,7 @@ int heci_ioctl_get_version(struct iamt_heci_device *dev, int if_num,
 
 	rets = file_ext->status;
 	/* now copy the data to user space */
-	if (copy_to_user(k_msg.data, res_msg.data, res_msg.size)) {
+	if (copy_to_user((void __user *)k_msg.data, res_msg.data, res_msg.size)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -188,7 +188,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 	/* copy the message to kernel space -
 	 * use a pointer already copied into kernel space
 	 */
-	if (copy_from_user(req_msg.data, k_msg.data, k_msg.size)) {
+	if (copy_from_user(req_msg.data, (void __user *)k_msg.data, k_msg.size)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -266,7 +266,8 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		spin_unlock_bh(&dev->device_lock);
 
 		/* now copy the data to user space */
-		if (copy_to_user(k_msg.data, res_msg.data, res_msg.size)) {
+		if (copy_to_user((void __user *)k_msg.data,
+					res_msg.data, res_msg.size)) {
 			rets = -EFAULT;
 			goto end;
 		}
@@ -276,14 +277,16 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		}
 		goto end;
 	}
+	spin_unlock_bh(&dev->device_lock);
+
 	spin_lock(&file_ext->file_lock);
+	spin_lock_bh(&dev->device_lock);
 	if (file_ext->state != HECI_FILE_CONNECTING) {
 		rets = -ENODEV;
-		spin_unlock(&file_ext->file_lock);
 		spin_unlock_bh(&dev->device_lock);
+		spin_unlock(&file_ext->file_lock);
 		goto end;
 	}
-	spin_unlock(&file_ext->file_lock);
 	/* prepare the output buffer */
 	client = (struct heci_client *) res_msg.data;
 	client->max_msg_length = dev->me_clients[i].props.max_msg_length;
@@ -294,6 +297,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		if (!heci_connect(dev, file_ext)) {
 			rets = -ENODEV;
 			spin_unlock_bh(&dev->device_lock);
+			spin_unlock(&file_ext->file_lock);
 			goto end;
 		} else {
 			file_ext->timer_count = HECI_CONNECT_TIMEOUT;
@@ -311,16 +315,20 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 			      &dev->ctrl_wr_list.heci_cb.cb_list);
 	}
 	spin_unlock_bh(&dev->device_lock);
+	spin_unlock(&file_ext->file_lock);
 	err = wait_event_timeout(dev->wait_recvd_msg,
 			(HECI_FILE_CONNECTED == file_ext->state
 			 || HECI_FILE_DISCONNECTED == file_ext->state),
 			timeout * HZ);
 
+	spin_lock_bh(&dev->device_lock);
 	if (HECI_FILE_CONNECTED == file_ext->state) {
+		spin_unlock_bh(&dev->device_lock);
 		DBG("successfully connected to FW client.\n");
 		rets = file_ext->status;
 		/* now copy the data to user space */
-		if (copy_to_user(k_msg.data, res_msg.data, res_msg.size)) {
+		if (copy_to_user((void __user *)k_msg.data,
+					res_msg.data, res_msg.size)) {
 			rets = -EFAULT;
 			goto end;
 		}
@@ -332,6 +340,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 	} else {
 		DBG("failed to connect to FW client.file_ext->state = %d.\n",
 		    file_ext->state);
+		spin_unlock_bh(&dev->device_lock);
 		if (!err) {
 			DBG("wait_event_interruptible_timeout failed on client"
 			    " connect message fw response message.\n");
@@ -394,7 +403,8 @@ int heci_ioctl_wd(struct iamt_heci_device *dev, int if_num,
 	/* copy the message to kernel space - use a pointer already
 	 * copied into kernel space
 	 */
-	if (copy_from_user(req_msg.data, k_msg.data, req_msg.size)) {
+	if (copy_from_user(req_msg.data,
+				(void __user *)k_msg.data, req_msg.size)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -464,7 +474,7 @@ int heci_ioctl_bypass_wd(struct iamt_heci_device *dev, int if_num,
 		return -EMSGSIZE;
 	}
 	spin_unlock(&file_ext->file_lock);
-	if (copy_from_user(&flag, k_msg.data, 1)) {
+	if (copy_from_user(&flag, (void __user *)k_msg.data, 1)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -631,28 +641,39 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 		DBG("received wrong function input param.\n");
 		return -ENODEV;
 	}
-	if (file_ext->state != HECI_FILE_CONNECTED)
-		return -ENODEV;
 
 	spin_lock_bh(&dev->device_lock);
+	if (file_ext->state != HECI_FILE_CONNECTED) {
+		spin_unlock_bh(&dev->device_lock);
+		return -ENODEV;
+	}
+
 	if (dev->heci_state != HECI_ENABLED) {
 		spin_unlock_bh(&dev->device_lock);
 		return -ENODEV;
 	}
 	spin_unlock_bh(&dev->device_lock);
 	DBG("check if read is pending.\n");
+	spin_lock_bh(&file_ext->read_io_lock);
 	if ((file_ext->read_pending) || (file_ext->read_cb != NULL)) {
 		DBG("read is pending.\n");
+		spin_unlock_bh(&file_ext->read_io_lock);
 		return -EBUSY;
 	}
+	spin_unlock_bh(&file_ext->read_io_lock);
+
 	priv_cb = kzalloc(sizeof(struct heci_cb_private), GFP_KERNEL);
 	if (!priv_cb)
 		return -ENOMEM;
 
+	spin_lock_bh(&file_ext->read_io_lock);
 	DBG("allocation call back success\n"
 	    "host client = %d, ME client = %d\n",
 	    file_ext->host_client_id, file_ext->me_client_id);
+	spin_unlock_bh(&file_ext->read_io_lock);
+
 	spin_lock_bh(&dev->device_lock);
+	spin_lock_bh(&file_ext->read_io_lock);
 	for (i = 0; i < dev->num_heci_me_clients; i++) {
 		if (dev->me_clients[i].client_id == file_ext->me_client_id)
 			break;
@@ -660,6 +681,7 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 	}
 
 	BUG_ON(dev->me_clients[i].client_id != file_ext->me_client_id);
+	spin_unlock_bh(&file_ext->read_io_lock);
 	if (i == dev->num_heci_me_clients) {
 		rets = -ENODEV;
 		goto unlock;
@@ -678,12 +700,14 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 	/* make sure information is zero before we start */
 	priv_cb->information = 0;
 	priv_cb->file_private = (void *) file_ext;
-	file_ext->read_cb = priv_cb;
 	spin_lock_bh(&dev->device_lock);
+	spin_lock_bh(&file_ext->read_io_lock);
+	file_ext->read_cb = priv_cb;
 	if (dev->host_buffer_is_empty) {
 		dev->host_buffer_is_empty = 0;
 		if (!heci_send_flow_control(dev, file_ext)) {
 			rets = -ENODEV;
+			spin_unlock_bh(&file_ext->read_io_lock);
 			goto unlock;
 		} else {
 			list_add_tail(&priv_cb->cb_list,
@@ -693,6 +717,7 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 		list_add_tail(&priv_cb->cb_list,
 			      &dev->ctrl_wr_list.heci_cb.cb_list);
 	}
+	spin_unlock_bh(&file_ext->read_io_lock);
 	spin_unlock_bh(&dev->device_lock);
 	return rets;
 unlock:

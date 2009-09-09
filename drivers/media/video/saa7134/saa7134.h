@@ -252,7 +252,7 @@ struct saa7134_format {
 #define SAA7134_BOARD_BEHOLD_505FM	126
 #define SAA7134_BOARD_BEHOLD_507_9FM	127
 #define SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM 128
-#define SAA7134_BOARD_BEHOLD_607_9FM	129
+#define SAA7134_BOARD_BEHOLD_607FM_MK3	129
 #define SAA7134_BOARD_BEHOLD_M6		130
 #define SAA7134_BOARD_TWINHAN_DTV_DVB_3056 131
 #define SAA7134_BOARD_GENIUS_TVGO_A11MCE   132
@@ -280,6 +280,18 @@ struct saa7134_format {
 #define SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS 154
 #define SAA7134_BOARD_HAUPPAUGE_HVR1120     155
 #define SAA7134_BOARD_HAUPPAUGE_HVR1110R3   156
+#define SAA7134_BOARD_AVERMEDIA_STUDIO_507UA 157
+#define SAA7134_BOARD_AVERMEDIA_CARDBUS_501 158
+#define SAA7134_BOARD_BEHOLD_505RDS         159
+#define SAA7134_BOARD_BEHOLD_507RDS_MK3     160
+#define SAA7134_BOARD_BEHOLD_507RDS_MK5     161
+#define SAA7134_BOARD_BEHOLD_607FM_MK5      162
+#define SAA7134_BOARD_BEHOLD_609FM_MK3      163
+#define SAA7134_BOARD_BEHOLD_609FM_MK5      164
+#define SAA7134_BOARD_BEHOLD_607RDS_MK3     165
+#define SAA7134_BOARD_BEHOLD_607RDS_MK5     166
+#define SAA7134_BOARD_BEHOLD_609RDS_MK3     167
+#define SAA7134_BOARD_BEHOLD_609RDS_MK5     168
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -364,6 +376,7 @@ struct saa7134_board {
 #define INTERLACE_OFF          2
 
 #define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
+#define TS_BUFFER_TIMEOUT  msecs_to_jiffies(1000)  /* 1 second */
 
 struct saa7134_dev;
 struct saa7134_dma;
@@ -480,12 +493,6 @@ struct saa7134_mpeg_ops {
 	void                       (*signal_change)(struct saa7134_dev *dev);
 };
 
-enum saa7134_ts_status {
-	SAA7134_TS_STOPPED,
-	SAA7134_TS_BUFF_DONE,
-	SAA7134_TS_STARTED,
-};
-
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
@@ -580,8 +587,7 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_* */
 	struct saa7134_ts          ts;
 	struct saa7134_dmaqueue    ts_q;
-	enum saa7134_ts_status 	   ts_state;
-	unsigned int 		   buff_cnt;
+	int                        ts_started;
 	struct saa7134_mpeg_ops    *mops;
 
 	/* SAA7134_MPEG_EMPRESS only */
@@ -739,6 +745,9 @@ void saa7134_ts_unregister(struct saa7134_mpeg_ops *ops);
 
 int saa7134_ts_init_hw(struct saa7134_dev *dev);
 
+int saa7134_ts_start(struct saa7134_dev *dev);
+int saa7134_ts_stop(struct saa7134_dev *dev);
+
 /* ----------------------------------------------------------- */
 /* saa7134-vbi.c                                               */
 
@@ -786,7 +795,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
-void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
+void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
 void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir);
 void saa7134_ir_stop(struct saa7134_dev *dev);
 

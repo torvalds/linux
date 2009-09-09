@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
+#include <linux/topology.h>
 
 static inline struct ipr_desc *get_ipr_desc(unsigned int irq)
 {
@@ -59,9 +60,17 @@ void register_ipr_controller(struct ipr_desc *desc)
 
 	for (i = 0; i < desc->nr_irqs; i++) {
 		struct ipr_data *p = desc->ipr_data + i;
+		struct irq_desc *irq_desc;
 
 		BUG_ON(p->ipr_idx >= desc->nr_offsets);
 		BUG_ON(!desc->ipr_offsets[p->ipr_idx]);
+
+		irq_desc = irq_to_desc_alloc_node(p->irq, numa_node_id());
+		if (unlikely(!irq_desc)) {
+			printk(KERN_INFO "can not get irq_desc for %d\n",
+			       p->irq);
+			continue;
+		}
 
 		disable_irq_nosync(p->irq);
 		set_irq_chip_and_handler_name(p->irq, &desc->chip,

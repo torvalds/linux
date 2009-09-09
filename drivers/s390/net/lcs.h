@@ -34,8 +34,8 @@ static inline int lcs_dbf_passes(debug_info_t *dbf_grp, int level)
  *	sysfs related stuff
  */
 #define CARD_FROM_DEV(cdev) \
-	(struct lcs_card *) \
-	((struct ccwgroup_device *)cdev->dev.driver_data)->dev.driver_data;
+	(struct lcs_card *) dev_get_drvdata( \
+		&((struct ccwgroup_device *)dev_get_drvdata(&cdev->dev))->dev);
 /**
  * CCW commands used in this driver
  */

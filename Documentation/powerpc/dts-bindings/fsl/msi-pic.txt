@@ -1,6 +1,6 @@
 * Freescale MSI interrupt controller
 
-Reguired properities:
+Required properties:
 - compatible : compatible list, contains 2 entries,
   first is "fsl,CHIP-msi", where CHIP is the processor(mpc8610, mpc8572,
   etc.) and the second is "fsl,mpic-msi" or "fsl,ipic-msi" depending on

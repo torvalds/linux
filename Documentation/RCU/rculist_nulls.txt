@@ -118,7 +118,7 @@ to another chain) checking the final 'nulls' value if
 the lookup met the end of chain. If final 'nulls' value
 is not the slot number, then we must restart the lookup at
 the beginning. If the object was moved to the same chain,
-then the reader doesnt care : It might eventually
+then the reader doesn't care : It might eventually
 scan the list again without harm.
 
 

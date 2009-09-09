@@ -251,12 +251,12 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	dev_dbg(to_dev(&ioat->base), "%s: cookie: %d\n", __func__, cookie);
 
 	/* write address into NextDescriptor field of last desc in chain */
-	first = to_ioat_desc(tx->tx_list.next);
+	first = to_ioat_desc(desc->tx_list.next);
 	chain_tail = to_ioat_desc(ioat->used_desc.prev);
 	/* make descriptor updates globally visible before chaining */
 	wmb();
 	chain_tail->hw->next = first->txd.phys;
-	list_splice_tail_init(&tx->tx_list, &ioat->used_desc);
+	list_splice_tail_init(&desc->tx_list, &ioat->used_desc);
 	dump_desc_dbg(ioat, chain_tail);
 	dump_desc_dbg(ioat, first);
 
@@ -298,6 +298,7 @@ ioat_dma_alloc_descriptor(struct ioat_dma_chan *ioat, gfp_t flags)
 
 	memset(desc, 0, sizeof(*desc));
 
+	INIT_LIST_HEAD(&desc_sw->tx_list);
 	dma_async_tx_descriptor_init(&desc_sw->txd, &ioat->base.common);
 	desc_sw->txd.tx_submit = ioat1_tx_submit;
 	desc_sw->hw = desc;
@@ -522,7 +523,7 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 
 	desc->txd.flags = flags;
 	desc->len = total_len;
-	list_splice(&chain, &desc->txd.tx_list);
+	list_splice(&chain, &desc->tx_list);
 	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
 	hw->ctl_f.compl_write = 1;
 	hw->tx_cnt = tx_cnt;

@@ -81,7 +81,7 @@ struct termio {
 
 #ifdef __KERNEL__
 
-#include <asm-generic/termios.h>
+#include <asm-generic/termios-base.h>
 
 #endif	/* __KERNEL__ */
 

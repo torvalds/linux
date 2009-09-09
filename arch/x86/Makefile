@@ -7,8 +7,6 @@ else
         KBUILD_DEFCONFIG := $(ARCH)_defconfig
 endif
 
-core-$(CONFIG_KVM) += arch/x86/kvm/
-
 # BITS is used as extension for files which are available in a 32 bit
 # and a 64 bit version to simplify shared Makefiles.
 # e.g.: obj-y += foo_$(BITS).o
@@ -83,6 +81,11 @@ ifdef CONFIG_CC_STACKPROTECTOR
         endif
 endif
 
+# Don't unroll struct assignments with kmemcheck enabled
+ifeq ($(CONFIG_KMEMCHECK),y)
+	KBUILD_CFLAGS += $(call cc-option,-fno-builtin-memcpy)
+endif
+
 # Stackpointer is addressed different for 32 bit and 64 bit x86
 sp-$(CONFIG_X86_32) := esp
 sp-$(CONFIG_X86_64) := rsp
@@ -118,21 +121,8 @@ head-y += arch/x86/kernel/init_task.o
 
 libs-y  += arch/x86/lib/
 
-# Sub architecture files that needs linking first
-core-y += $(fcore-y)
-
-# Xen paravirtualization support
-core-$(CONFIG_XEN) += arch/x86/xen/
-
-# lguest paravirtualization support
-core-$(CONFIG_LGUEST_GUEST) += arch/x86/lguest/
-
-core-y += arch/x86/kernel/
-core-y += arch/x86/mm/
-
-core-y += arch/x86/crypto/
-core-y += arch/x86/vdso/
-core-$(CONFIG_IA32_EMULATION) += arch/x86/ia32/
+# See arch/x86/Kbuild for content of core part of the kernel
+core-y += arch/x86/
 
 # drivers-y are linked after core-y
 drivers-$(CONFIG_MATH_EMULATION) += arch/x86/math-emu/

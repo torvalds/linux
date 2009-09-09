@@ -46,30 +46,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_ALIAS("platform:r8a66597_hcd");
 
-#define DRIVER_VERSION	"10 Apr 2008"
+#define DRIVER_VERSION	"2009-05-26"
 
 static const char hcd_name[] = "r8a66597_hcd";
-
-/* module parameters */
-#if !defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
-static unsigned short clock = XTAL12;
-module_param(clock, ushort, 0644);
-MODULE_PARM_DESC(clock, "input clock: 48MHz=32768, 24MHz=16384, 12MHz=0 "
-		"(default=0)");
-#endif
-
-static unsigned short vif = LDRV;
-module_param(vif, ushort, 0644);
-MODULE_PARM_DESC(vif, "input VIF: 3.3V=32768, 1.5V=0(default=32768)");
-
-static unsigned short endian;
-module_param(endian, ushort, 0644);
-MODULE_PARM_DESC(endian, "data endian: big=256, little=0 (default=0)");
-
-static unsigned short irq_sense = 0xff;
-module_param(irq_sense, ushort, 0644);
-MODULE_PARM_DESC(irq_sense, "IRQ sense: low level=32, falling edge=0 "
-		"(default=32)");
 
 static void packet_write(struct r8a66597 *r8a66597, u16 pipenum);
 static int r8a66597_get_frame(struct usb_hcd *hcd);
@@ -136,7 +115,8 @@ static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 		}
 	} while ((tmp & USBE) != USBE);
 	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
-	r8a66597_mdfy(r8a66597, clock, XTAL, SYSCFG0);
+	r8a66597_mdfy(r8a66597, get_xtal_from_pdata(r8a66597->pdata), XTAL,
+			SYSCFG0);
 
 	i = 0;
 	r8a66597_bset(r8a66597, XCKE, SYSCFG0);
@@ -203,6 +183,9 @@ static void r8a66597_disable_port(struct r8a66597 *r8a66597, int port)
 static int enable_controller(struct r8a66597 *r8a66597)
 {
 	int ret, port;
+	u16 vif = r8a66597->pdata->vif ? LDRV : 0;
+	u16 irq_sense = r8a66597->irq_sense_low ? INTL : 0;
+	u16 endian = r8a66597->pdata->endian ? BIGEND : 0;
 
 	ret = r8a66597_clock_enable(r8a66597);
 	if (ret < 0)
@@ -2373,7 +2356,7 @@ static int __init_or_module r8a66597_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init r8a66597_probe(struct platform_device *pdev)
+static int __devinit r8a66597_probe(struct platform_device *pdev)
 {
 #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
 	char clk_name[8];
@@ -2418,6 +2401,12 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		goto clean_up;
 	}
 
+	if (pdev->dev.platform_data == NULL) {
+		dev_err(&pdev->dev, "no platform data\n");
+		ret = -ENODEV;
+		goto clean_up;
+	}
+
 	/* initialize hcd */
 	hcd = usb_create_hcd(&r8a66597_hc_driver, &pdev->dev, (char *)hcd_name);
 	if (!hcd) {
@@ -2428,6 +2417,8 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597 = hcd_to_r8a66597(hcd);
 	memset(r8a66597, 0, sizeof(struct r8a66597));
 	dev_set_drvdata(&pdev->dev, r8a66597);
+	r8a66597->pdata = pdev->dev.platform_data;
+	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
 	snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
@@ -2457,29 +2448,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
 	hcd->rsrc_start = res->start;
-
-	/* irq_sense setting on cmdline takes precedence over resource
-	 * settings, so the introduction of irqflags in IRQ resourse
-	 * won't disturb existing setups */
-	switch (irq_sense) {
-		case INTL:
-			irq_trigger = IRQF_TRIGGER_LOW;
-			break;
-		case 0:
-			irq_trigger = IRQF_TRIGGER_FALLING;
-			break;
-		case 0xff:
-			if (irq_trigger)
-				irq_sense = (irq_trigger & IRQF_TRIGGER_LOW) ?
-					    INTL : 0;
-			else {
-				irq_sense = INTL;
-				irq_trigger = IRQF_TRIGGER_LOW;
-			}
-			break;
-		default:
-			dev_err(&pdev->dev, "Unknown irq_sense value.\n");
-	}
 
 	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
 	if (ret != 0) {

@@ -58,7 +58,7 @@ same criteria as reads.
 front_merges	(bool)
 ------------
 
-Sometimes it happens that a request enters the io scheduler that is contigious
+Sometimes it happens that a request enters the io scheduler that is contiguous
 with a request that is already on the queue. Either it fits in the back of that
 request, or it fits at the front. That is called either a back merge candidate
 or a front merge candidate. Due to the way files are typically laid out,

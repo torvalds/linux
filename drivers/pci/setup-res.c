@@ -99,11 +99,11 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 int pci_claim_resource(struct pci_dev *dev, int resource)
 {
 	struct resource *res = &dev->resource[resource];
-	struct resource *root = NULL;
+	struct resource *root;
 	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 	int err;
 
-	root = pcibios_select_root(dev, res);
+	root = pci_find_parent_resource(dev, res);
 
 	err = -EINVAL;
 	if (root != NULL)
@@ -135,23 +135,16 @@ void pci_disable_bridge_window(struct pci_dev *dev)
 }
 #endif	/* CONFIG_PCI_QUIRKS */
 
-int pci_assign_resource(struct pci_dev *dev, int resno)
+static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
+				 int resno)
 {
-	struct pci_bus *bus = dev->bus;
 	struct resource *res = dev->resource + resno;
 	resource_size_t size, min, align;
 	int ret;
 
 	size = resource_size(res);
 	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
-
 	align = resource_alignment(res);
-	if (!align) {
-		dev_info(&dev->dev, "BAR %d: can't allocate resource (bogus "
-			"alignment) %pR flags %#lx\n",
-			resno, res, res->flags);
-		return -EINVAL;
-	}
 
 	/* First, try exact prefetching match.. */
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
@@ -169,14 +162,44 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 					     pcibios_align_resource, dev);
 	}
 
-	if (ret) {
-		dev_info(&dev->dev, "BAR %d: can't allocate %s resource %pR\n",
-			resno, res->flags & IORESOURCE_IO ? "I/O" : "mem", res);
-	} else {
+	if (!ret) {
 		res->flags &= ~IORESOURCE_STARTALIGN;
 		if (resno < PCI_BRIDGE_RESOURCES)
 			pci_update_resource(dev, resno);
 	}
+
+	return ret;
+}
+
+int pci_assign_resource(struct pci_dev *dev, int resno)
+{
+	struct resource *res = dev->resource + resno;
+	resource_size_t align;
+	struct pci_bus *bus;
+	int ret;
+
+	align = resource_alignment(res);
+	if (!align) {
+		dev_info(&dev->dev, "BAR %d: can't allocate resource (bogus "
+			"alignment) %pR flags %#lx\n",
+			resno, res, res->flags);
+		return -EINVAL;
+	}
+
+	bus = dev->bus;
+	while ((ret = __pci_assign_resource(bus, dev, resno))) {
+		if (bus->parent && bus->self->transparent)
+			bus = bus->parent;
+		else
+			bus = NULL;
+		if (bus)
+			continue;
+		break;
+	}
+
+	if (ret)
+		dev_info(&dev->dev, "BAR %d: can't allocate %s resource %pR\n",
+			resno, res->flags & IORESOURCE_IO ? "I/O" : "mem", res);
 
 	return ret;
 }

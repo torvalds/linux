@@ -678,8 +678,10 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 	if (*cp == '!') {
 		debug("eval%d !", ops - eval_ops);
 		cp++;
-		if (eval_unary(ops, valp, &cp) == LT_IF)
+		if (eval_unary(ops, valp, &cp) == LT_IF) {
+			*cpp = cp;
 			return (LT_IF);
+		}
 		*valp = !*valp;
 	} else if (*cp == '(') {
 		cp++;
@@ -700,13 +702,16 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 			return (LT_IF);
 		cp = skipcomment(cp);
 		sym = findsym(cp);
-		if (sym < 0)
-			return (LT_IF);
-		*valp = (value[sym] != NULL);
 		cp = skipsym(cp);
 		cp = skipcomment(cp);
 		if (*cp++ != ')')
 			return (LT_IF);
+		if (sym >= 0)
+			*valp = (value[sym] != NULL);
+		else {
+			*cpp = cp;
+			return (LT_IF);
+		}
 		keepthis = false;
 	} else if (!endsym(*cp)) {
 		debug("eval%d symbol", ops - eval_ops);
@@ -741,11 +746,11 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 	const struct op *op;
 	const char *cp;
 	int val;
+	Linetype lhs, rhs;
 
 	debug("eval%d", ops - eval_ops);
 	cp = *cpp;
-	if (ops->inner(ops+1, valp, &cp) == LT_IF)
-		return (LT_IF);
+	lhs = ops->inner(ops+1, valp, &cp);
 	for (;;) {
 		cp = skipcomment(cp);
 		for (op = ops->op; op->str != NULL; op++)
@@ -755,14 +760,32 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 			break;
 		cp += strlen(op->str);
 		debug("eval%d %s", ops - eval_ops, op->str);
-		if (ops->inner(ops+1, &val, &cp) == LT_IF)
-			return (LT_IF);
-		*valp = op->fn(*valp, val);
+		rhs = ops->inner(ops+1, &val, &cp);
+		if (op->fn == op_and && (lhs == LT_FALSE || rhs == LT_FALSE)) {
+			debug("eval%d: and always false", ops - eval_ops);
+			if (lhs == LT_IF)
+				*valp = val;
+			lhs = LT_FALSE;
+			continue;
+		}
+		if (op->fn == op_or && (lhs == LT_TRUE || rhs == LT_TRUE)) {
+			debug("eval%d: or always true", ops - eval_ops);
+			if (lhs == LT_IF)
+				*valp = val;
+			lhs = LT_TRUE;
+			continue;
+		}
+		if (rhs == LT_IF)
+			lhs = LT_IF;
+		if (lhs != LT_IF)
+			*valp = op->fn(*valp, val);
 	}
 
 	*cpp = cp;
 	debug("eval%d = %d", ops - eval_ops, *valp);
-	return (*valp ? LT_TRUE : LT_FALSE);
+	if (lhs != LT_IF)
+		lhs = (*valp ? LT_TRUE : LT_FALSE);
+	return lhs;
 }
 
 /*
@@ -773,12 +796,15 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 static Linetype
 ifeval(const char **cpp)
 {
+	const char *cp = *cpp;
 	int ret;
 	int val;
 
 	debug("eval %s", *cpp);
 	keepthis = killconsts ? false : true;
-	ret = eval_table(eval_ops, &val, cpp);
+	ret = eval_table(eval_ops, &val, &cp);
+	if (ret != LT_IF)
+		*cpp = cp;
 	debug("eval = %d", val);
 	return (keepthis ? LT_IF : ret);
 }

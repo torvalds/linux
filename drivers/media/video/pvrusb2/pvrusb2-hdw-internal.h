@@ -200,6 +200,9 @@ struct pvr2_hdw {
 	int i2c_cx25840_hack_state;
 	int i2c_linked;
 
+	/* IR related */
+	unsigned int ir_scheme_active; /* IR scheme as seen from the outside */
+
 	/* Frequency table */
 	unsigned int freqTable[FREQTABLE_SIZE];
 	unsigned int freqProgSlot;

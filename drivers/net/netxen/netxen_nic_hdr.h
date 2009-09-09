@@ -31,16 +31,8 @@
 #ifndef __NETXEN_NIC_HDR_H_
 #define __NETXEN_NIC_HDR_H_
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <asm/irq.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/pci.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
-#include <asm/string.h>		/* for memset */
 
 /*
  * The basic unit of access when reading/writing control registers.
@@ -363,6 +355,7 @@ enum {
 #define NETXEN_HW_CRB_HUB_AGT_ADR_LPC	\
 	((NETXEN_HW_H6_CH_HUB_ADR << 7) | NETXEN_HW_LPC_CRB_AGT_ADR)
 
+#define NETXEN_SRE_MISC			(NETXEN_CRB_SRE + 0x0002c)
 #define NETXEN_SRE_INT_STATUS		(NETXEN_CRB_SRE + 0x00034)
 #define NETXEN_SRE_PBI_ACTIVE_STATUS	(NETXEN_CRB_SRE + 0x01014)
 #define NETXEN_SRE_L1RE_CTL		(NETXEN_CRB_SRE + 0x03000)

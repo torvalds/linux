@@ -42,6 +42,7 @@
 #include <linux/ctype.h>
 #include <linux/reboot.h>
 #include <linux/topology.h>
+#include <linux/ftrace.h>
 
 #include <asm/ipl.h>
 #include <asm/uaccess.h>
@@ -442,6 +443,7 @@ setup_lowcore(void)
 	lc->steal_timer = S390_lowcore.steal_timer;
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
+	lc->ftrace_func = S390_lowcore.ftrace_func;
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
 }

@@ -390,56 +390,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_config);
 
-int rt2x00mac_config_interface(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       struct ieee80211_if_conf *conf)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int update_bssid = 0;
-	int status = 0;
-
-	/*
-	 * Mac80211 might be calling this function while we are trying
-	 * to remove the device or perhaps suspending it.
-	 */
-	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		return 0;
-
-	spin_lock(&intf->lock);
-
-	/*
-	 * conf->bssid can be NULL if coming from the internal
-	 * beacon update routine.
-	 */
-	if (conf->changed & IEEE80211_IFCC_BSSID && conf->bssid) {
-		update_bssid = 1;
-		memcpy(&intf->bssid, conf->bssid, ETH_ALEN);
-	}
-
-	spin_unlock(&intf->lock);
-
-	/*
-	 * Call rt2x00_config_intf() outside of the spinlock context since
-	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
-	 * values as arguments we make keep access to rt2x00_intf thread safe
-	 * even without the lock.
-	 */
-	rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL,
-			      update_bssid ? conf->bssid : NULL);
-
-	/*
-	 * Update the beacon.
-	 */
-	if (conf->changed & (IEEE80211_IFCC_BEACON |
-			     IEEE80211_IFCC_BEACON_ENABLED))
-		status = rt2x00queue_update_beacon(rt2x00dev, vif,
-						   conf->enable_beacon);
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(rt2x00mac_config_interface);
-
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
@@ -623,6 +573,44 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	unsigned int delayed = 0;
+	int update_bssid = 0;
+
+	/*
+	 * Mac80211 might be calling this function while we are trying
+	 * to remove the device or perhaps suspending it.
+	 */
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		return;
+
+	spin_lock(&intf->lock);
+
+	/*
+	 * conf->bssid can be NULL if coming from the internal
+	 * beacon update routine.
+	 */
+	if (changes & BSS_CHANGED_BSSID) {
+		update_bssid = 1;
+		memcpy(&intf->bssid, bss_conf->bssid, ETH_ALEN);
+	}
+
+	spin_unlock(&intf->lock);
+
+	/*
+	 * Call rt2x00_config_intf() outside of the spinlock context since
+	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
+	 * values as arguments we make keep access to rt2x00_intf thread safe
+	 * even without the lock.
+	 */
+	if (changes & BSS_CHANGED_BSSID)
+		rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL,
+				      update_bssid ? bss_conf->bssid : NULL);
+
+	/*
+	 * Update the beacon.
+	 */
+	if (changes & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED))
+		rt2x00queue_update_beacon(rt2x00dev, vif,
+					  bss_conf->enable_beacon);
 
 	/*
 	 * When the association status has changed we must reset the link

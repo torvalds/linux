@@ -256,7 +256,7 @@ label:
 	 * off DE in the DSRR1 value and clearing the debug status.	      \
 	 */								      \
 	mfspr	r10,SPRN_DBSR;		/* check single-step/branch taken */  \
-	andis.	r10,r10,DBSR_IC@h;					      \
+	andis.	r10,r10,(DBSR_IC|DBSR_BT)@h;				      \
 	beq+	2f;							      \
 									      \
 	lis	r10,KERNELBASE@h;	/* check if exception in vectors */   \
@@ -271,7 +271,7 @@ label:
 									      \
 	/* here it looks like we got an inappropriate debug exception. */     \
 1:	rlwinm	r9,r9,0,~MSR_DE;	/* clear DE in the CDRR1 value */     \
-	lis	r10,DBSR_IC@h;		/* clear the IC event */	      \
+	lis	r10,(DBSR_IC|DBSR_BT)@h;	/* clear the IC event */      \
 	mtspr	SPRN_DBSR,r10;						      \
 	/* restore state and get out */					      \
 	lwz	r10,_CCR(r11);						      \
@@ -309,7 +309,7 @@ label:
 	 * off DE in the CSRR1 value and clearing the debug status.	      \
 	 */								      \
 	mfspr	r10,SPRN_DBSR;		/* check single-step/branch taken */  \
-	andis.	r10,r10,DBSR_IC@h;					      \
+	andis.	r10,r10,(DBSR_IC|DBSR_BT)@h;				      \
 	beq+	2f;							      \
 									      \
 	lis	r10,KERNELBASE@h;	/* check if exception in vectors */   \
@@ -317,14 +317,14 @@ label:
 	cmplw	r12,r10;						      \
 	blt+	2f;			/* addr below exception vectors */    \
 									      \
-	lis	r10,DebugCrit@h;						      \
+	lis	r10,DebugCrit@h;					      \
 	ori	r10,r10,DebugCrit@l;					      \
 	cmplw	r12,r10;						      \
 	bgt+	2f;			/* addr above exception vectors */    \
 									      \
 	/* here it looks like we got an inappropriate debug exception. */     \
 1:	rlwinm	r9,r9,0,~MSR_DE;	/* clear DE in the CSRR1 value */     \
-	lis	r10,DBSR_IC@h;		/* clear the IC event */	      \
+	lis	r10,(DBSR_IC|DBSR_BT)@h;	/* clear the IC event */      \
 	mtspr	SPRN_DBSR,r10;						      \
 	/* restore state and get out */					      \
 	lwz	r10,_CCR(r11);						      \

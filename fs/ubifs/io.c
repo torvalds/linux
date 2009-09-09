@@ -293,13 +293,14 @@ void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last)
  *
  * This function is called when the write-buffer timer expires.
  */
-static void wbuf_timer_callback_nolock(unsigned long data)
+static enum hrtimer_restart wbuf_timer_callback_nolock(struct hrtimer *timer)
 {
-	struct ubifs_wbuf *wbuf = (struct ubifs_wbuf *)data;
+	struct ubifs_wbuf *wbuf = container_of(timer, struct ubifs_wbuf, timer);
 
 	wbuf->need_sync = 1;
 	wbuf->c->need_wbuf_sync = 1;
 	ubifs_wake_up_bgt(wbuf->c);
+	return HRTIMER_NORESTART;
 }
 
 /**
@@ -308,13 +309,12 @@ static void wbuf_timer_callback_nolock(unsigned long data)
  */
 static void new_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
 {
-	ubifs_assert(!timer_pending(&wbuf->timer));
+	ubifs_assert(!hrtimer_active(&wbuf->timer));
 
-	if (!wbuf->timeout)
+	if (!ktime_to_ns(wbuf->softlimit))
 		return;
-
-	wbuf->timer.expires = jiffies + wbuf->timeout;
-	add_timer(&wbuf->timer);
+	hrtimer_start_range_ns(&wbuf->timer, wbuf->softlimit, wbuf->delta,
+			       HRTIMER_MODE_REL);
 }
 
 /**
@@ -329,7 +329,7 @@ static void cancel_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
 	 * should be canceled.
 	 */
 	wbuf->need_sync = 0;
-	del_timer(&wbuf->timer);
+	hrtimer_cancel(&wbuf->timer);
 }
 
 /**
@@ -825,6 +825,7 @@ out:
 int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 {
 	size_t size;
+	ktime_t hardlimit;
 
 	wbuf->buf = kmalloc(c->min_io_size, GFP_KERNEL);
 	if (!wbuf->buf)
@@ -845,14 +846,21 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 	wbuf->sync_callback = NULL;
 	mutex_init(&wbuf->io_mutex);
 	spin_lock_init(&wbuf->lock);
-
 	wbuf->c = c;
-	init_timer(&wbuf->timer);
-	wbuf->timer.function = wbuf_timer_callback_nolock;
-	wbuf->timer.data = (unsigned long)wbuf;
-	wbuf->timeout = DEFAULT_WBUF_TIMEOUT;
 	wbuf->next_ino = 0;
 
+	hrtimer_init(&wbuf->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	wbuf->timer.function = wbuf_timer_callback_nolock;
+	/*
+	 * Make write-buffer soft limit to be 20% of the hard limit. The
+	 * write-buffer timer is allowed to expire any time between the soft
+	 * and hard limits.
+	 */
+	hardlimit = ktime_set(DEFAULT_WBUF_TIMEOUT_SECS, 0);
+	wbuf->delta = (DEFAULT_WBUF_TIMEOUT_SECS * NSEC_PER_SEC) * 2 / 10;
+	wbuf->softlimit = ktime_sub_ns(hardlimit, wbuf->delta);
+	hrtimer_set_expires_range_ns(&wbuf->timer,  wbuf->softlimit,
+				     wbuf->delta);
 	return 0;
 }
 

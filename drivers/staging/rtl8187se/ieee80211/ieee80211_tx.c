@@ -814,7 +814,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	netif_stop_queue(dev);
 	stats->tx_errors++;
-	return 1;
+	return NETDEV_TX_BUSY;
 
 }
 

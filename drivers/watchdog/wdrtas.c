@@ -49,12 +49,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS_MISCDEV(TEMP_MINOR);
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int wdrtas_nowayout = 1;
-#else
-static int wdrtas_nowayout = 0;
-#endif
-
+static int wdrtas_nowayout = WATCHDOG_NOWAYOUT;
 static atomic_t wdrtas_miscdev_open = ATOMIC_INIT(0);
 static char wdrtas_expect_close;
 

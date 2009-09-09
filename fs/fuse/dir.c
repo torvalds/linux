@@ -362,19 +362,6 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 }
 
 /*
- * Synchronous release for the case when something goes wrong in CREATE_OPEN
- */
-static void fuse_sync_release(struct fuse_conn *fc, struct fuse_file *ff,
-			      u64 nodeid, int flags)
-{
-	fuse_release_fill(ff, nodeid, flags, FUSE_RELEASE);
-	ff->reserved_req->force = 1;
-	fuse_request_send(fc, ff->reserved_req);
-	fuse_put_request(fc, ff->reserved_req);
-	kfree(ff);
-}
-
-/*
  * Atomic create+open operation
  *
  * If the filesystem doesn't support this, then fall back to separate
@@ -445,12 +432,14 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 		goto out_free_ff;
 
 	fuse_put_request(fc, req);
+	ff->fh = outopen.fh;
+	ff->nodeid = outentry.nodeid;
+	ff->open_flags = outopen.open_flags;
 	inode = fuse_iget(dir->i_sb, outentry.nodeid, outentry.generation,
 			  &outentry.attr, entry_attr_timeout(&outentry), 0);
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
-		ff->fh = outopen.fh;
-		fuse_sync_release(fc, ff, outentry.nodeid, flags);
+		fuse_sync_release(ff, flags);
 		fuse_send_forget(fc, forget_req, outentry.nodeid, 1);
 		return -ENOMEM;
 	}
@@ -460,11 +449,11 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	fuse_invalidate_attr(dir);
 	file = lookup_instantiate_filp(nd, entry, generic_file_open);
 	if (IS_ERR(file)) {
-		ff->fh = outopen.fh;
-		fuse_sync_release(fc, ff, outentry.nodeid, flags);
+		fuse_sync_release(ff, flags);
 		return PTR_ERR(file);
 	}
-	fuse_finish_open(inode, file, ff, &outopen);
+	file->private_data = fuse_file_get(ff);
+	fuse_finish_open(inode, file);
 	return 0;
 
  out_free_ff:
@@ -1035,7 +1024,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	req->out.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
-	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
+	fuse_read_fill(req, file, file->f_pos, PAGE_SIZE, FUSE_READDIR);
 	fuse_request_send(fc, req);
 	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
@@ -1101,12 +1090,14 @@ static void fuse_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
 {
-	return fuse_open_common(inode, file, 1);
+	return fuse_open_common(inode, file, true);
 }
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
 {
-	return fuse_release_common(inode, file, 1);
+	fuse_release_common(file, FUSE_RELEASEDIR);
+
+	return 0;
 }
 
 static int fuse_dir_fsync(struct file *file, struct dentry *de, int datasync)

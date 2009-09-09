@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -65,31 +65,31 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitSSI                               |
-|                               (BYTE_    b_BoardHandle,                     |
-|                                BYTE_    b_ModulNbr,                        |
-|                                BYTE_    b_SSIProfile,                      |
-|                                BYTE_    b_PositionTurnLength,              |
-|                                BYTE_    b_TurnCptLength,                   |
-|                                BYTE_    b_PCIInputClock,                   |
+|                               (unsigned char_    b_BoardHandle,                     |
+|                                unsigned char_    b_ModulNbr,                        |
+|                                unsigned char_    b_SSIProfile,                      |
+|                                unsigned char_    b_PositionTurnLength,              |
+|                                unsigned char_    b_TurnCptLength,                   |
+|                                unsigned char_    b_PCIInputClock,                   |
 |                                ULONG_  ul_SSIOutputClock,                  |
-|                                BYTE_    b_SSICountingMode)                 |
+|                                unsigned char_    b_SSICountingMode)                 |
 +----------------------------------------------------------------------------+
 | Task              : Configure the SSI operating mode from selected module  |
 |                     (b_ModulNbr). You must calling this function be for you|
 |                     call any other function witch access of SSI.           |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 3)       |
-|                     BYTE_  b_SSIProfile         : Selection from SSI       |
+|                     unsigned char_  b_SSIProfile         : Selection from SSI       |
 |                                                   profile length (2 to 32).|
-|                     BYTE_  b_PositionTurnLength : Selection from SSI       |
+|                     unsigned char_  b_PositionTurnLength : Selection from SSI       |
 |                                                   position data length     |
 |                                                   (1 to 31).               |
-|                     BYTE_  b_TurnCptLength      : Selection from SSI turn  |
+|                     unsigned char_  b_TurnCptLength      : Selection from SSI turn  |
 |                                                   counter data length      |
 |                                                   (1 to 31).               |
-|                     BYTE   b_PCIInputClock      : Selection from PCI bus   |
+|                     unsigned char   b_PCIInputClock      : Selection from PCI bus   |
 |                                                   clock                    |
 |                                                 - APCI1710_30MHZ :         |
 |                                                   The PC have a PCI bus    |
@@ -103,7 +103,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                                                   for 30 MHz selection.    |
 |                                                   From  252 to 5 000 000 Hz|
 |                                                   for 33 MHz selection.    |
-|                     BYTE   b_SSICountingMode    : SSI counting mode        |
+|                     unsigned char   b_SSICountingMode    : SSI counting mode        |
 |                                                   selection                |
 |                                                 - APCI1710_BINARY_MODE :   |
 |                                                    Binary counting mode.   |
@@ -111,12 +111,12 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                                                    Gray counting mode.
 
 	b_ModulNbr			= CR_AREF(insn->chanspec);
-	b_SSIProfile		= (BYTE) data[0];
-	b_PositionTurnLength= (BYTE) data[1];
-	b_TurnCptLength		= (BYTE) data[2];
-	b_PCIInputClock		= (BYTE) data[3];
-	ul_SSIOutputClock	= (ULONG) data[4];
-	b_SSICountingMode	= (BYTE)  data[5];     |
+	b_SSIProfile		= (unsigned char) data[0];
+	b_PositionTurnLength= (unsigned char) data[1];
+	b_TurnCptLength		= (unsigned char) data[2];
+	b_PCIInputClock		= (unsigned char) data[3];
+	ul_SSIOutputClock	= (unsigned int) data[4];
+	b_SSICountingMode	= (unsigned char)  data[5];     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -133,22 +133,22 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigInitSSI(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	UINT ui_TimerValue;
-	BYTE b_ModulNbr, b_SSIProfile, b_PositionTurnLength, b_TurnCptLength,
+	int i_ReturnValue = 0;
+	unsigned int ui_TimerValue;
+	unsigned char b_ModulNbr, b_SSIProfile, b_PositionTurnLength, b_TurnCptLength,
 		b_PCIInputClock, b_SSICountingMode;
-	ULONG ul_SSIOutputClock;
+	unsigned int ul_SSIOutputClock;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
-	b_SSIProfile = (BYTE) data[0];
-	b_PositionTurnLength = (BYTE) data[1];
-	b_TurnCptLength = (BYTE) data[2];
-	b_PCIInputClock = (BYTE) data[3];
-	ul_SSIOutputClock = (ULONG) data[4];
-	b_SSICountingMode = (BYTE) data[5];
+	b_SSIProfile = (unsigned char) data[0];
+	b_PositionTurnLength = (unsigned char) data[1];
+	b_TurnCptLength = (unsigned char) data[2];
+	b_PCIInputClock = (unsigned char) data[3];
+	ul_SSIOutputClock = (unsigned int) data[4];
+	b_SSICountingMode = (unsigned char) data[5];
 
 	i_ReturnValue = insn->n;
 	/**************************/
@@ -167,7 +167,7 @@ INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 			/* Test the SSI profile length */
 	      /*******************************/
 
-			// CG 22/03/00 b_SSIProfile >= 2 anstatt b_SSIProfile > 2
+			/*  CG 22/03/00 b_SSIProfile >= 2 anstatt b_SSIProfile > 2 */
 			if (b_SSIProfile >= 2 && b_SSIProfile < 33) {
 		 /*************************************/
 				/* Test the SSI position data length */
@@ -250,9 +250,9 @@ INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 
 										ui_TimerValue
 											=
-											(UINT)
+											(unsigned int)
 											(
-											((ULONG) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
+											((unsigned int) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
 
 				   /************************/
 										/* Initialise the timer */
@@ -351,18 +351,18 @@ INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_  i_APCI1710_Read1SSIValue                        |
-|                               (BYTE_     b_BoardHandle,                    |
-|                                BYTE_     b_ModulNbr,                       |
-|                                BYTE_     b_SelectedSSI,                    |
+|                               (unsigned char_     b_BoardHandle,                    |
+|                                unsigned char_     b_ModulNbr,                       |
+|                                unsigned char_     b_SelectedSSI,                    |
 |                                PULONG_ pul_Position,                       |
 |                                PULONG_ pul_TurnCpt)
- INT i_APCI1710_ReadSSIValue(struct comedi_device *dev,struct comedi_subdevice *s,
+ int i_APCI1710_ReadSSIValue(struct comedi_device *dev,struct comedi_subdevice *s,
 	struct comedi_insn *insn,unsigned int *data)                       |
 +----------------------------------------------------------------------------+
 | Task              :
@@ -373,22 +373,22 @@ INT i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 						or Read all SSI counter (b_SelectedSSI) from              |
 |                     selected module (b_ModulNbr).                            |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 3)       |
-|                     BYTE_ b_SelectedSSI         : Selection from SSI       |
+|                     unsigned char_ b_SelectedSSI         : Selection from SSI       |
 |                                                   counter (0 to 2)
 
-    b_ModulNbr		=   (BYTE) CR_AREF(insn->chanspec);
-	b_SelectedSSI	=	(BYTE) CR_CHAN(insn->chanspec); (in case of single ssi)
-	b_ReadType		=	(BYTE) CR_RANGE(insn->chanspec);
+    b_ModulNbr		=   (unsigned char) CR_AREF(insn->chanspec);
+	b_SelectedSSI	=	(unsigned char) CR_CHAN(insn->chanspec); (in case of single ssi)
+	b_ReadType		=	(unsigned char) CR_RANGE(insn->chanspec);
 |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_  pul_Position       : SSI position in the turn |
 |                     PULONG_  pul_TurnCpt        : Number of turns
 
-pul_Position	=	(PULONG) &data[0];
-	pul_TurnCpt		=	(PULONG) &data[1];         |
+pul_Position	=	(unsigned int *) &data[0];
+	pul_TurnCpt		=	(unsigned int *) &data[1];         |
 +----------------------------------------------------------------------------+
 | Return Value      : 0: No error                                            |
 |                    -1: The handle parameter of the board is wrong          |
@@ -400,37 +400,37 @@ pul_Position	=	(PULONG) &data[0];
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	BYTE b_Cpt;
-	BYTE b_Length;
-	BYTE b_Schift;
-	BYTE b_SSICpt;
-	DWORD dw_And;
-	DWORD dw_And1;
-	DWORD dw_And2;
-	DWORD dw_StatusReg;
-	DWORD dw_CounterValue;
-	BYTE b_ModulNbr;
-	BYTE b_SelectedSSI;
-	BYTE b_ReadType;
-	PULONG pul_Position;
-	PULONG pul_TurnCpt;
-	PULONG pul_Position1;
-	PULONG pul_TurnCpt1;
+	int i_ReturnValue = 0;
+	unsigned char b_Cpt;
+	unsigned char b_Length;
+	unsigned char b_Schift;
+	unsigned char b_SSICpt;
+	unsigned int dw_And;
+	unsigned int dw_And1;
+	unsigned int dw_And2;
+	unsigned int dw_StatusReg;
+	unsigned int dw_CounterValue;
+	unsigned char b_ModulNbr;
+	unsigned char b_SelectedSSI;
+	unsigned char b_ReadType;
+	unsigned int *pul_Position;
+	unsigned int *pul_TurnCpt;
+	unsigned int *pul_Position1;
+	unsigned int *pul_TurnCpt1;
 
 	i_ReturnValue = insn->n;
-	pul_Position1 = (PULONG) & data[0];
-// For Read1
-	pul_TurnCpt1 = (PULONG) & data[1];
-// For Read all
-	pul_Position = (PULONG) & data[0];	//0-2
-	pul_TurnCpt = (PULONG) & data[3];	//3-5
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_SelectedSSI = (BYTE) CR_CHAN(insn->chanspec);
-	b_ReadType = (BYTE) CR_RANGE(insn->chanspec);
+	pul_Position1 = (unsigned int *) &data[0];
+/* For Read1 */
+	pul_TurnCpt1 = (unsigned int *) &data[1];
+/* For Read all */
+	pul_Position = (unsigned int *) &data[0];	/* 0-2 */
+	pul_TurnCpt = (unsigned int *) &data[3];	/* 3-5 */
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_SelectedSSI = (unsigned char) CR_CHAN(insn->chanspec);
+	b_ReadType = (unsigned char) CR_RANGE(insn->chanspec);
 
 	/**************************/
 	/* Test the module number */
@@ -477,9 +477,8 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 								s_BoardInfos.
 								ui_Address +
 								(64 * b_ModulNbr));
-						}
-						while ((dw_StatusReg & 0x1) !=
-							0);
+						} while ((dw_StatusReg & 0x1)
+							 != 0);
 
 		    /******************************/
 						/* Read the SSI counter value */
@@ -608,8 +607,7 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 							s_BoardInfos.
 							ui_Address +
 							(64 * b_ModulNbr));
-					}
-					while ((dw_StatusReg & 0x1) != 0);
+					} while ((dw_StatusReg & 0x1) != 0);
 
 					for (b_SSICpt = 0; b_SSICpt < 3;
 						b_SSICpt++) {
@@ -667,7 +665,7 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 				default:
 					printk("Read Type Inputs Wrong\n");
 
-				}	// switch  ending
+				}	/*  switch  ending */
 
 			} else {
 		 /***********************/
@@ -695,16 +693,16 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_   i_APCI1710_ReadSSI1DigitalInput                |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_InputChannel,           |
-|                                        PBYTE_   pb_ChannelStatus)          |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_InputChannel,           |
+|                                        unsigned char *_   pb_ChannelStatus)          |
 +----------------------------------------------------------------------------+
 | Task              :
 					(0) Set the digital output from selected SSI moule         |
@@ -716,13 +714,13 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
                     (3)Read the status from all SSI digital inputs from       |
 |                     selected SSI module (b_ModulNbr)                   |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr    CR_AREF        : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr    CR_AREF        : Module number to         |
 |                                                   configure (0 to 3)       |
-|                     BYTE_ b_InputChannel CR_CHAN       : Selection from digital   |
+|                     unsigned char_ b_InputChannel CR_CHAN       : Selection from digital   |
 |                        data[0] which IOTYPE                           input ( 0 to 2)          |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_  pb_ChannelStatus    : Digital input channel    |
+| Output Parameters : unsigned char *_  pb_ChannelStatus    : Digital input channel    |
 |                                 data[0]                  status                   |
 |                                                   0 : Channle is not active|
 |                                                   1 : Channle is active    |
@@ -735,19 +733,19 @@ INT i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg;
-	BYTE b_ModulNbr;
-	BYTE b_InputChannel;
-	PBYTE pb_ChannelStatus;
-	PBYTE pb_InputStatus;
-	BYTE b_IOType;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg;
+	unsigned char b_ModulNbr;
+	unsigned char b_InputChannel;
+	unsigned char *pb_ChannelStatus;
+	unsigned char *pb_InputStatus;
+	unsigned char b_IOType;
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_IOType = (BYTE) data[0];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_IOType = (unsigned char) data[0];
 
 	/**************************/
 	/* Test the module number */
@@ -785,8 +783,8 @@ INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_su
 				/* Test the digital imnput channel number */
 				   /******************************************/
 
-				b_InputChannel = (BYTE) CR_CHAN(insn->chanspec);
-				pb_ChannelStatus = (PBYTE) & data[0];
+				b_InputChannel = (unsigned char) CR_CHAN(insn->chanspec);
+				pb_ChannelStatus = (unsigned char *) &data[0];
 
 				if (b_InputChannel <= 2) {
 					/**************************/
@@ -797,7 +795,7 @@ INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_su
 						inl(devpriv->s_BoardInfos.
 						ui_Address + (64 * b_ModulNbr));
 					*pb_ChannelStatus =
-						(BYTE) (((~dw_StatusReg) >> (4 +
+						(unsigned char) (((~dw_StatusReg) >> (4 +
 								b_InputChannel))
 						& 1);
 				} else {
@@ -814,19 +812,19 @@ INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_su
 					/**************************/
 				/* Read all digital input */
 					/**************************/
-				pb_InputStatus = (PBYTE) & data[0];
+				pb_InputStatus = (unsigned char *) &data[0];
 
 				dw_StatusReg =
 					inl(devpriv->s_BoardInfos.ui_Address +
 					(64 * b_ModulNbr));
 				*pb_InputStatus =
-					(BYTE) (((~dw_StatusReg) >> 4) & 7);
+					(unsigned char) (((~dw_StatusReg) >> 4) & 7);
 				break;
 
 			default:
 				printk("IO type wrong\n");
 
-			}	//switch end
+			}	/* switch end */
 		} else {
 	      /**********************************/
 			/* The module is not a SSI module */
@@ -844,5 +842,5 @@ INT i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_su
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

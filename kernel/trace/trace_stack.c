@@ -265,7 +265,7 @@ static int t_show(struct seq_file *m, void *v)
 		seq_printf(m, "        Depth    Size   Location"
 			   "    (%d entries)\n"
 			   "        -----    ----   --------\n",
-			   max_stack_trace.nr_entries);
+			   max_stack_trace.nr_entries - 1);
 
 		if (!stack_tracer_enabled && !max_stack_size)
 			print_disabled(m);
@@ -352,19 +352,14 @@ __setup("stacktrace", enable_stacktrace);
 static __init int stack_trace_init(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *entry;
 
 	d_tracer = tracing_init_dentry();
 
-	entry = debugfs_create_file("stack_max_size", 0644, d_tracer,
-				    &max_stack_size, &stack_max_size_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'stack_max_size' entry\n");
+	trace_create_file("stack_max_size", 0644, d_tracer,
+			&max_stack_size, &stack_max_size_fops);
 
-	entry = debugfs_create_file("stack_trace", 0444, d_tracer,
-				    NULL, &stack_trace_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'stack_trace' entry\n");
+	trace_create_file("stack_trace", 0444, d_tracer,
+			NULL, &stack_trace_fops);
 
 	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);

@@ -26,7 +26,9 @@
 #include "aerdrv.h"
 
 static int forceload;
+static int nosourceid;
 module_param(forceload, bool, 0);
+module_param(nosourceid, bool, 0);
 
 int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
@@ -109,19 +111,23 @@ int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
 #endif  /*  0  */
 
 
-static void set_device_error_reporting(struct pci_dev *dev, void *data)
+static int set_device_error_reporting(struct pci_dev *dev, void *data)
 {
 	bool enable = *((bool *)data);
 
-	if (dev->pcie_type != PCIE_RC_PORT &&
-	    dev->pcie_type != PCIE_SW_UPSTREAM_PORT &&
-	    dev->pcie_type != PCIE_SW_DOWNSTREAM_PORT)
-		return;
+	if (dev->pcie_type == PCIE_RC_PORT ||
+	    dev->pcie_type == PCIE_SW_UPSTREAM_PORT ||
+	    dev->pcie_type == PCIE_SW_DOWNSTREAM_PORT) {
+		if (enable)
+			pci_enable_pcie_error_reporting(dev);
+		else
+			pci_disable_pcie_error_reporting(dev);
+	}
 
 	if (enable)
-		pci_enable_pcie_error_reporting(dev);
-	else
-		pci_disable_pcie_error_reporting(dev);
+		pcie_set_ecrc_checking(dev);
+
+	return 0;
 }
 
 /**
@@ -139,73 +145,148 @@ static void set_downstream_devices_error_reporting(struct pci_dev *dev,
 	pci_walk_bus(dev->subordinate, set_device_error_reporting, &enable);
 }
 
-static int find_device_iter(struct device *device, void *data)
+static inline int compare_device_id(struct pci_dev *dev,
+			struct aer_err_info *e_info)
 {
-	struct pci_dev *dev;
-	u16 id = *(unsigned long *)data;
-	u8 secondary, subordinate, d_bus = id >> 8;
-
-	if (device->bus == &pci_bus_type) {
-		dev = to_pci_dev(device);
-		if (id == ((dev->bus->number << 8) | dev->devfn)) {
-			/*
-			 * Device ID match
-			 */
-			*(unsigned long*)data = (unsigned long)device;
-			return 1;
-		}
-
+	if (e_info->id == ((dev->bus->number << 8) | dev->devfn)) {
 		/*
-		 * If device is P2P, check if it is an upstream?
+		 * Device ID match
 		 */
-		if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE) {
-			pci_read_config_byte(dev, PCI_SECONDARY_BUS,
-				&secondary);
-			pci_read_config_byte(dev, PCI_SUBORDINATE_BUS,
-				&subordinate);
-			if (d_bus >= secondary && d_bus <= subordinate) {
-				*(unsigned long*)data = (unsigned long)device;
-				return 1;
-			}
-		}
+		return 1;
 	}
 
 	return 0;
 }
 
+static int add_error_device(struct aer_err_info *e_info, struct pci_dev *dev)
+{
+	if (e_info->error_dev_num < AER_MAX_MULTI_ERR_DEVICES) {
+		e_info->dev[e_info->error_dev_num] = dev;
+		e_info->error_dev_num++;
+		return 1;
+	} else
+		return 0;
+}
+
+
+#define	PCI_BUS(x)	(((x) >> 8) & 0xff)
+
+static int find_device_iter(struct pci_dev *dev, void *data)
+{
+	int pos;
+	u32 status;
+	u32 mask;
+	u16 reg16;
+	int result;
+	struct aer_err_info *e_info = (struct aer_err_info *)data;
+
+	/*
+	 * When bus id is equal to 0, it might be a bad id
+	 * reported by root port.
+	 */
+	if (!nosourceid && (PCI_BUS(e_info->id) != 0)) {
+		result = compare_device_id(dev, e_info);
+		if (result)
+			add_error_device(e_info, dev);
+
+		/*
+		 * If there is no multiple error, we stop
+		 * or continue based on the id comparing.
+		 */
+		if (!(e_info->flags & AER_MULTI_ERROR_VALID_FLAG))
+			return result;
+
+		/*
+		 * If there are multiple errors and id does match,
+		 * We need continue to search other devices under
+		 * the root port. Return 0 means that.
+		 */
+		if (result)
+			return 0;
+	}
+
+	/*
+	 * When either
+	 *      1) nosourceid==y;
+	 *      2) bus id is equal to 0. Some ports might lose the bus
+	 *              id of error source id;
+	 *      3) There are multiple errors and prior id comparing fails;
+	 * We check AER status registers to find the initial reporter.
+	 */
+	if (atomic_read(&dev->enable_cnt) == 0)
+		return 0;
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return 0;
+	/* Check if AER is enabled */
+	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
+	if (!(reg16 & (
+		PCI_EXP_DEVCTL_CERE |
+		PCI_EXP_DEVCTL_NFERE |
+		PCI_EXP_DEVCTL_FERE |
+		PCI_EXP_DEVCTL_URRE)))
+		return 0;
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return 0;
+
+	status = 0;
+	mask = 0;
+	if (e_info->severity == AER_CORRECTABLE) {
+		pci_read_config_dword(dev,
+				pos + PCI_ERR_COR_STATUS,
+				&status);
+		pci_read_config_dword(dev,
+				pos + PCI_ERR_COR_MASK,
+				&mask);
+		if (status & ERR_CORRECTABLE_ERROR_MASK & ~mask) {
+			add_error_device(e_info, dev);
+			goto added;
+		}
+	} else {
+		pci_read_config_dword(dev,
+				pos + PCI_ERR_UNCOR_STATUS,
+				&status);
+		pci_read_config_dword(dev,
+				pos + PCI_ERR_UNCOR_MASK,
+				&mask);
+		if (status & ERR_UNCORRECTABLE_ERROR_MASK & ~mask) {
+			add_error_device(e_info, dev);
+			goto added;
+		}
+	}
+
+	return 0;
+
+added:
+	if (e_info->flags & AER_MULTI_ERROR_VALID_FLAG)
+		return 0;
+	else
+		return 1;
+}
+
 /**
  * find_source_device - search through device hierarchy for source device
  * @parent: pointer to Root Port pci_dev data structure
- * @id: device ID of agent who sends an error message to this Root Port
+ * @err_info: including detailed error information such like id
  *
  * Invoked when error is detected at the Root Port.
  */
-static struct device* find_source_device(struct pci_dev *parent, u16 id)
+static void find_source_device(struct pci_dev *parent,
+		struct aer_err_info *e_info)
 {
 	struct pci_dev *dev = parent;
-	struct device *device;
-	unsigned long device_addr;
-	int status;
+	int result;
 
 	/* Is Root Port an agent that sends error message? */
-	if (id == ((dev->bus->number << 8) | dev->devfn))
-		return &dev->dev;
+	result = find_device_iter(dev, e_info);
+	if (result)
+		return;
 
-	do {
-		device_addr = id;
- 		if ((status = device_for_each_child(&dev->dev,
-			&device_addr, find_device_iter))) {
-			device = (struct device*)device_addr;
-			dev = to_pci_dev(device);
-			if (id == ((dev->bus->number << 8) | dev->devfn))
-				return device;
-		}
- 	}while (status);
-
-	return NULL;
+	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
 }
 
-static void report_error_detected(struct pci_dev *dev, void *data)
+static int report_error_detected(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
 	struct pci_error_handlers *err_handler;
@@ -230,16 +311,16 @@ static void report_error_detected(struct pci_dev *dev, void *data)
 				   dev->driver ?
 				   "no AER-aware driver" : "no driver");
 		}
-		return;
+		return 0;
 	}
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->error_detected(dev, result_data->state);
 	result_data->result = merge_result(result_data->result, vote);
-	return;
+	return 0;
 }
 
-static void report_mmio_enabled(struct pci_dev *dev, void *data)
+static int report_mmio_enabled(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
 	struct pci_error_handlers *err_handler;
@@ -249,15 +330,15 @@ static void report_mmio_enabled(struct pci_dev *dev, void *data)
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->mmio_enabled)
-		return;
+		return 0;
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->mmio_enabled(dev);
 	result_data->result = merge_result(result_data->result, vote);
-	return;
+	return 0;
 }
 
-static void report_slot_reset(struct pci_dev *dev, void *data)
+static int report_slot_reset(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
 	struct pci_error_handlers *err_handler;
@@ -267,15 +348,15 @@ static void report_slot_reset(struct pci_dev *dev, void *data)
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->slot_reset)
-		return;
+		return 0;
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->slot_reset(dev);
 	result_data->result = merge_result(result_data->result, vote);
-	return;
+	return 0;
 }
 
-static void report_resume(struct pci_dev *dev, void *data)
+static int report_resume(struct pci_dev *dev, void *data)
 {
 	struct pci_error_handlers *err_handler;
 
@@ -284,11 +365,11 @@ static void report_resume(struct pci_dev *dev, void *data)
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->resume)
-		return;
+		return 0;
 
 	err_handler = dev->driver->err_handler;
 	err_handler->resume(dev);
-	return;
+	return 0;
 }
 
 /**
@@ -305,7 +386,7 @@ static void report_resume(struct pci_dev *dev, void *data)
 static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	enum pci_channel_state state,
 	char *error_mesg,
-	void (*cb)(struct pci_dev *, void *))
+	int (*cb)(struct pci_dev *, void *))
 {
 	struct aer_broadcast_data result_data;
 
@@ -497,12 +578,12 @@ static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
  */
 static void handle_error_source(struct pcie_device * aerdev,
 	struct pci_dev *dev,
-	struct aer_err_info info)
+	struct aer_err_info *info)
 {
 	pci_ers_result_t status = 0;
 	int pos;
 
-	if (info.severity == AER_CORRECTABLE) {
+	if (info->severity == AER_CORRECTABLE) {
 		/*
 		 * Correctable error does not need software intevention.
 		 * No need to go through error recovery process.
@@ -510,9 +591,9 @@ static void handle_error_source(struct pcie_device * aerdev,
 		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 		if (pos)
 			pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS,
-					info.status);
+					info->status);
 	} else {
-		status = do_recovery(aerdev, dev, info.severity);
+		status = do_recovery(aerdev, dev, info->severity);
 		if (status == PCI_ERS_RESULT_RECOVERED) {
 			dev_printk(KERN_DEBUG, &dev->dev, "AER driver "
 				   "successfully recovered\n");
@@ -661,6 +742,28 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 	return AER_SUCCESS;
 }
 
+static inline void aer_process_err_devices(struct pcie_device *p_device,
+			struct aer_err_info *e_info)
+{
+	int i;
+
+	if (!e_info->dev[0]) {
+		dev_printk(KERN_DEBUG, &p_device->port->dev,
+				"can't find device of ID%04x\n",
+				e_info->id);
+	}
+
+	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
+		if (get_device_error_info(e_info->dev[i], e_info) ==
+				AER_SUCCESS) {
+			aer_print_error(e_info->dev[i], e_info);
+			handle_error_source(p_device,
+					e_info->dev[i],
+					e_info);
+		}
+	}
+}
+
 /**
  * aer_isr_one_error - consume an error detected by root port
  * @p_device: pointer to error root port service device
@@ -669,10 +772,16 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 static void aer_isr_one_error(struct pcie_device *p_device,
 		struct aer_err_source *e_src)
 {
-	struct device *s_device;
-	struct aer_err_info e_info = {0, 0, 0,};
+	struct aer_err_info *e_info;
 	int i;
-	u16 id;
+
+	/* struct aer_err_info might be big, so we allocate it with slab */
+	e_info = kmalloc(sizeof(struct aer_err_info), GFP_KERNEL);
+	if (e_info == NULL) {
+		dev_printk(KERN_DEBUG, &p_device->port->dev,
+			"Can't allocate mem when processing AER errors\n");
+		return;
+	}
 
 	/*
 	 * There is a possibility that both correctable error and
@@ -684,31 +793,26 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 		if (!(e_src->status & i))
 			continue;
 
+		memset(e_info, 0, sizeof(struct aer_err_info));
+
 		/* Init comprehensive error information */
 		if (i & PCI_ERR_ROOT_COR_RCV) {
-			id = ERR_COR_ID(e_src->id);
-			e_info.severity = AER_CORRECTABLE;
+			e_info->id = ERR_COR_ID(e_src->id);
+			e_info->severity = AER_CORRECTABLE;
 		} else {
-			id = ERR_UNCOR_ID(e_src->id);
-			e_info.severity = ((e_src->status >> 6) & 1);
+			e_info->id = ERR_UNCOR_ID(e_src->id);
+			e_info->severity = ((e_src->status >> 6) & 1);
 		}
 		if (e_src->status &
 			(PCI_ERR_ROOT_MULTI_COR_RCV |
 			 PCI_ERR_ROOT_MULTI_UNCOR_RCV))
-			e_info.flags |= AER_MULTI_ERROR_VALID_FLAG;
-		if (!(s_device = find_source_device(p_device->port, id))) {
-			printk(KERN_DEBUG "%s->can't find device of ID%04x\n",
-				__func__, id);
-			continue;
-		}
-		if (get_device_error_info(to_pci_dev(s_device), &e_info) ==
-				AER_SUCCESS) {
-			aer_print_error(to_pci_dev(s_device), &e_info);
-			handle_error_source(p_device,
-				to_pci_dev(s_device),
-				e_info);
-		}
+			e_info->flags |= AER_MULTI_ERROR_VALID_FLAG;
+
+		find_source_device(p_device->port, e_info);
+		aer_process_err_devices(p_device, e_info);
 	}
+
+	kfree(e_info);
 }
 
 /**

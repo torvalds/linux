@@ -30,7 +30,7 @@
 
 static void __init gapspci_fixup_resources(struct pci_dev *dev)
 {
-	struct pci_channel *p = board_pci_channels;
+	struct pci_channel *p = dev->sysdata;
 
 	printk(KERN_NOTICE "PCI: Fixing up device %s\n", pci_name(dev));
 
@@ -41,6 +41,13 @@ static void __init gapspci_fixup_resources(struct pci_dev *dev)
 		 */
 		dev->resource[1].start	= p->io_resource->start  + 0x100;
 		dev->resource[1].end	= dev->resource[1].start + 0x200 - 1;
+
+		/*
+		 * This is not a normal BAR, prevent any attempts to move
+		 * the BAR, as this will result in a bus lock.
+		 */
+		dev->resource[1].flags |= IORESOURCE_PCI_FIXED;
+
 		/*
 		 * Redirect dma memory allocations to special memory window.
 		 */

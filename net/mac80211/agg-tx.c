@@ -16,6 +16,7 @@
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "wme.h"
 
 /**
@@ -131,11 +132,14 @@ static int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
+	if (*state == HT_AGG_STATE_OPERATIONAL)
+		sta->ampdu_mlme.addba_req_num[tid] = 0;
+
 	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
 
-	ret = local->ops->ampdu_action(&local->hw, IEEE80211_AMPDU_TX_STOP,
-				       &sta->sta, tid, NULL);
+	ret = drv_ampdu_action(local, IEEE80211_AMPDU_TX_STOP,
+			       &sta->sta, tid, NULL);
 
 	/* HW shall not deny going back to legacy */
 	if (WARN_ON(ret)) {
@@ -306,8 +310,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 
 	start_seq_num = sta->tid_seq[tid];
 
-	ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_TX_START,
-				       &sta->sta, tid, &start_seq_num);
+	ret = drv_ampdu_action(local, IEEE80211_AMPDU_TX_START,
+			       &sta->sta, tid, &start_seq_num);
 
 	if (ret) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -336,6 +340,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 			 sta->ampdu_mlme.tid_tx[tid]->dialog_token,
 			 sta->ampdu_mlme.tid_tx[tid]->ssn,
 			 0x40, 5000);
+	sta->ampdu_mlme.addba_req_num[tid]++;
 	/* activate the timer for the recipient's addBA response */
 	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.expires =
 				jiffies + ADDBA_RESP_INTERVAL;
@@ -418,8 +423,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	ieee80211_agg_splice_finish(local, sta, tid);
 	spin_unlock(&local->ampdu_lock);
 
-	local->ops->ampdu_action(&local->hw, IEEE80211_AMPDU_TX_OPERATIONAL,
-				 &sta->sta, tid, NULL);
+	drv_ampdu_action(local, IEEE80211_AMPDU_TX_OPERATIONAL,
+			 &sta->sta, tid, NULL);
 }
 
 void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
@@ -605,7 +610,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 
 	*state = HT_AGG_STATE_IDLE;
 	/* from now on packets are no longer put onto sta->pending */
-	sta->ampdu_mlme.addba_req_num[tid] = 0;
 	kfree(sta->ampdu_mlme.tid_tx[tid]);
 	sta->ampdu_mlme.tid_tx[tid] = NULL;
 
@@ -688,7 +692,6 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
 	} else {
-		sta->ampdu_mlme.addba_req_num[tid]++;
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);
 	}
 	spin_unlock_bh(&sta->lock);

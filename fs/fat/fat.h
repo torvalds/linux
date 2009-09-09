@@ -17,6 +17,10 @@
 #define VFAT_SFN_CREATE_WIN95	0x0100 /* emulate win95 rule for create */
 #define VFAT_SFN_CREATE_WINNT	0x0200 /* emulate winnt rule for create */
 
+#define FAT_ERRORS_CONT		1      /* ignore error and continue */
+#define FAT_ERRORS_PANIC	2      /* panic on error */
+#define FAT_ERRORS_RO		3      /* remount r/o on error */
+
 struct fat_mount_options {
 	uid_t fs_uid;
 	gid_t fs_gid;
@@ -26,6 +30,7 @@ struct fat_mount_options {
 	char *iocharset;          /* Charset used for filename input/display */
 	unsigned short shortname; /* flags for shortname display/create rule */
 	unsigned char name_check; /* r = relaxed, n = normal, s = strict */
+	unsigned char errors;	  /* On error: continue, panic, remount-ro */
 	unsigned short allow_utime;/* permission for setting the [am]time */
 	unsigned quiet:1,         /* set = fake successful chmods and chowns */
 		 showexec:1,      /* set = only set x bit for com/exe/bat */
@@ -74,6 +79,7 @@ struct msdos_sb_info {
 
 	int fatent_shift;
 	struct fatent_operations *fatent_ops;
+	struct inode *fat_inode;
 
 	spinlock_t inode_hash_lock;
 	struct hlist_head inode_hashtable[FAT_HASH_SIZE];
@@ -251,6 +257,7 @@ struct fat_entry {
 	} u;
 	int nr_bhs;
 	struct buffer_head *bhs[2];
+	struct inode *fat_inode;
 };
 
 static inline void fatent_init(struct fat_entry *fatent)
@@ -259,6 +266,7 @@ static inline void fatent_init(struct fat_entry *fatent)
 	fatent->entry = 0;
 	fatent->u.ent32_p = NULL;
 	fatent->bhs[0] = fatent->bhs[1] = NULL;
+	fatent->fat_inode = NULL;
 }
 
 static inline void fatent_set_entry(struct fat_entry *fatent, int entry)
@@ -275,6 +283,7 @@ static inline void fatent_brelse(struct fat_entry *fatent)
 		brelse(fatent->bhs[i]);
 	fatent->nr_bhs = 0;
 	fatent->bhs[0] = fatent->bhs[1] = NULL;
+	fatent->fat_inode = NULL;
 }
 
 extern void fat_ent_access_init(struct super_block *sb);
@@ -296,6 +305,8 @@ extern int fat_setattr(struct dentry * dentry, struct iattr * attr);
 extern void fat_truncate(struct inode *inode);
 extern int fat_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		       struct kstat *stat);
+extern int fat_file_fsync(struct file *file, struct dentry *dentry,
+			  int datasync);
 
 /* fat/inode.c */
 extern void fat_attach(struct inode *inode, loff_t i_pos);
@@ -310,7 +321,7 @@ extern int fat_fill_super(struct super_block *sb, void *data, int silent,
 extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
 		            struct inode *i2);
 /* fat/misc.c */
-extern void fat_fs_panic(struct super_block *s, const char *fmt, ...)
+extern void fat_fs_error(struct super_block *s, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3))) __cold;
 extern void fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);

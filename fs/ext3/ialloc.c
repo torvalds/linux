@@ -181,7 +181,7 @@ void ext3_free_inode (handle_t *handle, struct inode * inode)
 	err = ext3_journal_dirty_metadata(handle, bitmap_bh);
 	if (!fatal)
 		fatal = err;
-	sb->s_dirt = 1;
+
 error_return:
 	brelse(bitmap_bh);
 	ext3_std_error(sb, fatal);
@@ -537,7 +537,6 @@ got:
 	percpu_counter_dec(&sbi->s_freeinodes_counter);
 	if (S_ISDIR(mode))
 		percpu_counter_inc(&sbi->s_dirs_counter);
-	sb->s_dirt = 1;
 
 	inode->i_uid = current_fsuid();
 	if (test_opt (sb, GRPID))

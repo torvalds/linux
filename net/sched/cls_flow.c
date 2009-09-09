@@ -84,7 +84,7 @@ static u32 flow_get_dst(const struct sk_buff *skb)
 	case htons(ETH_P_IPV6):
 		return ntohl(ipv6_hdr(skb)->daddr.s6_addr32[3]);
 	default:
-		return addr_fold(skb->dst) ^ (__force u16)skb->protocol;
+		return addr_fold(skb_dst(skb)) ^ (__force u16)skb->protocol;
 	}
 }
 
@@ -163,7 +163,7 @@ static u32 flow_get_proto_dst(const struct sk_buff *skb)
 		break;
 	}
 	default:
-		res = addr_fold(skb->dst) ^ (__force u16)skb->protocol;
+		res = addr_fold(skb_dst(skb)) ^ (__force u16)skb->protocol;
 	}
 
 	return res;
@@ -251,8 +251,8 @@ fallback:
 static u32 flow_get_rtclassid(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ROUTE
-	if (skb->dst)
-		return skb->dst->tclassid;
+	if (skb_dst(skb))
+		return skb_dst(skb)->tclassid;
 #endif
 	return 0;
 }

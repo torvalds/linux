@@ -42,12 +42,23 @@
 
 #define BRCR_CMFA		(1 << 15)
 #define BRCR_CMFB		(1 << 14)
+
+#if defined CONFIG_CPU_SH2A
+#define BRCR_CMFCA		(1 << 15)
+#define BRCR_CMFCB		(1 << 14)
+#define BRCR_CMFDA		(1 << 13)
+#define BRCR_CMFDB		(1 << 12)
+#define BRCR_PCBB		(1 << 6)	/* 1: after execution */
+#define BRCR_PCBA		(1 << 5)	/* 1: after execution */
+#define BRCR_PCTE		0
+#else
 #define BRCR_PCTE		(1 << 11)
 #define BRCR_PCBA		(1 << 10)	/* 1: after execution */
 #define BRCR_DBEB		(1 << 7)
 #define BRCR_PCBB		(1 << 6)
 #define BRCR_SEQ		(1 << 3)
 #define BRCR_UBDE		(1 << 0)
+#endif
 
 #ifndef __ASSEMBLY__
 /* arch/sh/kernel/cpu/ubc.S */

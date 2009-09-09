@@ -60,3 +60,62 @@ Description:
 		Indicates whether the block layer should automatically
 		generate checksums for write requests bound for
 		devices that support receiving integrity metadata.
+
+What:		/sys/block/<disk>/alignment_offset
+Date:		April 2009
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Storage devices may report a physical block size that is
+		bigger than the logical block size (for instance a drive
+		with 4KB physical sectors exposing 512-byte logical
+		blocks to the operating system).  This parameter
+		indicates how many bytes the beginning of the device is
+		offset from the disk's natural alignment.
+
+What:		/sys/block/<disk>/<partition>/alignment_offset
+Date:		April 2009
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Storage devices may report a physical block size that is
+		bigger than the logical block size (for instance a drive
+		with 4KB physical sectors exposing 512-byte logical
+		blocks to the operating system).  This parameter
+		indicates how many bytes the beginning of the partition
+		is offset from the disk's natural alignment.
+
+What:		/sys/block/<disk>/queue/logical_block_size
+Date:		May 2009
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		This is the smallest unit the storage device can
+		address.  It is typically 512 bytes.
+
+What:		/sys/block/<disk>/queue/physical_block_size
+Date:		May 2009
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		This is the smallest unit the storage device can write
+		without resorting to read-modify-write operation.  It is
+		usually the same as the logical block size but may be
+		bigger.  One example is SATA drives with 4KB sectors
+		that expose a 512-byte logical block size to the
+		operating system.
+
+What:		/sys/block/<disk>/queue/minimum_io_size
+Date:		April 2009
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Storage devices may report a preferred minimum I/O size,
+		which is the smallest request the device can perform
+		without incurring a read-modify-write penalty.  For disk
+		drives this is often the physical block size.  For RAID
+		arrays it is often the stripe chunk size.
+
+What:		/sys/block/<disk>/queue/optimal_io_size
+Date:		April 2009
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Storage devices may report an optimal I/O size, which is
+		the device's preferred unit of receiving I/O.  This is
+		rarely reported for disk drives.  For RAID devices it is
+		usually the stripe width or the internal block size.

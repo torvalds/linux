@@ -40,7 +40,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 
 static int minor = MISC_DYNAMIC_MINOR;
 
@@ -51,13 +51,7 @@ struct vhci_data {
 
 	wait_queue_head_t read_wait;
 	struct sk_buff_head readq;
-
-	struct fasync_struct *fasync;
 };
-
-#define VHCI_FASYNC	0x0010
-
-static struct miscdevice vhci_miscdev;
 
 static int vhci_open_dev(struct hci_dev *hdev)
 {
@@ -104,9 +98,6 @@ static int vhci_send_frame(struct sk_buff *skb)
 
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&data->readq, skb);
-
-	if (data->flags & VHCI_FASYNC)
-		kill_fasync(&data->fasync, SIGIO, POLL_IN);
 
 	wake_up_interruptible(&data->read_wait);
 
@@ -179,41 +170,31 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 static ssize_t vhci_read(struct file *file,
 				char __user *buf, size_t count, loff_t *pos)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct vhci_data *data = file->private_data;
 	struct sk_buff *skb;
 	ssize_t ret = 0;
 
-	add_wait_queue(&data->read_wait, &wait);
 	while (count) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		skb = skb_dequeue(&data->readq);
-		if (!skb) {
-			if (file->f_flags & O_NONBLOCK) {
-				ret = -EAGAIN;
-				break;
-			}
-
-			if (signal_pending(current)) {
-				ret = -ERESTARTSYS;
-				break;
-			}
-
-			schedule();
-			continue;
+		if (skb) {
+			ret = vhci_put_user(data, skb, buf, count);
+			if (ret < 0)
+				skb_queue_head(&data->readq, skb);
+			else
+				kfree_skb(skb);
+			break;
 		}
 
-		if (access_ok(VERIFY_WRITE, buf, count))
-			ret = vhci_put_user(data, skb, buf, count);
-		else
-			ret = -EFAULT;
+		if (file->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
+		}
 
-		kfree_skb(skb);
-		break;
+		ret = wait_event_interruptible(data->read_wait,
+					!skb_queue_empty(&data->readq));
+		if (ret < 0)
+			break;
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&data->read_wait, &wait);
 
 	return ret;
 }
@@ -222,9 +203,6 @@ static ssize_t vhci_write(struct file *file,
 			const char __user *buf, size_t count, loff_t *pos)
 {
 	struct vhci_data *data = file->private_data;
-
-	if (!access_ok(VERIFY_READ, buf, count))
-		return -EFAULT;
 
 	return vhci_get_user(data, buf, count);
 }
@@ -259,11 +237,9 @@ static int vhci_open(struct inode *inode, struct file *file)
 	skb_queue_head_init(&data->readq);
 	init_waitqueue_head(&data->read_wait);
 
-	lock_kernel();
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		kfree(data);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -284,12 +260,10 @@ static int vhci_open(struct inode *inode, struct file *file)
 		BT_ERR("Can't register HCI device");
 		kfree(data);
 		hci_free_dev(hdev);
-		unlock_kernel();
 		return -EBUSY;
 	}
 
 	file->private_data = data;
-	unlock_kernel();
 
 	return nonseekable_open(inode, file);
 }
@@ -310,47 +284,24 @@ static int vhci_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vhci_fasync(int fd, struct file *file, int on)
-{
-	struct vhci_data *data = file->private_data;
-	int err = 0;
-
-	lock_kernel();
-	err = fasync_helper(fd, file, on, &data->fasync);
-	if (err < 0)
-		goto out;
-
-	if (on)
-		data->flags |= VHCI_FASYNC;
-	else
-		data->flags &= ~VHCI_FASYNC;
-
-out:
-	unlock_kernel();
-	return err;
-}
-
 static const struct file_operations vhci_fops = {
-	.owner		= THIS_MODULE,
 	.read		= vhci_read,
 	.write		= vhci_write,
 	.poll		= vhci_poll,
 	.ioctl		= vhci_ioctl,
 	.open		= vhci_open,
 	.release	= vhci_release,
-	.fasync		= vhci_fasync,
 };
 
 static struct miscdevice vhci_miscdev= {
-	.name		= "vhci",
-	.fops		= &vhci_fops,
+	.name	= "vhci",
+	.fops	= &vhci_fops,
+	.minor	= MISC_DYNAMIC_MINOR,
 };
 
 static int __init vhci_init(void)
 {
 	BT_INFO("Virtual HCI driver ver %s", VERSION);
-
-	vhci_miscdev.minor = minor;
 
 	if (misc_register(&vhci_miscdev) < 0) {
 		BT_ERR("Can't register misc device with minor %d", minor);
@@ -368,9 +319,6 @@ static void __exit vhci_exit(void)
 
 module_init(vhci_init);
 module_exit(vhci_exit);
-
-module_param(minor, int, 0444);
-MODULE_PARM_DESC(minor, "Miscellaneous minor device number");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth virtual HCI driver ver " VERSION);

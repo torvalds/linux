@@ -25,6 +25,7 @@
 #include <linux/kbd_kern.h>
 #include <linux/proc_fs.h>
 #include <linux/quotaops.h>
+#include <linux/perf_counter.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
@@ -120,20 +121,17 @@ static struct sysrq_key_op sysrq_unraw_op = {
 #define sysrq_unraw_op (*(struct sysrq_key_op *)0)
 #endif /* CONFIG_VT */
 
-#ifdef CONFIG_KEXEC
-static void sysrq_handle_crashdump(int key, struct tty_struct *tty)
+static void sysrq_handle_crash(int key, struct tty_struct *tty)
 {
-	crash_kexec(get_irq_regs());
+	char *killer = NULL;
+	*killer = 1;
 }
 static struct sysrq_key_op sysrq_crashdump_op = {
-	.handler	= sysrq_handle_crashdump,
-	.help_msg	= "Crashdump",
-	.action_msg	= "Trigger a crashdump",
+	.handler	= sysrq_handle_crash,
+	.help_msg	= "Crash",
+	.action_msg	= "Trigger a crash",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
-#else
-#define sysrq_crashdump_op (*(struct sysrq_key_op *)0)
-#endif
 
 static void sysrq_handle_reboot(int key, struct tty_struct *tty)
 {
@@ -243,6 +241,7 @@ static void sysrq_handle_showregs(int key, struct tty_struct *tty)
 	struct pt_regs *regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);
+	perf_counter_print_debug();
 }
 static struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,

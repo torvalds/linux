@@ -20,9 +20,9 @@ struct fixed_range_block {
 };
 
 static struct fixed_range_block fixed_range_blocks[] = {
-	{ MTRRfix64K_00000_MSR, 1 }, /* one  64k MTRR  */
-	{ MTRRfix16K_80000_MSR, 2 }, /* two  16k MTRRs */
-	{ MTRRfix4K_C0000_MSR,  8 }, /* eight 4k MTRRs */
+	{ MSR_MTRRfix64K_00000, 1 }, /* one  64k MTRR  */
+	{ MSR_MTRRfix16K_80000, 2 }, /* two  16k MTRRs */
+	{ MSR_MTRRfix4K_C0000,  8 }, /* eight 4k MTRRs */
 	{}
 };
 
@@ -194,12 +194,12 @@ get_fixed_ranges(mtrr_type * frs)
 
 	k8_check_syscfg_dram_mod_en();
 
-	rdmsr(MTRRfix64K_00000_MSR, p[0], p[1]);
+	rdmsr(MSR_MTRRfix64K_00000, p[0], p[1]);
 
 	for (i = 0; i < 2; i++)
-		rdmsr(MTRRfix16K_80000_MSR + i, p[2 + i * 2], p[3 + i * 2]);
+		rdmsr(MSR_MTRRfix16K_80000 + i, p[2 + i * 2], p[3 + i * 2]);
 	for (i = 0; i < 8; i++)
-		rdmsr(MTRRfix4K_C0000_MSR + i, p[6 + i * 2], p[7 + i * 2]);
+		rdmsr(MSR_MTRRfix4K_C0000 + i, p[6 + i * 2], p[7 + i * 2]);
 }
 
 void mtrr_save_fixed_ranges(void *info)
@@ -310,7 +310,7 @@ void __init get_mtrr_state(void)
 
 	vrs = mtrr_state.var_ranges;
 
-	rdmsr(MTRRcap_MSR, lo, dummy);
+	rdmsr(MSR_MTRRcap, lo, dummy);
 	mtrr_state.have_fixed = (lo >> 8) & 1;
 
 	for (i = 0; i < num_var_ranges; i++)
@@ -318,7 +318,7 @@ void __init get_mtrr_state(void)
 	if (mtrr_state.have_fixed)
 		get_fixed_ranges(mtrr_state.fixed_ranges);
 
-	rdmsr(MTRRdefType_MSR, lo, dummy);
+	rdmsr(MSR_MTRRdefType, lo, dummy);
 	mtrr_state.def_type = (lo & 0xff);
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 
@@ -583,10 +583,10 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 	__flush_tlb();
 
 	/*  Save MTRR state */
-	rdmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
+	rdmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
 
 	/*  Disable MTRRs, and set the default type to uncached  */
-	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo & ~0xcff, deftype_hi);
+	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo & ~0xcff, deftype_hi);
 }
 
 static void post_set(void) __releases(set_atomicity_lock)
@@ -595,7 +595,7 @@ static void post_set(void) __releases(set_atomicity_lock)
 	__flush_tlb();
 
 	/* Intel (P6) standard MTRRs */
-	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
+	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
 		
 	/*  Enable caches  */
 	write_cr0(read_cr0() & 0xbfffffff);
@@ -707,7 +707,7 @@ int generic_validate_add_page(unsigned long base, unsigned long size, unsigned i
 static int generic_have_wrcomb(void)
 {
 	unsigned long config, dummy;
-	rdmsr(MTRRcap_MSR, config, dummy);
+	rdmsr(MSR_MTRRcap, config, dummy);
 	return (config & (1 << 10));
 }
 

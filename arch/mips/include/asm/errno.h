@@ -119,6 +119,8 @@
 #define	EOWNERDEAD	165	/* Owner died */
 #define	ENOTRECOVERABLE	166	/* State not recoverable */
 
+#define	ERFKILL		167	/* Operation not possible due to RF-kill */
+
 #define EDQUOT		1133	/* Quota exceeded */
 
 #ifdef __KERNEL__

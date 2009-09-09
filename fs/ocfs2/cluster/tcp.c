@@ -974,7 +974,7 @@ static int o2net_tx_can_proceed(struct o2net_node *nn,
 int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 			   size_t caller_veclen, u8 target_node, int *status)
 {
-	int ret, error = 0;
+	int ret;
 	struct o2net_msg *msg = NULL;
 	size_t veclen, caller_bytes = 0;
 	struct kvec *vec = NULL;
@@ -1015,10 +1015,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 	o2net_set_nst_sock_time(&nst);
 
-	ret = wait_event_interruptible(nn->nn_sc_wq,
-				       o2net_tx_can_proceed(nn, &sc, &error));
-	if (!ret && error)
-		ret = error;
+	wait_event(nn->nn_sc_wq, o2net_tx_can_proceed(nn, &sc, &ret));
 	if (ret)
 		goto out;
 
