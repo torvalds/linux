@@ -719,9 +719,8 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 	return false;
 }
 
-struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
-							      radeon_encoder
-							      *encoder)
+bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
+				   struct radeon_encoder_int_tmds *tmds)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -732,7 +731,6 @@ struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
 	uint8_t frev, crev;
 	uint16_t maxfreq;
 	int i;
-	struct radeon_encoder_int_tmds *tmds = NULL;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
 			       &crev, &data_offset);
@@ -742,12 +740,6 @@ struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
 				       data_offset);
 
 	if (tmds_info) {
-		tmds =
-		    kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
-
-		if (!tmds)
-			return NULL;
-
 		maxfreq = le16_to_cpu(tmds_info->usMaxFrequency);
 		for (i = 0; i < 4; i++) {
 			tmds->tmds_pll[i].freq =
@@ -773,8 +765,9 @@ struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
 				break;
 			}
 		}
+		return true;
 	}
-	return tmds;
+	return false;
 }
 
 union lvds_info {

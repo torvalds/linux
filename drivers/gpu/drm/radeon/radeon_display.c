@@ -623,6 +623,83 @@ static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.fb_changed = radeonfb_probe,
 };
 
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
+
+static struct drm_prop_enum_list radeon_tmds_pll_enum_list[] =
+{	{ 0, "driver" },
+	{ 1, "bios" },
+};
+
+static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
+{	{ TV_STD_NTSC, "ntsc" },
+	{ TV_STD_PAL, "pal" },
+	{ TV_STD_PAL_M, "pal-m" },
+	{ TV_STD_PAL_60, "pal-60" },
+	{ TV_STD_NTSC_J, "ntsc-j" },
+	{ TV_STD_SCART_PAL, "scart-pal" },
+	{ TV_STD_PAL_CN, "pal-cn" },
+	{ TV_STD_SECAM, "secam" },
+};
+
+int radeon_modeset_create_props(struct radeon_device *rdev)
+{
+	int i, sz;
+
+	if (rdev->is_atom_bios) {
+		rdev->mode_info.coherent_mode_property =
+			drm_property_create(rdev->ddev,
+					    DRM_MODE_PROP_RANGE,
+					    "coherent", 2);
+		if (!rdev->mode_info.coherent_mode_property)
+			return -ENOMEM;
+
+		rdev->mode_info.coherent_mode_property->values[0] = 0;
+		rdev->mode_info.coherent_mode_property->values[0] = 1;
+	}
+
+	if (!ASIC_IS_AVIVO(rdev)) {
+		sz = ARRAY_SIZE(radeon_tmds_pll_enum_list);
+		rdev->mode_info.tmds_pll_property =
+			drm_property_create(rdev->ddev,
+					    DRM_MODE_PROP_ENUM,
+					    "tmds_pll", sz);
+		for (i = 0; i < sz; i++) {
+			drm_property_add_enum(rdev->mode_info.tmds_pll_property,
+					      i,
+					      radeon_tmds_pll_enum_list[i].type,
+					      radeon_tmds_pll_enum_list[i].name);
+		}
+	}
+
+	rdev->mode_info.load_detect_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_RANGE,
+				    "load detection", 2);
+	if (!rdev->mode_info.load_detect_property)
+		return -ENOMEM;
+	rdev->mode_info.load_detect_property->values[0] = 0;
+	rdev->mode_info.load_detect_property->values[0] = 1;
+
+	drm_mode_create_scaling_mode_property(rdev->ddev);
+
+	sz = ARRAY_SIZE(radeon_tv_std_enum_list);
+	rdev->mode_info.tv_std_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_ENUM,
+				    "tv standard", sz);
+	for (i = 0; i < sz; i++) {
+		drm_property_add_enum(rdev->mode_info.tv_std_property,
+				      i,
+				      radeon_tv_std_enum_list[i].type,
+				      radeon_tv_std_enum_list[i].name);
+	}
+
+	return 0;
+}
+
 int radeon_modeset_init(struct radeon_device *rdev)
 {
 	int num_crtc = 2, i;
@@ -643,6 +720,10 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	rdev->ddev->mode_config.fb_base = rdev->mc.aper_base;
 
+	ret = radeon_modeset_create_props(rdev);
+	if (ret) {
+		return ret;
+	}
 	/* allocate crtcs - TODO single crtc */
 	for (i = 0; i < num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);

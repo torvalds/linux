@@ -1271,6 +1271,30 @@ static const struct drm_encoder_funcs radeon_legacy_tv_dac_enc_funcs = {
 	.destroy = radeon_enc_destroy,
 };
 
+
+static struct radeon_encoder_int_tmds *radeon_legacy_get_tmds_info(struct radeon_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder_int_tmds *tmds = NULL;
+	bool ret;
+
+	tmds = kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
+
+	if (!tmds)
+		return NULL;
+
+	if (rdev->is_atom_bios)
+		ret = radeon_atombios_get_tmds_info(encoder, tmds);
+	else
+		ret = radeon_legacy_get_tmds_info_from_combios(encoder, tmds);
+
+	if (ret == false)
+		radeon_legacy_get_tmds_info_from_table(encoder, tmds);
+
+	return tmds;
+}
+
 void
 radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t supported_device)
 {
@@ -1317,10 +1341,7 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 		drm_encoder_init(dev, encoder, &radeon_legacy_tmds_int_enc_funcs, DRM_MODE_ENCODER_TMDS);
 		drm_encoder_helper_add(encoder, &radeon_legacy_tmds_int_helper_funcs);
-		if (rdev->is_atom_bios)
-			radeon_encoder->enc_priv = radeon_atombios_get_tmds_info(radeon_encoder);
-		else
-			radeon_encoder->enc_priv = radeon_combios_get_tmds_info(radeon_encoder);
+		radeon_encoder->enc_priv = radeon_legacy_get_tmds_info(radeon_encoder);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 		drm_encoder_init(dev, encoder, &radeon_legacy_primary_dac_enc_funcs, DRM_MODE_ENCODER_DAC);

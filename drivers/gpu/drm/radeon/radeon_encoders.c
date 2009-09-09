@@ -241,8 +241,11 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	DAC_ENCODER_CONTROL_PS_ALLOCATION args;
 	int index = 0, num = 0;
-	/* fixme - fill in enc_priv for atom dac */
+	struct radeon_encoder_atom_dac *dac_info = radeon_encoder->enc_priv;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
+
+	if (dac_info->tv_std)
+		tv_std = dac_info->tv_std;
 
 	memset(&args, 0, sizeof(args));
 
@@ -296,8 +299,11 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	TV_ENCODER_CONTROL_PS_ALLOCATION args;
 	int index = 0;
-	/* fixme - fill in enc_priv for atom dac */
+	struct radeon_encoder_atom_dac *dac_info = radeon_encoder->enc_priv;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
+
+	if (dac_info->tv_std)
+		tv_std = dac_info->tv_std;
 
 	memset(&args, 0, sizeof(args));
 

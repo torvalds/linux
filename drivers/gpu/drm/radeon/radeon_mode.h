@@ -175,6 +175,15 @@ struct radeon_mode_info {
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[2];
+	/* DVI-I properties */
+	struct drm_property *coherent_mode_property;
+	/* DAC enable load detect */
+	struct drm_property *load_detect_property;
+	/* TV standard load detect */
+	struct drm_property *tv_std_property;
+	/* legacy TMDS PLL detect */
+	struct drm_property *tmds_pll_property;
+
 };
 
 struct radeon_native_mode {
@@ -304,6 +313,7 @@ struct radeon_connector {
 	   and get modes due to analog/digital/tvencoder */
 	struct edid *edid;
 	void *con_priv;
+	bool dac_load_detect;
 };
 
 struct radeon_framebuffer {
@@ -364,16 +374,18 @@ extern bool radeon_atom_get_clock_info(struct drm_device *dev);
 extern bool radeon_combios_get_clock_info(struct drm_device *dev);
 extern struct radeon_encoder_atom_dig *
 radeon_atombios_get_lvds_info(struct radeon_encoder *encoder);
-extern struct radeon_encoder_int_tmds *
-radeon_atombios_get_tmds_info(struct radeon_encoder *encoder);
+bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
+				   struct radeon_encoder_int_tmds *tmds);
+bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
+					   struct radeon_encoder_int_tmds *tmds);
+bool radeon_legacy_get_tmds_info_from_table(struct radeon_encoder *encoder,
+					    struct radeon_encoder_int_tmds *tmds);
 extern struct radeon_encoder_primary_dac *
 radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_tv_dac *
 radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_lvds *
 radeon_combios_get_lvds_info(struct radeon_encoder *encoder);
-extern struct radeon_encoder_int_tmds *
-radeon_combios_get_tmds_info(struct radeon_encoder *encoder);
 extern void radeon_combios_get_ext_tmds_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_tv_dac *
 radeon_combios_get_tv_dac_info(struct radeon_encoder *encoder);
