@@ -29,6 +29,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/ftrace_event.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/irq_regs.h>
 
@@ -4229,6 +4230,51 @@ static void perf_event_free_filter(struct perf_event *event)
 
 #endif /* CONFIG_EVENT_PROFILE */
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+static void bp_perf_event_destroy(struct perf_event *event)
+{
+	release_bp_slot(event);
+}
+
+static const struct pmu *bp_perf_event_init(struct perf_event *bp)
+{
+	int err;
+	/*
+	 * The breakpoint is already filled if we haven't created the counter
+	 * through perf syscall
+	 * FIXME: manage to get trigerred to NULL if it comes from syscalls
+	 */
+	if (!bp->callback)
+		err = register_perf_hw_breakpoint(bp);
+	else
+		err = __register_perf_hw_breakpoint(bp);
+	if (err)
+		return ERR_PTR(err);
+
+	bp->destroy = bp_perf_event_destroy;
+
+	return &perf_ops_bp;
+}
+
+void perf_bp_event(struct perf_event *bp, void *regs)
+{
+	/* TODO */
+}
+#else
+static void bp_perf_event_destroy(struct perf_event *event)
+{
+}
+
+static const struct pmu *bp_perf_event_init(struct perf_event *bp)
+{
+	return NULL;
+}
+
+void perf_bp_event(struct perf_event *bp, void *regs)
+{
+}
+#endif
+
 atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 static void sw_perf_event_destroy(struct perf_event *event)
@@ -4374,6 +4420,11 @@ perf_event_alloc(struct perf_event_attr *attr,
 	case PERF_TYPE_TRACEPOINT:
 		pmu = tp_perf_event_init(event);
 		break;
+
+	case PERF_TYPE_BREAKPOINT:
+		pmu = bp_perf_event_init(event);
+		break;
+
 
 	default:
 		break;
@@ -4686,7 +4737,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	ctx = find_get_context(pid, cpu);
 	if (IS_ERR(ctx))
-		return NULL ;
+		return NULL;
 
 	event = perf_event_alloc(attr, cpu, ctx, NULL,
 				     NULL, callback, GFP_KERNEL);

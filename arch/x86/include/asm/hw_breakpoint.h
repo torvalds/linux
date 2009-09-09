@@ -4,6 +4,11 @@
 #ifdef	__KERNEL__
 #define	__ARCH_HW_BREAKPOINT_H
 
+/*
+ * The name should probably be something dealt in
+ * a higher level. While dealing with the user
+ * (display/resolving)
+ */
 struct arch_hw_breakpoint {
 	char		*name; /* Contains name of the symbol to set bkpt */
 	unsigned long	address;
@@ -12,44 +17,57 @@ struct arch_hw_breakpoint {
 };
 
 #include <linux/kdebug.h>
-#include <linux/hw_breakpoint.h>
+#include <linux/percpu.h>
+#include <linux/list.h>
 
 /* Available HW breakpoint length encodings */
-#define HW_BREAKPOINT_LEN_1		0x40
-#define HW_BREAKPOINT_LEN_2		0x44
-#define HW_BREAKPOINT_LEN_4		0x4c
-#define HW_BREAKPOINT_LEN_EXECUTE	0x40
+#define X86_BREAKPOINT_LEN_1		0x40
+#define X86_BREAKPOINT_LEN_2		0x44
+#define X86_BREAKPOINT_LEN_4		0x4c
+#define X86_BREAKPOINT_LEN_EXECUTE	0x40
 
 #ifdef CONFIG_X86_64
-#define HW_BREAKPOINT_LEN_8		0x48
+#define X86_BREAKPOINT_LEN_8		0x48
 #endif
 
 /* Available HW breakpoint type encodings */
 
 /* trigger on instruction execute */
-#define HW_BREAKPOINT_EXECUTE	0x80
+#define X86_BREAKPOINT_EXECUTE	0x80
 /* trigger on memory write */
-#define HW_BREAKPOINT_WRITE	0x81
+#define X86_BREAKPOINT_WRITE	0x81
 /* trigger on memory read or write */
-#define HW_BREAKPOINT_RW	0x83
+#define X86_BREAKPOINT_RW	0x83
 
 /* Total number of available HW breakpoint registers */
 #define HBP_NUM 4
 
-extern struct hw_breakpoint *hbp_kernel[HBP_NUM];
-DECLARE_PER_CPU(struct hw_breakpoint*, this_hbp_kernel[HBP_NUM]);
-extern unsigned int hbp_user_refcount[HBP_NUM];
+struct perf_event;
+struct pmu;
 
-extern void arch_install_thread_hw_breakpoint(struct task_struct *tsk);
-extern void arch_uninstall_thread_hw_breakpoint(void);
 extern int arch_check_va_in_userspace(unsigned long va, u8 hbp_len);
-extern int arch_validate_hwbkpt_settings(struct hw_breakpoint *bp,
-						struct task_struct *tsk);
-extern void arch_update_user_hw_breakpoint(int pos, struct task_struct *tsk);
-extern void arch_flush_thread_hw_breakpoint(struct task_struct *tsk);
-extern void arch_update_kernel_hw_breakpoint(void *);
+extern int arch_validate_hwbkpt_settings(struct perf_event *bp,
+					 struct task_struct *tsk);
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
-				     unsigned long val, void *data);
+					   unsigned long val, void *data);
+
+
+int arch_install_hw_breakpoint(struct perf_event *bp);
+void arch_uninstall_hw_breakpoint(struct perf_event *bp);
+void hw_breakpoint_pmu_read(struct perf_event *bp);
+void hw_breakpoint_pmu_unthrottle(struct perf_event *bp);
+
+extern void
+arch_fill_perf_breakpoint(struct perf_event *bp);
+
+unsigned long encode_dr7(int drnum, unsigned int len, unsigned int type);
+int decode_dr7(unsigned long dr7, int bpnum, unsigned *len, unsigned *type);
+
+extern int arch_bp_generic_fields(int x86_len, int x86_type,
+				  int *gen_len, int *gen_type);
+
+extern struct pmu perf_ops_bp;
+
 #endif	/* __KERNEL__ */
 #endif	/* _I386_HW_BREAKPOINT_H */
 

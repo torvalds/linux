@@ -29,7 +29,11 @@
 #include "trace_stat.h"
 #include "trace.h"
 
-/* For now, let us restrict the no. of symbols traced simultaneously to number
+#include <linux/hw_breakpoint.h>
+#include <asm/hw_breakpoint.h>
+
+/*
+ * For now, let us restrict the no. of symbols traced simultaneously to number
  * of available hardware breakpoint registers.
  */
 #define KSYM_TRACER_MAX HBP_NUM
@@ -37,8 +41,10 @@
 #define KSYM_TRACER_OP_LEN 3 /* rw- */
 
 struct trace_ksym {
-	struct hw_breakpoint	*ksym_hbp;
+	struct perf_event	**ksym_hbp;
 	unsigned long		ksym_addr;
+	int			type;
+	int			len;
 #ifdef CONFIG_PROFILE_KSYM_TRACER
 	unsigned long		counter;
 #endif
@@ -75,10 +81,11 @@ void ksym_collect_stats(unsigned long hbp_hit_addr)
 }
 #endif /* CONFIG_PROFILE_KSYM_TRACER */
 
-void ksym_hbp_handler(struct hw_breakpoint *hbp, struct pt_regs *regs)
+void ksym_hbp_handler(struct perf_event *hbp, void *data)
 {
 	struct ring_buffer_event *event;
 	struct ksym_trace_entry *entry;
+	struct pt_regs *regs = data;
 	struct ring_buffer *buffer;
 	int pc;
 
@@ -96,12 +103,12 @@ void ksym_hbp_handler(struct hw_breakpoint *hbp, struct pt_regs *regs)
 
 	entry		= ring_buffer_event_data(event);
 	entry->ip	= instruction_pointer(regs);
-	entry->type	= hbp->info.type;
-	strlcpy(entry->ksym_name, hbp->info.name, KSYM_SYMBOL_LEN);
+	entry->type	= hw_breakpoint_type(hbp);
+	entry->addr	= hw_breakpoint_addr(hbp);
 	strlcpy(entry->cmd, current->comm, TASK_COMM_LEN);
 
 #ifdef CONFIG_PROFILE_KSYM_TRACER
-	ksym_collect_stats(hbp->info.address);
+	ksym_collect_stats(hw_breakpoint_addr(hbp));
 #endif /* CONFIG_PROFILE_KSYM_TRACER */
 
 	trace_buffer_unlock_commit(buffer, event, 0, pc);
@@ -120,31 +127,21 @@ static int ksym_trace_get_access_type(char *str)
 	int access = 0;
 
 	if (str[0] == 'r')
-		access += 4;
-	else if (str[0] != '-')
-		return -EINVAL;
+		access |= HW_BREAKPOINT_R;
 
 	if (str[1] == 'w')
-		access += 2;
-	else if (str[1] != '-')
-		return -EINVAL;
+		access |= HW_BREAKPOINT_W;
 
-	if (str[2] != '-')
-		return -EINVAL;
+	if (str[2] == 'x')
+		access |= HW_BREAKPOINT_X;
 
 	switch (access) {
-	case 6:
-		access = HW_BREAKPOINT_RW;
-		break;
-	case 4:
-		access = -EINVAL;
-		break;
-	case 2:
-		access = HW_BREAKPOINT_WRITE;
-		break;
+	case HW_BREAKPOINT_W:
+	case HW_BREAKPOINT_W | HW_BREAKPOINT_R:
+		return access;
+	default:
+		return -EINVAL;
 	}
-
-	return access;
 }
 
 /*
@@ -194,36 +191,33 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 	if (!entry)
 		return -ENOMEM;
 
-	entry->ksym_hbp = kzalloc(sizeof(struct hw_breakpoint), GFP_KERNEL);
-	if (!entry->ksym_hbp)
-		goto err;
+	entry->type = op;
+	entry->ksym_addr = addr;
+	entry->len = HW_BREAKPOINT_LEN_4;
 
-	entry->ksym_hbp->info.name = kstrdup(ksymname, GFP_KERNEL);
-	if (!entry->ksym_hbp->info.name)
-		goto err;
+	ret = -EAGAIN;
+	entry->ksym_hbp = register_wide_hw_breakpoint(entry->ksym_addr,
+					entry->len, entry->type,
+					ksym_hbp_handler, true);
+	if (IS_ERR(entry->ksym_hbp)) {
+		entry->ksym_hbp = NULL;
+		ret = PTR_ERR(entry->ksym_hbp);
+	}
 
-	entry->ksym_hbp->info.type = op;
-	entry->ksym_addr = entry->ksym_hbp->info.address = addr;
-#ifdef CONFIG_X86
-	entry->ksym_hbp->info.len = HW_BREAKPOINT_LEN_4;
-#endif
-	entry->ksym_hbp->triggered = (void *)ksym_hbp_handler;
-
-	ret = register_kernel_hw_breakpoint(entry->ksym_hbp);
-	if (ret < 0) {
+	if (!entry->ksym_hbp) {
 		printk(KERN_INFO "ksym_tracer request failed. Try again"
 					" later!!\n");
-		ret = -EAGAIN;
 		goto err;
 	}
+
 	hlist_add_head_rcu(&(entry->ksym_hlist), &ksym_filter_head);
 	ksym_filter_entry_count++;
+
 	return 0;
+
 err:
-	if (entry->ksym_hbp)
-		kfree(entry->ksym_hbp->info.name);
-	kfree(entry->ksym_hbp);
 	kfree(entry);
+
 	return ret;
 }
 
@@ -244,10 +238,10 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 	mutex_lock(&ksym_tracer_mutex);
 
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
-		ret = trace_seq_printf(s, "%s:", entry->ksym_hbp->info.name);
-		if (entry->ksym_hbp->info.type == HW_BREAKPOINT_WRITE)
+		ret = trace_seq_printf(s, "%pS:", (void *)entry->ksym_addr);
+		if (entry->type == HW_BREAKPOINT_W)
 			ret = trace_seq_puts(s, "-w-\n");
-		else if (entry->ksym_hbp->info.type == HW_BREAKPOINT_RW)
+		else if (entry->type == (HW_BREAKPOINT_W | HW_BREAKPOINT_R))
 			ret = trace_seq_puts(s, "rw-\n");
 		WARN_ON_ONCE(!ret);
 	}
@@ -269,12 +263,10 @@ static void __ksym_trace_reset(void)
 	mutex_lock(&ksym_tracer_mutex);
 	hlist_for_each_entry_safe(entry, node, node1, &ksym_filter_head,
 								ksym_hlist) {
-		unregister_kernel_hw_breakpoint(entry->ksym_hbp);
+		unregister_wide_hw_breakpoint(entry->ksym_hbp);
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
-		kfree(entry->ksym_hbp->info.name);
-		kfree(entry->ksym_hbp);
 		kfree(entry);
 	}
 	mutex_unlock(&ksym_tracer_mutex);
@@ -327,7 +319,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
 		if (entry->ksym_addr == ksym_addr) {
 			/* Check for malformed request: (6) */
-			if (entry->ksym_hbp->info.type != op)
+			if (entry->type != op)
 				changed = 1;
 			else
 				goto out;
@@ -335,18 +327,21 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 		}
 	}
 	if (changed) {
-		unregister_kernel_hw_breakpoint(entry->ksym_hbp);
-		entry->ksym_hbp->info.type = op;
+		unregister_wide_hw_breakpoint(entry->ksym_hbp);
+		entry->type = op;
 		if (op > 0) {
-			ret = register_kernel_hw_breakpoint(entry->ksym_hbp);
-			if (ret == 0)
+			entry->ksym_hbp =
+				register_wide_hw_breakpoint(entry->ksym_addr,
+					entry->len, entry->type,
+					ksym_hbp_handler, true);
+			if (IS_ERR(entry->ksym_hbp))
+				entry->ksym_hbp = NULL;
+			if (!entry->ksym_hbp)
 				goto out;
 		}
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
-		kfree(entry->ksym_hbp->info.name);
-		kfree(entry->ksym_hbp);
 		kfree(entry);
 		ret = 0;
 		goto out;
@@ -413,16 +408,16 @@ static enum print_line_t ksym_trace_output(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_printf(s, "%11s-%-5d [%03d] %-30s ", field->cmd,
-				entry->pid, iter->cpu, field->ksym_name);
+	ret = trace_seq_printf(s, "%11s-%-5d [%03d] %pS", field->cmd,
+				entry->pid, iter->cpu, (char *)field->addr);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	switch (field->type) {
-	case HW_BREAKPOINT_WRITE:
+	case HW_BREAKPOINT_W:
 		ret = trace_seq_printf(s, " W  ");
 		break;
-	case HW_BREAKPOINT_RW:
+	case HW_BREAKPOINT_R | HW_BREAKPOINT_W:
 		ret = trace_seq_printf(s, " RW ");
 		break;
 	default:
@@ -490,14 +485,13 @@ static int ksym_tracer_stat_show(struct seq_file *m, void *v)
 
 	entry = hlist_entry(stat, struct trace_ksym, ksym_hlist);
 
-	if (entry->ksym_hbp)
-		access_type = entry->ksym_hbp->info.type;
+	access_type = entry->type;
 
 	switch (access_type) {
-	case HW_BREAKPOINT_WRITE:
+	case HW_BREAKPOINT_W:
 		seq_puts(m, "  W           ");
 		break;
-	case HW_BREAKPOINT_RW:
+	case HW_BREAKPOINT_R | HW_BREAKPOINT_W:
 		seq_puts(m, "  RW          ");
 		break;
 	default:

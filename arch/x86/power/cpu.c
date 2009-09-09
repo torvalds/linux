@@ -105,7 +105,6 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr4 = read_cr4();
 	ctxt->cr8 = read_cr8();
 #endif
-	hw_breakpoint_disable();
 }
 
 /* Needed by apm.c */
@@ -144,11 +143,6 @@ static void fix_processor_context(void)
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
-
-	/*
-	 * Now maybe reload the debug registers
-	 */
-	load_debug_registers();
 }
 
 /**

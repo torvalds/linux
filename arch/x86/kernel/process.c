@@ -10,6 +10,7 @@
 #include <linux/clockchips.h>
 #include <linux/random.h>
 #include <trace/events/power.h>
+#include <linux/hw_breakpoint.h>
 #include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/syscalls.h>
@@ -18,7 +19,6 @@
 #include <asm/i387.h>
 #include <asm/ds.h>
 #include <asm/debugreg.h>
-#include <asm/hw_breakpoint.h>
 
 unsigned long idle_halt;
 EXPORT_SYMBOL(idle_halt);
@@ -47,8 +47,6 @@ void free_thread_xstate(struct task_struct *tsk)
 		kmem_cache_free(task_xstate_cachep, tsk->thread.xstate);
 		tsk->thread.xstate = NULL;
 	}
-	if (unlikely(test_tsk_thread_flag(tsk, TIF_DEBUG)))
-		flush_thread_hw_breakpoint(tsk);
 
 	WARN(tsk->thread.ds_ctx, "leaking DS context\n");
 }
@@ -107,8 +105,7 @@ void flush_thread(void)
 	}
 #endif
 
-	if (unlikely(test_tsk_thread_flag(tsk, TIF_DEBUG)))
-		flush_thread_hw_breakpoint(tsk);
+	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
 	/*
 	 * Forget coprocessor state..

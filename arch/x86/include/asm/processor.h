@@ -423,6 +423,8 @@ extern unsigned int xstate_size;
 extern void free_thread_xstate(struct task_struct *);
 extern struct kmem_cache *task_xstate_cachep;
 
+struct perf_event;
+
 struct thread_struct {
 	/* Cached TLS descriptors: */
 	struct desc_struct	tls_array[GDT_ENTRY_TLS_ENTRIES];
@@ -444,12 +446,10 @@ struct thread_struct {
 	unsigned long		fs;
 #endif
 	unsigned long		gs;
-	/* Hardware debugging registers: */
-	unsigned long		debugreg[HBP_NUM];
-	unsigned long		debugreg6;
-	unsigned long		debugreg7;
-	/* Hardware breakpoint info */
-	struct hw_breakpoint	*hbp[HBP_NUM];
+	/* Save middle states of ptrace breakpoints */
+	struct perf_event	*ptrace_bps[HBP_NUM];
+	/* Debug status used for traps, single steps, etc... */
+	unsigned long           debugreg6;
 	/* Fault info: */
 	unsigned long		cr2;
 	unsigned long		trap_no;

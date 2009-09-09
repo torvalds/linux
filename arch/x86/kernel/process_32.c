@@ -59,7 +59,6 @@
 #include <asm/syscalls.h>
 #include <asm/ds.h>
 #include <asm/debugreg.h>
-#include <asm/hw_breakpoint.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -264,9 +263,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	p->thread.io_bitmap_ptr = NULL;
 	tsk = current;
 	err = -ENOMEM;
-	if (unlikely(test_tsk_thread_flag(tsk, TIF_DEBUG)))
-		if (copy_thread_hw_breakpoint(tsk, p, clone_flags))
-			goto out;
+
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmemdup(tsk->thread.io_bitmap_ptr,
@@ -287,13 +285,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		err = do_set_thread_area(p, -1,
 			(struct user_desc __user *)childregs->si, 0);
 
-out:
 	if (err && p->thread.io_bitmap_ptr) {
 		kfree(p->thread.io_bitmap_ptr);
 		p->thread.io_bitmap_max = 0;
 	}
-	if (err)
-		flush_thread_hw_breakpoint(p);
 
 	clear_tsk_thread_flag(p, TIF_DS_AREA_MSR);
 	p->thread.ds_ctx = NULL;
@@ -437,23 +432,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		lazy_load_gs(next->gs);
 
 	percpu_write(current_task, next_p);
-	/*
-	 * There's a problem with moving the arch_install_thread_hw_breakpoint()
-	 * call before current is updated.  Suppose a kernel breakpoint is
-	 * triggered in between the two, the hw-breakpoint handler will see that
-	 * the 'current' task does not have TIF_DEBUG flag set and will think it
-	 * is leftover from an old task (lazy switching) and will erase it. Then
-	 * until the next context switch, no user-breakpoints will be installed.
-	 *
-	 * The real problem is that it's impossible to update both current and
-	 * physical debug registers at the same instant, so there will always be
-	 * a window in which they disagree and a breakpoint might get triggered.
-	 * Since we use lazy switching, we are forced to assume that a
-	 * disagreement means that current is correct and the exception is due
-	 * to lazy debug register switching.
-	 */
-	if (unlikely(test_tsk_thread_flag(next_p, TIF_DEBUG)))
-		arch_install_thread_hw_breakpoint(next_p);
 
 	return prev_p;
 }

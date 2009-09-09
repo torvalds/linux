@@ -372,11 +372,11 @@ FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
 	F_STRUCT(
 		__field(	unsigned long,	ip			  )
 		__field(	unsigned char,	type			  )
-		__array(	char	     ,	ksym_name, KSYM_NAME_LEN  )
 		__array(	char	     ,	cmd,	   TASK_COMM_LEN  )
+		__field(	unsigned long,  addr			  )
 	),
 
-	F_printk("ip: %pF type: %d ksym_name: %s cmd: %s",
+	F_printk("ip: %pF type: %d ksym_name: %pS cmd: %s",
 		(void *)__entry->ip, (unsigned int)__entry->type,
-		__entry->ksym_name, __entry->cmd)
+		(void *)__entry->addr,  __entry->cmd)
 );

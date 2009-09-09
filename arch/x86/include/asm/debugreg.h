@@ -75,13 +75,8 @@
  */
 #ifdef __KERNEL__
 
-/* For process management */
-extern void flush_thread_hw_breakpoint(struct task_struct *tsk);
-extern int copy_thread_hw_breakpoint(struct task_struct *tsk,
-		struct task_struct *child, unsigned long clone_flags);
+DECLARE_PER_CPU(unsigned long, dr7);
 
-/* For CPU management */
-extern void load_debug_registers(void);
 static inline void hw_breakpoint_disable(void)
 {
 	/* Zero the control register for HW Breakpoint */
@@ -93,6 +88,10 @@ static inline void hw_breakpoint_disable(void)
 	set_debugreg(0UL, 2);
 	set_debugreg(0UL, 3);
 }
+
+#ifdef CONFIG_KVM
+extern void hw_breakpoint_restore(void);
+#endif
 
 #endif	/* __KERNEL__ */
 

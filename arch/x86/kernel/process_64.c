@@ -53,7 +53,6 @@
 #include <asm/syscalls.h>
 #include <asm/ds.h>
 #include <asm/debugreg.h>
-#include <asm/hw_breakpoint.h>
 
 asmlinkage extern void ret_from_fork(void);
 
@@ -244,8 +243,6 @@ void release_thread(struct task_struct *dead_task)
 			BUG();
 		}
 	}
-	if (unlikely(dead_task->thread.debugreg7))
-		flush_thread_hw_breakpoint(dead_task);
 }
 
 static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
@@ -309,9 +306,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	savesegment(ds, p->thread.ds);
 
 	err = -ENOMEM;
-	if (unlikely(test_tsk_thread_flag(me, TIF_DEBUG)))
-		if (copy_thread_hw_breakpoint(me, p, clone_flags))
-			goto out;
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
@@ -351,8 +346,6 @@ out:
 		kfree(p->thread.io_bitmap_ptr);
 		p->thread.io_bitmap_max = 0;
 	}
-	if (err)
-		flush_thread_hw_breakpoint(p);
 
 	return err;
 }
@@ -508,23 +501,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	if (preload_fpu)
 		__math_state_restore();
-	/*
-	 * There's a problem with moving the arch_install_thread_hw_breakpoint()
-	 * call before current is updated.  Suppose a kernel breakpoint is
-	 * triggered in between the two, the hw-breakpoint handler will see that
-	 * the 'current' task does not have TIF_DEBUG flag set and will think it
-	 * is leftover from an old task (lazy switching) and will erase it. Then
-	 * until the next context switch, no user-breakpoints will be installed.
-	 *
-	 * The real problem is that it's impossible to update both current and
-	 * physical debug registers at the same instant, so there will always be
-	 * a window in which they disagree and a breakpoint might get triggered.
-	 * Since we use lazy switching, we are forced to assume that a
-	 * disagreement means that current is correct and the exception is due
-	 * to lazy debug register switching.
-	 */
-	if (unlikely(test_tsk_thread_flag(next_p, TIF_DEBUG)))
-		arch_install_thread_hw_breakpoint(next_p);
 
 	return prev_p;
 }

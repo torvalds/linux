@@ -18,6 +18,10 @@
 #include <linux/ioctl.h>
 #include <asm/byteorder.h>
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+#include <asm/hw_breakpoint.h>
+#endif
+
 /*
  * User-space ABI bits:
  */
@@ -31,6 +35,7 @@ enum perf_type_id {
 	PERF_TYPE_TRACEPOINT			= 2,
 	PERF_TYPE_HW_CACHE			= 3,
 	PERF_TYPE_RAW				= 4,
+	PERF_TYPE_BREAKPOINT			= 5,
 
 	PERF_TYPE_MAX,				/* non-ABI */
 };
@@ -207,6 +212,15 @@ struct perf_event_attr {
 		__u32		wakeup_events;	  /* wakeup every n events */
 		__u32		wakeup_watermark; /* bytes before wakeup   */
 	};
+
+	union {
+		struct { /* Hardware breakpoint info */
+			__u64		bp_addr;
+			__u32		bp_type;
+			__u32		bp_len;
+		};
+	};
+
 	__u32			__reserved_2;
 
 	__u64			__reserved_3;
@@ -476,6 +490,11 @@ struct hw_perf_event {
 			atomic64_t	count;
 			struct hrtimer	hrtimer;
 		};
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+		union { /* breakpoint */
+			struct arch_hw_breakpoint	info;
+		};
+#endif
 	};
 	atomic64_t			prev_count;
 	u64				sample_period;
@@ -588,7 +607,7 @@ struct perf_event {
 	u64				tstamp_running;
 	u64				tstamp_stopped;
 
-	struct perf_event_attr	attr;
+	struct perf_event_attr		attr;
 	struct hw_perf_event		hw;
 
 	struct perf_event_context	*ctx;
@@ -642,6 +661,8 @@ struct perf_event {
 #endif
 
 	perf_callback_t			callback;
+
+	perf_callback_t			event_callback;
 
 #endif /* CONFIG_PERF_EVENTS */
 };
@@ -831,6 +852,7 @@ extern int sysctl_perf_event_sample_rate;
 extern void perf_event_init(void);
 extern void perf_tp_event(int event_id, u64 addr, u64 count,
 				 void *record, int entry_size);
+extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags
 #define perf_misc_flags(regs)	(user_mode(regs) ? PERF_RECORD_MISC_USER : \
@@ -865,6 +887,8 @@ static inline int perf_event_task_enable(void)				{ return -EINVAL; }
 static inline void
 perf_sw_event(u32 event_id, u64 nr, int nmi,
 		     struct pt_regs *regs, u64 addr)			{ }
+static inline void
+perf_bp_event(struct perf_event *event, void *data)		{ }
 
 static inline void perf_event_mmap(struct vm_area_struct *vma)		{ }
 static inline void perf_event_comm(struct task_struct *tsk)		{ }
