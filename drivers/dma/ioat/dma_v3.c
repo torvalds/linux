@@ -360,6 +360,9 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_register(device);
 	if (err)
 		return err;
+
+	ioat_kobject_add(device, &ioat2_ktype);
+
 	if (dca)
 		device->dca = ioat3_dca_init(pdev, device->reg_base);
 

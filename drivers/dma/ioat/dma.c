@@ -263,6 +263,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	if (!test_and_set_bit(IOAT_COMPLETION_PENDING, &chan->state))
 		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
 
+	ioat->active += desc->hw->tx_cnt;
 	ioat->pending += desc->hw->tx_cnt;
 	if (ioat->pending >= ioat_pending_level)
 		__ioat1_dma_memcpy_issue_pending(ioat);
@@ -611,6 +612,7 @@ static void __cleanup(struct ioat_dma_chan *ioat, unsigned long phys_complete)
 			chan->completed_cookie = tx->cookie;
 			tx->cookie = 0;
 			ioat_dma_unmap(chan, tx->flags, desc->len, desc->hw);
+			ioat->active -= desc->hw->tx_cnt;
 			if (tx->callback) {
 				tx->callback(tx->callback_param);
 				tx->callback = NULL;
@@ -1028,13 +1030,8 @@ int __devinit ioat_probe(struct ioatdma_device *device)
 	dma_cap_set(DMA_MEMCPY, dma->cap_mask);
 	dma->dev = &pdev->dev;
 
-	dev_err(dev, "Intel(R) I/OAT DMA Engine found,"
-		" %d channels, device version 0x%02x, driver version %s\n",
-		dma->chancnt, device->version, IOAT_DMA_VERSION);
-
 	if (!dma->chancnt) {
-		dev_err(dev, "Intel(R) I/OAT DMA Engine problem found: "
-			"zero channels detected\n");
+		dev_err(dev, "zero channels detected\n");
 		goto err_setup_interrupts;
 	}
 
@@ -1085,6 +1082,113 @@ static void ioat1_intr_quirk(struct ioatdma_device *device)
 	pci_write_config_dword(pdev, IOAT_PCI_DMACTRL_OFFSET, dmactrl);
 }
 
+static ssize_t ring_size_show(struct dma_chan *c, char *page)
+{
+	struct ioat_dma_chan *ioat = to_ioat_chan(c);
+
+	return sprintf(page, "%d\n", ioat->desccount);
+}
+static struct ioat_sysfs_entry ring_size_attr = __ATTR_RO(ring_size);
+
+static ssize_t ring_active_show(struct dma_chan *c, char *page)
+{
+	struct ioat_dma_chan *ioat = to_ioat_chan(c);
+
+	return sprintf(page, "%d\n", ioat->active);
+}
+static struct ioat_sysfs_entry ring_active_attr = __ATTR_RO(ring_active);
+
+static ssize_t cap_show(struct dma_chan *c, char *page)
+{
+	struct dma_device *dma = c->device;
+
+	return sprintf(page, "copy%s%s%s%s%s%s\n",
+		       dma_has_cap(DMA_PQ, dma->cap_mask) ? " pq" : "",
+		       dma_has_cap(DMA_PQ_VAL, dma->cap_mask) ? " pq_val" : "",
+		       dma_has_cap(DMA_XOR, dma->cap_mask) ? " xor" : "",
+		       dma_has_cap(DMA_XOR_VAL, dma->cap_mask) ? " xor_val" : "",
+		       dma_has_cap(DMA_MEMSET, dma->cap_mask)  ? " fill" : "",
+		       dma_has_cap(DMA_INTERRUPT, dma->cap_mask) ? " intr" : "");
+
+}
+struct ioat_sysfs_entry ioat_cap_attr = __ATTR_RO(cap);
+
+static ssize_t version_show(struct dma_chan *c, char *page)
+{
+	struct dma_device *dma = c->device;
+	struct ioatdma_device *device = to_ioatdma_device(dma);
+
+	return sprintf(page, "%d.%d\n",
+		       device->version >> 4, device->version & 0xf);
+}
+struct ioat_sysfs_entry ioat_version_attr = __ATTR_RO(version);
+
+static struct attribute *ioat1_attrs[] = {
+	&ring_size_attr.attr,
+	&ring_active_attr.attr,
+	&ioat_cap_attr.attr,
+	&ioat_version_attr.attr,
+	NULL,
+};
+
+static ssize_t
+ioat_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
+{
+	struct ioat_sysfs_entry *entry;
+	struct ioat_chan_common *chan;
+
+	entry = container_of(attr, struct ioat_sysfs_entry, attr);
+	chan = container_of(kobj, struct ioat_chan_common, kobj);
+
+	if (!entry->show)
+		return -EIO;
+	return entry->show(&chan->common, page);
+}
+
+struct sysfs_ops ioat_sysfs_ops = {
+	.show	= ioat_attr_show,
+};
+
+static struct kobj_type ioat1_ktype = {
+	.sysfs_ops = &ioat_sysfs_ops,
+	.default_attrs = ioat1_attrs,
+};
+
+void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type)
+{
+	struct dma_device *dma = &device->common;
+	struct dma_chan *c;
+
+	list_for_each_entry(c, &dma->channels, device_node) {
+		struct ioat_chan_common *chan = to_chan_common(c);
+		struct kobject *parent = &c->dev->device.kobj;
+		int err;
+
+		err = kobject_init_and_add(&chan->kobj, type, parent, "quickdata");
+		if (err) {
+			dev_warn(to_dev(chan),
+				 "sysfs init error (%d), continuing...\n", err);
+			kobject_put(&chan->kobj);
+			set_bit(IOAT_KOBJ_INIT_FAIL, &chan->state);
+		}
+	}
+}
+
+void ioat_kobject_del(struct ioatdma_device *device)
+{
+	struct dma_device *dma = &device->common;
+	struct dma_chan *c;
+
+	list_for_each_entry(c, &dma->channels, device_node) {
+		struct ioat_chan_common *chan = to_chan_common(c);
+
+		if (!test_bit(IOAT_KOBJ_INIT_FAIL, &chan->state)) {
+			kobject_del(&chan->kobj);
+			kobject_put(&chan->kobj);
+		}
+	}
+}
+
 int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
@@ -1107,6 +1211,8 @@ int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_register(device);
 	if (err)
 		return err;
+	ioat_kobject_add(device, &ioat1_ktype);
+
 	if (dca)
 		device->dca = ioat_dca_init(pdev, device->reg_base);
 
@@ -1118,6 +1224,8 @@ void __devexit ioat_dma_remove(struct ioatdma_device *device)
 	struct dma_device *dma = &device->common;
 
 	ioat_disable_interrupts(device);
+
+	ioat_kobject_del(device);
 
 	dma_async_device_unregister(dma);
 

@@ -168,6 +168,9 @@ static void __devexit ioat_remove(struct pci_dev *pdev)
 
 static int __init ioat_init_module(void)
 {
+	pr_info("%s: Intel(R) QuickData Technology Driver %s\n",
+		DRV_NAME, IOAT_DMA_VERSION);
+
 	return pci_register_driver(&ioat_pci_driver);
 }
 module_init(ioat_init_module);

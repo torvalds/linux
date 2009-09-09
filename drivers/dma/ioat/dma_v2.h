@@ -180,4 +180,5 @@ enum dma_status ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 				  dma_cookie_t *done, dma_cookie_t *used);
 void __ioat2_restart_chan(struct ioat2_dma_chan *ioat);
 bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
+extern struct kobj_type ioat2_ktype;
 #endif /* IOATDMA_V2_H */

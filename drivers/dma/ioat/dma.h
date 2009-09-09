@@ -92,6 +92,7 @@ struct ioat_chan_common {
 	#define IOAT_COMPLETION_PENDING 0
 	#define IOAT_COMPLETION_ACK 1
 	#define IOAT_RESET_PENDING 2
+	#define IOAT_KOBJ_INIT_FAIL 3
 	struct timer_list timer;
 	#define COMPLETION_TIMEOUT msecs_to_jiffies(100)
 	#define IDLE_TIMEOUT msecs_to_jiffies(2000)
@@ -100,8 +101,13 @@ struct ioat_chan_common {
 	dma_addr_t completion_dma;
 	u64 *completion;
 	struct tasklet_struct cleanup_task;
+	struct kobject kobj;
 };
 
+struct ioat_sysfs_entry {
+	struct attribute attr;
+	ssize_t (*show)(struct dma_chan *, char *);
+};
 
 /**
  * struct ioat_dma_chan - internal representation of a DMA channel
@@ -117,6 +123,7 @@ struct ioat_dma_chan {
 
 	int pending;
 	u16 desccount;
+	u16 active;
 };
 
 static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
@@ -319,4 +326,9 @@ void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw);
 bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
 			   unsigned long *phys_complete);
+void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type);
+void ioat_kobject_del(struct ioatdma_device *device);
+extern struct sysfs_ops ioat_sysfs_ops;
+extern struct ioat_sysfs_entry ioat_version_attr;
+extern struct ioat_sysfs_entry ioat_cap_attr;
 #endif /* IOATDMA_H */

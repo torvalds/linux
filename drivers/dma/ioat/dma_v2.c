@@ -795,6 +795,36 @@ ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 	return ioat_is_complete(c, cookie, done, used);
 }
 
+static ssize_t ring_size_show(struct dma_chan *c, char *page)
+{
+	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
+
+	return sprintf(page, "%d\n", (1 << ioat->alloc_order) & ~1);
+}
+static struct ioat_sysfs_entry ring_size_attr = __ATTR_RO(ring_size);
+
+static ssize_t ring_active_show(struct dma_chan *c, char *page)
+{
+	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
+
+	/* ...taken outside the lock, no need to be precise */
+	return sprintf(page, "%d\n", ioat2_ring_active(ioat));
+}
+static struct ioat_sysfs_entry ring_active_attr = __ATTR_RO(ring_active);
+
+static struct attribute *ioat2_attrs[] = {
+	&ring_size_attr.attr,
+	&ring_active_attr.attr,
+	&ioat_cap_attr.attr,
+	&ioat_version_attr.attr,
+	NULL,
+};
+
+struct kobj_type ioat2_ktype = {
+	.sysfs_ops = &ioat_sysfs_ops,
+	.default_attrs = ioat2_attrs,
+};
+
 int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
@@ -827,6 +857,9 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_register(device);
 	if (err)
 		return err;
+
+	ioat_kobject_add(device, &ioat2_ktype);
+
 	if (dca)
 		device->dca = ioat2_dca_init(pdev, device->reg_base);
 
