@@ -165,6 +165,7 @@ struct at_desc {
 	struct at_lli			lli;
 
 	/* THEN values for driver housekeeping */
+	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
 	struct list_head		desc_node;
 	size_t				len;
