@@ -734,8 +734,7 @@ void r100_cp_fini(struct radeon_device *rdev)
 		DRM_ERROR("Wait for CP idle timeout, shutting down CP.\n");
 	}
 	/* Disable ring */
-	rdev->cp.ready = false;
-	WREG32(RADEON_CP_CSQ_CNTL, 0);
+	r100_cp_disable(rdev);
 	radeon_ring_fini(rdev);
 	DRM_INFO("radeon: cp finalized\n");
 }
