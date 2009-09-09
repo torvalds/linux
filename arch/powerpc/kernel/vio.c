@@ -1054,6 +1054,8 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 		return NULL;
 
 	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+	if (tbl == NULL)
+		return NULL;
 
 	of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
 			    &tbl->it_index, &offset, &size);
