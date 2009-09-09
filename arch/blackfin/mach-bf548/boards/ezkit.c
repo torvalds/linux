@@ -232,43 +232,210 @@ static struct platform_device rtc_device = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-static struct resource bfin_uart_resources[] = {
 #ifdef CONFIG_SERIAL_BFIN_UART0
+static struct resource bfin_uart0_resources[] = {
 	{
-		.start = 0xFFC00400,
-		.end = 0xFFC004FF,
+		.start = UART0_DLL,
+		.end = UART0_RBR+2,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART0_ERROR,
+		.end = IRQ_UART0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_TX,
+		.end = CH_UART0_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+unsigned short bfin_uart0_peripherals[] = {
+	P_UART0_TX, P_UART0_RX, 0
+};
+
+static struct platform_device bfin_uart0_device = {
+	.name = "bfin-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_uart0_resources),
+	.resource = bfin_uart0_resources,
+	.dev = {
+		.platform_data = &bfin_uart0_peripherals, /* Passed to driver */
+	},
+};
 #endif
 #ifdef CONFIG_SERIAL_BFIN_UART1
+static struct resource bfin_uart1_resources[] = {
 	{
-		.start = 0xFFC02000,
-		.end = 0xFFC020FF,
+		.start = UART1_DLL,
+		.end = UART1_RBR+2,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
-#ifdef CONFIG_SERIAL_BFIN_UART2
 	{
-		.start = 0xFFC02100,
-		.end = 0xFFC021FF,
-		.flags = IORESOURCE_MEM,
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
 	},
-#endif
-#ifdef CONFIG_SERIAL_BFIN_UART3
 	{
-		.start = 0xFFC03100,
-		.end = 0xFFC031FF,
-		.flags = IORESOURCE_MEM,
+		.start = IRQ_UART1_ERROR,
+		.end = IRQ_UART1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_TX,
+		.end = CH_UART1_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX,
+		.flags = IORESOURCE_DMA,
+	},
+#ifdef CONFIG_BFIN_UART1_CTSRTS
+	{	/* CTS pin -- 0 means not supported */
+		.start = GPIO_PE10,
+		.end = GPIO_PE10,
+		.flags = IORESOURCE_IO,
+	},
+	{	/* RTS pin -- 0 means not supported */
+		.start = GPIO_PE9,
+		.end = GPIO_PE9,
+		.flags = IORESOURCE_IO,
 	},
 #endif
 };
 
-static struct platform_device bfin_uart_device = {
+unsigned short bfin_uart1_peripherals[] = {
+	P_UART1_TX, P_UART1_RX,
+#ifdef CONFIG_BFIN_UART1_CTSRTS
+	P_UART1_RTS, P_UART1_CTS,
+#endif
+	0
+};
+
+static struct platform_device bfin_uart1_device = {
 	.name = "bfin-uart",
 	.id = 1,
-	.num_resources = ARRAY_SIZE(bfin_uart_resources),
-	.resource = bfin_uart_resources,
+	.num_resources = ARRAY_SIZE(bfin_uart1_resources),
+	.resource = bfin_uart1_resources,
+	.dev = {
+		.platform_data = &bfin_uart1_peripherals, /* Passed to driver */
+	},
 };
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART2
+static struct resource bfin_uart2_resources[] = {
+	{
+		.start = UART2_DLL,
+		.end = UART2_RBR+2,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_UART2_RX,
+		.end = IRQ_UART2_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART2_ERROR,
+		.end = IRQ_UART2_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART2_TX,
+		.end = CH_UART2_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART2_RX,
+		.end = CH_UART2_RX,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+unsigned short bfin_uart2_peripherals[] = {
+	P_UART2_TX, P_UART2_RX, 0
+};
+
+static struct platform_device bfin_uart2_device = {
+	.name = "bfin-uart",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(bfin_uart2_resources),
+	.resource = bfin_uart2_resources,
+	.dev = {
+		.platform_data = &bfin_uart2_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART3
+static struct resource bfin_uart3_resources[] = {
+	{
+		.start = UART3_DLL,
+		.end = UART3_RBR+2,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_UART3_RX,
+		.end = IRQ_UART3_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART3_ERROR,
+		.end = IRQ_UART3_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART3_TX,
+		.end = CH_UART3_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART3_RX,
+		.end = CH_UART3_RX,
+		.flags = IORESOURCE_DMA,
+	},
+#ifdef CONFIG_BFIN_UART3_CTSRTS
+	{	/* CTS pin -- 0 means not supported */
+		.start = GPIO_PB3,
+		.end = GPIO_PB3,
+		.flags = IORESOURCE_IO,
+	},
+	{	/* RTS pin -- 0 means not supported */
+		.start = GPIO_PB2,
+		.end = GPIO_PB2,
+		.flags = IORESOURCE_IO,
+	},
+#endif
+};
+
+unsigned short bfin_uart3_peripherals[] = {
+	P_UART3_TX, P_UART3_RX,
+#ifdef CONFIG_BFIN_UART3_CTSRTS
+	P_UART3_RTS, P_UART3_CTS,
+#endif
+	0
+};
+
+static struct platform_device bfin_uart3_device = {
+	.name = "bfin-uart",
+	.id = 3,
+	.num_resources = ARRAY_SIZE(bfin_uart3_resources),
+	.resource = bfin_uart3_resources,
+	.dev = {
+		.platform_data = &bfin_uart3_peripherals, /* Passed to driver */
+	},
+};
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -960,7 +1127,18 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-	&bfin_uart_device,
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART2
+	&bfin_uart2_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART3
+	&bfin_uart3_device,
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
