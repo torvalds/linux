@@ -268,6 +268,11 @@ retry:
 	spin_unlock_irq(&dev->err_lock);
 
 	if (ongoing_io) {
+		/* nonblocking IO shall not wait */
+		if (file->f_flags & O_NONBLOCK) {
+			rv = -EAGAIN;
+			goto exit;
+		}
 		/*
 		 * IO may take forever
 		 * hence wait in an interruptible state
@@ -351,8 +356,9 @@ retry:
 		rv = skel_do_read_io(dev, count);
 		if (rv < 0)
 			goto exit;
-		else
+		else if (!file->f_flags & O_NONBLOCK)
 			goto retry;
+		rv = -EAGAIN;
 	}
 exit:
 	mutex_unlock(&dev->io_mutex);
