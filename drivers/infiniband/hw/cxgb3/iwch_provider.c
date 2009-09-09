@@ -195,7 +195,11 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	spin_lock_init(&chp->lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
-	insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
+	if (insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid)) {
+		cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
+		kfree(chp);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	if (ucontext) {
 		struct iwch_mm_entry *mm;
@@ -750,7 +754,11 @@ static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
 	mhp->attr.stag = stag;
 	mmid = (stag) >> 8;
 	mhp->ibmw.rkey = stag;
-	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+		cxio_deallocate_window(&rhp->rdev, mhp->attr.stag);
+		kfree(mhp);
+		return ERR_PTR(-ENOMEM);
+	}
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmw);
 }
@@ -778,37 +786,43 @@ static struct ib_mr *iwch_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	struct iwch_mr *mhp;
 	u32 mmid;
 	u32 stag = 0;
-	int ret;
+	int ret = 0;
 
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
-		return ERR_PTR(-ENOMEM);
+		goto err;
 
 	mhp->rhp = rhp;
 	ret = iwch_alloc_pbl(mhp, pbl_depth);
-	if (ret) {
-		kfree(mhp);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err1;
 	mhp->attr.pbl_size = pbl_depth;
 	ret = cxio_allocate_stag(&rhp->rdev, &stag, php->pdid,
 				 mhp->attr.pbl_size, mhp->attr.pbl_addr);
-	if (ret) {
-		iwch_free_pbl(mhp);
-		kfree(mhp);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err2;
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.type = TPT_NON_SHARED_MR;
 	mhp->attr.stag = stag;
 	mhp->attr.state = 1;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid))
+		goto err3;
+
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmr);
+err3:
+	cxio_dereg_mem(&rhp->rdev, stag, mhp->attr.pbl_size,
+		       mhp->attr.pbl_addr);
+err2:
+	iwch_free_pbl(mhp);
+err1:
+	kfree(mhp);
+err:
+	return ERR_PTR(ret);
 }
 
 static struct ib_fast_reg_page_list *iwch_alloc_fastreg_pbl(
@@ -961,7 +975,13 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	spin_lock_init(&qhp->lock);
 	init_waitqueue_head(&qhp->wait);
 	atomic_set(&qhp->refcnt, 1);
-	insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid);
+
+	if (insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid)) {
+		cxio_destroy_qp(&rhp->rdev, &qhp->wq,
+			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
+		kfree(qhp);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	if (udata) {
 
