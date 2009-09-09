@@ -1915,6 +1915,12 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 		return -EINVAL;
 	}
 
+	/* blow away mappings if mapped through GTT */
+	i915_gem_release_mmap(obj);
+
+	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
+		i915_gem_clear_fence_reg(obj);
+
 	/* Move the object to the CPU domain to ensure that
 	 * any possible CPU writes while it's not in the GTT
 	 * are flushed when we go to remap it. This will
@@ -1928,19 +1934,13 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 		return ret;
 	}
 
+	BUG_ON(obj_priv->active);
+
 	if (obj_priv->agp_mem != NULL) {
 		drm_unbind_agp(obj_priv->agp_mem);
 		drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
 		obj_priv->agp_mem = NULL;
 	}
-
-	BUG_ON(obj_priv->active);
-
-	/* blow away mappings if mapped through GTT */
-	i915_gem_release_mmap(obj);
-
-	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-		i915_gem_clear_fence_reg(obj);
 
 	i915_gem_object_put_pages(obj);
 
