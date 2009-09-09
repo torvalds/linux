@@ -538,17 +538,6 @@ static void ioat1_cleanup_tasklet(unsigned long data)
 	writew(IOAT_CHANCTRL_RUN, chan->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
-static void ioat_unmap(struct pci_dev *pdev, dma_addr_t addr, size_t len,
-		       int direction, enum dma_ctrl_flags flags, bool dst)
-{
-	if ((dst && (flags & DMA_COMPL_DEST_UNMAP_SINGLE)) ||
-	    (!dst && (flags & DMA_COMPL_SRC_UNMAP_SINGLE)))
-		pci_unmap_single(pdev, addr, len, direction);
-	else
-		pci_unmap_page(pdev, addr, len, direction);
-}
-
-
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw)
 {

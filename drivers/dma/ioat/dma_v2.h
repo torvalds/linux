@@ -27,6 +27,7 @@
 
 
 extern int ioat_pending_level;
+extern int ioat_ring_alloc_order;
 
 /*
  * workaround for IOAT ver.3.0 null descriptor issue
@@ -167,4 +168,16 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int __devinit ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 struct dca_provider * __devinit ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider * __devinit ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_descs);
+int ioat2_enumerate_channels(struct ioatdma_device *device);
+struct dma_async_tx_descriptor *
+ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
+			   dma_addr_t dma_src, size_t len, unsigned long flags);
+void ioat2_issue_pending(struct dma_chan *chan);
+int ioat2_alloc_chan_resources(struct dma_chan *c);
+void ioat2_free_chan_resources(struct dma_chan *c);
+enum dma_status ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
+				  dma_cookie_t *done, dma_cookie_t *used);
+void __ioat2_restart_chan(struct ioat2_dma_chan *ioat);
+bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
 #endif /* IOATDMA_V2_H */

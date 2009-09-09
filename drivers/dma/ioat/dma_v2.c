@@ -39,7 +39,7 @@
 #include "registers.h"
 #include "hw.h"
 
-static int ioat_ring_alloc_order = 8;
+int ioat_ring_alloc_order = 8;
 module_param(ioat_ring_alloc_order, int, 0644);
 MODULE_PARM_DESC(ioat_ring_alloc_order,
 		 "ioat2+: allocate 2^n descriptors per channel (default: n=8)");
@@ -63,7 +63,7 @@ static void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 		__func__, ioat->head, ioat->tail, ioat->issued, ioat->dmacount);
 }
 
-static void ioat2_issue_pending(struct dma_chan *chan)
+void ioat2_issue_pending(struct dma_chan *chan)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(chan);
 
@@ -214,7 +214,7 @@ static void ioat2_cleanup_tasklet(unsigned long data)
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
-static void __restart_chan(struct ioat2_dma_chan *ioat)
+void __ioat2_restart_chan(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 
@@ -255,10 +255,8 @@ static void ioat2_restart_channel(struct ioat2_dma_chan *ioat)
 	if (ioat_cleanup_preamble(chan, &phys_complete))
 		__cleanup(ioat, phys_complete);
 
-	__restart_chan(ioat);
+	__ioat2_restart_chan(ioat);
 }
-
-static bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
 
 static void ioat2_timer_event(unsigned long data)
 {
@@ -321,7 +319,7 @@ static void ioat2_timer_event(unsigned long data)
  * ioat2_enumerate_channels - find and initialize the device's channels
  * @device: the device to be enumerated
  */
-static int ioat2_enumerate_channels(struct ioatdma_device *device)
+int ioat2_enumerate_channels(struct ioatdma_device *device)
 {
 	struct ioat2_dma_chan *ioat;
 	struct device *dev = &device->pdev->dev;
@@ -354,8 +352,8 @@ static int ioat2_enumerate_channels(struct ioatdma_device *device)
 			break;
 
 		ioat_init_channel(device, &ioat->base, i,
-				  ioat2_timer_event,
-				  ioat2_cleanup_tasklet,
+				  device->timer_fn,
+				  device->cleanup_tasklet,
 				  (unsigned long) ioat);
 		ioat->xfercap_log = xfercap_log;
 		spin_lock_init(&ioat->ring_lock);
@@ -460,7 +458,7 @@ static struct ioat_ring_ent **ioat2_alloc_ring(struct dma_chan *c, int order, gf
 /* ioat2_alloc_chan_resources - allocate/initialize ioat2 descriptor ring
  * @chan: channel to be initialized
  */
-static int ioat2_alloc_chan_resources(struct dma_chan *c)
+int ioat2_alloc_chan_resources(struct dma_chan *c)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
@@ -514,7 +512,7 @@ static int ioat2_alloc_chan_resources(struct dma_chan *c)
 	return 1 << ioat->alloc_order;
 }
 
-static bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
+bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
 {
 	/* reshape differs from normal ring allocation in that we want
 	 * to allocate a new software ring while only
@@ -627,7 +625,7 @@ static bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
  * @ioat: ioat2,3 channel (ring) to operate on
  * @num_descs: allocation length
  */
-static int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_descs)
+int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_descs)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 
@@ -655,9 +653,11 @@ static int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_d
 		spin_lock_bh(&chan->cleanup_lock);
 		if (jiffies > chan->timer.expires &&
 		    timer_pending(&chan->timer)) {
+			struct ioatdma_device *device = chan->device;
+
 			mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
 			spin_unlock_bh(&chan->cleanup_lock);
-			ioat2_timer_event((unsigned long) ioat);
+			device->timer_fn((unsigned long) ioat);
 		} else
 			spin_unlock_bh(&chan->cleanup_lock);
 		return -ENOMEM;
@@ -670,7 +670,7 @@ static int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_d
 	return 0;  /* with ioat->ring_lock held */
 }
 
-static struct dma_async_tx_descriptor *
+struct dma_async_tx_descriptor *
 ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 			   dma_addr_t dma_src, size_t len, unsigned long flags)
 {
@@ -722,11 +722,11 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
  * ioat2_free_chan_resources - release all the descriptors
  * @chan: the channel to be cleaned
  */
-static void ioat2_free_chan_resources(struct dma_chan *c)
+void ioat2_free_chan_resources(struct dma_chan *c)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
-	struct ioatdma_device *ioatdma_device = chan->device;
+	struct ioatdma_device *device = chan->device;
 	struct ioat_ring_ent *desc;
 	const u16 total_descs = 1 << ioat->alloc_order;
 	int descs;
@@ -740,7 +740,7 @@ static void ioat2_free_chan_resources(struct dma_chan *c)
 
 	tasklet_disable(&chan->cleanup_task);
 	del_timer_sync(&chan->timer);
-	ioat2_cleanup(ioat);
+	device->cleanup_tasklet((unsigned long) ioat);
 
 	/* Delay 100ms after reset to allow internal DMA logic to quiesce
 	 * before removing DMA descriptor resources.
@@ -770,8 +770,7 @@ static void ioat2_free_chan_resources(struct dma_chan *c)
 	kfree(ioat->ring);
 	ioat->ring = NULL;
 	ioat->alloc_order = 0;
-	pci_pool_free(ioatdma_device->completion_pool,
-		      chan->completion,
+	pci_pool_free(device->completion_pool, chan->completion,
 		      chan->completion_dma);
 	spin_unlock_bh(&ioat->ring_lock);
 
@@ -781,16 +780,17 @@ static void ioat2_free_chan_resources(struct dma_chan *c)
 	ioat->dmacount = 0;
 }
 
-static enum dma_status
+enum dma_status
 ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 		     dma_cookie_t *done, dma_cookie_t *used)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
+	struct ioatdma_device *device = ioat->base.device;
 
 	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
-	ioat2_cleanup(ioat);
+	device->cleanup_tasklet((unsigned long) ioat);
 
 	return ioat_is_complete(c, cookie, done, used);
 }
@@ -804,6 +804,8 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 	int err;
 
 	device->enumerate_channels = ioat2_enumerate_channels;
+	device->cleanup_tasklet = ioat2_cleanup_tasklet;
+	device->timer_fn = ioat2_timer_event;
 	dma = &device->common;
 	dma->device_prep_dma_memcpy = ioat2_dma_prep_memcpy_lock;
 	dma->device_issue_pending = ioat2_issue_pending;
@@ -827,56 +829,6 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 		return err;
 	if (dca)
 		device->dca = ioat2_dca_init(pdev, device->reg_base);
-
-	return err;
-}
-
-int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
-{
-	struct pci_dev *pdev = device->pdev;
-	struct dma_device *dma;
-	struct dma_chan *c;
-	struct ioat_chan_common *chan;
-	int err;
-	u16 dev_id;
-
-	device->enumerate_channels = ioat2_enumerate_channels;
-	dma = &device->common;
-	dma->device_prep_dma_memcpy = ioat2_dma_prep_memcpy_lock;
-	dma->device_issue_pending = ioat2_issue_pending;
-	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
-	dma->device_free_chan_resources = ioat2_free_chan_resources;
-	dma->device_is_tx_complete = ioat2_is_complete;
-
-	/* -= IOAT ver.3 workarounds =- */
-	/* Write CHANERRMSK_INT with 3E07h to mask out the errors
-	 * that can cause stability issues for IOAT ver.3
-	 */
-	pci_write_config_dword(pdev, IOAT_PCI_CHANERRMASK_INT_OFFSET, 0x3e07);
-
-	/* Clear DMAUNCERRSTS Cfg-Reg Parity Error status bit
-	 * (workaround for spurious config parity error after restart)
-	 */
-	pci_read_config_word(pdev, IOAT_PCI_DEVICE_ID_OFFSET, &dev_id);
-	if (dev_id == PCI_DEVICE_ID_INTEL_IOAT_TBG0)
-		pci_write_config_dword(pdev, IOAT_PCI_DMAUNCERRSTS_OFFSET, 0x10);
-
-	err = ioat_probe(device);
-	if (err)
-		return err;
-	ioat_set_tcp_copy_break(262144);
-
-	list_for_each_entry(c, &dma->channels, device_node) {
-		chan = to_chan_common(c);
-		writel(IOAT_DMA_DCA_ANY_CPU,
-		       chan->reg_base + IOAT_DCACTRL_OFFSET);
-	}
-
-	err = ioat_register(device);
-	if (err)
-		return err;
-	if (dca)
-		device->dca = ioat3_dca_init(pdev, device->reg_base);
 
 	return err;
 }

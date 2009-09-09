@@ -60,6 +60,10 @@
  * @dca: direct cache access context
  * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
  * @enumerate_channels: hw version specific channel enumeration
+ * @cleanup_tasklet: select between the v2 and v3 cleanup routines
+ * @timer_fn: select between the v2 and v3 timer watchdog routines
+ *
+ * Note: the v3 cleanup routine supports raid operations
  */
 
 struct ioatdma_device {
@@ -74,6 +78,8 @@ struct ioatdma_device {
 	struct dca_provider *dca;
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
+	void (*cleanup_tasklet)(unsigned long data);
+	void (*timer_fn)(unsigned long data);
 };
 
 struct ioat_chan_common {
@@ -285,6 +291,16 @@ static inline bool is_ioat_bug(unsigned long err)
 	return !!(err & (IOAT_CHANERR_SRC_ADDR_ERR|IOAT_CHANERR_DEST_ADDR_ERR|
 			 IOAT_CHANERR_NEXT_ADDR_ERR|IOAT_CHANERR_CONTROL_ERR|
 			 IOAT_CHANERR_LENGTH_ERR));
+}
+
+static inline void ioat_unmap(struct pci_dev *pdev, dma_addr_t addr, size_t len,
+			      int direction, enum dma_ctrl_flags flags, bool dst)
+{
+	if ((dst && (flags & DMA_COMPL_DEST_UNMAP_SINGLE)) ||
+	    (!dst && (flags & DMA_COMPL_SRC_UNMAP_SINGLE)))
+		pci_unmap_single(pdev, addr, len, direction);
+	else
+		pci_unmap_page(pdev, addr, len, direction);
 }
 
 int __devinit ioat_probe(struct ioatdma_device *device);

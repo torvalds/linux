@@ -36,7 +36,7 @@
 #include "hw.h"
 
 MODULE_VERSION(IOAT_DMA_VERSION);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 
 static struct pci_device_id ioat_pci_tbl[] = {
