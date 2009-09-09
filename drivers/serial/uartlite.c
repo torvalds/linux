@@ -154,17 +154,22 @@ static int ulite_transmit(struct uart_port *port, int stat)
 static irqreturn_t ulite_isr(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	int busy;
+	int busy, n = 0;
 
 	do {
 		int stat = readb(port->membase + ULITE_STATUS);
 		busy  = ulite_receive(port, stat);
 		busy |= ulite_transmit(port, stat);
+		n++;
 	} while (busy);
 
-	tty_flip_buffer_push(port->state->port.tty);
-
-	return IRQ_HANDLED;
+	/* work done? */
+	if (n > 1) {
+		tty_flip_buffer_push(port->state->port.tty);
+		return IRQ_HANDLED;
+	} else {
+		return IRQ_NONE;
+	}
 }
 
 static unsigned int ulite_tx_empty(struct uart_port *port)
@@ -221,7 +226,7 @@ static int ulite_startup(struct uart_port *port)
 	int ret;
 
 	ret = request_irq(port->irq, ulite_isr,
-			  IRQF_DISABLED | IRQF_SAMPLE_RANDOM, "uartlite", port);
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM, "uartlite", port);
 	if (ret)
 		return ret;
 
