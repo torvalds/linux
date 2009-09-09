@@ -1391,7 +1391,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
-	ath_btcoex_bt_stomp(sc, btinfo, btinfo->bt_stomp_type);
+	ath_btcoex_bt_stomp(sc, btinfo, btcoex->bt_stomp_type);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
 
@@ -1426,9 +1426,9 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
-	if (btinfo->bt_stomp_type == ATH_BTCOEX_STOMP_LOW)
+	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW)
 		ath_btcoex_bt_stomp(sc, btinfo, ATH_BTCOEX_STOMP_NONE);
-	 else if (btinfo->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
+	 else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
 		ath_btcoex_bt_stomp(sc, btinfo, ATH_BTCOEX_STOMP_LOW);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
@@ -1687,6 +1687,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 			goto bad2;
 		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
 		ath9k_hw_init_btcoex_hw_info(ah, qnum);
+		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		break;
 	default:
 		WARN_ON(1);

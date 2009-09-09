@@ -65,8 +65,6 @@ void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum)
 		SM(ATH_BTCOEX_BMISS_THRESH, AR_BT_BCN_MISS_THRESH) |
 		AR_BT_DISABLE_BT_ANT;
 
-	btcoex_info->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-
 	for (i = 0; i < 32; i++)
 		ah->hw_gen_timers.gen_timer_index[(debruijn32 << i) >> 27] = i;
 }

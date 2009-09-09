@@ -36,13 +36,6 @@ enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_3WIRE,
 };
 
-enum ath_stomp_type {
-	ATH_BTCOEX_NO_STOMP,
-	ATH_BTCOEX_STOMP_ALL,
-	ATH_BTCOEX_STOMP_LOW,
-	ATH_BTCOEX_STOMP_NONE
-};
-
 enum ath_bt_mode {
 	ATH_BT_COEX_MODE_LEGACY,	/* legacy rx_clear mode */
 	ATH_BT_COEX_MODE_UNSLOTTED,	/* untimed/unslotted mode */
@@ -69,7 +62,6 @@ struct ath_btcoex_info {
 	u8 btactive_gpio;
 	u8 btpriority_gpio;
 	u8 bt_duty_cycle; 	/* BT duty cycle in percentage */
-	int bt_stomp_type; 	/* Types of BT stomping */
 	u32 bt_coex_mode; 	/* Register setting for AR_BT_COEX_MODE */
 	u32 bt_coex_weights; 	/* Register setting for AR_BT_COEX_WEIGHT */
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */

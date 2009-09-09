@@ -450,12 +450,21 @@ struct ath_ani {
 	struct timer_list timer;
 };
 
+/* Defines the BT AR_BT_COEX_WGHT used */
+enum ath_stomp_type {
+	ATH_BTCOEX_NO_STOMP,
+	ATH_BTCOEX_STOMP_ALL,
+	ATH_BTCOEX_STOMP_LOW,
+	ATH_BTCOEX_STOMP_NONE
+};
+
 struct ath_btcoex {
 	bool hw_timer_enabled;
 	spinlock_t btcoex_lock;
 	struct timer_list period_timer; /* Timer for BT period */
 	u32 bt_priority_cnt;
 	unsigned long bt_priority_time;
+	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
