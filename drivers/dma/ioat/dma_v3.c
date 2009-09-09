@@ -1117,30 +1117,25 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	struct dma_device *dma;
 	struct dma_chan *c;
 	struct ioat_chan_common *chan;
+	bool is_raid_device = false;
 	int err;
 	u16 dev_id;
 	u32 cap;
 
 	device->enumerate_channels = ioat2_enumerate_channels;
-	device->cleanup_tasklet = ioat3_cleanup_tasklet;
-	device->timer_fn = ioat3_timer_event;
 	device->self_test = ioat3_dma_self_test;
 	dma = &device->common;
 	dma->device_prep_dma_memcpy = ioat2_dma_prep_memcpy_lock;
 	dma->device_issue_pending = ioat2_issue_pending;
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
-	dma->device_is_tx_complete = ioat3_is_complete;
 
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
 
 	cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
-	if (cap & IOAT_CAP_FILL_BLOCK) {
-		dma_cap_set(DMA_MEMSET, dma->cap_mask);
-		dma->device_prep_dma_memset = ioat3_prep_memset_lock;
-	}
 	if (cap & IOAT_CAP_XOR) {
+		is_raid_device = true;
 		dma->max_xor = 8;
 		dma->xor_align = 2;
 
@@ -1151,6 +1146,7 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		dma->device_prep_dma_xor_val = ioat3_prep_xor_val;
 	}
 	if (cap & IOAT_CAP_PQ) {
+		is_raid_device = true;
 		dma_set_maxpq(dma, 8, 0);
 		dma->pq_align = 2;
 
@@ -1170,6 +1166,21 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 			dma_cap_set(DMA_XOR_VAL, dma->cap_mask);
 			dma->device_prep_dma_xor_val = ioat3_prep_pqxor_val;
 		}
+	}
+	if (is_raid_device && (cap & IOAT_CAP_FILL_BLOCK)) {
+		dma_cap_set(DMA_MEMSET, dma->cap_mask);
+		dma->device_prep_dma_memset = ioat3_prep_memset_lock;
+	}
+
+
+	if (is_raid_device) {
+		dma->device_is_tx_complete = ioat3_is_complete;
+		device->cleanup_tasklet = ioat3_cleanup_tasklet;
+		device->timer_fn = ioat3_timer_event;
+	} else {
+		dma->device_is_tx_complete = ioat2_is_complete;
+		device->cleanup_tasklet = ioat2_cleanup_tasklet;
+		device->timer_fn = ioat2_timer_event;
 	}
 
 	/* -= IOAT ver.3 workarounds =- */

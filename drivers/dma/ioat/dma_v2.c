@@ -206,7 +206,7 @@ static void ioat2_cleanup(struct ioat2_dma_chan *ioat)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
-static void ioat2_cleanup_tasklet(unsigned long data)
+void ioat2_cleanup_tasklet(unsigned long data)
 {
 	struct ioat2_dma_chan *ioat = (void *) data;
 
@@ -258,7 +258,7 @@ static void ioat2_restart_channel(struct ioat2_dma_chan *ioat)
 	__ioat2_restart_chan(ioat);
 }
 
-static void ioat2_timer_event(unsigned long data)
+void ioat2_timer_event(unsigned long data)
 {
 	struct ioat2_dma_chan *ioat = (void *) data;
 	struct ioat_chan_common *chan = &ioat->base;
