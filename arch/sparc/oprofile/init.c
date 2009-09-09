@@ -21,7 +21,7 @@
 static int profile_timer_exceptions_notify(struct notifier_block *self,
 					   unsigned long val, void *data)
 {
-	struct die_args *args = (struct die_args *)data;
+	struct die_args *args = data;
 	int ret = NOTIFY_DONE;
 
 	switch (val) {
