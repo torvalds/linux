@@ -1034,6 +1034,7 @@ err3:
 err2:
 	cxio_hal_destroy_ctrl_qp(rdev_p);
 err1:
+	rdev_p->t3cdev_p->ulp = NULL;
 	list_del(&rdev_p->entry);
 	return err;
 }

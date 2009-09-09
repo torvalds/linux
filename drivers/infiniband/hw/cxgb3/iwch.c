@@ -165,10 +165,13 @@ static void close_rnic_dev(struct t3cdev *tdev)
 static void iwch_event_handler(struct t3cdev *tdev, u32 evt, u32 port_id)
 {
 	struct cxio_rdev *rdev = tdev->ulp;
-	struct iwch_dev *rnicp = rdev_to_iwch_dev(rdev);
+	struct iwch_dev *rnicp;
 	struct ib_event event;
 	u32    portnum = port_id + 1;
 
+	if (!rdev)
+		return;
+	rnicp = rdev_to_iwch_dev(rdev);
 	switch (evt) {
 	case OFFLOAD_STATUS_DOWN: {
 		rdev->flags = CXIO_ERROR_FATAL;
