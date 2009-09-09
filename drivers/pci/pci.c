@@ -854,6 +854,7 @@ pci_restore_state(struct pci_dev *dev)
 
 	if (!dev->state_saved)
 		return 0;
+
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);
 
@@ -874,6 +875,8 @@ pci_restore_state(struct pci_dev *dev)
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
 	pci_restore_iov_state(dev);
+
+	dev->state_saved = false;
 
 	return 0;
 }

@@ -1032,6 +1032,9 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
 
+	/* Clear the state_saved flag. */
+	dev->state_saved = false;
+
 	/* Initialize various capabilities */
 	pci_init_capabilities(dev);
 
