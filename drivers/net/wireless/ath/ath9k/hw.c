@@ -18,6 +18,7 @@
 #include <asm/unaligned.h>
 #include <linux/pci.h>
 
+#include "hw.h"
 #include "ath9k.h"
 #include "initvals.h"
 
@@ -3558,7 +3559,7 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
-	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
 	u16 capField = 0, eeval;
 

@@ -27,6 +27,7 @@
 #include "calib.h"
 #include "reg.h"
 #include "phy.h"
+#include "btcoex.h"
 
 #include "../regd.h"
 
@@ -553,6 +554,9 @@ struct ath_hw {
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
 
+	/* Bluetooth coexistance */
+	struct ath_btcoex_info btcoex_info;
+
 	u32 intr_txqs;
 	enum ath9k_ht_extprotspacing extprotspacing;
 	u8 txchainmask;
@@ -675,4 +679,7 @@ u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 #define ATH_PCIE_CAP_LINK_L1	2
 
 void ath_pcie_aspm_disable(struct ath_softc *sc);
+
+void ath_btcoex_timer_resume(struct ath_softc *sc);
+void ath_btcoex_timer_pause(struct ath_softc *sc);
 #endif

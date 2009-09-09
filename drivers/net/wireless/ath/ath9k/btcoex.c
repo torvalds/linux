@@ -43,14 +43,29 @@ bool ath_btcoex_supported(u16 subsysid)
 	return false;
 }
 
+static void ath_btcoex_set_weight(struct ath_btcoex_info *btcoex_info,
+				  u32 bt_weight,
+				  u32 wlan_weight)
+{
+	btcoex_info->bt_coex_weights = SM(bt_weight, AR_BTCOEX_BT_WGHT) |
+				       SM(wlan_weight, AR_BTCOEX_WL_WGHT);
+}
+
+void ath9k_hw_btcoex_init_weight(struct ath_hw *ah)
+{
+	ath_btcoex_set_weight(&ah->btcoex_info, AR_BT_COEX_WGHT,
+			      AR_STOMP_LOW_WLAN_WGHT);
+}
+
 /*
  * Detects if there is any priority bt traffic
  */
 static void ath_detect_bt_priority(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
 
-	if (ath9k_hw_gpio_get(sc->sc_ah, sc->btcoex_info.btpriority_gpio))
+	if (ath9k_hw_gpio_get(sc->sc_ah, ah->btcoex_info.btpriority_gpio))
 		btcoex->bt_priority_cnt++;
 
 	if (time_after(jiffies, btcoex->bt_priority_time +
@@ -106,8 +121,9 @@ static void ath_btcoex_bt_stomp(struct ath_softc *sc,
 static void ath_btcoex_period_timer(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *) data;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_btcoex_info *btinfo = &sc->btcoex_info;
+	struct ath_btcoex_info *btinfo = &ah->btcoex_info;
 
 	ath_detect_bt_priority(sc);
 
@@ -119,9 +135,9 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp) {
 		if (btcoex->hw_timer_enabled)
-			ath_gen_timer_stop(sc->sc_ah, btinfo->no_stomp_timer);
+			ath_gen_timer_stop(ah, btinfo->no_stomp_timer);
 
-		ath_gen_timer_start(sc->sc_ah,
+		ath_gen_timer_start(ah,
 			btinfo->no_stomp_timer,
 			(ath9k_hw_gettsf32(sc->sc_ah) +
 				btcoex->btcoex_no_stomp),
@@ -141,10 +157,11 @@ static void ath_btcoex_period_timer(unsigned long data)
 static void ath_btcoex_no_stomp_timer(void *arg)
 {
 	struct ath_softc *sc = (struct ath_softc *)arg;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_btcoex_info *btinfo = &sc->btcoex_info;
+	struct ath_btcoex_info *btinfo = &ah->btcoex_info;
 
-	DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX, "no stomp timer running \n");
+	DPRINTF(ah, ATH_DBG_BTCOEX, "no stomp timer running \n");
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
@@ -156,14 +173,14 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	spin_unlock_bh(&btcoex->btcoex_lock);
 }
 
-static int ath_init_btcoex_info(struct ath_hw *hw,
+static int ath_init_btcoex_info(struct ath_hw *ah,
 				struct ath_btcoex_info *btcoex_info)
 {
-	struct ath_btcoex *btcoex = &hw->ah_sc->btcoex;
+	struct ath_btcoex *btcoex = &ah->ah_sc->btcoex;
 	u32 i;
 	int qnum;
 
-	qnum = ath_tx_get_qnum(hw->ah_sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+	qnum = ath_tx_get_qnum(ah->ah_sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
 
 	btcoex_info->bt_coex_mode =
 		(btcoex_info->bt_coex_mode & AR_BT_QCU_THRESH) |
@@ -190,15 +207,15 @@ static int ath_init_btcoex_info(struct ath_hw *hw,
 		btcoex->btcoex_period / 100;
 
 	for (i = 0; i < 32; i++)
-		hw->hw_gen_timers.gen_timer_index[(debruijn32 << i) >> 27] = i;
+		ah->hw_gen_timers.gen_timer_index[(debruijn32 << i) >> 27] = i;
 
 	setup_timer(&btcoex->period_timer, ath_btcoex_period_timer,
-			(unsigned long) hw->ah_sc);
+			(unsigned long) ah->ah_sc);
 
-	btcoex_info->no_stomp_timer = ath_gen_timer_alloc(hw,
+	btcoex_info->no_stomp_timer = ath_gen_timer_alloc(ah,
 			ath_btcoex_no_stomp_timer,
 			ath_btcoex_no_stomp_timer,
-			(void *)hw->ah_sc, AR_FIRST_NDP_TIMER);
+			(void *)ah->ah_sc, AR_FIRST_NDP_TIMER);
 
 	if (btcoex_info->no_stomp_timer == NULL)
 		return -ENOMEM;
@@ -210,7 +227,7 @@ static int ath_init_btcoex_info(struct ath_hw *hw,
 
 int ath9k_hw_btcoex_init(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 	int ret = 0;
 
 	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) {
@@ -258,7 +275,7 @@ int ath9k_hw_btcoex_init(struct ath_hw *ah)
 
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
 	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) {
 		/* Configure the desired GPIO port for TX_FRAME output */
@@ -291,7 +308,7 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 
 void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->ah_sc->btcoex_info;
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
 	ath9k_hw_set_gpio(ah, btcoex_info->wlanactive_gpio, 0);
 
@@ -313,11 +330,12 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 void ath_btcoex_timer_pause(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
 
 	del_timer_sync(&btcoex->period_timer);
 
 	if (btcoex->hw_timer_enabled)
-		ath_gen_timer_stop(sc->sc_ah, sc->btcoex_info.no_stomp_timer);
+		ath_gen_timer_stop(ah, ah->btcoex_info.no_stomp_timer);
 
 	btcoex->hw_timer_enabled = false;
 }
@@ -328,12 +346,13 @@ void ath_btcoex_timer_pause(struct ath_softc *sc)
 void ath_btcoex_timer_resume(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
 
-	DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX, "Starting btcoex timers");
+	DPRINTF(ah, ATH_DBG_BTCOEX, "Starting btcoex timers");
 
 	/* make sure duty cycle timer is also stopped when resuming */
 	if (btcoex->hw_timer_enabled)
-		ath_gen_timer_stop(sc->sc_ah, sc->btcoex_info.no_stomp_timer);
+		ath_gen_timer_stop(sc->sc_ah, ah->btcoex_info.no_stomp_timer);
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
