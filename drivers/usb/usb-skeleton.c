@@ -399,9 +399,16 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto exit;
 
 	/* limit the number of URBs in flight to stop a user from using up all RAM */
-	if (down_interruptible(&dev->limit_sem)) {
-		retval = -ERESTARTSYS;
-		goto exit;
+	if (!file->f_flags & O_NONBLOCK) {
+		if (down_interruptible(&dev->limit_sem)) {
+			retval = -ERESTARTSYS;
+			goto exit;
+		}
+	} else {
+		if (down_trylock(&dev->limit_sem)) {
+			retval = -EAGAIN;
+			goto exit;
+		}
 	}
 
 	spin_lock_irq(&dev->err_lock);
