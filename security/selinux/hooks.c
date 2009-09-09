@@ -448,6 +448,10 @@ static int sb_finish_set_opts(struct super_block *sb)
 	    sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
 		sbsec->flags &= ~SE_SBLABELSUPP;
 
+	/* Special handling for sysfs. Is genfs but also has setxattr handler*/
+	if (strncmp(sb->s_type->name, "sysfs", sizeof("sysfs")) == 0)
+		sbsec->flags |= SE_SBLABELSUPP;
+
 	/* Initialize the root inode. */
 	rc = inode_doinit_with_dentry(root_inode, root);
 
@@ -2923,6 +2927,7 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 		return rc;
 
 	isec->sid = newsid;
+	isec->initialized = 1;
 	return 0;
 }
 

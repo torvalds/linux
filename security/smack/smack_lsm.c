@@ -1666,6 +1666,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
 		nsp->smk_inode = sp;
+		nsp->smk_flags |= SMK_INODE_INSTANT;
 		return 0;
 	}
 	/*
