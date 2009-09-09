@@ -31,7 +31,6 @@
  * level 14 as our IRQ off level.
  */
 
-static int nmi_watchdog_active;
 static int panic_on_timeout;
 
 /* nmi_active:
@@ -52,7 +51,7 @@ static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
 {
-	if (nmi_watchdog_active) {
+	if (atomic_read(&nmi_active)) {
 		int cpu;
 
 		for_each_present_cpu(cpu) {
