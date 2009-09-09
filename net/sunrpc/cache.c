@@ -255,7 +255,7 @@ int cache_check(struct cache_detail *detail,
 	}
 
 	if (rv == -EAGAIN) {
-		if (cache_defer_req(rqstp, h) == 0) {
+		if (cache_defer_req(rqstp, h) < 0) {
 			/* Request is not deferred */
 			rv = cache_is_valid(detail, h);
 			if (rv == -EAGAIN)
@@ -511,11 +511,11 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 		 * or continue and drop the oldest below
 		 */
 		if (net_random()&1)
-			return 0;
+			return -ENOMEM;
 	}
 	dreq = req->defer(req);
 	if (dreq == NULL)
-		return 0;
+		return -ENOMEM;
 
 	dreq->item = item;
 
@@ -545,9 +545,9 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 	if (!test_bit(CACHE_PENDING, &item->flags)) {
 		/* must have just been validated... */
 		cache_revisit_request(item);
-		return 0;
+		return -EAGAIN;
 	}
-	return 1;
+	return 0;
 }
 
 static void cache_revisit_request(struct cache_head *item)
