@@ -16,8 +16,24 @@
 
 #include "ath9k.h"
 
-static const struct ath_btcoex_config ath_bt_config = { 0, true, true,
-			ATH_BT_COEX_MODE_SLOTTED, true, true, 2, 5, true };
+enum ath_bt_mode {
+	ATH_BT_COEX_MODE_LEGACY,        /* legacy rx_clear mode */
+	ATH_BT_COEX_MODE_UNSLOTTED,     /* untimed/unslotted mode */
+	ATH_BT_COEX_MODE_SLOTTED,       /* slotted mode */
+	ATH_BT_COEX_MODE_DISALBED,      /* coexistence disabled */
+};
+
+struct ath_btcoex_config {
+	u8 bt_time_extend;
+	bool bt_txstate_extend;
+	bool bt_txframe_extend;
+	enum ath_bt_mode bt_mode; /* coexistence mode */
+	bool bt_quiet_collision;
+	bool bt_rxclear_polarity; /* invert rx_clear as WLAN_ACTIVE*/
+	u8 bt_priority_time;
+	u8 bt_first_slot_time;
+	bool bt_hold_rx_clear;
+};
 
 static const u16 ath_subsysid_tbl[] = {
 	AR9280_COEX2WIRE_SUBSYSID,
@@ -46,6 +62,17 @@ bool ath_btcoex_supported(u16 subsysid)
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+	const struct ath_btcoex_config ath_bt_config = {
+		.bt_time_extend = 0,
+		.bt_txstate_extend = true,
+		.bt_txframe_extend = true,
+		.bt_mode = ATH_BT_COEX_MODE_SLOTTED,
+		.bt_quiet_collision = true,
+		.bt_rxclear_polarity = true,
+		.bt_priority_time = 2,
+		.bt_first_slot_time = 5,
+		.bt_hold_rx_clear = true,
+	};
 	u32 i;
 
 	btcoex_hw->bt_coex_mode =

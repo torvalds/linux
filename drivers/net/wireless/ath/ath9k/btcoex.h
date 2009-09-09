@@ -36,25 +36,6 @@ enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_3WIRE,
 };
 
-enum ath_bt_mode {
-	ATH_BT_COEX_MODE_LEGACY,	/* legacy rx_clear mode */
-	ATH_BT_COEX_MODE_UNSLOTTED,	/* untimed/unslotted mode */
-	ATH_BT_COEX_MODE_SLOTTED,	/* slotted mode */
-	ATH_BT_COEX_MODE_DISALBED,	/* coexistence disabled */
-};
-
-struct ath_btcoex_config {
-	u8 bt_time_extend;
-	bool bt_txstate_extend;
-	bool bt_txframe_extend;
-	enum ath_bt_mode bt_mode; /* coexistence mode */
-	bool bt_quiet_collision;
-	bool bt_rxclear_polarity; /* invert rx_clear as WLAN_ACTIVE*/
-	u8 bt_priority_time;
-	u8 bt_first_slot_time;
-	bool bt_hold_rx_clear;
-};
-
 struct ath_btcoex_hw {
 	enum ath_btcoex_scheme scheme;
 	bool enabled;
@@ -75,6 +56,5 @@ void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
 				u32 wlan_weight);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
-
 
 #endif
