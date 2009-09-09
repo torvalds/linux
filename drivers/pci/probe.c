@@ -697,6 +697,23 @@ static void set_pcie_port_type(struct pci_dev *pdev)
 	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
+static void set_pcie_hotplug_bridge(struct pci_dev *pdev)
+{
+	int pos;
+	u16 reg16;
+	u32 reg32;
+
+	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return;
+	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
+	if (!(reg16 & PCI_EXP_FLAGS_SLOT))
+		return;
+	pci_read_config_dword(pdev, pos + PCI_EXP_SLTCAP, &reg32);
+	if (reg32 & PCI_EXP_SLTCAP_HPC)
+		pdev->is_hotplug_bridge = 1;
+}
+
 #define LEGACY_IO_RESOURCE	(IORESOURCE_IO | IORESOURCE_PCI_FIXED)
 
 /**
@@ -804,6 +821,7 @@ int pci_setup_device(struct pci_dev *dev)
 		pci_read_irq(dev);
 		dev->transparent = ((dev->class & 0xff) == 1);
 		pci_read_bases(dev, 2, PCI_ROM_ADDRESS1);
+		set_pcie_hotplug_bridge(dev);
 		break;
 
 	case PCI_HEADER_TYPE_CARDBUS:		    /* CardBus bridge header */

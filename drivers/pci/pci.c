@@ -41,6 +41,12 @@ int pci_domains_supported = 1;
 unsigned long pci_cardbus_io_size = DEFAULT_CARDBUS_IO_SIZE;
 unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 
+#define DEFAULT_HOTPLUG_IO_SIZE		(256)
+#define DEFAULT_HOTPLUG_MEM_SIZE	(2*1024*1024)
+/* pci=hpmemsize=nnM,hpiosize=nn can override this */
+unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
+unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
+
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
  * @bus: pointer to PCI bus structure to search
@@ -2732,6 +2738,10 @@ static int __init pci_setup(char *str)
 							strlen(str + 19));
 			} else if (!strncmp(str, "ecrc=", 5)) {
 				pcie_ecrc_get_policy(str + 5);
+			} else if (!strncmp(str, "hpiosize=", 9)) {
+				pci_hotplug_io_size = memparse(str + 9, &str);
+			} else if (!strncmp(str, "hpmemsize=", 10)) {
+				pci_hotplug_mem_size = memparse(str + 10, &str);
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);
