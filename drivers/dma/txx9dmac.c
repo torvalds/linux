@@ -180,9 +180,8 @@ static struct txx9dmac_desc *txx9dmac_first_queued(struct txx9dmac_chan *dc)
 
 static struct txx9dmac_desc *txx9dmac_last_child(struct txx9dmac_desc *desc)
 {
-	if (!list_empty(&desc->txd.tx_list))
-		desc = list_entry(desc->txd.tx_list.prev,
-				  struct txx9dmac_desc, desc_node);
+	if (!list_empty(&desc->tx_list))
+		desc = list_entry(desc->tx_list.prev, typeof(*desc), desc_node);
 	return desc;
 }
 
@@ -197,6 +196,7 @@ static struct txx9dmac_desc *txx9dmac_desc_alloc(struct txx9dmac_chan *dc,
 	desc = kzalloc(sizeof(*desc), flags);
 	if (!desc)
 		return NULL;
+	INIT_LIST_HEAD(&desc->tx_list);
 	dma_async_tx_descriptor_init(&desc->txd, &dc->chan);
 	desc->txd.tx_submit = txx9dmac_tx_submit;
 	/* txd.flags will be overwritten in prep funcs */
@@ -245,7 +245,7 @@ static void txx9dmac_sync_desc_for_cpu(struct txx9dmac_chan *dc,
 	struct txx9dmac_dev *ddev = dc->ddev;
 	struct txx9dmac_desc *child;
 
-	list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &desc->tx_list, desc_node)
 		dma_sync_single_for_cpu(chan2parent(&dc->chan),
 				child->txd.phys, ddev->descsize,
 				DMA_TO_DEVICE);
@@ -267,11 +267,11 @@ static void txx9dmac_desc_put(struct txx9dmac_chan *dc,
 		txx9dmac_sync_desc_for_cpu(dc, desc);
 
 		spin_lock_bh(&dc->lock);
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			dev_vdbg(chan2dev(&dc->chan),
 				 "moving child desc %p to freelist\n",
 				 child);
-		list_splice_init(&desc->txd.tx_list, &dc->free_list);
+		list_splice_init(&desc->tx_list, &dc->free_list);
 		dev_vdbg(chan2dev(&dc->chan), "moving desc %p to freelist\n",
 			 desc);
 		list_add(&desc->desc_node, &dc->free_list);
@@ -429,7 +429,7 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	param = txd->callback_param;
 
 	txx9dmac_sync_desc_for_cpu(dc, desc);
-	list_splice_init(&txd->tx_list, &dc->free_list);
+	list_splice_init(&desc->tx_list, &dc->free_list);
 	list_move(&desc->desc_node, &dc->free_list);
 
 	if (!ds) {
@@ -571,7 +571,7 @@ static void txx9dmac_handle_error(struct txx9dmac_chan *dc, u32 csr)
 		 "Bad descriptor submitted for DMA! (cookie: %d)\n",
 		 bad_desc->txd.cookie);
 	txx9dmac_dump_desc(dc, &bad_desc->hwdesc);
-	list_for_each_entry(child, &bad_desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		txx9dmac_dump_desc(dc, &child->hwdesc);
 	/* Pretend the descriptor completed successfully */
 	txx9dmac_descriptor_complete(dc, bad_desc);
@@ -613,7 +613,7 @@ static void txx9dmac_scan_descriptors(struct txx9dmac_chan *dc)
 			return;
 		}
 
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			if (desc_read_CHAR(dc, child) == chain) {
 				/* Currently in progress */
 				if (csr & TXX9_DMA_CSR_ABCHC)
@@ -823,8 +823,7 @@ txx9dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			dma_sync_single_for_device(chan2parent(&dc->chan),
 					prev->txd.phys, ddev->descsize,
 					DMA_TO_DEVICE);
-			list_add_tail(&desc->desc_node,
-					&first->txd.tx_list);
+			list_add_tail(&desc->desc_node, &first->tx_list);
 		}
 		prev = desc;
 	}
@@ -919,8 +918,7 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					prev->txd.phys,
 					ddev->descsize,
 					DMA_TO_DEVICE);
-			list_add_tail(&desc->desc_node,
-					&first->txd.tx_list);
+			list_add_tail(&desc->desc_node, &first->tx_list);
 		}
 		prev = desc;
 	}
