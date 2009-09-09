@@ -280,28 +280,40 @@ static void fsl_chan_set_dest_loop_size(struct fsl_dma_chan *fsl_chan, int size)
 }
 
 /**
+ * fsl_chan_set_request_count - Set DMA Request Count for external control
+ * @fsl_chan : Freescale DMA channel
+ * @size     : Number of bytes to transfer in a single request
+ *
+ * The Freescale DMA channel can be controlled by the external signal DREQ#.
+ * The DMA request count is how many bytes are allowed to transfer before
+ * pausing the channel, after which a new assertion of DREQ# resumes channel
+ * operation.
+ *
+ * A size of 0 disables external pause control. The maximum size is 1024.
+ */
+static void fsl_chan_set_request_count(struct fsl_dma_chan *fsl_chan, int size)
+{
+	BUG_ON(size > 1024);
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
+		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
+			| ((__ilog2(size) << 24) & 0x0f000000),
+		32);
+}
+
+/**
  * fsl_chan_toggle_ext_pause - Toggle channel external pause status
  * @fsl_chan : Freescale DMA channel
- * @size     : Pause control size, 0 for disable external pause control.
- *             The maximum is 1024.
+ * @enable   : 0 is disabled, 1 is enabled.
  *
- * The Freescale DMA channel can be controlled by the external
- * signal DREQ#. The pause control size is how many bytes are allowed
- * to transfer before pausing the channel, after which a new assertion
- * of DREQ# resumes channel operation.
+ * The Freescale DMA channel can be controlled by the external signal DREQ#.
+ * The DMA Request Count feature should be used in addition to this feature
+ * to set the number of bytes to transfer before pausing the channel.
  */
-static void fsl_chan_toggle_ext_pause(struct fsl_dma_chan *fsl_chan, int size)
+static void fsl_chan_toggle_ext_pause(struct fsl_dma_chan *fsl_chan, int enable)
 {
-	if (size > 1024)
-		return;
-
-	if (size) {
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
-				| ((__ilog2(size) << 24) & 0x0f000000),
-			32);
+	if (enable)
 		fsl_chan->feature |= FSL_DMA_CHAN_PAUSE_EXT;
-	} else
+	else
 		fsl_chan->feature &= ~FSL_DMA_CHAN_PAUSE_EXT;
 }
 
@@ -885,6 +897,7 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 		new_fsl_chan->toggle_ext_start = fsl_chan_toggle_ext_start;
 		new_fsl_chan->set_src_loop_size = fsl_chan_set_src_loop_size;
 		new_fsl_chan->set_dest_loop_size = fsl_chan_set_dest_loop_size;
+		new_fsl_chan->set_request_count = fsl_chan_set_request_count;
 	}
 
 	spin_lock_init(&new_fsl_chan->desc_lock);
