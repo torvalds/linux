@@ -70,13 +70,6 @@ struct ath_btcoex_info {
 	u32 bt_coex_mode; 	/* Register setting for AR_BT_COEX_MODE */
 	u32 bt_coex_weights; 	/* Register setting for AR_BT_COEX_WEIGHT */
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */
-	u32 btcoex_no_stomp;   /* in usec */
-	u32 btcoex_period;     	/* in usec */
-	u32 bt_priority_cnt;
-	unsigned long bt_priority_time;
-	bool hw_timer_enabled;
-	spinlock_t btcoex_lock;
-	struct timer_list period_timer;      /* Timer for BT period */
 	struct ath_gen_timer *no_stomp_timer; /*Timer for no BT stomping*/
 };
 
@@ -84,16 +77,15 @@ bool ath_btcoex_supported(u16 subsysid);
 int ath9k_hw_btcoex_init(struct ath_hw *ah);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
-void ath_btcoex_timer_resume(struct ath_softc *sc,
-			     struct ath_btcoex_info *btinfo);
-void ath_btcoex_timer_pause(struct ath_softc *sc,
-			    struct ath_btcoex_info *btinfo);
+
+void ath_btcoex_timer_resume(struct ath_softc *sc);
+void ath_btcoex_timer_pause(struct ath_softc *sc);
 
 static inline void ath_btcoex_set_weight(struct ath_btcoex_info *btcoex_info,
 					 u32 bt_weight,
 					 u32 wlan_weight)
 {
-	btcoex_info->bt_coex_weights = SM(bt_weight, AR_BTCOEX_BT_WGHT) |
+		btcoex_info->bt_coex_weights = SM(bt_weight, AR_BTCOEX_BT_WGHT) |
 				       SM(wlan_weight, AR_BTCOEX_WL_WGHT);
 }
 
