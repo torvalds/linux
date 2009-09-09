@@ -6423,9 +6423,9 @@ static struct hda_verb alc885_mbp_ch2_init[] = {
 };
 
 /*
- * 6ch mode
+ * 4ch mode
  */
-static struct hda_verb alc885_mbp_ch6_init[] = {
+static struct hda_verb alc885_mbp_ch4_init[] = {
 	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
@@ -6434,9 +6434,9 @@ static struct hda_verb alc885_mbp_ch6_init[] = {
 	{ } /* end */
 };
 
-static struct hda_channel_mode alc885_mbp_6ch_modes[2] = {
+static struct hda_channel_mode alc885_mbp_4ch_modes[2] = {
 	{ 2, alc885_mbp_ch2_init },
-	{ 6, alc885_mbp_ch6_init },
+	{ 4, alc885_mbp_ch4_init },
 };
 
 /*
@@ -6497,10 +6497,11 @@ static struct snd_kcontrol_new alc882_base_mixer[] = {
 };
 
 static struct snd_kcontrol_new alc885_mbp3_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x00, HDA_OUTPUT),
-	HDA_BIND_MUTE   ("Front Playback Switch", 0x0c, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE  ("Speaker Playback Switch", 0x14, 0x00, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Line-Out Playback Volume", 0x0d, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0c, 0x00, HDA_OUTPUT),
+	HDA_BIND_MUTE   ("Speaker Playback Switch", 0x0c, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0e, 0x00, HDA_OUTPUT),
+	HDA_BIND_MUTE   ("Headphone Playback Switch", 0x0e, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x00, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE  ("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x00, HDA_INPUT),
@@ -6814,14 +6815,18 @@ static struct hda_verb alc885_mbp3_init_verbs[] = {
 	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* HP mixer */
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Front Pin: output 0 (0x0c) */
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* HP Pin: output 0 (0x0d) */
+	/* HP Pin: output 0 (0x0e) */
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc4},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x02},
 	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 	/* Mic (rear) pin: input vref at 80% */
 	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
@@ -7195,10 +7200,11 @@ static struct alc_config_preset alc882_presets[] = {
 		.mixers = { alc885_mbp3_mixer, alc882_chmode_mixer },
 		.init_verbs = { alc885_mbp3_init_verbs,
 				alc880_gpio1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.num_dacs = 2,
 		.dac_nids = alc882_dac_nids,
-		.channel_mode = alc885_mbp_6ch_modes,
-		.num_channel_mode = ARRAY_SIZE(alc885_mbp_6ch_modes),
+		.hp_nid = 0x04,
+		.channel_mode = alc885_mbp_4ch_modes,
+		.num_channel_mode = ARRAY_SIZE(alc885_mbp_4ch_modes),
 		.input_mux = &alc882_capture_source,
 		.dig_out_nid = ALC882_DIGOUT_NID,
 		.dig_in_nid = ALC882_DIGIN_NID,

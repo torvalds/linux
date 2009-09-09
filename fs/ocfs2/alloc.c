@@ -6851,7 +6851,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	}
 	status = 0;
 bail:
-
+	brelse(last_eb_bh);
 	mlog_exit(status);
 	return status;
 }

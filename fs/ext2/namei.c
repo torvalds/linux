@@ -362,6 +362,10 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	if (dir_de) {
 		if (old_dir != new_dir)
 			ext2_set_link(old_inode, dir_de, dir_page, new_dir, 0);
+		else {
+			kunmap(dir_page);
+			page_cache_release(dir_page);
+		}
 		inode_dec_link_count(old_dir);
 	}
 	return 0;

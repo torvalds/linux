@@ -880,6 +880,14 @@ static unsigned int atkbd_hp_zv6100_forced_release_keys[] = {
 };
 
 /*
+ * Perform fixup for HP (Compaq) Presario R4000 R4100 R4200 that don't generate
+ * release for their volume buttons
+ */
+static unsigned int atkbd_hp_r4000_forced_release_keys[] = {
+	0xae, 0xb0, -1U
+};
+
+/*
  * Samsung NC10,NC20 with Fn+F? key release not working
  */
 static unsigned int atkbd_samsung_forced_release_keys[] = {
@@ -1535,6 +1543,33 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkbd_hp_zv6100_forced_release_keys,
+	},
+	{
+		.ident = "HP Presario R4000",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4000"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_r4000_forced_release_keys,
+	},
+	{
+		.ident = "HP Presario R4100",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4100"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_r4000_forced_release_keys,
+	},
+	{
+		.ident = "HP Presario R4200",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4200"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_r4000_forced_release_keys,
 	},
 	{
 		.ident = "Inventec Symphony",

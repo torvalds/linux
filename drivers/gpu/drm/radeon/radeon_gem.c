@@ -274,12 +274,18 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gobj->driver_private;
 	r = radeon_object_busy_domain(robj, &cur_placement);
-	if (cur_placement == TTM_PL_VRAM)
+	switch (cur_placement) {
+	case TTM_PL_VRAM:
 		args->domain = RADEON_GEM_DOMAIN_VRAM;
-	if (cur_placement == TTM_PL_FLAG_TT)
+		break;
+	case TTM_PL_TT:
 		args->domain = RADEON_GEM_DOMAIN_GTT;
-	if (cur_placement == TTM_PL_FLAG_SYSTEM)
+		break;
+	case TTM_PL_SYSTEM:
 		args->domain = RADEON_GEM_DOMAIN_CPU;
+	default:
+		break;
+	}
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);

@@ -50,7 +50,7 @@ static atomic_t nr_task_counters __read_mostly;
  *  1 - disallow cpu counters to unpriv
  *  2 - disallow kernel profiling to unpriv
  */
-int sysctl_perf_counter_paranoid __read_mostly;
+int sysctl_perf_counter_paranoid __read_mostly = 1;
 
 static inline bool perf_paranoid_cpu(void)
 {
@@ -1791,7 +1791,7 @@ static int perf_counter_read_group(struct perf_counter *counter,
 	size += err;
 
 	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-		err = perf_counter_read_entry(counter, read_format,
+		err = perf_counter_read_entry(sub, read_format,
 				buf + size);
 		if (err < 0)
 			return err;
@@ -4066,6 +4066,7 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	hwc->sample_period = attr->sample_period;
 	if (attr->freq && attr->sample_freq)
 		hwc->sample_period = 1;
+	hwc->last_period = hwc->sample_period;
 
 	atomic64_set(&hwc->period_left, hwc->sample_period);
 

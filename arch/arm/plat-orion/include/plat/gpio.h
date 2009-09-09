@@ -11,6 +11,8 @@
 #ifndef __PLAT_GPIO_H
 #define __PLAT_GPIO_H
 
+#include <linux/init.h>
+
 /*
  * GENERIC_GPIO primitives.
  */

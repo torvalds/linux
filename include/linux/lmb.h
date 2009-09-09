@@ -51,7 +51,7 @@ extern u64 __init lmb_alloc_base(u64 size,
 extern u64 __init __lmb_alloc_base(u64 size,
 		u64 align, u64 max_addr);
 extern u64 __init lmb_phys_mem_size(void);
-extern u64 __init lmb_end_of_DRAM(void);
+extern u64 lmb_end_of_DRAM(void);
 extern void __init lmb_enforce_memory_limit(u64 memory_limit);
 extern int __init lmb_is_reserved(u64 addr);
 extern int lmb_find(struct lmb_property *res);
