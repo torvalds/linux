@@ -20,6 +20,7 @@
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
 #include <linux/syscalls.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/sigcontext.h>
