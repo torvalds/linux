@@ -266,6 +266,10 @@ void radeon_register_accessor_init(struct radeon_device *rdev)
 		rdev->pll_rreg = &r100_pll_rreg;
 		rdev->pll_wreg = &r100_pll_wreg;
 	}
+	if (rdev->family >= CHIP_R420) {
+		rdev->mc_rreg = &r420_mc_rreg;
+		rdev->mc_wreg = &r420_mc_wreg;
+	}
 	if (rdev->family >= CHIP_RV515) {
 		rdev->mc_rreg = &rv515_mc_rreg;
 		rdev->mc_wreg = &rv515_mc_wreg;

@@ -29,6 +29,7 @@
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "r420d.h"
 
 /* r420,r423,rv410 depends on : */
 void r100_pci_gart_disable(struct radeon_device *rdev);
@@ -231,4 +232,20 @@ int r420_debugfs_pipes_info_init(struct radeon_device *rdev)
 #else
 	return 0;
 #endif
+}
+
+u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg)
+{
+	u32 r;
+
+	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg));
+	r = RREG32(R_0001FC_MC_IND_DATA);
+	return r;
+}
+
+void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	WREG32(R_0001F8_MC_IND_INDEX, S_0001F8_MC_IND_ADDR(reg) |
+		S_0001F8_MC_IND_WR_EN(1));
+	WREG32(R_0001FC_MC_IND_DATA, v);
 }

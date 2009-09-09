@@ -936,4 +936,8 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 void r100_cp_disable(struct radeon_device *rdev);
 
+/* r420,r423,rv410 */
+u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
+void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+
 #endif
