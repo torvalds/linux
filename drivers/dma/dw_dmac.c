@@ -212,16 +212,25 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	list_splice_init(&desc->tx_list, &dwc->free_list);
 	list_move(&desc->desc_node, &dwc->free_list);
 
-	/*
-	 * We use dma_unmap_page() regardless of how the buffers were
-	 * mapped before they were submitted...
-	 */
-	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP))
-		dma_unmap_page(chan2parent(&dwc->chan), desc->lli.dar,
-			       desc->len, DMA_FROM_DEVICE);
-	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP))
-		dma_unmap_page(chan2parent(&dwc->chan), desc->lli.sar,
-			       desc->len, DMA_TO_DEVICE);
+	if (!dwc->chan.private) {
+		struct device *parent = chan2parent(&dwc->chan);
+		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+				dma_unmap_single(parent, desc->lli.dar,
+						desc->len, DMA_FROM_DEVICE);
+			else
+				dma_unmap_page(parent, desc->lli.dar,
+						desc->len, DMA_FROM_DEVICE);
+		}
+		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+				dma_unmap_single(parent, desc->lli.sar,
+						desc->len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(parent, desc->lli.sar,
+						desc->len, DMA_TO_DEVICE);
+		}
+	}
 
 	/*
 	 * The API requires that no submissions are done from a
@@ -657,8 +666,6 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	reg_width = dws->reg_width;
 	prev = first = NULL;
-
-	sg_len = dma_map_sg(chan2parent(chan), sgl, sg_len, direction);
 
 	switch (direction) {
 	case DMA_TO_DEVICE:

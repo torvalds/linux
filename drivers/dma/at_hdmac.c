@@ -253,25 +253,28 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	list_move(&desc->desc_node, &atchan->free_list);
 
 	/* unmap dma addresses */
-	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			dma_unmap_single(chan2parent(&atchan->chan_common),
-					desc->lli.daddr,
-					desc->len, DMA_FROM_DEVICE);
-		else
-			dma_unmap_page(chan2parent(&atchan->chan_common),
-					desc->lli.daddr,
-					desc->len, DMA_FROM_DEVICE);
-	}
-	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			dma_unmap_single(chan2parent(&atchan->chan_common),
-					desc->lli.saddr,
-					desc->len, DMA_TO_DEVICE);
-		else
-			dma_unmap_page(chan2parent(&atchan->chan_common),
-					desc->lli.saddr,
-					desc->len, DMA_TO_DEVICE);
+	if (!atchan->chan_common.private) {
+		struct device *parent = chan2parent(&atchan->chan_common);
+		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+				dma_unmap_single(parent,
+						desc->lli.daddr,
+						desc->len, DMA_FROM_DEVICE);
+			else
+				dma_unmap_page(parent,
+						desc->lli.daddr,
+						desc->len, DMA_FROM_DEVICE);
+		}
+		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+				dma_unmap_single(parent,
+						desc->lli.saddr,
+						desc->len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(parent,
+						desc->lli.saddr,
+						desc->len, DMA_TO_DEVICE);
+		}
 	}
 
 	/*
@@ -646,8 +649,6 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	}
 
 	reg_width = atslave->reg_width;
-
-	sg_len = dma_map_sg(chan2parent(chan), sgl, sg_len, direction);
 
 	ctrla = ATC_DEFAULT_CTRLA | atslave->ctrla;
 	ctrlb = ATC_DEFAULT_CTRLB | ATC_IEN;
