@@ -119,7 +119,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->bus_ops = &ath_ahb_bus_ops;
 	sc->irq = irq;
 
-	ret = ath_init_device(AR5416_AR9100_DEVID, sc);
+	ret = ath_init_device(AR5416_AR9100_DEVID, sc, 0x0);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize device\n");
 		goto err_free_hw;

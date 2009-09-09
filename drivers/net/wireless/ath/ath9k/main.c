@@ -1310,7 +1310,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
  * to allow the separation between hardware specific
  * variables (now in ath_hw) and driver specific variables.
  */
-static int ath_init_softc(u16 devid, struct ath_softc *sc)
+static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 {
 	struct ath_hw *ah = NULL;
 	int r = 0, i;
@@ -1348,6 +1348,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 
 	ah->ah_sc = sc;
 	ah->hw_version.devid = devid;
+	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
 
 	r = ath9k_hw_init(ah);
@@ -1577,7 +1578,7 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 }
 
 /* Device driver core initialization */
-int ath_init_device(u16 devid, struct ath_softc *sc)
+int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	int error = 0, i;
@@ -1585,7 +1586,7 @@ int ath_init_device(u16 devid, struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
 
-	error = ath_init_softc(devid, sc);
+	error = ath_init_softc(devid, sc, subsysid);
 	if (error != 0)
 		return error;
 

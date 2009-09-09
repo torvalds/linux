@@ -390,6 +390,7 @@ struct ath9k_hw_version {
 	u16 phyRev;
 	u16 analog5GhzRev;
 	u16 analog2GhzRev;
+	u16 subsysid;
 };
 
 /* Generic TSF timer definitions */

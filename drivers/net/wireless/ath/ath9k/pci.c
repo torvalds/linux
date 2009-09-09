@@ -88,6 +88,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
 	u8 csz;
+	u16 subsysid;
 	u32 val;
 	int ret = 0;
 	struct ath_hw *ah;
@@ -178,7 +179,8 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->mem = mem;
 	sc->bus_ops = &ath_pci_bus_ops;
 
-	ret = ath_init_device(id->device, sc);
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsysid);
+	ret = ath_init_device(id->device, sc, subsysid);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize device\n");
 		goto bad3;
