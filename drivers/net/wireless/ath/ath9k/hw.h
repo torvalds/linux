@@ -555,7 +555,7 @@ struct ath_hw {
 	enum ath9k_ani_cmd ani_function;
 
 	/* Bluetooth coexistance */
-	struct ath_btcoex_info btcoex_info;
+	struct ath_btcoex_hw btcoex_hw;
 
 	u32 intr_txqs;
 	enum ath9k_ht_extprotspacing extprotspacing;

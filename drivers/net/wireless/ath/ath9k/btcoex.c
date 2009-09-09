@@ -43,13 +43,13 @@ bool ath_btcoex_supported(u16 subsysid)
 	return false;
 }
 
-void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum)
+void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 	u32 i;
 
-	btcoex_info->bt_coex_mode =
-		(btcoex_info->bt_coex_mode & AR_BT_QCU_THRESH) |
+	btcoex_hw->bt_coex_mode =
+		(btcoex_hw->bt_coex_mode & AR_BT_QCU_THRESH) |
 		SM(ath_bt_config.bt_time_extend, AR_BT_TIME_EXTEND) |
 		SM(ath_bt_config.bt_txstate_extend, AR_BT_TXSTATE_EXTEND) |
 		SM(ath_bt_config.bt_txframe_extend, AR_BT_TX_FRAME_EXTEND) |
@@ -60,7 +60,7 @@ void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum)
 		SM(ath_bt_config.bt_first_slot_time, AR_BT_FIRST_SLOT_TIME) |
 		SM(qnum, AR_BT_QCU_THRESH);
 
-	btcoex_info->bt_coex_mode2 =
+	btcoex_hw->bt_coex_mode2 =
 		SM(ath_bt_config.bt_hold_rx_clear, AR_BT_HOLD_RX_CLEAR) |
 		SM(ATH_BTCOEX_BMISS_THRESH, AR_BT_BCN_MISS_THRESH) |
 		AR_BT_DISABLE_BT_ANT;
@@ -71,7 +71,7 @@ void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum)
 
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/* connect bt_active to baseband */
 	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
@@ -84,15 +84,15 @@ void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 	/* Set input mux for bt_active to gpio pin */
 	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
 		      AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-		      btcoex_info->btactive_gpio);
+		      btcoex_hw->btactive_gpio);
 
 	/* Configure the desired gpio port for input */
-	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
+	ath9k_hw_cfg_gpio_input(ah, btcoex_hw->btactive_gpio);
 }
 
 void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/* btcoex 3-wire */
 	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
@@ -103,51 +103,51 @@ void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 	 *                  bt_active_async to GPIO pins */
 	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
 			AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-			btcoex_info->btactive_gpio);
+			btcoex_hw->btactive_gpio);
 
 	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
 			AR_GPIO_INPUT_MUX1_BT_PRIORITY,
-			btcoex_info->btpriority_gpio);
+			btcoex_hw->btpriority_gpio);
 
 	/* Configure the desired GPIO ports for input */
 
-	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
-	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btpriority_gpio);
+	ath9k_hw_cfg_gpio_input(ah, btcoex_hw->btactive_gpio);
+	ath9k_hw_cfg_gpio_input(ah, btcoex_hw->btpriority_gpio);
 }
 
 static void ath9k_hw_btcoex_enable_2wire(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/* Configure the desired GPIO port for TX_FRAME output */
-	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
+	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
 			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
 }
 
 static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/*
 	 * Program coex mode and weight registers to
 	 * enable coex 3-wire
 	 */
-	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex_info->bt_coex_mode);
-	REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_info->bt_coex_weights);
-	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex_info->bt_coex_mode2);
+	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex_hw->bt_coex_mode);
+	REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_hw->bt_coex_weights);
+	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex_hw->bt_coex_mode2);
 
 	REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
 	REG_RMW_FIELD(ah, AR_PCU_MISC, AR_PCU_BT_ANT_PREVENT_RX, 0);
 
-	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
+	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
 			    AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL);
 }
 
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
-	switch (btcoex_info->scheme) {
+	switch (btcoex_hw->scheme) {
 	case ATH_BTCOEX_CFG_NONE:
 		break;
 	case ATH_BTCOEX_CFG_2WIRE:
@@ -159,26 +159,26 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 	}
 
 	REG_RMW(ah, AR_GPIO_PDPU,
-		(0x2 << (btcoex_info->btactive_gpio * 2)),
-		(0x3 << (btcoex_info->btactive_gpio * 2)));
+		(0x2 << (btcoex_hw->btactive_gpio * 2)),
+		(0x3 << (btcoex_hw->btactive_gpio * 2)));
 
-	ah->btcoex_info.enabled = true;
+	ah->btcoex_hw.enabled = true;
 }
 
 void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 {
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
-	ath9k_hw_set_gpio(ah, btcoex_info->wlanactive_gpio, 0);
+	ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
 
-	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
+	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
 			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 
-	if (btcoex_info->scheme == ATH_BTCOEX_CFG_3WIRE) {
+	if (btcoex_hw->scheme == ATH_BTCOEX_CFG_3WIRE) {
 		REG_WRITE(ah, AR_BT_COEX_MODE, AR_BT_QUIET | AR_BT_MODE);
 		REG_WRITE(ah, AR_BT_COEX_WEIGHT, 0);
 		REG_WRITE(ah, AR_BT_COEX_MODE2, 0);
 	}
 
-	ah->btcoex_info.enabled = false;
+	ah->btcoex_hw.enabled = false;
 }

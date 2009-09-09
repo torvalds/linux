@@ -55,7 +55,7 @@ struct ath_btcoex_config {
 	bool bt_hold_rx_clear;
 };
 
-struct ath_btcoex_info {
+struct ath_btcoex_hw {
 	enum ath_btcoex_scheme scheme;
 	bool enabled;
 	u8 wlanactive_gpio;
@@ -69,7 +69,7 @@ struct ath_btcoex_info {
 bool ath_btcoex_supported(u16 subsysid);
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah);
-void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum);
+void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
 
