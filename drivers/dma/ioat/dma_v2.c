@@ -710,6 +710,7 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 	desc->txd.flags = flags;
 	desc->len = total_len;
 	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
+	hw->ctl_f.fence = !!(flags & DMA_PREP_FENCE);
 	hw->ctl_f.compl_write = 1;
 	dump_desc_dbg(ioat, desc);
 	/* we leave the channel locked to ensure in order submission */
