@@ -28,6 +28,7 @@
 #include <linux/netdevice.h>
 #include <linux/phonet.h>
 #include <linux/proc_fs.h>
+#include <linux/if_arp.h>
 #include <net/sock.h>
 #include <net/netns/generic.h>
 #include <net/phonet/pn_dev.h>
@@ -195,14 +196,37 @@ found:
 	return err;
 }
 
+/* automatically configure a Phonet device, if supported */
+static int phonet_device_autoconf(struct net_device *dev)
+{
+	struct if_phonet_req req;
+	int ret;
+
+	if (!dev->netdev_ops->ndo_do_ioctl)
+		return -EOPNOTSUPP;
+
+	ret = dev->netdev_ops->ndo_do_ioctl(dev, (struct ifreq *)&req,
+						SIOCPNGAUTOCONF);
+	if (ret < 0)
+		return ret;
+	return phonet_address_add(dev, req.ifr_phonet_autoconf.device);
+}
+
 /* notify Phonet of device events */
 static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 				void *arg)
 {
 	struct net_device *dev = arg;
 
-	if (what == NETDEV_UNREGISTER)
+	switch (what) {
+	case NETDEV_REGISTER:
+		if (dev->type == ARPHRD_PHONET)
+			phonet_device_autoconf(dev);
+		break;
+	case NETDEV_UNREGISTER:
 		phonet_device_destroy(dev);
+		break;
+	}
 	return 0;
 
 }
