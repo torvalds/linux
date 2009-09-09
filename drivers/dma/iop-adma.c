@@ -370,7 +370,7 @@ retry:
 			}
 			alloc_tail->group_head = alloc_start;
 			alloc_tail->async_tx.cookie = -EBUSY;
-			list_splice(&chain, &alloc_tail->async_tx.tx_list);
+			list_splice(&chain, &alloc_tail->tx_list);
 			iop_chan->last_used = last_used;
 			iop_desc_clear_next_desc(alloc_start);
 			iop_desc_clear_next_desc(alloc_tail);
@@ -429,7 +429,7 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	old_chain_tail = list_entry(iop_chan->chain.prev,
 		struct iop_adma_desc_slot, chain_node);
-	list_splice_init(&sw_desc->async_tx.tx_list,
+	list_splice_init(&sw_desc->tx_list,
 			 &old_chain_tail->chain_node);
 
 	/* fix up the hardware chain */
@@ -496,6 +496,7 @@ static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 
 		dma_async_tx_descriptor_init(&slot->async_tx, chan);
 		slot->async_tx.tx_submit = iop_adma_tx_submit;
+		INIT_LIST_HEAD(&slot->tx_list);
 		INIT_LIST_HEAD(&slot->chain_node);
 		INIT_LIST_HEAD(&slot->slot_node);
 		hw_desc = (char *) iop_chan->device->dma_desc_pool;
@@ -1296,7 +1297,7 @@ static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan)
 	if (sw_desc) {
 		grp_start = sw_desc->group_head;
 
-		list_splice_init(&sw_desc->async_tx.tx_list, &iop_chan->chain);
+		list_splice_init(&sw_desc->tx_list, &iop_chan->chain);
 		async_tx_ack(&sw_desc->async_tx);
 		iop_desc_init_memcpy(grp_start, 0);
 		iop_desc_set_byte_count(grp_start, iop_chan, 0);
@@ -1352,7 +1353,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 	sw_desc = iop_adma_alloc_slots(iop_chan, slot_cnt, slots_per_op);
 	if (sw_desc) {
 		grp_start = sw_desc->group_head;
-		list_splice_init(&sw_desc->async_tx.tx_list, &iop_chan->chain);
+		list_splice_init(&sw_desc->tx_list, &iop_chan->chain);
 		async_tx_ack(&sw_desc->async_tx);
 		iop_desc_init_null_xor(grp_start, 2, 0);
 		iop_desc_set_byte_count(grp_start, iop_chan, 0);
