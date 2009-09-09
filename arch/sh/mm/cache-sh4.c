@@ -46,7 +46,6 @@ static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
 static void sh4_flush_icache_range(void *args)
 {
 	struct flusher_data *data = args;
-	int icacheaddr;
 	unsigned long start, end;
 	unsigned long flags, v;
 	int i;
@@ -54,36 +53,40 @@ static void sh4_flush_icache_range(void *args)
 	start = data->addr1;
 	end = data->addr2;
 
-       /* If there are too many pages then just blow the caches */
-        if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
-                local_flush_cache_all(args);
-       } else {
-               /* selectively flush d-cache then invalidate the i-cache */
-               /* this is inefficient, so only use for small ranges */
-               start &= ~(L1_CACHE_BYTES-1);
-               end += L1_CACHE_BYTES-1;
-               end &= ~(L1_CACHE_BYTES-1);
-
-               local_irq_save(flags);
-               jump_to_uncached();
-
-               for (v = start; v < end; v+=L1_CACHE_BYTES) {
-                       asm volatile("ocbwb     %0"
-                                    : /* no output */
-                                    : "m" (__m(v)));
-
-                       icacheaddr = CACHE_IC_ADDRESS_ARRAY | (
-                                       v & cpu_data->icache.entry_mask);
-
-                       for (i = 0; i < cpu_data->icache.ways;
-                               i++, icacheaddr += cpu_data->icache.way_incr)
-                                       /* Clear i-cache line valid-bit */
-                                       ctrl_outl(0, icacheaddr);
-               }
-
-		back_to_cached();
-		local_irq_restore(flags);
+	/* If there are too many pages then just blow away the caches */
+	if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
+		local_flush_cache_all(NULL);
+		return;
 	}
+
+	/*
+	 * Selectively flush d-cache then invalidate the i-cache.
+	 * This is inefficient, so only use this for small ranges.
+	 */
+	start &= ~(L1_CACHE_BYTES-1);
+	end += L1_CACHE_BYTES-1;
+	end &= ~(L1_CACHE_BYTES-1);
+
+	local_irq_save(flags);
+	jump_to_uncached();
+
+	for (v = start; v < end; v += L1_CACHE_BYTES) {
+		unsigned long icacheaddr;
+
+		__ocbwb(v);
+
+		icacheaddr = CACHE_IC_ADDRESS_ARRAY | (v &
+				cpu_data->icache.entry_mask);
+
+		/* Clear i-cache line valid-bit */
+		for (i = 0; i < cpu_data->icache.ways; i++) {
+			__raw_writel(0, icacheaddr);
+			icacheaddr += cpu_data->icache.way_incr;
+		}
+	}
+
+	back_to_cached();
+	local_irq_restore(flags);
 }
 
 static inline void flush_cache_4096(unsigned long start,
