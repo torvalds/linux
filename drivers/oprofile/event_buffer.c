@@ -41,6 +41,12 @@ static atomic_t buffer_ready = ATOMIC_INIT(0);
  */
 void add_event_entry(unsigned long value)
 {
+	/*
+	 * catch potential error
+	 */
+	if (!event_buffer)
+		return;
+
 	if (buffer_pos == buffer_size) {
 		atomic_inc(&oprofile_stats.event_lost_overflow);
 		return;
@@ -92,9 +98,10 @@ out:
 
 void free_event_buffer(void)
 {
+	mutex_lock(&buffer_mutex);
 	vfree(event_buffer);
-
 	event_buffer = NULL;
+	mutex_unlock(&buffer_mutex);
 }
 
 
@@ -166,6 +173,11 @@ static ssize_t event_buffer_read(struct file *file, char __user *buf,
 		return -EAGAIN;
 
 	mutex_lock(&buffer_mutex);
+
+	if (!event_buffer) {
+		retval = -EINTR;
+		goto out;
+	}
 
 	atomic_set(&buffer_ready, 0);
 
