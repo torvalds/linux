@@ -319,6 +319,9 @@ int r100_irq_process(struct radeon_device *rdev)
 	if (!status) {
 		return IRQ_NONE;
 	}
+	if (rdev->shutdown) {
+		return IRQ_NONE;
+	}
 	while (status) {
 		/* SW interrupt */
 		if (status & RADEON_SW_INT_TEST) {
