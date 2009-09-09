@@ -1281,7 +1281,6 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* setup board info structure */
 	db = netdev_priv(ndev);
-	memset(db, 0, sizeof(*db));
 
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
