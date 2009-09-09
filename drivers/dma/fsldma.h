@@ -90,6 +90,7 @@ struct fsl_dma_ld_hw {
 struct fsl_desc_sw {
 	struct fsl_dma_ld_hw hw;
 	struct list_head node;
+	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
 	struct list_head *ld;
 	void *priv;

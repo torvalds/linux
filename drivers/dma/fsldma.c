@@ -326,7 +326,8 @@ static void fsl_chan_toggle_ext_start(struct fsl_dma_chan *fsl_chan, int enable)
 static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct fsl_dma_chan *fsl_chan = to_fsl_chan(tx->chan);
-	struct fsl_desc_sw *desc;
+	struct fsl_desc_sw *desc = tx_to_fsl_desc(tx);
+	struct fsl_desc_sw *child;
 	unsigned long flags;
 	dma_cookie_t cookie;
 
@@ -334,7 +335,7 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&fsl_chan->desc_lock, flags);
 
 	cookie = fsl_chan->common.cookie;
-	list_for_each_entry(desc, &tx->tx_list, node) {
+	list_for_each_entry(child, &desc->tx_list, node) {
 		cookie++;
 		if (cookie < 0)
 			cookie = 1;
@@ -343,8 +344,8 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	fsl_chan->common.cookie = cookie;
-	append_ld_queue(fsl_chan, tx_to_fsl_desc(tx));
-	list_splice_init(&tx->tx_list, fsl_chan->ld_queue.prev);
+	append_ld_queue(fsl_chan, desc);
+	list_splice_init(&desc->tx_list, fsl_chan->ld_queue.prev);
 
 	spin_unlock_irqrestore(&fsl_chan->desc_lock, flags);
 
@@ -366,6 +367,7 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
 	desc_sw = dma_pool_alloc(fsl_chan->desc_pool, GFP_ATOMIC, &pdesc);
 	if (desc_sw) {
 		memset(desc_sw, 0, sizeof(struct fsl_desc_sw));
+		INIT_LIST_HEAD(&desc_sw->tx_list);
 		dma_async_tx_descriptor_init(&desc_sw->async_tx,
 						&fsl_chan->common);
 		desc_sw->async_tx.tx_submit = fsl_dma_tx_submit;
@@ -455,7 +457,7 @@ fsl_dma_prep_interrupt(struct dma_chan *chan, unsigned long flags)
 	new->async_tx.flags = flags;
 
 	/* Insert the link descriptor to the LD ring */
-	list_add_tail(&new->node, &new->async_tx.tx_list);
+	list_add_tail(&new->node, &new->tx_list);
 
 	/* Set End-of-link to the last link descriptor of new list*/
 	set_ld_eol(fsl_chan, new);
@@ -513,7 +515,7 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
 		dma_dest += copy;
 
 		/* Insert the link descriptor to the LD ring */
-		list_add_tail(&new->node, &first->async_tx.tx_list);
+		list_add_tail(&new->node, &first->tx_list);
 	} while (len);
 
 	new->async_tx.flags = flags; /* client is in control of this ack */
@@ -528,7 +530,7 @@ fail:
 	if (!first)
 		return NULL;
 
-	list = &first->async_tx.tx_list;
+	list = &first->tx_list;
 	list_for_each_entry_safe_reverse(new, prev, list, node) {
 		list_del(&new->node);
 		dma_pool_free(fsl_chan->desc_pool, new, new->async_tx.phys);
