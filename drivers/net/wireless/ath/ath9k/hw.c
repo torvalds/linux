@@ -21,10 +21,6 @@
 #include "ath9k.h"
 #include "initvals.h"
 
-static int btcoex_enable;
-module_param(btcoex_enable, bool, 0);
-MODULE_PARM_DESC(btcoex_enable, "Enable Bluetooth coexistence support");
-
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
