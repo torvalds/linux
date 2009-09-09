@@ -283,10 +283,8 @@ static int sh_rtc_irq_set_freq(struct device *dev, int freq)
 		ret = -ENOTSUPP;
 	}
 
-	if (ret == 0) {
+	if (ret == 0)
 		rtc->periodic_freq |= tmp;
-		rtc->rtc_dev->irq_freq = freq;
-	}
 
 	spin_unlock_irq(&rtc->lock);
 	return ret;
