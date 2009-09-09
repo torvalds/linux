@@ -225,48 +225,61 @@ static int ath_init_btcoex_info(struct ath_hw *ah,
 	return 0;
 }
 
+static void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
+{
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+
+	/* connect bt_active to baseband */
+	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+		    (AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF |
+		     AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF));
+
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+		    AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB);
+
+	/* Set input mux for bt_active to gpio pin */
+	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+		      AR_GPIO_INPUT_MUX1_BT_ACTIVE,
+		      btcoex_info->btactive_gpio);
+
+	/* Configure the desired gpio port for input */
+	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
+}
+
+static void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
+{
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+
+	/* btcoex 3-wire */
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+			(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB |
+			 AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB));
+
+	/* Set input mux for bt_prority_async and
+	 *                  bt_active_async to GPIO pins */
+	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+			AR_GPIO_INPUT_MUX1_BT_ACTIVE,
+			btcoex_info->btactive_gpio);
+
+	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+			AR_GPIO_INPUT_MUX1_BT_PRIORITY,
+			btcoex_info->btpriority_gpio);
+
+	/* Configure the desired GPIO ports for input */
+
+	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
+	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btpriority_gpio);
+}
+
 int ath9k_hw_btcoex_init(struct ath_hw *ah)
 {
 	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 	int ret = 0;
 
-	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) {
-		/* connect bt_active to baseband */
-		REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-				(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF |
-				 AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF));
-
-		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-				AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB);
-
-		/* Set input mux for bt_active to gpio pin */
-		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
-				AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-				btcoex_info->btactive_gpio);
-
-		/* Configure the desired gpio port for input */
-		ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
-	} else {
-		/* btcoex 3-wire */
-		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-				(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB |
-				 AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB));
-
-		/* Set input mux for bt_prority_async and
-		 *                  bt_active_async to GPIO pins */
-		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
-				AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-				btcoex_info->btactive_gpio);
-
-		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
-				AR_GPIO_INPUT_MUX1_BT_PRIORITY,
-				btcoex_info->btpriority_gpio);
-
-		/* Configure the desired GPIO ports for input */
-
-		ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
-		ath9k_hw_cfg_gpio_input(ah, btcoex_info->btpriority_gpio);
-
+	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_2WIRE)
+		ath9k_hw_btcoex_init_2wire(ah);
+	else {
+		ath9k_hw_btcoex_init_3wire(ah);
 		ret = ath_init_btcoex_info(ah, btcoex_info);
 	}
 
