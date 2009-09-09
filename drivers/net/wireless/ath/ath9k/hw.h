@@ -45,6 +45,10 @@
 #define AR5416_DEVID_AR9287_PCI  0x002D
 #define AR5416_DEVID_AR9287_PCIE 0x002E
 
+#define AR9280_COEX2WIRE_SUBSYSID	0x309b
+#define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
+#define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
+
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) ath9k_iowrite32((_ah), (_reg), (_val))
 #define REG_READ(_ah, _reg) ath9k_ioread32((_ah), (_reg))
