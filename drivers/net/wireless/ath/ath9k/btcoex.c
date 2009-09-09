@@ -147,7 +147,7 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
 	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
-	switch (btcoex_info->btcoex_scheme) {
+	switch (btcoex_info->scheme) {
 	case ATH_BTCOEX_CFG_NONE:
 		break;
 	case ATH_BTCOEX_CFG_2WIRE:
@@ -174,7 +174,7 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
 			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 
-	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_3WIRE) {
+	if (btcoex_info->scheme == ATH_BTCOEX_CFG_3WIRE) {
 		REG_WRITE(ah, AR_BT_COEX_MODE, AR_BT_QUIET | AR_BT_MODE);
 		REG_WRITE(ah, AR_BT_COEX_WEIGHT, 0);
 		REG_WRITE(ah, AR_BT_COEX_MODE2, 0);

@@ -3733,13 +3733,13 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		btcoex_info->wlanactive_gpio = ATH_WLANACTIVE_GPIO;
 
 		if (AR_SREV_9285(ah)) {
-			btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_3WIRE;
+			btcoex_info->scheme = ATH_BTCOEX_CFG_3WIRE;
 			btcoex_info->btpriority_gpio = ATH_BTPRIORITY_GPIO;
 		} else {
-			btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_2WIRE;
+			btcoex_info->scheme = ATH_BTCOEX_CFG_2WIRE;
 		}
 	} else {
-		btcoex_info->btcoex_scheme = ATH_BTCOEX_CFG_NONE;
+		btcoex_info->scheme = ATH_BTCOEX_CFG_NONE;
 	}
 }
 

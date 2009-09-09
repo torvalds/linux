@@ -56,7 +56,7 @@ struct ath_btcoex_config {
 };
 
 struct ath_btcoex_info {
-	enum ath_btcoex_scheme btcoex_scheme;
+	enum ath_btcoex_scheme scheme;
 	bool enabled;
 	u8 wlanactive_gpio;
 	u8 btactive_gpio;

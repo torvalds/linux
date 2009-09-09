@@ -443,7 +443,7 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 	struct ath_hw *ah = sc->sc_ah;
 
 	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
-	    (ah->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE)) {
+	    (ah->btcoex_info.scheme != ATH_BTCOEX_CFG_NONE)) {
 		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
 		sc->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
 	} else {
@@ -511,7 +511,7 @@ static void ath9k_tasklet(unsigned long data)
 		sc->sc_flags |= SC_OP_WAIT_FOR_BEACON | SC_OP_BEACON_SYNC;
 	}
 
-	if (ah->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+	if (ah->btcoex_info.scheme == ATH_BTCOEX_CFG_3WIRE)
 		if (status & ATH9K_INT_GENTIMER)
 			ath_gen_timer_isr(sc->sc_ah);
 
@@ -1287,7 +1287,7 @@ void ath_detach(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	if ((sc->btcoex.no_stomp_timer) &&
-	    ah->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+	    ah->btcoex_info.scheme == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(ah, sc->btcoex.no_stomp_timer);
 
 	ath9k_hw_detach(ah);
@@ -1674,7 +1674,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 			ARRAY_SIZE(ath9k_5ghz_chantable);
 	}
 
-	switch (ah->btcoex_info.btcoex_scheme) {
+	switch (ah->btcoex_info.scheme) {
 	case ATH_BTCOEX_CFG_NONE:
 		break;
 	case ATH_BTCOEX_CFG_2WIRE:
@@ -2199,13 +2199,13 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
-	if ((ah->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) &&
+	if ((ah->btcoex_info.scheme != ATH_BTCOEX_CFG_NONE) &&
 	    !ah->btcoex_info.enabled) {
 		ath9k_hw_btcoex_init_weight(ah);
 		ath9k_hw_btcoex_enable(ah);
 
 		ath_pcie_aspm_disable(sc);
-		if (ah->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+		if (ah->btcoex_info.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_resume(sc);
 	}
 
@@ -2361,7 +2361,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	if (ah->btcoex_info.enabled) {
 		ath9k_hw_btcoex_disable(ah);
-		if (ah->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+		if (ah->btcoex_info.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_pause(sc);
 	}
 
