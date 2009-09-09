@@ -62,7 +62,6 @@ static struct pci_device_id ioat_pci_tbl[] = {
 
 struct ioat_device {
 	struct pci_dev		*pdev;
-	void __iomem		*iobase;
 	struct ioatdma_device	*dma;
 	struct dca_provider	*dca;
 };
@@ -75,8 +74,10 @@ static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
 MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
 
+#define DRV_NAME "ioatdma"
+
 static struct pci_driver ioat_pci_driver = {
-	.name		= "ioatdma",
+	.name		= DRV_NAME,
 	.id_table	= ioat_pci_tbl,
 	.probe		= ioat_probe,
 	.remove		= __devexit_p(ioat_remove),
@@ -85,47 +86,42 @@ static struct pci_driver ioat_pci_driver = {
 static int __devinit ioat_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
+	void __iomem * const *iomap;
 	void __iomem *iobase;
+	struct device *dev = &pdev->dev;
 	struct ioat_device *device;
-	unsigned long mmio_start, mmio_len;
 	int err;
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err)
-		goto err_enable_device;
+		return err;
 
-	err = pci_request_regions(pdev, ioat_pci_driver.name);
+	err = pcim_iomap_regions(pdev, 1 << IOAT_MMIO_BAR, DRV_NAME);
 	if (err)
-		goto err_request_regions;
+		return err;
+	iomap = pcim_iomap_table(pdev);
+	if (!iomap)
+		return -ENOMEM;
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err)
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err)
-		goto err_set_dma_mask;
+		return err;
 
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err)
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err)
-		goto err_set_dma_mask;
+		return err;
 
-	mmio_start = pci_resource_start(pdev, 0);
-	mmio_len = pci_resource_len(pdev, 0);
-	iobase = ioremap(mmio_start, mmio_len);
-	if (!iobase) {
-		err = -ENOMEM;
-		goto err_ioremap;
-	}
+	device = devm_kzalloc(dev, sizeof(*device), GFP_KERNEL);
+	if (!device)
+		return -ENOMEM;
 
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
-	if (!device) {
-		err = -ENOMEM;
-		goto err_kzalloc;
-	}
 	device->pdev = pdev;
 	pci_set_drvdata(pdev, device);
-	device->iobase = iobase;
+	iobase = iomap[IOAT_MMIO_BAR];
 
 	pci_set_master(pdev);
 
@@ -146,28 +142,15 @@ static int __devinit ioat_probe(struct pci_dev *pdev,
 			device->dca = ioat3_dca_init(pdev, iobase);
 		break;
 	default:
-		err = -ENODEV;
-		break;
+		return -ENODEV;
 	}
-	if (!device->dma)
-		err = -ENODEV;
 
-	if (err)
-		goto err_version;
+	if (!device->dma) {
+		dev_err(dev, "Intel(R) I/OAT DMA Engine init failed\n");
+		return -ENODEV;
+	}
 
 	return 0;
-
-err_version:
-	kfree(device);
-err_kzalloc:
-	iounmap(iobase);
-err_ioremap:
-err_set_dma_mask:
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-err_request_regions:
-err_enable_device:
-	return err;
 }
 
 static void __devexit ioat_remove(struct pci_dev *pdev)
@@ -185,8 +168,6 @@ static void __devexit ioat_remove(struct pci_dev *pdev)
 		ioat_dma_remove(device->dma);
 		device->dma = NULL;
 	}
-
-	kfree(device);
 }
 
 static int __init ioat_init_module(void)

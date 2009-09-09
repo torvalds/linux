@@ -31,14 +31,6 @@
 
 #define IOAT_DMA_VERSION  "3.64"
 
-enum ioat_interrupt {
-	none = 0,
-	msix_multi_vector = 1,
-	msix_single_vector = 2,
-	msi = 3,
-	intx = 4,
-};
-
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 #define IOAT_DMA_DCA_ANY_CPU		~0
 #define IOAT_WATCHDOG_PERIOD		(2 * HZ)
@@ -59,7 +51,6 @@ enum ioat_interrupt {
  */
 #define NULL_DESC_BUFFER_SIZE 1
 
-
 /**
  * struct ioatdma_device - internal representation of a IOAT device
  * @pdev: PCI-Express device
@@ -67,7 +58,6 @@ enum ioat_interrupt {
  * @dma_pool: for allocating DMA descriptors
  * @common: embedded struct dma_device
  * @version: version of ioatdma device
- * @irq_mode: which style irq to use
  * @msix_entries: irq handlers
  * @idx: per channel data
  */
@@ -79,7 +69,6 @@ struct ioatdma_device {
 	struct pci_pool *completion_pool;
 	struct dma_device common;
 	u8 version;
-	enum ioat_interrupt irq_mode;
 	struct delayed_work work;
 	struct msix_entry msix_entries[4];
 	struct ioat_dma_chan *idx[4];

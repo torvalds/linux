@@ -23,6 +23,7 @@
 
 /* PCI Configuration Space Values */
 #define IOAT_PCI_VID            0x8086
+#define IOAT_MMIO_BAR		0
 
 /* CB device ID's */
 #define IOAT_PCI_DID_5000       0x1A38
