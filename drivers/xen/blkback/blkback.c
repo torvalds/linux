@@ -615,7 +615,6 @@ static int __init blkif_init(void)
 {
 	int i, mmap_pages;
 
-	printk(KERN_CRIT "***blkif_init\n");
 	if (!xen_pv_domain())
 		return -ENODEV;
 
