@@ -81,6 +81,10 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 	struct dma_device *device = chan->device;
 	struct dma_async_tx_descriptor *intr_tx = (void *) ~0;
 
+	#ifdef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+	BUG();
+	#endif
+
 	/* first check to see if we can still append to depend_tx */
 	spin_lock_bh(&depend_tx->lock);
 	if (depend_tx->parent && depend_tx->chan == tx->chan) {

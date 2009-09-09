@@ -48,6 +48,9 @@ enum dma_status {
 
 /**
  * enum dma_transaction_type - DMA transaction types/indexes
+ *
+ * Note: The DMA_ASYNC_TX capability is not to be set by drivers.  It is
+ * automatically set as dma devices are registered.
  */
 enum dma_transaction_type {
 	DMA_MEMCPY,
@@ -61,6 +64,7 @@ enum dma_transaction_type {
 	DMA_MEMCPY_CRC32C,
 	DMA_INTERRUPT,
 	DMA_PRIVATE,
+	DMA_ASYNC_TX,
 	DMA_SLAVE,
 };
 
@@ -396,7 +400,11 @@ static inline void net_dmaengine_put(void)
 #ifdef CONFIG_ASYNC_TX_DMA
 #define async_dmaengine_get()	dmaengine_get()
 #define async_dmaengine_put()	dmaengine_put()
+#ifdef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+#define async_dma_find_channel(type) dma_find_channel(DMA_ASYNC_TX)
+#else
 #define async_dma_find_channel(type) dma_find_channel(type)
+#endif /* CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH */
 #else
 static inline void async_dmaengine_get(void)
 {
@@ -409,7 +417,7 @@ async_dma_find_channel(enum dma_transaction_type type)
 {
 	return NULL;
 }
-#endif
+#endif /* CONFIG_ASYNC_TX_DMA */
 
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);

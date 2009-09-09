@@ -608,6 +608,40 @@ void dmaengine_put(void)
 }
 EXPORT_SYMBOL(dmaengine_put);
 
+static bool device_has_all_tx_types(struct dma_device *device)
+{
+	/* A device that satisfies this test has channels that will never cause
+	 * an async_tx channel switch event as all possible operation types can
+	 * be handled.
+	 */
+	#ifdef CONFIG_ASYNC_TX_DMA
+	if (!dma_has_cap(DMA_INTERRUPT, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_MEMCPY) || defined(CONFIG_ASYNC_MEMCPY_MODULE)
+	if (!dma_has_cap(DMA_MEMCPY, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_MEMSET) || defined(CONFIG_ASYNC_MEMSET_MODULE)
+	if (!dma_has_cap(DMA_MEMSET, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_XOR) || defined(CONFIG_ASYNC_XOR_MODULE)
+	if (!dma_has_cap(DMA_XOR, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_PQ) || defined(CONFIG_ASYNC_PQ_MODULE)
+	if (!dma_has_cap(DMA_PQ, device->cap_mask))
+		return false;
+	#endif
+
+	return true;
+}
+
 static int get_dma_id(struct dma_device *device)
 {
 	int rc;
@@ -664,6 +698,12 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(!device->device_is_tx_complete);
 	BUG_ON(!device->device_issue_pending);
 	BUG_ON(!device->dev);
+
+	/* note: this only matters in the
+	 * CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH=y case
+	 */
+	if (device_has_all_tx_types(device))
+		dma_cap_set(DMA_ASYNC_TX, device->cap_mask);
 
 	idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
 	if (!idr_ref)

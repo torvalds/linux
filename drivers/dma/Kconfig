@@ -17,11 +17,15 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config ASYNC_TX_DISABLE_CHANNEL_SWITCH
+	bool
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	select DCA
+	select ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the Intel(R) I/OAT DMA engine present
 	  in recent Intel Xeon chipsets.
