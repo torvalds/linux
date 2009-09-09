@@ -1251,8 +1251,6 @@ static const struct net_device_ops dm9000_netdev_ops = {
 #endif
 };
 
-#define res_size(_r) (((_r)->end - (_r)->start) + 1)
-
 /*
  * Search DM9000 board, allocate space and register it
  */
@@ -1301,7 +1299,7 @@ dm9000_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	iosize = res_size(db->addr_res);
+	iosize = resource_size(db->addr_res);
 	db->addr_req = request_mem_region(db->addr_res->start, iosize,
 					  pdev->name);
 
@@ -1319,7 +1317,7 @@ dm9000_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	iosize = res_size(db->data_res);
+	iosize = resource_size(db->data_res);
 	db->data_req = request_mem_region(db->data_res->start, iosize,
 					  pdev->name);
 
