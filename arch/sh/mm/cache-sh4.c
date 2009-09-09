@@ -30,14 +30,6 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset);
 
 /*
- * This is initialised here to ensure that it is not placed in the BSS.  If
- * that were to happen, note that cache_init gets called before the BSS is
- * cleared, so this would get nulled out which would be hopeless.
- */
-static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
-	(void (*)(unsigned long, unsigned long))0xdeadbeef;
-
-/*
  * Write back the range of D-cache, and purge the I-cache.
  *
  * Called from kernel/module.c:sys_init_module and routine for a.out format,
@@ -158,10 +150,27 @@ static void __uses_jump_to_uncached flush_icache_all(void)
 	local_irq_restore(flags);
 }
 
-static inline void flush_dcache_all(void)
+static void flush_dcache_all(void)
 {
-	(*__flush_dcache_segment_fn)(0UL, boot_cpu_data.dcache.way_size);
-	wmb();
+	unsigned long addr, end_addr, entry_offset;
+
+	end_addr = CACHE_OC_ADDRESS_ARRAY +
+		(current_cpu_data.dcache.sets <<
+		 current_cpu_data.dcache.entry_shift) *
+			current_cpu_data.dcache.ways;
+
+	entry_offset = 1 << current_cpu_data.dcache.entry_shift;
+
+	for (addr = CACHE_OC_ADDRESS_ARRAY; addr < end_addr; ) {
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+		__raw_writel(0, addr); addr += entry_offset;
+	}
 }
 
 static void sh4_flush_cache_all(void *unused)
@@ -347,245 +356,6 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 	} while (--way_count != 0);
 }
 
-/*
- * Break the 1, 2 and 4 way variants of this out into separate functions to
- * avoid nearly all the overhead of having the conditional stuff in the function
- * bodies (+ the 1 and 2 way cases avoid saving any registers too).
- *
- * We want to eliminate unnecessary bus transactions, so this code uses
- * a non-obvious technique.
- *
- * Loop over a cache way sized block of, one cache line at a time. For each
- * line, use movca.a to cause the current cache line contents to be written
- * back, but without reading anything from main memory. However this has the
- * side effect that the cache is now caching that memory location. So follow
- * this with a cache invalidate to mark the cache line invalid. And do all
- * this with interrupts disabled, to avoid the cache line being accidently
- * evicted while it is holding garbage.
- *
- * This also breaks in a number of circumstances:
- * - if there are modifications to the region of memory just above
- *   empty_zero_page (for example because a breakpoint has been placed
- *   there), then these can be lost.
- *
- *   This is because the the memory address which the cache temporarily
- *   caches in the above description is empty_zero_page. So the
- *   movca.l hits the cache (it is assumed that it misses, or at least
- *   isn't dirty), modifies the line and then invalidates it, losing the
- *   required change.
- *
- * - If caches are disabled or configured in write-through mode, then
- *   the movca.l writes garbage directly into memory.
- */
-static void __flush_dcache_segment_writethrough(unsigned long start,
-					        unsigned long extent_per_way)
-{
-	unsigned long addr;
-	int i;
-
-	addr = CACHE_OC_ADDRESS_ARRAY | (start & cpu_data->dcache.entry_mask);
-
-	while (extent_per_way) {
-		for (i = 0; i < cpu_data->dcache.ways; i++)
-			__raw_writel(0, addr + cpu_data->dcache.way_incr * i);
-
-		addr += cpu_data->dcache.linesz;
-		extent_per_way -= cpu_data->dcache.linesz;
-	}
-}
-
-static void __flush_dcache_segment_1way(unsigned long start,
-					unsigned long extent_per_way)
-{
-	unsigned long orig_sr, sr_with_bl;
-	unsigned long base_addr;
-	unsigned long way_incr, linesz, way_size;
-	struct cache_info *dcache;
-	register unsigned long a0, a0e;
-
-	asm volatile("stc sr, %0" : "=r" (orig_sr));
-	sr_with_bl = orig_sr | (1<<28);
-	base_addr = ((unsigned long)&empty_zero_page[0]);
-
-	/*
-	 * The previous code aligned base_addr to 16k, i.e. the way_size of all
-	 * existing SH-4 D-caches.  Whilst I don't see a need to have this
-	 * aligned to any better than the cache line size (which it will be
-	 * anyway by construction), let's align it to at least the way_size of
-	 * any existing or conceivable SH-4 D-cache.  -- RPC
-	 */
-	base_addr = ((base_addr >> 16) << 16);
-	base_addr |= start;
-
-	dcache = &boot_cpu_data.dcache;
-	linesz = dcache->linesz;
-	way_incr = dcache->way_incr;
-	way_size = dcache->way_size;
-
-	a0 = base_addr;
-	a0e = base_addr + extent_per_way;
-	do {
-		asm volatile("ldc %0, sr" : : "r" (sr_with_bl));
-		asm volatile("movca.l r0, @%0\n\t"
-			     "ocbi @%0" : : "r" (a0));
-		a0 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "ocbi @%0" : : "r" (a0));
-		a0 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "ocbi @%0" : : "r" (a0));
-		a0 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "ocbi @%0" : : "r" (a0));
-		asm volatile("ldc %0, sr" : : "r" (orig_sr));
-		a0 += linesz;
-	} while (a0 < a0e);
-}
-
-static void __flush_dcache_segment_2way(unsigned long start,
-					unsigned long extent_per_way)
-{
-	unsigned long orig_sr, sr_with_bl;
-	unsigned long base_addr;
-	unsigned long way_incr, linesz, way_size;
-	struct cache_info *dcache;
-	register unsigned long a0, a1, a0e;
-
-	asm volatile("stc sr, %0" : "=r" (orig_sr));
-	sr_with_bl = orig_sr | (1<<28);
-	base_addr = ((unsigned long)&empty_zero_page[0]);
-
-	/* See comment under 1-way above */
-	base_addr = ((base_addr >> 16) << 16);
-	base_addr |= start;
-
-	dcache = &boot_cpu_data.dcache;
-	linesz = dcache->linesz;
-	way_incr = dcache->way_incr;
-	way_size = dcache->way_size;
-
-	a0 = base_addr;
-	a1 = a0 + way_incr;
-	a0e = base_addr + extent_per_way;
-	do {
-		asm volatile("ldc %0, sr" : : "r" (sr_with_bl));
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1" : :
-			     "r" (a0), "r" (a1));
-		a0 += linesz;
-		a1 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1" : :
-			     "r" (a0), "r" (a1));
-		a0 += linesz;
-		a1 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1" : :
-			     "r" (a0), "r" (a1));
-		a0 += linesz;
-		a1 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1" : :
-			     "r" (a0), "r" (a1));
-		asm volatile("ldc %0, sr" : : "r" (orig_sr));
-		a0 += linesz;
-		a1 += linesz;
-	} while (a0 < a0e);
-}
-
-static void __flush_dcache_segment_4way(unsigned long start,
-					unsigned long extent_per_way)
-{
-	unsigned long orig_sr, sr_with_bl;
-	unsigned long base_addr;
-	unsigned long way_incr, linesz, way_size;
-	struct cache_info *dcache;
-	register unsigned long a0, a1, a2, a3, a0e;
-
-	asm volatile("stc sr, %0" : "=r" (orig_sr));
-	sr_with_bl = orig_sr | (1<<28);
-	base_addr = ((unsigned long)&empty_zero_page[0]);
-
-	/* See comment under 1-way above */
-	base_addr = ((base_addr >> 16) << 16);
-	base_addr |= start;
-
-	dcache = &boot_cpu_data.dcache;
-	linesz = dcache->linesz;
-	way_incr = dcache->way_incr;
-	way_size = dcache->way_size;
-
-	a0 = base_addr;
-	a1 = a0 + way_incr;
-	a2 = a1 + way_incr;
-	a3 = a2 + way_incr;
-	a0e = base_addr + extent_per_way;
-	do {
-		asm volatile("ldc %0, sr" : : "r" (sr_with_bl));
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "movca.l r0, @%2\n\t"
-			     "movca.l r0, @%3\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1\n\t"
-			     "ocbi @%2\n\t"
-			     "ocbi @%3\n\t" : :
-			     "r" (a0), "r" (a1), "r" (a2), "r" (a3));
-		a0 += linesz;
-		a1 += linesz;
-		a2 += linesz;
-		a3 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "movca.l r0, @%2\n\t"
-			     "movca.l r0, @%3\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1\n\t"
-			     "ocbi @%2\n\t"
-			     "ocbi @%3\n\t" : :
-			     "r" (a0), "r" (a1), "r" (a2), "r" (a3));
-		a0 += linesz;
-		a1 += linesz;
-		a2 += linesz;
-		a3 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "movca.l r0, @%2\n\t"
-			     "movca.l r0, @%3\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1\n\t"
-			     "ocbi @%2\n\t"
-			     "ocbi @%3\n\t" : :
-			     "r" (a0), "r" (a1), "r" (a2), "r" (a3));
-		a0 += linesz;
-		a1 += linesz;
-		a2 += linesz;
-		a3 += linesz;
-		asm volatile("movca.l r0, @%0\n\t"
-			     "movca.l r0, @%1\n\t"
-			     "movca.l r0, @%2\n\t"
-			     "movca.l r0, @%3\n\t"
-			     "ocbi @%0\n\t"
-			     "ocbi @%1\n\t"
-			     "ocbi @%2\n\t"
-			     "ocbi @%3\n\t" : :
-			     "r" (a0), "r" (a1), "r" (a2), "r" (a3));
-		asm volatile("ldc %0, sr" : : "r" (orig_sr));
-		a0 += linesz;
-		a1 += linesz;
-		a2 += linesz;
-		a3 += linesz;
-	} while (a0 < a0e);
-}
-
 extern void __weak sh4__flush_region_init(void);
 
 /*
@@ -593,31 +363,10 @@ extern void __weak sh4__flush_region_init(void);
  */
 void __init sh4_cache_init(void)
 {
-	unsigned int wt_enabled = !!(__raw_readl(CCR) & CCR_CACHE_WT);
-
 	printk("PVR=%08x CVR=%08x PRR=%08x\n",
 		ctrl_inl(CCN_PVR),
 		ctrl_inl(CCN_CVR),
 		ctrl_inl(CCN_PRR));
-
-	if (wt_enabled)
-		__flush_dcache_segment_fn = __flush_dcache_segment_writethrough;
-	else {
-		switch (boot_cpu_data.dcache.ways) {
-		case 1:
-			__flush_dcache_segment_fn = __flush_dcache_segment_1way;
-			break;
-		case 2:
-			__flush_dcache_segment_fn = __flush_dcache_segment_2way;
-			break;
-		case 4:
-			__flush_dcache_segment_fn = __flush_dcache_segment_4way;
-			break;
-		default:
-			panic("unknown number of cache ways\n");
-			break;
-		}
-	}
 
 	local_flush_icache_range	= sh4_flush_icache_range;
 	local_flush_dcache_page		= sh4_flush_dcache_page;
