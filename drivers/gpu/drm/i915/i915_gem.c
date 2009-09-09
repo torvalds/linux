@@ -4232,15 +4232,11 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	int ret;
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	ret = i915_gem_idle(dev);
 	drm_irq_uninstall(dev);
-
-	return ret;
+	return i915_gem_idle(dev);
 }
 
 void
