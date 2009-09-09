@@ -52,15 +52,21 @@ struct usb_skel {
 	struct usb_interface	*interface;		/* the interface for this device */
 	struct semaphore	limit_sem;		/* limiting the number of writes in progress */
 	struct usb_anchor	submitted;		/* in case we need to retract our submissions */
+	struct urb		*bulk_in_urb;		/* the urb to read data with */
 	unsigned char           *bulk_in_buffer;	/* the buffer to receive data */
 	size_t			bulk_in_size;		/* the size of the receive buffer */
+	size_t			bulk_in_filled;		/* number of bytes in the buffer */
+	size_t			bulk_in_copied;		/* already copied to user space */
 	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
 	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
 	int			errors;			/* the last request tanked */
 	int			open_count;		/* count the number of openers */
+	bool			ongoing_read;		/* a read is going on */
+	bool			processed_urb;		/* indicates we haven't processed the urb */
 	spinlock_t		err_lock;		/* lock for errors */
 	struct kref		kref;
 	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
+	struct completion	bulk_in_completion;	/* to wait for an ongoing read */
 };
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 
@@ -71,6 +77,7 @@ static void skel_delete(struct kref *kref)
 {
 	struct usb_skel *dev = to_skel_dev(kref);
 
+	usb_free_urb(dev->bulk_in_urb);
 	usb_put_dev(dev->udev);
 	kfree(dev->bulk_in_buffer);
 	kfree(dev);
@@ -174,38 +181,182 @@ static int skel_flush(struct file *file, fl_owner_t id)
 	return res;
 }
 
+static void skel_read_bulk_callback(struct urb *urb)
+{
+	struct usb_skel *dev;
+
+	dev = urb->context;
+
+	spin_lock(&dev->err_lock);
+	/* sync/async unlink faults aren't errors */
+	if (urb->status) {
+		if(!(urb->status == -ENOENT ||
+		    urb->status == -ECONNRESET ||
+		    urb->status == -ESHUTDOWN))
+			err("%s - nonzero write bulk status received: %d",
+			    __func__, urb->status);
+
+		dev->errors = urb->status;
+	} else {
+		dev->bulk_in_filled = urb->actual_length;
+	}
+	dev->ongoing_read = 0;
+	spin_unlock(&dev->err_lock);
+
+	complete(&dev->bulk_in_completion);
+}
+
+static int skel_do_read_io(struct usb_skel *dev, size_t count)
+{
+	int rv;
+
+	/* prepare a read */
+	usb_fill_bulk_urb(dev->bulk_in_urb,
+			dev->udev,
+			usb_rcvbulkpipe(dev->udev,
+				dev->bulk_in_endpointAddr),
+			dev->bulk_in_buffer,
+			min(dev->bulk_in_size, count),
+			skel_read_bulk_callback,
+			dev);
+	/* tell everybody to leave the URB alone */
+	spin_lock_irq(&dev->err_lock);
+	dev->ongoing_read = 1;
+	spin_unlock_irq(&dev->err_lock);
+
+	/* do it */
+	rv = usb_submit_urb(dev->bulk_in_urb, GFP_KERNEL);
+	if (rv < 0) {
+		err("%s - failed submitting read urb, error %d",
+			__func__, rv);
+		dev->bulk_in_filled = 0;
+		rv = (rv == -ENOMEM) ? rv : -EIO;
+		spin_lock_irq(&dev->err_lock);
+		dev->ongoing_read = 0;
+		spin_unlock_irq(&dev->err_lock);
+	}
+
+	return rv;
+}
+
 static ssize_t skel_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
 {
 	struct usb_skel *dev;
-	int retval;
-	int bytes_read;
+	int rv;
+	bool ongoing_io;
 
 	dev = (struct usb_skel *)file->private_data;
 
-	mutex_lock(&dev->io_mutex);
+	/* if we cannot read at all, return EOF */
+	if (!dev->bulk_in_urb || !count)
+		return 0;
+
+	/* no concurrent readers */
+	rv = mutex_lock_interruptible(&dev->io_mutex);
+	if (rv < 0)
+		return rv;
+
 	if (!dev->interface) {		/* disconnect() was called */
-		retval = -ENODEV;
+		rv = -ENODEV;
 		goto exit;
 	}
 
-	/* do a blocking bulk read to get data from the device */
-	retval = usb_bulk_msg(dev->udev,
-			      usb_rcvbulkpipe(dev->udev, dev->bulk_in_endpointAddr),
-			      dev->bulk_in_buffer,
-			      min(dev->bulk_in_size, count),
-			      &bytes_read, 10000);
+	/* if IO is under way, we must not touch things */
+retry:
+	spin_lock_irq(&dev->err_lock);
+	ongoing_io = dev->ongoing_read;
+	spin_unlock_irq(&dev->err_lock);
 
-	/* if the read was successful, copy the data to userspace */
-	if (!retval) {
-		if (copy_to_user(buffer, dev->bulk_in_buffer, bytes_read))
-			retval = -EFAULT;
-		else
-			retval = bytes_read;
+	if (ongoing_io) {
+		/*
+		 * IO may take forever
+		 * hence wait in an interruptible state
+		 */
+		rv = wait_for_completion_interruptible(&dev->bulk_in_completion);
+		if (rv < 0)
+			goto exit;
+		/*
+		 * by waiting we also semiprocessed the urb
+		 * we must finish now
+		 */
+		dev->bulk_in_copied = 0;
+		dev->processed_urb = 1;
 	}
 
+	if (!dev->processed_urb) {
+		/*
+		 * the URB hasn't been processed
+		 * do it now
+		 */
+		wait_for_completion(&dev->bulk_in_completion);
+		dev->bulk_in_copied = 0;
+		dev->processed_urb = 1;
+	}
+
+	/* errors must be reported */
+	if ((rv = dev->errors) < 0) {
+		/* any error is reported once */
+		dev->errors = 0;
+		/* to preserve notifications about reset */
+		rv = (rv == -EPIPE) ? rv : -EIO;
+		/* no data to deliver */
+		dev->bulk_in_filled = 0;
+		/* report it */
+		goto exit;
+	}
+
+	/*
+	 * if the buffer is filled we may satisfy the read
+	 * else we need to start IO
+	 */
+
+	if (dev->bulk_in_filled) {
+		/* we had read data */
+		size_t available = dev->bulk_in_filled - dev->bulk_in_copied;
+		size_t chunk = min(available, count);
+
+		if (!available) {
+			/*
+			 * all data has been used
+			 * actual IO needs to be done
+			 */
+			rv = skel_do_read_io(dev, count);
+			if (rv < 0)
+				goto exit;
+			else
+				goto retry;
+		}
+		/*
+		 * data is available
+		 * chunk tells us how much shall be copied
+		 */
+
+		if (copy_to_user(buffer,
+				 dev->bulk_in_buffer + dev->bulk_in_copied,
+				 chunk))
+			rv = -EFAULT;
+		else
+			rv = chunk;
+
+		dev->bulk_in_copied += chunk;
+
+		/*
+		 * if we are asked for more than we have,
+		 * we start IO but don't wait
+		 */
+		if (available < count)
+			skel_do_read_io(dev, count - chunk);
+	} else {
+		/* no data in the buffer */
+		rv = skel_do_read_io(dev, count);
+		if (rv < 0)
+			goto exit;
+		else
+			goto retry;
+	}
 exit:
 	mutex_unlock(&dev->io_mutex);
-	return retval;
+	return rv;
 }
 
 static void skel_write_bulk_callback(struct urb *urb)
@@ -363,6 +514,7 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 	mutex_init(&dev->io_mutex);
 	spin_lock_init(&dev->err_lock);
 	init_usb_anchor(&dev->submitted);
+	init_completion(&dev->bulk_in_completion);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
@@ -382,6 +534,11 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 			dev->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
 			if (!dev->bulk_in_buffer) {
 				err("Could not allocate bulk_in_buffer");
+				goto error;
+			}
+			dev->bulk_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+			if (!dev->bulk_in_urb) {
+				err("Could not allocate bulk_in_urb");
 				goto error;
 			}
 		}
@@ -453,6 +610,7 @@ static void skel_draw_down(struct usb_skel *dev)
 	time = usb_wait_anchor_empty_timeout(&dev->submitted, 1000);
 	if (!time)
 		usb_kill_anchored_urbs(&dev->submitted);
+	usb_kill_urb(dev->bulk_in_urb);
 }
 
 static int skel_suspend(struct usb_interface *intf, pm_message_t message)
