@@ -62,7 +62,6 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 {
 	return 0;
 }
-static inline void perf_set_pmu_inuse(int inuse) { }
 static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp) { }
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
@@ -91,11 +90,6 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 			return 4 * (slot - 1);
 	}
 	return 0;
-}
-
-static inline void perf_set_pmu_inuse(int inuse)
-{
-	get_lppaca()->pmcregs_in_use = inuse;
 }
 
 /*
@@ -531,8 +525,7 @@ void hw_perf_disable(void)
 		 * Check if we ever enabled the PMU on this cpu.
 		 */
 		if (!cpuhw->pmcs_enabled) {
-			if (ppc_md.enable_pmcs)
-				ppc_md.enable_pmcs();
+			ppc_enable_pmcs();
 			cpuhw->pmcs_enabled = 1;
 		}
 
@@ -594,7 +587,7 @@ void hw_perf_enable(void)
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 		if (cpuhw->n_counters == 0)
-			perf_set_pmu_inuse(0);
+			ppc_set_pmu_inuse(0);
 		goto out_enable;
 	}
 
@@ -627,7 +620,7 @@ void hw_perf_enable(void)
 	 * bit set and set the hardware counters to their initial values.
 	 * Then unfreeze the counters.
 	 */
-	perf_set_pmu_inuse(1);
+	ppc_set_pmu_inuse(1);
 	mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
