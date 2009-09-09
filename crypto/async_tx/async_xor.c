@@ -69,6 +69,7 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 		 */
 		if (src_cnt > xor_src_cnt) {
 			submit->flags &= ~ASYNC_TX_ACK;
+			submit->flags |= ASYNC_TX_FENCE;
 			dma_flags = DMA_COMPL_SKIP_DEST_UNMAP;
 			submit->cb_fn = NULL;
 			submit->cb_param = NULL;
@@ -78,7 +79,8 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 		}
 		if (submit->cb_fn)
 			dma_flags |= DMA_PREP_INTERRUPT;
-
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_flags |= DMA_PREP_FENCE;
 		/* Since we have clobbered the src_list we are committed
 		 * to doing this asynchronously.  Drivers force forward progress
 		 * in case they can not provide a descriptor
@@ -264,12 +266,15 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 		dma_src = (dma_addr_t *) src_list;
 
 	if (dma_src && device && src_cnt <= device->max_xor) {
-		unsigned long dma_prep_flags;
+		unsigned long dma_prep_flags = 0;
 		int i;
 
 		pr_debug("%s: (async) len: %zu\n", __func__, len);
 
-		dma_prep_flags = submit->cb_fn ? DMA_PREP_INTERRUPT : 0;
+		if (submit->cb_fn)
+			dma_prep_flags |= DMA_PREP_INTERRUPT;
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_prep_flags |= DMA_PREP_FENCE;
 		for (i = 0; i < src_cnt; i++)
 			dma_src[i] = dma_map_page(device->dev, src_list[i],
 						  offset, len, DMA_TO_DEVICE);

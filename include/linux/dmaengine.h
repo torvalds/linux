@@ -87,6 +87,8 @@ enum dma_transaction_type {
  * @DMA_PREP_CONTINUE - indicate to a driver that it is reusing buffers as
  *  sources that were the result of a previous operation, in the case of a PQ
  *  operation it continues the calculation with new sources
+ * @DMA_PREP_FENCE - tell the driver that subsequent operations depend
+ *  on the result of this operation
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
@@ -98,6 +100,7 @@ enum dma_ctrl_flags {
 	DMA_PREP_PQ_DISABLE_P = (1 << 6),
 	DMA_PREP_PQ_DISABLE_Q = (1 << 7),
 	DMA_PREP_CONTINUE = (1 << 8),
+	DMA_PREP_FENCE = (1 << 9),
 };
 
 /**

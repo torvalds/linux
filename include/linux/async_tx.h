@@ -58,11 +58,14 @@ struct dma_chan_ref {
  * array.
  * @ASYNC_TX_ACK: immediately ack the descriptor, precludes setting up a
  * dependency chain
+ * @ASYNC_TX_FENCE: specify that the next operation in the dependency
+ * chain uses this operation's result as an input
  */
 enum async_tx_flags {
 	ASYNC_TX_XOR_ZERO_DST	 = (1 << 0),
 	ASYNC_TX_XOR_DROP_DST	 = (1 << 1),
 	ASYNC_TX_ACK		 = (1 << 2),
+	ASYNC_TX_FENCE		 = (1 << 3),
 };
 
 /**

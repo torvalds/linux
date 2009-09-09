@@ -49,9 +49,12 @@ async_memset(struct page *dest, int val, unsigned int offset, size_t len,
 
 	if (device) {
 		dma_addr_t dma_dest;
-		unsigned long dma_prep_flags;
+		unsigned long dma_prep_flags = 0;
 
-		dma_prep_flags = submit->cb_fn ? DMA_PREP_INTERRUPT : 0;
+		if (submit->cb_fn)
+			dma_prep_flags |= DMA_PREP_INTERRUPT;
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_prep_flags |= DMA_PREP_FENCE;
 		dma_dest = dma_map_page(device->dev, dest, offset, len,
 					DMA_FROM_DEVICE);
 

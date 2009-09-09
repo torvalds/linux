@@ -502,13 +502,17 @@ async_copy_data(int frombio, struct bio *bio, struct page *page,
 	int i;
 	int page_offset;
 	struct async_submit_ctl submit;
+	enum async_tx_flags flags = 0;
 
 	if (bio->bi_sector >= sector)
 		page_offset = (signed)(bio->bi_sector - sector) * 512;
 	else
 		page_offset = (signed)(sector - bio->bi_sector) * -512;
 
-	init_async_submit(&submit, 0, tx, NULL, NULL, NULL);
+	if (frombio)
+		flags |= ASYNC_TX_FENCE;
+	init_async_submit(&submit, flags, tx, NULL, NULL, NULL);
+
 	bio_for_each_segment(bvl, bio, i) {
 		int len = bio_iovec_idx(bio, i)->bv_len;
 		int clen;
@@ -685,7 +689,7 @@ ops_run_compute5(struct stripe_head *sh, struct raid5_percpu *percpu)
 
 	atomic_inc(&sh->count);
 
-	init_async_submit(&submit, ASYNC_TX_XOR_ZERO_DST, NULL,
+	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST, NULL,
 			  ops_complete_compute, sh, to_addr_conv(sh, percpu));
 	if (unlikely(count == 1))
 		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE, &submit);
@@ -763,7 +767,8 @@ ops_run_compute6_1(struct stripe_head *sh, struct raid5_percpu *percpu)
 		count = set_syndrome_sources(blocks, sh);
 		blocks[count] = NULL; /* regenerating p is not necessary */
 		BUG_ON(blocks[count+1] != dest); /* q should already be set */
-		init_async_submit(&submit, 0, NULL, ops_complete_compute, sh,
+		init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
+				  ops_complete_compute, sh,
 				  to_addr_conv(sh, percpu));
 		tx = async_gen_syndrome(blocks, 0, count+2, STRIPE_SIZE, &submit);
 	} else {
@@ -775,8 +780,8 @@ ops_run_compute6_1(struct stripe_head *sh, struct raid5_percpu *percpu)
 			blocks[count++] = sh->dev[i].page;
 		}
 
-		init_async_submit(&submit, ASYNC_TX_XOR_ZERO_DST, NULL,
-				  ops_complete_compute, sh,
+		init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST,
+				  NULL, ops_complete_compute, sh,
 				  to_addr_conv(sh, percpu));
 		tx = async_xor(dest, blocks, 0, count, STRIPE_SIZE, &submit);
 	}
@@ -837,8 +842,9 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 		/* Q disk is one of the missing disks */
 		if (faila == syndrome_disks) {
 			/* Missing P+Q, just recompute */
-			init_async_submit(&submit, 0, NULL, ops_complete_compute,
-					  sh, to_addr_conv(sh, percpu));
+			init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
+					  ops_complete_compute, sh,
+					  to_addr_conv(sh, percpu));
 			return async_gen_syndrome(blocks, 0, count+2,
 						  STRIPE_SIZE, &submit);
 		} else {
@@ -859,21 +865,24 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 				blocks[count++] = sh->dev[i].page;
 			}
 			dest = sh->dev[data_target].page;
-			init_async_submit(&submit, ASYNC_TX_XOR_ZERO_DST, NULL,
-					  NULL, NULL, to_addr_conv(sh, percpu));
+			init_async_submit(&submit,
+					  ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST,
+					  NULL, NULL, NULL,
+					  to_addr_conv(sh, percpu));
 			tx = async_xor(dest, blocks, 0, count, STRIPE_SIZE,
 				       &submit);
 
 			count = set_syndrome_sources(blocks, sh);
-			init_async_submit(&submit, 0, tx, ops_complete_compute,
-					  sh, to_addr_conv(sh, percpu));
+			init_async_submit(&submit, ASYNC_TX_FENCE, tx,
+					  ops_complete_compute, sh,
+					  to_addr_conv(sh, percpu));
 			return async_gen_syndrome(blocks, 0, count+2,
 						  STRIPE_SIZE, &submit);
 		}
 	}
 
-	init_async_submit(&submit, 0, NULL, ops_complete_compute, sh,
-			  to_addr_conv(sh, percpu));
+	init_async_submit(&submit, ASYNC_TX_FENCE, NULL, ops_complete_compute,
+			  sh, to_addr_conv(sh, percpu));
 	if (failb == syndrome_disks) {
 		/* We're missing D+P. */
 		return async_raid6_datap_recov(syndrome_disks+2, STRIPE_SIZE,
@@ -916,7 +925,7 @@ ops_run_prexor(struct stripe_head *sh, struct raid5_percpu *percpu,
 			xor_srcs[count++] = dev->page;
 	}
 
-	init_async_submit(&submit, ASYNC_TX_XOR_DROP_DST, tx,
+	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
 			  ops_complete_prexor, sh, to_addr_conv(sh, percpu));
 	tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE, &submit);
 

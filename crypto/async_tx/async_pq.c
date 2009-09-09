@@ -101,6 +101,7 @@ do_async_gen_syndrome(struct dma_chan *chan, struct page **blocks,
 		 */
 		if (src_cnt > pq_src_cnt) {
 			submit->flags &= ~ASYNC_TX_ACK;
+			submit->flags |= ASYNC_TX_FENCE;
 			dma_flags |= DMA_COMPL_SKIP_DEST_UNMAP;
 			submit->cb_fn = NULL;
 			submit->cb_param = NULL;
@@ -111,6 +112,8 @@ do_async_gen_syndrome(struct dma_chan *chan, struct page **blocks,
 			if (cb_fn_orig)
 				dma_flags |= DMA_PREP_INTERRUPT;
 		}
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_flags |= DMA_PREP_FENCE;
 
 		/* Since we have clobbered the src_list we are committed
 		 * to doing this asynchronously.  Drivers force forward
@@ -282,6 +285,8 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 			dma_flags |= DMA_PREP_PQ_DISABLE_P;
 		if (!Q(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_Q;
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_flags |= DMA_PREP_FENCE;
 		for (i = 0; i < disks; i++)
 			if (likely(blocks[i])) {
 				BUG_ON(is_raid6_zero_block(blocks[i]));

@@ -44,6 +44,8 @@ async_sum_product(struct page *dest, struct page **srcs, unsigned char *coef,
 		struct dma_async_tx_descriptor *tx;
 		enum dma_ctrl_flags dma_flags = DMA_PREP_PQ_DISABLE_P;
 
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_flags |= DMA_PREP_FENCE;
 		dma_dest[1] = dma_map_page(dev, dest, 0, len, DMA_BIDIRECTIONAL);
 		dma_src[0] = dma_map_page(dev, srcs[0], 0, len, DMA_TO_DEVICE);
 		dma_src[1] = dma_map_page(dev, srcs[1], 0, len, DMA_TO_DEVICE);
@@ -89,6 +91,8 @@ async_mult(struct page *dest, struct page *src, u8 coef, size_t len,
 		struct dma_async_tx_descriptor *tx;
 		enum dma_ctrl_flags dma_flags = DMA_PREP_PQ_DISABLE_P;
 
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_flags |= DMA_PREP_FENCE;
 		dma_dest[1] = dma_map_page(dev, dest, 0, len, DMA_BIDIRECTIONAL);
 		dma_src[0] = dma_map_page(dev, src, 0, len, DMA_TO_DEVICE);
 		tx = dma->device_prep_dma_pq(chan, dma_dest, dma_src, 1, &coef,
@@ -138,7 +142,7 @@ __2data_recov_4(size_t bytes, int faila, int failb, struct page **blocks,
 	srcs[1] = q;
 	coef[0] = raid6_gfexi[failb-faila];
 	coef[1] = raid6_gfinv[raid6_gfexp[faila]^raid6_gfexp[failb]];
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_sum_product(b, srcs, coef, bytes, submit);
 
 	/* Dy = P+Pxy+Dx */
@@ -188,23 +192,23 @@ __2data_recov_5(size_t bytes, int faila, int failb, struct page **blocks,
 	dp = blocks[faila];
 	dq = blocks[failb];
 
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_memcpy(dp, g, 0, 0, bytes, submit);
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_mult(dq, g, raid6_gfexp[good], bytes, submit);
 
 	/* compute P + Pxy */
 	srcs[0] = dp;
 	srcs[1] = p;
-	init_async_submit(submit, ASYNC_TX_XOR_DROP_DST, tx, NULL, NULL,
-			  scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
+			  NULL, NULL, scribble);
 	tx = async_xor(dp, srcs, 0, 2, bytes, submit);
 
 	/* compute Q + Qxy */
 	srcs[0] = dq;
 	srcs[1] = q;
-	init_async_submit(submit, ASYNC_TX_XOR_DROP_DST, tx, NULL, NULL,
-			  scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
+			  NULL, NULL, scribble);
 	tx = async_xor(dq, srcs, 0, 2, bytes, submit);
 
 	/* Dx = A*(P+Pxy) + B*(Q+Qxy) */
@@ -212,7 +216,7 @@ __2data_recov_5(size_t bytes, int faila, int failb, struct page **blocks,
 	srcs[1] = dq;
 	coef[0] = raid6_gfexi[failb-faila];
 	coef[1] = raid6_gfinv[raid6_gfexp[faila]^raid6_gfexp[failb]];
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_sum_product(dq, srcs, coef, bytes, submit);
 
 	/* Dy = P+Pxy+Dx */
@@ -252,7 +256,7 @@ __2data_recov_n(int disks, size_t bytes, int faila, int failb,
 	blocks[failb] = (void *)raid6_empty_zero_page;
 	blocks[disks-1] = dq;
 
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_gen_syndrome(blocks, 0, disks, bytes, submit);
 
 	/* Restore pointer table */
@@ -264,15 +268,15 @@ __2data_recov_n(int disks, size_t bytes, int faila, int failb,
 	/* compute P + Pxy */
 	srcs[0] = dp;
 	srcs[1] = p;
-	init_async_submit(submit, ASYNC_TX_XOR_DROP_DST, tx, NULL, NULL,
-			  scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
+			  NULL, NULL, scribble);
 	tx = async_xor(dp, srcs, 0, 2, bytes, submit);
 
 	/* compute Q + Qxy */
 	srcs[0] = dq;
 	srcs[1] = q;
-	init_async_submit(submit, ASYNC_TX_XOR_DROP_DST, tx, NULL, NULL,
-			  scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
+			  NULL, NULL, scribble);
 	tx = async_xor(dq, srcs, 0, 2, bytes, submit);
 
 	/* Dx = A*(P+Pxy) + B*(Q+Qxy) */
@@ -280,7 +284,7 @@ __2data_recov_n(int disks, size_t bytes, int faila, int failb,
 	srcs[1] = dq;
 	coef[0] = raid6_gfexi[failb-faila];
 	coef[1] = raid6_gfinv[raid6_gfexp[faila]^raid6_gfexp[failb]];
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_sum_product(dq, srcs, coef, bytes, submit);
 
 	/* Dy = P+Pxy+Dx */
@@ -407,13 +411,16 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 		int good = faila == 0 ? 1 : 0;
 		struct page *g = blocks[good];
 
-		init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+		init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL,
+				  scribble);
 		tx = async_memcpy(p, g, 0, 0, bytes, submit);
 
-		init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+		init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL,
+				  scribble);
 		tx = async_mult(dq, g, raid6_gfexp[good], bytes, submit);
 	} else {
-		init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+		init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL,
+				  scribble);
 		tx = async_gen_syndrome(blocks, 0, disks, bytes, submit);
 	}
 
@@ -426,11 +433,11 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 
 	srcs[0] = dq;
 	srcs[1] = q;
-	init_async_submit(submit, ASYNC_TX_XOR_DROP_DST, tx, NULL, NULL,
-			  scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
+			  NULL, NULL, scribble);
 	tx = async_xor(dq, srcs, 0, 2, bytes, submit);
 
-	init_async_submit(submit, 0, tx, NULL, NULL, scribble);
+	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
 	tx = async_mult(dq, dq, coef, bytes, submit);
 
 	srcs[0] = p;
