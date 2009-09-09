@@ -3128,6 +3128,21 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 		}
 		target_obj_priv = target_obj->driver_private;
 
+#if WATCH_RELOC
+		DRM_INFO("%s: obj %p offset %08x target %d "
+			 "read %08x write %08x gtt %08x "
+			 "presumed %08x delta %08x\n",
+			 __func__,
+			 obj,
+			 (int) reloc->offset,
+			 (int) reloc->target_handle,
+			 (int) reloc->read_domains,
+			 (int) reloc->write_domain,
+			 (int) target_obj_priv->gtt_offset,
+			 (int) reloc->presumed_offset,
+			 reloc->delta);
+#endif
+
 		/* The target buffer should have appeared before us in the
 		 * exec_object list, so it should have a GTT space bound by now.
 		 */
@@ -3139,6 +3154,46 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			return -EINVAL;
 		}
 
+		/* Validate that the target is in a valid r/w GPU domain */
+		if (reloc->write_domain & I915_GEM_DOMAIN_CPU ||
+		    reloc->read_domains & I915_GEM_DOMAIN_CPU) {
+			DRM_ERROR("reloc with read/write CPU domains: "
+				  "obj %p target %d offset %d "
+				  "read %08x write %08x",
+				  obj, reloc->target_handle,
+				  (int) reloc->offset,
+				  reloc->read_domains,
+				  reloc->write_domain);
+			drm_gem_object_unreference(target_obj);
+			i915_gem_object_unpin(obj);
+			return -EINVAL;
+		}
+		if (reloc->write_domain && target_obj->pending_write_domain &&
+		    reloc->write_domain != target_obj->pending_write_domain) {
+			DRM_ERROR("Write domain conflict: "
+				  "obj %p target %d offset %d "
+				  "new %08x old %08x\n",
+				  obj, reloc->target_handle,
+				  (int) reloc->offset,
+				  reloc->write_domain,
+				  target_obj->pending_write_domain);
+			drm_gem_object_unreference(target_obj);
+			i915_gem_object_unpin(obj);
+			return -EINVAL;
+		}
+
+		target_obj->pending_read_domains |= reloc->read_domains;
+		target_obj->pending_write_domain |= reloc->write_domain;
+
+		/* If the relocation already has the right value in it, no
+		 * more work needs to be done.
+		 */
+		if (target_obj_priv->gtt_offset == reloc->presumed_offset) {
+			drm_gem_object_unreference(target_obj);
+			continue;
+		}
+
+		/* Check that the relocation address is valid... */
 		if (reloc->offset > obj->size - 4) {
 			DRM_ERROR("Relocation beyond object bounds: "
 				  "obj %p target %d offset %d size %d.\n",
@@ -3158,6 +3213,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			return -EINVAL;
 		}
 
+		/* and points to somewhere within the target object. */
 		if (reloc->delta >= target_obj->size) {
 			DRM_ERROR("Relocation beyond target object bounds: "
 				  "obj %p target %d delta %d size %d.\n",
@@ -3166,60 +3222,6 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			drm_gem_object_unreference(target_obj);
 			i915_gem_object_unpin(obj);
 			return -EINVAL;
-		}
-
-		if (reloc->write_domain & I915_GEM_DOMAIN_CPU ||
-		    reloc->read_domains & I915_GEM_DOMAIN_CPU) {
-			DRM_ERROR("reloc with read/write CPU domains: "
-				  "obj %p target %d offset %d "
-				  "read %08x write %08x",
-				  obj, reloc->target_handle,
-				  (int) reloc->offset,
-				  reloc->read_domains,
-				  reloc->write_domain);
-			drm_gem_object_unreference(target_obj);
-			i915_gem_object_unpin(obj);
-			return -EINVAL;
-		}
-
-		if (reloc->write_domain && target_obj->pending_write_domain &&
-		    reloc->write_domain != target_obj->pending_write_domain) {
-			DRM_ERROR("Write domain conflict: "
-				  "obj %p target %d offset %d "
-				  "new %08x old %08x\n",
-				  obj, reloc->target_handle,
-				  (int) reloc->offset,
-				  reloc->write_domain,
-				  target_obj->pending_write_domain);
-			drm_gem_object_unreference(target_obj);
-			i915_gem_object_unpin(obj);
-			return -EINVAL;
-		}
-
-#if WATCH_RELOC
-		DRM_INFO("%s: obj %p offset %08x target %d "
-			 "read %08x write %08x gtt %08x "
-			 "presumed %08x delta %08x\n",
-			 __func__,
-			 obj,
-			 (int) reloc->offset,
-			 (int) reloc->target_handle,
-			 (int) reloc->read_domains,
-			 (int) reloc->write_domain,
-			 (int) target_obj_priv->gtt_offset,
-			 (int) reloc->presumed_offset,
-			 reloc->delta);
-#endif
-
-		target_obj->pending_read_domains |= reloc->read_domains;
-		target_obj->pending_write_domain |= reloc->write_domain;
-
-		/* If the relocation already has the right value in it, no
-		 * more work needs to be done.
-		 */
-		if (target_obj_priv->gtt_offset == reloc->presumed_offset) {
-			drm_gem_object_unreference(target_obj);
-			continue;
 		}
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, 1);
