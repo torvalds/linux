@@ -357,7 +357,7 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 	 * pointless nead-of-loop check for 0 iterations.
 	 */
 	do {
-		ea = base_addr + PAGE_SIZE;
+		ea = base_addr + 4096;
 		a = base_addr;
 		p = phys;
 
