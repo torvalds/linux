@@ -99,6 +99,9 @@ struct sockaddr_pn {
 	__u8 spn_zero[sizeof(struct sockaddr) - sizeof(sa_family_t) - 3];
 } __attribute__ ((packed));
 
+/* Well known address */
+#define PN_DEV_PC	0x10
+
 static inline __u16 pn_object(__u8 addr, __u16 port)
 {
 	return (addr << 8) | (port & 0x3ff);

@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_phonet.h>
+#include <linux/phonet.h>
 
 #define PN_MEDIA_USB	0x1B
 
@@ -256,6 +257,19 @@ static int usbpn_close(struct net_device *dev)
 	return usb_set_interface(pnd->usb, num, !pnd->active_setting);
 }
 
+static int usbpn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct if_phonet_req *req = (struct if_phonet_req *)ifr;
+
+	switch (cmd) {
+	case SIOCPNGAUTOCONF:
+		req->ifr_phonet_autoconf.device = PN_DEV_PC;
+		printk(KERN_CRIT"device is PN_DEV_PC\n");
+		return 0;
+	}
+	return -ENOIOCTLCMD;
+}
+
 static int usbpn_set_mtu(struct net_device *dev, int new_mtu)
 {
 	if ((new_mtu < PHONET_MIN_MTU) || (new_mtu > PHONET_MAX_MTU))
@@ -269,6 +283,7 @@ static const struct net_device_ops usbpn_ops = {
 	.ndo_open	= usbpn_open,
 	.ndo_stop	= usbpn_close,
 	.ndo_start_xmit = usbpn_xmit,
+	.ndo_do_ioctl	= usbpn_ioctl,
 	.ndo_change_mtu = usbpn_set_mtu,
 };
 
