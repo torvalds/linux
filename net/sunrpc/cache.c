@@ -529,8 +529,8 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 	if (++cache_defer_cnt > DFR_MAX) {
 		dreq = list_entry(cache_defer_list.prev,
 				  struct cache_deferred_req, recent);
-		list_del(&dreq->recent);
-		list_del(&dreq->hash);
+		list_del_init(&dreq->recent);
+		list_del_init(&dreq->hash);
 		cache_defer_cnt--;
 	}
 	spin_unlock(&cache_defer_lock);
@@ -564,7 +564,7 @@ static void cache_revisit_request(struct cache_head *item)
 			dreq = list_entry(lp, struct cache_deferred_req, hash);
 			lp = lp->next;
 			if (dreq->item == item) {
-				list_del(&dreq->hash);
+				list_del_init(&dreq->hash);
 				list_move(&dreq->recent, &pending);
 				cache_defer_cnt--;
 			}
@@ -590,7 +590,7 @@ void cache_clean_deferred(void *owner)
 
 	list_for_each_entry_safe(dreq, tmp, &cache_defer_list, recent) {
 		if (dreq->owner == owner) {
-			list_del(&dreq->hash);
+			list_del_init(&dreq->hash);
 			list_move(&dreq->recent, &pending);
 			cache_defer_cnt--;
 		}
