@@ -837,6 +837,8 @@ static int __init ab3100_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct ab3100 *ab3100;
+	struct ab3100_platform_data *ab3100_plf_data =
+		client->dev.platform_data;
 	int err;
 	int i;
 
@@ -920,6 +922,8 @@ static int __init ab3100_probe(struct i2c_client *client,
 	for (i = 0; i < ARRAY_SIZE(ab3100_platform_devs); i++) {
 		ab3100_platform_devs[i]->dev.parent =
 			&client->dev;
+		ab3100_platform_devs[i]->dev.platform_data =
+			ab3100_plf_data;
 		platform_set_drvdata(ab3100_platform_devs[i], ab3100);
 	}
 

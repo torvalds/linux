@@ -138,5 +138,14 @@ config REGULATOR_MC13783
 	  Say y here to support the regulators found on the Freescale MC13783
 	  PMIC.
 
+config REGULATOR_AB3100
+	tristate "ST-Ericsson AB3100 Regulator functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	 These regulators correspond to functionality in the
+	 AB3100 analog baseband dealing with power regulators
+	 for the system.
+
 endif
 
