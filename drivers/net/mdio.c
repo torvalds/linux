@@ -14,6 +14,10 @@
 #include <linux/mdio.h>
 #include <linux/module.h>
 
+MODULE_DESCRIPTION("Generic support for MDIO-compatible transceivers");
+MODULE_AUTHOR("Copyright 2006-2009 Solarflare Communications Inc.");
+MODULE_LICENSE("GPL");
+
 /**
  * mdio45_probe - probe for an MDIO (clause 45) device
  * @mdio: MDIO interface

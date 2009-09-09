@@ -72,13 +72,24 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	}
 
 	/* Cover L1 memory.  One 4M area for code and data each is enough.  */
-	if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
-		d_tbl[i_d].addr = L1_DATA_A_START;
-		d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+	if (cpu == 0) {
+		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
+			d_tbl[i_d].addr = L1_DATA_A_START;
+			d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+		}
+		i_tbl[i_i].addr = L1_CODE_START;
+		i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
 	}
-	i_tbl[i_i].addr = L1_CODE_START;
-	i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
-
+#ifdef CONFIG_SMP
+	else {
+		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
+			d_tbl[i_d].addr = COREB_L1_DATA_A_START;
+			d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+		}
+		i_tbl[i_i].addr = COREB_L1_CODE_START;
+		i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
+	}
+#endif
 	first_switched_dcplb = i_d;
 	first_switched_icplb = i_i;
 

@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/poll.h>

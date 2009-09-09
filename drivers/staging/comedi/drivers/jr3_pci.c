@@ -45,6 +45,8 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include "comedi_pci.h"
 #include "jr3_pci.h"
 

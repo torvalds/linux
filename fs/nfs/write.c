@@ -202,8 +202,10 @@ static int nfs_set_page_writeback(struct page *page)
 		struct nfs_server *nfss = NFS_SERVER(inode);
 
 		if (atomic_long_inc_return(&nfss->writeback) >
-				NFS_CONGESTION_ON_THRESH)
-			set_bdi_congested(&nfss->backing_dev_info, WRITE);
+				NFS_CONGESTION_ON_THRESH) {
+			set_bdi_congested(&nfss->backing_dev_info,
+						BLK_RW_ASYNC);
+		}
 	}
 	return ret;
 }
@@ -215,7 +217,7 @@ static void nfs_end_page_writeback(struct page *page)
 
 	end_page_writeback(page);
 	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
-		clear_bdi_congested(&nfss->backing_dev_info, WRITE);
+		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
 }
 
 /*

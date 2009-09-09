@@ -294,10 +294,10 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	unsigned vactive = (pt->vactive_vblank_hi & 0xf0) << 4 | pt->vactive_lo;
 	unsigned hblank = (pt->hactive_hblank_hi & 0xf) << 8 | pt->hblank_lo;
 	unsigned vblank = (pt->vactive_vblank_hi & 0xf) << 8 | pt->vblank_lo;
-	unsigned hsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0x3) << 8 | pt->hsync_offset_lo;
-	unsigned hsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0xc) << 6 | pt->hsync_pulse_width_lo;
-	unsigned vsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0x30) | (pt->vsync_offset_pulse_width_lo & 0xf);
-	unsigned vsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0xc0) >> 2 | pt->vsync_offset_pulse_width_lo >> 4;
+	unsigned hsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0xc0) << 2 | pt->hsync_offset_lo;
+	unsigned hsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0x30) << 4 | pt->hsync_pulse_width_lo;
+	unsigned vsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0xc) >> 2 | pt->vsync_offset_pulse_width_lo >> 4;
+	unsigned vsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0x3) << 4 | (pt->vsync_offset_pulse_width_lo & 0xf);
 
 	/* ignore tiny modes */
 	if (hactive < 64 || vactive < 64)
@@ -347,8 +347,8 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	mode->flags |= (pt->misc & DRM_EDID_PT_VSYNC_POSITIVE) ?
 		DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 
-	mode->width_mm = pt->width_mm_lo | (pt->width_height_mm_hi & 0xf) << 8;
-	mode->height_mm = pt->height_mm_lo | (pt->width_height_mm_hi & 0xf0) << 4;
+	mode->width_mm = pt->width_mm_lo | (pt->width_height_mm_hi & 0xf0) << 4;
+	mode->height_mm = pt->height_mm_lo | (pt->width_height_mm_hi & 0xf) << 8;
 
 	if (quirks & EDID_QUIRK_DETAILED_IN_CM) {
 		mode->width_mm *= 10;

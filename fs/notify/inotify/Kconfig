@@ -15,7 +15,7 @@ config INOTIFY
 
 config INOTIFY_USER
 	bool "Inotify support for userspace"
-	depends on FSNOTIFY
+	select FSNOTIFY
 	default y
 	---help---
 	  Say Y here to enable inotify support for userspace, including the

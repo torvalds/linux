@@ -321,7 +321,7 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 	}
 
 	if (ei_debug  &&  version_printed++ == 0)
-		printk(KERN_INFO "%s" KERN_INFO "%s", version1, version2);
+		printk(KERN_INFO "%s%s", version1, version2);
 
 	printk(KERN_INFO "NE*000 ethercard probe at %#3lx:", ioaddr);
 

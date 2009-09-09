@@ -1037,14 +1037,14 @@ static int __devinit wm8988_spi_probe(struct spi_device *spi)
 	codec->control_data = spi;
 	codec->dev = &spi->dev;
 
-	spi->dev.driver_data = wm8988;
+	dev_set_drvdata(&spi->dev, wm8988);
 
 	return wm8988_register(wm8988);
 }
 
 static int __devexit wm8988_spi_remove(struct spi_device *spi)
 {
-	struct wm8988_priv *wm8988 = spi->dev.driver_data;
+	struct wm8988_priv *wm8988 = dev_get_drvdata(&spi->dev);
 
 	wm8988_unregister(wm8988);
 

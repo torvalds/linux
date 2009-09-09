@@ -29,7 +29,6 @@
 #include <linux/usb.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <linux/smp_lock.h>
 #include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>

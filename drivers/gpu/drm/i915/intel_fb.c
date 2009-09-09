@@ -453,7 +453,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	size = ALIGN(size, PAGE_SIZE);
 	fbo = drm_gem_object_alloc(dev, size);
 	if (!fbo) {
-		printk(KERN_ERR "failed to allocate framebuffer\n");
+		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -610,8 +610,8 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	par->dev = dev;
 
 	/* To allow resizeing without swapping buffers */
-	printk("allocated %dx%d fb: 0x%08x, bo %p\n", intel_fb->base.width,
-	       intel_fb->base.height, obj_priv->gtt_offset, fbo);
+	DRM_DEBUG("allocated %dx%d fb: 0x%08x, bo %p\n", intel_fb->base.width,
+		  intel_fb->base.height, obj_priv->gtt_offset, fbo);
 
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -698,13 +698,13 @@ static int intelfb_multi_fb_probe_crtc(struct drm_device *dev, struct drm_crtc *
 	} else
 		intelfb_set_par(info);
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
+	DRM_INFO("fb%d: %s frame buffer device\n", info->node,
 	       info->fix.id);
 
 	/* Switch back to kernel console on panic */
 	kernelfb_mode = *modeset;
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
-	printk(KERN_INFO "registered panic notifier\n");
+	DRM_DEBUG("registered panic notifier\n");
 
 	return 0;
 }
@@ -852,13 +852,13 @@ static int intelfb_single_fb_probe(struct drm_device *dev)
 	} else
 		intelfb_set_par(info);
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
+	DRM_INFO("fb%d: %s frame buffer device\n", info->node,
 	       info->fix.id);
 
 	/* Switch back to kernel console on panic */
 	kernelfb_mode = *modeset;
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
-	printk(KERN_INFO "registered panic notifier\n");
+	DRM_DEBUG("registered panic notifier\n");
 
 	return 0;
 }
@@ -872,8 +872,8 @@ void intelfb_restore(void)
 {
 	int ret;
 	if ((ret = drm_crtc_helper_set_config(&kernelfb_mode)) != 0) {
-		printk(KERN_ERR "Failed to restore crtc configuration: %d\n",
-		       ret);
+		DRM_ERROR("Failed to restore crtc configuration: %d\n",
+			  ret);
 	}
 }
 

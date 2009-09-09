@@ -267,7 +267,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 	if (retval == 0)
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 	spin_unlock_irqrestore(&port->lock, flags);
-	return 0;
+	return retval;
 	
 }
 EXPORT_SYMBOL(tty_port_block_til_ready);

@@ -101,9 +101,10 @@ static int radeonfb_setcolreg(unsigned regno,
 				break;
 			case 24:
 			case 32:
-				fb->pseudo_palette[regno] = ((red & 0xff00) << 8) |
-					(green & 0xff00) |
-					((blue  & 0xff00) >> 8);
+				fb->pseudo_palette[regno] =
+					(((red >> 8) & 0xff) << info->var.red.offset) |
+					(((green >> 8) & 0xff) << info->var.green.offset) |
+					(((blue >> 8) & 0xff) << info->var.blue.offset);
 				break;
 			}
 		}
@@ -154,6 +155,7 @@ static int radeonfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 0;
 		var->transp.offset = 0;
 		break;
+#ifdef __LITTLE_ENDIAN
 	case 15:
 		var->red.offset = 10;
 		var->green.offset = 5;
@@ -194,6 +196,28 @@ static int radeonfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 8;
 		var->transp.offset = 24;
 		break;
+#else
+	case 24:
+		var->red.offset = 8;
+		var->green.offset = 16;
+		var->blue.offset = 24;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		break;
+	case 32:
+		var->red.offset = 8;
+		var->green.offset = 16;
+		var->blue.offset = 24;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		var->transp.length = 8;
+		var->transp.offset = 0;
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -447,10 +471,10 @@ static struct notifier_block paniced = {
 	.notifier_call = radeonfb_panic,
 };
 
-static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp)
+static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
 {
 	int aligned = width;
-	int align_large = (ASIC_IS_AVIVO(rdev));
+	int align_large = (ASIC_IS_AVIVO(rdev)) || tiled;
 	int pitch_mask = 0;
 
 	switch (bpp / 8) {
@@ -478,40 +502,52 @@ int radeonfb_create(struct radeon_device *rdev,
 {
 	struct fb_info *info;
 	struct radeon_fb_device *rfbdev;
-	struct drm_framebuffer *fb;
+	struct drm_framebuffer *fb = NULL;
 	struct radeon_framebuffer *rfb;
 	struct drm_mode_fb_cmd mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_object *robj = NULL;
 	struct device *device = &rdev->pdev->dev;
 	int size, aligned_size, ret;
+	u64 fb_gpuaddr;
 	void *fbptr = NULL;
+	unsigned long tmp;
+	bool fb_tiled = false; /* useful for testing */
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
 	mode_cmd.bpp = 32;
 	/* need to align pitch with crtc limits */
-	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp) * ((mode_cmd.bpp + 1) / 8);
+	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
 	mode_cmd.depth = 24;
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
 
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
-				       RADEON_GEM_DOMAIN_VRAM,
-				       false, ttm_bo_type_kernel,
-				       false, &gobj);
+			RADEON_GEM_DOMAIN_VRAM,
+			false, ttm_bo_type_kernel,
+			false, &gobj);
 	if (ret) {
-		printk(KERN_ERR "failed to allocate framebuffer\n");
+		printk(KERN_ERR "failed to allocate framebuffer (%d %d)\n",
+		       surface_width, surface_height);
 		ret = -ENOMEM;
 		goto out;
 	}
 	robj = gobj->driver_private;
 
+	if (fb_tiled)
+		radeon_object_set_tiling_flags(robj, RADEON_TILING_MACRO|RADEON_TILING_SURFACE, mode_cmd.pitch);
 	mutex_lock(&rdev->ddev->struct_mutex);
 	fb = radeon_framebuffer_create(rdev->ddev, &mode_cmd, gobj);
 	if (fb == NULL) {
 		DRM_ERROR("failed to allocate fb.\n");
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+	ret = radeon_object_pin(robj, RADEON_GEM_DOMAIN_VRAM, &fb_gpuaddr);
+	if (ret) {
+		printk(KERN_ERR "failed to pin framebuffer\n");
 		ret = -ENOMEM;
 		goto out_unref;
 	}
@@ -521,6 +557,7 @@ int radeonfb_create(struct radeon_device *rdev,
 	rfb = to_radeon_framebuffer(fb);
 	*rfb_p = rfb;
 	rdev->fbdev_rfb = rfb;
+	rdev->fbdev_robj = robj;
 
 	info = framebuffer_alloc(sizeof(struct radeon_fb_device), device);
 	if (info == NULL) {
@@ -528,6 +565,9 @@ int radeonfb_create(struct radeon_device *rdev,
 		goto out_unref;
 	}
 	rfbdev = info->par;
+
+	if (fb_tiled)
+		radeon_object_check_tiling(robj, 0, 0);
 
 	ret = radeon_object_kmap(robj, &fbptr);
 	if (ret) {
@@ -541,13 +581,13 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */
 	info->fix.ywrapstep = 0;
-	info->fix.accel = FB_ACCEL_I830;
+	info->fix.accel = FB_ACCEL_NONE;
 	info->fix.type_aux = 0;
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
 	info->fix.line_length = fb->pitch;
-	info->screen_base = fbptr;
-	info->fix.smem_start = (unsigned long)fbptr;
+	tmp = fb_gpuaddr - rdev->mc.vram_location;
+	info->fix.smem_start = rdev->mc.aper_base + tmp;
 	info->fix.smem_len = size;
 	info->screen_base = fbptr;
 	info->screen_size = size;
@@ -562,8 +602,13 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->var.width = -1;
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
-	info->fix.mmio_start = pci_resource_start(rdev->pdev, 2);
-	info->fix.mmio_len = pci_resource_len(rdev->pdev, 2);
+
+	/* setup aperture base/size for vesafb takeover */
+	info->aperture_base = rdev->ddev->mode_config.fb_base;
+	info->aperture_size = rdev->mc.real_vram_size;
+
+	info->fix.mmio_start = 0;
+	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;
@@ -590,6 +635,7 @@ int radeonfb_create(struct radeon_device *rdev,
 		info->var.transp.offset = 0;
 		info->var.transp.length = 0;
 		break;
+#ifdef __LITTLE_ENDIAN
 	case 15:
 		info->var.red.offset = 10;
 		info->var.green.offset = 5;
@@ -629,7 +675,29 @@ int radeonfb_create(struct radeon_device *rdev,
 		info->var.transp.offset = 24;
 		info->var.transp.length = 8;
 		break;
+#else
+	case 24:
+		info->var.red.offset = 8;
+		info->var.green.offset = 16;
+		info->var.blue.offset = 24;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 32:
+		info->var.red.offset = 8;
+		info->var.green.offset = 16;
+		info->var.blue.offset = 24;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 8;
+		break;
 	default:
+#endif
 		break;
 	}
 
@@ -644,7 +712,7 @@ out_unref:
 	if (robj) {
 		radeon_object_kunmap(robj);
 	}
-	if (ret) {
+	if (fb && ret) {
 		list_del(&fb->filp_head);
 		drm_gem_object_unreference(gobj);
 		drm_framebuffer_cleanup(fb);
@@ -813,6 +881,7 @@ int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 		robj = rfb->obj->driver_private;
 		unregister_framebuffer(info);
 		radeon_object_kunmap(robj);
+		radeon_object_unpin(robj);
 		framebuffer_release(info);
 	}
 

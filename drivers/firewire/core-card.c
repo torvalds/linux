@@ -196,8 +196,8 @@ static void allocate_broadcast_channel(struct fw_card *card, int generation)
 {
 	int channel, bandwidth = 0;
 
-	fw_iso_resource_manage(card, generation, 1ULL << 31,
-			       &channel, &bandwidth, true);
+	fw_iso_resource_manage(card, generation, 1ULL << 31, &channel,
+			       &bandwidth, true, card->bm_transaction_data);
 	if (channel == 31) {
 		card->broadcast_channel_allocated = true;
 		device_for_each_child(card->device, (void *)(long)generation,
@@ -230,7 +230,6 @@ static void fw_card_bm_work(struct work_struct *work)
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
-	__be32 lock_data[2];
 
 	spin_lock_irqsave(&card->lock, flags);
 
@@ -273,22 +272,23 @@ static void fw_card_bm_work(struct work_struct *work)
 			goto pick_me;
 		}
 
-		lock_data[0] = cpu_to_be32(0x3f);
-		lock_data[1] = cpu_to_be32(local_id);
+		card->bm_transaction_data[0] = cpu_to_be32(0x3f);
+		card->bm_transaction_data[1] = cpu_to_be32(local_id);
 
 		spin_unlock_irqrestore(&card->lock, flags);
 
 		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				lock_data, sizeof(lock_data));
+				card->bm_transaction_data,
+				sizeof(card->bm_transaction_data));
 
 		if (rcode == RCODE_GENERATION)
 			/* Another bus reset, BM work has been rescheduled. */
 			goto out;
 
 		if (rcode == RCODE_COMPLETE &&
-		    lock_data[0] != cpu_to_be32(0x3f)) {
+		    card->bm_transaction_data[0] != cpu_to_be32(0x3f)) {
 
 			/* Somebody else is BM.  Only act as IRM. */
 			if (local_id == irm_id)

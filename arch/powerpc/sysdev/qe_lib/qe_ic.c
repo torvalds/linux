@@ -333,11 +333,9 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 	if (ret)
 		return;
 
-	qe_ic = alloc_bootmem(sizeof(struct qe_ic));
+	qe_ic = kzalloc(sizeof(*qe_ic), GFP_KERNEL);
 	if (qe_ic == NULL)
 		return;
-
-	memset(qe_ic, 0, sizeof(struct qe_ic));
 
 	qe_ic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 					NR_QE_IC_INTS, &qe_ic_host_ops, 0);

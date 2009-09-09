@@ -44,6 +44,8 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 	       be32_to_cpu(ec_hdr->vid_hdr_offset));
 	printk(KERN_DEBUG "\tdata_offset    %d\n",
 	       be32_to_cpu(ec_hdr->data_offset));
+	printk(KERN_DEBUG "\timage_seq      %d\n",
+	       be32_to_cpu(ec_hdr->image_seq));
 	printk(KERN_DEBUG "\thdr_crc        %#08x\n",
 	       be32_to_cpu(ec_hdr->hdr_crc));
 	printk(KERN_DEBUG "erase counter header hexdump:\n");

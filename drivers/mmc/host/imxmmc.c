@@ -652,7 +652,7 @@ static irqreturn_t imxmci_irq(int irq, void *devid)
 	set_bit(IMXMCI_PEND_STARTED_b, &host->pending_events);
 	tasklet_schedule(&host->tasklet);
 
-	return IRQ_RETVAL(handled);;
+	return IRQ_RETVAL(handled);
 }
 
 static void imxmci_tasklet_fnc(unsigned long data)

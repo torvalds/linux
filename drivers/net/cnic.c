@@ -227,7 +227,7 @@ static int cnic_send_nlmsg(struct cnic_local *cp, u32 type,
 	}
 
 	rcu_read_lock();
-	ulp_ops = rcu_dereference(cp->ulp_ops[CNIC_ULP_ISCSI]);
+	ulp_ops = rcu_dereference(cnic_ulp_tbl[CNIC_ULP_ISCSI]);
 	if (ulp_ops)
 		ulp_ops->iscsi_nl_send_msg(cp->dev, msg_type, buf, len);
 	rcu_read_unlock();
@@ -319,6 +319,20 @@ static int cnic_abort_prep(struct cnic_sock *csk)
 	return 0;
 }
 
+static void cnic_uio_stop(void)
+{
+	struct cnic_dev *dev;
+
+	read_lock(&cnic_dev_lock);
+	list_for_each_entry(dev, &cnic_dev_list, list) {
+		struct cnic_local *cp = dev->cnic_priv;
+
+		if (cp->cnic_uinfo)
+			cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
+	}
+	read_unlock(&cnic_dev_lock);
+}
+
 int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 {
 	struct cnic_dev *dev;
@@ -389,6 +403,9 @@ int cnic_unregister_driver(int ulp_type)
 		}
 	}
 	read_unlock(&cnic_dev_lock);
+
+	if (ulp_type == CNIC_ULP_ISCSI)
+		cnic_uio_stop();
 
 	rcu_assign_pointer(cnic_ulp_tbl[ulp_type], NULL);
 
@@ -632,7 +649,6 @@ static void cnic_free_resc(struct cnic_dev *dev)
 	int i = 0;
 
 	if (cp->cnic_uinfo) {
-		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
 		while (cp->uio_dev != -1 && i < 15) {
 			msleep(100);
 			i++;
@@ -1056,6 +1072,9 @@ static void cnic_ulp_stop(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	int if_type;
+
+	if (cp->cnic_uinfo)
+		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
 
 	rcu_read_lock();
 	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {

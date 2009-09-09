@@ -2721,13 +2721,15 @@ dump_tx_ring(struct net_device *dev)
 				   &vp->tx_ring[vp->dirty_tx % TX_RING_SIZE]);
 			issue_and_wait(dev, DownStall);
 			for (i = 0; i < TX_RING_SIZE; i++) {
-				pr_err("  %d: @%p  length %8.8x status %8.8x\n", i,
-					   &vp->tx_ring[i],
+				unsigned int length;
+
 #if DO_ZEROCOPY
-					   le32_to_cpu(vp->tx_ring[i].frag[0].length),
+				length = le32_to_cpu(vp->tx_ring[i].frag[0].length);
 #else
-					   le32_to_cpu(vp->tx_ring[i].length),
+				length = le32_to_cpu(vp->tx_ring[i].length);
 #endif
+				pr_err("  %d: @%p  length %8.8x status %8.8x\n",
+					   i, &vp->tx_ring[i], length,
 					   le32_to_cpu(vp->tx_ring[i].status));
 			}
 			if (!stalled)

@@ -1531,7 +1531,12 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 		 */
 		ret_val = e1e_rphy(hw, PHY_STATUS, &phy_status);
 		if (ret_val)
-			break;
+			/*
+			 * If the first read fails, another entity may have
+			 * ownership of the resources, wait and try again to
+			 * see if they have relinquished the resources yet.
+			 */
+			udelay(usec_interval);
 		ret_val = e1e_rphy(hw, PHY_STATUS, &phy_status);
 		if (ret_val)
 			break;
@@ -2735,6 +2740,11 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	u16 data;
 
 	if (hw->phy.type != e1000_phy_82578)
+		goto out;
+
+	/* Do not apply workaround if in PHY loopback bit 14 set */
+	hw->phy.ops.read_phy_reg(hw, PHY_CONTROL, &data);
+	if (data & PHY_CONTROL_LB)
 		goto out;
 
 	/* check if link is up and at 1Gbps */

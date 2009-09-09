@@ -406,7 +406,7 @@ void getreg(unsigned long regnum, unsigned long *val,
 	 * Now look at registers in [0-31] range and init correct UNAT
 	 */
 	addr = (unsigned long)regs;
-	unat = &regs->eml_unat;;
+	unat = &regs->eml_unat;
 
 	addr += gr_info[regnum];
 

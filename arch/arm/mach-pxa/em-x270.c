@@ -1141,12 +1141,16 @@ struct power_supply_info em_x270_psy_info = {
 
 static void em_x270_battery_low(void)
 {
+#if defined(CONFIG_APM_EMULATION)
 	apm_queue_event(APM_LOW_BATTERY);
+#endif
 }
 
 static void em_x270_battery_critical(void)
 {
+#if defined(CONFIG_APM_EMULATION)
 	apm_queue_event(APM_CRITICAL_SUSPEND);
+#endif
 }
 
 struct da9030_battery_info em_x270_batterty_info = {

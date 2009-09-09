@@ -162,7 +162,7 @@ static unsigned long set_apic_id(unsigned int id)
 
 static int x2apic_phys_pkg_id(int initial_apicid, int index_msb)
 {
-	return current_cpu_data.initial_apicid >> index_msb;
+	return initial_apicid >> index_msb;
 }
 
 static void x2apic_send_IPI_self(int vector)

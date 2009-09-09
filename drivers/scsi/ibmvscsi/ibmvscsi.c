@@ -1095,9 +1095,14 @@ static void adapter_info_rsp(struct srp_event_struct *evt_struct)
 				MAX_INDIRECT_BUFS);
 			hostdata->host->sg_tablesize = MAX_INDIRECT_BUFS;
 		}
+
+		if (hostdata->madapter_info.os_type == 3) {
+			enable_fast_fail(hostdata);
+			return;
+		}
 	}
 
-	enable_fast_fail(hostdata);
+	send_srp_login(hostdata);
 }
 
 /**

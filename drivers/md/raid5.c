@@ -3911,13 +3911,21 @@ static int make_request(struct request_queue *q, struct bio * bi)
 					goto retry;
 				}
 			}
-			/* FIXME what if we get a false positive because these
-			 * are being updated.
-			 */
-			if (logical_sector >= mddev->suspend_lo &&
+
+			if (bio_data_dir(bi) == WRITE &&
+			    logical_sector >= mddev->suspend_lo &&
 			    logical_sector < mddev->suspend_hi) {
 				release_stripe(sh);
-				schedule();
+				/* As the suspend_* range is controlled by
+				 * userspace, we want an interruptible
+				 * wait.
+				 */
+				flush_signals(current);
+				prepare_to_wait(&conf->wait_for_overlap,
+						&w, TASK_INTERRUPTIBLE);
+				if (logical_sector >= mddev->suspend_lo &&
+				    logical_sector < mddev->suspend_hi)
+					schedule();
 				goto retry;
 			}
 
@@ -3989,7 +3997,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		    conf->reshape_progress < raid5_size(mddev, 0, 0)) {
 			sector_nr = raid5_size(mddev, 0, 0)
 				- conf->reshape_progress;
-		} else if (mddev->delta_disks > 0 &&
+		} else if (mddev->delta_disks >= 0 &&
 			   conf->reshape_progress > 0)
 			sector_nr = conf->reshape_progress;
 		sector_div(sector_nr, new_data_disks);
@@ -4202,6 +4210,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 
 		return 0;
 	}
+
+	/* Allow raid5_quiesce to complete */
+	wait_event(conf->wait_for_overlap, conf->quiesce != 2);
 
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		return reshape_request(mddev, sector_nr, skipped);
@@ -4803,7 +4814,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
-	int working_disks = 0;
+	int working_disks = 0, chunk_size;
 	mdk_rdev_t *rdev;
 
 	if (mddev->recovery_cp != MaxSector)
@@ -4844,7 +4855,26 @@ static int run(mddev_t *mddev)
 			   (old_disks-max_degraded));
 		/* here_old is the first stripe that we might need to read
 		 * from */
-		if (here_new >= here_old) {
+		if (mddev->delta_disks == 0) {
+			/* We cannot be sure it is safe to start an in-place
+			 * reshape.  It is only safe if user-space if monitoring
+			 * and taking constant backups.
+			 * mdadm always starts a situation like this in
+			 * readonly mode so it can take control before
+			 * allowing any writes.  So just check for that.
+			 */
+			if ((here_new * mddev->new_chunk_sectors != 
+			     here_old * mddev->chunk_sectors) ||
+			    mddev->ro == 0) {
+				printk(KERN_ERR "raid5: in-place reshape must be started"
+				       " in read-only mode - aborting\n");
+				return -EINVAL;
+			}
+		} else if (mddev->delta_disks < 0
+		    ? (here_new * mddev->new_chunk_sectors <=
+		       here_old * mddev->chunk_sectors)
+		    : (here_new * mddev->new_chunk_sectors >=
+		       here_old * mddev->chunk_sectors)) {
 			/* Reading from the same stripe as writing to - bad */
 			printk(KERN_ERR "raid5: reshape_position too early for "
 			       "auto-recovery - aborting.\n");
@@ -4958,6 +4988,14 @@ static int run(mddev_t *mddev)
 	md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 
 	blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
+	chunk_size = mddev->chunk_sectors << 9;
+	blk_queue_io_min(mddev->queue, chunk_size);
+	blk_queue_io_opt(mddev->queue, chunk_size *
+			 (conf->raid_disks - conf->max_degraded));
+
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		disk_stack_limits(mddev->gendisk, rdev->bdev,
+				  rdev->data_offset << 9);
 
 	return 0;
 abort:
@@ -5185,6 +5223,7 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
+	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -5330,7 +5369,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	mddev->raid_disks = conf->raid_disks;
-	mddev->reshape_position = 0;
+	mddev->reshape_position = conf->reshape_progress;
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -5385,7 +5424,6 @@ static void end_reshape(raid5_conf_t *conf)
  */
 static void raid5_finish_reshape(mddev_t *mddev)
 {
-	struct block_device *bdev;
 	raid5_conf_t *conf = mddev->private;
 
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
@@ -5394,15 +5432,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 			md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 			set_capacity(mddev->gendisk, mddev->array_sectors);
 			mddev->changed = 1;
-
-			bdev = bdget_disk(mddev->gendisk, 0);
-			if (bdev) {
-				mutex_lock(&bdev->bd_inode->i_mutex);
-				i_size_write(bdev->bd_inode,
-					     (loff_t)mddev->array_sectors << 9);
-				mutex_unlock(&bdev->bd_inode->i_mutex);
-				bdput(bdev);
-			}
+			revalidate_disk(mddev->gendisk);
 		} else {
 			int d;
 			mddev->degraded = conf->raid_disks;
@@ -5413,8 +5443,15 @@ static void raid5_finish_reshape(mddev_t *mddev)
 					mddev->degraded--;
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
-			     d++)
-				raid5_remove_disk(mddev, d);
+			     d++) {
+				mdk_rdev_t *rdev = conf->disks[d].rdev;
+				if (rdev && raid5_remove_disk(mddev, d) == 0) {
+					char nm[20];
+					sprintf(nm, "rd%d", rdev->raid_disk);
+					sysfs_remove_link(&mddev->kobj, nm);
+					rdev->raid_disk = -1;
+				}
+			}
 		}
 		mddev->layout = conf->algorithm;
 		mddev->chunk_sectors = conf->chunk_sectors;
@@ -5434,12 +5471,18 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 
 	case 1: /* stop all writes */
 		spin_lock_irq(&conf->device_lock);
-		conf->quiesce = 1;
+		/* '2' tells resync/reshape to pause so that all
+		 * active stripes can drain
+		 */
+		conf->quiesce = 2;
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    atomic_read(&conf->active_stripes) == 0 &&
 				    atomic_read(&conf->active_aligned_reads) == 0,
 				    conf->device_lock, /* nothing */);
+		conf->quiesce = 1;
 		spin_unlock_irq(&conf->device_lock);
+		/* allow reshape to continue */
+		wake_up(&conf->wait_for_overlap);
 		break;
 
 	case 0: /* re-enable writes */

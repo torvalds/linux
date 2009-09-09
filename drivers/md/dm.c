@@ -1017,7 +1017,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 	clone->bi_flags |= 1 << BIO_CLONED;
 
 	if (bio_integrity(bio)) {
-		bio_integrity_clone(clone, bio, GFP_NOIO);
+		bio_integrity_clone(clone, bio, GFP_NOIO, bs);
 		bio_integrity_trim(clone,
 				   bio_sector_offset(bio, idx, offset), len);
 	}
@@ -1045,7 +1045,7 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
 	clone->bi_flags &= ~(1 << BIO_SEG_VALID);
 
 	if (bio_integrity(bio)) {
-		bio_integrity_clone(clone, bio, GFP_NOIO);
+		bio_integrity_clone(clone, bio, GFP_NOIO, bs);
 
 		if (idx != bio->bi_idx || clone->bi_size < bio->bi_size)
 			bio_integrity_trim(clone,
@@ -2202,16 +2202,6 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		DMWARN("can't change the device type after a table is bound");
 		goto out;
 	}
-
-	/*
-	 * It is enought that blk_queue_ordered() is called only once when
-	 * the first bio-based table is bound.
-	 *
-	 * This setting should be moved to alloc_dev() when request-based dm
-	 * supports barrier.
-	 */
-	if (!md->map && dm_table_bio_based(table))
-		blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN, NULL);
 
 	__unbind(md);
 	r = __bind(md, table, &limits);

@@ -553,6 +553,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	INIT_LIST_HEAD(&lsp->ls_sequence.list);
 	lsp->ls_seqid.sequence = &lsp->ls_sequence;
 	atomic_set(&lsp->ls_count, 1);
+	lsp->ls_state = state;
 	lsp->ls_owner = fl_owner;
 	spin_lock(&clp->cl_lock);
 	nfs_alloc_unique_id(&clp->cl_lockowner_id, &lsp->ls_id, 1, 64);
@@ -587,7 +588,6 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
 		if (lsp != NULL)
 			break;
 		if (new != NULL) {
-			new->ls_state = state;
 			list_add(&new->ls_locks, &state->lock_states);
 			set_bit(LK_STATE_IN_USE, &state->flags);
 			lsp = new;

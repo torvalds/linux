@@ -201,7 +201,7 @@
 #define OMAP2_IO_ADDRESS(pa)	IOMEM(__OMAP2_IO_ADDRESS(pa))
 
 #ifdef __ASSEMBLER__
-#define IOMEM(x)		x
+#define IOMEM(x)		(x)
 #else
 #define IOMEM(x)		((void __force __iomem *)(x))
 

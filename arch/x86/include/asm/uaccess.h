@@ -212,9 +212,9 @@ extern int __get_user_bad(void);
 		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 #else
 #define __put_user_asm_u64(x, ptr, retval, errret) \
-	__put_user_asm(x, ptr, retval, "q", "", "Zr", errret)
+	__put_user_asm(x, ptr, retval, "q", "", "er", errret)
 #define __put_user_asm_ex_u64(x, addr)	\
-	__put_user_asm_ex(x, addr, "q", "", "Zr")
+	__put_user_asm_ex(x, addr, "q", "", "er")
 #define __put_user_x8(x, ptr, __ret_pu) __put_user_x(8, x, ptr, __ret_pu)
 #endif
 

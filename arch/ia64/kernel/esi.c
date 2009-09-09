@@ -65,7 +65,7 @@ static int __init esi_init (void)
 	}
 
 	if (!esi)
-		return -ENODEV;;
+		return -ENODEV;
 
 	systab = __va(esi);
 

@@ -23,7 +23,7 @@
 #include "util/symbol.h"
 #include "util/color.h"
 #include "util/util.h"
-#include "util/rbtree.h"
+#include <linux/rbtree.h>
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 
@@ -58,6 +58,7 @@ static u64			count_filter			=  5;
 static int			print_entries			= 15;
 
 static int			target_pid			= -1;
+static int			inherit				=  0;
 static int			profile_cpu			= -1;
 static int			nr_cpus				=  0;
 static unsigned int		realtime_prio			=  0;
@@ -66,6 +67,7 @@ static unsigned int		page_size;
 static unsigned int		mmap_pages			= 16;
 static int			freq				=  0;
 static int			verbose				=  0;
+static char			*vmlinux			=  NULL;
 
 static char			*sym_filter;
 static unsigned long		filter_start;
@@ -238,7 +240,6 @@ static void print_sym_table(void)
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct sym_entry *syme = rb_entry(nd, struct sym_entry, rb_node);
 		struct symbol *sym = (struct symbol *)(syme + 1);
-		char *color = PERF_COLOR_NORMAL;
 		double pcnt;
 
 		if (++printed > print_entries || syme->snap_count < count_filter)
@@ -247,29 +248,20 @@ static void print_sym_table(void)
 		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
 					 sum_ksamples));
 
-		/*
-		 * We color high-overhead entries in red, mid-overhead
-		 * entries in green - and keep the low overhead places
-		 * normal:
-		 */
-		if (pcnt >= 5.0) {
-			color = PERF_COLOR_RED;
-		} else {
-			if (pcnt >= 0.5)
-				color = PERF_COLOR_GREEN;
-		}
-
 		if (nr_counters == 1)
 			printf("%20.2f - ", syme->weight);
 		else
 			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
 
-		color_fprintf(stdout, color, "%4.1f%%", pcnt);
-		printf(" - %016llx : %s\n", sym->start, sym->name);
+		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
+		printf(" - %016llx : %s", sym->start, sym->name);
+		if (sym->module)
+			printf("\t[%s]", sym->module->name);
+		printf("\n");
 	}
 }
 
-static void *display_thread(void *arg)
+static void *display_thread(void *arg __used)
 {
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	int delay_msecs = delay_secs * 1000;
@@ -286,11 +278,32 @@ static void *display_thread(void *arg)
 	return NULL;
 }
 
+/* Tag samples to be skipped. */
+static const char *skip_symbols[] = {
+	"default_idle",
+	"cpu_idle",
+	"enter_idle",
+	"exit_idle",
+	"mwait_idle",
+	"mwait_idle_with_hints",
+	"ppc64_runlatch_off",
+	"pseries_dedicated_idle_sleep",
+	NULL
+};
+
 static int symbol_filter(struct dso *self, struct symbol *sym)
 {
 	static int filter_match;
 	struct sym_entry *syme;
 	const char *name = sym->name;
+	int i;
+
+	/*
+	 * ppc64 uses function descriptors and appends a '.' to the
+	 * start of every instruction address. Remove it.
+	 */
+	if (name[0] == '.')
+		name++;
 
 	if (!strcmp(name, "_text") ||
 	    !strcmp(name, "_etext") ||
@@ -302,13 +315,12 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 		return 1;
 
 	syme = dso__sym_priv(self, sym);
-	/* Tag samples to be skipped. */
-	if (!strcmp("default_idle", name) ||
-	    !strcmp("cpu_idle", name) ||
-	    !strcmp("enter_idle", name) ||
-	    !strcmp("exit_idle", name) ||
-	    !strcmp("mwait_idle", name))
-		syme->skip = 1;
+	for (i = 0; skip_symbols[i]; i++) {
+		if (!strcmp(skip_symbols[i], name)) {
+			syme->skip = 1;
+			break;
+		}
+	}
 
 	if (filter_match == 1) {
 		filter_end = sym->start;
@@ -340,12 +352,13 @@ static int parse_symbols(void)
 {
 	struct rb_node *node;
 	struct symbol  *sym;
+	int modules = vmlinux ? 1 : 0;
 
 	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
 	if (kernel_dso == NULL)
 		return -1;
 
-	if (dso__load_kernel(kernel_dso, NULL, symbol_filter, 1) != 0)
+	if (dso__load_kernel(kernel_dso, vmlinux, symbol_filter, verbose, modules) <= 0)
 		goto out_delete_dso;
 
 	node = rb_first(&kernel_dso->syms);
@@ -392,11 +405,11 @@ static void record_ip(u64 ip, int counter)
 	samples--;
 }
 
-static void process_event(u64 ip, int counter)
+static void process_event(u64 ip, int counter, int user)
 {
 	samples++;
 
-	if (ip < min_ip || ip > max_ip) {
+	if (user) {
 		userspace_samples++;
 		return;
 	}
@@ -407,7 +420,7 @@ static void process_event(u64 ip, int counter)
 struct mmap_data {
 	int			counter;
 	void			*base;
-	unsigned int		mask;
+	int			mask;
 	unsigned int		prev;
 };
 
@@ -509,9 +522,10 @@ static void mmap_read_counter(struct mmap_data *md)
 
 		old += size;
 
-		if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
-			if (event->header.type & PERF_SAMPLE_IP)
-				process_event(event->ip.ip, md->counter);
+		if (event->header.type == PERF_EVENT_SAMPLE) {
+			int user =
+	(event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK) == PERF_EVENT_MISC_USER;
+			process_event(event->ip.ip, md->counter, user);
 		}
 	}
 
@@ -537,7 +551,7 @@ int group_fd;
 static void start_counter(int i, int counter)
 {
 	struct perf_counter_attr *attr;
-	unsigned int cpu;
+	int cpu;
 
 	cpu = profile_cpu;
 	if (target_pid == -1 && profile_cpu == -1)
@@ -547,6 +561,7 @@ static void start_counter(int i, int counter)
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 	attr->freq		= freq;
+	attr->inherit		= (cpu < 0) && inherit;
 
 try_again:
 	fd[i][counter] = sys_perf_counter_open(attr, target_pid, cpu, group_fd, 0);
@@ -660,6 +675,7 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
+	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
@@ -672,9 +688,11 @@ static const struct option options[] = {
 		    "only display functions with more events than this"),
 	OPT_BOOLEAN('g', "group", &group,
 			    "put the counters into a counter group"),
+	OPT_BOOLEAN('i', "inherit", &inherit,
+		    "child tasks inherit counters"),
 	OPT_STRING('s', "sym-filter", &sym_filter, "pattern",
 		    "only display symbols matchig this pattern"),
-	OPT_BOOLEAN('z', "zero", &group,
+	OPT_BOOLEAN('z', "zero", &zero,
 		    "zero history across updates"),
 	OPT_INTEGER('F', "freq", &freq,
 		    "profile at this frequency"),
@@ -685,9 +703,11 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_top(int argc, const char **argv, const char *prefix)
+int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
+
+	symbol__init();
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 

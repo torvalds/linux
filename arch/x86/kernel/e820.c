@@ -627,10 +627,9 @@ __init void e820_setup_gap(void)
 #ifdef CONFIG_X86_64
 	if (!found) {
 		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
-		printk(KERN_ERR "PCI: Warning: Cannot find a gap in the 32bit "
-		       "address range\n"
-		       KERN_ERR "PCI: Unassigned devices with 32bit resource "
-		       "registers may break!\n");
+		printk(KERN_ERR
+	"PCI: Warning: Cannot find a gap in the 32bit address range\n"
+	"PCI: Unassigned devices with 32bit resource registers may break!\n");
 	}
 #endif
 
@@ -1383,6 +1382,8 @@ static unsigned long ram_alignment(resource_size_t pos)
 	return 32*1024*1024;
 }
 
+#define MAX_RESOURCE_SIZE ((resource_size_t)-1)
+
 void __init e820_reserve_resources_late(void)
 {
 	int i;
@@ -1400,17 +1401,19 @@ void __init e820_reserve_resources_late(void)
 	 * avoid stolen RAM:
 	 */
 	for (i = 0; i < e820.nr_map; i++) {
-		struct e820entry *entry = &e820_saved.map[i];
-		resource_size_t start, end;
+		struct e820entry *entry = &e820.map[i];
+		u64 start, end;
 
 		if (entry->type != E820_RAM)
 			continue;
 		start = entry->addr + entry->size;
-		end = round_up(start, ram_alignment(start));
-		if (start == end)
+		end = round_up(start, ram_alignment(start)) - 1;
+		if (end > MAX_RESOURCE_SIZE)
+			end = MAX_RESOURCE_SIZE;
+		if (start >= end)
 			continue;
-		reserve_region_with_split(&iomem_resource, start,
-						  end - 1, "RAM buffer");
+		reserve_region_with_split(&iomem_resource, start, end,
+					  "RAM buffer");
 	}
 }
 

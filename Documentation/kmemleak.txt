@@ -16,12 +16,16 @@ Usage
 -----
 
 CONFIG_DEBUG_KMEMLEAK in "Kernel hacking" has to be enabled. A kernel
-thread scans the memory every 10 minutes (by default) and prints any new
-unreferenced objects found. To trigger an intermediate scan and display
-all the possible memory leaks:
+thread scans the memory every 10 minutes (by default) and prints the
+number of new unreferenced objects found. To display the details of all
+the possible memory leaks:
 
   # mount -t debugfs nodev /sys/kernel/debug/
   # cat /sys/kernel/debug/kmemleak
+
+To trigger an intermediate memory scan:
+
+  # echo scan > /sys/kernel/debug/kmemleak
 
 Note that the orphan objects are listed in the order they were allocated
 and one object at the beginning of the list may cause other subsequent
@@ -31,15 +35,20 @@ Memory scanning parameters can be modified at run-time by writing to the
 /sys/kernel/debug/kmemleak file. The following parameters are supported:
 
   off		- disable kmemleak (irreversible)
-  stack=on	- enable the task stacks scanning
+  stack=on	- enable the task stacks scanning (default)
   stack=off	- disable the tasks stacks scanning
-  scan=on	- start the automatic memory scanning thread
+  scan=on	- start the automatic memory scanning thread (default)
   scan=off	- stop the automatic memory scanning thread
-  scan=<secs>	- set the automatic memory scanning period in seconds (0
-		  to disable it)
+  scan=<secs>	- set the automatic memory scanning period in seconds
+		  (default 600, 0 to stop the automatic scanning)
+  scan		- trigger a memory scan
 
 Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
 the kernel command line.
+
+Memory may be allocated or freed before kmemleak is initialised and
+these actions are stored in an early log buffer. The size of this buffer
+is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
 
 Basic Algorithm
 ---------------

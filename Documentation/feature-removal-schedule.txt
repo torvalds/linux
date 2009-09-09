@@ -458,3 +458,13 @@ Why:	Remove the old legacy 32bit machine check code. This has been
 	but the old version has been kept around for easier testing. Note this
 	doesn't impact the old P5 and WinChip machine check handlers.
 Who:	Andi Kleen <andi@firstfloor.org>
+
+----------------------------
+
+What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
+	exported interface anymore.
+When:	2.6.33
+Why:	cpu_policy_rwsem has a new cleaner definition making it local to
+	cpufreq core and contained inside cpufreq.c. Other dependent
+	drivers should not use it in order to safely avoid lockdep issues.
+Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>

@@ -27,8 +27,7 @@ void trace_print_seq(struct seq_file *m, struct trace_seq *s)
 {
 	int len = s->len >= PAGE_SIZE ? PAGE_SIZE - 1 : s->len;
 
-	s->buffer[len] = 0;
-	seq_puts(m, s->buffer);
+	seq_write(m, s->buffer, len);
 
 	trace_seq_init(s);
 }

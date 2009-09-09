@@ -833,7 +833,7 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
 	if (!goal)
 		goal = sbi->s_inode_goal;
 
-	if (goal && goal < le32_to_cpu(sbi->s_es->s_inodes_count)) {
+	if (goal && goal <= le32_to_cpu(sbi->s_es->s_inodes_count)) {
 		group = (goal - 1) / EXT4_INODES_PER_GROUP(sb);
 		ino = (goal - 1) % EXT4_INODES_PER_GROUP(sb);
 		ret2 = 0;

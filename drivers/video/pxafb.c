@@ -815,8 +815,10 @@ static int overlayfb_map_video_memory(struct pxafb_layer *ofb)
 	ofb->video_mem_phys = virt_to_phys(ofb->video_mem);
 	ofb->video_mem_size = size;
 
+	mutex_lock(&ofb->fb.mm_lock);
 	ofb->fb.fix.smem_start	= ofb->video_mem_phys;
 	ofb->fb.fix.smem_len	= ofb->fb.fix.line_length * var->yres_virtual;
+	mutex_unlock(&ofb->fb.mm_lock);
 	ofb->fb.screen_base	= ofb->video_mem;
 	return 0;
 }

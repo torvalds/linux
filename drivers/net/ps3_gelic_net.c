@@ -1411,6 +1411,7 @@ static const struct net_device_ops gelic_netdevice_ops = {
 	.ndo_set_multicast_list = gelic_net_set_multi,
 	.ndo_change_mtu = gelic_net_change_mtu,
 	.ndo_tx_timeout = gelic_net_tx_timeout,
+	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gelic_net_poll_controller,

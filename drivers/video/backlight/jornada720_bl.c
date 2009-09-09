@@ -72,7 +72,7 @@ static int jornada_bl_update_status(struct backlight_device *bd)
 		if (jornada_ssp_byte(SETBRIGHTNESS) != TXDUMMY) {
 			printk(KERN_INFO "bl : failed to set brightness\n");
 			ret = -ETIMEDOUT;
-			goto out
+			goto out;
 		}
 
 		/* at this point we expect that the mcu has accepted

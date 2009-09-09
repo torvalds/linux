@@ -675,7 +675,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
  nommu:
 	/* Should not happen anymore */
 	printk(KERN_WARNING "PCI-DMA: More than 4GB of RAM and no IOMMU\n"
-	       KERN_WARNING "falling back to iommu=soft.\n");
+	       "falling back to iommu=soft.\n");
 	return -1;
 }
 

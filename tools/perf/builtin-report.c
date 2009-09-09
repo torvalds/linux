@@ -10,13 +10,16 @@
 #include "util/util.h"
 
 #include "util/color.h"
-#include "util/list.h"
+#include <linux/list.h>
 #include "util/cache.h"
-#include "util/rbtree.h"
+#include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/string.h"
+#include "util/callchain.h"
+#include "util/strlist.h"
 
 #include "perf.h"
+#include "util/header.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -28,8 +31,12 @@
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
 
-static char		default_sort_order[] = "comm,dso";
+static char		default_sort_order[] = "comm,dso,symbol";
 static char		*sort_order = default_sort_order;
+static char		*dso_list_str, *comm_list_str, *sym_list_str,
+			*col_width_list_str;
+static struct strlist	*dso_list, *comm_list, *sym_list;
+static char		*field_sep;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
@@ -41,7 +48,10 @@ static int		dump_trace = 0;
 static int		verbose;
 #define eprintf(x...)	do { if (verbose) fprintf(stderr, x); } while (0)
 
+static int		modules;
+
 static int		full_paths;
+static int		show_nr_samples;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -52,16 +62,23 @@ static regex_t		parent_regex;
 
 static int		exclude_other = 1;
 
+static char		callchain_default_opt[] = "fractal,0.5";
+
+static int		callchain;
+
+static
+struct callchain_param	callchain_param = {
+	.mode	= CHAIN_GRAPH_ABS,
+	.min_percent = 0.5
+};
+
+static u64		sample_type;
+
 struct ip_event {
 	struct perf_event_header header;
 	u64 ip;
 	u32 pid, tid;
 	unsigned char __more_data[];
-};
-
-struct ip_callchain {
-	u64 nr;
-	u64 ips[0];
 };
 
 struct mmap_event {
@@ -82,13 +99,7 @@ struct comm_event {
 struct fork_event {
 	struct perf_event_header header;
 	u32 pid, ppid;
-};
-
-struct period_event {
-	struct perf_event_header header;
-	u64 time;
-	u64 id;
-	u64 sample_period;
+	u32 tid, ptid;
 };
 
 struct lost_event {
@@ -97,19 +108,54 @@ struct lost_event {
 	u64 lost;
 };
 
+struct read_event {
+	struct perf_event_header header;
+	u32 pid,tid;
+	u64 value;
+	u64 format[3];
+};
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;
 	struct mmap_event		mmap;
 	struct comm_event		comm;
 	struct fork_event		fork;
-	struct period_event		period;
 	struct lost_event		lost;
+	struct read_event		read;
 } event_t;
+
+static int repsep_fprintf(FILE *fp, const char *fmt, ...)
+{
+	int n;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (!field_sep)
+		n = vfprintf(fp, fmt, ap);
+	else {
+		char *bf = NULL;
+		n = vasprintf(&bf, fmt, ap);
+		if (n > 0) {
+			char *sep = bf;
+			while (1) {
+				sep = strchr(sep, *field_sep);
+				if (sep == NULL)
+					break;
+				*sep = '.';
+			}
+		}
+		fputs(bf, fp);
+		free(bf);
+	}
+	va_end(ap);
+	return n;
+}
 
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
 static struct dso *vdso;
+static struct dso *hypervisor_dso;
 
 static void dsos__add(struct dso *dso)
 {
@@ -165,7 +211,7 @@ static void dsos__fprintf(FILE *fp)
 
 static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
 {
-	return dso__find_symbol(kernel_dso, ip);
+	return dso__find_symbol(dso, ip);
 }
 
 static int load_kernel(void)
@@ -176,8 +222,8 @@ static int load_kernel(void)
 	if (!kernel_dso)
 		return -1;
 
-	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose);
-	if (err) {
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose, modules);
+	if (err <= 0) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;
 	} else
@@ -191,6 +237,11 @@ static int load_kernel(void)
 
 	dsos__add(vdso);
 
+	hypervisor_dso = dso__new("[hypervisor]", 0);
+	if (!hypervisor_dso)
+		return -1;
+	dsos__add(hypervisor_dso);
+
 	return err;
 }
 
@@ -202,7 +253,7 @@ static int strcommon(const char *pathname)
 {
 	int n = 0;
 
-	while (pathname[n] == cwd[n] && n < cwdlen)
+	while (n < cwdlen && pathname[n] == cwd[n])
 		++n;
 
 	return n;
@@ -222,14 +273,14 @@ static u64 map__map_ip(struct map *map, u64 ip)
 	return ip - map->start + map->pgoff;
 }
 
-static u64 vdso__map_ip(struct map *map, u64 ip)
+static u64 vdso__map_ip(struct map *map __used, u64 ip)
 {
 	return ip;
 }
 
 static inline int is_anon_memory(const char *filename)
 {
-     return strcmp(filename, "//anon") == 0;
+	return strcmp(filename, "//anon") == 0;
 }
 
 static struct map *map__new(struct mmap_event *event)
@@ -332,12 +383,28 @@ static struct thread *thread__new(pid_t pid)
 	return self;
 }
 
+static unsigned int dsos__col_width,
+		    comms__col_width,
+		    threads__col_width;
+
 static int thread__set_comm(struct thread *self, const char *comm)
 {
 	if (self->comm)
 		free(self->comm);
 	self->comm = strdup(comm);
-	return self->comm ? 0 : -ENOMEM;
+	if (!self->comm)
+		return -ENOMEM;
+
+	if (!col_width_list_str && !field_sep &&
+	    (!comm_list || strlist__has_entry(comm_list, comm))) {
+		unsigned int slen = strlen(comm);
+		if (slen > comms__col_width) {
+			comms__col_width = slen;
+			threads__col_width = slen + 6;
+		}
+	}
+
+	return 0;
 }
 
 static size_t thread__fprintf(struct thread *self, FILE *fp)
@@ -400,9 +467,27 @@ static void thread__insert_map(struct thread *self, struct map *map)
 
 	list_for_each_entry_safe(pos, tmp, &self->maps, node) {
 		if (map__overlap(pos, map)) {
-			list_del_init(&pos->node);
-			/* XXX leaks dsos */
-			free(pos);
+			if (verbose >= 2) {
+				printf("overlapping maps:\n");
+				map__fprintf(map, stdout);
+				map__fprintf(pos, stdout);
+			}
+
+			if (map->start <= pos->start && map->end > pos->start)
+				pos->start = map->end;
+
+			if (map->end >= pos->end && map->start < pos->end)
+				pos->end = map->start;
+
+			if (verbose >= 2) {
+				printf("after collision:\n");
+				map__fprintf(pos, stdout);
+			}
+
+			if (pos->start >= pos->end) {
+				list_del_init(&pos->node);
+				free(pos);
+			}
 		}
 	}
 
@@ -464,17 +549,19 @@ static size_t threads__fprintf(FILE *fp)
 static struct rb_root hist;
 
 struct hist_entry {
-	struct rb_node	 rb_node;
+	struct rb_node		rb_node;
 
-	struct thread	 *thread;
-	struct map	 *map;
-	struct dso	 *dso;
-	struct symbol	 *sym;
-	struct symbol	 *parent;
-	u64		 ip;
-	char		 level;
+	struct thread		*thread;
+	struct map		*map;
+	struct dso		*dso;
+	struct symbol		*sym;
+	struct symbol		*parent;
+	u64			ip;
+	char			level;
+	struct callchain_node	callchain;
+	struct rb_root		sorted_chain;
 
-	u64		 count;
+	u64			count;
 };
 
 /*
@@ -488,7 +575,9 @@ struct sort_entry {
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *);
+	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
+	unsigned int *width;
+	bool	elide;
 };
 
 static int64_t cmp_null(void *l, void *r)
@@ -510,15 +599,17 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__thread_print(FILE *fp, struct hist_entry *self)
+sort__thread_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	return fprintf(fp, "%16s:%5d", self->thread->comm ?: "", self->thread->pid);
+	return repsep_fprintf(fp, "%*s:%5d", width - 6,
+			      self->thread->comm ?: "", self->thread->pid);
 }
 
 static struct sort_entry sort_thread = {
-	.header = "         Command:  Pid",
+	.header = "Command:  Pid",
 	.cmp	= sort__thread_cmp,
 	.print	= sort__thread_print,
+	.width	= &threads__col_width,
 };
 
 /* --sort comm */
@@ -542,16 +633,17 @@ sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__comm_print(FILE *fp, struct hist_entry *self)
+sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	return fprintf(fp, "%16s", self->thread->comm);
+	return repsep_fprintf(fp, "%*s", width, self->thread->comm);
 }
 
 static struct sort_entry sort_comm = {
-	.header		= "         Command",
+	.header		= "Command",
 	.cmp		= sort__comm_cmp,
 	.collapse	= sort__comm_collapse,
 	.print		= sort__comm_print,
+	.width		= &comms__col_width,
 };
 
 /* --sort dso */
@@ -569,18 +661,19 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__dso_print(FILE *fp, struct hist_entry *self)
+sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
 	if (self->dso)
-		return fprintf(fp, "%-25s", self->dso->name);
+		return repsep_fprintf(fp, "%-*s", width, self->dso->name);
 
-	return fprintf(fp, "%016llx         ", (u64)self->ip);
+	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
-	.header = "Shared Object            ",
+	.header = "Shared Object",
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
+	.width	= &dsos__col_width,
 };
 
 /* --sort symbol */
@@ -600,18 +693,22 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__sym_print(FILE *fp, struct hist_entry *self)
+sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 {
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#018llx  ", (u64)self->ip);
 
+	ret += repsep_fprintf(fp, "[%c] ", self->level);
 	if (self->sym) {
-		ret += fprintf(fp, "[%c] %s",
-			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
+		ret += repsep_fprintf(fp, "%s", self->sym->name);
+
+		if (self->sym->module)
+			ret += repsep_fprintf(fp, "\t[%s]",
+					     self->sym->module->name);
 	} else {
-		ret += fprintf(fp, "%#016llx", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
 	}
 
 	return ret;
@@ -638,19 +735,19 @@ sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__parent_print(FILE *fp, struct hist_entry *self)
+sort__parent_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	size_t ret = 0;
-
-	ret += fprintf(fp, "%-20s", self->parent ? self->parent->name : "[other]");
-
-	return ret;
+	return repsep_fprintf(fp, "%-*s", width,
+			      self->parent ? self->parent->name : "[other]");
 }
 
+static unsigned int parent_symbol__col_width;
+
 static struct sort_entry sort_parent = {
-	.header = "Parent symbol       ",
+	.header = "Parent symbol",
 	.cmp	= sort__parent_cmp,
 	.print	= sort__parent_print,
+	.width	= &parent_symbol__col_width,
 };
 
 static int sort__need_collapse = 0;
@@ -674,7 +771,7 @@ static LIST_HEAD(hist_entry__sort_list);
 
 static int sort_dimension__add(char *tok)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
 		struct sort_dimension *sd = &sort_dimensions[i];
@@ -744,6 +841,167 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	return cmp;
 }
 
+static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask)
+{
+	int i;
+	size_t ret = 0;
+
+	ret += fprintf(fp, "%s", "                ");
+
+	for (i = 0; i < depth; i++)
+		if (depth_mask & (1 << i))
+			ret += fprintf(fp, "|          ");
+		else
+			ret += fprintf(fp, "           ");
+
+	ret += fprintf(fp, "\n");
+
+	return ret;
+}
+static size_t
+ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
+		       int depth_mask, int count, u64 total_samples,
+		       int hits)
+{
+	int i;
+	size_t ret = 0;
+
+	ret += fprintf(fp, "%s", "                ");
+	for (i = 0; i < depth; i++) {
+		if (depth_mask & (1 << i))
+			ret += fprintf(fp, "|");
+		else
+			ret += fprintf(fp, " ");
+		if (!count && i == depth - 1) {
+			double percent;
+
+			percent = hits * 100.0 / total_samples;
+			ret += percent_color_fprintf(fp, "--%2.2f%%-- ", percent);
+		} else
+			ret += fprintf(fp, "%s", "          ");
+	}
+	if (chain->sym)
+		ret += fprintf(fp, "%s\n", chain->sym->name);
+	else
+		ret += fprintf(fp, "%p\n", (void *)(long)chain->ip);
+
+	return ret;
+}
+
+static size_t
+callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
+			u64 total_samples, int depth, int depth_mask)
+{
+	struct rb_node *node, *next;
+	struct callchain_node *child;
+	struct callchain_list *chain;
+	int new_depth_mask = depth_mask;
+	u64 new_total;
+	size_t ret = 0;
+	int i;
+
+	if (callchain_param.mode == CHAIN_GRAPH_REL)
+		new_total = self->cumul_hit;
+	else
+		new_total = total_samples;
+
+	node = rb_first(&self->rb_root);
+	while (node) {
+		child = rb_entry(node, struct callchain_node, rb_node);
+
+		/*
+		 * The depth mask manages the output of pipes that show
+		 * the depth. We don't want to keep the pipes of the current
+		 * level for the last child of this depth
+		 */
+		next = rb_next(node);
+		if (!next)
+			new_depth_mask &= ~(1 << (depth - 1));
+
+		/*
+		 * But we keep the older depth mask for the line seperator
+		 * to keep the level link until we reach the last child
+		 */
+		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask);
+		i = 0;
+		list_for_each_entry(chain, &child->val, list) {
+			if (chain->ip >= PERF_CONTEXT_MAX)
+				continue;
+			ret += ipchain__fprintf_graph(fp, chain, depth,
+						      new_depth_mask, i++,
+						      new_total,
+						      child->cumul_hit);
+		}
+		ret += callchain__fprintf_graph(fp, child, new_total,
+						depth + 1,
+						new_depth_mask | (1 << depth));
+		node = next;
+	}
+
+	return ret;
+}
+
+static size_t
+callchain__fprintf_flat(FILE *fp, struct callchain_node *self,
+			u64 total_samples)
+{
+	struct callchain_list *chain;
+	size_t ret = 0;
+
+	if (!self)
+		return 0;
+
+	ret += callchain__fprintf_flat(fp, self->parent, total_samples);
+
+
+	list_for_each_entry(chain, &self->val, list) {
+		if (chain->ip >= PERF_CONTEXT_MAX)
+			continue;
+		if (chain->sym)
+			ret += fprintf(fp, "                %s\n", chain->sym->name);
+		else
+			ret += fprintf(fp, "                %p\n",
+					(void *)(long)chain->ip);
+	}
+
+	return ret;
+}
+
+static size_t
+hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
+			      u64 total_samples)
+{
+	struct rb_node *rb_node;
+	struct callchain_node *chain;
+	size_t ret = 0;
+
+	rb_node = rb_first(&self->sorted_chain);
+	while (rb_node) {
+		double percent;
+
+		chain = rb_entry(rb_node, struct callchain_node, rb_node);
+		percent = chain->hit * 100.0 / total_samples;
+		switch (callchain_param.mode) {
+		case CHAIN_FLAT:
+			ret += percent_color_fprintf(fp, "           %6.2f%%\n",
+						     percent);
+			ret += callchain__fprintf_flat(fp, chain, total_samples);
+			break;
+		case CHAIN_GRAPH_ABS: /* Falldown */
+		case CHAIN_GRAPH_REL:
+			ret += callchain__fprintf_graph(fp, chain,
+							total_samples, 1, 1);
+		default:
+			break;
+		}
+		ret += fprintf(fp, "\n");
+		rb_node = rb_next(rb_node);
+	}
+
+	return ret;
+}
+
+
 static size_t
 hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 {
@@ -753,36 +1011,32 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 	if (exclude_other && !self->parent)
 		return 0;
 
-	if (total_samples) {
-		double percent = self->count * 100.0 / total_samples;
-		char *color = PERF_COLOR_NORMAL;
+	if (total_samples)
+		ret = percent_color_fprintf(fp,
+					    field_sep ? "%.2f" : "   %6.2f%%",
+					(self->count * 100.0) / total_samples);
+	else
+		ret = fprintf(fp, field_sep ? "%lld" : "%12lld ", self->count);
 
-		/*
-		 * We color high-overhead entries in red, mid-overhead
-		 * entries in green - and keep the low overhead places
-		 * normal:
-		 */
-		if (percent >= 5.0) {
-			color = PERF_COLOR_RED;
-		} else {
-			if (percent >= 0.5)
-				color = PERF_COLOR_GREEN;
-		}
-
-		ret = color_fprintf(fp, color, "   %6.2f%%",
-				(self->count * 100.0) / total_samples);
-	} else
-		ret = fprintf(fp, "%12Ld ", self->count);
+	if (show_nr_samples) {
+		if (field_sep)
+			fprintf(fp, "%c%lld", *field_sep, self->count);
+		else
+			fprintf(fp, "%11lld", self->count);
+	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
 
-		fprintf(fp, "  ");
-		ret += se->print(fp, self);
+		fprintf(fp, "%s", field_sep ?: "  ");
+		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
 	ret += fprintf(fp, "\n");
+
+	if (callchain)
+		hist_entry_callchain__fprintf(fp, self, total_samples);
 
 	return ret;
 }
@@ -791,13 +1045,25 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
  *
  */
 
+static void dso__calc_col_width(struct dso *self)
+{
+	if (!col_width_list_str && !field_sep &&
+	    (!dso_list || strlist__has_entry(dso_list, self->name))) {
+		unsigned int slen = strlen(self->name);
+		if (slen > dsos__col_width)
+			dsos__col_width = slen;
+	}
+
+	self->slen_calculated = 1;
+}
+
 static struct symbol *
 resolve_symbol(struct thread *thread, struct map **mapp,
 	       struct dso **dsop, u64 *ipp)
 {
 	struct dso *dso = dsop ? *dsop : NULL;
 	struct map *map = mapp ? *mapp : NULL;
-	uint64_t ip = *ipp;
+	u64 ip = *ipp;
 
 	if (!thread)
 		return NULL;
@@ -810,11 +1076,18 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 
 	map = thread__find_map(thread, ip);
 	if (map != NULL) {
+		/*
+		 * We have to do this here as we may have a dso
+		 * with no symbol hit that has a name longer than
+		 * the ones with symbols sampled.
+		 */
+		if (!sort_dso.elide && !map->dso->slen_calculated)
+			dso__calc_col_width(map->dso);
+
 		if (mapp)
 			*mapp = map;
 got_map:
 		ip = map->map_ip(map, ip);
-		*ipp  = ip;
 
 		dso = map->dso;
 	} else {
@@ -828,6 +1101,8 @@ got_map:
 		dso = kernel_dso;
 	}
 	dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
+	dprintf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
+	*ipp  = ip;
 
 	if (dsop)
 		*dsop = dso;
@@ -846,6 +1121,58 @@ static int call__match(struct symbol *sym)
 	return 0;
 }
 
+static struct symbol **
+resolve_callchain(struct thread *thread, struct map *map __used,
+		    struct ip_callchain *chain, struct hist_entry *entry)
+{
+	u64 context = PERF_CONTEXT_MAX;
+	struct symbol **syms = NULL;
+	unsigned int i;
+
+	if (callchain) {
+		syms = calloc(chain->nr, sizeof(*syms));
+		if (!syms) {
+			fprintf(stderr, "Can't allocate memory for symbols\n");
+			exit(-1);
+		}
+	}
+
+	for (i = 0; i < chain->nr; i++) {
+		u64 ip = chain->ips[i];
+		struct dso *dso = NULL;
+		struct symbol *sym;
+
+		if (ip >= PERF_CONTEXT_MAX) {
+			context = ip;
+			continue;
+		}
+
+		switch (context) {
+		case PERF_CONTEXT_HV:
+			dso = hypervisor_dso;
+			break;
+		case PERF_CONTEXT_KERNEL:
+			dso = kernel_dso;
+			break;
+		default:
+			break;
+		}
+
+		sym = resolve_symbol(thread, NULL, &dso, &ip);
+
+		if (sym) {
+			if (sort__has_parent && call__match(sym) &&
+			    !entry->parent)
+				entry->parent = sym;
+			if (!callchain)
+				break;
+			syms[i] = sym;
+		}
+	}
+
+	return syms;
+}
+
 /*
  * collect histogram counts
  */
@@ -858,6 +1185,7 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
+	struct symbol **syms = NULL;
 	struct hist_entry entry = {
 		.thread	= thread,
 		.map	= map,
@@ -867,39 +1195,12 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 		.level	= level,
 		.count	= count,
 		.parent = NULL,
+		.sorted_chain = RB_ROOT
 	};
 	int cmp;
 
-	if (sort__has_parent && chain) {
-		u64 context = PERF_CONTEXT_MAX;
-		int i;
-
-		for (i = 0; i < chain->nr; i++) {
-			u64 ip = chain->ips[i];
-			struct dso *dso = NULL;
-			struct symbol *sym;
-
-			if (ip >= PERF_CONTEXT_MAX) {
-				context = ip;
-				continue;
-			}
-
-			switch (context) {
-			case PERF_CONTEXT_KERNEL:
-				dso = kernel_dso;
-				break;
-			default:
-				break;
-			}
-
-			sym = resolve_symbol(thread, NULL, &dso, &ip);
-
-			if (sym && call__match(sym)) {
-				entry.parent = sym;
-				break;
-			}
-		}
-	}
+	if ((sort__has_parent || callchain) && chain)
+		syms = resolve_callchain(thread, map, chain, &entry);
 
 	while (*p != NULL) {
 		parent = *p;
@@ -909,6 +1210,10 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 
 		if (!cmp) {
 			he->count += count;
+			if (callchain) {
+				append_chain(&he->callchain, chain, syms);
+				free(syms);
+			}
 			return 0;
 		}
 
@@ -922,6 +1227,11 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	if (!he)
 		return -ENOMEM;
 	*he = entry;
+	if (callchain) {
+		callchain_init(&he->callchain);
+		append_chain(&he->callchain, chain, syms);
+		free(syms);
+	}
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, &hist);
 
@@ -992,11 +1302,15 @@ static void collapse__resort(void)
 
 static struct rb_root output_hists;
 
-static void output__insert_entry(struct hist_entry *he)
+static void output__insert_entry(struct hist_entry *he, u64 min_callchain_hits)
 {
 	struct rb_node **p = &output_hists.rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
+
+	if (callchain)
+		callchain_param.sort(&he->sorted_chain, &he->callchain,
+				      min_callchain_hits, &callchain_param);
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1012,11 +1326,14 @@ static void output__insert_entry(struct hist_entry *he)
 	rb_insert_color(&he->rb_node, &output_hists);
 }
 
-static void output__resort(void)
+static void output__resort(u64 total_samples)
 {
 	struct rb_node *next;
 	struct hist_entry *n;
 	struct rb_root *tree = &hist;
+	u64 min_callchain_hits;
+
+	min_callchain_hits = total_samples * (callchain_param.min_percent / 100);
 
 	if (sort__need_collapse)
 		tree = &collapse_hists;
@@ -1028,7 +1345,7 @@ static void output__resort(void)
 		next = rb_next(&n->rb_node);
 
 		rb_erase(&n->rb_node, tree);
-		output__insert_entry(n);
+		output__insert_entry(n, min_callchain_hits);
 	}
 }
 
@@ -1038,35 +1355,67 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
+	unsigned int width;
+	char *col_width = col_width_list_str;
 
-	fprintf(fp, "\n");
-	fprintf(fp, "#\n");
-	fprintf(fp, "# (%Ld samples)\n", (u64)total_samples);
+	fprintf(fp, "# Samples: %Ld\n", (u64)total_samples);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
+	if (show_nr_samples) {
+		if (field_sep)
+			fprintf(fp, "%cSamples", *field_sep);
+		else
+			fputs("  Samples  ", fp);
+	}
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
-		fprintf(fp, "  %s", se->header);
+		if (field_sep) {
+			fprintf(fp, "%c%s", *field_sep, se->header);
+			continue;
+		}
+		width = strlen(se->header);
+		if (se->width) {
+			if (col_width_list_str) {
+				if (col_width) {
+					*se->width = atoi(col_width);
+					col_width = strchr(col_width, ',');
+					if (col_width)
+						++col_width;
+				}
+			}
+			width = *se->width = max(*se->width, width);
+		}
+		fprintf(fp, "  %*s", width, se->header);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "# ........");
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		int i;
+	if (field_sep)
+		goto print_entries;
 
-		if (exclude_other && (se == &sort_parent))
+	fprintf(fp, "# ........");
+	if (show_nr_samples)
+		fprintf(fp, " ..........");
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		unsigned int i;
+
+		if (se->elide)
 			continue;
 
 		fprintf(fp, "  ");
-		for (i = 0; i < strlen(se->header); i++)
+		if (se->width)
+			width = *se->width;
+		else
+			width = strlen(se->header);
+		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
 	fprintf(fp, "\n");
 
 	fprintf(fp, "#\n");
 
+print_entries:
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
 		ret += hist_entry__fprintf(fp, pos, total_samples);
@@ -1075,7 +1424,7 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	if (sort_order == default_sort_order &&
 			parent_pattern == default_parent_pattern) {
 		fprintf(fp, "#\n");
-		fprintf(fp, "# (For more details, try: perf report --sort comm,dso,symbol)\n");
+		fprintf(fp, "# (For a higher level overview, try: perf report --sort comm,dso)\n");
 		fprintf(fp, "#\n");
 	}
 	fprintf(fp, "\n");
@@ -1115,7 +1464,7 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 }
 
 static int
-process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
+process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
@@ -1126,13 +1475,14 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	struct map *map = NULL;
 	void *more_data = event->ip.__more_data;
 	struct ip_callchain *chain = NULL;
+	int cpumode;
 
-	if (event->header.type & PERF_SAMPLE_PERIOD) {
+	if (sample_type & PERF_SAMPLE_PERIOD) {
 		period = *(u64 *)more_data;
 		more_data += sizeof(u64);
 	}
 
-	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p period: %Ld\n",
+	dprintf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
@@ -1140,8 +1490,8 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 		(void *)(long)ip,
 		(long long)period);
 
-	if (event->header.type & PERF_SAMPLE_CALLCHAIN) {
-		int i;
+	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
+		unsigned int i;
 
 		chain = (void *)more_data;
 
@@ -1166,7 +1516,12 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
-	if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
+	if (comm_list && !strlist__has_entry(comm_list, thread->comm))
+		return 0;
+
+	cpumode = event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK;
+
+	if (cpumode == PERF_EVENT_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
 
@@ -1174,7 +1529,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dprintf(" ...... dso: %s\n", dso->name);
 
-	} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+	} else if (cpumode == PERF_EVENT_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
@@ -1182,11 +1537,20 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	} else {
 		show = SHOW_HV;
 		level = 'H';
+
+		dso = hypervisor_dso;
+
 		dprintf(" ...... dso: [hypervisor]\n");
 	}
 
 	if (show & show_mask) {
 		struct symbol *sym = resolve_symbol(thread, &map, &dso, &ip);
+
+		if (dso_list && dso && dso->name && !strlist__has_entry(dso_list, dso->name))
+			return 0;
+
+		if (sym_list && sym && !strlist__has_entry(sym_list, sym->name))
+			return 0;
 
 		if (hist_entry__add(thread, map, dso, sym, ip, chain, level, period)) {
 			eprintf("problem incrementing symbol count, skipping event\n");
@@ -1245,34 +1609,33 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_fork_event(event_t *event, unsigned long offset, unsigned long head)
+process_task_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct thread *thread = threads__findnew(event->fork.pid);
 	struct thread *parent = threads__findnew(event->fork.ppid);
 
-	dprintf("%p [%p]: PERF_EVENT_FORK: %d:%d\n",
+	dprintf("%p [%p]: PERF_EVENT_%s: (%d:%d):(%d:%d)\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
-		event->fork.pid, event->fork.ppid);
+		event->header.type == PERF_EVENT_FORK ? "FORK" : "EXIT",
+		event->fork.pid, event->fork.tid,
+		event->fork.ppid, event->fork.ptid);
+
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
+	if (event->header.type == PERF_EVENT_EXIT)
+		return 0;
 
 	if (!thread || !parent || thread__fork(thread, parent)) {
 		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
 		return -1;
 	}
 	total_fork++;
-
-	return 0;
-}
-
-static int
-process_period_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->period.time,
-		event->period.id,
-		event->period.sample_period);
 
 	return 0;
 }
@@ -1328,14 +1691,27 @@ static void trace_event(event_t *event)
 }
 
 static int
+process_read_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %Lu\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
+			event->read.pid,
+			event->read.tid,
+			event->read.value);
+
+	return 0;
+}
+
+static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	trace_event(event);
 
-	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
-		return process_overflow_event(event, offset, head);
-
 	switch (event->header.type) {
+	case PERF_EVENT_SAMPLE:
+		return process_sample_event(event, offset, head);
+
 	case PERF_EVENT_MMAP:
 		return process_mmap_event(event, offset, head);
 
@@ -1343,13 +1719,14 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 		return process_comm_event(event, offset, head);
 
 	case PERF_EVENT_FORK:
-		return process_fork_event(event, offset, head);
-
-	case PERF_EVENT_PERIOD:
-		return process_period_event(event, offset, head);
+	case PERF_EVENT_EXIT:
+		return process_task_event(event, offset, head);
 
 	case PERF_EVENT_LOST:
 		return process_lost_event(event, offset, head);
+
+	case PERF_EVENT_READ:
+		return process_read_event(event, offset, head);
 
 	/*
 	 * We dont process them right now but they are fine:
@@ -1366,13 +1743,30 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static struct perf_file_header		file_header;
+static struct perf_header	*header;
+
+static u64 perf_header__sample_type(void)
+{
+	u64 sample_type = 0;
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+
+		if (!sample_type)
+			sample_type = attr->attr.sample_type;
+		else if (sample_type != attr->attr.sample_type)
+			die("non matching sample_type");
+	}
+
+	return sample_type;
+}
 
 static int __cmd_report(void)
 {
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
-	unsigned long head = sizeof(file_header);
+	unsigned long head, shift;
 	struct stat stat;
 	event_t *event;
 	uint32_t size;
@@ -1400,15 +1794,24 @@ static int __cmd_report(void)
 		exit(0);
 	}
 
-	if (read(input, &file_header, sizeof(file_header)) == -1) {
-		perror("failed to read file headers");
-		exit(-1);
-	}
+	header = perf_header__read(input);
+	head = header->data_offset;
 
-	if (sort__has_parent &&
-	    !(file_header.sample_type & PERF_SAMPLE_CALLCHAIN)) {
-		fprintf(stderr, "selected --sort parent, but no callchain data\n");
-		exit(-1);
+	sample_type = perf_header__sample_type();
+
+	if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+		if (sort__has_parent) {
+			fprintf(stderr, "selected --sort parent, but no"
+					" callchain data. Did you call"
+					" perf record without -g?\n");
+			exit(-1);
+		}
+		if (callchain) {
+			fprintf(stderr, "selected -c but no callchain data."
+					" Did you call perf record without"
+					" -g?\n");
+			exit(-1);
+		}
 	}
 
 	if (load_kernel() < 0) {
@@ -1426,6 +1829,11 @@ static int __cmd_report(void)
 		cwd = NULL;
 		cwdlen = 0;
 	}
+
+	shift = page_size * (head / page_size);
+	offset += shift;
+	head -= shift;
+
 remap:
 	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
 			   MAP_SHARED, input, offset);
@@ -1442,8 +1850,9 @@ more:
 		size = 8;
 
 	if (head + event->header.size >= page_size * mmap_window) {
-		unsigned long shift = page_size * (head / page_size);
 		int ret;
+
+		shift = page_size * (head / page_size);
 
 		ret = munmap(buf, page_size * mmap_window);
 		assert(ret == 0);
@@ -1482,10 +1891,10 @@ more:
 
 	head += size;
 
-	if (offset + head >= sizeof(file_header) + file_header.data_size)
+	if (offset + head >= header->data_offset + header->data_size)
 		goto done;
 
-	if (offset + head < stat.st_size)
+	if (offset + head < (unsigned long)stat.st_size)
 		goto more;
 
 done:
@@ -1509,10 +1918,56 @@ done:
 		dsos__fprintf(stdout);
 
 	collapse__resort();
-	output__resort();
+	output__resort(total);
 	output__fprintf(stdout, total);
 
 	return rc;
+}
+
+static int
+parse_callchain_opt(const struct option *opt __used, const char *arg,
+		    int unset __used)
+{
+	char *tok;
+	char *endptr;
+
+	callchain = 1;
+
+	if (!arg)
+		return 0;
+
+	tok = strtok((char *)arg, ",");
+	if (!tok)
+		return -1;
+
+	/* get the output mode */
+	if (!strncmp(tok, "graph", strlen(arg)))
+		callchain_param.mode = CHAIN_GRAPH_ABS;
+
+	else if (!strncmp(tok, "flat", strlen(arg)))
+		callchain_param.mode = CHAIN_FLAT;
+
+	else if (!strncmp(tok, "fractal", strlen(arg)))
+		callchain_param.mode = CHAIN_GRAPH_REL;
+
+	else
+		return -1;
+
+	/* get the min percentage */
+	tok = strtok(NULL, ",");
+	if (!tok)
+		goto setup;
+
+	callchain_param.min_percent = strtod(tok, &endptr);
+	if (tok == endptr)
+		return -1;
+
+setup:
+	if (register_callchain_param(&callchain_param) < 0) {
+		fprintf(stderr, "Can't register callchain params\n");
+		return -1;
+	}
+	return 0;
 }
 
 static const char * const report_usage[] = {
@@ -1528,6 +1983,10 @@ static const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_BOOLEAN('m', "modules", &modules,
+		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
+	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
+		    "Show a column with the number of samples"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,
@@ -1536,6 +1995,21 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
 		    "Only display entries with parent-match"),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent",
+		     "Display callchains using output_type and min percent threshold. "
+		     "Default: fractal,0.5", &parse_callchain_opt, callchain_default_opt),
+	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
+		   "only consider symbols in these dsos"),
+	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",
+		   "only consider symbols in these comms"),
+	OPT_STRING('S', "symbols", &sym_list_str, "symbol[,symbol...]",
+		   "only consider these symbols"),
+	OPT_STRING('w', "column-widths", &col_width_list_str,
+		   "width[,width...]",
+		   "don't try to adjust column width, use these fixed values"),
+	OPT_STRING('t', "field-separator", &field_sep, "separator",
+		   "separator for columns, no spaces will be added between "
+		   "columns '.' is reserved."),
 	OPT_END()
 };
 
@@ -1554,7 +2028,26 @@ static void setup_sorting(void)
 	free(str);
 }
 
-int cmd_report(int argc, const char **argv, const char *prefix)
+static void setup_list(struct strlist **list, const char *list_str,
+		       struct sort_entry *se, const char *list_name,
+		       FILE *fp)
+{
+	if (list_str) {
+		*list = strlist__new(true, list_str);
+		if (!*list) {
+			fprintf(stderr, "problems parsing %s list\n",
+				list_name);
+			exit(129);
+		}
+		if (strlist__nr_entries(*list) == 1) {
+			fprintf(fp, "# %s: %s\n", list_name,
+				strlist__entry(*list, 0)->s);
+			se->elide = true;
+		}
+	}
+}
+
+int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
 
@@ -1564,9 +2057,10 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 
 	setup_sorting();
 
-	if (parent_pattern != default_parent_pattern)
+	if (parent_pattern != default_parent_pattern) {
 		sort_dimension__add("parent");
-	else
+		sort_parent.elide = 1;
+	} else
 		exclude_other = 0;
 
 	/*
@@ -1576,6 +2070,16 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 		usage_with_options(report_usage, options);
 
 	setup_pager();
+
+	setup_list(&dso_list, dso_list_str, &sort_dso, "dso", stdout);
+	setup_list(&comm_list, comm_list_str, &sort_comm, "comm", stdout);
+	setup_list(&sym_list, sym_list_str, &sort_sym, "symbol", stdout);
+
+	if (field_sep && *field_sep == '.') {
+		fputs("'.' is the only non valid --field-separator argument\n",
+		      stderr);
+		exit(129);
+	}
 
 	return __cmd_report();
 }

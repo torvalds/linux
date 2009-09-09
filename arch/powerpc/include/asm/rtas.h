@@ -58,7 +58,7 @@ struct rtas_t {
 	unsigned long entry;		/* physical address pointer */
 	unsigned long base;		/* physical address pointer */
 	unsigned long size;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	struct rtas_args args;
 	struct device_node *dev;	/* virtual address pointer */
 };
@@ -244,6 +244,9 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 	return ((reg & 0xf00) << 20) | ((busno & 0xff) << 16) |
 			(devfn << 8) | (reg & 0xff);
 }
+
+extern void __cpuinit rtas_give_timebase(void);
+extern void __cpuinit rtas_take_timebase(void);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

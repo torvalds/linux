@@ -449,8 +449,8 @@ printk(KERN_INFO "i = %u\n", i);
    </para>
 
    <programlisting>
-__u32 ipaddress;
-printk(KERN_INFO "my ip: %d.%d.%d.%d\n", NIPQUAD(ipaddress));
+__be32 ipaddress;
+printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
    </programlisting>
 
    <para>

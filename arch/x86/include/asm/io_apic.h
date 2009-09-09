@@ -161,6 +161,7 @@ extern int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr);
 extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 extern void ioapic_init_mappings(void);
+extern void ioapic_insert_resources(void);
 
 extern struct IO_APIC_route_entry **alloc_ioapic_entries(void);
 extern void free_ioapic_entries(struct IO_APIC_route_entry **ioapic_entries);
@@ -180,6 +181,7 @@ extern void ioapic_write_entry(int apic, int pin,
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
 static inline void ioapic_init_mappings(void)	{ }
+static inline void ioapic_insert_resources(void) { }
 
 static inline void probe_nr_irqs_gsi(void)	{ }
 #endif

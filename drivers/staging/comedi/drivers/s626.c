@@ -111,9 +111,13 @@ static const struct s626_board s626_boards[] = {
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
 
+/*
+ * For devices with vendor:device id == 0x1131:0x7146 you must specify
+ * also subvendor:subdevice ids, because otherwise it will conflict with
+ * Philips SAA7146 media/dvb based cards.
+ */
 static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
+	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, 0x6000, 0x0272, 0, 0, 0},
 	{0}
 };
 
@@ -499,25 +503,26 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
-	struct pci_dev *pdev;
+	const struct pci_device_id *ids;
+	struct pci_dev *pdev = NULL;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	for (pdev = pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
-			NULL); pdev != NULL;
-		pdev = pci_get_device(PCI_VENDOR_ID_S626,
-			PCI_DEVICE_ID_S626, pdev)) {
-		if (it->options[0] || it->options[1]) {
-			if (pdev->bus->number == it->options[0] &&
-				PCI_SLOT(pdev->devfn) == it->options[1]) {
+	for (i = 0; i < (ARRAY_SIZE(s626_pci_table) - 1) && !pdev; i++) {
+		ids = &s626_pci_table[i];
+		do {
+			pdev = pci_get_subsys(ids->vendor, ids->device, ids->subvendor,
+					      ids->subdevice, pdev);
+
+			if ((it->options[0] || it->options[1]) && pdev) {
 				/* matches requested bus/slot */
+				if (pdev->bus->number == it->options[0] &&
+				    PCI_SLOT(pdev->devfn) == it->options[1])
+					break;
+			} else
 				break;
-			}
-		} else {
-			/* no bus/slot specified */
-			break;
-		}
+		} while (1);
 	}
 	devpriv->pdev = pdev;
 

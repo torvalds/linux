@@ -176,19 +176,20 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, int mode);
 
 static bool ch7017_read(struct intel_dvo_device *dvo, int addr, uint8_t *val)
 {
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	u8 out_buf[2];
 	u8 in_buf[2];
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = in_buf,
@@ -208,10 +209,11 @@ static bool ch7017_read(struct intel_dvo_device *dvo, int addr, uint8_t *val)
 
 static bool ch7017_write(struct intel_dvo_device *dvo, int addr, uint8_t val)
 {
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	uint8_t out_buf[2];
 	struct i2c_msg msg = {
-		.addr = i2cbus->slave_addr,
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 2,
 		.buf = out_buf,
@@ -228,8 +230,9 @@ static bool ch7017_write(struct intel_dvo_device *dvo, int addr, uint8_t val)
 
 /** Probes for a CH7017 on the given bus and slave address. */
 static bool ch7017_init(struct intel_dvo_device *dvo,
-			struct intel_i2c_chan *i2cbus)
+			struct i2c_adapter *adapter)
 {
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	struct ch7017_priv *priv;
 	uint8_t val;
 
@@ -237,8 +240,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	if (priv == NULL)
 		return false;
 
-	dvo->i2c_bus = i2cbus;
-	dvo->i2c_bus->slave_addr = dvo->slave_addr;
+	dvo->i2c_bus = adapter;
 	dvo->dev_priv = priv;
 
 	if (!ch7017_read(dvo, CH7017_DEVICE_ID, &val))
@@ -248,7 +250,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	    val != CH7018_DEVICE_ID_VALUE &&
 	    val != CH7019_DEVICE_ID_VALUE) {
 		DRM_DEBUG("ch701x not detected, got %d: from %s Slave %d.\n",
-			  val, i2cbus->adapter.name,i2cbus->slave_addr);
+			  val, i2cbus->adapter.name,dvo->slave_addr);
 		goto fail;
 	}
 

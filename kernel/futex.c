@@ -247,6 +247,7 @@ again:
 	if (err < 0)
 		return err;
 
+	page = compound_head(page);
 	lock_page(page);
 	if (!page->mapping) {
 		unlock_page(page);
@@ -299,7 +300,7 @@ void put_futex_key(int fshared, union futex_key *key)
 static int fault_in_user_writeable(u32 __user *uaddr)
 {
 	int ret = get_user_pages(current, current->mm, (unsigned long)uaddr,
-				 sizeof(*uaddr), 1, 0, NULL, NULL);
+				 1, 1, 0, NULL, NULL);
 	return ret < 0 ? ret : 0;
 }
 

@@ -42,6 +42,7 @@
 
 #else /* ...!ASSEMBLY */
 
+#include <linux/kernel.h>
 #include <linux/stringify.h>
 
 #ifdef CONFIG_SMP
@@ -154,6 +155,15 @@ do {							\
 
 /* We can use this directly for local CPU (faster). */
 DECLARE_PER_CPU(unsigned long, this_cpu_off);
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+void *pcpu_lpage_remapped(void *kaddr);
+#else
+static inline void *pcpu_lpage_remapped(void *kaddr)
+{
+	return NULL;
+}
+#endif
 
 #endif /* !__ASSEMBLY__ */
 

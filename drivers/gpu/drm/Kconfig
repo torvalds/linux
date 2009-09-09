@@ -81,6 +81,7 @@ config DRM_I830
 
 config DRM_I915
 	tristate "i915 driver"
+	depends on AGP_INTEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

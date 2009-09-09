@@ -354,10 +354,10 @@ void show_regs(struct pt_regs * regs)
 
 	for (i = 0; i < 16; i++) {
 		if ((i % 8) == 0)
-			printk ("\n" KERN_INFO "a%02d: ", i);
-		printk("%08lx ", regs->areg[i]);
+			printk(KERN_INFO "a%02d:", i);
+		printk(KERN_CONT " %08lx", regs->areg[i]);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	printk("pc: %08lx, ps: %08lx, depc: %08lx, excvaddr: %08lx\n",
 	       regs->pc, regs->ps, regs->depc, regs->excvaddr);

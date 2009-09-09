@@ -85,10 +85,11 @@ static void dump_iic_regs(const char* header, struct ibm_iic_private* dev)
 {
 	volatile struct iic_regs __iomem *iic = dev->vaddr;
 	printk(KERN_DEBUG "ibm-iic%d: %s\n", dev->idx, header);
-	printk(KERN_DEBUG "  cntl     = 0x%02x, mdcntl = 0x%02x\n"
-	       KERN_DEBUG "  sts      = 0x%02x, extsts = 0x%02x\n"
-	       KERN_DEBUG "  clkdiv   = 0x%02x, xfrcnt = 0x%02x\n"
-	       KERN_DEBUG "  xtcntlss = 0x%02x, directcntl = 0x%02x\n",
+	printk(KERN_DEBUG
+	       "  cntl     = 0x%02x, mdcntl = 0x%02x\n"
+	       "  sts      = 0x%02x, extsts = 0x%02x\n"
+	       "  clkdiv   = 0x%02x, xfrcnt = 0x%02x\n"
+	       "  xtcntlss = 0x%02x, directcntl = 0x%02x\n",
 		in_8(&iic->cntl), in_8(&iic->mdcntl), in_8(&iic->sts),
 		in_8(&iic->extsts), in_8(&iic->clkdiv), in_8(&iic->xfrcnt),
 		in_8(&iic->xtcntlss), in_8(&iic->directcntl));

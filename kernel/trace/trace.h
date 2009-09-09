@@ -597,6 +597,7 @@ print_graph_function(struct trace_iterator *iter)
 
 extern struct pid *ftrace_pid_trace;
 
+#ifdef CONFIG_FUNCTION_TRACER
 static inline int ftrace_trace_task(struct task_struct *task)
 {
 	if (!ftrace_pid_trace)
@@ -604,6 +605,12 @@ static inline int ftrace_trace_task(struct task_struct *task)
 
 	return test_tsk_trace_trace(task);
 }
+#else
+static inline int ftrace_trace_task(struct task_struct *task)
+{
+	return 1;
+}
+#endif
 
 /*
  * trace_iterator_flags is an enumeration that defines bit

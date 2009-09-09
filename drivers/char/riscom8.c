@@ -47,6 +47,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/tty_flip.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 

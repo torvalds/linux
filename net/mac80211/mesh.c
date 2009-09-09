@@ -494,7 +494,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	 * should it be using the interface and enqueuing
 	 * frames at this very time on another CPU.
 	 */
-	synchronize_rcu();
+	rcu_barrier(); /* Wait for RX path and call_rcu()'s */
 	skb_queue_purge(&sdata->u.mesh.skb_queue);
 }
 

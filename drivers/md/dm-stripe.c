@@ -320,10 +320,11 @@ static int stripe_iterate_devices(struct dm_target *ti,
 	int ret = 0;
 	unsigned i = 0;
 
-	do
+	do {
 		ret = fn(ti, sc->stripe[i].dev,
-			 sc->stripe[i].physical_start, data);
-	while (!ret && ++i < sc->stripes);
+			 sc->stripe[i].physical_start,
+			 sc->stripe_width, data);
+	} while (!ret && ++i < sc->stripes);
 
 	return ret;
 }
