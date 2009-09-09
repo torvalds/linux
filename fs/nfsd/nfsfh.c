@@ -103,6 +103,36 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	return nfserrno(nfsd_setuser(rqstp, exp));
 }
 
+static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
+	struct dentry *dentry, struct svc_export *exp)
+{
+	if (!(exp->ex_flags & NFSEXP_V4ROOT))
+		return nfs_ok;
+	/*
+	 * v2/v3 clients have no need for the V4ROOT export--they use
+	 * the mount protocl instead; also, further V4ROOT checks may be
+	 * in v4-specific code, in which case v2/v3 clients could bypass
+	 * them.
+	 */
+	if (!nfsd_v4client(rqstp))
+		return nfserr_stale;
+	/*
+	 * We're exposing only the directories and symlinks that have to be
+	 * traversed on the way to real exports:
+	 */
+	if (unlikely(!S_ISDIR(dentry->d_inode->i_mode) &&
+		     !S_ISLNK(dentry->d_inode->i_mode)))
+		return nfserr_stale;
+	/*
+	 * A pseudoroot export gives permission to access only one
+	 * single directory; the kernel has to make another upcall
+	 * before granting access to anything else under it:
+	 */
+	if (unlikely(dentry != exp->ex_path.dentry))
+		return nfserr_stale;
+	return nfs_ok;
+}
+
 /*
  * Use the given filehandle to look up the corresponding export and
  * dentry.  On success, the results are used to set fh_export and
@@ -299,6 +329,10 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	 *	  (for example, if different id-squashing options are in
 	 *	  effect on the new filesystem).
 	 */
+	error = check_pseudo_root(rqstp, dentry, exp);
+	if (error)
+		goto out;
+
 	error = nfsd_setuser_and_check_port(rqstp, exp);
 	if (error)
 		goto out;
