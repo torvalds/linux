@@ -487,6 +487,21 @@ int r100_copy_blit(struct radeon_device *rdev,
 /*
  * CP
  */
+static int r100_cp_wait_for_idle(struct radeon_device *rdev)
+{
+	unsigned i;
+	u32 tmp;
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(R_000E40_RBBM_STATUS);
+		if (!G_000E40_CP_CMDSTRM_BUSY(tmp)) {
+			return 0;
+		}
+		udelay(1);
+	}
+	return -1;
+}
+
 void r100_ring_start(struct radeon_device *rdev)
 {
 	int r;
@@ -715,6 +730,9 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 
 void r100_cp_fini(struct radeon_device *rdev)
 {
+	if (r100_cp_wait_for_idle(rdev)) {
+		DRM_ERROR("Wait for CP idle timeout, shutting down CP.\n");
+	}
 	/* Disable ring */
 	rdev->cp.ready = false;
 	WREG32(RADEON_CP_CSQ_CNTL, 0);
