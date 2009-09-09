@@ -458,6 +458,7 @@ struct ath_btcoex {
 	unsigned long bt_priority_time;
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
+	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 };
 
 /********************/

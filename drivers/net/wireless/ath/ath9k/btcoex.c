@@ -43,144 +43,10 @@ bool ath_btcoex_supported(u16 subsysid)
 	return false;
 }
 
-static void ath_btcoex_set_weight(struct ath_btcoex_info *btcoex_info,
-				  u32 bt_weight,
-				  u32 wlan_weight)
+void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum)
 {
-	btcoex_info->bt_coex_weights = SM(bt_weight, AR_BTCOEX_BT_WGHT) |
-				       SM(wlan_weight, AR_BTCOEX_WL_WGHT);
-}
-
-void ath9k_hw_btcoex_init_weight(struct ath_hw *ah)
-{
-	ath_btcoex_set_weight(&ah->btcoex_info, AR_BT_COEX_WGHT,
-			      AR_STOMP_LOW_WLAN_WGHT);
-}
-
-/*
- * Detects if there is any priority bt traffic
- */
-static void ath_detect_bt_priority(struct ath_softc *sc)
-{
-	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_hw *ah = sc->sc_ah;
-
-	if (ath9k_hw_gpio_get(sc->sc_ah, ah->btcoex_info.btpriority_gpio))
-		btcoex->bt_priority_cnt++;
-
-	if (time_after(jiffies, btcoex->bt_priority_time +
-			msecs_to_jiffies(ATH_BT_PRIORITY_TIME_THRESHOLD))) {
-		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
-			DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX,
-				"BT priority traffic detected");
-			sc->sc_flags |= SC_OP_BT_PRIORITY_DETECTED;
-		} else {
-			sc->sc_flags &= ~SC_OP_BT_PRIORITY_DETECTED;
-		}
-
-		btcoex->bt_priority_cnt = 0;
-		btcoex->bt_priority_time = jiffies;
-	}
-}
-
-/*
- * Configures appropriate weight based on stomp type.
- */
-static void ath_btcoex_bt_stomp(struct ath_softc *sc,
-				struct ath_btcoex_info *btinfo,
-				int stomp_type)
-{
-
-	switch (stomp_type) {
-	case ATH_BTCOEX_STOMP_ALL:
-		ath_btcoex_set_weight(btinfo, AR_BT_COEX_WGHT,
-				      AR_STOMP_ALL_WLAN_WGHT);
-		break;
-	case ATH_BTCOEX_STOMP_LOW:
-		ath_btcoex_set_weight(btinfo, AR_BT_COEX_WGHT,
-				      AR_STOMP_LOW_WLAN_WGHT);
-		break;
-	case ATH_BTCOEX_STOMP_NONE:
-		ath_btcoex_set_weight(btinfo, AR_BT_COEX_WGHT,
-				      AR_STOMP_NONE_WLAN_WGHT);
-		break;
-	default:
-		DPRINTF(sc->sc_ah, ATH_DBG_BTCOEX, "Invalid Stomptype\n");
-		break;
-	}
-
-	ath9k_hw_btcoex_enable(sc->sc_ah);
-}
-
-/*
- * This is the master bt coex timer which runs for every
- * 45ms, bt traffic will be given priority during 55% of this
- * period while wlan gets remaining 45%
- */
-
-static void ath_btcoex_period_timer(unsigned long data)
-{
-	struct ath_softc *sc = (struct ath_softc *) data;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_btcoex_info *btinfo = &ah->btcoex_info;
-
-	ath_detect_bt_priority(sc);
-
-	spin_lock_bh(&btcoex->btcoex_lock);
-
-	ath_btcoex_bt_stomp(sc, btinfo, btinfo->bt_stomp_type);
-
-	spin_unlock_bh(&btcoex->btcoex_lock);
-
-	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp) {
-		if (btcoex->hw_timer_enabled)
-			ath_gen_timer_stop(ah, btinfo->no_stomp_timer);
-
-		ath_gen_timer_start(ah,
-			btinfo->no_stomp_timer,
-			(ath9k_hw_gettsf32(sc->sc_ah) +
-				btcoex->btcoex_no_stomp),
-				btcoex->btcoex_no_stomp * 10);
-		btcoex->hw_timer_enabled = true;
-	}
-
-	mod_timer(&btcoex->period_timer, jiffies +
-				  msecs_to_jiffies(ATH_BTCOEX_DEF_BT_PERIOD));
-}
-
-/*
- * Generic tsf based hw timer which configures weight
- * registers to time slice between wlan and bt traffic
- */
-
-static void ath_btcoex_no_stomp_timer(void *arg)
-{
-	struct ath_softc *sc = (struct ath_softc *)arg;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_btcoex_info *btinfo = &ah->btcoex_info;
-
-	DPRINTF(ah, ATH_DBG_BTCOEX, "no stomp timer running \n");
-
-	spin_lock_bh(&btcoex->btcoex_lock);
-
-	if (btinfo->bt_stomp_type == ATH_BTCOEX_STOMP_LOW)
-		ath_btcoex_bt_stomp(sc, btinfo, ATH_BTCOEX_STOMP_NONE);
-	 else if (btinfo->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
-		ath_btcoex_bt_stomp(sc, btinfo, ATH_BTCOEX_STOMP_LOW);
-
-	spin_unlock_bh(&btcoex->btcoex_lock);
-}
-
-static int ath_init_btcoex_info(struct ath_hw *ah,
-				struct ath_btcoex_info *btcoex_info)
-{
-	struct ath_btcoex *btcoex = &ah->ah_sc->btcoex;
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 	u32 i;
-	int qnum;
-
-	qnum = ath_tx_get_qnum(ah->ah_sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
 
 	btcoex_info->bt_coex_mode =
 		(btcoex_info->bt_coex_mode & AR_BT_QCU_THRESH) |
@@ -201,31 +67,11 @@ static int ath_init_btcoex_info(struct ath_hw *ah,
 
 	btcoex_info->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 
-	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD * 1000;
-
-	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
-		btcoex->btcoex_period / 100;
-
 	for (i = 0; i < 32; i++)
 		ah->hw_gen_timers.gen_timer_index[(debruijn32 << i) >> 27] = i;
-
-	setup_timer(&btcoex->period_timer, ath_btcoex_period_timer,
-			(unsigned long) ah->ah_sc);
-
-	btcoex_info->no_stomp_timer = ath_gen_timer_alloc(ah,
-			ath_btcoex_no_stomp_timer,
-			ath_btcoex_no_stomp_timer,
-			(void *)ah->ah_sc, AR_FIRST_NDP_TIMER);
-
-	if (btcoex_info->no_stomp_timer == NULL)
-		return -ENOMEM;
-
-	spin_lock_init(&btcoex->btcoex_lock);
-
-	return 0;
 }
 
-static void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
+void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 {
 	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
@@ -246,7 +92,7 @@ static void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
 }
 
-static void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
+void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 {
 	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
@@ -269,21 +115,6 @@ static void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 
 	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btactive_gpio);
 	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btpriority_gpio);
-}
-
-int ath9k_hw_btcoex_init(struct ath_hw *ah)
-{
-	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
-	int ret = 0;
-
-	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_2WIRE)
-		ath9k_hw_btcoex_init_2wire(ah);
-	else {
-		ath9k_hw_btcoex_init_3wire(ah);
-		ret = ath_init_btcoex_info(ah, btcoex_info);
-	}
-
-	return ret;
 }
 
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
@@ -335,41 +166,4 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	}
 
 	ah->ah_sc->sc_flags &= ~SC_OP_BTCOEX_ENABLED;
-}
-
-/*
- * Pause btcoex timer and bt duty cycle timer
- */
-void ath_btcoex_timer_pause(struct ath_softc *sc)
-{
-	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_hw *ah = sc->sc_ah;
-
-	del_timer_sync(&btcoex->period_timer);
-
-	if (btcoex->hw_timer_enabled)
-		ath_gen_timer_stop(ah, ah->btcoex_info.no_stomp_timer);
-
-	btcoex->hw_timer_enabled = false;
-}
-
-/*
- * (Re)start btcoex timers
- */
-void ath_btcoex_timer_resume(struct ath_softc *sc)
-{
-	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_hw *ah = sc->sc_ah;
-
-	DPRINTF(ah, ATH_DBG_BTCOEX, "Starting btcoex timers");
-
-	/* make sure duty cycle timer is also stopped when resuming */
-	if (btcoex->hw_timer_enabled)
-		ath_gen_timer_stop(sc->sc_ah, ah->btcoex_info.no_stomp_timer);
-
-	btcoex->bt_priority_cnt = 0;
-	btcoex->bt_priority_time = jiffies;
-	sc->sc_flags &= ~SC_OP_BT_PRIORITY_DETECTED;
-
-	mod_timer(&btcoex->period_timer, jiffies);
 }

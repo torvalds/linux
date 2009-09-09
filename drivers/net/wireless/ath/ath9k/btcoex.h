@@ -72,13 +72,14 @@ struct ath_btcoex_info {
 	u32 bt_coex_mode; 	/* Register setting for AR_BT_COEX_MODE */
 	u32 bt_coex_weights; 	/* Register setting for AR_BT_COEX_WEIGHT */
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */
-	struct ath_gen_timer *no_stomp_timer; /*Timer for no BT stomping*/
 };
 
 bool ath_btcoex_supported(u16 subsysid);
-void ath9k_hw_btcoex_init_weight(struct ath_hw *ah);
-int ath9k_hw_btcoex_init(struct ath_hw *ah);
+void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah);
+void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah);
+void ath9k_hw_init_btcoex_hw_info(struct ath_hw *ah, int qnum);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
+
 
 #endif
