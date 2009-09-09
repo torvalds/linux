@@ -532,7 +532,6 @@ struct ath_led {
 #define SC_OP_WAIT_FOR_PSPOLL_DATA BIT(17)
 #define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
 #define SC_OP_BEACON_SYNC       BIT(19)
-#define SC_OP_BTCOEX_ENABLED    BIT(20)
 #define SC_OP_BT_PRIORITY_DETECTED BIT(21)
 
 struct ath_bus_ops {

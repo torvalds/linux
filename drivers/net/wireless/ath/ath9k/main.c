@@ -2199,7 +2199,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
 	if ((ah->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) &&
-	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED)) {
+	    !ah->btcoex_info.enabled) {
 		ath9k_hw_btcoex_init_weight(ah);
 		ath9k_hw_btcoex_enable(ah);
 
@@ -2358,7 +2358,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		return; /* another wiphy still in use */
 	}
 
-	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED) {
+	if (ah->btcoex_info.enabled) {
 		ath9k_hw_btcoex_disable(ah);
 		if (ah->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_pause(sc);

@@ -164,7 +164,7 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 		(0x2 << (btcoex_info->btactive_gpio * 2)),
 		(0x3 << (btcoex_info->btactive_gpio * 2)));
 
-	ah->ah_sc->sc_flags |= SC_OP_BTCOEX_ENABLED;
+	ah->btcoex_info.enabled = true;
 }
 
 void ath9k_hw_btcoex_disable(struct ath_hw *ah)
@@ -182,5 +182,5 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 		REG_WRITE(ah, AR_BT_COEX_MODE2, 0);
 	}
 
-	ah->ah_sc->sc_flags &= ~SC_OP_BTCOEX_ENABLED;
+	ah->btcoex_info.enabled = false;
 }
