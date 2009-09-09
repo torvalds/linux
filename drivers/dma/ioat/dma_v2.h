@@ -127,6 +127,7 @@ static inline u16 ioat2_xferlen_to_descs(struct ioat2_dma_chan *ioat, size_t len
  * @raw: hardware raw (un-typed) descriptor
  * @txd: the generic software descriptor for all engines
  * @len: total transaction length for unmap
+ * @result: asynchronous result of validate operations
  * @id: identifier for debug
  */
 
@@ -143,6 +144,7 @@ struct ioat_ring_ent {
 	};
 	struct dma_async_tx_descriptor txd;
 	size_t len;
+	enum sum_check_flags *result;
 	#ifdef DEBUG
 	int id;
 	#endif
@@ -180,5 +182,6 @@ enum dma_status ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 				  dma_cookie_t *done, dma_cookie_t *used);
 void __ioat2_restart_chan(struct ioat2_dma_chan *ioat);
 bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
+void __ioat2_issue_pending(struct ioat2_dma_chan *ioat);
 extern struct kobj_type ioat2_ktype;
 #endif /* IOATDMA_V2_H */

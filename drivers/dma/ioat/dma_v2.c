@@ -48,7 +48,7 @@ module_param(ioat_ring_max_alloc_order, int, 0644);
 MODULE_PARM_DESC(ioat_ring_max_alloc_order,
 		 "ioat2+: upper limit for dynamic ring resizing (default: n=16)");
 
-static void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
+void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 {
 	void * __iomem reg_base = ioat->base.reg_base;
 
