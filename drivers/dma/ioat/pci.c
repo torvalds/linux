@@ -73,6 +73,7 @@ static struct pci_device_id ioat_pci_tbl[] = {
 
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, ioat_pci_tbl);
 
 static int __devinit ioat_pci_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id);
