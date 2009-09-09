@@ -193,7 +193,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	else if (sizeof(dma_addr_t) <= sizeof(struct page *))
 		dma_src = (dma_addr_t *) src_list;
 
-	if (dma_src && chan) {
+	if (dma_src && chan && is_dma_xor_aligned(chan->device, offset, 0, len)) {
 		/* run the xor asynchronously */
 		pr_debug("%s (async): len: %zu\n", __func__, len);
 
@@ -265,7 +265,8 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	else if (sizeof(dma_addr_t) <= sizeof(struct page *))
 		dma_src = (dma_addr_t *) src_list;
 
-	if (dma_src && device && src_cnt <= device->max_xor) {
+	if (dma_src && device && src_cnt <= device->max_xor &&
+	    is_dma_xor_aligned(device, offset, 0, len)) {
 		unsigned long dma_prep_flags = 0;
 		int i;
 

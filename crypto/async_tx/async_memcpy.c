@@ -50,7 +50,7 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (device) {
+	if (device && is_dma_copy_aligned(device, src_offset, dest_offset, len)) {
 		dma_addr_t dma_dest, dma_src;
 		unsigned long dma_prep_flags = 0;
 

@@ -245,6 +245,10 @@ struct dma_async_tx_descriptor {
  * @cap_mask: one or more dma_capability flags
  * @max_xor: maximum number of xor sources, 0 if no capability
  * @max_pq: maximum number of PQ sources and PQ-continue capability
+ * @copy_align: alignment shift for memcpy operations
+ * @xor_align: alignment shift for xor operations
+ * @pq_align: alignment shift for pq operations
+ * @fill_align: alignment shift for memset operations
  * @dev_id: unique device ID
  * @dev: struct device reference for dma mapping api
  * @device_alloc_chan_resources: allocate resources and return the
@@ -271,6 +275,10 @@ struct dma_device {
 	dma_cap_mask_t  cap_mask;
 	unsigned short max_xor;
 	unsigned short max_pq;
+	u8 copy_align;
+	u8 xor_align;
+	u8 pq_align;
+	u8 fill_align;
 	#define DMA_HAS_PQ_CONTINUE (1 << 15)
 
 	int dev_id;
@@ -313,6 +321,42 @@ struct dma_device {
 			dma_cookie_t *used);
 	void (*device_issue_pending)(struct dma_chan *chan);
 };
+
+static inline bool dmaengine_check_align(u8 align, size_t off1, size_t off2, size_t len)
+{
+	size_t mask;
+
+	if (!align)
+		return true;
+	mask = (1 << align) - 1;
+	if (mask & (off1 | off2 | len))
+		return false;
+	return true;
+}
+
+static inline bool is_dma_copy_aligned(struct dma_device *dev, size_t off1,
+				       size_t off2, size_t len)
+{
+	return dmaengine_check_align(dev->copy_align, off1, off2, len);
+}
+
+static inline bool is_dma_xor_aligned(struct dma_device *dev, size_t off1,
+				      size_t off2, size_t len)
+{
+	return dmaengine_check_align(dev->xor_align, off1, off2, len);
+}
+
+static inline bool is_dma_pq_aligned(struct dma_device *dev, size_t off1,
+				     size_t off2, size_t len)
+{
+	return dmaengine_check_align(dev->pq_align, off1, off2, len);
+}
+
+static inline bool is_dma_fill_aligned(struct dma_device *dev, size_t off1,
+				       size_t off2, size_t len)
+{
+	return dmaengine_check_align(dev->fill_align, off1, off2, len);
+}
 
 static inline void
 dma_set_maxpq(struct dma_device *dma, int maxpq, int has_pq_continue)

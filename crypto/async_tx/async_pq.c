@@ -211,7 +211,8 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 
 	if (dma_src && device &&
 	    (src_cnt <= dma_maxpq(device, 0) ||
-	     dma_maxpq(device, DMA_PREP_CONTINUE) > 0)) {
+	     dma_maxpq(device, DMA_PREP_CONTINUE) > 0) &&
+	    is_dma_pq_aligned(device, offset, 0, len)) {
 		/* run the p+q asynchronously */
 		pr_debug("%s: (async) disks: %d len: %zu\n",
 			 __func__, disks, len);
@@ -274,7 +275,8 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 	else if (sizeof(dma_addr_t) <= sizeof(struct page *))
 		dma_src = (dma_addr_t *) blocks;
 
-	if (dma_src && device && disks <= dma_maxpq(device, 0)) {
+	if (dma_src && device && disks <= dma_maxpq(device, 0) &&
+	    is_dma_pq_aligned(device, offset, 0, len)) {
 		struct device *dev = device->dev;
 		dma_addr_t *pq = &dma_src[disks-2];
 		int i;

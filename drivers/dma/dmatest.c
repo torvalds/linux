@@ -288,12 +288,25 @@ static int dmatest_func(void *data)
 		dma_addr_t dma_dsts[dst_cnt];
 		struct completion cmp;
 		unsigned long tmo = msecs_to_jiffies(3000);
+		u8 align = 0;
 
 		total_tests++;
 
 		len = dmatest_random() % test_buf_size + 1;
 		src_off = dmatest_random() % (test_buf_size - len + 1);
 		dst_off = dmatest_random() % (test_buf_size - len + 1);
+
+		/* honor alignment restrictions */
+		if (thread->type == DMA_MEMCPY)
+			align = dev->copy_align;
+		else if (thread->type == DMA_XOR)
+			align = dev->xor_align;
+		else if (thread->type == DMA_PQ)
+			align = dev->pq_align;
+
+		len = (len >> align) << align;
+		src_off = (src_off >> align) << align;
+		dst_off = (dst_off >> align) << align;
 
 		dmatest_init_srcs(thread->srcs, src_off, len);
 		dmatest_init_dsts(thread->dsts, dst_off, len);
@@ -310,6 +323,7 @@ static int dmatest_func(void *data)
 						     test_buf_size,
 						     DMA_BIDIRECTIONAL);
 		}
+
 
 		if (thread->type == DMA_MEMCPY)
 			tx = dev->device_prep_dma_memcpy(chan,

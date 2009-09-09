@@ -47,7 +47,7 @@ async_memset(struct page *dest, int val, unsigned int offset, size_t len,
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (device) {
+	if (device && is_dma_fill_aligned(device, offset, 0, len)) {
 		dma_addr_t dma_dest;
 		unsigned long dma_prep_flags = 0;
 
