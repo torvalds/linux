@@ -1332,21 +1332,6 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 	}
 }
 
-static void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
-				       u32 bt_weight,
-				       u32 wlan_weight)
-{
-	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
-
-	btcoex_hw->bt_coex_weights = SM(bt_weight, AR_BTCOEX_BT_WGHT) |
-				     SM(wlan_weight, AR_BTCOEX_WL_WGHT);
-}
-
-static void ath9k_hw_btcoex_init_weight(struct ath_hw *ah)
-{
-	ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT, AR_STOMP_LOW_WLAN_WGHT);
-}
-
 /*
  * Configures appropriate weight based on stomp type.
  */
@@ -2200,7 +2185,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if ((ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) &&
 	    !ah->btcoex_hw.enabled) {
-		ath9k_hw_btcoex_init_weight(ah);
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(ah);
 
 		ath_pcie_aspm_disable(sc);

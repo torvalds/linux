@@ -70,6 +70,9 @@ bool ath_btcoex_supported(u16 subsysid);
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah);
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum);
+void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
+				u32 bt_weight,
+				u32 wlan_weight);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
 

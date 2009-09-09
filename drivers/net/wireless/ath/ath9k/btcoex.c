@@ -124,6 +124,16 @@ static void ath9k_hw_btcoex_enable_2wire(struct ath_hw *ah)
 			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
 }
 
+void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
+				u32 bt_weight,
+				u32 wlan_weight)
+{
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+
+	btcoex_hw->bt_coex_weights = SM(bt_weight, AR_BTCOEX_BT_WGHT) |
+				     SM(wlan_weight, AR_BTCOEX_WL_WGHT);
+}
+
 static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
