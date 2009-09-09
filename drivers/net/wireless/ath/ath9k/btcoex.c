@@ -117,30 +117,47 @@ void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 	ath9k_hw_cfg_gpio_input(ah, btcoex_info->btpriority_gpio);
 }
 
+static void ath9k_hw_btcoex_enable_2wire(struct ath_hw *ah)
+{
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+
+	/* Configure the desired GPIO port for TX_FRAME output */
+	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
+			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
+}
+
+static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
+{
+	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
+
+	/*
+	 * Program coex mode and weight registers to
+	 * enable coex 3-wire
+	 */
+	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex_info->bt_coex_mode);
+	REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_info->bt_coex_weights);
+	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex_info->bt_coex_mode2);
+
+	REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
+	REG_RMW_FIELD(ah, AR_PCU_MISC, AR_PCU_BT_ANT_PREVENT_RX, 0);
+
+	ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
+			    AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL);
+}
+
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
 	struct ath_btcoex_info *btcoex_info = &ah->btcoex_info;
 
-	if (btcoex_info->btcoex_scheme == ATH_BTCOEX_CFG_2WIRE) {
-		/* Configure the desired GPIO port for TX_FRAME output */
-		ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
-				AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
-	} else {
-		/*
-		 * Program coex mode and weight registers to
-		 * enable coex 3-wire
-		 */
-		REG_WRITE(ah, AR_BT_COEX_MODE, btcoex_info->bt_coex_mode);
-		REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_info->bt_coex_weights);
-		REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex_info->bt_coex_mode2);
-
-		REG_RMW_FIELD(ah, AR_QUIET1,
-				AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
-		REG_RMW_FIELD(ah, AR_PCU_MISC,
-				AR_PCU_BT_ANT_PREVENT_RX, 0);
-
-		ath9k_hw_cfg_output(ah, btcoex_info->wlanactive_gpio,
-				AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL);
+	switch (btcoex_info->btcoex_scheme) {
+	case ATH_BTCOEX_CFG_NONE:
+		break;
+	case ATH_BTCOEX_CFG_2WIRE:
+		ath9k_hw_btcoex_enable_2wire(ah);
+		break;
+	case ATH_BTCOEX_CFG_3WIRE:
+		ath9k_hw_btcoex_enable_3wire(ah);
+		break;
 	}
 
 	REG_RMW(ah, AR_GPIO_PDPU,
