@@ -132,12 +132,25 @@ static int __devinit ep8248e_mdio_probe(struct of_device *ofdev,
 		return -ENOMEM;
 
 	bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	if (bus->irq == NULL) {
+		ret = -ENOMEM;
+		goto err_free_bus;
+	}
 
 	bus->name = "ep8248e-mdio-bitbang";
 	bus->parent = &ofdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
-	return of_mdiobus_register(bus, ofdev->node);
+	ret = of_mdiobus_register(bus, ofdev->node);
+	if (ret)
+		goto err_free_irq;
+
+	return 0;
+err_free_irq:
+	kfree(bus->irq);
+err_free_bus:
+	free_mdio_bitbang(bus);
+	return ret;
 }
 
 static int ep8248e_mdio_remove(struct of_device *ofdev)
