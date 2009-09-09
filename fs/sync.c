@@ -120,7 +120,7 @@ restart:
  */
 SYSCALL_DEFINE0(sync)
 {
-	wakeup_pdflush(0);
+	wakeup_flusher_threads(0);
 	sync_filesystems(0);
 	sync_filesystems(1);
 	if (unlikely(laptop_mode))
