@@ -39,6 +39,16 @@
 #define NFSEXP_FSID		0x2000
 #define	NFSEXP_CROSSMOUNT	0x4000
 #define	NFSEXP_NOACL		0x8000	/* reserved for possible ACL related use */
+/*
+ * The NFSEXP_V4ROOT flag causes the kernel to give access only to NFSv4
+ * clients, and only to the single directory that is the root of the
+ * export; further lookup and readdir operations are treated as if every
+ * subdirectory was a mountpoint, and ignored if they are not themselves
+ * exported.  This is used by nfsd and mountd to construct the NFSv4
+ * pseudofilesystem, which provides access only to paths leading to each
+ * exported filesystem.
+ */
+#define	NFSEXP_V4ROOT		0x10000
 /* All flags that we claim to support.  (Note we don't support NOACL.) */
 #define NFSEXP_ALLFLAGS		0x7E3F
 
