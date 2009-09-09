@@ -45,15 +45,15 @@ static const u16 ath_subsysid_tbl[] = {
  * Checks the subsystem id of the device to see if it
  * supports btcoex
  */
-bool ath_btcoex_supported(u16 subsysid)
+bool ath9k_hw_btcoex_supported(struct ath_hw *ah)
 {
 	int i;
 
-	if (!subsysid)
+	if (!ah->hw_version.subsysid)
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(ath_subsysid_tbl); i++)
-		if (subsysid == ath_subsysid_tbl[i])
+		if (ah->hw_version.subsysid == ath_subsysid_tbl[i])
 			return true;
 
 	return false;
