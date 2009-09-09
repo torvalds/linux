@@ -123,12 +123,12 @@ static void sh4_flush_dcache_page(void *arg)
 	else
 #endif
 	{
-		unsigned long phys = PHYSADDR(page_address(page));
+		unsigned long phys = page_to_phys(page);
 		unsigned long addr = CACHE_OC_ADDRESS_ARRAY;
 		int i, n;
 
 		/* Loop all the D-cache */
-		n = boot_cpu_data.dcache.n_aliases;
+		n = boot_cpu_data.dcache.way_incr >> 12;
 		for (i = 0; i < n; i++, addr += 4096)
 			flush_cache_4096(addr, phys);
 	}
