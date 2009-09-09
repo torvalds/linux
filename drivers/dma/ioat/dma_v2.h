@@ -116,8 +116,8 @@ static inline u16 ioat2_xferlen_to_descs(struct ioat2_dma_chan *ioat, size_t len
 
 struct ioat_ring_ent {
 	struct ioat_dma_descriptor *hw;
-	struct dma_async_tx_descriptor txd;
 	size_t len;
+	struct dma_async_tx_descriptor txd;
 	#ifdef DEBUG
 	int id;
 	#endif
@@ -143,4 +143,5 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int __devinit ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 struct dca_provider * __devinit ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider * __devinit ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+extern struct kmem_cache *ioat2_cache;
 #endif /* IOATDMA_V2_H */

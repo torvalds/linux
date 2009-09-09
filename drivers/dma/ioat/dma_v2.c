@@ -399,11 +399,12 @@ static struct ioat_ring_ent *ioat2_alloc_ring_ent(struct dma_chan *chan, gfp_t f
 		return NULL;
 	memset(hw, 0, sizeof(*hw));
 
-	desc = kzalloc(sizeof(*desc), flags);
+	desc = kmem_cache_alloc(ioat2_cache, flags);
 	if (!desc) {
 		pci_pool_free(dma->dma_pool, hw, phys);
 		return NULL;
 	}
+	memset(desc, 0, sizeof(*desc));
 
 	dma_async_tx_descriptor_init(&desc->txd, chan);
 	desc->txd.tx_submit = ioat2_tx_submit_unlock;
@@ -418,7 +419,7 @@ static void ioat2_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *cha
 
 	dma = to_ioatdma_device(chan->device);
 	pci_pool_free(dma->dma_pool, desc->hw, desc->txd.phys);
-	kfree(desc);
+	kmem_cache_free(ioat2_cache, desc);
 }
 
 static struct ioat_ring_ent **ioat2_alloc_ring(struct dma_chan *c, int order, gfp_t flags)

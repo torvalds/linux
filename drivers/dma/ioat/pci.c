@@ -69,6 +69,8 @@ static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
 MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
 
+struct kmem_cache *ioat2_cache;
+
 #define DRV_NAME "ioatdma"
 
 static struct pci_driver ioat_pci_driver = {
@@ -168,12 +170,24 @@ static void __devexit ioat_remove(struct pci_dev *pdev)
 
 static int __init ioat_init_module(void)
 {
-	return pci_register_driver(&ioat_pci_driver);
+	int err;
+
+	ioat2_cache = kmem_cache_create("ioat2", sizeof(struct ioat_ring_ent),
+					0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!ioat2_cache)
+		return -ENOMEM;
+
+	err = pci_register_driver(&ioat_pci_driver);
+	if (err)
+		kmem_cache_destroy(ioat2_cache);
+
+	return err;
 }
 module_init(ioat_init_module);
 
 static void __exit ioat_exit_module(void)
 {
 	pci_unregister_driver(&ioat_pci_driver);
+	kmem_cache_destroy(ioat2_cache);
 }
 module_exit(ioat_exit_module);
