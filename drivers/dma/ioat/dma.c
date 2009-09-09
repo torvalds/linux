@@ -799,7 +799,7 @@ static void __devinit ioat_dma_test_callback(void *dma_async_param)
  * ioat_dma_self_test - Perform a IOAT transaction to verify the HW works.
  * @device: device to be tested
  */
-static int __devinit ioat_dma_self_test(struct ioatdma_device *device)
+int __devinit ioat_dma_self_test(struct ioatdma_device *device)
 {
 	int i;
 	u8 *src;
@@ -1039,7 +1039,7 @@ int __devinit ioat_probe(struct ioatdma_device *device)
 	if (err)
 		goto err_setup_interrupts;
 
-	err = ioat_dma_self_test(device);
+	err = device->self_test(device);
 	if (err)
 		goto err_self_test;
 
@@ -1197,6 +1197,7 @@ int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 
 	device->intr_quirk = ioat1_intr_quirk;
 	device->enumerate_channels = ioat1_enumerate_channels;
+	device->self_test = ioat_dma_self_test;
 	dma = &device->common;
 	dma->device_prep_dma_memcpy = ioat1_dma_prep_memcpy;
 	dma->device_issue_pending = ioat1_dma_memcpy_issue_pending;

@@ -62,10 +62,10 @@
  * @enumerate_channels: hw version specific channel enumeration
  * @cleanup_tasklet: select between the v2 and v3 cleanup routines
  * @timer_fn: select between the v2 and v3 timer watchdog routines
+ * @self_test: hardware version specific self test for each supported op type
  *
  * Note: the v3 cleanup routine supports raid operations
  */
-
 struct ioatdma_device {
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
@@ -80,6 +80,7 @@ struct ioatdma_device {
 	int (*enumerate_channels)(struct ioatdma_device *device);
 	void (*cleanup_tasklet)(unsigned long data);
 	void (*timer_fn)(unsigned long data);
+	int (*self_test)(struct ioatdma_device *device);
 };
 
 struct ioat_chan_common {
@@ -313,6 +314,7 @@ static inline void ioat_unmap(struct pci_dev *pdev, dma_addr_t addr, size_t len,
 int __devinit ioat_probe(struct ioatdma_device *device);
 int __devinit ioat_register(struct ioatdma_device *device);
 int __devinit ioat1_dma_probe(struct ioatdma_device *dev, int dca);
+int __devinit ioat_dma_self_test(struct ioatdma_device *device);
 void __devexit ioat_dma_remove(struct ioatdma_device *device);
 struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
 					      void __iomem *iobase);
