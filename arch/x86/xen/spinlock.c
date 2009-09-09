@@ -326,8 +326,13 @@ static void xen_spin_unlock(struct raw_spinlock *lock)
 	smp_wmb();		/* make sure no writes get moved after unlock */
 	xl->lock = 0;		/* release lock */
 
-	/* make sure unlock happens before kick */
-	barrier();
+	/*
+	 * Make sure unlock happens before checking for waiting
+	 * spinners.  We need a strong barrier to enforce the
+	 * write-read ordering to different memory locations, as the
+	 * CPU makes no implied guarantees about their ordering.
+	 */
+	mb();
 
 	if (unlikely(xl->spinners))
 		xen_spin_unlock_slow(xl);
