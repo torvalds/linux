@@ -61,7 +61,6 @@ struct ath_btcoex_info {
 	u8 wlanactive_gpio;
 	u8 btactive_gpio;
 	u8 btpriority_gpio;
-	u8 bt_duty_cycle; 	/* BT duty cycle in percentage */
 	u32 bt_coex_mode; 	/* Register setting for AR_BT_COEX_MODE */
 	u32 bt_coex_weights; 	/* Register setting for AR_BT_COEX_WEIGHT */
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */
