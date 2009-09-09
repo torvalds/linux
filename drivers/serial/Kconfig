@@ -776,24 +776,7 @@ config BFIN_UART0_CTSRTS
 	bool "Enable UART0 hardware flow control"
 	depends on SERIAL_BFIN_UART0
 	help
-	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
-	  signal.
-
-config UART0_CTS_PIN
-	int "UART0 CTS pin"
-	depends on BFIN_UART0_CTSRTS && !BF548
-	default 23
-	help
-	  The default pin is GPIO_GP7.
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
-
-config UART0_RTS_PIN
-	int "UART0 RTS pin"
-	depends on BFIN_UART0_CTSRTS && !BF548
-	default 22
-	help
-	  The default pin is GPIO_GP6.
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
+	  Enable hardware flow control in the driver.
 
 config SERIAL_BFIN_UART1
 	bool "Enable UART1"
@@ -805,22 +788,7 @@ config BFIN_UART1_CTSRTS
 	bool "Enable UART1 hardware flow control"
 	depends on SERIAL_BFIN_UART1
 	help
-	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
-	  signal.
-
-config UART1_CTS_PIN
-	int "UART1 CTS pin"
-	depends on BFIN_UART1_CTSRTS && !BF548
-	default -1
-	help
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
-
-config UART1_RTS_PIN
-	int "UART1 RTS pin"
-	depends on BFIN_UART1_CTSRTS && !BF548
-	default -1
-	help
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
+	  Enable hardware flow control in the driver.
 
 config SERIAL_BFIN_UART2
 	bool "Enable UART2"
@@ -832,22 +800,7 @@ config BFIN_UART2_CTSRTS
 	bool "Enable UART2 hardware flow control"
 	depends on SERIAL_BFIN_UART2
 	help
-	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
-	  signal.
-
-config UART2_CTS_PIN
-	int "UART2 CTS pin"
-	depends on BFIN_UART2_CTSRTS && !BF548
-	default -1
-	help
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
-
-config UART2_RTS_PIN
-	int "UART2 RTS pin"
-	depends on BFIN_UART2_CTSRTS && !BF548
-	default -1
-	help
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
+	  Enable hardware flow control in the driver.
 
 config SERIAL_BFIN_UART3
 	bool "Enable UART3"
@@ -859,22 +812,7 @@ config BFIN_UART3_CTSRTS
 	bool "Enable UART3 hardware flow control"
 	depends on SERIAL_BFIN_UART3
 	help
-	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
-	  signal.
-
-config UART3_CTS_PIN
-	int "UART3 CTS pin"
-	depends on BFIN_UART3_CTSRTS && !BF548
-	default -1
-	help
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
-
-config UART3_RTS_PIN
-	int "UART3 RTS pin"
-	depends on BFIN_UART3_CTSRTS && !BF548
-	default -1
-	help
-	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
+	  Enable hardware flow control in the driver.
 
 config SERIAL_IMX
 	bool "IMX serial port support"

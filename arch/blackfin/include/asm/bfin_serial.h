@@ -13,6 +13,17 @@
 #include <mach/anomaly.h>
 #include <mach/bfin_serial.h>
 
+#if defined(CONFIG_BFIN_UART0_CTSRTS) || \
+    defined(CONFIG_BFIN_UART1_CTSRTS) || \
+    defined(CONFIG_BFIN_UART2_CTSRTS) || \
+    defined(CONFIG_BFIN_UART3_CTSRTS)
+# ifdef BFIN_UART_BF54X_STYLE
+#  define CONFIG_SERIAL_BFIN_HARD_CTSRTS
+# else
+#  define CONFIG_SERIAL_BFIN_CTSRTS
+# endif
+#endif
+
 struct circ_buf;
 struct timer_list;
 struct work_struct;
@@ -203,6 +214,7 @@ struct bfin_uart_regs {
 #define UART_PUT_LSR(p, v)    bfin_write16(port_membase(p) + OFFSET_LSR, v)
 
 /* This handles hard CTS/RTS */
+#define BFIN_UART_CTSRTS_HARD
 #define UART_CLEAR_SCTS(p)      bfin_write16((port_membase(p) + OFFSET_MSR), SCTS)
 #define UART_GET_CTS(x)         (UART_GET_MSR(x) & CTS)
 #define UART_DISABLE_RTS(x)     UART_PUT_MCR(x, UART_GET_MCR(x) & ~(ARTS | MRTS))
