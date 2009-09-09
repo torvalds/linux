@@ -756,13 +756,14 @@ static inline void iop_desc_set_block_fill_val(struct iop_adma_desc_slot *desc,
 	hw_desc->src[0] = val;
 }
 
-static inline int iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
+static inline enum sum_check_flags
+iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 {
 	struct iop3xx_desc_aau *hw_desc = desc->hw_desc;
 	struct iop3xx_aau_desc_ctrl desc_ctrl = hw_desc->desc_ctrl_field;
 
 	iop_paranoia(!(desc_ctrl.tx_complete && desc_ctrl.zero_result_en));
-	return desc_ctrl.zero_result_err;
+	return desc_ctrl.zero_result_err << SUM_CHECK_P;
 }
 
 static inline void iop_chan_append(struct iop_adma_chan *chan)
