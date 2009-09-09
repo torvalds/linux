@@ -48,10 +48,10 @@ unsigned int sysctl_sched_min_granularity = 4000000ULL;
 static unsigned int sched_nr_latency = 5;
 
 /*
- * After fork, child runs first. (default) If set to 0 then
+ * After fork, child runs first. If set to 0 (default) then
  * parent will (try to) run first.
  */
-const_debug unsigned int sysctl_sched_child_runs_first = 1;
+unsigned int sysctl_sched_child_runs_first __read_mostly;
 
 /*
  * sys_sched_yield() compat mode
