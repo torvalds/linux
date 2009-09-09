@@ -722,7 +722,7 @@ static int pci_pm_resume(struct device *dev)
 		pci_pm_reenable_device(pci_dev);
 	}
 
-	return 0;
+	return error;
 }
 
 #else /* !CONFIG_SUSPEND */
