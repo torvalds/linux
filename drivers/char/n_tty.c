@@ -272,7 +272,8 @@ static inline int is_continuation(unsigned char c, struct tty_struct *tty)
  *
  *	This is a helper function that handles one output character
  *	(including special characters like TAB, CR, LF, etc.),
- *	putting the results in the tty driver's write buffer.
+ *	doing OPOST processing and putting the results in the
+ *	tty driver's write buffer.
  *
  *	Note that Linux currently ignores TABDLY, CRDLY, VTDLY, FFDLY
  *	and NLDLY.  They simply aren't relevant in the world today.
@@ -350,8 +351,9 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
  *	@c: character (or partial unicode symbol)
  *	@tty: terminal device
  *
- *	Perform OPOST processing.  Returns -1 when the output device is
- *	full and the character must be retried.
+ *	Output one character with OPOST processing.
+ *	Returns -1 when the output device is full and the character
+ *	must be retried.
  *
  *	Locking: output_lock to protect column state and space left
  *		 (also, this is called from n_tty_write under the
@@ -377,8 +379,11 @@ static int process_output(unsigned char c, struct tty_struct *tty)
 /**
  *	process_output_block		-	block post processor
  *	@tty: terminal device
- *	@inbuf: user buffer
- *	@nr: number of bytes
+ *	@buf: character buffer
+ *	@nr: number of bytes to output
+ *
+ *	Output a block of characters with OPOST processing.
+ *	Returns the number of characters output.
  *
  *	This path is used to speed up block console writes, among other
  *	things when processing blocks of output data. It handles only
@@ -605,12 +610,18 @@ static void process_echoes(struct tty_struct *tty)
 			if (no_space_left)
 				break;
 		} else {
-			int retval;
-
-			retval = do_output_char(c, tty, space);
-			if (retval < 0)
-				break;
-			space -= retval;
+			if (O_OPOST(tty) &&
+			    !(test_bit(TTY_HW_COOK_OUT, &tty->flags))) {
+				int retval = do_output_char(c, tty, space);
+				if (retval < 0)
+					break;
+				space -= retval;
+			} else {
+				if (!space)
+					break;
+				tty_put_char(tty, c);
+				space -= 1;
+			}
 			cp += 1;
 			nr -= 1;
 		}
