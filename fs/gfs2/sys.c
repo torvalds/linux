@@ -320,12 +320,6 @@ static ssize_t block_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	return ret;
 }
 
-static ssize_t lkid_show(struct gfs2_sbd *sdp, char *buf)
-{
-	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	return sprintf(buf, "%u\n", ls->ls_id);
-}
-
 static ssize_t lkfirst_show(struct gfs2_sbd *sdp, char *buf)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
@@ -390,7 +384,6 @@ static struct gfs2_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 GDLM_ATTR(proto_name,		0444, proto_name_show,		NULL);
 GDLM_ATTR(block,		0644, block_show,		block_store);
 GDLM_ATTR(withdraw,		0644, withdraw_show,		withdraw_store);
-GDLM_ATTR(id,			0444, lkid_show,		NULL);
 GDLM_ATTR(jid,			0444, jid_show,			NULL);
 GDLM_ATTR(first,		0444, lkfirst_show,		NULL);
 GDLM_ATTR(first_done,		0444, first_done_show,		NULL);
@@ -402,7 +395,6 @@ static struct attribute *lock_module_attrs[] = {
 	&gdlm_attr_proto_name.attr,
 	&gdlm_attr_block.attr,
 	&gdlm_attr_withdraw.attr,
-	&gdlm_attr_id.attr,
 	&gdlm_attr_jid.attr,
 	&gdlm_attr_first.attr,
 	&gdlm_attr_first_done.attr,

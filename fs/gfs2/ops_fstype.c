@@ -1028,7 +1028,6 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 
 	ls->ls_ops = lm;
 	ls->ls_first = 1;
-	ls->ls_id = 0;
 
 	for (options = args->ar_hostdata; (o = strsep(&options, ":")); ) {
 		substring_t tmp[MAX_OPT_ARGS];
@@ -1046,10 +1045,7 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 			ls->ls_jid = option;
 			break;
 		case Opt_id:
-			ret = match_int(&tmp[0], &option);
-			if (ret)
-				goto hostdata_error;
-			ls->ls_id = option;
+			/* Obsolete, but left for backward compat purposes */
 			break;
 		case Opt_first:
 			ret = match_int(&tmp[0], &option);

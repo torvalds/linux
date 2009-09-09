@@ -496,7 +496,6 @@ struct gfs2_sb_host {
  */
 
 struct lm_lockstruct {
-	u32 ls_id;
 	unsigned int ls_jid;
 	unsigned int ls_first;
 	unsigned int ls_first_done;
