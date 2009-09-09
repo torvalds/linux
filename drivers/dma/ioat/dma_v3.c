@@ -766,6 +766,44 @@ ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 				    flags);
 }
 
+static struct dma_async_tx_descriptor *
+ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
+		 unsigned int src_cnt, size_t len, unsigned long flags)
+{
+	unsigned char scf[src_cnt];
+	dma_addr_t pq[2];
+
+	memset(scf, 0, src_cnt);
+	flags |= DMA_PREP_PQ_DISABLE_Q;
+	pq[0] = dst;
+	pq[1] = ~0;
+
+	return __ioat3_prep_pq_lock(chan, NULL, pq, src, src_cnt, scf, len,
+				    flags);
+}
+
+struct dma_async_tx_descriptor *
+ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
+		     unsigned int src_cnt, size_t len,
+		     enum sum_check_flags *result, unsigned long flags)
+{
+	unsigned char scf[src_cnt];
+	dma_addr_t pq[2];
+
+	/* the cleanup routine only sets bits on validate failure, it
+	 * does not clear bits on validate success... so clear it here
+	 */
+	*result = 0;
+
+	memset(scf, 0, src_cnt);
+	flags |= DMA_PREP_PQ_DISABLE_Q;
+	pq[0] = src[0];
+	pq[1] = ~0;
+
+	return __ioat3_prep_pq_lock(chan, result, pq, &src[1], src_cnt - 1, scf,
+				    len, flags);
+}
+
 static void __devinit ioat3_dma_test_callback(void *dma_async_param)
 {
 	struct completion *cmp = dma_async_param;
@@ -1084,6 +1122,17 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 		dma_cap_set(DMA_PQ_VAL, dma->cap_mask);
 		dma->device_prep_dma_pq_val = ioat3_prep_pq_val;
+
+		if (!(cap & IOAT_CAP_XOR)) {
+			dma->max_xor = 8;
+			dma->xor_align = 2;
+
+			dma_cap_set(DMA_XOR, dma->cap_mask);
+			dma->device_prep_dma_xor = ioat3_prep_pqxor;
+
+			dma_cap_set(DMA_XOR_VAL, dma->cap_mask);
+			dma->device_prep_dma_xor_val = ioat3_prep_pqxor_val;
+		}
 	}
 
 	/* -= IOAT ver.3 workarounds =- */
