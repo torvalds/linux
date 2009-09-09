@@ -126,7 +126,7 @@ set_shaders(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	u64 gpu_addr;
-	int shader_size, i;
+	int i;
 	u32 *vs, *ps;
 	uint32_t sq_pgm_resources;
 	RING_LOCALS;
@@ -136,11 +136,9 @@ set_shaders(struct drm_device *dev)
 	vs = (u32 *) ((char *)dev->agp_buffer_map->handle + dev_priv->blit_vb->offset);
 	ps = (u32 *) ((char *)dev->agp_buffer_map->handle + dev_priv->blit_vb->offset + 256);
 
-	shader_size = r6xx_vs_size;
-	for (i = 0; i < shader_size; i++)
+	for (i = 0; i < r6xx_vs_size; i++)
 		vs[i] = r6xx_vs[i];
-	shader_size = r6xx_ps_size;
-	for (i = 0; i < shader_size; i++)
+	for (i = 0; i < r6xx_ps_size; i++)
 		ps[i] = r6xx_ps[i];
 
 	dev_priv->blit_vb->used = 512;
@@ -309,7 +307,7 @@ draw_auto(drm_radeon_private_t *dev_priv)
 static inline void
 set_default_state(drm_radeon_private_t *dev_priv)
 {
-	int default_state_dw, i;
+	int i;
 	u32 sq_config, sq_gpr_resource_mgmt_1, sq_gpr_resource_mgmt_2;
 	u32 sq_thread_resource_mgmt, sq_stack_resource_mgmt_1, sq_stack_resource_mgmt_2;
 	int num_ps_gprs, num_vs_gprs, num_temp_gprs, num_gs_gprs, num_es_gprs;
@@ -462,14 +460,12 @@ set_default_state(drm_radeon_private_t *dev_priv)
 				    R600_NUM_ES_STACK_ENTRIES(num_es_stack_entries));
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770) {
-		default_state_dw = r7xx_default_size * 4;
-		BEGIN_RING(default_state_dw + 10);
-		for (i = 0; i < default_state_dw; i++)
+		BEGIN_RING(r7xx_default_size + 10);
+		for (i = 0; i < r7xx_default_size; i++)
 			OUT_RING(r7xx_default_state[i]);
 	} else {
-		default_state_dw = r6xx_default_size * 4;
-		BEGIN_RING(default_state_dw + 10);
-		for (i = 0; i < default_state_dw; i++)
+		BEGIN_RING(r6xx_default_size + 10);
+		for (i = 0; i < r6xx_default_size; i++)
 			OUT_RING(r6xx_default_state[i]);
 	}
 	OUT_RING(CP_PACKET3(R600_IT_EVENT_WRITE, 0));
@@ -512,7 +508,7 @@ static inline uint32_t i2f(uint32_t input)
 }
 
 
-int r600_nomm_get_vb(struct drm_device *dev)
+static inline int r600_nomm_get_vb(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	dev_priv->blit_vb = radeon_freelist_get(dev);
@@ -523,7 +519,7 @@ int r600_nomm_get_vb(struct drm_device *dev)
 	return 0;
 }
 
-void r600_nomm_put_vb(struct drm_device *dev)
+static inline void r600_nomm_put_vb(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
@@ -531,7 +527,7 @@ void r600_nomm_put_vb(struct drm_device *dev)
 	radeon_cp_discard_buffer(dev, dev_priv->blit_vb->file_priv->master, dev_priv->blit_vb);
 }
 
-void *r600_nomm_get_vb_ptr(struct drm_device *dev)
+static inline void *r600_nomm_get_vb_ptr(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	return (((char *)dev->agp_buffer_map->handle +
@@ -781,8 +777,7 @@ r600_blit_swap(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
-	vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
-		      dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
+	vb = r600_nomm_get_vb_ptr(dev);
 
 	if ((dev_priv->blit_vb->used + 48) > dev_priv->blit_vb->total) {
 
