@@ -1316,3 +1316,13 @@ int dmar_reenable_qi(struct intel_iommu *iommu)
 
 	return 0;
 }
+
+/*
+ * Check interrupt remapping support in DMAR table description.
+ */
+int dmar_ir_support(void)
+{
+	struct acpi_table_dmar *dmar;
+	dmar = (struct acpi_table_dmar *)dmar_tbl;
+	return dmar->flags & 0x1;
+}

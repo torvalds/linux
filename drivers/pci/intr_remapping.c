@@ -611,6 +611,9 @@ int __init intr_remapping_supported(void)
 	if (disable_intremap)
 		return 0;
 
+	if (!dmar_ir_support())
+		return 0;
+
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;
 
