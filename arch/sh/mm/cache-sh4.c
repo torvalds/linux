@@ -2,7 +2,7 @@
  * arch/sh/mm/cache-sh4.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2001 - 2007  Paul Mundt
+ * Copyright (C) 2001 - 2009  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  * Copyright (c) 2007 STMicroelectronics (R&D) Ltd.
  *
@@ -15,6 +15,8 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
+#include <linux/highmem.h>
+#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -23,7 +25,6 @@
  * flushing. Anything exceeding this will simply flush the dcache in its
  * entirety.
  */
-#define MAX_DCACHE_PAGES	64	/* XXX: Tune for ways */
 #define MAX_ICACHE_PAGES	32
 
 static void __flush_cache_4096(unsigned long addr, unsigned long phys,
@@ -209,44 +210,64 @@ static void sh4_flush_cache_page(void *args)
 {
 	struct flusher_data *data = args;
 	struct vm_area_struct *vma;
+	struct page *page;
 	unsigned long address, pfn, phys;
-	unsigned int alias_mask;
+	int map_coherent = 0;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	void *vaddr;
 
 	vma = data->vma;
 	address = data->addr1;
 	pfn = data->addr2;
 	phys = pfn << PAGE_SHIFT;
+	page = pfn_to_page(pfn);
 
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
 
-	alias_mask = boot_cpu_data.dcache.alias_mask;
+	address &= PAGE_MASK;
+	pgd = pgd_offset(vma->vm_mm, address);
+	pud = pud_offset(pgd, address);
+	pmd = pmd_offset(pud, address);
+	pte = pte_offset_kernel(pmd, address);
 
-	/* We only need to flush D-cache when we have alias */
-	if ((address^phys) & alias_mask) {
-		/* Loop 4K of the D-cache */
-		flush_cache_4096(
-			CACHE_OC_ADDRESS_ARRAY | (address & alias_mask),
-			phys);
-		/* Loop another 4K of the D-cache */
-		flush_cache_4096(
-			CACHE_OC_ADDRESS_ARRAY | (phys & alias_mask),
-			phys);
+	/* If the page isn't present, there is nothing to do here. */
+	if (!(pte_val(*pte) & _PAGE_PRESENT))
+		return;
+
+	if ((vma->vm_mm == current->active_mm))
+		vaddr = NULL;
+	else {
+		/*
+		 * Use kmap_coherent or kmap_atomic to do flushes for
+		 * another ASID than the current one.
+		 */
+		map_coherent = (current_cpu_data.dcache.n_aliases &&
+			!test_bit(PG_dcache_dirty, &page->flags) &&
+			page_mapped(page));
+		if (map_coherent)
+			vaddr = kmap_coherent(page, address);
+		else
+			vaddr = kmap_atomic(page, KM_USER0);
+
+		address = (unsigned long)vaddr;
 	}
 
-	alias_mask = boot_cpu_data.icache.alias_mask;
-	if (vma->vm_flags & VM_EXEC) {
-		/*
-		 * Evict entries from the portion of the cache from which code
-		 * may have been executed at this address (virtual).  There's
-		 * no need to evict from the portion corresponding to the
-		 * physical address as for the D-cache, because we know the
-		 * kernel has never executed the code through its identity
-		 * translation.
-		 */
-		flush_cache_4096(
-			CACHE_IC_ADDRESS_ARRAY | (address & alias_mask),
-			phys);
+	if (pages_do_alias(address, phys))
+		flush_cache_4096(CACHE_OC_ADDRESS_ARRAY |
+			(address & shm_align_mask), phys);
+
+	if (vma->vm_flags & VM_EXEC)
+		flush_icache_all();
+
+	if (vaddr) {
+		if (map_coherent)
+			kunmap_coherent(vaddr);
+		else
+			kunmap_atomic(vaddr, KM_USER0);
 	}
 }
 
