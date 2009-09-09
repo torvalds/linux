@@ -43,6 +43,22 @@ enum ioat_interrupt {
 #define IOAT_DMA_DCA_ANY_CPU		~0
 #define IOAT_WATCHDOG_PERIOD		(2 * HZ)
 
+#define to_ioat_chan(chan) container_of(chan, struct ioat_dma_chan, common)
+#define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)
+#define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
+#define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, async_tx)
+
+#define chan_num(ch) ((int)((ch)->reg_base - (ch)->device->reg_base) / 0x80)
+
+#define RESET_DELAY  msecs_to_jiffies(100)
+#define WATCHDOG_DELAY  round_jiffies(msecs_to_jiffies(2000))
+
+/*
+ * workaround for IOAT ver.3.0 null descriptor issue
+ * (channel returns error when size is 0)
+ */
+#define NULL_DESC_BUFFER_SIZE 1
+
 
 /**
  * struct ioatdma_device - internal representation of a IOAT device

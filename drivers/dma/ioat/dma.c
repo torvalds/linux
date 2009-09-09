@@ -38,27 +38,13 @@
 #include "registers.h"
 #include "hw.h"
 
-#define to_ioat_chan(chan) container_of(chan, struct ioat_dma_chan, common)
-#define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)
-#define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
-#define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, async_tx)
-
-#define chan_num(ch) ((int)((ch)->reg_base - (ch)->device->reg_base) / 0x80)
 static int ioat_pending_level = 4;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,
 		 "high-water mark for pushing ioat descriptors (default: 4)");
 
-#define RESET_DELAY  msecs_to_jiffies(100)
-#define WATCHDOG_DELAY  round_jiffies(msecs_to_jiffies(2000))
 static void ioat_dma_chan_reset_part2(struct work_struct *work);
 static void ioat_dma_chan_watchdog(struct work_struct *work);
-
-/*
- * workaround for IOAT ver.3.0 null descriptor issue
- * (channel returns error when size is 0)
- */
-#define NULL_DESC_BUFFER_SIZE 1
 
 /* internal functions */
 static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan);
