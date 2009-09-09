@@ -1471,8 +1471,8 @@ xfs_create(
 	if (error == ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(dp);
-		error = xfs_trans_reserve(tp, resblks, XFS_CREATE_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_CREATE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, resblks, log_res, 0,
+				XFS_TRANS_PERM_LOG_RES, log_count);
 	}
 	if (error == ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
