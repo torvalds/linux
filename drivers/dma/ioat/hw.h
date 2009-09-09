@@ -37,6 +37,7 @@
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
 #define IOAT_VER_3_0            0x30    /* Version 3.0 */
+#define IOAT_VER_3_2            0x32    /* Version 3.2 */
 
 struct ioat_dma_descriptor {
 	uint32_t	size;
@@ -55,6 +56,7 @@ struct ioat_dma_descriptor {
 			unsigned int dest_dca:1;
 			unsigned int hint:1;
 			unsigned int rsvd2:13;
+			#define IOAT_OP_COPY 0x00
 			unsigned int op:8;
 		} ctl_f;
 	};
@@ -69,5 +71,145 @@ struct ioat_dma_descriptor {
 		uint64_t	tx_cnt;
 	};
 	uint64_t	user2;
+};
+
+struct ioat_fill_descriptor {
+	uint32_t	size;
+	union {
+		uint32_t ctl;
+		struct {
+			unsigned int int_en:1;
+			unsigned int rsvd:1;
+			unsigned int dest_snoop_dis:1;
+			unsigned int compl_write:1;
+			unsigned int fence:1;
+			unsigned int rsvd2:2;
+			unsigned int dest_brk:1;
+			unsigned int bundle:1;
+			unsigned int rsvd4:15;
+			#define IOAT_OP_FILL 0x01
+			unsigned int op:8;
+		} ctl_f;
+	};
+	uint64_t	src_data;
+	uint64_t	dst_addr;
+	uint64_t	next;
+	uint64_t	rsv1;
+	uint64_t	next_dst_addr;
+	uint64_t	user1;
+	uint64_t	user2;
+};
+
+struct ioat_xor_descriptor {
+	uint32_t	size;
+	union {
+		uint32_t ctl;
+		struct {
+			unsigned int int_en:1;
+			unsigned int src_snoop_dis:1;
+			unsigned int dest_snoop_dis:1;
+			unsigned int compl_write:1;
+			unsigned int fence:1;
+			unsigned int src_cnt:3;
+			unsigned int bundle:1;
+			unsigned int dest_dca:1;
+			unsigned int hint:1;
+			unsigned int rsvd:13;
+			#define IOAT_OP_XOR 0x87
+			#define IOAT_OP_XOR_VAL 0x88
+			unsigned int op:8;
+		} ctl_f;
+	};
+	uint64_t	src_addr;
+	uint64_t	dst_addr;
+	uint64_t	next;
+	uint64_t	src_addr2;
+	uint64_t	src_addr3;
+	uint64_t	src_addr4;
+	uint64_t	src_addr5;
+};
+
+struct ioat_xor_ext_descriptor {
+	uint64_t	src_addr6;
+	uint64_t	src_addr7;
+	uint64_t	src_addr8;
+	uint64_t	next;
+	uint64_t	rsvd[4];
+};
+
+struct ioat_pq_descriptor {
+	uint32_t	size;
+	union {
+		uint32_t ctl;
+		struct {
+			unsigned int int_en:1;
+			unsigned int src_snoop_dis:1;
+			unsigned int dest_snoop_dis:1;
+			unsigned int compl_write:1;
+			unsigned int fence:1;
+			unsigned int src_cnt:3;
+			unsigned int bundle:1;
+			unsigned int dest_dca:1;
+			unsigned int hint:1;
+			unsigned int p_disable:1;
+			unsigned int q_disable:1;
+			unsigned int rsvd:11;
+			#define IOAT_OP_PQ 0x89
+			#define IOAT_OP_PQ_VAL 0x8a
+			unsigned int op:8;
+		} ctl_f;
+	};
+	uint64_t	src_addr;
+	uint64_t	p_addr;
+	uint64_t	next;
+	uint64_t	src_addr2;
+	uint64_t	src_addr3;
+	uint8_t		coef[8];
+	uint64_t	q_addr;
+};
+
+struct ioat_pq_ext_descriptor {
+	uint64_t	src_addr4;
+	uint64_t	src_addr5;
+	uint64_t	src_addr6;
+	uint64_t	next;
+	uint64_t	src_addr7;
+	uint64_t	src_addr8;
+	uint64_t	rsvd[2];
+};
+
+struct ioat_pq_update_descriptor {
+	uint32_t	size;
+	union {
+		uint32_t ctl;
+		struct {
+			unsigned int int_en:1;
+			unsigned int src_snoop_dis:1;
+			unsigned int dest_snoop_dis:1;
+			unsigned int compl_write:1;
+			unsigned int fence:1;
+			unsigned int src_cnt:3;
+			unsigned int bundle:1;
+			unsigned int dest_dca:1;
+			unsigned int hint:1;
+			unsigned int p_disable:1;
+			unsigned int q_disable:1;
+			unsigned int rsvd:3;
+			unsigned int coef:8;
+			#define IOAT_OP_PQ_UP 0x8b
+			unsigned int op:8;
+		} ctl_f;
+	};
+	uint64_t	src_addr;
+	uint64_t	p_addr;
+	uint64_t	next;
+	uint64_t	src_addr2;
+	uint64_t	p_src;
+	uint64_t	q_src;
+	uint64_t	q_addr;
+};
+
+struct ioat_raw_descriptor {
+	uint64_t	field[8];
 };
 #endif

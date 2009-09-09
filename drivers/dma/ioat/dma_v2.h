@@ -114,8 +114,32 @@ static inline u16 ioat2_xferlen_to_descs(struct ioat2_dma_chan *ioat, size_t len
 	return num_descs;
 }
 
+/**
+ * struct ioat_ring_ent - wrapper around hardware descriptor
+ * @hw: hardware DMA descriptor (for memcpy)
+ * @fill: hardware fill descriptor
+ * @xor: hardware xor descriptor
+ * @xor_ex: hardware xor extension descriptor
+ * @pq: hardware pq descriptor
+ * @pq_ex: hardware pq extension descriptor
+ * @pqu: hardware pq update descriptor
+ * @raw: hardware raw (un-typed) descriptor
+ * @txd: the generic software descriptor for all engines
+ * @len: total transaction length for unmap
+ * @id: identifier for debug
+ */
+
 struct ioat_ring_ent {
-	struct ioat_dma_descriptor *hw;
+	union {
+		struct ioat_dma_descriptor *hw;
+		struct ioat_fill_descriptor *fill;
+		struct ioat_xor_descriptor *xor;
+		struct ioat_xor_ext_descriptor *xor_ex;
+		struct ioat_pq_descriptor *pq;
+		struct ioat_pq_ext_descriptor *pq_ex;
+		struct ioat_pq_update_descriptor *pqu;
+		struct ioat_raw_descriptor *raw;
+	};
 	struct dma_async_tx_descriptor txd;
 	size_t len;
 	#ifdef DEBUG
