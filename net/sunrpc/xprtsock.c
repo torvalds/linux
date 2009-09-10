@@ -2468,11 +2468,93 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	return ERR_PTR(-EINVAL);
 }
 
+/**
+ * xs_setup_bc_tcp - Set up transport to use a TCP backchannel socket
+ * @args: rpc transport creation arguments
+ *
+ */
+static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
+{
+	struct sockaddr *addr = args->dstaddr;
+	struct rpc_xprt *xprt;
+	struct sock_xprt *transport;
+	struct svc_sock *bc_sock;
+
+	if (!args->bc_xprt)
+		ERR_PTR(-EINVAL);
+
+	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
+	if (IS_ERR(xprt))
+		return xprt;
+	transport = container_of(xprt, struct sock_xprt, xprt);
+
+	xprt->prot = IPPROTO_TCP;
+	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
+	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
+	xprt->timeout = &xs_tcp_default_timeout;
+
+	/* backchannel */
+	xprt_set_bound(xprt);
+	xprt->bind_timeout = 0;
+	xprt->connect_timeout = 0;
+	xprt->reestablish_timeout = 0;
+	xprt->idle_timeout = 0;
+
+	/*
+	 * The backchannel uses the same socket connection as the
+	 * forechannel
+	 */
+	xprt->bc_xprt = args->bc_xprt;
+	bc_sock = container_of(args->bc_xprt, struct svc_sock, sk_xprt);
+	bc_sock->sk_bc_xprt = xprt;
+	transport->sock = bc_sock->sk_sock;
+	transport->inet = bc_sock->sk_sk;
+
+	xprt->ops = &bc_tcp_ops;
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		xs_format_peer_addresses(xprt, "tcp",
+					 RPCBIND_NETID_TCP);
+		break;
+	case AF_INET6:
+		xs_format_peer_addresses(xprt, "tcp",
+				   RPCBIND_NETID_TCP6);
+		break;
+	default:
+		kfree(xprt);
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
+
+	if (xprt_bound(xprt))
+		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PORT],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	else
+		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+
+	/*
+	 * Since we don't want connections for the backchannel, we set
+	 * the xprt status to connected
+	 */
+	xprt_set_connected(xprt);
+
+
+	if (try_module_get(THIS_MODULE))
+		return xprt;
+	kfree(xprt->slot);
+	kfree(xprt);
+	return ERR_PTR(-EINVAL);
+}
+
 static struct xprt_class	xs_udp_transport = {
 	.list		= LIST_HEAD_INIT(xs_udp_transport.list),
 	.name		= "udp",
 	.owner		= THIS_MODULE,
-	.ident		= IPPROTO_UDP,
+	.ident		= XPRT_TRANSPORT_UDP,
 	.setup		= xs_setup_udp,
 };
 
@@ -2480,8 +2562,16 @@ static struct xprt_class	xs_tcp_transport = {
 	.list		= LIST_HEAD_INIT(xs_tcp_transport.list),
 	.name		= "tcp",
 	.owner		= THIS_MODULE,
-	.ident		= IPPROTO_TCP,
+	.ident		= XPRT_TRANSPORT_TCP,
 	.setup		= xs_setup_tcp,
+};
+
+static struct xprt_class	xs_bc_tcp_transport = {
+	.list		= LIST_HEAD_INIT(xs_bc_tcp_transport.list),
+	.name		= "tcp NFSv4.1 backchannel",
+	.owner		= THIS_MODULE,
+	.ident		= XPRT_TRANSPORT_BC_TCP,
+	.setup		= xs_setup_bc_tcp,
 };
 
 /**
@@ -2497,6 +2587,7 @@ int init_socket_xprt(void)
 
 	xprt_register_transport(&xs_udp_transport);
 	xprt_register_transport(&xs_tcp_transport);
+	xprt_register_transport(&xs_bc_tcp_transport);
 
 	return 0;
 }
@@ -2516,6 +2607,7 @@ void cleanup_socket_xprt(void)
 
 	xprt_unregister_transport(&xs_udp_transport);
 	xprt_unregister_transport(&xs_tcp_transport);
+	xprt_unregister_transport(&xs_bc_tcp_transport);
 }
 
 static int param_set_uint_minmax(const char *val, struct kernel_param *kp,

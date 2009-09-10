@@ -114,6 +114,7 @@ struct rpc_create_args {
 	rpc_authflavor_t	authflavor;
 	unsigned long		flags;
 	char			*client_name;
+	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 
 /* Values for "flags" field */
