@@ -230,7 +230,7 @@ ext2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	return error;
 }
 
-static int
+int
 ext2_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl = ext2_get_acl(inode, ACL_TYPE_ACCESS);
@@ -244,12 +244,6 @@ ext2_check_acl(struct inode *inode, int mask)
 	}
 
 	return -EAGAIN;
-}
-
-int
-ext2_permission(struct inode *inode, int mask)
-{
-	return generic_permission(inode, mask, ext2_check_acl);
 }
 
 /*
