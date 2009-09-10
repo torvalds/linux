@@ -49,6 +49,7 @@ void r100_vram_info(struct radeon_device *rdev);
 int r100_gpu_reset(struct radeon_device *rdev);
 int r100_mc_init(struct radeon_device *rdev);
 void r100_mc_fini(struct radeon_device *rdev);
+u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int r100_wb_init(struct radeon_device *rdev);
 void r100_wb_fini(struct radeon_device *rdev);
 int r100_gart_enable(struct radeon_device *rdev);
@@ -96,6 +97,7 @@ static struct radeon_asic r100_asic = {
 	.ring_start = &r100_ring_start,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
 	.fence_ring_emit = &r100_fence_ring_emit,
 	.cs_parse = &r100_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -156,6 +158,7 @@ static struct radeon_asic r300_asic = {
 	.ring_start = &r300_ring_start,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -196,6 +199,7 @@ static struct radeon_asic r420_asic = {
 	.ring_start = &r300_ring_start,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -243,6 +247,7 @@ static struct radeon_asic rs400_asic = {
 	.ring_start = &r300_ring_start,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -261,11 +266,14 @@ static struct radeon_asic rs400_asic = {
 /*
  * rs600.
  */
+int rs600_init(struct radeon_device *dev);
 void rs600_errata(struct radeon_device *rdev);
 void rs600_vram_info(struct radeon_device *rdev);
 int rs600_mc_init(struct radeon_device *rdev);
 void rs600_mc_fini(struct radeon_device *rdev);
 int rs600_irq_set(struct radeon_device *rdev);
+int rs600_irq_process(struct radeon_device *rdev);
+u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int rs600_gart_enable(struct radeon_device *rdev);
 void rs600_gart_disable(struct radeon_device *rdev);
 void rs600_gart_tlb_flush(struct radeon_device *rdev);
@@ -274,7 +282,7 @@ uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs600_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs600_asic = {
-	.init = &r300_init,
+	.init = &rs600_init,
 	.errata = &rs600_errata,
 	.vram_info = &rs600_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -291,7 +299,8 @@ static struct radeon_asic rs600_asic = {
 	.cp_disable = &r100_cp_disable,
 	.ring_start = &r300_ring_start,
 	.irq_set = &rs600_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq_process = &rs600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -316,7 +325,7 @@ uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs690_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs690_asic = {
-	.init = &r300_init,
+	.init = &rs600_init,
 	.errata = &rs690_errata,
 	.vram_info = &rs690_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -333,7 +342,8 @@ static struct radeon_asic rs690_asic = {
 	.cp_disable = &r100_cp_disable,
 	.ring_start = &r300_ring_start,
 	.irq_set = &rs600_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq_process = &rs600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -381,8 +391,9 @@ static struct radeon_asic rv515_asic = {
 	.cp_fini = &r100_cp_fini,
 	.cp_disable = &r100_cp_disable,
 	.ring_start = &rv515_ring_start,
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq_set = &rs600_irq_set,
+	.irq_process = &rs600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
@@ -423,8 +434,9 @@ static struct radeon_asic r520_asic = {
 	.cp_fini = &r100_cp_fini,
 	.cp_disable = &r100_cp_disable,
 	.ring_start = &rv515_ring_start,
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq_set = &rs600_irq_set,
+	.irq_process = &rs600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,

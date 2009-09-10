@@ -21,7 +21,7 @@ struct flex_array {
 		struct {
 			int element_size;
 			int total_nr_elements;
-			struct flex_array_part *parts[0];
+			struct flex_array_part *parts[];
 		};
 		/*
 		 * This little trick makes sure that
@@ -36,12 +36,14 @@ struct flex_array {
 	.total_nr_elements = (total),	\
 } } }
 
-struct flex_array *flex_array_alloc(int element_size, int total, gfp_t flags);
-int flex_array_prealloc(struct flex_array *fa, int start, int end, gfp_t flags);
+struct flex_array *flex_array_alloc(int element_size, unsigned int total,
+		gfp_t flags);
+int flex_array_prealloc(struct flex_array *fa, unsigned int start,
+		unsigned int end, gfp_t flags);
 void flex_array_free(struct flex_array *fa);
 void flex_array_free_parts(struct flex_array *fa);
-int flex_array_put(struct flex_array *fa, int element_nr, void *src,
+int flex_array_put(struct flex_array *fa, unsigned int element_nr, void *src,
 		gfp_t flags);
-void *flex_array_get(struct flex_array *fa, int element_nr);
+void *flex_array_get(struct flex_array *fa, unsigned int element_nr);
 
 #endif /* _FLEX_ARRAY_H */

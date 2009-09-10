@@ -400,25 +400,6 @@ void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	WREG32(MC_IND_INDEX, 0);
 }
 
-uint32_t rv515_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	uint32_t r;
-
-	WREG32(PCIE_INDEX, ((reg) & 0x7ff));
-	(void)RREG32(PCIE_INDEX);
-	r = RREG32(PCIE_DATA);
-	return r;
-}
-
-void rv515_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	WREG32(PCIE_INDEX, ((reg) & 0x7ff));
-	(void)RREG32(PCIE_INDEX);
-	WREG32(PCIE_DATA, (v));
-	(void)RREG32(PCIE_DATA);
-}
-
-
 /*
  * Debugfs info
  */
@@ -527,7 +508,7 @@ static const unsigned r500_reg_safe_bm[219] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFF80FFFF,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x0003FC01, 0x3FFFFCF8, 0xFE800B19, 0xFFFFFFFF,
+	0x0003FC01, 0x3FFFFCF8, 0xFF800B19, 0xFFDFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,

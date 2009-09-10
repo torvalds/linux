@@ -508,7 +508,7 @@ static int pci_restore_standard_config(struct pci_dev *pci_dev)
 			return error;
 	}
 
-	return pci_dev->state_saved ? pci_restore_state(pci_dev) : 0;
+	return pci_restore_state(pci_dev);
 }
 
 static void pci_pm_default_resume_noirq(struct pci_dev *pci_dev)

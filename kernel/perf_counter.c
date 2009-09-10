@@ -50,7 +50,7 @@ static atomic_t nr_task_counters __read_mostly;
  *  1 - disallow cpu counters to unpriv
  *  2 - disallow kernel profiling to unpriv
  */
-int sysctl_perf_counter_paranoid __read_mostly;
+int sysctl_perf_counter_paranoid __read_mostly = 1;
 
 static inline bool perf_paranoid_cpu(void)
 {
@@ -1503,9 +1503,20 @@ static void perf_counter_enable_on_exec(struct task_struct *task)
  */
 static void __perf_counter_read(void *info)
 {
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter *counter = info;
 	struct perf_counter_context *ctx = counter->ctx;
 	unsigned long flags;
+
+	/*
+	 * If this is a task context, we need to check whether it is
+	 * the current task context of this cpu.  If not it has been
+	 * scheduled out before the smp call arrived.  In that case
+	 * counter->count would have been updated to a recent sample
+	 * when the counter was scheduled out.
+	 */
+	if (ctx->task && cpuctx->task_ctx != ctx)
+		return;
 
 	local_irq_save(flags);
 	if (ctx->is_active)
@@ -1780,7 +1791,7 @@ static int perf_counter_read_group(struct perf_counter *counter,
 	size += err;
 
 	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-		err = perf_counter_read_entry(counter, read_format,
+		err = perf_counter_read_entry(sub, read_format,
 				buf + size);
 		if (err < 0)
 			return err;
@@ -2007,6 +2018,10 @@ int perf_counter_task_disable(void)
 
 	return 0;
 }
+
+#ifndef PERF_COUNTER_INDEX_OFFSET
+# define PERF_COUNTER_INDEX_OFFSET 0
+#endif
 
 static int perf_counter_index(struct perf_counter *counter)
 {
@@ -4051,6 +4066,7 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	hwc->sample_period = attr->sample_period;
 	if (attr->freq && attr->sample_freq)
 		hwc->sample_period = 1;
+	hwc->last_period = hwc->sample_period;
 
 	atomic64_set(&hwc->period_left, hwc->sample_period);
 

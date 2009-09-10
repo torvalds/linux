@@ -83,8 +83,8 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp | RADEON_PCIE_TX_GART_INVALIDATE_TLB);
 		(void)RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
-		mb();
 	}
+	mb();
 }
 
 int rv370_pcie_gart_enable(struct radeon_device *rdev)
@@ -448,6 +448,7 @@ void r300_gpu_init(struct radeon_device *rdev)
 		/* rv350,rv370,rv380 */
 		rdev->num_gb_pipes = 1;
 	}
+	rdev->num_z_pipes = 1;
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
 	switch (rdev->num_gb_pipes) {
 	case 2:
@@ -486,7 +487,8 @@ void r300_gpu_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait MC idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-	DRM_INFO("radeon: %d pipes initialized.\n", rdev->num_gb_pipes);
+	DRM_INFO("radeon: %d quad pipes, %d Z pipes initialized.\n",
+		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
 int r300_ga_reset(struct radeon_device *rdev)
@@ -591,27 +593,6 @@ void r300_vram_info(struct radeon_device *rdev)
 	r100_vram_init_sizes(rdev);
 }
 
-
-/*
- * Indirect registers accessor
- */
-uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	uint32_t r;
-
-	WREG8(RADEON_PCIE_INDEX, ((reg) & 0xff));
-	(void)RREG32(RADEON_PCIE_INDEX);
-	r = RREG32(RADEON_PCIE_DATA);
-	return r;
-}
-
-void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	WREG8(RADEON_PCIE_INDEX, ((reg) & 0xff));
-	(void)RREG32(RADEON_PCIE_INDEX);
-	WREG32(RADEON_PCIE_DATA, (v));
-	(void)RREG32(RADEON_PCIE_DATA);
-}
 
 /*
  * PCIE Lanes
@@ -1014,7 +995,7 @@ static const unsigned r300_reg_safe_bm[159] = {
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0xFFFF0000, 0xFFFFFFFF, 0xFF80FFFF,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x0003FC01, 0xFFFFFFF8, 0xFE800B19,
+	0x0003FC01, 0xFFFFFCF8, 0xFF800B19,
 };
 
 static int r300_packet0_check(struct radeon_cs_parser *p,
@@ -1403,6 +1384,21 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		tmp = (ib_chunk->kdata[idx] >> 22) & 0xF;
 		track->textures[i].txdepth = tmp;
 		break;
+	case R300_ZB_ZPASS_ADDR:
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		break;
+	case 0x4be8:
+		/* valid register only on RV530 */
+		if (p->rdev->family == CHIP_RV530)
+			break;
+		/* fallthrough do not move */
 	default:
 		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
 		       reg, idx);
