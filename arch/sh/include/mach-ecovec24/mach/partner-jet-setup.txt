@@ -77,3 +77,6 @@ WAIT 1
 
 LIST "setup cache"
 ED 0xff00001c, 0x0000090b
+
+LIST "disable USB"
+EW 0xA4D80000, 0x0000
