@@ -64,6 +64,7 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 		priv->qdiscs[ntx] = qdisc;
 	}
 
+	sch->flags |= TCQ_F_MQROOT;
 	return 0;
 
 err:

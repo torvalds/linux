@@ -46,6 +46,7 @@ struct Qdisc
 #define TCQ_F_THROTTLED		2
 #define TCQ_F_INGRESS		4
 #define TCQ_F_CAN_BYPASS	8
+#define TCQ_F_MQROOT		16
 #define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	struct Qdisc_ops	*ops;

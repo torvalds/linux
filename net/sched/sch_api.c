@@ -733,7 +733,8 @@ static struct lock_class_key qdisc_rx_lock;
 
 static struct Qdisc *
 qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
-	     u32 parent, u32 handle, struct nlattr **tca, int *errp)
+	     struct Qdisc *p, u32 parent, u32 handle,
+	     struct nlattr **tca, int *errp)
 {
 	int err;
 	struct nlattr *kind = tca[TCA_KIND];
@@ -810,24 +811,21 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 		if (tca[TCA_RATE]) {
 			spinlock_t *root_lock;
 
+			err = -EOPNOTSUPP;
+			if (sch->flags & TCQ_F_MQROOT)
+				goto err_out4;
+
 			if ((sch->parent != TC_H_ROOT) &&
-			    !(sch->flags & TCQ_F_INGRESS))
+			    !(sch->flags & TCQ_F_INGRESS) &&
+			    (!p || !(p->flags & TCQ_F_MQROOT)))
 				root_lock = qdisc_root_sleeping_lock(sch);
 			else
 				root_lock = qdisc_lock(sch);
 
 			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
 						root_lock, tca[TCA_RATE]);
-			if (err) {
-				/*
-				 * Any broken qdiscs that would require
-				 * a ops->reset() here? The qdisc was never
-				 * in action so it shouldn't be necessary.
-				 */
-				if (ops->destroy)
-					ops->destroy(sch);
-				goto err_out3;
-			}
+			if (err)
+				goto err_out4;
 		}
 
 		qdisc_list_add(sch);
@@ -843,6 +841,15 @@ err_out2:
 err_out:
 	*errp = err;
 	return NULL;
+
+err_out4:
+	/*
+	 * Any broken qdiscs that would require a ops->reset() here?
+	 * The qdisc was never in action so it shouldn't be necessary.
+	 */
+	if (ops->destroy)
+		ops->destroy(sch);
+	goto err_out3;
 }
 
 static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
@@ -867,13 +874,16 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 	qdisc_put_stab(sch->stab);
 	sch->stab = stab;
 
-	if (tca[TCA_RATE])
+	if (tca[TCA_RATE]) {
 		/* NB: ignores errors from replace_estimator
 		   because change can't be undone. */
+		if (sch->flags & TCQ_F_MQROOT)
+			goto out;
 		gen_replace_estimator(&sch->bstats, &sch->rate_est,
 					    qdisc_root_sleeping_lock(sch),
 					    tca[TCA_RATE]);
-
+	}
+out:
 	return 0;
 }
 
@@ -1097,7 +1107,7 @@ create_n_graft:
 	if (!(n->nlmsg_flags&NLM_F_CREATE))
 		return -ENOENT;
 	if (clid == TC_H_INGRESS)
-		q = qdisc_create(dev, &dev->rx_queue,
+		q = qdisc_create(dev, &dev->rx_queue, p,
 				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
 	else {
@@ -1106,7 +1116,7 @@ create_n_graft:
 		if (p && p->ops->cl_ops && p->ops->cl_ops->select_queue)
 			ntx = p->ops->cl_ops->select_queue(p, tcm);
 
-		q = qdisc_create(dev, netdev_get_tx_queue(dev, ntx),
+		q = qdisc_create(dev, netdev_get_tx_queue(dev, ntx), p,
 				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err);
 	}
