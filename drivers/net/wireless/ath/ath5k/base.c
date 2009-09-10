@@ -437,6 +437,22 @@ ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val)
 
 	return name;
 }
+static unsigned int ath5k_ioread32(void *hw_priv, u32 reg_offset)
+{
+	struct ath5k_hw *ah = (struct ath5k_hw *) hw_priv;
+	return ath5k_hw_reg_read(ah, reg_offset);
+}
+
+static void ath5k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
+{
+	struct ath5k_hw *ah = (struct ath5k_hw *) hw_priv;
+	ath5k_hw_reg_write(ah, val, reg_offset);
+}
+
+static const struct ath_ops ath5k_common_ops = {
+	.read = ath5k_ioread32,
+	.write = ath5k_iowrite32,
+};
 
 static int __devinit
 ath5k_pci_probe(struct pci_dev *pdev,
@@ -576,6 +592,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	sc->ah->ah_sc = sc;
 	sc->ah->ah_iobase = sc->iobase;
 	common = ath5k_hw_common(sc->ah);
+	common->ops = &ath5k_common_ops;
 	common->cachelsz = csz << 2; /* convert to bytes */
 
 	/* Initialize device */

@@ -201,15 +201,4 @@ struct ath5k_softc {
 #define ath5k_hw_hasveol(_ah) \
 	(ath5k_hw_get_capability(_ah, AR5K_CAP_VEOL, 0, NULL) == 0)
 
-static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
-{
-	return &ah->common;
-}
-
-static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
-{
-	return &(ath5k_hw_common(ah)->regulatory);
-
-}
-
 #endif

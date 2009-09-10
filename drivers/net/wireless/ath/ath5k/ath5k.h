@@ -1315,17 +1315,21 @@ static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
 	return turbo ? (clock / 80) : (clock / 40);
 }
 
-/*
- * Read from a register
- */
+static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
+{
+        return &ah->common;
+}
+
+static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
+{
+        return &(ath5k_hw_common(ah)->regulatory);
+}
+
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
 	return ioread32(ah->ah_iobase + reg);
 }
 
-/*
- * Write to a register
- */
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
 	iowrite32(val, ah->ah_iobase + reg);
