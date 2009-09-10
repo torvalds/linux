@@ -257,6 +257,10 @@ out:
 	return size;
 }
 
+static int itpm;
+module_param(itpm, bool, 0444);
+MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Lenovo laptops)");
+
 /*
  * If interrupts are used (signaled by an irq set in the vendor structure)
  * tpm.c can skip polling for the data to be available as the interrupt is
@@ -293,7 +297,7 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		wait_for_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c,
 			      &chip->vendor.int_queue);
 		status = tpm_tis_status(chip);
-		if ((status & TPM_STS_DATA_EXPECT) == 0) {
+		if (!itpm && (status & TPM_STS_DATA_EXPECT) == 0) {
 			rc = -EIO;
 			goto out_err;
 		}
@@ -466,6 +470,10 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	dev_info(dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
+
+	if (itpm)
+		dev_info(dev, "Intel iTPM workaround enabled\n");
+
 
 	/* Figure out the capabilities */
 	intfcaps =
