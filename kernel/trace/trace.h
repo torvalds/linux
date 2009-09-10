@@ -120,14 +120,6 @@ struct print_entry {
 	char			buf[];
 };
 
-#define TRACE_OLD_SIZE		88
-
-struct trace_field_cont {
-	unsigned char		type;
-	/* Temporary till we get rid of this completely */
-	char			buf[TRACE_OLD_SIZE - 1];
-};
-
 struct trace_mmiotrace_rw {
 	struct trace_entry	ent;
 	struct mmiotrace_rw	rw;
@@ -508,20 +500,6 @@ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
 #endif /* CONFIG_STACKTRACE */
 
 extern cycle_t ftrace_now(int cpu);
-
-#ifdef CONFIG_CONTEXT_SWITCH_TRACER
-typedef void
-(*tracer_switch_func_t)(void *private,
-			void *__rq,
-			struct task_struct *prev,
-			struct task_struct *next);
-
-struct tracer_switch_ops {
-	tracer_switch_func_t		func;
-	void				*private;
-	struct tracer_switch_ops	*next;
-};
-#endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
 extern void trace_find_cmdline(int pid, char comm[]);
 
