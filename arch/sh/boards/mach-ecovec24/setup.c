@@ -428,6 +428,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTG1, 0);
 	gpio_direction_output(GPIO_PTG2, 0);
 	gpio_direction_output(GPIO_PTG3, 0);
+	ctrl_outw((ctrl_inw(PORT_HIZA) & ~(0x1 << 1)) , PORT_HIZA);
 
 	/* enable SH-Eth */
 	gpio_request(GPIO_PTA1, NULL);
