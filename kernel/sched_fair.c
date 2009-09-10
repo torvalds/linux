@@ -1300,7 +1300,9 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	return 0;
 }
 
-static int select_task_rq_fair(struct task_struct *p, int sync)
+static int sched_balance_self(int cpu, int flag);
+
+static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 {
 	struct sched_domain *sd, *this_sd = NULL;
 	int prev_cpu, this_cpu, new_cpu;
@@ -1313,6 +1315,9 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	this_cpu	= smp_processor_id();
 	this_rq		= cpu_rq(this_cpu);
 	new_cpu		= prev_cpu;
+
+	if (flag != SD_BALANCE_WAKE)
+		return sched_balance_self(this_cpu, flag);
 
 	/*
 	 * 'this_sd' is the first domain that both

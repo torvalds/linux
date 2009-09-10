@@ -2350,7 +2350,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	if (unlikely(task_running(rq, p)))
 		goto out_activate;
 
-	cpu = p->sched_class->select_task_rq(p, sync);
+	cpu = p->sched_class->select_task_rq(p, SD_BALANCE_WAKE, sync);
 	if (cpu != orig_cpu) {
 		set_task_cpu(p, cpu);
 		task_rq_unlock(rq, &flags);
@@ -2525,11 +2525,6 @@ void sched_fork(struct task_struct *p, int clone_flags)
 
 	__sched_fork(p);
 
-#ifdef CONFIG_SMP
-	cpu = sched_balance_self(cpu, SD_BALANCE_FORK);
-#endif
-	set_task_cpu(p, cpu);
-
 	/*
 	 * Make sure we do not leak PI boosting priority to the child.
 	 */
@@ -2559,6 +2554,11 @@ void sched_fork(struct task_struct *p, int clone_flags)
 
 	if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
+
+#ifdef CONFIG_SMP
+	cpu = p->sched_class->select_task_rq(p, SD_BALANCE_FORK, 0);
+#endif
+	set_task_cpu(p, cpu);
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	if (likely(sched_info_on()))
@@ -3114,7 +3114,7 @@ out:
 void sched_exec(void)
 {
 	int new_cpu, this_cpu = get_cpu();
-	new_cpu = sched_balance_self(this_cpu, SD_BALANCE_EXEC);
+	new_cpu = current->sched_class->select_task_rq(current, SD_BALANCE_EXEC, 0);
 	put_cpu();
 	if (new_cpu != this_cpu)
 		sched_migrate_task(current, new_cpu);

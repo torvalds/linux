@@ -6,7 +6,7 @@
  */
 
 #ifdef CONFIG_SMP
-static int select_task_rq_idle(struct task_struct *p, int sync)
+static int select_task_rq_idle(struct task_struct *p, int flag, int sync)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
