@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/smp.h>
 
+#include <asm/perf_counter.h>
 #include <asm/ptrace.h>
 #include <asm/local.h>
 #include <asm/pcr.h>
@@ -156,7 +157,7 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 	atomic_dec(&nmi_active);
 }
 
-static void stop_nmi_watchdog(void *unused)
+void stop_nmi_watchdog(void *unused)
 {
 	pcr_ops->write(PCR_PIC_PRIV);
 	__get_cpu_var(wd_enabled) = 0;
@@ -210,7 +211,7 @@ error:
 	return err;
 }
 
-static void start_nmi_watchdog(void *unused)
+void start_nmi_watchdog(void *unused)
 {
 	__get_cpu_var(wd_enabled) = 1;
 	atomic_inc(&nmi_active);
@@ -263,6 +264,9 @@ int __init nmi_init(void)
 			atomic_set(&nmi_active, -1);
 		}
 	}
+	if (!err)
+		init_hw_perf_counters();
+
 	return err;
 }
 
