@@ -48,6 +48,7 @@
 #include <linux/nfsd/state.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/nfs4.h>
+#include <linux/sunrpc/xprtsock.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -483,7 +484,7 @@ int setup_callback_client(struct nfs4_client *clp)
 		.to_retries	= 0,
 	};
 	struct rpc_create_args args = {
-		.protocol	= IPPROTO_TCP,
+		.protocol	= XPRT_TRANSPORT_TCP,
 		.address	= (struct sockaddr *) &cb->cb_addr,
 		.addrsize	= cb->cb_addrlen,
 		.timeout	= &timeparms,
@@ -498,7 +499,10 @@ int setup_callback_client(struct nfs4_client *clp)
 
 	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 		return -EINVAL;
-
+	if (cb->cb_minorversion) {
+		args.bc_xprt = clp->cl_cb_xprt;
+		args.protocol = XPRT_TRANSPORT_BC_TCP;
+	}
 	/* Create RPC client */
 	client = rpc_create(&args);
 	if (IS_ERR(client)) {
