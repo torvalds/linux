@@ -954,6 +954,174 @@ intel_wait_for_vblank(struct drm_device *dev)
 	mdelay(20);
 }
 
+/* Parameters have changed, update FBC info */
+static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj_priv = intel_fb->obj->driver_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int plane, i;
+	u32 fbc_ctl, fbc_ctl2;
+
+	dev_priv->cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
+
+	if (fb->pitch < dev_priv->cfb_pitch)
+		dev_priv->cfb_pitch = fb->pitch;
+
+	/* FBC_CTL wants 64B units */
+	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
+	dev_priv->cfb_fence = obj_priv->fence_reg;
+	dev_priv->cfb_plane = intel_crtc->plane;
+	plane = dev_priv->cfb_plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB;
+
+	/* Clear old tags */
+	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
+		I915_WRITE(FBC_TAG + (i * 4), 0);
+
+	/* Set it up... */
+	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | plane;
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		fbc_ctl2 |= FBC_CTL_CPU_FENCE;
+	I915_WRITE(FBC_CONTROL2, fbc_ctl2);
+	I915_WRITE(FBC_FENCE_OFF, crtc->y);
+
+	/* enable it... */
+	fbc_ctl = FBC_CTL_EN | FBC_CTL_PERIODIC;
+	fbc_ctl |= (dev_priv->cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
+	fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		fbc_ctl |= dev_priv->cfb_fence;
+	I915_WRITE(FBC_CONTROL, fbc_ctl);
+
+	DRM_DEBUG("enabled FBC, pitch %ld, yoff %d, plane %d, ",
+		  dev_priv->cfb_pitch, crtc->y, dev_priv->cfb_plane);
+}
+
+void i8xx_disable_fbc(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 fbc_ctl;
+
+	/* Disable compression */
+	fbc_ctl = I915_READ(FBC_CONTROL);
+	fbc_ctl &= ~FBC_CTL_EN;
+	I915_WRITE(FBC_CONTROL, fbc_ctl);
+
+	/* Wait for compressing bit to clear */
+	while (I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING)
+		; /* nothing */
+
+	intel_wait_for_vblank(dev);
+
+	DRM_DEBUG("disabled FBC\n");
+}
+
+static bool i8xx_fbc_enabled(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return I915_READ(FBC_CONTROL) & FBC_CTL_EN;
+}
+
+/**
+ * intel_update_fbc - enable/disable FBC as needed
+ * @crtc: CRTC to point the compressor at
+ * @mode: mode in use
+ *
+ * Set up the framebuffer compression hardware at mode set time.  We
+ * enable it if possible:
+ *   - plane A only (on pre-965)
+ *   - no pixel mulitply/line duplication
+ *   - no alpha buffer discard
+ *   - no dual wide
+ *   - framebuffer <= 2048 in width, 1536 in height
+ *
+ * We can't assume that any compression will take place (worst case),
+ * so the compressed buffer has to be the same size as the uncompressed
+ * one.  It also must reside (along with the line length buffer) in
+ * stolen memory.
+ *
+ * We need to enable/disable FBC on a global basis.
+ */
+static void intel_update_fbc(struct drm_crtc *crtc,
+			     struct drm_display_mode *mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
+	struct intel_framebuffer *intel_fb;
+	struct drm_i915_gem_object *obj_priv;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int plane = intel_crtc->plane;
+
+	if (!i915_powersave)
+		return;
+
+	if (!crtc->fb)
+		return;
+
+	intel_fb = to_intel_framebuffer(fb);
+	obj_priv = intel_fb->obj->driver_private;
+
+	/*
+	 * If FBC is already on, we just have to verify that we can
+	 * keep it that way...
+	 * Need to disable if:
+	 *   - changing FBC params (stride, fence, mode)
+	 *   - new fb is too large to fit in compressed buffer
+	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
+	 */
+	if (intel_fb->obj->size > dev_priv->cfb_size) {
+		DRM_DEBUG("framebuffer too large, disabling compression\n");
+		goto out_disable;
+	}
+	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
+	    (mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
+		DRM_DEBUG("mode incompatible with compression, disabling\n");
+		goto out_disable;
+	}
+	if ((mode->hdisplay > 2048) ||
+	    (mode->vdisplay > 1536)) {
+		DRM_DEBUG("mode too large for compression, disabling\n");
+		goto out_disable;
+	}
+	if (IS_I9XX(dev) && plane != 0) {
+		DRM_DEBUG("plane not 0, disabling compression\n");
+		goto out_disable;
+	}
+	if (obj_priv->tiling_mode != I915_TILING_X) {
+		DRM_DEBUG("framebuffer not tiled, disabling compression\n");
+		goto out_disable;
+	}
+
+	if (i8xx_fbc_enabled(crtc)) {
+		/* We can re-enable it in this case, but need to update pitch */
+		if (fb->pitch > dev_priv->cfb_pitch)
+			i8xx_disable_fbc(dev);
+		if (obj_priv->fence_reg != dev_priv->cfb_fence)
+			i8xx_disable_fbc(dev);
+		if (plane != dev_priv->cfb_plane)
+			i8xx_disable_fbc(dev);
+	}
+
+	if (!i8xx_fbc_enabled(crtc)) {
+		/* Now try to turn it back on if possible */
+		i8xx_enable_fbc(crtc, 500);
+	}
+
+	return;
+
+out_disable:
+	DRM_DEBUG("unsupported config, disabling FBC\n");
+	/* Multiple disables should be harmless */
+	if (i8xx_fbc_enabled(crtc))
+		i8xx_disable_fbc(dev);
+}
+
 static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *old_fb)
@@ -966,12 +1134,13 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_gem_object *obj;
 	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
 	unsigned long Start, Offset;
-	int dspbase = (pipe == 0 ? DSPAADDR : DSPBADDR);
-	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
-	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
-	int dsptileoff = (pipe == 0 ? DSPATILEOFF : DSPBTILEOFF);
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+	int dspbase = (plane == 0 ? DSPAADDR : DSPBADDR);
+	int dspsurf = (plane == 0 ? DSPASURF : DSPBSURF);
+	int dspstride = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
+	int dsptileoff = (plane == 0 ? DSPATILEOFF : DSPBTILEOFF);
+	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr, alignment;
 	int ret;
 
@@ -981,12 +1150,12 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return 0;
 	}
 
-	switch (pipe) {
+	switch (plane) {
 	case 0:
 	case 1:
 		break;
 	default:
-		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
+		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
 		return -EINVAL;
 	}
 
@@ -1113,6 +1282,9 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		master_priv->sarea_priv->pipeA_x = x;
 		master_priv->sarea_priv->pipeA_y = y;
 	}
+
+	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
 
 	return 0;
 }
@@ -1534,9 +1706,10 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-	int dspbase_reg = (pipe == 0) ? DSPAADDR : DSPBADDR;
+	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
+	int dspbase_reg = (plane == 0) ? DSPAADDR : DSPBADDR;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
 
@@ -1579,6 +1752,9 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		intel_crtc_load_lut(crtc);
 
+		if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+			intel_update_fbc(crtc, &crtc->mode);
+
 		/* Give the overlay scaler a chance to enable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, true); TODO
 		intel_update_watermarks(dev);
@@ -1587,6 +1763,9 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 		intel_update_watermarks(dev);
 		/* Give the overlay scaler a chance to disable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, FALSE); TODO
+
+		if (dev_priv->cfb_plane == plane)
+			i8xx_disable_fbc(dev);
 
 		/* Disable the VGA plane that we never use */
 		i915_disable_vga(dev);
@@ -2325,10 +2504,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
 	int fp_reg = (pipe == 0) ? FPA0 : FPB0;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 	int dpll_md_reg = (intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
+	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
 	int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
@@ -2336,8 +2516,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int vtot_reg = (pipe == 0) ? VTOTAL_A : VTOTAL_B;
 	int vblank_reg = (pipe == 0) ? VBLANK_A : VBLANK_B;
 	int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
-	int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
-	int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
+	int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
+	int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
 	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int refclk, num_outputs = 0;
 	intel_clock_t clock, reduced_clock;
@@ -2570,7 +2750,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	   enable color space conversion */
 	if (!IS_IGDNG(dev)) {
 		if (pipe == 0)
-			dspcntr |= DISPPLANE_SEL_PIPE_A;
+			dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
 		else
 			dspcntr |= DISPPLANE_SEL_PIPE_B;
 	}
@@ -2739,6 +2919,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* Flush the plane changes */
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
+	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
 	intel_update_watermarks(dev);
 
 	drm_vblank_post_modeset(dev, pipe);
@@ -2783,6 +2965,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_gem_object *bo;
 	struct drm_i915_gem_object *obj_priv;
 	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp = I915_READ(control);
@@ -2868,6 +3051,10 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			i915_gem_object_unpin(intel_crtc->cursor_bo);
 		drm_gem_object_unreference(intel_crtc->cursor_bo);
 	}
+
+	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
+
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_crtc->cursor_addr = addr;
@@ -3549,6 +3736,14 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		intel_crtc->lut_b[i] = i;
 	}
 
+	/* Swap pipes & planes for FBC on pre-965 */
+	intel_crtc->pipe = pipe;
+	intel_crtc->plane = pipe;
+	if (IS_MOBILE(dev) && (IS_I9XX(dev) && !IS_I965G(dev))) {
+		DRM_DEBUG("swapping pipes & planes for FBC\n");
+		intel_crtc->plane = ((pipe == 0) ? 1 : 0);
+	}
+
 	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
@@ -3909,6 +4104,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	mutex_unlock(&dev->struct_mutex);
 
+	i8xx_disable_fbc(dev);
 	drm_mode_config_cleanup(dev);
 }
 

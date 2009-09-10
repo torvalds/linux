@@ -48,6 +48,11 @@ enum pipe {
 	PIPE_B,
 };
 
+enum plane {
+	PLANE_A = 0,
+	PLANE_B,
+};
+
 #define I915_NUM_PIPE	2
 
 /* Interface history:
@@ -201,6 +206,11 @@ typedef struct drm_i915_private {
 	bool cursor_needs_physical;
 
 	struct drm_mm vram;
+
+	unsigned long cfb_size;
+	unsigned long cfb_pitch;
+	int cfb_fence;
+	int cfb_plane;
 
 	int irq_enabled;
 
@@ -768,6 +778,7 @@ static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 /* modesetting */
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
+extern void i8xx_disable_fbc(struct drm_device *dev);
 
 /**
  * Lock test for when it's just for synchronization of ring access.
@@ -918,6 +929,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IGDNG(dev))
 #define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IGDNG(dev))
+#define I915_HAS_FBC(dev) (IS_I9XX(dev) || IS_I965G(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 
