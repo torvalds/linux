@@ -481,7 +481,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 
 	pref = rinfo->route_pref;
 	if (pref == ICMPV6_ROUTER_PREF_INVALID)
-		pref = ICMPV6_ROUTER_PREF_MEDIUM;
+		return -EINVAL;
 
 	lifetime = addrconf_timeout_fixup(ntohl(rinfo->lifetime), HZ);
 
