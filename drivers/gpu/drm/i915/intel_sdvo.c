@@ -2274,6 +2274,8 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB1;
 		encoder->encoder_type = DRM_MODE_ENCODER_DAC;
 		connector->connector_type = DRM_MODE_CONNECTOR_VGA;
+		intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+					(1 << INTEL_ANALOG_CLONE_BIT);
 	} else if (flags & SDVO_OUTPUT_LVDS0) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_LVDS0;
