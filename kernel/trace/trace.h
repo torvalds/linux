@@ -169,20 +169,20 @@ enum kmemtrace_type_id {
 
 struct kmemtrace_alloc_entry {
 	struct trace_entry	ent;
-	enum kmemtrace_type_id type_id;
-	unsigned long call_site;
-	const void *ptr;
-	size_t bytes_req;
-	size_t bytes_alloc;
-	gfp_t gfp_flags;
-	int node;
+	enum kmemtrace_type_id	type_id;
+	unsigned long		call_site;
+	const void		*ptr;
+	size_t			bytes_req;
+	size_t			bytes_alloc;
+	gfp_t			gfp_flags;
+	int			node;
 };
 
 struct kmemtrace_free_entry {
 	struct trace_entry	ent;
-	enum kmemtrace_type_id type_id;
-	unsigned long call_site;
-	const void *ptr;
+	enum kmemtrace_type_id	type_id;
+	unsigned long		call_site;
+	const void		*ptr;
 };
 
 struct syscall_trace_enter {
@@ -203,7 +203,7 @@ struct syscall_trace_exit {
  * states when a trace occurs. These are:
  *  IRQS_OFF		- interrupts were disabled
  *  IRQS_NOSUPPORT	- arch does not support irqs_disabled_flags
- *  NEED_RESCED		- reschedule is requested
+ *  NEED_RESCHED	- reschedule is requested
  *  HARDIRQ		- inside an interrupt handler
  *  SOFTIRQ		- inside a softirq handler
  */
