@@ -281,12 +281,12 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 		goto err_free;
 	}
 
+	ee = &ah->ah_capabilities.cap_eeprom;
+
 	/*
 	 * Write PCI-E power save settings
 	 */
 	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
-		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-
 		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
 		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
 
@@ -324,7 +324,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	}
 
 	/* Crypto settings */
-	ee = &ah->ah_capabilities.cap_eeprom;
 	ah->ah_aes_support = srev >= AR5K_SREV_AR5212_V4 &&
 		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
 		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5));
