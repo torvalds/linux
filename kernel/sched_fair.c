@@ -1331,6 +1331,7 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 		new_cpu = prev_cpu;
 	}
 
+	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
 		/*
 		 * If power savings logic is enabled for a domain, see if we
@@ -1369,8 +1370,10 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 		if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
 		    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
 
-			if (wake_affine(tmp, p, sync))
-				return cpu;
+			if (wake_affine(tmp, p, sync)) {
+				new_cpu = cpu;
+				goto out;
+			}
 
 			want_affine = 0;
 		}
@@ -1416,6 +1419,8 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 		/* while loop will break here if sd == NULL */
 	}
 
+out:
+	rcu_read_unlock();
 	return new_cpu;
 }
 #endif /* CONFIG_SMP */
