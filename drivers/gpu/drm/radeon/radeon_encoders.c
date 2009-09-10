@@ -537,6 +537,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_HDMIB: /* HDMI-B is basically DL-DVI; analog works fine */
 		if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
 			return ATOM_ENCODER_MODE_HDMI;
 		else if (radeon_connector->use_digital)
@@ -546,7 +547,6 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		break;
 	case DRM_MODE_CONNECTOR_DVID:
 	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
 	default:
 		if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
 			return ATOM_ENCODER_MODE_HDMI;

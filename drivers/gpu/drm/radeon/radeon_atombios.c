@@ -104,7 +104,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 				     uint32_t supported_device,
 				     int *connector_type,
 				     struct radeon_i2c_bus_rec *i2c_bus,
-				     uint8_t *line_mux)
+				     uint16_t *line_mux)
 {
 
 	/* Asus M2A-VM HDMI board lists the DVI port as HDMI */
@@ -143,20 +143,31 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			return false;
 	}
 
-	/* some BIOSes seem to report DAC on HDMI - they hurt me with their lies */
-	if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) ||
-	    (*connector_type == DRM_MODE_CONNECTOR_HDMIB)) {
-		if (supported_device & (ATOM_DEVICE_CRT_SUPPORT)) {
-			return false;
-		}
-	}
-
 	/* ASUS HD 3600 XT board lists the DVI port as HDMI */
 	if ((dev->pdev->device == 0x9598) &&
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
 	    (dev->pdev->subsystem_device == 0x01da)) {
-		if (*connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
+		}
+	}
+
+	/* ASUS HD 3450 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x95C5) &&
+	    (dev->pdev->subsystem_vendor == 0x1043) &&
+	    (dev->pdev->subsystem_device == 0x01e2)) {
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
+		}
+	}
+
+	/* some BIOSes seem to report DAC on HDMI - usually this is a board with
+	 * HDMI + VGA reporting as HDMI
+	 */
+	if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+		if (supported_device & (ATOM_DEVICE_CRT_SUPPORT)) {
+			*connector_type = DRM_MODE_CONNECTOR_VGA;
+			*line_mux = 0;
 		}
 	}
 
@@ -192,10 +203,10 @@ const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Composite,
 	DRM_MODE_CONNECTOR_SVIDEO,
 	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_9PinDIN,
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_HDMIA,
-	DRM_MODE_CONNECTOR_HDMIB,
 	DRM_MODE_CONNECTOR_HDMIB,
 	DRM_MODE_CONNECTOR_LVDS,
 	DRM_MODE_CONNECTOR_9PinDIN,
@@ -218,7 +229,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	ATOM_OBJECT_HEADER *obj_header;
 	int i, j, path_size, device_support;
 	int connector_type;
-	uint16_t igp_lane_info;
+	uint16_t igp_lane_info, conn_id;
 	bool linkb;
 	struct radeon_i2c_bus_rec ddc_bus;
 
@@ -405,9 +416,15 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			else
 				ddc_bus = radeon_lookup_gpio(dev, line_mux);
 
+			conn_id = le16_to_cpu(path->usConnObjectId);
+
+			if (!radeon_atom_apply_quirks
+			    (dev, le16_to_cpu(path->usDeviceTag), &connector_type,
+			     &ddc_bus, &conn_id))
+				continue;
+
 			radeon_add_atom_connector(dev,
-						  le16_to_cpu(path->
-							      usConnObjectId),
+						  conn_id,
 						  le16_to_cpu(path->
 							      usDeviceTag),
 						  connector_type, &ddc_bus,
@@ -423,7 +440,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 
 struct bios_connector {
 	bool valid;
-	uint8_t line_mux;
+	uint16_t line_mux;
 	uint16_t devices;
 	int connector_type;
 	struct radeon_i2c_bus_rec ddc_bus;
