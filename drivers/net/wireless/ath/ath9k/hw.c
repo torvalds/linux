@@ -2476,9 +2476,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
-	REG_WRITE(ah, AR_BSS_ID0, get_unaligned_le32(sc->curbssid));
-	REG_WRITE(ah, AR_BSS_ID1, get_unaligned_le16(sc->curbssid + 4) |
-		  ((sc->curaid & 0x3fff) << AR_BSS_ID1_AID_S));
+	ath9k_hw_write_associd(ah);
 
 	REG_WRITE(ah, AR_ISR, ~0);
 
