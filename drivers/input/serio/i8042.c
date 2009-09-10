@@ -541,7 +541,7 @@ static int i8042_set_mux_mode(bool multiplex, unsigned char *mux_version)
  * LCS/Telegraphics.
  */
 
-static int __devinit i8042_check_mux(void)
+static int __init i8042_check_mux(void)
 {
 	unsigned char mux_version;
 
@@ -570,10 +570,10 @@ static int __devinit i8042_check_mux(void)
 /*
  * The following is used to test AUX IRQ delivery.
  */
-static struct completion i8042_aux_irq_delivered __devinitdata;
-static bool i8042_irq_being_tested __devinitdata;
+static struct completion i8042_aux_irq_delivered __initdata;
+static bool i8042_irq_being_tested __initdata;
 
-static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
+static irqreturn_t __init i8042_aux_test_irq(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned char str, data;
@@ -598,7 +598,7 @@ static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
  * verifies success by readinng CTR. Used when testing for presence of AUX
  * port.
  */
-static int __devinit i8042_toggle_aux(bool on)
+static int __init i8042_toggle_aux(bool on)
 {
 	unsigned char param;
 	int i;
@@ -626,7 +626,7 @@ static int __devinit i8042_toggle_aux(bool on)
  * the presence of an AUX interface.
  */
 
-static int __devinit i8042_check_aux(void)
+static int __init i8042_check_aux(void)
 {
 	int retval = -1;
 	bool irq_registered = false;
@@ -1060,7 +1060,7 @@ static void i8042_shutdown(struct platform_device *dev)
 	i8042_controller_reset();
 }
 
-static int __devinit i8042_create_kbd_port(void)
+static int __init i8042_create_kbd_port(void)
 {
 	struct serio *serio;
 	struct i8042_port *port = &i8042_ports[I8042_KBD_PORT_NO];
@@ -1085,7 +1085,7 @@ static int __devinit i8042_create_kbd_port(void)
 	return 0;
 }
 
-static int __devinit i8042_create_aux_port(int idx)
+static int __init i8042_create_aux_port(int idx)
 {
 	struct serio *serio;
 	int port_no = idx < 0 ? I8042_AUX_PORT_NO : I8042_MUX_PORT_NO + idx;
@@ -1117,13 +1117,13 @@ static int __devinit i8042_create_aux_port(int idx)
 	return 0;
 }
 
-static void __devinit i8042_free_kbd_port(void)
+static void __init i8042_free_kbd_port(void)
 {
 	kfree(i8042_ports[I8042_KBD_PORT_NO].serio);
 	i8042_ports[I8042_KBD_PORT_NO].serio = NULL;
 }
 
-static void __devinit i8042_free_aux_ports(void)
+static void __init i8042_free_aux_ports(void)
 {
 	int i;
 
@@ -1133,7 +1133,7 @@ static void __devinit i8042_free_aux_ports(void)
 	}
 }
 
-static void __devinit i8042_register_ports(void)
+static void __init i8042_register_ports(void)
 {
 	int i;
 
@@ -1171,7 +1171,7 @@ static void i8042_free_irqs(void)
 	i8042_aux_irq_registered = i8042_kbd_irq_registered = false;
 }
 
-static int __devinit i8042_setup_aux(void)
+static int __init i8042_setup_aux(void)
 {
 	int (*aux_enable)(void);
 	int error;
@@ -1212,7 +1212,7 @@ static int __devinit i8042_setup_aux(void)
 	return error;
 }
 
-static int __devinit i8042_setup_kbd(void)
+static int __init i8042_setup_kbd(void)
 {
 	int error;
 
@@ -1239,7 +1239,7 @@ static int __devinit i8042_setup_kbd(void)
 	return error;
 }
 
-static int __devinit i8042_probe(struct platform_device *dev)
+static int __init i8042_probe(struct platform_device *dev)
 {
 	int error;
 
@@ -1299,7 +1299,6 @@ static struct platform_driver i8042_driver = {
 		.pm	= &i8042_pm_ops,
 #endif
 	},
-	.probe		= i8042_probe,
 	.remove		= __devexit_p(i8042_remove),
 	.shutdown	= i8042_shutdown,
 };
@@ -1318,28 +1317,28 @@ static int __init i8042_init(void)
 	if (err)
 		goto err_platform_exit;
 
-	err = platform_driver_register(&i8042_driver);
-	if (err)
-		goto err_platform_exit;
-
 	i8042_platform_device = platform_device_alloc("i8042", -1);
 	if (!i8042_platform_device) {
 		err = -ENOMEM;
-		goto err_unregister_driver;
+		goto err_platform_exit;
 	}
 
 	err = platform_device_add(i8042_platform_device);
 	if (err)
 		goto err_free_device;
 
+	err = platform_driver_probe(&i8042_driver, i8042_probe);
+	if (err)
+		goto err_del_device;
+
 	panic_blink = i8042_panic_blink;
 
 	return 0;
 
+ err_del_device:
+	platform_device_del(i8042_platform_device);
  err_free_device:
 	platform_device_put(i8042_platform_device);
- err_unregister_driver:
-	platform_driver_unregister(&i8042_driver);
  err_platform_exit:
 	i8042_platform_exit();
 
@@ -1348,8 +1347,8 @@ static int __init i8042_init(void)
 
 static void __exit i8042_exit(void)
 {
-	platform_device_unregister(i8042_platform_device);
 	platform_driver_unregister(&i8042_driver);
+	platform_device_unregister(i8042_platform_device);
 	i8042_platform_exit();
 
 	panic_blink = NULL;
