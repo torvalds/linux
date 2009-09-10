@@ -2340,7 +2340,7 @@ netxen_config_indev_addr(struct net_device *dev, unsigned long event)
 	struct in_device *indev;
 	struct netxen_adapter *adapter = netdev_priv(dev);
 
-	if (netxen_destip_supported(adapter))
+	if (!netxen_destip_supported(adapter))
 		return;
 
 	indev = in_dev_get(dev);
