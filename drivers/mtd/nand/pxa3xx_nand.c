@@ -1244,6 +1244,9 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_free_io;
 
+	/* initialize all interrupts to be disabled */
+	disable_int(info, NDSR_MASK);
+
 	ret = request_irq(irq, pxa3xx_nand_irq, IRQF_DISABLED,
 			  pdev->name, info);
 	if (ret < 0) {
