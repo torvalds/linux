@@ -8,13 +8,13 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
-#include <plat/i2c.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/i2c.h>
+#include <plat/pxa3xx_nand.h>
 
 #include "devices.h"
 #include "generic.h"

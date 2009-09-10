@@ -23,7 +23,7 @@
 #include <linux/irq.h>
 
 #include <mach/dma.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/pxa3xx_nand.h>
 
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
 
