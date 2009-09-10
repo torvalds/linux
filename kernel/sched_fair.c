@@ -1333,10 +1333,25 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 
 	for_each_domain(cpu, tmp) {
 		/*
-		 * If power savings logic is enabled for a domain, stop there.
+		 * If power savings logic is enabled for a domain, see if we
+		 * are not overloaded, if so, don't balance wider.
 		 */
-		if (tmp->flags & SD_POWERSAVINGS_BALANCE)
-			break;
+		if (tmp->flags & SD_POWERSAVINGS_BALANCE) {
+			unsigned long power = 0;
+			unsigned long nr_running = 0;
+			unsigned long capacity;
+			int i;
+
+			for_each_cpu(i, sched_domain_span(tmp)) {
+				power += power_of(i);
+				nr_running += cpu_rq(i)->cfs.nr_running;
+			}
+
+			capacity = DIV_ROUND_CLOSEST(power, SCHED_LOAD_SCALE);
+
+			if (nr_running/2 < capacity)
+				break;
+		}
 
 		switch (flag) {
 		case SD_BALANCE_WAKE:
