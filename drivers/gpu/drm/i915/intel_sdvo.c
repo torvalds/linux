@@ -135,6 +135,30 @@ struct intel_sdvo_priv {
 	struct intel_sdvo_dtd save_input_dtd_1, save_input_dtd_2;
 	struct intel_sdvo_dtd save_output_dtd[16];
 	u32 save_SDVOX;
+	/* add the property for the SDVO-TV */
+	struct drm_property *left_property;
+	struct drm_property *right_property;
+	struct drm_property *top_property;
+	struct drm_property *bottom_property;
+	struct drm_property *hpos_property;
+	struct drm_property *vpos_property;
+
+	/* add the property for the SDVO-TV/LVDS */
+	struct drm_property *brightness_property;
+	struct drm_property *contrast_property;
+	struct drm_property *saturation_property;
+	struct drm_property *hue_property;
+
+	/* Add variable to record current setting for the above property */
+	u32	left_margin, right_margin, top_margin, bottom_margin;
+	/* this is to get the range of margin.*/
+	u32	max_hscan,  max_vscan;
+	u32	max_hpos, cur_hpos;
+	u32	max_vpos, cur_vpos;
+	u32	cur_brightness, max_brightness;
+	u32	cur_contrast,	max_contrast;
+	u32	cur_saturation, max_saturation;
+	u32	cur_hue,	max_hue;
 };
 
 static bool
@@ -281,6 +305,31 @@ static const struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SCALED_HDTV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS),
+    /* Add the op code for SDVO enhancements */
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_POSITION_H),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_POSITION_H),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_POSITION_H),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_POSITION_V),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_POSITION_V),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_POSITION_V),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_SATURATION),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SATURATION),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_SATURATION),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_HUE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HUE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_HUE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_CONTRAST),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_CONTRAST),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTRAST),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_BRIGHTNESS),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_BRIGHTNESS),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_BRIGHTNESS),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_OVERSCAN_H),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_OVERSCAN_H),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_OVERSCAN_H),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_MAX_OVERSCAN_V),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_OVERSCAN_V),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_OVERSCAN_V),
     /* HDMI op code */
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPP_ENCODE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_ENCODE),
@@ -981,7 +1030,7 @@ static void intel_sdvo_set_tv_format(struct intel_output *output)
 
 	status = intel_sdvo_read_response(output, NULL, 0);
 	if (status != SDVO_CMD_STATUS_SUCCESS)
-		DRM_DEBUG("%s: Failed to set TV format\n",
+		DRM_DEBUG_KMS("%s: Failed to set TV format\n",
 			  SDVO_NAME(sdvo_priv));
 }
 
@@ -1792,6 +1841,45 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
+static
+void intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	struct drm_device *dev = connector->dev;
+
+	if (sdvo_priv->is_tv) {
+		if (sdvo_priv->left_property)
+			drm_property_destroy(dev, sdvo_priv->left_property);
+		if (sdvo_priv->right_property)
+			drm_property_destroy(dev, sdvo_priv->right_property);
+		if (sdvo_priv->top_property)
+			drm_property_destroy(dev, sdvo_priv->top_property);
+		if (sdvo_priv->bottom_property)
+			drm_property_destroy(dev, sdvo_priv->bottom_property);
+		if (sdvo_priv->hpos_property)
+			drm_property_destroy(dev, sdvo_priv->hpos_property);
+		if (sdvo_priv->vpos_property)
+			drm_property_destroy(dev, sdvo_priv->vpos_property);
+	}
+	if (sdvo_priv->is_tv) {
+		if (sdvo_priv->saturation_property)
+			drm_property_destroy(dev,
+					sdvo_priv->saturation_property);
+		if (sdvo_priv->contrast_property)
+			drm_property_destroy(dev,
+					sdvo_priv->contrast_property);
+		if (sdvo_priv->hue_property)
+			drm_property_destroy(dev, sdvo_priv->hue_property);
+	}
+	if (sdvo_priv->is_tv) {
+		if (sdvo_priv->brightness_property)
+			drm_property_destroy(dev,
+					sdvo_priv->brightness_property);
+	}
+	return;
+}
+
 static void intel_sdvo_destroy(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
@@ -1812,6 +1900,9 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 		drm_property_destroy(connector->dev,
 				     sdvo_priv->tv_format_property);
 
+	if (sdvo_priv->is_tv)
+		intel_sdvo_destroy_enhance_property(connector);
+
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 
@@ -1829,6 +1920,8 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	struct drm_crtc *crtc = encoder->crtc;
 	int ret = 0;
 	bool changed = false;
+	uint8_t cmd, status;
+	uint16_t temp_value;
 
 	ret = drm_connector_property_set_value(connector, property, val);
 	if (ret < 0)
@@ -1845,11 +1938,102 @@ intel_sdvo_set_property(struct drm_connector *connector,
 
 		sdvo_priv->tv_format_name = sdvo_priv->tv_format_supported[val];
 		changed = true;
-	} else {
-		ret = -EINVAL;
-		goto out;
 	}
 
+	if (sdvo_priv->is_tv) {
+		cmd = 0;
+		temp_value = val;
+		if (sdvo_priv->left_property == property) {
+			drm_connector_property_set_value(connector,
+				sdvo_priv->right_property, val);
+			if (sdvo_priv->left_margin == temp_value)
+				goto out;
+
+			sdvo_priv->left_margin = temp_value;
+			sdvo_priv->right_margin = temp_value;
+			temp_value = sdvo_priv->max_hscan -
+					sdvo_priv->left_margin;
+			cmd = SDVO_CMD_SET_OVERSCAN_H;
+		} else if (sdvo_priv->right_property == property) {
+			drm_connector_property_set_value(connector,
+				sdvo_priv->left_property, val);
+			if (sdvo_priv->right_margin == temp_value)
+				goto out;
+
+			sdvo_priv->left_margin = temp_value;
+			sdvo_priv->right_margin = temp_value;
+			temp_value = sdvo_priv->max_hscan -
+				sdvo_priv->left_margin;
+			cmd = SDVO_CMD_SET_OVERSCAN_H;
+		} else if (sdvo_priv->top_property == property) {
+			drm_connector_property_set_value(connector,
+				sdvo_priv->bottom_property, val);
+			if (sdvo_priv->top_margin == temp_value)
+				goto out;
+
+			sdvo_priv->top_margin = temp_value;
+			sdvo_priv->bottom_margin = temp_value;
+			temp_value = sdvo_priv->max_vscan -
+					sdvo_priv->top_margin;
+			cmd = SDVO_CMD_SET_OVERSCAN_V;
+		} else if (sdvo_priv->bottom_property == property) {
+			drm_connector_property_set_value(connector,
+				sdvo_priv->top_property, val);
+			if (sdvo_priv->bottom_margin == temp_value)
+				goto out;
+			sdvo_priv->top_margin = temp_value;
+			sdvo_priv->bottom_margin = temp_value;
+			temp_value = sdvo_priv->max_vscan -
+					sdvo_priv->top_margin;
+			cmd = SDVO_CMD_SET_OVERSCAN_V;
+		} else if (sdvo_priv->hpos_property == property) {
+			if (sdvo_priv->cur_hpos == temp_value)
+				goto out;
+
+			cmd = SDVO_CMD_SET_POSITION_H;
+			sdvo_priv->cur_hpos = temp_value;
+		} else if (sdvo_priv->vpos_property == property) {
+			if (sdvo_priv->cur_vpos == temp_value)
+				goto out;
+
+			cmd = SDVO_CMD_SET_POSITION_V;
+			sdvo_priv->cur_vpos = temp_value;
+		} else if (sdvo_priv->saturation_property == property) {
+			if (sdvo_priv->cur_saturation == temp_value)
+				goto out;
+
+			cmd = SDVO_CMD_SET_SATURATION;
+			sdvo_priv->cur_saturation = temp_value;
+		} else if (sdvo_priv->contrast_property == property) {
+			if (sdvo_priv->cur_contrast == temp_value)
+				goto out;
+
+			cmd = SDVO_CMD_SET_CONTRAST;
+			sdvo_priv->cur_contrast = temp_value;
+		} else if (sdvo_priv->hue_property == property) {
+			if (sdvo_priv->cur_hue == temp_value)
+				goto out;
+
+			cmd = SDVO_CMD_SET_HUE;
+			sdvo_priv->cur_hue = temp_value;
+		} else if (sdvo_priv->brightness_property == property) {
+			if (sdvo_priv->cur_brightness == temp_value)
+				goto out;
+
+			cmd = SDVO_CMD_SET_BRIGHTNESS;
+			sdvo_priv->cur_brightness = temp_value;
+		}
+		if (cmd) {
+			intel_sdvo_write_cmd(intel_output, cmd, &temp_value, 2);
+			status = intel_sdvo_read_response(intel_output,
+								NULL, 0);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO command \n");
+				return -EINVAL;
+			}
+			changed = true;
+		}
+	}
 	if (changed && crtc)
 		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
 				crtc->y, crtc->fb);
@@ -2176,6 +2360,310 @@ static void intel_sdvo_tv_create_property(struct drm_connector *connector)
 
 }
 
+static void intel_sdvo_create_enhance_property(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	struct intel_sdvo_enhancements_reply sdvo_data;
+	struct drm_device *dev = connector->dev;
+	uint8_t status;
+	uint16_t response, data_value[2];
+
+	intel_sdvo_write_cmd(intel_output, SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
+						NULL, 0);
+	status = intel_sdvo_read_response(intel_output, &sdvo_data,
+					sizeof(sdvo_data));
+	if (status != SDVO_CMD_STATUS_SUCCESS) {
+		DRM_DEBUG_KMS(" incorrect response is returned\n");
+		return;
+	}
+	response = *((uint16_t *)&sdvo_data);
+	if (!response) {
+		DRM_DEBUG_KMS("No enhancement is supported\n");
+		return;
+	}
+	if (sdvo_priv->is_tv) {
+		/* when horizontal overscan is supported, Add the left/right
+		 * property
+		 */
+		if (sdvo_data.overscan_h) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_OVERSCAN_H, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO max "
+						"h_overscan\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_OVERSCAN_H, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO h_overscan\n");
+				return;
+			}
+			sdvo_priv->max_hscan = data_value[0];
+			sdvo_priv->left_margin = data_value[0] - response;
+			sdvo_priv->right_margin = sdvo_priv->left_margin;
+			sdvo_priv->left_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"left_margin", 2);
+			sdvo_priv->left_property->values[0] = 0;
+			sdvo_priv->left_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->left_property,
+						sdvo_priv->left_margin);
+			sdvo_priv->right_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"right_margin", 2);
+			sdvo_priv->right_property->values[0] = 0;
+			sdvo_priv->right_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->right_property,
+						sdvo_priv->right_margin);
+			DRM_DEBUG_KMS("h_overscan: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+		if (sdvo_data.overscan_v) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_OVERSCAN_V, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO max "
+						"v_overscan\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_OVERSCAN_V, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO v_overscan\n");
+				return;
+			}
+			sdvo_priv->max_vscan = data_value[0];
+			sdvo_priv->top_margin = data_value[0] - response;
+			sdvo_priv->bottom_margin = sdvo_priv->top_margin;
+			sdvo_priv->top_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"top_margin", 2);
+			sdvo_priv->top_property->values[0] = 0;
+			sdvo_priv->top_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->top_property,
+						sdvo_priv->top_margin);
+			sdvo_priv->bottom_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"bottom_margin", 2);
+			sdvo_priv->bottom_property->values[0] = 0;
+			sdvo_priv->bottom_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->bottom_property,
+						sdvo_priv->bottom_margin);
+			DRM_DEBUG_KMS("v_overscan: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+		if (sdvo_data.position_h) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_POSITION_H, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO Max h_pos\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_POSITION_H, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO get h_postion\n");
+				return;
+			}
+			sdvo_priv->max_hpos = data_value[0];
+			sdvo_priv->cur_hpos = response;
+			sdvo_priv->hpos_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"hpos", 2);
+			sdvo_priv->hpos_property->values[0] = 0;
+			sdvo_priv->hpos_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->hpos_property,
+						sdvo_priv->cur_hpos);
+			DRM_DEBUG_KMS("h_position: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+		if (sdvo_data.position_v) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_POSITION_V, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO Max v_pos\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_POSITION_V, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO get v_postion\n");
+				return;
+			}
+			sdvo_priv->max_vpos = data_value[0];
+			sdvo_priv->cur_vpos = response;
+			sdvo_priv->vpos_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"vpos", 2);
+			sdvo_priv->vpos_property->values[0] = 0;
+			sdvo_priv->vpos_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->vpos_property,
+						sdvo_priv->cur_vpos);
+			DRM_DEBUG_KMS("v_position: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+	}
+	if (sdvo_priv->is_tv) {
+		if (sdvo_data.saturation) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_SATURATION, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO Max sat\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_SATURATION, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO get sat\n");
+				return;
+			}
+			sdvo_priv->max_saturation = data_value[0];
+			sdvo_priv->cur_saturation = response;
+			sdvo_priv->saturation_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"saturation", 2);
+			sdvo_priv->saturation_property->values[0] = 0;
+			sdvo_priv->saturation_property->values[1] =
+							data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->saturation_property,
+						sdvo_priv->cur_saturation);
+			DRM_DEBUG_KMS("saturation: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+		if (sdvo_data.contrast) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_CONTRAST, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO Max contrast\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_CONTRAST, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO get contrast\n");
+				return;
+			}
+			sdvo_priv->max_contrast = data_value[0];
+			sdvo_priv->cur_contrast = response;
+			sdvo_priv->contrast_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"contrast", 2);
+			sdvo_priv->contrast_property->values[0] = 0;
+			sdvo_priv->contrast_property->values[1] = data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->contrast_property,
+						sdvo_priv->cur_contrast);
+			DRM_DEBUG_KMS("contrast: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+		if (sdvo_data.hue) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_HUE, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO Max hue\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_HUE, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO get hue\n");
+				return;
+			}
+			sdvo_priv->max_hue = data_value[0];
+			sdvo_priv->cur_hue = response;
+			sdvo_priv->hue_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"hue", 2);
+			sdvo_priv->hue_property->values[0] = 0;
+			sdvo_priv->hue_property->values[1] =
+							data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->hue_property,
+						sdvo_priv->cur_hue);
+			DRM_DEBUG_KMS("hue: max %d, default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+	}
+	if (sdvo_priv->is_tv) {
+		if (sdvo_data.brightness) {
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_MAX_BRIGHTNESS, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&data_value, 4);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO Max bright\n");
+				return;
+			}
+			intel_sdvo_write_cmd(intel_output,
+				SDVO_CMD_GET_BRIGHTNESS, NULL, 0);
+			status = intel_sdvo_read_response(intel_output,
+				&response, 2);
+			if (status != SDVO_CMD_STATUS_SUCCESS) {
+				DRM_DEBUG_KMS("Incorrect SDVO get brigh\n");
+				return;
+			}
+			sdvo_priv->max_brightness = data_value[0];
+			sdvo_priv->cur_brightness = response;
+			sdvo_priv->brightness_property =
+				drm_property_create(dev, DRM_MODE_PROP_RANGE,
+						"brightness", 2);
+			sdvo_priv->brightness_property->values[0] = 0;
+			sdvo_priv->brightness_property->values[1] =
+							data_value[0];
+			drm_connector_attach_property(connector,
+						sdvo_priv->brightness_property,
+						sdvo_priv->cur_brightness);
+			DRM_DEBUG_KMS("brightness: max %d, "
+					"default %d, current %d\n",
+					data_value[0], data_value[1], response);
+		}
+	}
+	return;
+}
+
 bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
 	struct drm_connector *connector;
@@ -2262,8 +2750,10 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	drm_encoder_helper_add(&intel_output->enc, &intel_sdvo_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
-	if (sdvo_priv->is_tv)
+	if (sdvo_priv->is_tv) {
 		intel_sdvo_tv_create_property(connector);
+		intel_sdvo_create_enhance_property(connector);
+	}
 	drm_sysfs_connector_add(connector);
 
 	intel_sdvo_select_ddc_bus(sdvo_priv);
