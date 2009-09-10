@@ -175,7 +175,7 @@ static void __devexit ioat_remove(struct pci_dev *pdev)
 
 	dev_err(&pdev->dev, "Removing dma and dca services\n");
 	if (device->dca) {
-		unregister_dca_provider(device->dca);
+		unregister_dca_provider(device->dca, &pdev->dev);
 		free_dca_provider(device->dca);
 		device->dca = NULL;
 	}
