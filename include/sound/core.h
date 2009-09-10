@@ -93,15 +93,6 @@ struct snd_device {
 
 #define snd_device(n) list_entry(n, struct snd_device, list)
 
-/* monitor files for graceful shutdown (hotplug) */
-
-struct snd_monitor_file {
-	struct file *file;
-	const struct file_operations *disconnected_f_op;
-	struct list_head shutdown_list;	/* still need to shutdown */
-	struct list_head list;	/* link of monitor files */
-};
-
 /* main structure for soundcard */
 
 struct snd_card {
@@ -311,9 +302,7 @@ int snd_component_add(struct snd_card *card, const char *component);
 int snd_card_file_add(struct snd_card *card, struct file *file);
 int snd_card_file_remove(struct snd_card *card, struct file *file);
 
-#ifndef snd_card_set_dev
 #define snd_card_set_dev(card, devptr) ((card)->dev = (devptr))
-#endif
 
 /* device.c */
 
@@ -438,11 +427,9 @@ static inline int __snd_bug_on(int cond)
 
 /* for easier backward-porting */
 #if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
-#ifndef gameport_set_dev_parent
 #define gameport_set_dev_parent(gp,xdev) ((gp)->dev.parent = (xdev))
 #define gameport_set_port_data(gp,r) ((gp)->port_data = (r))
 #define gameport_get_port_data(gp) (gp)->port_data
-#endif
 #endif
 
 /* PCI quirk list helper */
