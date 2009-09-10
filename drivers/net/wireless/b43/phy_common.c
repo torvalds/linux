@@ -347,7 +347,6 @@ void b43_phy_txpower_adjust_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-/* Called with wl->irq_lock locked */
 void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 {
 	struct b43_phy *phy = &dev->phy;

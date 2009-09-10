@@ -423,6 +423,9 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->rx.rxfilter & FIF_PSPOLL)
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
+	if (conf_is_ht(&sc->hw->conf))
+		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+
 	if (sc->sec_wiphy || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
 		/* TODO: only needed if more than one BSSID is in use in
 		 * station/adhoc mode */

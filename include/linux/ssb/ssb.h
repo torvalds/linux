@@ -238,6 +238,7 @@ enum ssb_bustype {
 	SSB_BUSTYPE_SSB,	/* This SSB bus is the system bus */
 	SSB_BUSTYPE_PCI,	/* SSB is connected to PCI bus */
 	SSB_BUSTYPE_PCMCIA,	/* SSB is connected to PCMCIA bus */
+	SSB_BUSTYPE_SDIO,	/* SSB is connected to SDIO bus */
 };
 
 /* board_vendor */
@@ -270,8 +271,12 @@ struct ssb_bus {
 
 	/* The core in the basic address register window. (PCI bus only) */
 	struct ssb_device *mapped_device;
-	/* Currently mapped PCMCIA segment. (bustype == SSB_BUSTYPE_PCMCIA only) */
-	u8 mapped_pcmcia_seg;
+	union {
+		/* Currently mapped PCMCIA segment. (bustype == SSB_BUSTYPE_PCMCIA only) */
+		u8 mapped_pcmcia_seg;
+		/* Current SSB base address window for SDIO. */
+		u32 sdio_sbaddr;
+	};
 	/* Lock for core and segment switching.
 	 * On PCMCIA-host busses this is used to protect the whole MMIO access. */
 	spinlock_t bar_lock;
@@ -282,6 +287,11 @@ struct ssb_bus {
 	struct pci_dev *host_pci;
 	/* Pointer to the PCMCIA device (only if bustype == SSB_BUSTYPE_PCMCIA). */
 	struct pcmcia_device *host_pcmcia;
+	/* Pointer to the SDIO device (only if bustype == SSB_BUSTYPE_SDIO). */
+	struct sdio_func *host_sdio;
+
+	/* See enum ssb_quirks */
+	unsigned int quirks;
 
 #ifdef CONFIG_SSB_SPROM
 	/* Mutex to protect the SPROM writing. */
@@ -336,6 +346,11 @@ struct ssb_bus {
 #endif /* DEBUG */
 };
 
+enum ssb_quirks {
+	/* SDIO connected card requires performing a read after writing a 32-bit value */
+	SSB_QUIRK_SDIO_READ_AFTER_WRITE32	= (1 << 0),
+};
+
 /* The initialization-invariants. */
 struct ssb_init_invariants {
 	/* Versioning information about the PCB. */
@@ -366,6 +381,12 @@ extern int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 				      struct pcmcia_device *pcmcia_dev,
 				      unsigned long baseaddr);
 #endif /* CONFIG_SSB_PCMCIAHOST */
+#ifdef CONFIG_SSB_SDIOHOST
+extern int ssb_bus_sdiobus_register(struct ssb_bus *bus,
+				    struct sdio_func *sdio_func,
+				    unsigned int quirks);
+#endif /* CONFIG_SSB_SDIOHOST */
+
 
 extern void ssb_bus_unregister(struct ssb_bus *bus);
 

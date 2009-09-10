@@ -616,6 +616,12 @@ struct b43_wl {
 	/* Pointer to the ieee80211 hardware data structure */
 	struct ieee80211_hw *hw;
 
+	/* Global driver mutex. Every operation must run with this mutex locked. */
+	struct mutex mutex;
+	/* Hard-IRQ spinlock. This lock protects things used in the hard-IRQ
+	 * handler, only. This basically is just the IRQ mask register. */
+	spinlock_t hardirq_lock;
+
 	/* The number of queues that were registered with the mac80211 subsystem
 	 * initially. This is a backup copy of hw->queues in case hw->queues has
 	 * to be dynamically lowered at runtime (Firmware does not support QoS).
@@ -623,16 +629,12 @@ struct b43_wl {
 	 * from the mac80211 subsystem. */
 	u16 mac80211_initially_registered_queues;
 
-	struct mutex mutex;
-	spinlock_t irq_lock;
 	/* R/W lock for data transmission.
 	 * Transmissions on 2+ queues can run concurrently, but somebody else
 	 * might sync with TX by write_lock_irqsave()'ing. */
 	rwlock_t tx_lock;
 	/* Lock for LEDs access. */
 	spinlock_t leds_lock;
-	/* Lock for SHM access. */
-	spinlock_t shm_lock;
 
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.
@@ -665,8 +667,7 @@ struct b43_wl {
 	bool radiotap_enabled;
 	bool radio_enabled;
 
-	/* The beacon we are currently using (AP or IBSS mode).
-	 * This beacon stuff is protected by the irq_lock. */
+	/* The beacon we are currently using (AP or IBSS mode). */
 	struct sk_buff *current_beacon;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
@@ -680,6 +681,11 @@ struct b43_wl {
 	 * This is scheduled when we determine that the actual TX output
 	 * power doesn't match what we want. */
 	struct work_struct txpower_adjust_work;
+
+	/* Packet transmit work */
+	struct work_struct tx_work;
+	/* Queue of packets to be transmitted. */
+	struct sk_buff_head tx_queue;
 };
 
 /* The type of the firmware file. */
@@ -754,14 +760,6 @@ enum {
 		smp_wmb();					\
 					} while (0)
 
-/* XXX---   HOW LOCKING WORKS IN B43   ---XXX
- *
- * You should always acquire both, wl->mutex and wl->irq_lock unless:
- * - You don't need to acquire wl->irq_lock, if the interface is stopped.
- * - You don't need to acquire wl->mutex in the IRQ handler, IRQ tasklet
- *   and packet TX path (and _ONLY_ there.)
- */
-
 /* Data structure for one wireless device (802.11 core) */
 struct b43_wldev {
 	struct ssb_device *dev;
@@ -807,13 +805,11 @@ struct b43_wldev {
 	u32 dma_reason[6];
 	/* The currently active generic-interrupt mask. */
 	u32 irq_mask;
+
 	/* Link Quality calculation context. */
 	struct b43_noise_calculation noisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */
 	int mac_suspended;
-
-	/* Interrupt Service Routine tasklet (bottom-half) */
-	struct tasklet_struct isr_tasklet;
 
 	/* Periodic tasks */
 	struct delayed_work periodic_work;

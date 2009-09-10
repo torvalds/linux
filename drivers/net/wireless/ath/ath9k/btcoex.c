@@ -19,6 +19,29 @@
 static const struct ath_btcoex_config ath_bt_config = { 0, true, true,
 			ATH_BT_COEX_MODE_SLOTTED, true, true, 2, 5, true };
 
+static const u16 ath_subsysid_tbl[] = {
+	AR9280_COEX2WIRE_SUBSYSID,
+	AT9285_COEX3WIRE_SA_SUBSYSID,
+	AT9285_COEX3WIRE_DA_SUBSYSID
+};
+
+/*
+ * Checks the subsystem id of the device to see if it
+ * supports btcoex
+ */
+bool ath_btcoex_supported(u16 subsysid)
+{
+	int i;
+
+	if (!subsysid)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(ath_subsysid_tbl); i++)
+		if (subsysid == ath_subsysid_tbl[i])
+			return true;
+
+	return false;
+}
 
 /*
  * Detects if there is any priority bt traffic

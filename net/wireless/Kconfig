@@ -1,6 +1,15 @@
 config CFG80211
-	tristate "Improved wireless configuration API"
+	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
+	---help---
+	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
+	  Enable this if you have a wireless device.
+
+	  For more information refer to documentation on the wireless wiki:
+
+	  http://wireless.kernel.org/en/developers/Documentation/cfg80211
+
+	  When built as a module it will be called cfg80211.
 
 config NL80211_TESTMODE
 	bool "nl80211 testmode command"

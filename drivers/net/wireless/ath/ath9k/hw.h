@@ -45,6 +45,10 @@
 #define AR5416_DEVID_AR9287_PCI  0x002D
 #define AR5416_DEVID_AR9287_PCIE 0x002E
 
+#define AR9280_COEX2WIRE_SUBSYSID	0x309b
+#define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
+#define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
+
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) ath9k_iowrite32((_ah), (_reg), (_val))
 #define REG_READ(_ah, _reg) ath9k_ioread32((_ah), (_reg))
@@ -390,6 +394,7 @@ struct ath9k_hw_version {
 	u16 phyRev;
 	u16 analog5GhzRev;
 	u16 analog2GhzRev;
+	u16 subsysid;
 };
 
 /* Generic TSF timer definitions */
@@ -665,4 +670,9 @@ void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_isr(struct ath_hw *hw);
 u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
+#define ATH_PCIE_CAP_LINK_CTRL	0x70
+#define ATH_PCIE_CAP_LINK_L0S	1
+#define ATH_PCIE_CAP_LINK_L1	2
+
+void ath_pcie_aspm_disable(struct ath_softc *sc);
 #endif

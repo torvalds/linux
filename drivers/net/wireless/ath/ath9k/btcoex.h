@@ -19,6 +19,7 @@
 
 #define ATH_WLANACTIVE_GPIO	5
 #define ATH_BTACTIVE_GPIO	6
+#define ATH_BTPRIORITY_GPIO	7
 
 #define ATH_BTCOEX_DEF_BT_PERIOD  45
 #define ATH_BTCOEX_DEF_DUTY_CYCLE 55
@@ -79,6 +80,7 @@ struct ath_btcoex_info {
 	struct ath_gen_timer *no_stomp_timer; /*Timer for no BT stomping*/
 };
 
+bool ath_btcoex_supported(u16 subsysid);
 int ath9k_hw_btcoex_init(struct ath_hw *ah);
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
