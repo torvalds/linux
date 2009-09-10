@@ -311,13 +311,14 @@ static int ar9170_set_promiscouous(struct ar9170 *ar)
 
 int ar9170_set_operating_mode(struct ar9170 *ar)
 {
+	struct ath_common *common = &ar->common;
 	u32 pm_mode = AR9170_MAC_REG_POWERMGT_DEFAULTS;
 	u8 *mac_addr, *bssid;
 	int err;
 
 	if (ar->vif) {
-		mac_addr = ar->mac_addr;
-		bssid = ar->bssid;
+		mac_addr = common->macaddr;
+		bssid = common->curbssid;
 
 		switch (ar->vif->type) {
 		case NL80211_IFTYPE_MESH_POINT:
