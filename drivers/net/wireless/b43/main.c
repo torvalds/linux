@@ -8,6 +8,9 @@
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
+  SDIO support
+  Copyright (c) 2009 Albert Herranz <albert_herranz@yahoo.es>
+
   Some parts of the code in this file are derived from the ipw2200
   driver  Copyright(c) 2003 - 2004 Intel Corporation.
 
@@ -53,6 +56,8 @@
 #include "xmit.h"
 #include "lo.h"
 #include "pcmcia.h"
+#include "sdio.h"
+#include <linux/mmc/sdio_func.h>
 
 MODULE_DESCRIPTION("Broadcom B43 wireless driver");
 MODULE_AUTHOR("Martin Langer");
@@ -1587,7 +1592,7 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
-		if (0 /*FIXME dev->dev->bus->bustype == SSB_BUSTYPE_SDIO*/) {
+		if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
 			/* wl->mutex is enough. */
 			b43_do_beacon_update_trigger_work(dev);
 			mmiowb();
@@ -1903,6 +1908,27 @@ static irqreturn_t b43_interrupt_handler(int irq, void *dev_id)
 	spin_unlock(&dev->wl->hardirq_lock);
 
 	return ret;
+}
+
+/* SDIO interrupt handler. This runs in process context. */
+static void b43_sdio_interrupt_handler(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+	struct sdio_func *func = dev->dev->bus->host_sdio;
+	irqreturn_t ret;
+
+	if (unlikely(b43_status(dev) < B43_STAT_STARTED))
+		return;
+
+	mutex_lock(&wl->mutex);
+	sdio_release_host(func);
+
+	ret = b43_do_interrupt(dev);
+	if (ret == IRQ_WAKE_THREAD)
+		b43_do_interrupt_thread(dev);
+
+	sdio_claim_host(func);
+	mutex_unlock(&wl->mutex);
 }
 
 void b43_do_release_fw(struct b43_firmware_file *fw)
@@ -3824,7 +3850,7 @@ redo:
 
 	/* Disable interrupts on the device. */
 	b43_set_status(dev, B43_STAT_INITIALIZED);
-	if (0 /*FIXME dev->dev->bus->bustype == SSB_BUSTYPE_SDIO*/) {
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
 		/* wl->mutex is locked. That is enough. */
 		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, 0);
 		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);	/* Flush */
@@ -3854,7 +3880,10 @@ redo:
 		dev_kfree_skb(skb_dequeue(&wl->tx_queue));
 
 	b43_mac_suspend(dev);
-	free_irq(dev->dev->irq, dev);
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO)
+		b43_sdio_free_irq(dev);
+	else
+		free_irq(dev->dev->irq, dev);
 	b43_leds_exit(dev);
 	b43dbg(wl, "Wireless interface stopped\n");
 
@@ -3869,12 +3898,20 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	B43_WARN_ON(b43_status(dev) != B43_STAT_INITIALIZED);
 
 	drain_txstatus_queue(dev);
-	err = request_threaded_irq(dev->dev->irq, b43_interrupt_handler,
-				   b43_interrupt_thread_handler,
-				   IRQF_SHARED, KBUILD_MODNAME, dev);
-	if (err) {
-		b43err(dev->wl, "Cannot request IRQ-%d\n", dev->dev->irq);
-		goto out;
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
+		err = b43_sdio_request_irq(dev, b43_sdio_interrupt_handler);
+		if (err) {
+			b43err(dev->wl, "Cannot request SDIO IRQ\n");
+			goto out;
+		}
+	} else {
+		err = request_threaded_irq(dev->dev->irq, b43_interrupt_handler,
+					   b43_interrupt_thread_handler,
+					   IRQF_SHARED, KBUILD_MODNAME, dev);
+		if (err) {
+			b43err(dev->wl, "Cannot request IRQ-%d\n", dev->dev->irq);
+			goto out;
+		}
 	}
 
 	/* We are ready to run. */
@@ -4266,7 +4303,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
-	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) || B43_FORCE_PIO) {
+	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) ||
+	    (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) ||
+	    B43_FORCE_PIO) {
 		dev->__using_pio_transfers = 1;
 		err = b43_pio_init(dev);
 	} else {
@@ -4942,7 +4981,7 @@ static struct ssb_driver b43_ssb_driver = {
 static void b43_print_driverinfo(void)
 {
 	const char *feat_pci = "", *feat_pcmcia = "", *feat_nphy = "",
-		   *feat_leds = "";
+		   *feat_leds = "", *feat_sdio = "";
 
 #ifdef CONFIG_B43_PCI_AUTOSELECT
 	feat_pci = "P";
@@ -4956,11 +4995,14 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_LEDS
 	feat_leds = "L";
 #endif
+#ifdef CONFIG_B43_SDIO
+	feat_sdio = "S";
+#endif
 	printk(KERN_INFO "Broadcom 43xx driver loaded "
-	       "[ Features: %s%s%s%s, Firmware-ID: "
+	       "[ Features: %s%s%s%s%s, Firmware-ID: "
 	       B43_SUPPORTED_FIRMWARE_ID " ]\n",
 	       feat_pci, feat_pcmcia, feat_nphy,
-	       feat_leds);
+	       feat_leds, feat_sdio);
 }
 
 static int __init b43_init(void)
@@ -4971,13 +5013,18 @@ static int __init b43_init(void)
 	err = b43_pcmcia_init();
 	if (err)
 		goto err_dfs_exit;
-	err = ssb_driver_register(&b43_ssb_driver);
+	err = b43_sdio_init();
 	if (err)
 		goto err_pcmcia_exit;
+	err = ssb_driver_register(&b43_ssb_driver);
+	if (err)
+		goto err_sdio_exit;
 	b43_print_driverinfo();
 
 	return err;
 
+err_sdio_exit:
+	b43_sdio_exit();
 err_pcmcia_exit:
 	b43_pcmcia_exit();
 err_dfs_exit:
@@ -4988,6 +5035,7 @@ err_dfs_exit:
 static void __exit b43_exit(void)
 {
 	ssb_driver_unregister(&b43_ssb_driver);
+	b43_sdio_exit();
 	b43_pcmcia_exit();
 	b43_debugfs_exit();
 }
