@@ -461,7 +461,7 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			 unsigned int size, unsigned int __user *_tlv)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
-	DECLARE_TLV_DB_SCALE(scale, 0, 0, 0);
+	DECLARE_TLV_DB_MINMAX(scale, 0, 0);
 
 	if (size < sizeof(scale))
 		return -ENOMEM;
@@ -469,7 +469,16 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	 * while ALSA TLV contains in 1/100 dB unit
 	 */
 	scale[2] = (convert_signed_value(cval, cval->min) * 100) / 256;
-	scale[3] = (convert_signed_value(cval, cval->res) * 100) / 256;
+	scale[3] = (convert_signed_value(cval, cval->max) * 100) / 256;
+	if (scale[3] <= scale[2]) {
+		/* something is wrong; assume it's either from/to 0dB */
+		if (scale[2] < 0)
+			scale[3] = 0;
+		else if (scale[2] > 0)
+			scale[2] = 0;
+		else /* totally crap, return an error */
+			return -EINVAL;
+	}
 	if (copy_to_user(_tlv, scale, sizeof(scale)))
 		return -EFAULT;
 	return 0;
