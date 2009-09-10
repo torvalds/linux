@@ -933,6 +933,10 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
 
+/* Common functions */
+int radeon_modeset_init(struct radeon_device *rdev);
+void radeon_modeset_fini(struct radeon_device *rdev);
+
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 void r100_cp_disable(struct radeon_device *rdev);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);

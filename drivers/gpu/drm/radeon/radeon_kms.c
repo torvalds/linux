@@ -54,12 +54,23 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		flags |= RADEON_IS_PCI;
 	}
 
+	/* radeon_device_init should report only fatal error
+	 * like memory allocation failure or iomapping failure,
+	 * or memory manager initialization failure, it must
+	 * properly initialize the GPU MC controller and permit
+	 * VRAM allocation
+	 */
 	r = radeon_device_init(rdev, dev, dev->pdev, flags);
 	if (r) {
-		DRM_ERROR("Failed to initialize radeon, disabling IOCTL\n");
-		radeon_device_fini(rdev);
-		kfree(rdev);
-		dev->dev_private = NULL;
+		DRM_ERROR("Fatal error while trying to initialize radeon.\n");
+		return r;
+	}
+	/* Again modeset_init should fail only on fatal error
+	 * otherwise it should provide enough functionalities
+	 * for shadowfb to run
+	 */
+	r = radeon_modeset_init(rdev);
+	if (r) {
 		return r;
 	}
 	return 0;
@@ -69,6 +80,9 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
+	if (rdev == NULL)
+		return 0;
+	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
 	kfree(rdev);
 	dev->dev_private = NULL;

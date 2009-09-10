@@ -469,9 +469,6 @@ void radeon_combios_fini(struct radeon_device *rdev)
 {
 }
 
-int radeon_modeset_init(struct radeon_device *rdev);
-void radeon_modeset_fini(struct radeon_device *rdev);
-
 
 /*
  * Radeon device.
@@ -481,7 +478,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		       struct pci_dev *pdev,
 		       uint32_t flags)
 {
-	int r, ret = 0;
+	int r;
 	int dma_bits;
 
 	DRM_INFO("radeon: Initializing kernel modesetting.\n");
@@ -660,33 +657,22 @@ int radeon_device_init(struct radeon_device *rdev,
 				return r;
 			}
 		}
-		ret = r;
 	}
-	r = radeon_modeset_init(rdev);
-	if (r) {
-		return r;
-	}
-	if (!ret) {
-		DRM_INFO("radeon: kernel modesetting successfully initialized.\n");
-	}
+	DRM_INFO("radeon: kernel modesetting successfully initialized.\n");
 	if (radeon_testing) {
 		radeon_test_moves(rdev);
 	}
 	if (radeon_benchmarking) {
 		radeon_benchmark(rdev);
 	}
-	return ret;
+	return 0;
 }
 
 void radeon_device_fini(struct radeon_device *rdev)
 {
-	if (rdev == NULL || rdev->rmmio == NULL) {
-		return;
-	}
 	DRM_INFO("radeon: finishing device.\n");
 	rdev->shutdown = true;
 	/* Order matter so becarefull if you rearrange anythings */
-	radeon_modeset_fini(rdev);
 	if (!rdev->new_init_path) {
 		radeon_ib_pool_fini(rdev);
 		radeon_cp_fini(rdev);
