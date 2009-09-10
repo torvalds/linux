@@ -4024,17 +4024,17 @@ void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1)
 	REG_WRITE(ah, AR_MCAST_FIL1, filter1);
 }
 
-void ath9k_hw_setbssidmask(struct ath_softc *sc)
+void ath9k_hw_setbssidmask(struct ath_hw *ah)
 {
-	REG_WRITE(sc->sc_ah, AR_BSSMSKL, get_unaligned_le32(sc->bssidmask));
-	REG_WRITE(sc->sc_ah, AR_BSSMSKU, get_unaligned_le16(sc->bssidmask + 4));
+	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(ah->ah_sc->bssidmask));
+	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(ah->ah_sc->bssidmask + 4));
 }
 
-void ath9k_hw_write_associd(struct ath_softc *sc)
+void ath9k_hw_write_associd(struct ath_hw *ah)
 {
-	REG_WRITE(sc->sc_ah, AR_BSS_ID0, get_unaligned_le32(sc->curbssid));
-	REG_WRITE(sc->sc_ah, AR_BSS_ID1, get_unaligned_le16(sc->curbssid + 4) |
-		  ((sc->curaid & 0x3fff) << AR_BSS_ID1_AID_S));
+	REG_WRITE(ah, AR_BSS_ID0, get_unaligned_le32(ah->ah_sc->curbssid));
+	REG_WRITE(ah, AR_BSS_ID1, get_unaligned_le16(ah->ah_sc->curbssid + 4) |
+		  ((ah->ah_sc->curaid & 0x3fff) << AR_BSS_ID1_AID_S));
 }
 
 u64 ath9k_hw_gettsf64(struct ath_hw *ah)

@@ -975,14 +975,15 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *bss_conf)
 {
+	struct ath_hw *ah = sc->sc_ah;
 
 	if (bss_conf->assoc) {
-		DPRINTF(sc->sc_ah, ATH_DBG_CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
+		DPRINTF(ah, ATH_DBG_CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
 			bss_conf->aid, sc->curbssid);
 
 		/* New association, store aid */
 		sc->curaid = bss_conf->aid;
-		ath9k_hw_write_associd(sc);
+		ath9k_hw_write_associd(ah);
 
 		/*
 		 * Request a re-configuration of Beacon related timers
@@ -999,7 +1000,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		ath_start_ani(sc);
 	} else {
-		DPRINTF(sc->sc_ah, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
+		DPRINTF(ah, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
 		sc->curaid = 0;
 		/* Stop ANI */
 		del_timer_sync(&sc->ani.timer);
@@ -2801,7 +2802,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		ath9k_hw_setopmode(ah);
 		memcpy(sc->curbssid, sc->sc_ah->macaddr, ETH_ALEN);
 		sc->curaid = 0;
-		ath9k_hw_write_associd(sc);
+		ath9k_hw_write_associd(ah);
 		/* Request full reset to get hw opmode changed properly */
 		sc->sc_flags |= SC_OP_FULL_RESET;
 	}
@@ -2816,7 +2817,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			memcpy(sc->curbssid, bss_conf->bssid, ETH_ALEN);
 			memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
 			sc->curaid = 0;
-			ath9k_hw_write_associd(sc);
+			ath9k_hw_write_associd(ah);
 
 			/* Set aggregation protection mode parameters */
 			sc->config.ath_aggr_prot = 0;
