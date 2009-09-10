@@ -52,9 +52,6 @@
 #define PIC_UPPER_INDEX			0
 #define PIC_LOWER_INDEX			1
 
-#define PIC_UPPER_NOP			0x1c
-#define PIC_LOWER_NOP			0x14
-
 struct cpu_hw_counters {
 	struct perf_counter	*counters[MAX_HWCOUNTERS];
 	unsigned long		used_mask[BITS_TO_LONGS(MAX_HWCOUNTERS)];
@@ -79,6 +76,8 @@ struct sparc_pmu {
 	int				event_mask;
 	int				hv_bit;
 	int				irq_bit;
+	int				upper_nop;
+	int				lower_nop;
 };
 
 static const struct perf_event_map ultra3i_perfmon_event_map[] = {
@@ -99,6 +98,8 @@ static const struct sparc_pmu ultra3i_pmu = {
 	.upper_shift	= 11,
 	.lower_shift	= 4,
 	.event_mask	= 0x3f,
+	.upper_nop	= 0x1c,
+	.lower_nop	= 0x14,
 };
 
 static const struct sparc_pmu *sparc_pmu __read_mostly;
@@ -120,7 +121,8 @@ static u64 mask_for_index(int idx)
 static u64 nop_for_index(int idx)
 {
 	return event_encoding(idx == PIC_UPPER_INDEX ?
-			      PIC_UPPER_NOP : PIC_LOWER_NOP, idx);
+			      sparc_pmu->upper_nop :
+			      sparc_pmu->lower_nop, idx);
 }
 
 static inline void sparc_pmu_enable_counter(struct hw_perf_counter *hwc,
