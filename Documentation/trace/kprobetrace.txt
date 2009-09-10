@@ -42,7 +42,8 @@ Synopsis of kprobe_events
   aN	: Fetch function argument. (N >= 0)(*)
   rv	: Fetch return value.(**)
   ra	: Fetch return address.(**)
-  +|-offs(FETCHARG) : fetch memory at FETCHARG +|- offs address.(***)
+  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(***)
+  NAME=FETCHARG: Set NAME as the argument name of FETCHARG.
 
   (*) aN may not correct on asmlinkaged functions and at the middle of
       function body.
@@ -62,12 +63,10 @@ enabled:
   You can enable/disable the probe by writing 1 or 0 on it.
 
 format:
-  This shows the format of this probe event. It also shows aliases of arguments
- which you specified to kprobe_events.
+  This shows the format of this probe event.
 
 filter:
-  You can write filtering rules of this event. And you can use both of aliase
- names and field names for describing filters.
+  You can write filtering rules of this event.
 
 id:
   This shows the id of this probe event.
@@ -85,10 +84,11 @@ Usage examples
 To add a probe as a new event, write a new definition to kprobe_events
 as below.
 
-  echo p:myprobe do_sys_open a0 a1 a2 a3 > /sys/kernel/debug/tracing/kprobe_events
+  echo p:myprobe do_sys_open dfd=a0 filename=a1 flags=a2 mode=a3 > /sys/kernel/debug/tracing/kprobe_events
 
  This sets a kprobe on the top of do_sys_open() function with recording
-1st to 4th arguments as "myprobe" event.
+1st to 4th arguments as "myprobe" event. As this example shows, users can
+choose more familiar names for each arguments.
 
   echo r:myretprobe do_sys_open rv ra >> /sys/kernel/debug/tracing/kprobe_events
 
@@ -99,7 +99,7 @@ recording return value and return address as "myretprobe" event.
 
   cat /sys/kernel/debug/tracing/events/kprobes/myprobe/format
 name: myprobe
-ID: 23
+ID: 75
 format:
 	field:unsigned short common_type;	offset:0;	size:2;
 	field:unsigned char common_flags;	offset:2;	size:1;
@@ -109,21 +109,15 @@ format:
 
 	field: unsigned long ip;	offset:16;tsize:8;
 	field: int nargs;	offset:24;tsize:4;
-	field: unsigned long arg0;	offset:32;tsize:8;
-	field: unsigned long arg1;	offset:40;tsize:8;
-	field: unsigned long arg2;	offset:48;tsize:8;
-	field: unsigned long arg3;	offset:56;tsize:8;
+	field: unsigned long dfd;	offset:32;tsize:8;
+	field: unsigned long filename;	offset:40;tsize:8;
+	field: unsigned long flags;	offset:48;tsize:8;
+	field: unsigned long mode;	offset:56;tsize:8;
 
-	alias: a0;	original: arg0;
-	alias: a1;	original: arg1;
-	alias: a2;	original: arg2;
-	alias: a3;	original: arg3;
-
-print fmt: "%lx: 0x%lx 0x%lx 0x%lx 0x%lx", ip, arg0, arg1, arg2, arg3
+print fmt: "%lx: dfd=%lx filename=%lx flags=%lx mode=%lx", ip, REC->dfd, REC->filename, REC->flags, REC->mode
 
 
- You can see that the event has 4 arguments and alias expressions
-corresponding to it.
+ You can see that the event has 4 arguments as in the expressions you specified.
 
   echo > /sys/kernel/debug/tracing/kprobe_events
 
@@ -135,12 +129,12 @@ corresponding to it.
 #
 #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
 #              | |       |          |         |
-           <...>-1447  [001] 1038282.286875: do_sys_open+0x0/0xd6: 0x3 0x7fffd1ec4440 0x8000 0x0
-           <...>-1447  [001] 1038282.286878: sys_openat+0xc/0xe <- do_sys_open: 0xfffffffffffffffe 0xffffffff81367a3a
-           <...>-1447  [001] 1038282.286885: do_sys_open+0x0/0xd6: 0xffffff9c 0x40413c 0x8000 0x1b6
-           <...>-1447  [001] 1038282.286915: sys_open+0x1b/0x1d <- do_sys_open: 0x3 0xffffffff81367a3a
-           <...>-1447  [001] 1038282.286969: do_sys_open+0x0/0xd6: 0xffffff9c 0x4041c6 0x98800 0x10
-           <...>-1447  [001] 1038282.286976: sys_open+0x1b/0x1d <- do_sys_open: 0x3 0xffffffff81367a3a
+           <...>-1447  [001] 1038282.286875: do_sys_open+0x0/0xd6: dfd=3 filename=7fffd1ec4440 flags=8000 mode=0
+           <...>-1447  [001] 1038282.286878: sys_openat+0xc/0xe <- do_sys_open: rv=fffffffffffffffe ra=ffffffff81367a3a
+           <...>-1447  [001] 1038282.286885: do_sys_open+0x0/0xd6: dfd=ffffff9c filename=40413c flags=8000 mode=1b6
+           <...>-1447  [001] 1038282.286915: sys_open+0x1b/0x1d <- do_sys_open: rv=3 ra=ffffffff81367a3a
+           <...>-1447  [001] 1038282.286969: do_sys_open+0x0/0xd6: dfd=ffffff9c filename=4041c6 flags=98800 mode=10
+           <...>-1447  [001] 1038282.286976: sys_open+0x1b/0x1d <- do_sys_open: rv=3 ra=ffffffff81367a3a
 
 
  Each line shows when the kernel hits a probe, and <- SYMBOL means kernel
