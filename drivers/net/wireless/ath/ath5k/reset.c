@@ -25,6 +25,8 @@
   Reset functions and helpers
 \*****************************/
 
+#include <asm/unaligned.h>
+
 #include <linux/pci.h> 		/* To determine if a card is pci-e */
 #include <linux/log2.h>
 #include "ath5k.h"
@@ -1171,9 +1173,9 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_reg_write(ah, s_led[2], AR5K_GPIODO);
 
 	/* Restore sta_id flags and preserve our mac address*/
-	ath5k_hw_reg_write(ah, AR5K_LOW_ID(ah->ah_sta_id),
+	ath5k_hw_reg_write(ah, get_unaligned_le32(ah->ah_sta_id),
 						AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah, staid1_flags | AR5K_HIGH_ID(ah->ah_sta_id),
+	ath5k_hw_reg_write(ah, staid1_flags | get_unaligned_le16(ah->ah_sta_id),
 						AR5K_STA_ID1);
 
 

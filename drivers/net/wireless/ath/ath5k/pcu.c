@@ -24,6 +24,8 @@
 * Protocol Control Unit Functions *
 \*********************************/
 
+#include <asm/unaligned.h>
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
@@ -95,8 +97,8 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 	/*
 	 * Set PCU registers
 	 */
-	low_id = AR5K_LOW_ID(ah->ah_sta_id);
-	high_id = AR5K_HIGH_ID(ah->ah_sta_id);
+	low_id = get_unaligned_le32(ah->ah_sta_id);
+	high_id = get_unaligned_le16(ah->ah_sta_id + 4);
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
 	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
 
@@ -279,8 +281,8 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 
 	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
 
-	low_id = AR5K_LOW_ID(mac);
-	high_id = AR5K_HIGH_ID(mac);
+	low_id = get_unaligned_le32(mac);
+	high_id = get_unaligned_le16(mac + 4);
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
 	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
@@ -306,17 +308,18 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	 * Set simple BSSID mask on 5212
 	 */
 	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, AR5K_LOW_ID(ah->ah_bssid_mask),
+		ath5k_hw_reg_write(ah, get_unaligned_le32(ah->ah_bssid_mask),
 							AR5K_BSS_IDM0);
-		ath5k_hw_reg_write(ah, AR5K_HIGH_ID(ah->ah_bssid_mask),
-							AR5K_BSS_IDM1);
+		ath5k_hw_reg_write(ah,
+				   get_unaligned_le16(ah->ah_bssid_mask + 4),
+				   AR5K_BSS_IDM1);
 	}
 
 	/*
 	 * Set BSSID which triggers the "SME Join" operation
 	 */
-	low_id = AR5K_LOW_ID(bssid);
-	high_id = AR5K_HIGH_ID(bssid);
+	low_id = get_unaligned_le32(bssid);
+	high_id = get_unaligned_le16(bssid);
 	ath5k_hw_reg_write(ah, low_id, AR5K_BSS_ID0);
 	ath5k_hw_reg_write(ah, high_id | ((assoc_id & 0x3fff) <<
 				AR5K_BSS_ID1_AID_S), AR5K_BSS_ID1);
@@ -437,8 +440,8 @@ int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 	 * on reset */
 	memcpy(ah->ah_bssid_mask, mask, ETH_ALEN);
 	if (ah->ah_version == AR5K_AR5212) {
-		low_id = AR5K_LOW_ID(mask);
-		high_id = AR5K_HIGH_ID(mask);
+		low_id = get_unaligned_le32(mask);
+		high_id = get_unaligned_le16(mask + 4);
 
 		ath5k_hw_reg_write(ah, low_id, AR5K_BSS_IDM0);
 		ath5k_hw_reg_write(ah, high_id, AR5K_BSS_IDM1);
@@ -1157,14 +1160,17 @@ int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac)
 	 /* Invalid entry (key table overflow) */
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
 
-	/* MAC may be NULL if it's a broadcast key. In this case no need to
-	 * to compute AR5K_LOW_ID and AR5K_HIGH_ID as we already know it. */
+	/*
+	 * MAC may be NULL if it's a broadcast key. In this case no need to
+	 * to compute get_unaligned_le32 and get_unaligned_le16 as we
+	 * already know it.
+	 */
 	if (!mac) {
 		low_id = 0xffffffff;
 		high_id = 0xffff | AR5K_KEYTABLE_VALID;
 	} else {
-		low_id = AR5K_LOW_ID(mac);
-		high_id = AR5K_HIGH_ID(mac) | AR5K_KEYTABLE_VALID;
+		low_id = get_unaligned_le32(mac);
+		high_id = get_unaligned_le16(mac + 4) | AR5K_KEYTABLE_VALID;
 	}
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_KEYTABLE_MAC0(entry));
