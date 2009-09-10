@@ -2652,9 +2652,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		udelay(150);
 
 		if (IS_I965G(dev) && !IS_IGDNG(dev)) {
-			sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
-			I915_WRITE(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+			if (is_sdvo) {
+				sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
+				I915_WRITE(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
 					((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+			} else
+				I915_WRITE(dpll_md_reg, 0);
 		} else {
 			/* write it again -- the BIOS does, after all */
 			I915_WRITE(dpll_reg, dpll);
