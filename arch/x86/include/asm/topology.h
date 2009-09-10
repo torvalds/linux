@@ -145,14 +145,12 @@ extern unsigned long node_remap_size[];
 				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
-				| 0*SD_WAKE_IDLE			\
+				| 1*SD_BALANCE_WAKE			\
 				| 1*SD_WAKE_AFFINE			\
-				| 1*SD_WAKE_BALANCE			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 0*SD_POWERSAVINGS_BALANCE		\
 				| 0*SD_SHARE_PKG_RESOURCES		\
 				| 1*SD_SERIALIZE			\
-				| 1*SD_WAKE_IDLE_FAR			\
 				| 0*SD_PREFER_SIBLING			\
 				,					\
 	.last_balance		= jiffies,				\

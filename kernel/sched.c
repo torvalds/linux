@@ -512,14 +512,6 @@ struct root_domain {
 #ifdef CONFIG_SMP
 	struct cpupri cpupri;
 #endif
-#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	/*
-	 * Preferred wake up cpu nominated by sched_mc balance that will be
-	 * used when most cpus are idle in the system indicating overall very
-	 * low system utilisation. Triggered at POWERSAVINGS_BALANCE_WAKEUP(2)
-	 */
-	unsigned int sched_mc_preferred_wakeup_cpu;
-#endif
 };
 
 /*
@@ -2315,22 +2307,6 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	if (!sched_feat(SYNC_WAKEUPS))
 		sync = 0;
 
-#ifdef CONFIG_SMP
-	if (sched_feat(LB_WAKEUP_UPDATE) && !root_task_group_empty()) {
-		struct sched_domain *sd;
-
-		this_cpu = raw_smp_processor_id();
-		cpu = task_cpu(p);
-
-		for_each_domain(this_cpu, sd) {
-			if (cpumask_test_cpu(cpu, sched_domain_span(sd))) {
-				update_shares(sd);
-				break;
-			}
-		}
-	}
-#endif
-
 	this_cpu = get_cpu();
 
 	smp_wmb();
@@ -3532,11 +3508,6 @@ static inline int check_power_save_busiest_group(struct sd_lb_stats *sds,
 
 	*imbalance = sds->min_load_per_task;
 	sds->busiest = sds->group_min;
-
-	if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP) {
-		cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu =
-			group_first_cpu(sds->group_leader);
-	}
 
 	return 1;
 
@@ -7850,9 +7821,7 @@ static int sd_degenerate(struct sched_domain *sd)
 	}
 
 	/* Following flags don't use groups */
-	if (sd->flags & (SD_WAKE_IDLE |
-			 SD_WAKE_AFFINE |
-			 SD_WAKE_BALANCE))
+	if (sd->flags & (SD_WAKE_AFFINE))
 		return 0;
 
 	return 1;
@@ -7869,10 +7838,6 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 	if (!cpumask_equal(sched_domain_span(sd), sched_domain_span(parent)))
 		return 0;
 
-	/* Does parent contain flags not in child? */
-	/* WAKE_BALANCE is a subset of WAKE_AFFINE */
-	if (cflags & SD_WAKE_AFFINE)
-		pflags &= ~SD_WAKE_BALANCE;
 	/* Flags needing groups don't count if only 1 group in parent */
 	if (parent->groups == parent->groups->next) {
 		pflags &= ~(SD_LOAD_BALANCE |
@@ -8558,10 +8523,10 @@ static void set_domain_attribute(struct sched_domain *sd,
 		request = attr->relax_domain_level;
 	if (request < sd->level) {
 		/* turn off idle balance on this domain */
-		sd->flags &= ~(SD_WAKE_IDLE|SD_BALANCE_NEWIDLE);
+		sd->flags &= ~(SD_BALANCE_WAKE|SD_BALANCE_NEWIDLE);
 	} else {
 		/* turn on idle balance on this domain */
-		sd->flags |= (SD_WAKE_IDLE_FAR|SD_BALANCE_NEWIDLE);
+		sd->flags |= (SD_BALANCE_WAKE|SD_BALANCE_NEWIDLE);
 	}
 }
 
