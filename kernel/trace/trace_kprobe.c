@@ -210,7 +210,7 @@ static __kprobes const char *probe_symbol(struct trace_probe *tp)
 	return tp->symbol ? tp->symbol : "unknown";
 }
 
-static __kprobes long probe_offset(struct trace_probe *tp)
+static __kprobes unsigned int probe_offset(struct trace_probe *tp)
 {
 	return (probe_is_return(tp)) ? tp->rp.kp.offset : tp->kp.offset;
 }
@@ -380,7 +380,7 @@ end:
 }
 
 /* Split symbol and offset. */
-static int split_symbol_offset(char *symbol, long *offset)
+static int split_symbol_offset(char *symbol, unsigned long *offset)
 {
 	char *tmp;
 	int ret;
@@ -389,16 +389,11 @@ static int split_symbol_offset(char *symbol, long *offset)
 		return -EINVAL;
 
 	tmp = strchr(symbol, '+');
-	if (!tmp)
-		tmp = strchr(symbol, '-');
-
 	if (tmp) {
 		/* skip sign because strict_strtol doesn't accept '+' */
-		ret = strict_strtol(tmp + 1, 0, offset);
+		ret = strict_strtoul(tmp + 1, 0, offset);
 		if (ret)
 			return ret;
-		if (*tmp == '-')
-			*offset = -(*offset);
 		*tmp = '\0';
 	} else
 		*offset = 0;
@@ -520,7 +515,7 @@ static int create_trace_probe(int argc, char **argv)
 {
 	/*
 	 * Argument syntax:
-	 *  - Add kprobe: p[:EVENT] SYMBOL[+OFFS|-OFFS]|ADDRESS [FETCHARGS]
+	 *  - Add kprobe: p[:EVENT] SYMBOL[+OFFS]|ADDRESS [FETCHARGS]
 	 *  - Add kretprobe: r[:EVENT] SYMBOL[+0] [FETCHARGS]
 	 * Fetch args:
 	 *  aN	: fetch Nth of function argument. (N:0-)
@@ -539,7 +534,7 @@ static int create_trace_probe(int argc, char **argv)
 	int i, ret = 0;
 	int is_return = 0;
 	char *symbol = NULL, *event = NULL;
-	long offset = 0;
+	unsigned long offset = 0;
 	void *addr = NULL;
 
 	if (argc < 2)
@@ -605,7 +600,7 @@ static int create_trace_probe(int argc, char **argv)
 
 	if (tp->symbol) {
 		kp->symbol_name = tp->symbol;
-		kp->offset = offset;
+		kp->offset = (unsigned int)offset;
 	} else
 		kp->addr = addr;
 
@@ -675,7 +670,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, ":%s", tp->call.name);
 
 	if (tp->symbol)
-		seq_printf(m, " %s%+ld", probe_symbol(tp), probe_offset(tp));
+		seq_printf(m, " %s+%u", probe_symbol(tp), probe_offset(tp));
 	else
 		seq_printf(m, " 0x%p", probe_address(tp));
 
