@@ -3834,7 +3834,8 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	i915_gem_object_unbind(obj);
 
-	i915_gem_free_mmap_offset(obj);
+	if (obj_priv->mmap_offset)
+		i915_gem_free_mmap_offset(obj);
 
 	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
