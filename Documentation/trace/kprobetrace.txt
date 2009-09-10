@@ -62,13 +62,15 @@ enabled:
   You can enable/disable the probe by writing 1 or 0 on it.
 
 format:
-  It shows the format of this probe event. It also shows aliases of arguments
+  This shows the format of this probe event. It also shows aliases of arguments
  which you specified to kprobe_events.
 
 filter:
   You can write filtering rules of this event. And you can use both of aliase
  names and field names for describing filters.
 
+id:
+  This shows the id of this probe event.
 
 Event Profiling
 ---------------

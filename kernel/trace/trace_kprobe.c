@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/ptrace.h>
+#include <linux/perf_counter.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -280,6 +281,7 @@ static struct trace_probe *alloc_trace_probe(const char *event,
 	} else
 		tp->rp.kp.addr = addr;
 
+	/* Set handler here for checking whether this probe is return or not. */
 	if (is_return)
 		tp->rp.handler = kretprobe_trace_func;
 	else
@@ -929,10 +931,13 @@ static int probe_event_enable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
-	if (probe_is_return(tp))
+	if (probe_is_return(tp)) {
+		tp->rp.handler = kretprobe_trace_func;
 		return enable_kretprobe(&tp->rp);
-	else
+	} else {
+		tp->rp.kp.pre_handler = kprobe_trace_func;
 		return enable_kprobe(&tp->rp.kp);
+	}
 }
 
 static void probe_event_disable(struct ftrace_event_call *call)
@@ -1105,6 +1110,101 @@ static int kretprobe_event_show_format(struct ftrace_event_call *call,
 					  "func, ret_ip");
 }
 
+#ifdef CONFIG_EVENT_PROFILE
+
+/* Kprobe profile handler */
+static __kprobes int kprobe_profile_func(struct kprobe *kp,
+					 struct pt_regs *regs)
+{
+	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
+	struct ftrace_event_call *call = &tp->call;
+	struct kprobe_trace_entry *entry;
+	int size, i, pc;
+	unsigned long irq_flags;
+
+	local_save_flags(irq_flags);
+	pc = preempt_count();
+
+	size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
+
+	do {
+		char raw_data[size];
+		struct trace_entry *ent;
+
+		*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+		entry = (struct kprobe_trace_entry *)raw_data;
+		ent = &entry->ent;
+
+		tracing_generic_entry_update(ent, irq_flags, pc);
+		ent->type = call->id;
+		entry->nargs = tp->nr_args;
+		entry->ip = (unsigned long)kp->addr;
+		for (i = 0; i < tp->nr_args; i++)
+			entry->args[i] = call_fetch(&tp->args[i], regs);
+		perf_tpcounter_event(call->id, entry->ip, 1, entry, size);
+	} while (0);
+	return 0;
+}
+
+/* Kretprobe profile handler */
+static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
+					    struct pt_regs *regs)
+{
+	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
+	struct ftrace_event_call *call = &tp->call;
+	struct kretprobe_trace_entry *entry;
+	int size, i, pc;
+	unsigned long irq_flags;
+
+	local_save_flags(irq_flags);
+	pc = preempt_count();
+
+	size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
+
+	do {
+		char raw_data[size];
+		struct trace_entry *ent;
+
+		*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+		entry = (struct kretprobe_trace_entry *)raw_data;
+		ent = &entry->ent;
+
+		tracing_generic_entry_update(ent, irq_flags, pc);
+		ent->type = call->id;
+		entry->nargs = tp->nr_args;
+		entry->func = (unsigned long)tp->rp.kp.addr;
+		entry->ret_ip = (unsigned long)ri->ret_addr;
+		for (i = 0; i < tp->nr_args; i++)
+			entry->args[i] = call_fetch(&tp->args[i], regs);
+		perf_tpcounter_event(call->id, entry->ret_ip, 1, entry, size);
+	} while (0);
+	return 0;
+}
+
+static int probe_profile_enable(struct ftrace_event_call *call)
+{
+	struct trace_probe *tp = (struct trace_probe *)call->data;
+
+	if (atomic_inc_return(&call->profile_count))
+		return 0;
+
+	if (probe_is_return(tp)) {
+		tp->rp.handler = kretprobe_profile_func;
+		return enable_kretprobe(&tp->rp);
+	} else {
+		tp->rp.kp.pre_handler = kprobe_profile_func;
+		return enable_kprobe(&tp->rp.kp);
+	}
+}
+
+static void probe_profile_disable(struct ftrace_event_call *call)
+{
+	if (atomic_add_negative(-1, &call->profile_count))
+		probe_event_disable(call);
+}
+
+#endif	/* CONFIG_EVENT_PROFILE */
+
 static int register_probe_event(struct trace_probe *tp)
 {
 	struct ftrace_event_call *call = &tp->call;
@@ -1130,6 +1230,12 @@ static int register_probe_event(struct trace_probe *tp)
 	call->enabled = 1;
 	call->regfunc = probe_event_enable;
 	call->unregfunc = probe_event_disable;
+
+#ifdef CONFIG_EVENT_PROFILE
+	atomic_set(&call->profile_count, -1);
+	call->profile_enable = probe_profile_enable;
+	call->profile_disable = probe_profile_disable;
+#endif
 	call->data = tp;
 	ret = trace_add_event_call(call);
 	if (ret) {
