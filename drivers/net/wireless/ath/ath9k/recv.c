@@ -297,6 +297,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 int ath_rx_init(struct ath_softc *sc, int nbufs)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct sk_buff *skb;
 	struct ath_buf *bf;
 	int error = 0;
@@ -306,10 +307,10 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	spin_lock_init(&sc->rx.rxbuflock);
 
 	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-				 min(sc->common.cachelsz, (u16)64));
+				 min(common->cachelsz, (u16)64));
 
 	DPRINTF(sc->sc_ah, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-		sc->common.cachelsz, sc->rx.bufsize);
+		common->cachelsz, sc->rx.bufsize);
 
 	/* Initialize rx descriptors */
 
@@ -322,7 +323,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-		skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_KERNEL);
+		skb = ath_rxbuf_alloc(common, sc->rx.bufsize, GFP_KERNEL);
 		if (skb == NULL) {
 			error = -ENOMEM;
 			goto err;
@@ -654,6 +655,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	struct sk_buff *skb = NULL, *requeue_skb;
 	struct ieee80211_rx_status rx_status;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hdr *hdr;
 	int hdrlen, padsize, retval;
 	bool decrypt_error = false;
@@ -752,7 +754,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_ATOMIC);
+		requeue_skb = ath_rxbuf_alloc(common, sc->rx.bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old

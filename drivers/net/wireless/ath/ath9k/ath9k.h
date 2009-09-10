@@ -553,8 +553,6 @@ struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
-	struct ath_common common;
-
 	spinlock_t wiphy_lock; /* spinlock to protect ath_wiphy data */
 	struct ath_wiphy *pri_wiphy;
 	struct ath_wiphy **sec_wiphy; /* secondary wiphys (virtual radios); may
@@ -649,7 +647,7 @@ int ath_cabq_update(struct ath_softc *);
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
 {
-	return &ah->ah_sc->common;
+	return &ah->common;
 }
 
 static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)

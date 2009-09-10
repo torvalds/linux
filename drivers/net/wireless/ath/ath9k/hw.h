@@ -435,6 +435,7 @@ struct ath_gen_timer_table {
 
 struct ath_hw {
 	struct ath_softc *ah_sc;
+	struct ath_common common;
 	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config config;
 	struct ath9k_hw_capabilities caps;

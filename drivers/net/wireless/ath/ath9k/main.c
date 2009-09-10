@@ -1348,7 +1348,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_regulatory *reg = &sc->common.regulatory;
+	struct ath_regulatory *reg = ath9k_hw_regulatory(sc->sc_ah);
 
 	return ath_reg_notifier_apply(wiphy, request, reg);
 }
@@ -1516,14 +1516,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
 		     (unsigned long)sc);
 
-	/*
-	 * Cache line size is used to size and align various
-	 * structures used to communicate with the hardware.
-	 */
-	ath_read_cachesize(sc, &csz);
-	/* XXX assert csz is non-zero */
-	sc->common.cachelsz = csz << 2;	/* convert to bytes */
-
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah) {
 		r = -ENOMEM;
@@ -1534,6 +1526,16 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
+
+	common = ath9k_hw_common(ah);
+
+	/*
+	 * Cache line size is used to size and align various
+	 * structures used to communicate with the hardware.
+	 */
+	ath_read_cachesize(sc, &csz);
+	/* XXX assert csz is non-zero */
+	common->cachelsz = csz << 2;	/* convert to bytes */
 
 	if (ath9k_init_debug(ah) < 0)
 		dev_err(sc->dev, "Unable to create debugfs files\n");
@@ -1676,8 +1678,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 
 	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->rx.defant = ath9k_hw_getdefantenna(ah);
-
-	common = ath9k_hw_common(ah);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
 		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
