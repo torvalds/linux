@@ -988,4 +988,6 @@ static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 
 #define PCM_RUNTIME_CHECK(sub) snd_BUG_ON(!(sub) || !(sub)->runtime)
 
+const char *snd_pcm_format_name(snd_pcm_format_t format);
+
 #endif /* __SOUND_PCM_H */

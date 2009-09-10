@@ -2836,7 +2836,8 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 				   struct snd_info_buffer *buffer)
 {
 	struct snd_pcm_str *pstr = entry->private_data;
-	char line[128], str[32], task_name[32], *ptr;
+	char line[128], str[32], task_name[32];
+	const char *ptr;
 	int idx1;
 	struct snd_pcm_oss_setup *setup, *setup1, template;
 
