@@ -62,22 +62,6 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus);
 static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context);
 
-static struct pci_bus *pci_bus_from_handle(acpi_handle handle)
-{
-	struct pci_bus *pbus;
-	struct acpi_pci_root *root;
-
-	root = acpi_pci_find_root(handle);
-	if (root)
-		pbus = root->bus;
-	else {
-		struct pci_dev *pdev = acpi_get_pci_dev(handle);
-		pbus = pdev->subordinate;
-		pci_dev_put(pdev);
-	}
-	return pbus;
-}
-
 /* callback routine to check for the existence of a pci dock device */
 static acpi_status
 is_pci_dock_device(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -279,11 +263,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 /* see if it's worth looking at this bridge */
 static int detect_ejectable_slots(acpi_handle handle)
 {
-	int found;
-	struct pci_bus *pbus;
-
-	pbus = pci_bus_from_handle(handle);
-	found = acpi_pci_detect_ejectable(pbus);
+	int found = acpi_pci_detect_ejectable(handle);
 	if (!found) {
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
 				    is_pci_dock_device, (void *)&found, NULL);
@@ -1364,7 +1344,16 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 /* Program resources in newly inserted bridge */
 static int acpiphp_configure_bridge (acpi_handle handle)
 {
-	struct pci_bus *bus = pci_bus_from_handle(handle);
+	struct pci_bus *bus;
+
+	if (acpi_is_root_bridge(handle)) {
+		struct acpi_pci_root *root = acpi_pci_find_root(handle);
+		bus = root->bus;
+	} else {
+		struct pci_dev *pdev = acpi_get_pci_dev(handle);
+		bus = pdev->subordinate;
+		pci_dev_put(pdev);
+	}
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);

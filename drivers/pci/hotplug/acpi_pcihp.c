@@ -500,18 +500,18 @@ check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 /**
  * acpi_pci_detect_ejectable - check if the PCI bus has ejectable slots
- * @pbus - PCI bus to scan
+ * @handle - handle of the PCI bus to scan
  *
  * Returns 1 if the PCI bus has ACPI based ejectable slots, 0 otherwise.
  */
-int acpi_pci_detect_ejectable(struct pci_bus *pbus)
+int acpi_pci_detect_ejectable(acpi_handle handle)
 {
-	acpi_handle handle;
 	int found = 0;
 
-	if (!(handle = acpi_pci_get_bridge_handle(pbus)))
-		return 0;
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
+	if (!handle)
+		return found;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
 			    check_hotplug, (void *)&found, NULL);
 	return found;
 }
