@@ -177,7 +177,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		event_enter_##sname.id = id;				\
 		set_syscall_enter_id(num, id);				\
 		INIT_LIST_HEAD(&event_enter_##sname.fields);		\
-		init_preds(&event_enter_##sname);			\
 		return 0;						\
 	}								\
 	TRACE_SYS_ENTER_PROFILE(sname);					\
@@ -214,7 +213,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 		event_exit_##sname.id = id;				\
 		set_syscall_exit_id(num, id);				\
 		INIT_LIST_HEAD(&event_exit_##sname.fields);		\
-		init_preds(&event_exit_##sname);			\
 		return 0;						\
 	}								\
 	TRACE_SYS_EXIT_PROFILE(sname);					\

@@ -692,7 +692,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(crypto_enqueue_request);
 
-struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
+void *__crypto_dequeue_request(struct crypto_queue *queue, unsigned int offset)
 {
 	struct list_head *request;
 
@@ -707,7 +707,14 @@ struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
 	request = queue->list.next;
 	list_del(request);
 
-	return list_entry(request, struct crypto_async_request, list);
+	return (char *)list_entry(request, struct crypto_async_request, list) -
+	       offset;
+}
+EXPORT_SYMBOL_GPL(__crypto_dequeue_request);
+
+struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
+{
+	return __crypto_dequeue_request(queue, 0);
 }
 EXPORT_SYMBOL_GPL(crypto_dequeue_request);
 

@@ -120,7 +120,7 @@ ftrace_format_##call(struct ftrace_event_call *unused,			\
 static int ftrace_raw_init_event(struct ftrace_event_call *event_call)
 {
 	INIT_LIST_HEAD(&event_call->fields);
-	init_preds(event_call);
+
 	return 0;
 }
 
@@ -137,7 +137,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.raw_init		= ftrace_raw_init_event,		\
 	.show_format		= ftrace_format_##call,			\
 	.define_fields		= ftrace_define_fields_##call,		\
-};
+};									\
 
 #undef TRACE_EVENT_FORMAT_NOFILTER
 #define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\

@@ -819,6 +819,7 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 	struct trace_probe *tp = container_of(kp, struct trace_probe, kp);
 	struct kprobe_trace_entry *entry;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	int size, i, pc;
 	unsigned long irq_flags;
 	struct ftrace_event_call *call = &tp->call;
@@ -830,7 +831,7 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 
 	size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
 
-	event = trace_current_buffer_lock_reserve(call->id, size,
+	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
 						  irq_flags, pc);
 	if (!event)
 		return 0;
@@ -841,8 +842,8 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i], regs);
 
-	if (!filter_current_check_discard(call, entry, event))
-		trace_nowake_buffer_unlock_commit(event, irq_flags, pc);
+	if (!filter_current_check_discard(buffer, call, entry, event))
+		trace_nowake_buffer_unlock_commit(buffer, event, irq_flags, pc);
 	return 0;
 }
 
@@ -853,6 +854,7 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
 	struct kretprobe_trace_entry *entry;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	int size, i, pc;
 	unsigned long irq_flags;
 	struct ftrace_event_call *call = &tp->call;
@@ -862,7 +864,7 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 
 	size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
 
-	event = trace_current_buffer_lock_reserve(call->id, size,
+	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
 						  irq_flags, pc);
 	if (!event)
 		return 0;
@@ -874,8 +876,8 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i], regs);
 
-	if (!filter_current_check_discard(call, entry, event))
-		trace_nowake_buffer_unlock_commit(event, irq_flags, pc);
+	if (!filter_current_check_discard(buffer, call, entry, event))
+		trace_nowake_buffer_unlock_commit(buffer, event, irq_flags, pc);
 
 	return 0;
 }
@@ -964,7 +966,7 @@ static void probe_event_disable(struct ftrace_event_call *call)
 static int probe_event_raw_init(struct ftrace_event_call *event_call)
 {
 	INIT_LIST_HEAD(&event_call->fields);
-	init_preds(event_call);
+
 	return 0;
 }
 

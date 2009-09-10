@@ -114,7 +114,7 @@ config USB_GSPCA_SN9C20X
 
 config USB_GSPCA_SN9C20X_EVDEV
        bool "Enable evdev support"
-       depends on USB_GSPCA_SN9C20X
+	depends on USB_GSPCA_SN9C20X && INPUT
        ---help---
 	 Say Y here in order to enable evdev support for sn9c20x webcam button.
 

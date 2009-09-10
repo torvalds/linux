@@ -38,6 +38,7 @@ struct xc2028_ctrl {
 	unsigned int		input1:1;
 	unsigned int		vhfbw7:1;
 	unsigned int		uhfbw8:1;
+	unsigned int		disable_power_mgmt:1;
 	unsigned int		demod;
 	enum firmware_type	type:2;
 };

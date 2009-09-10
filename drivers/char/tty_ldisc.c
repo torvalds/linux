@@ -508,8 +508,9 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
  *	be obtained while the delayed work queue halt ensures that no more
  *	data is fed to the ldisc.
  *
- *	In order to wait for any existing references to complete see
- *	tty_ldisc_wait_idle.
+ *	You need to do a 'flush_scheduled_work()' (outside the ldisc_mutex)
+ *	in order to make sure any currently executing ldisc work is also
+ *	flushed.
  */
 
 static int tty_ldisc_halt(struct tty_struct *tty)
@@ -753,11 +754,14 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 * N_TTY.
 	 */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
+		/* Make sure the old ldisc is quiescent */
+		tty_ldisc_halt(tty);
+		flush_scheduled_work();
+
 		/* Avoid racing set_ldisc or tty_ldisc_release */
 		mutex_lock(&tty->ldisc_mutex);
 		if (tty->ldisc) {	/* Not yet closed */
 			/* Switch back to N_TTY */
-			tty_ldisc_halt(tty);
 			tty_ldisc_reinit(tty);
 			/* At this point we have a closed ldisc and we want to
 			   reopen it. We could defer this to the next open but

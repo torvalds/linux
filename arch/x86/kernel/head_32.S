@@ -261,9 +261,7 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
  * which will be freed later
  */
 
-#ifndef CONFIG_HOTPLUG_CPU
-.section .init.text,"ax",@progbits
-#endif
+__CPUINIT
 
 #ifdef CONFIG_SMP
 ENTRY(startup_32_smp)
@@ -602,11 +600,7 @@ ignore_int:
 #endif
 	iret
 
-#ifndef CONFIG_HOTPLUG_CPU
-	__CPUINITDATA
-#else
 	__REFDATA
-#endif
 .align 4
 ENTRY(initial_code)
 	.long i386_start_kernel

@@ -632,6 +632,9 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 		return rc;
 	}
 
+	if (dev->board.is_webcam)
+		rc = em28xx_write_reg(dev, 0x13, 0x0c);
+
 	/* enable video capture */
 	rc = em28xx_write_reg(dev, 0x48, 0x00);
 
@@ -720,7 +723,10 @@ int em28xx_resolution_set(struct em28xx *dev)
 {
 	int width, height;
 	width = norm_maxw(dev);
-	height = norm_maxh(dev) >> 1;
+	height = norm_maxh(dev);
+
+	if (!dev->progressive)
+		height >>= norm_maxh(dev);
 
 	em28xx_set_outfmt(dev);
 

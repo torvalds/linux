@@ -186,11 +186,6 @@ out:
 
 static void __wakeup_reset(struct trace_array *tr)
 {
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		tracing_reset(tr, cpu);
-
 	wakeup_cpu = -1;
 	wakeup_prio = -1;
 
@@ -203,6 +198,8 @@ static void __wakeup_reset(struct trace_array *tr)
 static void wakeup_reset(struct trace_array *tr)
 {
 	unsigned long flags;
+
+	tracing_reset_online_cpus(tr);
 
 	local_irq_save(flags);
 	__raw_spin_lock(&wakeup_lock);

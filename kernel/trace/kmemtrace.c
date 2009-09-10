@@ -183,11 +183,9 @@ static void kmemtrace_stop_probes(void)
 
 static int kmem_trace_init(struct trace_array *tr)
 {
-	int cpu;
 	kmemtrace_array = tr;
 
-	for_each_cpu(cpu, cpu_possible_mask)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 
 	kmemtrace_start_probes();
 

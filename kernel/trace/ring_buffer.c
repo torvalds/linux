@@ -218,17 +218,12 @@ enum {
 
 static inline int rb_null_event(struct ring_buffer_event *event)
 {
-	return event->type_len == RINGBUF_TYPE_PADDING
-			&& event->time_delta == 0;
-}
-
-static inline int rb_discarded_event(struct ring_buffer_event *event)
-{
-	return event->type_len == RINGBUF_TYPE_PADDING && event->time_delta;
+	return event->type_len == RINGBUF_TYPE_PADDING && !event->time_delta;
 }
 
 static void rb_event_set_padding(struct ring_buffer_event *event)
 {
+	/* padding has a NULL time_delta */
 	event->type_len = RINGBUF_TYPE_PADDING;
 	event->time_delta = 0;
 }
@@ -472,14 +467,19 @@ struct ring_buffer_iter {
 };
 
 /* buffer may be either ring_buffer or ring_buffer_per_cpu */
-#define RB_WARN_ON(buffer, cond)				\
-	({							\
-		int _____ret = unlikely(cond);			\
-		if (_____ret) {					\
-			atomic_inc(&buffer->record_disabled);	\
-			WARN_ON(1);				\
-		}						\
-		_____ret;					\
+#define RB_WARN_ON(b, cond)						\
+	({								\
+		int _____ret = unlikely(cond);				\
+		if (_____ret) {						\
+			if (__same_type(*(b), struct ring_buffer_per_cpu)) { \
+				struct ring_buffer_per_cpu *__b =	\
+					(void *)b;			\
+				atomic_inc(&__b->buffer->record_disabled); \
+			} else						\
+				atomic_inc(&b->record_disabled);	\
+			WARN_ON(1);					\
+		}							\
+		_____ret;						\
 	})
 
 /* Up this if you want to test the TIME_EXTENTS and normalization */
@@ -1778,9 +1778,6 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	event->type_len = RINGBUF_TYPE_PADDING;
 	/* time delta must be non zero */
 	event->time_delta = 1;
-	/* Account for this as an entry */
-	local_inc(&tail_page->entries);
-	local_inc(&cpu_buffer->entries);
 
 	/* Set write to end of buffer */
 	length = (tail + length) - BUF_PAGE_SIZE;
@@ -2076,7 +2073,8 @@ static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 }
 
 static struct ring_buffer_event *
-rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
+rb_reserve_next_event(struct ring_buffer *buffer,
+		      struct ring_buffer_per_cpu *cpu_buffer,
 		      unsigned long length)
 {
 	struct ring_buffer_event *event;
@@ -2085,6 +2083,21 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	int nr_loops = 0;
 
 	rb_start_commit(cpu_buffer);
+
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
+	/*
+	 * Due to the ability to swap a cpu buffer from a buffer
+	 * it is possible it was swapped before we committed.
+	 * (committing stops a swap). We check for it here and
+	 * if it happened, we have to fail the write.
+	 */
+	barrier();
+	if (unlikely(ACCESS_ONCE(cpu_buffer->buffer) != buffer)) {
+		local_dec(&cpu_buffer->committing);
+		local_dec(&cpu_buffer->commits);
+		return NULL;
+	}
+#endif
 
 	length = rb_calculate_event_length(length);
  again:
@@ -2246,7 +2259,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
-	event = rb_reserve_next_event(cpu_buffer, length);
+	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
 		goto out;
 
@@ -2269,18 +2282,23 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_lock_reserve);
 
-static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
+static void
+rb_update_write_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		      struct ring_buffer_event *event)
 {
-	local_inc(&cpu_buffer->entries);
-
 	/*
 	 * The event first in the commit queue updates the
 	 * time stamp.
 	 */
 	if (rb_event_is_commit(cpu_buffer, event))
 		cpu_buffer->write_stamp += event->time_delta;
+}
 
+static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
+		      struct ring_buffer_event *event)
+{
+	local_inc(&cpu_buffer->entries);
+	rb_update_write_stamp(cpu_buffer, event);
 	rb_end_commit(cpu_buffer);
 }
 
@@ -2327,32 +2345,57 @@ static inline void rb_event_discard(struct ring_buffer_event *event)
 		event->time_delta = 1;
 }
 
-/**
- * ring_buffer_event_discard - discard any event in the ring buffer
- * @event: the event to discard
- *
- * Sometimes a event that is in the ring buffer needs to be ignored.
- * This function lets the user discard an event in the ring buffer
- * and then that event will not be read later.
- *
- * Note, it is up to the user to be careful with this, and protect
- * against races. If the user discards an event that has been consumed
- * it is possible that it could corrupt the ring buffer.
+/*
+ * Decrement the entries to the page that an event is on.
+ * The event does not even need to exist, only the pointer
+ * to the page it is on. This may only be called before the commit
+ * takes place.
  */
-void ring_buffer_event_discard(struct ring_buffer_event *event)
+static inline void
+rb_decrement_entry(struct ring_buffer_per_cpu *cpu_buffer,
+		   struct ring_buffer_event *event)
 {
-	rb_event_discard(event);
+	unsigned long addr = (unsigned long)event;
+	struct buffer_page *bpage = cpu_buffer->commit_page;
+	struct buffer_page *start;
+
+	addr &= PAGE_MASK;
+
+	/* Do the likely case first */
+	if (likely(bpage->page == (void *)addr)) {
+		local_dec(&bpage->entries);
+		return;
+	}
+
+	/*
+	 * Because the commit page may be on the reader page we
+	 * start with the next page and check the end loop there.
+	 */
+	rb_inc_page(cpu_buffer, &bpage);
+	start = bpage;
+	do {
+		if (bpage->page == (void *)addr) {
+			local_dec(&bpage->entries);
+			return;
+		}
+		rb_inc_page(cpu_buffer, &bpage);
+	} while (bpage != start);
+
+	/* commit not part of this buffer?? */
+	RB_WARN_ON(cpu_buffer, 1);
 }
-EXPORT_SYMBOL_GPL(ring_buffer_event_discard);
 
 /**
  * ring_buffer_commit_discard - discard an event that has not been committed
  * @buffer: the ring buffer
  * @event: non committed event to discard
  *
- * This is similar to ring_buffer_event_discard but must only be
- * performed on an event that has not been committed yet. The difference
- * is that this will also try to free the event from the ring buffer
+ * Sometimes an event that is in the ring buffer needs to be ignored.
+ * This function lets the user discard an event in the ring buffer
+ * and then that event will not be read later.
+ *
+ * This function only works if it is called before the the item has been
+ * committed. It will try to free the event from the ring buffer
  * if another event has not been added behind it.
  *
  * If another event has been added behind it, it will set the event
@@ -2380,14 +2423,15 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 */
 	RB_WARN_ON(buffer, !local_read(&cpu_buffer->committing));
 
+	rb_decrement_entry(cpu_buffer, event);
 	if (rb_try_to_discard(cpu_buffer, event))
 		goto out;
 
 	/*
 	 * The commit is still visible by the reader, so we
-	 * must increment entries.
+	 * must still update the timestamp.
 	 */
-	local_inc(&cpu_buffer->entries);
+	rb_update_write_stamp(cpu_buffer, event);
  out:
 	rb_end_commit(cpu_buffer);
 
@@ -2448,7 +2492,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
-	event = rb_reserve_next_event(cpu_buffer, length);
+	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
 		goto out;
 
@@ -2899,8 +2943,7 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 
 	event = rb_reader_event(cpu_buffer);
 
-	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX
-			|| rb_discarded_event(event))
+	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 		cpu_buffer->read++;
 
 	rb_update_read_stamp(cpu_buffer, event);
@@ -3132,10 +3175,8 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 		spin_unlock(&cpu_buffer->reader_lock);
 	local_irq_restore(flags);
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
@@ -3160,10 +3201,8 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	event = rb_iter_peek(iter, ts);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
@@ -3209,10 +3248,8 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
  out:
 	preempt_enable();
 
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		goto again;
-	}
 
 	return event;
 }
@@ -3292,20 +3329,18 @@ ring_buffer_read(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
 	unsigned long flags;
 
- again:
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+ again:
 	event = rb_iter_peek(iter, ts);
 	if (!event)
 		goto out;
 
+	if (event->type_len == RINGBUF_TYPE_PADDING)
+		goto again;
+
 	rb_advance_iter(iter);
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
-
-	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
-		cpu_relax();
-		goto again;
-	}
 
 	return event;
 }
@@ -3373,12 +3408,16 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 
+	if (RB_WARN_ON(cpu_buffer, local_read(&cpu_buffer->committing)))
+		goto out;
+
 	__raw_spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
 	__raw_spin_unlock(&cpu_buffer->lock);
 
+ out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	atomic_dec(&cpu_buffer->record_disabled);
@@ -3461,6 +3500,7 @@ int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_empty_cpu);
 
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
 /**
  * ring_buffer_swap_cpu - swap a CPU buffer between two ring buffers
  * @buffer_a: One buffer to swap with
@@ -3515,20 +3555,28 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 	atomic_inc(&cpu_buffer_a->record_disabled);
 	atomic_inc(&cpu_buffer_b->record_disabled);
 
+	ret = -EBUSY;
+	if (local_read(&cpu_buffer_a->committing))
+		goto out_dec;
+	if (local_read(&cpu_buffer_b->committing))
+		goto out_dec;
+
 	buffer_a->buffers[cpu] = cpu_buffer_b;
 	buffer_b->buffers[cpu] = cpu_buffer_a;
 
 	cpu_buffer_b->buffer = buffer_a;
 	cpu_buffer_a->buffer = buffer_b;
 
+	ret = 0;
+
+out_dec:
 	atomic_dec(&cpu_buffer_a->record_disabled);
 	atomic_dec(&cpu_buffer_b->record_disabled);
-
-	ret = 0;
 out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_swap_cpu);
+#endif /* CONFIG_RING_BUFFER_ALLOW_SWAP */
 
 /**
  * ring_buffer_alloc_read_page - allocate a page to read from buffer

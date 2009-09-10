@@ -60,8 +60,13 @@ config EVENT_TRACING
 	bool
 
 config CONTEXT_SWITCH_TRACER
-	select MARKERS
 	bool
+
+config RING_BUFFER_ALLOW_SWAP
+	bool
+	help
+	 Allow the use of ring_buffer_swap_cpu.
+	 Adds a very slight overhead to tracing when enabled.
 
 # All tracer options should select GENERIC_TRACER. For those options that are
 # enabled by all tracers (context switch and event tracer) they select TRACING.
@@ -147,6 +152,7 @@ config IRQSOFF_TRACER
 	select TRACE_IRQFLAGS
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
+	select RING_BUFFER_ALLOW_SWAP
 	help
 	  This option measures the time spent in irqs-off critical
 	  sections, with microsecond accuracy.
@@ -168,6 +174,7 @@ config PREEMPT_TRACER
 	depends on PREEMPT
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
+	select RING_BUFFER_ALLOW_SWAP
 	help
 	  This option measures the time spent in preemption off critical
 	  sections, with microsecond accuracy.

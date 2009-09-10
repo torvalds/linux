@@ -1948,6 +1948,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_q_vector *q_vector;
 	int i;
 
 	if (ec->tx_max_coalesced_frames_irq)
@@ -1982,14 +1983,24 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		adapter->itr_setting = 0;
 	}
 
-	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
-		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-		if (q_vector->txr_count && !q_vector->rxr_count)
-			/* tx vector gets half the rate */
-			q_vector->eitr = (adapter->eitr_param >> 1);
-		else
-			/* rx only or mixed */
-			q_vector->eitr = adapter->eitr_param;
+	/* MSI/MSIx Interrupt Mode */
+	if (adapter->flags &
+	    (IXGBE_FLAG_MSIX_ENABLED | IXGBE_FLAG_MSI_ENABLED)) {
+		int num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+		for (i = 0; i < num_vectors; i++) {
+			q_vector = adapter->q_vector[i];
+			if (q_vector->txr_count && !q_vector->rxr_count)
+				/* tx vector gets half the rate */
+				q_vector->eitr = (adapter->eitr_param >> 1);
+			else
+				/* rx only or mixed */
+				q_vector->eitr = adapter->eitr_param;
+			ixgbe_write_eitr(q_vector);
+		}
+	/* Legacy Interrupt Mode */
+	} else {
+		q_vector = adapter->q_vector[0];
+		q_vector->eitr = adapter->eitr_param;
 		ixgbe_write_eitr(q_vector);
 	}
 
