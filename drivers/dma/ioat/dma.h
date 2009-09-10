@@ -30,7 +30,7 @@
 #include <linux/pci_ids.h>
 #include <net/tcp.h>
 
-#define IOAT_DMA_VERSION  "3.64"
+#define IOAT_DMA_VERSION  "4.00"
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 #define IOAT_DMA_DCA_ANY_CPU		~0
