@@ -976,13 +976,14 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				 struct ieee80211_bss_conf *bss_conf)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (bss_conf->assoc) {
 		DPRINTF(ah, ATH_DBG_CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
-			bss_conf->aid, sc->curbssid);
+			bss_conf->aid, common->curbssid);
 
 		/* New association, store aid */
-		sc->curaid = bss_conf->aid;
+		common->curaid = bss_conf->aid;
 		ath9k_hw_write_associd(ah);
 
 		/*
@@ -1001,7 +1002,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_start_ani(sc);
 	} else {
 		DPRINTF(ah, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
-		sc->curaid = 0;
+		common->curaid = 0;
 		/* Stop ANI */
 		del_timer_sync(&sc->ani.timer);
 	}
@@ -1497,6 +1498,7 @@ static int ath_init_btcoex_timer(struct ath_softc *sc)
 static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 {
 	struct ath_hw *ah = NULL;
+	struct ath_common *common;
 	int r = 0, i;
 	int csz = 0;
 	int qnum;
@@ -1675,8 +1677,10 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->rx.defant = ath9k_hw_getdefantenna(ah);
 
+	common = ath9k_hw_common(ah);
+
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		memcpy(sc->bssidmask, ath_bcast_mac, ETH_ALEN);
+		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;	/* default to short slot time */
 
@@ -1780,6 +1784,7 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	struct ath_common *common;
 	struct ath_hw *ah;
 	int error = 0, i;
 	struct ath_regulatory *reg;
@@ -1791,19 +1796,20 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 		return error;
 
 	ah = sc->sc_ah;
+	common = ath9k_hw_common(ah);
 
 	/* get mac address from hardware and set in mac80211 */
 
-	SET_IEEE80211_PERM_ADDR(hw, ah->macaddr);
+	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 
 	ath_set_hw_capab(sc, hw);
 
-	error = ath_regd_init(&sc->common.regulatory, sc->hw->wiphy,
+	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
 		return error;
 
-	reg = &sc->common.regulatory;
+	reg = &common->regulatory;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
@@ -2785,6 +2791,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	u32 rfilt = 0;
 	int error, i;
@@ -2800,8 +2807,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	    ah->opmode != NL80211_IFTYPE_AP) {
 		ah->opmode = NL80211_IFTYPE_STATION;
 		ath9k_hw_setopmode(ah);
-		memcpy(sc->curbssid, sc->sc_ah->macaddr, ETH_ALEN);
-		sc->curaid = 0;
+		memcpy(common->curbssid, common->macaddr, ETH_ALEN);
+		common->curaid = 0;
 		ath9k_hw_write_associd(ah);
 		/* Request full reset to get hw opmode changed properly */
 		sc->sc_flags |= SC_OP_FULL_RESET;
@@ -2814,9 +2821,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_MESH_POINT:
 			/* Set BSSID */
-			memcpy(sc->curbssid, bss_conf->bssid, ETH_ALEN);
+			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 			memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
-			sc->curaid = 0;
+			common->curaid = 0;
 			ath9k_hw_write_associd(ah);
 
 			/* Set aggregation protection mode parameters */
@@ -2824,7 +2831,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 			DPRINTF(sc->sc_ah, ATH_DBG_CONFIG,
 				"RX filter 0x%x bssid %pM aid 0x%x\n",
-				rfilt, sc->curbssid, sc->curaid);
+				rfilt, common->curbssid, common->curaid);
 
 			/* need to reconfigure the beacon */
 			sc->sc_flags &= ~SC_OP_BEACONS ;
@@ -2863,7 +2870,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			if (ath9k_hw_keyisvalid(sc->sc_ah, (u16)i))
 				ath9k_hw_keysetmac(sc->sc_ah,
 						   (u16)i,
-						   sc->curbssid);
+						   common->curbssid);
 	}
 
 	/* Only legacy IBSS for now */

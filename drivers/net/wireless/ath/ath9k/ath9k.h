@@ -581,12 +581,9 @@ struct ath_softc {
 	spinlock_t sc_pm_lock;
 	struct mutex mutex;
 
-	u8 curbssid[ETH_ALEN];
-	u8 bssidmask[ETH_ALEN];
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
 	u16 curtxpow;
-	u16 curaid;
 	u8 nbcnvifs;
 	u16 nvifs;
 	u8 tx_chainmask;
