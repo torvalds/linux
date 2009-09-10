@@ -28,6 +28,7 @@
 #include "drm_crtc_helper.h"
 #include "radeon_drm.h"
 #include "radeon.h"
+#include "atom.h"
 
 extern void
 radeon_combios_connected_scratch_regs(struct drm_connector *connector,
@@ -174,6 +175,50 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 	return mode;
 }
 
+static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_connector *connector)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_display_mode *mode = NULL;
+	struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+	int i;
+	struct mode_size {
+		int w;
+		int h;
+	} common_modes[17] = {
+		{ 640,  480},
+		{ 720,  480},
+		{ 800,  600},
+		{ 848,  480},
+		{1024,  768},
+		{1152,  768},
+		{1280,  720},
+		{1280,  800},
+		{1280,  854},
+		{1280,  960},
+		{1280, 1024},
+		{1440,  900},
+		{1400, 1050},
+		{1680, 1050},
+		{1600, 1200},
+		{1920, 1080},
+		{1920, 1200}
+	};
+
+	for (i = 0; i < 17; i++) {
+		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+			if (common_modes[i].w >= native_mode->panel_xres &&
+			    common_modes[i].h >= native_mode->panel_yres)
+				continue;
+		}
+		if (common_modes[i].w < 320 || common_modes[i].h < 200)
+			continue;
+
+		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false);
+		drm_mode_probed_add(connector, mode);
+	}
+}
+
 int radeon_connector_set_property(struct drm_connector *connector, struct drm_property *property,
 				  uint64_t val)
 {
@@ -205,6 +250,10 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 		ret = 1;
 		drm_mode_probed_add(connector, mode);
 	}
+
+	/* add scaled modes */
+	radeon_add_common_modes(encoder, connector);
+
 	return ret;
 }
 
@@ -306,21 +355,27 @@ struct drm_connector_funcs radeon_vga_connector_funcs = {
 	.set_property = radeon_connector_set_property,
 };
 
-static struct drm_display_mode tv_fixed_mode = {
-	DRM_MODE("800x600", DRM_MODE_TYPE_DEFAULT, 38250, 800, 832,
-		 912, 1024, 0, 600, 603, 607, 624, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC),
-};
-
 static int radeon_tv_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_display_mode *tv_mode;
+	struct drm_encoder *encoder;
 
-	tv_mode = drm_mode_duplicate(dev, &tv_fixed_mode);
-	tv_mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+	encoder = radeon_best_single_encoder(connector);
+	if (!encoder)
+		return 0;
 
-	drm_mode_probed_add(connector, tv_mode);
-
+	/* avivo chips can scale any mode */
+	if (rdev->family >= CHIP_RS600)
+		/* add scaled modes */
+		radeon_add_common_modes(encoder, connector);
+	else {
+		/* only 800x600 is supported right now on pre-avivo chips */
+		tv_mode = drm_cvt_mode(dev, 800, 600, 60, false, false);
+		tv_mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+		drm_mode_probed_add(connector, tv_mode);
+	}
 	return 1;
 }
 
