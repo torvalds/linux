@@ -264,6 +264,49 @@ static int i8042_aux_write(struct serio *serio, unsigned char c)
 					I8042_CMD_MUX_SEND + port->mux);
 }
 
+
+/*
+ * i8042_aux_close attempts to clear AUX or KBD port state by disabling
+ * and then re-enabling it.
+ */
+
+static void i8042_port_close(struct serio *serio)
+{
+	int irq_bit;
+	int disable_bit;
+	const char *port_name;
+
+	if (serio == i8042_ports[I8042_AUX_PORT_NO].serio) {
+		irq_bit = I8042_CTR_AUXINT;
+		disable_bit = I8042_CTR_AUXDIS;
+		port_name = "AUX";
+	} else {
+		irq_bit = I8042_CTR_KBDINT;
+		disable_bit = I8042_CTR_KBDDIS;
+		port_name = "KBD";
+	}
+
+	i8042_ctr &= ~irq_bit;
+	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
+		printk(KERN_WARNING
+			"i8042.c: Can't write CTR while closing %s port.\n",
+			port_name);
+
+	udelay(50);
+
+	i8042_ctr &= ~disable_bit;
+	i8042_ctr |= irq_bit;
+	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
+		printk(KERN_ERR "i8042.c: Can't reactivate %s port.\n",
+			port_name);
+
+	/*
+	 * See if there is any data appeared while we were messing with
+	 * port state.
+	 */
+	i8042_interrupt(0, NULL);
+}
+
 /*
  * i8042_start() is called by serio core when port is about to finish
  * registering. It will mark port as existing so i8042_interrupt can
@@ -393,7 +436,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 }
 
 /*
- * i8042_enable_kbd_port enables keybaord port on chip
+ * i8042_enable_kbd_port enables keyboard port on chip
  */
 
 static int i8042_enable_kbd_port(void)
@@ -841,6 +884,9 @@ static void i8042_controller_reset(void)
 	i8042_ctr |= I8042_CTR_KBDDIS | I8042_CTR_AUXDIS;
 	i8042_ctr &= ~(I8042_CTR_KBDINT | I8042_CTR_AUXINT);
 
+	if (i8042_command(&i8042_initial_ctr, I8042_CMD_CTL_WCTR))
+		printk(KERN_WARNING "i8042.c: Can't write CTR while resetting.\n");
+
 /*
  * Disable MUX mode if present.
  */
@@ -1026,6 +1072,7 @@ static int __devinit i8042_create_kbd_port(void)
 	serio->write		= i8042_dumbkbd ? NULL : i8042_kbd_write;
 	serio->start		= i8042_start;
 	serio->stop		= i8042_stop;
+	serio->close		= i8042_port_close;
 	serio->port_data	= port;
 	serio->dev.parent	= &i8042_platform_device->dev;
 	strlcpy(serio->name, "i8042 KBD port", sizeof(serio->name));
@@ -1056,6 +1103,7 @@ static int __devinit i8042_create_aux_port(int idx)
 	if (idx < 0) {
 		strlcpy(serio->name, "i8042 AUX port", sizeof(serio->name));
 		strlcpy(serio->phys, I8042_AUX_PHYS_DESC, sizeof(serio->phys));
+		serio->close = i8042_port_close;
 	} else {
 		snprintf(serio->name, sizeof(serio->name), "i8042 AUX%d port", idx);
 		snprintf(serio->phys, sizeof(serio->phys), I8042_MUX_PHYS_DESC, idx + 1);
