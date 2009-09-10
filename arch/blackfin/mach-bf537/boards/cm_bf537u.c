@@ -1,5 +1,5 @@
 /*
- * File:         arch/blackfin/mach-bf537/boards/cm_bf537.c
+ * File:         arch/blackfin/mach-bf537/boards/cm_bf537u.c
  * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
  * Author:       Aidan Williams <aidan@nicta.com.au>
  *
@@ -45,11 +45,12 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
+#include <linux/spi/mmc_spi.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "Bluetechnix CM BF537";
+const char bfin_board_name[] = "Bluetechnix CM BF537U";
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
@@ -318,7 +319,7 @@ static struct mtd_partition cm_partitions[] = {
 		.offset = 0,
 	}, {
 		.name   = "linux kernel(nor)",
-		.size   = 0xE0000,
+		.size   = 0x100000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name   = "file system(nor)",
@@ -333,7 +334,7 @@ static struct physmap_flash_data cm_flash_data = {
 	.nr_parts = ARRAY_SIZE(cm_partitions),
 };
 
-static unsigned cm_flash_gpios[] = { GPIO_PF4 };
+static unsigned cm_flash_gpios[] = { GPIO_PH0 };
 
 static struct resource cm_flash_resource[] = {
 	{
@@ -542,7 +543,7 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
-static struct platform_device *cm_bf537_devices[] __initdata = {
+static struct platform_device *cm_bf537u_devices[] __initdata = {
 
 	&bfin_dpmc,
 
@@ -608,10 +609,10 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 	&bfin_gpios_device,
 };
 
-static int __init cm_bf537_init(void)
+static int __init cm_bf537u_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-	platform_add_devices(cm_bf537_devices, ARRAY_SIZE(cm_bf537_devices));
+	platform_add_devices(cm_bf537u_devices, ARRAY_SIZE(cm_bf537u_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 #endif
@@ -622,7 +623,7 @@ static int __init cm_bf537_init(void)
 	return 0;
 }
 
-arch_initcall(cm_bf537_init);
+arch_initcall(cm_bf537u_init);
 
 void bfin_get_ether_addr(char *addr)
 {
