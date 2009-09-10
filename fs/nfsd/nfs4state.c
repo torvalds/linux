@@ -1331,6 +1331,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			unconf->cl_cb_conn.cb_minorversion =
 				cstate->minorversion;
 			unconf->cl_cb_conn.cb_prog = cr_ses->callback_prog;
+			unconf->cl_cb_seq_nr = 1;
 			nfsd4_probe_callback(unconf);
 		}
 		conf = unconf;
