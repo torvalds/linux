@@ -77,6 +77,7 @@ struct sparc_pmu {
 	int				upper_shift;
 	int				lower_shift;
 	int				event_mask;
+	int				hv_bit;
 };
 
 static const struct perf_event_map ultra3i_perfmon_event_map[] = {
@@ -178,7 +179,7 @@ void hw_perf_disable(void)
 	cpuc->enabled = 0;
 
 	val = pcr_ops->read();
-	val &= ~(PCR_UTRACE | PCR_STRACE);
+	val &= ~(PCR_UTRACE | PCR_STRACE | sparc_pmu->hv_bit);
 	pcr_ops->write(val);
 }
 
@@ -377,6 +378,8 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->config_base |= PCR_UTRACE;
 	if (!attr->exclude_kernel)
 		hwc->config_base |= PCR_STRACE;
+	if (!attr->exclude_hv)
+		hwc->config_base |= sparc_pmu->hv_bit;
 
 	if (!hwc->sample_period) {
 		hwc->sample_period = MAX_PERIOD;
