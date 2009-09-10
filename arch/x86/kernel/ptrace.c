@@ -150,7 +150,7 @@ static const int arg_offs_table[] = {
 unsigned long regs_get_argument_nth(struct pt_regs *regs, unsigned int n)
 {
 	if (n < ARRAY_SIZE(arg_offs_table))
-		return *((unsigned long *)regs + arg_offs_table[n]);
+		return *(unsigned long *)((char *)regs + arg_offs_table[n]);
 	else {
 		/*
 		 * The typical case: arg n is on the stack.
