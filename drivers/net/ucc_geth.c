@@ -1561,6 +1561,25 @@ static int ugeth_disable(struct ucc_geth_private *ugeth, enum comm_dir mode)
 	return 0;
 }
 
+static void ugeth_quiesce(struct ucc_geth_private *ugeth)
+{
+	/* Wait for and prevent any further xmits. */
+	netif_tx_disable(ugeth->ndev);
+
+	/* Disable the interrupt to avoid NAPI rescheduling. */
+	disable_irq(ugeth->ug_info->uf_info.irq);
+
+	/* Stop NAPI, and possibly wait for its completion. */
+	napi_disable(&ugeth->napi);
+}
+
+static void ugeth_activate(struct ucc_geth_private *ugeth)
+{
+	napi_enable(&ugeth->napi);
+	enable_irq(ugeth->ug_info->uf_info.irq);
+	netif_tx_wake_all_queues(ugeth->ndev);
+}
+
 /* Called every time the controller might need to be made
  * aware of new link state.  The PHY code conveys this
  * information through variables in the ugeth structure, and this
@@ -1574,13 +1593,10 @@ static void adjust_link(struct net_device *dev)
 	struct ucc_geth __iomem *ug_regs;
 	struct ucc_fast __iomem *uf_regs;
 	struct phy_device *phydev = ugeth->phydev;
-	unsigned long flags;
 	int new_state = 0;
 
 	ug_regs = ugeth->ug_regs;
 	uf_regs = ugeth->uccf->uf_regs;
-
-	spin_lock_irqsave(&ugeth->lock, flags);
 
 	if (phydev->link) {
 		u32 tempval = in_be32(&ug_regs->maccfg2);
@@ -1632,8 +1648,20 @@ static void adjust_link(struct net_device *dev)
 			ugeth->oldspeed = phydev->speed;
 		}
 
+		/*
+		 * To change the MAC configuration we need to disable the
+		 * controller. To do so, we have to either grab ugeth->lock,
+		 * which is a bad idea since 'graceful stop' commands might
+		 * take quite a while, or we can quiesce driver's activity.
+		 */
+		ugeth_quiesce(ugeth);
+		ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
+
 		out_be32(&ug_regs->maccfg2, tempval);
 		out_be32(&uf_regs->upsmr, upsmr);
+
+		ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
+		ugeth_activate(ugeth);
 
 		if (!ugeth->oldlink) {
 			new_state = 1;
@@ -1648,8 +1676,6 @@ static void adjust_link(struct net_device *dev)
 
 	if (new_state && netif_msg_link(ugeth))
 		phy_print_status(phydev);
-
-	spin_unlock_irqrestore(&ugeth->lock, flags);
 }
 
 /* Initialize TBI PHY interface for communicating with the
