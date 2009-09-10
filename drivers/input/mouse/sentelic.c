@@ -756,7 +756,7 @@ static int fsp_activate_protocol(struct psmouse *psmouse)
 	return 0;
 }
 
-int fsp_detect(struct psmouse *psmouse, int set_properties)
+int fsp_detect(struct psmouse *psmouse, bool set_properties)
 {
 	int id;
 

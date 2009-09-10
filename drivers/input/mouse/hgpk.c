@@ -367,7 +367,7 @@ static ssize_t hgpk_set_powered(struct psmouse *psmouse, void *data,
 }
 
 __PSMOUSE_DEFINE_ATTR(powered, S_IWUSR | S_IRUGO, NULL,
-		      hgpk_show_powered, hgpk_set_powered, 0);
+		      hgpk_show_powered, hgpk_set_powered, false);
 
 static ssize_t hgpk_trigger_recal_show(struct psmouse *psmouse,
 		void *data, char *buf)
@@ -396,7 +396,7 @@ static ssize_t hgpk_trigger_recal(struct psmouse *psmouse, void *data,
 }
 
 __PSMOUSE_DEFINE_ATTR(recalibrate, S_IWUSR | S_IRUGO, NULL,
-		      hgpk_trigger_recal_show, hgpk_trigger_recal, 0);
+		      hgpk_trigger_recal_show, hgpk_trigger_recal, false);
 
 static void hgpk_disconnect(struct psmouse *psmouse)
 {
@@ -489,7 +489,7 @@ int hgpk_init(struct psmouse *psmouse)
 
 	psmouse->private = priv;
 	priv->psmouse = psmouse;
-	priv->powered = 1;
+	priv->powered = true;
 	INIT_DELAYED_WORK(&priv->recalib_wq, hgpk_recalib_work);
 
 	err = psmouse_reset(psmouse);
@@ -532,7 +532,7 @@ static enum hgpk_model_t hgpk_get_model(struct psmouse *psmouse)
 	return param[2];
 }
 
-int hgpk_detect(struct psmouse *psmouse, int set_properties)
+int hgpk_detect(struct psmouse *psmouse, bool set_properties)
 {
 	int version;
 
