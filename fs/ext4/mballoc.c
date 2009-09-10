@@ -1034,7 +1034,25 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 	 * groups mapped by the page is blocked
 	 * till we are done with allocation
 	 */
+repeat_load_buddy:
 	down_read(e4b->alloc_semp);
+
+	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
+		/* we need to check for group need init flag
+		 * with alloc_semp held so that we can be sure
+		 * that new blocks didn't get added to the group
+		 * when we are loading the buddy cache
+		 */
+		up_read(e4b->alloc_semp);
+		/*
+		 * we need full data about the group
+		 * to make a good selection
+		 */
+		ret = ext4_mb_init_group(sb, group);
+		if (ret)
+			return ret;
+		goto repeat_load_buddy;
+	}
 
 	/*
 	 * the buddy cache inode stores the block bitmap
@@ -2010,27 +2028,6 @@ repeat:
 			/* quick check to skip empty groups */
 			grp = ext4_get_group_info(sb, group);
 			if (grp->bb_free == 0)
-				continue;
-
-			/*
-			 * if the group is already init we check whether it is
-			 * a good group and if not we don't load the buddy
-			 */
-			if (EXT4_MB_GRP_NEED_INIT(grp)) {
-				/*
-				 * we need full data about the group
-				 * to make a good selection
-				 */
-				err = ext4_mb_init_group(sb, group);
-				if (err)
-					goto out;
-			}
-
-			/*
-			 * If the particular group doesn't satisfy our
-			 * criteria we continue with the next group
-			 */
-			if (!ext4_mb_good_group(ac, group, cr))
 				continue;
 
 			err = ext4_mb_load_buddy(sb, group, &e4b);
