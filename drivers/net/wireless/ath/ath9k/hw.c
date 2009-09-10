@@ -2932,8 +2932,7 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 	return true;
 }
 
-static bool ath9k_hw_setpower_nolock(struct ath_hw *ah,
-				     enum ath9k_power_mode mode)
+bool ath9k_hw_setpower_nolock(struct ath_hw *ah, enum ath9k_power_mode mode)
 {
 	int status = true, setChip = true;
 	static const char *modes[] = {
@@ -2980,39 +2979,6 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	spin_unlock_irqrestore(&ah->ah_sc->sc_pm_lock, flags);
 
 	return ret;
-}
-
-void ath9k_ps_wakeup(struct ath_softc *sc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->sc_pm_lock, flags);
-	if (++sc->ps_usecount != 1)
-		goto unlock;
-
-	ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_AWAKE);
-
- unlock:
-	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
-}
-
-void ath9k_ps_restore(struct ath_softc *sc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->sc_pm_lock, flags);
-	if (--sc->ps_usecount != 0)
-		goto unlock;
-
-	if (sc->ps_enabled &&
-	    !(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
-			      SC_OP_WAIT_FOR_CAB |
-			      SC_OP_WAIT_FOR_PSPOLL_DATA |
-			      SC_OP_WAIT_FOR_TX_ACK)))
-		ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
-
- unlock:
-	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 }
 
 /*

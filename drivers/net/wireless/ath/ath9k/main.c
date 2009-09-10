@@ -243,6 +243,39 @@ static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
 	return channel;
 }
 
+void ath9k_ps_wakeup(struct ath_softc *sc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (++sc->ps_usecount != 1)
+		goto unlock;
+
+	ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_AWAKE);
+
+ unlock:
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+}
+
+void ath9k_ps_restore(struct ath_softc *sc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (--sc->ps_usecount != 0)
+		goto unlock;
+
+	if (sc->ps_enabled &&
+	    !(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+			      SC_OP_WAIT_FOR_CAB |
+			      SC_OP_WAIT_FOR_PSPOLL_DATA |
+			      SC_OP_WAIT_FOR_TX_ACK)))
+		ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+
+ unlock:
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+}
+
 /*
  * Set/change channels.  If the channel is really being changed, it's done
  * by reseting the chip.  To accomplish this we must first cleanup any pending

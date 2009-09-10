@@ -652,8 +652,10 @@ void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
-bool ath9k_hw_setpower(struct ath_hw *ah,
-		       enum ath9k_power_mode mode);
+
+bool ath9k_hw_setpower_nolock(struct ath_hw *ah, enum ath9k_power_mode mode);
+bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
+
 void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off);
 
 /* Interrupt Handling */
