@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <asm/unaligned.h>
-#include <linux/pci.h>
 
 #include "hw.h"
 #include "ath9k.h"
@@ -4293,17 +4292,4 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 			"Gen timer[%d] trigger\n", index);
 		timer->trigger(timer->arg);
 	}
-}
-
-/*
- * Primitive to disable ASPM
- */
-void ath_pcie_aspm_disable(struct ath_softc *sc)
-{
-	struct pci_dev *pdev = to_pci_dev(sc->dev);
-	u8 aspm;
-
-	pci_read_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, &aspm);
-	aspm &= ~(ATH_PCIE_CAP_LINK_L0S | ATH_PCIE_CAP_LINK_L1);
-	pci_write_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, aspm);
 }

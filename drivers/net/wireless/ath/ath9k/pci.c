@@ -75,10 +75,27 @@ static bool ath_pci_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 	return true;
 }
 
+/*
+ * Bluetooth coexistance requires disabling ASPM.
+ */
+static void ath_pci_bt_coex_prep(struct ath_softc *sc)
+{
+	struct pci_dev *pdev = to_pci_dev(sc->dev);
+	u8 aspm;
+
+	if (!pdev->is_pcie)
+		return;
+
+	pci_read_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, &aspm);
+	aspm &= ~(ATH_PCIE_CAP_LINK_L0S | ATH_PCIE_CAP_LINK_L1);
+	pci_write_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, aspm);
+}
+
 static struct ath_bus_ops ath_pci_bus_ops = {
 	.read_cachesize = ath_pci_read_cachesize,
 	.cleanup = ath_pci_cleanup,
 	.eeprom_read = ath_pci_eeprom_read,
+	.bt_coex_prep = ath_pci_bt_coex_prep,
 };
 
 static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)

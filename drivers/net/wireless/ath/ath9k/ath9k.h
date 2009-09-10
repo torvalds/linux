@@ -545,6 +545,7 @@ struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
 	void		(*cleanup)(struct ath_softc *sc);
 	bool		(*eeprom_read)(struct ath_hw *ah, u32 off, u16 *data);
+	void		(*bt_coex_prep)(struct ath_softc *sc);
 };
 
 struct ath_wiphy;
