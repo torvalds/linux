@@ -84,6 +84,7 @@ static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 	if (do_panic || panic_on_oops)
 		panic("Non maskable interrupt");
 
+	nmi_exit();
 	local_irq_enable();
 	do_exit(SIGBUS);
 }
@@ -97,6 +98,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	pcr_ops->write(PCR_PIC_PRIV);
 
 	local_cpu_data().__nmi_count++;
+
+	nmi_enter();
 
 	if (notify_die(DIE_NMI, "nmi", regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
@@ -120,6 +123,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		write_pic(picl_value(nmi_hz));
 		pcr_ops->write(pcr_enable);
 	}
+
+	nmi_exit();
 }
 
 static inline unsigned int get_nmi_count(int cpu)
