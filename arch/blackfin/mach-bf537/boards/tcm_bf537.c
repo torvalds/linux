@@ -45,6 +45,7 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
+#include <linux/spi/mmc_spi.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -148,7 +149,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "mmc_spi",
 		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 5,
+		.chip_select = 1,
 		.controller_data = &mmc_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
@@ -279,12 +280,12 @@ static struct platform_device isp1362_hcd_device = {
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 static struct resource net2272_bfin_resources[] = {
 	{
-		.start = 0x20200000,
-		.end = 0x20200000 + 0x100,
+		.start = 0x20300000,
+		.end = 0x20300000 + 0x100,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = IRQ_PH14,
-		.end = IRQ_PH14,
+		.start = IRQ_PG13,
+		.end = IRQ_PG13,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
@@ -318,7 +319,7 @@ static struct mtd_partition cm_partitions[] = {
 		.offset = 0,
 	}, {
 		.name   = "linux kernel(nor)",
-		.size   = 0xE0000,
+		.size   = 0x100000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name   = "file system(nor)",

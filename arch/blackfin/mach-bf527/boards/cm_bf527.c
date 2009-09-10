@@ -151,46 +151,6 @@ static struct platform_device musb_device = {
 };
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static struct mtd_partition ezkit_partitions[] = {
-	{
-		.name       = "bootloader(nor)",
-		.size       = 0x40000,
-		.offset     = 0,
-	}, {
-		.name       = "linux kernel(nor)",
-		.size       = 0x1C0000,
-		.offset     = MTDPART_OFS_APPEND,
-	}, {
-		.name       = "file system(nor)",
-		.size       = MTDPART_SIZ_FULL,
-		.offset     = MTDPART_OFS_APPEND,
-	}
-};
-
-static struct physmap_flash_data ezkit_flash_data = {
-	.width      = 2,
-	.parts      = ezkit_partitions,
-	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
-};
-
-static struct resource ezkit_flash_resource = {
-	.start = 0x20000000,
-	.end   = 0x201fffff,
-	.flags = IORESOURCE_MEM,
-};
-
-static struct platform_device ezkit_flash_device = {
-	.name          = "physmap-flash",
-	.id            = 0,
-	.dev = {
-		.platform_data = &ezkit_flash_data,
-	},
-	.num_resources = 1,
-	.resource      = &ezkit_flash_resource,
-};
-#endif
-
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
@@ -662,6 +622,55 @@ static struct platform_device bfin_fb_adv7393_device = {
 };
 #endif
 
+#if defined(CONFIG_MTD_GPIO_ADDR) || defined(CONFIG_MTD_GPIO_ADDR_MODULE)
+static struct mtd_partition cm_partitions[] = {
+	{
+		.name   = "bootloader(nor)",
+		.size   = 0x40000,
+		.offset = 0,
+	}, {
+		.name   = "linux kernel(nor)",
+		.size   = 0x100000,
+		.offset = MTDPART_OFS_APPEND,
+	}, {
+		.name   = "file system(nor)",
+		.size   = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data cm_flash_data = {
+	.width    = 2,
+	.parts    = cm_partitions,
+	.nr_parts = ARRAY_SIZE(cm_partitions),
+};
+
+static unsigned cm_flash_gpios[] = { GPIO_PH9, GPIO_PG11 };
+
+static struct resource cm_flash_resource[] = {
+	{
+		.name  = "cfi_probe",
+		.start = 0x20000000,
+		.end   = 0x201fffff,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = (unsigned long)cm_flash_gpios,
+		.end   = ARRAY_SIZE(cm_flash_gpios),
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device cm_flash_device = {
+	.name          = "gpio-addr-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &cm_flash_data,
+	},
+	.num_resources = ARRAY_SIZE(cm_flash_resource),
+	.resource      = cm_flash_resource,
+};
+#endif
+
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
 #ifdef CONFIG_SERIAL_BFIN_UART0
@@ -847,7 +856,7 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
-static struct platform_device *stamp_devices[] __initdata = {
+static struct platform_device *cmbf527_devices[] __initdata = {
 
 	&bfin_dpmc,
 
@@ -930,8 +939,8 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_device_gpiokeys,
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-	&ezkit_flash_device,
+#if defined(CONFIG_MTD_GPIO_ADDR) || defined(CONFIG_MTD_GPIO_ADDR_MODULE)
+	&cm_flash_device,
 #endif
 
 	&bfin_gpios_device,
@@ -942,7 +951,7 @@ static int __init cm_init(void)
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
+	platform_add_devices(cmbf527_devices, ARRAY_SIZE(cmbf527_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 	return 0;
 }
