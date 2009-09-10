@@ -1,9 +1,9 @@
 obj-y	:=  init.o init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
-	    pat.o pgtable.o gup.o
+	    pat.o pgtable.o physaddr.o gup.o
 
 # Make sure __phys_addr has no stackprotector
 nostackp := $(call cc-option, -fno-stack-protector)
-CFLAGS_ioremap.o		:= $(nostackp)
+CFLAGS_physaddr.o		:= $(nostackp)
 
 obj-$(CONFIG_SMP)		+= tlb.o
 
