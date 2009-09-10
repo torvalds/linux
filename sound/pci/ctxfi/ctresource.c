@@ -144,7 +144,7 @@ int rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, void *hw)
 	rsc->msr = msr;
 	rsc->hw = hw;
 	rsc->ops = &rsc_generic_ops;
-	if (NULL == hw) {
+	if (!hw) {
 		rsc->ctrl_blk = NULL;
 		return 0;
 	}
@@ -216,7 +216,7 @@ int rsc_mgr_init(struct rsc_mgr *mgr, enum RSCTYP type,
 	mgr->type = NUM_RSCTYP;
 
 	mgr->rscs = kzalloc(((amount + 8 - 1) / 8), GFP_KERNEL);
-	if (NULL == mgr->rscs)
+	if (!mgr->rscs)
 		return -ENOMEM;
 
 	switch (type) {
