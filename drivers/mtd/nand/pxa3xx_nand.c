@@ -226,6 +226,28 @@ static struct pxa3xx_nand_flash samsung512MbX16 = {
 	.chip_id	= 0x46ec,
 };
 
+static struct pxa3xx_nand_flash samsung2GbX8 = {
+	.timing		= &samsung512MbX16_timing,
+	.cmdset		= &smallpage_cmdset,
+	.page_per_block	= 64,
+	.page_size	= 2048,
+	.flash_width	= 8,
+	.dfc_width	= 8,
+	.num_blocks	= 2048,
+	.chip_id	= 0xdaec,
+};
+
+static struct pxa3xx_nand_flash samsung32GbX8 = {
+	.timing		= &samsung512MbX16_timing,
+	.cmdset		= &smallpage_cmdset,
+	.page_per_block	= 128,
+	.page_size	= 4096,
+	.flash_width	= 8,
+	.dfc_width	= 8,
+	.num_blocks	= 8192,
+	.chip_id	= 0xd7ec,
+};
+
 static struct pxa3xx_nand_timing micron_timing = {
 	.tCH	= 10,
 	.tCS	= 25,
@@ -260,6 +282,28 @@ static struct pxa3xx_nand_flash micron1GbX16 = {
 	.chip_id	= 0xb12c,
 };
 
+static struct pxa3xx_nand_flash micron4GbX8 = {
+	.timing		= &micron_timing,
+	.cmdset		= &largepage_cmdset,
+	.page_per_block	= 64,
+	.page_size	= 2048,
+	.flash_width	= 8,
+	.dfc_width	= 8,
+	.num_blocks	= 4096,
+	.chip_id	= 0xdc2c,
+};
+
+static struct pxa3xx_nand_flash micron4GbX16 = {
+	.timing		= &micron_timing,
+	.cmdset		= &largepage_cmdset,
+	.page_per_block	= 64,
+	.page_size	= 2048,
+	.flash_width	= 16,
+	.dfc_width	= 16,
+	.num_blocks	= 4096,
+	.chip_id	= 0xcc2c,
+};
+
 static struct pxa3xx_nand_timing stm2GbX16_timing = {
 	.tCH = 10,
 	.tCS = 35,
@@ -285,8 +329,12 @@ static struct pxa3xx_nand_flash stm2GbX16 = {
 
 static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 	&samsung512MbX16,
+	&samsung2GbX8,
+	&samsung32GbX8,
 	&micron1GbX8,
 	&micron1GbX16,
+	&micron4GbX8,
+	&micron4GbX16,
 	&stm2GbX16,
 };
 #endif /* CONFIG_MTD_NAND_PXA3xx_BUILTIN */
