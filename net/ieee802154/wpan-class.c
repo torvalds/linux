@@ -22,6 +22,8 @@
 
 #include <net/wpan-phy.h>
 
+#include "ieee802154.h"
+
 #define MASTER_SHOW_COMPLEX(name, format_string, args...)		\
 static ssize_t name ## _show(struct device *dev,			\
 			    struct device_attribute *attr, char *buf)	\
@@ -188,16 +190,31 @@ EXPORT_SYMBOL(wpan_phy_free);
 
 static int __init wpan_phy_class_init(void)
 {
-	return class_register(&wpan_phy_class);
+	int rc;
+	rc = class_register(&wpan_phy_class);
+	if (rc)
+		goto err;
+
+	rc = ieee802154_nl_init();
+	if (rc)
+		goto err_nl;
+
+	return 0;
+err_nl:
+	class_unregister(&wpan_phy_class);
+err:
+	return rc;
 }
-subsys_initcall(wpan_phy_class_init);
+module_init(wpan_phy_class_init);
 
 static void __exit wpan_phy_class_exit(void)
 {
+	ieee802154_nl_exit();
 	class_unregister(&wpan_phy_class);
 }
 module_exit(wpan_phy_class_exit);
 
-MODULE_DESCRIPTION("IEEE 802.15.4 device class");
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("IEEE 802.15.4 configuration interface");
+MODULE_AUTHOR("Dmitry Eremin-Solenikov");
 
