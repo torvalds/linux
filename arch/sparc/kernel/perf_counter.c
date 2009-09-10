@@ -78,6 +78,7 @@ struct sparc_pmu {
 	int				lower_shift;
 	int				event_mask;
 	int				hv_bit;
+	int				irq_bit;
 };
 
 static const struct perf_event_map ultra3i_perfmon_event_map[] = {
@@ -179,7 +180,8 @@ void hw_perf_disable(void)
 	cpuc->enabled = 0;
 
 	val = pcr_ops->read();
-	val &= ~(PCR_UTRACE | PCR_STRACE | sparc_pmu->hv_bit);
+	val &= ~(PCR_UTRACE | PCR_STRACE |
+		 sparc_pmu->hv_bit | sparc_pmu->irq_bit);
 	pcr_ops->write(val);
 }
 
@@ -373,7 +375,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	 * turn off sampling just write 'config', and to enable
 	 * things write 'config | config_base'.
 	 */
-	hwc->config_base = 0;
+	hwc->config_base = sparc_pmu->irq_bit;
 	if (!attr->exclude_user)
 		hwc->config_base |= PCR_UTRACE;
 	if (!attr->exclude_kernel)
