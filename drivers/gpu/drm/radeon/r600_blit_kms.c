@@ -129,6 +129,7 @@ set_shaders(struct radeon_device *rdev)
 	radeon_ring_write(rdev, (SQ_PGM_CF_OFFSET_PS - PACKET3_SET_CONTEXT_REG_OFFSET) >> 2);
 	radeon_ring_write(rdev, 0);
 
+	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.vs_offset;
 	cp_set_surface_sync(rdev, PACKET3_SH_ACTION_ENA, 512, gpu_addr);
 }
 
@@ -248,6 +249,7 @@ set_default_state(struct radeon_device *rdev)
 	int num_ps_threads, num_vs_threads, num_gs_threads, num_es_threads;
 	int num_ps_stack_entries, num_vs_stack_entries, num_gs_stack_entries, num_es_stack_entries;
 	u64 gpu_addr;
+	int dwords;
 
 	switch (rdev->family) {
 	case CHIP_R600:
@@ -394,11 +396,12 @@ set_default_state(struct radeon_device *rdev)
 				    NUM_ES_STACK_ENTRIES(num_es_stack_entries));
 
 	/* emit an IB pointing at default state */
+	dwords = (rdev->r600_blit.state_len + 0xf) & ~0xf;
 	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.state_offset;
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	radeon_ring_write(rdev, gpu_addr & 0xFFFFFFFC);
 	radeon_ring_write(rdev, upper_32_bits(gpu_addr) & 0xFF);
-	radeon_ring_write(rdev, (rdev->r600_blit.state_len / 4));
+	radeon_ring_write(rdev, dwords);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
 	radeon_ring_write(rdev, CACHE_FLUSH_AND_INV_EVENT);
@@ -441,17 +444,25 @@ static inline uint32_t i2f(uint32_t input)
 int r600_blit_init(struct radeon_device *rdev)
 {
 	u32 obj_size;
-	int r;
+	int r, dwords;
 	void *ptr;
+	u32 packet2s[16];
+	int num_packet2s = 0;
 
 	rdev->r600_blit.state_offset = 0;
 
 	if (rdev->family >= CHIP_RV770)
-		rdev->r600_blit.state_len = r7xx_default_size * 4;
+		rdev->r600_blit.state_len = r7xx_default_size;
 	else
-		rdev->r600_blit.state_len = r6xx_default_size * 4;
+		rdev->r600_blit.state_len = r6xx_default_size;
 
-	obj_size = rdev->r600_blit.state_len;
+	dwords = rdev->r600_blit.state_len;
+	while (dwords & 0xf) {
+		packet2s[num_packet2s++] = PACKET2(0);
+		dwords++;
+	}
+
+	obj_size = dwords * 4;
 	obj_size = ALIGN(obj_size, 256);
 
 	rdev->r600_blit.vs_offset = obj_size;
@@ -488,9 +499,15 @@ int r600_blit_init(struct radeon_device *rdev)
 	}
 
 	if (rdev->family >= CHIP_RV770)
-		memcpy_toio(ptr + rdev->r600_blit.state_offset, r7xx_default_state, rdev->r600_blit.state_len);
+		memcpy_toio(ptr + rdev->r600_blit.state_offset,
+			    r7xx_default_state, rdev->r600_blit.state_len * 4);
 	else
-		memcpy_toio(ptr + rdev->r600_blit.state_offset, r6xx_default_state, rdev->r600_blit.state_len);
+		memcpy_toio(ptr + rdev->r600_blit.state_offset,
+			    r6xx_default_state, rdev->r600_blit.state_len * 4);
+	if (num_packet2s)
+		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
+			    packet2s, num_packet2s * 4);
+
 
 	memcpy(ptr + rdev->r600_blit.vs_offset, r6xx_vs, r6xx_vs_size * 4);
 	memcpy(ptr + rdev->r600_blit.ps_offset, r6xx_ps, r6xx_ps_size * 4);
@@ -532,7 +549,13 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 {
 	int r;
 	int ring_size;
-	const int max_size = 8192*8192;
+	int max_size;
+
+	/* 8 bpp vs 32 bpp for xfer unit */
+	if (size_bytes & 3)
+		max_size = 8192*8192;
+	else
+		max_size = 8192*8192*4;
 
 	r = r600_vb_ib_get(rdev);
 	WARN_ON(r);
