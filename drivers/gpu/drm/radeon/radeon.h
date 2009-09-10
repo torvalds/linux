@@ -935,6 +935,10 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 void r100_cp_disable(struct radeon_device *rdev);
+void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
+int r100_pci_gart_enable(struct radeon_device *rdev);
+void r100_pci_gart_disable(struct radeon_device *rdev);
+int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 
 /* r420,r423,rv410 */
 u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);

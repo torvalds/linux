@@ -101,8 +101,13 @@ int r420_mc_init(struct radeon_device *rdev)
 
 void r420_mc_fini(struct radeon_device *rdev)
 {
-	rv370_pcie_gart_disable(rdev);
-	radeon_gart_table_vram_free(rdev);
+	if (rdev->flags & RADEON_IS_PCIE) {
+		rv370_pcie_gart_disable(rdev);
+		radeon_gart_table_vram_free(rdev);
+	} else {
+		r100_pci_gart_disable(rdev);
+		radeon_gart_table_ram_free(rdev);
+	}
 	radeon_gart_fini(rdev);
 }
 

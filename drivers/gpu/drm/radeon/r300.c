@@ -181,6 +181,12 @@ int r300_gart_enable(struct radeon_device *rdev)
 		rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
 		return rv370_pcie_gart_enable(rdev);
 	}
+	if (rdev->flags & RADEON_IS_PCI) {
+		rdev->asic->gart_disable = &r100_pci_gart_disable;
+		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
+		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+		return r100_pci_gart_enable(rdev);
+	}
 	return r100_pci_gart_enable(rdev);
 }
 

@@ -503,7 +503,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	if (radeon_agpmode == -1) {
 		rdev->flags &= ~RADEON_IS_AGP;
-		if (rdev->family > CHIP_RV515 ||
+		if (rdev->family >= CHIP_RV515 ||
 		    rdev->family == CHIP_RV380 ||
 		    rdev->family == CHIP_RV410 ||
 		    rdev->family == CHIP_R423) {
