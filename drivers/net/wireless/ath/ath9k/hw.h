@@ -51,8 +51,11 @@
 #define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
 
 /* Register read/write primitives */
-#define REG_WRITE(_ah, _reg, _val) ath9k_iowrite32((_ah), (_reg), (_val))
-#define REG_READ(_ah, _reg) ath9k_ioread32((_ah), (_reg))
+#define REG_WRITE(_ah, _reg, _val) \
+	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))
+
+#define REG_READ(_ah, _reg) \
+	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
@@ -587,6 +590,16 @@ struct ath_hw {
 	u32 intr_gen_timer_thresh;
 	struct ath_gen_timer_table hw_gen_timers;
 };
+
+static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
+{
+	return &ah->common;
+}
+
+static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
+{
+	return &(ath9k_hw_common(ah)->regulatory);
+}
 
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);

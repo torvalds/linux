@@ -39,6 +39,11 @@ struct ath_regulatory {
 	struct reg_dmn_pair_mapping *regpair;
 };
 
+struct ath_ops {
+	unsigned int (*read)(void *, u32 reg_offset);
+        void (*write)(void *, u32 val, u32 reg_offset);
+};
+
 struct ath_common {
 	u16 cachelsz;
 	u16 curaid;
@@ -46,6 +51,7 @@ struct ath_common {
 	u8 curbssid[ETH_ALEN];
 	u8 bssidmask[ETH_ALEN];
 	struct ath_regulatory regulatory;
+	struct ath_ops *ops;
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,

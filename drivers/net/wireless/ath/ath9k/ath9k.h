@@ -646,16 +646,6 @@ int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
 
-static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
-{
-	return &ah->common;
-}
-
-static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
-{
-	return &(ath9k_hw_common(ah)->regulatory);
-}
-
 static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
 {
 	sc->bus_ops->read_cachesize(sc, csz);
@@ -717,9 +707,6 @@ void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 bool ath9k_wiphy_scanning(struct ath_softc *sc);
 void ath9k_wiphy_work(struct work_struct *work);
 bool ath9k_all_wiphys_idle(struct ath_softc *sc);
-
-void ath9k_iowrite32(struct ath_hw *ah, u32 reg_offset, u32 val);
-unsigned int ath9k_ioread32(struct ath_hw *ah, u32 reg_offset);
 
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 #endif /* ATH9K_H */

@@ -1490,6 +1490,47 @@ static int ath_init_btcoex_timer(struct ath_softc *sc)
 }
 
 /*
+ * Read and write, they both share the same lock. We do this to serialize
+ * reads and writes on Atheros 802.11n PCI devices only. This is required
+ * as the FIFO on these devices can only accept sanely 2 requests. After
+ * that the device goes bananas. Serializing the reads/writes prevents this
+ * from happening.
+ */
+
+static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
+{
+	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+		unsigned long flags;
+		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
+		iowrite32(val, ah->ah_sc->mem + reg_offset);
+		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
+	} else
+		iowrite32(val, ah->ah_sc->mem + reg_offset);
+}
+
+static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
+{
+	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	u32 val;
+
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+		unsigned long flags;
+		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
+		val = ioread32(ah->ah_sc->mem + reg_offset);
+		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
+	} else
+		val = ioread32(ah->ah_sc->mem + reg_offset);
+	return val;
+}
+
+static struct ath_ops ath9k_common_ops = {
+	.read = ath9k_ioread32,
+	.write = ath9k_iowrite32,
+};
+
+/*
  * Initialize and fill ath_softc, ath_sofct is the
  * "Software Carrier" struct. Historically it has existed
  * to allow the separation between hardware specific
@@ -1528,6 +1569,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	sc->sc_ah = ah;
 
 	common = ath9k_hw_common(ah);
+	common->ops = &ath9k_common_ops;
 
 	/*
 	 * Cache line size is used to size and align various
