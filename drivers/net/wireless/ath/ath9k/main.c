@@ -2893,7 +2893,11 @@ static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
+
+	ath9k_ps_wakeup(sc);
 	ath9k_hw_reset_tsf(sc->sc_ah);
+	ath9k_ps_restore(sc);
+
 	mutex_unlock(&sc->mutex);
 }
 

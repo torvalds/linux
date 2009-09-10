@@ -502,6 +502,19 @@ void ath_beacon_tasklet(unsigned long data)
 	}
 }
 
+static void ath9k_beacon_init(struct ath_softc *sc,
+			      u32 next_beacon,
+			      u32 beacon_period)
+{
+	if (beacon_period & ATH9K_BEACON_RESET_TSF)
+		ath9k_ps_wakeup(sc);
+
+	ath9k_hw_beaconinit(sc->sc_ah, next_beacon, beacon_period);
+
+	if (beacon_period & ATH9K_BEACON_RESET_TSF)
+		ath9k_ps_restore(sc);
+}
+
 /*
  * For multi-bss ap support beacons are either staggered evenly over N slots or
  * burst together.  For the former arrange for the SWBA to be delivered for each
@@ -534,7 +547,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 	/* Set the computed AP beacon timers */
 
 	ath9k_hw_set_interrupts(sc->sc_ah, 0);
-	ath9k_hw_beaconinit(sc->sc_ah, nexttbtt, intval);
+	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
@@ -707,7 +720,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	/* Set the computed ADHOC beacon timers */
 
 	ath9k_hw_set_interrupts(sc->sc_ah, 0);
-	ath9k_hw_beaconinit(sc->sc_ah, nexttbtt, intval);
+	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
