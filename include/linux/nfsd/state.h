@@ -211,6 +211,9 @@ struct nfs4_client {
 	struct nfsd4_clid_slot	cl_cs_slot;	/* create_session slot */
 	u32			cl_exchange_flags;
 	struct nfs4_sessionid	cl_sessionid;
+
+	/* for nfs41 callbacks */
+	struct svc_xprt		*cl_cb_xprt;	/* 4.1 callback transport */
 };
 
 /* struct nfs4_client_reset
