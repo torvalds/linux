@@ -1292,6 +1292,7 @@ struct task_struct {
 	struct mutex cred_guard_mutex;	/* guard against foreign influences on
 					 * credential calculations
 					 * (notably. ptrace) */
+	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
 
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
@@ -2077,7 +2078,7 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
 
-extern bool is_single_threaded(struct task_struct *);
+extern bool current_is_single_threaded(void);
 
 /*
  * Careful: do_each_thread/while_each_thread is a double loop so
