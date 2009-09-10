@@ -2472,8 +2472,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		  | ah->sta_id1_defaults);
 	ath9k_hw_set_operating_mode(ah, ah->opmode);
 
-	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(sc->bssidmask));
-	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(sc->bssidmask + 4));
+	ath9k_hw_setbssidmask(ah);
 
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
