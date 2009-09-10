@@ -348,9 +348,9 @@ struct cmd_desc_type0 {
 
 	__le64 addr_buffer4;
 
-	__le16 vlan_TCI;
-	__le16 reserved;
 	__le32 reserved2;
+	__le16 reserved;
+	__le16 vlan_TCI;
 
 } __attribute__ ((aligned(64)));
 
