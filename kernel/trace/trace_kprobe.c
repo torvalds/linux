@@ -36,6 +36,7 @@
 #define MAX_TRACE_ARGS 128
 #define MAX_ARGSTR_LEN 63
 #define MAX_EVENT_NAME_LEN 64
+#define KPROBE_EVENT_SYSTEM "kprobes"
 
 /* currently, trace_kprobe only supports X86. */
 
@@ -265,7 +266,8 @@ static LIST_HEAD(probe_list);
 /*
  * Allocate new trace_probe and initialize it (including kprobes).
  */
-static struct trace_probe *alloc_trace_probe(const char *event,
+static struct trace_probe *alloc_trace_probe(const char *group,
+					     const char *event,
 					     void *addr,
 					     const char *symbol,
 					     unsigned long offs,
@@ -298,9 +300,16 @@ static struct trace_probe *alloc_trace_probe(const char *event,
 	if (!tp->call.name)
 		goto error;
 
+	if (!group)
+		goto error;
+	tp->call.system = kstrdup(group, GFP_KERNEL);
+	if (!tp->call.system)
+		goto error;
+
 	INIT_LIST_HEAD(&tp->list);
 	return tp;
 error:
+	kfree(tp->call.name);
 	kfree(tp->symbol);
 	kfree(tp);
 	return ERR_PTR(-ENOMEM);
@@ -322,6 +331,7 @@ static void free_trace_probe(struct trace_probe *tp)
 	for (i = 0; i < tp->nr_args; i++)
 		free_probe_arg(&tp->args[i]);
 
+	kfree(tp->call.system);
 	kfree(tp->call.name);
 	kfree(tp->symbol);
 	kfree(tp);
@@ -530,8 +540,8 @@ static int create_trace_probe(int argc, char **argv)
 {
 	/*
 	 * Argument syntax:
-	 *  - Add kprobe: p[:EVENT] SYMBOL[+OFFS]|ADDRESS [FETCHARGS]
-	 *  - Add kretprobe: r[:EVENT] SYMBOL[+0] [FETCHARGS]
+	 *  - Add kprobe: p[:[GRP/]EVENT] KSYM[+OFFS]|KADDR [FETCHARGS]
+	 *  - Add kretprobe: r[:[GRP/]EVENT] KSYM[+0] [FETCHARGS]
 	 * Fetch args:
 	 *  aN	: fetch Nth of function argument. (N:0-)
 	 *  rv	: fetch return value
@@ -549,7 +559,7 @@ static int create_trace_probe(int argc, char **argv)
 	struct trace_probe *tp;
 	int i, ret = 0;
 	int is_return = 0;
-	char *symbol = NULL, *event = NULL, *arg = NULL;
+	char *symbol = NULL, *event = NULL, *arg = NULL, *group = NULL;
 	unsigned long offset = 0;
 	void *addr = NULL;
 	char buf[MAX_EVENT_NAME_LEN];
@@ -566,6 +576,15 @@ static int create_trace_probe(int argc, char **argv)
 
 	if (argv[0][1] == ':') {
 		event = &argv[0][2];
+		if (strchr(event, '/')) {
+			group = event;
+			event = strchr(group, '/') + 1;
+			event[-1] = '\0';
+			if (strlen(group) == 0) {
+				pr_info("Group name is not specifiled\n");
+				return -EINVAL;
+			}
+		}
 		if (strlen(event) == 0) {
 			pr_info("Event name is not specifiled\n");
 			return -EINVAL;
@@ -592,6 +611,8 @@ static int create_trace_probe(int argc, char **argv)
 	argc -= 2; argv += 2;
 
 	/* setup a probe */
+	if (!group)
+		group = KPROBE_EVENT_SYSTEM;
 	if (!event) {
 		/* Make a new event name */
 		if (symbol)
@@ -602,7 +623,8 @@ static int create_trace_probe(int argc, char **argv)
 				 is_return ? 'r' : 'p', addr);
 		event = buf;
 	}
-	tp = alloc_trace_probe(event, addr, symbol, offset, argc, is_return);
+	tp = alloc_trace_probe(group, event, addr, symbol, offset, argc,
+			       is_return);
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
 
@@ -1217,7 +1239,6 @@ static int register_probe_event(struct trace_probe *tp)
 	int ret;
 
 	/* Initialize ftrace_event_call */
-	call->system = "kprobes";
 	if (probe_is_return(tp)) {
 		tp->event.trace = print_kretprobe_event;
 		call->raw_init = probe_event_raw_init;
