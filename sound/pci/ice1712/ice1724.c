@@ -560,6 +560,7 @@ static int snd_vt1724_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		spin_lock(&ice->reg_lock);
 		old = inb(ICEMT1724(ice, DMA_CONTROL));
 		if (cmd == SNDRV_PCM_TRIGGER_START)
@@ -568,6 +569,10 @@ static int snd_vt1724_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			old &= ~what;
 		outb(old, ICEMT1724(ice, DMA_CONTROL));
 		spin_unlock(&ice->reg_lock);
+		break;
+
+	case SNDRV_PCM_TRIGGER_RESUME:
+		/* apps will have to restart stream */
 		break;
 
 	default:
@@ -2262,7 +2267,7 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 
 
 
-static void __devinit snd_vt1724_chip_reset(struct snd_ice1712 *ice)
+static void snd_vt1724_chip_reset(struct snd_ice1712 *ice)
 {
 	outb(VT1724_RESET , ICEREG1724(ice, CONTROL));
 	inb(ICEREG1724(ice, CONTROL)); /* pci posting flush */
@@ -2272,7 +2277,7 @@ static void __devinit snd_vt1724_chip_reset(struct snd_ice1712 *ice)
 	msleep(10);
 }
 
-static int __devinit snd_vt1724_chip_init(struct snd_ice1712 *ice)
+static int snd_vt1724_chip_init(struct snd_ice1712 *ice)
 {
 	outb(ice->eeprom.data[ICE_EEP2_SYSCONF], ICEREG1724(ice, SYS_CFG));
 	outb(ice->eeprom.data[ICE_EEP2_ACLINK], ICEREG1724(ice, AC97_CFG));
@@ -2286,6 +2291,14 @@ static int __devinit snd_vt1724_chip_init(struct snd_ice1712 *ice)
 	snd_vt1724_set_gpio_data(ice, ice->eeprom.gpiostate);
 
 	outb(0, ICEREG1724(ice, POWERDOWN));
+
+	/* MPU_RX and TX irq masks are cleared later dynamically */
+	outb(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX , ICEREG1724(ice, IRQMASK));
+
+	/* don't handle FIFO overrun/underruns (just yet),
+	 * since they cause machine lockups
+	 */
+	outb(VT1724_MULTI_FIFO_ERR, ICEMT1724(ice, DMA_INT_MASK));
 
 	return 0;
 }
@@ -2431,6 +2444,8 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 	snd_vt1724_proc_init(ice);
 	synchronize_irq(pci->irq);
 
+	card->private_data = ice;
+
 	err = pci_request_regions(pci, "ICE1724");
 	if (err < 0) {
 		kfree(ice);
@@ -2458,14 +2473,6 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 		snd_vt1724_free(ice);
 		return -EIO;
 	}
-
-	/* MPU_RX and TX irq masks are cleared later dynamically */
-	outb(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX , ICEREG1724(ice, IRQMASK));
-
-	/* don't handle FIFO overrun/underruns (just yet),
-	 * since they cause machine lockups
-	 */
-	outb(VT1724_MULTI_FIFO_ERR, ICEMT1724(ice, DMA_INT_MASK));
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ice, &ops);
 	if (err < 0) {
@@ -2650,11 +2657,96 @@ static void __devexit snd_vt1724_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
+#ifdef CONFIG_PM
+static int snd_vt1724_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (!ice->pm_suspend_enabled)
+		return 0;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	snd_pcm_suspend_all(ice->pcm);
+	snd_pcm_suspend_all(ice->pcm_pro);
+	snd_pcm_suspend_all(ice->pcm_ds);
+	snd_ac97_suspend(ice->ac97);
+
+	spin_lock_irq(&ice->reg_lock);
+	ice->pm_saved_is_spdif_master = ice->is_spdif_master(ice);
+	ice->pm_saved_spdif_ctrl = inw(ICEMT1724(ice, SPDIF_CTRL));
+	ice->pm_saved_spdif_cfg = inb(ICEREG1724(ice, SPDIF_CFG));
+	ice->pm_saved_route = inl(ICEMT1724(ice, ROUTE_PLAYBACK));
+	spin_unlock_irq(&ice->reg_lock);
+
+	if (ice->pm_suspend)
+		ice->pm_suspend(ice);
+
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
+	return 0;
+}
+
+static int snd_vt1724_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (!ice->pm_suspend_enabled)
+		return 0;
+
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+
+	if (pci_enable_device(pci) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
+	pci_set_master(pci);
+
+	snd_vt1724_chip_reset(ice);
+
+	if (snd_vt1724_chip_init(ice) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
+	if (ice->pm_resume)
+		ice->pm_resume(ice);
+
+	if (ice->pm_saved_is_spdif_master) {
+		/* switching to external clock via SPDIF */
+		ice->set_spdif_clock(ice);
+	} else {
+		/* internal on-card clock */
+		snd_vt1724_set_pro_rate(ice, ice->pro_rate_default, 1);
+	}
+
+	update_spdif_bits(ice, ice->pm_saved_spdif_ctrl);
+
+	outb(ice->pm_saved_spdif_cfg, ICEREG1724(ice, SPDIF_CFG));
+	outl(ice->pm_saved_route, ICEMT1724(ice, ROUTE_PLAYBACK));
+
+	if (ice->ac97)
+		snd_ac97_resume(ice->ac97);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
 static struct pci_driver driver = {
 	.name = "ICE1724",
 	.id_table = snd_vt1724_ids,
 	.probe = snd_vt1724_probe,
 	.remove = __devexit_p(snd_vt1724_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_vt1724_suspend,
+	.resume = snd_vt1724_resume,
+#endif
 };
 
 static int __init alsa_card_ice1724_init(void)
