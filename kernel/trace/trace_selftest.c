@@ -828,7 +828,8 @@ trace_selftest_startup_ksym(struct tracer *trace, struct trace_array *tr)
 
 	ksym_selftest_dummy = 0;
 	/* Register the read-write tracing request */
-	ret = process_new_ksym_entry(KSYM_SELFTEST_ENTRY,
+
+	ret = process_new_ksym_entry("ksym_selftest_dummy",
 				     HW_BREAKPOINT_R | HW_BREAKPOINT_W,
 					(unsigned long)(&ksym_selftest_dummy));
 
