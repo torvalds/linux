@@ -4538,7 +4538,8 @@ static int ext4_inode_blocks_set(handle_t *handle,
  */
 static int ext4_do_update_inode(handle_t *handle,
 				struct inode *inode,
-				struct ext4_iloc *iloc)
+				struct ext4_iloc *iloc,
+				int do_sync)
 {
 	struct ext4_inode *raw_inode = ext4_raw_inode(iloc);
 	struct ext4_inode_info *ei = EXT4_I(inode);
@@ -4640,10 +4641,22 @@ static int ext4_do_update_inode(handle_t *handle,
 		raw_inode->i_extra_isize = cpu_to_le16(ei->i_extra_isize);
 	}
 
-	BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
-	rc = ext4_handle_dirty_metadata(handle, inode, bh);
-	if (!err)
-		err = rc;
+	/*
+	 * If we're not using a journal and we were called from
+	 * ext4_write_inode() to sync the inode (making do_sync true),
+	 * we can just use sync_dirty_buffer() directly to do our dirty
+	 * work.  Testing s_journal here is a bit redundant but it's
+	 * worth it to avoid potential future trouble.
+	 */
+	if (EXT4_SB(inode->i_sb)->s_journal == NULL && do_sync) {
+		BUFFER_TRACE(bh, "call sync_dirty_buffer");
+		sync_dirty_buffer(bh);
+	} else {
+		BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+		rc = ext4_handle_dirty_metadata(handle, inode, bh);
+		if (!err)
+			err = rc;
+	}
 	ei->i_state &= ~EXT4_STATE_NEW;
 
 out_brelse:
@@ -4689,19 +4702,32 @@ out_brelse:
  */
 int ext4_write_inode(struct inode *inode, int wait)
 {
+	int err;
+
 	if (current->flags & PF_MEMALLOC)
 		return 0;
 
-	if (ext4_journal_current_handle()) {
-		jbd_debug(1, "called recursively, non-PF_MEMALLOC!\n");
-		dump_stack();
-		return -EIO;
+	if (EXT4_SB(inode->i_sb)->s_journal) {
+		if (ext4_journal_current_handle()) {
+			jbd_debug(1, "called recursively, non-PF_MEMALLOC!\n");
+			dump_stack();
+			return -EIO;
+		}
+
+		if (!wait)
+			return 0;
+
+		err = ext4_force_commit(inode->i_sb);
+	} else {
+		struct ext4_iloc iloc;
+
+		err = ext4_get_inode_loc(inode, &iloc);
+		if (err)
+			return err;
+		err = ext4_do_update_inode(EXT4_NOJOURNAL_HANDLE,
+					   inode, &iloc, wait);
 	}
-
-	if (!wait)
-		return 0;
-
-	return ext4_force_commit(inode->i_sb);
+	return err;
 }
 
 /*
@@ -4995,7 +5021,7 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 	get_bh(iloc->bh);
 
 	/* ext4_do_update_inode() does jbd2_journal_dirty_metadata */
-	err = ext4_do_update_inode(handle, inode, iloc);
+	err = ext4_do_update_inode(handle, inode, iloc, 0);
 	put_bh(iloc->bh);
 	return err;
 }
