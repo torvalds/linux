@@ -928,8 +928,11 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 	blocks_per_page = PAGE_CACHE_SIZE / sb->s_blocksize;
 	this_grp = ext4_get_group_info(sb, group);
 	/*
-	 * This ensures we don't add group
-	 * to this buddy cache via resize
+	 * This ensures that we don't reinit the buddy cache
+	 * page which map to the group from which we are already
+	 * allocating. If we are looking at the buddy cache we would
+	 * have taken a reference using ext4_mb_load_buddy and that
+	 * would have taken the alloc_sem lock.
 	 */
 	num_grp_locked =  ext4_mb_get_buddy_cache_lock(sb, group);
 	if (!EXT4_MB_GRP_NEED_INIT(this_grp)) {
