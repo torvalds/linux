@@ -1244,8 +1244,8 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_free_io;
 
-	ret = request_irq(IRQ_NAND, pxa3xx_nand_irq, IRQF_DISABLED,
-				pdev->name, info);
+	ret = request_irq(irq, pxa3xx_nand_irq, IRQF_DISABLED,
+			  pdev->name, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto fail_free_buf;
@@ -1271,7 +1271,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	return add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
 
 fail_free_irq:
-	free_irq(IRQ_NAND, info);
+	free_irq(irq, info);
 fail_free_buf:
 	if (use_dma) {
 		pxa_free_dma(info->data_dma_ch);
@@ -1296,12 +1296,15 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct pxa3xx_nand_info *info = mtd->priv;
 	struct resource *r;
+	int irq;
 
 	platform_set_drvdata(pdev, NULL);
 
 	del_mtd_device(mtd);
 	del_mtd_partitions(mtd);
-	free_irq(IRQ_NAND, info);
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0)
+		free_irq(irq, info);
 	if (use_dma) {
 		pxa_free_dma(info->data_dma_ch);
 		dma_free_writecombine(&pdev->dev, info->data_buff_size,
