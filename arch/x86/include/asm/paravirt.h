@@ -24,16 +24,6 @@ static inline void load_sp0(struct tss_struct *tss,
 	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
 }
 
-static inline unsigned long get_wallclock(void)
-{
-	return PVOP_CALL0(unsigned long, pv_time_ops.get_wallclock);
-}
-
-static inline int set_wallclock(unsigned long nowtime)
-{
-	return PVOP_CALL1(int, pv_time_ops.set_wallclock, nowtime);
-}
-
 /* The paravirtualized CPUID instruction. */
 static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
 			   unsigned int *ecx, unsigned int *edx)

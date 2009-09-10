@@ -818,14 +818,14 @@ static inline int __init activate_vmi(void)
 		vmi_timer_ops.cancel_alarm =
 			 vmi_get_function(VMI_CALL_CancelAlarm);
 		x86_init.timers.timer_init = vmi_time_init;
-		pv_time_ops.get_wallclock = vmi_get_wallclock;
-		pv_time_ops.set_wallclock = vmi_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC
 		x86_init.timers.setup_percpu_clockev = vmi_time_bsp_init;
 		x86_cpuinit.setup_percpu_clockev = vmi_time_ap_init;
 #endif
 		pv_time_ops.sched_clock = vmi_sched_clock;
 		x86_platform.calibrate_tsc = vmi_tsc_khz;
+		x86_platform.get_wallclock = vmi_get_wallclock;
+		x86_platform.set_wallclock = vmi_set_wallclock;
 
 		/* We have true wallclock functions; disable CMOS clock sync */
 		no_sync_cmos_clock = 1;
