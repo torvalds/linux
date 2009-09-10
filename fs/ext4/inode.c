@@ -5286,12 +5286,21 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	else
 		len = PAGE_CACHE_SIZE;
 
+	lock_page(page);
+	/*
+	 * return if we have all the buffers mapped. This avoid
+	 * the need to call write_begin/write_end which does a
+	 * journal_start/journal_stop which can block and take
+	 * long time
+	 */
 	if (page_has_buffers(page)) {
-		/* return if we have all the buffers mapped */
 		if (!walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
-				       ext4_bh_unmapped))
+					ext4_bh_unmapped)) {
+			unlock_page(page);
 			goto out_unlock;
+		}
 	}
+	unlock_page(page);
 	/*
 	 * OK, we need to fill the hole... Do write_begin write_end
 	 * to do block allocation/reservation.We are not holding
