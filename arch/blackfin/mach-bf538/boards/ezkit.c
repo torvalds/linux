@@ -402,6 +402,11 @@ static struct resource bfin_spi2_resource[] = {
 	[1] = {
 		.start = CH_SPI2,
 		.end   = CH_SPI2,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI2,
+		.end   = IRQ_SPI2,
 		.flags = IORESOURCE_IRQ,
 	}
 };
