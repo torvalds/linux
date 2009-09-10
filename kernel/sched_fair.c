@@ -545,14 +545,13 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_set(se->wait_count, se->wait_count + 1);
 	schedstat_set(se->wait_sum, se->wait_sum +
 			rq_of(cfs_rq)->clock - se->wait_start);
-	schedstat_set(se->wait_start, 0);
-
 #ifdef CONFIG_SCHEDSTATS
 	if (entity_is_task(se)) {
 		trace_sched_stat_wait(task_of(se),
 			rq_of(cfs_rq)->clock - se->wait_start);
 	}
 #endif
+	schedstat_set(se->wait_start, 0);
 }
 
 static inline void
