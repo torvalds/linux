@@ -919,7 +919,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 		return -EIO;
 	}
 
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
+	if (!ath9k_hw_setpower_nolock(ah, ATH9K_PM_AWAKE)) {
 		DPRINTF(ah, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
 		return -EIO;
 	}
@@ -1234,7 +1234,7 @@ void ath9k_hw_detach(struct ath_hw *ah)
 		ath9k_hw_ani_disable(ah);
 
 	ath9k_hw_rf_free(ah);
-	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_hw_setpower_nolock(ah, ATH9K_PM_FULL_SLEEP);
 	kfree(ah);
 	ah = NULL;
 }
@@ -1800,7 +1800,7 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 	} else if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
 		return false;
 
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
+	if (!ath9k_hw_setpower_nolock(ah, ATH9K_PM_AWAKE))
 		return false;
 
 	ah->chip_fullsleep = false;
@@ -2355,7 +2355,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ah->txchainmask = sc->tx_chainmask;
 	ah->rxchainmask = sc->rx_chainmask;
 
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
+	if (!ath9k_hw_setpower_nolock(ah, ATH9K_PM_AWAKE))
 		return -EIO;
 
 	if (curchan && !ah->chip_fullsleep)
@@ -3998,7 +3998,7 @@ bool ath9k_hw_phy_disable(struct ath_hw *ah)
 
 bool ath9k_hw_disable(struct ath_hw *ah)
 {
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
+	if (!ath9k_hw_setpower_nolock(ah, ATH9K_PM_AWAKE))
 		return false;
 
 	return ath9k_hw_set_reset_reg(ah, ATH9K_RESET_COLD);
