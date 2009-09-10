@@ -815,7 +815,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 
 	SET_IEEE80211_PERM_ADDR(hw, mac);
 	/* All MAC address bits matter for ACKs */
-	memset(sc->bssidmask, 0xff, ETH_ALEN);
+	memcpy(sc->bssidmask, ath_bcast_mac, ETH_ALEN);
 	ath5k_hw_set_bssid_mask(sc->ah, sc->bssidmask);
 
 	regulatory->current_rd = ah->ah_capabilities.cap_eeprom.ee_regdomain;

@@ -365,7 +365,7 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
  * assuming only 4 bits for a mac address and for BSSIDs you can then have:
  *
  *                  \
- * MAC:                0001 |
+ * MAC:        0001 |
  * BSSID-01:   0100 | --> Belongs to us
  * BSSID-02:   1001 |
  *                  /

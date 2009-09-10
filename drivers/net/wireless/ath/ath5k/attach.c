@@ -336,7 +336,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	ath5k_hw_set_lladdr(ah, (u8[ETH_ALEN]){});
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
-	memset(ah->ah_bssid, 0xff, ETH_ALEN);
+	memcpy(ah->ah_bssid, ath_bcast_mac, ETH_ALEN);
 	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
 	ath5k_hw_set_opmode(ah);
 

@@ -60,8 +60,6 @@ struct ath_node;
 
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->tx.txqsetup & (1<<i))
 
-static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 struct ath_config {
 	u32 ath_aggr_prot;
 	u16 txpowlimit;
