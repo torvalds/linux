@@ -44,7 +44,7 @@ int __ext4_journal_forget(const char *where, handle_t *handle,
 						  handle, err);
 	}
 	else
-		brelse(bh);
+		bforget(bh);
 	return err;
 }
 
@@ -60,7 +60,7 @@ int __ext4_journal_revoke(const char *where, handle_t *handle,
 						  handle, err);
 	}
 	else
-		brelse(bh);
+		bforget(bh);
 	return err;
 }
 
