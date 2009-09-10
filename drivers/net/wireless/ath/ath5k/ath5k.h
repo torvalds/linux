@@ -1060,14 +1060,6 @@ struct ath5k_hw {
 	u8			ah_def_ant;
 	bool			ah_software_retry;
 
-	u8			ah_sta_id[ETH_ALEN];
-
-	/* Current BSSID we are trying to assoc to / create.
-	 * This is passed by mac80211 on config_interface() and cached here for
-	 * use in resets */
-	u8			ah_bssid[ETH_ALEN];
-	u8			ah_bssid_mask[ETH_ALEN];
-
 	int			ah_gpio_npins;
 
 	struct ath5k_capabilities ah_capabilities;
@@ -1196,7 +1188,6 @@ extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 /* Protocol Control Unit Functions */
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
 /* BSSID Functions */
-extern void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac);
 extern int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
 extern void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id);
 extern int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);

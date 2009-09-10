@@ -104,6 +104,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah;
+	struct ath_common *common;
 	struct pci_dev *pdev = sc->pdev;
 	struct ath5k_eeprom_info *ee;
 	int ret;
@@ -118,7 +119,9 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	}
 
 	ah->ah_sc = sc;
+	ah->ah_sc->ah = ah;
 	ah->ah_iobase = sc->iobase;
+	common = ath5k_hw_common(ah);
 
 	/*
 	 * HW information
@@ -336,8 +339,8 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	ath5k_hw_set_lladdr(ah, (u8[ETH_ALEN]){});
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
-	memcpy(ah->ah_bssid, ath_bcast_mac, ETH_ALEN);
-	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
+	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
+	ath5k_hw_set_associd(ah, common->curbssid, 0);
 	ath5k_hw_set_opmode(ah);
 
 	ath5k_hw_rfgain_opt_init(ah);

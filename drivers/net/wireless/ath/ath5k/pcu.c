@@ -46,6 +46,7 @@
  */
 int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 pcu_reg, beacon_reg, low_id, high_id;
 
 
@@ -97,8 +98,8 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 	/*
 	 * Set PCU registers
 	 */
-	low_id = get_unaligned_le32(ah->ah_sta_id);
-	high_id = get_unaligned_le16(ah->ah_sta_id + 4);
+	low_id = get_unaligned_le32(common->macaddr);
+	high_id = get_unaligned_le16(common->macaddr + 4);
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
 	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
 
@@ -240,28 +241,6 @@ int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
 	return 0;
 }
 
-
-/****************\
-* BSSID handling *
-\****************/
-
-/**
- * ath5k_hw_get_lladdr - Get station id
- *
- * @ah: The &struct ath5k_hw
- * @mac: The card's mac address
- *
- * Initialize ah->ah_sta_id using the mac address provided
- * (just a memcpy).
- *
- * TODO: Remove it once we merge ath5k_softc and ath5k_hw
- */
-void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
-{
-	ATH5K_TRACE(ah->ah_sc);
-	memcpy(mac, ah->ah_sta_id, ETH_ALEN);
-}
-
 /**
  * ath5k_hw_set_lladdr - Set station id
  *
@@ -272,12 +251,13 @@ void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
  */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 low_id, high_id;
 	u32 pcu_reg;
 
 	ATH5K_TRACE(ah->ah_sc);
 	/* Set new station ID */
-	memcpy(ah->ah_sta_id, mac, ETH_ALEN);
+	memcpy(common->macaddr, mac, ETH_ALEN);
 
 	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
 
@@ -301,6 +281,7 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
  */
 void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 low_id, high_id;
 	u16 tim_offset = 0;
 
@@ -308,10 +289,10 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	 * Set simple BSSID mask on 5212
 	 */
 	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, get_unaligned_le32(ah->ah_bssid_mask),
+		ath5k_hw_reg_write(ah, get_unaligned_le32(common->bssidmask),
 							AR5K_BSS_IDM0);
 		ath5k_hw_reg_write(ah,
-				   get_unaligned_le16(ah->ah_bssid_mask + 4),
+				   get_unaligned_le16(common->curbssid + 4),
 				   AR5K_BSS_IDM1);
 	}
 
@@ -433,12 +414,13 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
  */
 int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 low_id, high_id;
 	ATH5K_TRACE(ah->ah_sc);
 
 	/* Cache bssid mask so that we can restore it
 	 * on reset */
-	memcpy(ah->ah_bssid_mask, mask, ETH_ALEN);
+	memcpy(common->bssidmask, mask, ETH_ALEN);
 	if (ah->ah_version == AR5K_AR5212) {
 		low_id = get_unaligned_le32(mask);
 		high_id = get_unaligned_le16(mask + 4);

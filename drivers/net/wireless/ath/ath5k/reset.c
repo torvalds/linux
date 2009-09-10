@@ -872,6 +872,7 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	struct ieee80211_channel *channel, bool change_channel)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 s_seq[10], s_ant, s_led[3], staid1_flags, tsf_up, tsf_lo;
 	u32 phy_tst1;
 	u8 mode, freq, ee_mode, ant[2];
@@ -1173,10 +1174,12 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_reg_write(ah, s_led[2], AR5K_GPIODO);
 
 	/* Restore sta_id flags and preserve our mac address*/
-	ath5k_hw_reg_write(ah, get_unaligned_le32(ah->ah_sta_id),
-						AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah, staid1_flags | get_unaligned_le16(ah->ah_sta_id),
-						AR5K_STA_ID1);
+	ath5k_hw_reg_write(ah,
+			   get_unaligned_le32(common->macaddr),
+			   AR5K_STA_ID0);
+	ath5k_hw_reg_write(ah,
+			   staid1_flags | get_unaligned_le16(common->macaddr),
+			   AR5K_STA_ID1);
 
 
 	/*
@@ -1185,7 +1188,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 	/* Restore bssid and bssid mask */
 	/* XXX: add ah->aid once mac80211 gives this to us */
-	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
+	ath5k_hw_set_associd(ah, common->curbssid, 0);
 
 	/* Set PCU config */
 	ath5k_hw_set_opmode(ah);
