@@ -60,6 +60,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     slots	- Reserve the slot index for the given driver.
 		  This option takes multiple strings.		
 		  See "Module Autoloading Support" section for details.
+    debug	- Specifies the debug message level
+		  (0 = disable debug prints, 1 = normal debug messages,
+		   2 = verbose debug messages)
+		  This option appears only when CONFIG_SND_DEBUG=y.
+		  This option can be dynamically changed via sysfs
+		  /sys/modules/snd/parameters/debug file.
   
   Module snd-pcm-oss
   ------------------
