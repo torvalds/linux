@@ -27,6 +27,7 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
+#include <acpi/button.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include "drmP.h"
@@ -632,6 +633,19 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
+			    void *unused)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(nb, struct drm_i915_private, lid_notifier);
+	struct drm_device *dev = dev_priv->dev;
+
+	if (acpi_lid_open())
+		drm_helper_resume_force_mode(dev);
+
+	return NOTIFY_OK;
+}
+
 /**
  * intel_lvds_destroy - unregister and free LVDS structures
  * @connector: connector to free
@@ -641,10 +655,14 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
  */
 static void intel_lvds_destroy(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	struct intel_output *intel_output = to_intel_output(connector);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
+	if (dev_priv->lid_notifier.notifier_call)
+		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -1010,6 +1028,11 @@ out:
 		pwm = I915_READ(BLC_PWM_PCH_CTL1);
 		pwm |= PWM_PCH_ENABLE;
 		I915_WRITE(BLC_PWM_PCH_CTL1, pwm);
+	}
+	dev_priv->lid_notifier.notifier_call = intel_lid_notify;
+	if (acpi_lid_notifier_register(&dev_priv->lid_notifier)) {
+		DRM_DEBUG("lid notifier registration failed\n");
+		dev_priv->lid_notifier.notifier_call = NULL;
 	}
 	drm_sysfs_connector_add(connector);
 	return;

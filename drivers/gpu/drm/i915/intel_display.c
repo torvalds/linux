@@ -24,6 +24,8 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/module.h>
+#include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include "drmP.h"

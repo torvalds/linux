@@ -222,6 +222,8 @@ typedef struct drm_i915_private {
 	unsigned int edp_support:1;
 	int lvds_ssc_freq;
 
+	struct notifier_block lid_notifier;
+
 	int crt_ddc_bus; /* -1 = unknown, else GPIO to use for CRT DDC */
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
