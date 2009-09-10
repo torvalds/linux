@@ -256,6 +256,27 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_delegation *dp,
 	hdr->nops++;
 }
 
+static void
+encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *args,
+		   struct nfs4_cb_compound_hdr *hdr)
+{
+	__be32 *p;
+
+	if (hdr->minorversion == 0)
+		return;
+
+	RESERVE_SPACE(1 + NFS4_MAX_SESSIONID_LEN + 20);
+
+	WRITE32(OP_CB_SEQUENCE);
+	WRITEMEM(args->cbs_clp->cl_sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	WRITE32(args->cbs_clp->cl_cb_seq_nr);
+	WRITE32(0);		/* slotid, always 0 */
+	WRITE32(0);		/* highest slotid always 0 */
+	WRITE32(0);		/* cachethis always 0 */
+	WRITE32(0); /* FIXME: support referring_call_lists */
+	hdr->nops++;
+}
+
 static int
 nfs4_xdr_enc_cb_null(struct rpc_rqst *req, __be32 *p)
 {
@@ -316,6 +337,57 @@ decode_cb_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 		return -nfs_cb_stat_to_errno(nfserr);
 	return 0;
 }
+
+/*
+ * Our current back channel implmentation supports a single backchannel
+ * with a single slot.
+ */
+static int
+decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *res,
+		   struct rpc_rqst *rqstp)
+{
+	struct nfs4_sessionid id;
+	int status;
+	u32 dummy;
+	__be32 *p;
+
+	if (res->cbs_minorversion == 0)
+		return 0;
+
+	status = decode_cb_op_hdr(xdr, OP_CB_SEQUENCE);
+	if (status)
+		return status;
+
+	/*
+	 * If the server returns different values for sessionID, slotID or
+	 * sequence number, the server is looney tunes.
+	 */
+	status = -ESERVERFAULT;
+
+	READ_BUF(NFS4_MAX_SESSIONID_LEN + 16);
+	memcpy(id.data, p, NFS4_MAX_SESSIONID_LEN);
+	p += XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN);
+	if (memcmp(id.data, res->cbs_clp->cl_sessionid.data,
+		   NFS4_MAX_SESSIONID_LEN)) {
+		dprintk("%s Invalid session id\n", __func__);
+		goto out;
+	}
+	READ32(dummy);
+	if (dummy != res->cbs_clp->cl_cb_seq_nr) {
+		dprintk("%s Invalid sequence number\n", __func__);
+		goto out;
+	}
+	READ32(dummy); 	/* slotid must be 0 */
+	if (dummy != 0) {
+		dprintk("%s Invalid slotid\n", __func__);
+		goto out;
+	}
+	/* FIXME: process highest slotid and target highest slotid */
+	status = 0;
+out:
+	return status;
+}
+
 
 static int
 nfs4_xdr_dec_cb_null(struct rpc_rqst *req, __be32 *p)
