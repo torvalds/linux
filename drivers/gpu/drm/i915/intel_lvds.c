@@ -649,6 +649,8 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	if (acpi_lid_open())
 		drm_helper_resume_force_mode(dev);
 
+	drm_sysfs_hotplug_event(dev_priv->dev);
+
 	return NOTIFY_OK;
 }
 
