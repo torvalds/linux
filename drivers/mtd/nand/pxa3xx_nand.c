@@ -85,10 +85,6 @@
 #define NDCB0_CMD1_MASK		(0xff)
 #define NDCB0_ADDR_CYC_SHIFT	(16)
 
-/* dma-able I/O address for the NAND data and commands */
-#define NDCB0_DMA_ADDR		(0x43100048)
-#define NDDB_DMA_ADDR		(0x43100040)
-
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
 	__raw_writel((val), (info)->mmio_base + (off))
@@ -124,6 +120,7 @@ struct pxa3xx_nand_info {
 
 	struct clk		*clk;
 	void __iomem		*mmio_base;
+	unsigned long		mmio_phys;
 
 	unsigned int 		buf_start;
 	unsigned int		buf_count;
@@ -524,11 +521,11 @@ static void start_data_dma(struct pxa3xx_nand_info *info, int dir_out)
 
 	if (dir_out) {
 		desc->dsadr = info->data_buff_phys;
-		desc->dtadr = NDDB_DMA_ADDR;
+		desc->dtadr = info->mmio_phys + NDDB;
 		desc->dcmd |= DCMD_INCSRCADDR | DCMD_FLOWTRG;
 	} else {
 		desc->dtadr = info->data_buff_phys;
-		desc->dsadr = NDDB_DMA_ADDR;
+		desc->dsadr = info->mmio_phys + NDDB;
 		desc->dcmd |= DCMD_INCTRGADDR | DCMD_FLOWSRC;
 	}
 
@@ -1241,6 +1238,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto fail_free_res;
 	}
+	info->mmio_phys = r->start;
 
 	ret = pxa3xx_nand_init_buff(info);
 	if (ret)
