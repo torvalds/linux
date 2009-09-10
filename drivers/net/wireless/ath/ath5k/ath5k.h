@@ -35,6 +35,7 @@
  * TODO: Make a more generic struct (eg. add more stuff to ath5k_capabilities)
  * and clean up common bits, then introduce set/get functions in eeprom.c */
 #include "eeprom.h"
+#include "../ath.h"
 
 /* PCI IDs */
 #define PCI_DEVICE_ID_ATHEROS_AR5210 		0x0007 /* AR5210 */
@@ -1020,6 +1021,7 @@ struct ath5k_capabilities {
 /* TODO: Clean up and merge with ath5k_softc */
 struct ath5k_hw {
 	u32			ah_magic;
+	struct ath_common       common;
 
 	struct ath5k_softc	*ah_sc;
 	void __iomem		*ah_iobase;

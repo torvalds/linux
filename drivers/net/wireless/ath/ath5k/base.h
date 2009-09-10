@@ -115,7 +115,6 @@ struct ath5k_rfkill {
  * associated with an instance of a device */
 struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
-	struct ath_common	common;
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
 	struct ieee80211_tx_queue_stats tx_stats[AR5K_NUM_TX_QUEUES];
@@ -204,7 +203,7 @@ struct ath5k_softc {
 
 static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
 {
-	return &ah->ah_sc->common;
+	return &ah->common;
 }
 
 static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)

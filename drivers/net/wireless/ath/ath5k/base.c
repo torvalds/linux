@@ -444,6 +444,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 {
 	void __iomem *mem;
 	struct ath5k_softc *sc;
+	struct ath_common *common;
 	struct ieee80211_hw *hw;
 	int ret;
 	u8 csz;
@@ -547,7 +548,6 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	__set_bit(ATH_STAT_INVALID, sc->status);
 
 	sc->iobase = mem; /* So we can unmap it on detach */
-	sc->common.cachelsz = csz << 2; /* convert to bytes */
 	sc->opmode = NL80211_IFTYPE_STATION;
 	sc->bintval = 1000;
 	mutex_init(&sc->lock);
@@ -571,6 +571,9 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		ret = PTR_ERR(sc->ah);
 		goto err_irq;
 	}
+
+	common = ath5k_hw_common(sc->ah);
+	common->cachelsz = csz << 2; /* convert to bytes */
 
 	/* set up multi-rate retry capabilities */
 	if (sc->ah->ah_version == AR5K_AR5212) {
@@ -718,7 +721,7 @@ static int ath5k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *re
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath5k_softc *sc = hw->priv;
-	struct ath_regulatory *regulatory = &sc->common.regulatory;
+	struct ath_regulatory *regulatory = ath5k_hw_regulatory(sc->ah);
 
 	return ath_reg_notifier_apply(wiphy, request, regulatory);
 }
@@ -728,7 +731,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
-	struct ath_regulatory *regulatory = &sc->common.regulatory;
+	struct ath_regulatory *regulatory = ath5k_hw_regulatory(ah);
 	u8 mac[ETH_ALEN] = {};
 	int ret;
 
@@ -1153,19 +1156,20 @@ ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix)
 static
 struct sk_buff *ath5k_rx_skb_alloc(struct ath5k_softc *sc, dma_addr_t *skb_addr)
 {
+	struct ath_common *common = ath5k_hw_common(sc->ah);
 	struct sk_buff *skb;
 
 	/*
 	 * Allocate buffer with headroom_needed space for the
 	 * fake physical layer header at the start.
 	 */
-	skb = ath_rxbuf_alloc(&sc->common,
-			      sc->rxbufsize + sc->common.cachelsz - 1,
+	skb = ath_rxbuf_alloc(common,
+			      sc->rxbufsize + common->cachelsz - 1,
 			      GFP_ATOMIC);
 
 	if (!skb) {
 		ATH5K_ERR(sc, "can't alloc skbuff of size %u\n",
-				sc->rxbufsize + sc->common.cachelsz - 1);
+				sc->rxbufsize + common->cachelsz - 1);
 		return NULL;
 	}
 
@@ -1606,13 +1610,14 @@ static int
 ath5k_rx_start(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct ath5k_buf *bf;
 	int ret;
 
-	sc->rxbufsize = roundup(IEEE80211_MAX_LEN, sc->common.cachelsz);
+	sc->rxbufsize = roundup(IEEE80211_MAX_LEN, common->cachelsz);
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rxbufsize %u\n",
-		sc->common.cachelsz, sc->rxbufsize);
+		common->cachelsz, sc->rxbufsize);
 
 	spin_lock_bh(&sc->rxbuflock);
 	sc->rxlink = NULL;
