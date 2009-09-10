@@ -1872,7 +1872,7 @@ void intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
 		if (sdvo_priv->hue_property)
 			drm_property_destroy(dev, sdvo_priv->hue_property);
 	}
-	if (sdvo_priv->is_tv) {
+	if (sdvo_priv->is_tv || sdvo_priv->is_lvds) {
 		if (sdvo_priv->brightness_property)
 			drm_property_destroy(dev,
 					sdvo_priv->brightness_property);
@@ -1900,7 +1900,7 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 		drm_property_destroy(connector->dev,
 				     sdvo_priv->tv_format_property);
 
-	if (sdvo_priv->is_tv)
+	if (sdvo_priv->is_tv || sdvo_priv->is_lvds)
 		intel_sdvo_destroy_enhance_property(connector);
 
 	drm_sysfs_connector_remove(connector);
@@ -1940,7 +1940,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		changed = true;
 	}
 
-	if (sdvo_priv->is_tv) {
+	if (sdvo_priv->is_tv || sdvo_priv->is_lvds) {
 		cmd = 0;
 		temp_value = val;
 		if (sdvo_priv->left_property == property) {
@@ -2627,7 +2627,7 @@ static void intel_sdvo_create_enhance_property(struct drm_connector *connector)
 					data_value[0], data_value[1], response);
 		}
 	}
-	if (sdvo_priv->is_tv) {
+	if (sdvo_priv->is_tv || sdvo_priv->is_lvds) {
 		if (sdvo_data.brightness) {
 			intel_sdvo_write_cmd(intel_output,
 				SDVO_CMD_GET_MAX_BRIGHTNESS, NULL, 0);
@@ -2750,10 +2750,12 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	drm_encoder_helper_add(&intel_output->enc, &intel_sdvo_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
-	if (sdvo_priv->is_tv) {
+	if (sdvo_priv->is_tv)
 		intel_sdvo_tv_create_property(connector);
+
+	if (sdvo_priv->is_tv || sdvo_priv->is_lvds)
 		intel_sdvo_create_enhance_property(connector);
-	}
+
 	drm_sysfs_connector_add(connector);
 
 	intel_sdvo_select_ddc_bus(sdvo_priv);
