@@ -243,14 +243,14 @@ static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
 	return channel;
 }
 
-static bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
+static bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 {
 	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&ah->ah_sc->sc_pm_lock, flags);
-	ret = ath9k_hw_setpower_nolock(ah, mode);
-	spin_unlock_irqrestore(&ah->ah_sc->sc_pm_lock, flags);
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	ret = ath9k_hw_setpower(sc->sc_ah, mode);
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 	return ret;
 }
@@ -263,7 +263,7 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	if (++sc->ps_usecount != 1)
 		goto unlock;
 
-	ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_AWAKE);
+	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
@@ -282,7 +282,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 			      SC_OP_WAIT_FOR_CAB |
 			      SC_OP_WAIT_FOR_PSPOLL_DATA |
 			      SC_OP_WAIT_FOR_TX_ACK)))
-		ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
@@ -652,7 +652,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		if (status & ATH9K_INT_TIM_TIMER) {
 			/* Clear RxAbort bit so that we can
 			 * receive frames */
-			ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
+			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			ath9k_hw_setrxabort(sc->sc_ah, 0);
 			sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
 		}
@@ -1254,7 +1254,7 @@ void ath_radio_disable(struct ath_softc *sc)
 	ath9k_hw_phy_disable(ah);
 	ath9k_hw_configpcipowersave(ah, 1, 1);
 	ath9k_ps_restore(sc);
-	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_setpower(sc, ATH9K_PM_FULL_SLEEP);
 }
 
 /*******************/
@@ -1324,7 +1324,7 @@ void ath_detach(struct ath_softc *sc)
 	tasklet_kill(&sc->bcon_tasklet);
 
 	if (!(sc->sc_flags & SC_OP_INVALID))
-		ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
+		ath9k_setpower(sc, ATH9K_PM_AWAKE);
 
 	/* cleanup tx queues */
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
@@ -2409,7 +2409,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(ah);
 	ath9k_hw_configpcipowersave(ah, 1, 1);
-	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_setpower(sc, ATH9K_PM_FULL_SLEEP);
 
 	sc->sc_flags |= SC_OP_INVALID;
 
@@ -2581,7 +2581,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			sc->ps_enabled = true;
 		} else {
 			sc->ps_enabled = false;
-			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				ath9k_hw_setrxabort(sc->sc_ah, 0);
