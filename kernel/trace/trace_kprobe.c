@@ -902,10 +902,13 @@ print_kprobe_event(struct trace_iterator *iter, int flags)
 	event = ftrace_find_event(field->ent.type);
 	tp = container_of(event, struct trace_probe, event);
 
+	if (!trace_seq_printf(s, "%s: (", tp->call.name))
+		goto partial;
+
 	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
 		goto partial;
 
-	if (!trace_seq_puts(s, ":"))
+	if (!trace_seq_puts(s, ")"))
 		goto partial;
 
 	for (i = 0; i < field->nargs; i++)
@@ -934,6 +937,9 @@ print_kretprobe_event(struct trace_iterator *iter, int flags)
 	event = ftrace_find_event(field->ent.type);
 	tp = container_of(event, struct trace_probe, event);
 
+	if (!trace_seq_printf(s, "%s: (", tp->call.name))
+		goto partial;
+
 	if (!seq_print_ip_sym(s, field->ret_ip, flags | TRACE_ITER_SYM_OFFSET))
 		goto partial;
 
@@ -943,7 +949,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags)
 	if (!seq_print_ip_sym(s, field->func, flags & ~TRACE_ITER_SYM_OFFSET))
 		goto partial;
 
-	if (!trace_seq_puts(s, ":"))
+	if (!trace_seq_puts(s, ")"))
 		goto partial;
 
 	for (i = 0; i < field->nargs; i++)
@@ -1087,7 +1093,7 @@ static int kprobe_event_show_format(struct ftrace_event_call *call,
 		SHOW_FIELD(unsigned long, args[i], tp->args[i].name);
 	trace_seq_puts(s, "\n");
 
-	return __probe_event_show_format(s, tp, "%lx:", "ip");
+	return __probe_event_show_format(s, tp, "(%lx)", "REC->ip");
 }
 
 static int kretprobe_event_show_format(struct ftrace_event_call *call,
@@ -1106,8 +1112,8 @@ static int kretprobe_event_show_format(struct ftrace_event_call *call,
 		SHOW_FIELD(unsigned long, args[i], tp->args[i].name);
 	trace_seq_puts(s, "\n");
 
-	return __probe_event_show_format(s, tp, "%lx <- %lx:",
-					  "func, ret_ip");
+	return __probe_event_show_format(s, tp, "(%lx <- %lx)",
+					  "REC->func, REC->ret_ip");
 }
 
 #ifdef CONFIG_EVENT_PROFILE
