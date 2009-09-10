@@ -102,6 +102,32 @@ static const struct sparc_pmu ultra3i_pmu = {
 	.lower_nop	= 0x14,
 };
 
+static const struct perf_event_map niagara2_perfmon_event_map[] = {
+	[PERF_COUNT_HW_CPU_CYCLES] = { 0x02ff, PIC_UPPER | PIC_LOWER },
+	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x02ff, PIC_UPPER | PIC_LOWER },
+	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0x0208, PIC_UPPER | PIC_LOWER },
+	[PERF_COUNT_HW_CACHE_MISSES] = { 0x0302, PIC_UPPER | PIC_LOWER },
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = { 0x0201, PIC_UPPER | PIC_LOWER },
+	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x0202, PIC_UPPER | PIC_LOWER },
+};
+
+static const struct perf_event_map *niagara2_event_map(int event)
+{
+	return &niagara2_perfmon_event_map[event];
+}
+
+static const struct sparc_pmu niagara2_pmu = {
+	.event_map	= niagara2_event_map,
+	.max_events	= ARRAY_SIZE(niagara2_perfmon_event_map),
+	.upper_shift	= 19,
+	.lower_shift	= 6,
+	.event_mask	= 0xfff,
+	.hv_bit		= 0x8,
+	.irq_bit	= 0x03,
+	.upper_nop	= 0x220,
+	.lower_nop	= 0x220,
+};
+
 static const struct sparc_pmu *sparc_pmu __read_mostly;
 
 static u64 event_encoding(u64 event, int idx)
@@ -502,6 +528,10 @@ static bool __init supported_pmu(void)
 {
 	if (!strcmp(sparc_pmu_type, "ultra3i")) {
 		sparc_pmu = &ultra3i_pmu;
+		return true;
+	}
+	if (!strcmp(sparc_pmu_type, "niagara2")) {
+		sparc_pmu = &niagara2_pmu;
 		return true;
 	}
 	return false;
