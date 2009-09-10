@@ -1806,7 +1806,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 
 		lock_kernel();
 		len = mxser_chars_in_buffer(tty);
-		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT;
+		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_THRE;
 		len += (lsr ? 0 : 1);
 		unlock_kernel();
 
