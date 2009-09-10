@@ -118,7 +118,8 @@ struct pxafb_mach_info {
 	u_int		fixed_modes:1,
 			cmap_inverse:1,
 			cmap_static:1,
-			unused:29;
+			acceleration_enabled:1,
+			unused:28;
 
 	/* The following should be defined in LCCR0
 	 *      LCCR0_Act or LCCR0_Pas          Active or Passive

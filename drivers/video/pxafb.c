@@ -2083,6 +2083,9 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		goto failed;
 	}
 
+	if (cpu_is_pxa3xx() && inf->acceleration_enabled)
+		fbi->fb.fix.accel = FB_ACCEL_PXA3XX;
+
 	fbi->backlight_power = inf->pxafb_backlight_power;
 	fbi->lcd_power = inf->pxafb_lcd_power;
 
