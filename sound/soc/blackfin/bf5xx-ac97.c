@@ -277,28 +277,24 @@ static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 	if (!dai->active)
 		return 0;
 
-	ret = sport_set_multichannel(sport_handle, 16, 0x1F, 1);
+	ret = sport_set_multichannel(sport, 16, 0x1F, 1);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_rx(sport_handle, IRFS, 0xF, 0, (16*16-1));
+	ret = sport_config_rx(sport, IRFS, 0xF, 0, (16*16-1));
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_tx(sport_handle, ITFS, 0xF, 0, (16*16-1));
+	ret = sport_config_tx(sport, ITFS, 0xF, 0, (16*16-1));
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	if (dai->capture.active)
-		sport_rx_start(sport);
-	if (dai->playback.active)
-		sport_tx_start(sport);
 	return 0;
 }
 
