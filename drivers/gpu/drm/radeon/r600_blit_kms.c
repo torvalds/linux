@@ -550,6 +550,12 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	int r;
 	int ring_size;
 	int max_size;
+	/* loops of emits 64 + fence emit possible */
+	int dwords_per_loop = 76;
+
+	/* set_render_target emits 2 extra dwords on rv6xx */
+	if (rdev->family > CHIP_R600 && rdev->family < CHIP_RV770)
+		dwords_per_loop += 2;
 
 	/* 8 bpp vs 32 bpp for xfer unit */
 	if (size_bytes & 3)
@@ -560,8 +566,7 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	r = r600_vb_ib_get(rdev);
 	WARN_ON(r);
 
-	/* loops of emits 64 + fence emit possible */
-	ring_size = ((size_bytes + max_size) / max_size) * 78;
+	ring_size = ((size_bytes + max_size) / max_size) * dwords_per_loop;
 	/* set default  + shaders */
 	ring_size += 40; /* shaders + def state */
 	ring_size += 3; /* fence emit for VB IB */
