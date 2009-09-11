@@ -123,7 +123,10 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
 	end_of_last_block = start_pos + num_bytes - 1;
-	btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	if (err)
+		return err;
+
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
 		SetPageUptodate(p);
@@ -927,6 +930,11 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	err = file_remove_suid(file);
 	if (err)
 		goto out_nolock;
+
+	err = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
+	if (err)
+		goto out_nolock;
+
 	file_update_time(file);
 
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
@@ -1028,6 +1036,7 @@ out:
 	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		err = ret;
+	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 
 out_nolock:
 	kfree(pages);

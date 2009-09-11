@@ -68,6 +68,8 @@ static int pin_down_bytes(struct btrfs_trans_handle *trans,
 			  struct extent_buffer **must_clean);
 static int find_next_key(struct btrfs_path *path, int level,
 			 struct btrfs_key *key);
+static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
+			    int dump_block_groups);
 
 static noinline int
 block_group_cache_done(struct btrfs_block_group_cache *cache)
@@ -2764,67 +2766,346 @@ void btrfs_set_inode_space_info(struct btrfs_root *root, struct inode *inode)
 						       alloc_target);
 }
 
+static u64 calculate_bytes_needed(struct btrfs_root *root, int num_items)
+{
+	u64 num_bytes;
+	int level;
+
+	level = BTRFS_MAX_LEVEL - 2;
+	/*
+	 * NOTE: these calculations are absolutely the worst possible case.
+	 * This assumes that _every_ item we insert will require a new leaf, and
+	 * that the tree has grown to its maximum level size.
+	 */
+
+	/*
+	 * for every item we insert we could insert both an extent item and a
+	 * extent ref item.  Then for ever item we insert, we will need to cow
+	 * both the original leaf, plus the leaf to the left and right of it.
+	 *
+	 * Unless we are talking about the extent root, then we just want the
+	 * number of items * 2, since we just need the extent item plus its ref.
+	 */
+	if (root == root->fs_info->extent_root)
+		num_bytes = num_items * 2;
+	else
+		num_bytes = (num_items + (2 * num_items)) * 3;
+
+	/*
+	 * num_bytes is total number of leaves we could need times the leaf
+	 * size, and then for every leaf we could end up cow'ing 2 nodes per
+	 * level, down to the leaf level.
+	 */
+	num_bytes = (num_bytes * root->leafsize) +
+		(num_bytes * (level * 2)) * root->nodesize;
+
+	return num_bytes;
+}
+
 /*
- * for now this just makes sure we have at least 5% of our metadata space free
- * for use.
+ * Unreserve metadata space for delalloc.  If we have less reserved credits than
+ * we have extents, this function does nothing.
  */
-int btrfs_check_metadata_free_space(struct btrfs_root *root)
+int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
+					  struct inode *inode, int num_items)
 {
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_space_info *meta_sinfo;
-	u64 alloc_target, thresh;
-	int committed = 0, ret;
+	u64 num_bytes;
+	u64 alloc_target;
+	bool bug = false;
 
 	/* get the space info for where the metadata will live */
 	alloc_target = btrfs_get_alloc_profile(root, 0);
 	meta_sinfo = __find_space_info(info, alloc_target);
-	if (!meta_sinfo)
-		goto alloc;
 
+	num_bytes = calculate_bytes_needed(root->fs_info->extent_root,
+					   num_items);
+
+	spin_lock(&meta_sinfo->lock);
+	if (BTRFS_I(inode)->delalloc_reserved_extents <=
+	    BTRFS_I(inode)->delalloc_extents) {
+		spin_unlock(&meta_sinfo->lock);
+		return 0;
+	}
+
+	BTRFS_I(inode)->delalloc_reserved_extents--;
+	BUG_ON(BTRFS_I(inode)->delalloc_reserved_extents < 0);
+
+	if (meta_sinfo->bytes_delalloc < num_bytes) {
+		bug = true;
+		meta_sinfo->bytes_delalloc = 0;
+	} else {
+		meta_sinfo->bytes_delalloc -= num_bytes;
+	}
+	spin_unlock(&meta_sinfo->lock);
+
+	BUG_ON(bug);
+
+	return 0;
+}
+
+static void check_force_delalloc(struct btrfs_space_info *meta_sinfo)
+{
+	u64 thresh;
+
+	thresh = meta_sinfo->bytes_used + meta_sinfo->bytes_reserved +
+		meta_sinfo->bytes_pinned + meta_sinfo->bytes_readonly +
+		meta_sinfo->bytes_super + meta_sinfo->bytes_root +
+		meta_sinfo->bytes_may_use;
+
+	thresh = meta_sinfo->total_bytes - thresh;
+	thresh *= 80;
+	do_div(thresh, 100);
+	if (thresh <= meta_sinfo->bytes_delalloc)
+		meta_sinfo->force_delalloc = 1;
+	else
+		meta_sinfo->force_delalloc = 0;
+}
+
+static int maybe_allocate_chunk(struct btrfs_root *root,
+				 struct btrfs_space_info *info)
+{
+	struct btrfs_super_block *disk_super = &root->fs_info->super_copy;
+	struct btrfs_trans_handle *trans;
+	bool wait = false;
+	int ret = 0;
+	u64 min_metadata;
+	u64 free_space;
+
+	free_space = btrfs_super_total_bytes(disk_super);
+	/*
+	 * we allow the metadata to grow to a max of either 5gb or 5% of the
+	 * space in the volume.
+	 */
+	min_metadata = min((u64)5 * 1024 * 1024 * 1024,
+			     div64_u64(free_space * 5, 100));
+	if (info->total_bytes >= min_metadata) {
+		spin_unlock(&info->lock);
+		return 0;
+	}
+
+	if (info->full) {
+		spin_unlock(&info->lock);
+		return 0;
+	}
+
+	if (!info->allocating_chunk) {
+		info->force_alloc = 1;
+		info->allocating_chunk = 1;
+		init_waitqueue_head(&info->wait);
+	} else {
+		wait = true;
+	}
+
+	spin_unlock(&info->lock);
+
+	if (wait) {
+		wait_event(info->wait,
+			   !info->allocating_chunk);
+		return 1;
+	}
+
+	trans = btrfs_start_transaction(root, 1);
+	if (!trans) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = do_chunk_alloc(trans, root->fs_info->extent_root,
+			     4096 + 2 * 1024 * 1024,
+			     info->flags, 0);
+	btrfs_end_transaction(trans, root);
+	if (ret)
+		goto out;
+out:
+	spin_lock(&info->lock);
+	info->allocating_chunk = 0;
+	spin_unlock(&info->lock);
+	wake_up(&info->wait);
+
+	if (ret)
+		return 0;
+	return 1;
+}
+
+/*
+ * Reserve metadata space for delalloc.
+ */
+int btrfs_reserve_metadata_for_delalloc(struct btrfs_root *root,
+					struct inode *inode, int num_items)
+{
+	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_space_info *meta_sinfo;
+	u64 num_bytes;
+	u64 used;
+	u64 alloc_target;
+	int flushed = 0;
+	int force_delalloc;
+
+	/* get the space info for where the metadata will live */
+	alloc_target = btrfs_get_alloc_profile(root, 0);
+	meta_sinfo = __find_space_info(info, alloc_target);
+
+	num_bytes = calculate_bytes_needed(root->fs_info->extent_root,
+					   num_items);
 again:
 	spin_lock(&meta_sinfo->lock);
-	if (!meta_sinfo->full)
-		thresh = meta_sinfo->total_bytes * 80;
-	else
-		thresh = meta_sinfo->total_bytes * 95;
 
-	do_div(thresh, 100);
+	force_delalloc = meta_sinfo->force_delalloc;
 
-	if (meta_sinfo->bytes_used + meta_sinfo->bytes_reserved +
-	    meta_sinfo->bytes_pinned + meta_sinfo->bytes_readonly +
-	    meta_sinfo->bytes_super > thresh) {
-		struct btrfs_trans_handle *trans;
-		if (!meta_sinfo->full) {
-			meta_sinfo->force_alloc = 1;
+	if (unlikely(!meta_sinfo->bytes_root))
+		meta_sinfo->bytes_root = calculate_bytes_needed(root, 6);
+
+	if (!flushed)
+		meta_sinfo->bytes_delalloc += num_bytes;
+
+	used = meta_sinfo->bytes_used + meta_sinfo->bytes_reserved +
+		meta_sinfo->bytes_pinned + meta_sinfo->bytes_readonly +
+		meta_sinfo->bytes_super + meta_sinfo->bytes_root +
+		meta_sinfo->bytes_may_use + meta_sinfo->bytes_delalloc;
+
+	if (used > meta_sinfo->total_bytes) {
+		flushed++;
+
+		if (flushed == 1) {
+			if (maybe_allocate_chunk(root, meta_sinfo))
+				goto again;
+			flushed++;
+		} else {
 			spin_unlock(&meta_sinfo->lock);
-alloc:
-			trans = btrfs_start_transaction(root, 1);
-			if (!trans)
-				return -ENOMEM;
+		}
 
-			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-					     2 * 1024 * 1024, alloc_target, 0);
-			btrfs_end_transaction(trans, root);
-			if (!meta_sinfo) {
-				meta_sinfo = __find_space_info(info,
-							       alloc_target);
-			}
+		if (flushed == 2) {
+			filemap_flush(inode->i_mapping);
+			goto again;
+		} else if (flushed == 3) {
+			btrfs_start_delalloc_inodes(root);
+			btrfs_wait_ordered_extents(root, 0);
 			goto again;
 		}
+		spin_lock(&meta_sinfo->lock);
+		meta_sinfo->bytes_delalloc -= num_bytes;
 		spin_unlock(&meta_sinfo->lock);
-
-		if (!committed) {
-			committed = 1;
-			trans = btrfs_join_transaction(root, 1);
-			if (!trans)
-				return -ENOMEM;
-			ret = btrfs_commit_transaction(trans, root);
-			if (ret)
-				return ret;
-			goto again;
-		}
+		printk(KERN_ERR "enospc, has %d, reserved %d\n",
+		       BTRFS_I(inode)->delalloc_extents,
+		       BTRFS_I(inode)->delalloc_reserved_extents);
+		dump_space_info(meta_sinfo, 0, 0);
 		return -ENOSPC;
 	}
+
+	BTRFS_I(inode)->delalloc_reserved_extents++;
+	check_force_delalloc(meta_sinfo);
+	spin_unlock(&meta_sinfo->lock);
+
+	if (!flushed && force_delalloc)
+		filemap_flush(inode->i_mapping);
+
+	return 0;
+}
+
+/*
+ * unreserve num_items number of items worth of metadata space.  This needs to
+ * be paired with btrfs_reserve_metadata_space.
+ *
+ * NOTE: if you have the option, run this _AFTER_ you do a
+ * btrfs_end_transaction, since btrfs_end_transaction will run delayed ref
+ * oprations which will result in more used metadata, so we want to make sure we
+ * can do that without issue.
+ */
+int btrfs_unreserve_metadata_space(struct btrfs_root *root, int num_items)
+{
+	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_space_info *meta_sinfo;
+	u64 num_bytes;
+	u64 alloc_target;
+	bool bug = false;
+
+	/* get the space info for where the metadata will live */
+	alloc_target = btrfs_get_alloc_profile(root, 0);
+	meta_sinfo = __find_space_info(info, alloc_target);
+
+	num_bytes = calculate_bytes_needed(root, num_items);
+
+	spin_lock(&meta_sinfo->lock);
+	if (meta_sinfo->bytes_may_use < num_bytes) {
+		bug = true;
+		meta_sinfo->bytes_may_use = 0;
+	} else {
+		meta_sinfo->bytes_may_use -= num_bytes;
+	}
+	spin_unlock(&meta_sinfo->lock);
+
+	BUG_ON(bug);
+
+	return 0;
+}
+
+/*
+ * Reserve some metadata space for use.  We'll calculate the worste case number
+ * of bytes that would be needed to modify num_items number of items.  If we
+ * have space, fantastic, if not, you get -ENOSPC.  Please call
+ * btrfs_unreserve_metadata_space when you are done for the _SAME_ number of
+ * items you reserved, since whatever metadata you needed should have already
+ * been allocated.
+ *
+ * This will commit the transaction to make more space if we don't have enough
+ * metadata space.  THe only time we don't do this is if we're reserving space
+ * inside of a transaction, then we will just return -ENOSPC and it is the
+ * callers responsibility to handle it properly.
+ */
+int btrfs_reserve_metadata_space(struct btrfs_root *root, int num_items)
+{
+	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_space_info *meta_sinfo;
+	u64 num_bytes;
+	u64 used;
+	u64 alloc_target;
+	int retries = 0;
+
+	/* get the space info for where the metadata will live */
+	alloc_target = btrfs_get_alloc_profile(root, 0);
+	meta_sinfo = __find_space_info(info, alloc_target);
+
+	num_bytes = calculate_bytes_needed(root, num_items);
+again:
+	spin_lock(&meta_sinfo->lock);
+
+	if (unlikely(!meta_sinfo->bytes_root))
+		meta_sinfo->bytes_root = calculate_bytes_needed(root, 6);
+
+	if (!retries)
+		meta_sinfo->bytes_may_use += num_bytes;
+
+	used = meta_sinfo->bytes_used + meta_sinfo->bytes_reserved +
+		meta_sinfo->bytes_pinned + meta_sinfo->bytes_readonly +
+		meta_sinfo->bytes_super + meta_sinfo->bytes_root +
+		meta_sinfo->bytes_may_use + meta_sinfo->bytes_delalloc;
+
+	if (used > meta_sinfo->total_bytes) {
+		retries++;
+		if (retries == 1) {
+			if (maybe_allocate_chunk(root, meta_sinfo))
+				goto again;
+			retries++;
+		} else {
+			spin_unlock(&meta_sinfo->lock);
+		}
+
+		if (retries == 2) {
+			btrfs_start_delalloc_inodes(root);
+			btrfs_wait_ordered_extents(root, 0);
+			goto again;
+		}
+		spin_lock(&meta_sinfo->lock);
+		meta_sinfo->bytes_may_use -= num_bytes;
+		spin_unlock(&meta_sinfo->lock);
+
+		dump_space_info(meta_sinfo, 0, 0);
+		return -ENOSPC;
+	}
+
+	check_force_delalloc(meta_sinfo);
 	spin_unlock(&meta_sinfo->lock);
 
 	return 0;
@@ -2915,7 +3196,7 @@ alloc:
 	BTRFS_I(inode)->reserved_bytes += bytes;
 	spin_unlock(&data_sinfo->lock);
 
-	return btrfs_check_metadata_free_space(root);
+	return 0;
 }
 
 /*
@@ -3014,17 +3295,15 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	BUG_ON(!space_info);
 
 	spin_lock(&space_info->lock);
-	if (space_info->force_alloc) {
+	if (space_info->force_alloc)
 		force = 1;
-		space_info->force_alloc = 0;
-	}
 	if (space_info->full) {
 		spin_unlock(&space_info->lock);
 		goto out;
 	}
 
 	thresh = space_info->total_bytes - space_info->bytes_readonly;
-	thresh = div_factor(thresh, 6);
+	thresh = div_factor(thresh, 8);
 	if (!force &&
 	   (space_info->bytes_used + space_info->bytes_pinned +
 	    space_info->bytes_reserved + alloc_bytes) < thresh) {
@@ -3038,7 +3317,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	 * we keep a reasonable number of metadata chunks allocated in the
 	 * FS as well.
 	 */
-	if (flags & BTRFS_BLOCK_GROUP_DATA) {
+	if (flags & BTRFS_BLOCK_GROUP_DATA && fs_info->metadata_ratio) {
 		fs_info->data_chunk_allocations++;
 		if (!(fs_info->data_chunk_allocations %
 		      fs_info->metadata_ratio))
@@ -3046,8 +3325,11 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
+	spin_lock(&space_info->lock);
 	if (ret)
 		space_info->full = 1;
+	space_info->force_alloc = 0;
+	spin_unlock(&space_info->lock);
 out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
@@ -4062,21 +4344,32 @@ loop:
 	return ret;
 }
 
-static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
+static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
+			    int dump_block_groups)
 {
 	struct btrfs_block_group_cache *cache;
 
+	spin_lock(&info->lock);
 	printk(KERN_INFO "space_info has %llu free, is %sfull\n",
 	       (unsigned long long)(info->total_bytes - info->bytes_used -
-				    info->bytes_pinned - info->bytes_reserved),
+				    info->bytes_pinned - info->bytes_reserved -
+				    info->bytes_super),
 	       (info->full) ? "" : "not ");
 	printk(KERN_INFO "space_info total=%llu, pinned=%llu, delalloc=%llu,"
-	       " may_use=%llu, used=%llu\n",
+	       " may_use=%llu, used=%llu, root=%llu, super=%llu, reserved=%llu"
+	       "\n",
 	       (unsigned long long)info->total_bytes,
 	       (unsigned long long)info->bytes_pinned,
 	       (unsigned long long)info->bytes_delalloc,
 	       (unsigned long long)info->bytes_may_use,
-	       (unsigned long long)info->bytes_used);
+	       (unsigned long long)info->bytes_used,
+	       (unsigned long long)info->bytes_root,
+	       (unsigned long long)info->bytes_super,
+	       (unsigned long long)info->bytes_reserved);
+	spin_unlock(&info->lock);
+
+	if (!dump_block_groups)
+		return;
 
 	down_read(&info->groups_sem);
 	list_for_each_entry(cache, &info->block_groups, list) {
@@ -4144,7 +4437,7 @@ again:
 		printk(KERN_ERR "btrfs allocation failed flags %llu, "
 		       "wanted %llu\n", (unsigned long long)data,
 		       (unsigned long long)num_bytes);
-		dump_space_info(sinfo, num_bytes);
+		dump_space_info(sinfo, num_bytes, 1);
 	}
 
 	return ret;

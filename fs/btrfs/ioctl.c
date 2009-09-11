@@ -239,7 +239,13 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 index = 0;
 	unsigned long nr = 1;
 
-	ret = btrfs_check_metadata_free_space(root);
+	/*
+	 * 1 - inode item
+	 * 2 - refs
+	 * 1 - root item
+	 * 2 - dir items
+	 */
+	ret = btrfs_reserve_metadata_space(root, 6);
 	if (ret)
 		return ret;
 
@@ -340,6 +346,9 @@ fail:
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
+
+	btrfs_unreserve_metadata_space(root, 6);
+	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
 
@@ -355,19 +364,27 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	if (!root->ref_cows)
 		return -EINVAL;
 
-	ret = btrfs_check_metadata_free_space(root);
+	/*
+	 * 1 - inode item
+	 * 2 - refs
+	 * 1 - root item
+	 * 2 - dir items
+	 */
+	ret = btrfs_reserve_metadata_space(root, 6);
 	if (ret)
 		goto fail_unlock;
 
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot) {
 		ret = -ENOMEM;
+		btrfs_unreserve_metadata_space(root, 6);
 		goto fail_unlock;
 	}
 	pending_snapshot->name = kmalloc(namelen + 1, GFP_NOFS);
 	if (!pending_snapshot->name) {
 		ret = -ENOMEM;
 		kfree(pending_snapshot);
+		btrfs_unreserve_metadata_space(root, 6);
 		goto fail_unlock;
 	}
 	memcpy(pending_snapshot->name, name, namelen);
