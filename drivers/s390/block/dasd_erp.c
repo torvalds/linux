@@ -99,8 +99,8 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 		cqr->lpm    = LPM_ANYPATH;
 		cqr->status = DASD_CQR_FILLED;
         } else {
-		dev_err(&device->cdev->dev,
-			"default ERP has run out of retries and failed\n");
+		pr_err("%s: default ERP has run out of retries and failed\n",
+		       dev_name(&device->cdev->dev));
 		cqr->status = DASD_CQR_FAILED;
 		cqr->stopclk = get_clock();
         }

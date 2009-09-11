@@ -1006,7 +1006,7 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 	priv->dev->release = (void (*)(struct device *)) kfree;
 	rc = device_register(priv->dev);
 	if (rc) {
-		kfree(priv->dev);
+		put_device(priv->dev);
 		goto out_error_dev;
 	}
 

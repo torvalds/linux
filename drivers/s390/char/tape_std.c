@@ -68,7 +68,7 @@ tape_std_assign(struct tape_device *device)
 	 * to another host (actually this shouldn't happen but it does).
 	 * So we set up a timeout for this call.
 	 */
-	init_timer(&timeout);
+	init_timer_on_stack(&timeout);
 	timeout.function = tape_std_assign_timeout;
 	timeout.data     = (unsigned long) request;
 	timeout.expires  = jiffies + 2 * HZ;
