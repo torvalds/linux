@@ -30,9 +30,6 @@ static struct thread		*last_match;
 static struct perf_header	*header;
 static u64			sample_type;
 
-static int			replay_mode;
-static int			lat_mode;
-
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
 
@@ -623,9 +620,11 @@ static void test_calibrations(void)
 	printf("the sleep test took %Ld nsecs\n", T1-T0);
 }
 
+static unsigned long replay_repeat = 10;
+
 static void __cmd_replay(void)
 {
-	long nr_iterations = 10, i;
+	unsigned long i;
 
 	calibrate_run_measurement_overhead();
 	calibrate_sleep_measurement_overhead();
@@ -651,7 +650,7 @@ static void __cmd_replay(void)
 
 	create_tasks();
 	printf("------------------------------------------------------------\n");
-	for (i = 0; i < nr_iterations; i++)
+	for (i = 0; i < replay_repeat; i++)
 		run_one_test();
 }
 
@@ -1623,21 +1622,45 @@ more:
 }
 
 static const char * const sched_usage[] = {
-	"perf sched [<options>] <command>",
+	"perf sched [<options>] {record|latency|replay}",
 	NULL
 };
 
-static const struct option options[] = {
+static const struct option sched_options[] = {
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN('r', "replay", &replay_mode,
-		    "replay sched behaviour from traces"),
-	OPT_BOOLEAN('l', "latency", &lat_mode,
-		    "measure various latencies"),
+	OPT_END()
+};
+
+static const char * const latency_usage[] = {
+	"perf sched latency [<options>]",
+	NULL
+};
+
+static const struct option latency_options[] = {
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): runtime, switch, avg, max"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
+		    "dump raw trace in ASCII"),
+	OPT_END()
+};
+
+static const char * const replay_usage[] = {
+	"perf sched replay [<options>]",
+	NULL
+};
+
+static const struct option replay_options[] = {
+	OPT_INTEGER('r', "repeat", &replay_repeat,
+		    "repeat the workload replay N times (-1: infinite)"),
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
+		    "dump raw trace in ASCII"),
 	OPT_END()
 };
 
@@ -1649,7 +1672,7 @@ static void setup_sorting(void)
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		if (sort_dimension__add(tok, &sort_list) < 0) {
 			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(sched_usage, options);
+			usage_with_options(latency_usage, latency_options);
 		}
 	}
 
@@ -1663,29 +1686,32 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 	symbol__init();
 	page_size = getpagesize();
 
-	argc = parse_options(argc, argv, options, sched_usage, 0);
-	if (argc) {
-		/*
-		 * Special case: if there's an argument left then assume tha
-		 * it's a symbol filter:
-		 */
-		if (argc > 1)
-			usage_with_options(sched_usage, options);
+	argc = parse_options(argc, argv, sched_options, sched_usage,
+			     PARSE_OPT_STOP_AT_NON_OPTION);
+	if (!argc)
+		usage_with_options(sched_usage, sched_options);
+
+	if (!strncmp(argv[0], "lat", 3)) {
+		trace_handler = &lat_ops;
+		if (argc > 1) {
+			argc = parse_options(argc, argv, latency_options, latency_usage, 0);
+			if (argc)
+				usage_with_options(latency_usage, latency_options);
+			setup_sorting();
+		}
+		__cmd_lat();
+	} else if (!strncmp(argv[0], "rep", 3)) {
+		trace_handler = &replay_ops;
+		if (argc) {
+			argc = parse_options(argc, argv, replay_options, replay_usage, 0);
+			if (argc)
+				usage_with_options(replay_usage, replay_options);
+		}
+		__cmd_replay();
+	} else {
+		usage_with_options(sched_usage, sched_options);
 	}
 
-	if (replay_mode)
-		trace_handler = &replay_ops;
-	else if (lat_mode)
-		trace_handler = &lat_ops;
-	else
-		usage_with_options(sched_usage, options);
-
-	setup_sorting();
-
-	if (replay_mode)
-		__cmd_replay();
-	else if (lat_mode)
-		__cmd_lat();
 
 	return 0;
 }
