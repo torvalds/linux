@@ -2450,6 +2450,10 @@ static struct notifier_block	netxen_netdev_cb = {
 static struct notifier_block netxen_inetaddr_cb = {
 	.notifier_call = netxen_inetaddr_event,
 };
+#else
+static void
+netxen_config_indev_addr(struct net_device *dev, unsigned long event)
+{ }
 #endif
 
 static struct pci_driver netxen_driver = {
