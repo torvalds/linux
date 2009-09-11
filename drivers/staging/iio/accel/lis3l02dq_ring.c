@@ -286,6 +286,7 @@ static void lis3l02dq_trigger_bh_to_ring(struct work_struct *work_s)
 	rx_array = kmalloc(4 * (st->indio_dev->scan_count), GFP_KERNEL);
 	if (rx_array == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
+		kfree(data);
 		return;
 	}
 
