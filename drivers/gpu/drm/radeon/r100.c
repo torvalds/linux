@@ -299,6 +299,17 @@ int r100_irq_set(struct radeon_device *rdev)
 	return 0;
 }
 
+void r100_irq_disable(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	WREG32(R_000040_GEN_INT_CNTL, 0);
+	/* Wait and acknowledge irq */
+	mdelay(1);
+	tmp = RREG32(R_000044_GEN_INT_STATUS);
+	WREG32(R_000044_GEN_INT_STATUS, tmp);
+}
+
 static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
 {
 	uint32_t irqs = RREG32(RADEON_GEN_INT_STATUS);
@@ -396,14 +407,21 @@ int r100_wb_init(struct radeon_device *rdev)
 			return r;
 		}
 	}
-	WREG32(RADEON_SCRATCH_ADDR, rdev->wb.gpu_addr);
-	WREG32(RADEON_CP_RB_RPTR_ADDR, rdev->wb.gpu_addr + 1024);
-	WREG32(RADEON_SCRATCH_UMSK, 0xff);
+	WREG32(R_000774_SCRATCH_ADDR, rdev->wb.gpu_addr);
+	WREG32(R_00070C_CP_RB_RPTR_ADDR,
+		S_00070C_RB_RPTR_ADDR((rdev->wb.gpu_addr + 1024) >> 2));
+	WREG32(R_000770_SCRATCH_UMSK, 0xff);
 	return 0;
+}
+
+void r100_wb_disable(struct radeon_device *rdev)
+{
+	WREG32(R_000770_SCRATCH_UMSK, 0);
 }
 
 void r100_wb_fini(struct radeon_device *rdev)
 {
+	r100_wb_disable(rdev);
 	if (rdev->wb.wb_obj) {
 		radeon_object_kunmap(rdev->wb.wb_obj);
 		radeon_object_unpin(rdev->wb.wb_obj);
@@ -1581,11 +1599,12 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 int r100_cs_parse(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet pkt;
-	struct r100_cs_track track;
+	struct r100_cs_track *track;
 	int r;
 
-	r100_cs_track_clear(p->rdev, &track);
-	p->track = &track;
+	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	r100_cs_track_clear(p->rdev, track);
+	p->track = track;
 	do {
 		r = r100_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
@@ -3084,4 +3103,87 @@ int r100_ib_test(struct radeon_device *rdev)
 	radeon_scratch_free(rdev, scratch);
 	radeon_ib_free(rdev, &ib);
 	return r;
+}
+
+void r100_ib_fini(struct radeon_device *rdev)
+{
+	radeon_ib_pool_fini(rdev);
+}
+
+int r100_ib_init(struct radeon_device *rdev)
+{
+	int r;
+
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failled initializing IB pool (%d).\n", r);
+		r100_ib_fini(rdev);
+		return r;
+	}
+	r = r100_ib_test(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failled testing IB (%d).\n", r);
+		r100_ib_fini(rdev);
+		return r;
+	}
+	return 0;
+}
+
+void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
+{
+	/* Shutdown CP we shouldn't need to do that but better be safe than
+	 * sorry
+	 */
+	rdev->cp.ready = false;
+	WREG32(R_000740_CP_CSQ_CNTL, 0);
+
+	/* Save few CRTC registers */
+	save->GENMO_WT = RREG32(R_0003C0_GENMO_WT);
+	save->CRTC_EXT_CNTL = RREG32(R_000054_CRTC_EXT_CNTL);
+	save->CRTC_GEN_CNTL = RREG32(R_000050_CRTC_GEN_CNTL);
+	save->CUR_OFFSET = RREG32(R_000260_CUR_OFFSET);
+	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
+		save->CRTC2_GEN_CNTL = RREG32(R_0003F8_CRTC2_GEN_CNTL);
+		save->CUR2_OFFSET = RREG32(R_000360_CUR2_OFFSET);
+	}
+
+	/* Disable VGA aperture access */
+	WREG32(R_0003C0_GENMO_WT, C_0003C0_VGA_RAM_EN & save->GENMO_WT);
+	/* Disable cursor, overlay, crtc */
+	WREG32(R_000260_CUR_OFFSET, save->CUR_OFFSET | S_000260_CUR_LOCK(1));
+	WREG32(R_000054_CRTC_EXT_CNTL, save->CRTC_EXT_CNTL |
+					S_000054_CRTC_DISPLAY_DIS(1));
+	WREG32(R_000050_CRTC_GEN_CNTL,
+			(C_000050_CRTC_CUR_EN & save->CRTC_GEN_CNTL) |
+			S_000050_CRTC_DISP_REQ_EN_B(1));
+	WREG32(R_000420_OV0_SCALE_CNTL,
+		C_000420_OV0_OVERLAY_EN & RREG32(R_000420_OV0_SCALE_CNTL));
+	WREG32(R_000260_CUR_OFFSET, C_000260_CUR_LOCK & save->CUR_OFFSET);
+	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
+		WREG32(R_000360_CUR2_OFFSET, save->CUR2_OFFSET |
+						S_000360_CUR2_LOCK(1));
+		WREG32(R_0003F8_CRTC2_GEN_CNTL,
+			(C_0003F8_CRTC2_CUR_EN & save->CRTC2_GEN_CNTL) |
+			S_0003F8_CRTC2_DISPLAY_DIS(1) |
+			S_0003F8_CRTC2_DISP_REQ_EN_B(1));
+		WREG32(R_000360_CUR2_OFFSET,
+			C_000360_CUR2_LOCK & save->CUR2_OFFSET);
+	}
+}
+
+void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save)
+{
+	/* Update base address for crtc */
+	WREG32(R_00023C_DISPLAY_BASE_ADDR, rdev->mc.vram_location);
+	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
+		WREG32(R_00033C_CRTC2_DISPLAY_BASE_ADDR,
+				rdev->mc.vram_location);
+	}
+	/* Restore CRTC registers */
+	WREG32(R_0003C0_GENMO_WT, save->GENMO_WT);
+	WREG32(R_000054_CRTC_EXT_CNTL, save->CRTC_EXT_CNTL);
+	WREG32(R_000050_CRTC_GEN_CNTL, save->CRTC_GEN_CNTL);
+	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
+		WREG32(R_0003F8_CRTC2_GEN_CNTL, save->CRTC2_GEN_CNTL);
+	}
 }

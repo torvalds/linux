@@ -73,4 +73,29 @@
 #define CP_PACKET0_GET_ONE_REG_WR(h) (((h) >> 15) & 1)
 #define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
 
+/* Registers */
+#define R_000148_MC_FB_LOCATION                      0x000148
+#define   S_000148_MC_FB_START(x)                      (((x) & 0xFFFF) << 0)
+#define   G_000148_MC_FB_START(x)                      (((x) >> 0) & 0xFFFF)
+#define   C_000148_MC_FB_START                         0xFFFF0000
+#define   S_000148_MC_FB_TOP(x)                        (((x) & 0xFFFF) << 16)
+#define   G_000148_MC_FB_TOP(x)                        (((x) >> 16) & 0xFFFF)
+#define   C_000148_MC_FB_TOP                           0x0000FFFF
+#define R_00014C_MC_AGP_LOCATION                     0x00014C
+#define   S_00014C_MC_AGP_START(x)                     (((x) & 0xFFFF) << 0)
+#define   G_00014C_MC_AGP_START(x)                     (((x) >> 0) & 0xFFFF)
+#define   C_00014C_MC_AGP_START                        0xFFFF0000
+#define   S_00014C_MC_AGP_TOP(x)                       (((x) & 0xFFFF) << 16)
+#define   G_00014C_MC_AGP_TOP(x)                       (((x) >> 16) & 0xFFFF)
+#define   C_00014C_MC_AGP_TOP                          0x0000FFFF
+#define R_00015C_AGP_BASE_2                          0x00015C
+#define   S_00015C_AGP_BASE_ADDR_2(x)                  (((x) & 0xF) << 0)
+#define   G_00015C_AGP_BASE_ADDR_2(x)                  (((x) >> 0) & 0xF)
+#define   C_00015C_AGP_BASE_ADDR_2                     0xFFFFFFF0
+#define R_000170_AGP_BASE                            0x000170
+#define   S_000170_AGP_BASE_ADDR(x)                    (((x) & 0xFFFFFFFF) << 0)
+#define   G_000170_AGP_BASE_ADDR(x)                    (((x) >> 0) & 0xFFFFFFFF)
+#define   C_000170_AGP_BASE_ADDR                       0x00000000
+
+
 #endif

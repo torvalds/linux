@@ -690,6 +690,7 @@ typedef uint32_t (*radeon_rreg_t)(struct radeon_device*, uint32_t);
 typedef void (*radeon_wreg_t)(struct radeon_device*, uint32_t, uint32_t);
 
 struct radeon_device {
+	struct device			*dev;
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
 	/* ASIC */
@@ -936,16 +937,45 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 /* Common functions */
 int radeon_modeset_init(struct radeon_device *rdev);
 void radeon_modeset_fini(struct radeon_device *rdev);
+extern bool radeon_card_posted(struct radeon_device *rdev);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
-void r100_cp_disable(struct radeon_device *rdev);
+struct r100_mc_save {
+	u32	GENMO_WT;
+	u32	CRTC_EXT_CNTL;
+	u32	CRTC_GEN_CNTL;
+	u32	CRTC2_GEN_CNTL;
+	u32	CUR_OFFSET;
+	u32	CUR2_OFFSET;
+};
+extern void r100_cp_disable(struct radeon_device *rdev);
+extern int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
+extern void r100_cp_fini(struct radeon_device *rdev);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
 int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
 int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
+extern int r100_debugfs_mc_info_init(struct radeon_device *rdev);
+extern int r100_gui_wait_for_idle(struct radeon_device *rdev);
+extern void r100_ib_fini(struct radeon_device *rdev);
+extern int r100_ib_init(struct radeon_device *rdev);
+extern void r100_irq_disable(struct radeon_device *rdev);
+extern int r100_irq_set(struct radeon_device *rdev);
+extern void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save);
+extern void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save);
+extern void r100_wb_disable(struct radeon_device *rdev);
+extern void r100_wb_fini(struct radeon_device *rdev);
+extern int r100_wb_init(struct radeon_device *rdev);
+
+/* r300,r350,rv350,rv370,rv380 */
+extern void r300_set_reg_safe(struct radeon_device *rdev);
+extern void r300_mc_program(struct radeon_device *rdev);
+extern void r300_vram_info(struct radeon_device *rdev);
+extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
 
 /* r420,r423,rv410 */
 u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
 void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
 
 #endif

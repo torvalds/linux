@@ -189,31 +189,34 @@ static struct radeon_asic r300_asic = {
 /*
  * r420,r423,rv410
  */
-void r420_errata(struct radeon_device *rdev);
-void r420_vram_info(struct radeon_device *rdev);
-int r420_mc_init(struct radeon_device *rdev);
-void r420_mc_fini(struct radeon_device *rdev);
+extern int r420_init(struct radeon_device *rdev);
+extern void r420_fini(struct radeon_device *rdev);
+extern int r420_suspend(struct radeon_device *rdev);
+extern int r420_resume(struct radeon_device *rdev);
 static struct radeon_asic r420_asic = {
-	.init = &r300_init,
-	.errata = &r420_errata,
-	.vram_info = &r420_vram_info,
+	.init = &r420_init,
+	.fini = &r420_fini,
+	.suspend = &r420_suspend,
+	.resume = &r420_resume,
+	.errata = NULL,
+	.vram_info = NULL,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &r420_mc_init,
-	.mc_fini = &r420_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
+	.mc_init = NULL,
+	.mc_fini = NULL,
+	.wb_init = NULL,
+	.wb_fini = NULL,
 	.gart_enable = &r300_gart_enable,
 	.gart_disable = &rv370_pcie_gart_disable,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
+	.cp_init = NULL,
+	.cp_fini = NULL,
+	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
+	.ib_test = NULL,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,

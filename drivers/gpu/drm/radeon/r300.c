@@ -1241,11 +1241,12 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 int r300_cs_parse(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet pkt;
-	struct r100_cs_track track;
+	struct r100_cs_track *track;
 	int r;
 
-	r100_cs_track_clear(p->rdev, &track);
-	p->track = &track;
+	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	r100_cs_track_clear(p->rdev, track);
+	p->track = track;
 	do {
 		r = r100_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
@@ -1275,9 +1276,50 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 	return 0;
 }
 
-int r300_init(struct radeon_device *rdev)
+void r300_set_reg_safe(struct radeon_device *rdev)
 {
 	rdev->config.r300.reg_safe_bm = r300_reg_safe_bm;
 	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r300_reg_safe_bm);
+}
+
+int r300_init(struct radeon_device *rdev)
+{
+	r300_set_reg_safe(rdev);
 	return 0;
+}
+
+void r300_mc_program(struct radeon_device *rdev)
+{
+	struct r100_mc_save save;
+	int r;
+
+	r = r100_debugfs_mc_info_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "Failed to create r100_mc debugfs file.\n");
+	}
+
+	/* Stops all mc clients */
+	r100_mc_stop(rdev, &save);
+	/* Shutdown PCI/PCIE GART */
+	radeon_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_AGP) {
+		WREG32(R_00014C_MC_AGP_LOCATION,
+			S_00014C_MC_AGP_START(rdev->mc.gtt_start >> 16) |
+			S_00014C_MC_AGP_TOP(rdev->mc.gtt_end >> 16));
+		WREG32(R_000170_AGP_BASE, lower_32_bits(rdev->mc.agp_base));
+		WREG32(R_00015C_AGP_BASE_2,
+			upper_32_bits(rdev->mc.agp_base) & 0xff);
+	} else {
+		WREG32(R_00014C_MC_AGP_LOCATION, 0x0FFFFFFF);
+		WREG32(R_000170_AGP_BASE, 0);
+		WREG32(R_00015C_AGP_BASE_2, 0);
+	}
+	/* Wait for mc idle */
+	if (r300_mc_wait_for_idle(rdev))
+		DRM_INFO("Failed to wait MC idle before programming MC.\n");
+	/* Program MC, should be a 32bits limited address space */
+	WREG32(R_000148_MC_FB_LOCATION,
+		S_000148_MC_FB_START(rdev->mc.vram_start >> 16) |
+		S_000148_MC_FB_TOP(rdev->mc.vram_end >> 16));
+	r100_mc_resume(rdev, &save);
 }

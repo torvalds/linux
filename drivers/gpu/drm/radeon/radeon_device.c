@@ -156,6 +156,10 @@ int radeon_mc_setup(struct radeon_device *rdev)
 		tmp = (tmp + rdev->mc.gtt_size - 1) & ~(rdev->mc.gtt_size - 1);
 		rdev->mc.gtt_location = tmp;
 	}
+	rdev->mc.vram_start = rdev->mc.vram_location;
+	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
+	rdev->mc.gtt_start = rdev->mc.gtt_location;
+	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
 	DRM_INFO("radeon: VRAM %uM\n", (unsigned)(rdev->mc.mc_vram_size >> 20));
 	DRM_INFO("radeon: VRAM from 0x%08X to 0x%08X\n",
 		 (unsigned)rdev->mc.vram_location,
@@ -171,7 +175,7 @@ int radeon_mc_setup(struct radeon_device *rdev)
 /*
  * GPU helpers function.
  */
-static bool radeon_card_posted(struct radeon_device *rdev)
+bool radeon_card_posted(struct radeon_device *rdev)
 {
 	uint32_t reg;
 
@@ -483,6 +487,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	DRM_INFO("radeon: Initializing kernel modesetting.\n");
 	rdev->shutdown = false;
+	rdev->dev = &pdev->dev;
 	rdev->ddev = ddev;
 	rdev->pdev = pdev;
 	rdev->flags = flags;
@@ -497,6 +502,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->ib_pool.mutex);
 	mutex_init(&rdev->cp.mutex);
 	rwlock_init(&rdev->fence_drv.lock);
+	INIT_LIST_HEAD(&rdev->gem.objects);
 
 	if (radeon_agpmode == -1) {
 		rdev->flags &= ~RADEON_IS_AGP;
@@ -736,14 +742,13 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	if (!rdev->new_init_path) {
 		radeon_cp_disable(rdev);
 		radeon_gart_disable(rdev);
+		rdev->irq.sw_int = false;
+		radeon_irq_set(rdev);
 	} else {
 		radeon_suspend(rdev);
 	}
 	/* evict remaining vram memory */
 	radeon_object_evict_vram(rdev);
-
-	rdev->irq.sw_int = false;
-	radeon_irq_set(rdev);
 
 	pci_save_state(dev->pdev);
 	if (state.event == PM_EVENT_SUSPEND) {
@@ -771,10 +776,10 @@ int radeon_resume_kms(struct drm_device *dev)
 	}
 	pci_set_master(dev->pdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
-		/* FIXME: what do we want to do here ? */
-	}
 	if (!rdev->new_init_path) {
+		if (radeon_gpu_reset(rdev)) {
+			/* FIXME: what do we want to do here ? */
+		}
 		/* post card */
 		if (rdev->is_atom_bios) {
 			atom_asic_init(rdev->mode_info.atom_context);

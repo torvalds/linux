@@ -151,6 +151,8 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	int i;
 	int r = 0;
 
+	if (rdev->ib_pool.robj)
+		return 0;
 	/* Allocate 1M object buffer */
 	INIT_LIST_HEAD(&rdev->ib_pool.scheduled_ibs);
 	r = radeon_object_create(rdev, NULL,  RADEON_IB_POOL_SIZE*64*1024,
