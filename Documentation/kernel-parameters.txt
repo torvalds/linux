@@ -2480,6 +2480,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	trace_buf_size=nn[KMG]
 			[FTRACE] will set tracing buffer size.
 
+	trace_event=[event-list]
+			[FTRACE] Set and start specified trace events in order
+			to facilitate early boot debugging.
+			See also Documentation/trace/events.txt
+
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
 			Format:
 			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
