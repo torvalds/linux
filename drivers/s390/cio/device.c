@@ -1168,8 +1168,8 @@ static void io_subchannel_irq(struct subchannel *sch)
 
 	cdev = sch_get_cdev(sch);
 
-	CIO_TRACE_EVENT(3, "IRQ");
-	CIO_TRACE_EVENT(3, dev_name(&sch->dev));
+	CIO_TRACE_EVENT(6, "IRQ");
+	CIO_TRACE_EVENT(6, dev_name(&sch->dev));
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
 }
