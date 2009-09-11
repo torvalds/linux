@@ -34,6 +34,7 @@ struct trace_entry {
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
+	int			lock_depth;
 };
 
 #define FTRACE_MAX_EVENT						\

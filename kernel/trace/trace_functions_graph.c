@@ -368,6 +368,7 @@ static enum print_line_t
 print_graph_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
 	int hardirq, softirq;
+	int ret;
 
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
@@ -380,6 +381,13 @@ print_graph_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 				'N' : '.',
 			      (hardirq && softirq) ? 'H' :
 				hardirq ? 'h' : softirq ? 's' : '.'))
+		return 0;
+
+	if (entry->lock_depth < 0)
+		ret = trace_seq_putc(s, '.');
+	else
+		ret = trace_seq_printf(s, "%d", entry->lock_depth);
+	if (!ret)
 		return 0;
 
 	if (entry->preempt_count)
@@ -1001,8 +1009,8 @@ static void print_lat_header(struct seq_file *s)
 	seq_printf(s, "#%.*s / _----=> need-resched    \n", size, spaces);
 	seq_printf(s, "#%.*s| / _---=> hardirq/softirq \n", size, spaces);
 	seq_printf(s, "#%.*s|| / _--=> preempt-depth   \n", size, spaces);
-	seq_printf(s, "#%.*s||| /                      \n", size, spaces);
-	seq_printf(s, "#%.*s||||                       \n", size, spaces);
+	seq_printf(s, "#%.*s||| / _-=> lock-depth      \n", size, spaces);
+	seq_printf(s, "#%.*s|||| /                     \n", size, spaces);
 }
 
 static void print_graph_headers(struct seq_file *s)
@@ -1021,7 +1029,7 @@ static void print_graph_headers(struct seq_file *s)
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC)
 		seq_printf(s, "  TASK/PID       ");
 	if (lat)
-		seq_printf(s, "||||");
+		seq_printf(s, "|||||");
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_DURATION)
 		seq_printf(s, "  DURATION   ");
 	seq_printf(s, "               FUNCTION CALLS\n");
@@ -1035,7 +1043,7 @@ static void print_graph_headers(struct seq_file *s)
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC)
 		seq_printf(s, "   |    |        ");
 	if (lat)
-		seq_printf(s, "||||");
+		seq_printf(s, "|||||");
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_DURATION)
 		seq_printf(s, "   |   |      ");
 	seq_printf(s, "               |   |   |   |\n");

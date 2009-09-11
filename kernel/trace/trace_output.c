@@ -465,6 +465,7 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
 	char comm[TASK_COMM_LEN];
+	int ret;
 
 	trace_find_cmdline(entry->pid, comm);
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
@@ -481,9 +482,16 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 				hardirq ? 'h' : softirq ? 's' : '.'))
 		return 0;
 
+	if (entry->lock_depth < 0)
+		ret = trace_seq_putc(s, '.');
+	else
+		ret = trace_seq_printf(s, "%d", entry->lock_depth);
+	if (!ret)
+		return 0;
+
 	if (entry->preempt_count)
 		return trace_seq_printf(s, "%x", entry->preempt_count);
-	return trace_seq_puts(s, ".");
+	return trace_seq_putc(s, '.');
 }
 
 static unsigned long preempt_mark_thresh = 100;
