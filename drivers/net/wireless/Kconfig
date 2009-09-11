@@ -5,6 +5,7 @@
 menuconfig WLAN
 	bool "Wireless LAN"
 	depends on !S390
+	default y
 	---help---
 	  This section contains all the pre 802.11 and 802.11 wireless
 	  device drivers. For a complete list of drivers and documentation
