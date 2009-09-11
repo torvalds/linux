@@ -1,15 +1,182 @@
 /*
  *  Helper functions for scsw access.
  *
- *    Copyright IBM Corp. 2008
+ *    Copyright IBM Corp. 2008,2009
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
+#ifndef _ASM_S390_SCSW_H_
+#define _ASM_S390_SCSW_H_
+
 #include <linux/types.h>
-#include <linux/module.h>
+#include <asm/chsc.h>
 #include <asm/cio.h>
-#include "css.h"
-#include "chsc.h"
+
+/**
+ * struct cmd_scsw - command-mode subchannel status word
+ * @key: subchannel key
+ * @sctl: suspend control
+ * @eswf: esw format
+ * @cc: deferred condition code
+ * @fmt: format
+ * @pfch: prefetch
+ * @isic: initial-status interruption control
+ * @alcc: address-limit checking control
+ * @ssi: suppress-suspended interruption
+ * @zcc: zero condition code
+ * @ectl: extended control
+ * @pno: path not operational
+ * @res: reserved
+ * @fctl: function control
+ * @actl: activity control
+ * @stctl: status control
+ * @cpa: channel program address
+ * @dstat: device status
+ * @cstat: subchannel status
+ * @count: residual count
+ */
+struct cmd_scsw {
+	__u32 key  : 4;
+	__u32 sctl : 1;
+	__u32 eswf : 1;
+	__u32 cc   : 2;
+	__u32 fmt  : 1;
+	__u32 pfch : 1;
+	__u32 isic : 1;
+	__u32 alcc : 1;
+	__u32 ssi  : 1;
+	__u32 zcc  : 1;
+	__u32 ectl : 1;
+	__u32 pno  : 1;
+	__u32 res  : 1;
+	__u32 fctl : 3;
+	__u32 actl : 7;
+	__u32 stctl : 5;
+	__u32 cpa;
+	__u32 dstat : 8;
+	__u32 cstat : 8;
+	__u32 count : 16;
+} __attribute__ ((packed));
+
+/**
+ * struct tm_scsw - transport-mode subchannel status word
+ * @key: subchannel key
+ * @eswf: esw format
+ * @cc: deferred condition code
+ * @fmt: format
+ * @x: IRB-format control
+ * @q: interrogate-complete
+ * @ectl: extended control
+ * @pno: path not operational
+ * @fctl: function control
+ * @actl: activity control
+ * @stctl: status control
+ * @tcw: TCW address
+ * @dstat: device status
+ * @cstat: subchannel status
+ * @fcxs: FCX status
+ * @schxs: subchannel-extended status
+ */
+struct tm_scsw {
+	u32 key:4;
+	u32 :1;
+	u32 eswf:1;
+	u32 cc:2;
+	u32 fmt:3;
+	u32 x:1;
+	u32 q:1;
+	u32 :1;
+	u32 ectl:1;
+	u32 pno:1;
+	u32 :1;
+	u32 fctl:3;
+	u32 actl:7;
+	u32 stctl:5;
+	u32 tcw;
+	u32 dstat:8;
+	u32 cstat:8;
+	u32 fcxs:8;
+	u32 schxs:8;
+} __attribute__ ((packed));
+
+/**
+ * union scsw - subchannel status word
+ * @cmd: command-mode SCSW
+ * @tm: transport-mode SCSW
+ */
+union scsw {
+	struct cmd_scsw cmd;
+	struct tm_scsw tm;
+} __attribute__ ((packed));
+
+#define SCSW_FCTL_CLEAR_FUNC	 0x1
+#define SCSW_FCTL_HALT_FUNC	 0x2
+#define SCSW_FCTL_START_FUNC	 0x4
+
+#define SCSW_ACTL_SUSPENDED	 0x1
+#define SCSW_ACTL_DEVACT	 0x2
+#define SCSW_ACTL_SCHACT	 0x4
+#define SCSW_ACTL_CLEAR_PEND	 0x8
+#define SCSW_ACTL_HALT_PEND	 0x10
+#define SCSW_ACTL_START_PEND	 0x20
+#define SCSW_ACTL_RESUME_PEND	 0x40
+
+#define SCSW_STCTL_STATUS_PEND	 0x1
+#define SCSW_STCTL_SEC_STATUS	 0x2
+#define SCSW_STCTL_PRIM_STATUS	 0x4
+#define SCSW_STCTL_INTER_STATUS	 0x8
+#define SCSW_STCTL_ALERT_STATUS	 0x10
+
+#define DEV_STAT_ATTENTION	 0x80
+#define DEV_STAT_STAT_MOD	 0x40
+#define DEV_STAT_CU_END		 0x20
+#define DEV_STAT_BUSY		 0x10
+#define DEV_STAT_CHN_END	 0x08
+#define DEV_STAT_DEV_END	 0x04
+#define DEV_STAT_UNIT_CHECK	 0x02
+#define DEV_STAT_UNIT_EXCEP	 0x01
+
+#define SCHN_STAT_PCI		 0x80
+#define SCHN_STAT_INCORR_LEN	 0x40
+#define SCHN_STAT_PROG_CHECK	 0x20
+#define SCHN_STAT_PROT_CHECK	 0x10
+#define SCHN_STAT_CHN_DATA_CHK	 0x08
+#define SCHN_STAT_CHN_CTRL_CHK	 0x04
+#define SCHN_STAT_INTF_CTRL_CHK	 0x02
+#define SCHN_STAT_CHAIN_CHECK	 0x01
+
+/*
+ * architectured values for first sense byte
+ */
+#define SNS0_CMD_REJECT		0x80
+#define SNS_CMD_REJECT		SNS0_CMD_REJEC
+#define SNS0_INTERVENTION_REQ	0x40
+#define SNS0_BUS_OUT_CHECK	0x20
+#define SNS0_EQUIPMENT_CHECK	0x10
+#define SNS0_DATA_CHECK		0x08
+#define SNS0_OVERRUN		0x04
+#define SNS0_INCOMPL_DOMAIN	0x01
+
+/*
+ * architectured values for second sense byte
+ */
+#define SNS1_PERM_ERR		0x80
+#define SNS1_INV_TRACK_FORMAT	0x40
+#define SNS1_EOC		0x20
+#define SNS1_MESSAGE_TO_OPER	0x10
+#define SNS1_NO_REC_FOUND	0x08
+#define SNS1_FILE_PROTECTED	0x04
+#define SNS1_WRITE_INHIBITED	0x02
+#define SNS1_INPRECISE_END	0x01
+
+/*
+ * architectured values for third sense byte
+ */
+#define SNS2_REQ_INH_WRITE	0x80
+#define SNS2_CORRECTABLE	0x40
+#define SNS2_FIRST_LOG_ERR	0x20
+#define SNS2_ENV_DATA_PRESENT	0x10
+#define SNS2_INPRECISE_END	0x04
 
 /**
  * scsw_is_tm - check for transport mode scsw
@@ -18,11 +185,10 @@
  * Return non-zero if the specified scsw is a transport mode scsw, zero
  * otherwise.
  */
-int scsw_is_tm(union scsw *scsw)
+static inline int scsw_is_tm(union scsw *scsw)
 {
 	return css_general_characteristics.fcx && (scsw->tm.x == 1);
 }
-EXPORT_SYMBOL(scsw_is_tm);
 
 /**
  * scsw_key - return scsw key field
@@ -31,14 +197,13 @@ EXPORT_SYMBOL(scsw_is_tm);
  * Return the value of the key field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_key(union scsw *scsw)
+static inline u32 scsw_key(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.key;
 	else
 		return scsw->cmd.key;
 }
-EXPORT_SYMBOL(scsw_key);
 
 /**
  * scsw_eswf - return scsw eswf field
@@ -47,14 +212,13 @@ EXPORT_SYMBOL(scsw_key);
  * Return the value of the eswf field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_eswf(union scsw *scsw)
+static inline u32 scsw_eswf(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.eswf;
 	else
 		return scsw->cmd.eswf;
 }
-EXPORT_SYMBOL(scsw_eswf);
 
 /**
  * scsw_cc - return scsw cc field
@@ -63,14 +227,13 @@ EXPORT_SYMBOL(scsw_eswf);
  * Return the value of the cc field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_cc(union scsw *scsw)
+static inline u32 scsw_cc(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.cc;
 	else
 		return scsw->cmd.cc;
 }
-EXPORT_SYMBOL(scsw_cc);
 
 /**
  * scsw_ectl - return scsw ectl field
@@ -79,14 +242,13 @@ EXPORT_SYMBOL(scsw_cc);
  * Return the value of the ectl field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_ectl(union scsw *scsw)
+static inline u32 scsw_ectl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.ectl;
 	else
 		return scsw->cmd.ectl;
 }
-EXPORT_SYMBOL(scsw_ectl);
 
 /**
  * scsw_pno - return scsw pno field
@@ -95,14 +257,13 @@ EXPORT_SYMBOL(scsw_ectl);
  * Return the value of the pno field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_pno(union scsw *scsw)
+static inline u32 scsw_pno(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.pno;
 	else
 		return scsw->cmd.pno;
 }
-EXPORT_SYMBOL(scsw_pno);
 
 /**
  * scsw_fctl - return scsw fctl field
@@ -111,14 +272,13 @@ EXPORT_SYMBOL(scsw_pno);
  * Return the value of the fctl field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_fctl(union scsw *scsw)
+static inline u32 scsw_fctl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.fctl;
 	else
 		return scsw->cmd.fctl;
 }
-EXPORT_SYMBOL(scsw_fctl);
 
 /**
  * scsw_actl - return scsw actl field
@@ -127,14 +287,13 @@ EXPORT_SYMBOL(scsw_fctl);
  * Return the value of the actl field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_actl(union scsw *scsw)
+static inline u32 scsw_actl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.actl;
 	else
 		return scsw->cmd.actl;
 }
-EXPORT_SYMBOL(scsw_actl);
 
 /**
  * scsw_stctl - return scsw stctl field
@@ -143,14 +302,13 @@ EXPORT_SYMBOL(scsw_actl);
  * Return the value of the stctl field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_stctl(union scsw *scsw)
+static inline u32 scsw_stctl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.stctl;
 	else
 		return scsw->cmd.stctl;
 }
-EXPORT_SYMBOL(scsw_stctl);
 
 /**
  * scsw_dstat - return scsw dstat field
@@ -159,14 +317,13 @@ EXPORT_SYMBOL(scsw_stctl);
  * Return the value of the dstat field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_dstat(union scsw *scsw)
+static inline u32 scsw_dstat(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.dstat;
 	else
 		return scsw->cmd.dstat;
 }
-EXPORT_SYMBOL(scsw_dstat);
 
 /**
  * scsw_cstat - return scsw cstat field
@@ -175,14 +332,13 @@ EXPORT_SYMBOL(scsw_dstat);
  * Return the value of the cstat field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-u32 scsw_cstat(union scsw *scsw)
+static inline u32 scsw_cstat(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw->tm.cstat;
 	else
 		return scsw->cmd.cstat;
 }
-EXPORT_SYMBOL(scsw_cstat);
 
 /**
  * scsw_cmd_is_valid_key - check key field validity
@@ -191,11 +347,10 @@ EXPORT_SYMBOL(scsw_cstat);
  * Return non-zero if the key field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_key(union scsw *scsw)
+static inline int scsw_cmd_is_valid_key(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_key);
 
 /**
  * scsw_cmd_is_valid_sctl - check fctl field validity
@@ -204,11 +359,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_key);
  * Return non-zero if the fctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_sctl(union scsw *scsw)
+static inline int scsw_cmd_is_valid_sctl(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_sctl);
 
 /**
  * scsw_cmd_is_valid_eswf - check eswf field validity
@@ -217,11 +371,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_sctl);
  * Return non-zero if the eswf field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_eswf(union scsw *scsw)
+static inline int scsw_cmd_is_valid_eswf(union scsw *scsw)
 {
 	return (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_eswf);
 
 /**
  * scsw_cmd_is_valid_cc - check cc field validity
@@ -230,12 +383,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_eswf);
  * Return non-zero if the cc field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_cc(union scsw *scsw)
+static inline int scsw_cmd_is_valid_cc(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC) &&
 	       (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_cc);
 
 /**
  * scsw_cmd_is_valid_fmt - check fmt field validity
@@ -244,11 +396,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_cc);
  * Return non-zero if the fmt field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_fmt(union scsw *scsw)
+static inline int scsw_cmd_is_valid_fmt(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_fmt);
 
 /**
  * scsw_cmd_is_valid_pfch - check pfch field validity
@@ -257,11 +408,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_fmt);
  * Return non-zero if the pfch field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_pfch(union scsw *scsw)
+static inline int scsw_cmd_is_valid_pfch(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_pfch);
 
 /**
  * scsw_cmd_is_valid_isic - check isic field validity
@@ -270,11 +420,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_pfch);
  * Return non-zero if the isic field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_isic(union scsw *scsw)
+static inline int scsw_cmd_is_valid_isic(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_isic);
 
 /**
  * scsw_cmd_is_valid_alcc - check alcc field validity
@@ -283,11 +432,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_isic);
  * Return non-zero if the alcc field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_alcc(union scsw *scsw)
+static inline int scsw_cmd_is_valid_alcc(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_alcc);
 
 /**
  * scsw_cmd_is_valid_ssi - check ssi field validity
@@ -296,11 +444,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_alcc);
  * Return non-zero if the ssi field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_ssi(union scsw *scsw)
+static inline int scsw_cmd_is_valid_ssi(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_ssi);
 
 /**
  * scsw_cmd_is_valid_zcc - check zcc field validity
@@ -309,12 +456,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_ssi);
  * Return non-zero if the zcc field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_zcc(union scsw *scsw)
+static inline int scsw_cmd_is_valid_zcc(union scsw *scsw)
 {
 	return (scsw->cmd.fctl & SCSW_FCTL_START_FUNC) &&
 	       (scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_zcc);
 
 /**
  * scsw_cmd_is_valid_ectl - check ectl field validity
@@ -323,13 +469,12 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_zcc);
  * Return non-zero if the ectl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_ectl(union scsw *scsw)
+static inline int scsw_cmd_is_valid_ectl(union scsw *scsw)
 {
 	return (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND) &&
 	       !(scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS) &&
 	       (scsw->cmd.stctl & SCSW_STCTL_ALERT_STATUS);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_ectl);
 
 /**
  * scsw_cmd_is_valid_pno - check pno field validity
@@ -338,7 +483,7 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_ectl);
  * Return non-zero if the pno field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_pno(union scsw *scsw)
+static inline int scsw_cmd_is_valid_pno(union scsw *scsw)
 {
 	return (scsw->cmd.fctl != 0) &&
 	       (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND) &&
@@ -346,7 +491,6 @@ int scsw_cmd_is_valid_pno(union scsw *scsw)
 		 ((scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS) &&
 		  (scsw->cmd.actl & SCSW_ACTL_SUSPENDED)));
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_pno);
 
 /**
  * scsw_cmd_is_valid_fctl - check fctl field validity
@@ -355,12 +499,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_pno);
  * Return non-zero if the fctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_fctl(union scsw *scsw)
+static inline int scsw_cmd_is_valid_fctl(union scsw *scsw)
 {
 	/* Only valid if pmcw.dnv == 1*/
 	return 1;
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_fctl);
 
 /**
  * scsw_cmd_is_valid_actl - check actl field validity
@@ -369,12 +512,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_fctl);
  * Return non-zero if the actl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_actl(union scsw *scsw)
+static inline int scsw_cmd_is_valid_actl(union scsw *scsw)
 {
 	/* Only valid if pmcw.dnv == 1*/
 	return 1;
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_actl);
 
 /**
  * scsw_cmd_is_valid_stctl - check stctl field validity
@@ -383,12 +525,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_actl);
  * Return non-zero if the stctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_stctl(union scsw *scsw)
+static inline int scsw_cmd_is_valid_stctl(union scsw *scsw)
 {
 	/* Only valid if pmcw.dnv == 1*/
 	return 1;
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_stctl);
 
 /**
  * scsw_cmd_is_valid_dstat - check dstat field validity
@@ -397,12 +538,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_stctl);
  * Return non-zero if the dstat field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_dstat(union scsw *scsw)
+static inline int scsw_cmd_is_valid_dstat(union scsw *scsw)
 {
 	return (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND) &&
 	       (scsw->cmd.cc != 3);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_dstat);
 
 /**
  * scsw_cmd_is_valid_cstat - check cstat field validity
@@ -411,12 +551,11 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_dstat);
  * Return non-zero if the cstat field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-int scsw_cmd_is_valid_cstat(union scsw *scsw)
+static inline int scsw_cmd_is_valid_cstat(union scsw *scsw)
 {
 	return (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND) &&
 	       (scsw->cmd.cc != 3);
 }
-EXPORT_SYMBOL(scsw_cmd_is_valid_cstat);
 
 /**
  * scsw_tm_is_valid_key - check key field validity
@@ -425,11 +564,10 @@ EXPORT_SYMBOL(scsw_cmd_is_valid_cstat);
  * Return non-zero if the key field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_key(union scsw *scsw)
+static inline int scsw_tm_is_valid_key(union scsw *scsw)
 {
 	return (scsw->tm.fctl & SCSW_FCTL_START_FUNC);
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_key);
 
 /**
  * scsw_tm_is_valid_eswf - check eswf field validity
@@ -438,11 +576,10 @@ EXPORT_SYMBOL(scsw_tm_is_valid_key);
  * Return non-zero if the eswf field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_eswf(union scsw *scsw)
+static inline int scsw_tm_is_valid_eswf(union scsw *scsw)
 {
 	return (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND);
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_eswf);
 
 /**
  * scsw_tm_is_valid_cc - check cc field validity
@@ -451,12 +588,11 @@ EXPORT_SYMBOL(scsw_tm_is_valid_eswf);
  * Return non-zero if the cc field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_cc(union scsw *scsw)
+static inline int scsw_tm_is_valid_cc(union scsw *scsw)
 {
 	return (scsw->tm.fctl & SCSW_FCTL_START_FUNC) &&
 	       (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND);
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_cc);
 
 /**
  * scsw_tm_is_valid_fmt - check fmt field validity
@@ -465,11 +601,10 @@ EXPORT_SYMBOL(scsw_tm_is_valid_cc);
  * Return non-zero if the fmt field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_fmt(union scsw *scsw)
+static inline int scsw_tm_is_valid_fmt(union scsw *scsw)
 {
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_fmt);
 
 /**
  * scsw_tm_is_valid_x - check x field validity
@@ -478,11 +613,10 @@ EXPORT_SYMBOL(scsw_tm_is_valid_fmt);
  * Return non-zero if the x field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_x(union scsw *scsw)
+static inline int scsw_tm_is_valid_x(union scsw *scsw)
 {
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_x);
 
 /**
  * scsw_tm_is_valid_q - check q field validity
@@ -491,11 +625,10 @@ EXPORT_SYMBOL(scsw_tm_is_valid_x);
  * Return non-zero if the q field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_q(union scsw *scsw)
+static inline int scsw_tm_is_valid_q(union scsw *scsw)
 {
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_q);
 
 /**
  * scsw_tm_is_valid_ectl - check ectl field validity
@@ -504,13 +637,12 @@ EXPORT_SYMBOL(scsw_tm_is_valid_q);
  * Return non-zero if the ectl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_ectl(union scsw *scsw)
+static inline int scsw_tm_is_valid_ectl(union scsw *scsw)
 {
 	return (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND) &&
 	       !(scsw->tm.stctl & SCSW_STCTL_INTER_STATUS) &&
 	       (scsw->tm.stctl & SCSW_STCTL_ALERT_STATUS);
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_ectl);
 
 /**
  * scsw_tm_is_valid_pno - check pno field validity
@@ -519,7 +651,7 @@ EXPORT_SYMBOL(scsw_tm_is_valid_ectl);
  * Return non-zero if the pno field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_pno(union scsw *scsw)
+static inline int scsw_tm_is_valid_pno(union scsw *scsw)
 {
 	return (scsw->tm.fctl != 0) &&
 	       (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND) &&
@@ -527,7 +659,6 @@ int scsw_tm_is_valid_pno(union scsw *scsw)
 		 ((scsw->tm.stctl & SCSW_STCTL_INTER_STATUS) &&
 		  (scsw->tm.actl & SCSW_ACTL_SUSPENDED)));
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_pno);
 
 /**
  * scsw_tm_is_valid_fctl - check fctl field validity
@@ -536,12 +667,11 @@ EXPORT_SYMBOL(scsw_tm_is_valid_pno);
  * Return non-zero if the fctl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_fctl(union scsw *scsw)
+static inline int scsw_tm_is_valid_fctl(union scsw *scsw)
 {
 	/* Only valid if pmcw.dnv == 1*/
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_fctl);
 
 /**
  * scsw_tm_is_valid_actl - check actl field validity
@@ -550,12 +680,11 @@ EXPORT_SYMBOL(scsw_tm_is_valid_fctl);
  * Return non-zero if the actl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_actl(union scsw *scsw)
+static inline int scsw_tm_is_valid_actl(union scsw *scsw)
 {
 	/* Only valid if pmcw.dnv == 1*/
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_actl);
 
 /**
  * scsw_tm_is_valid_stctl - check stctl field validity
@@ -564,12 +693,11 @@ EXPORT_SYMBOL(scsw_tm_is_valid_actl);
  * Return non-zero if the stctl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_stctl(union scsw *scsw)
+static inline int scsw_tm_is_valid_stctl(union scsw *scsw)
 {
 	/* Only valid if pmcw.dnv == 1*/
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_stctl);
 
 /**
  * scsw_tm_is_valid_dstat - check dstat field validity
@@ -578,12 +706,11 @@ EXPORT_SYMBOL(scsw_tm_is_valid_stctl);
  * Return non-zero if the dstat field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_dstat(union scsw *scsw)
+static inline int scsw_tm_is_valid_dstat(union scsw *scsw)
 {
 	return (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND) &&
 	       (scsw->tm.cc != 3);
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_dstat);
 
 /**
  * scsw_tm_is_valid_cstat - check cstat field validity
@@ -592,12 +719,11 @@ EXPORT_SYMBOL(scsw_tm_is_valid_dstat);
  * Return non-zero if the cstat field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_cstat(union scsw *scsw)
+static inline int scsw_tm_is_valid_cstat(union scsw *scsw)
 {
 	return (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND) &&
 	       (scsw->tm.cc != 3);
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_cstat);
 
 /**
  * scsw_tm_is_valid_fcxs - check fcxs field validity
@@ -606,11 +732,10 @@ EXPORT_SYMBOL(scsw_tm_is_valid_cstat);
  * Return non-zero if the fcxs field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_fcxs(union scsw *scsw)
+static inline int scsw_tm_is_valid_fcxs(union scsw *scsw)
 {
 	return 1;
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_fcxs);
 
 /**
  * scsw_tm_is_valid_schxs - check schxs field validity
@@ -619,14 +744,13 @@ EXPORT_SYMBOL(scsw_tm_is_valid_fcxs);
  * Return non-zero if the schxs field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-int scsw_tm_is_valid_schxs(union scsw *scsw)
+static inline int scsw_tm_is_valid_schxs(union scsw *scsw)
 {
 	return (scsw->tm.cstat & (SCHN_STAT_PROG_CHECK |
 				  SCHN_STAT_INTF_CTRL_CHK |
 				  SCHN_STAT_PROT_CHECK |
 				  SCHN_STAT_CHN_DATA_CHK));
 }
-EXPORT_SYMBOL(scsw_tm_is_valid_schxs);
 
 /**
  * scsw_is_valid_actl - check actl field validity
@@ -636,14 +760,13 @@ EXPORT_SYMBOL(scsw_tm_is_valid_schxs);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_actl(union scsw *scsw)
+static inline int scsw_is_valid_actl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_actl(scsw);
 	else
 		return scsw_cmd_is_valid_actl(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_actl);
 
 /**
  * scsw_is_valid_cc - check cc field validity
@@ -653,14 +776,13 @@ EXPORT_SYMBOL(scsw_is_valid_actl);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_cc(union scsw *scsw)
+static inline int scsw_is_valid_cc(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_cc(scsw);
 	else
 		return scsw_cmd_is_valid_cc(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_cc);
 
 /**
  * scsw_is_valid_cstat - check cstat field validity
@@ -670,14 +792,13 @@ EXPORT_SYMBOL(scsw_is_valid_cc);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_cstat(union scsw *scsw)
+static inline int scsw_is_valid_cstat(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_cstat(scsw);
 	else
 		return scsw_cmd_is_valid_cstat(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_cstat);
 
 /**
  * scsw_is_valid_dstat - check dstat field validity
@@ -687,14 +808,13 @@ EXPORT_SYMBOL(scsw_is_valid_cstat);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_dstat(union scsw *scsw)
+static inline int scsw_is_valid_dstat(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_dstat(scsw);
 	else
 		return scsw_cmd_is_valid_dstat(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_dstat);
 
 /**
  * scsw_is_valid_ectl - check ectl field validity
@@ -704,14 +824,13 @@ EXPORT_SYMBOL(scsw_is_valid_dstat);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_ectl(union scsw *scsw)
+static inline int scsw_is_valid_ectl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_ectl(scsw);
 	else
 		return scsw_cmd_is_valid_ectl(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_ectl);
 
 /**
  * scsw_is_valid_eswf - check eswf field validity
@@ -721,14 +840,13 @@ EXPORT_SYMBOL(scsw_is_valid_ectl);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_eswf(union scsw *scsw)
+static inline int scsw_is_valid_eswf(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_eswf(scsw);
 	else
 		return scsw_cmd_is_valid_eswf(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_eswf);
 
 /**
  * scsw_is_valid_fctl - check fctl field validity
@@ -738,14 +856,13 @@ EXPORT_SYMBOL(scsw_is_valid_eswf);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_fctl(union scsw *scsw)
+static inline int scsw_is_valid_fctl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_fctl(scsw);
 	else
 		return scsw_cmd_is_valid_fctl(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_fctl);
 
 /**
  * scsw_is_valid_key - check key field validity
@@ -755,14 +872,13 @@ EXPORT_SYMBOL(scsw_is_valid_fctl);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_key(union scsw *scsw)
+static inline int scsw_is_valid_key(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_key(scsw);
 	else
 		return scsw_cmd_is_valid_key(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_key);
 
 /**
  * scsw_is_valid_pno - check pno field validity
@@ -772,14 +888,13 @@ EXPORT_SYMBOL(scsw_is_valid_key);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_pno(union scsw *scsw)
+static inline int scsw_is_valid_pno(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_pno(scsw);
 	else
 		return scsw_cmd_is_valid_pno(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_pno);
 
 /**
  * scsw_is_valid_stctl - check stctl field validity
@@ -789,14 +904,13 @@ EXPORT_SYMBOL(scsw_is_valid_pno);
  * regardless of whether it is a transport mode or command mode scsw.
  * Return zero if the field does not contain a valid value.
  */
-int scsw_is_valid_stctl(union scsw *scsw)
+static inline int scsw_is_valid_stctl(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_valid_stctl(scsw);
 	else
 		return scsw_cmd_is_valid_stctl(scsw);
 }
-EXPORT_SYMBOL(scsw_is_valid_stctl);
 
 /**
  * scsw_cmd_is_solicited - check for solicited scsw
@@ -805,12 +919,11 @@ EXPORT_SYMBOL(scsw_is_valid_stctl);
  * Return non-zero if the command mode scsw indicates that the associated
  * status condition is solicited, zero if it is unsolicited.
  */
-int scsw_cmd_is_solicited(union scsw *scsw)
+static inline int scsw_cmd_is_solicited(union scsw *scsw)
 {
 	return (scsw->cmd.cc != 0) || (scsw->cmd.stctl !=
 		(SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS));
 }
-EXPORT_SYMBOL(scsw_cmd_is_solicited);
 
 /**
  * scsw_tm_is_solicited - check for solicited scsw
@@ -819,12 +932,11 @@ EXPORT_SYMBOL(scsw_cmd_is_solicited);
  * Return non-zero if the transport mode scsw indicates that the associated
  * status condition is solicited, zero if it is unsolicited.
  */
-int scsw_tm_is_solicited(union scsw *scsw)
+static inline int scsw_tm_is_solicited(union scsw *scsw)
 {
 	return (scsw->tm.cc != 0) || (scsw->tm.stctl !=
 		(SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS));
 }
-EXPORT_SYMBOL(scsw_tm_is_solicited);
 
 /**
  * scsw_is_solicited - check for solicited scsw
@@ -833,11 +945,12 @@ EXPORT_SYMBOL(scsw_tm_is_solicited);
  * Return non-zero if the transport or command mode scsw indicates that the
  * associated status condition is solicited, zero if it is unsolicited.
  */
-int scsw_is_solicited(union scsw *scsw)
+static inline int scsw_is_solicited(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
 		return scsw_tm_is_solicited(scsw);
 	else
 		return scsw_cmd_is_solicited(scsw);
 }
-EXPORT_SYMBOL(scsw_is_solicited);
+
+#endif /* _ASM_S390_SCSW_H_ */
