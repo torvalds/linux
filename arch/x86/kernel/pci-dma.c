@@ -3,6 +3,7 @@
 #include <linux/dmar.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
+#include <linux/kmemleak.h>
 
 #include <asm/proto.h>
 #include <asm/dma.h>
@@ -88,6 +89,11 @@ void __init dma32_reserve_bootmem(void)
 	size = roundup(dma32_bootmem_size, align);
 	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
 				 512ULL<<20);
+	/*
+	 * Kmemleak should not scan this block as it may not be mapped via the
+	 * kernel direct mapping.
+	 */
+	kmemleak_ignore(dma32_bootmem_ptr);
 	if (dma32_bootmem_ptr)
 		dma32_bootmem_size = size;
 	else

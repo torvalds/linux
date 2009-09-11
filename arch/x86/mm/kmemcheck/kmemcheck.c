@@ -331,6 +331,20 @@ static void kmemcheck_read_strict(struct pt_regs *regs,
 	kmemcheck_shadow_set(shadow, size);
 }
 
+bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size)
+{
+	enum kmemcheck_shadow status;
+	void *shadow;
+
+	shadow = kmemcheck_shadow_lookup(addr);
+	if (!shadow)
+		return true;
+
+	status = kmemcheck_shadow_test(shadow, size);
+
+	return status == KMEMCHECK_SHADOW_INITIALIZED;
+}
+
 /* Access may cross page boundary */
 static void kmemcheck_read(struct pt_regs *regs,
 	unsigned long addr, unsigned int size)
