@@ -682,23 +682,39 @@ static void intel_i830_setup_flush(void)
 	if (!intel_private.i8xx_page)
 		return;
 
-	/* make page uncached */
-	map_page_into_agp(intel_private.i8xx_page);
-
 	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
 	if (!intel_private.i8xx_flush_page)
 		intel_i830_fini_flush();
 }
 
+static void
+do_wbinvd(void *null)
+{
+	wbinvd();
+}
+
+/* The chipset_flush interface needs to get data that has already been
+ * flushed out of the CPU all the way out to main memory, because the GPU
+ * doesn't snoop those buffers.
+ *
+ * The 8xx series doesn't have the same lovely interface for flushing the
+ * chipset write buffers that the later chips do. According to the 865
+ * specs, it's 64 octwords, or 1KB.  So, to get those previous things in
+ * that buffer out, we just fill 1KB and clflush it out, on the assumption
+ * that it'll push whatever was in there out.  It appears to work.
+ */
 static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 {
 	unsigned int *pg = intel_private.i8xx_flush_page;
-	int i;
 
-	for (i = 0; i < 256; i += 2)
-		*(pg + i) = i;
+	memset(pg, 0, 1024);
 
-	wmb();
+	if (cpu_has_clflush) {
+		clflush_cache_range(pg, 1024);
+	} else {
+		if (on_each_cpu(do_wbinvd, NULL, 1) != 0)
+			printk(KERN_ERR "Timed out waiting for cache flush.\n");
+	}
 }
 
 /* The intel i830 automatically initializes the agp aperture during POST.

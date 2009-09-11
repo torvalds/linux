@@ -2511,16 +2511,6 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 	if (obj_priv->pages == NULL)
 		return;
 
-	/* XXX: The 865 in particular appears to be weird in how it handles
-	 * cache flushing.  We haven't figured it out, but the
-	 * clflush+agp_chipset_flush doesn't appear to successfully get the
-	 * data visible to the PGU, while wbinvd + agp_chipset_flush does.
-	 */
-	if (IS_I865G(obj->dev)) {
-		wbinvd();
-		return;
-	}
-
 	drm_clflush_pages(obj_priv->pages, obj->size / PAGE_SIZE);
 }
 
