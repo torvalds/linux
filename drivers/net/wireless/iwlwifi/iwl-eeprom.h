@@ -370,12 +370,10 @@ struct iwl_eeprom_calib_info {
 #define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
 #define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
 #define EEPROM_SKU_CAP                      (2*0x45)	/* 1  bytes */
-#define EEPROM_LEDS_MODE                    (2*0x45+1)	/* 1  bytes */
 #define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
 #define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
 #define EEPROM_3945_M_VERSION               (2*0x4A)	/* 1  bytes */
-#define EEPROM_ANTENNA_SWITCH_TYPE          (2*0x4A+1)	/* 1  bytes */
 
 /* The following masks are to be applied on EEPROM_RADIO_CONFIG */
 #define EEPROM_RF_CFG_TYPE_MSK(x)   (x & 0x3)         /* bits 0-1   */
