@@ -54,7 +54,12 @@ static void b43_sdio_interrupt_dispatcher(struct sdio_func *func)
 	struct b43_sdio *sdio = sdio_get_drvdata(func);
 	struct b43_wldev *dev = sdio->irq_handler_opaque;
 
+	if (unlikely(b43_status(dev) < B43_STAT_STARTED))
+		return;
+
+	sdio_release_host(func);
 	sdio->irq_handler(dev);
+	sdio_claim_host(func);
 }
 
 int b43_sdio_request_irq(struct b43_wldev *dev,

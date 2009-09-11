@@ -1914,20 +1914,14 @@ static irqreturn_t b43_interrupt_handler(int irq, void *dev_id)
 static void b43_sdio_interrupt_handler(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
-	struct sdio_func *func = dev->dev->bus->host_sdio;
 	irqreturn_t ret;
 
-	if (unlikely(b43_status(dev) < B43_STAT_STARTED))
-		return;
-
 	mutex_lock(&wl->mutex);
-	sdio_release_host(func);
 
 	ret = b43_do_interrupt(dev);
 	if (ret == IRQ_WAKE_THREAD)
 		b43_do_interrupt_thread(dev);
 
-	sdio_claim_host(func);
 	mutex_unlock(&wl->mutex);
 }
 
