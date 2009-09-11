@@ -1111,8 +1111,11 @@ static void ap_scan_bus(struct work_struct *unused)
 
 		ap_dev->device.bus = &ap_bus_type;
 		ap_dev->device.parent = ap_root_device;
-		dev_set_name(&ap_dev->device, "card%02x",
-			     AP_QID_DEVICE(ap_dev->qid));
+		if (dev_set_name(&ap_dev->device, "card%02x",
+				 AP_QID_DEVICE(ap_dev->qid))) {
+			kfree(ap_dev);
+			continue;
+		}
 		ap_dev->device.release = ap_device_release;
 		rc = device_register(&ap_dev->device);
 		if (rc) {
