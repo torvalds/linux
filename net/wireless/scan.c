@@ -675,6 +675,11 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 		wext_freq_not_found: ;
 		}
 	}
+	/* No channels found? */
+	if (!i) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	/* Set real number of channels specified in creq->channels[] */
 	creq->n_channels = i;
