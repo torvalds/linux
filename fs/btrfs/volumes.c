@@ -719,10 +719,9 @@ error:
  * called very infrequently and that a given device has a small number
  * of extents
  */
-static noinline int find_free_dev_extent(struct btrfs_trans_handle *trans,
-					 struct btrfs_device *device,
-					 u64 num_bytes, u64 *start,
-					 u64 *max_avail)
+int find_free_dev_extent(struct btrfs_trans_handle *trans,
+			 struct btrfs_device *device, u64 num_bytes,
+			 u64 *start, u64 *max_avail)
 {
 	struct btrfs_key key;
 	struct btrfs_root *root = device->dev_root;
@@ -1736,6 +1735,10 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 	extent_root = root->fs_info->extent_root;
 	em_tree = &root->fs_info->mapping_tree.map_tree;
 
+	ret = btrfs_can_relocate(extent_root, chunk_offset);
+	if (ret)
+		return -ENOSPC;
+
 	/* step one, relocate all the extents inside this chunk */
 	ret = btrfs_relocate_block_group(extent_root, chunk_offset);
 	BUG_ON(ret);
@@ -1807,12 +1810,15 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root)
 	struct btrfs_key found_key;
 	u64 chunk_tree = chunk_root->root_key.objectid;
 	u64 chunk_type;
+	bool retried = false;
+	int failed = 0;
 	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
+again:
 	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 	key.offset = (u64)-1;
 	key.type = BTRFS_CHUNK_ITEM_KEY;
@@ -1842,7 +1848,10 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root)
 			ret = btrfs_relocate_chunk(chunk_root, chunk_tree,
 						   found_key.objectid,
 						   found_key.offset);
-			BUG_ON(ret);
+			if (ret == -ENOSPC)
+				failed++;
+			else if (ret)
+				BUG();
 		}
 
 		if (found_key.offset == 0)
@@ -1850,6 +1859,14 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root)
 		key.offset = found_key.offset - 1;
 	}
 	ret = 0;
+	if (failed && !retried) {
+		failed = 0;
+		retried = true;
+		goto again;
+	} else if (failed && retried) {
+		WARN_ON(1);
+		ret = -ENOSPC;
+	}
 error:
 	btrfs_free_path(path);
 	return ret;
@@ -1894,6 +1911,8 @@ int btrfs_balance(struct btrfs_root *dev_root)
 			continue;
 
 		ret = btrfs_shrink_device(device, old_size - size_to_free);
+		if (ret == -ENOSPC)
+			break;
 		BUG_ON(ret);
 
 		trans = btrfs_start_transaction(dev_root, 1);
@@ -1938,9 +1957,8 @@ int btrfs_balance(struct btrfs_root *dev_root)
 		chunk = btrfs_item_ptr(path->nodes[0],
 				       path->slots[0],
 				       struct btrfs_chunk);
-		key.offset = found_key.offset;
 		/* chunk zero is special */
-		if (key.offset == 0)
+		if (found_key.offset == 0)
 			break;
 
 		btrfs_release_path(chunk_root, path);
@@ -1948,7 +1966,8 @@ int btrfs_balance(struct btrfs_root *dev_root)
 					   chunk_root->root_key.objectid,
 					   found_key.objectid,
 					   found_key.offset);
-		BUG_ON(ret);
+		BUG_ON(ret && ret != -ENOSPC);
+		key.offset = found_key.offset - 1;
 	}
 	ret = 0;
 error:
@@ -1974,10 +1993,13 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	u64 chunk_offset;
 	int ret;
 	int slot;
+	int failed = 0;
+	bool retried = false;
 	struct extent_buffer *l;
 	struct btrfs_key key;
 	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
 	u64 old_total = btrfs_super_total_bytes(super_copy);
+	u64 old_size = device->total_bytes;
 	u64 diff = device->total_bytes - new_size;
 
 	if (new_size >= device->total_bytes)
@@ -1987,12 +2009,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	if (!path)
 		return -ENOMEM;
 
-	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
 	path->reada = 2;
 
 	lock_chunks(root);
@@ -2001,8 +2017,8 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	if (device->writeable)
 		device->fs_devices->total_rw_bytes -= diff;
 	unlock_chunks(root);
-	btrfs_end_transaction(trans, root);
 
+again:
 	key.objectid = device->devid;
 	key.offset = (u64)-1;
 	key.type = BTRFS_DEV_EXTENT_KEY;
@@ -2017,6 +2033,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 			goto done;
 		if (ret) {
 			ret = 0;
+			btrfs_release_path(root, path);
 			break;
 		}
 
@@ -2024,14 +2041,18 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 
-		if (key.objectid != device->devid)
+		if (key.objectid != device->devid) {
+			btrfs_release_path(root, path);
 			break;
+		}
 
 		dev_extent = btrfs_item_ptr(l, slot, struct btrfs_dev_extent);
 		length = btrfs_dev_extent_length(l, dev_extent);
 
-		if (key.offset + length <= new_size)
+		if (key.offset + length <= new_size) {
+			btrfs_release_path(root, path);
 			break;
+		}
 
 		chunk_tree = btrfs_dev_extent_chunk_tree(l, dev_extent);
 		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
@@ -2040,8 +2061,26 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 
 		ret = btrfs_relocate_chunk(root, chunk_tree, chunk_objectid,
 					   chunk_offset);
-		if (ret)
+		if (ret && ret != -ENOSPC)
 			goto done;
+		if (ret == -ENOSPC)
+			failed++;
+		key.offset -= 1;
+	}
+
+	if (failed && !retried) {
+		failed = 0;
+		retried = true;
+		goto again;
+	} else if (failed && retried) {
+		ret = -ENOSPC;
+		lock_chunks(root);
+
+		device->total_bytes = old_size;
+		if (device->writeable)
+			device->fs_devices->total_rw_bytes += diff;
+		unlock_chunks(root);
+		goto done;
 	}
 
 	/* Shrinking succeeded, else we would be at "done". */

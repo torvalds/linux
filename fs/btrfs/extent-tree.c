@@ -7402,6 +7402,93 @@ out:
 }
 #endif
 
+/*
+ * checks to see if its even possible to relocate this block group.
+ *
+ * @return - -1 if it's not a good idea to relocate this block group, 0 if its
+ * ok to go ahead and try.
+ */
+int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
+{
+	struct btrfs_block_group_cache *block_group;
+	struct btrfs_space_info *space_info;
+	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
+	struct btrfs_device *device;
+	int full = 0;
+	int ret = 0;
+
+	block_group = btrfs_lookup_block_group(root->fs_info, bytenr);
+
+	/* odd, couldn't find the block group, leave it alone */
+	if (!block_group)
+		return -1;
+
+	/* no bytes used, we're good */
+	if (!btrfs_block_group_used(&block_group->item))
+		goto out;
+
+	space_info = block_group->space_info;
+	spin_lock(&space_info->lock);
+
+	full = space_info->full;
+
+	/*
+	 * if this is the last block group we have in this space, we can't
+	 * relocate it.
+	 */
+	if (space_info->total_bytes == block_group->key.offset) {
+		ret = -1;
+		spin_unlock(&space_info->lock);
+		goto out;
+	}
+
+	/*
+	 * need to make sure we have room in the space to handle all of the
+	 * extents from this block group.  If we can, we're good
+	 */
+	if (space_info->bytes_used + space_info->bytes_reserved +
+	    space_info->bytes_pinned + space_info->bytes_readonly +
+	    btrfs_block_group_used(&block_group->item) <
+	    space_info->total_bytes) {
+		spin_unlock(&space_info->lock);
+		goto out;
+	}
+	spin_unlock(&space_info->lock);
+
+	/*
+	 * ok we don't have enough space, but maybe we have free space on our
+	 * devices to allocate new chunks for relocation, so loop through our
+	 * alloc devices and guess if we have enough space.  However, if we
+	 * were marked as full, then we know there aren't enough chunks, and we
+	 * can just return.
+	 */
+	ret = -1;
+	if (full)
+		goto out;
+
+	mutex_lock(&root->fs_info->chunk_mutex);
+	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
+		u64 min_free = btrfs_block_group_used(&block_group->item);
+		u64 dev_offset, max_avail;
+
+		/*
+		 * check to make sure we can actually find a chunk with enough
+		 * space to fit our block group in.
+		 */
+		if (device->total_bytes > device->bytes_used + min_free) {
+			ret = find_free_dev_extent(NULL, device, min_free,
+						   &dev_offset, &max_avail);
+			if (!ret)
+				break;
+			ret = -1;
+		}
+	}
+	mutex_unlock(&root->fs_info->chunk_mutex);
+out:
+	btrfs_put_block_group(block_group);
+	return ret;
+}
+
 static int find_first_block_group(struct btrfs_root *root,
 		struct btrfs_path *path, struct btrfs_key *key)
 {
