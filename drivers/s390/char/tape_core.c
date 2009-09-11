@@ -215,14 +215,14 @@ tape_med_state_set(struct tape_device *device, enum tape_medium_state newstate)
 	case MS_UNLOADED:
 		device->tape_generic_status |= GMT_DR_OPEN(~0);
 		if (device->medium_state == MS_LOADED)
-			dev_info(&device->cdev->dev, "The tape cartridge has "
-				 "been successfully unloaded\n");
+			pr_info("%s: The tape cartridge has been successfully "
+				"unloaded\n", dev_name(&device->cdev->dev));
 		break;
 	case MS_LOADED:
 		device->tape_generic_status &= ~GMT_DR_OPEN(~0);
 		if (device->medium_state == MS_UNLOADED)
-			dev_info(&device->cdev->dev, "A tape cartridge has "
-				 "been mounted\n");
+			pr_info("%s: A tape cartridge has been mounted\n",
+				dev_name(&device->cdev->dev));
 		break;
 	default:
 		// print nothing
@@ -656,8 +656,8 @@ tape_generic_remove(struct ccw_device *cdev)
 			 */
 			DBF_EVENT(3, "(%08x): Drive in use vanished!\n",
 				device->cdev_id);
-			dev_warn(&device->cdev->dev, "A tape unit was detached"
-				" while in use\n");
+			pr_warning("%s: A tape unit was detached while in "
+				   "use\n", dev_name(&device->cdev->dev));
 			tape_state_set(device, TS_NOT_OPER);
 			__tape_discard_requests(device);
 			spin_unlock_irq(get_ccwdev_lock(device->cdev));
