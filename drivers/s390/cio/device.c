@@ -669,8 +669,12 @@ static int ccw_device_register(struct ccw_device *cdev)
 	int ret;
 
 	dev->bus = &ccw_bus_type;
-
-	if ((ret = device_add(dev)))
+	ret = dev_set_name(&cdev->dev, "0.%x.%04x", cdev->private->dev_id.ssid,
+			   cdev->private->dev_id.devno);
+	if (ret)
+		return ret;
+	ret = device_add(dev);
+	if (ret)
 		return ret;
 
 	set_bit(1, &cdev->private->registered);
@@ -1123,13 +1127,6 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
 	init_timer(&priv->timer);
-
-	/* Set an initial name for the device. */
-	if (cio_is_console(sch->schid))
-		cdev->dev.init_name = cio_get_console_cdev_name(sch);
-	else
-		dev_set_name(&cdev->dev, "0.%x.%04x",
-			     sch->schid.ssid, sch->schib.pmcw.dev);
 
 	/* Increase counter of devices currently in recognition. */
 	atomic_inc(&ccw_device_init_count);
@@ -1731,7 +1728,6 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 
 #ifdef CONFIG_CCW_CONSOLE
 static struct ccw_device console_cdev;
-static char console_cdev_name[10] = "0.x.xxxx";
 static struct ccw_device_private console_private;
 static int console_cdev_in_use;
 
@@ -1815,13 +1811,6 @@ int ccw_device_force_console(void)
 	return ccw_device_pm_restore(&console_cdev.dev);
 }
 EXPORT_SYMBOL_GPL(ccw_device_force_console);
-
-const char *cio_get_console_cdev_name(struct subchannel *sch)
-{
-	snprintf(console_cdev_name, 10, "0.%x.%04x",
-		 sch->schid.ssid, sch->schib.pmcw.dev);
-	return (const char *)console_cdev_name;
-}
 #endif
 
 /*
