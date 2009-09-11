@@ -101,6 +101,7 @@ struct stack_entry {
 
 struct userstack_entry {
 	struct trace_entry	ent;
+	unsigned int		tgid;
 	unsigned long		caller[FTRACE_STACK_ENTRIES];
 };
 

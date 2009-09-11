@@ -407,7 +407,7 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 		 * since individual threads might have already quit!
 		 */
 		rcu_read_lock();
-		task = find_task_by_vpid(entry->ent.tgid);
+		task = find_task_by_vpid(entry->tgid);
 		if (task)
 			mm = get_task_mm(task);
 		rcu_read_unlock();

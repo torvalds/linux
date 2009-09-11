@@ -86,7 +86,6 @@ int trace_define_common_fields(struct ftrace_event_call *call)
 	__common_field(unsigned char, flags);
 	__common_field(unsigned char, preempt_count);
 	__common_field(int, pid);
-	__common_field(int, tgid);
 
 	return ret;
 }
@@ -572,13 +571,11 @@ static int trace_write_header(struct trace_seq *s)
 				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
 				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
 				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
 				"\n",
 				FIELD(unsigned short, type),
 				FIELD(unsigned char, flags),
 				FIELD(unsigned char, preempt_count),
-				FIELD(int, pid),
-				FIELD(int, tgid));
+				FIELD(int, pid));
 }
 
 static ssize_t
