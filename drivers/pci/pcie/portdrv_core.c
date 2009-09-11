@@ -187,7 +187,6 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
  */
 static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 {
-	struct pcie_port_data *port_data = pci_get_drvdata(dev);
 	int irq, interrupt_mode = PCIE_PORT_NO_IRQ;
 	int i;
 
