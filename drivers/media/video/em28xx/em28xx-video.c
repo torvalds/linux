@@ -2492,13 +2492,10 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	dev->mute = 1;
 	dev->volume = 0x1f;
 
-	/* enable vbi capturing */
-
 /*	em28xx_write_reg(dev, EM28XX_R0E_AUDIOSRC, 0xc0); audio register */
 	val = (u8)em28xx_read_reg(dev, EM28XX_R0F_XCLK);
 	em28xx_write_reg(dev, EM28XX_R0F_XCLK,
 			 (EM28XX_XCLK_AUDIO_UNMUTE | val));
-	em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x51);
 
 	em28xx_set_outfmt(dev);
 	em28xx_colorlevels_set_default(dev);
