@@ -49,6 +49,7 @@
 #include <asm/sclp.h>
 #include <asm/cputime.h>
 #include <asm/vdso.h>
+#include <asm/cpu.h>
 #include "entry.h"
 
 static struct task_struct *current_set[NR_CPUS];
@@ -300,7 +301,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 	logical_cpu = cpumask_first(&avail);
 	if (logical_cpu >= nr_cpu_ids)
 		return 0;
-	for (cpu_id = 0; cpu_id <= 65535; cpu_id++) {
+	for (cpu_id = 0; cpu_id <= MAX_CPU_ADDRESS; cpu_id++) {
 		if (cpu_known(cpu_id))
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
@@ -379,7 +380,7 @@ static void __init smp_detect_cpus(void)
 	/* Use sigp detection algorithm if sclp doesn't work. */
 	if (sclp_get_cpu_info(info)) {
 		smp_use_sigp_detection = 1;
-		for (cpu = 0; cpu <= 65535; cpu++) {
+		for (cpu = 0; cpu <= MAX_CPU_ADDRESS; cpu++) {
 			if (cpu == boot_cpu_addr)
 				continue;
 			__cpu_logical_map[CPU_INIT_NO] = cpu;

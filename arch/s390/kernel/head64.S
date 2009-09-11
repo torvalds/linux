@@ -62,9 +62,9 @@ startup_continue:
 	clr	%r11,%r12
 	je	5f			# no more space in prefix array
 4:
-	ahi	%r8,1				# next cpu (r8 += 1)
-	cl	%r8,.Llast_cpu-.LPG1(%r13)	# is last possible cpu ?
-	jl	1b				# jump if not last cpu
+	ahi	%r8,1			# next cpu (r8 += 1)
+	chi	%r8,MAX_CPU_ADDRESS	# is last possible cpu ?
+	jle	1b			# jump if not last cpu
 5:
 	lhi	%r1,2			# mode 2 = esame (dump)
 	j	6f
@@ -130,8 +130,6 @@ startup_continue:
 #ifdef CONFIG_ZFCPDUMP
 .Lcurrent_cpu:
 	.long 0x0
-.Llast_cpu:
-	.long 0x0000ffff
 .Lpref_arr_ptr:
 	.long zfcpdump_prefix_array
 #endif /* CONFIG_ZFCPDUMP */
