@@ -27,6 +27,8 @@ ED 0xff800020, 0xa5a50001
 ED 0xfec10000, 0x0000001b
 
 LIST "setup clocks"
+LIST "The PLL and FLL values are updated here for the optimal"
+LIST "RF frequency and improved reception sensitivity."
 ED 0xa4150004, 0x00000050
 ED 0xa4150000, 0x91053508
 WAIT 1
