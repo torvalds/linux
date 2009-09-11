@@ -1830,6 +1830,16 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 
 	/* Re-enable interrupts on the device by restoring the current interrupt mask. */
 	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
+
+#if B43_DEBUG
+	if (b43_debug(dev, B43_DBG_VERBOSESTATS)) {
+		dev->irq_count++;
+		for (i = 0; i < ARRAY_SIZE(dev->irq_bit_count); i++) {
+			if (reason & (1 << i))
+				dev->irq_bit_count[i]++;
+		}
+	}
+#endif
 }
 
 /* Interrupt thread handler. Handles device interrupts in thread context. */
@@ -2893,6 +2903,27 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 	wmb();
+
+#if B43_DEBUG
+	if (b43_debug(dev, B43_DBG_VERBOSESTATS)) {
+		unsigned int i;
+
+		b43dbg(dev->wl, "Stats: %7u IRQs/sec, %7u TX/sec, %7u RX/sec\n",
+		       dev->irq_count / 15,
+		       dev->tx_count / 15,
+		       dev->rx_count / 15);
+		dev->irq_count = 0;
+		dev->tx_count = 0;
+		dev->rx_count = 0;
+		for (i = 0; i < ARRAY_SIZE(dev->irq_bit_count); i++) {
+			if (dev->irq_bit_count[i]) {
+				b43dbg(dev->wl, "Stats: %7u IRQ-%02u/sec (0x%08X)\n",
+				       dev->irq_bit_count[i] / 15, i, (1 << i));
+				dev->irq_bit_count[i] = 0;
+			}
+		}
+	}
+#endif
 }
 
 static void do_periodic_work(struct b43_wldev *dev)
@@ -3092,6 +3123,9 @@ static void b43_tx_work(struct work_struct *work)
 			dev_kfree_skb(skb); /* Drop it */
 	}
 
+#if B43_DEBUG
+	dev->tx_count++;
+#endif
 	mutex_unlock(&wl->mutex);
 }
 

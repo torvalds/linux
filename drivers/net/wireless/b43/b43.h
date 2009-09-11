@@ -817,6 +817,10 @@ struct b43_wldev {
 	/* Debugging stuff follows. */
 #ifdef CONFIG_B43_DEBUG
 	struct b43_dfsentry *dfsentry;
+	unsigned int irq_count;
+	unsigned int irq_bit_count[32];
+	unsigned int tx_count;
+	unsigned int rx_count;
 #endif
 };
 
