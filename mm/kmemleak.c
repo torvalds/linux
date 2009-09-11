@@ -792,7 +792,8 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
 	struct early_log *log;
 
 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-		pr_warning("Early log buffer exceeded\n");
+		pr_warning("Early log buffer exceeded, "
+			   "please increase DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n");
 		kmemleak_disable();
 		return;
 	}
