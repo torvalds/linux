@@ -234,6 +234,8 @@ extern int header_page_data_offset;
 extern int header_page_data_size;
 
 int parse_header_page(char *buf, unsigned long size);
+int trace_parse_common_type(void *data);
+struct event *trace_find_event(int id);
 
 void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters);
 
