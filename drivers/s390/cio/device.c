@@ -2038,7 +2038,9 @@ static void __ccw_device_pm_restore(struct ccw_device *cdev)
 	spin_unlock_irq(sch->lock);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Couldn't start recognition for device "
-			      "%s (ret=%d)\n", dev_name(&cdev->dev), ret);
+			      "0.%x.%04x (ret=%d)\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno, ret);
 		spin_lock_irq(sch->lock);
 		cdev->private->state = DEV_STATE_DISCONNECTED;
 		spin_unlock_irq(sch->lock);
@@ -2101,8 +2103,9 @@ static int ccw_device_pm_restore(struct device *dev)
 	}
 	/* check if the device id has changed */
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
-		CIO_MSG_EVENT(0, "resume: sch %s: failed (devno changed from "
-			      "%04x to %04x)\n", dev_name(&sch->dev),
+		CIO_MSG_EVENT(0, "resume: sch 0.%x.%04x: failed (devno "
+			      "changed from %04x to %04x)\n",
+			      sch->schid.ssid, sch->schid.sch_no,
 			      cdev->private->dev_id.devno,
 			      sch->schib.pmcw.dev);
 		goto out_unreg_unlock;
@@ -2135,8 +2138,9 @@ static int ccw_device_pm_restore(struct device *dev)
 	if (cm_enabled) {
 		ret = ccw_set_cmf(cdev, 1);
 		if (ret) {
-			CIO_MSG_EVENT(2, "resume: cdev %s: cmf failed "
-				      "(rc=%d)\n", dev_name(&cdev->dev), ret);
+			CIO_MSG_EVENT(2, "resume: cdev 0.%x.%04x: cmf failed "
+				      "(rc=%d)\n", cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno, ret);
 			ret = 0;
 		}
 	}
