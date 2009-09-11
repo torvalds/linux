@@ -506,8 +506,7 @@ struct iwl_ht_config {
 	/* self configuration data */
 	bool is_ht;
 	bool is_40mhz;
-	u8 sm_ps;
-	struct ieee80211_mcs_info mcs;
+	bool single_chain_sufficient;
 	/* BSS related data */
 	u8 extension_chan_offset;
 	u8 ht_protection;
