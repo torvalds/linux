@@ -2116,7 +2116,7 @@ static inline int deliver_skb(struct sk_buff *skb,
 /* This hook is defined here for ATM LANE */
 int (*br_fdb_test_addr_hook)(struct net_device *dev,
 			     unsigned char *addr) __read_mostly;
-EXPORT_SYMBOL(br_fdb_test_addr_hook);
+EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
 #endif
 
 /*
@@ -2125,7 +2125,7 @@ EXPORT_SYMBOL(br_fdb_test_addr_hook);
  */
 struct sk_buff *(*br_handle_frame_hook)(struct net_bridge_port *p,
 					struct sk_buff *skb) __read_mostly;
-EXPORT_SYMBOL(br_handle_frame_hook);
+EXPORT_SYMBOL_GPL(br_handle_frame_hook);
 
 static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 					    struct packet_type **pt_prev, int *ret,
