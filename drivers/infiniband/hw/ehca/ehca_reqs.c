@@ -786,7 +786,11 @@ repoll:
 	wc->slid = cqe->rlid;
 	wc->dlid_path_bits = cqe->dlid;
 	wc->src_qp = cqe->remote_qp_number;
-	wc->wc_flags = cqe->w_completion_flags;
+	/*
+	 * HW has "Immed data present" and "GRH present" in bits 6 and 5.
+	 * SW defines those in bits 1 and 0, so we can just shift and mask.
+	 */
+	wc->wc_flags = (cqe->w_completion_flags >> 5) & 3;
 	wc->ex.imm_data = cpu_to_be32(cqe->immediate_data);
 	wc->sl = cqe->service_level;
 

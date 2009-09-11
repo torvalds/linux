@@ -36,7 +36,6 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 
-#include <rdma/ib_cache.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 
