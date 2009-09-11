@@ -302,8 +302,6 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	if (!device->blk_data.medium_changed)
 		return 0;
 
-	dev_info(&device->cdev->dev, "Determining the size of the recorded "
-		"area...\n");
 	rc = tape_mtop(device, MTFSFM, 1);
 	if (rc)
 		return rc;
@@ -312,6 +310,8 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	if (rc < 0)
 		return rc;
 
+	dev_info(&device->cdev->dev, "Determining the size of the recorded "
+		"area...\n");
 	DBF_LH(3, "Image file ends at %d\n", rc);
 	nr_of_blks = rc;
 
