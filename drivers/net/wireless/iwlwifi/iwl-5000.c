@@ -833,16 +833,8 @@ int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_6x00:
-	case CSR_HW_REV_TYPE_6x50:
-		priv->hw_params.max_data_size = IWL60_RTC_DATA_SIZE;
-		priv->hw_params.max_inst_size = IWL60_RTC_INST_SIZE;
-		break;
-	default:
-		priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
-		priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
-	}
+	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
 
 	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |

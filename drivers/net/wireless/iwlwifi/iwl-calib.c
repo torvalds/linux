@@ -516,7 +516,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	for (i = 0; i < NRG_NUM_PREV_STAT_L; i++)
 		data->nrg_silence_rssi[i] = 0;
 
-	data->auto_corr_ofdm = 90;
+	data->auto_corr_ofdm =  ranges->auto_corr_min_ofdm;
 	data->auto_corr_ofdm_mrc = ranges->auto_corr_min_ofdm_mrc;
 	data->auto_corr_ofdm_x1  = ranges->auto_corr_min_ofdm_x1;
 	data->auto_corr_ofdm_mrc_x1 = ranges->auto_corr_min_ofdm_mrc_x1;
