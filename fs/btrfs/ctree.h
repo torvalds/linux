@@ -726,6 +726,15 @@ enum btrfs_caching_type {
 	BTRFS_CACHE_FINISHED	= 2,
 };
 
+struct btrfs_caching_control {
+	struct list_head list;
+	struct mutex mutex;
+	wait_queue_head_t wait;
+	struct btrfs_block_group_cache *block_group;
+	u64 progress;
+	atomic_t count;
+};
+
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
@@ -742,8 +751,9 @@ struct btrfs_block_group_cache {
 	int dirty;
 
 	/* cache tracking stuff */
-	wait_queue_head_t caching_q;
 	int cached;
+	struct btrfs_caching_control *caching_ctl;
+	u64 last_byte_to_unpin;
 
 	struct btrfs_space_info *space_info;
 
@@ -788,7 +798,8 @@ struct btrfs_fs_info {
 	spinlock_t block_group_cache_lock;
 	struct rb_root block_group_cache_tree;
 
-	struct extent_io_tree pinned_extents;
+	struct extent_io_tree freed_extents[2];
+	struct extent_io_tree *pinned_extents;
 
 	/* logical->physical extent mapping */
 	struct btrfs_mapping_tree mapping_tree;
@@ -825,8 +836,6 @@ struct btrfs_fs_info {
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
 	struct mutex tree_reloc_mutex;
-	struct rw_semaphore extent_commit_sem;
-
 	/*
 	 * this protects the ordered operations list only while we are
 	 * processing all of the entries on it.  This way we make
@@ -835,10 +844,12 @@ struct btrfs_fs_info {
 	 * before jumping into the main commit.
 	 */
 	struct mutex ordered_operations_mutex;
+	struct rw_semaphore extent_commit_sem;
 
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
+	struct list_head caching_block_groups;
 
 	atomic_t nr_async_submits;
 	atomic_t async_submit_draining;
@@ -1920,8 +1931,8 @@ void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
 int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len);
-int btrfs_update_pinned_extents(struct btrfs_root *root,
-				u64 bytenr, u64 num, int pin);
+int btrfs_pin_extent(struct btrfs_root *root,
+		     u64 bytenr, u64 num, int reserved);
 int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct extent_buffer *leaf);
 int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
@@ -1971,9 +1982,10 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans,
 		      u64 root_objectid, u64 owner, u64 offset);
 
 int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len);
+int btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       struct extent_io_tree *unpin);
+			       struct btrfs_root *root);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root,
 			 u64 bytenr, u64 num_bytes, u64 parent,
@@ -2006,7 +2018,6 @@ void btrfs_delalloc_reserve_space(struct btrfs_root *root, struct inode *inode,
 				 u64 bytes);
 void btrfs_delalloc_free_space(struct btrfs_root *root, struct inode *inode,
 			      u64 bytes);
-void btrfs_free_pinned_extents(struct btrfs_fs_info *info);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);

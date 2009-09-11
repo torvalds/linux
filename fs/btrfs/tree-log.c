@@ -263,8 +263,8 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct walk_control *wc, u64 gen)
 {
 	if (wc->pin)
-		btrfs_update_pinned_extents(log->fs_info->extent_root,
-					    eb->start, eb->len, 1);
+		btrfs_pin_extent(log->fs_info->extent_root,
+				 eb->start, eb->len, 0);
 
 	if (btrfs_buffer_uptodate(eb, gen)) {
 		if (wc->write)

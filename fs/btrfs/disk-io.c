@@ -1563,6 +1563,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->hashers);
 	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
 	INIT_LIST_HEAD(&fs_info->ordered_operations);
+	INIT_LIST_HEAD(&fs_info->caching_block_groups);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
@@ -1621,8 +1622,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree.rb_node = NULL;
 
-	extent_io_tree_init(&fs_info->pinned_extents,
+	extent_io_tree_init(&fs_info->freed_extents[0],
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	extent_io_tree_init(&fs_info->freed_extents[1],
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	fs_info->do_barriers = 1;
 
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
@@ -2359,7 +2363,6 @@ int close_ctree(struct btrfs_root *root)
 	free_extent_buffer(root->fs_info->csum_root->commit_root);
 
 	btrfs_free_block_groups(root->fs_info);
-	btrfs_free_pinned_extents(root->fs_info);
 
 	del_fs_roots(fs_info);
 

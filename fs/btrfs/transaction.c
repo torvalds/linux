@@ -874,7 +874,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	unsigned long timeout = 1;
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
-	struct extent_io_tree *pinned_copy;
 	DEFINE_WAIT(wait);
 	int ret;
 	int should_grow = 0;
@@ -914,13 +913,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		return 0;
 	}
-
-	pinned_copy = kmalloc(sizeof(*pinned_copy), GFP_NOFS);
-	if (!pinned_copy)
-		return -ENOMEM;
-
-	extent_io_tree_init(pinned_copy,
-			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	trans->transaction->in_commit = 1;
 	trans->transaction->blocked = 1;
@@ -1019,6 +1011,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = commit_cowonly_roots(trans, root);
 	BUG_ON(ret);
 
+	btrfs_prepare_extent_commit(trans, root);
+
 	cur_trans = root->fs_info->running_transaction;
 	spin_lock(&root->fs_info->new_trans_lock);
 	root->fs_info->running_transaction = NULL;
@@ -1042,8 +1036,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	memcpy(&root->fs_info->super_for_commit, &root->fs_info->super_copy,
 	       sizeof(root->fs_info->super_copy));
 
-	btrfs_copy_pinned(root, pinned_copy);
-
 	trans->transaction->blocked = 0;
 
 	wake_up(&root->fs_info->transaction_wait);
@@ -1059,8 +1051,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 */
 	mutex_unlock(&root->fs_info->tree_log_mutex);
 
-	btrfs_finish_extent_commit(trans, root, pinned_copy);
-	kfree(pinned_copy);
+	btrfs_finish_extent_commit(trans, root);
 
 	/* do the directory inserts of any pending snapshot creations */
 	finish_pending_snapshots(trans, root->fs_info);
