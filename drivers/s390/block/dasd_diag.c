@@ -8,7 +8,7 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd"
+#define KMSG_COMPONENT "dasd-diag"
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>

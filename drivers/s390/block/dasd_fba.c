@@ -5,7 +5,7 @@
  * Copyright IBM Corp. 1999, 2009
  */
 
-#define KMSG_COMPONENT "dasd"
+#define KMSG_COMPONENT "dasd-fba"
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
