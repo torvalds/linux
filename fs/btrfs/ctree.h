@@ -674,6 +674,7 @@ struct btrfs_space_info {
 	u64 bytes_reserved;	/* total bytes the allocator has reserved for
 				   current allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
+	u64 bytes_super;	/* total bytes reserved for the super blocks */
 
 	/* delalloc accounting */
 	u64 bytes_delalloc;	/* number of bytes reserved for allocation,
@@ -746,6 +747,7 @@ struct btrfs_block_group_cache {
 	spinlock_t lock;
 	u64 pinned;
 	u64 reserved;
+	u64 bytes_super;
 	u64 flags;
 	u64 sectorsize;
 	int extents_thresh;
