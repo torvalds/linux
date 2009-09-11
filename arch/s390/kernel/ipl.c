@@ -340,19 +340,28 @@ size_t reipl_append_ascii_scpdata(char *dest, size_t size,
 {
 	size_t count;
 	size_t i;
+	int has_lowercase;
 
 	count = min(size - 1, scpdata_length(ipb->ipl_info.fcp.scp_data,
 					     ipb->ipl_info.fcp.scp_data_len));
 	if (!count)
 		goto out;
 
-	for (i = 0; i < count; i++)
+	has_lowercase = 0;
+	for (i = 0; i < count; i++) {
 		if (!isascii(ipb->ipl_info.fcp.scp_data[i])) {
 			count = 0;
 			goto out;
 		}
+		if (!has_lowercase && islower(ipb->ipl_info.fcp.scp_data[i]))
+			has_lowercase = 1;
+	}
 
-	memcpy(dest, ipb->ipl_info.fcp.scp_data, count);
+	if (has_lowercase)
+		memcpy(dest, ipb->ipl_info.fcp.scp_data, count);
+	else
+		for (i = 0; i < count; i++)
+			dest[i] = tolower(ipb->ipl_info.fcp.scp_data[i]);
 out:
 	dest[count] = '\0';
 	return count;
