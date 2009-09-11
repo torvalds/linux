@@ -353,8 +353,9 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct davinci_pcm_dma_params *dma_params = dai->dma_data;
 	struct davinci_mcbsp_dev *dev = dai->private_data;
+	struct davinci_pcm_dma_params *dma_params =
+					dev->dma_params[substream->stream];
 	struct snd_interval *i = NULL;
 	int mcbsp_word_length;
 	unsigned int rcr, xcr, srgr;

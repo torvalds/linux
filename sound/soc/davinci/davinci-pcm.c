@@ -126,15 +126,8 @@ static void davinci_pcm_dma_irq(unsigned lch, u16 ch_status, void *data)
 static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 {
 	struct davinci_runtime_data *prtd = substream->runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct davinci_pcm_dma_params *dma_data = rtd->dai->cpu_dai->dma_data;
 	struct edmacc_param p_ram;
 	int ret;
-
-	if (!dma_data)
-		return -ENODEV;
-
-	prtd->params = dma_data;
 
 	/* Request master DMA channel */
 	ret = edma_alloc_channel(prtd->params->channel,
@@ -244,6 +237,10 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct davinci_runtime_data *prtd;
 	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct davinci_pcm_dma_params *params = rtd->dai->cpu_dai->dma_data;
+	if (!params)
+		return -ENODEV;
 
 	snd_soc_set_runtime_hwparams(substream, &davinci_pcm_hardware);
 	/* ensure that buffer size is a multiple of period size */
@@ -257,6 +254,7 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 
 	spin_lock_init(&prtd->lock);
+	prtd->params = params;
 
 	runtime->private_data = prtd;
 
