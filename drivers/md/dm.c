@@ -586,7 +586,7 @@ static void dec_pending(struct dm_io *io, int error)
 			 */
 			spin_lock_irqsave(&md->deferred_lock, flags);
 			if (__noflush_suspending(md)) {
-				if (!bio_barrier(io->bio))
+				if (!bio_rw_flagged(io->bio, BIO_RW_BARRIER))
 					bio_list_add_head(&md->deferred,
 							  io->bio);
 			} else
@@ -598,7 +598,7 @@ static void dec_pending(struct dm_io *io, int error)
 		io_error = io->error;
 		bio = io->bio;
 
-		if (bio_barrier(bio)) {
+		if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
 			/*
 			 * There can be just one barrier request so we use
 			 * a per-device variable for error reporting.
@@ -1209,7 +1209,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 
 	ci.map = dm_get_table(md);
 	if (unlikely(!ci.map)) {
-		if (!bio_barrier(bio))
+		if (!bio_rw_flagged(bio, BIO_RW_BARRIER))
 			bio_io_error(bio);
 		else
 			if (!md->barrier_error)
@@ -1321,7 +1321,7 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 	 * we have to queue this io for later.
 	 */
 	if (unlikely(test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) ||
-	    unlikely(bio_barrier(bio))) {
+	    unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		up_read(&md->io_lock);
 
 		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
@@ -1344,7 +1344,7 @@ static int dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
@@ -2164,7 +2164,7 @@ static void dm_wq_work(struct work_struct *work)
 		if (dm_request_based(md))
 			generic_make_request(c);
 		else {
-			if (bio_barrier(c))
+			if (bio_rw_flagged(c, BIO_RW_BARRIER))
 				process_barrier(md, c);
 			else
 				__split_and_process_bio(md, c);

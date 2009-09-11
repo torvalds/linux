@@ -112,8 +112,9 @@ static int dst_request(struct request_queue *q, struct bio *bio)
 		 * I worked with.
 		 *
 		 * Empty barriers are not allowed anyway, see 51fd77bd9f512
-		 * for example, although later it was changed to bio_discard()
-		 * only, which does not work in this case.
+		 * for example, although later it was changed to
+		 * bio_rw_flagged(bio, BIO_RW_DISCARD) only, which does not
+		 * work in this case.
 		 */
 		//err = -EOPNOTSUPP;
 		err = 0;

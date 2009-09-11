@@ -257,7 +257,7 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
  */
 static inline int cfq_bio_sync(struct bio *bio)
 {
-	if (bio_data_dir(bio) == READ || bio_sync(bio))
+	if (bio_data_dir(bio) == READ || bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		return 1;
 
 	return 0;

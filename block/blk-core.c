@@ -1114,24 +1114,24 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	 * Inherit FAILFAST from bio (for read-ahead, and explicit
 	 * FAILFAST).  FAILFAST flags are identical for req and bio.
 	 */
-	if (bio_rw_ahead(bio))
+	if (bio_rw_flagged(bio, BIO_RW_AHEAD))
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 	else
 		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
 
-	if (unlikely(bio_discard(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
 		req->cmd_flags |= REQ_DISCARD;
-		if (bio_barrier(bio))
+		if (bio_rw_flagged(bio, BIO_RW_BARRIER))
 			req->cmd_flags |= REQ_SOFTBARRIER;
 		req->q->prepare_discard_fn(req->q, req);
-	} else if (unlikely(bio_barrier(bio)))
+	} else if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)))
 		req->cmd_flags |= REQ_HARDBARRIER;
 
-	if (bio_sync(bio))
+	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		req->cmd_flags |= REQ_RW_SYNC;
-	if (bio_rw_meta(bio))
+	if (bio_rw_flagged(bio, BIO_RW_META))
 		req->cmd_flags |= REQ_RW_META;
-	if (bio_noidle(bio))
+	if (bio_rw_flagged(bio, BIO_RW_NOIDLE))
 		req->cmd_flags |= REQ_NOIDLE;
 
 	req->errors = 0;
@@ -1155,12 +1155,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int el_ret;
 	unsigned int bytes = bio->bi_size;
 	const unsigned short prio = bio_prio(bio);
-	const int sync = bio_sync(bio);
-	const int unplug = bio_unplug(bio);
+	const bool sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	const bool unplug = bio_rw_flagged(bio, BIO_RW_UNPLUG);
 	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int rw_flags;
 
-	if (bio_barrier(bio) && bio_has_data(bio) &&
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER) && bio_has_data(bio) &&
 	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
@@ -1174,7 +1174,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	if (unlikely(bio_barrier(bio)) || elv_queue_empty(q))
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)) || elv_queue_empty(q))
 		goto get_rq;
 
 	el_ret = elv_merge(q, &req, bio);
@@ -1470,7 +1470,8 @@ static inline void __generic_make_request(struct bio *bio)
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
 
-		if (bio_discard(bio) && !q->prepare_discard_fn) {
+		if (bio_rw_flagged(bio, BIO_RW_DISCARD) &&
+		    !q->prepare_discard_fn) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}

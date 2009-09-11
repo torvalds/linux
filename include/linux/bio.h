@@ -177,27 +177,16 @@ enum bio_rw_flags {
 	BIO_RW_NOIDLE,
 };
 
+/*
+ * First four bits must match between bio->bi_rw and rq->cmd_flags, make
+ * that explicit here.
+ */
+#define BIO_RW_RQ_MASK		0xf
+
 static inline bool bio_rw_flagged(struct bio *bio, enum bio_rw_flags flag)
 {
 	return (bio->bi_rw & (1 << flag)) != 0;
 }
-
-/*
- * Old defines, these should eventually be replaced by direct usage of
- * bio_rw_flagged()
- */
-#define bio_barrier(bio)	bio_rw_flagged(bio, BIO_RW_BARRIER)
-#define bio_sync(bio)		bio_rw_flagged(bio, BIO_RW_SYNCIO)
-#define bio_unplug(bio)		bio_rw_flagged(bio, BIO_RW_UNPLUG)
-#define bio_failfast_dev(bio)	bio_rw_flagged(bio, BIO_RW_FAILFAST_DEV)
-#define bio_failfast_transport(bio)	\
-		bio_rw_flagged(bio, BIO_RW_FAILFAST_TRANSPORT)
-#define bio_failfast_driver(bio) 	\
-		bio_rw_flagged(bio, BIO_RW_FAILFAST_DRIVER)
-#define bio_rw_ahead(bio)	bio_rw_flagged(bio, BIO_RW_AHEAD)
-#define bio_rw_meta(bio)	bio_rw_flagged(bio, BIO_RW_META)
-#define bio_discard(bio)	bio_rw_flagged(bio, BIO_RW_DISCARD)
-#define bio_noidle(bio)		bio_rw_flagged(bio, BIO_RW_NOIDLE)
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -222,7 +211,7 @@ static inline bool bio_rw_flagged(struct bio *bio, enum bio_rw_flags flag)
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
+#define bio_empty_barrier(bio)	(bio_rw_flagged(bio, BIO_RW_BARRIER) && !bio_has_data(bio) && !bio_rw_flagged(bio, BIO_RW_DISCARD))
 
 static inline unsigned int bio_cur_bytes(struct bio *bio)
 {
