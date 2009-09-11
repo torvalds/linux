@@ -78,6 +78,29 @@ static const struct {
 #define IWL_MAX_BLINK_TBL (ARRAY_SIZE(blink_tbl) - 1) /* exclude SOLID_ON */
 #define IWL_SOLID_BLINK_IDX (ARRAY_SIZE(blink_tbl) - 1)
 
+/*
+ * Adjust led blink rate to compensate on a MAC Clock difference on every HW
+ * Led blink rate analysis showed an average deviation of 0% on 3945,
+ * 5% on 4965 HW and 20% on 5000 series and up.
+ * Need to compensate on the led on/off time per HW according to the deviation
+ * to achieve the desired led frequency
+ * The calculation is: (100-averageDeviation)/100 * blinkTime
+ * For code efficiency the calculation will be:
+ *     compensation = (100 - averageDeviation) * 64 / 100
+ *     NewBlinkTime = (compensation * BlinkTime) / 64
+ */
+static inline u8 iwl_blink_compensation(struct iwl_priv *priv,
+				    u8 time, u16 compensation)
+{
+	if (!compensation) {
+		IWL_ERR(priv, "undefined blink compensation: "
+			"use pre-defined blinking time\n");
+		return time;
+	}
+
+	return (u8)((time * compensation) >> 6);
+}
+
 /*  [0-256] -> [0..8] FIXME: we need [0..10] */
 static inline int iwl_brightness_to_idx(enum led_brightness brightness)
 {
@@ -114,8 +137,14 @@ static int iwl_led_pattern(struct iwl_priv *priv, int led_id,
 
 	BUG_ON(idx > IWL_MAX_BLINK_TBL);
 
-	led_cmd.on = blink_tbl[idx].on_time;
-	led_cmd.off = blink_tbl[idx].off_time;
+	IWL_DEBUG_LED(priv, "Led blink time compensation= %u\n",
+			priv->cfg->led_compensation);
+	led_cmd.on =
+		iwl_blink_compensation(priv, blink_tbl[idx].on_time,
+					priv->cfg->led_compensation);
+	led_cmd.off =
+		iwl_blink_compensation(priv, blink_tbl[idx].off_time,
+					priv->cfg->led_compensation);
 
 	return iwl_send_led_cmd(priv, &led_cmd);
 }

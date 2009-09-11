@@ -2355,6 +2355,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
 	.broken_powersave = true,
+	.led_compensation = 61,
 };
 
 /* Module firmware */
