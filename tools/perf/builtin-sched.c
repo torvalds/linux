@@ -1,4 +1,5 @@
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/util.h"
 #include "util/cache.h"
@@ -7,15 +8,16 @@
 #include "util/header.h"
 
 #include "util/parse-options.h"
+#include "util/trace-event.h"
 
-#include "perf.h"
 #include "util/debug.h"
 
-#include "util/trace-event.h"
 #include <sys/types.h>
+#include <sys/prctl.h>
 
-
-#define MAX_CPUS 4096
+#include <semaphore.h>
+#include <pthread.h>
+#include <math.h>
 
 static char			const *input_name = "perf.data";
 static int			input;
@@ -33,112 +35,20 @@ static u64			sample_type;
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
 
+#define PR_SET_NAME		15               /* Set process name */
+#define MAX_CPUS		4096
 
-/*
- * Scheduler benchmarks
- */
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/prctl.h>
+#define BUG_ON(x)		assert(!(x))
 
-#include <linux/unistd.h>
+static u64			run_measurement_overhead;
+static u64			sleep_measurement_overhead;
 
-#include <semaphore.h>
-#include <pthread.h>
-#include <signal.h>
-#include <values.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <fcntl.h>
-#include <time.h>
-#include <math.h>
+#define COMM_LEN		20
+#define SYM_LEN			129
 
-#include <stdio.h>
+#define MAX_PID			65536
 
-#define PR_SET_NAME	15               /* Set process name */
-
-#define BUG_ON(x)	assert(!(x))
-
-#define DEBUG		0
-
-typedef unsigned long long nsec_t;
-
-static nsec_t run_measurement_overhead;
-static nsec_t sleep_measurement_overhead;
-
-static nsec_t get_nsecs(void)
-{
-	struct timespec ts;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-
-	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-}
-
-static void burn_nsecs(nsec_t nsecs)
-{
-	nsec_t T0 = get_nsecs(), T1;
-
-	do {
-		T1 = get_nsecs();
-	} while (T1 + run_measurement_overhead < T0 + nsecs);
-}
-
-static void sleep_nsecs(nsec_t nsecs)
-{
-	struct timespec ts;
-
-	ts.tv_nsec = nsecs % 999999999;
-	ts.tv_sec = nsecs / 999999999;
-
-	nanosleep(&ts, NULL);
-}
-
-static void calibrate_run_measurement_overhead(void)
-{
-	nsec_t T0, T1, delta, min_delta = 1000000000ULL;
-	int i;
-
-	for (i = 0; i < 10; i++) {
-		T0 = get_nsecs();
-		burn_nsecs(0);
-		T1 = get_nsecs();
-		delta = T1-T0;
-		min_delta = min(min_delta, delta);
-	}
-	run_measurement_overhead = min_delta;
-
-	printf("run measurement overhead: %Ld nsecs\n", min_delta);
-}
-
-static void calibrate_sleep_measurement_overhead(void)
-{
-	nsec_t T0, T1, delta, min_delta = 1000000000ULL;
-	int i;
-
-	for (i = 0; i < 10; i++) {
-		T0 = get_nsecs();
-		sleep_nsecs(10000);
-		T1 = get_nsecs();
-		delta = T1-T0;
-		min_delta = min(min_delta, delta);
-	}
-	min_delta -= 10000;
-	sleep_measurement_overhead = min_delta;
-
-	printf("sleep measurement overhead: %Ld nsecs\n", min_delta);
-}
-
-#define COMM_LEN	20
-#define SYM_LEN		129
-
-#define MAX_PID		65536
-
-static unsigned long nr_tasks;
+static unsigned long		nr_tasks;
 
 struct sched_event;
 
@@ -157,7 +67,7 @@ struct task_desc {
 	sem_t			ready_for_work;
 	sem_t			work_done_sem;
 
-	nsec_t			cpu_usage;
+	u64			cpu_usage;
 };
 
 enum sched_event_type {
@@ -168,8 +78,8 @@ enum sched_event_type {
 
 struct sched_event {
 	enum sched_event_type	type;
-	nsec_t			timestamp;
-	nsec_t			duration;
+	u64			timestamp;
+	u64			duration;
 	unsigned long		nr;
 	int			specific_wait;
 	sem_t			*wait_sem;
@@ -181,7 +91,7 @@ static struct task_desc		*pid_to_task[MAX_PID];
 static struct task_desc		**tasks;
 
 static pthread_mutex_t		start_work_mutex = PTHREAD_MUTEX_INITIALIZER;
-static nsec_t			start_time;
+static u64			start_time;
 
 static pthread_mutex_t		work_done_wait_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -192,8 +102,123 @@ static unsigned long		nr_wakeup_events;
 static unsigned long		nr_sleep_corrections;
 static unsigned long		nr_run_events_optimized;
 
+static unsigned long		targetless_wakeups;
+static unsigned long		multitarget_wakeups;
+
+static u64			cpu_usage;
+static u64			runavg_cpu_usage;
+static u64			parent_cpu_usage;
+static u64			runavg_parent_cpu_usage;
+
+static unsigned long		nr_runs;
+static u64			sum_runtime;
+static u64			sum_fluct;
+static u64			run_avg;
+
+static unsigned long		replay_repeat = 10;
+
+#define TASK_STATE_TO_CHAR_STR "RSDTtZX"
+
+enum thread_state {
+	THREAD_SLEEPING = 0,
+	THREAD_WAIT_CPU,
+	THREAD_SCHED_IN,
+	THREAD_IGNORE
+};
+
+struct work_atom {
+	struct list_head	list;
+	enum thread_state	state;
+	u64			wake_up_time;
+	u64			sched_in_time;
+	u64			runtime;
+};
+
+struct task_atoms {
+	struct list_head	atom_list;
+	struct thread		*thread;
+	struct rb_node		node;
+	u64			max_lat;
+	u64			total_lat;
+	u64			nb_atoms;
+	u64			total_runtime;
+};
+
+typedef int (*sort_thread_lat)(struct task_atoms *, struct task_atoms *);
+
+static struct rb_root		atom_root, sorted_atom_root;
+
+static u64			all_runtime;
+static u64			all_count;
+
+static int read_events(void);
+
+
+static u64 get_nsecs(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+}
+
+static void burn_nsecs(u64 nsecs)
+{
+	u64 T0 = get_nsecs(), T1;
+
+	do {
+		T1 = get_nsecs();
+	} while (T1 + run_measurement_overhead < T0 + nsecs);
+}
+
+static void sleep_nsecs(u64 nsecs)
+{
+	struct timespec ts;
+
+	ts.tv_nsec = nsecs % 999999999;
+	ts.tv_sec = nsecs / 999999999;
+
+	nanosleep(&ts, NULL);
+}
+
+static void calibrate_run_measurement_overhead(void)
+{
+	u64 T0, T1, delta, min_delta = 1000000000ULL;
+	int i;
+
+	for (i = 0; i < 10; i++) {
+		T0 = get_nsecs();
+		burn_nsecs(0);
+		T1 = get_nsecs();
+		delta = T1-T0;
+		min_delta = min(min_delta, delta);
+	}
+	run_measurement_overhead = min_delta;
+
+	printf("run measurement overhead: %Ld nsecs\n", min_delta);
+}
+
+static void calibrate_sleep_measurement_overhead(void)
+{
+	u64 T0, T1, delta, min_delta = 1000000000ULL;
+	int i;
+
+	for (i = 0; i < 10; i++) {
+		T0 = get_nsecs();
+		sleep_nsecs(10000);
+		T1 = get_nsecs();
+		delta = T1-T0;
+		min_delta = min(min_delta, delta);
+	}
+	min_delta -= 10000;
+	sleep_measurement_overhead = min_delta;
+
+	printf("sleep measurement overhead: %Ld nsecs\n", min_delta);
+}
+
 static struct sched_event *
-get_new_event(struct task_desc *task, nsec_t timestamp)
+get_new_event(struct task_desc *task, u64 timestamp)
 {
 	struct sched_event *event = calloc(1, sizeof(*event));
 	unsigned long idx = task->nr_events;
@@ -221,7 +246,7 @@ static struct sched_event *last_event(struct task_desc *task)
 }
 
 static void
-add_sched_event_run(struct task_desc *task, nsec_t timestamp, u64 duration)
+add_sched_event_run(struct task_desc *task, u64 timestamp, u64 duration)
 {
 	struct sched_event *event, *curr_event = last_event(task);
 
@@ -243,11 +268,8 @@ add_sched_event_run(struct task_desc *task, nsec_t timestamp, u64 duration)
 	nr_run_events++;
 }
 
-static unsigned long		targetless_wakeups;
-static unsigned long		multitarget_wakeups;
-
 static void
-add_sched_event_wakeup(struct task_desc *task, nsec_t timestamp,
+add_sched_event_wakeup(struct task_desc *task, u64 timestamp,
 		       struct task_desc *wakee)
 {
 	struct sched_event *event, *wakee_event;
@@ -275,7 +297,7 @@ add_sched_event_wakeup(struct task_desc *task, nsec_t timestamp,
 }
 
 static void
-add_sched_event_sleep(struct task_desc *task, nsec_t timestamp,
+add_sched_event_sleep(struct task_desc *task, u64 timestamp,
 		      u64 task_state __used)
 {
 	struct sched_event *event = get_new_event(task, timestamp);
@@ -350,7 +372,7 @@ static void
 process_sched_event(struct task_desc *this_task __used, struct sched_event *event)
 {
 	int ret = 0;
-	nsec_t now;
+	u64 now;
 	long long delta;
 
 	now = get_nsecs();
@@ -375,10 +397,10 @@ process_sched_event(struct task_desc *this_task __used, struct sched_event *even
 	}
 }
 
-static nsec_t get_cpu_usage_nsec_parent(void)
+static u64 get_cpu_usage_nsec_parent(void)
 {
 	struct rusage ru;
-	nsec_t sum;
+	u64 sum;
 	int err;
 
 	err = getrusage(RUSAGE_SELF, &ru);
@@ -390,12 +412,12 @@ static nsec_t get_cpu_usage_nsec_parent(void)
 	return sum;
 }
 
-static nsec_t get_cpu_usage_nsec_self(void)
+static u64 get_cpu_usage_nsec_self(void)
 {
 	char filename [] = "/proc/1234567890/sched";
 	unsigned long msecs, nsecs;
 	char *line = NULL;
-	nsec_t total = 0;
+	u64 total = 0;
 	size_t len = 0;
 	ssize_t chars;
 	FILE *file;
@@ -423,7 +445,7 @@ static nsec_t get_cpu_usage_nsec_self(void)
 static void *thread_func(void *ctx)
 {
 	struct task_desc *this_task = ctx;
-	nsec_t cpu_usage_0, cpu_usage_1;
+	u64 cpu_usage_0, cpu_usage_1;
 	unsigned long i, ret;
 	char comm2[22];
 
@@ -485,14 +507,9 @@ static void create_tasks(void)
 	}
 }
 
-static nsec_t			cpu_usage;
-static nsec_t			runavg_cpu_usage;
-static nsec_t			parent_cpu_usage;
-static nsec_t			runavg_parent_cpu_usage;
-
 static void wait_for_tasks(void)
 {
-	nsec_t cpu_usage_0, cpu_usage_1;
+	u64 cpu_usage_0, cpu_usage_1;
 	struct task_desc *task;
 	unsigned long i, ret;
 
@@ -543,16 +560,9 @@ static void wait_for_tasks(void)
 	}
 }
 
-static int read_events(void);
-
-static unsigned long nr_runs;
-static nsec_t sum_runtime;
-static nsec_t sum_fluct;
-static nsec_t run_avg;
-
 static void run_one_test(void)
 {
-	nsec_t T0, T1, delta, avg_delta, fluct, std_dev;
+	u64 T0, T1, delta, avg_delta, fluct, std_dev;
 
 	T0 = get_nsecs();
 	wait_for_tasks();
@@ -576,10 +586,6 @@ static void run_one_test(void)
 	printf("#%-3ld: %0.3f, ",
 		nr_runs, (double)delta/1000000.0);
 
-#if 0
-	printf("%0.2f +- %0.2f, ",
-		(double)avg_delta/1e6, (double)std_dev/1e6);
-#endif
 	printf("ravg: %0.2f, ",
 		(double)run_avg/1e6);
 
@@ -605,7 +611,7 @@ static void run_one_test(void)
 
 static void test_calibrations(void)
 {
-	nsec_t T0, T1;
+	u64 T0, T1;
 
 	T0 = get_nsecs();
 	burn_nsecs(1e6);
@@ -619,8 +625,6 @@ static void test_calibrations(void)
 
 	printf("the sleep test took %Ld nsecs\n", T1-T0);
 }
-
-static unsigned long replay_repeat = 10;
 
 static void __cmd_replay(void)
 {
@@ -865,47 +869,8 @@ static struct trace_sched_handler replay_ops  = {
 	.fork_event		= replay_fork_event,
 };
 
-#define TASK_STATE_TO_CHAR_STR "RSDTtZX"
-
-enum thread_state {
-	THREAD_SLEEPING = 0,
-	THREAD_WAIT_CPU,
-	THREAD_SCHED_IN,
-	THREAD_IGNORE
-};
-
-struct work_atom {
-	struct list_head	list;
-	enum thread_state	state;
-	u64			wake_up_time;
-	u64			sched_in_time;
-	u64			runtime;
-};
-
-struct task_atoms {
-	struct list_head	snapshot_list;
-	struct thread		*thread;
-	struct rb_node		node;
-	u64			max_lat;
-	u64			total_lat;
-	u64			nb_atoms;
-	u64			total_runtime;
-};
-
-typedef int (*sort_thread_lat)(struct task_atoms *, struct task_atoms *);
-
-struct sort_dimension {
-	const char 		*name;
-	sort_thread_lat		cmp;
-	struct list_head 	list;
-};
-
-static LIST_HEAD(cmp_pid);
-
-static struct rb_root lat_snapshot_root, sorted_lat_snapshot_root;
-
 static struct task_atoms *
-thread_atom_list_search(struct rb_root *root, struct thread *thread)
+thread_atoms_search(struct rb_root *root, struct thread *thread)
 {
 	struct rb_node *node = root->rb_node;
 
@@ -923,6 +888,14 @@ thread_atom_list_search(struct rb_root *root, struct thread *thread)
 	}
 	return NULL;
 }
+
+struct sort_dimension {
+	const char		*name;
+	sort_thread_lat		cmp;
+	struct list_head	list;
+};
+
+static LIST_HEAD(cmp_pid);
 
 static int
 thread_lat_cmp(struct list_head *list, struct task_atoms *l,
@@ -965,16 +938,17 @@ __thread_latency_insert(struct rb_root *root, struct task_atoms *data,
 	rb_insert_color(&data->node, root);
 }
 
-static void thread_atom_list_insert(struct thread *thread)
+static void thread_atoms_insert(struct thread *thread)
 {
 	struct task_atoms *atoms;
+
 	atoms = calloc(sizeof(*atoms), 1);
 	if (!atoms)
 		die("No memory");
 
 	atoms->thread = thread;
-	INIT_LIST_HEAD(&atoms->snapshot_list);
-	__thread_latency_insert(&lat_snapshot_root, atoms, &cmp_pid);
+	INIT_LIST_HEAD(&atoms->atom_list);
+	__thread_latency_insert(&atom_root, atoms, &cmp_pid);
 }
 
 static void
@@ -1001,50 +975,49 @@ lat_sched_out(struct task_atoms *atoms,
 	      u64 delta,
 	      u64 timestamp)
 {
-	struct work_atom *snapshot;
+	struct work_atom *atom;
 
-	snapshot = calloc(sizeof(*snapshot), 1);
-	if (!snapshot)
+	atom = calloc(sizeof(*atom), 1);
+	if (!atom)
 		die("Non memory");
 
 	if (sched_out_state(switch_event) == 'R') {
-		snapshot->state = THREAD_WAIT_CPU;
-		snapshot->wake_up_time = timestamp;
+		atom->state = THREAD_WAIT_CPU;
+		atom->wake_up_time = timestamp;
 	}
 
-	snapshot->runtime = delta;
-	list_add_tail(&snapshot->list, &atoms->snapshot_list);
+	atom->runtime = delta;
+	list_add_tail(&atom->list, &atoms->atom_list);
 }
 
 static void
 lat_sched_in(struct task_atoms *atoms, u64 timestamp)
 {
-	struct work_atom *snapshot;
+	struct work_atom *atom;
 	u64 delta;
 
-	if (list_empty(&atoms->snapshot_list))
+	if (list_empty(&atoms->atom_list))
 		return;
 
-	snapshot = list_entry(atoms->snapshot_list.prev, struct work_atom,
-			      list);
+	atom = list_entry(atoms->atom_list.prev, struct work_atom, list);
 
-	if (snapshot->state != THREAD_WAIT_CPU)
+	if (atom->state != THREAD_WAIT_CPU)
 		return;
 
-	if (timestamp < snapshot->wake_up_time) {
-		snapshot->state = THREAD_IGNORE;
+	if (timestamp < atom->wake_up_time) {
+		atom->state = THREAD_IGNORE;
 		return;
 	}
 
-	snapshot->state = THREAD_SCHED_IN;
-	snapshot->sched_in_time = timestamp;
+	atom->state = THREAD_SCHED_IN;
+	atom->sched_in_time = timestamp;
 
-	delta = snapshot->sched_in_time - snapshot->wake_up_time;
+	delta = atom->sched_in_time - atom->wake_up_time;
 	atoms->total_lat += delta;
 	if (delta > atoms->max_lat)
 		atoms->max_lat = delta;
 	atoms->nb_atoms++;
-	atoms->total_runtime += snapshot->runtime;
+	atoms->total_runtime += atom->runtime;
 }
 
 static void
@@ -1076,20 +1049,20 @@ latency_switch_event(struct trace_switch_event *switch_event,
 	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
 	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
 
-	in_atoms = thread_atom_list_search(&lat_snapshot_root, sched_in);
+	in_atoms = thread_atoms_search(&atom_root, sched_in);
 	if (!in_atoms) {
-		thread_atom_list_insert(sched_in);
-		in_atoms = thread_atom_list_search(&lat_snapshot_root, sched_in);
+		thread_atoms_insert(sched_in);
+		in_atoms = thread_atoms_search(&atom_root, sched_in);
 		if (!in_atoms)
-			die("Internal latency tree error");
+			die("in-atom: Internal tree error");
 	}
 
-	out_atoms = thread_atom_list_search(&lat_snapshot_root, sched_out);
+	out_atoms = thread_atoms_search(&atom_root, sched_out);
 	if (!out_atoms) {
-		thread_atom_list_insert(sched_out);
-		out_atoms = thread_atom_list_search(&lat_snapshot_root, sched_out);
+		thread_atoms_insert(sched_out);
+		out_atoms = thread_atoms_search(&atom_root, sched_out);
 		if (!out_atoms)
-			die("Internal latency tree error");
+			die("out-atom: Internal tree error");
 	}
 
 	lat_sched_in(in_atoms, timestamp);
@@ -1104,7 +1077,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		     struct thread *thread __used)
 {
 	struct task_atoms *atoms;
-	struct work_atom *snapshot;
+	struct work_atom *atom;
 	struct thread *wakee;
 
 	/* Note for later, it may be interesting to observe the failing cases */
@@ -1112,23 +1085,22 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		return;
 
 	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
-	atoms = thread_atom_list_search(&lat_snapshot_root, wakee);
+	atoms = thread_atoms_search(&atom_root, wakee);
 	if (!atoms) {
-		thread_atom_list_insert(wakee);
+		thread_atoms_insert(wakee);
 		return;
 	}
 
-	if (list_empty(&atoms->snapshot_list))
+	if (list_empty(&atoms->atom_list))
 		return;
 
-	snapshot = list_entry(atoms->snapshot_list.prev, struct work_atom,
-			      list);
+	atom = list_entry(atoms->atom_list.prev, struct work_atom, list);
 
-	if (snapshot->state != THREAD_SLEEPING)
+	if (atom->state != THREAD_SLEEPING)
 		return;
 
-	snapshot->state = THREAD_WAIT_CPU;
-	snapshot->wake_up_time = timestamp;
+	atom->state = THREAD_WAIT_CPU;
+	atom->wake_up_time = timestamp;
 }
 
 static struct trace_sched_handler lat_ops  = {
@@ -1136,9 +1108,6 @@ static struct trace_sched_handler lat_ops  = {
 	.switch_event		= latency_switch_event,
 	.fork_event		= latency_fork_event,
 };
-
-static u64 all_runtime;
-static u64 all_count;
 
 static void output_lat_thread(struct task_atoms *atom_list)
 {
@@ -1287,13 +1256,13 @@ static void sort_lat(void)
 
 	for (;;) {
 		struct task_atoms *data;
-		node = rb_first(&lat_snapshot_root);
+		node = rb_first(&atom_root);
 		if (!node)
 			break;
 
-		rb_erase(node, &lat_snapshot_root);
+		rb_erase(node, &atom_root);
 		data = rb_entry(node, struct task_atoms, node);
-		__thread_latency_insert(&sorted_lat_snapshot_root, data, &sort_list);
+		__thread_latency_insert(&sorted_atom_root, data, &sort_list);
 	}
 }
 
@@ -1309,7 +1278,7 @@ static void __cmd_lat(void)
 	printf(" Task              |  Runtime ms | Switches | Average delay ms | Maximum delay ms |\n");
 	printf("-----------------------------------------------------------------------------------\n");
 
-	next = rb_first(&sorted_lat_snapshot_root);
+	next = rb_first(&sorted_atom_root);
 
 	while (next) {
 		struct task_atoms *atom_list;
