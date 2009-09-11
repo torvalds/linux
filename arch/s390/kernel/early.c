@@ -81,6 +81,8 @@ asm(
 	"	br	14\n"
 	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n");
 
+static __initdata char upper_command_line[COMMAND_LINE_SIZE];
+
 static noinline __init void create_kernel_nss(void)
 {
 	unsigned int i, stext_pfn, eshared_pfn, end_pfn, min_size;
@@ -90,7 +92,6 @@ static noinline __init void create_kernel_nss(void)
 	int response;
 	size_t len;
 	char *savesys_ptr;
-	char upper_command_line[COMMAND_LINE_SIZE];
 	char defsys_cmd[DEFSYS_CMD_SIZE];
 	char savesys_cmd[SAVESYS_CMD_SIZE];
 
@@ -367,21 +368,35 @@ static __init void rescue_initrd(void)
 }
 
 /* Set up boot command line */
+static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
+{
+	char *parm, *delim;
+	size_t rc, len;
+
+	len = strlen(boot_command_line);
+
+	delim = boot_command_line + len;	/* '\0' character position */
+	parm  = boot_command_line + len + 1;	/* append right after '\0' */
+
+	rc = ipl_data(parm, COMMAND_LINE_SIZE - len - 1);
+	if (rc) {
+		if (*parm == '=')
+			memmove(boot_command_line, parm + 1, rc);
+		else
+			*delim = ' ';		/* replace '\0' with space */
+	}
+}
+
 static void __init setup_boot_command_line(void)
 {
-	char *parm = NULL;
-
 	/* copy arch command line */
 	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
 
 	/* append IPL PARM data to the boot command line */
-	if (MACHINE_IS_VM) {
-		parm = boot_command_line + strlen(boot_command_line);
-		*parm++ = ' ';
-		get_ipl_vmparm(parm);
-		if (parm[0] == '=')
-			memmove(boot_command_line, parm + 1, strlen(parm));
-	}
+	if (MACHINE_IS_VM)
+		append_to_cmdline(append_ipl_vmparm);
+
+	append_to_cmdline(append_ipl_scpdata);
 }
 
 
