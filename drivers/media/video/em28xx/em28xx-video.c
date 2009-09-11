@@ -1758,10 +1758,12 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->version = EM28XX_VERSION_CODE;
 
 	cap->capabilities =
-			V4L2_CAP_VBI_CAPTURE |
 			V4L2_CAP_SLICED_VBI_CAPTURE |
 			V4L2_CAP_VIDEO_CAPTURE |
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+
+	if (dev->vbi_dev)
+		cap->capabilities |= V4L2_CAP_VBI_CAPTURE;
 
 	if (dev->audio_mode.has_audio)
 		cap->capabilities |= V4L2_CAP_AUDIO;
