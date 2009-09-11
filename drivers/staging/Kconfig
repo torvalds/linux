@@ -103,8 +103,6 @@ source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/p9auth/Kconfig"
 
-source "drivers/staging/heci/Kconfig"
-
 source "drivers/staging/line6/Kconfig"
 
 source "drivers/gpu/drm/radeon/Kconfig"
