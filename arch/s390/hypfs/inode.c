@@ -422,7 +422,7 @@ struct dentry *hypfs_create_u64(struct super_block *sb, struct dentry *dir,
 	char tmp[TMP_SIZE];
 	struct dentry *dentry;
 
-	snprintf(tmp, TMP_SIZE, "%lld\n", (unsigned long long int)value);
+	snprintf(tmp, TMP_SIZE, "%llu\n", (unsigned long long int)value);
 	buffer = kstrdup(tmp, GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
