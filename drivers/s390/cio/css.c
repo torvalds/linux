@@ -183,6 +183,11 @@ static int css_sch_device_register(struct subchannel *sch)
 	int ret;
 
 	mutex_lock(&sch->reg_mutex);
+	if (cio_is_console(sch->schid))
+		sch->dev.init_name = cio_get_console_sch_name(sch->schid);
+	else
+		dev_set_name(&sch->dev, "0.%x.%04x", sch->schid.ssid,
+			     sch->schid.sch_no);
 	ret = device_register(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 	return ret;

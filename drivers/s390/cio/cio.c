@@ -564,11 +564,6 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 			goto out;
 	}
 	mutex_init(&sch->reg_mutex);
-	/* Set a name for the subchannel */
-	if (cio_is_console(schid))
-		sch->dev.init_name = cio_get_console_sch_name(schid);
-	else
-		dev_set_name(&sch->dev, "0.%x.%04x", schid.ssid, schid.sch_no);
 
 	/*
 	 * The first subchannel that is not-operational (ccode==3)
