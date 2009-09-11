@@ -1694,12 +1694,12 @@ static int ext4_fill_flex_info(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, NULL);
 
 		flex_group = ext4_flex_group(sbi, i);
-		atomic_set(&sbi->s_flex_groups[flex_group].free_inodes,
-			   ext4_free_inodes_count(sb, gdp));
-		atomic_set(&sbi->s_flex_groups[flex_group].free_blocks,
-			   ext4_free_blks_count(sb, gdp));
-		atomic_set(&sbi->s_flex_groups[flex_group].used_dirs,
-			   ext4_used_dirs_count(sb, gdp));
+		atomic_add(ext4_free_inodes_count(sb, gdp),
+			   &sbi->s_flex_groups[flex_group].free_inodes);
+		atomic_add(ext4_free_blks_count(sb, gdp),
+			   &sbi->s_flex_groups[flex_group].free_blocks);
+		atomic_add(ext4_used_dirs_count(sb, gdp),
+			   &sbi->s_flex_groups[flex_group].used_dirs);
 	}
 
 	return 1;
