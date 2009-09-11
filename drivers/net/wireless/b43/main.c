@@ -3854,10 +3854,15 @@ redo:
 		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);	/* Flush */
 		spin_unlock_irq(&wl->hardirq_lock);
 	}
-	/* Synchronize the interrupt handlers. Unlock to avoid deadlocks. */
+	/* Synchronize and free the interrupt handlers. Unlock to avoid deadlocks. */
 	orig_dev = dev;
 	mutex_unlock(&wl->mutex);
-	synchronize_irq(dev->dev->irq);
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
+		b43_sdio_free_irq(dev);
+	} else {
+		synchronize_irq(dev->dev->irq);
+		free_irq(dev->dev->irq, dev);
+	}
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (!dev)
@@ -3874,10 +3879,6 @@ redo:
 		dev_kfree_skb(skb_dequeue(&wl->tx_queue));
 
 	b43_mac_suspend(dev);
-	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO)
-		b43_sdio_free_irq(dev);
-	else
-		free_irq(dev->dev->irq, dev);
 	b43_leds_exit(dev);
 	b43dbg(wl, "Wireless interface stopped\n");
 
