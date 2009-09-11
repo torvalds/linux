@@ -6,6 +6,9 @@
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "setup"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -16,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
+#include <linux/kernel.h>
 #include <asm/ebcdic.h>
 #include <asm/ipl.h>
 #include <asm/lowcore.h>
@@ -140,6 +144,8 @@ static noinline __init void create_kernel_nss(void)
 	__cpcmd(defsys_cmd, NULL, 0, &response);
 
 	if (response != 0) {
+		pr_err("Defining the Linux kernel NSS failed with rc=%d\n",
+			response);
 		kernel_nss_name[0] = '\0';
 		return;
 	}
@@ -152,8 +158,11 @@ static noinline __init void create_kernel_nss(void)
 	 *	       max SAVESYS_CMD_SIZE
 	 * On error: response contains the numeric portion of cp error message.
 	 *	     for SAVESYS it will be >= 263
+	 *	     for missing privilege class, it will be 1
 	 */
-	if (response > SAVESYS_CMD_SIZE) {
+	if (response > SAVESYS_CMD_SIZE || response == 1) {
+		pr_err("Saving the Linux kernel NSS failed with rc=%d\n",
+			response);
 		kernel_nss_name[0] = '\0';
 		return;
 	}
