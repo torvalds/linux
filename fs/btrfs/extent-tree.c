@@ -3726,6 +3726,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	int last_ptr_loop = 0;
 	int loop = 0;
 	bool found_uncached_bg = false;
+	bool failed_cluster_refill = false;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -3823,7 +3824,16 @@ have_block_group:
 		if (unlikely(block_group->ro))
 			goto loop;
 
-		if (last_ptr) {
+		/*
+		 * Ok we want to try and use the cluster allocator, so lets look
+		 * there, unless we are on LOOP_NO_EMPTY_SIZE, since we will
+		 * have tried the cluster allocator plenty of times at this
+		 * point and not have found anything, so we are likely way too
+		 * fragmented for the clustering stuff to find anything, so lets
+		 * just skip it and let the allocator find whatever block it can
+		 * find
+		 */
+		if (last_ptr && loop < LOOP_NO_EMPTY_SIZE) {
 			/*
 			 * the refill lock keeps out other
 			 * people trying to start a new cluster
@@ -3898,9 +3908,11 @@ refill_cluster:
 					spin_unlock(&last_ptr->refill_lock);
 					goto checks;
 				}
-			} else if (!cached && loop > LOOP_CACHING_NOWAIT) {
+			} else if (!cached && loop > LOOP_CACHING_NOWAIT
+				   && !failed_cluster_refill) {
 				spin_unlock(&last_ptr->refill_lock);
 
+				failed_cluster_refill = true;
 				wait_block_group_cache_progress(block_group,
 				       num_bytes + empty_cluster + empty_size);
 				goto have_block_group;
@@ -3912,13 +3924,9 @@ refill_cluster:
 			 * cluster.  Free the cluster we've been trying
 			 * to use, and go to the next block group
 			 */
-			if (loop < LOOP_NO_EMPTY_SIZE) {
-				btrfs_return_cluster_to_free_space(NULL,
-								   last_ptr);
-				spin_unlock(&last_ptr->refill_lock);
-				goto loop;
-			}
+			btrfs_return_cluster_to_free_space(NULL, last_ptr);
 			spin_unlock(&last_ptr->refill_lock);
+			goto loop;
 		}
 
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
@@ -3977,6 +3985,7 @@ checks:
 		/* we are all good, lets return */
 		break;
 loop:
+		failed_cluster_refill = false;
 		btrfs_put_block_group(block_group);
 	}
 	up_read(&space_info->groups_sem);
