@@ -1110,6 +1110,7 @@ static void cfq_dispatch_insert(struct request_queue *q, struct request *rq)
 
 	cfq_log_cfqq(cfqd, cfqq, "dispatch_insert");
 
+	cfqq->next_rq = cfq_find_next_rq(cfqd, cfqq, rq);
 	cfq_remove_request(rq);
 	cfqq->dispatched++;
 	elv_dispatch_sort(q, rq);
