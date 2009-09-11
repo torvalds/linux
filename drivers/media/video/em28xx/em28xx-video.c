@@ -2504,14 +2504,17 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	}
 
 	/* Allocate and fill vbi video_device struct */
-	dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template, "vbi");
+	if (em28xx_vbi_supported(dev) == 1) {
+		dev->vbi_dev = em28xx_vdev_init(dev, &em28xx_video_template,
+						"vbi");
 
-	/* register v4l2 vbi video_device */
-	ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
-					vbi_nr[dev->devno]);
-	if (ret < 0) {
-		em28xx_errdev("unable to register vbi device\n");
-		return ret;
+		/* register v4l2 vbi video_device */
+		ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
+					    vbi_nr[dev->devno]);
+		if (ret < 0) {
+			em28xx_errdev("unable to register vbi device\n");
+			return ret;
+		}
 	}
 
 	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
@@ -2531,8 +2534,12 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 			    dev->radio_dev->num);
 	}
 
-	em28xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
-				dev->vdev->num, dev->vbi_dev->num);
+	em28xx_info("V4L2 video device registered as /dev/video%d\n",
+				dev->vdev->num);
+
+	if (dev->vbi_dev)
+		em28xx_info("V4L2 VBI device registered as /dev/vbi%d\n",
+			    dev->vbi_dev->num);
 
 	return 0;
 }

@@ -1131,7 +1131,7 @@ struct em28xx *em28xx_get_device(int minor,
 	list_for_each_entry(h, &em28xx_devlist, devlist) {
 		if (h->vdev->minor == minor)
 			dev = h;
-		if (h->vbi_dev->minor == minor) {
+		if (h->vbi_dev && h->vbi_dev->minor == minor) {
 			dev = h;
 			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		}
