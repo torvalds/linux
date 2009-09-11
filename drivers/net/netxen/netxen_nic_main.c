@@ -817,7 +817,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	if (err < 0)
 		goto err_out;
 	if (err == 0)
-		goto wait_init;
+		goto ready;
 
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
@@ -860,6 +860,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
 	NXWR32(adapter, CRB_DRIVER_VERSION, val);
 
+ready:
 	NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_READY);
 
 wait_init:
@@ -874,7 +875,7 @@ wait_init:
 
 	netxen_check_options(adapter);
 
-	return 0;
+	/* fall through and release firmware */
 
 err_out:
 	netxen_release_firmware(adapter);
