@@ -657,8 +657,8 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif
 	}
-	css->global_pgid.cpu_id = ((cpuid_t *) __LC_CPUID)->ident;
-	css->global_pgid.cpu_model = ((cpuid_t *) __LC_CPUID)->machine;
+	css->global_pgid.cpu_id = S390_lowcore.cpu_id.ident;
+	css->global_pgid.cpu_model = S390_lowcore.cpu_id.machine;
 	css->global_pgid.tod_high = tod_high;
 
 }
