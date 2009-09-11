@@ -843,9 +843,8 @@ restart:
 	if (force_refresh || qd->qd_qb.qb_magic != cpu_to_be32(GFS2_MAGIC)) {
 		loff_t pos;
 		gfs2_glock_dq_uninit(q_gh);
-		error = gfs2_glock_nq_init(qd->qd_gl,
-					   LM_ST_EXCLUSIVE, GL_NOCACHE,
-					   q_gh);
+		error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_EXCLUSIVE,
+					   GL_NOCACHE, q_gh);
 		if (error)
 			return error;
 
@@ -871,11 +870,9 @@ restart:
 		qlvb->qb_value = cpu_to_be64(q.qu_value);
 		qd->qd_qb = *qlvb;
 
-		if (gfs2_glock_is_blocking(qd->qd_gl)) {
-			gfs2_glock_dq_uninit(q_gh);
-			force_refresh = 0;
-			goto restart;
-		}
+		gfs2_glock_dq_uninit(q_gh);
+		force_refresh = 0;
+		goto restart;
 	}
 
 	return 0;
