@@ -358,11 +358,11 @@ tape_generic_online(struct tape_device *device,
 
 out_char:
 	tapechar_cleanup_device(device);
+out_minor:
+	tape_remove_minor(device);
 out_discipline:
 	device->discipline->cleanup_device(device);
 	device->discipline = NULL;
-out_minor:
-	tape_remove_minor(device);
 out:
 	module_put(discipline->owner);
 	return rc;
