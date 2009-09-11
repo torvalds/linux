@@ -220,13 +220,6 @@ static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
 
 /*
- * Migration helpers for obsolete names, they will go away:
- */
-#define hw_interrupt_type	irq_chip
-#define no_irq_type		no_irq_chip
-typedef struct irq_desc		irq_desc_t;
-
-/*
  * Pick up the arch-dependent methods:
  */
 #include <asm/hw_irq.h>
@@ -289,6 +282,7 @@ extern void handle_edge_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_simple_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_percpu_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_bad_irq(unsigned int irq, struct irq_desc *desc);
+extern void handle_nested_irq(unsigned int irq);
 
 /*
  * Monolithic do_IRQ implementation.
