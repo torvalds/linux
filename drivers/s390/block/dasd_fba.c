@@ -152,8 +152,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	block->base = device;
 
 	/* Read Device Characteristics */
-	rc = dasd_generic_read_dev_chars(device, "FBA ", &private->rdc_data,
-					 32);
+	rc = dasd_generic_read_dev_chars(device, DASD_FBA_MAGIC,
+					 &private->rdc_data, 32);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING, "Read device characteristics returned "
 			  "error %d for device: %s",
@@ -305,8 +305,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 		datasize += (count - 1)*sizeof(struct LO_fba_data);
 	}
 	/* Allocate the ccw request. */
-	cqr = dasd_smalloc_request(dasd_fba_discipline.name,
-				   cplength, datasize, memdev);
+	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev);
 	if (IS_ERR(cqr))
 		return cqr;
 	ccw = cqr->cpaddr;
