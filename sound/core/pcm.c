@@ -162,18 +162,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 	return -ENOIOCTLCMD;
 }
 
-#ifdef CONFIG_SND_VERBOSE_PROCFS
-
-#define STATE(v) [SNDRV_PCM_STATE_##v] = #v
-#define STREAM(v) [SNDRV_PCM_STREAM_##v] = #v
-#define READY(v) [SNDRV_PCM_READY_##v] = #v
-#define XRUN(v) [SNDRV_PCM_XRUN_##v] = #v
-#define SILENCE(v) [SNDRV_PCM_SILENCE_##v] = #v
-#define TSTAMP(v) [SNDRV_PCM_TSTAMP_##v] = #v
-#define ACCESS(v) [SNDRV_PCM_ACCESS_##v] = #v
-#define START(v) [SNDRV_PCM_START_##v] = #v
 #define FORMAT(v) [SNDRV_PCM_FORMAT_##v] = #v
-#define SUBFORMAT(v) [SNDRV_PCM_SUBFORMAT_##v] = #v 
 
 static char *snd_pcm_format_names[] = {
 	FORMAT(S8),
@@ -216,10 +205,23 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(U18_3BE),
 };
 
-static const char *snd_pcm_format_name(snd_pcm_format_t format)
+const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
 	return snd_pcm_format_names[format];
 }
+EXPORT_SYMBOL_GPL(snd_pcm_format_name);
+
+#ifdef CONFIG_SND_VERBOSE_PROCFS
+
+#define STATE(v) [SNDRV_PCM_STATE_##v] = #v
+#define STREAM(v) [SNDRV_PCM_STREAM_##v] = #v
+#define READY(v) [SNDRV_PCM_READY_##v] = #v
+#define XRUN(v) [SNDRV_PCM_XRUN_##v] = #v
+#define SILENCE(v) [SNDRV_PCM_SILENCE_##v] = #v
+#define TSTAMP(v) [SNDRV_PCM_TSTAMP_##v] = #v
+#define ACCESS(v) [SNDRV_PCM_ACCESS_##v] = #v
+#define START(v) [SNDRV_PCM_START_##v] = #v
+#define SUBFORMAT(v) [SNDRV_PCM_SUBFORMAT_##v] = #v 
 
 static char *snd_pcm_stream_names[] = {
 	STREAM(PLAYBACK),

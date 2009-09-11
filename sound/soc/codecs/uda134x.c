@@ -163,7 +163,7 @@ static int uda134x_mute(struct snd_soc_dai *dai, int mute)
 	else
 		mute_reg &= ~(1<<2);
 
-	uda134x_write(codec, UDA134X_DATA010, mute_reg & ~(1<<2));
+	uda134x_write(codec, UDA134X_DATA010, mute_reg);
 
 	return 0;
 }

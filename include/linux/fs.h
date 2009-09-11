@@ -1997,11 +1997,24 @@ extern void bd_release_from_disk(struct block_device *, struct gendisk *);
 #define CHRDEV_MAJOR_HASH_SIZE	255
 extern int alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
 extern int register_chrdev_region(dev_t, unsigned, const char *);
-extern int register_chrdev(unsigned int, const char *,
-			   const struct file_operations *);
-extern void unregister_chrdev(unsigned int, const char *);
+extern int __register_chrdev(unsigned int major, unsigned int baseminor,
+			     unsigned int count, const char *name,
+			     const struct file_operations *fops);
+extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+				unsigned int count, const char *name);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern void chrdev_show(struct seq_file *,off_t);
+
+static inline int register_chrdev(unsigned int major, const char *name,
+				  const struct file_operations *fops)
+{
+	return __register_chrdev(major, 0, 256, name, fops);
+}
+
+static inline void unregister_chrdev(unsigned int major, const char *name)
+{
+	__unregister_chrdev(major, 0, 256, name);
+}
 
 /* fs/block_dev.c */
 #define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */

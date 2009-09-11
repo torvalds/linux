@@ -56,30 +56,14 @@
 
 #define MCLK_RATE 12000000
 
+/*
+ * As shipped the board does not have inputs.  However, it is relatively
+ * straightforward to modify the board to hook them up so support is left
+ * in the driver.
+ */
+#undef ENABLE_MIC_INPUT
+
 static struct clk *mclk;
-
-static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	int ret;
-
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
-		MCLK_RATE, SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		clk_disable(mclk);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void at91sam9g20ek_shutdown(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-
-	dev_dbg(rtd->socdev->dev, "shutdown");
-}
 
 static int at91sam9g20ek_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -87,102 +71,17 @@ static int at91sam9g20ek_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct atmel_ssc_info *ssc_p = cpu_dai->private_data;
-	struct ssc_device *ssc = ssc_p->ssc;
 	int ret;
-
-	unsigned int rate;
-	int cmr_div, period;
-
-	if (ssc == NULL) {
-		printk(KERN_INFO "at91sam9g20ek_hw_params: ssc is NULL!\n");
-		return -EINVAL;
-	}
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * The SSC clock dividers depend on the sample rate.  The CMR.DIV
-	 * field divides the system master clock MCK to drive the SSC TK
-	 * signal which provides the codec BCLK.  The TCMR.PERIOD and
-	 * RCMR.PERIOD fields further divide the BCLK signal to drive
-	 * the SSC TF and RF signals which provide the codec DACLRC and
-	 * ADCLRC clocks.
-	 *
-	 * The dividers were determined through trial and error, where a
-	 * CMR.DIV value is chosen such that the resulting BCLK value is
-	 * divisible, or almost divisible, by (2 * sample rate), and then
-	 * the TCMR.PERIOD or RCMR.PERIOD is BCLK / (2 * sample rate) - 1.
-	 */
-	rate = params_rate(params);
-
-	switch (rate) {
-	case 8000:
-		cmr_div = 55;	/* BCLK = 133MHz/(2*55) = 1.209MHz */
-		period = 74;	/* LRC = BCLK/(2*(74+1)) ~= 8060,6Hz */
-		break;
-	case 11025:
-		cmr_div = 67;	/* BCLK = 133MHz/(2*60) = 1.108MHz */
-		period = 45;	/* LRC = BCLK/(2*(49+1)) = 11083,3Hz */
-		break;
-	case 16000:
-		cmr_div = 63;	/* BCLK = 133MHz/(2*63) = 1.055MHz */
-		period = 32;	/* LRC = BCLK/(2*(32+1)) = 15993,2Hz */
-		break;
-	case 22050:
-		cmr_div = 52;	/* BCLK = 133MHz/(2*52) = 1.278MHz */
-		period = 28;	/* LRC = BCLK/(2*(28+1)) = 22049Hz */
-		break;
-	case 32000:
-		cmr_div = 66;	/* BCLK = 133MHz/(2*66) = 1.007MHz */
-		period = 15;	/* LRC = BCLK/(2*(15+1)) = 31486,742Hz */
-		break;
-	case 44100:
-		cmr_div = 29;	/* BCLK = 133MHz/(2*29) = 2.293MHz */
-		period = 25;	/* LRC = BCLK/(2*(25+1)) = 44098Hz */
-		break;
-	case 48000:
-		cmr_div = 33;	/* BCLK = 133MHz/(2*33) = 2.015MHz */
-		period = 20;	/* LRC = BCLK/(2*(20+1)) = 47979,79Hz */
-		break;
-	case 88200:
-		cmr_div = 29;	/* BCLK = 133MHz/(2*29) = 2.293MHz */
-		period = 12;	/* LRC = BCLK/(2*(12+1)) = 88196Hz */
-		break;
-	case 96000:
-		cmr_div = 23;	/* BCLK = 133MHz/(2*23) = 2.891MHz */
-		period = 14;	/* LRC = BCLK/(2*(14+1)) = 96376Hz */
-		break;
-	default:
-		printk(KERN_WARNING "unsupported rate %d"
-				" on at91sam9g20ek board\n", rate);
-		return -EINVAL;
-	}
-
-	/* set the MCK divider for BCLK */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, ATMEL_SSC_CMR_DIV, cmr_div);
-	if (ret < 0)
-		return ret;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		/* set the BCLK divider for DACLRC */
-		ret = snd_soc_dai_set_clkdiv(cpu_dai,
-						ATMEL_SSC_TCMR_PERIOD, period);
-	} else {
-		/* set the BCLK divider for ADCLRC */
-		ret = snd_soc_dai_set_clkdiv(cpu_dai,
-						ATMEL_SSC_RCMR_PERIOD, period);
-	}
+		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
@@ -190,9 +89,7 @@ static int at91sam9g20ek_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops at91sam9g20ek_ops = {
-	.startup = at91sam9g20ek_startup,
 	.hw_params = at91sam9g20ek_hw_params,
-	.shutdown = at91sam9g20ek_shutdown,
 };
 
 static int at91sam9g20ek_set_bias_level(struct snd_soc_card *card,
@@ -241,9 +138,19 @@ static const struct snd_soc_dapm_route intercon[] = {
  */
 static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dai *codec_dai = &codec->dai[0];
+	int ret;
+
 	printk(KERN_DEBUG
 			"at91sam9g20ek_wm8731 "
 			": at91sam9g20ek_wm8731_init() called\n");
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
+		MCLK_RATE, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		printk(KERN_ERR "Failed to set WM8731 SYSCLK: %d\n", ret);
+		return ret;
+	}
 
 	/* Add specific widgets */
 	snd_soc_dapm_new_controls(codec, at91sam9g20ek_dapm_widgets,
@@ -255,8 +162,13 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 	snd_soc_dapm_nc_pin(codec, "LLINEIN");
 
-	/* always connected */
+#ifdef ENABLE_MIC_INPUT
 	snd_soc_dapm_enable_pin(codec, "Int Mic");
+#else
+	snd_soc_dapm_nc_pin(codec, "Int Mic");
+#endif
+
+	/* always connected */
 	snd_soc_dapm_enable_pin(codec, "Ext Spk");
 
 	snd_soc_dapm_sync(codec);

@@ -282,8 +282,6 @@ int aic3x_headset_detected(struct snd_soc_codec *codec);
 int aic3x_button_pressed(struct snd_soc_codec *codec);
 
 struct aic3x_setup_data {
-	int i2c_bus;
-	unsigned short i2c_address;
 	unsigned int gpio_func[2];
 };
 
