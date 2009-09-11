@@ -45,6 +45,7 @@ struct ath_ops {
 };
 
 struct ath_common {
+	void *ah;
 	u16 cachelsz;
 	u16 curaid;
 	u8 macaddr[ETH_ALEN];
@@ -57,5 +58,7 @@ struct ath_common {
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
 				u32 len,
 				gfp_t gfp_mask);
+
+void ath_hw_setbssidmask(struct ath_common *common);
 
 #endif /* ATH_H */

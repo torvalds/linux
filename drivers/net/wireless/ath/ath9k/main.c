@@ -1570,6 +1570,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 
 	common = ath9k_hw_common(ah);
 	common->ops = &ath9k_common_ops;
+	common->ah = ah;
 
 	/*
 	 * Cache line size is used to size and align various

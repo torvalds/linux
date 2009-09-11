@@ -2441,7 +2441,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		  | ah->sta_id1_defaults);
 	ath9k_hw_set_operating_mode(ah, ah->opmode);
 
-	ath9k_hw_setbssidmask(ah);
+	ath_hw_setbssidmask(common);
 
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
@@ -3988,14 +3988,6 @@ void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1)
 {
 	REG_WRITE(ah, AR_MCAST_FIL0, filter0);
 	REG_WRITE(ah, AR_MCAST_FIL1, filter1);
-}
-
-void ath9k_hw_setbssidmask(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(common->bssidmask));
-	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(common->bssidmask + 4));
 }
 
 void ath9k_hw_write_associd(struct ath_hw *ah)

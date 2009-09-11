@@ -94,7 +94,7 @@ void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 	common->bssidmask[4] = ~mask[4];
 	common->bssidmask[5] = ~mask[5];
 
-	ath9k_hw_setbssidmask(sc->sc_ah);
+	ath_hw_setbssidmask(common);
 }
 
 int ath9k_wiphy_add(struct ath_softc *sc)

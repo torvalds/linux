@@ -104,7 +104,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 int ath5k_hw_attach(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
-	struct ath_common *common;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct pci_dev *pdev = sc->pdev;
 	struct ath5k_eeprom_info *ee;
 	int ret;
