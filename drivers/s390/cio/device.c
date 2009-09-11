@@ -307,8 +307,11 @@ int ccw_device_is_orphan(struct ccw_device *cdev)
 
 static void ccw_device_unregister(struct ccw_device *cdev)
 {
-	if (test_and_clear_bit(1, &cdev->private->registered))
+	if (test_and_clear_bit(1, &cdev->private->registered)) {
 		device_del(&cdev->dev);
+		/* Release reference from device_initialize(). */
+		put_device(&cdev->dev);
+	}
 }
 
 static void ccw_device_remove_orphan_cb(struct work_struct *work)
@@ -319,7 +322,6 @@ static void ccw_device_remove_orphan_cb(struct work_struct *work)
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	ccw_device_unregister(cdev);
-	put_device(&cdev->dev);
 	/* Release cdev reference for workqueue processing. */
 	put_device(&cdev->dev);
 }
@@ -1358,7 +1360,6 @@ io_subchannel_remove (struct subchannel *sch)
 	cdev->private->state = DEV_STATE_NOT_OPER;
 	spin_unlock_irqrestore(cdev->ccwlock, flags);
 	ccw_device_unregister(cdev);
-	put_device(&cdev->dev);
 	kfree(sch->private);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
 	return 0;
