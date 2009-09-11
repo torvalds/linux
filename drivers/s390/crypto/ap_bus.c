@@ -648,7 +648,9 @@ static int ap_bus_suspend(struct device *dev, pm_message_t state)
 	/* Poll on the device until all requests are finished. */
 	do {
 		flags = 0;
+		spin_lock_bh(&ap_dev->lock);
 		__ap_poll_device(ap_dev, &flags);
+		spin_unlock_bh(&ap_dev->lock);
 	} while ((flags & 1) || (flags & 2));
 
 	ap_device_remove(dev);
@@ -1407,14 +1409,12 @@ static void ap_reset(struct ap_device *ap_dev)
 
 static int __ap_poll_device(struct ap_device *ap_dev, unsigned long *flags)
 {
-	spin_lock(&ap_dev->lock);
 	if (!ap_dev->unregistered) {
 		if (ap_poll_queue(ap_dev, flags))
 			ap_dev->unregistered = 1;
 		if (ap_dev->reset == AP_RESET_DO)
 			ap_reset(ap_dev);
 	}
-	spin_unlock(&ap_dev->lock);
 	return 0;
 }
 
@@ -1441,7 +1441,9 @@ static void ap_poll_all(unsigned long dummy)
 		flags = 0;
 		spin_lock(&ap_device_list_lock);
 		list_for_each_entry(ap_dev, &ap_device_list, list) {
+			spin_lock(&ap_dev->lock);
 			__ap_poll_device(ap_dev, &flags);
+			spin_unlock(&ap_dev->lock);
 		}
 		spin_unlock(&ap_device_list_lock);
 	} while (flags & 1);
@@ -1487,7 +1489,9 @@ static int ap_poll_thread(void *data)
 		flags = 0;
 		spin_lock_bh(&ap_device_list_lock);
 		list_for_each_entry(ap_dev, &ap_device_list, list) {
+			spin_lock(&ap_dev->lock);
 			__ap_poll_device(ap_dev, &flags);
+			spin_unlock(&ap_dev->lock);
 		}
 		spin_unlock_bh(&ap_device_list_lock);
 	}
