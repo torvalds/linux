@@ -5627,7 +5627,7 @@ F:	include/xen/
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-M:	Felix Blyakher <felixb@sgi.com>
+M:	Alex Elder <aelder@sgi.com>
 M:	xfs-masters@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
