@@ -21,7 +21,7 @@
  * This function runs with disabled interrupts.
  */
 	.section .text
-	.align	2
+	.align	4
 	.globl swsusp_arch_suspend
 swsusp_arch_suspend:
 	stmg	%r6,%r15,__SF_GPRS(%r15)
