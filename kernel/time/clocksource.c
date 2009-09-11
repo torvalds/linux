@@ -123,10 +123,12 @@ static DEFINE_MUTEX(clocksource_mutex);
 static char override_name[32];
 
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
+static void clocksource_watchdog_work(struct work_struct *work);
+
 static LIST_HEAD(watchdog_list);
 static struct clocksource *watchdog;
 static struct timer_list watchdog_timer;
-static struct work_struct watchdog_work;
+static DECLARE_WORK(watchdog_work, clocksource_watchdog_work);
 static DEFINE_SPINLOCK(watchdog_lock);
 static cycle_t watchdog_last;
 static int watchdog_running;
@@ -257,7 +259,6 @@ static inline void clocksource_start_watchdog(void)
 {
 	if (watchdog_running || !watchdog || list_empty(&watchdog_list))
 		return;
-	INIT_WORK(&watchdog_work, clocksource_watchdog_work);
 	init_timer(&watchdog_timer);
 	watchdog_timer.function = clocksource_watchdog;
 	watchdog_last = watchdog->read(watchdog);
