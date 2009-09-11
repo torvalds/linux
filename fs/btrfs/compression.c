@@ -506,10 +506,10 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 */
 		set_page_extent_mapped(page);
 		lock_extent(tree, last_offset, end, GFP_NOFS);
-		spin_lock(&em_tree->lock);
+		read_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, last_offset,
 					   PAGE_CACHE_SIZE);
-		spin_unlock(&em_tree->lock);
+		read_unlock(&em_tree->lock);
 
 		if (!em || last_offset < em->start ||
 		    (last_offset + PAGE_CACHE_SIZE > extent_map_end(em)) ||
@@ -593,11 +593,11 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	em_tree = &BTRFS_I(inode)->extent_tree;
 
 	/* we need the actual starting offset of this extent in the file */
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree,
 				   page_offset(bio->bi_io_vec->bv_page),
 				   PAGE_CACHE_SIZE);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	compressed_len = em->block_len;
 	cb = kmalloc(compressed_bio_size(root, compressed_len), GFP_NOFS);

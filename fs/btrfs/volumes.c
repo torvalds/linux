@@ -276,7 +276,7 @@ loop_lock:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi) && batch_run > 32 &&
+		if (pending && bdi_write_congested(bdi) && batch_run > 8 &&
 		    fs_info->fs_devices->open_devices > 1) {
 			struct io_context *ioc;
 
@@ -1749,9 +1749,9 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 	 * step two, delete the device extents and the
 	 * chunk tree entries
 	 */
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	BUG_ON(em->start > chunk_offset ||
 	       em->start + em->len < chunk_offset);
@@ -1780,9 +1780,9 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 	ret = btrfs_remove_block_group(trans, extent_root, chunk_offset);
 	BUG_ON(ret);
 
-	spin_lock(&em_tree->lock);
+	write_lock(&em_tree->lock);
 	remove_extent_mapping(em_tree, em);
-	spin_unlock(&em_tree->lock);
+	write_unlock(&em_tree->lock);
 
 	kfree(map);
 	em->bdev = NULL;
@@ -2294,9 +2294,9 @@ again:
 	em->block_len = em->len;
 
 	em_tree = &extent_root->fs_info->mapping_tree.map_tree;
-	spin_lock(&em_tree->lock);
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
-	spin_unlock(&em_tree->lock);
+	write_unlock(&em_tree->lock);
 	BUG_ON(ret);
 	free_extent_map(em);
 
@@ -2491,9 +2491,9 @@ int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset)
 	int readonly = 0;
 	int i;
 
-	spin_lock(&map_tree->map_tree.lock);
+	read_lock(&map_tree->map_tree.lock);
 	em = lookup_extent_mapping(&map_tree->map_tree, chunk_offset, 1);
-	spin_unlock(&map_tree->map_tree.lock);
+	read_unlock(&map_tree->map_tree.lock);
 	if (!em)
 		return 1;
 
@@ -2518,11 +2518,11 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 	struct extent_map *em;
 
 	while (1) {
-		spin_lock(&tree->map_tree.lock);
+		write_lock(&tree->map_tree.lock);
 		em = lookup_extent_mapping(&tree->map_tree, 0, (u64)-1);
 		if (em)
 			remove_extent_mapping(&tree->map_tree, em);
-		spin_unlock(&tree->map_tree.lock);
+		write_unlock(&tree->map_tree.lock);
 		if (!em)
 			break;
 		kfree(em->bdev);
@@ -2540,9 +2540,9 @@ int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
 	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	int ret;
 
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, len);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);
@@ -2604,9 +2604,9 @@ again:
 		atomic_set(&multi->error, 0);
 	}
 
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, *length);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	if (!em && unplug_page)
 		return 0;
@@ -2763,9 +2763,9 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 	u64 stripe_nr;
 	int i, j, nr = 0;
 
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, chunk_start, 1);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	BUG_ON(!em || em->start != chunk_start);
 	map = (struct map_lookup *)em->bdev;
@@ -3053,9 +3053,9 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	logical = key->offset;
 	length = btrfs_chunk_length(leaf, chunk);
 
-	spin_lock(&map_tree->map_tree.lock);
+	read_lock(&map_tree->map_tree.lock);
 	em = lookup_extent_mapping(&map_tree->map_tree, logical, 1);
-	spin_unlock(&map_tree->map_tree.lock);
+	read_unlock(&map_tree->map_tree.lock);
 
 	/* already mapped? */
 	if (em && em->start <= logical && em->start + em->len > logical) {
@@ -3114,9 +3114,9 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		map->stripes[i].dev->in_fs_metadata = 1;
 	}
 
-	spin_lock(&map_tree->map_tree.lock);
+	write_lock(&map_tree->map_tree.lock);
 	ret = add_extent_mapping(&map_tree->map_tree, em);
-	spin_unlock(&map_tree->map_tree.lock);
+	write_unlock(&map_tree->map_tree.lock);
 	BUG_ON(ret);
 	free_extent_map(em);
 

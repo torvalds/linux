@@ -2290,7 +2290,7 @@ extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 locked_end,
-		       u64 inline_limit, u64 *hint_block);
+		       u64 inline_limit, u64 *hint_block, int drop_cache);
 int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode, u64 start, u64 end);

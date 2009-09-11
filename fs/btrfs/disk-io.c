@@ -123,15 +123,15 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	struct extent_map *em;
 	int ret;
 
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
 	if (em) {
 		em->bdev =
 			BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
-		spin_unlock(&em_tree->lock);
+		read_unlock(&em_tree->lock);
 		goto out;
 	}
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
@@ -144,7 +144,7 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	em->block_start = 0;
 	em->bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
-	spin_lock(&em_tree->lock);
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
 	if (ret == -EEXIST) {
 		u64 failed_start = em->start;
@@ -163,7 +163,7 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 		free_extent_map(em);
 		em = NULL;
 	}
-	spin_unlock(&em_tree->lock);
+	write_unlock(&em_tree->lock);
 
 	if (ret)
 		em = ERR_PTR(ret);
@@ -1325,9 +1325,9 @@ static void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	offset = page_offset(page);
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, offset, PAGE_CACHE_SIZE);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 	if (!em) {
 		__unplug_io_fn(bdi, page);
 		return;
@@ -1698,7 +1698,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		err = -EINVAL;
 		goto fail_iput;
 	}
-
+printk("thread pool is %d\n", fs_info->thread_pool_size);
 	/*
 	 * we need to start all the end_io workers up front because the
 	 * queue work function gets called at interrupt time, and so it
@@ -1743,20 +1743,22 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->endio_workers.idle_thresh = 4;
 	fs_info->endio_meta_workers.idle_thresh = 4;
 
-	fs_info->endio_write_workers.idle_thresh = 64;
-	fs_info->endio_meta_write_workers.idle_thresh = 64;
+	fs_info->endio_write_workers.idle_thresh = 2;
+	fs_info->endio_meta_write_workers.idle_thresh = 2;
+
+	fs_info->endio_workers.atomic_worker_start = 1;
+	fs_info->endio_meta_workers.atomic_worker_start = 1;
+	fs_info->endio_write_workers.atomic_worker_start = 1;
+	fs_info->endio_meta_write_workers.atomic_worker_start = 1;
 
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->delalloc_workers, 1);
 	btrfs_start_workers(&fs_info->fixup_workers, 1);
-	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
-	btrfs_start_workers(&fs_info->endio_meta_workers,
-			    fs_info->thread_pool_size);
-	btrfs_start_workers(&fs_info->endio_meta_write_workers,
-			    fs_info->thread_pool_size);
-	btrfs_start_workers(&fs_info->endio_write_workers,
-			    fs_info->thread_pool_size);
+	btrfs_start_workers(&fs_info->endio_workers, 1);
+	btrfs_start_workers(&fs_info->endio_meta_workers, 1);
+	btrfs_start_workers(&fs_info->endio_meta_write_workers, 1);
+	btrfs_start_workers(&fs_info->endio_write_workers, 1);
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
