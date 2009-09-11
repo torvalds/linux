@@ -236,6 +236,10 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 	if (radeon_connector->ddc_bus) {
 		ret = radeon_ddc_get_modes(radeon_connector);
 		if (ret > 0) {
+			encoder = radeon_best_single_encoder(connector);
+			if (encoder)
+				/* add scaled modes */
+				radeon_add_common_modes(encoder, connector);
 			return ret;
 		}
 	}
@@ -249,10 +253,9 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 	if (mode) {
 		ret = 1;
 		drm_mode_probed_add(connector, mode);
+		/* add scaled modes */
+		radeon_add_common_modes(encoder, connector);
 	}
-
-	/* add scaled modes */
-	radeon_add_common_modes(encoder, connector);
 
 	return ret;
 }
