@@ -2253,6 +2253,30 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
 
 /**
+ * snd_soc_dai_set_channel_map - configure DAI audio channel map
+ * @dai: DAI
+ * @tx_num: how many TX channels
+ * @tx_slot: pointer to an array which imply the TX slot number channel
+ *           0~num-1 uses
+ * @rx_num: how many RX channels
+ * @rx_slot: pointer to an array which imply the RX slot number channel
+ *           0~num-1 uses
+ *
+ * configure the relationship between channel number and TDM slot number.
+ */
+int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
+	unsigned int tx_num, unsigned int *tx_slot,
+	unsigned int rx_num, unsigned int *rx_slot)
+{
+	if (dai->ops && dai->ops->set_channel_map)
+		return dai->ops->set_channel_map(dai, tx_num, tx_slot,
+			rx_num, rx_slot);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_set_channel_map);
+
+/**
  * snd_soc_dai_set_tristate - configure DAI system or master clock.
  * @dai: DAI
  * @tristate: tristate enable
