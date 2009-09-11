@@ -148,7 +148,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
 	    (dev->pdev->subsystem_device == 0x01da)) {
 		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
-			*connector_type = DRM_MODE_CONNECTOR_DVID;
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
 		}
 	}
 
@@ -157,7 +157,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
 	    (dev->pdev->subsystem_device == 0x01e2)) {
 		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
-			*connector_type = DRM_MODE_CONNECTOR_DVID;
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
 		}
 	}
 
