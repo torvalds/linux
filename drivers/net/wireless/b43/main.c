@@ -2289,11 +2289,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			err = -ENODEV;
 			goto error;
 		}
-		msleep_interruptible(50);
-		if (signal_pending(current)) {
-			err = -EINTR;
-			goto error;
-		}
+		msleep(50);
 	}
 	b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);	/* dummy read */
 
