@@ -47,6 +47,8 @@
 #include <linux/mutex.h>
 #include <linux/time.h>
 
+#include "rcutree.h"
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
 struct lockdep_map rcu_lock_map =
@@ -73,30 +75,59 @@ EXPORT_SYMBOL_GPL(rcu_lock_map);
 	.n_force_qs_ngp = 0, \
 }
 
-struct rcu_state rcu_state = RCU_STATE_INITIALIZER(rcu_state);
-DEFINE_PER_CPU(struct rcu_data, rcu_data);
+struct rcu_state rcu_sched_state = RCU_STATE_INITIALIZER(rcu_sched_state);
+DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 
 struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
+extern long rcu_batches_completed_sched(void);
+static struct rcu_node *rcu_get_root(struct rcu_state *rsp);
+static void cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp,
+			  struct rcu_node *rnp, unsigned long flags);
+static void cpu_quiet_msk_finish(struct rcu_state *rsp, unsigned long flags);
+#ifdef CONFIG_HOTPLUG_CPU
+static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp);
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+static void __rcu_process_callbacks(struct rcu_state *rsp,
+				    struct rcu_data *rdp);
+static void __call_rcu(struct rcu_head *head,
+		       void (*func)(struct rcu_head *rcu),
+		       struct rcu_state *rsp);
+static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp);
+static void __cpuinit rcu_init_percpu_data(int cpu, struct rcu_state *rsp,
+					   int preemptable);
+
+#include "rcutree_plugin.h"
+
 /*
- * Increment the quiescent state counter.
- * The counter is a bit degenerated: We do not need to know
+ * Note a quiescent state.  Because we do not need to know
  * how many quiescent states passed, just if there was at least
- * one since the start of the grace period. Thus just a flag.
+ * one since the start of the grace period, this just sets a flag.
  */
-void rcu_qsctr_inc(int cpu)
+void rcu_sched_qs(int cpu)
 {
-	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
+	unsigned long flags;
+	struct rcu_data *rdp;
+
+	local_irq_save(flags);
+	rdp = &per_cpu(rcu_sched_data, cpu);
 	rdp->passed_quiesc = 1;
 	rdp->passed_quiesc_completed = rdp->completed;
+	rcu_preempt_qs(cpu);
+	local_irq_restore(flags);
 }
 
-void rcu_bh_qsctr_inc(int cpu)
+void rcu_bh_qs(int cpu)
 {
-	struct rcu_data *rdp = &per_cpu(rcu_bh_data, cpu);
+	unsigned long flags;
+	struct rcu_data *rdp;
+
+	local_irq_save(flags);
+	rdp = &per_cpu(rcu_bh_data, cpu);
 	rdp->passed_quiesc = 1;
 	rdp->passed_quiesc_completed = rdp->completed;
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_NO_HZ
@@ -111,15 +142,16 @@ static int qhimark = 10000;	/* If this many pending, ignore blimit. */
 static int qlowmark = 100;	/* Once only this many pending, use blimit. */
 
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed);
+static int rcu_pending(int cpu);
 
 /*
- * Return the number of RCU batches processed thus far for debug & stats.
+ * Return the number of RCU-sched batches processed thus far for debug & stats.
  */
-long rcu_batches_completed(void)
+long rcu_batches_completed_sched(void)
 {
-	return rcu_state.completed;
+	return rcu_sched_state.completed;
 }
-EXPORT_SYMBOL_GPL(rcu_batches_completed);
+EXPORT_SYMBOL_GPL(rcu_batches_completed_sched);
 
 /*
  * Return the number of RCU BH batches processed thus far for debug & stats.
@@ -182,6 +214,10 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
 		return 1;
 	}
 
+	/* If preemptable RCU, no point in sending reschedule IPI. */
+	if (rdp->preemptable)
+		return 0;
+
 	/* The CPU is online, so send it a reschedule IPI. */
 	if (rdp->cpu != smp_processor_id())
 		smp_send_reschedule(rdp->cpu);
@@ -194,7 +230,6 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
 #endif /* #ifdef CONFIG_SMP */
 
 #ifdef CONFIG_NO_HZ
-static DEFINE_RATELIMIT_STATE(rcu_rs, 10 * HZ, 5);
 
 /**
  * rcu_enter_nohz - inform RCU that current CPU is entering nohz
@@ -214,7 +249,7 @@ void rcu_enter_nohz(void)
 	rdtp = &__get_cpu_var(rcu_dynticks);
 	rdtp->dynticks++;
 	rdtp->dynticks_nesting--;
-	WARN_ON_RATELIMIT(rdtp->dynticks & 0x1, &rcu_rs);
+	WARN_ON_ONCE(rdtp->dynticks & 0x1);
 	local_irq_restore(flags);
 }
 
@@ -233,7 +268,7 @@ void rcu_exit_nohz(void)
 	rdtp = &__get_cpu_var(rcu_dynticks);
 	rdtp->dynticks++;
 	rdtp->dynticks_nesting++;
-	WARN_ON_RATELIMIT(!(rdtp->dynticks & 0x1), &rcu_rs);
+	WARN_ON_ONCE(!(rdtp->dynticks & 0x1));
 	local_irq_restore(flags);
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
@@ -252,7 +287,7 @@ void rcu_nmi_enter(void)
 	if (rdtp->dynticks & 0x1)
 		return;
 	rdtp->dynticks_nmi++;
-	WARN_ON_RATELIMIT(!(rdtp->dynticks_nmi & 0x1), &rcu_rs);
+	WARN_ON_ONCE(!(rdtp->dynticks_nmi & 0x1));
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
 
@@ -271,7 +306,7 @@ void rcu_nmi_exit(void)
 		return;
 	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	rdtp->dynticks_nmi++;
-	WARN_ON_RATELIMIT(rdtp->dynticks_nmi & 0x1, &rcu_rs);
+	WARN_ON_ONCE(rdtp->dynticks_nmi & 0x1);
 }
 
 /**
@@ -287,7 +322,7 @@ void rcu_irq_enter(void)
 	if (rdtp->dynticks_nesting++)
 		return;
 	rdtp->dynticks++;
-	WARN_ON_RATELIMIT(!(rdtp->dynticks & 0x1), &rcu_rs);
+	WARN_ON_ONCE(!(rdtp->dynticks & 0x1));
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
 
@@ -306,10 +341,10 @@ void rcu_irq_exit(void)
 		return;
 	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	rdtp->dynticks++;
-	WARN_ON_RATELIMIT(rdtp->dynticks & 0x1, &rcu_rs);
+	WARN_ON_ONCE(rdtp->dynticks & 0x1);
 
 	/* If the interrupt queued a callback, get out of dyntick mode. */
-	if (__get_cpu_var(rcu_data).nxtlist ||
+	if (__get_cpu_var(rcu_sched_data).nxtlist ||
 	    __get_cpu_var(rcu_bh_data).nxtlist)
 		set_need_resched();
 }
@@ -462,6 +497,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 
 	printk(KERN_ERR "INFO: RCU detected CPU stalls:");
 	for (; rnp_cur < rnp_end; rnp_cur++) {
+		rcu_print_task_stall(rnp);
 		if (rnp_cur->qsmask == 0)
 			continue;
 		for (cpu = 0; cpu <= rnp_cur->grphi - rnp_cur->grplo; cpu++)
@@ -679,6 +715,19 @@ rcu_process_gp_end(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
+ * Clean up after the prior grace period and let rcu_start_gp() start up
+ * the next grace period if one is needed.  Note that the caller must
+ * hold rnp->lock, as required by rcu_start_gp(), which will release it.
+ */
+static void cpu_quiet_msk_finish(struct rcu_state *rsp, unsigned long flags)
+	__releases(rnp->lock)
+{
+	rsp->completed = rsp->gpnum;
+	rcu_process_gp_end(rsp, rsp->rda[smp_processor_id()]);
+	rcu_start_gp(rsp, flags);  /* releases root node's rnp->lock. */
+}
+
+/*
  * Similar to cpu_quiet(), for which it is a helper function.  Allows
  * a group of CPUs to be quieted at one go, though all the CPUs in the
  * group must be represented by the same leaf rcu_node structure.
@@ -699,7 +748,7 @@ cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp, struct rcu_node *rnp,
 			return;
 		}
 		rnp->qsmask &= ~mask;
-		if (rnp->qsmask != 0) {
+		if (rnp->qsmask != 0 || rcu_preempted_readers(rnp)) {
 
 			/* Other bits still set at this level, so done. */
 			spin_unlock_irqrestore(&rnp->lock, flags);
@@ -719,14 +768,10 @@ cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp, struct rcu_node *rnp,
 
 	/*
 	 * Get here if we are the last CPU to pass through a quiescent
-	 * state for this grace period.  Clean up and let rcu_start_gp()
-	 * start up the next grace period if one is needed.  Note that
-	 * we still hold rnp->lock, as required by rcu_start_gp(), which
-	 * will release it.
+	 * state for this grace period.  Invoke cpu_quiet_msk_finish()
+	 * to clean up and start the next grace period if one is needed.
 	 */
-	rsp->completed = rsp->gpnum;
-	rcu_process_gp_end(rsp, rsp->rda[smp_processor_id()]);
-	rcu_start_gp(rsp, flags);  /* releases rnp->lock. */
+	cpu_quiet_msk_finish(rsp, flags); /* releases rnp->lock. */
 }
 
 /*
@@ -833,11 +878,12 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 		spin_lock(&rnp->lock);		/* irqs already disabled. */
 		rnp->qsmaskinit &= ~mask;
 		if (rnp->qsmaskinit != 0) {
-			spin_unlock(&rnp->lock); /* irqs already disabled. */
+			spin_unlock(&rnp->lock); /* irqs remain disabled. */
 			break;
 		}
+		rcu_preempt_offline_tasks(rsp, rnp);
 		mask = rnp->grpmask;
-		spin_unlock(&rnp->lock);	/* irqs already disabled. */
+		spin_unlock(&rnp->lock);	/* irqs remain disabled. */
 		rnp = rnp->parent;
 	} while (rnp != NULL);
 	lastcomp = rsp->completed;
@@ -850,7 +896,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	/*
 	 * Move callbacks from the outgoing CPU to the running CPU.
 	 * Note that the outgoing CPU is now quiscent, so it is now
-	 * (uncharacteristically) safe to access it rcu_data structure.
+	 * (uncharacteristically) safe to access its rcu_data structure.
 	 * Note also that we must carefully retain the order of the
 	 * outgoing CPU's callbacks in order for rcu_barrier() to work
 	 * correctly.  Finally, note that we start all the callbacks
@@ -881,8 +927,9 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
  */
 static void rcu_offline_cpu(int cpu)
 {
-	__rcu_offline_cpu(cpu, &rcu_state);
+	__rcu_offline_cpu(cpu, &rcu_sched_state);
 	__rcu_offline_cpu(cpu, &rcu_bh_state);
+	rcu_preempt_offline_cpu(cpu);
 }
 
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
@@ -968,6 +1015,8 @@ static void rcu_do_batch(struct rcu_data *rdp)
  */
 void rcu_check_callbacks(int cpu, int user)
 {
+	if (!rcu_pending(cpu))
+		return; /* if nothing for RCU to do. */
 	if (user ||
 	    (idle_cpu(cpu) && rcu_scheduler_active &&
 	     !in_softirq() && hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
@@ -976,17 +1025,16 @@ void rcu_check_callbacks(int cpu, int user)
 		 * Get here if this CPU took its interrupt from user
 		 * mode or from the idle loop, and if this is not a
 		 * nested interrupt.  In this case, the CPU is in
-		 * a quiescent state, so count it.
+		 * a quiescent state, so note it.
 		 *
 		 * No memory barrier is required here because both
-		 * rcu_qsctr_inc() and rcu_bh_qsctr_inc() reference
-		 * only CPU-local variables that other CPUs neither
-		 * access nor modify, at least not while the corresponding
-		 * CPU is online.
+		 * rcu_sched_qs() and rcu_bh_qs() reference only CPU-local
+		 * variables that other CPUs neither access nor modify,
+		 * at least not while the corresponding CPU is online.
 		 */
 
-		rcu_qsctr_inc(cpu);
-		rcu_bh_qsctr_inc(cpu);
+		rcu_sched_qs(cpu);
+		rcu_bh_qs(cpu);
 
 	} else if (!in_softirq()) {
 
@@ -994,11 +1042,12 @@ void rcu_check_callbacks(int cpu, int user)
 		 * Get here if this CPU did not take its interrupt from
 		 * softirq, in other words, if it is not interrupting
 		 * a rcu_bh read-side critical section.  This is an _bh
-		 * critical section, so count it.
+		 * critical section, so note it.
 		 */
 
-		rcu_bh_qsctr_inc(cpu);
+		rcu_bh_qs(cpu);
 	}
+	rcu_preempt_check_callbacks(cpu);
 	raise_softirq(RCU_SOFTIRQ);
 }
 
@@ -1137,6 +1186,8 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	unsigned long flags;
 
+	WARN_ON_ONCE(rdp->beenonline == 0);
+
 	/*
 	 * If an RCU GP has gone long enough, go check for dyntick
 	 * idle CPUs and, if needed, send resched IPIs.
@@ -1175,8 +1226,10 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 	 */
 	smp_mb(); /* See above block comment. */
 
-	__rcu_process_callbacks(&rcu_state, &__get_cpu_var(rcu_data));
+	__rcu_process_callbacks(&rcu_sched_state,
+				&__get_cpu_var(rcu_sched_data));
 	__rcu_process_callbacks(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
+	rcu_preempt_process_callbacks();
 
 	/*
 	 * Memory references from any later RCU read-side critical sections
@@ -1232,13 +1285,13 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 }
 
 /*
- * Queue an RCU callback for invocation after a grace period.
+ * Queue an RCU-sched callback for invocation after a grace period.
  */
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_state);
+	__call_rcu(head, func, &rcu_sched_state);
 }
-EXPORT_SYMBOL_GPL(call_rcu);
+EXPORT_SYMBOL_GPL(call_rcu_sched);
 
 /*
  * Queue an RCU for invocation after a quicker grace period.
@@ -1310,10 +1363,11 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
  * by the current CPU, returning 1 if so.  This function is part of the
  * RCU implementation; it is -not- an exported member of the RCU API.
  */
-int rcu_pending(int cpu)
+static int rcu_pending(int cpu)
 {
-	return __rcu_pending(&rcu_state, &per_cpu(rcu_data, cpu)) ||
-	       __rcu_pending(&rcu_bh_state, &per_cpu(rcu_bh_data, cpu));
+	return __rcu_pending(&rcu_sched_state, &per_cpu(rcu_sched_data, cpu)) ||
+	       __rcu_pending(&rcu_bh_state, &per_cpu(rcu_bh_data, cpu)) ||
+	       rcu_preempt_pending(cpu);
 }
 
 /*
@@ -1325,27 +1379,46 @@ int rcu_pending(int cpu)
 int rcu_needs_cpu(int cpu)
 {
 	/* RCU callbacks either ready or pending? */
-	return per_cpu(rcu_data, cpu).nxtlist ||
-	       per_cpu(rcu_bh_data, cpu).nxtlist;
+	return per_cpu(rcu_sched_data, cpu).nxtlist ||
+	       per_cpu(rcu_bh_data, cpu).nxtlist ||
+	       rcu_preempt_needs_cpu(cpu);
 }
 
 /*
- * Initialize a CPU's per-CPU RCU data.  We take this "scorched earth"
- * approach so that we don't have to worry about how long the CPU has
- * been gone, or whether it ever was online previously.  We do trust the
- * ->mynode field, as it is constant for a given struct rcu_data and
- * initialized during early boot.
- *
- * Note that only one online or offline event can be happening at a given
- * time.  Note also that we can accept some slop in the rsp->completed
- * access due to the fact that this CPU cannot possibly have any RCU
- * callbacks in flight yet.
+ * Do boot-time initialization of a CPU's per-CPU RCU data.
  */
-static void __cpuinit
-rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
+static void __init
+rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
 	int i;
+	struct rcu_data *rdp = rsp->rda[cpu];
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	/* Set up local state, ensuring consistent view of global state. */
+	spin_lock_irqsave(&rnp->lock, flags);
+	rdp->grpmask = 1UL << (cpu - rdp->mynode->grplo);
+	rdp->nxtlist = NULL;
+	for (i = 0; i < RCU_NEXT_SIZE; i++)
+		rdp->nxttail[i] = &rdp->nxtlist;
+	rdp->qlen = 0;
+#ifdef CONFIG_NO_HZ
+	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
+#endif /* #ifdef CONFIG_NO_HZ */
+	rdp->cpu = cpu;
+	spin_unlock_irqrestore(&rnp->lock, flags);
+}
+
+/*
+ * Initialize a CPU's per-CPU RCU data.  Note that only one online or
+ * offline event can be happening at a given time.  Note also that we
+ * can accept some slop in the rsp->completed access due to the fact
+ * that this CPU cannot possibly have any RCU callbacks in flight yet.
+ */
+static void __cpuinit
+rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptable)
+{
+	unsigned long flags;
 	long lastcomp;
 	unsigned long mask;
 	struct rcu_data *rdp = rsp->rda[cpu];
@@ -1359,17 +1432,9 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->passed_quiesc = 0;  /* We could be racing with new GP, */
 	rdp->qs_pending = 1;	 /*  so set up to respond to current GP. */
 	rdp->beenonline = 1;	 /* We have now been online. */
+	rdp->preemptable = preemptable;
 	rdp->passed_quiesc_completed = lastcomp - 1;
-	rdp->grpmask = 1UL << (cpu - rdp->mynode->grplo);
-	rdp->nxtlist = NULL;
-	for (i = 0; i < RCU_NEXT_SIZE; i++)
-		rdp->nxttail[i] = &rdp->nxtlist;
-	rdp->qlen = 0;
 	rdp->blimit = blimit;
-#ifdef CONFIG_NO_HZ
-	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
-#endif /* #ifdef CONFIG_NO_HZ */
-	rdp->cpu = cpu;
 	spin_unlock(&rnp->lock);		/* irqs remain disabled. */
 
 	/*
@@ -1410,16 +1475,16 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 
 static void __cpuinit rcu_online_cpu(int cpu)
 {
-	rcu_init_percpu_data(cpu, &rcu_state);
-	rcu_init_percpu_data(cpu, &rcu_bh_state);
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+	rcu_init_percpu_data(cpu, &rcu_sched_state, 0);
+	rcu_init_percpu_data(cpu, &rcu_bh_state, 0);
+	rcu_preempt_init_percpu_data(cpu);
 }
 
 /*
- * Handle CPU online/offline notifcation events.
+ * Handle CPU online/offline notification events.
  */
-static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
-				unsigned long action, void *hcpu)
+int __cpuinit rcu_cpu_notify(struct notifier_block *self,
+			     unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
 
@@ -1491,6 +1556,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 		rnp = rsp->level[i];
 		for (j = 0; j < rsp->levelcnt[i]; j++, rnp++) {
 			spin_lock_init(&rnp->lock);
+			rnp->gpnum = 0;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
 			rnp->grplo = j * cpustride;
@@ -1508,16 +1574,20 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 					      j / rsp->levelspread[i - 1];
 			}
 			rnp->level = i;
+			INIT_LIST_HEAD(&rnp->blocked_tasks[0]);
+			INIT_LIST_HEAD(&rnp->blocked_tasks[1]);
 		}
 	}
 }
 
 /*
- * Helper macro for __rcu_init().  To be used nowhere else!
- * Assigns leaf node pointers into each CPU's rcu_data structure.
+ * Helper macro for __rcu_init() and __rcu_init_preempt().  To be used
+ * nowhere else!  Assigns leaf node pointers into each CPU's rcu_data
+ * structure.
  */
-#define RCU_DATA_PTR_INIT(rsp, rcu_data) \
+#define RCU_INIT_FLAVOR(rsp, rcu_data) \
 do { \
+	rcu_init_one(rsp); \
 	rnp = (rsp)->level[NUM_RCU_LVLS - 1]; \
 	j = 0; \
 	for_each_possible_cpu(i) { \
@@ -1525,32 +1595,43 @@ do { \
 			j++; \
 		per_cpu(rcu_data, i).mynode = &rnp[j]; \
 		(rsp)->rda[i] = &per_cpu(rcu_data, i); \
+		rcu_boot_init_percpu_data(i, rsp); \
 	} \
 } while (0)
 
-static struct notifier_block __cpuinitdata rcu_nb = {
-	.notifier_call	= rcu_cpu_notify,
-};
+#ifdef CONFIG_TREE_PREEMPT_RCU
 
-void __init __rcu_init(void)
+void __init __rcu_init_preempt(void)
 {
-	int i;			/* All used by RCU_DATA_PTR_INIT(). */
+	int i;			/* All used by RCU_INIT_FLAVOR(). */
 	int j;
 	struct rcu_node *rnp;
 
-	printk(KERN_INFO "Hierarchical RCU implementation.\n");
+	RCU_INIT_FLAVOR(&rcu_preempt_state, rcu_preempt_data);
+}
+
+#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+void __init __rcu_init_preempt(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+void __init __rcu_init(void)
+{
+	int i;			/* All used by RCU_INIT_FLAVOR(). */
+	int j;
+	struct rcu_node *rnp;
+
+	rcu_bootup_announce();
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
-	rcu_init_one(&rcu_state);
-	RCU_DATA_PTR_INIT(&rcu_state, rcu_data);
-	rcu_init_one(&rcu_bh_state);
-	RCU_DATA_PTR_INIT(&rcu_bh_state, rcu_bh_data);
-
-	for_each_online_cpu(i)
-		rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE, (void *)(long)i);
-	/* Register notifier for non-boot CPUs */
-	register_cpu_notifier(&rcu_nb);
+	RCU_INIT_FLAVOR(&rcu_sched_state, rcu_sched_data);
+	RCU_INIT_FLAVOR(&rcu_bh_state, rcu_bh_data);
+	__rcu_init_preempt();
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 module_param(blimit, int, 0);

@@ -740,7 +740,7 @@ config RCU_TORTURE_TEST_RUNNABLE
 
 config RCU_CPU_STALL_DETECTOR
 	bool "Check for stalled CPUs delaying RCU grace periods"
-	depends on CLASSIC_RCU || TREE_RCU
+	depends on TREE_RCU || TREE_PREEMPT_RCU
 	default n
 	help
 	  This option causes RCU to printk information on which
