@@ -394,6 +394,13 @@ ccw_device_done(struct ccw_device *cdev, int state)
 			ccw_device_schedule_sch_unregister(cdev);
 		cdev->private->flags.donotify = 0;
 	}
+	if (state == DEV_STATE_NOT_OPER) {
+		CIO_MSG_EVENT(0, "Device %04x gone on subchannel %04x\n",
+			      cdev->private->dev_id.devno, sch->schid.sch_no);
+		if (!ccw_device_notify(cdev, CIO_GONE))
+			ccw_device_schedule_sch_unregister(cdev);
+		cdev->private->flags.donotify = 0;
+	}
 
 	if (cdev->private->flags.donotify) {
 		cdev->private->flags.donotify = 0;
