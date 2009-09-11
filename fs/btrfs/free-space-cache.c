@@ -403,6 +403,7 @@ static void add_new_bitmap(struct btrfs_block_group_cache *block_group,
 	BUG_ON(block_group->total_bitmaps >= max_bitmaps);
 
 	info->offset = offset_to_bitmap(block_group, offset);
+	info->bytes = 0;
 	link_free_space(block_group, info);
 	block_group->total_bitmaps++;
 
