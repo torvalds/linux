@@ -1140,6 +1140,22 @@ out:
 	return rc;
 }
 
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	struct v4l2_format f;
+	int                rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	*norm = dev->norm;
+
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
@@ -2354,6 +2370,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf            = vidioc_querybuf,
 	.vidioc_qbuf                = vidioc_qbuf,
 	.vidioc_dqbuf               = vidioc_dqbuf,
+	.vidioc_g_std               = vidioc_g_std,
 	.vidioc_s_std               = vidioc_s_std,
 	.vidioc_g_parm		    = vidioc_g_parm,
 	.vidioc_s_parm		    = vidioc_s_parm,
@@ -2387,9 +2404,7 @@ static const struct video_device em28xx_video_template = {
 	.minor                      = -1,
 
 	.tvnorms                    = V4L2_STD_ALL,
-	/* FIXME: we need this to be NTSC for VBI to work - it should
-	   be moved to a per-board definition */
-	.current_norm               = V4L2_STD_NTSC,
+	.current_norm               = V4L2_STD_PAL,
 };
 
 static const struct v4l2_file_operations radio_fops = {
