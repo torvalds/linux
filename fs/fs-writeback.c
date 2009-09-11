@@ -75,13 +75,6 @@ static inline void bdi_work_init(struct bdi_work *work,
 	work->state = WS_USED;
 }
 
-static inline void bdi_work_init_on_stack(struct bdi_work *work,
-					  struct writeback_control *wbc)
-{
-	bdi_work_init(work, wbc);
-	work->state |= WS_ONSTACK;
-}
-
 /**
  * writeback_in_progress - determine whether there is writeback in progress
  * @bdi: the device's backing_dev_info structure.
@@ -207,34 +200,23 @@ static struct bdi_work *bdi_alloc_work(struct writeback_control *wbc)
 
 void bdi_start_writeback(struct writeback_control *wbc)
 {
-	const bool must_wait = wbc->sync_mode == WB_SYNC_ALL;
-	struct bdi_work work_stack, *work = NULL;
-
-	if (!must_wait)
-		work = bdi_alloc_work(wbc);
-
-	if (!work) {
-		work = &work_stack;
-		bdi_work_init_on_stack(work, wbc);
-	}
-
-	bdi_queue_work(wbc->bdi, work);
-
 	/*
-	 * If the sync mode is WB_SYNC_ALL, block waiting for the work to
-	 * complete. If not, we only need to wait for the work to be started,
-	 * if we allocated it on-stack. We use the same mechanism, if the
-	 * wait bit is set in the bdi_work struct, then threads will not
-	 * clear pending until after they are done.
-	 *
-	 * Note that work == &work_stack if must_wait is true, so we don't
-	 * need to do call_rcu() here ever, since the completion path will
-	 * have done that for us.
+	 * WB_SYNC_NONE is opportunistic writeback. If this allocation fails,
+	 * bdi_queue_work() will wake up the thread and flush old data. This
+	 * should ensure some amount of progress in freeing memory.
 	 */
-	if (must_wait || work == &work_stack) {
-		bdi_wait_on_work_clear(work);
-		if (work != &work_stack)
-			call_rcu(&work->rcu_head, bdi_work_free);
+	if (wbc->sync_mode != WB_SYNC_ALL) {
+		struct bdi_work *w = bdi_alloc_work(wbc);
+
+		bdi_queue_work(wbc->bdi, w);
+	} else {
+		struct bdi_work work;
+
+		bdi_work_init(&work, wbc);
+		work.state |= WS_ONSTACK;
+
+		bdi_queue_work(wbc->bdi, &work);
+		bdi_wait_on_work_clear(&work);
 	}
 }
 
