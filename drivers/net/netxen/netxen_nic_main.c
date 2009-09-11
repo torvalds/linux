@@ -66,7 +66,7 @@ static int netxen_nic_close(struct net_device *netdev);
 static netdev_tx_t netxen_nic_xmit_frame(struct sk_buff *,
 					       struct net_device *);
 static void netxen_tx_timeout(struct net_device *netdev);
-static void netxen_reset_task(struct work_struct *work);
+static void netxen_tx_timeout_task(struct work_struct *work);
 static void netxen_fw_poll_work(struct work_struct *work);
 static void netxen_schedule_work(struct netxen_adapter *adapter,
 		work_func_t func, int delay);
@@ -875,6 +875,8 @@ wait_init:
 
 	netxen_check_options(adapter);
 
+	adapter->need_fw_reset = 0;
+
 	/* fall through and release firmware */
 
 err_out:
@@ -1183,7 +1185,7 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	INIT_WORK(&adapter->tx_timeout_task, netxen_reset_task);
+	INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
 
 	if (netxen_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
@@ -1882,7 +1884,7 @@ static void netxen_tx_timeout(struct net_device *netdev)
 	schedule_work(&adapter->tx_timeout_task);
 }
 
-static void netxen_reset_task(struct work_struct *work)
+static void netxen_tx_timeout_task(struct work_struct *work)
 {
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, tx_timeout_task);
@@ -1890,15 +1892,37 @@ static void netxen_reset_task(struct work_struct *work)
 	if (!netif_running(adapter->netdev))
 		return;
 
-	if (test_bit(__NX_RESETTING, &adapter->state))
+	if (test_and_set_bit(__NX_RESETTING, &adapter->state))
 		return;
 
-	netxen_napi_disable(adapter);
+	if (++adapter->tx_timeo_cnt >= NX_MAX_TX_TIMEOUTS)
+		goto request_reset;
 
-	adapter->netdev->trans_start = jiffies;
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		/* try to scrub interrupt */
+		netxen_napi_disable(adapter);
 
-	netxen_napi_enable(adapter);
-	netif_wake_queue(adapter->netdev);
+		adapter->netdev->trans_start = jiffies;
+
+		netxen_napi_enable(adapter);
+
+		netif_wake_queue(adapter->netdev);
+
+		goto done;
+
+	} else {
+		if (!netxen_nic_reset_context(adapter)) {
+			adapter->netdev->trans_start = jiffies;
+			goto done;
+		}
+
+		/* context reset failed, fall through for fw reset */
+	}
+
+request_reset:
+	adapter->need_fw_reset = 1;
+done:
+	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
@@ -2048,6 +2072,22 @@ nx_decr_dev_ref_cnt(struct netxen_adapter *adapter)
 	return count;
 }
 
+static void
+nx_dev_request_reset(struct netxen_adapter *adapter)
+{
+	u32 state;
+
+	if (netxen_api_lock(adapter))
+		return;
+
+	state = NXRD32(adapter, NX_CRB_DEV_STATE);
+
+	if (state != NX_DEV_INITALIZING)
+		NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_NEED_RESET);
+
+	netxen_api_unlock(adapter);
+}
+
 static int
 netxen_can_start_firmware(struct netxen_adapter *adapter)
 {
@@ -2133,9 +2173,11 @@ netxen_fwinit_work(struct work_struct *work)
 	switch (dev_state) {
 	case NX_DEV_COLD:
 	case NX_DEV_READY:
-		netxen_start_firmware(adapter);
-		netxen_schedule_work(adapter, netxen_attach_work, 0);
-		return;
+		if (!netxen_start_firmware(adapter)) {
+			netxen_schedule_work(adapter, netxen_attach_work, 0);
+			return;
+		}
+		break;
 
 	case NX_DEV_INITALIZING:
 		if (++adapter->fw_wait_cnt < FW_POLL_THRESH) {
@@ -2194,6 +2236,11 @@ netxen_check_health(struct netxen_adapter *adapter)
 
 	if (netxen_nic_check_temp(adapter))
 		goto detach;
+
+	if (adapter->need_fw_reset) {
+		nx_dev_request_reset(adapter);
+		goto detach;
+	}
 
 	state = NXRD32(adapter, NX_CRB_DEV_STATE);
 	if (state == NX_DEV_NEED_RESET)

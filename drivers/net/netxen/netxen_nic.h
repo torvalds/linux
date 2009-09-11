@@ -178,6 +178,7 @@
 
 #define MAX_BUFFERS_PER_CMD	32
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + 4)
+#define NX_MAX_TX_TIMEOUTS	2
 
 /*
  * Following are the states of the Phantom. Phantom will set them and
@@ -1145,7 +1146,8 @@ struct netxen_adapter {
 	u8 link_changed;
 	u8 fw_wait_cnt;
 	u8 fw_fail_cnt;
-	u16 resv4;
+	u8 tx_timeo_cnt;
+	u8 need_fw_reset;
 
 	u8 has_link_events;
 	u8 fw_type;
