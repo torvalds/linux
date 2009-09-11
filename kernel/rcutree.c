@@ -35,6 +35,7 @@
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/nmi.h>
 #include <asm/atomic.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
@@ -469,6 +470,8 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 	}
 	printk(" (detected by %d, t=%ld jiffies)\n",
 	       smp_processor_id(), (long)(jiffies - rsp->gp_start));
+	trigger_all_cpu_backtrace();
+
 	force_quiescent_state(rsp, 0);  /* Kick them all. */
 }
 
@@ -479,12 +482,14 @@ static void print_cpu_stall(struct rcu_state *rsp)
 
 	printk(KERN_ERR "INFO: RCU detected CPU %d stall (t=%lu jiffies)\n",
 			smp_processor_id(), jiffies - rsp->gp_start);
-	dump_stack();
+	trigger_all_cpu_backtrace();
+
 	spin_lock_irqsave(&rnp->lock, flags);
 	if ((long)(jiffies - rsp->jiffies_stall) >= 0)
 		rsp->jiffies_stall =
 			jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
 	spin_unlock_irqrestore(&rnp->lock, flags);
+
 	set_need_resched();  /* kick ourselves to get things going. */
 }
 
