@@ -51,8 +51,7 @@ static struct list_head ib_mad_port_list;
 static u32 ib_mad_client_id = 0;
 
 /* Port list lock */
-static spinlock_t ib_mad_port_list_lock;
-
+static DEFINE_SPINLOCK(ib_mad_port_list_lock);
 
 /* Forward declarations */
 static int method_in_use(struct ib_mad_mgmt_method_table **method,
@@ -2984,8 +2983,6 @@ static int __init ib_mad_init_module(void)
 {
 	int ret;
 
-	spin_lock_init(&ib_mad_port_list_lock);
-
 	ib_mad_cache = kmem_cache_create("ib_mad",
 					 sizeof(struct ib_mad_private),
 					 0,
@@ -3021,4 +3018,3 @@ static void __exit ib_mad_cleanup_module(void)
 
 module_init(ib_mad_init_module);
 module_exit(ib_mad_cleanup_module);
-

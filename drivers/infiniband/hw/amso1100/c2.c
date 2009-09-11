@@ -86,11 +86,7 @@ MODULE_DEVICE_TABLE(pci, c2_pci_table);
 
 static void c2_print_macaddr(struct net_device *netdev)
 {
-	pr_debug("%s: MAC %02X:%02X:%02X:%02X:%02X:%02X, "
-		"IRQ %u\n", netdev->name,
-		netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
-		netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5],
-		netdev->irq);
+	pr_debug("%s: MAC %pM, IRQ %u\n", netdev->name, netdev->dev_addr, netdev->irq);
 }
 
 static void c2_set_rxbufsize(struct c2_port *c2_port)
