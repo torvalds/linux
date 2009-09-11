@@ -57,7 +57,7 @@ static u64			sample_type;
 
 #define BUG_ON(x)	assert(!(x))
 
-#define DEBUG		1
+#define DEBUG		0
 
 typedef unsigned long long nsec_t;
 
@@ -238,15 +238,14 @@ static struct sched_event *last_event(struct task_desc *task)
 }
 
 static void
-add_sched_event_run(struct task_desc *task, nsec_t timestamp,
-		    unsigned long duration)
+add_sched_event_run(struct task_desc *task, nsec_t timestamp, u64 duration)
 {
 	struct sched_event *event, *curr_event = last_event(task);
 
 	/*
- 	 * optimize an existing RUN event by merging this one
- 	 * to it:
- 	 */
+	 * optimize an existing RUN event by merging this one
+	 * to it:
+	 */
 	if (curr_event && curr_event->type == SCHED_EVENT_RUN) {
 		nr_run_events_optimized++;
 		curr_event->duration += duration;
@@ -376,7 +375,7 @@ void parse_line(char *line)
 	dprintk("parsed: %s - %ld %Ld: %s - <%s %ld> (%ld %ld)\n",
 		comm,
 		pid,
-		timestamp, 
+		timestamp,
 		func_str,
 		comm2,
 		pid2,
@@ -429,7 +428,7 @@ static void add_cross_task_wakeups(void)
 }
 
 static void
-process_sched_event(struct task_desc *this_task, struct sched_event *event)
+process_sched_event(struct task_desc *this_task __used, struct sched_event *event)
 {
 	int ret = 0;
 	nsec_t now;
@@ -744,9 +743,9 @@ static void run_one_test(void)
 
 #if 0
 	/*
- 	 * rusage statistics done by the parent, these are less
- 	 * accurate than the sum_exec_runtime based statistics:
- 	 */
+	 * rusage statistics done by the parent, these are less
+	 * accurate than the sum_exec_runtime based statistics:
+	 */
 	printk(" [%0.2f / %0.2f]",
 		(double)parent_cpu_usage/1e6,
 		(double)runavg_parent_cpu_usage/1e6);
@@ -798,16 +797,128 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static void process_sched_wakeup_event(struct event *event,
+struct trace_wakeup_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char comm[16];
+	u32 pid;
+
+	u32 prio;
+	u32 success;
+	u32 cpu;
+};
+
+static void
+process_sched_wakeup_event(struct trace_wakeup_event *wakeup_event, struct event *event,
 		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
 {
+	struct task_desc *waker, *wakee;
+
 	printf("sched_wakeup event %p\n", event);
+
+	printf(" ... pid %d woke up %s/%d\n",
+		wakeup_event->common_pid,
+		wakeup_event->comm,
+		wakeup_event->pid);
+
+	waker = register_pid(wakeup_event->common_pid, "<unknown>");
+	wakee = register_pid(wakeup_event->pid, wakeup_event->comm);
+
+	add_sched_event_wakeup(waker, timestamp, wakee);
 }
 
-static void process_sched_switch_event(struct event *event,
+struct trace_switch_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char prev_comm[16];
+	u32 prev_pid;
+	u32 prev_prio;
+	u64 prev_state;
+	char next_comm[16];
+	u32 next_pid;
+	u32 next_prio;
+};
+
+#define MAX_CPUS 4096
+
+unsigned long cpu_last_switched[MAX_CPUS];
+
+static void
+process_sched_switch_event(struct trace_switch_event *switch_event, struct event *event,
 		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
 {
+	struct task_desc *prev, *next;
+	u64 timestamp0;
+	s64 delta;
+
 	printf("sched_switch event %p\n", event);
+	if (cpu >= MAX_CPUS || cpu < 0)
+		return;
+
+	timestamp0 = cpu_last_switched[cpu];
+	if (timestamp0)
+		delta = timestamp - timestamp0;
+	else
+		delta = 0;
+
+	if (delta < 0)
+		die("hm, delta: %Ld < 0 ?\n", delta);
+
+	printf(" ... switch from %s/%d to %s/%d [ran %Ld nsecs]\n",
+		switch_event->prev_comm, switch_event->prev_pid,
+		switch_event->next_comm, switch_event->next_pid,
+		delta);
+
+	prev = register_pid(switch_event->prev_pid, switch_event->prev_comm);
+	next = register_pid(switch_event->next_pid, switch_event->next_comm);
+
+	cpu_last_switched[cpu] = timestamp;
+
+	add_sched_event_run(prev, timestamp, delta);
+}
+
+struct trace_fork_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char parent_comm[16];
+	u32 parent_pid;
+	char child_comm[16];
+	u32 child_pid;
+};
+
+static void
+process_sched_fork_event(struct trace_fork_event *fork_event, struct event *event,
+		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
+{
+	printf("sched_fork event %p\n", event);
+	printf("... parent: %s/%d\n", fork_event->parent_comm, fork_event->parent_pid);
+	printf("...  child: %s/%d\n", fork_event->child_comm, fork_event->child_pid);
+	register_pid(fork_event->parent_pid, fork_event->parent_comm);
+	register_pid(fork_event->child_pid, fork_event->child_comm);
+}
+
+static void process_sched_exit_event(struct event *event,
+		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
+{
+	printf("sched_exit event %p\n", event);
 }
 
 static void
@@ -833,9 +944,15 @@ process_raw_event(event_t *raw_event, void *more_data,
 		raw_event->header.type, type, event->name);
 
 	if (!strcmp(event->name, "sched_switch"))
-		process_sched_switch_event(event, cpu, timestamp, thread);
+		process_sched_switch_event(more_data, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_wakeup"))
-		process_sched_wakeup_event(event, cpu, timestamp, thread);
+		process_sched_wakeup_event(more_data, event, cpu, timestamp, thread);
+	if (!strcmp(event->name, "sched_wakeup_new"))
+		process_sched_wakeup_event(more_data, event, cpu, timestamp, thread);
+	if (!strcmp(event->name, "sched_process_fork"))
+		process_sched_fork_event(more_data, event, cpu, timestamp, thread);
+	if (!strcmp(event->name, "sched_process_exit"))
+		process_sched_exit_event(event, cpu, timestamp, thread);
 }
 
 static int
@@ -1053,7 +1170,7 @@ static const struct option options[] = {
 
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
-	long nr_iterations = LONG_MAX, i;
+	long nr_iterations = 10, i;
 
 	symbol__init();
 	page_size = getpagesize();
@@ -1068,8 +1185,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 			usage_with_options(annotate_usage, options);
 	}
 
-
-	setup_pager();
+//	setup_pager();
 
 	calibrate_run_measurement_overhead();
 	calibrate_sleep_measurement_overhead();
