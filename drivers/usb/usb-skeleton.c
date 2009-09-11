@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
 
@@ -28,7 +28,7 @@
 #define USB_SKEL_PRODUCT_ID	0xfff0
 
 /* table of devices that work with this driver */
-static struct usb_device_id skel_table [] = {
+static struct usb_device_id skel_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
@@ -94,7 +94,7 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
-		err ("%s - error, can't find device for minor %d",
+		err("%s - error, can't find device for minor %d",
 		     __func__, subminor);
 		retval = -ENODEV;
 		goto exit;
@@ -190,7 +190,7 @@ static void skel_read_bulk_callback(struct urb *urb)
 	spin_lock(&dev->err_lock);
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {
-		if(!(urb->status == -ENOENT ||
+		if (!(urb->status == -ENOENT ||
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN))
 			err("%s - nonzero write bulk status received: %d",
@@ -239,7 +239,8 @@ static int skel_do_read_io(struct usb_skel *dev, size_t count)
 	return rv;
 }
 
-static ssize_t skel_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
+static ssize_t skel_read(struct file *file, char *buffer, size_t count,
+			 loff_t *ppos)
 {
 	struct usb_skel *dev;
 	int rv;
@@ -299,7 +300,8 @@ retry:
 	}
 
 	/* errors must be reported */
-	if ((rv = dev->errors) < 0) {
+	rv = dev->errors;
+	if (rv < 0) {
 		/* any error is reported once */
 		dev->errors = 0;
 		/* to preserve notifications about reset */
@@ -373,7 +375,7 @@ static void skel_write_bulk_callback(struct urb *urb)
 
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {
-		if(!(urb->status == -ENOENT ||
+		if (!(urb->status == -ENOENT ||
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN))
 			err("%s - nonzero write bulk status received: %d",
@@ -390,7 +392,8 @@ static void skel_write_bulk_callback(struct urb *urb)
 	up(&dev->limit_sem);
 }
 
-static ssize_t skel_write(struct file *file, const char *user_buffer, size_t count, loff_t *ppos)
+static ssize_t skel_write(struct file *file, const char *user_buffer,
+			  size_t count, loff_t *ppos)
 {
 	struct usb_skel *dev;
 	int retval = 0;
@@ -404,7 +407,10 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	if (count == 0)
 		goto exit;
 
-	/* limit the number of URBs in flight to stop a user from using up all RAM */
+	/*
+	 * limit the number of URBs in flight to stop a user from using up all
+	 * RAM
+	 */
 	if (!file->f_flags & O_NONBLOCK) {
 		if (down_interruptible(&dev->limit_sem)) {
 			retval = -ERESTARTSYS;
@@ -418,7 +424,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	}
 
 	spin_lock_irq(&dev->err_lock);
-	if ((retval = dev->errors) < 0) {
+	retval = dev->errors;
+	if (retval < 0) {
 		/* any error is reported once */
 		dev->errors = 0;
 		/* to preserve notifications about reset */
@@ -435,7 +442,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto error;
 	}
 
-	buf = usb_buffer_alloc(dev->udev, writesize, GFP_KERNEL, &urb->transfer_dma);
+	buf = usb_buffer_alloc(dev->udev, writesize, GFP_KERNEL,
+			       &urb->transfer_dma);
 	if (!buf) {
 		retval = -ENOMEM;
 		goto error;
@@ -465,11 +473,15 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	mutex_unlock(&dev->io_mutex);
 	if (retval) {
-		err("%s - failed submitting write urb, error %d", __func__, retval);
+		err("%s - failed submitting write urb, error %d", __func__,
+		    retval);
 		goto error_unanchor;
 	}
 
-	/* release our reference to this urb, the USB core will eventually free it entirely */
+	/*
+	 * release our reference to this urb, the USB core will eventually free
+	 * it entirely
+	 */
 	usb_free_urb(urb);
 
 
@@ -507,7 +519,8 @@ static struct usb_class_driver skel_class = {
 	.minor_base =	USB_SKEL_MINOR_BASE,
 };
 
-static int skel_probe(struct usb_interface *interface, const struct usb_device_id *id)
+static int skel_probe(struct usb_interface *interface,
+		      const struct usb_device_id *id)
 {
 	struct usb_skel *dev;
 	struct usb_host_interface *iface_desc;
@@ -636,7 +649,7 @@ static int skel_suspend(struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
-static int skel_resume (struct usb_interface *intf)
+static int skel_resume(struct usb_interface *intf)
 {
 	return 0;
 }
