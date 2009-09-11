@@ -604,14 +604,6 @@ int radeon_device_init(struct radeon_device *rdev,
 		/* Get vram informations */
 		radeon_vram_info(rdev);
 
-		/* Add an MTRR for the VRAM */
-		rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
-				MTRR_TYPE_WRCOMB, 1);
-		DRM_INFO("Detected VRAM RAM=%uM, BAR=%uM\n",
-				(unsigned)(rdev->mc.mc_vram_size >> 20),
-				(unsigned)(rdev->mc.aper_size >> 20));
-		DRM_INFO("RAM width %dbits %cDR\n",
-				rdev->mc.vram_width, rdev->mc.vram_is_ddr ? 'D' : 'S');
 		/* Initialize memory controller (also test AGP) */
 		r = radeon_mc_init(rdev);
 		if (r) {
