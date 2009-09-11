@@ -4233,6 +4233,11 @@ again:
 				map = kmap(page);
 				read_extent_buffer(leaf, map + pg_offset, ptr,
 						   copy_size);
+				if (pg_offset + copy_size < PAGE_CACHE_SIZE) {
+					memset(map + pg_offset + copy_size, 0,
+					       PAGE_CACHE_SIZE - pg_offset -
+					       copy_size);
+				}
 				kunmap(page);
 			}
 			flush_dcache_page(page);
