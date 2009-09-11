@@ -264,31 +264,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 ---------------------------
 
 What (Why):
-	- include/linux/netfilter_ipv4/ipt_TOS.h ipt_tos.h header files
-	  (superseded by xt_TOS/xt_tos target & match)
-
-	- "forwarding" header files like ipt_mac.h in
-	  include/linux/netfilter_ipv4/ and include/linux/netfilter_ipv6/
-
-	- xt_CONNMARK match revision 0
-	  (superseded by xt_CONNMARK match revision 1)
-
-	- xt_MARK target revisions 0 and 1
-	  (superseded by xt_MARK match revision 2)
-
-	- xt_connmark match revision 0
-	  (superseded by xt_connmark match revision 1)
-
-	- xt_conntrack match revision 0
-	  (superseded by xt_conntrack match revision 1)
-
-	- xt_iprange match revision 0,
-	  include/linux/netfilter_ipv4/ipt_iprange.h
-	  (superseded by xt_iprange match revision 1)
-
-	- xt_mark match revision 0
-	  (superseded by xt_mark match revision 1)
-
 	- xt_recent: the old ipt_recent proc dir
 	  (superseded by /proc/net/xt_recent)
 

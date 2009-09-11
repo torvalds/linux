@@ -77,11 +77,12 @@ static int ip_vs_wrr_gcd_weight(struct ip_vs_service *svc)
 static int ip_vs_wrr_max_weight(struct ip_vs_service *svc)
 {
 	struct ip_vs_dest *dest;
-	int weight = 0;
+	int new_weight, weight = 0;
 
 	list_for_each_entry(dest, &svc->destinations, n_list) {
-		if (atomic_read(&dest->weight) > weight)
-			weight = atomic_read(&dest->weight);
+		new_weight = atomic_read(&dest->weight);
+		if (new_weight > weight)
+			weight = new_weight;
 	}
 
 	return weight;
