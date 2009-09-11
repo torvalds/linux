@@ -1591,7 +1591,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	if (can_sleep)
 		lock->fl_flags |= FL_SLEEP;
 
-	error = security_file_lock(filp, cmd);
+	error = security_file_lock(filp, lock->fl_type);
 	if (error)
 		goto out_free;
 

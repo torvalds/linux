@@ -1031,7 +1031,7 @@ void dev_load(struct net *net, const char *name)
 	dev = __dev_get_by_name(net, name);
 	read_unlock(&dev_base_lock);
 
-	if (!dev && capable(CAP_SYS_MODULE))
+	if (!dev && capable(CAP_NET_ADMIN))
 		request_module("%s", name);
 }
 

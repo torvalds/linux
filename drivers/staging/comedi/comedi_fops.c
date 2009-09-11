@@ -1752,12 +1752,12 @@ static int comedi_open(struct inode *inode, struct file *file)
 	mutex_lock(&dev->mutex);
 	if (dev->attached)
 		goto ok;
-	if (!capable(CAP_SYS_MODULE) && dev->in_request_module) {
+	if (!capable(CAP_NET_ADMIN) && dev->in_request_module) {
 		DPRINTK("in request module\n");
 		mutex_unlock(&dev->mutex);
 		return -ENODEV;
 	}
-	if (capable(CAP_SYS_MODULE) && dev->in_request_module)
+	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
 		goto ok;
 
 	dev->in_request_module = 1;
@@ -1770,8 +1770,8 @@ static int comedi_open(struct inode *inode, struct file *file)
 
 	dev->in_request_module = 0;
 
-	if (!dev->attached && !capable(CAP_SYS_MODULE)) {
-		DPRINTK("not attached and not CAP_SYS_MODULE\n");
+	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
+		DPRINTK("not attached and not CAP_NET_ADMIN\n");
 		mutex_unlock(&dev->mutex);
 		return -ENODEV;
 	}

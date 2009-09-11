@@ -12,6 +12,7 @@
 #include <linux/personality.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -707,4 +708,11 @@ do_notify_resume(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 {
 	if (thread_flags & _TIF_SIGPENDING)
 		do_signal(&current->blocked, regs, syscall);
+
+	if (thread_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
 }

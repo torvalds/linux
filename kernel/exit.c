@@ -901,6 +901,8 @@ NORET_TYPE void do_exit(long code)
 
 	tracehook_report_exit(&code);
 
+	validate_creds_for_do_exit(tsk);
+
 	/*
 	 * We're taking recursive faults here in do_exit. Safest is to just
 	 * leave this task alone and wait for reboot.
@@ -1008,6 +1010,8 @@ NORET_TYPE void do_exit(long code)
 
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
+
+	validate_creds_for_do_exit(tsk);
 
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
