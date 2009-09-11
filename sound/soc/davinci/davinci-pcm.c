@@ -238,7 +238,8 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 	struct davinci_runtime_data *prtd;
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct davinci_pcm_dma_params *params = rtd->dai->cpu_dai->dma_data;
+	struct davinci_pcm_dma_params *pa = rtd->dai->cpu_dai->private_data;
+	struct davinci_pcm_dma_params *params = &pa[substream->stream];
 	if (!params)
 		return -ENODEV;
 
