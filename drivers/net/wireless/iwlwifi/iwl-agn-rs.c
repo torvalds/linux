@@ -662,7 +662,7 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
  * there are no non-GF stations present in the BSS.
  */
 static inline u8 rs_use_green(struct ieee80211_sta *sta,
-			      struct iwl_ht_info *ht_conf)
+			      struct iwl_ht_config *ht_conf)
 {
 	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
 		!(ht_conf->non_GF_STA_present);
