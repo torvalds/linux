@@ -293,6 +293,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "annotate", cmd_annotate, 0 },
 		{ "version", cmd_version, 0 },
 		{ "trace", cmd_trace, 0 },
+		{ "sched", cmd_sched, 0 },
 	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;

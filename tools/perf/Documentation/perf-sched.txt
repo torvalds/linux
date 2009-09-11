@@ -1,0 +1,25 @@
+perf-sched(1)
+==============
+
+NAME
+----
+perf-sched - Read perf.data (created by perf record) and display sched output
+
+SYNOPSIS
+--------
+[verse]
+'perf sched' [-i <file> | --input=file] symbol_name
+
+DESCRIPTION
+-----------
+This command reads the input file and displays the latencies recorded.
+
+OPTIONS
+-------
+-D::
+--dump-raw-trace=::
+        Display verbose dump of the sched data.
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

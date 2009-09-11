@@ -1,0 +1,25 @@
+perf-trace(1)
+==============
+
+NAME
+----
+perf-trace - Read perf.data (created by perf record) and display trace output
+
+SYNOPSIS
+--------
+[verse]
+'perf trace' [-i <file> | --input=file] symbol_name
+
+DESCRIPTION
+-----------
+This command reads the input file and displays the trace recorded.
+
+OPTIONS
+-------
+-D::
+--dump-raw-trace=::
+        Display verbose dump of the trace data.
+
+SEE ALSO
+--------
+linkperf:perf-record[1]
