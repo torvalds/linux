@@ -152,18 +152,6 @@ css_alloc_subchannel(struct subchannel_id schid)
 }
 
 static void
-css_free_subchannel(struct subchannel *sch)
-{
-	if (sch) {
-		/* Reset intparm to zeroes. */
-		sch->config.intparm = 0;
-		cio_commit_config(sch);
-		kfree(sch->lock);
-		kfree(sch);
-	}
-}
-
-static void
 css_subchannel_release(struct device *dev)
 {
 	struct subchannel *sch;
@@ -332,7 +320,7 @@ int css_probe_device(struct subchannel_id schid)
 		return PTR_ERR(sch);
 	ret = css_register_subchannel(sch);
 	if (ret)
-		css_free_subchannel(sch);
+		put_device(&sch->dev);
 	return ret;
 }
 
@@ -649,7 +637,10 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 	 * not working) so we do it now. This is true e.g. for the
 	 * console subchannel.
 	 */
-	css_register_subchannel(sch);
+	if (css_register_subchannel(sch)) {
+		if (!cio_is_console(schid))
+			put_device(&sch->dev);
+	}
 	return 0;
 }
 
@@ -925,8 +916,10 @@ init_channel_subsystem (void)
 				goto out_device;
 		}
 		ret = device_register(&css->pseudo_subchannel->dev);
-		if (ret)
+		if (ret) {
+			put_device(&css->pseudo_subchannel->dev);
 			goto out_file;
+		}
 	}
 	ret = register_reboot_notifier(&css_reboot_notifier);
 	if (ret)

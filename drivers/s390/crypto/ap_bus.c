@@ -1114,7 +1114,7 @@ static void ap_scan_bus(struct work_struct *unused)
 		ap_dev->device.release = ap_device_release;
 		rc = device_register(&ap_dev->device);
 		if (rc) {
-			kfree(ap_dev);
+			put_device(&ap_dev->device);
 			continue;
 		}
 		/* Add device attributes. */
