@@ -2119,7 +2119,14 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 {
 	long entries_required, wm_size;
 
-	entries_required = (clock_in_khz * pixel_size * latency_ns) / 1000000;
+	/*
+	 * Note: we need to make sure we don't overflow for various clock &
+	 * latency values.
+	 * clocks go from a few thousand to several hundred thousand.
+	 * latency is usually a few thousand
+	 */
+	entries_required = ((clock_in_khz / 1000) * pixel_size * latency_ns) /
+		1000;
 	entries_required /= wm->cacheline_size;
 
 	DRM_DEBUG("FIFO entries required for mode: %d\n", entries_required);
