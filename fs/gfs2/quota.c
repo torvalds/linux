@@ -47,6 +47,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/dqblk_xfs.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1375,7 +1376,29 @@ int gfs2_quotad(void *data)
 	return 0;
 }
 
+static int gfs2_quota_get_xstate(struct super_block *sb,
+				 struct fs_quota_stat *fqs)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+
+	memset(fqs, 0, sizeof(struct fs_quota_stat));
+	fqs->qs_version = FS_QSTAT_VERSION;
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_ON)
+		fqs->qs_flags = (XFS_QUOTA_UDQ_ENFD | XFS_QUOTA_GDQ_ENFD);
+	else if (sdp->sd_args.ar_quota == GFS2_QUOTA_ACCOUNT)
+		fqs->qs_flags = (XFS_QUOTA_UDQ_ACCT | XFS_QUOTA_GDQ_ACCT);
+	if (sdp->sd_quota_inode) {
+		fqs->qs_uquota.qfs_ino = GFS2_I(sdp->sd_quota_inode)->i_no_addr;
+		fqs->qs_uquota.qfs_nblks = sdp->sd_quota_inode->i_blocks;
+	}
+	fqs->qs_uquota.qfs_nextents = 1; /* unsupported */
+	fqs->qs_gquota = fqs->qs_uquota; /* its the same inode in both cases */
+	fqs->qs_incoredqs = atomic_read(&qd_lru_count);
+	return 0;
+}
+
 const struct quotactl_ops gfs2_quotactl_ops = {
 	.quota_sync     = gfs2_quota_sync,
+	.get_xstate     = gfs2_quota_get_xstate,
 };
 
