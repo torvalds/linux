@@ -2,7 +2,7 @@
 EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -DMODULE  -DEXPORT_SYMTAB -D__NO_VERSION__
 EXTRA_CFLAGS += -DHOSTAP
 
-vt6656-y +=	main_usb.o \
+vt6656_stage-y +=	main_usb.o \
 			card.o  \
 			mac.o   \
 			baseband.o \
@@ -36,4 +36,4 @@ vt6656-y +=	main_usb.o \
 			firmware.o \
 			int.o
 
-obj-$(CONFIG_VT6656) +=	vt6656.o
+obj-$(CONFIG_VT6656) +=	vt6656_stage.o
