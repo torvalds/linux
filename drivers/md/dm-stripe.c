@@ -336,7 +336,7 @@ static void stripe_io_hints(struct dm_target *ti,
 	unsigned chunk_size = (sc->chunk_mask + 1) << 9;
 
 	blk_limits_io_min(limits, chunk_size);
-	limits->io_opt = chunk_size * sc->stripes;
+	blk_limits_io_opt(limits, chunk_size * sc->stripes);
 }
 
 static struct target_type stripe_target = {
