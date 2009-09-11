@@ -4,6 +4,7 @@
 #include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include "util.h"
 #include "symbol.h"
 
 enum chain_mode {
