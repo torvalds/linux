@@ -883,6 +883,12 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		mac_index &= RATE_MCS_CODE_MSK;	/* Remove # of streams */
 		if (mac_index >= (IWL_RATE_9M_INDEX - IWL_FIRST_OFDM_RATE))
 			mac_index++;
+		/*
+		 * mac80211 HT index is always zero-indexed; we need to move
+		 * HT OFDM rates after CCK rates in 2.4 GHz band
+		 */
+		if (priv->band == IEEE80211_BAND_2GHZ)
+			mac_index += IWL_FIRST_OFDM_RATE;
 	}
 
 	if ((mac_index < 0) ||
