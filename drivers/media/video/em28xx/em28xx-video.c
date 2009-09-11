@@ -1144,7 +1144,6 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	struct v4l2_format f;
 	int                rc;
 
 	rc = check_dev(dev);
