@@ -643,9 +643,10 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 		adapter->ahw.ddr_mn_window = 0;
 		adapter->ahw.qdr_sn_window = 0;
 
-		adapter->ahw.mn_win_crb = 0x100000 + PCIX_MN_WINDOW +
-			(pci_func * 0x20);
-		adapter->ahw.ms_win_crb = 0x100000 + PCIX_SN_WINDOW;
+		adapter->ahw.mn_win_crb = NETXEN_PCI_CRBSPACE +
+			0x100000 + PCIX_MN_WINDOW + (pci_func * 0x20);
+		adapter->ahw.ms_win_crb = NETXEN_PCI_CRBSPACE +
+			0x100000 + PCIX_SN_WINDOW;
 		if (pci_func < 4)
 			adapter->ahw.ms_win_crb += (pci_func * 0x20);
 		else

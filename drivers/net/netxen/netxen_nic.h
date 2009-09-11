@@ -552,8 +552,8 @@ struct netxen_hardware_context {
 
 	int qdr_sn_window;
 	int ddr_mn_window;
-	unsigned long mn_win_crb;
-	unsigned long ms_win_crb;
+	u32 mn_win_crb;
+	u32 ms_win_crb;
 
 	u8 cut_through;
 	u8 revision_id;
