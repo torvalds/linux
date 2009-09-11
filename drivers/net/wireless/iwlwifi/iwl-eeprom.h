@@ -385,7 +385,12 @@ struct iwl_eeprom_calib_info {
 
 #define EEPROM_3945_RF_CFG_TYPE_MAX  0x0
 #define EEPROM_4965_RF_CFG_TYPE_MAX  0x1
-#define EEPROM_5000_RF_CFG_TYPE_MAX  0x3
+
+/* Radio Config for 5000 and up */
+#define EEPROM_RF_CONFIG_TYPE_R3x3	0x0
+#define EEPROM_RF_CONFIG_TYPE_R2x2	0x1
+#define EEPROM_RF_CONFIG_TYPE_R1x2	0x2
+#define EEPROM_RF_CONFIG_TYPE_MAX	0x3
 
 /*
  * Per-channel regulatory data.
