@@ -258,6 +258,7 @@ int radeonfb_create(struct drm_device *dev,
 		goto out_unref;
 	}
 
+	rdev->fbdev_info = info;
 	rfbdev = info->par;
 	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 	rfbdev->helper.dev = dev;
