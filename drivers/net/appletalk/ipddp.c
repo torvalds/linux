@@ -177,8 +177,7 @@ static netdev_tx_t ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-        if(aarp_send_ddp(rt->dev, skb, &rt->at, NULL) < 0)
-                dev_kfree_skb(skb);
+	aarp_send_ddp(rt->dev, skb, &rt->at, NULL);
 
 	spin_unlock(&ipddp_route_lock);
 
