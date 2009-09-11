@@ -232,7 +232,8 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_drop_extents(trans, root, inode, start,
-				 aligned_end, aligned_end, start, &hint_byte);
+				 aligned_end, aligned_end, start,
+				 &hint_byte, 1);
 	BUG_ON(ret);
 
 	if (isize > actual_end)
@@ -241,7 +242,7 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 				   inline_len, compressed_size,
 				   compressed_pages);
 	BUG_ON(ret);
-	btrfs_drop_extent_cache(inode, start, aligned_end, 0);
+	btrfs_drop_extent_cache(inode, start, aligned_end - 1, 0);
 	return 0;
 }
 
@@ -1455,9 +1456,19 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	BUG_ON(!path);
 
 	path->leave_spinning = 1;
+
+	/*
+	 * we may be replacing one extent in the tree with another.
+	 * The new extent is pinned in the extent map, and we don't want
+	 * to drop it from the cache until it is completely in the btree.
+	 *
+	 * So, tell btrfs_drop_extents to leave this extent in the cache.
+	 * the caller is expected to unpin it and allow it to be merged
+	 * with the others.
+	 */
 	ret = btrfs_drop_extents(trans, root, inode, file_pos,
 				 file_pos + num_bytes, locked_end,
-				 file_pos, &hint);
+				 file_pos, &hint, 0);
 	BUG_ON(ret);
 
 	ins.objectid = inode->i_ino;
@@ -1485,7 +1496,6 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 
 	inode_add_bytes(inode, num_bytes);
-	btrfs_drop_extent_cache(inode, file_pos, file_pos + num_bytes - 1, 0);
 
 	ins.objectid = disk_bytenr;
 	ins.offset = disk_num_bytes;
@@ -1596,6 +1606,9 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 						ordered_extent->len,
 						compressed, 0, 0,
 						BTRFS_FILE_EXTENT_REG);
+		unpin_extent_cache(&BTRFS_I(inode)->extent_tree,
+				   ordered_extent->file_offset,
+				   ordered_extent->len);
 		BUG_ON(ret);
 	}
 	unlock_extent(io_tree, ordered_extent->file_offset,
@@ -2940,7 +2953,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t size)
 						 cur_offset,
 						 cur_offset + hole_size,
 						 block_end,
-						 cur_offset, &hint_byte);
+						 cur_offset, &hint_byte, 1);
 			if (err)
 				break;
 			err = btrfs_insert_file_extent(trans, root,
@@ -5086,6 +5099,8 @@ static int prealloc_file_range(struct btrfs_trans_handle *trans,
 						  0, 0, 0,
 						  BTRFS_FILE_EXTENT_PREALLOC);
 		BUG_ON(ret);
+		btrfs_drop_extent_cache(inode, cur_offset,
+					cur_offset + ins.offset -1, 0);
 		num_bytes -= ins.offset;
 		cur_offset += ins.offset;
 		alloc_hint = ins.objectid + ins.offset;

@@ -597,9 +597,8 @@ again:
 		clear_page_dirty_for_io(page);
 
 		btrfs_set_extent_delalloc(inode, page_start, page_end);
-
-		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		set_page_dirty(page);
+		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		unlock_page(page);
 		page_cache_release(page);
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
@@ -977,7 +976,7 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 	/* punch hole in destination first */
 	btrfs_drop_extents(trans, root, inode, off, off + len,
-			   off + len, 0, &hint_byte);
+			   off + len, 0, &hint_byte, 1);
 
 	/* clone data */
 	key.objectid = src->i_ino;

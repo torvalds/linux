@@ -177,10 +177,10 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		}
 		flags = em->flags;
 		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
-			write_unlock(&em_tree->lock);
 			if (em->start <= start &&
 			    (!testend || em->start + em->len >= start + len)) {
 				free_extent_map(em);
+				write_unlock(&em_tree->lock);
 				break;
 			}
 			if (start < em->start) {
@@ -190,6 +190,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 				start = em->start + em->len;
 			}
 			free_extent_map(em);
+			write_unlock(&em_tree->lock);
 			continue;
 		}
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
@@ -269,7 +270,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 noinline int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 locked_end,
-		       u64 inline_limit, u64 *hint_byte)
+		       u64 inline_limit, u64 *hint_byte, int drop_cache)
 {
 	u64 extent_end = 0;
 	u64 search_start = start;
@@ -294,7 +295,8 @@ noinline int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int ret;
 
 	inline_limit = 0;
-	btrfs_drop_extent_cache(inode, start, end - 1, 0);
+	if (drop_cache)
+		btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
 	path = btrfs_alloc_path();
 	if (!path)
