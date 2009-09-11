@@ -29,7 +29,6 @@
 #include <linux/platform_device.h>
 #include "drmP.h"
 #include "radeon.h"
-#include "radeon_share.h"
 #include "rv770d.h"
 #include "avivod.h"
 #include "atom.h"

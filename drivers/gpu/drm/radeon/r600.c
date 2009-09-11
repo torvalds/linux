@@ -32,7 +32,6 @@
 #include "radeon_drm.h"
 #include "radeon.h"
 #include "radeon_mode.h"
-#include "radeon_share.h"
 #include "r600d.h"
 #include "avivod.h"
 #include "atom.h"

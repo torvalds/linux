@@ -31,7 +31,6 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_drm.h"
-#include "radeon_share.h"
 #include "r100_track.h"
 #include "r300d.h"
 

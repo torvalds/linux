@@ -28,7 +28,6 @@
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
-#include "radeon_share.h"
 
 /* r520,rv530,rv560,rv570,r580 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);

@@ -27,7 +27,6 @@
  */
 #include "drmP.h"
 #include "radeon.h"
-#include "radeon_share.h"
 #include "r600d.h"
 #include "avivod.h"
 

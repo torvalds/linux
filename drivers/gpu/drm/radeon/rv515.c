@@ -29,7 +29,6 @@
 #include "drmP.h"
 #include "rv515d.h"
 #include "radeon.h"
-#include "radeon_share.h"
 
 #include "rv515_reg_safe.h"
 /* rv515 depends on : */
