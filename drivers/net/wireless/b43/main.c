@@ -3002,14 +3002,18 @@ static void b43_security_init(struct b43_wldev *dev)
 static int b43_rng_read(struct hwrng *rng, u32 *data)
 {
 	struct b43_wl *wl = (struct b43_wl *)rng->priv;
+	struct b43_wldev *dev;
+	int count = -ENODEV;
 
-	/* FIXME: We need to take wl->mutex here to make sure the device
-	 * is not going away from under our ass. However it could deadlock
-	 * with hwrng internal locking. */
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (likely(dev && b43_status(dev) >= B43_STAT_INITIALIZED)) {
+		*data = b43_read16(dev, B43_MMIO_RNG);
+		count = sizeof(u16);
+	}
+	mutex_unlock(&wl->mutex);
 
-	*data = b43_read16(wl->current_dev, B43_MMIO_RNG);
-
-	return (sizeof(u16));
+	return count;
 }
 #endif /* CONFIG_B43_HWRNG */
 
@@ -3851,6 +3855,7 @@ redo:
 
 	b43_mac_suspend(dev);
 	free_irq(dev->dev->irq, dev);
+	b43_leds_exit(dev);
 	b43dbg(wl, "Wireless interface stopped\n");
 
 	return dev;
@@ -3882,8 +3887,10 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	/* Start maintainance work */
 	b43_periodic_tasks_setup(dev);
 
+	b43_leds_init(dev);
+
 	b43dbg(dev->wl, "Wireless interface started\n");
-      out:
+out:
 	return err;
 }
 
@@ -4160,10 +4167,6 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	macctl |= B43_MACCTL_PSM_JMP0;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
-	if (!dev->suspend_in_progress) {
-		b43_leds_exit(dev);
-		b43_rng_exit(dev->wl);
-	}
 	b43_dma_free(dev);
 	b43_pio_free(dev);
 	b43_chip_exit(dev);
@@ -4180,7 +4183,6 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 /* Initialize a wireless core */
 static int b43_wireless_core_init(struct b43_wldev *dev)
 {
-	struct b43_wl *wl = dev->wl;
 	struct ssb_bus *bus = dev->dev->bus;
 	struct ssb_sprom *sprom = &bus->sprom;
 	struct b43_phy *phy = &dev->phy;
@@ -4280,15 +4282,11 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	ssb_bus_powerup(bus, !(sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW));
 	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
-	if (!dev->suspend_in_progress)
-		b43_rng_init(wl);
 
 	ieee80211_wake_queues(dev->wl->hw);
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 
-	if (!dev->suspend_in_progress)
-		b43_leds_init(dev);
 out:
 	return err;
 
@@ -4837,7 +4835,6 @@ static int b43_wireless_init(struct ssb_device *dev)
 
 	/* Initialize struct b43_wl */
 	wl->hw = hw;
-	spin_lock_init(&wl->leds_lock);
 	mutex_init(&wl->mutex);
 	spin_lock_init(&wl->hardirq_lock);
 	INIT_LIST_HEAD(&wl->devlist);
@@ -4878,6 +4875,8 @@ static int b43_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 		err = ieee80211_register_hw(wl->hw);
 		if (err)
 			goto err_one_core_detach;
+		b43_leds_register(wl->current_dev);
+		b43_rng_init(wl);
 	}
 
       out:
@@ -4906,12 +4905,16 @@ static void b43_remove(struct ssb_device *dev)
 		 * might have modified it. Restoring is important, so the networking
 		 * stack can properly free resources. */
 		wl->hw->queues = wl->mac80211_initially_registered_queues;
+		wl->current_dev = NULL;
+		cancel_work_sync(&wl->leds.work);
 		ieee80211_unregister_hw(wl->hw);
 	}
 
 	b43_one_core_detach(dev);
 
 	if (list_empty(&wl->devlist)) {
+		b43_rng_exit(wl);
+		b43_leds_unregister(wldev);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
 		 */
@@ -4929,74 +4932,11 @@ void b43_controller_restart(struct b43_wldev *dev, const char *reason)
 	ieee80211_queue_work(dev->wl->hw, &dev->restart_work);
 }
 
-#ifdef CONFIG_PM
-
-static int b43_suspend(struct ssb_device *dev, pm_message_t state)
-{
-	struct b43_wldev *wldev = ssb_get_drvdata(dev);
-	struct b43_wl *wl = wldev->wl;
-
-	b43dbg(wl, "Suspending...\n");
-
-	mutex_lock(&wl->mutex);
-	wldev->suspend_in_progress = true;
-	wldev->suspend_init_status = b43_status(wldev);
-	if (wldev->suspend_init_status >= B43_STAT_STARTED)
-		wldev = b43_wireless_core_stop(wldev);
-	if (wldev && wldev->suspend_init_status >= B43_STAT_INITIALIZED)
-		b43_wireless_core_exit(wldev);
-	mutex_unlock(&wl->mutex);
-
-	b43dbg(wl, "Device suspended.\n");
-
-	return 0;
-}
-
-static int b43_resume(struct ssb_device *dev)
-{
-	struct b43_wldev *wldev = ssb_get_drvdata(dev);
-	struct b43_wl *wl = wldev->wl;
-	int err = 0;
-
-	b43dbg(wl, "Resuming...\n");
-
-	mutex_lock(&wl->mutex);
-	if (wldev->suspend_init_status >= B43_STAT_INITIALIZED) {
-		err = b43_wireless_core_init(wldev);
-		if (err) {
-			b43err(wl, "Resume failed at core init\n");
-			goto out;
-		}
-	}
-	if (wldev->suspend_init_status >= B43_STAT_STARTED) {
-		err = b43_wireless_core_start(wldev);
-		if (err) {
-			b43_leds_exit(wldev);
-			b43_rng_exit(wldev->wl);
-			b43_wireless_core_exit(wldev);
-			b43err(wl, "Resume failed at core start\n");
-			goto out;
-		}
-	}
-	b43dbg(wl, "Device resumed.\n");
- out:
-	wldev->suspend_in_progress = false;
-	mutex_unlock(&wl->mutex);
-	return err;
-}
-
-#else /* CONFIG_PM */
-# define b43_suspend	NULL
-# define b43_resume	NULL
-#endif /* CONFIG_PM */
-
 static struct ssb_driver b43_ssb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= b43_ssb_tbl,
 	.probe		= b43_probe,
 	.remove		= b43_remove,
-	.suspend	= b43_suspend,
-	.resume		= b43_resume,
 };
 
 static void b43_print_driverinfo(void)
