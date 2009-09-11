@@ -4552,11 +4552,14 @@ again:
 	}
 	ClearPageChecked(page);
 	set_page_dirty(page);
+	SetPageUptodate(page);
 
 	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
 out_unlock:
+	if (!ret)
+		return VM_FAULT_LOCKED;
 	unlock_page(page);
 out:
 	return ret;
