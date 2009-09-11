@@ -180,10 +180,7 @@ static __kprobes void free_indirect_fetch_data(struct indirect_fetch_data *data)
 
 struct trace_probe {
 	struct list_head	list;
-	union {
-		struct kprobe		kp;
-		struct kretprobe	rp;
-	};
+	struct kretprobe	rp;	/* Use rp.kp for kprobe use */
 	unsigned long 		nhit;
 	const char		*symbol;	/* symbol name */
 	struct ftrace_event_call	call;
@@ -202,22 +199,12 @@ static int kretprobe_trace_func(struct kretprobe_instance *ri,
 
 static __kprobes int probe_is_return(struct trace_probe *tp)
 {
-	return (tp->rp.handler == kretprobe_trace_func);
+	return tp->rp.handler != NULL;
 }
 
 static __kprobes const char *probe_symbol(struct trace_probe *tp)
 {
 	return tp->symbol ? tp->symbol : "unknown";
-}
-
-static __kprobes unsigned int probe_offset(struct trace_probe *tp)
-{
-	return (probe_is_return(tp)) ? tp->rp.kp.offset : tp->kp.offset;
-}
-
-static __kprobes void *probe_address(struct trace_probe *tp)
-{
-	return (probe_is_return(tp)) ? tp->rp.kp.addr : tp->kp.addr;
 }
 
 static int probe_arg_string(char *buf, size_t n, struct fetch_func *ff)
@@ -269,8 +256,14 @@ static void unregister_probe_event(struct trace_probe *tp);
 static DEFINE_MUTEX(probe_lock);
 static LIST_HEAD(probe_list);
 
-static struct trace_probe *alloc_trace_probe(const char *symbol,
-					     const char *event, int nargs)
+/*
+ * Allocate new trace_probe and initialize it (including kprobes).
+ */
+static struct trace_probe *alloc_trace_probe(const char *event,
+					     void *addr,
+					     const char *symbol,
+					     unsigned long offs,
+					     int nargs, int is_return)
 {
 	struct trace_probe *tp;
 
@@ -282,7 +275,16 @@ static struct trace_probe *alloc_trace_probe(const char *symbol,
 		tp->symbol = kstrdup(symbol, GFP_KERNEL);
 		if (!tp->symbol)
 			goto error;
-	}
+		tp->rp.kp.symbol_name = tp->symbol;
+		tp->rp.kp.offset = offs;
+	} else
+		tp->rp.kp.addr = addr;
+
+	if (is_return)
+		tp->rp.handler = kretprobe_trace_func;
+	else
+		tp->rp.kp.pre_handler = kprobe_trace_func;
+
 	if (!event)
 		goto error;
 	tp->call.name = kstrdup(event, GFP_KERNEL);
@@ -327,7 +329,7 @@ static void __unregister_trace_probe(struct trace_probe *tp)
 	if (probe_is_return(tp))
 		unregister_kretprobe(&tp->rp);
 	else
-		unregister_kprobe(&tp->kp);
+		unregister_kprobe(&tp->rp.kp);
 }
 
 /* Unregister a trace_probe and probe_event: call with locking probe_lock */
@@ -349,14 +351,14 @@ static int register_trace_probe(struct trace_probe *tp)
 	if (probe_is_return(tp))
 		ret = register_kretprobe(&tp->rp);
 	else
-		ret = register_kprobe(&tp->kp);
+		ret = register_kprobe(&tp->rp.kp);
 
 	if (ret) {
 		pr_warning("Could not insert probe(%d)\n", ret);
 		if (ret == -EILSEQ) {
 			pr_warning("Probing address(0x%p) is not an "
 				   "instruction boundary.\n",
-				   probe_address(tp));
+				   tp->rp.kp.addr);
 			ret = -EINVAL;
 		}
 		goto end;
@@ -530,12 +532,12 @@ static int create_trace_probe(int argc, char **argv)
 	 *  +|-offs(ARG) : fetch memory at ARG +|- offs address.
 	 */
 	struct trace_probe *tp;
-	struct kprobe *kp;
 	int i, ret = 0;
 	int is_return = 0;
 	char *symbol = NULL, *event = NULL;
 	unsigned long offset = 0;
 	void *addr = NULL;
+	char buf[MAX_EVENT_NAME_LEN];
 
 	if (argc < 2)
 		return -EINVAL;
@@ -577,32 +579,17 @@ static int create_trace_probe(int argc, char **argv)
 	/* setup a probe */
 	if (!event) {
 		/* Make a new event name */
-		char buf[MAX_EVENT_NAME_LEN];
 		if (symbol)
 			snprintf(buf, MAX_EVENT_NAME_LEN, "%c@%s%+ld",
 				 is_return ? 'r' : 'p', symbol, offset);
 		else
 			snprintf(buf, MAX_EVENT_NAME_LEN, "%c@0x%p",
 				 is_return ? 'r' : 'p', addr);
-		tp = alloc_trace_probe(symbol, buf, argc);
-	} else
-		tp = alloc_trace_probe(symbol, event, argc);
+		event = buf;
+	}
+	tp = alloc_trace_probe(event, addr, symbol, offset, argc, is_return);
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
-
-	if (is_return) {
-		kp = &tp->rp.kp;
-		tp->rp.handler = kretprobe_trace_func;
-	} else {
-		kp = &tp->kp;
-		tp->kp.pre_handler = kprobe_trace_func;
-	}
-
-	if (tp->symbol) {
-		kp->symbol_name = tp->symbol;
-		kp->offset = (unsigned int)offset;
-	} else
-		kp->addr = addr;
 
 	/* parse arguments */
 	ret = 0;
@@ -670,9 +657,9 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, ":%s", tp->call.name);
 
 	if (tp->symbol)
-		seq_printf(m, " %s+%u", probe_symbol(tp), probe_offset(tp));
+		seq_printf(m, " %s+%u", probe_symbol(tp), tp->rp.kp.offset);
 	else
-		seq_printf(m, " 0x%p", probe_address(tp));
+		seq_printf(m, " 0x%p", tp->rp.kp.addr);
 
 	for (i = 0; i < tp->nr_args; i++) {
 		ret = probe_arg_string(buf, MAX_ARGSTR_LEN, &tp->args[i]);
@@ -783,7 +770,7 @@ static int probes_profile_seq_show(struct seq_file *m, void *v)
 	struct trace_probe *tp = v;
 
 	seq_printf(m, "  %-44s %15lu %15lu\n", tp->call.name, tp->nhit,
-		   probe_is_return(tp) ? tp->rp.kp.nmissed : tp->kp.nmissed);
+		   tp->rp.kp.nmissed);
 
 	return 0;
 }
@@ -811,7 +798,7 @@ static const struct file_operations kprobe_profile_ops = {
 /* Kprobe handler */
 static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 {
-	struct trace_probe *tp = container_of(kp, struct trace_probe, kp);
+	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct kprobe_trace_entry *entry;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
@@ -866,7 +853,7 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 
 	entry = ring_buffer_event_data(event);
 	entry->nargs = tp->nr_args;
-	entry->func = (unsigned long)probe_address(tp);
+	entry->func = (unsigned long)tp->rp.kp.addr;
 	entry->ret_ip = (unsigned long)ri->ret_addr;
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i], regs);
@@ -945,7 +932,7 @@ static int probe_event_enable(struct ftrace_event_call *call)
 	if (probe_is_return(tp))
 		return enable_kretprobe(&tp->rp);
 	else
-		return enable_kprobe(&tp->kp);
+		return enable_kprobe(&tp->rp.kp);
 }
 
 static void probe_event_disable(struct ftrace_event_call *call)
@@ -955,7 +942,7 @@ static void probe_event_disable(struct ftrace_event_call *call)
 	if (probe_is_return(tp))
 		disable_kretprobe(&tp->rp);
 	else
-		disable_kprobe(&tp->kp);
+		disable_kprobe(&tp->rp.kp);
 }
 
 static int probe_event_raw_init(struct ftrace_event_call *event_call)
