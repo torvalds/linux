@@ -206,24 +206,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What: libata spindown skipping and warning
-When: Dec 2008
-Why:  Some halt(8) implementations synchronize caches for and spin
-      down libata disks because libata didn't use to spin down disk on
-      system halt (only synchronized caches).
-      Spin down on system halt is now implemented.  sysfs node
-      /sys/class/scsi_disk/h:c:i:l/manage_start_stop is present if
-      spin down support is available.
-      Because issuing spin down command to an already spun down disk
-      makes some disks spin up just to spin down again, libata tracks
-      device spindown status to skip the extra spindown command and
-      warn about it.
-      This is to give userspace tools the time to get updated and will
-      be removed after userspace is reasonably updated.
-Who:  Tejun Heo <htejun@gmail.com>
-
----------------------------
-
 What:	i386/x86_64 bzImage symlinks
 When:	April 2010
 
