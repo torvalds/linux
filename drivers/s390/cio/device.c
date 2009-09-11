@@ -380,30 +380,34 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 	}
 	cdev->online = 0;
 	spin_lock_irq(cdev->ccwlock);
-	ret = ccw_device_offline(cdev);
-	if (ret == -ENODEV) {
-		if (cdev->private->state != DEV_STATE_NOT_OPER) {
-			cdev->private->state = DEV_STATE_OFFLINE;
-			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
-		}
+	/* Wait until a final state or DISCONNECTED is reached */
+	while (!dev_fsm_final_state(cdev) &&
+	       cdev->private->state != DEV_STATE_DISCONNECTED) {
 		spin_unlock_irq(cdev->ccwlock);
-		/* Give up reference from ccw_device_set_online(). */
-		put_device(&cdev->dev);
-		return ret;
+		wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+			   cdev->private->state == DEV_STATE_DISCONNECTED));
+		spin_lock_irq(cdev->ccwlock);
 	}
+	ret = ccw_device_offline(cdev);
+	if (ret)
+		goto error;
 	spin_unlock_irq(cdev->ccwlock);
-	if (ret == 0) {
-		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
-		/* Give up reference from ccw_device_set_online(). */
-		put_device(&cdev->dev);
-	} else {
-		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
-			      "device 0.%x.%04x\n",
-			      ret, cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
-		cdev->online = 1;
-	}
-	return ret;
+	wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+		   cdev->private->state == DEV_STATE_DISCONNECTED));
+	/* Give up reference from ccw_device_set_online(). */
+	put_device(&cdev->dev);
+	return 0;
+
+error:
+	CIO_MSG_EVENT(0, "ccw_device_offline returned %d, device 0.%x.%04x\n",
+		      ret, cdev->private->dev_id.ssid,
+		      cdev->private->dev_id.devno);
+	cdev->private->state = DEV_STATE_OFFLINE;
+	dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
+	spin_unlock_irq(cdev->ccwlock);
+	/* Give up reference from ccw_device_set_online(). */
+	put_device(&cdev->dev);
+	return -ENODEV;
 }
 
 /**
@@ -421,6 +425,7 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 int ccw_device_set_online(struct ccw_device *cdev)
 {
 	int ret;
+	int ret2;
 
 	if (!cdev)
 		return -ENODEV;
@@ -444,28 +449,53 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		put_device(&cdev->dev);
 		return ret;
 	}
-	if (cdev->private->state != DEV_STATE_ONLINE) {
+	spin_lock_irq(cdev->ccwlock);
+	/* Check if online processing was successful */
+	if ((cdev->private->state != DEV_STATE_ONLINE) &&
+	    (cdev->private->state != DEV_STATE_W4SENSE)) {
+		spin_unlock_irq(cdev->ccwlock);
 		/* Give up online reference since onlining failed. */
 		put_device(&cdev->dev);
 		return -ENODEV;
 	}
-	if (!cdev->drv->set_online || cdev->drv->set_online(cdev) == 0) {
-		cdev->online = 1;
-		return 0;
-	}
-	spin_lock_irq(cdev->ccwlock);
-	ret = ccw_device_offline(cdev);
 	spin_unlock_irq(cdev->ccwlock);
-	if (ret == 0)
-		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
-	else
-		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
-			      "device 0.%x.%04x\n",
-			      ret, cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
+	if (cdev->drv->set_online)
+		ret = cdev->drv->set_online(cdev);
+	if (ret)
+		goto rollback;
+	cdev->online = 1;
+	return 0;
+
+rollback:
+	spin_lock_irq(cdev->ccwlock);
+	/* Wait until a final state or DISCONNECTED is reached */
+	while (!dev_fsm_final_state(cdev) &&
+	       cdev->private->state != DEV_STATE_DISCONNECTED) {
+		spin_unlock_irq(cdev->ccwlock);
+		wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+			   cdev->private->state == DEV_STATE_DISCONNECTED));
+		spin_lock_irq(cdev->ccwlock);
+	}
+	ret2 = ccw_device_offline(cdev);
+	if (ret2)
+		goto error;
+	spin_unlock_irq(cdev->ccwlock);
+	wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+		   cdev->private->state == DEV_STATE_DISCONNECTED));
 	/* Give up online reference since onlining failed. */
 	put_device(&cdev->dev);
-	return (ret == 0) ? -ENODEV : ret;
+	return ret;
+
+error:
+	CIO_MSG_EVENT(0, "rollback ccw_device_offline returned %d, "
+		      "device 0.%x.%04x\n",
+		      ret2, cdev->private->dev_id.ssid,
+		      cdev->private->dev_id.devno);
+	cdev->private->state = DEV_STATE_OFFLINE;
+	spin_unlock_irq(cdev->ccwlock);
+	/* Give up online reference since onlining failed. */
+	put_device(&cdev->dev);
+	return ret;
 }
 
 static int online_store_handle_offline(struct ccw_device *cdev)
