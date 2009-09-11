@@ -636,8 +636,7 @@ u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 {
 	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
 
-	if ((!iwl_ht_conf->is_ht) ||
-	    (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ))
+	if (!iwl_ht_conf->is_ht || !iwl_ht_conf->is_40mhz)
 		return 0;
 
 	/* We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
@@ -2619,21 +2618,18 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 			if (conf_is_ht40_minus(conf)) {
 				ht_conf->extension_chan_offset =
 					IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-				ht_conf->supported_chan_width =
-					IWL_CHANNEL_WIDTH_40MHZ;
+				ht_conf->is_40mhz = true;
 			} else if (conf_is_ht40_plus(conf)) {
 				ht_conf->extension_chan_offset =
 					IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-				ht_conf->supported_chan_width =
-					IWL_CHANNEL_WIDTH_40MHZ;
+				ht_conf->is_40mhz = true;
 			} else {
 				ht_conf->extension_chan_offset =
 					IEEE80211_HT_PARAM_CHA_SEC_NONE;
-				ht_conf->supported_chan_width =
-					IWL_CHANNEL_WIDTH_20MHZ;
+				ht_conf->is_40mhz = false;
 			}
 		} else
-			ht_conf->supported_chan_width = IWL_CHANNEL_WIDTH_20MHZ;
+			ht_conf->is_40mhz = false;
 		/* Default to no protection. Protection mode will later be set
 		 * from BSS config in iwl_ht_conf */
 		ht_conf->ht_protection = IEEE80211_HT_OP_MODE_PROTECTION_NONE;

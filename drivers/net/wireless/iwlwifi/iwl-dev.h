@@ -504,8 +504,8 @@ union iwl_ht_rate_supp {
 
 struct iwl_ht_info {
 	/* self configuration data */
-	u8 is_ht;
-	u8 supported_chan_width;
+	bool is_ht;
+	bool is_40mhz;
 	u8 sm_ps;
 	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
@@ -725,9 +725,6 @@ struct iwl_dma_ptr {
 	void *addr;
 	size_t size;
 };
-
-#define IWL_CHANNEL_WIDTH_20MHZ   0
-#define IWL_CHANNEL_WIDTH_40MHZ   1
 
 #define IWL_OPERATION_MODE_AUTO     0
 #define IWL_OPERATION_MODE_HT_ONLY  1
