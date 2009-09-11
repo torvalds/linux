@@ -367,10 +367,10 @@ static int insert_state(struct extent_io_tree *tree,
 	}
 	if (bits & EXTENT_DIRTY)
 		tree->dirty_bytes += end - start + 1;
-	set_state_cb(tree, state, bits);
-	state->state |= bits;
 	state->start = start;
 	state->end = end;
+	set_state_cb(tree, state, bits);
+	state->state |= bits;
 	node = tree_insert(&tree->state, end, &state->rb_node);
 	if (node) {
 		struct extent_state *found;
