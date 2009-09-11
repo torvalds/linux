@@ -170,6 +170,9 @@ css_subchannel_release(struct device *dev)
 
 	sch = to_subchannel(dev);
 	if (!cio_is_console(sch->schid)) {
+		/* Reset intparm to zeroes. */
+		sch->config.intparm = 0;
+		cio_commit_config(sch);
 		kfree(sch->lock);
 		kfree(sch);
 	}
