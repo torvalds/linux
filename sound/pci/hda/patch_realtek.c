@@ -13370,7 +13370,8 @@ static const char *alc269_models[ALC269_MODEL_LAST] = {
 	[ALC269_ASUS_EEEPC_P703]	= "eeepc-p703",
 	[ALC269_ASUS_EEEPC_P901]	= "eeepc-p901",
 	[ALC269_FUJITSU]		= "fujitsu",
-	[ALC269_LIFEBOOK]		= "lifebook"
+	[ALC269_LIFEBOOK]		= "lifebook",
+	[ALC269_AUTO]			= "auto",
 };
 
 static struct snd_pci_quirk alc269_cfg_tbl[] = {
