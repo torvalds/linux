@@ -1318,7 +1318,6 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
  */
 static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 {
-	struct task_struct *t = current;
 	struct sched_domain *tmp, *sd = NULL;
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
@@ -1393,13 +1392,13 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 			continue;
 		}
 
-		group = find_idlest_group(sd, t, cpu);
+		group = find_idlest_group(sd, p, cpu);
 		if (!group) {
 			sd = sd->child;
 			continue;
 		}
 
-		new_cpu = find_idlest_cpu(group, t, cpu);
+		new_cpu = find_idlest_cpu(group, p, cpu);
 		if (new_cpu == -1 || new_cpu == cpu) {
 			/* Now try balancing at a lower domain level of cpu */
 			sd = sd->child;
