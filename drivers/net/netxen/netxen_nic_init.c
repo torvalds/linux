@@ -727,21 +727,28 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 			flashaddr += 8;
 		}
 	} else {
-		u32 data;
+		u64 data;
+		u32 hi, lo;
 
-		size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START) / 4;
+		size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START) / 8;
 		flashaddr = NETXEN_BOOTLD_START;
 
 		for (i = 0; i < size; i++) {
 			if (netxen_rom_fast_read(adapter,
-					flashaddr, (int *)&data) != 0)
+					flashaddr, &lo) != 0)
 				return -EIO;
+			if (netxen_rom_fast_read(adapter,
+					flashaddr + 4, &hi) != 0)
+				return -EIO;
+
+			/* hi, lo are already in host endian byteorder */
+			data = (((u64)hi << 32) | lo);
 
 			if (adapter->pci_mem_write(adapter,
-						flashaddr, &data, 4))
+						flashaddr, &data, 8))
 				return -EIO;
 
-			flashaddr += 4;
+			flashaddr += 8;
 		}
 	}
 	msleep(1);
