@@ -71,6 +71,23 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 
+static int cpu_stopped(int cpu)
+{
+	__u32 status;
+
+	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
+	case sigp_order_code_accepted:
+	case sigp_status_stored:
+		/* Check for stopped and check stop state */
+		if (status & 0x50)
+			return 1;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 void smp_send_stop(void)
 {
 	int cpu, rc;
@@ -87,7 +104,7 @@ void smp_send_stop(void)
 			rc = signal_processor(cpu, sigp_stop);
 		} while (rc == sigp_busy);
 
-		while (!smp_cpu_not_running(cpu))
+		while (!cpu_stopped(cpu))
 			cpu_relax();
 	}
 }
@@ -269,19 +286,6 @@ EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
 static inline void smp_get_save_area(unsigned int cpu, unsigned int phy_cpu) { }
 
 #endif /* CONFIG_ZFCPDUMP */
-
-static int cpu_stopped(int cpu)
-{
-	__u32 status;
-
-	/* Check for stopped state */
-	if (signal_processor_ps(&status, 0, cpu, sigp_sense) ==
-	    sigp_status_stored) {
-		if (status & 0x40)
-			return 1;
-	}
-	return 0;
-}
 
 static int cpu_known(int cpu_id)
 {
@@ -636,7 +640,7 @@ int __cpu_disable(void)
 void __cpu_die(unsigned int cpu)
 {
 	/* Wait until target cpu is down */
-	while (!smp_cpu_not_running(cpu))
+	while (!cpu_stopped(cpu))
 		cpu_relax();
 	smp_free_lowcore(cpu);
 	pr_info("Processor %d stopped\n", cpu);
