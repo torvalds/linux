@@ -144,7 +144,7 @@ struct task_atoms {
 	u64			total_runtime;
 };
 
-typedef int (*sort_thread_lat)(struct task_atoms *, struct task_atoms *);
+typedef int (*sort_fn_t)(struct task_atoms *, struct task_atoms *);
 
 static struct rb_root		atom_root, sorted_atom_root;
 
@@ -869,40 +869,21 @@ static struct trace_sched_handler replay_ops  = {
 	.fork_event		= replay_fork_event,
 };
 
-static struct task_atoms *
-thread_atoms_search(struct rb_root *root, struct thread *thread)
-{
-	struct rb_node *node = root->rb_node;
-
-	while (node) {
-		struct task_atoms *atoms;
-
-		atoms = container_of(node, struct task_atoms, node);
-		if (thread->pid > atoms->thread->pid)
-			node = node->rb_left;
-		else if (thread->pid < atoms->thread->pid)
-			node = node->rb_right;
-		else {
-			return atoms;
-		}
-	}
-	return NULL;
-}
-
 struct sort_dimension {
 	const char		*name;
-	sort_thread_lat		cmp;
+	sort_fn_t		cmp;
 	struct list_head	list;
 };
 
 static LIST_HEAD(cmp_pid);
 
 static int
-thread_lat_cmp(struct list_head *list, struct task_atoms *l,
-	       struct task_atoms *r)
+thread_lat_cmp(struct list_head *list, struct task_atoms *l, struct task_atoms *r)
 {
 	struct sort_dimension *sort;
 	int ret = 0;
+
+	BUG_ON(list_empty(list));
 
 	list_for_each_entry(sort, list, list) {
 		ret = sort->cmp(l, r);
@@ -911,6 +892,32 @@ thread_lat_cmp(struct list_head *list, struct task_atoms *l,
 	}
 
 	return ret;
+}
+
+static struct task_atoms *
+thread_atoms_search(struct rb_root *root, struct thread *thread,
+			 struct list_head *sort_list)
+{
+	struct rb_node *node = root->rb_node;
+	struct task_atoms key = { .thread = thread };
+
+	while (node) {
+		struct task_atoms *atoms;
+		int cmp;
+
+		atoms = container_of(node, struct task_atoms, node);
+
+		cmp = thread_lat_cmp(sort_list, &key, atoms);
+		if (cmp > 0)
+			node = node->rb_left;
+		else if (cmp < 0)
+			node = node->rb_right;
+		else {
+			BUG_ON(thread != atoms->thread);
+			return atoms;
+		}
+	}
+	return NULL;
 }
 
 static void
@@ -1049,18 +1056,18 @@ latency_switch_event(struct trace_switch_event *switch_event,
 	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
 	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
 
-	in_atoms = thread_atoms_search(&atom_root, sched_in);
+	in_atoms = thread_atoms_search(&atom_root, sched_in, &cmp_pid);
 	if (!in_atoms) {
 		thread_atoms_insert(sched_in);
-		in_atoms = thread_atoms_search(&atom_root, sched_in);
+		in_atoms = thread_atoms_search(&atom_root, sched_in, &cmp_pid);
 		if (!in_atoms)
 			die("in-atom: Internal tree error");
 	}
 
-	out_atoms = thread_atoms_search(&atom_root, sched_out);
+	out_atoms = thread_atoms_search(&atom_root, sched_out, &cmp_pid);
 	if (!out_atoms) {
 		thread_atoms_insert(sched_out);
-		out_atoms = thread_atoms_search(&atom_root, sched_out);
+		out_atoms = thread_atoms_search(&atom_root, sched_out, &cmp_pid);
 		if (!out_atoms)
 			die("out-atom: Internal tree error");
 	}
@@ -1085,7 +1092,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		return;
 
 	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
-	atoms = thread_atoms_search(&atom_root, wakee);
+	atoms = thread_atoms_search(&atom_root, wakee, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(wakee);
 		return;
@@ -1136,7 +1143,6 @@ static void output_lat_thread(struct task_atoms *atom_list)
 
 static int pid_cmp(struct task_atoms *l, struct task_atoms *r)
 {
-
 	if (l->thread->pid < r->thread->pid)
 		return -1;
 	if (l->thread->pid > r->thread->pid)
@@ -1146,8 +1152,8 @@ static int pid_cmp(struct task_atoms *l, struct task_atoms *r)
 }
 
 static struct sort_dimension pid_sort_dimension = {
-	.name = "pid",
-	.cmp = pid_cmp,
+	.name			= "pid",
+	.cmp			= pid_cmp,
 };
 
 static int avg_cmp(struct task_atoms *l, struct task_atoms *r)
@@ -1172,8 +1178,8 @@ static int avg_cmp(struct task_atoms *l, struct task_atoms *r)
 }
 
 static struct sort_dimension avg_sort_dimension = {
-	.name 	= "avg",
-	.cmp	= avg_cmp,
+	.name			= "avg",
+	.cmp			= avg_cmp,
 };
 
 static int max_cmp(struct task_atoms *l, struct task_atoms *r)
@@ -1187,8 +1193,8 @@ static int max_cmp(struct task_atoms *l, struct task_atoms *r)
 }
 
 static struct sort_dimension max_sort_dimension = {
-	.name 	= "max",
-	.cmp	= max_cmp,
+	.name			= "max",
+	.cmp			= max_cmp,
 };
 
 static int switch_cmp(struct task_atoms *l, struct task_atoms *r)
@@ -1202,8 +1208,8 @@ static int switch_cmp(struct task_atoms *l, struct task_atoms *r)
 }
 
 static struct sort_dimension switch_sort_dimension = {
-	.name 	= "switch",
-	.cmp	= switch_cmp,
+	.name			= "switch",
+	.cmp			= switch_cmp,
 };
 
 static int runtime_cmp(struct task_atoms *l, struct task_atoms *r)
@@ -1217,8 +1223,8 @@ static int runtime_cmp(struct task_atoms *l, struct task_atoms *r)
 }
 
 static struct sort_dimension runtime_sort_dimension = {
-	.name 	= "runtime",
-	.cmp	= runtime_cmp,
+	.name			= "runtime",
+	.cmp			= runtime_cmp,
 };
 
 static struct sort_dimension *available_sorts[] = {
@@ -1666,8 +1672,8 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 			argc = parse_options(argc, argv, latency_options, latency_usage, 0);
 			if (argc)
 				usage_with_options(latency_usage, latency_options);
-			setup_sorting();
 		}
+		setup_sorting();
 		__cmd_lat();
 	} else if (!strncmp(argv[0], "rep", 3)) {
 		trace_handler = &replay_ops;
