@@ -156,15 +156,11 @@ __setup("condev=", condev_setup);
 
 static void __init set_preferred_console(void)
 {
-	if (MACHINE_IS_KVM) {
+	if (MACHINE_IS_KVM)
 		add_preferred_console("hvc", 0, NULL);
-		s390_virtio_console_init();
-		return;
-	}
-
-	if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
+	else if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
 		add_preferred_console("ttyS", 0, NULL);
-	if (CONSOLE_IS_3270)
+	else if (CONSOLE_IS_3270)
 		add_preferred_console("tty3270", 0, NULL);
 }
 
