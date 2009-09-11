@@ -667,7 +667,6 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 
 #ifdef CONFIG_CCW_CONSOLE
 static struct subchannel console_subchannel;
-static char console_sch_name[10] = "0.x.xxxx";
 static struct io_subchannel_private console_priv;
 static int console_subchannel_in_use;
 
@@ -852,12 +851,6 @@ cio_get_console_subchannel(void)
 	if (!console_subchannel_in_use)
 		return NULL;
 	return &console_subchannel;
-}
-
-const char *cio_get_console_sch_name(struct subchannel_id schid)
-{
-	snprintf(console_sch_name, 10, "0.%x.%04x", schid.ssid, schid.sch_no);
-	return (const char *)console_sch_name;
 }
 
 #endif
