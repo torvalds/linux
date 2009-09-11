@@ -3,6 +3,7 @@
  *
  * currently supported:
  *     Palm Treo 680 (GSM)
+ *     Palm Centro 685 (GSM)
  *
  * Author:     Tomas Cech <sleep_walker@suse.cz>
  *
@@ -44,6 +45,12 @@
 #define GPIO_NR_TREO680_KEYB_BL		24
 #define GPIO_NR_TREO680_BT_EN		43
 #endif /* CONFIG_MACH_TREO680 */
+
+/* Centro685 specific GPIOs */
+#define GPIO_NR_CENTRO_SD_POWER		21
+#define GPIO_NR_CENTRO_VIBRATE_EN	22
+#define GPIO_NR_CENTRO_KEYB_BL		33
+#define GPIO_NR_CENTRO_BT_EN		80
 
 /* Various addresses  */
 #define TREO_PHYS_RAM_START	0xa0000000
