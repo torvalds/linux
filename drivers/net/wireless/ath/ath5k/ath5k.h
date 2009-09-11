@@ -1147,7 +1147,7 @@ struct ath5k_hw {
  */
 
 /* Attach/Detach Functions */
-extern struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc);
+extern int ath5k_hw_attach(struct ath5k_softc *sc);
 extern void ath5k_hw_detach(struct ath5k_hw *ah);
 
 /* LED functions */

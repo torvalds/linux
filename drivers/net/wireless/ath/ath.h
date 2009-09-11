@@ -51,7 +51,7 @@ struct ath_common {
 	u8 curbssid[ETH_ALEN];
 	u8 bssidmask[ETH_ALEN];
 	struct ath_regulatory regulatory;
-	struct ath_ops *ops;
+	const struct ath_ops *ops;
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,

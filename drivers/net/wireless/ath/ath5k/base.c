@@ -565,15 +565,24 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		goto err_free;
 	}
 
-	/* Initialize device */
-	sc->ah = ath5k_hw_attach(sc);
-	if (IS_ERR(sc->ah)) {
-		ret = PTR_ERR(sc->ah);
+	/*If we passed the test malloc a ath5k_hw struct*/
+	sc->ah = kzalloc(sizeof(struct ath5k_hw), GFP_KERNEL);
+	if (!sc->ah) {
+		ret = -ENOMEM;
+		ATH5K_ERR(sc, "out of memory\n");
 		goto err_irq;
 	}
 
+	sc->ah->ah_sc = sc;
+	sc->ah->ah_iobase = sc->iobase;
 	common = ath5k_hw_common(sc->ah);
 	common->cachelsz = csz << 2; /* convert to bytes */
+
+	/* Initialize device */
+	ret = ath5k_hw_attach(sc);
+	if (ret) {
+		goto err_free_ah;
+	}
 
 	/* set up multi-rate retry capabilities */
 	if (sc->ah->ah_version == AR5K_AR5212) {
@@ -643,6 +652,8 @@ err_ah:
 	ath5k_hw_detach(sc->ah);
 err_irq:
 	free_irq(pdev->irq, sc);
+err_free_ah:
+	kfree(sc->ah);
 err_free:
 	ieee80211_free_hw(hw);
 err_map:
@@ -664,6 +675,7 @@ ath5k_pci_remove(struct pci_dev *pdev)
 	ath5k_debug_finish_device(sc);
 	ath5k_detach(pdev, hw);
 	ath5k_hw_detach(sc->ah);
+	kfree(sc->ah);
 	free_irq(pdev->irq, sc);
 	pci_iounmap(pdev, sc->iobase);
 	pci_release_region(pdev, 0);

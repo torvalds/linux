@@ -101,27 +101,14 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
+int ath5k_hw_attach(struct ath5k_softc *sc)
 {
-	struct ath5k_hw *ah;
+	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common;
 	struct pci_dev *pdev = sc->pdev;
 	struct ath5k_eeprom_info *ee;
 	int ret;
 	u32 srev;
-
-	/*If we passed the test malloc a ath5k_hw struct*/
-	ah = kzalloc(sizeof(struct ath5k_hw), GFP_KERNEL);
-	if (ah == NULL) {
-		ret = -ENOMEM;
-		ATH5K_ERR(sc, "out of memory\n");
-		goto err;
-	}
-
-	ah->ah_sc = sc;
-	ah->ah_sc->ah = ah;
-	ah->ah_iobase = sc->iobase;
-	common = ath5k_hw_common(ah);
 
 	/*
 	 * HW information
@@ -347,11 +334,10 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	/* turn on HW LEDs */
 	ath5k_hw_set_ledstate(ah, AR5K_LED_INIT);
 
-	return ah;
+	return 0;
 err_free:
 	kfree(ah);
-err:
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /**
@@ -371,5 +357,4 @@ void ath5k_hw_detach(struct ath5k_hw *ah)
 	ath5k_eeprom_detach(ah);
 
 	/* assume interrupts are down */
-	kfree(ah);
 }
