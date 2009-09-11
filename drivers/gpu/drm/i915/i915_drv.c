@@ -333,6 +333,7 @@ static struct drm_driver driver = {
 		 .mmap = drm_gem_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .read = drm_read,
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = i915_compat_ioctl,
 #endif
