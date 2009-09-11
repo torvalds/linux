@@ -60,6 +60,7 @@ SECTIONS
 	} :data
 
 	.data : {		/* Data */
+		PAGE_ALIGNED_DATA(PAGE_SIZE)
 		DATA_DATA
 		CONSTRUCTORS
 	}
@@ -71,11 +72,6 @@ SECTIONS
 	}
 	. = ALIGN(PAGE_SIZE);
 	__nosave_end = .;
-
-	. = ALIGN(PAGE_SIZE);
-	.data.page_aligned : {
-		*(.data.idt)
-	}
 
 	. = ALIGN(0x100);
 	.data.cacheline_aligned : {
