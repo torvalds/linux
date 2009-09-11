@@ -438,12 +438,6 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 {
 	int i, err;
 	struct ubifs_info *c = sb->s_fs_info;
-	struct writeback_control wbc = {
-		.sync_mode   = WB_SYNC_ALL,
-		.range_start = 0,
-		.range_end   = LLONG_MAX,
-		.nr_to_write = LONG_MAX,
-	};
 
 	/*
 	 * Zero @wait is just an advisory thing to help the file system shove
@@ -462,7 +456,7 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	 * the user be able to get more accurate results of 'statfs()' after
 	 * they synchronize the file system.
 	 */
-	generic_sync_sb_inodes(sb, &wbc);
+	sync_inodes_sb(sb);
 
 	/*
 	 * Synchronize write buffers, because 'ubifs_run_commit()' does not
@@ -1971,6 +1965,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	 *
 	 * Read-ahead will be disabled because @c->bdi.ra_pages is 0.
 	 */
+	c->bdi.name = "ubifs",
 	c->bdi.capabilities = BDI_CAP_MAP_COPY;
 	c->bdi.unplug_io_fn = default_unplug_io_fn;
 	err  = bdi_init(&c->bdi);
