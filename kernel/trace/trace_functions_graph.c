@@ -367,32 +367,10 @@ print_graph_proc(struct trace_seq *s, pid_t pid)
 static enum print_line_t
 print_graph_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
-	int hardirq, softirq;
-	int ret;
-
-	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
-	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
-
-	if (!trace_seq_printf(s, " %c%c%c",
-			      (entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
-				(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
-				  'X' : '.',
-			      (entry->flags & TRACE_FLAG_NEED_RESCHED) ?
-				'N' : '.',
-			      (hardirq && softirq) ? 'H' :
-				hardirq ? 'h' : softirq ? 's' : '.'))
+	if (!trace_seq_putc(s, ' '))
 		return 0;
 
-	if (entry->lock_depth < 0)
-		ret = trace_seq_putc(s, '.');
-	else
-		ret = trace_seq_printf(s, "%d", entry->lock_depth);
-	if (!ret)
-		return 0;
-
-	if (entry->preempt_count)
-		return trace_seq_printf(s, "%x", entry->preempt_count);
-	return trace_seq_puts(s, ".");
+	return trace_print_lat_fmt(s, entry);
 }
 
 /* If the pid changed since the last trace, output this event */
