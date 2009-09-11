@@ -967,8 +967,10 @@ vfe_send_af_stats_msg(uint32_t afBufAddress)
 	/* fill message with right content. */
 	/* @todo This is causing issues, need further investigate */
 	/* spin_lock_irqsave(&ctrl->state_lock, flags); */
-	if (ctrl->vstate != VFE_STATE_ACTIVE)
+	if (ctrl->vstate != VFE_STATE_ACTIVE) {
+		kfree(msg);
 		goto af_stats_done;
+	}
 
 	msg->_d = VFE_MSG_ID_STATS_AUTOFOCUS;
 	msg->_u.msgStatsAf.afBuffer = afBufAddress;
@@ -1053,8 +1055,10 @@ static void vfe_send_awb_stats_msg(uint32_t awbBufAddress)
 	/* fill message with right content. */
 	/* @todo This is causing issues, need further investigate */
 	/* spin_lock_irqsave(&ctrl->state_lock, flags); */
-	if (ctrl->vstate != VFE_STATE_ACTIVE)
+	if (ctrl->vstate != VFE_STATE_ACTIVE) {
+		kfree(msg);
 		goto awb_stats_done;
+	}
 
 	msg->_d = VFE_MSG_ID_STATS_WB_EXP;
 	msg->_u.msgStatsWbExp.awbBuffer = awbBufAddress;
@@ -1483,8 +1487,10 @@ static void vfe_send_output2_msg(
 	/* fill message with right content. */
 	/* @todo This is causing issues, need further investigate */
 	/* spin_lock_irqsave(&ctrl->state_lock, flags); */
-	if (ctrl->vstate != VFE_STATE_ACTIVE)
+	if (ctrl->vstate != VFE_STATE_ACTIVE) {
+		kfree(msg);
 		goto output2_msg_done;
+	}
 
 	msg->_d = VFE_MSG_ID_OUTPUT2;
 
@@ -1518,8 +1524,10 @@ static void vfe_send_output1_msg(
 
 	/* @todo This is causing issues, need further investigate */
 	/* spin_lock_irqsave(&ctrl->state_lock, flags); */
-	if (ctrl->vstate != VFE_STATE_ACTIVE)
+	if (ctrl->vstate != VFE_STATE_ACTIVE) {
+		kfree(msg);
 		goto output1_msg_done;
+	}
 
 	msg->_d = VFE_MSG_ID_OUTPUT1;
 	memmove(&(msg->_u),

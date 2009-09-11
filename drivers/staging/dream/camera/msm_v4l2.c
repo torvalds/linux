@@ -521,13 +521,17 @@ static int msm_v4l2_s_fmt_cap(struct file *f,
   ctrlcmd->value      = pfmt;
   ctrlcmd->timeout_ms = 10000;
 
-	if (pfmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (pfmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		kfree(ctrlcmd);
 		return -1;
+	}
 
 #if 0
 	/* FIXEME */
-	if (pfmt->fmt.pix.pixelformat != V4L2_PIX_FMT_YVU420)
+	if (pfmt->fmt.pix.pixelformat != V4L2_PIX_FMT_YVU420) {
+		kfree(ctrlcmd);
 		return -EINVAL;
+	}
 #endif
 
 	/* Ok, but check other params, too. */
