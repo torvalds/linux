@@ -1069,8 +1069,9 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	}
 }
 
-int gfs2_quota_sync(struct gfs2_sbd *sdp)
+int gfs2_quota_sync(struct super_block *sb, int type)
 {
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_data **qda;
 	unsigned int max_qd = gfs2_tune_get(sdp, gt_quota_simul_sync);
 	unsigned int num_qd;
@@ -1298,12 +1299,12 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 }
 
 static void quotad_check_timeo(struct gfs2_sbd *sdp, const char *msg,
-			       int (*fxn)(struct gfs2_sbd *sdp),
+			       int (*fxn)(struct super_block *sb, int type),
 			       unsigned long t, unsigned long *timeo,
 			       unsigned int *new_timeo)
 {
 	if (t >= *timeo) {
-		int error = fxn(sdp);
+		int error = fxn(sdp->sd_vfs, 0);
 		quotad_error(sdp, msg, error);
 		*timeo = gfs2_tune_get_i(&sdp->sd_tune, new_timeo) * HZ;
 	} else {
