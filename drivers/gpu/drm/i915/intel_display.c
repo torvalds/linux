@@ -2184,14 +2184,13 @@ static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int fsb,
 	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
 		latency = &cxsr_latency_table[i];
 		if (is_desktop == latency->is_desktop &&
-			fsb == latency->fsb_freq && mem == latency->mem_freq)
-			break;
+		    fsb == latency->fsb_freq && mem == latency->mem_freq)
+			return latency;
 	}
-	if (i >= ARRAY_SIZE(cxsr_latency_table)) {
-		DRM_DEBUG("Unknown FSB/MEM found, disable CxSR\n");
-		return NULL;
-	}
-	return latency;
+
+	DRM_DEBUG("Unknown FSB/MEM found, disable CxSR\n");
+
+	return NULL;
 }
 
 static void igd_disable_cxsr(struct drm_device *dev)
