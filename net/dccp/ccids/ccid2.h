@@ -1,6 +1,4 @@
 /*
- *  net/dccp/ccids/ccid2.h
- *
  *  Copyright (c) 2005 Andrea Bittau <a.bittau@cs.ucl.ac.uk>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -40,14 +38,14 @@ struct ccid2_seq {
 #define CCID2_SEQBUF_LEN 1024
 #define CCID2_SEQBUF_MAX 128
 
-/** struct ccid2_hc_tx_sock - CCID2 TX half connection
- *
+/**
+ * struct ccid2_hc_tx_sock - CCID2 TX half connection
  * @ccid2hctx_{cwnd,ssthresh,pipe}: as per RFC 4341, section 5
  * @ccid2hctx_packets_acked - Ack counter for deriving cwnd growth (RFC 3465)
  * @ccid2hctx_lastrtt -time RTT was last measured
  * @ccid2hctx_rpseq - last consecutive seqno
  * @ccid2hctx_rpdupack - dupacks since rpseq
-*/
+ */
 struct ccid2_hc_tx_sock {
 	u32			ccid2hctx_cwnd;
 	u32			ccid2hctx_ssthresh;
