@@ -42,150 +42,45 @@ enum trace_type {
 	__TRACE_LAST_TYPE,
 };
 
-/*
- * Function trace entry - function address and parent function addres:
- */
-struct ftrace_entry {
-	struct trace_entry	ent;
-	unsigned long		ip;
-	unsigned long		parent_ip;
-};
-
-/* Function call entry */
-struct ftrace_graph_ent_entry {
-	struct trace_entry		ent;
-	struct ftrace_graph_ent		graph_ent;
-};
-
-/* Function return entry */
-struct ftrace_graph_ret_entry {
-	struct trace_entry		ent;
-	struct ftrace_graph_ret		ret;
-};
-extern struct tracer boot_tracer;
-
-/*
- * Context switch trace entry - which task (and prio) we switched from/to:
- */
-struct ctx_switch_entry {
-	struct trace_entry	ent;
-	unsigned int		prev_pid;
-	unsigned char		prev_prio;
-	unsigned char		prev_state;
-	unsigned int		next_pid;
-	unsigned char		next_prio;
-	unsigned char		next_state;
-	unsigned int		next_cpu;
-};
-
-/*
- * Special (free-form) trace entry:
- */
-struct special_entry {
-	struct trace_entry	ent;
-	unsigned long		arg1;
-	unsigned long		arg2;
-	unsigned long		arg3;
-};
-
-/*
- * Stack-trace entry:
- */
-
-#define FTRACE_STACK_ENTRIES	8
-
-struct stack_entry {
-	struct trace_entry	ent;
-	unsigned long		caller[FTRACE_STACK_ENTRIES];
-};
-
-struct userstack_entry {
-	struct trace_entry	ent;
-	unsigned int		tgid;
-	unsigned long		caller[FTRACE_STACK_ENTRIES];
-};
-
-/*
- * trace_printk entry:
- */
-struct bprint_entry {
-	struct trace_entry	ent;
-	unsigned long		ip;
-	const char		*fmt;
-	u32			buf[];
-};
-
-struct print_entry {
-	struct trace_entry	ent;
-	unsigned long		ip;
-	char			buf[];
-};
-
-struct trace_mmiotrace_rw {
-	struct trace_entry	ent;
-	struct mmiotrace_rw	rw;
-};
-
-struct trace_mmiotrace_map {
-	struct trace_entry	ent;
-	struct mmiotrace_map	map;
-};
-
-struct trace_boot_call {
-	struct trace_entry	ent;
-	struct boot_trace_call boot_call;
-};
-
-struct trace_boot_ret {
-	struct trace_entry	ent;
-	struct boot_trace_ret boot_ret;
-};
-
-#define TRACE_FUNC_SIZE 30
-#define TRACE_FILE_SIZE 20
-struct trace_branch {
-	struct trace_entry	ent;
-	unsigned	        line;
-	char			func[TRACE_FUNC_SIZE+1];
-	char			file[TRACE_FILE_SIZE+1];
-	char			correct;
-};
-
-struct hw_branch_entry {
-	struct trace_entry	ent;
-	u64			from;
-	u64			to;
-};
-
-struct trace_power {
-	struct trace_entry	ent;
-	struct power_trace	state_data;
-};
-
 enum kmemtrace_type_id {
 	KMEMTRACE_TYPE_KMALLOC = 0,	/* kmalloc() or kfree(). */
 	KMEMTRACE_TYPE_CACHE,		/* kmem_cache_*(). */
 	KMEMTRACE_TYPE_PAGES,		/* __get_free_pages() and friends. */
 };
 
-struct kmemtrace_alloc_entry {
-	struct trace_entry	ent;
-	enum kmemtrace_type_id	type_id;
-	unsigned long		call_site;
-	const void		*ptr;
-	size_t			bytes_req;
-	size_t			bytes_alloc;
-	gfp_t			gfp_flags;
-	int			node;
-};
+extern struct tracer boot_tracer;
 
-struct kmemtrace_free_entry {
-	struct trace_entry	ent;
-	enum kmemtrace_type_id	type_id;
-	unsigned long		call_site;
-	const void		*ptr;
-};
+#undef __field
+#define __field(type, item)		type	item;
 
+#undef __array
+#define __array(type, item, size)	type	item[size];
+
+#undef __dynamic_array
+#define __dynamic_array(type, item)	type	item[];
+
+#undef F_STRUCT
+#define F_STRUCT(args...)		args
+
+#undef FTRACE_ENTRY
+#define FTRACE_ENTRY(name, struct_name, id, tstruct, print)	\
+	struct struct_name {					\
+		struct trace_entry	ent;			\
+		tstruct						\
+	}
+
+#undef TP_ARGS
+#define TP_ARGS(args...)	args
+
+#undef FTRACE_ENTRY_DUP
+#define FTRACE_ENTRY_DUP(name, name_struct, id, tstruct, printk)
+
+#include "trace_entries.h"
+
+/*
+ * syscalls are special, and need special handling, this is why
+ * they are not included in trace_entries.h
+ */
 struct syscall_trace_enter {
 	struct trace_entry	ent;
 	int			nr;
@@ -197,7 +92,6 @@ struct syscall_trace_exit {
 	int			nr;
 	unsigned long		ret;
 };
-
 
 /*
  * trace_flag_type is an enumeration that holds different
