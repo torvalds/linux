@@ -382,7 +382,6 @@ struct cifsInodeInfo {
 	unsigned long time;	/* jiffies of last update/check of inode */
 	bool clientCanCacheRead:1;	/* read oplock */
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
-	bool oplockPending:1;
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
 	u64  server_eof;		/* current file size on server */
 	u64  uniqueid;			/* server inode number */

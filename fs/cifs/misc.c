@@ -576,7 +576,6 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				pCifsInode->clientCanCacheAll = false;
 				if (pSMB->OplockLevel == 0)
 					pCifsInode->clientCanCacheRead = false;
-				pCifsInode->oplockPending = true;
 				AllocOplockQEntry(netfile->pInode,
 						  netfile->netfid, tcon);
 				cFYI(1, ("about to wake up oplock thread"));
