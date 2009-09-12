@@ -711,8 +711,7 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	int ret = 0;
 	int i;
 	struct netvsc_device *netDevice;
-	struct hv_netvsc_packet *packet;
-	LIST_ENTRY *entry;
+	struct hv_netvsc_packet *packet, *pos;
 	struct netvsc_driver *netDriver =
 				(struct netvsc_driver *)Device->Driver;
 
@@ -732,7 +731,7 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	netDevice->SendBufferSize = NETVSC_SEND_BUFFER_SIZE;
 
-	INITIALIZE_LIST_HEAD(&netDevice->ReceivePacketList);
+	INIT_LIST_HEAD(&netDevice->ReceivePacketList);
 
 	for (i = 0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++) {
 		packet = kzalloc(sizeof(struct hv_netvsc_packet) +
@@ -744,9 +743,8 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 				   NETVSC_RECEIVE_PACKETLIST_COUNT, i);
 			break;
 		}
-
-		INSERT_TAIL_LIST(&netDevice->ReceivePacketList,
-				 &packet->ListEntry);
+		list_add_tail(&packet->ListEntry,
+			      &netDevice->ReceivePacketList);
 	}
 	netDevice->ChannelInitEvent = osd_WaitEventCreate();
 
@@ -790,11 +788,10 @@ Cleanup:
 	if (netDevice) {
 		kfree(netDevice->ChannelInitEvent);
 
-		while (!IsListEmpty(&netDevice->ReceivePacketList)) {
-			entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
-			packet = CONTAINING_RECORD(entry,
-						   struct hv_netvsc_packet,
-						   ListEntry);
+		list_for_each_entry_safe(packet, pos,
+					 &netDevice->ReceivePacketList,
+					 ListEntry) {
+			list_del(&packet->ListEntry);
 			kfree(packet);
 		}
 
@@ -814,8 +811,7 @@ Cleanup:
 static int NetVscOnDeviceRemove(struct hv_device *Device)
 {
 	struct netvsc_device *netDevice;
-	struct hv_netvsc_packet *netvscPacket;
-	LIST_ENTRY *entry;
+	struct hv_netvsc_packet *netvscPacket, *pos;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -853,12 +849,9 @@ static int NetVscOnDeviceRemove(struct hv_device *Device)
 	Device->Driver->VmbusChannelInterface.Close(Device);
 
 	/* Release all resources */
-	while (!IsListEmpty(&netDevice->ReceivePacketList)) {
-		entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
-		netvscPacket = CONTAINING_RECORD(entry,
-						 struct hv_netvsc_packet,
-						 ListEntry);
-
+	list_for_each_entry_safe(netvscPacket, pos,
+				 &netDevice->ReceivePacketList, ListEntry) {
+		list_del(&netvscPacket->ListEntry);
 		kfree(netvscPacket);
 	}
 
@@ -994,15 +987,14 @@ static void NetVscOnReceive(struct hv_device *Device,
 	struct vmtransfer_page_packet_header *vmxferpagePacket;
 	struct nvsp_message *nvspPacket;
 	struct hv_netvsc_packet *netvscPacket = NULL;
-	LIST_ENTRY *entry;
 	unsigned long start;
 	unsigned long end, endVirtual;
 	/* struct netvsc_driver *netvscDriver; */
 	struct xferpage_packet *xferpagePacket = NULL;
-	LIST_ENTRY listHead;
 	int i, j;
 	int count = 0, bytesRemain = 0;
 	unsigned long flags;
+	LIST_HEAD(listHead);
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1052,8 +1044,6 @@ static void NetVscOnReceive(struct hv_device *Device,
 	DPRINT_DBG(NETVSC, "xfer page - range count %d",
 		   vmxferpagePacket->RangeCount);
 
-	INITIALIZE_LIST_HEAD(&listHead);
-
 	/*
 	 * Grab free packets (range count + 1) to represent this xfer
 	 * page packet. +1 to represent the xfer page packet itself.
@@ -1061,14 +1051,8 @@ static void NetVscOnReceive(struct hv_device *Device,
 	 * fulfil
 	 */
 	spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
-	while (!IsListEmpty(&netDevice->ReceivePacketList)) {
-		entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
-		netvscPacket = CONTAINING_RECORD(entry,
-						 struct hv_netvsc_packet,
-						 ListEntry);
-
-		INSERT_TAIL_LIST(&listHead, &netvscPacket->ListEntry);
-
+	while (!list_empty(&netDevice->ReceivePacketList)) {
+		list_move_tail(&netDevice->ReceivePacketList, &listHead);
 		if (++count == vmxferpagePacket->RangeCount + 1)
 			break;
 	}
@@ -1087,13 +1071,8 @@ static void NetVscOnReceive(struct hv_device *Device,
 		/* Return it to the freelist */
 		spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 		for (i = count; i != 0; i--) {
-			entry = REMOVE_HEAD_LIST(&listHead);
-			netvscPacket = CONTAINING_RECORD(entry,
-						struct hv_netvsc_packet,
-						ListEntry);
-
-			INSERT_TAIL_LIST(&netDevice->ReceivePacketList,
-					 &netvscPacket->ListEntry);
+			list_move_tail(&listHead,
+				       &netDevice->ReceivePacketList);
 		}
 		spin_unlock_irqrestore(&netDevice->receive_packet_list_lock,
 				       flags);
@@ -1106,9 +1085,10 @@ static void NetVscOnReceive(struct hv_device *Device,
 	}
 
 	/* Remove the 1st packet to represent the xfer page packet itself */
-	entry = REMOVE_HEAD_LIST(&listHead);
-	xferpagePacket = CONTAINING_RECORD(entry, struct xferpage_packet,
-					   ListEntry);
+	xferpagePacket = list_entry(&listHead, struct xferpage_packet,
+				    ListEntry);
+	list_del(&xferpagePacket->ListEntry);
+
 	/* This is how much we can satisfy */
 	xferpagePacket->Count = count - 1;
 	ASSERT(xferpagePacket->Count > 0 && xferpagePacket->Count <=
@@ -1122,10 +1102,9 @@ static void NetVscOnReceive(struct hv_device *Device,
 
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
 	for (i = 0; i < (count - 1); i++) {
-		entry = REMOVE_HEAD_LIST(&listHead);
-		netvscPacket = CONTAINING_RECORD(entry,
-						 struct hv_netvsc_packet,
-						 ListEntry);
+		netvscPacket = list_entry(&listHead, struct hv_netvsc_packet,
+					  ListEntry);
+		list_del(&netvscPacket->ListEntry);
 
 		/* Initialize the netvsc packet */
 		netvscPacket->XferPagePacket = xferpagePacket;
@@ -1198,7 +1177,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 		NetVscOnReceiveCompletion(netvscPacket->Completion.Recv.ReceiveCompletionContext);
 	}
 
-	ASSERT(IsListEmpty(&listHead));
+	ASSERT(list_empty(&listHead));
 
 	PutNetDevice(Device);
 	DPRINT_EXIT(NETVSC);
@@ -1290,13 +1269,13 @@ static void NetVscOnReceiveCompletion(void *Context)
 	if (packet->XferPagePacket->Count == 0) {
 		fSendReceiveComp = true;
 		transactionId = packet->Completion.Recv.ReceiveCompletionTid;
+		list_add_tail(&packet->XferPagePacket->ListEntry,
+			      &netDevice->ReceivePacketList);
 
-		INSERT_TAIL_LIST(&netDevice->ReceivePacketList,
-				 &packet->XferPagePacket->ListEntry);
 	}
 
 	/* Put the packet back */
-	INSERT_TAIL_LIST(&netDevice->ReceivePacketList, &packet->ListEntry);
+	list_add_tail(&packet->ListEntry, &netDevice->ReceivePacketList);
 	spin_unlock_irqrestore(&netDevice->receive_packet_list_lock, flags);
 
 	/* Send a receive completion for the xfer page packet */

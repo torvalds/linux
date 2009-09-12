@@ -24,9 +24,9 @@
 #ifndef _NETVSC_H_
 #define _NETVSC_H_
 
+#include <linux/list.h>
 #include "VmbusPacketFormat.h"
 #include "VmbusChannelInterface.h"
-#include "List.h"
 #include "NetVscApi.h"
 
 
@@ -299,7 +299,7 @@ struct netvsc_device {
 	 * List of free preallocated hv_netvsc_packet to represent receive
 	 * packet
 	 */
-	LIST_ENTRY ReceivePacketList;
+	struct list_head ReceivePacketList;
 	spinlock_t receive_packet_list_lock;
 
 	/* Send buffer allocated by us but manages by NetVSP */

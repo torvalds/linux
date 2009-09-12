@@ -37,7 +37,7 @@ struct hv_netvsc_packet;
 
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
 struct xferpage_packet {
-	LIST_ENTRY ListEntry;
+	struct list_head ListEntry;
 
 	/* # of netvsc packets this xfer packet contains */
 	u32 Count;
@@ -52,7 +52,7 @@ struct xferpage_packet {
  */
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
-	LIST_ENTRY ListEntry;
+	struct list_head ListEntry;
 
 	struct hv_device *Device;
 	bool IsDataPacket;
