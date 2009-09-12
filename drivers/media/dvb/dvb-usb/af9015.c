@@ -874,7 +874,7 @@ static int af9015_read_config(struct usb_device *udev)
 			af9015_config.dual_mode = 0;
 		} else {
 			af9015_properties[i].adapter[0].stream.u.bulk.buffersize
-				= TS_USB20_MAX_PACKET_SIZE;
+				= TS_USB20_FRAME_SIZE;
 		}
 	}
 
@@ -1310,7 +1310,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.u = {
 						.bulk = {
 							.buffersize =
-						TS_USB20_MAX_PACKET_SIZE,
+						TS_USB20_FRAME_SIZE,
 						}
 					}
 				},
@@ -1416,7 +1416,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.u = {
 						.bulk = {
 							.buffersize =
-						TS_USB20_MAX_PACKET_SIZE,
+						TS_USB20_FRAME_SIZE,
 						}
 					}
 				},
@@ -1522,7 +1522,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.u = {
 						.bulk = {
 							.buffersize =
-						TS_USB20_MAX_PACKET_SIZE,
+						TS_USB20_FRAME_SIZE,
 						}
 					}
 				},
