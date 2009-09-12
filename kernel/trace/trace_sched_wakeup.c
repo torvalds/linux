@@ -110,7 +110,6 @@ static void notrace
 probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	struct task_struct *next)
 {
-	unsigned long latency = 0, t0 = 0, t1 = 0;
 	struct trace_array_cpu *data;
 	cycle_t T0, T1, delta;
 	unsigned long flags;
@@ -156,10 +155,6 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	trace_function(wakeup_trace, CALLER_ADDR0, CALLER_ADDR1, flags, pc);
 	tracing_sched_switch_trace(wakeup_trace, prev, next, flags, pc);
 
-	/*
-	 * usecs conversion is slow so we try to delay the conversion
-	 * as long as possible:
-	 */
 	T0 = data->preempt_timestamp;
 	T1 = ftrace_now(cpu);
 	delta = T1-T0;
@@ -167,12 +162,7 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	if (!report_latency(delta))
 		goto out_unlock;
 
-	latency = nsecs_to_usecs(delta);
-
 	tracing_max_latency = delta;
-	t0 = nsecs_to_usecs(T0);
-	t1 = nsecs_to_usecs(T1);
-
 	update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
 
 out_unlock:
