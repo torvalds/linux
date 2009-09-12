@@ -31,6 +31,7 @@ static struct perf_header	*header;
 static u64			sample_type;
 
 static int			replay_mode;
+static int			lat_mode;
 
 
 /*
@@ -847,6 +848,269 @@ static struct trace_sched_handler replay_ops  = {
 	.fork_event = replay_fork_event,
 };
 
+#define TASK_STATE_TO_CHAR_STR "RSDTtZX"
+
+enum thread_state {
+	THREAD_SLEEPING,
+	THREAD_WAKED_UP,
+	THREAD_SCHED_IN,
+	THREAD_IGNORE
+};
+
+struct lat_snapshot {
+	struct list_head	list;
+	enum thread_state	state;
+	u64			wake_up_time;
+	u64			sched_in_time;
+};
+
+struct thread_latency {
+	struct list_head	snapshot_list;
+	struct thread		*thread;
+	struct rb_node		node;
+};
+
+static struct rb_root lat_snapshot_root;
+
+static struct thread_latency *
+thread_latency_search(struct rb_root *root, struct thread *thread)
+{
+	struct rb_node *node = root->rb_node;
+
+	while (node) {
+		struct thread_latency *lat;
+
+		lat = container_of(node, struct thread_latency, node);
+		if (thread->pid < lat->thread->pid)
+			node = node->rb_left;
+		else if (thread->pid > lat->thread->pid)
+			node = node->rb_right;
+		else {
+			return lat;
+		}
+	}
+	return NULL;
+}
+
+static void
+__thread_latency_insert(struct rb_root *root, struct thread_latency *data)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+
+	while (*new) {
+		struct thread_latency *this;
+
+		this = container_of(*new, struct thread_latency, node);
+		parent = *new;
+		if (data->thread->pid < this->thread->pid)
+			new = &((*new)->rb_left);
+		else if (data->thread->pid > this->thread->pid)
+			new = &((*new)->rb_right);
+		else
+			die("Double thread insertion\n");
+	}
+
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, root);
+}
+
+static void thread_latency_insert(struct thread *thread)
+{
+	struct thread_latency *lat;
+	lat = calloc(sizeof(*lat), 1);
+	if (!lat)
+		die("No memory");
+
+	lat->thread = thread;
+	INIT_LIST_HEAD(&lat->snapshot_list);
+	__thread_latency_insert(&lat_snapshot_root, lat);
+}
+
+static void
+latency_fork_event(struct trace_fork_event *fork_event __used,
+		   struct event *event __used,
+		   int cpu __used,
+		   u64 timestamp __used,
+		   struct thread *thread __used)
+{
+	/* should insert the newcomer */
+}
+
+static char sched_out_state(struct trace_switch_event *switch_event)
+{
+	const char *str = TASK_STATE_TO_CHAR_STR;
+
+	return str[switch_event->prev_state];
+}
+
+static void
+lat_sched_out(struct thread_latency *lat,
+	     struct trace_switch_event *switch_event)
+{
+	struct lat_snapshot *snapshot;
+
+	if (sched_out_state(switch_event) == 'R')
+		return;
+
+	snapshot = calloc(sizeof(*snapshot), 1);
+	if (!snapshot)
+		die("Non memory");
+
+	list_add_tail(&snapshot->list, &lat->snapshot_list);
+}
+
+static void
+lat_sched_in(struct thread_latency *lat, u64 timestamp)
+{
+	struct lat_snapshot *snapshot;
+
+	if (list_empty(&lat->snapshot_list))
+		return;
+
+	snapshot = list_entry(lat->snapshot_list.prev, struct lat_snapshot,
+			      list);
+
+	if (snapshot->state != THREAD_WAKED_UP)
+		return;
+
+	if (timestamp < snapshot->wake_up_time) {
+		snapshot->state = THREAD_IGNORE;
+		return;
+	}
+
+	snapshot->state = THREAD_SCHED_IN;
+	snapshot->sched_in_time = timestamp;
+}
+
+
+static void
+latency_switch_event(struct trace_switch_event *switch_event,
+		     struct event *event __used,
+		     int cpu __used,
+		     u64 timestamp,
+		     struct thread *thread __used)
+{
+	struct thread_latency *out_lat, *in_lat;
+	struct thread *sched_out, *sched_in;
+
+	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
+	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+
+	in_lat = thread_latency_search(&lat_snapshot_root, sched_in);
+	if (!in_lat) {
+		thread_latency_insert(sched_in);
+		in_lat = thread_latency_search(&lat_snapshot_root, sched_in);
+		if (!in_lat)
+			die("Internal latency tree error");
+	}
+
+	out_lat = thread_latency_search(&lat_snapshot_root, sched_out);
+	if (!out_lat) {
+		thread_latency_insert(sched_out);
+		out_lat = thread_latency_search(&lat_snapshot_root, sched_out);
+		if (!out_lat)
+			die("Internal latency tree error");
+	}
+
+	lat_sched_in(in_lat, timestamp);
+	lat_sched_out(out_lat, switch_event);
+}
+
+static void
+latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
+		     struct event *event __used,
+		     int cpu __used,
+		     u64 timestamp,
+		     struct thread *thread __used)
+{
+	struct thread_latency *lat;
+	struct lat_snapshot *snapshot;
+	struct thread *wakee;
+
+	/* Note for later, it may be interesting to observe the failing cases */
+	if (!wakeup_event->success)
+		return;
+
+	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
+	lat = thread_latency_search(&lat_snapshot_root, wakee);
+	if (!lat) {
+		thread_latency_insert(wakee);
+		return;
+	}
+
+	if (list_empty(&lat->snapshot_list))
+		return;
+
+	snapshot = list_entry(lat->snapshot_list.prev, struct lat_snapshot,
+			      list);
+
+	if (snapshot->state != THREAD_SLEEPING)
+		return;
+
+	snapshot->state = THREAD_WAKED_UP;
+	snapshot->wake_up_time = timestamp;
+}
+
+static struct trace_sched_handler lat_ops  = {
+	.wakeup_event = latency_wakeup_event,
+	.switch_event = latency_switch_event,
+	.fork_event = latency_fork_event,
+};
+
+static void output_lat_thread(struct thread_latency *lat)
+{
+	struct lat_snapshot *shot;
+	int count = 0;
+	int i;
+	int ret;
+	u64 max = 0, avg;
+	u64 total = 0, delta;
+
+	list_for_each_entry(shot, &lat->snapshot_list, list) {
+		if (shot->state != THREAD_SCHED_IN)
+			continue;
+
+		count++;
+
+		delta = shot->sched_in_time - shot->wake_up_time;
+		if (delta > max)
+			max = delta;
+		total += delta;
+	}
+
+	if (!count)
+		return;
+
+	ret = printf("%s", lat->thread->comm);
+
+	for (i = 0; i < 25 - ret; i++)
+		printf(" ");
+
+	avg = total / count;
+
+	printf("%5d        %10llu       %10llu      %10llu\n", count, total, avg, max);
+}
+
+static void output_lat_results(void)
+{
+	struct rb_node *next;
+
+	printf(" Tasks");
+	printf("                     count");
+	printf("          total");
+	printf("              avg");
+	printf("            max\n\n");
+
+	next = rb_first(&lat_snapshot_root);
+
+	while (next) {
+		struct thread_latency *lat;
+
+		lat = rb_entry(next, struct thread_latency, node);
+		output_lat_thread(lat);
+		next = rb_next(next);
+	}
+}
 
 static struct trace_sched_handler *trace_handler;
 
@@ -1154,6 +1418,8 @@ static const struct option options[] = {
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('r', "replay", &replay_mode,
 		    "replay sched behaviour from traces"),
+	OPT_BOOLEAN('l', "latency", &lat_mode,
+		    "measure various latencies"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
@@ -1180,22 +1446,30 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 
 	if (replay_mode)
 		trace_handler = &replay_ops;
-	else /* We may need a default subcommand */
+	else if (lat_mode)
+		trace_handler = &lat_ops;
+	else /* We may need a default subcommand (perf trace?) */
 		die("Please select a sub command (-r)\n");
 
-	calibrate_run_measurement_overhead();
-	calibrate_sleep_measurement_overhead();
+	if (replay_mode) {
+		calibrate_run_measurement_overhead();
+		calibrate_sleep_measurement_overhead();
 
-	test_calibrations();
+		test_calibrations();
 
-	parse_trace();
-	print_task_traces();
-	add_cross_task_wakeups();
+		parse_trace();
+		print_task_traces();
+		add_cross_task_wakeups();
 
-	create_tasks();
-	printf("------------------------------------------------------------\n");
-	for (i = 0; i < nr_iterations; i++)
-		run_one_test();
+		create_tasks();
+		printf("------------------------------------------------------------\n");
+		for (i = 0; i < nr_iterations; i++)
+			run_one_test();
+	} else if (lat_mode) {
+		setup_pager();
+		__cmd_sched();
+		output_lat_results();
+	}
 
 	return 0;
 }
