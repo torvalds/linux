@@ -2854,6 +2854,15 @@ static void hotkey_exit(void)
 	}
 }
 
+static void __init hotkey_unmap(const unsigned int scancode)
+{
+	if (hotkey_keycode_map[scancode] != KEY_RESERVED) {
+		clear_bit(hotkey_keycode_map[scancode],
+			  tpacpi_inputdev->keybit);
+		hotkey_keycode_map[scancode] = KEY_RESERVED;
+	}
+}
+
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
 	/* Requirements for changing the default keymaps:
@@ -2932,11 +2941,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
 
-		/* These either have to go through ACPI video, or
-		 * act like in the IBM ThinkPads, so don't ever
-		 * enable them by default */
-		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
-		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
+		/* These should be enabled --only-- when ACPI video
+		 * is disabled (i.e. in "vendor" mode), and are handled
+		 * in a special way by the init code */
+		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
 
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 
@@ -3162,15 +3171,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		       "Disabling thinkpad-acpi brightness events "
 		       "by default...\n");
 
-		/* The hotkey_reserved_mask change below is not
-		 * necessary while the keys are at KEY_RESERVED in the
-		 * default map, but better safe than sorry, leave it
-		 * here as a marker of what we have to do, especially
-		 * when we finally become able to set this at runtime
-		 * on response to X.org requests */
+		/* Disable brightness up/down on Lenovo thinkpads when
+		 * ACPI is handling them, otherwise it is plain impossible
+		 * for userspace to do something even remotely sane */
 		hotkey_reserved_mask |=
 			(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
 			| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
+		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNHOME);
+		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNEND);
 	}
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
