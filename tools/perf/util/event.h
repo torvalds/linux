@@ -60,6 +60,12 @@ struct read_event {
 	u64 id;
 };
 
+struct sample_event{
+	struct perf_event_header        header;
+	u64 array[];
+};
+
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;
@@ -68,6 +74,7 @@ typedef union event_union {
 	struct fork_event		fork;
 	struct lost_event		lost;
 	struct read_event		read;
+	struct sample_event		sample;
 } event_t;
 
 struct map {
