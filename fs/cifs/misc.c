@@ -562,14 +562,14 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				continue;
 
 			cifs_stats_inc(&tcon->num_oplock_brks);
-			write_lock(&GlobalSMBSeslock);
+			read_lock(&GlobalSMBSeslock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				netfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
 				if (pSMB->Fid != netfile->netfid)
 					continue;
 
-				write_unlock(&GlobalSMBSeslock);
+				read_unlock(&GlobalSMBSeslock);
 				read_unlock(&cifs_tcp_ses_lock);
 				cFYI(1, ("file id match, oplock break"));
 				pCifsInode = CIFS_I(netfile->pInode);
@@ -584,7 +584,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 
 				return true;
 			}
-			write_unlock(&GlobalSMBSeslock);
+			read_unlock(&GlobalSMBSeslock);
 			read_unlock(&cifs_tcp_ses_lock);
 			cFYI(1, ("No matching file for oplock break"));
 			return true;
