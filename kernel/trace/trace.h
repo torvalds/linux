@@ -53,8 +53,17 @@ extern struct tracer boot_tracer;
 #undef __field
 #define __field(type, item)		type	item;
 
+#undef __field_struct
+#define __field_struct(type, item)	__field(type, item)
+
+#undef __field_desc
+#define __field_desc(type, container, item)
+
 #undef __array
 #define __array(type, item, size)	type	item[size];
+
+#undef __array_desc
+#define __array_desc(type, container, item, size)
 
 #undef __dynamic_array
 #define __dynamic_array(type, item)	type	item[];

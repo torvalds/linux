@@ -26,6 +26,29 @@
  *		type	item[size];
  *	  in the structure.
  *
+ *   * for structures within structures, the format of the internal
+ *	structure is layed out. This allows the internal structure
+ *	to be deciphered for the format file. Although these macros
+ *	may become out of sync with the internal structure, they
+ *	will create a compile error if it happens. Since the
+ *	internel structures are just tracing helpers, this is not
+ *	an issue.
+ *
+ *	When an internal structure is used, it should use:
+ *
+ *	__field_struct(	type,	item	)
+ *
+ *	instead of __field. This will prevent it from being shown in
+ *	the output file. The fields in the structure should use.
+ *
+ *	__field_desc(	type,	container,	item		)
+ *	__array_desc(	type,	container,	item,	len	)
+ *
+ *	type, item and len are the same as __field and __array, but
+ *	container is added. This is the name of the item in
+ *	__field_struct that this is describing.
+ *
+ *
  * @print: the print format shown to users in the format file.
  */
 
@@ -50,7 +73,9 @@ FTRACE_ENTRY(funcgraph_entry, ftrace_graph_ent_entry,
 	TRACE_GRAPH_ENT,
 
 	F_STRUCT(
-		__field(	struct ftrace_graph_ent,	graph_ent	)
+		__field_struct(	struct ftrace_graph_ent,	graph_ent	)
+		__field_desc(	unsigned long,	graph_ent,	func		)
+		__field_desc(	int,		graph_ent,	depth		)
 	),
 
 	F_printk("--> %lx (%d)", __entry->graph_ent.func, __entry->depth)
@@ -62,7 +87,12 @@ FTRACE_ENTRY(funcgraph_exit, ftrace_graph_ret_entry,
 	TRACE_GRAPH_RET,
 
 	F_STRUCT(
-		__field(	struct ftrace_graph_ret,	ret	)
+		__field_struct(	struct ftrace_graph_ret,	ret	)
+		__field_desc(	unsigned long,	ret,		func	)
+		__field_desc(	unsigned long long, ret,	calltime)
+		__field_desc(	unsigned long long, ret,	rettime	)
+		__field_desc(	unsigned long,	ret,		overrun	)
+		__field_desc(	int,		ret,		depth	)
 	),
 
 	F_printk("<-- %lx (%d) (start: %llx  end: %llx) over: %d",
@@ -218,7 +248,13 @@ FTRACE_ENTRY(mmiotrace_rw, trace_mmiotrace_rw,
 	TRACE_MMIO_RW,
 
 	F_STRUCT(
-		__field(	struct mmiotrace_rw,	rw	)
+		__field_struct(	struct mmiotrace_rw,	rw	)
+		__field_desc(	resource_size_t, rw,	phys	)
+		__field_desc(	unsigned long,	rw,	value	)
+		__field_desc(	unsigned long,	rw,	pc	)
+		__field_desc(	int, 		rw,	map_id	)
+		__field_desc(	unsigned char,	rw,	opcode	)
+		__field_desc(	unsigned char,	rw,	width	)
 	),
 
 	F_printk("%lx %lx %lx %d %lx %lx",
@@ -231,7 +267,12 @@ FTRACE_ENTRY(mmiotrace_map, trace_mmiotrace_map,
 	TRACE_MMIO_MAP,
 
 	F_STRUCT(
-		__field(	struct mmiotrace_map,	map	)
+		__field_struct(	struct mmiotrace_map,	map	)
+		__field_desc(	resource_size_t, map,	phys	)
+		__field_desc(	unsigned long,	map,	virt	)
+		__field_desc(	unsigned long,	map,	len	)
+		__field_desc(	int, 		map,	map_id	)
+		__field_desc(	unsigned char,	map,	opcode	)
 	),
 
 	F_printk("%lx %lx %lx %d %lx",
@@ -244,7 +285,9 @@ FTRACE_ENTRY(boot_call, trace_boot_call,
 	TRACE_BOOT_CALL,
 
 	F_STRUCT(
-		__field(	struct boot_trace_call,	boot_call	)
+		__field_struct(	struct boot_trace_call,	boot_call	)
+		__field_desc(	pid_t,	boot_call,	caller		)
+		__array_desc(	char,	boot_call,	func,	KSYM_SYMBOL_LEN)
 	),
 
 	F_printk("%d  %s", __entry->caller, __entry->func)
@@ -255,7 +298,10 @@ FTRACE_ENTRY(boot_ret, trace_boot_ret,
 	TRACE_BOOT_RET,
 
 	F_STRUCT(
-		__field(	struct boot_trace_ret,	boot_ret	)
+		__field_struct(	struct boot_trace_ret,	boot_ret	)
+		__array_desc(	char,	boot_ret,	func,	KSYM_SYMBOL_LEN)
+		__field_desc(	int,	boot_ret,	result		)
+		__field_desc(	unsigned long, boot_ret, duration	)
 	),
 
 	F_printk("%s %d %lx",
@@ -298,7 +344,11 @@ FTRACE_ENTRY(power, trace_power,
 	TRACE_POWER,
 
 	F_STRUCT(
-		__field(	struct power_trace,	state_data	)
+		__field_struct(	struct power_trace,	state_data	)
+		__field_desc(	s64,	state_data,	stamp		)
+		__field_desc(	s64,	state_data,	end		)
+		__field_desc(	int,	state_data,	type		)
+		__field_desc(	int,	state_data,	state		)
 	),
 
 	F_printk("%llx->%llx type:%u state:%u",
