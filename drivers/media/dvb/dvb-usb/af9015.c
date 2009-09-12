@@ -61,10 +61,13 @@ static struct af9013_config af9015_af9013_config[] = {
 
 static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 {
+#define BUF_LEN 63
+#define REQ_HDR_LEN 8 /* send header size */
+#define ACK_HDR_LEN 2 /* rece header size */
 	int act_len, ret;
-	u8 buf[64];
+	u8 buf[BUF_LEN];
 	u8 write = 1;
-	u8 msg_len = 8;
+	u8 msg_len = REQ_HDR_LEN;
 	static u8 seq; /* packet sequence number */
 
 	if (mutex_lock_interruptible(&af9015_usb_mutex) < 0)
@@ -107,17 +110,26 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 		goto error_unlock;
 	}
 
+	/* buffer overflow check */
+	if ((write && (req->data_len > BUF_LEN - REQ_HDR_LEN)) ||
+		(!write && (req->data_len > BUF_LEN - ACK_HDR_LEN))) {
+		err("too much data; cmd:%d len:%d", req->cmd, req->data_len);
+		ret = -EINVAL;
+		goto error_unlock;
+	}
+
 	/* write requested */
 	if (write) {
-		memcpy(&buf[8], req->data, req->data_len);
+		memcpy(&buf[REQ_HDR_LEN], req->data, req->data_len);
 		msg_len += req->data_len;
 	}
+
 	deb_xfer(">>> ");
 	debug_dump(buf, msg_len, deb_xfer);
 
 	/* send req */
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 0x02), buf, msg_len,
-	&act_len, AF9015_USB_TIMEOUT);
+		&act_len, AF9015_USB_TIMEOUT);
 	if (ret)
 		err("bulk message failed:%d (%d/%d)", ret, msg_len, act_len);
 	else
@@ -130,10 +142,14 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 	if (req->cmd == DOWNLOAD_FIRMWARE || req->cmd == RECONNECT_USB)
 		goto exit_unlock;
 
-	/* receive ack and data if read req */
-	msg_len = 1 + 1 + req->data_len;  /* seq + status + data len */
+	/* write receives seq + status = 2 bytes
+	   read receives seq + status + data = 2 + N bytes */
+	msg_len = ACK_HDR_LEN;
+	if (!write)
+		msg_len += req->data_len;
+
 	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, 0x81), buf, msg_len,
-			   &act_len, AF9015_USB_TIMEOUT);
+		&act_len, AF9015_USB_TIMEOUT);
 	if (ret) {
 		err("recv bulk message failed:%d", ret);
 		ret = -1;
@@ -159,7 +175,7 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 
 	/* read request, copy returned data to return buf */
 	if (!write)
-		memcpy(req->data, &buf[2], req->data_len);
+		memcpy(req->data, &buf[ACK_HDR_LEN], req->data_len);
 
 error_unlock:
 exit_unlock:
