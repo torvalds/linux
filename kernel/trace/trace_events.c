@@ -21,6 +21,7 @@
 
 #include "trace_output.h"
 
+#undef TRACE_SYSTEM
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 
 DEFINE_MUTEX(event_mutex);

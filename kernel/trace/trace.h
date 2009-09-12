@@ -7,6 +7,7 @@
 #include <linux/clocksource.h>
 #include <linux/ring_buffer.h>
 #include <linux/mmiotrace.h>
+#include <linux/tracepoint.h>
 #include <linux/ftrace.h>
 #include <trace/boot.h>
 #include <linux/kmemtrace.h>
@@ -746,11 +747,12 @@ extern struct list_head ftrace_events;
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
 
-#undef TRACE_EVENT_FORMAT
-#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+#undef FTRACE_ENTRY
+#define FTRACE_ENTRY(call, struct_name, id, tstruct, print)		\
 	extern struct ftrace_event_call event_##call;
-#undef TRACE_EVENT_FORMAT_NOFILTER
-#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct, tpfmt)
-#include "trace_event_types.h"
+#undef FTRACE_ENTRY_DUP
+#define FTRACE_ENTRY_DUP(call, struct_name, id, tstruct, print)		\
+	FTRACE_ENTRY(call, struct_name, id, PARAMS(tstruct), PARAMS(print))
+#include "trace_entries.h"
 
 #endif /* _LINUX_KERNEL_TRACE_H */
