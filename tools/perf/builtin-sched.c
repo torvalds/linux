@@ -872,7 +872,7 @@ enum thread_state {
 	THREAD_IGNORE
 };
 
-struct lat_snapshot {
+struct work_atom {
 	struct list_head	list;
 	enum thread_state	state;
 	u64			wake_up_time;
@@ -880,7 +880,7 @@ struct lat_snapshot {
 	u64			runtime;
 };
 
-struct thread_latency {
+struct task_atoms {
 	struct list_head	snapshot_list;
 	struct thread		*thread;
 	struct rb_node		node;
@@ -888,35 +888,35 @@ struct thread_latency {
 
 static struct rb_root lat_snapshot_root;
 
-static struct thread_latency *
-thread_latency_search(struct rb_root *root, struct thread *thread)
+static struct task_atoms *
+thread_atom_list_search(struct rb_root *root, struct thread *thread)
 {
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		struct thread_latency *lat;
+		struct task_atoms *atoms;
 
-		lat = container_of(node, struct thread_latency, node);
-		if (thread->pid < lat->thread->pid)
+		atoms = container_of(node, struct task_atoms, node);
+		if (thread->pid < atoms->thread->pid)
 			node = node->rb_left;
-		else if (thread->pid > lat->thread->pid)
+		else if (thread->pid > atoms->thread->pid)
 			node = node->rb_right;
 		else {
-			return lat;
+			return atoms;
 		}
 	}
 	return NULL;
 }
 
 static void
-__thread_latency_insert(struct rb_root *root, struct thread_latency *data)
+__thread_latency_insert(struct rb_root *root, struct task_atoms *data)
 {
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 
 	while (*new) {
-		struct thread_latency *this;
+		struct task_atoms *this;
 
-		this = container_of(*new, struct thread_latency, node);
+		this = container_of(*new, struct task_atoms, node);
 		parent = *new;
 		if (data->thread->pid < this->thread->pid)
 			new = &((*new)->rb_left);
@@ -930,16 +930,16 @@ __thread_latency_insert(struct rb_root *root, struct thread_latency *data)
 	rb_insert_color(&data->node, root);
 }
 
-static void thread_latency_insert(struct thread *thread)
+static void thread_atom_list_insert(struct thread *thread)
 {
-	struct thread_latency *lat;
-	lat = calloc(sizeof(*lat), 1);
-	if (!lat)
+	struct task_atoms *atoms;
+	atoms = calloc(sizeof(*atoms), 1);
+	if (!atoms)
 		die("No memory");
 
-	lat->thread = thread;
-	INIT_LIST_HEAD(&lat->snapshot_list);
-	__thread_latency_insert(&lat_snapshot_root, lat);
+	atoms->thread = thread;
+	INIT_LIST_HEAD(&atoms->snapshot_list);
+	__thread_latency_insert(&lat_snapshot_root, atoms);
 }
 
 static void
@@ -961,28 +961,28 @@ static char sched_out_state(struct trace_switch_event *switch_event)
 }
 
 static void
-lat_sched_out(struct thread_latency *lat,
+lat_sched_out(struct task_atoms *atoms,
 	     struct trace_switch_event *switch_event __used, u64 delta)
 {
-	struct lat_snapshot *snapshot;
+	struct work_atom *snapshot;
 
 	snapshot = calloc(sizeof(*snapshot), 1);
 	if (!snapshot)
 		die("Non memory");
 
 	snapshot->runtime = delta;
-	list_add_tail(&snapshot->list, &lat->snapshot_list);
+	list_add_tail(&snapshot->list, &atoms->snapshot_list);
 }
 
 static void
-lat_sched_in(struct thread_latency *lat, u64 timestamp)
+lat_sched_in(struct task_atoms *atoms, u64 timestamp)
 {
-	struct lat_snapshot *snapshot;
+	struct work_atom *snapshot;
 
-	if (list_empty(&lat->snapshot_list))
+	if (list_empty(&atoms->snapshot_list))
 		return;
 
-	snapshot = list_entry(lat->snapshot_list.prev, struct lat_snapshot,
+	snapshot = list_entry(atoms->snapshot_list.prev, struct work_atom,
 			      list);
 
 	if (snapshot->state != THREAD_WAKED_UP)
@@ -1004,7 +1004,7 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		     u64 timestamp,
 		     struct thread *thread __used)
 {
-	struct thread_latency *out_lat, *in_lat;
+	struct task_atoms *out_atoms, *in_atoms;
 	struct thread *sched_out, *sched_in;
 	u64 timestamp0;
 	s64 delta;
@@ -1026,24 +1026,24 @@ latency_switch_event(struct trace_switch_event *switch_event,
 	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
 	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
 
-	in_lat = thread_latency_search(&lat_snapshot_root, sched_in);
-	if (!in_lat) {
-		thread_latency_insert(sched_in);
-		in_lat = thread_latency_search(&lat_snapshot_root, sched_in);
-		if (!in_lat)
+	in_atoms = thread_atom_list_search(&lat_snapshot_root, sched_in);
+	if (!in_atoms) {
+		thread_atom_list_insert(sched_in);
+		in_atoms = thread_atom_list_search(&lat_snapshot_root, sched_in);
+		if (!in_atoms)
 			die("Internal latency tree error");
 	}
 
-	out_lat = thread_latency_search(&lat_snapshot_root, sched_out);
-	if (!out_lat) {
-		thread_latency_insert(sched_out);
-		out_lat = thread_latency_search(&lat_snapshot_root, sched_out);
-		if (!out_lat)
+	out_atoms = thread_atom_list_search(&lat_snapshot_root, sched_out);
+	if (!out_atoms) {
+		thread_atom_list_insert(sched_out);
+		out_atoms = thread_atom_list_search(&lat_snapshot_root, sched_out);
+		if (!out_atoms)
 			die("Internal latency tree error");
 	}
 
-	lat_sched_in(in_lat, timestamp);
-	lat_sched_out(out_lat, switch_event, delta);
+	lat_sched_in(in_atoms, timestamp);
+	lat_sched_out(out_atoms, switch_event, delta);
 }
 
 static void
@@ -1053,8 +1053,8 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		     u64 timestamp,
 		     struct thread *thread __used)
 {
-	struct thread_latency *lat;
-	struct lat_snapshot *snapshot;
+	struct task_atoms *atoms;
+	struct work_atom *snapshot;
 	struct thread *wakee;
 
 	/* Note for later, it may be interesting to observe the failing cases */
@@ -1062,16 +1062,16 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		return;
 
 	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
-	lat = thread_latency_search(&lat_snapshot_root, wakee);
-	if (!lat) {
-		thread_latency_insert(wakee);
+	atoms = thread_atom_list_search(&lat_snapshot_root, wakee);
+	if (!atoms) {
+		thread_atom_list_insert(wakee);
 		return;
 	}
 
-	if (list_empty(&lat->snapshot_list))
+	if (list_empty(&atoms->snapshot_list))
 		return;
 
-	snapshot = list_entry(lat->snapshot_list.prev, struct lat_snapshot,
+	snapshot = list_entry(atoms->snapshot_list.prev, struct work_atom,
 			      list);
 
 	if (snapshot->state != THREAD_SLEEPING)
@@ -1090,9 +1090,9 @@ static struct trace_sched_handler lat_ops  = {
 static u64 all_runtime;
 static u64 all_count;
 
-static void output_lat_thread(struct thread_latency *lat)
+static void output_lat_thread(struct task_atoms *atom_list)
 {
-	struct lat_snapshot *shot;
+	struct work_atom *atom;
 	int count = 0;
 	int i;
 	int ret;
@@ -1100,15 +1100,15 @@ static void output_lat_thread(struct thread_latency *lat)
 	u64 total = 0, delta;
 	u64 total_runtime = 0;
 
-	list_for_each_entry(shot, &lat->snapshot_list, list) {
-		total_runtime += shot->runtime;
+	list_for_each_entry(atom, &atom_list->snapshot_list, list) {
+		total_runtime += atom->runtime;
 
-		if (shot->state != THREAD_SCHED_IN)
+		if (atom->state != THREAD_SCHED_IN)
 			continue;
 
 		count++;
 
-		delta = shot->sched_in_time - shot->wake_up_time;
+		delta = atom->sched_in_time - atom->wake_up_time;
 		if (delta > max)
 			max = delta;
 		total += delta;
@@ -1120,7 +1120,7 @@ static void output_lat_thread(struct thread_latency *lat)
 	if (!count)
 		return;
 
-	ret = printf(" %s ", lat->thread->comm);
+	ret = printf(" %s ", atom_list->thread->comm);
 
 	for (i = 0; i < 19 - ret; i++)
 		printf(" ");
@@ -1145,10 +1145,10 @@ static void __cmd_lat(void)
 	next = rb_first(&lat_snapshot_root);
 
 	while (next) {
-		struct thread_latency *lat;
+		struct task_atoms *atom_list;
 
-		lat = rb_entry(next, struct thread_latency, node);
-		output_lat_thread(lat);
+		atom_list = rb_entry(next, struct task_atoms, node);
+		output_lat_thread(atom_list);
 		next = rb_next(next);
 	}
 
