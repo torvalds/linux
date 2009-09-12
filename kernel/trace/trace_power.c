@@ -38,6 +38,7 @@ static void probe_power_end(struct power_trace *it)
 {
 	struct ftrace_event_call *call = &event_power;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct trace_power *entry;
 	struct trace_array_cpu *data;
 	struct trace_array *tr = power_trace;
@@ -45,18 +46,20 @@ static void probe_power_end(struct power_trace *it)
 	if (!trace_power_enabled)
 		return;
 
+	buffer = tr->buffer;
+
 	preempt_disable();
 	it->end = ktime_get();
 	data = tr->data[smp_processor_id()];
 
-	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
+	event = trace_buffer_lock_reserve(buffer, TRACE_POWER,
 					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->state_data = *it;
-	if (!filter_check_discard(call, entry, tr->buffer, event))
-		trace_buffer_unlock_commit(tr, event, 0, 0);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }
@@ -66,12 +69,15 @@ static void probe_power_mark(struct power_trace *it, unsigned int type,
 {
 	struct ftrace_event_call *call = &event_power;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct trace_power *entry;
 	struct trace_array_cpu *data;
 	struct trace_array *tr = power_trace;
 
 	if (!trace_power_enabled)
 		return;
+
+	buffer = tr->buffer;
 
 	memset(it, 0, sizeof(struct power_trace));
 	it->state = level;
@@ -81,14 +87,14 @@ static void probe_power_mark(struct power_trace *it, unsigned int type,
 	it->end = it->stamp;
 	data = tr->data[smp_processor_id()];
 
-	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
+	event = trace_buffer_lock_reserve(buffer, TRACE_POWER,
 					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->state_data = *it;
-	if (!filter_check_discard(call, entry, tr->buffer, event))
-		trace_buffer_unlock_commit(tr, event, 0, 0);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }
@@ -144,14 +150,12 @@ static void power_trace_reset(struct trace_array *tr)
 
 static int power_trace_init(struct trace_array *tr)
 {
-	int cpu;
 	power_trace = tr;
 
 	trace_power_enabled = 1;
 	tracing_power_register();
 
-	for_each_cpu(cpu, cpu_possible_mask)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 	return 0;
 }
 

@@ -206,24 +206,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What: libata spindown skipping and warning
-When: Dec 2008
-Why:  Some halt(8) implementations synchronize caches for and spin
-      down libata disks because libata didn't use to spin down disk on
-      system halt (only synchronized caches).
-      Spin down on system halt is now implemented.  sysfs node
-      /sys/class/scsi_disk/h:c:i:l/manage_start_stop is present if
-      spin down support is available.
-      Because issuing spin down command to an already spun down disk
-      makes some disks spin up just to spin down again, libata tracks
-      device spindown status to skip the extra spindown command and
-      warn about it.
-      This is to give userspace tools the time to get updated and will
-      be removed after userspace is reasonably updated.
-Who:  Tejun Heo <htejun@gmail.com>
-
----------------------------
-
 What:	i386/x86_64 bzImage symlinks
 When:	April 2010
 
@@ -394,15 +376,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 -----------------------------
 
-What:	obsolete generic irq defines and typedefs
-When:	2.6.30
-Why:	The defines and typedefs (hw_interrupt_type, no_irq_type, irq_desc_t)
-	have been kept around for migration reasons. After more than two years
-	it's time to remove them finally
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
----------------------------
-
 What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
 When:	2011
 Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
@@ -468,3 +441,27 @@ Why:	cpu_policy_rwsem has a new cleaner definition making it local to
 	cpufreq core and contained inside cpufreq.c. Other dependent
 	drivers should not use it in order to safely avoid lockdep issues.
 Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
+
+----------------------------
+
+What:	sound-slot/service-* module aliases and related clutters in
+	sound/sound_core.c
+When:	August 2010
+Why:	OSS sound_core grabs all legacy minors (0-255) of SOUND_MAJOR
+	(14) and requests modules using custom sound-slot/service-*
+	module aliases.  The only benefit of doing this is allowing
+	use of custom module aliases which might as well be considered
+	a bug at this point.  This preemptive claiming prevents
+	alternative OSS implementations.
+
+	Till the feature is removed, the kernel will be requesting
+	both sound-slot/service-* and the standard char-major-* module
+	aliases and allow turning off the pre-claiming selectively via
+	CONFIG_SOUND_OSS_CORE_PRECLAIM and soundcore.preclaim_oss
+	kernel parameter.
+
+	After the transition phase is complete, both the custom module
+	aliases and switches to disable it will go away.  This removal
+	will also allow making ALSA OSS emulation independent of
+	sound_core.  The dependency will be broken then too.
+Who:	Tejun Heo <tj@kernel.org>

@@ -14,17 +14,6 @@ extern struct list_head inode_in_use;
 extern struct list_head inode_unused;
 
 /*
- * Yes, writeback.h requires sched.h
- * No, sched.h is not included from here.
- */
-static inline int task_is_pdflush(struct task_struct *task)
-{
-	return task->flags & PF_FLUSHER;
-}
-
-#define current_is_pdflush()	task_is_pdflush(current)
-
-/*
  * fs/fs-writeback.c
  */
 enum writeback_sync_modes {
@@ -40,6 +29,8 @@ enum writeback_sync_modes {
 struct writeback_control {
 	struct backing_dev_info *bdi;	/* If !NULL, only write back this
 					   queue */
+	struct super_block *sb;		/* if !NULL, only write inodes from
+					   this super_block */
 	enum writeback_sync_modes sync_mode;
 	unsigned long *older_than_this;	/* If !NULL, only write back inodes
 					   older than this */
@@ -76,9 +67,13 @@ struct writeback_control {
 /*
  * fs/fs-writeback.c
  */	
-void writeback_inodes(struct writeback_control *wbc);
+struct bdi_writeback;
 int inode_wait(void *);
-void sync_inodes_sb(struct super_block *, int wait);
+long writeback_inodes_sb(struct super_block *);
+long sync_inodes_sb(struct super_block *);
+void writeback_inodes_wbc(struct writeback_control *wbc);
+long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+void wakeup_flusher_threads(long nr_pages);
 
 /* writeback.h requires fs.h; it, too, is not included from here. */
 static inline void wait_on_inode(struct inode *inode)
@@ -98,7 +93,6 @@ static inline void inode_sync_wait(struct inode *inode)
 /*
  * mm/page-writeback.c
  */
-int wakeup_pdflush(long nr_pages);
 void laptop_io_completion(void);
 void laptop_sync_completion(void);
 void throttle_vm_writeout(gfp_t gfp_mask);
@@ -150,7 +144,6 @@ balance_dirty_pages_ratelimited(struct address_space *mapping)
 typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
 				void *data);
 
-int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
 int generic_writepages(struct address_space *mapping,
 		       struct writeback_control *wbc);
 int write_cache_pages(struct address_space *mapping,

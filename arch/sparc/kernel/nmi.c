@@ -113,7 +113,7 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	}
 	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
 		local_inc(&__get_cpu_var(alert_counter));
-		if (local_read(&__get_cpu_var(alert_counter)) == 5 * nmi_hz)
+		if (local_read(&__get_cpu_var(alert_counter)) == 30 * nmi_hz)
 			die_nmi("BUG: NMI Watchdog detected LOCKUP",
 				regs, panic_on_timeout);
 	} else {

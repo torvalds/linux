@@ -1119,10 +1119,6 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		blk_queue_dma_drain(q, atapi_drain_needed, buf, ATAPI_MAX_DRAIN);
 	} else {
-		if (ata_id_is_ssd(dev->id))
-			queue_flag_set_unlocked(QUEUE_FLAG_NONROT,
-						sdev->request_queue);
-
 		/* ATA devices must be sector aligned */
 		blk_queue_update_dma_alignment(sdev->request_queue,
 					       ATA_SECT_SIZE - 1);
@@ -1257,23 +1253,6 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 	return queue_depth;
 }
 
-/* XXX: for spindown warning */
-static void ata_delayed_done_timerfn(unsigned long arg)
-{
-	struct scsi_cmnd *scmd = (void *)arg;
-
-	scmd->scsi_done(scmd);
-}
-
-/* XXX: for spindown warning */
-static void ata_delayed_done(struct scsi_cmnd *scmd)
-{
-	static struct timer_list timer;
-
-	setup_timer(&timer, ata_delayed_done_timerfn, (unsigned long)scmd);
-	mod_timer(&timer, jiffies + 5 * HZ);
-}
-
 /**
  *	ata_scsi_start_stop_xlat - Translate SCSI START STOP UNIT command
  *	@qc: Storage for translated ATA taskfile
@@ -1337,32 +1316,6 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		if ((qc->ap->flags & ATA_FLAG_NO_HIBERNATE_SPINDOWN) &&
 		     system_entering_hibernation())
 			goto skip;
-
-		/* XXX: This is for backward compatibility, will be
-		 * removed.  Read Documentation/feature-removal-schedule.txt
-		 * for more info.
-		 */
-		if ((qc->dev->flags & ATA_DFLAG_SPUNDOWN) &&
-		    (system_state == SYSTEM_HALT ||
-		     system_state == SYSTEM_POWER_OFF)) {
-			static unsigned long warned;
-
-			if (!test_and_set_bit(0, &warned)) {
-				ata_dev_printk(qc->dev, KERN_WARNING,
-					"DISK MIGHT NOT BE SPUN DOWN PROPERLY. "
-					"UPDATE SHUTDOWN UTILITY\n");
-				ata_dev_printk(qc->dev, KERN_WARNING,
-					"For more info, visit "
-					"http://linux-ata.org/shutdown.html\n");
-
-				/* ->scsi_done is not used, use it for
-				 * delayed completion.
-				 */
-				scmd->scsi_done = qc->scsidone;
-				qc->scsidone = ata_delayed_done;
-			}
-			goto skip;
-		}
 
 		/* Issue ATA STANDBY IMMEDIATE command */
 		tf->command = ATA_CMD_STANDBYNOW1;
@@ -1763,14 +1716,6 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 			ata_gen_ata_sense(qc);
 		}
 	}
-
-	/* XXX: track spindown state for spindown skipping and warning */
-	if (unlikely(qc->tf.command == ATA_CMD_STANDBY ||
-		     qc->tf.command == ATA_CMD_STANDBYNOW1))
-		qc->dev->flags |= ATA_DFLAG_SPUNDOWN;
-	else if (likely(system_state != SYSTEM_HALT &&
-			system_state != SYSTEM_POWER_OFF))
-		qc->dev->flags &= ~ATA_DFLAG_SPUNDOWN;
 
 	if (need_sense && !ap->ops->error_handler)
 		ata_dump_status(ap->print_id, &qc->result_tf);
@@ -2815,28 +2760,6 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		goto invalid_fld;
 
 	/*
-	 * Filter TPM commands by default. These provide an
-	 * essentially uncontrolled encrypted "back door" between
-	 * applications and the disk. Set libata.allow_tpm=1 if you
-	 * have a real reason for wanting to use them. This ensures
-	 * that installed software cannot easily mess stuff up without
-	 * user intent. DVR type users will probably ship with this enabled
-	 * for movie content management.
-	 *
-	 * Note that for ATA8 we can issue a DCS change and DCS freeze lock
-	 * for this and should do in future but that it is not sufficient as
-	 * DCS is an optional feature set. Thus we also do the software filter
-	 * so that we comply with the TC consortium stated goal that the user
-	 * can turn off TC features of their system.
-	 */
-	if (tf->command >= 0x5C && tf->command <= 0x5F && !libata_allow_tpm)
-		goto invalid_fld;
-
-	/* We may not issue DMA commands if no DMA mode is set */
-	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0)
-		goto invalid_fld;
-
-	/*
 	 * 12 and 16 byte CDBs use different offsets to
 	 * provide the various register values.
 	 */
@@ -2885,6 +2808,41 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	tf->device = dev->devno ?
 		tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
 
+	/* READ/WRITE LONG use a non-standard sect_size */
+	qc->sect_size = ATA_SECT_SIZE;
+	switch (tf->command) {
+	case ATA_CMD_READ_LONG:
+	case ATA_CMD_READ_LONG_ONCE:
+	case ATA_CMD_WRITE_LONG:
+	case ATA_CMD_WRITE_LONG_ONCE:
+		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1)
+			goto invalid_fld;
+		qc->sect_size = scsi_bufflen(scmd);
+	}
+
+	/*
+	 * Set flags so that all registers will be written, pass on
+	 * write indication (used for PIO/DMA setup), result TF is
+	 * copied back and we don't whine too much about its failure.
+	 */
+	tf->flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	if (scmd->sc_data_direction == DMA_TO_DEVICE)
+		tf->flags |= ATA_TFLAG_WRITE;
+
+	qc->flags |= ATA_QCFLAG_RESULT_TF | ATA_QCFLAG_QUIET;
+
+	/*
+	 * Set transfer length.
+	 *
+	 * TODO: find out if we need to do more here to
+	 *       cover scatter/gather case.
+	 */
+	ata_qc_set_pc_nbytes(qc);
+
+	/* We may not issue DMA commands if no DMA mode is set */
+	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0)
+		goto invalid_fld;
+
 	/* sanity check for pio multi commands */
 	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf))
 		goto invalid_fld;
@@ -2901,18 +2859,6 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 				       multi_count);
 	}
 
-	/* READ/WRITE LONG use a non-standard sect_size */
-	qc->sect_size = ATA_SECT_SIZE;
-	switch (tf->command) {
-	case ATA_CMD_READ_LONG:
-	case ATA_CMD_READ_LONG_ONCE:
-	case ATA_CMD_WRITE_LONG:
-	case ATA_CMD_WRITE_LONG_ONCE:
-		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1)
-			goto invalid_fld;
-		qc->sect_size = scsi_bufflen(scmd);
-	}
-
 	/*
 	 * Filter SET_FEATURES - XFER MODE command -- otherwise,
 	 * SET_FEATURES - XFER MODE must be preceded/succeeded
@@ -2920,30 +2866,27 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * controller (i.e. the reason for ->set_piomode(),
 	 * ->set_dmamode(), and ->post_set_mode() hooks).
 	 */
-	if ((tf->command == ATA_CMD_SET_FEATURES)
-	 && (tf->feature == SETFEATURES_XFER))
+	if (tf->command == ATA_CMD_SET_FEATURES &&
+	    tf->feature == SETFEATURES_XFER)
 		goto invalid_fld;
 
 	/*
-	 * Set flags so that all registers will be written,
-	 * and pass on write indication (used for PIO/DMA
-	 * setup.)
-	 */
-	tf->flags |= (ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE);
-
-	if (scmd->sc_data_direction == DMA_TO_DEVICE)
-		tf->flags |= ATA_TFLAG_WRITE;
-
-	/*
-	 * Set transfer length.
+	 * Filter TPM commands by default. These provide an
+	 * essentially uncontrolled encrypted "back door" between
+	 * applications and the disk. Set libata.allow_tpm=1 if you
+	 * have a real reason for wanting to use them. This ensures
+	 * that installed software cannot easily mess stuff up without
+	 * user intent. DVR type users will probably ship with this enabled
+	 * for movie content management.
 	 *
-	 * TODO: find out if we need to do more here to
-	 *       cover scatter/gather case.
+	 * Note that for ATA8 we can issue a DCS change and DCS freeze lock
+	 * for this and should do in future but that it is not sufficient as
+	 * DCS is an optional feature set. Thus we also do the software filter
+	 * so that we comply with the TC consortium stated goal that the user
+	 * can turn off TC features of their system.
 	 */
-	ata_qc_set_pc_nbytes(qc);
-
-	/* request result TF and be quiet about device error */
-	qc->flags |= ATA_QCFLAG_RESULT_TF | ATA_QCFLAG_QUIET;
+	if (tf->command >= 0x5C && tf->command <= 0x5F && !libata_allow_tpm)
+		goto invalid_fld;
 
 	return 0;
 

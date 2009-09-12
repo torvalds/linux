@@ -21,6 +21,7 @@ struct log_c {
 	struct dm_target *ti;
 	uint32_t region_size;
 	region_t region_count;
+	uint64_t luid;
 	char uuid[DM_UUID_LEN];
 
 	char *usr_argv_str;
@@ -63,7 +64,7 @@ static int userspace_do_request(struct log_c *lc, const char *uuid,
 	 * restored.
 	 */
 retry:
-	r = dm_consult_userspace(uuid, request_type, data,
+	r = dm_consult_userspace(uuid, lc->luid, request_type, data,
 				 data_size, rdata, rdata_size);
 
 	if (r != -ESRCH)
@@ -74,14 +75,15 @@ retry:
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(2*HZ);
 		DMWARN("Attempting to contact userspace log server...");
-		r = dm_consult_userspace(uuid, DM_ULOG_CTR, lc->usr_argv_str,
+		r = dm_consult_userspace(uuid, lc->luid, DM_ULOG_CTR,
+					 lc->usr_argv_str,
 					 strlen(lc->usr_argv_str) + 1,
 					 NULL, NULL);
 		if (!r)
 			break;
 	}
 	DMINFO("Reconnected to userspace log server... DM_ULOG_CTR complete");
-	r = dm_consult_userspace(uuid, DM_ULOG_RESUME, NULL,
+	r = dm_consult_userspace(uuid, lc->luid, DM_ULOG_RESUME, NULL,
 				 0, NULL, NULL);
 	if (!r)
 		goto retry;
@@ -111,10 +113,9 @@ static int build_constructor_string(struct dm_target *ti,
 		return -ENOMEM;
 	}
 
-	for (i = 0, str_size = 0; i < argc; i++)
-		str_size += sprintf(str + str_size, "%s ", argv[i]);
-	str_size += sprintf(str + str_size, "%llu",
-			    (unsigned long long)ti->len);
+	str_size = sprintf(str, "%llu", (unsigned long long)ti->len);
+	for (i = 0; i < argc; i++)
+		str_size += sprintf(str + str_size, " %s", argv[i]);
 
 	*ctr_str = str;
 	return str_size;
@@ -154,6 +155,9 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		return -ENOMEM;
 	}
 
+	/* The ptr value is sufficient for local unique id */
+	lc->luid = (uint64_t)lc;
+
 	lc->ti = ti;
 
 	if (strlen(argv[0]) > (DM_UUID_LEN - 1)) {
@@ -173,7 +177,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 	}
 
 	/* Send table string */
-	r = dm_consult_userspace(lc->uuid, DM_ULOG_CTR,
+	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_CTR,
 				 ctr_str, str_size, NULL, NULL);
 
 	if (r == -ESRCH) {
@@ -183,7 +187,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 
 	/* Since the region size does not change, get it now */
 	rdata_size = sizeof(rdata);
-	r = dm_consult_userspace(lc->uuid, DM_ULOG_GET_REGION_SIZE,
+	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_GET_REGION_SIZE,
 				 NULL, 0, (char *)&rdata, &rdata_size);
 
 	if (r) {
@@ -212,7 +216,7 @@ static void userspace_dtr(struct dm_dirty_log *log)
 	int r;
 	struct log_c *lc = log->context;
 
-	r = dm_consult_userspace(lc->uuid, DM_ULOG_DTR,
+	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_DTR,
 				 NULL, 0,
 				 NULL, NULL);
 
@@ -227,7 +231,7 @@ static int userspace_presuspend(struct dm_dirty_log *log)
 	int r;
 	struct log_c *lc = log->context;
 
-	r = dm_consult_userspace(lc->uuid, DM_ULOG_PRESUSPEND,
+	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_PRESUSPEND,
 				 NULL, 0,
 				 NULL, NULL);
 
@@ -239,7 +243,7 @@ static int userspace_postsuspend(struct dm_dirty_log *log)
 	int r;
 	struct log_c *lc = log->context;
 
-	r = dm_consult_userspace(lc->uuid, DM_ULOG_POSTSUSPEND,
+	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_POSTSUSPEND,
 				 NULL, 0,
 				 NULL, NULL);
 
@@ -252,7 +256,7 @@ static int userspace_resume(struct dm_dirty_log *log)
 	struct log_c *lc = log->context;
 
 	lc->in_sync_hint = 0;
-	r = dm_consult_userspace(lc->uuid, DM_ULOG_RESUME,
+	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_RESUME,
 				 NULL, 0,
 				 NULL, NULL);
 
@@ -561,6 +565,7 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 			    char *result, unsigned maxlen)
 {
 	int r = 0;
+	char *table_args;
 	size_t sz = (size_t)maxlen;
 	struct log_c *lc = log->context;
 
@@ -577,8 +582,12 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 		break;
 	case STATUSTYPE_TABLE:
 		sz = 0;
-		DMEMIT("%s %u %s %s", log->type->name, lc->usr_argc + 1,
-		       lc->uuid, lc->usr_argv_str);
+		table_args = strchr(lc->usr_argv_str, ' ');
+		BUG_ON(!table_args); /* There will always be a ' ' */
+		table_args++;
+
+		DMEMIT("%s %u %s %s ", log->type->name, lc->usr_argc,
+		       lc->uuid, table_args);
 		break;
 	}
 	return (r) ? 0 : (int)sz;

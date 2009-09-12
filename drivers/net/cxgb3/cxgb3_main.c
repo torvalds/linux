@@ -1286,6 +1286,7 @@ static int cxgb_open(struct net_device *dev)
 	if (!other_ports)
 		schedule_chk_task(adapter);
 
+	cxgb3_event_notify(&adapter->tdev, OFFLOAD_PORT_UP, pi->port_id);
 	return 0;
 }
 
@@ -1318,6 +1319,7 @@ static int cxgb_close(struct net_device *dev)
 	if (!adapter->open_device_map)
 		cxgb_down(adapter);
 
+	cxgb3_event_notify(&adapter->tdev, OFFLOAD_PORT_DOWN, pi->port_id);
 	return 0;
 }
 
@@ -2717,7 +2719,7 @@ static int t3_adapter_error(struct adapter *adapter, int reset)
 
 	if (is_offload(adapter) &&
 	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map)) {
-		cxgb3_err_notify(&adapter->tdev, OFFLOAD_STATUS_DOWN, 0);
+		cxgb3_event_notify(&adapter->tdev, OFFLOAD_STATUS_DOWN, 0);
 		offload_close(&adapter->tdev);
 	}
 
@@ -2782,7 +2784,7 @@ static void t3_resume_ports(struct adapter *adapter)
 	}
 
 	if (is_offload(adapter) && !ofld_disable)
-		cxgb3_err_notify(&adapter->tdev, OFFLOAD_STATUS_UP, 0);
+		cxgb3_event_notify(&adapter->tdev, OFFLOAD_STATUS_UP, 0);
 }
 
 /*

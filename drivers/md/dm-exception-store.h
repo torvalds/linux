@@ -168,6 +168,10 @@ static inline chunk_t sector_to_chunk(struct dm_exception_store *store,
 int dm_exception_store_type_register(struct dm_exception_store_type *type);
 int dm_exception_store_type_unregister(struct dm_exception_store_type *type);
 
+int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
+				      unsigned long chunk_size_ulong,
+				      char **error);
+
 int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 			      unsigned *args_used,
 			      struct dm_exception_store **store);

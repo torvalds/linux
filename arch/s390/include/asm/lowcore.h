@@ -132,7 +132,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/cpuid.h>
+#include <asm/cpu.h>
 #include <asm/ptrace.h>
 #include <linux/types.h>
 
@@ -275,7 +275,7 @@ struct _lowcore
 	__u32	user_exec_asce;			/* 0x02ac */
 
 	/* SMP info area */
-	cpuid_t	cpu_id;				/* 0x02b0 */
+	struct cpuid cpu_id;			/* 0x02b0 */
 	__u32	cpu_nr;				/* 0x02b8 */
 	__u32	softirq_pending;		/* 0x02bc */
 	__u32	percpu_offset;			/* 0x02c0 */
@@ -380,7 +380,7 @@ struct _lowcore
 	__u64	user_exec_asce;			/* 0x0318 */
 
 	/* SMP info area */
-	cpuid_t	cpu_id;				/* 0x0320 */
+	struct cpuid cpu_id;			/* 0x0320 */
 	__u32	cpu_nr;				/* 0x0328 */
 	__u32	softirq_pending;		/* 0x032c */
 	__u64	percpu_offset;			/* 0x0330 */

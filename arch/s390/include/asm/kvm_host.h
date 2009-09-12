@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <asm/debug.h>
-#include <asm/cpuid.h>
+#include <asm/cpu.h>
 
 #define KVM_MAX_VCPUS 64
 #define KVM_MEMORY_SLOTS 32
@@ -217,8 +217,8 @@ struct kvm_vcpu_arch {
 	struct hrtimer    ckc_timer;
 	struct tasklet_struct tasklet;
 	union  {
-		cpuid_t	  cpu_id;
-		u64	  stidp_data;
+		struct cpuid	cpu_id;
+		u64		stidp_data;
 	};
 };
 

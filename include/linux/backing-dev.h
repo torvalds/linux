@@ -13,6 +13,8 @@
 #include <linux/proportions.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/writeback.h>
 #include <asm/atomic.h>
 
 struct page;
@@ -23,9 +25,11 @@ struct dentry;
  * Bits in backing_dev_info.state
  */
 enum bdi_state {
-	BDI_pdflush,		/* A pdflush thread is working this device */
+	BDI_pending,		/* On its way to being activated */
+	BDI_wb_alloc,		/* Default embedded wb allocated */
 	BDI_async_congested,	/* The async (write) queue is getting full */
 	BDI_sync_congested,	/* The sync queue is getting full */
+	BDI_registered,		/* bdi_register() was done */
 	BDI_unused,		/* Available bits start here */
 };
 
@@ -39,7 +43,22 @@ enum bdi_stat_item {
 
 #define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
+struct bdi_writeback {
+	struct list_head list;			/* hangs off the bdi */
+
+	struct backing_dev_info *bdi;		/* our parent bdi */
+	unsigned int nr;
+
+	unsigned long last_old_flush;		/* last old data flush */
+
+	struct task_struct	*task;		/* writeback task */
+	struct list_head	b_dirty;	/* dirty inodes */
+	struct list_head	b_io;		/* parked for writeback */
+	struct list_head	b_more_io;	/* parked for more writeback */
+};
+
 struct backing_dev_info {
+	struct list_head bdi_list;
 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
 	unsigned long state;	/* Always use atomic bitops on this */
 	unsigned int capabilities; /* Device capabilities */
@@ -48,6 +67,8 @@ struct backing_dev_info {
 	void (*unplug_io_fn)(struct backing_dev_info *, struct page *);
 	void *unplug_io_data;
 
+	char *name;
+
 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
 
 	struct prop_local_percpu completions;
@@ -55,6 +76,14 @@ struct backing_dev_info {
 
 	unsigned int min_ratio;
 	unsigned int max_ratio, max_prop_frac;
+
+	struct bdi_writeback wb;  /* default writeback info for this bdi */
+	spinlock_t wb_lock;	  /* protects update side of wb_list */
+	struct list_head wb_list; /* the flusher threads hanging off this bdi */
+	unsigned long wb_mask;	  /* bitmask of registered tasks */
+	unsigned int wb_cnt;	  /* number of registered tasks */
+
+	struct list_head work_list;
 
 	struct device *dev;
 
@@ -71,6 +100,19 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...);
 int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
 void bdi_unregister(struct backing_dev_info *bdi);
+void bdi_start_writeback(struct writeback_control *wbc);
+int bdi_writeback_task(struct bdi_writeback *wb);
+int bdi_has_dirty_io(struct backing_dev_info *bdi);
+
+extern spinlock_t bdi_lock;
+extern struct list_head bdi_list;
+
+static inline int wb_has_dirty_io(struct bdi_writeback *wb)
+{
+	return !list_empty(&wb->b_dirty) ||
+	       !list_empty(&wb->b_io) ||
+	       !list_empty(&wb->b_more_io);
+}
 
 static inline void __add_bdi_stat(struct backing_dev_info *bdi,
 		enum bdi_stat_item item, s64 amount)
@@ -261,6 +303,11 @@ static inline bool bdi_cap_swap_backed(struct backing_dev_info *bdi)
 	return bdi->capabilities & BDI_CAP_SWAP_BACKED;
 }
 
+static inline bool bdi_cap_flush_forker(struct backing_dev_info *bdi)
+{
+	return bdi == &default_backing_dev_info;
+}
+
 static inline bool mapping_cap_writeback_dirty(struct address_space *mapping)
 {
 	return bdi_cap_writeback_dirty(mapping->backing_dev_info);
@@ -274,6 +321,12 @@ static inline bool mapping_cap_account_dirty(struct address_space *mapping)
 static inline bool mapping_cap_swap_backed(struct address_space *mapping)
 {
 	return bdi_cap_swap_backed(mapping->backing_dev_info);
+}
+
+static inline int bdi_sched_wait(void *word)
+{
+	schedule();
+	return 0;
 }
 
 #endif		/* _LINUX_BACKING_DEV_H */

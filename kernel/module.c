@@ -55,6 +55,11 @@
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/module.h>
+
+EXPORT_TRACEPOINT_SYMBOL(module_get);
+
 #if 0
 #define DEBUGP printk
 #else
@@ -942,6 +947,8 @@ void module_put(struct module *module)
 	if (module) {
 		unsigned int cpu = get_cpu();
 		local_dec(__module_ref_addr(module, cpu));
+		trace_module_put(module, _RET_IP_,
+				 local_read(__module_ref_addr(module, cpu)));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1497,6 +1504,8 @@ static int __unlink_module(void *_mod)
 /* Free a module, remove from lists, etc (must hold module_mutex). */
 static void free_module(struct module *mod)
 {
+	trace_module_free(mod);
+
 	/* Delete from various lists */
 	stop_machine(__unlink_module, mod, NULL);
 	remove_notes_attrs(mod);
@@ -2363,6 +2372,8 @@ static noinline struct module *load_module(void __user *umod,
 
 	/* Get rid of temporary copy */
 	vfree(hdr);
+
+	trace_module_load(mod);
 
 	/* Done! */
 	return mod;

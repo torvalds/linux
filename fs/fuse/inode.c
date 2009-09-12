@@ -801,6 +801,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 {
 	int err;
 
+	fc->bdi.name = "fuse";
 	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	fc->bdi.unplug_io_fn = default_unplug_io_fn;
 	/* fuse does it's own writeback accounting */

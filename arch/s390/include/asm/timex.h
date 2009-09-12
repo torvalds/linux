@@ -90,4 +90,18 @@ unsigned long long monotonic_clock(void);
 
 extern u64 sched_clock_base_cc;
 
+/**
+ * get_clock_monotonic - returns current time in clock rate units
+ *
+ * The caller must ensure that preemption is disabled.
+ * The clock and sched_clock_base get changed via stop_machine.
+ * Therefore preemption must be disabled when calling this
+ * function, otherwise the returned value is not guaranteed to
+ * be monotonic.
+ */
+static inline unsigned long long get_clock_monotonic(void)
+{
+	return get_clock_xt() - sched_clock_base_cc;
+}
+
 #endif

@@ -264,9 +264,13 @@ aoeblk_gdalloc(void *vp)
 		goto err_disk;
 	}
 
-	blk_queue_make_request(&d->blkq, aoeblk_make_request);
-	if (bdi_init(&d->blkq.backing_dev_info))
+	d->blkq = blk_alloc_queue(GFP_KERNEL);
+	if (!d->blkq)
 		goto err_mempool;
+	blk_queue_make_request(d->blkq, aoeblk_make_request);
+	d->blkq->backing_dev_info.name = "aoe";
+	if (bdi_init(&d->blkq->backing_dev_info))
+		goto err_blkq;
 	spin_lock_irqsave(&d->lock, flags);
 	gd->major = AOE_MAJOR;
 	gd->first_minor = d->sysminor * AOE_PARTITIONS;
@@ -276,7 +280,7 @@ aoeblk_gdalloc(void *vp)
 	snprintf(gd->disk_name, sizeof gd->disk_name, "etherd/e%ld.%d",
 		d->aoemajor, d->aoeminor);
 
-	gd->queue = &d->blkq;
+	gd->queue = d->blkq;
 	d->gd = gd;
 	d->flags &= ~DEVFL_GDALLOC;
 	d->flags |= DEVFL_UP;
@@ -287,6 +291,9 @@ aoeblk_gdalloc(void *vp)
 	aoedisk_add_sysfs(d);
 	return;
 
+err_blkq:
+	blk_cleanup_queue(d->blkq);
+	d->blkq = NULL;
 err_mempool:
 	mempool_destroy(d->bufpool);
 err_disk:

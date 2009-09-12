@@ -1339,8 +1339,7 @@ static int get_mux_nids(struct hda_codec *codec)
 	for (i = 0; i < spec->num_adc_nids; i++) {
 		nid = spec->adc_nids[i];
 		while (nid) {
-			type = (get_wcaps(codec, nid) & AC_WCAP_TYPE)
-				>> AC_WCAP_TYPE_SHIFT;
+			type = get_wcaps_type(get_wcaps(codec, nid));
 			if (type == AC_WID_PIN)
 				break;
 			n = snd_hda_get_connections(codec, nid, conn,

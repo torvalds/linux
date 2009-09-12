@@ -1127,6 +1127,11 @@ int omap_dma_running(void)
 void omap_dma_link_lch(int lch_head, int lch_queue)
 {
 	if (omap_dma_in_1510_mode()) {
+		if (lch_head == lch_queue) {
+			dma_write(dma_read(CCR(lch_head)) | (3 << 8),
+								CCR(lch_head));
+			return;
+		}
 		printk(KERN_ERR "DMA linking is not supported in 1510 mode\n");
 		BUG();
 		return;
@@ -1149,6 +1154,11 @@ EXPORT_SYMBOL(omap_dma_link_lch);
 void omap_dma_unlink_lch(int lch_head, int lch_queue)
 {
 	if (omap_dma_in_1510_mode()) {
+		if (lch_head == lch_queue) {
+			dma_write(dma_read(CCR(lch_head)) & ~(3 << 8),
+								CCR(lch_head));
+			return;
+		}
 		printk(KERN_ERR "DMA linking is not supported in 1510 mode\n");
 		BUG();
 		return;

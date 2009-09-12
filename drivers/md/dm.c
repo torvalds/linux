@@ -738,16 +738,22 @@ static void rq_completed(struct mapped_device *md, int run_queue)
 	dm_put(md);
 }
 
+static void free_rq_clone(struct request *clone)
+{
+	struct dm_rq_target_io *tio = clone->end_io_data;
+
+	blk_rq_unprep_clone(clone);
+	free_rq_tio(tio);
+}
+
 static void dm_unprep_request(struct request *rq)
 {
 	struct request *clone = rq->special;
-	struct dm_rq_target_io *tio = clone->end_io_data;
 
 	rq->special = NULL;
 	rq->cmd_flags &= ~REQ_DONTPREP;
 
-	blk_rq_unprep_clone(clone);
-	free_rq_tio(tio);
+	free_rq_clone(clone);
 }
 
 /*
@@ -825,8 +831,7 @@ static void dm_end_request(struct request *clone, int error)
 			rq->sense_len = clone->sense_len;
 	}
 
-	BUG_ON(clone->bio);
-	free_rq_tio(tio);
+	free_rq_clone(clone);
 
 	blk_end_request_all(rq, error);
 
