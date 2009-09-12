@@ -1621,6 +1621,9 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv)
  *
  *  Sources: IBM ThinkPad Public Web Documents (update changelogs),
  *  Information from users in ThinkWiki
+ *
+ *  WARNING: we use this table also to detect that the machine is
+ *  a ThinkPad in some cases, so don't remove entries lightly.
  */
 
 #define TPV_Q(__v, __id1, __id2, __bv1, __bv2)		\
@@ -1780,6 +1783,12 @@ static void __init tpacpi_check_outdated_fw(void)
 			"WARNING: This firmware may be missing critical bug "
 			"fixes and/or important features\n");
 	}
+}
+
+static bool __init tpacpi_is_fw_known(void)
+{
+	return tpacpi_check_quirks(tpacpi_bios_version_qtable,
+			ARRAY_SIZE(tpacpi_bios_version_qtable)) != 0;
 }
 
 /****************************************************************************
@@ -7706,9 +7715,11 @@ static int __init probe_for_thinkpad(void)
 
 	/*
 	 * Non-ancient models have better DMI tagging, but very old models
-	 * don't.
+	 * don't.  tpacpi_is_fw_known() is a cheat to help in that case.
 	 */
-	is_thinkpad = (thinkpad_id.model_str != NULL);
+	is_thinkpad = (thinkpad_id.model_str != NULL) ||
+		      (thinkpad_id.ec_model != 0) ||
+		      tpacpi_is_fw_known();
 
 	/* ec is required because many other handles are relative to it */
 	TPACPI_ACPIHANDLE_INIT(ec);
@@ -7718,13 +7729,6 @@ static int __init probe_for_thinkpad(void)
 				"Not yet supported ThinkPad detected!\n");
 		return -ENODEV;
 	}
-
-	/*
-	 * Risks a regression on very old machines, but reduces potential
-	 * false positives a damn great deal
-	 */
-	if (!is_thinkpad)
-		is_thinkpad = (thinkpad_id.vendor == PCI_VENDOR_ID_IBM);
 
 	if (!is_thinkpad && !force_load)
 		return -ENODEV;
