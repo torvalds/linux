@@ -3062,19 +3062,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			goto err_exit;
 	}
 
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-	if (tp_features.hotkey_mask) {
-		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
-					& ~hotkey_all_mask;
-	} else {
-		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK;
-	}
-
-	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-		    "hotkey source mask 0x%08x, polling freq %u\n",
-		    hotkey_source_mask, hotkey_poll_freq);
-#endif
-
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_wlswemul) {
 		tp_features.hotkey_wlsw = 1;
@@ -3185,6 +3172,21 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
 			| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
 	}
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	if (tp_features.hotkey_mask) {
+		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
+					& ~hotkey_all_mask
+					& ~hotkey_reserved_mask;
+	} else {
+		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
+					& ~hotkey_reserved_mask;
+	}
+
+	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
+		    "hotkey source mask 0x%08x, polling freq %u\n",
+		    hotkey_source_mask, hotkey_poll_freq);
+#endif
 
 	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			"enabling firmware HKEY event interface...\n");
