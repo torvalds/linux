@@ -157,8 +157,10 @@ check_critical_timing(struct trace_array *tr,
 
 	data->critical_end = parent_ip;
 
-	tracing_max_latency = delta;
-	update_max_tr_single(tr, current, cpu);
+	if (likely(!is_tracing_stopped())) {
+		tracing_max_latency = delta;
+		update_max_tr_single(tr, current, cpu);
+	}
 
 	max_sequence++;
 

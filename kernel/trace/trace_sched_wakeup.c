@@ -162,8 +162,10 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	if (!report_latency(delta))
 		goto out_unlock;
 
-	tracing_max_latency = delta;
-	update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
+	if (likely(!is_tracing_stopped())) {
+		tracing_max_latency = delta;
+		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
+	}
 
 out_unlock:
 	__wakeup_reset(wakeup_trace);

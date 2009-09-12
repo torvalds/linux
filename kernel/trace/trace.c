@@ -825,6 +825,11 @@ static void trace_init_cmdlines(void)
 	cmdline_idx = 0;
 }
 
+int is_tracing_stopped(void)
+{
+	return trace_stop_count;
+}
+
 /**
  * ftrace_off_permanent - disable all ftrace code permanently
  *
