@@ -1776,6 +1776,29 @@ static unsigned long long read_size(void *ptr, int size)
 	}
 }
 
+unsigned long long
+raw_field_value(struct event *event, const char *name, void *data)
+{
+	struct format_field *field;
+
+	field = find_any_field(event, name);
+	if (!field)
+		return 0ULL;
+
+	return read_size(data + field->offset, field->size);
+}
+
+void *raw_field_ptr(struct event *event, const char *name, void *data)
+{
+	struct format_field *field;
+
+	field = find_any_field(event, name);
+	if (!field)
+		return NULL;
+
+	return data + field->offset;
+}
+
 static int get_common_info(const char *type, int *offset, int *size)
 {
 	struct event *event;
