@@ -47,13 +47,13 @@ struct rndis_device {
 	atomic_t NewRequestId;
 
 	spinlock_t request_lock;
-	LIST_ENTRY RequestList;
+	struct list_head RequestList;
 
 	unsigned char HwMacAddr[HW_MACADDR_LEN];
 };
 
 struct rndis_request {
-	LIST_ENTRY ListEntry;
+	struct list_head ListEntry;
 	struct osd_waitevent *WaitEvent;
 
 	/*
@@ -110,7 +110,7 @@ static struct rndis_device *GetRndisDevice(void)
 
 	spin_lock_init(&device->request_lock);
 
-	INITIALIZE_LIST_HEAD(&device->RequestList);
+	INIT_LIST_HEAD(&device->RequestList);
 
 	device->State = RNDIS_DEV_UNINITIALIZED;
 
@@ -150,7 +150,7 @@ static struct rndis_request *GetRndisRequest(struct rndis_device *Device,
 
 	/* Add to the request list */
 	spin_lock_irqsave(&Device->request_lock, flags);
-	INSERT_TAIL_LIST(&Device->RequestList, &request->ListEntry);
+	list_add_tail(&request->ListEntry, &Device->RequestList);
 	spin_unlock_irqrestore(&Device->request_lock, flags);
 
 	return request;
@@ -162,7 +162,7 @@ static void PutRndisRequest(struct rndis_device *Device,
 	unsigned long flags;
 
 	spin_lock_irqsave(&Device->request_lock, flags);
-	REMOVE_ENTRY_LIST(&Request->ListEntry);
+	list_del(&Request->ListEntry);
 	spin_unlock_irqrestore(&Device->request_lock, flags);
 
 	kfree(Request->WaitEvent);
@@ -273,8 +273,6 @@ static int RndisFilterSendRequest(struct rndis_device *Device,
 static void RndisFilterReceiveResponse(struct rndis_device *Device,
 				       struct rndis_message *Response)
 {
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
 	struct rndis_request *request = NULL;
 	bool found = false;
 	unsigned long flags;
@@ -282,10 +280,7 @@ static void RndisFilterReceiveResponse(struct rndis_device *Device,
 	DPRINT_ENTER(NETVSC);
 
 	spin_lock_irqsave(&Device->request_lock, flags);
-	ITERATE_LIST_ENTRIES(anchor, curr, &Device->RequestList) {
-		request = CONTAINING_RECORD(curr, struct rndis_request,
-					    ListEntry);
-
+	list_for_each_entry(request, &Device->RequestList, ListEntry) {
 		/*
 		 * All request/response message contains RequestId as the 1st
 		 * field
