@@ -3569,7 +3569,8 @@ static int hotkey_write(char *buf)
 			hotkey_enabledisable_warn(0);
 			res = -EPERM;
 		} else if (strlencmp(cmd, "reset") == 0) {
-			mask = hotkey_orig_mask;
+			mask = (hotkey_all_mask | hotkey_source_mask)
+				& ~hotkey_reserved_mask;
 		} else if (sscanf(cmd, "0x%x", &mask) == 1) {
 			/* mask set */
 		} else if (sscanf(cmd, "%x", &mask) == 1) {
