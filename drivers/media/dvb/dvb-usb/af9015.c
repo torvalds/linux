@@ -369,12 +369,14 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 	u8  packet_size;
 	deb_info("%s: USB speed:%d\n", __func__, d->udev->speed);
 
+	/* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
+	   We use smaller - about 1/4 from the original, 5 and 87. */
 #define TS_PACKET_SIZE            188
 
-#define TS_USB20_PACKET_COUNT     348
+#define TS_USB20_PACKET_COUNT      87
 #define TS_USB20_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB20_PACKET_COUNT)
 
-#define TS_USB11_PACKET_COUNT      21
+#define TS_USB11_PACKET_COUNT       5
 #define TS_USB11_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB11_PACKET_COUNT)
 
 #define TS_USB20_MAX_PACKET_SIZE  512
@@ -868,7 +870,7 @@ static int af9015_read_config(struct usb_device *udev)
 		/* USB1.1 set smaller buffersize and disable 2nd adapter */
 		if (udev->speed == USB_SPEED_FULL) {
 			af9015_properties[i].adapter[0].stream.u.bulk.buffersize
-				= TS_USB11_MAX_PACKET_SIZE;
+				= TS_USB11_FRAME_SIZE;
 			/* disable 2nd adapter because we don't have
 			   PID-filters */
 			af9015_config.dual_mode = 0;
