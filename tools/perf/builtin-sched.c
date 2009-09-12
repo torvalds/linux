@@ -884,6 +884,10 @@ struct task_atoms {
 	struct list_head	snapshot_list;
 	struct thread		*thread;
 	struct rb_node		node;
+	u64			max_lat;
+	u64			total_lat;
+	u64			nb_atoms;
+	u64			total_runtime;
 };
 
 static struct rb_root lat_snapshot_root;
@@ -985,6 +989,7 @@ static void
 lat_sched_in(struct task_atoms *atoms, u64 timestamp)
 {
 	struct work_atom *snapshot;
+	u64 delta;
 
 	if (list_empty(&atoms->snapshot_list))
 		return;
@@ -1002,6 +1007,13 @@ lat_sched_in(struct task_atoms *atoms, u64 timestamp)
 
 	snapshot->state = THREAD_SCHED_IN;
 	snapshot->sched_in_time = timestamp;
+
+	delta = snapshot->sched_in_time - snapshot->wake_up_time;
+	atoms->total_lat += delta;
+	if (delta > atoms->max_lat)
+		atoms->max_lat = delta;
+	atoms->nb_atoms++;
+	atoms->total_runtime += snapshot->runtime;
 }
 
 static void
@@ -1099,43 +1111,27 @@ static u64 all_count;
 
 static void output_lat_thread(struct task_atoms *atom_list)
 {
-	struct work_atom *atom;
-	int count = 0;
 	int i;
 	int ret;
-	u64 max = 0, avg;
-	u64 total = 0, delta;
-	u64 total_runtime = 0;
+	u64 avg;
 
-	list_for_each_entry(atom, &atom_list->snapshot_list, list) {
-		total_runtime += atom->runtime;
-
-		if (atom->state != THREAD_SCHED_IN)
-			continue;
-
-		count++;
-
-		delta = atom->sched_in_time - atom->wake_up_time;
-		if (delta > max)
-			max = delta;
-		total += delta;
-	}
-
-	all_runtime += total_runtime;
-	all_count += count;
-
-	if (!count)
+	if (!atom_list->nb_atoms)
 		return;
+
+	all_runtime += atom_list->total_runtime;
+	all_count += atom_list->nb_atoms;
 
 	ret = printf(" %s ", atom_list->thread->comm);
 
 	for (i = 0; i < 19 - ret; i++)
 		printf(" ");
 
-	avg = total / count;
+	avg = atom_list->total_lat / atom_list->nb_atoms;
 
-	printf("|%9.3f ms |%9d | avg:%9.3f ms | max:%9.3f ms |\n",
-		(double)total_runtime/1e9, count, (double)avg/1e9, (double)max/1e9);
+	printf("|%9.3f ms |%9llu | avg:%9.3f ms | max:%9.3f ms |\n",
+	      (double)atom_list->total_runtime / 1e9,
+		 atom_list->nb_atoms, (double)avg / 1e9,
+		 (double)atom_list->max_lat / 1e9);
 }
 
 static void __cmd_lat(void)
