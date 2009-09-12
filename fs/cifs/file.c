@@ -50,7 +50,7 @@ static inline struct cifsFileInfo *cifs_init_private(
 	mutex_init(&private_data->lock_mutex);
 	INIT_LIST_HEAD(&private_data->llist);
 	private_data->pfile = file; /* needed for writepage */
-	private_data->pInode = inode;
+	private_data->pInode = igrab(inode);
 	private_data->invalidHandle = false;
 	private_data->closePend = false;
 	/* Initialize reference count to one.  The private data is

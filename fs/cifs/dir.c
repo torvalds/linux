@@ -147,7 +147,7 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 
 	pCifsFile->netfid = fileHandle;
 	pCifsFile->pid = current->tgid;
-	pCifsFile->pInode = newinode;
+	pCifsFile->pInode = igrab(newinode);
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
 	mutex_init(&pCifsFile->fh_mutex);

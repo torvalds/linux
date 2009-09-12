@@ -365,8 +365,10 @@ static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 /* Release a reference on the file private data */
 static inline void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
-	if (atomic_dec_and_test(&cifs_file->count))
+	if (atomic_dec_and_test(&cifs_file->count)) {
+		iput(cifs_file->pInode);
 		kfree(cifs_file);
+	}
 }
 
 /*
