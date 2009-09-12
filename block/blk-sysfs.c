@@ -16,9 +16,9 @@ struct queue_sysfs_entry {
 };
 
 static ssize_t
-queue_var_show(unsigned int var, char *page)
+queue_var_show(unsigned long var, char *page)
 {
-	return sprintf(page, "%d\n", var);
+	return sprintf(page, "%lu\n", var);
 }
 
 static ssize_t
@@ -77,7 +77,8 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 
 static ssize_t queue_ra_show(struct request_queue *q, char *page)
 {
-	int ra_kb = q->backing_dev_info.ra_pages << (PAGE_CACHE_SHIFT - 10);
+	unsigned long ra_kb = q->backing_dev_info.ra_pages <<
+					(PAGE_CACHE_SHIFT - 10);
 
 	return queue_var_show(ra_kb, (page));
 }
@@ -189,9 +190,9 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_rq_affinity_show(struct request_queue *q, char *page)
 {
-	unsigned int set = test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags);
+	bool set = test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags);
 
-	return queue_var_show(set != 0, page);
+	return queue_var_show(set, page);
 }
 
 static ssize_t

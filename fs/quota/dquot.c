@@ -2043,7 +2043,6 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		invalidate_bdev(sb->s_bdev);
 	}
 	mutex_lock(&dqopt->dqonoff_mutex);
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
 	if (sb_has_quota_loaded(sb, type)) {
 		error = -EBUSY;
 		goto out_lock;
@@ -2054,9 +2053,11 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		 * possible) Also nobody should write to the file - we use
 		 * special IO operations which ignore the immutable bit. */
 		down_write(&dqopt->dqptr_sem);
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
 		oldflags = inode->i_flags & (S_NOATIME | S_IMMUTABLE |
 					     S_NOQUOTA);
 		inode->i_flags |= S_NOQUOTA | S_NOATIME | S_IMMUTABLE;
+		mutex_unlock(&inode->i_mutex);
 		up_write(&dqopt->dqptr_sem);
 		sb->dq_op->drop(inode);
 	}
@@ -2080,7 +2081,6 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		goto out_file_init;
 	}
 	mutex_unlock(&dqopt->dqio_mutex);
-	mutex_unlock(&inode->i_mutex);
 	spin_lock(&dq_state_lock);
 	dqopt->flags |= dquot_state_flag(flags, type);
 	spin_unlock(&dq_state_lock);
@@ -2096,13 +2096,14 @@ out_file_init:
 out_lock:
 	if (oldflags != -1) {
 		down_write(&dqopt->dqptr_sem);
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
 		/* Set the flags back (in the case of accidental quotaon()
 		 * on a wrong file we don't want to mess up the flags) */
 		inode->i_flags &= ~(S_NOATIME | S_NOQUOTA | S_IMMUTABLE);
 		inode->i_flags |= oldflags;
+		mutex_unlock(&inode->i_mutex);
 		up_write(&dqopt->dqptr_sem);
 	}
-	mutex_unlock(&inode->i_mutex);
 	mutex_unlock(&dqopt->dqonoff_mutex);
 out_fmt:
 	put_quota_format(fmt);

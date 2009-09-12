@@ -122,6 +122,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/serial.h>
+#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>

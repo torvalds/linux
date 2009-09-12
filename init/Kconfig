@@ -962,7 +962,7 @@ config PERF_COUNTERS
 
 config EVENT_PROFILE
 	bool "Tracepoint profile sources"
-	depends on PERF_COUNTERS && EVENT_TRACER
+	depends on PERF_COUNTERS && EVENT_TRACING
 	default y
 
 endmenu

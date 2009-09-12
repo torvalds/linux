@@ -208,8 +208,7 @@ struct platform_device realview_i2c_device = {
 
 static struct i2c_board_info realview_i2c_board_info[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0xd0 >> 1),
-		.type = "ds1338",
+		I2C_BOARD_INFO("ds1338", 0xd0 >> 1),
 	},
 };
 

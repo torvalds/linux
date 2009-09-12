@@ -990,20 +990,35 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 		break;
 	}
 
-	/* quirk for UDA1321/N101 */
-	/* note that detection between firmware 2.1.1.7 (N101) and later 2.1.1.21 */
-	/* is not very clear from datasheets */
-	/* I hope that the min value is -15360 for newer firmware --jk */
+	/* volume control quirks */
 	switch (state->chip->usb_id) {
 	case USB_ID(0x0471, 0x0101):
 	case USB_ID(0x0471, 0x0104):
 	case USB_ID(0x0471, 0x0105):
 	case USB_ID(0x0672, 0x1041):
+	/* quirk for UDA1321/N101.
+	 * note that detection between firmware 2.1.1.7 (N101)
+	 * and later 2.1.1.21 is not very clear from datasheets.
+	 * I hope that the min value is -15360 for newer firmware --jk
+	 */
 		if (!strcmp(kctl->id.name, "PCM Playback Volume") &&
 		    cval->min == -15616) {
-			snd_printk(KERN_INFO "using volume control quirk for the UDA1321/N101 chip\n");
+			snd_printk(KERN_INFO
+				 "set volume quirk for UDA1321/N101 chip\n");
 			cval->max = -256;
 		}
+		break;
+
+	case USB_ID(0x046d, 0x09a4):
+		if (!strcmp(kctl->id.name, "Mic Capture Volume")) {
+			snd_printk(KERN_INFO
+				"set volume quirk for QuickCam E3500\n");
+			cval->min = 6080;
+			cval->max = 8768;
+			cval->res = 192;
+		}
+		break;
+
 	}
 
 	snd_printdd(KERN_INFO "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",

@@ -77,6 +77,7 @@
  * Sanity check the PTE configuration for the code below - which makes
  * certain assumptions about how these bits are layed out.
  */
+#ifdef CONFIG_MMU
 #if L_PTE_SHARED != PTE_EXT_SHARED
 #error PTE shared bit mismatch
 #endif
@@ -84,6 +85,7 @@
      L_PTE_FILE+L_PTE_PRESENT) > L_PTE_SHARED
 #error Invalid Linux PTE bit settings
 #endif
+#endif	/* CONFIG_MMU */
 
 /*
  * The ARMv6 and ARMv7 set_pte_ext translation function.

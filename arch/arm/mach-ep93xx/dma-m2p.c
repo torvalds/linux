@@ -33,6 +33,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <mach/dma.h>
 #include <mach/hardware.h>

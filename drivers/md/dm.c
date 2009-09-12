@@ -2203,16 +2203,6 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		goto out;
 	}
 
-	/*
-	 * It is enought that blk_queue_ordered() is called only once when
-	 * the first bio-based table is bound.
-	 *
-	 * This setting should be moved to alloc_dev() when request-based dm
-	 * supports barrier.
-	 */
-	if (!md->map && dm_table_bio_based(table))
-		blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN, NULL);
-
 	__unbind(md);
 	r = __bind(md, table, &limits);
 

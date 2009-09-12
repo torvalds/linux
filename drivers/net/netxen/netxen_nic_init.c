@@ -184,6 +184,13 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 	kfree(recv_ctx->rds_rings);
 
 skip_rds:
+	if (recv_ctx->sds_rings == NULL)
+		goto skip_sds;
+
+	for(ring = 0; ring < adapter->max_sds_rings; ring++)
+		recv_ctx->sds_rings[ring].consumer = 0;
+
+skip_sds:
 	if (adapter->tx_ring == NULL)
 		return;
 
@@ -214,6 +221,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	adapter->tx_ring = tx_ring;
 
 	tx_ring->num_desc = adapter->num_txd;
+	tx_ring->txq = netdev_get_tx_queue(netdev, 0);
 
 	cmd_buf_arr = vmalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
@@ -1400,10 +1408,10 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 		smp_mb();
 
 		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
-			netif_tx_lock(netdev);
+			__netif_tx_lock(tx_ring->txq, smp_processor_id());
 			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
 				netif_wake_queue(netdev);
-			netif_tx_unlock(netdev);
+			__netif_tx_unlock(tx_ring->txq);
 		}
 	}
 	/*

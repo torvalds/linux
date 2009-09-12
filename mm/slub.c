@@ -21,7 +21,6 @@
 #include <linux/kmemcheck.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
-#include <linux/kmemleak.h>
 #include <linux/mempolicy.h>
 #include <linux/ctype.h>
 #include <linux/debugobjects.h>
@@ -2835,13 +2834,15 @@ EXPORT_SYMBOL(__kmalloc);
 static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
 	struct page *page;
+	void *ptr = NULL;
 
 	flags |= __GFP_COMP | __GFP_NOTRACK;
 	page = alloc_pages_node(node, flags, get_order(size));
 	if (page)
-		return page_address(page);
-	else
-		return NULL;
+		ptr = page_address(page);
+
+	kmemleak_alloc(ptr, size, 1, flags);
+	return ptr;
 }
 
 #ifdef CONFIG_NUMA
@@ -2926,6 +2927,7 @@ void kfree(const void *x)
 	page = virt_to_head_page(x);
 	if (unlikely(!PageSlab(page))) {
 		BUG_ON(!PageCompound(page));
+		kmemleak_free(x);
 		put_page(page);
 		return;
 	}

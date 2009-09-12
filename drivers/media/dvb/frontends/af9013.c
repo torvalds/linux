@@ -527,6 +527,10 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 	u8 i, buf[3] = {0, 0, 0};
 	*auto_mode = 0; /* set if parameters are requested to auto set */
 
+	/* Try auto-detect transmission parameters in case of AUTO requested or
+	   garbage parameters given by application for compatibility.
+	   MPlayer seems to provide garbage parameters currently. */
+
 	switch (params->transmission_mode) {
 	case TRANSMISSION_MODE_AUTO:
 		*auto_mode = 1;
@@ -536,7 +540,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[0] |= (1 << 0);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid transmission_mode\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->guard_interval) {
@@ -554,7 +559,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[0] |= (3 << 2);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid guard_interval\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->hierarchy_information) {
@@ -572,7 +578,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[0] |= (3 << 4);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid hierarchy_information\n", __func__);
+		*auto_mode = 1;
 	};
 
 	switch (params->constellation) {
@@ -587,7 +594,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[1] |= (2 << 6);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid constellation\n", __func__);
+		*auto_mode = 1;
 	}
 
 	/* Use HP. How and which case we can switch to LP? */
@@ -611,7 +619,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[2] |= (4 << 0);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid code_rate_HP\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->code_rate_LP) {
@@ -638,7 +647,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		if (params->hierarchy_information == HIERARCHY_AUTO)
 			break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid code_rate_LP\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->bandwidth) {
@@ -651,7 +661,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[1] |= (2 << 2);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid bandwidth\n", __func__);
+		buf[1] |= (2 << 2); /* cannot auto-detect BW, try 8 MHz */
 	}
 
 	/* program */

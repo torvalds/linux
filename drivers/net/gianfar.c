@@ -156,6 +156,8 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_vlan_rx_register = gfar_vlan_rx_register,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gfar_netpoll,
 #endif
@@ -262,15 +264,6 @@ static int gfar_of_init(struct net_device *dev)
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!priv->phy_node) {
-		u32 *fixed_link;
-
-		fixed_link = (u32 *)of_get_property(np, "fixed-link", NULL);
-		if (!fixed_link) {
-			err = -ENODEV;
-			goto err_out;
-		}
-	}
 
 	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
 	priv->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
@@ -657,13 +650,14 @@ static int init_phy(struct net_device *dev)
 
 	interface = gfar_get_interface(dev);
 
-	if (priv->phy_node) {
-		priv->phydev = of_phy_connect(dev, priv->phy_node, &adjust_link,
-					      0, interface);
-		if (!priv->phydev) {
-			dev_err(&dev->dev, "error: Could not attach to PHY\n");
-			return -ENODEV;
-		}
+	priv->phydev = of_phy_connect(dev, priv->phy_node, &adjust_link, 0,
+				      interface);
+	if (!priv->phydev)
+		priv->phydev = of_phy_connect_fixed_link(dev, &adjust_link,
+							 interface);
+	if (!priv->phydev) {
+		dev_err(&dev->dev, "could not attach to PHY\n");
+		return -ENODEV;
 	}
 
 	if (interface == PHY_INTERFACE_MODE_SGMII)

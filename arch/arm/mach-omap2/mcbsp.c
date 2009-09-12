@@ -168,6 +168,42 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 #define OMAP34XX_MCBSP_PDATA_SZ		0
 #endif
 
+static struct omap_mcbsp_platform_data omap44xx_mcbsp_pdata[] = {
+	{
+		.phys_base      = OMAP44XX_MCBSP1_BASE,
+		.dma_rx_sync    = OMAP44XX_DMA_MCBSP1_RX,
+		.dma_tx_sync    = OMAP44XX_DMA_MCBSP1_TX,
+		.rx_irq         = INT_24XX_MCBSP1_IRQ_RX,
+		.tx_irq         = INT_24XX_MCBSP1_IRQ_TX,
+		.ops            = &omap2_mcbsp_ops,
+	},
+	{
+		.phys_base      = OMAP44XX_MCBSP2_BASE,
+		.dma_rx_sync    = OMAP44XX_DMA_MCBSP2_RX,
+		.dma_tx_sync    = OMAP44XX_DMA_MCBSP2_TX,
+		.rx_irq         = INT_24XX_MCBSP2_IRQ_RX,
+		.tx_irq         = INT_24XX_MCBSP2_IRQ_TX,
+		.ops            = &omap2_mcbsp_ops,
+	},
+	{
+		.phys_base      = OMAP44XX_MCBSP3_BASE,
+		.dma_rx_sync    = OMAP44XX_DMA_MCBSP3_RX,
+		.dma_tx_sync    = OMAP44XX_DMA_MCBSP3_TX,
+		.rx_irq         = INT_24XX_MCBSP3_IRQ_RX,
+		.tx_irq         = INT_24XX_MCBSP3_IRQ_TX,
+		.ops            = &omap2_mcbsp_ops,
+	},
+	{
+		.phys_base      = OMAP44XX_MCBSP4_BASE,
+		.dma_rx_sync    = OMAP44XX_DMA_MCBSP4_RX,
+		.dma_tx_sync    = OMAP44XX_DMA_MCBSP4_TX,
+		.rx_irq         = INT_24XX_MCBSP4_IRQ_RX,
+		.tx_irq         = INT_24XX_MCBSP4_IRQ_TX,
+		.ops            = &omap2_mcbsp_ops,
+	},
+};
+#define OMAP44XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap44xx_mcbsp_pdata)
+
 static int __init omap2_mcbsp_init(void)
 {
 	if (cpu_is_omap2420())
@@ -176,6 +212,8 @@ static int __init omap2_mcbsp_init(void)
 		omap_mcbsp_count = OMAP2430_MCBSP_PDATA_SZ;
 	if (cpu_is_omap34xx())
 		omap_mcbsp_count = OMAP34XX_MCBSP_PDATA_SZ;
+	if (cpu_is_omap44xx())
+		omap_mcbsp_count = OMAP44XX_MCBSP_PDATA_SZ;
 
 	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
 								GFP_KERNEL);
@@ -191,6 +229,9 @@ static int __init omap2_mcbsp_init(void)
 	if (cpu_is_omap34xx())
 		omap_mcbsp_register_board_cfg(omap34xx_mcbsp_pdata,
 						OMAP34XX_MCBSP_PDATA_SZ);
+	if (cpu_is_omap44xx())
+		omap_mcbsp_register_board_cfg(omap44xx_mcbsp_pdata,
+						OMAP44XX_MCBSP_PDATA_SZ);
 
 	return omap_mcbsp_init();
 }

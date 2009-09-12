@@ -25,7 +25,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	return pte;
 }
 
-void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
 	pgtable_page_dtor(pte);
 	paravirt_release_pte(page_to_pfn(pte));
@@ -33,14 +33,14 @@ void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 }
 
 #if PAGETABLE_LEVELS > 2
-void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 {
 	paravirt_release_pmd(__pa(pmd) >> PAGE_SHIFT);
 	tlb_remove_page(tlb, virt_to_page(pmd));
 }
 
 #if PAGETABLE_LEVELS > 3
-void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
+void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 {
 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
 	tlb_remove_page(tlb, virt_to_page(pud));

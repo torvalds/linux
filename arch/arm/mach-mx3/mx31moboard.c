@@ -16,9 +16,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/delay.h>
+#include <linux/fsl_devices.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/memory.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
@@ -36,6 +39,7 @@
 #include <mach/iomux-mx3.h>
 #include <mach/i2c.h>
 #include <mach/mmc.h>
+#include <mach/mx31.h>
 
 #include "devices.h"
 
@@ -55,6 +59,26 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_SD1_DATA1__SD1_DATA1, MX31_PIN_SD1_DATA0__SD1_DATA0,
 	MX31_PIN_SD1_CLK__SD1_CLK, MX31_PIN_SD1_CMD__SD1_CMD,
 	MX31_PIN_ATA_CS0__GPIO3_26, MX31_PIN_ATA_CS1__GPIO3_27,
+	/* USB reset */
+	MX31_PIN_GPIO1_0__GPIO1_0,
+	/* USB OTG */
+	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
+	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
+	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
+	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
+	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
+	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
+	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
+	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
+	MX31_PIN_USBOTG_CLK__USBOTG_CLK, MX31_PIN_USBOTG_DIR__USBOTG_DIR,
+	MX31_PIN_USBOTG_NXT__USBOTG_NXT, MX31_PIN_USBOTG_STP__USBOTG_STP,
+	MX31_PIN_USB_OC__GPIO1_30,
+	/* LEDs */
+	MX31_PIN_SVEN0__GPIO2_0, MX31_PIN_STX0__GPIO2_1,
+	MX31_PIN_SRX0__GPIO2_2, MX31_PIN_SIMPD0__GPIO2_3,
+	/* SEL */
+	MX31_PIN_DTR_DCE1__GPIO2_8, MX31_PIN_DSR_DCE1__GPIO2_9,
+	MX31_PIN_RI_DCE1__GPIO2_10, MX31_PIN_DCD_DCE1__GPIO2_11,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -142,8 +166,109 @@ static struct imxmmc_platform_data sdhc1_pdata = {
 	.exit	= moboard_sdhc1_exit,
 };
 
+/*
+ * this pin is dedicated for all mx31moboard systems, so we do it here
+ */
+#define USB_RESET_B	IOMUX_TO_GPIO(MX31_PIN_GPIO1_0)
+
+static void usb_xcvr_reset(void)
+{
+	gpio_request(USB_RESET_B, "usb-reset");
+	gpio_direction_output(USB_RESET_B, 0);
+	mdelay(1);
+	gpio_set_value(USB_RESET_B, 1);
+}
+
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
+#define OTG_EN_B IOMUX_TO_GPIO(MX31_PIN_USB_OC)
+
+static void moboard_usbotg_init(void)
+{
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
+
+	gpio_request(OTG_EN_B, "usb-udc-en");
+	gpio_direction_output(OTG_EN_B, 0);
+}
+
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
+static struct gpio_led mx31moboard_leds[] = {
+	{
+		.name 	= "coreboard-led-0:red:running",
+		.default_trigger = "heartbeat",
+		.gpio 	= IOMUX_TO_GPIO(MX31_PIN_SVEN0),
+	}, {
+		.name	= "coreboard-led-1:red",
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_STX0),
+	}, {
+		.name	= "coreboard-led-2:red",
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_SRX0),
+	}, {
+		.name	= "coreboard-led-3:red",
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_SIMPD0),
+	},
+};
+
+static struct gpio_led_platform_data mx31moboard_led_pdata = {
+	.num_leds 	= ARRAY_SIZE(mx31moboard_leds),
+	.leds		= mx31moboard_leds,
+};
+
+static struct platform_device mx31moboard_leds_device = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mx31moboard_led_pdata,
+	},
+};
+
+#define SEL0 IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
+#define SEL1 IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
+#define SEL2 IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
+#define SEL3 IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
+
+static void mx31moboard_init_sel_gpios(void)
+{
+	if (!gpio_request(SEL0, "sel0")) {
+		gpio_direction_input(SEL0);
+		gpio_export(SEL0, true);
+	}
+
+	if (!gpio_request(SEL1, "sel1")) {
+		gpio_direction_input(SEL1);
+		gpio_export(SEL1, true);
+	}
+
+	if (!gpio_request(SEL2, "sel2")) {
+		gpio_direction_input(SEL2);
+		gpio_export(SEL2, true);
+	}
+
+	if (!gpio_request(SEL3, "sel3")) {
+		gpio_direction_input(SEL3);
+		gpio_export(SEL3, true);
+	}
+}
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
+	&mx31moboard_leds_device,
 };
 
 static int mx31moboard_baseboard;
@@ -162,10 +287,17 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
 
+	mx31moboard_init_sel_gpios();
+
 	mxc_register_device(&mxc_i2c_device0, &moboard_i2c0_pdata);
 	mxc_register_device(&mxc_i2c_device1, &moboard_i2c1_pdata);
 
 	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
+
+	usb_xcvr_reset();
+
+	moboard_usbotg_init();
+	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
@@ -197,7 +329,7 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx31_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31moboard_timer,
 MACHINE_END

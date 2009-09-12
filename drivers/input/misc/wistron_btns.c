@@ -646,6 +646,15 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Maxdata Pro 7000 DX",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MAXDATA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Pro 7000"),
+		},
+		.driver_data = keymap_fs_amilo_pro_v2000
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Fujitsu N3510",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),

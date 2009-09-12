@@ -75,7 +75,7 @@ config MACH_REALVIEW_PBX
 
 config REALVIEW_HIGH_PHYS_OFFSET
 	bool "High physical base address for the RealView platform"
-	depends on !MACH_REALVIEW_PB1176
+	depends on MMU && !MACH_REALVIEW_PB1176
 	default y
 	help
 	  RealView boards other than PB1176 have the RAM available at

@@ -730,7 +730,6 @@ static int __devexit msm_serial_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver msm_platform_driver = {
-	.probe = msm_serial_probe,
 	.remove = msm_serial_remove,
 	.driver = {
 		.name = "msm_serial",

@@ -19,7 +19,6 @@
 #include <linux/nfs_mount.h>
 #include <linux/nfs_page.h>
 #include <linux/backing-dev.h>
-#include <linux/blkdev.h>
 
 #include <asm/uaccess.h>
 

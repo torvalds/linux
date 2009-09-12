@@ -1,11 +1,11 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM jbd2
+
 #if !defined(_TRACE_JBD2_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_JBD2_H
 
 #include <linux/jbd2.h>
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM jbd2
 
 TRACE_EVENT(jbd2_checkpoint,
 

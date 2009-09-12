@@ -266,6 +266,12 @@ static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
+static inline int entity_before(struct sched_entity *a,
+				struct sched_entity *b)
+{
+	return (s64)(a->vruntime - b->vruntime) < 0;
+}
+
 static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	return se->vruntime - cfs_rq->min_vruntime;
@@ -687,7 +693,8 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 			 * all of which have the same weight.
 			 */
 			if (sched_feat(NORMALIZED_SLEEPER) &&
-					task_of(se)->policy != SCHED_IDLE)
+					(!entity_is_task(se) ||
+					 task_of(se)->policy != SCHED_IDLE))
 				thresh = calc_delta_fair(thresh, se);
 
 			vruntime -= thresh;
@@ -1016,7 +1023,7 @@ static void yield_task_fair(struct rq *rq)
 	/*
 	 * Already in the rightmost position?
 	 */
-	if (unlikely(!rightmost || rightmost->vruntime < se->vruntime))
+	if (unlikely(!rightmost || entity_before(rightmost, se)))
 		return;
 
 	/*
@@ -1712,7 +1719,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 
 	/* 'curr' will be NULL if the child belongs to a different group */
 	if (sysctl_sched_child_runs_first && this_cpu == task_cpu(p) &&
-			curr && curr->vruntime < se->vruntime) {
+			curr && entity_before(curr, se)) {
 		/*
 		 * Upon rescheduling, sched_class::put_prev_task() will place
 		 * 'current' within the tree based on its new key value.

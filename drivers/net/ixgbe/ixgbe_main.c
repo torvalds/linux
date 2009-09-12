@@ -34,6 +34,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
@@ -510,8 +511,11 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
  * @skb: skb currently being received and modified
  **/
 static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
-                                     u32 status_err, struct sk_buff *skb)
+				     union ixgbe_adv_rx_desc *rx_desc,
+				     struct sk_buff *skb)
 {
+	u32 status_err = le32_to_cpu(rx_desc->wb.upper.status_error);
+
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Rx csum disabled */
@@ -529,6 +533,16 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 		return;
 
 	if (status_err & IXGBE_RXDADV_ERR_TCPE) {
+		u16 pkt_info = rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
+
+		/*
+		 * 82599 errata, UDP frames with a 0 checksum can be marked as
+		 * checksum errors.
+		 */
+		if ((pkt_info & IXGBE_RXDADV_PKTTYPE_UDP) &&
+		    (adapter->hw.mac.type == ixgbe_mac_82599EB))
+			return;
+
 		adapter->hw_csum_rx_error++;
 		return;
 	}
@@ -802,7 +816,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			goto next_desc;
 		}
 
-		ixgbe_rx_checksum(adapter, staterr, skb);
+		ixgbe_rx_checksum(adapter, rx_desc, skb);
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
@@ -3806,8 +3820,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->atr_sample_rate = 20;
 		adapter->fdir_pballoc = 0;
 #ifdef IXGBE_FCOE
-		adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-		adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
+		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
+		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
+		adapter->ring_feature[RING_F_FCOE].indices = 0;
 #endif /* IXGBE_FCOE */
 	}
 
@@ -5125,9 +5140,6 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int count = 0;
 	unsigned int f;
 
-	r_idx = skb->queue_mapping;
-	tx_ring = &adapter->tx_ring[r_idx];
-
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb);
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
@@ -5137,10 +5149,18 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		tx_flags |= (skb->queue_mapping << 13);
-		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
-		tx_flags |= IXGBE_TX_FLAGS_VLAN;
+		if (skb->priority != TC_PRIO_CONTROL) {
+			tx_flags |= (skb->queue_mapping << 13);
+			tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
+			tx_flags |= IXGBE_TX_FLAGS_VLAN;
+		} else {
+			skb->queue_mapping =
+				adapter->ring_feature[RING_F_DCB].indices-1;
+		}
 	}
+
+	r_idx = skb->queue_mapping;
+	tx_ring = &adapter->tx_ring[r_idx];
 
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
 	    (skb->protocol == htons(ETH_P_FCOE)))
@@ -5580,16 +5600,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #endif
 
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
 		if (hw->mac.ops.get_device_caps) {
 			hw->mac.ops.get_device_caps(hw, &device_caps);
-			if (!(device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)) {
-				netdev->features |= NETIF_F_FCOE_CRC;
-				netdev->features |= NETIF_F_FSO;
-				netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-			} else {
-				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-			}
+			if (device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)
+				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
 	}
 #endif /* IXGBE_FCOE */
@@ -5638,7 +5653,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		adapter->wol = 0;
 		break;
 	}
-	device_init_wakeup(&adapter->pdev->dev, true);
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* pick up the PCI bus settings for reporting later */

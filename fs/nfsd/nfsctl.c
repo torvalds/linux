@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/inet.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/ctype.h>
 
 #include <linux/nfs.h>

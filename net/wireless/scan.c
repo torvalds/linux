@@ -35,8 +35,6 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 	else
 		nl80211_send_scan_done(wiphy_to_dev(request->wiphy), dev);
 
-	wiphy_to_dev(request->wiphy)->scan_req = NULL;
-
 #ifdef CONFIG_WIRELESS_EXT
 	if (!aborted) {
 		memset(&wrqu, 0, sizeof(wrqu));
@@ -48,6 +46,7 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 	dev_put(dev);
 
  out:
+	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 	kfree(request);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);

@@ -151,8 +151,8 @@ void iwm_if_free(struct iwm_priv *iwm)
 		return;
 
 	free_netdev(iwm_to_ndev(iwm));
-	iwm_wdev_free(iwm);
 	iwm_priv_deinit(iwm);
+	iwm_wdev_free(iwm);
 }
 
 int iwm_if_add(struct iwm_priv *iwm)

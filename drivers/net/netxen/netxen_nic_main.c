@@ -215,9 +215,9 @@ netxen_napi_disable(struct netxen_adapter *adapter)
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
-		napi_disable(&sds_ring->napi);
 		netxen_nic_disable_int(sds_ring);
-		synchronize_irq(sds_ring->irq);
+		napi_synchronize(&sds_ring->napi);
+		napi_disable(&sds_ring->napi);
 	}
 }
 
@@ -833,10 +833,10 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 
 	adapter->ahw.linkup = 0;
 
-	netxen_napi_enable(adapter);
-
 	if (adapter->max_sds_rings > 1)
 		netxen_config_rss(adapter, 1);
+
+	netxen_napi_enable(adapter);
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
 		netxen_linkevent_request(adapter, 1);
@@ -851,8 +851,9 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 static void
 netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
+	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_disable(netdev);
 
 	if (adapter->stop_port)
 		adapter->stop_port(adapter);
@@ -863,9 +864,10 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	netxen_napi_disable(adapter);
 
 	netxen_release_tx_buffers(adapter);
+	spin_unlock(&adapter->tx_clean_lock);
 
-	FLUSH_SCHEDULED_WORK();
 	del_timer_sync(&adapter->watchdog_timer);
+	FLUSH_SCHEDULED_WORK();
 }
 
 
@@ -943,8 +945,8 @@ err_out_free_sw:
 static void
 netxen_nic_detach(struct netxen_adapter *adapter)
 {
-	netxen_release_rx_buffers(adapter);
 	netxen_free_hw_resources(adapter);
+	netxen_release_rx_buffers(adapter);
 	netxen_nic_free_irq(adapter);
 	netxen_free_sw_resources(adapter);
 
@@ -1533,10 +1535,12 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 		printk(KERN_ALERT
 		       "%s: Device temperature %d degrees C exceeds"
 		       " maximum allowed. Hardware has been shut down.\n",
-		       netxen_nic_driver_name, temp_val);
+		       netdev->name, temp_val);
 
-		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
+		netif_device_detach(netdev);
+		netxen_nic_down(adapter, netdev);
+		netxen_nic_detach(adapter);
+
 		rv = 1;
 	} else if (temp_state == NX_TEMP_WARN) {
 		if (adapter->temp == NX_TEMP_NORMAL) {
@@ -1544,13 +1548,13 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 			       "%s: Device temperature %d degrees C "
 			       "exceeds operating range."
 			       " Immediate action needed.\n",
-			       netxen_nic_driver_name, temp_val);
+			       netdev->name, temp_val);
 		}
 	} else {
 		if (adapter->temp == NX_TEMP_WARN) {
 			printk(KERN_INFO
 			       "%s: Device temperature is now %d degrees C"
-			       " in normal range.\n", netxen_nic_driver_name,
+			       " in normal range.\n", netdev->name,
 			       temp_val);
 		}
 	}
@@ -1623,7 +1627,7 @@ void netxen_watchdog_task(struct work_struct *work)
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
-	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
+	if (netxen_nic_check_temp(adapter))
 		return;
 
 	if (!adapter->has_link_events)
@@ -1644,6 +1648,9 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 {
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, tx_timeout_task);
+
+	if (!netif_running(adapter->netdev))
+		return;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, adapter->netdev->name);
@@ -1757,7 +1764,8 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
-		netxen_nic_enable_int(sds_ring);
+		if (netif_running(adapter->netdev))
+			netxen_nic_enable_int(sds_ring);
 	}
 
 	return work_done;

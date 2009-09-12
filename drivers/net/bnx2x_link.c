@@ -4212,13 +4212,14 @@ static void bnx2x_turn_off_sf(struct bnx2x *bp, u8 port)
 u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
 			      u8 *version, u16 len)
 {
-	struct bnx2x *bp = params->bp;
+	struct bnx2x *bp;
 	u32 ext_phy_type = 0;
 	u32 spirom_ver = 0;
 	u8 status = 0 ;
 
 	if (version == NULL || params == NULL)
 		return -EINVAL;
+	bp = params->bp;
 
 	spirom_ver = REG_RD(bp, params->shmem_base +
 		   offsetof(struct shmem_region,

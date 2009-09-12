@@ -1242,20 +1242,6 @@ error:
 	return error;
 }
 
-/*
- * Initialize a session.
- * Note: save the mount rsize and wsize for create_server negotiation.
- */
-static void nfs4_init_session(struct nfs_client *clp,
-			      unsigned int wsize, unsigned int rsize)
-{
-#if defined(CONFIG_NFS_V4_1)
-	if (nfs4_has_session(clp)) {
-		clp->cl_session->fc_attrs.max_rqst_sz = wsize;
-		clp->cl_session->fc_attrs.max_resp_sz = rsize;
-	}
-#endif /* CONFIG_NFS_V4_1 */
-}
 
 /*
  * Session has been established, and the client marked ready.
@@ -1350,7 +1336,9 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 	BUG_ON(!server->nfs_client->rpc_ops);
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
-	nfs4_init_session(server->nfs_client, server->wsize, server->rsize);
+	error = nfs4_init_session(server);
+	if (error < 0)
+		goto error;
 
 	/* Probe the root fh to retrieve its FSID */
 	error = nfs4_path_walk(server, mntfh, data->nfs_server.export_path);

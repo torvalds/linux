@@ -37,7 +37,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/usb.h>
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include "hisax.h"

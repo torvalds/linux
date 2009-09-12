@@ -118,7 +118,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 #else
 	ieee = (struct ieee80211_device *)dev->priv;
 #endif
-	dev->hard_start_xmit = ieee80211_xmit;
 
 	memset(ieee, 0, sizeof(struct ieee80211_device)+sizeof_priv);
 	ieee->dev = dev;

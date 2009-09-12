@@ -694,7 +694,7 @@ int __kprobes register_kprobe(struct kprobe *p)
 	p->addr = addr;
 
 	preempt_disable();
-	if (!__kernel_text_address((unsigned long) p->addr) ||
+	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr)) {
 		preempt_enable();
 		return -EINVAL;
