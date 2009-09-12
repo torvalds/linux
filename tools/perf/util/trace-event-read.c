@@ -458,12 +458,13 @@ struct record *trace_read_data(int cpu)
 	return data;
 }
 
-void trace_report (void)
+void trace_report(void)
 {
 	const char *input_file = "trace.info";
 	char buf[BUFSIZ];
 	char test[] = { 23, 8, 68 };
 	char *version;
+	int show_version = 0;
 	int show_funcs = 0;
 	int show_printk = 0;
 
@@ -480,7 +481,8 @@ void trace_report (void)
 		die("not a trace file (missing tracing)");
 
 	version = read_string();
-	printf("version = %s\n", version);
+	if (show_version)
+		printf("version = %s\n", version);
 	free(version);
 
 	read_or_die(buf, 1);

@@ -1096,14 +1096,15 @@ static void output_lat_thread(struct thread_latency *lat)
 	if (!count)
 		return;
 
-	ret = printf("%s", lat->thread->comm);
+	ret = printf(" %s ", lat->thread->comm);
 
-	for (i = 0; i < 25 - ret; i++)
+	for (i = 0; i < 19 - ret; i++)
 		printf(" ");
 
 	avg = total / count;
 
-	printf("%5d        %10llu       %10llu      %10llu\n", count, total, avg, max);
+	printf("|%9.3f ms |%9d | avg:%9.3f ms | max:%9.3f ms |\n",
+		0.0, count, (double)avg/1e9, (double)max/1e9);
 }
 
 static void __cmd_lat(void)
@@ -1113,11 +1114,9 @@ static void __cmd_lat(void)
 	setup_pager();
 	read_events();
 
-	printf(" Tasks");
-	printf("                     count");
-	printf("          total");
-	printf("              avg");
-	printf("            max\n\n");
+	printf("-----------------------------------------------------------------------------------\n");
+	printf(" Task              |  runtime ms | switches | average delay ms | maximum delay ms |\n");
+	printf("-----------------------------------------------------------------------------------\n");
 
 	next = rb_first(&lat_snapshot_root);
 
@@ -1128,6 +1127,8 @@ static void __cmd_lat(void)
 		output_lat_thread(lat);
 		next = rb_next(next);
 	}
+
+	printf("-----------------------------------------------------------------------------------\n");
 }
 
 static struct trace_sched_handler *trace_handler;
