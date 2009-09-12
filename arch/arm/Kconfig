@@ -338,6 +338,20 @@ config ARCH_H720X
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
+config ARCH_NOMADIK
+	bool "STMicroelectronics Nomadik"
+	select ARM_AMBA
+	select ARM_VIC
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for the Nomadik platform by ST-Ericsson
+
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
@@ -744,6 +758,8 @@ source "arch/arm/mach-realview/Kconfig"
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/plat-mxc/Kconfig"
+
+source "arch/arm/mach-nomadik/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 
