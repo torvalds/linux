@@ -243,8 +243,8 @@ add_sched_event_run(struct task_desc *task, nsec_t timestamp, u64 duration)
 	nr_run_events++;
 }
 
-static unsigned long targetless_wakeups;
-static unsigned long multitarget_wakeups;
+static unsigned long		targetless_wakeups;
+static unsigned long		multitarget_wakeups;
 
 static void
 add_sched_event_wakeup(struct task_desc *task, nsec_t timestamp,
@@ -485,10 +485,10 @@ static void create_tasks(void)
 	}
 }
 
-static nsec_t cpu_usage;
-static nsec_t runavg_cpu_usage;
-static nsec_t parent_cpu_usage;
-static nsec_t runavg_parent_cpu_usage;
+static nsec_t			cpu_usage;
+static nsec_t			runavg_cpu_usage;
+static nsec_t			parent_cpu_usage;
+static nsec_t			runavg_parent_cpu_usage;
 
 static void wait_for_tasks(void)
 {
@@ -858,9 +858,9 @@ replay_fork_event(struct trace_fork_event *fork_event,
 }
 
 static struct trace_sched_handler replay_ops  = {
-	.wakeup_event = replay_wakeup_event,
-	.switch_event = replay_switch_event,
-	.fork_event = replay_fork_event,
+	.wakeup_event		= replay_wakeup_event,
+	.switch_event		= replay_switch_event,
+	.fork_event		= replay_fork_event,
 };
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtZX"
@@ -877,6 +877,7 @@ struct lat_snapshot {
 	enum thread_state	state;
 	u64			wake_up_time;
 	u64			sched_in_time;
+	u64			runtime;
 };
 
 struct thread_latency {
@@ -951,6 +952,7 @@ latency_fork_event(struct trace_fork_event *fork_event __used,
 	/* should insert the newcomer */
 }
 
+__used
 static char sched_out_state(struct trace_switch_event *switch_event)
 {
 	const char *str = TASK_STATE_TO_CHAR_STR;
@@ -960,17 +962,15 @@ static char sched_out_state(struct trace_switch_event *switch_event)
 
 static void
 lat_sched_out(struct thread_latency *lat,
-	     struct trace_switch_event *switch_event)
+	     struct trace_switch_event *switch_event __used, u64 delta)
 {
 	struct lat_snapshot *snapshot;
-
-	if (sched_out_state(switch_event) == 'R')
-		return;
 
 	snapshot = calloc(sizeof(*snapshot), 1);
 	if (!snapshot)
 		die("Non memory");
 
+	snapshot->runtime = delta;
 	list_add_tail(&snapshot->list, &lat->snapshot_list);
 }
 
@@ -997,16 +997,31 @@ lat_sched_in(struct thread_latency *lat, u64 timestamp)
 	snapshot->sched_in_time = timestamp;
 }
 
-
 static void
 latency_switch_event(struct trace_switch_event *switch_event,
 		     struct event *event __used,
-		     int cpu __used,
+		     int cpu,
 		     u64 timestamp,
 		     struct thread *thread __used)
 {
 	struct thread_latency *out_lat, *in_lat;
 	struct thread *sched_out, *sched_in;
+	u64 timestamp0;
+	s64 delta;
+
+	if (cpu >= MAX_CPUS || cpu < 0)
+		return;
+
+	timestamp0 = cpu_last_switched[cpu];
+	cpu_last_switched[cpu] = timestamp;
+	if (timestamp0)
+		delta = timestamp - timestamp0;
+	else
+		delta = 0;
+
+	if (delta < 0)
+		die("hm, delta: %Ld < 0 ?\n", delta);
+
 
 	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
 	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
@@ -1028,7 +1043,7 @@ latency_switch_event(struct trace_switch_event *switch_event,
 	}
 
 	lat_sched_in(in_lat, timestamp);
-	lat_sched_out(out_lat, switch_event);
+	lat_sched_out(out_lat, switch_event, delta);
 }
 
 static void
@@ -1067,9 +1082,9 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 }
 
 static struct trace_sched_handler lat_ops  = {
-	.wakeup_event = latency_wakeup_event,
-	.switch_event = latency_switch_event,
-	.fork_event = latency_fork_event,
+	.wakeup_event		= latency_wakeup_event,
+	.switch_event		= latency_switch_event,
+	.fork_event		= latency_fork_event,
 };
 
 static void output_lat_thread(struct thread_latency *lat)
@@ -1080,8 +1095,11 @@ static void output_lat_thread(struct thread_latency *lat)
 	int ret;
 	u64 max = 0, avg;
 	u64 total = 0, delta;
+	u64 total_runtime = 0;
 
 	list_for_each_entry(shot, &lat->snapshot_list, list) {
+		total_runtime += shot->runtime;
+
 		if (shot->state != THREAD_SCHED_IN)
 			continue;
 
@@ -1104,7 +1122,7 @@ static void output_lat_thread(struct thread_latency *lat)
 	avg = total / count;
 
 	printf("|%9.3f ms |%9d | avg:%9.3f ms | max:%9.3f ms |\n",
-		0.0, count, (double)avg/1e9, (double)max/1e9);
+		(double)total_runtime/1e9, count, (double)avg/1e9, (double)max/1e9);
 }
 
 static void __cmd_lat(void)
