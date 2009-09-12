@@ -3083,6 +3083,7 @@ struct perf_task_event {
 		u32				ppid;
 		u32				tid;
 		u32				ptid;
+		u64				time;
 	} event;
 };
 
@@ -3090,9 +3091,12 @@ static void perf_counter_task_output(struct perf_counter *counter,
 				     struct perf_task_event *task_event)
 {
 	struct perf_output_handle handle;
-	int size = task_event->event.header.size;
+	int size;
 	struct task_struct *task = task_event->task;
-	int ret = perf_output_begin(&handle, counter, size, 0, 0);
+	int ret;
+
+	size  = task_event->event.header.size;
+	ret = perf_output_begin(&handle, counter, size, 0, 0);
 
 	if (ret)
 		return;
@@ -3103,7 +3107,10 @@ static void perf_counter_task_output(struct perf_counter *counter,
 	task_event->event.tid = perf_counter_tid(counter, task);
 	task_event->event.ptid = perf_counter_tid(counter, current);
 
+	task_event->event.time = perf_clock();
+
 	perf_output_put(&handle, task_event->event);
+
 	perf_output_end(&handle);
 }
 
