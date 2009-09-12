@@ -543,24 +543,7 @@ static void wait_for_tasks(void)
 	}
 }
 
-static int __cmd_sched(void);
-
-static void parse_trace(void)
-{
-	__cmd_sched();
-
-	printf("nr_run_events:        %ld\n", nr_run_events);
-	printf("nr_sleep_events:      %ld\n", nr_sleep_events);
-	printf("nr_wakeup_events:     %ld\n", nr_wakeup_events);
-
-	if (targetless_wakeups)
-		printf("target-less wakeups:  %ld\n", targetless_wakeups);
-	if (multitarget_wakeups)
-		printf("multi-target wakeups: %ld\n", multitarget_wakeups);
-	if (nr_run_events_optimized)
-		printf("run events optimized: %ld\n",
-			nr_run_events_optimized);
-}
+static int read_events(void);
 
 static unsigned long nr_runs;
 static nsec_t sum_runtime;
@@ -635,6 +618,38 @@ static void test_calibrations(void)
 	T1 = get_nsecs();
 
 	printf("the sleep test took %Ld nsecs\n", T1-T0);
+}
+
+static void __cmd_replay(void)
+{
+	long nr_iterations = 10, i;
+
+	calibrate_run_measurement_overhead();
+	calibrate_sleep_measurement_overhead();
+
+	test_calibrations();
+
+	read_events();
+
+	printf("nr_run_events:        %ld\n", nr_run_events);
+	printf("nr_sleep_events:      %ld\n", nr_sleep_events);
+	printf("nr_wakeup_events:     %ld\n", nr_wakeup_events);
+
+	if (targetless_wakeups)
+		printf("target-less wakeups:  %ld\n", targetless_wakeups);
+	if (multitarget_wakeups)
+		printf("multi-target wakeups: %ld\n", multitarget_wakeups);
+	if (nr_run_events_optimized)
+		printf("run events optimized: %ld\n",
+			nr_run_events_optimized);
+
+	print_task_traces();
+	add_cross_task_wakeups();
+
+	create_tasks();
+	printf("------------------------------------------------------------\n");
+	for (i = 0; i < nr_iterations; i++)
+		run_one_test();
 }
 
 static int
@@ -1091,9 +1106,12 @@ static void output_lat_thread(struct thread_latency *lat)
 	printf("%5d        %10llu       %10llu      %10llu\n", count, total, avg, max);
 }
 
-static void output_lat_results(void)
+static void __cmd_lat(void)
 {
 	struct rb_node *next;
+
+	setup_pager();
+	read_events();
 
 	printf(" Tasks");
 	printf("                     count");
@@ -1312,7 +1330,7 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static int __cmd_sched(void)
+static int read_events(void)
 {
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
@@ -1408,8 +1426,8 @@ more:
 	return rc;
 }
 
-static const char * const annotate_usage[] = {
-	"perf trace [<options>] <command>",
+static const char * const sched_usage[] = {
+	"perf sched [<options>] <command>",
 	NULL
 };
 
@@ -1427,49 +1445,30 @@ static const struct option options[] = {
 
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
-	long nr_iterations = 10, i;
-
 	symbol__init();
 	page_size = getpagesize();
 
-	argc = parse_options(argc, argv, options, annotate_usage, 0);
+	argc = parse_options(argc, argv, options, sched_usage, 0);
 	if (argc) {
 		/*
 		 * Special case: if there's an argument left then assume tha
 		 * it's a symbol filter:
 		 */
 		if (argc > 1)
-			usage_with_options(annotate_usage, options);
+			usage_with_options(sched_usage, options);
 	}
-
-//	setup_pager();
 
 	if (replay_mode)
 		trace_handler = &replay_ops;
 	else if (lat_mode)
 		trace_handler = &lat_ops;
-	else /* We may need a default subcommand (perf trace?) */
-		die("Please select a sub command (-r)\n");
+	else
+		usage_with_options(sched_usage, options);
 
-	if (replay_mode) {
-		calibrate_run_measurement_overhead();
-		calibrate_sleep_measurement_overhead();
-
-		test_calibrations();
-
-		parse_trace();
-		print_task_traces();
-		add_cross_task_wakeups();
-
-		create_tasks();
-		printf("------------------------------------------------------------\n");
-		for (i = 0; i < nr_iterations; i++)
-			run_one_test();
-	} else if (lat_mode) {
-		setup_pager();
-		__cmd_sched();
-		output_lat_results();
-	}
+	if (replay_mode)
+		__cmd_replay();
+	else if (lat_mode)
+		__cmd_lat();
 
 	return 0;
 }
