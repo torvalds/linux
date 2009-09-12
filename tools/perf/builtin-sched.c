@@ -14,6 +14,9 @@
 #include "util/trace-event.h"
 #include <sys/types.h>
 
+
+#define MAX_CPUS 4096
+
 static char			const *input_name = "perf.data";
 static int			input;
 static unsigned long		page_size;
@@ -26,6 +29,8 @@ static struct thread		*last_match;
 
 static struct perf_header	*header;
 static u64			sample_type;
+
+static int			replay_mode;
 
 
 /*
@@ -677,53 +682,7 @@ do {								\
 	FILL_FIELD(ptr, common_tgid, event, data);		\
 } while (0)
 
-struct trace_wakeup_event {
-	u32 size;
 
-	u16 common_type;
-	u8 common_flags;
-	u8 common_preempt_count;
-	u32 common_pid;
-	u32 common_tgid;
-
-	char comm[16];
-	u32 pid;
-
-	u32 prio;
-	u32 success;
-	u32 cpu;
-};
-
-static void
-process_sched_wakeup_event(struct raw_event_sample *raw, struct event *event,
-		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
-{
-	struct task_desc *waker, *wakee;
-	struct trace_wakeup_event wakeup_event;
-
-	FILL_COMMON_FIELDS(wakeup_event, event, raw->data);
-
-	FILL_ARRAY(wakeup_event, comm, event, raw->data);
-	FILL_FIELD(wakeup_event, pid, event, raw->data);
-	FILL_FIELD(wakeup_event, prio, event, raw->data);
-	FILL_FIELD(wakeup_event, success, event, raw->data);
-	FILL_FIELD(wakeup_event, cpu, event, raw->data);
-
-
-	if (verbose) {
-		printf("sched_wakeup event %p\n", event);
-
-		printf(" ... pid %d woke up %s/%d\n",
-			wakeup_event.common_pid,
-			wakeup_event.comm,
-			wakeup_event.pid);
-	}
-
-	waker = register_pid(wakeup_event.common_pid, "<unknown>");
-	wakee = register_pid(wakeup_event.pid, wakeup_event.comm);
-
-	add_sched_event_wakeup(waker, timestamp, wakee);
-}
 
 struct trace_switch_event {
 	u32 size;
@@ -743,28 +702,96 @@ struct trace_switch_event {
 	u32 next_prio;
 };
 
-#define MAX_CPUS 4096
 
-unsigned long cpu_last_switched[MAX_CPUS];
+struct trace_wakeup_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char comm[16];
+	u32 pid;
+
+	u32 prio;
+	u32 success;
+	u32 cpu;
+};
+
+struct trace_fork_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char parent_comm[16];
+	u32 parent_pid;
+	char child_comm[16];
+	u32 child_pid;
+};
+
+struct trace_sched_handler {
+	void (*switch_event)(struct trace_switch_event *,
+			     struct event *,
+			     int cpu,
+			     u64 timestamp,
+			     struct thread *thread);
+
+	void (*wakeup_event)(struct trace_wakeup_event *,
+			     struct event *,
+			     int cpu,
+			     u64 timestamp,
+			     struct thread *thread);
+
+	void (*fork_event)(struct trace_fork_event *,
+			   struct event *,
+			   int cpu,
+			   u64 timestamp,
+			   struct thread *thread);
+};
+
 
 static void
-process_sched_switch_event(struct raw_event_sample *raw, struct event *event,
-		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
+replay_wakeup_event(struct trace_wakeup_event *wakeup_event,
+		    struct event *event,
+		    int cpu __used,
+		    u64 timestamp __used,
+		    struct thread *thread __used)
 {
-	struct trace_switch_event switch_event;
+	struct task_desc *waker, *wakee;
+
+	if (verbose) {
+		printf("sched_wakeup event %p\n", event);
+
+		printf(" ... pid %d woke up %s/%d\n",
+			wakeup_event->common_pid,
+			wakeup_event->comm,
+			wakeup_event->pid);
+	}
+
+	waker = register_pid(wakeup_event->common_pid, "<unknown>");
+	wakee = register_pid(wakeup_event->pid, wakeup_event->comm);
+
+	add_sched_event_wakeup(waker, timestamp, wakee);
+}
+
+static unsigned long cpu_last_switched[MAX_CPUS];
+
+static void
+replay_switch_event(struct trace_switch_event *switch_event,
+		    struct event *event,
+		    int cpu,
+		    u64 timestamp,
+		    struct thread *thread __used)
+{
 	struct task_desc *prev, *next;
 	u64 timestamp0;
 	s64 delta;
-
-	FILL_COMMON_FIELDS(switch_event, event, raw->data);
-
-	FILL_ARRAY(switch_event, prev_comm, event, raw->data);
-	FILL_FIELD(switch_event, prev_pid, event, raw->data);
-	FILL_FIELD(switch_event, prev_prio, event, raw->data);
-	FILL_FIELD(switch_event, prev_state, event, raw->data);
-	FILL_ARRAY(switch_event, next_comm, event, raw->data);
-	FILL_FIELD(switch_event, next_pid, event, raw->data);
-	FILL_FIELD(switch_event, next_prio, event, raw->data);
 
 	if (verbose)
 		printf("sched_switch event %p\n", event);
@@ -783,38 +810,94 @@ process_sched_switch_event(struct raw_event_sample *raw, struct event *event,
 
 	if (verbose) {
 		printf(" ... switch from %s/%d to %s/%d [ran %Ld nsecs]\n",
-			switch_event.prev_comm, switch_event.prev_pid,
-			switch_event.next_comm, switch_event.next_pid,
+			switch_event->prev_comm, switch_event->prev_pid,
+			switch_event->next_comm, switch_event->next_pid,
 			delta);
 	}
 
-	prev = register_pid(switch_event.prev_pid, switch_event.prev_comm);
-	next = register_pid(switch_event.next_pid, switch_event.next_comm);
+	prev = register_pid(switch_event->prev_pid, switch_event->prev_comm);
+	next = register_pid(switch_event->next_pid, switch_event->next_comm);
 
 	cpu_last_switched[cpu] = timestamp;
 
 	add_sched_event_run(prev, timestamp, delta);
-	add_sched_event_sleep(prev, timestamp, switch_event.prev_state);
+	add_sched_event_sleep(prev, timestamp, switch_event->prev_state);
 }
 
-struct trace_fork_event {
-	u32 size;
-
-	u16 common_type;
-	u8 common_flags;
-	u8 common_preempt_count;
-	u32 common_pid;
-	u32 common_tgid;
-
-	char parent_comm[16];
-	u32 parent_pid;
-	char child_comm[16];
-	u32 child_pid;
-};
 
 static void
-process_sched_fork_event(struct raw_event_sample *raw, struct event *event,
-		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
+replay_fork_event(struct trace_fork_event *fork_event,
+		  struct event *event,
+		  int cpu __used,
+		  u64 timestamp __used,
+		  struct thread *thread __used)
+{
+	if (verbose) {
+		printf("sched_fork event %p\n", event);
+		printf("... parent: %s/%d\n", fork_event->parent_comm, fork_event->parent_pid);
+		printf("...  child: %s/%d\n", fork_event->child_comm, fork_event->child_pid);
+	}
+	register_pid(fork_event->parent_pid, fork_event->parent_comm);
+	register_pid(fork_event->child_pid, fork_event->child_comm);
+}
+
+static struct trace_sched_handler replay_ops  = {
+	.wakeup_event = replay_wakeup_event,
+	.switch_event = replay_switch_event,
+	.fork_event = replay_fork_event,
+};
+
+
+static struct trace_sched_handler *trace_handler;
+
+static void
+process_sched_wakeup_event(struct raw_event_sample *raw,
+			   struct event *event,
+			   int cpu __used,
+			   u64 timestamp __used,
+			   struct thread *thread __used)
+{
+	struct trace_wakeup_event wakeup_event;
+
+	FILL_COMMON_FIELDS(wakeup_event, event, raw->data);
+
+	FILL_ARRAY(wakeup_event, comm, event, raw->data);
+	FILL_FIELD(wakeup_event, pid, event, raw->data);
+	FILL_FIELD(wakeup_event, prio, event, raw->data);
+	FILL_FIELD(wakeup_event, success, event, raw->data);
+	FILL_FIELD(wakeup_event, cpu, event, raw->data);
+
+	trace_handler->wakeup_event(&wakeup_event, event, cpu, timestamp, thread);
+}
+
+static void
+process_sched_switch_event(struct raw_event_sample *raw,
+			   struct event *event,
+			   int cpu __used,
+			   u64 timestamp __used,
+			   struct thread *thread __used)
+{
+	struct trace_switch_event switch_event;
+
+	FILL_COMMON_FIELDS(switch_event, event, raw->data);
+
+	FILL_ARRAY(switch_event, prev_comm, event, raw->data);
+	FILL_FIELD(switch_event, prev_pid, event, raw->data);
+	FILL_FIELD(switch_event, prev_prio, event, raw->data);
+	FILL_FIELD(switch_event, prev_state, event, raw->data);
+	FILL_ARRAY(switch_event, next_comm, event, raw->data);
+	FILL_FIELD(switch_event, next_pid, event, raw->data);
+	FILL_FIELD(switch_event, next_prio, event, raw->data);
+
+	trace_handler->switch_event(&switch_event, event, cpu, timestamp, thread);
+}
+
+static void
+process_sched_fork_event(struct raw_event_sample *raw,
+			 struct event *event,
+			 int cpu __used,
+			 u64 timestamp __used,
+			 struct thread *thread __used)
 {
 	struct trace_fork_event fork_event;
 
@@ -825,17 +908,14 @@ process_sched_fork_event(struct raw_event_sample *raw, struct event *event,
 	FILL_ARRAY(fork_event, child_comm, event, raw->data);
 	FILL_FIELD(fork_event, child_pid, event, raw->data);
 
-	if (verbose) {
-		printf("sched_fork event %p\n", event);
-		printf("... parent: %s/%d\n", fork_event.parent_comm, fork_event.parent_pid);
-		printf("...  child: %s/%d\n", fork_event.child_comm, fork_event.child_pid);
-	}
-	register_pid(fork_event.parent_pid, fork_event.parent_comm);
-	register_pid(fork_event.child_pid, fork_event.child_comm);
+	trace_handler->fork_event(&fork_event, event, cpu, timestamp, thread);
 }
 
-static void process_sched_exit_event(struct event *event,
-		  int cpu __used, u64 timestamp __used, struct thread *thread __used)
+static void
+process_sched_exit_event(struct event *event,
+			 int cpu __used,
+			 u64 timestamp __used,
+			 struct thread *thread __used)
 {
 	if (verbose)
 		printf("sched_exit event %p\n", event);
@@ -1072,6 +1152,8 @@ static const char * const annotate_usage[] = {
 static const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN('r', "replay", &replay_mode,
+		    "replay sched behaviour from traces"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
@@ -1095,6 +1177,11 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 	}
 
 //	setup_pager();
+
+	if (replay_mode)
+		trace_handler = &replay_ops;
+	else /* We may need a default subcommand */
+		die("Please select a sub command (-r)\n");
 
 	calibrate_run_measurement_overhead();
 	calibrate_sleep_measurement_overhead();
