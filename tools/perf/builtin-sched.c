@@ -1129,9 +1129,9 @@ static void output_lat_thread(struct task_atoms *atom_list)
 	avg = atom_list->total_lat / atom_list->nb_atoms;
 
 	printf("|%9.3f ms |%9llu | avg:%9.3f ms | max:%9.3f ms |\n",
-	      (double)atom_list->total_runtime / 1e9,
-		 atom_list->nb_atoms, (double)avg / 1e9,
-		 (double)atom_list->max_lat / 1e9);
+	      (double)atom_list->total_runtime / 1e6,
+		 atom_list->nb_atoms, (double)avg / 1e6,
+		 (double)atom_list->max_lat / 1e6);
 }
 
 static void __cmd_lat(void)
@@ -1157,7 +1157,7 @@ static void __cmd_lat(void)
 
 	printf("-----------------------------------------------------------------------------------\n");
 	printf(" TOTAL:            |%9.3f ms |%9Ld |\n",
-		(double)all_runtime/1e9, all_count);
+		(double)all_runtime/1e6, all_count);
 	printf("---------------------------------------------\n");
 }
 
