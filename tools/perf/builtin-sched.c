@@ -866,8 +866,8 @@ static struct trace_sched_handler replay_ops  = {
 #define TASK_STATE_TO_CHAR_STR "RSDTtZX"
 
 enum thread_state {
-	THREAD_SLEEPING,
-	THREAD_WAKED_UP,
+	THREAD_SLEEPING = 0,
+	THREAD_WAIT_CPU,
 	THREAD_SCHED_IN,
 	THREAD_IGNORE
 };
@@ -962,13 +962,20 @@ static char sched_out_state(struct trace_switch_event *switch_event)
 
 static void
 lat_sched_out(struct task_atoms *atoms,
-	     struct trace_switch_event *switch_event __used, u64 delta)
+	      struct trace_switch_event *switch_event __used,
+	      u64 delta,
+	      u64 timestamp)
 {
 	struct work_atom *snapshot;
 
 	snapshot = calloc(sizeof(*snapshot), 1);
 	if (!snapshot)
 		die("Non memory");
+
+	if (sched_out_state(switch_event) == 'R') {
+		snapshot->state = THREAD_WAIT_CPU;
+		snapshot->wake_up_time = timestamp;
+	}
 
 	snapshot->runtime = delta;
 	list_add_tail(&snapshot->list, &atoms->snapshot_list);
@@ -985,7 +992,7 @@ lat_sched_in(struct task_atoms *atoms, u64 timestamp)
 	snapshot = list_entry(atoms->snapshot_list.prev, struct work_atom,
 			      list);
 
-	if (snapshot->state != THREAD_WAKED_UP)
+	if (snapshot->state != THREAD_WAIT_CPU)
 		return;
 
 	if (timestamp < snapshot->wake_up_time) {
@@ -1043,7 +1050,7 @@ latency_switch_event(struct trace_switch_event *switch_event,
 	}
 
 	lat_sched_in(in_atoms, timestamp);
-	lat_sched_out(out_atoms, switch_event, delta);
+	lat_sched_out(out_atoms, switch_event, delta, timestamp);
 }
 
 static void
@@ -1077,7 +1084,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	if (snapshot->state != THREAD_SLEEPING)
 		return;
 
-	snapshot->state = THREAD_WAKED_UP;
+	snapshot->state = THREAD_WAIT_CPU;
 	snapshot->wake_up_time = timestamp;
 }
 
