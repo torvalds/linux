@@ -123,9 +123,11 @@ static inline int cifs_get_disposition(unsigned int flags)
 }
 
 /* all arguments to this function must be checked for validity in caller */
-static inline int cifs_posix_open_inode_helper(struct inode *inode,
-			struct file *file, struct cifsInodeInfo *pCifsInode,
-			struct cifsFileInfo *pCifsFile, int oplock, u16 netfid)
+static inline int
+cifs_posix_open_inode_helper(struct inode *inode, struct file *file,
+			     struct cifsInodeInfo *pCifsInode,
+			     struct cifsFileInfo *pCifsFile, __u32 oplock,
+			     u16 netfid)
 {
 
 	write_lock(&GlobalSMBSeslock);
@@ -279,7 +281,8 @@ client_can_cache:
 int cifs_open(struct inode *inode, struct file *file)
 {
 	int rc = -EACCES;
-	int xid, oplock;
+	int xid;
+	__u32 oplock;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *pCifsFile;
@@ -474,7 +477,8 @@ static int cifs_relock_file(struct cifsFileInfo *cifsFile)
 static int cifs_reopen_file(struct file *file, bool can_flush)
 {
 	int rc = -EACCES;
-	int xid, oplock;
+	int xid;
+	__u32 oplock;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *pCifsFile;

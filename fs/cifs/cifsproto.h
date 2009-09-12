@@ -97,7 +97,7 @@ extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 			   struct super_block *sb, int mode, int oflags,
-			   int *poplock, __u16 *pnetfid, int xid);
+			   __u32 *poplock, __u16 *pnetfid, int xid);
 extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
 				     FILE_UNIX_BASIC_INFO *info,
 				     struct cifs_sb_info *cifs_sb);
