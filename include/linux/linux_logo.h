@@ -47,7 +47,6 @@ extern const struct linux_logo logo_sidux_clut224;
 extern const struct linux_logo logo_fedorasimple_clut224;
 extern const struct linux_logo logo_fedoraglossy_clut224;
 extern const struct linux_logo logo_tits_clut224;
-extern const struct linux_logo logo_gcn_clut224;
 extern const struct linux_logo logo_bsd_clut224;
 extern const struct linux_logo logo_fbsd_clut224;
 extern const struct linux_logo logo_dec_clut224;

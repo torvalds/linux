@@ -16,7 +16,6 @@ obj-$(CONFIG_LOGO_SIDUX_CLUT224)	+= logo_sidux_clut224.o
 obj-$(CONFIG_LOGO_FEDORASIMPLE_CLUT224) += logo_fedorasimple_clut224.o
 obj-$(CONFIG_LOGO_FEDORAGLOSSY_CLUT224) += logo_fedoraglossy_clut224.o
 obj-$(CONFIG_LOGO_TITS_CLUT224)		+= logo_tits_clut224.o
-obj-$(CONFIG_LOGO_GCN_CLUT224)		+= logo_gcn_clut224.o
 obj-$(CONFIG_LOGO_BSD_CLUT224)		+= logo_bsd_clut224.o
 obj-$(CONFIG_LOGO_FBSD_CLUT224)		+= logo_fbsd_clut224.o
 obj-$(CONFIG_LOGO_DEC_CLUT224)		+= logo_dec_clut224.o

@@ -111,9 +111,6 @@ static const struct linux_logo *logo_clut224[] = {
 #ifdef CONFIG_LOGO_TITS_CLUT224
 	&logo_tits_clut224,		/* Tits logo */
 #endif
-#ifdef CONFIG_LOGO_GCN_CLUT224
-        &logo_gcn_clut224,              /* Gamecube Linux logo */
-#endif
 #ifdef CONFIG_LOGO_BSD_CLUT224
 	&logo_bsd_clut224,		/* BSD logo */
 #endif
