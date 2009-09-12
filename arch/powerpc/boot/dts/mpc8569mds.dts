@@ -253,6 +253,7 @@
 			/* Filled in by U-Boot */
 			clock-frequency = <0>;
 			status = "disabled";
+			sdhci,1-bit-only;
 		};
 
 		crypto@30000 {

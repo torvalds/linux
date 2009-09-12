@@ -19,10 +19,8 @@
 
 #include "dumpstack.h"
 
-static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
-					unsigned *usedp, char **idp)
-{
-	static char ids[][8] = {
+
+static char x86_stack_ids[][8] = {
 		[DEBUG_STACK - 1] = "#DB",
 		[NMI_STACK - 1] = "NMI",
 		[DOUBLEFAULT_STACK - 1] = "#DF",
@@ -33,6 +31,15 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			N_EXCEPTION_STACKS + DEBUG_STKSZ / EXCEPTION_STKSZ - 2] = "#DB[?]"
 #endif
 	};
+
+int x86_is_stack_id(int id, char *name)
+{
+	return x86_stack_ids[id - 1] == name;
+}
+
+static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
+					unsigned *usedp, char **idp)
+{
 	unsigned k;
 
 	/*
@@ -61,7 +68,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			if (*usedp & (1U << k))
 				break;
 			*usedp |= 1U << k;
-			*idp = ids[k];
+			*idp = x86_stack_ids[k];
 			return (unsigned long *)end;
 		}
 		/*
@@ -81,12 +88,13 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			do {
 				++j;
 				end -= EXCEPTION_STKSZ;
-				ids[j][4] = '1' + (j - N_EXCEPTION_STACKS);
+				x86_stack_ids[j][4] = '1' +
+						(j - N_EXCEPTION_STACKS);
 			} while (stack < end - EXCEPTION_STKSZ);
 			if (*usedp & (1U << j))
 				break;
 			*usedp |= 1U << j;
-			*idp = ids[j];
+			*idp = x86_stack_ids[j];
 			return (unsigned long *)end;
 		}
 #endif

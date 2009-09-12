@@ -61,10 +61,6 @@ config EARLY_PRINTK
 	  select both the EARLY_SCIF_CONSOLE and SH_STANDARD_BIOS, using
 	  the kernel command line option to toggle back and forth.
 
-config DEBUG_BOOTMEM
-	depends on DEBUG_KERNEL
-	bool "Debug BOOTMEM initialization"
-
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL && SUPERH32

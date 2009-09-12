@@ -36,10 +36,6 @@
 
 #define STV_ISOC_ENDPOINT_ADDR		0x81
 
-#ifndef V4L2_PIX_FMT_SGRBG8
-#define V4L2_PIX_FMT_SGRBG8 v4l2_fourcc('G', 'R', 'B', 'G')
-#endif
-
 #define STV_REG23 			0x0423
 
 /* Control registers of the STV0600 ASIC */

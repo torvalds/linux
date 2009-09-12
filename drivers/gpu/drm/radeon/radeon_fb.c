@@ -478,14 +478,16 @@ int radeonfb_create(struct radeon_device *rdev,
 {
 	struct fb_info *info;
 	struct radeon_fb_device *rfbdev;
-	struct drm_framebuffer *fb;
+	struct drm_framebuffer *fb = NULL;
 	struct radeon_framebuffer *rfb;
 	struct drm_mode_fb_cmd mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_object *robj = NULL;
 	struct device *device = &rdev->pdev->dev;
 	int size, aligned_size, ret;
+	u64 fb_gpuaddr;
 	void *fbptr = NULL;
+	unsigned long tmp;
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
@@ -498,11 +500,12 @@ int radeonfb_create(struct radeon_device *rdev,
 	aligned_size = ALIGN(size, PAGE_SIZE);
 
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
-				       RADEON_GEM_DOMAIN_VRAM,
-				       false, ttm_bo_type_kernel,
-				       false, &gobj);
+			RADEON_GEM_DOMAIN_VRAM,
+			false, ttm_bo_type_kernel,
+			false, &gobj);
 	if (ret) {
-		printk(KERN_ERR "failed to allocate framebuffer\n");
+		printk(KERN_ERR "failed to allocate framebuffer (%d %d)\n",
+		       surface_width, surface_height);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -515,12 +518,19 @@ int radeonfb_create(struct radeon_device *rdev,
 		ret = -ENOMEM;
 		goto out_unref;
 	}
+	ret = radeon_object_pin(robj, RADEON_GEM_DOMAIN_VRAM, &fb_gpuaddr);
+	if (ret) {
+		printk(KERN_ERR "failed to pin framebuffer\n");
+		ret = -ENOMEM;
+		goto out_unref;
+	}
 
 	list_add(&fb->filp_head, &rdev->ddev->mode_config.fb_kernel_list);
 
 	rfb = to_radeon_framebuffer(fb);
 	*rfb_p = rfb;
 	rdev->fbdev_rfb = rfb;
+	rdev->fbdev_robj = robj;
 
 	info = framebuffer_alloc(sizeof(struct radeon_fb_device), device);
 	if (info == NULL) {
@@ -541,13 +551,13 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */
 	info->fix.ywrapstep = 0;
-	info->fix.accel = FB_ACCEL_I830;
+	info->fix.accel = FB_ACCEL_NONE;
 	info->fix.type_aux = 0;
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
 	info->fix.line_length = fb->pitch;
-	info->screen_base = fbptr;
-	info->fix.smem_start = (unsigned long)fbptr;
+	tmp = fb_gpuaddr - rdev->mc.vram_location;
+	info->fix.smem_start = rdev->mc.aper_base + tmp;
 	info->fix.smem_len = size;
 	info->screen_base = fbptr;
 	info->screen_size = size;
@@ -562,8 +572,8 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->var.width = -1;
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
-	info->fix.mmio_start = pci_resource_start(rdev->pdev, 2);
-	info->fix.mmio_len = pci_resource_len(rdev->pdev, 2);
+	info->fix.mmio_start = 0;
+	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;
@@ -644,7 +654,7 @@ out_unref:
 	if (robj) {
 		radeon_object_kunmap(robj);
 	}
-	if (ret) {
+	if (fb && ret) {
 		list_del(&fb->filp_head);
 		drm_gem_object_unreference(gobj);
 		drm_framebuffer_cleanup(fb);
@@ -813,6 +823,7 @@ int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 		robj = rfb->obj->driver_private;
 		unregister_framebuffer(info);
 		radeon_object_kunmap(robj);
+		radeon_object_unpin(robj);
 		framebuffer_release(info);
 	}
 

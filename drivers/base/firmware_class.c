@@ -357,7 +357,7 @@ static void fw_dev_release(struct device *dev)
 	kfree(fw_priv->pages);
 	kfree(fw_priv->fw_id);
 	kfree(fw_priv);
-	put_device(dev);
+	kfree(dev);
 
 	module_put(THIS_MODULE);
 }
@@ -408,13 +408,11 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 	if (retval) {
 		dev_err(device, "%s: device_register failed\n", __func__);
 		put_device(f_dev);
-		goto error_kfree_fw_id;
+		return retval;
 	}
 	*dev_p = f_dev;
 	return 0;
 
-error_kfree_fw_id:
-	kfree(fw_priv->fw_id);
 error_kfree:
 	kfree(f_dev);
 	kfree(fw_priv);

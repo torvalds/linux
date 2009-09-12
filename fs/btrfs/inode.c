@@ -3580,12 +3580,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 1;
 	BTRFS_I(inode)->block_group =
 			btrfs_find_block_group(root, 0, alloc_hint, owner);
-	if ((mode & S_IFREG)) {
-		if (btrfs_test_opt(root, NODATASUM))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
-		if (btrfs_test_opt(root, NODATACOW))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
-	}
 
 	key[0].objectid = objectid;
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
@@ -3639,6 +3633,13 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
 
 	btrfs_inherit_iflags(inode, dir);
+
+	if ((mode & S_IFREG)) {
+		if (btrfs_test_opt(root, NODATASUM))
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
+		if (btrfs_test_opt(root, NODATACOW))
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
+	}
 
 	insert_inode_hash(inode);
 	inode_tree_add(inode);
@@ -5082,6 +5083,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 	struct extent_map *em;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root;
 	int ret;
 
 	alloc_start = offset & ~mask;
@@ -5100,6 +5102,13 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			goto out;
 	}
 
+	root = BTRFS_I(inode)->root;
+
+	ret = btrfs_check_data_free_space(root, inode,
+					  alloc_end - alloc_start);
+	if (ret)
+		goto out;
+
 	locked_end = alloc_end - 1;
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
@@ -5107,7 +5116,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		trans = btrfs_start_transaction(BTRFS_I(inode)->root, 1);
 		if (!trans) {
 			ret = -EIO;
-			goto out;
+			goto out_free;
 		}
 
 		/* the extent lock is ordered inside the running
@@ -5168,6 +5177,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		      GFP_NOFS);
 
 	btrfs_end_transaction(trans, BTRFS_I(inode)->root);
+out_free:
+	btrfs_free_reserved_data_space(root, inode, alloc_end - alloc_start);
 out:
 	mutex_unlock(&inode->i_mutex);
 	return ret;

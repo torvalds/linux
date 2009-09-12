@@ -337,10 +337,10 @@ config USB_R8A66597_HCD
 
 config SUPERH_ON_CHIP_R8A66597
 	boolean "Enable SuperH on-chip R8A66597 USB"
-	depends on USB_R8A66597_HCD && (CPU_SUBTYPE_SH7366 || CPU_SUBTYPE_SH7723)
+	depends on USB_R8A66597_HCD && (CPU_SUBTYPE_SH7366 || CPU_SUBTYPE_SH7723 || CPU_SUBTYPE_SH7724)
 	help
 	   This driver enables support for the on-chip R8A66597 in the
-	   SH7366 and SH7723 processors.
+	   SH7366, SH7723 and SH7724 processors.
 
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"

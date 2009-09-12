@@ -487,7 +487,7 @@ int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (unlikely(hdr->msg_type != RNDIS_MSG_PACKET
 				|| skb->len < msg_len
 				|| (data_offset + data_len + 8) > msg_len)) {
-			dev->stats.rx_frame_errors++;
+			dev->net->stats.rx_frame_errors++;
 			devdbg(dev, "bad rndis message %d/%d/%d/%d, len %d",
 				le32_to_cpu(hdr->msg_type),
 				msg_len, data_offset, data_len, skb->len);

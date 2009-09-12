@@ -16,6 +16,8 @@ create_package() {
 	local pname="$1" pdir="$2"
 
 	cp debian/copyright "$pdir/usr/share/doc/$pname/"
+	cp debian/changelog "$pdir/usr/share/doc/$pname/changelog.Debian"
+	gzip -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
 
 	# Fix ownership and permissions
 	chown -R root:root "$pdir"

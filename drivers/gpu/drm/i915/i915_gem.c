@@ -1006,7 +1006,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 #if WATCH_BUF
-	DRM_INFO("set_domain_ioctl %p(%d), %08x %08x\n",
+	DRM_INFO("set_domain_ioctl %p(%zd), %08x %08x\n",
 		 obj, obj->size, read_domains, write_domain);
 #endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
@@ -1050,7 +1050,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	}
 
 #if WATCH_BUF
-	DRM_INFO("%s: sw_finish %d (%p %d)\n",
+	DRM_INFO("%s: sw_finish %d (%p %zd)\n",
 		 __func__, args->handle, obj, obj->size);
 #endif
 	obj_priv = obj->driver_private;
@@ -1250,6 +1250,31 @@ out_free_list:
 	kfree(list->map);
 
 	return ret;
+}
+
+/**
+ * i915_gem_release_mmap - remove physical page mappings
+ * @obj: obj in question
+ *
+ * Preserve the reservation of the mmaping with the DRM core code, but
+ * relinquish ownership of the pages back to the system.
+ *
+ * It is vital that we remove the page mapping if we have mapped a tiled
+ * object through the GTT and then lose the fence register due to
+ * resource pressure. Similarly if the object has been moved out of the
+ * aperture, than pages mapped into userspace must be revoked. Removing the
+ * mapping will then trigger a page fault on the next user access, allowing
+ * fixup by i915_gem_fault().
+ */
+void
+i915_gem_release_mmap(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (dev->dev_mapping)
+		unmap_mapping_range(dev->dev_mapping,
+				    obj_priv->mmap_offset, obj->size, 1);
 }
 
 static void
@@ -1861,7 +1886,6 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
-	loff_t offset;
 	int ret = 0;
 
 #if WATCH_BUF
@@ -1898,9 +1922,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	BUG_ON(obj_priv->active);
 
 	/* blow away mappings if mapped through GTT */
-	offset = ((loff_t) obj->map_list.hash.key) << PAGE_SHIFT;
-	if (dev->dev_mapping)
-		unmap_mapping_range(dev->dev_mapping, offset, obj->size, 1);
+	i915_gem_release_mmap(obj);
 
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
@@ -2222,7 +2244,6 @@ try_again:
 	/* None available, try to steal one or wait for a user to finish */
 	if (i == dev_priv->num_fence_regs) {
 		uint32_t seqno = dev_priv->mm.next_gem_seqno;
-		loff_t offset;
 
 		if (avail == 0)
 			return -ENOSPC;
@@ -2274,10 +2295,7 @@ try_again:
 		 * Zap this virtual mapping so we can set up a fence again
 		 * for this object next time we need it.
 		 */
-		offset = ((loff_t) reg->obj->map_list.hash.key) << PAGE_SHIFT;
-		if (dev->dev_mapping)
-			unmap_mapping_range(dev->dev_mapping, offset,
-					    reg->obj->size, 1);
+		i915_gem_release_mmap(reg->obj);
 		old_obj_priv->fence_reg = I915_FENCE_REG_NONE;
 	}
 
@@ -2423,7 +2441,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	}
 
 #if WATCH_BUF
-	DRM_INFO("Binding object of size %d at 0x%08x\n",
+	DRM_INFO("Binding object of size %zd at 0x%08x\n",
 		 obj->size, obj_priv->gtt_offset);
 #endif
 	ret = i915_gem_object_get_pages(obj);
@@ -4227,6 +4245,7 @@ i915_gem_lastclose(struct drm_device *dev)
 void
 i915_gem_load(struct drm_device *dev)
 {
+	int i;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	spin_lock_init(&dev_priv->mm.active_list_lock);
@@ -4245,6 +4264,18 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
+
+	/* Initialize fence registers to zero */
+	if (IS_I965G(dev)) {
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), 0);
+	} else {
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), 0);
+	}
 
 	i915_gem_detect_bit_6_swizzle(dev);
 }

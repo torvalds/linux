@@ -159,7 +159,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	int psize;
 #endif
 
-	pr_debug("%s(%lx,%x,%s)\n", __func__, start, nr_pages, write ? "write" : "read");
+	pr_devel("%s(%lx,%x,%s)\n", __func__, start, nr_pages, write ? "write" : "read");
 
 	start &= PAGE_MASK;
 	addr = start;
@@ -170,7 +170,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 					start, len)))
 		goto slow_irqon;
 
-	pr_debug("  aligned: %lx .. %lx\n", start, end);
+	pr_devel("  aligned: %lx .. %lx\n", start, end);
 
 #ifdef CONFIG_HUGETLB_PAGE
 	/* We bail out on slice boundary crossing when hugetlb is
@@ -234,7 +234,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		do {
 			VM_BUG_ON(shift != mmu_psize_defs[get_slice_psize(mm, a)].shift);
 			ptep = huge_pte_offset(mm, a);
-			pr_debug(" %016lx: huge ptep %p\n", a, ptep);
+			pr_devel(" %016lx: huge ptep %p\n", a, ptep);
 			if (!ptep || !gup_huge_pte(ptep, hstate, &a, end, write, pages,
 						   &nr))
 				goto slow;
@@ -249,7 +249,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 #ifdef CONFIG_PPC64
 			VM_BUG_ON(shift != mmu_psize_defs[get_slice_psize(mm, addr)].shift);
 #endif
-			pr_debug("  %016lx: normal pgd %p\n", addr,
+			pr_devel("  %016lx: normal pgd %p\n", addr,
 				 (void *)pgd_val(pgd));
 			next = pgd_addr_end(addr, end);
 			if (pgd_none(pgd))
@@ -269,7 +269,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 slow:
 		local_irq_enable();
 slow_irqon:
-		pr_debug("  slow path ! nr = %d\n", nr);
+		pr_devel("  slow path ! nr = %d\n", nr);
 
 		/* Try to get the remaining pages with get_user_pages */
 		start += nr << PAGE_SHIFT;

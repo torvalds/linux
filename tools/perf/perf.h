@@ -19,13 +19,29 @@
 #define cpu_relax()	asm volatile("" ::: "memory");
 #endif
 
+#ifdef __sh__
+#include "../../arch/sh/include/asm/unistd.h"
+#if defined(__SH4A__) || defined(__SH5__)
+# define rmb()		asm volatile("synco" ::: "memory")
+#else
+# define rmb()		asm volatile("" ::: "memory")
+#endif
+#define cpu_relax()	asm volatile("" ::: "memory")
+#endif
+
+#ifdef __hppa__
+#include "../../arch/parisc/include/asm/unistd.h"
+#define rmb()		asm volatile("" ::: "memory")
+#define cpu_relax()	asm volatile("" ::: "memory");
+#endif
+
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
 
 #include "../../include/linux/perf_counter.h"
-#include "types.h"
+#include "util/types.h"
 
 /*
  * prctl(PR_TASK_PERF_COUNTERS_DISABLE) will (cheaply) disable all
@@ -52,6 +68,8 @@ static inline unsigned long long rdclock(void)
 #define __user
 #define asmlinkage
 
+#define __used		__attribute__((__unused__))
+
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\
@@ -72,10 +90,9 @@ sys_perf_counter_open(struct perf_counter_attr *attr,
 #define MAX_COUNTERS			256
 #define MAX_NR_CPUS			256
 
-struct perf_file_header {
-	u64	version;
-	u64	sample_type;
-	u64	data_size;
+struct ip_callchain {
+	u64 nr;
+	u64 ips[0];
 };
 
 #endif

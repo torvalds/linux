@@ -412,7 +412,7 @@ _xfs_buf_lookup_pages(
 
 			XFS_STATS_INC(xb_page_retries);
 			xfsbufd_wakeup(0, gfp_mask);
-			congestion_wait(WRITE, HZ/50);
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
 

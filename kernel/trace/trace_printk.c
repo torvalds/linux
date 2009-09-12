@@ -155,25 +155,19 @@ int __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap)
 EXPORT_SYMBOL_GPL(__ftrace_vprintk);
 
 static void *
-t_next(struct seq_file *m, void *v, loff_t *pos)
+t_start(struct seq_file *m, loff_t *pos)
 {
-	const char **fmt = m->private;
-	const char **next = fmt;
-
-	(*pos)++;
+	const char **fmt = __start___trace_bprintk_fmt + *pos;
 
 	if ((unsigned long)fmt >= (unsigned long)__stop___trace_bprintk_fmt)
 		return NULL;
-
-	next = fmt;
-	m->private = ++next;
-
 	return fmt;
 }
 
-static void *t_start(struct seq_file *m, loff_t *pos)
+static void *t_next(struct seq_file *m, void * v, loff_t *pos)
 {
-	return t_next(m, NULL, pos);
+	(*pos)++;
+	return t_start(m, pos);
 }
 
 static int t_show(struct seq_file *m, void *v)
@@ -224,15 +218,7 @@ static const struct seq_operations show_format_seq_ops = {
 static int
 ftrace_formats_open(struct inode *inode, struct file *file)
 {
-	int ret;
-
-	ret = seq_open(file, &show_format_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-
-		m->private = __start___trace_bprintk_fmt;
-	}
-	return ret;
+	return seq_open(file, &show_format_seq_ops);
 }
 
 static const struct file_operations ftrace_formats_fops = {

@@ -1028,7 +1028,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 						struct btrfs_file_extent_item);
 			comp = btrfs_file_extent_compression(leaf, extent);
 			type = btrfs_file_extent_type(leaf, extent);
-			if (type == BTRFS_FILE_EXTENT_REG) {
+			if (type == BTRFS_FILE_EXTENT_REG ||
+			    type == BTRFS_FILE_EXTENT_PREALLOC) {
 				disko = btrfs_file_extent_disk_bytenr(leaf,
 								      extent);
 				diskl = btrfs_file_extent_disk_num_bytes(leaf,
@@ -1051,7 +1052,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			new_key.objectid = inode->i_ino;
 			new_key.offset = key.offset + destoff - off;
 
-			if (type == BTRFS_FILE_EXTENT_REG) {
+			if (type == BTRFS_FILE_EXTENT_REG ||
+			    type == BTRFS_FILE_EXTENT_PREALLOC) {
 				ret = btrfs_insert_empty_item(trans, root, path,
 							      &new_key, size);
 				if (ret)

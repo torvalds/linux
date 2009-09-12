@@ -722,6 +722,8 @@ ENTRY(sys_call_table)
 	.long sys_inotify_init1
 	.long sys_preadv
 	.long sys_pwritev		/* 335 */
+	.long sys_rt_tgsigqueueinfo
+	.long sys_perf_counter_open
 
 
 nr_syscalls=(.-sys_call_table)/4

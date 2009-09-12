@@ -170,8 +170,8 @@ static int create_strip_zones(mddev_t *mddev)
 		}
 		dev[j] = rdev1;
 
-		blk_queue_stack_limits(mddev->queue,
-				       rdev1->bdev->bd_disk->queue);
+		disk_stack_limits(mddev->gendisk, rdev1->bdev,
+				  rdev1->data_offset << 9);
 		/* as we don't honour merge_bvec_fn, we must never risk
 		 * violating it, so limit ->max_sector to one PAGE, as
 		 * a one page request is never in violation.
@@ -250,6 +250,11 @@ static int create_strip_zones(mddev_t *mddev)
 		       mddev->chunk_sectors << 9);
 		goto abort;
 	}
+
+	blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
+	blk_queue_io_opt(mddev->queue,
+			 (mddev->chunk_sectors << 9) * mddev->raid_disks);
+
 	printk(KERN_INFO "raid0: done.\n");
 	mddev->private = conf;
 	return 0;

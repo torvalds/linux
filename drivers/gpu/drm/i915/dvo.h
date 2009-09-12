@@ -37,7 +37,7 @@ struct intel_dvo_device {
 	/* GPIO register used for i2c bus to control this device */
 	u32 gpio;
 	int slave_addr;
-	struct intel_i2c_chan *i2c_bus;
+	struct i2c_adapter *i2c_bus;
 
 	const struct intel_dvo_dev_ops *dev_ops;
 	void *dev_priv;
@@ -52,7 +52,7 @@ struct intel_dvo_dev_ops {
 	 * Returns NULL if the device does not exist.
 	 */
 	bool (*init)(struct intel_dvo_device *dvo,
-		     struct intel_i2c_chan *i2cbus);
+		     struct i2c_adapter *i2cbus);
 
 	/*
 	 * Called to allow the output a chance to create properties after the

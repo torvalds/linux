@@ -67,7 +67,6 @@
 #include <assert.h>
 #include <regex.h>
 #include <utime.h>
-#ifndef __MINGW32__
 #include <sys/wait.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -81,20 +80,6 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <inttypes.h>
-#if defined(__CYGWIN__)
-#undef _XOPEN_SOURCE
-#include <grp.h>
-#define _XOPEN_SOURCE 600
-#include "compat/cygwin.h"
-#else
-#undef _ALL_SOURCE /* AIX 5.3L defines a struct list with _ALL_SOURCE. */
-#include <grp.h>
-#define _ALL_SOURCE 1
-#endif
-#else 	/* __MINGW32__ */
-/* pull in Windows compatibility stuff */
-#include "compat/mingw.h"
-#endif	/* __MINGW32__ */
 
 #ifndef NO_ICONV
 #include <iconv.h>

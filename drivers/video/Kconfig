@@ -616,6 +616,8 @@ config FB_STI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select STI_CONSOLE
+	select VT
 	default y
 	---help---
 	  STI refers to the HP "Standard Text Interface" which is a set of
@@ -933,7 +935,7 @@ config FB_S1D13XXX
 
 config FB_ATMEL
 	tristate "AT91/AT32 LCD Controller support"
-	depends on FB && (ARCH_AT91SAM9261 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9 || AVR32)
+	depends on FB && (ARCH_AT91SAM9261 || ARCH_AT91SAM9G10 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45 || ARCH_AT91CAP9 || AVR32)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -949,7 +951,7 @@ config FB_INTSRAM
 
 config FB_ATMEL_STN
 	bool "Use a STN display with AT91/AT32 LCD Controller"
-	depends on FB_ATMEL && MACH_AT91SAM9261EK
+	depends on FB_ATMEL && (MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK)
 	default n
 	help
 	  Say Y if you want to connect a STN LCD display to the AT91/AT32 LCD

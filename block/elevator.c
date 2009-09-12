@@ -100,6 +100,14 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (bio_integrity(bio) != blk_integrity_rq(rq))
 		return 0;
 
+	/*
+	 * Don't merge if failfast settings don't match
+	 */
+	if (bio_failfast_dev(bio)	!= blk_failfast_dev(rq)		||
+	    bio_failfast_transport(bio)	!= blk_failfast_transport(rq)	||
+	    bio_failfast_driver(bio)	!= blk_failfast_driver(rq))
+		return 0;
+
 	if (!elv_iosched_allow_merge(rq, bio))
 		return 0;
 

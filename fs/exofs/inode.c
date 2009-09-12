@@ -1,8 +1,6 @@
 /*
  * Copyright (C) 2005, 2006
- * Avishay Traeger (avishay@gmail.com) (avishay@il.ibm.com)
- * Copyright (C) 2005, 2006
- * International Business Machines
+ * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
  * Boaz Harrosh <bharrosh@panasas.com>
  *
@@ -295,6 +293,9 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 err:
 	if (!is_sync)
 		_unlock_pcol_pages(pcol, ret, READ);
+	else /* Pages unlocked by caller in sync mode only free bio */
+		pcol_free(pcol);
+
 	kfree(pcol_copy);
 	if (or)
 		osd_end_request(or);

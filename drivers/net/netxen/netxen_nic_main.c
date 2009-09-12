@@ -718,6 +718,10 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 	if (request_fw)
 		netxen_request_firmware(adapter);
 
+	err = netxen_need_fw_reset(adapter);
+	if (err <= 0)
+		return err;
+
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
 		netxen_pinit_from_rom(adapter, 0);

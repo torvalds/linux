@@ -13,7 +13,7 @@ config VLYNQ
 
 config VLYNQ_DEBUG
 	bool "VLYNQ bus debug"
-	depends on VLYNQ && KERNEL_DEBUG
+	depends on VLYNQ && DEBUG_KERNEL
 	help
 	  Turn on VLYNQ bus debugging.
 

@@ -28,7 +28,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>

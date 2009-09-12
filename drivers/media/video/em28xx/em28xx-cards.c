@@ -58,6 +58,8 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
+#define MT9V011_VERSION                 0x8243
+
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
 static unsigned long em28xx_devused;
 
@@ -191,6 +193,13 @@ static struct em28xx_reg_seq terratec_av350_unmute_gpio[] = {
 	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
 	{	-1,		-1,	-1,		-1},
 };
+
+static struct em28xx_reg_seq silvercrest_reg_seq[] = {
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x01,	0xf7,		10},
+	{	-1,		-1,	-1,		-1},
+};
+
 /*
  *  Board definitions
  */
@@ -436,6 +445,18 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
+		} },
+	},
+	[EM2820_BOARD_SILVERCREST_WEBCAM] = {
+		.name         = "Silvercrest Webcam 1.3mpix",
+		.tuner_type   = TUNER_ABSENT,
+		.is_27xx      = 1,
+		.decoder      = EM28XX_MT9V011,
+		.input        = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = silvercrest_reg_seq,
 		} },
 	},
 	[EM2821_BOARD_SUPERCOMP_USB_2] = {
@@ -826,7 +847,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio     = default_tuner_gpio,
 		.decoder        = EM28XX_TVP5150,
 		.has_dvb        = 1,
-		.dvb_gpio       = default_analog,
+		.dvb_gpio       = default_digital,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -1639,6 +1660,11 @@ static unsigned short tvp5150_addrs[] = {
 	I2C_CLIENT_END
 };
 
+static unsigned short mt9v011_addrs[] = {
+	0xba >> 1,
+	I2C_CLIENT_END
+};
+
 static unsigned short msp3400_addrs[] = {
 	0x80 >> 1,
 	0x88 >> 1,
@@ -1678,6 +1704,46 @@ static inline void em28xx_set_model(struct em28xx *dev)
 				       EM28XX_I2C_FREQ_100_KHZ;
 }
 
+/* HINT method: webcam I2C chips
+ *
+ * This method work for webcams with Micron sensors
+ */
+static int em28xx_hint_sensor(struct em28xx *dev)
+{
+	int rc;
+	char *sensor_name;
+	unsigned char cmd;
+	__be16 version_be;
+	u16 version;
+
+	if (dev->model != EM2820_BOARD_UNKNOWN)
+		return 0;
+
+	dev->i2c_client.addr = 0xba >> 1;
+	cmd = 0;
+	i2c_master_send(&dev->i2c_client, &cmd, 1);
+	rc = i2c_master_recv(&dev->i2c_client, (char *)&version_be, 2);
+	if (rc != 2)
+		return -EINVAL;
+
+	version = be16_to_cpu(version_be);
+
+	switch (version) {
+	case MT9V011_VERSION:
+		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
+		sensor_name = "mt9v011";
+		break;
+	default:
+		printk("Unknown Sensor 0x%04x\n", be16_to_cpu(version));
+		return -EINVAL;
+	}
+
+	em28xx_errdev("Sensor is %s, assuming that webcam is %s\n",
+		      sensor_name, em28xx_boards[dev->model].name);
+
+	return 0;
+}
+
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
@@ -1706,7 +1772,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			em28xx_info("chip ID is em2750\n");
 			break;
 		case CHIP_ID_EM2820:
-			em28xx_info("chip ID is em2820\n");
+			if (dev->board.is_27xx)
+				em28xx_info("chip is em2710\n");
+			else
+				em28xx_info("chip ID is em2820\n");
 			break;
 		case CHIP_ID_EM2840:
 			em28xx_info("chip ID is em2840\n");
@@ -2158,6 +2227,10 @@ void em28xx_card_setup(struct em28xx *dev)
 		   before probing the i2c bus. */
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
+	case EM2820_BOARD_SILVERCREST_WEBCAM:
+		/* FIXME: need to document the registers bellow */
+		em28xx_write_reg(dev, 0x0d, 0x42);
+		em28xx_write_reg(dev, 0x13, 0x08);
 	}
 
 	if (dev->board.has_snapshot_button)
@@ -2188,6 +2261,10 @@ void em28xx_card_setup(struct em28xx *dev)
 	if (dev->board.decoder == EM28XX_TVP5150)
 		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 			"tvp5150", "tvp5150", tvp5150_addrs);
+
+	if (dev->board.decoder == EM28XX_MT9V011)
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"mt9v011", "mt9v011", mt9v011_addrs);
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
@@ -2332,6 +2409,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			__func__, errCode);
 		return errCode;
 	}
+
+	em28xx_hint_sensor(dev);
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
@@ -2573,6 +2652,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	retval = em28xx_init_dev(&dev, udev, interface, nr);
 	if (retval) {
 		em28xx_devused &= ~(1<<dev->devno);
+		mutex_unlock(&dev->lock);
 		kfree(dev);
 		goto err;
 	}

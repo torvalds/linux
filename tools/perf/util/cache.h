@@ -3,6 +3,7 @@
 
 #include "util.h"
 #include "strbuf.h"
+#include "../perf.h"
 
 #define PERF_DIR_ENVIRONMENT "PERF_DIR"
 #define PERF_WORK_TREE_ENVIRONMENT "PERF_WORK_TREE"

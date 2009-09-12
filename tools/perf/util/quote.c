@@ -162,12 +162,16 @@ static inline int sq_must_quote(char c)
 	return sq_lookup[(unsigned char)c] + quote_path_fully > 0;
 }
 
-/* returns the longest prefix not needing a quote up to maxlen if positive.
-   This stops at the first \0 because it's marked as a character needing an
-   escape */
-static size_t next_quote_pos(const char *s, ssize_t maxlen)
+/*
+ * Returns the longest prefix not needing a quote up to maxlen if
+ * positive.
+ * This stops at the first \0 because it's marked as a character
+ * needing an escape.
+ */
+static ssize_t next_quote_pos(const char *s, ssize_t maxlen)
 {
-	size_t len;
+	ssize_t len;
+
 	if (maxlen < 0) {
 		for (len = 0; !sq_must_quote(s[len]); len++);
 	} else {
@@ -192,22 +196,22 @@ static size_t next_quote_pos(const char *s, ssize_t maxlen)
 static size_t quote_c_style_counted(const char *name, ssize_t maxlen,
                                     struct strbuf *sb, FILE *fp, int no_dq)
 {
-#undef EMIT
-#define EMIT(c)                                 \
-	do {                                        \
-		if (sb) strbuf_addch(sb, (c));          \
-		if (fp) fputc((c), fp);                 \
-		count++;                                \
-	} while (0)
-#define EMITBUF(s, l)                           \
-	do {                                        \
-		int __ret;				\
-		if (sb) strbuf_add(sb, (s), (l));       \
-		if (fp) __ret = fwrite((s), (l), 1, fp);        \
-		count += (l);                           \
+#define EMIT(c)							\
+	do {							\
+		if (sb) strbuf_addch(sb, (c));			\
+		if (fp) fputc((c), fp);				\
+		count++;					\
 	} while (0)
 
-	size_t len, count = 0;
+#define EMITBUF(s, l)						\
+	do {							\
+		int __ret;					\
+		if (sb) strbuf_add(sb, (s), (l));		\
+		if (fp) __ret = fwrite((s), (l), 1, fp);	\
+		count += (l);					\
+	} while (0)
+
+	ssize_t len, count = 0;
 	const char *p = name;
 
 	for (;;) {
@@ -273,8 +277,8 @@ void write_name_quoted(const char *name, FILE *fp, int terminator)
 	fputc(terminator, fp);
 }
 
-extern void write_name_quotedpfx(const char *pfx, size_t pfxlen,
-                                 const char *name, FILE *fp, int terminator)
+void write_name_quotedpfx(const char *pfx, ssize_t pfxlen,
+			  const char *name, FILE *fp, int terminator)
 {
 	int needquote = 0;
 
@@ -306,7 +310,7 @@ char *quote_path_relative(const char *in, int len,
 		len = strlen(in);
 
 	/* "../" prefix itself does not need quoting, but "in" might. */
-	needquote = next_quote_pos(in, len) < len;
+	needquote = (next_quote_pos(in, len) < len);
 	strbuf_setlen(out, 0);
 	strbuf_grow(out, len);
 

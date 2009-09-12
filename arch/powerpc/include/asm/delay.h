@@ -63,6 +63,8 @@ extern void udelay(unsigned long usecs);
 			udelay(delay);                                         \
 		else                                                           \
 			cpu_relax();                                           \
+	if (!__ret)                                                            \
+		__ret = (condition);                                           \
 	__ret;		                                                       \
 })
 

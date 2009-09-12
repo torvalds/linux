@@ -393,8 +393,10 @@ static void set_fb_fix(struct fb_info *fbi)
 
 	rg = &plane->fbdev->mem_desc.region[plane->idx];
 	fbi->screen_base	= rg->vaddr;
+	mutex_lock(&fbi->mm_lock);
 	fix->smem_start		= rg->paddr;
 	fix->smem_len		= rg->size;
+	mutex_unlock(&fbi->mm_lock);
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	bpp = var->bits_per_pixel;
@@ -886,8 +888,10 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 				 * plane memory is dealloce'd, the other
 				 * screen parameters in var / fix are invalid.
 				 */
+				mutex_lock(&fbi->mm_lock);
 				fbi->fix.smem_start = 0;
 				fbi->fix.smem_len = 0;
+				mutex_unlock(&fbi->mm_lock);
 			}
 		}
 	}

@@ -39,7 +39,7 @@
  *
  * This is really horribly ugly. This will be remove with new toolchain.
  */
-asmlinkage int
+asmlinkage long
 sys_ipc(uint call, int first, int second, int third, void *ptr, long fifth)
 {
 	int version, ret;
@@ -134,20 +134,20 @@ sys_ipc(uint call, int first, int second, int third, void *ptr, long fifth)
 	return ret;
 }
 
-asmlinkage int sys_vfork(struct pt_regs *regs)
+asmlinkage long microblaze_vfork(struct pt_regs *regs)
 {
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->r1,
 						regs, 0, NULL, NULL);
 }
 
-asmlinkage int sys_clone(int flags, unsigned long stack, struct pt_regs *regs)
+asmlinkage long microblaze_clone(int flags, unsigned long stack, struct pt_regs *regs)
 {
 	if (!stack)
 		stack = regs->r1;
 	return do_fork(flags, stack, regs, 0, NULL, NULL);
 }
 
-asmlinkage int sys_execve(char __user *filenamei, char __user *__user *argv,
+asmlinkage long microblaze_execve(char __user *filenamei, char __user *__user *argv,
 			char __user *__user *envp, struct pt_regs *regs)
 {
 	int error;
@@ -163,8 +163,8 @@ out:
 	return error;
 }
 
-asmlinkage unsigned long
-sys_mmap2(unsigned long addr, size_t len,
+asmlinkage long
+sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags,
 	unsigned long fd, unsigned long pgoff)
 {
@@ -189,18 +189,18 @@ out:
 	return ret;
 }
 
-asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
+asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
-			unsigned long fd, off_t offset)
+			unsigned long fd, off_t pgoff)
 {
 	int err = -EINVAL;
 
-	if (offset & ~PAGE_MASK) {
+	if (pgoff & ~PAGE_MASK) {
 		printk(KERN_INFO "no pagemask in mmap\r\n");
 		goto out;
 	}
 
-	err = sys_mmap2(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
+	err = sys_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
 out:
 	return err;
 }

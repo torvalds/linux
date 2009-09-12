@@ -1938,7 +1938,7 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	if (!res)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 
 	iounmap(pdata->ioaddr);
 
@@ -1976,7 +1976,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		retval = -ENODEV;
 		goto out_0;
 	}
-	res_size = res->end - res->start + 1;
+	res_size = resource_size(res);
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
@@ -2104,7 +2104,7 @@ out_unmap_io_3:
 out_free_netdev_2:
 	free_netdev(dev);
 out_release_io_1:
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 out_0:
 	return retval;
 }

@@ -29,7 +29,7 @@
 #include <dma-coherence.h>
 
 #ifdef CONFIG_PCI
-#include "pci-common.h"
+#include <asm/octeon/pci-octeon.h>
 #endif
 
 #define BAR2_PCI_ADDRESS 0x8000000000ul

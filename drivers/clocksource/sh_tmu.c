@@ -161,7 +161,7 @@ static void sh_tmu_set_next(struct sh_tmu_priv *p, unsigned long delta,
 	if (periodic)
 		sh_tmu_write(p, TCOR, delta);
 	else
-		sh_tmu_write(p, TCOR, 0);
+		sh_tmu_write(p, TCOR, 0xffffffff);
 
 	sh_tmu_write(p, TCNT, delta);
 

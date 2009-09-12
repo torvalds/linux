@@ -754,13 +754,13 @@ static void amd64_cpu_display_info(struct amd64_pvt *pvt)
 static enum edac_type amd64_determine_edac_cap(struct amd64_pvt *pvt)
 {
 	int bit;
-	enum dev_type edac_cap = EDAC_NONE;
+	enum dev_type edac_cap = EDAC_FLAG_NONE;
 
 	bit = (boot_cpu_data.x86 > 0xf || pvt->ext_model >= OPTERON_CPU_REV_F)
 		? 19
 		: 17;
 
-	if (pvt->dclr0 >> BIT(bit))
+	if (pvt->dclr0 & BIT(bit))
 		edac_cap = EDAC_FLAG_SECDED;
 
 	return edac_cap;
@@ -1269,7 +1269,7 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 	if (channels == 0)
 		channels = 1;
 
-	debugf0("DIMM count= %d\n", channels);
+	debugf0("MCT channel count: %d\n", channels);
 
 	return channels;
 
@@ -2966,7 +2966,12 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 				"    Use of the override can cause "
 				"unknown side effects.\n");
 			ret = -ENODEV;
-		}
+		} else
+			/*
+			 * enable further driver loading if ECC enable is
+			 * overridden.
+			 */
+			ret = 0;
 	} else {
 		amd64_printk(KERN_INFO,
 			"ECC is enabled by BIOS, Proceeding "
@@ -3006,7 +3011,6 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 
 	mci->mtype_cap		= MEM_FLAG_DDR2 | MEM_FLAG_RDDR2;
 	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
-	mci->edac_cap		= EDAC_FLAG_NONE;
 
 	if (pvt->nbcap & K8_NBCAP_SECDED)
 		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
@@ -3052,7 +3056,7 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	if (!pvt)
 		goto err_exit;
 
-	pvt->mc_node_id = get_mc_node_id_from_pdev(dram_f2_ctl);
+	pvt->mc_node_id = get_node_id(dram_f2_ctl);
 
 	pvt->dram_f2_ctl	= dram_f2_ctl;
 	pvt->ext_model		= boot_cpu_data.x86_model >> 4;
@@ -3179,8 +3183,7 @@ static int __devinit amd64_init_one_instance(struct pci_dev *pdev,
 {
 	int ret = 0;
 
-	debugf0("(MC node=%d,mc_type='%s')\n",
-		get_mc_node_id_from_pdev(pdev),
+	debugf0("(MC node=%d,mc_type='%s')\n", get_node_id(pdev),
 		get_amd_family_name(mc_type->driver_data));
 
 	ret = pci_enable_device(pdev);
@@ -3319,15 +3322,17 @@ static int __init amd64_edac_init(void)
 
 		err = amd64_init_2nd_stage(pvt_lookup[nb]);
 		if (err)
-			goto err_exit;
+			goto err_2nd_stage;
 	}
 
 	amd64_setup_pci_device();
 
 	return 0;
 
+err_2nd_stage:
+	debugf0("2nd stage failed\n");
+
 err_exit:
-	debugf0("'finish_setup' stage failed\n");
 	pci_unregister_driver(&amd64_pci_driver);
 
 	return err;

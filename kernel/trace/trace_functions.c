@@ -302,8 +302,7 @@ ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 	if (count == -1)
 		seq_printf(m, ":unlimited\n");
 	else
-		seq_printf(m, ":count=%ld", count);
-	seq_putc(m, '\n');
+		seq_printf(m, ":count=%ld\n", count);
 
 	return 0;
 }

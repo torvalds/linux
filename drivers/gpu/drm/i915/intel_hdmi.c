@@ -31,6 +31,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc.h"
+#include "drm_edid.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
@@ -56,8 +57,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	sdvox = SDVO_ENCODING_HDMI |
 		SDVO_BORDER_ENABLE |
 		SDVO_VSYNC_ACTIVE_HIGH |
-		SDVO_HSYNC_ACTIVE_HIGH |
-		SDVO_NULL_PACKETS_DURING_VSYNC;
+		SDVO_HSYNC_ACTIVE_HIGH;
 
 	if (hdmi_priv->has_hdmi_sink)
 		sdvox |= SDVO_AUDIO_ENABLE;
@@ -129,20 +129,26 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void
-intel_hdmi_sink_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_hdmi_edid_detect(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
 	struct edid *edid = NULL;
+	enum drm_connector_status status = connector_status_disconnected;
 
 	edid = drm_get_edid(&intel_output->base,
-			    &intel_output->ddc_bus->adapter);
-	if (edid != NULL) {
-		hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
-		kfree(edid);
+			    intel_output->ddc_bus);
+	hdmi_priv->has_hdmi_sink = false;
+	if (edid) {
+		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
+			status = connector_status_connected;
+			hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+		}
 		intel_output->base.display_info.raw_edid = NULL;
+		kfree(edid);
 	}
+	return status;
 }
 
 static enum drm_connector_status
@@ -154,11 +160,7 @@ igdng_hdmi_detect(struct drm_connector *connector)
 	/* FIXME hotplug detect */
 
 	hdmi_priv->has_hdmi_sink = false;
-	intel_hdmi_sink_detect(connector);
-	if (hdmi_priv->has_hdmi_sink)
-		return connector_status_connected;
-	else
-		return connector_status_disconnected;
+	return intel_hdmi_edid_detect(connector);
 }
 
 static enum drm_connector_status
@@ -201,10 +203,9 @@ intel_hdmi_detect(struct drm_connector *connector)
 		return connector_status_unknown;
 	}
 
-	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0) {
-		intel_hdmi_sink_detect(connector);
-		return connector_status_connected;
-	} else
+	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0)
+		return intel_hdmi_edid_detect(connector);
+	else
 		return connector_status_disconnected;
 }
 

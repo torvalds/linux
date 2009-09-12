@@ -162,8 +162,8 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 		return -EINVAL;
 
 	adapter->max_rx_coal = coalesce->rx_max_coalesced_frames;
-	if (adapter->max_rx_coal > MAX_SKB_FRAGS)
-		adapter->max_rx_coal = MAX_SKB_FRAGS - 1;
+	if (adapter->max_rx_coal > BE_MAX_FRAGS_PER_FRAME)
+		adapter->max_rx_coal = BE_MAX_FRAGS_PER_FRAME;
 
 	/* if AIC is being turned on now, start with an EQD of 0 */
 	if (rx_eq->enable_aic == 0 &&

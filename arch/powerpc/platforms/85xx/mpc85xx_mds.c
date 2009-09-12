@@ -285,6 +285,7 @@ static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "qe", },
 	{ .compatible = "fsl,qe", },
 	{ .compatible = "gianfar", },
+	{ .compatible = "fsl,rapidio-delta", },
 	{},
 };
 

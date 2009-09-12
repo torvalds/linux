@@ -60,11 +60,12 @@ struct serial_private {
 
 static void moan_device(const char *str, struct pci_dev *dev)
 {
-	printk(KERN_WARNING "%s: %s\n"
-	       KERN_WARNING "Please send the output of lspci -vv, this\n"
-	       KERN_WARNING "message (0x%04x,0x%04x,0x%04x,0x%04x), the\n"
-	       KERN_WARNING "manufacturer and name of serial board or\n"
-	       KERN_WARNING "modem board to rmk+serial@arm.linux.org.uk.\n",
+	printk(KERN_WARNING
+	       "%s: %s\n"
+	       "Please send the output of lspci -vv, this\n"
+	       "message (0x%04x,0x%04x,0x%04x,0x%04x), the\n"
+	       "manufacturer and name of serial board or\n"
+	       "modem board to rmk+serial@arm.linux.org.uk.\n",
 	       pci_name(dev), str, dev->vendor, dev->device,
 	       dev->subsystem_vendor, dev->subsystem_device);
 }
@@ -759,6 +760,8 @@ static int pci_netmos_init(struct pci_dev *dev)
 	/* subdevice 0x00PS means <P> parallel, <S> serial */
 	unsigned int num_serial = dev->subsystem_device & 0xf;
 
+	if (dev->device == PCI_DEVICE_ID_NETMOS_9901)
+		return 0;
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
 		return 0;
@@ -3556,6 +3559,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9835,
 		PCI_VENDOR_ID_IBM, 0x0299,
 		0, 0, pbn_b0_bt_2_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9901,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,

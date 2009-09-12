@@ -10,7 +10,6 @@
  */
 #include <linux/string.h>
 #include <linux/perf_counter.h>
-#include <linux/string.h>
 #include <asm/reg.h>
 #include <asm/cputable.h>
 

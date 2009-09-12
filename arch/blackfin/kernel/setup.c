@@ -408,13 +408,14 @@ static void __init print_memory_map(char *who)
 			bfin_memmap.map[i].addr + bfin_memmap.map[i].size);
 		switch (bfin_memmap.map[i].type) {
 		case BFIN_MEMMAP_RAM:
-				printk("(usable)\n");
-				break;
+			printk(KERN_CONT "(usable)\n");
+			break;
 		case BFIN_MEMMAP_RESERVED:
-				printk("(reserved)\n");
-				break;
-		default:	printk("type %lu\n", bfin_memmap.map[i].type);
-				break;
+			printk(KERN_CONT "(reserved)\n");
+			break;
+		default:
+			printk(KERN_CONT "type %lu\n", bfin_memmap.map[i].type);
+			break;
 		}
 	}
 }
@@ -614,19 +615,19 @@ static __init void memory_setup(void)
 	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
 
 	printk(KERN_INFO "Memory map:\n"
-		KERN_INFO "  fixedcode = 0x%p-0x%p\n"
-		KERN_INFO "  text      = 0x%p-0x%p\n"
-		KERN_INFO "  rodata    = 0x%p-0x%p\n"
-		KERN_INFO "  bss       = 0x%p-0x%p\n"
-		KERN_INFO "  data      = 0x%p-0x%p\n"
-		KERN_INFO "    stack   = 0x%p-0x%p\n"
-		KERN_INFO "  init      = 0x%p-0x%p\n"
-		KERN_INFO "  available = 0x%p-0x%p\n"
+	       "  fixedcode = 0x%p-0x%p\n"
+	       "  text      = 0x%p-0x%p\n"
+	       "  rodata    = 0x%p-0x%p\n"
+	       "  bss       = 0x%p-0x%p\n"
+	       "  data      = 0x%p-0x%p\n"
+	       "    stack   = 0x%p-0x%p\n"
+	       "  init      = 0x%p-0x%p\n"
+	       "  available = 0x%p-0x%p\n"
 #ifdef CONFIG_MTD_UCLINUX
-		KERN_INFO "  rootfs    = 0x%p-0x%p\n"
+	       "  rootfs    = 0x%p-0x%p\n"
 #endif
 #if DMA_UNCACHED_REGION > 0
-		KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
+	       "  DMA Zone  = 0x%p-0x%p\n"
 #endif
 		, (void *)FIXED_CODE_START, (void *)FIXED_CODE_END,
 		_stext, _etext,
@@ -859,13 +860,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	printk(KERN_INFO "Hardware Trace ");
 	if (bfin_read_TBUFCTL() & 0x1)
-		printk("Active ");
+		printk(KERN_CONT "Active ");
 	else
-		printk("Off ");
+		printk(KERN_CONT "Off ");
 	if (bfin_read_TBUFCTL() & 0x2)
-		printk("and Enabled\n");
+		printk(KERN_CONT "and Enabled\n");
 	else
-	printk("and Disabled\n");
+		printk(KERN_CONT "and Disabled\n");
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might

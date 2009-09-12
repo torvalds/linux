@@ -648,17 +648,28 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 int em28xx_set_outfmt(struct em28xx *dev)
 {
 	int ret;
+	int vinmode, vinctl, outfmt;
+
+	outfmt  = dev->format->reg;
+
+	if (dev->board.is_27xx) {
+		vinmode = 0x0d;
+		vinctl  = 0x00;
+	} else {
+		vinmode = 0x10;
+		vinctl  = 0x11;
+	}
 
 	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
-				    dev->format->reg | 0x20, 0x3f);
+				outfmt | 0x20, 0xff);
+	if (ret < 0)
+			return ret;
+
+	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, vinmode);
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, 0x10);
-	if (ret < 0)
-		return ret;
-
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x11);
+	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctl);
 }
 
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
@@ -695,13 +706,19 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
-	if (dev->board.is_em2800)
+
+	if (dev->board.is_27xx) {
+		/* FIXME: Don't use the scaler yet */
+		mode = 0;
+	} else if (dev->board.is_em2800) {
 		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
-	else {
+	} else {
 		u8 buf[2];
+
 		buf[0] = h;
 		buf[1] = h >> 8;
 		em28xx_write_regs(dev, EM28XX_R30_HSCALELOW, (char *)buf, 2);
+
 		buf[0] = v;
 		buf[1] = v >> 8;
 		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
@@ -720,8 +737,11 @@ int em28xx_resolution_set(struct em28xx *dev)
 	height = norm_maxh(dev) >> 1;
 
 	em28xx_set_outfmt(dev);
+
+
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 	em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
+
 	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
 }
 

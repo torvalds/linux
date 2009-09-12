@@ -34,7 +34,6 @@
 #include <linux/highmem.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
-#include <linux/version.h>
 #include <linux/module.h>
 
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)

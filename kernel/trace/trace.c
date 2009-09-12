@@ -284,13 +284,12 @@ void trace_wake_up(void)
 static int __init set_buf_size(char *str)
 {
 	unsigned long buf_size;
-	int ret;
 
 	if (!str)
 		return 0;
-	ret = strict_strtoul(str, 0, &buf_size);
+	buf_size = memparse(str, &str);
 	/* nr_entries can not be zero */
-	if (ret < 0 || buf_size == 0)
+	if (buf_size == 0)
 		return 0;
 	trace_buf_size = buf_size;
 	return 1;
@@ -2053,25 +2052,23 @@ static int tracing_open(struct inode *inode, struct file *file)
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct tracer *t = m->private;
+	struct tracer *t = v;
 
 	(*pos)++;
 
 	if (t)
 		t = t->next;
 
-	m->private = t;
-
 	return t;
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	struct tracer *t = m->private;
+	struct tracer *t;
 	loff_t l = 0;
 
 	mutex_lock(&trace_types_lock);
-	for (; t && l < *pos; t = t_next(m, t, &l))
+	for (t = trace_types; t && l < *pos; t = t_next(m, t, &l))
 		;
 
 	return t;
@@ -2107,18 +2104,10 @@ static struct seq_operations show_traces_seq_ops = {
 
 static int show_traces_open(struct inode *inode, struct file *file)
 {
-	int ret;
-
 	if (tracing_disabled)
 		return -ENODEV;
 
-	ret = seq_open(file, &show_traces_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = trace_types;
-	}
-
-	return ret;
+	return seq_open(file, &show_traces_seq_ops);
 }
 
 static ssize_t

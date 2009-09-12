@@ -130,9 +130,9 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	if (jffs2_sum_active()) {
 		s = kzalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
 		if (!s) {
-			kfree(flashbuf);
 			JFFS2_WARNING("Can't allocate memory for summary\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 

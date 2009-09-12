@@ -15,6 +15,8 @@
 #include <linux/spi/spi.h>
 #include <linux/fb.h>
 #include <linux/clk.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -186,23 +188,98 @@ static struct fb_monspecs at91fb_default_monspecs = {
 static void at91_lcdc_power_control(int on)
 {
 	if (on)
-		at91_set_gpio_value(AT91_PIN_PA30, 0);	/* power up */
+		at91_set_gpio_value(AT91_PIN_PC1, 0);	/* power up */
 	else
-		at91_set_gpio_value(AT91_PIN_PA30, 1);	/* power down */
+		at91_set_gpio_value(AT91_PIN_PC1, 1);	/* power down */
 }
 
 /* Driver datas */
 static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+	.lcdcon_is_backlight            = true,
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
 	.default_lcdcon2		= AT91SAM9RL_DEFAULT_LCDCON2,
 	.default_monspecs		= &at91fb_default_monspecs,
 	.atmel_lcdfb_power_control	= at91_lcdc_power_control,
 	.guard_time			= 1,
+	.lcd_wiring_mode		= ATMEL_LCDC_WIRING_RGB,
 };
 
 #else
 static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+#endif
+
+
+/*
+ * LEDs
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* "bottom" led, green, userled1 to be defined */
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PD15,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "bottom" led, green, userled2 to be defined */
+		.name			= "ds2",
+		.gpio			= AT91_PIN_PD16,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "power" led, yellow */
+		.name			= "ds3",
+		.gpio			= AT91_PIN_PD14,
+		.default_trigger	= "heartbeat",
+	}
+};
+
+
+/*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
+	{
+		.gpio		= AT91_PIN_PB0,
+		.code		= BTN_2,
+		.desc		= "Right Click",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PB1,
+		.code		= BTN_1,
+		.desc		= "Left Click",
+		.active_low	= 1,
+		.wakeup		= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PB1, 1);	/* btn1 */
+	at91_set_deglitch(AT91_PIN_PB1, 1);
+	at91_set_gpio_input(AT91_PIN_PB0, 1);	/* btn2 */
+	at91_set_deglitch(AT91_PIN_PB0, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
 #endif
 
 
@@ -224,6 +301,10 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Touch Screen Controller */
 	at91_add_device_tsadcc();
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	/* Push Buttons */
+	ek_add_device_buttons();
 }
 
 MACHINE_START(AT91SAM9RLEK, "Atmel AT91SAM9RL-EK")

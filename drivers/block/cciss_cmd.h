@@ -274,6 +274,7 @@ typedef struct _ErrorInfo_struct {
 #define CMD_SCSI	0x03
 #define CMD_MSG_DONE	0x04
 #define CMD_MSG_TIMEOUT 0x05
+#define CMD_MSG_STALE	0xff
 
 /* This structure needs to be divisible by 8 for new
  * indexing method.

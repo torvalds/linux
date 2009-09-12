@@ -229,9 +229,6 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 		use_pager = 1;
 	commit_pager_choice();
 
-	if (p->option & NEED_WORK_TREE)
-		/* setup_work_tree() */;
-
 	status = p->fn(argc, argv, prefix);
 	if (status)
 		return status & 0xff;
@@ -266,7 +263,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "annotate", cmd_annotate, 0 },
 		{ "version", cmd_version, 0 },
 	};
-	int i;
+	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;
 
 	if (sizeof(ext) > 1) {

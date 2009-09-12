@@ -181,8 +181,8 @@ int ptrace_attach(struct task_struct *task)
 	 * interference; SUID, SGID and LSM creds get determined differently
 	 * under ptrace.
 	 */
-	retval = mutex_lock_interruptible(&task->cred_guard_mutex);
-	if (retval < 0)
+	retval = -ERESTARTNOINTR;
+	if (mutex_lock_interruptible(&task->cred_guard_mutex))
 		goto out;
 
 	task_lock(task);

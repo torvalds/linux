@@ -107,6 +107,7 @@
 #define EM2860_BOARD_TERRATEC_AV350		  68
 #define EM2882_BOARD_KWORLD_ATSC_315U		  69
 #define EM2882_BOARD_EVGA_INDTUBE		  70
+#define EM2820_BOARD_SILVERCREST_WEBCAM           71
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -360,6 +361,7 @@ enum em28xx_decoder {
 	EM28XX_NODECODER,
 	EM28XX_TVP5150,
 	EM28XX_SAA711X,
+	EM28XX_MT9V011,
 };
 
 enum em28xx_adecoder {
@@ -388,6 +390,7 @@ struct em28xx_board {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
+	unsigned int is_27xx:1;
 	unsigned int valid:1;
 
 	unsigned char xclk, i2c_speed;

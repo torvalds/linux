@@ -55,6 +55,10 @@
 #define MEMBAR_CTRL_INT_CTRL_PFUNC_MASK  	0x7 	/* bits 26 - 28 */
 #define MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT	26
 
+/********* ISR0 Register offset **********/
+#define CEV_ISR0_OFFSET 			0xC18
+#define CEV_ISR_SIZE				4
+
 /********* Event Q door bell *************/
 #define DB_EQ_OFFSET			DB_CQ_OFFSET
 #define DB_EQ_RING_ID_MASK		0x1FF	/* bits 0 - 8 */
