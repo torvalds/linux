@@ -86,6 +86,44 @@ void perf_header__add_attr(struct perf_header *self,
 	self->attr[pos] = attr;
 }
 
+struct perf_trace_event_type {
+	u64	event_id;
+	char	name[64];
+};
+
+static int event_count;
+static struct perf_trace_event_type *events;
+
+void perf_header__push_event(u64 id, const char *name)
+{
+	if (strlen(name) > 64)
+		printf("Event %s will be truncated\n", name);
+
+	if (!events) {
+		events = malloc(sizeof(struct perf_trace_event_type));
+		if (!events)
+			die("nomem");
+	} else {
+		events = realloc(events, (event_count + 1) * sizeof(struct perf_trace_event_type));
+		if (!events)
+			die("nomem");
+	}
+	memset(&events[event_count], 0, sizeof(struct perf_trace_event_type));
+	events[event_count].event_id = id;
+	strncpy(events[event_count].name, name, 63);
+	event_count++;
+}
+
+char *perf_header__find_event(u64 id)
+{
+	int i;
+	for (i = 0 ; i < event_count; i++) {
+		if (events[i].event_id == id)
+			return events[i].name;
+	}
+	return NULL;
+}
+
 static const char *__perf_magic = "PERFFILE";
 
 #define PERF_MAGIC	(*(u64 *)__perf_magic)
@@ -106,6 +144,7 @@ struct perf_file_header {
 	u64				attr_size;
 	struct perf_file_section	attrs;
 	struct perf_file_section	data;
+	struct perf_file_section	event_types;
 };
 
 static void do_write(int fd, void *buf, size_t size)
@@ -154,6 +193,11 @@ void perf_header__write(struct perf_header *self, int fd)
 		do_write(fd, &f_attr, sizeof(f_attr));
 	}
 
+	self->event_offset = lseek(fd, 0, SEEK_CUR);
+	self->event_size = event_count * sizeof(struct perf_trace_event_type);
+	if (events)
+		do_write(fd, events, self->event_size);
+
 
 	self->data_offset = lseek(fd, 0, SEEK_CUR);
 
@@ -168,6 +212,10 @@ void perf_header__write(struct perf_header *self, int fd)
 		.data = {
 			.offset = self->data_offset,
 			.size	= self->data_size,
+		},
+		.event_types = {
+			.offset = self->event_offset,
+			.size	= self->event_size,
 		},
 	};
 
@@ -233,6 +281,17 @@ struct perf_header *perf_header__read(int fd)
 		perf_header__add_attr(self, attr);
 		lseek(fd, tmp, SEEK_SET);
 	}
+
+	if (f_header.event_types.size) {
+		lseek(fd, f_header.event_types.offset, SEEK_SET);
+		events = malloc(f_header.event_types.size);
+		if (!events)
+			die("nomem");
+		do_read(fd, events, f_header.event_types.size);
+		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
+	}
+	self->event_offset = f_header.event_types.offset;
+	self->event_size   = f_header.event_types.size;
 
 	self->data_offset = f_header.data.offset;
 	self->data_size   = f_header.data.size;
