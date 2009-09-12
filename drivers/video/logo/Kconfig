@@ -94,6 +94,11 @@ config LOGO_TITS_CLUT224
 	depends on LOGO
 	default y
 
+config LOGO_GCN_CLUT224
+	bool "224-color Gamecube Linux logo"
+	depends on LOGO
+	default y
+
 config LOGO_BSD_CLUT224
 	bool "224-color BSD Devil logo"
 	depends on LOGO

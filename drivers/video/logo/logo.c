@@ -81,6 +81,45 @@ static const struct linux_logo *logo_clut224[] = {
 #ifdef CONFIG_LOGO_M32R_CLUT224
 	&logo_m32r_clut224,		/* M32R Linux logo */
 #endif
+#ifdef CONFIG_LOGO_ZEN_CLUT224
+	&logo_zen_clut224,		/* Zen-Sources logo */
+#endif
+#ifdef CONFIG_LOGO_ARCH_CLUT224
+	&logo_arch_clut224,		/* Arch Linux logo */
+#endif
+#ifdef CONFIG_LOGO_GENTOO_CLUT224
+	&logo_gentoo_clut224,		/* Gentoo Linux logo */
+#endif
+#ifdef CONFIG_LOGO_EXHERBO_CLUT224
+	&logo_exherbo_clut224,		/* Exherbo Linux logo */
+#endif
+#ifdef CONFIG_LOGO_SLACKWARE_CLUT224
+	&logo_slackware_clut224,	/* Slackware Linux logo */
+#endif
+#ifdef CONFIG_LOGO_DEBIAN_CLUT224
+	&logo_debian_clut224,		/* Debian Linux logo */
+#endif
+#ifdef CONFIG_LOGO_SIDUX_CLUT224
+	&logo_sidux_clut224,		/* Sidux Linux Logo */
+#endif
+#ifdef CONFIG_LOGO_FEDORASIMPLE_CLUT224
+	&logo_fedorasimple_clut224,	/* Fedora Simple logo */
+#endif
+#ifdef CONFIG_LOGO_FEDORAGLOSSY_CLUT224
+	&logo_fedoraglossy_clut224,	/* Fedora Glossy logo */
+#endif
+#ifdef CONFIG_LOGO_TITS_CLUT224
+	&logo_tits_clut224,		/* Tits logo */
+#endif
+#ifdef CONFIG_LOGO_GCN_CLUT224
+        &logo_gcn_clut224,              /* Gamecube Linux logo */
+#endif
+#ifdef CONFIG_LOGO_BSD_CLUT224
+	&logo_bsd_clut224,		/* BSD logo */
+#endif
+#ifdef CONFIG_LOGO_FBSD_CLUT224
+	&logo_fbsd_clut224,		/* Free BSD logo */
+#endif
 };
 
 #ifdef CONFIG_LOGO_RANDOM
