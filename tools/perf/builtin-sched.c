@@ -1087,6 +1087,9 @@ static struct trace_sched_handler lat_ops  = {
 	.fork_event		= latency_fork_event,
 };
 
+static u64 all_runtime;
+static u64 all_count;
+
 static void output_lat_thread(struct thread_latency *lat)
 {
 	struct lat_snapshot *shot;
@@ -1111,6 +1114,9 @@ static void output_lat_thread(struct thread_latency *lat)
 		total += delta;
 	}
 
+	all_runtime += total_runtime;
+	all_count += count;
+
 	if (!count)
 		return;
 
@@ -1133,7 +1139,7 @@ static void __cmd_lat(void)
 	read_events();
 
 	printf("-----------------------------------------------------------------------------------\n");
-	printf(" Task              |  runtime ms | switches | average delay ms | maximum delay ms |\n");
+	printf(" Task              |  Runtime ms | Switches | Average delay ms | Maximum delay ms |\n");
 	printf("-----------------------------------------------------------------------------------\n");
 
 	next = rb_first(&lat_snapshot_root);
@@ -1147,6 +1153,9 @@ static void __cmd_lat(void)
 	}
 
 	printf("-----------------------------------------------------------------------------------\n");
+	printf(" TOTAL:            |%9.3f ms |%9Ld |\n",
+		(double)all_runtime/1e9, all_count);
+	printf("---------------------------------------------\n");
 }
 
 static struct trace_sched_handler *trace_handler;
