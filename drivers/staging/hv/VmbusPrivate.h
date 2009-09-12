@@ -31,7 +31,7 @@
 #include "ChannelMgmt.h"
 #include "ChannelInterface.h"
 #include "RingBuffer.h"
-#include "List.h"
+#include <linux/list.h>
 
 
 /*
@@ -76,11 +76,11 @@ struct VMBUS_CONNECTION {
 	 * is child->parent notification
 	 */
 	void *MonitorPages;
-	LIST_ENTRY ChannelMsgList;
+	struct list_head ChannelMsgList;
 	spinlock_t channelmsg_lock;
 
 	/* List of channels */
-	LIST_ENTRY ChannelList;
+	struct list_head ChannelList;
 	spinlock_t channel_lock;
 
 	struct workqueue_struct *WorkQueue;
@@ -89,7 +89,7 @@ struct VMBUS_CONNECTION {
 
 struct VMBUS_MSGINFO {
 	/* Bookkeeping stuff */
-	LIST_ENTRY MsgListEntry;
+	struct list_head MsgListEntry;
 
 	/* Synchronize the request/response if needed */
 	struct osd_waitevent *WaitEvent;

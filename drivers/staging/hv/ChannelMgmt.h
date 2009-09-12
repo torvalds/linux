@@ -25,7 +25,7 @@
 #ifndef _CHANNEL_MGMT_H_
 #define _CHANNEL_MGMT_H_
 
-#include "List.h"
+#include <linux/list.h>
 #include "RingBuffer.h"
 #include "VmbusChannelInterface.h"
 #include "VmbusPacketFormat.h"
@@ -225,7 +225,7 @@ enum vmbus_channel_state {
 };
 
 struct vmbus_channel {
-	LIST_ENTRY ListEntry;
+	struct list_head ListEntry;
 
 	struct hv_device *DeviceObject;
 
@@ -281,10 +281,10 @@ struct vmbus_channel_debug_info {
  */
 struct vmbus_channel_msginfo {
 	/* Bookkeeping stuff */
-	LIST_ENTRY MsgListEntry;
+	struct list_head MsgListEntry;
 
 	/* So far, this is only used to handle gpadl body message */
-	LIST_ENTRY SubMsgList;
+	struct list_head SubMsgList;
 
 	/* Synchronize the request/response if needed */
 	struct osd_waitevent *WaitEvent;

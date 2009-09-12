@@ -247,8 +247,8 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 		memcpy(openMsg->UserData, UserData, UserDataLen);
 
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList,
-			 &openInfo->MsgListEntry);
+	list_add_tail(&openInfo->MsgListEntry,
+		      &gVmbusConnection.ChannelMsgList);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Sending channel open msg...");
@@ -271,7 +271,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 
 Cleanup:
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	REMOVE_ENTRY_LIST(&openInfo->MsgListEntry);
+	list_del(&openInfo->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	kfree(openInfo->WaitEvent);
@@ -362,7 +362,7 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 			  sizeof(struct gpa_range) + pfnCount * sizeof(u64);
 		msgHeader =  kzalloc(msgSize, GFP_KERNEL);
 
-		INITIALIZE_LIST_HEAD(&msgHeader->SubMsgList);
+		INIT_LIST_HEAD(&msgHeader->SubMsgList);
 		msgHeader->MessageSize = msgSize;
 
 		gpaHeader = (struct vmbus_channel_gpadl_header *)msgHeader->Msg;
@@ -411,8 +411,8 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 				gpadlBody->Pfn[i] = pfn + pfnSum + i;
 
 			/* add to msg header */
-			INSERT_TAIL_LIST(&msgHeader->SubMsgList,
-					 &msgBody->MsgListEntry);
+			list_add_tail(&msgBody->MsgListEntry,
+				      &msgHeader->SubMsgList);
 			pfnSum += pfnCurr;
 			pfnLeft -= pfnCurr;
 		}
@@ -457,8 +457,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 	struct vmbus_channel_msginfo *msgInfo;
 	struct vmbus_channel_msginfo *subMsgInfo;
 	u32 msgCount;
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
+	struct list_head *curr;
 	u32 nextGpadlHandle;
 	unsigned long flags;
 	int ret;
@@ -481,10 +480,10 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 	DumpGpadlHeader(gpadlMsg);
 
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList,
-			 &msgInfo->MsgListEntry);
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	list_add_tail(&msgInfo->MsgListEntry,
+		      &gVmbusConnection.ChannelMsgList);
 
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d",
 		   Kbuffer, Size, msgCount);
 
@@ -499,7 +498,9 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 	}
 
 	if (msgCount > 1) {
-		ITERATE_LIST_ENTRIES(anchor, curr, &msgInfo->SubMsgList) {
+		list_for_each(curr, &msgInfo->SubMsgList) {
+
+			/* FIXME: should this use list_entry() instead ? */
 			subMsgInfo = (struct vmbus_channel_msginfo *)curr;
 			gpadlBody =
 			     (struct vmbus_channel_gpadl_body *)subMsgInfo->Msg;
@@ -532,7 +533,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 
 Cleanup:
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	REMOVE_ENTRY_LIST(&msgInfo->MsgListEntry);
+	list_del(&msgInfo->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	kfree(msgInfo->WaitEvent);
@@ -570,7 +571,8 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 	msg->Gpadl = GpadlHandle;
 
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList, &info->MsgListEntry);
+	list_add_tail(&info->MsgListEntry,
+		      &gVmbusConnection.ChannelMsgList);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	ret = VmbusPostMessage(msg,
@@ -584,7 +586,7 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 
 	/* Received a torndown response */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	REMOVE_ENTRY_LIST(&info->MsgListEntry);
+	list_del(&info->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	kfree(info->WaitEvent);
@@ -651,7 +653,7 @@ void VmbusChannelClose(struct vmbus_channel *Channel)
 
 	if (Channel->State == CHANNEL_OPEN_STATE) {
 		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
-		REMOVE_ENTRY_LIST(&Channel->ListEntry);
+		list_del(&Channel->ListEntry);
 		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
 		FreeVmbusChannel(Channel);

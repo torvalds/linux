@@ -20,6 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/list.h>
 #include "osd.h"
 #include "logging.h"
 #include "VmbusPrivate.h"
@@ -136,8 +137,6 @@ static void VmbusChannelProcessOffer(void *context)
 {
 	struct vmbus_channel *newChannel = context;
 	struct vmbus_channel *channel;
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
 	bool fNew = true;
 	int ret;
 	unsigned long flags;
@@ -147,10 +146,7 @@ static void VmbusChannelProcessOffer(void *context)
 	/* Make sure this is a new offer */
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 
-	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList) {
-		channel = CONTAINING_RECORD(curr, struct vmbus_channel,
-					    ListEntry);
-
+	list_for_each_entry(channel, &gVmbusConnection.ChannelList, ListEntry) {
 		if (!memcmp(&channel->OfferMsg.Offer.InterfaceType,
 			    &newChannel->OfferMsg.Offer.InterfaceType,
 			    sizeof(struct hv_guid)) &&
@@ -163,8 +159,8 @@ static void VmbusChannelProcessOffer(void *context)
 	}
 
 	if (fNew)
-		INSERT_TAIL_LIST(&gVmbusConnection.ChannelList,
-				 &newChannel->ListEntry);
+		list_add_tail(&newChannel->ListEntry,
+			      &gVmbusConnection.ChannelList);
 
 	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
@@ -201,7 +197,7 @@ static void VmbusChannelProcessOffer(void *context)
 			   newChannel->OfferMsg.ChildRelId);
 
 		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
-		REMOVE_ENTRY_LIST(&newChannel->ListEntry);
+		list_del(&newChannel->ListEntry);
 		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
 		FreeVmbusChannel(newChannel);
@@ -360,8 +356,7 @@ static void VmbusChannelOnOffersDelivered(
 static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_open_result *result;
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
+	struct list_head *curr;
 	struct vmbus_channel_msginfo *msgInfo;
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_open_channel *openMsg;
@@ -377,7 +372,8 @@ static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 	 */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
-	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+/* FIXME: this should probably use list_entry() instead */
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
@@ -408,8 +404,7 @@ static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_gpadl_created *gpadlCreated;
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
+	struct list_head *curr;
 	struct vmbus_channel_msginfo *msgInfo;
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_gpadl_header *gpadlHeader;
@@ -427,7 +422,8 @@ static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr)
 	 */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
-	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+/* FIXME: this should probably use list_entry() instead */
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
@@ -461,8 +457,7 @@ static void VmbusChannelOnGpadlTorndown(
 			struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_gpadl_torndown *gpadlTorndown;
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
+	struct list_head *curr;
 	struct vmbus_channel_msginfo *msgInfo;
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_gpadl_teardown *gpadlTeardown;
@@ -477,7 +472,8 @@ static void VmbusChannelOnGpadlTorndown(
 	 */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
-	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+/* FIXME: this should probably use list_entry() instead */
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
@@ -508,8 +504,7 @@ static void VmbusChannelOnGpadlTorndown(
 static void VmbusChannelOnVersionResponse(
 		struct vmbus_channel_message_header *hdr)
 {
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
+	struct list_head *curr;
 	struct vmbus_channel_msginfo *msgInfo;
 	struct vmbus_channel_message_header *requestHeader;
 	struct vmbus_channel_initiate_contact *initiate;
@@ -521,7 +516,8 @@ static void VmbusChannelOnVersionResponse(
 	versionResponse = (struct vmbus_channel_version_response *)hdr;
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
-	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+/* FIXME: this should probably use list_entry() instead */
 		msgInfo = (struct vmbus_channel_msginfo *)curr;
 		requestHeader = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
@@ -659,23 +655,19 @@ Cleanup:
  */
 void VmbusChannelReleaseUnattachedChannels(void)
 {
-	LIST_ENTRY *entry;
-	struct vmbus_channel *channel;
+	struct vmbus_channel *channel, *pos;
 	struct vmbus_channel *start = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 
-	while (!IsListEmpty(&gVmbusConnection.ChannelList)) {
-		entry = TOP_LIST_ENTRY(&gVmbusConnection.ChannelList);
-		channel = CONTAINING_RECORD(entry, struct vmbus_channel,
-					    ListEntry);
-
+	list_for_each_entry_safe(channel, pos, &gVmbusConnection.ChannelList,
+				 ListEntry) {
 		if (channel == start)
 			break;
 
 		if (!channel->DeviceObject->Driver) {
-			REMOVE_ENTRY_LIST(&channel->ListEntry);
+			list_del(&channel->ListEntry);
 			DPRINT_INFO(VMBUS,
 				    "Releasing unattached device object %p",
 				    channel->DeviceObject);

@@ -57,10 +57,10 @@ int VmbusConnect(void)
 		goto Cleanup;
 	}
 
-	INITIALIZE_LIST_HEAD(&gVmbusConnection.ChannelMsgList);
+	INIT_LIST_HEAD(&gVmbusConnection.ChannelMsgList);
 	spin_lock_init(&gVmbusConnection.channelmsg_lock);
 
-	INITIALIZE_LIST_HEAD(&gVmbusConnection.ChannelList);
+	INIT_LIST_HEAD(&gVmbusConnection.ChannelList);
 	spin_lock_init(&gVmbusConnection.channel_lock);
 
 	/*
@@ -112,8 +112,9 @@ int VmbusConnect(void)
 	 * receive the response before returning from this routine
 	 */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList,
-			 &msgInfo->MsgListEntry);
+	list_add_tail(&msgInfo->MsgListEntry,
+		      &gVmbusConnection.ChannelMsgList);
+
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Vmbus connection - interrupt pfn %llx, "
@@ -124,14 +125,14 @@ int VmbusConnect(void)
 	ret = VmbusPostMessage(msg,
 			       sizeof(struct vmbus_channel_initiate_contact));
 	if (ret != 0) {
-		REMOVE_ENTRY_LIST(&msgInfo->MsgListEntry);
+		list_del(&msgInfo->MsgListEntry);
 		goto Cleanup;
 	}
 
 	/* Wait for the connection response */
 	osd_WaitEventWait(msgInfo->WaitEvent);
 
-	REMOVE_ENTRY_LIST(&msgInfo->MsgListEntry);
+	list_del(&msgInfo->MsgListEntry);
 
 	/* Check if successful */
 	if (msgInfo->Response.VersionResponse.VersionSupported) {
@@ -223,15 +224,10 @@ struct vmbus_channel *GetChannelFromRelId(u32 relId)
 {
 	struct vmbus_channel *channel;
 	struct vmbus_channel *foundChannel  = NULL;
-	LIST_ENTRY *anchor;
-	LIST_ENTRY *curr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
-	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList) {
-		channel = CONTAINING_RECORD(curr, struct vmbus_channel,
-					    ListEntry);
-
+	list_for_each_entry(channel, &gVmbusConnection.ChannelList, ListEntry) {
 		if (channel->OfferMsg.ChildRelId == relId) {
 			foundChannel = channel;
 			break;
