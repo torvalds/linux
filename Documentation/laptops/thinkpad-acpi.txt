@@ -240,9 +240,13 @@ sysfs notes:
 		Returns 0.
 
 	hotkey_bios_mask:
+		DEPRECATED, DON'T USE, WILL BE REMOVED IN THE FUTURE.
+
 		Returns the hot keys mask when thinkpad-acpi was loaded.
 		Upon module unload, the hot keys mask will be restored
-		to this value.
+		to this value.   This is always 0x80c, because those are
+		the hotkeys that were supported by ancient firmware
+		without mask support.
 
 	hotkey_enable:
 		DEPRECATED, WILL BE REMOVED SOON.

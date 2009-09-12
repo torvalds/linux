@@ -2544,6 +2544,8 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
+	printk_deprecated_attribute("hotkey_bios_mask",
+			"This attribute is useless.");
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_orig_mask);
 }
 
