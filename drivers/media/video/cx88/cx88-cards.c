@@ -3003,6 +3003,14 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		ctl->demod = XC3028_FE_OREN538;
 		break;
+	case CX88_BOARD_GENIATECH_X8000_MT:
+		/* FIXME: For this board, the xc3028 never recovers after being
+		   powered down (the reset GPIO probably is not set properly).
+		   We don't have access to the hardware so we cannot determine
+		   which GPIO is used for xc3028, so just disable power xc3028
+		   power management for now */
+		ctl->disable_power_mgmt = 1;
+		break;
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 	case CX88_BOARD_PROLINK_PV_8000GT:

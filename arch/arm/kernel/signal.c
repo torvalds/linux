@@ -98,7 +98,7 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 }
 
 #ifdef CONFIG_CRUNCH
-static int preserve_crunch_context(struct crunch_sigframe *frame)
+static int preserve_crunch_context(struct crunch_sigframe __user *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
 	struct crunch_sigframe *kframe;
@@ -111,7 +111,7 @@ static int preserve_crunch_context(struct crunch_sigframe *frame)
 	return __copy_to_user(frame, kframe, sizeof(*frame));
 }
 
-static int restore_crunch_context(struct crunch_sigframe *frame)
+static int restore_crunch_context(struct crunch_sigframe __user *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
 	struct crunch_sigframe *kframe;

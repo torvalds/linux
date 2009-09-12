@@ -1040,19 +1040,29 @@ static inline int octeon_pcie_read_config(int pcie_port, struct pci_bus *bus,
 	int bus_number = bus->number;
 
 	/*
-	 * We need to force the bus number to be zero on the root
-	 * bus. Linux numbers the 2nd root bus to start after all
-	 * buses on root 0.
+	 * For the top level bus make sure our hardware bus number
+	 * matches the software one.
 	 */
-	if (bus->parent == NULL)
-		bus_number = 0;
+	if (bus->parent == NULL) {
+		union cvmx_pciercx_cfg006 pciercx_cfg006;
+		pciercx_cfg006.u32 = cvmx_pcie_cfgx_read(pcie_port,
+			CVMX_PCIERCX_CFG006(pcie_port));
+		if (pciercx_cfg006.s.pbnum != bus_number) {
+			pciercx_cfg006.s.pbnum = bus_number;
+			pciercx_cfg006.s.sbnum = bus_number;
+			pciercx_cfg006.s.subbnum = bus_number;
+			cvmx_pcie_cfgx_write(pcie_port,
+				CVMX_PCIERCX_CFG006(pcie_port),
+				pciercx_cfg006.u32);
+		}
+	}
 
 	/*
 	 * PCIe only has a single device connected to Octeon. It is
 	 * always device ID 0. Don't bother doing reads for other
 	 * device IDs on the first segment.
 	 */
-	if ((bus_number == 0) && (devfn >> 3 != 0))
+	if ((bus->parent == NULL) && (devfn >> 3 != 0))
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 
 	/*
@@ -1070,7 +1080,7 @@ static inline int octeon_pcie_read_config(int pcie_port, struct pci_bus *bus,
 		 * bridge only respondes to device ID 0, function
 		 * 0-1
 		 */
-		if ((bus_number == 0) && (devfn >= 2))
+		if ((bus->parent == NULL) && (devfn >= 2))
 			return PCIBIOS_FUNC_NOT_SUPPORTED;
 		/*
 		 * The PCI-X slots are device ID 2,3. Choose one of
@@ -1167,13 +1177,6 @@ static inline int octeon_pcie_write_config(int pcie_port, struct pci_bus *bus,
 					   int size, u32 val)
 {
 	int bus_number = bus->number;
-	/*
-	 * We need to force the bus number to be zero on the root
-	 * bus. Linux numbers the 2nd root bus to start after all
-	 * busses on root 0.
-	 */
-	if (bus->parent == NULL)
-		bus_number = 0;
 
 	switch (size) {
 	case 4:

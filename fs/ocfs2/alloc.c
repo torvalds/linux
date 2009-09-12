@@ -1914,7 +1914,8 @@ static void ocfs2_adjust_adjacent_records(struct ocfs2_extent_rec *left_rec,
 	 * immediately to their right.
 	 */
 	left_clusters = le32_to_cpu(right_child_el->l_recs[0].e_cpos);
-	if (ocfs2_is_empty_extent(&right_child_el->l_recs[0])) {
+	if (!ocfs2_rec_clusters(right_child_el, &right_child_el->l_recs[0])) {
+		BUG_ON(right_child_el->l_tree_depth);
 		BUG_ON(le16_to_cpu(right_child_el->l_next_free_rec) <= 1);
 		left_clusters = le32_to_cpu(right_child_el->l_recs[1].e_cpos);
 	}
@@ -2476,14 +2477,36 @@ out_ret_path:
 	return ret;
 }
 
-static void ocfs2_update_edge_lengths(struct inode *inode, handle_t *handle,
-				      struct ocfs2_path *path)
+static int ocfs2_update_edge_lengths(struct inode *inode, handle_t *handle,
+				     int subtree_index, struct ocfs2_path *path)
 {
-	int i, idx;
+	int i, idx, ret;
 	struct ocfs2_extent_rec *rec;
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_block *eb;
 	u32 range;
+
+	/*
+	 * In normal tree rotation process, we will never touch the
+	 * tree branch above subtree_index and ocfs2_extend_rotate_transaction
+	 * doesn't reserve the credits for them either.
+	 *
+	 * But we do have a special case here which will update the rightmost
+	 * records for all the bh in the path.
+	 * So we have to allocate extra credits and access them.
+	 */
+	ret = ocfs2_extend_trans(handle,
+				 handle->h_buffer_credits + subtree_index);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access_path(inode, handle, path);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
 
 	/* Path should always be rightmost. */
 	eb = (struct ocfs2_extent_block *)path_leaf_bh(path)->b_data;
@@ -2505,6 +2528,8 @@ static void ocfs2_update_edge_lengths(struct inode *inode, handle_t *handle,
 
 		ocfs2_journal_dirty(handle, path->p_node[i].bh);
 	}
+out:
+	return ret;
 }
 
 static void ocfs2_unlink_path(struct inode *inode, handle_t *handle,
@@ -2717,7 +2742,12 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 	if (del_right_subtree) {
 		ocfs2_unlink_subtree(inode, handle, left_path, right_path,
 				     subtree_index, dealloc);
-		ocfs2_update_edge_lengths(inode, handle, left_path);
+		ret = ocfs2_update_edge_lengths(inode, handle, subtree_index,
+						left_path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 
 		eb = (struct ocfs2_extent_block *)path_leaf_bh(left_path)->b_data;
 		ocfs2_et_set_last_eb_blk(et, le64_to_cpu(eb->h_blkno));
@@ -3034,7 +3064,12 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 
 		ocfs2_unlink_subtree(inode, handle, left_path, path,
 				     subtree_index, dealloc);
-		ocfs2_update_edge_lengths(inode, handle, left_path);
+		ret = ocfs2_update_edge_lengths(inode, handle, subtree_index,
+						left_path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 
 		eb = (struct ocfs2_extent_block *)path_leaf_bh(left_path)->b_data;
 		ocfs2_et_set_last_eb_blk(et, le64_to_cpu(eb->h_blkno));
@@ -6816,7 +6851,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	}
 	status = 0;
 bail:
-
+	brelse(last_eb_bh);
 	mlog_exit(status);
 	return status;
 }

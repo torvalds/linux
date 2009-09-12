@@ -3099,8 +3099,12 @@ static void inode_tree_add(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_inode *entry;
-	struct rb_node **p = &root->inode_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_node **p;
+	struct rb_node *parent;
+
+again:
+	p = &root->inode_tree.rb_node;
+	parent = NULL;
 
 	spin_lock(&root->inode_lock);
 	while (*p) {
@@ -3108,13 +3112,16 @@ static void inode_tree_add(struct inode *inode)
 		entry = rb_entry(parent, struct btrfs_inode, rb_node);
 
 		if (inode->i_ino < entry->vfs_inode.i_ino)
-			p = &(*p)->rb_left;
+			p = &parent->rb_left;
 		else if (inode->i_ino > entry->vfs_inode.i_ino)
-			p = &(*p)->rb_right;
+			p = &parent->rb_right;
 		else {
 			WARN_ON(!(entry->vfs_inode.i_state &
 				  (I_WILL_FREE | I_FREEING | I_CLEAR)));
-			break;
+			rb_erase(parent, &root->inode_tree);
+			RB_CLEAR_NODE(parent);
+			spin_unlock(&root->inode_lock);
+			goto again;
 		}
 	}
 	rb_link_node(&BTRFS_I(inode)->rb_node, parent, p);
@@ -3126,12 +3133,12 @@ static void inode_tree_del(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
+	spin_lock(&root->inode_lock);
 	if (!RB_EMPTY_NODE(&BTRFS_I(inode)->rb_node)) {
-		spin_lock(&root->inode_lock);
 		rb_erase(&BTRFS_I(inode)->rb_node, &root->inode_tree);
-		spin_unlock(&root->inode_lock);
 		RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
 	}
+	spin_unlock(&root->inode_lock);
 }
 
 static noinline void init_btrfs_i(struct inode *inode)
@@ -4785,8 +4792,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * and the replacement file is large.  Start IO on it now so
 	 * we don't add too much work to the end of the transaction
 	 */
-	if (new_inode && old_inode && S_ISREG(old_inode->i_mode) &&
-	    new_inode->i_size &&
+	if (new_inode && S_ISREG(old_inode->i_mode) && new_inode->i_size &&
 	    old_inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 		filemap_flush(old_inode->i_mapping);
 

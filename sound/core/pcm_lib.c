@@ -943,47 +943,24 @@ static int snd_interval_ratden(struct snd_interval *i,
 int snd_interval_list(struct snd_interval *i, unsigned int count, unsigned int *list, unsigned int mask)
 {
         unsigned int k;
-	int changed = 0;
+	struct snd_interval list_range;
 
 	if (!count) {
 		i->empty = 1;
 		return -EINVAL;
 	}
+	snd_interval_any(&list_range);
+	list_range.min = UINT_MAX;
+	list_range.max = 0;
         for (k = 0; k < count; k++) {
 		if (mask && !(mask & (1 << k)))
 			continue;
-                if (i->min == list[k] && !i->openmin)
-                        goto _l1;
-                if (i->min < list[k]) {
-                        i->min = list[k];
-			i->openmin = 0;
-			changed = 1;
-                        goto _l1;
-                }
-        }
-        i->empty = 1;
-        return -EINVAL;
- _l1:
-        for (k = count; k-- > 0;) {
-		if (mask && !(mask & (1 << k)))
+		if (!snd_interval_test(i, list[k]))
 			continue;
-                if (i->max == list[k] && !i->openmax)
-                        goto _l2;
-                if (i->max > list[k]) {
-                        i->max = list[k];
-			i->openmax = 0;
-			changed = 1;
-                        goto _l2;
-                }
+		list_range.min = min(list_range.min, list[k]);
+		list_range.max = max(list_range.max, list[k]);
         }
-        i->empty = 1;
-        return -EINVAL;
- _l2:
-	if (snd_interval_checkempty(i)) {
-		i->empty = 1;
-		return -EINVAL;
-	}
-        return changed;
+	return snd_interval_refine(i, &list_range);
 }
 
 EXPORT_SYMBOL(snd_interval_list);

@@ -29,6 +29,8 @@ static struct mtdblk_dev {
 	enum { STATE_EMPTY, STATE_CLEAN, STATE_DIRTY } cache_state;
 } *mtdblks[MAX_MTD_DEVICES];
 
+static struct mutex mtdblks_lock;
+
 /*
  * Cache stuff...
  *
@@ -270,15 +272,19 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 
 	DEBUG(MTD_DEBUG_LEVEL1,"mtdblock_open\n");
 
+	mutex_lock(&mtdblks_lock);
 	if (mtdblks[dev]) {
 		mtdblks[dev]->count++;
+		mutex_unlock(&mtdblks_lock);
 		return 0;
 	}
 
 	/* OK, it's not open. Create cache info for it */
 	mtdblk = kzalloc(sizeof(struct mtdblk_dev), GFP_KERNEL);
-	if (!mtdblk)
+	if (!mtdblk) {
+		mutex_unlock(&mtdblks_lock);
 		return -ENOMEM;
+	}
 
 	mtdblk->count = 1;
 	mtdblk->mtd = mtd;
@@ -291,6 +297,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	}
 
 	mtdblks[dev] = mtdblk;
+	mutex_unlock(&mtdblks_lock);
 
 	DEBUG(MTD_DEBUG_LEVEL1, "ok\n");
 
@@ -304,6 +311,8 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 
    	DEBUG(MTD_DEBUG_LEVEL1, "mtdblock_release\n");
 
+	mutex_lock(&mtdblks_lock);
+
 	mutex_lock(&mtdblk->cache_mutex);
 	write_cached_data(mtdblk);
 	mutex_unlock(&mtdblk->cache_mutex);
@@ -316,6 +325,9 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 		vfree(mtdblk->cache_data);
 		kfree(mtdblk);
 	}
+
+	mutex_unlock(&mtdblks_lock);
+
 	DEBUG(MTD_DEBUG_LEVEL1, "ok\n");
 
 	return 0;
@@ -376,6 +388,8 @@ static struct mtd_blktrans_ops mtdblock_tr = {
 
 static int __init init_mtdblock(void)
 {
+	mutex_init(&mtdblks_lock);
+
 	return register_mtd_blktrans(&mtdblock_tr);
 }
 

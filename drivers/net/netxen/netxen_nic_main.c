@@ -94,10 +94,6 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, netxen_pci_tbl);
 
-static struct workqueue_struct *netxen_workq;
-#define SCHEDULE_WORK(tp)	queue_work(netxen_workq, tp)
-#define FLUSH_SCHEDULED_WORK()	flush_workqueue(netxen_workq)
-
 static void netxen_watchdog(unsigned long);
 
 static uint32_t crb_cmd_producer[4] = {
@@ -171,6 +167,8 @@ netxen_free_sds_rings(struct netxen_recv_context *recv_ctx)
 {
 	if (recv_ctx->sds_rings != NULL)
 		kfree(recv_ctx->sds_rings);
+
+	recv_ctx->sds_rings = NULL;
 }
 
 static int
@@ -190,6 +188,21 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 	}
 
 	return 0;
+}
+
+static void
+netxen_napi_del(struct netxen_adapter *adapter)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netif_napi_del(&sds_ring->napi);
+	}
+
+	netxen_free_sds_rings(&adapter->recv_ctx);
 }
 
 static void
@@ -221,7 +234,7 @@ netxen_napi_disable(struct netxen_adapter *adapter)
 	}
 }
 
-static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
+static int nx_set_dma_mask(struct netxen_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	uint64_t mask, cmask;
@@ -229,19 +242,17 @@ static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
 	adapter->pci_using_dac = 0;
 
 	mask = DMA_BIT_MASK(32);
-	/*
-	 * Consistent DMA mask is set to 32 bit because it cannot be set to
-	 * 35 bits. For P3 also leave it at 32 bits for now. Only the rings
-	 * come off this pool.
-	 */
 	cmask = DMA_BIT_MASK(32);
 
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 #ifndef CONFIG_IA64
-	if (revision_id >= NX_P3_B0)
-		mask = DMA_BIT_MASK(39);
-	else if (revision_id == NX_P2_C1)
 		mask = DMA_BIT_MASK(35);
 #endif
+	} else {
+		mask = DMA_BIT_MASK(39);
+		cmask = mask;
+	}
+
 	if (pci_set_dma_mask(pdev, mask) == 0 &&
 		pci_set_consistent_dma_mask(pdev, cmask) == 0) {
 		adapter->pci_using_dac = 1;
@@ -256,13 +267,13 @@ static int
 nx_update_dma_mask(struct netxen_adapter *adapter)
 {
 	int change, shift, err;
-	uint64_t mask, old_mask;
+	uint64_t mask, old_mask, old_cmask;
 	struct pci_dev *pdev = adapter->pdev;
 
 	change = 0;
 
 	shift = NXRD32(adapter, CRB_DMA_SHIFT);
-	if (shift >= 32)
+	if (shift > 32)
 		return 0;
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id) && (shift > 9))
@@ -272,14 +283,29 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 
 	if (change) {
 		old_mask = pdev->dma_mask;
-		mask = (1ULL<<(32+shift)) - 1;
+		old_cmask = pdev->dev.coherent_dma_mask;
+
+		mask = DMA_BIT_MASK(32+shift);
 
 		err = pci_set_dma_mask(pdev, mask);
 		if (err)
-			return pci_set_dma_mask(pdev, old_mask);
+			goto err_out;
+
+		if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+
+			err = pci_set_consistent_dma_mask(pdev, mask);
+			if (err)
+				goto err_out;
+		}
+		dev_info(&pdev->dev, "using %d-bit dma mask\n", 32+shift);
 	}
 
 	return 0;
+
+err_out:
+	pci_set_dma_mask(pdev, old_mask);
+	pci_set_consistent_dma_mask(pdev, old_cmask);
+	return err;
 }
 
 static void netxen_check_options(struct netxen_adapter *adapter)
@@ -867,7 +893,6 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	spin_unlock(&adapter->tx_clean_lock);
 
 	del_timer_sync(&adapter->watchdog_timer);
-	FLUSH_SCHEDULED_WORK();
 }
 
 
@@ -881,10 +906,12 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	struct nx_host_tx_ring *tx_ring;
 
 	err = netxen_init_firmware(adapter);
-	if (err != 0) {
-		printk(KERN_ERR "Failed to init firmware\n");
-		return -EIO;
-	}
+	if (err)
+		return err;
+
+	err = netxen_napi_add(adapter, netdev);
+	if (err)
+		return err;
 
 	if (adapter->fw_major < 4)
 		adapter->max_rds_rings = 3;
@@ -948,6 +975,7 @@ netxen_nic_detach(struct netxen_adapter *adapter)
 	netxen_free_hw_resources(adapter);
 	netxen_release_rx_buffers(adapter);
 	netxen_nic_free_irq(adapter);
+	netxen_napi_del(adapter);
 	netxen_free_sw_resources(adapter);
 
 	adapter->is_up = 0;
@@ -1006,7 +1034,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	revision_id = pdev->revision;
 	adapter->ahw.revision_id = revision_id;
 
-	err = nx_set_dma_mask(adapter, revision_id);
+	err = nx_set_dma_mask(adapter);
 	if (err)
 		goto err_out_free_netdev;
 
@@ -1092,9 +1120,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	if (netxen_napi_add(adapter, netdev))
-		goto err_out_disable_msi;
-
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
@@ -1164,6 +1189,9 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
+	cancel_work_sync(&adapter->watchdog_task);
+	cancel_work_sync(&adapter->tx_timeout_task);
+
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		netxen_nic_detach(adapter);
 	}
@@ -1172,7 +1200,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		netxen_free_adapter_offload(adapter);
 
 	netxen_teardown_intr(adapter);
-	netxen_free_sds_rings(&adapter->recv_ctx);
 
 	netxen_cleanup_pci_map(adapter);
 
@@ -1197,6 +1224,9 @@ netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (netif_running(netdev))
 		netxen_nic_down(adapter, netdev);
+
+	cancel_work_sync(&adapter->watchdog_task);
+	cancel_work_sync(&adapter->tx_timeout_task);
 
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC)
 		netxen_nic_detach(adapter);
@@ -1536,11 +1566,6 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 		       "%s: Device temperature %d degrees C exceeds"
 		       " maximum allowed. Hardware has been shut down.\n",
 		       netdev->name, temp_val);
-
-		netif_device_detach(netdev);
-		netxen_nic_down(adapter, netdev);
-		netxen_nic_detach(adapter);
-
 		rv = 1;
 	} else if (temp_state == NX_TEMP_WARN) {
 		if (adapter->temp == NX_TEMP_NORMAL) {
@@ -1574,10 +1599,7 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup)
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 		}
-
-		if (!adapter->has_link_events)
-			netxen_nic_set_link_parameters(adapter);
-
+		adapter->link_changed = !adapter->has_link_events;
 	} else if (!adapter->ahw.linkup && linkup) {
 		printk(KERN_INFO "%s: %s NIC Link is up\n",
 		       netxen_nic_driver_name, netdev->name);
@@ -1586,9 +1608,7 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup)
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
 		}
-
-		if (!adapter->has_link_events)
-			netxen_nic_set_link_parameters(adapter);
+		adapter->link_changed = !adapter->has_link_events;
 	}
 }
 
@@ -1615,11 +1635,36 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 	netxen_advert_link_change(adapter, linkup);
 }
 
+static void netxen_nic_thermal_shutdown(struct netxen_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	netif_device_detach(netdev);
+	netxen_nic_down(adapter, netdev);
+	netxen_nic_detach(adapter);
+}
+
 static void netxen_watchdog(unsigned long v)
 {
 	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
 
-	SCHEDULE_WORK(&adapter->watchdog_task);
+	if (netxen_nic_check_temp(adapter))
+		goto do_sched;
+
+	if (!adapter->has_link_events) {
+		netxen_nic_handle_phy_intr(adapter);
+
+		if (adapter->link_changed)
+			goto do_sched;
+	}
+
+	if (netif_running(adapter->netdev))
+		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
+
+	return;
+
+do_sched:
+	schedule_work(&adapter->watchdog_task);
 }
 
 void netxen_watchdog_task(struct work_struct *work)
@@ -1627,11 +1672,13 @@ void netxen_watchdog_task(struct work_struct *work)
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
-	if (netxen_nic_check_temp(adapter))
+	if (adapter->temp == NX_TEMP_PANIC) {
+		netxen_nic_thermal_shutdown(adapter);
 		return;
+	}
 
-	if (!adapter->has_link_events)
-		netxen_nic_handle_phy_intr(adapter);
+	if (adapter->link_changed)
+		netxen_nic_set_link_parameters(adapter);
 
 	if (netif_running(adapter->netdev))
 		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
@@ -1639,9 +1686,8 @@ void netxen_watchdog_task(struct work_struct *work)
 
 static void netxen_tx_timeout(struct net_device *netdev)
 {
-	struct netxen_adapter *adapter = (struct netxen_adapter *)
-						netdev_priv(netdev);
-	SCHEDULE_WORK(&adapter->tx_timeout_task);
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	schedule_work(&adapter->tx_timeout_task);
 }
 
 static void netxen_tx_timeout_task(struct work_struct *work)
@@ -1798,9 +1844,6 @@ static int __init netxen_init_module(void)
 {
 	printk(KERN_INFO "%s\n", netxen_nic_driver_string);
 
-	if ((netxen_workq = create_singlethread_workqueue("netxen")) == NULL)
-		return -ENOMEM;
-
 	return pci_register_driver(&netxen_driver);
 }
 
@@ -1809,7 +1852,6 @@ module_init(netxen_init_module);
 static void __exit netxen_exit_module(void)
 {
 	pci_unregister_driver(&netxen_driver);
-	destroy_workqueue(netxen_workq);
 }
 
 module_exit(netxen_exit_module);

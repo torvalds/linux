@@ -143,6 +143,7 @@ struct eeepc_hotk {
 	struct rfkill *bluetooth_rfkill;
 	struct rfkill *wwan3g_rfkill;
 	struct hotplug_slot *hotplug_slot;
+	struct work_struct hotplug_work;
 };
 
 /* The actual device the driver binds to */
@@ -660,7 +661,7 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static void eeepc_rfkill_hotplug(void)
+static void eeepc_hotplug_work(struct work_struct *work)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus = pci_find_bus(0, 1);
@@ -701,7 +702,7 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	if (event != ACPI_NOTIFY_BUS_CHECK)
 		return;
 
-	eeepc_rfkill_hotplug();
+	schedule_work(&ehotk->hotplug_work);
 }
 
 static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
@@ -892,7 +893,7 @@ static int eeepc_hotk_resume(struct acpi_device *device)
 
 		rfkill_set_sw_state(ehotk->wlan_rfkill, wlan != 1);
 
-		eeepc_rfkill_hotplug();
+		schedule_work(&ehotk->hotplug_work);
 	}
 
 	if (ehotk->bluetooth_rfkill)
@@ -1092,6 +1093,8 @@ static int eeepc_new_rfkill(struct rfkill **rfkill,
 static int eeepc_rfkill_init(struct device *dev)
 {
 	int result = 0;
+
+	INIT_WORK(&ehotk->hotplug_work, eeepc_hotplug_work);
 
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");

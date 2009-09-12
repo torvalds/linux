@@ -50,7 +50,7 @@ static struct imxuart_platform_data uart_pdata = {
 
 static int devboard_sdhc2_get_ro(struct device *dev)
 {
-	return gpio_get_value(SDHC2_WP);
+	return !gpio_get_value(SDHC2_WP);
 }
 
 static int devboard_sdhc2_init(struct device *dev, irq_handler_t detect_irq,

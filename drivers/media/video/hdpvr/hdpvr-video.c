@@ -1220,6 +1220,8 @@ static const struct video_device hdpvr_video_template = {
 		V4L2_STD_PAL_G | V4L2_STD_PAL_H | V4L2_STD_PAL_I |
 		V4L2_STD_PAL_D | V4L2_STD_PAL_M | V4L2_STD_PAL_N |
 		V4L2_STD_PAL_60,
+	.current_norm 		= V4L2_STD_NTSC | V4L2_STD_PAL_M |
+		V4L2_STD_PAL_60,
 };
 
 int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,

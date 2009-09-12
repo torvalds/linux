@@ -370,6 +370,7 @@ void rv515_vram_info(struct radeon_device *rdev)
 
 	rv515_vram_get_type(rdev);
 
+	r100_vram_init_sizes(rdev);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
@@ -398,25 +399,6 @@ void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	WREG32(MC_IND_DATA, (v));
 	WREG32(MC_IND_INDEX, 0);
 }
-
-uint32_t rv515_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	uint32_t r;
-
-	WREG32(PCIE_INDEX, ((reg) & 0x7ff));
-	(void)RREG32(PCIE_INDEX);
-	r = RREG32(PCIE_DATA);
-	return r;
-}
-
-void rv515_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	WREG32(PCIE_INDEX, ((reg) & 0x7ff));
-	(void)RREG32(PCIE_INDEX);
-	WREG32(PCIE_DATA, (v));
-	(void)RREG32(PCIE_DATA);
-}
-
 
 /*
  * Debugfs info

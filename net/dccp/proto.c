@@ -1159,6 +1159,7 @@ static void __exit dccp_fini(void)
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	dccp_ackvec_exit();
 	dccp_sysctl_exit();
+	percpu_counter_destroy(&dccp_orphan_count);
 }
 
 module_init(dccp_init);

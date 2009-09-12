@@ -110,7 +110,11 @@ static struct console ks8695_console;
 static void ks8695uart_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
-		disable_irq(KS8695_IRQ_UART_TX);
+		/* use disable_irq_nosync() and not disable_irq() to avoid self
+		 * imposed deadlock by not waiting for irq handler to end,
+		 * since this ks8695uart_stop_tx() is called from interrupt context.
+		 */
+		disable_irq_nosync(KS8695_IRQ_UART_TX);
 		tx_enable(port, 0);
 	}
 }
@@ -549,7 +553,7 @@ static struct uart_port ks8695uart_ports[SERIAL_KS8695_NR] = {
 		.mapbase	= KS8695_UART_VA,
 		.iotype		= SERIAL_IO_MEM,
 		.irq		= KS8695_IRQ_UART_TX,
-		.uartclk	= CLOCK_TICK_RATE * 16,
+		.uartclk	= KS8695_CLOCK_RATE * 16,
 		.fifosize	= 16,
 		.ops		= &ks8695uart_pops,
 		.flags		= ASYNC_BOOT_AUTOCONF,

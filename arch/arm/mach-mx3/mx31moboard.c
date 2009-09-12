@@ -118,7 +118,7 @@ static struct imxi2c_platform_data moboard_i2c1_pdata = {
 
 static int moboard_sdhc1_get_ro(struct device *dev)
 {
-	return gpio_get_value(SDHC1_WP);
+	return !gpio_get_value(SDHC1_WP);
 }
 
 static int moboard_sdhc1_init(struct device *dev, irq_handler_t detect_irq,

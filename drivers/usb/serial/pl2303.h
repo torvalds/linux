@@ -126,3 +126,7 @@
 /* Cressi Edy (diving computer) PC interface */
 #define CRESSI_VENDOR_ID	0x04b8
 #define CRESSI_EDY_PRODUCT_ID	0x0521
+
+/* Sony, USB data cable for CMD-Jxx mobile phones */
+#define SONY_VENDOR_ID		0x054c
+#define SONY_QN3USB_PRODUCT_ID	0x0437

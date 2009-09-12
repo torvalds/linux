@@ -86,8 +86,12 @@
  * the bottom of the table, which has a maximum signed displacement of
  * 0x3fff; however, since we're only going forward, this becomes
  * 0x1fff, and thus, since each GOT entry is 8 bytes long we can have
- * at most 1023 entries */
-#define MAX_GOTS	1023
+ * at most 1023 entries.
+ * To overcome this 14bit displacement with some kernel modules, we'll
+ * use instead the unusal 16bit displacement method (see reassemble_16a)
+ * which gives us a maximum positive displacement of 0x7fff, and as such
+ * allows us to allocate up to 4095 GOT entries. */
+#define MAX_GOTS	4095
 
 /* three functions to determine where in the module core
  * or init pieces the location is */
@@ -145,11 +149,39 @@ struct stub_entry {
 /* The reassemble_* functions prepare an immediate value for
    insertion into an opcode. pa-risc uses all sorts of weird bitfields
    in the instruction to hold the value.  */
+static inline int sign_unext(int x, int len)
+{
+	int len_ones;
+
+	len_ones = (1 << len) - 1;
+	return x & len_ones;
+}
+
+static inline int low_sign_unext(int x, int len)
+{
+	int sign, temp;
+
+	sign = (x >> (len-1)) & 1;
+	temp = sign_unext(x, len-1);
+	return (temp << 1) | sign;
+}
+
 static inline int reassemble_14(int as14)
 {
 	return (((as14 & 0x1fff) << 1) |
 		((as14 & 0x2000) >> 13));
 }
+
+static inline int reassemble_16a(int as16)
+{
+	int s, t;
+
+	/* Unusual 16-bit encoding, for wide mode only.  */
+	t = (as16 << 1) & 0xffff;
+	s = (as16 & 0x8000);
+	return (t ^ s ^ (s >> 1)) | (s >> 15);
+}
+
 
 static inline int reassemble_17(int as17)
 {
@@ -407,6 +439,7 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
 	enum elf_stub_type stub_type, Elf_Addr loc0, unsigned int targetsec)
 {
 	struct stub_entry *stub;
+	int __maybe_unused d;
 
 	/* initialize stub_offset to point in front of the section */
 	if (!me->arch.section[targetsec].stub_offset) {
@@ -460,12 +493,19 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
  */
 	switch (stub_type) {
 	case ELF_STUB_GOT:
-		stub->insns[0] = 0x537b0000;	/* ldd 0(%dp),%dp	*/
+		d = get_got(me, value, addend);
+		if (d <= 15) {
+			/* Format 5 */
+			stub->insns[0] = 0x0f6010db; /* ldd 0(%dp),%dp	*/
+			stub->insns[0] |= low_sign_unext(d, 5) << 16;
+		} else {
+			/* Format 3 */
+			stub->insns[0] = 0x537b0000; /* ldd 0(%dp),%dp	*/
+			stub->insns[0] |= reassemble_16a(d);
+		}
 		stub->insns[1] = 0x53610020;	/* ldd 10(%dp),%r1	*/
 		stub->insns[2] = 0xe820d000;	/* bve (%r1)		*/
 		stub->insns[3] = 0x537b0030;	/* ldd 18(%dp),%dp	*/
-
-		stub->insns[0] |= reassemble_14(get_got(me, value, addend) & 0x3fff);
 		break;
 	case ELF_STUB_MILLI:
 		stub->insns[0] = 0x20200000;	/* ldil 0,%r1		*/

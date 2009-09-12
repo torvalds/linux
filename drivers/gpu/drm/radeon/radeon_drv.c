@@ -318,6 +318,14 @@ static int __init radeon_init(void)
 	driver = &driver_old;
 	driver->num_ioctls = radeon_max_ioctl;
 #if defined(CONFIG_DRM_RADEON_KMS)
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force() && radeon_modeset == -1) {
+		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
+		driver = &driver_old;
+		driver->driver_features &= ~DRIVER_MODESET;
+		radeon_modeset = 0;
+	}
+#endif
 	/* if enabled by default */
 	if (radeon_modeset == -1) {
 		DRM_INFO("radeon default to kernel modesetting.\n");
@@ -329,17 +337,8 @@ static int __init radeon_init(void)
 		driver->driver_features |= DRIVER_MODESET;
 		driver->num_ioctls = radeon_max_kms_ioctl;
 	}
-
 	/* if the vga console setting is enabled still
 	 * let modprobe override it */
-#ifdef CONFIG_VGA_CONSOLE
-	if (vgacon_text_force() && radeon_modeset == -1) {
-		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
-		driver = &driver_old;
-		driver->driver_features &= ~DRIVER_MODESET;
-		radeon_modeset = 0;
-	}
-#endif
 #endif
 	return drm_init(driver);
 }

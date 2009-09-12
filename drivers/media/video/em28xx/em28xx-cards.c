@@ -218,7 +218,7 @@ static struct em28xx_reg_seq silvercrest_reg_seq[] = {
 struct em28xx_board em28xx_boards[] = {
 	[EM2750_BOARD_UNKNOWN] = {
 		.name          = "EM2710/EM2750/EM2751 webcam grabber",
-		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
+		.xclk          = EM28XX_XCLK_FREQUENCY_20MHZ,
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,
 		.input         = { {
@@ -622,22 +622,27 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2861_BOARD_PLEXTOR_PX_TV100U] = {
 		.name         = "Plextor ConvertX PX-TV100U",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_TNF_5335MF,
+		.xclk         = EM28XX_XCLK_I2S_MSB_TIMING |
+				EM28XX_XCLK_FREQUENCY_12MHZ,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_TVP5150,
+		.has_msp34xx  = 1,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		} },
 	},
 
@@ -1544,6 +1549,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2750_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2800),
 			.driver_info = EM2800_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2710),
+			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2820),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2821),
@@ -1723,6 +1730,25 @@ static inline void em28xx_set_model(struct em28xx *dev)
 				       EM28XX_I2C_FREQ_100_KHZ;
 }
 
+
+/* FIXME: Should be replaced by a proper mt9m111 driver */
+static int em28xx_initialize_mt9m111(struct em28xx *dev)
+{
+	int i;
+	unsigned char regs[][3] = {
+		{ 0x0d, 0x00, 0x01, },  /* reset and use defaults */
+		{ 0x0d, 0x00, 0x00, },
+		{ 0x0a, 0x00, 0x21, },
+		{ 0x21, 0x04, 0x00, },  /* full readout speed, no row/col skipping */
+	};
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		i2c_master_send(&dev->i2c_client, &regs[i][0], 3);
+
+	return 0;
+}
+
+
 /* FIXME: Should be replaced by a proper mt9m001 driver */
 static int em28xx_initialize_mt9m001(struct em28xx *dev)
 {
@@ -1751,7 +1777,7 @@ static int em28xx_initialize_mt9m001(struct em28xx *dev)
 
 /* HINT method: webcam I2C chips
  *
- * This method work for webcams with Micron sensors
+ * This method works for webcams with Micron sensors
  */
 static int em28xx_hint_sensor(struct em28xx *dev)
 {
@@ -1761,6 +1787,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	__be16 version_be;
 	u16 version;
 
+	/* Micron sensor detection */
 	dev->i2c_client.addr = 0xba >> 1;
 	cmd = 0;
 	i2c_master_send(&dev->i2c_client, &cmd, 1);
@@ -1769,23 +1796,54 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		return -EINVAL;
 
 	version = be16_to_cpu(version_be);
-
 	switch (version) {
-	case 0x8243:		/* mt9v011 640x480 1.3 Mpix sensor */
+	case 0x8232:		/* mt9v011 640x480 1.3 Mpix sensor */
+	case 0x8243:		/* mt9v011 rev B 640x480 1.3 Mpix sensor */
 		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
+		em28xx_set_model(dev);
+
 		sensor_name = "mt9v011";
 		dev->em28xx_sensor = EM28XX_MT9V011;
 		dev->sensor_xres = 640;
 		dev->sensor_yres = 480;
-		dev->sensor_xtal = 6300000;
+		/*
+		 * FIXME: mt9v011 uses I2S speed as xtal clk - at least with
+		 * the Silvercrest cam I have here for testing - for higher
+		 * resolutions, a high clock cause horizontal artifacts, so we
+		 * need to use a lower xclk frequency.
+		 * Yet, it would be possible to adjust xclk depending on the
+		 * desired resolution, since this affects directly the
+		 * frame rate.
+		 */
+		dev->board.xclk = EM28XX_XCLK_FREQUENCY_4_3MHZ;
+		dev->sensor_xtal = 4300000;
 
 		/* probably means GRGB 16 bit bayer */
 		dev->vinmode = 0x0d;
 		dev->vinctl = 0x00;
 
 		break;
+
+	case 0x143a:    /* MT9M111 as found in the ECS G200 */
+		dev->model = EM2750_BOARD_UNKNOWN;
+		em28xx_set_model(dev);
+
+		sensor_name = "mt9m111";
+		dev->board.xclk = EM28XX_XCLK_FREQUENCY_48MHZ;
+		dev->em28xx_sensor = EM28XX_MT9M111;
+		em28xx_initialize_mt9m111(dev);
+		dev->sensor_xres = 640;
+		dev->sensor_yres = 512;
+
+		dev->vinmode = 0x0a;
+		dev->vinctl = 0x00;
+
+		break;
+
 	case 0x8431:
 		dev->model = EM2750_BOARD_UNKNOWN;
+		em28xx_set_model(dev);
+
 		sensor_name = "mt9m001";
 		dev->em28xx_sensor = EM28XX_MT9M001;
 		em28xx_initialize_mt9m001(dev);
@@ -1798,9 +1856,12 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 
 		break;
 	default:
-		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));
+		printk("Unknown Micron Sensor 0x%04x\n", version);
 		return -EINVAL;
 	}
+
+	/* Setup webcam defaults */
+	em28xx_pre_card_setup(dev);
 
 	em28xx_errdev("Sensor is %s, using model %s entry.\n",
 		      sensor_name, em28xx_boards[dev->model].name);
@@ -1813,60 +1874,6 @@ static int em28xx_hint_sensor(struct em28xx *dev)
  */
 void em28xx_pre_card_setup(struct em28xx *dev)
 {
-	int rc;
-
-	em28xx_set_model(dev);
-
-	em28xx_info("Identified as %s (card=%d)\n",
-		    dev->board.name, dev->model);
-
-	/* Set the default GPO/GPIO for legacy devices */
-	dev->reg_gpo_num = EM2880_R04_GPO;
-	dev->reg_gpio_num = EM28XX_R08_GPIO;
-
-	dev->wait_after_write = 5;
-
-	/* Based on the Chip ID, set the device configuration */
-	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
-	if (rc > 0) {
-		dev->chip_id = rc;
-
-		switch (dev->chip_id) {
-		case CHIP_ID_EM2750:
-			em28xx_info("chip ID is em2750\n");
-			break;
-		case CHIP_ID_EM2820:
-			em28xx_info("chip ID is em2710 or em2820\n");
-			break;
-		case CHIP_ID_EM2840:
-			em28xx_info("chip ID is em2840\n");
-			break;
-		case CHIP_ID_EM2860:
-			em28xx_info("chip ID is em2860\n");
-			break;
-		case CHIP_ID_EM2870:
-			em28xx_info("chip ID is em2870\n");
-			dev->wait_after_write = 0;
-			break;
-		case CHIP_ID_EM2874:
-			em28xx_info("chip ID is em2874\n");
-			dev->reg_gpio_num = EM2874_R80_GPIO;
-			dev->wait_after_write = 0;
-			break;
-		case CHIP_ID_EM2883:
-			em28xx_info("chip ID is em2882/em2883\n");
-			dev->wait_after_write = 0;
-			break;
-		default:
-			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
-		}
-	}
-
-	/* Prepopulate cached GPO register content */
-	rc = em28xx_read_reg(dev, dev->reg_gpo_num);
-	if (rc >= 0)
-		dev->reg_gpo = rc;
-
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
 	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
@@ -1876,9 +1883,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	/* request some modules */
 	switch (dev->model) {
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
-		/* FIXME guess */
-		/* Turn on analog audio output */
-		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
+		/* Sets the msp34xx I2S speed */
+		dev->i2s_speed = 2048000;
 		break;
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
 	case EM2880_BOARD_KWORLD_DVB_305U:
@@ -2216,7 +2222,20 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 
 void em28xx_card_setup(struct em28xx *dev)
 {
-	em28xx_set_model(dev);
+	/*
+	 * If the device can be a webcam, seek for a sensor.
+	 * If sensor is not found, then it isn't a webcam.
+	 */
+	if (dev->board.is_webcam) {
+		if (em28xx_hint_sensor(dev) < 0)
+			dev->board.is_webcam = 0;
+		else
+			dev->progressive = 1;
+	} else
+		em28xx_set_model(dev);
+
+	em28xx_info("Identified as %s (card=%d)\n",
+		    dev->board.name, dev->model);
 
 	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
 	if (em28xx_boards[dev->model].tuner_addr)
@@ -2290,10 +2309,6 @@ void em28xx_card_setup(struct em28xx *dev)
 		em28xx_gpio_set(dev, dev->board.tuner_gpio);
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
-	case EM2820_BOARD_SILVERCREST_WEBCAM:
-		/* FIXME: need to document the registers bellow */
-		em28xx_write_reg(dev, 0x0d, 0x42);
-		em28xx_write_reg(dev, 0x13, 0x08);
 	}
 
 	if (dev->board.has_snapshot_button)
@@ -2367,7 +2382,9 @@ void em28xx_card_setup(struct em28xx *dev)
 	}
 
 	em28xx_tuner_setup(dev);
-	em28xx_ir_init(dev);
+
+	if(!disable_ir)
+		em28xx_ir_init(dev);
 }
 
 
@@ -2433,7 +2450,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			   int minor)
 {
 	struct em28xx *dev = *devhandle;
-	int retval = -ENOMEM;
+	int retval;
 	int errCode;
 
 	dev->udev = udev;
@@ -2449,6 +2466,58 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_write_regs_req = em28xx_write_regs_req;
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
 	dev->board.is_em2800 = em28xx_boards[dev->model].is_em2800;
+
+	em28xx_set_model(dev);
+
+	/* Set the default GPO/GPIO for legacy devices */
+	dev->reg_gpo_num = EM2880_R04_GPO;
+	dev->reg_gpio_num = EM28XX_R08_GPIO;
+
+	dev->wait_after_write = 5;
+
+	/* Based on the Chip ID, set the device configuration */
+	retval = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
+	if (retval > 0) {
+		dev->chip_id = retval;
+
+		switch (dev->chip_id) {
+		case CHIP_ID_EM2710:
+			em28xx_info("chip ID is em2710\n");
+			break;
+		case CHIP_ID_EM2750:
+			em28xx_info("chip ID is em2750\n");
+			break;
+		case CHIP_ID_EM2820:
+			em28xx_info("chip ID is em2820 (or em2710)\n");
+			break;
+		case CHIP_ID_EM2840:
+			em28xx_info("chip ID is em2840\n");
+			break;
+		case CHIP_ID_EM2860:
+			em28xx_info("chip ID is em2860\n");
+			break;
+		case CHIP_ID_EM2870:
+			em28xx_info("chip ID is em2870\n");
+			dev->wait_after_write = 0;
+			break;
+		case CHIP_ID_EM2874:
+			em28xx_info("chip ID is em2874\n");
+			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->wait_after_write = 0;
+			break;
+		case CHIP_ID_EM2883:
+			em28xx_info("chip ID is em2882/em2883\n");
+			dev->wait_after_write = 0;
+			break;
+		default:
+			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
+		}
+	}
+
+	/* Prepopulate cached GPO register content */
+	retval = em28xx_read_reg(dev, dev->reg_gpo_num);
+	if (retval >= 0)
+		dev->reg_gpo = retval;
 
 	em28xx_pre_card_setup(dev);
 
@@ -2483,14 +2552,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	 */
 	dev->vinmode = 0x10;
 	dev->vinctl  = 0x11;
-
-	/*
-	 * If the device can be a webcam, seek for a sensor.
-	 * If sensor is not found, then it isn't a webcam.
-	 */
-	if (dev->board.is_webcam)
-		if (em28xx_hint_sensor(dev) < 0)
-			dev->board.is_webcam = 0;
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
