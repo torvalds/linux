@@ -2722,8 +2722,10 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 	type = trace_parse_common_type(data);
 
 	event = trace_find_event(type);
-	if (!event)
-		die("ug! no event found for type %d", type);
+	if (!event) {
+		printf("ug! no event found for type %d\n", type);
+		return;
+	}
 
 	pid = parse_common_pid(data);
 

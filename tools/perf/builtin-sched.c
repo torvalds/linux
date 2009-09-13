@@ -116,6 +116,8 @@ static u64			sum_fluct;
 static u64			run_avg;
 
 static unsigned long		replay_repeat = 10;
+static unsigned long		nr_timestamps;
+static unsigned long		unordered_timestamps;
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtZX"
 
@@ -1109,8 +1111,11 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	if (atom->state != THREAD_SLEEPING)
 		return;
 
-	if (atom->sched_out_time > timestamp)
+	nr_timestamps++;
+	if (atom->sched_out_time > timestamp) {
+		unordered_timestamps++;
 		return;
+	}
 
 	atom->state = THREAD_WAIT_CPU;
 	atom->wake_up_time = timestamp;
@@ -1129,6 +1134,11 @@ static void output_lat_thread(struct task_atoms *atom_list)
 	u64 avg;
 
 	if (!atom_list->nb_atoms)
+		return;
+	/*
+	 * Ignore idle threads:
+	 */
+	if (!atom_list->thread->pid)
 		return;
 
 	all_runtime += atom_list->total_runtime;
@@ -1301,8 +1311,16 @@ static void __cmd_lat(void)
 	}
 
 	printf("-----------------------------------------------------------------------------------\n");
-	printf(" TOTAL:            |%9.3f ms |%9Ld |\n",
+	printf(" TOTAL:            |%9.3f ms |%9Ld |",
 		(double)all_runtime/1e6, all_count);
+
+	if (unordered_timestamps && nr_timestamps) {
+		printf(" INFO: %.2f%% unordered events.\n",
+			(double)unordered_timestamps/(double)nr_timestamps*100.0);
+	} else {
+		printf("\n");
+	}
+
 	printf("---------------------------------------------\n");
 }
 
@@ -1667,12 +1685,13 @@ static const char *record_args[] = {
 	"-a",
 	"-R",
 	"-M",
-	"-g",
+	"-f",
 	"-c", "1",
 	"-e", "sched:sched_switch:r",
 	"-e", "sched:sched_stat_wait:r",
 	"-e", "sched:sched_stat_sleep:r",
 	"-e", "sched:sched_stat_iowait:r",
+	"-e", "sched:sched_stat_runtime:r",
 	"-e", "sched:sched_process_exit:r",
 	"-e", "sched:sched_process_fork:r",
 	"-e", "sched:sched_wakeup:r",

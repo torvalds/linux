@@ -49,6 +49,7 @@ static int			inherit_stat			= 0;
 static int			no_samples			= 0;
 static int			sample_address			= 0;
 static int			multiplex			= 0;
+static int			multiplex_fd			= -1;
 
 static long			samples;
 static struct timeval		last_read;
@@ -471,23 +472,29 @@ try_again:
 	 */
 	if (group && group_fd == -1)
 		group_fd = fd[nr_cpu][counter];
+	if (multiplex && multiplex_fd == -1)
+		multiplex_fd = fd[nr_cpu][counter];
 
-	event_array[nr_poll].fd = fd[nr_cpu][counter];
-	event_array[nr_poll].events = POLLIN;
-	nr_poll++;
+	if (multiplex && fd[nr_cpu][counter] != multiplex_fd) {
+		int ret;
 
-	mmap_array[nr_cpu][counter].counter = counter;
-	mmap_array[nr_cpu][counter].prev = 0;
-	mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
-	mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-			PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
-	if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
-		error("failed to mmap with %d (%s)\n", errno, strerror(errno));
-		exit(-1);
+		ret = ioctl(fd[nr_cpu][counter], PERF_COUNTER_IOC_SET_OUTPUT, multiplex_fd);
+		assert(ret != -1);
+	} else {
+		event_array[nr_poll].fd = fd[nr_cpu][counter];
+		event_array[nr_poll].events = POLLIN;
+		nr_poll++;
+
+		mmap_array[nr_cpu][counter].counter = counter;
+		mmap_array[nr_cpu][counter].prev = 0;
+		mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
+		mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
+		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
+			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+			exit(-1);
+		}
 	}
-
-	if (multiplex && fd[nr_cpu][counter] != group_fd)
-		ioctl(fd[nr_cpu][counter], PERF_COUNTER_IOC_SET_OUTPUT, group_fd);
 
 	ioctl(fd[nr_cpu][counter], PERF_COUNTER_IOC_ENABLE);
 }
@@ -618,8 +625,10 @@ static int __cmd_record(int argc, const char **argv)
 		int hits = samples;
 
 		for (i = 0; i < nr_cpu; i++) {
-			for (counter = 0; counter < nr_counters; counter++)
-				mmap_read(&mmap_array[i][counter]);
+			for (counter = 0; counter < nr_counters; counter++) {
+				if (mmap_array[i][counter].base)
+					mmap_read(&mmap_array[i][counter]);
+			}
 		}
 
 		if (hits == samples) {
