@@ -107,27 +107,23 @@ static void __cpuinit rcu_init_percpu_data(int cpu, struct rcu_state *rsp,
  */
 void rcu_sched_qs(int cpu)
 {
-	unsigned long flags;
 	struct rcu_data *rdp;
 
-	local_irq_save(flags);
 	rdp = &per_cpu(rcu_sched_data, cpu);
-	rdp->passed_quiesc = 1;
 	rdp->passed_quiesc_completed = rdp->completed;
-	rcu_preempt_qs(cpu);
-	local_irq_restore(flags);
+	barrier();
+	rdp->passed_quiesc = 1;
+	rcu_preempt_note_context_switch(cpu);
 }
 
 void rcu_bh_qs(int cpu)
 {
-	unsigned long flags;
 	struct rcu_data *rdp;
 
-	local_irq_save(flags);
 	rdp = &per_cpu(rcu_bh_data, cpu);
-	rdp->passed_quiesc = 1;
 	rdp->passed_quiesc_completed = rdp->completed;
-	local_irq_restore(flags);
+	barrier();
+	rdp->passed_quiesc = 1;
 }
 
 #ifdef CONFIG_NO_HZ
@@ -615,6 +611,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 
 	/* Advance to a new grace period and initialize state. */
 	rsp->gpnum++;
+	WARN_ON_ONCE(rsp->signaled == RCU_GP_INIT);
 	rsp->signaled = RCU_GP_INIT; /* Hold off force_quiescent_state. */
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
 	record_gp_stall_check_time(rsp);
