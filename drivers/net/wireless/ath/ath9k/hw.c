@@ -4136,9 +4136,10 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 	return timer;
 }
 
-void ath_gen_timer_start(struct ath_hw *ah,
-			 struct ath_gen_timer *timer,
-			 u32 timer_next, u32 timer_period)
+void ath9k_hw_gen_timer_start(struct ath_hw *ah,
+			      struct ath_gen_timer *timer,
+			      u32 timer_next,
+			      u32 timer_period)
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
 	u32 tsf;
@@ -4173,15 +4174,9 @@ void ath_gen_timer_start(struct ath_hw *ah,
 	REG_SET_BIT(ah, AR_IMR_S5,
 		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
 		SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_TRIG)));
-
-	if ((ah->ah_sc->imask & ATH9K_INT_GENTIMER) == 0) {
-		ath9k_hw_set_interrupts(ah, 0);
-		ah->ah_sc->imask |= ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
-	}
 }
 
-void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
+void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 {
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
 
@@ -4200,13 +4195,6 @@ void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 		SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_TRIG)));
 
 	clear_bit(timer->index, &timer_table->timer_mask.timer_bits);
-
-	/* if no timer is enabled, turn off interrupt mask */
-	if (timer_table->timer_mask.val == 0) {
-		ath9k_hw_set_interrupts(ah, 0);
-		ah->ah_sc->imask &= ~ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
-	}
 }
 
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer)

@@ -1408,6 +1408,34 @@ static void ath9k_btcoex_bt_stomp(struct ath_softc *sc,
 	ath9k_hw_btcoex_enable(ah);
 }
 
+static void ath9k_gen_timer_start(struct ath_hw *ah,
+				  struct ath_gen_timer *timer,
+				  u32 timer_next,
+				  u32 timer_period)
+{
+	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
+
+	if ((ah->ah_sc->imask & ATH9K_INT_GENTIMER) == 0) {
+		ath9k_hw_set_interrupts(ah, 0);
+		ah->ah_sc->imask |= ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
+	}
+}
+
+static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+
+	ath9k_hw_gen_timer_stop(ah, timer);
+
+	/* if no timer is enabled, turn off interrupt mask */
+	if (timer_table->timer_mask.val == 0) {
+		ath9k_hw_set_interrupts(ah, 0);
+		ah->ah_sc->imask &= ~ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
+	}
+}
+
 /*
  * This is the master bt coex timer which runs for every
  * 45ms, bt traffic will be given priority during 55% of this
@@ -1429,13 +1457,13 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp) {
 		if (btcoex->hw_timer_enabled)
-			ath_gen_timer_stop(ah, btcoex->no_stomp_timer);
+			ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
 
-		ath_gen_timer_start(ah,
-			btcoex->no_stomp_timer,
-			(ath9k_hw_gettsf32(ah) +
-				btcoex->btcoex_no_stomp),
-				btcoex->btcoex_no_stomp * 10);
+		ath9k_gen_timer_start(ah,
+				      btcoex->no_stomp_timer,
+				      (ath9k_hw_gettsf32(ah) +
+				       btcoex->btcoex_no_stomp),
+				       btcoex->btcoex_no_stomp * 10);
 		btcoex->hw_timer_enabled = true;
 	}
 
@@ -2165,7 +2193,7 @@ static void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 
 	/* make sure duty cycle timer is also stopped when resuming */
 	if (btcoex->hw_timer_enabled)
-		ath_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
+		ath9k_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
@@ -2407,7 +2435,7 @@ static void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 	del_timer_sync(&btcoex->period_timer);
 
 	if (btcoex->hw_timer_enabled)
-		ath_gen_timer_stop(ah, btcoex->no_stomp_timer);
+		ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
 
 	btcoex->hw_timer_enabled = false;
 }

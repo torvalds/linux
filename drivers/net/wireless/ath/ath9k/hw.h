@@ -682,9 +682,12 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 					  void (*overflow)(void *),
 					  void *arg,
 					  u8 timer_index);
-void ath_gen_timer_start(struct ath_hw *ah, struct ath_gen_timer *timer,
-			 u32 timer_next, u32 timer_period);
-void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
+void ath9k_hw_gen_timer_start(struct ath_hw *ah,
+			      struct ath_gen_timer *timer,
+			      u32 timer_next,
+			      u32 timer_period);
+void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
+
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_isr(struct ath_hw *hw);
 u32 ath9k_hw_gettsf32(struct ath_hw *ah);
