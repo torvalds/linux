@@ -868,6 +868,8 @@ u32 avc_policy_seqno(void)
 
 void avc_disable(void)
 {
+	avc_flush();
+	synchronize_rcu();
 	if (avc_node_cachep)
 		kmem_cache_destroy(avc_node_cachep);
 }
