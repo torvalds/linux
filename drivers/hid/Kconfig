@@ -31,21 +31,6 @@ config HID
 
 	  If unsure, say Y.
 
-config HID_DEBUG
-	bool "HID debugging support"
-	default y
-	depends on HID
-	---help---
-	This option lets the HID layer output diagnostics about its internal
-	state, resolve HID usages, dump HID fields, etc. Individual HID drivers
-	use this debugging facility to output information about individual HID
-	devices, etc.
-
-	This feature is useful for those who are either debugging the HID parser
-	or any HID hardware device.
-
-	If unsure, say Y.
-
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
 	depends on HID

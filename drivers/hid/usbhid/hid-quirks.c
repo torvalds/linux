@@ -201,7 +201,7 @@ int usbhid_quirks_init(char **quirks_param)
 	u32 quirks;
 	int n = 0, m;
 
-	for (; quirks_param[n] && n < MAX_USBHID_BOOT_QUIRKS; n++) {
+	for (; n < MAX_USBHID_BOOT_QUIRKS && quirks_param[n]; n++) {
 
 		m = sscanf(quirks_param[n], "0x%hx:0x%hx:0x%x",
 				&idVendor, &idProduct, &quirks);
