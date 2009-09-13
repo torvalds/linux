@@ -33,6 +33,9 @@ static u64			sample_type;
 static int			replay_mode;
 static int			lat_mode;
 
+static char			default_sort_order[] = "avg, max, switch, runtime";
+static char			*sort_order = default_sort_order;
+
 
 /*
  * Scheduler benchmarks
@@ -890,7 +893,17 @@ struct task_atoms {
 	u64			total_runtime;
 };
 
-static struct rb_root lat_snapshot_root;
+typedef int (*sort_thread_lat)(struct task_atoms *, struct task_atoms *);
+
+struct sort_dimension {
+	const char 		*name;
+	sort_thread_lat		cmp;
+	struct list_head 	list;
+};
+
+static LIST_HEAD(cmp_pid);
+
+static struct rb_root lat_snapshot_root, sorted_lat_snapshot_root;
 
 static struct task_atoms *
 thread_atom_list_search(struct rb_root *root, struct thread *thread)
@@ -901,9 +914,9 @@ thread_atom_list_search(struct rb_root *root, struct thread *thread)
 		struct task_atoms *atoms;
 
 		atoms = container_of(node, struct task_atoms, node);
-		if (thread->pid < atoms->thread->pid)
+		if (thread->pid > atoms->thread->pid)
 			node = node->rb_left;
-		else if (thread->pid > atoms->thread->pid)
+		else if (thread->pid < atoms->thread->pid)
 			node = node->rb_right;
 		else {
 			return atoms;
@@ -912,22 +925,41 @@ thread_atom_list_search(struct rb_root *root, struct thread *thread)
 	return NULL;
 }
 
+static int
+thread_lat_cmp(struct list_head *list, struct task_atoms *l,
+	       struct task_atoms *r)
+{
+	struct sort_dimension *sort;
+	int ret = 0;
+
+	list_for_each_entry(sort, list, list) {
+		ret = sort->cmp(l, r);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static void
-__thread_latency_insert(struct rb_root *root, struct task_atoms *data)
+__thread_latency_insert(struct rb_root *root, struct task_atoms *data,
+			 struct list_head *sort_list)
 {
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 
 	while (*new) {
 		struct task_atoms *this;
+		int cmp;
 
 		this = container_of(*new, struct task_atoms, node);
 		parent = *new;
-		if (data->thread->pid < this->thread->pid)
+
+		cmp = thread_lat_cmp(sort_list, data, this);
+
+		if (cmp > 0)
 			new = &((*new)->rb_left);
-		else if (data->thread->pid > this->thread->pid)
-			new = &((*new)->rb_right);
 		else
-			die("Double thread insertion\n");
+			new = &((*new)->rb_right);
 	}
 
 	rb_link_node(&data->node, parent, new);
@@ -943,7 +975,7 @@ static void thread_atom_list_insert(struct thread *thread)
 
 	atoms->thread = thread;
 	INIT_LIST_HEAD(&atoms->snapshot_list);
-	__thread_latency_insert(&lat_snapshot_root, atoms);
+	__thread_latency_insert(&lat_snapshot_root, atoms, &cmp_pid);
 }
 
 static void
@@ -1134,18 +1166,151 @@ static void output_lat_thread(struct task_atoms *atom_list)
 		 (double)atom_list->max_lat / 1e6);
 }
 
+static int pid_cmp(struct task_atoms *l, struct task_atoms *r)
+{
+
+	if (l->thread->pid < r->thread->pid)
+		return -1;
+	if (l->thread->pid > r->thread->pid)
+		return 1;
+
+	return 0;
+}
+
+static struct sort_dimension pid_sort_dimension = {
+	.name = "pid",
+	.cmp = pid_cmp,
+};
+
+static int avg_cmp(struct task_atoms *l, struct task_atoms *r)
+{
+	u64 avgl, avgr;
+
+	if (!l->nb_atoms)
+		return -1;
+
+	if (!r->nb_atoms)
+		return 1;
+
+	avgl = l->total_lat / l->nb_atoms;
+	avgr = r->total_lat / r->nb_atoms;
+
+	if (avgl < avgr)
+		return -1;
+	if (avgl > avgr)
+		return 1;
+
+	return 0;
+}
+
+static struct sort_dimension avg_sort_dimension = {
+	.name 	= "avg",
+	.cmp	= avg_cmp,
+};
+
+static int max_cmp(struct task_atoms *l, struct task_atoms *r)
+{
+	if (l->max_lat < r->max_lat)
+		return -1;
+	if (l->max_lat > r->max_lat)
+		return 1;
+
+	return 0;
+}
+
+static struct sort_dimension max_sort_dimension = {
+	.name 	= "max",
+	.cmp	= max_cmp,
+};
+
+static int switch_cmp(struct task_atoms *l, struct task_atoms *r)
+{
+	if (l->nb_atoms < r->nb_atoms)
+		return -1;
+	if (l->nb_atoms > r->nb_atoms)
+		return 1;
+
+	return 0;
+}
+
+static struct sort_dimension switch_sort_dimension = {
+	.name 	= "switch",
+	.cmp	= switch_cmp,
+};
+
+static int runtime_cmp(struct task_atoms *l, struct task_atoms *r)
+{
+	if (l->total_runtime < r->total_runtime)
+		return -1;
+	if (l->total_runtime > r->total_runtime)
+		return 1;
+
+	return 0;
+}
+
+static struct sort_dimension runtime_sort_dimension = {
+	.name 	= "runtime",
+	.cmp	= runtime_cmp,
+};
+
+static struct sort_dimension *available_sorts[] = {
+	&pid_sort_dimension,
+	&avg_sort_dimension,
+	&max_sort_dimension,
+	&switch_sort_dimension,
+	&runtime_sort_dimension,
+};
+
+#define NB_AVAILABLE_SORTS	(int)(sizeof(available_sorts) / sizeof(struct sort_dimension *))
+
+static LIST_HEAD(sort_list);
+
+static int sort_dimension__add(char *tok, struct list_head *list)
+{
+	int i;
+
+	for (i = 0; i < NB_AVAILABLE_SORTS; i++) {
+		if (!strcmp(available_sorts[i]->name, tok)) {
+			list_add_tail(&available_sorts[i]->list, list);
+
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+static void setup_sorting(void);
+
+static void sort_lat(void)
+{
+	struct rb_node *node;
+
+	for (;;) {
+		struct task_atoms *data;
+		node = rb_first(&lat_snapshot_root);
+		if (!node)
+			break;
+
+		rb_erase(node, &lat_snapshot_root);
+		data = rb_entry(node, struct task_atoms, node);
+		__thread_latency_insert(&sorted_lat_snapshot_root, data, &sort_list);
+	}
+}
+
 static void __cmd_lat(void)
 {
 	struct rb_node *next;
 
 	setup_pager();
 	read_events();
+	sort_lat();
 
 	printf("-----------------------------------------------------------------------------------\n");
 	printf(" Task              |  Runtime ms | Switches | Average delay ms | Maximum delay ms |\n");
 	printf("-----------------------------------------------------------------------------------\n");
 
-	next = rb_first(&lat_snapshot_root);
+	next = rb_first(&sorted_lat_snapshot_root);
 
 	while (next) {
 		struct task_atoms *atom_list;
@@ -1469,10 +1634,29 @@ static const struct option options[] = {
 		    "replay sched behaviour from traces"),
 	OPT_BOOLEAN('l', "latency", &lat_mode,
 		    "measure various latencies"),
+	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
+		   "sort by key(s): runtime, switch, avg, max"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
 };
+
+static void setup_sorting(void)
+{
+	char *tmp, *tok, *str = strdup(sort_order);
+
+	for (tok = strtok_r(str, ", ", &tmp);
+			tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		if (sort_dimension__add(tok, &sort_list) < 0) {
+			error("Unknown --sort key: `%s'", tok);
+			usage_with_options(sched_usage, options);
+		}
+	}
+
+	free(str);
+
+	sort_dimension__add((char *)"pid", &cmp_pid);
+}
 
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
@@ -1495,6 +1679,8 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 		trace_handler = &lat_ops;
 	else
 		usage_with_options(sched_usage, options);
+
+	setup_sorting();
 
 	if (replay_mode)
 		__cmd_replay();
