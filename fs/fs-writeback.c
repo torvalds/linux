@@ -149,21 +149,19 @@ static void wb_clear_pending(struct bdi_writeback *wb, struct bdi_work *work)
 
 static void bdi_queue_work(struct backing_dev_info *bdi, struct bdi_work *work)
 {
-	if (work) {
-		work->seen = bdi->wb_mask;
-		BUG_ON(!work->seen);
-		atomic_set(&work->pending, bdi->wb_cnt);
-		BUG_ON(!bdi->wb_cnt);
+	work->seen = bdi->wb_mask;
+	BUG_ON(!work->seen);
+	atomic_set(&work->pending, bdi->wb_cnt);
+	BUG_ON(!bdi->wb_cnt);
 
-		/*
-		 * Make sure stores are seen before it appears on the list
-		 */
-		smp_mb();
+	/*
+	 * Make sure stores are seen before it appears on the list
+	 */
+	smp_mb();
 
-		spin_lock(&bdi->wb_lock);
-		list_add_tail_rcu(&work->list, &bdi->work_list);
-		spin_unlock(&bdi->wb_lock);
-	}
+	spin_lock(&bdi->wb_lock);
+	list_add_tail_rcu(&work->list, &bdi->work_list);
+	spin_unlock(&bdi->wb_lock);
 
 	/*
 	 * If the default thread isn't there, make sure we add it. When
@@ -175,14 +173,12 @@ static void bdi_queue_work(struct backing_dev_info *bdi, struct bdi_work *work)
 		struct bdi_writeback *wb = &bdi->wb;
 
 		/*
-		 * If we failed allocating the bdi work item, wake up the wb
-		 * thread always. As a safety precaution, it'll flush out
-		 * everything
+		 * End work now if this wb has no dirty IO pending. Otherwise
+		 * wakeup the handling thread
 		 */
-		if (!wb_has_dirty_io(wb)) {
-			if (work)
-				wb_clear_pending(wb, work);
-		} else if (wb->task)
+		if (!wb_has_dirty_io(wb))
+			wb_clear_pending(wb, work);
+		else if (wb->task)
 			wake_up_process(wb->task);
 	}
 }
@@ -202,11 +198,20 @@ static void bdi_alloc_queue_work(struct backing_dev_info *bdi,
 {
 	struct bdi_work *work;
 
+	/*
+	 * This is WB_SYNC_NONE writeback, so if allocation fails just
+	 * wakeup the thread for old dirty data writeback
+	 */
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (work)
+	if (work) {
 		bdi_work_init(work, wbc);
+		bdi_queue_work(bdi, work);
+	} else {
+		struct bdi_writeback *wb = &bdi->wb;
 
-	bdi_queue_work(bdi, work);
+		if (wb->task)
+			wake_up_process(wb->task);
+	}
 }
 
 void bdi_start_writeback(struct writeback_control *wbc)
