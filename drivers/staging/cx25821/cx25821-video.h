@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
- *  Copyright (C) 2009 Conexant Systems Inc. 
+ *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *  Based on Steven Toth <stoth@linuxtv.org> cx23885 driver
  *
@@ -52,7 +52,7 @@
 
 #define dprintk(level, fmt, arg...)\
     do { if (VIDEO_DEBUG >= level)\
-        printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+	printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
     } while (0)
 
 
@@ -117,9 +117,9 @@ extern int res_locked(struct cx25821_dev *dev, unsigned int bit);
 extern void res_free(struct cx25821_dev *dev, struct cx25821_fh *fh, unsigned int bits);
 extern int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input);
 extern int cx25821_start_video_dma(struct cx25821_dev *dev,
-                   struct cx25821_dmaqueue *q,
-                   struct cx25821_buffer *buf,
-                   struct sram_channel *channel);
+		   struct cx25821_dmaqueue *q,
+		   struct cx25821_buffer *buf,
+		   struct sram_channel *channel);
 
 extern int cx25821_set_scale(struct cx25821_dev *dev, unsigned int width, unsigned int height, enum v4l2_field field);
 extern int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status);

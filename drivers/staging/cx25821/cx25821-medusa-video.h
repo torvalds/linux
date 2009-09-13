@@ -26,7 +26,7 @@
 #include "cx25821-medusa-defines.h"
 
 
-// Color control constants 
+// Color control constants
 #define VIDEO_PROCAMP_MIN                 0
 #define VIDEO_PROCAMP_MAX                 10000
 #define UNSIGNED_BYTE_MIN                 0

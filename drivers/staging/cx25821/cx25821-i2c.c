@@ -88,9 +88,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap, const struct i2c_msg *msg
 		dprintk(1, "%s(msg->len=%d)\n", __func__, msg->len);
 
 	/* Deal with i2c probe functions with zero payload */
-	if (msg->len == 0) 
+	if (msg->len == 0)
 	{
- 		cx_write(bus->reg_addr, msg->addr << 25);
+		cx_write(bus->reg_addr, msg->addr << 25);
 		cx_write(bus->reg_ctrl, bus->i2c_period | (1 << 2));
 
 		if (!i2c_wait_done(i2c_adap))
@@ -106,7 +106,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap, const struct i2c_msg *msg
 	/* dev, reg + first byte */
 	addr = (msg->addr << 25) | msg->buf[0];
 	wdata = msg->buf[0];
-   
+
 	ctrl = bus->i2c_period | (1 << 12) | (1 << 2);
 
 	if (msg->len > 1)
@@ -125,7 +125,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap, const struct i2c_msg *msg
 	if (retval == 0)
 		goto eio;
 
-	if (i2c_debug) 
+	if (i2c_debug)
 	{
 		if (!(ctrl & I2C_NOSTOP))
 			printk(" >\n");
@@ -152,14 +152,14 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap, const struct i2c_msg *msg
 		if (retval == 0)
 			goto eio;
 
-		if (i2c_debug) 
+		if (i2c_debug)
 		{
 			dprintk(1, " %02x", msg->buf[cnt]);
 			if (!(ctrl & I2C_NOSTOP))
 				dprintk(1, " >\n");
 		}
 	}
- 
+
 	return msg->len;
 
  eio:
@@ -244,18 +244,18 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 
 	dprintk(1, "%s(num = %d)\n", __func__, num);
 
-	for (i = 0 ; i < num; i++) 
+	for (i = 0 ; i < num; i++)
 	{
 		dprintk(1, "%s(num = %d) addr = 0x%02x  len = 0x%x\n",
 			__func__, num, msgs[i].addr, msgs[i].len);
 
-		if (msgs[i].flags & I2C_M_RD) 
+		if (msgs[i].flags & I2C_M_RD)
 		{
 			/* read */
 			retval = i2c_readbytes(i2c_adap, &msgs[i], 0);
-		} 
+		}
 		else if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
-			   msgs[i].addr == msgs[i + 1].addr) 
+			   msgs[i].addr == msgs[i + 1].addr)
 	    {
 			/* write then read from same address */
 			retval = i2c_sendbytes(i2c_adap, &msgs[i], msgs[i + 1].len);
@@ -264,13 +264,13 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 				goto err;
 			i++;
 			retval = i2c_readbytes(i2c_adap, &msgs[i], 1);
-		} 
-		else 
+		}
+		else
 		{
 			/* write */
 			retval = i2c_sendbytes(i2c_adap, &msgs[i], 0);
 		}
-		
+
 		if (retval < 0)
 			goto err;
 	}
@@ -283,9 +283,9 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 
 static u32 cx25821_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL | 
+	return I2C_FUNC_SMBUS_EMUL |
 		I2C_FUNC_I2C |
-		I2C_FUNC_SMBUS_WORD_DATA | 
+		I2C_FUNC_SMBUS_WORD_DATA |
 		I2C_FUNC_SMBUS_READ_WORD_DATA |
 		I2C_FUNC_SMBUS_WRITE_WORD_DATA;
 }
@@ -334,7 +334,7 @@ int cx25821_i2c_register(struct cx25821_i2c *bus)
 
     //set up the I2c
     bus->i2c_client.addr = (0x88>>1);
-        
+
 	return bus->i2c_rc;
 }
 
@@ -375,19 +375,19 @@ int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value)
     int v = 0;
     u8 addr[2] = {0, 0};
     u8 buf[4] = {0,0,0,0};
-	
+
     struct i2c_msg msgs[2]={
-          {
-             .addr = client->addr,
-             .flags = 0,
-             .len = 2,
-             .buf = addr,
-          }, {
-             .addr = client->addr,
-             .flags = I2C_M_RD,
-             .len = 4,
-             .buf = buf,
-          }
+	  {
+	     .addr = client->addr,
+	     .flags = 0,
+	     .len = 2,
+	     .buf = addr,
+	  }, {
+	     .addr = client->addr,
+	     .flags = I2C_M_RD,
+	     .len = 4,
+	     .buf = buf,
+	  }
     };
 
 
@@ -401,23 +401,23 @@ int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value)
     v = (buf[3]<<24) | (buf[2]<<16) | (buf[1]<<8) | buf[0];
     *value = v;
 
-    return v; 
+    return v;
 }
 
 
 int cx25821_i2c_write(struct cx25821_i2c *bus, u16 reg_addr, int value)
 {
     struct i2c_client *client = &bus->i2c_client;
-    int retval = 0; 
+    int retval = 0;
     u8 buf[6] = {0, 0, 0, 0, 0, 0};
 
     struct i2c_msg msgs[1]={
-          {
-             .addr = client->addr,
-             .flags = 0,
-             .len = 6,
-             .buf = buf,
-          }
+	  {
+	     .addr = client->addr,
+	     .flags = 0,
+	     .len = 6,
+	     .buf = buf,
+	  }
     };
 
 

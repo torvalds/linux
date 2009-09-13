@@ -1481,7 +1481,7 @@
 //*****************************************************************************
 #define  I2C1_ADDR                 0x180000      // I2C #1 address
 #define  FLD_I2C_DADDR             0xfe000000    // RW [31:25] I2C Device Address
-                                                 // RO [24] reserved
+						 // RO [24] reserved
 //*****************************************************************************
 #define  FLD_I2C_SADDR             0x00FFFFFF    // RW [23:0]  I2C Sub-address
 
@@ -1494,15 +1494,15 @@
 #define  FLD_I2C_PERIOD            0xFF000000    // RW [31:24]
 #define  FLD_I2C_SCL_IN            0x00200000    // RW [21]
 #define  FLD_I2C_SDA_IN            0x00100000    // RW [20]
-                                                 // RO [19:18] reserved
+						 // RO [19:18] reserved
 #define  FLD_I2C_SCL_OUT           0x00020000    // RW [17]
 #define  FLD_I2C_SDA_OUT           0x00010000    // RW [16]
-                                                 // RO [15] reserved
+						 // RO [15] reserved
 #define  FLD_I2C_DATA_LEN          0x00007000    // RW [14:12]
 #define  FLD_I2C_SADDR_INC         0x00000800    // RW [11]
-                                                 // RO [10:9] reserved
+						 // RO [10:9] reserved
 #define  FLD_I2C_SADDR_LEN         0x00000300    // RW [9:8]
-                                                 // RO [7:6] reserved
+						 // RO [7:6] reserved
 #define  FLD_I2C_SOFT              0x00000020    // RW [5]
 #define  FLD_I2C_NOSTOP            0x00000010    // RW [4]
 #define  FLD_I2C_EXTEND            0x00000008    // RW [3]
@@ -1588,13 +1588,13 @@
 
 //*****************************************************************************
 // Motion Detection
-#define  MD_CH0_GRID_BLOCK_YCNT    0x170014      
-#define  MD_CH1_GRID_BLOCK_YCNT    0x170094      
-#define  MD_CH2_GRID_BLOCK_YCNT    0x170114      
-#define  MD_CH3_GRID_BLOCK_YCNT    0x170194      
-#define  MD_CH4_GRID_BLOCK_YCNT    0x170214      
-#define  MD_CH5_GRID_BLOCK_YCNT    0x170294      
-#define  MD_CH6_GRID_BLOCK_YCNT    0x170314      
+#define  MD_CH0_GRID_BLOCK_YCNT    0x170014
+#define  MD_CH1_GRID_BLOCK_YCNT    0x170094
+#define  MD_CH2_GRID_BLOCK_YCNT    0x170114
+#define  MD_CH3_GRID_BLOCK_YCNT    0x170194
+#define  MD_CH4_GRID_BLOCK_YCNT    0x170214
+#define  MD_CH5_GRID_BLOCK_YCNT    0x170294
+#define  MD_CH6_GRID_BLOCK_YCNT    0x170314
 #define  MD_CH7_GRID_BLOCK_YCNT    0x170394
 
 #define PIXEL_FRMT_422    4

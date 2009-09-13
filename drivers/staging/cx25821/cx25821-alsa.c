@@ -72,7 +72,7 @@ struct cx25821_audio_dev {
 
 	unsigned long iobase;
 	spinlock_t                 reg_lock;
-	atomic_t		           count;
+	atomic_t			   count;
 
 	unsigned int               dma_size;
 	unsigned int               period_size;

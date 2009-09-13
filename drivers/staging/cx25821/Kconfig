@@ -15,7 +15,7 @@ config VIDEO_CX25821
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx25821
-	  
+
 config VIDEO_CX25821_ALSA
 	tristate "Conexant 25821 DMA audio support"
 	depends on VIDEO_CX25821 && SND && EXPERIMENTAL
@@ -30,5 +30,5 @@ config VIDEO_CX25821_ALSA
 	  PCI device.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cx25821-alsa.	  
+	  module will be called cx25821-alsa.
 
