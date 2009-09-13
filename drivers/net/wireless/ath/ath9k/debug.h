@@ -19,26 +19,6 @@
 
 #include "hw.h"
 
-enum ATH_DEBUG {
-	ATH_DBG_RESET		= 0x00000001,
-	ATH_DBG_QUEUE		= 0x00000002,
-	ATH_DBG_EEPROM		= 0x00000004,
-	ATH_DBG_CALIBRATE	= 0x00000008,
-	ATH_DBG_INTERRUPT	= 0x00000010,
-	ATH_DBG_REGULATORY	= 0x00000020,
-	ATH_DBG_ANI		= 0x00000040,
-	ATH_DBG_XMIT		= 0x00000080,
-	ATH_DBG_BEACON		= 0x00000100,
-	ATH_DBG_CONFIG		= 0x00000200,
-	ATH_DBG_FATAL		= 0x00000400,
-	ATH_DBG_PS		= 0x00000800,
-	ATH_DBG_HWTIMER		= 0x00001000,
-	ATH_DBG_BTCOEX		= 0x00002000,
-	ATH_DBG_ANY		= 0xffffffff
-};
-
-#define DBG_DEFAULT (ATH_DBG_FATAL)
-
 struct ath_txq;
 struct ath_buf;
 
@@ -142,7 +122,6 @@ struct ath_stats {
 };
 
 struct ath9k_debug {
-	int debug_mask;
 	struct dentry *debugfs_phy;
 	struct dentry *debugfs_debug;
 	struct dentry *debugfs_dma;
@@ -153,7 +132,6 @@ struct ath9k_debug {
 	struct ath_stats stats;
 };
 
-void DPRINTF(struct ath_hw *ah, int dbg_mask, const char *fmt, ...);
 int ath9k_init_debug(struct ath_hw *ah);
 void ath9k_exit_debug(struct ath_hw *ah);
 
@@ -167,11 +145,6 @@ void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 			    int xretries, int retries, u8 per);
 
 #else
-
-static inline void DPRINTF(struct ath_hw *ah, int dbg_mask,
-			   const char *fmt, ...)
-{
-}
 
 static inline int ath9k_init_debug(struct ath_hw *ah)
 {

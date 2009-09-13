@@ -26,6 +26,7 @@
 #include "rc.h"
 #include "debug.h"
 #include "../ath.h"
+#include "../debug.h"
 
 struct ath_node;
 

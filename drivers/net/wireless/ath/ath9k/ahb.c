@@ -40,9 +40,10 @@ static bool ath_ahb_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 
 	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
 	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		DPRINTF(ah, ATH_DBG_FATAL,
-			"%s: flash read failed, offset %08x is out of range\n",
-				__func__, off);
+		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+			  "%s: flash read failed, offset %08x "
+			  "is out of range\n",
+			  __func__, off);
 		return false;
 	}
 

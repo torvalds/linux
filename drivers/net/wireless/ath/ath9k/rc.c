@@ -1160,6 +1160,7 @@ struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 					     bool is_cw_40)
 {
 	int mode = 0;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	switch(band) {
 	case IEEE80211_BAND_2GHZ:
@@ -1177,14 +1178,14 @@ struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 			mode = ATH9K_MODE_11NA_HT40PLUS;
 		break;
 	default:
-		DPRINTF(sc->sc_ah, ATH_DBG_CONFIG, "Invalid band\n");
+		ath_print(common, ATH_DBG_CONFIG, "Invalid band\n");
 		return NULL;
 	}
 
 	BUG_ON(mode >= ATH9K_MODE_MAX);
 
-	DPRINTF(sc->sc_ah, ATH_DBG_CONFIG,
-		"Choosing rate table for mode: %d\n", mode);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "Choosing rate table for mode: %d\n", mode);
 	return sc->hw_rate_table[mode];
 }
 
@@ -1195,12 +1196,13 @@ static void ath_rc_init(struct ath_softc *sc,
 			const struct ath_rate_table *rate_table)
 {
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
 
 	if (!rate_table) {
-		DPRINTF(sc->sc_ah, ATH_DBG_FATAL,
-			"Rate table not initialized\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Rate table not initialized\n");
 		return;
 	}
 
@@ -1263,9 +1265,9 @@ static void ath_rc_init(struct ath_softc *sc,
 	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
 	sc->cur_rate_table = rate_table;
 
-	DPRINTF(sc->sc_ah, ATH_DBG_CONFIG,
-		"RC Initialized with capabilities: 0x%x\n",
-		ath_rc_priv->ht_cap);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "RC Initialized with capabilities: 0x%x\n",
+		  ath_rc_priv->ht_cap);
 }
 
 static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta,
@@ -1441,9 +1443,9 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 						   oper_cw40, oper_sgi40);
 			ath_rc_init(sc, priv_sta, sband, sta, rate_table);
 
-			DPRINTF(sc->sc_ah, ATH_DBG_CONFIG,
-				"Operating HT Bandwidth changed to: %d\n",
-				sc->hw->conf.channel_type);
+			ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+				  "Operating HT Bandwidth changed to: %d\n",
+				  sc->hw->conf.channel_type);
 		}
 	}
 }
@@ -1466,8 +1468,8 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 
 	rate_priv = kzalloc(sizeof(struct ath_rate_priv), gfp);
 	if (!rate_priv) {
-		DPRINTF(sc->sc_ah, ATH_DBG_FATAL,
-			"Unable to allocate private rc structure\n");
+		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
+			  "Unable to allocate private rc structure\n");
 		return NULL;
 	}
 

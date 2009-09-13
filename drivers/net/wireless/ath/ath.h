@@ -48,11 +48,14 @@ struct ath_ops {
 struct ath_common {
 	void *ah;
 	struct ieee80211_hw *hw;
+	int debug_mask;
+
 	u16 cachelsz;
 	u16 curaid;
 	u8 macaddr[ETH_ALEN];
 	u8 curbssid[ETH_ALEN];
 	u8 bssidmask[ETH_ALEN];
+
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
 };
