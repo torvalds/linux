@@ -594,6 +594,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	common = ath5k_hw_common(sc->ah);
 	common->ops = &ath5k_common_ops;
 	common->ah = sc->ah;
+	common->hw = hw;
 	common->cachelsz = csz << 2; /* convert to bytes */
 
 	/* Initialize device */

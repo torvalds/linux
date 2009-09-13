@@ -271,7 +271,7 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 
 static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ar5416AniState *aniState;
 	int32_t rssi;
 
@@ -343,7 +343,7 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 
 static void ath9k_hw_ani_cck_err_trigger(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ar5416AniState *aniState;
 	int32_t rssi;
 

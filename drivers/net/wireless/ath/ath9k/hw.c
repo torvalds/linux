@@ -40,7 +40,7 @@ static void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan
 
 static u32 ath9k_hw_mac_usec(struct ath_hw *ah, u32 clks)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 
 	if (!ah->curchan) /* should really check for CCK instead */
 		return clks / ATH9K_CLOCK_RATE_CCK;
@@ -52,7 +52,7 @@ static u32 ath9k_hw_mac_usec(struct ath_hw *ah, u32 clks)
 
 static u32 ath9k_hw_mac_to_usec(struct ath_hw *ah, u32 clks)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 
 	if (conf_is_ht40(conf))
 		return ath9k_hw_mac_usec(ah, clks) / 2;
@@ -62,7 +62,7 @@ static u32 ath9k_hw_mac_to_usec(struct ath_hw *ah, u32 clks)
 
 static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 
 	if (!ah->curchan) /* should really check for CCK instead */
 		return usecs *ATH9K_CLOCK_RATE_CCK;
@@ -73,7 +73,7 @@ static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 
 static u32 ath9k_hw_mac_to_clks(struct ath_hw *ah, u32 usecs)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 
 	if (conf_is_ht40(conf))
 		return ath9k_hw_mac_clks(ah, usecs) * 2;

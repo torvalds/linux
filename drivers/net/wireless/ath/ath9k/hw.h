@@ -437,6 +437,7 @@ struct ath_gen_timer_table {
 };
 
 struct ath_hw {
+	struct ieee80211_hw *hw;
 	struct ath_softc *ah_sc;
 	struct ath_common common;
 	struct ath9k_hw_version hw_version;

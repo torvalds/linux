@@ -19,6 +19,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
+#include <net/mac80211.h>
 
 static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -46,6 +47,7 @@ struct ath_ops {
 
 struct ath_common {
 	void *ah;
+	struct ieee80211_hw *hw;
 	u16 cachelsz;
 	u16 curaid;
 	u8 macaddr[ETH_ALEN];
