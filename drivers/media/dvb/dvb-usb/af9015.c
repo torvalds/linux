@@ -97,7 +97,7 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 		break;
 	case WRITE_MEMORY:
 		if (((req->addr & 0xff00) == 0xff00) ||
-		    ((req->addr & 0xae00) == 0xae00))
+		    ((req->addr & 0xff00) == 0xae00))
 			buf[0] = WRITE_VIRTUAL_MEMORY;
 	case WRITE_VIRTUAL_MEMORY:
 	case COPY_FIRMWARE:
