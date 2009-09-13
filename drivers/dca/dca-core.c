@@ -372,7 +372,7 @@ EXPORT_SYMBOL_GPL(dca_unregister_notify);
 
 static int __init dca_init(void)
 {
-	printk(KERN_ERR "dca service started, version %s\n", DCA_VERSION);
+	pr_info("dca service started, version %s\n", DCA_VERSION);
 	return dca_sysfs_init();
 }
 
