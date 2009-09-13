@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
- *  Copyright (C) 2009 Conexant Systems Inc. 
+ *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,6 @@
 
 #include "cx25821-medusa-defines.h"
 
-
 // Color control constants
 #define VIDEO_PROCAMP_MIN                 0
 #define VIDEO_PROCAMP_MAX                 10000
@@ -41,11 +40,10 @@
 #define CONTRAST_DEFAULT                5000
 #define HUE_DEFAULT                     5000
 
+unsigned short _num_decoders;
+unsigned short _num_cameras;
 
-unsigned short			_num_decoders;
-unsigned short			_num_cameras;
-
-unsigned int            _video_standard;
-int					    _display_field_cnt[MAX_DECODERS];
+unsigned int _video_standard;
+int _display_field_cnt[MAX_DECODERS];
 
 #endif

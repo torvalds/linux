@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
- *  Copyright (C) 2009 Conexant Systems Inc. 
+ *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,6 @@
 
 #ifndef __CX25821_AUDIO_H__
 #define __CX25821_AUDIO_H__
-
 
 #define USE_RISC_NOOP               1
 #define LINES_PER_BUFFER            15
@@ -45,7 +44,6 @@
     (2*LINES_PER_BUFFER*RISC_WRITE_INSTRUCTION_SIZE + RISC_NOOP_INSTRUCTION_SIZE*4)
 #endif
 
-
 //Sizes of various instructions in bytes.  Used when adding instructions.
 #define RISC_WRITE_INSTRUCTION_SIZE 12
 #define RISC_JUMP_INSTRUCTION_SIZE  12
@@ -57,4 +55,3 @@
 #define MAX_AUDIO_DMA_BUFFER_SIZE (MAX_BUFFER_PROGRAM_SIZE * NUMBER_OF_PROGRAMS + RISC_SYNC_INSTRUCTION_SIZE)
 
 #endif
-

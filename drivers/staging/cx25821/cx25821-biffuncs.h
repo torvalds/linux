@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
- *  Copyright (C) 2009 Conexant Systems Inc. 
+ *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -26,8 +26,8 @@
 #define SetBit(Bit)  (1 << Bit)
 
 inline u8 getBit(u32 sample, u8 index)
-{ 
-    return (u8) ((sample >> index) & 1);
+{
+	return (u8) ((sample >> index) & 1);
 }
 
 inline u32 clearBitAtPos(u32 value, u8 bit)
@@ -38,7 +38,7 @@ inline u32 clearBitAtPos(u32 value, u8 bit)
 inline u32 setBitAtPos(u32 sample, u8 bit)
 {
 	sample |= (1 << bit);
-    return sample;
+	return sample;
 
 }
 

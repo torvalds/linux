@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
- *  Copyright (C) 2009 Conexant Systems Inc. 
+ *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <hiep.huynh@conexant.com>, <shu.lin@conexant.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,6 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
-
 #define NUM_AUDIO_PROGS       8
 #define NUM_AUDIO_FRAMES      8
 #define END_OF_FILE           0
@@ -33,7 +32,6 @@
 #define FIFO_ENABLE           1
 #define NUM_NO_OPS            4
 
-
 #define RISC_READ_INSTRUCTION_SIZE      12
 #define RISC_JUMP_INSTRUCTION_SIZE      12
 #define RISC_WRITECR_INSTRUCTION_SIZE   16
@@ -41,22 +39,19 @@
 #define DWORD_SIZE                      4
 #define AUDIO_SYNC_LINE                 4
 
-
 #define LINES_PER_AUDIO_BUFFER      15
 #define AUDIO_LINE_SIZE             128
 #define AUDIO_DATA_BUF_SZ           (AUDIO_LINE_SIZE * LINES_PER_AUDIO_BUFFER)
 
 #define USE_RISC_NOOP_AUDIO   1
 
-#ifdef USE_RISC_NOOP_AUDIO                
+#ifdef USE_RISC_NOOP_AUDIO
 #define AUDIO_RISC_DMA_BUF_SIZE    ( LINES_PER_AUDIO_BUFFER*RISC_READ_INSTRUCTION_SIZE + RISC_WRITECR_INSTRUCTION_SIZE + NUM_NO_OPS*DWORD_SIZE + RISC_JUMP_INSTRUCTION_SIZE)
 #endif
-
 
 #ifndef USE_RISC_NOOP_AUDIO
 #define AUDIO_RISC_DMA_BUF_SIZE    ( LINES_PER_AUDIO_BUFFER*RISC_READ_INSTRUCTION_SIZE + RISC_WRITECR_INSTRUCTION_SIZE + RISC_JUMP_INSTRUCTION_SIZE)
 #endif
 
-static int _line_size;        
-char * _defaultAudioName = "/root/audioGOOD.wav";   
-    
+static int _line_size;
+char *_defaultAudioName = "/root/audioGOOD.wav";

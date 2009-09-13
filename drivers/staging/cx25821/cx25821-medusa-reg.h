@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
- *  Copyright (C) 2009 Conexant Systems Inc. 
+ *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -92,7 +92,7 @@
 #define	ABIST_CLAMP_E				0x01F4
 #define	ABIST_CLAMP_F				0x01F8
 
-//		Digital Video Encoder A Registers
+//              Digital Video Encoder A Registers
 #define	DENC_A_REG_1					0x0200
 #define	DENC_A_REG_2					0x0204
 #define	DENC_A_REG_3					0x0208
@@ -102,7 +102,7 @@
 #define	DENC_A_REG_7					0x0218
 #define	DENC_A_REG_8					0x021C
 
-//	Digital Video Encoder B Registers
+//      Digital Video Encoder B Registers
 #define	DENC_B_REG_1					0x0300
 #define	DENC_B_REG_2					0x0304
 #define	DENC_B_REG_3					0x0308
@@ -112,7 +112,7 @@
 #define	DENC_B_REG_7					0x0318
 #define	DENC_B_REG_8					0x031C
 
-//		Video Decoder A Registers
+//              Video Decoder A Registers
 #define	MODE_CTRL						0x1000
 #define	OUT_CTRL1						0x1004
 #define	OUT_CTRL_NS						0x1008
@@ -153,7 +153,7 @@
 #define	VERSION							0x11F8
 #define	SOFT_RST_CTRL					0x11FC
 
-//	Video Decoder B Registers
+//      Video Decoder B Registers
 #define	VDEC_B_MODE_CTRL				0x1200
 #define	VDEC_B_OUT_CTRL1				0x1204
 #define	VDEC_B_OUT_CTRL_NS				0x1208
@@ -399,7 +399,7 @@
 #define	VDEC_G_VERSION					0x1DF8
 #define	VDEC_G_SOFT_RST_CTRL			0x1DFC
 
-//		Video Decoder H Registers
+//              Video Decoder H Registers
 #define	VDEC_H_MODE_CTRL				0x1E00
 #define	VDEC_H_OUT_CTRL1				0x1E04
 #define	VDEC_H_OUT_CTRL_NS				0x1E08
@@ -441,16 +441,15 @@
 #define	VDEC_H_SOFT_RST_CTRL			0x1FFC
 
 //*****************************************************************************
-// LUMA_CTRL register fields           
+// LUMA_CTRL register fields
 #define VDEC_A_BRITE_CTRL				0x1014
 #define VDEC_A_CNTRST_CTRL       		0x1015
 #define VDEC_A_PEAK_SEL          		0x1016
 
 //*****************************************************************************
-// CHROMA_CTRL register fields      
+// CHROMA_CTRL register fields
 #define VDEC_A_USAT_CTRL         		0x1018
 #define VDEC_A_VSAT_CTRL         		0x1019
 #define VDEC_A_HUE_CTRL          		0x101A
-
 
 #endif
