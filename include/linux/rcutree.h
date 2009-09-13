@@ -53,6 +53,8 @@ static inline void __rcu_read_unlock(void)
 	preempt_enable();
 }
 
+#define __synchronize_sched() synchronize_rcu()
+
 static inline void exit_rcu(void)
 {
 }
@@ -67,8 +69,6 @@ static inline void __rcu_read_unlock_bh(void)
 {
 	local_bh_enable();
 }
-
-#define __synchronize_sched() synchronize_rcu()
 
 extern void call_rcu_sched(struct rcu_head *head,
 			   void (*func)(struct rcu_head *rcu));
