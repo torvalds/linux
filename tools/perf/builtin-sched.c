@@ -1597,7 +1597,7 @@ more:
 }
 
 static const char * const sched_usage[] = {
-	"perf sched [<options>] {record|latency|replay}",
+	"perf sched [<options>] {record|latency|replay|trace}",
 	NULL
 };
 
@@ -1719,6 +1719,11 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 				usage_with_options(replay_usage, replay_options);
 		}
 		__cmd_replay();
+	} else if (!strcmp(argv[0], "trace")) {
+		/*
+		 * Aliased to 'perf trace' for now:
+		 */
+		return cmd_trace(argc, argv, prefix);
 	} else {
 		usage_with_options(sched_usage, sched_options);
 	}
