@@ -89,7 +89,7 @@ typedef struct cx25821_audio_dev snd_cx25821_card_t;
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = { 1,[1...(SNDRV_CARDS - 1)] = 1 };
+static int enable[SNDRV_CARDS] = { 1,[1 ... (SNDRV_CARDS - 1)] = 1 };
 
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable cx25821 soundcard. default enabled.");
@@ -679,14 +679,13 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		return (-ENOENT);
 	}
 
-	card =
-	    snd_card_new(index[devno], id[devno], THIS_MODULE,
-			 sizeof(snd_cx25821_card_t));
-	if (!card) {
+	err = snd_card_create(index[devno], id[devno], THIS_MODULE,
+			 sizeof(snd_cx25821_card_t), &card);
+	if (err < 0) {
 		printk(KERN_INFO
 		       "DEBUG ERROR: cannot create snd_card_new in %s\n",
 		       __func__);
-		return (-ENOMEM);
+		return err;
 	}
 
 	strcpy(card->driver, "cx25821");

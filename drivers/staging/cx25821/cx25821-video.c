@@ -27,8 +27,8 @@ MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
 
-static unsigned int video_nr[] = {[0...(CX25821_MAXBOARDS - 1)] = UNSET };
-static unsigned int radio_nr[] = {[0...(CX25821_MAXBOARDS - 1)] = UNSET };
+static unsigned int video_nr[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
+static unsigned int radio_nr[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(video_nr, int, NULL, 0444);
 module_param_array(radio_nr, int, NULL, 0444);
