@@ -86,6 +86,7 @@ static void rcu_preempt_qs(int cpu)
 
 	if (t->rcu_read_lock_nesting &&
 	    (t->rcu_read_unlock_special & RCU_READ_UNLOCK_BLOCKED) == 0) {
+		WARN_ON_ONCE(cpu != smp_processor_id());
 
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = rcu_preempt_state.rda[cpu];
@@ -103,7 +104,11 @@ static void rcu_preempt_qs(int cpu)
 		 * state for the current grace period), then as long
 		 * as that task remains queued, the current grace period
 		 * cannot end.
+		 *
+		 * But first, note that the current CPU must still be
+		 * on line!
 		 */
+		WARN_ON_ONCE((rdp->grpmask & rnp->qsmaskinit) == 0);
 		phase = !(rnp->qsmask & rdp->grpmask) ^ (rnp->gpnum & 0x1);
 		list_add(&t->rcu_node_entry, &rnp->blocked_tasks[phase]);
 		smp_mb();  /* Ensure later ctxt swtch seen after above. */
@@ -257,6 +262,18 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 }
 
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
+/*
+ * Check that the list of blocked tasks for the newly completed grace
+ * period is in fact empty.  It is a serious bug to complete a grace
+ * period that still has RCU readers blocked!  This function must be
+ * invoked -before- updating this rnp's ->gpnum, and the rnp's ->lock
+ * must be held by the caller.
+ */
+static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
+{
+	WARN_ON_ONCE(!list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]));
+}
 
 /*
  * Check for preempted RCU readers for the specified rcu_node structure.
@@ -449,6 +466,14 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 }
 
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
+/*
+ * Because there is no preemptable RCU, there can be no readers blocked,
+ * so there is no need to check for blocked tasks.
+ */
+static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
+{
+}
 
 /*
  * Because preemptable RCU does not exist, there are never any preempted
