@@ -693,13 +693,18 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 			if (new && i > 0)
 				atomic_inc(&new->refcnt);
 
-			qdisc_destroy(old);
+			if (!ingress)
+				qdisc_destroy(old);
 		}
 
-		notify_and_destroy(skb, n, classid, dev->qdisc, new);
-		if (new && !new->ops->attach)
-			atomic_inc(&new->refcnt);
-		dev->qdisc = new ? : &noop_qdisc;
+		if (!ingress) {
+			notify_and_destroy(skb, n, classid, dev->qdisc, new);
+			if (new && !new->ops->attach)
+				atomic_inc(&new->refcnt);
+			dev->qdisc = new ? : &noop_qdisc;
+		} else {
+			notify_and_destroy(skb, n, classid, old, new);
+		}
 
 		if (dev->flags & IFF_UP)
 			dev_activate(dev);
