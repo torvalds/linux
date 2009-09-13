@@ -525,7 +525,8 @@ static enum event_result parse_tracepoint_event(const char **strp,
 
 	flags = strchr(evt_name, ':');
 	if (flags) {
-		*flags = '\0';
+		/* split it out: */
+		evt_name = strndup(evt_name, flags - evt_name);
 		flags++;
 	}
 

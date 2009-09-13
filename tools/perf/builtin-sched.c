@@ -1656,6 +1656,40 @@ static void setup_sorting(void)
 	sort_dimension__add((char *)"pid", &cmp_pid);
 }
 
+static const char *record_args[] = {
+	"record",
+	"-a",
+	"-R",
+	"-c", "1",
+	"-e", "sched:sched_switch:r",
+	"-e", "sched:sched_stat_wait:r",
+	"-e", "sched:sched_stat_sleep:r",
+	"-e", "sched:sched_stat_iowait:r",
+	"-e", "sched:sched_process_exit:r",
+	"-e", "sched:sched_process_fork:r",
+	"-e", "sched:sched_wakeup:r",
+	"-e", "sched:sched_migrate_task:r",
+};
+
+static int __cmd_record(int argc, const char **argv)
+{
+	unsigned int rec_argc, i, j;
+	const char **rec_argv;
+
+	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
+	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+
+	for (i = 0; i < ARRAY_SIZE(record_args); i++)
+		rec_argv[i] = strdup(record_args[i]);
+
+	for (j = 1; j < (unsigned int)argc; j++, i++)
+		rec_argv[i] = argv[j];
+
+	BUG_ON(i != rec_argc);
+
+	return cmd_record(i, rec_argv, NULL);
+}
+
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
@@ -1666,7 +1700,9 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 	if (!argc)
 		usage_with_options(sched_usage, sched_options);
 
-	if (!strncmp(argv[0], "lat", 3)) {
+	if (!strncmp(argv[0], "rec", 3)) {
+		return __cmd_record(argc, argv);
+	} else if (!strncmp(argv[0], "lat", 3)) {
 		trace_handler = &lat_ops;
 		if (argc > 1) {
 			argc = parse_options(argc, argv, latency_options, latency_usage, 0);
@@ -1686,7 +1722,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 	} else {
 		usage_with_options(sched_usage, sched_options);
 	}
-
 
 	return 0;
 }
