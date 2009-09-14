@@ -2055,6 +2055,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 
 		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)
 			rx_ring->flags |= IXGBE_RING_RX_PS_ENABLED;
+		else
+			rx_ring->flags &= ~IXGBE_RING_RX_PS_ENABLED;
 
 #ifdef IXGBE_FCOE
 		if (netdev->features & NETIF_F_FCOE_MTU) {
