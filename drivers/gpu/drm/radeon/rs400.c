@@ -92,20 +92,41 @@ void rs400_gart_tlb_flush(struct radeon_device *rdev)
 	WREG32_MC(RS480_GART_CACHE_CNTRL, 0);
 }
 
+int rs400_gart_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->gart.table.ram.ptr) {
+		WARN(1, "RS400 GART already initialized.\n");
+		return 0;
+	}
+	/* Check gart size */
+	switch(rdev->mc.gtt_size / (1024 * 1024)) {
+	case 32:
+	case 64:
+	case 128:
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+		break;
+	default:
+		return -EINVAL;
+	}
+	/* Initialize common gart structure */
+	r = radeon_gart_init(rdev);
+	if (r)
+		return r;
+	if (rs400_debugfs_pcie_gart_info_init(rdev))
+		DRM_ERROR("Failed to register debugfs file for RS400 GART !\n");
+	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
+	return radeon_gart_table_ram_alloc(rdev);
+}
+
 int rs400_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t size_reg;
 	uint32_t tmp;
-	int r;
-
-	/* Initialize common gart structure */
-	r = radeon_gart_init(rdev);
-	if (r) {
-		return r;
-	}
-	if (rs400_debugfs_pcie_gart_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for RS400 GART !\n");
-	}
 
 	tmp = RREG32_MC(RS690_AIC_CTRL_SCRATCH);
 	tmp |= RS690_DIS_OUT_OF_PCI_GART_ACCESS;
@@ -135,13 +156,6 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		break;
 	default:
 		return -EINVAL;
-	}
-	if (rdev->gart.table.ram.ptr == NULL) {
-		rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
-		r = radeon_gart_table_ram_alloc(rdev);
-		if (r) {
-			return r;
-		}
 	}
 	/* It should be fine to program it to max value */
 	if (rdev->family == CHIP_RS690 || (rdev->family == CHIP_RS740)) {
@@ -201,6 +215,13 @@ void rs400_gart_disable(struct radeon_device *rdev)
 	WREG32_MC(RS480_AGP_ADDRESS_SPACE_SIZE, 0);
 }
 
+void rs400_gart_fini(struct radeon_device *rdev)
+{
+	rs400_gart_disable(rdev);
+	radeon_gart_table_ram_free(rdev);
+	radeon_gart_fini(rdev);
+}
+
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 {
 	uint32_t entry;
@@ -255,14 +276,12 @@ int rs400_mc_init(struct radeon_device *rdev)
 	(void)RREG32(RADEON_HOST_PATH_CNTL);
 	WREG32(RADEON_HOST_PATH_CNTL, tmp);
 	(void)RREG32(RADEON_HOST_PATH_CNTL);
+
 	return 0;
 }
 
 void rs400_mc_fini(struct radeon_device *rdev)
 {
-	rs400_gart_disable(rdev);
-	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 

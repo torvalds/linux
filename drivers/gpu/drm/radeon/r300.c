@@ -42,7 +42,6 @@ int r100_cp_reset(struct radeon_device *rdev);
 int r100_rb2d_reset(struct radeon_device *rdev);
 int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
 int r100_pci_gart_enable(struct radeon_device *rdev);
-void r100_pci_gart_disable(struct radeon_device *rdev);
 void r100_mc_setup(struct radeon_device *rdev);
 void r100_mc_disable_clients(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
@@ -86,26 +85,57 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	mb();
 }
 
+int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+{
+	void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
+
+	if (i < 0 || i > rdev->gart.num_gpu_pages) {
+		return -EINVAL;
+	}
+	addr = (lower_32_bits(addr) >> 8) |
+	       ((upper_32_bits(addr) & 0xff) << 24) |
+	       0xc;
+	/* on x86 we want this to be CPU endian, on powerpc
+	 * on powerpc without HW swappers, it'll get swapped on way
+	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
+	writel(addr, ((void __iomem *)ptr) + (i * 4));
+	return 0;
+}
+
+int rv370_pcie_gart_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->gart.table.vram.robj) {
+		WARN(1, "RV370 PCIE GART already initialized.\n");
+		return 0;
+	}
+	/* Initialize common gart structure */
+	r = radeon_gart_init(rdev);
+	if (r)
+		return r;
+	r = rv370_debugfs_pcie_gart_info_init(rdev);
+	if (r)
+		DRM_ERROR("Failed to register debugfs file for PCIE gart !\n");
+	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
+	rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
+	rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
+	return radeon_gart_table_vram_alloc(rdev);
+}
+
 int rv370_pcie_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t table_addr;
 	uint32_t tmp;
 	int r;
 
-	/* Initialize common gart structure */
-	r = radeon_gart_init(rdev);
-	if (r) {
+	if (rdev->gart.table.vram.robj == NULL) {
+		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		return -EINVAL;
+	}
+	r = radeon_gart_table_vram_pin(rdev);
+	if (r)
 		return r;
-	}
-	r = rv370_debugfs_pcie_gart_info_init(rdev);
-	if (r) {
-		DRM_ERROR("Failed to register debugfs file for PCIE gart !\n");
-	}
-	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
-	r = radeon_gart_table_vram_alloc(rdev);
-	if (r) {
-		return r;
-	}
 	/* discard memory request outside of configured range */
 	tmp = RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
@@ -145,50 +175,12 @@ void rv370_pcie_gart_disable(struct radeon_device *rdev)
 	}
 }
 
-int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+void rv370_pcie_gart_fini(struct radeon_device *rdev)
 {
-	void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
-
-	if (i < 0 || i > rdev->gart.num_gpu_pages) {
-		return -EINVAL;
-	}
-	addr = (lower_32_bits(addr) >> 8) |
-	       ((upper_32_bits(addr) & 0xff) << 24) |
-	       0xc;
-	/* on x86 we want this to be CPU endian, on powerpc
-	 * on powerpc without HW swappers, it'll get swapped on way
-	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
-	writel(addr, ((void __iomem *)ptr) + (i * 4));
-	return 0;
+	rv370_pcie_gart_disable(rdev);
+	radeon_gart_table_vram_free(rdev);
+	radeon_gart_fini(rdev);
 }
-
-int r300_gart_enable(struct radeon_device *rdev)
-{
-#if __OS_HAS_AGP
-	if (rdev->flags & RADEON_IS_AGP) {
-		if (rdev->family > CHIP_RV350) {
-			rv370_pcie_gart_disable(rdev);
-		} else {
-			r100_pci_gart_disable(rdev);
-		}
-		return 0;
-	}
-#endif
-	if (rdev->flags & RADEON_IS_PCIE) {
-		rdev->asic->gart_disable = &rv370_pcie_gart_disable;
-		rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
-		rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
-		return rv370_pcie_gart_enable(rdev);
-	}
-	if (rdev->flags & RADEON_IS_PCI) {
-		rdev->asic->gart_disable = &r100_pci_gart_disable;
-		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
-		return r100_pci_gart_enable(rdev);
-	}
-	return r100_pci_gart_enable(rdev);
-}
-
 
 /*
  * MC
@@ -237,14 +229,6 @@ int r300_mc_init(struct radeon_device *rdev)
 
 void r300_mc_fini(struct radeon_device *rdev)
 {
-	if (rdev->flags & RADEON_IS_PCIE) {
-		rv370_pcie_gart_disable(rdev);
-		radeon_gart_table_vram_free(rdev);
-	} else {
-		r100_pci_gart_disable(rdev);
-		radeon_gart_table_ram_free(rdev);
-	}
-	radeon_gart_fini(rdev);
 }
 
 
@@ -1299,8 +1283,6 @@ void r300_mc_program(struct radeon_device *rdev)
 
 	/* Stops all mc clients */
 	r100_mc_stop(rdev, &save);
-	/* Shutdown PCI/PCIE GART */
-	radeon_gart_disable(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(R_00014C_MC_AGP_LOCATION,
 			S_00014C_MC_AGP_START(rdev->mc.gtt_start >> 16) |

@@ -94,9 +94,6 @@ int rs690_mc_init(struct radeon_device *rdev)
 
 void rs690_mc_fini(struct radeon_device *rdev)
 {
-	rs400_gart_disable(rdev);
-	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 

@@ -37,8 +37,6 @@ int r100_cp_reset(struct radeon_device *rdev);
 int r100_rb2d_reset(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
 int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
-int rv370_pcie_gart_enable(struct radeon_device *rdev);
-void rv370_pcie_gart_disable(struct radeon_device *rdev);
 void r420_pipes_init(struct radeon_device *rdev);
 void rs600_mc_disable_clients(struct radeon_device *rdev);
 void rs600_disable_vga(struct radeon_device *rdev);
@@ -126,9 +124,6 @@ int rv515_mc_init(struct radeon_device *rdev)
 
 void rv515_mc_fini(struct radeon_device *rdev)
 {
-	rv370_pcie_gart_disable(rdev);
-	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 

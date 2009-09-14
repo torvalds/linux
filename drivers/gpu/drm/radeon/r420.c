@@ -161,6 +161,11 @@ int r420_resume(struct radeon_device *rdev)
 {
 	int r;
 
+	/* Make sur GART are not working */
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	r420_clock_resume(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
@@ -180,10 +185,15 @@ int r420_resume(struct radeon_device *rdev)
 	r300_mc_program(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
-	r = radeon_gart_enable(rdev);
-	if (r) {
-		dev_err(rdev->dev, "failled initializing GART (%d).\n", r);
-		return r;
+	if (rdev->flags & RADEON_IS_PCIE) {
+		r = rv370_pcie_gart_enable(rdev);
+		if (r)
+			return r;
+	}
+	if (rdev->flags & RADEON_IS_PCI) {
+		r = r100_pci_gart_enable(rdev);
+		if (r)
+			return r;
 	}
 	r420_pipes_init(rdev);
 	/* Enable IRQ */
@@ -212,7 +222,10 @@ int r420_suspend(struct radeon_device *rdev)
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	r100_irq_disable(rdev);
-	radeon_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_disable(rdev);
 	return 0;
 }
 
@@ -222,14 +235,10 @@ void r420_fini(struct radeon_device *rdev)
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
-	if (rdev->flags & RADEON_IS_PCIE) {
-		rv370_pcie_gart_disable(rdev);
-		radeon_gart_table_vram_free(rdev);
-	} else {
-		r100_pci_gart_disable(rdev);
-		radeon_gart_table_ram_free(rdev);
-	}
-	radeon_gart_fini(rdev);
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_fini(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
@@ -309,6 +318,16 @@ int r420_init(struct radeon_device *rdev)
 	if (r) {
 		return r;
 	}
+	if (rdev->flags & RADEON_IS_PCIE) {
+		r = rv370_pcie_gart_init(rdev);
+		if (r)
+			return r;
+	}
+	if (rdev->flags & RADEON_IS_PCI) {
+		r = r100_pci_gart_init(rdev);
+		if (r)
+			return r;
+	}
 	r300_set_reg_safe(rdev);
 	r = r420_resume(rdev);
 	if (r) {
@@ -318,14 +337,10 @@ int r420_init(struct radeon_device *rdev)
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);
-		if (rdev->flags & RADEON_IS_PCIE) {
-			rv370_pcie_gart_disable(rdev);
-			radeon_gart_table_vram_free(rdev);
-		} else {
-			r100_pci_gart_disable(rdev);
-			radeon_gart_table_ram_free(rdev);
-		}
-		radeon_gart_fini(rdev);
+		if (rdev->flags & RADEON_IS_PCIE)
+			rv370_pcie_gart_fini(rdev);
+		if (rdev->flags & RADEON_IS_PCI)
+			r100_pci_gart_fini(rdev);
 		radeon_agp_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 	}

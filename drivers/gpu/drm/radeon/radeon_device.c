@@ -320,6 +320,14 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_RV350:
 	case CHIP_RV380:
 		rdev->asic = &r300_asic;
+		if (rdev->flags & RADEON_IS_PCIE) {
+			rdev->asic->gart_init = &rv370_pcie_gart_init;
+			rdev->asic->gart_fini = &rv370_pcie_gart_fini;
+			rdev->asic->gart_enable = &rv370_pcie_gart_enable;
+			rdev->asic->gart_disable = &rv370_pcie_gart_disable;
+			rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
+			rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
+		}
 		break;
 	case CHIP_R420:
 	case CHIP_R423:
@@ -504,6 +512,12 @@ int radeon_device_init(struct radeon_device *rdev,
 	rwlock_init(&rdev->fence_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 
+	/* Set asic functions */
+	r = radeon_asic_init(rdev);
+	if (r) {
+		return r;
+	}
+
 	if (radeon_agpmode == -1) {
 		rdev->flags &= ~RADEON_IS_AGP;
 		if (rdev->family >= CHIP_RV515 ||
@@ -512,16 +526,22 @@ int radeon_device_init(struct radeon_device *rdev,
 		    rdev->family == CHIP_R423) {
 			DRM_INFO("Forcing AGP to PCIE mode\n");
 			rdev->flags |= RADEON_IS_PCIE;
+			rdev->asic->gart_init = &rv370_pcie_gart_init;
+			rdev->asic->gart_fini = &rv370_pcie_gart_fini;
+			rdev->asic->gart_enable = &rv370_pcie_gart_enable;
+			rdev->asic->gart_disable = &rv370_pcie_gart_disable;
+			rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
+			rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
 		} else {
 			DRM_INFO("Forcing AGP to PCI mode\n");
 			rdev->flags |= RADEON_IS_PCI;
+			rdev->asic->gart_init = &r100_pci_gart_init;
+			rdev->asic->gart_fini = &r100_pci_gart_fini;
+			rdev->asic->gart_enable = &r100_pci_gart_enable;
+			rdev->asic->gart_disable = &r100_pci_gart_disable;
+			rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
+			rdev->asic->gart_set_page = &r100_pci_gart_set_page;
 		}
-	}
-
-	/* Set asic functions */
-	r = radeon_asic_init(rdev);
-	if (r) {
-		return r;
 	}
 
 	/* set DMA mask + need_dma32 flags.
@@ -623,6 +643,9 @@ int radeon_device_init(struct radeon_device *rdev,
 		if (r) {
 			return r;
 		}
+		r = radeon_gpu_gart_init(rdev);
+		if (r)
+			return r;
 		/* Initialize GART (initialize after TTM so we can allocate
 		 * memory through TTM but finalize after TTM) */
 		r = radeon_gart_enable(rdev);
@@ -675,6 +698,7 @@ void radeon_device_fini(struct radeon_device *rdev)
 		radeon_ib_pool_fini(rdev);
 		radeon_cp_fini(rdev);
 		radeon_wb_fini(rdev);
+		radeon_gpu_gart_fini(rdev);
 		radeon_gem_fini(rdev);
 		radeon_mc_fini(rdev);
 #if __OS_HAS_AGP

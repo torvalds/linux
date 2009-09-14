@@ -113,21 +113,34 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	}
 }
 
+int r600_pcie_gart_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->gart.table.vram.robj) {
+		WARN(1, "R600 PCIE GART already initialized.\n");
+		return 0;
+	}
+	/* Initialize common gart structure */
+	r = radeon_gart_init(rdev);
+	if (r)
+		return r;
+	rdev->gart.table_size = rdev->gart.num_gpu_pages * 8;
+	return radeon_gart_table_vram_alloc(rdev);
+}
+
 int r600_pcie_gart_enable(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int r, i;
 
-	/* Initialize common gart structure */
-	r = radeon_gart_init(rdev);
-	if (r) {
-		return r;
+	if (rdev->gart.table.vram.robj == NULL) {
+		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		return -EINVAL;
 	}
-	rdev->gart.table_size = rdev->gart.num_gpu_pages * 8;
-	r = radeon_gart_table_vram_alloc(rdev);
-	if (r) {
+	r = radeon_gart_table_vram_pin(rdev);
+	if (r)
 		return r;
-	}
 	for (i = 0; i < rdev->gart.num_gpu_pages; i++)
 		r600_gart_clear_page(rdev, i);
 	/* Setup L2 cache */
@@ -175,10 +188,6 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 	u32 tmp;
 	int i;
 
-	/* Clear ptes*/
-	for (i = 0; i < rdev->gart.num_gpu_pages; i++)
-		r600_gart_clear_page(rdev, i);
-	r600_pcie_gart_tlb_flush(rdev);
 	/* Disable all tables */
 	for (i = 0; i < 7; i++)
 		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
@@ -204,6 +213,17 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(MC_VM_L1_TLB_MCB_WR_SYS_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_RD_HDP_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_WR_HDP_CNTL, tmp);
+	if (rdev->gart.table.vram.robj) {
+		radeon_object_kunmap(rdev->gart.table.vram.robj);
+		radeon_object_unpin(rdev->gart.table.vram.robj);
+	}
+}
+
+void r600_pcie_gart_fini(struct radeon_device *rdev)
+{
+	r600_pcie_gart_disable(rdev);
+	radeon_gart_table_vram_free(rdev);
+	radeon_gart_fini(rdev);
 }
 
 int r600_mc_wait_for_idle(struct radeon_device *rdev)
@@ -1472,6 +1492,7 @@ int r600_suspend(struct radeon_device *rdev)
 {
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
+	r600_pcie_gart_disable(rdev);
 	return 0;
 }
 
@@ -1548,6 +1569,10 @@ int r600_init(struct radeon_device *rdev)
 		}
 	}
 
+	r = r600_pcie_gart_init(rdev);
+	if (r)
+		return r;
+
 	r = r600_resume(rdev);
 	if (r) {
 		if (rdev->flags & RADEON_IS_AGP) {
@@ -1583,9 +1608,7 @@ void r600_fini(struct radeon_device *rdev)
 
 	r600_blit_fini(rdev);
 	radeon_ring_fini(rdev);
-	r600_pcie_gart_disable(rdev);
-	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
+	r600_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);

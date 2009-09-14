@@ -84,23 +84,28 @@ void r100_pci_gart_tlb_flush(struct radeon_device *rdev)
 	 * could end up in wrong address. */
 }
 
+int r100_pci_gart_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->gart.table.ram.ptr) {
+		WARN(1, "R100 PCI GART already initialized.\n");
+		return 0;
+	}
+	/* Initialize common gart structure */
+	r = radeon_gart_init(rdev);
+	if (r)
+		return r;
+	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
+	rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
+	rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+	return radeon_gart_table_ram_alloc(rdev);
+}
+
 int r100_pci_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t tmp;
-	int r;
 
-	/* Initialize common gart structure */
-	r = radeon_gart_init(rdev);
-	if (r) {
-		return r;
-	}
-	if (rdev->gart.table.ram.ptr == NULL) {
-		rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
-		r = radeon_gart_table_ram_alloc(rdev);
-		if (r) {
-			return r;
-		}
-	}
 	/* discard memory request outside of configured range */
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_DIS_OUT_OF_PCI_GART_ACCESS;
 	WREG32(RADEON_AIC_CNTL, tmp);
@@ -140,13 +145,11 @@ int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	return 0;
 }
 
-int r100_gart_enable(struct radeon_device *rdev)
+void r100_pci_gart_fini(struct radeon_device *rdev)
 {
-	if (rdev->flags & RADEON_IS_AGP) {
-		r100_pci_gart_disable(rdev);
-		return 0;
-	}
-	return r100_pci_gart_enable(rdev);
+	r100_pci_gart_disable(rdev);
+	radeon_gart_table_ram_free(rdev);
+	radeon_gart_fini(rdev);
 }
 
 
@@ -273,9 +276,6 @@ int r100_mc_init(struct radeon_device *rdev)
 
 void r100_mc_fini(struct radeon_device *rdev)
 {
-	r100_pci_gart_disable(rdev);
-	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 

@@ -31,8 +31,6 @@
 
 /* r520,rv530,rv560,rv570,r580 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
-int rv370_pcie_gart_enable(struct radeon_device *rdev);
-void rv370_pcie_gart_disable(struct radeon_device *rdev);
 void r420_pipes_init(struct radeon_device *rdev);
 void rs600_mc_disable_clients(struct radeon_device *rdev);
 void rs600_disable_vga(struct radeon_device *rdev);
@@ -118,9 +116,6 @@ int r520_mc_init(struct radeon_device *rdev)
 
 void r520_mc_fini(struct radeon_device *rdev)
 {
-	rv370_pcie_gart_disable(rdev);
-	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 

@@ -53,7 +53,9 @@ void r100_mc_fini(struct radeon_device *rdev);
 u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int r100_wb_init(struct radeon_device *rdev);
 void r100_wb_fini(struct radeon_device *rdev);
-int r100_gart_enable(struct radeon_device *rdev);
+int r100_pci_gart_init(struct radeon_device *rdev);
+void r100_pci_gart_fini(struct radeon_device *rdev);
+int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
 int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
@@ -92,7 +94,9 @@ static struct radeon_asic r100_asic = {
 	.mc_fini = &r100_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
-	.gart_enable = &r100_gart_enable,
+	.gart_init = &r100_pci_gart_init,
+	.gart_fini = &r100_pci_gart_fini,
+	.gart_enable = &r100_pci_gart_enable,
 	.gart_disable = &r100_pci_gart_disable,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
@@ -135,7 +139,9 @@ void r300_ring_start(struct radeon_device *rdev);
 void r300_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
 int r300_cs_parse(struct radeon_cs_parser *p);
-int r300_gart_enable(struct radeon_device *rdev);
+int rv370_pcie_gart_init(struct radeon_device *rdev);
+void rv370_pcie_gart_fini(struct radeon_device *rdev);
+int rv370_pcie_gart_enable(struct radeon_device *rdev);
 void rv370_pcie_gart_disable(struct radeon_device *rdev);
 void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev);
 int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
@@ -157,7 +163,9 @@ static struct radeon_asic r300_asic = {
 	.mc_fini = &r300_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
-	.gart_enable = &r300_gart_enable,
+	.gart_init = &r100_pci_gart_init,
+	.gart_fini = &r100_pci_gart_fini,
+	.gart_enable = &r100_pci_gart_enable,
 	.gart_disable = &r100_pci_gart_disable,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
@@ -205,8 +213,8 @@ static struct radeon_asic r420_asic = {
 	.mc_fini = NULL,
 	.wb_init = NULL,
 	.wb_fini = NULL,
-	.gart_enable = &r300_gart_enable,
-	.gart_disable = &rv370_pcie_gart_disable,
+	.gart_enable = NULL,
+	.gart_disable = NULL,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
 	.cp_init = NULL,
@@ -242,6 +250,8 @@ void rs400_errata(struct radeon_device *rdev);
 void rs400_vram_info(struct radeon_device *rdev);
 int rs400_mc_init(struct radeon_device *rdev);
 void rs400_mc_fini(struct radeon_device *rdev);
+int rs400_gart_init(struct radeon_device *rdev);
+void rs400_gart_fini(struct radeon_device *rdev);
 int rs400_gart_enable(struct radeon_device *rdev);
 void rs400_gart_disable(struct radeon_device *rdev);
 void rs400_gart_tlb_flush(struct radeon_device *rdev);
@@ -257,6 +267,8 @@ static struct radeon_asic rs400_asic = {
 	.mc_fini = &rs400_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
+	.gart_init = &rs400_gart_init,
+	.gart_fini = &rs400_gart_fini,
 	.gart_enable = &rs400_gart_enable,
 	.gart_disable = &rs400_gart_disable,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
@@ -298,6 +310,8 @@ void rs600_mc_fini(struct radeon_device *rdev);
 int rs600_irq_set(struct radeon_device *rdev);
 int rs600_irq_process(struct radeon_device *rdev);
 u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc);
+int rs600_gart_init(struct radeon_device *rdev);
+void rs600_gart_fini(struct radeon_device *rdev);
 int rs600_gart_enable(struct radeon_device *rdev);
 void rs600_gart_disable(struct radeon_device *rdev);
 void rs600_gart_tlb_flush(struct radeon_device *rdev);
@@ -314,6 +328,8 @@ static struct radeon_asic rs600_asic = {
 	.mc_fini = &rs600_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
+	.gart_init = &rs600_gart_init,
+	.gart_fini = &rs600_gart_fini,
 	.gart_enable = &rs600_gart_enable,
 	.gart_disable = &rs600_gart_disable,
 	.gart_tlb_flush = &rs600_gart_tlb_flush,
@@ -361,6 +377,8 @@ static struct radeon_asic rs690_asic = {
 	.mc_fini = &rs690_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
+	.gart_init = &rs400_gart_init,
+	.gart_fini = &rs400_gart_fini,
 	.gart_enable = &rs400_gart_enable,
 	.gart_disable = &rs400_gart_disable,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
@@ -415,7 +433,9 @@ static struct radeon_asic rv515_asic = {
 	.mc_fini = &rv515_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
-	.gart_enable = &r300_gart_enable,
+	.gart_init = &rv370_pcie_gart_init,
+	.gart_fini = &rv370_pcie_gart_fini,
+	.gart_enable = &rv370_pcie_gart_enable,
 	.gart_disable = &rv370_pcie_gart_disable,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
@@ -462,7 +482,9 @@ static struct radeon_asic r520_asic = {
 	.mc_fini = &r520_mc_fini,
 	.wb_init = &r100_wb_init,
 	.wb_fini = &r100_wb_fini,
-	.gart_enable = &r300_gart_enable,
+	.gart_init = &rv370_pcie_gart_init,
+	.gart_fini = &rv370_pcie_gart_fini,
+	.gart_enable = &rv370_pcie_gart_enable,
 	.gart_disable = &rv370_pcie_gart_disable,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,

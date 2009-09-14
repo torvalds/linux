@@ -596,6 +596,8 @@ struct radeon_asic {
 	void (*mc_fini)(struct radeon_device *rdev);
 	int (*wb_init)(struct radeon_device *rdev);
 	void (*wb_fini)(struct radeon_device *rdev);
+	int (*gart_init)(struct radeon_device *rdev);
+	void (*gart_fini)(struct radeon_device *rdev);
 	int (*gart_enable)(struct radeon_device *rdev);
 	void (*gart_disable)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
@@ -950,6 +952,8 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_mc_fini(rdev) (rdev)->asic->mc_fini((rdev))
 #define radeon_wb_init(rdev) (rdev)->asic->wb_init((rdev))
 #define radeon_wb_fini(rdev) (rdev)->asic->wb_fini((rdev))
+#define radeon_gpu_gart_init(rdev) (rdev)->asic->gart_init((rdev))
+#define radeon_gpu_gart_fini(rdev) (rdev)->asic->gart_fini((rdev))
 #define radeon_gart_enable(rdev) (rdev)->asic->gart_enable((rdev))
 #define radeon_gart_disable(rdev) (rdev)->asic->gart_disable((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
@@ -978,6 +982,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
 
 /* Common functions */
+extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
@@ -1000,6 +1005,8 @@ extern void r100_cp_disable(struct radeon_device *rdev);
 extern int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
 extern void r100_cp_fini(struct radeon_device *rdev);
 extern void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
+extern int r100_pci_gart_init(struct radeon_device *rdev);
+extern void r100_pci_gart_fini(struct radeon_device *rdev);
 extern int r100_pci_gart_enable(struct radeon_device *rdev);
 extern void r100_pci_gart_disable(struct radeon_device *rdev);
 extern int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
@@ -1020,6 +1027,9 @@ extern int r100_wb_init(struct radeon_device *rdev);
 extern void r300_set_reg_safe(struct radeon_device *rdev);
 extern void r300_mc_program(struct radeon_device *rdev);
 extern void r300_vram_info(struct radeon_device *rdev);
+extern int rv370_pcie_gart_init(struct radeon_device *rdev);
+extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
+extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
 extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
 
 /* r420,r423,rv410 */
@@ -1043,6 +1053,7 @@ extern int r600_cp_resume(struct radeon_device *rdev);
 extern int r600_count_pipe_bits(uint32_t val);
 extern int r600_gart_clear_page(struct radeon_device *rdev, int i);
 extern int r600_mc_wait_for_idle(struct radeon_device *rdev);
+extern int r600_pcie_gart_init(struct radeon_device *rdev);
 extern void r600_pcie_gart_tlb_flush(struct radeon_device *rdev);
 extern int r600_ib_test(struct radeon_device *rdev);
 extern int r600_ring_test(struct radeon_device *rdev);
