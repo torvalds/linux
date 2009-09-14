@@ -1751,6 +1751,9 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 
 	BUG_ON(seqno == 0);
 
+	if (dev_priv->mm.wedged)
+		return -EIO;
+
 	if (!i915_seqno_passed(i915_get_gem_seqno(dev), seqno)) {
 		if (IS_IGDNG(dev))
 			ier = I915_READ(DEIER) | I915_READ(GTIER);
