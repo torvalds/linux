@@ -5320,7 +5320,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	*enable_wake = wufc || adapter->en_mng_pt;
 	if (!*enable_wake)
-		igb_shutdown_fiber_serdes_link_82575(hw);
+		igb_shutdown_serdes_link_82575(hw);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */

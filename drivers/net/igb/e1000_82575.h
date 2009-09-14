@@ -28,7 +28,7 @@
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
-extern void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw);
+extern void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
 extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
