@@ -116,15 +116,6 @@ FTRACE_ENTRY(funcgraph_exit, ftrace_graph_ret_entry,
 	__field(	unsigned char,	next_state	)	\
 	__field(	unsigned int,	next_cpu	)
 
-#if 0
-FTRACE_ENTRY_STRUCT_ONLY(ctx_switch_entry,
-
-	F_STRUCT(
-		FTRACE_CTX_FIELDS
-	)
-);
-#endif
-
 FTRACE_ENTRY(context_switch, ctx_switch_entry,
 
 	TRACE_CTX,
