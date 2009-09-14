@@ -26,8 +26,7 @@
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
-static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
-			      enum ath9k_ht_macmode macmode);
+static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan);
 static u32 ath9k_hw_ini_fixup(struct ath_hw *ah,
 			      struct ar5416_eeprom_def *pEepData,
 			      u32 reg, u32 value);
@@ -1352,8 +1351,7 @@ static u32 ath9k_regd_get_ctl(struct ath_regulatory *reg,
 }
 
 static int ath9k_hw_process_ini(struct ath_hw *ah,
-				struct ath9k_channel *chan,
-				enum ath9k_ht_macmode macmode)
+				struct ath9k_channel *chan)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	int i, regWrites = 0;
@@ -1455,7 +1453,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	}
 
 	ath9k_hw_override_ini(ah, chan);
-	ath9k_hw_set_regs(ah, chan, macmode);
+	ath9k_hw_set_regs(ah, chan);
 	ath9k_hw_init_chain_masks(ah);
 
 	if (OLC_FOR_AR9280_20_LATER)
@@ -1738,8 +1736,7 @@ static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 	}
 }
 
-static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
-			      enum ath9k_ht_macmode macmode)
+static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	u32 phymode;
 	u32 enableDacFifo = 0;
@@ -1761,7 +1758,7 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 	REG_WRITE(ah, AR_PHY_TURBO, phymode);
 
-	ath9k_hw_set11nmac2040(ah, macmode);
+	ath9k_hw_set11nmac2040(ah);
 
 	REG_WRITE(ah, AR_GTXTO, 25 << AR_GTXTO_TIMEOUT_LIMIT_S);
 	REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);
@@ -1787,8 +1784,7 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 }
 
 static bool ath9k_hw_channel_change(struct ath_hw *ah,
-				    struct ath9k_channel *chan,
-				    enum ath9k_ht_macmode macmode)
+				    struct ath9k_channel *chan)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1812,7 +1808,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		return false;
 	}
 
-	ath9k_hw_set_regs(ah, chan, macmode);
+	ath9k_hw_set_regs(ah, chan);
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		ath9k_hw_ar9280_set_channel(ah, chan);
@@ -2323,7 +2319,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 saveLedState;
-	struct ath_softc *sc = ah->ah_sc;
 	struct ath9k_channel *curchan = ah->curchan;
 	u32 saveDefAntenna;
 	u32 macStaId1;
@@ -2348,7 +2343,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	     !(AR_SREV_9280(ah) || IS_CHAN_A_5MHZ_SPACED(chan) ||
 	     IS_CHAN_A_5MHZ_SPACED(ah->curchan))) {
 
-		if (ath9k_hw_channel_change(ah, chan, sc->tx_chan_width)) {
+		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
 			ath9k_hw_start_nfcal(ah);
 			return 0;
@@ -2408,7 +2403,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
 				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
 	}
-	r = ath9k_hw_process_ini(ah, chan, sc->tx_chan_width);
+	r = ath9k_hw_process_ini(ah, chan);
 	if (r)
 		return r;
 
@@ -4063,12 +4058,12 @@ bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 	}
 }
 
-void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode)
+void ath9k_hw_set11nmac2040(struct ath_hw *ah)
 {
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	u32 macmode;
 
-	if (mode == ATH9K_HT_MACMODE_2040 &&
-	    !ah->config.cwm_ignore_extcca)
+	if (conf_is_ht40(conf) && !ah->config.cwm_ignore_extcca)
 		macmode = AR_2040_JOINED_RX_CLEAR;
 	else
 		macmode = 0;

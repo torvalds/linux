@@ -614,11 +614,6 @@ enum ath9k_cipher {
 	ATH9K_CIPHER_MIC = 127
 };
 
-enum ath9k_ht_macmode {
-	ATH9K_HT_MACMODE_20 = 0,
-	ATH9K_HT_MACMODE_2040 = 1,
-};
-
 struct ath_hw;
 struct ath9k_channel;
 struct ath_rate_table;

@@ -299,6 +299,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
 	bool fastcc = true, stopped;
 	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
@@ -329,9 +330,9 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		fastcc = false;
 
 	ath_print(common, ATH_DBG_CONFIG,
-		  "(%u MHz) -> (%u MHz), chanwidth: %d\n",
+		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d\n",
 		  sc->sc_ah->curchan->channel,
-		  channel->center_freq, sc->tx_chan_width);
+		  channel->center_freq, conf_is_ht40(conf));
 
 	spin_lock_bh(&sc->sc_resetlock);
 
@@ -2191,15 +2192,9 @@ void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
 	}
 
-	sc->tx_chan_width = ATH9K_HT_MACMODE_20;
-
-	if (conf_is_ht(conf)) {
-		if (conf_is_ht40(conf))
-			sc->tx_chan_width = ATH9K_HT_MACMODE_2040;
-
+	if (conf_is_ht(conf))
 		ichan->chanmode = ath_get_extchanmode(sc, chan,
 					    conf->channel_type);
-	}
 }
 
 /**********************/

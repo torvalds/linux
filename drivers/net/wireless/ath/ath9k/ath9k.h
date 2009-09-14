@@ -592,7 +592,6 @@ struct ath_softc {
 	bool ps_enabled;
 	unsigned long ps_usecount;
 	enum ath9k_int imask;
-	enum ath9k_ht_macmode tx_chan_width;
 
 	struct ath_config config;
 	struct ath_rx rx;
