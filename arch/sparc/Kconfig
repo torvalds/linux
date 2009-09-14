@@ -25,6 +25,7 @@ config SPARC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
+	select HAVE_PERF_COUNTERS
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 
@@ -46,6 +47,7 @@ config SPARC64
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
+	select HAVE_PERF_COUNTERS
 
 config ARCH_DEFCONFIG
 	string
@@ -438,6 +440,17 @@ config SERIAL_CONSOLE
 	  system console.
 
 	  If unsure, say N.
+
+config SPARC_LEON
+	bool "Sparc Leon processor family"
+	depends on SPARC32
+	---help---
+	  If you say Y here if you are running on a SPARC-LEON processor.
+	  The LEON processor is a synthesizable VHDL model of the
+	  SPARC-v8 standard. LEON is  part of the GRLIB collection of
+	  IP cores that are distributed under GPL. GRLIB can be downloaded
+	  from www.gaisler.com. You can download a sparc-linux cross-compilation
+	  toolchain at www.gaisler.com.
 
 endmenu
 
