@@ -402,22 +402,6 @@ struct rxrpc_call {
 };
 
 /*
- * RxRPC key for Kerberos (type-2 security)
- */
-struct rxkad_key {
-	u16	security_index;		/* RxRPC header security index */
-	u16	ticket_len;		/* length of ticket[] */
-	u32	expiry;			/* time at which expires */
-	u32	kvno;			/* key version number */
-	u8	session_key[8];		/* DES session key */
-	u8	ticket[0];		/* the encrypted ticket */
-};
-
-struct rxrpc_key_payload {
-	struct rxkad_key k;
-};
-
-/*
  * locally abort an RxRPC call
  */
 static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)

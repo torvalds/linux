@@ -21,4 +21,59 @@ extern struct key_type key_type_rxrpc;
 
 extern struct key *rxrpc_get_null_key(const char *);
 
+/*
+ * RxRPC key for Kerberos IV (type-2 security)
+ */
+struct rxkad_key {
+	u32	vice_id;
+	u32	start;			/* time at which ticket starts */
+	u32	expiry;			/* time at which ticket expires */
+	u32	kvno;			/* key version number */
+	u8	primary_flag;		/* T if key for primary cell for this user */
+	u16	ticket_len;		/* length of ticket[] */
+	u8	session_key[8];		/* DES session key */
+	u8	ticket[0];		/* the encrypted ticket */
+};
+
+/*
+ * list of tokens attached to an rxrpc key
+ */
+struct rxrpc_key_token {
+	u16	security_index;		/* RxRPC header security index */
+	struct rxrpc_key_token *next;	/* the next token in the list */
+	union {
+		struct rxkad_key *kad;
+	};
+};
+
+/*
+ * structure of raw payloads passed to add_key() or instantiate key
+ */
+struct rxrpc_key_data_v1 {
+	u32		kif_version;		/* 1 */
+	u16		security_index;
+	u16		ticket_length;
+	u32		expiry;			/* time_t */
+	u32		kvno;
+	u8		session_key[8];
+	u8		ticket[0];
+};
+
+/*
+ * AF_RXRPC key payload derived from XDR format
+ * - based on openafs-1.4.10/src/auth/afs_token.xg
+ */
+#define AFSTOKEN_LENGTH_MAX		16384	/* max payload size */
+#define AFSTOKEN_CELL_MAX		64	/* max cellname length */
+#define AFSTOKEN_MAX			8	/* max tokens per payload */
+#define AFSTOKEN_RK_TIX_MAX		12000	/* max RxKAD ticket size */
+#define AFSTOKEN_GK_KEY_MAX		64	/* max GSSAPI key size */
+#define AFSTOKEN_GK_TOKEN_MAX		16384	/* max GSSAPI token size */
+#define AFSTOKEN_K5_COMPONENTS_MAX	16	/* max K5 components */
+#define AFSTOKEN_K5_NAME_MAX		128	/* max K5 name length */
+#define AFSTOKEN_K5_REALM_MAX		64	/* max K5 realm name length */
+#define AFSTOKEN_K5_TIX_MAX		16384	/* max K5 ticket size */
+#define AFSTOKEN_K5_ADDRESSES_MAX	16	/* max K5 addresses */
+#define AFSTOKEN_K5_AUTHDATA_MAX	16	/* max K5 pieces of auth data */
+
 #endif /* _KEYS_RXRPC_TYPE_H */

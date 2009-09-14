@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/key-type.h>
 #include <linux/crypto.h>
+#include <linux/ctype.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <keys/rxrpc-type.h>
@@ -55,6 +56,202 @@ struct key_type key_type_rxrpc_s = {
 };
 
 /*
+ * parse an RxKAD type XDR format token
+ * - the caller guarantees we have at least 4 words
+ */
+static int rxrpc_instantiate_xdr_rxkad(struct key *key, const __be32 *xdr,
+				       unsigned toklen)
+{
+	struct rxrpc_key_token *token;
+	size_t plen;
+	u32 tktlen;
+	int ret;
+
+	_enter(",{%x,%x,%x,%x},%u",
+	       ntohl(xdr[0]), ntohl(xdr[1]), ntohl(xdr[2]), ntohl(xdr[3]),
+	       toklen);
+
+	if (toklen <= 8 * 4)
+		return -EKEYREJECTED;
+	tktlen = ntohl(xdr[7]);
+	_debug("tktlen: %x", tktlen);
+	if (tktlen > AFSTOKEN_RK_TIX_MAX)
+		return -EKEYREJECTED;
+	if (8 * 4 + tktlen != toklen)
+		return -EKEYREJECTED;
+
+	plen = sizeof(*token) + sizeof(*token->kad) + tktlen;
+	ret = key_payload_reserve(key, key->datalen + plen);
+	if (ret < 0)
+		return ret;
+
+	plen -= sizeof(*token);
+	token = kmalloc(sizeof(*token), GFP_KERNEL);
+	if (!token)
+		return -ENOMEM;
+
+	token->kad = kmalloc(plen, GFP_KERNEL);
+	if (!token->kad) {
+		kfree(token);
+		return -ENOMEM;
+	}
+
+	token->security_index	= RXRPC_SECURITY_RXKAD;
+	token->kad->ticket_len	= tktlen;
+	token->kad->vice_id	= ntohl(xdr[0]);
+	token->kad->kvno	= ntohl(xdr[1]);
+	token->kad->start	= ntohl(xdr[4]);
+	token->kad->expiry	= ntohl(xdr[5]);
+	token->kad->primary_flag = ntohl(xdr[6]);
+	memcpy(&token->kad->session_key, &xdr[2], 8);
+	memcpy(&token->kad->ticket, &xdr[8], tktlen);
+
+	_debug("SCIX: %u", token->security_index);
+	_debug("TLEN: %u", token->kad->ticket_len);
+	_debug("EXPY: %x", token->kad->expiry);
+	_debug("KVNO: %u", token->kad->kvno);
+	_debug("PRIM: %u", token->kad->primary_flag);
+	_debug("SKEY: %02x%02x%02x%02x%02x%02x%02x%02x",
+	       token->kad->session_key[0], token->kad->session_key[1],
+	       token->kad->session_key[2], token->kad->session_key[3],
+	       token->kad->session_key[4], token->kad->session_key[5],
+	       token->kad->session_key[6], token->kad->session_key[7]);
+	if (token->kad->ticket_len >= 8)
+		_debug("TCKT: %02x%02x%02x%02x%02x%02x%02x%02x",
+		       token->kad->ticket[0], token->kad->ticket[1],
+		       token->kad->ticket[2], token->kad->ticket[3],
+		       token->kad->ticket[4], token->kad->ticket[5],
+		       token->kad->ticket[6], token->kad->ticket[7]);
+
+	/* count the number of tokens attached */
+	key->type_data.x[0]++;
+
+	/* attach the data */
+	token->next = key->payload.data;
+	key->payload.data = token;
+	if (token->kad->expiry < key->expiry)
+		key->expiry = token->kad->expiry;
+
+	_leave(" = 0");
+	return 0;
+}
+
+/*
+ * attempt to parse the data as the XDR format
+ * - the caller guarantees we have more than 7 words
+ */
+static int rxrpc_instantiate_xdr(struct key *key, const void *data, size_t datalen)
+{
+	const __be32 *xdr = data, *token;
+	const char *cp;
+	unsigned len, tmp, loop, ntoken, toklen, sec_ix;
+	int ret;
+
+	_enter(",{%x,%x,%x,%x},%zu",
+	       ntohl(xdr[0]), ntohl(xdr[1]), ntohl(xdr[2]), ntohl(xdr[3]),
+	       datalen);
+
+	if (datalen > AFSTOKEN_LENGTH_MAX)
+		goto not_xdr;
+
+	/* XDR is an array of __be32's */
+	if (datalen & 3)
+		goto not_xdr;
+
+	/* the flags should be 0 (the setpag bit must be handled by
+	 * userspace) */
+	if (ntohl(*xdr++) != 0)
+		goto not_xdr;
+	datalen -= 4;
+
+	/* check the cell name */
+	len = ntohl(*xdr++);
+	if (len < 1 || len > AFSTOKEN_CELL_MAX)
+		goto not_xdr;
+	datalen -= 4;
+	tmp = (len + 3) & ~3;
+	if (tmp > datalen)
+		goto not_xdr;
+
+	cp = (const char *) xdr;
+	for (loop = 0; loop < len; loop++)
+		if (!isprint(cp[loop]))
+			goto not_xdr;
+	if (len < tmp)
+		for (; loop < tmp; loop++)
+			if (cp[loop])
+				goto not_xdr;
+	_debug("cellname: [%u/%u] '%*.*s'",
+	       len, tmp, len, len, (const char *) xdr);
+	datalen -= tmp;
+	xdr += tmp >> 2;
+
+	/* get the token count */
+	if (datalen < 12)
+		goto not_xdr;
+	ntoken = ntohl(*xdr++);
+	datalen -= 4;
+	_debug("ntoken: %x", ntoken);
+	if (ntoken < 1 || ntoken > AFSTOKEN_MAX)
+		goto not_xdr;
+
+	/* check each token wrapper */
+	token = xdr;
+	loop = ntoken;
+	do {
+		if (datalen < 8)
+			goto not_xdr;
+		toklen = ntohl(*xdr++);
+		sec_ix = ntohl(*xdr);
+		datalen -= 4;
+		_debug("token: [%x/%zx] %x", toklen, datalen, sec_ix);
+		if (toklen < 20 || toklen > datalen)
+			goto not_xdr;
+		datalen -= (toklen + 3) & ~3;
+		xdr += (toklen + 3) >> 2;
+
+	} while (--loop > 0);
+
+	_debug("remainder: %zu", datalen);
+	if (datalen != 0)
+		goto not_xdr;
+
+	/* okay: we're going to assume it's valid XDR format
+	 * - we ignore the cellname, relying on the key to be correctly named
+	 */
+	do {
+		xdr = token;
+		toklen = ntohl(*xdr++);
+		token = xdr + ((toklen + 3) >> 2);
+		sec_ix = ntohl(*xdr++);
+		toklen -= 4;
+
+		switch (sec_ix) {
+		case RXRPC_SECURITY_RXKAD:
+			ret = rxrpc_instantiate_xdr_rxkad(key, xdr, toklen);
+			if (ret != 0)
+				goto error;
+			break;
+
+		default:
+			ret = -EPROTONOSUPPORT;
+			goto error;
+		}
+
+	} while (--ntoken > 0);
+
+	_leave(" = 0");
+	return 0;
+
+not_xdr:
+	_leave(" = -EPROTO");
+	return -EPROTO;
+error:
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * instantiate an rxrpc defined key
  * data should be of the form:
  *	OFFSET	LEN	CONTENT
@@ -70,8 +267,8 @@ struct key_type key_type_rxrpc_s = {
  */
 static int rxrpc_instantiate(struct key *key, const void *data, size_t datalen)
 {
-	const struct rxkad_key *tsec;
-	struct rxrpc_key_payload *upayload;
+	const struct rxrpc_key_data_v1 *v1;
+	struct rxrpc_key_token *token, **pp;
 	size_t plen;
 	u32 kver;
 	int ret;
@@ -81,6 +278,13 @@ static int rxrpc_instantiate(struct key *key, const void *data, size_t datalen)
 	/* handle a no-security key */
 	if (!data && datalen == 0)
 		return 0;
+
+	/* determine if the XDR payload format is being used */
+	if (datalen > 7 * 4) {
+		ret = rxrpc_instantiate_xdr(key, data, datalen);
+		if (ret != -EPROTO)
+			return ret;
+	}
 
 	/* get the key interface version number */
 	ret = -EINVAL;
@@ -98,53 +302,67 @@ static int rxrpc_instantiate(struct key *key, const void *data, size_t datalen)
 
 	/* deal with a version 1 key */
 	ret = -EINVAL;
-	if (datalen < sizeof(*tsec))
+	if (datalen < sizeof(*v1))
 		goto error;
 
-	tsec = data;
-	if (datalen != sizeof(*tsec) + tsec->ticket_len)
+	v1 = data;
+	if (datalen != sizeof(*v1) + v1->ticket_length)
 		goto error;
 
-	_debug("SCIX: %u", tsec->security_index);
-	_debug("TLEN: %u", tsec->ticket_len);
-	_debug("EXPY: %x", tsec->expiry);
-	_debug("KVNO: %u", tsec->kvno);
+	_debug("SCIX: %u", v1->security_index);
+	_debug("TLEN: %u", v1->ticket_length);
+	_debug("EXPY: %x", v1->expiry);
+	_debug("KVNO: %u", v1->kvno);
 	_debug("SKEY: %02x%02x%02x%02x%02x%02x%02x%02x",
-	       tsec->session_key[0], tsec->session_key[1],
-	       tsec->session_key[2], tsec->session_key[3],
-	       tsec->session_key[4], tsec->session_key[5],
-	       tsec->session_key[6], tsec->session_key[7]);
-	if (tsec->ticket_len >= 8)
+	       v1->session_key[0], v1->session_key[1],
+	       v1->session_key[2], v1->session_key[3],
+	       v1->session_key[4], v1->session_key[5],
+	       v1->session_key[6], v1->session_key[7]);
+	if (v1->ticket_length >= 8)
 		_debug("TCKT: %02x%02x%02x%02x%02x%02x%02x%02x",
-		       tsec->ticket[0], tsec->ticket[1],
-		       tsec->ticket[2], tsec->ticket[3],
-		       tsec->ticket[4], tsec->ticket[5],
-		       tsec->ticket[6], tsec->ticket[7]);
+		       v1->ticket[0], v1->ticket[1],
+		       v1->ticket[2], v1->ticket[3],
+		       v1->ticket[4], v1->ticket[5],
+		       v1->ticket[6], v1->ticket[7]);
 
 	ret = -EPROTONOSUPPORT;
-	if (tsec->security_index != RXRPC_SECURITY_RXKAD)
+	if (v1->security_index != RXRPC_SECURITY_RXKAD)
 		goto error;
 
-	key->type_data.x[0] = tsec->security_index;
-
-	plen = sizeof(*upayload) + tsec->ticket_len;
-	ret = key_payload_reserve(key, plen);
+	plen = sizeof(*token->kad) + v1->ticket_length;
+	ret = key_payload_reserve(key, plen + sizeof(*token));
 	if (ret < 0)
 		goto error;
 
 	ret = -ENOMEM;
-	upayload = kmalloc(plen, GFP_KERNEL);
-	if (!upayload)
+	token = kmalloc(sizeof(*token), GFP_KERNEL);
+	if (!token)
 		goto error;
+	token->kad = kmalloc(plen, GFP_KERNEL);
+	if (!token->kad)
+		goto error_free;
+
+	token->security_index		= RXRPC_SECURITY_RXKAD;
+	token->kad->ticket_len		= v1->ticket_length;
+	token->kad->expiry		= v1->expiry;
+	token->kad->kvno		= v1->kvno;
+	memcpy(&token->kad->session_key, &v1->session_key, 8);
+	memcpy(&token->kad->ticket, v1->ticket, v1->ticket_length);
 
 	/* attach the data */
-	memcpy(&upayload->k, tsec, sizeof(*tsec));
-	memcpy(&upayload->k.ticket, (void *)tsec + sizeof(*tsec),
-	       tsec->ticket_len);
-	key->payload.data = upayload;
-	key->expiry = tsec->expiry;
+	key->type_data.x[0]++;
+
+	pp = (struct rxrpc_key_token **)&key->payload.data;
+	while (*pp)
+		pp = &(*pp)->next;
+	*pp = token;
+	if (token->kad->expiry < key->expiry)
+		key->expiry = token->kad->expiry;
+	token = NULL;
 	ret = 0;
 
+error_free:
+	kfree(token);
 error:
 	return ret;
 }
@@ -184,7 +402,22 @@ static int rxrpc_instantiate_s(struct key *key, const void *data,
  */
 static void rxrpc_destroy(struct key *key)
 {
-	kfree(key->payload.data);
+	struct rxrpc_key_token *token;
+
+	while ((token = key->payload.data)) {
+		key->payload.data = token->next;
+		switch (token->security_index) {
+		case RXRPC_SECURITY_RXKAD:
+			kfree(token->kad);
+			break;
+		default:
+			printk(KERN_ERR "Unknown token type %x on rxrpc key\n",
+			       token->security_index);
+			BUG();
+		}
+
+		kfree(token);
+	}
 }
 
 /*
@@ -293,7 +526,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 
 	struct {
 		u32 kver;
-		struct rxkad_key tsec;
+		struct rxrpc_key_data_v1 v1;
 	} data;
 
 	_enter("");
@@ -308,13 +541,12 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	_debug("key %d", key_serial(key));
 
 	data.kver = 1;
-	data.tsec.security_index = RXRPC_SECURITY_RXKAD;
-	data.tsec.ticket_len = 0;
-	data.tsec.expiry = expiry;
-	data.tsec.kvno = 0;
+	data.v1.security_index = RXRPC_SECURITY_RXKAD;
+	data.v1.ticket_length = 0;
+	data.v1.expiry = expiry;
+	data.v1.kvno = 0;
 
-	memcpy(&data.tsec.session_key, session_key,
-	       sizeof(data.tsec.session_key));
+	memcpy(&data.v1.session_key, session_key, sizeof(data.v1.session_key));
 
 	ret = key_instantiate_and_link(key, &data, sizeof(data), NULL, NULL);
 	if (ret < 0)
