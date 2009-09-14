@@ -56,6 +56,12 @@ static inline void *wpan_phy_priv(struct wpan_phy *phy)
 }
 
 struct wpan_phy *wpan_phy_find(const char *str);
+
+static inline void wpan_phy_put(struct wpan_phy *phy)
+{
+	put_device(&phy->dev);
+}
+
 static inline const char *wpan_phy_name(struct wpan_phy *phy)
 {
 	return dev_name(&phy->dev);
