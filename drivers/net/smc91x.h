@@ -83,34 +83,6 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 	}
 }
 
-#elif defined(CONFIG_BLACKFIN)
-
-#define SMC_IRQ_FLAGS		IRQF_TRIGGER_HIGH
-#define RPC_LSA_DEFAULT		RPC_LED_100_10
-#define RPC_LSB_DEFAULT		RPC_LED_TX_RX
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-# if defined(CONFIG_BF561)
-#define SMC_CAN_USE_32BIT	1
-# else
-#define SMC_CAN_USE_32BIT	0
-# endif
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT      	1
-#define SMC_USE_BFIN_DMA	0
-
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-# if SMC_CAN_USE_32BIT
-#define SMC_inl(a, r)		readl((a) + (r))
-#define SMC_outl(v, a, r)	writel(v, (a) + (r))
-#define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
-#define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
-# endif
-
 #elif defined(CONFIG_REDWOOD_5) || defined(CONFIG_REDWOOD_6)
 
 /* We can only do 16-bit reads and writes in the static memory space. */
