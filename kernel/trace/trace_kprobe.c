@@ -347,20 +347,15 @@ static struct trace_probe *find_probe_event(const char *event)
 	return NULL;
 }
 
-static void __unregister_trace_probe(struct trace_probe *tp)
+/* Unregister a trace_probe and probe_event: call with locking probe_lock */
+static void unregister_trace_probe(struct trace_probe *tp)
 {
 	if (probe_is_return(tp))
 		unregister_kretprobe(&tp->rp);
 	else
 		unregister_kprobe(&tp->rp.kp);
-}
-
-/* Unregister a trace_probe and probe_event: call with locking probe_lock */
-static void unregister_trace_probe(struct trace_probe *tp)
-{
-	unregister_probe_event(tp);
-	__unregister_trace_probe(tp);
 	list_del(&tp->list);
+	unregister_probe_event(tp);
 }
 
 /* Register a trace_probe and probe_event */
@@ -370,6 +365,19 @@ static int register_trace_probe(struct trace_probe *tp)
 	int ret;
 
 	mutex_lock(&probe_lock);
+
+	/* register as an event */
+	old_tp = find_probe_event(tp->call.name);
+	if (old_tp) {
+		/* delete old event */
+		unregister_trace_probe(old_tp);
+		free_trace_probe(old_tp);
+	}
+	ret = register_probe_event(tp);
+	if (ret) {
+		pr_warning("Faild to register probe event(%d)\n", ret);
+		goto end;
+	}
 
 	if (probe_is_return(tp))
 		ret = register_kretprobe(&tp->rp);
@@ -384,21 +392,9 @@ static int register_trace_probe(struct trace_probe *tp)
 				   tp->rp.kp.addr);
 			ret = -EINVAL;
 		}
-		goto end;
-	}
-	/* register as an event */
-	old_tp = find_probe_event(tp->call.name);
-	if (old_tp) {
-		/* delete old event */
-		unregister_trace_probe(old_tp);
-		free_trace_probe(old_tp);
-	}
-	ret = register_probe_event(tp);
-	if (ret) {
-		pr_warning("Faild to register probe event(%d)\n", ret);
-		__unregister_trace_probe(tp);
-	}
-	list_add_tail(&tp->list, &probe_list);
+		unregister_probe_event(tp);
+	} else
+		list_add_tail(&tp->list, &probe_list);
 end:
 	mutex_unlock(&probe_lock);
 	return ret;
