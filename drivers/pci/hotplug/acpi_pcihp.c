@@ -322,13 +322,12 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 	return status;
 }
 
-/* acpi_get_hp_params_from_firmware
+/* pci_get_hp_params
  *
  * @dev - the pci_dev for which we want parameters
  * @hpp - allocated by the caller
  */
-int acpi_get_hp_params_from_firmware(struct pci_dev *dev,
-		struct hotplug_params *hpp)
+int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 {
 	acpi_status status;
 	acpi_handle handle, phandle;
@@ -345,7 +344,7 @@ int acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 	 * _HPP settings apply to all child buses, until another _HPP is
 	 * encountered. If we don't find an _HPP for the input pci dev,
 	 * look for it in the parent device scope since that would apply to
-	 * this pci dev. If we don't find any _HPP, use hardcoded defaults
+	 * this pci dev.
 	 */
 	while (handle) {
 		status = acpi_run_hpx(handle, hpp);
@@ -363,7 +362,7 @@ int acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 	}
 	return -ENODEV;
 }
-EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
+EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
  * acpi_get_hp_hw_control_from_firmware

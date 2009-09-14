@@ -227,12 +227,10 @@ struct hotplug_params {
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
-int acpi_get_hp_params_from_firmware(struct pci_dev *dev,
-				struct hotplug_params *hpp);
+int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
 int acpi_pci_detect_ejectable(acpi_handle handle);
-#define pci_get_hp_params(dev, hpp)  acpi_get_hp_params_from_firmware(dev, hpp)
 #else
 static inline int pci_get_hp_params(struct pci_dev *dev,
 				    struct hotplug_params *hpp)

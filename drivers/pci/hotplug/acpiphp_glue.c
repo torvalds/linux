@@ -271,29 +271,6 @@ static int detect_ejectable_slots(acpi_handle handle)
 	return found;
 }
 
-
-/* decode ACPI 2.0 _HPP hot plug parameters */
-static void decode_hpp(struct pci_dev *dev, struct hotplug_params *hpp)
-{
-	int ret;
-
-	ret = acpi_get_hp_params_from_firmware(dev, hpp);
-	if (ret || !hpp->t0 || (hpp->t0->revision > 1)) {
-		/* use default numbers */
-		printk(KERN_WARNING
-		       "%s: Could not get hotplug parameters. Use defaults\n",
-		       __func__);
-		hpp->t0 = &hpp->type0_data;
-		hpp->t0->revision = 0;
-		hpp->t0->cache_line_size = 0x10;
-		hpp->t0->latency_timer = 0x40;
-		hpp->t0->enable_serr = 0;
-		hpp->t0->enable_perr = 0;
-	}
-}
-
-
-
 /* initialize miscellaneous stuff for both root and PCI-to-PCI bridge */
 static void init_bridge_misc(struct acpiphp_bridge *bridge)
 {
@@ -1247,66 +1224,12 @@ static int acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 	return retval;
 }
 
-static void program_hpp(struct pci_dev *dev, struct hotplug_params *hpp)
-{
-	u16 pci_cmd, pci_bctl;
-	struct pci_dev *cdev;
-
-	/* Program hpp values for this device */
-	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
-			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
-			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
-		return;
-
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
-		return;
-
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
-			hpp->t0->cache_line_size);
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER,
-			hpp->t0->latency_timer);
-	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (hpp->t0->enable_serr)
-		pci_cmd |= PCI_COMMAND_SERR;
-	else
-		pci_cmd &= ~PCI_COMMAND_SERR;
-	if (hpp->t0->enable_perr)
-		pci_cmd |= PCI_COMMAND_PARITY;
-	else
-		pci_cmd &= ~PCI_COMMAND_PARITY;
-	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
-
-	/* Program bridge control value and child devices */
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
-		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
-				hpp->t0->latency_timer);
-		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (hpp->t0->enable_serr)
-			pci_bctl |= PCI_BRIDGE_CTL_SERR;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
-		if (hpp->t0->enable_perr)
-			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
-		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
-		if (dev->subordinate) {
-			list_for_each_entry(cdev, &dev->subordinate->devices,
-					bus_list)
-				program_hpp(cdev, hpp);
-		}
-	}
-}
-
 static void acpiphp_set_hpp_values(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
-	struct hotplug_params hpp;
 
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		decode_hpp(dev, &hpp);
-		program_hpp(dev, &hpp);
-	}
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		pci_configure_slot(dev);
 }
 
 /*
