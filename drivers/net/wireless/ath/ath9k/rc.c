@@ -425,7 +425,7 @@ static void ath_rc_init_valid_txmask(struct ath_rate_priv *ath_rc_priv)
 static inline void ath_rc_set_valid_txmask(struct ath_rate_priv *ath_rc_priv,
 					   u8 index, int valid_tx_rate)
 {
-	ASSERT(index <= ath_rc_priv->rate_table_size);
+	BUG_ON(index > ath_rc_priv->rate_table_size);
 	ath_rc_priv->valid_rate_index[index] = valid_tx_rate ? 1 : 0;
 }
 
@@ -1243,7 +1243,7 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	ath_rc_priv->rate_table_size = hi + 1;
 	ath_rc_priv->rate_max_phy = 0;
-	ASSERT(ath_rc_priv->rate_table_size <= RATE_TABLE_SIZE);
+	BUG_ON(ath_rc_priv->rate_table_size > RATE_TABLE_SIZE);
 
 	for (i = 0, k = 0; i < WLAN_RC_PHY_MAX; i++) {
 		for (j = 0; j < ath_rc_priv->valid_phy_ratecnt[i]; j++) {
@@ -1257,8 +1257,8 @@ static void ath_rc_init(struct ath_softc *sc,
 
 		ath_rc_priv->rate_max_phy = ath_rc_priv->valid_phy_rateidx[i][j-1];
 	}
-	ASSERT(ath_rc_priv->rate_table_size <= RATE_TABLE_SIZE);
-	ASSERT(k <= RATE_TABLE_SIZE);
+	BUG_ON(ath_rc_priv->rate_table_size > RATE_TABLE_SIZE);
+	BUG_ON(k > RATE_TABLE_SIZE);
 
 	ath_rc_priv->max_valid_rate = k;
 	ath_rc_sort_validrates(rate_table, ath_rc_priv);

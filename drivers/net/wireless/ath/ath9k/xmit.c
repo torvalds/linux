@@ -107,7 +107,7 @@ static void ath_tx_resume_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 {
 	struct ath_txq *txq = &sc->tx.txq[tid->ac->qnum];
 
-	ASSERT(tid->paused > 0);
+	BUG_ON(tid->paused <= 0);
 	spin_lock_bh(&txq->axq_lock);
 
 	tid->paused--;
@@ -131,7 +131,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 	struct list_head bf_head;
 	INIT_LIST_HEAD(&bf_head);
 
-	ASSERT(tid->paused > 0);
+	BUG_ON(tid->paused <= 0);
 	spin_lock_bh(&txq->axq_lock);
 
 	tid->paused--;
@@ -143,7 +143,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 
 	while (!list_empty(&tid->buf_q)) {
 		bf = list_first_entry(&tid->buf_q, struct ath_buf, list);
-		ASSERT(!bf_isretried(bf));
+		BUG_ON(bf_isretried(bf));
 		list_move_tail(&bf->list, &bf_head);
 		ath_tx_send_ht_normal(sc, txq, tid, &bf_head);
 	}
@@ -178,7 +178,7 @@ static void ath_tx_addto_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 	index  = ATH_BA_INDEX(tid->seq_start, bf->bf_seqno);
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
 
-	ASSERT(tid->tx_buf[cindex] == NULL);
+	BUG_ON(tid->tx_buf[cindex] != NULL);
 	tid->tx_buf[cindex] = bf;
 
 	if (index >= ((tid->baw_tail - tid->baw_head) &
@@ -358,7 +358,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			else
 				INIT_LIST_HEAD(&bf_head);
 		} else {
-			ASSERT(!list_empty(bf_q));
+			BUG_ON(list_empty(bf_q));
 			list_move_tail(&bf->list, &bf_head);
 		}
 
@@ -946,7 +946,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 		return 0;
 	}
 
-	ASSERT(sc->tx.txq[qnum].axq_qnum == qnum);
+	BUG_ON(sc->tx.txq[qnum].axq_qnum != qnum);
 
 	ath9k_hw_get_txq_props(ah, qnum, &qi);
 	qi.tqi_aifs = qinfo->tqi_aifs;

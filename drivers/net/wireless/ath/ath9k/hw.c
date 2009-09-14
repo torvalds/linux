@@ -3814,7 +3814,7 @@ void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio)
 {
 	u32 gpio_shift;
 
-	ASSERT(gpio < ah->caps.num_gpio_pins);
+	BUG_ON(gpio >= ah->caps.num_gpio_pins);
 
 	gpio_shift = gpio << 1;
 

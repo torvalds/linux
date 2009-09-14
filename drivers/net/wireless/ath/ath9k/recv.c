@@ -59,7 +59,7 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 
 	/* virtual addr of the beginning of the buffer. */
 	skb = bf->bf_mpdu;
-	ASSERT(skb != NULL);
+	BUG_ON(skb == NULL);
 	ds->ds_vdata = skb->data;
 
 	/* setup rx descriptors. The rx.bufsize here tells the harware
