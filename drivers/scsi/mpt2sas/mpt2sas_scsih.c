@@ -762,66 +762,16 @@ _scsih_is_end_device(u32 device_info)
 }
 
 /**
- * _scsih_scsi_lookup_get - returns scmd entry
+ * mptscsih_get_scsi_lookup - returns scmd entry
  * @ioc: per adapter object
  * @smid: system request message index
- * Context: This function will acquire ioc->scsi_lookup_lock.
  *
  * Returns the smid stored scmd pointer.
  */
 static struct scsi_cmnd *
 _scsih_scsi_lookup_get(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
-	unsigned long	flags;
-	struct scsi_cmnd *scmd;
-
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	scmd = ioc->scsi_lookup[smid - 1].scmd;
-	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-	return scmd;
-}
-
-/**
- * mptscsih_getclear_scsi_lookup - returns scmd entry
- * @ioc: per adapter object
- * @smid: system request message index
- * Context: This function will acquire ioc->scsi_lookup_lock.
- *
- * Returns the smid stored scmd pointer, as well as clearing the scmd pointer.
- */
-static struct scsi_cmnd *
-_scsih_scsi_lookup_getclear(struct MPT2SAS_ADAPTER *ioc, u16 smid)
-{
-	unsigned long	flags;
-	struct scsi_cmnd *scmd;
-
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	scmd = ioc->scsi_lookup[smid - 1].scmd;
-	ioc->scsi_lookup[smid - 1].scmd = NULL;
-	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-	return scmd;
-}
-
-/**
- * _scsih_scsi_lookup_set - updates scmd entry in lookup
- * @ioc: per adapter object
- * @smid: system request message index
- * @scmd: pointer to scsi command object
- * Context: This function will acquire ioc->scsi_lookup_lock.
- *
- * This will save scmd pointer in the scsi_lookup array.
- *
- * Return nothing.
- */
-static void
-_scsih_scsi_lookup_set(struct MPT2SAS_ADAPTER *ioc, u16 smid,
-    struct scsi_cmnd *scmd)
-{
-	unsigned long	flags;
-
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	ioc->scsi_lookup[smid - 1].scmd = scmd;
-	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+	return ioc->scsi_lookup[smid - 1].scmd;
 }
 
 /**
@@ -844,9 +794,9 @@ _scsih_scsi_lookup_find_by_scmd(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	smid = 0;
-	for (i = 0; i < ioc->request_depth; i++) {
+	for (i = 0; i < ioc->scsiio_depth; i++) {
 		if (ioc->scsi_lookup[i].scmd == scmd) {
-			smid = i + 1;
+			smid = ioc->scsi_lookup[i].smid;
 			goto out;
 		}
 	}
@@ -875,7 +825,7 @@ _scsih_scsi_lookup_find_by_target(struct MPT2SAS_ADAPTER *ioc, int id,
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	found = 0;
-	for (i = 0 ; i < ioc->request_depth; i++) {
+	for (i = 0 ; i < ioc->scsiio_depth; i++) {
 		if (ioc->scsi_lookup[i].scmd &&
 		    (ioc->scsi_lookup[i].scmd->device->id == id &&
 		    ioc->scsi_lookup[i].scmd->device->channel == channel)) {
@@ -909,7 +859,7 @@ _scsih_scsi_lookup_find_by_lun(struct MPT2SAS_ADAPTER *ioc, int id,
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	found = 0;
-	for (i = 0 ; i < ioc->request_depth; i++) {
+	for (i = 0 ; i < ioc->scsiio_depth; i++) {
 		if (ioc->scsi_lookup[i].scmd &&
 		    (ioc->scsi_lookup[i].scmd->device->id == id &&
 		    ioc->scsi_lookup[i].scmd->device->channel == channel &&
@@ -1119,7 +1069,7 @@ _scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 }
 
 /**
- * _scsih_change_queue_depth - changing device queue tag type
+ * _scsih_change_queue_type - changing device queue tag type
  * @sdev: scsi device struct
  * @tag_type: requested tag type
  *
@@ -1822,7 +1772,7 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 		goto issue_host_reset;
 	}
 
-	smid = mpt2sas_base_get_smid(ioc, ioc->tm_cb_idx);
+	smid = mpt2sas_base_get_smid_hpr(ioc, ioc->tm_cb_idx);
 	if (!smid) {
 		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
 		    ioc->name, __func__);
@@ -1830,7 +1780,8 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	}
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "sending tm: handle(0x%04x),"
-	    " task_type(0x%02x), smid(%d)\n", ioc->name, handle, type, smid));
+	    " task_type(0x%02x), smid(%d)\n", ioc->name, handle, type,
+	    smid_task));
 	ioc->tm_cmds.status = MPT2_CMD_PENDING;
 	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
 	ioc->tm_cmds.smid = smid;
@@ -2082,7 +2033,7 @@ _scsih_target_reset(struct scsi_cmnd *scmd)
 }
 
 /**
- * _scsih_abort - eh threads main host reset routine
+ * _scsih_host_reset - eh threads main host reset routine
  * @sdev: scsi device struct
  *
  * Returns SUCCESS if command aborted else FAILED
@@ -2440,8 +2391,8 @@ _scsih_flush_running_cmds(struct MPT2SAS_ADAPTER *ioc)
 	u16 smid;
 	u16 count = 0;
 
-	for (smid = 1; smid <= ioc->request_depth; smid++) {
-		scmd = _scsih_scsi_lookup_getclear(ioc, smid);
+	for (smid = 1; smid <= ioc->scsiio_depth; smid++) {
+		scmd = _scsih_scsi_lookup_get(ioc, smid);
 		if (!scmd)
 			continue;
 		count++;
@@ -2623,7 +2574,7 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	if ((sas_device_priv_data->flags & MPT_DEVICE_TLR_ON))
 		mpi_control |= MPI2_SCSIIO_CONTROL_TLR_ON;
 
-	smid = mpt2sas_base_get_smid(ioc, ioc->scsi_io_cb_idx);
+	smid = mpt2sas_base_get_smid_scsiio(ioc, ioc->scsi_io_cb_idx, scmd);
 	if (!smid) {
 		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
 		    ioc->name, __func__);
@@ -2665,7 +2616,6 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 		}
 	}
 
-	_scsih_scsi_lookup_set(ioc, smid, scmd);
 	mpt2sas_base_put_smid_scsi_io(ioc, smid,
 	    sas_device_priv_data->sas_target->handle);
 	return 0;
@@ -2984,7 +2934,7 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	u32 response_code;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
-	scmd = _scsih_scsi_lookup_getclear(ioc, smid);
+	scmd = _scsih_scsi_lookup_get(ioc, smid);
 	if (scmd == NULL)
 		return;
 
@@ -3406,9 +3356,8 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		}
 	}
 
-	sas_address = le64_to_cpu(expander_pg0.SASAddress);
-
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
+	sas_address = le64_to_cpu(expander_pg0.SASAddress);
 	sas_expander = mpt2sas_scsih_expander_find_by_sas_address(ioc,
 	    sas_address);
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
@@ -4081,7 +4030,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	termination_count = 0;
 	query_count = 0;
 	mpi_reply = ioc->tm_cmds.reply;
-	for (smid = 1; smid <= ioc->request_depth; smid++) {
+	for (smid = 1; smid <= ioc->scsiio_depth; smid++) {
 		scmd = _scsih_scsi_lookup_get(ioc, smid);
 		if (!scmd)
 			continue;
@@ -4145,8 +4094,8 @@ _scsih_sas_discovery_event(struct MPT2SAS_ADAPTER *ioc,
 		    (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED) ?
 		    "start" : "stop");
 	if (event_data->DiscoveryStatus)
-		printk(MPT2SAS_DEBUG_FMT ", discovery_status(0x%08x)",
-		    ioc->name, le32_to_cpu(event_data->DiscoveryStatus));
+		printk("discovery_status(0x%08x)",
+		    le32_to_cpu(event_data->DiscoveryStatus));
 	printk("\n");
 	}
 #endif

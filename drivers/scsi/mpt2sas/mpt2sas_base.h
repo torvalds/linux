@@ -264,6 +264,13 @@ struct _internal_cmd {
  * SAS Topology Structures
  */
 
+#define MPTSAS_STATE_TR_SEND		0x0001
+#define MPTSAS_STATE_TR_COMPLETE	0x0002
+#define MPTSAS_STATE_CNTRL_SEND		0x0004
+#define MPTSAS_STATE_CNTRL_COMPLETE	0x0008
+
+#define MPT2SAS_REQ_SAS_CNTRL		0x0010
+
 /**
  * struct _sas_device - attached device information
  * @list: sas device list
@@ -510,8 +517,9 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @config_page_sz: config page size
  * @config_page: reserve memory for config page payload
  * @config_page_dma:
+ * @hba_queue_depth: hba request queue depth
  * @sge_size: sg element size for either 32/64 bit
- * @request_depth: hba request queue depth
+ * @scsiio_depth: SCSI_IO queue depth
  * @request_sz: per request frame size
  * @request: pool of request frames
  * @request_dma:
@@ -528,6 +536,18 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @chains_needed_per_io: max chains per io
  * @chain_offset_value_for_main_message: location 1st sg in main
  * @chain_depth: total chains allocated
+ * @hi_priority_smid:
+ * @hi_priority:
+ * @hi_priority_dma:
+ * @hi_priority_depth:
+ * @hpr_lookup:
+ * @hpr_free_list:
+ * @internal_smid:
+ * @internal:
+ * @internal_dma:
+ * @internal_depth:
+ * @internal_lookup:
+ * @internal_free_list:
  * @sense: pool of sense
  * @sense_dma:
  * @sense_dma_pool:
@@ -643,9 +663,10 @@ struct MPT2SAS_ADAPTER {
 	void 		*config_page;
 	dma_addr_t	config_page_dma;
 
-	/* request */
+	/* scsiio request */
+	u16		hba_queue_depth;
 	u16		sge_size;
-	u16 		request_depth;
+	u16 		scsiio_depth;
 	u16		request_sz;
 	u8		*request;
 	dma_addr_t	request_dma;
@@ -664,6 +685,22 @@ struct MPT2SAS_ADAPTER {
 	u16		chains_needed_per_io;
 	u16		chain_offset_value_for_main_message;
 	u16		chain_depth;
+
+	/* hi-priority queue */
+	u16		hi_priority_smid;
+	u8		*hi_priority;
+	dma_addr_t	hi_priority_dma;
+	u16		hi_priority_depth;
+	struct request_tracker *hpr_lookup;
+	struct list_head hpr_free_list;
+
+	/* internal queue */
+	u16		internal_smid;
+	u8		*internal;
+	dma_addr_t	internal_dma;
+	u16		internal_depth;
+	struct request_tracker *internal_lookup;
+	struct list_head internal_free_list;
 
 	/* sense */
 	u8		*sense;
@@ -720,8 +757,12 @@ int mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 void *mpt2sas_base_get_msg_frame(struct MPT2SAS_ADAPTER *ioc, u16 smid);
 void *mpt2sas_base_get_sense_buffer(struct MPT2SAS_ADAPTER *ioc, u16 smid);
 void mpt2sas_base_build_zero_len_sge(struct MPT2SAS_ADAPTER *ioc, void *paddr);
-dma_addr_t mpt2sas_base_get_msg_frame_dma(struct MPT2SAS_ADAPTER *ioc, u16 smid);
 dma_addr_t mpt2sas_base_get_sense_buffer_dma(struct MPT2SAS_ADAPTER *ioc, u16 smid);
+
+/* hi-priority queue */
+u16 mpt2sas_base_get_smid_hpr(struct MPT2SAS_ADAPTER *ioc, u8 cb_idx);
+u16 mpt2sas_base_get_smid_scsiio(struct MPT2SAS_ADAPTER *ioc, u8 cb_idx,
+    struct scsi_cmnd *scmd);
 
 u16 mpt2sas_base_get_smid(struct MPT2SAS_ADAPTER *ioc, u8 cb_idx);
 void mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid);
