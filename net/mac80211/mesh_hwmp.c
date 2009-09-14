@@ -637,7 +637,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_preq_queue *preq_node;
 
-	preq_node = kmalloc(sizeof(struct mesh_preq_queue), GFP_KERNEL);
+	preq_node = kmalloc(sizeof(struct mesh_preq_queue), GFP_ATOMIC);
 	if (!preq_node) {
 		printk(KERN_DEBUG "Mesh HWMP: could not allocate PREQ node\n");
 		return;
@@ -836,8 +836,14 @@ void mesh_path_timer(unsigned long data)
 	mpath = rcu_dereference(mpath);
 	if (!mpath)
 		goto endmpathtimer;
-	spin_lock_bh(&mpath->state_lock);
 	sdata = mpath->sdata;
+
+	if (sdata->local->quiescing) {
+		rcu_read_unlock();
+		return;
+	}
+
+	spin_lock_bh(&mpath->state_lock);
 	if (mpath->flags & MESH_PATH_RESOLVED ||
 			(!(mpath->flags & MESH_PATH_RESOLVING)))
 		mpath->flags &= ~(MESH_PATH_RESOLVING | MESH_PATH_RESOLVED);

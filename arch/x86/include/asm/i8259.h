@@ -60,8 +60,4 @@ extern struct irq_chip i8259A_chip;
 extern void mask_8259A(void);
 extern void unmask_8259A(void);
 
-#ifdef CONFIG_X86_32
-extern void init_ISA_irqs(void);
-#endif
-
 #endif /* _ASM_X86_I8259_H */

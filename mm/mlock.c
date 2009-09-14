@@ -31,7 +31,6 @@ int can_do_mlock(void)
 }
 EXPORT_SYMBOL(can_do_mlock);
 
-#ifdef CONFIG_UNEVICTABLE_LRU
 /*
  * Mlocked pages are marked with PageMlocked() flag for efficient testing
  * in vmscan and, possibly, the fault path; and to support semi-accurate
@@ -260,27 +259,6 @@ static int __mlock_posix_error_return(long retval)
 		retval = -EAGAIN;
 	return retval;
 }
-
-#else /* CONFIG_UNEVICTABLE_LRU */
-
-/*
- * Just make pages present if VM_LOCKED.  No-op if unlocking.
- */
-static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end,
-				   int mlock)
-{
-	if (mlock && (vma->vm_flags & VM_LOCKED))
-		return make_pages_present(start, end);
-	return 0;
-}
-
-static inline int __mlock_posix_error_return(long retval)
-{
-	return 0;
-}
-
-#endif /* CONFIG_UNEVICTABLE_LRU */
 
 /**
  * mlock_vma_pages_range() - mlock pages in specified vma range.
@@ -629,52 +607,43 @@ void user_shm_unlock(size_t size, struct user_struct *user)
 	free_uid(user);
 }
 
-void *alloc_locked_buffer(size_t size)
+int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
+			  size_t size)
 {
-	unsigned long rlim, vm, pgsz;
-	void *buffer = NULL;
+	unsigned long lim, vm, pgsz;
+	int error = -ENOMEM;
 
 	pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
 
-	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-	vm   = current->mm->total_vm + pgsz;
-	if (rlim < vm)
+	lim = rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+	vm   = mm->total_vm + pgsz;
+	if (lim < vm)
 		goto out;
 
-	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-	vm   = current->mm->locked_vm + pgsz;
-	if (rlim < vm)
+	lim = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+	vm   = mm->locked_vm + pgsz;
+	if (lim < vm)
 		goto out;
 
-	buffer = kzalloc(size, GFP_KERNEL);
-	if (!buffer)
-		goto out;
+	mm->total_vm  += pgsz;
+	mm->locked_vm += pgsz;
 
-	current->mm->total_vm  += pgsz;
-	current->mm->locked_vm += pgsz;
-
+	error = 0;
  out:
-	up_write(&current->mm->mmap_sem);
-	return buffer;
+	up_write(&mm->mmap_sem);
+	return error;
 }
 
-void release_locked_buffer(void *buffer, size_t size)
+void refund_locked_memory(struct mm_struct *mm, size_t size)
 {
 	unsigned long pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
 
-	current->mm->total_vm  -= pgsz;
-	current->mm->locked_vm -= pgsz;
+	mm->total_vm  -= pgsz;
+	mm->locked_vm -= pgsz;
 
-	up_write(&current->mm->mmap_sem);
-}
-
-void free_locked_buffer(void *buffer, size_t size)
-{
-	release_locked_buffer(buffer, size);
-
-	kfree(buffer);
+	up_write(&mm->mmap_sem);
 }

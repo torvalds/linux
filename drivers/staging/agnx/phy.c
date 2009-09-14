@@ -118,7 +118,7 @@ static void mac_address_set(struct agnx_priv *priv)
 	iowrite32(reg, ctl + AGNX_RXM_MACLO);
 }
 
-static void receiver_bssid_set(struct agnx_priv *priv, u8 *bssid)
+static void receiver_bssid_set(struct agnx_priv *priv, const u8 *bssid)
 {
 	void __iomem *ctl = priv->ctl;
 	u32 reg;
@@ -954,7 +954,7 @@ int agnx_set_ssid(struct agnx_priv *priv, u8 *ssid, size_t ssid_len)
 	return 0;
 }
 
-void agnx_set_bssid(struct agnx_priv *priv, u8 *bssid)
+void agnx_set_bssid(struct agnx_priv *priv, const u8 *bssid)
 {
 	receiver_bssid_set(priv, bssid);
 }

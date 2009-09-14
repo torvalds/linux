@@ -24,6 +24,7 @@
 #include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/cputable.h>
+#include <asm/emulated_ops.h>
 
 struct aligninfo {
 	unsigned char len;
@@ -730,8 +731,10 @@ int fix_alignment(struct pt_regs *regs)
 	areg = dsisr & 0x1f;		/* register to update */
 
 #ifdef CONFIG_SPE
-	if ((instr >> 26) == 0x4)
+	if ((instr >> 26) == 0x4) {
+		PPC_WARN_EMULATED(spe);
 		return emulate_spe(regs, reg, instr);
+	}
 #endif
 
 	instr = (dsisr >> 10) & 0x7f;
@@ -783,23 +786,28 @@ int fix_alignment(struct pt_regs *regs)
 			flags |= SPLT;
 			nb = 8;
 		}
+		PPC_WARN_EMULATED(vsx);
 		return emulate_vsx(addr, reg, areg, regs, flags, nb);
 	}
 #endif
 	/* A size of 0 indicates an instruction we don't support, with
 	 * the exception of DCBZ which is handled as a special case here
 	 */
-	if (instr == DCBZ)
+	if (instr == DCBZ) {
+		PPC_WARN_EMULATED(dcbz);
 		return emulate_dcbz(regs, addr);
+	}
 	if (unlikely(nb == 0))
 		return 0;
 
 	/* Load/Store Multiple instructions are handled in their own
 	 * function
 	 */
-	if (flags & M)
+	if (flags & M) {
+		PPC_WARN_EMULATED(multiple);
 		return emulate_multiple(regs, addr, reg, nb,
 					flags, instr, swiz);
+	}
 
 	/* Verify the address of the operand */
 	if (unlikely(user_mode(regs) &&
@@ -816,8 +824,12 @@ int fix_alignment(struct pt_regs *regs)
 	}
 
 	/* Special case for 16-byte FP loads and stores */
-	if (nb == 16)
+	if (nb == 16) {
+		PPC_WARN_EMULATED(fp_pair);
 		return emulate_fp_pair(addr, reg, flags);
+	}
+
+	PPC_WARN_EMULATED(unaligned);
 
 	/* If we are loading, get the data from user space, else
 	 * get it from register values

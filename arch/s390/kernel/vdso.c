@@ -22,7 +22,7 @@
 #include <linux/elf.h>
 #include <linux/security.h>
 #include <linux/bootmem.h>
-
+#include <linux/compat.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>
@@ -53,8 +53,19 @@ unsigned int __read_mostly vdso_enabled = 1;
 
 static int __init vdso_setup(char *s)
 {
-	vdso_enabled = simple_strtoul(s, NULL, 0);
-	return 1;
+	unsigned long val;
+	int rc;
+
+	rc = 0;
+	if (strncmp(s, "on", 3) == 0)
+		vdso_enabled = 1;
+	else if (strncmp(s, "off", 4) == 0)
+		vdso_enabled = 0;
+	else {
+		rc = strict_strtoul(s, 0, &val);
+		vdso_enabled = rc ? 0 : !!val;
+	}
+	return !rc;
 }
 __setup("vdso=", vdso_setup);
 
@@ -203,7 +214,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT
-	if (test_thread_flag(TIF_31BIT)) {
+	if (is_compat_task()) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
 	}

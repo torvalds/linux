@@ -2,6 +2,7 @@
 #define _ASM_X86_PGTABLE_H
 
 #include <asm/page.h>
+#include <asm/e820.h>
 
 #include <asm/pgtable_types.h>
 
@@ -80,6 +81,8 @@ static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
 
 #define pte_val(x)	native_pte_val(x)
 #define __pte(x)	native_make_pte(x)
+
+#define arch_end_context_switch(prev)	do {} while(0)
 
 #endif	/* CONFIG_PARAVIRT */
 
@@ -267,9 +270,16 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 #define canon_pgprot(p) __pgprot(massage_pgprot(p))
 
-static inline int is_new_memtype_allowed(unsigned long flags,
-						unsigned long new_flags)
+static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+					 unsigned long flags,
+					 unsigned long new_flags)
 {
+	/*
+	 * PAT type is always WB for ISA. So no need to check.
+	 */
+	if (is_ISA_range(paddr, paddr + size - 1))
+		return 1;
+
 	/*
 	 * Certain new memtypes are not allowed with certain
 	 * requested memtype:
@@ -313,6 +323,11 @@ static inline int pte_same(pte_t a, pte_t b)
 static inline int pte_present(pte_t a)
 {
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
+}
+
+static inline int pte_hidden(pte_t pte)
+{
+	return pte_flags(pte) & _PAGE_HIDDEN;
 }
 
 static inline int pmd_present(pmd_t pmd)
@@ -502,6 +517,8 @@ static inline int pgd_none(pgd_t pgd)
 #define KERNEL_PGD_PTRS		(PTRS_PER_PGD - KERNEL_PGD_BOUNDARY)
 
 #ifndef __ASSEMBLY__
+
+extern int direct_gbpages;
 
 /* local pte updates need not use xchg for locking */
 static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)

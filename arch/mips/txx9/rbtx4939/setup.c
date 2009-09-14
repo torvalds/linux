@@ -498,6 +498,11 @@ static void __init rbtx4939_device_init(void)
 	tx4939_wdt_init();
 	tx4939_ata_init();
 	tx4939_rtc_init();
+	tx4939_dmac_init(0, 2);
+	tx4939_aclc_init();
+	platform_device_register_simple("txx9aclc-generic", -1, NULL, 0);
+	tx4939_sramc_init();
+	tx4939_rng_init();
 }
 
 static void __init rbtx4939_setup(void)
@@ -507,10 +512,10 @@ static void __init rbtx4939_setup(void)
 	rbtx4939_ebusc_setup();
 	/* always enable ATA0 */
 	txx9_set64(&tx4939_ccfgptr->pcfg, TX4939_PCFG_ATA0MODE);
-	rbtx4939_update_ioc_pen();
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 20000000;
 	tx4939_setup();
+	rbtx4939_update_ioc_pen();
 #ifdef HAVE_RBTX4939_IOSWAB
 	ioswabw = rbtx4939_ioswabw;
 	__mem_ioswabw = rbtx4939_mem_ioswabw;

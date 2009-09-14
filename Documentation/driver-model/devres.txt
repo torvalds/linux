@@ -188,7 +188,7 @@ For example, you can do something like the following.
 
   void my_midlayer_destroy_something()
   {
-	devres_release_group(dev, my_midlayer_create_soemthing);
+	devres_release_group(dev, my_midlayer_create_something);
   }
 
 

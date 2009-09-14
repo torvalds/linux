@@ -236,22 +236,22 @@ do {							\
 	__tlb_remove_tlb_entry(tlb, ptep, addr);	\
 } while (0)
 
-#define pte_free_tlb(tlb, ptep)				\
+#define pte_free_tlb(tlb, ptep, address)		\
 do {							\
 	tlb->need_flush = 1;				\
-	__pte_free_tlb(tlb, ptep);			\
+	__pte_free_tlb(tlb, ptep, address);		\
 } while (0)
 
-#define pmd_free_tlb(tlb, ptep)				\
+#define pmd_free_tlb(tlb, ptep, address)		\
 do {							\
 	tlb->need_flush = 1;				\
-	__pmd_free_tlb(tlb, ptep);			\
+	__pmd_free_tlb(tlb, ptep, address);		\
 } while (0)
 
-#define pud_free_tlb(tlb, pudp)				\
+#define pud_free_tlb(tlb, pudp, address)		\
 do {							\
 	tlb->need_flush = 1;				\
-	__pud_free_tlb(tlb, pudp);			\
+	__pud_free_tlb(tlb, pudp, address);		\
 } while (0)
 
 #endif /* _ASM_IA64_TLB_H */

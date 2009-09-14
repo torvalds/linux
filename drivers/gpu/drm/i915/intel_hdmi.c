@@ -31,6 +31,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc.h"
+#include "drm_edid.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
@@ -128,64 +129,28 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void
-intel_hdmi_sink_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_hdmi_detect(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
 	struct edid *edid = NULL;
+	enum drm_connector_status status = connector_status_disconnected;
 
+	hdmi_priv->has_hdmi_sink = false;
 	edid = drm_get_edid(&intel_output->base,
-			    &intel_output->ddc_bus->adapter);
-	if (edid != NULL) {
-		hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
-		kfree(edid);
+			    intel_output->ddc_bus);
+
+	if (edid) {
+		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
+			status = connector_status_connected;
+			hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+		}
 		intel_output->base.display_info.raw_edid = NULL;
-	}
-}
-
-static enum drm_connector_status
-intel_hdmi_detect(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_output *intel_output = to_intel_output(connector);
-	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
-	u32 temp, bit;
-
-	temp = I915_READ(PORT_HOTPLUG_EN);
-
-	switch (hdmi_priv->sdvox_reg) {
-	case SDVOB:
-		temp |= HDMIB_HOTPLUG_INT_EN;
-		break;
-	case SDVOC:
-		temp |= HDMIC_HOTPLUG_INT_EN;
-		break;
-	default:
-		return connector_status_unknown;
+		kfree(edid);
 	}
 
-	I915_WRITE(PORT_HOTPLUG_EN, temp);
-
-	POSTING_READ(PORT_HOTPLUG_EN);
-
-	switch (hdmi_priv->sdvox_reg) {
-	case SDVOB:
-		bit = HDMIB_HOTPLUG_INT_STATUS;
-		break;
-	case SDVOC:
-		bit = HDMIC_HOTPLUG_INT_STATUS;
-		break;
-	default:
-		return connector_status_unknown;
-	}
-
-	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0) {
-		intel_hdmi_sink_detect(connector);
-		return connector_status_connected;
-	} else
-		return connector_status_disconnected;
+	return status;
 }
 
 static int intel_hdmi_get_modes(struct drm_connector *connector)
@@ -269,8 +234,17 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	/* Set up the DDC bus. */
 	if (sdvox_reg == SDVOB)
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "HDMIB");
-	else
+	else if (sdvox_reg == SDVOC)
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOD, "HDMIC");
+	else if (sdvox_reg == HDMIB)
+		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOE,
+								"HDMIB");
+	else if (sdvox_reg == HDMIC)
+		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOD,
+								"HDMIC");
+	else if (sdvox_reg == HDMID)
+		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOF,
+								"HDMID");
 
 	if (!intel_output->ddc_bus)
 		goto err_connector;

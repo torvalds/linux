@@ -7,13 +7,7 @@ obj-n			:=
 obj-			:=
 
 obj-$(CONFIG_MACH_ADSSPHERE)	+= adssphere.o
-obj-$(CONFIG_MACH_EDB9302)	+= edb9302.o
-obj-$(CONFIG_MACH_EDB9302A)	+= edb9302a.o
-obj-$(CONFIG_MACH_EDB9307)	+= edb9307.o
-obj-$(CONFIG_MACH_EDB9307A)	+= edb9307a.o
-obj-$(CONFIG_MACH_EDB9312)	+= edb9312.o
-obj-$(CONFIG_MACH_EDB9315)	+= edb9315.o
-obj-$(CONFIG_MACH_EDB9315A)	+= edb9315a.o
+obj-$(CONFIG_MACH_EDB93XX)	+= edb93xx.o
 obj-$(CONFIG_MACH_GESBC9312)	+= gesbc9312.o
 obj-$(CONFIG_MACH_MICRO9)	+= micro9.o
 obj-$(CONFIG_MACH_TS72XX)	+= ts72xx.o

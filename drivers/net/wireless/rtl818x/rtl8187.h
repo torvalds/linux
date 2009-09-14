@@ -16,6 +16,7 @@
 #define RTL8187_H
 
 #include "rtl818x.h"
+#include "rtl8187_leds.h"
 
 #define RTL8187_EEPROM_TXPWR_BASE	0x05
 #define RTL8187_EEPROM_MAC_ADDR		0x07
@@ -102,6 +103,12 @@ struct rtl8187_priv {
 	struct usb_anchor anchored;
 	struct delayed_work work;
 	struct ieee80211_hw *dev;
+#ifdef CONFIG_RTL8187_LEDS
+	struct rtl8187_led led_tx;
+	struct rtl8187_led led_rx;
+	struct delayed_work led_on;
+	struct delayed_work led_off;
+#endif
 	u16 txpwr_base;
 	u8 asic_rev;
 	u8 is_rtl8187b;

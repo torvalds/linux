@@ -17,7 +17,6 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/mnt_namespace.h>
 #include "internal.h"
 
 
@@ -244,7 +243,7 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	case -EBUSY:
 		/* someone else made a mount here whilst we were busy */
 		while (d_mountpoint(nd->path.dentry) &&
-		       follow_down(&nd->path.mnt, &nd->path.dentry))
+		       follow_down(&nd->path))
 			;
 		err = 0;
 	default:

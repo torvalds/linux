@@ -130,7 +130,7 @@ static void collect_interruption(struct kvm_vcpu *vcpu)
 	if (vdcr & IA64_DCR_PP) {
 		vpsr |= IA64_PSR_PP;
 	} else {
-		vpsr &= ~IA64_PSR_PP;;
+		vpsr &= ~IA64_PSR_PP;
 	}
 
 	vcpu_set_psr(vcpu, vpsr);
@@ -594,11 +594,11 @@ static void set_pal_call_data(struct kvm_vcpu *vcpu)
 		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
 		break;
 	case PAL_BRAND_INFO:
-		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr29 = gr29;
 		p->u.pal_data.gr30 = kvm_trans_pal_call_args(vcpu, gr30);
 		break;
 	default:
-		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr29 = gr29;
 		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
 	}
 	p->u.pal_data.gr28 = gr28;
@@ -652,20 +652,25 @@ void  kvm_ia64_handle_break(unsigned long ifa, struct kvm_pt_regs *regs,
 		unsigned long isr, unsigned long iim)
 {
 	struct kvm_vcpu *v = current_vcpu;
+	long psr;
 
 	if (ia64_psr(regs)->cpl == 0) {
 		/* Allow hypercalls only when cpl = 0.  */
 		if (iim == DOMN_PAL_REQUEST) {
+			local_irq_save(psr);
 			set_pal_call_data(v);
 			vmm_transition(v);
 			get_pal_call_result(v);
 			vcpu_increment_iip(v);
+			local_irq_restore(psr);
 			return;
 		} else if (iim == DOMN_SAL_REQUEST) {
+			local_irq_save(psr);
 			set_sal_call_data(v);
 			vmm_transition(v);
 			get_sal_call_result(v);
 			vcpu_increment_iip(v);
+			local_irq_restore(psr);
 			return;
 		}
 	}

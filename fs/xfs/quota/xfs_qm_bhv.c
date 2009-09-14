@@ -42,7 +42,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_qm.h"
@@ -84,7 +83,7 @@ xfs_fill_statvfs_from_dquot(
  * return a statvfs of the project, not the entire filesystem.
  * This makes such trees appear as if they are filesystems in themselves.
  */
-STATIC void
+void
 xfs_qm_statvfs(
 	xfs_inode_t		*ip,
 	struct kstatfs		*statp)
@@ -92,20 +91,13 @@ xfs_qm_statvfs(
 	xfs_mount_t		*mp = ip->i_mount;
 	xfs_dquot_t		*dqp;
 
-	if (!(ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) ||
-	    !((mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))) ==
-	    		      (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))
-		return;
-
 	if (!xfs_qm_dqget(mp, NULL, ip->i_d.di_projid, XFS_DQ_PROJ, 0, &dqp)) {
-		xfs_disk_dquot_t	*dp = &dqp->q_core;
-
-		xfs_fill_statvfs_from_dquot(statp, dp);
+		xfs_fill_statvfs_from_dquot(statp, &dqp->q_core);
 		xfs_qm_dqput(dqp);
 	}
 }
 
-STATIC int
+int
 xfs_qm_newmount(
 	xfs_mount_t	*mp,
 	uint		*needquotamount,
@@ -113,9 +105,6 @@ xfs_qm_newmount(
 {
 	uint		quotaondisk;
 	uint		uquotaondisk = 0, gquotaondisk = 0, pquotaondisk = 0;
-
-	*quotaflags = 0;
-	*needquotamount = B_FALSE;
 
 	quotaondisk = xfs_sb_version_hasquota(&mp->m_sb) &&
 				(mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT);
@@ -178,66 +167,6 @@ xfs_qm_newmount(
 
 	return 0;
 }
-
-STATIC int
-xfs_qm_endmount(
-	xfs_mount_t	*mp,
-	uint		needquotamount,
-	uint		quotaflags)
-{
-	if (needquotamount) {
-		ASSERT(mp->m_qflags == 0);
-		mp->m_qflags = quotaflags;
-		xfs_qm_mount_quotas(mp);
-	}
-
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-	if (! (XFS_IS_QUOTA_ON(mp)))
-		xfs_fs_cmn_err(CE_NOTE, mp, "Disk quotas not turned on");
-	else
-		xfs_fs_cmn_err(CE_NOTE, mp, "Disk quotas turned on");
-#endif
-
-#ifdef QUOTADEBUG
-	if (XFS_IS_QUOTA_ON(mp) && xfs_qm_internalqcheck(mp))
-		cmn_err(CE_WARN, "XFS: mount internalqcheck failed");
-#endif
-
-	return 0;
-}
-
-STATIC void
-xfs_qm_dqrele_null(
-	xfs_dquot_t	*dq)
-{
-	/*
-	 * Called from XFS, where we always check first for a NULL dquot.
-	 */
-	if (!dq)
-		return;
-	xfs_qm_dqrele(dq);
-}
-
-
-struct xfs_qmops xfs_qmcore_xfs = {
-	.xfs_qminit		= xfs_qm_newmount,
-	.xfs_qmdone		= xfs_qm_unmount_quotadestroy,
-	.xfs_qmmount		= xfs_qm_endmount,
-	.xfs_qmunmount		= xfs_qm_unmount_quotas,
-	.xfs_dqrele		= xfs_qm_dqrele_null,
-	.xfs_dqattach		= xfs_qm_dqattach,
-	.xfs_dqdetach		= xfs_qm_dqdetach,
-	.xfs_dqpurgeall		= xfs_qm_dqpurge_all,
-	.xfs_dqvopalloc		= xfs_qm_vop_dqalloc,
-	.xfs_dqvopcreate	= xfs_qm_vop_dqattach_and_dqmod_newinode,
-	.xfs_dqvoprename	= xfs_qm_vop_rename_dqattach,
-	.xfs_dqvopchown		= xfs_qm_vop_chown,
-	.xfs_dqvopchownresv	= xfs_qm_vop_chown_reserve,
-	.xfs_dqstatvfs		= xfs_qm_statvfs,
-	.xfs_dqsync		= xfs_qm_sync,
-	.xfs_dqtrxops		= &xfs_trans_dquot_ops,
-};
-EXPORT_SYMBOL(xfs_qmcore_xfs);
 
 void __init
 xfs_qm_init(void)

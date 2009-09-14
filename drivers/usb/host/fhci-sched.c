@@ -576,9 +576,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 			out_be16(&usb->fhci->regs->usb_event,
 				 usb->saved_msk);
 		} else if (usb->port_status == FHCI_PORT_DISABLED) {
-			if (fhci_ioports_check_bus_state(fhci) == 1 &&
-					usb->port_status != FHCI_PORT_LOW &&
-					usb->port_status != FHCI_PORT_FULL)
+			if (fhci_ioports_check_bus_state(fhci) == 1)
 				fhci_device_connected_interrupt(fhci);
 		}
 		usb_er &= ~USB_E_RESET_MASK;
@@ -605,9 +603,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 	}
 
 	if (usb_er & USB_E_IDLE_MASK) {
-		if (usb->port_status == FHCI_PORT_DISABLED &&
-				usb->port_status != FHCI_PORT_LOW &&
-				usb->port_status != FHCI_PORT_FULL) {
+		if (usb->port_status == FHCI_PORT_DISABLED) {
 			usb_er &= ~USB_E_RESET_MASK;
 			fhci_device_connected_interrupt(fhci);
 		} else if (usb->port_status ==

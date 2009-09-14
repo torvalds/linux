@@ -23,9 +23,10 @@ menuconfig BLOCK
 
 if BLOCK
 
-config LBD
-	bool "Support for large block devices and files"
+config LBDAF
+	bool "Support for large (2TB+) block devices and files"
 	depends on !64BIT
+	default y
 	help
 	  Enable block devices or files of size 2TB and larger.
 
@@ -38,16 +39,18 @@ config LBD
 
 	  The ext4 filesystem requires that this feature be enabled in
 	  order to support filesystems that have the huge_file feature
-	  enabled.    Otherwise, it will refuse to mount any filesystems
-	  that use the huge_file feature, which is enabled by default
-	  by mke2fs.ext4.   The GFS2 filesystem also requires this feature.
+	  enabled.  Otherwise, it will refuse to mount in the read-write
+	  mode any filesystems that use the huge_file feature, which is
+	  enabled by default by mke2fs.ext4.
 
-	  If unsure, say N.
+	  The GFS2 filesystem also requires this feature.
+
+	  If unsure, say Y.
 
 config BLK_DEV_BSG
-	bool "Block layer SG support v4 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	---help---
+	bool "Block layer SG support v4"
+	default y
+	help
 	  Saying Y here will enable generic SG (SCSI generic) v4 support
 	  for any block device.
 
@@ -57,7 +60,10 @@ config BLK_DEV_BSG
 	  protocols (e.g. Task Management Functions and SMP in Serial
 	  Attached SCSI).
 
-	  If unsure, say N.
+	  This option is required by recent UDEV versions to properly
+	  access device serial numbers, etc.
+
+	  If unsure, say Y.
 
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"

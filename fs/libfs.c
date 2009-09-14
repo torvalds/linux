@@ -9,6 +9,8 @@
 #include <linux/vfs.h>
 #include <linux/mutex.h>
 #include <linux/exportfs.h>
+#include <linux/writeback.h>
+#include <linux/buffer_head.h>
 
 #include <asm/uaccess.h>
 
@@ -215,7 +217,7 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 		return PTR_ERR(s);
 
 	s->s_flags = MS_NOUSER;
-	s->s_maxbytes = ~0ULL;
+	s->s_maxbytes = MAX_LFS_FILESIZE;
 	s->s_blocksize = PAGE_SIZE;
 	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
@@ -806,6 +808,29 @@ struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
 	return d_obtain_alias(inode);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
+
+int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
+{
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 0, /* metadata-only; caller takes care of data */
+	};
+	struct inode *inode = dentry->d_inode;
+	int err;
+	int ret;
+
+	ret = sync_mapping_buffers(inode->i_mapping);
+	if (!(inode->i_state & I_DIRTY))
+		return ret;
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		return ret;
+
+	err = sync_inode(inode, &wbc);
+	if (ret == 0)
+		ret = err;
+	return ret;
+}
+EXPORT_SYMBOL(simple_fsync);
 
 EXPORT_SYMBOL(dcache_dir_close);
 EXPORT_SYMBOL(dcache_dir_lseek);

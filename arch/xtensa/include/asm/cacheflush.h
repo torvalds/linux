@@ -155,5 +155,100 @@ extern void copy_from_user_page(struct vm_area_struct*, struct page*,
 
 #endif
 
+#define XTENSA_CACHEBLK_LOG2	29
+#define XTENSA_CACHEBLK_SIZE	(1 << XTENSA_CACHEBLK_LOG2)
+#define XTENSA_CACHEBLK_MASK	(7 << XTENSA_CACHEBLK_LOG2)
+
+#if XCHAL_HAVE_CACHEATTR
+static inline u32 xtensa_get_cacheattr(void)
+{
+	u32 r;
+	asm volatile("	rsr %0, CACHEATTR" : "=a"(r));
+	return r;
+}
+
+static inline u32 xtensa_get_dtlb1(u32 addr)
+{
+	u32 r = addr & XTENSA_CACHEBLK_MASK;
+	return r | ((xtensa_get_cacheattr() >> (r >> (XTENSA_CACHEBLK_LOG2-2)))
+			& 0xF);
+}
+#else
+static inline u32 xtensa_get_dtlb1(u32 addr)
+{
+	u32 r;
+	asm volatile("	rdtlb1 %0, %1" : "=a"(r) : "a"(addr));
+	asm volatile("	dsync");
+	return r;
+}
+
+static inline u32 xtensa_get_cacheattr(void)
+{
+	u32 r = 0;
+	u32 a = 0;
+	do {
+		a -= XTENSA_CACHEBLK_SIZE;
+		r = (r << 4) | (xtensa_get_dtlb1(a) & 0xF);
+	} while (a);
+	return r;
+}
+#endif
+
+static inline int xtensa_need_flush_dma_source(u32 addr)
+{
+	return (xtensa_get_dtlb1(addr) & ((1 << XCHAL_CA_BITS) - 1)) >= 4;
+}
+
+static inline int xtensa_need_invalidate_dma_destination(u32 addr)
+{
+	return (xtensa_get_dtlb1(addr) & ((1 << XCHAL_CA_BITS) - 1)) != 2;
+}
+
+static inline void flush_dcache_unaligned(u32 addr, u32 size)
+{
+	u32 cnt;
+	if (size) {
+		cnt = (size + ((XCHAL_DCACHE_LINESIZE - 1) & addr)
+			+ XCHAL_DCACHE_LINESIZE - 1) / XCHAL_DCACHE_LINESIZE;
+		while (cnt--) {
+			asm volatile("	dhwb %0, 0" : : "a"(addr));
+			addr += XCHAL_DCACHE_LINESIZE;
+		}
+		asm volatile("	dsync");
+	}
+}
+
+static inline void invalidate_dcache_unaligned(u32 addr, u32 size)
+{
+	int cnt;
+	if (size) {
+		asm volatile("	dhwbi %0, 0 ;" : : "a"(addr));
+		cnt = (size + ((XCHAL_DCACHE_LINESIZE - 1) & addr)
+			- XCHAL_DCACHE_LINESIZE - 1) / XCHAL_DCACHE_LINESIZE;
+		while (cnt-- > 0) {
+			asm volatile("	dhi %0, %1" : : "a"(addr),
+						"n"(XCHAL_DCACHE_LINESIZE));
+			addr += XCHAL_DCACHE_LINESIZE;
+		}
+		asm volatile("	dhwbi %0, %1" : : "a"(addr),
+						"n"(XCHAL_DCACHE_LINESIZE));
+		asm volatile("	dsync");
+	}
+}
+
+static inline void flush_invalidate_dcache_unaligned(u32 addr, u32 size)
+{
+	u32 cnt;
+	if (size) {
+		cnt = (size + ((XCHAL_DCACHE_LINESIZE - 1) & addr)
+			+ XCHAL_DCACHE_LINESIZE - 1) / XCHAL_DCACHE_LINESIZE;
+		while (cnt--) {
+			asm volatile("	dhwbi %0, 0" : : "a"(addr));
+			addr += XCHAL_DCACHE_LINESIZE;
+		}
+		asm volatile("	dsync");
+	}
+}
+
 #endif /* __KERNEL__ */
 #endif /* _XTENSA_CACHEFLUSH_H */

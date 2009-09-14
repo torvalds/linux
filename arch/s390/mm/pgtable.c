@@ -1,7 +1,5 @@
 /*
- *  arch/s390/mm/pgtable.c
- *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007,2009
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
@@ -52,6 +50,18 @@ void clear_table_pgstes(unsigned long *table)
 }
 
 #endif
+
+unsigned long VMALLOC_START = VMALLOC_END - VMALLOC_SIZE;
+EXPORT_SYMBOL(VMALLOC_START);
+
+static int __init parse_vmalloc(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+	VMALLOC_START = (VMALLOC_END - memparse(arg, &arg)) & PAGE_MASK;
+	return 0;
+}
+early_param("vmalloc", parse_vmalloc);
 
 unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
 {
@@ -303,3 +313,22 @@ int s390_enable_sie(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_HIBERNATION
+bool kernel_page_present(struct page *page)
+{
+	unsigned long addr;
+	int cc;
+
+	addr = page_to_phys(page);
+	asm("lra %1,0(%1)\n"
+	    "ipm %0\n"
+	    "srl %0,28"
+	    :"=d"(cc),"+a"(addr)::"cc");
+	return cc == 0;
+}
+
+#endif /* CONFIG_HIBERNATION */
+#endif /* CONFIG_DEBUG_PAGEALLOC */
+

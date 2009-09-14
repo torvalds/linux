@@ -1923,7 +1923,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 	if (vpath == NULL) {
 		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
 			alarm_event);
-		goto out;
+		goto out2;
 	}
 
 	hldev = vpath->hldev;
@@ -2161,7 +2161,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 	}
 out:
 	hldev->stats.sw_dev_err_stats.vpath_alarms++;
-
+out2:
 	if ((alarm_event == VXGE_HW_EVENT_ALARM_CLEARED) ||
 		(alarm_event == VXGE_HW_EVENT_UNKNOWN))
 		return VXGE_HW_OK;

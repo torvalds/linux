@@ -68,6 +68,7 @@ static const struct ide_port_info delkin_cb_port_info = {
 				  IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
 	.init_chipset		= delkin_cb_init_chipset,
+	.chipset		= ide_pci,
 };
 
 static int __devinit
@@ -76,7 +77,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	struct ide_host *host;
 	unsigned long base;
 	int rc;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	rc = pci_enable_device(dev);
 	if (rc) {
@@ -97,9 +98,8 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	ide_std_init_ports(&hw, base + 0x10, base + 0x1e);
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
-	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
-	rc = ide_host_add(&delkin_cb_port_info, hws, &host);
+	rc = ide_host_add(&delkin_cb_port_info, hws, 1, &host);
 	if (rc)
 		goto out_disable;
 

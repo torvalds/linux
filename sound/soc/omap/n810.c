@@ -383,10 +383,9 @@ static int __init n810_soc_init(void)
 	clk_set_parent(sys_clkout2_src, func96m_clk);
 	clk_set_rate(sys_clkout2, 12000000);
 
-	if (gpio_request(N810_HEADSET_AMP_GPIO, "hs_amp") < 0)
-		BUG();
-	if (gpio_request(N810_SPEAKER_AMP_GPIO, "spk_amp") < 0)
-		BUG();
+	BUG_ON((gpio_request(N810_HEADSET_AMP_GPIO, "hs_amp") < 0) ||
+	       (gpio_request(N810_SPEAKER_AMP_GPIO, "spk_amp") < 0));
+
 	gpio_direction_output(N810_HEADSET_AMP_GPIO, 0);
 	gpio_direction_output(N810_SPEAKER_AMP_GPIO, 0);
 

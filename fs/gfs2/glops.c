@@ -310,24 +310,6 @@ static void rgrp_go_unlock(struct gfs2_holder *gh)
 }
 
 /**
- * rgrp_go_dump - print out an rgrp
- * @seq: The iterator
- * @gl: The glock in question
- *
- */
-
-static int rgrp_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
-{
-	const struct gfs2_rgrpd *rgd = gl->gl_object;
-	if (rgd == NULL)
-		return 0;
-	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u\n",
-		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
-		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes);
-	return 0;
-}
-
-/**
  * trans_go_sync - promote/demote the transaction glock
  * @gl: the glock
  * @state: the requested state
@@ -341,6 +323,7 @@ static void trans_go_sync(struct gfs2_glock *gl)
 
 	if (gl->gl_state != LM_ST_UNLOCKED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
+		flush_workqueue(gfs2_delete_workqueue);
 		gfs2_meta_syncfs(sdp);
 		gfs2_log_shutdown(sdp);
 	}
@@ -390,6 +373,25 @@ static int trans_go_demote_ok(const struct gfs2_glock *gl)
 	return 0;
 }
 
+/**
+ * iopen_go_callback - schedule the dcache entry for the inode to be deleted
+ * @gl: the glock
+ *
+ * gl_spin lock is held while calling this
+ */
+static void iopen_go_callback(struct gfs2_glock *gl)
+{
+	struct gfs2_inode *ip = (struct gfs2_inode *)gl->gl_object;
+
+	if (gl->gl_demote_state == LM_ST_UNLOCKED &&
+	    gl->gl_state == LM_ST_SHARED &&
+	    ip && test_bit(GIF_USER, &ip->i_flags)) {
+		gfs2_glock_hold(gl);
+		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
+			gfs2_glock_put_nolock(gl);
+	}
+}
+
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_type = LM_TYPE_META,
 };
@@ -410,7 +412,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_demote_ok = rgrp_go_demote_ok,
 	.go_lock = rgrp_go_lock,
 	.go_unlock = rgrp_go_unlock,
-	.go_dump = rgrp_go_dump,
+	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_min_hold_time = HZ / 5,
 };
@@ -424,6 +426,7 @@ const struct gfs2_glock_operations gfs2_trans_glops = {
 
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_type = LM_TYPE_IOPEN,
+	.go_callback = iopen_go_callback,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {

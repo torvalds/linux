@@ -48,6 +48,20 @@ config EEPROM_LEGACY
 	  This driver can also be built as a module.  If so, the module
 	  will be called eeprom.
 
+config EEPROM_MAX6875
+	tristate "Maxim MAX6874/5 power supply supervisor"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get read-only support for the user EEPROM of
+	  the Maxim MAX6874/5 EEPROM-programmable, quad power-supply
+	  sequencer/supervisor.
+
+	  All other features of this chip should be accessed via i2c-dev.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max6875.
+
+
 config EEPROM_93CX6
 	tristate "EEPROM 93CX6 support"
 	help

@@ -64,8 +64,6 @@ struct blackfin_pda {			/* Per-processor Data Area */
 
 extern struct blackfin_pda cpu_pda[];
 
-void reserve_pda(void);
-
 #endif	/* __ASSEMBLY__ */
 
 #endif /* _ASM_BLACKFIN_PDA_H */

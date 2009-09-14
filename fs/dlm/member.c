@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2009 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -17,6 +17,7 @@
 #include "recover.h"
 #include "rcom.h"
 #include "config.h"
+#include "lowcomms.h"
 
 static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 {
@@ -45,9 +46,9 @@ static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 {
 	struct dlm_member *memb;
-	int w;
+	int w, error;
 
-	memb = kzalloc(sizeof(struct dlm_member), GFP_KERNEL);
+	memb = kzalloc(sizeof(struct dlm_member), ls->ls_allocation);
 	if (!memb)
 		return -ENOMEM;
 
@@ -55,6 +56,12 @@ static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 	if (w < 0) {
 		kfree(memb);
 		return w;
+	}
+
+	error = dlm_lowcomms_connect_node(nodeid);
+	if (error < 0) {
+		kfree(memb);
+		return error;
 	}
 
 	memb->nodeid = nodeid;
@@ -136,7 +143,7 @@ static void make_member_array(struct dlm_ls *ls)
 
 	ls->ls_total_weight = total;
 
-	array = kmalloc(sizeof(int) * total, GFP_KERNEL);
+	array = kmalloc(sizeof(int) * total, ls->ls_allocation);
 	if (!array)
 		return;
 
@@ -219,7 +226,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 			continue;
 		log_debug(ls, "new nodeid %d is a re-added member", rv->new[i]);
 
-		memb = kzalloc(sizeof(struct dlm_member), GFP_KERNEL);
+		memb = kzalloc(sizeof(struct dlm_member), ls->ls_allocation);
 		if (!memb)
 			return -ENOMEM;
 		memb->nodeid = rv->new[i];
@@ -334,7 +341,7 @@ int dlm_ls_start(struct dlm_ls *ls)
 	int *ids = NULL, *new = NULL;
 	int error, ids_count = 0, new_count = 0;
 
-	rv = kzalloc(sizeof(struct dlm_recover), GFP_KERNEL);
+	rv = kzalloc(sizeof(struct dlm_recover), ls->ls_allocation);
 	if (!rv)
 		return -ENOMEM;
 

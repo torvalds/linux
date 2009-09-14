@@ -36,12 +36,10 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addres
 		return NULL;
 
 	pte = kmap(page);
-	if (pte) {
-		__flush_page_to_ram(pte);
-		flush_tlb_kernel_page(pte);
-		nocache_page(pte);
-	}
-	kunmap(pte);
+	__flush_page_to_ram(pte);
+	flush_tlb_kernel_page(pte);
+	nocache_page(pte);
+	kunmap(page);
 	pgtable_page_ctor(page);
 	return page;
 }
@@ -54,7 +52,8 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t page)
 	__free_page(page);
 }
 
-static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page)
+static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page,
+				  unsigned long address)
 {
 	pgtable_page_dtor(page);
 	cache_page(kmap(page));
@@ -73,7 +72,8 @@ static inline int pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	return free_pointer_table(pmd);
 }
 
-static inline int __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+static inline int __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
+				 unsigned long address)
 {
 	return free_pointer_table(pmd);
 }

@@ -45,12 +45,15 @@
 #include "dibx000_common.h"
 #include "zl10353.h"
 #include "stv0900.h"
+#include "stv0900_reg.h"
 #include "stv6110.h"
 #include "lnbh24.h"
 #include "cx24116.h"
 #include "cimax2.h"
+#include "lgs8gxx.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
+#include "lgdt3305.h"
 
 static unsigned int debug;
 
@@ -122,7 +125,22 @@ static struct tda10048_config hauppauge_hvr1200_config = {
 	.demod_address    = 0x10 >> 1,
 	.output_mode      = TDA10048_SERIAL_OUTPUT,
 	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
-	.inversion        = TDA10048_INVERSION_ON
+	.inversion        = TDA10048_INVERSION_ON,
+	.dtv6_if_freq_khz = TDA10048_IF_3300,
+	.dtv7_if_freq_khz = TDA10048_IF_3800,
+	.dtv8_if_freq_khz = TDA10048_IF_4300,
+	.clk_freq_khz     = TDA10048_CLK_16000,
+};
+
+static struct tda10048_config hauppauge_hvr1210_config = {
+	.demod_address    = 0x10 >> 1,
+	.output_mode      = TDA10048_SERIAL_OUTPUT,
+	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
+	.inversion        = TDA10048_INVERSION_ON,
+	.dtv6_if_freq_khz = TDA10048_IF_3300,
+	.dtv7_if_freq_khz = TDA10048_IF_3500,
+	.dtv8_if_freq_khz = TDA10048_IF_4000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
 };
 
 static struct s5h1409_config hauppauge_ezqam_config = {
@@ -194,6 +212,16 @@ static struct s5h1411_config dvico_s5h1411_config = {
 	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
+static struct s5h1411_config hcw_s5h1411_config = {
+	.output_mode   = S5H1411_SERIAL_OUTPUT,
+	.gpio          = S5H1411_GPIO_OFF,
+	.vsb_if        = S5H1411_IF_44000,
+	.qam_if        = S5H1411_IF_4000,
+	.inversion     = S5H1411_INVERSION_ON,
+	.status_mode   = S5H1411_DEMODLOCKING,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
@@ -215,13 +243,49 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 		      .if_lvl = 6, .rfagc_top = 0x37 },
 };
 
+static struct tda18271_std_map hauppauge_hvr1200_tda18271_std_map = {
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+};
+
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
 static struct tda18271_config hauppauge_hvr1200_tuner_config = {
+	.std_map = &hauppauge_hvr1200_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static struct tda18271_config hauppauge_hvr1210_tuner_config = {
+	.gate    = TDA18271_GATE_DIGITAL,
+};
+
+static struct tda18271_std_map hauppauge_hvr127x_std_map = {
+	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x58 },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x58 },
+};
+
+static struct tda18271_config hauppauge_hvr127x_config = {
+	.std_map = &hauppauge_hvr127x_std_map,
+};
+
+static struct lgdt3305_config hauppauge_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.deny_i2c_rptr      = 1,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
 };
 
 static struct dibx000_agc_config xc3028_agc_config = {
@@ -317,13 +381,25 @@ static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.disable_i2c_gate_ctrl = 1,
 };
 
+static struct stv0900_reg stv0900_ts_regs[] = {
+	{ R0900_TSGENERAL, 0x00 },
+	{ R0900_P1_TSSPEED, 0x40 },
+	{ R0900_P2_TSSPEED, 0x40 },
+	{ R0900_P1_TSCFGM, 0xc0 },
+	{ R0900_P2_TSCFGM, 0xc0 },
+	{ R0900_P1_TSCFGH, 0xe0 },
+	{ R0900_P2_TSCFGH, 0xe0 },
+	{ R0900_P1_TSCFGL, 0x20 },
+	{ R0900_P2_TSCFGL, 0x20 },
+	{ 0xffff, 0xff }, /* terminate */
+};
+
 static struct stv0900_config netup_stv0900_config = {
 	.demod_address = 0x68,
 	.xtal = 27000000,
 	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
 	.diseqc_mode = 2,/* 2/3 PWM */
-	.path1_mode = 2,/*Serial continues clock */
-	.path2_mode = 2,/*Serial continues clock */
+	.ts_config_regs = stv0900_ts_regs,
 	.tun1_maddress = 0,/* 0x60 */
 	.tun2_maddress = 3,/* 0x63 */
 	.tun1_adc = 1,/* 1 Vpp */
@@ -368,10 +444,53 @@ static struct cx24116_config dvbworld_cx24116_config = {
 	.demod_address = 0x05,
 };
 
+static struct lgs8gxx_config mygica_x8506_lgs8gl5_config = {
+	.prod = LGS8GXX_PROD_LGS8GL5,
+	.demod_address = 0x19,
+	.serial_ts = 0,
+	.ts_clk_pol = 1,
+	.ts_clk_gated = 1,
+	.if_clk_freq = 30400, /* 30.4 MHz */
+	.if_freq = 5380, /* 5.38 MHz */
+	.if_neg_center = 1,
+	.ext_adc = 0,
+	.adc_signed = 0,
+	.if_neg_edge = 0,
+};
+
+static struct xc5000_config mygica_x8506_xc5000_config = {
+	.i2c_address = 0x61,
+	.if_khz = 5380,
+};
+
+static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
+				    struct dvb_frontend_parameters *param)
+{
+	struct cx23885_tsport *port = fe->dvb->priv;
+	struct cx23885_dev *dev = port->dev;
+
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+		switch (param->u.vsb.modulation) {
+		case VSB_8:
+			cx23885_gpio_clear(dev, GPIO_5);
+			break;
+		case QAM_64:
+		case QAM_256:
+		default:
+			cx23885_gpio_set(dev, GPIO_5);
+			break;
+		}
+		break;
+	}
+	return (port->set_frontend_save) ?
+		port->set_frontend_save(fe, param) : -ENODEV;
+}
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
-	struct cx23885_i2c *i2c_bus = NULL;
+	struct cx23885_i2c *i2c_bus = NULL, *i2c_bus2 = NULL;
 	struct videobuf_dvb_frontend *fe0;
 	int ret;
 
@@ -394,6 +513,35 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(mt2131_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
+	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(lgdt3305_attach,
+					       &hauppauge_lgdt3305_config,
+					       &i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_bus[1].i2c_adap,
+				   &hauppauge_hvr127x_config);
+		}
+
+		/* FIXME: temporary hack */
+		/* define bridge override to set_frontend */
+		port->set_frontend_save = fe0->dvb.frontend->ops.set_frontend;
+		fe0->dvb.frontend->ops.set_frontend = cx23885_dvb_set_frontend;
+
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1255:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(s5h1411_attach,
+					       &hcw_s5h1411_config,
+					       &i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_bus[1].i2c_adap,
+				   &hauppauge_tda18271_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
@@ -494,6 +642,17 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				0x60, &dev->i2c_bus[1].i2c_adap,
 				&hauppauge_hvr1200_tuner_config);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1210:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(tda10048_attach,
+			&hauppauge_hvr1210_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				0x60, &dev->i2c_bus[1].i2c_adap,
+				&hauppauge_hvr1210_tuner_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
@@ -630,7 +789,8 @@ static int dvb_register(struct cx23885_tsport *port)
 					if (!dvb_attach(lnbh24_attach,
 							fe0->dvb.frontend,
 							&i2c_bus->i2c_adap,
-							LNBH24_PCL, 0, 0x09))
+							LNBH24_PCL,
+							LNBH24_TTX, 0x09))
 						printk(KERN_ERR
 							"No LNBH24 found!\n");
 
@@ -650,13 +810,27 @@ static int dvb_register(struct cx23885_tsport *port)
 					if (!dvb_attach(lnbh24_attach,
 							fe0->dvb.frontend,
 							&i2c_bus->i2c_adap,
-							LNBH24_PCL, 0, 0x0a))
+							LNBH24_PCL,
+							LNBH24_TTX, 0x0a))
 						printk(KERN_ERR
 							"No LNBH24 found!\n");
 
 				}
 			}
 			break;
+		}
+		break;
+	case CX23885_BOARD_MYGICA_X8506:
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
+		fe0->dvb.frontend = dvb_attach(lgs8gxx_attach,
+			&mygica_x8506_lgs8gl5_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(xc5000_attach,
+				fe0->dvb.frontend,
+				&i2c_bus2->i2c_adap,
+				&mygica_x8506_xc5000_config);
 		}
 		break;
 	default:

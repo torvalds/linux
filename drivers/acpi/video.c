@@ -76,6 +76,7 @@ MODULE_LICENSE("GPL");
 static int brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
+static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
 static int acpi_video_resume(struct acpi_device *device);
@@ -586,6 +587,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5315"),
 		},
 	},
+	{
+	 .callback = video_set_bqc_offset,
+	 .ident = "Acer Aspire 7720",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 7720"),
+		},
+	},
 	{}
 };
 
@@ -976,6 +985,11 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight->props.max_brightness = device->brightness->count-3;
 		kfree(name);
 
+		result = sysfs_create_link(&device->backlight->dev.kobj,
+					   &device->dev->dev.kobj, "device");
+		if (result)
+			printk(KERN_ERR PREFIX "Create sysfs link\n");
+
 		device->cdev = thermal_cooling_device_register("LCD",
 					device->dev, &video_cooling_ops);
 		if (IS_ERR(device->cdev))
@@ -1054,15 +1068,15 @@ static void acpi_video_bus_find_cap(struct acpi_video_bus *video)
 static int acpi_video_bus_check(struct acpi_video_bus *video)
 {
 	acpi_status status = -ENOENT;
-	struct device *dev;
+	struct pci_dev *dev;
 
 	if (!video)
 		return -EINVAL;
 
-	dev = acpi_get_physical_pci_device(video->device->handle);
+	dev = acpi_get_pci_dev(video->device->handle);
 	if (!dev)
 		return -ENODEV;
-	put_device(dev);
+	pci_dev_put(dev);
 
 	/* Since there is no HID, CID and so on for VGA driver, we have
 	 * to check well known required nodes.
@@ -1990,6 +2004,7 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 	status = acpi_remove_notify_handler(device->dev->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
+	sysfs_remove_link(&device->backlight->dev.kobj, "device");
 	backlight_device_unregister(device->backlight);
 	if (device->cdev) {
 		sysfs_remove_link(&device->dev->dev.kobj,
@@ -2318,6 +2333,13 @@ static int __init intel_opregion_present(void)
 int acpi_video_register(void)
 {
 	int result = 0;
+	if (register_count) {
+		/*
+		 * if the function of acpi_video_register is already called,
+		 * don't register the acpi_vide_bus again and return no error.
+		 */
+		return 0;
+	}
 
 	acpi_video_dir = proc_mkdir(ACPI_VIDEO_CLASS, acpi_root_dir);
 	if (!acpi_video_dir)
@@ -2329,9 +2351,34 @@ int acpi_video_register(void)
 		return -ENODEV;
 	}
 
+	/*
+	 * When the acpi_video_bus is loaded successfully, increase
+	 * the counter reference.
+	 */
+	register_count = 1;
+
 	return 0;
 }
 EXPORT_SYMBOL(acpi_video_register);
+
+void acpi_video_unregister(void)
+{
+	if (!register_count) {
+		/*
+		 * If the acpi video bus is already unloaded, don't
+		 * unload it again and return directly.
+		 */
+		return;
+	}
+	acpi_bus_unregister_driver(&acpi_video_bus);
+
+	remove_proc_entry(ACPI_VIDEO_CLASS, acpi_root_dir);
+
+	register_count = 0;
+
+	return;
+}
+EXPORT_SYMBOL(acpi_video_unregister);
 
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
@@ -2350,16 +2397,12 @@ static int __init acpi_video_init(void)
 	return acpi_video_register();
 }
 
-void acpi_video_exit(void)
+static void __exit acpi_video_exit(void)
 {
-
-	acpi_bus_unregister_driver(&acpi_video_bus);
-
-	remove_proc_entry(ACPI_VIDEO_CLASS, acpi_root_dir);
+	acpi_video_unregister();
 
 	return;
 }
-EXPORT_SYMBOL(acpi_video_exit);
 
 module_init(acpi_video_init);
 module_exit(acpi_video_exit);

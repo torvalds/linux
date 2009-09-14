@@ -325,9 +325,9 @@ static struct snd_pcm_hardware snd_ca0106_capture_hw = {
 	.rate_max =		192000,
 	.channels_min =		2,
 	.channels_max =		2,
-	.buffer_bytes_max =	((65536 - 64) * 8),
+	.buffer_bytes_max =	65536 - 128,
 	.period_bytes_min =	64,
-	.period_bytes_max =	(65536 - 64),
+	.period_bytes_max =	32768 - 64,
 	.periods_min =		2,
 	.periods_max =		2,
 	.fifo_size =		0,
@@ -1319,7 +1319,6 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
         }
 
 	pcm->info_flags = 0;
-	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, "CA0106");
 
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
@@ -1877,7 +1876,7 @@ static int snd_ca0106_resume(struct pci_dev *pci)
 
 // PCI IDs
 static struct pci_device_id snd_ca0106_ids[] = {
-	{ 0x1102, 0x0007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },	/* Audigy LS or Live 24bit */
+	{ PCI_VDEVICE(CREATIVE, 0x0007), 0 },	/* Audigy LS or Live 24bit */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, snd_ca0106_ids);

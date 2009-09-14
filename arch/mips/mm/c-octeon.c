@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
@@ -288,7 +289,7 @@ static void  cache_parity_error_octeon(int non_recoverable)
 }
 
 /**
- * Called when the the exception is not recoverable
+ * Called when the the exception is recoverable
  */
 
 asmlinkage void cache_parity_error_octeon_recoverable(void)
@@ -297,7 +298,7 @@ asmlinkage void cache_parity_error_octeon_recoverable(void)
 }
 
 /**
- * Called when the the exception is recoverable
+ * Called when the the exception is not recoverable
  */
 
 asmlinkage void cache_parity_error_octeon_non_recoverable(void)

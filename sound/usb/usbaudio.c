@@ -627,6 +627,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 	subs->hwptr_done += offs;
 	if (subs->hwptr_done >= runtime->buffer_size)
 		subs->hwptr_done -= runtime->buffer_size;
+	runtime->delay += offs;
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = offs * stride;
 	if (period_elapsed)
@@ -636,12 +637,22 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 
 /*
  * process after playback data complete
- * - nothing to do
+ * - decrease the delay count again
  */
 static int retire_playback_urb(struct snd_usb_substream *subs,
 			       struct snd_pcm_runtime *runtime,
 			       struct urb *urb)
 {
+	unsigned long flags;
+	int stride = runtime->frame_bits >> 3;
+	int processed = urb->transfer_buffer_length / stride;
+
+	spin_lock_irqsave(&subs->lock, flags);
+	if (processed > runtime->delay)
+		runtime->delay = 0;
+	else
+		runtime->delay -= processed;
+	spin_unlock_irqrestore(&subs->lock, flags);
 	return 0;
 }
 
@@ -1520,6 +1531,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->hwptr_done = 0;
 	subs->transfer_done = 0;
 	subs->phase = 0;
+	runtime->delay = 0;
 
 	/* clear urbs (to be sure) */
 	deactivate_urbs(subs, 0, 1);
@@ -2649,7 +2661,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 	struct usb_interface_descriptor *altsd;
 	int i, altno, err, stream;
 	int format;
-	struct audioformat *fp;
+	struct audioformat *fp = NULL;
 	unsigned char *fmt, *csep;
 	int num;
 
@@ -2721,6 +2733,18 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 				   dev->devnum, iface_no, altno);
 			continue;
 		}
+
+		/*
+		 * Blue Microphones workaround: The last altsetting is identical
+		 * with the previous one, except for a larger packet size, but
+		 * is actually a mislabeled two-channel setting; ignore it.
+		 */
+		if (fmt[4] == 1 && fmt[5] == 2 && altno == 2 && num == 3 &&
+		    fp && fp->altsetting == 1 && fp->channels == 1 &&
+		    fp->format == SNDRV_PCM_FORMAT_S16_LE &&
+		    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) ==
+							fp->maxpacksize * 2)
+			continue;
 
 		csep = snd_usb_find_desc(alts->endpoint[0].extra, alts->endpoint[0].extralen, NULL, USB_DT_CS_ENDPOINT);
 		/* Creamware Noah has this descriptor after the 2nd endpoint */
@@ -3279,6 +3303,25 @@ static int snd_usb_cm106_boot_quirk(struct usb_device *dev)
 	return snd_usb_cm106_write_int_reg(dev, 2, 0x8004);
 }
 
+/*
+ * C-Media CM6206 is based on CM106 with two additional
+ * registers that are not documented in the data sheet.
+ * Values here are chosen based on sniffing USB traffic
+ * under Windows.
+ */
+static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
+{
+	int err, reg;
+	int val[] = {0x200c, 0x3000, 0xf800, 0x143f, 0x0000, 0x3000};
+
+	for (reg = 0; reg < ARRAY_SIZE(val); reg++) {
+		err = snd_usb_cm106_write_int_reg(dev, reg, val[reg]);
+		if (err < 0)
+			return err;
+	}
+
+	return err;
+}
 
 /*
  * Setup quirks
@@ -3562,6 +3605,12 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	/* C-Media CM106 / Turtle Beach Audio Advantage Roadie */
 	if (id == USB_ID(0x10f5, 0x0200)) {
 		if (snd_usb_cm106_boot_quirk(dev) < 0)
+			goto __err_val;
+	}
+
+	/* C-Media CM6206 / CM106-Like Sound Device */
+	if (id == USB_ID(0x0d8c, 0x0102)) {
+		if (snd_usb_cm6206_boot_quirk(dev) < 0)
 			goto __err_val;
 	}
 

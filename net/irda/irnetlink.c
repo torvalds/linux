@@ -87,7 +87,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 	if (!dev)
 		return -ENODEV;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
 		dev_put(dev);
 		return -ENOMEM;
@@ -148,21 +148,8 @@ static struct genl_ops irda_nl_ops[] = {
 
 int irda_nl_register(void)
 {
-	int err, i;
-
-	err = genl_register_family(&irda_nl_family);
-	if (err)
-		return err;
-
-	for (i = 0; i < ARRAY_SIZE(irda_nl_ops); i++) {
-		err = genl_register_ops(&irda_nl_family, &irda_nl_ops[i]);
-		if (err)
-			goto err_out;
-	}
-	return 0;
- err_out:
-	genl_unregister_family(&irda_nl_family);
-	return err;
+	return genl_register_family_with_ops(&irda_nl_family,
+		irda_nl_ops, ARRAY_SIZE(irda_nl_ops));
 }
 
 void irda_nl_unregister(void)

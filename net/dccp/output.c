@@ -196,7 +196,7 @@ void dccp_write_space(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+	if (sk_has_sleeper(sk))
 		wake_up_interruptible(sk->sk_sleep);
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
@@ -350,7 +350,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	/* Reserve space for headers. */
 	skb_reserve(skb, sk->sk_prot->max_header);
 
-	skb->dst = dst_clone(dst);
+	skb_dst_set(skb, dst_clone(dst));
 
 	dreq = dccp_rsk(req);
 	if (inet_rsk(req)->acked)	/* increase ISS upon retransmission */

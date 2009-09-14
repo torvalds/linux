@@ -37,13 +37,6 @@
 
 #include "rt_config.h"
 
-
-#ifdef MULTIPLE_CARD_SUPPORT
-// record whether the card in the card list is used in the card file
-extern UINT8  MC_CardUsed[];
-#endif // MULTIPLE_CARD_SUPPORT //
-
-
 extern INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 									IN UINT argc, OUT PRTMP_ADAPTER *ppAd);
 
@@ -110,13 +103,10 @@ static struct pci_device_id rt2860_pci_tbl[] __devinitdata =
 };
 
 MODULE_DEVICE_TABLE(pci, rt2860_pci_tbl);
-#ifdef CONFIG_STA_SUPPORT
 MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
-#endif // CONFIG_STA_SUPPORT //
-
 
 //
 // Our PCI driver structure
@@ -328,14 +318,6 @@ static VOID __devexit rt2860_remove_one(
 
 	if (pAd != NULL)
 	{
-#ifdef MULTIPLE_CARD_SUPPORT
-		if ((pAd->MC_RowID >= 0) && (pAd->MC_RowID <= MAX_NUM_OF_MULTIPLE_CARD))
-			MC_CardUsed[pAd->MC_RowID] = 0; // not clear MAC address
-#endif // MULTIPLE_CARD_SUPPORT //
-
-
-
-
 		// Unregister network device
 		unregister_netdev(net_dev);
 
@@ -494,10 +476,8 @@ static void rx_done_tasklet(unsigned long data)
     pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pAd->int_pending &= ~(INT_RX);
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		bReschedule = STARxDoneInterruptHandle(pAd, 0);
-#endif // CONFIG_STA_SUPPORT //
+
+	bReschedule = STARxDoneInterruptHandle(pAd, 0);
 
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
 	/*
@@ -933,15 +913,8 @@ rt2860_interrupt(int irq, void *dev_instance)
 		RTMPHandleTBTTInterrupt(pAd);
 	}
 
-
-
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		if (IntSource.word & AutoWakeupInt)
-			RTMPHandleTwakeupInterrupt(pAd);
-	}
-#endif // CONFIG_STA_SUPPORT //
+	if (IntSource.word & AutoWakeupInt)
+		RTMPHandleTwakeupInterrupt(pAd);
 
     return  IRQ_HANDLED;
 }
@@ -1182,9 +1155,7 @@ VOID RT28xx_UpdateBeaconToAsic(
 	else
 	{
 		ptr = (PUCHAR)&pAd->BeaconTxWI;
-#ifdef RT_BIG_ENDIAN
-		RTMPWIEndianChange(ptr, TYPE_TXWI);
-#endif
+
 		for (i=0; i<TXWI_SIZE; i+=4)  // 16-byte TXWI field
 		{
 			UINT32 longptr =  *ptr + (*(ptr+1)<<8) + (*(ptr+2)<<16) + (*(ptr+3)<<24);
@@ -1212,7 +1183,6 @@ VOID RT28xx_UpdateBeaconToAsic(
 
 }
 
-#ifdef CONFIG_STA_SUPPORT
 VOID RTMPInitPCIeLinkCtrlValue(
 	IN	PRTMP_ADAPTER	pAd)
 {
@@ -1256,7 +1226,6 @@ VOID RTMPPCIeLinkCtrlSetting(
 	IN 	USHORT		Max)
 {
 }
-#endif // CONFIG_STA_SUPPORT //
 
 VOID rt2860_stop(struct net_device *net_dev)
 {

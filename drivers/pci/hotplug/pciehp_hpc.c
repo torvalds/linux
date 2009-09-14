@@ -422,35 +422,6 @@ static int hpc_query_power_fault(struct slot *slot)
 	return !!(slot_status & PCI_EXP_SLTSTA_PFD);
 }
 
-static int hpc_get_emi_status(struct slot *slot, u8 *status)
-{
-	struct controller *ctrl = slot->ctrl;
-	u16 slot_status;
-	int retval;
-
-	retval = pciehp_readw(ctrl, PCI_EXP_SLTSTA, &slot_status);
-	if (retval) {
-		ctrl_err(ctrl, "Cannot check EMI status\n");
-		return retval;
-	}
-	*status = !!(slot_status & PCI_EXP_SLTSTA_EIS);
-	return retval;
-}
-
-static int hpc_toggle_emi(struct slot *slot)
-{
-	u16 slot_cmd;
-	u16 cmd_mask;
-	int rc;
-
-	slot_cmd = PCI_EXP_SLTCTL_EIC;
-	cmd_mask = PCI_EXP_SLTCTL_EIC;
-	rc = pcie_write_cmd(slot->ctrl, slot_cmd, cmd_mask);
-	slot->last_emi_toggle = get_seconds();
-
-	return rc;
-}
-
 static int hpc_set_attention_status(struct slot *slot, u8 value)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -874,8 +845,6 @@ static struct hpc_ops pciehp_hpc_ops = {
 	.get_attention_status		= hpc_get_attention_status,
 	.get_latch_status		= hpc_get_latch_status,
 	.get_adapter_status		= hpc_get_adapter_status,
-	.get_emi_status			= hpc_get_emi_status,
-	.toggle_emi			= hpc_toggle_emi,
 
 	.get_max_bus_speed		= hpc_get_max_lnk_speed,
 	.get_cur_bus_speed		= hpc_get_cur_lnk_speed,

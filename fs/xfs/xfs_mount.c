@@ -960,6 +960,53 @@ xfs_check_sizes(xfs_mount_t *mp)
 }
 
 /*
+ * Clear the quotaflags in memory and in the superblock.
+ */
+int
+xfs_mount_reset_sbqflags(
+	struct xfs_mount	*mp)
+{
+	int			error;
+	struct xfs_trans	*tp;
+
+	mp->m_qflags = 0;
+
+	/*
+	 * It is OK to look at sb_qflags here in mount path,
+	 * without m_sb_lock.
+	 */
+	if (mp->m_sb.sb_qflags == 0)
+		return 0;
+	spin_lock(&mp->m_sb_lock);
+	mp->m_sb.sb_qflags = 0;
+	spin_unlock(&mp->m_sb_lock);
+
+	/*
+	 * If the fs is readonly, let the incore superblock run
+	 * with quotas off but don't flush the update out to disk
+	 */
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
+		return 0;
+
+#ifdef QUOTADEBUG
+	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");
+#endif
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
+	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
+				      XFS_DEFAULT_LOG_COUNT);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		xfs_fs_cmn_err(CE_ALERT, mp,
+			"xfs_mount_reset_sbqflags: Superblock update failed!");
+		return error;
+	}
+
+	xfs_mod_sb(tp, XFS_SB_QFLAGS);
+	return xfs_trans_commit(tp, 0);
+}
+
+/*
  * This function does the following on an initial mount of a file system:
  *	- reads the superblock from disk and init the mount struct
  *	- if we're a 32-bit kernel, do a size check on the superblock
@@ -976,7 +1023,8 @@ xfs_mountfs(
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	xfs_inode_t	*rip;
 	__uint64_t	resblks;
-	uint		quotamount, quotaflags;
+	uint		quotamount = 0;
+	uint		quotaflags = 0;
 	int		error = 0;
 
 	xfs_mount_common(mp, sbp);
@@ -1210,9 +1258,28 @@ xfs_mountfs(
 	/*
 	 * Initialise the XFS quota management subsystem for this mount
 	 */
-	error = XFS_QM_INIT(mp, &quotamount, &quotaflags);
-	if (error)
-		goto out_rtunmount;
+	if (XFS_IS_QUOTA_RUNNING(mp)) {
+		error = xfs_qm_newmount(mp, &quotamount, &quotaflags);
+		if (error)
+			goto out_rtunmount;
+	} else {
+		ASSERT(!XFS_IS_QUOTA_ON(mp));
+
+		/*
+		 * If a file system had quotas running earlier, but decided to
+		 * mount without -o uquota/pquota/gquota options, revoke the
+		 * quotachecked license.
+		 */
+		if (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT) {
+			cmn_err(CE_NOTE,
+				"XFS: resetting qflags for filesystem %s",
+				mp->m_fsname);
+
+			error = xfs_mount_reset_sbqflags(mp);
+			if (error)
+				return error;
+		}
+	}
 
 	/*
 	 * Finish recovering the file system.  This part needed to be
@@ -1228,9 +1295,19 @@ xfs_mountfs(
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
-	error = XFS_QM_MOUNT(mp, quotamount, quotaflags);
-	if (error)
-		goto out_rtunmount;
+	if (quotamount) {
+		ASSERT(mp->m_qflags == 0);
+		mp->m_qflags = quotaflags;
+
+		xfs_qm_mount_quotas(mp);
+	}
+
+#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
+	if (XFS_IS_QUOTA_ON(mp))
+		xfs_fs_cmn_err(CE_NOTE, mp, "Disk quotas turned on");
+	else
+		xfs_fs_cmn_err(CE_NOTE, mp, "Disk quotas not turned on");
+#endif
 
 	/*
 	 * Now we are mounted, reserve a small amount of unused space for
@@ -1279,12 +1356,7 @@ xfs_unmountfs(
 	__uint64_t		resblks;
 	int			error;
 
-	/*
-	 * Release dquot that rootinode, rbmino and rsumino might be holding,
-	 * and release the quota inodes.
-	 */
-	XFS_QM_UNMOUNT(mp);
-
+	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
 	IRELE(mp->m_rootip);
 
@@ -1299,12 +1371,9 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
-	xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_ASYNC);
+	xfs_reclaim_inodes(mp, XFS_IFLUSH_ASYNC);
 
-	XFS_QM_DQPURGEALL(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_UMOUNTING);
-
-	if (mp->m_quotainfo)
-		XFS_QM_DONE(mp);
+	xfs_qm_unmount(mp);
 
 	/*
 	 * Flush out the log synchronously so that we know for sure

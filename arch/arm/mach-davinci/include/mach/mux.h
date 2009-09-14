@@ -19,16 +19,6 @@
 #ifndef __INC_MACH_MUX_H
 #define __INC_MACH_MUX_H
 
-/* System module registers */
-#define PINMUX0			0x00
-#define PINMUX1			0x04
-/* dm355 only */
-#define PINMUX2			0x08
-#define PINMUX3			0x0c
-#define PINMUX4			0x10
-#define INTMUX			0x18
-#define EVTMUX			0x1c
-
 struct mux_config {
 	const char *name;
 	const char *mux_reg_name;
@@ -168,15 +158,9 @@ enum davinci_dm355_index {
 
 #ifdef CONFIG_DAVINCI_MUX
 /* setup pin muxing */
-extern void davinci_mux_init(void);
-extern int davinci_mux_register(const struct mux_config *pins,
-				unsigned long size);
 extern int davinci_cfg_reg(unsigned long reg_cfg);
 #else
 /* boot loader does it all (no warnings from CONFIG_DAVINCI_MUX_WARNINGS) */
-static inline void davinci_mux_init(void) {}
-static inline int davinci_mux_register(const struct mux_config *pins,
-				       unsigned long size) { return 0; }
 static inline int davinci_cfg_reg(unsigned long reg_cfg) { return 0; }
 #endif
 

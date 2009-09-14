@@ -28,6 +28,28 @@
 #include <linux/prctl.h>
 #include <linux/securebits.h>
 
+/*
+ * If a non-root user executes a setuid-root binary in
+ * !secure(SECURE_NOROOT) mode, then we raise capabilities.
+ * However if fE is also set, then the intent is for only
+ * the file capabilities to be applied, and the setuid-root
+ * bit is left on either to change the uid (plausible) or
+ * to get full privilege on a kernel without file capabilities
+ * support.  So in that case we do not raise capabilities.
+ *
+ * Warn if that happens, once per boot.
+ */
+static void warn_setuid_and_fcaps_mixed(char *fname)
+{
+	static int warned;
+	if (!warned) {
+		printk(KERN_INFO "warning: `%s' has both setuid-root and"
+			" effective capabilities. Therefore not raising all"
+			" capabilities.\n", fname);
+		warned = 1;
+	}
+}
+
 int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	NETLINK_CB(skb).eff_cap = current_cap();
@@ -464,6 +486,15 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 
 	if (!issecure(SECURE_NOROOT)) {
 		/*
+		 * If the legacy file capability is set, then don't set privs
+		 * for a setuid root binary run by a non-root user.  Do set it
+		 * for a root user just to cause least surprise to an admin.
+		 */
+		if (effective && new->uid != 0 && new->euid == 0) {
+			warn_setuid_and_fcaps_mixed(bprm->filename);
+			goto skip;
+		}
+		/*
 		 * To support inheritance of root-permissions and suid-root
 		 * executables under compatibility mode, we override the
 		 * capability sets for the file.
@@ -478,6 +509,7 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 		if (new->euid == 0)
 			effective = true;
 	}
+skip:
 
 	/* Don't let someone trace a set[ug]id/setpcap binary with the revised
 	 * credentials unless they have the appropriate permit
@@ -951,4 +983,34 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 			SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
+}
+
+/*
+ * cap_file_mmap - check if able to map given addr
+ * @file: unused
+ * @reqprot: unused
+ * @prot: unused
+ * @flags: unused
+ * @addr: address attempting to be mapped
+ * @addr_only: unused
+ *
+ * If the process is attempting to map memory below mmap_min_addr they need
+ * CAP_SYS_RAWIO.  The other parameters to this function are unused by the
+ * capability security module.  Returns 0 if this mapping should be allowed
+ * -EPERM if not.
+ */
+int cap_file_mmap(struct file *file, unsigned long reqprot,
+		  unsigned long prot, unsigned long flags,
+		  unsigned long addr, unsigned long addr_only)
+{
+	int ret = 0;
+
+	if (addr < dac_mmap_min_addr) {
+		ret = cap_capable(current, current_cred(), CAP_SYS_RAWIO,
+				  SECURITY_CAP_AUDIT);
+		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
+		if (ret == 0)
+			current->flags |= PF_SUPERPRIV;
+	}
+	return ret;
 }

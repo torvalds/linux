@@ -137,7 +137,7 @@ int rds_iw_ring_empty(struct rds_iw_work_ring *ring)
 
 int rds_iw_ring_low(struct rds_iw_work_ring *ring)
 {
-	return __rds_iw_ring_used(ring) <= (ring->w_nr >> 2);
+	return __rds_iw_ring_used(ring) <= (ring->w_nr >> 1);
 }
 
 

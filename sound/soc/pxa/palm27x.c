@@ -205,7 +205,7 @@ static int palm27x_asoc_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!(machine_is_palmtx() || machine_is_palmt5() ||
-		machine_is_palmld()))
+		machine_is_palmld() || machine_is_palmte2()))
 		return -ENODEV;
 
 	if (pdev->dev.platform_data)

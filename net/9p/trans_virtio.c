@@ -57,11 +57,9 @@ static int chan_index;
  * @initialized: whether the channel is initialized
  * @inuse: whether the channel is in use
  * @lock: protects multiple elements within this structure
+ * @client: client instance
  * @vdev: virtio dev associated with this channel
  * @vq: virtio queue associated with this channel
- * @tagpool: accounting for tag ids (and request slots)
- * @reqs: array of request slots
- * @max_tag: current number of request_slots allocated
  * @sg: scatter gather list which is used to pack a request (protected?)
  *
  * We keep all per-channel information in a structure.
@@ -92,7 +90,7 @@ static unsigned int rest_of_page(void *data)
 
 /**
  * p9_virtio_close - reclaim resources of a channel
- * @trans: transport state
+ * @client: client instance
  *
  * This reclaims a channel by freeing its resources and
  * reseting its inuse flag.
@@ -181,9 +179,8 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 
 /**
  * p9_virtio_request - issue a request
- * @t: transport state
- * @tc: &p9_fcall request to transmit
- * @rc: &p9_fcall to put reponse into
+ * @client: client instance issuing the request
+ * @req: request to be issued
  *
  */
 
@@ -246,7 +243,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	chan->vdev = vdev;
 
 	/* We expect one virtqueue, for requests. */
-	chan->vq = vdev->config->find_vq(vdev, 0, req_done);
+	chan->vq = virtio_find_single_vq(vdev, req_done, "requests");
 	if (IS_ERR(chan->vq)) {
 		err = PTR_ERR(chan->vq);
 		goto out_free_vq;
@@ -261,7 +258,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	return 0;
 
 out_free_vq:
-	vdev->config->del_vq(chan->vq);
+	vdev->config->del_vqs(vdev);
 fail:
 	mutex_lock(&virtio_9p_lock);
 	chan_index--;
@@ -332,7 +329,7 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 	BUG_ON(chan->inuse);
 
 	if (chan->initialized) {
-		vdev->config->del_vq(chan->vq);
+		vdev->config->del_vqs(vdev);
 		chan->initialized = false;
 	}
 }

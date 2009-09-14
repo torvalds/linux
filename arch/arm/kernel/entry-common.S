@@ -148,7 +148,7 @@ trace:
 	sub r0, r0, #MCOUNT_INSN_SIZE
 	mov lr, pc
 	mov pc, r2
-	mov lr, r1				@ restore lr
+	ldr lr, [fp, #-4]			@ restore lr
 	ldmia sp!, {r0-r3, pc}
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
@@ -209,6 +209,9 @@ ENTRY(vector_swi)
   A710(	and	ip, r10, #0x0f000000		@ check for SWI		)
   A710(	teq	ip, #0x0f000000						)
   A710(	bne	.Larm710bug						)
+#endif
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	rev	r10, r10			@ little endian instruction
 #endif
 
 #elif defined(CONFIG_AEABI)

@@ -103,7 +103,7 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 				ide_finish_cmd(drive, cmd, stat);
 			else
 				ide_complete_rq(drive, 0,
-						cmd->rq->nr_sectors << 9);
+						blk_rq_sectors(cmd->rq) << 9);
 			return ide_stopped;
 		}
 		printk(KERN_ERR "%s: %s: bad DMA status (0x%02x)\n",
@@ -347,7 +347,6 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 
 	return mode;
 }
-EXPORT_SYMBOL_GPL(ide_find_dma_mode);
 
 static int ide_tune_dma(ide_drive_t *drive)
 {
@@ -360,9 +359,6 @@ static int ide_tune_dma(ide_drive_t *drive)
 
 	/* consult the list of known "bad" drives */
 	if (__ide_dma_bad_drive(drive))
-		return 0;
-
-	if (ide_id_dma_bug(drive))
 		return 0;
 
 	if (hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
@@ -393,24 +389,6 @@ static int ide_dma_check(ide_drive_t *drive)
 	ide_set_max_pio(drive);
 
 	return -1;
-}
-
-int ide_id_dma_bug(ide_drive_t *drive)
-{
-	u16 *id = drive->id;
-
-	if (id[ATA_ID_FIELD_VALID] & 4) {
-		if ((id[ATA_ID_UDMA_MODES] >> 8) &&
-		    (id[ATA_ID_MWDMA_MODES] >> 8))
-			goto err_out;
-	} else if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
-		   (id[ATA_ID_SWDMA_MODES] >> 8))
-		goto err_out;
-
-	return 0;
-err_out:
-	printk(KERN_ERR "%s: bad DMA info in identify block\n", drive->name);
-	return 1;
 }
 
 int ide_set_dma(ide_drive_t *drive)
@@ -510,23 +488,11 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	/*
 	 * un-busy drive etc and make sure request is sane
 	 */
-
 	rq = hwif->rq;
-	if (!rq)
-		goto out;
-
-	hwif->rq = NULL;
-
-	rq->errors = 0;
-
-	if (!rq->bio)
-		goto out;
-
-	rq->sector = rq->bio->bi_sector;
-	rq->current_nr_sectors = bio_iovec(rq->bio)->bv_len >> 9;
-	rq->hard_cur_sectors = rq->current_nr_sectors;
-	rq->buffer = bio_data(rq->bio);
-out:
+	if (rq) {
+		hwif->rq = NULL;
+		rq->errors = 0;
+	}
 	return ret;
 }
 

@@ -30,19 +30,6 @@ pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->end = region->end;
 }
 
-static inline struct resource *
-pcibios_select_root(struct pci_dev *pdev, struct resource *res)
-{
-	struct resource *root = NULL;
-
-	if (res->flags & IORESOURCE_IO)
-		root = &ioport_resource;
-	if (res->flags & IORESOURCE_MEM)
-		root = &iomem_resource;
-
-	return root;
-}
-
 #define pcibios_scan_all_fns(a, b)	0
 
 #ifndef HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ
@@ -52,4 +39,12 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 #endif /* HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ */
 
+/*
+ * By default, assume that no iommu is in use and that the PCI
+ * space is mapped to address physical 0.
+ */
+#ifndef PCI_DMA_BUS_IS_PHYS
+#define PCI_DMA_BUS_IS_PHYS	(1)
 #endif
+
+#endif /* _ASM_GENERIC_PCI_H */

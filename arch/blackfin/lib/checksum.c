@@ -116,6 +116,7 @@ __sum16 ip_compute_csum(const void *buff, int len)
 {
 	return (__force __sum16)~do_csum(buff, len);
 }
+EXPORT_SYMBOL(ip_compute_csum);
 
 /*
  * copy from fs while checksumming, otherwise like csum_partial
@@ -130,6 +131,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 	memcpy(dst, (__force void *)src, len);
 	return csum_partial(dst, len, sum);
 }
+EXPORT_SYMBOL(csum_partial_copy_from_user);
 
 /*
  * copy from ds while checksumming, otherwise like csum_partial

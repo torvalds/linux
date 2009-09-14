@@ -36,7 +36,7 @@
 #include <mach/pxa27x.h>
 #include <mach/magician.h>
 #include <mach/pxafb.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
@@ -745,6 +745,14 @@ static struct platform_device strataflash = {
 };
 
 /*
+ * I2C
+ */
+
+static struct i2c_pxa_platform_data i2c_info = {
+	.fast_mode = 1,
+};
+
+/*
  * Platform devices
  */
 
@@ -771,7 +779,7 @@ static void __init magician_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(devices));
 
 	err = gpio_request(GPIO83_MAGICIAN_nIR_EN, "nIR_EN");
 	if (!err) {
@@ -779,7 +787,7 @@ static void __init magician_init(void)
 		pxa_set_ficp_info(&magician_ficp_info);
 	}
 	pxa27x_set_i2c_power_info(NULL);
-	pxa_set_i2c_info(NULL);
+	pxa_set_i2c_info(&i2c_info);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
 

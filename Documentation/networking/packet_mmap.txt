@@ -4,16 +4,18 @@
 
 This file documents the CONFIG_PACKET_MMAP option available with the PACKET
 socket interface on 2.4 and 2.6 kernels. This type of sockets is used for 
-capture network traffic with utilities like tcpdump or any other that uses 
-the libpcap library. 
+capture network traffic with utilities like tcpdump or any other that needs
+raw access to network interface.
 
-You can find the latest version of this document at
-
+You can find the latest version of this document at:
     http://pusa.uv.es/~ulisses/packet_mmap/
 
-Please send me your comments to
+Howto can be found at:
+    http://wiki.gnu-log.net (packet_mmap)
 
+Please send your comments to
     Ulisses Alonso Camaró <uaca@i.hate.spam.alumni.uv.es>
+    Johann Baudy <johann.baudy@gnu-log.net>
 
 -------------------------------------------------------------------------------
 + Why use PACKET_MMAP
@@ -25,19 +27,24 @@ to capture each packet, it requires two if you want to get packet's
 timestamp (like libpcap always does).
 
 In the other hand PACKET_MMAP is very efficient. PACKET_MMAP provides a size 
-configurable circular buffer mapped in user space. This way reading packets just 
-needs to wait for them, most of the time there is no need to issue a single 
-system call. By using a shared buffer between the kernel and the user 
-also has the benefit of minimizing packet copies.
+configurable circular buffer mapped in user space that can be used to either
+send or receive packets. This way reading packets just needs to wait for them,
+most of the time there is no need to issue a single system call. Concerning
+transmission, multiple packets can be sent through one system call to get the
+highest bandwidth.
+By using a shared buffer between the kernel and the user also has the benefit
+of minimizing packet copies.
 
-It's fine to use PACKET_MMAP to improve the performance of the capture process, 
-but it isn't everything. At least, if you are capturing at high speeds (this 
-is relative to the cpu speed), you should check if the device driver of your 
-network interface card supports some sort of interrupt load mitigation or 
-(even better) if it supports NAPI, also make sure it is enabled.
+It's fine to use PACKET_MMAP to improve the performance of the capture and
+transmission process, but it isn't everything. At least, if you are capturing
+at high speeds (this is relative to the cpu speed), you should check if the
+device driver of your network interface card supports some sort of interrupt
+load mitigation or (even better) if it supports NAPI, also make sure it is
+enabled. For transmission, check the MTU (Maximum Transmission Unit) used and
+supported by devices of your network.
 
 --------------------------------------------------------------------------------
-+ How to use CONFIG_PACKET_MMAP
++ How to use CONFIG_PACKET_MMAP to improve capture process
 --------------------------------------------------------------------------------
 
 From the user standpoint, you should use the higher level libpcap library, which
@@ -57,7 +64,7 @@ the low level details or want to improve libpcap by including PACKET_MMAP
 support.
 
 --------------------------------------------------------------------------------
-+ How to use CONFIG_PACKET_MMAP directly
++ How to use CONFIG_PACKET_MMAP directly to improve capture process
 --------------------------------------------------------------------------------
 
 From the system calls stand point, the use of PACKET_MMAP involves
@@ -66,6 +73,7 @@ the following process:
 
 [setup]     socket() -------> creation of the capture socket
             setsockopt() ---> allocation of the circular buffer (ring)
+                              option: PACKET_RX_RING
             mmap() ---------> mapping of the allocated buffer to the
                               user process
 
@@ -97,13 +105,75 @@ also the mapping of the circular buffer in the user process and
 the use of this buffer.
 
 --------------------------------------------------------------------------------
++ How to use CONFIG_PACKET_MMAP directly to improve transmission process
+--------------------------------------------------------------------------------
+Transmission process is similar to capture as shown below.
+
+[setup]          socket() -------> creation of the transmission socket
+                 setsockopt() ---> allocation of the circular buffer (ring)
+                                   option: PACKET_TX_RING
+                 bind() ---------> bind transmission socket with a network interface
+                 mmap() ---------> mapping of the allocated buffer to the
+                                   user process
+
+[transmission]   poll() ---------> wait for free packets (optional)
+                 send() ---------> send all packets that are set as ready in
+                                   the ring
+                                   The flag MSG_DONTWAIT can be used to return
+                                   before end of transfer.
+
+[shutdown]  close() --------> destruction of the transmission socket and
+                              deallocation of all associated resources.
+
+Binding the socket to your network interface is mandatory (with zero copy) to
+know the header size of frames used in the circular buffer.
+
+As capture, each frame contains two parts:
+
+ --------------------
+| struct tpacket_hdr | Header. It contains the status of
+|                    | of this frame
+|--------------------|
+| data buffer        |
+.                    .  Data that will be sent over the network interface.
+.                    .
+ --------------------
+
+ bind() associates the socket to your network interface thanks to
+ sll_ifindex parameter of struct sockaddr_ll.
+
+ Initialization example:
+
+ struct sockaddr_ll my_addr;
+ struct ifreq s_ifr;
+ ...
+
+ strncpy (s_ifr.ifr_name, "eth0", sizeof(s_ifr.ifr_name));
+
+ /* get interface index of eth0 */
+ ioctl(this->socket, SIOCGIFINDEX, &s_ifr);
+
+ /* fill sockaddr_ll struct to prepare binding */
+ my_addr.sll_family = AF_PACKET;
+ my_addr.sll_protocol = ETH_P_ALL;
+ my_addr.sll_ifindex =  s_ifr.ifr_ifindex;
+
+ /* bind socket to eth0 */
+ bind(this->socket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr_ll));
+
+ A complete tutorial is available at: http://wiki.gnu-log.net/
+
+--------------------------------------------------------------------------------
 + PACKET_MMAP settings
 --------------------------------------------------------------------------------
 
 
 To setup PACKET_MMAP from user level code is done with a call like
 
+ - Capture process
      setsockopt(fd, SOL_PACKET, PACKET_RX_RING, (void *) &req, sizeof(req))
+ - Transmission process
+     setsockopt(fd, SOL_PACKET, PACKET_TX_RING, (void *) &req, sizeof(req))
 
 The most significant argument in the previous call is the req parameter, 
 this parameter must to have the following structure:
@@ -117,11 +187,11 @@ this parameter must to have the following structure:
     };
 
 This structure is defined in /usr/include/linux/if_packet.h and establishes a 
-circular buffer (ring) of unswappable memory mapped in the capture process. 
+circular buffer (ring) of unswappable memory.
 Being mapped in the capture process allows reading the captured frames and 
 related meta-information like timestamps without requiring a system call.
 
-Captured frames are grouped in blocks. Each block is a physically contiguous 
+Frames are grouped in blocks. Each block is a physically contiguous
 region of memory and holds tp_block_size/tp_frame_size frames. The total number 
 of blocks is tp_block_nr. Note that tp_frame_nr is a redundant parameter because
 
@@ -336,6 +406,7 @@ struct tpacket_hdr). If this field is 0 means that the frame is ready
 to be used for the kernel, If not, there is a frame the user can read 
 and the following flags apply:
 
++++ Capture process:
      from include/linux/if_packet.h
 
      #define TP_STATUS_COPY          2 
@@ -390,6 +461,37 @@ packets are in the ring:
 
 It doesn't incur in a race condition to first check the status value and 
 then poll for frames.
+
+
+++ Transmission process
+Those defines are also used for transmission:
+
+     #define TP_STATUS_AVAILABLE        0 // Frame is available
+     #define TP_STATUS_SEND_REQUEST     1 // Frame will be sent on next send()
+     #define TP_STATUS_SENDING          2 // Frame is currently in transmission
+     #define TP_STATUS_WRONG_FORMAT     4 // Frame format is not correct
+
+First, the kernel initializes all frames to TP_STATUS_AVAILABLE. To send a
+packet, the user fills a data buffer of an available frame, sets tp_len to
+current data buffer size and sets its status field to TP_STATUS_SEND_REQUEST.
+This can be done on multiple frames. Once the user is ready to transmit, it
+calls send(). Then all buffers with status equal to TP_STATUS_SEND_REQUEST are
+forwarded to the network device. The kernel updates each status of sent
+frames with TP_STATUS_SENDING until the end of transfer.
+At the end of each transfer, buffer status returns to TP_STATUS_AVAILABLE.
+
+    header->tp_len = in_i_size;
+    header->tp_status = TP_STATUS_SEND_REQUEST;
+    retval = send(this->socket, NULL, 0, 0);
+
+The user can also use poll() to check if a buffer is available:
+(status == TP_STATUS_SENDING)
+
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.revents = 0;
+    pfd.events = POLLOUT;
+    retval = poll(&pfd, 1, timeout);
 
 --------------------------------------------------------------------------------
 + THANKS

@@ -163,10 +163,6 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	inst_len = priv->ucode_init.len;
 	data_len = priv->ucode_init_data.len;
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
-
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
 	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
@@ -179,10 +175,8 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 		_iwl_write_prph(priv, reg_offset, le32_to_cpu(*image));
 
 	ret = iwl4965_verify_bsm(priv);
-	if (ret) {
-		iwl_release_nic_access(priv);
+	if (ret)
 		return ret;
-	}
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
@@ -211,7 +205,6 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	 *   (e.g. when powering back up after power-save shutdown) */
 	iwl_write_prph(priv, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START_EN);
 
-	iwl_release_nic_access(priv);
 
 	return 0;
 }
@@ -229,19 +222,11 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 {
 	dma_addr_t pinst;
 	dma_addr_t pdata;
-	unsigned long flags;
 	int ret = 0;
 
 	/* bits 35:4 for 4965 */
 	pinst = priv->ucode_code.p_addr >> 4;
 	pdata = priv->ucode_data_backup.p_addr >> 4;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Tell bootstrap uCode where to find image to load */
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
@@ -253,10 +238,6 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 	 *   that all new ptr/size info is in place */
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
-	iwl_release_nic_access(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	IWL_DEBUG_INFO(priv, "Runtime uCode pointers are set.\n");
 
 	return ret;
@@ -312,10 +293,12 @@ restart:
 	queue_work(priv->workqueue, &priv->restart);
 }
 
-static int is_fat_channel(__le32 rxon_flags)
+static bool is_fat_channel(__le32 rxon_flags)
 {
-	return (rxon_flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK) ||
-		(rxon_flags & RXON_FLG_CHANNEL_MODE_MIXED_MSK);
+	int chan_mod = le32_to_cpu(rxon_flags & RXON_FLG_CHANNEL_MODE_MSK)
+				    >> RXON_FLG_CHANNEL_MODE_POS;
+	return ((chan_mod == CHANNEL_MODE_PURE_40) ||
+		  (chan_mod == CHANNEL_MODE_MIXED));
 }
 
 /*
@@ -358,10 +341,6 @@ static int iwl4965_apm_init(struct iwl_priv *priv)
 		goto out;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
-
 	/* enable DMA */
 	iwl_write_prph(priv, APMG_CLK_CTRL_REG, APMG_CLK_VAL_DMA_CLK_RQT |
 						APMG_CLK_VAL_BSM_CLK_RQT);
@@ -372,7 +351,6 @@ static int iwl4965_apm_init(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_nic_access(priv);
 out:
 	return ret;
 }
@@ -454,11 +432,9 @@ static void iwl4965_apm_stop(struct iwl_priv *priv)
 static int iwl4965_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	iwl4965_apm_stop_master(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
@@ -475,9 +451,6 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 
 	udelay(10);
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
 	/* Enable DMA and BSM Clock */
 	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT |
 					      APMG_CLK_VAL_BSM_CLK_RQT);
@@ -488,14 +461,10 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_nic_access(priv);
-
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return ret;
 }
 
@@ -681,17 +650,10 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
 	unsigned long flags;
-	int ret;
 	int i, chan;
 	u32 reg_val;
 
 	spin_lock_irqsave(&priv->lock, flags);
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Clear 4965's internal Tx Scheduler data base */
 	priv->scd_base_addr = iwl_read_prph(priv, IWL49_SCD_SRAM_BASE_ADDR);
@@ -759,10 +721,9 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 		iwl4965_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
@@ -787,6 +748,12 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 	.nrg_th_cck = 100,
 	.nrg_th_ofdm = 100,
 };
+
+static void iwl4965_set_ct_threshold(struct iwl_priv *priv)
+{
+	/* want Kelvin */
+	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+}
 
 /**
  * iwl4965_hw_set_hw_params
@@ -822,7 +789,8 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.rx_chains_num = 2;
 	priv->hw_params.valid_tx_ant = ANT_A | ANT_B;
 	priv->hw_params.valid_rx_ant = ANT_A | ANT_B;
-	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
+		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
 	priv->hw_params.sens = &iwl4965_sensitivity;
 
@@ -1524,7 +1492,7 @@ static int iwl4965_send_tx_power(struct iwl_priv *priv)
 	struct iwl4965_txpowertable_cmd cmd = { 0 };
 	int ret;
 	u8 band = 0;
-	u8 is_fat = 0;
+	bool is_fat = false;
 	u8 ctrl_chan_high = 0;
 
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
@@ -1602,7 +1570,7 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
 	int rc;
 	u8 band = 0;
-	u8 is_fat = 0;
+	bool is_fat = false;
 	u8 ctrl_chan_high = 0;
 	struct iwl4965_channel_switch_cmd cmd = { 0 };
 	const struct iwl_channel_info *ch_info;
@@ -1833,8 +1801,6 @@ static void iwl4965_tx_queue_stop_scheduler(struct iwl_priv *priv,
 static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
-	int ret = 0;
-
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
 		IWL_WARN(priv,
@@ -1843,10 +1809,6 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
 	}
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
 
 	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
 
@@ -1860,8 +1822,6 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	iwl_clear_bits_prph(priv, IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv, txq_id);
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
-
-	iwl_release_nic_access(priv);
 
 	return 0;
 }
@@ -1904,7 +1864,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 				  int tx_fifo, int sta_id, int tid, u16 ssn_idx)
 {
 	unsigned long flags;
-	int ret;
 	u16 ra_tid;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
@@ -1922,11 +1881,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Stop this Tx queue before configuring it */
 	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
@@ -1959,7 +1913,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -2268,9 +2221,10 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->txpower_work);
 }
 
-
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
+	.commit_rxon = iwl_commit_rxon,
+	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
@@ -2323,7 +2277,13 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
-	.temperature = iwl4965_temperature_calib,
+	.post_associate = iwl_post_associate,
+	.config_ap = iwl_config_ap,
+	.isr = iwl_isr_legacy,
+	.temp_ops = {
+		.temperature = iwl4965_temperature_calib,
+		.set_ct_kill = iwl4965_set_ct_threshold,
+	},
 };
 
 static struct iwl_ops iwl4965_ops = {
@@ -2343,6 +2303,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
+	.use_isr_legacy = true
 };
 
 /* Module firmware */
@@ -2350,8 +2311,6 @@ MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(disable, iwl4965_mod_params.disable, int, 0444);
-MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(debug, iwl4965_mod_params.debug, uint, 0444);

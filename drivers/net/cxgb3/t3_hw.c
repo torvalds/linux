@@ -204,14 +204,13 @@ static void mi1_init(struct adapter *adap, const struct adapter_info *ai)
 /*
  * MI1 read/write operations for clause 22 PHYs.
  */
-static int t3_mi1_read(struct adapter *adapter, int phy_addr, int mmd_addr,
-		       int reg_addr, unsigned int *valp)
+static int t3_mi1_read(struct net_device *dev, int phy_addr, int mmd_addr,
+		       u16 reg_addr)
 {
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 	int ret;
 	u32 addr = V_REGADDR(reg_addr) | V_PHYADDR(phy_addr);
-
-	if (mmd_addr)
-		return -EINVAL;
 
 	mutex_lock(&adapter->mdio_lock);
 	t3_set_reg_field(adapter, A_MI1_CFG, V_ST(M_ST), V_ST(1));
@@ -219,19 +218,18 @@ static int t3_mi1_read(struct adapter *adapter, int phy_addr, int mmd_addr,
 	t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(2));
 	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 10);
 	if (!ret)
-		*valp = t3_read_reg(adapter, A_MI1_DATA);
+		ret = t3_read_reg(adapter, A_MI1_DATA);
 	mutex_unlock(&adapter->mdio_lock);
 	return ret;
 }
 
-static int t3_mi1_write(struct adapter *adapter, int phy_addr, int mmd_addr,
-		     int reg_addr, unsigned int val)
+static int t3_mi1_write(struct net_device *dev, int phy_addr, int mmd_addr,
+			u16 reg_addr, u16 val)
 {
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 	int ret;
 	u32 addr = V_REGADDR(reg_addr) | V_PHYADDR(phy_addr);
-
-	if (mmd_addr)
-		return -EINVAL;
 
 	mutex_lock(&adapter->mdio_lock);
 	t3_set_reg_field(adapter, A_MI1_CFG, V_ST(M_ST), V_ST(1));
@@ -244,8 +242,9 @@ static int t3_mi1_write(struct adapter *adapter, int phy_addr, int mmd_addr,
 }
 
 static const struct mdio_ops mi1_mdio_ops = {
-	t3_mi1_read,
-	t3_mi1_write
+	.read = t3_mi1_read,
+	.write = t3_mi1_write,
+	.mode_support = MDIO_SUPPORTS_C22
 };
 
 /*
@@ -268,9 +267,11 @@ static int mi1_wr_addr(struct adapter *adapter, int phy_addr, int mmd_addr,
 /*
  * MI1 read/write operations for indirect-addressed PHYs.
  */
-static int mi1_ext_read(struct adapter *adapter, int phy_addr, int mmd_addr,
-			int reg_addr, unsigned int *valp)
+static int mi1_ext_read(struct net_device *dev, int phy_addr, int mmd_addr,
+			u16 reg_addr)
 {
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 	int ret;
 
 	mutex_lock(&adapter->mdio_lock);
@@ -280,15 +281,17 @@ static int mi1_ext_read(struct adapter *adapter, int phy_addr, int mmd_addr,
 		ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0,
 				      MDIO_ATTEMPTS, 10);
 		if (!ret)
-			*valp = t3_read_reg(adapter, A_MI1_DATA);
+			ret = t3_read_reg(adapter, A_MI1_DATA);
 	}
 	mutex_unlock(&adapter->mdio_lock);
 	return ret;
 }
 
-static int mi1_ext_write(struct adapter *adapter, int phy_addr, int mmd_addr,
-			 int reg_addr, unsigned int val)
+static int mi1_ext_write(struct net_device *dev, int phy_addr, int mmd_addr,
+			 u16 reg_addr, u16 val)
 {
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 	int ret;
 
 	mutex_lock(&adapter->mdio_lock);
@@ -304,8 +307,9 @@ static int mi1_ext_write(struct adapter *adapter, int phy_addr, int mmd_addr,
 }
 
 static const struct mdio_ops mi1_mdio_ext_ops = {
-	mi1_ext_read,
-	mi1_ext_write
+	.read = mi1_ext_read,
+	.write = mi1_ext_write,
+	.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22
 };
 
 /**
@@ -325,10 +329,10 @@ int t3_mdio_change_bits(struct cphy *phy, int mmd, int reg, unsigned int clear,
 	int ret;
 	unsigned int val;
 
-	ret = mdio_read(phy, mmd, reg, &val);
+	ret = t3_mdio_read(phy, mmd, reg, &val);
 	if (!ret) {
 		val &= ~clear;
-		ret = mdio_write(phy, mmd, reg, val | set);
+		ret = t3_mdio_write(phy, mmd, reg, val | set);
 	}
 	return ret;
 }
@@ -348,15 +352,16 @@ int t3_phy_reset(struct cphy *phy, int mmd, int wait)
 	int err;
 	unsigned int ctl;
 
-	err = t3_mdio_change_bits(phy, mmd, MII_BMCR, BMCR_PDOWN, BMCR_RESET);
+	err = t3_mdio_change_bits(phy, mmd, MDIO_CTRL1, MDIO_CTRL1_LPOWER,
+				  MDIO_CTRL1_RESET);
 	if (err || !wait)
 		return err;
 
 	do {
-		err = mdio_read(phy, mmd, MII_BMCR, &ctl);
+		err = t3_mdio_read(phy, mmd, MDIO_CTRL1, &ctl);
 		if (err)
 			return err;
-		ctl &= BMCR_RESET;
+		ctl &= MDIO_CTRL1_RESET;
 		if (ctl)
 			msleep(1);
 	} while (ctl && --wait);
@@ -377,7 +382,7 @@ int t3_phy_advertise(struct cphy *phy, unsigned int advert)
 	int err;
 	unsigned int val = 0;
 
-	err = mdio_read(phy, 0, MII_CTRL1000, &val);
+	err = t3_mdio_read(phy, MDIO_DEVAD_NONE, MII_CTRL1000, &val);
 	if (err)
 		return err;
 
@@ -387,7 +392,7 @@ int t3_phy_advertise(struct cphy *phy, unsigned int advert)
 	if (advert & ADVERTISED_1000baseT_Full)
 		val |= ADVERTISE_1000FULL;
 
-	err = mdio_write(phy, 0, MII_CTRL1000, val);
+	err = t3_mdio_write(phy, MDIO_DEVAD_NONE, MII_CTRL1000, val);
 	if (err)
 		return err;
 
@@ -404,7 +409,7 @@ int t3_phy_advertise(struct cphy *phy, unsigned int advert)
 		val |= ADVERTISE_PAUSE_CAP;
 	if (advert & ADVERTISED_Asym_Pause)
 		val |= ADVERTISE_PAUSE_ASYM;
-	return mdio_write(phy, 0, MII_ADVERTISE, val);
+	return t3_mdio_write(phy, MDIO_DEVAD_NONE, MII_ADVERTISE, val);
 }
 
 /**
@@ -427,7 +432,7 @@ int t3_phy_advertise_fiber(struct cphy *phy, unsigned int advert)
 		val |= ADVERTISE_1000XPAUSE;
 	if (advert & ADVERTISED_Asym_Pause)
 		val |= ADVERTISE_1000XPSE_ASYM;
-	return mdio_write(phy, 0, MII_ADVERTISE, val);
+	return t3_mdio_write(phy, MDIO_DEVAD_NONE, MII_ADVERTISE, val);
 }
 
 /**
@@ -444,7 +449,7 @@ int t3_set_phy_speed_duplex(struct cphy *phy, int speed, int duplex)
 	int err;
 	unsigned int ctl;
 
-	err = mdio_read(phy, 0, MII_BMCR, &ctl);
+	err = t3_mdio_read(phy, MDIO_DEVAD_NONE, MII_BMCR, &ctl);
 	if (err)
 		return err;
 
@@ -462,34 +467,36 @@ int t3_set_phy_speed_duplex(struct cphy *phy, int speed, int duplex)
 	}
 	if (ctl & BMCR_SPEED1000) /* auto-negotiation required for GigE */
 		ctl |= BMCR_ANENABLE;
-	return mdio_write(phy, 0, MII_BMCR, ctl);
+	return t3_mdio_write(phy, MDIO_DEVAD_NONE, MII_BMCR, ctl);
 }
 
 int t3_phy_lasi_intr_enable(struct cphy *phy)
 {
-	return mdio_write(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, 1);
+	return t3_mdio_write(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_CTRL,
+			     MDIO_PMA_LASI_LSALARM);
 }
 
 int t3_phy_lasi_intr_disable(struct cphy *phy)
 {
-	return mdio_write(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, 0);
+	return t3_mdio_write(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_CTRL, 0);
 }
 
 int t3_phy_lasi_intr_clear(struct cphy *phy)
 {
 	u32 val;
 
-	return mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_STAT, &val);
+	return t3_mdio_read(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT, &val);
 }
 
 int t3_phy_lasi_intr_handler(struct cphy *phy)
 {
 	unsigned int status;
-	int err = mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_STAT, &status);
+	int err = t3_mdio_read(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT,
+			       &status);
 
 	if (err)
 		return err;
-	return (status & 1) ?  cphy_cause_link_change : 0;
+	return (status & MDIO_PMA_LASI_LSALARM) ? cphy_cause_link_change : 0;
 }
 
 static const struct adapter_info t3_adap_info[] = {
@@ -519,6 +526,11 @@ static const struct adapter_info t3_adap_info[] = {
 	 F_GPIO10_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T310" },
+	{1, 0, 0,
+	 F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
+	 F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL,
+	 { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	 &mi1_mdio_ext_ops, "Chelsio N320E-G2" },
 };
 
 /*
@@ -545,6 +557,8 @@ static const struct port_type_info port_types[] = {
 	{ t3_qt2045_phy_prep },
 	{ t3_ael1006_phy_prep },
 	{ NULL },
+	{ t3_aq100x_phy_prep },
+	{ t3_ael2020_phy_prep },
 };
 
 #define VPD_ENTRY(name, len) \
@@ -3864,6 +3878,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 			return -EINVAL;
 		}
 
+		p->phy.mdio.dev = adapter->port[i];
 		ret = pti->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
 				    ai->mdio_ops);
 		if (ret)
@@ -3923,7 +3938,7 @@ int t3_replay_prep_adapter(struct adapter *adapter)
 			;
 
 		pti = &port_types[adapter->params.vpd.port_type[j]];
-		ret = pti->phy_prep(&p->phy, adapter, p->phy.addr, NULL);
+		ret = pti->phy_prep(&p->phy, adapter, p->phy.mdio.prtad, NULL);
 		if (ret)
 			return ret;
 		p->phy.ops->power_down(&p->phy, 1);

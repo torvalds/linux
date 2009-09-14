@@ -106,6 +106,10 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	}
 
 	erp.basic_rates = bss_conf->basic_rates;
+	erp.beacon_int = bss_conf->beacon_int;
+
+	/* Update global beacon interval time, this is needed for PS support */
+	rt2x00dev->beacon_int = bss_conf->beacon_int;
 
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
 }
@@ -173,6 +177,11 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	libconf.conf = conf;
 
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL) {
+		if (conf_is_ht40(conf))
+			__set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+		else
+			__clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+
 		memcpy(&libconf.rf,
 		       &rt2x00dev->spec.channels[conf->channel->hw_value],
 		       sizeof(libconf.rf));

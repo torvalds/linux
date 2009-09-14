@@ -394,7 +394,7 @@ static int pcmcia_device_probe(struct device * dev)
 	p_drv = to_pcmcia_drv(dev->driver);
 	s = p_dev->socket;
 
-	/* The PCMCIA code passes the match data in via dev->driver_data
+	/* The PCMCIA code passes the match data in via dev_set_drvdata(dev)
 	 * which is an ugly hack. Once the driver probe is called it may
 	 * and often will overwrite the match data so we must save it first
 	 *
@@ -404,7 +404,7 @@ static int pcmcia_device_probe(struct device * dev)
 	 * call which will then check whether there are two
 	 * pseudo devices, and if not, add the second one.
 	 */
-	did = p_dev->dev.driver_data;
+	did = dev_get_drvdata(&p_dev->dev);
 
 	ds_dev_dbg(1, dev, "trying to bind to %s\n", p_drv->drv.name);
 
@@ -499,7 +499,7 @@ static int pcmcia_device_remove(struct device * dev)
 	 * pseudo multi-function card, we need to unbind
 	 * all devices
 	 */
-	did = p_dev->dev.driver_data;
+	did = dev_get_drvdata(&p_dev->dev);
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count != 0) &&
 	    (p_dev->device_no == 0))
@@ -828,7 +828,6 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 {
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
-	char path[FIRMWARE_NAME_MAX];
 	int ret = -ENOMEM;
 	int no_funcs;
 	int old_funcs;
@@ -839,16 +838,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 
 	ds_dev_dbg(1, &dev->dev, "trying to load CIS file %s\n", filename);
 
-	if (strlen(filename) > (FIRMWARE_NAME_MAX - 1)) {
-		dev_printk(KERN_WARNING, &dev->dev,
-			   "pcmcia: CIS filename is too long [%s]\n",
-			   filename);
-		return -EINVAL;
-	}
-
-	snprintf(path, sizeof(path), "%s", filename);
-
-	if (request_firmware(&fw, path, &dev->dev) == 0) {
+	if (request_firmware(&fw, filename, &dev->dev) == 0) {
 		if (fw->size >= CISTPL_MAX_CIS_SIZE) {
 			ret = -EINVAL;
 			dev_printk(KERN_ERR, &dev->dev,
@@ -988,7 +978,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 			return 0;
 	}
 
-	dev->dev.driver_data = (void *) did;
+	dev_set_drvdata(&dev->dev, did);
 
 	return 1;
 }

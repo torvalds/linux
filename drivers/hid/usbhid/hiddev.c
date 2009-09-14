@@ -527,8 +527,10 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 			goto goodreturn;
 
 		case HIDIOCGCOLLECTIONINDEX:
+			i = field->usage[uref->usage_index].collection_index;
+			unlock_kernel();
 			kfree(uref_multi);
-			return field->usage[uref->usage_index].collection_index;
+			return i;
 		case HIDIOCGUSAGES:
 			for (i = 0; i < uref_multi->num_values; i++)
 				uref_multi->values[i] =
@@ -850,8 +852,14 @@ static const struct file_operations hiddev_fops = {
 #endif
 };
 
+static char *hiddev_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
+}
+
 static struct usb_class_driver hiddev_class = {
 	.name =		"hiddev%d",
+	.nodename =	hiddev_nodename,
 	.fops =		&hiddev_fops,
 	.minor_base =	HIDDEV_MINOR_BASE,
 };
@@ -954,7 +962,6 @@ static int hiddev_usbd_probe(struct usb_interface *intf,
 {
 	return -ENODEV;
 }
-
 
 static /* const */ struct usb_driver hiddev_driver = {
 	.name =		"hiddev",

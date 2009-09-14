@@ -45,7 +45,10 @@ struct led_classdev {
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
-	/* Activate hardware accelerated blink */
+	/* Activate hardware accelerated blink, delays are in
+	 * miliseconds and if none is provided then a sensible default
+	 * should be chosen. The call can adjust the timings if it can't
+	 * match the values specified exactly. */
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off);
@@ -141,9 +144,14 @@ struct gpio_led {
 	const char *name;
 	const char *default_trigger;
 	unsigned 	gpio;
-	u8 		active_low : 1;
-	u8		retain_state_suspended : 1;
+	unsigned	active_low : 1;
+	unsigned	retain_state_suspended : 1;
+	unsigned	default_state : 2;
+	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 };
+#define LEDS_GPIO_DEFSTATE_OFF	0
+#define LEDS_GPIO_DEFSTATE_ON	1
+#define LEDS_GPIO_DEFSTATE_KEEP	2
 
 struct gpio_led_platform_data {
 	int 		num_leds;

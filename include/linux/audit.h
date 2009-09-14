@@ -599,6 +599,8 @@ extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct path *path);
+extern void		    audit_log_key(struct audit_buffer *ab,
+					  char *key);
 extern void		    audit_log_lost(const char *message);
 extern int		    audit_update_lsm_rules(void);
 
@@ -621,6 +623,7 @@ extern int audit_enabled;
 #define audit_log_n_untrustedstring(a,n,s) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b, p, d) do { ; } while (0)
+#define audit_log_key(b, k) do { ; } while (0)
 #define audit_enabled 0
 #endif
 #endif

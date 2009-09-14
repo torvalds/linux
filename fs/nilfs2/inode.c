@@ -43,22 +43,23 @@
  *
  * This function does not issue actual read request of the specified data
  * block. It is done by VFS.
- * Bulk read for direct-io is not supported yet. (should be supported)
  */
 int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		    struct buffer_head *bh_result, int create)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	unsigned long blknum = 0;
+	__u64 blknum = 0;
 	int err = 0, ret;
 	struct inode *dat = nilfs_dat_inode(NILFS_I_NILFS(inode));
+	unsigned maxblocks = bh_result->b_size >> inode->i_blkbits;
 
-	/* This exclusion control is a workaround; should be revised */
-	down_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	ret = nilfs_bmap_lookup(ii->i_bmap, (unsigned long)blkoff, &blknum);
-	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	if (ret == 0) {	/* found */
+	down_read(&NILFS_MDT(dat)->mi_sem);
+	ret = nilfs_bmap_lookup_contig(ii->i_bmap, blkoff, &blknum, maxblocks);
+	up_read(&NILFS_MDT(dat)->mi_sem);
+	if (ret >= 0) {	/* found */
 		map_bh(bh_result, inode->i_sb, blknum);
+		if (ret > 0)
+			bh_result->b_size = (ret << inode->i_blkbits);
 		goto out;
 	}
 	/* data block was not found */
@@ -240,7 +241,7 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 struct address_space_operations nilfs_aops = {
 	.writepage		= nilfs_writepage,
 	.readpage		= nilfs_readpage,
-	/* .sync_page		= nilfs_sync_page, */
+	.sync_page		= block_sync_page,
 	.writepages		= nilfs_writepages,
 	.set_page_dirty		= nilfs_set_page_dirty,
 	.readpages		= nilfs_readpages,
@@ -249,6 +250,7 @@ struct address_space_operations nilfs_aops = {
 	/* .releasepage		= nilfs_releasepage, */
 	.invalidatepage		= block_invalidatepage,
 	.direct_IO		= nilfs_direct_IO,
+	.is_partially_uptodate  = block_is_partially_uptodate,
 };
 
 struct inode *nilfs_new_inode(struct inode *dir, int mode)
@@ -307,10 +309,6 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
-#ifdef CONFIG_NILFS_FS_POSIX_ACL
-	ii->i_acl = NULL;
-	ii->i_default_acl = NULL;
-#endif
 	ii->i_cno = 0;
 	nilfs_set_inode_flags(inode);
 	spin_lock(&sbi->s_next_gen_lock);
@@ -432,10 +430,6 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 
 	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, bh);
 
-#ifdef CONFIG_NILFS_FS_POSIX_ACL
-	ii->i_acl = NILFS_ACL_NOT_CACHED;
-	ii->i_default_acl = NILFS_ACL_NOT_CACHED;
-#endif
 	if (nilfs_read_inode_common(inode, raw_inode))
 		goto failed_unmap;
 

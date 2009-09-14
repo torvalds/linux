@@ -1,5 +1,6 @@
 #include <linux/linkage.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 
 #include <asm/pmon.h>
 #include <asm/titan_dep.h>

@@ -12,6 +12,7 @@
 
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include <linux/slow-work.h>
 #include <linux/dlm.h>
 #include <linux/buffer_head.h>
 
@@ -63,9 +64,12 @@ struct gfs2_log_element {
 	const struct gfs2_log_operations *le_ops;
 };
 
+#define GBF_FULL 1
+
 struct gfs2_bitmap {
 	struct buffer_head *bi_bh;
 	char *bi_clone;
+	unsigned long bi_flags;
 	u32 bi_offset;
 	u32 bi_start;
 	u32 bi_len;
@@ -90,10 +94,11 @@ struct gfs2_rgrpd {
 	struct gfs2_sbd *rd_sbd;
 	unsigned int rd_bh_count;
 	u32 rd_last_alloc;
-	unsigned char rd_flags;
-#define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */
-#define GFS2_RDF_NOALLOC      0x02      /* rg prohibits allocation */
-#define GFS2_RDF_UPTODATE     0x04      /* rg is up to date */
+	u32 rd_flags;
+#define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
+#define GFS2_RDF_UPTODATE	0x20000000 /* rg is up to date */
+#define GFS2_RDF_ERROR		0x40000000 /* error in rg */
+#define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
 };
 
 enum gfs2_state_bits {
@@ -154,6 +159,7 @@ struct gfs2_glock_operations {
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
 	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
+	void (*go_callback) (struct gfs2_glock *gl);
 	const int go_type;
 	const unsigned long go_min_hold_time;
 };
@@ -223,6 +229,7 @@ struct gfs2_glock {
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	struct delayed_work gl_work;
+	struct work_struct gl_delete;
 };
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
@@ -376,11 +383,11 @@ struct gfs2_journal_extent {
 struct gfs2_jdesc {
 	struct list_head jd_list;
 	struct list_head extent_list;
-
+	struct slow_work jd_work;
 	struct inode *jd_inode;
+	unsigned long jd_flags;
+#define JDF_RECOVERY 1
 	unsigned int jd_jid;
-	int jd_dirty;
-
 	unsigned int jd_blocks;
 };
 
@@ -389,9 +396,6 @@ struct gfs2_statfs_change_host {
 	s64 sc_free;
 	s64 sc_dinodes;
 };
-
-#define GFS2_GLOCKD_DEFAULT	1
-#define GFS2_GLOCKD_MAX		16
 
 #define GFS2_QUOTA_DEFAULT	GFS2_QUOTA_OFF
 #define GFS2_QUOTA_OFF		0
@@ -418,6 +422,7 @@ struct gfs2_args {
 	unsigned int ar_data:2;			/* ordered/writeback */
 	unsigned int ar_meta:1;			/* mount metafs */
 	unsigned int ar_discard:1;		/* discard requests */
+	int ar_commit;				/* Commit interval */
 };
 
 struct gfs2_tune {
@@ -426,7 +431,6 @@ struct gfs2_tune {
 	unsigned int gt_incore_log_blocks;
 	unsigned int gt_log_flush_secs;
 
-	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
 
 	unsigned int gt_quota_simul_sync; /* Max quotavals to sync at once */
@@ -447,6 +451,7 @@ enum {
 	SDF_JOURNAL_LIVE	= 1,
 	SDF_SHUTDOWN		= 2,
 	SDF_NOBARRIERS		= 3,
+	SDF_NORECOVERY		= 4,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -493,7 +498,6 @@ struct lm_lockstruct {
 	unsigned long ls_flags;
 	dlm_lockspace_t *ls_dlm;
 
-	int ls_recover_jid;
 	int ls_recover_jid_done;
 	int ls_recover_jid_status;
 };
@@ -582,7 +586,6 @@ struct gfs2_sbd {
 
 	/* Daemon stuff */
 
-	struct task_struct *sd_recoverd_process;
 	struct task_struct *sd_logd_process;
 	struct task_struct *sd_quotad_process;
 

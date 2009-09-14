@@ -25,6 +25,24 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define	FRQCR			0xffc80000
+#elif defined(CONFIG_CPU_SUBTYPE_SH7724)
+#define FRQCRA			0xa4150000
+#define FRQCRB			0xa4150004
+#define VCLKCR			0xa4150048
+
+#define FCLKACR			0xa4150008
+#define FCLKBCR			0xa415000c
+#define FRQCR			FRQCRA
+#define SCLKACR			FCLKACR
+#define SCLKBCR			FCLKBCR
+#define FCLKACR			0xa4150008
+#define FCLKBCR			0xa415000c
+#define IrDACLKCR		0xa4150018
+
+#define MSTPCR0			0xa4150030
+#define MSTPCR1			0xa4150034
+#define MSTPCR2			0xa4150038
+
 #elif defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define FRQCR0			0xffc80000
 #define FRQCR1			0xffc80004

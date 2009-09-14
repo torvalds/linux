@@ -51,9 +51,12 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, assign_context);
 	printstat(s, assign_context_failed);
 	printstat(s, free_context);
-	printstat(s, load_context);
-	printstat(s, unload_context);
-	printstat(s, steal_context);
+	printstat(s, load_user_context);
+	printstat(s, load_kernel_context);
+	printstat(s, lock_kernel_context);
+	printstat(s, unlock_kernel_context);
+	printstat(s, steal_user_context);
+	printstat(s, steal_kernel_context);
 	printstat(s, steal_context_failed);
 	printstat(s, nopfn);
 	printstat(s, break_cow);
@@ -70,7 +73,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, user_flush_tlb);
 	printstat(s, user_unload_context);
 	printstat(s, user_exception);
-	printstat(s, set_task_slice);
+	printstat(s, set_context_option);
 	printstat(s, migrate_check);
 	printstat(s, migrated_retarget);
 	printstat(s, migrated_unload);
@@ -84,6 +87,9 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, tlb_dropin_fail_range_active);
 	printstat(s, tlb_dropin_fail_idle);
 	printstat(s, tlb_dropin_fail_fmm);
+	printstat(s, tlb_dropin_fail_no_exception);
+	printstat(s, tlb_dropin_fail_no_exception_war);
+	printstat(s, tfh_stale_on_fault);
 	printstat(s, mmu_invalidate_range);
 	printstat(s, mmu_invalidate_page);
 	printstat(s, mmu_clear_flush_young);
@@ -158,8 +164,7 @@ static ssize_t options_write(struct file *file, const char __user *userbuf,
 	unsigned long val;
 	char buf[80];
 
-	if (copy_from_user
-	    (buf, userbuf, count < sizeof(buf) ? count : sizeof(buf)))
+	if (strncpy_from_user(buf, userbuf, sizeof(buf) - 1) < 0)
 		return -EFAULT;
 	buf[count - 1] = '\0';
 	if (!strict_strtoul(buf, 10, &val))

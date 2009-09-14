@@ -810,7 +810,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	dev->mem_start = 0;
 
-	device->driver_data = dev;
+	dev_set_drvdata(device, dev);
 	SET_NETDEV_DEV (dev, device);
 
 	status = register_netdev(dev);
@@ -957,7 +957,7 @@ static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (TX_BUFFS_AVAIL)
 			netif_start_queue(dev);
 	} else
-		status = -1;
+		status = NETDEV_TX_LOCKED;
 
       out:
 	return status;
@@ -1614,7 +1614,7 @@ static int __devexit depca_device_remove (struct device *device)
 	struct depca_private *lp;
 	int bus;
 
-	dev  = device->driver_data;
+	dev  = dev_get_drvdata(device);
 	lp   = netdev_priv(dev);
 
 	unregister_netdev (dev);
@@ -1839,7 +1839,7 @@ static int load_packet(struct net_device *dev, struct sk_buff *skb)
 
 		lp->tx_new = (++end) & lp->txRingMask;	/* update current pointers */
 	} else {
-		status = -1;
+		status = NETDEV_TX_LOCKED;
 	}
 
 	return status;

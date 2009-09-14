@@ -40,15 +40,6 @@ typedef struct {
 #endif /* __ASSEMBLY__ */
 
 #ifdef __KERNEL__
-/*
- * These aren't exported outside the kernel to avoid name space clashes
- */
-#ifdef __powerpc64__
-#define BITS_PER_LONG 64
-#else
-#define BITS_PER_LONG 32
-#endif
-
 #ifndef __ASSEMBLY__
 
 typedef __vector128 vector128;

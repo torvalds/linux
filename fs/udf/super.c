@@ -568,6 +568,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	if (!udf_parse_options(options, &uopt, true))
 		return -EINVAL;
 
+	lock_kernel();
 	sbi->s_flags = uopt.flags;
 	sbi->s_uid   = uopt.uid;
 	sbi->s_gid   = uopt.gid;
@@ -581,13 +582,16 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 			*flags |= MS_RDONLY;
 	}
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+		unlock_kernel();
 		return 0;
+	}
 	if (*flags & MS_RDONLY)
 		udf_close_lvid(sb);
 	else
 		udf_open_lvid(sb);
 
+	unlock_kernel();
 	return 0;
 }
 
@@ -1083,11 +1087,23 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	struct udf_inode_info *vati;
 	uint32_t pos;
 	struct virtualAllocationTable20 *vat20;
+	sector_t blocks = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
 
 	/* VAT file entry is in the last recorded block */
 	ino.partitionReferenceNum = type1_index;
 	ino.logicalBlockNum = sbi->s_last_block - map->s_partition_root;
 	sbi->s_vat_inode = udf_iget(sb, &ino);
+	if (!sbi->s_vat_inode &&
+	    sbi->s_last_block != blocks - 1) {
+		printk(KERN_NOTICE "UDF-fs: Failed to read VAT inode from the"
+		       " last recorded block (%lu), retrying with the last "
+		       "block of the device (%lu).\n",
+		       (unsigned long)sbi->s_last_block,
+		       (unsigned long)blocks - 1);
+		ino.partitionReferenceNum = type1_index;
+		ino.logicalBlockNum = blocks - 1 - map->s_partition_root;
+		sbi->s_vat_inode = udf_iget(sb, &ino);
+	}
 	if (!sbi->s_vat_inode)
 		return 1;
 
@@ -1915,7 +1931,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	if (uopt.flags & (1 << UDF_FLAG_BLOCKSIZE_SET)) {
 		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
 	} else {
-		uopt.blocksize = bdev_hardsect_size(sb->s_bdev);
+		uopt.blocksize = bdev_logical_block_size(sb->s_bdev);
 		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
 		if (!ret && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
 			if (!silent)
@@ -2062,6 +2078,9 @@ static void udf_put_super(struct super_block *sb)
 	struct udf_sb_info *sbi;
 
 	sbi = UDF_SB(sb);
+
+	lock_kernel();
+
 	if (sbi->s_vat_inode)
 		iput(sbi->s_vat_inode);
 	if (sbi->s_partitions)
@@ -2077,6 +2096,8 @@ static void udf_put_super(struct super_block *sb)
 	kfree(sbi->s_partmaps);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 static int udf_sync_fs(struct super_block *sb, int wait)

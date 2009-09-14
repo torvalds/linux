@@ -2,9 +2,8 @@
 #define __CRAMFS_H
 
 #include <linux/types.h>
+#include <linux/magic.h>
 
-#define CRAMFS_MAGIC		0x28cd3d45	/* some random number */
-#define CRAMFS_MAGIC_WEND	0x453dcd28	/* magic number with the wrong endianess */
 #define CRAMFS_SIGNATURE	"Compressed ROMFS"
 
 /*

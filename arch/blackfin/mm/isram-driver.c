@@ -125,7 +125,7 @@ static bool isram_check_addr(const void *addr, size_t n)
 {
 	if ((addr >= (void *)L1_CODE_START) &&
 	    (addr < (void *)(L1_CODE_START + L1_CODE_LENGTH))) {
-		if ((addr + n) >= (void *)(L1_CODE_START + L1_CODE_LENGTH)) {
+		if ((addr + n) > (void *)(L1_CODE_START + L1_CODE_LENGTH)) {
 			show_stack(NULL, NULL);
 			printk(KERN_ERR "isram_memcpy: copy involving %p length "
 					"(%zu) too long\n", addr, n);

@@ -29,6 +29,7 @@ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
 static const struct ide_port_info ide_generic_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
+	.chipset		= ide_generic,
 };
 
 #ifdef CONFIG_ARM
@@ -85,7 +86,7 @@ static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
 
 static int __init ide_generic_init(void)
 {
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 	unsigned long io_addr;
 	int i, rc = 0, primary = 0, secondary = 0;
 
@@ -132,9 +133,7 @@ static int __init ide_generic_init(void)
 #else
 			hw.irq = legacy_irqs[i];
 #endif
-			hw.chipset = ide_generic;
-
-			rc = ide_host_add(&ide_generic_port_info, hws, NULL);
+			rc = ide_host_add(&ide_generic_port_info, hws, 1, NULL);
 			if (rc) {
 				release_region(io_addr + 0x206, 1);
 				release_region(io_addr, 8);

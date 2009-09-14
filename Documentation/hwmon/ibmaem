@@ -7,7 +7,7 @@ henceforth as AEM.
 Supported systems:
   * Any recent IBM System X server with AEM support.
     This includes the x3350, x3550, x3650, x3655, x3755, x3850 M2,
-    x3950 M2, and certain HS2x/LS2x/QS2x blades.  The IPMI host interface
+    x3950 M2, and certain HC10/HS2x/LS2x/QS2x blades.  The IPMI host interface
     driver ("ipmi-si") needs to be loaded for this driver to do anything.
     Prefix: 'ibmaem'
     Datasheet: Not available

@@ -189,7 +189,8 @@ static ssize_t brport_store(struct kobject * kobj,
 
 	val = simple_strtoul(buf, &endp, 0);
 	if (endp != buf) {
-		rtnl_lock();
+		if (!rtnl_trylock())
+			return restart_syscall();
 		if (p->dev && p->br && brport_attr->store) {
 			spin_lock_bh(&p->br->lock);
 			ret = brport_attr->store(p, val);

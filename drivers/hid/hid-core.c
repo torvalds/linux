@@ -1075,14 +1075,16 @@ EXPORT_SYMBOL_GPL(hid_report_raw_event);
  */
 int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int interrupt)
 {
-	struct hid_report_enum *report_enum = hid->report_enum + type;
-	struct hid_driver *hdrv = hid->driver;
+	struct hid_report_enum *report_enum;
+	struct hid_driver *hdrv;
 	struct hid_report *report;
 	unsigned int i;
 	int ret;
 
 	if (!hid || !hid->driver)
 		return -ENODEV;
+	report_enum = hid->report_enum + type;
+	hdrv = hid->driver;
 
 	if (!size) {
 		dbg_hid("empty report\n");
@@ -1312,6 +1314,8 @@ static const struct hid_device_id hid_blacklist[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb651) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb654) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPSEED, USB_DEVICE_ID_TOPSEED_CYBERLINK) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_SMARTJOY_PLUS) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_GRAPHIRE_BLUETOOTH) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ZEROPLUS, 0x0005) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ZEROPLUS, 0x0030) },
 

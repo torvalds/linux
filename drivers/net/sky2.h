@@ -2028,6 +2028,7 @@ struct sky2_port {
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
+	struct sk_buff_head  rx_recycle;
 
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
@@ -2050,6 +2051,7 @@ struct sky2_port {
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */
 	u8		     rx_csum;
 	u8		     wol;
+	u8		     restarting;
  	enum flow_control    flow_mode;
  	enum flow_control    flow_status;
 

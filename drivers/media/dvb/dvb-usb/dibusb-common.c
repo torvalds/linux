@@ -133,14 +133,17 @@ static int dibusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 
 	for (i = 0; i < num; i++) {
 		/* write/read request */
-		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
+		if (i+1 < num && (msg[i].flags & I2C_M_RD) == 0
+					  && (msg[i+1].flags & I2C_M_RD)) {
 			if (dibusb_i2c_msg(d, msg[i].addr, msg[i].buf,msg[i].len,
 						msg[i+1].buf,msg[i+1].len) < 0)
 				break;
 			i++;
-		} else
+		} else if ((msg[i].flags & I2C_M_RD) == 0) {
 			if (dibusb_i2c_msg(d, msg[i].addr, msg[i].buf,msg[i].len,NULL,0) < 0)
 				break;
+		} else
+			break;
 	}
 
 	mutex_unlock(&d->i2c_mutex);

@@ -73,6 +73,6 @@ extern unsigned long max_pfn;
 #endif /* __ASSEMBLY__ */
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif /* _ASM_PAGE_H */

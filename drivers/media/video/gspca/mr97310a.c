@@ -321,6 +321,7 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x08ca, 0x0111)},
+	{USB_DEVICE(0x093a, 0x010f)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -347,8 +348,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

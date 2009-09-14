@@ -134,9 +134,7 @@ struct p9100_par {
 	u32			flags;
 #define P9100_FLAG_BLANKED	0x00000001
 
-	unsigned long		physbase;
 	unsigned long		which_io;
-	unsigned long		fbsize;
 };
 
 /**
@@ -224,18 +222,16 @@ static int p9100_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct p9100_par *par = (struct p9100_par *)info->par;
 
 	return sbusfb_mmap_helper(p9100_mmap_map,
-				  par->physbase, par->fbsize,
+				  info->fix.smem_start, info->fix.smem_len,
 				  par->which_io, vma);
 }
 
 static int p9100_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
 {
-	struct p9100_par *par = (struct p9100_par *) info->par;
-
 	/* Make it look like a cg3. */
 	return sbusfb_ioctl_helper(cmd, arg, info,
-				   FBTYPE_SUN3COLOR, 8, par->fbsize);
+				   FBTYPE_SUN3COLOR, 8, info->fix.smem_len);
 }
 
 /*
@@ -271,7 +267,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 	spin_lock_init(&par->lock);
 
 	/* This is the framebuffer and the only resource apps can mmap.  */
-	par->physbase = op->resource[2].start;
+	info->fix.smem_start = op->resource[2].start;
 	par->which_io = op->resource[2].flags & IORESOURCE_BITS;
 
 	sbusfb_fill_var(&info->var, dp, 8);
@@ -280,7 +276,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 	info->var.blue.length = 8;
 
 	linebytes = of_getintprop_default(dp, "linebytes", info->var.xres);
-	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
+	info->fix.smem_len = PAGE_ALIGN(linebytes * info->var.yres);
 
 	par->regs = of_ioremap(&op->resource[0], 0,
 			       sizeof(struct p9100_regs), "p9100 regs");
@@ -290,7 +286,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &p9100_ops;
 	info->screen_base = of_ioremap(&op->resource[2], 0,
-				       par->fbsize, "p9100 ram");
+				       info->fix.smem_len, "p9100 ram");
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
@@ -311,7 +307,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 
 	printk(KERN_INFO "%s: p9100 at %lx:%lx\n",
 	       dp->full_name,
-	       par->which_io, par->physbase);
+	       par->which_io, info->fix.smem_start);
 
 	return 0;
 
@@ -319,7 +315,7 @@ out_dealloc_cmap:
 	fb_dealloc_cmap(&info->cmap);
 
 out_unmap_screen:
-	of_iounmap(&op->resource[2], info->screen_base, par->fbsize);
+	of_iounmap(&op->resource[2], info->screen_base, info->fix.smem_len);
 
 out_unmap_regs:
 	of_iounmap(&op->resource[0], par->regs, sizeof(struct p9100_regs));
@@ -340,7 +336,7 @@ static int __devexit p9100_remove(struct of_device *op)
 	fb_dealloc_cmap(&info->cmap);
 
 	of_iounmap(&op->resource[0], par->regs, sizeof(struct p9100_regs));
-	of_iounmap(&op->resource[2], info->screen_base, par->fbsize);
+	of_iounmap(&op->resource[2], info->screen_base, info->fix.smem_len);
 
 	framebuffer_release(info);
 

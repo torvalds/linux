@@ -29,7 +29,6 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 		goto out;
 
 	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
-	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 
 	if (aborted)
 		nl80211_send_scan_aborted(wiphy_to_dev(request->wiphy), dev);
@@ -47,6 +46,7 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 	dev_put(dev);
 
  out:
+	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 	kfree(request);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
@@ -118,7 +118,7 @@ static int cmp_ies(u8 num, u8 *ies1, size_t len1, u8 *ies2, size_t len2)
 
 	if (!ie1 && !ie2)
 		return 0;
-	if (!ie1)
+	if (!ie1 || !ie2)
 		return -1;
 
 	r = memcmp(ie1 + 2, ie2 + 2, min(ie1[1], ie2[1]));
@@ -171,6 +171,8 @@ static bool is_mesh(struct cfg80211_bss *a,
 	ie = find_ie(WLAN_EID_MESH_CONFIG,
 		     a->information_elements,
 		     a->len_information_elements);
+	if (!ie)
+		return false;
 	if (ie[1] != IEEE80211_MESH_CONFIG_LEN)
 		return false;
 
@@ -365,7 +367,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	found = rb_find_bss(dev, res);
 
 	if (found) {
-		kref_get(&found->ref);
 		found->pub.beacon_interval = res->pub.beacon_interval;
 		found->pub.tsf = res->pub.tsf;
 		found->pub.signal = res->pub.signal;
@@ -377,18 +378,16 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
 			size_t ielen = res->pub.len_information_elements;
 
-			if (ksize(found) >= used + ielen) {
+			if (!found->ies_allocated && ksize(found) >= used + ielen) {
 				memcpy(found->pub.information_elements,
 				       res->pub.information_elements, ielen);
 				found->pub.len_information_elements = ielen;
 			} else {
 				u8 *ies = found->pub.information_elements;
 
-				if (found->ies_allocated) {
-					if (ksize(ies) < ielen)
-						ies = krealloc(ies, ielen,
-							       GFP_ATOMIC);
-				} else
+				if (found->ies_allocated)
+					ies = krealloc(ies, ielen, GFP_ATOMIC);
+				else
 					ies = kmalloc(ielen, GFP_ATOMIC);
 
 				if (ies) {
@@ -414,6 +413,55 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	kref_get(&found->ref);
 	return found;
 }
+
+struct cfg80211_bss*
+cfg80211_inform_bss(struct wiphy *wiphy,
+		    struct ieee80211_channel *channel,
+		    const u8 *bssid,
+		    u64 timestamp, u16 capability, u16 beacon_interval,
+		    const u8 *ie, size_t ielen,
+		    s32 signal, gfp_t gfp)
+{
+	struct cfg80211_internal_bss *res;
+	size_t privsz;
+
+	if (WARN_ON(!wiphy))
+		return NULL;
+
+	privsz = wiphy->bss_priv_size;
+
+	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
+			(signal < 0 || signal > 100)))
+		return NULL;
+
+	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
+	if (!res)
+		return NULL;
+
+	memcpy(res->pub.bssid, bssid, ETH_ALEN);
+	res->pub.channel = channel;
+	res->pub.signal = signal;
+	res->pub.tsf = timestamp;
+	res->pub.beacon_interval = beacon_interval;
+	res->pub.capability = capability;
+	/* point to after the private area */
+	res->pub.information_elements = (u8 *)res + sizeof(*res) + privsz;
+	memcpy(res->pub.information_elements, ie, ielen);
+	res->pub.len_information_elements = ielen;
+
+	kref_init(&res->ref);
+
+	res = cfg80211_bss_update(wiphy_to_dev(wiphy), res, 0);
+	if (!res)
+		return NULL;
+
+	if (res->pub.capability & WLAN_CAPABILITY_ESS)
+		regulatory_hint_found_beacon(wiphy, channel, gfp);
+
+	/* cfg80211_bss_update gives us a referenced result */
+	return &res->pub;
+}
+EXPORT_SYMBOL(cfg80211_inform_bss);
 
 struct cfg80211_bss *
 cfg80211_inform_bss_frame(struct wiphy *wiphy,
@@ -605,7 +653,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	cfg80211_put_dev(rdev);
 	return err;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwscan);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwscan);
 
 static void ieee80211_scan_add_ies(struct iw_request_info *info,
 				   struct cfg80211_bss *bss,
@@ -914,5 +962,5 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	cfg80211_put_dev(rdev);
 	return res;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwscan);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwscan);
 #endif

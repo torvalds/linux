@@ -456,9 +456,6 @@
 #define MD_PRT_ADR_WIDTH 5
 #define MD_DEV_ADR_LBN 6
 #define MD_DEV_ADR_WIDTH 5
-/* Used for writing both at once */
-#define MD_PRT_DEV_ADR_LBN 6
-#define MD_PRT_DEV_ADR_WIDTH 10
 
 /* PHY management status & mask register (DWORD read only) */
 #define MD_STAT_REG_KER 0xc50

@@ -1365,6 +1365,11 @@ static int intelfb_set_par(struct fb_info *info)
 	DBG_MSG("intelfb_set_par (%dx%d-%d)\n", info->var.xres,
 		info->var.yres, info->var.bits_per_pixel);
 
+	/*
+	 * Disable VCO prior to timing register change.
+	 */
+	OUTREG(DPLL_A, INREG(DPLL_A) & ~DPLL_VCO_ENABLE);
+
 	intelfb_blank(FB_BLANK_POWERDOWN, info);
 
 	if (ACCEL(dinfo, info))

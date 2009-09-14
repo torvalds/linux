@@ -265,8 +265,13 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 		 * an MPEG-2 Program Pack start code, and provide only
 		 * up to that point to the user, so it's easy to insert VBI data
 		 * the next time around.
+		 *
+		 * This will not work for an MPEG-2 TS and has only been
+		 * verified by analysis to work for an MPEG-2 PS.  Helen Buus
+		 * pointed out this works for the CX23416 MPEG-2 DVD compatible
+		 * stream, and research indicates both the MPEG 2 SVCD and DVD
+		 * stream types use an MPEG-2 PS container.
 		 */
-		/* FIXME - This only works for an MPEG-2 PS, not a TS */
 		/*
 		 * An MPEG-2 Program Stream (PS) is a series of
 		 * MPEG-2 Program Packs terminated by an

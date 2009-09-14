@@ -295,10 +295,6 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		return -EINVAL;
 	}
 
-	/* cannot delete the latest checkpoint */
-	if (start == nilfs_mdt_cno(cpfile) - 1)
-		return -EPERM;
-
 	down_write(&NILFS_MDT(cpfile)->mi_sem);
 
 	ret = nilfs_cpfile_get_header_block(cpfile, &header_bh);
@@ -311,7 +307,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &cp_bh);
 		if (ret < 0) {
 			if (ret != -ENOENT)
-				goto out_header;
+				break;
 			/* skip hole */
 			ret = 0;
 			continue;
@@ -344,7 +340,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 					continue;
 				printk(KERN_ERR "%s: cannot delete block\n",
 				       __func__);
-				goto out_header;
+				break;
 			}
 		}
 
@@ -362,7 +358,6 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		kunmap_atomic(kaddr, KM_USER0);
 	}
 
- out_header:
 	brelse(header_bh);
 
  out_sem:
@@ -384,9 +379,10 @@ static void nilfs_cpfile_checkpoint_to_cpinfo(struct inode *cpfile,
 }
 
 static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
-					  struct nilfs_cpinfo *ci, size_t nci)
+					  void *buf, unsigned cisz, size_t nci)
 {
 	struct nilfs_checkpoint *cp;
+	struct nilfs_cpinfo *ci = buf;
 	struct buffer_head *bh;
 	size_t cpsz = NILFS_MDT(cpfile)->mi_entry_size;
 	__u64 cur_cno = nilfs_mdt_cno(cpfile), cno = *cnop;
@@ -410,17 +406,22 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
 		kaddr = kmap_atomic(bh->b_page, KM_USER0);
 		cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, bh, kaddr);
 		for (i = 0; i < ncps && n < nci; i++, cp = (void *)cp + cpsz) {
-			if (!nilfs_checkpoint_invalid(cp))
-				nilfs_cpfile_checkpoint_to_cpinfo(
-					cpfile, cp, &ci[n++]);
+			if (!nilfs_checkpoint_invalid(cp)) {
+				nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp,
+								  ci);
+				ci = (void *)ci + cisz;
+				n++;
+			}
 		}
 		kunmap_atomic(kaddr, KM_USER0);
 		brelse(bh);
 	}
 
 	ret = n;
-	if (n > 0)
-		*cnop = ci[n - 1].ci_cno + 1;
+	if (n > 0) {
+		ci = (void *)ci - cisz;
+		*cnop = ci->ci_cno + 1;
+	}
 
  out:
 	up_read(&NILFS_MDT(cpfile)->mi_sem);
@@ -428,11 +429,12 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
 }
 
 static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
-					  struct nilfs_cpinfo *ci, size_t nci)
+					  void *buf, unsigned cisz, size_t nci)
 {
 	struct buffer_head *bh;
 	struct nilfs_cpfile_header *header;
 	struct nilfs_checkpoint *cp;
+	struct nilfs_cpinfo *ci = buf;
 	__u64 curr = *cnop, next;
 	unsigned long curr_blkoff, next_blkoff;
 	void *kaddr;
@@ -472,7 +474,9 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
 		if (unlikely(nilfs_checkpoint_invalid(cp) ||
 			     !nilfs_checkpoint_snapshot(cp)))
 			break;
-		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, &ci[n++]);
+		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, ci);
+		ci = (void *)ci + cisz;
+		n++;
 		next = le64_to_cpu(cp->cp_snapshot_list.ssl_next);
 		if (next == 0)
 			break; /* reach end of the snapshot list */
@@ -511,13 +515,13 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
  */
 
 ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile, __u64 *cnop, int mode,
-				struct nilfs_cpinfo *ci, size_t nci)
+				void *buf, unsigned cisz, size_t nci)
 {
 	switch (mode) {
 	case NILFS_CHECKPOINT:
-		return nilfs_cpfile_do_get_cpinfo(cpfile, cnop, ci, nci);
+		return nilfs_cpfile_do_get_cpinfo(cpfile, cnop, buf, cisz, nci);
 	case NILFS_SNAPSHOT:
-		return nilfs_cpfile_do_get_ssinfo(cpfile, cnop, ci, nci);
+		return nilfs_cpfile_do_get_ssinfo(cpfile, cnop, buf, cisz, nci);
 	default:
 		return -EINVAL;
 	}
@@ -533,20 +537,14 @@ int nilfs_cpfile_delete_checkpoint(struct inode *cpfile, __u64 cno)
 	struct nilfs_cpinfo ci;
 	__u64 tcno = cno;
 	ssize_t nci;
-	int ret;
 
-	nci = nilfs_cpfile_do_get_cpinfo(cpfile, &tcno, &ci, 1);
+	nci = nilfs_cpfile_do_get_cpinfo(cpfile, &tcno, &ci, sizeof(ci), 1);
 	if (nci < 0)
 		return nci;
 	else if (nci == 0 || ci.ci_cno != cno)
 		return -ENOENT;
-
-	/* cannot delete the latest checkpoint nor snapshots */
-	ret = nilfs_cpinfo_snapshot(&ci);
-	if (ret < 0)
-		return ret;
-	else if (ret > 0 || cno == nilfs_mdt_cno(cpfile) - 1)
-		return -EPERM;
+	else if (nilfs_cpinfo_snapshot(&ci))
+		return -EBUSY;
 
 	return nilfs_cpfile_delete_checkpoints(cpfile, cno, cno + 1);
 }
@@ -864,11 +862,11 @@ int nilfs_cpfile_change_cpmode(struct inode *cpfile, __u64 cno, int mode)
 	case NILFS_CHECKPOINT:
 		/*
 		 * Check for protecting existing snapshot mounts:
-		 * bd_mount_sem is used to make this operation atomic and
+		 * ns_mount_mutex is used to make this operation atomic and
 		 * exclusive with a new mount job.  Though it doesn't cover
 		 * umount, it's enough for the purpose.
 		 */
-		down(&nilfs->ns_bdev->bd_mount_sem);
+		mutex_lock(&nilfs->ns_mount_mutex);
 		if (nilfs_checkpoint_is_mounted(nilfs, cno, 1)) {
 			/* Current implementation does not have to protect
 			   plain read-only mounts since they are exclusive
@@ -877,7 +875,7 @@ int nilfs_cpfile_change_cpmode(struct inode *cpfile, __u64 cno, int mode)
 			ret = -EBUSY;
 		} else
 			ret = nilfs_cpfile_clear_snapshot(cpfile, cno);
-		up(&nilfs->ns_bdev->bd_mount_sem);
+		mutex_unlock(&nilfs->ns_mount_mutex);
 		return ret;
 	case NILFS_SNAPSHOT:
 		return nilfs_cpfile_set_snapshot(cpfile, cno);

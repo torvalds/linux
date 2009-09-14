@@ -1098,6 +1098,7 @@ dasd_get_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 	spin_unlock(&dasd_devmap_lock);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dasd_get_uid);
 
 /*
  * Register the given device unique identifier into devmap struct.

@@ -903,6 +903,8 @@ static __exit void can_exit(void)
 	}
 	spin_unlock(&can_rcvlists_lock);
 
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
+
 	kmem_cache_destroy(rcv_cache);
 }
 

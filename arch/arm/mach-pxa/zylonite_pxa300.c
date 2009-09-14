@@ -21,7 +21,7 @@
 #include <linux/gpio.h>
 
 #include <mach/pxa300.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/zylonite.h>
 
 #include "generic.h"
@@ -197,10 +197,12 @@ static void __init zylonite_detect_lcd_panel(void)
 	for (i = 0; i < NUM_LCD_DETECT_PINS; i++) {
 		id = id << 1;
 		gpio = mfp_to_gpio(lcd_detect_pins[i]);
+		gpio_request(gpio, "LCD_ID_PINS");
 		gpio_direction_input(gpio);
 
 		if (gpio_get_value(gpio))
 			id = id | 0x1;
+		gpio_free(gpio);
 	}
 
 	/* lcd id, flush out bit 1 */

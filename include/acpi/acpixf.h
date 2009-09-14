@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20090320
+#define ACPI_CA_VERSION                 0x20090521
 
 #include "actypes.h"
 #include "actbl.h"
@@ -200,6 +200,8 @@ acpi_evaluate_object_typed(acpi_handle object,
 
 acpi_status
 acpi_get_object_info(acpi_handle handle, struct acpi_buffer *return_buffer);
+
+acpi_status acpi_install_method(u8 *buffer);
 
 acpi_status
 acpi_get_next_object(acpi_object_type type,
@@ -375,7 +377,7 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
 
 /*
- * Debug output
+ * Error/Warning output
  */
 void ACPI_INTERNAL_VAR_XFACE
 acpi_error(const char *module_name,
@@ -394,6 +396,9 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_info(const char *module_name,
 	  u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
 
+/*
+ * Debug output
+ */
 #ifdef ACPI_DEBUG_OUTPUT
 
 void ACPI_INTERNAL_VAR_XFACE

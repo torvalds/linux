@@ -39,6 +39,7 @@
 static const char version[] = KERN_INFO "ipddp.c:v0.01 8/28/97 Bradford W. Johnson <johns393@maroon.tc.umn.edu>\n";
 
 static struct ipddp_route *ipddp_route_list;
+static DEFINE_SPINLOCK(ipddp_route_lock);
 
 #ifdef CONFIG_IPDDP_ENCAP
 static int ipddp_mode = IPDDP_ENCAP;
@@ -50,7 +51,7 @@ static int ipddp_mode = IPDDP_DECAP;
 static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ipddp_create(struct ipddp_route *new_rt);
 static int ipddp_delete(struct ipddp_route *rt);
-static struct ipddp_route* ipddp_find_route(struct ipddp_route *rt);
+static struct ipddp_route* __ipddp_find_route(struct ipddp_route *rt);
 static int ipddp_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 static const struct net_device_ops ipddp_netdev_ops = {
@@ -71,6 +72,7 @@ static struct net_device * __init ipddp_init(void)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
+	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 	strcpy(dev->name, "ipddp%d");
 
 	if (version_printed++ == 0)
@@ -113,10 +115,12 @@ static struct net_device * __init ipddp_init(void)
  */
 static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	__be32 paddr = ((struct rtable*)skb->dst)->rt_gateway;
+	__be32 paddr = skb_rtable(skb)->rt_gateway;
         struct ddpehdr *ddp;
         struct ipddp_route *rt;
         struct atalk_addr *our_addr;
+
+	spin_lock(&ipddp_route_lock);
 
 	/*
          * Find appropriate route to use, based only on IP number.
@@ -126,8 +130,10 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
                 if(rt->ip == paddr)
                         break;
         }
-        if(rt == NULL)
+        if(rt == NULL) {
+		spin_unlock(&ipddp_route_lock);
                 return 0;
+	}
 
         our_addr = atalk_find_dev_addr(rt->dev);
 
@@ -173,6 +179,8 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
         if(aarp_send_ddp(rt->dev, skb, &rt->at, NULL) < 0)
                 dev_kfree_skb(skb);
 
+	spin_unlock(&ipddp_route_lock);
+
         return 0;
 }
 
@@ -195,13 +203,17 @@ static int ipddp_create(struct ipddp_route *new_rt)
                 return -ENETUNREACH;
         }
 
-	if (ipddp_find_route(rt)) {
+	spin_lock_bh(&ipddp_route_lock);
+	if (__ipddp_find_route(rt)) {
+		spin_unlock_bh(&ipddp_route_lock);
 		kfree(rt);
 		return -EEXIST;
 	}
 
         rt->next = ipddp_route_list;
         ipddp_route_list = rt;
+
+	spin_unlock_bh(&ipddp_route_lock);
 
         return 0;
 }
@@ -215,6 +227,7 @@ static int ipddp_delete(struct ipddp_route *rt)
         struct ipddp_route **r = &ipddp_route_list;
         struct ipddp_route *tmp;
 
+	spin_lock_bh(&ipddp_route_lock);
         while((tmp = *r) != NULL)
         {
                 if(tmp->ip == rt->ip
@@ -222,19 +235,21 @@ static int ipddp_delete(struct ipddp_route *rt)
                         && tmp->at.s_node == rt->at.s_node)
                 {
                         *r = tmp->next;
+			spin_unlock_bh(&ipddp_route_lock);
                         kfree(tmp);
                         return 0;
                 }
                 r = &tmp->next;
         }
 
+	spin_unlock_bh(&ipddp_route_lock);
         return (-ENOENT);
 }
 
 /*
  * Find a routing entry, we only return a FULL match
  */
-static struct ipddp_route* ipddp_find_route(struct ipddp_route *rt)
+static struct ipddp_route* __ipddp_find_route(struct ipddp_route *rt)
 {
         struct ipddp_route *f;
 
@@ -252,7 +267,7 @@ static struct ipddp_route* ipddp_find_route(struct ipddp_route *rt)
 static int ipddp_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
         struct ipddp_route __user *rt = ifr->ifr_data;
-        struct ipddp_route rcp;
+        struct ipddp_route rcp, rcp2, *rp;
 
         if(!capable(CAP_NET_ADMIN))
                 return -EPERM;
@@ -266,9 +281,19 @@ static int ipddp_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                         return (ipddp_create(&rcp));
 
                 case SIOCFINDIPDDPRT:
-                        if(copy_to_user(rt, ipddp_find_route(&rcp), sizeof(struct ipddp_route)))
-                                return -EFAULT;
-                        return 0;
+			spin_lock_bh(&ipddp_route_lock);
+			rp = __ipddp_find_route(&rcp);
+			if (rp)
+				memcpy(&rcp2, rp, sizeof(rcp2));
+			spin_unlock_bh(&ipddp_route_lock);
+
+			if (rp) {
+				if (copy_to_user(rt, &rcp2,
+						 sizeof(struct ipddp_route)))
+					return -EFAULT;
+				return 0;
+			} else
+				return -ENOENT;
 
                 case SIOCDELIPDDPRT:
                         return (ipddp_delete(&rcp));

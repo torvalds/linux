@@ -54,10 +54,6 @@ struct reiserfs_inode_info {
 	unsigned int i_trans_id;
 	struct reiserfs_journal_list *i_jl;
 	struct mutex i_mmap;
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	struct posix_acl *i_acl_access;
-	struct posix_acl *i_acl_default;
-#endif
 #ifdef CONFIG_REISERFS_FS_XATTR
 	struct rw_semaphore i_xattr_sem;
 #endif

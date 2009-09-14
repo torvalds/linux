@@ -34,6 +34,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
@@ -1180,6 +1181,11 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 		return -ERESTARTSYS;
 	brd = &moxa_boards[port / MAX_PORTS_PER_BOARD];
 	if (!brd->ready) {
+		mutex_unlock(&moxa_openlock);
+		return -ENODEV;
+	}
+
+	if (port % MAX_PORTS_PER_BOARD >= brd->numPorts) {
 		mutex_unlock(&moxa_openlock);
 		return -ENODEV;
 	}

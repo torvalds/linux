@@ -42,7 +42,6 @@
 #include "xfs_error.h"
 #include "xfs_itable.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
@@ -1194,7 +1193,9 @@ void
 xfs_qm_dqrele(
 	xfs_dquot_t	*dqp)
 {
-	ASSERT(dqp);
+	if (!dqp)
+		return;
+
 	xfs_dqtrace_entry(dqp, "DQRELE");
 
 	xfs_dqlock(dqp);

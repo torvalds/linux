@@ -110,7 +110,7 @@ parse_extended(struct parsed_partitions *state, struct block_device *bdev,
 	Sector sect;
 	unsigned char *data;
 	u32 this_sector, this_size;
-	int sector_size = bdev_hardsect_size(bdev) / 512;
+	int sector_size = bdev_logical_block_size(bdev) / 512;
 	int loopct = 0;		/* number of links followed
 				   without finding a data partition */
 	int i;
@@ -415,7 +415,7 @@ static struct {
  
 int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 {
-	int sector_size = bdev_hardsect_size(bdev) / 512;
+	int sector_size = bdev_logical_block_size(bdev) / 512;
 	Sector sect;
 	unsigned char *data;
 	struct partition *p;

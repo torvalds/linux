@@ -19,7 +19,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/timer.h>
-#include <linux/mii.h>
+#include <linux/mdio.h>
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -458,8 +458,6 @@ enum phy_type {
 	PHY_TYPE_MAX	/* Insert any new items before this */
 };
 
-#define PHY_ADDR_INVALID 0xff
-
 #define EFX_IS10G(efx) ((efx)->link_speed == 10000)
 
 enum nic_state {
@@ -497,8 +495,8 @@ struct efx_nic;
 
 /* Pseudo bit-mask flow control field */
 enum efx_fc_type {
-	EFX_FC_RX = 1,
-	EFX_FC_TX = 2,
+	EFX_FC_RX = FLOW_CTRL_RX,
+	EFX_FC_TX = FLOW_CTRL_TX,
 	EFX_FC_AUTO = 4,
 };
 
@@ -508,33 +506,15 @@ enum efx_mac_type {
 	EFX_XMAC = 2,
 };
 
-static inline unsigned int efx_fc_advertise(enum efx_fc_type wanted_fc)
-{
-	unsigned int adv = 0;
-	if (wanted_fc & EFX_FC_RX)
-		adv = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
-	if (wanted_fc & EFX_FC_TX)
-		adv ^= ADVERTISE_PAUSE_ASYM;
-	return adv;
-}
-
 static inline enum efx_fc_type efx_fc_resolve(enum efx_fc_type wanted_fc,
 					      unsigned int lpa)
 {
-	unsigned int adv = efx_fc_advertise(wanted_fc);
+	BUILD_BUG_ON(EFX_FC_AUTO & (EFX_FC_RX | EFX_FC_TX));
 
 	if (!(wanted_fc & EFX_FC_AUTO))
 		return wanted_fc;
 
-	if (adv & lpa & ADVERTISE_PAUSE_CAP)
-		return EFX_FC_RX | EFX_FC_TX;
-	if (adv & lpa & ADVERTISE_PAUSE_ASYM) {
-		if (adv & ADVERTISE_PAUSE_CAP)
-			return EFX_FC_RX;
-		if (lpa & ADVERTISE_PAUSE_CAP)
-			return EFX_FC_TX;
-	}
-	return 0;
+	return mii_resolve_flowctrl_fdx(mii_advertise_flowctrl(wanted_fc), lpa);
 }
 
 /**
@@ -758,7 +738,7 @@ union efx_multicast_hash {
  * @phy_lock: PHY access lock
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
- * @mii: PHY interface
+ * @mdio: PHY MDIO interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @mac_up: MAC link state
  * @link_up: Link status
@@ -845,7 +825,7 @@ struct efx_nic {
 	struct work_struct phy_work;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
-	struct mii_if_info mii;
+	struct mdio_if_info mdio;
 	enum efx_phy_mode phy_mode;
 
 	bool mac_up;

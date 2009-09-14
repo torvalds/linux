@@ -157,6 +157,7 @@
 
 #define S3C_EINT(x)		((x) + S3C_IRQ_EINT_BASE)
 #define IRQ_EINT(x)		S3C_EINT(x)
+#define IRQ_EINT_BIT(x)		((x) - S3C_EINT(0))
 
 /* Next the external interrupt groups. These are similar to the IRQ_EINT(x)
  * that they are sourced from the GPIO pins but with a different scheme for

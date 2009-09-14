@@ -70,7 +70,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	}
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
-	flush_tlb_one(get_asid(), addr);
+	local_flush_tlb_one(get_asid(), addr);
 }
 
 /*
@@ -177,14 +177,11 @@ void __init paging_init(void)
 
 	free_area_init_nodes(max_zone_pfns);
 
-#ifdef CONFIG_SUPERH32
 	/* Set up the uncached fixmap */
 	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
-#endif
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
-int after_bootmem = 0;
 
 void __init mem_init(void)
 {
@@ -216,8 +213,6 @@ void __init mem_init(void)
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
-
-	after_bootmem = 1;
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;

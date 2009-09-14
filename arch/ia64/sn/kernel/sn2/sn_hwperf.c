@@ -414,7 +414,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 		}
 		seq_printf(s, "partition %u %s local "
 			"shubtype %s, "
-			"nasid_mask 0x%016lx, "
+			"nasid_mask 0x%016llx, "
 			"nasid_bits %d:%d, "
 			"system_size %d, "
 			"sharing_size %d, "
@@ -683,7 +683,7 @@ static int sn_hwperf_map_err(int hwperf_err)
  * ioctl for "sn_hwperf" misc device
  */
 static int
-sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, u64 arg)
+sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 {
 	struct sn_hwperf_ioctl_args a;
 	struct cpuinfo_ia64 *cdata;

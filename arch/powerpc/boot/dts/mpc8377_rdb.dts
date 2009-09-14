@@ -169,7 +169,7 @@
 			};
 
 			sdhci@2e000 {
-				compatible = "fsl,mpc8377-esdhc", "fsl,mpc8379-esdhc";
+				compatible = "fsl,mpc8377-esdhc", "fsl,esdhc";
 				reg = <0x2e000 0x1000>;
 				interrupts = <42 0x8>;
 				interrupt-parent = <&ipic>;
@@ -410,7 +410,7 @@
 		bus-range = <0 0>;
 		ranges = <0x02000000 0x0 0x90000000 0x90000000 0x0 0x10000000
 		          0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000
-		          0x01000000 0x0 0x00000000 0xe2000000 0x0 0x00100000>;
+		          0x01000000 0x0 0x00000000 0xe0300000 0x0 0x00100000>;
 		sleep = <&pmc 0x00010000>;
 		clock-frequency = <66666666>;
 		#interrupt-cells = <1>;

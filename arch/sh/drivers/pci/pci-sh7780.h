@@ -20,9 +20,8 @@
 #define SH7785_DEVICE_ID	0x0007
 
 /* SH7780 Control Registers */
-#define	SH7780_PCI_VCR0		0xFE000000
-#define	SH7780_PCI_VCR1		0xFE000004
-#define	SH7780_PCI_VCR2		0xFE000008
+#define	PCIECR			0xFE000008
+#define PCIECR_ENBL		0x01
 
 /* SH7780 Specific Values */
 #define SH7780_PCI_CONFIG_BASE	0xFD000000	/* Config space base addr */
@@ -35,7 +34,6 @@
 #define SH7780_PCI_IO_SIZE	0x00400000	/* Size of IO window */
 
 #define SH7780_PCIREG_BASE	0xFE040000	/* PCI regs base address */
-#define PCI_REG(n)		(SH7780_PCIREG_BASE+n)
 
 /* SH7780 PCI Config Registers */
 #define SH7780_PCIVID		0x000		/* Vendor ID */
@@ -67,11 +65,6 @@
 #define SH7780_PCIPMCSR_BSE	0x046
 #define SH7780_PCICDD		0x047
 
-#define SH7780_PCICR		0x100		/* PCI Control Register */
-#define SH7780_PCILSR		0x104		/* PCI Local Space Register0 */
-#define SH7780_PCILSR1		0x108		/* PCI Local Space Register1 */
-#define SH7780_PCILAR0		0x10C		/* PCI Local Address Register1 */
-#define SH7780_PCILAR1		0x110		/* PCI Local Address Register1 */
 #define SH7780_PCIIR		0x114		/* PCI Interrupt Register */
 #define SH7780_PCIIMR		0x118		/* PCI Interrupt Mask Register */
 #define SH7780_PCIAIR		0x11C		/* Error Address Register */
@@ -105,10 +98,5 @@
 #define SH7780_CS6_BASE_ADDR	(SH7780_CS5_BASE_ADDR + SH7780_MEM_REGION_SIZE)
 
 #define SH7780_32BIT_DDR_BASE_ADDR	0x40000000
-
-struct sh4_pci_address_map;
-
-/* arch/sh/drivers/pci/pci-sh7780.c */
-int sh7780_pcic_init(struct sh4_pci_address_map *map);
 
 #endif /* _PCI_SH7780_H_ */

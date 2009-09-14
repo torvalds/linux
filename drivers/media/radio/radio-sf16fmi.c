@@ -49,7 +49,6 @@ struct fmi
 	int io;
 	int curvol; /* 1 or 0 */
 	unsigned long curfreq; /* freq in kHz */
-	__u32 flags;
 	struct mutex lock;
 };
 
@@ -57,7 +56,7 @@ static struct fmi fmi_card;
 static struct pnp_dev *dev;
 
 /* freq is in 1/16 kHz to internal number, hw precision is 50 kHz */
-/* It is only useful to give freq in intervall of 800 (=0.05Mhz),
+/* It is only useful to give freq in interval of 800 (=0.05Mhz),
  * other bits will be truncated, e.g 92.7400016 -> 92.7, but
  * 92.7400017 -> 92.75
  */
@@ -142,7 +141,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
-	int mult;
 	struct fmi *fmi = video_drvdata(file);
 
 	if (v->index > 0)
@@ -150,11 +148,10 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 	strlcpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
-	mult = (fmi->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
-	v->rangelow = RSF16_MINFREQ / mult;
-	v->rangehigh = RSF16_MAXFREQ / mult;
+	v->rangelow = RSF16_MINFREQ;
+	v->rangehigh = RSF16_MAXFREQ;
 	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	v->capability = fmi->flags & V4L2_TUNER_CAP_LOW;
+	v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW;
 	v->audmode = V4L2_TUNER_MODE_STEREO;
 	v->signal = fmi_getsigstr(fmi);
 	return 0;
@@ -171,8 +168,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct fmi *fmi = video_drvdata(file);
 
-	if (!(fmi->flags & V4L2_TUNER_CAP_LOW))
-		f->frequency *= 1000;
 	if (f->frequency < RSF16_MINFREQ ||
 			f->frequency > RSF16_MAXFREQ)
 		return -EINVAL;
@@ -189,8 +184,6 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = fmi->curfreq;
-	if (!(fmi->flags & V4L2_TUNER_CAP_LOW))
-		f->frequency /= 1000;
 	return 0;
 }
 
@@ -347,7 +340,6 @@ static int __init fmi_init(void)
 		return res;
 	}
 
-	fmi->flags = V4L2_TUNER_CAP_LOW;
 	strlcpy(fmi->vdev.name, v4l2_dev->name, sizeof(fmi->vdev.name));
 	fmi->vdev.v4l2_dev = v4l2_dev;
 	fmi->vdev.fops = &fmi_fops;

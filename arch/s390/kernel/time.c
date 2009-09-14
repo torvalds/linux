@@ -36,7 +36,6 @@
 #include <linux/notifier.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/bootmem.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
@@ -62,15 +61,12 @@
 
 u64 sched_clock_base_cc = -1;	/* Force to data section. */
 
-static ext_int_info_t ext_int_info_cc;
-static ext_int_info_t ext_int_etr_cc;
-
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return ((get_clock_xt() - sched_clock_base_cc) * 125) >> 9;
 }
@@ -95,12 +91,6 @@ void tod_to_timeval(__u64 todval, struct timespec *xtime)
 	xtime->tv_nsec = ((todval * 1000) >> 12);
 }
 
-#ifdef CONFIG_PROFILING
-#define s390_do_profile()	profile_tick(CPU_PROFILING)
-#else
-#define s390_do_profile()	do { ; } while(0)
-#endif /* CONFIG_PROFILING */
-
 void clock_comparator_work(void)
 {
 	struct clock_event_device *cd;
@@ -109,7 +99,6 @@ void clock_comparator_work(void)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	cd = &__get_cpu_var(comparators);
 	cd->event_handler(cd);
-	s390_do_profile();
 }
 
 /*
@@ -262,15 +251,11 @@ void __init time_init(void)
 	stp_reset();
 
 	/* request the clock comparator external interrupt */
-	if (register_early_external_interrupt(0x1004,
-					      clock_comparator_interrupt,
-					      &ext_int_info_cc) != 0)
+	if (register_external_interrupt(0x1004, clock_comparator_interrupt))
                 panic("Couldn't request external interrupt 0x1004");
 
 	/* request the timing alert external interrupt */
-	if (register_early_external_interrupt(0x1406,
-					      timing_alert_interrupt,
-					      &ext_int_etr_cc) != 0)
+	if (register_external_interrupt(0x1406, timing_alert_interrupt))
 		panic("Couldn't request external interrupt 0x1406");
 
 	if (clocksource_register(&clocksource_tod) != 0)
@@ -1452,14 +1437,14 @@ static void __init stp_reset(void)
 {
 	int rc;
 
-	stp_page = alloc_bootmem_pages(PAGE_SIZE);
+	stp_page = (void *) get_zeroed_page(GFP_ATOMIC);
 	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000);
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
 		pr_warning("The real or virtual hardware system does "
 			   "not provide an STP interface\n");
-		free_bootmem((unsigned long) stp_page, PAGE_SIZE);
+		free_page((unsigned long) stp_page);
 		stp_page = NULL;
 		stp_online = 0;
 	}

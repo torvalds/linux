@@ -270,6 +270,9 @@ static const struct net_device_ops plip_netdev_ops = {
 	.ndo_stop		 = plip_close,
 	.ndo_start_xmit		 = plip_tx_packet,
 	.ndo_do_ioctl		 = plip_ioctl,
+	.ndo_change_mtu		 = eth_change_mtu,
+	.ndo_set_mac_address	 = eth_mac_addr,
+	.ndo_validate_addr	 = eth_validate_addr,
 };
 
 /* Entry point of PLIP driver.
@@ -955,12 +958,12 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	struct plip_local *snd = &nl->snd_data;
 
 	if (netif_queue_stopped(dev))
-		return 1;
+		return NETDEV_TX_BUSY;
 
 	/* We may need to grab the bus */
 	if (!nl->port_owner) {
 		if (parport_claim(nl->pardev))
-			return 1;
+			return NETDEV_TX_BUSY;
 		nl->port_owner = 1;
 	}
 
@@ -969,7 +972,7 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len > dev->mtu + dev->hard_header_len) {
 		printk(KERN_WARNING "%s: packet too big, %d.\n", dev->name, (int)skb->len);
 		netif_start_queue (dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (net_debug > 2)

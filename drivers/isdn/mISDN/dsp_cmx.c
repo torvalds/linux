@@ -163,8 +163,9 @@ dsp_cmx_debug(struct dsp *dsp)
 
 	printk(KERN_DEBUG "-----Current DSP\n");
 	list_for_each_entry(odsp, &dsp_ilist, list) {
-		printk(KERN_DEBUG "* %s echo=%d txmix=%d",
-		    odsp->name, odsp->echo, odsp->tx_mix);
+		printk(KERN_DEBUG "* %s hardecho=%d softecho=%d txmix=%d",
+		    odsp->name, odsp->echo.hardware, odsp->echo.software,
+		    odsp->tx_mix);
 		if (odsp->conf)
 			printk(" (Conf %d)", odsp->conf->id);
 		if (dsp == odsp)
@@ -177,10 +178,12 @@ dsp_cmx_debug(struct dsp *dsp)
 		list_for_each_entry(member, &conf->mlist, list) {
 			printk(KERN_DEBUG
 			    "  - member = %s (slot_tx %d, bank_tx %d, "
-			    "slot_rx %d, bank_rx %d hfc_conf %d)%s\n",
+			    "slot_rx %d, bank_rx %d hfc_conf %d "
+			    "tx_data %d rx_is_off %d)%s\n",
 			    member->dsp->name, member->dsp->pcm_slot_tx,
 			    member->dsp->pcm_bank_tx, member->dsp->pcm_slot_rx,
 			    member->dsp->pcm_bank_rx, member->dsp->hfc_conf,
+			    member->dsp->tx_data, member->dsp->rx_is_off,
 			    (member->dsp == dsp) ? " *this*" : "");
 		}
 	}
@@ -235,7 +238,7 @@ dsp_cmx_add_conf_member(struct dsp *dsp, struct dsp_conf *conf)
 
 	member = kzalloc(sizeof(struct dsp_conf_member), GFP_ATOMIC);
 	if (!member) {
-		printk(KERN_ERR "kmalloc struct dsp_conf_member failed\n");
+		printk(KERN_ERR "kzalloc struct dsp_conf_member failed\n");
 		return -ENOMEM;
 	}
 	member->dsp = dsp;
@@ -314,7 +317,7 @@ static struct dsp_conf
 
 	conf = kzalloc(sizeof(struct dsp_conf), GFP_ATOMIC);
 	if (!conf) {
-		printk(KERN_ERR "kmalloc struct dsp_conf failed\n");
+		printk(KERN_ERR "kzalloc struct dsp_conf failed\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&conf->mlist);
@@ -385,7 +388,7 @@ dsp_cmx_hardware(struct dsp_conf *conf, struct dsp *dsp)
 	int		freeunits[8];
 	u_char		freeslots[256];
 	int		same_hfc = -1, same_pcm = -1, current_conf = -1,
-	    all_conf = 1;
+	    all_conf = 1, tx_data = 0;
 
 	/* dsp gets updated (no conf) */
 	if (!conf) {
@@ -409,7 +412,7 @@ one_member:
 		/* process hw echo */
 		if (dsp->features.pcm_banks < 1)
 			return;
-		if (!dsp->echo) {
+		if (!dsp->echo.software && !dsp->echo.hardware) {
 			/* NO ECHO: remove PCM slot if assigned */
 			if (dsp->pcm_slot_tx >= 0 || dsp->pcm_slot_rx >= 0) {
 				if (dsp_debug & DEBUG_DSP_CMX)
@@ -427,10 +430,15 @@ one_member:
 			}
 			return;
 		}
+		/* echo is enabled, find out if we use soft or hardware */
+		dsp->echo.software = dsp->tx_data;
+		dsp->echo.hardware = 0;
 		/* ECHO: already echo */
 		if (dsp->pcm_slot_tx >= 0 && dsp->pcm_slot_rx < 0 &&
-		    dsp->pcm_bank_tx == 2 && dsp->pcm_bank_rx == 2)
+		    dsp->pcm_bank_tx == 2 && dsp->pcm_bank_rx == 2) {
+			dsp->echo.hardware = 1;
 			return;
+		}
 		/* ECHO: if slot already assigned */
 		if (dsp->pcm_slot_tx >= 0) {
 			dsp->pcm_slot_rx = dsp->pcm_slot_tx;
@@ -443,6 +451,7 @@ one_member:
 				    dsp->pcm_slot_tx);
 			dsp_cmx_hw_message(dsp, MISDN_CTRL_HFC_PCM_CONN,
 			    dsp->pcm_slot_tx, 2, dsp->pcm_slot_rx, 2);
+			dsp->echo.hardware = 1;
 			return;
 		}
 		/* ECHO: find slot */
@@ -472,6 +481,7 @@ one_member:
 				    "%s no slot available for echo\n",
 				    __func__);
 			/* no more slots available */
+			dsp->echo.software = 1;
 			return;
 		}
 		/* assign free slot */
@@ -485,6 +495,7 @@ one_member:
 			    __func__, dsp->name, dsp->pcm_slot_tx);
 		dsp_cmx_hw_message(dsp, MISDN_CTRL_HFC_PCM_CONN,
 		    dsp->pcm_slot_tx, 2, dsp->pcm_slot_rx, 2);
+		dsp->echo.hardware = 1;
 		return;
 	}
 
@@ -554,7 +565,7 @@ conf_software:
 			return;
 		}
 		/* check if member has echo turned on */
-		if (member->dsp->echo) {
+		if (member->dsp->echo.hardware || member->dsp->echo.software) {
 			if (dsp_debug & DEBUG_DSP_CMX)
 				printk(KERN_DEBUG
 				    "%s dsp %s cannot form a conf, because "
@@ -592,10 +603,9 @@ conf_software:
 		if (member->dsp->tx_data) {
 			if (dsp_debug & DEBUG_DSP_CMX)
 				printk(KERN_DEBUG
-				    "%s dsp %s cannot form a conf, because "
-				    "tx_data is turned on\n",
+				    "%s dsp %s tx_data is turned on\n",
 				    __func__, member->dsp->name);
-			goto conf_software;
+			tx_data = 1;
 		}
 		/* check if pipeline exists */
 		if (member->dsp->pipeline.inuse) {
@@ -794,7 +804,7 @@ conf_software:
 			    nextm->dsp->pcm_slot_tx, nextm->dsp->pcm_bank_tx,
 			    nextm->dsp->pcm_slot_rx, nextm->dsp->pcm_bank_rx);
 			conf->hardware = 1;
-			conf->software = 0;
+			conf->software = tx_data;
 			return;
 		/* if members have one bank (or on the same chip) */
 		} else {
@@ -904,7 +914,7 @@ conf_software:
 			    nextm->dsp->pcm_slot_tx, nextm->dsp->pcm_bank_tx,
 			    nextm->dsp->pcm_slot_rx, nextm->dsp->pcm_bank_rx);
 			conf->hardware = 1;
-			conf->software = 0;
+			conf->software = tx_data;
 			return;
 		}
 	}
@@ -937,6 +947,10 @@ conf_software:
 	if (current_conf >= 0) {
 join_members:
 		list_for_each_entry(member, &conf->mlist, list) {
+			/* if no conference engine on our chip, change to
+			 * software */
+			if (!member->dsp->features.hfc_conf)
+				goto conf_software;
 			/* in case of hdlc, change to software */
 			if (member->dsp->hdlc)
 				goto conf_software;
@@ -1295,17 +1309,25 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 	int r, rr, t, tt, o_r, o_rr;
 	int preload = 0;
 	struct mISDNhead *hh, *thh;
+	int tx_data_only = 0;
 
 	/* don't process if: */
 	if (!dsp->b_active) { /* if not active */
 		dsp->last_tx = 0;
 		return;
 	}
-	if (dsp->pcm_slot_tx >= 0 && /* connected to pcm slot */
+	if (((dsp->conf && dsp->conf->hardware) || /* hardware conf */
+	    dsp->echo.hardware) && /* OR hardware echo */
 	    dsp->tx_R == dsp->tx_W && /* AND no tx-data */
 	    !(dsp->tone.tone && dsp->tone.software)) { /* AND not soft tones */
-		dsp->last_tx = 0;
-		return;
+		if (!dsp->tx_data) { /* no tx_data for user space required */
+			dsp->last_tx = 0;
+			return;
+		}
+		if (dsp->conf && dsp->conf->software && dsp->conf->hardware)
+			tx_data_only = 1;
+		if (dsp->conf->software && dsp->echo.hardware)
+			tx_data_only = 1;
 	}
 
 #ifdef CMX_DEBUG
@@ -1367,7 +1389,8 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 		while (r != rr && t != tt) {
 #ifdef CMX_TX_DEBUG
 			if (strlen(debugbuf) < 48)
-			    sprintf(debugbuf+strlen(debugbuf), " %02x", p[t]);
+				sprintf(debugbuf+strlen(debugbuf), " %02x",
+				    p[t]);
 #endif
 			*d++ = p[t]; /* write tx_buff */
 			t = (t+1) & CMX_BUFF_MASK;
@@ -1388,7 +1411,7 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 	/* PROCESS DATA (one member / no conf) */
 	if (!conf || members <= 1) {
 		/* -> if echo is NOT enabled */
-		if (!dsp->echo) {
+		if (!dsp->echo.software) {
 			/* -> send tx-data if available or use 0-volume */
 			while (r != rr && t != tt) {
 				*d++ = p[t]; /* write tx_buff */
@@ -1438,7 +1461,7 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 		o_r = (o_rr - rr + r) & CMX_BUFF_MASK;
 			/* start rx-pointer at current read position*/
 		/* -> if echo is NOT enabled */
-		if (!dsp->echo) {
+		if (!dsp->echo.software) {
 			/*
 			 * -> copy other member's rx-data,
 			 * if tx-data is available, mix
@@ -1486,7 +1509,7 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 #endif
 	/* PROCESS DATA (three or more members) */
 	/* -> if echo is NOT enabled */
-	if (!dsp->echo) {
+	if (!dsp->echo.software) {
 		/*
 		 * -> substract rx-data from conf-data,
 		 * if tx-data is available, mix
@@ -1550,27 +1573,40 @@ send_packet:
 	 * becuase we want what we send, not what we filtered
 	 */
 	if (dsp->tx_data) {
-		/* PREPARE RESULT */
-		txskb = mI_alloc_skb(len, GFP_ATOMIC);
-		if (!txskb) {
-			printk(KERN_ERR
-			    "FATAL ERROR in mISDN_dsp.o: "
-			    "cannot alloc %d bytes\n", len);
+		if (tx_data_only) {
+			hh->prim = DL_DATA_REQ;
+			hh->id = 0;
+			/* queue and trigger */
+			skb_queue_tail(&dsp->sendq, nskb);
+			schedule_work(&dsp->workq);
+			/* exit because only tx_data is used */
+			return;
 		} else {
-			thh = mISDN_HEAD_P(txskb);
-			thh->prim = DL_DATA_REQ;
-			thh->id = 0;
-			memcpy(skb_put(txskb, len), nskb->data+preload, len);
-			/* queue (trigger later) */
-			skb_queue_tail(&dsp->sendq, txskb);
+			txskb = mI_alloc_skb(len, GFP_ATOMIC);
+			if (!txskb) {
+				printk(KERN_ERR
+				    "FATAL ERROR in mISDN_dsp.o: "
+				    "cannot alloc %d bytes\n", len);
+			} else {
+				thh = mISDN_HEAD_P(txskb);
+				thh->prim = DL_DATA_REQ;
+				thh->id = 0;
+				memcpy(skb_put(txskb, len), nskb->data+preload,
+					len);
+				/* queue (trigger later) */
+				skb_queue_tail(&dsp->sendq, txskb);
+			}
 		}
 	}
+
+	/* send data only to card, if we don't just calculated tx_data */
 	/* adjust volume */
 	if (dsp->tx_volume)
 		dsp_change_volume(nskb, dsp->tx_volume);
 	/* pipeline */
 	if (dsp->pipeline.inuse)
-		dsp_pipeline_process_tx(&dsp->pipeline, nskb->data, nskb->len);
+		dsp_pipeline_process_tx(&dsp->pipeline, nskb->data,
+			nskb->len);
 	/* crypt */
 	if (dsp->bf_enable)
 		dsp_bf_encrypt(dsp, nskb->data, nskb->len);
@@ -1592,7 +1628,8 @@ dsp_cmx_send(void *arg)
 	struct dsp_conf_member *member;
 	struct dsp *dsp;
 	int mustmix, members;
-	s32 mixbuffer[MAX_POLL+100], *c;
+	static s32 mixbuffer[MAX_POLL+100];
+	s32 *c;
 	u8 *p, *q;
 	int r, rr;
 	int jittercheck = 0, delay, i;
@@ -1890,10 +1927,8 @@ dsp_cmx_hdlc(struct dsp *dsp, struct sk_buff *skb)
 
 	/* no conf */
 	if (!dsp->conf) {
-		/* in case of hardware (echo) */
-		if (dsp->pcm_slot_tx >= 0)
-			return;
-		if (dsp->echo) {
+		/* in case of software echo */
+		if (dsp->echo.software) {
 			nskb = skb_clone(skb, GFP_ATOMIC);
 			if (nskb) {
 				hh = mISDN_HEAD_P(nskb);
@@ -1909,7 +1944,7 @@ dsp_cmx_hdlc(struct dsp *dsp, struct sk_buff *skb)
 	if (dsp->conf->hardware)
 		return;
 	list_for_each_entry(member, &dsp->conf->mlist, list) {
-		if (dsp->echo || member->dsp != dsp) {
+		if (dsp->echo.software || member->dsp != dsp) {
 			nskb = skb_clone(skb, GFP_ATOMIC);
 			if (nskb) {
 				hh = mISDN_HEAD_P(nskb);

@@ -132,7 +132,7 @@ struct rds_connection {
 #define RDS_FLAG_CONG_BITMAP	0x01
 #define RDS_FLAG_ACK_REQUIRED	0x02
 #define RDS_FLAG_RETRANSMITTED	0x04
-#define RDS_MAX_ADV_CREDIT	127
+#define RDS_MAX_ADV_CREDIT	255
 
 /*
  * Maximum space available for extension headers.

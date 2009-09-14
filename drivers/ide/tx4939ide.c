@@ -307,7 +307,7 @@ static int tx4939ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	tx4939ide_writew(SECTOR_SIZE / 2, base, drive->dn ?
 			 TX4939IDE_Xfer_Cnt_2 : TX4939IDE_Xfer_Cnt_1);
 
-	tx4939ide_writew(cmd->rq->nr_sectors, base, TX4939IDE_Sec_Cnt);
+	tx4939ide_writew(blk_rq_sectors(cmd->rq), base, TX4939IDE_Sec_Cnt);
 
 	return 0;
 }
@@ -537,8 +537,7 @@ static const struct ide_port_info tx4939ide_port_info __initdata = {
 
 static int __init tx4939ide_probe(struct platform_device *pdev)
 {
-	hw_regs_t hw;
-	hw_regs_t *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	int irq, ret;
@@ -581,7 +580,7 @@ static int __init tx4939ide_probe(struct platform_device *pdev)
 	hw.dev = &pdev->dev;
 
 	pr_info("TX4939 IDE interface (base %#lx, irq %d)\n", mapbase, irq);
-	host = ide_host_alloc(&tx4939ide_port_info, hws);
+	host = ide_host_alloc(&tx4939ide_port_info, hws, 1);
 	if (!host)
 		return -ENOMEM;
 	/* use extra_base for base address of the all registers */

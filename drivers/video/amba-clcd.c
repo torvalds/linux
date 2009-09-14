@@ -226,9 +226,10 @@ static int clcdfb_set_par(struct fb_info *info)
 	clcdfb_enable(fb, regs.cntl);
 
 #ifdef DEBUG
-	printk(KERN_INFO "CLCD: Registers set to\n"
-	       KERN_INFO "  %08x %08x %08x %08x\n"
-	       KERN_INFO "  %08x %08x %08x %08x\n",
+	printk(KERN_INFO
+	       "CLCD: Registers set to\n"
+	       "  %08x %08x %08x %08x\n"
+	       "  %08x %08x %08x %08x\n",
 		readl(fb->regs + CLCD_TIM0), readl(fb->regs + CLCD_TIM1),
 		readl(fb->regs + CLCD_TIM2), readl(fb->regs + CLCD_TIM3),
 		readl(fb->regs + CLCD_UBAS), readl(fb->regs + CLCD_LBAS),
@@ -351,7 +352,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	}
 
 	fb->fb.fix.mmio_start	= fb->dev->res.start;
-	fb->fb.fix.mmio_len	= 4096;
+	fb->fb.fix.mmio_len	= resource_size(&fb->dev->res);
 
 	fb->regs = ioremap(fb->fb.fix.mmio_start, fb->fb.fix.mmio_len);
 	if (!fb->regs) {

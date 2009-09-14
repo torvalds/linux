@@ -83,7 +83,6 @@ static int disable_slot(struct hotplug_slot *slot);
 static inline int get_power_status(struct hotplug_slot *slot, u8 *value);
 
 static struct hotplug_slot_ops sn_hotplug_slot_ops = {
-	.owner                  = THIS_MODULE,
 	.enable_slot            = enable_slot,
 	.disable_slot           = disable_slot,
 	.get_power_status       = get_power_status,
@@ -91,11 +90,10 @@ static struct hotplug_slot_ops sn_hotplug_slot_ops = {
 
 static DEFINE_MUTEX(sn_hotplug_mutex);
 
-static ssize_t path_show (struct hotplug_slot *bss_hotplug_slot,
-	       		  char *buf)
+static ssize_t path_show(struct pci_slot *pci_slot, char *buf)
 {
 	int retval = -ENOENT;
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = pci_slot->hotplug->private;
 
 	if (!slot)
 		return retval;
@@ -104,7 +102,7 @@ static ssize_t path_show (struct hotplug_slot *bss_hotplug_slot,
 	return retval;
 }
 
-static struct hotplug_slot_attribute sn_slot_path_attr = __ATTR_RO(path);
+static struct pci_slot_attribute sn_slot_path_attr = __ATTR_RO(path);
 
 static int sn_pci_slot_valid(struct pci_bus *pci_bus, int device)
 {
@@ -679,7 +677,7 @@ alloc_err:
 	return rc;
 }
 
-static int sn_pci_hotplug_init(void)
+static int __init sn_pci_hotplug_init(void)
 {
 	struct pci_bus *pci_bus = NULL;
 	int rc;
@@ -716,7 +714,7 @@ static int sn_pci_hotplug_init(void)
 	return registered == 1 ? 0 : -ENODEV;
 }
 
-static void sn_pci_hotplug_exit(void)
+static void __exit sn_pci_hotplug_exit(void)
 {
 	struct hotplug_slot *bss_hotplug_slot;
 

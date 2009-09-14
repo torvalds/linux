@@ -1,8 +1,6 @@
 /*
  * Copyright (C) 2005, 2006
- * Avishay Traeger (avishay@gmail.com) (avishay@il.ibm.com)
- * Copyright (C) 2005, 2006
- * International Business Machines
+ * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
  * Boaz Harrosh <bharrosh@panasas.com>
  *
@@ -33,6 +31,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/vfs.h>
@@ -200,20 +199,21 @@ static const struct export_operations exofs_export_ops;
 /*
  * Write the superblock to the OSD
  */
-static void exofs_write_super(struct super_block *sb)
+int exofs_sync_fs(struct super_block *sb, int wait)
 {
 	struct exofs_sb_info *sbi;
 	struct exofs_fscb *fscb;
 	struct osd_request *or;
 	struct osd_obj_id obj;
-	int ret;
+	int ret = -ENOMEM;
 
 	fscb = kzalloc(sizeof(struct exofs_fscb), GFP_KERNEL);
 	if (!fscb) {
 		EXOFS_ERR("exofs_write_super: memory allocation failed.\n");
-		return;
+		return -ENOMEM;
 	}
 
+	lock_super(sb);
 	lock_kernel();
 	sbi = sb->s_fs_info;
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
@@ -246,7 +246,17 @@ out:
 	if (or)
 		osd_end_request(or);
 	unlock_kernel();
+	unlock_super(sb);
 	kfree(fscb);
+	return ret;
+}
+
+static void exofs_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		exofs_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 /*
@@ -257,6 +267,11 @@ static void exofs_put_super(struct super_block *sb)
 {
 	int num_pend;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
+
+	lock_kernel();
+
+	if (sb->s_dirt)
+		exofs_write_super(sb);
 
 	/* make sure there are no pending commands */
 	for (num_pend = atomic_read(&sbi->s_curr_pending); num_pend > 0;
@@ -271,6 +286,8 @@ static void exofs_put_super(struct super_block *sb)
 	osduld_put_device(sbi->s_dev);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 /*
@@ -484,6 +501,7 @@ static const struct super_operations exofs_sops = {
 	.delete_inode   = exofs_delete_inode,
 	.put_super      = exofs_put_super,
 	.write_super    = exofs_write_super,
+	.sync_fs	= exofs_sync_fs,
 	.statfs         = exofs_statfs,
 };
 

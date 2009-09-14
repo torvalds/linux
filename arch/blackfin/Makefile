@@ -137,7 +137,7 @@ archclean:
 
 INSTALL_PATH ?= /tftpboot
 boot := arch/$(ARCH)/boot
-BOOT_TARGETS = vmImage
+BOOT_TARGETS = vmImage vmImage.bz2 vmImage.gz vmImage.lzma
 PHONY += $(BOOT_TARGETS) install
 KBUILD_IMAGE := $(boot)/vmImage
 
@@ -150,7 +150,10 @@ install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
 
 define archhelp
-  echo  '* vmImage         - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage)'
+  echo  '* vmImage         - Alias to selected kernel format (vmImage.gz by default)'
+  echo  '  vmImage.bz2     - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.bz2)'
+  echo  '* vmImage.gz      - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.gz)'
+  echo  '  vmImage.lzma    - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.lzma)'
   echo  '  install         - Install kernel using'
   echo  '                     (your) ~/bin/$(CROSS_COMPILE)installkernel or'
   echo  '                     (distribution) PATH: $(CROSS_COMPILE)installkernel or'

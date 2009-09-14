@@ -90,11 +90,7 @@ static int check_est_cpu(unsigned int cpuid)
 {
 	struct cpuinfo_x86 *cpu = &cpu_data(cpuid);
 
-	if (cpu->x86_vendor != X86_VENDOR_INTEL ||
-	    !cpu_has(cpu, X86_FEATURE_EST))
-		return 0;
-
-	return 1;
+	return cpu_has(cpu, X86_FEATURE_EST);
 }
 
 static unsigned extract_io(u32 value, struct acpi_cpufreq_data *data)

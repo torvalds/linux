@@ -27,6 +27,8 @@ extern void pxa27x_cpu_suspend(unsigned int);
 extern void pxa_cpu_resume(void);
 
 extern int pxa_pm_enter(suspend_state_t state);
+extern int pxa_pm_prepare(void);
+extern void pxa_pm_finish(void);
 
 /* NOTE: this is for PM debugging on Lubbock,  it's really a big
  * ugly, but let's keep the crap minimum here, instead of direct

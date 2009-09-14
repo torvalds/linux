@@ -203,7 +203,8 @@ struct pci_bus;
 void x86_pci_root_bus_res_quirks(struct pci_bus *b);
 
 #ifdef CONFIG_SMP
-#define mc_capable()	(cpumask_weight(cpu_core_mask(0)) != nr_cpu_ids)
+#define mc_capable()	((boot_cpu_data.x86_max_cores > 1) && \
+			(cpumask_weight(cpu_core_mask(0)) != nr_cpu_ids))
 #define smt_capable()			(smp_num_siblings > 1)
 #endif
 

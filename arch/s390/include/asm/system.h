@@ -1,11 +1,7 @@
 /*
- *  include/asm-s390/system.h
+ * Copyright IBM Corp. 1999, 2009
  *
- *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
- *
- *  Derived from "include/asm-i386/system.h"
+ * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #ifndef __ASM_SYSTEM_H
@@ -468,6 +464,20 @@ extern void (*_machine_power_off)(void);
 extern psw_t sysc_restore_trace_psw;
 extern psw_t io_restore_trace_psw;
 #endif
+
+static inline int tprot(unsigned long addr)
+{
+	int rc = -EFAULT;
+
+	asm volatile(
+		"	tprot	0(%1),0\n"
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "+d" (rc) : "a" (addr) : "cc");
+	return rc;
+}
 
 #endif /* __KERNEL__ */
 

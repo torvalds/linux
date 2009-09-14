@@ -26,7 +26,7 @@
 # which will also be the location of that section after final link.
 # e.g.
 #
-#  .section ".text.sched"
+#  .section ".sched.text", "ax"
 #  .globl my_func
 #  my_func:
 #        [...]
@@ -39,7 +39,7 @@
 #        [...]
 #
 # Both relocation offsets for the mcounts in the above example will be
-# offset from .text.sched. If we make another file called tmp.s with:
+# offset from .sched.text. If we make another file called tmp.s with:
 #
 #  .section __mcount_loc
 #  .quad  my_func + 0x5
@@ -51,7 +51,7 @@
 # But this gets hard if my_func is not globl (a static function).
 # In such a case we have:
 #
-#  .section ".text.sched"
+#  .section ".sched.text", "ax"
 #  my_func:
 #        [...]
 #        call mcount  (offset: 0x5)
@@ -185,6 +185,19 @@ if ($arch eq "x86_64") {
     $objcopy .= " -O elf32-i386";
     $cc .= " -m32";
 
+} elsif ($arch eq "s390" && $bits == 32) {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_32\\s+_mcount\$";
+    $alignment = 4;
+    $ld .= " -m elf_s390";
+    $cc .= " -m31";
+
+} elsif ($arch eq "s390" && $bits == 64) {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_(PC|PLT)32DBL\\s+_mcount\\+0x2\$";
+    $alignment = 8;
+    $type = ".quad";
+    $ld .= " -m elf64_s390";
+    $cc .= " -m64";
+
 } elsif ($arch eq "sh") {
     $alignment = 2;
 
@@ -213,6 +226,26 @@ if ($arch eq "x86_64") {
     if ($is_module eq "0") {
         $cc .= " -mconstant-gp";
     }
+} elsif ($arch eq "sparc64") {
+    # In the objdump output there are giblets like:
+    # 0000000000000000 <igmp_net_exit-0x18>:
+    # As there's some data blobs that get emitted into the
+    # text section before the first instructions and the first
+    # real symbols.  We don't want to match that, so to combat
+    # this we use '\w' so we'll match just plain symbol names,
+    # and not those that also include hex offsets inside of the
+    # '<>' brackets.  Actually the generic function_regex setting
+    # could safely use this too.
+    $function_regex = "^([0-9a-fA-F]+)\\s+<(\\w*?)>:";
+
+    # Sparc64 calls '_mcount' instead of plain 'mcount'.
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s_mcount\$";
+
+    $alignment = 8;
+    $type = ".xword";
+    $ld .= " -m elf64_sparc";
+    $cc .= " -m64";
+    $objcopy .= " -O elf64-sparc";
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
@@ -360,7 +393,7 @@ while (<IN>) {
 	    $read_function = 0;
 	}
 	# print out any recorded offsets
-	update_funcs() if ($text_found);
+	update_funcs() if (defined($ref_func));
 
 	# reset all markers and arrays
 	$text_found = 0;
@@ -370,7 +403,6 @@ while (<IN>) {
     # section found, now is this a start of a function?
     } elsif ($read_function && /$function_regex/) {
 	$text_found = 1;
-	$offset = hex $1;
 	$text = $2;
 
 	# if this is either a local function or a weak function
@@ -379,10 +411,15 @@ while (<IN>) {
 	if (!defined($locals{$text}) && !defined($weak{$text})) {
 	    $ref_func = $text;
 	    $read_function = 0;
+	    $offset = hex $1;
 	} else {
 	    # if we already have a function, and this is weak, skip it
-	    if (!defined($ref_func) || !defined($weak{$text})) {
+	    if (!defined($ref_func) && !defined($weak{$text}) &&
+		 # PPC64 can have symbols that start with .L and
+		 # gcc considers these special. Don't use them!
+		 $text !~ /^\.L/) {
 		$ref_func = $text;
+		$offset = hex $1;
 	    }
 	}
     } elsif ($read_headers && /$mcount_section/) {
@@ -407,7 +444,7 @@ while (<IN>) {
 }
 
 # dump out anymore offsets that may have been found
-update_funcs() if ($text_found);
+update_funcs() if (defined($ref_func));
 
 # If we did not find any mcount callers, we are done (do nothing).
 if (!$opened) {

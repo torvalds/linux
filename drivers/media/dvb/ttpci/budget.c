@@ -47,6 +47,9 @@
 #include "bsru6.h"
 #include "bsbe1.h"
 #include "tdhd1.h"
+#include "stv6110x.h"
+#include "stv090x.h"
+#include "isl6423.h"
 
 static int diseqc_method;
 module_param(diseqc_method, int, 0444);
@@ -425,6 +428,44 @@ static u8 read_pwm(struct budget* budget)
 	return pwm;
 }
 
+static struct stv090x_config tt1600_stv090x_config = {
+	.device			= STV0903,
+	.demod_mode		= STV090x_SINGLE,
+	.clk_mode		= STV090x_CLK_EXT,
+
+	.xtal			= 27000000,
+	.address		= 0x68,
+	.ref_clk		= 27000000,
+
+	.ts1_mode		= STV090x_TSMODE_DVBCI,
+	.ts2_mode		= STV090x_TSMODE_SERIAL_CONTINUOUS,
+
+	.repeater_level		= STV090x_RPTLEVEL_16,
+
+	.tuner_init		= NULL,
+	.tuner_set_mode		= NULL,
+	.tuner_set_frequency	= NULL,
+	.tuner_get_frequency	= NULL,
+	.tuner_set_bandwidth	= NULL,
+	.tuner_get_bandwidth	= NULL,
+	.tuner_set_bbgain	= NULL,
+	.tuner_get_bbgain	= NULL,
+	.tuner_set_refclk	= NULL,
+	.tuner_get_status	= NULL,
+};
+
+static struct stv6110x_config tt1600_stv6110x_config = {
+	.addr			= 0x60,
+	.refclk			= 27000000,
+};
+
+static struct isl6423_config tt1600_isl6423_config = {
+	.current_max		= SEC_CURRENT_515m,
+	.curlim			= SEC_CURRENT_LIM_ON,
+	.mod_extern		= 1,
+	.addr			= 0x08,
+};
+
 static void frontend_init(struct budget *budget)
 {
 	(void)alps_bsbe1_config; /* avoid warning */
@@ -566,6 +607,48 @@ static void frontend_init(struct budget *budget)
 			}
 			break;
 		}
+
+	case 0x101c: { /* TT S2-1600 */
+			struct stv6110x_devctl *ctl;
+			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
+			msleep(50);
+			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
+			msleep(250);
+
+			budget->dvb_frontend = dvb_attach(stv090x_attach,
+							  &tt1600_stv090x_config,
+							  &budget->i2c_adap,
+							  STV090x_DEMODULATOR_0);
+
+			if (budget->dvb_frontend) {
+
+				ctl = dvb_attach(stv6110x_attach,
+						 budget->dvb_frontend,
+						 &tt1600_stv6110x_config,
+						 &budget->i2c_adap);
+
+				tt1600_stv090x_config.tuner_init	  = ctl->tuner_init;
+				tt1600_stv090x_config.tuner_set_mode	  = ctl->tuner_set_mode;
+				tt1600_stv090x_config.tuner_set_frequency = ctl->tuner_set_frequency;
+				tt1600_stv090x_config.tuner_get_frequency = ctl->tuner_get_frequency;
+				tt1600_stv090x_config.tuner_set_bandwidth = ctl->tuner_set_bandwidth;
+				tt1600_stv090x_config.tuner_get_bandwidth = ctl->tuner_get_bandwidth;
+				tt1600_stv090x_config.tuner_set_bbgain	  = ctl->tuner_set_bbgain;
+				tt1600_stv090x_config.tuner_get_bbgain	  = ctl->tuner_get_bbgain;
+				tt1600_stv090x_config.tuner_set_refclk	  = ctl->tuner_set_refclk;
+				tt1600_stv090x_config.tuner_get_status	  = ctl->tuner_get_status;
+
+				dvb_attach(isl6423_attach,
+					budget->dvb_frontend,
+					&budget->i2c_adap,
+					&tt1600_isl6423_config);
+
+			} else {
+				dvb_frontend_detach(budget->dvb_frontend);
+				budget->dvb_frontend = NULL;
+			}
+		}
+		break;
 	}
 
 	if (budget->dvb_frontend == NULL) {
@@ -641,6 +724,7 @@ MAKE_BUDGET_INFO(ttbc,	"TT-Budget/WinTV-NOVA-C  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(ttbt,	"TT-Budget/WinTV-NOVA-T  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(satel,	"SATELCO Multimedia PCI",	BUDGET_TT_HW_DISEQC);
 MAKE_BUDGET_INFO(ttbs1401, "TT-Budget-S-1401 PCI", BUDGET_TT);
+MAKE_BUDGET_INFO(tt1600, "TT-Budget S2-1600 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(fsacs0, "Fujitsu Siemens Activy Budget-S PCI (rev GR/grundig frontend)", BUDGET_FS_ACTIVY);
 MAKE_BUDGET_INFO(fsacs1, "Fujitsu Siemens Activy Budget-S PCI (rev AL/alps frontend)", BUDGET_FS_ACTIVY);
 MAKE_BUDGET_INFO(fsact,	 "Fujitsu Siemens Activy Budget-T PCI (rev GR/Grundig frontend)", BUDGET_FS_ACTIVY);
@@ -653,6 +737,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(satel, 0x13c2, 0x1013),
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1016),
 	MAKE_EXTENSION_PCI(ttbs1401, 0x13c2, 0x1018),
+	MAKE_EXTENSION_PCI(tt1600, 0x13c2, 0x101c),
 	MAKE_EXTENSION_PCI(fsacs1,0x1131, 0x4f60),
 	MAKE_EXTENSION_PCI(fsacs0,0x1131, 0x4f61),
 	MAKE_EXTENSION_PCI(fsact1, 0x1131, 0x5f60),

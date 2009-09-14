@@ -578,6 +578,7 @@ out:
 static __inline__ int dn_queue_skb(struct sock *sk, struct sk_buff *skb, int sig, struct sk_buff_head *queue)
 {
 	int err;
+	int skb_len;
 
 	/* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
 	   number of warnings when compiling with -W --ANK
@@ -592,22 +593,12 @@ static __inline__ int dn_queue_skb(struct sock *sk, struct sk_buff *skb, int sig
 	if (err)
 		goto out;
 
+	skb_len = skb->len;
 	skb_set_owner_r(skb, sk);
 	skb_queue_tail(queue, skb);
 
-	/* This code only runs from BH or BH protected context.
-	 * Therefore the plain read_lock is ok here. -DaveM
-	 */
-	read_lock(&sk->sk_callback_lock);
-	if (!sock_flag(sk, SOCK_DEAD)) {
-		struct socket *sock = sk->sk_socket;
-		wake_up_interruptible(sk->sk_sleep);
-		if (sock && sock->fasync_list &&
-		    !test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
-			__kill_fasync(sock->fasync_list, sig,
-				    (sig == SIGURG) ? POLL_PRI : POLL_IN);
-	}
-	read_unlock(&sk->sk_callback_lock);
+	if (!sock_flag(sk, SOCK_DEAD))
+		sk->sk_data_ready(sk, skb_len);
 out:
 	return err;
 }

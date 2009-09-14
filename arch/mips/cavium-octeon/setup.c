@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/serial.h>
+#include <linux/smp.h>
 #include <linux/types.h>
 #include <linux/string.h>	/* for memset */
 #include <linux/tty.h>

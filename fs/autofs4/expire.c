@@ -48,19 +48,19 @@ static inline int autofs4_can_expire(struct dentry *dentry,
 static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct dentry *top = dentry;
+	struct path path = {.mnt = mnt, .dentry = dentry};
 	int status = 1;
 
 	DPRINTK("dentry %p %.*s",
 		dentry, (int)dentry->d_name.len, dentry->d_name.name);
 
-	mntget(mnt);
-	dget(dentry);
+	path_get(&path);
 
-	if (!follow_down(&mnt, &dentry))
+	if (!follow_down(&path))
 		goto done;
 
-	if (is_autofs4_dentry(dentry)) {
-		struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
+	if (is_autofs4_dentry(path.dentry)) {
+		struct autofs_sb_info *sbi = autofs4_sbi(path.dentry->d_sb);
 
 		/* This is an autofs submount, we can't expire it */
 		if (autofs_type_indirect(sbi->type))
@@ -70,7 +70,7 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 		 * Otherwise it's an offset mount and we need to check
 		 * if we can umount its mount, if there is one.
 		 */
-		if (!d_mountpoint(dentry)) {
+		if (!d_mountpoint(path.dentry)) {
 			status = 0;
 			goto done;
 		}
@@ -86,8 +86,7 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 	status = 0;
 done:
 	DPRINTK("returning = %d", status);
-	dput(dentry);
-	mntput(mnt);
+	path_put(&path);
 	return status;
 }
 

@@ -281,12 +281,12 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 }
 
 /* ----------------------------------------------------------------------- */
-void cx231xx_set_ir(struct cx231xx *dev, struct IR_i2c *ir)
+void cx231xx_register_i2c_ir(struct cx231xx *dev)
 {
-	if (disable_ir) {
-		ir->get_key = NULL;
+	if (disable_ir)
 		return;
-	}
+
+	/* REVISIT: instantiate IR device */
 
 	/* detect & configure */
 	switch (dev->model) {

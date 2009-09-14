@@ -32,30 +32,30 @@ static struct clk_ops sh5_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(cprc_base) >> 12) & 0x0007;
-	clk->rate = clk->parent->rate / ifc_table[idx];
+	return clk->parent->rate / ifc_table[idx];
 }
 
 static struct clk_ops sh5_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void bus_clk_recalc(struct clk *clk)
+static unsigned long bus_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(cprc_base) >> 3) & 0x0007;
-	clk->rate = clk->parent->rate / ifc_table[idx];
+	return clk->parent->rate / ifc_table[idx];
 }
 
 static struct clk_ops sh5_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
+static unsigned long cpu_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(cprc_base) & 0x0007);
-	clk->rate = clk->parent->rate / ifc_table[idx];
+	return clk->parent->rate / ifc_table[idx];
 }
 
 static struct clk_ops sh5_cpu_clk_ops = {
@@ -71,7 +71,7 @@ static struct clk_ops *sh5_clk_ops[] = {
 
 void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 {
-	cprc_base = onchip_remap(CPRC_BASE, 1024, "CPRC");
+	cprc_base = (unsigned long)ioremap_nocache(CPRC_BASE, 1024);
 	BUG_ON(!cprc_base);
 
 	if (idx < ARRAY_SIZE(sh5_clk_ops))

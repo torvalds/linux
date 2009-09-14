@@ -159,8 +159,6 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #else /* ARM_ARCH_6 */
 
-#include <asm/system.h>
-
 #ifdef CONFIG_SMP
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
@@ -249,6 +247,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 #endif
 #endif

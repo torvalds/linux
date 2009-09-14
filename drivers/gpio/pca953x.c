@@ -15,6 +15,10 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#ifdef CONFIG_OF_GPIO
+#include <linux/of_platform.h>
+#include <linux/of_gpio.h>
+#endif
 
 #include <asm/gpio.h>
 
@@ -32,6 +36,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9539", 16, },
 	{ "pca9554", 8, },
 	{ "pca9555", 16, },
+	{ "pca9556", 8, },
 	{ "pca9557", 8, },
 
 	{ "max7310", 8, },
@@ -49,7 +54,9 @@ struct pca953x_chip {
 	uint16_t reg_direction;
 
 	struct i2c_client *client;
+	struct pca953x_platform_data *dyn_pdata;
 	struct gpio_chip gpio_chip;
+	char **names;
 };
 
 static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
@@ -192,7 +199,56 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->label = chip->client->name;
 	gc->dev = &chip->client->dev;
 	gc->owner = THIS_MODULE;
+	gc->names = chip->names;
 }
+
+/*
+ * Handlers for alternative sources of platform_data
+ */
+#ifdef CONFIG_OF_GPIO
+/*
+ * Translate OpenFirmware node properties into platform_data
+ */
+static struct pca953x_platform_data *
+pca953x_get_alt_pdata(struct i2c_client *client)
+{
+	struct pca953x_platform_data *pdata;
+	struct device_node *node;
+	const uint16_t *val;
+
+	node = dev_archdata_get_node(&client->dev.archdata);
+	if (node == NULL)
+		return NULL;
+
+	pdata = kzalloc(sizeof(struct pca953x_platform_data), GFP_KERNEL);
+	if (pdata == NULL) {
+		dev_err(&client->dev, "Unable to allocate platform_data\n");
+		return NULL;
+	}
+
+	pdata->gpio_base = -1;
+	val = of_get_property(node, "linux,gpio-base", NULL);
+	if (val) {
+		if (*val < 0)
+			dev_warn(&client->dev,
+				 "invalid gpio-base in device tree\n");
+		else
+			pdata->gpio_base = *val;
+	}
+
+	val = of_get_property(node, "polarity", NULL);
+	if (val)
+		pdata->invert = *val;
+
+	return pdata;
+}
+#else
+static struct pca953x_platform_data *
+pca953x_get_alt_pdata(struct i2c_client *client)
+{
+	return NULL;
+}
+#endif
 
 static int __devinit pca953x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
@@ -201,19 +257,31 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	struct pca953x_chip *chip;
 	int ret;
 
-	pdata = client->dev.platform_data;
-	if (pdata == NULL) {
-		dev_dbg(&client->dev, "no platform data\n");
-		return -EINVAL;
-	}
-
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
+	pdata = client->dev.platform_data;
+	if (pdata == NULL) {
+		pdata = pca953x_get_alt_pdata(client);
+		/*
+		 * Unlike normal platform_data, this is allocated
+		 * dynamically and must be freed in the driver
+		 */
+		chip->dyn_pdata = pdata;
+	}
+
+	if (pdata == NULL) {
+		dev_dbg(&client->dev, "no platform data\n");
+		ret = -EINVAL;
+		goto out_failed;
+	}
+
 	chip->client = client;
 
 	chip->gpio_start = pdata->gpio_base;
+
+	chip->names = pdata->names;
 
 	/* initialize cached registers from their original values.
 	 * we can't share this chip with another i2c master.
@@ -249,6 +317,7 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	return 0;
 
 out_failed:
+	kfree(chip->dyn_pdata);
 	kfree(chip);
 	return ret;
 }
@@ -276,6 +345,7 @@ static int pca953x_remove(struct i2c_client *client)
 		return ret;
 	}
 
+	kfree(chip->dyn_pdata);
 	kfree(chip);
 	return 0;
 }

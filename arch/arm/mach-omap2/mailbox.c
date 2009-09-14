@@ -282,12 +282,12 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* DSP or IVA2 IRQ */
-	mbox_dsp_info.irq = platform_get_irq(pdev, 0);
-	if (mbox_dsp_info.irq < 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		dev_err(&pdev->dev, "invalid irq resource\n");
-		ret = -ENODEV;
 		goto err_dsp;
 	}
+	mbox_dsp_info.irq = ret;
 
 	ret = omap_mbox_register(&pdev->dev, &mbox_dsp_info);
 	if (ret)

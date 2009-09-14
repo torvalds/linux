@@ -41,7 +41,6 @@
 #include "xfs_ioctl.h"
 
 #include <linux/dcache.h>
-#include <linux/smp_lock.h>
 
 static struct vm_operations_struct xfs_file_vm_ops;
 

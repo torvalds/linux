@@ -66,7 +66,7 @@ xt_rateest_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		if (info->flags & XT_RATEEST_MATCH_BPS)
 			ret &= bps1 == bps2;
 		if (info->flags & XT_RATEEST_MATCH_PPS)
-			ret &= pps2 == pps2;
+			ret &= pps1 == pps2;
 		break;
 	}
 

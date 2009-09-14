@@ -77,7 +77,7 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_ERR "%s: ret == %d\n", __func__, ret);
+		printk(KERN_DEBUG "%s: ret == %d\n", __func__, ret);
 		return -EREMOTEIO;
 	}
 
@@ -782,7 +782,7 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 	struct mt312_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct mt312_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct mt312_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

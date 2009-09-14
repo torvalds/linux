@@ -464,16 +464,11 @@ static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
 		if (err)
 			return err;
 		/*
-		 * Just a quick sanity check; we could also try to check
-		 * whether this pseudoflavor is supported, but at worst
-		 * an unsupported pseudoflavor on the export would just
-		 * be a pseudoflavor that won't match the flavor of any
-		 * authenticated request.  The administrator will
-		 * probably discover the problem when someone fails to
-		 * authenticate.
+		 * XXX: It would be nice to also check whether this
+		 * pseudoflavor is supported, so we can discover the
+		 * problem at export time instead of when a client fails
+		 * to authenticate.
 		 */
-		if (f->pseudoflavor < 0)
-			return -EINVAL;
 		err = get_int(mesg, &f->flags);
 		if (err)
 			return err;
@@ -847,9 +842,8 @@ exp_get_fsid_key(svc_client *clp, int fsid)
 	return exp_find_key(clp, FSID_NUM, fsidv, NULL);
 }
 
-static svc_export *exp_get_by_name(svc_client *clp, struct vfsmount *mnt,
-				   struct dentry *dentry,
-				   struct cache_req *reqp)
+static svc_export *exp_get_by_name(svc_client *clp, const struct path *path,
+				     struct cache_req *reqp)
 {
 	struct svc_export *exp, key;
 	int err;
@@ -858,8 +852,7 @@ static svc_export *exp_get_by_name(svc_client *clp, struct vfsmount *mnt,
 		return ERR_PTR(-ENOENT);
 
 	key.ex_client = clp;
-	key.ex_path.mnt = mnt;
-	key.ex_path.dentry = dentry;
+	key.ex_path = *path;
 
 	exp = svc_export_lookup(&key);
 	if (exp == NULL)
@@ -873,24 +866,19 @@ static svc_export *exp_get_by_name(svc_client *clp, struct vfsmount *mnt,
 /*
  * Find the export entry for a given dentry.
  */
-static struct svc_export *exp_parent(svc_client *clp, struct vfsmount *mnt,
-				     struct dentry *dentry,
-				     struct cache_req *reqp)
+static struct svc_export *exp_parent(svc_client *clp, struct path *path)
 {
-	svc_export *exp;
+	struct dentry *saved = dget(path->dentry);
+	svc_export *exp = exp_get_by_name(clp, path, NULL);
 
-	dget(dentry);
-	exp = exp_get_by_name(clp, mnt, dentry, reqp);
-
-	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
-		struct dentry *parent;
-
-		parent = dget_parent(dentry);
-		dput(dentry);
-		dentry = parent;
-		exp = exp_get_by_name(clp, mnt, dentry, reqp);
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(path->dentry)) {
+		struct dentry *parent = dget_parent(path->dentry);
+		dput(path->dentry);
+		path->dentry = parent;
+		exp = exp_get_by_name(clp, path, NULL);
 	}
-	dput(dentry);
+	dput(path->dentry);
+	path->dentry = saved;
 	return exp;
 }
 
@@ -1018,7 +1006,7 @@ exp_export(struct nfsctl_export *nxp)
 		goto out_put_clp;
 	err = -EINVAL;
 
-	exp = exp_get_by_name(clp, path.mnt, path.dentry, NULL);
+	exp = exp_get_by_name(clp, &path, NULL);
 
 	memset(&new, 0, sizeof(new));
 
@@ -1135,7 +1123,7 @@ exp_unexport(struct nfsctl_export *nxp)
 		goto out_domain;
 
 	err = -EINVAL;
-	exp = exp_get_by_name(dom, path.mnt, path.dentry, NULL);
+	exp = exp_get_by_name(dom, &path, NULL);
 	path_put(&path);
 	if (IS_ERR(exp))
 		goto out_domain;
@@ -1177,7 +1165,7 @@ exp_rootfh(svc_client *clp, char *name, struct knfsd_fh *f, int maxsize)
 	dprintk("nfsd: exp_rootfh(%s [%p] %s:%s/%ld)\n",
 		 name, path.dentry, clp->name,
 		 inode->i_sb->s_id, inode->i_ino);
-	exp = exp_parent(clp, path.mnt, path.dentry, NULL);
+	exp = exp_parent(clp, &path);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
 		goto out;
@@ -1207,7 +1195,7 @@ static struct svc_export *exp_find(struct auth_domain *clp, int fsid_type,
 	if (IS_ERR(ek))
 		return ERR_CAST(ek);
 
-	exp = exp_get_by_name(clp, ek->ek_path.mnt, ek->ek_path.dentry, reqp);
+	exp = exp_get_by_name(clp, &ek->ek_path, reqp);
 	cache_put(&ek->h, &svc_expkey_cache);
 
 	if (IS_ERR(exp))
@@ -1247,8 +1235,7 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
  * use exp_get_by_name() or exp_find().
  */
 struct svc_export *
-rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
-		struct dentry *dentry)
+rqst_exp_get_by_name(struct svc_rqst *rqstp, struct path *path)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
 
@@ -1256,8 +1243,7 @@ rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		goto gss;
 
 	/* First try the auth_unix client: */
-	exp = exp_get_by_name(rqstp->rq_client, mnt, dentry,
-						&rqstp->rq_chandle);
+	exp = exp_get_by_name(rqstp->rq_client, path, &rqstp->rq_chandle);
 	if (PTR_ERR(exp) == -ENOENT)
 		goto gss;
 	if (IS_ERR(exp))
@@ -1269,8 +1255,7 @@ gss:
 	/* Otherwise, try falling back on gss client */
 	if (rqstp->rq_gssclient == NULL)
 		return exp;
-	gssexp = exp_get_by_name(rqstp->rq_gssclient, mnt, dentry,
-						&rqstp->rq_chandle);
+	gssexp = exp_get_by_name(rqstp->rq_gssclient, path, &rqstp->rq_chandle);
 	if (PTR_ERR(gssexp) == -ENOENT)
 		return exp;
 	if (!IS_ERR(exp))
@@ -1309,23 +1294,19 @@ gss:
 }
 
 struct svc_export *
-rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
-		struct dentry *dentry)
+rqst_exp_parent(struct svc_rqst *rqstp, struct path *path)
 {
-	struct svc_export *exp;
+	struct dentry *saved = dget(path->dentry);
+	struct svc_export *exp = rqst_exp_get_by_name(rqstp, path);
 
-	dget(dentry);
-	exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
-
-	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
-		struct dentry *parent;
-
-		parent = dget_parent(dentry);
-		dput(dentry);
-		dentry = parent;
-		exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(path->dentry)) {
+		struct dentry *parent = dget_parent(path->dentry);
+		dput(path->dentry);
+		path->dentry = parent;
+		exp = rqst_exp_get_by_name(rqstp, path);
 	}
-	dput(dentry);
+	dput(path->dentry);
+	path->dentry = saved;
 	return exp;
 }
 

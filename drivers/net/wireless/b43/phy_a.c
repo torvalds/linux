@@ -480,11 +480,11 @@ static bool b43_aphy_op_supports_hwpctl(struct b43_wldev *dev)
 }
 
 static void b43_aphy_op_software_rfkill(struct b43_wldev *dev,
-					enum rfkill_state state)
+					bool blocked)
 {
 	struct b43_phy *phy = &dev->phy;
 
-	if (state == RFKILL_STATE_UNBLOCKED) {
+	if (!blocked) {
 		if (phy->radio_on)
 			return;
 		b43_radio_write16(dev, 0x0004, 0x00C0);

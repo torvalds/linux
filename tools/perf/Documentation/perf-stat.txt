@@ -1,0 +1,66 @@
+perf-stat(1)
+============
+
+NAME
+----
+perf-stat - Run a command and gather performance counter statistics
+
+SYNOPSIS
+--------
+[verse]
+'perf stat' [-e <EVENT> | --event=EVENT] [-S] [-a] <command>
+'perf stat' [-e <EVENT> | --event=EVENT] [-S] [-a] -- <command> [<options>]
+
+DESCRIPTION
+-----------
+This command runs a command and gathers performance counter statistics
+from it.
+
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+
+-e::
+--event=::
+	Select the PMU event. Selection can be a symbolic event name
+	(use 'perf list' to list all events) or a raw PMU
+	event (eventsel+umask) in the form of rNNN where NNN is a
+	 hexadecimal event descriptor.
+
+-i::
+--inherit::
+        child tasks inherit counters
+-p::
+--pid=<pid>::
+        stat events on existing pid
+
+-a::
+        system-wide collection
+
+-c::
+        scale counter values
+
+EXAMPLES
+--------
+
+$ perf stat -- make -j
+
+ Performance counter stats for 'make -j':
+
+    8117.370256  task clock ticks     #      11.281 CPU utilization factor
+            678  context switches     #       0.000 M/sec
+            133  CPU migrations       #       0.000 M/sec
+         235724  pagefaults           #       0.029 M/sec
+    24821162526  CPU cycles           #    3057.784 M/sec
+    18687303457  instructions         #    2302.138 M/sec
+      172158895  cache references     #      21.209 M/sec
+       27075259  cache misses         #       3.335 M/sec
+
+ Wall-clock time elapsed:   719.554352 msecs
+
+SEE ALSO
+--------
+linkperf:perf-top[1], linkperf:perf-list[1]

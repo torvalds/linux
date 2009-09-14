@@ -15,14 +15,14 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter/xt_cluster.h>
 
-static inline u_int32_t nf_ct_orig_ipv4_src(const struct nf_conn *ct)
+static inline u32 nf_ct_orig_ipv4_src(const struct nf_conn *ct)
 {
-	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;
+	return (__force u32)ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;
 }
 
-static inline const void *nf_ct_orig_ipv6_src(const struct nf_conn *ct)
+static inline const u32 *nf_ct_orig_ipv6_src(const struct nf_conn *ct)
 {
-	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip6;
+	return (__force u32 *)ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip6;
 }
 
 static inline u_int32_t

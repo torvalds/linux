@@ -2,7 +2,7 @@
 # Makefile
 #
 
-lib-y :=  memset.o checksum.o
+lib-y :=  memset.o
 
 ifeq ($(CONFIG_OPT_LIB_ASM),y)
 lib-y += fastcopy.o
@@ -10,4 +10,5 @@ else
 lib-y += memcpy.o memmove.o
 endif
 
-lib-y +=  uaccess.o
+lib-$(CONFIG_NO_MMU) += uaccess.o
+lib-$(CONFIG_MMU) += uaccess_old.o

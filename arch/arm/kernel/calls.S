@@ -372,6 +372,8 @@
 /* 360 */	CALL(sys_inotify_init1)
 		CALL(sys_preadv)
 		CALL(sys_pwritev)
+		CALL(sys_rt_tgsigqueueinfo)
+		CALL(sys_perf_counter_open)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

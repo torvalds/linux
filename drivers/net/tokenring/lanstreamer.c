@@ -169,7 +169,7 @@ static char *open_min_error[] = {
 	"Monitor Contention failer for RPL", "FDX Protocol Error"
 };
 
-/* Module paramters */
+/* Module parameters */
 
 /* Ring Speed 0,4,16
  * 0 = Autosense         
@@ -1187,7 +1187,7 @@ static int streamer_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 	        netif_stop_queue(dev);
 	        spin_unlock_irqrestore(&streamer_priv->streamer_lock,flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 }
 

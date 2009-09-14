@@ -33,7 +33,7 @@ enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 {
 	switch (key->alg) {
 	case ALG_WEP:
-		if (key->keylen == LEN_WEP40)
+		if (key->keylen == WLAN_KEY_LEN_WEP40)
 			return CIPHER_WEP64;
 		else
 			return CIPHER_WEP128;
@@ -65,7 +65,8 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 		__set_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags);
 
 	txdesc->key_idx = hw_key->hw_key_idx;
-	txdesc->iv_offset = ieee80211_get_hdrlen_from_skb(entry->skb);
+	txdesc->iv_offset = txdesc->header_length;
+	txdesc->iv_len = hw_key->iv_len;
 
 	if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
 		__set_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags);
@@ -103,47 +104,44 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 	return overhead;
 }
 
-void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len)
+void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(skb);
 
-	if (unlikely(!iv_len))
+	if (unlikely(!txdesc->iv_len))
 		return;
 
 	/* Copy IV/EIV data */
-	memcpy(skbdesc->iv, skb->data + header_length, iv_len);
+	memcpy(skbdesc->iv, skb->data + txdesc->iv_offset, txdesc->iv_len);
 }
 
-void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len)
+void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(skb);
 
-	if (unlikely(!iv_len))
+	if (unlikely(!txdesc->iv_len))
 		return;
 
 	/* Copy IV/EIV data */
-	memcpy(skbdesc->iv, skb->data + header_length, iv_len);
+	memcpy(skbdesc->iv, skb->data + txdesc->iv_offset, txdesc->iv_len);
 
 	/* Move ieee80211 header */
-	memmove(skb->data + iv_len, skb->data, header_length);
+	memmove(skb->data + txdesc->iv_len, skb->data, txdesc->iv_offset);
 
 	/* Pull buffer to correct size */
-	skb_pull(skb, iv_len);
+	skb_pull(skb, txdesc->iv_len);
 
 	/* IV/EIV data has officially be stripped */
-	skbdesc->flags |= FRAME_DESC_IV_STRIPPED;
+	skbdesc->flags |= SKBDESC_IV_STRIPPED;
 }
 
-void rt2x00crypto_tx_insert_iv(struct sk_buff *skb)
+void rt2x00crypto_tx_insert_iv(struct sk_buff *skb, unsigned int header_length)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(skb);
 	const unsigned int iv_len =
 	    ((!!(skbdesc->iv[0])) * 4) + ((!!(skbdesc->iv[1])) * 4);
 
-	if (!(skbdesc->flags & FRAME_DESC_IV_STRIPPED))
+	if (!(skbdesc->flags & SKBDESC_IV_STRIPPED))
 		return;
 
 	skb_push(skb, iv_len);
@@ -155,14 +153,15 @@ void rt2x00crypto_tx_insert_iv(struct sk_buff *skb)
 	memcpy(skb->data + header_length, skbdesc->iv, iv_len);
 
 	/* IV/EIV data has returned into the frame */
-	skbdesc->flags &= ~FRAME_DESC_IV_STRIPPED;
+	skbdesc->flags &= ~SKBDESC_IV_STRIPPED;
 }
 
-void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
+void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 			       unsigned int header_length,
 			       struct rxdone_entry_desc *rxdesc)
 {
 	unsigned int payload_len = rxdesc->size - header_length;
+	unsigned int align = ALIGN_SIZE(skb, header_length);
 	unsigned int iv_len;
 	unsigned int icv_len;
 	unsigned int transfer = 0;
@@ -192,32 +191,48 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
 	}
 
 	/*
-	 * Make room for new data, note that we increase both
-	 * headsize and tailsize when required. The tailsize is
-	 * only needed when ICV data needs to be inserted and
-	 * the padding is smaller than the ICV data.
-	 * When alignment requirements is greater than the
-	 * ICV data we must trim the skb to the correct size
-	 * because we need to remove the extra bytes.
+	 * Make room for new data. There are 2 possibilities
+	 * either the alignment is already present between
+	 * the 802.11 header and payload. In that case we
+	 * we have to move the header less then the iv_len
+	 * since we can use the already available l2pad bytes
+	 * for the iv data.
+	 * When the alignment must be added manually we must
+	 * move the header more then iv_len since we must
+	 * make room for the payload move as well.
 	 */
-	skb_push(skb, iv_len + align);
-	if (align < icv_len)
-		skb_put(skb, icv_len - align);
-	else if (align > icv_len)
-		skb_trim(skb, rxdesc->size + iv_len + icv_len);
+	if (l2pad) {
+		skb_push(skb, iv_len - align);
+		skb_put(skb, icv_len);
 
-	/* Move ieee80211 header */
-	memmove(skb->data + transfer,
-		skb->data + transfer + iv_len + align,
-		header_length);
-	transfer += header_length;
+		/* Move ieee80211 header */
+		memmove(skb->data + transfer,
+			skb->data + transfer + (iv_len - align),
+			header_length);
+		transfer += header_length;
+	} else {
+		skb_push(skb, iv_len + align);
+		if (align < icv_len)
+			skb_put(skb, icv_len - align);
+		else if (align > icv_len)
+			skb_trim(skb, rxdesc->size + iv_len + icv_len);
+
+		/* Move ieee80211 header */
+		memmove(skb->data + transfer,
+			skb->data + transfer + iv_len + align,
+			header_length);
+		transfer += header_length;
+	}
 
 	/* Copy IV/EIV data */
 	memcpy(skb->data + transfer, rxdesc->iv, iv_len);
 	transfer += iv_len;
 
-	/* Move payload */
-	if (align) {
+	/*
+	 * Move payload for alignment purposes. Note that
+	 * this is only needed when no l2 padding is present.
+	 */
+	if (!l2pad) {
 		memmove(skb->data + transfer,
 			skb->data + transfer + align,
 			payload_len);

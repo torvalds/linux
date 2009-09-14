@@ -23,8 +23,8 @@
  */
 
 #include "cx18-driver.h"
-#include "cx18-streams.h"
 #include "cx18-queue.h"
+#include "cx18-streams.h"
 #include "cx18-scb.h"
 
 void cx18_buf_swap(struct cx18_buffer *buf)
@@ -53,12 +53,12 @@ struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 		buf->skipped = 0;
 	}
 
-	mutex_lock(&s->qlock);
-
 	/* q_busy is restricted to a max buffer count imposed by firmware */
 	if (q == &s->q_busy &&
 	    atomic_read(&q->buffers) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		q = &s->q_free;
+
+	spin_lock(&q->lock);
 
 	if (to_front)
 		list_add(&buf->list, &q->list); /* LIFO */
@@ -67,7 +67,7 @@ struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 	q->bytesused += buf->bytesused - buf->readpos;
 	atomic_inc(&q->buffers);
 
-	mutex_unlock(&s->qlock);
+	spin_unlock(&q->lock);
 	return q;
 }
 
@@ -75,7 +75,7 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 {
 	struct cx18_buffer *buf = NULL;
 
-	mutex_lock(&s->qlock);
+	spin_lock(&q->lock);
 	if (!list_empty(&q->list)) {
 		buf = list_first_entry(&q->list, struct cx18_buffer, list);
 		list_del_init(&buf->list);
@@ -83,7 +83,7 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 		buf->skipped = 0;
 		atomic_dec(&q->buffers);
 	}
-	mutex_unlock(&s->qlock);
+	spin_unlock(&q->lock);
 	return buf;
 }
 
@@ -94,9 +94,23 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 	struct cx18_buffer *buf;
 	struct cx18_buffer *tmp;
 	struct cx18_buffer *ret = NULL;
+	LIST_HEAD(sweep_up);
 
-	mutex_lock(&s->qlock);
+	/*
+	 * We don't have to acquire multiple q locks here, because we are
+	 * serialized by the single threaded work handler.
+	 * Buffers from the firmware will thus remain in order as
+	 * they are moved from q_busy to q_full or to the dvb ring buffer.
+	 */
+	spin_lock(&s->q_busy.lock);
 	list_for_each_entry_safe(buf, tmp, &s->q_busy.list, list) {
+		/*
+		 * We should find what the firmware told us is done,
+		 * right at the front of the queue.  If we don't, we likely have
+		 * missed a buffer done message from the firmware.
+		 * Once we skip a buffer repeatedly, relative to the size of
+		 * q_busy, we have high confidence we've missed it.
+		 */
 		if (buf->id != id) {
 			buf->skipped++;
 			if (buf->skipped >= atomic_read(&s->q_busy.buffers)-1) {
@@ -105,38 +119,41 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 					  "times - it must have dropped out of "
 					  "rotation\n", s->name, buf->id,
 					  buf->skipped);
-				/* move it to q_free */
-				list_move_tail(&buf->list, &s->q_free.list);
-				buf->bytesused = buf->readpos = buf->b_flags =
-					buf->skipped = 0;
+				/* Sweep it up to put it back into rotation */
+				list_move_tail(&buf->list, &sweep_up);
 				atomic_dec(&s->q_busy.buffers);
-				atomic_inc(&s->q_free.buffers);
 			}
 			continue;
 		}
-
-		buf->bytesused = bytesused;
-		/* Sync the buffer before we release the qlock */
-		cx18_buf_sync_for_cpu(s, buf);
-		if (s->type == CX18_ENC_STREAM_TYPE_TS) {
-			/*
-			 * TS doesn't use q_full.  As we pull the buffer off of
-			 * the queue here, the caller will have to put it back.
-			 */
-			list_del_init(&buf->list);
-		} else {
-			/* Move buffer from q_busy to q_full */
-			list_move_tail(&buf->list, &s->q_full.list);
-			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
-			s->q_full.bytesused += buf->bytesused;
-			atomic_inc(&s->q_full.buffers);
-		}
+		/*
+		 * We pull the desired buffer off of the queue here.  Something
+		 * will have to put it back on a queue later.
+		 */
+		list_del_init(&buf->list);
 		atomic_dec(&s->q_busy.buffers);
-
 		ret = buf;
 		break;
 	}
-	mutex_unlock(&s->qlock);
+	spin_unlock(&s->q_busy.lock);
+
+	/*
+	 * We found the buffer for which we were looking.  Get it ready for
+	 * the caller to put on q_full or in the dvb ring buffer.
+	 */
+	if (ret != NULL) {
+		ret->bytesused = bytesused;
+		ret->skipped = 0;
+		/* readpos and b_flags were 0'ed when the buf went on q_busy */
+		cx18_buf_sync_for_cpu(s, ret);
+		if (s->type != CX18_ENC_STREAM_TYPE_TS)
+			set_bit(CX18_F_B_NEED_BUF_SWAP, &ret->b_flags);
+	}
+
+	/* Put any buffers the firmware is ignoring back into normal rotation */
+	list_for_each_entry_safe(buf, tmp, &sweep_up, list) {
+		list_del_init(&buf->list);
+		cx18_enqueue(s, buf, &s->q_free);
+	}
 	return ret;
 }
 
@@ -148,7 +165,7 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 	if (q == &s->q_free)
 		return;
 
-	mutex_lock(&s->qlock);
+	spin_lock(&q->lock);
 	while (!list_empty(&q->list)) {
 		buf = list_first_entry(&q->list, struct cx18_buffer, list);
 		list_move_tail(&buf->list, &s->q_free.list);
@@ -156,7 +173,7 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 		atomic_inc(&s->q_free.buffers);
 	}
 	cx18_queue_init(q);
-	mutex_unlock(&s->qlock);
+	spin_unlock(&q->lock);
 }
 
 void cx18_flush_queues(struct cx18_stream *s)

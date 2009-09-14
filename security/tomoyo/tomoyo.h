@@ -17,13 +17,11 @@ struct path;
 struct inode;
 struct linux_binprm;
 struct pt_regs;
-struct tomoyo_page_buffer;
 
 int tomoyo_check_file_perm(struct tomoyo_domain_info *domain,
 			   const char *filename, const u8 perm);
 int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
-			   const struct tomoyo_path_info *filename,
-			   struct tomoyo_page_buffer *buf);
+			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
 int tomoyo_check_1path_perm(struct tomoyo_domain_info *domain,
@@ -90,17 +88,10 @@ static inline struct tomoyo_domain_info *tomoyo_domain(void)
 	return current_cred()->security;
 }
 
-/* Caller holds tasklist_lock spinlock. */
 static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 							    *task)
 {
-	/***** CRITICAL SECTION START *****/
-	const struct cred *cred = get_task_cred(task);
-	struct tomoyo_domain_info *domain = cred->security;
-
-	put_cred(cred);
-	return domain;
-	/***** CRITICAL SECTION END *****/
+	return task_cred_xxx(task, security);
 }
 
 #endif /* !defined(_SECURITY_TOMOYO_TOMOYO_H) */

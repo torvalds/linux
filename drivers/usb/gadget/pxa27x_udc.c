@@ -38,7 +38,6 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <mach/pxa2xx-regs.h> /* FIXME: for PSSR */
 #include <mach/udc.h>
 
 #include "pxa27x_udc.h"
@@ -474,6 +473,23 @@ static inline void udc_clear_mask_UDCCR(struct pxa_udc *udc, int mask)
 }
 
 /**
+ * ep_write_UDCCSR - set bits in UDCCSR
+ * @udc: udc device
+ * @mask: bits to set in UDCCR
+ *
+ * Sets bits in UDCCSR (UDCCSR0 and UDCCSR*).
+ *
+ * A specific case is applied to ep0 : the ACM bit is always set to 1, for
+ * SET_INTERFACE and SET_CONFIGURATION.
+ */
+static inline void ep_write_UDCCSR(struct pxa_ep *ep, int mask)
+{
+	if (is_ep0(ep))
+		mask |= UDCCSR0_ACM;
+	udc_ep_writel(ep, UDCCSR, mask);
+}
+
+/**
  * ep_count_bytes_remain - get how many bytes in udc endpoint
  * @ep: udc endpoint
  *
@@ -861,7 +877,7 @@ static int read_packet(struct pxa_ep *ep, struct pxa27x_request *req)
 		*buf++ = udc_ep_readl(ep, UDCDR);
 	req->req.actual += count;
 
-	udc_ep_writel(ep, UDCCSR, UDCCSR_PC);
+	ep_write_UDCCSR(ep, UDCCSR_PC);
 
 	return count;
 }
@@ -969,12 +985,12 @@ static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 		if (udccsr & UDCCSR_PC) {
 			ep_vdbg(ep, "Clearing Transmit Complete, udccsr=%x\n",
 				udccsr);
-			udc_ep_writel(ep, UDCCSR, UDCCSR_PC);
+			ep_write_UDCCSR(ep, UDCCSR_PC);
 		}
 		if (udccsr & UDCCSR_TRN) {
 			ep_vdbg(ep, "Clearing Underrun on, udccsr=%x\n",
 				udccsr);
-			udc_ep_writel(ep, UDCCSR, UDCCSR_TRN);
+			ep_write_UDCCSR(ep, UDCCSR_TRN);
 		}
 
 		count = write_packet(ep, req, max);
@@ -996,7 +1012,7 @@ static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 		}
 
 		if (is_short)
-			udc_ep_writel(ep, UDCCSR, UDCCSR_SP);
+			ep_write_UDCCSR(ep, UDCCSR_SP);
 
 		/* requests complete when all IN data is in the FIFO */
 		if (is_last) {
@@ -1029,7 +1045,7 @@ static int read_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 
 	while (epout_has_pkt(ep)) {
 		count = read_packet(ep, req);
-		udc_ep_writel(ep, UDCCSR, UDCCSR0_OPC);
+		ep_write_UDCCSR(ep, UDCCSR0_OPC);
 		inc_ep_stats_bytes(ep, count, !USB_DIR_IN);
 
 		is_short = (count < ep->fifo_size);
@@ -1074,7 +1090,7 @@ static int write_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 
 	/* Sends either a short packet or a 0 length packet */
 	if (unlikely(is_short))
-		udc_ep_writel(ep, UDCCSR, UDCCSR0_IPR);
+		ep_write_UDCCSR(ep, UDCCSR0_IPR);
 
 	ep_dbg(ep, "in %d bytes%s%s, %d left, req=%p, udccsr0=0x%03x\n",
 		count, is_short ? "/S" : "", is_last ? "/L" : "",
@@ -1277,7 +1293,7 @@ static int pxa_ep_set_halt(struct usb_ep *_ep, int value)
 
 	/* FST, FEF bits are the same for control and non control endpoints */
 	rc = 0;
-	udc_ep_writel(ep, UDCCSR, UDCCSR_FST | UDCCSR_FEF);
+	ep_write_UDCCSR(ep, UDCCSR_FST | UDCCSR_FEF);
 	if (is_ep0(ep))
 		set_ep0state(ep->dev, STALL);
 
@@ -1343,7 +1359,7 @@ static void pxa_ep_fifo_flush(struct usb_ep *_ep)
 			udc_ep_readl(ep, UDCDR);
 	} else {
 		/* most IN status is the same, but ISO can't stall */
-		udc_ep_writel(ep, UDCCSR,
+		ep_write_UDCCSR(ep,
 				UDCCSR_PC | UDCCSR_FEF | UDCCSR_TRN
 				| (EPXFERTYPE_is_ISO(ep) ? 0 : UDCCSR_SST));
 	}
@@ -1728,6 +1744,7 @@ static void udc_enable(struct pxa_udc *udc)
 	memset(&udc->stats, 0, sizeof(udc->stats));
 
 	udc_set_mask_UDCCR(udc, UDCCR_UDE);
+	ep_write_UDCCSR(&udc->pxa_ep[0], UDCCSR0_ACM);
 	udelay(2);
 	if (udc_readl(udc, UDCCR) & UDCCR_EMCE)
 		dev_err(udc->dev, "Configuration errors, udc disabled\n");
@@ -1893,6 +1910,15 @@ static void handle_ep0_ctrl_req(struct pxa_udc *udc,
 
 	nuke(ep, -EPROTO);
 
+	/*
+	 * In the PXA320 manual, in the section about Back-to-Back setup
+	 * packets, it describes this situation.  The solution is to set OPC to
+	 * get rid of the status packet, and then continue with the setup
+	 * packet. Generalize to pxa27x CPUs.
+	 */
+	if (epout_has_pkt(ep) && (ep_count_bytes_remain(ep) == 0))
+		ep_write_UDCCSR(ep, UDCCSR0_OPC);
+
 	/* read SETUP packet */
 	for (i = 0; i < 2; i++) {
 		if (unlikely(ep_is_empty(ep)))
@@ -1919,7 +1945,7 @@ static void handle_ep0_ctrl_req(struct pxa_udc *udc,
 		set_ep0state(udc, OUT_DATA_STAGE);
 
 	/* Tell UDC to enter Data Stage */
-	udc_ep_writel(ep, UDCCSR, UDCCSR0_SA | UDCCSR0_OPC);
+	ep_write_UDCCSR(ep, UDCCSR0_SA | UDCCSR0_OPC);
 
 	i = udc->driver->setup(&udc->gadget, &u.r);
 	if (i < 0)
@@ -1929,7 +1955,7 @@ out:
 stall:
 	ep_dbg(ep, "protocol STALL, udccsr0=%03x err %d\n",
 		udc_ep_readl(ep, UDCCSR), i);
-	udc_ep_writel(ep, UDCCSR, UDCCSR0_FST | UDCCSR0_FTF);
+	ep_write_UDCCSR(ep, UDCCSR0_FST | UDCCSR0_FTF);
 	set_ep0state(udc, STALL);
 	goto out;
 }
@@ -1966,6 +1992,8 @@ stall:
  *     cleared by software.
  *   - clearing UDCCSR0_OPC always flushes ep0. If in setup stage, never do it
  *     before reading ep0.
+ *     This is true only for PXA27x. This is not true anymore for PXA3xx family
+ *     (check Back-to-Back setup packet in developers guide).
  *   - irq can be called on a "packet complete" event (opc_irq=1), while
  *     UDCCSR0_OPC is not yet raised (delta can be as big as 100ms
  *     from experimentation).
@@ -1998,7 +2026,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 	if (udccsr0 & UDCCSR0_SST) {
 		ep_dbg(ep, "clearing stall status\n");
 		nuke(ep, -EPIPE);
-		udc_ep_writel(ep, UDCCSR, UDCCSR0_SST);
+		ep_write_UDCCSR(ep, UDCCSR0_SST);
 		ep0_idle(udc);
 	}
 
@@ -2023,7 +2051,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 		break;
 	case IN_DATA_STAGE:			/* GET_DESCRIPTOR */
 		if (epout_has_pkt(ep))
-			udc_ep_writel(ep, UDCCSR, UDCCSR0_OPC);
+			ep_write_UDCCSR(ep, UDCCSR0_OPC);
 		if (req && !ep_is_full(ep))
 			completed = write_ep0_fifo(ep, req);
 		if (completed)
@@ -2036,7 +2064,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 			ep0_end_out_req(ep, req);
 		break;
 	case STALL:
-		udc_ep_writel(ep, UDCCSR, UDCCSR0_FST);
+		ep_write_UDCCSR(ep, UDCCSR0_FST);
 		break;
 	case IN_STATUS_STAGE:
 		/*
@@ -2131,6 +2159,7 @@ static void pxa27x_change_configuration(struct pxa_udc *udc, int config)
 
 	set_ep0state(udc, WAIT_ACK_SET_CONF_INTERF);
 	udc->driver->setup(&udc->gadget, &req);
+	ep_write_UDCCSR(&udc->pxa_ep[0], UDCCSR0_AREN);
 }
 
 /**
@@ -2159,6 +2188,7 @@ static void pxa27x_change_interface(struct pxa_udc *udc, int iface, int alt)
 
 	set_ep0state(udc, WAIT_ACK_SET_CONF_INTERF);
 	udc->driver->setup(&udc->gadget, &req);
+	ep_write_UDCCSR(&udc->pxa_ep[0], UDCCSR0_AREN);
 }
 
 /*
@@ -2280,7 +2310,7 @@ static void irq_udc_reset(struct pxa_udc *udc)
 	memset(&udc->stats, 0, sizeof udc->stats);
 
 	nuke(ep, -EPROTO);
-	udc_ep_writel(ep, UDCCSR, UDCCSR0_FTF | UDCCSR0_OPC);
+	ep_write_UDCCSR(ep, UDCCSR0_FTF | UDCCSR0_OPC);
 	ep0_idle(udc);
 }
 
@@ -2479,6 +2509,12 @@ static void pxa_udc_shutdown(struct platform_device *_dev)
 		udc_disable(udc);
 }
 
+#ifdef CONFIG_CPU_PXA27x
+extern void pxa27x_clear_otgph(void);
+#else
+#define pxa27x_clear_otgph()   do {} while (0)
+#endif
+
 #ifdef CONFIG_PM
 /**
  * pxa_udc_suspend - Suspend udc device
@@ -2546,8 +2582,7 @@ static int pxa_udc_resume(struct platform_device *_dev)
 	 * Software must configure the USB OTG pad, UDC, and UHC
 	 * to the state they were in before entering sleep mode.
 	 */
-	if (cpu_is_pxa27x())
-		PSSR |= PSSR_OTGPH;
+	pxa27x_clear_otgph();
 
 	return 0;
 }
@@ -2571,7 +2606,7 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
-	if (!cpu_is_pxa27x())
+	if (!cpu_is_pxa27x() && !cpu_is_pxa3xx())
 		return -ENODEV;
 
 	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);

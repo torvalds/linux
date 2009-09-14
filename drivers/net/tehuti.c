@@ -948,8 +948,7 @@ static void print_rxfd(struct rxf_desc *rxfd);
 
 static void bdx_rxdb_destroy(struct rxdb *db)
 {
-	if (db)
-		vfree(db);
+	vfree(db);
 }
 
 static struct rxdb *bdx_rxdb_create(int nelem)
@@ -1482,10 +1481,8 @@ static void bdx_tx_db_close(struct txdb *d)
 {
 	BDX_ASSERT(d == NULL);
 
-	if (d->start) {
-		vfree(d->start);
-		d->start = NULL;
-	}
+	vfree(d->start);
+	d->start = NULL;
 }
 
 /*************************************************************************
@@ -1718,8 +1715,9 @@ static int bdx_tx_transmit(struct sk_buff *skb, struct net_device *ndev)
 	WRITE_REG(priv, f->m.reg_WPTR, f->m.wptr & TXF_WPTR_WR_PTR);
 
 #endif
-	ndev->trans_start = jiffies;
-
+#ifdef BDX_LLTX
+	ndev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+#endif
 	priv->net_stats.tx_packets++;
 	priv->net_stats.tx_bytes += skb->len;
 

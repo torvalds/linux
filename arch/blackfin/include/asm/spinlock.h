@@ -1,6 +1,10 @@
 #ifndef __BFIN_SPINLOCK_H
 #define __BFIN_SPINLOCK_H
 
+#ifndef CONFIG_SMP
+# include <asm-generic/spinlock.h>
+#else
+
 #include <asm/atomic.h>
 
 asmlinkage int __raw_spin_is_locked_asm(volatile int *ptr);
@@ -85,5 +89,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 #define _raw_spin_relax(lock)  	cpu_relax()
 #define _raw_read_relax(lock)	cpu_relax()
 #define _raw_write_relax(lock)	cpu_relax()
+
+#endif
 
 #endif /*  !__BFIN_SPINLOCK_H */

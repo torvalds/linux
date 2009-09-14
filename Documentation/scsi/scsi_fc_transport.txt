@@ -1,10 +1,11 @@
                              SCSI FC Tansport
                  =============================================
 
-Date:  4/12/2007
+Date:  11/18/2008
 Kernel Revisions for features:
   rports : <<TBS>>
-  vports : 2.6.22 (? TBD)
+  vports : 2.6.22
+  bsg support : 2.6.30 (?TBD?)
 
 
 Introduction
@@ -15,6 +16,7 @@ The FC transport can be found at:
   drivers/scsi/scsi_transport_fc.c
   include/scsi/scsi_transport_fc.h
   include/scsi/scsi_netlink_fc.h
+  include/scsi/scsi_bsg_fc.h
 
 This file is found at Documentation/scsi/scsi_fc_transport.txt
 
@@ -470,6 +472,14 @@ fc_vport_create(struct Scsi_Host *shost, struct fc_vport_identifiers *ids)
  */
 int
 fc_vport_terminate(struct fc_vport *vport)
+
+
+FC BSG support (CT & ELS passthru, and more)
+========================================================================
+<< To Be Supplied >>
+
+
+
 
 
 Credits

@@ -183,7 +183,7 @@ static struct scsi_host_template sil_sht = {
 };
 
 static struct ata_port_operations sil_ops = {
-	.inherits		= &ata_bmdma_port_ops,
+	.inherits		= &ata_bmdma32_port_ops,
 	.dev_config		= sil_dev_config,
 	.set_mode		= sil_set_mode,
 	.bmdma_setup            = sil_bmdma_setup,
@@ -532,7 +532,7 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 		struct ata_port *ap = host->ports[i];
 		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
 
-		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
+		if (unlikely(ap->flags & ATA_FLAG_DISABLED))
 			continue;
 
 		/* turn off SATA_IRQ if not supported */

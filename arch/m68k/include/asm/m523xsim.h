@@ -41,5 +41,14 @@
 #define	MCFSIM_DACR1		0x50		/* SDRAM base address 1 */
 #define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
 
+/*
+ *  Reset Controll Unit (relative to IPSBAR).
+ */
+#define	MCF_RCR			0x110000
+#define	MCF_RSR			0x110001
+
+#define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
+#define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
 /****************************************************************************/
 #endif	/* m523xsim_h */

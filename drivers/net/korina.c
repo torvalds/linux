@@ -133,6 +133,7 @@ struct korina_private {
 	int dma_halt_cnt;
 	int dma_run_cnt;
 	struct napi_struct napi;
+	struct timer_list media_check_timer;
 	struct mii_if_info mii_if;
 	struct net_device *dev;
 	int phy_addr;
@@ -664,6 +665,15 @@ static void korina_check_media(struct net_device *dev, unsigned int init_media)
 						&lp->eth_regs->ethmac2);
 }
 
+static void korina_poll_media(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct korina_private *lp = netdev_priv(dev);
+
+	korina_check_media(dev, 0);
+	mod_timer(&lp->media_check_timer, jiffies + HZ);
+}
+
 static void korina_set_carrier(struct mii_if_info *mii)
 {
 	if (mii->force_media) {
@@ -1034,6 +1044,7 @@ static int korina_open(struct net_device *dev)
 		    dev->name, lp->und_irq);
 		goto err_free_ovr_irq;
 	}
+	mod_timer(&lp->media_check_timer, jiffies + 1);
 out:
 	return ret;
 
@@ -1052,6 +1063,8 @@ static int korina_close(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
 	u32 tmp;
+
+	del_timer(&lp->media_check_timer);
 
 	/* Disable interrupts */
 	disable_irq(lp->rx_irq);
@@ -1080,6 +1093,21 @@ static int korina_close(struct net_device *dev)
 
 	return 0;
 }
+
+static const struct net_device_ops korina_netdev_ops = {
+	.ndo_open		= korina_open,
+	.ndo_stop		= korina_close,
+	.ndo_start_xmit		= korina_send_packet,
+	.ndo_set_multicast_list	= korina_multicast_list,
+	.ndo_tx_timeout		= korina_tx_timeout,
+	.ndo_do_ioctl		= korina_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= korina_poll_controller,
+#endif
+};
 
 static int korina_probe(struct platform_device *pdev)
 {
@@ -1149,17 +1177,9 @@ static int korina_probe(struct platform_device *pdev)
 	dev->irq = lp->rx_irq;
 	lp->dev = dev;
 
-	dev->open = korina_open;
-	dev->stop = korina_close;
-	dev->hard_start_xmit = korina_send_packet;
-	dev->set_multicast_list = &korina_multicast_list;
+	dev->netdev_ops = &korina_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = korina_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->do_ioctl = &korina_ioctl;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = korina_poll_controller;
-#endif
 	netif_napi_add(dev, &lp->napi, korina_poll, 64);
 
 	lp->phy_addr = (((lp->rx_irq == 0x2c? 1:0) << 8) | 0x05);
@@ -1176,6 +1196,7 @@ static int korina_probe(struct platform_device *pdev)
 			": cannot register net device %d\n", rc);
 		goto probe_err_register;
 	}
+	setup_timer(&lp->media_check_timer, korina_poll_media, (unsigned long) dev);
 out:
 	return rc;
 

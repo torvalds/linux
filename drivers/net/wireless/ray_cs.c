@@ -892,7 +892,7 @@ static int ray_dev_init(struct net_device *dev)
 #endif /* RAY_IMMEDIATE_INIT */
 
 	/* copy mac and broadcast addresses to linux device */
-	memcpy(&dev->dev_addr, &local->sparm.b4.a_mac_addr, ADDRLEN);
+	memcpy(dev->dev_addr, &local->sparm.b4.a_mac_addr, ADDRLEN);
 	memset(dev->broadcast, 0xff, ETH_ALEN);
 
 	DEBUG(2, "ray_dev_init ending\n");
@@ -923,7 +923,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!(pcmcia_dev_present(link))) {
 		DEBUG(2, "ray_dev_start_xmit - device not present\n");
-		return -1;
+		return NETDEV_TX_LOCKED;
 	}
 	DEBUG(3, "ray_dev_start_xmit(skb=%p, dev=%p)\n", skb, dev);
 	if (local->authentication_state == NEED_TO_AUTH) {
@@ -931,7 +931,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (!build_auth_frame(local, local->auth_id, OPEN_AUTH_REQUEST)) {
 			local->authentication_state = AUTHENTICATED;
 			netif_stop_queue(dev);
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 	}
 
@@ -944,7 +944,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	case XMIT_NO_CCS:
 	case XMIT_NEED_AUTH:
 		netif_stop_queue(dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	case XMIT_NO_INTR:
 	case XMIT_MSG_BAD:
 	case XMIT_OK:
@@ -2427,11 +2427,10 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 
 #ifdef PCMCIA_DEBUG
 	if (pc_debug > 3) {
-		int i;
-		printk(KERN_DEBUG "skb->data before untranslate");
-		for (i = 0; i < 64; i++)
-			printk("%02x ", skb->data[i]);
-		printk("\n" KERN_DEBUG
+		print_hex_dump(KERN_DEBUG, "skb->data before untranslate: ",
+			       DUMP_PREFIX_NONE, 16, 1,
+			       skb->data, 64, true);
+		printk(KERN_DEBUG
 		       "type = %08x, xsap = %02x%02x%02x, org = %02x02x02x\n",
 		       ntohs(type), psnap->dsap, psnap->ssap, psnap->ctrl,
 		       psnap->org[0], psnap->org[1], psnap->org[2]);

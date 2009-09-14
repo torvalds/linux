@@ -2,9 +2,7 @@
  * common.h - Common definitions for both Kernel and user-mode utilities
  *
  * Copyright (C) 2005, 2006
- * Avishay Traeger (avishay@gmail.com) (avishay@il.ibm.com)
- * Copyright (C) 2005, 2006
- * International Business Machines
+ * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
  * Boaz Harrosh <bharrosh@panasas.com>
  *
@@ -174,11 +172,5 @@ int exofs_async_op(struct osd_request *or,
 	osd_req_done_fn *async_done, void *caller_context, u8 *cred);
 
 int extract_attr_from_req(struct osd_request *or, struct osd_attr *attr);
-
-int osd_req_read_kern(struct osd_request *or,
-	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
-
-int osd_req_write_kern(struct osd_request *or,
-	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
 
 #endif /*ifndef __EXOFS_COM_H__*/

@@ -1872,7 +1872,6 @@ static int slic_card_download(struct adapter *adapter)
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 	u32 instruction;
 	u32 baseaddress;
-	u32 failure;
 	u32 i;
 	u32 numsects = 0;
 	u32 sectsize[3];
@@ -4049,7 +4048,7 @@ static struct pci_driver slic_driver = {
 	.name = DRV_NAME,
 	.id_table = slic_pci_tbl,
 	.probe = slic_entry_probe,
-	.remove = slic_entry_remove,
+	.remove = __devexit_p(slic_entry_remove),
 };
 
 static int __init slic_module_init(void)

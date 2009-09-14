@@ -81,13 +81,13 @@ static void sctp_add_backlog(struct sock *sk, struct sk_buff *skb);
 /* Calculate the SCTP checksum of an SCTP packet.  */
 static inline int sctp_rcv_checksum(struct sk_buff *skb)
 {
-	struct sk_buff *list = skb_shinfo(skb)->frag_list;
 	struct sctphdr *sh = sctp_hdr(skb);
 	__le32 cmp = sh->checksum;
+	struct sk_buff *list;
 	__le32 val;
 	__u32 tmp = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
 
-	for (; list; list = list->next)
+	skb_walk_frags(skb, list)
 		tmp = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
 					tmp);
 

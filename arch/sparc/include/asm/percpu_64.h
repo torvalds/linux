@@ -7,19 +7,15 @@ register unsigned long __local_per_cpu_offset asm("g5");
 
 #ifdef CONFIG_SMP
 
-extern void real_setup_per_cpu_areas(void);
+#include <asm/trap_block.h>
 
-extern unsigned long __per_cpu_base;
-extern unsigned long __per_cpu_shift;
 #define __per_cpu_offset(__cpu) \
-	(__per_cpu_base + ((unsigned long)(__cpu) << __per_cpu_shift))
+	(trap_block[(__cpu)].__per_cpu_base)
 #define per_cpu_offset(x) (__per_cpu_offset(x))
 
 #define __my_cpu_offset __local_per_cpu_offset
 
 #else /* ! SMP */
-
-#define real_setup_per_cpu_areas()		do { } while (0)
 
 #endif	/* SMP */
 

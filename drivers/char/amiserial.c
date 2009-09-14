@@ -81,6 +81,7 @@ static char *serial_version = "4.30";
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 
@@ -779,7 +780,7 @@ static void change_speed(struct async_struct *info,
 		info->IER |= UART_IER_MSI;
 	}
 	/* TBD:
-	 * Does clearing IER_MSI imply that we should disbale the VBL interrupt ?
+	 * Does clearing IER_MSI imply that we should disable the VBL interrupt ?
 	 */
 
 	/*

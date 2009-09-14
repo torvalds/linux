@@ -491,5 +491,42 @@ void force_hpet_resume(void)
 		break;
 	}
 }
+#endif
 
+#if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
+/* Set correct numa_node information for AMD NB functions */
+static void __init quirk_amd_nb_node(struct pci_dev *dev)
+{
+	struct pci_dev *nb_ht;
+	unsigned int devfn;
+	u32 val;
+
+	devfn = PCI_DEVFN(PCI_SLOT(dev->devfn), 0);
+	nb_ht = pci_get_slot(dev->bus, devfn);
+	if (!nb_ht)
+		return;
+
+	pci_read_config_dword(nb_ht, 0x60, &val);
+	set_dev_node(&dev->dev, val & 7);
+	pci_dev_put(dev);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MISC,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_HT,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_MAP,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_DRAM,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_MISC,
+			quirk_amd_nb_node);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_LINK,
+			quirk_amd_nb_node);
 #endif

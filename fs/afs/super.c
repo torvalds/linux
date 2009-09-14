@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
@@ -440,7 +441,11 @@ static void afs_put_super(struct super_block *sb)
 
 	_enter("");
 
+	lock_kernel();
+
 	afs_put_volume(as->volume);
+
+	unlock_kernel();
 
 	_leave("");
 }

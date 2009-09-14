@@ -107,7 +107,4 @@ extern unsigned long pcicr_virt;
 
 extern struct pci_ops sh5_pci_ops;
 
-/* arch/sh/drivers/pci/pci-sh5.c */
-int sh5pci_init(unsigned long memStart, unsigned long memSize);
-
 #endif /* __PCI_SH5_H */

@@ -413,7 +413,7 @@ struct smt_p_reason {
 #define SMT_RDF_SUCCESS	0x00000003	/* success (PMF) */
 #define SMT_RDF_BADSET	0x00000004	/* bad set count (PMF) */
 #define SMT_RDF_ILLEGAL 0x00000005	/* read only (PMF) */
-#define SMT_RDF_NOPARAM	0x6		/* paramter not supported (PMF) */
+#define SMT_RDF_NOPARAM	0x6		/* parameter not supported (PMF) */
 #define SMT_RDF_RANGE	0x8		/* out of range */
 #define SMT_RDF_AUTHOR	0x9		/* not autohorized */
 #define SMT_RDF_LENGTH	0x0a		/* length error */

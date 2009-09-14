@@ -10,13 +10,13 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
+#include <asm/io.h>
 
 /* Allow people to have their own Blackfin exception handler in a module */
 EXPORT_SYMBOL(bfin_return_from_exception);
 
 /* All the Blackfin cache functions: mach-common/cache.S */
 EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
-EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_icache_flush_range);
 EXPORT_SYMBOL(blackfin_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_dflush_page);
@@ -103,4 +103,9 @@ EXPORT_SYMBOL(__raw_uncached_fetch_asm);
 EXPORT_SYMBOL(__raw_smp_mark_barrier_asm);
 EXPORT_SYMBOL(__raw_smp_check_barrier_asm);
 #endif
+#endif
+
+#ifdef CONFIG_FUNCTION_TRACER
+extern void _mcount(void);
+EXPORT_SYMBOL(_mcount);
 #endif

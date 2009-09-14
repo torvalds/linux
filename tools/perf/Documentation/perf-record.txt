@@ -1,0 +1,96 @@
+perf-record(1)
+==============
+
+NAME
+----
+perf-record - Run a command and record its profile into perf.data
+
+SYNOPSIS
+--------
+[verse]
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+
+DESCRIPTION
+-----------
+This command runs a command and gathers a performance counter profile
+from it, into perf.data - without displaying anything.
+
+This file can then be inspected later on, using 'perf report'.
+
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-e::
+--event=::
+	Select the PMU event. Selection can be a symbolic event name
+	(use 'perf list' to list all events) or a raw PMU
+	event (eventsel+umask) in the form of rNNN where NNN is a
+	hexadecimal event descriptor.
+
+-a::
+        System-wide collection.
+
+-l::
+        Scale counter values.
+
+-p::
+--pid=::
+	Record events on existing pid.
+
+-r::
+--realtime=::
+	Collect data with this RT SCHED_FIFO priority.
+-A::
+--append::
+	Append to the output file to do incremental profiling.
+
+-f::
+--force::
+	Overwrite existing data file.
+
+-c::
+--count=::
+	Event period to sample.
+
+-o::
+--output=::
+	Output file name.
+
+-i::
+--inherit::
+	Child tasks inherit counters.
+-F::
+--freq=::
+	Profile at this frequency.
+
+-m::
+--mmap-pages=::
+	Number of mmap data pages.
+
+-g::
+--call-graph::
+	Do call-graph (stack chain/backtrace) recording.
+
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
+
+-s::
+--stat::
+	Per thread counts.
+
+-d::
+--data::
+	Sample addresses.
+
+-n::
+--no-samples::
+	Don't sample.
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-list[1]

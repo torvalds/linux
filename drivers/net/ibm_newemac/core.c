@@ -1305,6 +1305,8 @@ static int emac_close(struct net_device *ndev)
 
 	free_irq(dev->emac_irq, dev);
 
+	netif_carrier_off(ndev);
+
 	return 0;
 }
 
@@ -1484,7 +1486,7 @@ static int emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
  stop_queue:
 	netif_stop_queue(ndev);
 	DBG2(dev, "stopped TX queue" NL);
-	return 1;
+	return NETDEV_TX_BUSY;
 }
 
 /* Tx lock BHs */

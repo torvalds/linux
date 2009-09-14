@@ -63,12 +63,6 @@
  */
 
 /*
- * PCI Configuration Header
- */
-#define PCI_CONFIG_HEADER_VENDOR	0x0000
-#define PCI_CONFIG_HEADER_DEVICE	0x0002
-
-/*
  * HOST_CMD_CSR: For HOST to interrupt embedded processor
  */
 #define HOST_CMD_CSR			0x0008

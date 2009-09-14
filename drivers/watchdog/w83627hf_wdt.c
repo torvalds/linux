@@ -89,6 +89,11 @@ static void w83627hf_select_wd_register(void)
 		c = ((inb_p(WDT_EFDR) & 0xf7) | 0x04); /* select WDT0 */
 		outb_p(0x2b, WDT_EFER);
 		outb_p(c, WDT_EFDR);	/* set GPIO3 to WDT0 */
+	} else if (c == 0x88) {	/* W83627EHF */
+		outb_p(0x2d, WDT_EFER); /* select GPIO5 */
+		c = inb_p(WDT_EFDR) & ~0x01; /* PIN77 -> WDT0# */
+		outb_p(0x2d, WDT_EFER);
+		outb_p(c, WDT_EFDR); /* set GPIO5 to WDT0 */
 	}
 
 	outb_p(0x07, WDT_EFER); /* point to logical device number reg */

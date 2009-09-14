@@ -249,7 +249,7 @@ int heci_hw_init(struct iamt_heci_device *dev)
 
 	if ((dev->host_hw_state & H_IS) == H_IS) {
 		/* acknowledge interrupt and stop interupts */
-		heci_set_csr_register(dev);
+		heci_csr_clear_his(dev);
 	}
 	dev->recvd_msg = 0;
 	DBG("reset in start the heci device.\n");
@@ -354,7 +354,7 @@ void heci_reset(struct iamt_heci_device *dev, int interrupts)
 	dev->host_hw_state &= ~H_RST;
 	dev->host_hw_state |= H_IG;
 
-	write_heci_register(dev, H_CSR, dev->host_hw_state);
+	heci_set_csr_register(dev);
 
 	DBG("currently saved host_hw_state = 0x%08x.\n",
 	    dev->host_hw_state);
@@ -998,8 +998,12 @@ int heci_disconnect_host_client(struct iamt_heci_device *dev,
 	if ((!dev) || (!file_ext))
 		return -ENODEV;
 
-	if (file_ext->state != HECI_FILE_DISCONNECTING)
+	spin_lock_bh(&dev->device_lock);
+	if (file_ext->state != HECI_FILE_DISCONNECTING) {
+		spin_unlock_bh(&dev->device_lock);
 		return 0;
+	}
+	spin_unlock_bh(&dev->device_lock);
 
 	priv_cb = kzalloc(sizeof(struct heci_cb_private), GFP_KERNEL);
 	if (!priv_cb)
@@ -1012,6 +1016,7 @@ int heci_disconnect_host_client(struct iamt_heci_device *dev,
 	if (dev->host_buffer_is_empty) {
 		dev->host_buffer_is_empty = 0;
 		if (heci_disconnect(dev, file_ext)) {
+			mdelay(10); /* Wait for hardware disconnection ready */
 			list_add_tail(&priv_cb->cb_list,
 				&dev->ctrl_rd_list.heci_cb.cb_list);
 		} else {
@@ -1030,6 +1035,8 @@ int heci_disconnect_host_client(struct iamt_heci_device *dev,
 	err = wait_event_timeout(dev->wait_recvd_msg,
 		 (HECI_FILE_DISCONNECTED == file_ext->state),
 		 timeout * HZ);
+
+	spin_lock_bh(&dev->device_lock);
 	if (HECI_FILE_DISCONNECTED == file_ext->state) {
 		rets = 0;
 		DBG("successfully disconnected from fw client.\n");
@@ -1044,7 +1051,6 @@ int heci_disconnect_host_client(struct iamt_heci_device *dev,
 		DBG("failed to disconnect from fw client.\n");
 	}
 
-	spin_lock_bh(&dev->device_lock);
 	heci_flush_list(&dev->ctrl_rd_list, file_ext);
 	heci_flush_list(&dev->ctrl_wr_list, file_ext);
 	spin_unlock_bh(&dev->device_lock);

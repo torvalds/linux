@@ -33,6 +33,9 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	BUG_ON(current->journal_info);
 	BUG_ON(blocks == 0 && revokes == 0);
 
+	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
+		return -EROFS;
+
 	tr = kzalloc(sizeof(struct gfs2_trans), GFP_NOFS);
 	if (!tr)
 		return -ENOMEM;
@@ -53,12 +56,6 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	error = gfs2_glock_nq(&tr->tr_t_gh);
 	if (error)
 		goto fail_holder_uninit;
-
-	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		tr->tr_t_gh.gh_flags |= GL_NOCACHE;
-		error = -EROFS;
-		goto fail_gunlock;
-	}
 
 	error = gfs2_log_reserve(sdp, tr->tr_reserved);
 	if (error)

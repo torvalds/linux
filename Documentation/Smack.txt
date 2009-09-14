@@ -184,8 +184,9 @@ length. Single character labels using special characters, that being anything
 other than a letter or digit, are reserved for use by the Smack development
 team. Smack labels are unstructured, case sensitive, and the only operation
 ever performed on them is comparison for equality. Smack labels cannot
-contain unprintable characters or the "/" (slash) character. Smack labels
-cannot begin with a '-', which is reserved for special options.
+contain unprintable characters, the "/" (slash), the "\" (backslash), the "'"
+(quote) and '"' (double-quote) characters.
+Smack labels cannot begin with a '-', which is reserved for special options.
 
 There are some predefined labels:
 
@@ -523,3 +524,18 @@ Smack supports some mount options:
 
 These mount options apply to all file system types.
 
+Smack auditing
+
+If you want Smack auditing of security events, you need to set CONFIG_AUDIT
+in your kernel configuration.
+By default, all denied events will be audited. You can change this behavior by
+writing a single character to the /smack/logging file :
+0 : no logging
+1 : log denied (default)
+2 : log accepted
+3 : log denied & accepted
+
+Events are logged as 'key=value' pairs, for each event you at least will get
+the subjet, the object, the rights requested, the action, the kernel function
+that triggered the event, plus other pairs depending on the type of event
+audited.

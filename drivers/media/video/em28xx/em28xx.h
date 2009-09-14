@@ -58,7 +58,7 @@
 #define EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950	16
 #define EM2880_BOARD_PINNACLE_PCTV_HD_PRO	17
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2	18
-#define EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA  19
+#define EM2860_BOARD_SAA711X_REFERENCE_DESIGN	19
 #define EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600   20
 #define EM2800_BOARD_GRABBEEX_USB2800           21
 #define EM2750_BOARD_UNKNOWN			  22
@@ -102,6 +102,12 @@
 #define EM2860_BOARD_KAIOMY_TVNPC_U2              63
 #define EM2860_BOARD_EASYCAP                      64
 #define EM2820_BOARD_IODATA_GVMVP_SZ		  65
+#define EM2880_BOARD_EMPIRE_DUAL_TV		  66
+#define EM2860_BOARD_TERRATEC_GRABBY		  67
+#define EM2860_BOARD_TERRATEC_AV350		  68
+#define EM2882_BOARD_KWORLD_ATSC_315U		  69
+#define EM2882_BOARD_EVGA_INDTUBE		  70
+#define EM2820_BOARD_SILVERCREST_WEBCAM           71
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -352,9 +358,15 @@ struct em28xx_input {
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
 
 enum em28xx_decoder {
-	EM28XX_NODECODER,
+	EM28XX_NODECODER = 0,
 	EM28XX_TVP5150,
 	EM28XX_SAA711X,
+};
+
+enum em28xx_sensor {
+	EM28XX_NOSENSOR = 0,
+	EM28XX_MT9V011,
+	EM28XX_MT9M001,
 };
 
 enum em28xx_adecoder {
@@ -383,6 +395,7 @@ struct em28xx_board {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
+	unsigned int is_webcam:1;
 	unsigned int valid:1;
 
 	unsigned char xclk, i2c_speed;
@@ -465,6 +478,17 @@ struct em28xx {
 
 	struct v4l2_device v4l2_dev;
 	struct em28xx_board board;
+
+	/* Webcam specific fields */
+	enum em28xx_sensor em28xx_sensor;
+	int sensor_xres, sensor_yres;
+	int sensor_xtal;
+
+	/* Allows progressive (e. g. non-interlaced) mode */
+	int progressive;
+
+	/* Vinmode/Vinctl used at the driver */
+	int vinmode, vinctl;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
@@ -615,6 +639,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		     int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
 void em28xx_uninit_isoc(struct em28xx *dev);
+int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 void em28xx_wake_i2c(struct em28xx *dev);
@@ -639,7 +664,7 @@ extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
-void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
+void em28xx_register_i2c_ir(struct em28xx *dev);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
 
@@ -745,17 +770,23 @@ static inline int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 static inline unsigned int norm_maxw(struct em28xx *dev)
 {
+	if (dev->board.is_webcam)
+		return dev->sensor_xres;
+
 	if (dev->board.max_range_640_480)
 		return 640;
-	else
-		return 720;
+
+	return 720;
 }
 
 static inline unsigned int norm_maxh(struct em28xx *dev)
 {
+	if (dev->board.is_webcam)
+		return dev->sensor_yres;
+
 	if (dev->board.max_range_640_480)
 		return 480;
-	else
-		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+
+	return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
 }
 #endif

@@ -46,17 +46,15 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		return NULL;
 
 	/*
-	 * If we're on an SH7751 or SH7780 PCI controller, PCI memory is
-	 * mapped at the end of the address space (typically 0xfd000000)
-	 * in a non-translatable area, so mapping through page tables for
-	 * this area is not only pointless, but also fundamentally
-	 * broken. Just return the physical address instead.
+	 * If we're in the fixed PCI memory range, mapping through page
+	 * tables is not only pointless, but also fundamentally broken.
+	 * Just return the physical address instead.
 	 *
 	 * For boards that map a small PCI memory aperture somewhere in
 	 * P1/P2 space, ioremap() will already do the right thing,
 	 * and we'll never get this far.
 	 */
-	if (is_pci_memaddr(phys_addr) && is_pci_memaddr(last_addr))
+	if (is_pci_memory_fixed_range(phys_addr, size))
 		return (void __iomem *)phys_addr;
 
 #if !defined(CONFIG_PMB_FIXED)
@@ -121,7 +119,9 @@ void __iounmap(void __iomem *addr)
 	unsigned long seg = PXSEG(vaddr);
 	struct vm_struct *p;
 
-	if (seg < P3SEG || vaddr >= P3_ADDR_MAX || is_pci_memaddr(vaddr))
+	if (seg < P3SEG || vaddr >= P3_ADDR_MAX)
+		return;
+	if (is_pci_memory_fixed_range(vaddr, 0))
 		return;
 
 #ifdef CONFIG_PMB

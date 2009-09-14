@@ -1,7 +1,9 @@
-/*P:100 This is the Launcher code, a simple program which lays out the
- * "physical" memory for the new Guest by mapping the kernel image and
- * the virtual devices, then opens /dev/lguest to tell the kernel
- * about the Guest and control it. :*/
+/*P:100
+ * This is the Launcher code, a simple program which lays out the "physical"
+ * memory for the new Guest by mapping the kernel image and the virtual
+ * devices, then opens /dev/lguest to tell the kernel about the Guest and
+ * control it.
+:*/
 #define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -16,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/eventfd.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -45,13 +48,15 @@
 #include "linux/virtio_rng.h"
 #include "linux/virtio_ring.h"
 #include "asm/bootparam.h"
-/*L:110 We can ignore the 39 include files we need for this program, but I do
- * want to draw attention to the use of kernel-style types.
+/*L:110
+ * We can ignore the 42 include files we need for this program, but I do want
+ * to draw attention to the use of kernel-style types.
  *
  * As Linus said, "C is a Spartan language, and so should your naming be."  I
  * like these abbreviations, so we define them here.  Note that u64 is always
  * unsigned long long, which works on all Linux systems: this means that we can
- * use %llu in printf for any u64. */
+ * use %llu in printf for any u64.
+ */
 typedef unsigned long long u64;
 typedef uint32_t u32;
 typedef uint16_t u16;
@@ -59,7 +64,6 @@ typedef uint8_t u8;
 /*:*/
 
 #define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
-#define NET_PEERNUM 1
 #define BRIDGE_PFX "bridge:"
 #ifndef SIOCBRADDIF
 #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
@@ -69,38 +73,27 @@ typedef uint8_t u8;
 /* This will occupy 3 pages: it must be a power of 2. */
 #define VIRTQUEUE_NUM 256
 
-/*L:120 verbose is both a global flag and a macro.  The C preprocessor allows
- * this, and although I wouldn't recommend it, it works quite nicely here. */
+/*L:120
+ * verbose is both a global flag and a macro.  The C preprocessor allows
+ * this, and although I wouldn't recommend it, it works quite nicely here.
+ */
 static bool verbose;
 #define verbose(args...) \
 	do { if (verbose) printf(args); } while(0)
 /*:*/
 
-/* File descriptors for the Waker. */
-struct {
-	int pipe[2];
-	int lguest_fd;
-} waker_fds;
-
 /* The pointer to the start of guest memory. */
 static void *guest_base;
 /* The maximum guest physical address allowed, and maximum possible. */
 static unsigned long guest_limit, guest_max;
-/* The pipe for signal hander to write to. */
-static int timeoutpipe[2];
-static unsigned int timeout_usec = 500;
+/* The /dev/lguest file descriptor. */
+static int lguest_fd;
 
 /* a per-cpu variable indicating whose vcpu is currently running */
 static unsigned int __thread cpu_id;
 
 /* This is our list of devices. */
-struct device_list
-{
-	/* Summary information about the devices in our list: ready to pass to
-	 * select() to ask which need servicing.*/
-	fd_set infds;
-	int max_infd;
-
+struct device_list {
 	/* Counter to assign interrupt numbers. */
 	unsigned int next_irq;
 
@@ -112,8 +105,7 @@ struct device_list
 
 	/* A single linked list of devices. */
 	struct device *dev;
-	/* And a pointer to the last device for easy append and also for
-	 * configuration appending. */
+	/* And a pointer to the last device for easy append. */
 	struct device *lastdev;
 };
 
@@ -121,35 +113,32 @@ struct device_list
 static struct device_list devices;
 
 /* The device structure describes a single device. */
-struct device
-{
+struct device {
 	/* The linked-list pointer. */
 	struct device *next;
 
-	/* The this device's descriptor, as mapped into the Guest. */
+	/* The device's descriptor, as mapped into the Guest. */
 	struct lguest_device_desc *desc;
+
+	/* We can't trust desc values once Guest has booted: we use these. */
+	unsigned int feature_len;
+	unsigned int num_vq;
 
 	/* The name of this device, for --verbose. */
 	const char *name;
 
-	/* If handle_input is set, it wants to be called when this file
-	 * descriptor is ready. */
-	int fd;
-	bool (*handle_input)(int fd, struct device *me);
-
 	/* Any queues attached to this device */
 	struct virtqueue *vq;
 
-	/* Handle status being finalized (ie. feature bits stable). */
-	void (*ready)(struct device *me);
+	/* Is it operational */
+	bool running;
 
 	/* Device-specific data. */
 	void *priv;
 };
 
 /* The virtqueue structure describes a queue attached to a device. */
-struct virtqueue
-{
+struct virtqueue {
 	struct virtqueue *next;
 
 	/* Which device owns me. */
@@ -164,31 +153,41 @@ struct virtqueue
 	/* Last available index we saw. */
 	u16 last_avail_idx;
 
-	/* The routine to call when the Guest pings us, or timeout. */
-	void (*handle_output)(int fd, struct virtqueue *me, bool timeout);
+	/* How many are used since we sent last irq? */
+	unsigned int pending_used;
 
-	/* Outstanding buffers */
-	unsigned int inflight;
+	/* Eventfd where Guest notifications arrive. */
+	int eventfd;
 
-	/* Is this blocked awaiting a timer? */
-	bool blocked;
+	/* Function for the thread which is servicing this virtqueue. */
+	void (*service)(struct virtqueue *vq);
+	pid_t thread;
 };
 
 /* Remember the arguments to the program so we can "reboot" */
 static char **main_args;
 
-/* Since guest is UP and we don't run at the same time, we don't need barriers.
- * But I include them in the code in case others copy it. */
-#define wmb()
+/* The original tty settings to restore on exit. */
+static struct termios orig_term;
 
-/* Convert an iovec element to the given type.
+/*
+ * We have to be careful with barriers: our devices are all run in separate
+ * threads and so we need to make sure that changes visible to the Guest happen
+ * in precise order.
+ */
+#define wmb() __asm__ __volatile__("" : : : "memory")
+#define mb() __asm__ __volatile__("" : : : "memory")
+
+/*
+ * Convert an iovec element to the given type.
  *
  * This is a fairly ugly trick: we need to know the size of the type and
  * alignment requirement to check the pointer is kosher.  It's also nice to
  * have the name of the type in case we report failure.
  *
  * Typing those three things all the time is cumbersome and error prone, so we
- * have a macro which sets them all up and passes to the real function. */
+ * have a macro which sets them all up and passes to the real function.
+ */
 #define convert(iov, type) \
 	((type *)_convert((iov), sizeof(type), __alignof__(type), #type))
 
@@ -205,8 +204,10 @@ static void *_convert(struct iovec *iov, size_t size, size_t align,
 /* Wrapper for the last available index.  Makes it easier to change. */
 #define lg_last_avail(vq)	((vq)->last_avail_idx)
 
-/* The virtio configuration space is defined to be little-endian.  x86 is
- * little-endian too, but it's nice to be explicit so we have these helpers. */
+/*
+ * The virtio configuration space is defined to be little-endian.  x86 is
+ * little-endian too, but it's nice to be explicit so we have these helpers.
+ */
 #define cpu_to_le16(v16) (v16)
 #define cpu_to_le32(v32) (v32)
 #define cpu_to_le64(v64) (v64)
@@ -245,14 +246,15 @@ static void iov_consume(struct iovec iov[], unsigned num_iov, unsigned len)
 static u8 *get_feature_bits(struct device *dev)
 {
 	return (u8 *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig);
+		+ dev->num_vq * sizeof(struct lguest_vqconfig);
 }
 
-/*L:100 The Launcher code itself takes us out into userspace, that scary place
- * where pointers run wild and free!  Unfortunately, like most userspace
- * programs, it's quite boring (which is why everyone likes to hack on the
- * kernel!).  Perhaps if you make up an Lguest Drinking Game at this point, it
- * will get you through this section.  Or, maybe not.
+/*L:100
+ * The Launcher code itself takes us out into userspace, that scary place where
+ * pointers run wild and free!  Unfortunately, like most userspace programs,
+ * it's quite boring (which is why everyone likes to hack on the kernel!).
+ * Perhaps if you make up an Lguest Drinking Game at this point, it will get
+ * you through this section.  Or, maybe not.
  *
  * The Launcher sets up a big chunk of memory to be the Guest's "physical"
  * memory and stores it in "guest_base".  In other words, Guest physical ==
@@ -260,7 +262,8 @@ static u8 *get_feature_bits(struct device *dev)
  *
  * This can be tough to get your head around, but usually it just means that we
  * use these trivial conversion functions when the Guest gives us it's
- * "physical" addresses: */
+ * "physical" addresses:
+ */
 static void *from_guest_phys(unsigned long addr)
 {
 	return guest_base + addr;
@@ -275,7 +278,8 @@ static unsigned long to_guest_phys(const void *addr)
  * Loading the Kernel.
  *
  * We start with couple of simple helper routines.  open_or_die() avoids
- * error-checking code cluttering the callers: */
+ * error-checking code cluttering the callers:
+ */
 static int open_or_die(const char *name, int flags)
 {
 	int fd = open(name, flags);
@@ -290,12 +294,19 @@ static void *map_zeroed_pages(unsigned int num)
 	int fd = open_or_die("/dev/zero", O_RDONLY);
 	void *addr;
 
-	/* We use a private mapping (ie. if we write to the page, it will be
-	 * copied). */
+	/*
+	 * We use a private mapping (ie. if we write to the page, it will be
+	 * copied).
+	 */
 	addr = mmap(NULL, getpagesize() * num,
 		    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, fd, 0);
 	if (addr == MAP_FAILED)
 		err(1, "Mmaping %u pages of /dev/zero", num);
+
+	/*
+	 * One neat mmap feature is that you can close the fd, and it
+	 * stays mapped.
+	 */
 	close(fd);
 
 	return addr;
@@ -312,20 +323,24 @@ static void *get_pages(unsigned int num)
 	return addr;
 }
 
-/* This routine is used to load the kernel or initrd.  It tries mmap, but if
+/*
+ * This routine is used to load the kernel or initrd.  It tries mmap, but if
  * that fails (Plan 9's kernel file isn't nicely aligned on page boundaries),
- * it falls back to reading the memory in. */
+ * it falls back to reading the memory in.
+ */
 static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
 {
 	ssize_t r;
 
-	/* We map writable even though for some segments are marked read-only.
+	/*
+	 * We map writable even though for some segments are marked read-only.
 	 * The kernel really wants to be writable: it patches its own
 	 * instructions.
 	 *
 	 * MAP_PRIVATE means that the page won't be copied until a write is
 	 * done to it.  This allows us to share untouched memory between
-	 * Guests. */
+	 * Guests.
+	 */
 	if (mmap(addr, len, PROT_READ|PROT_WRITE|PROT_EXEC,
 		 MAP_FIXED|MAP_PRIVATE, fd, offset) != MAP_FAILED)
 		return;
@@ -336,7 +351,8 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
 		err(1, "Reading offset %lu len %lu gave %zi", offset, len, r);
 }
 
-/* This routine takes an open vmlinux image, which is in ELF, and maps it into
+/*
+ * This routine takes an open vmlinux image, which is in ELF, and maps it into
  * the Guest memory.  ELF = Embedded Linking Format, which is the format used
  * by all modern binaries on Linux including the kernel.
  *
@@ -344,23 +360,28 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
  * address.  We use the physical address; the Guest will map itself to the
  * virtual address.
  *
- * We return the starting address. */
+ * We return the starting address.
+ */
 static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 {
 	Elf32_Phdr phdr[ehdr->e_phnum];
 	unsigned int i;
 
-	/* Sanity checks on the main ELF header: an x86 executable with a
-	 * reasonable number of correctly-sized program headers. */
+	/*
+	 * Sanity checks on the main ELF header: an x86 executable with a
+	 * reasonable number of correctly-sized program headers.
+	 */
 	if (ehdr->e_type != ET_EXEC
 	    || ehdr->e_machine != EM_386
 	    || ehdr->e_phentsize != sizeof(Elf32_Phdr)
 	    || ehdr->e_phnum < 1 || ehdr->e_phnum > 65536U/sizeof(Elf32_Phdr))
 		errx(1, "Malformed elf header");
 
-	/* An ELF executable contains an ELF header and a number of "program"
+	/*
+	 * An ELF executable contains an ELF header and a number of "program"
 	 * headers which indicate which parts ("segments") of the program to
-	 * load where. */
+	 * load where.
+	 */
 
 	/* We read in all the program headers at once: */
 	if (lseek(elf_fd, ehdr->e_phoff, SEEK_SET) < 0)
@@ -368,8 +389,10 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 	if (read(elf_fd, phdr, sizeof(phdr)) != sizeof(phdr))
 		err(1, "Reading program headers");
 
-	/* Try all the headers: there are usually only three.  A read-only one,
-	 * a read-write one, and a "note" section which we don't load. */
+	/*
+	 * Try all the headers: there are usually only three.  A read-only one,
+	 * a read-write one, and a "note" section which we don't load.
+	 */
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		/* If this isn't a loadable segment, we ignore it */
 		if (phdr[i].p_type != PT_LOAD)
@@ -387,13 +410,15 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 	return ehdr->e_entry;
 }
 
-/*L:150 A bzImage, unlike an ELF file, is not meant to be loaded.  You're
- * supposed to jump into it and it will unpack itself.  We used to have to
- * perform some hairy magic because the unpacking code scared me.
+/*L:150
+ * A bzImage, unlike an ELF file, is not meant to be loaded.  You're supposed
+ * to jump into it and it will unpack itself.  We used to have to perform some
+ * hairy magic because the unpacking code scared me.
  *
  * Fortunately, Jeremy Fitzhardinge convinced me it wasn't that hard and wrote
  * a small patch to jump over the tricky bits in the Guest, so now we just read
- * the funky header so we know where in the file to load, and away we go! */
+ * the funky header so we know where in the file to load, and away we go!
+ */
 static unsigned long load_bzimage(int fd)
 {
 	struct boot_params boot;
@@ -401,8 +426,10 @@ static unsigned long load_bzimage(int fd)
 	/* Modern bzImages get loaded at 1M. */
 	void *p = from_guest_phys(0x100000);
 
-	/* Go back to the start of the file and read the header.  It should be
-	 * a Linux boot header (see Documentation/x86/i386/boot.txt) */
+	/*
+	 * Go back to the start of the file and read the header.  It should be
+	 * a Linux boot header (see Documentation/x86/i386/boot.txt)
+	 */
 	lseek(fd, 0, SEEK_SET);
 	read(fd, &boot, sizeof(boot));
 
@@ -421,9 +448,11 @@ static unsigned long load_bzimage(int fd)
 	return boot.hdr.code32_start;
 }
 
-/*L:140 Loading the kernel is easy when it's a "vmlinux", but most kernels
+/*L:140
+ * Loading the kernel is easy when it's a "vmlinux", but most kernels
  * come wrapped up in the self-decompressing "bzImage" format.  With a little
- * work, we can load those, too. */
+ * work, we can load those, too.
+ */
 static unsigned long load_kernel(int fd)
 {
 	Elf32_Ehdr hdr;
@@ -440,24 +469,28 @@ static unsigned long load_kernel(int fd)
 	return load_bzimage(fd);
 }
 
-/* This is a trivial little helper to align pages.  Andi Kleen hated it because
+/*
+ * This is a trivial little helper to align pages.  Andi Kleen hated it because
  * it calls getpagesize() twice: "it's dumb code."
  *
  * Kernel guys get really het up about optimization, even when it's not
- * necessary.  I leave this code as a reaction against that. */
+ * necessary.  I leave this code as a reaction against that.
+ */
 static inline unsigned long page_align(unsigned long addr)
 {
 	/* Add upwards and truncate downwards. */
 	return ((addr + getpagesize()-1) & ~(getpagesize()-1));
 }
 
-/*L:180 An "initial ram disk" is a disk image loaded into memory along with
- * the kernel which the kernel can use to boot from without needing any
- * drivers.  Most distributions now use this as standard: the initrd contains
- * the code to load the appropriate driver modules for the current machine.
+/*L:180
+ * An "initial ram disk" is a disk image loaded into memory along with the
+ * kernel which the kernel can use to boot from without needing any drivers.
+ * Most distributions now use this as standard: the initrd contains the code to
+ * load the appropriate driver modules for the current machine.
  *
  * Importantly, James Morris works for RedHat, and Fedora uses initrds for its
- * kernels.  He sent me this (and tells me when I break it). */
+ * kernels.  He sent me this (and tells me when I break it).
+ */
 static unsigned long load_initrd(const char *name, unsigned long mem)
 {
 	int ifd;
@@ -469,12 +502,16 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 	if (fstat(ifd, &st) < 0)
 		err(1, "fstat() on initrd '%s'", name);
 
-	/* We map the initrd at the top of memory, but mmap wants it to be
-	 * page-aligned, so we round the size up for that. */
+	/*
+	 * We map the initrd at the top of memory, but mmap wants it to be
+	 * page-aligned, so we round the size up for that.
+	 */
 	len = page_align(st.st_size);
 	map_at(ifd, from_guest_phys(mem - len), 0, st.st_size);
-	/* Once a file is mapped, you can close the file descriptor.  It's a
-	 * little odd, but quite useful. */
+	/*
+	 * Once a file is mapped, you can close the file descriptor.  It's a
+	 * little odd, but quite useful.
+	 */
 	close(ifd);
 	verbose("mapped initrd %s size=%lu @ %p\n", name, len, (void*)mem-len);
 
@@ -483,8 +520,10 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 }
 /*:*/
 
-/* Simple routine to roll all the commandline arguments together with spaces
- * between them. */
+/*
+ * Simple routine to roll all the commandline arguments together with spaces
+ * between them.
+ */
 static void concat(char *dst, char *args[])
 {
 	unsigned int i, len = 0;
@@ -501,104 +540,26 @@ static void concat(char *dst, char *args[])
 	dst[len] = '\0';
 }
 
-/*L:185 This is where we actually tell the kernel to initialize the Guest.  We
+/*L:185
+ * This is where we actually tell the kernel to initialize the Guest.  We
  * saw the arguments it expects when we looked at initialize() in lguest_user.c:
  * the base of Guest "physical" memory, the top physical page to allow and the
- * entry point for the Guest. */
-static int tell_kernel(unsigned long start)
+ * entry point for the Guest.
+ */
+static void tell_kernel(unsigned long start)
 {
 	unsigned long args[] = { LHREQ_INITIALIZE,
 				 (unsigned long)guest_base,
 				 guest_limit / getpagesize(), start };
-	int fd;
-
 	verbose("Guest: %p - %p (%#lx)\n",
 		guest_base, guest_base + guest_limit, guest_limit);
-	fd = open_or_die("/dev/lguest", O_RDWR);
-	if (write(fd, args, sizeof(args)) < 0)
+	lguest_fd = open_or_die("/dev/lguest", O_RDWR);
+	if (write(lguest_fd, args, sizeof(args)) < 0)
 		err(1, "Writing to /dev/lguest");
-
-	/* We return the /dev/lguest file descriptor to control this Guest */
-	return fd;
 }
 /*:*/
 
-static void add_device_fd(int fd)
-{
-	FD_SET(fd, &devices.infds);
-	if (fd > devices.max_infd)
-		devices.max_infd = fd;
-}
-
 /*L:200
- * The Waker.
- *
- * With console, block and network devices, we can have lots of input which we
- * need to process.  We could try to tell the kernel what file descriptors to
- * watch, but handing a file descriptor mask through to the kernel is fairly
- * icky.
- *
- * Instead, we clone off a thread which watches the file descriptors and writes
- * the LHREQ_BREAK command to the /dev/lguest file descriptor to tell the Host
- * stop running the Guest.  This causes the Launcher to return from the
- * /dev/lguest read with -EAGAIN, where it will write to /dev/lguest to reset
- * the LHREQ_BREAK and wake us up again.
- *
- * This, of course, is merely a different *kind* of icky.
- *
- * Given my well-known antipathy to threads, I'd prefer to use processes.  But
- * it's easier to share Guest memory with threads, and trivial to share the
- * devices.infds as the Launcher changes it.
- */
-static int waker(void *unused)
-{
-	/* Close the write end of the pipe: only the Launcher has it open. */
-	close(waker_fds.pipe[1]);
-
-	for (;;) {
-		fd_set rfds = devices.infds;
-		unsigned long args[] = { LHREQ_BREAK, 1 };
-		unsigned int maxfd = devices.max_infd;
-
-		/* We also listen to the pipe from the Launcher. */
-		FD_SET(waker_fds.pipe[0], &rfds);
-		if (waker_fds.pipe[0] > maxfd)
-			maxfd = waker_fds.pipe[0];
-
-		/* Wait until input is ready from one of the devices. */
-		select(maxfd+1, &rfds, NULL, NULL, NULL);
-
-		/* Message from Launcher? */
-		if (FD_ISSET(waker_fds.pipe[0], &rfds)) {
-			char c;
-			/* If this fails, then assume Launcher has exited.
-			 * Don't do anything on exit: we're just a thread! */
-			if (read(waker_fds.pipe[0], &c, 1) != 1)
-				_exit(0);
-			continue;
-		}
-
-		/* Send LHREQ_BREAK command to snap the Launcher out of it. */
-		pwrite(waker_fds.lguest_fd, args, sizeof(args), cpu_id);
-	}
-	return 0;
-}
-
-/* This routine just sets up a pipe to the Waker process. */
-static void setup_waker(int lguest_fd)
-{
-	/* This pipe is closed when Launcher dies, telling Waker. */
-	if (pipe(waker_fds.pipe) != 0)
-		err(1, "Creating pipe for Waker");
-
-	/* Waker also needs to know the lguest fd */
-	waker_fds.lguest_fd = lguest_fd;
-
-	if (clone(waker, malloc(4096) + 4096, CLONE_VM | SIGCHLD, NULL) == -1)
-		err(1, "Creating Waker");
-}
-
-/*
  * Device Handling.
  *
  * When the Guest gives us a buffer, it sends an array of addresses and sizes.
@@ -609,65 +570,125 @@ static void setup_waker(int lguest_fd)
 static void *_check_pointer(unsigned long addr, unsigned int size,
 			    unsigned int line)
 {
-	/* We have to separately check addr and addr+size, because size could
-	 * be huge and addr + size might wrap around. */
+	/*
+	 * We have to separately check addr and addr+size, because size could
+	 * be huge and addr + size might wrap around.
+	 */
 	if (addr >= guest_limit || addr + size >= guest_limit)
 		errx(1, "%s:%i: Invalid address %#lx", __FILE__, line, addr);
-	/* We return a pointer for the caller's convenience, now we know it's
-	 * safe to use. */
+	/*
+	 * We return a pointer for the caller's convenience, now we know it's
+	 * safe to use.
+	 */
 	return from_guest_phys(addr);
 }
 /* A macro which transparently hands the line number to the real function. */
 #define check_pointer(addr,size) _check_pointer(addr, size, __LINE__)
 
-/* Each buffer in the virtqueues is actually a chain of descriptors.  This
+/*
+ * Each buffer in the virtqueues is actually a chain of descriptors.  This
  * function returns the next descriptor in the chain, or vq->vring.num if we're
- * at the end. */
-static unsigned next_desc(struct virtqueue *vq, unsigned int i)
+ * at the end.
+ */
+static unsigned next_desc(struct vring_desc *desc,
+			  unsigned int i, unsigned int max)
 {
 	unsigned int next;
 
 	/* If this descriptor says it doesn't chain, we're done. */
-	if (!(vq->vring.desc[i].flags & VRING_DESC_F_NEXT))
-		return vq->vring.num;
+	if (!(desc[i].flags & VRING_DESC_F_NEXT))
+		return max;
 
 	/* Check they're not leading us off end of descriptors. */
-	next = vq->vring.desc[i].next;
+	next = desc[i].next;
 	/* Make sure compiler knows to grab that: we don't want it changing! */
 	wmb();
 
-	if (next >= vq->vring.num)
+	if (next >= max)
 		errx(1, "Desc next is %u", next);
 
 	return next;
 }
 
-/* This looks in the virtqueue and for the first available buffer, and converts
+/*
+ * This actually sends the interrupt for this virtqueue, if we've used a
+ * buffer.
+ */
+static void trigger_irq(struct virtqueue *vq)
+{
+	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
+
+	/* Don't inform them if nothing used. */
+	if (!vq->pending_used)
+		return;
+	vq->pending_used = 0;
+
+	/* If they don't want an interrupt, don't send one, unless empty. */
+	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
+	    && lg_last_avail(vq) != vq->vring.avail->idx)
+		return;
+
+	/* Send the Guest an interrupt tell them we used something up. */
+	if (write(lguest_fd, buf, sizeof(buf)) != 0)
+		err(1, "Triggering irq %i", vq->config.irq);
+}
+
+/*
+ * This looks in the virtqueue for the first available buffer, and converts
  * it to an iovec for convenient access.  Since descriptors consist of some
  * number of output then some number of input descriptors, it's actually two
  * iovecs, but we pack them into one and note how many of each there were.
  *
- * This function returns the descriptor number found, or vq->vring.num (which
- * is never a valid descriptor number) if none was found. */
-static unsigned get_vq_desc(struct virtqueue *vq,
-			    struct iovec iov[],
-			    unsigned int *out_num, unsigned int *in_num)
+ * This function waits if necessary, and returns the descriptor number found.
+ */
+static unsigned wait_for_vq_desc(struct virtqueue *vq,
+				 struct iovec iov[],
+				 unsigned int *out_num, unsigned int *in_num)
 {
-	unsigned int i, head;
-	u16 last_avail;
+	unsigned int i, head, max;
+	struct vring_desc *desc;
+	u16 last_avail = lg_last_avail(vq);
+
+	/* There's nothing available? */
+	while (last_avail == vq->vring.avail->idx) {
+		u64 event;
+
+		/*
+		 * Since we're about to sleep, now is a good time to tell the
+		 * Guest about what we've used up to now.
+		 */
+		trigger_irq(vq);
+
+		/* OK, now we need to know about added descriptors. */
+		vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
+
+		/*
+		 * They could have slipped one in as we were doing that: make
+		 * sure it's written, then check again.
+		 */
+		mb();
+		if (last_avail != vq->vring.avail->idx) {
+			vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
+			break;
+		}
+
+		/* Nothing new?  Wait for eventfd to tell us they refilled. */
+		if (read(vq->eventfd, &event, sizeof(event)) != sizeof(event))
+			errx(1, "Event read failed?");
+
+		/* We don't need to be notified again. */
+		vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
+	}
 
 	/* Check it isn't doing very strange things with descriptor numbers. */
-	last_avail = lg_last_avail(vq);
 	if ((u16)(vq->vring.avail->idx - last_avail) > vq->vring.num)
 		errx(1, "Guest moved used index from %u to %u",
 		     last_avail, vq->vring.avail->idx);
 
-	/* If there's nothing new since last we looked, return invalid. */
-	if (vq->vring.avail->idx == last_avail)
-		return vq->vring.num;
-
-	/* Grab the next descriptor number they're advertising, and increment
-	 * the index we've seen. */
+	/*
+	 * Grab the next descriptor number they're advertising, and increment
+	 * the index we've seen.
+	 */
 	head = vq->vring.avail->ring[last_avail % vq->vring.num];
 	lg_last_avail(vq)++;
 
@@ -678,87 +699,84 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 	/* When we start there are none of either input nor output. */
 	*out_num = *in_num = 0;
 
+	max = vq->vring.num;
+	desc = vq->vring.desc;
 	i = head;
+
+	/*
+	 * If this is an indirect entry, then this buffer contains a descriptor
+	 * table which we handle as if it's any normal descriptor chain.
+	 */
+	if (desc[i].flags & VRING_DESC_F_INDIRECT) {
+		if (desc[i].len % sizeof(struct vring_desc))
+			errx(1, "Invalid size for indirect buffer table");
+
+		max = desc[i].len / sizeof(struct vring_desc);
+		desc = check_pointer(desc[i].addr, desc[i].len);
+		i = 0;
+	}
+
 	do {
 		/* Grab the first descriptor, and check it's OK. */
-		iov[*out_num + *in_num].iov_len = vq->vring.desc[i].len;
+		iov[*out_num + *in_num].iov_len = desc[i].len;
 		iov[*out_num + *in_num].iov_base
-			= check_pointer(vq->vring.desc[i].addr,
-					vq->vring.desc[i].len);
+			= check_pointer(desc[i].addr, desc[i].len);
 		/* If this is an input descriptor, increment that count. */
-		if (vq->vring.desc[i].flags & VRING_DESC_F_WRITE)
+		if (desc[i].flags & VRING_DESC_F_WRITE)
 			(*in_num)++;
 		else {
-			/* If it's an output descriptor, they're all supposed
-			 * to come before any input descriptors. */
+			/*
+			 * If it's an output descriptor, they're all supposed
+			 * to come before any input descriptors.
+			 */
 			if (*in_num)
 				errx(1, "Descriptor has out after in");
 			(*out_num)++;
 		}
 
 		/* If we've got too many, that implies a descriptor loop. */
-		if (*out_num + *in_num > vq->vring.num)
+		if (*out_num + *in_num > max)
 			errx(1, "Looped descriptor");
-	} while ((i = next_desc(vq, i)) != vq->vring.num);
+	} while ((i = next_desc(desc, i, max)) != max);
 
-	vq->inflight++;
 	return head;
 }
 
-/* After we've used one of their buffers, we tell them about it.  We'll then
- * want to send them an interrupt, using trigger_irq(). */
+/*
+ * After we've used one of their buffers, we tell the Guest about it.  Sometime
+ * later we'll want to send them an interrupt using trigger_irq(); note that
+ * wait_for_vq_desc() does that for us if it has to wait.
+ */
 static void add_used(struct virtqueue *vq, unsigned int head, int len)
 {
 	struct vring_used_elem *used;
 
-	/* The virtqueue contains a ring of used buffers.  Get a pointer to the
-	 * next entry in that used ring. */
+	/*
+	 * The virtqueue contains a ring of used buffers.  Get a pointer to the
+	 * next entry in that used ring.
+	 */
 	used = &vq->vring.used->ring[vq->vring.used->idx % vq->vring.num];
 	used->id = head;
 	used->len = len;
 	/* Make sure buffer is written before we update index. */
 	wmb();
 	vq->vring.used->idx++;
-	vq->inflight--;
-}
-
-/* This actually sends the interrupt for this virtqueue */
-static void trigger_irq(int fd, struct virtqueue *vq)
-{
-	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
-
-	/* If they don't want an interrupt, don't send one, unless empty. */
-	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-	    && vq->inflight)
-		return;
-
-	/* Send the Guest an interrupt tell them we used something up. */
-	if (write(fd, buf, sizeof(buf)) != 0)
-		err(1, "Triggering irq %i", vq->config.irq);
+	vq->pending_used++;
 }
 
 /* And here's the combo meal deal.  Supersize me! */
-static void add_used_and_trigger(int fd, struct virtqueue *vq,
-				 unsigned int head, int len)
+static void add_used_and_trigger(struct virtqueue *vq, unsigned head, int len)
 {
 	add_used(vq, head, len);
-	trigger_irq(fd, vq);
+	trigger_irq(vq);
 }
 
 /*
  * The Console
  *
- * Here is the input terminal setting we save, and the routine to restore them
- * on exit so the user gets their terminal back. */
-static struct termios orig_term;
-static void restore_term(void)
-{
-	tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
-}
-
-/* We associate some data with the console for our exit hack. */
-struct console_abort
-{
+ * We associate some data with the console for our exit hack.
+ */
+struct console_abort {
 	/* How many times have they hit ^C? */
 	int count;
 	/* When did they start? */
@@ -766,352 +784,365 @@ struct console_abort
 };
 
 /* This is the routine which handles console input (ie. stdin). */
-static bool handle_console_input(int fd, struct device *dev)
+static void console_input(struct virtqueue *vq)
 {
 	int len;
 	unsigned int head, in_num, out_num;
-	struct iovec iov[dev->vq->vring.num];
-	struct console_abort *abort = dev->priv;
+	struct console_abort *abort = vq->dev->priv;
+	struct iovec iov[vq->vring.num];
 
-	/* First we need a console buffer from the Guests's input virtqueue. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-
-	/* If they're not ready for input, stop listening to this file
-	 * descriptor.  We'll start again once they add an input buffer. */
-	if (head == dev->vq->vring.num)
-		return false;
-
+	/* Make sure there's a descriptor available. */
+	head = wait_for_vq_desc(vq, iov, &out_num, &in_num);
 	if (out_num)
 		errx(1, "Output buffers in console in queue?");
 
-	/* This is why we convert to iovecs: the readv() call uses them, and so
-	 * it reads straight into the Guest's buffer. */
-	len = readv(dev->fd, iov, in_num);
+	/* Read into it.  This is where we usually wait. */
+	len = readv(STDIN_FILENO, iov, in_num);
 	if (len <= 0) {
-		/* This implies that the console is closed, is /dev/null, or
-		 * something went terribly wrong. */
+		/* Ran out of input? */
 		warnx("Failed to get console input, ignoring console.");
-		/* Put the input terminal back. */
-		restore_term();
-		/* Remove callback from input vq, so it doesn't restart us. */
-		dev->vq->handle_output = NULL;
-		/* Stop listening to this fd: don't call us again. */
-		return false;
+		/*
+		 * For simplicity, dying threads kill the whole Launcher.  So
+		 * just nap here.
+		 */
+		for (;;)
+			pause();
 	}
 
-	/* Tell the Guest about the new input. */
-	add_used_and_trigger(fd, dev->vq, head, len);
+	/* Tell the Guest we used a buffer. */
+	add_used_and_trigger(vq, head, len);
 
-	/* Three ^C within one second?  Exit.
+	/*
+	 * Three ^C within one second?  Exit.
 	 *
-	 * This is such a hack, but works surprisingly well.  Each ^C has to be
-	 * in a buffer by itself, so they can't be too fast.  But we check that
-	 * we get three within about a second, so they can't be too slow. */
-	if (len == 1 && ((char *)iov[0].iov_base)[0] == 3) {
-		if (!abort->count++)
-			gettimeofday(&abort->start, NULL);
-		else if (abort->count == 3) {
-			struct timeval now;
-			gettimeofday(&now, NULL);
-			if (now.tv_sec <= abort->start.tv_sec+1) {
-				unsigned long args[] = { LHREQ_BREAK, 0 };
-				/* Close the fd so Waker will know it has to
-				 * exit. */
-				close(waker_fds.pipe[1]);
-				/* Just in case Waker is blocked in BREAK, send
-				 * unbreak now. */
-				write(fd, args, sizeof(args));
-				exit(2);
-			}
-			abort->count = 0;
-		}
-	} else
-		/* Any other key resets the abort counter. */
+	 * This is such a hack, but works surprisingly well.  Each ^C has to
+	 * be in a buffer by itself, so they can't be too fast.  But we check
+	 * that we get three within about a second, so they can't be too
+	 * slow.
+	 */
+	if (len != 1 || ((char *)iov[0].iov_base)[0] != 3) {
 		abort->count = 0;
+		return;
+	}
 
-	/* Everything went OK! */
-	return true;
+	abort->count++;
+	if (abort->count == 1)
+		gettimeofday(&abort->start, NULL);
+	else if (abort->count == 3) {
+		struct timeval now;
+		gettimeofday(&now, NULL);
+		/* Kill all Launcher processes with SIGINT, like normal ^C */
+		if (now.tv_sec <= abort->start.tv_sec+1)
+			kill(0, SIGINT);
+		abort->count = 0;
+	}
 }
 
-/* Handling output for console is simple: we just get all the output buffers
- * and write them to stdout. */
-static void handle_console_output(int fd, struct virtqueue *vq, bool timeout)
+/* This is the routine which handles console output (ie. stdout). */
+static void console_output(struct virtqueue *vq)
 {
 	unsigned int head, out, in;
-	int len;
 	struct iovec iov[vq->vring.num];
 
-	/* Keep getting output buffers from the Guest until we run out. */
-	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
-		if (in)
-			errx(1, "Input buffers in output queue?");
-		len = writev(STDOUT_FILENO, iov, out);
-		add_used_and_trigger(fd, vq, head, len);
+	/* We usually wait in here, for the Guest to give us something. */
+	head = wait_for_vq_desc(vq, iov, &out, &in);
+	if (in)
+		errx(1, "Input buffers in console output queue?");
+
+	/* writev can return a partial write, so we loop here. */
+	while (!iov_empty(iov, out)) {
+		int len = writev(STDOUT_FILENO, iov, out);
+		if (len <= 0)
+			err(1, "Write to stdout gave %i", len);
+		iov_consume(iov, out, len);
 	}
-}
 
-/* This is called when we no longer want to hear about Guest changes to a
- * virtqueue.  This is more efficient in high-traffic cases, but it means we
- * have to set a timer to check if any more changes have occurred. */
-static void block_vq(struct virtqueue *vq)
-{
-	struct itimerval itm;
-
-	vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
-	vq->blocked = true;
-
-	itm.it_interval.tv_sec = 0;
-	itm.it_interval.tv_usec = 0;
-	itm.it_value.tv_sec = 0;
-	itm.it_value.tv_usec = timeout_usec;
-
-	setitimer(ITIMER_REAL, &itm, NULL);
+	/*
+	 * We're finished with that buffer: if we're going to sleep,
+	 * wait_for_vq_desc() will prod the Guest with an interrupt.
+	 */
+	add_used(vq, head, 0);
 }
 
 /*
  * The Network
  *
  * Handling output for network is also simple: we get all the output buffers
- * and write them (ignoring the first element) to this device's file descriptor
- * (/dev/net/tun).
+ * and write them to /dev/net/tun.
  */
-static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
+struct net_info {
+	int tunfd;
+};
+
+static void net_output(struct virtqueue *vq)
 {
-	unsigned int head, out, in, num = 0;
-	int len;
+	struct net_info *net_info = vq->dev->priv;
+	unsigned int head, out, in;
 	struct iovec iov[vq->vring.num];
-	static int last_timeout_num;
 
-	/* Keep getting output buffers from the Guest until we run out. */
-	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
-		if (in)
-			errx(1, "Input buffers in output queue?");
-		len = writev(vq->dev->fd, iov, out);
-		if (len < 0)
-			err(1, "Writing network packet to tun");
-		add_used_and_trigger(fd, vq, head, len);
-		num++;
-	}
+	/* We usually wait in here for the Guest to give us a packet. */
+	head = wait_for_vq_desc(vq, iov, &out, &in);
+	if (in)
+		errx(1, "Input buffers in net output queue?");
+	/*
+	 * Send the whole thing through to /dev/net/tun.  It expects the exact
+	 * same format: what a coincidence!
+	 */
+	if (writev(net_info->tunfd, iov, out) < 0)
+		errx(1, "Write to tun failed?");
 
-	/* Block further kicks and set up a timer if we saw anything. */
-	if (!timeout && num)
-		block_vq(vq);
-
-	/* We never quite know how long should we wait before we check the
-	 * queue again for more packets.  We start at 500 microseconds, and if
-	 * we get fewer packets than last time, we assume we made the timeout
-	 * too small and increase it by 10 microseconds.  Otherwise, we drop it
-	 * by one microsecond every time.  It seems to work well enough. */
-	if (timeout) {
-		if (num < last_timeout_num)
-			timeout_usec += 10;
-		else if (timeout_usec > 1)
-			timeout_usec--;
-		last_timeout_num = num;
-	}
+	/*
+	 * Done with that one; wait_for_vq_desc() will send the interrupt if
+	 * all packets are processed.
+	 */
+	add_used(vq, head, 0);
 }
 
-/* This is where we handle a packet coming in from the tun device to our
- * Guest. */
-static bool handle_tun_input(int fd, struct device *dev)
+/*
+ * Handling network input is a bit trickier, because I've tried to optimize it.
+ *
+ * First we have a helper routine which tells is if from this file descriptor
+ * (ie. the /dev/net/tun device) will block:
+ */
+static bool will_block(int fd)
 {
-	unsigned int head, in_num, out_num;
+	fd_set fdset;
+	struct timeval zero = { 0, 0 };
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	return select(fd+1, &fdset, NULL, NULL, &zero) != 1;
+}
+
+/*
+ * This handles packets coming in from the tun device to our Guest.  Like all
+ * service routines, it gets called again as soon as it returns, so you don't
+ * see a while(1) loop here.
+ */
+static void net_input(struct virtqueue *vq)
+{
 	int len;
-	struct iovec iov[dev->vq->vring.num];
+	unsigned int head, out, in;
+	struct iovec iov[vq->vring.num];
+	struct net_info *net_info = vq->dev->priv;
 
-	/* First we need a network buffer from the Guests's recv virtqueue. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-	if (head == dev->vq->vring.num) {
-		/* Now, it's expected that if we try to send a packet too
-		 * early, the Guest won't be ready yet.  Wait until the device
-		 * status says it's ready. */
-		/* FIXME: Actually want DRIVER_ACTIVE here. */
+	/*
+	 * Get a descriptor to write an incoming packet into.  This will also
+	 * send an interrupt if they're out of descriptors.
+	 */
+	head = wait_for_vq_desc(vq, iov, &out, &in);
+	if (out)
+		errx(1, "Output buffers in net input queue?");
 
-		/* Now tell it we want to know if new things appear. */
-		dev->vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
-		wmb();
+	/*
+	 * If it looks like we'll block reading from the tun device, send them
+	 * an interrupt.
+	 */
+	if (vq->pending_used && will_block(net_info->tunfd))
+		trigger_irq(vq);
 
-		/* We'll turn this back on if input buffers are registered. */
-		return false;
-	} else if (out_num)
-		errx(1, "Output buffers in network recv queue?");
-
-	/* Read the packet from the device directly into the Guest's buffer. */
-	len = readv(dev->fd, iov, in_num);
+	/*
+	 * Read in the packet.  This is where we normally wait (when there's no
+	 * incoming network traffic).
+	 */
+	len = readv(net_info->tunfd, iov, in);
 	if (len <= 0)
-		err(1, "reading network");
+		err(1, "Failed to read from tun.");
 
-	/* Tell the Guest about the new packet. */
-	add_used_and_trigger(fd, dev->vq, head, len);
+	/*
+	 * Mark that packet buffer as used, but don't interrupt here.  We want
+	 * to wait until we've done as much work as we can.
+	 */
+	add_used(vq, head, len);
+}
+/*:*/
 
-	verbose("tun input packet len %i [%02x %02x] (%s)\n", len,
-		((u8 *)iov[1].iov_base)[0], ((u8 *)iov[1].iov_base)[1],
-		head != dev->vq->vring.num ? "sent" : "discarded");
+/* This is the helper to create threads: run the service routine in a loop. */
+static int do_thread(void *_vq)
+{
+	struct virtqueue *vq = _vq;
 
-	/* All good. */
-	return true;
+	for (;;)
+		vq->service(vq);
+	return 0;
 }
 
-/*L:215 This is the callback attached to the network and console input
- * virtqueues: it ensures we try again, in case we stopped console or net
- * delivery because Guest didn't have any buffers. */
-static void enable_fd(int fd, struct virtqueue *vq, bool timeout)
+/*
+ * When a child dies, we kill our entire process group with SIGTERM.  This
+ * also has the side effect that the shell restores the console for us!
+ */
+static void kill_launcher(int signal)
 {
-	add_device_fd(vq->dev->fd);
-	/* Snap the Waker out of its select loop. */
-	write(waker_fds.pipe[1], "", 1);
+	kill(0, SIGTERM);
 }
 
-static void net_enable_fd(int fd, struct virtqueue *vq, bool timeout)
+static void reset_device(struct device *dev)
 {
-	/* We don't need to know again when Guest refills receive buffer. */
-	vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
-	enable_fd(fd, vq, timeout);
+	struct virtqueue *vq;
+
+	verbose("Resetting device %s\n", dev->name);
+
+	/* Clear any features they've acked. */
+	memset(get_feature_bits(dev) + dev->feature_len, 0, dev->feature_len);
+
+	/* We're going to be explicitly killing threads, so ignore them. */
+	signal(SIGCHLD, SIG_IGN);
+
+	/* Zero out the virtqueues, get rid of their threads */
+	for (vq = dev->vq; vq; vq = vq->next) {
+		if (vq->thread != (pid_t)-1) {
+			kill(vq->thread, SIGTERM);
+			waitpid(vq->thread, NULL, 0);
+			vq->thread = (pid_t)-1;
+		}
+		memset(vq->vring.desc, 0,
+		       vring_size(vq->config.num, LGUEST_VRING_ALIGN));
+		lg_last_avail(vq) = 0;
+	}
+	dev->running = false;
+
+	/* Now we care if threads die. */
+	signal(SIGCHLD, (void *)kill_launcher);
+}
+
+/*L:216
+ * This actually creates the thread which services the virtqueue for a device.
+ */
+static void create_thread(struct virtqueue *vq)
+{
+	/*
+	 * Create stack for thread.  Since the stack grows upwards, we point
+	 * the stack pointer to the end of this region.
+	 */
+	char *stack = malloc(32768);
+	unsigned long args[] = { LHREQ_EVENTFD,
+				 vq->config.pfn*getpagesize(), 0 };
+
+	/* Create a zero-initialized eventfd. */
+	vq->eventfd = eventfd(0, 0);
+	if (vq->eventfd < 0)
+		err(1, "Creating eventfd");
+	args[2] = vq->eventfd;
+
+	/*
+	 * Attach an eventfd to this virtqueue: it will go off when the Guest
+	 * does an LHCALL_NOTIFY for this vq.
+	 */
+	if (write(lguest_fd, &args, sizeof(args)) != 0)
+		err(1, "Attaching eventfd");
+
+	/*
+	 * CLONE_VM: because it has to access the Guest memory, and SIGCHLD so
+	 * we get a signal if it dies.
+	 */
+	vq->thread = clone(do_thread, stack + 32768, CLONE_VM | SIGCHLD, vq);
+	if (vq->thread == (pid_t)-1)
+		err(1, "Creating clone");
+
+	/* We close our local copy now the child has it. */
+	close(vq->eventfd);
+}
+
+static void start_device(struct device *dev)
+{
+	unsigned int i;
+	struct virtqueue *vq;
+
+	verbose("Device %s OK: offered", dev->name);
+	for (i = 0; i < dev->feature_len; i++)
+		verbose(" %02x", get_feature_bits(dev)[i]);
+	verbose(", accepted");
+	for (i = 0; i < dev->feature_len; i++)
+		verbose(" %02x", get_feature_bits(dev)
+			[dev->feature_len+i]);
+
+	for (vq = dev->vq; vq; vq = vq->next) {
+		if (vq->service)
+			create_thread(vq);
+	}
+	dev->running = true;
+}
+
+static void cleanup_devices(void)
+{
+	struct device *dev;
+
+	for (dev = devices.dev; dev; dev = dev->next)
+		reset_device(dev);
+
+	/* If we saved off the original terminal settings, restore them now. */
+	if (orig_term.c_lflag & (ISIG|ICANON|ECHO))
+		tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
 }
 
 /* When the Guest tells us they updated the status field, we handle it. */
 static void update_device_status(struct device *dev)
 {
-	struct virtqueue *vq;
-
-	/* This is a reset. */
-	if (dev->desc->status == 0) {
-		verbose("Resetting device %s\n", dev->name);
-
-		/* Clear any features they've acked. */
-		memset(get_feature_bits(dev) + dev->desc->feature_len, 0,
-		       dev->desc->feature_len);
-
-		/* Zero out the virtqueues. */
-		for (vq = dev->vq; vq; vq = vq->next) {
-			memset(vq->vring.desc, 0,
-			       vring_size(vq->config.num, LGUEST_VRING_ALIGN));
-			lg_last_avail(vq) = 0;
-		}
-	} else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
+	/* A zero status is a reset, otherwise it's a set of flags. */
+	if (dev->desc->status == 0)
+		reset_device(dev);
+	else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
 		warnx("Device %s configuration FAILED", dev->name);
+		if (dev->running)
+			reset_device(dev);
 	} else if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK) {
-		unsigned int i;
-
-		verbose("Device %s OK: offered", dev->name);
-		for (i = 0; i < dev->desc->feature_len; i++)
-			verbose(" %02x", get_feature_bits(dev)[i]);
-		verbose(", accepted");
-		for (i = 0; i < dev->desc->feature_len; i++)
-			verbose(" %02x", get_feature_bits(dev)
-				[dev->desc->feature_len+i]);
-
-		if (dev->ready)
-			dev->ready(dev);
+		if (!dev->running)
+			start_device(dev);
 	}
 }
 
-/* This is the generic routine we call when the Guest uses LHCALL_NOTIFY. */
-static void handle_output(int fd, unsigned long addr)
+/*L:215
+ * This is the generic routine we call when the Guest uses LHCALL_NOTIFY.  In
+ * particular, it's used to notify us of device status changes during boot.
+ */
+static void handle_output(unsigned long addr)
 {
 	struct device *i;
-	struct virtqueue *vq;
 
-	/* Check each device and virtqueue. */
+	/* Check each device. */
 	for (i = devices.dev; i; i = i->next) {
-		/* Notifications to device descriptors update device status. */
+		struct virtqueue *vq;
+
+		/*
+		 * Notifications to device descriptors mean they updated the
+		 * device status.
+		 */
 		if (from_guest_phys(addr) == i->desc) {
 			update_device_status(i);
 			return;
 		}
 
-		/* Notifications to virtqueues mean output has occurred. */
+		/*
+		 * Devices *can* be used before status is set to DRIVER_OK.
+		 * The original plan was that they would never do this: they
+		 * would always finish setting up their status bits before
+		 * actually touching the virtqueues.  In practice, we allowed
+		 * them to, and they do (eg. the disk probes for partition
+		 * tables as part of initialization).
+		 *
+		 * If we see this, we start the device: once it's running, we
+		 * expect the device to catch all the notifications.
+		 */
 		for (vq = i->vq; vq; vq = vq->next) {
-			if (vq->config.pfn != addr/getpagesize())
+			if (addr != vq->config.pfn*getpagesize())
 				continue;
-
-			/* Guest should acknowledge (and set features!)  before
-			 * using the device. */
-			if (i->desc->status == 0) {
-				warnx("%s gave early output", i->name);
-				return;
-			}
-
-			if (strcmp(vq->dev->name, "console") != 0)
-				verbose("Output to %s\n", vq->dev->name);
-			if (vq->handle_output)
-				vq->handle_output(fd, vq, false);
+			if (i->running)
+				errx(1, "Notification on running %s", i->name);
+			/* This just calls create_thread() for each virtqueue */
+			start_device(i);
 			return;
 		}
 	}
 
-	/* Early console write is done using notify on a nul-terminated string
-	 * in Guest memory. */
+	/*
+	 * Early console write is done using notify on a nul-terminated string
+	 * in Guest memory.  It's also great for hacking debugging messages
+	 * into a Guest.
+	 */
 	if (addr >= guest_limit)
 		errx(1, "Bad NOTIFY %#lx", addr);
 
 	write(STDOUT_FILENO, from_guest_phys(addr),
 	      strnlen(from_guest_phys(addr), guest_limit - addr));
-}
-
-static void handle_timeout(int fd)
-{
-	char buf[32];
-	struct device *i;
-	struct virtqueue *vq;
-
-	/* Clear the pipe */
-	read(timeoutpipe[0], buf, sizeof(buf));
-
-	/* Check each device and virtqueue: flush blocked ones. */
-	for (i = devices.dev; i; i = i->next) {
-		for (vq = i->vq; vq; vq = vq->next) {
-			if (!vq->blocked)
-				continue;
-
-			vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
-			vq->blocked = false;
-			if (vq->handle_output)
-				vq->handle_output(fd, vq, true);
-		}
-	}
-}
-
-/* This is called when the Waker wakes us up: check for incoming file
- * descriptors. */
-static void handle_input(int fd)
-{
-	/* select() wants a zeroed timeval to mean "don't wait". */
-	struct timeval poll = { .tv_sec = 0, .tv_usec = 0 };
-
-	for (;;) {
-		struct device *i;
-		fd_set fds = devices.infds;
-		int num;
-
-		num = select(devices.max_infd+1, &fds, NULL, NULL, &poll);
-		/* Could get interrupted */
-		if (num < 0)
-			continue;
-		/* If nothing is ready, we're done. */
-		if (num == 0)
-			break;
-
-		/* Otherwise, call the device(s) which have readable file
-		 * descriptors and a method of handling them.  */
-		for (i = devices.dev; i; i = i->next) {
-			if (i->handle_input && FD_ISSET(i->fd, &fds)) {
-				if (i->handle_input(fd, i))
-					continue;
-
-				/* If handle_input() returns false, it means we
-				 * should no longer service it.  Networking and
-				 * console do this when there's no input
-				 * buffers to deliver into.  Console also uses
-				 * it when it discovers that stdin is closed. */
-				FD_CLR(i->fd, &devices.infds);
-			}
-		}
-
-		/* Is this the timeout fd? */
-		if (FD_ISSET(timeoutpipe[0], &fds))
-			handle_timeout(fd);
-	}
 }
 
 /*L:190
@@ -1122,20 +1153,24 @@ static void handle_input(int fd)
  * routines to allocate and manage them.
  */
 
-/* The layout of the device page is a "struct lguest_device_desc" followed by a
+/*
+ * The layout of the device page is a "struct lguest_device_desc" followed by a
  * number of virtqueue descriptors, then two sets of feature bits, then an
  * array of configuration bytes.  This routine returns the configuration
- * pointer. */
+ * pointer.
+ */
 static u8 *device_config(const struct device *dev)
 {
 	return (void *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig)
-		+ dev->desc->feature_len * 2;
+		+ dev->num_vq * sizeof(struct lguest_vqconfig)
+		+ dev->feature_len * 2;
 }
 
-/* This routine allocates a new "struct lguest_device_desc" from descriptor
+/*
+ * This routine allocates a new "struct lguest_device_desc" from descriptor
  * table page just above the Guest's normal memory.  It returns a pointer to
- * that descriptor. */
+ * that descriptor.
+ */
 static struct lguest_device_desc *new_dev_desc(u16 type)
 {
 	struct lguest_device_desc d = { .type = type };
@@ -1156,10 +1191,12 @@ static struct lguest_device_desc *new_dev_desc(u16 type)
 	return memcpy(p, &d, sizeof(d));
 }
 
-/* Each device descriptor is followed by the description of its virtqueues.  We
- * specify how many descriptors the virtqueue is to have. */
+/*
+ * Each device descriptor is followed by the description of its virtqueues.  We
+ * specify how many descriptors the virtqueue is to have.
+ */
 static void add_virtqueue(struct device *dev, unsigned int num_descs,
-			  void (*handle_output)(int, struct virtqueue *, bool))
+			  void (*service)(struct virtqueue *))
 {
 	unsigned int pages;
 	struct virtqueue **i, *vq = malloc(sizeof(*vq));
@@ -1174,8 +1211,13 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	vq->next = NULL;
 	vq->last_avail_idx = 0;
 	vq->dev = dev;
-	vq->inflight = 0;
-	vq->blocked = false;
+
+	/*
+	 * This is the routine the service thread will run, and its Process ID
+	 * once it's running.
+	 */
+	vq->service = service;
+	vq->thread = (pid_t)-1;
 
 	/* Initialize the configuration. */
 	vq->config.num = num_descs;
@@ -1185,33 +1227,31 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	/* Initialize the vring. */
 	vring_init(&vq->vring, num_descs, p, LGUEST_VRING_ALIGN);
 
-	/* Append virtqueue to this device's descriptor.  We use
+	/*
+	 * Append virtqueue to this device's descriptor.  We use
 	 * device_config() to get the end of the device's current virtqueues;
 	 * we check that we haven't added any config or feature information
-	 * yet, otherwise we'd be overwriting them. */
+	 * yet, otherwise we'd be overwriting them.
+	 */
 	assert(dev->desc->config_len == 0 && dev->desc->feature_len == 0);
 	memcpy(device_config(dev), &vq->config, sizeof(vq->config));
+	dev->num_vq++;
 	dev->desc->num_vq++;
 
 	verbose("Virtqueue page %#lx\n", to_guest_phys(p));
 
-	/* Add to tail of list, so dev->vq is first vq, dev->vq->next is
-	 * second.  */
+	/*
+	 * Add to tail of list, so dev->vq is first vq, dev->vq->next is
+	 * second.
+	 */
 	for (i = &dev->vq; *i; i = &(*i)->next);
 	*i = vq;
-
-	/* Set the routine to call when the Guest does something to this
-	 * virtqueue. */
-	vq->handle_output = handle_output;
-
-	/* As an optimization, set the advisory "Don't Notify Me" flag if we
-	 * don't have a handler */
-	if (!handle_output)
-		vq->vring.used->flags = VRING_USED_F_NO_NOTIFY;
 }
 
-/* The first half of the feature bitmask is for us to advertise features.  The
- * second half is for the Guest to accept features. */
+/*
+ * The first half of the feature bitmask is for us to advertise features.  The
+ * second half is for the Guest to accept features.
+ */
 static void add_feature(struct device *dev, unsigned bit)
 {
 	u8 *features = get_feature_bits(dev);
@@ -1219,15 +1259,17 @@ static void add_feature(struct device *dev, unsigned bit)
 	/* We can't extend the feature bits once we've added config bytes */
 	if (dev->desc->feature_len <= bit / CHAR_BIT) {
 		assert(dev->desc->config_len == 0);
-		dev->desc->feature_len = (bit / CHAR_BIT) + 1;
+		dev->feature_len = dev->desc->feature_len = (bit/CHAR_BIT) + 1;
 	}
 
 	features[bit / CHAR_BIT] |= (1 << (bit % CHAR_BIT));
 }
 
-/* This routine sets the configuration fields for an existing device's
+/*
+ * This routine sets the configuration fields for an existing device's
  * descriptor.  It only works for the last device, but that's OK because that's
- * how we use it. */
+ * how we use it.
+ */
 static void set_config(struct device *dev, unsigned len, const void *conf)
 {
 	/* Check we haven't overflowed our single page. */
@@ -1237,33 +1279,36 @@ static void set_config(struct device *dev, unsigned len, const void *conf)
 	/* Copy in the config information, and store the length. */
 	memcpy(device_config(dev), conf, len);
 	dev->desc->config_len = len;
+
+	/* Size must fit in config_len field (8 bits)! */
+	assert(dev->desc->config_len == len);
 }
 
-/* This routine does all the creation and setup of a new device, including
- * calling new_dev_desc() to allocate the descriptor and device memory.
+/*
+ * This routine does all the creation and setup of a new device, including
+ * calling new_dev_desc() to allocate the descriptor and device memory.  We
+ * don't actually start the service threads until later.
  *
- * See what I mean about userspace being boring? */
-static struct device *new_device(const char *name, u16 type, int fd,
-				 bool (*handle_input)(int, struct device *))
+ * See what I mean about userspace being boring?
+ */
+static struct device *new_device(const char *name, u16 type)
 {
 	struct device *dev = malloc(sizeof(*dev));
 
 	/* Now we populate the fields one at a time. */
-	dev->fd = fd;
-	/* If we have an input handler for this file descriptor, then we add it
-	 * to the device_list's fdset and maxfd. */
-	if (handle_input)
-		add_device_fd(dev->fd);
 	dev->desc = new_dev_desc(type);
-	dev->handle_input = handle_input;
 	dev->name = name;
 	dev->vq = NULL;
-	dev->ready = NULL;
+	dev->feature_len = 0;
+	dev->num_vq = 0;
+	dev->running = false;
 
-	/* Append to device list.  Prepending to a single-linked list is
+	/*
+	 * Append to device list.  Prepending to a single-linked list is
 	 * easier, but the user expects the devices to be arranged on the bus
 	 * in command-line order.  The first network device on the command line
-	 * is eth0, the first block device /dev/vda, etc. */
+	 * is eth0, the first block device /dev/vda, etc.
+	 */
 	if (devices.lastdev)
 		devices.lastdev->next = dev;
 	else
@@ -1273,8 +1318,10 @@ static struct device *new_device(const char *name, u16 type, int fd,
 	return dev;
 }
 
-/* Our first setup routine is the console.  It's a fairly simple device, but
- * UNIX tty handling makes it uglier than it could be. */
+/*
+ * Our first setup routine is the console.  It's a fairly simple device, but
+ * UNIX tty handling makes it uglier than it could be.
+ */
 static void setup_console(void)
 {
 	struct device *dev;
@@ -1282,51 +1329,35 @@ static void setup_console(void)
 	/* If we can save the initial standard input settings... */
 	if (tcgetattr(STDIN_FILENO, &orig_term) == 0) {
 		struct termios term = orig_term;
-		/* Then we turn off echo, line buffering and ^C etc.  We want a
-		 * raw input stream to the Guest. */
+		/*
+		 * Then we turn off echo, line buffering and ^C etc: We want a
+		 * raw input stream to the Guest.
+		 */
 		term.c_lflag &= ~(ISIG|ICANON|ECHO);
 		tcsetattr(STDIN_FILENO, TCSANOW, &term);
-		/* If we exit gracefully, the original settings will be
-		 * restored so the user can see what they're typing. */
-		atexit(restore_term);
 	}
 
-	dev = new_device("console", VIRTIO_ID_CONSOLE,
-			 STDIN_FILENO, handle_console_input);
+	dev = new_device("console", VIRTIO_ID_CONSOLE);
+
 	/* We store the console state in dev->priv, and initialize it. */
 	dev->priv = malloc(sizeof(struct console_abort));
 	((struct console_abort *)dev->priv)->count = 0;
 
-	/* The console needs two virtqueues: the input then the output.  When
+	/*
+	 * The console needs two virtqueues: the input then the output.  When
 	 * they put something the input queue, we make sure we're listening to
 	 * stdin.  When they put something in the output queue, we write it to
-	 * stdout. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, enable_fd);
-	add_virtqueue(dev, VIRTQUEUE_NUM, handle_console_output);
+	 * stdout.
+	 */
+	add_virtqueue(dev, VIRTQUEUE_NUM, console_input);
+	add_virtqueue(dev, VIRTQUEUE_NUM, console_output);
 
-	verbose("device %u: console\n", devices.device_num++);
+	verbose("device %u: console\n", ++devices.device_num);
 }
 /*:*/
 
-static void timeout_alarm(int sig)
-{
-	write(timeoutpipe[1], "", 1);
-}
-
-static void setup_timeout(void)
-{
-	if (pipe(timeoutpipe) != 0)
-		err(1, "Creating timeout pipe");
-
-	if (fcntl(timeoutpipe[1], F_SETFL,
-		  fcntl(timeoutpipe[1], F_GETFL) | O_NONBLOCK) != 0)
-		err(1, "Making timeout pipe nonblocking");
-
-	add_device_fd(timeoutpipe[0]);
-	signal(SIGALRM, timeout_alarm);
-}
-
-/*M:010 Inter-guest networking is an interesting area.  Simplest is to have a
+/*M:010
+ * Inter-guest networking is an interesting area.  Simplest is to have a
  * --sharenet=<name> option which opens or creates a named pipe.  This can be
  * used to send packets to another guest in a 1:1 manner.
  *
@@ -1340,7 +1371,8 @@ static void setup_timeout(void)
  * multiple inter-guest channels behind one interface, although it would
  * require some manner of hotplugging new virtio channels.
  *
- * Finally, we could implement a virtio network switch in the kernel. :*/
+ * Finally, we could implement a virtio network switch in the kernel.
+:*/
 
 static u32 str2ip(const char *ipaddr)
 {
@@ -1365,11 +1397,13 @@ static void str2mac(const char *macaddr, unsigned char mac[6])
 	mac[5] = m[5];
 }
 
-/* This code is "adapted" from libbridge: it attaches the Host end of the
+/*
+ * This code is "adapted" from libbridge: it attaches the Host end of the
  * network device to the bridge device specified by the command line.
  *
  * This is yet another James Morris contribution (I'm an IP-level guy, so I
- * dislike bridging), and I just try not to break it. */
+ * dislike bridging), and I just try not to break it.
+ */
 static void add_to_bridge(int fd, const char *if_name, const char *br_name)
 {
 	int ifidx;
@@ -1389,9 +1423,11 @@ static void add_to_bridge(int fd, const char *if_name, const char *br_name)
 		err(1, "can't add %s to bridge %s", if_name, br_name);
 }
 
-/* This sets up the Host end of the network device with an IP address, brings
+/*
+ * This sets up the Host end of the network device with an IP address, brings
  * it up so packets will flow, the copies the MAC address into the hwaddr
- * pointer. */
+ * pointer.
+ */
 static void configure_device(int fd, const char *tapif, u32 ipaddr)
 {
 	struct ifreq ifr;
@@ -1418,10 +1454,12 @@ static int get_tun_device(char tapif[IFNAMSIZ])
 	/* Start with this zeroed.  Messy but sure. */
 	memset(&ifr, 0, sizeof(ifr));
 
-	/* We open the /dev/net/tun device and tell it we want a tap device.  A
+	/*
+	 * We open the /dev/net/tun device and tell it we want a tap device.  A
 	 * tap device is like a tun device, only somehow different.  To tell
 	 * the truth, I completely blundered my way through this code, but it
-	 * works now! */
+	 * works now!
+	 */
 	netfd = open_or_die("/dev/net/tun", O_RDWR);
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
 	strcpy(ifr.ifr_name, "tap%d");
@@ -1432,39 +1470,46 @@ static int get_tun_device(char tapif[IFNAMSIZ])
 		  TUN_F_CSUM|TUN_F_TSO4|TUN_F_TSO6|TUN_F_TSO_ECN) != 0)
 		err(1, "Could not set features for tun device");
 
-	/* We don't need checksums calculated for packets coming in this
-	 * device: trust us! */
+	/*
+	 * We don't need checksums calculated for packets coming in this
+	 * device: trust us!
+	 */
 	ioctl(netfd, TUNSETNOCSUM, 1);
 
 	memcpy(tapif, ifr.ifr_name, IFNAMSIZ);
 	return netfd;
 }
 
-/*L:195 Our network is a Host<->Guest network.  This can either use bridging or
+/*L:195
+ * Our network is a Host<->Guest network.  This can either use bridging or
  * routing, but the principle is the same: it uses the "tun" device to inject
  * packets into the Host as if they came in from a normal network card.  We
- * just shunt packets between the Guest and the tun device. */
+ * just shunt packets between the Guest and the tun device.
+ */
 static void setup_tun_net(char *arg)
 {
 	struct device *dev;
-	int netfd, ipfd;
+	struct net_info *net_info = malloc(sizeof(*net_info));
+	int ipfd;
 	u32 ip = INADDR_ANY;
 	bool bridging = false;
 	char tapif[IFNAMSIZ], *p;
 	struct virtio_net_config conf;
 
-	netfd = get_tun_device(tapif);
+	net_info->tunfd = get_tun_device(tapif);
 
 	/* First we create a new network device. */
-	dev = new_device("net", VIRTIO_ID_NET, netfd, handle_tun_input);
+	dev = new_device("net", VIRTIO_ID_NET);
+	dev->priv = net_info;
 
-	/* Network devices need a receive and a send queue, just like
-	 * console. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, net_enable_fd);
-	add_virtqueue(dev, VIRTQUEUE_NUM, handle_net_output);
+	/* Network devices need a recv and a send queue, just like console. */
+	add_virtqueue(dev, VIRTQUEUE_NUM, net_input);
+	add_virtqueue(dev, VIRTQUEUE_NUM, net_output);
 
-	/* We need a socket to perform the magic network ioctls to bring up the
-	 * tap interface, connect to the bridge etc.  Any socket will do! */
+	/*
+	 * We need a socket to perform the magic network ioctls to bring up the
+	 * tap interface, connect to the bridge etc.  Any socket will do!
+	 */
 	ipfd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (ipfd < 0)
 		err(1, "opening IP socket");
@@ -1502,6 +1547,8 @@ static void setup_tun_net(char *arg)
 	add_feature(dev, VIRTIO_NET_F_HOST_TSO4);
 	add_feature(dev, VIRTIO_NET_F_HOST_TSO6);
 	add_feature(dev, VIRTIO_NET_F_HOST_ECN);
+	/* We handle indirect ring entries */
+	add_feature(dev, VIRTIO_RING_F_INDIRECT_DESC);
 	set_config(dev, sizeof(conf), &conf);
 
 	/* We don't need the socket any more; setup is done. */
@@ -1516,93 +1563,100 @@ static void setup_tun_net(char *arg)
 		verbose("device %u: tun %s: %s\n",
 			devices.device_num, tapif, arg);
 }
-
-/* Our block (disk) device should be really simple: the Guest asks for a block
- * number and we read or write that position in the file.  Unfortunately, that
- * was amazingly slow: the Guest waits until the read is finished before
- * running anything else, even if it could have been doing useful work.
- *
- * We could use async I/O, except it's reputed to suck so hard that characters
- * actually go missing from your code when you try to use it.
- *
- * So we farm the I/O out to thread, and communicate with it via a pipe. */
+/*:*/
 
 /* This hangs off device->priv. */
-struct vblk_info
-{
+struct vblk_info {
 	/* The size of the file. */
 	off64_t len;
 
 	/* The file descriptor for the file. */
 	int fd;
 
-	/* IO thread listens on this file descriptor [0]. */
-	int workpipe[2];
-
-	/* IO thread writes to this file descriptor to mark it done, then
-	 * Launcher triggers interrupt to Guest. */
-	int done_fd;
 };
 
 /*L:210
  * The Disk
  *
- * Remember that the block device is handled by a separate I/O thread.  We head
- * straight into the core of that thread here:
+ * The disk only has one virtqueue, so it only has one thread.  It is really
+ * simple: the Guest asks for a block number and we read or write that position
+ * in the file.
+ *
+ * Before we serviced each virtqueue in a separate thread, that was unacceptably
+ * slow: the Guest waits until the read is finished before running anything
+ * else, even if it could have been doing useful work.
+ *
+ * We could have used async I/O, except it's reputed to suck so hard that
+ * characters actually go missing from your code when you try to use it.
  */
-static bool service_io(struct device *dev)
+static void blk_request(struct virtqueue *vq)
 {
-	struct vblk_info *vblk = dev->priv;
+	struct vblk_info *vblk = vq->dev->priv;
 	unsigned int head, out_num, in_num, wlen;
 	int ret;
 	u8 *in;
 	struct virtio_blk_outhdr *out;
-	struct iovec iov[dev->vq->vring.num];
+	struct iovec iov[vq->vring.num];
 	off64_t off;
 
-	/* See if there's a request waiting.  If not, nothing to do. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-	if (head == dev->vq->vring.num)
-		return false;
+	/*
+	 * Get the next request, where we normally wait.  It triggers the
+	 * interrupt to acknowledge previously serviced requests (if any).
+	 */
+	head = wait_for_vq_desc(vq, iov, &out_num, &in_num);
 
-	/* Every block request should contain at least one output buffer
+	/*
+	 * Every block request should contain at least one output buffer
 	 * (detailing the location on disk and the type of request) and one
-	 * input buffer (to hold the result). */
+	 * input buffer (to hold the result).
+	 */
 	if (out_num == 0 || in_num == 0)
 		errx(1, "Bad virtblk cmd %u out=%u in=%u",
 		     head, out_num, in_num);
 
 	out = convert(&iov[0], struct virtio_blk_outhdr);
 	in = convert(&iov[out_num+in_num-1], u8);
+	/*
+	 * For historical reasons, block operations are expressed in 512 byte
+	 * "sectors".
+	 */
 	off = out->sector * 512;
 
-	/* The block device implements "barriers", where the Guest indicates
+	/*
+	 * The block device implements "barriers", where the Guest indicates
 	 * that it wants all previous writes to occur before this write.  We
 	 * don't have a way of asking our kernel to do a barrier, so we just
-	 * synchronize all the data in the file.  Pretty poor, no? */
+	 * synchronize all the data in the file.  Pretty poor, no?
+	 */
 	if (out->type & VIRTIO_BLK_T_BARRIER)
 		fdatasync(vblk->fd);
 
-	/* In general the virtio block driver is allowed to try SCSI commands.
-	 * It'd be nice if we supported eject, for example, but we don't. */
+	/*
+	 * In general the virtio block driver is allowed to try SCSI commands.
+	 * It'd be nice if we supported eject, for example, but we don't.
+	 */
 	if (out->type & VIRTIO_BLK_T_SCSI_CMD) {
 		fprintf(stderr, "Scsi commands unsupported\n");
 		*in = VIRTIO_BLK_S_UNSUPP;
 		wlen = sizeof(*in);
 	} else if (out->type & VIRTIO_BLK_T_OUT) {
-		/* Write */
-
-		/* Move to the right location in the block file.  This can fail
-		 * if they try to write past end. */
+		/*
+		 * Write
+		 *
+		 * Move to the right location in the block file.  This can fail
+		 * if they try to write past end.
+		 */
 		if (lseek64(vblk->fd, off, SEEK_SET) != off)
 			err(1, "Bad seek to sector %llu", out->sector);
 
 		ret = writev(vblk->fd, iov+1, out_num-1);
 		verbose("WRITE to sector %llu: %i\n", out->sector, ret);
 
-		/* Grr... Now we know how long the descriptor they sent was, we
+		/*
+		 * Grr... Now we know how long the descriptor they sent was, we
 		 * make sure they didn't try to write over the end of the block
-		 * file (possibly extending it). */
+		 * file (possibly extending it).
+		 */
 		if (ret > 0 && off + ret > vblk->len) {
 			/* Trim it back to the correct length */
 			ftruncate64(vblk->fd, vblk->len);
@@ -1612,10 +1666,12 @@ static bool service_io(struct device *dev)
 		wlen = sizeof(*in);
 		*in = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
 	} else {
-		/* Read */
-
-		/* Move to the right location in the block file.  This can fail
-		 * if they try to read past end. */
+		/*
+		 * Read
+		 *
+		 * Move to the right location in the block file.  This can fail
+		 * if they try to read past end.
+		 */
 		if (lseek64(vblk->fd, off, SEEK_SET) != off)
 			err(1, "Bad seek to sector %llu", out->sector);
 
@@ -1630,90 +1686,31 @@ static bool service_io(struct device *dev)
 		}
 	}
 
-	/* OK, so we noted that it was pretty poor to use an fdatasync as a
+	/*
+	 * OK, so we noted that it was pretty poor to use an fdatasync as a
 	 * barrier.  But Christoph Hellwig points out that we need a sync
 	 * *afterwards* as well: "Barriers specify no reordering to the front
-	 * or the back."  And Jens Axboe confirmed it, so here we are: */
+	 * or the back."  And Jens Axboe confirmed it, so here we are:
+	 */
 	if (out->type & VIRTIO_BLK_T_BARRIER)
 		fdatasync(vblk->fd);
 
-	/* We can't trigger an IRQ, because we're not the Launcher.  It does
-	 * that when we tell it we're done. */
-	add_used(dev->vq, head, wlen);
-	return true;
-}
-
-/* This is the thread which actually services the I/O. */
-static int io_thread(void *_dev)
-{
-	struct device *dev = _dev;
-	struct vblk_info *vblk = dev->priv;
-	char c;
-
-	/* Close other side of workpipe so we get 0 read when main dies. */
-	close(vblk->workpipe[1]);
-	/* Close the other side of the done_fd pipe. */
-	close(dev->fd);
-
-	/* When this read fails, it means Launcher died, so we follow. */
-	while (read(vblk->workpipe[0], &c, 1) == 1) {
-		/* We acknowledge each request immediately to reduce latency,
-		 * rather than waiting until we've done them all.  I haven't
-		 * measured to see if it makes any difference.
-		 *
-		 * That would be an interesting test, wouldn't it?  You could
-		 * also try having more than one I/O thread. */
-		while (service_io(dev))
-			write(vblk->done_fd, &c, 1);
-	}
-	return 0;
-}
-
-/* Now we've seen the I/O thread, we return to the Launcher to see what happens
- * when that thread tells us it's completed some I/O. */
-static bool handle_io_finish(int fd, struct device *dev)
-{
-	char c;
-
-	/* If the I/O thread died, presumably it printed the error, so we
-	 * simply exit. */
-	if (read(dev->fd, &c, 1) != 1)
-		exit(1);
-
-	/* It did some work, so trigger the irq. */
-	trigger_irq(fd, dev->vq);
-	return true;
-}
-
-/* When the Guest submits some I/O, we just need to wake the I/O thread. */
-static void handle_virtblk_output(int fd, struct virtqueue *vq, bool timeout)
-{
-	struct vblk_info *vblk = vq->dev->priv;
-	char c = 0;
-
-	/* Wake up I/O thread and tell it to go to work! */
-	if (write(vblk->workpipe[1], &c, 1) != 1)
-		/* Presumably it indicated why it died. */
-		exit(1);
+	/* Finished that request. */
+	add_used(vq, head, wlen);
 }
 
 /*L:198 This actually sets up a virtual block device. */
 static void setup_block_file(const char *filename)
 {
-	int p[2];
 	struct device *dev;
 	struct vblk_info *vblk;
-	void *stack;
 	struct virtio_blk_config conf;
 
-	/* This is the pipe the I/O thread will use to tell us I/O is done. */
-	pipe(p);
-
-	/* The device responds to return from I/O thread. */
-	dev = new_device("block", VIRTIO_ID_BLOCK, p[0], handle_io_finish);
+	/* Creat the device. */
+	dev = new_device("block", VIRTIO_ID_BLOCK);
 
 	/* The device has one virtqueue, where the Guest places requests. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, handle_virtblk_output);
+	add_virtqueue(dev, VIRTQUEUE_NUM, blk_request);
 
 	/* Allocate the room for our own bookkeeping */
 	vblk = dev->priv = malloc(sizeof(*vblk));
@@ -1728,64 +1725,50 @@ static void setup_block_file(const char *filename)
 	/* Tell Guest how many sectors this device has. */
 	conf.capacity = cpu_to_le64(vblk->len / 512);
 
-	/* Tell Guest not to put in too many descriptors at once: two are used
-	 * for the in and out elements. */
+	/*
+	 * Tell Guest not to put in too many descriptors at once: two are used
+	 * for the in and out elements.
+	 */
 	add_feature(dev, VIRTIO_BLK_F_SEG_MAX);
 	conf.seg_max = cpu_to_le32(VIRTQUEUE_NUM - 2);
 
-	set_config(dev, sizeof(conf), &conf);
-
-	/* The I/O thread writes to this end of the pipe when done. */
-	vblk->done_fd = p[1];
-
-	/* This is the second pipe, which is how we tell the I/O thread about
-	 * more work. */
-	pipe(vblk->workpipe);
-
-	/* Create stack for thread and run it.  Since stack grows upwards, we
-	 * point the stack pointer to the end of this region. */
-	stack = malloc(32768);
-	/* SIGCHLD - We dont "wait" for our cloned thread, so prevent it from
-	 * becoming a zombie. */
-	if (clone(io_thread, stack + 32768, CLONE_VM | SIGCHLD, dev) == -1)
-		err(1, "Creating clone");
-
-	/* We don't need to keep the I/O thread's end of the pipes open. */
-	close(vblk->done_fd);
-	close(vblk->workpipe[0]);
+	/* Don't try to put whole struct: we have 8 bit limit. */
+	set_config(dev, offsetof(struct virtio_blk_config, geometry), &conf);
 
 	verbose("device %u: virtblock %llu sectors\n",
-		devices.device_num, le64_to_cpu(conf.capacity));
+		++devices.device_num, le64_to_cpu(conf.capacity));
 }
 
-/* Our random number generator device reads from /dev/random into the Guest's
+/*L:211
+ * Our random number generator device reads from /dev/random into the Guest's
  * input buffers.  The usual case is that the Guest doesn't want random numbers
  * and so has no buffers although /dev/random is still readable, whereas
  * console is the reverse.
  *
- * The same logic applies, however. */
-static bool handle_rng_input(int fd, struct device *dev)
+ * The same logic applies, however.
+ */
+struct rng_info {
+	int rfd;
+};
+
+static void rng_input(struct virtqueue *vq)
 {
 	int len;
 	unsigned int head, in_num, out_num, totlen = 0;
-	struct iovec iov[dev->vq->vring.num];
+	struct rng_info *rng_info = vq->dev->priv;
+	struct iovec iov[vq->vring.num];
 
 	/* First we need a buffer from the Guests's virtqueue. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-
-	/* If they're not ready for input, stop listening to this file
-	 * descriptor.  We'll start again once they add an input buffer. */
-	if (head == dev->vq->vring.num)
-		return false;
-
+	head = wait_for_vq_desc(vq, iov, &out_num, &in_num);
 	if (out_num)
 		errx(1, "Output buffers in rng?");
 
-	/* This is why we convert to iovecs: the readv() call uses them, and so
-	 * it reads straight into the Guest's buffer.  We loop to make sure we
-	 * fill it. */
+	/*
+	 * Just like the console write, we loop to cover the whole iovec.
+	 * In this case, short reads actually happen quite a bit.
+	 */
 	while (!iov_empty(iov, in_num)) {
-		len = readv(dev->fd, iov, in_num);
+		len = readv(rng_info->rfd, iov, in_num);
 		if (len <= 0)
 			err(1, "Read from /dev/random gave %i", len);
 		iov_consume(iov, in_num, len);
@@ -1793,25 +1776,26 @@ static bool handle_rng_input(int fd, struct device *dev)
 	}
 
 	/* Tell the Guest about the new input. */
-	add_used_and_trigger(fd, dev->vq, head, totlen);
-
-	/* Everything went OK! */
-	return true;
+	add_used(vq, head, totlen);
 }
 
-/* And this creates a "hardware" random number device for the Guest. */
+/*L:199
+ * This creates a "hardware" random number device for the Guest.
+ */
 static void setup_rng(void)
 {
 	struct device *dev;
-	int fd;
+	struct rng_info *rng_info = malloc(sizeof(*rng_info));
 
-	fd = open_or_die("/dev/random", O_RDONLY);
+	/* Our device's privat info simply contains the /dev/random fd. */
+	rng_info->rfd = open_or_die("/dev/random", O_RDONLY);
 
-	/* The device responds to return from I/O thread. */
-	dev = new_device("rng", VIRTIO_ID_RNG, fd, handle_rng_input);
+	/* Create the new device. */
+	dev = new_device("rng", VIRTIO_ID_RNG);
+	dev->priv = rng_info;
 
 	/* The device has one virtqueue, where the Guest places inbufs. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, enable_fd);
+	add_virtqueue(dev, VIRTQUEUE_NUM, rng_input);
 
 	verbose("device %u: rng\n", devices.device_num++);
 }
@@ -1822,22 +1806,27 @@ static void __attribute__((noreturn)) restart_guest(void)
 {
 	unsigned int i;
 
-	/* Since we don't track all open fds, we simply close everything beyond
-	 * stderr. */
+	/*
+	 * Since we don't track all open fds, we simply close everything beyond
+	 * stderr.
+	 */
 	for (i = 3; i < FD_SETSIZE; i++)
 		close(i);
 
-	/* The exec automatically gets rid of the I/O and Waker threads. */
+	/* Reset all the devices (kills all threads). */
+	cleanup_devices();
+
 	execv(main_args[0], main_args);
 	err(1, "Could not exec %s", main_args[0]);
 }
 
-/*L:220 Finally we reach the core of the Launcher which runs the Guest, serves
- * its input and output, and finally, lays it to rest. */
-static void __attribute__((noreturn)) run_guest(int lguest_fd)
+/*L:220
+ * Finally we reach the core of the Launcher which runs the Guest, serves
+ * its input and output, and finally, lays it to rest.
+ */
+static void __attribute__((noreturn)) run_guest(void)
 {
 	for (;;) {
-		unsigned long args[] = { LHREQ_BREAK, 0 };
 		unsigned long notify_addr;
 		int readval;
 
@@ -1848,8 +1837,7 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		/* One unsigned long means the Guest did HCALL_NOTIFY */
 		if (readval == sizeof(notify_addr)) {
 			verbose("Notify on address %#lx\n", notify_addr);
-			handle_output(lguest_fd, notify_addr);
-			continue;
+			handle_output(notify_addr);
 		/* ENOENT means the Guest died.  Reading tells us why. */
 		} else if (errno == ENOENT) {
 			char reason[1024] = { 0 };
@@ -1858,19 +1846,9 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		/* ERESTART means that we need to reboot the guest */
 		} else if (errno == ERESTART) {
 			restart_guest();
-		/* EAGAIN means a signal (timeout).
-		 * Anything else means a bug or incompatible change. */
-		} else if (errno != EAGAIN)
+		/* Anything else means a bug or incompatible change. */
+		} else
 			err(1, "Running guest failed");
-
-		/* Only service input on thread for CPU 0. */
-		if (cpu_id != 0)
-			continue;
-
-		/* Service input, then unset the BREAK to release the Waker. */
-		handle_input(lguest_fd);
-		if (pwrite(lguest_fd, args, sizeof(args), cpu_id) < 0)
-			err(1, "Resetting break");
 	}
 }
 /*L:240
@@ -1880,7 +1858,7 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
  *
  * Are you ready?  Take a deep breath and join me in the core of the Host, in
  * "make Host".
- :*/
+:*/
 
 static struct option opts[] = {
 	{ "verbose", 0, NULL, 'v' },
@@ -1901,11 +1879,10 @@ static void usage(void)
 /*L:105 The main routine is where the real work begins: */
 int main(int argc, char *argv[])
 {
-	/* Memory, top-level pagetable, code startpoint and size of the
-	 * (optional) initrd. */
+	/* Memory, code startpoint and size of the (optional) initrd. */
 	unsigned long mem = 0, start, initrd_size = 0;
-	/* Two temporaries and the /dev/lguest file descriptor. */
-	int i, c, lguest_fd;
+	/* Two temporaries. */
+	int i, c;
 	/* The boot information for the Guest. */
 	struct boot_params *boot;
 	/* If they specify an initrd file to load. */
@@ -1913,33 +1890,33 @@ int main(int argc, char *argv[])
 
 	/* Save the args: we "reboot" by execing ourselves again. */
 	main_args = argv;
-	/* We don't "wait" for the children, so prevent them from becoming
-	 * zombies. */
-	signal(SIGCHLD, SIG_IGN);
 
-	/* First we initialize the device list.  Since console and network
-	 * device receive input from a file descriptor, we keep an fdset
-	 * (infds) and the maximum fd number (max_infd) with the head of the
-	 * list.  We also keep a pointer to the last device.  Finally, we keep
-	 * the next interrupt number to use for devices (1: remember that 0 is
-	 * used by the timer). */
-	FD_ZERO(&devices.infds);
-	devices.max_infd = -1;
+	/*
+	 * First we initialize the device list.  We keep a pointer to the last
+	 * device, and the next interrupt number to use for devices (1:
+	 * remember that 0 is used by the timer).
+	 */
 	devices.lastdev = NULL;
 	devices.next_irq = 1;
 
+	/* We're CPU 0.  In fact, that's the only CPU possible right now. */
 	cpu_id = 0;
-	/* We need to know how much memory so we can set up the device
+
+	/*
+	 * We need to know how much memory so we can set up the device
 	 * descriptor and memory pages for the devices as we parse the command
 	 * line.  So we quickly look through the arguments to find the amount
-	 * of memory now. */
+	 * of memory now.
+	 */
 	for (i = 1; i < argc; i++) {
 		if (argv[i][0] != '-') {
 			mem = atoi(argv[i]) * 1024 * 1024;
-			/* We start by mapping anonymous pages over all of
+			/*
+			 * We start by mapping anonymous pages over all of
 			 * guest-physical memory range.  This fills it with 0,
 			 * and ensures that the Guest won't be killed when it
-			 * tries to access it. */
+			 * tries to access it.
+			 */
 			guest_base = map_zeroed_pages(mem / getpagesize()
 						      + DEVICE_PAGES);
 			guest_limit = mem;
@@ -1972,8 +1949,10 @@ int main(int argc, char *argv[])
 			usage();
 		}
 	}
-	/* After the other arguments we expect memory and kernel image name,
-	 * followed by command line arguments for the kernel. */
+	/*
+	 * After the other arguments we expect memory and kernel image name,
+	 * followed by command line arguments for the kernel.
+	 */
 	if (optind + 2 > argc)
 		usage();
 
@@ -1981,9 +1960,6 @@ int main(int argc, char *argv[])
 
 	/* We always have a console device */
 	setup_console();
-
-	/* We can timeout waiting for Guest network transmit. */
-	setup_timeout();
 
 	/* Now we load the kernel */
 	start = load_kernel(open_or_die(argv[optind+1], O_RDONLY));
@@ -1994,20 +1970,26 @@ int main(int argc, char *argv[])
 	/* Map the initrd image if requested (at top of physical memory) */
 	if (initrd_name) {
 		initrd_size = load_initrd(initrd_name, mem);
-		/* These are the location in the Linux boot header where the
-		 * start and size of the initrd are expected to be found. */
+		/*
+		 * These are the location in the Linux boot header where the
+		 * start and size of the initrd are expected to be found.
+		 */
 		boot->hdr.ramdisk_image = mem - initrd_size;
 		boot->hdr.ramdisk_size = initrd_size;
 		/* The bootloader type 0xFF means "unknown"; that's OK. */
 		boot->hdr.type_of_loader = 0xFF;
 	}
 
-	/* The Linux boot header contains an "E820" memory map: ours is a
-	 * simple, single region. */
+	/*
+	 * The Linux boot header contains an "E820" memory map: ours is a
+	 * simple, single region.
+	 */
 	boot->e820_entries = 1;
 	boot->e820_map[0] = ((struct e820entry) { 0, mem, E820_RAM });
-	/* The boot header contains a command line pointer: we put the command
-	 * line after the boot header. */
+	/*
+	 * The boot header contains a command line pointer: we put the command
+	 * line after the boot header.
+	 */
 	boot->hdr.cmd_line_ptr = to_guest_phys(boot + 1);
 	/* We use a simple helper to copy the arguments separated by spaces. */
 	concat((char *)(boot + 1), argv+optind+2);
@@ -2021,17 +2003,20 @@ int main(int argc, char *argv[])
 	/* Tell the entry path not to try to reload segment registers. */
 	boot->hdr.loadflags |= KEEP_SEGMENTS;
 
-	/* We tell the kernel to initialize the Guest: this returns the open
-	 * /dev/lguest file descriptor. */
-	lguest_fd = tell_kernel(start);
+	/*
+	 * We tell the kernel to initialize the Guest: this returns the open
+	 * /dev/lguest file descriptor.
+	 */
+	tell_kernel(start);
 
-	/* We clone off a thread, which wakes the Launcher whenever one of the
-	 * input file descriptors needs attention.  We call this the Waker, and
-	 * we'll cover it in a moment. */
-	setup_waker(lguest_fd);
+	/* Ensure that we terminate if a device-servicing child dies. */
+	signal(SIGCHLD, kill_launcher);
+
+	/* If we exit via err(), this kills all the threads, restores tty. */
+	atexit(cleanup_devices);
 
 	/* Finally, run the Guest.  This doesn't return. */
-	run_guest(lguest_fd);
+	run_guest();
 }
 /*:*/
 

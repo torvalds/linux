@@ -45,9 +45,9 @@ int ima_calc_hash(struct file *file, char *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg[1];
-	loff_t i_size;
+	loff_t i_size, offset = 0;
 	char *rbuf;
-	int rc, offset = 0;
+	int rc;
 
 	rc = init_desc(&desc);
 	if (rc != 0)
@@ -67,6 +67,8 @@ int ima_calc_hash(struct file *file, char *digest)
 			rc = rbuf_len;
 			break;
 		}
+		if (rbuf_len == 0)
+			break;
 		offset += rbuf_len;
 		sg_init_one(sg, rbuf, rbuf_len);
 
@@ -103,7 +105,7 @@ int ima_calc_template_hash(int template_len, void *template, char *digest)
 	return rc;
 }
 
-static void ima_pcrread(int idx, u8 *pcr)
+static void __init ima_pcrread(int idx, u8 *pcr)
 {
 	if (!ima_used_chip)
 		return;
@@ -115,7 +117,7 @@ static void ima_pcrread(int idx, u8 *pcr)
 /*
  * Calculate the boot aggregate hash
  */
-int ima_calc_boot_aggregate(char *digest)
+int __init ima_calc_boot_aggregate(char *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg;

@@ -202,6 +202,6 @@ int sierra_ms_init(struct us_data *us)
 complete:
 	result = device_create_file(&us->pusb_intf->dev, &dev_attr_truinst);
 
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 

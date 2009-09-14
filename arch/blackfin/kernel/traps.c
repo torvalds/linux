@@ -27,6 +27,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/bug.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -36,6 +37,7 @@
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 #include <asm/cplb.h>
+#include <asm/dma.h>
 #include <asm/blackfin.h>
 #include <asm/irq_handler.h>
 #include <linux/irq.h>
@@ -68,6 +70,13 @@
 	({ if (0) printk(fmt, ##arg); 0; })
 #endif
 
+#if defined(CONFIG_DEBUG_MMRS) || defined(CONFIG_DEBUG_MMRS_MODULE)
+u32 last_seqstat;
+#ifdef CONFIG_DEBUG_MMRS_MODULE
+EXPORT_SYMBOL(last_seqstat);
+#endif
+#endif
+
 /* Initiate the event table handler */
 void __init trap_init(void)
 {
@@ -79,7 +88,6 @@ void __init trap_init(void)
 static void decode_address(char *buf, unsigned long address)
 {
 #ifdef CONFIG_DEBUG_VERBOSE
-	struct vm_list_struct *vml;
 	struct task_struct *p;
 	struct mm_struct *mm;
 	unsigned long flags, offset;
@@ -196,10 +204,15 @@ done:
 
 asmlinkage void double_fault_c(struct pt_regs *fp)
 {
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+	int j;
+	trace_buffer_save(j);
+#endif
+
 	console_verbose();
 	oops_in_progress = 1;
 #ifdef CONFIG_DEBUG_VERBOSE
-	printk(KERN_EMERG "\n" KERN_EMERG "Double Fault\n");
+	printk(KERN_EMERG "Double Fault\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) == VEC_UNCOV) {
 		unsigned int cpu = smp_processor_id();
@@ -220,10 +233,16 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
+		dump_bfin_trace_buffer();
 	}
 #endif
-	panic("Double Fault - unrecoverable event\n");
+	panic("Double Fault - unrecoverable event");
 
+}
+
+static int kernel_mode_regs(struct pt_regs *regs)
+{
+	return regs->ipend & 0xffc0;
 }
 
 asmlinkage void trap_c(struct pt_regs *fp)
@@ -234,37 +253,24 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 	unsigned int cpu = smp_processor_id();
 #endif
+	const char *strerror = NULL;
 	int sig = 0;
 	siginfo_t info;
 	unsigned long trapnr = fp->seqstat & SEQSTAT_EXCAUSE;
 
 	trace_buffer_save(j);
+#if defined(CONFIG_DEBUG_MMRS) || defined(CONFIG_DEBUG_MMRS_MODULE)
+	last_seqstat = (u32)fp->seqstat;
+#endif
 
 	/* Important - be very careful dereferncing pointers - will lead to
 	 * double faults if the stack has become corrupt
 	 */
 
-	/* If the fault was caused by a kernel thread, or interrupt handler
-	 * we will kernel panic, so the system reboots.
-	 * If KGDB is enabled, don't set this for kernel breakpoints
-	*/
-
-	/* TODO: check to see if we are in some sort of deferred HWERR
-	 * that we should be able to recover from, not kernel panic
-	 */
-	if ((bfin_read_IPEND() & 0xFFC0) && (trapnr != VEC_STEP)
-#ifdef CONFIG_KGDB
-		&& (trapnr != VEC_EXCPT02)
+#ifndef CONFIG_KGDB
+	/* IPEND is skipped if KGDB isn't enabled (see entry code) */
+	fp->ipend = bfin_read_IPEND();
 #endif
-	){
-		console_verbose();
-		oops_in_progress = 1;
-	} else if (current) {
-		if (current->mm == NULL) {
-			console_verbose();
-			oops_in_progress = 1;
-		}
-	}
 
 	/* trap_c() will be called for exceptions. During exceptions
 	 * processing, the pc value should be set with retx value.
@@ -292,15 +298,15 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGTRAP;
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a breakpoint in kernel space */
-		if (fp->ipend & 0xffc0)
-			return;
+		if (kernel_mode_regs(fp))
+			goto traps_done;
 		else
 			break;
 	/* 0x03 - User Defined, userspace stack overflow */
 	case VEC_EXCPT03:
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
-		verbose_printk(KERN_NOTICE EXC_0x03(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x03(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x02 - KGDB initial connection and break signal trap */
@@ -309,7 +315,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		CHK_DEBUGGER_TRAP();
-		return;
+		goto traps_done;
 #endif
 	/* 0x04 - User Defined */
 	/* 0x05 - User Defined */
@@ -329,7 +335,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_EXCPT04 ... VEC_EXCPT15:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		verbose_printk(KERN_NOTICE EXC_0x04(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x04(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x10 HW Single step, handled here */
@@ -338,15 +344,15 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGTRAP;
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a single step in kernel space */
-		if (fp->ipend & 0xffc0)
-			return;
+		if (kernel_mode_regs(fp))
+			goto traps_done;
 		else
 			break;
 	/* 0x11 - Trace Buffer Full, handled here */
 	case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
-		verbose_printk(KERN_NOTICE EXC_0x11(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x11(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x12 - Reserved, Caught by default */
@@ -366,37 +372,54 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x20 - Reserved, Caught by default */
 	/* 0x21 - Undefined Instruction, handled here */
 	case VEC_UNDEF_I:
+#ifdef CONFIG_BUG
+		if (kernel_mode_regs(fp)) {
+			switch (report_bug(fp->pc, fp)) {
+			case BUG_TRAP_TYPE_NONE:
+				break;
+			case BUG_TRAP_TYPE_WARN:
+				dump_bfin_trace_buffer();
+				fp->pc += 2;
+				goto traps_done;
+			case BUG_TRAP_TYPE_BUG:
+				/* call to panic() will dump trace, and it is
+				 * off at this point, so it won't be clobbered
+				 */
+				panic("BUG()");
+			}
+		}
+#endif
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
-		verbose_printk(KERN_NOTICE EXC_0x21(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x21(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x22 - Illegal Instruction Combination, handled here */
 	case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		verbose_printk(KERN_NOTICE EXC_0x22(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x22(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x23 - Data CPLB protection violation, handled here */
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE EXC_0x23(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x23(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE EXC_0x24(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x24(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x25 - Unrecoverable Event, handled here */
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
-		verbose_printk(KERN_NOTICE EXC_0x25(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x25(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr,
@@ -404,7 +427,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_CPLB_M:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE EXC_0x26(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x26(KERN_NOTICE);
 		break;
 	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
 	case VEC_CPLB_MHIT:
@@ -412,10 +435,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGSEGV;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		if (cpu_pda[cpu].dcplb_fault_addr < FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE "NULL pointer access\n");
+			strerror = KERN_NOTICE "NULL pointer access\n";
 		else
 #endif
-			verbose_printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
+			strerror = KERN_NOTICE EXC_0x27(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x28 - Emulation Watchpoint, handled here */
@@ -425,8 +448,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		pr_debug(EXC_0x28(KERN_DEBUG));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a watchpoint in kernel space */
-		if (fp->ipend & 0xffc0)
-			return;
+		if (kernel_mode_regs(fp))
+			goto traps_done;
 		else
 			break;
 #ifdef CONFIG_BF535
@@ -434,7 +457,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_ISTRU_VL:      /* ADSP-BF535 only (MH) */
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE "BF535: VEC_ISTRU_VL\n");
+		strerror = KERN_NOTICE "BF535: VEC_ISTRU_VL\n";
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 #else
@@ -444,21 +467,21 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE EXC_0x2A(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x2A(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2B - Instruction CPLB protection violation, handled here */
 	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE EXC_0x2B(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x2B(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
 	case VEC_CPLB_I_M:
 		info.si_code = ILL_CPLB_MISS;
 		sig = SIGBUS;
-		verbose_printk(KERN_NOTICE EXC_0x2C(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x2C(KERN_NOTICE);
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
 	case VEC_CPLB_I_MHIT:
@@ -466,17 +489,17 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGSEGV;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		if (cpu_pda[cpu].icplb_fault_addr < FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE "Jump to NULL address\n");
+			strerror = KERN_NOTICE "Jump to NULL address\n";
 		else
 #endif
-			verbose_printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
+			strerror = KERN_NOTICE EXC_0x2D(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2E - Illegal use of Supervisor Resource, handled here */
 	case VEC_ILL_RES:
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
-		verbose_printk(KERN_NOTICE EXC_0x2E(KERN_NOTICE));
+		strerror = KERN_NOTICE EXC_0x2E(KERN_NOTICE);
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2F - Reserved, Caught by default */
@@ -504,17 +527,17 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):
 			info.si_code = BUS_ADRALN;
 			sig = SIGBUS;
-			verbose_printk(KERN_NOTICE HWC_x2(KERN_NOTICE));
+			strerror = KERN_NOTICE HWC_x2(KERN_NOTICE);
 			break;
 		/* External Memory Addressing Error */
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
-			verbose_printk(KERN_NOTICE HWC_x3(KERN_NOTICE));
+			strerror = KERN_NOTICE HWC_x3(KERN_NOTICE);
 			break;
 		/* Performance Monitor Overflow */
 		case (SEQSTAT_HWERRCAUSE_PERF_FLOW):
-			verbose_printk(KERN_NOTICE HWC_x12(KERN_NOTICE));
+			strerror = KERN_NOTICE HWC_x12(KERN_NOTICE);
 			break;
 		/* RAISE 5 instruction */
 		case (SEQSTAT_HWERRCAUSE_RAISE_5):
@@ -531,7 +554,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	 * if we get here we hit a reserved one, so panic
 	 */
 	default:
-		oops_in_progress = 1;
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
 		verbose_printk(KERN_EMERG "Caught Unhandled Exception, code = %08lx\n",
@@ -542,7 +564,18 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 	BUG_ON(sig == 0);
 
+	/* If the fault was caused by a kernel thread, or interrupt handler
+	 * we will kernel panic, so the system reboots.
+	 */
+	if (kernel_mode_regs(fp) || (current && !current->mm)) {
+		console_verbose();
+		oops_in_progress = 1;
+	}
+
 	if (sig != SIGTRAP) {
+		if (strerror)
+			verbose_printk(strerror);
+
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
@@ -551,15 +584,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #ifndef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
 		if (trapnr == VEC_CPLB_I_M || trapnr == VEC_CPLB_M)
 			verbose_printk(KERN_NOTICE "No trace since you do not have "
-				"CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE enabled\n"
-				KERN_NOTICE "\n");
+			       "CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE enabled\n\n");
 		else
 #endif
 			dump_bfin_trace_buffer();
 
 		if (oops_in_progress) {
 			/* Dump the current kernel stack */
-			verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "Kernel Stack\n");
+			verbose_printk(KERN_NOTICE "Kernel Stack\n");
 			show_stack(current, NULL);
 			print_modules();
 #ifndef CONFIG_ACCESS_CHECK
@@ -588,8 +620,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		force_sig_info(sig, &info, current);
 	}
 
+	if ((ANOMALY_05000461 && trapnr == VEC_HWERR && !access_ok(VERIFY_READ, fp->pc, 8)) ||
+	    (ANOMALY_05000281 && trapnr == VEC_HWERR) ||
+	    (ANOMALY_05000189 && (trapnr == VEC_CPLB_I_VL || trapnr == VEC_CPLB_VL)))
+		fp->pc = SAFE_USER_INSTRUCTION;
+
+ traps_done:
 	trace_buffer_restore(j);
-	return;
 }
 
 /* Typical exception handling routines	*/
@@ -602,57 +639,30 @@ asmlinkage void trap_c(struct pt_regs *fp)
  */
 static bool get_instruction(unsigned short *val, unsigned short *address)
 {
-
-	unsigned long addr;
-
-	addr = (unsigned long)address;
+	unsigned long addr = (unsigned long)address;
 
 	/* Check for odd addresses */
 	if (addr & 0x1)
 		return false;
 
-	/* Check that things do not wrap around */
-	if (addr > (addr + 2))
+	/* MMR region will never have instructions */
+	if (addr >= SYSMMR_BASE)
 		return false;
 
-	/*
-	 * Since we are in exception context, we need to do a little address checking
-	 * We need to make sure we are only accessing valid memory, and
-	 * we don't read something in the async space that can hang forever
-	 */
-	if ((addr >= FIXED_CODE_START && (addr + 2) <= physical_mem_end) ||
-#if L2_LENGTH != 0
-	    (addr >= L2_START && (addr + 2) <= (L2_START + L2_LENGTH)) ||
-#endif
-	    (addr >= BOOT_ROM_START && (addr + 2) <= (BOOT_ROM_START + BOOT_ROM_LENGTH)) ||
-#if L1_DATA_A_LENGTH != 0
-	    (addr >= L1_DATA_A_START && (addr + 2) <= (L1_DATA_A_START + L1_DATA_A_LENGTH)) ||
-#endif
-#if L1_DATA_B_LENGTH != 0
-	    (addr >= L1_DATA_B_START && (addr + 2) <= (L1_DATA_B_START + L1_DATA_B_LENGTH)) ||
-#endif
-	    (addr >= L1_SCRATCH_START && (addr + 2) <= (L1_SCRATCH_START + L1_SCRATCH_LENGTH)) ||
-	    (!(bfin_read_EBIU_AMBCTL0() & B0RDYEN) &&
-	       addr >= ASYNC_BANK0_BASE && (addr + 2) <= (ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL0() & B1RDYEN) &&
-	       addr >= ASYNC_BANK1_BASE && (addr + 2) <= (ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL1() & B2RDYEN) &&
-	       addr >= ASYNC_BANK2_BASE && (addr + 2) <= (ASYNC_BANK2_BASE + ASYNC_BANK1_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL1() & B3RDYEN) &&
-	      addr >= ASYNC_BANK3_BASE && (addr + 2) <= (ASYNC_BANK3_BASE + ASYNC_BANK1_SIZE))) {
-		*val = *address;
-		return true;
+	switch (bfin_mem_access_type(addr, 2)) {
+		case BFIN_MEM_ACCESS_CORE:
+		case BFIN_MEM_ACCESS_CORE_ONLY:
+			*val = *address;
+			return true;
+		case BFIN_MEM_ACCESS_DMA:
+			dma_memcpy(val, address, 2);
+			return true;
+		case BFIN_MEM_ACCESS_ITEST:
+			isram_memcpy(val, address, 2);
+			return true;
+		default: /* invalid access */
+			return false;
 	}
-
-#if L1_CODE_LENGTH != 0
-	if (addr >= L1_CODE_START && (addr + 2) <= (L1_CODE_START + L1_CODE_LENGTH)) {
-		isram_memcpy(val, address, 2);
-		return true;
-	}
-#endif
-
-
-	return false;
 }
 
 /*
@@ -774,6 +784,18 @@ void dump_bfin_trace_buffer(void)
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
+#ifdef CONFIG_BUG
+int is_valid_bugaddr(unsigned long addr)
+{
+	unsigned short opcode;
+
+	if (!get_instruction(&opcode, (unsigned short *)addr))
+		return 0;
+
+	return opcode == BFIN_BUG_OPCODE;
+}
+#endif
+
 /*
  * Checks to see if the address pointed to is either a
  * 16-bit CALL instruction, or a 32-bit CALL instruction
@@ -832,6 +854,11 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	decode_address(buf, (unsigned int)stack);
 	printk(KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
 
+	if (!access_ok(VERIFY_READ, stack, (unsigned int)endstack - (unsigned int)stack)) {
+		printk(KERN_NOTICE "Invalid stack pointer\n");
+		return;
+	}
+
 	/* First thing is to look for a frame pointer */
 	for (addr = (unsigned int *)((unsigned int)stack & ~0xF); addr < endstack; addr++) {
 		if (*addr & 0x1)
@@ -881,7 +908,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 
 			ret_addr = 0;
 			if (!j && i % 8 == 0)
-				printk("\n" KERN_NOTICE "%p:",addr);
+				printk(KERN_NOTICE "%p:",addr);
 
 			/* if it is an odd address, or zero, just skip it */
 			if (*addr & 0x1 || !*addr)
@@ -971,9 +998,9 @@ void dump_bfin_process(struct pt_regs *fp)
 
 		printk(KERN_NOTICE "CPU = %d\n", current_thread_info()->cpu);
 		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE  "TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
-				KERN_NOTICE " BSS = 0x%p-0x%p  USER-STACK = 0x%p\n"
-				KERN_NOTICE "\n",
+			verbose_printk(KERN_NOTICE
+				"TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
+				" BSS = 0x%p-0x%p  USER-STACK = 0x%p\n\n",
 				(void *)current->mm->start_code,
 				(void *)current->mm->end_code,
 				(void *)current->mm->start_data,
@@ -984,8 +1011,8 @@ void dump_bfin_process(struct pt_regs *fp)
 		else
 			verbose_printk(KERN_NOTICE "invalid mm\n");
 	} else
-		verbose_printk(KERN_NOTICE "\n" KERN_NOTICE
-		     "No Valid process in current context\n");
+		verbose_printk(KERN_NOTICE
+			       "No Valid process in current context\n");
 #endif
 }
 
@@ -1003,7 +1030,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 	     addr < (unsigned short *)((unsigned long)erraddr & ~0xF) + 0x10;
 	     addr++) {
 		if (!((unsigned long)addr & 0xF))
-			verbose_printk("\n" KERN_NOTICE "0x%p: ", addr);
+			verbose_printk(KERN_NOTICE "0x%p: ", addr);
 
 		if (!get_instruction(&val, addr)) {
 				val = 0;
@@ -1031,9 +1058,9 @@ void dump_bfin_mem(struct pt_regs *fp)
 	    oops_in_progress)){
 		verbose_printk(KERN_NOTICE "Looks like this was a deferred error - sorry\n");
 #ifndef CONFIG_DEBUG_HWERR
-		verbose_printk(KERN_NOTICE "The remaining message may be meaningless\n"
-			KERN_NOTICE "You should enable CONFIG_DEBUG_HWERR to get a"
-			 " better idea where it came from\n");
+		verbose_printk(KERN_NOTICE
+"The remaining message may be meaningless\n"
+"You should enable CONFIG_DEBUG_HWERR to get a better idea where it came from\n");
 #else
 		/* If we are handling only one peripheral interrupt
 		 * and current mm and pid are valid, and the last error
@@ -1066,9 +1093,33 @@ void show_regs(struct pt_regs *fp)
 	unsigned int cpu = smp_processor_id();
 	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
-	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
+	verbose_printk(KERN_NOTICE "\n");
+	if (CPUID != bfin_cpuid())
+		verbose_printk(KERN_NOTICE "Compiled for cpu family 0x%04x (Rev %d), "
+			"but running on:0x%04x (Rev %d)\n",
+			CPUID, bfin_compiled_revid(), bfin_cpuid(), bfin_revid());
+
+	verbose_printk(KERN_NOTICE "ADSP-%s-0.%d",
+		CPU, bfin_compiled_revid());
+
+	if (bfin_compiled_revid() !=  bfin_revid())
+		verbose_printk("(Detected 0.%d)", bfin_revid());
+
+	verbose_printk(" %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n",
+		get_cclk()/1000000, get_sclk()/1000000,
+#ifdef CONFIG_MPU
+		"mpu on"
+#else
+		"mpu off"
+#endif
+		);
+
+	verbose_printk(KERN_NOTICE "%s", linux_banner);
+
+	verbose_printk(KERN_NOTICE "\nSEQUENCER STATUS:\t\t%s\n",
+		       print_tainted());
 	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
-		(long)fp->seqstat, fp->ipend, fp->syscfg);
+		       (long)fp->seqstat, fp->ipend, fp->syscfg);
 	if ((fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR) {
 		verbose_printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
 			(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14);
@@ -1136,7 +1187,7 @@ unlock:
 		verbose_printk(KERN_NOTICE "ICPLB_FAULT_ADDR: %s\n", buf);
 	}
 
-	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "PROCESSOR STATE:\n");
+	verbose_printk(KERN_NOTICE "PROCESSOR STATE:\n");
 	verbose_printk(KERN_NOTICE " R0 : %08lx    R1 : %08lx    R2 : %08lx    R3 : %08lx\n",
 		fp->r0, fp->r1, fp->r2, fp->r3);
 	verbose_printk(KERN_NOTICE " R4 : %08lx    R5 : %08lx    R6 : %08lx    R7 : %08lx\n",
@@ -1246,5 +1297,5 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 	dump_bfin_mem(fp);
 	show_regs(fp);
 	dump_stack();
-	panic("Unrecoverable event\n");
+	panic("Unrecoverable event");
 }

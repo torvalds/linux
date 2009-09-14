@@ -1,6 +1,6 @@
 config LGUEST
 	tristate "Linux hypervisor example code"
-	depends on X86_32 && EXPERIMENTAL && !X86_PAE && FUTEX
+	depends on X86_32 && EXPERIMENTAL && EVENTFD
 	select HVC_DRIVER
 	---help---
 	  This is a very simple module which allows you to run

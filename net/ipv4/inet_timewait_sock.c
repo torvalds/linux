@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/kmemcheck.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/ip.h>
@@ -49,19 +50,22 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 	inet_twsk_put(tw);
 }
 
+static noinline void inet_twsk_free(struct inet_timewait_sock *tw)
+{
+	struct module *owner = tw->tw_prot->owner;
+	twsk_destructor((struct sock *)tw);
+#ifdef SOCK_REFCNT_DEBUG
+	pr_debug("%s timewait_sock %p released\n", tw->tw_prot->name, tw);
+#endif
+	release_net(twsk_net(tw));
+	kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
+	module_put(owner);
+}
+
 void inet_twsk_put(struct inet_timewait_sock *tw)
 {
-	if (atomic_dec_and_test(&tw->tw_refcnt)) {
-		struct module *owner = tw->tw_prot->owner;
-		twsk_destructor((struct sock *)tw);
-#ifdef SOCK_REFCNT_DEBUG
-		printk(KERN_DEBUG "%s timewait_sock %p released\n",
-		       tw->tw_prot->name, tw);
-#endif
-		release_net(twsk_net(tw));
-		kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
-		module_put(owner);
-	}
+	if (atomic_dec_and_test(&tw->tw_refcnt))
+		inet_twsk_free(tw);
 }
 EXPORT_SYMBOL_GPL(inet_twsk_put);
 
@@ -116,6 +120,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 				 GFP_ATOMIC);
 	if (tw != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
+
+		kmemcheck_annotate_bitfield(tw, flags);
 
 		/* Give us an identity. */
 		tw->tw_daddr	    = inet->daddr;

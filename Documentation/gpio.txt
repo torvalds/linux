@@ -458,7 +458,7 @@ debugfs interface, since it provides control over GPIO direction and
 value instead of just showing a gpio state summary.  Plus, it could be
 present on production systems without debugging support.
 
-Given approprate hardware documentation for the system, userspace could
+Given appropriate hardware documentation for the system, userspace could
 know for example that GPIO #23 controls the write protect line used to
 protect boot loader segments in flash memory.  System upgrade procedures
 may need to temporarily remove that protection, first importing a GPIO,

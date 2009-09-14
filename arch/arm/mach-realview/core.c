@@ -48,6 +48,9 @@
 
 #include <asm/hardware/gic.h>
 
+#include <mach/platform.h>
+#include <mach/irqs.h>
+
 #include "core.h"
 #include "clock.h"
 
@@ -205,8 +208,7 @@ struct platform_device realview_i2c_device = {
 
 static struct i2c_board_info realview_i2c_board_info[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0xd0 >> 1),
-		.type = "ds1338",
+		I2C_BOARD_INFO("ds1338", 0xd0 >> 1),
 	},
 };
 
@@ -578,21 +580,22 @@ void realview_leds_event(led_event_t ledevt)
 {
 	unsigned long flags;
 	u32 val;
+	u32 led = 1 << smp_processor_id();
 
 	local_irq_save(flags);
 	val = readl(VA_LEDS_BASE);
 
 	switch (ledevt) {
 	case led_idle_start:
-		val = val & ~REALVIEW_SYS_LED0;
+		val = val & ~led;
 		break;
 
 	case led_idle_end:
-		val = val | REALVIEW_SYS_LED0;
+		val = val | led;
 		break;
 
 	case led_timer:
-		val = val ^ REALVIEW_SYS_LED1;
+		val = val ^ REALVIEW_SYS_LED7;
 		break;
 
 	case led_halted:

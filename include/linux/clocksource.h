@@ -288,7 +288,20 @@ static inline cycle_t clocksource_read(struct clocksource *cs)
  */
 static inline int clocksource_enable(struct clocksource *cs)
 {
-	return cs->enable ? cs->enable(cs) : 0;
+	int ret = 0;
+
+	if (cs->enable)
+		ret = cs->enable(cs);
+
+	/*
+	 * The frequency may have changed while the clocksource
+	 * was disabled. If so the code in ->enable() must update
+	 * the mult value to reflect the new frequency. Make sure
+	 * mult_orig follows this change.
+	 */
+	cs->mult_orig = cs->mult;
+
+	return ret;
 }
 
 /**
@@ -301,6 +314,13 @@ static inline int clocksource_enable(struct clocksource *cs)
  */
 static inline void clocksource_disable(struct clocksource *cs)
 {
+	/*
+	 * Save mult_orig in mult so clocksource_enable() can
+	 * restore the value regardless if ->enable() updates
+	 * the value of mult or not.
+	 */
+	cs->mult = cs->mult_orig;
+
 	if (cs->disable)
 		cs->disable(cs);
 }

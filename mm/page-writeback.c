@@ -265,18 +265,19 @@ static void bdi_writeout_fraction(struct backing_dev_info *bdi,
  * This avoids exceeding the total dirty_limit when the floating averages
  * fluctuate too quickly.
  */
-static void
-clip_bdi_dirty_limit(struct backing_dev_info *bdi, long dirty, long *pbdi_dirty)
+static void clip_bdi_dirty_limit(struct backing_dev_info *bdi,
+		unsigned long dirty, unsigned long *pbdi_dirty)
 {
-	long avail_dirty;
+	unsigned long avail_dirty;
 
-	avail_dirty = dirty -
-		(global_page_state(NR_FILE_DIRTY) +
+	avail_dirty = global_page_state(NR_FILE_DIRTY) +
 		 global_page_state(NR_WRITEBACK) +
 		 global_page_state(NR_UNSTABLE_NFS) +
-		 global_page_state(NR_WRITEBACK_TEMP));
+		 global_page_state(NR_WRITEBACK_TEMP);
 
-	if (avail_dirty < 0)
+	if (avail_dirty < dirty)
+		avail_dirty = dirty - avail_dirty;
+	else
 		avail_dirty = 0;
 
 	avail_dirty += bdi_stat(bdi, BDI_RECLAIMABLE) +
@@ -299,10 +300,10 @@ static inline void task_dirties_fraction(struct task_struct *tsk,
  *
  *   dirty -= (dirty/8) * p_{t}
  */
-static void task_dirty_limit(struct task_struct *tsk, long *pdirty)
+static void task_dirty_limit(struct task_struct *tsk, unsigned long *pdirty)
 {
 	long numerator, denominator;
-	long dirty = *pdirty;
+	unsigned long dirty = *pdirty;
 	u64 inv = dirty >> 3;
 
 	task_dirties_fraction(tsk, &numerator, &denominator);
@@ -540,8 +541,11 @@ static void balance_dirty_pages(struct address_space *mapping)
 		 * filesystems (i.e. NFS) in which data may have been
 		 * written to the server's write cache, but has not yet
 		 * been flushed to permanent storage.
+		 * Only move pages to writeback if this bdi is over its
+		 * threshold otherwise wait until the disk writes catch
+		 * up.
 		 */
-		if (bdi_nr_reclaimable) {
+		if (bdi_nr_reclaimable > bdi_thresh) {
 			writeback_inodes(&wbc);
 			pages_written += write_chunk - wbc.nr_to_write;
 			get_dirty_limits(&background_thresh, &dirty_thresh,
@@ -571,7 +575,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 		if (pages_written >= write_chunk)
 			break;		/* We've done our duty */
 
-		congestion_wait(WRITE, HZ/10);
+		congestion_wait(BLK_RW_ASYNC, HZ/10);
 	}
 
 	if (bdi_nr_reclaimable + bdi_nr_writeback < bdi_thresh &&
@@ -665,7 +669,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
                 if (global_page_state(NR_UNSTABLE_NFS) +
 			global_page_state(NR_WRITEBACK) <= dirty_thresh)
                         	break;
-                congestion_wait(WRITE, HZ/10);
+                congestion_wait(BLK_RW_ASYNC, HZ/10);
 
 		/*
 		 * The caller might hold locks which can prevent IO completion
@@ -711,7 +715,7 @@ static void background_writeout(unsigned long _min_pages)
 		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
 			/* Wrote less than expected */
 			if (wbc.encountered_congestion || wbc.more_io)
-				congestion_wait(WRITE, HZ/10);
+				congestion_wait(BLK_RW_ASYNC, HZ/10);
 			else
 				break;
 		}
@@ -783,7 +787,7 @@ static void wb_kupdate(unsigned long arg)
 		writeback_inodes(&wbc);
 		if (wbc.nr_to_write > 0) {
 			if (wbc.encountered_congestion || wbc.more_io)
-				congestion_wait(WRITE, HZ/10);
+				congestion_wait(BLK_RW_ASYNC, HZ/10);
 			else
 				break;	/* All the old data is written */
 		}

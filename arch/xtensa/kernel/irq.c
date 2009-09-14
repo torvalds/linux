@@ -197,4 +197,6 @@ void __init init_IRQ(void)
 	}
 
 	cached_irq_mask = 0;
+
+	variant_init_irq();
 }

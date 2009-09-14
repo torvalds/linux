@@ -370,34 +370,22 @@ static void __init setup_bootmem(void)
 
 void free_initmem(void)
 {
-	unsigned long addr, init_begin, init_end;
-
-	printk(KERN_INFO "Freeing unused kernel memory: ");
+	unsigned long addr;
+	unsigned long init_begin = (unsigned long)__init_begin;
+	unsigned long init_end = (unsigned long)__init_end;
 
 #ifdef CONFIG_DEBUG_KERNEL
 	/* Attempt to catch anyone trying to execute code here
 	 * by filling the page with BRK insns.
-	 * 
-	 * If we disable interrupts for all CPUs, then IPI stops working.
-	 * Kinda breaks the global cache flushing.
 	 */
-	local_irq_disable();
-
-	memset(__init_begin, 0x00,
-		(unsigned long)__init_end - (unsigned long)__init_begin);
-
-	flush_data_cache();
-	asm volatile("sync" : : );
-	flush_icache_range((unsigned long)__init_begin, (unsigned long)__init_end);
-	asm volatile("sync" : : );
-
-	local_irq_enable();
+	memset((void *)init_begin, 0x00, init_end - init_begin);
+	flush_icache_range(init_begin, init_end);
 #endif
 	
 	/* align __init_begin and __init_end to page size,
 	   ignoring linker script where we might have tried to save RAM */
-	init_begin = PAGE_ALIGN((unsigned long)(__init_begin));
-	init_end   = PAGE_ALIGN((unsigned long)(__init_end));
+	init_begin = PAGE_ALIGN(init_begin);
+	init_end = PAGE_ALIGN(init_end);
 	for (addr = init_begin; addr < init_end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
@@ -409,7 +397,8 @@ void free_initmem(void)
 	/* set up a new led state on systems shipped LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BCOMPLETE);
 	
-	printk("%luk freed\n", (init_end - init_begin) >> 10);
+	printk(KERN_INFO "Freeing unused kernel memory: %luk freed\n",
+		(init_end - init_begin) >> 10);
 }
 
 

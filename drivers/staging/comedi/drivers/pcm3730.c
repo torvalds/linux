@@ -19,28 +19,28 @@ Configuration options:
 
 #include <linux/ioport.h>
 
-#define PCM3730_SIZE 4		// consecutive io port addresses
+#define PCM3730_SIZE 4		/*  consecutive io port addresses */
 
-#define PCM3730_DOA 0		// offsets for each port
+#define PCM3730_DOA 0		/*  offsets for each port */
 #define PCM3730_DOB 2
 #define PCM3730_DOC 3
 #define PCM3730_DIA 0
 #define PCM3730_DIB 2
 #define PCM3730_DIC 3
 
-static int pcm3730_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcm3730_detach(struct comedi_device * dev);
+static int pcm3730_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcm3730_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcm3730 = {
-      driver_name:"pcm3730",
-      module:THIS_MODULE,
-      attach:pcm3730_attach,
-      detach:pcm3730_detach,
+	.driver_name = "pcm3730",
+	.module = THIS_MODULE,
+	.attach = pcm3730_attach,
+	.detach = pcm3730_detach,
 };
 
 COMEDI_INITCLEANUP(driver_pcm3730);
 
-static int pcm3730_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcm3730_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -54,8 +54,8 @@ static int pcm3730_do_insn_bits(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int pcm3730_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcm3730_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -63,7 +63,7 @@ static int pcm3730_di_insn_bits(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int pcm3730_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcm3730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -141,7 +141,7 @@ static int pcm3730_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 0;
 }
 
-static int pcm3730_detach(struct comedi_device * dev)
+static int pcm3730_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pcm3730: remove\n", dev->minor);
 

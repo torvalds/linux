@@ -417,7 +417,7 @@ static LIST_HEAD(thermal_hwmon_list);
 static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct thermal_hwmon_device *hwmon = dev->driver_data;
+	struct thermal_hwmon_device *hwmon = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", hwmon->type);
 }
 static DEVICE_ATTR(name, 0444, name_show, NULL);
@@ -488,7 +488,7 @@ thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 		result = PTR_ERR(hwmon->device);
 		goto free_mem;
 	}
-	hwmon->device->driver_data = hwmon;
+	dev_set_drvdata(hwmon->device, hwmon);
 	result = device_create_file(hwmon->device, &dev_attr_name);
 	if (result)
 		goto unregister_hwmon_device;
@@ -953,7 +953,12 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 
 	mutex_lock(&tz->lock);
 
-	tz->ops->get_temp(tz, &temp);
+	if (tz->ops->get_temp(tz, &temp)) {
+		/* get_temp failed - retry it later */
+		printk(KERN_WARNING PREFIX "failed to read out thermal zone "
+		       "%d\n", tz->id);
+		goto leave;
+	}
 
 	for (count = 0; count < tz->trips; count++) {
 		tz->ops->get_trip_type(tz, count, &trip_type);
@@ -1005,6 +1010,8 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 					    THERMAL_TRIPS_NONE);
 
 	tz->last_temperature = temp;
+
+      leave:
 	if (tz->passive)
 		thermal_zone_device_set_polling(tz, tz->passive_delay);
 	else if (tz->polling_delay)

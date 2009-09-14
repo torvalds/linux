@@ -142,7 +142,7 @@ static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 
 static inline int ipv6_unicast_destination(struct sk_buff *skb)
 {
-	struct rt6_info *rt = (struct rt6_info *) skb->dst;
+	struct rt6_info *rt = (struct rt6_info *) skb_dst(skb);
 
 	return rt->rt6i_flags & RTF_LOCAL;
 }

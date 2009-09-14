@@ -20,9 +20,12 @@ struct clockdomain;
 struct clkops {
 	int			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
+	void			(*find_idlest)(struct clk *, void __iomem **, u8 *);
+	void			(*find_companion)(struct clk *, void __iomem **, u8 *);
 };
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
+		defined(CONFIG_ARCH_OMAP4)
 
 struct clksel_rate {
 	u32			val;
@@ -51,7 +54,7 @@ struct dpll_data {
 	u8			max_divider;
 	u32			max_tolerance;
 	u16			max_multiplier;
-#  if defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 	u8			modes;
 	void __iomem		*autoidle_reg;
 	void __iomem		*idlest_reg;
@@ -83,7 +86,8 @@ struct clk {
 	void			(*init)(struct clk *);
 	__u8			enable_bit;
 	__s8			usecount;
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
+		defined(CONFIG_ARCH_OMAP4)
 	u8			fixed_div;
 	void __iomem		*clksel_reg;
 	u32			clksel_mask;
@@ -119,7 +123,7 @@ struct clk_functions {
 extern unsigned int mpurate;
 
 extern int clk_init(struct clk_functions *custom_clocks);
-extern void clk_init_one(struct clk *clk);
+extern void clk_preinit(struct clk *clk);
 extern int clk_register(struct clk *clk);
 extern void clk_reparent(struct clk *child, struct clk *parent);
 extern void clk_unregister(struct clk *clk);

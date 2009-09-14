@@ -184,7 +184,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"Silicon TDA8275C1 8290 FM"},
 	{ TUNER_ABSENT,        		"Thompson DTT757"},
 	/* 80-89 */
-	{ TUNER_PHILIPS_FM1216ME_MK3, 	"Philips FQ1216LME MK3"},
+	{ TUNER_PHILIPS_FQ1216LME_MK3, 	"Philips FQ1216LME MK3"},
 	{ TUNER_LG_PAL_NEW_TAPC, 	"LG TAPC G701D"},
 	{ TUNER_LG_NTSC_NEW_TAPC, 	"LG TAPC H791F"},
 	{ TUNER_LG_PAL_NEW_TAPC, 	"TCL 2002MB 3"},
@@ -210,7 +210,7 @@ hauppauge_tuner[] =
 	{ TUNER_TEA5767,       		"Philips TEA5768HL FM Radio"},
 	{ TUNER_ABSENT,        		"Panasonic ENV57H12D5"},
 	{ TUNER_PHILIPS_FM1236_MK3, 	"TCL MFNM05-4"},
-	{ TUNER_ABSENT,        		"TCL MNM05-4"},
+	{ TUNER_PHILIPS_FM1236_MK3,	"TCL MNM05-4"},
 	{ TUNER_PHILIPS_FM1216ME_MK3, 	"TCL MPE05-2"},
 	{ TUNER_ABSENT,        		"TCL MQNM05-4"},
 	{ TUNER_ABSENT,        		"LG TAPC-W701D"},
@@ -229,7 +229,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"Samsung THPD5222FG30A"},
 	/* 120-129 */
 	{ TUNER_XC2028,        		"Xceive XC3028"},
-	{ TUNER_ABSENT,        		"Philips FQ1216LME MK5"},
+	{ TUNER_PHILIPS_FQ1216LME_MK3,	"Philips FQ1216LME MK5"},
 	{ TUNER_ABSENT,        		"Philips FQD1216LME"},
 	{ TUNER_ABSENT,        		"Conexant CX24118A"},
 	{ TUNER_ABSENT,        		"TCL DMF11WIP"},

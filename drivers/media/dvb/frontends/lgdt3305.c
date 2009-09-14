@@ -19,6 +19,7 @@
  *
  */
 
+#include <asm/div64.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_math.h"
 #include "lgdt3305.h"
@@ -496,27 +497,15 @@ static int lgdt3305_set_if(struct lgdt3305_state *state,
 
 	nco = if_freq_khz / 10;
 
-#define LGDT3305_64BIT_DIVISION_ENABLED 0
-	/* FIXME: 64bit division disabled to avoid linking error:
-	 * WARNING: "__udivdi3" [lgdt3305.ko] undefined!
-	 */
 	switch (param->u.vsb.modulation) {
 	case VSB_8:
-#if LGDT3305_64BIT_DIVISION_ENABLED
 		nco <<= 24;
-		nco /= 625;
-#else
-		nco *= ((1 << 24) / 625);
-#endif
+		do_div(nco, 625);
 		break;
 	case QAM_64:
 	case QAM_256:
-#if LGDT3305_64BIT_DIVISION_ENABLED
 		nco <<= 28;
-		nco /= 625;
-#else
-		nco *= ((1 << 28) / 625);
-#endif
+		do_div(nco, 625);
 		break;
 	default:
 		return -EINVAL;

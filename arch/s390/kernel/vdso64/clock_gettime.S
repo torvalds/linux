@@ -88,10 +88,17 @@ __kernel_clock_gettime:
 	llilh	%r4,0x0100
 	sar	%a4,%r4
 	lghi	%r4,0
+	epsw	%r5,0
 	sacf	512				/* Magic ectg instruction */
 	.insn	ssf,0xc80100000000,__VDSO_ECTG_BASE(4),__VDSO_ECTG_USER(4),4
-	sacf	0
-	sar	%a4,%r2
+	tml	%r5,0x4000
+	jo	11f
+	tml	%r5,0x8000
+	jno	10f
+	sacf	256
+	j	11f
+10:	sacf	0
+11:	sar	%a4,%r2
 	algr	%r1,%r0				/* r1 = cputime as TOD value */
 	mghi	%r1,1000			/* convert to nanoseconds */
 	srlg	%r1,%r1,12			/* r1 = cputime in nanosec */

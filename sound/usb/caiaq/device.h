@@ -10,6 +10,7 @@
 #define USB_PID_KORECONTROLLER	0x4711
 #define USB_PID_KORECONTROLLER2	0x4712
 #define USB_PID_AK1		0x0815
+#define USB_PID_AUDIO2DJ	0x041c
 #define USB_PID_AUDIO4DJ	0x0839
 #define USB_PID_AUDIO8DJ	0x1978
 #define USB_PID_SESSIONIO	0x1915
@@ -81,7 +82,6 @@ struct snd_usb_caiaqdev {
 
 	char vendor_name[CAIAQ_USB_STR_LEN];
 	char product_name[CAIAQ_USB_STR_LEN];
-	char serial[CAIAQ_USB_STR_LEN];
 
 	int n_streams, n_audio_in, n_audio_out;
 	int streaming, first_packet, output_running;

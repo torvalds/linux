@@ -18,6 +18,7 @@
 #include <linux/ioport.h>
 #include <linux/timex.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
 #include <linux/random.h>
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>

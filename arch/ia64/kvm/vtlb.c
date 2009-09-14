@@ -135,7 +135,7 @@ struct thash_data *__vtr_lookup(struct kvm_vcpu *vcpu, u64 va, int type)
 	u64 rid;
 
 	rid = vcpu_get_rr(vcpu, va);
-	rid = rid & RR_RID_MASK;;
+	rid = rid & RR_RID_MASK;
 	if (type == D_TLB) {
 		if (vcpu_quick_region_check(vcpu->arch.dtr_regions, va)) {
 			for (trp = (struct thash_data *)&vcpu->arch.dtrs, i = 0;
@@ -254,7 +254,8 @@ u64 guest_vhpt_lookup(u64 iha, u64 *pte)
 			"(p7) st8 [%2]=r9;;"
 			"ssm psr.ic;;"
 			"srlz.d;;"
-			/* "ssm psr.i;;" Once interrupts in vmm open, need fix*/
+			"ssm psr.i;;"
+			"srlz.d;;"
 			: "=r"(ret) : "r"(iha), "r"(pte):"memory");
 
 	return ret;
@@ -517,7 +518,7 @@ struct thash_data *vtlb_lookup(struct kvm_vcpu *v, u64 va, int is_data)
 
 	struct thash_cb *hcb = &v->arch.vtlb;
 
-	cch = __vtr_lookup(v, va, is_data);;
+	cch = __vtr_lookup(v, va, is_data);
 	if (cch)
 		return cch;
 

@@ -147,34 +147,16 @@ static struct arm_ahb_div clk_consumer[] = {
 	{ .arm = 0, .ahb = 0, .sel = 0},
 };
 
-static struct arm_ahb_div clk_automotive[] = {
-	{ .arm = 1, .ahb = 3, .sel = 0},
-	{ .arm = 1, .ahb = 2, .sel = 1},
-	{ .arm = 2, .ahb = 1, .sel = 1},
-	{ .arm = 0, .ahb = 0, .sel = 0},
-	{ .arm = 1, .ahb = 6, .sel = 0},
-	{ .arm = 1, .ahb = 4, .sel = 1},
-	{ .arm = 2, .ahb = 2, .sel = 1},
-	{ .arm = 0, .ahb = 0, .sel = 0},
-};
-
 static unsigned long get_rate_arm(void)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
 	struct arm_ahb_div *aad;
 	unsigned long fref = get_rate_mpll();
 
-	if (pdr0 & 1) {
-		/* consumer path */
-		aad = &clk_consumer[(pdr0 >> 16) & 0xf];
-		if (aad->sel)
-			fref = fref * 2 / 3;
-	} else {
-		/* auto path */
-		aad = &clk_automotive[(pdr0 >> 9) & 0x7];
-		if (aad->sel)
-			fref = fref * 3 / 4;
-	}
+	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
+	if (aad->sel)
+		fref = fref * 2 / 3;
+
 	return fref / aad->arm;
 }
 
@@ -184,12 +166,7 @@ static unsigned long get_rate_ahb(struct clk *clk)
 	struct arm_ahb_div *aad;
 	unsigned long fref = get_rate_mpll();
 
-	if (pdr0 & 1)
-		/* consumer path */
-		aad = &clk_consumer[(pdr0 >> 16) & 0xf];
-	else
-		/* auto path */
-		aad = &clk_automotive[(pdr0 >> 9) & 0x7];
+	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
 
 	return fref / aad->ahb;
 }
@@ -430,7 +407,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
 	_REGISTER_CLOCK("imx-i2c.2", NULL, i2c3_clk)
 	_REGISTER_CLOCK(NULL, "iomuxc", iomuxc_clk)
-	_REGISTER_CLOCK(NULL, "ipu", ipu_clk)
+	_REGISTER_CLOCK("ipu-core", NULL, ipu_clk)
+	_REGISTER_CLOCK("mx3_sdc_fb", NULL, ipu_clk)
 	_REGISTER_CLOCK(NULL, "kpp", kpp_clk)
 	_REGISTER_CLOCK(NULL, "mlb", mlb_clk)
 	_REGISTER_CLOCK(NULL, "mshc", mshc_clk)
@@ -461,8 +439,6 @@ int __init mx35_clocks_init()
 {
 	int i;
 	unsigned int ll = 0;
-
-	mxc_set_cpu_type(MXC_CPU_MX35);
 
 #ifdef CONFIG_DEBUG_LL_CONSOLE
 	ll = (3 << 16);

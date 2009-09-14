@@ -30,7 +30,8 @@ int rtl8180_suspend (struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		goto out_pci_suspend;
 
-	dev->stop(dev);
+	if (dev->netdev_ops->ndo_stop)
+		dev->netdev_ops->ndo_stop(dev);
 
 	netif_device_detach(dev);
 
@@ -71,7 +72,8 @@ int rtl8180_resume (struct pci_dev *pdev)
 	if(!netif_running(dev))
 		goto out;
 
-	dev->open(dev);
+	if (dev->netdev_ops->ndo_open)
+		dev->netdev_ops->ndo_open(dev);
 	netif_device_attach(dev);
 out:
 	return 0;

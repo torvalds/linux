@@ -159,13 +159,29 @@ config IOMMU_DEBUG
 	  options. See Documentation/x86_64/boot-options.txt for more
 	  details.
 
+config IOMMU_STRESS
+	bool "Enable IOMMU stress-test mode"
+	---help---
+	  This option disables various optimizations in IOMMU related
+	  code to do real stress testing of the IOMMU code. This option
+	  will cause a performance drop and should only be enabled for
+	  testing.
+
 config IOMMU_LEAK
 	bool "IOMMU leak tracing"
-	depends on DEBUG_KERNEL
-	depends on IOMMU_DEBUG
+	depends on IOMMU_DEBUG && DMA_API_DEBUG
 	---help---
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
+
+config X86_DS_SELFTEST
+    bool "DS selftest"
+    default y
+    depends on DEBUG_KERNEL
+    depends on X86_DS
+	---help---
+	  Perform Debug Store selftests at boot time.
+	  If in doubt, say "N".
 
 config HAVE_MMIOTRACE_SUPPORT
 	def_bool y

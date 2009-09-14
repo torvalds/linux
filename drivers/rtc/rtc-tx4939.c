@@ -261,10 +261,8 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 
 	tx4939_rtc_cmd(pdata->rtcreg, TX4939_RTCCTL_COMMAND_NOP);
 	if (devm_request_irq(&pdev->dev, irq, tx4939_rtc_interrupt,
-			     IRQF_DISABLED | IRQF_SHARED,
-			     pdev->name, &pdev->dev) < 0) {
+			     IRQF_DISABLED, pdev->name, &pdev->dev) < 0)
 		return -EBUSY;
-	}
 	rtc = rtc_device_register(pdev->name, &pdev->dev,
 				  &tx4939_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))

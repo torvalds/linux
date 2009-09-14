@@ -41,7 +41,7 @@ struct sys_timer;
 extern void w90x900_init_irq(void);
 extern void w90p910_init_io(struct map_desc *mach_desc, int size);
 extern void w90p910_init_uarts(struct w90x900_uartcfg *cfg, int no);
-extern void w90p910_init_clocks(int xtal);
+extern void w90p910_init_clocks(void);
 extern void w90p910_map_io(struct map_desc *mach_desc, int size);
 extern struct platform_device w90p910_serial_device;
 extern struct sys_timer w90x900_timer;

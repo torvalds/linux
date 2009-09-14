@@ -114,7 +114,7 @@ For writing a sequence of verbs, use snd_hda_sequence_write().
 
 There are variants of cached read/write, snd_hda_codec_write_cache(),
 snd_hda_sequence_write_cache().  These are used for recording the
-register states for the power-mangement resume.  When no PM is needed,
+register states for the power-management resume.  When no PM is needed,
 these are equivalent with non-cached version.
 
 To retrieve the number of sub nodes connected to the given node, use

@@ -143,7 +143,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
  *
  * Return %LSM_UNSAFE_* bits applied to an exec because of tracing.
  *
- * Called with task_lock() held on @task.
+ * @task->cred_guard_mutex is held by the caller through the do_execve().
  */
 static inline int tracehook_unsafe_exec(struct task_struct *task)
 {

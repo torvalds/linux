@@ -57,3 +57,8 @@ static inline void s3c_pm_arch_show_resume_irqs(void)
 	s3c_pm_show_resume_irqs(IRQ_EINT4-4, __raw_readl(S3C2410_EINTPEND),
 				s3c_irqwake_eintmask);
 }
+
+static inline void s3c_pm_arch_update_uart(void __iomem *regs,
+					   struct pm_uart_save *save)
+{
+}

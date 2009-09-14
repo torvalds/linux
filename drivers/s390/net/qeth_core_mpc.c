@@ -181,6 +181,8 @@ static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_L2_ADDR_TABLE_FULL,	"Layer2 address table full"},
 	{IPA_RC_L2_DUP_LAYER3_MAC,	"Duplicate with layer 3 MAC"},
 	{IPA_RC_L2_GMAC_NOT_FOUND,	"GMAC not found"},
+	{IPA_RC_L2_MAC_NOT_AUTH_BY_HYP,	"L2 mac not authorized by hypervisor"},
+	{IPA_RC_L2_MAC_NOT_AUTH_BY_ADP,	"L2 mac not authorized by adapter"},
 	{IPA_RC_L2_MAC_NOT_FOUND,	"L2 mac address not found"},
 	{IPA_RC_L2_INVALID_VLAN_ID,	"L2 invalid vlan id"},
 	{IPA_RC_L2_DUP_VLAN_ID,		"L2 duplicate vlan id"},

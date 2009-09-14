@@ -1089,7 +1089,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		else {
 			int i, len = dc->x0-dc->color+1;
 			u8 __user *colors = (u8 __user *)dc->data;
-			u8 r, g, b, blend;
+			u8 r, g = 0, b = 0, blend = 0;
 			ret = 0;
 			for (i = 0; i<len; i++) {
 				if (get_user(r, colors + i * 4) ||

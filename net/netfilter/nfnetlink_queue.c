@@ -1,6 +1,6 @@
 /*
  * This is a module which is used for queueing packets and communicating with
- * userspace via nfetlink.
+ * userspace via nfnetlink.
  *
  * (C) 2005 by Harald Welte <laforge@netfilter.org>
  * (C) 2007 by Patrick McHardy <kaber@trash.net>
@@ -932,6 +932,8 @@ static void __exit nfnetlink_queue_fini(void)
 #endif
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
+
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
 MODULE_DESCRIPTION("netfilter packet queue handler");

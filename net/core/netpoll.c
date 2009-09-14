@@ -24,6 +24,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>
+#include <trace/events/napi.h>
 
 /*
  * We maintain a small pool of fully-sized skbs, to make sure the
@@ -137,6 +138,7 @@ static int poll_one_napi(struct netpoll_info *npinfo,
 	set_bit(NAPI_STATE_NPSVC, &napi->state);
 
 	work = napi->poll(napi, budget);
+	trace_napi_poll(napi);
 
 	clear_bit(NAPI_STATE_NPSVC, &napi->state);
 	atomic_dec(&trapped);
@@ -300,8 +302,11 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
 			if (__netif_tx_trylock(txq)) {
-				if (!netif_tx_queue_stopped(txq))
+				if (!netif_tx_queue_stopped(txq)) {
 					status = ops->ndo_start_xmit(skb, dev);
+					if (status == NETDEV_TX_OK)
+						txq_trans_update(txq);
+				}
 				__netif_tx_unlock(txq);
 
 				if (status == NETDEV_TX_OK)
@@ -314,6 +319,11 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 			udelay(USEC_PER_POLL);
 		}
+
+		WARN_ONCE(!irqs_disabled(),
+			"netpoll_send_skb(): %s enabled interrupts in poll (%pF)\n",
+			dev->name, ops->ndo_start_xmit);
+
 		local_irq_restore(flags);
 	}
 
@@ -735,7 +745,7 @@ int netpoll_setup(struct netpoll *np)
 				       np->name);
 				break;
 			}
-			cond_resched();
+			msleep(1);
 		}
 
 		/* If carrier appears to come up instantly, we don't

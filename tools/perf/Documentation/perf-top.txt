@@ -1,0 +1,125 @@
+perf-top(1)
+===========
+
+NAME
+----
+perf-top - System profiling tool.
+
+SYNOPSIS
+--------
+[verse]
+'perf top' [-e <EVENT> | --event=EVENT] [<options>]
+
+DESCRIPTION
+-----------
+This command generates and displays a performance counter profile in realtime.
+
+
+OPTIONS
+-------
+-a::
+--all-cpus::
+        System-wide collection.  (default)
+
+-c <count>::
+--count=<count>::
+	Event period to sample.
+
+-C <cpu>::
+--CPU=<cpu>::
+	CPU to profile.
+
+-d <seconds>::
+--delay=<seconds>::
+	Number of seconds to delay between refreshes.
+
+-e <event>::
+--event=<event>::
+	Select the PMU event. Selection can be a symbolic event name
+	(use 'perf list' to list all events) or a raw PMU
+	event (eventsel+umask) in the form of rNNN where NNN is a
+	hexadecimal event descriptor.
+
+-E <entries>::
+--entries=<entries>::
+	Display this many functions.
+
+-f <count>::
+--count-filter=<count>::
+	Only display functions with more events than this.
+
+-F <freq>::
+--freq=<freq>::
+	Profile at this frequency.
+
+-i::
+--inherit::
+	Child tasks inherit counters, only makes sens with -p option.
+
+-k <path>::
+--vmlinux=<path>::
+	Path to vmlinux.  Required for annotation functionality.
+
+-m <pages>::
+--mmap-pages=<pages>::
+	Number of mmapped data pages.
+
+-p <pid>::
+--pid=<pid>::
+	Profile events on existing pid.
+
+-r <priority>::
+--realtime=<priority>::
+	Collect data with this RT SCHED_FIFO priority.
+
+-s <symbol>::
+--sym-annotate=<symbol>::
+        Annotate this symbol.  Requires -k option.
+
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
+
+-z::
+--zero::
+	Zero history across display updates.
+
+INTERACTIVE PROMPTING KEYS
+--------------------------
+
+[d]::
+	Display refresh delay.
+
+[e]::
+	Number of entries to display.
+
+[E]::
+	Event to display when multiple counters are active.
+
+[f]::
+	Profile display filter (>= hit count).
+
+[F]::
+	Annotation display filter (>= % of total).
+
+[s]::
+	Annotate symbol.
+
+[S]::
+	Stop annotation, return to full profile display.
+
+[w]::
+	Toggle between weighted sum and individual count[E]r profile.
+
+[z]::
+	Toggle event count zeroing across display updates.
+
+[qQ]::
+	Quit.
+
+Pressing any unmapped key displays a menu, and prompts for input.
+
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-list[1]

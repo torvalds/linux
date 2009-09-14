@@ -16,6 +16,7 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include "affs.h"
 
 extern struct timezone sys_tz;
@@ -24,47 +25,65 @@ static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
+affs_commit_super(struct super_block *sb, int clean)
+{
+	struct affs_sb_info *sbi = AFFS_SB(sb);
+	struct buffer_head *bh = sbi->s_root_bh;
+	struct affs_root_tail *tail = AFFS_ROOT_TAIL(sb, bh);
+
+	tail->bm_flag = cpu_to_be32(clean);
+	secs_to_datestamp(get_seconds(), &tail->disk_change);
+	affs_fix_checksum(sb, bh);
+	mark_buffer_dirty(bh);
+}
+
+static void
 affs_put_super(struct super_block *sb)
 {
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	pr_debug("AFFS: put_super()\n");
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(1);
-		secs_to_datestamp(get_seconds(),
-				  &AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->disk_change);
-		affs_fix_checksum(sb, sbi->s_root_bh);
-		mark_buffer_dirty(sbi->s_root_bh);
-	}
+	lock_kernel();
+
+	if (!(sb->s_flags & MS_RDONLY))
+		affs_commit_super(sb, 1);
 
 	kfree(sbi->s_prefix);
 	affs_free_bitmap(sb);
 	affs_brelse(sbi->s_root_bh);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
-	return;
+
+	unlock_kernel();
 }
 
 static void
 affs_write_super(struct super_block *sb)
 {
 	int clean = 2;
-	struct affs_sb_info *sbi = AFFS_SB(sb);
 
+	lock_super(sb);
 	if (!(sb->s_flags & MS_RDONLY)) {
 		//	if (sbi->s_bitmap[i].bm_bh) {
 		//		if (buffer_dirty(sbi->s_bitmap[i].bm_bh)) {
 		//			clean = 0;
-		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(clean);
-		secs_to_datestamp(get_seconds(),
-				  &AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->disk_change);
-		affs_fix_checksum(sb, sbi->s_root_bh);
-		mark_buffer_dirty(sbi->s_root_bh);
+		affs_commit_super(sb, clean);
 		sb->s_dirt = !clean;	/* redo until bitmap synced */
 	} else
 		sb->s_dirt = 0;
+	unlock_super(sb);
 
 	pr_debug("AFFS: write_super() at %lu, clean=%d\n", get_seconds(), clean);
+}
+
+static int
+affs_sync_fs(struct super_block *sb, int wait)
+{
+	lock_super(sb);
+	affs_commit_super(sb, 2);
+	sb->s_dirt = 0;
+	unlock_super(sb);
+	return 0;
 }
 
 static struct kmem_cache * affs_inode_cachep;
@@ -124,6 +143,7 @@ static const struct super_operations affs_sops = {
 	.clear_inode	= affs_clear_inode,
 	.put_super	= affs_put_super,
 	.write_super	= affs_write_super,
+	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
 	.remount_fs	= affs_remount,
 	.show_options	= generic_show_options,
@@ -507,6 +527,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		kfree(new_opts);
 		return -EINVAL;
 	}
+	lock_kernel();
 	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
@@ -514,8 +535,10 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	sbi->s_uid   = uid;
 	sbi->s_gid   = gid;
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+		unlock_kernel();
 		return 0;
+	}
 	if (*flags & MS_RDONLY) {
 		sb->s_dirt = 1;
 		while (sb->s_dirt)
@@ -524,6 +547,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	} else
 		res = affs_init_bitmap(sb, flags);
 
+	unlock_kernel();
 	return res;
 }
 

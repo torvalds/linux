@@ -28,6 +28,8 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
@@ -71,12 +73,6 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	/* Identify the PHY */
 	hw->phy.ops.identify(hw);
 
-	/*
-	 * Store MAC address from RAR0, clear receive address registers, and
-	 * clear the multicast table
-	 */
-	hw->mac.ops.init_rx_addrs(hw);
-
 	/* Clear the VLAN filter table */
 	hw->mac.ops.clear_vfta(hw);
 
@@ -88,6 +84,9 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	ctrl_ext |= IXGBE_CTRL_EXT_NS_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
 	IXGBE_WRITE_FLUSH(hw);
+
+	/* Setup flow control */
+	ixgbe_setup_fc(hw, 0);
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
@@ -107,13 +106,17 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw)
 {
+	s32 status;
+
 	/* Reset the hardware */
-	hw->mac.ops.reset_hw(hw);
+	status = hw->mac.ops.reset_hw(hw);
 
-	/* Start the HW */
-	hw->mac.ops.start_hw(hw);
+	if (status == 0) {
+		/* Start the HW */
+		status = hw->mac.ops.start_hw(hw);
+	}
 
-	return 0;
+	return status;
 }
 
 /**
@@ -1362,15 +1365,14 @@ static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
  *  Drivers using secondary unicast addresses must set user_set_promisc when
  *  manually putting the device into promiscuous mode.
  **/
-s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
-                              u32 addr_count, ixgbe_mc_addr_itr next)
+s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
+				      struct list_head *uc_list)
 {
-	u8 *addr;
 	u32 i;
 	u32 old_promisc_setting = hw->addr_ctrl.overflow_promisc;
 	u32 uc_addr_in_use;
 	u32 fctrl;
-	u32 vmdq;
+	struct netdev_hw_addr *ha;
 
 	/*
 	 * Clear accounting of old secondary address list,
@@ -1388,10 +1390,9 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
 	}
 
 	/* Add the new addresses */
-	for (i = 0; i < addr_count; i++) {
+	list_for_each_entry(ha, uc_list, list) {
 		hw_dbg(hw, " Adding the secondary addresses:\n");
-		addr = next(hw, &addr_list, &vmdq);
-		ixgbe_add_uc_addr(hw, addr, vmdq);
+		ixgbe_add_uc_addr(hw, ha->addr, 0);
 	}
 
 	if (hw->addr_ctrl.overflow_promisc) {
@@ -1583,19 +1584,30 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_fc_enable - Enable flow control
+ *  ixgbe_fc_enable_generic - Enable flow control
  *  @hw: pointer to hardware structure
  *  @packetbuf_num: packet buffer number (0-7)
  *
  *  Enable flow control according to the current settings.
  **/
-s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
+s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 {
 	s32 ret_val = 0;
-	u32 mflcn_reg;
-	u32 fccfg_reg;
+	u32 mflcn_reg, fccfg_reg;
 	u32 reg;
+	u32 rx_pba_size;
 
+#ifdef CONFIG_DCB
+	if (hw->fc.requested_mode == ixgbe_fc_pfc)
+		goto out;
+
+#endif /* CONFIG_DCB */
+	/* Negotiate the fc mode to use */
+	ret_val = ixgbe_fc_autoneg(hw);
+	if (ret_val)
+		goto out;
+
+	/* Disable any previous flow control settings */
 	mflcn_reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 	mflcn_reg &= ~(IXGBE_MFLCN_RFCE | IXGBE_MFLCN_RPFCE);
 
@@ -1615,7 +1627,10 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 */
 	switch (hw->fc.current_mode) {
 	case ixgbe_fc_none:
-		/* Flow control completely disabled by software override. */
+		/*
+		 * Flow control is disabled by software override or autoneg.
+		 * The code below will actually disable it in the HW.
+		 */
 		break;
 	case ixgbe_fc_rx_pause:
 		/*
@@ -1644,7 +1659,7 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
 	case ixgbe_fc_pfc:
 		goto out;
 		break;
-#endif
+#endif /* CONFIG_DCB */
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
 		ret_val = -IXGBE_ERR_CONFIG;
@@ -1652,25 +1667,48 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
 		break;
 	}
 
-	/* Enable 802.3x based flow control settings. */
+	/* Set 802.3x based flow control settings. */
+	mflcn_reg |= IXGBE_MFLCN_DPF;
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
-	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-		if (hw->fc.send_xon)
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num),
-			                (hw->fc.low_water | IXGBE_FCRTL_XONE));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num),
-			                hw->fc.low_water);
+	reg = IXGBE_READ_REG(hw, IXGBE_MTQC);
+	/* Thresholds are different for link flow control when in DCB mode */
+	if (reg & IXGBE_MTQC_RT_ENA) {
+		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
 
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
-		                (hw->fc.high_water | IXGBE_FCRTH_FCEN));
+		/* Always disable XON for LFC when in DCB mode */
+		reg = (rx_pba_size >> 5) & 0xFFE0;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), reg);
+
+		reg = (rx_pba_size >> 2) & 0xFFE0;
+		if (hw->fc.current_mode & ixgbe_fc_tx_pause)
+			reg |= IXGBE_FCRTH_FCEN;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), reg);
+	} else {
+		/*
+		 * Set up and enable Rx high/low water mark thresholds,
+		 * enable XON.
+		 */
+		if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+			if (hw->fc.send_xon) {
+				IXGBE_WRITE_REG(hw,
+				              IXGBE_FCRTL_82599(packetbuf_num),
+			                      (hw->fc.low_water |
+				              IXGBE_FCRTL_XONE));
+			} else {
+				IXGBE_WRITE_REG(hw,
+				              IXGBE_FCRTL_82599(packetbuf_num),
+				              hw->fc.low_water);
+			}
+
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
+			               (hw->fc.high_water | IXGBE_FCRTH_FCEN));
+		}
 	}
 
 	/* Configure pause time (2 TCs per register) */
-	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num));
+	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
 	if ((packetbuf_num & 1) == 0)
 		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
 	else
@@ -1687,100 +1725,41 @@ out:
  *  ixgbe_fc_autoneg - Configure flow control
  *  @hw: pointer to hardware structure
  *
- *  Negotiates flow control capabilities with link partner using autoneg and
- *  applies the results.
+ *  Compares our advertised flow control capabilities to those advertised by
+ *  our link partner, and determines the proper flow control mode to use.
  **/
 s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
-	u32 i, reg, pcs_anadv_reg, pcs_lpab_reg;
-
-	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+	ixgbe_link_speed speed;
+	u32 pcs_anadv_reg, pcs_lpab_reg, linkstat;
+	bool link_up;
 
 	/*
-	 * The possible values of fc.current_mode are:
-	 * 0:  Flow control is completely disabled
-	 * 1:  Rx flow control is enabled (we can receive pause frames,
-	 *     but not send pause frames).
-	 * 2:  Tx flow control is enabled (we can send pause frames but
-	 *     we do not support receiving pause frames).
-	 * 3:  Both Rx and Tx flow control (symmetric) are enabled.
-	 * 4:  Priority Flow Control is enabled.
-	 * other: Invalid.
+	 * AN should have completed when the cable was plugged in.
+	 * Look for reasons to bail out.  Bail out if:
+	 * - FC autoneg is disabled, or if
+	 * - we don't have multispeed fiber, or if
+	 * - we're not running at 1G, or if
+	 * - link is not up, or if
+	 * - link is up but AN did not complete, or if
+	 * - link is up and AN completed but timed out
+	 *
+	 * Since we're being called from an LSC, link is already know to be up.
+	 * So use link_up_wait_to_complete=false.
 	 */
-	switch (hw->fc.current_mode) {
-	case ixgbe_fc_none:
-		/* Flow control completely disabled by software override. */
-		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
-		break;
-	case ixgbe_fc_rx_pause:
-		/*
-		 * Rx Flow control is enabled and Tx Flow control is
-		 * disabled by software override. Since there really
-		 * isn't a way to advertise that we are capable of RX
-		 * Pause ONLY, we will advertise that we support both
-		 * symmetric and asymmetric Rx PAUSE.  Later, we will
-		 * disable the adapter's ability to send PAUSE frames.
-		 */
-		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
-		break;
-	case ixgbe_fc_tx_pause:
-		/*
-		 * Tx Flow control is enabled, and Rx Flow control is
-		 * disabled by software override.
-		 */
-		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
-		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
-		break;
-	case ixgbe_fc_full:
-		/* Flow control (both Rx and Tx) is enabled by SW override. */
-		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
-		break;
-#ifdef CONFIG_DCB
-	case ixgbe_fc_pfc:
-		goto out;
-		break;
-#endif
-	default:
-		hw_dbg(hw, "Flow control param set incorrectly\n");
-		ret_val = -IXGBE_ERR_CONFIG;
-		goto out;
-		break;
-	}
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
+	linkstat = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
 
-	IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
-	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
-
-	/* Set PCS register for autoneg */
-	/* Enable and restart autoneg */
-	reg |= IXGBE_PCS1GLCTL_AN_ENABLE | IXGBE_PCS1GLCTL_AN_RESTART;
-
-	/* Disable AN timeout */
-	if (hw->fc.strict_ieee)
-		reg &= ~IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN;
-
-	hw_dbg(hw, "Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
-	IXGBE_WRITE_REG(hw, IXGBE_PCS1GLCTL, reg);
-
-	/* See if autonegotiation has succeeded */
-	hw->mac.autoneg_succeeded = 0;
-	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
-		msleep(10);
-		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
-		if ((reg & (IXGBE_PCS1GLSTA_LINK_OK |
-		     IXGBE_PCS1GLSTA_AN_COMPLETE)) ==
-		    (IXGBE_PCS1GLSTA_LINK_OK |
-		     IXGBE_PCS1GLSTA_AN_COMPLETE)) {
-			if (!(reg & IXGBE_PCS1GLSTA_AN_TIMED_OUT))
-				hw->mac.autoneg_succeeded = 1;
-			break;
-		}
-	}
-
-	if (!hw->mac.autoneg_succeeded) {
-		/* Autoneg failed to achieve a link, so we turn fc off */
-		hw->fc.current_mode = ixgbe_fc_none;
-		hw_dbg(hw, "Flow Control = NONE.\n");
+	if (hw->fc.disable_fc_autoneg ||
+	    !hw->phy.multispeed_fiber ||
+	    (speed != IXGBE_LINK_SPEED_1GB_FULL) ||
+	    !link_up ||
+	    ((linkstat & IXGBE_PCS1GLSTA_AN_COMPLETE) == 0) ||
+	    ((linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1)) {
+		hw->fc.fc_was_autonegged = false;
+		hw->fc.current_mode = hw->fc.requested_mode;
+		hw_dbg(hw, "Autoneg FC was skipped.\n");
 		goto out;
 	}
 
@@ -1823,21 +1802,23 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 		hw_dbg(hw, "Flow Control = NONE.\n");
 	}
 
+	/* Record that current_mode is the result of a successful autoneg */
+	hw->fc.fc_was_autonegged = true;
+
 out:
 	return ret_val;
 }
 
 /**
- *  ixgbe_setup_fc_generic - Set up flow control
+ *  ixgbe_setup_fc - Set up flow control
  *  @hw: pointer to hardware structure
  *
- *  Sets up flow control.
+ *  Called at init time to set up flow control.
  **/
-s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
+s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 {
 	s32 ret_val = 0;
-	ixgbe_link_speed speed;
-	bool link_up;
+	u32 reg;
 
 #ifdef CONFIG_DCB
 	if (hw->fc.requested_mode == ixgbe_fc_pfc) {
@@ -1866,7 +1847,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 
 	/*
 	 * Validate the requested mode.  Strict IEEE mode does not allow
-	 * ixgbe_fc_rx_pause because it will cause testing anomalies.
+	 * ixgbe_fc_rx_pause because it will cause us to fail at UNH.
 	 */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
 		hw_dbg(hw, "ixgbe_fc_rx_pause not valid in strict "
@@ -1883,21 +1864,77 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 		hw->fc.requested_mode = ixgbe_fc_full;
 
 	/*
-	 * Save off the requested flow control mode for use later.  Depending
-	 * on the link partner's capabilities, we may or may not use this mode.
+	 * Set up the 1G flow control advertisement registers so the HW will be
+	 * able to do fc autoneg once the cable is plugged in.  If we end up
+	 * using 10g instead, this is harmless.
 	 */
-	hw->fc.current_mode = hw->fc.requested_mode;
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
 
-	/* Decide whether to use autoneg or not. */
-	hw->mac.ops.check_link(hw, &speed, &link_up, false);
-	if (!hw->fc.disable_fc_autoneg && hw->phy.multispeed_fiber &&
-	    (speed == IXGBE_LINK_SPEED_1GB_FULL))
-		ret_val = ixgbe_fc_autoneg(hw);
-
-	if (ret_val)
+	/*
+	 * The possible values of fc.requested_mode are:
+	 * 0: Flow control is completely disabled
+	 * 1: Rx flow control is enabled (we can receive pause frames,
+	 *    but not send pause frames).
+	 * 2: Tx flow control is enabled (we can send pause frames but
+	 *    we do not support receiving pause frames).
+	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
+#ifdef CONFIG_DCB
+	 * 4: Priority Flow Control is enabled.
+#endif
+	 * other: Invalid.
+	 */
+	switch (hw->fc.requested_mode) {
+	case ixgbe_fc_none:
+		/* Flow control completely disabled by software override. */
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_rx_pause:
+		/*
+		 * Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
+		break;
+	case ixgbe_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by SW override. */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+#ifdef CONFIG_DCB
+	case ixgbe_fc_pfc:
 		goto out;
+		break;
+#endif /* CONFIG_DCB */
+	default:
+		hw_dbg(hw, "Flow control param set incorrectly\n");
+		ret_val = -IXGBE_ERR_CONFIG;
+		goto out;
+		break;
+	}
 
-	ret_val = ixgbe_fc_enable(hw, packetbuf_num);
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
+
+	/* Enable and restart autoneg to inform the link partner */
+	reg |= IXGBE_PCS1GLCTL_AN_ENABLE | IXGBE_PCS1GLCTL_AN_RESTART;
+
+	/* Disable AN timeout */
+	if (hw->fc.strict_ieee)
+		reg &= ~IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN;
+
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GLCTL, reg);
+	hw_dbg(hw, "Set up FC; PCS1GLCTL = 0x%08X\n", reg);
 
 out:
 	return ret_val;
@@ -2044,6 +2081,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 
 	if (!link_up) {
+		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 		msleep(10);

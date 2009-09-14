@@ -65,8 +65,9 @@ static int __init br_init(void)
 	brioctl_set(br_ioctl_deviceless_stub);
 	br_handle_frame_hook = br_handle_frame;
 
-	br_fdb_get_hook = br_fdb_get;
-	br_fdb_put_hook = br_fdb_put;
+#if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
+	br_fdb_test_addr_hook = br_fdb_test_addr;
+#endif
 
 	return 0;
 err_out4:
@@ -92,11 +93,12 @@ static void __exit br_deinit(void)
 
 	unregister_pernet_subsys(&br_net_ops);
 
-	synchronize_net();
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
 	br_netfilter_fini();
-	br_fdb_get_hook = NULL;
-	br_fdb_put_hook = NULL;
+#if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
+	br_fdb_test_addr_hook = NULL;
+#endif
 
 	br_handle_frame_hook = NULL;
 	br_fdb_fini();

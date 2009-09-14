@@ -1470,6 +1470,41 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* Edirol M-16DX */
+	/* FIXME: This quirk gives a good-working capture stream but the
+	 *        playback seems problematic because of lacking of sync
+	 *        with capture stream.  It needs to sync with the capture
+	 *        clock.  As now, you'll get frequent sound distortions
+	 *        via the playback.
+	 */
+	USB_DEVICE(0x0582, 0x00c4),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* BOSS GT-10 */
 	USB_DEVICE(0x0582, 0x00da),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1948,6 +1983,14 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.product_name = "PHASE 26",
 		.ifnum = 3,
 		.type = QUIRK_MIDI_STANDARD_INTERFACE
+	}
+},
+{
+	USB_DEVICE(0x0ccd, 0x0028),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "TerraTec",
+		.product_name = "Aureon5.1MkII",
+		.ifnum = QUIRK_NO_INTERFACE
 	}
 },
 {

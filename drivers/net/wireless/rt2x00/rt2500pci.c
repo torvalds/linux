@@ -341,10 +341,11 @@ static void rt2500pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	preamble_mask = erp->short_preamble << 3;
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT,
-			   erp->ack_timeout);
+	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT, erp->ack_timeout);
 	rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME,
 			   erp->ack_consume_time);
+	rt2x00_set_field32(&reg, TXCSR1_TSF_OFFSET, IEEE80211_HEADER);
+	rt2x00_set_field32(&reg, TXCSR1_AUTORESPONDER, 1);
 	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
@@ -376,6 +377,11 @@ static void rt2500pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_read(rt2x00dev, CSR11, &reg);
 	rt2x00_set_field32(&reg, CSR11_SLOT_TIME, erp->slot_time);
 	rt2x00pci_register_write(rt2x00dev, CSR11, reg);
+
+	rt2x00pci_register_read(rt2x00dev, CSR12, &reg);
+	rt2x00_set_field32(&reg, CSR12_BEACON_INTERVAL, erp->beacon_int * 16);
+	rt2x00_set_field32(&reg, CSR12_CFP_MAX_DURATION, erp->beacon_int * 16);
+	rt2x00pci_register_write(rt2x00dev, CSR12, reg);
 
 	rt2x00pci_register_read(rt2x00dev, CSR18, &reg);
 	rt2x00_set_field32(&reg, CSR18_SIFS, erp->sifs);
@@ -552,24 +558,6 @@ static void rt2500pci_config_retry_limit(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, CSR11, reg);
 }
 
-static void rt2500pci_config_duration(struct rt2x00_dev *rt2x00dev,
-				      struct rt2x00lib_conf *libconf)
-{
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
-	rt2x00_set_field32(&reg, TXCSR1_TSF_OFFSET, IEEE80211_HEADER);
-	rt2x00_set_field32(&reg, TXCSR1_AUTORESPONDER, 1);
-	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
-
-	rt2x00pci_register_read(rt2x00dev, CSR12, &reg);
-	rt2x00_set_field32(&reg, CSR12_BEACON_INTERVAL,
-			   libconf->conf->beacon_int * 16);
-	rt2x00_set_field32(&reg, CSR12_CFP_MAX_DURATION,
-			   libconf->conf->beacon_int * 16);
-	rt2x00pci_register_write(rt2x00dev, CSR12, reg);
-}
-
 static void rt2500pci_config_ps(struct rt2x00_dev *rt2x00dev,
 				struct rt2x00lib_conf *libconf)
 {
@@ -581,7 +569,7 @@ static void rt2500pci_config_ps(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_SLEEP) {
 		rt2x00pci_register_read(rt2x00dev, CSR20, &reg);
 		rt2x00_set_field32(&reg, CSR20_DELAY_AFTER_TBCN,
-				   (libconf->conf->beacon_int - 20) * 16);
+				   (rt2x00dev->beacon_int - 20) * 16);
 		rt2x00_set_field32(&reg, CSR20_TBCN_BEFORE_WAKEUP,
 				   libconf->conf->listen_interval - 1);
 
@@ -609,8 +597,6 @@ static void rt2500pci_config(struct rt2x00_dev *rt2x00dev,
 					 libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt2500pci_config_retry_limit(rt2x00dev, libconf);
-	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
-		rt2500pci_config_duration(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_PS)
 		rt2500pci_config_ps(rt2x00dev, libconf);
 }
@@ -1525,7 +1511,7 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, CSR0, &reg);
-	rt2x00_set_chip(rt2x00dev, RT2560, value, reg);
+	rt2x00_set_chip_rf(rt2x00dev, value, reg);
 
 	if (!rt2x00_rf(&rt2x00dev->chip, RF2522) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF2523) &&
@@ -1879,7 +1865,6 @@ static const struct ieee80211_ops rt2500pci_mac80211_ops = {
 	.add_interface		= rt2x00mac_add_interface,
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
-	.config_interface	= rt2x00mac_config_interface,
 	.configure_filter	= rt2x00mac_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,

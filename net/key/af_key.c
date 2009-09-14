@@ -3662,8 +3662,8 @@ static int pfkey_seq_show(struct seq_file *f, void *v)
 		seq_printf(f ,"%p %-6d %-6u %-6u %-6u %-6lu\n",
 			       s,
 			       atomic_read(&s->sk_refcnt),
-			       atomic_read(&s->sk_rmem_alloc),
-			       atomic_read(&s->sk_wmem_alloc),
+			       sk_rmem_alloc_get(s),
+			       sk_wmem_alloc_get(s),
 			       sock_i_uid(s),
 			       sock_i_ino(s)
 			       );

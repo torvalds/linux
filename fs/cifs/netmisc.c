@@ -133,10 +133,12 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 	{0, 0}
 };
 
-/* Convert string containing dotted ip address to binary form */
-/* returns 0 if invalid address */
-
-int
+/*
+ * Convert a string containing text IPv4 or IPv6 address to binary form.
+ *
+ * Returns 0 on failure.
+ */
+static int
 cifs_inet_pton(const int address_family, const char *cp, void *dst)
 {
 	int ret = 0;
@@ -151,6 +153,52 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
 	if (ret > 0)
 		ret = 1;
 	return ret;
+}
+
+/*
+ * Try to convert a string to an IPv4 address and then attempt to convert
+ * it to an IPv6 address if that fails. Set the family field if either
+ * succeeds. If it's an IPv6 address and it has a '%' sign in it, try to
+ * treat the part following it as a numeric sin6_scope_id.
+ *
+ * Returns 0 on failure.
+ */
+int
+cifs_convert_address(char *src, void *dst)
+{
+	int rc;
+	char *pct, *endp;
+	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
+	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
+
+	/* IPv4 address */
+	if (cifs_inet_pton(AF_INET, src, &s4->sin_addr.s_addr)) {
+		s4->sin_family = AF_INET;
+		return 1;
+	}
+
+	/* temporarily terminate string */
+	pct = strchr(src, '%');
+	if (pct)
+		*pct = '\0';
+
+	rc = cifs_inet_pton(AF_INET6, src, &s6->sin6_addr.s6_addr);
+
+	/* repair temp termination (if any) and make pct point to scopeid */
+	if (pct)
+		*pct++ = '%';
+
+	if (!rc)
+		return rc;
+
+	s6->sin6_family = AF_INET6;
+	if (pct) {
+		s6->sin6_scope_id = (u32) simple_strtoul(pct, &endp, 0);
+		if (!*pct || *endp)
+			return 0;
+	}
+
+	return rc;
 }
 
 /*****************************************************************************
@@ -853,12 +901,12 @@ smbCalcSize_LE(struct smb_hdr *ptr)
 
 #define NTFS_TIME_OFFSET ((u64)(369*365 + 89) * 24 * 3600 * 10000000)
 
-    /*
-     * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
-     * into Unix UTC (based 1970-01-01, in seconds).
-     */
+/*
+ * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
+ * into Unix UTC (based 1970-01-01, in seconds).
+ */
 struct timespec
-cifs_NTtimeToUnix(u64 ntutc)
+cifs_NTtimeToUnix(__le64 ntutc)
 {
 	struct timespec ts;
 	/* BB what about the timezone? BB */
@@ -866,7 +914,7 @@ cifs_NTtimeToUnix(u64 ntutc)
 	/* Subtract the NTFS time offset, then convert to 1s intervals. */
 	u64 t;
 
-	t = ntutc - NTFS_TIME_OFFSET;
+	t = le64_to_cpu(ntutc) - NTFS_TIME_OFFSET;
 	ts.tv_nsec = do_div(t, 10000000) * 100;
 	ts.tv_sec = t;
 	return ts;
@@ -883,16 +931,12 @@ cifs_UnixTimeToNT(struct timespec t)
 static int total_days_of_prev_months[] =
 {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
 
-
-__le64 cnvrtDosCifsTm(__u16 date, __u16 time)
-{
-	return cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(date, time)));
-}
-
-struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
+struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 {
 	struct timespec ts;
 	int sec, min, days, month, year;
+	u16 date = le16_to_cpu(le_date);
+	u16 time = le16_to_cpu(le_time);
 	SMB_TIME *st = (SMB_TIME *)&time;
 	SMB_DATE *sd = (SMB_DATE *)&date;
 
@@ -933,7 +977,7 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
 	sec += 24 * 60 * 60 * days;
 
-	ts.tv_sec = sec;
+	ts.tv_sec = sec + offset;
 
 	/* cFYI(1,("sec after cnvrt dos to unix time %d",sec)); */
 
