@@ -98,7 +98,7 @@ int i2400mu_notification_grok(struct i2400mu *i2400mu, const void *buf,
 	}
 	ret = i2400m_is_boot_barker(i2400m, buf, buf_len);
 	if (unlikely(ret >= 0))
-		ret = i2400m_dev_reset_handle(i2400m);
+		ret = i2400m_dev_reset_handle(i2400m, "device rebooted");
 	else	/* Unknown or unexpected data in the notif message */
 		i2400m_unknown_barker(i2400m, buf, buf_len);
 error_bad_size:

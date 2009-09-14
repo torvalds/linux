@@ -179,7 +179,7 @@ void i2400ms_rx(struct i2400ms *i2400ms)
 		i2400m_rx(i2400m, skb);
 	} else if (unlikely(i2400m_is_boot_barker(i2400m,
 						  skb->data, rx_size))) {
-		ret = i2400m_dev_reset_handle(i2400m);
+		ret = i2400m_dev_reset_handle(i2400m, "device rebooted");
 		dev_err(dev, "RX: SDIO reboot barker\n");
 		kfree_skb(skb);
 	} else {

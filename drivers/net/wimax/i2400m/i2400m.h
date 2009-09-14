@@ -739,7 +739,7 @@ void i2400m_put(struct i2400m *i2400m)
 	dev_put(i2400m->wimax_dev.net_dev);
 }
 
-extern int i2400m_dev_reset_handle(struct i2400m *);
+extern int i2400m_dev_reset_handle(struct i2400m *, const char *);
 extern int i2400m_bm_buf_alloc(struct i2400m *i2400m);
 extern void i2400m_bm_buf_free(struct i2400m *i2400m);
 

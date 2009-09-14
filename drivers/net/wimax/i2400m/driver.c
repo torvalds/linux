@@ -573,18 +573,28 @@ void i2400m_dev_stop(struct i2400m *i2400m)
  *       _stop()], don't do anything, let it fail and handle it.
  *
  * This function is ran always in a thread context
+ *
+ * This function gets passed, as payload to i2400m_work() a 'const
+ * char *' ptr with a "reason" why the reset happened (for messages).
  */
 static
 void __i2400m_dev_reset_handle(struct work_struct *ws)
 {
 	int result;
 	struct i2400m_work *iw = container_of(ws, struct i2400m_work, ws);
+	const char *reason;
 	struct i2400m *i2400m = iw->i2400m;
 	struct device *dev = i2400m_dev(i2400m);
 	enum wimax_st wimax_state;
 	struct i2400m_reset_ctx *ctx = i2400m->reset_ctx;
 
-	d_fnstart(3, dev, "(ws %p i2400m %p)\n", ws, i2400m);
+	if (WARN_ON(iw->pl_size != sizeof(reason)))
+		reason = "SW BUG: reason n/a";
+	else
+		memcpy(&reason, iw->pl, sizeof(reason));
+
+	d_fnstart(3, dev, "(ws %p i2400m %p reason %s)\n", ws, i2400m, reason);
+
 	result = 0;
 	if (mutex_trylock(&i2400m->init_mutex) == 0) {
 		/* We are still in i2400m_dev_start() [let it fail] or
@@ -597,17 +607,17 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 	}
 	wimax_state = wimax_state_get(&i2400m->wimax_dev);
 	if (wimax_state < WIMAX_ST_UNINITIALIZED) {
-		dev_info(dev, "device rebooted: it is down, ignoring\n");
+		dev_info(dev, "%s: it is down, ignoring\n", reason);
 		goto out_unlock;	/* ifconfig up/down wasn't called */
 	}
-	dev_err(dev, "device rebooted: reinitializing driver\n");
+	dev_err(dev, "%s: reinitializing driver\n", reason);
 	__i2400m_dev_stop(i2400m);
 	i2400m->updown = 0;
 	result = __i2400m_dev_start(i2400m,
 				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
 	if (result < 0) {
-		dev_err(dev, "device reboot: cannot start the device: %d\n",
-			result);
+		dev_err(dev, "%s: cannot start the device: %d\n",
+			reason, result);
 		result = i2400m->bus_reset(i2400m, I2400M_RT_BUS);
 		if (result >= 0)
 			result = -ENODEV;
@@ -622,7 +632,8 @@ out_unlock:
 out:
 	i2400m_put(i2400m);
 	kfree(iw);
-	d_fnend(3, dev, "(ws %p i2400m %p) = void\n", ws, i2400m);
+	d_fnend(3, dev, "(ws %p i2400m %p reason %s) = void\n",
+		ws, i2400m, reason);
 	return;
 }
 
@@ -639,12 +650,12 @@ out:
  * reinitializing the driver to handle the reset, calling into the
  * bus-specific functions ops as needed.
  */
-int i2400m_dev_reset_handle(struct i2400m *i2400m)
+int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 {
 	i2400m->boot_mode = 1;
 	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
-				    GFP_ATOMIC, NULL, 0);
+				    GFP_ATOMIC, &reason, sizeof(reason));
 }
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 
