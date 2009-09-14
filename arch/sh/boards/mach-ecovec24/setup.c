@@ -24,6 +24,7 @@
 #include <asm/heartbeat.h>
 #include <asm/sh_eth.h>
 #include <asm/sh_keysc.h>
+#include <asm/clock.h>
 #include <cpu/sh7724.h>
 
 /*
