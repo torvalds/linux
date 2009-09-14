@@ -1144,9 +1144,9 @@ static void output_lat_thread(struct task_atoms *atom_list)
 	all_runtime += atom_list->total_runtime;
 	all_count += atom_list->nb_atoms;
 
-	ret = printf(" %s ", atom_list->thread->comm);
+	ret = printf("  %s-%d ", atom_list->thread->comm, atom_list->thread->pid);
 
-	for (i = 0; i < 19 - ret; i++)
+	for (i = 0; i < 24 - ret; i++)
 		printf(" ");
 
 	avg = atom_list->total_lat / atom_list->nb_atoms;
@@ -1296,9 +1296,9 @@ static void __cmd_lat(void)
 	read_events();
 	sort_lat();
 
-	printf("-----------------------------------------------------------------------------------\n");
-	printf(" Task              |  Runtime ms | Switches | Average delay ms | Maximum delay ms |\n");
-	printf("-----------------------------------------------------------------------------------\n");
+	printf("\n ---------------------------------------------------------------------------------------\n");
+	printf("  Task                  |  Runtime ms | Switches | Average delay ms | Maximum delay ms |\n");
+	printf(" ---------------------------------------------------------------------------------------\n");
 
 	next = rb_first(&sorted_atom_root);
 
@@ -1310,8 +1310,8 @@ static void __cmd_lat(void)
 		next = rb_next(next);
 	}
 
-	printf("-----------------------------------------------------------------------------------\n");
-	printf(" TOTAL:            |%9.3f ms |%9Ld |",
+	printf(" ---------------------------------------------------------------------------------------\n");
+	printf("  TOTAL:                |%9.3f ms |%9Ld |",
 		(double)all_runtime/1e6, all_count);
 
 	if (unordered_timestamps && nr_timestamps) {
@@ -1321,7 +1321,7 @@ static void __cmd_lat(void)
 		printf("\n");
 	}
 
-	printf("---------------------------------------------\n");
+	printf(" -------------------------------------------------\n\n");
 }
 
 static struct trace_sched_handler *trace_handler;
