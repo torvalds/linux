@@ -1054,6 +1054,9 @@ static void remove_subsystem_dir(const char *name)
 	}
 }
 
+/*
+ * Must be called under locking both of event_mutex and trace_event_mutex.
+ */
 static void __trace_remove_event_call(struct ftrace_event_call *call)
 {
 	ftrace_event_enable_disable(call, 0);
@@ -1070,7 +1073,9 @@ static void __trace_remove_event_call(struct ftrace_event_call *call)
 void trace_remove_event_call(struct ftrace_event_call *call)
 {
 	mutex_lock(&event_mutex);
+	down_write(&trace_event_mutex);
 	__trace_remove_event_call(call);
+	up_write(&trace_event_mutex);
 	mutex_unlock(&event_mutex);
 }
 
