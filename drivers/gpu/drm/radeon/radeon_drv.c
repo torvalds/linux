@@ -286,7 +286,7 @@ static struct drm_driver kms_driver = {
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
-		 .compat_ioctl = NULL,
+		 .compat_ioctl = radeon_kms_compat_ioctl,
 #endif
 	},
 

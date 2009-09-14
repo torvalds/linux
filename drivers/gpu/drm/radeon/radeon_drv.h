@@ -471,6 +471,8 @@ extern int radeon_driver_open(struct drm_device *dev,
 			      struct drm_file *file_priv);
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
+extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
+				    unsigned long arg);
 
 extern int radeon_master_create(struct drm_device *dev, struct drm_master *master);
 extern void radeon_master_destroy(struct drm_device *dev, struct drm_master *master);
