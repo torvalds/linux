@@ -1379,8 +1379,10 @@ et61x251_read(struct file* filp, char __user * buf,
 			    (!list_empty(&cam->outqueue)) ||
 			    (cam->state & DEV_DISCONNECTED) ||
 			    (cam->state & DEV_MISCONFIGURED),
-			    cam->module_param.frame_timeout *
-			    1000 * msecs_to_jiffies(1) );
+			    msecs_to_jiffies(
+				cam->module_param.frame_timeout * 1000
+			    )
+			  );
 		if (timeout < 0) {
 			mutex_unlock(&cam->fileop_mutex);
 			return timeout;
