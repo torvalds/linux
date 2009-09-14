@@ -34,7 +34,7 @@
 
 static char iucv_userid[80];
 
-static struct proto_ops iucv_sock_ops;
+static const struct proto_ops iucv_sock_ops;
 
 static struct proto iucv_proto = {
 	.name		= "AF_IUCV",
@@ -1682,7 +1682,7 @@ static void iucv_callback_shutdown(struct iucv_path *path, u8 ipuser[16])
 	bh_unlock_sock(sk);
 }
 
-static struct proto_ops iucv_sock_ops = {
+static const struct proto_ops iucv_sock_ops = {
 	.family		= PF_IUCV,
 	.owner		= THIS_MODULE,
 	.release	= iucv_sock_release,
