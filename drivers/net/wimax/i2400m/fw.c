@@ -105,6 +105,13 @@
  * read an acknolwedgement from it (or an asynchronous notification)
  * from it.
  *
+ * FIRMWARE LOADING
+ *
+ * Note that in some cases, we can't just load a firmware file (for
+ * example, when resuming). For that, we might cache the firmware
+ * file. Thus, when doing the bootstrap, if there is a cache firmware
+ * file, it is used; if not, loading from disk is attempted.
+ *
  * ROADMAP
  *
  * i2400m_barker_db_init              Called by i2400m_driver_init()
@@ -114,9 +121,10 @@
  *
  * i2400m_dev_bootstrap               Called by __i2400m_dev_start()
  *   request_firmware
- *   i2400m_fw_check
- *     i2400m_fw_hdr_check
- *   i2400m_fw_dnload
+ *   i2400m_fw_bootstrap
+ *     i2400m_fw_check
+ *       i2400m_fw_hdr_check
+ *     i2400m_fw_dnload
  *   release_firmware
  *
  * i2400m_fw_dnload
@@ -141,6 +149,10 @@
  *
  * i2400m_bm_cmd_prepare              Used by bus-drivers to prep
  *                                    commands before sending
+ *
+ * i2400m_pm_notifier                 Called on Power Management events
+ *   i2400m_fw_cache
+ *   i2400m_fw_uncache
  */
 #include <linux/firmware.h>
 #include <linux/sched.h>
@@ -1459,6 +1471,61 @@ error_dev_rebooted:
 	goto hw_reboot;
 }
 
+static
+int i2400m_fw_bootstrap(struct i2400m *i2400m, const struct firmware *fw,
+			enum i2400m_bri flags)
+{
+	int ret;
+	struct device *dev = i2400m_dev(i2400m);
+	const struct i2400m_bcf_hdr *bcf;	/* Firmware data */
+
+	d_fnstart(5, dev, "(i2400m %p)\n", i2400m);
+	bcf = (void *) fw->data;
+	ret = i2400m_fw_check(i2400m, bcf, fw->size);
+	if (ret >= 0)
+		ret = i2400m_fw_dnload(i2400m, bcf, fw->size, flags);
+	if (ret < 0)
+		dev_err(dev, "%s: cannot use: %d, skipping\n",
+			i2400m->fw_name, ret);
+	kfree(i2400m->fw_hdrs);
+	i2400m->fw_hdrs = NULL;
+	d_fnend(5, dev, "(i2400m %p) = %d\n", i2400m, ret);
+	return ret;
+}
+
+
+/* Refcounted container for firmware data */
+struct i2400m_fw {
+	struct kref kref;
+	const struct firmware *fw;
+};
+
+
+static
+void i2400m_fw_destroy(struct kref *kref)
+{
+	struct i2400m_fw *i2400m_fw =
+		container_of(kref, struct i2400m_fw, kref);
+	release_firmware(i2400m_fw->fw);
+	kfree(i2400m_fw);
+}
+
+
+static
+struct i2400m_fw *i2400m_fw_get(struct i2400m_fw *i2400m_fw)
+{
+	if (i2400m_fw != NULL && i2400m_fw != (void *) ~0)
+		kref_get(&i2400m_fw->kref);
+	return i2400m_fw;
+}
+
+
+static
+void i2400m_fw_put(struct i2400m_fw *i2400m_fw)
+{
+	kref_put(&i2400m_fw->kref, i2400m_fw_destroy);
+}
+
 
 /**
  * i2400m_dev_bootstrap - Bring the device to a known state and upload firmware
@@ -1479,11 +1546,27 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 {
 	int ret, itr;
 	struct device *dev = i2400m_dev(i2400m);
-	const struct firmware *fw;
+	struct i2400m_fw *i2400m_fw;
 	const struct i2400m_bcf_hdr *bcf;	/* Firmware data */
+	const struct firmware *fw;
 	const char *fw_name;
 
 	d_fnstart(5, dev, "(i2400m %p)\n", i2400m);
+
+	ret = -ENODEV;
+	spin_lock(&i2400m->rx_lock);
+	i2400m_fw = i2400m_fw_get(i2400m->fw_cached);
+	spin_unlock(&i2400m->rx_lock);
+	if (i2400m_fw == (void *) ~0) {
+		dev_err(dev, "can't load firmware now!");
+		goto out;
+	} else if (i2400m_fw != NULL) {
+		dev_info(dev, "firmware %s: loading from cache\n",
+			 i2400m->fw_name);
+		ret = i2400m_fw_bootstrap(i2400m, i2400m_fw->fw, flags);
+		i2400m_fw_put(i2400m_fw);
+		goto out;
+	}
 
 	/* Load firmware files to memory. */
 	for (itr = 0, bcf = NULL, ret = -ENOENT; ; itr++) {
@@ -1500,21 +1583,71 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 				fw_name, ret);
 			continue;
 		}
-		bcf = (void *) fw->data;
 		i2400m->fw_name = fw_name;
-		ret = i2400m_fw_check(i2400m, bcf, fw->size);
-		if (ret >= 0)
-			ret = i2400m_fw_dnload(i2400m, bcf, fw->size, flags);
-		if (ret < 0)
-			dev_err(dev, "%s: cannot use: %d, skipping\n",
-				fw_name, ret);
-		kfree(i2400m->fw_hdrs);
-		i2400m->fw_hdrs = NULL;
+		ret = i2400m_fw_bootstrap(i2400m, fw, flags);
 		release_firmware(fw);
 		if (ret >= 0)	/* firmware loaded succesfully */
 			break;
+		i2400m->fw_name = NULL;
 	}
+out:
 	d_fnend(5, dev, "(i2400m %p) = %d\n", i2400m, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2400m_dev_bootstrap);
+
+
+void i2400m_fw_cache(struct i2400m *i2400m)
+{
+	int result;
+	struct i2400m_fw *i2400m_fw;
+	struct device *dev = i2400m_dev(i2400m);
+
+	/* if there is anything there, free it -- now, this'd be weird */
+	spin_lock(&i2400m->rx_lock);
+	i2400m_fw = i2400m->fw_cached;
+	spin_unlock(&i2400m->rx_lock);
+	if (i2400m_fw != NULL && i2400m_fw != (void *) ~0) {
+		i2400m_fw_put(i2400m_fw);
+		WARN(1, "%s:%u: still cached fw still present?\n",
+		     __func__, __LINE__);
+	}
+
+	if (i2400m->fw_name == NULL) {
+		dev_err(dev, "firmware n/a: can't cache\n");
+		i2400m_fw = (void *) ~0;
+		goto out;
+	}
+
+	i2400m_fw = kzalloc(sizeof(*i2400m_fw), GFP_ATOMIC);
+	if (i2400m_fw == NULL)
+		goto out;
+	kref_init(&i2400m_fw->kref);
+	result = request_firmware(&i2400m_fw->fw, i2400m->fw_name, dev);
+	if (result < 0) {
+		dev_err(dev, "firmware %s: failed to cache: %d\n",
+			i2400m->fw_name, result);
+		kfree(i2400m_fw);
+		i2400m_fw = (void *) ~0;
+	} else
+		dev_info(dev, "firmware %s: cached\n", i2400m->fw_name);
+out:
+	spin_lock(&i2400m->rx_lock);
+	i2400m->fw_cached = i2400m_fw;
+	spin_unlock(&i2400m->rx_lock);
+}
+
+
+void i2400m_fw_uncache(struct i2400m *i2400m)
+{
+	struct i2400m_fw *i2400m_fw;
+
+	spin_lock(&i2400m->rx_lock);
+	i2400m_fw = i2400m->fw_cached;
+	i2400m->fw_cached = NULL;
+	spin_unlock(&i2400m->rx_lock);
+
+	if (i2400m_fw != NULL && i2400m_fw != (void *) ~0)
+		i2400m_fw_put(i2400m_fw);
+}
+

@@ -66,6 +66,7 @@
 #include <linux/wimax/i2400m.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/suspend.h>
 
 #define D_SUBMODULE driver
 #include "debug-levels.h"
@@ -555,6 +556,51 @@ void i2400m_dev_stop(struct i2400m *i2400m)
 
 
 /*
+ * Listen to PM events to cache the firmware before suspend/hibernation
+ *
+ * When the device comes out of suspend, it might go into reset and
+ * firmware has to be uploaded again. At resume, most of the times, we
+ * can't load firmware images from disk, so we need to cache it.
+ *
+ * i2400m_fw_cache() will allocate a kobject and attach the firmware
+ * to it; that way we don't have to worry too much about the fw loader
+ * hitting a race condition.
+ *
+ * Note: modus operandi stolen from the Orinoco driver; thx.
+ */
+static
+int i2400m_pm_notifier(struct notifier_block *notifier,
+		       unsigned long pm_event,
+		       void *unused)
+{
+	struct i2400m *i2400m =
+		container_of(notifier, struct i2400m, pm_notifier);
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p pm_event %lx)\n", i2400m, pm_event);
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		i2400m_fw_cache(i2400m);
+		break;
+	case PM_POST_RESTORE:
+		/* Restore from hibernation failed. We need to clean
+		 * up in exactly the same way, so fall through. */
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		i2400m_fw_uncache(i2400m);
+		break;
+
+	case PM_RESTORE_PREPARE:
+	default:
+		break;
+	}
+	d_fnend(3, dev, "(i2400m %p pm_event %lx) = void\n", i2400m, pm_event);
+	return NOTIFY_DONE;
+}
+
+
+/*
  * The device has rebooted; fix up the device and the driver
  *
  * Tear down the driver communication with the device, reload the
@@ -738,6 +784,9 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		goto error_read_mac_addr;
 	random_ether_addr(i2400m->src_mac_addr);
 
+	i2400m->pm_notifier.notifier_call = i2400m_pm_notifier;
+	register_pm_notifier(&i2400m->pm_notifier);
+
 	result = register_netdev(net_dev);	/* Okey dokey, bring it up */
 	if (result < 0) {
 		dev_err(dev, "cannot register i2400m network device: %d\n",
@@ -783,6 +832,7 @@ error_wimax_dev_add:
 error_dev_start:
 	unregister_netdev(net_dev);
 error_register_netdev:
+	unregister_pm_notifier(&i2400m->pm_notifier);
 error_read_mac_addr:
 error_bootrom_init:
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
@@ -809,6 +859,7 @@ void i2400m_release(struct i2400m *i2400m)
 	wimax_dev_rm(&i2400m->wimax_dev);
 	i2400m_dev_stop(i2400m);
 	unregister_netdev(i2400m->wimax_dev.net_dev);
+	unregister_pm_notifier(&i2400m->pm_notifier);
 	kfree(i2400m->bm_ack_buf);
 	kfree(i2400m->bm_cmd_buf);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);

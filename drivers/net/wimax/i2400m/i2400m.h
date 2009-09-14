@@ -424,11 +424,21 @@ struct i2400m_barker_db;
  * @fw_hdrs: NULL terminated array of pointers to the firmware
  *     headers. This is only available during firmware load time.
  *
+ * @fw_cached: Used to cache firmware when the system goes to
+ *     suspend/standby/hibernation (as on resume we can't read it). If
+ *     NULL, no firmware was cached, read it. If ~0, you can't read
+ *     any firmware files (the system still didn't come out of suspend
+ *     and failed to cache one), so abort; otherwise, a valid cached
+ *     firmware to be used. Access to this variable is protected by
+ *     the spinlock i2400m->rx_lock.
+ *
  * @barker: barker type that the device uses; this is initialized by
  *     i2400m_is_boot_barker() the first time it is called. Then it
  *     won't change during the life cycle of the device and everytime
  *     a boot barker is received, it is just verified for it being the
  *     same.
+ *
+ * @pm_notifier: used to register for PM events
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -495,7 +505,10 @@ struct i2400m {
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
 	const struct i2400m_bcf_hdr **fw_hdrs;
+	struct i2400m_fw *fw_cached;	/* protected by rx_lock */
 	struct i2400m_barker_db *barker;
+
+	struct notifier_block pm_notifier;
 };
 
 
@@ -670,6 +683,9 @@ extern void i2400m_tx_release(struct i2400m *);
 
 extern int i2400m_rx_setup(struct i2400m *);
 extern void i2400m_rx_release(struct i2400m *);
+
+extern void i2400m_fw_cache(struct i2400m *);
+extern void i2400m_fw_uncache(struct i2400m *);
 
 extern void i2400m_net_rx(struct i2400m *, struct sk_buff *, unsigned,
 			  const void *, int);
