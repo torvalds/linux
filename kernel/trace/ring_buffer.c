@@ -701,8 +701,8 @@ static int rb_head_page_set(struct ring_buffer_per_cpu *cpu_buffer,
 
 	val &= ~RB_FLAG_MASK;
 
-	ret = (unsigned long)cmpxchg(&list->next,
-				     val | old_flag, val | new_flag);
+	ret = cmpxchg((unsigned long *)&list->next,
+		      val | old_flag, val | new_flag);
 
 	/* check if the reader took the page */
 	if ((ret & ~RB_FLAG_MASK) != val)
@@ -794,7 +794,7 @@ static int rb_head_page_replace(struct buffer_page *old,
 	val = *ptr & ~RB_FLAG_MASK;
 	val |= RB_PAGE_HEAD;
 
-	ret = cmpxchg(ptr, val, &new->list);
+	ret = cmpxchg(ptr, val, (unsigned long)&new->list);
 
 	return ret == val;
 }
