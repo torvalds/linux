@@ -562,7 +562,7 @@ int gfs2_xattr_get(struct inode *inode, int type, const char *name,
 		return error;
 	if (!el.el_ea)
 		return -ENODATA;
-	if (size) 
+	if (size)
 		error = gfs2_ea_get_copy(ip, &el, buffer, size);
 	else
 		error = GFS2_EA_DATA_LEN(el.el_ea);
@@ -1046,7 +1046,7 @@ static int ea_set_remove_unstuffed(struct gfs2_inode *ip,
 				     GFS2_EA2NEXT(el->el_prev) == el->el_ea);
 	}
 
-	return ea_remove_unstuffed(ip, el->el_bh, el->el_ea, el->el_prev,0);
+	return ea_remove_unstuffed(ip, el->el_bh, el->el_ea, el->el_prev, 0);
 }
 
 static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)

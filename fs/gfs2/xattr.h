@@ -19,7 +19,7 @@ struct iattr;
 #define GFS2_EA_SIZE(ea) \
 ALIGN(sizeof(struct gfs2_ea_header) + (ea)->ea_name_len + \
       ((GFS2_EA_IS_STUFFED(ea)) ? GFS2_EA_DATA_LEN(ea) : \
-                                  (sizeof(__be64) * (ea)->ea_num_ptrs)), 8)
+				  (sizeof(__be64) * (ea)->ea_num_ptrs)), 8)
 
 #define GFS2_EA_IS_STUFFED(ea) (!(ea)->ea_num_ptrs)
 #define GFS2_EA_IS_LAST(ea) ((ea)->ea_flags & GFS2_EAFLAG_LAST)
