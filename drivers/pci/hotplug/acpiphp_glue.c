@@ -300,9 +300,6 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 {
 	acpi_status status;
 
-	/* decode ACPI 2.0 _HPP (hot plug parameters) */
-	decode_hpp(bridge);
-
 	/* must be added to the list prior to calling register_slot */
 	list_add(&bridge->list, &bridge_list);
 
