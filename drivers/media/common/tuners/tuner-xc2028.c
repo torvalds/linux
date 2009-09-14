@@ -813,8 +813,14 @@ check_device:
 
 	/* Check firmware version against what we downloaded. */
 	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
-		tuner_err("Incorrect readback of firmware version.\n");
-		goto fail;
+		if (!priv->ctrl.read_not_reliable) {
+			tuner_err("Incorrect readback of firmware version.\n");
+			goto fail;
+		} else {
+			tuner_err("Returned an incorrect version. However, "
+				  "read is not reliable enough. Ignoring it.\n");
+			hwmodel = 3028;
+		}
 	}
 
 	/* Check that the tuner hardware model remains consistent over time. */

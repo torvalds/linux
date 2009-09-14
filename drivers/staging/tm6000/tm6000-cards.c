@@ -189,6 +189,7 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 			ctl.fname = "tm6000-xc3028.fw";
 
 		ctl.mts   = 1;
+		ctl.read_not_reliable = 1;
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
