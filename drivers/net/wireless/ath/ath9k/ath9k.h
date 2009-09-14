@@ -189,7 +189,6 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 /* minimum h/w qdepth to be sustained to maximize aggregation */
 #define ATH_AGGR_MIN_QDEPTH        2
 #define ATH_AMPDU_SUBFRAME_DEFAULT 32
-#define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
 
 #define IEEE80211_SEQ_SEQ_SHIFT    4
 #define IEEE80211_SEQ_MAX          4096
