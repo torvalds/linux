@@ -25,7 +25,7 @@ static void udplite_err(struct sk_buff *skb, u32 info)
 	__udp4_lib_err(skb, info, &udplite_table);
 }
 
-static	struct net_protocol udplite_protocol = {
+static const struct net_protocol udplite_protocol = {
 	.handler	= udplite_rcv,
 	.err_handler	= udplite_err,
 	.no_policy	= 1,

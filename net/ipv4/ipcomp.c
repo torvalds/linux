@@ -146,7 +146,7 @@ static const struct xfrm_type ipcomp_type = {
 	.output		= ipcomp_output
 };
 
-static struct net_protocol ipcomp4_protocol = {
+static const struct net_protocol ipcomp4_protocol = {
 	.handler	=	xfrm4_rcv,
 	.err_handler	=	ipcomp4_err,
 	.no_policy	=	1,
