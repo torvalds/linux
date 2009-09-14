@@ -1030,6 +1030,65 @@ static bool i8xx_fbc_enabled(struct drm_crtc *crtc)
 	return I915_READ(FBC_CONTROL) & FBC_CTL_EN;
 }
 
+static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj_priv = intel_fb->obj->driver_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int plane = (intel_crtc->plane == 0 ? DPFC_CTL_PLANEA :
+		     DPFC_CTL_PLANEB);
+	unsigned long stall_watermark = 200;
+	u32 dpfc_ctl;
+
+	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
+	dev_priv->cfb_fence = obj_priv->fence_reg;
+	dev_priv->cfb_plane = intel_crtc->plane;
+
+	dpfc_ctl = plane | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
+	if (obj_priv->tiling_mode != I915_TILING_NONE) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN | dev_priv->cfb_fence;
+		I915_WRITE(DPFC_CHICKEN, DPFC_HT_MODIFY);
+	} else {
+		I915_WRITE(DPFC_CHICKEN, ~DPFC_HT_MODIFY);
+	}
+
+	I915_WRITE(DPFC_CONTROL, dpfc_ctl);
+	I915_WRITE(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
+		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
+		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
+	I915_WRITE(DPFC_FENCE_YOFF, crtc->y);
+
+	/* enable it... */
+	I915_WRITE(DPFC_CONTROL, I915_READ(DPFC_CONTROL) | DPFC_CTL_EN);
+
+	DRM_DEBUG("enabled fbc on plane %d\n", intel_crtc->plane);
+}
+
+void g4x_disable_fbc(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dpfc_ctl;
+
+	/* Disable compression */
+	dpfc_ctl = I915_READ(DPFC_CONTROL);
+	dpfc_ctl &= ~DPFC_CTL_EN;
+	I915_WRITE(DPFC_CONTROL, dpfc_ctl);
+	intel_wait_for_vblank(dev);
+
+	DRM_DEBUG("disabled FBC\n");
+}
+
+static bool g4x_fbc_enabled(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return I915_READ(DPFC_CONTROL) & DPFC_CTL_EN;
+}
+
 /**
  * intel_update_fbc - enable/disable FBC as needed
  * @crtc: CRTC to point the compressor at
@@ -1097,7 +1156,7 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 		DRM_DEBUG("mode too large for compression, disabling\n");
 		goto out_disable;
 	}
-	if (IS_I9XX(dev) && plane != 0) {
+	if ((IS_I915GM(dev) || IS_I945GM(dev)) && plane != 0) {
 		DRM_DEBUG("plane not 0, disabling compression\n");
 		goto out_disable;
 	}
@@ -1265,7 +1324,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		I915_READ(dspbase);
 	}
 
-	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+	if ((IS_I965G(dev) || plane == 0))
 		intel_update_fbc(crtc, &crtc->mode);
 
 	intel_wait_for_vblank(dev);
@@ -1774,7 +1833,8 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		intel_crtc_load_lut(crtc);
 
-		intel_update_fbc(crtc, &crtc->mode);
+		if ((IS_I965G(dev) || plane == 0))
+			intel_update_fbc(crtc, &crtc->mode);
 
 		/* Give the overlay scaler a chance to enable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, true); TODO
@@ -2988,7 +3048,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* Flush the plane changes */
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
-	intel_update_fbc(crtc, &crtc->mode);
+	if ((IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
 
 	intel_update_watermarks(dev);
 
@@ -3121,7 +3182,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		drm_gem_object_unreference(intel_crtc->cursor_bo);
 	}
 
-	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+	if ((IS_I965G(dev) || plane == 0))
 		intel_update_fbc(crtc, &crtc->mode);
 
 	mutex_unlock(&dev->struct_mutex);
@@ -4108,12 +4169,16 @@ static void intel_init_display(struct drm_device *dev)
 
 	/* Only mobile has FBC, leave pointers NULL for other chips */
 	if (IS_MOBILE(dev)) {
-		/* 855GM needs testing */
-		if (IS_I965GM(dev) || IS_I945GM(dev) || IS_I915GM(dev)) {
+		if (IS_GM45(dev)) {
+			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
+			dev_priv->display.enable_fbc = g4x_enable_fbc;
+			dev_priv->display.disable_fbc = g4x_disable_fbc;
+		} else if (IS_I965GM(dev) || IS_I945GM(dev) || IS_I915GM(dev)) {
 			dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
 			dev_priv->display.enable_fbc = i8xx_enable_fbc;
 			dev_priv->display.disable_fbc = i8xx_disable_fbc;
 		}
+		/* 855GM needs testing */
 	}
 
 	/* Returns the core display clock speed */

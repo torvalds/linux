@@ -827,6 +827,7 @@ static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
 extern void i8xx_disable_fbc(struct drm_device *dev);
+extern void g4x_disable_fbc(struct drm_device *dev);
 
 /**
  * Lock test for when it's just for synchronization of ring access.

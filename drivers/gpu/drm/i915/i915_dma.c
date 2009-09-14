@@ -1119,34 +1119,47 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		return;
 	}
 
-	compressed_llb = drm_mm_search_free(&dev_priv->vram, 4096, 4096, 0);
-	if (!compressed_llb) {
-		i915_warn_stolen(dev);
-		return;
+	cfb_base = i915_gtt_to_phys(dev, compressed_fb->start);
+	if (!cfb_base) {
+		DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
+		drm_mm_put_block(compressed_fb);
 	}
 
-	compressed_llb = drm_mm_get_block(compressed_llb, 4096, 4096);
-	if (!compressed_llb) {
-		i915_warn_stolen(dev);
-		return;
+	if (!IS_GM45(dev)) {
+		compressed_llb = drm_mm_search_free(&dev_priv->vram, 4096,
+						    4096, 0);
+		if (!compressed_llb) {
+			i915_warn_stolen(dev);
+			return;
+		}
+
+		compressed_llb = drm_mm_get_block(compressed_llb, 4096, 4096);
+		if (!compressed_llb) {
+			i915_warn_stolen(dev);
+			return;
+		}
+
+		ll_base = i915_gtt_to_phys(dev, compressed_llb->start);
+		if (!ll_base) {
+			DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
+			drm_mm_put_block(compressed_fb);
+			drm_mm_put_block(compressed_llb);
+		}
 	}
 
 	dev_priv->cfb_size = size;
 
-	cfb_base = i915_gtt_to_phys(dev, compressed_fb->start);
-	ll_base = i915_gtt_to_phys(dev, compressed_llb->start);
-	if (!cfb_base || !ll_base) {
-		DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
-		drm_mm_put_block(compressed_fb);
-		drm_mm_put_block(compressed_llb);
+	if (IS_GM45(dev)) {
+		g4x_disable_fbc(dev);
+		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
+	} else {
+		i8xx_disable_fbc(dev);
+		I915_WRITE(FBC_CFB_BASE, cfb_base);
+		I915_WRITE(FBC_LL_BASE, ll_base);
 	}
-
-	i8xx_disable_fbc(dev);
 
 	DRM_DEBUG("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
 		  ll_base, size >> 20);
-	I915_WRITE(FBC_CFB_BASE, cfb_base);
-	I915_WRITE(FBC_LL_BASE, ll_base);
 }
 
 static int i915_load_modeset_init(struct drm_device *dev,
@@ -1194,7 +1207,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 		goto out;
 
 	/* Try to set up FBC with a reasonable compressed buffer size */
-	if (IS_MOBILE(dev) && (IS_I9XX(dev) || IS_I965G(dev)) &&
+	if (IS_MOBILE(dev) && (IS_I9XX(dev) || IS_I965G(dev) || IS_GM45(dev)) &&
 	    i915_powersave) {
 		int cfb_size;
 
