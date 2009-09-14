@@ -1,8 +1,6 @@
 TODO:
-	- fix checkpatch warnings/errors
-	- fix sparse issues
+	- fix remaining checkpatch warnings and errors
 	- remove RingBuffer.c to us in-kernel ringbuffer functions instead.
-	- fix HANDLE usage to be "real" pointers
 	- audit the vmbus to verify it is working properly with the
 	  driver model
 	- see if the vmbus can be merged with the other virtual busses
