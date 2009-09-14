@@ -1278,6 +1278,7 @@ static void tpacpi_destroy_rfkill(const enum tpacpi_rfk_id id)
 	tp_rfk = tpacpi_rfkill_switches[id];
 	if (tp_rfk) {
 		rfkill_unregister(tp_rfk->rfkill);
+		rfkill_destroy(tp_rfk->rfkill);
 		tpacpi_rfkill_switches[id] = NULL;
 		kfree(tp_rfk);
 	}
