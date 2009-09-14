@@ -1024,6 +1024,11 @@ struct uts_namespace;
 struct rq;
 struct sched_domain;
 
+/*
+ * wake flags
+ */
+#define WF_SYNC		0x01		/* waker goes to sleep after wakup */
+
 struct sched_class {
 	const struct sched_class *next;
 
@@ -1031,13 +1036,13 @@ struct sched_class {
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
 	void (*yield_task) (struct rq *rq);
 
-	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int sync);
+	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int flags);
 
 	struct task_struct * (*pick_next_task) (struct rq *rq);
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
 
 #ifdef CONFIG_SMP
-	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int sync);
+	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int flags);
 
 	unsigned long (*load_balance) (struct rq *this_rq, int this_cpu,
 			struct rq *busiest, unsigned long max_load_move,

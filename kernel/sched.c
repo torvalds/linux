@@ -636,9 +636,10 @@ struct rq {
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
-static inline void check_preempt_curr(struct rq *rq, struct task_struct *p, int sync)
+static inline
+void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 {
-	rq->curr->sched_class->check_preempt_curr(rq, p, sync);
+	rq->curr->sched_class->check_preempt_curr(rq, p, flags);
 }
 
 static inline int cpu_of(struct rq *rq)
@@ -2318,14 +2319,15 @@ void task_oncpu_function_call(struct task_struct *p,
  *
  * returns failure only if the task is already active.
  */
-static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
+static int try_to_wake_up(struct task_struct *p, unsigned int state,
+			  int wake_flags)
 {
 	int cpu, orig_cpu, this_cpu, success = 0;
 	unsigned long flags;
 	struct rq *rq;
 
 	if (!sched_feat(SYNC_WAKEUPS))
-		sync = 0;
+		wake_flags &= ~WF_SYNC;
 
 	this_cpu = get_cpu();
 
@@ -2352,7 +2354,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	p->state = TASK_WAKING;
 	task_rq_unlock(rq, &flags);
 
-	cpu = p->sched_class->select_task_rq(p, SD_BALANCE_WAKE, sync);
+	cpu = p->sched_class->select_task_rq(p, SD_BALANCE_WAKE, wake_flags);
 	if (cpu != orig_cpu)
 		set_task_cpu(p, cpu);
 
@@ -2378,7 +2380,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 out_activate:
 #endif /* CONFIG_SMP */
 	schedstat_inc(p, se.nr_wakeups);
-	if (sync)
+	if (wake_flags & WF_SYNC)
 		schedstat_inc(p, se.nr_wakeups_sync);
 	if (orig_cpu != cpu)
 		schedstat_inc(p, se.nr_wakeups_migrate);
@@ -2407,7 +2409,7 @@ out_activate:
 
 out_running:
 	trace_sched_wakeup(rq, p, success);
-	check_preempt_curr(rq, p, sync);
+	check_preempt_curr(rq, p, wake_flags);
 
 	p->state = TASK_RUNNING;
 #ifdef CONFIG_SMP
@@ -5562,10 +5564,10 @@ asmlinkage void __sched preempt_schedule_irq(void)
 
 #endif /* CONFIG_PREEMPT */
 
-int default_wake_function(wait_queue_t *curr, unsigned mode, int sync,
+int default_wake_function(wait_queue_t *curr, unsigned mode, int flags,
 			  void *key)
 {
-	return try_to_wake_up(curr->private, mode, sync);
+	return try_to_wake_up(curr->private, mode, flags);
 }
 EXPORT_SYMBOL(default_wake_function);
 
@@ -5579,14 +5581,14 @@ EXPORT_SYMBOL(default_wake_function);
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
  */
 static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
-			int nr_exclusive, int sync, void *key)
+			int nr_exclusive, int flags, void *key)
 {
 	wait_queue_t *curr, *next;
 
 	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
 		unsigned flags = curr->flags;
 
-		if (curr->func(curr, mode, sync, key) &&
+		if (curr->func(curr, mode, flags, key) &&
 				(flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
 			break;
 	}
@@ -5647,16 +5649,16 @@ void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode,
 			int nr_exclusive, void *key)
 {
 	unsigned long flags;
-	int sync = 1;
+	int wake_flags = WF_SYNC;
 
 	if (unlikely(!q))
 		return;
 
 	if (unlikely(!nr_exclusive))
-		sync = 0;
+		wake_flags = 0;
 
 	spin_lock_irqsave(&q->lock, flags);
-	__wake_up_common(q, mode, nr_exclusive, sync, key);
+	__wake_up_common(q, mode, nr_exclusive, wake_flags, key);
 	spin_unlock_irqrestore(&q->lock, flags);
 }
 EXPORT_SYMBOL_GPL(__wake_up_sync_key);
