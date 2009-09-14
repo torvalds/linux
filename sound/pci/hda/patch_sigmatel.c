@@ -5016,7 +5016,7 @@ again:
 		spec->eapd_switch = 1;
 		break;
 	}
-	if (spec->board_config > STAC_92HD73XX_REF) {
+	if (spec->board_config != STAC_92HD73XX_REF) {
 		/* GPIO0 High = Enable EAPD */
 		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
 		spec->gpio_data = 0x01;
@@ -5557,14 +5557,17 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->dac_list = stac927x_dac_nids;
 	spec->multiout.dac_nids = spec->dac_nids;
 
+	if (spec->board_config != STAC_D965_REF) {
+		/* GPIO0 High = Enable EAPD */
+		spec->eapd_mask = spec->gpio_mask = 0x01;
+		spec->gpio_dir = spec->gpio_data = 0x01;
+	}
+
 	switch (spec->board_config) {
 	case STAC_D965_3ST:
 	case STAC_D965_5ST:
 		/* GPIO0 High = Enable EAPD */
-		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x01;
-		spec->gpio_data = 0x01;
 		spec->num_dmics = 0;
-
 		spec->init = d965_core_init;
 		break;
 	case STAC_DELL_BIOS:
@@ -5583,16 +5586,11 @@ static int patch_stac927x(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0x0e, 0x02a79130);
 		/* fallthru */
 	case STAC_DELL_3ST:
-		/* GPIO2 High = Enable EAPD */
-		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x04;
-		spec->gpio_data = 0x04;
-		switch (codec->subsystem_id) {
-		case 0x1028022f:
-			/* correct EAPD to be GPIO0 */
-			spec->eapd_mask = spec->gpio_mask = 0x01;
-			spec->gpio_dir = spec->gpio_data = 0x01;
-			break;
-		};
+		if (codec->subsystem_id != 0x1028022f) {
+			/* GPIO2 High = Enable EAPD */
+			spec->eapd_mask = spec->gpio_mask = 0x04;
+			spec->gpio_dir = spec->gpio_data = 0x04;
+		}
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 
@@ -5601,14 +5599,9 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->num_dmuxes = ARRAY_SIZE(stac927x_dmux_nids);
 		break;
 	default:
-		if (spec->board_config > STAC_D965_REF) {
-			/* GPIO0 High = Enable EAPD */
-			spec->eapd_mask = spec->gpio_mask = 0x01;
-			spec->gpio_dir = spec->gpio_data = 0x01;
-		}
 		spec->num_dmics = 0;
-
 		spec->init = stac927x_core_init;
+		break;
 	}
 
 	spec->num_caps = STAC927X_NUM_CAPS;
