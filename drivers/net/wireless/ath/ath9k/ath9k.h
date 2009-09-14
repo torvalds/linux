@@ -288,7 +288,6 @@ struct ath_tx_control {
 
 #define ATH_RSSI_LPF_LEN 		10
 #define RSSI_LPF_THRESHOLD		-20
-#define ATH9K_RSSI_BAD			0x80
 #define ATH_RSSI_EP_MULTIPLIER     (1<<7)
 #define ATH_EP_MUL(x, mul)         ((x) * (mul))
 #define ATH_RSSI_IN(x)             (ATH_EP_MUL((x), ATH_RSSI_EP_MULTIPLIER))
