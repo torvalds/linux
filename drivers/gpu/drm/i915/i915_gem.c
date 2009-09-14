@@ -1584,8 +1584,11 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 
 	}
 
-	if (was_empty && !dev_priv->mm.suspended)
-		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+	if (!dev_priv->mm.suspended) {
+		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+		if (was_empty)
+			queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+	}
 	return seqno;
 }
 
@@ -3896,6 +3899,7 @@ i915_gem_idle(struct drm_device *dev)
 	 * We need to replace this with a semaphore, or something.
 	 */
 	dev_priv->mm.suspended = 1;
+	del_timer(&dev_priv->hangcheck_timer);
 
 	/* Cancel the retire work handler, wait for it to finish if running
 	 */

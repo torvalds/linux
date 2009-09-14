@@ -1447,6 +1447,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_IGDNG(dev))
 		intel_opregion_init(dev, 0);
 
+	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
+		    (unsigned long) dev);
 	return 0;
 
 out_workqueue_free:
@@ -1467,6 +1469,7 @@ int i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	destroy_workqueue(dev_priv->wq);
+	del_timer_sync(&dev_priv->hangcheck_timer);
 
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {

@@ -203,6 +203,12 @@ typedef struct drm_i915_private {
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 
+	/* For hangcheck timer */
+#define DRM_I915_HANGCHECK_PERIOD 75 /* in jiffies */
+	struct timer_list hangcheck_timer;
+	int hangcheck_count;
+	uint32_t last_acthd;
+
 	bool cursor_needs_physical;
 
 	struct drm_mm vram;
@@ -620,6 +626,7 @@ extern int i915_emit_box(struct drm_device *dev,
 			 int i, int DR1, int DR4);
 
 /* i915_irq.c */
+void i915_hangcheck_elapsed(unsigned long data);
 extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,

@@ -601,6 +601,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		if (iir & I915_USER_INTERRUPT) {
 			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
 			DRM_WAKEUP(&dev_priv->irq_queue);
+			dev_priv->hangcheck_count = 0;
+			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 		}
 
 		if (pipea_stats & vblank_status) {
@@ -878,6 +880,53 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	 * meeting the requirements of vblank swapping.
 	 */
 	return -EINVAL;
+}
+
+struct drm_i915_gem_request *i915_get_tail_request(struct drm_device *dev) {
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	return list_entry(dev_priv->mm.request_list.prev, struct drm_i915_gem_request, list);
+}
+
+/**
+ * This is called when the chip hasn't reported back with completed
+ * batchbuffers in a long time. The first time this is called we simply record
+ * ACTHD. If ACTHD hasn't changed by the time the hangcheck timer elapses
+ * again, we assume the chip is wedged and try to fix it.
+ */
+void i915_hangcheck_elapsed(unsigned long data)
+{
+	struct drm_device *dev = (struct drm_device *)data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t acthd;
+       
+	if (!IS_I965G(dev))
+		acthd = I915_READ(ACTHD);
+	else
+		acthd = I915_READ(ACTHD_I965);
+
+	/* If all work is done then ACTHD clearly hasn't advanced. */
+	if (list_empty(&dev_priv->mm.request_list) ||
+		       i915_seqno_passed(i915_get_gem_seqno(dev), i915_get_tail_request(dev)->seqno)) {
+		dev_priv->hangcheck_count = 0;
+		return;
+	}
+
+	if (dev_priv->last_acthd == acthd && dev_priv->hangcheck_count > 0) {
+		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
+		dev_priv->mm.wedged = true; /* Hopefully this is atomic */
+		i915_handle_error(dev);
+		return;
+	} 
+
+	/* Reset timer case chip hangs without another request being added */
+	mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+
+	if (acthd != dev_priv->last_acthd)
+		dev_priv->hangcheck_count = 0;
+	else
+		dev_priv->hangcheck_count++;
+
+	dev_priv->last_acthd = acthd;
 }
 
 /* drm_dma.h hooks
