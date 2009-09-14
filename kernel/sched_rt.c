@@ -938,11 +938,11 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
-static int select_task_rq_rt(struct task_struct *p, int flag, int sync)
+static int select_task_rq_rt(struct task_struct *p, int sd_flag, int sync)
 {
 	struct rq *rq = task_rq(p);
 
-	if (flag != SD_BALANCE_WAKE)
+	if (sd_flag != SD_BALANCE_WAKE)
 		return smp_processor_id();
 
 	/*

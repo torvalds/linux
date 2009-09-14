@@ -1331,7 +1331,7 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
  *
  * preempt must be disabled.
  */
-static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
+static int select_task_rq_fair(struct task_struct *p, int sd_flag, int sync)
 {
 	struct sched_domain *tmp, *sd = NULL;
 	int cpu = smp_processor_id();
@@ -1339,7 +1339,7 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 	int new_cpu = cpu;
 	int want_affine = 0;
 
-	if (flag & SD_BALANCE_WAKE) {
+	if (sd_flag & SD_BALANCE_WAKE) {
 		if (sched_feat(AFFINE_WAKEUPS))
 			want_affine = 1;
 		new_cpu = prev_cpu;
@@ -1368,7 +1368,7 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 				break;
 		}
 
-		switch (flag) {
+		switch (sd_flag) {
 		case SD_BALANCE_WAKE:
 			if (!sched_feat(LB_WAKEUP_UPDATE))
 				break;
@@ -1392,7 +1392,7 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 			want_affine = 0;
 		}
 
-		if (!(tmp->flags & flag))
+		if (!(tmp->flags & sd_flag))
 			continue;
 
 		sd = tmp;
@@ -1402,12 +1402,12 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 		struct sched_group *group;
 		int weight;
 
-		if (!(sd->flags & flag)) {
+		if (!(sd->flags & sd_flag)) {
 			sd = sd->child;
 			continue;
 		}
 
-		group = find_idlest_group(sd, p, cpu, flag);
+		group = find_idlest_group(sd, p, cpu, sd_flag);
 		if (!group) {
 			sd = sd->child;
 			continue;
@@ -1427,7 +1427,7 @@ static int select_task_rq_fair(struct task_struct *p, int flag, int sync)
 		for_each_domain(cpu, tmp) {
 			if (weight <= cpumask_weight(sched_domain_span(tmp)))
 				break;
-			if (tmp->flags & flag)
+			if (tmp->flags & sd_flag)
 				sd = tmp;
 		}
 		/* while loop will break here if sd == NULL */
