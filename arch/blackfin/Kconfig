@@ -648,7 +648,7 @@ config CYCLES_CLOCKSOURCE
 	  writing the registers will most likely crash the kernel.
 
 config GPTMR0_CLOCKSOURCE
-	bool "Use GPTimer0 as a clocksource (higher rating)"
+	bool "Use GPTimer0 as a clocksource"
 	select BFIN_GPTIMERS
 	depends on GENERIC_CLOCKEVENTS
 	depends on !TICKSOURCE_GPTMR0
