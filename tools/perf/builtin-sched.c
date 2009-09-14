@@ -129,6 +129,7 @@ enum thread_state {
 struct work_atom {
 	struct list_head	list;
 	enum thread_state	state;
+	u64			sched_out_time;
 	u64			wake_up_time;
 	u64			sched_in_time;
 	u64			runtime;
@@ -988,9 +989,11 @@ lat_sched_out(struct task_atoms *atoms,
 	if (!atom)
 		die("Non memory");
 
+	atom->sched_out_time = timestamp;
+
 	if (sched_out_state(switch_event) == 'R') {
 		atom->state = THREAD_WAIT_CPU;
-		atom->wake_up_time = timestamp;
+		atom->wake_up_time = atom->sched_out_time;
 	}
 
 	atom->runtime = delta;
@@ -1104,6 +1107,9 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	atom = list_entry(atoms->atom_list.prev, struct work_atom, list);
 
 	if (atom->state != THREAD_SLEEPING)
+		return;
+
+	if (atom->sched_out_time > timestamp)
 		return;
 
 	atom->state = THREAD_WAIT_CPU;
