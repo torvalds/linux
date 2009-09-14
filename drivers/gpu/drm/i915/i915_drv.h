@@ -450,7 +450,7 @@ typedef struct drm_i915_private {
 		 * It prevents command submission from occuring and makes
 		 * every pending request fail
 		 */
-		int wedged;
+		atomic_t wedged;
 
 		/** Bit 6 swizzling required for X tiling */
 		uint32_t bit_6_swizzle_x;

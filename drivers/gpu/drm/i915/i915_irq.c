@@ -309,12 +309,12 @@ static void i915_error_work_func(struct work_struct *work)
 	DRM_DEBUG("generating error event\n");
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
-	if (dev_priv->mm.wedged) {
+	if (atomic_read(&dev_priv->mm.wedged)) {
 		if (IS_I965G(dev)) {
 			DRM_DEBUG("resetting chip\n");
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
 			if (!i965_reset(dev, GDRST_RENDER)) {
-				dev_priv->mm.wedged = 0;
+				atomic_set(&dev_priv->mm.wedged, 0);
 				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 			}
 		} else {
@@ -385,7 +385,7 @@ out:
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
-static void i915_handle_error(struct drm_device *dev)
+static void i915_handle_error(struct drm_device *dev, bool wedged)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 eir = I915_READ(EIR);
@@ -495,7 +495,9 @@ static void i915_handle_error(struct drm_device *dev)
 		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 	}
 
-	if (dev_priv->mm.wedged) {
+	if (wedged) {
+		atomic_set(&dev_priv->mm.wedged, 1);
+
 		/*
 		 * Wakeup waiting processes so they don't hang
 		 */
@@ -548,7 +550,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		pipeb_stats = I915_READ(PIPEBSTAT);
 
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev);
+			i915_handle_error(dev, false);
 
 		/*
 		 * Clear the PIPE(A|B)STAT regs before the IIR
@@ -934,8 +936,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 
 	if (dev_priv->last_acthd == acthd && dev_priv->hangcheck_count > 0) {
 		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
-		dev_priv->mm.wedged = true; /* Hopefully this is atomic */
-		i915_handle_error(dev);
+		i915_handle_error(dev, true);
 		return;
 	} 
 

@@ -1712,7 +1712,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 		retiring_seqno = request->seqno;
 
 		if (i915_seqno_passed(seqno, retiring_seqno) ||
-		    dev_priv->mm.wedged) {
+		    atomic_read(&dev_priv->mm.wedged)) {
 			i915_gem_retire_request(dev, request);
 
 			list_del(&request->list);
@@ -1754,7 +1754,7 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 
 	BUG_ON(seqno == 0);
 
-	if (dev_priv->mm.wedged)
+	if (atomic_read(&dev_priv->mm.wedged))
 		return -EIO;
 
 	if (!i915_seqno_passed(i915_get_gem_seqno(dev), seqno)) {
@@ -1774,11 +1774,11 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 		ret = wait_event_interruptible(dev_priv->irq_queue,
 					       i915_seqno_passed(i915_get_gem_seqno(dev),
 								 seqno) ||
-					       dev_priv->mm.wedged);
+					       atomic_read(&dev_priv->mm.wedged));
 		i915_user_irq_put(dev);
 		dev_priv->mm.waiting_gem_seqno = 0;
 	}
-	if (dev_priv->mm.wedged)
+	if (atomic_read(&dev_priv->mm.wedged))
 		ret = -EIO;
 
 	if (ret && ret != -ERESTARTSYS)
@@ -3359,7 +3359,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
-	if (dev_priv->mm.wedged) {
+	if (atomic_read(&dev_priv->mm.wedged)) {
 		DRM_ERROR("Execbuf while wedged\n");
 		mutex_unlock(&dev->struct_mutex);
 		ret = -EIO;
@@ -3929,7 +3929,7 @@ i915_gem_idle(struct drm_device *dev)
 		if (last_seqno == cur_seqno) {
 			if (stuck++ > 100) {
 				DRM_ERROR("hardware wedged\n");
-				dev_priv->mm.wedged = 1;
+				atomic_set(&dev_priv->mm.wedged, 1);
 				DRM_WAKEUP(&dev_priv->irq_queue);
 				break;
 			}
@@ -3942,7 +3942,7 @@ i915_gem_idle(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	spin_lock(&dev_priv->mm.active_list_lock);
-	if (!dev_priv->mm.wedged) {
+	if (!atomic_read(&dev_priv->mm.wedged)) {
 		/* Active and flushing should now be empty as we've
 		 * waited for a sequence higher than any pending execbuffer
 		 */
@@ -4204,9 +4204,9 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	if (dev_priv->mm.wedged) {
+	if (atomic_read(&dev_priv->mm.wedged)) {
 		DRM_ERROR("Reenabling wedged hardware, good luck\n");
-		dev_priv->mm.wedged = 0;
+		atomic_set(&dev_priv->mm.wedged, 0);
 	}
 
 	mutex_lock(&dev->struct_mutex);
