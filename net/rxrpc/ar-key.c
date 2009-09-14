@@ -122,7 +122,7 @@ static int rxrpc_instantiate(struct key *key, const void *data, size_t datalen)
 		       tsec->ticket[6], tsec->ticket[7]);
 
 	ret = -EPROTONOSUPPORT;
-	if (tsec->security_index != 2)
+	if (tsec->security_index != RXRPC_SECURITY_RXKAD)
 		goto error;
 
 	key->type_data.x[0] = tsec->security_index;
@@ -308,7 +308,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	_debug("key %d", key_serial(key));
 
 	data.kver = 1;
-	data.tsec.security_index = 2;
+	data.tsec.security_index = RXRPC_SECURITY_RXKAD;
 	data.tsec.ticket_len = 0;
 	data.tsec.expiry = expiry;
 	data.tsec.kvno = 0;
