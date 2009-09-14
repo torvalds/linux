@@ -18,59 +18,6 @@
 #include <linux/string.h>
 #include <linux/buffer_head.h>
 
-#if 0
-static uint8_t *udf_filead_read(struct inode *dir, uint8_t *tmpad,
-				uint8_t ad_size, struct kernel_lb_addr fe_loc,
-				int *pos, int *offset, struct buffer_head **bh,
-				int *error)
-{
-	int loffset = *offset;
-	int block;
-	uint8_t *ad;
-	int remainder;
-
-	*error = 0;
-
-	ad = (uint8_t *)(*bh)->b_data + *offset;
-	*offset += ad_size;
-
-	if (!ad) {
-		brelse(*bh);
-		*error = 1;
-		return NULL;
-	}
-
-	if (*offset == dir->i_sb->s_blocksize) {
-		brelse(*bh);
-		block = udf_get_lb_pblock(dir->i_sb, fe_loc, ++*pos);
-		if (!block)
-			return NULL;
-		*bh = udf_tread(dir->i_sb, block);
-		if (!*bh)
-			return NULL;
-	} else if (*offset > dir->i_sb->s_blocksize) {
-		ad = tmpad;
-
-		remainder = dir->i_sb->s_blocksize - loffset;
-		memcpy((uint8_t *)ad, (*bh)->b_data + loffset, remainder);
-
-		brelse(*bh);
-		block = udf_get_lb_pblock(dir->i_sb, fe_loc, ++*pos);
-		if (!block)
-			return NULL;
-		(*bh) = udf_tread(dir->i_sb, block);
-		if (!*bh)
-			return NULL;
-
-		memcpy((uint8_t *)ad + remainder, (*bh)->b_data,
-			ad_size - remainder);
-		*offset = ad_size - remainder;
-	}
-
-	return ad;
-}
-#endif
-
 struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 struct udf_fileident_bh *fibh,
 					 struct fileIdentDesc *cfi,
@@ -247,39 +194,6 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 
 	return fi;
 }
-
-#if 0
-static struct extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
-{
-	struct extent_ad *ext;
-	struct fileEntry *fe;
-	uint8_t *ptr;
-
-	if ((!buffer) || (!offset)) {
-		printk(KERN_ERR "udf: udf_get_fileextent() invalidparms\n");
-		return NULL;
-	}
-
-	fe = (struct fileEntry *)buffer;
-
-	if (fe->descTag.tagIdent != cpu_to_le16(TAG_IDENT_FE)) {
-		udf_debug("0x%x != TAG_IDENT_FE\n",
-			  le16_to_cpu(fe->descTag.tagIdent));
-		return NULL;
-	}
-
-	ptr = (uint8_t *)(fe->extendedAttr) +
-		le32_to_cpu(fe->lengthExtendedAttr);
-
-	if ((*offset > 0) && (*offset < le32_to_cpu(fe->lengthAllocDescs)))
-		ptr += *offset;
-
-	ext = (struct extent_ad *)ptr;
-
-	*offset = *offset + sizeof(struct extent_ad);
-	return ext;
-}
-#endif
 
 struct short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, uint32_t *offset,
 			      int inc)
