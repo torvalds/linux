@@ -4067,15 +4067,16 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		}
 		if (ioc->shost_recovery)
 			return;
-		if (event_data->PHY[i].PhyStatus &
-		    MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT)
+		phy_number = event_data->StartPhyNum + i;
+		reason_code = event_data->PHY[i].PhyStatus &
+		    MPI2_EVENT_SAS_TOPO_RC_MASK;
+		if ((event_data->PHY[i].PhyStatus &
+		    MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT) && (reason_code !=
+		    MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING))
 			continue;
 		handle = le16_to_cpu(event_data->PHY[i].AttachedDevHandle);
 		if (!handle)
 			continue;
-		phy_number = event_data->StartPhyNum + i;
-		reason_code = event_data->PHY[i].PhyStatus &
-		    MPI2_EVENT_SAS_TOPO_RC_MASK;
 		link_rate_ = event_data->PHY[i].LinkRate >> 4;
 		switch (reason_code) {
 		case MPI2_EVENT_SAS_TOPO_RC_PHY_CHANGED:
