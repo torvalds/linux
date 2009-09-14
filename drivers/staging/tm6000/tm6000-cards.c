@@ -191,6 +191,61 @@ struct usb_device_id tm6000_id_table [] = {
 	{ },
 };
 
+/* Tuner callback to provide the proper gpio changes needed for xc2028 */
+
+static int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
+{
+	int rc=0;
+	struct tm6000_core *dev = ptr;
+
+	if (dev->tuner_type!=TUNER_XC2028)
+		return 0;
+
+	switch (command) {
+	case XC2028_RESET_CLK:
+		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT,
+					0x02, arg);
+		msleep(10);
+		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+					TM6000_GPIO_CLK, 0);
+		if (rc<0)
+			return rc;
+		msleep(10);
+		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+					TM6000_GPIO_CLK, 1);
+		break;
+	case XC2028_TUNER_RESET:
+		/* Reset codes during load firmware */
+		switch (arg) {
+		case 0:
+			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+					dev->tuner_reset_gpio, 0x00);
+			msleep(130);
+			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+					dev->tuner_reset_gpio, 0x01);
+			msleep(130);
+			break;
+		case 1:
+			tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT,
+						0x02, 0x01);
+			msleep(10);
+			break;
+
+		case 2:
+			rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+						TM6000_GPIO_CLK, 0);
+			if (rc<0)
+				return rc;
+			msleep(100);
+			rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
+						TM6000_GPIO_CLK, 1);
+			msleep(100);
+			break;
+		}
+	}
+	return (rc);
+}
+
 static void tm6000_config_tuner (struct tm6000_core *dev)
 {
 	struct tuner_setup           tun_setup;
@@ -202,6 +257,8 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 	memset(&tun_setup, 0, sizeof(tun_setup));
 	tun_setup.type   = dev->tuner_type;
 	tun_setup.addr   = dev->tuner_addr;
+	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+	tun_setup.tuner_callback = tm6000_tuner_callback;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr, &tun_setup);
 

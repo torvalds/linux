@@ -1299,7 +1299,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 
 //	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, f);
 //	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1309,9 +1309,9 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	File operations for the device
    ------------------------------------------------------------------*/
 
-static int tm6000_open(struct inode *inode, struct file *file)
+static int tm6000_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct tm6000_core *h,*dev = NULL;
 	struct tm6000_fh *fh;
 	struct list_head *list;
@@ -1432,11 +1432,11 @@ tm6000_poll(struct file *file, struct poll_table_struct *wait)
 	return 0;
 }
 
-static int tm6000_release(struct inode *inode, struct file *file)
+static int tm6000_release(struct file *file)
 {
 	struct tm6000_fh         *fh = file->private_data;
 	struct tm6000_core      *dev = fh->dev;
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: close called (minor=%d, users=%d)\n",minor,dev->users);
 
@@ -1462,7 +1462,7 @@ static int tm6000_mmap(struct file *file, struct vm_area_struct * vma)
 	return ret;
 }
 
-static struct file_operations tm6000_fops = {
+static struct v4l2_file_operations tm6000_fops = {
 	.owner		= THIS_MODULE,
 	.open           = tm6000_open,
 	.release        = tm6000_release,
@@ -1470,7 +1470,6 @@ static struct file_operations tm6000_fops = {
 	.read           = tm6000_read,
 	.poll		= tm6000_poll,
 	.mmap		= tm6000_mmap,
-	.llseek         = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {

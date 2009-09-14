@@ -203,62 +203,6 @@ static void dec_use(struct i2c_adapter *adap)
 	msleep (10);							\
 	}
 
-/* Tuner callback to provide the proper gpio changes needed for xc2028 */
-
-static int tm6000_tuner_callback(void *ptr, int command, int arg)
-{
-	int rc=0;
-	struct tm6000_core *dev = ptr;
-
-	if (dev->tuner_type!=TUNER_XC2028)
-		return 0;
-
-	switch (command) {
-	case XC2028_RESET_CLK:
-		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT,
-					0x02, arg);
-		msleep(10);
-		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 0);
-		if (rc<0)
-			return rc;
-		msleep(10);
-		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 1);
-		break;
-	case XC2028_TUNER_RESET:
-		/* Reset codes during load firmware */
-		switch (arg) {
-		case 0:
-			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x00);
-			msleep(130);
-			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x01);
-			msleep(130);
-			break;
-		case 1:
-			tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT,
-						0x02, 0x01);
-			msleep(10);
-			break;
-
-		case 2:
-			rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 0);
-			if (rc<0)
-				return rc;
-			msleep(100);
-			rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 1);
-			msleep(100);
-			break;
-		}
-	}
-	return (rc);
-}
-
-
 static struct i2c_algorithm tm6000_algo = {
 	.master_xfer   = tm6000_i2c_xfer,
 	.functionality = functionality,
