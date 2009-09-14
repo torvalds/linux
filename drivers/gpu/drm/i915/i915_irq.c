@@ -302,12 +302,25 @@ static void i915_error_work_func(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    error_work);
 	struct drm_device *dev = dev_priv->dev;
-	char *event_string = "ERROR=1";
-	char *envp[] = { event_string, NULL };
+	char *error_event[] = { "ERROR=1", NULL };
+	char *reset_event[] = { "RESET=1", NULL };
+	char *reset_done_event[] = { "ERROR=0", NULL };
 
 	DRM_DEBUG("generating error event\n");
+	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
-	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, envp);
+	if (dev_priv->mm.wedged) {
+		if (IS_I965G(dev)) {
+			DRM_DEBUG("resetting chip\n");
+			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
+			if (!i965_reset(dev, GDRST_RENDER)) {
+				dev_priv->mm.wedged = 0;
+				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
+			}
+		} else {
+			printk("reboot required\n");
+		}
+	}
 }
 
 /**
