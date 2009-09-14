@@ -1671,7 +1671,7 @@ out:
 /**
  * Returns true if seq1 is later than seq2.
  */
-static int
+bool
 i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 {
 	return (int32_t)(seq1 - seq2) >= 0;
