@@ -2144,6 +2144,7 @@ enum ixgbe_media_type {
 	ixgbe_media_type_fiber,
 	ixgbe_media_type_copper,
 	ixgbe_media_type_backplane,
+	ixgbe_media_type_cx4,
 	ixgbe_media_type_virtual
 };
 

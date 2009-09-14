@@ -338,7 +338,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 		media_type = ixgbe_media_type_fiber;
 		break;
 	case IXGBE_DEV_ID_82599_CX4:
-		media_type = ixgbe_media_type_fiber;
+		media_type = ixgbe_media_type_cx4;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
