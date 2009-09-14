@@ -1,0 +1,11 @@
+Todo:
+	- checkpatch.pl cleanups
+	- sparse cleanups
+	- convert to new i2c approach
+	- better support DVB
+	- fix reading from i2c, if possible
+	- fix loosing frames
+	- fix oops?
+
+Please send patches to linux-media@vger.kernel.org
+
