@@ -3,7 +3,7 @@
  *
  *  SHA transform optimized for ARM
  *
- *  Copyright:	(C) 2005 by Nicolas Pitre <nico@cam.org>
+ *  Copyright:	(C) 2005 by Nicolas Pitre <nico@fluxnic.net>
  *  Created:	September 17, 2005
  *
  *  This program is free software; you can redistribute it and/or modify

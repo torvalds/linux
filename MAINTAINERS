@@ -3317,7 +3317,7 @@ S:	Supported
 F:	drivers/net/wireless/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
-M:	Nicolas Pitre <nico@cam.org>
+M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Maintained
 
 MARVELL YUKON / SYSKONNECT DRIVER
@@ -4689,7 +4689,7 @@ F:	include/linux/sl?b*.h
 F:	mm/sl?b.c
 
 SMC91x ETHERNET DRIVER
-M:	Nicolas Pitre <nico@cam.org>
+M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Maintained
 F:	drivers/net/smc91x.*
 
