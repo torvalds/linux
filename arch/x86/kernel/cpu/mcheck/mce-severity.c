@@ -139,6 +139,7 @@ int mce_severity(struct mce *a, int tolerant, char **msg)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
 static void *s_start(struct seq_file *f, loff_t *pos)
 {
 	if (*pos >= ARRAY_SIZE(severities))
@@ -212,3 +213,4 @@ err_out:
 	return -ENOMEM;
 }
 late_initcall(severities_debugfs_init);
+#endif
