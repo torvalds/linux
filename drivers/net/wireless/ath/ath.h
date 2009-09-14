@@ -56,6 +56,9 @@ struct ath_common {
 	u8 curbssid[ETH_ALEN];
 	u8 bssidmask[ETH_ALEN];
 
+	u8 tx_chainmask;
+	u8 rx_chainmask;
+
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
 };

@@ -586,8 +586,6 @@ struct ath_softc {
 	u16 curtxpow;
 	u8 nbcnvifs;
 	u16 nvifs;
-	u8 tx_chainmask;
-	u8 rx_chainmask;
 	u32 keymax;
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);
 	u8 splitmic;

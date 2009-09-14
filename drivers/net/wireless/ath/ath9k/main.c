@@ -438,8 +438,11 @@ static void ath_ani_calibrate(unsigned long data)
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
-			sc->ani.caldone = ath9k_hw_calibrate(ah, ah->curchan,
-						     sc->rx_chainmask, longcal);
+			sc->ani.caldone =
+				ath9k_hw_calibrate(ah,
+						   ah->curchan,
+						   common->rx_chainmask,
+						   longcal);
 
 			if (longcal)
 				sc->ani.noise_floor = ath9k_hw_getchan_noise(ah,
@@ -492,19 +495,21 @@ static void ath_start_ani(struct ath_softc *sc)
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
 	    (ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE)) {
-		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
-		sc->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
+		common->tx_chainmask = ah->caps.tx_chainmask;
+		common->rx_chainmask = ah->caps.rx_chainmask;
 	} else {
-		sc->tx_chainmask = 1;
-		sc->rx_chainmask = 1;
+		common->tx_chainmask = 1;
+		common->rx_chainmask = 1;
 	}
 
-	ath_print(ath9k_hw_common(ah), ATH_DBG_CONFIG,
+	ath_print(common, ATH_DBG_CONFIG,
 		  "tx chmask: %d, rx chmask: %d\n",
-		  sc->tx_chainmask, sc->rx_chainmask);
+		  common->tx_chainmask,
+		  common->rx_chainmask);
 }
 
 static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
@@ -949,6 +954,7 @@ static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 static void setup_ht_cap(struct ath_softc *sc,
 			 struct ieee80211_sta_ht_cap *ht_info)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 tx_streams, rx_streams;
 
 	ht_info->ht_supported = true;
@@ -962,11 +968,13 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = !(sc->tx_chainmask & (sc->tx_chainmask - 1)) ? 1 : 2;
-	rx_streams = !(sc->rx_chainmask & (sc->rx_chainmask - 1)) ? 1 : 2;
+	tx_streams = !(common->tx_chainmask & (common->tx_chainmask - 1)) ?
+		     1 : 2;
+	rx_streams = !(common->rx_chainmask & (common->rx_chainmask - 1)) ?
+		     1 : 2;
 
 	if (tx_streams != rx_streams) {
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+		ath_print(common, ATH_DBG_CONFIG,
 			  "TX streams %d, RX streams: %d\n",
 			  tx_streams, rx_streams);
 		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
@@ -1759,8 +1767,8 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
-	sc->tx_chainmask = ah->caps.tx_chainmask;
-	sc->rx_chainmask = ah->caps.rx_chainmask;
+	common->tx_chainmask = ah->caps.tx_chainmask;
+	common->rx_chainmask = ah->caps.rx_chainmask;
 
 	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->rx.defant = ath9k_hw_getdefantenna(ah);

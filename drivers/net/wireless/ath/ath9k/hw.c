@@ -2334,8 +2334,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	int i, rx_chainmask, r;
 
 	ah->extprotspacing = sc->ht_extprotspacing;
-	ah->txchainmask = sc->tx_chainmask;
-	ah->rxchainmask = sc->rx_chainmask;
+	ah->txchainmask = common->tx_chainmask;
+	ah->rxchainmask = common->rx_chainmask;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
