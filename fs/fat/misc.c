@@ -119,8 +119,8 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 		MSDOS_I(inode)->i_start = new_dclus;
 		MSDOS_I(inode)->i_logstart = new_dclus;
 		/*
-		 * Since generic_osync_inode() synchronize later if
-		 * this is not directory, we don't here.
+		 * Since generic_write_sync() synchronizes regular files later,
+		 * we sync here only directories.
 		 */
 		if (S_ISDIR(inode->i_mode) && IS_DIRSYNC(inode)) {
 			ret = fat_sync_inode(inode);
