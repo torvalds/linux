@@ -62,16 +62,11 @@
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/sfi.h>
-#include <linux/smp.h>
-
-#include <asm/pgtable.h>
 
 #include "sfi_core.h"
 
