@@ -1580,7 +1580,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int flags
 	 */
 	if (sched_feat(LAST_BUDDY) && likely(se->on_rq && curr != rq->idle))
 		set_last_buddy(se);
-	if (sched_feat(NEXT_BUDDY))
+	if (sched_feat(NEXT_BUDDY) && !(flags & WF_FORK))
 		set_next_buddy(pse);
 
 	/*

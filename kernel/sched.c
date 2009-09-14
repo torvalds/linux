@@ -2602,7 +2602,7 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 		inc_nr_running(rq);
 	}
 	trace_sched_wakeup_new(rq, p, 1);
-	check_preempt_curr(rq, p, 0);
+	check_preempt_curr(rq, p, WF_FORK);
 #ifdef CONFIG_SMP
 	if (p->sched_class->task_wake_up)
 		p->sched_class->task_wake_up(rq, p);

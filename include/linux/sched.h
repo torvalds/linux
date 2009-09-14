@@ -1028,6 +1028,7 @@ struct sched_domain;
  * wake flags
  */
 #define WF_SYNC		0x01		/* waker goes to sleep after wakup */
+#define WF_FORK		0x02		/* child wakeup after fork */
 
 struct sched_class {
 	const struct sched_class *next;
