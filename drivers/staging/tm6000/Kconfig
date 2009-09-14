@@ -1,0 +1,14 @@
+config VIDEO_TM6000
+	tristate "TV Master TM5600/6000 driver"
+	select VIDEO_V4L2
+	select TUNER_XC2028
+	select VIDEO_USB_ISOC
+	select VIDEOBUF_VMALLOC
+	help
+	  Support for TM5600/TM6000 USB Device
+
+	  Since these cards have no MPEG decoder onboard, they transmit
+	  only compressed MPEG data over the usb bus, so you need
+	  an external software decoder to watch TV on your computer.
+
+	  Say Y if you own such a device and want to use it.
