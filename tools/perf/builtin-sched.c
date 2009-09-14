@@ -1660,6 +1660,8 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
+	"-M",
+	"-g",
 	"-c", "1",
 	"-e", "sched:sched_switch:r",
 	"-e", "sched:sched_stat_wait:r",

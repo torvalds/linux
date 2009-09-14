@@ -48,6 +48,7 @@ static int			call_graph			= 0;
 static int			inherit_stat			= 0;
 static int			no_samples			= 0;
 static int			sample_address			= 0;
+static int			multiplex			= 0;
 
 static long			samples;
 static struct timeval		last_read;
@@ -485,6 +486,9 @@ try_again:
 		exit(-1);
 	}
 
+	if (multiplex && fd[nr_cpu][counter] != group_fd)
+		ioctl(fd[nr_cpu][counter], PERF_COUNTER_IOC_SET_OUTPUT, group_fd);
+
 	ioctl(fd[nr_cpu][counter], PERF_COUNTER_IOC_ENABLE);
 }
 
@@ -681,6 +685,8 @@ static const struct option options[] = {
 		    "Sample addresses"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
+	OPT_BOOLEAN('M', "multiplex", &multiplex,
+		    "multiplex counter output in a single channel"),
 	OPT_END()
 };
 
