@@ -324,18 +324,18 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 
 /* acpi_get_hp_params_from_firmware
  *
- * @bus - the pci_bus of the bus on which the device is newly added
+ * @dev - the pci_dev for which we want parameters
  * @hpp - allocated by the caller
  */
-acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
+int acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp)
 {
-	acpi_status status = AE_NOT_FOUND;
+	acpi_status status;
 	acpi_handle handle, phandle;
 	struct pci_bus *pbus;
 
 	handle = NULL;
-	for (pbus = bus; pbus; pbus = pbus->parent) {
+	for (pbus = dev->bus; pbus; pbus = pbus->parent) {
 		handle = acpi_pci_get_bridge_handle(pbus);
 		if (handle)
 			break;
@@ -350,10 +350,10 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 	while (handle) {
 		status = acpi_run_hpx(handle, hpp);
 		if (ACPI_SUCCESS(status))
-			break;
+			return 0;
 		status = acpi_run_hpp(handle, hpp);
 		if (ACPI_SUCCESS(status))
-			break;
+			return 0;
 		if (acpi_is_root_bridge(handle))
 			break;
 		status = acpi_get_parent(handle, &phandle);
@@ -361,7 +361,7 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 			break;
 		handle = phandle;
 	}
-	return status;
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
 

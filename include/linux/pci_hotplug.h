@@ -227,7 +227,7 @@ struct hotplug_params {
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
-extern acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
+int acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 				struct hotplug_params *hpp);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);

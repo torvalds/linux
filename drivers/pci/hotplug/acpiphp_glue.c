@@ -275,11 +275,10 @@ static int detect_ejectable_slots(acpi_handle handle)
 /* decode ACPI 2.0 _HPP hot plug parameters */
 static void decode_hpp(struct pci_dev *dev, struct hotplug_params *hpp)
 {
-	acpi_status status;
+	int ret;
 
-	status = acpi_get_hp_params_from_firmware(dev->bus, hpp);
-	if (ACPI_FAILURE(status) ||
-	    !hpp->t0 || (hpp->t0->revision > 1)) {
+	ret = acpi_get_hp_params_from_firmware(dev, hpp);
+	if (ret || !hpp->t0 || (hpp->t0->revision > 1)) {
 		/* use default numbers */
 		printk(KERN_WARNING
 		       "%s: Could not get hotplug parameters. Use defaults\n",
