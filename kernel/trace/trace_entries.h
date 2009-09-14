@@ -78,7 +78,7 @@ FTRACE_ENTRY(funcgraph_entry, ftrace_graph_ent_entry,
 		__field_desc(	int,		graph_ent,	depth		)
 	),
 
-	F_printk("--> %lx (%d)", __entry->graph_ent.func, __entry->depth)
+	F_printk("--> %lx (%d)", __entry->func, __entry->depth)
 );
 
 /* Function return entry */
@@ -97,8 +97,8 @@ FTRACE_ENTRY(funcgraph_exit, ftrace_graph_ret_entry,
 
 	F_printk("<-- %lx (%d) (start: %llx  end: %llx) over: %d",
 		 __entry->func, __entry->depth,
-		 __entry->calltime, __entry->rettim,
-		 __entrty->depth)
+		 __entry->calltime, __entry->rettime,
+		 __entry->depth)
 );
 
 /*
@@ -133,7 +133,7 @@ FTRACE_ENTRY(context_switch, ctx_switch_entry,
 		FTRACE_CTX_FIELDS
 	),
 
-	F_printk(b"%u:%u:%u  ==> %u:%u:%u [%03u]",
+	F_printk("%u:%u:%u  ==> %u:%u:%u [%03u]",
 		 __entry->prev_pid, __entry->prev_prio, __entry->prev_state,
 		 __entry->next_pid, __entry->next_prio, __entry->next_state,
 		 __entry->next_cpu
@@ -257,8 +257,8 @@ FTRACE_ENTRY(mmiotrace_rw, trace_mmiotrace_rw,
 		__field_desc(	unsigned char,	rw,	width	)
 	),
 
-	F_printk("%lx %lx %lx %d %lx %lx",
-		 __entry->phs, __entry->value, __entry->pc,
+	F_printk("%lx %lx %lx %d %x %x",
+		 (unsigned long)__entry->phys, __entry->value, __entry->pc,
 		 __entry->map_id, __entry->opcode, __entry->width)
 );
 
@@ -275,8 +275,8 @@ FTRACE_ENTRY(mmiotrace_map, trace_mmiotrace_map,
 		__field_desc(	unsigned char,	map,	opcode	)
 	),
 
-	F_printk("%lx %lx %lx %d %lx",
-		 __entry->phs, __entry->virt, __entry->len,
+	F_printk("%lx %lx %lx %d %x",
+		 (unsigned long)__entry->phys, __entry->virt, __entry->len,
 		 __entry->map_id, __entry->opcode)
 );
 
@@ -370,7 +370,7 @@ FTRACE_ENTRY(kmem_alloc, kmemtrace_alloc_entry,
 		__field(	int,			node		)
 	),
 
-	F_printk("type:%u call_site:%lx ptr:%p req:%lu alloc:%lu"
+	F_printk("type:%u call_site:%lx ptr:%p req:%zi alloc:%zi"
 		 " flags:%x node:%d",
 		 __entry->type_id, __entry->call_site, __entry->ptr,
 		 __entry->bytes_req, __entry->bytes_alloc,
