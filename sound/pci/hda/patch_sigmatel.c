@@ -4166,7 +4166,10 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
 				AC_PINCTL_OUT_EN);
 		/* fake event to set up pins */
-		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
+		if (cfg->hp_pins[0])
+			stac_issue_unsol_event(codec, cfg->hp_pins[0]);
+		else if (cfg->line_out_pins[0])
+			stac_issue_unsol_event(codec, cfg->line_out_pins[0]);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
@@ -4688,8 +4691,13 @@ static int stac92xx_resume(struct hda_codec *codec)
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
 	/* fake event to set up pins again to override cached values */
-	if (spec->hp_detect)
-		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
+	if (spec->hp_detect) {
+		if (spec->autocfg.hp_pins[0])
+			stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
+		else if (spec->autocfg.line_out_pins[0])
+			stac_issue_unsol_event(codec,
+					       spec->autocfg.line_out_pins[0]);
+	}
 	return 0;
 }
 
