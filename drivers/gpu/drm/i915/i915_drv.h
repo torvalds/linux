@@ -566,6 +566,11 @@ struct drm_i915_gem_object {
 	 * in an execbuffer object list.
 	 */
 	int in_execbuffer;
+
+	/**
+	 * Advice: are the backing pages purgeable?
+	 */
+	int madv;
 };
 
 /**
@@ -705,6 +710,8 @@ int i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
+int i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 int i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 int i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,

@@ -1436,13 +1436,21 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 	if (obj_priv->tiling_mode != I915_TILING_NONE)
 		i915_gem_object_save_bit_17_swizzle(obj);
 
-	for (i = 0; i < page_count; i++)
-		if (obj_priv->pages[i] != NULL) {
-			if (obj_priv->dirty)
-				set_page_dirty(obj_priv->pages[i]);
-			mark_page_accessed(obj_priv->pages[i]);
-			page_cache_release(obj_priv->pages[i]);
-		}
+	if (obj_priv->madv == I915_MADV_DONTNEED)
+	    obj_priv->dirty = 0;
+
+	for (i = 0; i < page_count; i++) {
+		if (obj_priv->pages[i] == NULL)
+			break;
+
+		if (obj_priv->dirty)
+			set_page_dirty(obj_priv->pages[i]);
+
+		if (obj_priv->madv == I915_MADV_WILLNEED)
+		    mark_page_accessed(obj_priv->pages[i]);
+
+		page_cache_release(obj_priv->pages[i]);
+	}
 	obj_priv->dirty = 0;
 
 	drm_free_large(obj_priv->pages);
@@ -2412,6 +2420,12 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 
 	if (dev_priv->mm.suspended)
 		return -EBUSY;
+
+	if (obj_priv->madv == I915_MADV_DONTNEED) {
+		DRM_ERROR("Attempting to bind a purgeable object\n");
+		return -EINVAL;
+	}
+
 	if (alignment == 0)
 		alignment = i915_gem_get_gtt_alignment(obj);
 	if (alignment & (i915_gem_get_gtt_alignment(obj) - 1)) {
@@ -3679,6 +3693,13 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	}
 	obj_priv = obj->driver_private;
 
+	if (obj_priv->madv == I915_MADV_DONTNEED) {
+		DRM_ERROR("Attempting to pin a I915_MADV_DONTNEED buffer\n");
+		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
 	if (obj_priv->pin_filp != NULL && obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
@@ -3791,6 +3812,49 @@ i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
     return i915_gem_ring_throttle(dev, file_priv);
 }
 
+int
+i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
+{
+	struct drm_i915_gem_madvise *args = data;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
+
+	switch (args->madv) {
+	case I915_MADV_DONTNEED:
+	case I915_MADV_WILLNEED:
+	    break;
+	default:
+	    return -EINVAL;
+	}
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (obj == NULL) {
+		DRM_ERROR("Bad handle in i915_gem_madvise_ioctl(): %d\n",
+			  args->handle);
+		return -EBADF;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+	obj_priv = obj->driver_private;
+
+	if (obj_priv->pin_count) {
+		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
+
+		DRM_ERROR("Attempted i915_gem_madvise_ioctl() on a pinned object\n");
+		return -EINVAL;
+	}
+
+	obj_priv->madv = args->madv;
+	args->retained = obj_priv->gtt_space != NULL;
+
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 int i915_gem_init_object(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv;
@@ -3815,6 +3879,7 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj_priv->list);
 	INIT_LIST_HEAD(&obj_priv->fence_list);
+	obj_priv->madv = I915_MADV_WILLNEED;
 
 	return 0;
 }
@@ -4506,7 +4571,7 @@ i915_gem_object_truncate(struct drm_gem_object *obj)
 static inline int
 i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj_priv)
 {
-	return !obj_priv->dirty;
+	return !obj_priv->dirty || obj_priv->madv == I915_MADV_DONTNEED;
 }
 
 static int
