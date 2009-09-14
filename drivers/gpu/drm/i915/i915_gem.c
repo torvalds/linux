@@ -1155,7 +1155,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Now bind it into the GTT if needed */
 	mutex_lock(&dev->struct_mutex);
 	if (!obj_priv->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, obj_priv->gtt_alignment);
+		ret = i915_gem_object_bind_to_gtt(obj, 0);
 		if (ret) {
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
@@ -1398,22 +1398,12 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	args->offset = obj_priv->mmap_offset;
 
-	obj_priv->gtt_alignment = i915_gem_get_gtt_alignment(obj);
-
-	/* Make sure the alignment is correct for fence regs etc */
-	if (obj_priv->agp_mem &&
-	    (obj_priv->gtt_offset & (obj_priv->gtt_alignment - 1))) {
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
-	}
-
 	/*
 	 * Pull it into the GTT so that we have a page list (makes the
 	 * initial fault faster and any subsequent flushing possible).
 	 */
 	if (!obj_priv->agp_mem) {
-		ret = i915_gem_object_bind_to_gtt(obj, obj_priv->gtt_alignment);
+		ret = i915_gem_object_bind_to_gtt(obj, 0);
 		if (ret) {
 			drm_gem_object_unreference(obj);
 			mutex_unlock(&dev->struct_mutex);

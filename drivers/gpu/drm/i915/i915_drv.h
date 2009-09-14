@@ -510,10 +510,7 @@ struct drm_i915_gem_object {
 	 * This is the same as gtt_space->start
 	 */
 	uint32_t gtt_offset;
-	/**
-	 * Required alignment for the object
-	 */
-	uint32_t gtt_alignment;
+
 	/**
 	 * Fake offset for use by mmap(2)
 	 */
