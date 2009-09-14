@@ -299,7 +299,8 @@ static void x25_asy_timeout(struct net_device *dev)
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
 
-static int x25_asy_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct x25_asy *sl = netdev_priv(dev);
 	int err;
@@ -308,7 +309,7 @@ static int x25_asy_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_ERR "%s: xmit call when iface is down\n",
 			dev->name);
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	switch (skb->data[0]) {
@@ -319,14 +320,14 @@ static int x25_asy_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (err != LAPB_OK)
 			printk(KERN_ERR "x25_asy: lapb_connect_request error - %d\n", err);
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	case 0x02: /* Disconnect request .. do nothing - hang up ?? */
 		err = lapb_disconnect_request(dev);
 		if (err != LAPB_OK)
 			printk(KERN_ERR "x25_asy: lapb_disconnect_request error - %d\n", err);
 	default:
 		kfree_skb(skb);
-		return  0;
+		return NETDEV_TX_OK;
 	}
 	skb_pull(skb, 1);	/* Remove control byte */
 	/*
@@ -344,9 +345,9 @@ static int x25_asy_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (err != LAPB_OK) {
 		printk(KERN_ERR "x25_asy: lapb_data_request error - %d\n", err);
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

@@ -103,13 +103,10 @@ struct tun_struct {
 	uid_t			owner;
 	gid_t			group;
 
-	struct sk_buff_head	readq;
-
 	struct net_device	*dev;
 	struct fasync_struct	*fasync;
 
 	struct tap_filter       txflt;
-	struct sock		*sk;
 	struct socket		socket;
 
 #ifdef TUN_DEBUG
@@ -148,7 +145,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	tfile->tun = tun;
 	tun->tfile = tfile;
 	dev_hold(tun->dev);
-	sock_hold(tun->sk);
+	sock_hold(tun->socket.sk);
 	atomic_inc(&tfile->count);
 
 out:
@@ -164,7 +161,7 @@ static void __tun_detach(struct tun_struct *tun)
 	netif_tx_unlock_bh(tun->dev);
 
 	/* Drop read queue */
-	skb_queue_purge(&tun->readq);
+	skb_queue_purge(&tun->socket.sk->sk_receive_queue);
 
 	/* Drop the extra count on the net device */
 	dev_put(tun->dev);
@@ -333,7 +330,7 @@ static void tun_free_netdev(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
-	sock_put(tun->sk);
+	sock_put(tun->socket.sk);
 }
 
 /* Net device open. */
@@ -351,7 +348,7 @@ static int tun_net_close(struct net_device *dev)
 }
 
 /* Net device start xmit */
-static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
@@ -367,7 +364,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!check_filter(&tun->txflt, skb))
 		goto drop;
 
-	if (skb_queue_len(&tun->readq) >= dev->tx_queue_len) {
+	if (skb_queue_len(&tun->socket.sk->sk_receive_queue) >= dev->tx_queue_len) {
 		if (!(tun->flags & TUN_ONE_QUEUE)) {
 			/* Normal queueing mode. */
 			/* Packet scheduler handles dropping of further packets. */
@@ -384,19 +381,19 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Enqueue packet */
-	skb_queue_tail(&tun->readq, skb);
+	skb_queue_tail(&tun->socket.sk->sk_receive_queue, skb);
 	dev->trans_start = jiffies;
 
 	/* Notify and wake up reader process */
 	if (tun->flags & TUN_FASYNC)
 		kill_fasync(&tun->fasync, SIGIO, POLL_IN);
 	wake_up_interruptible(&tun->socket.wait);
-	return 0;
+	return NETDEV_TX_OK;
 
 drop:
 	dev->stats.tx_dropped++;
 	kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void tun_net_mclist(struct net_device *dev)
@@ -485,13 +482,13 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	if (!tun)
 		return POLLERR;
 
-	sk = tun->sk;
+	sk = tun->socket.sk;
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
 	poll_wait(file, &tun->socket.wait, wait);
 
-	if (!skb_queue_empty(&tun->readq))
+	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
 
 	if (sock_writeable(sk) ||
@@ -512,7 +509,7 @@ static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
 					    size_t prepad, size_t len,
 					    size_t linear, int noblock)
 {
-	struct sock *sk = tun->sk;
+	struct sock *sk = tun->socket.sk;
 	struct sk_buff *skb;
 	int err;
 
@@ -634,6 +631,9 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 		case VIRTIO_NET_HDR_GSO_TCPV6:
 			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
 			break;
+		case VIRTIO_NET_HDR_GSO_UDP:
+			skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
+			break;
 		default:
 			tun->dev->stats.rx_frame_errors++;
 			kfree_skb(skb);
@@ -719,6 +719,8 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
 			else if (sinfo->gso_type & SKB_GSO_TCPV6)
 				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+			else if (sinfo->gso_type & SKB_GSO_UDP)
+				gso.gso_type = VIRTIO_NET_HDR_GSO_UDP;
 			else
 				BUG();
 			if (sinfo->gso_type & SKB_GSO_TCP_ECN)
@@ -775,7 +777,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		current->state = TASK_INTERRUPTIBLE;
 
 		/* Read frames from the queue */
-		if (!(skb=skb_dequeue(&tun->readq))) {
+		if (!(skb=skb_dequeue(&tun->socket.sk->sk_receive_queue))) {
 			if (file->f_flags & O_NONBLOCK) {
 				ret = -EAGAIN;
 				break;
@@ -811,8 +813,6 @@ out:
 static void tun_setup(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
-
-	skb_queue_head_init(&tun->readq);
 
 	tun->owner = -1;
 	tun->group = -1;
@@ -934,7 +934,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		     (tun->group != -1 && !in_egroup_p(tun->group))) &&
 		    !capable(CAP_NET_ADMIN))
 			return -EPERM;
-		err = security_tun_dev_attach(tun->sk);
+		err = security_tun_dev_attach(tun->socket.sk);
 		if (err < 0)
 			return err;
 
@@ -992,7 +992,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		sk->sk_write_space = tun_sock_write_space;
 		sk->sk_sndbuf = INT_MAX;
 
-		tun->sk = sk;
 		container_of(sk, struct tun_sock, sk)->tun = tun;
 
 		security_tun_dev_post_create(sk);
@@ -1005,7 +1004,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 				goto err_free_sk;
 		}
 
-		err = -EINVAL;
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_free_sk;
@@ -1077,7 +1075,8 @@ static int set_offload(struct net_device *dev, unsigned long arg)
 	old_features = dev->features;
 	/* Unset features, set them as we chew on the arg. */
 	features = (old_features & ~(NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST
-				    |NETIF_F_TSO_ECN|NETIF_F_TSO|NETIF_F_TSO6));
+				    |NETIF_F_TSO_ECN|NETIF_F_TSO|NETIF_F_TSO6
+				    |NETIF_F_UFO));
 
 	if (arg & TUN_F_CSUM) {
 		features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
@@ -1093,6 +1092,11 @@ static int set_offload(struct net_device *dev, unsigned long arg)
 			if (arg & TUN_F_TSO6)
 				features |= NETIF_F_TSO6;
 			arg &= ~(TUN_F_TSO4|TUN_F_TSO6);
+		}
+
+		if (arg & TUN_F_UFO) {
+			features |= NETIF_F_UFO;
+			arg &= ~TUN_F_UFO;
 		}
 	}
 
@@ -1247,7 +1251,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case TUNGETSNDBUF:
-		sndbuf = tun->sk->sk_sndbuf;
+		sndbuf = tun->socket.sk->sk_sndbuf;
 		if (copy_to_user(argp, &sndbuf, sizeof(sndbuf)))
 			ret = -EFAULT;
 		break;
@@ -1258,7 +1262,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		tun->sk->sk_sndbuf = sndbuf;
+		tun->socket.sk->sk_sndbuf = sndbuf;
 		break;
 
 	default:
@@ -1341,7 +1345,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 
 	tun = tfile->tun;
 	if (tun)
-		sock_put(tun->sk);
+		sock_put(tun->socket.sk);
 
 	put_net(tfile->net);
 	kfree(tfile);

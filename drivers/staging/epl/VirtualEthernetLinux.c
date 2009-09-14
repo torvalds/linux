@@ -223,7 +223,7 @@ static int VEthXmit(struct sk_buff *pSkb_p, struct net_device *pNetDevice_p)
 	}
 
       Exit:
-	return 0;
+	return NETDEV_TX_OK;
 
 }
 

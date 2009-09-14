@@ -81,6 +81,7 @@ int rds_page_copy_user(struct page *page, unsigned long offset,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rds_page_copy_user);
 
 /*
  * Message allocation uses this to build up regions of a message.

@@ -218,8 +218,8 @@ void inet_twdr_hangman(unsigned long data)
 		/* We purged the entire slot, anything left?  */
 		if (twdr->tw_count)
 			need_timer = 1;
+		twdr->slot = ((twdr->slot + 1) & (INET_TWDR_TWKILL_SLOTS - 1));
 	}
-	twdr->slot = ((twdr->slot + 1) & (INET_TWDR_TWKILL_SLOTS - 1));
 	if (need_timer)
 		mod_timer(&twdr->tw_timer, jiffies + twdr->period);
 out:

@@ -26,6 +26,19 @@ void b43_lptab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *data);
 
 void b2062_upload_init_table(struct b43_wldev *dev);
+void b2063_upload_init_table(struct b43_wldev *dev);
 
+struct lpphy_tx_gain_table_entry {
+	u8 gm,  pga,  pad,  dac,  bb_mult;
+};
+
+void lpphy_write_gain_table(struct b43_wldev *dev, int offset,
+			    struct lpphy_tx_gain_table_entry data);
+void lpphy_write_gain_table_bulk(struct b43_wldev *dev, int offset, int count,
+				 struct lpphy_tx_gain_table_entry *table);
+
+void lpphy_rev0_1_table_init(struct b43_wldev *dev);
+void lpphy_rev2plus_table_init(struct b43_wldev *dev);
+void lpphy_init_tx_gain_table(struct b43_wldev *dev);
 
 #endif /* B43_TABLES_LPPHY_H_ */

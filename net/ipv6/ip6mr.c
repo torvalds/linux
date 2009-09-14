@@ -204,7 +204,7 @@ static int ip6mr_vif_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ip6mr_vif_seq_ops = {
+static const struct seq_operations ip6mr_vif_seq_ops = {
 	.start = ip6mr_vif_seq_start,
 	.next  = ip6mr_vif_seq_next,
 	.stop  = ip6mr_vif_seq_stop,
@@ -217,7 +217,7 @@ static int ip6mr_vif_open(struct inode *inode, struct file *file)
 			    sizeof(struct ipmr_vif_iter));
 }
 
-static struct file_operations ip6mr_vif_fops = {
+static const struct file_operations ip6mr_vif_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ip6mr_vif_open,
 	.read    = seq_read,
@@ -341,7 +341,7 @@ static int ipmr_mfc_open(struct inode *inode, struct file *file)
 			    sizeof(struct ipmr_mfc_iter));
 }
 
-static struct file_operations ip6mr_mfc_fops = {
+static const struct file_operations ip6mr_mfc_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ipmr_mfc_open,
 	.read    = seq_read,
@@ -416,7 +416,8 @@ static struct inet6_protocol pim6_protocol = {
 
 /* Service routines creating virtual interfaces: PIMREG */
 
-static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t reg_vif_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct net *net = dev_net(dev);
 
@@ -427,7 +428,7 @@ static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 			   MRT6MSG_WHOLEPKT);
 	read_unlock(&mrt_lock);
 	kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static const struct net_device_ops reg_vif_netdev_ops = {

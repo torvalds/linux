@@ -300,7 +300,7 @@ static int sxg_nic_get_eeprom(struct net_device *netdev,
 	return 0;
 }
 
-struct ethtool_ops sxg_nic_ethtool_ops = {
+const struct ethtool_ops sxg_nic_ethtool_ops = {
 	.get_settings = sxg_nic_get_settings,
 	.set_settings = sxg_nic_set_settings,
 	.get_drvinfo = sxg_nic_get_drvinfo,

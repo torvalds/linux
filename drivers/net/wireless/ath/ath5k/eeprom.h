@@ -19,6 +19,9 @@
 /*
  * Common ar5xxx EEPROM data offsets (set these on AR5K_EEPROM_BASE)
  */
+#define	AR5K_EEPROM_PCIE_OFFSET		0x02	/* Contains offset to PCI-E infos */
+#define	AR5K_EEPROM_PCIE_SERDES_SECTION	0x40	/* PCIE_OFFSET points here when
+						 * SERDES infos are present */
 #define AR5K_EEPROM_MAGIC		0x003d	/* EEPROM Magic number */
 #define AR5K_EEPROM_MAGIC_VALUE		0x5aa5	/* Default - found on EEPROM */
 #define AR5K_EEPROM_MAGIC_5212		0x0000145c /* 5212 */
@@ -391,6 +394,7 @@ struct ath5k_eeprom_info {
 	u8	ee_rfkill_pin;
 	bool	ee_rfkill_pol;
 	bool	ee_is_hb63;
+	bool	ee_serdes;
 	u16	ee_misc0;
 	u16	ee_misc1;
 	u16	ee_misc2;

@@ -377,7 +377,7 @@ static char init_setup[14] = {
 };
 
 static int i596_open(struct net_device *dev);
-static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
@@ -863,7 +863,7 @@ static int i596_open(struct net_device *dev)
 	return 0;			/* Always succeed */
 }
 
-static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
+static netdev_tx_t i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 	struct tx_cmd *tx_cmd;
 	short length;
 
@@ -871,7 +871,7 @@ static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -906,7 +906,7 @@ static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 		dev->stats.tx_packets++;
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void

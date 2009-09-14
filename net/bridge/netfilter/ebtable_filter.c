@@ -50,7 +50,7 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static struct ebt_table frame_filter =
+static const struct ebt_table frame_filter =
 {
 	.name		= "filter",
 	.table		= &initial_table,
@@ -77,21 +77,21 @@ static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
 	{
 		.hook		= ebt_in_hook,
 		.owner		= THIS_MODULE,
-		.pf		= PF_BRIDGE,
+		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_LOCAL_IN,
 		.priority	= NF_BR_PRI_FILTER_BRIDGED,
 	},
 	{
 		.hook		= ebt_in_hook,
 		.owner		= THIS_MODULE,
-		.pf		= PF_BRIDGE,
+		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_FORWARD,
 		.priority	= NF_BR_PRI_FILTER_BRIDGED,
 	},
 	{
 		.hook		= ebt_out_hook,
 		.owner		= THIS_MODULE,
-		.pf		= PF_BRIDGE,
+		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_LOCAL_OUT,
 		.priority	= NF_BR_PRI_FILTER_OTHER,
 	},

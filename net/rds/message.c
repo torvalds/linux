@@ -50,6 +50,7 @@ void rds_message_addref(struct rds_message *rm)
 	rdsdebug("addref rm %p ref %d\n", rm, atomic_read(&rm->m_refcount));
 	atomic_inc(&rm->m_refcount);
 }
+EXPORT_SYMBOL_GPL(rds_message_addref);
 
 /*
  * This relies on dma_map_sg() not touching sg[].page during merging.
@@ -92,6 +93,7 @@ void rds_message_put(struct rds_message *rm)
 		kfree(rm);
 	}
 }
+EXPORT_SYMBOL_GPL(rds_message_put);
 
 void rds_message_inc_free(struct rds_incoming *inc)
 {
@@ -108,6 +110,7 @@ void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 	hdr->h_sequence = cpu_to_be64(seq);
 	hdr->h_exthdr[0] = RDS_EXTHDR_NONE;
 }
+EXPORT_SYMBOL_GPL(rds_message_populate_header);
 
 int rds_message_add_extension(struct rds_header *hdr,
 		unsigned int type, const void *data, unsigned int len)
@@ -133,6 +136,7 @@ int rds_message_add_extension(struct rds_header *hdr,
 	dst[len] = RDS_EXTHDR_NONE;
 	return 1;
 }
+EXPORT_SYMBOL_GPL(rds_message_add_extension);
 
 /*
  * If a message has extension headers, retrieve them here.
@@ -208,6 +212,7 @@ int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 o
 	ext_hdr.h_rdma_offset = cpu_to_be32(offset);
 	return rds_message_add_extension(hdr, RDS_EXTHDR_RDMA_DEST, &ext_hdr, sizeof(ext_hdr));
 }
+EXPORT_SYMBOL_GPL(rds_message_add_rdma_dest_extension);
 
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp)
 {
@@ -399,4 +404,5 @@ void rds_message_unmapped(struct rds_message *rm)
 	if (waitqueue_active(&rds_message_flush_waitq))
 		wake_up(&rds_message_flush_waitq);
 }
+EXPORT_SYMBOL_GPL(rds_message_unmapped);
 

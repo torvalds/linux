@@ -590,8 +590,8 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 		       chanstat);
 	}
 
-	dev->stats.last_rx = jiffies;
-	ieee80211_rx_irqsafe(dev->wl->hw, skb, &status);
+	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	ieee80211_rx_irqsafe(dev->wl->hw, skb);
 
 	return;
 drop:

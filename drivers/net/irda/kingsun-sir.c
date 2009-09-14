@@ -150,7 +150,8 @@ static void kingsun_send_irq(struct urb *urb)
 /*
  * Called from net/core when new frame is available.
  */
-static int kingsun_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t kingsun_hard_xmit(struct sk_buff *skb,
+					   struct net_device *netdev)
 {
 	struct kingsun_cb *kingsun;
 	int wraplen;
@@ -416,7 +417,7 @@ static int kingsun_net_ioctl(struct net_device *netdev, struct ifreq *rq,
 }
 
 static const struct net_device_ops kingsun_ops = {
-	.ndo_start_xmit = kingsun_hard_xmit,
+	.ndo_start_xmit	     = kingsun_hard_xmit,
 	.ndo_open            = kingsun_net_open,
 	.ndo_stop            = kingsun_net_close,
 	.ndo_do_ioctl        = kingsun_net_ioctl,

@@ -49,7 +49,7 @@ char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
                               "Intel(R) 10 Gigabit PCI Express Network Driver";
 
-#define DRV_VERSION "2.0.34-k2"
+#define DRV_VERSION "2.0.37-k2"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static char ixgbe_copyright[] = "Copyright (c) 1999-2009 Intel Corporation.";
 
@@ -74,6 +74,8 @@ static struct pci_device_id ixgbe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT),
 	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT),
+	 board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT2),
 	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4),
 	 board_82598 },
@@ -2024,7 +2026,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	else
 		hlreg0 |= IXGBE_HLREG0_JUMBOEN;
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+	if (netdev->features & NETIF_F_FCOE_MTU)
 		hlreg0 |= IXGBE_HLREG0_JUMBOEN;
 #endif
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
@@ -2055,7 +2057,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			rx_ring->flags |= IXGBE_RING_RX_PS_ENABLED;
 
 #ifdef IXGBE_FCOE
-		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		if (netdev->features & NETIF_F_FCOE_MTU) {
 			struct ixgbe_ring_feature *f;
 			f = &adapter->ring_feature[RING_F_FCOE];
 			if ((i >= f->mask) && (i < f->mask + f->indices)) {
@@ -2514,7 +2516,7 @@ static void ixgbe_sfp_link_config(struct ixgbe_adapter *adapter)
 static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 {
 	u32 autoneg;
-	bool link_up = false;
+	bool negotiation, link_up = false;
 	u32 ret = IXGBE_ERR_LINK_SETUP;
 
 	if (hw->mac.ops.check_link)
@@ -2524,13 +2526,12 @@ static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 		goto link_cfg_out;
 
 	if (hw->mac.ops.get_link_capabilities)
-		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg,
-		                                        &hw->mac.autoneg);
+		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
 	if (ret)
 		goto link_cfg_out;
 
-	if (hw->mac.ops.setup_link_speed)
-		ret = hw->mac.ops.setup_link_speed(hw, autoneg, true, link_up);
+	if (hw->mac.ops.setup_link)
+		ret = hw->mac.ops.setup_link(hw, autoneg, negotiation, link_up);
 link_cfg_out:
 	return ret;
 }
@@ -2607,7 +2608,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 #ifdef IXGBE_FCOE
 	/* adjust max frame to be able to do baby jumbo for FCoE */
-	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
+	if ((netdev->features & NETIF_F_FCOE_MTU) &&
 	    (max_frame < IXGBE_FCOE_JUMBO_FRAME_SIZE))
 		max_frame = IXGBE_FCOE_JUMBO_FRAME_SIZE;
 
@@ -3112,14 +3113,16 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 
 	f->indices = min((int)num_online_cpus(), f->indices);
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		adapter->num_rx_queues = 1;
+		adapter->num_tx_queues = 1;
 #ifdef CONFIG_IXGBE_DCB
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			DPRINTK(PROBE, INFO, "FCOE enabled with DCB \n");
+			DPRINTK(PROBE, INFO, "FCoE enabled with DCB \n");
 			ixgbe_set_dcb_queues(adapter);
 		}
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			DPRINTK(PROBE, INFO, "FCOE enabled with RSS \n");
+			DPRINTK(PROBE, INFO, "FCoE enabled with RSS \n");
 			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
 			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 				ixgbe_set_fdir_queues(adapter);
@@ -3129,8 +3132,7 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 		/* adding FCoE rx rings to the end */
 		f->mask = adapter->num_rx_queues;
 		adapter->num_rx_queues += f->indices;
-		if (adapter->num_tx_queues == 0)
-			adapter->num_tx_queues = f->indices;
+		adapter->num_tx_queues += f->indices;
 
 		ret = true;
 	}
@@ -3370,15 +3372,36 @@ static bool inline ixgbe_cache_ring_fdir(struct ixgbe_adapter *adapter)
  */
 static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 {
-	int i, fcoe_i = 0;
+	int i, fcoe_rx_i = 0, fcoe_tx_i = 0;
 	bool ret = false;
 	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
 
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
 #ifdef CONFIG_IXGBE_DCB
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			struct ixgbe_fcoe *fcoe = &adapter->fcoe;
+
 			ixgbe_cache_ring_dcb(adapter);
-			fcoe_i = adapter->rx_ring[0].reg_idx + 1;
+			/* find out queues in TC for FCoE */
+			fcoe_rx_i = adapter->rx_ring[fcoe->tc].reg_idx + 1;
+			fcoe_tx_i = adapter->tx_ring[fcoe->tc].reg_idx + 1;
+			/*
+			 * In 82599, the number of Tx queues for each traffic
+			 * class for both 8-TC and 4-TC modes are:
+			 * TCs  : TC0 TC1 TC2 TC3 TC4 TC5 TC6 TC7
+			 * 8 TCs:  32  32  16  16   8   8   8   8
+			 * 4 TCs:  64  64  32  32
+			 * We have max 8 queues for FCoE, where 8 the is
+			 * FCoE redirection table size. If TC for FCoE is
+			 * less than or equal to TC3, we have enough queues
+			 * to add max of 8 queues for FCoE, so we start FCoE
+			 * tx descriptor from the next one, i.e., reg_idx + 1.
+			 * If TC for FCoE is above TC3, implying 8 TC mode,
+			 * and we need 8 for FCoE, we have to take all queues
+			 * in that traffic class for FCoE.
+			 */
+			if ((f->indices == IXGBE_FCRETA_SIZE) && (fcoe->tc > 3))
+				fcoe_tx_i--;
 		}
 #endif /* CONFIG_IXGBE_DCB */
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
@@ -3388,10 +3411,13 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 			else
 				ixgbe_cache_ring_rss(adapter);
 
-			fcoe_i = f->mask;
+			fcoe_rx_i = f->mask;
+			fcoe_tx_i = f->mask;
 		}
-		for (i = 0; i < f->indices; i++, fcoe_i++)
-			adapter->rx_ring[f->mask + i].reg_idx = fcoe_i;
+		for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
+			adapter->rx_ring[f->mask + i].reg_idx = fcoe_rx_i;
+			adapter->tx_ring[f->mask + i].reg_idx = fcoe_tx_i;
+		}
 		ret = true;
 	}
 	return ret;
@@ -3613,7 +3639,7 @@ static void ixgbe_free_q_vectors(struct ixgbe_adapter *adapter)
 	}
 }
 
-void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
+static void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
 {
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		adapter->flags &= ~IXGBE_FLAG_MSIX_ENABLED;
@@ -3799,6 +3825,8 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
 		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 		adapter->ring_feature[RING_F_FCOE].indices = 0;
+		/* Default traffic class to use for FCoE */
+		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
 #endif /* IXGBE_FCOE */
 	}
 
@@ -4513,14 +4541,14 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	                                             multispeed_fiber_task);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 autoneg;
+	bool negotiation;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_LINK_TASK;
 	autoneg = hw->phy.autoneg_advertised;
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
-		hw->mac.ops.get_link_capabilities(hw, &autoneg,
-		                                  &hw->mac.autoneg);
-	if (hw->mac.ops.setup_link_speed)
-		hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
+		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
+	if (hw->mac.ops.setup_link)
+		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
 	adapter->flags &= ~IXGBE_FLAG_IN_SFP_LINK_TASK;
 }
@@ -4634,13 +4662,13 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			if (hw->mac.type == ixgbe_mac_82599EB) {
 				u32 mflcn = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 				u32 fccfg = IXGBE_READ_REG(hw, IXGBE_FCCFG);
-				flow_rx = (mflcn & IXGBE_MFLCN_RFCE);
-				flow_tx = (fccfg & IXGBE_FCCFG_TFCE_802_3X);
+				flow_rx = !!(mflcn & IXGBE_MFLCN_RFCE);
+				flow_tx = !!(fccfg & IXGBE_FCCFG_TFCE_802_3X);
 			} else {
 				u32 frctl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 				u32 rmcs = IXGBE_READ_REG(hw, IXGBE_RMCS);
-				flow_rx = (frctl & IXGBE_FCTRL_RFCE);
-				flow_tx = (rmcs & IXGBE_RMCS_TFCE_802_3X);
+				flow_rx = !!(frctl & IXGBE_FCTRL_RFCE);
+				flow_tx = !!(rmcs & IXGBE_RMCS_TFCE_802_3X);
 			}
 
 			printk(KERN_INFO "ixgbe: %s NIC Link is Up %s, "
@@ -5100,12 +5128,13 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 		return smp_processor_id();
 
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-		return 0;  /* All traffic should default to class 0 */
+		return (skb->vlan_tci & IXGBE_TX_FLAGS_VLAN_PRIO_MASK) >> 13;
 
 	return skb_tx_hash(dev, skb);
 }
 
-static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *tx_ring;
@@ -5139,9 +5168,15 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tx_ring = &adapter->tx_ring[r_idx];
 
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    (skb->protocol == htons(ETH_P_FCOE)))
+	    (skb->protocol == htons(ETH_P_FCOE))) {
 		tx_flags |= IXGBE_TX_FLAGS_FCOE;
-
+#ifdef IXGBE_FCOE
+		r_idx = smp_processor_id();
+		r_idx &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
+		r_idx += adapter->ring_feature[RING_F_FCOE].mask;
+		tx_ring = &adapter->tx_ring[r_idx];
+#endif
+	}
 	/* four things can cause us to need a context descriptor */
 	if (skb_is_gso(skb) ||
 	    (skb->ip_summed == CHECKSUM_PARTIAL) ||
@@ -5374,6 +5409,8 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 #ifdef IXGBE_FCOE
 	.ndo_fcoe_ddp_setup = ixgbe_fcoe_ddp_get,
 	.ndo_fcoe_ddp_done = ixgbe_fcoe_ddp_put,
+	.ndo_fcoe_enable = ixgbe_fcoe_enable,
+	.ndo_fcoe_disable = ixgbe_fcoe_disable,
 #endif /* IXGBE_FCOE */
 };
 
@@ -5573,6 +5610,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;
 	netdev->vlan_features |= NETIF_F_IP_CSUM;
+	netdev->vlan_features |= NETIF_F_IPV6_CSUM;
 	netdev->vlan_features |= NETIF_F_SG;
 
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)

@@ -233,10 +233,6 @@ struct ixgbe_q_vector {
 #define IXGBE_TX_CTXTDESC_ADV(R, i)	    \
 	(&(((struct ixgbe_adv_tx_context_desc *)((R).desc))[i]))
 
-#define IXGBE_GET_DESC(R, i, type)	(&(((struct type *)((R).desc))[i]))
-#define IXGBE_TX_DESC(R, i)	IXGBE_GET_DESC(R, i, ixgbe_legacy_tx_desc)
-#define IXGBE_RX_DESC(R, i)	IXGBE_GET_DESC(R, i, ixgbe_legacy_rx_desc)
-
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
 #ifdef IXGBE_FCOE
 /* Use 3K as the baby jumbo frame size for FCoE */
@@ -428,55 +424,20 @@ extern s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc);
 extern s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
                                                  struct ixgbe_atr_input *input,
                                                  u8 queue);
-extern s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
-                                               struct ixgbe_atr_input *input,
-                                               u16 soft_id,
-                                               u8 queue);
-extern u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *input, u32 key);
 extern s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input,
                                        u16 vlan_id);
 extern s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input,
                                         u32 src_addr);
 extern s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input,
                                         u32 dst_addr);
-extern s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 src_addr_1, u32 src_addr_2,
-                                        u32 src_addr_3, u32 src_addr_4);
-extern s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 dst_addr_1, u32 dst_addr_2,
-                                        u32 dst_addr_3, u32 dst_addr_4);
 extern s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input,
                                         u16 src_port);
 extern s32 ixgbe_atr_set_dst_port_82599(struct ixgbe_atr_input *input,
                                         u16 dst_port);
 extern s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input,
                                          u16 flex_byte);
-extern s32 ixgbe_atr_set_vm_pool_82599(struct ixgbe_atr_input *input,
-                                       u8 vm_pool);
 extern s32 ixgbe_atr_set_l4type_82599(struct ixgbe_atr_input *input,
                                       u8 l4type);
-extern s32 ixgbe_atr_get_vlan_id_82599(struct ixgbe_atr_input *input,
-                                       u16 *vlan_id);
-extern s32 ixgbe_atr_get_src_ipv4_82599(struct ixgbe_atr_input *input,
-                                        u32 *src_addr);
-extern s32 ixgbe_atr_get_dst_ipv4_82599(struct ixgbe_atr_input *input,
-                                        u32 *dst_addr);
-extern s32 ixgbe_atr_get_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 *src_addr_1, u32 *src_addr_2,
-                                        u32 *src_addr_3, u32 *src_addr_4);
-extern s32 ixgbe_atr_get_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 *dst_addr_1, u32 *dst_addr_2,
-                                        u32 *dst_addr_3, u32 *dst_addr_4);
-extern s32 ixgbe_atr_get_src_port_82599(struct ixgbe_atr_input *input,
-                                        u16 *src_port);
-extern s32 ixgbe_atr_get_dst_port_82599(struct ixgbe_atr_input *input,
-                                        u16 *dst_port);
-extern s32 ixgbe_atr_get_flex_byte_82599(struct ixgbe_atr_input *input,
-                                         u16 *flex_byte);
-extern s32 ixgbe_atr_get_vm_pool_82599(struct ixgbe_atr_input *input,
-                                       u8 *vm_pool);
-extern s32 ixgbe_atr_get_l4type_82599(struct ixgbe_atr_input *input,
-                                      u8 *l4type);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_adapter *adapter,
@@ -489,6 +450,12 @@ extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
                               struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid);
+extern int ixgbe_fcoe_enable(struct net_device *netdev);
+extern int ixgbe_fcoe_disable(struct net_device *netdev);
+#ifdef CONFIG_IXGBE_DCB
+extern u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter);
+extern u8 ixgbe_fcoe_setapp(struct ixgbe_adapter *adapter, u8 up);
+#endif /* CONFIG_IXGBE_DCB */
 #endif /* IXGBE_FCOE */
 
 #endif /* _IXGBE_H_ */

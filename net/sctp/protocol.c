@@ -431,15 +431,13 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
  * of requested destination address, sender and receiver
  * SHOULD include all of its addresses with level greater
  * than or equal to L.
+ *
+ * IPv4 scoping can be controlled through sysctl option
+ * net.sctp.addr_scope_policy
  */
 static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
 {
 	sctp_scope_t retval;
-
-	/* Should IPv4 scoping be a sysctl configurable option
-	 * so users can turn it off (default on) for certain
-	 * unconventional networking environments?
-	 */
 
 	/* Check for unusable SCTP addresses. */
 	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr)) {
@@ -1258,6 +1256,9 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Disable AUTH by default. */
 	sctp_auth_enable = 0;
+
+	/* Set SCOPE policy to enabled */
+	sctp_scope_policy = SCTP_SCOPE_POLICY_ENABLE;
 
 	sctp_sysctl_register();
 

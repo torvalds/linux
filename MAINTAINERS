@@ -876,6 +876,7 @@ M:	"Luis R. Rodriguez" <lrodriguez@atheros.com>
 M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
+W:	http://wireless.kernel.org/en/users/Drivers/ath5k
 S:	Maintained
 F:	drivers/net/wireless/ath/ath5k/
 
@@ -887,6 +888,7 @@ M:	Vasanthakumar Thiagarajan <vasanth@atheros.com>
 M:	Senthil Balasubramanian <senthilkumar@atheros.com>
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
+W:	http://wireless.kernel.org/en/users/Drivers/ath9k
 S:	Supported
 F:	drivers/net/wireless/ath/ath9k/
 
@@ -2660,25 +2662,21 @@ F:	drivers/net/ixgbe/
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
 M:	Zhu Yi <yi.zhu@intel.com>
-M:	James Ketrenos <jketreno@linux.intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
+M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
-L:	ipw2100-devel@lists.sourceforge.net
-W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2100.sourceforge.net
-S:	Supported
+S:	Odd Fixes
 F:	Documentation/networking/README.ipw2100
 F:	drivers/net/wireless/ipw2x00/ipw2100.*
 
 INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
 M:	Zhu Yi <yi.zhu@intel.com>
-M:	James Ketrenos <jketreno@linux.intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
+M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
-L:	ipw2100-devel@lists.sourceforge.net
-W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2200.sourceforge.net
-S:	Supported
+S:	Odd Fixes
 F:	Documentation/networking/README.ipw2200
 F:	drivers/net/wireless/ipw2x00/ipw2200.*
 
@@ -2695,8 +2693,8 @@ F:	include/linux/wimax/i2400m.h
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Zhu Yi <yi.zhu@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
+M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
-L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi-2.6.git
 S:	Supported
@@ -3279,6 +3277,12 @@ S:	Supported
 F:	drivers/net/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
+MARVELL MWL8K WIRELESS DRIVER
+M:	Lennert Buytenhek <buytenh@marvell.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+F:	drivers/net/wireless/mwl8k.c
+
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@cam.org>
 S:	Maintained
@@ -3591,9 +3595,12 @@ M:	"John W. Linville" <linville@tuxdriver.com>
 L:	linux-wireless@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
+F:	net/mac80211/
+F:	net/rfkill/
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/linux/wireless.h
+F:	drivers/net/wireless/
 
 NETWORKING DRIVERS
 L:	netdev@vger.kernel.org
@@ -4299,7 +4306,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818*
+F:	drivers/net/wireless/rtl818x/rtl8180*
 
 RTL8187 WIRELESS DRIVER
 M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -4526,9 +4533,10 @@ S:	Supported
 F:	drivers/net/benet/
 
 SFC NETWORK DRIVER
-P:	Steve Hodgson
-P:	Ben Hutchings
-M:	Robert Stonehouse <linux-net-drivers@solarflare.com>
+M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
+M:	Steve Hodgson <shodgson@solarflare.com>
+M:	Ben Hutchings <bhutchings@solarflare.com>
+L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/sfc/
 
@@ -5577,6 +5585,24 @@ WISTRON LAPTOP BUTTON DRIVER
 M:	Miloslav Trmac <mitr@volny.cz>
 S:	Maintained
 F:	drivers/input/misc/wistron_btns.c
+
+WL1251 WIRELESS DRIVER
+P:	Kalle Valo
+M:	kalle.valo@nokia.com
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
+S:	Maintained
+F:	drivers/net/wireless/wl12xx/*
+X:	drivers/net/wireless/wl12xx/wl1271*
+
+WL1271 WIRELESS DRIVER
+M:	Luciano Coelho <luciano.coelho@nokia.com>
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
+S:	Maintained
+F:	drivers/net/wireless/wl12xx/wl1271*
 
 WL3501 WIRELESS PCMCIA CARD DRIVER
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>

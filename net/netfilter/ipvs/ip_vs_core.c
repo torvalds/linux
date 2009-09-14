@@ -24,6 +24,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ip.h>
@@ -388,9 +391,9 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	 */
 	if (!svc->fwmark && pptr[1] != svc->port) {
 		if (!svc->port)
-			IP_VS_ERR("Schedule: port zero only supported "
-				  "in persistent services, "
-				  "check your ipvs configuration\n");
+			pr_err("Schedule: port zero only supported "
+			       "in persistent services, "
+			       "check your ipvs configuration\n");
 		return NULL;
 	}
 
@@ -462,7 +465,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		ip_vs_service_put(svc);
 
 		/* create a new connection entry */
-		IP_VS_DBG(6, "ip_vs_leave: create a cache_bypass entry\n");
+		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
 		cp = ip_vs_conn_new(svc->af, iph.protocol,
 				    &iph.saddr, pptr[0],
 				    &iph.daddr, pptr[1],
@@ -664,8 +667,8 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 	unsigned int verdict = NF_DROP;
 
 	if (IP_VS_FWD_METHOD(cp) != 0) {
-		IP_VS_ERR("shouldn't reach here, because the box is on the "
-			  "half connection in the tun/dr module.\n");
+		pr_err("shouldn't reach here, because the box is on the "
+		       "half connection in the tun/dr module.\n");
 	}
 
 	/* Ensure the checksum is correct */
@@ -1256,7 +1259,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
-	int ret, restart, af;
+	int ret, restart, af, pkts;
 
 	af = (skb->protocol == htons(ETH_P_IP)) ? AF_INET : AF_INET6;
 
@@ -1274,13 +1277,24 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	if (unlikely(iph.protocol == IPPROTO_ICMP)) {
-		int related, verdict = ip_vs_in_icmp(skb, &related, hooknum);
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
+			int related, verdict = ip_vs_in_icmp_v6(skb, &related, hooknum);
 
-		if (related)
-			return verdict;
-		ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
-	}
+			if (related)
+				return verdict;
+			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
+		}
+	} else
+#endif
+		if (unlikely(iph.protocol == IPPROTO_ICMP)) {
+			int related, verdict = ip_vs_in_icmp(skb, &related, hooknum);
+
+			if (related)
+				return verdict;
+			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
+		}
 
 	/* Protocol supported? */
 	pp = ip_vs_proto_get(iph.protocol);
@@ -1343,12 +1357,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	 * Sync connection if it is about to close to
 	 * encorage the standby servers to update the connections timeout
 	 */
-	atomic_inc(&cp->in_pkts);
+	pkts = atomic_add_return(1, &cp->in_pkts);
 	if (af == AF_INET &&
 	    (ip_vs_sync_state & IP_VS_STATE_MASTER) &&
 	    (((cp->protocol != IPPROTO_TCP ||
 	       cp->state == IP_VS_TCP_S_ESTABLISHED) &&
-	      (atomic_read(&cp->in_pkts) % sysctl_ip_vs_sync_threshold[1]
+	      (pkts % sysctl_ip_vs_sync_threshold[1]
 	       == sysctl_ip_vs_sync_threshold[0])) ||
 	     ((cp->protocol == IPPROTO_TCP) && (cp->old_state != cp->state) &&
 	      ((cp->state == IP_VS_TCP_S_FIN_WAIT) ||
@@ -1487,7 +1501,7 @@ static int __init ip_vs_init(void)
 
 	ret = ip_vs_control_init();
 	if (ret < 0) {
-		IP_VS_ERR("can't setup control.\n");
+		pr_err("can't setup control.\n");
 		goto cleanup_estimator;
 	}
 
@@ -1495,23 +1509,23 @@ static int __init ip_vs_init(void)
 
 	ret = ip_vs_app_init();
 	if (ret < 0) {
-		IP_VS_ERR("can't setup application helper.\n");
+		pr_err("can't setup application helper.\n");
 		goto cleanup_protocol;
 	}
 
 	ret = ip_vs_conn_init();
 	if (ret < 0) {
-		IP_VS_ERR("can't setup connection table.\n");
+		pr_err("can't setup connection table.\n");
 		goto cleanup_app;
 	}
 
 	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
-		IP_VS_ERR("can't register hooks.\n");
+		pr_err("can't register hooks.\n");
 		goto cleanup_conn;
 	}
 
-	IP_VS_INFO("ipvs loaded.\n");
+	pr_info("ipvs loaded.\n");
 	return ret;
 
   cleanup_conn:
@@ -1534,7 +1548,7 @@ static void __exit ip_vs_cleanup(void)
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
 	ip_vs_estimator_cleanup();
-	IP_VS_INFO("ipvs unloaded.\n");
+	pr_info("ipvs unloaded.\n");
 }
 
 module_init(ip_vs_init);
