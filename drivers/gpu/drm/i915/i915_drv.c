@@ -362,6 +362,8 @@ static int __init i915_init(void)
 {
 	driver.num_ioctls = i915_max_ioctl;
 
+	i915_gem_shrinker_init();
+
 	/*
 	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
 	 * explicitly disabled with the module pararmeter.
@@ -388,6 +390,7 @@ static int __init i915_init(void)
 
 static void __exit i915_exit(void)
 {
+	i915_gem_shrinker_exit();
 	drm_exit(&driver);
 }
 

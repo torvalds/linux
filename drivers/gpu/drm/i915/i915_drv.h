@@ -369,6 +369,15 @@ typedef struct drm_i915_private {
 		int gtt_mtrr;
 
 		/**
+		 * Membership on list of all loaded devices, used to evict
+		 * inactive buffers under memory pressure.
+		 *
+		 * Modifications should only be done whilst holding the
+		 * shrink_list_lock spinlock.
+		 */
+		struct list_head shrink_list;
+
+		/**
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
 		 *
@@ -740,6 +749,9 @@ void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
+
+void i915_gem_shrinker_init(void);
+void i915_gem_shrinker_exit(void);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);

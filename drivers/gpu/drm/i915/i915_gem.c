@@ -53,6 +53,9 @@ static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *o
 				struct drm_i915_gem_pwrite *args,
 				struct drm_file *file_priv);
 
+static LIST_HEAD(shrink_list);
+static DEFINE_SPINLOCK(shrink_list_lock);
+
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end)
 {
@@ -4265,6 +4268,10 @@ i915_gem_load(struct drm_device *dev)
 			  i915_gem_retire_work_handler);
 	dev_priv->mm.next_gem_seqno = 1;
 
+	spin_lock(&shrink_list_lock);
+	list_add(&dev_priv->mm.shrink_list, &shrink_list);
+	spin_unlock(&shrink_list_lock);
+
 	/* Old X drivers will take 0-2 for front, back, depth buffers */
 	dev_priv->fence_reg_start = 3;
 
@@ -4481,4 +4488,141 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
 	while (!list_empty(&i915_file_priv->mm.request_list))
 		list_del_init(i915_file_priv->mm.request_list.next);
 	mutex_unlock(&dev->struct_mutex);
+}
+
+/* Immediately discard the backing storage */
+static void
+i915_gem_object_truncate(struct drm_gem_object *obj)
+{
+    struct inode *inode;
+
+    inode = obj->filp->f_path.dentry->d_inode;
+
+    mutex_lock(&inode->i_mutex);
+    truncate_inode_pages(inode->i_mapping, 0);
+    mutex_unlock(&inode->i_mutex);
+}
+
+static inline int
+i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj_priv)
+{
+	return !obj_priv->dirty;
+}
+
+static int
+i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
+{
+	drm_i915_private_t *dev_priv, *next_dev;
+	struct drm_i915_gem_object *obj_priv, *next_obj;
+	int cnt = 0;
+	int would_deadlock = 1;
+
+	/* "fast-path" to count number of available objects */
+	if (nr_to_scan == 0) {
+		spin_lock(&shrink_list_lock);
+		list_for_each_entry(dev_priv, &shrink_list, mm.shrink_list) {
+			struct drm_device *dev = dev_priv->dev;
+
+			if (mutex_trylock(&dev->struct_mutex)) {
+				list_for_each_entry(obj_priv,
+						    &dev_priv->mm.inactive_list,
+						    list)
+					cnt++;
+				mutex_unlock(&dev->struct_mutex);
+			}
+		}
+		spin_unlock(&shrink_list_lock);
+
+		return (cnt / 100) * sysctl_vfs_cache_pressure;
+	}
+
+	spin_lock(&shrink_list_lock);
+
+	/* first scan for clean buffers */
+	list_for_each_entry_safe(dev_priv, next_dev,
+				 &shrink_list, mm.shrink_list) {
+		struct drm_device *dev = dev_priv->dev;
+
+		if (! mutex_trylock(&dev->struct_mutex))
+			continue;
+
+		spin_unlock(&shrink_list_lock);
+
+		i915_gem_retire_requests(dev);
+
+		list_for_each_entry_safe(obj_priv, next_obj,
+					 &dev_priv->mm.inactive_list,
+					 list) {
+			if (i915_gem_object_is_purgeable(obj_priv)) {
+				struct drm_gem_object *obj = obj_priv->obj;
+				i915_gem_object_unbind(obj);
+				i915_gem_object_truncate(obj);
+
+				if (--nr_to_scan <= 0)
+					break;
+			}
+		}
+
+		spin_lock(&shrink_list_lock);
+		mutex_unlock(&dev->struct_mutex);
+
+		if (nr_to_scan <= 0)
+			break;
+	}
+
+	/* second pass, evict/count anything still on the inactive list */
+	list_for_each_entry_safe(dev_priv, next_dev,
+				 &shrink_list, mm.shrink_list) {
+		struct drm_device *dev = dev_priv->dev;
+
+		if (! mutex_trylock(&dev->struct_mutex))
+			continue;
+
+		spin_unlock(&shrink_list_lock);
+
+		list_for_each_entry_safe(obj_priv, next_obj,
+					 &dev_priv->mm.inactive_list,
+					 list) {
+			if (nr_to_scan > 0) {
+				struct drm_gem_object *obj = obj_priv->obj;
+				i915_gem_object_unbind(obj);
+				if (i915_gem_object_is_purgeable(obj_priv))
+					i915_gem_object_truncate(obj);
+
+				nr_to_scan--;
+			} else
+				cnt++;
+		}
+
+		spin_lock(&shrink_list_lock);
+		mutex_unlock(&dev->struct_mutex);
+
+		would_deadlock = 0;
+	}
+
+	spin_unlock(&shrink_list_lock);
+
+	if (would_deadlock)
+		return -1;
+	else if (cnt > 0)
+		return (cnt / 100) * sysctl_vfs_cache_pressure;
+	else
+		return 0;
+}
+
+static struct shrinker shrinker = {
+	.shrink = i915_gem_shrink,
+	.seeks = DEFAULT_SEEKS,
+};
+
+__init void
+i915_gem_shrinker_init(void)
+{
+    register_shrinker(&shrinker);
+}
+
+__exit void
+i915_gem_shrinker_exit(void)
+{
+    unregister_shrinker(&shrinker);
 }
