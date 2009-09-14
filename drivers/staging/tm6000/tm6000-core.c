@@ -207,7 +207,7 @@ int tm6000_init_analog_mode (struct tm6000_core *dev)
 	struct v4l2_frequency f;
 	mutex_lock(&dev->lock);
 	f.frequency=dev->freq;
-	tm6000_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,&f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 	mutex_unlock(&dev->lock);
 
 	msleep(100);

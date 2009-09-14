@@ -1091,7 +1091,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *norm)
 	if (rc<0)
 		return rc;
 
-	tm6000_i2c_call_clients(dev, VIDIOC_S_STD, &dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 
 	return 0;
 }
@@ -1278,7 +1278,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	f->type = V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->freq;
 
-	tm6000_i2c_call_clients(dev,VIDIOC_G_FREQUENCY,f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, f);
 
 	return 0;
 }
@@ -1299,7 +1299,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 
 //	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
-	tm6000_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 //	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1534,6 +1534,7 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 
 	memcpy (dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
 	dev->vfd->debug=tm6000_debug;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 
 	ret = video_register_device(dev->vfd, VFL_TYPE_GRABBER, video_nr);
 	printk(KERN_INFO "Trident TVMaster TM5600/TM6000 USB2 board (Load status: %d)\n", ret);

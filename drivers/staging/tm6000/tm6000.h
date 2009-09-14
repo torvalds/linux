@@ -29,6 +29,8 @@
 #include "tm6000-usb-isoc.h"
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <media/v4l2-device.h>
+
 
 #include <linux/dvb/frontend.h>
 #include "dvb_demux.h"
@@ -156,6 +158,7 @@ struct tm6000_core {
 	unsigned int			resources;
 	struct video_device		*vfd;
 	struct tm6000_dmaqueue		vidq;
+	struct v4l2_device		v4l2_dev;
 
 	int				input;
 	int				freq;
@@ -228,8 +231,6 @@ int tm6000_set_standard (struct tm6000_core *dev, v4l2_std_id *norm);
 /* In tm6000-i2c.c */
 int tm6000_i2c_register(struct tm6000_core *dev);
 int tm6000_i2c_unregister(struct tm6000_core *dev);
-void tm6000_i2c_call_clients(struct tm6000_core *dev, unsigned int cmd,
-			     void *arg);
 
 /* In tm6000-queue.c */
 

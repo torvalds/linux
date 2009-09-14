@@ -26,6 +26,8 @@
 #include <linux/version.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
+#include <media/tvaudio.h>
+#include <media/i2c-addr.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
@@ -191,12 +193,23 @@ struct usb_device_id tm6000_id_table [] = {
 
 static void tm6000_config_tuner (struct tm6000_core *dev)
 {
-	request_module ("tuner");
+	struct tuner_setup           tun_setup;
+
+	/* Load tuner module */
+	v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+		"tuner", "tuner",dev->tuner_addr, NULL);
+
+	memset(&tun_setup, 0, sizeof(tun_setup));
+	tun_setup.type   = dev->tuner_type;
+	tun_setup.addr   = dev->tuner_addr;
+
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr, &tun_setup);
 
 	if (dev->tuner_type == TUNER_XC2028) {
 		struct v4l2_priv_tun_config  xc2028_cfg;
 		struct xc2028_ctrl           ctl;
 
+		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
 		memset (&ctl,0,sizeof(ctl));
 
 		ctl.mts   = 1;
@@ -219,7 +232,8 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 
 		printk(KERN_INFO "Setting firmware parameters for xc2028\n");
 
-		tm6000_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_config,
+				     &xc2028_cfg);
 	}
 }
 
@@ -247,6 +261,10 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	if (rc<0)
 		goto err;
 
+	rc = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
+	if (rc < 0)
+		goto err;
+
 	/* register i2c bus */
 	rc=tm6000_i2c_register(dev);
 	if (rc<0)
@@ -266,30 +284,38 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	tm6000_config_tuner (dev);
 
 	/* Set video standard */
-	tm6000_i2c_call_clients(dev, VIDIOC_S_STD, &dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 
 	/* Set tuner frequency - also loads firmware on xc2028/xc3028 */
 	f.tuner = 0;
 	f.type = V4L2_TUNER_ANALOG_TV;
 	f.frequency = 3092;	/* 193.25 MHz */
 	dev->freq = f.frequency;
-	tm6000_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
+
+	if (dev->caps.has_tda9874)
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"tvaudio", "tvaudio", I2C_ADDR_TDA9874, NULL);
 
 	if(dev->caps.has_dvb) {
 		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
 		if(!dev->dvb) {
 			rc = -ENOMEM;
-			goto err;
+			goto err2;
 		}
 #ifdef CONFIG_VIDEO_TM6000_DVB
 		rc = tm6000_dvb_register(dev);
 		if(rc < 0) {
 			kfree(dev->dvb);
 			dev->dvb = NULL;
-			goto err;
+			goto err2;
 		}
 #endif
 	}
+
+err2:
+	v4l2_device_unregister(&dev->v4l2_dev);
+
 err:
 	mutex_unlock(&dev->lock);
 	return rc;
@@ -460,6 +486,8 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	return 0;
 
 err:
+	printk("tm6000: Error %d while registering\n", rc);
+
 	tm6000_devused&=~(1<<nr);
 	usb_put_dev(usbdev);
 
@@ -494,6 +522,8 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	tm6000_v4l2_unregister(dev);
 
 	tm6000_i2c_unregister(dev);
+
+	v4l2_device_unregister(&dev->v4l2_dev);
 
 //	wake_up_interruptible_all(&dev->open);
 

@@ -232,8 +232,8 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 
 	if (dvb->frontend) {
 		struct xc2028_config cfg = {
-			.i2c_adap  = &dev->i2c_adap,
-			.video_dev = dev,
+			.i2c_adap = &dev->i2c_adap,
+			.i2c_addr = dev->tuner_addr,
 		};
 
 		ret = dvb_register_frontend(&dvb->adapter, dvb->frontend);

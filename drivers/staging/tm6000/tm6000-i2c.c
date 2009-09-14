@@ -36,10 +36,6 @@
 #define I2C_HW_B_TM6000 I2C_HW_B_EM28XX
 /* ----------------------------------------------------------- */
 
-static unsigned int i2c_scan = 0;
-module_param(i2c_scan, int, 0444);
-MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
-
 static unsigned int i2c_debug = 0;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
@@ -47,47 +43,6 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 #define i2c_dprintk(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
 			printk(KERN_DEBUG "%s at %s: " fmt, \
 			dev->name, __FUNCTION__ , ##args); } while (0)
-
-
-/* Returns 0 if address is found */
-static int tm6000_i2c_scan(struct i2c_adapter *i2c_adap, int addr)
-{
-	struct tm6000_core *dev = i2c_adap->algo_data;
-
-#if 1
-	/* HACK: i2c scan is not working yet */
-	if (
-		(dev->caps.has_tuner   && (addr==dev->tuner_addr)) ||
-		(dev->caps.has_tda9874 && (addr==0xb0)) ||
-		(dev->caps.has_eeprom  && (addr==0xa0))
-	   ) {
-		printk("Hack: enabling device at addr 0x%02x\n",addr);
-		return (1);
-	} else {
-		return -ENODEV;
-	}
-#else
-	int rc=-ENODEV;
-	char buf[1];
-
-	/* This sends addr + 1 byte with 0 */
-	rc = tm6000_read_write_usb (dev,
-		USB_DIR_IN | USB_TYPE_VENDOR,
-		REQ_16_SET_GET_I2C_WR1_RDN,
-		addr, 0,
-		buf, 0);
-	msleep(10);
-
-	if (rc<0) {
-		if (i2c_debug>=2)
-			printk("no device at addr 0x%02x\n",addr);
-	}
-
-	printk("Hack: check on addr 0x%02x returned %d\n",addr,rc);
-
-	return rc;
-#endif
-}
 
 static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   struct i2c_msg msgs[], int num)
@@ -102,10 +57,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 		i2c_dprintk(2,"%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
-		if (!msgs[i].len) {
-			/* Do I2C scan */
-			rc = tm6000_i2c_scan(i2c_adap, addr);
-		} else if (msgs[i].flags & I2C_M_RD) {
+		if (msgs[i].flags & I2C_M_RD) {
 			/* read request without preceding register selection */
 			/*
 			 * The TM6000 only supports a read transaction
@@ -306,36 +258,6 @@ static int tm6000_tuner_callback(void *ptr, int command, int arg)
 	return (rc);
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	struct tm6000_core *dev = client->adapter->algo_data;
-	struct tuner_setup tun_setup;
-
-	i2c_dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	switch (client->addr<<1) {
-	case 0xb0:
-		request_module("tvaudio");
-		return 0;
-	}
-
-	/* If tuner, initialize the tuner part */
-	if ( dev->tuner_addr != client->addr<<1 ) {
-		return 0;
-	}
-
-	memset (&tun_setup, 0, sizeof(tun_setup));
-
-	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-	tun_setup.type = dev->tuner_type;
-	tun_setup.addr = dev->tuner_addr>>1;
-	tun_setup.tuner_callback = tm6000_tuner_callback;
-
-	client->driver->command (client,TUNER_SET_TYPE_ADDR, &tun_setup);
-
-	return 0;
-}
 
 static struct i2c_algorithm tm6000_algo = {
 	.master_xfer   = tm6000_i2c_xfer,
@@ -353,7 +275,6 @@ static struct i2c_adapter tm6000_adap_template = {
 	.name = "tm6000",
 	.id = I2C_HW_B_TM6000,
 	.algo = &tm6000_algo,
-	.client_register = attach_inform,
 };
 
 static struct i2c_client tm6000_client_template = {
@@ -361,43 +282,6 @@ static struct i2c_client tm6000_client_template = {
 };
 
 /* ----------------------------------------------------------- */
-
-/*
- * i2c_devs
- * incomplete list of known devices
- */
-static char *i2c_devs[128] = {
-	[0xc2 >> 1] = "tuner (analog)",
-};
-
-/*
- * do_i2c_scan()
- * check i2c address range for devices
- */
-static void do_i2c_scan(char *name, struct i2c_client *c)
-{
-	unsigned char buf;
-	int i, rc;
-
-	for (i = 0; i < 128; i++) {
-		c->addr = i;
-		rc = i2c_master_recv(c, &buf, 0);
-		if (rc < 0)
-			continue;
-		printk(KERN_INFO "%s: found i2c device @ 0x%x [%s]\n", name,
-		       i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
-	}
-}
-
-/*
- * tm6000_i2c_call_clients()
- * send commands to all attached i2c devices
- */
-void tm6000_i2c_call_clients(struct tm6000_core *dev, unsigned int cmd, void *arg)
-{
-	BUG_ON(NULL == dev->i2c_adap.algo_data);
-	i2c_clients_command(&dev->i2c_adap, cmd, arg);
-}
 
 /*
  * tm6000_i2c_register()
@@ -416,8 +300,7 @@ int tm6000_i2c_register(struct tm6000_core *dev)
 	dev->i2c_client = tm6000_client_template;
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
-	if (i2c_scan)
-		do_i2c_scan(dev->name, &dev->i2c_client);
+	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 
 	tm6000_i2c_eeprom(dev, eedata, sizeof(eedata));
 

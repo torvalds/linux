@@ -17,7 +17,6 @@
 #include <linux/usb.h>
 
 #include <asm/delay.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -350,10 +349,10 @@ int tm6000_audio_init(struct tm6000_core *dev, int idx)
 	if (!enable[idx])
 		return -ENOENT;
 
-	card = snd_card_new(index[idx], id[idx], THIS_MODULE, 0);
-	if (card == NULL) {
+	rc = snd_card_create(index[idx], id[idx], THIS_MODULE, 0, &card);
+	if (rc < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", idx);
-		return -ENOMEM;
+		return rc;
 	}
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
