@@ -254,7 +254,7 @@ ftrace_format_##call(struct ftrace_event_call *unused,			\
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
-enum print_line_t							\
+static enum print_line_t						\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 {									\
 	struct trace_seq *s = &iter->seq;				\
@@ -317,7 +317,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
-int									\
+static int								\
 ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 {									\
 	struct ftrace_raw_##call field;					\
