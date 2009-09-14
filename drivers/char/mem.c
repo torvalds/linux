@@ -878,8 +878,8 @@ static const struct memdev {
 	[ 4] = { "port", &port_fops, NULL },
 #endif
 	[ 5] = { "zero", &zero_fops, &zero_bdi },
-	[ 6] = { "full", &full_fops, NULL },
-	[ 7] = { "random", &random_fops, NULL },
+	[ 7] = { "full", &full_fops, NULL },
+	[ 8] = { "random", &random_fops, NULL },
 	[ 9] = { "urandom", &urandom_fops, NULL },
 	[11] = { "kmsg", &kmsg_fops, NULL },
 #ifdef CONFIG_CRASH_DUMP
