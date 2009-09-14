@@ -379,6 +379,15 @@ struct snd_ice1712 {
 	unsigned char (*set_mclk)(struct snd_ice1712 *ice, unsigned int rate);
 	void (*set_spdif_clock)(struct snd_ice1712 *ice);
 
+#ifdef CONFIG_PM
+	int (*pm_suspend)(struct snd_ice1712 *);
+	int (*pm_resume)(struct snd_ice1712 *);
+	int pm_suspend_enabled:1;
+	int pm_saved_is_spdif_master:1;
+	unsigned int pm_saved_spdif_ctrl;
+	unsigned char pm_saved_spdif_cfg;
+	unsigned int pm_saved_route;
+#endif
 };
 
 

@@ -26,6 +26,17 @@ config ATA_NONSTANDARD
        bool
        default n
 
+config ATA_VERBOSE_ERROR
+	bool "Verbose ATA error reporting"
+	default y
+	help
+	  This option adds parsing of ATA command descriptions and error bits
+	  in libata kernel output, making it easier to interpret.
+	  This option will enlarge the kernel by approx. 6KB. Disable it only
+	  if kernel size is more important than ease of debugging.
+
+	  If unsure, say Y.
+
 config ATA_ACPI
 	bool "ATA ACPI Support"
 	depends on ACPI && PCI
@@ -583,6 +594,16 @@ config PATA_RB532
 	help
 	  This option enables support for the RouterBoard 532
 	  PATA CompactFlash controller.
+
+	  If unsure, say N.
+
+config PATA_RDC
+	tristate "RDC PATA support"
+	depends on PCI
+	help
+	  This option enables basic support for the later RDC PATA controllers
+	  controllers via the new ATA layer. For the RDC 1010, you need to
+	  enable the IT821X driver instead.
 
 	  If unsure, say N.
 

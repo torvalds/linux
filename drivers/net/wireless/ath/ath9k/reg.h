@@ -234,7 +234,15 @@
 #define AR_IMR_S5                   0x00b8
 #define AR_IMR_S5_TIM_TIMER         0x00000010
 #define AR_IMR_S5_DTIM_TIMER        0x00000020
-
+#define AR_ISR_S5_GENTIMER_TRIG     0x0000FF80
+#define AR_ISR_S5_GENTIMER_TRIG_S   0
+#define AR_ISR_S5_GENTIMER_THRESH   0xFF800000
+#define AR_ISR_S5_GENTIMER_THRESH_S 16
+#define AR_ISR_S5_S                 0x00d8
+#define AR_IMR_S5_GENTIMER_TRIG     0x0000FF80
+#define AR_IMR_S5_GENTIMER_TRIG_S   0
+#define AR_IMR_S5_GENTIMER_THRESH   0xFF800000
+#define AR_IMR_S5_GENTIMER_THRESH_S 16
 
 #define AR_IMR               0x00a0
 #define AR_IMR_RXOK          0x00000001
@@ -574,6 +582,7 @@
 
 #define AR_D_GBL_IFS_SIFS         0x1030
 #define AR_D_GBL_IFS_SIFS_M       0x0000FFFF
+#define AR_D_GBL_IFS_SIFS_ASYNC_FIFO_DUR 0x000003AB
 #define AR_D_GBL_IFS_SIFS_RESV0   0xFFFFFFFF
 
 #define AR_D_TXBLK_BASE            0x1038
@@ -589,10 +598,12 @@
 #define AR_D_GBL_IFS_SLOT         0x1070
 #define AR_D_GBL_IFS_SLOT_M       0x0000FFFF
 #define AR_D_GBL_IFS_SLOT_RESV0   0xFFFF0000
+#define AR_D_GBL_IFS_SLOT_ASYNC_FIFO_DUR   0x00000420
 
 #define AR_D_GBL_IFS_EIFS         0x10b0
 #define AR_D_GBL_IFS_EIFS_M       0x0000FFFF
 #define AR_D_GBL_IFS_EIFS_RESV0   0xFFFF0000
+#define AR_D_GBL_IFS_EIFS_ASYNC_FIFO_DUR   0x0000A5EB
 
 #define AR_D_GBL_IFS_MISC        0x10f0
 #define AR_D_GBL_IFS_MISC_LFSR_SLICE_SEL        0x00000007
@@ -738,6 +749,13 @@
 #define AR_SREV_REVISION_9285_10              0
 #define AR_SREV_REVISION_9285_11              1
 #define AR_SREV_REVISION_9285_12              2
+#define AR_SREV_VERSION_9287                  0x180
+#define AR_SREV_REVISION_9287_10              0
+#define AR_SREV_REVISION_9287_11              1
+#define AR_SREV_REVISION_9287_12              2
+#define AR_SREV_VERSION_9271			0x140
+#define AR_SREV_REVISION_9271_10		0
+#define AR_SREV_REVISION_9271_11		1
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -794,6 +812,36 @@
 	 (AR_SREV_9285(ah) && ((_ah)->hw_version.macRev >= \
 			       AR_SREV_REVISION_9285_12)))
 
+#define AR_SREV_9287(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287))
+#define AR_SREV_9287_10_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9287))
+#define AR_SREV_9287_10(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_10))
+#define AR_SREV_9287_11(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_11))
+#define AR_SREV_9287_11_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
+	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_11)))
+#define AR_SREV_9287_12(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_12))
+#define AR_SREV_9287_12_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
+	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_12)))
+#define AR_SREV_9271(_ah) \
+    (((_ah))->hw_version.macVersion == AR_SREV_VERSION_9271)
+#define AR_SREV_9271_10(_ah) \
+    (AR_SREV_9271(_ah) && \
+     ((_ah)->hw_version.macRev == AR_SREV_REVISION_9271_10))
+#define AR_SREV_9271_11(_ah) \
+    (AR_SREV_9271(_ah) && \
+     ((_ah)->hw_version.macRev == AR_SREV_REVISION_9271_11))
+
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
 #define AR_RAD2133_SREV_MAJOR                 0xd0
@@ -809,6 +857,9 @@
 #define AR_AHB_PAGE_SIZE_1K                   0x00000000
 #define AR_AHB_PAGE_SIZE_2K                   0x00000008
 #define AR_AHB_PAGE_SIZE_4K                   0x00000010
+#define AR_AHB_CUSTOM_BURST_EN                0x000000C0
+#define AR_AHB_CUSTOM_BURST_EN_S              6
+#define AR_AHB_CUSTOM_BURST_ASYNC_FIFO_VAL    3
 
 #define AR_INTR_RTC_IRQ                       0x00000001
 #define AR_INTR_MAC_IRQ                       0x00000002
@@ -885,6 +936,7 @@ enum {
 #define AR_NUM_GPIO                              14
 #define AR928X_NUM_GPIO                          10
 #define AR9285_NUM_GPIO                          12
+#define AR9287_NUM_GPIO                          11
 
 #define AR_GPIO_IN_OUT                           0x4048
 #define AR_GPIO_IN_VAL                           0x0FFFC000
@@ -893,6 +945,8 @@ enum {
 #define AR928X_GPIO_IN_VAL_S                     10
 #define AR9285_GPIO_IN_VAL                       0x00FFF000
 #define AR9285_GPIO_IN_VAL_S                     12
+#define AR9287_GPIO_IN_VAL                       0x003FF800
+#define AR9287_GPIO_IN_VAL_S                     11
 
 #define AR_GPIO_OE_OUT                           0x404c
 #define AR_GPIO_OE_OUT_DRV                       0x3
@@ -916,6 +970,8 @@ enum {
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF_S      7
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB        0x00001000
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB_S      12
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB      0x00001000
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB_S    1
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB         0x00008000
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB_S       15
 #define AR_GPIO_RTC_RESET_OVERRIDE_ENABLE        0x00010000
@@ -924,6 +980,8 @@ enum {
 #define AR_GPIO_INPUT_MUX1                       0x4058
 #define AR_GPIO_INPUT_MUX1_BT_ACTIVE             0x000f0000
 #define AR_GPIO_INPUT_MUX1_BT_ACTIVE_S           16
+#define AR_GPIO_INPUT_MUX1_BT_PRIORITY           0x00000f00
+#define AR_GPIO_INPUT_MUX1_BT_PRIORITY_S         8
 
 #define AR_GPIO_INPUT_MUX2                       0x405c
 #define AR_GPIO_INPUT_MUX2_CLK25                 0x0000000f
@@ -948,6 +1006,8 @@ enum {
 #define AR_EEPROM_STATUS_DATA_ABSENT_ACCESS      0x00080000
 
 #define AR_OBS                  0x4080
+
+#define AR_GPIO_PDPU                             0x4088
 
 #define AR_PCIE_MSI                              0x4094
 #define AR_PCIE_MSI_ENABLE                       0x00000001
@@ -1115,11 +1175,31 @@ enum {
 #define AR9285_AN_RF2G4_DB2_4    0x00003800
 #define AR9285_AN_RF2G4_DB2_4_S    11
 
+/* AR9271 : 0x7828, 0x782c different setting from AR9285 */
+#define AR9271_AN_RF2G3_OB_cck		0x001C0000
+#define AR9271_AN_RF2G3_OB_cck_S	18
+#define AR9271_AN_RF2G3_OB_psk		0x00038000
+#define AR9271_AN_RF2G3_OB_psk_S	15
+#define AR9271_AN_RF2G3_OB_qam		0x00007000
+#define AR9271_AN_RF2G3_OB_qam_S	12
+
+#define AR9271_AN_RF2G3_DB_1		0x00E00000
+#define AR9271_AN_RF2G3_DB_1_S		21
+
+#define AR9271_AN_RF2G3_CCOMP		0xFFF
+#define AR9271_AN_RF2G3_CCOMP_S		0
+
+#define AR9271_AN_RF2G4_DB_2		0xE0000000
+#define AR9271_AN_RF2G4_DB_2_S		29
+
 #define AR9285_AN_RF2G6                 0x7834
 #define AR9285_AN_RF2G6_CCOMP           0x00007800
 #define AR9285_AN_RF2G6_CCOMP_S         11
 #define AR9285_AN_RF2G6_OFFS            0x03f00000
 #define AR9285_AN_RF2G6_OFFS_S          20
+
+#define AR9271_AN_RF2G6_OFFS            0x07f00000
+#define AR9271_AN_RF2G6_OFFS_S            20
 
 #define AR9285_AN_RF2G7                 0x7838
 #define AR9285_AN_RF2G7_PWDDB           0x00000002
@@ -1153,6 +1233,38 @@ enum {
 
 #define AR9285_AN_TOP4           0x7870
 #define AR9285_AN_TOP4_DEFAULT   0x10142c00
+
+#define AR9287_AN_RF2G3_CH0             0x7808
+#define AR9287_AN_RF2G3_CH1             0x785c
+#define AR9287_AN_RF2G3_DB1             0xE0000000
+#define AR9287_AN_RF2G3_DB1_S           29
+#define AR9287_AN_RF2G3_DB2             0x1C000000
+#define AR9287_AN_RF2G3_DB2_S           26
+#define AR9287_AN_RF2G3_OB_CCK          0x03800000
+#define AR9287_AN_RF2G3_OB_CCK_S        23
+#define AR9287_AN_RF2G3_OB_PSK          0x00700000
+#define AR9287_AN_RF2G3_OB_PSK_S        20
+#define AR9287_AN_RF2G3_OB_QAM          0x000E0000
+#define AR9287_AN_RF2G3_OB_QAM_S        17
+#define AR9287_AN_RF2G3_OB_PAL_OFF      0x0001C000
+#define AR9287_AN_RF2G3_OB_PAL_OFF_S    14
+
+#define AR9287_AN_TXPC0                 0x7898
+#define AR9287_AN_TXPC0_TXPCMODE        0x0000C000
+#define AR9287_AN_TXPC0_TXPCMODE_S      14
+#define AR9287_AN_TXPC0_TXPCMODE_NORMAL    0
+#define AR9287_AN_TXPC0_TXPCMODE_TEST      1
+#define AR9287_AN_TXPC0_TXPCMODE_TEMPSENSE 2
+#define AR9287_AN_TXPC0_TXPCMODE_ATBTEST   3
+
+#define AR9287_AN_TOP2                  0x78b4
+#define AR9287_AN_TOP2_XPABIAS_LVL      0xC0000000
+#define AR9287_AN_TOP2_XPABIAS_LVL_S    30
+
+/* AR9271 specific stuff */
+#define AR9271_RESET_POWER_DOWN_CONTROL		0x50044
+#define AR9271_RADIO_RF_RST			0x20
+#define AR9271_GATE_MAC_CTL			0x4000
 
 #define AR_STA_ID0                 0x8000
 #define AR_STA_ID1                 0x8004
@@ -1188,6 +1300,7 @@ enum {
 #define AR_TIME_OUT_ACK_S    0
 #define AR_TIME_OUT_CTS      0x3FFF0000
 #define AR_TIME_OUT_CTS_S    16
+#define AR_TIME_OUT_ACK_CTS_ASYNC_FIFO_DUR    0x16001D56
 
 #define AR_RSSI_THR          0x8018
 #define AR_RSSI_THR_MASK     0x000000FF
@@ -1203,6 +1316,7 @@ enum {
 #define AR_USEC_TX_LAT_S     14
 #define AR_USEC_RX_LAT       0x1F800000
 #define AR_USEC_RX_LAT_S     23
+#define AR_USEC_ASYNC_FIFO_DUR    0x12e00074
 
 #define AR_RESET_TSF        0x8020
 #define AR_RESET_TSF_ONCE   0x01000000
@@ -1211,7 +1325,6 @@ enum {
 #define AR_CFP_VAL          0x0000FFFF
 
 #define AR_RX_FILTER        0x803C
-#define AR_RX_COMPR_BAR     0x00000400
 
 #define AR_MCAST_FIL0       0x8040
 #define AR_MCAST_FIL1       0x8044
@@ -1328,6 +1441,7 @@ enum {
 #define AR_QUIET1_NEXT_QUIET_M         0x0000ffff
 #define AR_QUIET1_QUIET_ENABLE         0x00010000
 #define AR_QUIET1_QUIET_ACK_CTS_ENABLE 0x00020000
+#define AR_QUIET1_QUIET_ACK_CTS_ENABLE_S 17
 #define AR_QUIET2          0x8100
 #define AR_QUIET2_QUIET_PERIOD_S       0
 #define AR_QUIET2_QUIET_PERIOD_M       0x0000ffff
@@ -1373,6 +1487,8 @@ enum {
 #define AR_PCU_CLEAR_VMF           0x01000000
 #define AR_PCU_CLEAR_BA_VALID      0x04000000
 
+#define AR_PCU_BT_ANT_PREVENT_RX   0x00100000
+#define AR_PCU_BT_ANT_PREVENT_RX_S 20
 
 #define AR_FILT_OFDM           0x8124
 #define AR_FILT_OFDM_COUNT     0x00FFFFFF
@@ -1400,6 +1516,46 @@ enum {
 #define AR_PHY_ERR_3_COUNT     0x00FFFFFF
 #define AR_PHY_ERR_MASK_3      0x816c
 
+#define AR_BT_COEX_MODE            0x8170
+#define AR_BT_TIME_EXTEND          0x000000ff
+#define AR_BT_TIME_EXTEND_S        0
+#define AR_BT_TXSTATE_EXTEND       0x00000100
+#define AR_BT_TXSTATE_EXTEND_S     8
+#define AR_BT_TX_FRAME_EXTEND      0x00000200
+#define AR_BT_TX_FRAME_EXTEND_S    9
+#define AR_BT_MODE                 0x00000c00
+#define AR_BT_MODE_S               10
+#define AR_BT_QUIET                0x00001000
+#define AR_BT_QUIET_S              12
+#define AR_BT_QCU_THRESH           0x0001e000
+#define AR_BT_QCU_THRESH_S         13
+#define AR_BT_RX_CLEAR_POLARITY    0x00020000
+#define AR_BT_RX_CLEAR_POLARITY_S  17
+#define AR_BT_PRIORITY_TIME        0x00fc0000
+#define AR_BT_PRIORITY_TIME_S      18
+#define AR_BT_FIRST_SLOT_TIME      0xff000000
+#define AR_BT_FIRST_SLOT_TIME_S    24
+
+#define AR_BT_COEX_WEIGHT          0x8174
+#define AR_BT_COEX_WGHT		   0xff55
+#define AR_STOMP_ALL_WLAN_WGHT	   0xffcc
+#define AR_STOMP_LOW_WLAN_WGHT	   0xaaa8
+#define AR_STOMP_NONE_WLAN_WGHT	   0xaa00
+#define AR_BTCOEX_BT_WGHT          0x0000ffff
+#define AR_BTCOEX_BT_WGHT_S        0
+#define AR_BTCOEX_WL_WGHT          0xffff0000
+#define AR_BTCOEX_WL_WGHT_S        16
+
+#define AR_BT_COEX_MODE2           0x817c
+#define AR_BT_BCN_MISS_THRESH      0x000000ff
+#define AR_BT_BCN_MISS_THRESH_S    0
+#define AR_BT_BCN_MISS_CNT         0x0000ff00
+#define AR_BT_BCN_MISS_CNT_S       8
+#define AR_BT_HOLD_RX_CLEAR        0x00010000
+#define AR_BT_HOLD_RX_CLEAR_S      16
+#define AR_BT_DISABLE_BT_ANT       0x00100000
+#define AR_BT_DISABLE_BT_ANT_S     20
+
 #define AR_TXSIFS              0x81d0
 #define AR_TXSIFS_TIME         0x000000FF
 #define AR_TXSIFS_TX_LATENCY   0x00000F00
@@ -1416,7 +1572,10 @@ enum {
 #define AR_TXOP_8_11   0x81f8
 #define AR_TXOP_12_15  0x81fc
 
-
+#define AR_NEXT_NDP2_TIMER                  0x8180
+#define AR_FIRST_NDP_TIMER                  7
+#define AR_NDP2_PERIOD                      0x81a0
+#define AR_NDP2_TIMER_MODE                  0x81c0
 #define AR_NEXT_TBTT_TIMER                  0x8200
 #define AR_NEXT_DMA_BEACON_ALERT            0x8204
 #define AR_NEXT_SWBA                        0x8208
@@ -1468,6 +1627,10 @@ enum {
 #define AR_SLP_MIB_CLEAR   0x00000001
 #define AR_SLP_MIB_PENDING 0x00000002
 
+#define AR_MAC_PCU_LOGIC_ANALYZER               0x8264
+#define AR_MAC_PCU_LOGIC_ANALYZER_DISBUG20768   0x20000000
+
+
 #define AR_2040_MODE                0x8318
 #define AR_2040_JOINED_RX_CLEAR 0x00000001
 
@@ -1484,6 +1647,39 @@ enum {
 #define AR_PCU_MISC_MODE2               0x8344
 #define AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE           0x00000002
 #define AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT   0x00000004
+
+#define AR_PCU_MISC_MODE2_RESERVED                     0x00000038
+#define AR_PCU_MISC_MODE2_ADHOC_MCAST_KEYID_ENABLE     0x00000040
+#define AR_PCU_MISC_MODE2_CFP_IGNORE                   0x00000080
+#define AR_PCU_MISC_MODE2_MGMT_QOS                     0x0000FF00
+#define AR_PCU_MISC_MODE2_MGMT_QOS_S                   8
+#define AR_PCU_MISC_MODE2_ENABLE_LOAD_NAV_BEACON_DURATION 0x00010000
+#define AR_PCU_MISC_MODE2_ENABLE_AGGWEP                0x00020000
+#define AR_PCU_MISC_MODE2_HWWAR1                       0x00100000
+#define AR_PCU_MISC_MODE2_HWWAR2                       0x02000000
+#define AR_PCU_MISC_MODE2_RESERVED2                    0xFFFE0000
+
+#define AR_MAC_PCU_ASYNC_FIFO_REG3                     0x8358
+#define AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL        0x00000400
+#define AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET          0x80000000
+
+
+#define AR_AES_MUTE_MASK0       0x805c
+#define AR_AES_MUTE_MASK0_FC    0x0000FFFF
+#define AR_AES_MUTE_MASK0_QOS   0xFFFF0000
+#define AR_AES_MUTE_MASK0_QOS_S 16
+
+#define AR_AES_MUTE_MASK1              0x8060
+#define AR_AES_MUTE_MASK1_SEQ          0x0000FFFF
+#define AR_AES_MUTE_MASK1_SEQ_S        0
+#define AR_AES_MUTE_MASK1_FC_MGMT      0xFFFF0000
+#define AR_AES_MUTE_MASK1_FC_MGMT_S    16
+
+#define AR_RATE_DURATION_0      0x8700
+#define AR_RATE_DURATION_31     0x87CC
+#define AR_RATE_DURATION_32     0x8780
+#define AR_RATE_DURATION(_n)    (AR_RATE_DURATION_0 + ((_n)<<2))
+
 
 #define AR_KEYTABLE_0           0x8800
 #define AR_KEYTABLE(_n)         (AR_KEYTABLE_0 + ((_n)*32))

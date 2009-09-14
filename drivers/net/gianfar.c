@@ -297,7 +297,6 @@ static int gfar_probe(struct of_device *ofdev,
 	u32 tempval;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	DECLARE_MAC_BUF(mac);
 	int err = 0;
 	int len_devname;
 

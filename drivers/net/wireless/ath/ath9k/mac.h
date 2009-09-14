@@ -568,6 +568,7 @@ enum ath9k_rx_filter {
 	ATH9K_RX_FILTER_PROBEREQ = 0x00000080,
 	ATH9K_RX_FILTER_PHYERR = 0x00000100,
 	ATH9K_RX_FILTER_MYBEACON = 0x00000200,
+	ATH9K_RX_FILTER_COMP_BAR = 0x00000400,
 	ATH9K_RX_FILTER_PSPOLL = 0x00004000,
 	ATH9K_RX_FILTER_PHYRADAR = 0x00002000,
 	ATH9K_RX_FILTER_MCAST_BCAST_ALL = 0x00008000,
@@ -628,12 +629,12 @@ struct ath9k_channel;
 struct ath_rate_table;
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
-bool ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
-bool ath9k_hw_txstart(struct ath_hw *ah, u32 q);
+void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
+void ath9k_hw_txstart(struct ath_hw *ah, u32 q);
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q);
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel);
 bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q);
-bool ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
+void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			 u32 segLen, bool firstSeg,
 			 bool lastSeg, const struct ath_desc *ds0);
 void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds);
@@ -668,7 +669,7 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q);
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q);
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 			u32 pa, struct ath_desc *nds, u64 tsf);
-bool ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
+void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
 void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp);

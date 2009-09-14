@@ -31,7 +31,6 @@
  */
 
 #include <rdma/ib_cm.h>
-#include <rdma/ib_cache.h>
 #include <net/dst.h>
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
@@ -663,7 +662,6 @@ copied:
 	skb_reset_mac_header(skb);
 	skb_pull(skb, IPOIB_ENCAP_LEN);
 
-	dev->last_rx = jiffies;
 	++dev->stats.rx_packets;
 	dev->stats.rx_bytes += skb->len;
 

@@ -1176,7 +1176,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	/* Allocate an Ethernet device and register it */
 	dev = alloc_etherdev(sizeof(struct lbs_private));
 	if (!dev) {
-		lbs_pr_err("init ethX device failed\n");
+		lbs_pr_err("init wlanX device failed\n");
 		goto done;
 	}
 	priv = netdev_priv(dev);
@@ -1204,6 +1204,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	SET_NETDEV_DEV(dev, dmdev);
 
 	priv->rtap_net_dev = NULL;
+	strcpy(dev->name, "wlan%d");
 
 	lbs_deb_thread("Starting main thread...\n");
 	init_waitqueue_head(&priv->waitq);
@@ -1646,7 +1647,8 @@ static int lbs_rtap_stop(struct net_device *dev)
 	return 0;
 }
 
-static int lbs_rtap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t lbs_rtap_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	netif_stop_queue(dev);
 	return NETDEV_TX_BUSY;

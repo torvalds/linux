@@ -133,6 +133,7 @@ struct rtl8187_priv {
 		__le16 bits16;
 		__le32 bits32;
 	} *io_dmabuf;
+	bool rfkill_off;
 };
 
 void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);

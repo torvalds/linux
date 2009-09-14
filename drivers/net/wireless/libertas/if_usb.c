@@ -181,13 +181,14 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 	wake_method.action = cpu_to_le16(CMD_ACT_GET);
 	if (lbs_cmd_with_response(priv, CMD_802_11_FW_WAKE_METHOD, &wake_method)) {
 		lbs_pr_info("Firmware does not seem to support PS mode\n");
+		priv->fwcapinfo &= ~FW_CAPINFO_PS;
 	} else {
 		if (le16_to_cpu(wake_method.method) == CMD_WAKE_METHOD_COMMAND_INT) {
 			lbs_deb_usb("Firmware seems to support PS with wake-via-command\n");
-			priv->ps_supported = 1;
 		} else {
 			/* The versions which boot up this way don't seem to
 			   work even if we set it to the command interrupt */
+			priv->fwcapinfo &= ~FW_CAPINFO_PS;
 			lbs_pr_info("Firmware doesn't wake via command interrupt; disabling PS mode\n");
 		}
 	}

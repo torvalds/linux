@@ -416,6 +416,7 @@ static struct clocksource clocksource_ixp4xx = {
 };
 
 unsigned long ixp4xx_timer_freq = FREQ;
+EXPORT_SYMBOL(ixp4xx_timer_freq);
 static int __init ixp4xx_clocksource_init(void)
 {
 	clocksource_ixp4xx.mult =

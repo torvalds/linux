@@ -846,10 +846,9 @@ static dst_command_func dst_commands[] = {
 /*
  * Configuration parser.
  */
-static void cn_dst_callback(void *data)
+static void cn_dst_callback(struct cn_msg *msg)
 {
 	struct dst_ctl *ctl;
-	struct cn_msg *msg = data;
 	int err;
 	struct dst_ctl_ack ack;
 	struct dst_node *n = NULL, *tmp;

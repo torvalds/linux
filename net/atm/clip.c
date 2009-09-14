@@ -267,7 +267,7 @@ static void clip_neigh_error(struct neighbour *neigh, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-static struct neigh_ops clip_neigh_ops = {
+static const struct neigh_ops clip_neigh_ops = {
 	.family =		AF_INET,
 	.solicit =		clip_neigh_solicit,
 	.error_report =		clip_neigh_error,
@@ -360,7 +360,8 @@ static int clip_encap(struct atm_vcc *vcc, int mode)
 	return 0;
 }
 
-static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct clip_priv *clip_priv = PRIV(dev);
 	struct atmarp_entry *entry;
@@ -373,7 +374,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_ERR "clip_start_xmit: skb_dst(skb) == NULL\n");
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (!skb_dst(skb)->neighbour) {
 #if 0
@@ -387,7 +388,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_ERR "clip_start_xmit: NO NEIGHBOUR !\n");
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	entry = NEIGH2ENTRY(skb_dst(skb)->neighbour);
 	if (!entry->vccs) {
@@ -402,7 +403,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev_kfree_skb(skb);
 			dev->stats.tx_dropped++;
 		}
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	pr_debug("neigh %p, vccs %p\n", entry, entry->vccs);
 	ATM_SKB(skb)->vcc = vcc = entry->vccs->vcc;
@@ -421,14 +422,14 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	old = xchg(&entry->vccs->xoff, 1);	/* assume XOFF ... */
 	if (old) {
 		printk(KERN_WARNING "clip_start_xmit: XOFF->XOFF transition\n");
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 	vcc->send(vcc, skb);
 	if (atm_may_send(vcc, 0)) {
 		entry->vccs->xoff = 0;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	spin_lock_irqsave(&clip_priv->xoff_lock, flags);
 	netif_stop_queue(dev);	/* XOFF -> throttle immediately */
@@ -440,7 +441,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   of the brief netif_stop_queue. If this isn't true or if it
 	   changes, use netif_wake_queue instead. */
 	spin_unlock_irqrestore(&clip_priv->xoff_lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int clip_mkip(struct atm_vcc *vcc, int timeout)

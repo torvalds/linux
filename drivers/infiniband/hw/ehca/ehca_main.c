@@ -52,7 +52,7 @@
 #include "ehca_tools.h"
 #include "hcp_if.h"
 
-#define HCAD_VERSION "0028"
+#define HCAD_VERSION "0029"
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
@@ -64,7 +64,7 @@ static int ehca_hw_level      = 0;
 static int ehca_poll_all_eqs  = 1;
 
 int ehca_debug_level   = 0;
-int ehca_nr_ports      = 2;
+int ehca_nr_ports      = -1;
 int ehca_use_hp_mr     = 0;
 int ehca_port_act_time = 30;
 int ehca_static_rate   = -1;
@@ -95,8 +95,8 @@ MODULE_PARM_DESC(hw_level,
 		 "Hardware level (0: autosensing (default), "
 		 "0x10..0x14: eHCA, 0x20..0x23: eHCA2)");
 MODULE_PARM_DESC(nr_ports,
-		 "number of connected ports (-1: autodetect, 1: port one only, "
-		 "2: two ports (default)");
+		 "number of connected ports (-1: autodetect (default), "
+		 "1: port one only, 2: two ports)");
 MODULE_PARM_DESC(use_hp_mr,
 		 "Use high performance MRs (default: no)");
 MODULE_PARM_DESC(port_act_time,

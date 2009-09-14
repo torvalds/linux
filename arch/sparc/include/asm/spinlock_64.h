@@ -92,7 +92,7 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long fla
 
 /* Multi-reader locks, these are much saner than the 32-bit Sparc ones... */
 
-static void inline __read_lock(raw_rwlock_t *lock)
+static void inline arch_read_lock(raw_rwlock_t *lock)
 {
 	unsigned long tmp1, tmp2;
 
@@ -115,7 +115,7 @@ static void inline __read_lock(raw_rwlock_t *lock)
 	: "memory");
 }
 
-static int inline __read_trylock(raw_rwlock_t *lock)
+static int inline arch_read_trylock(raw_rwlock_t *lock)
 {
 	int tmp1, tmp2;
 
@@ -136,7 +136,7 @@ static int inline __read_trylock(raw_rwlock_t *lock)
 	return tmp1;
 }
 
-static void inline __read_unlock(raw_rwlock_t *lock)
+static void inline arch_read_unlock(raw_rwlock_t *lock)
 {
 	unsigned long tmp1, tmp2;
 
@@ -152,7 +152,7 @@ static void inline __read_unlock(raw_rwlock_t *lock)
 	: "memory");
 }
 
-static void inline __write_lock(raw_rwlock_t *lock)
+static void inline arch_write_lock(raw_rwlock_t *lock)
 {
 	unsigned long mask, tmp1, tmp2;
 
@@ -177,7 +177,7 @@ static void inline __write_lock(raw_rwlock_t *lock)
 	: "memory");
 }
 
-static void inline __write_unlock(raw_rwlock_t *lock)
+static void inline arch_write_unlock(raw_rwlock_t *lock)
 {
 	__asm__ __volatile__(
 "	stw		%%g0, [%0]"
@@ -186,7 +186,7 @@ static void inline __write_unlock(raw_rwlock_t *lock)
 	: "memory");
 }
 
-static int inline __write_trylock(raw_rwlock_t *lock)
+static int inline arch_write_trylock(raw_rwlock_t *lock)
 {
 	unsigned long mask, tmp1, tmp2, result;
 
@@ -210,14 +210,14 @@ static int inline __write_trylock(raw_rwlock_t *lock)
 	return result;
 }
 
-#define __raw_read_lock(p)	__read_lock(p)
-#define __raw_read_lock_flags(p, f) __read_lock(p)
-#define __raw_read_trylock(p)	__read_trylock(p)
-#define __raw_read_unlock(p)	__read_unlock(p)
-#define __raw_write_lock(p)	__write_lock(p)
-#define __raw_write_lock_flags(p, f) __write_lock(p)
-#define __raw_write_unlock(p)	__write_unlock(p)
-#define __raw_write_trylock(p)	__write_trylock(p)
+#define __raw_read_lock(p)	arch_read_lock(p)
+#define __raw_read_lock_flags(p, f) arch_read_lock(p)
+#define __raw_read_trylock(p)	arch_read_trylock(p)
+#define __raw_read_unlock(p)	arch_read_unlock(p)
+#define __raw_write_lock(p)	arch_write_lock(p)
+#define __raw_write_lock_flags(p, f) arch_write_lock(p)
+#define __raw_write_unlock(p)	arch_write_unlock(p)
+#define __raw_write_trylock(p)	arch_write_trylock(p)
 
 #define __raw_read_can_lock(rw)		(!((rw)->lock & 0x80000000UL))
 #define __raw_write_can_lock(rw)	(!(rw)->lock)

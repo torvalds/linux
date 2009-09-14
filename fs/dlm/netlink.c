@@ -63,7 +63,7 @@ static int send_data(struct sk_buff *skb)
 		return rv;
 	}
 
-	return genlmsg_unicast(skb, listener_nlpid);
+	return genlmsg_unicast(&init_net, skb, listener_nlpid);
 }
 
 static int user_cmd(struct sk_buff *skb, struct genl_info *info)

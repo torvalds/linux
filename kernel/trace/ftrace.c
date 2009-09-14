@@ -1016,71 +1016,35 @@ static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ftrace_addr;
-	unsigned long ip, fl;
+	unsigned long flag = 0UL;
 
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
-	ip = rec->ip;
-
 	/*
-	 * If this record is not to be traced and
-	 * it is not enabled then do nothing.
+	 * If this record is not to be traced or we want to disable it,
+	 * then disable it.
 	 *
-	 * If this record is not to be traced and
-	 * it is enabled then disable it.
+	 * If we want to enable it and filtering is off, then enable it.
 	 *
+	 * If we want to enable it and filtering is on, enable it only if
+	 * it's filtered
 	 */
-	if (rec->flags & FTRACE_FL_NOTRACE) {
-		if (rec->flags & FTRACE_FL_ENABLED)
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		else
-			return 0;
-
-	} else if (ftrace_filtered && enable) {
-		/*
-		 * Filtering is on:
-		 */
-
-		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
-
-		/* Record is filtered and enabled, do nothing */
-		if (fl == (FTRACE_FL_FILTER | FTRACE_FL_ENABLED))
-			return 0;
-
-		/* Record is not filtered or enabled, do nothing */
-		if (!fl)
-			return 0;
-
-		/* Record is not filtered but enabled, disable it */
-		if (fl == FTRACE_FL_ENABLED)
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		else
-		/* Otherwise record is filtered but not enabled, enable it */
-			rec->flags |= FTRACE_FL_ENABLED;
-	} else {
-		/* Disable or not filtered */
-
-		if (enable) {
-			/* if record is enabled, do nothing */
-			if (rec->flags & FTRACE_FL_ENABLED)
-				return 0;
-
-			rec->flags |= FTRACE_FL_ENABLED;
-
-		} else {
-
-			/* if record is not enabled, do nothing */
-			if (!(rec->flags & FTRACE_FL_ENABLED))
-				return 0;
-
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		}
+	if (enable && !(rec->flags & FTRACE_FL_NOTRACE)) {
+		if (!ftrace_filtered || (rec->flags & FTRACE_FL_FILTER))
+			flag = FTRACE_FL_ENABLED;
 	}
 
-	if (rec->flags & FTRACE_FL_ENABLED)
+	/* If the state of this record hasn't changed, then do nothing */
+	if ((rec->flags & FTRACE_FL_ENABLED) == flag)
+		return 0;
+
+	if (flag) {
+		rec->flags |= FTRACE_FL_ENABLED;
 		return ftrace_make_call(rec, ftrace_addr);
-	else
-		return ftrace_make_nop(NULL, rec, ftrace_addr);
+	}
+
+	rec->flags &= ~FTRACE_FL_ENABLED;
+	return ftrace_make_nop(NULL, rec, ftrace_addr);
 }
 
 static void ftrace_replace_code(int enable)
@@ -1375,7 +1339,6 @@ struct ftrace_iterator {
 	unsigned		flags;
 	unsigned char		buffer[FTRACE_BUFF_MAX+1];
 	unsigned		buffer_idx;
-	unsigned		filtered;
 };
 
 static void *
@@ -1438,18 +1401,13 @@ static int t_hash_show(struct seq_file *m, void *v)
 {
 	struct ftrace_func_probe *rec;
 	struct hlist_node *hnd = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	rec = hlist_entry(hnd, struct ftrace_func_probe, node);
 
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-	seq_printf(m, "%s:", str);
-
-	kallsyms_lookup((unsigned long)rec->ops->func, NULL, NULL, NULL, str);
-	seq_printf(m, "%s", str);
+	seq_printf(m, "%pf:%pf", (void *)rec->ip, (void *)rec->ops->func);
 
 	if (rec->data)
 		seq_printf(m, ":%p", rec->data);
@@ -1547,7 +1505,6 @@ static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_show(m, v);
@@ -1560,9 +1517,7 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-
-	seq_printf(m, "%s\n", str);
+	seq_printf(m, "%pf\n", (void *)rec->ip);
 
 	return 0;
 }
@@ -1599,17 +1554,6 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 	}
 
 	return ret;
-}
-
-int ftrace_avail_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct ftrace_iterator *iter = m->private;
-
-	seq_release(inode, file);
-	kfree(iter);
-
-	return 0;
 }
 
 static int
@@ -2317,7 +2261,6 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	}
 
 	if (isspace(ch)) {
-		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
 		ret = ftrace_process_regex(iter->buffer,
 					   iter->buffer_idx, enable);
@@ -2448,7 +2391,6 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 		iter = file->private_data;
 
 	if (iter->buffer_idx) {
-		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
 		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
 	}
@@ -2479,14 +2421,14 @@ static const struct file_operations ftrace_avail_fops = {
 	.open = ftrace_avail_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = ftrace_avail_release,
+	.release = seq_release_private,
 };
 
 static const struct file_operations ftrace_failures_fops = {
 	.open = ftrace_failures_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = ftrace_avail_release,
+	.release = seq_release_private,
 };
 
 static const struct file_operations ftrace_filter_fops = {
@@ -2548,7 +2490,6 @@ static void g_stop(struct seq_file *m, void *p)
 static int g_show(struct seq_file *m, void *v)
 {
 	unsigned long *ptr = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	if (!ptr)
 		return 0;
@@ -2558,9 +2499,7 @@ static int g_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	kallsyms_lookup(*ptr, NULL, NULL, NULL, str);
-
-	seq_printf(m, "%s\n", str);
+	seq_printf(m, "%pf\n", v);
 
 	return 0;
 }

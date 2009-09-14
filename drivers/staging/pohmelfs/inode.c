@@ -1950,14 +1950,7 @@ static int pohmelfs_get_sb(struct file_system_type *fs_type,
  */
 static void pohmelfs_kill_super(struct super_block *sb)
 {
-	struct writeback_control wbc = {
-		.sync_mode	= WB_SYNC_ALL,
-		.range_start	= 0,
-		.range_end	= LLONG_MAX,
-		.nr_to_write	= LONG_MAX,
-	};
-	generic_sync_sb_inodes(sb, &wbc);
-
+	sync_inodes_sb(sb);
 	kill_anon_super(sb);
 }
 

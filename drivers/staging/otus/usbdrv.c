@@ -659,7 +659,7 @@ int usbdrv_xmit_frame(struct sk_buff *skb, struct net_device *dev)
         netif_stop_queue(dev);
     }
 
-    return 0;
+    return NETDEV_TX_OK;
 }
 
 
@@ -796,13 +796,13 @@ int zfLnxVapXmitFrame(struct sk_buff *skb, struct net_device *dev)
     if (vapId >= ZM_VAP_PORT_NUMBER)
     {
         dev_kfree_skb_irq(skb);
-        return 0;
+        return NETDEV_TX_OK;
     }
 #if 1
     if (vap[vapId].openFlag == 0)
     {
         dev_kfree_skb_irq(skb);
-        return 0;
+        return NETDEV_TX_OK;
     }
 #endif
 
@@ -819,7 +819,7 @@ int zfLnxVapXmitFrame(struct sk_buff *skb, struct net_device *dev)
         netif_stop_queue(dev);
     }
 
-    return 0;
+    return NETDEV_TX_OK;
 }
 
 static const struct net_device_ops vap_netdev_ops = {

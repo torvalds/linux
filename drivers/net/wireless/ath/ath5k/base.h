@@ -51,6 +51,9 @@
 #include "ath5k.h"
 #include "debug.h"
 
+#include "../regd.h"
+#include "../ath.h"
+
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #define	ATH_TXBUF	200		/* number of TX buffers */
 #define ATH_BCBUF	1		/* number of beacon buffers */
@@ -112,10 +115,10 @@ struct ath5k_rfkill {
  * associated with an instance of a device */
 struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
+	struct ath_common	common;
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
-	/* FIXME: how many does it really need? */
-	struct ieee80211_tx_queue_stats tx_stats[16];
+	struct ieee80211_tx_queue_stats tx_stats[AR5K_NUM_TX_QUEUES];
 	struct ieee80211_low_level_stats ll_stats;
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
@@ -135,7 +138,6 @@ struct ath5k_softc {
 	struct ath5k_desc	*desc;		/* TX/RX descriptors */
 	dma_addr_t		desc_daddr;	/* DMA (physical) address */
 	size_t			desc_len;	/* size of TX/RX descriptors */
-	u16			cachelsz;	/* cache line size */
 
 	DECLARE_BITMAP(status, 5);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
@@ -171,13 +173,14 @@ struct ath5k_softc {
 	struct list_head	txbuf;		/* transmit buffer */
 	spinlock_t		txbuflock;
 	unsigned int		txbuf_len;	/* buf count in txbuf list */
-	struct ath5k_txq	txqs[2];	/* beacon and tx */
-
-	struct ath5k_txq	*txq;		/* beacon and tx*/
+	struct ath5k_txq	txqs[AR5K_NUM_TX_QUEUES];	/* tx queues */
+	struct ath5k_txq	*txq;		/* main tx queue */
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
 	struct ath5k_led	tx_led;		/* tx led */
 
 	struct ath5k_rfkill	rf_kill;
+
+	struct tasklet_struct	calib;		/* calibration tasklet */
 
 	spinlock_t		block;		/* protects beacon */
 	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
@@ -187,15 +190,27 @@ struct ath5k_softc {
 				bintval,	/* beacon interval in TU */
 				bsent;
 	unsigned int		nexttbtt;	/* next beacon time in TU */
+	struct ath5k_txq	*cabq;		/* content after beacon */
 
-	struct timer_list	calib_tim;	/* calibration timer */
 	int 			power_level;	/* Requested tx power in dbm */
 	bool			assoc;		/* assocate state */
+	bool			enable_beacon;	/* true if beacons are on */
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \
 	(ath5k_hw_get_capability(_ah, AR5K_CAP_BSSIDMASK, 0, NULL) == 0)
 #define ath5k_hw_hasveol(_ah) \
 	(ath5k_hw_get_capability(_ah, AR5K_CAP_VEOL, 0, NULL) == 0)
+
+static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
+{
+	return &ah->ah_sc->common;
+}
+
+static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
+{
+	return &(ath5k_hw_common(ah)->regulatory);
+
+}
 
 #endif

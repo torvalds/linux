@@ -150,11 +150,10 @@ extern int timer_through_8259;
 #define io_apic_assign_pci_irqs \
 	(mp_irq_entries && !skip_ioapic_setup && io_apic_irqs)
 
-#ifdef CONFIG_ACPI
+extern u8 io_apic_unique_id(u8 id);
 extern int io_apic_get_unique_id(int ioapic, int apic_id);
 extern int io_apic_get_version(int ioapic);
 extern int io_apic_get_redir_entries(int ioapic);
-#endif /* CONFIG_ACPI */
 
 struct io_apic_irq_attr;
 extern int io_apic_set_pci_routing(struct device *dev, int irq,
@@ -177,6 +176,16 @@ extern int setup_ioapic_entry(int apic, int irq,
 			      int polarity, int vector, int pin);
 extern void ioapic_write_entry(int apic, int pin,
 			       struct IO_APIC_route_entry e);
+
+struct mp_ioapic_gsi{
+	int gsi_base;
+	int gsi_end;
+};
+extern struct mp_ioapic_gsi  mp_gsi_routing[];
+int mp_find_ioapic(int gsi);
+int mp_find_ioapic_pin(int ioapic, int gsi);
+void __init mp_register_ioapic(int id, u32 address, u32 gsi_base);
+
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
