@@ -1173,6 +1173,9 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
 	DRM_INFO("set up %ldM of stolen space\n", prealloc_size / (1024*1024));
 
+	/* We're off and running w/KMS */
+	dev_priv->mm.suspended = 0;
+
 	/* Let GEM Manage from end of prealloc space to end of aperture.
 	 *
 	 * However, leave one page at the end still bound to the scratch page.
@@ -1184,7 +1187,9 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 */
 	i915_gem_do_init(dev, prealloc_size, agp_size - 4096);
 
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_init_ringbuffer(dev);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret)
 		goto out;
 
@@ -1432,6 +1437,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		(void) i915_driver_unload(dev);
 		return ret;
 	}
+
+	/* Start out suspended */
+	dev_priv->mm.suspended = 1;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev, prealloc_start,

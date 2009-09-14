@@ -482,6 +482,14 @@ static void i915_handle_error(struct drm_device *dev)
 		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 	}
 
+	if (dev_priv->mm.wedged) {
+		/*
+		 * Wakeup waiting processes so they don't hang
+		 */
+		printk("i915: Waking up sleeping processes\n");
+		DRM_WAKEUP(&dev_priv->irq_queue);
+	}
+
 	queue_work(dev_priv->wq, &dev_priv->error_work);
 }
 

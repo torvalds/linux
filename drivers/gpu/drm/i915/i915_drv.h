@@ -624,6 +624,7 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 extern int i915_emit_box(struct drm_device *dev,
 			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
+extern int i965_reset(struct drm_device *dev, u8 flags);
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
