@@ -1326,6 +1326,18 @@ static __init void event_trace_self_tests(void)
 		if (!call->regfunc)
 			continue;
 
+/*
+ * Testing syscall events here is pretty useless, but
+ * we still do it if configured. But this is time consuming.
+ * What we really need is a user thread to perform the
+ * syscalls as we test.
+ */
+#ifndef CONFIG_EVENT_TRACE_TEST_SYSCALLS
+		if (call->system &&
+		    strcmp(call->system, "syscalls") == 0)
+			continue;
+#endif
+
 		pr_info("Testing event %s: ", call->name);
 
 		/*
