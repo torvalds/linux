@@ -185,10 +185,15 @@ struct probe_arg {
 	const char		*name;
 };
 
+/* Flags for trace_probe */
+#define TP_FLAG_TRACE	1
+#define TP_FLAG_PROFILE	2
+
 struct trace_probe {
 	struct list_head	list;
 	struct kretprobe	rp;	/* Use rp.kp for kprobe use */
 	unsigned long 		nhit;
+	unsigned int		flags;	/* For TP_FLAG_* */
 	const char		*symbol;	/* symbol name */
 	struct ftrace_event_call	call;
 	struct trace_event		event;
@@ -199,10 +204,6 @@ struct trace_probe {
 #define SIZEOF_TRACE_PROBE(n)			\
 	(offsetof(struct trace_probe, args) +	\
 	(sizeof(struct probe_arg) * (n)))
-
-static int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs);
-static int kretprobe_trace_func(struct kretprobe_instance *ri,
-				struct pt_regs *regs);
 
 static __kprobes int probe_is_return(struct trace_probe *tp)
 {
@@ -263,6 +264,10 @@ static void unregister_probe_event(struct trace_probe *tp);
 static DEFINE_MUTEX(probe_lock);
 static LIST_HEAD(probe_list);
 
+static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs);
+static int kretprobe_dispatcher(struct kretprobe_instance *ri,
+				struct pt_regs *regs);
+
 /*
  * Allocate new trace_probe and initialize it (including kprobes).
  */
@@ -288,11 +293,10 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 	} else
 		tp->rp.kp.addr = addr;
 
-	/* Set handler here for checking whether this probe is return or not. */
 	if (is_return)
-		tp->rp.handler = kretprobe_trace_func;
+		tp->rp.handler = kretprobe_dispatcher;
 	else
-		tp->rp.kp.pre_handler = kprobe_trace_func;
+		tp->rp.kp.pre_handler = kprobe_dispatcher;
 
 	if (!event)
 		goto error;
@@ -379,6 +383,7 @@ static int register_trace_probe(struct trace_probe *tp)
 		goto end;
 	}
 
+	tp->flags = TP_FLAG_TRACE;
 	if (probe_is_return(tp))
 		ret = register_kretprobe(&tp->rp);
 	else
@@ -987,23 +992,24 @@ static int probe_event_enable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
-	if (probe_is_return(tp)) {
-		tp->rp.handler = kretprobe_trace_func;
+	tp->flags |= TP_FLAG_TRACE;
+	if (probe_is_return(tp))
 		return enable_kretprobe(&tp->rp);
-	} else {
-		tp->rp.kp.pre_handler = kprobe_trace_func;
+	else
 		return enable_kprobe(&tp->rp.kp);
-	}
 }
 
 static void probe_event_disable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
-	if (probe_is_return(tp))
-		disable_kretprobe(&tp->rp);
-	else
-		disable_kprobe(&tp->rp.kp);
+	tp->flags &= ~TP_FLAG_TRACE;
+	if (!(tp->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE))) {
+		if (probe_is_return(tp))
+			disable_kretprobe(&tp->rp);
+		else
+			disable_kprobe(&tp->rp.kp);
+	}
 }
 
 static int probe_event_raw_init(struct ftrace_event_call *event_call)
@@ -1212,22 +1218,57 @@ static int probe_profile_enable(struct ftrace_event_call *call)
 	if (atomic_inc_return(&call->profile_count))
 		return 0;
 
-	if (probe_is_return(tp)) {
-		tp->rp.handler = kretprobe_profile_func;
+	tp->flags |= TP_FLAG_PROFILE;
+	if (probe_is_return(tp))
 		return enable_kretprobe(&tp->rp);
-	} else {
-		tp->rp.kp.pre_handler = kprobe_profile_func;
+	else
 		return enable_kprobe(&tp->rp.kp);
-	}
 }
 
 static void probe_profile_disable(struct ftrace_event_call *call)
 {
+	struct trace_probe *tp = (struct trace_probe *)call->data;
+
 	if (atomic_add_negative(-1, &call->profile_count))
-		probe_event_disable(call);
+		tp->flags &= ~TP_FLAG_PROFILE;
+
+	if (!(tp->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE))) {
+		if (probe_is_return(tp))
+			disable_kretprobe(&tp->rp);
+		else
+			disable_kprobe(&tp->rp.kp);
+	}
+}
+#endif	/* CONFIG_EVENT_PROFILE */
+
+
+static __kprobes
+int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
+{
+	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
+
+	if (tp->flags & TP_FLAG_TRACE)
+		kprobe_trace_func(kp, regs);
+#ifdef CONFIG_EVENT_PROFILE
+	if (tp->flags & TP_FLAG_PROFILE)
+		kprobe_profile_func(kp, regs);
+#endif	/* CONFIG_EVENT_PROFILE */
+	return 0;	/* We don't tweek kernel, so just return 0 */
 }
 
+static __kprobes
+int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
+
+	if (tp->flags & TP_FLAG_TRACE)
+		kretprobe_trace_func(ri, regs);
+#ifdef CONFIG_EVENT_PROFILE
+	if (tp->flags & TP_FLAG_PROFILE)
+		kretprobe_profile_func(ri, regs);
 #endif	/* CONFIG_EVENT_PROFILE */
+	return 0;	/* We don't tweek kernel, so just return 0 */
+}
 
 static int register_probe_event(struct trace_probe *tp)
 {
