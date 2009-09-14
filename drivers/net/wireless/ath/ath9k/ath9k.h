@@ -537,13 +537,6 @@ struct ath_led {
 #define SC_OP_BEACON_SYNC       BIT(19)
 #define SC_OP_BT_PRIORITY_DETECTED BIT(21)
 
-struct ath_bus_ops {
-	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
-	void		(*cleanup)(struct ath_softc *sc);
-	bool		(*eeprom_read)(struct ath_hw *ah, u32 off, u16 *data);
-	void		(*bt_coex_prep)(struct ath_softc *sc);
-};
-
 struct ath_wiphy;
 
 struct ath_softc {
@@ -613,7 +606,6 @@ struct ath_softc {
 #ifdef CONFIG_ATH9K_DEBUG
 	struct ath9k_debug debug;
 #endif
-	struct ath_bus_ops *bus_ops;
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct ath_btcoex btcoex;
@@ -638,21 +630,22 @@ int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
 
-static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
+static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 {
-	sc->bus_ops->read_cachesize(sc, csz);
+	common->bus_ops->read_cachesize(common, csz);
 }
 
-static inline void ath_bus_cleanup(struct ath_softc *sc)
+static inline void ath_bus_cleanup(struct ath_common *common)
 {
-	sc->bus_ops->cleanup(sc);
+	common->bus_ops->cleanup(common);
 }
 
 extern struct ieee80211_ops ath9k_ops;
 
 irqreturn_t ath_isr(int irq, void *dev);
 void ath_cleanup(struct ath_softc *sc);
-int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid);
+int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+		    const struct ath_bus_ops *bus_ops);
 void ath_detach(struct ath_softc *sc);
 const char *ath_mac_bb_name(u32 mac_bb_version);
 const char *ath_rf_name(u16 rf_version);

@@ -41,7 +41,8 @@ static bool ath9k_hw_AR9287_fill_eeprom(struct ath_hw *ah)
 
 	for (addr = 0; addr < sizeof(struct ar9287_eeprom) / sizeof(u16);
 			addr++)	{
-		if (!ath9k_hw_nvram_read(ah, addr + eep_start_loc, eep_data)) {
+		if (!ath9k_hw_nvram_read(common,
+					 addr + eep_start_loc, eep_data)) {
 			ath_print(common, ATH_DBG_EEPROM,
 				  "Unable to read eeprom region \n");
 			return false;
@@ -61,8 +62,8 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		if (!ath9k_hw_nvram_read
-		    (ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+		if (!ath9k_hw_nvram_read(common,
+					 AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
 			ath_print(common, ATH_DBG_FATAL,
 				  "Reading Magic # failed\n");
 			return false;

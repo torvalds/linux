@@ -31,8 +31,10 @@ static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 };
 
 /* return bus cachesize in 4B word units */
-static void ath_pci_read_cachesize(struct ath_softc *sc, int *csz)
+static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 {
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
+	struct ath_softc *sc = ah->ah_sc;
 	u8 u8tmp;
 
 	pci_read_config_byte(to_pci_dev(sc->dev), PCI_CACHE_LINE_SIZE, &u8tmp);
@@ -48,8 +50,10 @@ static void ath_pci_read_cachesize(struct ath_softc *sc, int *csz)
 		*csz = DEFAULT_CACHELINE >> 2;   /* Use the default size */
 }
 
-static void ath_pci_cleanup(struct ath_softc *sc)
+static void ath_pci_cleanup(struct ath_common *common)
 {
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
+	struct ath_softc *sc = ah->ah_sc;
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 
 	pci_iounmap(pdev, sc->mem);
@@ -57,8 +61,10 @@ static void ath_pci_cleanup(struct ath_softc *sc)
 	pci_release_region(pdev, 0);
 }
 
-static bool ath_pci_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
+static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
+
 	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
 	if (!ath9k_hw_wait(ah,
@@ -78,8 +84,10 @@ static bool ath_pci_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 /*
  * Bluetooth coexistance requires disabling ASPM.
  */
-static void ath_pci_bt_coex_prep(struct ath_softc *sc)
+static void ath_pci_bt_coex_prep(struct ath_common *common)
 {
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
+	struct ath_softc *sc = ah->ah_sc;
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	u8 aspm;
 
@@ -91,7 +99,7 @@ static void ath_pci_bt_coex_prep(struct ath_softc *sc)
 	pci_write_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, aspm);
 }
 
-static struct ath_bus_ops ath_pci_bus_ops = {
+const static struct ath_bus_ops ath_pci_bus_ops = {
 	.read_cachesize = ath_pci_read_cachesize,
 	.cleanup = ath_pci_cleanup,
 	.eeprom_read = ath_pci_eeprom_read,
@@ -194,10 +202,9 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
-	sc->bus_ops = &ath_pci_bus_ops;
 
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsysid);
-	ret = ath_init_device(id->device, sc, subsysid);
+	ret = ath_init_device(id->device, sc, subsysid, &ath_pci_bus_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize device\n");
 		goto bad3;

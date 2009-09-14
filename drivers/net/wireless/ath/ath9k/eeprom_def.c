@@ -89,11 +89,12 @@ static int ath9k_hw_def_get_eeprom_rev(struct ath_hw *ah)
 static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 {
 #define SIZE_EEPROM_DEF (sizeof(struct ar5416_eeprom_def) / sizeof(u16))
+	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data = (u16 *)&ah->eeprom.def;
 	int addr, ar5416_eep_start_loc = 0x100;
 
 	for (addr = 0; addr < SIZE_EEPROM_DEF; addr++) {
-		if (!ath9k_hw_nvram_read(ah, addr + ar5416_eep_start_loc,
+		if (!ath9k_hw_nvram_read(common, addr + ar5416_eep_start_loc,
 					 eep_data)) {
 			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
 				  "Unable to read eeprom region\n");
@@ -115,7 +116,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 	bool need_swap = false;
 	int i, addr, size;
 
-	if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+	if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
 		ath_print(common, ATH_DBG_FATAL, "Reading Magic # failed\n");
 		return false;
 	}

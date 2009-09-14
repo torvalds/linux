@@ -1311,9 +1311,12 @@ static void ath_start_rfkill_poll(struct ath_softc *sc)
 
 void ath_cleanup(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	ath_detach(sc);
 	free_irq(sc->irq, sc);
-	ath_bus_cleanup(sc);
+	ath_bus_cleanup(common);
 	kfree(sc->sec_wiphy);
 	ieee80211_free_hw(sc->hw);
 }
@@ -1587,7 +1590,8 @@ static struct ath_ops ath9k_common_ops = {
  * to allow the separation between hardware specific
  * variables (now in ath_hw) and driver specific variables.
  */
-static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
+static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
+			  const struct ath_bus_ops *bus_ops)
 {
 	struct ath_hw *ah = NULL;
 	struct ath_common *common;
@@ -1621,6 +1625,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 
 	common = ath9k_hw_common(ah);
 	common->ops = &ath9k_common_ops;
+	common->bus_ops = bus_ops;
 	common->ah = ah;
 	common->hw = sc->hw;
 
@@ -1628,7 +1633,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	 * Cache line size is used to size and align various
 	 * structures used to communicate with the hardware.
 	 */
-	ath_read_cachesize(sc, &csz);
+	ath_read_cachesize(common, &csz);
 	/* XXX assert csz is non-zero */
 	common->cachelsz = csz << 2;	/* convert to bytes */
 
@@ -1876,7 +1881,8 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 }
 
 /* Device driver core initialization */
-int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
+int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ath_common *common;
@@ -1886,7 +1892,7 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 
 	dev_dbg(sc->dev, "Attach ATH hw\n");
 
-	error = ath_init_softc(devid, sc, subsysid);
+	error = ath_init_softc(devid, sc, subsysid, bus_ops);
 	if (error != 0)
 		return error;
 
@@ -2337,8 +2343,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 					   AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(ah);
 
-		if (sc->bus_ops->bt_coex_prep)
-			sc->bus_ops->bt_coex_prep(sc);
+		if (common->bus_ops->bt_coex_prep)
+			common->bus_ops->bt_coex_prep(common);
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_resume(sc);
 	}
