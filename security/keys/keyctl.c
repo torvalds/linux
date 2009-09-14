@@ -1319,6 +1319,7 @@ long keyctl_session_to_parent(void)
 already_same:
 	ret = 0;
 not_permitted:
+	write_unlock_irq(&tasklist_lock);
 	put_cred(cred);
 	return ret;
 
