@@ -715,7 +715,6 @@ _base_unmask_interrupts(struct MPT2SAS_ADAPTER *ioc)
 {
 	u32 him_register;
 
-	writel(0, &ioc->chip->HostInterruptStatus);
 	him_register = readl(&ioc->chip->HostInterruptMask);
 	him_register &= ~MPI2_HIM_RIM;
 	writel(him_register, &ioc->chip->HostInterruptMask);
@@ -2463,7 +2462,7 @@ _base_handshake_req_reply_wait(struct MPT2SAS_ADAPTER *ioc, int request_bytes,
 	    ((request_bytes/4)<<MPI2_DOORBELL_ADD_DWORDS_SHIFT)),
 	    &ioc->chip->Doorbell);
 
-	if ((_base_wait_for_doorbell_int(ioc, 5, sleep_flag))) {
+	if ((_base_wait_for_doorbell_int(ioc, 5, NO_SLEEP))) {
 		printk(MPT2SAS_ERR_FMT "doorbell handshake "
 		   "int failed (line=%d)\n", ioc->name, __LINE__);
 		return -EFAULT;
@@ -3169,7 +3168,6 @@ _base_diag_reset(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 
 	drsprintk(ioc, printk(MPT2SAS_DEBUG_FMT "clear interrupts\n",
 	    ioc->name));
-	writel(0, &ioc->chip->HostInterruptStatus);
 
 	count = 0;
 	do {
