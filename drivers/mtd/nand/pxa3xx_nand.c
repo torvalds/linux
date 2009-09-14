@@ -670,6 +670,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		/* disable HW ECC to get all the OOB data */
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		info->buf_start = mtd->writesize + column;
+		memset(info->data_buff, 0xFF, info->buf_count);
 
 		if (prepare_read_prog_cmd(info, cmdset->read1, column, page_addr))
 			break;
