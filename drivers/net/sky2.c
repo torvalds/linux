@@ -65,8 +65,8 @@
 #define RX_DEF_PENDING		RX_MAX_PENDING
 
 /* This is the worst case number of transmit list elements for a single skb:
-   VLAN + TSO + CKSUM + Data + skb_frags * DMA */
-#define MAX_SKB_TX_LE	(4 + (sizeof(dma_addr_t)/sizeof(u32))*MAX_SKB_FRAGS)
+   VLAN:GSO + CKSUM + Data + skb_frags * DMA */
+#define MAX_SKB_TX_LE	(2 + (sizeof(dma_addr_t)/sizeof(u32))*(MAX_SKB_FRAGS+1))
 #define TX_MIN_PENDING		(MAX_SKB_TX_LE+1)
 #define TX_MAX_PENDING		4096
 #define TX_DEF_PENDING		127
@@ -1567,11 +1567,13 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 {
 	unsigned count;
 
-	count = sizeof(dma_addr_t) / sizeof(u32);
-	count += skb_shinfo(skb)->nr_frags * count;
+	count = (skb_shinfo(skb)->nr_frags + 1)
+		* (sizeof(dma_addr_t) / sizeof(u32));
 
 	if (skb_is_gso(skb))
 		++count;
+	else if (sizeof(dma_addr_t) == sizeof(u32))
+		++count;	/* possible vlan */
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		++count;
