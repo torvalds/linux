@@ -713,13 +713,23 @@ static inline void cpu_relax(void)
 	rep_nop();
 }
 
-/* Stop speculative execution: */
+/* Stop speculative execution and prefetching of modified code. */
 static inline void sync_core(void)
 {
 	int tmp;
 
-	asm volatile("cpuid" : "=a" (tmp) : "0" (1)
-		     : "ebx", "ecx", "edx", "memory");
+#if defined(CONFIG_M386) || defined(CONFIG_M486)
+	if (boot_cpu_data.x86 < 5)
+		/* There is no speculative execution.
+		 * jmp is a barrier to prefetching. */
+		asm volatile("jmp 1f\n1:\n" ::: "memory");
+	else
+#endif
+		/* cpuid is a barrier to speculative execution.
+		 * Prefetched instructions are automatically
+		 * invalidated when modified. */
+		asm volatile("cpuid" : "=a" (tmp) : "0" (1)
+			     : "ebx", "ecx", "edx", "memory");
 }
 
 static inline void __monitor(const void *eax, unsigned long ecx,
