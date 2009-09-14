@@ -53,6 +53,8 @@
 
 #define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
 
+#define	ATH_DEFAULT_NOISE_FLOOR -95
+
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) \
 	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))

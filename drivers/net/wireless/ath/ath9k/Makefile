@@ -1,19 +1,23 @@
-ath9k-y +=	hw.o \
-		eeprom.o \
+ATH9K_HW_FIX +=	eeprom.o \
+		mac.o \
+
+ATH9K_HW +=	hw.o \
 		eeprom_def.o \
 		eeprom_4k.o \
 		eeprom_9287.o \
-		mac.o \
 		calib.o \
 		ani.o \
 		phy.o \
+		btcoex.o
+
+ath9k-y +=	$(ATH9K_HW) \
+		$(ATH9K_HW_FIX) \
 		beacon.o \
 		main.o \
 		recv.o \
 		xmit.o \
 		virtual.o \
-		rc.o \
-		btcoex.o
+		rc.o
 
 ath9k-$(CONFIG_PCI) += pci.o
 ath9k-$(CONFIG_ATHEROS_AR71XX) += ahb.o

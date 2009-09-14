@@ -14,7 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
 #include "hw.h"
 
 static int ath9k_hw_AR9287_get_eeprom_ver(struct ath_hw *ah)

@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 void
 ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex, u32 freqIndex,

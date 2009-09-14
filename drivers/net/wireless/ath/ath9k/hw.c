@@ -18,7 +18,7 @@
 #include <asm/unaligned.h>
 
 #include "hw.h"
-#include "ath9k.h"
+#include "rc.h"
 #include "initvals.h"
 
 #define ATH9K_CLOCK_RATE_CCK		22

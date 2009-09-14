@@ -14,7 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
 #include "hw.h"
 
 /* We can tune this as we go by monitoring really low values */
