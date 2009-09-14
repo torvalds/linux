@@ -471,7 +471,9 @@ static void clocksource_select(void)
 static int __init clocksource_done_booting(void)
 {
 	finished_booting = 1;
+	mutex_lock(&clocksource_mutex);
 	clocksource_select();
+	mutex_unlock(&clocksource_mutex);
 	return 0;
 }
 fs_initcall(clocksource_done_booting);
