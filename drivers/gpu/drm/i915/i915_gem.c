@@ -48,7 +48,9 @@ static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
-static int i915_gem_evict_something(struct drm_device *dev);
+static int i915_gem_evict_something(struct drm_device *dev, int min_size);
+static int i915_gem_evict_from_list(struct drm_device *dev,
+				    struct list_head *head);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
 				struct drm_file *file_priv);
@@ -319,6 +321,45 @@ fail_unlock:
 	return ret;
 }
 
+static inline gfp_t
+i915_gem_object_get_page_gfp_mask (struct drm_gem_object *obj)
+{
+	return mapping_gfp_mask(obj->filp->f_path.dentry->d_inode->i_mapping);
+}
+
+static inline void
+i915_gem_object_set_page_gfp_mask (struct drm_gem_object *obj, gfp_t gfp)
+{
+	mapping_set_gfp_mask(obj->filp->f_path.dentry->d_inode->i_mapping, gfp);
+}
+
+static int
+i915_gem_object_get_pages_or_evict(struct drm_gem_object *obj)
+{
+	int ret;
+
+	ret = i915_gem_object_get_pages(obj);
+
+	/* If we've insufficient memory to map in the pages, attempt
+	 * to make some space by throwing out some old buffers.
+	 */
+	if (ret == -ENOMEM) {
+		struct drm_device *dev = obj->dev;
+		gfp_t gfp;
+
+		ret = i915_gem_evict_something(dev, obj->size);
+		if (ret)
+			return ret;
+
+		gfp = i915_gem_object_get_page_gfp_mask(obj);
+		i915_gem_object_set_page_gfp_mask(obj, gfp & ~__GFP_NORETRY);
+		ret = i915_gem_object_get_pages(obj);
+		i915_gem_object_set_page_gfp_mask (obj, gfp);
+	}
+
+	return ret;
+}
+
 /**
  * This is the fallback shmem pread path, which allocates temporary storage
  * in kernel space to copy_to_user into outside of the struct_mutex, so we
@@ -370,8 +411,8 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_object_get_pages(obj);
-	if (ret != 0)
+	ret = i915_gem_object_get_pages_or_evict(obj);
+	if (ret)
 		goto fail_unlock;
 
 	ret = i915_gem_object_set_cpu_read_domain_range(obj, args->offset,
@@ -845,8 +886,8 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_object_get_pages(obj);
-	if (ret != 0)
+	ret = i915_gem_object_get_pages_or_evict(obj);
+	if (ret)
 		goto fail_unlock;
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
@@ -1965,37 +2006,127 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	return 0;
 }
 
+static inline int
+i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj_priv)
+{
+	return !obj_priv->dirty || obj_priv->madv == I915_MADV_DONTNEED;
+}
+
+static struct drm_gem_object *
+i915_gem_find_inactive_object(struct drm_device *dev, int min_size)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv;
+	struct drm_gem_object *best = NULL;
+	struct drm_gem_object *first = NULL;
+
+	/* Try to find the smallest clean object */
+	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
+		struct drm_gem_object *obj = obj_priv->obj;
+		if (obj->size >= min_size) {
+			if (i915_gem_object_is_purgeable(obj_priv) &&
+			    (!best || obj->size < best->size)) {
+				best = obj;
+				if (best->size == min_size)
+					return best;
+			}
+			if (!first)
+			    first = obj;
+		}
+	}
+
+	return best ? best : first;
+}
+
 static int
-i915_gem_evict_something(struct drm_device *dev)
+i915_gem_evict_everything(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t seqno;
+	int ret;
+	bool lists_empty;
+
+	DRM_INFO("GTT full, evicting everything: "
+		 "%d objects [%d pinned], "
+		 "%d object bytes [%d pinned], "
+		 "%d/%d gtt bytes\n",
+		 atomic_read(&dev->object_count),
+		 atomic_read(&dev->pin_count),
+		 atomic_read(&dev->object_memory),
+		 atomic_read(&dev->pin_memory),
+		 atomic_read(&dev->gtt_memory),
+		 dev->gtt_total);
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
+		       list_empty(&dev_priv->mm.flushing_list) &&
+		       list_empty(&dev_priv->mm.active_list));
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
+	if (lists_empty) {
+		DRM_ERROR("GTT full, but lists empty!\n");
+		return -ENOSPC;
+	}
+
+	/* Flush everything (on to the inactive lists) and evict */
+	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
+	if (seqno == 0)
+		return -ENOMEM;
+
+	ret = i915_wait_request(dev, seqno);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
+	if (ret)
+		return ret;
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
+		       list_empty(&dev_priv->mm.flushing_list) &&
+		       list_empty(&dev_priv->mm.active_list));
+	spin_unlock(&dev_priv->mm.active_list_lock);
+	BUG_ON(!lists_empty);
+
+	return 0;
+}
+
+static int
+i915_gem_evict_something(struct drm_device *dev, int min_size)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
-	int ret = 0;
+	int have_waited = 0;
+	int ret;
 
 	for (;;) {
+		i915_gem_retire_requests(dev);
+
 		/* If there's an inactive buffer available now, grab it
 		 * and be done.
 		 */
-		if (!list_empty(&dev_priv->mm.inactive_list)) {
-			obj_priv = list_first_entry(&dev_priv->mm.inactive_list,
-						    struct drm_i915_gem_object,
-						    list);
-			obj = obj_priv->obj;
-			BUG_ON(obj_priv->pin_count != 0);
+		obj = i915_gem_find_inactive_object(dev, min_size);
+		if (obj) {
+			struct drm_i915_gem_object *obj_priv;
+
 #if WATCH_LRU
 			DRM_INFO("%s: evicting %p\n", __func__, obj);
 #endif
+			obj_priv = obj->driver_private;
+			BUG_ON(obj_priv->pin_count != 0);
 			BUG_ON(obj_priv->active);
 
 			/* Wait on the rendering and unbind the buffer. */
-			ret = i915_gem_object_unbind(obj);
-			break;
+			return i915_gem_object_unbind(obj);
 		}
 
+		if (have_waited)
+			return 0;
+
 		/* If we didn't get anything, but the ring is still processing
-		 * things, wait for one of those things to finish and hopefully
-		 * leave us a buffer to evict.
+		 * things, wait for the next to finish and hopefully leave us
+		 * a buffer to evict.
 		 */
 		if (!list_empty(&dev_priv->mm.request_list)) {
 			struct drm_i915_gem_request *request;
@@ -2006,16 +2137,10 @@ i915_gem_evict_something(struct drm_device *dev)
 
 			ret = i915_wait_request(dev, request->seqno);
 			if (ret)
-				break;
+				return ret;
 
-			/* if waiting caused an object to become inactive,
-			 * then loop around and wait for it. Otherwise, we
-			 * assume that waiting freed and unbound something,
-			 * so there should now be some space in the GTT
-			 */
-			if (!list_empty(&dev_priv->mm.inactive_list))
-				continue;
-			break;
+			have_waited = 1;
+			continue;
 		}
 
 		/* If we didn't have anything on the request list but there
@@ -2024,6 +2149,9 @@ i915_gem_evict_something(struct drm_device *dev)
 		 * will get moved to inactive.
 		 */
 		if (!list_empty(&dev_priv->mm.flushing_list)) {
+			struct drm_i915_gem_object *obj_priv;
+			uint32_t seqno;
+
 			obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
 						    struct drm_i915_gem_object,
 						    list);
@@ -2032,38 +2160,29 @@ i915_gem_evict_something(struct drm_device *dev)
 			i915_gem_flush(dev,
 				       obj->write_domain,
 				       obj->write_domain);
-			i915_add_request(dev, NULL, obj->write_domain);
+			seqno = i915_add_request(dev, NULL, obj->write_domain);
+			if (seqno == 0)
+				return -ENOMEM;
 
-			obj = NULL;
+			ret = i915_wait_request(dev, seqno);
+			if (ret)
+				return ret;
+
+			have_waited = 1;
 			continue;
 		}
 
-		DRM_ERROR("inactive empty %d request empty %d "
-			  "flushing empty %d\n",
-			  list_empty(&dev_priv->mm.inactive_list),
-			  list_empty(&dev_priv->mm.request_list),
-			  list_empty(&dev_priv->mm.flushing_list));
-		/* If we didn't do any of the above, there's nothing to be done
-		 * and we just can't fit it in.
+		/* If we didn't do any of the above, there's no single buffer
+		 * large enough to swap out for the new one, so just evict
+		 * everything and start again. (This should be rare.)
 		 */
-		return -ENOSPC;
+		if (!list_empty (&dev_priv->mm.inactive_list)) {
+			DRM_INFO("GTT full, evicting inactive buffers\n");
+			return i915_gem_evict_from_list(dev,
+							&dev_priv->mm.inactive_list);
+		} else
+			return i915_gem_evict_everything(dev);
 	}
-	return ret;
-}
-
-static int
-i915_gem_evict_everything(struct drm_device *dev)
-{
-	int ret;
-
-	for (;;) {
-		ret = i915_gem_evict_something(dev);
-		if (ret != 0)
-			break;
-	}
-	if (ret == -ENOSPC)
-		return 0;
-	return ret;
 }
 
 int
@@ -2086,7 +2205,7 @@ i915_gem_object_get_pages(struct drm_gem_object *obj)
 	BUG_ON(obj_priv->pages != NULL);
 	obj_priv->pages = drm_calloc_large(page_count, sizeof(struct page *));
 	if (obj_priv->pages == NULL) {
-		DRM_ERROR("Faled to allocate page list\n");
+		DRM_ERROR("Failed to allocate page list\n");
 		obj_priv->pages_refcount--;
 		return -ENOMEM;
 	}
@@ -2097,7 +2216,6 @@ i915_gem_object_get_pages(struct drm_gem_object *obj)
 		page = read_mapping_page(mapping, i, NULL);
 		if (IS_ERR(page)) {
 			ret = PTR_ERR(page);
-			DRM_ERROR("read_mapping_page failed: %d\n", ret);
 			i915_gem_object_put_pages(obj);
 			return ret;
 		}
@@ -2416,7 +2534,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	struct drm_mm_node *free_space;
-	int page_count, ret;
+	bool retry_alloc = false;
+	int ret;
 
 	if (dev_priv->mm.suspended)
 		return -EBUSY;
@@ -2445,25 +2564,13 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		}
 	}
 	if (obj_priv->gtt_space == NULL) {
-		bool lists_empty;
-
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
 #if WATCH_LRU
 		DRM_INFO("%s: GTT full, evicting something\n", __func__);
 #endif
-		spin_lock(&dev_priv->mm.active_list_lock);
-		lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
-			       list_empty(&dev_priv->mm.flushing_list) &&
-			       list_empty(&dev_priv->mm.active_list));
-		spin_unlock(&dev_priv->mm.active_list_lock);
-		if (lists_empty) {
-			DRM_ERROR("GTT full, but LRU list empty\n");
-			return -ENOSPC;
-		}
-
-		ret = i915_gem_evict_something(dev);
+		ret = i915_gem_evict_something(dev, obj->size);
 		if (ret != 0) {
 			if (ret != -ERESTARTSYS)
 				DRM_ERROR("Failed to evict a buffer %d\n", ret);
@@ -2476,27 +2583,62 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	DRM_INFO("Binding object of size %zd at 0x%08x\n",
 		 obj->size, obj_priv->gtt_offset);
 #endif
+	if (retry_alloc) {
+		i915_gem_object_set_page_gfp_mask (obj,
+						   i915_gem_object_get_page_gfp_mask (obj) & ~__GFP_NORETRY);
+	}
 	ret = i915_gem_object_get_pages(obj);
+	if (retry_alloc) {
+		i915_gem_object_set_page_gfp_mask (obj,
+						   i915_gem_object_get_page_gfp_mask (obj) | __GFP_NORETRY);
+	}
 	if (ret) {
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
+
+		if (ret == -ENOMEM) {
+			/* first try to clear up some space from the GTT */
+			ret = i915_gem_evict_something(dev, obj->size);
+			if (ret) {
+				if (ret != -ERESTARTSYS)
+					DRM_ERROR("Failed to allocate space for backing pages %d\n", ret);
+
+				/* now try to shrink everyone else */
+				if (! retry_alloc) {
+				    retry_alloc = true;
+				    goto search_free;
+				}
+
+				return ret;
+			}
+
+			goto search_free;
+		}
+
 		return ret;
 	}
 
-	page_count = obj->size / PAGE_SIZE;
 	/* Create an AGP memory structure pointing at our pages, and bind it
 	 * into the GTT.
 	 */
 	obj_priv->agp_mem = drm_agp_bind_pages(dev,
 					       obj_priv->pages,
-					       page_count,
+					       obj->size >> PAGE_SHIFT,
 					       obj_priv->gtt_offset,
 					       obj_priv->agp_type);
 	if (obj_priv->agp_mem == NULL) {
 		i915_gem_object_put_pages(obj);
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
-		return -ENOMEM;
+
+		ret = i915_gem_evict_something(dev, obj->size);
+		if (ret) {
+			if (ret != -ERESTARTSYS)
+				DRM_ERROR("Failed to allocate space to bind AGP: %d\n", ret);
+			return ret;
+		}
+
+		goto search_free;
 	}
 	atomic_inc(&dev->gtt_count);
 	atomic_add(obj->size, &dev->gtt_memory);
@@ -3423,8 +3565,23 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 		/* error other than GTT full, or we've already tried again */
 		if (ret != -ENOSPC || pin_tries >= 1) {
-			if (ret != -ERESTARTSYS)
-				DRM_ERROR("Failed to pin buffers %d\n", ret);
+			if (ret != -ERESTARTSYS) {
+				unsigned long long total_size = 0;
+				for (i = 0; i < args->buffer_count; i++)
+					total_size += object_list[i]->size;
+				DRM_ERROR("Failed to pin buffer %d of %d, total %llu bytes: %d\n",
+					  pinned+1, args->buffer_count,
+					  total_size, ret);
+				DRM_ERROR("%d objects [%d pinned], "
+					  "%d object bytes [%d pinned], "
+					  "%d/%d gtt bytes\n",
+					  atomic_read(&dev->object_count),
+					  atomic_read(&dev->pin_count),
+					  atomic_read(&dev->object_memory),
+					  atomic_read(&dev->pin_memory),
+					  atomic_read(&dev->gtt_memory),
+					  dev->gtt_total);
+			}
 			goto err;
 		}
 
@@ -3435,7 +3592,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 		/* evict everyone we can from the aperture */
 		ret = i915_gem_evict_everything(dev);
-		if (ret)
+		if (ret && ret != -ENOSPC)
 			goto err;
 	}
 
@@ -4566,12 +4723,6 @@ i915_gem_object_truncate(struct drm_gem_object *obj)
     mutex_lock(&inode->i_mutex);
     truncate_inode_pages(inode->i_mapping, 0);
     mutex_unlock(&inode->i_mutex);
-}
-
-static inline int
-i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj_priv)
-{
-	return !obj_priv->dirty || obj_priv->madv == I915_MADV_DONTNEED;
 }
 
 static int
