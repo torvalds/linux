@@ -1115,7 +1115,7 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 	}
 
 	key->expiry = expiry;
-	key_schedule_gc(key->expiry);
+	key_schedule_gc(key->expiry + key_gc_delay);
 
 	up_write(&key->sem);
 	key_put(key);
