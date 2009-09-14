@@ -97,7 +97,7 @@ struct inet_protosw {
 extern const struct net_protocol *inet_protos[MAX_INET_PROTOS];
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-extern struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];
+extern const struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];
 #endif
 
 extern int	inet_add_protocol(const struct net_protocol *prot, unsigned char num);
@@ -106,8 +106,8 @@ extern void	inet_register_protosw(struct inet_protosw *p);
 extern void	inet_unregister_protosw(struct inet_protosw *p);
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-extern int	inet6_add_protocol(struct inet6_protocol *prot, unsigned char num);
-extern int	inet6_del_protocol(struct inet6_protocol *prot, unsigned char num);
+extern int	inet6_add_protocol(const struct inet6_protocol *prot, unsigned char num);
+extern int	inet6_del_protocol(const struct inet6_protocol *prot, unsigned char num);
 extern int	inet6_register_protosw(struct inet_protosw *p);
 extern void	inet6_unregister_protosw(struct inet_protosw *p);
 #endif
