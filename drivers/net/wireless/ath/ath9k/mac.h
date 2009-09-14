@@ -619,11 +619,6 @@ enum ath9k_ht_macmode {
 	ATH9K_HT_MACMODE_2040 = 1,
 };
 
-enum ath9k_ht_extprotspacing {
-	ATH9K_HT_EXTPROTSPACING_20 = 0,
-	ATH9K_HT_EXTPROTSPACING_25 = 1,
-};
-
 struct ath_hw;
 struct ath9k_channel;
 struct ath_rate_table;

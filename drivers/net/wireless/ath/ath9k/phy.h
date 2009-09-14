@@ -45,6 +45,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_FC_DYN2040_EN        0x00000004
 #define AR_PHY_FC_DYN2040_PRI_ONLY  0x00000008
 #define AR_PHY_FC_DYN2040_PRI_CH    0x00000010
+/* For 25 MHz channel spacing -- not used but supported by hw */
 #define AR_PHY_FC_DYN2040_EXT_CH    0x00000020
 #define AR_PHY_FC_HT_EN             0x00000040
 #define AR_PHY_FC_SHORT_GI_40       0x00000080

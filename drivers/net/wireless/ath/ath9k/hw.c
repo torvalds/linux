@@ -213,10 +213,9 @@ void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 
 	centers->ctl_center =
 		centers->synth_center - (extoff * HT40_CHANNEL_CENTER_SHIFT);
+	/* 25 MHz spacing is supported by hw but not on upper layers */
 	centers->ext_center =
-		centers->synth_center + (extoff *
-			 ((ah->extprotspacing == ATH9K_HT_EXTPROTSPACING_20) ?
-			  HT40_CHANNEL_CENTER_SHIFT : 15));
+		centers->synth_center + (extoff * HT40_CHANNEL_CENTER_SHIFT);
 }
 
 /******************/
@@ -1759,8 +1758,6 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 		    (chan->chanmode == CHANNEL_G_HT40PLUS))
 			phymode |= AR_PHY_FC_DYN2040_PRI_CH;
 
-		if (ah->extprotspacing == ATH9K_HT_EXTPROTSPACING_25)
-			phymode |= AR_PHY_FC_DYN2040_EXT_CH;
 	}
 	REG_WRITE(ah, AR_PHY_TURBO, phymode);
 
@@ -2333,7 +2330,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u64 tsf = 0;
 	int i, rx_chainmask, r;
 
-	ah->extprotspacing = sc->ht_extprotspacing;
 	ah->txchainmask = common->tx_chainmask;
 	ah->rxchainmask = common->rx_chainmask;
 
