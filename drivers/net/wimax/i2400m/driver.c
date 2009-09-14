@@ -107,6 +107,24 @@ MODULE_PARM_DESC(barkers,
 		 "signal; values are appended to a list--setting one value "
 		 "as zero cleans the existing list and starts a new one.");
 
+static
+struct i2400m_work *__i2400m_work_setup(
+	struct i2400m *i2400m, void (*fn)(struct work_struct *),
+	gfp_t gfp_flags, const void *pl, size_t pl_size)
+{
+	struct i2400m_work *iw;
+
+	iw = kzalloc(sizeof(*iw) + pl_size, gfp_flags);
+	if (iw == NULL)
+		return NULL;
+	iw->i2400m = i2400m_get(i2400m);
+	iw->pl_size = pl_size;
+	memcpy(iw->pl, pl, pl_size);
+	INIT_WORK(&iw->ws, fn);
+	return iw;
+}
+
+
 /**
  * i2400m_queue_work - schedule work on a i2400m's queue
  *
@@ -166,14 +184,12 @@ int i2400m_queue_work(struct i2400m *i2400m,
 
 	BUG_ON(i2400m->work_queue == NULL);
 	result = -ENOMEM;
-	iw = kzalloc(sizeof(*iw) + pl_size, gfp_flags);
-	if (iw == NULL)
-		goto error_kzalloc;
-	iw->i2400m = i2400m_get(i2400m);
-	memcpy(iw->pl, pl, pl_size);
-	INIT_WORK(&iw->ws, fn);
-	result = queue_work(i2400m->work_queue, &iw->ws);
-error_kzalloc:
+	iw = __i2400m_work_setup(i2400m, fn, gfp_flags, pl, pl_size);
+	if (iw != NULL) {
+		result = queue_work(i2400m->work_queue, &iw->ws);
+		if (WARN_ON(result == 0))
+			result = -ENXIO;
+	}
 	return result;
 }
 EXPORT_SYMBOL_GPL(i2400m_queue_work);
@@ -192,21 +208,19 @@ EXPORT_SYMBOL_GPL(i2400m_queue_work);
  * it should not happen.
  */
 int i2400m_schedule_work(struct i2400m *i2400m,
-			 void (*fn)(struct work_struct *), gfp_t gfp_flags)
+			 void (*fn)(struct work_struct *), gfp_t gfp_flags,
+			 const void *pl, size_t pl_size)
 {
 	int result;
 	struct i2400m_work *iw;
 
 	result = -ENOMEM;
-	iw = kzalloc(sizeof(*iw), gfp_flags);
-	if (iw == NULL)
-		goto error_kzalloc;
-	iw->i2400m = i2400m_get(i2400m);
-	INIT_WORK(&iw->ws, fn);
-	result = schedule_work(&iw->ws);
-	if (result == 0)
-		result = -ENXIO;
-error_kzalloc:
+	iw = __i2400m_work_setup(i2400m, fn, gfp_flags, pl, pl_size);
+	if (iw != NULL) {
+		result = schedule_work(&iw->ws);
+		if (WARN_ON(result == 0))
+			result = -ENXIO;
+	}
 	return result;
 }
 
@@ -630,7 +644,7 @@ int i2400m_dev_reset_handle(struct i2400m *i2400m)
 	i2400m->boot_mode = 1;
 	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
-				    GFP_ATOMIC);
+				    GFP_ATOMIC, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 

@@ -695,8 +695,6 @@ extern void i2400m_dev_shutdown(struct i2400m *);
 
 extern struct attribute_group i2400m_dev_attr_group;
 
-extern int i2400m_schedule_work(struct i2400m *,
-				void (*)(struct work_struct *), gfp_t);
 
 /* HDI message's payload description handling */
 
@@ -778,10 +776,14 @@ struct device *i2400m_dev(struct i2400m *i2400m)
 struct i2400m_work {
 	struct work_struct ws;
 	struct i2400m *i2400m;
+	size_t pl_size;
 	u8 pl[0];
 };
 extern int i2400m_queue_work(struct i2400m *,
 			     void (*)(struct work_struct *), gfp_t,
+			     const void *, size_t);
+extern int i2400m_schedule_work(struct i2400m *,
+				void (*)(struct work_struct *), gfp_t,
 				const void *, size_t);
 
 extern int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *,
