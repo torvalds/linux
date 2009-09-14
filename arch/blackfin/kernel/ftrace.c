@@ -24,7 +24,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
-	if (ftrace_push_return_trace(*parent, self_addr, &trace.depth) == -EBUSY)
+	if (ftrace_push_return_trace(*parent, self_addr, &trace.depth, 0) == -EBUSY)
 		return;
 
 	trace.func = self_addr;
