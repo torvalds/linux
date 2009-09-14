@@ -122,8 +122,15 @@ print fmt: "(%lx) dfd=%lx filename=%lx flags=%lx mode=%lx", REC->ip, REC->dfd, R
 
   echo > /sys/kernel/debug/tracing/kprobe_events
 
- This clears all probe points. and you can see the traced information via
-/sys/kernel/debug/tracing/trace.
+ This clears all probe points.
+
+ Right after definition, each event is disabled by default. For tracing these
+events, you need to enable it.
+
+  echo 1 > /sys/kernel/debug/tracing/events/kprobes/myprobe/enable
+  echo 1 > /sys/kernel/debug/tracing/events/kprobes/myretprobe/enable
+
+ And you can see the traced information via /sys/kernel/debug/tracing/trace.
 
   cat /sys/kernel/debug/tracing/trace
 # tracer: nop

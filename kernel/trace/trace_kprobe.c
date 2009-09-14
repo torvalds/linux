@@ -383,7 +383,7 @@ static int register_trace_probe(struct trace_probe *tp)
 		goto end;
 	}
 
-	tp->flags = TP_FLAG_TRACE;
+	tp->rp.kp.flags |= KPROBE_FLAG_DISABLED;
 	if (probe_is_return(tp))
 		ret = register_kretprobe(&tp->rp);
 	else
@@ -1298,7 +1298,7 @@ static int register_probe_event(struct trace_probe *tp)
 	call->id = register_ftrace_event(&tp->event);
 	if (!call->id)
 		return -ENODEV;
-	call->enabled = 1;
+	call->enabled = 0;
 	call->regfunc = probe_event_enable;
 	call->unregfunc = probe_event_disable;
 
