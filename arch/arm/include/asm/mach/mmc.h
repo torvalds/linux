@@ -12,6 +12,7 @@ struct mmc_platform_data {
 	unsigned int (*status)(struct device *);
 	int	gpio_wp;
 	int	gpio_cd;
+	unsigned long capabilities;
 };
 
 #endif

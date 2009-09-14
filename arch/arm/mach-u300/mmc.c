@@ -158,6 +158,8 @@ int __devinit mmc_init(struct amba_device *adev)
 	mmci_card->mmc0_plat_data.status = mmc_status;
 	mmci_card->mmc0_plat_data.gpio_wp = -1;
 	mmci_card->mmc0_plat_data.gpio_cd = -1;
+	mmci_card->mmc0_plat_data.capabilities = MMC_CAP_MMC_HIGHSPEED |
+		MMC_CAP_SD_HIGHSPEED | MMC_CAP_4_BIT_DATA;
 
 	mmcsd_device->platform_data = (void *) &mmci_card->mmc0_plat_data;
 

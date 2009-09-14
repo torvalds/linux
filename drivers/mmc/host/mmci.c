@@ -62,6 +62,9 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 		/* clk |= MCI_CLK_PWRSAVE; */
 	}
 
+	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4)
+		clk |= MCI_WIDE_BUS;
+
 	writel(clk, host->base + MMCICLOCK);
 }
 
@@ -601,6 +604,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	mmc->f_min = (host->mclk + 511) / 512;
 	mmc->f_max = min(host->mclk, fmax);
 	mmc->ocr_avail = plat->ocr_mask;
+	mmc->caps = plat->capabilities;
 
 	/*
 	 * We can do SGIO
