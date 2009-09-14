@@ -2,7 +2,7 @@
 #include <linux/bitops.h>
 #include <linux/mm.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
 #include <asm/cpu.h>
@@ -45,8 +45,8 @@ static void __cpuinit init_amd_k5(struct cpuinfo_x86 *c)
 #define CBAR_ENB	(0x80000000)
 #define CBAR_KEY	(0X000000CB)
 	if (c->x86_model == 9 || c->x86_model == 10) {
-		if (inl (CBAR) & CBAR_ENB)
-			outl (0 | CBAR_KEY, CBAR);
+		if (inl(CBAR) & CBAR_ENB)
+			outl(0 | CBAR_KEY, CBAR);
 	}
 }
 
@@ -87,9 +87,10 @@ static void __cpuinit init_amd_k6(struct cpuinfo_x86 *c)
 		d = d2-d;
 
 		if (d > 20*K6_BUG_LOOP)
-			printk("system stability may be impaired when more than 32 MB are used.\n");
+			printk(KERN_CONT
+				"system stability may be impaired when more than 32 MB are used.\n");
 		else
-			printk("probably OK (after B9730xxxx).\n");
+			printk(KERN_CONT "probably OK (after B9730xxxx).\n");
 		printk(KERN_INFO "Please see http://membres.lycos.fr/poulot/k6bug.html\n");
 	}
 
@@ -219,8 +220,9 @@ static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
 	if ((c->x86_model == 8 && c->x86_mask >= 1) || (c->x86_model > 8)) {
 		rdmsr(MSR_K7_CLK_CTL, l, h);
 		if ((l & 0xfff00000) != 0x20000000) {
-			printk ("CPU: CLK_CTL MSR was %x. Reprogramming to %x\n", l,
-				((l & 0x000fffff)|0x20000000));
+			printk(KERN_INFO
+			    "CPU: CLK_CTL MSR was %x. Reprogramming to %x\n",
+					l, ((l & 0x000fffff)|0x20000000));
 			wrmsr(MSR_K7_CLK_CTL, (l & 0x000fffff)|0x20000000, h);
 		}
 	}
@@ -398,7 +400,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		u32 level;
 
 		level = cpuid_eax(1);
-		if((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58)
+		if ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58)
 			set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
 		/*
@@ -494,27 +496,30 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		 * benefit in doing so.
 		 */
 		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
-		    printk(KERN_DEBUG "tseg: %010llx\n", tseg);
-		    if ((tseg>>PMD_SHIFT) <
+			printk(KERN_DEBUG "tseg: %010llx\n", tseg);
+			if ((tseg>>PMD_SHIFT) <
 				(max_low_pfn_mapped>>(PMD_SHIFT-PAGE_SHIFT)) ||
-			((tseg>>PMD_SHIFT) <
+				((tseg>>PMD_SHIFT) <
 				(max_pfn_mapped>>(PMD_SHIFT-PAGE_SHIFT)) &&
-			 (tseg>>PMD_SHIFT) >= (1ULL<<(32 - PMD_SHIFT))))
-			set_memory_4k((unsigned long)__va(tseg), 1);
+				(tseg>>PMD_SHIFT) >= (1ULL<<(32 - PMD_SHIFT))))
+				set_memory_4k((unsigned long)__va(tseg), 1);
 		}
 	}
 #endif
 }
 
 #ifdef CONFIG_X86_32
-static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c, unsigned int size)
+static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c,
+							unsigned int size)
 {
 	/* AMD errata T13 (order #21922) */
 	if ((c->x86 == 6)) {
-		if (c->x86_model == 3 && c->x86_mask == 0)	/* Duron Rev A0 */
+		/* Duron Rev A0 */
+		if (c->x86_model == 3 && c->x86_mask == 0)
 			size = 64;
+		/* Tbird rev A1/A2 */
 		if (c->x86_model == 4 &&
-		    (c->x86_mask == 0 || c->x86_mask == 1))	/* Tbird rev A1/A2 */
+			(c->x86_mask == 0 || c->x86_mask == 1))
 			size = 256;
 	}
 	return size;
