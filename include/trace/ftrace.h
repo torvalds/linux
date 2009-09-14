@@ -239,9 +239,9 @@ ftrace_format_##call(struct ftrace_event_call *unused,			\
 #undef __print_flags
 #define __print_flags(flag, delim, flag_array...)			\
 	({								\
-		static const struct trace_print_flags flags[] =		\
+		static const struct trace_print_flags __flags[] =	\
 			{ flag_array, { -1, NULL }};			\
-		ftrace_print_flags_seq(p, delim, flag, flags);		\
+		ftrace_print_flags_seq(p, delim, flag, __flags);	\
 	})
 
 #undef __print_symbolic
