@@ -575,9 +575,10 @@ _base_display_reply_info(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-void
+u8
 mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
@@ -585,10 +586,10 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (mpi_reply && mpi_reply->Function == MPI2_FUNCTION_EVENT_ACK)
-		return;
+		return 1;
 
 	if (ioc->base_cmds.status == MPT2_CMD_NOT_USED)
-		return;
+		return 1;
 
 	ioc->base_cmds.status |= MPT2_CMD_COMPLETE;
 	if (mpi_reply) {
@@ -597,6 +598,7 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	}
 	ioc->base_cmds.status &= ~MPT2_CMD_PENDING;
 	complete(&ioc->base_cmds.done);
+	return 1;
 }
 
 /**
@@ -605,9 +607,10 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-static void
+static u8
 _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
@@ -616,9 +619,9 @@ _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (!mpi_reply)
-		return;
+		return 1;
 	if (mpi_reply->Function != MPI2_FUNCTION_EVENT_NOTIFICATION)
-		return;
+		return 1;
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	_base_display_event_data(ioc, mpi_reply);
 #endif
@@ -647,6 +650,8 @@ _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 
 	/* ctl callback handler */
 	mpt2sas_ctl_event_callback(ioc, msix_index, reply);
+
+	return 1;
 }
 
 /**
@@ -745,6 +750,7 @@ _base_interrupt(int irq, void *bus_id)
 	u8 msix_index;
 	struct MPT2SAS_ADAPTER *ioc = bus_id;
 	Mpi2ReplyDescriptorsUnion_t *rpf;
+	u8 rc;
 
 	if (ioc->mask_interrupts)
 		return IRQ_NONE;
@@ -777,12 +783,13 @@ _base_interrupt(int irq, void *bus_id)
 		if (smid)
 			cb_idx = _base_get_cb_idx(ioc, smid);
 		if (smid && cb_idx != 0xFF) {
-			mpt_callbacks[cb_idx](ioc, smid, msix_index,
+			rc = mpt_callbacks[cb_idx](ioc, smid, msix_index,
 			    reply);
 			if (reply)
 				_base_display_reply_info(ioc, smid, msix_index,
 				    reply);
-			mpt2sas_base_free_smid(ioc, smid);
+			if (rc)
+				mpt2sas_base_free_smid(ioc, smid);
 		}
 		if (!smid)
 			_base_async_event(ioc, msix_index, reply);
@@ -3323,9 +3330,17 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	unsigned long	flags;
 	u32 reply_address;
 	u16 smid;
+	struct _tr_list *delayed_tr, *delayed_tr_next;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
+
+	/* clean the delayed target reset list */
+	list_for_each_entry_safe(delayed_tr, delayed_tr_next,
+	    &ioc->delayed_tr_list, list) {
+		list_del(&delayed_tr->list);
+		kfree(delayed_tr);
+	}
 
 	/* initialize the scsi lookup free list */
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);

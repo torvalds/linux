@@ -233,18 +233,19 @@ _config_free_config_dma_memory(struct MPT2SAS_ADAPTER *ioc,
  *
  * The callback handler when using _config_request.
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-void
+u8
 mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
 	if (ioc->config_cmds.status == MPT2_CMD_NOT_USED)
-		return;
+		return 1;
 	if (ioc->config_cmds.smid != smid)
-		return;
+		return 1;
 	ioc->config_cmds.status |= MPT2_CMD_COMPLETE;
 	mpi_reply =  mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (mpi_reply) {
@@ -258,6 +259,7 @@ mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 #endif
 	ioc->config_cmds.smid = USHORT_MAX;
 	complete(&ioc->config_cmds.done);
+	return 1;
 }
 
 /**

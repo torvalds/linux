@@ -218,9 +218,10 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
  * Callback handler when sending internal generated transport cmds.
  * The callback index passed is `ioc->transport_cb_idx`
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-void
+u8
 mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
@@ -228,9 +229,9 @@ mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	mpi_reply =  mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (ioc->transport_cmds.status == MPT2_CMD_NOT_USED)
-		return;
+		return 1;
 	if (ioc->transport_cmds.smid != smid)
-		return;
+		return 1;
 	ioc->transport_cmds.status |= MPT2_CMD_COMPLETE;
 	if (mpi_reply) {
 		memcpy(ioc->transport_cmds.reply, mpi_reply,
@@ -239,6 +240,7 @@ mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	}
 	ioc->transport_cmds.status &= ~MPT2_CMD_PENDING;
 	complete(&ioc->transport_cmds.done);
+	return 1;
 }
 
 /* report manufacture request structure */

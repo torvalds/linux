@@ -225,18 +225,19 @@ _ctl_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
  *
  * The callback handler when using ioc->ctl_cb_idx.
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-void
+u8
 mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
 	if (ioc->ctl_cmds.status == MPT2_CMD_NOT_USED)
-		return;
+		return 1;
 	if (ioc->ctl_cmds.smid != smid)
-		return;
+		return 1;
 	ioc->ctl_cmds.status |= MPT2_CMD_COMPLETE;
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (mpi_reply) {
@@ -248,6 +249,7 @@ mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 #endif
 	ioc->ctl_cmds.status &= ~MPT2_CMD_PENDING;
 	complete(&ioc->ctl_cmds.done);
+	return 1;
 }
 
 /**
@@ -336,9 +338,10 @@ mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
  * This function merely adds a new work task into ioc->firmware_event_thread.
  * The tasks are worked from _firmware_event_work in user context.
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-void
+u8
 mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply)
 {
@@ -346,6 +349,7 @@ mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	mpt2sas_ctl_add_to_event_log(ioc, mpi_reply);
+	return 1;
 }
 
 /**
