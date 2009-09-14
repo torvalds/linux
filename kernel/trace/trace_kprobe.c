@@ -1149,18 +1149,23 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kprobe_trace_entry *entry;
-	int size, i, pc;
+	int size, __size, i, pc;
 	unsigned long irq_flags;
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
 
-	size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
+	__size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
+	size = ALIGN(__size + sizeof(u32), sizeof(u64));
+	size -= sizeof(u32);
 
 	do {
 		char raw_data[size];
 		struct trace_entry *ent;
-
+		/*
+		 * Zero dead bytes from alignment to avoid stack leak
+		 * to userspace
+		 */
 		*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
 		entry = (struct kprobe_trace_entry *)raw_data;
 		ent = &entry->ent;
@@ -1183,13 +1188,15 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kretprobe_trace_entry *entry;
-	int size, i, pc;
+	int size, __size, i, pc;
 	unsigned long irq_flags;
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
 
-	size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
+	__size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
+	size = ALIGN(__size + sizeof(u32), sizeof(u64));
+	size -= sizeof(u32);
 
 	do {
 		char raw_data[size];
