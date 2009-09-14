@@ -1160,14 +1160,13 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
 		}
+		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, write);
 		if (ret) {
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
 		}
-
-		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
 	/* Need a new fence register? */
