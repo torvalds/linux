@@ -624,6 +624,21 @@ out:
 
 
 static
+int i2400mu_reset_resume(struct usb_interface *iface)
+{
+	int result;
+	struct device *dev = &iface->dev;
+	struct i2400mu *i2400mu = usb_get_intfdata(iface);
+	struct i2400m *i2400m = &i2400mu->i2400m;
+
+	d_fnstart(3, dev, "(iface %p)\n", iface);
+	result = i2400m_dev_reset_handle(i2400m, "device reset on resume");
+	d_fnend(3, dev, "(iface %p) = %d\n", iface, result);
+	return result < 0 ? result : 0;
+}
+
+
+static
 struct usb_device_id i2400mu_id_table[] = {
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
 	{ USB_DEVICE(0x8086, 0x0181) },
@@ -643,6 +658,7 @@ struct usb_driver i2400mu_driver = {
 	.name = KBUILD_MODNAME,
 	.suspend = i2400mu_suspend,
 	.resume = i2400mu_resume,
+	.reset_resume = i2400mu_reset_resume,
 	.probe = i2400mu_probe,
 	.disconnect = i2400mu_disconnect,
 	.id_table = i2400mu_id_table,
