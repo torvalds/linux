@@ -1579,7 +1579,7 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	return val;
 }
 
-static struct ath_ops ath9k_common_ops = {
+static const struct ath_ops ath9k_common_ops = {
 	.read = ath9k_ioread32,
 	.write = ath9k_iowrite32,
 };
