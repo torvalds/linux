@@ -805,7 +805,7 @@ replay_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	add_sched_event_wakeup(waker, timestamp, wakee);
 }
 
-static unsigned long cpu_last_switched[MAX_CPUS];
+static u64 cpu_last_switched[MAX_CPUS];
 
 static void
 replay_switch_event(struct trace_switch_event *switch_event,
