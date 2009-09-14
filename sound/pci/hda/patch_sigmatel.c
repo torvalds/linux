@@ -5242,7 +5242,7 @@ again:
 		stac92xx_set_config_regs(codec,
 				stac92hd71bxx_brd_tbl[spec->board_config]);
 
-	if (spec->board_config > STAC_92HD71BXX_REF) {
+	if (spec->board_config != STAC_92HD71BXX_REF) {
 		/* GPIO0 = EAPD */
 		spec->gpio_mask = 0x01;
 		spec->gpio_dir = 0x01;
