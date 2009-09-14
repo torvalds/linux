@@ -651,8 +651,11 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 		container_of(nb, struct drm_i915_private, lid_notifier);
 	struct drm_device *dev = dev_priv->dev;
 
-	if (acpi_lid_open())
+	if (acpi_lid_open() && !dev_priv->suspended) {
+		mutex_lock(&dev->mode_config.mutex);
 		drm_helper_resume_force_mode(dev);
+		mutex_unlock(&dev->mode_config.mutex);
+	}
 
 	drm_sysfs_hotplug_event(dev_priv->dev);
 

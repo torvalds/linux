@@ -253,6 +253,7 @@ typedef struct drm_i915_private {
 	struct workqueue_struct *wq;
 
 	/* Register state */
+	bool suspended;
 	u8 saveLBB;
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
