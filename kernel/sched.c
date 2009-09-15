@@ -119,8 +119,6 @@
  */
 #define RUNTIME_INF	((u64)~0ULL)
 
-static void double_rq_lock(struct rq *rq1, struct rq *rq2);
-
 static inline int rt_policy(int policy)
 {
 	if (unlikely(policy == SCHED_FIFO || policy == SCHED_RR))
@@ -1694,6 +1692,8 @@ static inline void update_shares_locked(struct rq *rq, struct sched_domain *sd)
 #endif
 
 #ifdef CONFIG_PREEMPT
+
+static void double_rq_lock(struct rq *rq1, struct rq *rq2);
 
 /*
  * fair double_lock_balance: Safely acquires both rq->locks in a fair
