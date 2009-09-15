@@ -163,7 +163,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 	hotplug_slot->info->attention_status = status;
 
 	if (ATTN_LED(slot->ctrl))
-		slot->hpc_ops->set_attention_status(slot, status);
+		pciehp_set_attention_status(slot, status);
 
 	return 0;
 }
@@ -198,7 +198,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		  __func__, slot_name(slot));
 
-	retval = slot->hpc_ops->get_power_status(slot, value);
+	retval = pciehp_get_power_status(slot, value);
 	if (retval < 0)
 		*value = hotplug_slot->info->power_status;
 
@@ -213,7 +213,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		  __func__, slot_name(slot));
 
-	retval = slot->hpc_ops->get_attention_status(slot, value);
+	retval = pciehp_get_attention_status(slot, value);
 	if (retval < 0)
 		*value = hotplug_slot->info->attention_status;
 
@@ -228,7 +228,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	retval = slot->hpc_ops->get_latch_status(slot, value);
+	retval = pciehp_get_latch_status(slot, value);
 	if (retval < 0)
 		*value = hotplug_slot->info->latch_status;
 
@@ -243,7 +243,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	retval = slot->hpc_ops->get_adapter_status(slot, value);
+	retval = pciehp_get_adapter_status(slot, value);
 	if (retval < 0)
 		*value = hotplug_slot->info->adapter_status;
 
@@ -259,7 +259,7 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot,
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	retval = slot->hpc_ops->get_max_bus_speed(slot, value);
+	retval = pciehp_get_max_link_speed(slot, value);
 	if (retval < 0)
 		*value = PCI_SPEED_UNKNOWN;
 
@@ -274,7 +274,7 @@ static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	retval = slot->hpc_ops->get_cur_bus_speed(slot, value);
+	retval = pciehp_get_cur_link_speed(slot, value);
 	if (retval < 0)
 		*value = PCI_SPEED_UNKNOWN;
 
@@ -323,14 +323,14 @@ static int pciehp_probe(struct pcie_device *dev)
 
 	/* Check if slot is occupied */
 	slot = ctrl->slot;
-	slot->hpc_ops->get_adapter_status(slot, &value);
+	pciehp_get_adapter_status(slot, &value);
 	if (value) {
 		if (pciehp_force)
 			pciehp_enable_slot(slot);
 	} else {
 		/* Power off slot if not occupied */
 		if (POWER_CTRL(ctrl)) {
-			rc = slot->hpc_ops->power_off_slot(slot);
+			rc = pciehp_power_off_slot(slot);
 			if (rc)
 				goto err_out_free_ctrl_slot;
 		}
@@ -341,17 +341,17 @@ static int pciehp_probe(struct pcie_device *dev)
 err_out_free_ctrl_slot:
 	cleanup_slot(ctrl);
 err_out_release_ctlr:
-	ctrl->hpc_ops->release_ctlr(ctrl);
+	pciehp_release_ctrl(ctrl);
 err_out_none:
 	return -ENODEV;
 }
 
-static void pciehp_remove (struct pcie_device *dev)
+static void pciehp_remove(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
 
 	cleanup_slot(ctrl);
-	ctrl->hpc_ops->release_ctlr(ctrl);
+	pciehp_release_ctrl(ctrl);
 }
 
 #ifdef CONFIG_PM
@@ -375,7 +375,7 @@ static int pciehp_resume (struct pcie_device *dev)
 		slot = ctrl->slot;
 
 		/* Check if slot is occupied */
-		slot->hpc_ops->get_adapter_status(slot, &status);
+		pciehp_get_adapter_status(slot, &status);
 		if (status)
 			pciehp_enable_slot(slot);
 		else

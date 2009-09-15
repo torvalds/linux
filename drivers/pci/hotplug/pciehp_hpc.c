@@ -266,7 +266,7 @@ static void pcie_wait_link_active(struct controller *ctrl)
 	ctrl_dbg(ctrl, "Data Link Layer Link Active not set in 1000 msec\n");
 }
 
-static int hpc_check_lnk_status(struct controller *ctrl)
+int pciehp_check_link_status(struct controller *ctrl)
 {
 	u16 lnk_status;
 	int retval = 0;
@@ -305,7 +305,7 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 	return retval;
 }
 
-static int hpc_get_attention_status(struct slot *slot, u8 *status)
+int pciehp_get_attention_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_ctrl;
@@ -344,7 +344,7 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_get_power_status(struct slot *slot, u8 *status)
+int pciehp_get_power_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_ctrl;
@@ -376,7 +376,7 @@ static int hpc_get_power_status(struct slot *slot, u8 *status)
 	return retval;
 }
 
-static int hpc_get_latch_status(struct slot *slot, u8 *status)
+int pciehp_get_latch_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_status;
@@ -392,7 +392,7 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_get_adapter_status(struct slot *slot, u8 *status)
+int pciehp_get_adapter_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_status;
@@ -408,7 +408,7 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_query_power_fault(struct slot *slot)
+int pciehp_query_power_fault(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_status;
@@ -422,7 +422,7 @@ static int hpc_query_power_fault(struct slot *slot)
 	return !!(slot_status & PCI_EXP_SLTSTA_PFD);
 }
 
-static int hpc_set_attention_status(struct slot *slot, u8 value)
+int pciehp_set_attention_status(struct slot *slot, u8 value)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -450,7 +450,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	return rc;
 }
 
-static void hpc_set_green_led_on(struct slot *slot)
+void pciehp_green_led_on(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -463,7 +463,7 @@ static void hpc_set_green_led_on(struct slot *slot)
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 }
 
-static void hpc_set_green_led_off(struct slot *slot)
+void pciehp_green_led_off(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -476,7 +476,7 @@ static void hpc_set_green_led_off(struct slot *slot)
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 }
 
-static void hpc_set_green_led_blink(struct slot *slot)
+void pciehp_green_led_blink(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -489,7 +489,7 @@ static void hpc_set_green_led_blink(struct slot *slot)
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 }
 
-static int hpc_power_on_slot(struct slot * slot)
+int pciehp_power_on_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -568,7 +568,7 @@ static inline void pcie_unmask_bad_dllp(struct controller *ctrl)
 	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg);
 }
 
-static int hpc_power_off_slot(struct slot * slot)
+int pciehp_power_off_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -672,7 +672,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int hpc_get_max_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
+int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	struct controller *ctrl = slot->ctrl;
 	enum pcie_link_speed lnk_speed;
@@ -703,7 +703,7 @@ static int hpc_get_max_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
 	return retval;
 }
 
-static int hpc_get_max_lnk_width(struct slot *slot,
+int pciehp_get_max_lnk_width(struct slot *slot,
 				 enum pcie_link_width *value)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -753,7 +753,7 @@ static int hpc_get_max_lnk_width(struct slot *slot,
 	return retval;
 }
 
-static int hpc_get_cur_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
+int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	struct controller *ctrl = slot->ctrl;
 	enum pcie_link_speed lnk_speed = PCI_SPEED_UNKNOWN;
@@ -785,7 +785,7 @@ static int hpc_get_cur_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
 	return retval;
 }
 
-static int hpc_get_cur_lnk_width(struct slot *slot,
+int pciehp_get_cur_lnk_width(struct slot *slot,
 				 enum pcie_link_width *value)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -835,30 +835,6 @@ static int hpc_get_cur_lnk_width(struct slot *slot,
 
 	return retval;
 }
-
-static void pcie_release_ctrl(struct controller *ctrl);
-static struct hpc_ops pciehp_hpc_ops = {
-	.power_on_slot			= hpc_power_on_slot,
-	.power_off_slot			= hpc_power_off_slot,
-	.set_attention_status		= hpc_set_attention_status,
-	.get_power_status		= hpc_get_power_status,
-	.get_attention_status		= hpc_get_attention_status,
-	.get_latch_status		= hpc_get_latch_status,
-	.get_adapter_status		= hpc_get_adapter_status,
-
-	.get_max_bus_speed		= hpc_get_max_lnk_speed,
-	.get_cur_bus_speed		= hpc_get_cur_lnk_speed,
-	.get_max_lnk_width		= hpc_get_max_lnk_width,
-	.get_cur_lnk_width		= hpc_get_cur_lnk_width,
-
-	.query_power_fault		= hpc_query_power_fault,
-	.green_led_on			= hpc_set_green_led_on,
-	.green_led_off			= hpc_set_green_led_off,
-	.green_led_blink		= hpc_set_green_led_blink,
-
-	.release_ctlr			= pcie_release_ctrl,
-	.check_lnk_status		= hpc_check_lnk_status,
-};
 
 int pcie_enable_notification(struct controller *ctrl)
 {
@@ -925,7 +901,6 @@ static int pcie_init_slot(struct controller *ctrl)
 		return -ENOMEM;
 
 	slot->ctrl = ctrl;
-	slot->hpc_ops = ctrl->hpc_ops;
 	slot->number = PSN(ctrl);
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
@@ -1015,7 +990,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 	}
 
 	ctrl->slot_cap = slot_cap;
-	ctrl->hpc_ops = &pciehp_hpc_ops;
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
@@ -1071,7 +1045,7 @@ abort:
 	return NULL;
 }
 
-void pcie_release_ctrl(struct controller *ctrl)
+void pciehp_release_ctrl(struct controller *ctrl)
 {
 	pcie_shutdown_notification(ctrl);
 	pcie_cleanup_slot(ctrl);

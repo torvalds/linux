@@ -75,7 +75,6 @@ struct slot {
 	u8 state;
 	u32 number;
 	struct controller *ctrl;
-	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
@@ -91,7 +90,6 @@ struct controller {
 	struct mutex ctrl_lock;		/* controller lock */
 	struct pcie_device *pcie;	/* PCI Express port service */
 	struct slot *slot;
-	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u32 slot_cap;
 	u8 cap_base;
@@ -154,7 +152,7 @@ struct controller {
 extern int pciehp_sysfs_enable_slot(struct slot *slot);
 extern int pciehp_sysfs_disable_slot(struct slot *slot);
 extern u8 pciehp_handle_attention_button(struct slot *p_slot);
-  extern u8 pciehp_handle_switch_change(struct slot *p_slot);
+extern u8 pciehp_handle_switch_change(struct slot *p_slot);
 extern u8 pciehp_handle_presence_change(struct slot *p_slot);
 extern u8 pciehp_handle_power_fault(struct slot *p_slot);
 extern int pciehp_configure_device(struct slot *p_slot);
@@ -165,31 +163,29 @@ int pcie_init_notification(struct controller *ctrl);
 int pciehp_enable_slot(struct slot *p_slot);
 int pciehp_disable_slot(struct slot *p_slot);
 int pcie_enable_notification(struct controller *ctrl);
+int pciehp_power_on_slot(struct slot *slot);
+int pciehp_power_off_slot(struct slot *slot);
+int pciehp_get_power_status(struct slot *slot, u8 *status);
+int pciehp_get_attention_status(struct slot *slot, u8 *status);
+
+int pciehp_set_attention_status(struct slot *slot, u8 status);
+int pciehp_get_latch_status(struct slot *slot, u8 *status);
+int pciehp_get_adapter_status(struct slot *slot, u8 *status);
+int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *speed);
+int pciehp_get_max_link_width(struct slot *slot, enum pcie_link_width *val);
+int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *speed);
+int pciehp_get_cur_link_width(struct slot *slot, enum pcie_link_width *val);
+int pciehp_query_power_fault(struct slot *slot);
+void pciehp_green_led_on(struct slot *slot);
+void pciehp_green_led_off(struct slot *slot);
+void pciehp_green_led_blink(struct slot *slot);
+int pciehp_check_link_status(struct controller *ctrl);
+void pciehp_release_ctrl(struct controller *ctrl);
 
 static inline const char *slot_name(struct slot *slot)
 {
 	return hotplug_slot_name(slot->hotplug_slot);
 }
-
-struct hpc_ops {
-	int (*power_on_slot)(struct slot *slot);
-	int (*power_off_slot)(struct slot *slot);
-	int (*get_power_status)(struct slot *slot, u8 *status);
-	int (*get_attention_status)(struct slot *slot, u8 *status);
-	int (*set_attention_status)(struct slot *slot, u8 status);
-	int (*get_latch_status)(struct slot *slot, u8 *status);
-	int (*get_adapter_status)(struct slot *slot, u8 *status);
-	int (*get_max_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
-	int (*get_cur_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
-	int (*get_max_lnk_width)(struct slot *slot, enum pcie_link_width *val);
-	int (*get_cur_lnk_width)(struct slot *slot, enum pcie_link_width *val);
-	int (*query_power_fault)(struct slot *slot);
-	void (*green_led_on)(struct slot *slot);
-	void (*green_led_off)(struct slot *slot);
-	void (*green_led_blink)(struct slot *slot);
-	void (*release_ctlr)(struct controller *ctrl);
-	int (*check_lnk_status)(struct controller *ctrl);
-};
 
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>

@@ -117,7 +117,7 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 
 	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:00\n",
 		 __func__, pci_domain_nr(parent), parent->number);
-	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
+	ret = pciehp_get_adapter_status(p_slot, &presence);
 	if (ret)
 		presence = 0;
 
