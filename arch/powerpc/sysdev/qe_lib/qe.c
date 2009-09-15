@@ -27,6 +27,8 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of_platform.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -647,3 +649,35 @@ unsigned int qe_get_num_of_snums(void)
 	return num_of_snums;
 }
 EXPORT_SYMBOL(qe_get_num_of_snums);
+
+#if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx)
+static int qe_resume(struct of_device *ofdev)
+{
+	if (!qe_alive_during_sleep())
+		qe_reset();
+	return 0;
+}
+
+static int qe_probe(struct of_device *ofdev, const struct of_device_id *id)
+{
+	return 0;
+}
+
+static const struct of_device_id qe_ids[] = {
+	{ .compatible = "fsl,qe", },
+	{ },
+};
+
+static struct of_platform_driver qe_driver = {
+	.driver.name = "fsl-qe",
+	.match_table = qe_ids,
+	.probe = qe_probe,
+	.resume = qe_resume,
+};
+
+static int __init qe_drv_init(void)
+{
+	return of_register_platform_driver(&qe_driver);
+}
+device_initcall(qe_drv_init);
+#endif /* defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx) */
