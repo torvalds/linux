@@ -80,7 +80,6 @@ struct slot {
 	struct controller *ctrl;
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
-	struct list_head	slot_list;
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
 };
@@ -98,7 +97,7 @@ struct controller {
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct pcie_device *pcie;	/* PCI Express port service */
-	struct list_head slot_list;
+	struct slot *slot;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 slot_device_offset;
@@ -179,19 +178,6 @@ int pcie_enable_notification(struct controller *ctrl);
 static inline const char *slot_name(struct slot *slot)
 {
 	return hotplug_slot_name(slot->hotplug_slot);
-}
-
-static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
-{
-	struct slot *slot;
-
-	list_for_each_entry(slot, &ctrl->slot_list, slot_list) {
-		if (slot->device == device)
-			return slot;
-	}
-
-	ctrl_err(ctrl, "Slot (device=0x%02x) not found\n", device);
-	return NULL;
 }
 
 struct hpc_ops {

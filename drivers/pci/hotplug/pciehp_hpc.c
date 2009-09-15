@@ -614,8 +614,8 @@ static int hpc_power_off_slot(struct slot * slot)
 static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
+	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
-	struct slot *p_slot;
 
 	/*
 	 * In order to guarantee that all interrupt events are
@@ -656,24 +656,22 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	if (!(intr_loc & ~PCI_EXP_SLTSTA_CC))
 		return IRQ_HANDLED;
 
-	p_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
-
 	/* Check MRL Sensor Changed */
 	if (intr_loc & PCI_EXP_SLTSTA_MRLSC)
-		pciehp_handle_switch_change(p_slot);
+		pciehp_handle_switch_change(slot);
 
 	/* Check Attention Button Pressed */
 	if (intr_loc & PCI_EXP_SLTSTA_ABP)
-		pciehp_handle_attention_button(p_slot);
+		pciehp_handle_attention_button(slot);
 
 	/* Check Presence Detect Changed */
 	if (intr_loc & PCI_EXP_SLTSTA_PDC)
-		pciehp_handle_presence_change(p_slot);
+		pciehp_handle_presence_change(slot);
 
 	/* Check Power Fault Detected */
 	if ((intr_loc & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
 		ctrl->power_fault_detected = 1;
-		pciehp_handle_power_fault(p_slot);
+		pciehp_handle_power_fault(slot);
 	}
 	return IRQ_HANDLED;
 }
@@ -938,15 +936,13 @@ static int pcie_init_slot(struct controller *ctrl)
 	slot->number = ctrl->first_slot;
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
-	list_add(&slot->slot_list, &ctrl->slot_list);
+	ctrl->slot = slot;
 	return 0;
 }
 
 static void pcie_cleanup_slot(struct controller *ctrl)
 {
-	struct slot *slot;
-	slot = list_first_entry(&ctrl->slot_list, struct slot, slot_list);
-	list_del(&slot->slot_list);
+	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
 	flush_scheduled_work();
 	flush_workqueue(pciehp_wq);
@@ -1014,8 +1010,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 		dev_err(&dev->device, "%s: Out of memory\n", __func__);
 		goto abort;
 	}
-	INIT_LIST_HEAD(&ctrl->slot_list);
-
 	ctrl->pcie = dev;
 	ctrl->pci_dev = pdev;
 	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
