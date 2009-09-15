@@ -108,7 +108,7 @@ void __init setup_gptimer0(void)
 	enable_gptimers(TIMER0bit);
 }
 
-static cycle_t bfin_read_gptimer0(void)
+static cycle_t bfin_read_gptimer0(struct clocksource *cs)
 {
 	return bfin_read_TIMER0_COUNTER();
 }
