@@ -140,10 +140,3 @@ struct videobuf_queue_ops em28xx_vbi_qops = {
 	.buf_queue    = vbi_queue,
 	.buf_release  = vbi_release,
 };
-
-/* ------------------------------------------------------------------ */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
