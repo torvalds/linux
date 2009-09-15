@@ -1239,9 +1239,6 @@ static u8 ar9170_get_max_edge_power(struct ar9170 *ar,
 				    struct ar9170_calctl_edges edges[],
 				    u32 freq)
 {
-/* TODO: move somewhere else */
-#define AR5416_MAX_RATE_POWER        63
-
 	int i;
 	u8 rc = AR5416_MAX_RATE_POWER;
 	u8 f;
@@ -1259,10 +1256,11 @@ static u8 ar9170_get_max_edge_power(struct ar9170 *ar,
 			break;
 		}
 		if (i > 0 && f < edges[i].channel) {
-			if (f > edges[i-1].channel &&
-			    edges[i-1].power_flags & AR9170_CALCTL_EDGE_FLAGS) {
+			if (f > edges[i - 1].channel &&
+			    edges[i - 1].power_flags &
+			    AR9170_CALCTL_EDGE_FLAGS) {
 				/* lower channel has the inband flag set */
-				rc = edges[i-1].power_flags &
+				rc = edges[i - 1].power_flags &
 					~AR9170_CALCTL_EDGE_FLAGS;
 			}
 			break;
@@ -1270,10 +1268,10 @@ static u8 ar9170_get_max_edge_power(struct ar9170 *ar,
 	}
 
 	if (i == AR5416_NUM_BAND_EDGES) {
-		if (f > edges[i-1].channel &&
-		    edges[i-1].power_flags & AR9170_CALCTL_EDGE_FLAGS) {
+		if (f > edges[i - 1].channel &&
+		    edges[i - 1].power_flags & AR9170_CALCTL_EDGE_FLAGS) {
 			/* lower channel has the inband flag set */
-			rc = edges[i-1].power_flags &
+			rc = edges[i - 1].power_flags &
 				~AR9170_CALCTL_EDGE_FLAGS;
 		}
 	}
@@ -1295,7 +1293,8 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 		int pwr_cal_len;
 	} *modes;
 
-	/* order is relevant in the mode_list_*: we fall back to the
+	/*
+	 * order is relevant in the mode_list_*: we fall back to the
 	 * lower indices if any mode is missed in the EEPROM.
 	 */
 	struct ctl_modes mode_list_2ghz[] = {
@@ -1313,7 +1312,8 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 
 #define EDGES(c, n) (ar->eeprom.ctl_data[c].control_edges[n])
 
-	/* TODO: investigate the differences between OTUS'
+	/*
+	 * TODO: investigate the differences between OTUS'
 	 * hpreg.c::zfHpGetRegulatoryDomain() and
 	 * ath/regd.c::ath_regd_get_band_ctl() -
 	 * e.g. for FCC3_WORLD the OTUS procedure
@@ -1360,13 +1360,15 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 				ar9170_get_max_edge_power(ar, EDGES(ctl_idx, 1),
 							  freq+f_off);
 
-			/* TODO: check if the regulatory max. power is
+			/*
+			 * TODO: check if the regulatory max. power is
 			 *  controlled by cfg80211 for DFS
 			 * (hpmain applies it to max_power itself for DFS freq)
 			 */
 
 		} else {
-			/* Workaround in otus driver, hpmain.c, line 3906:
+			/*
+			 * Workaround in otus driver, hpmain.c, line 3906:
 			 * if no data for 5GHT20 are found, take the
 			 * legacy 5G value.
 			 * We extend this here to fallback from any other *HT or
