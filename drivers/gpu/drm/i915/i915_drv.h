@@ -803,6 +803,7 @@ void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
 int i915_gem_idle(struct drm_device *dev);
+int i915_lp_ring_sync(struct drm_device *dev);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);

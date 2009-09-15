@@ -1820,12 +1820,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-/**
- * Waits for a sequence number to be signaled, and cleans up the
- * request and object lists appropriately for that event.
- */
 static int
-i915_wait_request(struct drm_device *dev, uint32_t seqno)
+i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 ier;
@@ -1852,10 +1848,15 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 
 		dev_priv->mm.waiting_gem_seqno = seqno;
 		i915_user_irq_get(dev);
-		ret = wait_event_interruptible(dev_priv->irq_queue,
-					       i915_seqno_passed(i915_get_gem_seqno(dev),
-								 seqno) ||
-					       atomic_read(&dev_priv->mm.wedged));
+		if (interruptible)
+			ret = wait_event_interruptible(dev_priv->irq_queue,
+				i915_seqno_passed(i915_get_gem_seqno(dev), seqno) ||
+				atomic_read(&dev_priv->mm.wedged));
+		else
+			wait_event(dev_priv->irq_queue,
+				i915_seqno_passed(i915_get_gem_seqno(dev), seqno) ||
+				atomic_read(&dev_priv->mm.wedged));
+
 		i915_user_irq_put(dev);
 		dev_priv->mm.waiting_gem_seqno = 0;
 
@@ -1876,6 +1877,34 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 	if (ret == 0)
 		i915_gem_retire_requests(dev);
 
+	return ret;
+}
+
+/**
+ * Waits for a sequence number to be signaled, and cleans up the
+ * request and object lists appropriately for that event.
+ */
+static int
+i915_wait_request(struct drm_device *dev, uint32_t seqno)
+{
+	return i915_do_wait_request(dev, seqno, 1);
+}
+
+/**
+ * Waits for the ring to finish up to the latest request. Usefull for waiting
+ * for flip events, e.g for the overlay support. */
+int i915_lp_ring_sync(struct drm_device *dev)
+{
+	uint32_t seqno;
+	int ret;
+
+	seqno = i915_add_request(dev, NULL, 0);
+
+	if (seqno == 0)
+		return -ENOMEM;
+
+	ret = i915_do_wait_request(dev, seqno, 0);
+	BUG_ON(ret == -ERESTARTSYS);
 	return ret;
 }
 
@@ -1947,7 +1976,7 @@ i915_gem_flush(struct drm_device *dev,
 #endif
 		BEGIN_LP_RING(2);
 		OUT_RING(cmd);
-		OUT_RING(0); /* noop */
+		OUT_RING(MI_NOOP);
 		ADVANCE_LP_RING();
 	}
 }
