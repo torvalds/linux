@@ -89,7 +89,7 @@ static inline void selinux_secmark_refcount_dec(void)
 	return;
 }
 
-static bool selinux_is_enabled(void)
+static inline bool selinux_is_enabled(void)
 {
 	return false;
 }
