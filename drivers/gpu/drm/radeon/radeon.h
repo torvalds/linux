@@ -402,6 +402,10 @@ struct radeon_ib {
 	uint32_t		length_dw;
 };
 
+/*
+ * locking -
+ * mutex protects scheduled_ibs, ready, alloc_bm
+ */
 struct radeon_ib_pool {
 	struct mutex		mutex;
 	struct radeon_object	*robj;

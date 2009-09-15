@@ -56,10 +56,12 @@ int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib)
 		set_bit(i, rdev->ib_pool.alloc_bm);
 		rdev->ib_pool.ibs[i].length_dw = 0;
 		*ib = &rdev->ib_pool.ibs[i];
+		mutex_unlock(&rdev->ib_pool.mutex);
 		goto out;
 	}
 	if (list_empty(&rdev->ib_pool.scheduled_ibs)) {
 		/* we go do nothings here */
+		mutex_unlock(&rdev->ib_pool.mutex);
 		DRM_ERROR("all IB allocated none scheduled.\n");
 		r = -EINVAL;
 		goto out;
@@ -69,10 +71,13 @@ int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib)
 			 struct radeon_ib, list);
 	if (nib->fence == NULL) {
 		/* we go do nothings here */
+		mutex_unlock(&rdev->ib_pool.mutex);
 		DRM_ERROR("IB %lu scheduled without a fence.\n", nib->idx);
 		r = -EINVAL;
 		goto out;
 	}
+	mutex_unlock(&rdev->ib_pool.mutex);
+
 	r = radeon_fence_wait(nib->fence, false);
 	if (r) {
 		DRM_ERROR("radeon: IB(%lu:0x%016lX:%u)\n", nib->idx,
@@ -81,12 +86,17 @@ int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib)
 		goto out;
 	}
 	radeon_fence_unref(&nib->fence);
+
 	nib->length_dw = 0;
+
+	/* scheduled list is accessed here */
+	mutex_lock(&rdev->ib_pool.mutex);
 	list_del(&nib->list);
 	INIT_LIST_HEAD(&nib->list);
+	mutex_unlock(&rdev->ib_pool.mutex);
+
 	*ib = nib;
 out:
-	mutex_unlock(&rdev->ib_pool.mutex);
 	if (r) {
 		radeon_fence_unref(&fence);
 	} else {
@@ -110,9 +120,10 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 		return;
 	}
 	list_del(&tmp->list);
-	if (tmp->fence) {
+	INIT_LIST_HEAD(&tmp->list);
+	if (tmp->fence)
 		radeon_fence_unref(&tmp->fence);
-	}
+
 	tmp->length_dw = 0;
 	clear_bit(tmp->idx, rdev->ib_pool.alloc_bm);
 	mutex_unlock(&rdev->ib_pool.mutex);
@@ -122,25 +133,24 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	int r = 0;
 
-	mutex_lock(&rdev->ib_pool.mutex);
 	if (!ib->length_dw || !rdev->cp.ready) {
 		/* TODO: Nothings in the ib we should report. */
-		mutex_unlock(&rdev->ib_pool.mutex);
 		DRM_ERROR("radeon: couldn't schedule IB(%lu).\n", ib->idx);
 		return -EINVAL;
 	}
+
 	/* 64 dwords should be enough for fence too */
 	r = radeon_ring_lock(rdev, 64);
 	if (r) {
 		DRM_ERROR("radeon: scheduling IB failled (%d).\n", r);
-		mutex_unlock(&rdev->ib_pool.mutex);
 		return r;
 	}
 	radeon_ring_ib_execute(rdev, ib);
 	radeon_fence_emit(rdev, ib->fence);
-	radeon_ring_unlock_commit(rdev);
+	mutex_lock(&rdev->ib_pool.mutex);
 	list_add_tail(&ib->list, &rdev->ib_pool.scheduled_ibs);
 	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_ring_unlock_commit(rdev);
 	return 0;
 }
 
