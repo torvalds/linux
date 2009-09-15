@@ -4009,6 +4009,14 @@ S:	Maintained
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
 
+PMC SIERRA MaxRAID DRIVER
+P:	Anil Ravindranath
+M:	anil_ravindranath@pmc-sierra.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.pmc-sierra.com/
+S:	Supported
+F:	drivers/scsi/pmcraid.*
+
 POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Supported
@@ -4447,7 +4455,7 @@ F:	drivers/scsi/sg.c
 F:	include/scsi/sg.h
 
 SCSI SUBSYSTEM
-M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
+M:	"James E.J. Bottomley" <James.Bottomley@suse.de>
 L:	linux-scsi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/scsi-rc-fixes-2.6.git
