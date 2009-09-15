@@ -67,154 +67,11 @@ struct uvc_xu_control {
 #ifdef __KERNEL__
 
 #include <linux/poll.h>
+#include <linux/usb/video.h>
 
 /* --------------------------------------------------------------------------
  * UVC constants
  */
-
-#define SC_UNDEFINED			0x00
-#define SC_VIDEOCONTROL			0x01
-#define SC_VIDEOSTREAMING		0x02
-#define SC_VIDEO_INTERFACE_COLLECTION	0x03
-
-#define PC_PROTOCOL_UNDEFINED		0x00
-
-#define CS_UNDEFINED			0x20
-#define CS_DEVICE			0x21
-#define CS_CONFIGURATION		0x22
-#define CS_STRING			0x23
-#define CS_INTERFACE			0x24
-#define CS_ENDPOINT			0x25
-
-/* VideoControl class specific interface descriptor */
-#define VC_DESCRIPTOR_UNDEFINED		0x00
-#define VC_HEADER			0x01
-#define VC_INPUT_TERMINAL		0x02
-#define VC_OUTPUT_TERMINAL		0x03
-#define VC_SELECTOR_UNIT		0x04
-#define VC_PROCESSING_UNIT		0x05
-#define VC_EXTENSION_UNIT		0x06
-
-/* VideoStreaming class specific interface descriptor */
-#define VS_UNDEFINED			0x00
-#define VS_INPUT_HEADER			0x01
-#define VS_OUTPUT_HEADER		0x02
-#define VS_STILL_IMAGE_FRAME		0x03
-#define VS_FORMAT_UNCOMPRESSED		0x04
-#define VS_FRAME_UNCOMPRESSED		0x05
-#define VS_FORMAT_MJPEG			0x06
-#define VS_FRAME_MJPEG			0x07
-#define VS_FORMAT_MPEG2TS		0x0a
-#define VS_FORMAT_DV			0x0c
-#define VS_COLORFORMAT			0x0d
-#define VS_FORMAT_FRAME_BASED		0x10
-#define VS_FRAME_FRAME_BASED		0x11
-#define VS_FORMAT_STREAM_BASED		0x12
-
-/* Endpoint type */
-#define EP_UNDEFINED			0x00
-#define EP_GENERAL			0x01
-#define EP_ENDPOINT			0x02
-#define EP_INTERRUPT			0x03
-
-/* Request codes */
-#define RC_UNDEFINED			0x00
-#define SET_CUR				0x01
-#define GET_CUR				0x81
-#define GET_MIN				0x82
-#define GET_MAX				0x83
-#define GET_RES				0x84
-#define GET_LEN				0x85
-#define GET_INFO			0x86
-#define GET_DEF				0x87
-
-/* VideoControl interface controls */
-#define VC_CONTROL_UNDEFINED		0x00
-#define VC_VIDEO_POWER_MODE_CONTROL	0x01
-#define VC_REQUEST_ERROR_CODE_CONTROL	0x02
-
-/* Terminal controls */
-#define TE_CONTROL_UNDEFINED		0x00
-
-/* Selector Unit controls */
-#define SU_CONTROL_UNDEFINED		0x00
-#define SU_INPUT_SELECT_CONTROL		0x01
-
-/* Camera Terminal controls */
-#define CT_CONTROL_UNDEFINED				0x00
-#define CT_SCANNING_MODE_CONTROL			0x01
-#define CT_AE_MODE_CONTROL				0x02
-#define CT_AE_PRIORITY_CONTROL				0x03
-#define CT_EXPOSURE_TIME_ABSOLUTE_CONTROL		0x04
-#define CT_EXPOSURE_TIME_RELATIVE_CONTROL		0x05
-#define CT_FOCUS_ABSOLUTE_CONTROL			0x06
-#define CT_FOCUS_RELATIVE_CONTROL			0x07
-#define CT_FOCUS_AUTO_CONTROL				0x08
-#define CT_IRIS_ABSOLUTE_CONTROL			0x09
-#define CT_IRIS_RELATIVE_CONTROL			0x0a
-#define CT_ZOOM_ABSOLUTE_CONTROL			0x0b
-#define CT_ZOOM_RELATIVE_CONTROL			0x0c
-#define CT_PANTILT_ABSOLUTE_CONTROL			0x0d
-#define CT_PANTILT_RELATIVE_CONTROL			0x0e
-#define CT_ROLL_ABSOLUTE_CONTROL			0x0f
-#define CT_ROLL_RELATIVE_CONTROL			0x10
-#define CT_PRIVACY_CONTROL				0x11
-
-/* Processing Unit controls */
-#define PU_CONTROL_UNDEFINED				0x00
-#define PU_BACKLIGHT_COMPENSATION_CONTROL		0x01
-#define PU_BRIGHTNESS_CONTROL				0x02
-#define PU_CONTRAST_CONTROL				0x03
-#define PU_GAIN_CONTROL					0x04
-#define PU_POWER_LINE_FREQUENCY_CONTROL			0x05
-#define PU_HUE_CONTROL					0x06
-#define PU_SATURATION_CONTROL				0x07
-#define PU_SHARPNESS_CONTROL				0x08
-#define PU_GAMMA_CONTROL				0x09
-#define PU_WHITE_BALANCE_TEMPERATURE_CONTROL		0x0a
-#define PU_WHITE_BALANCE_TEMPERATURE_AUTO_CONTROL	0x0b
-#define PU_WHITE_BALANCE_COMPONENT_CONTROL		0x0c
-#define PU_WHITE_BALANCE_COMPONENT_AUTO_CONTROL		0x0d
-#define PU_DIGITAL_MULTIPLIER_CONTROL			0x0e
-#define PU_DIGITAL_MULTIPLIER_LIMIT_CONTROL		0x0f
-#define PU_HUE_AUTO_CONTROL				0x10
-#define PU_ANALOG_VIDEO_STANDARD_CONTROL		0x11
-#define PU_ANALOG_LOCK_STATUS_CONTROL			0x12
-
-#define LXU_MOTOR_PANTILT_RELATIVE_CONTROL		0x01
-#define LXU_MOTOR_PANTILT_RESET_CONTROL			0x02
-#define LXU_MOTOR_FOCUS_MOTOR_CONTROL			0x03
-
-/* VideoStreaming interface controls */
-#define VS_CONTROL_UNDEFINED		0x00
-#define VS_PROBE_CONTROL		0x01
-#define VS_COMMIT_CONTROL		0x02
-#define VS_STILL_PROBE_CONTROL		0x03
-#define VS_STILL_COMMIT_CONTROL		0x04
-#define VS_STILL_IMAGE_TRIGGER_CONTROL	0x05
-#define VS_STREAM_ERROR_CODE_CONTROL	0x06
-#define VS_GENERATE_KEY_FRAME_CONTROL	0x07
-#define VS_UPDATE_FRAME_SEGMENT_CONTROL	0x08
-#define VS_SYNC_DELAY_CONTROL		0x09
-
-#define TT_VENDOR_SPECIFIC		0x0100
-#define TT_STREAMING			0x0101
-
-/* Input Terminal types */
-#define ITT_VENDOR_SPECIFIC		0x0200
-#define ITT_CAMERA			0x0201
-#define ITT_MEDIA_TRANSPORT_INPUT	0x0202
-
-/* Output Terminal types */
-#define OTT_VENDOR_SPECIFIC		0x0300
-#define OTT_DISPLAY			0x0301
-#define OTT_MEDIA_TRANSPORT_OUTPUT	0x0302
-
-/* External Terminal types */
-#define EXTERNAL_VENDOR_SPECIFIC	0x0400
-#define COMPOSITE_CONNECTOR		0x0401
-#define SVIDEO_CONNECTOR		0x0402
-#define COMPONENT_CONNECTOR		0x0403
 
 #define UVC_TERM_INPUT			0x0000
 #define UVC_TERM_OUTPUT			0x8000
@@ -223,12 +80,12 @@ struct uvc_xu_control {
 #define UVC_ENTITY_IS_UNIT(entity)	(((entity)->type & 0xff00) == 0)
 #define UVC_ENTITY_IS_TERM(entity)	(((entity)->type & 0xff00) != 0)
 #define UVC_ENTITY_IS_ITERM(entity) \
-	(((entity)->type & 0x8000) == UVC_TERM_INPUT)
+	(UVC_ENTITY_IS_TERM(entity) && \
+	((entity)->type & 0x8000) == UVC_TERM_INPUT)
 #define UVC_ENTITY_IS_OTERM(entity) \
-	(((entity)->type & 0x8000) == UVC_TERM_OUTPUT)
+	(UVC_ENTITY_IS_TERM(entity) && \
+	((entity)->type & 0x8000) == UVC_TERM_OUTPUT)
 
-#define UVC_STATUS_TYPE_CONTROL		1
-#define UVC_STATUS_TYPE_STREAMING	2
 
 /* ------------------------------------------------------------------------
  * GUIDs
@@ -248,19 +105,6 @@ struct uvc_xu_control {
 #define UVC_GUID_UVC_SELECTOR \
 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02}
-
-#define UVC_GUID_LOGITECH_DEV_INFO \
-	{0x82, 0x06, 0x61, 0x63, 0x70, 0x50, 0xab, 0x49, \
-	 0xb8, 0xcc, 0xb3, 0x85, 0x5e, 0x8d, 0x22, 0x1e}
-#define UVC_GUID_LOGITECH_USER_HW \
-	{0x82, 0x06, 0x61, 0x63, 0x70, 0x50, 0xab, 0x49, \
-	 0xb8, 0xcc, 0xb3, 0x85, 0x5e, 0x8d, 0x22, 0x1f}
-#define UVC_GUID_LOGITECH_VIDEO \
-	{0x82, 0x06, 0x61, 0x63, 0x70, 0x50, 0xab, 0x49, \
-	 0xb8, 0xcc, 0xb3, 0x85, 0x5e, 0x8d, 0x22, 0x50}
-#define UVC_GUID_LOGITECH_MOTOR \
-	{0x82, 0x06, 0x61, 0x63, 0x70, 0x50, 0xab, 0x49, \
-	 0xb8, 0xcc, 0xb3, 0x85, 0x5e, 0x8d, 0x22, 0x56}
 
 #define UVC_GUID_FORMAT_MJPEG \
 	{ 'M',  'J',  'P',  'G', 0x00, 0x00, 0x10, 0x00, \
@@ -314,6 +158,7 @@ struct uvc_xu_control {
 #define UVC_QUIRK_STREAM_NO_FID		0x00000010
 #define UVC_QUIRK_IGNORE_SELECTOR_UNIT	0x00000020
 #define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
+#define UVC_QUIRK_PROBE_DEF		0x00000100
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -518,26 +363,6 @@ struct uvc_streaming_header {
 	__u8 bTriggerUsage;
 };
 
-struct uvc_streaming {
-	struct list_head list;
-
-	struct usb_interface *intf;
-	int intfnum;
-	__u16 maxpsize;
-
-	struct uvc_streaming_header header;
-	enum v4l2_buf_type type;
-
-	unsigned int nformats;
-	struct uvc_format *format;
-
-	struct uvc_streaming_control ctrl;
-	struct uvc_format *cur_format;
-	struct uvc_frame *cur_frame;
-
-	struct mutex mutex;
-};
-
 enum uvc_buffer_state {
 	UVC_BUF_STATE_IDLE	= 0,
 	UVC_BUF_STATE_QUEUED	= 1,
@@ -579,26 +404,45 @@ struct uvc_video_queue {
 	struct list_head irqqueue;
 };
 
-struct uvc_video_device {
+struct uvc_video_chain {
 	struct uvc_device *dev;
-	struct video_device *vdev;
-	atomic_t active;
-	unsigned int frozen : 1;
+	struct list_head list;
 
 	struct list_head iterms;		/* Input terminals */
-	struct uvc_entity *oterm;		/* Output terminal */
-	struct uvc_entity *sterm;		/* USB streaming terminal */
-	struct uvc_entity *processing;
-	struct uvc_entity *selector;
-	struct list_head extensions;
+	struct list_head oterms;		/* Output terminals */
+	struct uvc_entity *processing;		/* Processing unit */
+	struct uvc_entity *selector;		/* Selector unit */
+	struct list_head extensions;		/* Extension units */
+
 	struct mutex ctrl_mutex;
+};
 
+struct uvc_streaming {
+	struct list_head list;
+	struct uvc_device *dev;
+	struct video_device *vdev;
+	struct uvc_video_chain *chain;
+	atomic_t active;
+
+	struct usb_interface *intf;
+	int intfnum;
+	__u16 maxpsize;
+
+	struct uvc_streaming_header header;
+	enum v4l2_buf_type type;
+
+	unsigned int nformats;
+	struct uvc_format *format;
+
+	struct uvc_streaming_control ctrl;
+	struct uvc_format *cur_format;
+	struct uvc_frame *cur_frame;
+
+	struct mutex mutex;
+
+	unsigned int frozen : 1;
 	struct uvc_video_queue queue;
-
-	/* Video streaming object, must always be non-NULL. */
-	struct uvc_streaming *streaming;
-
-	void (*decode) (struct urb *urb, struct uvc_video_device *video,
+	void (*decode) (struct urb *urb, struct uvc_streaming *video,
 			struct uvc_buffer *buf);
 
 	/* Context data used by the bulk completion handler. */
@@ -640,8 +484,10 @@ struct uvc_device {
 	__u32 clock_frequency;
 
 	struct list_head entities;
+	struct list_head chains;
 
-	struct uvc_video_device video;
+	/* Video Streaming interfaces */
+	struct list_head streams;
 
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
@@ -649,9 +495,6 @@ struct uvc_device {
 	__u8 *status;
 	struct input_dev *input;
 	char input_phys[64];
-
-	/* Video Streaming interfaces */
-	struct list_head streaming;
 };
 
 enum uvc_handle_state {
@@ -660,7 +503,8 @@ enum uvc_handle_state {
 };
 
 struct uvc_fh {
-	struct uvc_video_device *device;
+	struct uvc_video_chain *chain;
+	struct uvc_streaming *stream;
 	enum uvc_handle_state state;
 };
 
@@ -757,13 +601,13 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 extern const struct v4l2_file_operations uvc_fops;
 
 /* Video */
-extern int uvc_video_init(struct uvc_video_device *video);
-extern int uvc_video_suspend(struct uvc_video_device *video);
-extern int uvc_video_resume(struct uvc_video_device *video);
-extern int uvc_video_enable(struct uvc_video_device *video, int enable);
-extern int uvc_probe_video(struct uvc_video_device *video,
+extern int uvc_video_init(struct uvc_streaming *stream);
+extern int uvc_video_suspend(struct uvc_streaming *stream);
+extern int uvc_video_resume(struct uvc_streaming *stream);
+extern int uvc_video_enable(struct uvc_streaming *stream, int enable);
+extern int uvc_probe_video(struct uvc_streaming *stream,
 		struct uvc_streaming_control *probe);
-extern int uvc_commit_video(struct uvc_video_device *video,
+extern int uvc_commit_video(struct uvc_streaming *stream,
 		struct uvc_streaming_control *ctrl);
 extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 		__u8 intfnum, __u8 cs, void *data, __u16 size);
@@ -777,9 +621,9 @@ extern int uvc_status_suspend(struct uvc_device *dev);
 extern int uvc_status_resume(struct uvc_device *dev);
 
 /* Controls */
-extern struct uvc_control *uvc_find_control(struct uvc_video_device *video,
+extern struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 		__u32 v4l2_id, struct uvc_control_mapping **mapping);
-extern int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
+extern int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		struct v4l2_queryctrl *v4l2_ctrl);
 
 extern int uvc_ctrl_add_info(struct uvc_control_info *info);
@@ -789,23 +633,23 @@ extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 extern int uvc_ctrl_resume_device(struct uvc_device *dev);
 extern void uvc_ctrl_init(void);
 
-extern int uvc_ctrl_begin(struct uvc_video_device *video);
-extern int __uvc_ctrl_commit(struct uvc_video_device *video, int rollback);
-static inline int uvc_ctrl_commit(struct uvc_video_device *video)
+extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
+extern int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback);
+static inline int uvc_ctrl_commit(struct uvc_video_chain *chain)
 {
-	return __uvc_ctrl_commit(video, 0);
+	return __uvc_ctrl_commit(chain, 0);
 }
-static inline int uvc_ctrl_rollback(struct uvc_video_device *video)
+static inline int uvc_ctrl_rollback(struct uvc_video_chain *chain)
 {
-	return __uvc_ctrl_commit(video, 1);
+	return __uvc_ctrl_commit(chain, 1);
 }
 
-extern int uvc_ctrl_get(struct uvc_video_device *video,
+extern int uvc_ctrl_get(struct uvc_video_chain *chain,
 		struct v4l2_ext_control *xctrl);
-extern int uvc_ctrl_set(struct uvc_video_device *video,
+extern int uvc_ctrl_set(struct uvc_video_chain *chain,
 		struct v4l2_ext_control *xctrl);
 
-extern int uvc_xu_ctrl_query(struct uvc_video_device *video,
+extern int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		struct uvc_xu_control *ctrl, int set);
 
 /* Utility functions */
@@ -817,7 +661,7 @@ extern struct usb_host_endpoint *uvc_find_endpoint(
 		struct usb_host_interface *alts, __u8 epaddr);
 
 /* Quirks support */
-void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
+void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
 
 #endif /* __KERNEL__ */

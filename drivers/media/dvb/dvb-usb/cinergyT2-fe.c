@@ -275,6 +275,7 @@ static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe,
 	param.tps = cpu_to_le16(compute_tps(fep));
 	param.freq = cpu_to_le32(fep->frequency / 1000);
 	param.bandwidth = 8 - fep->u.ofdm.bandwidth - BANDWIDTH_8_MHZ;
+	param.flags = 0;
 
 	err = dvb_usb_generic_rw(state->d,
 			(char *)&param, sizeof(param),

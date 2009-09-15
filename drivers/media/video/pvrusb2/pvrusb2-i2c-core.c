@@ -540,7 +540,6 @@ static struct i2c_algorithm pvr2_i2c_algo_template = {
 static struct i2c_adapter pvr2_i2c_adap_template = {
 	.owner         = THIS_MODULE,
 	.class	       = 0,
-	.id            = I2C_HW_B_BT848,
 };
 
 
