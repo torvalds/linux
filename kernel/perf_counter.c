@@ -4215,6 +4215,7 @@ static int perf_copy_attr(struct perf_counter_attr __user *uattr,
 			if (val)
 				goto err_size;
 		}
+		size = sizeof(*attr);
 	}
 
 	ret = copy_from_user(attr, uattr, size);
