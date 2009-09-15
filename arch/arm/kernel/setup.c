@@ -45,6 +45,7 @@
 
 #include "compat.h"
 #include "atags.h"
+#include "tcm.h"
 
 #ifndef MEM_SIZE
 #define MEM_SIZE	(16*1024*1024)
@@ -749,6 +750,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	cpu_init();
+	tcm_init();
 
 	/*
 	 * Set up various architecture-specific pointers
