@@ -32,12 +32,13 @@
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <mach/nand.h>
+#include <mach/mux.h>
 
 #define DA850_EVM_PHY_MASK		0x1
 #define DA850_EVM_MDIO_FREQUENCY	2200000 /* PHY bus frequency */
 
+#define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)
 #define DA850_LCD_BL_PIN		GPIO_TO_PIN(2, 15)
-#define DA850_LCD_PWR_PIN		GPIO_TO_PIN(8, 10)
 
 #define DA850_MMCSD_CD_PIN		GPIO_TO_PIN(4, 0)
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
@@ -264,6 +265,11 @@ static void __init da850_evm_init_nor(void)
 #define HAS_MMC 0
 #endif
 
+static const short da850_evm_lcdc_pins[] = {
+	DA850_GPIO2_8, DA850_GPIO2_15,
+	-1
+};
+
 static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -371,6 +377,12 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: lcdcntl mux setup failed: %d\n",
 				ret);
+
+	/* Handle board specific muxing for LCD here */
+	ret = da8xx_pinmux_setup(da850_evm_lcdc_pins);
+	if (ret)
+		pr_warning("da850_evm_init: evm specific lcd mux setup "
+				"failed: %d\n",	ret);
 
 	ret = da850_lcd_hw_init();
 	if (ret)
