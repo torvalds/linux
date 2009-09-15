@@ -711,7 +711,8 @@ extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
 extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
-extern void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type);
+extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type);
 /* IOCTLs */
 extern int drm_mode_getresources(struct drm_device *dev,
 				 void *data, struct drm_file *file_priv);

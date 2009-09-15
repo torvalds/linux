@@ -247,7 +247,8 @@ static void drm_mode_object_put(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
-void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type)
+struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type)
 {
 	struct drm_mode_object *obj = NULL;
 
