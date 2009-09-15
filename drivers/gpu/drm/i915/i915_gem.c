@@ -1890,24 +1890,6 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 	return i915_do_wait_request(dev, seqno, 1);
 }
 
-/**
- * Waits for the ring to finish up to the latest request. Usefull for waiting
- * for flip events, e.g for the overlay support. */
-int i915_lp_ring_sync(struct drm_device *dev)
-{
-	uint32_t seqno;
-	int ret;
-
-	seqno = i915_add_request(dev, NULL, 0);
-
-	if (seqno == 0)
-		return -ENOMEM;
-
-	ret = i915_do_wait_request(dev, seqno, 0);
-	BUG_ON(ret == -ERESTARTSYS);
-	return ret;
-}
-
 static void
 i915_gem_flush(struct drm_device *dev,
 	       uint32_t invalidate_domains,
