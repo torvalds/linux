@@ -135,12 +135,12 @@ static struct hid_driver sony_driver = {
 	.report_fixup = sony_report_fixup,
 };
 
-static int sony_init(void)
+static int __init sony_init(void)
 {
 	return hid_register_driver(&sony_driver);
 }
 
-static void sony_exit(void)
+static void __exit sony_exit(void)
 {
 	hid_unregister_driver(&sony_driver);
 }

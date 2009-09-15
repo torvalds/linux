@@ -65,12 +65,12 @@ static struct hid_driver mr_driver = {
 	.input_mapping = mr_input_mapping,
 };
 
-static int mr_init(void)
+static int __init mr_init(void)
 {
 	return hid_register_driver(&mr_driver);
 }
 
-static void mr_exit(void)
+static void __exit mr_exit(void)
 {
 	hid_unregister_driver(&mr_driver);
 }
