@@ -145,7 +145,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		cdata = (uint32_t *)(unsigned long)user_chunk.chunk_data;
 
 		size = p->chunks[i].length_dw * sizeof(uint32_t);
-		p->chunks[i].kdata = kzalloc(size, GFP_KERNEL);
+		p->chunks[i].kdata = kmalloc(size, GFP_KERNEL);
 		if (p->chunks[i].kdata == NULL) {
 			return -ENOMEM;
 		}
