@@ -26,7 +26,7 @@
 #include <linux/if_arp.h>
 #include <linux/list.h>
 #include <net/sock.h>
-#include <net/ieee802154/af_ieee802154.h>
+#include <net/af_ieee802154.h>
 
 #include "af802154.h"
 
@@ -74,8 +74,7 @@ static int raw_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 		goto out;
 	}
 
-	if (dev->type != ARPHRD_IEEE802154_PHY &&
-	    dev->type != ARPHRD_IEEE802154) {
+	if (dev->type != ARPHRD_IEEE802154) {
 		err = -ENODEV;
 		goto out_put;
 	}

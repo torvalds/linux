@@ -984,9 +984,14 @@ static inline void clear_bit_le(unsigned nr, unsigned char *addr)
  *
  * The 10G MAC used in Falcon requires 8-byte alignment on the frame
  * length, so we round up to the nearest 8.
+ *
+ * Re-clocking by the XGXS on RX can reduce an IPG to 32 bits (half an
+ * XGMII cycle).  If the frame length reaches the maximum value in the
+ * same cycle, the XMAC can miss the IPG altogether.  We work around
+ * this by adding a further 16 bytes.
  */
 #define EFX_MAX_FRAME_LEN(mtu) \
-	((((mtu) + ETH_HLEN + VLAN_HLEN + 4/* FCS */) + 7) & ~7)
+	((((mtu) + ETH_HLEN + VLAN_HLEN + 4/* FCS */ + 7) & ~7) + 16)
 
 
 #endif /* EFX_NET_DRIVER_H */

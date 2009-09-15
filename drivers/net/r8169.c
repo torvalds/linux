@@ -507,7 +507,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(RTL8169_VERSION);
 
 static int rtl8169_open(struct net_device *dev);
-static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev);
 static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance);
 static int rtl8169_init_ring(struct net_device *dev);
 static void rtl_hw_start(struct net_device *dev);
@@ -1222,17 +1223,6 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 };
 
-static void rtl8169_write_gmii_reg_bit(void __iomem *ioaddr, int reg,
-				       int bitnum, int bitval)
-{
-	int val;
-
-	val = mdio_read(ioaddr, reg);
-	val = (bitval == 1) ?
-		val | (bitval << bitnum) :  val & ~(0x0001 << bitnum);
-	mdio_write(ioaddr, reg, val & 0xffff);
-}
-
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 				    void __iomem *ioaddr)
 {
@@ -1328,54 +1318,69 @@ static void rtl_phy_write(void __iomem *ioaddr, struct phy_reg *regs, int len)
 
 static void rtl8169s_hw_phy_config(void __iomem *ioaddr)
 {
-	struct {
-		u16 regs[5]; /* Beware of bit-sign propagation */
-	} phy_magic[5] = { {
-		{ 0x0000,	//w 4 15 12 0
-		  0x00a1,	//w 3 15 0 00a1
-		  0x0008,	//w 2 15 0 0008
-		  0x1020,	//w 1 15 0 1020
-		  0x1000 } },{	//w 0 15 0 1000
-		{ 0x7000,	//w 4 15 12 7
-		  0xff41,	//w 3 15 0 ff41
-		  0xde60,	//w 2 15 0 de60
-		  0x0140,	//w 1 15 0 0140
-		  0x0077 } },{	//w 0 15 0 0077
-		{ 0xa000,	//w 4 15 12 a
-		  0xdf01,	//w 3 15 0 df01
-		  0xdf20,	//w 2 15 0 df20
-		  0xff95,	//w 1 15 0 ff95
-		  0xfa00 } },{	//w 0 15 0 fa00
-		{ 0xb000,	//w 4 15 12 b
-		  0xff41,	//w 3 15 0 ff41
-		  0xde20,	//w 2 15 0 de20
-		  0x0140,	//w 1 15 0 0140
-		  0x00bb } },{	//w 0 15 0 00bb
-		{ 0xf000,	//w 4 15 12 f
-		  0xdf01,	//w 3 15 0 df01
-		  0xdf20,	//w 2 15 0 df20
-		  0xff95,	//w 1 15 0 ff95
-		  0xbf00 }	//w 0 15 0 bf00
-		}
-	}, *p = phy_magic;
-	unsigned int i;
+	struct phy_reg phy_reg_init[] = {
+		{ 0x1f, 0x0001 },
+		{ 0x06, 0x006e },
+		{ 0x08, 0x0708 },
+		{ 0x15, 0x4000 },
+		{ 0x18, 0x65c7 },
 
-	mdio_write(ioaddr, 0x1f, 0x0001);		//w 31 2 0 1
-	mdio_write(ioaddr, 0x15, 0x1000);		//w 21 15 0 1000
-	mdio_write(ioaddr, 0x18, 0x65c7);		//w 24 15 0 65c7
-	rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 0);	//w 4 11 11 0
+		{ 0x1f, 0x0001 },
+		{ 0x03, 0x00a1 },
+		{ 0x02, 0x0008 },
+		{ 0x01, 0x0120 },
+		{ 0x00, 0x1000 },
+		{ 0x04, 0x0800 },
+		{ 0x04, 0x0000 },
 
-	for (i = 0; i < ARRAY_SIZE(phy_magic); i++, p++) {
-		int val, pos = 4;
+		{ 0x03, 0xff41 },
+		{ 0x02, 0xdf60 },
+		{ 0x01, 0x0140 },
+		{ 0x00, 0x0077 },
+		{ 0x04, 0x7800 },
+		{ 0x04, 0x7000 },
 
-		val = (mdio_read(ioaddr, pos) & 0x0fff) | (p->regs[0] & 0xffff);
-		mdio_write(ioaddr, pos, val);
-		while (--pos >= 0)
-			mdio_write(ioaddr, pos, p->regs[4 - pos] & 0xffff);
-		rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 1); //w 4 11 11 1
-		rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 0); //w 4 11 11 0
-	}
-	mdio_write(ioaddr, 0x1f, 0x0000); //w 31 2 0 0
+		{ 0x03, 0x802f },
+		{ 0x02, 0x4f02 },
+		{ 0x01, 0x0409 },
+		{ 0x00, 0xf0f9 },
+		{ 0x04, 0x9800 },
+		{ 0x04, 0x9000 },
+
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0xff95 },
+		{ 0x00, 0xba00 },
+		{ 0x04, 0xa800 },
+		{ 0x04, 0xa000 },
+
+		{ 0x03, 0xff41 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0x0140 },
+		{ 0x00, 0x00bb },
+		{ 0x04, 0xb800 },
+		{ 0x04, 0xb000 },
+
+		{ 0x03, 0xdf41 },
+		{ 0x02, 0xdc60 },
+		{ 0x01, 0x6340 },
+		{ 0x00, 0x007d },
+		{ 0x04, 0xd800 },
+		{ 0x04, 0xd000 },
+
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0x100a },
+		{ 0x00, 0xa0ff },
+		{ 0x04, 0xf800 },
+		{ 0x04, 0xf000 },
+
+		{ 0x1f, 0x0000 },
+		{ 0x0b, 0x0000 },
+		{ 0x00, 0x9200 }
+	};
+
+	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
 static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
@@ -1383,6 +1388,124 @@ static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
 	struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0002 },
 		{ 0x01, 0x90d0 },
+		{ 0x1f, 0x0000 }
+	};
+
+	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+}
+
+static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp,
+					   void __iomem *ioaddr)
+{
+	struct pci_dev *pdev = tp->pci_dev;
+	u16 vendor_id, device_id;
+
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &vendor_id);
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &device_id);
+
+	if ((vendor_id != PCI_VENDOR_ID_GIGABYTE) || (device_id != 0xe000))
+		return;
+
+	mdio_write(ioaddr, 0x1f, 0x0001);
+	mdio_write(ioaddr, 0x10, 0xf01b);
+	mdio_write(ioaddr, 0x1f, 0x0000);
+}
+
+static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp,
+				     void __iomem *ioaddr)
+{
+	struct phy_reg phy_reg_init[] = {
+		{ 0x1f, 0x0001 },
+		{ 0x04, 0x0000 },
+		{ 0x03, 0x00a1 },
+		{ 0x02, 0x0008 },
+		{ 0x01, 0x0120 },
+		{ 0x00, 0x1000 },
+		{ 0x04, 0x0800 },
+		{ 0x04, 0x9000 },
+		{ 0x03, 0x802f },
+		{ 0x02, 0x4f02 },
+		{ 0x01, 0x0409 },
+		{ 0x00, 0xf099 },
+		{ 0x04, 0x9800 },
+		{ 0x04, 0xa000 },
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0xff95 },
+		{ 0x00, 0xba00 },
+		{ 0x04, 0xa800 },
+		{ 0x04, 0xf000 },
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0x101a },
+		{ 0x00, 0xa0ff },
+		{ 0x04, 0xf800 },
+		{ 0x04, 0x0000 },
+		{ 0x1f, 0x0000 },
+
+		{ 0x1f, 0x0001 },
+		{ 0x10, 0xf41b },
+		{ 0x14, 0xfb54 },
+		{ 0x18, 0xf5c7 },
+		{ 0x1f, 0x0000 },
+
+		{ 0x1f, 0x0001 },
+		{ 0x17, 0x0cc0 },
+		{ 0x1f, 0x0000 }
+	};
+
+	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+
+	rtl8169scd_hw_phy_config_quirk(tp, ioaddr);
+}
+
+static void rtl8169sce_hw_phy_config(void __iomem *ioaddr)
+{
+	struct phy_reg phy_reg_init[] = {
+		{ 0x1f, 0x0001 },
+		{ 0x04, 0x0000 },
+		{ 0x03, 0x00a1 },
+		{ 0x02, 0x0008 },
+		{ 0x01, 0x0120 },
+		{ 0x00, 0x1000 },
+		{ 0x04, 0x0800 },
+		{ 0x04, 0x9000 },
+		{ 0x03, 0x802f },
+		{ 0x02, 0x4f02 },
+		{ 0x01, 0x0409 },
+		{ 0x00, 0xf099 },
+		{ 0x04, 0x9800 },
+		{ 0x04, 0xa000 },
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0xff95 },
+		{ 0x00, 0xba00 },
+		{ 0x04, 0xa800 },
+		{ 0x04, 0xf000 },
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0x101a },
+		{ 0x00, 0xa0ff },
+		{ 0x04, 0xf800 },
+		{ 0x04, 0x0000 },
+		{ 0x1f, 0x0000 },
+
+		{ 0x1f, 0x0001 },
+		{ 0x0b, 0x8480 },
+		{ 0x1f, 0x0000 },
+
+		{ 0x1f, 0x0001 },
+		{ 0x18, 0x67c7 },
+		{ 0x04, 0x2000 },
+		{ 0x03, 0x002f },
+		{ 0x02, 0x4360 },
+		{ 0x01, 0x0109 },
+		{ 0x00, 0x3022 },
+		{ 0x04, 0x2800 },
+		{ 0x1f, 0x0000 },
+
+		{ 0x1f, 0x0001 },
+		{ 0x17, 0x0cc0 },
 		{ 0x1f, 0x0000 }
 	};
 
@@ -1607,6 +1730,7 @@ static void rtl8102e_hw_phy_config(void __iomem *ioaddr)
 	mdio_write(ioaddr, 0x1f, 0x0000);
 	mdio_patch(ioaddr, 0x11, 1 << 12);
 	mdio_patch(ioaddr, 0x19, 1 << 13);
+	mdio_patch(ioaddr, 0x10, 1 << 15);
 
 	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
@@ -1627,6 +1751,12 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		break;
 	case RTL_GIGA_MAC_VER_04:
 		rtl8169sb_hw_phy_config(ioaddr);
+		break;
+	case RTL_GIGA_MAC_VER_05:
+		rtl8169scd_hw_phy_config(tp, ioaddr);
+		break;
+	case RTL_GIGA_MAC_VER_06:
+		rtl8169sce_hw_phy_config(ioaddr);
 		break;
 	case RTL_GIGA_MAC_VER_07:
 	case RTL_GIGA_MAC_VER_08:
@@ -1861,8 +1991,6 @@ static int rtl_xmii_ioctl(struct rtl8169_private *tp, struct mii_ioctl_data *dat
 		return 0;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		mdio_write(tp->mmio_addr, data->reg_num & 0x1f, data->val_in);
 		return 0;
 	}
@@ -2180,7 +2308,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	if (netif_msg_probe(tp)) {
-		u32 xid = RTL_R32(TxConfig) & 0x7cf0f8ff;
+		u32 xid = RTL_R32(TxConfig) & 0x9cf0f8ff;
 
 		printk(KERN_INFO "%s: %s at 0x%lx, "
 		       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x, "
@@ -2757,7 +2885,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 	EnableBist | \
 	Mac_dbgo_oe | \
 	Force_half_dup | \
-	Force_half_dup | \
+	Force_rxflow_en | \
 	Force_txflow_en | \
 	Cxpl_dbg_sel | \
 	ASF | \
@@ -3228,7 +3356,8 @@ static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	unsigned int frags, entry = tp->cur_tx % NUM_TX_DESC;
@@ -3237,7 +3366,6 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 	u32 status, len;
 	u32 opts1;
-	int ret = NETDEV_TX_OK;
 
 	if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
 		if (netif_msg_drv(tp)) {
@@ -3288,14 +3416,12 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_wake_queue(dev);
 	}
 
-out:
-	return ret;
+	return NETDEV_TX_OK;
 
 err_stop:
 	netif_stop_queue(dev);
-	ret = NETDEV_TX_BUSY;
 	dev->stats.tx_dropped++;
-	goto out;
+	return NETDEV_TX_BUSY;
 }
 
 static void rtl8169_pcierr_interrupt(struct net_device *dev)

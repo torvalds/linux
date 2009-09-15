@@ -46,10 +46,6 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	depends on GENERIC_CLOCKEVENTS
 	default y if SMP && !LOCAL_TIMERS
 
-config MMU
-	bool
-	default y
-
 config NO_IOPORT
 	bool
 
@@ -126,6 +122,13 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 
+config ARCH_HAS_CPUFREQ
+	bool
+	help
+	  Internal node to signify that the ARCH has CPUFREQ support
+	  and that the relevant menu configurations are displayed for
+	  it.
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -188,6 +191,13 @@ source "kernel/Kconfig.freezer"
 
 menu "System Type"
 
+config MMU
+	bool "MMU-based Paged Memory Management Support"
+	default y
+	help
+	  Select if you want MMU-based virtualised addressing space
+	  support by paged memory management. If unsure, say 'Y'.
+
 choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
@@ -203,6 +213,7 @@ config ARCH_AAEC2000
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ICST525
@@ -217,6 +228,7 @@ config ARCH_REALVIEW
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -229,6 +241,7 @@ config ARCH_VERSATILE
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -326,6 +339,20 @@ config ARCH_H720X
 	select ISA_DMA_API
 	help
 	  This enables support for systems based on the Hynix HMS720x
+
+config ARCH_NOMADIK
+	bool "STMicroelectronics Nomadik"
+	select ARM_AMBA
+	select ARM_VIC
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for the Nomadik platform by ST-Ericsson
 
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
@@ -493,10 +520,18 @@ config ARCH_W90X900
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_GPIO
+	select HAVE_CLK
 	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
-		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
-		can login www.mcuos.com or www.nuvoton.com to know more.
+	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
+	  At present, the w90x900 has been renamed nuc900, regarding
+	  the ARM series product line, you can login the following
+	  link address to know more.
+
+	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
+		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
@@ -509,6 +544,7 @@ config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select COMMON_CLKDEV
@@ -551,6 +587,7 @@ config ARCH_SA1100
 	select ISA
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -563,6 +600,7 @@ config ARCH_SA1100
 config ARCH_S3C2410
 	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
 	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
@@ -573,8 +611,17 @@ config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_HAS_CPUFREQ
 	help
 	  Samsung S3C64XX series based systems
+
+config ARCH_S5PC1XX
+	bool "Samsung S5PC1XX"
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CPU_V7
+	help
+	  Samsung S5PC1XX series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -632,10 +679,23 @@ config ARCH_OMAP
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
+
+config ARCH_BCMRING
+	bool "Broadcom BCMRING"
+	depends on MMU
+	select CPU_V6
+	select ARM_AMBA
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	help
+	  Support for Broadcom's BCMRing platform.
 
 endchoice
 
@@ -685,6 +745,7 @@ source "arch/arm/mach-kirkwood/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c64xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
+source "arch/arm/plat-s5pc1xx/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
@@ -702,6 +763,10 @@ endif
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
 
+if ARCH_S5PC1XX
+source "arch/arm/mach-s5pc100/Kconfig"
+endif
+
 source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-h720x/Kconfig"
@@ -716,6 +781,8 @@ source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/plat-mxc/Kconfig"
 
+source "arch/arm/mach-nomadik/Kconfig"
+
 source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-ns9xxx/Kconfig"
@@ -729,6 +796,8 @@ source "arch/arm/mach-msm/Kconfig"
 source "arch/arm/mach-u300/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
+
+source "arch/arm/mach-bcmring/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -962,18 +1031,7 @@ config LOCAL_TIMERS
 	  accounting to be spread across the timer interval, preventing a
 	  "thundering herd" at every timer tick.
 
-config PREEMPT
-	bool "Preemptible Kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
+source kernel/Kconfig.preempt
 
 config HZ
 	int
@@ -982,6 +1040,21 @@ config HZ
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default 100
+
+config THUMB2_KERNEL
+	bool "Compile the kernel in Thumb-2 mode"
+	depends on CPU_V7 && EXPERIMENTAL
+	select AEABI
+	select ARM_ASM_UNIFIED
+	help
+	  By enabling this option, the kernel will be compiled in
+	  Thumb-2 mode. A compiler/assembler that understand the unified
+	  ARM-Thumb syntax is needed.
+
+	  If unsure, say N.
+
+config ARM_ASM_UNIFIED
+	bool
 
 config AEABI
 	bool "Use the ARM EABI to compile the kernel"
@@ -1053,6 +1126,11 @@ config HIGHMEM
 	  option which should result in a slightly faster kernel.
 
 	  If unsure, say n.
+
+config HIGHPTE
+	bool "Allocate 2nd-level pagetables from highmem"
+	depends on HIGHMEM
+	depends on !OUTER_CACHE
 
 source "mm/Kconfig"
 
@@ -1241,7 +1319,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA || ARCH_S3C64XX)
+if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1275,6 +1353,52 @@ config CPU_FREQ_PXA
 config CPU_FREQ_S3C64XX
 	bool "CPUfreq support for Samsung S3C64XX CPUs"
 	depends on CPU_FREQ && CPU_S3C6410
+
+config CPU_FREQ_S3C
+	bool
+	help
+	  Internal configuration node for common cpufreq on Samsung SoC
+
+config CPU_FREQ_S3C24XX
+	bool "CPUfreq driver for Samsung S3C24XX series CPUs"
+	depends on ARCH_S3C2410 && CPU_FREQ && EXPERIMENTAL
+	select CPU_FREQ_S3C
+	help
+	  This enables the CPUfreq driver for the Samsung S3C24XX family
+	  of CPUs.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_S3C24XX_PLL
+	bool "Support CPUfreq changing of PLL frequency"
+	depends on CPU_FREQ_S3C24XX && EXPERIMENTAL
+	help
+	  Compile in support for changing the PLL frequency from the
+	  S3C24XX series CPUfreq driver. The PLL takes time to settle
+	  after a frequency change, so by default it is not enabled.
+
+	  This also means that the PLL tables for the selected CPU(s) will
+	  be built which may increase the size of the kernel image.
+
+config CPU_FREQ_S3C24XX_DEBUG
+	bool "Debug CPUfreq Samsung driver core"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_IODEBUG
+	bool "Debug CPUfreq Samsung driver IO timing"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_DEBUGFS
+	bool "Export debugfs for CPUFreq"
+	depends on CPU_FREQ_S3C24XX && DEBUG_FS
+	help
+	  Export status information via debugfs.
 
 endif
 
@@ -1377,107 +1501,7 @@ endmenu
 
 source "net/Kconfig"
 
-menu "Device Drivers"
-
-source "drivers/base/Kconfig"
-
-source "drivers/connector/Kconfig"
-
-if ALIGNMENT_TRAP || !CPU_CP15_MMU
-source "drivers/mtd/Kconfig"
-endif
-
-source "drivers/parport/Kconfig"
-
-source "drivers/pnp/Kconfig"
-
-source "drivers/block/Kconfig"
-
-# misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
-
-source "drivers/misc/Kconfig"
-
-source "drivers/ide/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/ata/Kconfig"
-
-source "drivers/md/Kconfig"
-
-source "drivers/message/fusion/Kconfig"
-
-source "drivers/ieee1394/Kconfig"
-
-source "drivers/message/i2o/Kconfig"
-
-source "drivers/net/Kconfig"
-
-source "drivers/isdn/Kconfig"
-
-# input before char - char/joystick depends on it. As does USB.
-
-source "drivers/input/Kconfig"
-
-source "drivers/char/Kconfig"
-
-source "drivers/i2c/Kconfig"
-
-source "drivers/spi/Kconfig"
-
-source "drivers/gpio/Kconfig"
-
-source "drivers/w1/Kconfig"
-
-source "drivers/power/Kconfig"
-
-source "drivers/hwmon/Kconfig"
-
-source "drivers/thermal/Kconfig"
-
-source "drivers/watchdog/Kconfig"
-
-source "drivers/ssb/Kconfig"
-
-#source "drivers/l3/Kconfig"
-
-source "drivers/mfd/Kconfig"
-
-source "drivers/media/Kconfig"
-
-source "drivers/video/Kconfig"
-
-source "sound/Kconfig"
-
-source "drivers/hid/Kconfig"
-
-source "drivers/usb/Kconfig"
-
-source "drivers/uwb/Kconfig"
-
-source "drivers/mmc/Kconfig"
-
-source "drivers/memstick/Kconfig"
-
-source "drivers/accessibility/Kconfig"
-
-source "drivers/leds/Kconfig"
-
-source "drivers/rtc/Kconfig"
-
-source "drivers/dma/Kconfig"
-
-source "drivers/dca/Kconfig"
-
-source "drivers/auxdisplay/Kconfig"
-
-source "drivers/regulator/Kconfig"
-
-source "drivers/uio/Kconfig"
-
-source "drivers/staging/Kconfig"
-
-endmenu
+source "drivers/Kconfig"
 
 source "fs/Kconfig"
 

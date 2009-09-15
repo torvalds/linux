@@ -170,7 +170,7 @@ replay:
 		if (err < 0)
 			return err;
 
-		err = nc->call(nfnl, skb, nlh, cda);
+		err = nc->call(nfnl, skb, nlh, (const struct nlattr **)cda);
 		if (err == -EAGAIN)
 			goto replay;
 		return err;

@@ -24,6 +24,7 @@
 #include <linux/compat.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
+#include <linux/firmware.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -312,12 +313,8 @@ static ssize_t init_verbs_show(struct device *dev,
 	return len;
 }
 
-static ssize_t init_verbs_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static int parse_init_verbs(struct hda_codec *codec, const char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
 	struct hda_verb *v;
 	int nid, verb, param;
 
@@ -331,6 +328,18 @@ static ssize_t init_verbs_store(struct device *dev,
 	v->nid = nid;
 	v->verb = verb;
 	v->param = param;
+	return 0;
+}
+
+static ssize_t init_verbs_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int err = parse_init_verbs(codec, buf);
+	if (err < 0)
+		return err;
 	return count;
 }
 
@@ -376,19 +385,15 @@ static void remove_trail_spaces(char *str)
 
 #define MAX_HINTS	1024
 
-static ssize_t hints_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
+static int parse_hints(struct hda_codec *codec, const char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
 	char *key, *val;
 	struct hda_hint *hint;
 
 	while (isspace(*buf))
 		buf++;
 	if (!*buf || *buf == '#' || *buf == '\n')
-		return count;
+		return 0;
 	if (*buf == '=')
 		return -EINVAL;
 	key = kstrndup_noeol(buf, 1024);
@@ -411,7 +416,7 @@ static ssize_t hints_store(struct device *dev,
 		kfree(hint->key);
 		hint->key = key;
 		hint->val = val;
-		return count;
+		return 0;
 	}
 	/* allocate a new hint entry */
 	if (codec->hints.used >= MAX_HINTS)
@@ -424,6 +429,18 @@ static ssize_t hints_store(struct device *dev,
 	}
 	hint->key = key;
 	hint->val = val;
+	return 0;
+}
+
+static ssize_t hints_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int err = parse_hints(codec, buf);
+	if (err < 0)
+		return err;
 	return count;
 }
 
@@ -469,20 +486,24 @@ static ssize_t driver_pin_configs_show(struct device *dev,
 
 #define MAX_PIN_CONFIGS		32
 
+static int parse_user_pin_configs(struct hda_codec *codec, const char *buf)
+{
+	int nid, cfg;
+
+	if (sscanf(buf, "%i %i", &nid, &cfg) != 2)
+		return -EINVAL;
+	if (!nid)
+		return -EINVAL;
+	return snd_hda_add_pincfg(codec, &codec->user_pins, nid, cfg);
+}
+
 static ssize_t user_pin_configs_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
 	struct hda_codec *codec = hwdep->private_data;
-	int nid, cfg;
-	int err;
-
-	if (sscanf(buf, "%i %i", &nid, &cfg) != 2)
-		return -EINVAL;
-	if (!nid)
-		return -EINVAL;
-	err = snd_hda_add_pincfg(codec, &codec->user_pins, nid, cfg);
+	int err = parse_user_pin_configs(codec, buf);
 	if (err < 0)
 		return err;
 	return count;
@@ -553,3 +574,180 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 EXPORT_SYMBOL_HDA(snd_hda_get_bool_hint);
 
 #endif /* CONFIG_SND_HDA_RECONFIG */
+
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+
+/* parser mode */
+enum {
+	LINE_MODE_NONE,
+	LINE_MODE_CODEC,
+	LINE_MODE_MODEL,
+	LINE_MODE_PINCFG,
+	LINE_MODE_VERB,
+	LINE_MODE_HINT,
+	NUM_LINE_MODES,
+};
+
+static inline int strmatch(const char *a, const char *b)
+{
+	return strnicmp(a, b, strlen(b)) == 0;
+}
+
+/* parse the contents after the line "[codec]"
+ * accept only the line with three numbers, and assign the current codec
+ */
+static void parse_codec_mode(char *buf, struct hda_bus *bus,
+			     struct hda_codec **codecp)
+{
+	unsigned int vendorid, subid, caddr;
+	struct hda_codec *codec;
+
+	*codecp = NULL;
+	if (sscanf(buf, "%i %i %i", &vendorid, &subid, &caddr) == 3) {
+		list_for_each_entry(codec, &bus->codec_list, list) {
+			if (codec->addr == caddr) {
+				*codecp = codec;
+				break;
+			}
+		}
+	}
+}
+
+/* parse the contents after the other command tags, [pincfg], [verb],
+ * [hint] and [model]
+ * just pass to the sysfs helper (only when any codec was specified)
+ */
+static void parse_pincfg_mode(char *buf, struct hda_bus *bus,
+			      struct hda_codec **codecp)
+{
+	if (!*codecp)
+		return;
+	parse_user_pin_configs(*codecp, buf);
+}
+
+static void parse_verb_mode(char *buf, struct hda_bus *bus,
+			    struct hda_codec **codecp)
+{
+	if (!*codecp)
+		return;
+	parse_init_verbs(*codecp, buf);
+}
+
+static void parse_hint_mode(char *buf, struct hda_bus *bus,
+			    struct hda_codec **codecp)
+{
+	if (!*codecp)
+		return;
+	parse_hints(*codecp, buf);
+}
+
+static void parse_model_mode(char *buf, struct hda_bus *bus,
+			     struct hda_codec **codecp)
+{
+	if (!*codecp)
+		return;
+	kfree((*codecp)->modelname);
+	(*codecp)->modelname = kstrdup(buf, GFP_KERNEL);
+}
+
+struct hda_patch_item {
+	const char *tag;
+	void (*parser)(char *buf, struct hda_bus *bus, struct hda_codec **retc);
+};
+
+static struct hda_patch_item patch_items[NUM_LINE_MODES] = {
+	[LINE_MODE_CODEC] = { "[codec]", parse_codec_mode },
+	[LINE_MODE_MODEL] = { "[model]", parse_model_mode },
+	[LINE_MODE_VERB] = { "[verb]", parse_verb_mode },
+	[LINE_MODE_PINCFG] = { "[pincfg]", parse_pincfg_mode },
+	[LINE_MODE_HINT] = { "[hint]", parse_hint_mode },
+};
+
+/* check the line starting with '[' -- change the parser mode accodingly */
+static int parse_line_mode(char *buf, struct hda_bus *bus)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(patch_items); i++) {
+		if (!patch_items[i].tag)
+			continue;
+		if (strmatch(buf, patch_items[i].tag))
+			return i;
+	}
+	return LINE_MODE_NONE;
+}
+
+/* copy one line from the buffer in fw, and update the fields in fw
+ * return zero if it reaches to the end of the buffer, or non-zero
+ * if successfully copied a line
+ *
+ * the spaces at the beginning and the end of the line are stripped
+ */
+static int get_line_from_fw(char *buf, int size, struct firmware *fw)
+{
+	int len;
+	const char *p = fw->data;
+	while (isspace(*p) && fw->size) {
+		p++;
+		fw->size--;
+	}
+	if (!fw->size)
+		return 0;
+	if (size < fw->size)
+		size = fw->size;
+
+	for (len = 0; len < fw->size; len++) {
+		if (!*p)
+			break;
+		if (*p == '\n') {
+			p++;
+			len++;
+			break;
+		}
+		if (len < size)
+			*buf++ = *p++;
+	}
+	*buf = 0;
+	fw->size -= len;
+	fw->data = p;
+	remove_trail_spaces(buf);
+	return 1;
+}
+
+/*
+ * load a "patch" firmware file and parse it
+ */
+int snd_hda_load_patch(struct hda_bus *bus, const char *patch)
+{
+	int err;
+	const struct firmware *fw;
+	struct firmware tmp;
+	char buf[128];
+	struct hda_codec *codec;
+	int line_mode;
+	struct device *dev = bus->card->dev;
+
+	if (snd_BUG_ON(!dev))
+		return -ENODEV;
+	err = request_firmware(&fw, patch, dev);
+	if (err < 0) {
+		printk(KERN_ERR "hda-codec: Cannot load the patch '%s'\n",
+		       patch);
+		return err;
+	}
+
+	tmp = *fw;
+	line_mode = LINE_MODE_NONE;
+	codec = NULL;
+	while (get_line_from_fw(buf, sizeof(buf) - 1, &tmp)) {
+		if (!*buf || *buf == '#' || *buf == '\n')
+			continue;
+		if (*buf == '[')
+			line_mode = parse_line_mode(buf, bus);
+		else if (patch_items[line_mode].parser)
+			patch_items[line_mode].parser(buf, bus, &codec);
+	}
+	release_firmware(fw);
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_load_patch);
+#endif /* CONFIG_SND_HDA_PATCH_LOADER */

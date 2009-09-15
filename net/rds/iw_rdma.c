@@ -263,17 +263,11 @@ static void rds_iw_set_scatterlist(struct rds_iw_scatterlist *sg,
 }
 
 static u64 *rds_iw_map_scatterlist(struct rds_iw_device *rds_iwdev,
-			struct rds_iw_scatterlist *sg,
-			unsigned int dma_page_shift)
+			struct rds_iw_scatterlist *sg)
 {
 	struct ib_device *dev = rds_iwdev->dev;
 	u64 *dma_pages = NULL;
-	u64 dma_mask;
-	unsigned int dma_page_size;
 	int i, j, ret;
-
-	dma_page_size = 1 << dma_page_shift;
-	dma_mask = dma_page_size - 1;
 
 	WARN_ON(sg->dma_len);
 
@@ -295,18 +289,18 @@ static u64 *rds_iw_map_scatterlist(struct rds_iw_device *rds_iwdev,
 		sg->bytes += dma_len;
 
 		end_addr = dma_addr + dma_len;
-		if (dma_addr & dma_mask) {
+		if (dma_addr & PAGE_MASK) {
 			if (i > 0)
 				goto out_unmap;
-			dma_addr &= ~dma_mask;
+			dma_addr &= ~PAGE_MASK;
 		}
-		if (end_addr & dma_mask) {
+		if (end_addr & PAGE_MASK) {
 			if (i < sg->dma_len - 1)
 				goto out_unmap;
-			end_addr = (end_addr + dma_mask) & ~dma_mask;
+			end_addr = (end_addr + PAGE_MASK) & ~PAGE_MASK;
 		}
 
-		sg->dma_npages += (end_addr - dma_addr) >> dma_page_shift;
+		sg->dma_npages += (end_addr - dma_addr) >> PAGE_SHIFT;
 	}
 
 	/* Now gather the dma addrs into one list */
@@ -325,8 +319,8 @@ static u64 *rds_iw_map_scatterlist(struct rds_iw_device *rds_iwdev,
 		u64 end_addr;
 
 		end_addr = dma_addr + dma_len;
-		dma_addr &= ~dma_mask;
-		for (; dma_addr < end_addr; dma_addr += dma_page_size)
+		dma_addr &= ~PAGE_MASK;
+		for (; dma_addr < end_addr; dma_addr += PAGE_SIZE)
 			dma_pages[j++] = dma_addr;
 		BUG_ON(j > sg->dma_npages);
 	}
@@ -727,7 +721,7 @@ static int rds_iw_rdma_build_fastreg(struct rds_iw_mapping *mapping)
 	f_wr.wr.fast_reg.rkey = mapping->m_rkey;
 	f_wr.wr.fast_reg.page_list = ibmr->page_list;
 	f_wr.wr.fast_reg.page_list_len = mapping->m_sg.dma_len;
-	f_wr.wr.fast_reg.page_shift = ibmr->device->page_shift;
+	f_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
 	f_wr.wr.fast_reg.access_flags = IB_ACCESS_LOCAL_WRITE |
 				IB_ACCESS_REMOTE_READ |
 				IB_ACCESS_REMOTE_WRITE;
@@ -780,9 +774,7 @@ static int rds_iw_map_fastreg(struct rds_iw_mr_pool *pool,
 
 	rds_iw_set_scatterlist(&mapping->m_sg, sg, sg_len);
 
-	dma_pages = rds_iw_map_scatterlist(rds_iwdev,
-				&mapping->m_sg,
-				rds_iwdev->page_shift);
+	dma_pages = rds_iw_map_scatterlist(rds_iwdev, &mapping->m_sg);
 	if (IS_ERR(dma_pages)) {
 		ret = PTR_ERR(dma_pages);
 		dma_pages = NULL;

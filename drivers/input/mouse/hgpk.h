@@ -15,7 +15,7 @@ enum hgpk_model_t {
 
 struct hgpk_data {
 	struct psmouse *psmouse;
-	int powered;
+	bool powered;
 	int count, x_tally, y_tally;	/* hardware workaround stuff */
 	unsigned long recalib_window;
 	struct delayed_work recalib_wq;
@@ -33,10 +33,10 @@ struct hgpk_data {
 	dev_notice(&(psmouse)->ps2dev.serio->dev, format, ## arg)
 
 #ifdef CONFIG_MOUSE_PS2_OLPC
-int hgpk_detect(struct psmouse *psmouse, int set_properties);
+int hgpk_detect(struct psmouse *psmouse, bool set_properties);
 int hgpk_init(struct psmouse *psmouse);
 #else
-static inline int hgpk_detect(struct psmouse *psmouse, int set_properties)
+static inline int hgpk_detect(struct psmouse *psmouse, bool set_properties)
 {
 	return -ENODEV;
 }

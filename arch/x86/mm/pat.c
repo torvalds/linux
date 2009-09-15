@@ -827,7 +827,7 @@ static int memtype_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations memtype_seq_ops = {
+static const struct seq_operations memtype_seq_ops = {
 	.start = memtype_seq_start,
 	.next  = memtype_seq_next,
 	.stop  = memtype_seq_stop,

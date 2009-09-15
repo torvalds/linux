@@ -43,21 +43,29 @@ static struct svc_program nfs4_callback_program;
 unsigned int nfs_callback_set_tcpport;
 unsigned short nfs_callback_tcpport;
 unsigned short nfs_callback_tcpport6;
-static const int nfs_set_port_min = 0;
-static const int nfs_set_port_max = 65535;
+#define NFS_CALLBACK_MAXPORTNR (65535U)
 
-static int param_set_port(const char *val, struct kernel_param *kp)
+static int param_set_portnr(const char *val, struct kernel_param *kp)
 {
-	char *endp;
-	int num = simple_strtol(val, &endp, 0);
-	if (endp == val || *endp || num < nfs_set_port_min || num > nfs_set_port_max)
+	unsigned long num;
+	int ret;
+
+	if (!val)
 		return -EINVAL;
-	*((int *)kp->arg) = num;
+	ret = strict_strtoul(val, 0, &num);
+	if (ret == -EINVAL || num > NFS_CALLBACK_MAXPORTNR)
+		return -EINVAL;
+	*((unsigned int *)kp->arg) = num;
 	return 0;
 }
 
-module_param_call(callback_tcpport, param_set_port, param_get_int,
-		 &nfs_callback_set_tcpport, 0644);
+static int param_get_portnr(char *buffer, struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+#define param_check_portnr(name, p) __param_check(name, p, unsigned int);
+
+module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
 
 /*
  * This is the NFSv4 callback kernel thread.

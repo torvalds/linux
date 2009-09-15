@@ -47,36 +47,6 @@ connmark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ((ct->mark & info->mask) == info->mark) ^ info->invert;
 }
 
-static bool
-connmark_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
-{
-	const struct xt_connmark_info *info = par->matchinfo;
-	const struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct)
-		return false;
-
-	return ((ct->mark & info->mask) == info->mark) ^ info->invert;
-}
-
-static bool connmark_mt_check_v0(const struct xt_mtchk_param *par)
-{
-	const struct xt_connmark_info *cm = par->matchinfo;
-
-	if (cm->mark > 0xffffffff || cm->mask > 0xffffffff) {
-		printk(KERN_WARNING "connmark: only support 32bit mark\n");
-		return false;
-	}
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
-		return false;
-	}
-	return true;
-}
-
 static bool connmark_mt_check(const struct xt_mtchk_param *par)
 {
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
@@ -92,74 +62,25 @@ static void connmark_mt_destroy(const struct xt_mtdtor_param *par)
 	nf_ct_l3proto_module_put(par->family);
 }
 
-#ifdef CONFIG_COMPAT
-struct compat_xt_connmark_info {
-	compat_ulong_t	mark, mask;
-	u_int8_t	invert;
-	u_int8_t	__pad1;
-	u_int16_t	__pad2;
-};
-
-static void connmark_mt_compat_from_user_v0(void *dst, void *src)
-{
-	const struct compat_xt_connmark_info *cm = src;
-	struct xt_connmark_info m = {
-		.mark	= cm->mark,
-		.mask	= cm->mask,
-		.invert	= cm->invert,
-	};
-	memcpy(dst, &m, sizeof(m));
-}
-
-static int connmark_mt_compat_to_user_v0(void __user *dst, void *src)
-{
-	const struct xt_connmark_info *m = src;
-	struct compat_xt_connmark_info cm = {
-		.mark	= m->mark,
-		.mask	= m->mask,
-		.invert	= m->invert,
-	};
-	return copy_to_user(dst, &cm, sizeof(cm)) ? -EFAULT : 0;
-}
-#endif /* CONFIG_COMPAT */
-
-static struct xt_match connmark_mt_reg[] __read_mostly = {
-	{
-		.name		= "connmark",
-		.revision	= 0,
-		.family		= NFPROTO_UNSPEC,
-		.checkentry	= connmark_mt_check_v0,
-		.match		= connmark_mt_v0,
-		.destroy	= connmark_mt_destroy,
-		.matchsize	= sizeof(struct xt_connmark_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_connmark_info),
-		.compat_from_user = connmark_mt_compat_from_user_v0,
-		.compat_to_user	= connmark_mt_compat_to_user_v0,
-#endif
-		.me		= THIS_MODULE
-	},
-	{
-		.name           = "connmark",
-		.revision       = 1,
-		.family         = NFPROTO_UNSPEC,
-		.checkentry     = connmark_mt_check,
-		.match          = connmark_mt,
-		.matchsize      = sizeof(struct xt_connmark_mtinfo1),
-		.destroy        = connmark_mt_destroy,
-		.me             = THIS_MODULE,
-	},
+static struct xt_match connmark_mt_reg __read_mostly = {
+	.name           = "connmark",
+	.revision       = 1,
+	.family         = NFPROTO_UNSPEC,
+	.checkentry     = connmark_mt_check,
+	.match          = connmark_mt,
+	.matchsize      = sizeof(struct xt_connmark_mtinfo1),
+	.destroy        = connmark_mt_destroy,
+	.me             = THIS_MODULE,
 };
 
 static int __init connmark_mt_init(void)
 {
-	return xt_register_matches(connmark_mt_reg,
-	       ARRAY_SIZE(connmark_mt_reg));
+	return xt_register_match(&connmark_mt_reg);
 }
 
 static void __exit connmark_mt_exit(void)
 {
-	xt_unregister_matches(connmark_mt_reg, ARRAY_SIZE(connmark_mt_reg));
+	xt_unregister_match(&connmark_mt_reg);
 }
 
 module_init(connmark_mt_init);

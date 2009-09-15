@@ -25,7 +25,7 @@ static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
 	return x;
 }
 
-void gfs2_jindex_free(struct gfs2_sbd *sdp);
+extern void gfs2_jindex_free(struct gfs2_sbd *sdp);
 
 extern int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *data);
 
@@ -36,7 +36,7 @@ extern int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 				     struct gfs2_inode **ipp);
 
 extern int gfs2_make_fs_rw(struct gfs2_sbd *sdp);
-
+extern void gfs2_online_uevent(struct gfs2_sbd *sdp);
 extern int gfs2_statfs_init(struct gfs2_sbd *sdp);
 extern void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 			       s64 dinodes);
@@ -54,6 +54,7 @@ extern struct file_system_type gfs2meta_fs_type;
 extern const struct export_operations gfs2_export_ops;
 extern const struct super_operations gfs2_super_ops;
 extern const struct dentry_operations gfs2_dops;
+extern struct xattr_handler *gfs2_xattr_handlers[];
 
 #endif /* __SUPER_DOT_H__ */
 

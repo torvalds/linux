@@ -16,6 +16,12 @@
 #include <linux/platform_device.h>
 
 /*
+ * WM97xx variants
+ */
+#define	WM97xx_GENERIC			0x0000
+#define	WM97xx_WM1613			0x1613
+
+/*
  * WM97xx AC97 Touchscreen registers
  */
 #define AC97_WM97XX_DIGITISER1		0x76
@@ -283,6 +289,7 @@ struct wm97xx {
 	unsigned pen_is_down:1;		/* Pen is down */
 	unsigned aux_waiting:1;		/* aux measurement waiting */
 	unsigned pen_probably_down:1;	/* used in polling mode */
+	u16 variant;			/* WM97xx chip variant */
 	u16 suspend_mode;               /* PRP in suspend mode */
 };
 

@@ -3134,7 +3134,7 @@ static int at76_tx(struct sk_buff *skb, struct net_device *netdev)
 		       netdev->name, __func__);
 		/* skip this packet */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (priv->tx_urb->status == -EINPROGRESS) {
@@ -3142,14 +3142,14 @@ static int at76_tx(struct sk_buff *skb, struct net_device *netdev)
 		       netdev->name, __func__);
 		/* skip this packet */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (skb->len < ETH_HLEN) {
 		printk(KERN_ERR "%s: %s: skb too short (%d)\n",
 		       netdev->name, __func__, skb->len);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	at76_ledtrig_tx_activity();	/* tell ledtrigger we send a packet */
@@ -3173,7 +3173,7 @@ static int at76_tx(struct sk_buff *skb, struct net_device *netdev)
 			       skb->data[ETH_HLEN + 1],
 			       skb->data[ETH_HLEN + 2]);
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	} else {
 		/* add RFC 1042 header in front */
@@ -3396,7 +3396,7 @@ static u32 at76_ethtool_get_link(struct net_device *netdev)
 	return priv->mac_state == MAC_CONNECTED;
 }
 
-static struct ethtool_ops at76_ethtool_ops = {
+static const struct ethtool_ops at76_ethtool_ops = {
 	.get_drvinfo = at76_ethtool_get_drvinfo,
 	.get_link = at76_ethtool_get_link,
 };

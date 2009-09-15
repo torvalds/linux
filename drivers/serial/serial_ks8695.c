@@ -110,7 +110,11 @@ static struct console ks8695_console;
 static void ks8695uart_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
-		disable_irq(KS8695_IRQ_UART_TX);
+		/* use disable_irq_nosync() and not disable_irq() to avoid self
+		 * imposed deadlock by not waiting for irq handler to end,
+		 * since this ks8695uart_stop_tx() is called from interrupt context.
+		 */
+		disable_irq_nosync(KS8695_IRQ_UART_TX);
 		tx_enable(port, 0);
 	}
 }

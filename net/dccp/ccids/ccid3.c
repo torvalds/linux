@@ -52,7 +52,7 @@ static int ccid3_debug;
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
-	static char *ccid3_state_names[] = {
+	static const char *const ccid3_state_names[] = {
 	[TFRC_SSTATE_NO_SENT]  = "NO_SENT",
 	[TFRC_SSTATE_NO_FBACK] = "NO_FBACK",
 	[TFRC_SSTATE_FBACK]    = "FBACK",
@@ -646,7 +646,7 @@ enum ccid3_fback_type {
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
-	static char *ccid3_rx_state_names[] = {
+	static const char *const ccid3_rx_state_names[] = {
 	[TFRC_RSTATE_NO_DATA] = "NO_DATA",
 	[TFRC_RSTATE_DATA]    = "DATA",
 	[TFRC_RSTATE_TERM]    = "TERM",

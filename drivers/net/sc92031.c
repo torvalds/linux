@@ -941,7 +941,8 @@ static struct net_device_stats *sc92031_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;

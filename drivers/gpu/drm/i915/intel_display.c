@@ -2005,7 +2005,21 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	return;
 }
 
-const static int latency_ns = 3000; /* default for non-igd platforms */
+/*
+ * Latency for FIFO fetches is dependent on several factors:
+ *   - memory configuration (speed, channels)
+ *   - chipset
+ *   - current MCH state
+ * It can be fairly high in some situations, so here we assume a fairly
+ * pessimal value.  It's a tradeoff between extra memory fetches (if we
+ * set this value too high, the FIFO will fetch frequently to stay full)
+ * and power consumption (set it too low to save power and we might see
+ * FIFO underruns and display "flicker").
+ *
+ * A value of 5us seems to be a good balance; safe for very low end
+ * platforms but not overly aggressive on lower latency configs.
+ */
+const static int latency_ns = 5000;
 
 static int intel_get_fifo_size(struct drm_device *dev, int plane)
 {

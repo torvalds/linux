@@ -22,6 +22,8 @@
 #ifndef __CRYPTO4XX_CORE_H__
 #define __CRYPTO4XX_CORE_H__
 
+#include <crypto/internal/hash.h>
+
 #define PPC460SX_SDR0_SRST                      0x201
 #define PPC405EX_SDR0_SRST                      0x200
 #define PPC460EX_SDR0_SRST                      0x201
@@ -138,14 +140,31 @@ struct crypto4xx_req_ctx {
 	u16 sa_len;
 };
 
+struct crypto4xx_alg_common {
+	u32 type;
+	union {
+		struct crypto_alg cipher;
+		struct ahash_alg hash;
+	} u;
+};
+
 struct crypto4xx_alg {
 	struct list_head  entry;
-	struct crypto_alg alg;
+	struct crypto4xx_alg_common alg;
 	struct crypto4xx_device *dev;
 };
 
-#define crypto_alg_to_crypto4xx_alg(x) \
-		container_of(x, struct crypto4xx_alg, alg)
+static inline struct crypto4xx_alg *crypto_alg_to_crypto4xx_alg(
+	struct crypto_alg *x)
+{
+	switch (x->cra_flags & CRYPTO_ALG_TYPE_MASK) {
+	case CRYPTO_ALG_TYPE_AHASH:
+		return container_of(__crypto_ahash_alg(x),
+				    struct crypto4xx_alg, alg.u.hash);
+	}
+
+	return container_of(x, struct crypto4xx_alg, alg.u.cipher);
+}
 
 extern int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 extern void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);

@@ -83,6 +83,11 @@ struct netlink_sock {
 	struct module		*module;
 };
 
+struct listeners_rcu_head {
+	struct rcu_head rcu_head;
+	void *ptr;
+};
+
 #define NETLINK_KERNEL_SOCKET	0x1
 #define NETLINK_RECV_PKTINFO	0x2
 #define NETLINK_BROADCAST_SEND_ERROR	0x4
@@ -1356,7 +1361,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	int noblock = flags&MSG_DONTWAIT;
 	size_t copied;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *frag __maybe_unused = NULL;
 	int err;
 
 	if (flags&MSG_OOB)
@@ -1367,6 +1372,35 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (skb == NULL)
 		goto out;
+
+#ifdef CONFIG_COMPAT_NETLINK_MESSAGES
+	if (unlikely(skb_shinfo(skb)->frag_list)) {
+		bool need_compat = !!(flags & MSG_CMSG_COMPAT);
+
+		/*
+		 * If this skb has a frag_list, then here that means that
+		 * we will have to use the frag_list skb for compat tasks
+		 * and the regular skb for non-compat tasks.
+		 *
+		 * The skb might (and likely will) be cloned, so we can't
+		 * just reset frag_list and go on with things -- we need to
+		 * keep that. For the compat case that's easy -- simply get
+		 * a reference to the compat skb and free the regular one
+		 * including the frag. For the non-compat case, we need to
+		 * avoid sending the frag to the user -- so assign NULL but
+		 * restore it below before freeing the skb.
+		 */
+		if (need_compat) {
+			struct sk_buff *compskb = skb_shinfo(skb)->frag_list;
+			skb_get(compskb);
+			kfree_skb(skb);
+			skb = compskb;
+		} else {
+			frag = skb_shinfo(skb)->frag_list;
+			skb_shinfo(skb)->frag_list = NULL;
+		}
+	}
+#endif
 
 	msg->msg_namelen = 0;
 
@@ -1398,6 +1432,11 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	siocb->scm->creds = *NETLINK_CREDS(skb);
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
+
+#ifdef CONFIG_COMPAT_NETLINK_MESSAGES
+	skb_shinfo(skb)->frag_list = frag;
+#endif
+
 	skb_free_datagram(sk, skb);
 
 	if (nlk->cb && atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2)
@@ -1453,7 +1492,8 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 	if (groups < 32)
 		groups = 32;
 
-	listeners = kzalloc(NLGRPSZ(groups), GFP_KERNEL);
+	listeners = kzalloc(NLGRPSZ(groups) + sizeof(struct listeners_rcu_head),
+			    GFP_KERNEL);
 	if (!listeners)
 		goto out_sock_release;
 
@@ -1501,6 +1541,14 @@ netlink_kernel_release(struct sock *sk)
 EXPORT_SYMBOL(netlink_kernel_release);
 
 
+static void netlink_free_old_listeners(struct rcu_head *rcu_head)
+{
+	struct listeners_rcu_head *lrh;
+
+	lrh = container_of(rcu_head, struct listeners_rcu_head, rcu_head);
+	kfree(lrh->ptr);
+}
+
 /**
  * netlink_change_ngroups - change number of multicast groups
  *
@@ -1516,6 +1564,7 @@ EXPORT_SYMBOL(netlink_kernel_release);
 int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 {
 	unsigned long *listeners, *old = NULL;
+	struct listeners_rcu_head *old_rcu_head;
 	struct netlink_table *tbl = &nl_table[sk->sk_protocol];
 	int err = 0;
 
@@ -1524,7 +1573,9 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 
 	netlink_table_grab();
 	if (NLGRPSZ(tbl->groups) < NLGRPSZ(groups)) {
-		listeners = kzalloc(NLGRPSZ(groups), GFP_ATOMIC);
+		listeners = kzalloc(NLGRPSZ(groups) +
+				    sizeof(struct listeners_rcu_head),
+				    GFP_ATOMIC);
 		if (!listeners) {
 			err = -ENOMEM;
 			goto out_ungrab;
@@ -1532,16 +1583,24 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 		old = tbl->listeners;
 		memcpy(listeners, old, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, listeners);
+		/*
+		 * Free the old memory after an RCU grace period so we
+		 * don't leak it. We use call_rcu() here in order to be
+		 * able to call this function from atomic contexts. The
+		 * allocation of this memory will have reserved enough
+		 * space for struct listeners_rcu_head at the end.
+		 */
+		old_rcu_head = (void *)(tbl->listeners +
+					NLGRPLONGS(tbl->groups));
+		old_rcu_head->ptr = old;
+		call_rcu(&old_rcu_head->rcu_head, netlink_free_old_listeners);
 	}
 	tbl->groups = groups;
 
  out_ungrab:
 	netlink_table_ungrab();
-	synchronize_rcu();
-	kfree(old);
 	return err;
 }
-EXPORT_SYMBOL(netlink_change_ngroups);
 
 /**
  * netlink_clear_multicast_users - kick off multicast listeners
@@ -1564,7 +1623,6 @@ void netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
 
 	netlink_table_ungrab();
 }
-EXPORT_SYMBOL(netlink_clear_multicast_users);
 
 void netlink_set_nonroot(int protocol, unsigned int flags)
 {
@@ -1647,7 +1705,7 @@ errout:
 }
 
 int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
-		       struct nlmsghdr *nlh,
+		       const struct nlmsghdr *nlh,
 		       int (*dump)(struct sk_buff *skb,
 				   struct netlink_callback *),
 		       int (*done)(struct netlink_callback *))

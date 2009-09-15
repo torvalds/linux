@@ -168,6 +168,7 @@ struct bchannel {
 extern int	mISDN_initdchannel(struct dchannel *, int, void *);
 extern int	mISDN_initbchannel(struct bchannel *, int);
 extern int	mISDN_freedchannel(struct dchannel *);
+extern void	mISDN_clear_bchannel(struct bchannel *);
 extern int	mISDN_freebchannel(struct bchannel *);
 extern void	queue_ch_frame(struct mISDNchannel *, u_int,
 			int, struct sk_buff *);

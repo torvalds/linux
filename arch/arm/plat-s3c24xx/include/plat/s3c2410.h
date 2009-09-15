@@ -14,6 +14,7 @@
 #ifdef CONFIG_CPU_S3C2410
 
 extern  int s3c2410_init(void);
+extern  int s3c2410a_init(void);
 
 extern void s3c2410_map_io(void);
 

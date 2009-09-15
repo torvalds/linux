@@ -32,6 +32,8 @@
 #include <linux/leds.h>
 #include <linux/string.h>
 #include <linux/etherdevice.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
@@ -206,6 +208,12 @@ static struct resource usb_res[] = {
 
 static struct physmap_flash_data physmap_flash_data = {
 	.width = 2,
+};
+
+static struct fixed_phy_status fixed_phy_status __initdata = {
+	.link = 1,
+	.speed = 100,
+	.duplex = 1,
 };
 
 static struct plat_cpmac_data cpmac_low_data = {
@@ -530,6 +538,9 @@ static int __init ar7_register_devices(void)
 	}
 
 	if (ar7_has_high_cpmac()) {
+		res = fixed_phy_add(PHY_POLL, cpmac_high.id, &fixed_phy_status);
+		if (res && res != -ENODEV)
+			return res;
 		cpmac_get_mac(1, cpmac_high_data.dev_addr);
 		res = platform_device_register(&cpmac_high);
 		if (res)
@@ -537,6 +548,10 @@ static int __init ar7_register_devices(void)
 	} else {
 		cpmac_low_data.phy_mask = 0xffffffff;
 	}
+
+	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status);
+	if (res && res != -ENODEV)
+		return res;
 
 	cpmac_get_mac(0, cpmac_low_data.dev_addr);
 	res = platform_device_register(&cpmac_low);

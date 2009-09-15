@@ -1,5 +1,5 @@
 /*
- *  Driver for C-Media's CMI8330 soundcards.
+ *  Driver for C-Media's CMI8330 and CMI8329 soundcards.
  *  Copyright (c) by George Talusan <gstalusan@uwaterloo.ca>
  *    http://www.undergrad.math.uwaterloo.ca/~gstalusa
  *
@@ -35,7 +35,7 @@
  *
  *  This card has two mixers and two PCM devices.  I've cheesed it such
  *  that recording and playback can be done through the same device.
- *  The driver "magically" routes the capturing to the CMI8330 codec,
+ *  The driver "magically" routes the capturing to the AD1848 codec,
  *  and playback to the SB16 codec.  This allows for full-duplex mode
  *  to some extent.
  *  The utilities in alsa-utils are aware of both devices, so passing
@@ -64,7 +64,7 @@
 /*
  */
 MODULE_AUTHOR("George Talusan <gstalusan@uwaterloo.ca>");
-MODULE_DESCRIPTION("C-Media CMI8330");
+MODULE_DESCRIPTION("C-Media CMI8330/CMI8329");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8330,isapnp:{CMI0001,@@@0001,@X@0001}}}");
 
@@ -86,38 +86,38 @@ static long mpuport[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static int mpuirq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
 
 module_param_array(index, int, NULL, 0444);
-MODULE_PARM_DESC(index, "Index value for CMI8330 soundcard.");
+MODULE_PARM_DESC(index, "Index value for CMI8330/CMI8329 soundcard.");
 module_param_array(id, charp, NULL, 0444);
-MODULE_PARM_DESC(id, "ID string  for CMI8330 soundcard.");
+MODULE_PARM_DESC(id, "ID string  for CMI8330/CMI8329 soundcard.");
 module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable CMI8330 soundcard.");
+MODULE_PARM_DESC(enable, "Enable CMI8330/CMI8329 soundcard.");
 #ifdef CONFIG_PNP
 module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "PnP detection for specified soundcard.");
 #endif
 
 module_param_array(sbport, long, NULL, 0444);
-MODULE_PARM_DESC(sbport, "Port # for CMI8330 SB driver.");
+MODULE_PARM_DESC(sbport, "Port # for CMI8330/CMI8329 SB driver.");
 module_param_array(sbirq, int, NULL, 0444);
-MODULE_PARM_DESC(sbirq, "IRQ # for CMI8330 SB driver.");
+MODULE_PARM_DESC(sbirq, "IRQ # for CMI8330/CMI8329 SB driver.");
 module_param_array(sbdma8, int, NULL, 0444);
-MODULE_PARM_DESC(sbdma8, "DMA8 for CMI8330 SB driver.");
+MODULE_PARM_DESC(sbdma8, "DMA8 for CMI8330/CMI8329 SB driver.");
 module_param_array(sbdma16, int, NULL, 0444);
-MODULE_PARM_DESC(sbdma16, "DMA16 for CMI8330 SB driver.");
+MODULE_PARM_DESC(sbdma16, "DMA16 for CMI8330/CMI8329 SB driver.");
 
 module_param_array(wssport, long, NULL, 0444);
-MODULE_PARM_DESC(wssport, "Port # for CMI8330 WSS driver.");
+MODULE_PARM_DESC(wssport, "Port # for CMI8330/CMI8329 WSS driver.");
 module_param_array(wssirq, int, NULL, 0444);
-MODULE_PARM_DESC(wssirq, "IRQ # for CMI8330 WSS driver.");
+MODULE_PARM_DESC(wssirq, "IRQ # for CMI8330/CMI8329 WSS driver.");
 module_param_array(wssdma, int, NULL, 0444);
-MODULE_PARM_DESC(wssdma, "DMA for CMI8330 WSS driver.");
+MODULE_PARM_DESC(wssdma, "DMA for CMI8330/CMI8329 WSS driver.");
 
 module_param_array(fmport, long, NULL, 0444);
-MODULE_PARM_DESC(fmport, "FM port # for CMI8330 driver.");
+MODULE_PARM_DESC(fmport, "FM port # for CMI8330/CMI8329 driver.");
 module_param_array(mpuport, long, NULL, 0444);
-MODULE_PARM_DESC(mpuport, "MPU-401 port # for CMI8330 driver.");
+MODULE_PARM_DESC(mpuport, "MPU-401 port # for CMI8330/CMI8329 driver.");
 module_param_array(mpuirq, int, NULL, 0444);
-MODULE_PARM_DESC(mpuirq, "IRQ # for CMI8330 MPU-401 port.");
+MODULE_PARM_DESC(mpuirq, "IRQ # for CMI8330/CMI8329 MPU-401 port.");
 #ifdef CONFIG_PNP
 static int isa_registered;
 static int pnp_registered;
@@ -156,6 +156,11 @@ static unsigned char snd_cmi8330_image[((CMI8330_CDINGAIN)-16) + 1] =
 
 typedef int (*snd_pcm_open_callback_t)(struct snd_pcm_substream *);
 
+enum card_type {
+	CMI8330,
+	CMI8329
+};
+
 struct snd_cmi8330 {
 #ifdef CONFIG_PNP
 	struct pnp_dev *cap;
@@ -172,11 +177,14 @@ struct snd_cmi8330 {
 		snd_pcm_open_callback_t open;
 		void *private_data; /* sb or wss */
 	} streams[2];
+
+	enum card_type type;
 };
 
 #ifdef CONFIG_PNP
 
 static struct pnp_card_device_id snd_cmi8330_pnpids[] = {
+	{ .id = "CMI0001", .devs = { { "@X@0001" }, { "@@@0001" }, { "@H@0001" }, { "A@@0001" } } },
 	{ .id = "CMI0001", .devs = { { "@@@0001" }, { "@X@0001" }, { "@H@0001" } } },
 	{ .id = "" }
 };
@@ -304,7 +312,7 @@ static int __devinit snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330
 	unsigned int idx;
 	int err;
 
-	strcpy(card->mixername, "CMI8330/C3D");
+	strcpy(card->mixername, (acard->type == CMI8329) ? "CMI8329" : "CMI8330/C3D");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_cmi8330_controls); idx++) {
 		err = snd_ctl_add(card,
@@ -329,6 +337,9 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	struct pnp_dev *pdev;
 	int err;
 
+	/* CMI8329 has a device with ID A@@0001, CMI8330 does not */
+	acard->type = (id->devs[3].id[0]) ? CMI8329 : CMI8330;
+
 	acard->cap = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->cap == NULL)
 		return -EBUSY;
@@ -345,38 +356,45 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		snd_printk(KERN_ERR "CMI8330/C3D PnP configure failure\n");
+		snd_printk(KERN_ERR "AD1848 PnP configure failure\n");
 		return -EBUSY;
 	}
 	wssport[dev] = pnp_port_start(pdev, 0);
 	wssdma[dev] = pnp_dma(pdev, 0);
 	wssirq[dev] = pnp_irq(pdev, 0);
-	fmport[dev] = pnp_port_start(pdev, 1);
+	if (pnp_port_start(pdev, 1))
+		fmport[dev] = pnp_port_start(pdev, 1);
 
 	/* allocate SB16 resources */
 	pdev = acard->play;
 
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		snd_printk(KERN_ERR "CMI8330/C3D (SB16) PnP configure failure\n");
+		snd_printk(KERN_ERR "SB16 PnP configure failure\n");
 		return -EBUSY;
 	}
 	sbport[dev] = pnp_port_start(pdev, 0);
 	sbdma8[dev] = pnp_dma(pdev, 0);
 	sbdma16[dev] = pnp_dma(pdev, 1);
 	sbirq[dev] = pnp_irq(pdev, 0);
+	/* On CMI8239, the OPL3 port might be present in SB16 PnP resources */
+	if (fmport[dev] == SNDRV_AUTO_PORT) {
+		if (pnp_port_start(pdev, 1))
+			fmport[dev] = pnp_port_start(pdev, 1);
+		else
+			fmport[dev] = 0x388;	/* Or hardwired */
+	}
 
 	/* allocate MPU-401 resources */
 	pdev = acard->mpu;
 
 	err = pnp_activate_dev(pdev);
-	if (err < 0) {
-		snd_printk(KERN_ERR
-			   "CMI8330/C3D (MPU-401) PnP configure failure\n");
-		return -EBUSY;
+	if (err < 0)
+		snd_printk(KERN_ERR "MPU-401 PnP configure failure: will be disabled\n");
+	else {
+		mpuport[dev] = pnp_port_start(pdev, 0);
+		mpuirq[dev] = pnp_irq(pdev, 0);
 	}
-	mpuport[dev] = pnp_port_start(pdev, 0);
-	mpuirq[dev] = pnp_irq(pdev, 0);
 	return 0;
 }
 #endif
@@ -430,9 +448,9 @@ static int __devinit snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *
 		snd_cmi8330_capture_open
 	};
 
-	if ((err = snd_pcm_new(card, "CMI8330", 0, 1, 1, &pcm)) < 0)
+	if ((err = snd_pcm_new(card, (chip->type == CMI8329) ? "CMI8329" : "CMI8330", 0, 1, 1, &pcm)) < 0)
 		return err;
-	strcpy(pcm->name, "CMI8330");
+	strcpy(pcm->name, (chip->type == CMI8329) ? "CMI8329" : "CMI8330");
 	pcm->private_data = chip;
 	
 	/* SB16 */
@@ -527,11 +545,11 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 			     wssdma[dev], -1,
 			     WSS_HW_DETECT, 0, &acard->wss);
 	if (err < 0) {
-		snd_printk(KERN_ERR PFX "(CMI8330) device busy??\n");
+		snd_printk(KERN_ERR PFX "AD1848 device busy??\n");
 		return err;
 	}
 	if (acard->wss->hardware != WSS_HW_CMI8330) {
-		snd_printk(KERN_ERR PFX "(CMI8330) not found during probe\n");
+		snd_printk(KERN_ERR PFX "AD1848 not found during probe\n");
 		return -ENODEV;
 	}
 
@@ -541,11 +559,11 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 				    sbdma8[dev],
 				    sbdma16[dev],
 				    SB_HW_AUTO, &acard->sb)) < 0) {
-		snd_printk(KERN_ERR PFX "(SB16) device busy??\n");
+		snd_printk(KERN_ERR PFX "SB16 device busy??\n");
 		return err;
 	}
 	if (acard->sb->hardware != SB_HW_16) {
-		snd_printk(KERN_ERR PFX "(SB16) not found during probe\n");
+		snd_printk(KERN_ERR PFX "SB16 not found during probe\n");
 		return err;
 	}
 
@@ -585,8 +603,8 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 				mpuport[dev]);
 	}
 
-	strcpy(card->driver, "CMI8330/C3D");
-	strcpy(card->shortname, "C-Media CMI8330/C3D");
+	strcpy(card->driver, (acard->type == CMI8329) ? "CMI8329" : "CMI8330/C3D");
+	strcpy(card->shortname, (acard->type == CMI8329) ? "C-Media CMI8329" : "C-Media CMI8330/C3D");
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
 		card->shortname,
 		acard->wss->port,

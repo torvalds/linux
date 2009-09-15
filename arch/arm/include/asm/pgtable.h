@@ -162,10 +162,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
  * entries are stored 1024 bytes below.
  */
 #define L_PTE_PRESENT		(1 << 0)
-#define L_PTE_FILE		(1 << 1)	/* only when !PRESENT */
 #define L_PTE_YOUNG		(1 << 1)
-#define L_PTE_BUFFERABLE	(1 << 2)	/* obsolete, matches PTE */
-#define L_PTE_CACHEABLE		(1 << 3)	/* obsolete, matches PTE */
+#define L_PTE_FILE		(1 << 2)	/* only when !PRESENT */
 #define L_PTE_DIRTY		(1 << 6)
 #define L_PTE_WRITE		(1 << 7)
 #define L_PTE_USER		(1 << 8)
@@ -264,10 +262,19 @@ extern struct page *empty_zero_page;
 #define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 #define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-#define pte_offset_map(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-#define pte_offset_map_nested(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-#define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
+
+#define pte_offset_map(dir,addr)	(__pte_map(dir, KM_PTE0) + __pte_index(addr))
+#define pte_offset_map_nested(dir,addr)	(__pte_map(dir, KM_PTE1) + __pte_index(addr))
+#define pte_unmap(pte)			__pte_unmap(pte, KM_PTE0)
+#define pte_unmap_nested(pte)		__pte_unmap(pte, KM_PTE1)
+
+#ifndef CONFIG_HIGHPTE
+#define __pte_map(dir,km)	pmd_page_vaddr(*(dir))
+#define __pte_unmap(pte,km)	do { } while (0)
+#else
+#define __pte_map(dir,km)	((pte_t *)kmap_atomic(pmd_page(*(dir)), km) + PTRS_PER_PTE)
+#define __pte_unmap(pte,km)	kunmap_atomic((pte - PTRS_PER_PTE), km)
+#endif
 
 #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
 
@@ -381,13 +388,13 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  *
  *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- *   <--------------- offset --------------------> <--- type --> 0 0
+ *   <--------------- offset --------------------> <- type --> 0 0 0
  *
- * This gives us up to 127 swap files and 32GB per swap file.  Note that
+ * This gives us up to 63 swap files and 32GB per swap file.  Note that
  * the offset field is always non-zero.
  */
-#define __SWP_TYPE_SHIFT	2
-#define __SWP_TYPE_BITS		7
+#define __SWP_TYPE_SHIFT	3
+#define __SWP_TYPE_BITS		6
 #define __SWP_TYPE_MASK		((1 << __SWP_TYPE_BITS) - 1)
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
 
@@ -411,13 +418,13 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  *
  *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- *   <------------------------ offset -------------------------> 1 0
+ *   <----------------------- offset ------------------------> 1 0 0
  */
 #define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 2)
-#define pgoff_to_pte(x)		__pte(((x) << 2) | L_PTE_FILE)
+#define pte_to_pgoff(x)		(pte_val(x) >> 3)
+#define pgoff_to_pte(x)		__pte(((x) << 3) | L_PTE_FILE)
 
-#define PTE_FILE_MAX_BITS	30
+#define PTE_FILE_MAX_BITS	29
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */

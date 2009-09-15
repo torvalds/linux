@@ -43,7 +43,13 @@
 #define  TG3PCI_DEVICE_TIGON3_57780	 0x1692
 #define  TG3PCI_DEVICE_TIGON3_57760	 0x1690
 #define  TG3PCI_DEVICE_TIGON3_57790	 0x1694
-#define  TG3PCI_DEVICE_TIGON3_57720	 0x168c
+#define  TG3PCI_DEVICE_TIGON3_57788	 0x1691
+#define  TG3PCI_DEVICE_TIGON3_5785_G	 0x1699 /* GPHY */
+#define  TG3PCI_DEVICE_TIGON3_5785_F	 0x16a0 /* 10/100 only */
+#define  TG3PCI_DEVICE_TIGON3_5717C	 0x1655
+#define  TG3PCI_DEVICE_TIGON3_5717S	 0x1656
+#define  TG3PCI_DEVICE_TIGON3_5718C	 0x1665
+#define  TG3PCI_DEVICE_TIGON3_5718S	 0x1666
 /* 0x04 --> 0x64 unused */
 #define TG3PCI_MSI_DATA			0x00000064
 /* 0x66 --> 0x68 unused */
@@ -115,6 +121,7 @@
 #define   ASIC_REV_5761			 0x5761
 #define   ASIC_REV_5785			 0x5785
 #define   ASIC_REV_57780		 0x57780
+#define   ASIC_REV_5717			 0x5717
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -201,22 +208,24 @@
 #define TG3PCI_MEM_WIN_BASE_ADDR	0x0000007c
 #define TG3PCI_REG_DATA			0x00000080
 #define TG3PCI_MEM_WIN_DATA		0x00000084
-#define TG3PCI_MODE_CTRL		0x00000088
-#define TG3PCI_MISC_CFG			0x0000008c
 #define TG3PCI_MISC_LOCAL_CTRL		0x00000090
 /* 0x94 --> 0x98 unused */
 #define TG3PCI_STD_RING_PROD_IDX	0x00000098 /* 64-bit */
 #define TG3PCI_RCV_RET_RING_CON_IDX	0x000000a0 /* 64-bit */
-#define TG3PCI_SND_PROD_IDX		0x000000a8 /* 64-bit */
-/* 0xb0 --> 0xb8 unused */
+/* 0xa0 --> 0xb8 unused */
 #define TG3PCI_DUAL_MAC_CTRL		0x000000b8
 #define  DUAL_MAC_CTRL_CH_MASK		 0x00000003
 #define  DUAL_MAC_CTRL_ID		 0x00000004
 #define TG3PCI_PRODID_ASICREV		0x000000bc
 #define  PROD_ID_ASIC_REV_MASK		 0x0fffffff
-/* 0xc0 --> 0x100 unused */
+/* 0xc0 --> 0xf4 unused */
 
-/* 0x100 --> 0x200 unused */
+#define TG3PCI_GEN2_PRODID_ASICREV	0x000000f4
+/* 0xf8 --> 0x200 unused */
+
+#define TG3_CORR_ERR_STAT		0x00000110
+#define  TG3_CORR_ERR_STAT_CLEAR	0xffffffff
+/* 0x114 --> 0x200 unused */
 
 /* Mailbox registers */
 #define MAILBOX_INTERRUPT_0		0x00000200 /* 64-bit */
@@ -442,6 +451,12 @@
 #define  RX_MODE_PROMISC		 0x00000100
 #define  RX_MODE_NO_CRC_CHECK		 0x00000200
 #define  RX_MODE_KEEP_VLAN_TAG		 0x00000400
+#define  RX_MODE_RSS_IPV4_HASH_EN	 0x00010000
+#define  RX_MODE_RSS_TCP_IPV4_HASH_EN	 0x00020000
+#define  RX_MODE_RSS_IPV6_HASH_EN	 0x00040000
+#define  RX_MODE_RSS_TCP_IPV6_HASH_EN	 0x00080000
+#define  RX_MODE_RSS_ITBL_HASH_BITS_7	 0x00700000
+#define  RX_MODE_RSS_ENABLE		 0x00800000
 #define  RX_MODE_IPV6_CSUM_ENABLE	 0x01000000
 #define MAC_RX_STATUS			0x0000046c
 #define  RX_STATUS_REMOTE_TX_XOFFED	 0x00000001
@@ -522,6 +537,10 @@
 /* 0x598 --> 0x5a0 unused */
 #define MAC_PHYCFG1			0x000005a0
 #define  MAC_PHYCFG1_RGMII_INT		 0x00000001
+#define  MAC_PHYCFG1_RXCLK_TO_MASK	 0x00001ff0
+#define  MAC_PHYCFG1_RXCLK_TIMEOUT	 0x00001000
+#define  MAC_PHYCFG1_TXCLK_TO_MASK	 0x01ff0000
+#define  MAC_PHYCFG1_TXCLK_TIMEOUT	 0x01000000
 #define  MAC_PHYCFG1_RGMII_EXT_RX_DEC	 0x02000000
 #define  MAC_PHYCFG1_RGMII_SND_STAT_EN	 0x04000000
 #define  MAC_PHYCFG1_TXC_DRV		 0x20000000
@@ -675,6 +694,7 @@
 #define  SG_DIG_PARTNER_FULL_DUPLEX	 0x00020000 /* If !MRADV_CRC16_SELECT */
 #define  SG_DIG_PARTNER_NEXT_PAGE	 0x00010000 /* If !MRADV_CRC16_SELECT */
 #define  SG_DIG_AUTONEG_STATE_MASK	 0x00000ff0
+#define  SG_DIG_IS_SERDES		 0x00000100
 #define  SG_DIG_COMMA_DETECTOR		 0x00000008
 #define  SG_DIG_MAC_ACK_STATUS		 0x00000004
 #define  SG_DIG_AUTONEG_COMPLETE	 0x00000002
@@ -682,7 +702,22 @@
 /* 0x5b8 --> 0x600 unused */
 #define MAC_TX_MAC_STATE_BASE		0x00000600 /* 16 bytes */
 #define MAC_RX_MAC_STATE_BASE		0x00000610 /* 20 bytes */
-/* 0x624 --> 0x800 unused */
+/* 0x624 --> 0x670 unused */
+
+#define MAC_RSS_INDIR_TBL_0		0x00000630
+
+#define MAC_RSS_HASH_KEY_0		0x00000670
+#define MAC_RSS_HASH_KEY_1		0x00000674
+#define MAC_RSS_HASH_KEY_2		0x00000678
+#define MAC_RSS_HASH_KEY_3		0x0000067c
+#define MAC_RSS_HASH_KEY_4		0x00000680
+#define MAC_RSS_HASH_KEY_5		0x00000684
+#define MAC_RSS_HASH_KEY_6		0x00000688
+#define MAC_RSS_HASH_KEY_7		0x0000068c
+#define MAC_RSS_HASH_KEY_8		0x00000690
+#define MAC_RSS_HASH_KEY_9		0x00000694
+/* 0x698 --> 0x800 unused */
+
 #define MAC_TX_STATS_OCTETS		0x00000800
 #define MAC_TX_STATS_RESV1		0x00000804
 #define MAC_TX_STATS_COLLISIONS		0x00000808
@@ -814,6 +849,7 @@
 #define  SNDBDI_MODE_RESET		 0x00000001
 #define  SNDBDI_MODE_ENABLE		 0x00000002
 #define  SNDBDI_MODE_ATTN_ENABLE	 0x00000004
+#define  SNDBDI_MODE_MULTI_TXQ_EN	 0x00000020
 #define SNDBDI_STATUS			0x00001804
 #define  SNDBDI_STATUS_ERROR_ATTN	 0x00000004
 #define SNDBDI_IN_PROD_IDX_0		0x00001808
@@ -864,6 +900,7 @@
 #define  RCVLPC_STATSCTRL_ENABLE	 0x00000001
 #define  RCVLPC_STATSCTRL_FASTUPD	 0x00000002
 #define RCVLPC_STATS_ENABLE		0x00002018
+#define  RCVLPC_STATSENAB_ASF_FIX	 0x00000002
 #define  RCVLPC_STATSENAB_DACK_FIX	 0x00040000
 #define  RCVLPC_STATSENAB_LNGBRST_RFIX	 0x00400000
 #define RCVLPC_STATS_INCMASK		0x0000201c
@@ -941,7 +978,11 @@
 #define RCVBDI_MINI_THRESH		0x00002c14
 #define RCVBDI_STD_THRESH		0x00002c18
 #define RCVBDI_JUMBO_THRESH		0x00002c1c
-/* 0x2c20 --> 0x3000 unused */
+/* 0x2c20 --> 0x2d00 unused */
+
+#define STD_REPLENISH_LWM		0x00002d00
+#define JMB_REPLENISH_LWM		0x00002d04
+/* 0x2d08 --> 0x3000 unused */
 
 /* Receive BD Completion Control Registers */
 #define RCVCC_MODE			0x00003000
@@ -987,8 +1028,10 @@
 #define TG3_CPMU_HST_ACC		0x0000361c
 #define  CPMU_HST_ACC_MACCLK_MASK	 0x001f0000
 #define  CPMU_HST_ACC_MACCLK_6_25	 0x00130000
-/* 0x3620 --> 0x3630 unused */
+/* 0x3620 --> 0x362c unused */
 
+#define TG3_CPMU_STATUS			0x0000362c
+#define  TG3_CPMU_STATUS_PCIE_FUNC	 0x20000000
 #define TG3_CPMU_CLCK_STAT		0x00003630
 #define  CPMU_CLCK_STAT_MAC_CLCK_MASK	 0x001f0000
 #define  CPMU_CLCK_STAT_MAC_CLCK_62_5	 0x00000000
@@ -1022,6 +1065,7 @@
 #define  HOSTCC_MODE_CLRTICK_TXBD	 0x00000400
 #define  HOSTCC_MODE_NOINT_ON_NOW	 0x00000800
 #define  HOSTCC_MODE_NOINT_ON_FORCE	 0x00001000
+#define  HOSTCC_MODE_COAL_VEC1_NOW	 0x00002000
 #define HOSTCC_STATUS			0x00003c04
 #define  HOSTCC_STATUS_ERROR_ATTN	 0x00000004
 #define HOSTCC_RXCOL_TICKS		0x00003c08
@@ -1107,7 +1151,16 @@
 #define HOSTCC_SND_CON_IDX_13		0x00003cf4
 #define HOSTCC_SND_CON_IDX_14		0x00003cf8
 #define HOSTCC_SND_CON_IDX_15		0x00003cfc
-/* 0x3d00 --> 0x4000 unused */
+#define HOSTCC_STATBLCK_RING1		0x00003d00
+/* 0x3d00 --> 0x3d80 unused */
+
+#define HOSTCC_RXCOL_TICKS_VEC1		0x00003d80
+#define HOSTCC_TXCOL_TICKS_VEC1		0x00003d84
+#define HOSTCC_RXMAX_FRAMES_VEC1	0x00003d88
+#define HOSTCC_TXMAX_FRAMES_VEC1	0x00003d8c
+#define HOSTCC_RXCOAL_MAXF_INT_VEC1	0x00003d90
+#define HOSTCC_TXCOAL_MAXF_INT_VEC1	0x00003d94
+/* 0x3d98 --> 0x4000 unused */
 
 /* Memory arbiter control registers */
 #define MEMARB_MODE			0x00004000
@@ -1445,6 +1498,8 @@
 #define MSGINT_MODE			0x00006000
 #define  MSGINT_MODE_RESET		 0x00000001
 #define  MSGINT_MODE_ENABLE		 0x00000002
+#define  MSGINT_MODE_ONE_SHOT_DISABLE	 0x00000020
+#define  MSGINT_MODE_MULTIVEC_EN	 0x00000080
 #define MSGINT_STATUS			0x00006004
 #define MSGINT_FIFO			0x00006008
 /* 0x600c --> 0x6400 unused */
@@ -1640,6 +1695,25 @@
 #define  FLASH_57780VENDOR_ATMEL_AT45DB021B 0x03400002
 #define  FLASH_57780VENDOR_ATMEL_AT45DB041D 0x00400001
 #define  FLASH_57780VENDOR_ATMEL_AT45DB041B 0x03400001
+#define  FLASH_5717VENDOR_ATMEL_EEPROM	 0x02000001
+#define  FLASH_5717VENDOR_MICRO_EEPROM	 0x02000003
+#define  FLASH_5717VENDOR_ATMEL_MDB011D	 0x01000001
+#define  FLASH_5717VENDOR_ATMEL_MDB021D	 0x01000003
+#define  FLASH_5717VENDOR_ST_M_M25PE10	 0x02000000
+#define  FLASH_5717VENDOR_ST_M_M25PE20	 0x02000002
+#define  FLASH_5717VENDOR_ST_M_M45PE10	 0x00000001
+#define  FLASH_5717VENDOR_ST_M_M45PE20	 0x00000003
+#define  FLASH_5717VENDOR_ATMEL_ADB011B	 0x01400000
+#define  FLASH_5717VENDOR_ATMEL_ADB021B	 0x01400002
+#define  FLASH_5717VENDOR_ATMEL_ADB011D	 0x01400001
+#define  FLASH_5717VENDOR_ATMEL_ADB021D	 0x01400003
+#define  FLASH_5717VENDOR_ST_A_M25PE10	 0x02400000
+#define  FLASH_5717VENDOR_ST_A_M25PE20	 0x02400002
+#define  FLASH_5717VENDOR_ST_A_M45PE10	 0x02400001
+#define  FLASH_5717VENDOR_ST_A_M45PE20	 0x02400003
+#define  FLASH_5717VENDOR_ATMEL_45USPT	 0x03400000
+#define  FLASH_5717VENDOR_ST_25USPT	 0x03400002
+#define  FLASH_5717VENDOR_ST_45USPT	 0x03400001
 #define  NVRAM_CFG1_5752PAGE_SIZE_MASK	 0x70000000
 #define  FLASH_5752PAGE_SIZE_256	 0x00000000
 #define  FLASH_5752PAGE_SIZE_512	 0x10000000
@@ -1696,11 +1770,23 @@
 #define PCIE_TRANSACTION_CFG		0x00007c04
 #define PCIE_TRANS_CFG_1SHOT_MSI	 0x20000000
 #define PCIE_TRANS_CFG_LOM		 0x00000020
+/* 0x7c08 --> 0x7d28 unused */
 
 #define PCIE_PWR_MGMT_THRESH		0x00007d28
 #define PCIE_PWR_MGMT_L1_THRESH_MSK	 0x0000ff00
 #define PCIE_PWR_MGMT_L1_THRESH_4MS	 0x0000ff00
 #define PCIE_PWR_MGMT_EXT_ASPM_TMR_EN	 0x01000000
+/* 0x7d2c --> 0x7d54 unused */
+
+#define TG3_PCIE_LNKCTL			0x00007d54
+#define  TG3_PCIE_LNKCTL_L1_PLL_PD_EN	 0x00000008
+#define  TG3_PCIE_LNKCTL_L1_PLL_PD_DIS	 0x00000080
+/* 0x7d58 --> 0x7e70 unused */
+
+#define TG3_PCIE_EIDLE_DELAY		0x00007e70
+#define  TG3_PCIE_EIDLE_DELAY_MASK	 0x0000001f
+#define  TG3_PCIE_EIDLE_DELAY_13_CLKS	 0x0000000c
+/* 0x7e74 --> 0x8000 unused */
 
 
 /* OTP bit definitions */
@@ -1890,7 +1976,6 @@
 
 #define MII_TG3_DSP_RW_PORT		0x15 /* DSP coefficient read/write port */
 
-#define MII_TG3_EPHY_PTEST		0x17 /* 5906 PHY register */
 #define MII_TG3_DSP_ADDRESS		0x17 /* DSP address register */
 
 #define MII_TG3_DSP_TAP1		0x0001
@@ -1957,16 +2042,22 @@
 #define MII_TG3_MISC_SHDW_SCR5_LPED	0x0010
 #define MII_TG3_MISC_SHDW_SCR5_SEL	0x1400
 
-
-#define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
-#define MII_TG3_EPHY_SHADOW_EN		0x80
-
-#define MII_TG3_EPHYTST_MISCCTRL	0x10 /* 5906 EPHY misc ctrl shadow register */
-#define MII_TG3_EPHYTST_MISCCTRL_MDIX	0x4000
-
 #define MII_TG3_TEST1			0x1e
 #define MII_TG3_TEST1_TRIM_EN		0x0010
 #define MII_TG3_TEST1_CRC_EN		0x8000
+
+
+/* Fast Ethernet Tranceiver definitions */
+#define MII_TG3_FET_PTEST		0x17
+#define MII_TG3_FET_TEST		0x1f
+#define  MII_TG3_FET_SHADOW_EN		0x0080
+
+#define MII_TG3_FET_SHDW_MISCCTRL	0x10
+#define  MII_TG3_FET_SHDW_MISCCTRL_MDIX	0x4000
+
+#define MII_TG3_FET_SHDW_AUXSTAT2	0x1b
+#define  MII_TG3_FET_SHDW_AUXSTAT2_APD	0x0020
+
 
 /* APE registers.  Accessible through BAR1 */
 #define TG3_APE_EVENT			0x000c
@@ -2065,6 +2156,7 @@ struct tg3_tx_buffer_desc {
 #define TXD_FLAG_IP_CSUM		0x0002
 #define TXD_FLAG_END			0x0004
 #define TXD_FLAG_IP_FRAG		0x0008
+#define TXD_FLAG_JMB_PKT		0x0008
 #define TXD_FLAG_IP_FRAG_END		0x0010
 #define TXD_FLAG_VLAN			0x0040
 #define TXD_FLAG_COAL_NOW		0x0080
@@ -2450,6 +2542,49 @@ struct tg3_ethtool_stats {
 	u64		nic_tx_threshold_hit;
 };
 
+struct tg3_rx_prodring_set {
+	u32				rx_std_ptr;
+	u32				rx_jmb_ptr;
+	struct tg3_rx_buffer_desc	*rx_std;
+	struct tg3_ext_rx_buffer_desc	*rx_jmb;
+	struct ring_info		*rx_std_buffers;
+	struct ring_info		*rx_jmb_buffers;
+	dma_addr_t			rx_std_mapping;
+	dma_addr_t			rx_jmb_mapping;
+};
+
+#define TG3_IRQ_MAX_VECS 5
+
+struct tg3_napi {
+	struct napi_struct		napi	____cacheline_aligned;
+	struct tg3			*tp;
+	struct tg3_hw_status		*hw_status;
+
+	u32				last_tag;
+	u32				last_irq_tag;
+	u32				int_mbox;
+	u32				coal_now;
+	u32				tx_prod;
+	u32				tx_cons;
+	u32				tx_pending;
+	u32				prodmbox;
+
+	u32				consmbox;
+	u32				rx_rcb_ptr;
+	u16				*rx_rcb_prod_idx;
+
+	struct tg3_rx_buffer_desc	*rx_rcb;
+	struct tg3_tx_buffer_desc	*tx_ring;
+	struct tx_ring_info		*tx_buffers;
+
+	dma_addr_t			status_mapping;
+	dma_addr_t			rx_rcb_mapping;
+	dma_addr_t			tx_desc_mapping;
+
+	char				irq_lbl[IFNAMSIZ];
+	unsigned int			irq_vec;
+};
+
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
@@ -2502,50 +2637,26 @@ struct tg3 {
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
 
-	struct tg3_hw_status		*hw_status;
-	dma_addr_t			status_mapping;
-	u32				last_tag;
-	u32				last_irq_tag;
-
 	u32				msg_enable;
 
 	/* begin "tx thread" cacheline section */
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
 							    u32);
-	u32				tx_prod;
-	u32				tx_cons;
-	u32				tx_pending;
-
-	struct tg3_tx_buffer_desc	*tx_ring;
-	struct tx_ring_info		*tx_buffers;
-	dma_addr_t			tx_desc_mapping;
 
 	/* begin "rx thread" cacheline section */
-	struct napi_struct		napi;
+	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
-	u32				rx_rcb_ptr;
-	u32				rx_std_ptr;
-	u32				rx_jumbo_ptr;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
+	u32				rx_std_max_post;
+	u32				rx_pkt_map_sz;
 #if TG3_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
 #endif
 
-	struct tg3_rx_buffer_desc	*rx_std;
-	struct ring_info		*rx_std_buffers;
-	dma_addr_t			rx_std_mapping;
-	u32				rx_std_max_post;
+	struct tg3_rx_prodring_set	prodring[1];
 
-	struct tg3_rx_buffer_desc	*rx_jumbo;
-	struct ring_info		*rx_jumbo_buffers;
-	dma_addr_t			rx_jumbo_mapping;
-
-	struct tg3_rx_buffer_desc	*rx_rcb;
-	dma_addr_t			rx_rcb_mapping;
-
-	u32				rx_pkt_buf_sz;
 
 	/* begin "everything else" cacheline(s) section */
 	struct net_device_stats		net_stats;
@@ -2575,6 +2686,10 @@ struct tg3 {
 #define TG3_FLAG_EEPROM_WRITE_PROT	0x00001000
 #define TG3_FLAG_NVRAM			0x00002000
 #define TG3_FLAG_NVRAM_BUFFERED		0x00004000
+#define TG3_FLAG_SUPPORT_MSI		0x00008000
+#define TG3_FLAG_SUPPORT_MSIX		0x00010000
+#define TG3_FLAG_SUPPORT_MSI_OR_MSIX	(TG3_FLAG_SUPPORT_MSI | \
+					 TG3_FLAG_SUPPORT_MSIX)
 #define TG3_FLAG_PCIX_MODE		0x00020000
 #define TG3_FLAG_PCI_HIGH_SPEED		0x00040000
 #define TG3_FLAG_PCI_32BIT		0x00080000
@@ -2587,7 +2702,7 @@ struct tg3 {
 #define TG3_FLAG_CPMU_PRESENT		0x04000000
 #define TG3_FLAG_40BIT_DMA_BUG		0x08000000
 #define TG3_FLAG_BROKEN_CHECKSUMS	0x10000000
-#define TG3_FLAG_SUPPORT_MSI		0x20000000
+#define TG3_FLAG_JUMBO_CAPABLE		0x20000000
 #define TG3_FLAG_CHIP_RESETTING		0x40000000
 #define TG3_FLAG_INIT_COMPLETE		0x80000000
 	u32				tg3_flags2;
@@ -2613,7 +2728,9 @@ struct tg3 {
 #define TG3_FLG2_5750_PLUS		0x00080000
 #define TG3_FLG2_PROTECTED_NVRAM	0x00100000
 #define TG3_FLG2_USING_MSI		0x00200000
-#define TG3_FLG2_JUMBO_CAPABLE		0x00400000
+#define TG3_FLG2_USING_MSIX		0x00400000
+#define TG3_FLG2_USING_MSI_OR_MSIX	(TG3_FLG2_USING_MSI | \
+					TG3_FLG2_USING_MSIX)
 #define TG3_FLG2_MII_SERDES		0x00800000
 #define TG3_FLG2_ANY_SERDES		(TG3_FLG2_PHY_SERDES |	\
 					TG3_FLG2_MII_SERDES)
@@ -2641,6 +2758,9 @@ struct tg3 {
 #define TG3_FLG3_PHY_ENABLE_APD		0x00001000
 #define TG3_FLG3_5755_PLUS		0x00002000
 #define TG3_FLG3_NO_NVRAM		0x00004000
+#define TG3_FLG3_TOGGLE_10_100_L1PLLPD	0x00008000
+#define TG3_FLG3_PHY_IS_FET		0x00010000
+#define TG3_FLG3_ENABLE_RSS		0x00020000
 
 	struct timer_list		timer;
 	u16				timer_counter;
@@ -2685,6 +2805,8 @@ struct tg3 {
 
 	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
+
+	u8				phy_addr;
 
 	/* PHY info */
 	u32				phy_id;
@@ -2784,6 +2906,9 @@ struct tg3 {
 #define SAIFUN_SA25F0XX_PAGE_SIZE	256
 
 #define SST_25VF0X0_PAGE_SIZE		4098
+
+	unsigned int			irq_max;
+	unsigned int			irq_cnt;
 
 	struct ethtool_coalesce		coal;
 

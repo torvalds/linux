@@ -163,9 +163,9 @@ struct slave {
 	u32    original_flags;
 	u32    original_mtu;
 	u32    link_failure_count;
+	u8     perm_hwaddr[ETH_ALEN];
 	u16    speed;
 	u8     duplex;
-	u8     perm_hwaddr[ETH_ALEN];
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
 };

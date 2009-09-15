@@ -143,7 +143,8 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 
-			ieee80211_rx_irqsafe(dev, skb, &rx_status);
+			memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+			ieee80211_rx_irqsafe(dev, skb);
 
 			skb = new_skb;
 			priv->rx_buf[priv->rx_idx] = skb;
@@ -280,7 +281,7 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 				(ieee80211_get_tx_rate(dev, info)->bitrate * 2) / 10);
 		remainder = (16 * (skb->len + 4)) %
 			    ((ieee80211_get_tx_rate(dev, info)->bitrate * 2) / 10);
-		if (remainder > 0 && remainder <= 6)
+		if (remainder <= 6)
 			plcp_len |= 1 << 15;
 	}
 
@@ -727,10 +728,16 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	        priv->rf->conf_erp(dev, info);
 }
 
+static u64 rtl8180_prepare_multicast(struct ieee80211_hw *dev, int mc_count,
+				     struct dev_addr_list *mc_list)
+{
+	return mc_count;
+}
+
 static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 				     unsigned int changed_flags,
 				     unsigned int *total_flags,
-				     int mc_count, struct dev_addr_list *mclist)
+				     u64 multicast)
 {
 	struct rtl8180_priv *priv = dev->priv;
 
@@ -740,7 +747,7 @@ static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 		priv->rx_conf ^= RTL818X_RX_CONF_CTRL;
 	if (changed_flags & FIF_OTHER_BSS)
 		priv->rx_conf ^= RTL818X_RX_CONF_MONITOR;
-	if (*total_flags & FIF_ALLMULTI || mc_count > 0)
+	if (*total_flags & FIF_ALLMULTI || multicast > 0)
 		priv->rx_conf |= RTL818X_RX_CONF_MULTICAST;
 	else
 		priv->rx_conf &= ~RTL818X_RX_CONF_MULTICAST;
@@ -767,6 +774,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.remove_interface	= rtl8180_remove_interface,
 	.config			= rtl8180_config,
 	.bss_info_changed	= rtl8180_bss_info_changed,
+	.prepare_multicast	= rtl8180_prepare_multicast,
 	.configure_filter	= rtl8180_configure_filter,
 };
 

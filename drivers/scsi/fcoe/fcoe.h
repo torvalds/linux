@@ -37,8 +37,8 @@
 
 #define FCOE_MAX_OUTSTANDING_COMMANDS	1024
 
-#define FCOE_MIN_XID		0x0001	/* the min xid supported by fcoe_sw */
-#define FCOE_MAX_XID		0x07ef	/* the max xid supported by fcoe_sw */
+#define FCOE_MIN_XID		0x0000	/* the min xid supported by fcoe_sw */
+#define FCOE_MAX_XID		0x0FFF	/* the max xid supported by fcoe_sw */
 
 unsigned int fcoe_debug_logging;
 module_param_named(debug_logging, fcoe_debug_logging, int, S_IRUGO|S_IWUSR);
@@ -53,7 +53,7 @@ do {                                                            	\
 		do {							\
 			CMD;						\
 		} while (0);						\
-} while (0);
+} while (0)
 
 #define FCOE_DBG(fmt, args...)						\
 	FCOE_CHECK_LOGGING(FCOE_LOGGING,				\
@@ -61,7 +61,7 @@ do {                                                            	\
 
 #define FCOE_NETDEV_DBG(netdev, fmt, args...)			\
 	FCOE_CHECK_LOGGING(FCOE_NETDEV_LOGGING,			\
-			   printk(KERN_INFO "fcoe: %s" fmt,	\
+			   printk(KERN_INFO "fcoe: %s: " fmt,	\
 				  netdev->name, ##args);)
 
 /*
@@ -75,26 +75,36 @@ struct fcoe_percpu_s {
 };
 
 /*
- * the fcoe sw transport private data
+ * an FCoE interface, 1:1 with netdev
  */
-struct fcoe_softc {
+struct fcoe_interface {
 	struct list_head list;
-	struct net_device *real_dev;
-	struct net_device *phys_dev;		/* device with ethtool_ops */
+	struct net_device *netdev;
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;
+	struct fcoe_ctlr ctlr;
+	struct fc_exch_mgr *oem;		/* offload exchange manager */
+	struct kref kref;
+};
+
+/*
+ * the FCoE private structure that's allocated along with the
+ * Scsi_Host and libfc fc_lport structures
+ */
+struct fcoe_port {
+	struct fcoe_interface *fcoe;
+	struct fc_lport *lport;
 	struct sk_buff_head fcoe_pending_queue;
 	u8	fcoe_pending_queue_active;
 	struct timer_list timer;		/* queue timer */
-	struct fcoe_ctlr ctlr;
+	struct work_struct destroy_work;	/* to prevent rtnl deadlocks */
 };
 
-#define fcoe_from_ctlr(fc) container_of(fc, struct fcoe_softc, ctlr)
+#define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
 
-static inline struct net_device *fcoe_netdev(
-	const struct fc_lport *lp)
+static inline struct net_device *fcoe_netdev(const struct fc_lport *lp)
 {
-	return ((struct fcoe_softc *)lport_priv(lp))->real_dev;
+	return ((struct fcoe_port *)lport_priv(lp))->fcoe->netdev;
 }
 
 #endif /* _FCOE_H_ */

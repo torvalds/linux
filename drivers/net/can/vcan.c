@@ -83,7 +83,7 @@ static void vcan_rx(struct sk_buff *skb, struct net_device *dev)
 	netif_rx(skb);
 }
 
-static int vcan_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device_stats *stats = &dev->stats;
 	int loop;

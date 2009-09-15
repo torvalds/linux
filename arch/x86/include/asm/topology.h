@@ -129,25 +129,34 @@ extern unsigned long node_remap_size[];
 #endif
 
 /* sched_domains SD_NODE_INIT for NUMA machines */
-#define SD_NODE_INIT (struct sched_domain) {		\
-	.min_interval		= 8,			\
-	.max_interval		= 32,			\
-	.busy_factor		= 32,			\
-	.imbalance_pct		= 125,			\
-	.cache_nice_tries	= SD_CACHE_NICE_TRIES,	\
-	.busy_idx		= 3,			\
-	.idle_idx		= SD_IDLE_IDX,		\
-	.newidle_idx		= SD_NEWIDLE_IDX,	\
-	.wake_idx		= 1,			\
-	.forkexec_idx		= SD_FORKEXEC_IDX,	\
-	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_EXEC	\
-				| SD_BALANCE_FORK	\
-				| SD_WAKE_AFFINE	\
-				| SD_WAKE_BALANCE	\
-				| SD_SERIALIZE,		\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 1,			\
+#define SD_NODE_INIT (struct sched_domain) {				\
+	.min_interval		= 8,					\
+	.max_interval		= 32,					\
+	.busy_factor		= 32,					\
+	.imbalance_pct		= 125,					\
+	.cache_nice_tries	= SD_CACHE_NICE_TRIES,			\
+	.busy_idx		= 3,					\
+	.idle_idx		= SD_IDLE_IDX,				\
+	.newidle_idx		= SD_NEWIDLE_IDX,			\
+	.wake_idx		= 1,					\
+	.forkexec_idx		= SD_FORKEXEC_IDX,			\
+									\
+	.flags			= 1*SD_LOAD_BALANCE			\
+				| 1*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_EXEC			\
+				| 1*SD_BALANCE_FORK			\
+				| 0*SD_WAKE_IDLE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 1*SD_WAKE_BALANCE			\
+				| 0*SD_SHARE_CPUPOWER			\
+				| 0*SD_POWERSAVINGS_BALANCE		\
+				| 0*SD_SHARE_PKG_RESOURCES		\
+				| 1*SD_SERIALIZE			\
+				| 1*SD_WAKE_IDLE_FAR			\
+				| 0*SD_PREFER_SIBLING			\
+				,					\
+	.last_balance		= jiffies,				\
+	.balance_interval	= 1,					\
 }
 
 #ifdef CONFIG_X86_64_ACPI_NUMA

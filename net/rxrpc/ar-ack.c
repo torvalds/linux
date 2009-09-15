@@ -20,7 +20,7 @@
 
 static unsigned rxrpc_ack_defer = 1;
 
-static const char *rxrpc_acks[] = {
+static const char *const rxrpc_acks[] = {
 	"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY", "IDL",
 	"-?-"
 };

@@ -880,7 +880,7 @@ discard_and_relse:
 	goto discard_it;
 }
 
-static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
+static const struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.queue_xmit	   = ip_queue_xmit,
 	.send_check	   = dccp_v4_send_check,
 	.rebuild_header	   = inet_sk_rebuild_header,

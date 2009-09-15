@@ -2,7 +2,6 @@ config IWM
 	tristate "Intel Wireless Multicomm 3200 WiFi driver"
 	depends on MMC && WLAN_80211 && EXPERIMENTAL
 	depends on CFG80211
-	select WIRELESS_EXT
 	select FW_LOADER
 	help
 	  The Intel Wireless Multicomm 3200 hardware is a combo

@@ -97,7 +97,7 @@ struct iwl_scale_tbl_info {
 	enum iwl_table_type lq_type;
 	u8 ant_type;
 	u8 is_SGI;	/* 1 = short guard interval */
-	u8 is_fat;	/* 1 = 40 MHz channel width */
+	u8 is_ht40;	/* 1 = 40 MHz channel width */
 	u8 is_dup;	/* 1 = duplicated data streams */
 	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	u8 max_search;	/* maximun number of tables we can search */
@@ -177,7 +177,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 				   struct sk_buff *skb,
 				   struct ieee80211_sta *sta,
 				   struct iwl_lq_sta *lq_sta);
-static void rs_fill_link_cmd(const struct iwl_priv *priv,
+static void rs_fill_link_cmd(struct iwl_priv *priv,
 			     struct iwl_lq_sta *lq_sta, u32 rate_n_flags);
 
 
@@ -330,6 +330,9 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	} else
+		return MAX_TID_COUNT;
+
+	if (unlikely(tid >= TID_MAX_LOAD_COUNT))
 		return MAX_TID_COUNT;
 
 	tl = &lq_data->load[tid];
@@ -539,11 +542,11 @@ static u32 rate_n_flags_from_tbl(struct iwl_priv *priv,
 						     RATE_MCS_ANT_ABC_MSK);
 
 	if (is_Ht(tbl->lq_type)) {
-		if (tbl->is_fat) {
+		if (tbl->is_ht40) {
 			if (tbl->is_dup)
 				rate_n_flags |= RATE_MCS_DUP_MSK;
 			else
-				rate_n_flags |= RATE_MCS_FAT_MSK;
+				rate_n_flags |= RATE_MCS_HT40_MSK;
 		}
 		if (tbl->is_SGI)
 			rate_n_flags |= RATE_MCS_SGI_MSK;
@@ -579,7 +582,7 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 		return -EINVAL;
 	}
 	tbl->is_SGI = 0;	/* default legacy setup */
-	tbl->is_fat = 0;
+	tbl->is_ht40 = 0;
 	tbl->is_dup = 0;
 	tbl->ant_type = (ant_msk >> RATE_MCS_ANT_POS);
 	tbl->lq_type = LQ_NONE;
@@ -598,9 +601,9 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 		if (rate_n_flags & RATE_MCS_SGI_MSK)
 			tbl->is_SGI = 1;
 
-		if ((rate_n_flags & RATE_MCS_FAT_MSK) ||
+		if ((rate_n_flags & RATE_MCS_HT40_MSK) ||
 		    (rate_n_flags & RATE_MCS_DUP_MSK))
-			tbl->is_fat = 1;
+			tbl->is_ht40 = 1;
 
 		if (rate_n_flags & RATE_MCS_DUP_MSK)
 			tbl->is_dup = 1;
@@ -654,19 +657,15 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/* in 4965 we don't use greenfield at all */
-static inline u8 rs_use_green(struct iwl_priv *priv,
-			      struct ieee80211_conf *conf)
+/**
+ * Green-field mode is valid if the station supports it and
+ * there are no non-GF stations present in the BSS.
+ */
+static inline u8 rs_use_green(struct ieee80211_sta *sta,
+			      struct iwl_ht_info *ht_conf)
 {
-	u8 is_green;
-
-	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
-		is_green = 0;
-	else
-		is_green = (conf_is_ht(conf) &&
-			   priv->current_ht_config.is_green_field &&
-			   !priv->current_ht_config.non_GF_STA_present);
-	return is_green;
+	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
+		!(ht_conf->non_GF_STA_present);
 }
 
 /**
@@ -776,7 +775,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 		if (num_of_ant(tbl->ant_type) > 1)
 			tbl->ant_type = ANT_A;/*FIXME:RS*/
 
-		tbl->is_fat = 0;
+		tbl->is_ht40 = 0;
 		tbl->is_SGI = 0;
 		tbl->max_search = IWL_MAX_SEARCH;
 	}
@@ -819,15 +818,15 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 {
 	int status;
 	u8 retries;
-	int rs_index, index = 0;
+	int rs_index, mac_index, index = 0;
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_link_quality_cmd *table;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
-	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_rate_scale_data *window = NULL;
 	struct iwl_rate_scale_data *search_win = NULL;
+	enum mac80211_rate_control_flags mac_flags;
 	u32 tx_rate;
 	struct iwl_scale_tbl_info tbl_type;
 	struct iwl_scale_tbl_info *curr_tbl, *search_tbl;
@@ -877,17 +876,24 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type, &rs_index);
 	if (priv->band == IEEE80211_BAND_5GHZ)
 		rs_index -= IWL_FIRST_OFDM_RATE;
+	mac_flags = info->status.rates[0].flags;
+	mac_index = info->status.rates[0].idx;
+	/* For HT packets, map MCS to PLCP */
+	if (mac_flags & IEEE80211_TX_RC_MCS) {
+		mac_index &= RATE_MCS_CODE_MSK;	/* Remove # of streams */
+		if (mac_index >= (IWL_RATE_9M_INDEX - IWL_FIRST_OFDM_RATE))
+			mac_index++;
+	}
 
-	if ((info->status.rates[0].idx < 0) ||
-	    (tbl_type.is_SGI != !!(info->status.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)) ||
-	    (tbl_type.is_fat != !!(info->status.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) ||
-	    (tbl_type.is_dup != !!(info->status.rates[0].flags & IEEE80211_TX_RC_DUP_DATA)) ||
+	if ((mac_index < 0) ||
+	    (tbl_type.is_SGI != !!(mac_flags & IEEE80211_TX_RC_SHORT_GI)) ||
+	    (tbl_type.is_ht40 != !!(mac_flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) ||
+	    (tbl_type.is_dup != !!(mac_flags & IEEE80211_TX_RC_DUP_DATA)) ||
 	    (tbl_type.ant_type != info->antenna_sel_tx) ||
-	    (!!(tx_rate & RATE_MCS_HT_MSK) != !!(info->status.rates[0].flags & IEEE80211_TX_RC_MCS)) ||
-	    (!!(tx_rate & RATE_MCS_GF_MSK) != !!(info->status.rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
-	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
-	     hw->wiphy->bands[info->band]->bitrates[info->status.rates[0].idx].bitrate)) {
-		IWL_DEBUG_RATE(priv, "initial rate does not match 0x%x\n", tx_rate);
+	    (!!(tx_rate & RATE_MCS_HT_MSK) != !!(mac_flags & IEEE80211_TX_RC_MCS)) ||
+	    (!!(tx_rate & RATE_MCS_GF_MSK) != !!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
+	    (rs_index != mac_index)) {
+		IWL_DEBUG_RATE(priv, "initial rate %d does not match %d (0x%x)\n", mac_index, rs_index, tx_rate);
 		/* the last LQ command could failed so the LQ in ucode not
 		 * the same in driver sync up
 		 */
@@ -1049,7 +1055,7 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 		else
 			tbl->expected_tpt = expected_tpt_A;
 	} else if (is_siso(tbl->lq_type)) {
-		if (tbl->is_fat && !lq_sta->is_dup)
+		if (tbl->is_ht40 && !lq_sta->is_dup)
 			if (tbl->is_SGI)
 				tbl->expected_tpt = expected_tpt_siso40MHzSGI;
 			else
@@ -1059,7 +1065,7 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 		else
 			tbl->expected_tpt = expected_tpt_siso20MHz;
 	} else if (is_mimo2(tbl->lq_type)) {
-		if (tbl->is_fat && !lq_sta->is_dup)
+		if (tbl->is_ht40 && !lq_sta->is_dup)
 			if (tbl->is_SGI)
 				tbl->expected_tpt = expected_tpt_mimo2_40MHzSGI;
 			else
@@ -1069,7 +1075,7 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 		else
 			tbl->expected_tpt = expected_tpt_mimo2_20MHz;
 	} else if (is_mimo3(tbl->lq_type)) {
-		if (tbl->is_fat && !lq_sta->is_dup)
+		if (tbl->is_ht40 && !lq_sta->is_dup)
 			if (tbl->is_SGI)
 				tbl->expected_tpt = expected_tpt_mimo3_40MHzSGI;
 			else
@@ -1217,22 +1223,10 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_mimo2_rate;
 
-	if (iwl_is_fat_tx_allowed(priv, &sta->ht_cap))
-		tbl->is_fat = 1;
+	if (iwl_is_ht40_tx_allowed(priv, &sta->ht_cap))
+		tbl->is_ht40 = 1;
 	else
-		tbl->is_fat = 0;
-
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_fat) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
+		tbl->is_ht40 = 0;
 
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
@@ -1283,22 +1277,10 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	tbl->max_search = IWL_MAX_11N_MIMO3_SEARCH;
 	rate_mask = lq_sta->active_mimo3_rate;
 
-	if (iwl_is_fat_tx_allowed(priv, &sta->ht_cap))
-		tbl->is_fat = 1;
+	if (iwl_is_ht40_tx_allowed(priv, &sta->ht_cap))
+		tbl->is_ht40 = 1;
 	else
-		tbl->is_fat = 0;
-
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_fat) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
+		tbl->is_ht40 = 0;
 
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
@@ -1342,22 +1324,10 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (iwl_is_fat_tx_allowed(priv, &sta->ht_cap))
-		tbl->is_fat = 1;
+	if (iwl_is_ht40_tx_allowed(priv, &sta->ht_cap))
+		tbl->is_ht40 = 1;
 	else
-		tbl->is_fat = 0;
-
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_fat) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
+		tbl->is_ht40 = 0;
 
 	if (is_green)
 		tbl->is_SGI = 0; /*11n spec: no SGI in SISO+Greenfield*/
@@ -1398,6 +1368,12 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	int ret = 0;
 	u8 update_search_tbl_counter = 0;
 
+	if (!iwl_ht_enabled(priv))
+		/* stay in Legacy */
+		tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
+	else if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
+		   tbl->action > IWL_LEGACY_SWITCH_SISO)
+		tbl->action = IWL_LEGACY_SWITCH_SISO;
 	for (; ;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1521,6 +1497,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1529,6 +1506,11 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
+	    tbl->action > IWL_SISO_SWITCH_ANTENNA2) {
+		/* stay in SISO */
+		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+	}
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1575,13 +1557,11 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				goto out;
 			break;
 		case IWL_SISO_SWITCH_GI:
-			if (!tbl->is_fat &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_fat &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: SISO toggle SGI/NGI\n");
@@ -1655,6 +1635,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1663,6 +1644,12 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	if ((iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE) &&
+	    (tbl->action < IWL_MIMO2_SWITCH_SISO_A ||
+	     tbl->action > IWL_MIMO2_SWITCH_SISO_C)) {
+		/* switch in SISO */
+		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+	}
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1709,13 +1696,11 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO2_SWITCH_GI:
-			if (!tbl->is_fat &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_fat &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: MIMO2 toggle SGI/NGI\n");
@@ -1791,6 +1776,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1799,6 +1785,12 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	int ret;
 	u8 update_search_tbl_counter = 0;
 
+	if ((iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE) &&
+	    (tbl->action < IWL_MIMO3_SWITCH_SISO_A ||
+	     tbl->action > IWL_MIMO3_SWITCH_SISO_C)) {
+		/* switch in SISO */
+		tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+	}
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1867,13 +1859,11 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO3_SWITCH_GI:
-			if (!tbl->is_fat &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_fat &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: MIMO3 toggle SGI/NGI\n");
@@ -2003,6 +1993,25 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
 }
 
 /*
+ * setup rate table in uCode
+ * return rate_n_flags as used in the table
+ */
+static u32 rs_update_rate_tbl(struct iwl_priv *priv,
+				struct iwl_lq_sta *lq_sta,
+				struct iwl_scale_tbl_info *tbl,
+				int index, u8 is_green)
+{
+	u32 rate;
+
+	/* Update uCode's rate table. */
+	rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
+	rs_fill_link_cmd(priv, lq_sta, rate);
+	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+
+	return rate;
+}
+
+/*
  * Do rate scaling and search for new modulation mode.
  */
 static void rs_rate_scale_perform(struct iwl_priv *priv,
@@ -2066,7 +2075,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (is_legacy(tbl->lq_type))
 		lq_sta->is_green = 0;
 	else
-		lq_sta->is_green = rs_use_green(priv, conf);
+		lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
@@ -2098,6 +2107,16 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	if (!((1 << index) & rate_scale_index_msk)) {
 		IWL_ERR(priv, "Current Rate is not valid\n");
+		if (lq_sta->search_better_tbl) {
+			/* revert to active table if search table is not valid*/
+			tbl->lq_type = LQ_NONE;
+			lq_sta->search_better_tbl = 0;
+			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+			/* get "active" rate info */
+			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
+			rate = rs_update_rate_tbl(priv, lq_sta,
+						  tbl, index, is_green);
+		}
 		return;
 	}
 
@@ -2149,8 +2168,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			tbl->expected_tpt[index] + 64) / 128));
 
 	/* If we are searching for better modulation mode, check success. */
-	if (lq_sta->search_better_tbl) {
-
+	if (lq_sta->search_better_tbl &&
+	    (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_MULTI)) {
 		/* If good success, continue using the "search" mode;
 		 * no need to send new link quality command, since we're
 		 * continuing to use the setup that we've been trying. */
@@ -2278,7 +2297,11 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		    ((sr > IWL_RATE_HIGH_TH) ||
 		     (current_tpt > (100 * tbl->expected_tpt[low]))))
 		scale_action = 0;
-
+	if (!iwl_ht_enabled(priv) && !is_legacy(tbl->lq_type))
+		scale_action = -1;
+	if (iwl_tx_ant_restriction(priv) != IWL_ANT_OK_MULTI &&
+		(is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type)))
+		scale_action = -1;
 	switch (scale_action) {
 	case -1:
 		/* Decrease starting rate, update uCode's rate table */
@@ -2308,15 +2331,15 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
-	if (update_lq) {
-		rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
-		rs_fill_link_cmd(priv, lq_sta, rate);
-		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+	if (update_lq)
+		rate = rs_update_rate_tbl(priv, lq_sta,
+					  tbl, index, is_green);
+
+	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_MULTI) {
+		/* Should we stay with this modulation mode,
+		 * or search for a new one? */
+		rs_stay_in_table(lq_sta);
 	}
-
-	/* Should we stay with this modulation mode, or search for a new one? */
-	rs_stay_in_table(lq_sta);
-
 	/*
 	 * Search for new modulation mode if we're:
 	 * 1)  Not changing rates right now
@@ -2373,7 +2396,8 @@ lq_update:
 		 * have been tried and compared, stay in this best modulation
 		 * mode for a while before next round of mode comparisons. */
 		if (lq_sta->enable_counter &&
-		    (lq_sta->action_counter >= tbl1->max_search)) {
+		    (lq_sta->action_counter >= tbl1->max_search) &&
+		    iwl_ht_enabled(priv)) {
 			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != MAX_TID_COUNT)) {
@@ -2409,7 +2433,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = rs_use_green(priv, conf);
+	u8 use_green = rs_use_green(sta, &priv->current_ht_config);
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 
@@ -2462,11 +2486,11 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_supported_band *sband = txrc->sband;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	int rate_idx;
-	u64 mask_bit = 0;
 
 	IWL_DEBUG_RATE_LIMIT(priv, "rate scale calculate new rate for skb\n");
 
@@ -2481,22 +2505,9 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			lq_sta->max_rate_idx = -1;
 	}
 
-	if (sta)
-		mask_bit = sta->supp_rates[sband->band];
-
 	/* Send management frames and NO_ACK data using lowest rate. */
-	if (!ieee80211_is_data(hdr->frame_control) ||
-	    info->flags & IEEE80211_TX_CTL_NO_ACK || !sta || !lq_sta) {
-		if (!mask_bit)
-			info->control.rates[0].idx =
-					rate_lowest_index(sband, NULL);
-		else
-			info->control.rates[0].idx =
-					rate_lowest_index(sband, sta);
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->control.rates[0].count = 1;
+	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
-	}
 
 	rate_idx  = lq_sta->last_txrate_idx;
 
@@ -2508,7 +2519,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
 				       hdr->addr1);
 			sta_id = iwl_add_station(priv, hdr->addr1,
-						false, CMD_ASYNC, NULL);
+						false, CMD_ASYNC, ht_cap);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2533,15 +2544,20 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			info->control.rates[0].flags |= IEEE80211_TX_RC_SHORT_GI;
 		if (lq_sta->last_rate_n_flags & RATE_MCS_DUP_MSK)
 			info->control.rates[0].flags |= IEEE80211_TX_RC_DUP_DATA;
-		if (lq_sta->last_rate_n_flags & RATE_MCS_FAT_MSK)
+		if (lq_sta->last_rate_n_flags & RATE_MCS_HT40_MSK)
 			info->control.rates[0].flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 		if (lq_sta->last_rate_n_flags & RATE_MCS_GF_MSK)
 			info->control.rates[0].flags |= IEEE80211_TX_RC_GREEN_FIELD;
 	} else {
-		if (rate_idx < 0 || rate_idx > IWL_RATE_COUNT)
+		/* Check for invalid rates */
+		if ((rate_idx < 0) || (rate_idx >= IWL_RATE_COUNT_LEGACY) ||
+				((sband->band == IEEE80211_BAND_5GHZ) &&
+				 (rate_idx < IWL_FIRST_OFDM_RATE)))
 			rate_idx = rate_lowest_index(sband, sta);
+		/* On valid 5 GHz rate, adjust index */
 		else if (sband->band == IEEE80211_BAND_5GHZ)
 			rate_idx -= IWL_FIRST_OFDM_RATE;
+		info->control.rates[0].flags = 0;
 	}
 	info->control.rates[0].idx = rate_idx;
 
@@ -2577,10 +2593,8 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	int i, j;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct iwl_lq_sta *lq_sta = priv_sta;
-	u16 mask_bit = 0;
-	int count;
-	int start_rate = 0;
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->supp_rates[sband->band];
@@ -2605,7 +2619,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
 			sta_id = iwl_add_station(priv, sta->addr, false,
-						CMD_ASYNC, NULL);
+						CMD_ASYNC, ht_cap);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2618,7 +2632,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->is_dup = 0;
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
-	lq_sta->is_green = rs_use_green(priv, conf);
+	lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
 	lq_sta->active_rate_basic = priv->active_rate_basic;
 	lq_sta->band = priv->band;
@@ -2626,19 +2640,19 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
 	 */
-	lq_sta->active_siso_rate = sta->ht_cap.mcs.rx_mask[0] << 1;
-	lq_sta->active_siso_rate |= sta->ht_cap.mcs.rx_mask[0] & 0x1;
+	lq_sta->active_siso_rate = ht_cap->mcs.rx_mask[0] << 1;
+	lq_sta->active_siso_rate |= ht_cap->mcs.rx_mask[0] & 0x1;
 	lq_sta->active_siso_rate &= ~((u16)0x2);
 	lq_sta->active_siso_rate <<= IWL_FIRST_OFDM_RATE;
 
 	/* Same here */
-	lq_sta->active_mimo2_rate = sta->ht_cap.mcs.rx_mask[1] << 1;
-	lq_sta->active_mimo2_rate |= sta->ht_cap.mcs.rx_mask[1] & 0x1;
+	lq_sta->active_mimo2_rate = ht_cap->mcs.rx_mask[1] << 1;
+	lq_sta->active_mimo2_rate |= ht_cap->mcs.rx_mask[1] & 0x1;
 	lq_sta->active_mimo2_rate &= ~((u16)0x2);
 	lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
 
-	lq_sta->active_mimo3_rate = sta->ht_cap.mcs.rx_mask[2] << 1;
-	lq_sta->active_mimo3_rate |= sta->ht_cap.mcs.rx_mask[2] & 0x1;
+	lq_sta->active_mimo3_rate = ht_cap->mcs.rx_mask[2] << 1;
+	lq_sta->active_mimo3_rate |= ht_cap->mcs.rx_mask[2] & 0x1;
 	lq_sta->active_mimo3_rate &= ~((u16)0x2);
 	lq_sta->active_mimo3_rate <<= IWL_FIRST_OFDM_RATE;
 
@@ -2655,25 +2669,15 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
 	lq_sta->drv = priv;
 
-	/* Find highest tx rate supported by hardware and destination station */
-	mask_bit = sta->supp_rates[sband->band];
-	count = sband->n_bitrates;
-	if (sband->band == IEEE80211_BAND_5GHZ) {
-		count += IWL_FIRST_OFDM_RATE;
-		start_rate = IWL_FIRST_OFDM_RATE;
-		mask_bit <<= IWL_FIRST_OFDM_RATE;
-	}
-
-	mask_bit = mask_bit & lq_sta->active_legacy_rate;
-	lq_sta->last_txrate_idx = 4;
-	for (i = start_rate; i < count; i++)
-		if (mask_bit & BIT(i))
-			lq_sta->last_txrate_idx = i;
+	/* Set last_txrate_idx to lowest rate */
+	lq_sta->last_txrate_idx = rate_lowest_index(sband, sta);
+	if (sband->band == IEEE80211_BAND_5GHZ)
+		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	rs_initialize_lq(priv, conf, sta, lq_sta);
 }
 
-static void rs_fill_link_cmd(const struct iwl_priv *priv,
+static void rs_fill_link_cmd(struct iwl_priv *priv,
 			     struct iwl_lq_sta *lq_sta, u32 new_rate)
 {
 	struct iwl_scale_tbl_info tbl_type;
@@ -2920,7 +2924,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 		   (is_siso(tbl->lq_type)) ? "SISO" :
 		   ((is_mimo2(tbl->lq_type)) ? "MIMO2" : "MIMO3"));
 		   desc += sprintf(buff+desc, " %s",
-		   (tbl->is_fat) ? "40MHz" : "20MHz");
+		   (tbl->is_ht40) ? "40MHz" : "20MHz");
 		   desc += sprintf(buff+desc, " %s %s\n", (tbl->is_SGI) ? "SGI" : "",
 		   (lq_sta->is_green) ? "GF enabled" : "");
 	}
@@ -2985,12 +2989,13 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 		return -ENOMEM;
 
 	for (i = 0; i < LQ_SIZE; i++) {
-		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d GF=%d\n"
+		desc += sprintf(buff+desc,
+				"%s type=%d SGI=%d HT40=%d DUP=%d GF=%d\n"
 				"rate=0x%X\n",
 				lq_sta->active_tbl == i ? "*" : "x",
 				lq_sta->lq_info[i].lq_type,
 				lq_sta->lq_info[i].is_SGI,
-				lq_sta->lq_info[i].is_fat,
+				lq_sta->lq_info[i].is_ht40,
 				lq_sta->lq_info[i].is_dup,
 				lq_sta->is_green,
 				lq_sta->lq_info[i].current_rate);

@@ -435,6 +435,12 @@
 /* Flow Control */
 #define E1000_FCRTL_XONE 0x80000000     /* Enable XON frame transmission */
 
+/* PCI Express Control */
+#define E1000_GCR_CMPL_TMOUT_MASK       0x0000F000
+#define E1000_GCR_CMPL_TMOUT_10ms       0x00001000
+#define E1000_GCR_CMPL_TMOUT_RESEND     0x00010000
+#define E1000_GCR_CAP_VER2              0x00040000
+
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
 #define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
@@ -569,9 +575,11 @@
 
 /* PCI/PCI-X/PCI-EX Config space */
 #define PCIE_LINK_STATUS             0x12
+#define PCIE_DEVICE_CONTROL2         0x28
 
 #define PCIE_LINK_WIDTH_MASK         0x3F0
 #define PCIE_LINK_WIDTH_SHIFT        4
+#define PCIE_DEVICE_CONTROL2_16ms    0x0005
 
 #define PHY_REVISION_MASK      0xFFFFFFF0
 #define MAX_PHY_REG_ADDRESS    0x1F  /* 5 bit address bus (0-0x1F) */

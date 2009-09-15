@@ -80,7 +80,7 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 				  struct sk_buff *skb,
 				  struct ircomm_tty_info *info);
 
-char *ircomm_tty_state[] = {
+const char *const ircomm_tty_state[] = {
 	"IRCOMM_TTY_IDLE",
 	"IRCOMM_TTY_SEARCH",
 	"IRCOMM_TTY_QUERY_PARAMETERS",
@@ -91,7 +91,7 @@ char *ircomm_tty_state[] = {
 };
 
 #ifdef CONFIG_IRDA_DEBUG
-static char *ircomm_tty_event[] = {
+static const char *const ircomm_tty_event[] = {
 	"IRCOMM_TTY_ATTACH_CABLE",
 	"IRCOMM_TTY_DETACH_CABLE",
 	"IRCOMM_TTY_DATA_REQUEST",

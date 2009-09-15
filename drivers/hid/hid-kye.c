@@ -54,12 +54,12 @@ static struct hid_driver kye_driver = {
 	.report_fixup = kye_report_fixup,
 };
 
-static int kye_init(void)
+static int __init kye_init(void)
 {
 	return hid_register_driver(&kye_driver);
 }
 
-static void kye_exit(void)
+static void __exit kye_exit(void)
 {
 	hid_unregister_driver(&kye_driver);
 }

@@ -40,7 +40,12 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 {
 	struct request_list *rl = &q->rq;
 	unsigned long nr;
-	int ret = queue_var_store(&nr, page, count);
+	int ret;
+
+	if (!q->request_fn)
+		return -EINVAL;
+
+	ret = queue_var_store(&nr, page, count);
 	if (nr < BLKDEV_MIN_RQ)
 		nr = BLKDEV_MIN_RQ;
 

@@ -175,6 +175,9 @@ static u32 scan_read32(struct ssb_bus *bus, u8 current_coreidx,
 		} else
 			ssb_pcmcia_switch_segment(bus, 0);
 		break;
+	case SSB_BUSTYPE_SDIO:
+		offset += current_coreidx * SSB_CORE_SIZE;
+		return ssb_sdio_scan_read32(bus, offset);
 	}
 	return readl(bus->mmio + offset);
 }
@@ -188,6 +191,8 @@ static int scan_switchcore(struct ssb_bus *bus, u8 coreidx)
 		return ssb_pci_switch_coreidx(bus, coreidx);
 	case SSB_BUSTYPE_PCMCIA:
 		return ssb_pcmcia_switch_coreidx(bus, coreidx);
+	case SSB_BUSTYPE_SDIO:
+		return ssb_sdio_scan_switch_coreidx(bus, coreidx);
 	}
 	return 0;
 }
@@ -205,6 +210,8 @@ void ssb_iounmap(struct ssb_bus *bus)
 #else
 		SSB_BUG_ON(1); /* Can't reach this code. */
 #endif
+		break;
+	case SSB_BUSTYPE_SDIO:
 		break;
 	}
 	bus->mmio = NULL;
@@ -229,6 +236,10 @@ static void __iomem *ssb_ioremap(struct ssb_bus *bus,
 #else
 		SSB_BUG_ON(1); /* Can't reach this code. */
 #endif
+		break;
+	case SSB_BUSTYPE_SDIO:
+		/* Nothing to ioremap in the SDIO case, just fake it */
+		mmio = (void __iomem *)baseaddr;
 		break;
 	}
 

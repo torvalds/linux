@@ -659,7 +659,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_errors++;
 		dev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	smc_special_lock(&lp->lock, flags);
@@ -696,7 +696,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		smc_hardware_send_pkt((unsigned long)dev);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

@@ -63,6 +63,8 @@ struct wm8350_data {
 	struct wm8350_jack_data hpl;
 	struct wm8350_jack_data hpr;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
+	int fll_freq_out;
+	int fll_freq_in;
 };
 
 static unsigned int wm8350_codec_cache_read(struct snd_soc_codec *codec,
@@ -406,7 +408,6 @@ static const char *wm8350_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
 static const char *wm8350_pol[] = { "Normal", "Inv R", "Inv L", "Inv L & R" };
 static const char *wm8350_dacmutem[] = { "Normal", "Soft" };
 static const char *wm8350_dacmutes[] = { "Fast", "Slow" };
-static const char *wm8350_dacfilter[] = { "Normal", "Sloping" };
 static const char *wm8350_adcfilter[] = { "None", "High Pass" };
 static const char *wm8350_adchp[] = { "44.1kHz", "8kHz", "16kHz", "32kHz" };
 static const char *wm8350_lr[] = { "Left", "Right" };
@@ -416,7 +417,6 @@ static const struct soc_enum wm8350_enum[] = {
 	SOC_ENUM_SINGLE(WM8350_DAC_CONTROL, 0, 4, wm8350_pol),
 	SOC_ENUM_SINGLE(WM8350_DAC_MUTE_VOLUME, 14, 2, wm8350_dacmutem),
 	SOC_ENUM_SINGLE(WM8350_DAC_MUTE_VOLUME, 13, 2, wm8350_dacmutes),
-	SOC_ENUM_SINGLE(WM8350_DAC_MUTE_VOLUME, 12, 2, wm8350_dacfilter),
 	SOC_ENUM_SINGLE(WM8350_ADC_CONTROL, 15, 2, wm8350_adcfilter),
 	SOC_ENUM_SINGLE(WM8350_ADC_CONTROL, 8, 4, wm8350_adchp),
 	SOC_ENUM_SINGLE(WM8350_ADC_CONTROL, 0, 4, wm8350_pol),
@@ -444,10 +444,9 @@ static const struct snd_kcontrol_new wm8350_snd_controls[] = {
 				0, 255, 0, dac_pcm_tlv),
 	SOC_ENUM("Playback PCM Mute Function", wm8350_enum[2]),
 	SOC_ENUM("Playback PCM Mute Speed", wm8350_enum[3]),
-	SOC_ENUM("Playback PCM Filter", wm8350_enum[4]),
-	SOC_ENUM("Capture PCM Filter", wm8350_enum[5]),
-	SOC_ENUM("Capture PCM HP Filter", wm8350_enum[6]),
-	SOC_ENUM("Capture ADC Inversion", wm8350_enum[7]),
+	SOC_ENUM("Capture PCM Filter", wm8350_enum[4]),
+	SOC_ENUM("Capture PCM HP Filter", wm8350_enum[5]),
+	SOC_ENUM("Capture ADC Inversion", wm8350_enum[6]),
 	SOC_WM8350_DOUBLE_R_TLV("Capture PCM Volume",
 				WM8350_ADC_DIGITAL_VOLUME_L,
 				WM8350_ADC_DIGITAL_VOLUME_R,
@@ -613,7 +612,7 @@ SOC_DAPM_SINGLE("Switch", WM8350_BEEP_VOLUME, 15, 1, 1);
 
 /* Out4 Capture Mux */
 static const struct snd_kcontrol_new wm8350_out4_capture_controls =
-SOC_DAPM_ENUM("Route", wm8350_enum[8]);
+SOC_DAPM_ENUM("Route", wm8350_enum[7]);
 
 static const struct snd_soc_dapm_widget wm8350_dapm_widgets[] = {
 
@@ -993,6 +992,7 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *codec_dai)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct wm8350 *wm8350 = codec->control_data;
 	u16 iface = wm8350_codec_read(codec, WM8350_AI_FORMATING) &
 	    ~WM8350_AIF_WL_MASK;
 
@@ -1012,6 +1012,19 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	wm8350_codec_write(codec, WM8350_AI_FORMATING, iface);
+
+	/* The sloping stopband filter is recommended for use with
+	 * lower sample rates to improve performance.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (params_rate(params) < 24000)
+			wm8350_set_bits(wm8350, WM8350_DAC_MUTE_VOLUME,
+					WM8350_DAC_SB_FILT);
+		else
+			wm8350_clear_bits(wm8350, WM8350_DAC_MUTE_VOLUME,
+					  WM8350_DAC_SB_FILT);
+	}
+
 	return 0;
 }
 
@@ -1093,9 +1106,13 @@ static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350_data *priv = codec->private_data;
 	struct _fll_div fll_div;
 	int ret = 0;
 	u16 fll_1, fll_4;
+
+	if (freq_in == priv->fll_freq_in && freq_out == priv->fll_freq_out)
+		return 0;
 
 	/* power down FLL - we need to do this for reconfiguration */
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_4,
@@ -1130,6 +1147,9 @@ static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
 	/* power FLL on */
 	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_FLL_OSC_ENA);
 	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_FLL_ENA);
+
+	priv->fll_freq_out = freq_out;
+	priv->fll_freq_in = freq_in;
 
 	return 0;
 }
@@ -1660,6 +1680,21 @@ static int __devexit wm8350_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8350_codec_suspend(struct platform_device *pdev, pm_message_t m)
+{
+	return snd_soc_suspend_device(&pdev->dev);
+}
+
+static int wm8350_codec_resume(struct platform_device *pdev)
+{
+	return snd_soc_resume_device(&pdev->dev);
+}
+#else
+#define wm8350_codec_suspend NULL
+#define wm8350_codec_resume NULL
+#endif
+
 static struct platform_driver wm8350_codec_driver = {
 	.driver = {
 		   .name = "wm8350-codec",
@@ -1667,6 +1702,8 @@ static struct platform_driver wm8350_codec_driver = {
 		   },
 	.probe = wm8350_codec_probe,
 	.remove = __devexit_p(wm8350_codec_remove),
+	.suspend = wm8350_codec_suspend,
+	.resume = wm8350_codec_resume,
 };
 
 static __init int wm8350_init(void)

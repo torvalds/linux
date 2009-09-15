@@ -4151,7 +4151,7 @@ static void floppy_device_release(struct device *dev)
 {
 }
 
-static int floppy_resume(struct platform_device *dev)
+static int floppy_resume(struct device *dev)
 {
 	int fdc;
 
@@ -4162,10 +4162,15 @@ static int floppy_resume(struct platform_device *dev)
 	return 0;
 }
 
-static struct platform_driver floppy_driver = {
+static struct dev_pm_ops floppy_pm_ops = {
 	.resume = floppy_resume,
+	.restore = floppy_resume,
+};
+
+static struct platform_driver floppy_driver = {
 	.driver = {
 		.name = "floppy",
+		.pm = &floppy_pm_ops,
 	},
 };
 

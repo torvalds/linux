@@ -846,6 +846,17 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 	if (!ata_is_atapi(qc->tf.protocol)) {
 		prb = &cb->ata.prb;
 		sge = cb->ata.sge;
+		if (ata_is_data(qc->tf.protocol)) {
+			u16 prot = 0;
+			ctrl = PRB_CTRL_PROTOCOL;
+			if (ata_is_ncq(qc->tf.protocol))
+				prot |= PRB_PROT_NCQ;
+			if (qc->tf.flags & ATA_TFLAG_WRITE)
+				prot |= PRB_PROT_WRITE;
+			else
+				prot |= PRB_PROT_READ;
+			prb->prot = cpu_to_le16(prot);
+		}
 	} else {
 		prb = &cb->atapi.prb;
 		sge = cb->atapi.sge;

@@ -227,11 +227,11 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 	case SCS_DATA_UNDERRUN:
 	case SCS_DATA_OVERRUN:
 		if ((sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_OVER) ||
-			(sts_entry->completionStatus == SCS_DATA_OVERRUN)) {
-			DEBUG2(printk("scsi%ld:%d:%d:%d: %s: " "Data overrun, "
-				      "residual = 0x%x\n", ha->host_no,
+		     (sts_entry->completionStatus == SCS_DATA_OVERRUN)) {
+			DEBUG2(printk("scsi%ld:%d:%d:%d: %s: " "Data overrun\n",
+				      ha->host_no,
 				      cmd->device->channel, cmd->device->id,
-				      cmd->device->lun, __func__, residual));
+				      cmd->device->lun, __func__));
 
 			cmd->result = DID_ERROR << 16;
 			break;

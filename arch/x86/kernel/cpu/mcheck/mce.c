@@ -183,6 +183,11 @@ void mce_log(struct mce *mce)
 	set_bit(0, &mce_need_notify);
 }
 
+void __weak decode_mce(struct mce *m)
+{
+	return;
+}
+
 static void print_mce(struct mce *m)
 {
 	printk(KERN_EMERG
@@ -205,6 +210,8 @@ static void print_mce(struct mce *m)
 	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
 			m->cpuvendor, m->cpuid, m->time, m->socketid,
 			m->apicid);
+
+	decode_mce(m);
 }
 
 static void print_mce_head(void)
@@ -215,7 +222,10 @@ static void print_mce_head(void)
 static void print_mce_tail(void)
 {
 	printk(KERN_EMERG "This is not a software problem!\n"
-	       "Run through mcelog --ascii to decode and contact your hardware vendor\n");
+#if (!defined(CONFIG_EDAC) || !defined(CONFIG_CPU_SUP_AMD))
+	       "Run through mcelog --ascii to decode and contact your hardware vendor\n"
+#endif
+	       );
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */

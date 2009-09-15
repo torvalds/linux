@@ -53,7 +53,7 @@ static s32  igb_setup_fiber_serdes_link_82575(struct e1000_hw *);
 static s32  igb_write_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16);
 static void igb_clear_hw_cntrs_82575(struct e1000_hw *);
 static s32  igb_acquire_swfw_sync_82575(struct e1000_hw *, u16);
-static s32  igb_configure_pcs_link_82575(struct e1000_hw *);
+static void igb_configure_pcs_link_82575(struct e1000_hw *);
 static s32  igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *, u16 *,
 						 u16 *);
 static s32  igb_get_phy_id_82575(struct e1000_hw *);
@@ -61,6 +61,7 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *, u16);
 static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
+static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
 
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
@@ -84,6 +85,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
 	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_SERDES_QUAD:
 		mac->type = e1000_82576;
 		break;
 	default:
@@ -170,6 +172,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		size = 14;
 	nvm->word_size = 1 << size;
 
+	/* if 82576 then initialize mailbox parameters */
+	if (mac->type == e1000_82576)
+		igb_init_mbx_params_pf(hw);
+
 	/* setup PHY parameters */
 	if (phy->media_type != e1000_media_type_copper) {
 		phy->type = e1000_phy_none;
@@ -218,10 +224,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	default:
 		return -E1000_ERR_PHY;
 	}
-
-	/* if 82576 then initialize mailbox parameters */
-	if (mac->type == e1000_82576)
-		igb_init_mbx_params_pf(hw);
 
 	return 0;
 }
@@ -764,98 +766,6 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  igb_init_rx_addrs_82575 - Initialize receive address's
- *  @hw: pointer to the HW structure
- *  @rar_count: receive address registers
- *
- *  Setups the receive address registers by setting the base receive address
- *  register to the devices MAC address and clearing all the other receive
- *  address registers to 0.
- **/
-static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
-{
-	u32 i;
-	u8 addr[6] = {0,0,0,0,0,0};
-	/*
-	 * This function is essentially the same as that of
-	 * e1000_init_rx_addrs_generic. However it also takes care
-	 * of the special case where the register offset of the
-	 * second set of RARs begins elsewhere. This is implicitly taken care by
-	 * function e1000_rar_set_generic.
-	 */
-
-	hw_dbg("e1000_init_rx_addrs_82575");
-
-	/* Setup the receive address */
-	hw_dbg("Programming MAC Address into RAR[0]\n");
-	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
-
-	/* Zero out the other (rar_entry_count - 1) receive addresses */
-	hw_dbg("Clearing RAR[1-%u]\n", rar_count-1);
-	for (i = 1; i < rar_count; i++)
-	    hw->mac.ops.rar_set(hw, addr, i);
-}
-
-/**
- *  igb_update_mc_addr_list - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
- *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
- **/
-void igb_update_mc_addr_list(struct e1000_hw *hw,
-                             u8 *mc_addr_list, u32 mc_addr_count,
-                             u32 rar_used_count, u32 rar_count)
-{
-	u32 hash_value;
-	u32 i;
-	u8 addr[6] = {0,0,0,0,0,0};
-	/*
-	 * This function is essentially the same as that of 
-	 * igb_update_mc_addr_list_generic. However it also takes care 
-	 * of the special case where the register offset of the 
-	 * second set of RARs begins elsewhere. This is implicitly taken care by 
-	 * function e1000_rar_set_generic.
-	 */
-
-	/*
-	 * Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = rar_used_count; i < rar_count; i++) {
-		if (mc_addr_count) {
-			igb_rar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			igb_rar_set(hw, addr, i);
-		}
-	}
-
-	/* Clear the old settings from the MTA */
-	hw_dbg("Clearing MTA\n");
-	for (i = 0; i < hw->mac.mta_reg_count; i++) {
-		array_wr32(E1000_MTA, i, 0);
-		wrfl();
-	}
-
-	/* Load any remaining multicast addresses into the hash table. */
-	for (; mc_addr_count > 0; mc_addr_count--) {
-		hash_value = igb_hash_mc_addr(hw, mc_addr_list);
-		hw_dbg("Hash value = 0x%03X\n", hash_value);
-		igb_mta_set(hw, hash_value);
-		mc_addr_list += ETH_ALEN;
-	}
-}
-
-/**
  *  igb_shutdown_fiber_serdes_link_82575 - Remove link during power down
  *  @hw: pointer to the HW structure
  *
@@ -866,9 +776,7 @@ void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
 
-	if (hw->mac.type != e1000_82576 ||
-	    (hw->phy.media_type != e1000_media_type_fiber &&
-	     hw->phy.media_type != e1000_media_type_internal_serdes))
+	if (hw->phy.media_type != e1000_media_type_internal_serdes)
 		return;
 
 	/* if the management interface is not enabled, then power down */
@@ -911,6 +819,12 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	if (ret_val)
 		hw_dbg("PCI-E Master disable polling has failed.\n");
 
+	/* set the completion timeout for interface */
+	ret_val = igb_set_pcie_completion_timeout(hw);
+	if (ret_val) {
+		hw_dbg("PCI-E Set completion timeout has failed.\n");
+	}
+
 	hw_dbg("Masking off all interrupts\n");
 	wr32(E1000_IMC, 0xffffffff);
 
@@ -943,7 +857,8 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	wr32(E1000_IMC, 0xffffffff);
 	icr = rd32(E1000_ICR);
 
-	igb_check_alt_mac_addr(hw);
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = igb_check_alt_mac_addr(hw);
 
 	return ret_val;
 }
@@ -972,7 +887,8 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	igb_clear_vfta(hw);
 
 	/* Setup the receive address */
-	igb_init_rx_addrs_82575(hw, rar_count);
+	igb_init_rx_addrs(hw, rar_count);
+
 	/* Zero out the Multicast HASH table */
 	hw_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -1002,7 +918,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
  **/
 static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 {
-	u32 ctrl, led_ctrl;
+	u32 ctrl;
 	s32  ret_val;
 	bool link;
 
@@ -1017,11 +933,6 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		break;
 	case e1000_phy_igp_3:
 		ret_val = igb_copper_link_setup_igp(hw);
-		/* Setup activity LED */
-		led_ctrl = rd32(E1000_LEDCTL);
-		led_ctrl &= IGP_ACTIVITY_LED_MASK;
-		led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-		wr32(E1000_LEDCTL, led_ctrl);
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -1052,9 +963,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		}
 	}
 
-	ret_val = igb_configure_pcs_link_82575(hw);
-	if (ret_val)
-		goto out;
+	igb_configure_pcs_link_82575(hw);
 
 	/*
 	 * Check link status. Wait up to 100 microseconds for link to become
@@ -1163,14 +1072,14 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
  *  independent interface (sgmii) is being used.  Configures the link
  *  for auto-negotiation or forces speed/duplex.
  **/
-static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
+static void igb_configure_pcs_link_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 reg = 0;
 
 	if (hw->phy.media_type != e1000_media_type_copper ||
 	    !(igb_sgmii_active_82575(hw)))
-		goto out;
+		return;
 
 	/* For SGMII, we need to issue a PCS autoneg restart */
 	reg = rd32(E1000_PCS_LCTL);
@@ -1213,9 +1122,6 @@ static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
 		       reg);
 	}
 	wr32(E1000_PCS_LCTL, reg);
-
-out:
-	return 0;
 }
 
 /**
@@ -1229,10 +1135,6 @@ out:
 static bool igb_sgmii_active_82575(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
-
-	if (hw->mac.type != e1000_82575 && hw->mac.type != e1000_82576)
-		return false;
-
 	return dev_spec->sgmii_active;
 }
 
@@ -1421,6 +1323,57 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	rd32(E1000_ROC);
 	rd32(E1000_RNBC);
 	rd32(E1000_MPC);
+}
+
+/**
+ *  igb_set_pcie_completion_timeout - set pci-e completion timeout
+ *  @hw: pointer to the HW structure
+ *
+ *  The defaults for 82575 and 82576 should be in the range of 50us to 50ms,
+ *  however the hardware default for these parts is 500us to 1ms which is less
+ *  than the 10ms recommended by the pci-e spec.  To address this we need to
+ *  increase the value to either 10ms to 200ms for capability version 1 config,
+ *  or 16ms to 55ms for version 2.
+ **/
+static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
+{
+	u32 gcr = rd32(E1000_GCR);
+	s32 ret_val = 0;
+	u16 pcie_devctl2;
+
+	/* only take action if timeout value is defaulted to 0 */
+	if (gcr & E1000_GCR_CMPL_TMOUT_MASK)
+		goto out;
+
+	/*
+	 * if capababilities version is type 1 we can write the
+	 * timeout of 10ms to 200ms through the GCR register
+	 */
+	if (!(gcr & E1000_GCR_CAP_VER2)) {
+		gcr |= E1000_GCR_CMPL_TMOUT_10ms;
+		goto out;
+	}
+
+	/*
+	 * for version 2 capabilities we need to write the config space
+	 * directly in order to set the completion timeout value for
+	 * 16ms to 55ms
+	 */
+	ret_val = igb_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                &pcie_devctl2);
+	if (ret_val)
+		goto out;
+
+	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
+
+	ret_val = igb_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                 &pcie_devctl2);
+out:
+	/* disable completion timeout resend */
+	gcr &= ~E1000_GCR_CMPL_TMOUT_RESEND;
+
+	wr32(E1000_GCR, gcr);
+	return ret_val;
 }
 
 /**

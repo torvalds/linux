@@ -52,55 +52,18 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	_eshared = .;		/* End of shareable data */
 
-	. = ALIGN(16);		/* Exception table */
-	__ex_table : {
-		__start___ex_table = .;
-		*(__ex_table)
-		__stop___ex_table = .;
-	} :data
+	EXCEPTION_TABLE(16) :data
 
-	.data : {		/* Data */
-		DATA_DATA
-		CONSTRUCTORS
-	}
+	RW_DATA_SECTION(0x100, PAGE_SIZE, THREAD_SIZE)
 
-	. = ALIGN(PAGE_SIZE);
-	.data_nosave : {
-	__nosave_begin = .;
-		*(.data.nosave)
-	}
-	. = ALIGN(PAGE_SIZE);
-	__nosave_end = .;
-
-	. = ALIGN(PAGE_SIZE);
-	.data.page_aligned : {
-		*(.data.idt)
-	}
-
-	. = ALIGN(0x100);
-	.data.cacheline_aligned : {
-		*(.data.cacheline_aligned)
-	}
-
-	. = ALIGN(0x100);
-	.data.read_mostly : {
-		*(.data.read_mostly)
-	}
 	_edata = .;		/* End of data section */
-
-	. = ALIGN(THREAD_SIZE);	/* init_task */
-	.data.init_task : {
-		*(.data.init_task)
-	}
 
 	/* will be freed after init */
 	. = ALIGN(PAGE_SIZE);	/* Init code and data */
 	__init_begin = .;
-	.init.text : {
-		_sinittext = .;
-		INIT_TEXT
-		_einittext = .;
-	}
+
+	INIT_TEXT_SECTION(PAGE_SIZE)
+
 	/*
 	 * .exit.text is discarded at runtime, not link time,
 	 * to deal with references from __bug_table
@@ -111,49 +74,13 @@ SECTIONS
 
 	/* early.c uses stsi, which requires page aligned data. */
 	. = ALIGN(PAGE_SIZE);
-	.init.data : {
-		INIT_DATA
-	}
-	. = ALIGN(0x100);
-	.init.setup : {
-		__setup_start = .;
-		*(.init.setup)
-		__setup_end = .;
-	}
-	.initcall.init : {
-		__initcall_start = .;
-		INITCALLS
-		__initcall_end = .;
-	}
-
-	.con_initcall.init : {
-		__con_initcall_start = .;
-		*(.con_initcall.init)
-		__con_initcall_end = .;
-	}
-	SECURITY_INIT
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	. = ALIGN(0x100);
-	.init.ramfs : {
-		__initramfs_start = .;
-		*(.init.ramfs)
-		. = ALIGN(2);
-		__initramfs_end = .;
-	}
-#endif
+	INIT_DATA_SECTION(0x100)
 
 	PERCPU(PAGE_SIZE)
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
 
-	/* BSS */
-	.bss : {
-		__bss_start = .;
-		*(.bss)
-		. = ALIGN(2);
-		__bss_stop = .;
-	}
+	BSS_SECTION(0, 2, 0)
 
 	_end = . ;
 
