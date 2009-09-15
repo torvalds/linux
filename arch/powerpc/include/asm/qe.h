@@ -87,7 +87,7 @@ extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
 #ifdef CONFIG_QUICC_ENGINE
-extern void __init qe_reset(void);
+extern void qe_reset(void);
 #else
 static inline void qe_reset(void) {}
 #endif
