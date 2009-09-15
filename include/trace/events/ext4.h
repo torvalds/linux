@@ -5,9 +5,11 @@
 #define _TRACE_EXT4_H
 
 #include <linux/writeback.h>
-#include "../../../fs/ext4/ext4.h"
-#include "../../../fs/ext4/mballoc.h"
 #include <linux/tracepoint.h>
+
+struct ext4_allocation_context;
+struct ext4_allocation_request;
+struct ext4_prealloc_space;
 
 TRACE_EVENT(ext4_free_inode,
 	TP_PROTO(struct inode *inode),
