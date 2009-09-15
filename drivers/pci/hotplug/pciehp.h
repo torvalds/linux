@@ -95,7 +95,6 @@ struct controller {
 	struct slot *slot;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
 	u32 slot_cap;
 	u8 cap_base;
 	struct timer_list poll_timer;
