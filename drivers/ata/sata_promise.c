@@ -195,9 +195,12 @@ static struct ata_port_operations pdc_sata_ops = {
 	.hardreset		= pdc_sata_hardreset,
 };
 
-/* First-generation chips need a more restrictive ->check_atapi_dma op */
+/* First-generation chips need a more restrictive ->check_atapi_dma op,
+   and ->freeze/thaw that ignore the hotplug controls. */
 static struct ata_port_operations pdc_old_sata_ops = {
 	.inherits		= &pdc_sata_ops,
+	.freeze			= pdc_freeze,
+	.thaw			= pdc_thaw,
 	.check_atapi_dma	= pdc_old_sata_check_atapi_dma,
 };
 
@@ -626,11 +629,6 @@ static unsigned int pdc_sata_ata_port_to_ata_no(const struct ata_port *ap)
 	return pdc_port_no_to_ata_no(i, pdc_is_sataii_tx4(ap->flags));
 }
 
-static unsigned int pdc_sata_hotplug_offset(const struct ata_port *ap)
-{
-	return (ap->flags & PDC_FLAG_GEN_II) ? PDC2_SATA_PLUG_CSR : PDC_SATA_PLUG_CSR;
-}
-
 static void pdc_freeze(struct ata_port *ap)
 {
 	void __iomem *ata_mmio = ap->ioaddr.cmd_addr;
@@ -647,7 +645,7 @@ static void pdc_sata_freeze(struct ata_port *ap)
 {
 	struct ata_host *host = ap->host;
 	void __iomem *host_mmio = host->iomap[PDC_MMIO_BAR];
-	unsigned int hotplug_offset = pdc_sata_hotplug_offset(ap);
+	unsigned int hotplug_offset = PDC2_SATA_PLUG_CSR;
 	unsigned int ata_no = pdc_sata_ata_port_to_ata_no(ap);
 	u32 hotplug_status;
 
@@ -685,7 +683,7 @@ static void pdc_sata_thaw(struct ata_port *ap)
 {
 	struct ata_host *host = ap->host;
 	void __iomem *host_mmio = host->iomap[PDC_MMIO_BAR];
-	unsigned int hotplug_offset = pdc_sata_hotplug_offset(ap);
+	unsigned int hotplug_offset = PDC2_SATA_PLUG_CSR;
 	unsigned int ata_no = pdc_sata_ata_port_to_ata_no(ap);
 	u32 hotplug_status;
 
@@ -832,14 +830,14 @@ static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
 	spin_lock(&host->lock);
 
 	/* read and clear hotplug flags for all ports */
-	if (host->ports[0]->flags & PDC_FLAG_GEN_II)
+	if (host->ports[0]->flags & PDC_FLAG_GEN_II) {
 		hotplug_offset = PDC2_SATA_PLUG_CSR;
-	else
-		hotplug_offset = PDC_SATA_PLUG_CSR;
-	hotplug_status = readl(host_mmio + hotplug_offset);
-	if (hotplug_status & 0xff)
-		writel(hotplug_status | 0xff, host_mmio + hotplug_offset);
-	hotplug_status &= 0xff;	/* clear uninteresting bits */
+		hotplug_status = readl(host_mmio + hotplug_offset);
+		if (hotplug_status & 0xff)
+			writel(hotplug_status | 0xff, host_mmio + hotplug_offset);
+		hotplug_status &= 0xff;	/* clear uninteresting bits */
+	} else
+		hotplug_status = 0;
 
 	/* reading should also clear interrupts */
 	mask = readl(host_mmio + PDC_INT_SEQMASK);
@@ -1034,9 +1032,11 @@ static void pdc_host_init(struct ata_host *host)
 	tmp = readl(host_mmio + hotplug_offset);
 	writel(tmp | 0xff, host_mmio + hotplug_offset);
 
-	/* unmask plug/unplug ints */
 	tmp = readl(host_mmio + hotplug_offset);
-	writel(tmp & ~0xff0000, host_mmio + hotplug_offset);
+	if (is_gen2)	/* unmask plug/unplug ints */
+		writel(tmp & ~0xff0000, host_mmio + hotplug_offset);
+	else		/* mask plug/unplug ints */
+		writel(tmp | 0xff0000, host_mmio + hotplug_offset);
 
 	/* don't initialise TBG or SLEW on 2nd generation chips */
 	if (is_gen2)
