@@ -1089,8 +1089,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 		return -1;
 	}
 
-	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE,
-			interrupt ? GFP_ATOMIC : GFP_KERNEL);
+	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 
 	if (!buf) {
 		report = hid_get_report(report_enum, data);
