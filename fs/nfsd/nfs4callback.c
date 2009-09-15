@@ -437,6 +437,7 @@ static struct rpc_cred *lookup_cb_cred(struct nfs4_cb_conn *cb)
 	struct auth_cred acred = {
 		.machine_cred = 1
 	};
+	struct rpc_auth *auth = cb->cb_client->cl_auth;
 
 	/*
 	 * Note in the gss case this doesn't actually have to wait for a
@@ -444,8 +445,7 @@ static struct rpc_cred *lookup_cb_cred(struct nfs4_cb_conn *cb)
 	 * non-uptodate cred which the rpc state machine will fill in with
 	 * a refresh_upcall later.
 	 */
-	return rpcauth_lookup_credcache(cb->cb_client->cl_auth, &acred,
-							RPCAUTH_LOOKUP_NEW);
+	return auth->au_ops->lookup_cred(auth, &acred, RPCAUTH_LOOKUP_NEW);
 }
 
 void do_probe_callback(struct nfs4_client *clp)
