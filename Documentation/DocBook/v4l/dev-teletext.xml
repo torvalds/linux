@@ -10,8 +10,8 @@ connected to the PC parallel port.</para>
 
   <para>The Teletext API was designed by Martin Buck. It is defined in
 the kernel header file <filename>linux/videotext.h</filename>, the
-specification is available from <ulink url="http://home.pages.de/~videotext/">
-http://home.pages.de/~videotext/</ulink>. (Videotext is the name of
+specification is available from <ulink url="ftp://ftp.gwdg.de/pub/linux/misc/videotext/">
+ftp://ftp.gwdg.de/pub/linux/misc/videotext/</ulink>. (Videotext is the name of
 the German public television Teletext service.) Conventional character
 device file names are <filename>/dev/vtx</filename> and
 <filename>/dev/vttuner</filename>, with device number 83, 0 and 83, 16

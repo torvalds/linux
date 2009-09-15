@@ -157,7 +157,7 @@ used in the Windows world.</para>
     <!-- See proposal by Billy Biggs, video4linux-list@redhat.com
 on 11 Oct 2002, subject: "Re: [V4L] Re: v4l2 api", and
 http://vektor.theorem.ca/graphics/ycbcr/ and
-http://www.inforamp.net/~poynton/notes/colour_and_gamma/index.html -->
+http://www.poynton.com/notes/colour_and_gamma/ColorFAQ.html -->
 
     <para>
       <variablelist>
