@@ -292,7 +292,7 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	tda18271_lookup_map(fe, RF_CAL_DC_OVER_DT, &freq, &dc_over_dt);
 
 	/* calculate temperature compensation */
-	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal);
+	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal) / 1000;
 
 	regs[R_EB14] = approx + rfcal_comp;
 	ret = tda18271_write_regs(fe, R_EB14, 1);
