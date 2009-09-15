@@ -95,7 +95,6 @@ struct controller {
 	struct slot *slot;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u32 first_slot;		/* First physical slot number */  /* PCIE only has 1 slot */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
 	u32 slot_cap;
 	u8 cap_base;
@@ -153,6 +152,7 @@ struct controller {
 #define HP_SUPR_RM(ctrl)	((ctrl)->slot_cap & HP_SUPR_RM_SUP)
 #define EMI(ctrl)		((ctrl)->slot_cap & EMI_PRSN)
 #define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & NO_CMD_CMPL_SUP)
+#define PSN(ctrl)		((ctrl)->slot_cap >> 19)
 
 extern int pciehp_sysfs_enable_slot(struct slot *slot);
 extern int pciehp_sysfs_disable_slot(struct slot *slot);

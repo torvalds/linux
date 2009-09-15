@@ -926,7 +926,7 @@ static int pcie_init_slot(struct controller *ctrl)
 
 	slot->ctrl = ctrl;
 	slot->hpc_ops = ctrl->hpc_ops;
-	slot->number = ctrl->first_slot;
+	slot->number = PSN(ctrl);
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
@@ -969,7 +969,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 			  (unsigned long long)pci_resource_start(pdev, i));
 	}
 	ctrl_info(ctrl, "Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);
-	ctrl_info(ctrl, "  Physical Slot Number : %d\n", ctrl->first_slot);
+	ctrl_info(ctrl, "  Physical Slot Number : %d\n", PSN(ctrl));
 	ctrl_info(ctrl, "  Attention Button     : %3s\n",
 		  ATTN_BUTTN(ctrl) ? "yes" : "no");
 	ctrl_info(ctrl, "  Power Controller     : %3s\n",
@@ -1016,7 +1016,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 	}
 
 	ctrl->slot_cap = slot_cap;
-	ctrl->first_slot = slot_cap >> 19;
 	ctrl->hpc_ops = &pciehp_hpc_ops;
 	mutex_init(&ctrl->crit_sect);
 	mutex_init(&ctrl->ctrl_lock);
