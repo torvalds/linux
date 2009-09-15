@@ -121,7 +121,7 @@ int arch_update_cpu_topology(void);
 	.cache_nice_tries	= 1,					\
 	.busy_idx		= 2,					\
 	.wake_idx		= 0,					\
-	.forkexec_idx		= 1,					\
+	.forkexec_idx		= 0,					\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
 				| 1*SD_BALANCE_NEWIDLE			\
@@ -153,7 +153,7 @@ int arch_update_cpu_topology(void);
 	.idle_idx		= 1,					\
 	.newidle_idx		= 0,					\
 	.wake_idx		= 0,					\
-	.forkexec_idx		= 1,					\
+	.forkexec_idx		= 0,					\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
 				| 1*SD_BALANCE_NEWIDLE			\
