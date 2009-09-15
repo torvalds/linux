@@ -127,8 +127,13 @@ struct intel_overlay {
 	struct drm_i915_gem_object *reg_bo;
 	void *virt_addr;
 	/* flip handling */
-	int hw_wedged;
 	uint32_t last_flip_req;
+	int hw_wedged;
+#define HW_WEDGED		1
+#define NEEDS_WAIT_FOR_FLIP	2
+#define RELEASE_OLD_VID		3
+#define SWITCH_OFF_STAGE_1	4
+#define SWITCH_OFF_STAGE_2	5
 };
 
 struct intel_crtc {
@@ -209,6 +214,8 @@ extern int intel_framebuffer_create(struct drm_device *dev,
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);
 extern int intel_overlay_switch_off(struct intel_overlay *overlay);
+extern int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
+						int interruptible);
 extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,
