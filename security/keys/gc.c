@@ -26,8 +26,10 @@ static void key_garbage_collector(struct work_struct *);
 static DEFINE_TIMER(key_gc_timer, key_gc_timer_func, 0, 0);
 static DECLARE_WORK(key_gc_work, key_garbage_collector);
 static key_serial_t key_gc_cursor; /* the last key the gc considered */
+static bool key_gc_again;
 static unsigned long key_gc_executing;
 static time_t key_gc_next_run = LONG_MAX;
+static time_t key_gc_new_timer;
 
 /*
  * Schedule a garbage collection run
@@ -40,9 +42,7 @@ void key_schedule_gc(time_t gc_at)
 
 	kenter("%ld", gc_at - now);
 
-	gc_at += key_gc_delay;
-
-	if (now >= gc_at) {
+	if (gc_at <= now) {
 		schedule_work(&key_gc_work);
 	} else if (gc_at < key_gc_next_run) {
 		expires = jiffies + (gc_at - now) * HZ;
@@ -112,16 +112,18 @@ static void key_garbage_collector(struct work_struct *work)
 	struct rb_node *rb;
 	key_serial_t cursor;
 	struct key *key, *xkey;
-	time_t new_timer = LONG_MAX, limit;
+	time_t new_timer = LONG_MAX, limit, now;
 
-	kenter("");
+	now = current_kernel_time().tv_sec;
+	kenter("[%x,%ld]", key_gc_cursor, key_gc_new_timer - now);
 
 	if (test_and_set_bit(0, &key_gc_executing)) {
-		key_schedule_gc(current_kernel_time().tv_sec);
+		key_schedule_gc(current_kernel_time().tv_sec + 1);
+		kleave(" [busy; deferring]");
 		return;
 	}
 
-	limit = current_kernel_time().tv_sec;
+	limit = now;
 	if (limit > key_gc_delay)
 		limit -= key_gc_delay;
 	else
@@ -129,12 +131,19 @@ static void key_garbage_collector(struct work_struct *work)
 
 	spin_lock(&key_serial_lock);
 
-	if (RB_EMPTY_ROOT(&key_serial_tree))
-		goto reached_the_end;
+	if (unlikely(RB_EMPTY_ROOT(&key_serial_tree))) {
+		spin_unlock(&key_serial_lock);
+		clear_bit(0, &key_gc_executing);
+		return;
+	}
 
 	cursor = key_gc_cursor;
 	if (cursor < 0)
 		cursor = 0;
+	if (cursor > 0)
+		new_timer = key_gc_new_timer;
+	else
+		key_gc_again = false;
 
 	/* find the first key above the cursor */
 	key = NULL;
@@ -160,35 +169,50 @@ static void key_garbage_collector(struct work_struct *work)
 
 	/* trawl through the keys looking for keyrings */
 	for (;;) {
-		if (key->expiry > 0 && key->expiry < new_timer)
+		if (key->expiry > now && key->expiry < new_timer) {
+			kdebug("will expire %x in %ld",
+			       key_serial(key), key->expiry - now);
 			new_timer = key->expiry;
+		}
 
 		if (key->type == &key_type_keyring &&
-		    key_gc_keyring(key, limit)) {
-			/* the gc ate our lock */
-			schedule_work(&key_gc_work);
-			goto no_unlock;
-		}
+		    key_gc_keyring(key, limit))
+			/* the gc had to release our lock so that the keyring
+			 * could be modified, so we have to get it again */
+			goto gc_released_our_lock;
 
 		rb = rb_next(&key->serial_node);
-		if (!rb) {
-			key_gc_cursor = 0;
-			break;
-		}
+		if (!rb)
+			goto reached_the_end;
 		key = rb_entry(rb, struct key, serial_node);
 	}
 
-out:
-	spin_unlock(&key_serial_lock);
-no_unlock:
+gc_released_our_lock:
+	kdebug("gc_released_our_lock");
+	key_gc_new_timer = new_timer;
+	key_gc_again = true;
 	clear_bit(0, &key_gc_executing);
-	if (new_timer < LONG_MAX)
-		key_schedule_gc(new_timer);
-
-	kleave("");
+	schedule_work(&key_gc_work);
+	kleave(" [continue]");
 	return;
 
+	/* when we reach the end of the run, we set the timer for the next one */
 reached_the_end:
+	kdebug("reached_the_end");
+	spin_unlock(&key_serial_lock);
+	key_gc_new_timer = new_timer;
 	key_gc_cursor = 0;
-	goto out;
+	clear_bit(0, &key_gc_executing);
+
+	if (key_gc_again) {
+		/* there may have been a key that expired whilst we were
+		 * scanning, so if we discarded any links we should do another
+		 * scan */
+		new_timer = now + 1;
+		key_schedule_gc(new_timer);
+	} else if (new_timer < LONG_MAX) {
+		new_timer += key_gc_delay;
+		key_schedule_gc(new_timer);
+	}
+	kleave(" [end]");
 }
