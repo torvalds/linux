@@ -1418,8 +1418,9 @@ static struct irq_chip mpuio_irq_chip = {
 
 #include <linux/platform_device.h>
 
-static int omap_mpuio_suspend_late(struct platform_device *pdev, pm_message_t mesg)
+static int omap_mpuio_suspend_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_bank	*bank = platform_get_drvdata(pdev);
 	void __iomem		*mask_reg = bank->base + OMAP_MPUIO_GPIO_MASKIT;
 	unsigned long		flags;
@@ -1432,8 +1433,9 @@ static int omap_mpuio_suspend_late(struct platform_device *pdev, pm_message_t me
 	return 0;
 }
 
-static int omap_mpuio_resume_early(struct platform_device *pdev)
+static int omap_mpuio_resume_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_bank	*bank = platform_get_drvdata(pdev);
 	void __iomem		*mask_reg = bank->base + OMAP_MPUIO_GPIO_MASKIT;
 	unsigned long		flags;
@@ -1445,14 +1447,18 @@ static int omap_mpuio_resume_early(struct platform_device *pdev)
 	return 0;
 }
 
+static struct dev_pm_ops omap_mpuio_dev_pm_ops = {
+	.suspend_noirq = omap_mpuio_suspend_noirq,
+	.resume_noirq = omap_mpuio_resume_noirq,
+};
+
 /* use platform_driver for this, now that there's no longer any
  * point to sys_device (other than not disturbing old code).
  */
 static struct platform_driver omap_mpuio_driver = {
-	.suspend_late	= omap_mpuio_suspend_late,
-	.resume_early	= omap_mpuio_resume_early,
 	.driver		= {
 		.name	= "mpuio",
+		.pm	= &omap_mpuio_dev_pm_ops,
 	},
 };
 
