@@ -616,13 +616,13 @@ int radeon_device_init(struct radeon_device *rdev,
 				radeon_combios_asic_init(rdev->ddev);
 			}
 		}
+		/* Get vram informations */
+		radeon_vram_info(rdev);
 		/* Initialize clocks */
 		r = radeon_clocks_init(rdev);
 		if (r) {
 			return r;
 		}
-		/* Get vram informations */
-		radeon_vram_info(rdev);
 
 		/* Initialize memory controller (also test AGP) */
 		r = radeon_mc_init(rdev);
