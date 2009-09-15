@@ -133,8 +133,9 @@ static void __flush_dcache_page(unsigned long phys)
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-static void sh7705_flush_dcache_page(void *page)
+static void sh7705_flush_dcache_page(void *arg)
 {
+	struct page *page = arg;
 	struct address_space *mapping = page_mapping(page);
 
 	if (mapping && !mapping_mapped(mapping))
