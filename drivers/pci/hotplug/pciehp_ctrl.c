@@ -210,8 +210,8 @@ static int board_added(struct slot *p_slot)
 	struct controller *ctrl = p_slot->ctrl;
 	struct pci_bus *parent = ctrl->pci_dev->subordinate;
 
-	ctrl_dbg(ctrl, "%s: slot device, slot offset, hp slot = 0, %d, %d\n",
-		 __func__, ctrl->slot_device_offset, p_slot->hp_slot);
+	ctrl_dbg(ctrl, "%s: slot device, slot offset = 0, %d\n",
+		 __func__, ctrl->slot_device_offset);
 
 	if (POWER_CTRL(ctrl)) {
 		/* Power on slot */
@@ -267,8 +267,6 @@ static int remove_board(struct slot *p_slot)
 	retval = pciehp_unconfigure_device(p_slot);
 	if (retval)
 		return retval;
-
-	ctrl_dbg(ctrl, "%s: hp_slot = %d\n", __func__, p_slot->hp_slot);
 
 	if (POWER_CTRL(ctrl)) {
 		/* power off slot */

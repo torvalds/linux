@@ -73,7 +73,6 @@ do {									\
 #define SLOT_NAME_SIZE 10
 struct slot {
 	u8 state;
-	u8 hp_slot;
 	u32 number;
 	struct controller *ctrl;
 	struct hpc_ops *hpc_ops;

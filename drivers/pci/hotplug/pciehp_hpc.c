@@ -497,8 +497,6 @@ static int hpc_power_on_slot(struct slot * slot)
 	u16 slot_status;
 	int retval = 0;
 
-	ctrl_dbg(ctrl, "%s: slot->hp_slot %x\n", __func__, slot->hp_slot);
-
 	/* Clear sticky power-fault bit from previous power failures */
 	retval = pciehp_readw(ctrl, PCI_EXP_SLTSTA, &slot_status);
 	if (retval) {
@@ -577,8 +575,6 @@ static int hpc_power_off_slot(struct slot * slot)
 	u16 cmd_mask;
 	int retval = 0;
 	int changed;
-
-	ctrl_dbg(ctrl, "%s: slot->hp_slot %x\n", __func__, slot->hp_slot);
 
 	/*
 	 * Set Bad DLLP Mask bit in Correctable Error Mask
@@ -928,7 +924,6 @@ static int pcie_init_slot(struct controller *ctrl)
 	if (!slot)
 		return -ENOMEM;
 
-	slot->hp_slot = 0;
 	slot->ctrl = ctrl;
 	slot->hpc_ops = ctrl->hpc_ops;
 	slot->number = ctrl->first_slot;
