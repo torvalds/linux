@@ -534,10 +534,30 @@ L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:	http://maxim.org.za/at91_26.html
 S:	Maintained
 
-ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
-M:	Lennert Buytenhek <kernel@wantstofly.org>
+ARM/BCMRING ARM ARCHITECTURE
+M:	Leo Chen <leochen@broadcom.com>
+M:	Scott Branden <sbranden@broadcom.com>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+F:	arch/arm/mach-bcmring
+
+ARM/BCMRING MTD NAND DRIVER
+M:	Leo Chen <leochen@broadcom.com>
+M:	Scott Branden <sbranden@broadcom.com>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/nand/bcm_umi_nand.c
+F:	drivers/mtd/nand/bcm_umi_bch.c
+F:	drivers/mtd/nand/bcm_umi_hamming.c
+F:	drivers/mtd/nand/nand_bcm_umi.h
+
+ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
+M:	Hartley Sweeten <hsweeten@visionengravers.com>
+M:	Ryan Mallon <ryan@bluewatersys.com>
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+F:	arch/arm/mach-ep93xx/
+F:	arch/arm/mach-ep93xx/include/mach/
 
 ARM/CIRRUS LOGIC EDB9315A MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -684,6 +704,18 @@ S:	Maintained
 ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
+
+ARM/Marvell Loki/Kirkwood/MV78xx0/Orion SOC support
+M:	Lennert Buytenhek <buytenh@marvell.com>
+M:	Nicolas Pitre <nico@marvell.com>
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+T:	git git://git.marvell.com/orion
+S:	Maintained
+F:	arch/arm/mach-loki/
+F:	arch/arm/mach-kirkwood/
+F:	arch/arm/mach-mv78xx0/
+F:	arch/arm/mach-orion5x/
+F:	arch/arm/plat-orion/
 
 ARM/MIOA701 MACHINE SUPPORT
 M:	Robert Jarzmik <robert.jarzmik@free.fr>

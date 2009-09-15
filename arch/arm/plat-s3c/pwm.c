@@ -1,10 +1,10 @@
-/* arch/arm/plat-s3c24xx/pwm.c
+/* arch/arm/plat-s3c/pwm.c
  *
  * Copyright (c) 2007 Ben Dooks
  * Copyright (c) 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>, <ben-linux@fluff.org>
  *
- * S3C24XX PWM device core
+ * S3C series PWM device core
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <linux/pwm.h>
 
 #include <mach/irqs.h>
+#include <mach/map.h>
 
 #include <plat/devs.h>
 #include <plat/regs-timer.h>

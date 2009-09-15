@@ -326,7 +326,7 @@ static struct platform_driver w90x900ts_driver = {
 	.probe		= w90x900ts_probe,
 	.remove		= __devexit_p(w90x900ts_remove),
 	.driver		= {
-		.name	= "w90x900-ts",
+		.name	= "nuc900-ts",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -347,4 +347,4 @@ module_exit(w90x900ts_exit);
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910 touch screen driver!");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:w90p910-ts");
+MODULE_ALIAS("platform:nuc900-ts");

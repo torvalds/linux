@@ -287,7 +287,11 @@ static void __init ek_add_device_ts(void) {}
  */
 static struct at73c213_board_info at73c213_data = {
 	.ssc_id		= 1,
+#if defined(CONFIG_MACH_AT91SAM9261EK)
 	.shortname	= "AT91SAM9261-EK external DAC",
+#else
+	.shortname	= "AT91SAM9G10-EK external DAC",
+#endif
 };
 
 #if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
@@ -414,6 +418,9 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 	.default_monspecs		= &at91fb_default_stn_monspecs,
 	.atmel_lcdfb_power_control	= at91_lcdc_stn_power_control,
 	.guard_time			= 1,
+#if defined(CONFIG_MACH_AT91SAM9G10EK)
+	.lcd_wiring_mode		= ATMEL_LCDC_WIRING_RGB,
+#endif
 };
 
 #else
@@ -467,6 +474,9 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 	.default_monspecs		= &at91fb_default_tft_monspecs,
 	.atmel_lcdfb_power_control	= at91_lcdc_tft_power_control,
 	.guard_time			= 1,
+#if defined(CONFIG_MACH_AT91SAM9G10EK)
+	.lcd_wiring_mode		= ATMEL_LCDC_WIRING_RGB,
+#endif
 };
 #endif
 
@@ -600,7 +610,11 @@ static void __init ek_board_init(void)
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
+#if defined(CONFIG_MACH_AT91SAM9261EK)
 MACHINE_START(AT91SAM9261EK, "Atmel AT91SAM9261-EK")
+#else
+MACHINE_START(AT91SAM9G10EK, "Atmel AT91SAM9G10-EK")
+#endif
 	/* Maintainer: Atmel */
 	.phys_io	= AT91_BASE_SYS,
 	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,

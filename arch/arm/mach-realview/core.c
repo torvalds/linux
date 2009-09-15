@@ -221,6 +221,9 @@ arch_initcall(realview_i2c_init);
 
 #define REALVIEW_SYSMCI	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_MCI_OFFSET)
 
+/*
+ * This is only used if GPIOLIB support is disabled
+ */
 static unsigned int realview_mmc_status(struct device *dev)
 {
 	struct amba_device *adev = container_of(dev, struct amba_device, dev);
@@ -237,11 +240,15 @@ static unsigned int realview_mmc_status(struct device *dev)
 struct mmc_platform_data realview_mmc0_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= realview_mmc_status,
+	.gpio_wp	= 17,
+	.gpio_cd	= 16,
 };
 
 struct mmc_platform_data realview_mmc1_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= realview_mmc_status,
+	.gpio_wp	= 19,
+	.gpio_cd	= 18,
 };
 
 /*
