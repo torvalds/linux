@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 
+#include "dvb_math.h"
 #include "dvb_frontend.h"
 
 #include "dib7000p.h"
@@ -1217,7 +1218,37 @@ static int dib7000p_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 static int dib7000p_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
-	*snr = 0x0000;
+	struct dib7000p_state *state = fe->demodulator_priv;
+	u16 val;
+	s32 signal_mant, signal_exp, noise_mant, noise_exp;
+	u32 result = 0;
+
+	val = dib7000p_read_word(state, 479);
+	noise_mant = (val >> 4) & 0xff;
+	noise_exp = ((val & 0xf) << 2);
+	val = dib7000p_read_word(state, 480);
+	noise_exp += ((val >> 14) & 0x3);
+	if ((noise_exp & 0x20) != 0)
+		noise_exp -= 0x40;
+
+	signal_mant = (val >> 6) & 0xFF;
+	signal_exp  = (val & 0x3F);
+	if ((signal_exp & 0x20) != 0)
+		signal_exp -= 0x40;
+
+	if (signal_mant != 0)
+		result = intlog10(2) * 10 * signal_exp + 10 *
+			intlog10(signal_mant);
+	else
+		result = intlog10(2) * 10 * signal_exp - 100;
+
+	if (noise_mant != 0)
+		result -= intlog10(2) * 10 * noise_exp + 10 *
+			intlog10(noise_mant);
+	else
+		result -= intlog10(2) * 10 * noise_exp - 100;
+
+	*snr = result / ((1 << 24) / 10);
 	return 0;
 }
 
