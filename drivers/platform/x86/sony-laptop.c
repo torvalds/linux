@@ -1202,15 +1202,6 @@ static int sony_nc_add(struct acpi_device *device)
 		}
 	}
 
-	/* try to _INI the device if such method exists (ACPI spec 3.0-6.5.1
-	 * should be respected as we already checked for the device presence above */
-	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, METHOD_NAME__INI, &handle))) {
-		dprintk("Invoking _INI\n");
-		if (ACPI_FAILURE(acpi_evaluate_object(sony_nc_acpi_handle, METHOD_NAME__INI,
-						NULL, NULL)))
-			dprintk("_INI Method failed\n");
-	}
-
 	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "ECON",
 					 &handle))) {
 		if (acpi_callsetfunc(sony_nc_acpi_handle, "ECON", 1, NULL))
