@@ -91,6 +91,31 @@ struct wpan_phy *wpan_phy_find(const char *str)
 }
 EXPORT_SYMBOL(wpan_phy_find);
 
+struct wpan_phy_iter_data {
+	int (*fn)(struct wpan_phy *phy, void *data);
+	void *data;
+};
+
+static int wpan_phy_iter(struct device *dev, void *_data)
+{
+	struct wpan_phy_iter_data *wpid = _data;
+	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);
+	return wpid->fn(phy, wpid->data);
+}
+
+int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
+		void *data)
+{
+	struct wpan_phy_iter_data wpid = {
+		.fn = fn,
+		.data = data,
+	};
+
+	return class_for_each_device(&wpan_phy_class, NULL,
+			&wpid, wpan_phy_iter);
+}
+EXPORT_SYMBOL(wpan_phy_for_each);
+
 static int wpan_phy_idx_valid(int idx)
 {
 	return idx >= 0;

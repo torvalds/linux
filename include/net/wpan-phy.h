@@ -48,6 +48,8 @@ struct wpan_phy *wpan_phy_alloc(size_t priv_size);
 int wpan_phy_register(struct device *parent, struct wpan_phy *phy);
 void wpan_phy_unregister(struct wpan_phy *phy);
 void wpan_phy_free(struct wpan_phy *phy);
+/* Same semantics as for class_for_each_device */
+int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data), void *data);
 
 static inline void *wpan_phy_priv(struct wpan_phy *phy)
 {
