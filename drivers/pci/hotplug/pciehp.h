@@ -88,7 +88,6 @@ struct event_info {
 };
 
 struct controller {
-	struct mutex crit_sect;		/* critical section mutex */
 	struct mutex ctrl_lock;		/* controller lock */
 	struct pci_dev *pci_dev;
 	struct pcie_device *pcie;	/* PCI Express port service */

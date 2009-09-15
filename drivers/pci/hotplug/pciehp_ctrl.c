@@ -519,13 +519,9 @@ int pciehp_enable_slot(struct slot *p_slot)
 	int rc;
 	struct controller *ctrl = p_slot->ctrl;
 
-	/* Check to see if (latch closed, card present, power off) */
-	mutex_lock(&p_slot->ctrl->crit_sect);
-
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
 		ctrl_info(ctrl, "No adapter on slot(%s)\n", slot_name(p_slot));
-		mutex_unlock(&p_slot->ctrl->crit_sect);
 		return -ENODEV;
 	}
 	if (MRL_SENS(p_slot->ctrl)) {
@@ -533,7 +529,6 @@ int pciehp_enable_slot(struct slot *p_slot)
 		if (rc || getstatus) {
 			ctrl_info(ctrl, "Latch open on slot(%s)\n",
 				  slot_name(p_slot));
-			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
 		}
 	}
@@ -543,7 +538,6 @@ int pciehp_enable_slot(struct slot *p_slot)
 		if (rc || getstatus) {
 			ctrl_info(ctrl, "Already enabled on slot(%s)\n",
 				  slot_name(p_slot));
-			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;
 		}
 	}
@@ -557,7 +551,6 @@ int pciehp_enable_slot(struct slot *p_slot)
 
 	update_slot_info(p_slot);
 
-	mutex_unlock(&p_slot->ctrl->crit_sect);
 	return rc;
 }
 
@@ -571,15 +564,11 @@ int pciehp_disable_slot(struct slot *p_slot)
 	if (!p_slot->ctrl)
 		return 1;
 
-	/* Check to see if (latch closed, card present, power on) */
-	mutex_lock(&p_slot->ctrl->crit_sect);
-
 	if (!HP_SUPR_RM(p_slot->ctrl)) {
 		ret = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
 			ctrl_info(ctrl, "No adapter on slot(%s)\n",
 				  slot_name(p_slot));
-			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
 		}
 	}
@@ -589,7 +578,6 @@ int pciehp_disable_slot(struct slot *p_slot)
 		if (ret || getstatus) {
 			ctrl_info(ctrl, "Latch open on slot(%s)\n",
 				  slot_name(p_slot));
-			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
 		}
 	}
@@ -599,7 +587,6 @@ int pciehp_disable_slot(struct slot *p_slot)
 		if (ret || !getstatus) {
 			ctrl_info(ctrl, "Already disabled on slot(%s)\n",
 				  slot_name(p_slot));
-			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;
 		}
 	}
@@ -607,7 +594,6 @@ int pciehp_disable_slot(struct slot *p_slot)
 	ret = remove_board(p_slot);
 	update_slot_info(p_slot);
 
-	mutex_unlock(&p_slot->ctrl->crit_sect);
 	return ret;
 }
 

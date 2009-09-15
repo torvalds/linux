@@ -1017,7 +1017,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	ctrl->slot_cap = slot_cap;
 	ctrl->hpc_ops = &pciehp_hpc_ops;
-	mutex_init(&ctrl->crit_sect);
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
