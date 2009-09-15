@@ -1573,7 +1573,6 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 		fw_name = i2400m->bus_fw_names[itr];
 		if (fw_name == NULL) {
 			dev_err(dev, "Could not find a usable firmware image\n");
-			ret = -ENOENT;
 			break;
 		}
 		d_printf(1, dev, "trying firmware %s (%d)\n", fw_name, itr);
