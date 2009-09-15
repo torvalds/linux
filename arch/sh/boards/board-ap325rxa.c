@@ -211,7 +211,7 @@ static struct resource lcdc_resources[] = {
 	[0] = {
 		.name	= "LCDC",
 		.start	= 0xfe940000, /* P4-only space */
-		.end	= 0xfe941fff,
+		.end	= 0xfe942fff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {

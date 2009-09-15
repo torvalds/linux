@@ -23,6 +23,8 @@
 #include <asm/atomic.h>
 
 #define PALETTE_NR 16
+#define SIDE_B_OFFSET 0x1000
+#define MIRROR_OFFSET 0x2000
 
 /* shared registers */
 #define _LDDCKR 0x410
@@ -100,6 +102,10 @@ static unsigned long lcdc_offs_sublcd[NR_CH_REGS] = {
 #define LDINTR_FS	0x00000004
 #define LDINTR_VSS	0x00000002
 #define LDINTR_VES	0x00000001
+#define LDRCNTR_SRS	0x00020000
+#define LDRCNTR_SRC	0x00010000
+#define LDRCNTR_MRS	0x00000002
+#define LDRCNTR_MRC	0x00000001
 
 struct sh_mobile_lcdc_priv;
 struct sh_mobile_lcdc_chan {
@@ -132,10 +138,39 @@ struct sh_mobile_lcdc_priv {
 	int started;
 };
 
+static bool banked(int reg_nr)
+{
+	switch (reg_nr) {
+	case LDMT1R:
+	case LDMT2R:
+	case LDMT3R:
+	case LDDFR:
+	case LDSM1R:
+	case LDSA1R:
+	case LDMLSR:
+	case LDHCNR:
+	case LDHSYNR:
+	case LDVLNR:
+	case LDVSYNR:
+		return true;
+	}
+	return false;
+}
+
 static void lcdc_write_chan(struct sh_mobile_lcdc_chan *chan,
 			    int reg_nr, unsigned long data)
 {
 	iowrite32(data, chan->lcdc->base + chan->reg_offs[reg_nr]);
+	if (banked(reg_nr))
+		iowrite32(data, chan->lcdc->base + chan->reg_offs[reg_nr] +
+			  SIDE_B_OFFSET);
+}
+
+static void lcdc_write_chan_mirror(struct sh_mobile_lcdc_chan *chan,
+			    int reg_nr, unsigned long data)
+{
+	iowrite32(data, chan->lcdc->base + chan->reg_offs[reg_nr] +
+		  MIRROR_OFFSET);
 }
 
 static unsigned long lcdc_read_chan(struct sh_mobile_lcdc_chan *chan,
@@ -308,10 +343,16 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 
 		/* VSYNC End */
 		if (ldintr & LDINTR_VES) {
+			unsigned long ldrcntr = lcdc_read(priv, _LDRCNTR);
 			/* Set the source address for the next refresh */
-			lcdc_write_chan(ch, LDSA1R, ch->dma_handle +
-					ch->new_pan_offset);
-			lcdc_write(ch->lcdc, _LDRCNTR, 0);
+			lcdc_write_chan_mirror(ch, LDSA1R, ch->dma_handle +
+					       ch->new_pan_offset);
+			if (lcdc_chan_is_sublcd(ch))
+				lcdc_write(ch->lcdc, _LDRCNTR,
+					   ldrcntr ^ LDRCNTR_SRS);
+			else
+				lcdc_write(ch->lcdc, _LDRCNTR,
+					   ldrcntr ^ LDRCNTR_MRS);
 			ch->pan_offset = ch->new_pan_offset;
 		}
 	}
