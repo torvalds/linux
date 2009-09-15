@@ -4004,7 +4004,7 @@ set_max_delegations(void)
 
 /* initialization to perform when the nfsd service is started: */
 
-static void
+static int
 __nfs4_state_start(void)
 {
 	unsigned long grace_time;
@@ -4016,19 +4016,26 @@ __nfs4_state_start(void)
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       grace_time/HZ);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
+	if (laundry_wq == NULL)
+		return -ENOMEM;
 	queue_delayed_work(laundry_wq, &laundromat_work, grace_time);
 	set_max_delegations();
+	return 0;
 }
 
-void
+int
 nfs4_state_start(void)
 {
+	int ret;
+
 	if (nfs4_init)
-		return;
+		return 0;
 	nfsd4_load_reboot_recovery_data();
-	__nfs4_state_start();
+	ret = __nfs4_state_start();
+	if (ret)
+		return ret;
 	nfs4_init = 1;
-	return;
+	return 0;
 }
 
 time_t

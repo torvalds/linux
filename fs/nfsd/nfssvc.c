@@ -411,7 +411,9 @@ nfsd_svc(unsigned short port, int nrservs)
 	error =	nfsd_racache_init(2*nrservs);
 	if (error<0)
 		goto out;
-	nfs4_state_start();
+	error = nfs4_state_start();
+	if (error)
+		goto out;
 
 	nfsd_reset_versions();
 

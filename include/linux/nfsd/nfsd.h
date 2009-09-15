@@ -166,7 +166,7 @@ extern int nfsd_max_blksize;
 extern unsigned int max_delegations;
 int nfs4_state_init(void);
 void nfsd4_free_slabs(void);
-void nfs4_state_start(void);
+int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
 time_t nfs4_lease_time(void);
 void nfs4_reset_lease(time_t leasetime);
@@ -174,7 +174,7 @@ int nfs4_reset_recoverydir(char *recdir);
 #else
 static inline int nfs4_state_init(void) { return 0; }
 static inline void nfsd4_free_slabs(void) { }
-static inline void nfs4_state_start(void) { }
+static inline int nfs4_state_start(void) { }
 static inline void nfs4_state_shutdown(void) { }
 static inline time_t nfs4_lease_time(void) { return 0; }
 static inline void nfs4_reset_lease(time_t leasetime) { }
