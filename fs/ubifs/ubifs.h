@@ -105,12 +105,10 @@
 /* Number of non-data journal heads */
 #define NONDATA_JHEADS_CNT 2
 
-/* Garbage collector head */
-#define GCHD   0
-/* Base journal head number */
-#define BASEHD 1
-/* First "general purpose" journal head */
-#define DATAHD 2
+/* Shorter names for journal head numbers for internal usage */
+#define GCHD   UBIFS_GC_HEAD
+#define BASEHD UBIFS_BASE_HEAD
+#define DATAHD UBIFS_DATA_HEAD
 
 /* 'No change' value for 'ubifs_change_lp()' */
 #define LPROPS_NC 0x80000001
