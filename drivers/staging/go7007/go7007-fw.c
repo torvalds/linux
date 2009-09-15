@@ -1034,7 +1034,8 @@ static int brctrl_to_package(struct go7007 *go,
 		0xBF1B,		framelen[7],
 		0,		0,
 
-#if 0 /* Remove once we don't care about matching */
+#if 0
+		/* Remove once we don't care about matching */
 		0x200e,		0x0000,
 		0xBF56,		4,
 		0xBF57,		0,

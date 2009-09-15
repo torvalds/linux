@@ -34,7 +34,7 @@ extern void s2250loader_cleanup(void);
 #define VPX322_ADDR_CONTRAST0		0x0128
 #define VPX322_ADDR_CONTRAST1		0x0132
 #define VPX322_ADDR_HUE			0x00dc
-#define VPX322_ADDR_SAT	 	        0x0030
+#define VPX322_ADDR_SAT			0x0030
 
 struct go7007_usb_board {
 	unsigned int flags;
