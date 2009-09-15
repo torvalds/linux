@@ -1116,12 +1116,16 @@ create_n_graft:
 				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
 	else {
-		unsigned int ntx = 0;
+		struct netdev_queue *dev_queue;
 
 		if (p && p->ops->cl_ops && p->ops->cl_ops->select_queue)
-			ntx = p->ops->cl_ops->select_queue(p, tcm);
+			dev_queue = p->ops->cl_ops->select_queue(p, tcm);
+		else if (p)
+			dev_queue = p->dev_queue;
+		else
+			dev_queue = netdev_get_tx_queue(dev, 0);
 
-		q = qdisc_create(dev, netdev_get_tx_queue(dev, ntx), p,
+		q = qdisc_create(dev, dev_queue, p,
 				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err);
 	}
