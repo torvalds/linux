@@ -345,13 +345,13 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 	if (!chan)
 		return -EINVAL;
 
-	buff = kzalloc(sizeof(struct s3c64xx_dma_buff), GFP_KERNEL);
+	buff = kzalloc(sizeof(struct s3c64xx_dma_buff), GFP_ATOMIC);
 	if (!buff) {
 		printk(KERN_ERR "%s: no memory for buffer\n", __func__);
 		return -ENOMEM;
 	}
 
-	lli = dma_pool_alloc(dma_pool, GFP_KERNEL, &buff->lli_dma);
+	lli = dma_pool_alloc(dma_pool, GFP_ATOMIC, &buff->lli_dma);
 	if (!lli) {
 		printk(KERN_ERR "%s: no memory for lli\n", __func__);
 		ret = -ENOMEM;
