@@ -231,7 +231,7 @@ static int board_added(struct slot *p_slot)
 	/* Check for a power fault */
 	if (pciehp_query_power_fault(p_slot)) {
 		ctrl_dbg(ctrl, "Power fault detected\n");
-		retval = POWER_FAILURE;
+		retval = -EIO;
 		goto err_exit;
 	}
 
