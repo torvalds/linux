@@ -802,11 +802,12 @@ struct drm_radeon_gem_create {
 	uint32_t	flags;
 };
 
-#define RADEON_TILING_MACRO 0x1
-#define RADEON_TILING_MICRO 0x2
-#define RADEON_TILING_SWAP  0x4
-#define RADEON_TILING_SURFACE  0x8 /* this object requires a surface
-				    * when mapped - i.e. front buffer */
+#define RADEON_TILING_MACRO       0x1
+#define RADEON_TILING_MICRO       0x2
+#define RADEON_TILING_SWAP_16BIT  0x4
+#define RADEON_TILING_SWAP_32BIT  0x8
+#define RADEON_TILING_SURFACE     0x10 /* this object requires a surface
+					* when mapped - i.e. front buffer */
 
 struct drm_radeon_gem_set_tiling {
 	uint32_t	handle;

@@ -188,6 +188,7 @@ int radeon_object_kmap(struct radeon_object *robj, void **ptr)
 	if (ptr) {
 		*ptr = robj->kptr;
 	}
+	radeon_object_check_tiling(robj, 0, 0);
 	return 0;
 }
 
@@ -200,6 +201,7 @@ void radeon_object_kunmap(struct radeon_object *robj)
 	}
 	robj->kptr = NULL;
 	spin_unlock(&robj->tobj.lock);
+	radeon_object_check_tiling(robj, 0, 0);
 	ttm_bo_kunmap(&robj->kmap);
 }
 

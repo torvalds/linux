@@ -2235,6 +2235,11 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			flags |= R300_SURF_TILE_MICRO;
 	}
 
+	if (tiling_flags & RADEON_TILING_SWAP_16BIT)
+		flags |= RADEON_SURF_AP0_SWP_16BPP | RADEON_SURF_AP1_SWP_16BPP;
+	if (tiling_flags & RADEON_TILING_SWAP_32BIT)
+		flags |= RADEON_SURF_AP0_SWP_32BPP | RADEON_SURF_AP1_SWP_32BPP;
+
 	DRM_DEBUG("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
 	WREG32(RADEON_SURFACE0_INFO + surf_index, flags);
 	WREG32(RADEON_SURFACE0_LOWER_BOUND + surf_index, offset);
