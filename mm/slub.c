@@ -1071,6 +1071,8 @@ static inline unsigned long kmem_cache_flags(unsigned long objsize,
 }
 #define slub_debug 0
 
+#define disable_higher_order_debug 0
+
 static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 							{ return 0; }
 static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
