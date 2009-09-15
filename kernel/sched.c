@@ -2310,7 +2310,6 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 {
 	int cpu, orig_cpu, this_cpu, success = 0;
 	unsigned long flags;
-	long old_state;
 	struct rq *rq;
 
 	if (!sched_feat(SYNC_WAKEUPS))
@@ -2332,11 +2331,12 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	}
 #endif
 
+	this_cpu = get_cpu();
+
 	smp_wmb();
 	rq = task_rq_lock(p, &flags);
 	update_rq_clock(rq);
-	old_state = p->state;
-	if (!(old_state & state))
+	if (!(p->state & state))
 		goto out;
 
 	if (p->se.on_rq)
@@ -2344,27 +2344,25 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 
 	cpu = task_cpu(p);
 	orig_cpu = cpu;
-	this_cpu = smp_processor_id();
 
 #ifdef CONFIG_SMP
 	if (unlikely(task_running(rq, p)))
 		goto out_activate;
 
-	cpu = p->sched_class->select_task_rq(p, SD_BALANCE_WAKE, sync);
-	if (cpu != orig_cpu) {
-		set_task_cpu(p, cpu);
-		task_rq_unlock(rq, &flags);
-		/* might preempt at this point */
-		rq = task_rq_lock(p, &flags);
-		old_state = p->state;
-		if (!(old_state & state))
-			goto out;
-		if (p->se.on_rq)
-			goto out_running;
+	/*
+	 * In order to handle concurrent wakeups and release the rq->lock
+	 * we put the task in TASK_WAKING state.
+	 */
+	p->state = TASK_WAKING;
+	task_rq_unlock(rq, &flags);
 
-		this_cpu = smp_processor_id();
-		cpu = task_cpu(p);
-	}
+	cpu = p->sched_class->select_task_rq(p, SD_BALANCE_WAKE, sync);
+	if (cpu != orig_cpu)
+		set_task_cpu(p, cpu);
+
+	rq = task_rq_lock(p, &flags);
+	WARN_ON(p->state != TASK_WAKING);
+	cpu = task_cpu(p);
 
 #ifdef CONFIG_SCHEDSTATS
 	schedstat_inc(rq, ttwu_count);
@@ -2422,6 +2420,7 @@ out_running:
 #endif
 out:
 	task_rq_unlock(rq, &flags);
+	put_cpu();
 
 	return success;
 }
