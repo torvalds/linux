@@ -154,7 +154,28 @@ int qe_get_snum(void);
 void qe_put_snum(u8 snum);
 unsigned int qe_get_num_of_risc(void);
 unsigned int qe_get_num_of_snums(void);
-int qe_alive_during_sleep(void);
+
+static inline int qe_alive_during_sleep(void)
+{
+	/*
+	 * MPC8568E reference manual says:
+	 *
+	 * "...power down sequence waits for all I/O interfaces to become idle.
+	 *  In some applications this may happen eventually without actively
+	 *  shutting down interfaces, but most likely, software will have to
+	 *  take steps to shut down the eTSEC, QUICC Engine Block, and PCI
+	 *  interfaces before issuing the command (either the write to the core
+	 *  MSR[WE] as described above or writing to POWMGTCSR) to put the
+	 *  device into sleep state."
+	 *
+	 * MPC8569E reference manual has a similar paragraph.
+	 */
+#ifdef CONFIG_PPC_85xx
+	return 0;
+#else
+	return 1;
+#endif
+}
 
 /* we actually use cpm_muram implementation, define this for convenience */
 #define qe_muram_init cpm_muram_init

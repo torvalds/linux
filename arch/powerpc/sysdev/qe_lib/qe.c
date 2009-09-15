@@ -65,19 +65,6 @@ static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
 
-int qe_alive_during_sleep(void)
-{
-	static int ret = -1;
-
-	if (ret != -1)
-		return ret;
-
-	ret = !of_find_compatible_node(NULL, NULL, "fsl,mpc8569-pmc");
-
-	return ret;
-}
-EXPORT_SYMBOL(qe_alive_during_sleep);
-
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
