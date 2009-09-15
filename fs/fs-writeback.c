@@ -97,6 +97,11 @@ static void bdi_work_clear(struct bdi_work *work)
 {
 	clear_bit(WS_USED_B, &work->state);
 	smp_mb__after_clear_bit();
+	/*
+	 * work can have disappeared at this point. bit waitq functions
+	 * should be able to tolerate this, provided bdi_sched_wait does
+	 * not dereference it's pointer argument.
+	*/
 	wake_up_bit(&work->state, WS_USED_B);
 }
 
@@ -169,13 +174,7 @@ static void bdi_queue_work(struct backing_dev_info *bdi, struct bdi_work *work)
 	else {
 		struct bdi_writeback *wb = &bdi->wb;
 
-		/*
-		 * End work now if this wb has no dirty IO pending. Otherwise
-		 * wakeup the handling thread
-		 */
-		if (!wb_has_dirty_io(wb))
-			wb_clear_pending(wb, work);
-		else if (wb->task)
+		if (wb->task)
 			wake_up_process(wb->task);
 	}
 }
