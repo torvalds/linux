@@ -87,6 +87,10 @@ int __init ieee802154_nl_init(void)
 	if (rc)
 		goto fail;
 
+	rc = nl802154_phy_register();
+	if (rc)
+		goto fail;
+
 	return 0;
 
 fail:
