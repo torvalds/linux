@@ -863,8 +863,10 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 	int tmp, i;
 	struct radeon_encoder_lvds *lvds = NULL;
 
-	if (rdev->bios == NULL)
-		return radeon_legacy_get_lvds_info_from_regs(rdev);
+	if (rdev->bios == NULL) {
+		lvds = radeon_legacy_get_lvds_info_from_regs(rdev);
+		goto out;
+	}
 
 	lcd_info = combios_get_table_offset(dev, COMBIOS_LCD_INFO_TABLE);
 
@@ -965,11 +967,13 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 				lvds->native_mode.flags = 0;
 			}
 		}
-		encoder->native_mode = lvds->native_mode;
 	} else {
 		DRM_INFO("No panel info found in BIOS\n");
-		return radeon_legacy_get_lvds_info_from_regs(rdev);
+		lvds = radeon_legacy_get_lvds_info_from_regs(rdev);
 	}
+out:
+	if (lvds)
+		encoder->native_mode = lvds->native_mode;
 	return lvds;
 }
 

@@ -227,6 +227,36 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 	return 0;
 }
 
+static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
+					  struct drm_connector *connector)
+{
+	struct radeon_encoder *radeon_encoder =	to_radeon_encoder(encoder);
+	struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+
+	/* Try to get native mode details from EDID if necessary */
+	if (!native_mode->dotclock) {
+		struct drm_display_mode *t, *mode;
+
+		list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
+			if (mode->hdisplay == native_mode->panel_xres &&
+			    mode->vdisplay == native_mode->panel_yres) {
+				native_mode->hblank = mode->htotal - mode->hdisplay;
+				native_mode->hoverplus = mode->hsync_start - mode->hdisplay;
+				native_mode->hsync_width = mode->hsync_end - mode->hsync_start;
+				native_mode->vblank = mode->vtotal - mode->vdisplay;
+				native_mode->voverplus = mode->vsync_start - mode->vdisplay;
+				native_mode->vsync_width = mode->vsync_end - mode->vsync_start;
+				native_mode->dotclock = mode->clock;
+				DRM_INFO("Determined LVDS native mode details from EDID\n");
+				break;
+			}
+		}
+	}
+	if (!native_mode->dotclock) {
+		DRM_INFO("No LVDS native mode details, disabling RMX\n");
+		radeon_encoder->rmx_type = RMX_OFF;
+	}
+}
 
 static int radeon_lvds_get_modes(struct drm_connector *connector)
 {
@@ -239,9 +269,11 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 		ret = radeon_ddc_get_modes(radeon_connector);
 		if (ret > 0) {
 			encoder = radeon_best_single_encoder(connector);
-			if (encoder)
+			if (encoder) {
+				radeon_fixup_lvds_native_mode(encoder, connector);
 				/* add scaled modes */
 				radeon_add_common_modes(encoder, connector);
+			}
 			return ret;
 		}
 	}
