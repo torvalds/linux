@@ -45,8 +45,6 @@ source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
 
-source "drivers/staging/sxg/Kconfig"
-
 source "drivers/staging/go7007/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
