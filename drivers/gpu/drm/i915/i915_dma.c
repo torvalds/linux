@@ -807,6 +807,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_NUM_FENCES_AVAIL:
 		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
 		break;
+	case I915_PARAM_HAS_OVERLAY:
+		value = dev_priv->overlay ? 1 : 0;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 					param->param);
@@ -1548,6 +1551,8 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		drm_mm_takedown(&dev_priv->vram);
 		i915_gem_lastclose(dev);
+
+		intel_cleanup_overlay(dev);
 	}
 
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1656,6 +1661,8 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_APERTURE, i915_gem_get_aperture_ioctl, 0),
 	DRM_IOCTL_DEF(DRM_I915_GET_PIPE_FROM_CRTC_ID, intel_get_pipe_from_crtc_id, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_MADVISE, i915_gem_madvise_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_OVERLAY_PUT_IMAGE, intel_overlay_put_image, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_I915_OVERLAY_ATTRS, intel_overlay_attrs, DRM_MASTER|DRM_CONTROL_ALLOW),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

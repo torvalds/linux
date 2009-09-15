@@ -170,6 +170,8 @@ struct drm_i915_display_funcs {
 	/* clock gating init */
 };
 
+struct intel_overlay;
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -240,6 +242,9 @@ typedef struct drm_i915_private {
 	int irq_enabled;
 
 	struct intel_opregion opregion;
+
+	/* overlay */
+	struct intel_overlay *overlay;
 
 	/* LVDS info */
 	int backlight_duty_cycle;  /* restore backlight to this value */

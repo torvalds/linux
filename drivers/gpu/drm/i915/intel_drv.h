@@ -110,6 +110,25 @@ struct intel_output {
 	int clone_mask;
 };
 
+struct intel_crtc;
+struct intel_overlay {
+	struct drm_device *dev;
+	struct intel_crtc *crtc;
+	struct drm_i915_gem_object *vid_bo;
+	struct drm_i915_gem_object *old_vid_bo;
+	int active;
+	int pfit_active;
+	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
+	u32 color_key;
+	u32 brightness, contrast, saturation;
+	u32 old_xscale, old_yscale;
+	/* register access */
+	u32 flip_addr;
+	struct drm_i915_gem_object *reg_bo;
+	void *virt_addr;
+	int hw_wedged;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -121,6 +140,7 @@ struct intel_crtc {
 	bool busy; /* is scanout buffer being updated frequently? */
 	struct timer_list idle_timer;
 	bool lowfreq_avail;
+	struct intel_overlay *overlay;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -148,6 +168,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 extern void intel_edp_link_config (struct intel_output *, int *, int *);
 
 
+extern int intel_panel_fitter_pipe (struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
@@ -183,4 +204,11 @@ extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
 
+extern void intel_setup_overlay(struct drm_device *dev);
+extern void intel_cleanup_overlay(struct drm_device *dev);
+extern int intel_overlay_switch_off(struct intel_overlay *overlay);
+extern int intel_overlay_put_image(struct drm_device *dev, void *data,
+				   struct drm_file *file_priv);
+extern int intel_overlay_attrs(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv);
 #endif /* __INTEL_DRV_H__ */

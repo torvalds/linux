@@ -186,6 +186,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_MMAP_GTT	0x24
 #define DRM_I915_GET_PIPE_FROM_CRTC_ID	0x25
 #define DRM_I915_GEM_MADVISE	0x26
+#define DRM_I915_OVERLAY_PUT_IMAGE	0x27
+#define DRM_I915_OVERLAY_ATTRS	0x28
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -223,6 +225,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_GET_APERTURE	DRM_IOR  (DRM_COMMAND_BASE + DRM_I915_GEM_GET_APERTURE, struct drm_i915_gem_get_aperture)
 #define DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GET_PIPE_FROM_CRTC_ID, struct drm_intel_get_pipe_from_crtc_id)
 #define DRM_IOCTL_I915_GEM_MADVISE	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_MADVISE, struct drm_i915_gem_madvise)
+#define DRM_IOCTL_I915_OVERLAY_PUT_IMAGE	DRM_IOW(DRM_COMMAND_BASE + DRM_IOCTL_I915_OVERLAY_ATTRS, struct drm_intel_overlay_put_image)
+#define DRM_IOCTL_I915_OVERLAY_ATTRS	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_OVERLAY_ATTRS, struct drm_intel_overlay_attrs)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -266,6 +270,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_CHIPSET_ID            4
 #define I915_PARAM_HAS_GEM               5
 #define I915_PARAM_NUM_FENCES_AVAIL      6
+#define I915_PARAM_HAS_OVERLAY           7
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -684,6 +689,72 @@ struct drm_i915_gem_madvise {
 
 	/** Whether the backing store still exists. */
 	__u32 retained;
+};
+
+/* flags */
+#define I915_OVERLAY_TYPE_MASK 		0xff
+#define I915_OVERLAY_YUV_PLANAR 	0x01
+#define I915_OVERLAY_YUV_PACKED 	0x02
+#define I915_OVERLAY_RGB		0x03
+
+#define I915_OVERLAY_DEPTH_MASK		0xff00
+#define I915_OVERLAY_RGB24		0x1000
+#define I915_OVERLAY_RGB16		0x2000
+#define I915_OVERLAY_RGB15		0x3000
+#define I915_OVERLAY_YUV422		0x0100
+#define I915_OVERLAY_YUV411		0x0200
+#define I915_OVERLAY_YUV420		0x0300
+#define I915_OVERLAY_YUV410		0x0400
+
+#define I915_OVERLAY_SWAP_MASK		0xff0000
+#define I915_OVERLAY_NO_SWAP		0x000000
+#define I915_OVERLAY_UV_SWAP		0x010000
+#define I915_OVERLAY_Y_SWAP		0x020000
+#define I915_OVERLAY_Y_AND_UV_SWAP	0x030000
+
+#define I915_OVERLAY_FLAGS_MASK		0xff000000
+#define I915_OVERLAY_ENABLE		0x01000000
+
+struct drm_intel_overlay_put_image {
+	/* various flags and src format description */
+	__u32 flags;
+	/* source picture description */
+	__u32 bo_handle;
+	/* stride values and offsets are in bytes, buffer relative */
+	__u16 stride_Y; /* stride for packed formats */
+	__u16 stride_UV;
+	__u32 offset_Y; /* offset for packet formats */
+	__u32 offset_U;
+	__u32 offset_V;
+	/* in pixels */
+	__u16 src_width;
+	__u16 src_height;
+	/* to compensate the scaling factors for partially covered surfaces */
+	__u16 src_scan_width;
+	__u16 src_scan_height;
+	/* output crtc description */
+	__u32 crtc_id;
+	__u16 dst_x;
+	__u16 dst_y;
+	__u16 dst_width;
+	__u16 dst_height;
+};
+
+/* flags */
+#define I915_OVERLAY_UPDATE_ATTRS	(1<<0)
+#define I915_OVERLAY_UPDATE_GAMMA	(1<<1)
+struct drm_intel_overlay_attrs {
+	__u32 flags;
+	__u32 color_key;
+	__s32 brightness;
+	__u32 contrast;
+	__u32 saturation;
+	__u32 gamma0;
+	__u32 gamma1;
+	__u32 gamma2;
+	__u32 gamma3;
+	__u32 gamma4;
+	__u32 gamma5;
 };
 
 #endif				/* _I915_DRM_H_ */
