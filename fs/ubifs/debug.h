@@ -271,6 +271,7 @@ void ubifs_debugging_exit(struct ubifs_info *c);
 /* Dump functions */
 const char *dbg_ntype(int type);
 const char *dbg_cstate(int cmt_state);
+const char *dbg_jhead(int jhead);
 const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
 void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode);
@@ -427,6 +428,7 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 
 #define dbg_ntype(type)                        ""
 #define dbg_cstate(cmt_state)                  ""
+#define dbg_jhead(jhead)                       ""
 #define dbg_get_key_dump(c, key)               ({})
 #define dbg_dump_inode(c, inode)               ({})
 #define dbg_dump_node(c, node)                 ({})

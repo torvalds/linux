@@ -158,7 +158,7 @@ again:
 	 * some. But the write-buffer mutex has to be unlocked because
 	 * GC also takes it.
 	 */
-	dbg_jnl("no free space  jhead %d, run GC", jhead);
+	dbg_jnl("no free space in jhead %s, run GC", dbg_jhead(jhead));
 	mutex_unlock(&wbuf->io_mutex);
 
 	lnum = ubifs_garbage_collect(c, 0);
@@ -173,7 +173,8 @@ again:
 		 * because we dropped @wbuf->io_mutex, so try once
 		 * again.
 		 */
-		dbg_jnl("GC couldn't make a free LEB for jhead %d", jhead);
+		dbg_jnl("GC couldn't make a free LEB for jhead %s",
+			dbg_jhead(jhead));
 		if (retries++ < 2) {
 			dbg_jnl("retry (%d)", retries);
 			goto again;
@@ -184,7 +185,7 @@ again:
 	}
 
 	mutex_lock_nested(&wbuf->io_mutex, wbuf->jhead);
-	dbg_jnl("got LEB %d for jhead %d", lnum, jhead);
+	dbg_jnl("got LEB %d for jhead %s", lnum, dbg_jhead(jhead));
 	avail = c->leb_size - wbuf->offs - wbuf->used;
 
 	if (wbuf->lnum != -1 && avail >= len) {
@@ -255,7 +256,8 @@ static int write_node(struct ubifs_info *c, int jhead, void *node, int len,
 	*lnum = c->jheads[jhead].wbuf.lnum;
 	*offs = c->jheads[jhead].wbuf.offs + c->jheads[jhead].wbuf.used;
 
-	dbg_jnl("jhead %d, LEB %d:%d, len %d", jhead, *lnum, *offs, len);
+	dbg_jnl("jhead %s, LEB %d:%d, len %d",
+		dbg_jhead(jhead), *lnum, *offs, len);
 	ubifs_prepare_node(c, node, len, 0);
 
 	return ubifs_wbuf_write_nolock(wbuf, node, len);
@@ -285,7 +287,8 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 
 	*lnum = c->jheads[jhead].wbuf.lnum;
 	*offs = c->jheads[jhead].wbuf.offs + c->jheads[jhead].wbuf.used;
-	dbg_jnl("jhead %d, LEB %d:%d, len %d", jhead, *lnum, *offs, len);
+	dbg_jnl("jhead %s, LEB %d:%d, len %d",
+		dbg_jhead(jhead), *lnum, *offs, len);
 
 	err = ubifs_wbuf_write_nolock(wbuf, buf, len);
 	if (err)

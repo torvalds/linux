@@ -210,6 +210,20 @@ const char *dbg_cstate(int cmt_state)
 	}
 }
 
+const char *dbg_jhead(int jhead)
+{
+	switch (jhead) {
+	case GCHD:
+		return "0 (GC)";
+	case BASEHD:
+		return "1 (base)";
+	case DATAHD:
+		return "2 (data)";
+	default:
+		return "unknown journal head";
+	}
+}
+
 static void dump_ch(const struct ubifs_ch *ch)
 {
 	printk(KERN_DEBUG "\tmagic          %#x\n", le32_to_cpu(ch->magic));
@@ -623,8 +637,9 @@ void dbg_dump_budg(struct ubifs_info *c)
 	/* If we are in R/O mode, journal heads do not exist */
 	if (c->jheads)
 		for (i = 0; i < c->jhead_cnt; i++)
-			printk(KERN_DEBUG "\tjhead %d\t LEB %d\n",
-			       c->jheads[i].wbuf.jhead, c->jheads[i].wbuf.lnum);
+			printk(KERN_DEBUG "\tjhead %s\t LEB %d\n",
+			       dbg_jhead(c->jheads[i].wbuf.jhead),
+			       c->jheads[i].wbuf.lnum);
 	for (rb = rb_first(&c->buds); rb; rb = rb_next(rb)) {
 		bud = rb_entry(rb, struct ubifs_bud, rb);
 		printk(KERN_DEBUG "\tbud LEB %d\n", bud->lnum);
