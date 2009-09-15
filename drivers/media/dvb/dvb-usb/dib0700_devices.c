@@ -1553,6 +1553,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
 	{ USB_DEVICE(USB_VID_DIBCOM,	USB_PID_DIBCOM_STK7770P) },
+/* 60 */{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS_2) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1617,7 +1618,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 			{   "Leadtek Winfast DTV Dongle (STK7700P based)",
-				{ &dib0700_usb_id_table[8], &dib0700_usb_id_table[34] },
+				{ &dib0700_usb_id_table[8] },
 				{ NULL },
 			},
 			{   "AVerMedia AVerTV DVB-T Express",
@@ -2025,18 +2026,21 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
 
 				.size_of_priv =
-                                        sizeof(struct dib0700_adapter_state),
+					sizeof(struct dib0700_adapter_state),
 			},
 		},
 
-		.num_device_descs = 1,
+		.num_device_descs = 2,
 		.devices = {
 			{   "DiBcom STK7770P reference design",
 				{ &dib0700_usb_id_table[59], NULL },
 				{ NULL },
 			},
+			{   "Terratec Cinergy T USB XXS (HD)",
+				{ &dib0700_usb_id_table[34], &dib0700_usb_id_table[60] },
+				{ NULL },
+			},
 		},
-
 		.rc_interval      = DEFAULT_RC_INTERVAL,
 		.rc_key_map       = dib0700_rc_keys,
 		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
