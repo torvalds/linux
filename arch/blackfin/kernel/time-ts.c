@@ -46,19 +46,7 @@
 
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
-static inline unsigned long cyc2ns_scale(unsigned long cpu_khz)
-{
-	return (1000000 << CYC2NS_SCALE_FACTOR) / cpu_khz;
-}
-
-static inline unsigned long long cycles_2_ns(cycle_t cyc, unsigned long cyc2ns_scale)
-{
-	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
-}
-
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
-
-static unsigned long cycles_cyc2ns_scale;
 
 static notrace cycle_t bfin_read_cycles(struct clocksource *cs)
 {
@@ -70,19 +58,17 @@ static struct clocksource bfin_cs_cycles = {
 	.rating		= 400,
 	.read		= bfin_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.shift		= 22,
+	.shift		= CYC2NS_SCALE_FACTOR,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static inline unsigned long long bfin_cs_cycles_sched_clock(void)
 {
-	return cycles_2_ns(bfin_read_cycles(&bfin_cs_cycles), cycles_cyc2ns_scale);
+	return cyc2ns(&bfin_cs_cycles, bfin_read_cycles(&bfin_cs_cycles));
 }
 
 static int __init bfin_cs_cycles_init(void)
 {
-	cycles_cyc2ns_scale = cyc2ns_scale(get_cclk() / 1000);
-
 	bfin_cs_cycles.mult = \
 		clocksource_hz2mult(get_cclk(), bfin_cs_cycles.shift);
 
@@ -96,8 +82,6 @@ static int __init bfin_cs_cycles_init(void)
 #endif
 
 #ifdef CONFIG_GPTMR0_CLOCKSOURCE
-
-unsigned long gptimer0_cyc2ns_scale;
 
 void __init setup_gptimer0(void)
 {
@@ -121,19 +105,17 @@ static struct clocksource bfin_cs_gptimer0 = {
 	.rating		= 350,
 	.read		= bfin_read_gptimer0,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 22,
+	.shift		= CYC2NS_SCALE_FACTOR,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static inline unsigned long long bfin_cs_gptimer0_sched_clock(void)
 {
-	return cycles_2_ns(bfin_read_TIMER0_COUNTER(), gptimer0_cyc2ns_scale);
+	return cyc2ns(&bfin_cs_gptimer0, bfin_read_TIMER0_COUNTER());
 }
 
 static int __init bfin_cs_gptimer0_init(void)
 {
-	gptimer0_cyc2ns_scale = cyc2ns_scale(get_sclk() / 1000);
-
 	setup_gptimer0();
 
 	bfin_cs_gptimer0.mult = \
