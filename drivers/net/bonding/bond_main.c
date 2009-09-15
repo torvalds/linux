@@ -1211,7 +1211,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
 
-			netdev_bonding_change(bond->dev);
+			netdev_bonding_change(bond->dev, NETDEV_BONDING_FAILOVER);
 
 			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
@@ -1469,14 +1469,17 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 */
 	if (bond->slave_cnt == 0) {
 		if (bond_dev->type != slave_dev->type) {
-			dev_close(bond_dev);
 			pr_debug("%s: change device type from %d to %d\n",
 				bond_dev->name, bond_dev->type, slave_dev->type);
+
+			netdev_bonding_change(bond_dev, NETDEV_BONDING_OLDTYPE);
+
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
 			else
 				ether_setup(bond_dev);
-			dev_open(bond_dev);
+
+			netdev_bonding_change(bond_dev, NETDEV_BONDING_NEWTYPE);
 		}
 	} else if (bond_dev->type != slave_dev->type) {
 		pr_err(DRV_NAME ": %s ether type (%d) is different "
