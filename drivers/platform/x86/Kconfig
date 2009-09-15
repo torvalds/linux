@@ -396,6 +396,15 @@ config ACPI_ASUS
 	  NOTE: This driver is deprecated and will probably be removed soon,
 	  use asus-laptop instead.
 
+config TOPSTAR_LAPTOP
+	tristate "Topstar Laptop Extras"
+	depends on ACPI
+	depends on INPUT
+	---help---
+	  This driver adds support for hotkeys found on Topstar laptops.
+
+	  If you have a Topstar laptop, say Y or M here.
+
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
