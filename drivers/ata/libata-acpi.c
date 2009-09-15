@@ -20,7 +20,7 @@
 
 #include <acpi/acpi_bus.h>
 
-static unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
+unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
 module_param_named(acpi_gtf_filter, ata_acpi_gtf_filter, int, 0644);
 MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM, 0x8=FPDMA non-zero offset, 0x10=FPDMA DMA Setup FIS auto-activate)");
 
@@ -603,10 +603,11 @@ static void ata_acpi_gtf_to_tf(struct ata_device *dev,
 	tf->command = gtf->tf[6];	/* 0x1f7 */
 }
 
-static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
+static int ata_acpi_filter_tf(struct ata_device *dev,
+			      const struct ata_taskfile *tf,
 			      const struct ata_taskfile *ptf)
 {
-	if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_SETXFER) {
+	if (dev->gtf_filter & ATA_ACPI_FILTER_SETXFER) {
 		/* libata doesn't use ACPI to configure transfer mode.
 		 * It will only confuse device configuration.  Skip.
 		 */
@@ -615,7 +616,7 @@ static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
 			return 1;
 	}
 
-	if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_LOCK) {
+	if (dev->gtf_filter & ATA_ACPI_FILTER_LOCK) {
 		/* BIOS writers, sorry but we don't wanna lock
 		 * features unless the user explicitly said so.
 		 */
@@ -640,18 +641,18 @@ static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_SATA_ENABLE) {
 		/* inhibit enabling DIPM */
-		if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_DIPM &&
+		if (dev->gtf_filter & ATA_ACPI_FILTER_DIPM &&
 		    tf->nsect == SATA_DIPM)
 			return 1;
 
 		/* inhibit FPDMA non-zero offset */
-		if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_FPDMA_OFFSET &&
+		if (dev->gtf_filter & ATA_ACPI_FILTER_FPDMA_OFFSET &&
 		    (tf->nsect == SATA_FPDMA_OFFSET ||
 		     tf->nsect == SATA_FPDMA_IN_ORDER))
 			return 1;
 
 		/* inhibit FPDMA auto activation */
-		if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_FPDMA_AA &&
+		if (dev->gtf_filter & ATA_ACPI_FILTER_FPDMA_AA &&
 		    tf->nsect == SATA_FPDMA_AA)
 			return 1;
 	}
@@ -705,7 +706,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 		pptf = &ptf;
 	}
 
-	if (!ata_acpi_filter_tf(&tf, pptf)) {
+	if (!ata_acpi_filter_tf(dev, &tf, pptf)) {
 		rtf = tf;
 		err_mask = ata_exec_internal(dev, &rtf, NULL,
 					     DMA_NONE, NULL, 0, 0);
