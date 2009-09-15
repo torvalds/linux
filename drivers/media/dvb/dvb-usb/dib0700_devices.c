@@ -1122,6 +1122,15 @@ static struct dib0070_config dib7070p_dib0070_config[2] = {
 	}
 };
 
+static struct dib0070_config dib7770p_dib0070_config = {
+	 .i2c_address = DEFAULT_DIB0070_I2C_ADDRESS,
+	 .reset = dib7070_tuner_reset,
+	 .sleep = dib7070_tuner_sleep,
+	 .clock_khz = 12000,
+	 .clock_pad_drive = 0,
+	 .flip_chip = 1,
+};
+
 static int dib7070_set_param_override(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
@@ -1137,6 +1146,45 @@ static int dib7070_set_param_override(struct dvb_frontend *fe, struct dvb_fronte
 	deb_info("WBD for DiB7000P: %d\n", offset + dib0070_wbd_offset(fe));
 	dib7000p_set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
 	return state->set_param_save(fe, fep);
+}
+
+static int dib7770_set_param_override(struct dvb_frontend *fe,
+		struct dvb_frontend_parameters *fep)
+{
+	 struct dvb_usb_adapter *adap = fe->dvb->priv;
+	 struct dib0700_adapter_state *state = adap->priv;
+
+	 u16 offset;
+	 u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	 switch (band) {
+	 case BAND_VHF:
+		  dib7000p_set_gpio(fe, 0, 0, 1);
+		  offset = 850;
+		  break;
+	 case BAND_UHF:
+	 default:
+		  dib7000p_set_gpio(fe, 0, 0, 0);
+		  offset = 250;
+		  break;
+	 }
+	 deb_info("WBD for DiB7000P: %d\n", offset + dib0070_wbd_offset(fe));
+	 dib7000p_set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
+	 return state->set_param_save(fe, fep);
+}
+
+static int dib7770p_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	 struct dib0700_adapter_state *st = adap->priv;
+	 struct i2c_adapter *tun_i2c = dib7000p_get_i2c_master(adap->fe,
+			 DIBX000_I2C_INTERFACE_TUNER, 1);
+
+	 if (dvb_attach(dib0070_attach, adap->fe, tun_i2c,
+				 &dib7770p_dib0070_config) == NULL)
+		 return -ENODEV;
+
+	 st->set_param_save = adap->fe->ops.tuner_ops.set_params;
+	 adap->fe->ops.tuner_ops.set_params = dib7770_set_param_override;
+	 return 0;
 }
 
 static int dib7070p_tuner_attach(struct dvb_usb_adapter *adap)
@@ -1504,6 +1552,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73A) },
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
+	{ USB_DEVICE(USB_VID_DIBCOM,	USB_PID_DIBCOM_STK7770P) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1965,6 +2014,33 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = stk7070p_frontend_attach,
+				.tuner_attach     = dib7770p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv =
+                                        sizeof(struct dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 1,
+		.devices = {
+			{   "DiBcom STK7770P reference design",
+				{ &dib0700_usb_id_table[59], NULL },
+				{ NULL },
+			},
+		},
+
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
 	},
 };
 
