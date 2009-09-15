@@ -931,6 +931,12 @@ W:	http://wireless.kernel.org/en/users/Drivers/ar9170
 S:	Maintained
 F:	drivers/net/wireless/ath/ar9170/
 
+ATK0110 HWMON DRIVER
+M:	Luca Tettamanti <kronos.it@gmail.com>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	drivers/hwmon/asus_atk0110.c
+
 ATI_REMOTE2 DRIVER
 M:	Ville Syrjala <syrjala@sci.fi>
 S:	Maintained
