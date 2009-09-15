@@ -4291,7 +4291,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 		dstate |= DSTATE_PLL_D3_OFF | DSTATE_GFX_CLOCK_GATING |
 			DSTATE_DOT_CLOCK_GATING;
 		I915_WRITE(D_STATE, dstate);
-	} else if (IS_I855(dev) || IS_I865G(dev)) {
+	} else if (IS_I85X(dev) || IS_I865G(dev)) {
 		I915_WRITE(RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
 	} else if (IS_I830(dev)) {
 		I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
@@ -4375,7 +4375,7 @@ static void intel_init_display(struct drm_device *dev)
 	else if (IS_I865G(dev))
 		dev_priv->display.get_display_clock_speed =
 			i865_get_display_clock_speed;
-	else if (IS_I855(dev))
+	else if (IS_I85X(dev))
 		dev_priv->display.get_display_clock_speed =
 			i855_get_display_clock_speed;
 	else /* 852, 830 */
