@@ -384,6 +384,8 @@ handle_other_ex: /* Handle Other exceptions here */
 	addk	r8, r17, r0; /* Load exception address */
 	bralid	r15, full_exception; /* Branch to the handler */
 	nop;
+	mts	r0, rfsr;	/* Clear sticky fsr */
+	nop
 
 	/*
 	 * Trigger execution of the signal handler by enabling
