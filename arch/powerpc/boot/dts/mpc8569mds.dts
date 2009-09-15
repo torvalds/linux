@@ -99,8 +99,18 @@
 		};
 
 		bcsr@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "fsl,mpc8569mds-bcsr";
 			reg = <1 0 0x8000>;
+			ranges = <0 1 0 0x8000>;
+
+			bcsr17: gpio-controller@11 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569mds-bcsr-gpio";
+				reg = <0x11 0x1>;
+				gpio-controller;
+			};
 		};
 
 		nand@3,0 {
@@ -315,6 +325,14 @@
 				gpio-controller;
 			};
 
+			qe_pio_f: gpio-controller@a0 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0xa0 0x18>;
+				gpio-controller;
+			};
+
 			pio1: ucc_pin@01 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
@@ -419,6 +437,16 @@
 			interrupt-parent = <&mpic>;
 		};
 
+		timer@440 {
+			compatible = "fsl,mpc8569-qe-gtm",
+				     "fsl,qe-gtm", "fsl,gtm";
+			reg = <0x440 0x40>;
+			interrupts = <12 13 14 15>;
+			interrupt-parent = <&qeic>;
+			/* Filled in by U-Boot */
+			clock-frequency = <0>;
+		};
+
 		spi@4c0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -444,6 +472,23 @@
 			interrupts = <1>;
 			interrupt-parent = <&qeic>;
 			mode = "cpu";
+		};
+
+		usb@6c0 {
+			compatible = "fsl,mpc8569-qe-usb",
+				     "fsl,mpc8323-qe-usb";
+			reg = <0x6c0 0x40 0x8b00 0x100>;
+			interrupts = <11>;
+			interrupt-parent = <&qeic>;
+			fsl,fullspeed-clock = "clk5";
+			fsl,lowspeed-clock = "brg10";
+			gpios = <&qe_pio_f 3 0   /* USBOE */
+				 &qe_pio_f 4 0   /* USBTP */
+				 &qe_pio_f 5 0   /* USBTN */
+				 &qe_pio_f 6 0   /* USBRP */
+				 &qe_pio_f 8 0   /* USBRN */
+				 &bcsr17   6 0   /* SPEED */
+				 &bcsr17   5 1>; /* POWER */
 		};
 
 		enet0: ucc@2000 {

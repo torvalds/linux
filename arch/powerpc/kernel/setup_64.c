@@ -63,6 +63,7 @@
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/swiotlb.h>
+#include <asm/mmu_context.h>
 
 #include "setup.h"
 
@@ -143,11 +144,14 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
-/* Put the paca pointer into r13 and SPRG3 */
+/* Put the paca pointer into r13 and SPRG_PACA */
 void __init setup_paca(int cpu)
 {
 	local_paca = &paca[cpu];
-	mtspr(SPRN_SPRG3, local_paca);
+	mtspr(SPRN_SPRG_PACA, local_paca);
+#ifdef CONFIG_PPC_BOOK3E
+	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
+#endif
 }
 
 /*
@@ -231,9 +235,6 @@ void early_setup_secondary(void)
 #endif /* CONFIG_SMP */
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
-extern unsigned long __secondary_hold_spinloop;
-extern void generic_secondary_smp_init(void);
-
 void smp_release_cpus(void)
 {
 	unsigned long *ptr;
@@ -454,6 +455,24 @@ static void __init irqstack_early_init(void)
 #define irqstack_early_init()
 #endif
 
+#ifdef CONFIG_PPC_BOOK3E
+static void __init exc_lvl_early_init(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i) {
+		critirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		dbgirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		mcheckirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+	}
+}
+#else
+#define exc_lvl_early_init()
+#endif
+
 /*
  * Stack space used when we detect a bad kernel stack pointer, and
  * early in SMP boots before relocation is enabled.
@@ -513,6 +532,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = klimit;
 	
 	irqstack_early_init();
+	exc_lvl_early_init();
 	emergency_stack_init();
 
 #ifdef CONFIG_PPC_STD_MMU_64
@@ -535,6 +555,10 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	paging_init();
+
+	/* Initialize the MMU context management stuff */
+	mmu_context_init();
+
 	ppc64_boot_msg(0x15, "Setup Done");
 }
 

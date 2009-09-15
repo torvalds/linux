@@ -37,6 +37,7 @@
 #include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/prom.h>
+#include <asm/machdep.h>
 #include <sysdev/fsl_soc.h>
 #include <mm/mmu_decl.h>
 #include <asm/cpm2.h>
@@ -383,8 +384,9 @@ static int __init setup_rstcr(void)
 		if (!rstcr)
 			printk (KERN_EMERG "Error: reset control register "
 					"not mapped!\n");
-	} else
-		printk (KERN_INFO "rstcr compatible register does not exist!\n");
+	} else if (ppc_md.restart == fsl_rstcr_restart)
+		printk(KERN_ERR "No RSTCR register, warm reboot won't work\n");
+
 	if (np)
 		of_node_put(np);
 	return 0;
