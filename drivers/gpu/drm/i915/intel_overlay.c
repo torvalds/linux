@@ -251,7 +251,6 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
         drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
-	int ret;
 	RING_LOCALS;
 
 	BUG_ON(!overlay->active);
@@ -264,11 +263,40 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	BEGIN_LP_RING(6);
+	BEGIN_LP_RING(4);
 	OUT_RING(MI_FLUSH);
 	OUT_RING(MI_NOOP);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
+        ADVANCE_LP_RING();
+
+	overlay->last_flip_req = i915_add_request(dev, NULL, 0);
+}
+
+static int intel_overlay_wait_flip(struct intel_overlay *overlay)
+{
+	struct drm_device *dev = overlay->dev;
+        drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
+	u32 tmp;
+	RING_LOCALS;
+
+	if (overlay->last_flip_req != 0) {
+		ret = i915_do_wait_request(dev, overlay->last_flip_req, 0);
+
+		if (ret != 0)
+			return ret;
+
+		overlay->last_flip_req = 0;
+
+		tmp = I915_READ(ISR);
+
+		if (!(tmp & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT))
+			return 0;
+	}
+
+	/* synchronous slowpath */
+	BEGIN_LP_RING(2);
         OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
         OUT_RING(MI_NOOP);
         ADVANCE_LP_RING();
@@ -279,13 +307,8 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
 		DRM_ERROR("intel overlay: ring sync failed, hw likely wedged\n");
 		overlay->hw_wedged = 1;
 	}
-}
 
-static int intel_overlay_wait_flip(struct intel_overlay *overlay)
-{
-	/* don't overcomplicate things for now with asynchronous operations
-	 * see comment above */
-	return 0;
+	return ret;
 }
 
 /* overlay needs to be disabled in OCMD reg */
@@ -344,7 +367,9 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	return ret;
 }
 
-/* wait for pending overlay flip and release old frame */
+/* Wait for pending overlay flip and release old frame.
+ * Needs to be called before the overlay register are changed
+ * via intel_overlay_(un)map_regs_atomic */
 static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
 	int ret;

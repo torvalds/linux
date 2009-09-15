@@ -126,7 +126,9 @@ struct intel_overlay {
 	u32 flip_addr;
 	struct drm_i915_gem_object *reg_bo;
 	void *virt_addr;
+	/* flip handling */
 	int hw_wedged;
+	uint32_t last_flip_req;
 };
 
 struct intel_crtc {
