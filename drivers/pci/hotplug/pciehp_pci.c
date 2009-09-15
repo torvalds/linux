@@ -67,24 +67,23 @@ int pciehp_configure_device(struct slot *p_slot)
 	int num, fn;
 	struct controller *ctrl = p_slot->ctrl;
 
-	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
+	dev = pci_get_slot(parent, PCI_DEVFN(0, 0));
 	if (dev) {
 		ctrl_err(ctrl, "Device %s already exists "
-			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
-			 pci_domain_nr(parent), parent->number,
-			 p_slot->device);
+			 "at %04x:%02x:00, cannot hot-add\n", pci_name(dev),
+			 pci_domain_nr(parent), parent->number);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
 
-	num = pci_scan_slot(parent, PCI_DEVFN(p_slot->device, 0));
+	num = pci_scan_slot(parent, PCI_DEVFN(0, 0));
 	if (num == 0) {
 		ctrl_err(ctrl, "No new device found\n");
 		return -ENODEV;
 	}
 
 	for (fn = 0; fn < 8; fn++) {
-		dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, fn));
+		dev = pci_get_slot(parent, PCI_DEVFN(0, fn));
 		if (!dev)
 			continue;
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
@@ -116,16 +115,14 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	u16 command;
 	struct controller *ctrl = p_slot->ctrl;
 
-	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
-		 __func__, pci_domain_nr(parent), parent->number,
-		 p_slot->device);
+	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:00\n",
+		 __func__, pci_domain_nr(parent), parent->number);
 	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
 	if (ret)
 		presence = 0;
 
 	for (j = 0; j < 8; j++) {
-		struct pci_dev* temp = pci_get_slot(parent,
-				(p_slot->device << 3) | j);
+		struct pci_dev* temp = pci_get_slot(parent, PCI_DEVFN(0, j));
 		if (!temp)
 			continue;
 		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {

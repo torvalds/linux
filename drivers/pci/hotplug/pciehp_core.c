@@ -123,16 +123,13 @@ static int init_slot(struct controller *ctrl)
 	slot->hotplug_slot = hotplug;
 	snprintf(name, SLOT_NAME_SIZE, "%u", slot->number);
 
-	ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:%02x "
+	ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:00 "
 		 "hp_slot=%x sun=%x slot_device_offset=%x\n",
 		 pci_domain_nr(ctrl->pci_dev->subordinate),
 		 ctrl->pci_dev->subordinate->number,
-		 slot->device, slot->hp_slot, slot->number,
-		 ctrl->slot_device_offset);
+		 slot->hp_slot, slot->number, ctrl->slot_device_offset);
 	retval = pci_hp_register(hotplug,
-				 ctrl->pci_dev->subordinate,
-				 slot->device,
-				 name);
+				 ctrl->pci_dev->subordinate, 0, name);
 	if (retval) {
 		ctrl_err(ctrl,
 			 "pci_hp_register failed with error %d\n", retval);

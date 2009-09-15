@@ -930,7 +930,6 @@ static int pcie_init_slot(struct controller *ctrl)
 
 	slot->hp_slot = 0;
 	slot->ctrl = ctrl;
-	slot->device = ctrl->slot_device_offset + slot->hp_slot;
 	slot->hpc_ops = ctrl->hpc_ops;
 	slot->number = ctrl->first_slot;
 	mutex_init(&slot->lock);

@@ -210,9 +210,8 @@ static int board_added(struct slot *p_slot)
 	struct controller *ctrl = p_slot->ctrl;
 	struct pci_bus *parent = ctrl->pci_dev->subordinate;
 
-	ctrl_dbg(ctrl, "%s: slot device, slot offset, hp slot = %d, %d, %d\n",
-		 __func__, p_slot->device, ctrl->slot_device_offset,
-		 p_slot->hp_slot);
+	ctrl_dbg(ctrl, "%s: slot device, slot offset, hp slot = 0, %d, %d\n",
+		 __func__, ctrl->slot_device_offset, p_slot->hp_slot);
 
 	if (POWER_CTRL(ctrl)) {
 		/* Power on slot */
@@ -241,9 +240,8 @@ static int board_added(struct slot *p_slot)
 
 	retval = pciehp_configure_device(p_slot);
 	if (retval) {
-		ctrl_err(ctrl, "Cannot add device at %04x:%02x:%02x\n",
-			 pci_domain_nr(parent), parent->number,
-			 p_slot->device);
+		ctrl_err(ctrl, "Cannot add device at %04x:%02x:00\n",
+			 pci_domain_nr(parent), parent->number);
 		goto err_exit;
 	}
 
@@ -318,10 +316,9 @@ static void pciehp_power_thread(struct work_struct *work)
 	case POWEROFF_STATE:
 		mutex_unlock(&p_slot->lock);
 		ctrl_dbg(p_slot->ctrl,
-			 "Disabling domain:bus:device=%04x:%02x:%02x\n",
+			 "Disabling domain:bus:device=%04x:%02x:00\n",
 			 pci_domain_nr(p_slot->ctrl->pci_dev->subordinate),
-			 p_slot->ctrl->pci_dev->subordinate->number,
-			 p_slot->device);
+			 p_slot->ctrl->pci_dev->subordinate->number);
 		pciehp_disable_slot(p_slot);
 		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
