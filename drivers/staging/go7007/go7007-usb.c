@@ -62,7 +62,7 @@ struct go7007_usb_board {
 
 struct go7007_usb {
 	struct go7007_usb_board *board;
-	struct semaphore i2c_lock;
+	struct mutex i2c_lock;
 	struct usb_device *usbdev;
 	struct urb *video_urbs[8];
 	struct urb *audio_urbs[8];
@@ -734,7 +734,7 @@ static int go7007_usb_read_interrupt(struct go7007 *go)
 static void go7007_usb_read_video_pipe_complete(struct urb *urb)
 {
 	struct go7007 *go = (struct go7007 *)urb->context;
-	int r, status = urb-> status;
+	int r, status = urb->status;
 
 	if (!go->streaming) {
 		wake_up_interruptible(&go->frame_waitq);
@@ -877,7 +877,7 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 	if (go->status == STATUS_SHUTDOWN)
 		return -1;
 
-	down(&usb->i2c_lock);
+	mutex_lock(&usb->i2c_lock);
 
 	for (i = 0; i < num; ++i) {
 		/* The hardware command is "write some bytes then read some
@@ -935,7 +935,7 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 	ret = 0;
 
 i2c_done:
-	up(&usb->i2c_lock);
+	mutex_unlock(&usb->i2c_lock);
 	return ret;
 }
 
@@ -1065,7 +1065,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	if (board->flags & GO7007_USB_EZUSB_I2C) {
 		memcpy(&go->i2c_adapter, &go7007_usb_adap_templ,
 				sizeof(go7007_usb_adap_templ));
-		init_MUTEX(&usb->i2c_lock);
+		mutex_init(&usb->i2c_lock);
 		go->i2c_adapter.dev.parent = go->dev;
 		i2c_set_adapdata(&go->i2c_adapter, go);
 		if (i2c_add_adapter(&go->i2c_adapter) < 0) {

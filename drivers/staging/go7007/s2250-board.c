@@ -21,11 +21,9 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include "s2250-loader.h"
 #include "go7007-priv.h"
 #include "wis-i2c.h"
-
-extern int s2250loader_init(void);
-extern void s2250loader_cleanup(void);
 
 #define TLV320_ADDRESS      0x34
 #define VPX322_ADDR_ANALOGCONTROL1	0x02
@@ -43,7 +41,7 @@ struct go7007_usb_board {
 
 struct go7007_usb {
 	struct go7007_usb_board *board;
-	struct semaphore i2c_lock;
+	struct mutex i2c_lock;
 	struct usb_device *usbdev;
 	struct urb *video_urbs[8];
 	struct urb *audio_urbs[8];
@@ -165,7 +163,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 		return -ENOMEM;
 
 	usb = go->hpi_context;
-	if (down_interruptible(&usb->i2c_lock) != 0) {
+	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
@@ -175,7 +173,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 				       buf,
 				       16, 1);
 
-	up(&usb->i2c_lock);
+	mutex_unlock(&usb->i2c_lock);
 	kfree(buf);
 	return rc;
 }
@@ -203,14 +201,14 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 	memset(buf, 0xcd, 6);
 
 	usb = go->hpi_context;
-	if (down_interruptible(&usb->i2c_lock) != 0) {
+	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
 		return -EINTR;
 	}
 	if (go7007_usb_vendor_request(go, 0x57, addr, val, buf, 16, 1) < 0)
 		return -EFAULT;
 
-	up(&usb->i2c_lock);
+	mutex_unlock(&usb->i2c_lock);
 	if (buf[0] == 0) {
 		unsigned int subaddr, val_read;
 
@@ -541,7 +539,7 @@ static int s2250_probe(struct i2c_client *client,
 	dec->audio_input = 0;
 	write_reg(client, 0x08, 0x02); /* Line In */
 
-	if (down_interruptible(&usb->i2c_lock) == 0) {
+	if (mutex_lock_interruptible(&usb->i2c_lock) == 0) {
 		data = kzalloc(16, GFP_KERNEL);
 		if (data != NULL) {
 			int rc;
@@ -560,7 +558,7 @@ static int s2250_probe(struct i2c_client *client,
 			}
 			kfree(data);
 		}
-		up(&usb->i2c_lock);
+		mutex_unlock(&usb->i2c_lock);
 	}
 
 	printk("s2250: initialized successfully\n");
