@@ -207,8 +207,10 @@ static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_conn
 
 	for (i = 0; i < 17; i++) {
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-			if (common_modes[i].w >= native_mode->panel_xres &&
-			    common_modes[i].h >= native_mode->panel_yres)
+			if (common_modes[i].w > native_mode->panel_xres ||
+			    common_modes[i].h > native_mode->panel_yres ||
+			    (common_modes[i].w == native_mode->panel_xres &&
+			     common_modes[i].h == native_mode->panel_yres))
 				continue;
 		}
 		if (common_modes[i].w < 320 || common_modes[i].h < 200)
