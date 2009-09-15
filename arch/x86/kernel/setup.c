@@ -66,6 +66,7 @@
 
 #include <linux/percpu.h>
 #include <linux/crash_dump.h>
+#include <linux/tboot.h>
 
 #include <video/edid.h>
 
@@ -976,6 +977,8 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 	paravirt_pagetable_setup_done(swapper_pg_dir);
 	paravirt_post_allocator_init();
+
+	tboot_probe();
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();

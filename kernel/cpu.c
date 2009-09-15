@@ -401,6 +401,7 @@ int disable_nonboot_cpus(void)
 			break;
 		}
 	}
+
 	if (!error) {
 		BUG_ON(num_online_cpus() > 1);
 		/* Make sure the CPUs won't be enabled by someone else */
