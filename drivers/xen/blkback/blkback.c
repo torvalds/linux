@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+
 #include <xen/balloon.h>
 #include <xen/events.h>
 #include <xen/page.h>
@@ -383,7 +384,6 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 				 struct blkif_request *req,
 				 pending_req_t *pending_req)
 {
-	extern void ll_rw_block(int rw, int nr, struct buffer_head * bhs[]);
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct phys_req preq;
 	struct {
