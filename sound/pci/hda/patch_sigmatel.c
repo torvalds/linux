@@ -864,10 +864,6 @@ static struct hda_verb stac92hd73xx_core_init[] = {
 };
 
 static struct hda_verb stac92hd83xxx_core_init[] = {
-	{ 0xa, AC_VERB_SET_CONNECT_SEL, 0x1},
-	{ 0xb, AC_VERB_SET_CONNECT_SEL, 0x1},
-	{ 0xd, AC_VERB_SET_CONNECT_SEL, 0x0},
-
 	/* power state controls amps */
 	{ 0x01, AC_VERB_SET_EAPD, 1 << 2},
 	{}
@@ -5076,7 +5072,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 
 	codec->spec = spec;
 	codec->slave_dig_outs = stac92hd83xxx_slave_dig_outs;
-	spec->mono_nid = 0x19;
 	spec->digbeep_nid = 0x21;
 	spec->mux_nids = stac92hd83xxx_mux_nids;
 	spec->num_muxes = ARRAY_SIZE(stac92hd83xxx_mux_nids);
