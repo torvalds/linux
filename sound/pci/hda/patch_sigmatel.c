@@ -1586,8 +1586,8 @@ static unsigned int ref92hd83xxx_pin_configs[10] = {
 };
 
 static unsigned int dell_s14_pin_configs[10] = {
-	0x02214030, 0x02211010, 0x02a19020, 0x01014050,
-	0x40f000f0, 0x01819040, 0x40f000f0, 0x90a60160,
+	0x0221403f, 0x0221101f, 0x02a19020, 0x90170110,
+	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x90a60160,
 	0x40f000f0, 0x40f000f0,
 };
 
