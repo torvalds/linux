@@ -210,9 +210,6 @@ static int board_added(struct slot *p_slot)
 	struct controller *ctrl = p_slot->ctrl;
 	struct pci_bus *parent = ctrl->pci_dev->subordinate;
 
-	ctrl_dbg(ctrl, "%s: slot device, slot offset = 0, %d\n",
-		 __func__, ctrl->slot_device_offset);
-
 	if (POWER_CTRL(ctrl)) {
 		/* Power on slot */
 		retval = p_slot->hpc_ops->power_on_slot(p_slot);

@@ -1017,7 +1017,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	ctrl->slot_cap = slot_cap;
 	ctrl->first_slot = slot_cap >> 19;
-	ctrl->slot_device_offset = 0;
 	ctrl->hpc_ops = &pciehp_hpc_ops;
 	mutex_init(&ctrl->crit_sect);
 	mutex_init(&ctrl->ctrl_lock);
