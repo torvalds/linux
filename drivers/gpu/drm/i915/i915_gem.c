@@ -3158,6 +3158,16 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			return -EINVAL;
 		}
 
+		if (reloc->delta >= target_obj->size) {
+			DRM_ERROR("Relocation beyond target object bounds: "
+				  "obj %p target %d delta %d size %d.\n",
+				  obj, reloc->target_handle,
+				  (int) reloc->delta, (int) target_obj->size);
+			drm_gem_object_unreference(target_obj);
+			i915_gem_object_unpin(obj);
+			return -EINVAL;
+		}
+
 		if (reloc->write_domain & I915_GEM_DOMAIN_CPU ||
 		    reloc->read_domains & I915_GEM_DOMAIN_CPU) {
 			DRM_ERROR("reloc with read/write CPU domains: "
