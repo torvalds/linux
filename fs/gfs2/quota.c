@@ -1378,3 +1378,7 @@ int gfs2_quotad(void *data)
 	return 0;
 }
 
+const struct quotactl_ops gfs2_quotactl_ops = {
+	.quota_sync     = gfs2_quota_sync,
+};
+

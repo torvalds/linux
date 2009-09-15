@@ -18,6 +18,7 @@
 #include <linux/mount.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/slow-work.h>
+#include <linux/quotaops.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1138,6 +1139,8 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	sb->s_op = &gfs2_super_ops;
 	sb->s_export_op = &gfs2_export_ops;
 	sb->s_xattr = gfs2_xattr_handlers;
+	sb->s_qcop = &gfs2_quotactl_ops;
+	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
 	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
