@@ -185,6 +185,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 			mutex_unlock(&parser->rdev->ddev->struct_mutex);
 		}
 	}
+	kfree(parser->track);
 	kfree(parser->relocs);
 	kfree(parser->relocs_ptr);
 	for (i = 0; i < parser->nchunks; i++) {
