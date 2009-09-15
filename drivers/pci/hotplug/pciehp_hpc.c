@@ -44,25 +44,25 @@ static atomic_t pciehp_num_controllers = ATOMIC_INIT(0);
 
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_read_config_word(dev, ctrl->cap_base + reg, value);
 }
 
 static inline int pciehp_readl(struct controller *ctrl, int reg, u32 *value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_read_config_dword(dev, ctrl->cap_base + reg, value);
 }
 
 static inline int pciehp_writew(struct controller *ctrl, int reg, u16 value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_write_config_word(dev, ctrl->cap_base + reg, value);
 }
 
 static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_write_config_dword(dev, ctrl->cap_base + reg, value);
 }
 
@@ -537,7 +537,7 @@ static int hpc_power_on_slot(struct slot * slot)
 
 static inline int pcie_mask_bad_dllp(struct controller *ctrl)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	int pos;
 	u32 reg;
 
@@ -554,7 +554,7 @@ static inline int pcie_mask_bad_dllp(struct controller *ctrl)
 
 static inline void pcie_unmask_bad_dllp(struct controller *ctrl)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	u32 reg;
 	int pos;
 
@@ -946,7 +946,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 {
 	int i;
 	u16 reg16;
-	struct pci_dev *pdev = ctrl->pci_dev;
+	struct pci_dev *pdev = ctrl->pcie->port;
 
 	if (!pciehp_debug)
 		return;
@@ -1004,7 +1004,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 		goto abort;
 	}
 	ctrl->pcie = dev;
-	ctrl->pci_dev = pdev;
 	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (!ctrl->cap_base) {
 		ctrl_err(ctrl, "Cannot find PCI Express capability\n");

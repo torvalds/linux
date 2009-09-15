@@ -63,7 +63,7 @@ static int __ref pciehp_add_bridge(struct pci_dev *dev)
 int pciehp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
-	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
 	int num, fn;
 	struct controller *ctrl = p_slot->ctrl;
 
@@ -111,7 +111,7 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	int j;
 	u8 bctl = 0;
 	u8 presence = 0;
-	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
 	u16 command;
 	struct controller *ctrl = p_slot->ctrl;
 

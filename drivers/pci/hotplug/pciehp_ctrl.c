@@ -208,7 +208,7 @@ static int board_added(struct slot *p_slot)
 {
 	int retval = 0;
 	struct controller *ctrl = p_slot->ctrl;
-	struct pci_bus *parent = ctrl->pci_dev->subordinate;
+	struct pci_bus *parent = ctrl->pcie->port->subordinate;
 
 	if (POWER_CTRL(ctrl)) {
 		/* Power on slot */
@@ -312,8 +312,8 @@ static void pciehp_power_thread(struct work_struct *work)
 		mutex_unlock(&p_slot->lock);
 		ctrl_dbg(p_slot->ctrl,
 			 "Disabling domain:bus:device=%04x:%02x:00\n",
-			 pci_domain_nr(p_slot->ctrl->pci_dev->subordinate),
-			 p_slot->ctrl->pci_dev->subordinate->number);
+			 pci_domain_nr(p_slot->ctrl->pcie->port->subordinate),
+			 p_slot->ctrl->pcie->port->subordinate->number);
 		pciehp_disable_slot(p_slot);
 		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;

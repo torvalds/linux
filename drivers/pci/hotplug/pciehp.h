@@ -89,7 +89,6 @@ struct event_info {
 
 struct controller {
 	struct mutex ctrl_lock;		/* controller lock */
-	struct pci_dev *pci_dev;
 	struct pcie_device *pcie;	/* PCI Express port service */
 	struct slot *slot;
 	struct hpc_ops *hpc_ops;
