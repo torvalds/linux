@@ -227,7 +227,6 @@ TRACE_EVENT(ext4_da_writepages,
 		__field(	char,	nonblocking		)
 		__field(	char,	for_kupdate		)
 		__field(	char,	for_reclaim		)
-		__field(	char,	for_writepages		)
 		__field(	char,	range_cyclic		)
 	),
 
@@ -241,16 +240,15 @@ TRACE_EVENT(ext4_da_writepages,
 		__entry->nonblocking	= wbc->nonblocking;
 		__entry->for_kupdate	= wbc->for_kupdate;
 		__entry->for_reclaim	= wbc->for_reclaim;
-		__entry->for_writepages	= wbc->for_writepages;
 		__entry->range_cyclic	= wbc->range_cyclic;
 	),
 
-	TP_printk("dev %s ino %lu nr_t_write %ld pages_skipped %ld range_start %llu range_end %llu nonblocking %d for_kupdate %d for_reclaim %d for_writepages %d range_cyclic %d",
+	TP_printk("dev %s ino %lu nr_t_write %ld pages_skipped %ld range_start %llu range_end %llu nonblocking %d for_kupdate %d for_reclaim %d range_cyclic %d",
 		  jbd2_dev_to_name(__entry->dev), __entry->ino, __entry->nr_to_write,
 		  __entry->pages_skipped, __entry->range_start,
 		  __entry->range_end, __entry->nonblocking,
 		  __entry->for_kupdate, __entry->for_reclaim,
-		  __entry->for_writepages, __entry->range_cyclic)
+		  __entry->range_cyclic)
 );
 
 TRACE_EVENT(ext4_da_writepages_result,
