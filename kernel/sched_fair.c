@@ -1165,9 +1165,17 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	load	  = source_load(prev_cpu, idx);
 	this_load = target_load(this_cpu, idx);
 
-	if (sync && (curr->se.avg_overlap > sysctl_sched_migration_cost ||
-			p->se.avg_overlap > sysctl_sched_migration_cost))
-		sync = 0;
+	if (sync) {
+	       if (sched_feat(SYNC_LESS) &&
+		   (curr->se.avg_overlap > sysctl_sched_migration_cost ||
+		    p->se.avg_overlap > sysctl_sched_migration_cost))
+		       sync = 0;
+	} else {
+		if (sched_feat(SYNC_MORE) &&
+		    (curr->se.avg_overlap < sysctl_sched_migration_cost &&
+		     p->se.avg_overlap < sysctl_sched_migration_cost))
+			sync = 1;
+	}
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)

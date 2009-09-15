@@ -63,6 +63,16 @@ SCHED_FEAT(SYNC_WAKEUPS, 1)
 SCHED_FEAT(AFFINE_WAKEUPS, 1)
 
 /*
+ * Weaken SYNC hint based on overlap
+ */
+SCHED_FEAT(SYNC_LESS, 1)
+
+/*
+ * Add SYNC hint based on overlap
+ */
+SCHED_FEAT(SYNC_MORE, 0)
+
+/*
  * Prefer to schedule the task we woke last (assuming it failed
  * wakeup-preemption), since its likely going to consume data we
  * touched, increases cache locality.
