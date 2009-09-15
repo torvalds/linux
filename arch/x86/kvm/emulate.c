@@ -1,5 +1,5 @@
 /******************************************************************************
- * x86_emulate.c
+ * emulate.c
  *
  * Generic x86 (32-bit and 64-bit) instruction decoder and emulator.
  *
@@ -30,7 +30,9 @@
 #define DPRINTF(x...) do {} while (0)
 #endif
 #include <linux/module.h>
-#include <asm/kvm_x86_emulate.h>
+#include <asm/kvm_emulate.h>
+
+#include "mmu.h"		/* for is_long_mode() */
 
 /*
  * Opcode effective-address decode tables.
@@ -60,6 +62,7 @@
 #define SrcImmByte  (6<<4)	/* 8-bit sign-extended immediate operand. */
 #define SrcOne      (7<<4)	/* Implied '1' */
 #define SrcImmUByte (8<<4)      /* 8-bit unsigned immediate operand. */
+#define SrcImmU     (9<<4)      /* Immediate operand, unsigned */
 #define SrcMask     (0xf<<4)
 /* Generic ModRM decode. */
 #define ModRM       (1<<8)
@@ -97,11 +100,11 @@ static u32 opcode_table[256] = {
 	/* 0x10 - 0x17 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	0, 0, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm, 0, 0,
 	/* 0x18 - 0x1F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	0, 0, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm, 0, 0,
 	/* 0x20 - 0x27 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -195,7 +198,7 @@ static u32 opcode_table[256] = {
 	ByteOp | SrcImmUByte, SrcImmUByte,
 	/* 0xE8 - 0xEF */
 	SrcImm | Stack, SrcImm | ImplicitOps,
-	SrcImm | Src2Imm16, SrcImmByte | ImplicitOps,
+	SrcImmU | Src2Imm16, SrcImmByte | ImplicitOps,
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xF0 - 0xF7 */
@@ -208,7 +211,7 @@ static u32 opcode_table[256] = {
 
 static u32 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
-	0, Group | GroupDual | Group7, 0, 0, 0, 0, ImplicitOps, 0,
+	0, Group | GroupDual | Group7, 0, 0, 0, ImplicitOps, ImplicitOps, 0,
 	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
 	/* 0x10 - 0x1F */
 	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
@@ -216,7 +219,9 @@ static u32 twobyte_table[256] = {
 	ModRM | ImplicitOps, ModRM, ModRM | ImplicitOps, ModRM, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x30 - 0x3F */
-	ImplicitOps, 0, ImplicitOps, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, 0, ImplicitOps, 0,
+	ImplicitOps, ImplicitOps, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x40 - 0x47 */
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
@@ -319,8 +324,11 @@ static u32 group2_table[] = {
 };
 
 /* EFLAGS bit definitions. */
+#define EFLG_VM (1<<17)
+#define EFLG_RF (1<<16)
 #define EFLG_OF (1<<11)
 #define EFLG_DF (1<<10)
+#define EFLG_IF (1<<9)
 #define EFLG_SF (1<<7)
 #define EFLG_ZF (1<<6)
 #define EFLG_AF (1<<4)
@@ -1027,6 +1035,7 @@ done_prefixes:
 		c->src.type = OP_MEM;
 		break;
 	case SrcImm:
+	case SrcImmU:
 		c->src.type = OP_IMM;
 		c->src.ptr = (unsigned long *)c->eip;
 		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
@@ -1043,6 +1052,19 @@ done_prefixes:
 		case 4:
 			c->src.val = insn_fetch(s32, 4, c->eip);
 			break;
+		}
+		if ((c->d & SrcMask) == SrcImmU) {
+			switch (c->src.bytes) {
+			case 1:
+				c->src.val &= 0xff;
+				break;
+			case 2:
+				c->src.val &= 0xffff;
+				break;
+			case 4:
+				c->src.val &= 0xffffffff;
+				break;
+			}
 		}
 		break;
 	case SrcImmByte:
@@ -1373,6 +1395,217 @@ static void toggle_interruptibility(struct x86_emulate_ctxt *ctxt, u32 mask)
 	 */
 	if (!(int_shadow & mask))
 		ctxt->interruptibility = mask;
+}
+
+static inline void
+setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
+	struct kvm_segment *cs, struct kvm_segment *ss)
+{
+	memset(cs, 0, sizeof(struct kvm_segment));
+	kvm_x86_ops->get_segment(ctxt->vcpu, cs, VCPU_SREG_CS);
+	memset(ss, 0, sizeof(struct kvm_segment));
+
+	cs->l = 0;		/* will be adjusted later */
+	cs->base = 0;		/* flat segment */
+	cs->g = 1;		/* 4kb granularity */
+	cs->limit = 0xffffffff;	/* 4GB limit */
+	cs->type = 0x0b;	/* Read, Execute, Accessed */
+	cs->s = 1;
+	cs->dpl = 0;		/* will be adjusted later */
+	cs->present = 1;
+	cs->db = 1;
+
+	ss->unusable = 0;
+	ss->base = 0;		/* flat segment */
+	ss->limit = 0xffffffff;	/* 4GB limit */
+	ss->g = 1;		/* 4kb granularity */
+	ss->s = 1;
+	ss->type = 0x03;	/* Read/Write, Accessed */
+	ss->db = 1;		/* 32bit stack segment */
+	ss->dpl = 0;
+	ss->present = 1;
+}
+
+static int
+emulate_syscall(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct kvm_segment cs, ss;
+	u64 msr_data;
+
+	/* syscall is not available in real mode */
+	if (c->lock_prefix || ctxt->mode == X86EMUL_MODE_REAL
+		|| !(ctxt->vcpu->arch.cr0 & X86_CR0_PE))
+		return -1;
+
+	setup_syscalls_segments(ctxt, &cs, &ss);
+
+	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
+	msr_data >>= 32;
+	cs.selector = (u16)(msr_data & 0xfffc);
+	ss.selector = (u16)(msr_data + 8);
+
+	if (is_long_mode(ctxt->vcpu)) {
+		cs.db = 0;
+		cs.l = 1;
+	}
+	kvm_x86_ops->set_segment(ctxt->vcpu, &cs, VCPU_SREG_CS);
+	kvm_x86_ops->set_segment(ctxt->vcpu, &ss, VCPU_SREG_SS);
+
+	c->regs[VCPU_REGS_RCX] = c->eip;
+	if (is_long_mode(ctxt->vcpu)) {
+#ifdef CONFIG_X86_64
+		c->regs[VCPU_REGS_R11] = ctxt->eflags & ~EFLG_RF;
+
+		kvm_x86_ops->get_msr(ctxt->vcpu,
+			ctxt->mode == X86EMUL_MODE_PROT64 ?
+			MSR_LSTAR : MSR_CSTAR, &msr_data);
+		c->eip = msr_data;
+
+		kvm_x86_ops->get_msr(ctxt->vcpu, MSR_SYSCALL_MASK, &msr_data);
+		ctxt->eflags &= ~(msr_data | EFLG_RF);
+#endif
+	} else {
+		/* legacy mode */
+		kvm_x86_ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
+		c->eip = (u32)msr_data;
+
+		ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
+	}
+
+	return 0;
+}
+
+static int
+emulate_sysenter(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct kvm_segment cs, ss;
+	u64 msr_data;
+
+	/* inject #UD if LOCK prefix is used */
+	if (c->lock_prefix)
+		return -1;
+
+	/* inject #GP if in real mode or paging is disabled */
+	if (ctxt->mode == X86EMUL_MODE_REAL ||
+		!(ctxt->vcpu->arch.cr0 & X86_CR0_PE)) {
+		kvm_inject_gp(ctxt->vcpu, 0);
+		return -1;
+	}
+
+	/* XXX sysenter/sysexit have not been tested in 64bit mode.
+	* Therefore, we inject an #UD.
+	*/
+	if (ctxt->mode == X86EMUL_MODE_PROT64)
+		return -1;
+
+	setup_syscalls_segments(ctxt, &cs, &ss);
+
+	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
+	switch (ctxt->mode) {
+	case X86EMUL_MODE_PROT32:
+		if ((msr_data & 0xfffc) == 0x0) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			return -1;
+		}
+		break;
+	case X86EMUL_MODE_PROT64:
+		if (msr_data == 0x0) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			return -1;
+		}
+		break;
+	}
+
+	ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
+	cs.selector = (u16)msr_data;
+	cs.selector &= ~SELECTOR_RPL_MASK;
+	ss.selector = cs.selector + 8;
+	ss.selector &= ~SELECTOR_RPL_MASK;
+	if (ctxt->mode == X86EMUL_MODE_PROT64
+		|| is_long_mode(ctxt->vcpu)) {
+		cs.db = 0;
+		cs.l = 1;
+	}
+
+	kvm_x86_ops->set_segment(ctxt->vcpu, &cs, VCPU_SREG_CS);
+	kvm_x86_ops->set_segment(ctxt->vcpu, &ss, VCPU_SREG_SS);
+
+	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_EIP, &msr_data);
+	c->eip = msr_data;
+
+	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_ESP, &msr_data);
+	c->regs[VCPU_REGS_RSP] = msr_data;
+
+	return 0;
+}
+
+static int
+emulate_sysexit(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct kvm_segment cs, ss;
+	u64 msr_data;
+	int usermode;
+
+	/* inject #UD if LOCK prefix is used */
+	if (c->lock_prefix)
+		return -1;
+
+	/* inject #GP if in real mode or paging is disabled */
+	if (ctxt->mode == X86EMUL_MODE_REAL
+		|| !(ctxt->vcpu->arch.cr0 & X86_CR0_PE)) {
+		kvm_inject_gp(ctxt->vcpu, 0);
+		return -1;
+	}
+
+	/* sysexit must be called from CPL 0 */
+	if (kvm_x86_ops->get_cpl(ctxt->vcpu) != 0) {
+		kvm_inject_gp(ctxt->vcpu, 0);
+		return -1;
+	}
+
+	setup_syscalls_segments(ctxt, &cs, &ss);
+
+	if ((c->rex_prefix & 0x8) != 0x0)
+		usermode = X86EMUL_MODE_PROT64;
+	else
+		usermode = X86EMUL_MODE_PROT32;
+
+	cs.dpl = 3;
+	ss.dpl = 3;
+	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
+	switch (usermode) {
+	case X86EMUL_MODE_PROT32:
+		cs.selector = (u16)(msr_data + 16);
+		if ((msr_data & 0xfffc) == 0x0) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			return -1;
+		}
+		ss.selector = (u16)(msr_data + 24);
+		break;
+	case X86EMUL_MODE_PROT64:
+		cs.selector = (u16)(msr_data + 32);
+		if (msr_data == 0x0) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			return -1;
+		}
+		ss.selector = cs.selector + 8;
+		cs.db = 0;
+		cs.l = 1;
+		break;
+	}
+	cs.selector |= SELECTOR_RPL_MASK;
+	ss.selector |= SELECTOR_RPL_MASK;
+
+	kvm_x86_ops->set_segment(ctxt->vcpu, &cs, VCPU_SREG_CS);
+	kvm_x86_ops->set_segment(ctxt->vcpu, &ss, VCPU_SREG_SS);
+
+	c->eip = ctxt->vcpu->arch.regs[VCPU_REGS_RDX];
+	c->regs[VCPU_REGS_RSP] = ctxt->vcpu->arch.regs[VCPU_REGS_RCX];
+
+	return 0;
 }
 
 int
@@ -1970,6 +2203,12 @@ twobyte_insn:
 			goto cannot_emulate;
 		}
 		break;
+	case 0x05: 		/* syscall */
+		if (emulate_syscall(ctxt) == -1)
+			goto cannot_emulate;
+		else
+			goto writeback;
+		break;
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
 		c->dst.type = OP_NONE;
@@ -2035,6 +2274,18 @@ twobyte_insn:
 		}
 		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;
+		break;
+	case 0x34:		/* sysenter */
+		if (emulate_sysenter(ctxt) == -1)
+			goto cannot_emulate;
+		else
+			goto writeback;
+		break;
+	case 0x35:		/* sysexit */
+		if (emulate_sysexit(ctxt) == -1)
+			goto cannot_emulate;
+		else
+			goto writeback;
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		c->dst.val = c->dst.orig_val = c->src.val;

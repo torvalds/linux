@@ -57,6 +57,7 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
+	KVM	Kernel Virtual Machine support is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
@@ -1097,6 +1098,44 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	kstack=N	[X86] Print N words from the kernel stack
 			in oops dumps.
+
+	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
+			Default is 0 (don't ignore, but inject #GP)
+
+	kvm.oos_shadow=	[KVM] Disable out-of-sync shadow paging.
+			Default is 1 (enabled)
+
+	kvm-amd.nested=	[KVM,AMD] Allow nested virtualization in KVM/SVM.
+			Default is 0 (off)
+
+	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
+			for all guests.
+			Default is 1 (enabled) if in 64bit or 32bit-PAE mode
+
+	kvm-intel.bypass_guest_pf=
+			[KVM,Intel] Disables bypassing of guest page faults
+			on Intel chips. Default is 1 (enabled)
+
+	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
+			(virtualized MMU) support on capable Intel chips.
+			Default is 1 (enabled)
+
+	kvm-intel.emulate_invalid_guest_state=
+			[KVM,Intel] Enable emulation of invalid guest states
+			Default is 0 (disabled)
+
+	kvm-intel.flexpriority=
+			[KVM,Intel] Disable FlexPriority feature (TPR shadow).
+			Default is 1 (enabled)
+
+	kvm-intel.unrestricted_guest=
+			[KVM,Intel] Disable unrestricted guest feature
+			(virtualized real and unpaged mode) on capable
+			Intel chips. Default is 1 (enabled)
+
+	kvm-intel.vpid=	[KVM,Intel] Disable Virtual Processor Identification
+			feature (tagged TLBs) on capable Intel chips.
+			Default is 1 (enabled)
 
 	l2cr=		[PPC]
 

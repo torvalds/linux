@@ -15,6 +15,7 @@
 
 #define	APIC_LVR	0x30
 #define		APIC_LVR_MASK		0xFF00FF
+#define		APIC_LVR_DIRECTED_EOI	(1 << 24)
 #define		GET_APIC_VERSION(x)	((x) & 0xFFu)
 #define		GET_APIC_MAXLVT(x)	(((x) >> 16) & 0xFFu)
 #ifdef CONFIG_X86_32
@@ -41,6 +42,7 @@
 #define		APIC_DFR_CLUSTER		0x0FFFFFFFul
 #define		APIC_DFR_FLAT			0xFFFFFFFFul
 #define	APIC_SPIV	0xF0
+#define		APIC_SPIV_DIRECTED_EOI		(1 << 12)
 #define		APIC_SPIV_FOCUS_DISABLED	(1 << 9)
 #define		APIC_SPIV_APIC_ENABLED		(1 << 8)
 #define	APIC_ISR	0x100
