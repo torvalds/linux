@@ -772,8 +772,9 @@ static struct bdi_work *get_next_work_item(struct backing_dev_info *bdi,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(work, &bdi->work_list, list) {
-		if (!test_and_clear_bit(wb->nr, &work->seen))
+		if (!test_bit(wb->nr, &work->seen))
 			continue;
+		clear_bit(wb->nr, &work->seen);
 
 		ret = work;
 		break;
