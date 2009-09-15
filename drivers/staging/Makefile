@@ -6,6 +6,7 @@ obj-$(CONFIG_STAGING)		+= staging.o
 obj-$(CONFIG_ET131X)		+= et131x/
 obj-$(CONFIG_SLICOSS)		+= slicoss/
 obj-$(CONFIG_VIDEO_GO7007)	+= go7007/
+obj-$(CONFIG_VIDEO_CX25821)	+= cx25821/
 obj-$(CONFIG_USB_IP_COMMON)	+= usbip/
 obj-$(CONFIG_W35UND)		+= winbond/
 obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
