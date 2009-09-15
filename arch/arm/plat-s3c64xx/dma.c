@@ -697,7 +697,7 @@ static int __init s3c64xx_dma_init(void)
 
 	printk(KERN_INFO "%s: Registering DMA channels\n", __func__);
 
-	dma_pool = dma_pool_create("DMA-LLI", NULL, 32, 16, 0);
+	dma_pool = dma_pool_create("DMA-LLI", NULL, sizeof(struct pl080s_lli), 16, 0);
 	if (!dma_pool) {
 		printk(KERN_ERR "%s: failed to create pool\n", __func__);
 		return -ENOMEM;
