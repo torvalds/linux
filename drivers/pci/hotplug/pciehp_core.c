@@ -121,11 +121,11 @@ static int init_slot(struct controller *ctrl)
 	hotplug->release = &release_slot;
 	hotplug->ops = &pciehp_hotplug_slot_ops;
 	slot->hotplug_slot = hotplug;
-	snprintf(name, SLOT_NAME_SIZE, "%u", slot->number);
+	snprintf(name, SLOT_NAME_SIZE, "%u", PSN(ctrl));
 
 	ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:00 sun=%x\n",
 		 pci_domain_nr(ctrl->pcie->port->subordinate),
-		 ctrl->pcie->port->subordinate->number, slot->number);
+		 ctrl->pcie->port->subordinate->number, PSN(ctrl));
 	retval = pci_hp_register(hotplug,
 				 ctrl->pcie->port->subordinate, 0, name);
 	if (retval) {

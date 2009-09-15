@@ -73,7 +73,6 @@ do {									\
 #define SLOT_NAME_SIZE 10
 struct slot {
 	u8 state;
-	u32 number;
 	struct controller *ctrl;
 	struct hotplug_slot *hotplug_slot;
 	struct delayed_work work;	/* work for button event */

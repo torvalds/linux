@@ -901,7 +901,6 @@ static int pcie_init_slot(struct controller *ctrl)
 		return -ENOMEM;
 
 	slot->ctrl = ctrl;
-	slot->number = PSN(ctrl);
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
