@@ -202,6 +202,8 @@ struct ar9170 {
 	u8 power_2G_ht20[8];
 	u8 power_2G_ht40[8];
 
+	u8 phy_heavy_clip;
+
 #ifdef CONFIG_AR9170_LEDS
 	struct delayed_work led_work;
 	struct ar9170_led leds[AR9170_NUM_LEDS];

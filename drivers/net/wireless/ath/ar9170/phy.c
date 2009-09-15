@@ -1278,8 +1278,38 @@ static u8 ar9170_get_max_edge_power(struct ar9170 *ar,
 	return rc;
 }
 
-/* calculate the conformance test limits and apply them to ar->power*
- * (derived from otus hal/hpmain.c, line 3706 ff.)
+static u8 ar9170_get_heavy_clip(struct ar9170 *ar,
+				struct ar9170_calctl_edges edges[],
+				u32 freq, enum ar9170_bw bw)
+{
+	u8 f;
+	int i;
+	u8 rc = 0;
+
+	if (freq < 3000)
+		f = freq - 2300;
+	else
+		f = (freq - 4800) / 5;
+
+	if (bw == AR9170_BW_40_BELOW || bw == AR9170_BW_40_ABOVE)
+		rc |= 0xf0;
+
+	for (i = 0; i < AR5416_NUM_BAND_EDGES; i++) {
+		if (edges[i].channel == 0xff)
+			break;
+		if (f == edges[i].channel) {
+			if (!(edges[i].power_flags & AR9170_CALCTL_EDGE_FLAGS))
+				rc |= 0x0f;
+			break;
+		}
+	}
+
+	return rc;
+}
+
+/*
+ * calculate the conformance test limits and the heavy clip parameter
+ * and apply them to ar->power* (derived from otus hal/hpmain.c, line 3706)
  */
 static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 {
@@ -1311,6 +1341,8 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 	int nr_modes;
 
 #define EDGES(c, n) (ar->eeprom.ctl_data[c].control_edges[n])
+
+	ar->phy_heavy_clip = 0;
 
 	/*
 	 * TODO: investigate the differences between OTUS'
@@ -1346,6 +1378,15 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 				break;
 		if (ctl_idx < AR5416_NUM_CTLS) {
 			int f_off = 0;
+
+			/* determine heav clip parameter from
+			   the 11G edges array */
+			if (modes[i].ctl_mode == CTL_11G) {
+				ar->phy_heavy_clip =
+					ar9170_get_heavy_clip(ar,
+							      EDGES(ctl_idx, 1),
+							      freq, bw);
+			}
 
 			/* adjust freq for 40MHz */
 			if (modes[i].ctl_mode == CTL_2GHT40 ||
@@ -1392,6 +1433,19 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 						       modes[i].max_power);
 		}
 	}
+
+	if (ar->phy_heavy_clip & 0xf0) {
+		ar->power_2G_ht40[0]--;
+		ar->power_2G_ht40[1]--;
+		ar->power_2G_ht40[2]--;
+	}
+	if (ar->phy_heavy_clip & 0xf) {
+		ar->power_2G_ht20[0]++;
+		ar->power_2G_ht20[1]++;
+		ar->power_2G_ht20[2]++;
+	}
+
+
 #undef EDGES
 }
 
@@ -1500,8 +1554,6 @@ static int ar9170_set_power_cal(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 
 	/* calc. conformance test limits and apply to ar->power*[] */
 	ar9170_calc_ctl(ar, freq, bw);
-
-	/* TODO: (heavy clip) regulatory domain power level fine-tuning. */
 
 	/* set ACK/CTS TX power */
 	ar9170_regwrite_begin(ar);
@@ -1644,6 +1696,17 @@ int ar9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			   sizeof(vals), (u8 *)vals);
 	if (err)
 		return err;
+
+	if (ar->phy_heavy_clip) {
+		err = ar9170_write_reg(ar, 0x1c59e0,
+				       0x200 | ar->phy_heavy_clip);
+		if (err) {
+			if (ar9170_nag_limiter(ar))
+				printk(KERN_ERR "%s: failed to set "
+				       "heavy clip\n",
+				       wiphy_name(ar->hw->wiphy));
+		}
+	}
 
 	for (i = 0; i < 2; i++) {
 		ar->noise[i] = ar9170_calc_noise_dbm(
