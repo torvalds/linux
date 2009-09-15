@@ -1432,7 +1432,7 @@ static __init void event_trace_self_tests(void)
 
 #ifdef CONFIG_FUNCTION_TRACER
 
-static DEFINE_PER_CPU(atomic_t, test_event_disable);
+static DEFINE_PER_CPU(atomic_t, ftrace_test_event_disable);
 
 static void
 function_test_events_call(unsigned long ip, unsigned long parent_ip)
@@ -1449,7 +1449,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 	pc = preempt_count();
 	resched = ftrace_preempt_disable();
 	cpu = raw_smp_processor_id();
-	disabled = atomic_inc_return(&per_cpu(test_event_disable, cpu));
+	disabled = atomic_inc_return(&per_cpu(ftrace_test_event_disable, cpu));
 
 	if (disabled != 1)
 		goto out;
@@ -1468,7 +1468,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 	trace_nowake_buffer_unlock_commit(buffer, event, flags, pc);
 
  out:
-	atomic_dec(&per_cpu(test_event_disable, cpu));
+	atomic_dec(&per_cpu(ftrace_test_event_disable, cpu));
 	ftrace_preempt_enable(resched);
 }
 

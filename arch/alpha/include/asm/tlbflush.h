@@ -2,6 +2,7 @@
 #define _ALPHA_TLBFLUSH_H
 
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <asm/compiler.h>
 #include <asm/pgalloc.h>
 

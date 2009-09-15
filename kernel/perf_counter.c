@@ -106,16 +106,16 @@ hw_perf_group_sched_in(struct perf_counter *group_leader,
 
 void __weak perf_counter_print_debug(void)	{ }
 
-static DEFINE_PER_CPU(int, disable_count);
+static DEFINE_PER_CPU(int, perf_disable_count);
 
 void __perf_disable(void)
 {
-	__get_cpu_var(disable_count)++;
+	__get_cpu_var(perf_disable_count)++;
 }
 
 bool __perf_enable(void)
 {
-	return !--__get_cpu_var(disable_count);
+	return !--__get_cpu_var(perf_disable_count);
 }
 
 void perf_disable(void)

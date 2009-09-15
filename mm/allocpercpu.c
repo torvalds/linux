@@ -5,6 +5,8 @@
  */
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/bootmem.h>
+#include <asm/sections.h>
 
 #ifndef cache_line_size
 #define cache_line_size()	L1_CACHE_BYTES
@@ -147,3 +149,29 @@ void free_percpu(void *__pdata)
 	kfree(__percpu_disguise(__pdata));
 }
 EXPORT_SYMBOL_GPL(free_percpu);
+
+/*
+ * Generic percpu area setup.
+ */
+#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+
+EXPORT_SYMBOL(__per_cpu_offset);
+
+void __init setup_per_cpu_areas(void)
+{
+	unsigned long size, i;
+	char *ptr;
+	unsigned long nr_possible_cpus = num_possible_cpus();
+
+	/* Copy section for each CPU (we discard the original) */
+	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
+	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
+
+	for_each_possible_cpu(i) {
+		__per_cpu_offset[i] = ptr - __per_cpu_start;
+		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+		ptr += size;
+	}
+}
+#endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
