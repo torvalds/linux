@@ -771,3 +771,8 @@ config CACHE_XSC3L2
 	select OUTER_CACHE
 	help
 	  This option enables the L2 cache on XScale3.
+
+config ARM_L1_CACHE_SHIFT
+	int
+	default 6 if ARCH_OMAP3
+	default 5
