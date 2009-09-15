@@ -170,6 +170,19 @@ static struct em28xx_reg_seq pinnacle_hybrid_pro_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+/* eb1a:2868 Reddo DVB-C USB TV Box
+   GPIO4 - CU1216L NIM
+   Other GPIOs seems to be don't care. */
+static struct em28xx_reg_seq reddo_dvb_c_usb_box[] = {
+	{EM28XX_R08_GPIO,	0xfe,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xde,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xfe,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x7f,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x6f,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{-1,			-1,	-1,		-1},
+};
 
 /* Callback for the most boards */
 static struct em28xx_reg_seq default_tuner_gpio[] = {
@@ -1566,6 +1579,14 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = evga_indtube_analog,
 		} },
 	},
+	/* eb1a:2868 Empia EM2870 + Philips CU1216L NIM (Philips TDA10023 +
+	   Infineon TUA6034) */
+	[EM2870_BOARD_REDDO_DVB_C_USB_BOX] = {
+		.name          = "Reddo DVB-C USB TV Box",
+		.tuner_type    = TUNER_ABSENT,
+		.has_dvb       = 1,
+		.dvb_gpio      = reddo_dvb_c_usb_box,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1592,6 +1613,8 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0xeb1a, 0x2881),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2883),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2868),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0xe300),
 			.driver_info = EM2861_BOARD_KWORLD_PVRTV_300U },
@@ -1696,6 +1719,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0x166a0441, EM2880_BOARD_EMPIRE_DUAL_TV, TUNER_XC2028},
 	{0xcee44a99, EM2882_BOARD_EVGA_INDTUBE, TUNER_XC2028},
 	{0xb8846b20, EM2881_BOARD_PINNACLE_HYBRID_PRO, TUNER_XC2028},
+	{0x63f653bd, EM2870_BOARD_REDDO_DVB_C_USB_BOX, TUNER_ABSENT},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
