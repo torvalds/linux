@@ -481,15 +481,8 @@ int r600_blit_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_object_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-			     &rdev->r600_blit.shader_gpu_addr);
-	if (r) {
-		DRM_ERROR("failed to pin blit object %d\n", r);
-		return r;
-	}
-
-	DRM_DEBUG("r6xx blit allocated bo @ 0x%16llx %08x vs %08x ps %08x\n",
-		  rdev->r600_blit.shader_gpu_addr, obj_size,
+	DRM_DEBUG("r6xx blit allocated bo %08x vs %08x ps %08x\n",
+		  obj_size,
 		  rdev->r600_blit.vs_offset, rdev->r600_blit.ps_offset);
 
 	r = radeon_object_kmap(rdev->r600_blit.shader_obj, &ptr);

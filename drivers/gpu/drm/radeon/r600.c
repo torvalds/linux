@@ -141,8 +141,7 @@ int r600_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
-	for (i = 0; i < rdev->gart.num_gpu_pages; i++)
-		r600_gart_clear_page(rdev, i);
+
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
 				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
@@ -1477,6 +1476,14 @@ int r600_resume(struct radeon_device *rdev)
 	if (r)
 		return r;
 	r600_gpu_init(rdev);
+
+	r = radeon_object_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+			      &rdev->r600_blit.shader_gpu_addr);
+	if (r) {
+		DRM_ERROR("failed to pin blit object %d\n", r);
+		return r;
+	}
+
 	r = radeon_ring_init(rdev, rdev->cp.ring_size);
 	if (r)
 		return r;
@@ -1496,7 +1503,11 @@ int r600_suspend(struct radeon_device *rdev)
 {
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
+	rdev->cp.ready = false;
+
 	r600_pcie_gart_disable(rdev);
+	/* unpin shaders bo */
+	radeon_object_unpin(rdev->r600_blit.shader_obj);
 	return 0;
 }
 
@@ -1579,6 +1590,12 @@ int r600_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->accel_working = true;
+	r = r600_blit_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: failled blitter (%d).\n", r);
+		return r;
+	}
+
 	r = r600_resume(rdev);
 	if (r) {
 		if (rdev->flags & RADEON_IS_AGP) {
@@ -1593,11 +1610,6 @@ int r600_init(struct radeon_device *rdev)
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
 			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
-			rdev->accel_working = false;
-		}
-		r = r600_blit_init(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failled blitter (%d).\n", r);
 			rdev->accel_working = false;
 		}
 		r = radeon_ib_test(rdev);
