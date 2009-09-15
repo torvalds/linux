@@ -49,6 +49,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
 
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	def_bool PPC64
+
 config IRQ_PER_CPU
 	bool
 	default y

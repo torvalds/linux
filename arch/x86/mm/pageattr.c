@@ -12,6 +12,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/pfn.h>
+#include <linux/percpu.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -686,7 +687,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 {
 	struct cpa_data alias_cpa;
 	unsigned long laddr = (unsigned long)__va(cpa->pfn << PAGE_SHIFT);
-	unsigned long vaddr, remapped;
+	unsigned long vaddr;
 	int ret;
 
 	if (cpa->pfn >= max_pfn_mapped)
@@ -743,24 +744,6 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		__change_page_attr_set_clr(&alias_cpa, 0);
 	}
 #endif
-
-	/*
-	 * If the PMD page was partially used for per-cpu remapping,
-	 * the recycled area needs to be split and modified.  Because
-	 * the area is always proper subset of a PMD page
-	 * cpa->numpages is guaranteed to be 1 for these areas, so
-	 * there's no need to loop over and check for further remaps.
-	 */
-	remapped = (unsigned long)pcpu_lpage_remapped((void *)laddr);
-	if (remapped) {
-		WARN_ON(cpa->numpages > 1);
-		alias_cpa = *cpa;
-		alias_cpa.vaddr = &remapped;
-		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
-		ret = __change_page_attr_set_clr(&alias_cpa, 0);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
