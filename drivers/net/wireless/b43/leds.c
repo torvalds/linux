@@ -325,6 +325,14 @@ void b43_leds_exit(struct b43_wldev *dev)
 	b43_led_turn_off(dev, leds->led_radio.index, leds->led_radio.activelow);
 }
 
+void b43_leds_stop(struct b43_wldev *dev)
+{
+	struct b43_leds *leds = &dev->wl->leds;
+
+	leds->stop = 1;
+	cancel_work_sync(&leds->work);
+}
+
 void b43_leds_register(struct b43_wldev *dev)
 {
 	unsigned int i;

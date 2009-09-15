@@ -4987,8 +4987,7 @@ static void b43_remove(struct ssb_device *dev)
 		 * might have modified it. Restoring is important, so the networking
 		 * stack can properly free resources. */
 		wl->hw->queues = wl->mac80211_initially_registered_queues;
-		wl->leds.stop = 1;
-		cancel_work_sync(&wl->leds.work);
+		b43_leds_stop(wldev);
 		ieee80211_unregister_hw(wl->hw);
 	}
 
