@@ -292,6 +292,7 @@ static const char *nien_quirk_list[] = {
 	"QUANTUM FIREBALLP KX27.3",
 	"QUANTUM FIREBALLP LM20.4",
 	"QUANTUM FIREBALLP LM20.5",
+	"FUJITSU MHZ2160BH G2",
 	NULL
 };
 
